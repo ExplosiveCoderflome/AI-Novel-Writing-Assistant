@@ -91,7 +91,7 @@ export default function TakeoverDiagnosisPanel({
               variant="outline"
               className={AUTO_DIRECTOR_MOBILE_CLASSES.fullWidthAction}
               onClick={onEnterCurrentTask}
-            >{t("gen.pages.novels.components.takeover.TakeoverDiagnosisPanel.gen_50f2047b", "进入当前任务")}</Button>
+            >{i18next.t("gen.pages.novels.components.takeover.TakeoverDiagnosisPanel.gen_50f2047b", "进入当前任务")}</Button>
           ) : (
             <>
               {!isAdvancedOpen && chapterTarget ? (
@@ -111,7 +111,7 @@ export default function TakeoverDiagnosisPanel({
               </Button>
             </>
           )}
-          <div className={`text-xs leading-5 text-muted-foreground ${AUTO_DIRECTOR_MOBILE_CLASSES.wrapText}`}>{t("gen.pages.novels.components.takeover.TakeoverDiagnosisPanel.gen_b8193640", "默认保留已有资产，仅在高级设置选择重跑时才会重建对应步骤。")}</div>
+          <div className={`text-xs leading-5 text-muted-foreground ${AUTO_DIRECTOR_MOBILE_CLASSES.wrapText}`}>{i18next.t("gen.pages.novels.components.takeover.TakeoverDiagnosisPanel.gen_b8193640", "默认保留已有资产，仅在高级设置选择重跑时才会重建对应步骤。")}</div>
         </div>
       </div>
     </div>

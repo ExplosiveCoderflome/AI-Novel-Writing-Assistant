@@ -283,7 +283,7 @@ export default function LLMSelector({
           </SelectTrigger>
           <SelectContent>
             {!hasRunnableProviders ? (
-              <SelectItem value={NO_PROVIDER_VALUE} disabled>{t("gen.components.common.LLMSelector.gen_0597dad8", "请先配置可用厂商")}</SelectItem>
+              <SelectItem value={NO_PROVIDER_VALUE} disabled>{i18next.t("gen.components.common.LLMSelector.gen_0597dad8", "请先配置可用厂商")}</SelectItem>
             ) : null}
             {providerOptions.map((provider) => (
               <SelectItem key={provider} value={provider}>
@@ -309,7 +309,7 @@ export default function LLMSelector({
       </div>
 
       {showHelperText && !hasRunnableProviders && !apiKeySettingsQuery.isLoading ? (
-        <div className="text-xs text-muted-foreground">{t("gen.components.common.LLMSelector.gen_79444613", "当前没有已配置且启用的模型厂商，请先到系统设置里完成 API Key 和模型配置。")}</div>
+        <div className="text-xs text-muted-foreground">{i18next.t("gen.components.common.LLMSelector.gen_79444613", "当前没有已配置且启用的模型厂商，请先到系统设置里完成 API Key 和模型配置。")}</div>
       ) : null}
 
       {showParameters ? (

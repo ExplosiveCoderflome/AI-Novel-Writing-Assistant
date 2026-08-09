@@ -67,9 +67,9 @@ export default function GenreTreeItem({
 
             <div className="flex shrink-0 flex-wrap gap-1 border-t border-border/60 pt-2 lg:justify-end lg:border-t-0 lg:pt-0">
               <Button type="button" variant="ghost" size="sm" onClick={() => onCreateChild(node.id)}>
-                <Plus className="h-4 w-4" aria-hidden="true" />{t("gen.pages.genres.components.GenreTreeItem.gen_82537dc1", "新增子类")}</Button>
+                <Plus className="h-4 w-4" aria-hidden="true" />{i18next.t("gen.pages.genres.components.GenreTreeItem.gen_82537dc1", "新增子类")}</Button>
               <Button type="button" variant="ghost" size="sm" onClick={() => onEdit(node.id)}>
-                <Pencil className="h-4 w-4" aria-hidden="true" />{t("gen.pages.genres.components.GenreTreeItem.gen_95b351c8", "编辑")}</Button>
+                <Pencil className="h-4 w-4" aria-hidden="true" />{i18next.t("gen.pages.genres.components.GenreTreeItem.gen_95b351c8", "编辑")}</Button>
               <Button
                 type="button"
                 variant="ghost"

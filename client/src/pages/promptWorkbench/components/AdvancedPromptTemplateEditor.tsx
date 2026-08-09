@@ -55,7 +55,7 @@ function VersionRow(props: {
         ) : null}
       </div>
       <div className="flex flex-wrap gap-2">
-        <Button type="button" variant="outline" size="sm" onClick={() => props.onLoad(props.version)}>{t("gen.pages.promptWorkbench.components.AdvancedPromptTemplateEditor.gen_607e7a4f", "查看")}</Button>
+        <Button type="button" variant="outline" size="sm" onClick={() => props.onLoad(props.version)}>{i18next.t("gen.pages.promptWorkbench.components.AdvancedPromptTemplateEditor.gen_607e7a4f", "查看")}</Button>
         <Button
           type="button"
           variant="outline"
@@ -63,7 +63,7 @@ function VersionRow(props: {
           onClick={() => props.onActivate(props.version.id)}
           disabled={props.disabled || active}
           className="border-[#b8d9d0] text-[#0f5f59]"
-        >{t("gen.pages.promptWorkbench.components.AdvancedPromptTemplateEditor.gen_d00b485b", "回滚")}</Button>
+        >{i18next.t("gen.pages.promptWorkbench.components.AdvancedPromptTemplateEditor.gen_d00b485b", "回滚")}</Button>
       </div>
     </div>
   );
@@ -106,7 +106,7 @@ export function AdvancedPromptTemplateEditor(props: {
 
   if (!templateState.enabled) {
     return (
-      <div className="rounded-md border border-dashed border-[#cbdad6] bg-white/75 p-5 text-sm text-muted-foreground">{t("gen.pages.promptWorkbench.components.AdvancedPromptTemplateEditor.gen_128bc06e", "选择正文写作提示词、本书范围和具体小说后可编辑高级模板。")}</div>
+      <div className="rounded-md border border-dashed border-[#cbdad6] bg-white/75 p-5 text-sm text-muted-foreground">{i18next.t("gen.pages.promptWorkbench.components.AdvancedPromptTemplateEditor.gen_128bc06e", "选择正文写作提示词、本书范围和具体小说后可编辑高级模板。")}</div>
     );
   }
 
@@ -131,7 +131,7 @@ export function AdvancedPromptTemplateEditor(props: {
                 {view?.basePromptVersion ?? "v5"}
               </span>
             </div>
-            <p className="mt-2 text-sm text-muted-foreground">{t("gen.pages.promptWorkbench.components.AdvancedPromptTemplateEditor.gen_25559968", "高级模板会影响本书正文生成；必需上下文缺失时生成会停止。")}</p>
+            <p className="mt-2 text-sm text-muted-foreground">{i18next.t("gen.pages.promptWorkbench.components.AdvancedPromptTemplateEditor.gen_25559968", "高级模板会影响本书正文生成；必需上下文缺失时生成会停止。")}</p>
           </div>
           <div className="flex flex-wrap gap-2">
             <Button
@@ -141,14 +141,14 @@ export function AdvancedPromptTemplateEditor(props: {
               disabled={disabled || isBusy || view?.mode !== "custom"}
               className="border-[#b8d9d0] text-[#0f5f59]"
             >
-              <ShieldCheck className="mr-2 h-4 w-4" />{t("gen.pages.promptWorkbench.components.AdvancedPromptTemplateEditor.gen_36018f02", "恢复官方模板")}</Button>
+              <ShieldCheck className="mr-2 h-4 w-4" />{i18next.t("gen.pages.promptWorkbench.components.AdvancedPromptTemplateEditor.gen_36018f02", "恢复官方模板")}</Button>
             <Button
               type="button"
               onClick={() => templateState.saveMutation.mutate()}
               disabled={disabled || isBusy || !templateState.isDirty}
               className="bg-[#0f766e] text-white hover:bg-[#0b5f59]"
             >
-              <Save className="mr-2 h-4 w-4" />{t("gen.pages.promptWorkbench.components.AdvancedPromptTemplateEditor.gen_fd528847", "保存为新版本")}</Button>
+              <Save className="mr-2 h-4 w-4" />{i18next.t("gen.pages.promptWorkbench.components.AdvancedPromptTemplateEditor.gen_fd528847", "保存为新版本")}</Button>
           </div>
         </div>
       </div>
@@ -190,7 +190,7 @@ export function AdvancedPromptTemplateEditor(props: {
       />
 
       <div className="rounded-md border border-[#d7e4e0] bg-white p-4">
-        <label className="text-sm font-semibold text-[#25443f]" htmlFor="prompt-template-notes">{t("gen.pages.promptWorkbench.components.AdvancedPromptTemplateEditor.gen_092d2f88", "版本说明")}</label>
+        <label className="text-sm font-semibold text-[#25443f]" htmlFor="prompt-template-notes">{i18next.t("gen.pages.promptWorkbench.components.AdvancedPromptTemplateEditor.gen_092d2f88", "版本说明")}</label>
         <Input
           id="prompt-template-notes"
           value={templateState.notes}
@@ -204,7 +204,7 @@ export function AdvancedPromptTemplateEditor(props: {
       {templateDiagnostics ? (
         <div className="rounded-md border border-[#c8d8f0] bg-[#f5f8ff] p-4">
           <div className="mb-2 flex items-center gap-2 text-sm font-semibold text-[#344d7a]">
-            <GitBranch className="h-4 w-4" />{t("gen.pages.promptWorkbench.components.AdvancedPromptTemplateEditor.gen_53632c4c", "预览注入结果")}</div>
+            <GitBranch className="h-4 w-4" />{i18next.t("gen.pages.promptWorkbench.components.AdvancedPromptTemplateEditor.gen_53632c4c", "预览注入结果")}</div>
           <div className="grid gap-2 text-sm text-[#52606d] md:grid-cols-2">
             <div>{i18next.t("gen.pages.promptWorkbench.components.AdvancedPromptTemplateEditor.gen_ee92a103")}</div>
             <div>{i18next.t("gen.pages.promptWorkbench.components.AdvancedPromptTemplateEditor.gen_d181d9be")}</div>
@@ -222,7 +222,7 @@ export function AdvancedPromptTemplateEditor(props: {
 
       {previewMessages.length > 0 ? (
         <div className="rounded-md border border-[#d7e4e0] bg-white">
-          <div className="border-b border-[#e1ebe8] px-4 py-3 text-sm font-semibold text-[#25443f]">{t("gen.pages.promptWorkbench.components.AdvancedPromptTemplateEditor.gen_08634b9c", "最终 Messages")}</div>
+          <div className="border-b border-[#e1ebe8] px-4 py-3 text-sm font-semibold text-[#25443f]">{i18next.t("gen.pages.promptWorkbench.components.AdvancedPromptTemplateEditor.gen_08634b9c", "最终 Messages")}</div>
           <div className="space-y-3 p-4">
             {previewMessages.map((message, index) => (
               <div key={`${message.role}:${index}`} className="rounded-md bg-[#f7faf9] p-3">
@@ -238,7 +238,7 @@ export function AdvancedPromptTemplateEditor(props: {
 
       <div className="rounded-md border border-[#d7e4e0] bg-[#fbfdfb] p-4">
         <div className="mb-3 flex items-center gap-2 text-sm font-semibold text-[#25443f]">
-          <History className="h-4 w-4" />{t("gen.pages.promptWorkbench.components.AdvancedPromptTemplateEditor.gen_6fdd8590", "版本历史")}</div>
+          <History className="h-4 w-4" />{i18next.t("gen.pages.promptWorkbench.components.AdvancedPromptTemplateEditor.gen_6fdd8590", "版本历史")}</div>
         {view?.versions.length ? (
           <div className="space-y-2">
             {view.versions.map((version) => (
@@ -253,7 +253,7 @@ export function AdvancedPromptTemplateEditor(props: {
             ))}
           </div>
         ) : (
-          <div className="rounded-md border border-dashed border-[#cbdad6] bg-white/75 p-4 text-sm text-muted-foreground">{t("gen.pages.promptWorkbench.components.AdvancedPromptTemplateEditor.gen_82a1d1f2", "保存自定义模板后会生成版本历史。")}</div>
+          <div className="rounded-md border border-dashed border-[#cbdad6] bg-white/75 p-4 text-sm text-muted-foreground">{i18next.t("gen.pages.promptWorkbench.components.AdvancedPromptTemplateEditor.gen_82a1d1f2", "保存自定义模板后会生成版本历史。")}</div>
         )}
       </div>
 
@@ -265,7 +265,7 @@ export function AdvancedPromptTemplateEditor(props: {
           disabled={!templateState.isDirty || isBusy}
           className="text-[#52606d] hover:bg-[#eef4ff] hover:text-[#344d7a]"
         >
-          <RotateCcw className="mr-2 h-4 w-4" />{t("gen.pages.promptWorkbench.components.AdvancedPromptTemplateEditor.gen_05d11a5b", "放弃未保存修改")}</Button>
+          <RotateCcw className="mr-2 h-4 w-4" />{i18next.t("gen.pages.promptWorkbench.components.AdvancedPromptTemplateEditor.gen_05d11a5b", "放弃未保存修改")}</Button>
       </div>
     </div>
   );

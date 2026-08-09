@@ -19,18 +19,18 @@ export function NovelListPagination(props: {
         variant="outline"
         disabled={props.page <= 1 || props.isFetching}
         onClick={() => props.onPageChange(Math.max(1, props.page - 1))}
-      >{t("gen.pages.novels.components.list.NovelListPagination.gen_f4f85316", "上一页")}</Button>
+      >{i18next.t("gen.pages.novels.components.list.NovelListPagination.gen_f4f85316", "上一页")}</Button>
       <div
         className="flex h-9 min-w-28 items-center justify-center px-3 text-sm text-muted-foreground"
         aria-live="polite"
-      >{t("gen.pages.novels.components.list.NovelListPagination.gen_ac007746", "第")}<span className="mx-1 font-medium tabular-nums text-foreground">{props.page}</span> /{" "}
-        <span className="mx-1 font-medium tabular-nums text-foreground">{props.totalPages}</span>{t("gen.pages.novels.components.list.NovelListPagination.gen_5fccd018", "页")}</div>
+      >{i18next.t("gen.pages.novels.components.list.NovelListPagination.gen_ac007746", "第")}<span className="mx-1 font-medium tabular-nums text-foreground">{props.page}</span> /{" "}
+        <span className="mx-1 font-medium tabular-nums text-foreground">{props.totalPages}</span>{i18next.t("gen.pages.novels.components.list.NovelListPagination.gen_5fccd018", "页")}</div>
       <Button
         type="button"
         variant="outline"
         disabled={props.page >= props.totalPages || props.isFetching}
         onClick={() => props.onPageChange(Math.min(props.totalPages, props.page + 1))}
-      >{t("gen.pages.novels.components.list.NovelListPagination.gen_b4e1b508", "下一页")}</Button>
+      >{i18next.t("gen.pages.novels.components.list.NovelListPagination.gen_b4e1b508", "下一页")}</Button>
     </nav>
   );
 }

@@ -1,3 +1,4 @@
+import i18next from "i18next";
 import { VisualAssetLibraryDialog } from "./VisualAssetLibraryDialog";
 import type { VisualAssetPickerDialogProps } from "./visualAssetLibrary.types";
 

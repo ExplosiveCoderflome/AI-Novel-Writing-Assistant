@@ -101,7 +101,7 @@ export default function GenreTreeEditor({
                   size="sm"
                   className="text-destructive hover:text-destructive"
                   onClick={() => removeChild(index)}
-                >{t("gen.pages.genres.components.GenreTreeEditor.gen_426cd14e", "删除当前节点")}</Button>
+                >{i18next.t("gen.pages.genres.components.GenreTreeEditor.gen_426cd14e", "删除当前节点")}</Button>
               </div>
               <GenreTreeEditor
                 value={child}

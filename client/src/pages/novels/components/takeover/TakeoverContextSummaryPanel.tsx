@@ -19,7 +19,7 @@ export default function TakeoverContextSummaryPanel({ lines }: TakeoverContextSu
             {line}
           </Badge>
         )) : (
-          <span className={`text-sm text-muted-foreground ${AUTO_DIRECTOR_MOBILE_CLASSES.wrapText}`}>{t("gen.pages.novels.components.takeover.TakeoverContextSummaryPanel.gen_751d992f", "当前信息较少，建议至少补一句故事概述或书级卖点后再接管。")}</span>
+          <span className={`text-sm text-muted-foreground ${AUTO_DIRECTOR_MOBILE_CLASSES.wrapText}`}>{i18next.t("gen.pages.novels.components.takeover.TakeoverContextSummaryPanel.gen_751d992f", "当前信息较少，建议至少补一句故事概述或书级卖点后再接管。")}</span>
         )}
       </div>
     </div>

@@ -189,7 +189,7 @@ export default function AiRevisionWorkspace(props: AiRevisionWorkspaceProps) {
               onMouseDown={(event) => event.preventDefault()}
               onClick={() => onOptimizeSelection(selectedText)}
               disabled={isOptimizing || instruction.trim().length === 0 || selectedText.length === 0}
-            >{t("gen.components.common.AiRevisionWorkspace.gen_2ba69422", "仅优化选中内容")}</Button>
+            >{i18next.t("gen.components.common.AiRevisionWorkspace.gen_2ba69422", "仅优化选中内容")}</Button>
           </div>
           {preview.trim() ? (
             <div className="space-y-2">

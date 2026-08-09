@@ -16,7 +16,7 @@ const metricIcons: Record<HomeTone, typeof Activity> = {
 export function HomeStatusStrip(props: { metrics: HomeMetric[]; pending?: boolean }) {
   const { t } = useTranslation();
   return (
-    <section className="home-status-summary-grid grid gap-5 border-y border-border/80 py-4 sm:grid-cols-2 xl:grid-cols-4" aria-label={t("gen.pages.home.components.HomeStatusStrip.gen_a493e1cf", "创作状态摘要")}>
+    <section className="home-status-summary-grid grid gap-5 border-y border-border/80 py-4 sm:grid-cols-2 xl:grid-cols-4" aria-label={i18next.t("gen.pages.home.components.HomeStatusStrip.gen_a493e1cf", "创作状态摘要")}>
       {props.metrics.map((metric, index) => {
         const Icon = metricIcons[metric.tone];
         return (

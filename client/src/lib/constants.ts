@@ -1,3 +1,4 @@
+import i18next from "i18next";
 const LOOPBACK_HOSTS = new Set(["localhost", "127.0.0.1", "::1"]);
 type AppRuntimeMode = "web" | "desktop";
 type ViteRuntimeEnv = Partial<ImportMetaEnv> & {

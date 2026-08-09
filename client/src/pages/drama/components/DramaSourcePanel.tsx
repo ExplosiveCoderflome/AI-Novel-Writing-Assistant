@@ -184,7 +184,7 @@ export function DramaSourcePanel({ project }: { project: DramaProjectDetail }) {
 
   if (!bundle) {
     return (
-      <div className="rounded-md border border-dashed p-6 text-sm text-muted-foreground">{t("gen.pages.drama.components.DramaSourcePanel.gen_31950d90", "还没有整理来源素材。先点击“整理素材”，系统会把小说、灵感或导入文本整理成短剧可用的梗概、节拍、角色和硬事实。")}</div>
+      <div className="rounded-md border border-dashed p-6 text-sm text-muted-foreground">{i18next.t("gen.pages.drama.components.DramaSourcePanel.gen_31950d90", "还没有整理来源素材。先点击“整理素材”，系统会把小说、灵感或导入文本整理成短剧可用的梗概、节拍、角色和硬事实。")}</div>
     );
   }
 

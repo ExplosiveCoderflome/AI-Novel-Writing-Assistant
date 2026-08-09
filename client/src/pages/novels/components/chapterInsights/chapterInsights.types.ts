@@ -1,3 +1,4 @@
+import i18next from "i18next";
 import type { ChapterRuntimePackage } from "@ai-novel/shared/types/chapterRuntime";
 import type { Chapter, StoryPlan, StoryStateSnapshot } from "@ai-novel/shared/types/novel";
 import type { CharacterResourceContext } from "@ai-novel/shared/types/characterResource";

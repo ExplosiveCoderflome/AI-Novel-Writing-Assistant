@@ -316,7 +316,7 @@ export default function BookAnalysisCharacterPanel(props: BookAnalysisCharacterP
               placeholder={i18next.t("gen.pages.bookAnalysis.components.BookAnalysisCharacterPanel.gen_339e6277")}
               disabled={disabled || pending.create}
             />
-            <Button size="sm" variant="outline" onClick={() => void handleCreate()} disabled={createDisabled}>{t("gen.pages.bookAnalysis.components.BookAnalysisCharacterPanel.gen_63edd678", "手动添加")}</Button>
+            <Button size="sm" variant="outline" onClick={() => void handleCreate()} disabled={createDisabled}>{i18next.t("gen.pages.bookAnalysis.components.BookAnalysisCharacterPanel.gen_63edd678", "手动添加")}</Button>
           </div>
         </div>
 
@@ -343,7 +343,7 @@ export default function BookAnalysisCharacterPanel(props: BookAnalysisCharacterP
                 </div>
               ) : null}
             </div>
-            <Button size="sm" variant="ghost" onClick={onDismissBatchSummary}>{t("gen.pages.bookAnalysis.components.BookAnalysisCharacterPanel.gen_ce26955a", "知道了")}</Button>
+            <Button size="sm" variant="ghost" onClick={onDismissBatchSummary}>{i18next.t("gen.pages.bookAnalysis.components.BookAnalysisCharacterPanel.gen_ce26955a", "知道了")}</Button>
           </div>
         ) : null}
 
@@ -409,8 +409,8 @@ export default function BookAnalysisCharacterPanel(props: BookAnalysisCharacterP
                       disabled={pending.update}
                     />
                     <div className="flex flex-wrap gap-2">
-                      <Button size="sm" onClick={() => void saveEdit(character.id)} disabled={pending.update}>{t("gen.pages.bookAnalysis.components.BookAnalysisCharacterPanel.gen_be5fbbe3", "保存")}</Button>
-                      <Button size="sm" variant="outline" onClick={cancelEdit} disabled={pending.update}>{t("gen.pages.bookAnalysis.components.BookAnalysisCharacterPanel.gen_625fb26b", "取消")}</Button>
+                      <Button size="sm" onClick={() => void saveEdit(character.id)} disabled={pending.update}>{i18next.t("gen.pages.bookAnalysis.components.BookAnalysisCharacterPanel.gen_be5fbbe3", "保存")}</Button>
+                      <Button size="sm" variant="outline" onClick={cancelEdit} disabled={pending.update}>{i18next.t("gen.pages.bookAnalysis.components.BookAnalysisCharacterPanel.gen_625fb26b", "取消")}</Button>
                     </div>
                   </div>
                 ) : (
@@ -433,14 +433,14 @@ export default function BookAnalysisCharacterPanel(props: BookAnalysisCharacterP
                           }}
                           disabled={disabled || availableChapterAnchors(character).length === 0}
                           title={availableChapterAnchors(character).length === 0 ? "该角色缺少带章节号的原文证据，暂时无法开始证据访谈。" : undefined}
-                        >{t("gen.pages.bookAnalysis.components.BookAnalysisCharacterPanel.gen_f5c94dfe", "基于原文访谈")}</Button>
-                        <Button size="sm" variant="outline" onClick={() => startEdit(character)} disabled={disabled}>{t("gen.pages.bookAnalysis.components.BookAnalysisCharacterPanel.gen_95b351c8", "编辑")}</Button>
+                        >{i18next.t("gen.pages.bookAnalysis.components.BookAnalysisCharacterPanel.gen_f5c94dfe", "基于原文访谈")}</Button>
+                        <Button size="sm" variant="outline" onClick={() => startEdit(character)} disabled={disabled}>{i18next.t("gen.pages.bookAnalysis.components.BookAnalysisCharacterPanel.gen_95b351c8", "编辑")}</Button>
                         <Button
                           size="sm"
                           variant="outline"
                           onClick={() => void onDelete(character.id)}
                           disabled={disabled || pending.delete}
-                        >{t("gen.pages.bookAnalysis.components.BookAnalysisCharacterPanel.gen_2f4aaddd", "删除")}</Button>
+                        >{i18next.t("gen.pages.bookAnalysis.components.BookAnalysisCharacterPanel.gen_2f4aaddd", "删除")}</Button>
                       </div>
                     </div>
                     <div className="mt-3 grid gap-2">

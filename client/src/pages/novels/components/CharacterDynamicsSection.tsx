@@ -151,7 +151,7 @@ export default function CharacterDynamicsSection(props: CharacterDynamicsSection
         <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
           <div className="space-y-1">
             <CardTitle>{i18next.t("gen.pages.novels.components.CharacterDynamicsSection.gen_dc8352b7")}</CardTitle>
-            <div className="text-sm text-muted-foreground">{t("gen.pages.novels.components.CharacterDynamicsSection.gen_ac5b25a1", "这里把卷级职责、缺席风险、新角色候选和关系阶段放回角色页主流程，不再依赖你自己手工追踪。")}</div>
+            <div className="text-sm text-muted-foreground">{i18next.t("gen.pages.novels.components.CharacterDynamicsSection.gen_ac5b25a1", "这里把卷级职责、缺席风险、新角色候选和关系阶段放回角色页主流程，不再依赖你自己手工追踪。")}</div>
           </div>
           <div className="flex flex-wrap gap-2">
             <Badge variant="outline">{i18next.t("gen.pages.novels.components.CharacterDynamicsSection.volumeTitle")}</Badge>
@@ -187,7 +187,7 @@ export default function CharacterDynamicsSection(props: CharacterDynamicsSection
       </CardHeader>
       <CardContent className="space-y-4">
         {overviewQuery.isLoading ? (
-          <div className="rounded-2xl border border-dashed p-6 text-sm text-muted-foreground">{t("gen.pages.novels.components.CharacterDynamicsSection.gen_b7313050", "正在加载动态角色系统...")}</div>
+          <div className="rounded-2xl border border-dashed p-6 text-sm text-muted-foreground">{i18next.t("gen.pages.novels.components.CharacterDynamicsSection.gen_b7313050", "正在加载动态角色系统...")}</div>
         ) : null}
 
         {activeView === "overview" && overview ? (
@@ -312,7 +312,7 @@ export default function CharacterDynamicsSection(props: CharacterDynamicsSection
               ))}
             </div>
           ) : (
-            <div className="rounded-2xl border border-dashed p-6 text-sm text-muted-foreground">{t("gen.pages.novels.components.CharacterDynamicsSection.gen_d6a8c65c", "还没有待确认的新角色候选。写完几章后，这里会自动汇总 AI 抽取到的新人物入口。")}</div>
+            <div className="rounded-2xl border border-dashed p-6 text-sm text-muted-foreground">{i18next.t("gen.pages.novels.components.CharacterDynamicsSection.gen_d6a8c65c", "还没有待确认的新角色候选。写完几章后，这里会自动汇总 AI 抽取到的新人物入口。")}</div>
           )
         ) : null}
 
@@ -335,7 +335,7 @@ export default function CharacterDynamicsSection(props: CharacterDynamicsSection
               ))}
             </div>
           ) : (
-            <div className="rounded-2xl border border-dashed p-6 text-sm text-muted-foreground">{t("gen.pages.novels.components.CharacterDynamicsSection.gen_32d87874", "当前还没有关系阶段数据。应用阵容或完成章节后，这里会自动出现。")}</div>
+            <div className="rounded-2xl border border-dashed p-6 text-sm text-muted-foreground">{i18next.t("gen.pages.novels.components.CharacterDynamicsSection.gen_32d87874", "当前还没有关系阶段数据。应用阵容或完成章节后，这里会自动出现。")}</div>
           )
         ) : null}
 
@@ -368,7 +368,7 @@ export default function CharacterDynamicsSection(props: CharacterDynamicsSection
               })}
             </div>
           ) : (
-            <div className="rounded-2xl border border-dashed p-6 text-sm text-muted-foreground">{t("gen.pages.novels.components.CharacterDynamicsSection.gen_23ab1942", "当前卷还没有角色职责投影。点击上方“重建动态角色”即可初始化。")}</div>
+            <div className="rounded-2xl border border-dashed p-6 text-sm text-muted-foreground">{i18next.t("gen.pages.novels.components.CharacterDynamicsSection.gen_23ab1942", "当前卷还没有角色职责投影。点击上方“重建动态角色”即可初始化。")}</div>
           )
         ) : null}
       </CardContent>

@@ -438,13 +438,13 @@ export default function AssistantChatPanel({
               <button
                 type="button"
                 className="rounded-xl bg-slate-900 px-4 py-2 text-sm font-medium text-white transition hover:bg-slate-800"
-              >{t("gen.pages.chat.components.AssistantChatPanel.gen_1535fcfa", "发送")}</button>
+              >{i18next.t("gen.pages.chat.components.AssistantChatPanel.gen_1535fcfa", "发送")}</button>
             </ComposerPrimitive.Send>
             <ComposerPrimitive.Cancel asChild>
               <button
                 type="button"
                 className="rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50"
-              >{t("gen.pages.chat.components.AssistantChatPanel.gen_095e938e", "停止")}</button>
+              >{i18next.t("gen.pages.chat.components.AssistantChatPanel.gen_095e938e", "停止")}</button>
             </ComposerPrimitive.Cancel>
           </div>
         </ComposerPrimitive.Root>

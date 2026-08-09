@@ -1,3 +1,4 @@
+import i18next from "i18next";
 import type { DocumentChapter } from "@ai-novel/shared/types/knowledge";
 import type { ReactNode, RefObject } from "react";
 import type {

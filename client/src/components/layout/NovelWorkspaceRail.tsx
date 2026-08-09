@@ -454,7 +454,7 @@ export default function NovelWorkspaceRail(props: NovelWorkspaceRailProps) {
                   <BookOpenText className="h-4 w-4" />
                 </div>
                 <div className="min-w-0">
-                  <div className="text-[11px] font-medium uppercase tracking-[0.18em] text-muted-foreground">{t("gen.components.layout.NovelWorkspaceRail.gen_cbaa05fa", "创作工作台")}</div>
+                  <div className="text-[11px] font-medium uppercase tracking-[0.18em] text-muted-foreground">{i18next.t("gen.components.layout.NovelWorkspaceRail.gen_cbaa05fa", "创作工作台")}</div>
                   <div className="truncate text-sm font-semibold text-foreground">{novelTitle}</div>
                 </div>
               </div>
@@ -478,7 +478,7 @@ export default function NovelWorkspaceRail(props: NovelWorkspaceRailProps) {
             variant="outline"
             className="justify-start bg-background"
             onClick={() => navigate("/novels")}
-          >{t("gen.components.layout.NovelWorkspaceRail.gen_9c469174", "返回小说列表")}</Button>
+          >{i18next.t("gen.components.layout.NovelWorkspaceRail.gen_9c469174", "返回小说列表")}</Button>
         ) : (
           <Button
             type="button"
@@ -625,7 +625,7 @@ export default function NovelWorkspaceRail(props: NovelWorkspaceRailProps) {
         <DialogContent className="max-h-[88vh] overflow-hidden p-0 sm:max-w-5xl">
           <DialogHeader className="border-b px-5 py-4 text-left">
             <DialogTitle>{i18next.t("gen.components.layout.NovelWorkspaceRail.aiAutoDirectorProgress")}</DialogTitle>
-            <DialogDescription>{t("gen.components.layout.NovelWorkspaceRail.gen_34c53534", "查看这本书的推进步骤、最近进展和 AI 用量。")}</DialogDescription>
+            <DialogDescription>{i18next.t("gen.components.layout.NovelWorkspaceRail.gen_34c53534", "查看这本书的推进步骤、最近进展和 AI 用量。")}</DialogDescription>
           </DialogHeader>
           <div className="max-h-[calc(88vh-6.5rem)] overflow-y-auto p-4 sm:p-6">
             <NovelAutoDirectorProgressPanel

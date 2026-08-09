@@ -1,3 +1,4 @@
+import i18next from "i18next";
 export function NovelListSkeleton() {
   return (
     <div className="grid gap-4 md:grid-cols-2">

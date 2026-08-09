@@ -148,7 +148,7 @@ export default function WorldGeneratorStepThree(props: WorldGeneratorStepThreePr
       ) : null}
 
       <div className="flex flex-wrap gap-2">
-        <Button variant="secondary" onClick={onBackToScale}>{t("gen.pages.worlds.components.generator.WorldGeneratorStepThree.gen_7e5531a4", "返回调整规模")}</Button>
+        <Button variant="secondary" onClick={onBackToScale}>{i18next.t("gen.pages.worlds.components.generator.WorldGeneratorStepThree.gen_7e5531a4", "返回调整规模")}</Button>
         <Button onClick={onSave} disabled={savePending}>
           {savePending ? i18next.t("gen.pages.worlds.components.generator.WorldGeneratorStepThree.savingWorldInTheMiddle") : i18next.t("gen.pages.worlds.components.generator.WorldGeneratorStepThree.saveAndEnterWorldManual")}
         </Button>

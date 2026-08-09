@@ -1,3 +1,4 @@
+import i18next from "i18next";
 import type {
   DirectorTaskSnapshot,
 } from "@ai-novel/shared/types/directorRuntime";

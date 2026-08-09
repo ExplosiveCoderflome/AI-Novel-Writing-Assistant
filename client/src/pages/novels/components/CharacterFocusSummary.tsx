@@ -34,7 +34,7 @@ export default function CharacterFocusSummary(props: CharacterFocusSummaryProps)
                 <h2 className="truncate text-xl font-semibold tracking-normal">{selectedCharacter.name}</h2>
                 {isProtagonist ? (
                   <Badge className="gap-1 bg-emerald-600 text-white hover:bg-emerald-600">
-                    <Crown className="h-3 w-3" />{t("gen.pages.novels.components.CharacterFocusSummary.gen_83b681f4", "主角")}</Badge>
+                    <Crown className="h-3 w-3" />{i18next.t("gen.pages.novels.components.CharacterFocusSummary.gen_83b681f4", "主角")}</Badge>
                 ) : (
                   <Badge variant="outline">{getCastRoleLabel(selectedCharacter.castRole)}</Badge>
                 )}
@@ -44,22 +44,22 @@ export default function CharacterFocusSummary(props: CharacterFocusSummaryProps)
                 {isProtagonist ? "当前目标" : "关系锚点"}：<span className="font-medium text-foreground">{primaryLine}</span>
               </div>
               <div className="flex flex-wrap gap-2 text-xs text-muted-foreground">
-                <SignalPill icon={<BookOpen className="h-3.5 w-3.5" />} label={t("gen.pages.novels.components.CharacterFocusSummary.gen_293a3516", "身份")} value={selectedCharacter.role || "未定义"} />
-                <SignalPill icon={<Activity className="h-3.5 w-3.5" />} label={t("gen.pages.novels.components.CharacterFocusSummary.gen_3fea7ca7", "状态")} value={selectedCharacter.currentState || "待补全"} />
-                <SignalPill icon={<Target className="h-3.5 w-3.5" />} label={t("gen.pages.novels.components.CharacterFocusSummary.gen_09ee973e", "最近出场")} value={lastAppearanceChapter ? `第${lastAppearanceChapter}章` : "暂无"} />
+                <SignalPill icon={<BookOpen className="h-3.5 w-3.5" />} label={i18next.t("gen.pages.novels.components.CharacterFocusSummary.gen_293a3516", "身份")} value={selectedCharacter.role || "未定义"} />
+                <SignalPill icon={<Activity className="h-3.5 w-3.5" />} label={i18next.t("gen.pages.novels.components.CharacterFocusSummary.gen_3fea7ca7", "状态")} value={selectedCharacter.currentState || "待补全"} />
+                <SignalPill icon={<Target className="h-3.5 w-3.5" />} label={i18next.t("gen.pages.novels.components.CharacterFocusSummary.gen_09ee973e", "最近出场")} value={lastAppearanceChapter ? `第${lastAppearanceChapter}章` : "暂无"} />
               </div>
             </div>
           </div>
         </div>
 
         <div className="border-t border-border/60 bg-muted/15 p-5 lg:border-l lg:border-t-0">
-          <div className="text-xs font-medium text-muted-foreground">{t("gen.pages.novels.components.CharacterFocusSummary.gen_c72a850f", "故事作用")}</div>
+          <div className="text-xs font-medium text-muted-foreground">{i18next.t("gen.pages.novels.components.CharacterFocusSummary.gen_c72a850f", "故事作用")}</div>
           <div className="mt-2 line-clamp-3 text-sm leading-6">
             {selectedCharacter.storyFunction || "待补全"}
           </div>
           <div className="mt-4 grid grid-cols-2 gap-2 text-xs">
-            <MiniMetric label={t("gen.pages.novels.components.CharacterFocusSummary.gen_deb979f8", "当前目标")} value={selectedCharacter.currentGoal || "待补全"} />
-            <MiniMetric label={t("gen.pages.novels.components.CharacterFocusSummary.gen_5fd43ab7", "出场状态")} value={selectedCharacter.currentState || "待补全"} />
+            <MiniMetric label={i18next.t("gen.pages.novels.components.CharacterFocusSummary.gen_deb979f8", "当前目标")} value={selectedCharacter.currentGoal || "待补全"} />
+            <MiniMetric label={i18next.t("gen.pages.novels.components.CharacterFocusSummary.gen_5fd43ab7", "出场状态")} value={selectedCharacter.currentState || "待补全"} />
           </div>
         </div>
       </div>

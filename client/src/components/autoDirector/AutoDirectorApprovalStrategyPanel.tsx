@@ -40,7 +40,7 @@ export default function AutoDirectorApprovalStrategyPanel({
           onClick={() => onEnabledChange(true)}
         >
           <div className="text-sm font-medium text-foreground">{i18next.t("gen.components.autoDirector.AutoDirectorApprovalStrategyPanel.aiAutoAdvance")}</div>
-          <div className={`mt-1 text-xs leading-5 text-muted-foreground ${AUTO_DIRECTOR_MOBILE_CLASSES.wrapText}`}>{t("gen.components.autoDirector.AutoDirectorApprovalStrategyPanel.gen_4c1ff159", "目标范围内全自动推进；只有模型不可用、服务异常、保护正文或不可恢复风险会停下。")}</div>
+          <div className={`mt-1 text-xs leading-5 text-muted-foreground ${AUTO_DIRECTOR_MOBILE_CLASSES.wrapText}`}>{i18next.t("gen.components.autoDirector.AutoDirectorApprovalStrategyPanel.gen_4c1ff159", "目标范围内全自动推进；只有模型不可用、服务异常、保护正文或不可恢复风险会停下。")}</div>
         </button>
         <button
           type="button"
@@ -50,7 +50,7 @@ export default function AutoDirectorApprovalStrategyPanel({
           onClick={() => onEnabledChange(false)}
         >
           <div className="text-sm font-medium text-foreground">{i18next.t("gen.components.autoDirector.AutoDirectorApprovalStrategyPanel.aiCopilotConfirm")}</div>
-          <div className={`mt-1 text-xs leading-5 text-muted-foreground ${AUTO_DIRECTOR_MOBILE_CLASSES.wrapText}`}>{t("gen.components.autoDirector.AutoDirectorApprovalStrategyPanel.gen_dc6d3bc7", "按高级审批授权放行低风险节点，其余审批点交给你判断。")}</div>
+          <div className={`mt-1 text-xs leading-5 text-muted-foreground ${AUTO_DIRECTOR_MOBILE_CLASSES.wrapText}`}>{i18next.t("gen.components.autoDirector.AutoDirectorApprovalStrategyPanel.gen_dc6d3bc7", "按高级审批授权放行低风险节点，其余审批点交给你判断。")}</div>
         </button>
       </div>
 
@@ -62,7 +62,7 @@ export default function AutoDirectorApprovalStrategyPanel({
 
       {!enabled ? (
         <details className="mt-3 rounded-md border bg-background">
-          <summary className="cursor-pointer px-3 py-2 text-xs font-medium text-foreground">{t("gen.components.autoDirector.AutoDirectorApprovalStrategyPanel.gen_c9e12612", "高级审批授权")}</summary>
+          <summary className="cursor-pointer px-3 py-2 text-xs font-medium text-foreground">{i18next.t("gen.components.autoDirector.AutoDirectorApprovalStrategyPanel.gen_c9e12612", "高级审批授权")}</summary>
           <div className="border-t p-3">
             <AutoDirectorApprovalPointMultiSelect
               value={approvalPointCodes}

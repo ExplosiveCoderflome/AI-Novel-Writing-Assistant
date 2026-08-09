@@ -86,7 +86,7 @@ function ExportPanel({ projectId, episodes }: { projectId: string; episodes: Com
           {exportMut.isPending ? i18next.t("gen.pages.comic.ComicProjectPage.gen_86f99e94") : i18next.t("gen.pages.comic.ComicProjectPage.gen_533dd8ac")}
         </Button>
       </div>
-      <p className="text-xs text-muted-foreground">{t("gen.pages.comic.ComicProjectPage.gen_523fa49c", "导出前请确保所有格子已生成图像。图像内文字由模型直接渲染。")}</p>
+      <p className="text-xs text-muted-foreground">{i18next.t("gen.pages.comic.ComicProjectPage.gen_523fa49c", "导出前请确保所有格子已生成图像。图像内文字由模型直接渲染。")}</p>
     </div>
   );
 }
@@ -183,7 +183,7 @@ export default function ComicProjectPage() {
       <div className="flex items-center gap-2">
         <Button asChild type="button" variant="ghost" size="sm" className="-ml-2">
           <a href="/comic">
-            <ChevronLeft className="h-4 w-4" />{t("gen.pages.comic.ComicProjectPage.gen_1bb33934", "工作台")}</a>
+            <ChevronLeft className="h-4 w-4" />{i18next.t("gen.pages.comic.ComicProjectPage.gen_1bb33934", "工作台")}</a>
         </Button>
       </div>
 
@@ -246,7 +246,7 @@ export default function ComicProjectPage() {
                   type="button"
                   onClick={() => setShowFormatPicker(false)}
                   className="mt-3 w-full rounded-md py-1.5 text-xs text-muted-foreground hover:bg-muted transition-colors"
-                >{t("gen.pages.comic.ComicProjectPage.gen_625fb26b", "取消")}</button>
+                >{i18next.t("gen.pages.comic.ComicProjectPage.gen_625fb26b", "取消")}</button>
               </div>
             )}
           </div>
@@ -319,7 +319,7 @@ export default function ComicProjectPage() {
                   type="button"
                   onClick={() => setShowStylePicker(false)}
                   className="mt-2 w-full rounded-md py-1.5 text-xs text-muted-foreground hover:bg-muted transition-colors"
-                >{t("gen.pages.comic.ComicProjectPage.gen_625fb26b", "取消")}</button>
+                >{i18next.t("gen.pages.comic.ComicProjectPage.gen_625fb26b", "取消")}</button>
               </div>
             )}
           </div>
@@ -333,7 +333,7 @@ export default function ComicProjectPage() {
           </span>
           {project.sourceBundle && (
             <span className="inline-flex items-center gap-1 rounded-full border bg-green-500/10 px-2.5 py-0.5 text-xs text-green-600 dark:text-green-400">
-              <BookText className="h-3 w-3" />{t("gen.pages.comic.ComicProjectPage.gen_cf395763", "内容源已导入")}</span>
+              <BookText className="h-3 w-3" />{i18next.t("gen.pages.comic.ComicProjectPage.gen_cf395763", "内容源已导入")}</span>
           )}
           {preset.format && (
             <span className="inline-flex items-center gap-1 rounded-full border bg-muted/50 px-2.5 py-0.5 text-xs text-muted-foreground">
@@ -396,7 +396,7 @@ export default function ComicProjectPage() {
           {episodes.length > 0 ? (
             <ExportPanel projectId={id!} episodes={episodes} />
           ) : (
-            <div className="py-12 text-center text-sm text-muted-foreground">{t("gen.pages.comic.ComicProjectPage.gen_a0a85801", "请先生成分话大纲。")}</div>
+            <div className="py-12 text-center text-sm text-muted-foreground">{i18next.t("gen.pages.comic.ComicProjectPage.gen_a0a85801", "请先生成分话大纲。")}</div>
           )}
         </TabsContent>
       </Tabs>

@@ -21,7 +21,7 @@ export default function WorkspaceNextAction(props: WorkspaceNextActionProps) {
   const Icon = props.icon ?? ArrowRight;
   return (
     <section
-      aria-label={t("gen.components.workspace.WorkspaceNextAction.gen_9ff48c30", "推荐下一步")}
+      aria-label={i18next.t("gen.components.workspace.WorkspaceNextAction.gen_9ff48c30", "推荐下一步")}
       className={cn(
         "flex flex-col gap-4 rounded-md border px-4 py-3 sm:flex-row sm:items-center sm:justify-between",
         workspaceToneSurfaceClass[props.tone ?? "info"],

@@ -1,3 +1,4 @@
+import i18next from "i18next";
 export default function AppRouteFallback() {
   return (
     <div className="space-y-4">

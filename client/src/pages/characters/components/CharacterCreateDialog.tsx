@@ -168,7 +168,7 @@ export function CharacterCreateDialog({ onCreated }: CharacterCreateDialogProps)
               <div className="space-y-2 rounded-md border p-3">
                 <div className="flex items-center justify-between gap-2">
                   <div className="text-sm font-medium">{i18next.t("gen.pages.characters.components.CharacterCreateDialog.gen_dc6fc1c8")}</div>
-                  <Button size="sm" variant="outline" onClick={() => setConstraints(createDefaultConstraints())}>{t("gen.pages.characters.components.CharacterCreateDialog.gen_49657a24", "一键清空高级设定")}</Button>
+                  <Button size="sm" variant="outline" onClick={() => setConstraints(createDefaultConstraints())}>{i18next.t("gen.pages.characters.components.CharacterCreateDialog.gen_49657a24", "一键清空高级设定")}</Button>
                 </div>
                 <div className="grid gap-2 md:grid-cols-2">
                   <label className="space-y-1 text-sm">

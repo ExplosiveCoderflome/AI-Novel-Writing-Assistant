@@ -1,3 +1,4 @@
+import i18next from "i18next";
 function isEnabled(rawValue: string | undefined, defaultValue: boolean): boolean {
   if (!rawValue) {
     return defaultValue;

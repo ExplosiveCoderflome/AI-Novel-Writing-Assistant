@@ -50,7 +50,7 @@ export default function WorldConsistencyTab(props: WorldConsistencyTabProps) {
         <div className="flex flex-col gap-3 rounded-md border p-3 lg:flex-row lg:items-center lg:justify-between">
           <div>
             <div className="text-sm font-medium">{i18next.t("gen.pages.worlds.components.workspace.WorldConsistencyTab.worldManualCheck")}</div>
-            <div className="mt-1 text-xs leading-5 text-muted-foreground">{t("gen.pages.worlds.components.workspace.WorldConsistencyTab.gen_aecde24a", "检查核心规则、题材信号、力量体系和冲突支撑是否互相冲突。发现问题后逐条处理即可。")}</div>
+            <div className="mt-1 text-xs leading-5 text-muted-foreground">{i18next.t("gen.pages.worlds.components.workspace.WorldConsistencyTab.gen_aecde24a", "检查核心规则、题材信号、力量体系和冲突支撑是否互相冲突。发现问题后逐条处理即可。")}</div>
           </div>
           <Button onClick={onCheck} disabled={checkPending}>
             {checkPending ? i18next.t("gen.pages.worlds.components.workspace.WorldConsistencyTab.gen_0410cb00") : i18next.t("gen.pages.worlds.components.workspace.WorldConsistencyTab.gen_bb0d6dab")}
@@ -88,7 +88,7 @@ export default function WorldConsistencyTab(props: WorldConsistencyTabProps) {
             </div>
           </div>
         ) : (
-          <div className="rounded-md border border-dashed p-4 text-sm text-muted-foreground">{t("gen.pages.worlds.components.workspace.WorldConsistencyTab.gen_ab539648", "运行检查后，这里会展示世界手册的体检结果和需要处理的问题。")}</div>
+          <div className="rounded-md border border-dashed p-4 text-sm text-muted-foreground">{i18next.t("gen.pages.worlds.components.workspace.WorldConsistencyTab.gen_ab539648", "运行检查后，这里会展示世界手册的体检结果和需要处理的问题。")}</div>
         )}
 
         {issues.length > 0 ? (
@@ -154,19 +154,19 @@ export default function WorldConsistencyTab(props: WorldConsistencyTabProps) {
                     variant="secondary"
                     onClick={() => onPatchIssue({ issueId: activeIssue.id, status: "resolved" })}
                     disabled={activeIssue.status === "resolved"}
-                  >{t("gen.pages.worlds.components.workspace.WorldConsistencyTab.gen_23d8b34b", "标记已解决")}</Button>
+                  >{i18next.t("gen.pages.worlds.components.workspace.WorldConsistencyTab.gen_23d8b34b", "标记已解决")}</Button>
                   <Button
                     size="sm"
                     variant="outline"
                     onClick={() => onPatchIssue({ issueId: activeIssue.id, status: "ignored" })}
                     disabled={activeIssue.status === "ignored"}
-                  >{t("gen.pages.worlds.components.workspace.WorldConsistencyTab.gen_c0d5d68f", "忽略")}</Button>
+                  >{i18next.t("gen.pages.worlds.components.workspace.WorldConsistencyTab.gen_c0d5d68f", "忽略")}</Button>
                 </div>
               </div>
             ) : null}
           </div>
         ) : (
-          <div className="rounded-md border p-3 text-sm text-muted-foreground">{t("gen.pages.worlds.components.workspace.WorldConsistencyTab.gen_14b428ad", "还没有一致性问题记录，运行检查后会在这里展示结果。")}</div>
+          <div className="rounded-md border p-3 text-sm text-muted-foreground">{i18next.t("gen.pages.worlds.components.workspace.WorldConsistencyTab.gen_14b428ad", "还没有一致性问题记录，运行检查后会在这里展示结果。")}</div>
         )}
       </CardContent>
     </Card>

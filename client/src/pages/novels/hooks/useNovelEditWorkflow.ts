@@ -1,3 +1,4 @@
+import i18next from "i18next";
 import { useCallback, useEffect, useMemo } from "react";
 import { useMutation } from "@tanstack/react-query";
 import { useSearchParams } from "react-router-dom";

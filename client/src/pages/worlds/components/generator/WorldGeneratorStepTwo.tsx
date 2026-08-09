@@ -66,7 +66,7 @@ export default function WorldGeneratorStepTwo(props: WorldGeneratorStepTwoProps)
     <div className="space-y-4">
       <div className="rounded-md border bg-background p-4">
         <div className="text-sm font-medium">{i18next.t("gen.pages.worlds.components.generator.WorldGeneratorStepTwo.gen_3d7f4575")}</div>
-        <div className="mt-1 text-xs text-muted-foreground">{t("gen.pages.worlds.components.generator.WorldGeneratorStepTwo.gen_b18834e2", "规模会决定 AI 生成多少规则、阵营、具体势力、关键地点和可开书入口。默认推荐“标准长篇”。")}</div>
+        <div className="mt-1 text-xs text-muted-foreground">{i18next.t("gen.pages.worlds.components.generator.WorldGeneratorStepTwo.gen_b18834e2", "规模会决定 AI 生成多少规则、阵营、具体势力、关键地点和可开书入口。默认推荐“标准长篇”。")}</div>
       </div>
 
       <div className="grid gap-3 md:grid-cols-3">
@@ -93,7 +93,7 @@ export default function WorldGeneratorStepTwo(props: WorldGeneratorStepTwoProps)
 
       <div className="rounded-md border p-4">
         <div className="text-sm font-medium">{i18next.t("gen.pages.worlds.components.generator.WorldGeneratorStepTwo.gen_c0099a4f")}</div>
-        <div className="mt-1 text-xs text-muted-foreground">{t("gen.pages.worlds.components.generator.WorldGeneratorStepTwo.gen_63c1f742", "新手建议保持默认；只有明确想要更小或更大的世界时再调整。")}</div>
+        <div className="mt-1 text-xs text-muted-foreground">{i18next.t("gen.pages.worlds.components.generator.WorldGeneratorStepTwo.gen_63c1f742", "新手建议保持默认；只有明确想要更小或更大的世界时再调整。")}</div>
         <div className="mt-4 grid gap-3 md:grid-cols-2">
           {(Object.keys(COUNT_LABELS) as Array<keyof WorldSkeletonGenerationCounts>).map((key) => {
             const limit = WORLD_SKELETON_COUNT_LIMITS[key];

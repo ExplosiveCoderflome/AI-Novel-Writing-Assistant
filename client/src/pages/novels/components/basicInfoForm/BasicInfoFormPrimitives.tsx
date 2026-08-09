@@ -88,7 +88,7 @@ export function SelectionCard<T extends string>({
       <div className="flex items-center justify-between gap-2">
         <div className="text-sm font-medium text-foreground">{option.label}</div>
         {option.recommended ? (
-          <span className="rounded-full bg-emerald-500/10 px-2 py-0.5 text-[10px] font-medium text-emerald-700">{t("gen.pages.novels.components.basicInfoForm.BasicInfoFormPrimitives.gen_3f981012", "推荐")}</span>
+          <span className="rounded-full bg-emerald-500/10 px-2 py-0.5 text-[10px] font-medium text-emerald-700">{i18next.t("gen.pages.novels.components.basicInfoForm.BasicInfoFormPrimitives.gen_3f981012", "推荐")}</span>
         ) : null}
       </div>
       <div className="mt-1 text-xs leading-5 text-muted-foreground">{option.summary}</div>

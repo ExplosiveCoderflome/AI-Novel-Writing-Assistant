@@ -1,3 +1,4 @@
+import i18next from "i18next";
 import { useEffect, useRef, type ReactNode } from "react";
 import { APP_RUNTIME } from "@/lib/constants";
 import {

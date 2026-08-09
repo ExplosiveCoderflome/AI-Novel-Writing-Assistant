@@ -15,7 +15,7 @@ export default function BookAnalysisDiagnosisTipBanner({ documentTitle }: BookAn
         <Badge variant="secondary">{i18next.t("gen.pages.bookAnalysis.components.BookAnalysisDiagnosisTipBanner.gen_03311a5e")}</Badge>
         <span className="font-medium">{documentTitle}</span>
       </div>
-      <div className="mt-2 leading-6 text-muted-foreground">{t("gen.pages.bookAnalysis.components.BookAnalysisDiagnosisTipBanner.gen_63e012ad", "这里用拆书框架检查自己的稿子，重点看节奏、人物、主题、伏笔和商业卖点是否清楚；结论用于改稿判断，不会改变原小说正文。")}</div>
+      <div className="mt-2 leading-6 text-muted-foreground">{i18next.t("gen.pages.bookAnalysis.components.BookAnalysisDiagnosisTipBanner.gen_63e012ad", "这里用拆书框架检查自己的稿子，重点看节奏、人物、主题、伏笔和商业卖点是否清楚；结论用于改稿判断，不会改变原小说正文。")}</div>
     </div>
   );
 }

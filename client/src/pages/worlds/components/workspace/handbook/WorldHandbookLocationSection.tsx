@@ -62,7 +62,7 @@ export default function WorldHandbookLocationSection(props: {
                     prev ? { ...prev, locations: removeItem(prev.locations, index) } : prev,
                   )
                 }
-              >{t("gen.pages.worlds.components.workspace.handbook.WorldHandbookLocationSection.gen_86048b4f", "移除")}</Button>
+              >{i18next.t("gen.pages.worlds.components.workspace.handbook.WorldHandbookLocationSection.gen_86048b4f", "移除")}</Button>
             </div>
             <div className="mt-3 grid gap-3">
               <HandbookField title={i18next.t("gen.pages.worlds.components.workspace.handbook.WorldHandbookLocationSection.gen_6608b1e8")} hint={i18next.t("gen.pages.worlds.components.workspace.handbook.WorldHandbookLocationSection.gen_4c64c523")}>
@@ -133,7 +133,7 @@ export default function WorldHandbookLocationSection(props: {
         ))}
       </div>
       <Button type="button" className="mt-3" variant="outline" onClick={addLocation}>
-        <Plus className="mr-2 h-4 w-4" aria-hidden="true" />{t("gen.pages.worlds.components.workspace.handbook.WorldHandbookLocationSection.gen_2ead6ba5", "增加故事地点")}</Button>
+        <Plus className="mr-2 h-4 w-4" aria-hidden="true" />{i18next.t("gen.pages.worlds.components.workspace.handbook.WorldHandbookLocationSection.gen_2ead6ba5", "增加故事地点")}</Button>
     </section>
   );
 }

@@ -172,7 +172,7 @@ export function CharacterEditDialog({
         </div>
 
         <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={saving}>{t("gen.pages.characters.components.CharacterEditDialog.gen_625fb26b", "取消")}</Button>
+          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={saving}>{i18next.t("gen.pages.characters.components.CharacterEditDialog.gen_625fb26b", "取消")}</Button>
           <Button onClick={handleSubmit} disabled={saving || !hasRequiredFields || !character}>
             {saving ? i18next.t("gen.pages.characters.components.CharacterEditDialog.savingInProgressDotDotDot") : i18next.t("gen.pages.characters.components.CharacterEditDialog.saveChanges")}
           </Button>

@@ -1,3 +1,4 @@
+import i18next from "i18next";
 import type { QueryClient } from "@tanstack/react-query";
 import type { ApiResponse } from "@ai-novel/shared/types/api";
 import type { UnifiedTaskDetail } from "@ai-novel/shared/types/task";

@@ -36,7 +36,7 @@ export function TensionCurveBeatContextStrip(props: TensionCurveBeatContextStrip
             variant={selectedBeatKey === "all" ? "secondary" : "outline"}
             className="h-8 shrink-0 px-3 text-xs"
             onClick={() => onBeatChange("all")}
-          >{t("gen.components.tensionCurve.TensionCurveBeatContextStrip.gen_ff3145ff", "整卷")}</Button>
+          >{i18next.t("gen.components.tensionCurve.TensionCurveBeatContextStrip.gen_ff3145ff", "整卷")}</Button>
           {beats.map((beat) => (
             <Button
               key={beat.key}

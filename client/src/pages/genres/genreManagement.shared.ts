@@ -1,3 +1,4 @@
+import i18next from "i18next";
 import type { GenreTreeDraft, GenreTreeNode } from "@/api/genre";
 
 export function createEmptyGenreDraft(): GenreTreeDraft {

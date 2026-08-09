@@ -531,9 +531,9 @@ export default function KnowledgePage() {
         className="space-y-4"
       >
         <TabsList className="h-auto w-full justify-start overflow-x-auto">
-          <TabsTrigger value="documents">{t("gen.pages.knowledge.KnowledgePage.gen_5012c867", "创作资料")}</TabsTrigger>
-          <TabsTrigger value="ops">{t("gen.pages.knowledge.KnowledgePage.gen_89fcfd64", "索引与任务")}</TabsTrigger>
-          <TabsTrigger value="settings">{t("gen.pages.knowledge.KnowledgePage.gen_acb3166d", "检索设置")}</TabsTrigger>
+          <TabsTrigger value="documents">{i18next.t("gen.pages.knowledge.KnowledgePage.gen_5012c867", "创作资料")}</TabsTrigger>
+          <TabsTrigger value="ops">{i18next.t("gen.pages.knowledge.KnowledgePage.gen_89fcfd64", "索引与任务")}</TabsTrigger>
+          <TabsTrigger value="settings">{i18next.t("gen.pages.knowledge.KnowledgePage.gen_acb3166d", "检索设置")}</TabsTrigger>
         </TabsList>
 
         <TabsContent value="documents">

@@ -41,9 +41,9 @@ export default function CharacterPreparationHero(props: CharacterPreparationHero
 
   return (
     <StepHero
-      eyebrow={t("gen.pages.novels.components.characterPanel.CharacterPreparationHero.gen_ca1588b6", "角色阵容")}
-      title={t("gen.pages.novels.components.characterPanel.CharacterPreparationHero.gen_3ed577c6", "角色准备")}
-      description={t("gen.pages.novels.components.characterPanel.CharacterPreparationHero.gen_02a09a52", "把人物当作可持续运行的叙事资产来维护：先补齐阵容，再切换查看档案、外显、资源、时间线和关系。")}
+      eyebrow={i18next.t("gen.pages.novels.components.characterPanel.CharacterPreparationHero.gen_ca1588b6", "角色阵容")}
+      title={i18next.t("gen.pages.novels.components.characterPanel.CharacterPreparationHero.gen_3ed577c6", "角色准备")}
+      description={i18next.t("gen.pages.novels.components.characterPanel.CharacterPreparationHero.gen_02a09a52", "把人物当作可持续运行的叙事资产来维护：先补齐阵容，再切换查看档案、外显、资源、时间线和关系。")}
       className="border border-border/60 bg-[linear-gradient(135deg,hsl(var(--background))_0%,hsl(var(--muted))_100%)] shadow-sm"
     >
       <StatusRail
@@ -70,12 +70,12 @@ export default function CharacterPreparationHero(props: CharacterPreparationHero
       />
       <StepActionBar
         className="mt-4 border border-border/60 bg-background/80"
-        label={t("gen.pages.novels.components.characterPanel.CharacterPreparationHero.gen_95d760ff", "下一步建议")}
+        label={i18next.t("gen.pages.novels.components.characterPanel.CharacterPreparationHero.gen_95d760ff", "下一步建议")}
         description={recommendedAction}
         actions={(
           <>
-            <Button onClick={onOpenCreateDialog}>{t("gen.pages.novels.components.characterPanel.CharacterPreparationHero.gen_098d06b1", "新增角色")}</Button>
-            <AiButton variant="outline" onClick={onOpenSupplementalDialog}>{t("gen.pages.novels.components.characterPanel.CharacterPreparationHero.gen_d8d10894", "补充角色")}</AiButton>
+            <Button onClick={onOpenCreateDialog}>{i18next.t("gen.pages.novels.components.characterPanel.CharacterPreparationHero.gen_098d06b1", "新增角色")}</Button>
+            <AiButton variant="outline" onClick={onOpenSupplementalDialog}>{i18next.t("gen.pages.novels.components.characterPanel.CharacterPreparationHero.gen_d8d10894", "补充角色")}</AiButton>
             <AiButton
               variant="secondary"
               onClick={onEvolveCharacter}

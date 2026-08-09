@@ -191,7 +191,7 @@ export function ImageGenerationConfirmDialog({
         {anyDirty ? i18next.t("gen.components.image.ImageGenerationConfirmDialog.gen_a7da5981") : i18next.t("gen.components.image.ImageGenerationConfirmDialog.gen_864c3a74")}
       </p>
       <div className="flex gap-2">
-        <Button type="button" size="sm" variant="outline" onClick={onCancel} disabled={submitting}>{t("gen.components.image.ImageGenerationConfirmDialog.gen_625fb26b", "取消")}</Button>
+        <Button type="button" size="sm" variant="outline" onClick={onCancel} disabled={submitting}>{i18next.t("gen.components.image.ImageGenerationConfirmDialog.gen_625fb26b", "取消")}</Button>
         <Button type="button" size="sm" onClick={handleConfirm} disabled={submitting || !prompt.trim()}>
           {submitting ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Sparkles className="h-3.5 w-3.5" />}
           {submitting ? i18next.t("gen.components.image.ImageGenerationConfirmDialog.gen_4d020ba3") : i18next.t("gen.components.image.ImageGenerationConfirmDialog.gen_150f1303")}
@@ -211,7 +211,7 @@ export function ImageGenerationConfirmDialog({
       >
         {loading ? (
           <div className="flex items-center justify-center gap-2 py-12 text-sm text-muted-foreground">
-            <Loader2 className="h-4 w-4 animate-spin" />{t("gen.components.image.ImageGenerationConfirmDialog.gen_7425d51b", "正在准备生图素材...")}</div>
+            <Loader2 className="h-4 w-4 animate-spin" />{i18next.t("gen.components.image.ImageGenerationConfirmDialog.gen_7425d51b", "正在准备生图素材...")}</div>
         ) : !preview ? (
           <div className="py-12 text-center text-sm text-muted-foreground">{i18next.t("gen.components.image.ImageGenerationConfirmDialog.gen_4d62dfb4")}</div>
         ) : (
@@ -219,7 +219,7 @@ export function ImageGenerationConfirmDialog({
             {/* 参考图素材 */}
             <div>
               <div className="mb-1.5 flex items-center gap-1.5 text-xs font-semibold text-muted-foreground">
-                <ImageIcon className="h-3 w-3" />{t("gen.components.image.ImageGenerationConfirmDialog.gen_9136b0f4", "参考素材")}<span className="rounded border bg-muted px-1.5 py-0.5 text-[10px] font-normal">
+                <ImageIcon className="h-3 w-3" />{i18next.t("gen.components.image.ImageGenerationConfirmDialog.gen_9136b0f4", "参考素材")}<span className="rounded border bg-muted px-1.5 py-0.5 text-[10px] font-normal">
                   {referenceImages.length}/{preview.referenceImages.length}
                 </span>
                 {referenceDirty && (
@@ -228,13 +228,13 @@ export function ImageGenerationConfirmDialog({
                     className="ml-auto text-[10px] text-muted-foreground underline-offset-2 hover:text-foreground hover:underline"
                     onClick={() => setIncludedReferenceImageUrls(preview.referenceImages.map((ref) => ref.url))}
                     disabled={submitting || !!promptAssistLoading}
-                  >{t("gen.components.image.ImageGenerationConfirmDialog.gen_1dded66f", "恢复全部")}</button>
+                  >{i18next.t("gen.components.image.ImageGenerationConfirmDialog.gen_1dded66f", "恢复全部")}</button>
                 )}
               </div>
               {preview.referenceImages.length === 0 ? (
-                <div className="rounded-md border border-dashed bg-muted/20 px-3 py-3 text-center text-[11px] text-muted-foreground">{t("gen.components.image.ImageGenerationConfirmDialog.gen_1dc6031f", "本次生图不附带参考图（纯文生图）")}</div>
+                <div className="rounded-md border border-dashed bg-muted/20 px-3 py-3 text-center text-[11px] text-muted-foreground">{i18next.t("gen.components.image.ImageGenerationConfirmDialog.gen_1dc6031f", "本次生图不附带参考图（纯文生图）")}</div>
               ) : referenceImages.length === 0 ? (
-                <div className="rounded-md border border-dashed bg-muted/20 px-3 py-3 text-center text-[11px] text-muted-foreground">{t("gen.components.image.ImageGenerationConfirmDialog.gen_eb397b07", "本次生成不会发送参考图")}</div>
+                <div className="rounded-md border border-dashed bg-muted/20 px-3 py-3 text-center text-[11px] text-muted-foreground">{i18next.t("gen.components.image.ImageGenerationConfirmDialog.gen_eb397b07", "本次生成不会发送参考图")}</div>
               ) : (
                 <div className="flex flex-wrap items-end gap-2 rounded-md border bg-muted/10 p-2">
                   {referenceImages.map((ref, i) => {
@@ -312,7 +312,7 @@ export function ImageGenerationConfirmDialog({
                         clearPromptAssistResult();
                       }}
                       disabled={submitting || !!promptAssistLoading}
-                    >{t("gen.components.image.ImageGenerationConfirmDialog.gen_7468f3e5", "恢复默认")}</button>
+                    >{i18next.t("gen.components.image.ImageGenerationConfirmDialog.gen_7468f3e5", "恢复默认")}</button>
                   )}
                 </div>
               </div>
@@ -351,7 +351,7 @@ export function ImageGenerationConfirmDialog({
                           clearPromptAssistResult();
                         }}
                         disabled={submitting || !!promptAssistLoading}
-                      >{t("gen.components.image.ImageGenerationConfirmDialog.gen_288f0c40", "清空")}</button>
+                      >{i18next.t("gen.components.image.ImageGenerationConfirmDialog.gen_288f0c40", "清空")}</button>
                     )}
                   </div>
                 </div>
@@ -429,7 +429,7 @@ export function ImageGenerationConfirmDialog({
                         clearPromptAssistResult();
                       }}
                       disabled={submitting || !!promptAssistLoading}
-                    >{t("gen.components.image.ImageGenerationConfirmDialog.gen_7468f3e5", "恢复默认")}</button>
+                    >{i18next.t("gen.components.image.ImageGenerationConfirmDialog.gen_7468f3e5", "恢复默认")}</button>
                   )}
                 </div>
                 <textarea

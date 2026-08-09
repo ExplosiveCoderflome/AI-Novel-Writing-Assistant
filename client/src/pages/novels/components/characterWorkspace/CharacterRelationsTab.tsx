@@ -1,3 +1,4 @@
+import i18next from "i18next";
 import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import type { Character } from "@ai-novel/shared/types/novel";

@@ -1,3 +1,4 @@
+import i18next from "i18next";
 import { motion } from "framer-motion";
 import { cn } from "@/lib/utils";
 

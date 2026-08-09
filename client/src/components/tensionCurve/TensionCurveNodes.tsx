@@ -79,7 +79,7 @@ export function TensionCanvasNodeComponent({ data }: NodeProps) {
           strokeDasharray="3 7"
           strokeWidth="1"
         />
-        <text x="14" y={NULL_TRACK_Y + 4} className="fill-muted-foreground text-[11px] font-medium">{t("gen.components.tensionCurve.TensionCurveNodes.gen_75c038ec", "待定")}</text>
+        <text x="14" y={NULL_TRACK_Y + 4} className="fill-muted-foreground text-[11px] font-medium">{i18next.t("gen.components.tensionCurve.TensionCurveNodes.gen_75c038ec", "待定")}</text>
 
         {canvasData.guides.map((guide) => (
           <g key={guide.key}>
@@ -171,7 +171,7 @@ export function TensionPointNodeComponent({ data, selected }: NodeProps) {
                   }
                 }}
               />
-              <Button type="button" size="sm" className="h-8 px-2 text-xs" onClick={commitDraft}>{t("gen.components.tensionCurve.TensionCurveNodes.gen_5b0520a9", "应用")}</Button>
+              <Button type="button" size="sm" className="h-8 px-2 text-xs" onClick={commitDraft}>{i18next.t("gen.components.tensionCurve.TensionCurveNodes.gen_5b0520a9", "应用")}</Button>
               {userAnchored ? (
                 <Button
                   type="button"
@@ -179,7 +179,7 @@ export function TensionPointNodeComponent({ data, selected }: NodeProps) {
                   variant="outline"
                   className="h-8 px-2 text-xs"
                   onClick={() => pointData.onRelease?.(pointData.seriesId, pointData.pointId, pointData.value ?? 0)}
-                >{t("gen.components.tensionCurve.TensionCurveNodes.gen_50d71b11", "交还 AI")}</Button>
+                >{i18next.t("gen.components.tensionCurve.TensionCurveNodes.gen_50d71b11", "交还 AI")}</Button>
               ) : null}
             </div>
           ) : (
@@ -208,17 +208,17 @@ export function CompactLegend() {
   return (
     <div className="flex flex-wrap items-center gap-3 rounded-md border border-border/70 bg-muted/10 px-3 py-2 text-xs text-muted-foreground">
       <span className="inline-flex items-center gap-1.5" title={i18next.t("gen.components.tensionCurve.TensionCurveNodes.gen_46cecd90")}>
-        <span className="h-[3px] w-6 rounded-full bg-blue-600" />{t("gen.components.tensionCurve.TensionCurveNodes.gen_b5d7cd3c", "当前走势")}</span>
+        <span className="h-[3px] w-6 rounded-full bg-blue-600" />{i18next.t("gen.components.tensionCurve.TensionCurveNodes.gen_b5d7cd3c", "当前走势")}</span>
       <span className="inline-flex items-center gap-1.5" title={i18next.t("gen.components.tensionCurve.TensionCurveNodes.gen_c3c26702")}>
         <span className="h-3 w-3 rounded-full bg-blue-600 ring-2 ring-blue-100" />
         AI 托管
       </span>
       <span className="inline-flex items-center gap-1.5" title={i18next.t("gen.components.tensionCurve.TensionCurveNodes.gen_2649545a")}>
-        <span className="h-3.5 w-3.5 rounded-full bg-rose-600 ring-2 ring-rose-200" />{t("gen.components.tensionCurve.TensionCurveNodes.gen_7d1de53a", "手动固定")}</span>
+        <span className="h-3.5 w-3.5 rounded-full bg-rose-600 ring-2 ring-rose-200" />{i18next.t("gen.components.tensionCurve.TensionCurveNodes.gen_7d1de53a", "手动固定")}</span>
       <span className="inline-flex items-center gap-1.5" title={i18next.t("gen.components.tensionCurve.TensionCurveNodes.gen_59a9b828")}>
-        <span className="h-2.5 w-2.5 rounded-full bg-slate-400 opacity-70" />{t("gen.components.tensionCurve.TensionCurveNodes.gen_0c583542", "暂无强度")}</span>
+        <span className="h-2.5 w-2.5 rounded-full bg-slate-400 opacity-70" />{i18next.t("gen.components.tensionCurve.TensionCurveNodes.gen_0c583542", "暂无强度")}</span>
       <span className="inline-flex items-center gap-1.5" title={i18next.t("gen.components.tensionCurve.TensionCurveNodes.gen_19d0d055")}>
-        <span className="h-px w-6 border-t-2 border-dashed border-slate-500" />{t("gen.components.tensionCurve.TensionCurveNodes.gen_84df0881", "参考模板")}</span>
+        <span className="h-px w-6 border-t-2 border-dashed border-slate-500" />{i18next.t("gen.components.tensionCurve.TensionCurveNodes.gen_84df0881", "参考模板")}</span>
     </div>
   );
 }

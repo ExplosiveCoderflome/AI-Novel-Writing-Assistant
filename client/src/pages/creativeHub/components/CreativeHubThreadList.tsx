@@ -63,7 +63,7 @@ export default function CreativeHubThreadList({
     >
       <CardHeader className="pb-3">
         <div className="flex items-center justify-between gap-2">
-          <CardTitle className="text-base">{t("gen.pages.creativeHub.components.CreativeHubThreadList.gen_41cc8194", "创作线程")}</CardTitle>
+          <CardTitle className="text-base">{i18next.t("gen.pages.creativeHub.components.CreativeHubThreadList.gen_41cc8194", "创作线程")}</CardTitle>
           <Badge variant="outline">{threads.length}</Badge>
         </div>
       </CardHeader>
@@ -72,12 +72,12 @@ export default function CreativeHubThreadList({
           {actionPending ? "正在创建..." : "新建线程"}
         </Button>
         {loading ? (
-          <WorkspaceStateNotice compact loading tone="info" title={t("gen.pages.creativeHub.components.CreativeHubThreadList.gen_31548d01", "正在加载线程")} description={t("gen.pages.creativeHub.components.CreativeHubThreadList.gen_04de76c7", "请稍候。")} />
+          <WorkspaceStateNotice compact loading tone="info" title={i18next.t("gen.pages.creativeHub.components.CreativeHubThreadList.gen_31548d01", "正在加载线程")} description={i18next.t("gen.pages.creativeHub.components.CreativeHubThreadList.gen_04de76c7", "请稍候。")} />
         ) : errorMessage ? (
           <WorkspaceStateNotice
             compact
             tone="danger"
-            title={t("gen.pages.creativeHub.components.CreativeHubThreadList.gen_68f639ca", "线程列表加载失败")}
+            title={i18next.t("gen.pages.creativeHub.components.CreativeHubThreadList.gen_68f639ca", "线程列表加载失败")}
             description={errorMessage}
             action={onRetry ? (
               <Button type="button" size="sm" variant="outline" disabled={retryPending} onClick={onRetry}>
@@ -134,13 +134,13 @@ export default function CreativeHubThreadList({
                       className="h-7 px-2 text-xs text-destructive hover:text-destructive"
                       onClick={() => onDelete(thread.id)}
                       disabled={pending || actionDisabled}
-                    >{t("gen.pages.creativeHub.components.CreativeHubThreadList.gen_2f4aaddd", "删除")}</Button>
+                    >{i18next.t("gen.pages.creativeHub.components.CreativeHubThreadList.gen_2f4aaddd", "删除")}</Button>
                   </div>
                 </div>
               );
             })}
             {threads.length === 0 ? (
-              <div className="rounded-md border border-dashed border-border p-4 text-sm text-muted-foreground">{t("gen.pages.creativeHub.components.CreativeHubThreadList.gen_0baee924", "创建线程后，可以围绕同一小说持续保留创作目标和执行记录。")}</div>
+              <div className="rounded-md border border-dashed border-border p-4 text-sm text-muted-foreground">{i18next.t("gen.pages.creativeHub.components.CreativeHubThreadList.gen_0baee924", "创建线程后，可以围绕同一小说持续保留创作目标和执行记录。")}</div>
             ) : null}
           </div>
         )}

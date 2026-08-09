@@ -120,7 +120,7 @@ export default function KnowledgeDocumentDetailDialog({
               />
             )}
             {selectedDocumentId && !isArchived ? (
-              <Button variant="outline" onClick={onReindex}>{t("gen.pages.knowledge.components.KnowledgeDocumentDetailDialog.gen_48f9e660", "手动重建索引")}</Button>
+              <Button variant="outline" onClick={onReindex}>{i18next.t("gen.pages.knowledge.components.KnowledgeDocumentDetailDialog.gen_48f9e660", "手动重建索引")}</Button>
             ) : null}
           </div>
 
@@ -142,7 +142,7 @@ export default function KnowledgeDocumentDetailDialog({
                 </CardHeader>
                 <CardContent className="space-y-3">
                   {isArchived ? (
-                    <div className="text-sm text-muted-foreground">{t("gen.pages.knowledge.components.KnowledgeDocumentDetailDialog.gen_b7c8e93c", "恢复启用并完成索引后，可以测试召回效果。")}</div>
+                    <div className="text-sm text-muted-foreground">{i18next.t("gen.pages.knowledge.components.KnowledgeDocumentDetailDialog.gen_b7c8e93c", "恢复启用并完成索引后，可以测试召回效果。")}</div>
                   ) : document.latestIndexStatus === "succeeded" ? (
                     <>
                       <div className="flex min-w-0 flex-col gap-2 md:flex-row">
@@ -158,14 +158,14 @@ export default function KnowledgeDocumentDetailDialog({
                           {recallPending ? i18next.t("gen.pages.knowledge.components.KnowledgeDocumentDetailDialog.gen_6c501b52") : i18next.t("gen.pages.knowledge.components.KnowledgeDocumentDetailDialog.gen_3df85acb")}
                         </Button>
                       </div>
-                      <div className="text-xs text-muted-foreground">{t("gen.pages.knowledge.components.KnowledgeDocumentDetailDialog.gen_be63ae93", "仅针对当前激活且已建立索引的版本执行召回测试。")}</div>
+                      <div className="text-xs text-muted-foreground">{i18next.t("gen.pages.knowledge.components.KnowledgeDocumentDetailDialog.gen_be63ae93", "仅针对当前激活且已建立索引的版本执行召回测试。")}</div>
                       {recallErrorMessage ? (
                         <div className="text-sm text-destructive">{recallErrorMessage}</div>
                       ) : null}
                       {recallResult ? (
                         <div className="min-w-0 space-y-2 overflow-hidden">
                           {recallResult.hits.length === 0 ? (
-                            <div className="rounded-md border border-dashed p-3 text-sm text-muted-foreground">{t("gen.pages.knowledge.components.KnowledgeDocumentDetailDialog.gen_69056c87", "当前查询没有召回到任何分块内容。")}</div>
+                            <div className="rounded-md border border-dashed p-3 text-sm text-muted-foreground">{i18next.t("gen.pages.knowledge.components.KnowledgeDocumentDetailDialog.gen_69056c87", "当前查询没有召回到任何分块内容。")}</div>
                           ) : (
                             recallResult.hits.map((hit, index) => (
                               <div key={hit.id} className="min-w-0 max-w-full overflow-hidden rounded-md border p-3">
@@ -193,7 +193,7 @@ export default function KnowledgeDocumentDetailDialog({
                       ) : null}
                     </>
                   ) : (
-                    <div className="text-sm text-muted-foreground">{t("gen.pages.knowledge.components.KnowledgeDocumentDetailDialog.gen_2be2585f", "当前激活版本索引成功后，才可以执行召回测试。")}</div>
+                    <div className="text-sm text-muted-foreground">{i18next.t("gen.pages.knowledge.components.KnowledgeDocumentDetailDialog.gen_2be2585f", "当前激活版本索引成功后，才可以执行召回测试。")}</div>
                   )}
                 </CardContent>
               </Card>
@@ -215,7 +215,7 @@ export default function KnowledgeDocumentDetailDialog({
                           variant="outline"
                           onClick={() => onActivateVersion(version.id)}
                           disabled={activateVersionPending}
-                        >{t("gen.pages.knowledge.components.KnowledgeDocumentDetailDialog.gen_69c6f5ef", "切换为激活版本")}</Button>
+                        >{i18next.t("gen.pages.knowledge.components.KnowledgeDocumentDetailDialog.gen_69c6f5ef", "切换为激活版本")}</Button>
                       </div>
                     ) : null}
                     <VersionContentPreview content={version.content} />
@@ -224,7 +224,7 @@ export default function KnowledgeDocumentDetailDialog({
               </div>
             </>
           ) : (
-            <div className="rounded-md border border-dashed p-4 text-sm text-muted-foreground">{t("gen.pages.knowledge.components.KnowledgeDocumentDetailDialog.gen_fcb57cbf", "正在加载文档详情...")}</div>
+            <div className="rounded-md border border-dashed p-4 text-sm text-muted-foreground">{i18next.t("gen.pages.knowledge.components.KnowledgeDocumentDetailDialog.gen_fcb57cbf", "正在加载文档详情...")}</div>
           )}
       </AppDialogContent>
     </Dialog>

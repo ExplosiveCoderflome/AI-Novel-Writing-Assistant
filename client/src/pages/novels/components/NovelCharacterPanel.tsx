@@ -151,7 +151,7 @@ export default function NovelCharacterPanel(props: NovelCharacterPanelProps) {
   return (
     <div className="space-y-5">
       <DirectorTakeoverEntryPanel
-        title={t("gen.pages.novels.components.NovelCharacterPanel.gen_eaeb014a", "从角色准备接管")}
+        title={i18next.t("gen.pages.novels.components.NovelCharacterPanel.gen_eaeb014a", "从角色准备接管")}
         description="AI 会先判断角色资产是否齐备，再决定继续补角色还是按你的选择重跑当前步骤。"
         entry={directorTakeoverEntry}
       />

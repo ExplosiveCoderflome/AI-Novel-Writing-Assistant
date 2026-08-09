@@ -125,7 +125,7 @@ export default function ResourceRiskPanel(props: ChapterExecutionInsightsSidebar
       </div>
 
       {isLoadingChapterResourceContext ? (
-        <div className="rounded-xl border border-dashed border-border/70 bg-muted/10 p-3 text-xs leading-6 text-muted-foreground">{t("gen.pages.novels.components.chapterInsights.ResourceRiskPanel.gen_409634f9", "资源边界读取中。")}</div>
+        <div className="rounded-xl border border-dashed border-border/70 bg-muted/10 p-3 text-xs leading-6 text-muted-foreground">{i18next.t("gen.pages.novels.components.chapterInsights.ResourceRiskPanel.gen_409634f9", "资源边界读取中。")}</div>
       ) : null}
 
       <div className="space-y-3">

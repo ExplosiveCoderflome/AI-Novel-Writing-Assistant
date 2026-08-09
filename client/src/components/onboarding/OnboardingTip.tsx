@@ -1,3 +1,4 @@
+import i18next from "i18next";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Lightbulb, X } from "lucide-react";

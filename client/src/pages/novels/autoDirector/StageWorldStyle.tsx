@@ -46,9 +46,9 @@ export default function StageWorldStyle({
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div>
           <div className="text-2xl font-semibold tracking-normal text-foreground">{i18next.t("gen.pages.novels.autoDirector.StageWorldStyle.gen_bb01d91e")}</div>
-          <div className={`mt-2 max-w-2xl text-sm leading-6 text-muted-foreground ${AUTO_DIRECTOR_MOBILE_CLASSES.wrapText}`}>{t("gen.pages.novels.autoDirector.StageWorldStyle.gen_8524235e", "可以选一个世界样本给 AI 参考，也可以让它根据起始想法自动整理本书世界。写法会作为后续规划和正文的默认语气。")}</div>
+          <div className={`mt-2 max-w-2xl text-sm leading-6 text-muted-foreground ${AUTO_DIRECTOR_MOBILE_CLASSES.wrapText}`}>{i18next.t("gen.pages.novels.autoDirector.StageWorldStyle.gen_8524235e", "可以选一个世界样本给 AI 参考，也可以让它根据起始想法自动整理本书世界。写法会作为后续规划和正文的默认语气。")}</div>
         </div>
-        <div className="rounded-full bg-muted/55 px-3 py-1 text-xs text-muted-foreground">{t("gen.pages.novels.autoDirector.StageWorldStyle.gen_67335685", "可保持默认")}</div>
+        <div className="rounded-full bg-muted/55 px-3 py-1 text-xs text-muted-foreground">{i18next.t("gen.pages.novels.autoDirector.StageWorldStyle.gen_67335685", "可保持默认")}</div>
       </div>
 
       <div className="space-y-5">
@@ -93,7 +93,7 @@ export default function StageWorldStyle({
                 onClick={() => onWorldSetupModeChange("auto_generate")}
               >
                 <div className="text-sm font-medium">{i18next.t("gen.pages.novels.autoDirector.StageWorldStyle.gen_a92d7dbb")}</div>
-                <div className={`mt-2 text-xs leading-5 ${worldSetupMode === "auto_generate" ? "text-background/70" : "text-muted-foreground"} ${AUTO_DIRECTOR_MOBILE_CLASSES.wrapText}`}>{t("gen.pages.novels.autoDirector.StageWorldStyle.gen_01d8fd87", "适合奇幻、玄幻、科幻、悬疑等需要世界规则支撑的项目。")}</div>
+                <div className={`mt-2 text-xs leading-5 ${worldSetupMode === "auto_generate" ? "text-background/70" : "text-muted-foreground"} ${AUTO_DIRECTOR_MOBILE_CLASSES.wrapText}`}>{i18next.t("gen.pages.novels.autoDirector.StageWorldStyle.gen_01d8fd87", "适合奇幻、玄幻、科幻、悬疑等需要世界规则支撑的项目。")}</div>
               </button>
               <button
                 type="button"
@@ -105,14 +105,14 @@ export default function StageWorldStyle({
                 onClick={() => onWorldSetupModeChange("skip")}
               >
                 <div className="text-sm font-medium">{i18next.t("gen.pages.novels.autoDirector.StageWorldStyle.gen_5dcc48bb")}</div>
-                <div className={`mt-2 text-xs leading-5 ${worldSetupMode === "skip" ? "text-background/70" : "text-muted-foreground"} ${AUTO_DIRECTOR_MOBILE_CLASSES.wrapText}`}>{t("gen.pages.novels.autoDirector.StageWorldStyle.gen_99c7118b", "适合现实题材、轻设定项目，角色和章节会主要依据书级规划推进。")}</div>
+                <div className={`mt-2 text-xs leading-5 ${worldSetupMode === "skip" ? "text-background/70" : "text-muted-foreground"} ${AUTO_DIRECTOR_MOBILE_CLASSES.wrapText}`}>{i18next.t("gen.pages.novels.autoDirector.StageWorldStyle.gen_99c7118b", "适合现实题材、轻设定项目，角色和章节会主要依据书级规划推进。")}</div>
               </button>
             </div>
           )}
         </div>
 
         <div className="space-y-2">
-          <FieldLabel htmlFor="director-basic-style-profile" hint={i18next.t("gen.pages.novels.autoDirector.StageWorldStyle.gen_83e458ed")}>{t("gen.pages.novels.autoDirector.StageWorldStyle.gen_2e8ab626", "书级默认写法")}</FieldLabel>
+          <FieldLabel htmlFor="director-basic-style-profile" hint={i18next.t("gen.pages.novels.autoDirector.StageWorldStyle.gen_83e458ed")}>{i18next.t("gen.pages.novels.autoDirector.StageWorldStyle.gen_2e8ab626", "书级默认写法")}</FieldLabel>
           <SelectControl
             id="director-basic-style-profile"
             className={controlClassName}

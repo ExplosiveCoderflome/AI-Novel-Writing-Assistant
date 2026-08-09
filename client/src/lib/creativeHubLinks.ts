@@ -1,3 +1,4 @@
+import i18next from "i18next";
 import type { CreativeHubResourceBinding } from "@ai-novel/shared/types/creativeHub";
 
 export function hasCreativeHubBindings(bindings: CreativeHubResourceBinding): boolean {

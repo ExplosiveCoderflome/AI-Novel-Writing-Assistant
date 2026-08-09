@@ -144,7 +144,7 @@ export function DramaQualityPanel(props: {
 
   if ((props.project.episodes?.length ?? 0) === 0) {
     return (
-      <div className="rounded-md border border-dashed p-6 text-sm text-muted-foreground">{t("gen.pages.drama.components.DramaQualityPanel.gen_e6634232", "还没有分集大纲。生成分集和台本后，这里会汇总每集质量检查结果。")}</div>
+      <div className="rounded-md border border-dashed p-6 text-sm text-muted-foreground">{i18next.t("gen.pages.drama.components.DramaQualityPanel.gen_e6634232", "还没有分集大纲。生成分集和台本后，这里会汇总每集质量检查结果。")}</div>
     );
   }
 
@@ -156,7 +156,7 @@ export function DramaQualityPanel(props: {
           <div className="text-xs text-muted-foreground">{i18next.t("gen.pages.drama.components.DramaQualityPanel.gen_83450b9a")}</div>
         </div>
         <Button type="button" variant="outline" disabled={props.busy || scriptedCount === 0} onClick={props.onComplianceAll}>
-          <ShieldCheck className="h-4 w-4" />{t("gen.pages.drama.components.DramaQualityPanel.gen_8d435f11", "检查全部台本合规")}</Button>
+          <ShieldCheck className="h-4 w-4" />{i18next.t("gen.pages.drama.components.DramaQualityPanel.gen_8d435f11", "检查全部台本合规")}</Button>
       </div>
 
       <div className="grid gap-3 md:grid-cols-6">
@@ -189,7 +189,7 @@ export function DramaQualityPanel(props: {
       {problemItems.length === 0 && uncheckedItems.length === 0 ? (
         <Card className="rounded-lg">
           <CardContent className="flex items-center gap-2 pt-6 text-sm text-muted-foreground">
-            <CheckCircle2 className="h-4 w-4 text-emerald-600" />{t("gen.pages.drama.components.DramaQualityPanel.gen_2b447b1b", "当前没有待处理的质量问题。")}</CardContent>
+            <CheckCircle2 className="h-4 w-4 text-emerald-600" />{i18next.t("gen.pages.drama.components.DramaQualityPanel.gen_2b447b1b", "当前没有待处理的质量问题。")}</CardContent>
         </Card>
       ) : null}
 
@@ -215,7 +215,7 @@ export function DramaQualityPanel(props: {
                 </div>
                 <div className="flex flex-wrap gap-2">
                   <Button type="button" size="sm" variant="outline" onClick={() => openEpisode(item.episode.order)}>
-                    <Search className="h-4 w-4" />{t("gen.pages.drama.components.DramaQualityPanel.gen_c5b9c60e", "查看台本")}</Button>
+                    <Search className="h-4 w-4" />{i18next.t("gen.pages.drama.components.DramaQualityPanel.gen_c5b9c60e", "查看台本")}</Button>
                   <Button
                     type="button"
                     size="sm"
@@ -223,14 +223,14 @@ export function DramaQualityPanel(props: {
                     disabled={props.busy || !item.episode.content?.trim()}
                     onClick={() => props.onReview(item.episode.order)}
                   >
-                    <CheckCircle2 className="h-4 w-4" />{t("gen.pages.drama.components.DramaQualityPanel.gen_a1ad5204", "重新检查")}</Button>
+                    <CheckCircle2 className="h-4 w-4" />{i18next.t("gen.pages.drama.components.DramaQualityPanel.gen_a1ad5204", "重新检查")}</Button>
                   <Button
                     type="button"
                     size="sm"
                     disabled={props.busy || !item.episode.content?.trim()}
                     onClick={() => props.onRepair(item.episode.order)}
                   >
-                    <RefreshCw className="h-4 w-4" />{t("gen.pages.drama.components.DramaQualityPanel.gen_f82661e8", "修复")}</Button>
+                    <RefreshCw className="h-4 w-4" />{i18next.t("gen.pages.drama.components.DramaQualityPanel.gen_f82661e8", "修复")}</Button>
                 </div>
               </CardHeader>
               <CardContent className="space-y-2">
@@ -247,7 +247,7 @@ export function DramaQualityPanel(props: {
                   </div>
                 )) : (
                   <div className="rounded-md border p-3 text-sm text-muted-foreground">
-                    <AlertTriangle className="mr-2 inline h-4 w-4" />{t("gen.pages.drama.components.DramaQualityPanel.gen_72e8820f", "这集需要处理，但没有结构化问题明细。")}</div>
+                    <AlertTriangle className="mr-2 inline h-4 w-4" />{i18next.t("gen.pages.drama.components.DramaQualityPanel.gen_72e8820f", "这集需要处理，但没有结构化问题明细。")}</div>
                 )}
               </CardContent>
             </Card>
@@ -272,7 +272,7 @@ export function DramaQualityPanel(props: {
                   disabled={props.busy}
                   onClick={() => props.onReview(item.episode.order)}
                 >
-                  <CheckCircle2 className="h-4 w-4" />{t("gen.pages.drama.components.DramaQualityPanel.gen_4328677c", "检查")}</Button>
+                  <CheckCircle2 className="h-4 w-4" />{i18next.t("gen.pages.drama.components.DramaQualityPanel.gen_4328677c", "检查")}</Button>
               </div>
             ))}
           </CardContent>

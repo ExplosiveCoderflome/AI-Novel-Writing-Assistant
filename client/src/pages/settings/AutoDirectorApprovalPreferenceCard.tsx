@@ -32,8 +32,8 @@ export function AutoDirectorApprovalPreferenceCard(props: {
     <Card className="min-w-0 overflow-hidden">
       <CardHeader className="flex-row items-start justify-between gap-3 space-y-0">
         <div className="min-w-0 space-y-1.5">
-          <CardTitle>{t("gen.pages.settings.AutoDirectorApprovalPreferenceCard.gen_9aa86d04", "审批授权偏好")}</CardTitle>
-          <CardDescription className={AUTO_DIRECTOR_MOBILE_CLASSES.wrapText}>{t("gen.pages.settings.AutoDirectorApprovalPreferenceCard.gen_f16e7bfc", "自动导演按范围执行时，会先带入这里的默认授权。未授权的审批点仍会停下等待你确认。")}</CardDescription>
+          <CardTitle>{i18next.t("gen.pages.settings.AutoDirectorApprovalPreferenceCard.gen_9aa86d04", "审批授权偏好")}</CardTitle>
+          <CardDescription className={AUTO_DIRECTOR_MOBILE_CLASSES.wrapText}>{i18next.t("gen.pages.settings.AutoDirectorApprovalPreferenceCard.gen_f16e7bfc", "自动导演按范围执行时，会先带入这里的默认授权。未授权的审批点仍会停下等待你确认。")}</CardDescription>
         </div>
         <Button
           type="button"

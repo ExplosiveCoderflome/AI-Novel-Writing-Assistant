@@ -57,7 +57,7 @@ export default function WorldRelationsSection(props: {
                     : prev,
                 )
               }
-            >{t("gen.pages.worlds.components.workspace.structure.WorldRelationsSection.gen_ae42fa77", "新增势力关系")}</Button>
+            >{i18next.t("gen.pages.worlds.components.workspace.structure.WorldRelationsSection.gen_ae42fa77", "新增势力关系")}</Button>
             <Button
               size="sm"
               variant="outline"
@@ -83,7 +83,7 @@ export default function WorldRelationsSection(props: {
                     : prev,
                 )
               }
-            >{t("gen.pages.worlds.components.workspace.structure.WorldRelationsSection.gen_f3fe6187", "新增地点控制")}</Button>
+            >{i18next.t("gen.pages.worlds.components.workspace.structure.WorldRelationsSection.gen_f3fe6187", "新增地点控制")}</Button>
           </div>
         </div>
         {draftStructure.relations.forceRelations.map((relation, index) => (

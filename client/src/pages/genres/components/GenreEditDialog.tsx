@@ -74,7 +74,7 @@ export default function GenreEditDialog({
         description={i18next.t("gen.pages.genres.components.GenreEditDialog.gen_f060ecf0")}
         footer={(
           <>
-            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>{t("gen.pages.genres.components.GenreEditDialog.gen_625fb26b", "取消")}</Button>
+            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>{i18next.t("gen.pages.genres.components.GenreEditDialog.gen_625fb26b", "取消")}</Button>
             <Button type="button" onClick={() => updateMutation.mutate()} disabled={updateMutation.isPending || !name.trim()}>
               {updateMutation.isPending ? i18next.t("gen.pages.genres.components.GenreEditDialog.savingInProgressDotDotDot") : i18next.t("gen.pages.genres.components.GenreEditDialog.saveChanges")}
             </Button>

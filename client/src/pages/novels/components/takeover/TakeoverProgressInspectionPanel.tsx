@@ -33,7 +33,7 @@ export default function TakeoverProgressInspectionPanel({
         ))}
       </div>
       {hasTaskSnapshotError ? (
-        <div className={`mt-2 text-xs leading-5 text-muted-foreground ${AUTO_DIRECTOR_MOBILE_CLASSES.wrapText}`}>{t("gen.pages.novels.components.takeover.TakeoverProgressInspectionPanel.gen_6ad7266b", "当前任务详细进度读取失败，已先显示项目资产体检。")}</div>
+        <div className={`mt-2 text-xs leading-5 text-muted-foreground ${AUTO_DIRECTOR_MOBILE_CLASSES.wrapText}`}>{i18next.t("gen.pages.novels.components.takeover.TakeoverProgressInspectionPanel.gen_6ad7266b", "当前任务详细进度读取失败，已先显示项目资产体检。")}</div>
       ) : null}
     </div>
   );

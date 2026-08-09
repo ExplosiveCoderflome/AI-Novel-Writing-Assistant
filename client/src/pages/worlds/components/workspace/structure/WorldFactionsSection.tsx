@@ -55,7 +55,7 @@ export default function WorldFactionsSection(props: {
                   : prev,
               )
             }
-          >{t("gen.pages.worlds.components.workspace.structure.WorldFactionsSection.gen_2ea92b54", "新增阵营")}</Button>
+          >{i18next.t("gen.pages.worlds.components.workspace.structure.WorldFactionsSection.gen_2ea92b54", "新增阵营")}</Button>
           <Button
             size="sm"
             variant="outline"
@@ -83,7 +83,7 @@ export default function WorldFactionsSection(props: {
                   : prev,
               )
             }
-          >{t("gen.pages.worlds.components.workspace.structure.WorldFactionsSection.gen_495db24d", "新增势力")}</Button>
+          >{i18next.t("gen.pages.worlds.components.workspace.structure.WorldFactionsSection.gen_495db24d", "新增势力")}</Button>
         </div>
       </div>
       <div className="rounded-md border border-dashed p-3 text-xs text-muted-foreground space-y-1">
@@ -107,7 +107,7 @@ export default function WorldFactionsSection(props: {
       <div className="space-y-3">
         {draftStructure.factions.map((faction, index) => (
           <div key={faction.id || index} className="rounded-md border p-3 space-y-2">
-            <div className="text-xs text-muted-foreground">{t("gen.pages.worlds.components.workspace.structure.WorldFactionsSection.gen_78af1dc1", "阵营卡描述的是抽象站队，不是具体公司、部门或人脉网络。")}</div>
+            <div className="text-xs text-muted-foreground">{i18next.t("gen.pages.worlds.components.workspace.structure.WorldFactionsSection.gen_78af1dc1", "阵营卡描述的是抽象站队，不是具体公司、部门或人脉网络。")}</div>
             <Input
               value={faction.name}
               onChange={(event) =>
@@ -222,7 +222,7 @@ export default function WorldFactionsSection(props: {
         ))}
         {draftStructure.forces.map((force, index) => (
           <div key={force.id || index} className="rounded-md border p-3 space-y-2">
-            <div className="text-xs text-muted-foreground">{t("gen.pages.worlds.components.workspace.structure.WorldFactionsSection.gen_d299eb13", "势力卡描述的是能施压、能占据地点、能参与关系网络的具体组织或圈层。")}</div>
+            <div className="text-xs text-muted-foreground">{i18next.t("gen.pages.worlds.components.workspace.structure.WorldFactionsSection.gen_d299eb13", "势力卡描述的是能施压、能占据地点、能参与关系网络的具体组织或圈层。")}</div>
             <div className="grid gap-2 md:grid-cols-3">
               <Input
                 value={force.name}

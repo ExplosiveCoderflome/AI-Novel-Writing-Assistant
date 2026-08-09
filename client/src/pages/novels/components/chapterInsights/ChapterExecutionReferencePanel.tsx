@@ -104,7 +104,7 @@ export default function ChapterExecutionReferencePanel(props: ChapterExecutionRe
 
   if (!selectedChapter) {
     return (
-      <div className="rounded-2xl border border-dashed border-border/70 bg-background p-4 text-sm leading-6 text-muted-foreground">{t("gen.pages.novels.components.chapterInsights.ChapterExecutionReferencePanel.gen_95d85081", "选中章节后，这里会显示任务单、场景拆解、质量反馈、修复记录和诊断信息。")}</div>
+      <div className="rounded-2xl border border-dashed border-border/70 bg-background p-4 text-sm leading-6 text-muted-foreground">{i18next.t("gen.pages.novels.components.chapterInsights.ChapterExecutionReferencePanel.gen_95d85081", "选中章节后，这里会显示任务单、场景拆解、质量反馈、修复记录和诊断信息。")}</div>
     );
   }
 
@@ -124,7 +124,7 @@ export default function ChapterExecutionReferencePanel(props: ChapterExecutionRe
         <div className="flex items-start justify-between gap-3">
           <div>
             <div className="text-base font-semibold text-foreground">{i18next.t("gen.pages.novels.components.chapterInsights.ChapterExecutionReferencePanel.gen_826a79d9")}</div>
-            <div className="mt-1 text-sm leading-6 text-muted-foreground">{t("gen.pages.novels.components.chapterInsights.ChapterExecutionReferencePanel.gen_bc8a3a82", "查看本章任务、质量和修复依据，不占用正文阅读区。")}</div>
+            <div className="mt-1 text-sm leading-6 text-muted-foreground">{i18next.t("gen.pages.novels.components.chapterInsights.ChapterExecutionReferencePanel.gen_bc8a3a82", "查看本章任务、质量和修复依据，不占用正文阅读区。")}</div>
           </div>
           <Badge variant="outline" className="shrink-0">{i18next.t("gen.pages.novels.components.chapterInsights.ChapterExecutionReferencePanel.gen_0ad1bb1f")}</Badge>
         </div>

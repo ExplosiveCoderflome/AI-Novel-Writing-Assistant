@@ -1,3 +1,4 @@
+import i18next from "i18next";
 import { clsx, type ClassValue } from "clsx";
 import { twMerge } from "tailwind-merge";
 

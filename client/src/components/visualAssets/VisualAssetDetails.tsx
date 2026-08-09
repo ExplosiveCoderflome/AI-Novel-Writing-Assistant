@@ -23,22 +23,22 @@ interface VisualAssetDetailsProps {
 export function VisualAssetDetails({ asset, isLoading, isError, onClose, onRetry }: VisualAssetDetailsProps) {
   const { t } = useTranslation();
   return (
-    <aside className="flex min-h-0 w-full flex-col border-t bg-muted/[0.16] lg:w-80 lg:border-l lg:border-t-0" aria-label={t("gen.components.visualAssets.VisualAssetDetails.gen_31d01601", "素材详情")}>
+    <aside className="flex min-h-0 w-full flex-col border-t bg-muted/[0.16] lg:w-80 lg:border-l lg:border-t-0" aria-label={i18next.t("gen.components.visualAssets.VisualAssetDetails.gen_31d01601", "素材详情")}>
       <div className="flex items-center justify-between border-b px-4 py-3">
-        <div className="text-sm font-medium">{t("gen.components.visualAssets.VisualAssetDetails.gen_31d01601", "素材详情")}</div>
-        <Button type="button" variant="ghost" size="icon" className="h-8 w-8" onClick={onClose} aria-label={t("gen.components.visualAssets.VisualAssetDetails.gen_48d25b45", "关闭素材详情")}>
+        <div className="text-sm font-medium">{i18next.t("gen.components.visualAssets.VisualAssetDetails.gen_31d01601", "素材详情")}</div>
+        <Button type="button" variant="ghost" size="icon" className="h-8 w-8" onClick={onClose} aria-label={i18next.t("gen.components.visualAssets.VisualAssetDetails.gen_48d25b45", "关闭素材详情")}>
           <X className="h-4 w-4" aria-hidden="true" />
         </Button>
       </div>
       <div className="min-h-0 flex-1 space-y-4 overflow-y-auto p-4">
         {isLoading && !asset ? (
           <div className="flex min-h-40 items-center justify-center text-sm text-muted-foreground">
-            <LoaderCircle className="mr-2 h-4 w-4 animate-spin" aria-hidden="true" />{t("gen.components.visualAssets.VisualAssetDetails.gen_eaa97e66", "正在读取素材详情")}</div>
+            <LoaderCircle className="mr-2 h-4 w-4 animate-spin" aria-hidden="true" />{i18next.t("gen.components.visualAssets.VisualAssetDetails.gen_eaa97e66", "正在读取素材详情")}</div>
         ) : null}
         {isError && !asset ? (
           <div className="space-y-3 py-8 text-center text-sm text-muted-foreground">
-            <p>{t("gen.components.visualAssets.VisualAssetDetails.gen_2b049f1f", "暂时无法读取这项素材。")}</p>
-            <Button type="button" size="sm" variant="outline" onClick={onRetry}>{t("gen.components.visualAssets.VisualAssetDetails.gen_64ca9bab", "重新加载")}</Button>
+            <p>{i18next.t("gen.components.visualAssets.VisualAssetDetails.gen_2b049f1f", "暂时无法读取这项素材。")}</p>
+            <Button type="button" size="sm" variant="outline" onClick={onRetry}>{i18next.t("gen.components.visualAssets.VisualAssetDetails.gen_64ca9bab", "重新加载")}</Button>
           </div>
         ) : null}
         {asset ? (
@@ -46,20 +46,20 @@ export function VisualAssetDetails({ asset, isLoading, isError, onClose, onRetry
             <a href={resolveImageAssetUrl(asset.url)} target="_blank" rel="noreferrer" className="group relative block overflow-hidden rounded-md border bg-background">
               <img src={resolveImageAssetUrl(asset.url)} alt={asset.source.label || getVisualAssetKindLabel(asset.kind)} className="aspect-[4/3] w-full object-cover" />
               <span className="absolute bottom-2 right-2 inline-flex items-center gap-1 rounded bg-background/85 px-2 py-1 text-xs opacity-0 transition-opacity group-hover:opacity-100 group-focus-visible:opacity-100">
-                <ExternalLink className="h-3 w-3" aria-hidden="true" />{t("gen.components.visualAssets.VisualAssetDetails.gen_fd1e2fff", "查看原图")}</span>
+                <ExternalLink className="h-3 w-3" aria-hidden="true" />{i18next.t("gen.components.visualAssets.VisualAssetDetails.gen_fd1e2fff", "查看原图")}</span>
             </a>
             <div className="space-y-3 text-sm">
-              <DetailRow label={t("gen.components.visualAssets.VisualAssetDetails.gen_2f8df7ca", "素材类型")} value={getVisualAssetKindLabel(asset.kind)} />
-              <DetailRow label={t("gen.components.visualAssets.VisualAssetDetails.gen_26ca20b1", "来源")} value={asset.source.label || getVisualAssetSourceLabel(asset.source.domain)} />
-              <DetailRow label={t("gen.components.visualAssets.VisualAssetDetails.gen_ed3bfd4d", "获取方式")} value={getVisualAssetOriginLabel(asset.origin)} />
-              <DetailRow label={t("gen.components.visualAssets.VisualAssetDetails.gen_a352a593", "所属内容")} value={asset.scope.label || getVisualAssetScopeLabel(asset.scope.kind)} />
-              <DetailRow label={t("gen.components.visualAssets.VisualAssetDetails.gen_eca37cb0", "创建时间")} value={formatVisualAssetDate(asset.createdAt)} />
-              {asset.width && asset.height ? <DetailRow label={t("gen.components.visualAssets.VisualAssetDetails.gen_c8339fd2", "尺寸")} value={`${asset.width} × ${asset.height}`} /> : null}
-              {asset.provider || asset.model ? <DetailRow label={t("gen.components.visualAssets.VisualAssetDetails.gen_a205ae17", "生成工具")} value={[asset.provider, asset.model].filter(Boolean).join(" · ")} /> : null}
+              <DetailRow label={i18next.t("gen.components.visualAssets.VisualAssetDetails.gen_2f8df7ca", "素材类型")} value={getVisualAssetKindLabel(asset.kind)} />
+              <DetailRow label={i18next.t("gen.components.visualAssets.VisualAssetDetails.gen_26ca20b1", "来源")} value={asset.source.label || getVisualAssetSourceLabel(asset.source.domain)} />
+              <DetailRow label={i18next.t("gen.components.visualAssets.VisualAssetDetails.gen_ed3bfd4d", "获取方式")} value={getVisualAssetOriginLabel(asset.origin)} />
+              <DetailRow label={i18next.t("gen.components.visualAssets.VisualAssetDetails.gen_a352a593", "所属内容")} value={asset.scope.label || getVisualAssetScopeLabel(asset.scope.kind)} />
+              <DetailRow label={i18next.t("gen.components.visualAssets.VisualAssetDetails.gen_eca37cb0", "创建时间")} value={formatVisualAssetDate(asset.createdAt)} />
+              {asset.width && asset.height ? <DetailRow label={i18next.t("gen.components.visualAssets.VisualAssetDetails.gen_c8339fd2", "尺寸")} value={`${asset.width} × ${asset.height}`} /> : null}
+              {asset.provider || asset.model ? <DetailRow label={i18next.t("gen.components.visualAssets.VisualAssetDetails.gen_a205ae17", "生成工具")} value={[asset.provider, asset.model].filter(Boolean).join(" · ")} /> : null}
             </div>
             {asset.prompt ? (
               <div className="border-t pt-4">
-                <div className="text-xs font-medium text-muted-foreground">{t("gen.components.visualAssets.VisualAssetDetails.gen_7bfb4903", "画面描述")}</div>
+                <div className="text-xs font-medium text-muted-foreground">{i18next.t("gen.components.visualAssets.VisualAssetDetails.gen_7bfb4903", "画面描述")}</div>
                 <p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-foreground">{asset.prompt}</p>
               </div>
             ) : null}

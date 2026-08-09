@@ -258,7 +258,7 @@ export default function ModelRoutesPage() {
       <Card>
         <CardHeader>
           <CardTitle>{i18next.t("gen.pages.settings.ModelRoutesPage.gen_15ee8ec2")}</CardTitle>
-          <CardDescription>{t("gen.pages.settings.ModelRoutesPage.gen_e0272125", "为不同创作任务指定合适模型，并检查 JSON 输出是否稳定。")}</CardDescription>
+          <CardDescription>{i18next.t("gen.pages.settings.ModelRoutesPage.gen_e0272125", "为不同创作任务指定合适模型，并检查 JSON 输出是否稳定。")}</CardDescription>
         </CardHeader>
         <CardContent className="flex flex-wrap items-center justify-between gap-3">
           <div className="space-y-2 text-sm text-muted-foreground">
@@ -296,7 +296,7 @@ export default function ModelRoutesPage() {
             </Button>
             <Button asChild variant="outline">
               <Link to="/settings">
-                <ArrowLeft className="h-4 w-4" />{t("gen.pages.settings.ModelRoutesPage.gen_a8a0f23f", "返回系统设置")}</Link>
+                <ArrowLeft className="h-4 w-4" />{i18next.t("gen.pages.settings.ModelRoutesPage.gen_a8a0f23f", "返回系统设置")}</Link>
             </Button>
           </div>
         </CardContent>
@@ -305,8 +305,8 @@ export default function ModelRoutesPage() {
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
-            <CopyCheck className="h-5 w-5" />{t("gen.pages.settings.ModelRoutesPage.gen_43b7ad98", "快速套用模型")}</CardTitle>
-          <CardDescription>{t("gen.pages.settings.ModelRoutesPage.gen_04ef1fdb", "先选一套模型，再填入多个任务；统一保存后，后续创作会按新路由执行。")}</CardDescription>
+            <CopyCheck className="h-5 w-5" />{i18next.t("gen.pages.settings.ModelRoutesPage.gen_43b7ad98", "快速套用模型")}</CardTitle>
+          <CardDescription>{i18next.t("gen.pages.settings.ModelRoutesPage.gen_04ef1fdb", "先选一套模型，再填入多个任务；统一保存后，后续创作会按新路由执行。")}</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           <ModelRouteFields
@@ -333,7 +333,7 @@ export default function ModelRoutesPage() {
                 onClick={() => applyBulkDraftToRoutes(taskTypes)}
                 disabled={!routeBulkDraft.provider.trim() || !routeBulkDraft.model.trim() || taskTypes.length === 0}
               >
-                <CopyCheck className="h-4 w-4" />{t("gen.pages.settings.ModelRoutesPage.gen_53a4bfe8", "套用到全部任务")}</Button>
+                <CopyCheck className="h-4 w-4" />{i18next.t("gen.pages.settings.ModelRoutesPage.gen_53a4bfe8", "套用到全部任务")}</Button>
               <Button
                 type="button"
                 size="sm"
@@ -341,7 +341,7 @@ export default function ModelRoutesPage() {
                 onClick={() => applyBulkDraftToRoutes(failedTaskTypes)}
                 disabled={!routeBulkDraft.provider.trim() || !routeBulkDraft.model.trim() || failedTaskTypes.length === 0}
               >
-                <CopyCheck className="h-4 w-4" />{t("gen.pages.settings.ModelRoutesPage.gen_33aa8d59", "套用到异常任务")}</Button>
+                <CopyCheck className="h-4 w-4" />{i18next.t("gen.pages.settings.ModelRoutesPage.gen_33aa8d59", "套用到异常任务")}</Button>
               <Button
                 type="button"
                 size="sm"
@@ -349,7 +349,7 @@ export default function ModelRoutesPage() {
                 onClick={() => applyBulkDraftToRoutes(emptyRouteTaskTypes)}
                 disabled={!routeBulkDraft.provider.trim() || !routeBulkDraft.model.trim() || emptyRouteTaskTypes.length === 0}
               >
-                <CopyCheck className="h-4 w-4" />{t("gen.pages.settings.ModelRoutesPage.gen_7d7cc6d6", "补齐空白任务")}</Button>
+                <CopyCheck className="h-4 w-4" />{i18next.t("gen.pages.settings.ModelRoutesPage.gen_7d7cc6d6", "补齐空白任务")}</Button>
               <Button
                 type="button"
                 size="sm"
@@ -369,13 +369,13 @@ export default function ModelRoutesPage() {
       <Card>
         <CardHeader>
           <CardTitle>{i18next.t("gen.pages.settings.ModelRoutesPage.gen_ec6a737a")}</CardTitle>
-          <CardDescription>{t("gen.pages.settings.ModelRoutesPage.gen_c6c22102", "主模型能对话但 JSON 不稳时，可在所有结构化任务上统一启用备用模型。")}</CardDescription>
+          <CardDescription>{i18next.t("gen.pages.settings.ModelRoutesPage.gen_c6c22102", "主模型能对话但 JSON 不稳时，可在所有结构化任务上统一启用备用模型。")}</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="flex items-center justify-between rounded-md border p-3">
             <div>
               <div className="font-medium">{i18next.t("gen.pages.settings.ModelRoutesPage.gen_08b94dfa")}</div>
-              <div className="text-sm text-muted-foreground">{t("gen.pages.settings.ModelRoutesPage.gen_f3fa3d39", "主模型的结构化策略全部失败后，才会切到这套备用模型。")}</div>
+              <div className="text-sm text-muted-foreground">{i18next.t("gen.pages.settings.ModelRoutesPage.gen_f3fa3d39", "主模型的结构化策略全部失败后，才会切到这套备用模型。")}</div>
             </div>
             <Switch
               checked={fallbackDraft.enabled}
@@ -491,7 +491,7 @@ export default function ModelRoutesPage() {
                   onClick={() => saveModelRouteMutation.mutate(buildRouteSavePayload(taskType, draft))}
                   disabled={isSavingRoutes || !draft.provider.trim() || !draft.model.trim()}
                 >
-                  <Save className="h-4 w-4" />{t("gen.pages.settings.ModelRoutesPage.gen_bea7f966", "保存路由")}</Button>
+                  <Save className="h-4 w-4" />{i18next.t("gen.pages.settings.ModelRoutesPage.gen_bea7f966", "保存路由")}</Button>
               </div>
             </CardContent>
           </Card>

@@ -215,7 +215,7 @@ export default function WorldAssetsTab(props: WorldAssetsTabProps) {
             <div className="flex flex-col gap-2 lg:flex-row lg:items-start lg:justify-between">
               <div>
                 <div className="font-medium">{i18next.t("gen.pages.worlds.components.workspace.WorldAssetsTab.worldAssetPlanning")}</div>
-                <div className="mt-1 text-sm leading-6 text-muted-foreground">{t("gen.pages.worlds.components.workspace.WorldAssetsTab.gen_de662c61", "地图、势力图谱、时间线和体系树都从世界手册延伸出来。先把规则、势力、地点和张力整理清楚，再生成可视化资产。")}</div>
+                <div className="mt-1 text-sm leading-6 text-muted-foreground">{i18next.t("gen.pages.worlds.components.workspace.WorldAssetsTab.gen_de662c61", "地图、势力图谱、时间线和体系树都从世界手册延伸出来。先把规则、势力、地点和张力整理清楚，再生成可视化资产。")}</div>
               </div>
               <Badge variant="outline">{i18next.t("gen.pages.worlds.components.workspace.WorldAssetsTab.gen_b8c3131b")}</Badge>
             </div>
@@ -270,10 +270,10 @@ export default function WorldAssetsTab(props: WorldAssetsTabProps) {
                 <option value="artifact">{i18next.t("gen.pages.worlds.components.workspace.WorldAssetsTab.gen_6916ec11")}</option>
                 <option value="custom">{i18next.t("gen.pages.worlds.components.workspace.WorldAssetsTab.gen_f1d4ff50")}</option>
               </SelectControl>
-              <Button variant="outline" onClick={onRefreshLibrary}>{t("gen.pages.worlds.components.workspace.WorldAssetsTab.gen_694fc5ef", "刷新")}</Button>
+              <Button variant="outline" onClick={onRefreshLibrary}>{i18next.t("gen.pages.worlds.components.workspace.WorldAssetsTab.gen_694fc5ef", "刷新")}</Button>
             </div>
             <div className="rounded-md border p-2 space-y-2">
-              <div className="text-xs font-semibold text-muted-foreground">{t("gen.pages.worlds.components.workspace.WorldAssetsTab.gen_80884294", "保存当前设定为世界素材")}</div>
+              <div className="text-xs font-semibold text-muted-foreground">{i18next.t("gen.pages.worlds.components.workspace.WorldAssetsTab.gen_80884294", "保存当前设定为世界素材")}</div>
               <div className="grid gap-2 md:grid-cols-3">
                 <Input
                   placeholder={i18next.t("gen.pages.worlds.components.workspace.WorldAssetsTab.gen_a78225be")}
@@ -319,8 +319,8 @@ export default function WorldAssetsTab(props: WorldAssetsTabProps) {
                   <Button size="sm" onClick={() => onInjectLibraryField(item.id)}>
                     加入当前分层（{selectedLayerPrimaryField}）
                   </Button>
-                  <Button size="sm" variant="outline" onClick={() => onInjectLibraryStructure(item.id, "forces")}>{t("gen.pages.worlds.components.workspace.WorldAssetsTab.gen_3c15a862", "加入势力手册")}</Button>
-                  <Button size="sm" variant="outline" onClick={() => onInjectLibraryStructure(item.id, "locations")}>{t("gen.pages.worlds.components.workspace.WorldAssetsTab.gen_07e4adf2", "加入地点手册")}</Button>
+                  <Button size="sm" variant="outline" onClick={() => onInjectLibraryStructure(item.id, "forces")}>{i18next.t("gen.pages.worlds.components.workspace.WorldAssetsTab.gen_3c15a862", "加入势力手册")}</Button>
+                  <Button size="sm" variant="outline" onClick={() => onInjectLibraryStructure(item.id, "locations")}>{i18next.t("gen.pages.worlds.components.workspace.WorldAssetsTab.gen_07e4adf2", "加入地点手册")}</Button>
                 </div>
               </div>
             ))}
@@ -336,14 +336,14 @@ export default function WorldAssetsTab(props: WorldAssetsTabProps) {
               value={snapshotLabel}
               onChange={(event) => setSnapshotLabel(event.target.value)}
             />
-            <Button onClick={onCreateSnapshot} disabled={createSnapshotPending}>{t("gen.pages.worlds.components.workspace.WorldAssetsTab.gen_3eacefe7", "创建快照")}</Button>
+            <Button onClick={onCreateSnapshot} disabled={createSnapshotPending}>{i18next.t("gen.pages.worlds.components.workspace.WorldAssetsTab.gen_3eacefe7", "创建快照")}</Button>
           </div>
           {snapshots.map((snapshot) => (
             <div key={snapshot.id} className="flex items-center justify-between rounded border p-2 text-sm">
               <div>
                 {snapshot.label ?? snapshot.id.slice(0, 8)} / {new Date(snapshot.createdAt).toLocaleString()}
               </div>
-              <Button size="sm" variant="outline" onClick={() => onRestoreSnapshot(snapshot.id)}>{t("gen.pages.worlds.components.workspace.WorldAssetsTab.gen_c7db6d4f", "恢复")}</Button>
+              <Button size="sm" variant="outline" onClick={() => onRestoreSnapshot(snapshot.id)}>{i18next.t("gen.pages.worlds.components.workspace.WorldAssetsTab.gen_c7db6d4f", "恢复")}</Button>
             </div>
           ))}
           <div className="grid gap-2 md:grid-cols-3">
@@ -371,7 +371,7 @@ export default function WorldAssetsTab(props: WorldAssetsTabProps) {
                 </option>
               ))}
             </SelectControl>
-            <Button onClick={onDiffSnapshots} disabled={!diffFrom || !diffTo}>{t("gen.pages.worlds.components.workspace.WorldAssetsTab.gen_cebba449", "对比差异")}</Button>
+            <Button onClick={onDiffSnapshots} disabled={!diffFrom || !diffTo}>{i18next.t("gen.pages.worlds.components.workspace.WorldAssetsTab.gen_cebba449", "对比差异")}</Button>
           </div>
           {diffChanges.map((change) => (
             <div key={change.field} className="rounded border p-2 text-xs">
@@ -385,8 +385,8 @@ export default function WorldAssetsTab(props: WorldAssetsTabProps) {
           <div className="rounded-md border p-3 space-y-2">
           <div className="font-medium">{i18next.t("gen.pages.worlds.components.workspace.WorldAssetsTab.gen_9344b89b")}</div>
           <div className="flex gap-2">
-            <Button variant="secondary" onClick={() => void onExport("markdown")}>{t("gen.pages.worlds.components.workspace.WorldAssetsTab.gen_02783c1c", "导出 Markdown（复制到剪贴板）")}</Button>
-            <Button variant="secondary" onClick={() => void onExport("json")}>{t("gen.pages.worlds.components.workspace.WorldAssetsTab.gen_b91ad202", "导出 JSON（复制到剪贴板）")}</Button>
+            <Button variant="secondary" onClick={() => void onExport("markdown")}>{i18next.t("gen.pages.worlds.components.workspace.WorldAssetsTab.gen_02783c1c", "导出 Markdown（复制到剪贴板）")}</Button>
+            <Button variant="secondary" onClick={() => void onExport("json")}>{i18next.t("gen.pages.worlds.components.workspace.WorldAssetsTab.gen_b91ad202", "导出 JSON（复制到剪贴板）")}</Button>
           </div>
           </div>
         ) : null}

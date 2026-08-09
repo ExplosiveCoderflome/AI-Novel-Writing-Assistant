@@ -46,7 +46,7 @@ export default function AppVersionBadge({ className }: AppVersionBadgeProps) {
                 : "border-border/70 bg-muted/60 text-muted-foreground hover:bg-muted hover:text-foreground",
               className,
             )}
-            title={t("gen.components.layout.AppVersionBadge.gen_6dc622aa", "打开版本与更新")}
+            title={i18next.t("gen.components.layout.AppVersionBadge.gen_6dc622aa", "打开版本与更新")}
             aria-label={`打开版本与更新，${label}`}
           >
             {Icon ? <Icon className={cn("h-3 w-3", isChecking && "animate-spin")} aria-hidden="true" /> : null}

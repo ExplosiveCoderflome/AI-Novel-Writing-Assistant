@@ -1,3 +1,4 @@
+import i18next from "i18next";
 /**
  * 生图确认弹窗触发 hook
  *

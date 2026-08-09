@@ -64,7 +64,7 @@ export default function ChapterEditorSidebar(props: ChapterEditorSidebarProps) {
           <div className="flex flex-col gap-4">
             {onBack ? (
               <div>
-                <Button size="sm" variant="outline" onClick={onBack}>{t("gen.pages.novels.components.chapterEditor.ChapterEditorSidebar.gen_678b8321", "返回章节执行页")}</Button>
+                <Button size="sm" variant="outline" onClick={onBack}>{i18next.t("gen.pages.novels.components.chapterEditor.ChapterEditorSidebar.gen_678b8321", "返回章节执行页")}</Button>
               </div>
             ) : null}
 
@@ -101,7 +101,7 @@ export default function ChapterEditorSidebar(props: ChapterEditorSidebarProps) {
                 {isSaving ? i18next.t("gen.pages.novels.components.chapterEditor.ChapterEditorSidebar.savingInProgressDotDotDot") : i18next.t("gen.pages.novels.components.chapterEditor.ChapterEditorSidebar.save")}
               </Button>
               {onOpenVersionHistory ? (
-                <Button size="sm" variant="outline" onClick={onOpenVersionHistory} className="w-full">{t("gen.pages.novels.components.chapterEditor.ChapterEditorSidebar.gen_091493b9", "版本入口")}</Button>
+                <Button size="sm" variant="outline" onClick={onOpenVersionHistory} className="w-full">{i18next.t("gen.pages.novels.components.chapterEditor.ChapterEditorSidebar.gen_091493b9", "版本入口")}</Button>
               ) : null}
             </div>
           </div>
@@ -150,9 +150,9 @@ export default function ChapterEditorSidebar(props: ChapterEditorSidebarProps) {
               </div>
             </div>
           ) : isWorkspaceError ? (
-            <div className="text-sm leading-6 text-muted-foreground">{t("gen.pages.novels.components.chapterEditor.ChapterEditorSidebar.gen_bef0a17b", "宏观定位暂时加载失败，你仍然可以先编辑正文或在右侧直接发起 AI 修正。")}</div>
+            <div className="text-sm leading-6 text-muted-foreground">{i18next.t("gen.pages.novels.components.chapterEditor.ChapterEditorSidebar.gen_bef0a17b", "宏观定位暂时加载失败，你仍然可以先编辑正文或在右侧直接发起 AI 修正。")}</div>
           ) : (
-            <div className="text-sm leading-6 text-muted-foreground">{t("gen.pages.novels.components.chapterEditor.ChapterEditorSidebar.gen_1199cdd8", "正在准备本章的卷内定位和节奏建议。")}</div>
+            <div className="text-sm leading-6 text-muted-foreground">{i18next.t("gen.pages.novels.components.chapterEditor.ChapterEditorSidebar.gen_1199cdd8", "正在准备本章的卷内定位和节奏建议。")}</div>
           )}
         </div>
 
@@ -211,7 +211,7 @@ export default function ChapterEditorSidebar(props: ChapterEditorSidebarProps) {
                       </div>
                     </div>
                     {isRecommended ? (
-                      <span className="rounded-full bg-emerald-100 px-2 py-1 text-[11px] text-emerald-800">{t("gen.pages.novels.components.chapterEditor.ChapterEditorSidebar.gen_2498b7b4", "推荐先修")}</span>
+                      <span className="rounded-full bg-emerald-100 px-2 py-1 text-[11px] text-emerald-800">{i18next.t("gen.pages.novels.components.chapterEditor.ChapterEditorSidebar.gen_2498b7b4", "推荐先修")}</span>
                     ) : null}
                   </div>
 
@@ -226,7 +226,7 @@ export default function ChapterEditorSidebar(props: ChapterEditorSidebarProps) {
                     >
                       {isSelected ? i18next.t("gen.pages.novels.components.chapterEditor.ChapterEditorSidebar.gen_ed62f56e") : i18next.t("gen.pages.novels.components.chapterEditor.ChapterEditorSidebar.gen_a8a96e49")}
                     </Button>
-                    <Button size="sm" onClick={() => onRunDiagnostic(card)}>{t("gen.pages.novels.components.chapterEditor.ChapterEditorSidebar.gen_1e39dcdc", "直接用 AI 处理")}</Button>
+                    <Button size="sm" onClick={() => onRunDiagnostic(card)}>{i18next.t("gen.pages.novels.components.chapterEditor.ChapterEditorSidebar.gen_1e39dcdc", "直接用 AI 处理")}</Button>
                   </div>
                 </div>
               );

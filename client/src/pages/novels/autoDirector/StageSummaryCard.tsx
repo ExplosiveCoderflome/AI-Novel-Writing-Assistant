@@ -1,3 +1,4 @@
+import i18next from "i18next";
 import { motion, useReducedMotion } from "framer-motion";
 import type { AutoDirectorCreateStageKey } from "./directorCreateStages";
 

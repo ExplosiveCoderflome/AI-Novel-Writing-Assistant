@@ -1,3 +1,4 @@
+import i18next from "i18next";
 import { useCallback, useMemo } from "react";
 import { useSearchParams } from "react-router-dom";
 

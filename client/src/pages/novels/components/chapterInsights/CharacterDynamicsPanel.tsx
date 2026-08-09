@@ -166,7 +166,7 @@ export default function CharacterDynamicsPanel(props: {
           <CharacterSnapshotCard title={i18next.t("gen.pages.novels.components.chapterInsights.CharacterDynamicsPanel.gen_076a259e")} snapshot={latestStateSnapshot} emptyText={i18next.t("gen.pages.novels.components.chapterInsights.CharacterDynamicsPanel.gen_b481d5d5")} />
         </div>
       ) : (
-        <div className="rounded-xl border border-dashed border-border/70 bg-muted/10 p-3 text-xs leading-6 text-muted-foreground">{t("gen.pages.novels.components.chapterInsights.CharacterDynamicsPanel.gen_4054280a", "选中章节后，这里显示角色状态变化、关系变化和关键伏笔。")}</div>
+        <div className="rounded-xl border border-dashed border-border/70 bg-muted/10 p-3 text-xs leading-6 text-muted-foreground">{i18next.t("gen.pages.novels.components.chapterInsights.CharacterDynamicsPanel.gen_4054280a", "选中章节后，这里显示角色状态变化、关系变化和关键伏笔。")}</div>
       )}
     </div>
   );

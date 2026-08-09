@@ -111,7 +111,7 @@ function renderNovelList(output: Record<string, unknown>, onQuickAction?: (promp
                     size="sm"
                     variant="outline"
                     onClick={() => onQuickAction(`把《${title}》设为当前工作区`)}
-                  >{t("gen.pages.creativeHub.components.CreativeHubToolResultCard.gen_b568c569", "设为当前工作区")}</Button>
+                  >{i18next.t("gen.pages.creativeHub.components.CreativeHubToolResultCard.gen_b568c569", "设为当前工作区")}</Button>
                 </div>
               ) : null}
             </div>
@@ -499,7 +499,7 @@ export default function CreativeHubToolResultCard({
           {cardContent}
         </div>
       ) : (
-        <div className="mt-2 text-xs text-muted-foreground">{t("gen.pages.creativeHub.components.CreativeHubToolResultCard.gen_75ce310d", "详细执行结果默认收起，可按需查看。")}</div>
+        <div className="mt-2 text-xs text-muted-foreground">{i18next.t("gen.pages.creativeHub.components.CreativeHubToolResultCard.gen_75ce310d", "详细执行结果默认收起，可按需查看。")}</div>
       )}
     </div>
   );

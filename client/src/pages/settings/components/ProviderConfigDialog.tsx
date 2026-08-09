@@ -87,7 +87,7 @@ export default function ProviderConfigDialog({
               className="w-full sm:w-auto"
               onClick={onTest}
               disabled={testDisabled}
-            >{t("gen.pages.settings.components.ProviderConfigDialog.gen_69e74756", "测试连接")}</Button>
+            >{i18next.t("gen.pages.settings.components.ProviderConfigDialog.gen_69e74756", "测试连接")}</Button>
 
             {editingConfig?.kind === "custom" ? (
               <Button
@@ -208,7 +208,7 @@ export default function ProviderConfigDialog({
           <div className="space-y-3 rounded-md border bg-muted/20 p-3">
             <div className="space-y-1">
               <div className="text-xs text-muted-foreground">{i18next.t("gen.pages.settings.components.ProviderConfigDialog.gen_c5948a6a")}</div>
-              <div className="text-xs text-muted-foreground">{t("gen.pages.settings.components.ProviderConfigDialog.gen_fb19447d", "填写后，角色形象图生成可以选择这个厂商；留空则只用于文本模型。")}</div>
+              <div className="text-xs text-muted-foreground">{i18next.t("gen.pages.settings.components.ProviderConfigDialog.gen_fb19447d", "填写后，角色形象图生成可以选择这个厂商；留空则只用于文本模型。")}</div>
             </div>
             {canSelectImageModels ? (
               <div className="space-y-1">
@@ -227,7 +227,7 @@ export default function ProviderConfigDialog({
               placeholder={editingConfig?.defaultImageModel ?? i18next.t("gen.pages.settings.components.ProviderConfigDialog.gen_6155a156")}
               onChange={(event) => setForm((prev) => ({ ...prev, imageModel: event.target.value }))}
             />
-            <div className="text-xs text-muted-foreground">{t("gen.pages.settings.components.ProviderConfigDialog.gen_1a01d599", "图片生成会调用这个厂商的 OpenAI 兼容图像接口。")}</div>
+            <div className="text-xs text-muted-foreground">{i18next.t("gen.pages.settings.components.ProviderConfigDialog.gen_1a01d599", "图片生成会调用这个厂商的 OpenAI 兼容图像接口。")}</div>
           </div>
 
           <ProviderRequestLimitFields

@@ -167,12 +167,12 @@ export default function CharacterLibrary() {
     <div className="space-y-5">
       <AssetLibraryHeader
         icon={UsersRound}
-        context={t("gen.pages.characters.CharacterLibrary.gen_acd264fd", "跨小说复用资产")}
-        title={t("gen.pages.characters.CharacterLibrary.gen_846c1dd1", "基础角色库")}
-        description={t("gen.pages.characters.CharacterLibrary.gen_bc4fff7e", "把常用角色原型、核心动机和形象资料沉淀为可复用资产。创建小说或完善人物时，可以让 AI 直接读取这些角色基础。")}
+        context={i18next.t("gen.pages.characters.CharacterLibrary.gen_acd264fd", "跨小说复用资产")}
+        title={i18next.t("gen.pages.characters.CharacterLibrary.gen_846c1dd1", "基础角色库")}
+        description={i18next.t("gen.pages.characters.CharacterLibrary.gen_bc4fff7e", "把常用角色原型、核心动机和形象资料沉淀为可复用资产。创建小说或完善人物时，可以让 AI 直接读取这些角色基础。")}
         actions={(
           <>
-            <OpenInCreativeHubButton bindings={{}} label={t("gen.pages.characters.CharacterLibrary.gen_14ad80ab", "带着角色库继续创作")} />
+            <OpenInCreativeHubButton bindings={{}} label={i18next.t("gen.pages.characters.CharacterLibrary.gen_14ad80ab", "带着角色库继续创作")} />
             <CharacterCreateDialog />
           </>
         )}
@@ -256,7 +256,7 @@ export default function CharacterLibrary() {
               ? "warning"
               : "success"}
         action={characterListQuery.isError ? (
-          <Button type="button" size="sm" variant="outline" onClick={() => void characterListQuery.refetch()}>{t("gen.pages.characters.CharacterLibrary.gen_64ca9bab", "重新加载")}</Button>
+          <Button type="button" size="sm" variant="outline" onClick={() => void characterListQuery.refetch()}>{i18next.t("gen.pages.characters.CharacterLibrary.gen_64ca9bab", "重新加载")}</Button>
         ) : undefined}
       />
 
@@ -304,25 +304,25 @@ export default function CharacterLibrary() {
       ) : null}
 
       <AssetLibrarySection
-        title={t("gen.pages.characters.CharacterLibrary.gen_88afed0d", "角色资产")}
-        description={t("gen.pages.characters.CharacterLibrary.gen_f7ea71f1", "先维护能影响剧情选择的核心信息；形象图和扩展资料可以在需要时继续补充。")}
+        title={i18next.t("gen.pages.characters.CharacterLibrary.gen_88afed0d", "角色资产")}
+        description={i18next.t("gen.pages.characters.CharacterLibrary.gen_f7ea71f1", "先维护能影响剧情选择的核心信息；形象图和扩展资料可以在需要时继续补充。")}
       >
         <div className="space-y-3">
           {characterListQuery.isLoading ? (
             <AssetLibraryEmptyState
               icon={UsersRound}
-              title={t("gen.pages.characters.CharacterLibrary.gen_0f990b4e", "正在整理角色资产")}
-              description={t("gen.pages.characters.CharacterLibrary.gen_2b8964f5", "角色列表与形象资料加载完成后会显示在这里。")}
+              title={i18next.t("gen.pages.characters.CharacterLibrary.gen_0f990b4e", "正在整理角色资产")}
+              description={i18next.t("gen.pages.characters.CharacterLibrary.gen_2b8964f5", "角色列表与形象资料加载完成后会显示在这里。")}
             />
           ) : null}
 
           {characterListQuery.isError ? (
             <AssetLibraryEmptyState
               icon={CircleAlert}
-              title={t("gen.pages.characters.CharacterLibrary.gen_78d75a38", "角色库暂时无法加载")}
-              description={t("gen.pages.characters.CharacterLibrary.gen_63d708c8", "现有角色不会受到影响。可以重新加载列表后继续。")}
+              title={i18next.t("gen.pages.characters.CharacterLibrary.gen_78d75a38", "角色库暂时无法加载")}
+              description={i18next.t("gen.pages.characters.CharacterLibrary.gen_63d708c8", "现有角色不会受到影响。可以重新加载列表后继续。")}
               action={(
-                <Button type="button" variant="outline" onClick={() => void characterListQuery.refetch()}>{t("gen.pages.characters.CharacterLibrary.gen_64ca9bab", "重新加载")}</Button>
+                <Button type="button" variant="outline" onClick={() => void characterListQuery.refetch()}>{i18next.t("gen.pages.characters.CharacterLibrary.gen_64ca9bab", "重新加载")}</Button>
               )}
             />
           ) : null}
@@ -347,7 +347,7 @@ export default function CharacterLibrary() {
                   extraActions={(
                     <OpenInCreativeHubButton
                       bindings={{ baseCharacterId: character.id }}
-                      label={t("gen.pages.characters.CharacterLibrary.gen_fd38c170", "带着角色继续")}
+                      label={i18next.t("gen.pages.characters.CharacterLibrary.gen_fd38c170", "带着角色继续")}
                     />
                   )}
                 />
@@ -355,8 +355,8 @@ export default function CharacterLibrary() {
               {characters.length === 0 ? (
                 <AssetLibraryEmptyState
                   icon={UsersRound}
-                  title={t("gen.pages.characters.CharacterLibrary.gen_944f0de1", "还没有基础角色")}
-                  description={t("gen.pages.characters.CharacterLibrary.gen_c55f1945", "使用页面右上角的“创建角色”，先建立一个目标明确、弱点清晰的主角。")}
+                  title={i18next.t("gen.pages.characters.CharacterLibrary.gen_944f0de1", "还没有基础角色")}
+                  description={i18next.t("gen.pages.characters.CharacterLibrary.gen_c55f1945", "使用页面右上角的“创建角色”，先建立一个目标明确、弱点清晰的主角。")}
                 />
               ) : null}
             </>

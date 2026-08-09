@@ -1,3 +1,4 @@
+import i18next from "i18next";
 import type { ApiResponse } from "@ai-novel/shared/types/api";
 import type { DirectorCommandAcceptedResponse } from "@ai-novel/shared/types/directorRuntime";
 import type { DirectorContinuationMode } from "@ai-novel/shared/types/novelDirector";

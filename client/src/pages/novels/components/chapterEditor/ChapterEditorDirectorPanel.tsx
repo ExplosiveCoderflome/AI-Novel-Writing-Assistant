@@ -93,13 +93,13 @@ export default function ChapterEditorDirectorPanel(props: ChapterEditorDirectorP
               variant={session.viewMode === "block" ? "default" : "outline"}
               onClick={() => onChangeViewMode("block")}
               disabled={isIdle}
-            >{t("gen.pages.novels.components.chapterEditor.ChapterEditorDirectorPanel.gen_62113286", "段落对比")}</Button>
+            >{i18next.t("gen.pages.novels.components.chapterEditor.ChapterEditorDirectorPanel.gen_62113286", "段落对比")}</Button>
             <Button
               size="sm"
               variant={session.viewMode === "inline" ? "default" : "outline"}
               onClick={() => onChangeViewMode("inline")}
               disabled={isIdle}
-            >{t("gen.pages.novels.components.chapterEditor.ChapterEditorDirectorPanel.gen_f9769a5a", "细节标记")}</Button>
+            >{i18next.t("gen.pages.novels.components.chapterEditor.ChapterEditorDirectorPanel.gen_f9769a5a", "细节标记")}</Button>
           </div>
         </div>
 
@@ -108,12 +108,12 @@ export default function ChapterEditorDirectorPanel(props: ChapterEditorDirectorP
             size="sm"
             variant={revisionScope === "selection" ? "default" : "outline"}
             onClick={() => onScopeChange("selection")}
-          >{t("gen.pages.novels.components.chapterEditor.ChapterEditorDirectorPanel.gen_946f5197", "片段模式")}</Button>
+          >{i18next.t("gen.pages.novels.components.chapterEditor.ChapterEditorDirectorPanel.gen_946f5197", "片段模式")}</Button>
           <Button
             size="sm"
             variant={revisionScope === "chapter" ? "default" : "outline"}
             onClick={() => onScopeChange("chapter")}
-          >{t("gen.pages.novels.components.chapterEditor.ChapterEditorDirectorPanel.gen_1bffeb80", "整章模式")}</Button>
+          >{i18next.t("gen.pages.novels.components.chapterEditor.ChapterEditorDirectorPanel.gen_1bffeb80", "整章模式")}</Button>
         </div>
       </div>
 
@@ -123,7 +123,7 @@ export default function ChapterEditorDirectorPanel(props: ChapterEditorDirectorP
             {isWorkspaceLoading ? (
               <div className="rounded-2xl border border-dashed border-border/70 bg-muted/10 p-4">
                 <div className="text-sm font-medium text-foreground">{i18next.t("gen.pages.novels.components.chapterEditor.ChapterEditorDirectorPanel.aiReviewingCurrentChapter")}</div>
-                <div className="mt-2 text-sm leading-6 text-muted-foreground">{t("gen.pages.novels.components.chapterEditor.ChapterEditorDirectorPanel.gen_e9994d11", "正在分析本章在卷中的位置、优先修正任务和可直接处理的片段，你可以稍等几秒再开始。")}</div>
+                <div className="mt-2 text-sm leading-6 text-muted-foreground">{i18next.t("gen.pages.novels.components.chapterEditor.ChapterEditorDirectorPanel.gen_e9994d11", "正在分析本章在卷中的位置、优先修正任务和可直接处理的片段，你可以稍等几秒再开始。")}</div>
                 <div className="mt-4 space-y-3">
                   <LoadingBar widthClassName="w-2/3" />
                   <LoadingBar widthClassName="w-full" />
@@ -171,7 +171,7 @@ export default function ChapterEditorDirectorPanel(props: ChapterEditorDirectorP
                     size="sm"
                     onClick={onRunSelectedDiagnostic}
                     disabled={selectedDiagnosticCard.recommendedScope === "selection" && !canRunSelectionRevision}
-                  >{t("gen.pages.novels.components.chapterEditor.ChapterEditorDirectorPanel.gen_5d47b03e", "直接用 AI 处理这张问题卡")}</Button>
+                  >{i18next.t("gen.pages.novels.components.chapterEditor.ChapterEditorDirectorPanel.gen_5d47b03e", "直接用 AI 处理这张问题卡")}</Button>
                 </div>
               </div>
             ) : null}
@@ -281,8 +281,8 @@ export default function ChapterEditorDirectorPanel(props: ChapterEditorDirectorP
       </div>
 
       <div className="shrink-0 flex flex-wrap items-center justify-end gap-2 border-t border-border/70 px-4 py-4">
-        <Button size="sm" variant="outline" onClick={onReject} disabled={isIdle || session.status === "loading" || isApplying}>{t("gen.pages.novels.components.chapterEditor.ChapterEditorDirectorPanel.gen_ecc4410d", "拒绝全部")}</Button>
-        <Button size="sm" variant="outline" onClick={onRegenerate} disabled={isIdle || session.status === "loading" || isApplying}>{t("gen.pages.novels.components.chapterEditor.ChapterEditorDirectorPanel.gen_a8943d52", "再生成")}</Button>
+        <Button size="sm" variant="outline" onClick={onReject} disabled={isIdle || session.status === "loading" || isApplying}>{i18next.t("gen.pages.novels.components.chapterEditor.ChapterEditorDirectorPanel.gen_ecc4410d", "拒绝全部")}</Button>
+        <Button size="sm" variant="outline" onClick={onRegenerate} disabled={isIdle || session.status === "loading" || isApplying}>{i18next.t("gen.pages.novels.components.chapterEditor.ChapterEditorDirectorPanel.gen_a8943d52", "再生成")}</Button>
         <Button size="sm" onClick={onAccept} disabled={session.status !== "ready" || !activeCandidate || isApplying}>
           {isApplying ? i18next.t("gen.pages.novels.components.chapterEditor.ChapterEditorDirectorPanel.gen_e596edd9") : i18next.t("gen.pages.novels.components.chapterEditor.ChapterEditorDirectorPanel.gen_3f8a36ff")}
         </Button>

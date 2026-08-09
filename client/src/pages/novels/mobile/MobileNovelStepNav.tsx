@@ -49,7 +49,7 @@ export default function MobileNovelStepNav({
               ) : null}
               <span className="max-w-32 truncate">{step.label}</span>
               {isRecommended ? (
-                <Badge variant="secondary" className="rounded-full px-1.5 py-0 text-[10px]">{t("gen.pages.novels.mobile.MobileNovelStepNav.gen_44420c5a", "流程推荐")}</Badge>
+                <Badge variant="secondary" className="rounded-full px-1.5 py-0 text-[10px]">{i18next.t("gen.pages.novels.mobile.MobileNovelStepNav.gen_44420c5a", "流程推荐")}</Badge>
               ) : null}
             </span>
           </Button>

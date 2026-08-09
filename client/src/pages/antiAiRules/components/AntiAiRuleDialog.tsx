@@ -34,7 +34,7 @@ export default function AntiAiRuleDialog(props: AntiAiRuleDialogProps) {
         description={i18next.t("gen.pages.antiAiRules.components.AntiAiRuleDialog.gen_8258f53a")}
         footer={(
           <>
-            <Button type="button" variant="outline" onClick={() => props.onOpenChange(false)}>{t("gen.pages.antiAiRules.components.AntiAiRuleDialog.gen_625fb26b", "取消")}</Button>
+            <Button type="button" variant="outline" onClick={() => props.onOpenChange(false)}>{i18next.t("gen.pages.antiAiRules.components.AntiAiRuleDialog.gen_625fb26b", "取消")}</Button>
             <Button type="submit" form="anti-ai-rule-form" disabled={props.isSaving}>
               {props.isSaving ? i18next.t("gen.pages.antiAiRules.components.AntiAiRuleDialog.savingInProgressDotDotDot") : i18next.t("gen.pages.antiAiRules.components.AntiAiRuleDialog.saveRules")}
             </Button>

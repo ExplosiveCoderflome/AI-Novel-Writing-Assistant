@@ -240,7 +240,7 @@ export default function WorldStructureTab(props: {
                     : prev,
                 )
               }
-            >{t("gen.pages.worlds.components.workspace.WorldStructureTab.gen_ba3c802f", "新增规则")}</Button>
+            >{i18next.t("gen.pages.worlds.components.workspace.WorldStructureTab.gen_ba3c802f", "新增规则")}</Button>
           </div>
           <textarea
             className="min-h-[80px] w-full rounded-md border bg-background p-2 text-sm"
@@ -403,7 +403,7 @@ export default function WorldStructureTab(props: {
                     : prev,
                 )
               }
-            >{t("gen.pages.worlds.components.workspace.WorldStructureTab.gen_bd468226", "新增地点")}</Button>
+            >{i18next.t("gen.pages.worlds.components.workspace.WorldStructureTab.gen_bd468226", "新增地点")}</Button>
           </div>
           {draftStructure.locations.map((location, index) => (
             <div key={location.id || index} className="rounded-md border p-3 space-y-2">

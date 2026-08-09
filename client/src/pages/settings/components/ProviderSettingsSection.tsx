@@ -64,9 +64,9 @@ export default function ProviderSettingsSection(props: {
       <CardHeader className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div className="min-w-0 space-y-1">
           <CardTitle>{i18next.t("gen.pages.settings.components.ProviderSettingsSection.gen_b51bd70b")}</CardTitle>
-          <CardDescription className={AUTO_DIRECTOR_MOBILE_CLASSES.wrapText}>{t("gen.pages.settings.components.ProviderSettingsSection.gen_4414e078", "先保证至少一个文本模型可用；余额明细、请求限制和模型列表可以在高级详情里检查。")}</CardDescription>
+          <CardDescription className={AUTO_DIRECTOR_MOBILE_CLASSES.wrapText}>{i18next.t("gen.pages.settings.components.ProviderSettingsSection.gen_4414e078", "先保证至少一个文本模型可用；余额明细、请求限制和模型列表可以在高级详情里检查。")}</CardDescription>
         </div>
-        <Button className={AUTO_DIRECTOR_MOBILE_CLASSES.fullWidthAction} onClick={onCreateCustomProvider}>{t("gen.pages.settings.components.ProviderSettingsSection.gen_86fc689e", "新增自定义厂商")}</Button>
+        <Button className={AUTO_DIRECTOR_MOBILE_CLASSES.fullWidthAction} onClick={onCreateCustomProvider}>{i18next.t("gen.pages.settings.components.ProviderSettingsSection.gen_86fc689e", "新增自定义厂商")}</Button>
       </CardHeader>
       <CardContent className="grid min-w-0 gap-3 md:grid-cols-2">
         {viewModels.map((item) => (

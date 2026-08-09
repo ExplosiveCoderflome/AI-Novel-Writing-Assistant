@@ -1,3 +1,4 @@
+import i18next from "i18next";
 import { cn } from "@/lib/utils";
 
 interface DesktopBrandMarkProps {

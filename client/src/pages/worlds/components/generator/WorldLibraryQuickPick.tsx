@@ -52,7 +52,7 @@ export default function WorldLibraryQuickPick({
     <div className="rounded-md border p-3 text-sm space-y-3">
       <div className="space-y-1">
         <div className="font-medium">{i18next.t("gen.pages.worlds.components.generator.WorldLibraryQuickPick.gen_b6708780")}</div>
-        <div className="text-xs text-muted-foreground">{t("gen.pages.worlds.components.generator.WorldLibraryQuickPick.gen_46da244c", "旧版 V2 会在正式生成前就允许从属性库选素材。这里保留这个思路，但接到当前蓝图结构里。")}</div>
+        <div className="text-xs text-muted-foreground">{i18next.t("gen.pages.worlds.components.generator.WorldLibraryQuickPick.gen_46da244c", "旧版 V2 会在正式生成前就允许从属性库选素材。这里保留这个思路，但接到当前蓝图结构里。")}</div>
       </div>
 
       <input
@@ -67,7 +67,7 @@ export default function WorldLibraryQuickPick({
           <div className="text-xs text-muted-foreground">{i18next.t("gen.pages.worlds.components.generator.WorldLibraryQuickPick.gen_00b1d3f6")}</div>
         ) : null}
         {!libraryQuery.isLoading && libraryItems.length === 0 ? (
-          <div className="text-xs text-muted-foreground">{t("gen.pages.worlds.components.generator.WorldLibraryQuickPick.gen_73bc8a01", "没有匹配的素材库条目。")}</div>
+          <div className="text-xs text-muted-foreground">{i18next.t("gen.pages.worlds.components.generator.WorldLibraryQuickPick.gen_73bc8a01", "没有匹配的素材库条目。")}</div>
         ) : null}
 
         {libraryItems.map((item) => {

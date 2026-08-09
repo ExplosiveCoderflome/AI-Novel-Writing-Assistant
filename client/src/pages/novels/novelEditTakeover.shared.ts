@@ -1,3 +1,4 @@
+import i18next from "i18next";
 ﻿import type { UnifiedTaskDetail } from "@ai-novel/shared/types/task";
 import type { DirectorLockScope } from "@ai-novel/shared/types/novelDirector";
 import type { NovelEditTakeoverState } from "./components/NovelEditView.types";

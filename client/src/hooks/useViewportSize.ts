@@ -1,3 +1,4 @@
+import i18next from "i18next";
 import { useEffect, useState } from "react";
 
 export interface ViewportSize {

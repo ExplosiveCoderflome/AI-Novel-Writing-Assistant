@@ -178,7 +178,7 @@ function SlotBadges({ section }: { section: PromptEditorSection }) {
         {section.sourceLabel}
       </Badge>
       {section.isDirty ? (
-        <Badge variant="secondary" className="border-[#b8d9d0] bg-[#eaf7f2] text-[#0f766e]">{t("gen.pages.promptWorkbench.components.PromptBodyEditor.gen_50b14199", "未保存")}</Badge>
+        <Badge variant="secondary" className="border-[#b8d9d0] bg-[#eaf7f2] text-[#0f766e]">{i18next.t("gen.pages.promptWorkbench.components.PromptBodyEditor.gen_50b14199", "未保存")}</Badge>
       ) : null}
     </div>
   );
@@ -230,7 +230,7 @@ function PromptSlotSection(props: {
             <p className="mt-1 text-xs text-muted-foreground">{section.description}</p>
           ) : null}
           {"anchor" in section.slot && section.slot.anchor ? (
-            <p className="mt-1 text-xs text-muted-foreground">{t("gen.pages.promptWorkbench.components.PromptBodyEditor.gen_1f28fc81", "锚点：")}<code className="rounded bg-muted px-1">{section.slot.anchor}</code>
+            <p className="mt-1 text-xs text-muted-foreground">{i18next.t("gen.pages.promptWorkbench.components.PromptBodyEditor.gen_1f28fc81", "锚点：")}<code className="rounded bg-muted px-1">{section.slot.anchor}</code>
             </p>
           ) : null}
         </div>
@@ -327,8 +327,8 @@ function PromptOfficialVersionPanel(props: {
       <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
         <div className="min-w-0">
           <div className="flex items-center gap-2 text-sm font-semibold text-[#25443f]">
-            <ShieldCheck className="h-4 w-4 text-[#0f766e]" />{t("gen.pages.promptWorkbench.components.PromptBodyEditor.gen_6deab984", "官方版本对齐")}</div>
-          <p className="mt-1 text-xs leading-relaxed text-[#52606d]">{t("gen.pages.promptWorkbench.components.PromptBodyEditor.gen_8bb23df4", "对照当前官方槽位，恢复可靠默认值，或保留你的设置并消除版本提醒。")}</p>
+            <ShieldCheck className="h-4 w-4 text-[#0f766e]" />{i18next.t("gen.pages.promptWorkbench.components.PromptBodyEditor.gen_6deab984", "官方版本对齐")}</div>
+          <p className="mt-1 text-xs leading-relaxed text-[#52606d]">{i18next.t("gen.pages.promptWorkbench.components.PromptBodyEditor.gen_8bb23df4", "对照当前官方槽位，恢复可靠默认值，或保留你的设置并消除版本提醒。")}</p>
         </div>
         <div className="flex flex-wrap gap-2">
           <Button
@@ -338,7 +338,7 @@ function PromptOfficialVersionPanel(props: {
             disabled={pending || restoreKeys.length === 0}
             onClick={() => onApplyOfficial(restoreKeys)}
             className="border-[#b8d9d0] bg-white text-[#0f5f59] hover:bg-[#eaf7f2]"
-          >{t("gen.pages.promptWorkbench.components.PromptBodyEditor.gen_42420354", "恢复官方当前版")}</Button>
+          >{i18next.t("gen.pages.promptWorkbench.components.PromptBodyEditor.gen_42420354", "恢复官方当前版")}</Button>
           <Button
             type="button"
             size="sm"
@@ -346,14 +346,14 @@ function PromptOfficialVersionPanel(props: {
             disabled={pending || keepKeys.length === 0}
             onClick={() => onKeepMine(keepKeys)}
             className="text-[#52606d] hover:bg-white"
-          >{t("gen.pages.promptWorkbench.components.PromptBodyEditor.gen_d3015a51", "保留我的设置")}</Button>
+          >{i18next.t("gen.pages.promptWorkbench.components.PromptBodyEditor.gen_d3015a51", "保留我的设置")}</Button>
         </div>
       </div>
 
       {isLoading ? (
-        <div className="mt-4 rounded-md border border-dashed border-[#cbdad6] bg-white px-3 py-3 text-sm text-muted-foreground">{t("gen.pages.promptWorkbench.components.PromptBodyEditor.gen_6a07e1bd", "正在读取官方版本...")}</div>
+        <div className="mt-4 rounded-md border border-dashed border-[#cbdad6] bg-white px-3 py-3 text-sm text-muted-foreground">{i18next.t("gen.pages.promptWorkbench.components.PromptBodyEditor.gen_6a07e1bd", "正在读取官方版本...")}</div>
       ) : actionableItems.length === 0 ? (
-        <div className="mt-4 rounded-md border border-[#d8e2de] bg-white px-3 py-3 text-sm text-[#315f58]">{t("gen.pages.promptWorkbench.components.PromptBodyEditor.gen_a1bb326d", "当前槽位与官方当前版一致。")}</div>
+        <div className="mt-4 rounded-md border border-[#d8e2de] bg-white px-3 py-3 text-sm text-[#315f58]">{i18next.t("gen.pages.promptWorkbench.components.PromptBodyEditor.gen_a1bb326d", "当前槽位与官方当前版一致。")}</div>
       ) : (
         <div className="mt-4 space-y-2">
           {actionableItems.map((item) => (
@@ -366,7 +366,7 @@ function PromptOfficialVersionPanel(props: {
                       {reconcileStateLabel(item)}
                     </Badge>
                     {item.overrideMode === "official_default" ? (
-                      <Badge variant="outline" className="border-[#a7d7ca] bg-[#eaf7f2] text-[#0f766e]">{t("gen.pages.promptWorkbench.components.PromptBodyEditor.gen_1680287e", "本书使用官方默认")}</Badge>
+                      <Badge variant="outline" className="border-[#a7d7ca] bg-[#eaf7f2] text-[#0f766e]">{i18next.t("gen.pages.promptWorkbench.components.PromptBodyEditor.gen_1680287e", "本书使用官方默认")}</Badge>
                     ) : null}
                   </div>
                   {item.changelog ? (
@@ -374,11 +374,11 @@ function PromptOfficialVersionPanel(props: {
                   ) : null}
                   <div className="grid gap-2 text-xs text-[#52606d] md:grid-cols-2">
                     <div className="rounded-md bg-[#f7fbf9] px-2 py-2">
-                      <div className="mb-1 font-medium text-[#25443f]">{t("gen.pages.promptWorkbench.components.PromptBodyEditor.gen_7da9e03e", "官方当前版")}</div>
+                      <div className="mb-1 font-medium text-[#25443f]">{i18next.t("gen.pages.promptWorkbench.components.PromptBodyEditor.gen_7da9e03e", "官方当前版")}</div>
                       <div className="whitespace-pre-wrap break-words">{displaySlotValue(item.defaultCurrent)}</div>
                     </div>
                     <div className="rounded-md bg-[#fffaf0] px-2 py-2">
-                      <div className="mb-1 font-medium text-[#7a5620]">{t("gen.pages.promptWorkbench.components.PromptBodyEditor.gen_38941cdf", "我的设置")}</div>
+                      <div className="mb-1 font-medium text-[#7a5620]">{i18next.t("gen.pages.promptWorkbench.components.PromptBodyEditor.gen_38941cdf", "我的设置")}</div>
                       <div className="whitespace-pre-wrap break-words">{displaySlotValue(item.overrideValue)}</div>
                     </div>
                   </div>
@@ -391,7 +391,7 @@ function PromptOfficialVersionPanel(props: {
                     disabled={pending}
                     onClick={() => onApplyOfficial([item.key])}
                     className="border-[#b8d9d0] bg-white text-[#0f5f59] hover:bg-[#eaf7f2]"
-                  >{t("gen.pages.promptWorkbench.components.PromptBodyEditor.gen_42420354", "恢复官方当前版")}</Button>
+                  >{i18next.t("gen.pages.promptWorkbench.components.PromptBodyEditor.gen_42420354", "恢复官方当前版")}</Button>
                   <Button
                     type="button"
                     size="sm"
@@ -399,7 +399,7 @@ function PromptOfficialVersionPanel(props: {
                     disabled={pending || item.state === "new"}
                     onClick={() => onKeepMine([item.key])}
                     className="text-[#52606d] hover:bg-[#f4faf7]"
-                  >{t("gen.pages.promptWorkbench.components.PromptBodyEditor.gen_d3015a51", "保留我的设置")}</Button>
+                  >{i18next.t("gen.pages.promptWorkbench.components.PromptBodyEditor.gen_d3015a51", "保留我的设置")}</Button>
                 </div>
               </div>
             </div>
@@ -510,7 +510,7 @@ function ContextReferenceChips(props: {
   return (
     <section className="rounded-md border border-[#d8e2de] bg-[#f8fbfa] px-4 py-3">
       <div className="mb-2 flex items-center gap-2 text-sm font-semibold text-[#25443f]">
-        <MapPin className="h-4 w-4 text-[#0f766e]" />{t("gen.pages.promptWorkbench.components.PromptBodyEditor.gen_cb2e451c", "上下文引用")}</div>
+        <MapPin className="h-4 w-4 text-[#0f766e]" />{i18next.t("gen.pages.promptWorkbench.components.PromptBodyEditor.gen_cb2e451c", "上下文引用")}</div>
       <div className="flex flex-wrap gap-1.5">
         {prompt.contextRequirements.map((requirement) => {
           const blockId = firstBlockByGroup.get(requirement.group);
@@ -605,14 +605,14 @@ export function PromptBodyEditor(props: {
       {!hasEditableSlots ? (
         <div className="rounded-md border border-dashed bg-background/80 p-5 text-sm text-muted-foreground">
           <div className="mb-2 flex items-center gap-2 font-semibold text-foreground">
-            <LockKeyhole className="h-4 w-4 text-primary" />{t("gen.pages.promptWorkbench.components.PromptBodyEditor.gen_f716dfbd", "提示词只读")}</div>{t("gen.pages.promptWorkbench.components.PromptBodyEditor.gen_0f00ce21", "该提示词没有声明可编辑槽位。可以查看最终 messages 与上下文注入，但不能直接替换 system prompt 或修改上下文策略。")}</div>
+            <LockKeyhole className="h-4 w-4 text-primary" />{i18next.t("gen.pages.promptWorkbench.components.PromptBodyEditor.gen_f716dfbd", "提示词只读")}</div>{i18next.t("gen.pages.promptWorkbench.components.PromptBodyEditor.gen_0f00ce21", "该提示词没有声明可编辑槽位。可以查看最终 messages 与上下文注入，但不能直接替换 system prompt 或修改上下文策略。")}</div>
       ) : (
         <>
           {controlSections.length > 0 ? (
             <section className="space-y-3">
               <div className="flex items-center gap-2">
                 <CheckCircle2 className="h-4 w-4 text-muted-foreground" />
-                <h3 className="text-sm font-semibold text-foreground">{t("gen.pages.promptWorkbench.components.PromptBodyEditor.gen_913674c0", "运行控制")}</h3>
+                <h3 className="text-sm font-semibold text-foreground">{i18next.t("gen.pages.promptWorkbench.components.PromptBodyEditor.gen_913674c0", "运行控制")}</h3>
               </div>
               <div className="grid gap-3 xl:grid-cols-2">
                 {controlSections.map((section) => (
@@ -651,7 +651,7 @@ export function PromptBodyEditor(props: {
 
           {appendSections.length > 0 ? (
             <section className="space-y-3">
-              <h3 className="text-sm font-semibold text-foreground">{t("gen.pages.promptWorkbench.components.PromptBodyEditor.gen_5d53b12c", "自定义补充规则")}</h3>
+              <h3 className="text-sm font-semibold text-foreground">{i18next.t("gen.pages.promptWorkbench.components.PromptBodyEditor.gen_5d53b12c", "自定义补充规则")}</h3>
               <div className="space-y-3">
                 {appendSections.map((section) => (
                   <PromptSlotSection
@@ -671,7 +671,7 @@ export function PromptBodyEditor(props: {
       )}
 
       <section className="space-y-3">
-        <h3 className="text-sm font-semibold text-foreground">{t("gen.pages.promptWorkbench.components.PromptBodyEditor.gen_16526914", "最终消息预览")}</h3>
+        <h3 className="text-sm font-semibold text-foreground">{i18next.t("gen.pages.promptWorkbench.components.PromptBodyEditor.gen_16526914", "最终消息预览")}</h3>
         <PromptPreviewPanel
           preview={preview}
           testRun={testRun}

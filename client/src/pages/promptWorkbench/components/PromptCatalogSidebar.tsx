@@ -143,9 +143,9 @@ export function PromptCatalogSidebar(props: PromptCatalogSidebarProps) {
 
       <div className="flex min-h-0 flex-1 flex-col gap-1.5 overflow-y-auto overscroll-contain px-2.5 py-3 [scrollbar-gutter:stable]">
         {isLoading ? (
-          <div className="rounded-md border border-dashed bg-background/70 p-4 text-sm text-muted-foreground">{t("gen.pages.promptWorkbench.components.PromptCatalogSidebar.gen_2c0cac87", "正在读取提示词目录...")}</div>
+          <div className="rounded-md border border-dashed bg-background/70 p-4 text-sm text-muted-foreground">{i18next.t("gen.pages.promptWorkbench.components.PromptCatalogSidebar.gen_2c0cac87", "正在读取提示词目录...")}</div>
         ) : prompts.length === 0 ? (
-          <div className="rounded-md border border-dashed bg-background/70 p-4 text-sm text-muted-foreground">{t("gen.pages.promptWorkbench.components.PromptCatalogSidebar.gen_0e5716c9", "没有匹配的提示词。")}</div>
+          <div className="rounded-md border border-dashed bg-background/70 p-4 text-sm text-muted-foreground">{i18next.t("gen.pages.promptWorkbench.components.PromptCatalogSidebar.gen_0e5716c9", "没有匹配的提示词。")}</div>
         ) : (
           prompts.map((prompt) => (
             <PromptListItem

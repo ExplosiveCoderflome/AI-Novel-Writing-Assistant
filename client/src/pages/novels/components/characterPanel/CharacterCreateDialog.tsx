@@ -76,17 +76,17 @@ export default function CharacterCreateDialog(props: CharacterCreateDialogFullPr
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-2xl">
         <DialogHeader>
-          <DialogTitle>{t("gen.pages.novels.components.characterPanel.CharacterCreateDialog.gen_098d06b1", "新增角色")}</DialogTitle>
-          <DialogDescription>{t("gen.pages.novels.components.characterPanel.CharacterCreateDialog.gen_a06a1e92", "适合快速补齐阵容占位。创建后可在角色资产控制台继续完善档案、外显、资源和事件。")}</DialogDescription>
+          <DialogTitle>{i18next.t("gen.pages.novels.components.characterPanel.CharacterCreateDialog.gen_098d06b1", "新增角色")}</DialogTitle>
+          <DialogDescription>{i18next.t("gen.pages.novels.components.characterPanel.CharacterCreateDialog.gen_a06a1e92", "适合快速补齐阵容占位。创建后可在角色资产控制台继续完善档案、外显、资源和事件。")}</DialogDescription>
         </DialogHeader>
         <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,0.9fr)]">
           <div className="space-y-3 rounded-xl border border-border/70 bg-muted/10 p-4">
             <div className="space-y-1">
-              <div className="font-medium">{t("gen.pages.novels.components.characterPanel.CharacterCreateDialog.gen_433d87d0", "快速创建")}</div>
-              <div className="text-xs text-muted-foreground">{t("gen.pages.novels.components.characterPanel.CharacterCreateDialog.gen_cd90f0a3", "先建立可上场的人物，再让 AI 补齐性格、背景和当前目标。")}</div>
+              <div className="font-medium">{i18next.t("gen.pages.novels.components.characterPanel.CharacterCreateDialog.gen_433d87d0", "快速创建")}</div>
+              <div className="text-xs text-muted-foreground">{i18next.t("gen.pages.novels.components.characterPanel.CharacterCreateDialog.gen_cd90f0a3", "先建立可上场的人物，再让 AI 补齐性格、背景和当前目标。")}</div>
             </div>
             <Input
-              placeholder={t("gen.pages.novels.components.characterPanel.CharacterCreateDialog.gen_85c3b8ab", "角色名称（必填）")}
+              placeholder={i18next.t("gen.pages.novels.components.characterPanel.CharacterCreateDialog.gen_85c3b8ab", "角色名称（必填）")}
               value={quickCharacterForm.name}
               onChange={(event) => onQuickCharacterFormChange("name", event.target.value)}
             />
@@ -95,25 +95,25 @@ export default function CharacterCreateDialog(props: CharacterCreateDialogFullPr
               value={quickCharacterForm.role}
               onChange={(event) => onQuickCharacterFormChange("role", event.target.value)}
             >
-              <option value={t("gen.pages.novels.components.characterPanel.CharacterCreateDialog.gen_83b681f4", "主角")}>{t("gen.pages.novels.components.characterPanel.CharacterCreateDialog.gen_83b681f4", "主角")}</option>
-              <option value={t("gen.pages.novels.components.characterPanel.CharacterCreateDialog.gen_f14665fc", "配角")}>{t("gen.pages.novels.components.characterPanel.CharacterCreateDialog.gen_f14665fc", "配角")}</option>
-              <option value={t("gen.pages.novels.components.characterPanel.CharacterCreateDialog.gen_27dd76d8", "反派")}>{t("gen.pages.novels.components.characterPanel.CharacterCreateDialog.gen_27dd76d8", "反派")}</option>
-              <option value={t("gen.pages.novels.components.characterPanel.CharacterCreateDialog.gen_d62518be", "导师")}>{t("gen.pages.novels.components.characterPanel.CharacterCreateDialog.gen_d62518be", "导师")}</option>
-              <option value={t("gen.pages.novels.components.characterPanel.CharacterCreateDialog.gen_d56d71b4", "情感线")}>{t("gen.pages.novels.components.characterPanel.CharacterCreateDialog.gen_d56d71b4", "情感线")}</option>
-              <option value={t("gen.pages.novels.components.characterPanel.CharacterCreateDialog.gen_813bdd02", "功能角色")}>{t("gen.pages.novels.components.characterPanel.CharacterCreateDialog.gen_813bdd02", "功能角色")}</option>
+              <option value={i18next.t("gen.pages.novels.components.characterPanel.CharacterCreateDialog.gen_83b681f4", "主角")}>{i18next.t("gen.pages.novels.components.characterPanel.CharacterCreateDialog.gen_83b681f4", "主角")}</option>
+              <option value={i18next.t("gen.pages.novels.components.characterPanel.CharacterCreateDialog.gen_f14665fc", "配角")}>{i18next.t("gen.pages.novels.components.characterPanel.CharacterCreateDialog.gen_f14665fc", "配角")}</option>
+              <option value={i18next.t("gen.pages.novels.components.characterPanel.CharacterCreateDialog.gen_27dd76d8", "反派")}>{i18next.t("gen.pages.novels.components.characterPanel.CharacterCreateDialog.gen_27dd76d8", "反派")}</option>
+              <option value={i18next.t("gen.pages.novels.components.characterPanel.CharacterCreateDialog.gen_d62518be", "导师")}>{i18next.t("gen.pages.novels.components.characterPanel.CharacterCreateDialog.gen_d62518be", "导师")}</option>
+              <option value={i18next.t("gen.pages.novels.components.characterPanel.CharacterCreateDialog.gen_d56d71b4", "情感线")}>{i18next.t("gen.pages.novels.components.characterPanel.CharacterCreateDialog.gen_d56d71b4", "情感线")}</option>
+              <option value={i18next.t("gen.pages.novels.components.characterPanel.CharacterCreateDialog.gen_813bdd02", "功能角色")}>{i18next.t("gen.pages.novels.components.characterPanel.CharacterCreateDialog.gen_813bdd02", "功能角色")}</option>
             </SelectControl>
             <Input
-              placeholder={t("gen.pages.novels.components.characterPanel.CharacterCreateDialog.gen_c25eecba", "与主角关系（如：试探合作）")}
+              placeholder={i18next.t("gen.pages.novels.components.characterPanel.CharacterCreateDialog.gen_c25eecba", "与主角关系（如：试探合作）")}
               value={relationToProtagonist}
               onChange={(event) => setRelationToProtagonist(event.target.value)}
             />
             <Input
-              placeholder={t("gen.pages.novels.components.characterPanel.CharacterCreateDialog.gen_80ee2781", "在故事中的作用（如：推动真相线）")}
+              placeholder={i18next.t("gen.pages.novels.components.characterPanel.CharacterCreateDialog.gen_80ee2781", "在故事中的作用（如：推动真相线）")}
               value={storyFunction}
               onChange={(event) => setStoryFunction(event.target.value)}
             />
             <Input
-              placeholder={t("gen.pages.novels.components.characterPanel.CharacterCreateDialog.gen_4c09eaa7", "角色关键词（逗号分隔）")}
+              placeholder={i18next.t("gen.pages.novels.components.characterPanel.CharacterCreateDialog.gen_4c09eaa7", "角色关键词（逗号分隔）")}
               value={wizardKeywords}
               onChange={(event) => setWizardKeywords(event.target.value)}
             />
@@ -122,7 +122,7 @@ export default function CharacterCreateDialog(props: CharacterCreateDialogFullPr
                 type="checkbox"
                 checked={autoGenerateProfile}
                 onChange={(event) => setAutoGenerateProfile(event.target.checked)}
-              />{t("gen.pages.novels.components.characterPanel.CharacterCreateDialog.gen_6b27e255", "自动补齐性格、背景、成长弧和当前状态")}</label>
+              />{i18next.t("gen.pages.novels.components.characterPanel.CharacterCreateDialog.gen_6b27e255", "自动补齐性格、背景、成长弧和当前状态")}</label>
             <AiButton onClick={handleQuickCreate} disabled={isQuickCreating || !quickCharacterForm.name.trim()}>
               {isQuickCreating ? "生成中..." : "AI 生成角色卡"}
             </AiButton>
@@ -130,8 +130,8 @@ export default function CharacterCreateDialog(props: CharacterCreateDialogFullPr
 
           <div className="space-y-3 rounded-xl border border-border/70 bg-background p-4">
             <div className="space-y-1">
-              <div className="font-medium">{t("gen.pages.novels.components.characterPanel.CharacterCreateDialog.gen_695cd6ed", "从基础角色库导入")}</div>
-              <div className="text-xs text-muted-foreground">{t("gen.pages.novels.components.characterPanel.CharacterCreateDialog.gen_17134c0d", "适合复用已有模板，再按当前小说需求继续调整。")}</div>
+              <div className="font-medium">{i18next.t("gen.pages.novels.components.characterPanel.CharacterCreateDialog.gen_695cd6ed", "从基础角色库导入")}</div>
+              <div className="text-xs text-muted-foreground">{i18next.t("gen.pages.novels.components.characterPanel.CharacterCreateDialog.gen_17134c0d", "适合复用已有模板，再按当前小说需求继续调整。")}</div>
             </div>
             {baseCharacters.length > 0 ? (
               <>
@@ -171,12 +171,12 @@ export default function CharacterCreateDialog(props: CharacterCreateDialogFullPr
                     {isImportingBaseCharacter ? "导入中..." : "导入为小说角色"}
                   </Button>
                   <Button asChild variant="outline">
-                    <Link to="/base-characters">{t("gen.pages.novels.components.characterPanel.CharacterCreateDialog.gen_c8ac8a1b", "管理基础角色库")}</Link>
+                    <Link to="/base-characters">{i18next.t("gen.pages.novels.components.characterPanel.CharacterCreateDialog.gen_c8ac8a1b", "管理基础角色库")}</Link>
                   </Button>
                 </div>
               </>
             ) : (
-              <div className="rounded-xl border border-dashed p-4 text-sm text-muted-foreground">{t("gen.pages.novels.components.characterPanel.CharacterCreateDialog.gen_b080f029", "基础角色库为空，请先创建。")}</div>
+              <div className="rounded-xl border border-dashed p-4 text-sm text-muted-foreground">{i18next.t("gen.pages.novels.components.characterPanel.CharacterCreateDialog.gen_b080f029", "基础角色库为空，请先创建。")}</div>
             )}
           </div>
         </div>

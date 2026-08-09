@@ -90,13 +90,13 @@ export default function CharacterAssetWorkspace(props: CharacterAssetWorkspacePr
       <CardHeader className="border-b border-border/60 bg-[linear-gradient(180deg,hsl(var(--muted)/0.35)_0%,hsl(var(--background))_100%)]">
         <div className="flex flex-col gap-2 lg:flex-row lg:items-end lg:justify-between">
           <div className="space-y-1">
-            <CardTitle>{t("gen.pages.novels.components.CharacterAssetWorkspace.gen_7a03f43d", "角色资产控制台")}</CardTitle>
-            <div className="text-sm text-muted-foreground">{t("gen.pages.novels.components.CharacterAssetWorkspace.gen_829116c3", "左侧切换阵容，右侧按场景查看和维护当前角色，减少长篇表单滚动。")}</div>
+            <CardTitle>{i18next.t("gen.pages.novels.components.CharacterAssetWorkspace.gen_7a03f43d", "角色资产控制台")}</CardTitle>
+            <div className="text-sm text-muted-foreground">{i18next.t("gen.pages.novels.components.CharacterAssetWorkspace.gen_829116c3", "左侧切换阵容，右侧按场景查看和维护当前角色，减少长篇表单滚动。")}</div>
           </div>
           <div className="flex flex-wrap gap-2">
             <Badge variant="outline">{characters.length} 个已建角色</Badge>
             {selectedCharacter ? <Badge variant="secondary">当前编辑：{selectedCharacter.name}</Badge> : null}
-            {isSelectedProtagonist ? <Badge variant="outline">{t("gen.pages.novels.components.CharacterAssetWorkspace.gen_83b681f4", "主角")}</Badge> : null}
+            {isSelectedProtagonist ? <Badge variant="outline">{i18next.t("gen.pages.novels.components.CharacterAssetWorkspace.gen_83b681f4", "主角")}</Badge> : null}
           </div>
         </div>
       </CardHeader>
@@ -113,7 +113,7 @@ export default function CharacterAssetWorkspace(props: CharacterAssetWorkspacePr
         </aside>
 
         {!selectedCharacter ? (
-          <div className="flex min-h-[360px] items-center justify-center rounded-xl border border-dashed px-6 text-center text-sm text-muted-foreground">{t("gen.pages.novels.components.CharacterAssetWorkspace.gen_704ea028", "先从左侧选择一个角色，再进入档案、外显、资源、时间线和关系维护。")}</div>
+          <div className="flex min-h-[360px] items-center justify-center rounded-xl border border-dashed px-6 text-center text-sm text-muted-foreground">{i18next.t("gen.pages.novels.components.CharacterAssetWorkspace.gen_704ea028", "先从左侧选择一个角色，再进入档案、外显、资源、时间线和关系维护。")}</div>
         ) : (
           <div className="min-w-0 space-y-4">
             <CharacterFocusSummary

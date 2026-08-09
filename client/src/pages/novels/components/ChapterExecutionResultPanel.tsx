@@ -63,7 +63,7 @@ export default function ChapterExecutionResultPanel(props: ChapterExecutionResul
 
   if (!selectedChapter) {
     return (
-      <div className="rounded-xl border border-dashed p-8 text-sm leading-7 text-muted-foreground">{t("gen.pages.novels.components.ChapterExecutionResultPanel.gen_fca605be", "先从左侧选中一个章节，这里会变成当前章节的主写作区，集中展示正文、任务单、质量反馈和修复记录。")}</div>
+      <div className="rounded-xl border border-dashed p-8 text-sm leading-7 text-muted-foreground">{i18next.t("gen.pages.novels.components.ChapterExecutionResultPanel.gen_fca605be", "先从左侧选中一个章节，这里会变成当前章节的主写作区，集中展示正文、任务单、质量反馈和修复记录。")}</div>
     );
   }
 
@@ -176,7 +176,7 @@ export default function ChapterExecutionResultPanel(props: ChapterExecutionResul
                   </Button>
                 ) : null}
                 {needsConfirmationPrompt ? (
-                  <Button size="sm" variant="outline" onClick={openQualityPanel}>{t("gen.pages.novels.components.ChapterExecutionResultPanel.gen_73c8823d", "查看建议")}</Button>
+                  <Button size="sm" variant="outline" onClick={openQualityPanel}>{i18next.t("gen.pages.novels.components.ChapterExecutionResultPanel.gen_73c8823d", "查看建议")}</Button>
                 ) : null}
                 {(needsConfirmationPrompt || needsRepairPrompt) ? (
                   <Button
@@ -189,7 +189,7 @@ export default function ChapterExecutionResultPanel(props: ChapterExecutionResul
                   </Button>
                 ) : null}
                 {isSelectedChapterStreaming && !isSelectedChapterFinalizing ? (
-                  <Button size="sm" variant="secondary" onClick={onAbortStream}>{t("gen.pages.novels.components.ChapterExecutionResultPanel.gen_dda4c027", "停止生成")}</Button>
+                  <Button size="sm" variant="secondary" onClick={onAbortStream}>{i18next.t("gen.pages.novels.components.ChapterExecutionResultPanel.gen_dda4c027", "停止生成")}</Button>
                 ) : null}
               </div>
             </div>
@@ -200,7 +200,7 @@ export default function ChapterExecutionResultPanel(props: ChapterExecutionResul
                   <MarkdownViewer content={contentPanelContent} />
                 </article>
               ) : (
-                <div className="mx-auto max-w-3xl rounded-3xl border border-dashed bg-muted/15 p-8 text-sm leading-7 text-muted-foreground">{t("gen.pages.novels.components.ChapterExecutionResultPanel.gen_5631dbe0", "当前章节还没有正文。建议先补章节计划或任务单，然后从右侧直接执行“写本章”。")}</div>
+                <div className="mx-auto max-w-3xl rounded-3xl border border-dashed bg-muted/15 p-8 text-sm leading-7 text-muted-foreground">{i18next.t("gen.pages.novels.components.ChapterExecutionResultPanel.gen_5631dbe0", "当前章节还没有正文。建议先补章节计划或任务单，然后从右侧直接执行“写本章”。")}</div>
               )}
             </div>
           </div>

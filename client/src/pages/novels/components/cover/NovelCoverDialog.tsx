@@ -345,7 +345,7 @@ export function NovelCoverDialog(props: NovelCoverDialogProps) {
               <div className="mt-1 leading-6">
                 当前没有已配置的图像模型。请先到
                 {" "}
-                <Link className="font-medium underline underline-offset-2" to="/settings">{t("gen.pages.novels.components.cover.NovelCoverDialog.gen_14097695", "系统设置")}</Link>
+                <Link className="font-medium underline underline-offset-2" to="/settings">{i18next.t("gen.pages.novels.components.cover.NovelCoverDialog.gen_14097695", "系统设置")}</Link>
                 {" "}
                 补全支持图像生成的厂商和模型，再回到这里继续。
               </div>
@@ -355,7 +355,7 @@ export function NovelCoverDialog(props: NovelCoverDialogProps) {
           <section className="space-y-2 rounded-2xl border border-slate-200 bg-slate-50/65 p-4">
             <div className="space-y-1">
               <div className="text-sm font-semibold text-slate-900">{i18next.t("gen.pages.novels.components.cover.NovelCoverDialog.gen_c846ea78")}</div>
-              <div className="text-xs leading-5 text-slate-500">{t("gen.pages.novels.components.cover.NovelCoverDialog.gen_af8adf82", "系统已经根据当前小说基础信息整理了一版封面输入草稿。你可以直接改，也可以先点“AI优化Prompt”再继续手动调整。")}</div>
+              <div className="text-xs leading-5 text-slate-500">{i18next.t("gen.pages.novels.components.cover.NovelCoverDialog.gen_af8adf82", "系统已经根据当前小说基础信息整理了一版封面输入草稿。你可以直接改，也可以先点“AI优化Prompt”再继续手动调整。")}</div>
             </div>
             <textarea
               className="min-h-[190px] max-h-[34vh] w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm leading-7 text-slate-900 shadow-sm outline-none transition focus:border-slate-400 focus:ring-2 focus:ring-slate-200"
@@ -376,7 +376,7 @@ export function NovelCoverDialog(props: NovelCoverDialogProps) {
                     size="sm"
                     className="min-w-[92px] flex-1 rounded-lg sm:flex-none"
                     onClick={() => setOptimizedPromptLanguage("zh")}
-                  >{t("gen.pages.novels.components.cover.NovelCoverDialog.gen_a7bac223", "中文")}</Button>
+                  >{i18next.t("gen.pages.novels.components.cover.NovelCoverDialog.gen_a7bac223", "中文")}</Button>
                   <Button
                     type="button"
                     variant={optimizedPromptLanguage === "en" ? "default" : "ghost"}
@@ -406,7 +406,7 @@ export function NovelCoverDialog(props: NovelCoverDialogProps) {
                     className="whitespace-nowrap rounded-xl px-4 text-slate-600 hover:bg-slate-100 hover:text-slate-900"
                     onClick={restoreOriginalChainPrompt}
                     disabled={promptMode !== "direct" && !hasDirectPrompt}
-                  >{t("gen.pages.novels.components.cover.NovelCoverDialog.gen_780bf992", "恢复原链路")}</Button>
+                  >{i18next.t("gen.pages.novels.components.cover.NovelCoverDialog.gen_780bf992", "恢复原链路")}</Button>
                 </div>
 
                 <div className="flex flex-wrap items-center gap-2 text-sm xl:justify-end">
@@ -420,7 +420,7 @@ export function NovelCoverDialog(props: NovelCoverDialogProps) {
           <section className="space-y-2 rounded-2xl border border-slate-200 bg-slate-50/55 p-4">
             <div className="space-y-1">
               <div className="text-sm font-semibold text-slate-900">{i18next.t("gen.pages.novels.components.cover.NovelCoverDialog.gen_236c0cf1")}</div>
-              <div className="text-xs leading-5 text-slate-500">{t("gen.pages.novels.components.cover.NovelCoverDialog.gen_53458566", "这里展示最终会发送给图像模型的 prompt。你可以直接编辑，也可以在 AI 优化后继续做细调。")}</div>
+              <div className="text-xs leading-5 text-slate-500">{i18next.t("gen.pages.novels.components.cover.NovelCoverDialog.gen_53458566", "这里展示最终会发送给图像模型的 prompt。你可以直接编辑，也可以在 AI 优化后继续做细调。")}</div>
             </div>
             <textarea
               className="min-h-[240px] max-h-[40vh] w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm leading-7 text-slate-900 shadow-sm outline-none transition focus:border-slate-400 focus:ring-2 focus:ring-slate-200"
@@ -544,16 +544,16 @@ export function NovelCoverDialog(props: NovelCoverDialogProps) {
             <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
               <div>
                 <div className="text-sm font-semibold text-slate-900">{i18next.t("gen.pages.novels.components.cover.NovelCoverDialog.gen_9e52510f")}</div>
-                <div className="text-xs leading-5 text-slate-500">{t("gen.pages.novels.components.cover.NovelCoverDialog.gen_802b3223", "生成成功后会自动回到这里。第一张成功图会在当前没有主封面时自动设为主图。")}</div>
+                <div className="text-xs leading-5 text-slate-500">{i18next.t("gen.pages.novels.components.cover.NovelCoverDialog.gen_802b3223", "生成成功后会自动回到这里。第一张成功图会在当前没有主封面时自动设为主图。")}</div>
               </div>
             </div>
 
             {assetsQuery.isLoading ? (
-              <div className="rounded-xl border border-dashed border-slate-200 bg-slate-50 px-4 py-8 text-sm text-slate-500">{t("gen.pages.novels.components.cover.NovelCoverDialog.gen_17b0f589", "正在读取封面图库...")}</div>
+              <div className="rounded-xl border border-dashed border-slate-200 bg-slate-50 px-4 py-8 text-sm text-slate-500">{i18next.t("gen.pages.novels.components.cover.NovelCoverDialog.gen_17b0f589", "正在读取封面图库...")}</div>
             ) : null}
 
             {!assetsQuery.isLoading && assets.length === 0 ? (
-              <div className="rounded-xl border border-dashed border-slate-200 bg-slate-50 px-4 py-8 text-sm text-slate-500">{t("gen.pages.novels.components.cover.NovelCoverDialog.gen_bd05244e", "还没有封面图。先提交一次生成任务，成功后会出现在这里。")}</div>
+              <div className="rounded-xl border border-dashed border-slate-200 bg-slate-50 px-4 py-8 text-sm text-slate-500">{i18next.t("gen.pages.novels.components.cover.NovelCoverDialog.gen_bd05244e", "还没有封面图。先提交一次生成任务，成功后会出现在这里。")}</div>
             ) : null}
 
             {assets.length > 0 ? (

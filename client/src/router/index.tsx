@@ -1,3 +1,4 @@
+import i18next from "i18next";
 import { lazy } from "react";
 import type { RouteObject } from "react-router-dom";
 import { Navigate, useRoutes } from "react-router-dom";

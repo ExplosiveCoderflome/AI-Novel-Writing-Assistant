@@ -224,7 +224,7 @@ function ResourceProposalCard(props: {
       </div>
       <div className="flex flex-wrap gap-2">
         {proposal.chapterId ? (
-          <Button type="button" size="sm" variant="outline" onClick={() => onOpenSource?.(proposal)}>{t("gen.pages.novels.components.NovelTaskDrawer.gen_f3ef03ed", "查看来源")}</Button>
+          <Button type="button" size="sm" variant="outline" onClick={() => onOpenSource?.(proposal)}>{i18next.t("gen.pages.novels.components.NovelTaskDrawer.gen_f3ef03ed", "查看来源")}</Button>
         ) : null}
         <Button
           type="button"
@@ -347,7 +347,7 @@ export default function NovelTaskDrawer({
       <DialogContent className="left-auto right-0 top-0 flex h-dvh max-h-dvh w-full max-w-[520px] translate-x-0 translate-y-0 flex-col gap-0 rounded-none border-y-0 border-r-0 border-l bg-background p-0 sm:max-w-[520px]">
         <DialogHeader className="border-b border-border/70 px-5 py-4">
           <DialogTitle>{i18next.t("gen.pages.novels.components.NovelTaskDrawer.gen_2eceed7d")}</DialogTitle>
-          <DialogDescription>{t("gen.pages.novels.components.NovelTaskDrawer.gen_77ff4e7b", "查看本书 AI 推进记录、快捷处理动作和排查信息。")}</DialogDescription>
+          <DialogDescription>{i18next.t("gen.pages.novels.components.NovelTaskDrawer.gen_77ff4e7b", "查看本书 AI 推进记录、快捷处理动作和排查信息。")}</DialogDescription>
         </DialogHeader>
 
         <div className="flex-1 space-y-5 overflow-y-auto px-5 py-5">
@@ -367,7 +367,7 @@ export default function NovelTaskDrawer({
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <div>
                   <div className="text-sm font-medium text-foreground">{i18next.t("gen.pages.novels.components.NovelTaskDrawer.gen_4346160b")}</div>
-                  <div className="mt-1 text-xs leading-5 text-muted-foreground">{t("gen.pages.novels.components.NovelTaskDrawer.gen_2b13a91c", "这些判断会影响后续章节能使用哪些关键资源。")}</div>
+                  <div className="mt-1 text-xs leading-5 text-muted-foreground">{i18next.t("gen.pages.novels.components.NovelTaskDrawer.gen_2b13a91c", "这些判断会影响后续章节能使用哪些关键资源。")}</div>
                 </div>
                  <Badge variant="secondary">{resourceProposals.length} {i18next.t("gen.pages.novels.components.NovelTaskDrawer.itemCountSuffix")}</Badge>
               </div>
@@ -541,7 +541,7 @@ export default function NovelTaskDrawer({
                     ))}
                   </div>
                 ) : (
-                  <div className="rounded-xl border border-dashed px-4 py-5 text-sm text-muted-foreground">{t("gen.pages.novels.components.NovelTaskDrawer.gen_c259caba", "当前没有可直接执行的快捷动作。")}</div>
+                  <div className="rounded-xl border border-dashed px-4 py-5 text-sm text-muted-foreground">{i18next.t("gen.pages.novels.components.NovelTaskDrawer.gen_c259caba", "当前没有可直接执行的快捷动作。")}</div>
                 )}
               </section>
 
@@ -591,7 +591,7 @@ export default function NovelTaskDrawer({
                     </div>
                   </div>
                 ) : (
-                  <div className="rounded-xl border border-dashed px-4 py-5 text-sm text-muted-foreground">{t("gen.pages.novels.components.NovelTaskDrawer.gen_5079c7bd", "当前任务还没有累计到可展示的 token 用量；一旦模型开始返回 usage，这里会自动刷新。")}</div>
+                  <div className="rounded-xl border border-dashed px-4 py-5 text-sm text-muted-foreground">{i18next.t("gen.pages.novels.components.NovelTaskDrawer.gen_5079c7bd", "当前任务还没有累计到可展示的 token 用量；一旦模型开始返回 usage，这里会自动刷新。")}</div>
                 )}
               </section>
 
@@ -631,12 +631,12 @@ export default function NovelTaskDrawer({
                       ))}
                   </div>
                 ) : (
-                  <div className="rounded-xl border border-dashed px-4 py-5 text-sm text-muted-foreground">{t("gen.pages.novels.components.NovelTaskDrawer.gen_3810583e", "当前还没有可显示的里程碑记录。")}</div>
+                  <div className="rounded-xl border border-dashed px-4 py-5 text-sm text-muted-foreground">{i18next.t("gen.pages.novels.components.NovelTaskDrawer.gen_3810583e", "当前还没有可显示的里程碑记录。")}</div>
                 )}
               </section>
             </>
           ) : (
-            <section className="rounded-2xl border border-dashed px-5 py-8 text-sm text-muted-foreground">{t("gen.pages.novels.components.NovelTaskDrawer.gen_ab108ae0", "当前小说还没有可见的自动导演任务。你可以继续手动创作，或在后台任务中心查看其他任务。")}</section>
+            <section className="rounded-2xl border border-dashed px-5 py-8 text-sm text-muted-foreground">{i18next.t("gen.pages.novels.components.NovelTaskDrawer.gen_ab108ae0", "当前小说还没有可见的自动导演任务。你可以继续手动创作，或在后台任务中心查看其他任务。")}</section>
           )}
         </div>
 
@@ -651,7 +651,7 @@ export default function NovelTaskDrawer({
               <Link to={task.sourceRoute}>{i18next.t("gen.pages.novels.components.NovelTaskDrawer.gen_492476d9")}</Link>
             </Button>
           ) : null}
-          <Button type="button" variant={primaryAction ? "ghost" : "outline"} className="w-full" onClick={onOpenFullTaskCenter}>{t("gen.pages.novels.components.NovelTaskDrawer.gen_e8f338fa", "打开后台任务中心")}</Button>
+          <Button type="button" variant={primaryAction ? "ghost" : "outline"} className="w-full" onClick={onOpenFullTaskCenter}>{i18next.t("gen.pages.novels.components.NovelTaskDrawer.gen_e8f338fa", "打开后台任务中心")}</Button>
         </div>
       </DialogContent>
     </Dialog>

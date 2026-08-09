@@ -1,3 +1,4 @@
+import i18next from "i18next";
 import { useEffect } from "react";
 import type { BaseCharacter, Character, VolumePlan } from "@ai-novel/shared/types/novel";
 import type { NovelDetailResponse } from "@/api/novel";

@@ -78,7 +78,7 @@ export default function TitleSuggestionList({
                 ) : null}
                 {showSecondaryCopy ? (
                   <Button type="button" variant="outline" size="sm" className="gap-1.5" onClick={() => onCopy?.(suggestion)}>
-                    <Copy className="h-3.5 w-3.5" />{t("gen.pages.titles.components.TitleSuggestionList.gen_79d3abe9", "复制")}</Button>
+                    <Copy className="h-3.5 w-3.5" />{i18next.t("gen.pages.titles.components.TitleSuggestionList.gen_79d3abe9", "复制")}</Button>
                 ) : null}
                 {onSave ? (
                   <Button
@@ -91,10 +91,10 @@ export default function TitleSuggestionList({
                   >
                     {savingTitle === suggestion.title ? (
                       <>
-                        <Check className="h-3.5 w-3.5" />{t("gen.pages.titles.components.TitleSuggestionList.gen_7cbf2d09", "保存中")}</>
+                        <Check className="h-3.5 w-3.5" />{i18next.t("gen.pages.titles.components.TitleSuggestionList.gen_7cbf2d09", "保存中")}</>
                     ) : (
                       <>
-                        <BookmarkPlus className="h-3.5 w-3.5" />{t("gen.pages.titles.components.TitleSuggestionList.gen_aeaa7f29", "入库")}</>
+                        <BookmarkPlus className="h-3.5 w-3.5" />{i18next.t("gen.pages.titles.components.TitleSuggestionList.gen_aeaa7f29", "入库")}</>
                     )}
                   </Button>
                 ) : null}

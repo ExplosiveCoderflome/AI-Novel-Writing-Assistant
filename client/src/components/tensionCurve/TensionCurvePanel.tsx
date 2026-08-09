@@ -95,7 +95,7 @@ export default function TensionCurvePanel(props: TensionCurvePanelProps) {
             ))}
             {onRequestEdit ? (
               <Button type="button" size="sm" className="h-8 px-2 text-xs" onClick={onRequestEdit}>
-                <PencilRuler className="mr-1 h-3.5 w-3.5" aria-hidden="true" />{t("gen.components.tensionCurve.TensionCurvePanel.gen_15915af4", "编辑紧张度曲线")}</Button>
+                <PencilRuler className="mr-1 h-3.5 w-3.5" aria-hidden="true" />{i18next.t("gen.components.tensionCurve.TensionCurvePanel.gen_15915af4", "编辑紧张度曲线")}</Button>
             ) : null}
             {primaryPointCount > 1 ? (
               <div className="flex items-center gap-2 rounded-md border border-border/70 px-2 py-1">
@@ -154,7 +154,7 @@ export default function TensionCurvePanel(props: TensionCurvePanelProps) {
 
         <div className="flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
           <span className="inline-flex items-center gap-1.5">
-            <LockKeyhole className="h-3.5 w-3.5" aria-hidden="true" />{t("gen.components.tensionCurve.TensionCurvePanel.gen_94c442da", "当前视图只用于查看，不会改动草稿")}</span>
+            <LockKeyhole className="h-3.5 w-3.5" aria-hidden="true" />{i18next.t("gen.components.tensionCurve.TensionCurvePanel.gen_94c442da", "当前视图只用于查看，不会改动草稿")}</span>
           {showReferenceCurve && referenceTemplate ? (
             <span className="inline-flex items-center gap-1.5">
               <span className="h-px w-5 border-t border-dashed border-slate-500" />

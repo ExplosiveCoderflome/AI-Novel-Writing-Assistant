@@ -281,7 +281,7 @@ export default function ChapterExecutionActionPanel(props: ChapterExecutionActio
       <CardHeader className="gap-3 border-b bg-gradient-to-b from-muted/30 to-background pb-4">
         <div className="space-y-1">
           <CardTitle className="text-base">{i18next.t("gen.pages.novels.components.ChapterExecutionActionPanel.aiExecutionDesk")}</CardTitle>
-          <p className="text-sm leading-6 text-muted-foreground">{t("gen.pages.novels.components.ChapterExecutionActionPanel.gen_ffaef7a9", "默认只保留当前最推荐的一步。其他动作还在，但都退到下面的折叠区，避免右侧按钮堆满。")}</p>
+          <p className="text-sm leading-6 text-muted-foreground">{i18next.t("gen.pages.novels.components.ChapterExecutionActionPanel.gen_ffaef7a9", "默认只保留当前最推荐的一步。其他动作还在，但都退到下面的折叠区，避免右侧按钮堆满。")}</p>
         </div>
         <div className="rounded-2xl border border-border/70 bg-background/90 p-3">
           <div className="text-xs text-muted-foreground">{i18next.t("gen.pages.novels.components.ChapterExecutionActionPanel.gen_e63fe9ef")}</div>
@@ -324,11 +324,11 @@ export default function ChapterExecutionActionPanel(props: ChapterExecutionActio
               </AiButton>
             ) : null}
           </div>
-          <div className="mt-3 text-xs leading-6 text-muted-foreground">{t("gen.pages.novels.components.ChapterExecutionActionPanel.gen_50b2330b", "如果你不确定该点什么，优先用这里的推荐动作。更细的补充能力都还在下方。")}</div>
+          <div className="mt-3 text-xs leading-6 text-muted-foreground">{i18next.t("gen.pages.novels.components.ChapterExecutionActionPanel.gen_50b2330b", "如果你不确定该点什么，优先用这里的推荐动作。更细的补充能力都还在下方。")}</div>
         </div>
 
         <details className="rounded-2xl border border-border/70 p-4">
-          <summary className="cursor-pointer list-none text-sm font-semibold text-foreground">{t("gen.pages.novels.components.ChapterExecutionActionPanel.gen_c110cd96", "资产补全与专项检查")}</summary>
+          <summary className="cursor-pointer list-none text-sm font-semibold text-foreground">{i18next.t("gen.pages.novels.components.ChapterExecutionActionPanel.gen_c110cd96", "资产补全与专项检查")}</summary>
           <div className="mt-3 grid gap-2">
             <AiButton size="sm" variant="outline" onClick={onGenerateTaskSheet} disabled={!selectedChapter || isExecutionContractPending}>
               {isGeneratingTaskSheet ? i18next.t("gen.pages.novels.components.ChapterExecutionActionPanel.gen_9d296c77") : i18next.t("gen.pages.novels.components.ChapterExecutionActionPanel.gen_1a742abd")}
@@ -355,7 +355,7 @@ export default function ChapterExecutionActionPanel(props: ChapterExecutionActio
         </details>
 
         <details className="rounded-2xl border border-border/70 p-4">
-          <summary className="cursor-pointer list-none text-sm font-semibold text-foreground">{t("gen.pages.novels.components.ChapterExecutionActionPanel.gen_76f0eae5", "润色增强")}</summary>
+          <summary className="cursor-pointer list-none text-sm font-semibold text-foreground">{i18next.t("gen.pages.novels.components.ChapterExecutionActionPanel.gen_76f0eae5", "润色增强")}</summary>
           <div className="mt-3 grid gap-2">
             <AiButton size="sm" variant="outline" onClick={onRewriteChapter} disabled={!hasCharacters || !selectedChapter || isSelectedChapterStreaming}>
               {isSelectedChapterStreaming && generationActionKind === "rewrite" ? i18next.t("gen.pages.novels.components.ChapterExecutionActionPanel.gen_d71ac76a") : i18next.t("gen.pages.novels.components.ChapterExecutionActionPanel.gen_33feb7a6")}
@@ -385,8 +385,8 @@ export default function ChapterExecutionActionPanel(props: ChapterExecutionActio
         </details>
 
         <details className="rounded-2xl border border-border/70 p-4">
-          <summary className="cursor-pointer list-none text-sm font-semibold text-foreground">{t("gen.pages.novels.components.ChapterExecutionActionPanel.gen_26639a5d", "高级写作策略")}</summary>
-          <div className="mt-2 text-xs leading-6 text-muted-foreground">{t("gen.pages.novels.components.ChapterExecutionActionPanel.gen_8b6db225", "不确定时先保持默认值。只有你明确知道这一章需要更快节奏、更强冲突或更高自由度时，再手动调整。")}</div>
+          <summary className="cursor-pointer list-none text-sm font-semibold text-foreground">{i18next.t("gen.pages.novels.components.ChapterExecutionActionPanel.gen_26639a5d", "高级写作策略")}</summary>
+          <div className="mt-2 text-xs leading-6 text-muted-foreground">{i18next.t("gen.pages.novels.components.ChapterExecutionActionPanel.gen_8b6db225", "不确定时先保持默认值。只有你明确知道这一章需要更快节奏、更强冲突或更高自由度时，再手动调整。")}</div>
           <div className="mt-3 grid gap-3">
             <label htmlFor="chapter-strategy-run-mode" className="space-y-1 text-xs text-muted-foreground">
               <span>{i18next.t("gen.pages.novels.components.ChapterExecutionActionPanel.gen_44c4aaa1")}</span>

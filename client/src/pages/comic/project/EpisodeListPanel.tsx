@@ -175,7 +175,7 @@ function EpisodeCard({
                 type="checkbox"
                 checked={draftPaywalled}
                 onChange={(e) => setDraftPaywalled(e.target.checked)}
-              />{t("gen.pages.comic.project.EpisodeListPanel.gen_d5dcd42f", "付费卡点集")}</label>
+              />{i18next.t("gen.pages.comic.project.EpisodeListPanel.gen_d5dcd42f", "付费卡点集")}</label>
             <div className="flex gap-2">
               <Button
                 type="button"
@@ -195,7 +195,7 @@ function EpisodeCard({
                 onClick={() => setEditing(false)}
                 className="h-7 px-3 text-xs"
               >
-                <X className="h-3 w-3" />{t("gen.pages.comic.project.EpisodeListPanel.gen_625fb26b", "取消")}</Button>
+                <X className="h-3 w-3" />{i18next.t("gen.pages.comic.project.EpisodeListPanel.gen_625fb26b", "取消")}</Button>
             </div>
           </div>
         ) : (
@@ -230,10 +230,10 @@ function EpisodeCard({
           >
             {isBusy ? (
               <>
-                <Loader2 className="h-3.5 w-3.5 animate-spin" />{t("gen.pages.comic.project.EpisodeListPanel.gen_354eb893", "生成脚本...")}</>
+                <Loader2 className="h-3.5 w-3.5 animate-spin" />{i18next.t("gen.pages.comic.project.EpisodeListPanel.gen_354eb893", "生成脚本...")}</>
             ) : (
               <>
-                <BookOpen className="h-3.5 w-3.5" />{t("gen.pages.comic.project.EpisodeListPanel.gen_058a7cfa", "生成分格脚本")}</>
+                <BookOpen className="h-3.5 w-3.5" />{i18next.t("gen.pages.comic.project.EpisodeListPanel.gen_058a7cfa", "生成分格脚本")}</>
             )}
           </Button>
         </CardContent>
@@ -372,7 +372,7 @@ export function EpisodeListPanel({
               variant="outline"
               onClick={() => setShowPromptSettings((v) => !v)}
             >
-              <FileText className="h-4 w-4" />{t("gen.pages.comic.project.EpisodeListPanel.gen_057d3450", "分格生成要求")}</Button>
+              <FileText className="h-4 w-4" />{i18next.t("gen.pages.comic.project.EpisodeListPanel.gen_057d3450", "分格生成要求")}</Button>
           </div>
 
           <div className="flex flex-wrap items-center gap-2">
@@ -417,7 +417,7 @@ export function EpisodeListPanel({
       {isLoading && <div className="py-8 text-center text-sm text-muted-foreground">{i18next.t("gen.pages.comic.project.EpisodeListPanel.gen_26b5bd49")}</div>}
 
       {!isLoading && episodes.length === 0 && (
-        <div className="py-8 text-center text-sm text-muted-foreground">{t("gen.pages.comic.project.EpisodeListPanel.gen_7ed4d235", "尚无分话大纲，点击「生成大纲」开始。")}</div>
+        <div className="py-8 text-center text-sm text-muted-foreground">{i18next.t("gen.pages.comic.project.EpisodeListPanel.gen_7ed4d235", "尚无分话大纲，点击「生成大纲」开始。")}</div>
       )}
 
       <div className="grid gap-3 sm:grid-cols-2">

@@ -1,3 +1,4 @@
+import i18next from "i18next";
 export interface NovelEditWorkflowTaskIds {
   directorTaskId: string;
   workspaceTaskId: string;

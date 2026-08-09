@@ -132,11 +132,11 @@ export default function WorldHandbookEditor(props: {
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
             <CardTitle>{i18next.t("gen.pages.worlds.components.workspace.WorldHandbookEditor.gen_eea623bc")}</CardTitle>
-            <div className="mt-2 text-sm leading-6 text-muted-foreground">{t("gen.pages.worlds.components.workspace.WorldHandbookEditor.gen_b2a6e0f7", "先看清这个世界的阅读印象、核心规则、主要势力、故事舞台和冲突张力；需要细调时再进入对应区块。")}</div>
+            <div className="mt-2 text-sm leading-6 text-muted-foreground">{i18next.t("gen.pages.worlds.components.workspace.WorldHandbookEditor.gen_b2a6e0f7", "先看清这个世界的阅读印象、核心规则、主要势力、故事舞台和冲突张力；需要细调时再进入对应区块。")}</div>
           </div>
           <div className="flex flex-wrap gap-2">
             <Button type="button" variant="outline" onClick={onOpenOverview}>
-              <BookOpen className="mr-2 h-4 w-4" aria-hidden="true" />{t("gen.pages.worlds.components.workspace.WorldHandbookEditor.gen_66110ef4", "查看手册")}</Button>
+              <BookOpen className="mr-2 h-4 w-4" aria-hidden="true" />{i18next.t("gen.pages.worlds.components.workspace.WorldHandbookEditor.gen_66110ef4", "查看手册")}</Button>
             <Button type="button" onClick={saveDraft} disabled={savePending}>
               <Save className="mr-2 h-4 w-4" aria-hidden="true" />
               {savePending ? i18next.t("gen.pages.worlds.components.workspace.WorldHandbookEditor.savingInProgressDotDotDot") : i18next.t("gen.pages.worlds.components.workspace.WorldHandbookEditor.saveManual")}
@@ -179,7 +179,7 @@ export default function WorldHandbookEditor(props: {
           </div>
           <div className="mt-3 flex flex-wrap gap-2">
             <Button type="button" size="sm" variant="outline" onClick={() => setEditingSection("profile")}>
-              <Pencil className="mr-2 h-4 w-4" aria-hidden="true" />{t("gen.pages.worlds.components.workspace.WorldHandbookEditor.gen_fea669e5", "整理世界概要")}</Button>
+              <Pencil className="mr-2 h-4 w-4" aria-hidden="true" />{i18next.t("gen.pages.worlds.components.workspace.WorldHandbookEditor.gen_fea669e5", "整理世界概要")}</Button>
           </div>
           {editingSection === "profile" ? (
             <div className="mt-4 grid gap-3 lg:grid-cols-[0.8fr_1.4fr]">
@@ -257,7 +257,7 @@ export default function WorldHandbookEditor(props: {
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div>
               <div className="text-sm font-medium">{i18next.t("gen.pages.worlds.components.workspace.WorldHandbookEditor.aiAssistOrganize")}</div>
-              <div className="mt-1 text-sm leading-6 text-muted-foreground">{t("gen.pages.worlds.components.workspace.WorldHandbookEditor.gen_9a8bad16", "让 AI 根据已有内容补齐一个手册区块；你可以继续改写后再保存。")}</div>
+              <div className="mt-1 text-sm leading-6 text-muted-foreground">{i18next.t("gen.pages.worlds.components.workspace.WorldHandbookEditor.gen_9a8bad16", "让 AI 根据已有内容补齐一个手册区块；你可以继续改写后再保存。")}</div>
             </div>
             <div className="flex flex-wrap gap-2">
               {[
@@ -291,7 +291,7 @@ export default function WorldHandbookEditor(props: {
             title={i18next.t("gen.pages.worlds.components.workspace.WorldHandbookEditor.gen_0a431a82")}
             description={`${draftStructure.rules.axioms.length} 条规则会限制力量、资源、禁忌和代价。`}
             action={
-              <Button type="button" size="sm" variant="outline" onClick={() => setEditingSection("rules")}>{t("gen.pages.worlds.components.workspace.WorldHandbookEditor.gen_28c97b0f", "整理规则")}</Button>
+              <Button type="button" size="sm" variant="outline" onClick={() => setEditingSection("rules")}>{i18next.t("gen.pages.worlds.components.workspace.WorldHandbookEditor.gen_28c97b0f", "整理规则")}</Button>
             }
           >
             <div className="space-y-3">
@@ -316,7 +316,7 @@ export default function WorldHandbookEditor(props: {
             title={i18next.t("gen.pages.worlds.components.workspace.WorldHandbookEditor.majorForce")}
             description={`${draftStructure.forces.length} 个势力决定角色归属、阵营压力和资源争夺。`}
             action={
-              <Button type="button" size="sm" variant="outline" onClick={() => setEditingSection("forces")}>{t("gen.pages.worlds.components.workspace.WorldHandbookEditor.gen_010fd8e9", "整理势力")}</Button>
+              <Button type="button" size="sm" variant="outline" onClick={() => setEditingSection("forces")}>{i18next.t("gen.pages.worlds.components.workspace.WorldHandbookEditor.gen_010fd8e9", "整理势力")}</Button>
             }
           >
             <div className="space-y-3">
@@ -344,7 +344,7 @@ export default function WorldHandbookEditor(props: {
             title={i18next.t("gen.pages.worlds.components.workspace.WorldHandbookEditor.gen_bf876a86")}
             description={`${draftStructure.locations.length} 个地点承载开局、升级、转折、决战和地图资产。`}
             action={
-              <Button type="button" size="sm" variant="outline" onClick={() => setEditingSection("locations")}>{t("gen.pages.worlds.components.workspace.WorldHandbookEditor.gen_4f7abda5", "整理地点")}</Button>
+              <Button type="button" size="sm" variant="outline" onClick={() => setEditingSection("locations")}>{i18next.t("gen.pages.worlds.components.workspace.WorldHandbookEditor.gen_4f7abda5", "整理地点")}</Button>
             }
           >
             <div className="space-y-3">
@@ -374,7 +374,7 @@ export default function WorldHandbookEditor(props: {
             title={i18next.t("gen.pages.worlds.components.workspace.WorldHandbookEditor.gen_078a38b4")}
             description={i18next.t("gen.pages.worlds.components.workspace.WorldHandbookEditor.gen_e53479a1")}
             action={
-              <Button type="button" size="sm" variant="outline" onClick={() => setEditingSection("relations")}>{t("gen.pages.worlds.components.workspace.WorldHandbookEditor.gen_59f902b7", "整理张力")}</Button>
+              <Button type="button" size="sm" variant="outline" onClick={() => setEditingSection("relations")}>{i18next.t("gen.pages.worlds.components.workspace.WorldHandbookEditor.gen_59f902b7", "整理张力")}</Button>
             }
           >
             <div className="space-y-3">
@@ -404,8 +404,8 @@ export default function WorldHandbookEditor(props: {
           <div className="rounded-md border border-primary/30 bg-primary/5 p-4">
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div className="flex items-center gap-2 text-sm font-medium">
-                <AlertTriangle className="h-4 w-4 text-primary" aria-hidden="true" />{t("gen.pages.worlds.components.workspace.WorldHandbookEditor.gen_83f9e46a", "正在整理选中区块，保存后会更新上方手册概览。")}</div>
-              <Button type="button" size="sm" variant="outline" onClick={() => setEditingSection(null)}>{t("gen.pages.worlds.components.workspace.WorldHandbookEditor.gen_e2e4be88", "收起编辑")}</Button>
+                <AlertTriangle className="h-4 w-4 text-primary" aria-hidden="true" />{i18next.t("gen.pages.worlds.components.workspace.WorldHandbookEditor.gen_83f9e46a", "正在整理选中区块，保存后会更新上方手册概览。")}</div>
+              <Button type="button" size="sm" variant="outline" onClick={() => setEditingSection(null)}>{i18next.t("gen.pages.worlds.components.workspace.WorldHandbookEditor.gen_e2e4be88", "收起编辑")}</Button>
             </div>
           </div>
         ) : null}

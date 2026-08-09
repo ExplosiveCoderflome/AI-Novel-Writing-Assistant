@@ -1,3 +1,4 @@
+import i18next from "i18next";
 import { matchPath } from "react-router-dom";
 
 export const AUTO_DIRECTOR_MOBILE_ROUTE_PATTERNS = [

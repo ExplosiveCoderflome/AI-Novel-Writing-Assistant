@@ -1,3 +1,4 @@
+import i18next from "i18next";
 import { useTranslation } from "react-i18next";
 import type { StoryMacroField } from "@ai-novel/shared/types/storyMacro";
 import AiButton from "@/components/common/AiButton";

@@ -256,7 +256,7 @@ function ProjectCard({
       </CardHeader>
       <CardContent className="flex flex-wrap gap-2">
         <Button asChild type="button" size="sm">
-          <Link to={`/comic/projects/${project.id}`}>{t("gen.pages.comic.ComicWorkspacePage.gen_9acb817c", "打开工作台")}<ArrowRight className="h-4 w-4" />
+          <Link to={`/comic/projects/${project.id}`}>{i18next.t("gen.pages.comic.ComicWorkspacePage.gen_9acb817c", "打开工作台")}<ArrowRight className="h-4 w-4" />
           </Link>
         </Button>
         {!project.sourceBundle && project.sourceType === "novel_import" && (
@@ -267,7 +267,7 @@ function ProjectCard({
             disabled={busy}
             onClick={() => onImport(project)}
           >
-            <Layers3 className="h-4 w-4" />{t("gen.pages.comic.ComicWorkspacePage.gen_f7d48bd5", "导入内容源")}</Button>
+            <Layers3 className="h-4 w-4" />{i18next.t("gen.pages.comic.ComicWorkspacePage.gen_f7d48bd5", "导入内容源")}</Button>
         )}
       </CardContent>
     </Card>
@@ -481,14 +481,14 @@ function CreateWizard({ onCreated, defaultValues }: CreateWizardProps) {
             size="sm"
             disabled={step === 0}
             onClick={() => setStep((s) => s - 1)}
-          >{t("gen.pages.comic.ComicWorkspacePage.gen_eeb69088", "上一步")}</Button>
+          >{i18next.t("gen.pages.comic.ComicWorkspacePage.gen_eeb69088", "上一步")}</Button>
           {step < WIZARD_STEPS.length - 1 ? (
             <Button
               type="button"
               size="sm"
               disabled={!canNext()}
               onClick={() => setStep((s) => s + 1)}
-            >{t("gen.pages.comic.ComicWorkspacePage.gen_38ce27d8", "下一步")}</Button>
+            >{i18next.t("gen.pages.comic.ComicWorkspacePage.gen_38ce27d8", "下一步")}</Button>
           ) : (
             <Button
               type="button"
@@ -558,11 +558,11 @@ export default function ComicWorkspacePage() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="flex items-center gap-2 text-2xl font-semibold">
-            <SquareStack className="h-6 w-6 text-primary" />{t("gen.pages.comic.ComicWorkspacePage.gen_27d0220a", "漫画改编工作台")}</h1>
-          <p className="mt-1 text-sm text-muted-foreground">{t("gen.pages.comic.ComicWorkspacePage.gen_b1c07f4f", "将小说或原创故事一键生成条漫分格脚本与图像")}</p>
+            <SquareStack className="h-6 w-6 text-primary" />{i18next.t("gen.pages.comic.ComicWorkspacePage.gen_27d0220a", "漫画改编工作台")}</h1>
+          <p className="mt-1 text-sm text-muted-foreground">{i18next.t("gen.pages.comic.ComicWorkspacePage.gen_b1c07f4f", "将小说或原创故事一键生成条漫分格脚本与图像")}</p>
         </div>
         <Button type="button" onClick={() => setShowWizard((v) => !v)}>
-          <Plus className="h-4 w-4" />{t("gen.pages.comic.ComicWorkspacePage.gen_a1a9f6e5", "新建项目")}</Button>
+          <Plus className="h-4 w-4" />{i18next.t("gen.pages.comic.ComicWorkspacePage.gen_a1a9f6e5", "新建项目")}</Button>
       </div>
 
       {showWizard && (
@@ -586,7 +586,7 @@ export default function ComicWorkspacePage() {
             <FilePen className="h-10 w-10 text-muted-foreground/40" />
             <p className="text-muted-foreground">{i18next.t("gen.pages.comic.ComicWorkspacePage.gen_f38af214")}</p>
             <Button type="button" onClick={() => setShowWizard(true)}>
-              <Plus className="h-4 w-4" />{t("gen.pages.comic.ComicWorkspacePage.gen_a1a9f6e5", "新建项目")}</Button>
+              <Plus className="h-4 w-4" />{i18next.t("gen.pages.comic.ComicWorkspacePage.gen_a1a9f6e5", "新建项目")}</Button>
           </CardContent>
         </Card>
       )}

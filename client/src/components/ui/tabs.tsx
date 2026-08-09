@@ -1,3 +1,4 @@
+import i18next from "i18next";
 import * as React from "react";
 import * as TabsPrimitive from "@radix-ui/react-tabs";
 import { cn } from "@/lib/utils";

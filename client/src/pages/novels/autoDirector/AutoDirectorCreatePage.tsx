@@ -273,7 +273,7 @@ export default function AutoDirectorCreatePage() {
         <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
           <div>
             <div className="text-2xl font-semibold tracking-normal text-foreground">{i18next.t("gen.pages.novels.autoDirector.AutoDirectorCreatePage.aiAutoDirectorCreate")}</div>
-            <div className="mt-1 text-sm leading-6 text-muted-foreground">{t("gen.pages.novels.autoDirector.AutoDirectorCreatePage.gen_88a94f3d", "从一个起始想法开始，AI 完成整本规划准备后，再由你选择正文生产方式。")}</div>
+            <div className="mt-1 text-sm leading-6 text-muted-foreground">{i18next.t("gen.pages.novels.autoDirector.AutoDirectorCreatePage.gen_88a94f3d", "从一个起始想法开始，AI 完成整本规划准备后，再由你选择正文生产方式。")}</div>
           </div>
           <Button type="button" variant="outline" asChild>
             <Link to="/novels/create">{i18next.t("gen.pages.novels.autoDirector.AutoDirectorCreatePage.gen_4364e2f1")}</Link>
@@ -305,7 +305,7 @@ export default function AutoDirectorCreatePage() {
       ) : null}
 
       {restoreWorkflowMutation.isPending && normalizedTaskId ? (
-        <div className="rounded-lg bg-muted/20 px-4 py-3 text-sm text-muted-foreground">{t("gen.pages.novels.autoDirector.AutoDirectorCreatePage.gen_bfcaa5a4", "正在恢复自动导演现场。")}</div>
+        <div className="rounded-lg bg-muted/20 px-4 py-3 text-sm text-muted-foreground">{i18next.t("gen.pages.novels.autoDirector.AutoDirectorCreatePage.gen_bfcaa5a4", "正在恢复自动导演现场。")}</div>
       ) : null}
 
       <AnimatePresence mode="wait">

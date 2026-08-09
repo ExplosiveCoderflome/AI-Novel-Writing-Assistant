@@ -112,10 +112,10 @@ export default function BookPayoffLedgerCard(props: BookPayoffLedgerCardProps) {
         <details className="group">
           <summary className="cursor-pointer list-none p-5">
             <CollapsibleSummary
-              title={t("gen.pages.novels.components.BookPayoffLedgerCard.gen_524ff4b3", "全书 Canonical 伏笔账本")}
-              description={t("gen.pages.novels.components.BookPayoffLedgerCard.gen_92869af8", "这块是整本书级别的 canonical 伏笔账本，不跟随当前卷切换。默认收起，需要检查整条伏笔链或整体回收压力时再展开。")}
-              collapsedLabel={t("gen.pages.novels.components.BookPayoffLedgerCard.gen_75118e6e", "展开全书账本")}
-              expandedLabel={t("gen.pages.novels.components.BookPayoffLedgerCard.gen_1b97f5f5", "收起全书账本")}
+              title={i18next.t("gen.pages.novels.components.BookPayoffLedgerCard.gen_524ff4b3", "全书 Canonical 伏笔账本")}
+              description={i18next.t("gen.pages.novels.components.BookPayoffLedgerCard.gen_92869af8", "这块是整本书级别的 canonical 伏笔账本，不跟随当前卷切换。默认收起，需要检查整条伏笔链或整体回收压力时再展开。")}
+              collapsedLabel={i18next.t("gen.pages.novels.components.BookPayoffLedgerCard.gen_75118e6e", "展开全书账本")}
+              expandedLabel={i18next.t("gen.pages.novels.components.BookPayoffLedgerCard.gen_1b97f5f5", "收起全书账本")}
               meta={(
                 <>
                   <Badge variant="outline">待兑现 {ledgerSummary?.pendingCount ?? 0}</Badge>
@@ -137,7 +137,7 @@ export default function BookPayoffLedgerCard(props: BookPayoffLedgerCardProps) {
                 <div className="font-medium text-foreground">Canonical 伏笔账本</div>
                 <Badge variant="outline">{ledgerItems.length}</Badge>
               </div>
-              <div className="mt-1 text-xs text-muted-foreground">{t("gen.pages.novels.components.BookPayoffLedgerCard.gen_bd0fa33e", "后续规划、写作、审查和修复优先消费这里的 canonical 结果，不再只盯某一处原始字段。")}</div>
+              <div className="mt-1 text-xs text-muted-foreground">{i18next.t("gen.pages.novels.components.BookPayoffLedgerCard.gen_bd0fa33e", "后续规划、写作、审查和修复优先消费这里的 canonical 结果，不再只盯某一处原始字段。")}</div>
               <div className="mt-3 space-y-2 text-sm">
                 {hasCanonicalLedgerContent ? (
                   ledgerItems.map((item) => (
@@ -178,17 +178,17 @@ export default function BookPayoffLedgerCard(props: BookPayoffLedgerCardProps) {
                     </div>
                   ))
                 ) : (
-                  <div className="rounded-lg border border-dashed border-border/70 bg-background p-3 text-xs text-muted-foreground">{t("gen.pages.novels.components.BookPayoffLedgerCard.gen_13db784d", "当前还没有可用的 canonical 伏笔账本。首次进入老项目时，系统会懒同步这份账本；如果现在仍为空，说明相关规划或状态材料还不够。")}</div>
+                  <div className="rounded-lg border border-dashed border-border/70 bg-background p-3 text-xs text-muted-foreground">{i18next.t("gen.pages.novels.components.BookPayoffLedgerCard.gen_13db784d", "当前还没有可用的 canonical 伏笔账本。首次进入老项目时，系统会懒同步这份账本；如果现在仍为空，说明相关规划或状态材料还不够。")}</div>
                 )}
               </div>
             </div>
 
             <div className="rounded-xl border border-border/70 bg-muted/20 p-4">
               <div className="flex items-center justify-between gap-2">
-                <div className="font-medium text-foreground">{t("gen.pages.novels.components.BookPayoffLedgerCard.gen_b26ec16a", "全书最新状态快照")}</div>
+                <div className="font-medium text-foreground">{i18next.t("gen.pages.novels.components.BookPayoffLedgerCard.gen_b26ec16a", "全书最新状态快照")}</div>
                 <Badge variant="outline">{snapshotForeshadows.length}</Badge>
               </div>
-              <div className="mt-1 text-xs text-muted-foreground">{t("gen.pages.novels.components.BookPayoffLedgerCard.gen_4863cd8f", "这里显示的是全书最新状态，不只限当前卷，用来辅助判断整体回收压力。")}</div>
+              <div className="mt-1 text-xs text-muted-foreground">{i18next.t("gen.pages.novels.components.BookPayoffLedgerCard.gen_4863cd8f", "这里显示的是全书最新状态，不只限当前卷，用来辅助判断整体回收压力。")}</div>
               {latestStateSnapshot?.summary ? (
                 <div className="mt-3 rounded-lg border border-border/70 bg-background p-3 text-xs text-muted-foreground">
                   {latestStateSnapshot.summary}
@@ -198,7 +198,7 @@ export default function BookPayoffLedgerCard(props: BookPayoffLedgerCardProps) {
                 {hasSnapshotContent ? (
                   <>
                     <div className="space-y-2">
-                      <div className="text-xs font-medium text-muted-foreground">{t("gen.pages.novels.components.BookPayoffLedgerCard.gen_f54a64d5", "待跟进")}</div>
+                      <div className="text-xs font-medium text-muted-foreground">{i18next.t("gen.pages.novels.components.BookPayoffLedgerCard.gen_f54a64d5", "待跟进")}</div>
                       {pendingForeshadows.length > 0 ? (
                         pendingForeshadows.slice(0, 5).map((item) => (
                           <div
@@ -217,19 +217,19 @@ export default function BookPayoffLedgerCard(props: BookPayoffLedgerCardProps) {
                           </div>
                         ))
                       ) : (
-                        <div className="rounded-lg border border-dashed border-border/70 bg-background p-3 text-xs text-muted-foreground">{t("gen.pages.novels.components.BookPayoffLedgerCard.gen_71eac023", "当前没有待跟进的伏笔状态。")}</div>
+                        <div className="rounded-lg border border-dashed border-border/70 bg-background p-3 text-xs text-muted-foreground">{i18next.t("gen.pages.novels.components.BookPayoffLedgerCard.gen_71eac023", "当前没有待跟进的伏笔状态。")}</div>
                       )}
                     </div>
 
                     <div className="grid gap-2 sm:grid-cols-2">
                       <div className="rounded-lg border border-border/70 bg-background p-3">
-                        <div className="text-xs text-muted-foreground">{t("gen.pages.novels.components.BookPayoffLedgerCard.gen_68b30ffc", "已回收")}</div>
+                        <div className="text-xs text-muted-foreground">{i18next.t("gen.pages.novels.components.BookPayoffLedgerCard.gen_68b30ffc", "已回收")}</div>
                         <div className="mt-1 text-lg font-semibold text-foreground">
                           {paidOffForeshadows.length}
                         </div>
                       </div>
                       <div className="rounded-lg border border-border/70 bg-background p-3">
-                        <div className="text-xs text-muted-foreground">{t("gen.pages.novels.components.BookPayoffLedgerCard.gen_a85a627a", "已失效")}</div>
+                        <div className="text-xs text-muted-foreground">{i18next.t("gen.pages.novels.components.BookPayoffLedgerCard.gen_a85a627a", "已失效")}</div>
                         <div className="mt-1 text-lg font-semibold text-foreground">
                           {failedForeshadows.length}
                         </div>
@@ -237,7 +237,7 @@ export default function BookPayoffLedgerCard(props: BookPayoffLedgerCardProps) {
                     </div>
                   </>
                 ) : (
-                  <div className="rounded-lg border border-dashed border-border/70 bg-background p-3 text-xs text-muted-foreground">{t("gen.pages.novels.components.BookPayoffLedgerCard.gen_abbaad66", "还没有可用的伏笔状态快照。先执行章节生成或审计后，这里的状态会逐步充实。")}</div>
+                  <div className="rounded-lg border border-dashed border-border/70 bg-background p-3 text-xs text-muted-foreground">{i18next.t("gen.pages.novels.components.BookPayoffLedgerCard.gen_abbaad66", "还没有可用的伏笔状态快照。先执行章节生成或审计后，这里的状态会逐步充实。")}</div>
                 )}
               </div>
             </div>

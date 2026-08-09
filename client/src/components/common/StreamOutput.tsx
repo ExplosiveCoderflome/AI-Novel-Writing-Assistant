@@ -32,7 +32,7 @@ export default function StreamOutput({ isStreaming, content, onAbort, title = i1
             <span className="text-xs text-muted-foreground">{i18next.t("gen.components.common.StreamOutput.gen_8cffe33c")}</span>
           )}
           {isStreaming && onAbort ? (
-            <Button size="sm" variant="secondary" onClick={onAbort}>{t("gen.components.common.StreamOutput.gen_dda4c027", "停止生成")}</Button>
+            <Button size="sm" variant="secondary" onClick={onAbort}>{i18next.t("gen.components.common.StreamOutput.gen_dda4c027", "停止生成")}</Button>
           ) : null}
         </div>
       </div>

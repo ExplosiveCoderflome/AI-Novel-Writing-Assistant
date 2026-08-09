@@ -57,7 +57,7 @@ export default function VersionHistoryTab({ novelId }: VersionHistoryTabProps) {
       <div className="flex flex-col gap-3 rounded-2xl border border-border/70 bg-muted/15 p-4 md:flex-row md:items-center md:justify-between">
         <div>
           <div className="font-medium">{i18next.t("gen.pages.novels.components.VersionHistoryTab.gen_6fdd8590")}</div>
-          <div className="text-sm text-muted-foreground">{t("gen.pages.novels.components.VersionHistoryTab.gen_8a183aa7", "这里优先帮你找回最近的稳定版本。恢复前系统会自动再备份一次当前状态。")}</div>
+          <div className="text-sm text-muted-foreground">{i18next.t("gen.pages.novels.components.VersionHistoryTab.gen_8a183aa7", "这里优先帮你找回最近的稳定版本。恢复前系统会自动再备份一次当前状态。")}</div>
         </div>
         <Button onClick={() => createMutation.mutate()} disabled={createMutation.isPending}>
           {createMutation.isPending ? i18next.t("gen.pages.novels.components.VersionHistoryTab.savingInProgressDotDotDot") : i18next.t("gen.pages.novels.components.VersionHistoryTab.saveCurrentVersion")}
@@ -86,7 +86,7 @@ export default function VersionHistoryTab({ novelId }: VersionHistoryTabProps) {
                     <Badge variant="outline">{new Date(snapshot.createdAt).toLocaleDateString()}</Badge>
                   </div>
 
-                  <div className="text-sm leading-6 text-muted-foreground">{t("gen.pages.novels.components.VersionHistoryTab.gen_a159f3ca", "这个版本适合在你想退回到更稳定的章节推进状态时使用。")}</div>
+                  <div className="text-sm leading-6 text-muted-foreground">{i18next.t("gen.pages.novels.components.VersionHistoryTab.gen_a159f3ca", "这个版本适合在你想退回到更稳定的章节推进状态时使用。")}</div>
                 </div>
 
                 <Button
@@ -107,7 +107,7 @@ export default function VersionHistoryTab({ novelId }: VersionHistoryTabProps) {
           );
         })}
         {snapshots.length === 0 ? (
-          <div className="rounded-2xl border border-dashed p-6 text-sm text-muted-foreground">{t("gen.pages.novels.components.VersionHistoryTab.gen_cb497484", "当前还没有版本记录。建议在大改方向、批量生成或大段重写前，先手动保存一个版本。")}</div>
+          <div className="rounded-2xl border border-dashed p-6 text-sm text-muted-foreground">{i18next.t("gen.pages.novels.components.VersionHistoryTab.gen_cb497484", "当前还没有版本记录。建议在大改方向、批量生成或大段重写前，先手动保存一个版本。")}</div>
         ) : null}
       </div>
     </div>

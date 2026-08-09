@@ -297,7 +297,7 @@ export default function CharacterCastOptionsSection(props: CharacterCastOptionsS
           <div className="flex flex-col gap-2 lg:flex-row lg:items-end lg:justify-between">
             <div className="space-y-1">
               <CardTitle>{i18next.t("gen.pages.novels.components.CharacterCastOptionsSection.aiCharacterLineupPlan")}</CardTitle>
-              <div className="text-sm text-muted-foreground">{t("gen.pages.novels.components.CharacterCastOptionsSection.gen_b8c3c475", "更适合前期搭建角色系统，或在故事方向大改后重新规划阵容。")}</div>
+              <div className="text-sm text-muted-foreground">{i18next.t("gen.pages.novels.components.CharacterCastOptionsSection.gen_b8c3c475", "更适合前期搭建角色系统，或在故事方向大改后重新规划阵容。")}</div>
             </div>
             <div className="flex flex-wrap gap-2">
               <Badge variant="outline">{i18next.t("gen.pages.novels.components.CharacterCastOptionsSection.castOptionCount")}</Badge>
@@ -323,8 +323,8 @@ export default function CharacterCastOptionsSection(props: CharacterCastOptionsS
                 {statusMessage ? <div className="text-xs text-muted-foreground">{statusMessage}</div> : null}
               </div>
               <div className="flex flex-wrap gap-2">
-                <Button variant="outline" onClick={() => setIsPlannerExpanded(true)}>{t("gen.pages.novels.components.CharacterCastOptionsSection.gen_e9c04d8e", "查看其余方案")}</Button>
-                <Button variant="secondary" onClick={() => setIsPlannerExpanded(true)}>{t("gen.pages.novels.components.CharacterCastOptionsSection.gen_65f3fea2", "重新规划阵容")}</Button>
+                <Button variant="outline" onClick={() => setIsPlannerExpanded(true)}>{i18next.t("gen.pages.novels.components.CharacterCastOptionsSection.gen_e9c04d8e", "查看其余方案")}</Button>
+                <Button variant="secondary" onClick={() => setIsPlannerExpanded(true)}>{i18next.t("gen.pages.novels.components.CharacterCastOptionsSection.gen_65f3fea2", "重新规划阵容")}</Button>
               </div>
             </div>
           ) : (
@@ -333,7 +333,7 @@ export default function CharacterCastOptionsSection(props: CharacterCastOptionsS
                 <div className="space-y-3 rounded-2xl border border-border/70 bg-muted/20 p-4">
                   <div className="space-y-1">
                     <div className="text-sm font-medium">{i18next.t("gen.pages.novels.components.CharacterCastOptionsSection.gen_eba49f80")}</div>
-                    <div className="text-xs text-muted-foreground">{t("gen.pages.novels.components.CharacterCastOptionsSection.gen_5d5b6cab", "可补充主角欲望、对手压力、关系张力，或你想重点强化的人物方向。")}</div>
+                    <div className="text-xs text-muted-foreground">{i18next.t("gen.pages.novels.components.CharacterCastOptionsSection.gen_5d5b6cab", "可补充主角欲望、对手压力、关系张力，或你想重点强化的人物方向。")}</div>
                   </div>
                   <textarea
                     className="min-h-[140px] w-full rounded-xl border bg-background p-3 text-sm"
@@ -347,14 +347,14 @@ export default function CharacterCastOptionsSection(props: CharacterCastOptionsS
                         type="checkbox"
                         checked={useWorldContext}
                         onChange={(event) => setUseWorldContext(event.target.checked)}
-                      />{t("gen.pages.novels.components.CharacterCastOptionsSection.gen_ccea85cc", "基于本书世界生成")}</label>
+                      />{i18next.t("gen.pages.novels.components.CharacterCastOptionsSection.gen_ccea85cc", "基于本书世界生成")}</label>
                     {useWorldContext ? (
                       <label className="flex items-center gap-2 text-xs text-muted-foreground">
                         <input
                           type="checkbox"
                           checked={forceWorldCompliance}
                           onChange={(event) => setForceWorldCompliance(event.target.checked)}
-                        />{t("gen.pages.novels.components.CharacterCastOptionsSection.gen_600ada31", "检查世界规则合规")}</label>
+                        />{i18next.t("gen.pages.novels.components.CharacterCastOptionsSection.gen_600ada31", "检查世界规则合规")}</label>
                     ) : null}
                   </div>
                   {useWorldContext ? (
@@ -362,9 +362,9 @@ export default function CharacterCastOptionsSection(props: CharacterCastOptionsS
                       {worldSliceQuery.isLoading ? (
                         <div>{i18next.t("gen.pages.novels.components.CharacterCastOptionsSection.gen_1eb86022")}</div>
                       ) : !hasUsableWorld ? (
-                        <div>{t("gen.pages.novels.components.CharacterCastOptionsSection.gen_aeb26bb3", "本书世界还没有准备好。本轮会优先根据书级信息和你的生成指令设计角色。")}</div>
+                        <div>{i18next.t("gen.pages.novels.components.CharacterCastOptionsSection.gen_aeb26bb3", "本书世界还没有准备好。本轮会优先根据书级信息和你的生成指令设计角色。")}</div>
                       ) : !hasWorldSlice ? (
-                        <div>{t("gen.pages.novels.components.CharacterCastOptionsSection.gen_2456f46b", "本书世界存在，但使用范围还未整理。建议先到基础信息页整理本书使用范围，或继续让 AI 按世界手册保守生成。")}</div>
+                        <div>{i18next.t("gen.pages.novels.components.CharacterCastOptionsSection.gen_2456f46b", "本书世界存在，但使用范围还未整理。建议先到基础信息页整理本书使用范围，或继续让 AI 按世界手册保守生成。")}</div>
                       ) : null}
                       <label className="space-y-1">
                         <span className="font-medium text-foreground">{i18next.t("gen.pages.novels.components.CharacterCastOptionsSection.gen_368e1d5d")}</span>
@@ -397,10 +397,10 @@ export default function CharacterCastOptionsSection(props: CharacterCastOptionsS
                       </Button>
                     ) : null}
                     {appliedOption ? (
-                      <Button variant="outline" onClick={() => setIsPlannerExpanded(false)} disabled={isWorking}>{t("gen.pages.novels.components.CharacterCastOptionsSection.gen_c5e0a767", "收起方案区")}</Button>
+                      <Button variant="outline" onClick={() => setIsPlannerExpanded(false)} disabled={isWorking}>{i18next.t("gen.pages.novels.components.CharacterCastOptionsSection.gen_c5e0a767", "收起方案区")}</Button>
                     ) : null}
                   </div>
-                  <div className="rounded-xl border border-dashed p-3 text-xs text-muted-foreground">{t("gen.pages.novels.components.CharacterCastOptionsSection.gen_27ce77c2", "应用某套阵容后，会同步创建/更新角色，并刷新角色资产工作台。")}</div>
+                  <div className="rounded-xl border border-dashed p-3 text-xs text-muted-foreground">{i18next.t("gen.pages.novels.components.CharacterCastOptionsSection.gen_27ce77c2", "应用某套阵容后，会同步创建/更新角色，并刷新角色资产工作台。")}</div>
                   {statusMessage ? (
                     <div className="rounded-xl border border-border/70 bg-background/80 p-3 text-xs text-muted-foreground">
                       {statusMessage}
@@ -409,7 +409,7 @@ export default function CharacterCastOptionsSection(props: CharacterCastOptionsS
                 </div>
 
                 {castOptionsQuery.isLoading ? (
-                  <div className="flex min-h-[260px] items-center justify-center rounded-2xl border border-dashed text-sm text-muted-foreground">{t("gen.pages.novels.components.CharacterCastOptionsSection.gen_9ee33066", "正在加载阵容方案...")}</div>
+                  <div className="flex min-h-[260px] items-center justify-center rounded-2xl border border-dashed text-sm text-muted-foreground">{i18next.t("gen.pages.novels.components.CharacterCastOptionsSection.gen_9ee33066", "正在加载阵容方案...")}</div>
                 ) : castOptions.length > 0 ? (
                   <div className="grid gap-3 2xl:grid-cols-2">
                     {castOptions.map((option) => {
@@ -462,7 +462,7 @@ export default function CharacterCastOptionsSection(props: CharacterCastOptionsS
                           {requiresQualityConfirmation ? (
                             <div className="mt-3 rounded-xl border border-amber-300/70 bg-amber-50/70 p-3 text-xs text-amber-900">
                               <div className="font-medium">{i18next.t("gen.pages.novels.components.CharacterCastOptionsSection.gen_f3e41c8b")}</div>
-                              <div className="mt-1">{t("gen.pages.novels.components.CharacterCastOptionsSection.gen_eebf82cb", "系统发现它和当前故事设定还有不完全匹配的地方。你可以先应用，再到角色资产里调整。")}</div>
+                              <div className="mt-1">{i18next.t("gen.pages.novels.components.CharacterCastOptionsSection.gen_eebf82cb", "系统发现它和当前故事设定还有不完全匹配的地方。你可以先应用，再到角色资产里调整。")}</div>
                               <ul className="mt-2 list-disc space-y-1 pl-4">
                                 {qualityWarnings.slice(0, 3).map((warning) => (
                                   <li key={warning}>{warning}</li>
@@ -504,7 +504,7 @@ export default function CharacterCastOptionsSection(props: CharacterCastOptionsS
                     })}
                   </div>
                 ) : (
-                  <div className="flex min-h-[260px] items-center justify-center rounded-2xl border border-dashed px-6 text-center text-sm text-muted-foreground">{t("gen.pages.novels.components.CharacterCastOptionsSection.gen_876ccb57", "还没有阵容方案。先输入一点人物方向，再点击“生成 3 套阵容”。")}</div>
+                  <div className="flex min-h-[260px] items-center justify-center rounded-2xl border border-dashed px-6 text-center text-sm text-muted-foreground">{i18next.t("gen.pages.novels.components.CharacterCastOptionsSection.gen_876ccb57", "还没有阵容方案。先输入一点人物方向，再点击“生成 3 套阵容”。")}</div>
                 )}
               </div>
             </>
@@ -563,7 +563,7 @@ export default function CharacterCastOptionsSection(props: CharacterCastOptionsS
               })}
             </div>
           ) : (
-            <div className="rounded-xl border border-dashed p-4 text-muted-foreground">{t("gen.pages.novels.components.CharacterCastOptionsSection.gen_2f6d05f7", "还没有角色关系。应用一套角色阵容后会在这里出现。")}</div>
+            <div className="rounded-xl border border-dashed p-4 text-muted-foreground">{i18next.t("gen.pages.novels.components.CharacterCastOptionsSection.gen_2f6d05f7", "还没有角色关系。应用一套角色阵容后会在这里出现。")}</div>
           )}
         </CardContent>
       </Card>

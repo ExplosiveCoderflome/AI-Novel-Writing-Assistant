@@ -1,3 +1,4 @@
+import i18next from "i18next";
 import type { World } from "@ai-novel/shared/types/world";
 
 export const LAYERS = [

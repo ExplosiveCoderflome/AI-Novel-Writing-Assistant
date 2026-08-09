@@ -154,15 +154,15 @@ function RuleFieldCard(props: {
           ))}
         </div>
       ) : (
-        <div className="rounded-xl border border-dashed bg-white px-3 py-3 text-sm leading-6 text-slate-500">{t("gen.pages.writingFormula.components.WritingFormulaEditorPanel.gen_aa6892e8", "这块规则当前还没有可读字段。你可以先依赖上面的简介和反 AI 规则，确实需要精细兼容时再展开高级 JSON。")}</div>
+        <div className="rounded-xl border border-dashed bg-white px-3 py-3 text-sm leading-6 text-slate-500">{i18next.t("gen.pages.writingFormula.components.WritingFormulaEditorPanel.gen_aa6892e8", "这块规则当前还没有可读字段。你可以先依赖上面的简介和反 AI 规则，确实需要精细兼容时再展开高级 JSON。")}</div>
       )}
 
       <details className="rounded-xl border bg-white">
-        <summary className="cursor-pointer list-none px-3 py-3 text-sm font-medium text-slate-700">{t("gen.pages.writingFormula.components.WritingFormulaEditorPanel.gen_e8028e10", "查看或编辑高级 JSON")}</summary>
+        <summary className="cursor-pointer list-none px-3 py-3 text-sm font-medium text-slate-700">{i18next.t("gen.pages.writingFormula.components.WritingFormulaEditorPanel.gen_e8028e10", "查看或编辑高级 JSON")}</summary>
         <div className="space-y-3 border-t px-3 py-3">
-          <div className="text-xs leading-6 text-slate-500">{t("gen.pages.writingFormula.components.WritingFormulaEditorPanel.gen_2e739d6c", "这里保留原始 JSON 入口，主要用于兼容旧资产或做精细调参。常规情况下先看上面的可读字段即可。")}</div>
+          <div className="text-xs leading-6 text-slate-500">{i18next.t("gen.pages.writingFormula.components.WritingFormulaEditorPanel.gen_2e739d6c", "这里保留原始 JSON 入口，主要用于兼容旧资产或做精细调参。常规情况下先看上面的可读字段即可。")}</div>
           {parseError ? (
-            <div className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs leading-6 text-amber-900">{t("gen.pages.writingFormula.components.WritingFormulaEditorPanel.gen_75a88e5a", "当前 JSON 结构无法正常识别。保存时系统会尽量回退为空对象，建议先修正格式再保存。")}</div>
+            <div className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs leading-6 text-amber-900">{i18next.t("gen.pages.writingFormula.components.WritingFormulaEditorPanel.gen_75a88e5a", "当前 JSON 结构无法正常识别。保存时系统会尽量回退为空对象，建议先修正格式再保存。")}</div>
           ) : null}
           <textarea
             className="min-h-[190px] w-full rounded-xl border bg-slate-50 p-3 font-mono text-xs"
@@ -202,7 +202,7 @@ export default function WritingFormulaEditorPanel(props: WritingFormulaEditorPan
         <div className="flex items-center justify-between gap-2">
           <CardTitle>{i18next.t("gen.pages.writingFormula.components.WritingFormulaEditorPanel.gen_94a3c6e8")}</CardTitle>
           {selectedProfile ? (
-            <Button size="sm" variant="destructive" onClick={onDelete} disabled={deletePending}>{t("gen.pages.writingFormula.components.WritingFormulaEditorPanel.gen_2f4aaddd", "删除")}</Button>
+            <Button size="sm" variant="destructive" onClick={onDelete} disabled={deletePending}>{i18next.t("gen.pages.writingFormula.components.WritingFormulaEditorPanel.gen_2f4aaddd", "删除")}</Button>
           ) : null}
         </div>
       </CardHeader>
@@ -212,7 +212,7 @@ export default function WritingFormulaEditorPanel(props: WritingFormulaEditorPan
         ) : (
           <>
             {isStarterStyleProfile(selectedProfile) ? (
-              <div className="rounded-2xl border bg-muted/20 px-4 py-3 text-sm leading-7 text-muted-foreground">{t("gen.pages.writingFormula.components.WritingFormulaEditorPanel.gen_6ca3e2ab", "这是系统预置给你的起步写法。可以直接按自己的项目修改，不需要先复制一份再编辑。")}</div>
+              <div className="rounded-2xl border bg-muted/20 px-4 py-3 text-sm leading-7 text-muted-foreground">{i18next.t("gen.pages.writingFormula.components.WritingFormulaEditorPanel.gen_6ca3e2ab", "这是系统预置给你的起步写法。可以直接按自己的项目修改，不需要先复制一份再编辑。")}</div>
             ) : null}
 
             <div className="rounded-2xl border bg-slate-50/70 px-4 py-4 text-sm leading-7 text-slate-700">
@@ -223,7 +223,7 @@ export default function WritingFormulaEditorPanel(props: WritingFormulaEditorPan
             <div className="space-y-4 rounded-2xl border p-4">
               <div className="space-y-1">
                 <div className="text-base font-semibold text-slate-950">{i18next.t("gen.pages.writingFormula.components.WritingFormulaEditorPanel.gen_983dbea1")}</div>
-                <div className="text-sm leading-6 text-slate-500">{t("gen.pages.writingFormula.components.WritingFormulaEditorPanel.gen_c59cd0c3", "先把这套写法到底想写成什么感觉讲清楚，列表页展开时也会优先展示这里的内容。")}</div>
+                <div className="text-sm leading-6 text-slate-500">{i18next.t("gen.pages.writingFormula.components.WritingFormulaEditorPanel.gen_c59cd0c3", "先把这套写法到底想写成什么感觉讲清楚，列表页展开时也会优先展示这里的内容。")}</div>
               </div>
 
               <div className="grid gap-4 md:grid-cols-2">
@@ -361,7 +361,7 @@ export default function WritingFormulaEditorPanel(props: WritingFormulaEditorPan
                                   </span>
                                 ))
                               ) : (
-                                <span className="rounded-full border border-dashed border-slate-200 px-2 py-0.5 text-[11px] text-slate-500">{t("gen.pages.writingFormula.components.WritingFormulaEditorPanel.gen_6b158ade", "当前只有摘要级规则")}</span>
+                                <span className="rounded-full border border-dashed border-slate-200 px-2 py-0.5 text-[11px] text-slate-500">{i18next.t("gen.pages.writingFormula.components.WritingFormulaEditorPanel.gen_6b158ade", "当前只有摘要级规则")}</span>
                               )}
                             </span>
                           </span>
@@ -373,7 +373,7 @@ export default function WritingFormulaEditorPanel(props: WritingFormulaEditorPan
                         <div className="rounded-2xl border bg-slate-50/70 p-3">
                           <div className="space-y-1">
                             <div className="text-sm font-medium text-slate-900">{i18next.t("gen.pages.writingFormula.components.WritingFormulaEditorPanel.gen_361c117b")}</div>
-                            <div className="text-xs leading-6 text-slate-500">{t("gen.pages.writingFormula.components.WritingFormulaEditorPanel.gen_fb060615", "这里展示模型给出的三套保留方案。当前保存到写法里的选择会单独标出来，方便你判断是不是要换一种保留力度。")}</div>
+                            <div className="text-xs leading-6 text-slate-500">{i18next.t("gen.pages.writingFormula.components.WritingFormulaEditorPanel.gen_fb060615", "这里展示模型给出的三套保留方案。当前保存到写法里的选择会单独标出来，方便你判断是不是要换一种保留力度。")}</div>
                           </div>
                           <div className="mt-3 grid gap-3 lg:grid-cols-3">
                             {extractionPresets.map((preset) => {
@@ -387,7 +387,7 @@ export default function WritingFormulaEditorPanel(props: WritingFormulaEditorPan
                                   <div className="flex items-center justify-between gap-2">
                                     <div className="text-sm font-medium text-slate-900">{preset.label}</div>
                                     {isSelected ? (
-                                      <span className="rounded-full bg-primary/10 px-2 py-0.5 text-[11px] font-medium text-primary">{t("gen.pages.writingFormula.components.WritingFormulaEditorPanel.gen_7d80ffb7", "当前套用")}</span>
+                                      <span className="rounded-full bg-primary/10 px-2 py-0.5 text-[11px] font-medium text-primary">{i18next.t("gen.pages.writingFormula.components.WritingFormulaEditorPanel.gen_7d80ffb7", "当前套用")}</span>
                                     ) : null}
                                   </div>
                                   <div className="mt-1 text-xs leading-6 text-slate-500">{preset.summary}</div>
@@ -413,7 +413,7 @@ export default function WritingFormulaEditorPanel(props: WritingFormulaEditorPan
                         <div className="rounded-2xl border bg-slate-50/70 p-3">
                           <div className="space-y-1">
                             <div className="text-sm font-medium text-slate-900">{i18next.t("gen.pages.writingFormula.components.WritingFormulaEditorPanel.gen_280d121e")}</div>
-                            <div className="text-xs leading-6 text-slate-500">{t("gen.pages.writingFormula.components.WritingFormulaEditorPanel.gen_c9c3a5fa", "这些是提取阶段推荐一起绑定的规则。已绑定会直接标出来，未绑定的也会继续保留原始建议名。")}</div>
+                            <div className="text-xs leading-6 text-slate-500">{i18next.t("gen.pages.writingFormula.components.WritingFormulaEditorPanel.gen_c9c3a5fa", "这些是提取阶段推荐一起绑定的规则。已绑定会直接标出来，未绑定的也会继续保留原始建议名。")}</div>
                           </div>
                           <div className="mt-3 flex flex-wrap gap-2">
                             {selectedProfile.extractionAntiAiRuleKeys.map((ruleKey) => {
@@ -438,7 +438,7 @@ export default function WritingFormulaEditorPanel(props: WritingFormulaEditorPan
                       ) : null}
                     </div>
                   ) : (
-                    <div className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900">{t("gen.pages.writingFormula.components.WritingFormulaEditorPanel.gen_368f2228", "这条文本写法还没生成可选特征条目。可以点“重新提取特征”，重新从原文样本生成完整特征池。")}</div>
+                    <div className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900">{i18next.t("gen.pages.writingFormula.components.WritingFormulaEditorPanel.gen_368f2228", "这条文本写法还没生成可选特征条目。可以点“重新提取特征”，重新从原文样本生成完整特征池。")}</div>
                   )}
                 </div>
               </div>
@@ -447,7 +447,7 @@ export default function WritingFormulaEditorPanel(props: WritingFormulaEditorPan
             <div className="space-y-4 rounded-2xl border p-4">
               <div className="space-y-1">
                 <div className="text-base font-semibold text-slate-950">{i18next.t("gen.pages.writingFormula.components.WritingFormulaEditorPanel.gen_047fe1ff")}</div>
-                <div className="text-sm leading-6 text-slate-500">{t("gen.pages.writingFormula.components.WritingFormulaEditorPanel.gen_7a7d9832", "这里不是给读者看的文案，而是给你自己和系统回看时用的补充说明。可以写为什么保留这套写法、它最重要的气质是什么。")}</div>
+                <div className="text-sm leading-6 text-slate-500">{i18next.t("gen.pages.writingFormula.components.WritingFormulaEditorPanel.gen_7a7d9832", "这里不是给读者看的文案，而是给你自己和系统回看时用的补充说明。可以写为什么保留这套写法、它最重要的气质是什么。")}</div>
               </div>
               <textarea
                 className="min-h-[110px] w-full rounded-md border p-2 text-sm"
@@ -505,7 +505,7 @@ export default function WritingFormulaEditorPanel(props: WritingFormulaEditorPan
             <div className="space-y-4 rounded-2xl border p-4">
               <div className="space-y-1">
                 <div className="text-base font-semibold text-slate-950">{i18next.t("gen.pages.writingFormula.components.WritingFormulaEditorPanel.gen_1c0d9b75")}</div>
-                <div className="text-sm leading-6 text-slate-500">{t("gen.pages.writingFormula.components.WritingFormulaEditorPanel.gen_970a50c6", "这里决定系统在检测和修正文稿时优先防什么问题。规则绑得越清楚，“去 AI 味”越有方向感。")}</div>
+                <div className="text-sm leading-6 text-slate-500">{i18next.t("gen.pages.writingFormula.components.WritingFormulaEditorPanel.gen_970a50c6", "这里决定系统在检测和修正文稿时优先防什么问题。规则绑得越清楚，“去 AI 味”越有方向感。")}</div>
               </div>
               <div className="grid gap-2 md:grid-cols-2">
                 {antiAiRules.map((rule) => (
@@ -525,8 +525,8 @@ export default function WritingFormulaEditorPanel(props: WritingFormulaEditorPan
             </div>
 
             <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border bg-slate-50/70 px-4 py-3">
-              <div className="text-sm leading-6 text-slate-600">{t("gen.pages.writingFormula.components.WritingFormulaEditorPanel.gen_acf2f3a0", "保存后，这套写法的展开详情、去 AI 味检测和应用测试都会同步读取新设定。")}</div>
-              <Button onClick={onSave} disabled={savePending || !editor.name.trim()}>{t("gen.pages.writingFormula.components.WritingFormulaEditorPanel.gen_a71fa1e0", "保存当前写法")}</Button>
+              <div className="text-sm leading-6 text-slate-600">{i18next.t("gen.pages.writingFormula.components.WritingFormulaEditorPanel.gen_acf2f3a0", "保存后，这套写法的展开详情、去 AI 味检测和应用测试都会同步读取新设定。")}</div>
+              <Button onClick={onSave} disabled={savePending || !editor.name.trim()}>{i18next.t("gen.pages.writingFormula.components.WritingFormulaEditorPanel.gen_a71fa1e0", "保存当前写法")}</Button>
             </div>
           </>
         )}

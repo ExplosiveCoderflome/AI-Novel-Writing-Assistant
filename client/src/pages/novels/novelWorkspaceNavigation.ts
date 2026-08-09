@@ -1,3 +1,4 @@
+import i18next from "i18next";
 import type { DirectorDisplayStageKey } from "@ai-novel/shared/types/directorRuntime";
 import type { DirectorLockScope } from "@ai-novel/shared/types/novelDirector";
 

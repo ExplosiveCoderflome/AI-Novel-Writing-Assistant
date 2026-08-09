@@ -109,7 +109,7 @@ export function ContinuationSourceSection(props: ContinuationSourceSectionProps)
       {hasSelectedContinuationSource ? (
         <div className="space-y-3 pt-1">
           <div className="space-y-1">
-            <div className="flex items-center gap-2 text-sm font-medium text-foreground">{t("gen.pages.novels.components.basicInfoForm.ContinuationSourceSection.gen_bd43b7d2", "拆书引用")}<HelpHint text={BASIC_INFO_FIELD_HINTS.continuationBookAnalysis} />
+            <div className="flex items-center gap-2 text-sm font-medium text-foreground">{i18next.t("gen.pages.novels.components.basicInfoForm.ContinuationSourceSection.gen_bd43b7d2", "拆书引用")}<HelpHint text={BASIC_INFO_FIELD_HINTS.continuationBookAnalysis} />
             </div>
             <div className="text-xs text-muted-foreground">{i18next.t("gen.pages.novels.components.basicInfoForm.ContinuationSourceSection.gen_70c11809")}</div>
           </div>
@@ -147,7 +147,7 @@ export function ContinuationSourceSection(props: ContinuationSourceSectionProps)
             <div className="text-xs text-muted-foreground">{i18next.t("gen.pages.novels.components.basicInfoForm.ContinuationSourceSection.gen_1432dcb3")}</div>
           ) : null}
           {!isLoadingSourceNovelBookAnalyses && sourceNovelBookAnalysisOptions.length === 0 ? (
-            <div className="text-xs text-muted-foreground">{t("gen.pages.novels.components.basicInfoForm.ContinuationSourceSection.gen_65f2794e", "当前续写来源暂无可用拆书结果，需要先完成成功的拆书分析。")}</div>
+            <div className="text-xs text-muted-foreground">{i18next.t("gen.pages.novels.components.basicInfoForm.ContinuationSourceSection.gen_65f2794e", "当前续写来源暂无可用拆书结果，需要先完成成功的拆书分析。")}</div>
           ) : null}
 
           {basicForm.continuationBookAnalysisId ? (
@@ -161,13 +161,13 @@ export function ContinuationSourceSection(props: ContinuationSourceSectionProps)
                   onClick={() => onFormChange({
                     continuationBookAnalysisSections: availableBookAnalysisSections.map((item) => item.key),
                   })}
-                >{t("gen.pages.novels.components.basicInfoForm.ContinuationSourceSection.gen_66eeacd9", "全选")}</Button>
+                >{i18next.t("gen.pages.novels.components.basicInfoForm.ContinuationSourceSection.gen_66eeacd9", "全选")}</Button>
                 <Button
                   size="sm"
                   variant="outline"
                   type="button"
                   onClick={() => onFormChange({ continuationBookAnalysisSections: [] })}
-                >{t("gen.pages.novels.components.basicInfoForm.ContinuationSourceSection.gen_288f0c40", "清空")}</Button>
+                >{i18next.t("gen.pages.novels.components.basicInfoForm.ContinuationSourceSection.gen_288f0c40", "清空")}</Button>
               </div>
               <div className="grid gap-2 sm:grid-cols-2">
                 {availableBookAnalysisSections.map((section) => (

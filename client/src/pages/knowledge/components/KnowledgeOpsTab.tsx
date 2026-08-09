@@ -101,7 +101,7 @@ export default function KnowledgeOpsTab({
           <CardHeader className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
             <div className="min-w-0 space-y-1">
               <CardTitle>{i18next.t("gen.pages.knowledge.components.KnowledgeOpsTab.gen_cad670fb")}</CardTitle>
-              <div className="text-xs text-muted-foreground">{t("gen.pages.knowledge.components.KnowledgeOpsTab.gen_ae068eb6", "清理已结束的索引记录，排队中和执行中的任务会保留。")}</div>
+              <div className="text-xs text-muted-foreground">{i18next.t("gen.pages.knowledge.components.KnowledgeOpsTab.gen_ae068eb6", "清理已结束的索引记录，排队中和执行中的任务会保留。")}</div>
             </div>
             <Button
               type="button"

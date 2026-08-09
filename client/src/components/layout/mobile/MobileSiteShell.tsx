@@ -85,7 +85,7 @@ export default function MobileSiteShell({ children }: MobileSiteShellProps) {
             <LiveExecutionDialog compact className="h-8 w-8 px-0" />
             <Button asChild size="sm" className="h-8 px-3">
               <Link to="/novels/auto-director" onClick={() => setMoreOpen(false)}>
-                <Plus className="h-3.5 w-3.5" />{t("gen.components.layout.mobile.MobileSiteShell.gen_935de69b", "开书")}</Link>
+                <Plus className="h-3.5 w-3.5" />{i18next.t("gen.components.layout.mobile.MobileSiteShell.gen_935de69b", "开书")}</Link>
             </Button>
             <Button
               type="button"
@@ -103,8 +103,8 @@ export default function MobileSiteShell({ children }: MobileSiteShellProps) {
               size="icon"
               className="h-8 w-8"
               onClick={() => setVisualAssetLibraryOpen(true)}
-              aria-label={t("gen.components.layout.mobile.MobileSiteShell.gen_299b2b89", "打开视觉资源库")}
-              title={t("gen.components.layout.mobile.MobileSiteShell.gen_cc596cc2", "视觉资源库")}
+              aria-label={i18next.t("gen.components.layout.mobile.MobileSiteShell.gen_299b2b89", "打开视觉资源库")}
+              title={i18next.t("gen.components.layout.mobile.MobileSiteShell.gen_cc596cc2", "视觉资源库")}
             >
               <Images className="h-4 w-4" />
             </Button>

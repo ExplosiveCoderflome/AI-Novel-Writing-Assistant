@@ -582,7 +582,7 @@ export default function WritingFormulaPage() {
         <DialogContent ref={editorDialogRef} className="!flex h-[88vh] w-[min(1180px,96vw)] max-w-none flex-col gap-0 overflow-hidden p-0">
           <DialogHeader className="border-b px-6 py-5 pr-14">
             <DialogTitle>{i18next.t("gen.pages.writingFormula.WritingFormulaPage.gen_94a3c6e8")}</DialogTitle>
-            <DialogDescription>{t("gen.pages.writingFormula.WritingFormulaPage.gen_884bc6ef", "这里专门整理写法本身的设定说明。应用测试和去 AI 味已经拆到独立入口，避免混在一个窗口里。")}</DialogDescription>
+            <DialogDescription>{i18next.t("gen.pages.writingFormula.WritingFormulaPage.gen_884bc6ef", "这里专门整理写法本身的设定说明。应用测试和去 AI 味已经拆到独立入口，避免混在一个窗口里。")}</DialogDescription>
           </DialogHeader>
 
           <div className="h-full min-h-0 overflow-hidden p-6 pt-4">
@@ -629,7 +629,7 @@ export default function WritingFormulaPage() {
         <DialogContent className="!flex h-[84vh] w-[min(1080px,94vw)] max-w-none flex-col gap-0 overflow-hidden p-0">
           <DialogHeader className="border-b px-6 py-5 pr-14">
             <DialogTitle>{i18next.t("gen.pages.writingFormula.WritingFormulaPage.gen_4f43fb8b")}</DialogTitle>
-            <DialogDescription>{t("gen.pages.writingFormula.WritingFormulaPage.gen_e3378cc4", "这里专门处理绑定到小说、章节和试写验证，不修改写法字段本身。")}</DialogDescription>
+            <DialogDescription>{i18next.t("gen.pages.writingFormula.WritingFormulaPage.gen_e3378cc4", "这里专门处理绑定到小说、章节和试写验证，不修改写法字段本身。")}</DialogDescription>
           </DialogHeader>
 
           <div className="h-full min-h-0 overflow-auto p-6 pt-4">
@@ -660,7 +660,7 @@ export default function WritingFormulaPage() {
         <DialogContent className="!flex h-[84vh] w-[min(980px,92vw)] max-w-none flex-col gap-0 overflow-hidden p-0">
           <DialogHeader className="border-b px-6 py-5 pr-14">
             <DialogTitle>{i18next.t("gen.pages.writingFormula.WritingFormulaPage.gen_b589a6aa")}</DialogTitle>
-            <DialogDescription>{t("gen.pages.writingFormula.WritingFormulaPage.gen_3b263363", "这里专门做正文检测和修正，不进入写法字段编辑，也不混入绑定和试写操作。")}</DialogDescription>
+            <DialogDescription>{i18next.t("gen.pages.writingFormula.WritingFormulaPage.gen_3b263363", "这里专门做正文检测和修正，不进入写法字段编辑，也不混入绑定和试写操作。")}</DialogDescription>
           </DialogHeader>
 
           <div className="h-full min-h-0 overflow-auto p-6 pt-4">

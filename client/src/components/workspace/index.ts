@@ -1,3 +1,4 @@
+import i18next from "i18next";
 export { default as WorkspaceHeader } from "./WorkspaceHeader";
 export { default as WorkspaceNextAction } from "./WorkspaceNextAction";
 export { default as WorkspaceStateNotice } from "./WorkspaceStateNotice";

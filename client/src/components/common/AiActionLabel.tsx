@@ -1,3 +1,4 @@
+import i18next from "i18next";
 import type { ReactNode } from "react";
 import { cn } from "@/lib/utils";
 

@@ -16,8 +16,8 @@ export default function DesktopUpdateCard() {
   return (
     <Card>
       <CardHeader>
-        <CardTitle>{t("gen.components.layout.DesktopUpdateCard.gen_3892c0f6", "桌面版更新")}</CardTitle>
-        <CardDescription>{t("gen.components.layout.DesktopUpdateCard.gen_4d43b082", "查看详细版本状态，也可以直接点击工作区顶部的版本号快速打开更新面板。")}</CardDescription>
+        <CardTitle>{i18next.t("gen.components.layout.DesktopUpdateCard.gen_3892c0f6", "桌面版更新")}</CardTitle>
+        <CardDescription>{i18next.t("gen.components.layout.DesktopUpdateCard.gen_4d43b082", "查看详细版本状态，也可以直接点击工作区顶部的版本号快速打开更新面板。")}</CardDescription>
       </CardHeader>
       <CardContent>
         <DesktopUpdatePanel updater={updater} />

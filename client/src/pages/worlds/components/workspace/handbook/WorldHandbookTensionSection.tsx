@@ -54,10 +54,10 @@ export default function WorldHandbookTensionSection(props: {
             placeholder={i18next.t("gen.pages.worlds.components.workspace.handbook.WorldHandbookTensionSection.gen_b1303b9e")}
           />
         </HandbookField>
-        <div className="rounded-md border border-dashed p-3 text-sm leading-6 text-muted-foreground">{t("gen.pages.worlds.components.workspace.handbook.WorldHandbookTensionSection.gen_1b0251bd", "需要细调势力关系、地点控制权、导入结构数据时，再进入高级字段维护。普通作者只需要维护本页的手册内容。")}<div className="mt-3 flex flex-wrap gap-2">
-            <Button type="button" variant="outline" size="sm" onClick={onOpenDeepening}>{t("gen.pages.worlds.components.workspace.handbook.WorldHandbookTensionSection.gen_52384c69", "问答补齐")}</Button>
-            <Button type="button" variant="outline" size="sm" onClick={onOpenLayers}>{t("gen.pages.worlds.components.workspace.handbook.WorldHandbookTensionSection.gen_89b03150", "分层草稿")}</Button>
-            <Button type="button" variant="ghost" size="sm" onClick={onOpenAdvanced}>{t("gen.pages.worlds.components.workspace.handbook.WorldHandbookTensionSection.gen_6d58393f", "高级字段维护")}</Button>
+        <div className="rounded-md border border-dashed p-3 text-sm leading-6 text-muted-foreground">{i18next.t("gen.pages.worlds.components.workspace.handbook.WorldHandbookTensionSection.gen_1b0251bd", "需要细调势力关系、地点控制权、导入结构数据时，再进入高级字段维护。普通作者只需要维护本页的手册内容。")}<div className="mt-3 flex flex-wrap gap-2">
+            <Button type="button" variant="outline" size="sm" onClick={onOpenDeepening}>{i18next.t("gen.pages.worlds.components.workspace.handbook.WorldHandbookTensionSection.gen_52384c69", "问答补齐")}</Button>
+            <Button type="button" variant="outline" size="sm" onClick={onOpenLayers}>{i18next.t("gen.pages.worlds.components.workspace.handbook.WorldHandbookTensionSection.gen_89b03150", "分层草稿")}</Button>
+            <Button type="button" variant="ghost" size="sm" onClick={onOpenAdvanced}>{i18next.t("gen.pages.worlds.components.workspace.handbook.WorldHandbookTensionSection.gen_6d58393f", "高级字段维护")}</Button>
           </div>
         </div>
       </div>

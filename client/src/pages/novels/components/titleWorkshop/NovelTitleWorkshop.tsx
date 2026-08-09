@@ -97,7 +97,7 @@ export default function NovelTitleWorkshop({
         <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
           <div className="space-y-1">
             <div className="text-sm font-semibold text-foreground">{i18next.t("gen.pages.novels.components.titleWorkshop.NovelTitleWorkshop.gen_c7a5bed7")}</div>
-            <div className="text-sm leading-6 text-muted-foreground">{t("gen.pages.novels.components.titleWorkshop.NovelTitleWorkshop.gen_c26e0674", "基于当前已保存的小说简介和类型生成候选。如果刚修改过简介或类型，建议先保存基本信息再生成。")}</div>
+            <div className="text-sm leading-6 text-muted-foreground">{i18next.t("gen.pages.novels.components.titleWorkshop.NovelTitleWorkshop.gen_c26e0674", "基于当前已保存的小说简介和类型生成候选。如果刚修改过简介或类型，建议先保存基本信息再生成。")}</div>
           </div>
           <Button type="button" variant="outline" disabled={!currentTitle.trim() || saveCurrentMutation.isPending} onClick={() => saveCurrentMutation.mutate()}>
             {saveCurrentMutation.isPending ? i18next.t("gen.pages.novels.components.titleWorkshop.NovelTitleWorkshop.savingInProgressDotDotDot") : i18next.t("gen.pages.novels.components.titleWorkshop.NovelTitleWorkshop.saveCurrentTitle")}

@@ -249,16 +249,16 @@ export default function StructuredOutlineWorkspace(props: StructuredTabViewProps
   if (volumes.length === 0) {
     return (
       <Card className="border-0 bg-transparent shadow-none">
-        <CardHeader><CardTitle>{t("gen.pages.novels.components.StructuredOutlineWorkspace.gen_4bb0dcce", "节奏 / 拆章")}</CardTitle></CardHeader>
+        <CardHeader><CardTitle>{i18next.t("gen.pages.novels.components.StructuredOutlineWorkspace.gen_4bb0dcce", "节奏 / 拆章")}</CardTitle></CardHeader>
         <CardContent className="space-y-4 px-0">
           <WorldInjectionHint worldInjectionSummary={worldInjectionSummary} />
           {!hasCharacters ? (
             <div className="flex items-center justify-between gap-2 rounded-2xl bg-amber-50 px-4 py-3 text-xs text-amber-800">
-              <span>{t("gen.pages.novels.components.StructuredOutlineWorkspace.gen_9f9804e8", "请先补角色，再拆节奏和章节。")}</span>
-              <Button size="sm" variant="outline" onClick={onGoToCharacterTab}>{t("gen.pages.novels.components.StructuredOutlineWorkspace.gen_ef2c69b9", "去角色管理")}</Button>
+              <span>{i18next.t("gen.pages.novels.components.StructuredOutlineWorkspace.gen_9f9804e8", "请先补角色，再拆节奏和章节。")}</span>
+              <Button size="sm" variant="outline" onClick={onGoToCharacterTab}>{i18next.t("gen.pages.novels.components.StructuredOutlineWorkspace.gen_ef2c69b9", "去角色管理")}</Button>
             </div>
           ) : null}
-          <div className="rounded-md border border-dashed p-6 text-sm text-muted-foreground">{t("gen.pages.novels.components.StructuredOutlineWorkspace.gen_6fc6f465", "先在上一页生成卷战略和卷骨架。")}</div>
+          <div className="rounded-md border border-dashed p-6 text-sm text-muted-foreground">{i18next.t("gen.pages.novels.components.StructuredOutlineWorkspace.gen_6fc6f465", "先在上一页生成卷战略和卷骨架。")}</div>
         </CardContent>
       </Card>
     );
@@ -268,8 +268,8 @@ export default function StructuredOutlineWorkspace(props: StructuredTabViewProps
     <Card className="border-0 bg-transparent shadow-none">
       <CardHeader className="flex flex-col gap-4 rounded-2xl bg-muted/20 px-5 py-4 lg:flex-row lg:items-center lg:justify-between">
         <div className="space-y-1">
-          <CardTitle>{t("gen.pages.novels.components.StructuredOutlineWorkspace.gen_4bb0dcce", "节奏 / 拆章")}</CardTitle>
-          <div className="text-sm text-muted-foreground">{t("gen.pages.novels.components.StructuredOutlineWorkspace.gen_471bc6a3", "先选卷，再看节奏，再从对应章节里挑当前要细化的一章。")}</div>
+          <CardTitle>{i18next.t("gen.pages.novels.components.StructuredOutlineWorkspace.gen_4bb0dcce", "节奏 / 拆章")}</CardTitle>
+          <div className="text-sm text-muted-foreground">{i18next.t("gen.pages.novels.components.StructuredOutlineWorkspace.gen_471bc6a3", "先选卷，再看节奏，再从对应章节里挑当前要细化的一章。")}</div>
         </div>
         <Button variant="secondary" onClick={onSave} disabled={isSaving}>
           {isSaving ? "保存中..." : "保存卷工作区"}
@@ -281,8 +281,8 @@ export default function StructuredOutlineWorkspace(props: StructuredTabViewProps
         {directorTakeoverEntry ? (
           <div className="flex flex-col gap-3 rounded-2xl bg-primary/5 p-4 sm:flex-row sm:items-center sm:justify-between">
             <div className="space-y-1">
-              <div className="text-sm font-medium text-foreground">{t("gen.pages.novels.components.StructuredOutlineWorkspace.gen_7802ca88", "想让 AI 继续接管当前项目？")}</div>
-              <div className="text-sm text-muted-foreground">{t("gen.pages.novels.components.StructuredOutlineWorkspace.gen_78b95b32", "不用回到项目设定，直接在这里重新进入自动导演，让 AI 继续推进节奏拆章或后续自动执行。")}</div>
+              <div className="text-sm font-medium text-foreground">{i18next.t("gen.pages.novels.components.StructuredOutlineWorkspace.gen_7802ca88", "想让 AI 继续接管当前项目？")}</div>
+              <div className="text-sm text-muted-foreground">{i18next.t("gen.pages.novels.components.StructuredOutlineWorkspace.gen_78b95b32", "不用回到项目设定，直接在这里重新进入自动导演，让 AI 继续推进节奏拆章或后续自动执行。")}</div>
             </div>
             <div className="shrink-0">
               {directorTakeoverEntry}
@@ -292,7 +292,7 @@ export default function StructuredOutlineWorkspace(props: StructuredTabViewProps
 
         <div className="flex flex-wrap items-center gap-2 rounded-2xl bg-muted/20 px-4 py-3 text-xs text-muted-foreground">
           <span>{generationNotice}</span>
-          {hasUnsavedVolumeDraft ? <Badge variant="secondary">{t("gen.pages.novels.components.StructuredOutlineWorkspace.gen_7fa6741a", "含未保存草稿")}</Badge> : null}
+          {hasUnsavedVolumeDraft ? <Badge variant="secondary">{i18next.t("gen.pages.novels.components.StructuredOutlineWorkspace.gen_7fa6741a", "含未保存草稿")}</Badge> : null}
           <Badge variant="outline">当前：第{selectedVolume.sortOrder}卷</Badge>
           <Badge variant="outline">{selectedVolumeChapters.length}章</Badge>
           <Badge variant="outline">{refinedChapterCount}/{Math.max(selectedVolumeChapters.length, 1)} 已细化</Badge>
@@ -303,8 +303,8 @@ export default function StructuredOutlineWorkspace(props: StructuredTabViewProps
         </div>
 
         <TensionCurvePanel
-          title={t("gen.pages.novels.components.StructuredOutlineWorkspace.gen_620e5a0e", "紧张度曲线")}
-          subtitle={t("gen.pages.novels.components.StructuredOutlineWorkspace.gen_b1ab6afa", "查看当前卷冲突强度走向；手动固定点会作为后续拆章、细化和重规划的约束。")}
+          title={i18next.t("gen.pages.novels.components.StructuredOutlineWorkspace.gen_620e5a0e", "紧张度曲线")}
+          subtitle={i18next.t("gen.pages.novels.components.StructuredOutlineWorkspace.gen_b1ab6afa", "查看当前卷冲突强度走向；手动固定点会作为后续拆章、细化和重规划的约束。")}
           series={tensionCurveSeries}
           viewportOptions={tensionCurveViewportOptions}
           selectedViewportKey={selectedBeatKey}
@@ -315,8 +315,8 @@ export default function StructuredOutlineWorkspace(props: StructuredTabViewProps
         <TensionCurveEditDialog
           open={tensionCurveDialogOpen}
           onOpenChange={setTensionCurveDialogOpen}
-          title={t("gen.pages.novels.components.StructuredOutlineWorkspace.gen_15915af4", "编辑紧张度曲线")}
-          description={t("gen.pages.novels.components.StructuredOutlineWorkspace.gen_3074c331", "先对照卷级定位和当前节奏段交付，再拖动章节节点调整冲突强度。")}
+          title={i18next.t("gen.pages.novels.components.StructuredOutlineWorkspace.gen_15915af4", "编辑紧张度曲线")}
+          description={i18next.t("gen.pages.novels.components.StructuredOutlineWorkspace.gen_3074c331", "先对照卷级定位和当前节奏段交付，再拖动章节节点调整冲突强度。")}
           series={tensionCurveSeries}
           viewportOptions={tensionCurveViewportOptions}
           selectedViewportKey={selectedBeatKey}
@@ -369,15 +369,15 @@ export default function StructuredOutlineWorkspace(props: StructuredTabViewProps
           }}
         />
 
-        {!strategyPlan ? <div className="rounded-2xl bg-amber-50 px-4 py-3 text-xs text-amber-800">{t("gen.pages.novels.components.StructuredOutlineWorkspace.gen_99777540", "请先在上一阶段生成卷战略建议，再继续当前卷节奏板和拆章。")}</div> : null}
+        {!strategyPlan ? <div className="rounded-2xl bg-amber-50 px-4 py-3 text-xs text-amber-800">{i18next.t("gen.pages.novels.components.StructuredOutlineWorkspace.gen_99777540", "请先在上一阶段生成卷战略建议，再继续当前卷节奏板和拆章。")}</div> : null}
         {syncMessage ? <div className="text-xs text-muted-foreground">{syncMessage}</div> : null}
-        {locked ? <div className="rounded-2xl bg-amber-50 px-4 py-3 text-xs text-amber-800">{t("gen.pages.novels.components.StructuredOutlineWorkspace.gen_60fea0bb", "当前卷还没有节奏板，章节列表生成已锁定。")}</div> : null}
+        {locked ? <div className="rounded-2xl bg-amber-50 px-4 py-3 text-xs text-amber-800">{i18next.t("gen.pages.novels.components.StructuredOutlineWorkspace.gen_60fea0bb", "当前卷还没有节奏板，章节列表生成已锁定。")}</div> : null}
 
         <Card className="border-0 bg-muted/15 shadow-none">
           <CardHeader className="pb-3">
             <div className="flex flex-col gap-1">
-              <CardTitle className="text-base">{t("gen.pages.novels.components.StructuredOutlineWorkspace.gen_f2294d81", "当前处理卷")}</CardTitle>
-              <div className="text-sm text-muted-foreground">{t("gen.pages.novels.components.StructuredOutlineWorkspace.gen_0d93d85a", "先切到要处理的卷，主工作区会跟着切换当前卷节奏和章节。")}</div>
+              <CardTitle className="text-base">{i18next.t("gen.pages.novels.components.StructuredOutlineWorkspace.gen_f2294d81", "当前处理卷")}</CardTitle>
+              <div className="text-sm text-muted-foreground">{i18next.t("gen.pages.novels.components.StructuredOutlineWorkspace.gen_0d93d85a", "先切到要处理的卷，主工作区会跟着切换当前卷节奏和章节。")}</div>
             </div>
           </CardHeader>
           <CardContent>
@@ -404,7 +404,7 @@ export default function StructuredOutlineWorkspace(props: StructuredTabViewProps
                   >
                     <div className="flex items-center justify-between gap-2">
                       <Badge variant={isSelected ? "default" : "outline"}>第{volume.sortOrder}卷</Badge>
-                      {volumeBeatSheet ? <Badge variant="secondary">{t("gen.pages.novels.components.StructuredOutlineWorkspace.gen_39ecb71d", "有节奏板")}</Badge> : <Badge variant="outline">{t("gen.pages.novels.components.StructuredOutlineWorkspace.gen_fc79de31", "未做节奏板")}</Badge>}
+                      {volumeBeatSheet ? <Badge variant="secondary">{i18next.t("gen.pages.novels.components.StructuredOutlineWorkspace.gen_39ecb71d", "有节奏板")}</Badge> : <Badge variant="outline">{i18next.t("gen.pages.novels.components.StructuredOutlineWorkspace.gen_fc79de31", "未做节奏板")}</Badge>}
                     </div>
                     <div className="mt-2 line-clamp-1 text-sm font-medium">{volume.title || `第${volume.sortOrder}卷`}</div>
                     <div className="mt-1 line-clamp-2 text-xs text-muted-foreground">
@@ -527,8 +527,8 @@ export default function StructuredOutlineWorkspace(props: StructuredTabViewProps
               <CardHeader className="pb-3">
                 <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                   <div className="space-y-1">
-                    <CardTitle className="text-base">{t("gen.pages.novels.components.StructuredOutlineWorkspace.gen_7297e792", "章节执行连接")}</CardTitle>
-                    <div className="text-sm text-muted-foreground">{t("gen.pages.novels.components.StructuredOutlineWorkspace.gen_454bd656", "系统会把拆好的章节连接到执行队列。只有需要检查连接状态时再展开。")}</div>
+                    <CardTitle className="text-base">{i18next.t("gen.pages.novels.components.StructuredOutlineWorkspace.gen_7297e792", "章节执行连接")}</CardTitle>
+                    <div className="text-sm text-muted-foreground">{i18next.t("gen.pages.novels.components.StructuredOutlineWorkspace.gen_454bd656", "系统会把拆好的章节连接到执行队列。只有需要检查连接状态时再展开。")}</div>
                   </div>
                   <div className="flex items-center gap-2">
                     <Badge variant={hasMissingChapterLinks ? "outline" : "secondary"}>
@@ -550,15 +550,15 @@ export default function StructuredOutlineWorkspace(props: StructuredTabViewProps
                   <>
                     <div className="flex flex-wrap items-center gap-4 text-xs text-muted-foreground">
                       <label className="flex items-center gap-2 rounded-full border border-border/70 px-3 py-1.5">
-                        <input type="checkbox" checked={syncOptions.preserveContent} onChange={(event) => onSyncOptionsChange({ preserveContent: event.target.checked })} />{t("gen.pages.novels.components.StructuredOutlineWorkspace.gen_8b1093d0", "保留已有正文")}</label>
+                        <input type="checkbox" checked={syncOptions.preserveContent} onChange={(event) => onSyncOptionsChange({ preserveContent: event.target.checked })} />{i18next.t("gen.pages.novels.components.StructuredOutlineWorkspace.gen_8b1093d0", "保留已有正文")}</label>
                       <label className="flex items-center gap-2 rounded-full border border-border/70 px-3 py-1.5">
-                        <input type="checkbox" checked={syncOptions.applyDeletes} onChange={(event) => onSyncOptionsChange({ applyDeletes: event.target.checked })} />{t("gen.pages.novels.components.StructuredOutlineWorkspace.gen_44beb372", "同步时删除卷纲外章节")}</label>
+                        <input type="checkbox" checked={syncOptions.applyDeletes} onChange={(event) => onSyncOptionsChange({ applyDeletes: event.target.checked })} />{i18next.t("gen.pages.novels.components.StructuredOutlineWorkspace.gen_44beb372", "同步时删除卷纲外章节")}</label>
                     </div>
 
                     <div className="flex flex-wrap gap-2">
-                      <Button size="sm" variant="outline" onClick={() => onApplyBatch({ conflictLevel: 60 })}>{t("gen.pages.novels.components.StructuredOutlineWorkspace.gen_e306c1af", "统一冲突等级 60")}</Button>
-                      <Button size="sm" variant="outline" onClick={() => onApplyBatch({ targetWordCount: 2500 })}>{t("gen.pages.novels.components.StructuredOutlineWorkspace.gen_47d92d84", "统一字数 2500")}</Button>
-                      <AiButton size="sm" onClick={() => onApplyBatch({ generateTaskSheet: true })}>{t("gen.pages.novels.components.StructuredOutlineWorkspace.gen_4c0c2f7f", "批量补任务单")}</AiButton>
+                      <Button size="sm" variant="outline" onClick={() => onApplyBatch({ conflictLevel: 60 })}>{i18next.t("gen.pages.novels.components.StructuredOutlineWorkspace.gen_e306c1af", "统一冲突等级 60")}</Button>
+                      <Button size="sm" variant="outline" onClick={() => onApplyBatch({ targetWordCount: 2500 })}>{i18next.t("gen.pages.novels.components.StructuredOutlineWorkspace.gen_47d92d84", "统一字数 2500")}</Button>
+                      <AiButton size="sm" onClick={() => onApplyBatch({ generateTaskSheet: true })}>{i18next.t("gen.pages.novels.components.StructuredOutlineWorkspace.gen_4c0c2f7f", "批量补任务单")}</AiButton>
                       <Button onClick={() => onApplySync(syncOptions)} disabled={isApplyingSync}>
                         {isApplyingSync ? "修复中..." : "修复章节连接"}
                       </Button>
@@ -610,7 +610,7 @@ export default function StructuredOutlineWorkspace(props: StructuredTabViewProps
                     ) : null}
                   </>
                 ) : (
-                  <div className="rounded-xl border border-dashed p-4 text-sm text-muted-foreground">{t("gen.pages.novels.components.StructuredOutlineWorkspace.gen_ebccb95f", "当前章节规划先以“选章 + 细化”为主。批量补任务单、连接差异和 JSON 预览默认收起，避免打断主流程。")}</div>
+                  <div className="rounded-xl border border-dashed p-4 text-sm text-muted-foreground">{i18next.t("gen.pages.novels.components.StructuredOutlineWorkspace.gen_ebccb95f", "当前章节规划先以“选章 + 细化”为主。批量补任务单、连接差异和 JSON 预览默认收起，避免打断主流程。")}</div>
                 )}
               </CardContent>
             </Card>

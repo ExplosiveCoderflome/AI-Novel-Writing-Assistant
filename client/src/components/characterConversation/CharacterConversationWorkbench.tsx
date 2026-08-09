@@ -98,7 +98,7 @@ export default function CharacterConversationWorkbench(props: CharacterConversat
       title={<span className="inline-flex items-center gap-2"><MessageCircle className="h-4 w-4 text-primary" />{displayName} 的对话空间</span>}
       description={projection?.sourceDescription ?? sourceDescriptionForPolicy(policy)}
       meta={<span className="text-xs font-medium text-muted-foreground">{projection?.sourceLabel ?? sourceLabelForPolicy(policy)} · {policyLabel(policy)}</span>}
-      actions={<>{props.headerActions}{props.chapterAnchorOptions?.length && typeof props.chapterAnchor === "number" && props.onChapterAnchorChange ? <ChapterAnchorSelect chapterAnchor={props.chapterAnchor} options={props.chapterAnchorOptions} disabled={Boolean(session)} onChange={props.onChapterAnchorChange} /> : null}{props.onClose ? <Button size="sm" variant="ghost" onClick={props.onClose}>{t("gen.components.characterConversation.CharacterConversationWorkbench.gen_99ec7cc8", "收起谈话")}</Button> : null}</>}
+      actions={<>{props.headerActions}{props.chapterAnchorOptions?.length && typeof props.chapterAnchor === "number" && props.onChapterAnchorChange ? <ChapterAnchorSelect chapterAnchor={props.chapterAnchor} options={props.chapterAnchorOptions} disabled={Boolean(session)} onChange={props.onChapterAnchorChange} /> : null}{props.onClose ? <Button size="sm" variant="ghost" onClick={props.onClose}>{i18next.t("gen.components.characterConversation.CharacterConversationWorkbench.gen_99ec7cc8", "收起谈话")}</Button> : null}</>}
       className="rounded-xl border-border/50 shadow-none"
       headerClassName="bg-background px-5 py-4 xl:px-6"
       bodyClassName={cn(
@@ -144,29 +144,29 @@ export default function CharacterConversationWorkbench(props: CharacterConversat
 }
 
 function ChapterAnchorSelect(props: { chapterAnchor: number; options: number[]; disabled: boolean; onChange: (chapterAnchor: number) => void }) {
-  return <label className="flex h-8 items-center gap-1.5 border-b border-border/70 px-1 text-xs text-muted-foreground"><span>{t("gen.components.characterConversation.CharacterConversationWorkbench.gen_cf2c9638", "截至")}</span><select className="bg-transparent text-sm font-medium text-foreground outline-none" value={props.chapterAnchor} onChange={(event) => props.onChange(Number(event.target.value))} disabled={props.disabled}>{props.options.map((chapterOrder) => <option key={chapterOrder} value={chapterOrder}>第 {chapterOrder} 章</option>)}</select></label>;
+  return <label className="flex h-8 items-center gap-1.5 border-b border-border/70 px-1 text-xs text-muted-foreground"><span>{i18next.t("gen.components.characterConversation.CharacterConversationWorkbench.gen_cf2c9638", "截至")}</span><select className="bg-transparent text-sm font-medium text-foreground outline-none" value={props.chapterAnchor} onChange={(event) => props.onChange(Number(event.target.value))} disabled={props.disabled}>{props.options.map((chapterOrder) => <option key={chapterOrder} value={chapterOrder}>第 {chapterOrder} 章</option>)}</select></label>;
 }
 
 function ConversationContextPanel(props: { projection: CharacterSubjectProjection | undefined }) {
   if (!props.projection) {
-    return <aside className="flex min-h-40 items-center border-l-2 border-primary/30 pl-4 text-sm leading-6 text-muted-foreground">{t("gen.components.characterConversation.CharacterConversationWorkbench.gen_6efb0950", "正在整理角色的谈话依据...")}</aside>;
+    return <aside className="flex min-h-40 items-center border-l-2 border-primary/30 pl-4 text-sm leading-6 text-muted-foreground">{i18next.t("gen.components.characterConversation.CharacterConversationWorkbench.gen_6efb0950", "正在整理角色的谈话依据...")}</aside>;
   }
   const { projection } = props;
   return (
     <aside className="min-w-0 pb-6">
-      <div className="flex items-center gap-2 text-sm font-semibold tracking-tight"><ShieldCheck className="h-4 w-4 text-primary" />{t("gen.components.characterConversation.CharacterConversationWorkbench.gen_b3a68d61", "场景分析")}</div>
+      <div className="flex items-center gap-2 text-sm font-semibold tracking-tight"><ShieldCheck className="h-4 w-4 text-primary" />{i18next.t("gen.components.characterConversation.CharacterConversationWorkbench.gen_b3a68d61", "场景分析")}</div>
       <p className="mt-1.5 text-xs leading-5 text-muted-foreground">{projection.sourceDescription}</p>
       {projection.chapterAnchorLabel ? <div className="mt-4 text-xs font-medium text-primary">{projection.chapterAnchorLabel}</div> : null}
       <section className="mt-5 border-l-2 border-primary/45 pl-4">
-        <div className="text-[11px] font-semibold tracking-[0.12em] text-primary">{t("gen.components.characterConversation.CharacterConversationWorkbench.gen_c4ddddf3", "角色基础")}</div>
+        <div className="text-[11px] font-semibold tracking-[0.12em] text-primary">{i18next.t("gen.components.characterConversation.CharacterConversationWorkbench.gen_c4ddddf3", "角色基础")}</div>
         <p className="mt-2 whitespace-pre-wrap text-sm leading-7 text-foreground/90">{projection.identity}</p>
       </section>
       <section className="mt-6 border-t border-border/60 pt-5">
-        <div className="text-[11px] font-semibold tracking-[0.12em] text-muted-foreground">{t("gen.components.characterConversation.CharacterConversationWorkbench.gen_7cde3a32", "此刻处境")}</div>
+        <div className="text-[11px] font-semibold tracking-[0.12em] text-muted-foreground">{i18next.t("gen.components.characterConversation.CharacterConversationWorkbench.gen_7cde3a32", "此刻处境")}</div>
         <p className="mt-2 whitespace-pre-wrap text-sm leading-7 text-foreground/90">{projection.currentSituation}</p>
       </section>
-      {projection.evidence.length > 0 ? <section className="mt-6 border-t border-border/60 pt-5"><div className="flex items-center gap-2 text-[11px] font-semibold tracking-[0.12em] text-muted-foreground"><BookOpenText className="h-3.5 w-3.5" />{t("gen.components.characterConversation.CharacterConversationWorkbench.gen_7c803425", "回应依据")}</div><div className="mt-3 space-y-3">{projection.evidence.map((evidence, index) => <article key={`${evidence.sourceRef ?? evidence.label}-${index}`} className="border-l border-border/80 pl-3"><div className="text-xs font-medium text-foreground/90">{evidence.chapterOrder ? `第 ${evidence.chapterOrder} 章 · ` : ""}{evidence.label}</div><p className="mt-1 text-xs leading-5 text-muted-foreground">{evidence.detail}</p></article>)}</div></section> : null}
-      <section className="mt-6 border-t border-border/60 pt-5"><div className="text-[11px] font-semibold tracking-[0.12em] text-muted-foreground">{t("gen.components.characterConversation.CharacterConversationWorkbench.gen_3cedcf6e", "交流边界")}</div><ul className="mt-2.5 space-y-2 text-xs leading-5 text-muted-foreground">{projection.hardBoundaries.map((boundary) => <li key={boundary}>{boundary}</li>)}</ul></section>
+      {projection.evidence.length > 0 ? <section className="mt-6 border-t border-border/60 pt-5"><div className="flex items-center gap-2 text-[11px] font-semibold tracking-[0.12em] text-muted-foreground"><BookOpenText className="h-3.5 w-3.5" />{i18next.t("gen.components.characterConversation.CharacterConversationWorkbench.gen_7c803425", "回应依据")}</div><div className="mt-3 space-y-3">{projection.evidence.map((evidence, index) => <article key={`${evidence.sourceRef ?? evidence.label}-${index}`} className="border-l border-border/80 pl-3"><div className="text-xs font-medium text-foreground/90">{evidence.chapterOrder ? `第 ${evidence.chapterOrder} 章 · ` : ""}{evidence.label}</div><p className="mt-1 text-xs leading-5 text-muted-foreground">{evidence.detail}</p></article>)}</div></section> : null}
+      <section className="mt-6 border-t border-border/60 pt-5"><div className="text-[11px] font-semibold tracking-[0.12em] text-muted-foreground">{i18next.t("gen.components.characterConversation.CharacterConversationWorkbench.gen_3cedcf6e", "交流边界")}</div><ul className="mt-2.5 space-y-2 text-xs leading-5 text-muted-foreground">{projection.hardBoundaries.map((boundary) => <li key={boundary}>{boundary}</li>)}</ul></section>
     </aside>
   );
 }

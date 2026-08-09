@@ -398,7 +398,7 @@ export default function NovelExistingProjectTakeoverDialog({
         <DialogContent className={AUTO_DIRECTOR_MOBILE_CLASSES.takeoverDialogContent}>
           <DialogHeader className="shrink-0 border-b px-4 pb-4 pr-12 pt-5 text-left sm:px-6 sm:pt-6">
             <DialogTitle>{i18next.t("gen.pages.novels.components.NovelExistingProjectTakeoverDialog.gen_4af814f1")}</DialogTitle>
-            <DialogDescription>{t("gen.pages.novels.components.NovelExistingProjectTakeoverDialog.gen_b5220f71", "先读取当前项目真实进度，再明确告诉你这次会跳过、继续还是重跑哪些步骤。")}</DialogDescription>
+            <DialogDescription>{i18next.t("gen.pages.novels.components.NovelExistingProjectTakeoverDialog.gen_b5220f71", "先读取当前项目真实进度，再明确告诉你这次会跳过、继续还是重跑哪些步骤。")}</DialogDescription>
           </DialogHeader>
           <div className={AUTO_DIRECTOR_MOBILE_CLASSES.dialogBody}>
             <div className="min-w-0 space-y-4">
@@ -424,7 +424,7 @@ export default function NovelExistingProjectTakeoverDialog({
                 open={advancedOpen}
                 onToggle={(event) => setAdvancedOpen(event.currentTarget.open)}
               >
-                <summary className="cursor-pointer text-sm font-medium text-foreground">{t("gen.pages.novels.components.NovelExistingProjectTakeoverDialog.gen_e370757f", "高级设置")}</summary>
+                <summary className="cursor-pointer text-sm font-medium text-foreground">{i18next.t("gen.pages.novels.components.NovelExistingProjectTakeoverDialog.gen_e370757f", "高级设置")}</summary>
                 <div className="mt-4 space-y-4">
               <div className="min-w-0 rounded-xl border bg-background/80 p-3 sm:p-4">
                 <div className="text-sm font-medium text-foreground">{i18next.t("gen.pages.novels.components.NovelExistingProjectTakeoverDialog.gen_96467e71")}</div>
@@ -436,7 +436,7 @@ export default function NovelExistingProjectTakeoverDialog({
                   <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                     <div className="space-y-1">
                       <div className="text-sm font-medium text-foreground">{i18next.t("gen.pages.novels.components.NovelExistingProjectTakeoverDialog.gen_9c8d9efd")}</div>
-                      <div className={`text-xs leading-5 text-muted-foreground ${AUTO_DIRECTOR_MOBILE_CLASSES.wrapText}`}>{t("gen.pages.novels.components.NovelExistingProjectTakeoverDialog.gen_c4d8ff2b", "开启后，章节正文生成完成时会检测 AI 味风险，并在命中可修正问题时生成修订稿。")}</div>
+                      <div className={`text-xs leading-5 text-muted-foreground ${AUTO_DIRECTOR_MOBILE_CLASSES.wrapText}`}>{i18next.t("gen.pages.novels.components.NovelExistingProjectTakeoverDialog.gen_c4d8ff2b", "开启后，章节正文生成完成时会检测 AI 味风险，并在命中可修正问题时生成修订稿。")}</div>
                     </div>
                     <Switch
                       aria-label={i18next.t("gen.pages.novels.components.NovelExistingProjectTakeoverDialog.gen_9c8d9efd")}
@@ -486,14 +486,14 @@ export default function NovelExistingProjectTakeoverDialog({
                 {runMode === "full_book_autopilot" ? (
                   <div className={`mt-3 rounded-md border border-primary/15 bg-primary/5 p-3 text-xs leading-5 text-muted-foreground ${AUTO_DIRECTOR_MOBILE_CLASSES.wrapText}`}>
                     <div className="text-sm font-medium text-foreground">{i18next.t("gen.pages.novels.components.NovelExistingProjectTakeoverDialog.gen_a86a8754")}</div>
-                    <div className="mt-1">{t("gen.pages.novels.components.NovelExistingProjectTakeoverDialog.gen_963f34aa", "系统会以整本书为目标接管当前项目，继续补齐规划、章节执行、审校和修复。只有模型不可用、服务异常、正文保护或不可恢复风险会停下。")}</div>
+                    <div className="mt-1">{i18next.t("gen.pages.novels.components.NovelExistingProjectTakeoverDialog.gen_963f34aa", "系统会以整本书为目标接管当前项目，继续补齐规划、章节执行、审校和修复。只有模型不可用、服务异常、正文保护或不可恢复风险会停下。")}</div>
                   </div>
                 ) : null}
               </div>
 
               <div className="min-w-0 rounded-xl border bg-background/80 p-3 sm:p-4">
                 <div className="text-sm font-medium text-foreground">{i18next.t("gen.pages.novels.components.NovelExistingProjectTakeoverDialog.gen_855ed7ff")}</div>
-                <div className={`mt-1 text-xs leading-5 text-muted-foreground ${AUTO_DIRECTOR_MOBILE_CLASSES.wrapText}`}>{t("gen.pages.novels.components.NovelExistingProjectTakeoverDialog.gen_2574315e", "绑定书级默认写法后，接管时建议沿用它。前半段导演只读取轻量摘要，避免干扰结构规划。")}</div>
+                <div className={`mt-1 text-xs leading-5 text-muted-foreground ${AUTO_DIRECTOR_MOBILE_CLASSES.wrapText}`}>{i18next.t("gen.pages.novels.components.NovelExistingProjectTakeoverDialog.gen_2574315e", "绑定书级默认写法后，接管时建议沿用它。前半段导演只读取轻量摘要，避免干扰结构规划。")}</div>
                 <div className="mt-3 space-y-3">
                   <SelectControl
                     className="w-full rounded-md border bg-background p-2 text-sm"
@@ -575,7 +575,7 @@ export default function NovelExistingProjectTakeoverDialog({
                               search.set("stage", effectiveEntryStep === "basic" ? "basic" : effectiveEntryStep);
                               navigate(`/novels/${novelId}/edit?${search.toString()}`);
                             }}
-                          >{t("gen.pages.novels.components.NovelExistingProjectTakeoverDialog.gen_a23c9801", "处理当前任务")}</Button>
+                          >{i18next.t("gen.pages.novels.components.NovelExistingProjectTakeoverDialog.gen_a23c9801", "处理当前任务")}</Button>
                         </div>
                       </div>
                     ) : (

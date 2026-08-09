@@ -1,3 +1,4 @@
+import i18next from "i18next";
 export const queryKeys = {
   novels: {
     all: ["novels"] as const,

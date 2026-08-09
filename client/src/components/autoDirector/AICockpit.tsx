@@ -341,7 +341,7 @@ export default function AICockpit(props: AICockpitProps) {
           <Badge variant="secondary" className="shrink-0">{fallbackStatusLabel ?? i18next.t("gen.components.autoDirector.AICockpit.fallbackStatus")}</Badge>
         </div>
         {onOpenFallbackDetails ? (
-          <Button type="button" size="sm" variant="outline" className="mt-3 w-full" onClick={onOpenFallbackDetails}>{t("gen.components.autoDirector.AICockpit.gen_607e7a4f", "查看")}</Button>
+          <Button type="button" size="sm" variant="outline" className="mt-3 w-full" onClick={onOpenFallbackDetails}>{i18next.t("gen.components.autoDirector.AICockpit.gen_607e7a4f", "查看")}</Button>
         ) : null}
       </div>
     );
@@ -426,7 +426,7 @@ export default function AICockpit(props: AICockpitProps) {
             {displayStateLabel(focusProjection.displayState)}
           </Badge>
         </div>
-        <Button type="button" size="sm" variant="outline" className="mt-3 w-full" onClick={handleCompactOpen}>{t("gen.components.autoDirector.AICockpit.gen_607e7a4f", "查看")}</Button>
+        <Button type="button" size="sm" variant="outline" className="mt-3 w-full" onClick={handleCompactOpen}>{i18next.t("gen.components.autoDirector.AICockpit.gen_607e7a4f", "查看")}</Button>
       </div>
     );
   }
@@ -478,7 +478,7 @@ export default function AICockpit(props: AICockpitProps) {
             </Button>
             {canOpenDetails ? (
               <Button type="button" size="sm" variant="secondary" onClick={handleDetails}>
-                <ExternalLink className="h-4 w-4" />{t("gen.components.autoDirector.AICockpit.gen_2eceed7d", "执行详情")}</Button>
+                <ExternalLink className="h-4 w-4" />{i18next.t("gen.components.autoDirector.AICockpit.gen_2eceed7d", "执行详情")}</Button>
             ) : null}
           </div>
         </div>
@@ -496,7 +496,7 @@ export default function AICockpit(props: AICockpitProps) {
         <section className="rounded-2xl bg-muted/25 px-4 py-3">
           <div className="flex flex-wrap items-center justify-between gap-2">
             <div className="flex items-center gap-2 text-sm font-medium text-foreground">
-              <Database className="h-4 w-4 text-muted-foreground" />{t("gen.components.autoDirector.AICockpit.gen_0a48c66e", "后台执行")}</div>
+              <Database className="h-4 w-4 text-muted-foreground" />{i18next.t("gen.components.autoDirector.AICockpit.gen_0a48c66e", "后台执行")}</div>
             <span className="text-xs text-muted-foreground">{workerStateLabel(workerHealth.derivedState)}</span>
           </div>
           <div className="mt-1 text-xs leading-5 text-muted-foreground">{workerStateDetail(workerHealth)}</div>
@@ -518,7 +518,7 @@ export default function AICockpit(props: AICockpitProps) {
         <section className="rounded-2xl bg-muted/25 px-4 py-3">
           <div className="flex flex-wrap items-center justify-between gap-2">
             <div className="flex items-center gap-2 text-sm font-medium text-foreground">
-              <Database className="h-4 w-4 text-muted-foreground" />{t("gen.components.autoDirector.AICockpit.gen_9d67b142", "产物记录")}</div>
+              <Database className="h-4 w-4 text-muted-foreground" />{i18next.t("gen.components.autoDirector.AICockpit.gen_9d67b142", "产物记录")}</div>
             {artifactInsightLines.length > 0 ? (
               <span className="text-xs text-muted-foreground">{artifactInsightLines[0]}</span>
             ) : null}

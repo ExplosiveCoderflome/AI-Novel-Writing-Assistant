@@ -31,7 +31,7 @@ export default function SettingsNavigationCards(props: {
         <Card className="min-w-0 overflow-hidden">
         <CardHeader>
           <CardTitle>{i18next.t("gen.pages.settings.components.SettingsNavigationCards.gen_d68b96a8")}</CardTitle>
-          <CardDescription className={AUTO_DIRECTOR_MOBILE_CLASSES.wrapText}>{t("gen.pages.settings.components.SettingsNavigationCards.gen_e7e1fc85", "不配置也可以开始创作；启用后，长篇设定、资料和上下文召回会更稳。")}</CardDescription>
+          <CardDescription className={AUTO_DIRECTOR_MOBILE_CLASSES.wrapText}>{i18next.t("gen.pages.settings.components.SettingsNavigationCards.gen_e7e1fc85", "不配置也可以开始创作；启用后，长篇设定、资料和上下文召回会更稳。")}</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="grid min-w-0 gap-3 md:grid-cols-2">
@@ -64,10 +64,10 @@ export default function SettingsNavigationCards(props: {
         <Card className="min-w-0 overflow-hidden">
         <CardHeader>
           <CardTitle>{i18next.t("gen.pages.settings.components.SettingsNavigationCards.gen_0361f422")}</CardTitle>
-          <CardDescription className={AUTO_DIRECTOR_MOBILE_CLASSES.wrapText}>{t("gen.pages.settings.components.SettingsNavigationCards.gen_5ab10271", "为开书、拆章、正文生成和审核任务选择可用模型。")}</CardDescription>
+          <CardDescription className={AUTO_DIRECTOR_MOBILE_CLASSES.wrapText}>{i18next.t("gen.pages.settings.components.SettingsNavigationCards.gen_5ab10271", "为开书、拆章、正文生成和审核任务选择可用模型。")}</CardDescription>
         </CardHeader>
         <CardContent className={AUTO_DIRECTOR_MOBILE_CLASSES.settingsEntryActionRow}>
-          <div className={`min-w-0 text-sm text-muted-foreground ${AUTO_DIRECTOR_MOBILE_CLASSES.wrapText}`}>{t("gen.pages.settings.components.SettingsNavigationCards.gen_ef3488b9", "路由健康时，自动导演和章节生产会按任务自动选择模型。")}</div>
+          <div className={`min-w-0 text-sm text-muted-foreground ${AUTO_DIRECTOR_MOBILE_CLASSES.wrapText}`}>{i18next.t("gen.pages.settings.components.SettingsNavigationCards.gen_ef3488b9", "路由健康时，自动导演和章节生产会按任务自动选择模型。")}</div>
           <Button asChild className={AUTO_DIRECTOR_MOBILE_CLASSES.fullWidthAction}>
             <Link to="/settings/model-routes">{i18next.t("gen.pages.settings.components.SettingsNavigationCards.gen_4da087c6")}</Link>
           </Button>

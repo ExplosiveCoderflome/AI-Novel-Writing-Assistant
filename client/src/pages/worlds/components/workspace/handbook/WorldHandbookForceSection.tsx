@@ -66,7 +66,7 @@ export default function WorldHandbookForceSection(props: {
                 onClick={() =>
                   setDraftStructure((prev) => (prev ? { ...prev, forces: removeItem(prev.forces, index) } : prev))
                 }
-              >{t("gen.pages.worlds.components.workspace.handbook.WorldHandbookForceSection.gen_86048b4f", "移除")}</Button>
+              >{i18next.t("gen.pages.worlds.components.workspace.handbook.WorldHandbookForceSection.gen_86048b4f", "移除")}</Button>
             </div>
             <div className="mt-3 grid gap-3">
               <HandbookField title={i18next.t("gen.pages.worlds.components.workspace.handbook.WorldHandbookForceSection.gen_e548e9c0")} hint={i18next.t("gen.pages.worlds.components.workspace.handbook.WorldHandbookForceSection.gen_ee03f569")}>
@@ -132,7 +132,7 @@ export default function WorldHandbookForceSection(props: {
         ))}
       </div>
       <Button type="button" className="mt-3" variant="outline" onClick={addForce}>
-        <Plus className="mr-2 h-4 w-4" aria-hidden="true" />{t("gen.pages.worlds.components.workspace.handbook.WorldHandbookForceSection.gen_81c403d7", "增加主要势力")}</Button>
+        <Plus className="mr-2 h-4 w-4" aria-hidden="true" />{i18next.t("gen.pages.worlds.components.workspace.handbook.WorldHandbookForceSection.gen_81c403d7", "增加主要势力")}</Button>
     </section>
   );
 }

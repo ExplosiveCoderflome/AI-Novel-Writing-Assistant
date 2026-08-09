@@ -100,7 +100,7 @@ export default function NovelAutoDirectorCandidateBatches(props: NovelAutoDirect
 
   if (batches.length === 0) {
     return (
-      <div className={`py-10 text-center text-sm text-muted-foreground ${AUTO_DIRECTOR_MOBILE_CLASSES.wrapText}`}>{t("gen.pages.novels.components.NovelAutoDirectorCandidateBatches.gen_1e4994a8", "先给 AI 一句灵感，它会先产出第一批整本书方向候选。")}</div>
+      <div className={`py-10 text-center text-sm text-muted-foreground ${AUTO_DIRECTOR_MOBILE_CLASSES.wrapText}`}>{i18next.t("gen.pages.novels.components.NovelAutoDirectorCandidateBatches.gen_1e4994a8", "先给 AI 一句灵感，它会先产出第一批整本书方向候选。")}</div>
     );
   }
 
@@ -215,7 +215,7 @@ export default function NovelAutoDirectorCandidateBatches(props: NovelAutoDirect
                   </div>
 
                   <details className="group mt-6">
-                    <summary className="flex cursor-pointer list-none items-center justify-between gap-3 text-sm font-medium text-foreground">{t("gen.pages.novels.components.NovelAutoDirectorCandidateBatches.gen_95f7a293", "展开完整设定")}<ChevronDown className="h-4 w-4 shrink-0 text-muted-foreground transition group-open:rotate-180" />
+                    <summary className="flex cursor-pointer list-none items-center justify-between gap-3 text-sm font-medium text-foreground">{i18next.t("gen.pages.novels.components.NovelAutoDirectorCandidateBatches.gen_95f7a293", "展开完整设定")}<ChevronDown className="h-4 w-4 shrink-0 text-muted-foreground transition group-open:rotate-180" />
                     </summary>
                     <dl className="mt-4 grid gap-x-8 gap-y-4 text-sm md:grid-cols-2">
                       {renderSecondaryCandidateDetails(candidate).map((item) => (
@@ -228,7 +228,7 @@ export default function NovelAutoDirectorCandidateBatches(props: NovelAutoDirect
                   </details>
 
                   <details className="group mt-4">
-                    <summary className="flex cursor-pointer list-none items-center justify-between gap-3 text-sm font-medium text-foreground">{t("gen.pages.novels.components.NovelAutoDirectorCandidateBatches.gen_2a13978f", "调整书名与方向")}<ChevronDown className="h-4 w-4 shrink-0 text-muted-foreground transition group-open:rotate-180" />
+                    <summary className="flex cursor-pointer list-none items-center justify-between gap-3 text-sm font-medium text-foreground">{i18next.t("gen.pages.novels.components.NovelAutoDirectorCandidateBatches.gen_2a13978f", "调整书名与方向")}<ChevronDown className="h-4 w-4 shrink-0 text-muted-foreground transition group-open:rotate-180" />
                     </summary>
                     <div className="mt-4 space-y-5">
                       <div>
@@ -269,7 +269,7 @@ export default function NovelAutoDirectorCandidateBatches(props: NovelAutoDirect
                       <div className="grid gap-4 lg:grid-cols-2">
                         <div className="min-w-0">
                           <div className="flex items-center gap-2 text-sm font-medium text-foreground">
-                            <RefreshCw className="h-4 w-4 text-muted-foreground" />{t("gen.pages.novels.components.NovelAutoDirectorCandidateBatches.gen_964d3a4d", "重做标题组")}</div>
+                            <RefreshCw className="h-4 w-4 text-muted-foreground" />{i18next.t("gen.pages.novels.components.NovelAutoDirectorCandidateBatches.gen_964d3a4d", "重做标题组")}</div>
                           <Input
                             className="mt-2 bg-background"
                             value={titlePatchFeedbacks[candidate.id] ?? ""}
@@ -293,7 +293,7 @@ export default function NovelAutoDirectorCandidateBatches(props: NovelAutoDirect
 
                         <div className="min-w-0">
                           <div className="flex items-center gap-2 text-sm font-medium text-foreground">
-                            <Wand2 className="h-4 w-4 text-muted-foreground" />{t("gen.pages.novels.components.NovelAutoDirectorCandidateBatches.gen_d89381d3", "调整方向")}</div>
+                            <Wand2 className="h-4 w-4 text-muted-foreground" />{i18next.t("gen.pages.novels.components.NovelAutoDirectorCandidateBatches.gen_d89381d3", "调整方向")}</div>
                           <Input
                             className="mt-2 bg-background"
                             value={candidatePatchFeedbacks[candidate.id] ?? ""}
@@ -326,7 +326,7 @@ export default function NovelAutoDirectorCandidateBatches(props: NovelAutoDirect
 
       <section className="min-w-0 pt-4">
         <div className="break-words text-base font-semibold text-foreground [overflow-wrap:anywhere]">{i18next.t("gen.pages.novels.components.NovelAutoDirectorCandidateBatches.gen_1f8901d7")}</div>
-        <div className="mt-1 max-w-3xl break-words text-sm leading-6 text-muted-foreground [overflow-wrap:anywhere]">{t("gen.pages.novels.components.NovelAutoDirectorCandidateBatches.gen_8eec4229", "点几个修正方向，再补一句你想要的感觉。系统会保留上一轮，再生成一批新的方案。")}</div>
+        <div className="mt-1 max-w-3xl break-words text-sm leading-6 text-muted-foreground [overflow-wrap:anywhere]">{i18next.t("gen.pages.novels.components.NovelAutoDirectorCandidateBatches.gen_8eec4229", "点几个修正方向，再补一句你想要的感觉。系统会保留上一轮，再生成一批新的方案。")}</div>
 
         <div className="mt-4 flex min-w-0 flex-wrap gap-2">
           {DIRECTOR_CORRECTION_PRESETS.map((preset) => {
@@ -349,7 +349,7 @@ export default function NovelAutoDirectorCandidateBatches(props: NovelAutoDirect
         </div>
 
         <div className="mt-4 space-y-2">
-          <label htmlFor="director-refine-feedback" className="text-sm font-medium text-foreground">{t("gen.pages.novels.components.NovelAutoDirectorCandidateBatches.gen_d0d98caf", "再补一句修正建议")}</label>
+          <label htmlFor="director-refine-feedback" className="text-sm font-medium text-foreground">{i18next.t("gen.pages.novels.components.NovelAutoDirectorCandidateBatches.gen_d0d98caf", "再补一句修正建议")}</label>
           <Input
             id="director-refine-feedback"
             value={feedback}

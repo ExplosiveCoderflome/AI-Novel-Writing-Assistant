@@ -146,7 +146,7 @@ export default function WritingFormulaLanding(props: WritingFormulaLandingProps)
                 event.stopPropagation();
                 onEditProfile(profile.id);
               }}
-            >{t("gen.pages.writingFormula.components.WritingFormulaLanding.gen_b5aa7f95", "编辑设定")}</Button>
+            >{i18next.t("gen.pages.writingFormula.components.WritingFormulaLanding.gen_b5aa7f95", "编辑设定")}</Button>
             <Button
               type="button"
               size="sm"
@@ -155,7 +155,7 @@ export default function WritingFormulaLanding(props: WritingFormulaLandingProps)
                 event.stopPropagation();
                 onOpenWorkbench(profile.id);
               }}
-            >{t("gen.pages.writingFormula.components.WritingFormulaLanding.gen_a6008377", "应用与测试")}</Button>
+            >{i18next.t("gen.pages.writingFormula.components.WritingFormulaLanding.gen_a6008377", "应用与测试")}</Button>
             <Button
               type="button"
               size="sm"
@@ -164,7 +164,7 @@ export default function WritingFormulaLanding(props: WritingFormulaLandingProps)
                 event.stopPropagation();
                 onUseProfileForClean(profile.id);
               }}
-            >{t("gen.pages.writingFormula.components.WritingFormulaLanding.gen_b589a6aa", "去 AI 味")}</Button>
+            >{i18next.t("gen.pages.writingFormula.components.WritingFormulaLanding.gen_b589a6aa", "去 AI 味")}</Button>
             <Button
               type="button"
               size="sm"
@@ -251,7 +251,7 @@ export default function WritingFormulaLanding(props: WritingFormulaLandingProps)
                       ) : null}
                     </div>
                   ) : (
-                    <div className="rounded-xl border border-dashed px-3 py-3 text-sm leading-6 text-slate-500">{t("gen.pages.writingFormula.components.WritingFormulaLanding.gen_c2007e7e", "这套写法还没有绑定明确的反 AI 约束，所以“去 AI 味”时可读性会偏弱。")}</div>
+                    <div className="rounded-xl border border-dashed px-3 py-3 text-sm leading-6 text-slate-500">{i18next.t("gen.pages.writingFormula.components.WritingFormulaLanding.gen_c2007e7e", "这套写法还没有绑定明确的反 AI 约束，所以“去 AI 味”时可读性会偏弱。")}</div>
                   )}
                 </DetailPanel>
               </div>
@@ -310,24 +310,24 @@ export default function WritingFormulaLanding(props: WritingFormulaLandingProps)
         <CardContent className="space-y-5 p-5 md:p-6">
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div className="space-y-2">
-              <Badge variant="outline" className="border-slate-200 bg-slate-50 text-slate-700">{t("gen.pages.writingFormula.components.WritingFormulaLanding.gen_b6795e9a", "我的写法资产")}</Badge>
+              <Badge variant="outline" className="border-slate-200 bg-slate-50 text-slate-700">{i18next.t("gen.pages.writingFormula.components.WritingFormulaLanding.gen_b6795e9a", "我的写法资产")}</Badge>
               <div className="space-y-2">
-                <h1 className="text-3xl font-semibold tracking-tight text-slate-950">{t("gen.pages.writingFormula.components.WritingFormulaLanding.gen_ed3884d0", "先选一套写法，再决定要编辑、应用还是去 AI 味。")}</h1>
-                <p className="max-w-3xl text-sm leading-7 text-slate-600">{t("gen.pages.writingFormula.components.WritingFormulaLanding.gen_79938b10", "首页负责看清你已有的写法资产。展开后会直接展示这套写法的读感定位、规则摘要、反 AI 约束和当前成熟度。")}</p>
+                <h1 className="text-3xl font-semibold tracking-tight text-slate-950">{i18next.t("gen.pages.writingFormula.components.WritingFormulaLanding.gen_ed3884d0", "先选一套写法，再决定要编辑、应用还是去 AI 味。")}</h1>
+                <p className="max-w-3xl text-sm leading-7 text-slate-600">{i18next.t("gen.pages.writingFormula.components.WritingFormulaLanding.gen_79938b10", "首页负责看清你已有的写法资产。展开后会直接展示这套写法的读感定位、规则摘要、反 AI 约束和当前成熟度。")}</p>
               </div>
             </div>
 
-            <Button type="button" onClick={onOpenCreate}>{t("gen.pages.writingFormula.components.WritingFormulaLanding.gen_6a2cf30a", "新建一套写法")}</Button>
+            <Button type="button" onClick={onOpenCreate}>{i18next.t("gen.pages.writingFormula.components.WritingFormulaLanding.gen_6a2cf30a", "新建一套写法")}</Button>
           </div>
 
-          <div className="rounded-2xl border border-slate-200 bg-[linear-gradient(135deg,rgba(241,245,249,0.9),rgba(248,250,252,0.95))] px-4 py-3 text-sm leading-7 text-slate-700">{t("gen.pages.writingFormula.components.WritingFormulaLanding.gen_353db8f4", "书级默认写法请从小说基础信息进入，由小说来选择要使用的写法资产，再带入后续导演和正文流程。")}</div>
+          <div className="rounded-2xl border border-slate-200 bg-[linear-gradient(135deg,rgba(241,245,249,0.9),rgba(248,250,252,0.95))] px-4 py-3 text-sm leading-7 text-slate-700">{i18next.t("gen.pages.writingFormula.components.WritingFormulaLanding.gen_353db8f4", "书级默认写法请从小说基础信息进入，由小说来选择要使用的写法资产，再带入后续导演和正文流程。")}</div>
 
           {profileItems.length === 0 ? (
             <div className="rounded-3xl border border-dashed border-slate-300 bg-slate-50/80 p-6">
               <div className="text-lg font-semibold text-slate-950">{i18next.t("gen.pages.writingFormula.components.WritingFormulaLanding.gen_efab47b0")}</div>
-              <div className="mt-2 text-sm leading-7 text-slate-600">{t("gen.pages.writingFormula.components.WritingFormulaLanding.gen_d458893d", "先创建第一套写法，后面再回来慢慢补规则、做试写和绑定目标。")}</div>
+              <div className="mt-2 text-sm leading-7 text-slate-600">{i18next.t("gen.pages.writingFormula.components.WritingFormulaLanding.gen_d458893d", "先创建第一套写法，后面再回来慢慢补规则、做试写和绑定目标。")}</div>
               <div className="mt-4 flex flex-wrap gap-2">
-                <Button type="button" onClick={onOpenCreate}>{t("gen.pages.writingFormula.components.WritingFormulaLanding.gen_a2d48eb8", "去创建第一套写法")}</Button>
+                <Button type="button" onClick={onOpenCreate}>{i18next.t("gen.pages.writingFormula.components.WritingFormulaLanding.gen_a2d48eb8", "去创建第一套写法")}</Button>
               </div>
             </div>
           ) : (
@@ -337,7 +337,7 @@ export default function WritingFormulaLanding(props: WritingFormulaLandingProps)
                   <div className="flex items-center justify-between gap-3">
                     <div>
                       <div className="text-sm font-semibold text-slate-950">{i18next.t("gen.pages.writingFormula.components.WritingFormulaLanding.yourselfCreatedWritingStyle")}</div>
-                      <div className="text-xs leading-6 text-slate-500">{t("gen.pages.writingFormula.components.WritingFormulaLanding.gen_bbf07e06", "这些是你沉淀下来的可复用资产，应该优先在这里挑。")}</div>
+                      <div className="text-xs leading-6 text-slate-500">{i18next.t("gen.pages.writingFormula.components.WritingFormulaLanding.gen_bbf07e06", "这些是你沉淀下来的可复用资产，应该优先在这里挑。")}</div>
                     </div>
                     <Badge variant="secondary" className="bg-slate-100 text-slate-700">
                       {customProfiles.length} 套
@@ -354,7 +354,7 @@ export default function WritingFormulaLanding(props: WritingFormulaLandingProps)
                   <div className="flex items-center justify-between gap-3">
                     <div>
                       <div className="text-sm font-semibold text-slate-950">{i18next.t("gen.pages.writingFormula.components.WritingFormulaLanding.gen_f6e53247")}</div>
-                      <div className="text-xs leading-6 text-slate-500">{t("gen.pages.writingFormula.components.WritingFormulaLanding.gen_2cabef3a", "这些预置资产适合先借一套骨架，再按当前项目改成自己的写法。")}</div>
+                      <div className="text-xs leading-6 text-slate-500">{i18next.t("gen.pages.writingFormula.components.WritingFormulaLanding.gen_2cabef3a", "这些预置资产适合先借一套骨架，再按当前项目改成自己的写法。")}</div>
                     </div>
                     <Badge variant="secondary" className="bg-slate-100 text-slate-700">
                       {starterProfiles.length} 套

@@ -156,7 +156,7 @@ export default function BookAnalysisCreateDialog(props: BookAnalysisCreateDialog
         className="max-w-4xl"
         footer={
           <div className="flex w-full items-center justify-end gap-2">
-            <Button type="button" variant="outline" onClick={() => onOpenChange(false)} disabled={submitting}>{t("gen.pages.bookAnalysis.components.BookAnalysisCreateDialog.gen_625fb26b", "取消")}</Button>
+            <Button type="button" variant="outline" onClick={() => onOpenChange(false)} disabled={submitting}>{i18next.t("gen.pages.bookAnalysis.components.BookAnalysisCreateDialog.gen_625fb26b", "取消")}</Button>
             <Button
               type="button"
               disabled={!canSubmit}
@@ -175,13 +175,13 @@ export default function BookAnalysisCreateDialog(props: BookAnalysisCreateDialog
                 size="sm"
                 variant={analysisMode === "reference" ? "default" : "ghost"}
                 onClick={() => onModeChange("reference")}
-              >{t("gen.pages.bookAnalysis.components.BookAnalysisCreateDialog.gen_f867aaea", "参考作品")}</Button>
+              >{i18next.t("gen.pages.bookAnalysis.components.BookAnalysisCreateDialog.gen_f867aaea", "参考作品")}</Button>
               <Button
                 type="button"
                 size="sm"
                 variant={isDiagnosisMode ? "default" : "ghost"}
                 onClick={() => onModeChange("diagnosis")}
-              >{t("gen.pages.bookAnalysis.components.BookAnalysisCreateDialog.gen_d315f7e5", "诊断稿子")}</Button>
+              >{i18next.t("gen.pages.bookAnalysis.components.BookAnalysisCreateDialog.gen_d315f7e5", "诊断稿子")}</Button>
             </div>
 
             {isDiagnosisMode ? (
@@ -199,7 +199,7 @@ export default function BookAnalysisCreateDialog(props: BookAnalysisCreateDialog
                     </option>
                   ))}
                 </SelectControl>
-                <div className="rounded-md border bg-muted/20 p-3 text-xs leading-5 text-muted-foreground">{t("gen.pages.bookAnalysis.components.BookAnalysisCreateDialog.gen_26e16e0d", "系统会导出这本小说的当前章节正文，作为新的知识文档创建诊断拆书。")}</div>
+                <div className="rounded-md border bg-muted/20 p-3 text-xs leading-5 text-muted-foreground">{i18next.t("gen.pages.bookAnalysis.components.BookAnalysisCreateDialog.gen_26e16e0d", "系统会导出这本小说的当前章节正文，作为新的知识文档创建诊断拆书。")}</div>
               </div>
             ) : (
               <>
@@ -267,7 +267,7 @@ export default function BookAnalysisCreateDialog(props: BookAnalysisCreateDialog
               <div className="grid gap-2 rounded-md border bg-muted/20 p-3 sm:grid-cols-[minmax(0,1fr)_180px] sm:items-center">
                 <div>
                   <div className="text-sm font-medium">{i18next.t("gen.pages.bookAnalysis.components.BookAnalysisCreateDialog.gen_b474d723")}</div>
-                  <div className="mt-1 text-xs leading-5 text-muted-foreground">{t("gen.pages.bookAnalysis.components.BookAnalysisCreateDialog.gen_34a741fb", "留空使用服务端默认值。累计用量达到上限后停止任务，已完成的小节会保留。")}</div>
+                  <div className="mt-1 text-xs leading-5 text-muted-foreground">{i18next.t("gen.pages.bookAnalysis.components.BookAnalysisCreateDialog.gen_34a741fb", "留空使用服务端默认值。累计用量达到上限后停止任务，已完成的小节会保留。")}</div>
                 </div>
                 <div className="flex items-center gap-2">
                   <Input

@@ -1,3 +1,4 @@
+import i18next from "i18next";
 import ReactMarkdown from "react-markdown";
 import rehypeHighlight from "rehype-highlight";
 

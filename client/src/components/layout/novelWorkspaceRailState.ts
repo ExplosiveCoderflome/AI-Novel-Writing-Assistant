@@ -1,3 +1,4 @@
+import i18next from "i18next";
 import type { DirectorTakeoverEntryStep } from "@ai-novel/shared/types/novelDirector";
 import { DIRECTOR_TAKEOVER_ENTRY_STEPS } from "@ai-novel/shared/types/novelDirector";
 import type { NovelWorkspaceFlowTab } from "@/pages/novels/novelWorkspaceNavigation";

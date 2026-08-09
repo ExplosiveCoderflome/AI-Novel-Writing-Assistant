@@ -183,7 +183,7 @@ export default function NovelPreview() {
         <div className="min-w-0 space-y-2">
           <Button asChild variant="ghost" size="sm" className="px-0 text-muted-foreground">
             <Link to="/novels">
-              <ArrowLeft className="h-4 w-4" aria-hidden="true" />{t("gen.pages.novels.NovelPreview.gen_9c469174", "返回小说列表")}</Link>
+              <ArrowLeft className="h-4 w-4" aria-hidden="true" />{i18next.t("gen.pages.novels.NovelPreview.gen_9c469174", "返回小说列表")}</Link>
           </Button>
           <div>
             <div className="flex flex-wrap items-center gap-2">
@@ -196,18 +196,18 @@ export default function NovelPreview() {
                 </Badge>
               ) : null}
             </div>
-            <p className="mt-2 max-w-3xl text-sm leading-6 text-muted-foreground">{t("gen.pages.novels.NovelPreview.gen_da73ca26", "按章节阅读已生成正文，适合检查连贯性、节奏和已经写出的内容。")}</p>
+            <p className="mt-2 max-w-3xl text-sm leading-6 text-muted-foreground">{i18next.t("gen.pages.novels.NovelPreview.gen_da73ca26", "按章节阅读已生成正文，适合检查连贯性、节奏和已经写出的内容。")}</p>
           </div>
         </div>
         <div className="flex flex-wrap gap-2">
           <Button asChild variant="outline">
             <Link to={`/novels/${id}/edit`}>
-              <Edit3 className="h-4 w-4" aria-hidden="true" />{t("gen.pages.novels.NovelPreview.gen_ce521baf", "打开工作区")}</Link>
+              <Edit3 className="h-4 w-4" aria-hidden="true" />{i18next.t("gen.pages.novels.NovelPreview.gen_ce521baf", "打开工作区")}</Link>
           </Button>
           {activeChapter ? (
             <Button asChild>
               <Link to={`/novels/${id}/chapters/${activeChapter.id}`}>
-                <FileText className="h-4 w-4" aria-hidden="true" />{t("gen.pages.novels.NovelPreview.gen_21a7b9c5", "编辑本章")}</Link>
+                <FileText className="h-4 w-4" aria-hidden="true" />{i18next.t("gen.pages.novels.NovelPreview.gen_21a7b9c5", "编辑本章")}</Link>
             </Button>
           ) : null}
         </div>
@@ -249,7 +249,7 @@ export default function NovelPreview() {
               void novelQuery.refetch();
               void chaptersQuery.refetch();
             }}
-            >{t("gen.pages.novels.NovelPreview.gen_64ca9bab", "重新加载")}</Button>
+            >{i18next.t("gen.pages.novels.NovelPreview.gen_64ca9bab", "重新加载")}</Button>
           </CardContent>
         </Card>
       ) : chapters.length === 0 ? (
@@ -269,7 +269,7 @@ export default function NovelPreview() {
           <Card className="min-h-0 lg:h-[calc(100vh-13rem)]">
             <CardHeader className="pb-3">
               <CardTitle className="flex items-center gap-2 text-base">
-                <ListTree className="h-4 w-4" aria-hidden="true" />{t("gen.pages.novels.NovelPreview.gen_9ff328fd", "章节目录")}</CardTitle>
+                <ListTree className="h-4 w-4" aria-hidden="true" />{i18next.t("gen.pages.novels.NovelPreview.gen_9ff328fd", "章节目录")}</CardTitle>
               <CardDescription>
                 已生成正文 {generatedChapters.length}/{chapters.length} 章，约 {formatCount(totalWordCount)} 字。
               </CardDescription>
@@ -345,7 +345,7 @@ export default function NovelPreview() {
                     </Button>
                     <Button asChild variant="outline" size="sm">
                       <Link to={`/novels/${id}/chapters/${activeChapter.id}`}>
-                        <Edit3 className="h-4 w-4" aria-hidden="true" />{t("gen.pages.novels.NovelPreview.gen_21a7b9c5", "编辑本章")}</Link>
+                        <Edit3 className="h-4 w-4" aria-hidden="true" />{i18next.t("gen.pages.novels.NovelPreview.gen_21a7b9c5", "编辑本章")}</Link>
                     </Button>
                   </div>
                 ) : null}
@@ -361,7 +361,7 @@ export default function NovelPreview() {
                   <div className="max-w-md space-y-3">
                     <FileText className="mx-auto h-10 w-10 text-muted-foreground" aria-hidden="true" />
                     <div className="text-lg font-medium">{i18next.t("gen.pages.novels.NovelPreview.gen_8722b85f")}</div>
-                    <p className="text-sm leading-6 text-muted-foreground">{t("gen.pages.novels.NovelPreview.gen_ab796994", "进入章节编辑页生成或补写正文后，这里会显示完整内容。")}</p>
+                    <p className="text-sm leading-6 text-muted-foreground">{i18next.t("gen.pages.novels.NovelPreview.gen_ab796994", "进入章节编辑页生成或补写正文后，这里会显示完整内容。")}</p>
                     {activeChapter ? (
                       <Button asChild>
                         <Link to={`/novels/${id}/chapters/${activeChapter.id}`}>{i18next.t("gen.pages.novels.NovelPreview.gen_21a7b9c5")}</Link>

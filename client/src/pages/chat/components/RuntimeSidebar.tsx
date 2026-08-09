@@ -154,7 +154,7 @@ export default function RuntimeSidebar({
               activeTab === "trace" ? "bg-white text-slate-900 shadow-sm" : "text-slate-500"
             }`}
             onClick={() => setActiveTab("trace")}
-          >{t("gen.pages.chat.components.RuntimeSidebar.gen_4e690898", "轨迹")}</button>
+          >{i18next.t("gen.pages.chat.components.RuntimeSidebar.gen_4e690898", "轨迹")}</button>
         </div>
 
         {activeTab === "console" ? (
@@ -246,17 +246,17 @@ export default function RuntimeSidebar({
                     placeholder={i18next.t("gen.pages.chat.components.RuntimeSidebar.gen_cd98d717")}
                   />
                   <div className="flex gap-2">
-                    <Button size="sm" className="flex-1" onClick={() => onSubmitApproval("approve")} disabled={isStreaming}>{t("gen.pages.chat.components.RuntimeSidebar.gen_4f725969", "同意并继续")}</Button>
-                    <Button size="sm" variant="destructive" className="flex-1" onClick={() => onSubmitApproval("reject")} disabled={isStreaming}>{t("gen.pages.chat.components.RuntimeSidebar.gen_7173f809", "拒绝")}</Button>
+                    <Button size="sm" className="flex-1" onClick={() => onSubmitApproval("approve")} disabled={isStreaming}>{i18next.t("gen.pages.chat.components.RuntimeSidebar.gen_4f725969", "同意并继续")}</Button>
+                    <Button size="sm" variant="destructive" className="flex-1" onClick={() => onSubmitApproval("reject")} disabled={isStreaming}>{i18next.t("gen.pages.chat.components.RuntimeSidebar.gen_7173f809", "拒绝")}</Button>
                   </div>
                 </div>
               ) : (
-                <div className="rounded-xl border border-slate-200 bg-slate-50 p-3 text-sm text-slate-600">{t("gen.pages.chat.components.RuntimeSidebar.gen_caaaacc9", "当前没有待处理审批。")}</div>
+                <div className="rounded-xl border border-slate-200 bg-slate-50 p-3 text-sm text-slate-600">{i18next.t("gen.pages.chat.components.RuntimeSidebar.gen_caaaacc9", "当前没有待处理审批。")}</div>
               )}
 
               {approvalHistory.length > 0 ? (
                 <details className="mt-3 rounded-xl border border-slate-200 bg-slate-50 p-2">
-                  <summary className="cursor-pointer px-1 py-1 text-xs font-medium text-slate-700">{t("gen.pages.chat.components.RuntimeSidebar.gen_18cc65a0", "审批历史")}</summary>
+                  <summary className="cursor-pointer px-1 py-1 text-xs font-medium text-slate-700">{i18next.t("gen.pages.chat.components.RuntimeSidebar.gen_18cc65a0", "审批历史")}</summary>
                   <div className="mt-2 space-y-2">
                     {approvalHistory.map((item) => (
                       <div key={item.id} className="rounded-lg border border-slate-200 bg-white px-2 py-2 text-xs">
@@ -270,17 +270,17 @@ export default function RuntimeSidebar({
             </div>
 
             <details className="rounded-xl border border-slate-200 bg-white">
-              <summary className="cursor-pointer px-3 py-2 text-xs font-medium text-slate-700">{t("gen.pages.chat.components.RuntimeSidebar.gen_e01dd6d6", "运行配置")}</summary>
+              <summary className="cursor-pointer px-3 py-2 text-xs font-medium text-slate-700">{i18next.t("gen.pages.chat.components.RuntimeSidebar.gen_e01dd6d6", "运行配置")}</summary>
               <div className="space-y-3 border-t border-slate-200 p-3">
                 <div>
                   <div className="mb-2 text-xs font-medium tracking-wide text-slate-500">{i18next.t("gen.pages.chat.components.RuntimeSidebar.gen_8000f187")}</div>
                   <div className="space-y-2">
                     <div className="rounded-lg bg-slate-50 px-2 py-1.5 text-xs">
-                      <span className="text-slate-500">{t("gen.pages.chat.components.RuntimeSidebar.gen_a127eb50", "提供方:")}</span>
+                      <span className="text-slate-500">{i18next.t("gen.pages.chat.components.RuntimeSidebar.gen_a127eb50", "提供方:")}</span>
                       <span className="font-medium text-slate-800">{provider}</span>
                     </div>
                     <div className="rounded-lg bg-slate-50 px-2 py-1.5 text-xs">
-                      <span className="text-slate-500">{t("gen.pages.chat.components.RuntimeSidebar.gen_c1fef619", "模型:")}</span>
+                      <span className="text-slate-500">{i18next.t("gen.pages.chat.components.RuntimeSidebar.gen_c1fef619", "模型:")}</span>
                       <span className="font-medium text-slate-800">{model}</span>
                     </div>
                   </div>
@@ -334,7 +334,7 @@ export default function RuntimeSidebar({
                       type="checkbox"
                       checked={enableRag}
                       onChange={(event) => onEnableRagChange(event.target.checked)}
-                    />{t("gen.pages.chat.components.RuntimeSidebar.gen_8131a435", "启用知识检索（RAG）")}</label>
+                    />{i18next.t("gen.pages.chat.components.RuntimeSidebar.gen_8131a435", "启用知识检索（RAG）")}</label>
                   <KnowledgeDocumentPicker
                     selectedIds={knowledgeDocumentIds}
                     onChange={onKnowledgeDocumentIdsChange}
@@ -354,7 +354,7 @@ export default function RuntimeSidebar({
             {replayableSteps.length > 0 ? (
               <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
                 <div className="text-xs font-medium text-slate-600">{i18next.t("gen.pages.chat.components.RuntimeSidebar.gen_1d4f1226")}</div>
-                <div className="mt-1 text-[11px] text-slate-500">{t("gen.pages.chat.components.RuntimeSidebar.gen_15b8c44e", "仅显示后续仍有工具调用的步骤。")}</div>
+                <div className="mt-1 text-[11px] text-slate-500">{i18next.t("gen.pages.chat.components.RuntimeSidebar.gen_15b8c44e", "仅显示后续仍有工具调用的步骤。")}</div>
                 <div className="mt-2 flex flex-col gap-2">
                   <SelectControl
                     className="w-full rounded-lg border border-slate-300 bg-white p-2 text-xs"
@@ -368,13 +368,13 @@ export default function RuntimeSidebar({
                     ))}
                   </SelectControl>
                   <div className="flex gap-2">
-                    <Button size="sm" variant="secondary" className="flex-1" onClick={() => onReplay("continue")} disabled={isStreaming}>{t("gen.pages.chat.components.RuntimeSidebar.gen_3fe72529", "从这里继续")}</Button>
-                    <Button size="sm" variant="secondary" className="flex-1" onClick={() => onReplay("dry_run")} disabled={isStreaming}>{t("gen.pages.chat.components.RuntimeSidebar.gen_20de040f", "干运行")}</Button>
+                    <Button size="sm" variant="secondary" className="flex-1" onClick={() => onReplay("continue")} disabled={isStreaming}>{i18next.t("gen.pages.chat.components.RuntimeSidebar.gen_3fe72529", "从这里继续")}</Button>
+                    <Button size="sm" variant="secondary" className="flex-1" onClick={() => onReplay("dry_run")} disabled={isStreaming}>{i18next.t("gen.pages.chat.components.RuntimeSidebar.gen_20de040f", "干运行")}</Button>
                   </div>
                 </div>
               </div>
             ) : persistedSteps.length > 0 ? (
-              <div className="rounded-xl border border-slate-200 bg-slate-50 p-3 text-xs text-slate-500">{t("gen.pages.chat.components.RuntimeSidebar.gen_b8ab36c5", "当前所选运行没有可继续重放的步骤。")}</div>
+              <div className="rounded-xl border border-slate-200 bg-slate-50 p-3 text-xs text-slate-500">{i18next.t("gen.pages.chat.components.RuntimeSidebar.gen_b8ab36c5", "当前所选运行没有可继续重放的步骤。")}</div>
             ) : null}
 
             <div className="space-y-2">
@@ -417,7 +417,7 @@ export default function RuntimeSidebar({
                 )
               ))}
               {!hasLiveEvents && persistedSteps.length === 0 ? (
-                <div className="rounded-xl border border-slate-200 bg-slate-50 p-3 text-xs text-slate-500">{t("gen.pages.chat.components.RuntimeSidebar.gen_a7a3c15d", "暂无运行事件。")}</div>
+                <div className="rounded-xl border border-slate-200 bg-slate-50 p-3 text-xs text-slate-500">{i18next.t("gen.pages.chat.components.RuntimeSidebar.gen_a7a3c15d", "暂无运行事件。")}</div>
               ) : null}
             </div>
           </div>

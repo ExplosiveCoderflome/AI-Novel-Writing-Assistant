@@ -62,7 +62,7 @@ export default function ChapterExecutionOverviewPanel(props: ChapterExecutionOve
 
   if (!selectedChapter) {
     return (
-      <section className="rounded-2xl border border-dashed border-border/70 bg-background p-4 text-sm leading-6 text-muted-foreground">{t("gen.pages.novels.components.chapterInsights.ChapterExecutionOverviewPanel.gen_9430f699", "选中章节后，这里显示本章状态、目标、字数、质量和待处理问题。")}</section>
+      <section className="rounded-2xl border border-dashed border-border/70 bg-background p-4 text-sm leading-6 text-muted-foreground">{i18next.t("gen.pages.novels.components.chapterInsights.ChapterExecutionOverviewPanel.gen_9430f699", "选中章节后，这里显示本章状态、目标、字数、质量和待处理问题。")}</section>
     );
   }
 

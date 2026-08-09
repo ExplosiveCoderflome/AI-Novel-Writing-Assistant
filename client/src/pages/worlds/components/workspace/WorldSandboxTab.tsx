@@ -321,7 +321,7 @@ export default function WorldSandboxTab({ worldId }: { worldId: string }) {
               </div>
 
               <div className="flex items-center gap-3">
-                <span className="text-xs text-slate-400">{t("gen.pages.worlds.components.workspace.WorldSandboxTab.gen_68156e05", "时间流速换挡:")}</span>
+                <span className="text-xs text-slate-400">{i18next.t("gen.pages.worlds.components.workspace.WorldSandboxTab.gen_68156e05", "时间流速换挡:")}</span>
                 <div className="flex rounded-md bg-slate-800 p-0.5">
                   <Button
                     variant={pacing === "micro" ? "secondary" : "ghost"}
@@ -370,11 +370,11 @@ export default function WorldSandboxTab({ worldId }: { worldId: string }) {
                 </div>
                 <div className="rounded-md bg-slate-950 p-3 text-xs space-y-2">
                   <div className="flex justify-between">
-                    <span>{t("gen.pages.worlds.components.workspace.WorldSandboxTab.gen_b609a636", "地表植被度:")}</span>
+                    <span>{i18next.t("gen.pages.worlds.components.workspace.WorldSandboxTab.gen_b609a636", "地表植被度:")}</span>
                     <span className="font-mono text-emerald-400">{(selectedNode.flora * 100).toFixed(0)}%</span>
                   </div>
                   <div className="flex justify-between">
-                    <span>{t("gen.pages.worlds.components.workspace.WorldSandboxTab.gen_e1c876f2", "局部剧情张力:")}</span>
+                    <span>{i18next.t("gen.pages.worlds.components.workspace.WorldSandboxTab.gen_e1c876f2", "局部剧情张力:")}</span>
                     <span className={`font-mono ${selectedNode.tension >= 70 ? 'text-red-400' : 'text-slate-300'}`}>
                       {selectedNode.tension} / 100
                     </span>
@@ -413,7 +413,7 @@ export default function WorldSandboxTab({ worldId }: { worldId: string }) {
                 </div>
               </div>
             ) : (
-              <p className="text-xs text-slate-400">{t("gen.pages.worlds.components.workspace.WorldSandboxTab.gen_c0926bfe", "在地图上点击节点进行查看和物理修改。")}</p>
+              <p className="text-xs text-slate-400">{i18next.t("gen.pages.worlds.components.workspace.WorldSandboxTab.gen_c0926bfe", "在地图上点击节点进行查看和物理修改。")}</p>
             )}
           </CardContent>
         </Card>
@@ -446,7 +446,7 @@ export default function WorldSandboxTab({ worldId }: { worldId: string }) {
                 </div>
               </div>
             ) : (
-              <p className="text-xs text-slate-400">{t("gen.pages.worlds.components.workspace.WorldSandboxTab.gen_ba9814b9", "在地图上选择粉色人物标记检视状态。")}</p>
+              <p className="text-xs text-slate-400">{i18next.t("gen.pages.worlds.components.workspace.WorldSandboxTab.gen_ba9814b9", "在地图上选择粉色人物标记检视状态。")}</p>
             )}
           </CardContent>
         </Card>
@@ -480,7 +480,7 @@ export default function WorldSandboxTab({ worldId }: { worldId: string }) {
               </div>
               <div className="flex items-center justify-between gap-4 pt-1">
                 <div>
-                  <label className="text-xs font-semibold text-slate-400">{t("gen.pages.worlds.components.workspace.WorldSandboxTab.gen_185f7bf6", "数据类型")}</label>
+                  <label className="text-xs font-semibold text-slate-400">{i18next.t("gen.pages.worlds.components.workspace.WorldSandboxTab.gen_185f7bf6", "数据类型")}</label>
                   <select
                     value={newPropType}
                     onChange={e => setNewPropType(e.target.value as any)}
@@ -500,7 +500,7 @@ export default function WorldSandboxTab({ worldId }: { worldId: string }) {
             {/* List of custom properties */}
             {schemas.length > 0 && (
               <div className="mt-4 pt-3 border-t border-slate-800 space-y-1.5">
-                <label className="text-xs text-slate-500 font-semibold">{t("gen.pages.worlds.components.workspace.WorldSandboxTab.gen_075ea7b9", "已注册属性：")}</label>
+                <label className="text-xs text-slate-500 font-semibold">{i18next.t("gen.pages.worlds.components.workspace.WorldSandboxTab.gen_075ea7b9", "已注册属性：")}</label>
                 {schemas.map(s => (
                   <div key={s.propertyName} className="flex justify-between items-center text-xs bg-slate-950 px-2 py-1 rounded">
                     <span>{s.propertyLabel} ({s.propertyName})</span>

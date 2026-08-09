@@ -47,7 +47,7 @@ export default function WritingFormulaCleanFlow(props: WritingFormulaCleanFlowPr
     <Card className="border-slate-200/80 bg-white/90 shadow-[0_20px_60px_rgba(15,23,42,0.06)]">
       <CardHeader>
         <CardTitle>{i18next.t("gen.pages.writingFormula.components.WritingFormulaCleanFlow.gen_d7a40c43")}</CardTitle>
-        <div className="text-sm leading-7 text-muted-foreground">{t("gen.pages.writingFormula.components.WritingFormulaCleanFlow.gen_e646ae58", "检测先帮你指出哪一段写得像模板话，再给一版可以直接比较的修订稿。重复出现的问题，我会顺手整理成规则建议，方便你带回当前写法编辑继续处理。")}</div>
+        <div className="text-sm leading-7 text-muted-foreground">{i18next.t("gen.pages.writingFormula.components.WritingFormulaCleanFlow.gen_e646ae58", "检测先帮你指出哪一段写得像模板话，再给一版可以直接比较的修订稿。重复出现的问题，我会顺手整理成规则建议，方便你带回当前写法编辑继续处理。")}</div>
       </CardHeader>
       <CardContent className="space-y-5">
         <section className="grid gap-5 xl:grid-cols-[minmax(0,1.08fr)_minmax(300px,0.92fr)]">
@@ -105,14 +105,14 @@ export default function WritingFormulaCleanFlow(props: WritingFormulaCleanFlowPr
                 </div>
               </>
             ) : (
-              <div className="rounded-xl border border-dashed p-4 text-sm leading-7 text-muted-foreground">{t("gen.pages.writingFormula.components.WritingFormulaCleanFlow.gen_d6800ab7", "先跑一次检测，这里会告诉你哪些段落最像 AI 在说话，以及它们为什么让读者出戏。")}</div>
+              <div className="rounded-xl border border-dashed p-4 text-sm leading-7 text-muted-foreground">{i18next.t("gen.pages.writingFormula.components.WritingFormulaCleanFlow.gen_d6800ab7", "先跑一次检测，这里会告诉你哪些段落最像 AI 在说话，以及它们为什么让读者出戏。")}</div>
             )}
           </div>
         </section>
 
         <section className="rounded-2xl border bg-white p-4">
           <div className="text-sm font-medium text-slate-900">{i18next.t("gen.pages.writingFormula.components.WritingFormulaCleanFlow.gen_2b82c3a2")}</div>
-          <div className="mt-1 text-xs leading-6 text-muted-foreground">{t("gen.pages.writingFormula.components.WritingFormulaCleanFlow.gen_add0e1ab", "这里按段落行做轻量对比，方便你快速判断这次修正是在压模板感，还是把原有语气也一起削掉了。")}</div>
+          <div className="mt-1 text-xs leading-6 text-muted-foreground">{i18next.t("gen.pages.writingFormula.components.WritingFormulaCleanFlow.gen_add0e1ab", "这里按段落行做轻量对比，方便你快速判断这次修正是在压模板感，还是把原有语气也一起削掉了。")}</div>
           {rewritePreview ? (
             <div className="mt-4 grid gap-3">
               {diffRows.map((row, index) => (
@@ -133,7 +133,7 @@ export default function WritingFormulaCleanFlow(props: WritingFormulaCleanFlowPr
               ))}
             </div>
           ) : (
-            <div className="mt-4 rounded-xl border border-dashed p-4 text-sm text-muted-foreground">{t("gen.pages.writingFormula.components.WritingFormulaCleanFlow.gen_f252cb8d", "一键修订后，这里会直接出现前后对照。")}</div>
+            <div className="mt-4 rounded-xl border border-dashed p-4 text-sm text-muted-foreground">{i18next.t("gen.pages.writingFormula.components.WritingFormulaCleanFlow.gen_f252cb8d", "一键修订后，这里会直接出现前后对照。")}</div>
           )}
         </section>
 
@@ -141,9 +141,9 @@ export default function WritingFormulaCleanFlow(props: WritingFormulaCleanFlowPr
             <div className="flex items-start justify-between gap-4">
               <div>
                 <div className="text-sm font-medium text-slate-900">{i18next.t("gen.pages.writingFormula.components.WritingFormulaCleanFlow.gen_54ec2834")}</div>
-                <div className="mt-1 text-xs leading-6 text-muted-foreground">{t("gen.pages.writingFormula.components.WritingFormulaCleanFlow.gen_49fdfe11", "这一版不会强行替你落库，但会先把重复问题整理成建议，方便你带回当前写法编辑决定是否固化。")}</div>
+                <div className="mt-1 text-xs leading-6 text-muted-foreground">{i18next.t("gen.pages.writingFormula.components.WritingFormulaCleanFlow.gen_49fdfe11", "这一版不会强行替你落库，但会先把重复问题整理成建议，方便你带回当前写法编辑决定是否固化。")}</div>
               </div>
-              <Button type="button" variant="outline" onClick={onOpenAdvanced}>{t("gen.pages.writingFormula.components.WritingFormulaCleanFlow.gen_6d51aafd", "查看当前写法编辑")}</Button>
+              <Button type="button" variant="outline" onClick={onOpenAdvanced}>{i18next.t("gen.pages.writingFormula.components.WritingFormulaCleanFlow.gen_6d51aafd", "查看当前写法编辑")}</Button>
             </div>
           {suggestionDrafts.length > 0 ? (
             <div className="mt-4 grid gap-2">
@@ -154,7 +154,7 @@ export default function WritingFormulaCleanFlow(props: WritingFormulaCleanFlowPr
               ))}
             </div>
           ) : (
-            <div className="mt-4 rounded-xl border border-dashed p-4 text-sm text-muted-foreground">{t("gen.pages.writingFormula.components.WritingFormulaCleanFlow.gen_8e650894", "检测出问题后，这里才会出现可沉淀的规则建议。")}</div>
+            <div className="mt-4 rounded-xl border border-dashed p-4 text-sm text-muted-foreground">{i18next.t("gen.pages.writingFormula.components.WritingFormulaCleanFlow.gen_8e650894", "检测出问题后，这里才会出现可沉淀的规则建议。")}</div>
           )}
         </section>
       </CardContent>

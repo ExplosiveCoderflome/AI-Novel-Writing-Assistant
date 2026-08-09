@@ -1,3 +1,4 @@
+import i18next from "i18next";
 import type { DesktopUpdaterSnapshot } from "@/lib/desktop";
 
 export function formatDesktopVersion(version: string): string {

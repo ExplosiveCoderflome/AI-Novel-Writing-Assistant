@@ -14,13 +14,13 @@ export default function BasicInfoTab(props: BasicTabProps) {
   return (
     <div className="space-y-5">
       <DirectorTakeoverEntryPanel
-        title={t("gen.pages.novels.components.BasicInfoTab.gen_1c2bfa8e", "让 AI 从当前项目继续接管")}
-        description={t("gen.pages.novels.components.BasicInfoTab.gen_48ee08a7", "如果基础信息较完整，可以直接从选定步骤开始自动接管，并选择继续已有进度或重跑当前步。")}
+        title={i18next.t("gen.pages.novels.components.BasicInfoTab.gen_1c2bfa8e", "让 AI 从当前项目继续接管")}
+        description={i18next.t("gen.pages.novels.components.BasicInfoTab.gen_48ee08a7", "如果基础信息较完整，可以直接从选定步骤开始自动接管，并选择继续已有进度或重跑当前步。")}
         entry={props.directorTakeoverEntry}
       />
       <SectionBlock
-        title={t("gen.pages.novels.components.BasicInfoTab.gen_b5f2826d", "书级定位")}
-        description={t("gen.pages.novels.components.BasicInfoTab.gen_970e009e", "先确认这本书面向谁、靠什么吸引读者、前期必须兑现什么，再让后续世界、角色和章节围绕同一组承诺展开。")}
+        title={i18next.t("gen.pages.novels.components.BasicInfoTab.gen_b5f2826d", "书级定位")}
+        description={i18next.t("gen.pages.novels.components.BasicInfoTab.gen_970e009e", "先确认这本书面向谁、靠什么吸引读者、前期必须兑现什么，再让后续世界、角色和章节围绕同一组承诺展开。")}
       >
         <NovelBasicInfoForm
           basicForm={props.basicForm}
@@ -35,7 +35,7 @@ export default function BasicInfoTab(props: BasicTabProps) {
           onFormChange={props.onFormChange}
           onSubmit={props.onSave}
           isSubmitting={props.isSaving}
-          submitLabel={t("gen.pages.novels.components.BasicInfoTab.gen_2afe9d6f", "保存基本信息")}
+          submitLabel={i18next.t("gen.pages.novels.components.BasicInfoTab.gen_2afe9d6f", "保存基本信息")}
           titleQuickFill={(
             <NovelCreateTitleQuickFill
               basicForm={props.basicForm}
@@ -64,9 +64,9 @@ export default function BasicInfoTab(props: BasicTabProps) {
       </SectionBlock>
 
       <DetailDisclosure
-        title={t("gen.pages.novels.components.BasicInfoTab.gen_b59a7318", "写法建议")}
-        description={t("gen.pages.novels.components.BasicInfoTab.gen_734fe645", "确认本书的叙述口味、表达密度和风格参考，帮助后续章节保持统一。")}
-        meta={t("gen.pages.novels.components.BasicInfoTab.gen_d1de791d", "写法参考")}
+        title={i18next.t("gen.pages.novels.components.BasicInfoTab.gen_b59a7318", "写法建议")}
+        description={i18next.t("gen.pages.novels.components.BasicInfoTab.gen_734fe645", "确认本书的叙述口味、表达密度和风格参考，帮助后续章节保持统一。")}
+        meta={i18next.t("gen.pages.novels.components.BasicInfoTab.gen_d1de791d", "写法参考")}
       >
         <NovelStyleRecommendationCard novelId={props.novelId} />
       </DetailDisclosure>

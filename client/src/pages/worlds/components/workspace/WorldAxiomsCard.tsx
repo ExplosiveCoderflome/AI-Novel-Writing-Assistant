@@ -41,10 +41,10 @@ export default function WorldAxiomsCard(props: {
   return (
     <Card>
       <CardHeader>
-        <CardTitle>{t("gen.pages.worlds.components.workspace.WorldAxiomsCard.gen_51e50e29", "核心规则（公理）")}</CardTitle>
+        <CardTitle>{i18next.t("gen.pages.worlds.components.workspace.WorldAxiomsCard.gen_51e50e29", "核心规则（公理）")}</CardTitle>
       </CardHeader>
       <CardContent className="space-y-3">
-        <div className="text-sm text-muted-foreground">{t("gen.pages.worlds.components.workspace.WorldAxiomsCard.gen_b42b4473", "可以把它理解成“这个世界不能随便打破的底层规则”。后面的自动生成和手册体检都会参考这里。")}</div>
+        <div className="text-sm text-muted-foreground">{i18next.t("gen.pages.worlds.components.workspace.WorldAxiomsCard.gen_b42b4473", "可以把它理解成“这个世界不能随便打破的底层规则”。后面的自动生成和手册体检都会参考这里。")}</div>
         {draftAxioms.map((axiom, index) => (
           <Input
             key={`${index}-${axiom}`}
@@ -56,7 +56,7 @@ export default function WorldAxiomsCard(props: {
           />
         ))}
         <div className="flex flex-wrap gap-2">
-          <Button type="button" variant="secondary" onClick={() => setDraftAxioms((prev) => [...prev, ""])}>{t("gen.pages.worlds.components.workspace.WorldAxiomsCard.gen_188d9f36", "新增一条")}</Button>
+          <Button type="button" variant="secondary" onClick={() => setDraftAxioms((prev) => [...prev, ""])}>{i18next.t("gen.pages.worlds.components.workspace.WorldAxiomsCard.gen_188d9f36", "新增一条")}</Button>
           <Button
             type="button"
             onClick={() => onSave(normalizedDrafts)}

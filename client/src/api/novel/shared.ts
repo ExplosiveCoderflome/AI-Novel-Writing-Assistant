@@ -1,3 +1,4 @@
+import i18next from "i18next";
 import { NOVEL_LIST_PAGE_LIMIT_DEFAULT, NOVEL_LIST_PAGE_LIMIT_MAX } from "@ai-novel/shared/types/pagination";
 import type { NovelExportFormat, NovelExportScope } from "@ai-novel/shared/types/novelExport";
 import type {

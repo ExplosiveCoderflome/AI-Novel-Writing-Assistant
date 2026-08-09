@@ -74,7 +74,7 @@ export default function SelectionAIFloatingToolbar(props: SelectionAIFloatingToo
           disabled={disabled}
           onMouseDown={(event) => event.preventDefault()}
           onClick={() => setIsCustomOpen((current) => !current)}
-        >{t("gen.pages.novels.components.chapterEditor.SelectionAIFloatingToolbar.gen_96b8f15f", "告诉 AI 怎么改")}</Button>
+        >{i18next.t("gen.pages.novels.components.chapterEditor.SelectionAIFloatingToolbar.gen_96b8f15f", "告诉 AI 怎么改")}</Button>
       </div>
 
       {isCustomOpen ? (
@@ -94,13 +94,13 @@ export default function SelectionAIFloatingToolbar(props: SelectionAIFloatingToo
                 setIsCustomOpen(false);
                 setCustomInstruction("");
               }}
-            >{t("gen.pages.novels.components.chapterEditor.SelectionAIFloatingToolbar.gen_625fb26b", "取消")}</Button>
+            >{i18next.t("gen.pages.novels.components.chapterEditor.SelectionAIFloatingToolbar.gen_625fb26b", "取消")}</Button>
             <Button
               size="sm"
               disabled={disabled || customInstruction.trim().length === 0}
               onMouseDown={(event) => event.preventDefault()}
               onClick={() => onRunOperation("custom", customInstruction.trim())}
-            >{t("gen.pages.novels.components.chapterEditor.SelectionAIFloatingToolbar.gen_4e805c04", "提交指令")}</Button>
+            >{i18next.t("gen.pages.novels.components.chapterEditor.SelectionAIFloatingToolbar.gen_4e805c04", "提交指令")}</Button>
           </div>
         </div>
       ) : null}

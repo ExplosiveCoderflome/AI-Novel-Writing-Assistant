@@ -43,13 +43,13 @@ export default function WritingFormulaCleanPanel(props: WritingFormulaCleanPanel
             当前按「{selectedProfile.name}」这套写法来做检测和修正。这里只处理正文的 AI 味，不会改写法字段本身。
           </div>
         ) : (
-          <div className="rounded-2xl border bg-slate-50/70 px-4 py-3 text-sm leading-7 text-slate-700">{t("gen.pages.writingFormula.components.WritingFormulaCleanPanel.gen_d4532637", "先从列表里选中一套写法，再来检测正文。")}</div>
+          <div className="rounded-2xl border bg-slate-50/70 px-4 py-3 text-sm leading-7 text-slate-700">{i18next.t("gen.pages.writingFormula.components.WritingFormulaCleanPanel.gen_d4532637", "先从列表里选中一套写法，再来检测正文。")}</div>
         )}
 
         <div className="space-y-4 rounded-2xl border p-4">
           <div className="space-y-1">
             <div className="text-base font-semibold text-slate-950">{i18next.t("gen.pages.writingFormula.components.WritingFormulaCleanPanel.gen_76986240")}</div>
-            <div className="text-sm leading-6 text-slate-500">{t("gen.pages.writingFormula.components.WritingFormulaCleanPanel.gen_6dbe2911", "如果这套写法绑了反 AI 规则，检测和修正会优先按这些约束去判断问题。")}</div>
+            <div className="text-sm leading-6 text-slate-500">{i18next.t("gen.pages.writingFormula.components.WritingFormulaCleanPanel.gen_6dbe2911", "如果这套写法绑了反 AI 规则，检测和修正会优先按这些约束去判断问题。")}</div>
           </div>
           {antiAiRuleNames.length > 0 ? (
             <div className="flex flex-wrap gap-2">
@@ -60,14 +60,14 @@ export default function WritingFormulaCleanPanel(props: WritingFormulaCleanPanel
               ))}
             </div>
           ) : (
-            <div className="rounded-xl border border-dashed px-3 py-3 text-sm leading-6 text-slate-500">{t("gen.pages.writingFormula.components.WritingFormulaCleanPanel.gen_58212f1e", "这套写法还没有绑定明确的反 AI 规则。当前检测会更依赖通用风险判断，结果可能不够贴合你的预期。")}</div>
+            <div className="rounded-xl border border-dashed px-3 py-3 text-sm leading-6 text-slate-500">{i18next.t("gen.pages.writingFormula.components.WritingFormulaCleanPanel.gen_58212f1e", "这套写法还没有绑定明确的反 AI 规则。当前检测会更依赖通用风险判断，结果可能不够贴合你的预期。")}</div>
           )}
         </div>
 
         <div className="space-y-4 rounded-2xl border p-4">
           <div className="space-y-1">
             <div className="text-base font-semibold text-slate-950">{i18next.t("gen.pages.writingFormula.components.WritingFormulaCleanPanel.gen_c59ebd75")}</div>
-            <div className="text-sm leading-6 text-slate-500">{t("gen.pages.writingFormula.components.WritingFormulaCleanPanel.gen_e8d063d8", "粘贴你想检查的正文。建议一次给一段完整场景，这样更容易看出叙述腔、对白腔和解释腔的问题。")}</div>
+            <div className="text-sm leading-6 text-slate-500">{i18next.t("gen.pages.writingFormula.components.WritingFormulaCleanPanel.gen_e8d063d8", "粘贴你想检查的正文。建议一次给一段完整场景，这样更容易看出叙述腔、对白腔和解释腔的问题。")}</div>
           </div>
 
           <textarea
@@ -80,8 +80,8 @@ export default function WritingFormulaCleanPanel(props: WritingFormulaCleanPanel
           />
 
           <div className="flex flex-wrap gap-2">
-            <Button onClick={onDetect} disabled={detectionPending || !selectedProfile || !detectInput.trim()}>{t("gen.pages.writingFormula.components.WritingFormulaCleanPanel.gen_f7fd724a", "执行检测")}</Button>
-            <Button variant="secondary" onClick={onRewrite} disabled={rewritePending || !selectedProfile || !detectInput.trim()}>{t("gen.pages.writingFormula.components.WritingFormulaCleanPanel.gen_c067a274", "一键修正")}</Button>
+            <Button onClick={onDetect} disabled={detectionPending || !selectedProfile || !detectInput.trim()}>{i18next.t("gen.pages.writingFormula.components.WritingFormulaCleanPanel.gen_f7fd724a", "执行检测")}</Button>
+            <Button variant="secondary" onClick={onRewrite} disabled={rewritePending || !selectedProfile || !detectInput.trim()}>{i18next.t("gen.pages.writingFormula.components.WritingFormulaCleanPanel.gen_c067a274", "一键修正")}</Button>
           </div>
 
           {detectionReport ? (
@@ -103,7 +103,7 @@ export default function WritingFormulaCleanPanel(props: WritingFormulaCleanPanel
               </div>
             </div>
           ) : (
-            <div className="rounded-xl border border-dashed px-3 py-3 text-sm leading-6 text-slate-500">{t("gen.pages.writingFormula.components.WritingFormulaCleanPanel.gen_2b2a9db7", "检测结果会在这里显示，重点告诉你哪些句段最像 AI 腔、为什么会被判成风险，以及可以往什么方向改。")}</div>
+            <div className="rounded-xl border border-dashed px-3 py-3 text-sm leading-6 text-slate-500">{i18next.t("gen.pages.writingFormula.components.WritingFormulaCleanPanel.gen_2b2a9db7", "检测结果会在这里显示，重点告诉你哪些句段最像 AI 腔、为什么会被判成风险，以及可以往什么方向改。")}</div>
           )}
 
           {rewritePreview ? (

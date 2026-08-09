@@ -1,3 +1,4 @@
+import i18next from "i18next";
 import type { ApiResponse } from "@ai-novel/shared/types/api";
 import type { LLMProvider } from "@ai-novel/shared/types/llm";
 import type { NovelGenre } from "@ai-novel/shared/types/novel";

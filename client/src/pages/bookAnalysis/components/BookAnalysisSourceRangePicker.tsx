@@ -363,11 +363,11 @@ export default function BookAnalysisSourceRangePicker({
 
       {mode === "chapter" && canUseChapterRange ? (
         <div className="flex flex-wrap gap-1.5">
-          <QuickButton onClick={() => applyChapterPreset("first5")}>{t("gen.pages.bookAnalysis.components.BookAnalysisSourceRangePicker.gen_8a3c5fb6", "前 5 章")}</QuickButton>
-          <QuickButton onClick={() => applyChapterPreset("last5")}>{t("gen.pages.bookAnalysis.components.BookAnalysisSourceRangePicker.gen_2d5a1b88", "后 5 章")}</QuickButton>
-          <QuickButton onClick={() => applyChapterPreset("frontThird")}>{t("gen.pages.bookAnalysis.components.BookAnalysisSourceRangePicker.gen_75285e4a", "前 1/3")}</QuickButton>
-          <QuickButton onClick={() => applyChapterPreset("middleThird")}>{t("gen.pages.bookAnalysis.components.BookAnalysisSourceRangePicker.gen_2fd00c66", "中 1/3")}</QuickButton>
-          <QuickButton onClick={() => applyChapterPreset("backThird")}>{t("gen.pages.bookAnalysis.components.BookAnalysisSourceRangePicker.gen_3610bac9", "后 1/3")}</QuickButton>
+          <QuickButton onClick={() => applyChapterPreset("first5")}>{i18next.t("gen.pages.bookAnalysis.components.BookAnalysisSourceRangePicker.gen_8a3c5fb6", "前 5 章")}</QuickButton>
+          <QuickButton onClick={() => applyChapterPreset("last5")}>{i18next.t("gen.pages.bookAnalysis.components.BookAnalysisSourceRangePicker.gen_2d5a1b88", "后 5 章")}</QuickButton>
+          <QuickButton onClick={() => applyChapterPreset("frontThird")}>{i18next.t("gen.pages.bookAnalysis.components.BookAnalysisSourceRangePicker.gen_75285e4a", "前 1/3")}</QuickButton>
+          <QuickButton onClick={() => applyChapterPreset("middleThird")}>{i18next.t("gen.pages.bookAnalysis.components.BookAnalysisSourceRangePicker.gen_2fd00c66", "中 1/3")}</QuickButton>
+          <QuickButton onClick={() => applyChapterPreset("backThird")}>{i18next.t("gen.pages.bookAnalysis.components.BookAnalysisSourceRangePicker.gen_3610bac9", "后 1/3")}</QuickButton>
         </div>
       ) : null}
 

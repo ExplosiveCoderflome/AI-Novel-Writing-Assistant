@@ -1,3 +1,4 @@
+import i18next from "i18next";
 import type { ApiResponse } from "@ai-novel/shared/types/api";
 import type { ImageAsset, ImageGenerationTask, ImageSceneType } from "@ai-novel/shared/types/image";
 import type { LLMProvider } from "@ai-novel/shared/types/llm";

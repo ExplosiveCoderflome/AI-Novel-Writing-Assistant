@@ -1,3 +1,4 @@
+import i18next from "i18next";
 import type { AntiAiRule } from "@ai-novel/shared/types/styleEngine";
 
 export type RuleFilter = "all" | "global" | "style" | "disabled";

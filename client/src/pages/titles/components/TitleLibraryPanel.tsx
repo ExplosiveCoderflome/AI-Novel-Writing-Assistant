@@ -113,13 +113,13 @@ export default function TitleLibraryPanel({ genreOptions }: TitleLibraryPanelPro
       </div>
 
       {libraryQuery.isLoading ? (
-        <div className="py-10 text-center text-sm text-muted-foreground">{t("gen.pages.titles.components.TitleLibraryPanel.gen_f431deee", "正在加载标题库...")}</div>
+        <div className="py-10 text-center text-sm text-muted-foreground">{i18next.t("gen.pages.titles.components.TitleLibraryPanel.gen_f431deee", "正在加载标题库...")}</div>
       ) : null}
 
       {!libraryQuery.isLoading && rows.length === 0 ? (
         <div className="py-10 text-center">
           <div className="text-sm font-medium text-foreground">{i18next.t("gen.pages.titles.components.TitleLibraryPanel.gen_0729604b")}</div>
-          <div className="mt-1 text-sm text-muted-foreground">{t("gen.pages.titles.components.TitleLibraryPanel.gen_ccdef2bd", "先去标题工坊生成一批候选，再把值得复用的标题沉淀进来。")}</div>
+          <div className="mt-1 text-sm text-muted-foreground">{i18next.t("gen.pages.titles.components.TitleLibraryPanel.gen_ccdef2bd", "先去标题工坊生成一批候选，再把值得复用的标题沉淀进来。")}</div>
         </div>
       ) : null}
 
@@ -153,7 +153,7 @@ export default function TitleLibraryPanel({ genreOptions }: TitleLibraryPanelPro
 
               <div className="flex flex-wrap items-center gap-2 lg:justify-end">
                 <Button type="button" size="sm" className="gap-1.5" onClick={() => void handleCopy(entry.title)}>
-                  <Copy className="h-3.5 w-3.5" />{t("gen.pages.titles.components.TitleLibraryPanel.gen_79d3abe9", "复制")}</Button>
+                  <Copy className="h-3.5 w-3.5" />{i18next.t("gen.pages.titles.components.TitleLibraryPanel.gen_79d3abe9", "复制")}</Button>
                 <Button
                   type="button"
                   size="sm"
@@ -193,14 +193,14 @@ export default function TitleLibraryPanel({ genreOptions }: TitleLibraryPanelPro
             第 {pagination.page} / {pagination.totalPages} 页，共 {pagination.total} 条
           </div>
           <div className="flex items-center gap-2">
-            <Button type="button" variant="outline" size="sm" disabled={page <= 1} onClick={() => setPage((prev) => prev - 1)}>{t("gen.pages.titles.components.TitleLibraryPanel.gen_f4f85316", "上一页")}</Button>
+            <Button type="button" variant="outline" size="sm" disabled={page <= 1} onClick={() => setPage((prev) => prev - 1)}>{i18next.t("gen.pages.titles.components.TitleLibraryPanel.gen_f4f85316", "上一页")}</Button>
             <Button
               type="button"
               variant="outline"
               size="sm"
               disabled={page >= pagination.totalPages}
               onClick={() => setPage((prev) => prev + 1)}
-            >{t("gen.pages.titles.components.TitleLibraryPanel.gen_b4e1b508", "下一页")}</Button>
+            >{i18next.t("gen.pages.titles.components.TitleLibraryPanel.gen_b4e1b508", "下一页")}</Button>
           </div>
         </div>
       ) : null}

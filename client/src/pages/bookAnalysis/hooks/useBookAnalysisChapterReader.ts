@@ -1,3 +1,4 @@
+import i18next from "i18next";
 import { useCallback, useRef, useState } from "react";
 
 export interface BookAnalysisChapterHighlightRange {

@@ -111,7 +111,7 @@ const BookAnalysisChapterReader = forwardRef<BookAnalysisChapterReaderHandle, Bo
 
     if (sortedChapters.length === 0) {
       return (
-        <aside className="rounded-md border bg-background p-4 text-sm text-muted-foreground">{t("gen.pages.bookAnalysis.components.BookAnalysisChapterReader.gen_74115351", "当前文档还没有可用于对照阅读的章节缓存。")}</aside>
+        <aside className="rounded-md border bg-background p-4 text-sm text-muted-foreground">{i18next.t("gen.pages.bookAnalysis.components.BookAnalysisChapterReader.gen_74115351", "当前文档还没有可用于对照阅读的章节缓存。")}</aside>
       );
     }
 

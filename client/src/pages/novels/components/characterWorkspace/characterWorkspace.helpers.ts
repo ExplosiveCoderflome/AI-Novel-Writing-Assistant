@@ -1,3 +1,4 @@
+import i18next from "i18next";
 import type { Character, CharacterVisibleProfileField } from "@ai-novel/shared/types/novel";
 import type { CharacterResourceLedgerItem } from "@ai-novel/shared/types/characterResource";
 import { isProtagonistCharacter } from "../characterAssetWorkspace.helpers";

@@ -475,7 +475,7 @@ export default function ChatPage() {
           <CardTitle className="text-base">{i18next.t("gen.pages.chat.ChatPage.sessionList")}</CardTitle>
         </CardHeader>
         <CardContent className="space-y-2">
-          <Button className="w-full" onClick={() => void chatStore.createSession(i18next.t("gen.pages.chat.ChatPage.gen_1ac07a4b"))}>{t("gen.pages.chat.ChatPage.gen_f2b14f27", "新建对话")}</Button>
+          <Button className="w-full" onClick={() => void chatStore.createSession(i18next.t("gen.pages.chat.ChatPage.gen_1ac07a4b"))}>{i18next.t("gen.pages.chat.ChatPage.gen_f2b14f27", "新建对话")}</Button>
           <div className="space-y-1">
             {chatStore.sessions.map((session) => (
               <button

@@ -30,14 +30,14 @@ export default function BookAnalysisChapterNavigator({
             variant="outline"
             disabled={!canGoPrev}
             onClick={() => onSelectChapter(chapters[currentPosition - 1].chapterIndex)}
-          >{t("gen.pages.bookAnalysis.components.BookAnalysisChapterNavigator.gen_fc6bbbac", "上一章")}</Button>
+          >{i18next.t("gen.pages.bookAnalysis.components.BookAnalysisChapterNavigator.gen_fc6bbbac", "上一章")}</Button>
           <Button
             type="button"
             size="sm"
             variant="outline"
             disabled={!canGoNext}
             onClick={() => onSelectChapter(chapters[currentPosition + 1].chapterIndex)}
-          >{t("gen.pages.bookAnalysis.components.BookAnalysisChapterNavigator.gen_981cc1b3", "下一章")}</Button>
+          >{i18next.t("gen.pages.bookAnalysis.components.BookAnalysisChapterNavigator.gen_981cc1b3", "下一章")}</Button>
         </div>
       </div>
 

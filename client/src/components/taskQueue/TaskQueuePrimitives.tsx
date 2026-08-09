@@ -20,7 +20,7 @@ export interface TaskQueueMetricItem {
 export function TaskQueueMetricGrid(props: { items: TaskQueueMetricItem[]; className?: string }) {
   const { t } = useTranslation();
   return (
-    <section aria-label={t("gen.components.taskQueue.TaskQueuePrimitives.gen_a6bccb60", "任务状态摘要")} className={cn("grid gap-3 sm:grid-cols-2 xl:grid-cols-4", props.className)}>
+    <section aria-label={i18next.t("gen.components.taskQueue.TaskQueuePrimitives.gen_a6bccb60", "任务状态摘要")} className={cn("grid gap-3 sm:grid-cols-2 xl:grid-cols-4", props.className)}>
       {props.items.map((item) => {
         const tone = item.tone ?? "neutral";
         return (

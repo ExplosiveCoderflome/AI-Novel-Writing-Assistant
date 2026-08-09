@@ -105,7 +105,7 @@ export default function WorldDeepeningTab(props: WorldDeepeningTabProps) {
                 <span className="text-sm font-semibold">参考小说与作品增补 (Knowledge & Novel Supplements)</span>
                 <Badge variant="secondary">已关联 {boundDocuments.length} 篇作品文档</Badge>
               </div>
-              <div className="mt-1 text-xs text-muted-foreground">{t("gen.pages.worlds.components.workspace.WorldDeepeningTab.gen_777639fa", "在此添加/修改作为世界样本增补的相关小说与设定文档。生成深化提问时，系统将跨全量关联作品提炼更精准的问题。")}</div>
+              <div className="mt-1 text-xs text-muted-foreground">{i18next.t("gen.pages.worlds.components.workspace.WorldDeepeningTab.gen_777639fa", "在此添加/修改作为世界样本增补的相关小说与设定文档。生成深化提问时，系统将跨全量关联作品提炼更精准的问题。")}</div>
             </div>
             <Button
               type="button"
@@ -126,7 +126,7 @@ export default function WorldDeepeningTab(props: WorldDeepeningTabProps) {
               ))}
             </div>
           ) : (
-            <div className="text-xs text-amber-700 bg-amber-50 rounded p-2 border border-amber-200">{t("gen.pages.worlds.components.workspace.WorldDeepeningTab.gen_550d8082", "当前尚未关联增补小说或设定文本。点击「选择 / 增添相关小说文档」添加知识库作品作为世界样本增补。")}</div>
+            <div className="text-xs text-amber-700 bg-amber-50 rounded p-2 border border-amber-200">{i18next.t("gen.pages.worlds.components.workspace.WorldDeepeningTab.gen_550d8082", "当前尚未关联增补小说或设定文本。点击「选择 / 增添相关小说文档」添加知识库作品作为世界样本增补。")}</div>
           )}
 
           {showPicker ? (
@@ -134,8 +134,8 @@ export default function WorldDeepeningTab(props: WorldDeepeningTabProps) {
               <KnowledgeDocumentPicker
                 selectedIds={selectedIds}
                 onChange={(next) => setSelectedIds(next ?? [])}
-                title={t("gen.pages.worlds.components.workspace.WorldDeepeningTab.gen_5fbad7c1", "选择作为世界样本增补的相关小说与知识库文档")}
-                description={t("gen.pages.worlds.components.workspace.WorldDeepeningTab.gen_ad5cba4f", "勾选需包含的作品。保存后，AI 会根据最新的增补文本内容生成深化问题与碰撞建议。")}
+                title={i18next.t("gen.pages.worlds.components.workspace.WorldDeepeningTab.gen_5fbad7c1", "选择作为世界样本增补的相关小说与知识库文档")}
+                description={i18next.t("gen.pages.worlds.components.workspace.WorldDeepeningTab.gen_ad5cba4f", "勾选需包含的作品。保存后，AI 会根据最新的增补文本内容生成深化问题与碰撞建议。")}
                 queryStatus="enabled"
               />
               <div className="flex justify-end gap-2">
@@ -143,7 +143,7 @@ export default function WorldDeepeningTab(props: WorldDeepeningTabProps) {
                   size="sm"
                   variant="outline"
                   onClick={() => setShowPicker(false)}
-                >{t("gen.pages.worlds.components.workspace.WorldDeepeningTab.gen_625fb26b", "取消")}</Button>
+                >{i18next.t("gen.pages.worlds.components.workspace.WorldDeepeningTab.gen_625fb26b", "取消")}</Button>
                 <Button
                   size="sm"
                   onClick={handleSaveBindings}
@@ -160,7 +160,7 @@ export default function WorldDeepeningTab(props: WorldDeepeningTabProps) {
         <div className="flex flex-col gap-3 rounded-md border p-3 lg:flex-row lg:items-center lg:justify-between">
           <div>
             <div className="text-sm font-medium">{i18next.t("gen.pages.worlds.components.workspace.WorldDeepeningTab.gen_c425f122")}</div>
-            <div className="mt-1 text-xs leading-5 text-muted-foreground">{t("gen.pages.worlds.components.workspace.WorldDeepeningTab.gen_ca91d738", "系统会根据此世界手册及已绑定的全量增补小说提出针对性问题。回答后整合进世界设定，帮助规则、势力、地点和冲突更清晰。")}</div>
+            <div className="mt-1 text-xs leading-5 text-muted-foreground">{i18next.t("gen.pages.worlds.components.workspace.WorldDeepeningTab.gen_ca91d738", "系统会根据此世界手册及已绑定的全量增补小说提出针对性问题。回答后整合进世界设定，帮助规则、势力、地点和冲突更清晰。")}</div>
           </div>
           <Button onClick={onGenerate} disabled={generatePending}>
             {generatePending ? "正在结合增补作品生成提问..." : "结合增补作品生成深化问题"}
@@ -205,7 +205,7 @@ export default function WorldDeepeningTab(props: WorldDeepeningTabProps) {
               <div className="rounded-md border p-3 space-y-3">
                 <div>
                   <div className="text-sm font-medium text-foreground">{activeQuestion.question}</div>
-                  <div className="mt-1 text-xs text-muted-foreground">{t("gen.pages.worlds.components.workspace.WorldDeepeningTab.gen_68f92206", "这条回答会用于补齐世界手册。")}</div>
+                  <div className="mt-1 text-xs text-muted-foreground">{i18next.t("gen.pages.worlds.components.workspace.WorldDeepeningTab.gen_68f92206", "这条回答会用于补齐世界手册。")}</div>
                 </div>
                 {activeQuickOptions.length > 0 ? (
                   <div className="space-y-2">
@@ -227,7 +227,7 @@ export default function WorldDeepeningTab(props: WorldDeepeningTabProps) {
                     </div>
                   </div>
                 ) : (
-                  <div className="rounded-md border border-dashed p-3 text-xs text-muted-foreground">{t("gen.pages.worlds.components.workspace.WorldDeepeningTab.gen_85cf864f", "可以直接写你的设定答案，也可以先用一句话描述方向。")}</div>
+                  <div className="rounded-md border border-dashed p-3 text-xs text-muted-foreground">{i18next.t("gen.pages.worlds.components.workspace.WorldDeepeningTab.gen_85cf864f", "可以直接写你的设定答案，也可以先用一句话描述方向。")}</div>
                 )}
                 <textarea
                   className="min-h-[100px] w-full rounded-md border bg-background p-2 text-sm"
@@ -241,7 +241,7 @@ export default function WorldDeepeningTab(props: WorldDeepeningTabProps) {
             ) : null}
           </div>
         ) : (
-          <div className="rounded-md border border-dashed p-4 text-sm text-muted-foreground">{t("gen.pages.worlds.components.workspace.WorldDeepeningTab.gen_441208c8", "这里会展示能帮助世界成型的问题。添加增补小说并生成问题后，逐条补充即可。")}</div>
+          <div className="rounded-md border border-dashed p-4 text-sm text-muted-foreground">{i18next.t("gen.pages.worlds.components.workspace.WorldDeepeningTab.gen_441208c8", "这里会展示能帮助世界成型的问题。添加增补小说并生成问题后，逐条补充即可。")}</div>
         )}
         <div className="flex justify-end">
           <Button
