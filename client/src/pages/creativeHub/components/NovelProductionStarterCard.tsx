@@ -38,9 +38,9 @@ function ProductionField(props: {
 }
 
 function fromNarrativePov(value: "first_person" | "third_person" | "mixed" | null | undefined): string {
-  if (value === "first_person") return "第一人称";
-  if (value === "third_person") return "第三人称";
-  if (value === "mixed") return "混合视角";
+  if (value === "first_person") return i18next.t("creativeHub.povFirst", "第一人称");
+  if (value === "third_person") return i18next.t("creativeHub.povThird", "第三人称");
+  if (value === "mixed") return i18next.t("creativeHub.povMixed", "混合视角");
   return "";
 }
 
@@ -52,9 +52,9 @@ function toNarrativePov(value: string): "first_person" | "third_person" | "mixed
 }
 
 function fromPacePreference(value: "slow" | "balanced" | "fast" | null | undefined): string {
-  if (value === "slow") return "慢节奏";
-  if (value === "balanced") return "均衡节奏";
-  if (value === "fast") return "快节奏";
+  if (value === "slow") return i18next.t("creativeHub.paceSlow", "慢节奏");
+  if (value === "balanced") return i18next.t("creativeHub.paceBalanced", "均衡节奏");
+  if (value === "fast") return i18next.t("creativeHub.paceFast", "快节奏");
   return "";
 }
 
@@ -320,15 +320,15 @@ export default function NovelProductionStarterCard({
 
   return (
     <div className="space-y-3" aria-busy={novelDetailQuery.isFetching || submitMutation.isPending}>
-      <div className="text-xs font-medium text-muted-foreground">整本生产</div>
+      <div className="text-xs font-medium text-muted-foreground">{t("creativeHub.fullProd", "整本生产")}</div>
       <div className="space-y-3">
         <div className="rounded-md border border-info/25 bg-info/5 px-3 py-2 text-xs text-muted-foreground">
           {isContinueMode
-            ? `当前将继续生产《${resolvedTitle || "当前小说"}》。`
-            : "当前处于全局模式，可直接创建新书并启动整本生产。"}
+            ? t("creativeHub.willContinueProd", "当前将继续生产《{{title}}》。", { title: resolvedTitle || t("creativeHub.currentNovel", "当前小说") })
+            : t("creativeHub.globalProdDesc", "当前处于全局模式，可直接创建新书并启动整本生产。")}
         </div>
         <div className="rounded-md border border-dashed border-border bg-background px-3 py-2 text-xs leading-5 text-muted-foreground">
-          建议先确认：题材、风格、视角、节奏、章长、AI 自由度。条件越完整，整本生产偏差越小。
+          {t("creativeHub.suggestConfirm", "建议先确认：题材、风格、视角、节奏、章长、AI 自由度。条件越完整，整本生产偏差越小。")}
         </div>
 
         {novelDetailQuery.isFetching ? (
@@ -336,15 +336,15 @@ export default function NovelProductionStarterCard({
             compact
             loading
             tone="info"
-            title="正在读取小说设置"
-            description="读取完成前不会提交整本生产，避免用空设置覆盖当前小说。"
+            title={t("creativeHub.loadingSetupTitle", "正在读取小说设置")}
+            description={t("creativeHub.loadingSetupDesc", "读取完成前不会提交整本生产，避免用空设置覆盖当前小说。")}
           />
         ) : detailErrorMessage ? (
           <WorkspaceStateNotice
             compact
             tone="danger"
-            title="小说设置读取失败"
-            description={`${detailErrorMessage} 请重新读取后再启动整本生产。`}
+            title={t("creativeHub.errSetupTitle", "小说设置读取失败")}
+            description={`${detailErrorMessage} ${t("creativeHub.errSetupDesc", "请重新读取后再启动整本生产。")}`}
             action={(
               <Button
                 type="button"
@@ -354,7 +354,7 @@ export default function NovelProductionStarterCard({
                 onClick={() => void novelDetailQuery.refetch()}
               >
                 <RefreshCw className="h-3.5 w-3.5" aria-hidden="true" />
-                {novelDetailQuery.isFetching ? "正在重试..." : "重新读取"}
+                {novelDetailQuery.isFetching ? t("creativeHub.retrying", "正在重试...") : t("creativeHub.reload", "重新读取")}
               </Button>
             )}
           />
@@ -363,13 +363,13 @@ export default function NovelProductionStarterCard({
         {!isContinueMode ? (
           <ProductionField
             htmlFor="creative-hub-production-title"
-            label="小说标题"
-            hint="创建新小说时必填。"
+            label={t("creativeHub.labelTitle", "小说标题")}
+            hint={t("creativeHub.hintTitle", "创建新小说时必填。")}
           >
             <input
               id="creative-hub-production-title"
               className={fieldClassName}
-              placeholder="例如：长夜巡灯人"
+              placeholder={t("creativeHub.placeholderTitle", "例如：长夜巡灯人")}
               value={title}
               disabled={formDisabled}
               required
@@ -378,11 +378,11 @@ export default function NovelProductionStarterCard({
           </ProductionField>
         ) : null}
 
-        <ProductionField htmlFor="creative-hub-production-description" label="简介与核心设定">
+        <ProductionField htmlFor="creative-hub-production-description" label={t("creativeHub.labelSynopsis", "简介与核心设定")}>
           <textarea
             id="creative-hub-production-description"
             className={`${fieldClassName} min-h-[88px] resize-y`}
-            placeholder="概括主角处境、核心冲突和这本书最想兑现的体验"
+            placeholder={t("creativeHub.placeholderSynopsis", "概括主角处境、核心冲突和这本书最想兑现的体验")}
             value={description}
             disabled={formDisabled}
             onChange={(event) => setDescription(event.target.value)}
@@ -390,21 +390,21 @@ export default function NovelProductionStarterCard({
         </ProductionField>
 
         <div className="grid gap-2 sm:grid-cols-2">
-          <ProductionField htmlFor="creative-hub-production-genre" label="题材类型">
+          <ProductionField htmlFor="creative-hub-production-genre" label={t("creativeHub.labelGenre", "题材类型")}>
             <input
               id="creative-hub-production-genre"
               className={fieldClassName}
-              placeholder="例如：东方玄幻"
+              placeholder={t("creativeHub.placeholderGenre", "例如：东方玄幻")}
               value={genre}
               disabled={formDisabled}
               onChange={(event) => setGenre(event.target.value)}
             />
           </ProductionField>
-          <ProductionField htmlFor="creative-hub-production-style" label="风格基调">
+          <ProductionField htmlFor="creative-hub-production-style" label={t("creativeHub.labelStyle", "风格基调")}>
             <input
               id="creative-hub-production-style"
               className={fieldClassName}
-              placeholder="例如：轻快热血"
+              placeholder={t("creativeHub.placeholderStyle", "例如：轻快热血")}
               value={styleTone}
               disabled={formDisabled}
               onChange={(event) => setStyleTone(event.target.value)}
@@ -413,7 +413,7 @@ export default function NovelProductionStarterCard({
         </div>
 
         <div className="grid gap-2 sm:grid-cols-2">
-          <ProductionField htmlFor="creative-hub-production-pov" label="叙事视角">
+          <ProductionField htmlFor="creative-hub-production-pov" label={t("creativeHub.labelPov", "叙事视角")}>
             <SelectControl
               id="creative-hub-production-pov"
               className={fieldClassName}
@@ -421,13 +421,13 @@ export default function NovelProductionStarterCard({
               disabled={formDisabled}
               onChange={(event) => setNarrativePov(event.target.value)}
             >
-              <option value="">交给 AI 判断</option>
-              <option value="第一人称">第一人称</option>
-              <option value="第三人称">第三人称</option>
-              <option value="混合视角">混合视角</option>
+              <option value="">{t("creativeHub.letAiDecide", "交给 AI 判断")}</option>
+              <option value="第一人称">{t("creativeHub.povFirst", "第一人称")}</option>
+              <option value="第三人称">{t("creativeHub.povThird", "第三人称")}</option>
+              <option value="混合视角">{t("creativeHub.povMixed", "混合视角")}</option>
             </SelectControl>
           </ProductionField>
-          <ProductionField htmlFor="creative-hub-production-pace" label="推进节奏">
+          <ProductionField htmlFor="creative-hub-production-pace" label={t("creativeHub.labelPace", "推进节奏")}>
             <SelectControl
               id="creative-hub-production-pace"
               className={fieldClassName}
@@ -436,15 +436,15 @@ export default function NovelProductionStarterCard({
               onChange={(event) => setPacePreference(event.target.value)}
             >
               <option value="">交给 AI 判断</option>
-              <option value="慢节奏">慢节奏</option>
-              <option value="均衡节奏">均衡节奏</option>
-              <option value="快节奏">快节奏</option>
+              <option value="慢节奏">{t("creativeHub.paceSlow", "慢节奏")}</option>
+              <option value="均衡节奏">{t("creativeHub.paceBalanced", "均衡节奏")}</option>
+              <option value="快节奏">{t("creativeHub.paceFast", "快节奏")}</option>
             </SelectControl>
           </ProductionField>
         </div>
 
         <div className="grid gap-2 sm:grid-cols-3">
-          <ProductionField htmlFor="creative-hub-production-mode" label="协作模式">
+          <ProductionField htmlFor="creative-hub-production-mode" label={t("creativeHub.labelMode", "协作模式")}>
             <SelectControl
               id="creative-hub-production-mode"
               className={fieldClassName}
@@ -452,14 +452,14 @@ export default function NovelProductionStarterCard({
               disabled={formDisabled}
               onChange={(event) => setProjectMode(event.target.value)}
             >
-              <option value="">使用小说默认值</option>
-              <option value="AI 主导">AI 主导</option>
-              <option value="人机协作">人机协作</option>
-              <option value="草稿优先">草稿优先</option>
-              <option value="自动流水线">自动流水线</option>
+              <option value="">{t("creativeHub.useNovelDefault", "使用小说默认值")}</option>
+              <option value="AI 主导">{t("creativeHub.modeAiDriven", "AI 主导")}</option>
+              <option value="人机协作">{t("creativeHub.modeCoop", "人机协作")}</option>
+              <option value="草稿优先">{t("creativeHub.modeDraftFirst", "草稿优先")}</option>
+              <option value="自动流水线">{t("creativeHub.modeAutoPipeline", "自动流水线")}</option>
             </SelectControl>
           </ProductionField>
-          <ProductionField htmlFor="creative-hub-production-emotion" label="情绪强度">
+          <ProductionField htmlFor="creative-hub-production-emotion" label={t("creativeHub.labelEmotion", "情绪强度")}>
             <SelectControl
               id="creative-hub-production-emotion"
               className={fieldClassName}
@@ -468,12 +468,12 @@ export default function NovelProductionStarterCard({
               onChange={(event) => setEmotionIntensity(event.target.value)}
             >
               <option value="">使用小说默认值</option>
-              <option value="低">低</option>
-              <option value="中">中</option>
-              <option value="高">高</option>
+              <option value="低">{t("creativeHub.levelLow", "低")}</option>
+              <option value="中">{t("creativeHub.levelMedium", "中")}</option>
+              <option value="高">{t("creativeHub.levelHigh", "高")}</option>
             </SelectControl>
           </ProductionField>
-          <ProductionField htmlFor="creative-hub-production-freedom" label="AI 自由度">
+          <ProductionField htmlFor="creative-hub-production-freedom" label={t("creativeHub.labelFreedom", "AI 自由度")}>
             <SelectControl
               id="creative-hub-production-freedom"
               className={fieldClassName}
@@ -490,7 +490,7 @@ export default function NovelProductionStarterCard({
         </div>
 
         <div className="grid gap-2 sm:grid-cols-3">
-          <ProductionField htmlFor="creative-hub-production-chapters" label="目标章节数">
+          <ProductionField htmlFor="creative-hub-production-chapters" label={t("creativeHub.labelChapters", "目标章节数")}>
             <input
               id="creative-hub-production-chapters"
               className={fieldClassName}
@@ -502,7 +502,7 @@ export default function NovelProductionStarterCard({
               onChange={(event) => setTargetChapterCount(Number(event.target.value || 20))}
             />
           </ProductionField>
-          <ProductionField htmlFor="creative-hub-production-length" label="默认章长（字）">
+          <ProductionField htmlFor="creative-hub-production-length" label={t("creativeHub.labelWordCount", "默认章长（字）")}>
             <input
               id="creative-hub-production-length"
               className={fieldClassName}
@@ -514,11 +514,11 @@ export default function NovelProductionStarterCard({
               onChange={(event) => setDefaultChapterLength(Number(event.target.value || 2500))}
             />
           </ProductionField>
-          <ProductionField htmlFor="creative-hub-production-world" label="世界观类型（可选）">
+          <ProductionField htmlFor="creative-hub-production-world" label={t("creativeHub.labelWorldType", "世界观类型（可选）")}>
             <input
               id="creative-hub-production-world"
               className={fieldClassName}
-              placeholder="例如：末日废土"
+              placeholder={t("creativeHub.placeholderWorldType", "例如：末日废土")}
               value={worldType}
               disabled={formDisabled}
               onChange={(event) => setWorldType(event.target.value)}
@@ -531,7 +531,7 @@ export default function NovelProductionStarterCard({
             disabled={submitDisabled}
             onClick={startProduction}
           >
-            {submitMutation.isPending ? "正在启动..." : isContinueMode ? "继续整本生产" : "启动整本生产"}
+            {submitMutation.isPending ? t("creativeHub.startingProd", "正在启动...") : isContinueMode ? t("creativeHub.continueProd", "继续整本生产") : t("creativeHub.startProd", "启动整本生产")}
           </Button>
           <Button
             type="button"
@@ -539,7 +539,7 @@ export default function NovelProductionStarterCard({
             disabled={formDisabled}
             onClick={() => onQuickAction?.("整本生成到哪一步了")}
           >
-            查看进度
+            {t("creativeHub.viewProgress", "查看进度")}
           </Button>
           <Button
             type="button"
@@ -547,7 +547,7 @@ export default function NovelProductionStarterCard({
             disabled={formDisabled}
             onClick={() => onQuickAction?.("为什么整本生成没有启动")}
           >
-            查看阻塞
+            {t("creativeHub.viewBlocker", "查看阻塞")}
           </Button>
           <Button
             type="button"
@@ -555,7 +555,7 @@ export default function NovelProductionStarterCard({
             disabled={formDisabled}
             onClick={() => onQuickAction?.("基于当前小说信息，为生产前的题材、风格、视角、节奏、章长和 AI 自由度各给出 3 个备选答案。")}
           >
-            生成备选
+            {t("creativeHub.genAlternatives", "生成备选")}
           </Button>
         </div>
       </div>
