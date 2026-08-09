@@ -6879,5 +6879,43 @@
         "gen_1ac07a4b": "新对话"
       }
     }
+  },
+  "stock": {
+    "title": "US Stock AI Investment Research & Daily Rebalancing Studio",
+    "subtitle": "Integrating MooMoo OpenD real-time quotes, market catalysts, and portfolio risk management for pre-market trading guidance",
+    "institutionalView": "🏛️ Institutional Research View",
+    "narrativeView": "🎮 Gamified Narrative Breakdown View",
+    "generateReport": "Generate Pre-Market Trading Guidance",
+    "generating": "AI Analyzing Market Quotes & Catalysts...",
+    "openDStatusConnected": "MooMoo OpenD Connected (127.0.0.1:11111)",
+    "openDStatusDisconnected": "MooMoo OpenD Offline (Static Fallback Mode)",
+    "searxngConnected": "SearXNG Search Engine Connected (127.0.0.1:8088)",
+    "searxngOffline": "SearXNG Offline (Snapshot Mode)",
+    "summaryPnL": "Portfolio P&L & Asset Summary",
+    "netAssets": "Total Net Assets",
+    "marketValue": "Total Market Value",
+    "cashBalance": "Available Cash",
+    "unrealizedPnL": "Unrealized P&L",
+    "costBasis": "Total Cost Basis",
+    "positionsCount": "Holdings Count",
+    "actionBuy": "BUY / ADD",
+    "actionSell": "SELL",
+    "actionTrim": "TRIM",
+    "actionHold": "HOLD",
+    "urgencyHigh": "HIGH PRIORITY",
+    "urgencyMedium": "MEDIUM",
+    "urgencyLow": "LOW",
+    "tradeListTitle": "Pre-Market Proposed Action Plan (Advisory Only)",
+    "riskAlertsTitle": "Risk Concentration Alerts & Portfolio Health",
+    "retroTitle": "Strategy Retrospective & Execution Audit",
+    "graphTitle": "2D Interactive Industry Knowledge Graph",
+    "editGraph": "Manual Graph Edit",
+    "saveGraph": "Save Graph Edits",
+    "resetGraph": "Reset to Default Graph",
+    "importHoldings": "Import MooMoo Holdings CSV/Text",
+    "searchStockPlaceholder": "Search stock symbol or company name (e.g. NVDA, TSLA, Apple)...",
+    "noPositions": "No holdings data available. Click top right to import holdings or connect MooMoo OpenD.",
+    "noActions": "No urgent portfolio adjustments required. Maintain current positions.",
+    "disclaimer": "⚠️ Risk Warning: This workbench provides pre-market decision guidance and risk warnings only (Advisory Only). The system will NEVER auto-place orders. Final trades must be executed manually in your MooMoo client."
   }
 }

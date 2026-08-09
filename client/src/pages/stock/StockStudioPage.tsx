@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import { useTranslation } from "react-i18next";
 import {
   TrendingUp,
   ShieldAlert,
@@ -130,6 +131,9 @@ interface DailyStrategyData {
 }
 
 export default function StockStudioPage() {
+  const { t, i18n } = useTranslation();
+  const isEn = i18n.language.startsWith("en");
+
   const [loading, setLoading] = useState(false);
   const [syncing, setSyncing] = useState(false);
   const [openDStatus, setOpenDStatus] = useState<{ connected: boolean; message: string }>({
@@ -1068,30 +1072,34 @@ export default function StockStudioPage() {
               <TrendingUp className="w-6 h-6" />
             </div>
             <h1 className="text-2xl font-bold bg-gradient-to-r from-indigo-400 via-sky-300 to-purple-400 bg-clip-text text-transparent">
-              美股投资研究与每日调仓智能体
+              {t("stock.title", "美股 AI 智能投研与每日调仓工作台")}
             </h1>
           </div>
           <p className="text-slate-400 text-sm pl-11">
-            基于 MooMoo 本地持仓与闲置预算，每日开盘前生成精确调仓建议与爽感研报（仅供决策参考，非自动下单）。
+            {t("stock.subtitle", "整合 MooMoo OpenD 实时盘口、美股新闻热点与持仓风控，开盘前自动生成调仓指令清单")}
           </p>
         </div>
 
         <div className="flex items-center space-x-3 bg-slate-950/60 border border-slate-800 px-4 py-2 rounded-lg text-sm">
           <span className={`w-3 h-3 rounded-full ${openDStatus.connected ? "bg-emerald-500 animate-pulse" : "bg-amber-500"}`} />
-          <span className="text-slate-300 font-medium">{openDStatus.connected ? "MooMoo OpenD 已启动" : "OpenD 初始化中"}</span>
+          <span className="text-slate-300 font-medium">
+            {openDStatus.connected
+              ? isEn ? "MooMoo OpenD Connected" : "MooMoo OpenD 已启动"
+              : isEn ? "Connecting OpenD..." : "OpenD 初始化中"}
+          </span>
           <button
             onClick={checkOpenDStatus}
             className="p-1 hover:bg-slate-800 text-slate-400 hover:text-slate-200 rounded transition-colors"
-            title="刷新 OpenD 连接状态"
+            title={isEn ? "Refresh OpenD connection status" : "刷新 OpenD 连接状态"}
           >
             <RefreshCw className="w-4 h-4" />
           </button>
           <button
             onClick={handleRestartOpenD}
             className="px-2 py-1 bg-amber-950/80 hover:bg-amber-900 text-amber-300 border border-amber-800 text-xs font-semibold rounded transition-colors flex items-center gap-1 cursor-pointer"
-            title="一键前台唤起并置顶显示 MooMoo 客户端（Winnerineast 账户）"
+            title={isEn ? "Bring MooMoo Client to Front" : "一键前台唤起并置顶显示 MooMoo 客户端（Winnerineast 账户）"}
           >
-            <span>🚀 唤起 MooMoo 客户端</span>
+            <span>{isEn ? "🚀 Launch MooMoo Client" : "🚀 唤起 MooMoo 客户端"}</span>
           </button>
         </div>
       </header>
@@ -1120,8 +1128,10 @@ export default function StockStudioPage() {
           <div className="flex items-center justify-between">
             <h2 className="text-sm font-bold text-slate-200 flex items-center gap-2">
               <DollarSign className="w-4 h-4 text-emerald-400" />
-              持仓实时 P&amp;L 概览
-              <span className="text-[10px] text-slate-500 font-normal ml-1">基于 OpenD 实时行情计算</span>
+              {t("stock.summaryPnL", "持仓盈亏与资产概览 (P&L Summary)")}
+              <span className="text-[10px] text-slate-500 font-normal ml-1">
+                {isEn ? "Calculated via OpenD Live Quotes" : "基于 OpenD 实时行情计算"}
+              </span>
             </h2>
             <div className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-bold font-mono text-sm border ${
               totalPnLData.totalPnL >= 0
@@ -1143,19 +1153,19 @@ export default function StockStudioPage() {
           {/* 三格汇总数据 */}
           <div className="grid grid-cols-3 gap-3">
             <div className="bg-slate-950/70 border border-slate-800 rounded-lg p-3 text-center">
-              <p className="text-[10px] text-slate-400 mb-0.5">持仓总市值</p>
+              <p className="text-[10px] text-slate-400 mb-0.5">{t("stock.marketValue", "持仓总市值")}</p>
               <p className="text-base font-bold text-slate-200 font-mono">${totalPnLData.totalMarketValue.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
-              <p className="text-[10px] text-slate-500">成本 ${totalPnLData.totalCostBasis.toFixed(0)}</p>
+              <p className="text-[10px] text-slate-500">{t("stock.costBasis", "总持仓成本")} ${totalPnLData.totalCostBasis.toFixed(0)}</p>
             </div>
             <div className="bg-slate-950/70 border border-slate-800 rounded-lg p-3 text-center">
-              <p className="text-[10px] text-slate-400 mb-0.5">账户净资产</p>
+              <p className="text-[10px] text-slate-400 mb-0.5">{t("stock.netAssets", "净资产总额")}</p>
               <p className="text-base font-bold text-indigo-300 font-mono">${totalPnLData.netAssets.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
-              <p className="text-[10px] text-slate-500">含现金 ${totalPnLData.cashBalance.toFixed(0)}</p>
+              <p className="text-[10px] text-slate-500">{isEn ? "Incl. Cash" : "含现金"} ${totalPnLData.cashBalance.toFixed(0)}</p>
             </div>
             <div className="bg-slate-950/70 border border-slate-800 rounded-lg p-3 text-center">
-              <p className="text-[10px] text-slate-400 mb-0.5">流动现金</p>
+              <p className="text-[10px] text-slate-400 mb-0.5">{t("stock.cashBalance", "闲置可用现金")}</p>
               <p className="text-base font-bold text-emerald-300 font-mono">${totalPnLData.cashBalance.toFixed(2)}</p>
-              <p className="text-[10px] text-slate-500">可用于加仓</p>
+              <p className="text-[10px] text-slate-500">{isEn ? "Available to Buy" : "可用于加仓"}</p>
             </div>
           </div>
 
@@ -1495,12 +1505,12 @@ export default function StockStudioPage() {
               {loading ? (
                 <>
                   <RefreshCw className="w-5 h-5 animate-spin" />
-                  <span>AI 智能体隔夜推演中...</span>
+                  <span>{t("stock.generating", "AI 正在分析盘口与宏观热点...")}</span>
                 </>
               ) : (
                 <>
                   <Zap className="w-5 h-5 text-amber-300 fill-amber-300" />
-                  <span>生成今日 MooMoo 操盘指南</span>
+                  <span>{t("stock.generateReport", "一键推演开盘前调仓指南")}</span>
                 </>
               )}
             </button>
@@ -1671,12 +1681,12 @@ export default function StockStudioPage() {
                                     }`}
                                   >
                                     {act.action === "BUY"
-                                      ? "加仓买入"
+                                      ? t("stock.actionBuy", "加仓/建仓")
                                       : act.action === "TRIM"
-                                      ? "适当减仓"
+                                      ? t("stock.actionTrim", "减仓")
                                       : act.action === "SELL"
-                                      ? "清仓卖出"
-                                      : "持仓观望"}
+                                      ? t("stock.actionSell", "清仓")
+                                      : t("stock.actionHold", "观望/持有")}
                                   </span>
                                   <div>
                                     <span className="font-bold text-slate-100 text-base">{act.symbol}</span>
@@ -1757,7 +1767,7 @@ export default function StockStudioPage() {
                               : "text-slate-400 hover:text-slate-200"
                           }`}
                         >
-                          📊 策略诊断与操作指引
+                          {t("stock.narrativeView", "🎮 故事化爆爽解读视角")}
                         </button>
                         <button
                           onClick={() => setActiveReportTab("institutional")}
@@ -1767,7 +1777,7 @@ export default function StockStudioPage() {
                               : "text-slate-400 hover:text-slate-200"
                           }`}
                         >
-                          🏛️ 机构级深度投研
+                          {t("stock.institutionalView", "🏛️ 机构专业投研视角")}
                         </button>
                       </div>
                     </div>
@@ -2054,13 +2064,15 @@ export default function StockStudioPage() {
                 </div>
                 <div>
                   <h3 className="text-base font-extrabold text-white flex items-center gap-2 font-mono">
-                    🕸️ 2D 全景交互知识图谱 — {currentKgItem.symbol}
+                    🕸️ {t("stock.graphTitle", "2D 交互式产业链知识图谱")} — {currentKgItem.symbol}
                     <span className="text-xs text-slate-400 font-sans font-normal">
                       ({currentKgItem.companyName})
                     </span>
                   </h3>
                   <p className="text-xs text-slate-400">
-                    双向透视产业链上下游、核心客户、互联网快讯与 OpenD 盘口实体映射
+                    {isEn
+                      ? "Interactive 2D visual mapping of upstream suppliers, downstream clients, catalysts & OpenD quotes"
+                      : "双向透视产业链上下游、核心客户、互联网快讯与 OpenD 盘口实体映射"}
                   </p>
                 </div>
               </div>
@@ -2090,7 +2102,7 @@ export default function StockStudioPage() {
                   onClick={() => setEditKgModalOpen(true)}
                   className="px-3 py-1.5 bg-amber-950/80 text-amber-300 hover:bg-amber-900 border border-amber-700/60 rounded-lg text-xs font-bold font-mono transition-all cursor-pointer flex items-center gap-1.5 shadow"
                 >
-                  <span>✏️ 人工修改图谱</span>
+                  <span>✏️ {t("stock.editGraph", "人工修改图谱")}</span>
                 </button>
 
                 <button

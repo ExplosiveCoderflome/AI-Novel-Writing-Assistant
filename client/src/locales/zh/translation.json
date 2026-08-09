@@ -6879,5 +6879,43 @@
         "gen_1ac07a4b": "新对话"
       }
     }
+  },
+  "stock": {
+    "title": "美股 AI 智能投研与每日调仓工作台",
+    "subtitle": "整合 MooMoo OpenD 实时盘口、美股新闻热点与持仓风控，开盘前自动生成调仓指令清单",
+    "institutionalView": "🏛️ 机构专业投研视角",
+    "narrativeView": "🎮 故事化爆爽解读视角",
+    "generateReport": "一键推演开盘前调仓指南",
+    "generating": "AI 正在分析盘口与宏观热点...",
+    "openDStatusConnected": "MooMoo OpenD 已直连 (127.0.0.1:11111)",
+    "openDStatusDisconnected": "MooMoo OpenD 未连通 (静态降级模式)",
+    "searxngConnected": "SearXNG 搜索引擎已连通 (127.0.0.1:8088)",
+    "searxngOffline": "SearXNG 未连通 (存量快照模式)",
+    "summaryPnL": "持仓盈亏与资产概览 (P&L Summary)",
+    "netAssets": "净资产总额",
+    "marketValue": "持仓总市值",
+    "cashBalance": "闲置可用现金",
+    "unrealizedPnL": "未实现浮动盈亏",
+    "costBasis": "总持仓成本",
+    "positionsCount": "持仓标的数",
+    "actionBuy": "加仓/建仓",
+    "actionSell": "清仓",
+    "actionTrim": "减仓",
+    "actionHold": "观望/持有",
+    "urgencyHigh": "高优先级",
+    "urgencyMedium": "中优先级",
+    "urgencyLow": "低优先级",
+    "tradeListTitle": "开盘前拟定交易指令清单 (Advisory Only)",
+    "riskAlertsTitle": "风控集中度预警与持仓健康度",
+    "retroTitle": "复盘表现与实盘对齐度",
+    "graphTitle": "2D 交互式产业链知识图谱",
+    "editGraph": "人工修改图谱",
+    "saveGraph": "保存图谱变动",
+    "resetGraph": "重置为默认图谱",
+    "importHoldings": "导入 MooMoo 持仓 CSV/文本",
+    "searchStockPlaceholder": "搜索股票代码或名称 (例: NVDA, TSLA, 苹果)...",
+    "noPositions": "暂无持仓数据，可点击右上角导入持仓或连接 MooMoo OpenD",
+    "noActions": "当前组合无须紧急调整，建议继续观望持有",
+    "disclaimer": "⚠️ 风险提示：本工作台仅输出盘前决策参考与风控预警（Advisory Only），系统绝不会自动下单，最终挂单请在 MooMoo 客户端确认执行。"
   }
 }
