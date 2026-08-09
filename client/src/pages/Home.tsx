@@ -1,5 +1,4 @@
-import i18next from "i18next";
-const t = (key: string, options?: any) => i18next.t(key, options) as string;
+import { useTranslation } from "react-i18next";
 import type { MouseEvent } from "react";
 import { useMemo } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -37,6 +36,7 @@ import CreationSetupNotice from "@/components/onboarding/CreationSetupNotice";
 import FirstNovelJourneyStrip from "@/components/onboarding/FirstNovelJourneyStrip";
 
 export default function Home() {
+  const { t, i18n } = useTranslation();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
 
@@ -80,8 +80,8 @@ export default function Home() {
         error instanceof Error
           ? error.message
           : input.mode === "auto_execute_range"
-            ? t("gen.pages.Home.gen_73ebdc25")
-            : t("gen.pages.Home.gen_bb8020bb"),
+            ? t("gen.pages.Home.gen_73ebdc25", "继续自动执行当前章节范围失败。")
+            : t("gen.pages.Home.gen_bb8020bb", "继续自动导演失败。"),
       );
     },
   });
@@ -91,18 +91,18 @@ export default function Home() {
   const taskOverview = taskQuery.data?.data ?? null;
   const primaryNovel = useMemo(() => selectPrimaryNovel(allNovels), [allNovels]);
   const recentNovels = useMemo(() => allNovels.slice(0, HOME_RECENT_LIMIT), [allNovels]);
-  const nextAction = useMemo(() => buildHomeNextAction(primaryNovel), [primaryNovel]);
+  const nextAction = useMemo(() => buildHomeNextAction(primaryNovel), [primaryNovel, i18n.language]);
   const metrics = useMemo(
     () => buildHomeMetrics({ novels: allNovels, taskOverview }),
-    [allNovels, taskOverview],
+    [allNovels, taskOverview, i18n.language],
   );
   const attentionItems = useMemo(
     () => buildHomeAttentionItems({ novels: allNovels, taskOverview }),
-    [allNovels, taskOverview],
+    [allNovels, taskOverview, i18n.language],
   );
   const assetHealthItems = useMemo(
     () => buildHomeAssetHealthItems(allNovels),
-    [allNovels],
+    [allNovels, i18n.language],
   );
 
   const stopCardClick = (event: MouseEvent<HTMLElement>) => {
