@@ -227,3 +227,44 @@ test("dashboard separates failed and recovering states", () => {
   assert.equal(recovering.mode, "recovering");
   assert.equal(recovering.primaryAction.type, "open_task_center");
 });
+
+test("completed dashboard prefers the task completion checkpoint over a trailing sync event", () => {
+  const view = buildView({
+    task: {
+      status: "succeeded",
+      progress: 1,
+      currentStage: "质量修复",
+      currentItemKey: "quality_repair",
+      currentItemLabel: "第 11-12 章自动执行完成",
+      checkpointType: "workflow_completed",
+      checkpointSummary: "本轮章节执行、审核与修复已完成。",
+    },
+    projection: {
+      status: "completed",
+      currentLabel: "同步角色资源状态完成。",
+      requiresUserAction: false,
+      policyMode: "auto_safe_scope",
+      updatedAt: "2026-08-09T13:10:13.612Z",
+      lastEventSummary: "同步角色资源状态完成。",
+      recentEvents: [],
+      progressBreakdown: {
+        totalPercent: 32,
+        activeJobProgress: 1,
+      },
+    },
+    displayState: {
+      ...baseDisplayState,
+      mode: "completed",
+      currentAction: "同步角色资源状态完成。",
+      progressPercent: 32,
+      isLiveRunning: false,
+    },
+    activeStep: null,
+    latestCommand: null,
+  });
+
+  assert.equal(view.mode, "completed");
+  assert.equal(view.progressPercent, 100);
+  assert.equal(view.progressSource, "task_final");
+  assert.equal(view.currentAction, "第 11-12 章自动执行完成");
+});
