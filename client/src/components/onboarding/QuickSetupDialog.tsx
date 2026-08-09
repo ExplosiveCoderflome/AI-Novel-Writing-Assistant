@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
 import {
@@ -56,14 +57,18 @@ const EMPTY_FORM: SetupForm = {
   model: "",
 };
 
-function providerDescription(provider: QuickSetupProviderOption): string {
-  if (provider.id === "deepseek") return "中文长篇规划与写作的低门槛选择";
-  if (provider.id === "ollama") return "使用本机模型，不要求 API Key";
-  if (provider.id === "openai") return "适合通用规划、正文与结构化任务";
-  return provider.configured ? "已有配置，可以直接检测并设为全局默认" : "配置后可用于整条小说生产链";
+function providerDescription(provider: QuickSetupProviderOption, isEn: boolean): string {
+  if (provider.id === "deepseek") return isEn ? "Low threshold choice for long-form planning & writing" : "中文长篇规划与写作的低门槛选择";
+  if (provider.id === "ollama") return isEn ? "Use local models, no API key required" : "使用本机模型，不要求 API Key";
+  if (provider.id === "openai") return isEn ? "Great for general planning, drafts, & structured tasks" : "适合通用规划、正文与结构化任务";
+  return provider.configured
+    ? isEn ? "Configured. Can detect and set as global default." : "已有配置，可以直接检测并设为全局默认"
+    : isEn ? "Can drive the full novel production chain after config" : "配置后可用于整条小说生产链";
 }
 
 export default function QuickSetupDialog(props: QuickSetupDialogProps) {
+  const { t, i18n } = useTranslation();
+  const isEn = i18n.language === "en";
   const queryClient = useQueryClient();
   const llmStore = useLLMStore();
   const [step, setStep] = useState<1 | 2 | 3>(1);
@@ -284,9 +289,9 @@ export default function QuickSetupDialog(props: QuickSetupDialogProps) {
                   <div className="flex items-start justify-between gap-3">
                     <div>
                       <div className="font-semibold">{provider.name}</div>
-                      <div className="mt-1 text-xs leading-5 text-muted-foreground">{providerDescription(provider)}</div>
+                      <div className="mt-1 text-xs leading-5 text-muted-foreground">{providerDescription(provider, isEn)}</div>
                     </div>
-                    {provider.configured ? <Badge variant="outline">已有配置</Badge> : null}
+                    {provider.configured ? <Badge variant="outline">{isEn ? "Configured" : "已有配置"}</Badge> : null}
                   </div>
                   <div className="mt-3 text-xs text-muted-foreground">推荐模型：{provider.currentModel || provider.defaultModel}</div>
                 </button>
