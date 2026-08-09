@@ -81,7 +81,7 @@ export default function SelectionAIFloatingToolbar(props: SelectionAIFloatingToo
         <div className="mt-2 space-y-2 rounded-xl border border-border/70 bg-muted/20 p-2">
           <textarea
             className="min-h-[96px] w-full resize-none rounded-xl border border-border bg-background px-3 py-2 text-sm outline-none"
-            placeholder={t("gen.pages.novels.components.chapterEditor.SelectionAIFloatingToolbar.exampleMakeThisPartMorePressuringKeepOriginalInfoButMakeRhythmTighter")}
+            placeholder={i18next.t("gen.pages.novels.components.chapterEditor.SelectionAIFloatingToolbar.exampleMakeThisPartMorePressuringKeepOriginalInfoButMakeRhythmTighter")}
             value={customInstruction}
             onChange={(event) => setCustomInstruction(event.target.value)}
           />

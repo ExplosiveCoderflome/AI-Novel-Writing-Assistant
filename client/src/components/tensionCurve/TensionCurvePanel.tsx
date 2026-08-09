@@ -72,8 +72,8 @@ export default function TensionCurvePanel(props: TensionCurvePanelProps) {
           <div className="min-w-0 space-y-1">
             <div className="flex flex-wrap items-center gap-2">
               <CardTitle className={cn("leading-none", compact ? "text-sm" : "text-base")}>{title}</CardTitle>
-              <Badge variant="outline">{t("gen.components.tensionCurve.TensionCurvePanel.gen_85541bd9")}</Badge>
-              {userAnchorCount > 0 ? <Badge variant="secondary">{t("gen.components.tensionCurve.TensionCurvePanel.gen_26e6c369")}</Badge> : null}
+              <Badge variant="outline">{i18next.t("gen.components.tensionCurve.TensionCurvePanel.gen_85541bd9")}</Badge>
+              {userAnchorCount > 0 ? <Badge variant="secondary">{i18next.t("gen.components.tensionCurve.TensionCurvePanel.gen_26e6c369")}</Badge> : null}
             </div>
             {subtitle ? <div className="text-xs leading-5 text-muted-foreground">{subtitle}</div> : null}
           </div>
@@ -99,11 +99,11 @@ export default function TensionCurvePanel(props: TensionCurvePanelProps) {
             ) : null}
             {primaryPointCount > 1 ? (
               <div className="flex items-center gap-2 rounded-md border border-border/70 px-2 py-1">
-                <span className="text-xs text-muted-foreground">{t("gen.components.tensionCurve.TensionCurvePanel.gen_78e6e8fc")}</span>
+                <span className="text-xs text-muted-foreground">{i18next.t("gen.components.tensionCurve.TensionCurvePanel.gen_78e6e8fc")}</span>
                 <Switch
                   checked={showReferenceCurve}
                   onCheckedChange={setShowReferenceCurve}
-                  aria-label={t("gen.components.tensionCurve.TensionCurvePanel.gen_fbd9193d")}
+                  aria-label={i18next.t("gen.components.tensionCurve.TensionCurvePanel.gen_fbd9193d")}
                   className="h-5 w-9"
                 />
                 {showReferenceCurve ? (
@@ -136,7 +136,7 @@ export default function TensionCurvePanel(props: TensionCurvePanelProps) {
         />
 
         {!compact && canvasWidth > 900 ? (
-          <div className="text-xs text-muted-foreground">{t("gen.components.tensionCurve.TensionCurvePanel.gen_a17e13a9")}</div>
+          <div className="text-xs text-muted-foreground">{i18next.t("gen.components.tensionCurve.TensionCurvePanel.gen_a17e13a9")}</div>
         ) : null}
 
         {!compact ? <CompactLegend /> : null}

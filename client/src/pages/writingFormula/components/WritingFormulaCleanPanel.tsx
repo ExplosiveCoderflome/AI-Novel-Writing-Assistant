@@ -35,7 +35,7 @@ export default function WritingFormulaCleanPanel(props: WritingFormulaCleanPanel
   return (
     <Card>
       <CardHeader>
-        <CardTitle>{t("gen.pages.writingFormula.components.WritingFormulaCleanPanel.gen_b589a6aa")}</CardTitle>
+        <CardTitle>{i18next.t("gen.pages.writingFormula.components.WritingFormulaCleanPanel.gen_b589a6aa")}</CardTitle>
       </CardHeader>
       <CardContent className="space-y-5">
         {selectedProfile ? (
@@ -50,7 +50,7 @@ export default function WritingFormulaCleanPanel(props: WritingFormulaCleanPanel
 
         <div className="space-y-4 rounded-2xl border p-4">
           <div className="space-y-1">
-            <div className="text-base font-semibold text-slate-950">{t("gen.pages.writingFormula.components.WritingFormulaCleanPanel.gen_76986240")}</div>
+            <div className="text-base font-semibold text-slate-950">{i18next.t("gen.pages.writingFormula.components.WritingFormulaCleanPanel.gen_76986240")}</div>
             <div className="text-sm leading-6 text-slate-500">
               如果这套写法绑了反 AI 规则，检测和修正会优先按这些约束去判断问题。
             </div>
@@ -72,7 +72,7 @@ export default function WritingFormulaCleanPanel(props: WritingFormulaCleanPanel
 
         <div className="space-y-4 rounded-2xl border p-4">
           <div className="space-y-1">
-            <div className="text-base font-semibold text-slate-950">{t("gen.pages.writingFormula.components.WritingFormulaCleanPanel.gen_c59ebd75")}</div>
+            <div className="text-base font-semibold text-slate-950">{i18next.t("gen.pages.writingFormula.components.WritingFormulaCleanPanel.gen_c59ebd75")}</div>
             <div className="text-sm leading-6 text-slate-500">
               粘贴你想检查的正文。建议一次给一段完整场景，这样更容易看出叙述腔、对白腔和解释腔的问题。
             </div>
@@ -82,7 +82,7 @@ export default function WritingFormulaCleanPanel(props: WritingFormulaCleanPanel
             data-writing-formula-detect-input
             autoFocus
             className="min-h-[220px] w-full rounded-md border p-3 text-sm"
-            placeholder={t("gen.pages.writingFormula.components.WritingFormulaCleanPanel.gen_2273a526")}
+            placeholder={i18next.t("gen.pages.writingFormula.components.WritingFormulaCleanPanel.gen_2273a526")}
             value={detectInput}
             onChange={(event) => onDetectInputChange(event.target.value)}
           />
@@ -99,7 +99,7 @@ export default function WritingFormulaCleanPanel(props: WritingFormulaCleanPanel
           {detectionReport ? (
             <div className="space-y-3 rounded-2xl border p-4 text-sm">
               <div className="space-y-1">
-                <div className="font-medium text-slate-900">{t("gen.pages.writingFormula.components.WritingFormulaCleanPanel.gen_5feae2d7")}</div>
+                <div className="font-medium text-slate-900">{i18next.t("gen.pages.writingFormula.components.WritingFormulaCleanPanel.gen_5feae2d7")}</div>
                 <div className="leading-6 text-slate-600">{detectionReport.summary}</div>
               </div>
               <div className="space-y-2">
@@ -122,7 +122,7 @@ export default function WritingFormulaCleanPanel(props: WritingFormulaCleanPanel
 
           {rewritePreview ? (
             <div className="space-y-2">
-              <div className="text-sm font-medium text-slate-900">{t("gen.pages.writingFormula.components.WritingFormulaCleanPanel.gen_1bc513b8")}</div>
+              <div className="text-sm font-medium text-slate-900">{i18next.t("gen.pages.writingFormula.components.WritingFormulaCleanPanel.gen_1bc513b8")}</div>
               <pre className="max-h-[320px] overflow-auto whitespace-pre-wrap rounded-xl border bg-muted/20 p-4 text-sm">
                 {rewritePreview}
               </pre>

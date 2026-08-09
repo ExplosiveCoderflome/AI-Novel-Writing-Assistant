@@ -131,7 +131,7 @@ export default function RuntimeSidebar({
   return (
     <Card className="sticky top-4 flex h-[calc(100vh-8rem)] flex-col border-slate-200 shadow-sm">
       <CardHeader className="border-b border-slate-200 pb-3">
-        <CardTitle className="text-base">{t("gen.pages.chat.components.RuntimeSidebar.gen_935d16e3")}</CardTitle>
+        <CardTitle className="text-base">{i18next.t("gen.pages.chat.components.RuntimeSidebar.gen_935d16e3")}</CardTitle>
       </CardHeader>
 
       <CardContent className="flex-1 space-y-3 overflow-y-auto p-3 text-sm">
@@ -160,33 +160,33 @@ export default function RuntimeSidebar({
         {activeTab === "console" ? (
           <div className="space-y-3">
             <div className="rounded-xl border border-slate-200 bg-white p-3">
-              <div className="mb-2 text-xs font-medium tracking-wide text-slate-500">{t("gen.pages.chat.components.RuntimeSidebar.sessionContext")}</div>
+              <div className="mb-2 text-xs font-medium tracking-wide text-slate-500">{i18next.t("gen.pages.chat.components.RuntimeSidebar.sessionContext")}</div>
               <div className="grid gap-2">
                 <div className="grid gap-1">
-                  <label className="text-[11px] text-slate-500">{t("gen.pages.chat.components.RuntimeSidebar.gen_64af497f")}</label>
+                  <label className="text-[11px] text-slate-500">{i18next.t("gen.pages.chat.components.RuntimeSidebar.gen_64af497f")}</label>
                   <SelectControl
                     className="w-full rounded-lg border border-slate-300 bg-white p-2"
                     value={chatMode}
                     onChange={(event) => onChatModeChange(event.target.value as ChatMode)}
                   >
-                    <option value="standard">{t("gen.pages.chat.components.RuntimeSidebar.gen_701a85d4")}</option>
-                    <option value="agent">{t("gen.pages.chat.components.RuntimeSidebar.gen_f5982ed1")}</option>
+                    <option value="standard">{i18next.t("gen.pages.chat.components.RuntimeSidebar.gen_701a85d4")}</option>
+                    <option value="agent">{i18next.t("gen.pages.chat.components.RuntimeSidebar.gen_f5982ed1")}</option>
                   </SelectControl>
                 </div>
                 <div className="grid gap-1">
-                  <label className="text-[11px] text-slate-500">{t("gen.pages.chat.components.RuntimeSidebar.contextMode")}</label>
+                  <label className="text-[11px] text-slate-500">{i18next.t("gen.pages.chat.components.RuntimeSidebar.contextMode")}</label>
                   <SelectControl
                     className="w-full rounded-lg border border-slate-300 bg-white p-2"
                     value={contextMode}
                     onChange={(event) => onContextModeChange(event.target.value as ContextMode)}
                   >
-                    <option value="global">{t("gen.pages.chat.components.RuntimeSidebar.gen_2be75b10")}</option>
-                    <option value="novel">{t("gen.pages.chat.components.RuntimeSidebar.gen_1fb52965")}</option>
+                    <option value="global">{i18next.t("gen.pages.chat.components.RuntimeSidebar.gen_2be75b10")}</option>
+                    <option value="novel">{i18next.t("gen.pages.chat.components.RuntimeSidebar.gen_1fb52965")}</option>
                   </SelectControl>
                 </div>
                 {runHistoryIds.length > 0 ? (
                   <div className="grid gap-1">
-                    <label className="text-[11px] text-slate-500">{t("gen.pages.chat.components.RuntimeSidebar.sessionRunning")}</label>
+                    <label className="text-[11px] text-slate-500">{i18next.t("gen.pages.chat.components.RuntimeSidebar.sessionRunning")}</label>
                     <SelectControl
                       className="w-full rounded-lg border border-slate-300 bg-white p-2"
                       value={currentRunId}
@@ -202,13 +202,13 @@ export default function RuntimeSidebar({
                 ) : null}
                 {contextMode === "novel" ? (
                   <div className="grid gap-1">
-                    <label className="text-[11px] text-slate-500">{t("gen.pages.chat.components.RuntimeSidebar.gen_1fb52965")}</label>
+                    <label className="text-[11px] text-slate-500">{i18next.t("gen.pages.chat.components.RuntimeSidebar.gen_1fb52965")}</label>
                     <SelectControl
                       className="w-full rounded-lg border border-slate-300 bg-white p-2"
                       value={novelId}
                       onChange={(event) => onNovelChange(event.target.value)}
                     >
-                      <option value="">{t("gen.pages.chat.components.RuntimeSidebar.gen_bb9d9811")}</option>
+                      <option value="">{i18next.t("gen.pages.chat.components.RuntimeSidebar.gen_bb9d9811")}</option>
                       {novels.map((novel) => (
                         <option key={novel.id} value={novel.id}>
                           {novel.title}
@@ -222,7 +222,7 @@ export default function RuntimeSidebar({
 
             <div className="rounded-xl border border-slate-200 bg-white p-3">
               <div className="mb-2 flex items-center justify-between">
-                <div className="text-xs font-medium tracking-wide text-slate-500">{t("gen.pages.chat.components.RuntimeSidebar.gen_0273ba5c")}</div>
+                <div className="text-xs font-medium tracking-wide text-slate-500">{i18next.t("gen.pages.chat.components.RuntimeSidebar.gen_0273ba5c")}</div>
                 {approvalCards.length > 0 ? (
                   <div className="rounded-full bg-amber-50 px-2 py-0.5 text-[11px] font-medium text-amber-700 ring-1 ring-amber-200">
                     {approvalCards.length} 项待处理
@@ -234,7 +234,7 @@ export default function RuntimeSidebar({
                 <div className="space-y-3">
                   {approvalCards.map((item, index) => (
                     <div key={item.approvalId} className="rounded-xl border border-amber-200 bg-amber-50/60 p-3">
-                      <div className="text-sm font-semibold text-slate-900">{t("gen.pages.chat.components.RuntimeSidebar.gen_81ebf25a")}</div>
+                      <div className="text-sm font-semibold text-slate-900">{i18next.t("gen.pages.chat.components.RuntimeSidebar.gen_81ebf25a")}</div>
                       <div className="mt-1 text-xs text-slate-500">{item.targetType}:{item.targetId}</div>
                       <div className="mt-2 rounded-lg bg-white p-2 text-sm text-slate-800">{item.summary}</div>
                     </div>
@@ -243,7 +243,7 @@ export default function RuntimeSidebar({
                     className="min-h-[88px] w-full rounded-lg border border-slate-300 bg-slate-50 p-2"
                     value={approvalNote}
                     onChange={(event) => onApprovalNoteChange(event.target.value)}
-                    placeholder={t("gen.pages.chat.components.RuntimeSidebar.gen_cd98d717")}
+                    placeholder={i18next.t("gen.pages.chat.components.RuntimeSidebar.gen_cd98d717")}
                   />
                   <div className="flex gap-2">
                     <Button size="sm" className="flex-1" onClick={() => onSubmitApproval("approve")} disabled={isStreaming}>
@@ -283,7 +283,7 @@ export default function RuntimeSidebar({
               </summary>
               <div className="space-y-3 border-t border-slate-200 p-3">
                 <div>
-                  <div className="mb-2 text-xs font-medium tracking-wide text-slate-500">{t("gen.pages.chat.components.RuntimeSidebar.gen_8000f187")}</div>
+                  <div className="mb-2 text-xs font-medium tracking-wide text-slate-500">{i18next.t("gen.pages.chat.components.RuntimeSidebar.gen_8000f187")}</div>
                   <div className="space-y-2">
                     <div className="rounded-lg bg-slate-50 px-2 py-1.5 text-xs">
                       <span className="text-slate-500">提供方: </span>
@@ -296,7 +296,7 @@ export default function RuntimeSidebar({
                   </div>
                   <div className="mt-3 space-y-2">
                     <div className="grid gap-1">
-                      <label className="text-[11px] text-slate-500">{t("gen.pages.chat.components.RuntimeSidebar.gen_c9bf0b88")}</label>
+                      <label className="text-[11px] text-slate-500">{i18next.t("gen.pages.chat.components.RuntimeSidebar.gen_c9bf0b88")}</label>
                       <input
                         type="number"
                         min={0}
@@ -308,7 +308,7 @@ export default function RuntimeSidebar({
                       />
                     </div>
                     <div className="grid gap-1">
-                      <label className="text-[11px] text-slate-500">{t("gen.pages.chat.components.RuntimeSidebar.gen_fe2528ff")}</label>
+                      <label className="text-[11px] text-slate-500">{i18next.t("gen.pages.chat.components.RuntimeSidebar.gen_fe2528ff")}</label>
                       <input
                         type="number"
                         min={128}
@@ -329,12 +329,12 @@ export default function RuntimeSidebar({
                 </div>
 
                 <div>
-                  <div className="mb-2 text-xs font-medium tracking-wide text-slate-500">{t("gen.pages.chat.components.RuntimeSidebar.gen_cbdb6bc9")}</div>
+                  <div className="mb-2 text-xs font-medium tracking-wide text-slate-500">{i18next.t("gen.pages.chat.components.RuntimeSidebar.gen_cbdb6bc9")}</div>
                   <textarea
                     className="min-h-[110px] w-full rounded-lg border border-slate-300 p-2"
                     value={systemPrompt}
                     onChange={(event) => onSystemPromptChange(event.target.value)}
-                    placeholder={t("gen.pages.chat.components.RuntimeSidebar.gen_69090181")}
+                    placeholder={i18next.t("gen.pages.chat.components.RuntimeSidebar.gen_69090181")}
                   />
                 </div>
 
@@ -350,10 +350,10 @@ export default function RuntimeSidebar({
                   <KnowledgeDocumentPicker
                     selectedIds={knowledgeDocumentIds}
                     onChange={onKnowledgeDocumentIdsChange}
-                    title={t("gen.pages.chat.components.RuntimeSidebar.gen_a597ef78")}
+                    title={i18next.t("gen.pages.chat.components.RuntimeSidebar.gen_a597ef78")}
                     description={enableRag
-                      ? t("gen.pages.chat.components.RuntimeSidebar.gen_b9f2158a")
-                      : t("gen.pages.chat.components.RuntimeSidebar.gen_RAG当前已禁用请先_qn49")}
+                      ? i18next.t("gen.pages.chat.components.RuntimeSidebar.gen_b9f2158a")
+                      : i18next.t("gen.pages.chat.components.RuntimeSidebar.gen_RAG当前已禁用请先_qn49")}
                     allowAuto
                     queryStatus="enabled"
                   />
@@ -365,7 +365,7 @@ export default function RuntimeSidebar({
           <div className="space-y-3">
             {replayableSteps.length > 0 ? (
               <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
-                <div className="text-xs font-medium text-slate-600">{t("gen.pages.chat.components.RuntimeSidebar.gen_1d4f1226")}</div>
+                <div className="text-xs font-medium text-slate-600">{i18next.t("gen.pages.chat.components.RuntimeSidebar.gen_1d4f1226")}</div>
                 <div className="mt-1 text-[11px] text-slate-500">
                   仅显示后续仍有工具调用的步骤。
                 </div>
@@ -419,19 +419,19 @@ export default function RuntimeSidebar({
                     </summary>
                     <div className="mt-2 space-y-2">
                       <div>
-                        <div className="mb-1 text-[11px] font-medium text-slate-500">{t("gen.pages.chat.components.RuntimeSidebar.gen_e47d59b1")}</div>
+                        <div className="mb-1 text-[11px] font-medium text-slate-500">{i18next.t("gen.pages.chat.components.RuntimeSidebar.gen_e47d59b1")}</div>
                         <pre className="overflow-auto whitespace-pre-wrap rounded-lg bg-white p-2">{safePreview(item.step.inputJson)}</pre>
                       </div>
                       <div>
-                        <div className="mb-1 text-[11px] font-medium text-slate-500">{t("gen.pages.chat.components.RuntimeSidebar.gen_8ba7c3a7")}</div>
+                        <div className="mb-1 text-[11px] font-medium text-slate-500">{i18next.t("gen.pages.chat.components.RuntimeSidebar.gen_8ba7c3a7")}</div>
                         <pre className="overflow-auto whitespace-pre-wrap rounded-lg bg-white p-2">{safePreview(item.step.outputJson)}</pre>
                       </div>
-                      {item.step.error ? <div className="text-red-600">{t("gen.pages.chat.components.RuntimeSidebar.gen_57328816")}</div> : null}
+                      {item.step.error ? <div className="text-red-600">{i18next.t("gen.pages.chat.components.RuntimeSidebar.gen_57328816")}</div> : null}
                     </div>
                   </details>
                 ) : (
                   <div key={item.key} className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-xs">
-                    <div className="mb-1 text-[11px] text-slate-400">{t("gen.pages.chat.components.RuntimeSidebar.eventNumber")}</div>
+                    <div className="mb-1 text-[11px] text-slate-400">{i18next.t("gen.pages.chat.components.RuntimeSidebar.eventNumber")}</div>
                     <div className="text-slate-700">{item.text}</div>
                   </div>
                 )

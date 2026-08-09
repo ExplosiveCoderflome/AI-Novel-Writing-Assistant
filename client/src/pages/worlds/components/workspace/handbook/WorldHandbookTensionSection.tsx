@@ -20,20 +20,20 @@ export default function WorldHandbookTensionSection(props: {
     <section className="rounded-md border p-4">
       <SectionHeader
         icon={GitBranch}
-        title={t("gen.pages.worlds.components.workspace.handbook.WorldHandbookTensionSection.gen_b7cadb8f")}
-        description={t("gen.pages.worlds.components.workspace.handbook.WorldHandbookTensionSection.gen_341fa0a6")}
+        title={i18next.t("gen.pages.worlds.components.workspace.handbook.WorldHandbookTensionSection.gen_b7cadb8f")}
+        description={i18next.t("gen.pages.worlds.components.workspace.handbook.WorldHandbookTensionSection.gen_341fa0a6")}
       />
       <div className="mt-4 grid gap-3 lg:grid-cols-2">
-        <HandbookField title={t("gen.pages.worlds.components.workspace.handbook.WorldHandbookTensionSection.worldCoreConflict")} hint={t("gen.pages.worlds.components.workspace.handbook.WorldHandbookTensionSection.gen_ef6e11f7")}>
+        <HandbookField title={i18next.t("gen.pages.worlds.components.workspace.handbook.WorldHandbookTensionSection.worldCoreConflict")} hint={i18next.t("gen.pages.worlds.components.workspace.handbook.WorldHandbookTensionSection.gen_ef6e11f7")}>
           <HandbookTextarea
             value={draftStructure.profile.coreConflict}
             onChange={(value) =>
               setDraftStructure((prev) => (prev ? { ...prev, profile: { ...prev.profile, coreConflict: value } } : prev))
             }
-            placeholder={t("gen.pages.worlds.components.workspace.handbook.WorldHandbookTensionSection.exampleResourcesDepletedOrderCollapsedTwoForceSystemsCompete")}
+            placeholder={i18next.t("gen.pages.worlds.components.workspace.handbook.WorldHandbookTensionSection.exampleResourcesDepletedOrderCollapsedTwoForceSystemsCompete")}
           />
         </HandbookField>
-        <HandbookField title={t("gen.pages.worlds.components.workspace.handbook.WorldHandbookTensionSection.gen_8ef6f2f5")} hint={t("gen.pages.worlds.components.workspace.handbook.WorldHandbookTensionSection.oneLinePolicy")}>
+        <HandbookField title={i18next.t("gen.pages.worlds.components.workspace.handbook.WorldHandbookTensionSection.gen_8ef6f2f5")} hint={i18next.t("gen.pages.worlds.components.workspace.handbook.WorldHandbookTensionSection.oneLinePolicy")}>
           <HandbookTextarea
             value={listToText(draftStructure.rules.sharedConsequences)}
             onChange={(value) =>
@@ -41,16 +41,16 @@ export default function WorldHandbookTensionSection(props: {
                 prev ? { ...prev, rules: { ...prev.rules, sharedConsequences: textToList(value) } } : prev,
               )
             }
-            placeholder={t("gen.pages.worlds.components.workspace.handbook.WorldHandbookTensionSection.gen_c46e3820")}
+            placeholder={i18next.t("gen.pages.worlds.components.workspace.handbook.WorldHandbookTensionSection.gen_c46e3820")}
           />
         </HandbookField>
-        <HandbookField title={t("gen.pages.worlds.components.workspace.handbook.WorldHandbookTensionSection.gen_9d4a3def")} hint={t("gen.pages.worlds.components.workspace.handbook.WorldHandbookTensionSection.oneLineRestrictions")}>
+        <HandbookField title={i18next.t("gen.pages.worlds.components.workspace.handbook.WorldHandbookTensionSection.gen_9d4a3def")} hint={i18next.t("gen.pages.worlds.components.workspace.handbook.WorldHandbookTensionSection.oneLineRestrictions")}>
           <HandbookTextarea
             value={listToText(draftStructure.rules.taboo)}
             onChange={(value) =>
               setDraftStructure((prev) => (prev ? { ...prev, rules: { ...prev.rules, taboo: textToList(value) } } : prev))
             }
-            placeholder={t("gen.pages.worlds.components.workspace.handbook.WorldHandbookTensionSection.gen_b1303b9e")}
+            placeholder={i18next.t("gen.pages.worlds.components.workspace.handbook.WorldHandbookTensionSection.gen_b1303b9e")}
           />
         </HandbookField>
         <div className="rounded-md border border-dashed p-3 text-sm leading-6 text-muted-foreground">

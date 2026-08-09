@@ -33,16 +33,16 @@ export interface AITakeoverContainerProps {
 function modeLabel(mode: AITakeoverMode): string {
   switch (mode) {
     case "loading":
-      return t("gen.components.workflow.AITakeoverContainer.gen_f013ea9d");
+      return i18next.t("gen.components.workflow.AITakeoverContainer.gen_f013ea9d");
     case "running":
-      return t("gen.components.workflow.AITakeoverContainer.aiTakingOver");
+      return i18next.t("gen.components.workflow.AITakeoverContainer.aiTakingOver");
     case "waiting":
-      return t("gen.components.workflow.AITakeoverContainer.gen_70f361ce");
+      return i18next.t("gen.components.workflow.AITakeoverContainer.gen_70f361ce");
     case "action_required":
-      return t("gen.components.workflow.AITakeoverContainer.gen_047109de");
+      return i18next.t("gen.components.workflow.AITakeoverContainer.gen_047109de");
     case "failed":
     default:
-      return t("gen.components.workflow.AITakeoverContainer.gen_b0d5b6f8");
+      return i18next.t("gen.components.workflow.AITakeoverContainer.gen_b0d5b6f8");
   }
 }
 
@@ -96,13 +96,13 @@ function progressTone(mode: AITakeoverMode): WorkflowProgressTone {
 function progressStatusLabel(mode: AITakeoverMode): string | null {
   switch (mode) {
     case "running":
-      return t("gen.components.workflow.AITakeoverContainer.gen_19f6e835");
+      return i18next.t("gen.components.workflow.AITakeoverContainer.gen_19f6e835");
     case "waiting":
-      return t("gen.components.workflow.AITakeoverContainer.gen_afa80d33");
+      return i18next.t("gen.components.workflow.AITakeoverContainer.gen_afa80d33");
     case "action_required":
-      return t("gen.components.workflow.AITakeoverContainer.gen_a98cfacb");
+      return i18next.t("gen.components.workflow.AITakeoverContainer.gen_a98cfacb");
     case "failed":
-      return t("gen.components.workflow.AITakeoverContainer.gen_e13531d7");
+      return i18next.t("gen.components.workflow.AITakeoverContainer.gen_e13531d7");
     default:
       return null;
   }
@@ -142,7 +142,7 @@ export default function AITakeoverContainer({
           <div className="flex flex-wrap items-center gap-2">
             <div className="text-lg font-semibold tracking-tight text-foreground">{title}</div>
             <Badge variant={badgeVariant(mode)}>{modeLabel(mode)}</Badge>
-            {taskId ? <Badge variant="outline">{t("gen.components.workflow.AITakeoverContainer.taskPrefix")}</Badge> : null}
+            {taskId ? <Badge variant="outline">{i18next.t("gen.components.workflow.AITakeoverContainer.taskPrefix")}</Badge> : null}
           </div>
           <div className="max-w-3xl text-sm leading-6 text-muted-foreground">{description}</div>
         </div>
@@ -174,7 +174,7 @@ export default function AITakeoverContainer({
                   <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-primary" />
                 </span>
               ) : null}
-              <span className="font-medium text-foreground">{t("gen.components.workflow.AITakeoverContainer.gen_10e501cd")}</span>
+              <span className="font-medium text-foreground">{i18next.t("gen.components.workflow.AITakeoverContainer.gen_10e501cd")}</span>
               {progressStatusLabel(mode) ? (
                 <span className="rounded-full bg-background/80 px-2 py-0.5 text-[11px] text-muted-foreground">
                   {progressStatusLabel(mode)}
@@ -199,7 +199,7 @@ export default function AITakeoverContainer({
             </div>
           ) : null}
           {checkpointLabel ? (
-            <div className="mt-2 text-xs text-muted-foreground">{t("gen.components.workflow.AITakeoverContainer.checkpointPrefix")}{checkpointLabel}</div>
+            <div className="mt-2 text-xs text-muted-foreground">{i18next.t("gen.components.workflow.AITakeoverContainer.checkpointPrefix")}{checkpointLabel}</div>
           ) : null}
           {taskId ? (
             <div className="mt-2 text-[11px] text-muted-foreground/70">运行编号 {taskId.slice(0, 8)}</div>

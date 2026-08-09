@@ -28,26 +28,26 @@ type DrawerTask = NonNullable<NovelTaskDrawerState["task"]>;
 
 function formatStatus(status: TaskStatus): string {
   if (status === "queued") {
-    return t("gen.pages.novels.components.NovelTaskDrawer.gen_e5ac1d20");
+    return i18next.t("gen.pages.novels.components.NovelTaskDrawer.gen_e5ac1d20");
   }
   if (status === "running") {
-    return t("gen.pages.novels.components.NovelTaskDrawer.gen_d679aea3");
+    return i18next.t("gen.pages.novels.components.NovelTaskDrawer.gen_d679aea3");
   }
   if (status === "waiting_approval") {
-    return t("gen.pages.novels.components.NovelTaskDrawer.gen_f6324c78");
+    return i18next.t("gen.pages.novels.components.NovelTaskDrawer.gen_f6324c78");
   }
   if (status === "succeeded") {
-    return t("gen.pages.novels.components.NovelTaskDrawer.gen_fad5222c");
+    return i18next.t("gen.pages.novels.components.NovelTaskDrawer.gen_fad5222c");
   }
   if (status === "failed") {
-    return t("gen.pages.novels.components.NovelTaskDrawer.gen_acd5cb84");
+    return i18next.t("gen.pages.novels.components.NovelTaskDrawer.gen_acd5cb84");
   }
-  return t("gen.pages.novels.components.NovelTaskDrawer.gen_2111ccbb");
+  return i18next.t("gen.pages.novels.components.NovelTaskDrawer.gen_2111ccbb");
 }
 
 function formatTaskStatus(task: DrawerTask): string {
   if (task.pendingManualRecovery) {
-    return t("gen.pages.novels.components.NovelTaskDrawer.gen_b0e31037");
+    return i18next.t("gen.pages.novels.components.NovelTaskDrawer.gen_b0e31037");
   }
   return formatStatus(task.status);
 }
@@ -73,21 +73,21 @@ function toTaskStatusVariant(task: DrawerTask): "default" | "outline" | "seconda
 }
 
 function formatCheckpoint(checkpoint: NovelWorkflowMilestoneType | null | undefined, scopeLabel?: string | null): string {
-  const resolvedScopeLabel = scopeLabel?.trim() || t("gen.pages.novels.components.NovelTaskDrawer.gen_dd4d6c1f");
+  const resolvedScopeLabel = scopeLabel?.trim() || i18next.t("gen.pages.novels.components.NovelTaskDrawer.gen_dd4d6c1f");
   if (checkpoint === "rewrite_snapshot_created") {
-    return t("gen.pages.novels.components.NovelTaskDrawer.gen_40c91bfe");
+    return i18next.t("gen.pages.novels.components.NovelTaskDrawer.gen_40c91bfe");
   }
   if (checkpoint === "candidate_selection_required") {
-    return t("gen.pages.novels.components.NovelTaskDrawer.gen_dbc67929");
+    return i18next.t("gen.pages.novels.components.NovelTaskDrawer.gen_dbc67929");
   }
   if (checkpoint === "book_contract_ready") {
-    return t("gen.pages.novels.components.NovelTaskDrawer.gen_BookContra_ppep");
+    return i18next.t("gen.pages.novels.components.NovelTaskDrawer.gen_BookContra_ppep");
   }
   if (checkpoint === "character_setup_required") {
-    return t("gen.pages.novels.components.NovelTaskDrawer.gen_67358797");
+    return i18next.t("gen.pages.novels.components.NovelTaskDrawer.gen_67358797");
   }
   if (checkpoint === "volume_strategy_ready") {
-    return t("gen.pages.novels.components.NovelTaskDrawer.gen_2282ccfa");
+    return i18next.t("gen.pages.novels.components.NovelTaskDrawer.gen_2282ccfa");
   }
   if (checkpoint === "production_experience_required") {
     return "已可开写，等待选择生产方式";
@@ -99,18 +99,18 @@ function formatCheckpoint(checkpoint: NovelWorkflowMilestoneType | null | undefi
     return "当前步骤待检查";
   }
   if (checkpoint === "workflow_completed") {
-    return t("gen.pages.novels.components.NovelTaskDrawer.mainProcessComplete");
+    return i18next.t("gen.pages.novels.components.NovelTaskDrawer.mainProcessComplete");
   }
-  return t("gen.pages.novels.components.NovelTaskDrawer.gen_f61f4cf6");
+  return i18next.t("gen.pages.novels.components.NovelTaskDrawer.gen_f61f4cf6");
 }
 
 function formatDate(value: string | null | undefined): string {
   if (!value) {
-    return t("gen.pages.novels.components.NovelTaskDrawer.gen_f61f4cf6");
+    return i18next.t("gen.pages.novels.components.NovelTaskDrawer.gen_f61f4cf6");
   }
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) {
-    return t("gen.pages.novels.components.NovelTaskDrawer.gen_f61f4cf6");
+    return i18next.t("gen.pages.novels.components.NovelTaskDrawer.gen_f61f4cf6");
   }
   return date.toLocaleString();
 }
@@ -121,32 +121,32 @@ function formatTokenCount(value: number | null | undefined): string {
 
 function formatStepStatus(status: "idle" | "running" | "succeeded" | "failed" | "cancelled"): string {
   if (status === "running") {
-    return t("gen.pages.novels.components.NovelTaskDrawer.gen_fb852fc6");
+    return i18next.t("gen.pages.novels.components.NovelTaskDrawer.gen_fb852fc6");
   }
   if (status === "succeeded") {
-    return t("gen.pages.novels.components.NovelTaskDrawer.gen_fad5222c");
+    return i18next.t("gen.pages.novels.components.NovelTaskDrawer.gen_fad5222c");
   }
   if (status === "failed") {
-    return t("gen.pages.novels.components.NovelTaskDrawer.gen_acd5cb84");
+    return i18next.t("gen.pages.novels.components.NovelTaskDrawer.gen_acd5cb84");
   }
   if (status === "cancelled") {
-    return t("gen.pages.novels.components.NovelTaskDrawer.gen_2111ccbb");
+    return i18next.t("gen.pages.novels.components.NovelTaskDrawer.gen_2111ccbb");
   }
-  return t("gen.pages.novels.components.NovelTaskDrawer.gen_047109de");
+  return i18next.t("gen.pages.novels.components.NovelTaskDrawer.gen_047109de");
 }
 
 function formatRiskLevel(riskLevel: CharacterResourceProposalSummary["riskLevel"]): string {
   if (riskLevel === "high") {
-    return t("gen.pages.novels.components.NovelTaskDrawer.gen_4433e710");
+    return i18next.t("gen.pages.novels.components.NovelTaskDrawer.gen_4433e710");
   }
   if (riskLevel === "medium") {
-    return t("gen.pages.novels.components.NovelTaskDrawer.gen_90ed1236");
+    return i18next.t("gen.pages.novels.components.NovelTaskDrawer.gen_90ed1236");
   }
-  return t("gen.pages.novels.components.NovelTaskDrawer.lowRisk");
+  return i18next.t("gen.pages.novels.components.NovelTaskDrawer.lowRisk");
 }
 
 function formatProposalSource(proposal: CharacterResourceProposalSummary): string {
-  return proposal.sourceType === "chapter_background_sync" ? t("gen.pages.novels.components.NovelTaskDrawer.gen_fe203861") : t("gen.pages.novels.components.NovelTaskDrawer.gen_0e7c9c97");
+  return proposal.sourceType === "chapter_background_sync" ? i18next.t("gen.pages.novels.components.NovelTaskDrawer.gen_fe203861") : i18next.t("gen.pages.novels.components.NovelTaskDrawer.gen_0e7c9c97");
 }
 
 function followUpActionVariant(action: AutoDirectorAction): "default" | "outline" {
@@ -155,12 +155,12 @@ function followUpActionVariant(action: AutoDirectorAction): "default" | "outline
 
 function formatFollowUpPriority(priority: "P0" | "P1" | "P2"): string {
   if (priority === "P0") {
-    return t("gen.pages.novels.components.NovelTaskDrawer.p0ProcessImmediately");
+    return i18next.t("gen.pages.novels.components.NovelTaskDrawer.p0ProcessImmediately");
   }
   if (priority === "P1") {
-    return t("gen.pages.novels.components.NovelTaskDrawer.p1ProcessSoon");
+    return i18next.t("gen.pages.novels.components.NovelTaskDrawer.p1ProcessSoon");
   }
-  return t("gen.pages.novels.components.NovelTaskDrawer.gen_P2稍后处理_z628");
+  return i18next.t("gen.pages.novels.components.NovelTaskDrawer.gen_P2稍后处理_z628");
 }
 
 function readProposalPayloadText(
@@ -187,7 +187,7 @@ function ResourceProposalCard(props: {
     confirmingProposalId = "",
     rejectingProposalId = "",
   } = props;
-  const resourceName = readProposalPayloadText(proposal, "resourceName") || t("gen.pages.novels.components.NovelTaskDrawer.gen_4360c49d");
+  const resourceName = readProposalPayloadText(proposal, "resourceName") || i18next.t("gen.pages.novels.components.NovelTaskDrawer.gen_4360c49d");
   const holderName = readProposalPayloadText(proposal, "holderCharacterName");
   const narrativeImpact = readProposalPayloadText(proposal, "narrativeImpact");
   const isConfirming = confirmingProposalId === proposal.id;
@@ -199,7 +199,7 @@ function ResourceProposalCard(props: {
         <div className="min-w-0 flex-1">
           <div className="text-sm font-medium text-foreground">{resourceName}</div>
           <div className="mt-1 text-xs leading-5 text-muted-foreground">
-            {holderName ? `${holderName}相关资源` : t("gen.pages.novels.components.NovelTaskDrawer.gen_80b3004c")}
+            {holderName ? `${holderName}相关资源` : i18next.t("gen.pages.novels.components.NovelTaskDrawer.gen_80b3004c")}
           </div>
         </div>
         <Badge variant={proposal.riskLevel === "high" ? "destructive" : "secondary"}>
@@ -213,14 +213,14 @@ function ResourceProposalCard(props: {
         </div>
       ) : null}
       {proposal.evidence[0] ? (
-        <div className="text-xs leading-5 text-muted-foreground">{t("gen.pages.novels.components.NovelTaskDrawer.evidencePrefix")}{proposal.evidence[0]}</div>
+        <div className="text-xs leading-5 text-muted-foreground">{i18next.t("gen.pages.novels.components.NovelTaskDrawer.evidencePrefix")}{proposal.evidence[0]}</div>
       ) : null}
       {proposal.validationNotes[0] ? (
-        <div className="text-xs leading-5 text-muted-foreground">{t("gen.pages.novels.components.NovelTaskDrawer.validationPrefix")}{proposal.validationNotes[0]}</div>
+        <div className="text-xs leading-5 text-muted-foreground">{i18next.t("gen.pages.novels.components.NovelTaskDrawer.validationPrefix")}{proposal.validationNotes[0]}</div>
       ) : null}
       <div className="flex flex-wrap items-center gap-2">
         <Badge variant="outline">{formatProposalSource(proposal)}</Badge>
-        {proposal.chapterId ? <Badge variant="outline">{t("gen.pages.novels.components.NovelTaskDrawer.gen_ca1e1b10")}</Badge> : null}
+        {proposal.chapterId ? <Badge variant="outline">{i18next.t("gen.pages.novels.components.NovelTaskDrawer.gen_ca1e1b10")}</Badge> : null}
       </div>
       <div className="flex flex-wrap gap-2">
         {proposal.chapterId ? (
@@ -234,7 +234,7 @@ function ResourceProposalCard(props: {
           onClick={() => onConfirm?.(proposal.id)}
           disabled={isConfirming || !onConfirm}
         >
-          {isConfirming ? t("gen.pages.novels.components.NovelTaskDrawer.gen_1fb26ee2") : t("gen.pages.novels.components.NovelTaskDrawer.gen_eee6f46f")}
+          {isConfirming ? i18next.t("gen.pages.novels.components.NovelTaskDrawer.gen_1fb26ee2") : i18next.t("gen.pages.novels.components.NovelTaskDrawer.gen_eee6f46f")}
         </Button>
         <Button
           type="button"
@@ -243,7 +243,7 @@ function ResourceProposalCard(props: {
           onClick={() => onReject?.(proposal.id)}
           disabled={isRejecting || !onReject}
         >
-          {isRejecting ? t("gen.pages.novels.components.NovelTaskDrawer.gen_2fb90b05") : t("gen.pages.novels.components.NovelTaskDrawer.gen_19c691f8")}
+          {isRejecting ? i18next.t("gen.pages.novels.components.NovelTaskDrawer.gen_2fb90b05") : i18next.t("gen.pages.novels.components.NovelTaskDrawer.gen_19c691f8")}
         </Button>
       </div>
     </div>
@@ -306,7 +306,7 @@ export default function NovelTaskDrawer({
     (primaryAction?.type === "continue" || primaryAction?.type === "auto_execute_range")
     && projection?.displayState === "needs_confirmation"
   )
-    ? t("gen.pages.novels.components.NovelTaskDrawer.gen_eca060fa")
+    ? i18next.t("gen.pages.novels.components.NovelTaskDrawer.gen_eca060fa")
     : primaryAction?.label;
   const runProjectedAction = (action: DirectorBookAutomationAction) => {
     const matchedAction = actions.find((item) => {
@@ -314,19 +314,19 @@ export default function NovelTaskDrawer({
         return true;
       }
       if (action.type === "continue") {
-        return item.label.includes(t("gen.pages.novels.components.NovelTaskDrawer.gen_27ca568b"));
+        return item.label.includes(i18next.t("gen.pages.novels.components.NovelTaskDrawer.gen_27ca568b"));
       }
       if (action.type === "auto_execute_range") {
-        return item.label.includes(t("gen.pages.novels.components.NovelTaskDrawer.gen_df39e421"));
+        return item.label.includes(i18next.t("gen.pages.novels.components.NovelTaskDrawer.gen_df39e421"));
       }
       if (action.type === "confirm_candidate") {
-        return item.label.includes(t("gen.pages.novels.components.NovelTaskDrawer.chapterDirection"));
+        return item.label.includes(i18next.t("gen.pages.novels.components.NovelTaskDrawer.chapterDirection"));
       }
       if (action.type === "open_quality_repair") {
-        return item.label.includes(t("gen.pages.novels.components.NovelTaskDrawer.gen_9b00f20b"));
+        return item.label.includes(i18next.t("gen.pages.novels.components.NovelTaskDrawer.gen_9b00f20b"));
       }
       if (action.type === "open_chapter") {
-        return item.label.includes(t("gen.pages.novels.components.NovelTaskDrawer.gen_663bbefc"));
+        return item.label.includes(i18next.t("gen.pages.novels.components.NovelTaskDrawer.gen_663bbefc"));
       }
       return false;
     });
@@ -348,7 +348,7 @@ export default function NovelTaskDrawer({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="left-auto right-0 top-0 flex h-dvh max-h-dvh w-full max-w-[520px] translate-x-0 translate-y-0 flex-col gap-0 rounded-none border-y-0 border-r-0 border-l bg-background p-0 sm:max-w-[520px]">
         <DialogHeader className="border-b border-border/70 px-5 py-4">
-          <DialogTitle>{t("gen.pages.novels.components.NovelTaskDrawer.gen_2eceed7d")}</DialogTitle>
+          <DialogTitle>{i18next.t("gen.pages.novels.components.NovelTaskDrawer.gen_2eceed7d")}</DialogTitle>
           <DialogDescription>
             查看本书 AI 推进记录、快捷处理动作和排查信息。
           </DialogDescription>
@@ -359,8 +359,8 @@ export default function NovelTaskDrawer({
             <AICockpit
               projection={projection}
               mode="focusedNovel"
-              fallbackSummary={dashboardView?.currentAction || displayState?.currentAction || task?.blockingReason || task?.currentItemLabel || t("gen.pages.novels.components.NovelTaskDrawer.gen_f867f208")}
-              fallbackStatusLabel={dashboardView?.statusLabel ?? (task ? formatTaskStatus(task) : t("gen.pages.novels.components.NovelTaskDrawer.gen_ea4a363d"))}
+              fallbackSummary={dashboardView?.currentAction || displayState?.currentAction || task?.blockingReason || task?.currentItemLabel || i18next.t("gen.pages.novels.components.NovelTaskDrawer.gen_f867f208")}
+              fallbackStatusLabel={dashboardView?.statusLabel ?? (task ? formatTaskStatus(task) : i18next.t("gen.pages.novels.components.NovelTaskDrawer.gen_ea4a363d"))}
               showDetailsAction={false}
               onAction={(_projection, action) => handleProjectionAction(action)}
             />
@@ -370,12 +370,12 @@ export default function NovelTaskDrawer({
             <section className="space-y-3 rounded-2xl border border-amber-300/60 bg-amber-50/40 p-4 dark:border-amber-700/50 dark:bg-amber-950/15">
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <div>
-                  <div className="text-sm font-medium text-foreground">{t("gen.pages.novels.components.NovelTaskDrawer.gen_4346160b")}</div>
+                  <div className="text-sm font-medium text-foreground">{i18next.t("gen.pages.novels.components.NovelTaskDrawer.gen_4346160b")}</div>
                   <div className="mt-1 text-xs leading-5 text-muted-foreground">
                     这些判断会影响后续章节能使用哪些关键资源。
                   </div>
                 </div>
-                 <Badge variant="secondary">{resourceProposals.length} {t("gen.pages.novels.components.NovelTaskDrawer.itemCountSuffix")}</Badge>
+                 <Badge variant="secondary">{resourceProposals.length} {i18next.t("gen.pages.novels.components.NovelTaskDrawer.itemCountSuffix")}</Badge>
               </div>
               <div className="space-y-2">
                 {resourceProposals.slice(0, 4).map((proposal) => (
@@ -404,23 +404,23 @@ export default function NovelTaskDrawer({
                 <div className="flex flex-wrap items-center gap-2">
                   <div className="text-base font-semibold text-foreground">{task.title}</div>
                   <Badge variant={toTaskStatusVariant(task)}>{formatTaskStatus(task)}</Badge>
-                  <Badge variant="outline">{t("gen.pages.novels.components.NovelTaskDrawer.progressPrefix")} {progressPercent}%</Badge>
+                  <Badge variant="outline">{i18next.t("gen.pages.novels.components.NovelTaskDrawer.progressPrefix")} {progressPercent}%</Badge>
                 </div>
                 <div className="grid gap-3 sm:grid-cols-2">
                   <div className="rounded-xl border bg-background/80 p-3">
-                    <div className="text-xs text-muted-foreground">{t("gen.pages.novels.components.NovelTaskDrawer.gen_ea328dc7")}</div>
+                    <div className="text-xs text-muted-foreground">{i18next.t("gen.pages.novels.components.NovelTaskDrawer.gen_ea328dc7")}</div>
                     <div className="mt-1 text-sm font-medium text-foreground">{dashboardView?.stageLabel ?? displayState?.stageLabel ?? task.currentStage ?? "暂无"}</div>
                   </div>
                   <div className="rounded-xl border bg-background/80 p-3">
-                    <div className="text-xs text-muted-foreground">{t("gen.pages.novels.components.NovelTaskDrawer.gen_b5e4737c")}</div>
+                    <div className="text-xs text-muted-foreground">{i18next.t("gen.pages.novels.components.NovelTaskDrawer.gen_b5e4737c")}</div>
                     <div className="mt-1 text-sm font-medium text-foreground">{dashboardView?.currentAction ?? displayState?.currentAction ?? task.currentItemLabel ?? "暂无"}</div>
                   </div>
                   <div className="rounded-xl border bg-background/80 p-3">
-                    <div className="text-xs text-muted-foreground">{t("gen.pages.novels.components.NovelTaskDrawer.gen_067d1583")}</div>
+                    <div className="text-xs text-muted-foreground">{i18next.t("gen.pages.novels.components.NovelTaskDrawer.gen_067d1583")}</div>
                     <div className="mt-1 text-sm font-medium text-foreground">{displayState?.checkpointLabel ?? formatCheckpoint(task.checkpointType, task.executionScopeLabel)}</div>
                   </div>
                   <div className="rounded-xl border bg-background/80 p-3">
-                    <div className="text-xs text-muted-foreground">{t("gen.pages.novels.components.NovelTaskDrawer.gen_9a36d2f3")}</div>
+                    <div className="text-xs text-muted-foreground">{i18next.t("gen.pages.novels.components.NovelTaskDrawer.gen_9a36d2f3")}</div>
                     <div className="mt-1 text-sm font-medium text-foreground">{formatDate(task.heartbeatAt)}</div>
                   </div>
                 </div>
@@ -434,10 +434,10 @@ export default function NovelTaskDrawer({
                 ) : null}
                 {task.lastError ? (
                   <div className="rounded-xl border border-destructive/30 bg-destructive/5 p-3 text-sm text-destructive">
-                    <div className="font-medium">{t("gen.pages.novels.components.NovelTaskDrawer.gen_a2b83df0")}</div>
+                    <div className="font-medium">{i18next.t("gen.pages.novels.components.NovelTaskDrawer.gen_a2b83df0")}</div>
                     <div className="mt-1">{task.lastError}</div>
                     {task.recoveryHint ? (
-                      <div className="mt-2 text-xs text-destructive/80">{t("gen.pages.novels.components.NovelTaskDrawer.recoveryHintPrefix")}{task.recoveryHint}</div>
+                      <div className="mt-2 text-xs text-destructive/80">{i18next.t("gen.pages.novels.components.NovelTaskDrawer.recoveryHintPrefix")}{task.recoveryHint}</div>
                     ) : null}
                   </div>
                 ) : null}
@@ -446,7 +446,7 @@ export default function NovelTaskDrawer({
               {canShowFollowUp && followUp ? (
                 <section className="space-y-3 rounded-2xl border border-primary/20 bg-primary/5 p-4">
                   <div className="flex flex-wrap items-center gap-2">
-                    <div className="text-sm font-medium text-foreground">{t("gen.pages.novels.components.NovelTaskDrawer.gen_0cc8fa93")}</div>
+                    <div className="text-sm font-medium text-foreground">{i18next.t("gen.pages.novels.components.NovelTaskDrawer.gen_0cc8fa93")}</div>
                     <Badge variant="outline">{followUp.reasonLabel}</Badge>
                     <Badge variant={followUp.priority === "P0" ? "destructive" : "secondary"}>
                       {formatFollowUpPriority(followUp.priority)}
@@ -454,10 +454,10 @@ export default function NovelTaskDrawer({
                   </div>
                   <div className="text-sm leading-6 text-muted-foreground">{followUp.followUpSummary}</div>
                    {followUp.blockingReason ? (
-                     <div className="text-sm text-muted-foreground">{t("gen.pages.novels.components.NovelTaskDrawer.blockingReasonPrefix")}{followUp.blockingReason}</div>
+                     <div className="text-sm text-muted-foreground">{i18next.t("gen.pages.novels.components.NovelTaskDrawer.blockingReasonPrefix")}{followUp.blockingReason}</div>
                    ) : null}
                    {followUp.currentModel ? (
-                     <div className="text-sm text-muted-foreground">{t("gen.pages.novels.components.NovelTaskDrawer.currentModelPrefix")}{followUp.currentModel}</div>
+                     <div className="text-sm text-muted-foreground">{i18next.t("gen.pages.novels.components.NovelTaskDrawer.currentModelPrefix")}{followUp.currentModel}</div>
                    ) : null}
                   {runtimeHardBlocked && runtimeBlockedReason ? (
                     <div className="rounded-xl border border-destructive/30 bg-destructive/5 p-3 text-sm text-destructive">
@@ -483,21 +483,21 @@ export default function NovelTaskDrawer({
 
               {canShowRuntimePolicy && task ? (
                 <section className="space-y-3">
-                  <div className="text-sm font-medium text-foreground">{t("gen.pages.novels.components.NovelTaskDrawer.gen_8cc5c30b")}</div>
+                  <div className="text-sm font-medium text-foreground">{i18next.t("gen.pages.novels.components.NovelTaskDrawer.gen_8cc5c30b")}</div>
                   <TaskCenterRuntimePolicyCard taskId={task.id} snapshot={runtimeSnapshot} />
                 </section>
               ) : null}
 
               {canShowManualImpact && task ? (
                 <section className="space-y-3">
-                  <div className="text-sm font-medium text-foreground">{t("gen.pages.novels.components.NovelTaskDrawer.gen_deafa76f")}</div>
+                  <div className="text-sm font-medium text-foreground">{i18next.t("gen.pages.novels.components.NovelTaskDrawer.gen_deafa76f")}</div>
                   <TaskCenterManualEditImpactCard task={task} />
                 </section>
               ) : null}
 
               {canShowRetryWithOverrideModel && overrideModel && onOverrideModelChange ? (
                 <section className="space-y-3 rounded-2xl border border-border/70 bg-muted/15 p-4">
-                  <div className="text-sm font-medium text-foreground">{t("gen.pages.novels.components.NovelTaskDrawer.gen_使用其他模型重试_rnjo")}</div>
+                  <div className="text-sm font-medium text-foreground">{i18next.t("gen.pages.novels.components.NovelTaskDrawer.gen_使用其他模型重试_rnjo")}</div>
                   <LLMSelector
                     value={overrideModel}
                     onChange={onOverrideModelChange}
@@ -512,7 +512,7 @@ export default function NovelTaskDrawer({
                       onClick={onRetryWithOverrideModel}
                       disabled={retryWithOverrideModelPending || !canRetryWithOverrideModel}
                     >
-                      {retryWithOverrideModelPending ? t("gen.pages.novels.components.NovelTaskDrawer.gen_a66c5c6d") : t("gen.pages.novels.components.NovelTaskDrawer.retrySelectedModel")}
+                      {retryWithOverrideModelPending ? i18next.t("gen.pages.novels.components.NovelTaskDrawer.gen_a66c5c6d") : i18next.t("gen.pages.novels.components.NovelTaskDrawer.retrySelectedModel")}
                     </Button>
                     {onRetryWithTaskModel ? (
                       <Button
@@ -522,7 +522,7 @@ export default function NovelTaskDrawer({
                         onClick={onRetryWithTaskModel}
                         disabled={retryWithTaskModelPending}
                       >
-                        {retryWithTaskModelPending ? t("gen.pages.novels.components.NovelTaskDrawer.gen_a66c5c6d") : t("gen.pages.novels.components.NovelTaskDrawer.gen_96fb9361")}
+                        {retryWithTaskModelPending ? i18next.t("gen.pages.novels.components.NovelTaskDrawer.gen_a66c5c6d") : i18next.t("gen.pages.novels.components.NovelTaskDrawer.gen_96fb9361")}
                       </Button>
                     ) : null}
                   </div>
@@ -530,7 +530,7 @@ export default function NovelTaskDrawer({
               ) : null}
 
               <section className="space-y-3">
-                <div className="text-sm font-medium text-foreground">{t("gen.pages.novels.components.NovelTaskDrawer.gen_ee2fff7a")}</div>
+                <div className="text-sm font-medium text-foreground">{i18next.t("gen.pages.novels.components.NovelTaskDrawer.gen_ee2fff7a")}</div>
                 {actions.length > 0 ? (
                   <div className="flex flex-wrap gap-2">
                     {actions.map((action) => (
@@ -554,16 +554,16 @@ export default function NovelTaskDrawer({
               </section>
 
               <section className="space-y-3">
-                <div className="text-sm font-medium text-foreground">{t("gen.pages.novels.components.NovelTaskDrawer.gen_c4d4c376")}</div>
+                <div className="text-sm font-medium text-foreground">{i18next.t("gen.pages.novels.components.NovelTaskDrawer.gen_c4d4c376")}</div>
                 <div className="grid gap-3 sm:grid-cols-2">
                   <div className="rounded-xl border bg-background/80 p-3">
-                    <div className="text-xs text-muted-foreground">{t("gen.pages.novels.components.NovelTaskDrawer.taskBindingModel")}</div>
+                    <div className="text-xs text-muted-foreground">{i18next.t("gen.pages.novels.components.NovelTaskDrawer.taskBindingModel")}</div>
                     <div className="mt-1 text-sm font-medium text-foreground">
-                      {task.provider ?? t("gen.pages.novels.components.NovelTaskDrawer.gen_f61f4cf6")} / {task.model ?? t("gen.pages.novels.components.NovelTaskDrawer.gen_f61f4cf6")}
+                      {task.provider ?? i18next.t("gen.pages.novels.components.NovelTaskDrawer.gen_f61f4cf6")} / {task.model ?? i18next.t("gen.pages.novels.components.NovelTaskDrawer.gen_f61f4cf6")}
                     </div>
                   </div>
                   <div className="rounded-xl border bg-background/80 p-3">
-                    <div className="text-xs text-muted-foreground">{t("gen.pages.novels.components.NovelTaskDrawer.gen_bfd5823d")}</div>
+                    <div className="text-xs text-muted-foreground">{i18next.t("gen.pages.novels.components.NovelTaskDrawer.gen_bfd5823d")}</div>
                     <div className="mt-1 text-sm font-medium text-foreground">
                       {currentUiModel.provider} / {currentUiModel.model}
                     </div>
@@ -575,23 +575,23 @@ export default function NovelTaskDrawer({
               </section>
 
               <section className="space-y-3">
-                <div className="text-sm font-medium text-foreground">{t("gen.pages.novels.components.NovelTaskDrawer.tokenStatistics")}</div>
+                <div className="text-sm font-medium text-foreground">{i18next.t("gen.pages.novels.components.NovelTaskDrawer.tokenStatistics")}</div>
                 {tokenUsage ? (
                   <div className="grid gap-3 sm:grid-cols-2">
                     <div className="rounded-xl border bg-background/80 p-3">
-                      <div className="text-xs text-muted-foreground">{t("gen.pages.novels.components.NovelTaskDrawer.gen_2398ac4d")}</div>
+                      <div className="text-xs text-muted-foreground">{i18next.t("gen.pages.novels.components.NovelTaskDrawer.gen_2398ac4d")}</div>
                       <div className="mt-1 text-sm font-medium text-foreground">{formatTokenCount(tokenUsage.llmCallCount)}</div>
                     </div>
                     <div className="rounded-xl border bg-background/80 p-3">
-                      <div className="text-xs text-muted-foreground">{t("gen.pages.novels.components.NovelTaskDrawer.gen_461f619e")}</div>
+                      <div className="text-xs text-muted-foreground">{i18next.t("gen.pages.novels.components.NovelTaskDrawer.gen_461f619e")}</div>
                       <div className="mt-1 text-sm font-medium text-foreground">{formatTokenCount(tokenUsage.totalTokens)}</div>
                     </div>
                     <div className="rounded-xl border bg-background/80 p-3">
-                      <div className="text-xs text-muted-foreground">{t("gen.pages.novels.components.NovelTaskDrawer.gen_5986a637")}</div>
+                      <div className="text-xs text-muted-foreground">{i18next.t("gen.pages.novels.components.NovelTaskDrawer.gen_5986a637")}</div>
                       <div className="mt-1 text-sm font-medium text-foreground">{formatTokenCount(tokenUsage.promptTokens)}</div>
                     </div>
                     <div className="rounded-xl border bg-background/80 p-3">
-                      <div className="text-xs text-muted-foreground">{t("gen.pages.novels.components.NovelTaskDrawer.gen_171cf50a")}</div>
+                      <div className="text-xs text-muted-foreground">{i18next.t("gen.pages.novels.components.NovelTaskDrawer.gen_171cf50a")}</div>
                       <div className="mt-1 text-sm font-medium text-foreground">{formatTokenCount(tokenUsage.completionTokens)}</div>
                       <div className="mt-1 text-xs text-muted-foreground">
                         最近记录：{formatDate(tokenUsage.lastRecordedAt)}
@@ -606,7 +606,7 @@ export default function NovelTaskDrawer({
               </section>
 
               <section className="space-y-3">
-                <div className="text-sm font-medium text-foreground">{t("gen.pages.novels.components.NovelTaskDrawer.gen_d96a7b07")}</div>
+                <div className="text-sm font-medium text-foreground">{i18next.t("gen.pages.novels.components.NovelTaskDrawer.gen_d96a7b07")}</div>
                 <div className="space-y-2">
                   {(displayState?.steps ?? task.steps).map((step) => (
                     <div key={step.key} className="flex items-center justify-between rounded-xl border bg-background/80 px-3 py-2">
@@ -626,7 +626,7 @@ export default function NovelTaskDrawer({
               </section>
 
               <section className="space-y-3">
-                <div className="text-sm font-medium text-foreground">{t("gen.pages.novels.components.NovelTaskDrawer.gen_8e910f68")}</div>
+                <div className="text-sm font-medium text-foreground">{i18next.t("gen.pages.novels.components.NovelTaskDrawer.gen_8e910f68")}</div>
                 {milestones.length > 0 ? (
                   <div className="space-y-2">
                     {milestones
@@ -636,7 +636,7 @@ export default function NovelTaskDrawer({
                         <div key={`${milestone.checkpointType}:${milestone.createdAt}`} className="rounded-xl border bg-background/80 p-3">
                           <div className="font-medium text-foreground">{formatCheckpoint(milestone.checkpointType)}</div>
                           <div className="mt-1 text-sm text-muted-foreground">{milestone.summary}</div>
-                           <div className="mt-2 text-xs text-muted-foreground">{t("gen.pages.novels.components.NovelTaskDrawer.createdAtPrefix")}{formatDate(milestone.createdAt)}</div>
+                           <div className="mt-2 text-xs text-muted-foreground">{i18next.t("gen.pages.novels.components.NovelTaskDrawer.createdAtPrefix")}{formatDate(milestone.createdAt)}</div>
                         </div>
                       ))}
                   </div>
@@ -657,12 +657,12 @@ export default function NovelTaskDrawer({
         <div className="space-y-2 border-t border-border/70 px-5 py-4">
           {primaryAction ? (
             <Button type="button" className="w-full" onClick={() => handleProjectionAction(primaryAction)}>
-              {primaryActionLabel || t("gen.pages.novels.components.NovelTaskDrawer.gen_a53fb331")}
+              {primaryActionLabel || i18next.t("gen.pages.novels.components.NovelTaskDrawer.gen_a53fb331")}
             </Button>
           ) : null}
           {task?.sourceRoute ? (
             <Button asChild type="button" variant="outline" className="w-full">
-              <Link to={task.sourceRoute}>{t("gen.pages.novels.components.NovelTaskDrawer.gen_492476d9")}</Link>
+              <Link to={task.sourceRoute}>{i18next.t("gen.pages.novels.components.NovelTaskDrawer.gen_492476d9")}</Link>
             </Button>
           ) : null}
           <Button type="button" variant={primaryAction ? "ghost" : "outline"} className="w-full" onClick={onOpenFullTaskCenter}>

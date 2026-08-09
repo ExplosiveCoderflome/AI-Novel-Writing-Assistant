@@ -276,11 +276,11 @@ export default function WorldWorkspace() {
     mutationFn: (worldId: string) => deleteWorld(worldId),
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: queryKeys.worlds.all });
-      toast.success(t("gen.pages.worlds.WorldWorkspace.worldSampleDeleted"));
+      toast.success(i18next.t("gen.pages.worlds.WorldWorkspace.worldSampleDeleted"));
       navigate("/worlds", { replace: true });
     },
     onError: (error) => {
-      toast.error(error instanceof Error ? error.message : t("gen.pages.worlds.WorldWorkspace.gen_99bf2197"));
+      toast.error(error instanceof Error ? error.message : i18next.t("gen.pages.worlds.WorldWorkspace.gen_99bf2197"));
     },
   });
 
@@ -308,7 +308,7 @@ export default function WorldWorkspace() {
     <div className="space-y-4">
       <Card>
         <CardHeader className="flex flex-row items-center justify-between">
-          <CardTitle>世界工作台：{world?.name ?? t("gen.pages.worlds.WorldWorkspace.gen_26b5bd49")} {world?.version ? `(v${world.version})` : ""}</CardTitle>
+          <CardTitle>世界工作台：{world?.name ?? i18next.t("gen.pages.worlds.WorldWorkspace.gen_26b5bd49")} {world?.version ? `(v${world.version})` : ""}</CardTitle>
           <div className="flex flex-wrap items-center justify-end gap-2">
             <LLMSelector />
             <Button
@@ -317,7 +317,7 @@ export default function WorldWorkspace() {
               onClick={handleDelete}
               disabled={!id || !world || deleteWorldMutation.isPending}
             >
-              {deleteWorldMutation.isPending ? t("gen.pages.worlds.WorldWorkspace.gen_09f2fb82") : t("gen.pages.worlds.WorldWorkspace.gen_4ffdc87d")}
+              {deleteWorldMutation.isPending ? i18next.t("gen.pages.worlds.WorldWorkspace.gen_09f2fb82") : i18next.t("gen.pages.worlds.WorldWorkspace.gen_4ffdc87d")}
             </Button>
           </div>
         </CardHeader>
@@ -334,12 +334,12 @@ export default function WorldWorkspace() {
         className="space-y-4"
       >
         <TabsList className="flex flex-wrap">
-          <TabsTrigger value="structure">{t("gen.pages.worlds.WorldWorkspace.gen_eea623bc")}</TabsTrigger>
-          <TabsTrigger value="overview">{t("gen.pages.worlds.WorldWorkspace.gen_2bbede65")}{featureFlags.worldVisEnabled ? `/${t("gen.pages.worlds.WorldWorkspace.worldVis")}` : ""}</TabsTrigger>
-          <TabsTrigger value="layers">{t("gen.pages.worlds.WorldWorkspace.gen_89b03150")}</TabsTrigger>
-          <TabsTrigger value="deepening">{t("gen.pages.worlds.WorldWorkspace.gen_7e7f0b6b")}</TabsTrigger>
-          <TabsTrigger value="consistency">{t("gen.pages.worlds.WorldWorkspace.gen_01a3a187")}</TabsTrigger>
-          <TabsTrigger value="assets">{t("gen.pages.worlds.WorldWorkspace.gen_e63dc6c9")}</TabsTrigger>
+          <TabsTrigger value="structure">{i18next.t("gen.pages.worlds.WorldWorkspace.gen_eea623bc")}</TabsTrigger>
+          <TabsTrigger value="overview">{i18next.t("gen.pages.worlds.WorldWorkspace.gen_2bbede65")}{featureFlags.worldVisEnabled ? `/${i18next.t("gen.pages.worlds.WorldWorkspace.worldVis")}` : ""}</TabsTrigger>
+          <TabsTrigger value="layers">{i18next.t("gen.pages.worlds.WorldWorkspace.gen_89b03150")}</TabsTrigger>
+          <TabsTrigger value="deepening">{i18next.t("gen.pages.worlds.WorldWorkspace.gen_7e7f0b6b")}</TabsTrigger>
+          <TabsTrigger value="consistency">{i18next.t("gen.pages.worlds.WorldWorkspace.gen_01a3a187")}</TabsTrigger>
+          <TabsTrigger value="assets">{i18next.t("gen.pages.worlds.WorldWorkspace.gen_e63dc6c9")}</TabsTrigger>
           <TabsTrigger value="sandbox">世界沙盒模拟</TabsTrigger>
         </TabsList>
 
@@ -393,7 +393,7 @@ export default function WorldWorkspace() {
             <>
               <Card>
                 <CardHeader className="flex flex-row items-center justify-between gap-3">
-                  <CardTitle>{t("gen.pages.worlds.WorldWorkspace.gen_6d58393f")}</CardTitle>
+                  <CardTitle>{i18next.t("gen.pages.worlds.WorldWorkspace.gen_6d58393f")}</CardTitle>
                   <Button variant="outline" size="sm" onClick={() => setAdvancedStructureOpen(false)}>
                     返回整理手册
                   </Button>

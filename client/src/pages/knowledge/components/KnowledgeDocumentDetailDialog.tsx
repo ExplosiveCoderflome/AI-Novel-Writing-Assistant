@@ -93,13 +93,13 @@ export default function KnowledgeDocumentDetailDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <AppDialogContent
         className="max-w-4xl"
-        title={document?.title ?? t("gen.pages.knowledge.components.KnowledgeDocumentDetailDialog.gen_043ec94a")}
+        title={document?.title ?? i18next.t("gen.pages.knowledge.components.KnowledgeDocumentDetailDialog.gen_043ec94a")}
         bodyClassName="min-w-0 space-y-4"
       >
           <div className="flex flex-wrap gap-2">
             {isArchived ? (
               <Button variant="outline" onClick={onRestoreDocument} disabled={restorePending}>
-                {restorePending ? t("gen.pages.knowledge.components.KnowledgeDocumentDetailDialog.gen_3baa9427") : t("gen.pages.knowledge.components.KnowledgeDocumentDetailDialog.gen_06dab430")}
+                {restorePending ? i18next.t("gen.pages.knowledge.components.KnowledgeDocumentDetailDialog.gen_3baa9427") : i18next.t("gen.pages.knowledge.components.KnowledgeDocumentDetailDialog.gen_06dab430")}
               </Button>
             ) : (
               <input
@@ -127,8 +127,8 @@ export default function KnowledgeDocumentDetailDialog({
           {document ? (
             <>
               <div className="flex flex-wrap items-center gap-2 text-sm">
-                <Badge variant="outline">{t("gen.pages.knowledge.components.KnowledgeDocumentDetailDialog.gen_acf22c2d")}</Badge>
-                <Badge variant="outline">{t("gen.pages.knowledge.components.KnowledgeDocumentDetailDialog.gen_ac20cfba")}</Badge>
+                <Badge variant="outline">{i18next.t("gen.pages.knowledge.components.KnowledgeDocumentDetailDialog.gen_acf22c2d")}</Badge>
+                <Badge variant="outline">{i18next.t("gen.pages.knowledge.components.KnowledgeDocumentDetailDialog.gen_ac20cfba")}</Badge>
               </div>
               {document.latestIndexStatus === "failed" && document.latestIndexError ? (
                 <div className="rounded-md border border-destructive/40 bg-destructive/5 p-3 text-sm text-destructive">
@@ -138,7 +138,7 @@ export default function KnowledgeDocumentDetailDialog({
 
               <Card>
                 <CardHeader>
-                  <CardTitle>{t("gen.pages.knowledge.components.KnowledgeDocumentDetailDialog.gen_2ed53cd2")}</CardTitle>
+                  <CardTitle>{i18next.t("gen.pages.knowledge.components.KnowledgeDocumentDetailDialog.gen_2ed53cd2")}</CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-3">
                   {isArchived ? (
@@ -151,13 +151,13 @@ export default function KnowledgeDocumentDetailDialog({
                         <Input
                           value={recallQuery}
                           onChange={(event) => onRecallQueryChange(event.target.value)}
-                          placeholder={t("gen.pages.knowledge.components.KnowledgeDocumentDetailDialog.gen_f3d5ff52")}
+                          placeholder={i18next.t("gen.pages.knowledge.components.KnowledgeDocumentDetailDialog.gen_f3d5ff52")}
                         />
                         <Button
                           onClick={onRecallTest}
                           disabled={recallPending || !selectedDocumentId || !recallQuery.trim()}
                         >
-                          {recallPending ? t("gen.pages.knowledge.components.KnowledgeDocumentDetailDialog.gen_6c501b52") : t("gen.pages.knowledge.components.KnowledgeDocumentDetailDialog.gen_3df85acb")}
+                          {recallPending ? i18next.t("gen.pages.knowledge.components.KnowledgeDocumentDetailDialog.gen_6c501b52") : i18next.t("gen.pages.knowledge.components.KnowledgeDocumentDetailDialog.gen_3df85acb")}
                         </Button>
                       </div>
                       <div className="text-xs text-muted-foreground">
@@ -177,9 +177,9 @@ export default function KnowledgeDocumentDetailDialog({
                               <div key={hit.id} className="min-w-0 max-w-full overflow-hidden rounded-md border p-3">
                                 <div className="flex flex-wrap items-center justify-between gap-2">
                                   <div className="min-w-0 break-all font-medium">
-                                    命中 {index + 1} | {hit.source === "reranked" ? t("gen.pages.knowledge.components.KnowledgeDocumentDetailDialog.gen_6ace83bd") : hit.source === "vector" ? t("gen.pages.knowledge.components.KnowledgeDocumentDetailDialog.gen_97005534") : t("gen.pages.knowledge.components.KnowledgeDocumentDetailDialog.gen_9699a50e")} | 分块 #{hit.chunkOrder + 1}
+                                    命中 {index + 1} | {hit.source === "reranked" ? i18next.t("gen.pages.knowledge.components.KnowledgeDocumentDetailDialog.gen_6ace83bd") : hit.source === "vector" ? i18next.t("gen.pages.knowledge.components.KnowledgeDocumentDetailDialog.gen_97005534") : i18next.t("gen.pages.knowledge.components.KnowledgeDocumentDetailDialog.gen_9699a50e")} | 分块 #{hit.chunkOrder + 1}
                                   </div>
-                                  <Badge variant="outline">{t("gen.pages.knowledge.components.KnowledgeDocumentDetailDialog.gen_a4c9b484")}</Badge>
+                                  <Badge variant="outline">{i18next.t("gen.pages.knowledge.components.KnowledgeDocumentDetailDialog.gen_a4c9b484")}</Badge>
                                 </div>
                                 {hit.title ? (
                                   <div className="mt-1 break-all text-xs text-muted-foreground">{hit.title}</div>
@@ -210,8 +210,8 @@ export default function KnowledgeDocumentDetailDialog({
                 {document.versions.map((version) => (
                   <div key={version.id} className="min-w-0 max-w-full overflow-hidden rounded-md border p-3">
                     <div className="flex flex-wrap items-center justify-between gap-2">
-                      <div className="font-medium">{t("gen.pages.knowledge.components.KnowledgeDocumentDetailDialog.gen_ac17cf8f")}</div>
-                      {version.isActive ? <Badge>{t("gen.pages.knowledge.components.KnowledgeDocumentDetailDialog.gen_6fceed52")}</Badge> : null}
+                      <div className="font-medium">{i18next.t("gen.pages.knowledge.components.KnowledgeDocumentDetailDialog.gen_ac17cf8f")}</div>
+                      {version.isActive ? <Badge>{i18next.t("gen.pages.knowledge.components.KnowledgeDocumentDetailDialog.gen_6fceed52")}</Badge> : null}
                     </div>
                     <div className="mt-1 text-xs text-muted-foreground">
                       字符数 {version.charCount} | {new Date(version.createdAt).toLocaleString()}

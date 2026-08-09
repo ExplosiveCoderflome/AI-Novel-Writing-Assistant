@@ -43,7 +43,7 @@ function ServerStartupScreen(props: {
         <div className="mx-auto flex size-12 items-center justify-center rounded-full border bg-muted/40">
           <LoaderCircle className="size-5 animate-spin text-primary" aria-hidden="true" />
         </div>
-        <h1 className="mt-5 text-xl font-semibold text-foreground">{t("gen.components.layout.ServerStartupGate.gen_da4a0654")}</h1>
+        <h1 className="mt-5 text-xl font-semibold text-foreground">{i18next.t("gen.components.layout.ServerStartupGate.gen_da4a0654")}</h1>
         <p className="mt-3 text-sm leading-6 text-muted-foreground">
           页面已准备好，系统会在服务可用后自动进入工作台。
         </p>

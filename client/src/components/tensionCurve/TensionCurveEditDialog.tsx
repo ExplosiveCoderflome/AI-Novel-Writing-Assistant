@@ -125,7 +125,7 @@ export function TensionCurveEditDialog(props: TensionCurveEditDialogProps) {
                   {referenceTemplate.label}参考
                 </span>
               ) : null}
-              {userAnchorCount > 0 ? <span>{t("gen.components.tensionCurve.TensionCurveEditDialog.gen_26e6c369")}</span> : <span>{t("gen.components.tensionCurve.TensionCurveEditDialog.gen_f193d3a1")}</span>}
+              {userAnchorCount > 0 ? <span>{i18next.t("gen.components.tensionCurve.TensionCurveEditDialog.gen_26e6c369")}</span> : <span>{i18next.t("gen.components.tensionCurve.TensionCurveEditDialog.gen_f193d3a1")}</span>}
             </div>
             <div className="flex flex-wrap items-center justify-end gap-2">
               {userAnchorCount > 0 ? (
@@ -161,11 +161,11 @@ export function TensionCurveEditDialog(props: TensionCurveEditDialogProps) {
               </div>
               {primaryPointCount > 1 ? (
                 <div className="flex items-center gap-2 rounded-md border border-border/70 px-2 py-1">
-                  <span className="text-xs text-muted-foreground">{t("gen.components.tensionCurve.TensionCurveEditDialog.gen_78e6e8fc")}</span>
+                  <span className="text-xs text-muted-foreground">{i18next.t("gen.components.tensionCurve.TensionCurveEditDialog.gen_78e6e8fc")}</span>
                   <Switch
                     checked={showReferenceCurve}
                     onCheckedChange={setShowReferenceCurve}
-                    aria-label={t("gen.components.tensionCurve.TensionCurveEditDialog.gen_fbd9193d")}
+                    aria-label={i18next.t("gen.components.tensionCurve.TensionCurveEditDialog.gen_fbd9193d")}
                     className="h-5 w-9"
                   />
                   {showReferenceCurve ? (
@@ -201,7 +201,7 @@ export function TensionCurveEditDialog(props: TensionCurveEditDialogProps) {
             />
 
             {canvasWidth > 900 ? (
-              <div className="text-xs text-muted-foreground">{t("gen.components.tensionCurve.TensionCurveEditDialog.gen_7848117c")}</div>
+              <div className="text-xs text-muted-foreground">{i18next.t("gen.components.tensionCurve.TensionCurveEditDialog.gen_7848117c")}</div>
             ) : null}
 
             <CompactLegend />

@@ -58,11 +58,11 @@ function parseImageData(
 }
 
 const REF_KIND_LABEL: Record<string, string> = {
-  character_sheet: t("gen.pages.comic.project.PanelsGridPanel.threeViews"),
-  character_expression: t("gen.pages.comic.project.PanelsGridPanel.gen_1a07c5a4"),
-  character_face: t("gen.pages.comic.project.PanelsGridPanel.gen_0a071b57"),
-  asset: t("gen.pages.comic.project.PanelsGridPanel.gen_5110a0d1"),
-  scene: t("gen.pages.comic.project.PanelsGridPanel.gen_c931653c"),
+  character_sheet: i18next.t("gen.pages.comic.project.PanelsGridPanel.threeViews"),
+  character_expression: i18next.t("gen.pages.comic.project.PanelsGridPanel.gen_1a07c5a4"),
+  character_face: i18next.t("gen.pages.comic.project.PanelsGridPanel.gen_0a071b57"),
+  asset: i18next.t("gen.pages.comic.project.PanelsGridPanel.gen_5110a0d1"),
+  scene: i18next.t("gen.pages.comic.project.PanelsGridPanel.gen_c931653c"),
 };
 
 const REF_KIND_COLOR: Record<string, string> = {
@@ -74,13 +74,13 @@ const REF_KIND_COLOR: Record<string, string> = {
 };
 
 const DENSITY_BADGE: Record<string, { label: string; className: string }> = {
-  low: { label: t("gen.pages.comic.project.PanelsGridPanel.lowDensity"), className: "border-emerald-200 bg-emerald-50 text-emerald-700" },
-  medium: { label: t("gen.pages.comic.project.PanelsGridPanel.mediumDensity"), className: "border-sky-200 bg-sky-50 text-sky-700" },
-  high: { label: t("gen.pages.comic.project.PanelsGridPanel.gen_f7dcc0ac"), className: "border-amber-200 bg-amber-50 text-amber-700" },
+  low: { label: i18next.t("gen.pages.comic.project.PanelsGridPanel.lowDensity"), className: "border-emerald-200 bg-emerald-50 text-emerald-700" },
+  medium: { label: i18next.t("gen.pages.comic.project.PanelsGridPanel.mediumDensity"), className: "border-sky-200 bg-sky-50 text-sky-700" },
+  high: { label: i18next.t("gen.pages.comic.project.PanelsGridPanel.gen_f7dcc0ac"), className: "border-amber-200 bg-amber-50 text-amber-700" },
 };
 
 function densityBadge(value: string | null | undefined): { label: string; className: string } {
-  return DENSITY_BADGE[value ?? ""] ?? { label: t("gen.pages.comic.project.PanelsGridPanel.gen_cb456b11"), className: "border-border bg-muted text-muted-foreground" };
+  return DENSITY_BADGE[value ?? ""] ?? { label: i18next.t("gen.pages.comic.project.PanelsGridPanel.gen_cb456b11"), className: "border-border bg-muted text-muted-foreground" };
 }
 
 function parseLayoutData(raw: string | null | undefined): {
@@ -177,7 +177,7 @@ function BatchBar({
           onClick={() => startMut.mutate()}
         >
           {isRunning ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Play className="h-3.5 w-3.5" />}
-          {isRunning ? t("gen.pages.comic.project.PanelsGridPanel.gen_f68f4817") : `批量生成 ${pendingCount > 0 ? `(${pendingCount}格)` : ""}`}
+          {isRunning ? i18next.t("gen.pages.comic.project.PanelsGridPanel.gen_f68f4817") : `批量生成 ${pendingCount > 0 ? `(${pendingCount}格)` : ""}`}
         </Button>
 
         {hasFailures && (
@@ -201,10 +201,10 @@ function BatchBar({
         )}
 
         {job?.status === "completed" && (
-          <span className="text-xs font-medium text-green-600 dark:text-green-400">{t("gen.pages.comic.project.PanelsGridPanel.gen_7eda596a")}</span>
+          <span className="text-xs font-medium text-green-600 dark:text-green-400">{i18next.t("gen.pages.comic.project.PanelsGridPanel.gen_7eda596a")}</span>
         )}
         {job?.status === "partial" && !hasFailures && (
-          <span className="text-xs font-medium text-amber-600 dark:text-amber-400">{t("gen.pages.comic.project.PanelsGridPanel.gen_963e0afb")}</span>
+          <span className="text-xs font-medium text-amber-600 dark:text-amber-400">{i18next.t("gen.pages.comic.project.PanelsGridPanel.gen_963e0afb")}</span>
         )}
       </div>
 
@@ -228,7 +228,7 @@ function BatchBar({
             <span>
               {progress.done} / {progress.total} 完成
               {progress.failed > 0 && (
-                <span className="ml-1.5 text-destructive">{t("gen.pages.comic.project.PanelsGridPanel.progressFailed")}</span>
+                <span className="ml-1.5 text-destructive">{i18next.t("gen.pages.comic.project.PanelsGridPanel.progressFailed")}</span>
               )}
             </span>
             <span>
@@ -479,7 +479,7 @@ function PanelDetailDialog({
     onSuccess: (updatedPanel) => {
       onSaved(updatedPanel);
       setIsEditing(false);
-      toast.success(t("gen.pages.comic.project.PanelsGridPanel.gen_c4a143ac"));
+      toast.success(i18next.t("gen.pages.comic.project.PanelsGridPanel.gen_c4a143ac"));
     },
     onError: (e) => toast.error(String(e)),
   });
@@ -500,7 +500,7 @@ function PanelDetailDialog({
     <Dialog open onOpenChange={(open) => { if (!open) onClose(); }}>
       <AppDialogContent
         title={`第 ${panel.order} 格 · ${panel.panelType}`}
-        description={t("gen.pages.comic.project.PanelsGridPanel.gen_2a07f258")}
+        description={i18next.t("gen.pages.comic.project.PanelsGridPanel.gen_2a07f258")}
         className="max-w-4xl"
         bodyClassName="p-0"
       >
@@ -623,7 +623,7 @@ function PanelDetailDialog({
           <div className="min-w-0 flex-1 space-y-4 p-4">
             <div>
               <div className="mb-1 flex flex-wrap items-center gap-2">
-                <span className="text-xs font-semibold text-muted-foreground">{t("gen.pages.comic.project.PanelsGridPanel.gen_bb47cf4a")}</span>
+                <span className="text-xs font-semibold text-muted-foreground">{i18next.t("gen.pages.comic.project.PanelsGridPanel.gen_bb47cf4a")}</span>
                 <span className={`rounded border px-2 py-0.5 text-[11px] ${density.className}`}>{density.label}</span>
               </div>
               <div className="rounded bg-muted px-2 py-1.5 text-sm">{panel.action}</div>
@@ -631,16 +631,16 @@ function PanelDetailDialog({
 
             {panel.focus && (
               <div>
-                <div className="mb-1 text-xs font-semibold text-muted-foreground">{t("gen.pages.comic.project.PanelsGridPanel.mainVisualFocus")}</div>
+                <div className="mb-1 text-xs font-semibold text-muted-foreground">{i18next.t("gen.pages.comic.project.PanelsGridPanel.mainVisualFocus")}</div>
                 <div className="rounded bg-muted/60 px-2 py-1.5 text-sm">{panel.focus}</div>
               </div>
             )}
 
             {layoutData.layout && (
               <div>
-                <div className="mb-1 text-xs font-semibold text-muted-foreground">{t("gen.pages.comic.project.PanelsGridPanel.gen_f573af34")}</div>
+                <div className="mb-1 text-xs font-semibold text-muted-foreground">{i18next.t("gen.pages.comic.project.PanelsGridPanel.gen_f573af34")}</div>
                 <div className="rounded border bg-muted/40 px-2 py-2 text-xs leading-relaxed text-muted-foreground">
-                  <div className="font-medium text-foreground">{t("gen.pages.comic.project.PanelsGridPanel.layoutType")}</div>
+                  <div className="font-medium text-foreground">{i18next.t("gen.pages.comic.project.PanelsGridPanel.layoutType")}</div>
                   {layoutData.subPanels?.length ? (
                     <div className="mt-1 space-y-1">
                       {layoutData.subPanels.map((subPanel) => (
@@ -656,7 +656,7 @@ function PanelDetailDialog({
 
             <div>
               <div className="mb-1 flex items-center justify-between gap-2">
-                <span className="text-xs font-semibold text-muted-foreground">{t("gen.pages.comic.project.PanelsGridPanel.gen_909b8275")}</span>
+                <span className="text-xs font-semibold text-muted-foreground">{i18next.t("gen.pages.comic.project.PanelsGridPanel.gen_909b8275")}</span>
                 <Button
                   type="button"
                   size="sm"
@@ -669,7 +669,7 @@ function PanelDetailDialog({
                   }}
                 >
                   <Pencil className="h-3 w-3" />
-                  {isEditing ? t("gen.pages.comic.project.PanelsGridPanel.gen_cbb46593") : t("gen.pages.comic.project.PanelsGridPanel.gen_95b351c8")}
+                  {isEditing ? i18next.t("gen.pages.comic.project.PanelsGridPanel.gen_cbb46593") : i18next.t("gen.pages.comic.project.PanelsGridPanel.gen_95b351c8")}
                 </Button>
               </div>
               <textarea
@@ -684,7 +684,7 @@ function PanelDetailDialog({
                 ].join(" ")}
               />
               <div className="mt-1 flex flex-wrap items-center justify-between gap-2 text-[11px] text-muted-foreground">
-                <span>{t("gen.pages.comic.project.PanelsGridPanel.savedThenNextImageGenerationWillUseThisSceneScript")}</span>
+                <span>{i18next.t("gen.pages.comic.project.PanelsGridPanel.savedThenNextImageGenerationWillUseThisSceneScript")}</span>
                 <span>{draftVisualPrompt.length}/400</span>
               </div>
               {isEditing && (
@@ -860,7 +860,7 @@ export function PanelsGridPanel({ projectId, provider }: { projectId: string; pr
           <div className="ml-auto flex rounded-md border bg-background p-0.5">
             <button
               type="button"
-              title={t("gen.pages.comic.project.PanelsGridPanel.gen_8fe0d275")}
+              title={i18next.t("gen.pages.comic.project.PanelsGridPanel.gen_8fe0d275")}
               className={`rounded p-1.5 transition-colors ${viewMode === "grid" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-muted"}`}
               onClick={() => setViewMode("grid")}
             >
@@ -868,7 +868,7 @@ export function PanelsGridPanel({ projectId, provider }: { projectId: string; pr
             </button>
             <button
               type="button"
-              title={t("gen.pages.comic.project.PanelsGridPanel.gen_afd428f9")}
+              title={i18next.t("gen.pages.comic.project.PanelsGridPanel.gen_afd428f9")}
               className={`rounded p-1.5 transition-colors ${viewMode === "strip" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-muted"}`}
               onClick={() => setViewMode("strip")}
             >
@@ -889,7 +889,7 @@ export function PanelsGridPanel({ projectId, provider }: { projectId: string; pr
         />
       )}
 
-      {panelsLoading && <div className="py-8 text-center text-sm text-muted-foreground">{t("gen.pages.comic.project.PanelsGridPanel.gen_26b5bd49")}</div>}
+      {panelsLoading && <div className="py-8 text-center text-sm text-muted-foreground">{i18next.t("gen.pages.comic.project.PanelsGridPanel.gen_26b5bd49")}</div>}
       {!panelsLoading && panels.length === 0 && activeEpisode && (
         <div className="py-8 text-center text-sm text-muted-foreground">
           该话尚无格子脚本，请先在「分话大纲」中生成分格脚本。

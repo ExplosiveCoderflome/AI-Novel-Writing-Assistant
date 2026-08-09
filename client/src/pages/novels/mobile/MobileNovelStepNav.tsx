@@ -23,7 +23,7 @@ export default function MobileNovelStepNav({
   const steps = [...NOVEL_WORKSPACE_FLOW_STEPS, ...NOVEL_WORKSPACE_TOOL_TABS];
 
   return (
-    <nav className="mobile-novel-step-nav -mx-4 flex gap-2 overflow-x-auto px-4 pb-1" aria-label={t("gen.pages.novels.mobile.MobileNovelStepNav.gen_2ddce323")}>
+    <nav className="mobile-novel-step-nav -mx-4 flex gap-2 overflow-x-auto px-4 pb-1" aria-label={i18next.t("gen.pages.novels.mobile.MobileNovelStepNav.gen_2ddce323")}>
       {steps.map((step, index) => {
         const isActive = activeTab === step.key;
         const isRecommended = workflowCurrentTab === step.key && workflowCurrentTab !== activeTab;

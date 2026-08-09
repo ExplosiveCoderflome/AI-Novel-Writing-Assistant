@@ -71,7 +71,7 @@ export default function MobileSiteShell({ children }: MobileSiteShellProps) {
               <DesktopBrandMark className="h-8 w-8 shrink-0 drop-shadow-none" />
               <div className="min-w-0 leading-tight">
                 <div className="flex min-w-0 items-center gap-1.5">
-                  <span className="min-w-0 truncate text-sm font-semibold">{t("gen.components.layout.mobile.MobileSiteShell.aiNovelStudioBoard")}</span>
+                  <span className="min-w-0 truncate text-sm font-semibold">{i18next.t("gen.components.layout.mobile.MobileSiteShell.aiNovelStudioBoard")}</span>
                   <AppVersionBadge />
                 </div>
                 <div className="truncate text-[11px] text-muted-foreground">{pageTitle}</div>
@@ -93,7 +93,7 @@ export default function MobileSiteShell({ children }: MobileSiteShellProps) {
               size="icon"
               className="h-8 w-8"
               onClick={() => setMoreOpen((current) => !current)}
-              aria-label={moreOpen ? t("gen.components.layout.mobile.MobileSiteShell.gen_6d7e3528") : t("gen.components.layout.mobile.MobileSiteShell.gen_5e1c0faa")}
+              aria-label={moreOpen ? i18next.t("gen.components.layout.mobile.MobileSiteShell.gen_6d7e3528") : i18next.t("gen.components.layout.mobile.MobileSiteShell.gen_5e1c0faa")}
             >
               {moreOpen ? <X className="h-4 w-4" /> : <LayoutGrid className="h-4 w-4" />}
             </Button>
@@ -121,8 +121,8 @@ export default function MobileSiteShell({ children }: MobileSiteShellProps) {
           <div className="max-h-full overflow-y-auto rounded-3xl border bg-background p-4 shadow-2xl">
             <div className="mb-3 flex items-center justify-between gap-2">
               <div>
-                <div className="text-base font-semibold">{t("gen.components.layout.mobile.MobileSiteShell.gen_b9d4b8b3")}</div>
-                <div className="text-xs text-muted-foreground">{t("gen.components.layout.mobile.MobileSiteShell.gen_2ecc2907")}</div>
+                <div className="text-base font-semibold">{i18next.t("gen.components.layout.mobile.MobileSiteShell.gen_b9d4b8b3")}</div>
+                <div className="text-xs text-muted-foreground">{i18next.t("gen.components.layout.mobile.MobileSiteShell.gen_2ecc2907")}</div>
               </div>
               <Button type="button" variant="ghost" size="icon" onClick={() => setMoreOpen(false)}>
                 <X className="h-4 w-4" />

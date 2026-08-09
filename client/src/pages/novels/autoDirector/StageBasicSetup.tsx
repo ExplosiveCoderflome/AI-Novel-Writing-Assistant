@@ -43,7 +43,7 @@ export default function StageBasicSetup({
     <section className="mx-auto w-full max-w-5xl space-y-7 py-4">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div>
-          <div className="text-2xl font-semibold tracking-normal text-foreground">{t("gen.pages.novels.autoDirector.StageBasicSetup.gen_094ca830")}</div>
+          <div className="text-2xl font-semibold tracking-normal text-foreground">{i18next.t("gen.pages.novels.autoDirector.StageBasicSetup.gen_094ca830")}</div>
           <div className={`mt-2 max-w-2xl text-sm leading-6 text-muted-foreground ${AUTO_DIRECTOR_MOBILE_CLASSES.wrapText}`}>
             这里只确认影响整本书阅读感的基础参数。不确定时保持默认，AI 会继续根据你的起始想法判断。
           </div>
@@ -55,7 +55,7 @@ export default function StageBasicSetup({
 
       <div className="grid gap-x-8 gap-y-6 md:grid-cols-2">
         <div className="space-y-2">
-          <FieldLabel htmlFor="director-basic-reader-channel" hint={BASIC_INFO_FIELD_HINTS.readerChannelPreference}>{t("gen.pages.novels.autoDirector.StageBasicSetup.gen_988f6935")}</FieldLabel>
+          <FieldLabel htmlFor="director-basic-reader-channel" hint={BASIC_INFO_FIELD_HINTS.readerChannelPreference}>{i18next.t("gen.pages.novels.autoDirector.StageBasicSetup.gen_988f6935")}</FieldLabel>
           <SelectControl
             id="director-basic-reader-channel"
             className={controlClassName}
@@ -74,7 +74,7 @@ export default function StageBasicSetup({
         </div>
 
         <div className="space-y-2">
-          <FieldLabel htmlFor="director-basic-pov" hint={BASIC_INFO_FIELD_HINTS.narrativePov}>{t("gen.pages.novels.autoDirector.StageBasicSetup.gen_15dd65d3")}</FieldLabel>
+          <FieldLabel htmlFor="director-basic-pov" hint={BASIC_INFO_FIELD_HINTS.narrativePov}>{i18next.t("gen.pages.novels.autoDirector.StageBasicSetup.gen_15dd65d3")}</FieldLabel>
           <SelectControl
             id="director-basic-pov"
             className={controlClassName}
@@ -93,7 +93,7 @@ export default function StageBasicSetup({
         </div>
 
         <div className="space-y-2">
-          <FieldLabel htmlFor="director-basic-pace" hint={BASIC_INFO_FIELD_HINTS.pacePreference}>{t("gen.pages.novels.autoDirector.StageBasicSetup.gen_d9dab569")}</FieldLabel>
+          <FieldLabel htmlFor="director-basic-pace" hint={BASIC_INFO_FIELD_HINTS.pacePreference}>{i18next.t("gen.pages.novels.autoDirector.StageBasicSetup.gen_d9dab569")}</FieldLabel>
           <SelectControl
             id="director-basic-pace"
             className={controlClassName}
@@ -112,7 +112,7 @@ export default function StageBasicSetup({
         </div>
 
         <div className="space-y-2">
-          <FieldLabel htmlFor="director-basic-emotion" hint={BASIC_INFO_FIELD_HINTS.emotionIntensity}>{t("gen.pages.novels.autoDirector.StageBasicSetup.gen_7c4d3215")}</FieldLabel>
+          <FieldLabel htmlFor="director-basic-emotion" hint={BASIC_INFO_FIELD_HINTS.emotionIntensity}>{i18next.t("gen.pages.novels.autoDirector.StageBasicSetup.gen_7c4d3215")}</FieldLabel>
           <SelectControl
             id="director-basic-emotion"
             className={controlClassName}
@@ -131,7 +131,7 @@ export default function StageBasicSetup({
         </div>
 
         <div className="space-y-2">
-          <FieldLabel htmlFor="director-basic-estimated" hint={BASIC_INFO_FIELD_HINTS.estimatedChapterCount}>{t("gen.pages.novels.autoDirector.StageBasicSetup.gen_c8ac2fad")}</FieldLabel>
+          <FieldLabel htmlFor="director-basic-estimated" hint={BASIC_INFO_FIELD_HINTS.estimatedChapterCount}>{i18next.t("gen.pages.novels.autoDirector.StageBasicSetup.gen_c8ac2fad")}</FieldLabel>
           <Input
             id="director-basic-estimated"
             type="number"
@@ -160,7 +160,7 @@ export default function StageBasicSetup({
       <details className="group pt-2">
         <summary className="cursor-pointer list-none">
           <div>
-            <div className="text-base font-semibold text-foreground">{t("gen.pages.novels.autoDirector.StageBasicSetup.gen_976a1cb1")}</div>
+            <div className="text-base font-semibold text-foreground">{i18next.t("gen.pages.novels.autoDirector.StageBasicSetup.gen_976a1cb1")}</div>
             <div className={`mt-1 max-w-3xl text-sm leading-6 text-muted-foreground ${AUTO_DIRECTOR_MOBILE_CLASSES.wrapText}`}>
               不确定可以先跳过。补充后，AI 会更清楚这本书写给谁、前 30 章要给读者什么。
             </div>
@@ -185,7 +185,7 @@ export default function StageBasicSetup({
               id="director-basic-target-audience"
               className={controlClassName}
               value={basicForm.targetAudience}
-              placeholder={t("gen.pages.novels.autoDirector.StageBasicSetup.exampleReadersWhoLoveUrbanPressureReverseRelationshipAndContinuedChasingNewHooks")}
+              placeholder={i18next.t("gen.pages.novels.autoDirector.StageBasicSetup.exampleReadersWhoLoveUrbanPressureReverseRelationshipAndContinuedChasingNewHooks")}
               onChange={(event) => onBasicFormChange({ targetAudience: event.target.value })}
             />
           </div>
@@ -198,7 +198,7 @@ export default function StageBasicSetup({
               id="director-basic-commercial-tags"
               className={controlClassName}
               value={basicForm.commercialTagsText}
-              placeholder={t("gen.pages.novels.autoDirector.StageBasicSetup.exampleRevengeStrongConflictTensionedNegotiationOfficeRivalry")}
+              placeholder={i18next.t("gen.pages.novels.autoDirector.StageBasicSetup.exampleRevengeStrongConflictTensionedNegotiationOfficeRivalry")}
               onChange={(event) => onBasicFormChange({ commercialTagsText: event.target.value })}
             />
           </div>
@@ -211,7 +211,7 @@ export default function StageBasicSetup({
               id="director-basic-competing-feel"
               className={controlClassName}
               value={basicForm.competingFeel}
-              placeholder={t("gen.pages.novels.autoDirector.StageBasicSetup.exampleRealityWorkplacePressureWithSlightColdHumorAndHighDensityRelationshipTug")}
+              placeholder={i18next.t("gen.pages.novels.autoDirector.StageBasicSetup.exampleRealityWorkplacePressureWithSlightColdHumorAndHighDensityRelationshipTug")}
               onChange={(event) => onBasicFormChange({ competingFeel: event.target.value })}
             />
           </div>
@@ -225,7 +225,7 @@ export default function StageBasicSetup({
               rows={3}
               className={`${controlClassName} min-h-[96px] resize-y`}
               value={basicForm.bookSellingPoint}
-              placeholder={t("gen.pages.novels.autoDirector.StageBasicSetup.exampleMainTriggerBiggerRelationshipAndInterestLadderReaderExpectPressure")}
+              placeholder={i18next.t("gen.pages.novels.autoDirector.StageBasicSetup.exampleMainTriggerBiggerRelationshipAndInterestLadderReaderExpectPressure")}
               onChange={(event) => onBasicFormChange({ bookSellingPoint: event.target.value })}
             />
           </div>
@@ -240,15 +240,15 @@ export default function StageBasicSetup({
             rows={4}
             className={`${controlClassName} min-h-[120px] resize-y`}
             value={basicForm.first30ChapterPromise}
-            placeholder={t("gen.pages.novels.autoDirector.StageBasicSetup.exampleFirst30ChaptersEstablishMainStanceCoreOpponentRelationshipReverseCliffHanger")}
+            placeholder={i18next.t("gen.pages.novels.autoDirector.StageBasicSetup.exampleFirst30ChaptersEstablishMainStanceCoreOpponentRelationshipReverseCliffHanger")}
             onChange={(event) => onBasicFormChange({ first30ChapterPromise: event.target.value })}
           />
         </div>
       </details>
 
       <div className="flex flex-col gap-2 pt-2 sm:flex-row sm:justify-between">
-        <Button type="button" variant="ghost" onClick={onBack}>{t("gen.pages.novels.autoDirector.StageBasicSetup.gen_17301063")}</Button>
-        <Button type="button" onClick={onConfirm}>{t("gen.pages.novels.autoDirector.StageBasicSetup.gen_35fa1889")}</Button>
+        <Button type="button" variant="ghost" onClick={onBack}>{i18next.t("gen.pages.novels.autoDirector.StageBasicSetup.gen_17301063")}</Button>
+        <Button type="button" onClick={onConfirm}>{i18next.t("gen.pages.novels.autoDirector.StageBasicSetup.gen_35fa1889")}</Button>
       </div>
     </section>
   );

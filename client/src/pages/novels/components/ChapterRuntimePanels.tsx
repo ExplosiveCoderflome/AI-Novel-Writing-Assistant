@@ -121,11 +121,11 @@ function buildTriggerLabel(triggerType: string): string {
 function buildWordControlModeLabel(mode: "prompt_only" | "balanced" | "hybrid" | string): string {
   switch (mode) {
     case "prompt_only":
-      return t("gen.pages.novels.components.ChapterRuntimePanels.gen_e25414a2");
+      return i18next.t("gen.pages.novels.components.ChapterRuntimePanels.gen_e25414a2");
     case "balanced":
-      return t("gen.pages.novels.components.ChapterRuntimePanels.gen_332305cd");
+      return i18next.t("gen.pages.novels.components.ChapterRuntimePanels.gen_332305cd");
     case "hybrid":
-      return t("gen.pages.novels.components.ChapterRuntimePanels.gen_d15aa8f4");
+      return i18next.t("gen.pages.novels.components.ChapterRuntimePanels.gen_d15aa8f4");
     default:
       return mode;
   }
@@ -150,32 +150,32 @@ export function ChapterRuntimeLengthCard(props: {
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="text-base">{t("gen.pages.novels.components.ChapterRuntimePanels.gen_7468e57c")}</CardTitle>
+        <CardTitle className="text-base">{i18next.t("gen.pages.novels.components.ChapterRuntimePanels.gen_7468e57c")}</CardTitle>
       </CardHeader>
       <CardContent className="space-y-3 text-sm">
         {lengthControl ? (
           <>
             <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
               <div className="rounded-md border p-3">
-                <div className="text-xs text-muted-foreground">{t("gen.pages.novels.components.ChapterRuntimePanels.gen_07b417d5")}</div>
+                <div className="text-xs text-muted-foreground">{i18next.t("gen.pages.novels.components.ChapterRuntimePanels.gen_07b417d5")}</div>
                 <div className="mt-1 font-medium">{buildWordControlModeLabel(lengthControl.wordControlMode)}</div>
                 <div className="mt-1 text-xs text-muted-foreground">
-                  {lengthControl.closingPhaseTriggered ? t("gen.pages.novels.components.ChapterRuntimePanels.gen_24dbd07a") : t("gen.pages.novels.components.ChapterRuntimePanels.stillFollowRegularProcess")}
+                  {lengthControl.closingPhaseTriggered ? i18next.t("gen.pages.novels.components.ChapterRuntimePanels.gen_24dbd07a") : i18next.t("gen.pages.novels.components.ChapterRuntimePanels.stillFollowRegularProcess")}
                 </div>
               </div>
               <div className="rounded-md border p-3">
-                <div className="text-xs text-muted-foreground">{t("gen.pages.novels.components.ChapterRuntimePanels.gen_b8a39733")}</div>
-                <div className="mt-1 font-medium">{t("gen.pages.novels.components.ChapterRuntimePanels.lengthRatio")}</div>
-                <div className="mt-1 text-xs text-muted-foreground">{t("gen.pages.novels.components.ChapterRuntimePanels.gen_c1228fc9")}</div>
+                <div className="text-xs text-muted-foreground">{i18next.t("gen.pages.novels.components.ChapterRuntimePanels.gen_b8a39733")}</div>
+                <div className="mt-1 font-medium">{i18next.t("gen.pages.novels.components.ChapterRuntimePanels.lengthRatio")}</div>
+                <div className="mt-1 text-xs text-muted-foreground">{i18next.t("gen.pages.novels.components.ChapterRuntimePanels.gen_c1228fc9")}</div>
               </div>
               <div className="rounded-md border p-3">
-                <div className="text-xs text-muted-foreground">{t("gen.pages.novels.components.ChapterRuntimePanels.gen_58e59c31")}</div>
-                <div className="mt-1 font-medium">{t("gen.pages.novels.components.ChapterRuntimePanels.lengthRange")}</div>
-                <div className="mt-1 text-xs text-muted-foreground">{t("gen.pages.novels.components.ChapterRuntimePanels.gen_187d0794")}</div>
+                <div className="text-xs text-muted-foreground">{i18next.t("gen.pages.novels.components.ChapterRuntimePanels.gen_58e59c31")}</div>
+                <div className="mt-1 font-medium">{i18next.t("gen.pages.novels.components.ChapterRuntimePanels.lengthRange")}</div>
+                <div className="mt-1 text-xs text-muted-foreground">{i18next.t("gen.pages.novels.components.ChapterRuntimePanels.gen_187d0794")}</div>
               </div>
               <div className="rounded-md border p-3">
-                <div className="text-xs text-muted-foreground">{t("gen.pages.novels.components.ChapterRuntimePanels.gen_d02cc836")}</div>
-                <div className="mt-1 font-medium">{t("gen.pages.novels.components.ChapterRuntimePanels.gen_ffca3f0a")}</div>
+                <div className="text-xs text-muted-foreground">{i18next.t("gen.pages.novels.components.ChapterRuntimePanels.gen_d02cc836")}</div>
+                <div className="mt-1 font-medium">{i18next.t("gen.pages.novels.components.ChapterRuntimePanels.gen_ffca3f0a")}</div>
                 <div className="mt-1 text-xs text-muted-foreground">
                   scene {lengthControl.generatedSceneCount}/{lengthControl.plannedSceneCount}
                 </div>
@@ -183,14 +183,14 @@ export function ChapterRuntimeLengthCard(props: {
             </div>
 
             <div className="rounded-md border p-3 text-xs text-muted-foreground">
-              <div className="font-medium text-foreground">{t("gen.pages.novels.components.ChapterRuntimePanels.gen_9af82857")}</div>
+              <div className="font-medium text-foreground">{i18next.t("gen.pages.novels.components.ChapterRuntimePanels.gen_9af82857")}</div>
               <div className="mt-1">
                 {lengthControl.lengthRepairPath.length > 0
                   ? lengthControl.lengthRepairPath.join(" -> ")
-                  : t("gen.pages.novels.components.ChapterRuntimePanels.gen_ac4b5851")}
+                  : i18next.t("gen.pages.novels.components.ChapterRuntimePanels.gen_ac4b5851")}
               </div>
               <div className="mt-1">
-                {lengthControl.overlengthRepairApplied ? t("gen.pages.novels.components.ChapterRuntimePanels.gen_f576035b") : t("gen.pages.novels.components.ChapterRuntimePanels.gen_a507510d")}
+                {lengthControl.overlengthRepairApplied ? i18next.t("gen.pages.novels.components.ChapterRuntimePanels.gen_f576035b") : i18next.t("gen.pages.novels.components.ChapterRuntimePanels.gen_a507510d")}
               </div>
             </div>
 
@@ -200,22 +200,22 @@ export function ChapterRuntimeLengthCard(props: {
                   <div key={`${scene.sceneIndex}-${index}`} className="rounded-md border p-3 text-xs">
                     <div className="flex flex-wrap items-center gap-2">
                       <Badge variant="outline">Scene {scene.sceneIndex}</Badge>
-                      <Badge variant="secondary">{t("gen.pages.novels.components.ChapterRuntimePanels.actualWordCount")}</Badge>
+                      <Badge variant="secondary">{i18next.t("gen.pages.novels.components.ChapterRuntimePanels.actualWordCount")}</Badge>
                       <Badge variant="outline">{buildWordControlModeLabel(scene.wordControlMode)}</Badge>
                       <Badge variant={scene.sceneStatus === "compressed" ? "default" : "outline"}>{scene.sceneStatus}</Badge>
                     </div>
                     <div className="mt-2 text-muted-foreground">
                       轮次 {scene.roundCount}，硬停 {scene.hardStopCount} 次
-                      {scene.closingPhaseTriggered ? t("gen.pages.novels.components.ChapterRuntimePanels.gen_12efa642") : ""}
+                      {scene.closingPhaseTriggered ? i18next.t("gen.pages.novels.components.ChapterRuntimePanels.gen_12efa642") : ""}
                     </div>
                     {scene.roundResults.length > 0 ? (
                       <div className="mt-2 space-y-1 rounded-md border bg-muted/15 p-2">
                         {scene.roundResults.map((round) => (
                           <div key={`${scene.sceneIndex}-${round.roundIndex}`} className="text-muted-foreground">
                             第 {round.roundIndex} 轮：建议 {round.suggestedWordCount ?? "-"} 字，实际 {round.actualWordCount} 字，
-                            {round.isFinalRound ? t("gen.pages.novels.components.ChapterRuntimePanels.gen_f419afdf") : t("gen.pages.novels.components.ChapterRuntimePanels.middleRound")}，
-                            {round.hardStopTriggered ? t("gen.pages.novels.components.ChapterRuntimePanels.gen_568b0ff2") : t("gen.pages.novels.components.ChapterRuntimePanels.gen_8f9fe9f8")}
-                            {round.trimmedAtSentenceBoundary ? t("gen.pages.novels.components.ChapterRuntimePanels.gen_62c444be") : ""}
+                            {round.isFinalRound ? i18next.t("gen.pages.novels.components.ChapterRuntimePanels.gen_f419afdf") : i18next.t("gen.pages.novels.components.ChapterRuntimePanels.middleRound")}，
+                            {round.hardStopTriggered ? i18next.t("gen.pages.novels.components.ChapterRuntimePanels.gen_568b0ff2") : i18next.t("gen.pages.novels.components.ChapterRuntimePanels.gen_8f9fe9f8")}
+                            {round.trimmedAtSentenceBoundary ? i18next.t("gen.pages.novels.components.ChapterRuntimePanels.gen_62c444be") : ""}
                           </div>
                         ))}
                       </div>
@@ -226,7 +226,7 @@ export function ChapterRuntimeLengthCard(props: {
             ) : null}
           </>
         ) : (
-          <div className="text-muted-foreground">{t("gen.pages.novels.components.ChapterRuntimePanels.gen_041fcfb2")}</div>
+          <div className="text-muted-foreground">{i18next.t("gen.pages.novels.components.ChapterRuntimePanels.gen_041fcfb2")}</div>
         )}
       </CardContent>
     </Card>
@@ -245,11 +245,11 @@ export function ChapterRuntimeContextCard(props: {
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="text-base">{t("gen.pages.novels.components.ChapterRuntimePanels.gen_357cf59a")}</CardTitle>
+        <CardTitle className="text-base">{i18next.t("gen.pages.novels.components.ChapterRuntimePanels.gen_357cf59a")}</CardTitle>
       </CardHeader>
       <CardContent className="space-y-3 text-sm">
         <div className="space-y-1">
-          <div className="font-medium">{t("gen.pages.novels.components.ChapterRuntimePanels.gen_5d10bfe1")}</div>
+          <div className="font-medium">{i18next.t("gen.pages.novels.components.ChapterRuntimePanels.gen_5d10bfe1")}</div>
           {plan ? (
             <>
               <div className="text-muted-foreground">{plan.title}</div>
@@ -260,19 +260,19 @@ export function ChapterRuntimeContextCard(props: {
                 </div>
               ) : null}
               {plan.participants.length > 0 ? (
-                <div className="text-xs text-muted-foreground">{t("gen.pages.novels.components.ChapterRuntimePanels.gen_c5d0f7ea")}</div>
+                <div className="text-xs text-muted-foreground">{i18next.t("gen.pages.novels.components.ChapterRuntimePanels.gen_c5d0f7ea")}</div>
               ) : null}
               {plan.mustAdvance.length > 0 ? (
-                <div className="text-xs text-muted-foreground">{t("gen.pages.novels.components.ChapterRuntimePanels.gen_96aee986")}</div>
+                <div className="text-xs text-muted-foreground">{i18next.t("gen.pages.novels.components.ChapterRuntimePanels.gen_96aee986")}</div>
               ) : null}
               {plan.mustPreserve.length > 0 ? (
-                <div className="text-xs text-muted-foreground">{t("gen.pages.novels.components.ChapterRuntimePanels.gen_444616f7")}</div>
+                <div className="text-xs text-muted-foreground">{i18next.t("gen.pages.novels.components.ChapterRuntimePanels.gen_444616f7")}</div>
               ) : null}
               {plan.replannedFromPlanId ? (
-                <div className="text-xs text-muted-foreground">{t("gen.pages.novels.components.ChapterRuntimePanels.gen_2125e71c")}</div>
+                <div className="text-xs text-muted-foreground">{i18next.t("gen.pages.novels.components.ChapterRuntimePanels.gen_2125e71c")}</div>
               ) : null}
               {plan.sourceIssueIds.length > 0 ? (
-                <div className="text-xs text-muted-foreground">{t("gen.pages.novels.components.ChapterRuntimePanels.gen_b3ab069c")}</div>
+                <div className="text-xs text-muted-foreground">{i18next.t("gen.pages.novels.components.ChapterRuntimePanels.gen_b3ab069c")}</div>
               ) : null}
               {plan.scenes.length > 0 ? (
                 <div className="space-y-1 rounded-md border p-2 text-xs">
@@ -280,7 +280,7 @@ export function ChapterRuntimeContextCard(props: {
                     <div key={scene.id}>
                       <div className="font-medium">{scene.sortOrder}. {scene.title}</div>
                       <div className="text-muted-foreground">
-                        {[scene.objective, scene.conflict, scene.reveal, scene.emotionBeat].filter(Boolean).join(" | ") || t("gen.pages.novels.components.ChapterRuntimePanels.gen_870436bf")}
+                        {[scene.objective, scene.conflict, scene.reveal, scene.emotionBeat].filter(Boolean).join(" | ") || i18next.t("gen.pages.novels.components.ChapterRuntimePanels.gen_870436bf")}
                       </div>
                     </div>
                   ))}
@@ -288,15 +288,15 @@ export function ChapterRuntimeContextCard(props: {
               ) : null}
             </>
           ) : (
-            <div className="text-muted-foreground">{t("gen.pages.novels.components.ChapterRuntimePanels.gen_37d95e40")}</div>
+            <div className="text-muted-foreground">{i18next.t("gen.pages.novels.components.ChapterRuntimePanels.gen_37d95e40")}</div>
           )}
         </div>
 
         <div className="space-y-1">
-          <div className="font-medium">{t("gen.pages.novels.components.ChapterRuntimePanels.gen_0b933182")}</div>
+          <div className="font-medium">{i18next.t("gen.pages.novels.components.ChapterRuntimePanels.gen_0b933182")}</div>
           {stateSnapshot ? (
             <>
-              <div>{t("gen.pages.novels.components.ChapterRuntimePanels.gen_stateSnaps_tg8j")}</div>
+              <div>{i18next.t("gen.pages.novels.components.ChapterRuntimePanels.gen_stateSnaps_tg8j")}</div>
               {stateSnapshot.characterStates.length > 0 ? (
                 <div className="rounded-md border p-2 text-xs">
                   {stateSnapshot.characterStates.slice(0, 4).map((item) => (
@@ -313,12 +313,12 @@ export function ChapterRuntimeContextCard(props: {
               ) : null}
             </>
           ) : (
-            <div className="text-muted-foreground">{t("gen.pages.novels.components.ChapterRuntimePanels.gen_18321c41")}</div>
+            <div className="text-muted-foreground">{i18next.t("gen.pages.novels.components.ChapterRuntimePanels.gen_18321c41")}</div>
           )}
         </div>
 
         <div className="space-y-1">
-          <div className="font-medium">{t("gen.pages.novels.components.ChapterRuntimePanels.gen_037ca2b4")}</div>
+          <div className="font-medium">{i18next.t("gen.pages.novels.components.ChapterRuntimePanels.gen_037ca2b4")}</div>
           {openConflicts.length > 0 ? (
             <div className="space-y-2">
               {openConflicts.slice(0, 4).map((item) => (
@@ -329,16 +329,16 @@ export function ChapterRuntimeContextCard(props: {
                   </div>
                   <div>{item.summary}</div>
                   {typeof item.lastSeenChapterOrder === "number" ? (
-                    <div className="mt-1 text-muted-foreground">{t("gen.pages.novels.components.ChapterRuntimePanels.gen_75b9531f")}</div>
+                    <div className="mt-1 text-muted-foreground">{i18next.t("gen.pages.novels.components.ChapterRuntimePanels.gen_75b9531f")}</div>
                   ) : null}
                   {item.resolutionHint ? (
-                    <div className="mt-1 text-muted-foreground">{t("gen.pages.novels.components.ChapterRuntimePanels.gen_956bb255")}</div>
+                    <div className="mt-1 text-muted-foreground">{i18next.t("gen.pages.novels.components.ChapterRuntimePanels.gen_956bb255")}</div>
                   ) : null}
                 </div>
               ))}
             </div>
           ) : (
-            <div className="text-muted-foreground">{t("gen.pages.novels.components.ChapterRuntimePanels.gen_ace557d6")}</div>
+            <div className="text-muted-foreground">{i18next.t("gen.pages.novels.components.ChapterRuntimePanels.gen_ace557d6")}</div>
           )}
         </div>
       </CardContent>
@@ -364,13 +364,13 @@ export function ChapterRuntimeAuditCard(props: {
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="text-base">{t("gen.pages.novels.components.ChapterRuntimePanels.gen_8c425da0")}</CardTitle>
+        <CardTitle className="text-base">{i18next.t("gen.pages.novels.components.ChapterRuntimePanels.gen_8c425da0")}</CardTitle>
       </CardHeader>
       <CardContent className="space-y-3 text-sm">
         <div className="flex items-center gap-2">
-          <div className="font-medium">{t("gen.pages.novels.components.ChapterRuntimePanels.gen_7e7f5f51")}</div>
+          <div className="font-medium">{i18next.t("gen.pages.novels.components.ChapterRuntimePanels.gen_7e7f5f51")}</div>
           <Badge variant={audit.hasBlockingIssues ? "default" : "outline"}>
-            {audit.hasBlockingIssues ? t("gen.pages.novels.components.ChapterRuntimePanels.gen_2d25e6f9") : t("gen.pages.novels.components.ChapterRuntimePanels.gen_4281b2b4")}
+            {audit.hasBlockingIssues ? i18next.t("gen.pages.novels.components.ChapterRuntimePanels.gen_2d25e6f9") : i18next.t("gen.pages.novels.components.ChapterRuntimePanels.gen_4281b2b4")}
           </Badge>
         </div>
         <div className="text-xs text-muted-foreground">
@@ -380,7 +380,7 @@ export function ChapterRuntimeAuditCard(props: {
           <div className="rounded-md border p-2 text-xs">
             <div className="flex items-center justify-between gap-2">
               <div className="font-medium">
-                后续章节计划：{replanSummary.recommended ? t("gen.pages.novels.components.ChapterRuntimePanels.gen_52bb74da") : t("gen.pages.novels.components.ChapterRuntimePanels.gen_f222164c")}
+                后续章节计划：{replanSummary.recommended ? i18next.t("gen.pages.novels.components.ChapterRuntimePanels.gen_52bb74da") : i18next.t("gen.pages.novels.components.ChapterRuntimePanels.gen_f222164c")}
               </div>
               {typeof props.onReplan === "function" ? (
                 <Button
@@ -389,7 +389,7 @@ export function ChapterRuntimeAuditCard(props: {
                   onClick={props.onReplan}
                   disabled={props.isReplanning}
                 >
-                  {props.isReplanning ? t("gen.pages.novels.components.ChapterRuntimePanels.gen_3adeb767") : replanSummary.recommended ? t("gen.pages.novels.components.ChapterRuntimePanels.gen_f2148fff") : t("gen.pages.novels.components.ChapterRuntimePanels.gen_076ff1c0")}
+                  {props.isReplanning ? i18next.t("gen.pages.novels.components.ChapterRuntimePanels.gen_3adeb767") : replanSummary.recommended ? i18next.t("gen.pages.novels.components.ChapterRuntimePanels.gen_f2148fff") : i18next.t("gen.pages.novels.components.ChapterRuntimePanels.gen_076ff1c0")}
                 </Button>
               ) : null}
             </div>
@@ -403,9 +403,9 @@ export function ChapterRuntimeAuditCard(props: {
         ) : null}
         {props.lastReplanResult ? (
           <div className="rounded-md border bg-muted/20 p-2 text-xs">
-            <div className="font-medium">{t("gen.pages.novels.components.ChapterRuntimePanels.gen_dbef2a29")}</div>
+            <div className="font-medium">{i18next.t("gen.pages.novels.components.ChapterRuntimePanels.gen_dbef2a29")}</div>
             <div className="mt-1 text-muted-foreground">
-              影响章节：{props.lastReplanResult.affectedChapterOrders.join(", ") || t("gen.pages.novels.components.ChapterRuntimePanels.gen_f61f4cf6")}
+              影响章节：{props.lastReplanResult.affectedChapterOrders.join(", ") || i18next.t("gen.pages.novels.components.ChapterRuntimePanels.gen_f61f4cf6")}
             </div>
             <div className="text-muted-foreground">
               调整窗口：{props.lastReplanResult.windowSize} | 触发方式：{buildTriggerLabel(props.lastReplanResult.triggerType)}
@@ -426,13 +426,13 @@ export function ChapterRuntimeAuditCard(props: {
                   <span className="font-medium">{issue.code}</span>
                 </div>
                 <div>{issue.description}</div>
-                <div className="mt-1 text-muted-foreground">{t("gen.pages.novels.components.ChapterRuntimePanels.gen_e6d69dda")}</div>
-                <div className="mt-1 text-muted-foreground">{t("gen.pages.novels.components.ChapterRuntimePanels.gen_5568c429")}</div>
+                <div className="mt-1 text-muted-foreground">{i18next.t("gen.pages.novels.components.ChapterRuntimePanels.gen_e6d69dda")}</div>
+                <div className="mt-1 text-muted-foreground">{i18next.t("gen.pages.novels.components.ChapterRuntimePanels.gen_5568c429")}</div>
               </div>
             ))}
           </div>
         ) : (
-          <div className="text-muted-foreground">{t("gen.pages.novels.components.ChapterRuntimePanels.gen_5f718663")}</div>
+          <div className="text-muted-foreground">{i18next.t("gen.pages.novels.components.ChapterRuntimePanels.gen_5f718663")}</div>
         )}
       </CardContent>
     </Card>

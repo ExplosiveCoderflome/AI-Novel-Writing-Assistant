@@ -71,13 +71,13 @@ export default function StageModelRun({
 
         <div className="flex flex-col gap-3 pt-1 sm:flex-row sm:items-start sm:justify-between">
           <div className="space-y-1">
-            <div className="text-sm font-medium text-foreground">{t("gen.pages.novels.autoDirector.StageModelRun.gen_9c8d9efd")}</div>
+            <div className="text-sm font-medium text-foreground">{i18next.t("gen.pages.novels.autoDirector.StageModelRun.gen_9c8d9efd")}</div>
             <div className={`text-xs leading-5 text-muted-foreground ${AUTO_DIRECTOR_MOBILE_CLASSES.wrapText}`}>
               开启后，章节正文生成完成时会检测 AI 味风险，并在命中可修正问题时生成修订稿。
             </div>
           </div>
           <Switch
-            aria-label={t("gen.pages.novels.autoDirector.StageModelRun.gen_9c8d9efd")}
+            aria-label={i18next.t("gen.pages.novels.autoDirector.StageModelRun.gen_9c8d9efd")}
             checked={basicForm.postGenerationStyleReviewEnabled}
             onCheckedChange={(checked) => onBasicFormChange({ postGenerationStyleReviewEnabled: checked })}
           />
@@ -85,7 +85,7 @@ export default function StageModelRun({
 
         <details className="group rounded-2xl border border-border/70 bg-background px-5 py-4">
           <summary className="cursor-pointer list-none">
-            <div className="text-sm font-medium text-foreground">{t("gen.pages.novels.autoDirector.StageModelRun.gen_96467e71")}</div>
+            <div className="text-sm font-medium text-foreground">{i18next.t("gen.pages.novels.autoDirector.StageModelRun.gen_96467e71")}</div>
             <div className={`mt-1 text-xs leading-5 text-muted-foreground ${AUTO_DIRECTOR_MOBILE_CLASSES.wrapText}`}>
               默认使用顶部已选模型；需要临时换模型时再展开调整。
             </div>
@@ -97,9 +97,9 @@ export default function StageModelRun({
       </div>
 
       <div className="flex flex-col gap-2 pt-2 sm:flex-row sm:justify-between">
-        <Button type="button" variant="ghost" onClick={onBack}>{t("gen.pages.novels.autoDirector.StageModelRun.gen_1272a114")}</Button>
+        <Button type="button" variant="ghost" onClick={onBack}>{i18next.t("gen.pages.novels.autoDirector.StageModelRun.gen_1272a114")}</Button>
         <Button type="button" onClick={onGenerate} disabled={!canGenerate}>
-          {isGenerating ? t("gen.pages.novels.autoDirector.StageModelRun.gen_4d020ba3") : t("gen.pages.novels.autoDirector.StageModelRun.gen_b21c2a02")}
+          {isGenerating ? i18next.t("gen.pages.novels.autoDirector.StageModelRun.gen_4d020ba3") : i18next.t("gen.pages.novels.autoDirector.StageModelRun.gen_b21c2a02")}
         </Button>
       </div>
     </section>

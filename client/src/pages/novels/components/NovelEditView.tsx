@@ -87,7 +87,7 @@ function DesktopNovelEditView(props: NovelEditViewProps) {
       ]);
     },
     onError: (error) => {
-      toast.error(error instanceof Error ? error.message : t("gen.pages.novels.components.NovelEditView.gen_f65a5818"));
+      toast.error(error instanceof Error ? error.message : i18next.t("gen.pages.novels.components.NovelEditView.gen_f65a5818"));
     },
   });
 
@@ -116,18 +116,18 @@ function DesktopNovelEditView(props: NovelEditViewProps) {
       return null;
     }
     if (taskDrawer.task.pendingManualRecovery) {
-      return t("gen.pages.novels.components.NovelEditView.gen_b0e31037");
+      return i18next.t("gen.pages.novels.components.NovelEditView.gen_b0e31037");
     }
     if (taskDrawer.task.status === "failed") {
-      return t("gen.pages.novels.components.NovelEditView.gen_c195df63");
+      return i18next.t("gen.pages.novels.components.NovelEditView.gen_c195df63");
     }
     if (taskDrawer.task.status === "waiting_approval") {
-      return t("gen.pages.novels.components.NovelEditView.gen_5cb42476");
+      return i18next.t("gen.pages.novels.components.NovelEditView.gen_5cb42476");
     }
     if (taskDrawer.task.status === "running" || taskDrawer.task.status === "queued") {
-      return t("gen.pages.novels.components.NovelEditView.gen_fb852fc6");
+      return i18next.t("gen.pages.novels.components.NovelEditView.gen_fb852fc6");
     }
-    return t("gen.pages.novels.components.NovelEditView.gen_cad670fb");
+    return i18next.t("gen.pages.novels.components.NovelEditView.gen_cad670fb");
   })();
 
   const normalizedActiveTab = normalizeNovelWorkspaceTab(activeTab);
@@ -199,13 +199,13 @@ function DesktopNovelEditView(props: NovelEditViewProps) {
             <>
               <span className="truncate font-semibold text-foreground">{novelTitle}</span>
               {progressLabel ? <span>{progressLabel}</span> : null}
-              <span>{t("gen.pages.novels.components.NovelEditView.currentPagePrefix")}{currentPageLabel}</span>
+              <span>{i18next.t("gen.pages.novels.components.NovelEditView.currentPagePrefix")}{currentPageLabel}</span>
             </>
           )}
           title={currentStepLabel}
           description={showWorkflowRecommendation && workflowStepLabel
             ? `流程推荐：建议切换到「${workflowStepLabel}」继续推进。`
-            : t("gen.pages.novels.components.NovelEditView.gen_dea4f01e")}
+            : i18next.t("gen.pages.novels.components.NovelEditView.gen_dea4f01e")}
           actions={(
             <>
             {!hideTakeoverEntry ? (
@@ -226,11 +226,11 @@ function DesktopNovelEditView(props: NovelEditViewProps) {
 
             <Dialog open={isExportDialogOpen} onOpenChange={setIsExportDialogOpen}>
               <DialogTrigger asChild>
-                <Button variant="outline">{t("gen.pages.novels.components.NovelEditView.gen_55405ea6")}</Button>
+                <Button variant="outline">{i18next.t("gen.pages.novels.components.NovelEditView.gen_55405ea6")}</Button>
               </DialogTrigger>
               <DialogContent className="max-w-2xl">
                 <DialogHeader>
-                  <DialogTitle>{t("gen.pages.novels.components.NovelEditView.gen_379ad801")}</DialogTitle>
+                  <DialogTitle>{i18next.t("gen.pages.novels.components.NovelEditView.gen_379ad801")}</DialogTitle>
                   <DialogDescription>
                     当前步骤会按你正在查看的工作台导出；整本书会把项目设定、故事规划、角色、卷规划、拆章、章节和质量修复资产一起导出。
                   </DialogDescription>
@@ -238,7 +238,7 @@ function DesktopNovelEditView(props: NovelEditViewProps) {
                 <div className="grid gap-4 md:grid-cols-2">
                   <Card>
                     <CardHeader>
-                      <CardTitle className="text-base">{t("gen.pages.novels.components.NovelEditView.gen_f2d20ab0")}</CardTitle>
+                      <CardTitle className="text-base">{i18next.t("gen.pages.novels.components.NovelEditView.gen_f2d20ab0")}</CardTitle>
                     </CardHeader>
                     <CardContent className="flex flex-wrap gap-2">
                       <Button
@@ -246,20 +246,20 @@ function DesktopNovelEditView(props: NovelEditViewProps) {
                         onClick={() => exportControls.onExportCurrent("markdown")}
                         disabled={!exportControls.canExportCurrentStep || exportControls.isExportingCurrentMarkdown}
                       >
-                        {exportControls.isExportingCurrentMarkdown ? t("gen.pages.novels.components.NovelEditView.gen_4062b25e") : "Markdown"}
+                        {exportControls.isExportingCurrentMarkdown ? i18next.t("gen.pages.novels.components.NovelEditView.gen_4062b25e") : "Markdown"}
                       </Button>
                       <Button
                         variant="outline"
                         onClick={() => exportControls.onExportCurrent("json")}
                         disabled={!exportControls.canExportCurrentStep || exportControls.isExportingCurrentJson}
                       >
-                        {exportControls.isExportingCurrentJson ? t("gen.pages.novels.components.NovelEditView.gen_4062b25e") : "JSON"}
+                        {exportControls.isExportingCurrentJson ? i18next.t("gen.pages.novels.components.NovelEditView.gen_4062b25e") : "JSON"}
                       </Button>
                     </CardContent>
                   </Card>
                   <Card>
                     <CardHeader>
-                      <CardTitle className="text-base">{t("gen.pages.novels.components.NovelEditView.gen_82e75116")}</CardTitle>
+                      <CardTitle className="text-base">{i18next.t("gen.pages.novels.components.NovelEditView.gen_82e75116")}</CardTitle>
                     </CardHeader>
                     <CardContent className="flex flex-wrap gap-2">
                       <Button
@@ -267,14 +267,14 @@ function DesktopNovelEditView(props: NovelEditViewProps) {
                         onClick={() => exportControls.onExportFull("markdown")}
                         disabled={exportControls.isExportingFullMarkdown}
                       >
-                        {exportControls.isExportingFullMarkdown ? t("gen.pages.novels.components.NovelEditView.gen_4062b25e") : "Markdown"}
+                        {exportControls.isExportingFullMarkdown ? i18next.t("gen.pages.novels.components.NovelEditView.gen_4062b25e") : "Markdown"}
                       </Button>
                       <Button
                         variant="outline"
                         onClick={() => exportControls.onExportFull("json")}
                         disabled={exportControls.isExportingFullJson}
                       >
-                        {exportControls.isExportingFullJson ? t("gen.pages.novels.components.NovelEditView.gen_4062b25e") : "JSON"}
+                        {exportControls.isExportingFullJson ? i18next.t("gen.pages.novels.components.NovelEditView.gen_4062b25e") : "JSON"}
                       </Button>
                     </CardContent>
                   </Card>
@@ -286,11 +286,11 @@ function DesktopNovelEditView(props: NovelEditViewProps) {
 
             <Dialog open={isProjectToolsOpen} onOpenChange={setIsProjectToolsOpen}>
               <DialogTrigger asChild>
-                <Button variant="outline">{t("gen.pages.novels.components.NovelEditView.gen_81904c4a")}</Button>
+                <Button variant="outline">{i18next.t("gen.pages.novels.components.NovelEditView.gen_81904c4a")}</Button>
               </DialogTrigger>
               <DialogContent className="max-h-[90vh] w-[calc(100vw-2rem)] max-w-4xl overflow-auto">
                 <DialogHeader>
-                  <DialogTitle>{t("gen.pages.novels.components.NovelEditView.gen_81904c4a")}</DialogTitle>
+                  <DialogTitle>{i18next.t("gen.pages.novels.components.NovelEditView.gen_81904c4a")}</DialogTitle>
                   <DialogDescription>
                     这里收纳次级信息。首屏只保留当前步骤和恢复接管入口，避免主工作区被项目辅助信息挤满。
                   </DialogDescription>
@@ -298,15 +298,15 @@ function DesktopNovelEditView(props: NovelEditViewProps) {
                 <div className="grid gap-3 md:grid-cols-2">
                   <Card>
                     <CardHeader>
-                      <CardTitle>{t("gen.pages.novels.components.NovelEditView.gen_9c8e364e")}</CardTitle>
+                      <CardTitle>{i18next.t("gen.pages.novels.components.NovelEditView.gen_9c8e364e")}</CardTitle>
                     </CardHeader>
                     <CardContent>
-                      <p>{t("gen.pages.novels.components.NovelEditView.generationProgress")}</p>
+                      <p>{i18next.t("gen.pages.novels.components.NovelEditView.generationProgress")}</p>
                     </CardContent>
                   </Card>
                   <Card>
                     <CardHeader>
-                      <CardTitle>{t("gen.pages.novels.components.NovelEditView.gen_f28a56a3")}</CardTitle>
+                      <CardTitle>{i18next.t("gen.pages.novels.components.NovelEditView.gen_f28a56a3")}</CardTitle>
                     </CardHeader>
                     <CardContent>
                       <p>{pendingRepairs}</p>
@@ -314,7 +314,7 @@ function DesktopNovelEditView(props: NovelEditViewProps) {
                   </Card>
                   <Card>
                     <CardHeader>
-                      <CardTitle>{t("gen.pages.novels.components.NovelEditView.gen_e18ae875")}</CardTitle>
+                      <CardTitle>{i18next.t("gen.pages.novels.components.NovelEditView.gen_e18ae875")}</CardTitle>
                     </CardHeader>
                     <CardContent>
                       <p>{currentModel}</p>
@@ -322,24 +322,24 @@ function DesktopNovelEditView(props: NovelEditViewProps) {
                   </Card>
                   <Card>
                     <CardHeader>
-                      <CardTitle>{t("gen.pages.novels.components.NovelEditView.gen_cad670fb")}</CardTitle>
+                      <CardTitle>{i18next.t("gen.pages.novels.components.NovelEditView.gen_cad670fb")}</CardTitle>
                     </CardHeader>
                     <CardContent>
                       <p>{pipelineTab.pipelineJob?.status ?? "idle"}</p>
                     </CardContent>
                   </Card>
                 </div>
-                <KnowledgeBindingPanel targetType="novel" targetId={id} title={t("gen.pages.novels.components.NovelEditView.gen_bd73ad86")} />
+                <KnowledgeBindingPanel targetType="novel" targetId={id} title={i18next.t("gen.pages.novels.components.NovelEditView.gen_bd73ad86")} />
 
                 {/* 开发工具区 —— 仅在 DEV 环境可见 */}
                 {import.meta.env.DEV ? (
                   <Card className="border-dashed border-yellow-500/60 bg-yellow-50/30 dark:bg-yellow-950/10">
                     <CardHeader>
-                      <CardTitle className="text-sm text-yellow-700 dark:text-yellow-400">{t("gen.pages.novels.components.NovelEditView.gen_10dd2823")}</CardTitle>
+                      <CardTitle className="text-sm text-yellow-700 dark:text-yellow-400">{i18next.t("gen.pages.novels.components.NovelEditView.gen_10dd2823")}</CardTitle>
                     </CardHeader>
                     <CardContent className="space-y-2">
                       <p className="text-xs text-muted-foreground">
-                        重置后，所有章节正文、事实账本、摘要和质量报告将被清空，章节状态回到t("gen.pages.novels.components.NovelEditView.gen_16fe50f9")。规划层数据（人物、大纲、卷规划）保留不变。
+                        重置后，所有章节正文、事实账本、摘要和质量报告将被清空，章节状态回到i18next.t("gen.pages.novels.components.NovelEditView.gen_16fe50f9")。规划层数据（人物、大纲、卷规划）保留不变。
                       </p>
                       <Button
                         variant="outline"
@@ -353,8 +353,8 @@ function DesktopNovelEditView(props: NovelEditViewProps) {
                         }}
                       >
                         {resetChaptersMutation.isPending
-                          ? <><Loader2 className="animate-spin" />{t("gen.pages.novels.components.NovelEditView.gen_9c56ac70")}</>
-                          : <><RotateCcw />{t("gen.pages.novels.components.NovelEditView.gen_deecbd2b")}</>}
+                          ? <><Loader2 className="animate-spin" />{i18next.t("gen.pages.novels.components.NovelEditView.gen_9c56ac70")}</>
+                          : <><RotateCcw />{i18next.t("gen.pages.novels.components.NovelEditView.gen_deecbd2b")}</>}
                       </Button>
                     </CardContent>
                   </Card>

@@ -36,17 +36,17 @@ export function buildVolumePlanningReadiness(params: {
   const { volumes, strategyPlan, critiqueReport, beatSheets } = params;
   const blockingReasons: string[] = [];
   if (!strategyPlan) {
-    blockingReasons.push(i18next.t("gen.pages.novels.volumePlan.utils.gen_2bc57951"));
+    blockingReasons.push(i18next.i18next.t("gen.pages.novels.volumePlan.utils.gen_2bc57951"));
   }
   const hasHighRiskCritique = critiqueReport?.overallRisk === "high";
   if (hasHighRiskCritique) {
     blockingReasons.push("当前卷战略审查为高风险，请先重新生成或修订卷战略。");
   }
   if (volumes.length === 0) {
-    blockingReasons.push(i18next.t("gen.pages.novels.volumePlan.utils.gen_48867c36"));
+    blockingReasons.push(i18next.i18next.t("gen.pages.novels.volumePlan.utils.gen_48867c36"));
   }
   if (!beatSheets.some((sheet) => sheet.beats.length > 0)) {
-    blockingReasons.push(i18next.t("gen.pages.novels.volumePlan.utils.gen_e38161cf"));
+    blockingReasons.push(i18next.i18next.t("gen.pages.novels.volumePlan.utils.gen_e38161cf"));
   }
   return {
     canGenerateStrategy: true,
@@ -115,7 +115,7 @@ export function createEmptyChapter(chapterOrder: number): VolumeChapterPlan {
 
 export function buildTaskSheetFromVolumeChapter(chapter: VolumeChapterPlan): string {
   const lines = [
-    `章节目标：${chapter.purpose || chapter.summary || i18next.t("gen.pages.novels.volumePlan.utils.gen_e7168520")}`,
+    `章节目标：${chapter.purpose || chapter.summary || i18next.i18next.t("gen.pages.novels.volumePlan.utils.gen_e7168520")}`,
     typeof chapter.conflictLevel === "number" ? `冲突等级：${chapter.conflictLevel}` : "",
     typeof chapter.revealLevel === "number" ? `揭露等级：${chapter.revealLevel}` : "",
     typeof chapter.targetWordCount === "number" ? `目标字数：${chapter.targetWordCount}` : "",
@@ -165,7 +165,7 @@ export function buildOutlinePreviewFromVolumes(volumes: VolumePlan[]): string {
     .map((volume) => {
       const chapterSpan = volume.chapters.length > 0
         ? `${volume.chapters[0]?.chapterOrder ?? "-"}-${volume.chapters[volume.chapters.length - 1]?.chapterOrder ?? "-"}`
-        : i18next.t("gen.pages.novels.volumePlan.utils.gen_797359eb");
+        : i18next.i18next.t("gen.pages.novels.volumePlan.utils.gen_797359eb");
       return [
         `【第${volume.sortOrder}卷】${volume.title}`,
         volume.summary?.trim() ? `卷摘要：${volume.summary.trim()}` : "",
@@ -257,14 +257,14 @@ function compareNumber(a: number | null | undefined, b: number | null | undefine
 }
 
 function getChangedFields(existing: ExistingOutlineChapter, chapter: VolumeChapterPlan, action: "update" | "move"): string[] {
-  const changed: string[] = action === "move" ? [i18next.t("gen.pages.novels.volumePlan.utils.gen_d9a16668")] : [];
-  if (!compareText(existing.title, chapter.title)) changed.push(i18next.t("gen.pages.novels.volumePlan.utils.gen_32c65d8d"));
-  if (!compareText(existing.expectation, chapter.summary)) changed.push(i18next.t("gen.pages.novels.volumePlan.utils.gen_3ae14696"));
-  if (!compareNumber(existing.targetWordCount, chapter.targetWordCount)) changed.push(i18next.t("gen.pages.novels.volumePlan.utils.gen_b71c2e84"));
-  if (!compareNumber(existing.conflictLevel, chapter.conflictLevel)) changed.push(i18next.t("gen.pages.novels.volumePlan.utils.gen_971cbaa4"));
-  if (!compareNumber(existing.revealLevel, chapter.revealLevel)) changed.push(i18next.t("gen.pages.novels.volumePlan.utils.gen_53fe8284"));
-  if (!compareText(existing.mustAvoid, chapter.mustAvoid)) changed.push(i18next.t("gen.pages.novels.volumePlan.utils.gen_e586f3e2"));
-  if (!compareText(existing.taskSheet, chapter.taskSheet)) changed.push(i18next.t("gen.pages.novels.volumePlan.utils.singleTask"));
+  const changed: string[] = action === "move" ? [i18next.i18next.t("gen.pages.novels.volumePlan.utils.gen_d9a16668")] : [];
+  if (!compareText(existing.title, chapter.title)) changed.push(i18next.i18next.t("gen.pages.novels.volumePlan.utils.gen_32c65d8d"));
+  if (!compareText(existing.expectation, chapter.summary)) changed.push(i18next.i18next.t("gen.pages.novels.volumePlan.utils.gen_3ae14696"));
+  if (!compareNumber(existing.targetWordCount, chapter.targetWordCount)) changed.push(i18next.i18next.t("gen.pages.novels.volumePlan.utils.gen_b71c2e84"));
+  if (!compareNumber(existing.conflictLevel, chapter.conflictLevel)) changed.push(i18next.i18next.t("gen.pages.novels.volumePlan.utils.gen_971cbaa4"));
+  if (!compareNumber(existing.revealLevel, chapter.revealLevel)) changed.push(i18next.i18next.t("gen.pages.novels.volumePlan.utils.gen_53fe8284"));
+  if (!compareText(existing.mustAvoid, chapter.mustAvoid)) changed.push(i18next.i18next.t("gen.pages.novels.volumePlan.utils.gen_e586f3e2"));
+  if (!compareText(existing.taskSheet, chapter.taskSheet)) changed.push(i18next.i18next.t("gen.pages.novels.volumePlan.utils.singleTask"));
   return changed;
 }
 
@@ -318,7 +318,7 @@ export function buildVolumeSyncPreview(
         chapterOrder: entry.chapter.chapterOrder,
         nextTitle: entry.chapter.title,
         hasContent: false,
-        changedFields: [i18next.t("gen.pages.novels.volumePlan.utils.gen_0aab985d")],
+        changedFields: [i18next.i18next.t("gen.pages.novels.volumePlan.utils.gen_0aab985d")],
       });
       continue;
     }
@@ -372,23 +372,23 @@ export function buildVolumeSyncPreview(
       deleteCount += 1;
       items.push({
         action: "delete",
-        volumeTitle: i18next.t("gen.pages.novels.volumePlan.utils.gen_61b81992"),
+        volumeTitle: i18next.i18next.t("gen.pages.novels.volumePlan.utils.gen_61b81992"),
         chapterOrder: chapter.order,
         nextTitle: chapter.title,
         previousTitle: chapter.title,
         hasContent,
-        changedFields: [i18next.t("gen.pages.novels.volumePlan.utils.removeFromVolumeOutline")],
+        changedFields: [i18next.i18next.t("gen.pages.novels.volumePlan.utils.removeFromVolumeOutline")],
       });
     } else {
       deleteCandidateCount += 1;
       items.push({
         action: "delete_candidate",
-        volumeTitle: i18next.t("gen.pages.novels.volumePlan.utils.gen_61b81992"),
+        volumeTitle: i18next.i18next.t("gen.pages.novels.volumePlan.utils.gen_61b81992"),
         chapterOrder: chapter.order,
         nextTitle: chapter.title,
         previousTitle: chapter.title,
         hasContent,
-        changedFields: [i18next.t("gen.pages.novels.volumePlan.utils.gen_f85caee0")],
+        changedFields: [i18next.i18next.t("gen.pages.novels.volumePlan.utils.gen_f85caee0")],
       });
     }
   }

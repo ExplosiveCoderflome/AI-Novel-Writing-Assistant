@@ -1,5 +1,4 @@
 import { useTranslation } from "react-i18next";
-import { useTranslation } from "react-i18next";
 import i18next from "i18next";
 import { Link } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -64,7 +63,7 @@ function extractStructuredPreview(raw: string): string | null {
       if (parts.length > 0) {
         return parts.join("；");
       }
-      return t("gen.pages.worlds.WorldList.gen_bfc18a36");
+      return i18next.t("gen.pages.worlds.WorldList.gen_bfc18a36");
     }
     if (parsed && typeof parsed === "object") {
       const record = parsed as Record<string, unknown>;
@@ -72,7 +71,7 @@ function extractStructuredPreview(raw: string): string | null {
       if (typeof summary === "string" && summary.trim()) {
         return summary.trim();
       }
-      return t("gen.pages.worlds.WorldList.gen_bfc18a36");
+      return i18next.t("gen.pages.worlds.WorldList.gen_bfc18a36");
     }
   } catch {
     return null;
@@ -126,10 +125,10 @@ function buildWorldLibraryProjection(world: {
   structureJson?: string | null;
 }): WorldLibraryCardProjection {
   const structured = parseStructuredWorldData(world.structureJson);
-  const legacySummary = buildPreview(world.description ?? world.overviewSummary, t("gen.pages.worlds.WorldList.gen_1dd49b6c"), 120);
+  const legacySummary = buildPreview(world.description ?? world.overviewSummary, i18next.t("gen.pages.worlds.WorldList.gen_1dd49b6c"), 120);
   const legacyDetail = buildPreview(
     world.conflicts ?? world.geography ?? world.background ?? world.factions,
-    t("gen.pages.worlds.WorldList.gen_0a87a7e9"),
+    i18next.t("gen.pages.worlds.WorldList.gen_0a87a7e9"),
     160,
   );
 
@@ -228,10 +227,10 @@ export default function WorldList() {
     mutationFn: (id: string) => deleteWorld(id),
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: queryKeys.worlds.all });
-      toast.success(t("gen.pages.worlds.WorldList.worldSampleDeleted"));
+      toast.success(i18next.t("gen.pages.worlds.WorldList.worldSampleDeleted"));
     },
     onError: (error) => {
-      toast.error(error instanceof Error ? error.message : t("gen.pages.worlds.WorldList.gen_99bf2197"));
+      toast.error(error instanceof Error ? error.message : i18next.t("gen.pages.worlds.WorldList.gen_99bf2197"));
     },
   });
 
@@ -249,7 +248,7 @@ export default function WorldList() {
     <div className="space-y-4">
       <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
         <div>
-          <h1 className="text-xl font-semibold tracking-normal">{t("gen.pages.worlds.WorldList.worldSampleLibrary")}</h1>
+          <h1 className="text-xl font-semibold tracking-normal">{i18next.t("gen.pages.worlds.WorldList.worldSampleLibrary")}</h1>
           <p className="mt-1 max-w-3xl text-sm leading-6 text-muted-foreground">
             这里保存可复用的世界样本。小说需要使用世界时，从小说基础信息页导入为本书世界副本，再决定是否手动同步。
           </p>
@@ -257,7 +256,7 @@ export default function WorldList() {
         <div className="flex flex-wrap justify-end gap-2">
           {featureFlags.worldWizardEnabled ? (
             <Button asChild>
-              <Link to="/worlds/generator">{t("gen.pages.worlds.WorldList.gen_e112ca29")}</Link>
+              <Link to="/worlds/generator">{i18next.t("gen.pages.worlds.WorldList.gen_e112ca29")}</Link>
             </Button>
           ) : null}
         </div>
@@ -266,18 +265,18 @@ export default function WorldList() {
       {worlds.length === 0 ? (
         <Card>
           <CardHeader>
-            <CardTitle>{t("gen.pages.worlds.WorldList.gen_266934ea")}</CardTitle>
-            <CardDescription>{t("gen.pages.worlds.WorldList.gen_67bc4f6e")}</CardDescription>
+            <CardTitle>{i18next.t("gen.pages.worlds.WorldList.gen_266934ea")}</CardTitle>
+            <CardDescription>{i18next.t("gen.pages.worlds.WorldList.gen_67bc4f6e")}</CardDescription>
           </CardHeader>
         </Card>
       ) : (
         <>
         <div className="rounded-md border border-border/70 bg-muted/20 p-4">
-          <div className="text-sm font-medium text-foreground">{t("gen.pages.worlds.WorldList.usingWorldSample")}</div>
+          <div className="text-sm font-medium text-foreground">{i18next.t("gen.pages.worlds.WorldList.usingWorldSample")}</div>
           <div className="mt-2 grid gap-3 text-sm leading-6 text-muted-foreground md:grid-cols-3">
-            <div>{t("gen.pages.worlds.WorldList.organizeWorldHandbookHere")}</div>
-            <div>{t("gen.pages.worlds.WorldList.importAsBookWorldPage")}</div>
-            <div>{t("gen.pages.worlds.WorldList.manualPushPullDifference")}</div>
+            <div>{i18next.t("gen.pages.worlds.WorldList.organizeWorldHandbookHere")}</div>
+            <div>{i18next.t("gen.pages.worlds.WorldList.importAsBookWorldPage")}</div>
+            <div>{i18next.t("gen.pages.worlds.WorldList.manualPushPullDifference")}</div>
           </div>
         </div>
         <div className="grid gap-3 md:grid-cols-2">
@@ -300,7 +299,7 @@ export default function WorldList() {
                   </div>
                   <div className="flex flex-wrap gap-2">
                     {world.worldType ? <Badge variant="secondary">{world.worldType}</Badge> : null}
-                    <Badge variant="outline">{t("gen.pages.worlds.WorldList.gen_4bce734b")}</Badge>
+                    <Badge variant="outline">{i18next.t("gen.pages.worlds.WorldList.gen_4bce734b")}</Badge>
                     {preview.tone ? <Badge variant="outline">{preview.tone}</Badge> : null}
                     <Badge variant="outline">v{world.version}</Badge>
                     <Badge variant="outline">{world.status}</Badge>
@@ -310,19 +309,19 @@ export default function WorldList() {
                   <div className="grid grid-cols-4 gap-2 text-center text-xs">
                     <div className="rounded-md border bg-muted/30 px-2 py-2">
                       <div className="font-semibold text-foreground">{preview.ruleCount}</div>
-                      <div className="mt-0.5 text-muted-foreground">{t("gen.pages.worlds.WorldList.gen_0a431a82")}</div>
+                      <div className="mt-0.5 text-muted-foreground">{i18next.t("gen.pages.worlds.WorldList.gen_0a431a82")}</div>
                     </div>
                     <div className="rounded-md border bg-muted/30 px-2 py-2">
                       <div className="font-semibold text-foreground">{preview.forceCount}</div>
-                      <div className="mt-0.5 text-muted-foreground">{t("gen.pages.worlds.WorldList.gen_dcfe557b")}</div>
+                      <div className="mt-0.5 text-muted-foreground">{i18next.t("gen.pages.worlds.WorldList.gen_dcfe557b")}</div>
                     </div>
                     <div className="rounded-md border bg-muted/30 px-2 py-2">
                       <div className="font-semibold text-foreground">{preview.locationCount}</div>
-                      <div className="mt-0.5 text-muted-foreground">{t("gen.pages.worlds.WorldList.gen_fc1a7d3c")}</div>
+                      <div className="mt-0.5 text-muted-foreground">{i18next.t("gen.pages.worlds.WorldList.gen_fc1a7d3c")}</div>
                     </div>
                     <div className="rounded-md border bg-muted/30 px-2 py-2">
                       <div className="font-semibold text-foreground">{preview.relationCount}</div>
-                      <div className="mt-0.5 text-muted-foreground">{t("gen.pages.worlds.WorldList.gen_eefd8316")}</div>
+                      <div className="mt-0.5 text-muted-foreground">{i18next.t("gen.pages.worlds.WorldList.gen_eefd8316")}</div>
                     </div>
                   </div>
 
@@ -338,30 +337,30 @@ export default function WorldList() {
                   <div className="grid gap-3 text-sm sm:grid-cols-3">
                     <WorldSampleLine
                       icon={Sparkles}
-                      label={t("gen.pages.worlds.WorldList.gen_3da452ba")}
+                      label={i18next.t("gen.pages.worlds.WorldList.gen_3da452ba")}
                       items={preview.coreRules}
-                      fallback={t("gen.pages.worlds.WorldList.gen_4063c25a")}
+                      fallback={i18next.t("gen.pages.worlds.WorldList.gen_4063c25a")}
                     />
                     <WorldSampleLine
                       icon={Castle}
-                      label={t("gen.pages.worlds.WorldList.gen_49de8cf0")}
+                      label={i18next.t("gen.pages.worlds.WorldList.gen_49de8cf0")}
                       items={preview.majorForces}
-                      fallback={t("gen.pages.worlds.WorldList.gen_991d9d0f")}
+                      fallback={i18next.t("gen.pages.worlds.WorldList.gen_991d9d0f")}
                     />
                     <WorldSampleLine
                       icon={MapPin}
-                      label={t("gen.pages.worlds.WorldList.gen_75f7dd64")}
+                      label={i18next.t("gen.pages.worlds.WorldList.gen_75f7dd64")}
                       items={preview.storyLocations}
-                      fallback={t("gen.pages.worlds.WorldList.gen_1660a0f1")}
+                      fallback={i18next.t("gen.pages.worlds.WorldList.gen_1660a0f1")}
                     />
                   </div>
 
                   {preview.tensions.length > 0 ? (
                     <WorldSampleLine
                       icon={GitBranch}
-                      label={t("gen.pages.worlds.WorldList.gen_b4f29303")}
+                      label={i18next.t("gen.pages.worlds.WorldList.gen_b4f29303")}
                       items={preview.tensions}
-                      fallback={t("gen.pages.worlds.WorldList.gen_9181ab59")}
+                      fallback={i18next.t("gen.pages.worlds.WorldList.gen_9181ab59")}
                     />
                   ) : null}
 
@@ -385,7 +384,7 @@ export default function WorldList() {
                       disabled={deleteWorldMutation.isPending && deleteWorldMutation.variables === world.id}
                     >
                       <Trash2 className="mr-1 h-4 w-4" aria-hidden="true" />
-                      {deleteWorldMutation.isPending && deleteWorldMutation.variables === world.id ? t("gen.pages.worlds.WorldList.gen_09f2fb82") : t("gen.pages.worlds.WorldList.gen_2f4aaddd")}
+                      {deleteWorldMutation.isPending && deleteWorldMutation.variables === world.id ? i18next.t("gen.pages.worlds.WorldList.gen_09f2fb82") : i18next.t("gen.pages.worlds.WorldList.gen_2f4aaddd")}
                     </Button>
                   </div>
                 </CardContent>

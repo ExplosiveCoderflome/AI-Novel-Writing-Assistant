@@ -216,12 +216,12 @@ export function useVolumeGenerationMutation({
       });
       let nextDocument = generatedResponse.data;
       if (!nextDocument) {
-        throw new Error(i18next.t("gen.pages.novels.hooks.useNovelVolumePlanning.generation.aiNoVolumeWorkspaceResult"));
+        throw new Error(i18next.i18next.t("gen.pages.novels.hooks.useNovelVolumePlanning.generation.aiNoVolumeWorkspaceResult"));
       }
       if (isSlimVolumeGenerationResponse(nextDocument)) {
         const latestWorkspaceResponse = await getNovelVolumeWorkspace(novelId);
         if (!latestWorkspaceResponse.data) {
-          throw new Error(i18next.t("gen.pages.novels.hooks.useNovelVolumePlanning.generation.aiSaveRequiresRefresh"));
+          throw new Error(i18next.i18next.t("gen.pages.novels.hooks.useNovelVolumePlanning.generation.aiSaveRequiresRefresh"));
         }
         nextDocument = latestWorkspaceResponse.data;
         if (!autoSyncedToChapterExecution) {
@@ -246,7 +246,7 @@ export function useVolumeGenerationMutation({
           autoSyncedToChapterExecution,
         };
       } catch (error) {
-        const message = error instanceof Error ? error.message : i18next.t("gen.pages.novels.hooks.useNovelVolumePlanning.generation.aiGenerationCompleteButSaveFailed");
+        const message = error instanceof Error ? error.message : i18next.i18next.t("gen.pages.novels.hooks.useNovelVolumePlanning.generation.aiGenerationCompleteButSaveFailed");
         throw new VolumeGenerationAutoSaveError(message, nextDocument);
       }
     },
@@ -268,33 +268,33 @@ export function useVolumeGenerationMutation({
           ? "volume_strategy"
           : "structured_outline",
         itemLabel: payload.scope === "strategy"
-          ? i18next.t("gen.pages.novels.hooks.useNovelVolumePlanning.generation.gen_22ecdf44")
+          ? i18next.i18next.t("gen.pages.novels.hooks.useNovelVolumePlanning.generation.gen_22ecdf44")
           : payload.scope === "strategy_critique"
-            ? i18next.t("gen.pages.novels.hooks.useNovelVolumePlanning.generation.gen_4e66337b")
+            ? i18next.i18next.t("gen.pages.novels.hooks.useNovelVolumePlanning.generation.gen_4e66337b")
             : payload.scope === "skeleton" || payload.scope === "book"
-              ? i18next.t("gen.pages.novels.hooks.useNovelVolumePlanning.generation.gen_6c498f8a")
+              ? i18next.i18next.t("gen.pages.novels.hooks.useNovelVolumePlanning.generation.gen_6c498f8a")
               : payload.scope === "beat_sheet"
-                ? i18next.t("gen.pages.novels.hooks.useNovelVolumePlanning.generation.gen_c57b77d8")
+                ? i18next.i18next.t("gen.pages.novels.hooks.useNovelVolumePlanning.generation.gen_c57b77d8")
                 : payload.scope === "chapter_list" || payload.scope === "volume"
                   ? payload.generationMode === "single_beat"
-                    ? i18next.t("gen.pages.novels.hooks.useNovelVolumePlanning.generation.gen_2421abfc")
-                    : i18next.t("gen.pages.novels.hooks.useNovelVolumePlanning.generation.gen_8fb55ccc")
+                    ? i18next.i18next.t("gen.pages.novels.hooks.useNovelVolumePlanning.generation.gen_2421abfc")
+                    : i18next.i18next.t("gen.pages.novels.hooks.useNovelVolumePlanning.generation.gen_8fb55ccc")
                   : payload.scope === "rebalance"
-                    ? i18next.t("gen.pages.novels.hooks.useNovelVolumePlanning.generation.gen_803a5a2a")
+                    ? i18next.i18next.t("gen.pages.novels.hooks.useNovelVolumePlanning.generation.gen_803a5a2a")
                     : result.autoSyncedToChapterExecution
-                      ? i18next.t("gen.pages.novels.hooks.useNovelVolumePlanning.generation.gen_54c5d179")
-                      : i18next.t("gen.pages.novels.hooks.useNovelVolumePlanning.generation.gen_edca674c"),
+                      ? i18next.i18next.t("gen.pages.novels.hooks.useNovelVolumePlanning.generation.gen_54c5d179")
+                      : i18next.i18next.t("gen.pages.novels.hooks.useNovelVolumePlanning.generation.gen_edca674c"),
         checkpointType: payload.scope === "skeleton" || payload.scope === "book"
           ? "volume_strategy_ready"
           : payload.scope === "chapter_list" || payload.scope === "volume"
             ? "chapter_batch_ready"
             : null,
         checkpointSummary: payload.scope === "skeleton" || payload.scope === "book"
-          ? i18next.t("gen.pages.novels.hooks.useNovelVolumePlanning.generation.gen_20337507")
+          ? i18next.i18next.t("gen.pages.novels.hooks.useNovelVolumePlanning.generation.gen_20337507")
           : payload.scope === "chapter_list" || payload.scope === "volume"
             ? payload.generationMode === "single_beat"
-              ? i18next.t("gen.pages.novels.hooks.useNovelVolumePlanning.generation.gen_765c9e3b")
-              : i18next.t("gen.pages.novels.hooks.useNovelVolumePlanning.generation.gen_4ad6e890")
+              ? i18next.i18next.t("gen.pages.novels.hooks.useNovelVolumePlanning.generation.gen_765c9e3b")
+              : i18next.i18next.t("gen.pages.novels.hooks.useNovelVolumePlanning.generation.gen_4ad6e890")
             : undefined,
         volumeId: payload.targetVolumeId,
         chapterId: payload.targetChapterId,
@@ -306,24 +306,24 @@ export function useVolumeGenerationMutation({
       }
 
       if (payload.scope === "strategy") {
-        const message = i18next.t("gen.pages.novels.hooks.useNovelVolumePlanning.generation.gen_d012c75f");
+        const message = i18next.i18next.t("gen.pages.novels.hooks.useNovelVolumePlanning.generation.gen_d012c75f");
         setVolumeGenerationMessage(message);
         setStructuredMessage(message);
         return;
       }
       if (payload.scope === "strategy_critique") {
-        const message = i18next.t("gen.pages.novels.hooks.useNovelVolumePlanning.generation.gen_3a885de1");
+        const message = i18next.i18next.t("gen.pages.novels.hooks.useNovelVolumePlanning.generation.gen_3a885de1");
         setVolumeGenerationMessage(message);
         return;
       }
       if (payload.scope === "skeleton" || payload.scope === "book") {
-        const message = i18next.t("gen.pages.novels.hooks.useNovelVolumePlanning.generation.gen_837686d2");
+        const message = i18next.i18next.t("gen.pages.novels.hooks.useNovelVolumePlanning.generation.gen_837686d2");
         setVolumeGenerationMessage(message);
         setStructuredMessage(message);
         return;
       }
       if (payload.scope === "beat_sheet") {
-        setStructuredMessage(i18next.t("gen.pages.novels.hooks.useNovelVolumePlanning.generation.gen_292bc169"));
+        setStructuredMessage(i18next.i18next.t("gen.pages.novels.hooks.useNovelVolumePlanning.generation.gen_292bc169"));
         return;
       }
       if (payload.scope === "chapter_list" || payload.scope === "volume") {
@@ -337,7 +337,7 @@ export function useVolumeGenerationMutation({
         return;
       }
       if (payload.scope === "rebalance") {
-        setStructuredMessage(i18next.t("gen.pages.novels.hooks.useNovelVolumePlanning.generation.gen_7a722e52"));
+        setStructuredMessage(i18next.i18next.t("gen.pages.novels.hooks.useNovelVolumePlanning.generation.gen_7a722e52"));
         return;
       }
 
@@ -356,7 +356,7 @@ export function useVolumeGenerationMutation({
         ? error.message
         : error instanceof Error
           ? error.message
-          : i18next.t("gen.pages.novels.hooks.useNovelVolumePlanning.generation.gen_465d7237");
+          : i18next.i18next.t("gen.pages.novels.hooks.useNovelVolumePlanning.generation.gen_465d7237");
       const shouldTryRecoverPersistedWorkspace = !(error instanceof VolumeGenerationAutoSaveError)
         && shouldRequestSlimVolumeGenerationResponse(payload.scope);
       let recoveredMessage: string | null = null;
@@ -370,8 +370,8 @@ export function useVolumeGenerationMutation({
             if (persistedWorkspaceSnapshotAfter !== context?.persistedWorkspaceSnapshotBefore) {
               hydratePersistedWorkspace(latestWorkspace);
               recoveredMessage = payload.scope === "chapter_list" || payload.scope === "volume"
-                ? i18next.t("gen.pages.novels.hooks.useNovelVolumePlanning.generation.gen_cc100f9b")
-                : i18next.t("gen.pages.novels.hooks.useNovelVolumePlanning.generation.gen_c1c7b6f6");
+                ? i18next.i18next.t("gen.pages.novels.hooks.useNovelVolumePlanning.generation.gen_cc100f9b")
+                : i18next.i18next.t("gen.pages.novels.hooks.useNovelVolumePlanning.generation.gen_c1c7b6f6");
             }
           }
         } catch {

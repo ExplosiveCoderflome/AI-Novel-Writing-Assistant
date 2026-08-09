@@ -10,7 +10,7 @@ interface TakeoverContextSummaryPanelProps {
 export default function TakeoverContextSummaryPanel({ lines }: TakeoverContextSummaryPanelProps) {
   return (
     <div className="min-w-0 rounded-xl border bg-muted/15 p-3 sm:p-4">
-      <div className="text-sm font-medium text-foreground">{t("gen.pages.novels.components.takeover.TakeoverContextSummaryPanel.gen_335ffbc2")}</div>
+      <div className="text-sm font-medium text-foreground">{i18next.t("gen.pages.novels.components.takeover.TakeoverContextSummaryPanel.gen_335ffbc2")}</div>
       <div className="mt-2 flex min-w-0 flex-wrap gap-2">
         {lines.length > 0 ? lines.map((line) => (
           <Badge key={line} variant="secondary" className="max-w-full whitespace-normal break-words text-left [overflow-wrap:anywhere]">

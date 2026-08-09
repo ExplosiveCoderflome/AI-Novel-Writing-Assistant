@@ -137,7 +137,7 @@ export function DramaVisualPanel(props: {
   });
 
   if (!selectedEpisode) {
-    return <div className="rounded-md border border-dashed p-6 text-sm text-muted-foreground">{t("gen.pages.drama.components.DramaVisualPanel.gen_8aff8593")}</div>;
+    return <div className="rounded-md border border-dashed p-6 text-sm text-muted-foreground">{i18next.t("gen.pages.drama.components.DramaVisualPanel.gen_8aff8593")}</div>;
   }
 
   return (
@@ -145,27 +145,27 @@ export function DramaVisualPanel(props: {
       <ImageGenerationConfirmDialog {...keyframeFlow.dialogProps} />
       <div className="grid gap-3 md:grid-cols-6">
         <div className="rounded-md border p-3 text-sm">
-          <div className="text-xs text-muted-foreground">{t("gen.pages.drama.components.DramaVisualPanel.gen_7c0ee090")}</div>
+          <div className="text-xs text-muted-foreground">{i18next.t("gen.pages.drama.components.DramaVisualPanel.gen_7c0ee090")}</div>
           <div className="mt-1 text-lg font-semibold">{promptStats.prompted}</div>
         </div>
         <div className="rounded-md border p-3 text-sm">
-          <div className="text-xs text-muted-foreground">{t("gen.pages.drama.components.DramaVisualPanel.gen_21242e71")}</div>
+          <div className="text-xs text-muted-foreground">{i18next.t("gen.pages.drama.components.DramaVisualPanel.gen_21242e71")}</div>
           <div className="mt-1 text-lg font-semibold">{promptStats.withTask}</div>
         </div>
         <div className="rounded-md border p-3 text-sm">
-          <div className="text-xs text-muted-foreground">{t("gen.pages.drama.components.DramaVisualPanel.gen_1ae3a984")}</div>
+          <div className="text-xs text-muted-foreground">{i18next.t("gen.pages.drama.components.DramaVisualPanel.gen_1ae3a984")}</div>
           <div className="mt-1 text-lg font-semibold">{promptStats.queued}</div>
         </div>
         <div className="rounded-md border p-3 text-sm">
-          <div className="text-xs text-muted-foreground">{t("gen.pages.drama.components.DramaVisualPanel.gen_fad5222c")}</div>
+          <div className="text-xs text-muted-foreground">{i18next.t("gen.pages.drama.components.DramaVisualPanel.gen_fad5222c")}</div>
           <div className="mt-1 text-lg font-semibold">{promptStats.succeeded}</div>
         </div>
         <div className="rounded-md border p-3 text-sm">
-          <div className="text-xs text-muted-foreground">{t("gen.pages.drama.components.DramaVisualPanel.gen_acd5cb84")}</div>
+          <div className="text-xs text-muted-foreground">{i18next.t("gen.pages.drama.components.DramaVisualPanel.gen_acd5cb84")}</div>
           <div className="mt-1 text-lg font-semibold">{promptStats.failed}</div>
         </div>
         <div className="rounded-md border p-3 text-sm">
-          <div className="text-xs text-muted-foreground">{t("gen.pages.drama.components.DramaVisualPanel.gen_a1c90d39")}</div>
+          <div className="text-xs text-muted-foreground">{i18next.t("gen.pages.drama.components.DramaVisualPanel.gen_a1c90d39")}</div>
           <div className="mt-1 text-lg font-semibold">{promptStats.history}</div>
         </div>
       </div>
@@ -178,14 +178,14 @@ export function DramaVisualPanel(props: {
             onChange={(event) => props.onSelectOrder(Number(event.target.value))}
           >
             {episodes.map((episode) => (
-              <option key={episode.id} value={episode.order}>{t("gen.pages.drama.components.DramaVisualPanel.gen_889a395a")}</option>
+              <option key={episode.id} value={episode.order}>{i18next.t("gen.pages.drama.components.DramaVisualPanel.gen_889a395a")}</option>
             ))}
           </SelectControl>
           <SelectControl
             className="h-10 rounded-md border bg-background px-3 text-sm"
             value={props.selectedProvider}
             onChange={(event) => props.onSelectProvider(event.target.value)}
-            aria-label={t("gen.pages.drama.components.DramaVisualPanel.gen_708330b3")}
+            aria-label={i18next.t("gen.pages.drama.components.DramaVisualPanel.gen_708330b3")}
           >
             {props.videoProviders.length > 0 ? props.videoProviders.map((provider) => (
               <option key={provider.provider} value={provider.provider}>{provider.label}</option>
@@ -198,14 +198,14 @@ export function DramaVisualPanel(props: {
             value={activeImageProvider}
             disabled={imageProviders.length === 0}
             onChange={(event) => setSelectedImageProvider(event.target.value)}
-            aria-label={t("gen.pages.drama.components.DramaVisualPanel.gen_fbf88ba9")}
+            aria-label={i18next.t("gen.pages.drama.components.DramaVisualPanel.gen_fbf88ba9")}
           >
             {imageProviders.length > 0 ? imageProviders.map((provider) => (
               <option key={provider.provider} value={provider.provider}>
                 {provider.name} · {provider.currentImageModel}
               </option>
             )) : (
-              <option value="">{t("gen.pages.drama.components.DramaVisualPanel.gen_5992f5c0")}</option>
+              <option value="">{i18next.t("gen.pages.drama.components.DramaVisualPanel.gen_5992f5c0")}</option>
             )}
           </SelectControl>
           <label className="flex h-10 cursor-pointer items-center gap-2 rounded-md border bg-background px-3 text-sm">
@@ -215,7 +215,7 @@ export function DramaVisualPanel(props: {
               onChange={(event) => setUseCharacterRefImages(event.target.checked)}
               className="h-4 w-4 accent-primary"
             />
-            <span>{t("gen.pages.drama.components.DramaVisualPanel.gen_9e0df0c8")}</span>
+            <span>{i18next.t("gen.pages.drama.components.DramaVisualPanel.gen_9e0df0c8")}</span>
           </label>
         </div>
         <div className="flex flex-wrap gap-2">
@@ -246,12 +246,12 @@ export function DramaVisualPanel(props: {
       {hasStoryboardShots ? (
         <div className="grid gap-3 md:grid-cols-2">
           <CostEstimate
-            title={t("gen.pages.drama.components.DramaVisualPanel.gen_183e14ef")}
+            title={i18next.t("gen.pages.drama.components.DramaVisualPanel.gen_183e14ef")}
             cost={keyframeEstimateQuery.data?.data?.cost}
             loading={keyframeEstimateQuery.isFetching}
           />
           <CostEstimate
-            title={t("gen.pages.drama.components.DramaVisualPanel.gen_da8723a1")}
+            title={i18next.t("gen.pages.drama.components.DramaVisualPanel.gen_da8723a1")}
             cost={videoEstimateQuery.data?.data?.cost}
             loading={videoEstimateQuery.isFetching}
           />
@@ -262,7 +262,7 @@ export function DramaVisualPanel(props: {
           {latestKeyframeBatch ? (
             <BatchJobStatus
               job={latestKeyframeBatch}
-              title={t("gen.pages.drama.components.DramaVisualPanel.gen_e451c2f8")}
+              title={i18next.t("gen.pages.drama.components.DramaVisualPanel.gen_e451c2f8")}
               disabled={props.busy || imageProviders.length === 0}
               onRetry={(failedShotIds) => props.onBatchJob(selectedEpisode.order, {
                 type: "keyframes",
@@ -274,7 +274,7 @@ export function DramaVisualPanel(props: {
           {latestVideoBatch ? (
             <BatchJobStatus
               job={latestVideoBatch}
-              title={t("gen.pages.drama.components.DramaVisualPanel.gen_f284e9fb")}
+              title={i18next.t("gen.pages.drama.components.DramaVisualPanel.gen_f284e9fb")}
               disabled={props.busy}
               onRetry={(failedShotIds) => props.onBatchJob(selectedEpisode.order, {
                 type: "videos",
@@ -291,12 +291,12 @@ export function DramaVisualPanel(props: {
         </div>
       ) : null}
       {!storyboard ? (
-        <div className="rounded-md border border-dashed p-6 text-sm text-muted-foreground">{t("gen.pages.drama.components.DramaVisualPanel.gen_d58dbebb")}</div>
+        <div className="rounded-md border border-dashed p-6 text-sm text-muted-foreground">{i18next.t("gen.pages.drama.components.DramaVisualPanel.gen_d58dbebb")}</div>
       ) : (
         <Card className="rounded-lg">
           <CardHeader>
-            <CardTitle className="text-lg">{t("gen.pages.drama.components.DramaVisualPanel.gen_974b4a33")}</CardTitle>
-            <CardDescription>{t("gen.pages.drama.components.DramaVisualPanel.gen_storyboard_wdu6")}</CardDescription>
+            <CardTitle className="text-lg">{i18next.t("gen.pages.drama.components.DramaVisualPanel.gen_974b4a33")}</CardTitle>
+            <CardDescription>{i18next.t("gen.pages.drama.components.DramaVisualPanel.gen_storyboard_wdu6")}</CardDescription>
           </CardHeader>
           <CardContent className="space-y-3">
             {(storyboard.shots ?? []).map((shot) => {
@@ -306,12 +306,12 @@ export function DramaVisualPanel(props: {
                 <div key={shot.id} className="rounded-lg border p-3">
                   <div className="flex flex-wrap items-start justify-between gap-3">
                     <div className="space-y-1">
-                      <div className="font-medium">{t("gen.pages.drama.components.DramaVisualPanel.gen_1935bf3e")}</div>
+                      <div className="font-medium">{i18next.t("gen.pages.drama.components.DramaVisualPanel.gen_1935bf3e")}</div>
                       <div className="text-sm text-muted-foreground">{shot.action}</div>
                       <div className="flex flex-wrap gap-2">
-                        {keyframe.status === "done" ? <Badge variant="outline">{t("gen.pages.drama.components.DramaVisualPanel.gen_36441d15")}</Badge> : null}
-                        {keyframe.history?.length ? <Badge variant="secondary">{t("gen.pages.drama.components.DramaVisualPanel.keyframesHistory")}</Badge> : null}
-                        {prompt ? <Badge variant="outline">{t("gen.pages.drama.components.DramaVisualPanel.gen_b51cf44c")}</Badge> : null}
+                        {keyframe.status === "done" ? <Badge variant="outline">{i18next.t("gen.pages.drama.components.DramaVisualPanel.gen_36441d15")}</Badge> : null}
+                        {keyframe.history?.length ? <Badge variant="secondary">{i18next.t("gen.pages.drama.components.DramaVisualPanel.keyframesHistory")}</Badge> : null}
+                        {prompt ? <Badge variant="outline">{i18next.t("gen.pages.drama.components.DramaVisualPanel.gen_b51cf44c")}</Badge> : null}
                       </div>
                     </div>
                     <div className="flex flex-wrap gap-2">
@@ -323,7 +323,7 @@ export function DramaVisualPanel(props: {
                         onClick={() => startKeyframeGeneration(shot)}
                       >
                         <ImageIcon className="h-4 w-4" />
-                        {keyframe.status === "done" ? t("gen.pages.drama.components.DramaVisualPanel.gen_8f5ba26d") : t("gen.pages.drama.components.DramaVisualPanel.gen_64a4e687")}
+                        {keyframe.status === "done" ? i18next.t("gen.pages.drama.components.DramaVisualPanel.gen_8f5ba26d") : i18next.t("gen.pages.drama.components.DramaVisualPanel.gen_64a4e687")}
                       </Button>
                       <Button size="sm" type="button" variant="outline" disabled={props.busy} onClick={() => props.onVideoPrompt(shot)}>
                         <Video className="h-4 w-4" />
@@ -333,7 +333,7 @@ export function DramaVisualPanel(props: {
                         <>
                           <Button size="sm" type="button" disabled={props.busy || Boolean(prompt.providerTaskId)} onClick={() => props.onProviderTask(prompt, props.selectedProvider)}>
                             <Sparkles className="h-4 w-4" />
-                            {prompt.providerTaskId ? t("gen.pages.drama.components.DramaVisualPanel.taskCreated") : t("gen.pages.drama.components.DramaVisualPanel.gen_b053cdd5")}
+                            {prompt.providerTaskId ? i18next.t("gen.pages.drama.components.DramaVisualPanel.taskCreated") : i18next.t("gen.pages.drama.components.DramaVisualPanel.gen_b053cdd5")}
                           </Button>
                           {prompt.providerTaskId ? (
                             <Button size="sm" type="button" variant="outline" disabled={props.busy} onClick={() => props.onRefreshProviderTask(prompt)}>
@@ -359,8 +359,8 @@ export function DramaVisualPanel(props: {
       {videoPrompts.length > 0 ? (
         <Card className="rounded-lg">
           <CardHeader>
-            <CardTitle className="text-lg">{t("gen.pages.drama.components.DramaVisualPanel.gen_33e7478f")}</CardTitle>
-            <CardDescription>{t("gen.pages.drama.components.DramaVisualPanel.gen_5b559e2d")}</CardDescription>
+            <CardTitle className="text-lg">{i18next.t("gen.pages.drama.components.DramaVisualPanel.gen_33e7478f")}</CardTitle>
+            <CardDescription>{i18next.t("gen.pages.drama.components.DramaVisualPanel.gen_5b559e2d")}</CardDescription>
           </CardHeader>
           <CardContent className="space-y-3">
             {videoPrompts.map((prompt) => (
@@ -371,8 +371,8 @@ export function DramaVisualPanel(props: {
                       <Badge variant="secondary">{prompt.provider}</Badge>
                       <Badge variant="outline">v{prompt.version ?? 1}</Badge>
                       <Badge variant={prompt.status === "failed" ? "destructive" : "outline"}>{prompt.status}</Badge>
-                      {!isActiveVideoPrompt(prompt) ? <Badge variant="secondary">{t("gen.pages.drama.components.DramaVisualPanel.gen_a1c90d39")}</Badge> : null}
-                      {prompt.providerTaskId ? <span className="text-muted-foreground">{t("gen.pages.drama.components.DramaVisualPanel.taskIdPromptProviderTaskId")}</span> : null}
+                      {!isActiveVideoPrompt(prompt) ? <Badge variant="secondary">{i18next.t("gen.pages.drama.components.DramaVisualPanel.gen_a1c90d39")}</Badge> : null}
+                      {prompt.providerTaskId ? <span className="text-muted-foreground">{i18next.t("gen.pages.drama.components.DramaVisualPanel.taskIdPromptProviderTaskId")}</span> : null}
                     </div>
                     <p className="line-clamp-2 text-sm text-muted-foreground">{prompt.prompt}</p>
                   </div>
@@ -446,11 +446,11 @@ function isActiveBatch(job: DramaBatchJob | undefined): boolean {
 
 function batchStatusLabel(status: DramaBatchJob["status"]): string {
   const labels: Record<DramaBatchJob["status"], string> = {
-    pending: t("gen.pages.drama.components.DramaVisualPanel.gen_65dd9ef1"),
-    running: t("gen.pages.drama.components.DramaVisualPanel.gen_46e38679"),
-    paused: t("gen.pages.drama.components.DramaVisualPanel.gen_a2d930fd"),
-    done: t("gen.pages.drama.components.DramaVisualPanel.gen_fad5222c"),
-    failed: t("gen.pages.drama.components.DramaVisualPanel.gen_db57fa9a"),
+    pending: i18next.t("gen.pages.drama.components.DramaVisualPanel.gen_65dd9ef1"),
+    running: i18next.t("gen.pages.drama.components.DramaVisualPanel.gen_46e38679"),
+    paused: i18next.t("gen.pages.drama.components.DramaVisualPanel.gen_a2d930fd"),
+    done: i18next.t("gen.pages.drama.components.DramaVisualPanel.gen_fad5222c"),
+    failed: i18next.t("gen.pages.drama.components.DramaVisualPanel.gen_db57fa9a"),
   };
   return labels[status] ?? status;
 }
@@ -477,15 +477,15 @@ function BatchJobStatus(props: {
       </div>
       <div className="mt-2 flex flex-wrap gap-3 text-xs text-muted-foreground">
         <span>{done}/{total}</span>
-        {progress.skipped ? <span>{t("gen.pages.drama.components.DramaVisualPanel.gen_904cbd60")}</span> : null}
-        {progress.failed ? <span>{t("gen.pages.drama.components.DramaVisualPanel.gen_baff3118")}</span> : null}
-        {progress.provider ? <span>{t("gen.pages.drama.components.DramaVisualPanel.gen_afefa17e")}</span> : null}
-        {progress.cost ? <span>{t("gen.pages.drama.components.DramaVisualPanel.gen_cf55aa11")}</span> : null}
-        {progress.cost ? <span>{t("gen.pages.drama.components.DramaVisualPanel.gen_7559d4a8")}</span> : null}
+        {progress.skipped ? <span>{i18next.t("gen.pages.drama.components.DramaVisualPanel.gen_904cbd60")}</span> : null}
+        {progress.failed ? <span>{i18next.t("gen.pages.drama.components.DramaVisualPanel.gen_baff3118")}</span> : null}
+        {progress.provider ? <span>{i18next.t("gen.pages.drama.components.DramaVisualPanel.gen_afefa17e")}</span> : null}
+        {progress.cost ? <span>{i18next.t("gen.pages.drama.components.DramaVisualPanel.gen_cf55aa11")}</span> : null}
+        {progress.cost ? <span>{i18next.t("gen.pages.drama.components.DramaVisualPanel.gen_7559d4a8")}</span> : null}
       </div>
       {failedShotIds.length > 0 ? (
         <div className="mt-3 flex flex-wrap items-center gap-2">
-          <span className="text-xs text-destructive">{t("gen.pages.drama.components.DramaVisualPanel.gen_1bb197a9")}</span>
+          <span className="text-xs text-destructive">{i18next.t("gen.pages.drama.components.DramaVisualPanel.gen_1bb197a9")}</span>
           <Button
             size="sm"
             type="button"
@@ -517,17 +517,17 @@ function KeyframePreview({ shot, keyframe }: { shot: DramaShot; keyframe: DramaS
           </a>
         ) : (
           <div className="flex h-40 w-full items-center justify-center rounded-md border border-dashed bg-muted text-xs text-muted-foreground">
-            {keyframe.status === "generating" ? t("gen.pages.drama.components.DramaVisualPanel.gen_7e08d2b5") : keyframe.status === "error" ? t("gen.pages.drama.components.DramaVisualPanel.gen_783f3c1d") : t("gen.pages.drama.components.DramaVisualPanel.gen_0c5c556d")}
+            {keyframe.status === "generating" ? i18next.t("gen.pages.drama.components.DramaVisualPanel.gen_7e08d2b5") : keyframe.status === "error" ? i18next.t("gen.pages.drama.components.DramaVisualPanel.gen_783f3c1d") : i18next.t("gen.pages.drama.components.DramaVisualPanel.gen_0c5c556d")}
           </div>
         )}
         <div className="rounded-md border bg-muted/20 p-3 text-xs leading-5 text-muted-foreground">
           <div className="mb-1 flex flex-wrap items-center gap-2 font-medium text-foreground">
-            <span>{t("gen.pages.drama.components.DramaVisualPanel.gen_5bcb7a37")}</span>
+            <span>{i18next.t("gen.pages.drama.components.DramaVisualPanel.gen_5bcb7a37")}</span>
             {keyframe.status === "done" ? <Badge variant="outline">v{keyframe.version ?? 1}</Badge> : null}
           </div>
           <div>{shot.visualPrompt || shot.action}</div>
-          {shot.location ? <div className="mt-1">{t("gen.pages.drama.components.DramaVisualPanel.gen_53a6e43c")}</div> : null}
-          {keyframe.provider ? <div className="mt-1">{t("gen.pages.drama.components.DramaVisualPanel.gen_249622ad")}</div> : null}
+          {shot.location ? <div className="mt-1">{i18next.t("gen.pages.drama.components.DramaVisualPanel.gen_53a6e43c")}</div> : null}
+          {keyframe.provider ? <div className="mt-1">{i18next.t("gen.pages.drama.components.DramaVisualPanel.gen_249622ad")}</div> : null}
           {keyframe.status === "error" && keyframe.error ? (
             <div className="mt-2 text-destructive">{keyframe.error}</div>
           ) : null}
@@ -553,7 +553,7 @@ function KeyframeHistory({ history }: { history: NonNullable<DramaShotKeyframeDa
   const items = [...history].sort((left, right) => right.version - left.version);
   return (
     <div className="rounded-md border border-dashed p-3 text-xs">
-      <div className="mb-2 font-medium">{t("gen.pages.drama.components.DramaVisualPanel.gen_7718efde")}</div>
+      <div className="mb-2 font-medium">{i18next.t("gen.pages.drama.components.DramaVisualPanel.gen_7718efde")}</div>
       <div className="flex flex-wrap gap-2">
         {items.map((item) => {
           const label = `v${item.version}${item.provider ? ` · ${item.provider}` : ""}`;
@@ -591,7 +591,7 @@ function costUnitLabel(cost: DramaBatchCostBreakdown): string {
   if (cost.unit.costPerSecond) {
     parts.push(`时长 ${formatCost(cost, cost.unit.costPerSecond)}/秒`);
   }
-  return parts.length ? parts.join("，") : t("gen.pages.drama.components.DramaVisualPanel.gen_8690d6e2");
+  return parts.length ? parts.join("，") : i18next.t("gen.pages.drama.components.DramaVisualPanel.gen_8690d6e2");
 }
 
 function CostEstimate(props: { title: string; cost?: DramaBatchCostBreakdown; loading: boolean }) {
@@ -599,7 +599,7 @@ function CostEstimate(props: { title: string; cost?: DramaBatchCostBreakdown; lo
     <div className="rounded-md border border-dashed p-3 text-sm">
       <div className="text-xs text-muted-foreground">{props.title}</div>
       <div className="mt-1 font-medium">
-        {props.loading ? t("gen.pages.drama.components.DramaVisualPanel.gen_5930eaab") : props.cost ? formatCost(props.cost, props.cost.estimated) : t("gen.pages.drama.components.DramaVisualPanel.gen_71499936")}
+        {props.loading ? i18next.t("gen.pages.drama.components.DramaVisualPanel.gen_5930eaab") : props.cost ? formatCost(props.cost, props.cost.estimated) : i18next.t("gen.pages.drama.components.DramaVisualPanel.gen_71499936")}
       </div>
       {props.cost ? (
         <div className="mt-1 text-xs text-muted-foreground">
@@ -629,23 +629,23 @@ function VideoPromptDetails({ prompt, compact = false }: { prompt: DramaVideoPro
             <Badge variant="secondary">{prompt.provider}</Badge>
             <Badge variant="outline">v{prompt.version ?? 1}</Badge>
             <Badge variant={prompt.status === "failed" ? "destructive" : "outline"}>{prompt.status}</Badge>
-            {!isActiveVideoPrompt(prompt) ? <Badge variant="secondary">{t("gen.pages.drama.components.DramaVisualPanel.gen_a1c90d39")}</Badge> : null}
-            {prompt.providerTaskId ? <span className="text-muted-foreground">{t("gen.pages.drama.components.DramaVisualPanel.taskIdPromptProviderTaskId")}</span> : null}
+            {!isActiveVideoPrompt(prompt) ? <Badge variant="secondary">{i18next.t("gen.pages.drama.components.DramaVisualPanel.gen_a1c90d39")}</Badge> : null}
+            {prompt.providerTaskId ? <span className="text-muted-foreground">{i18next.t("gen.pages.drama.components.DramaVisualPanel.taskIdPromptProviderTaskId")}</span> : null}
           </div>
           <pre className="whitespace-pre-wrap rounded-md bg-muted/30 p-3 text-xs leading-5">{prompt.prompt}</pre>
         </>
       ) : null}
       {prompt.negativePrompt ? (
         <div className="rounded-md border p-3 text-xs leading-5 text-muted-foreground">
-          <div className="mb-1 font-medium text-foreground">{t("gen.pages.drama.components.DramaVisualPanel.gen_0b569690")}</div>
+          <div className="mb-1 font-medium text-foreground">{i18next.t("gen.pages.drama.components.DramaVisualPanel.gen_0b569690")}</div>
           {prompt.negativePrompt}
         </div>
       ) : null}
       <div className="flex flex-wrap gap-2 text-xs text-muted-foreground">
-        <span>{t("gen.pages.drama.components.DramaVisualPanel.gen_644f6291")}</span>
-        <span>{t("gen.pages.drama.components.DramaVisualPanel.gen_f496afca")}</span>
-        {prompt.durationSec ? <span>{t("gen.pages.drama.components.DramaVisualPanel.gen_07e9ff78")}</span> : null}
-        {providerResult.status ? <span>{t("gen.pages.drama.components.DramaVisualPanel.gen_e0a22385")}</span> : null}
+        <span>{i18next.t("gen.pages.drama.components.DramaVisualPanel.gen_644f6291")}</span>
+        <span>{i18next.t("gen.pages.drama.components.DramaVisualPanel.gen_f496afca")}</span>
+        {prompt.durationSec ? <span>{i18next.t("gen.pages.drama.components.DramaVisualPanel.gen_07e9ff78")}</span> : null}
+        {providerResult.status ? <span>{i18next.t("gen.pages.drama.components.DramaVisualPanel.gen_e0a22385")}</span> : null}
       </div>
       {resultUrl ? (
         <a
@@ -660,7 +660,7 @@ function VideoPromptDetails({ prompt, compact = false }: { prompt: DramaVideoPro
       ) : null}
       {prompt.status === "failed" ? (
         <div className="rounded-md border border-destructive/40 p-3 text-sm text-destructive">
-          {failureReason ? `视频任务失败：${failureReason}` : t("gen.pages.drama.components.DramaVisualPanel.gen_047a6b63")}
+          {failureReason ? `视频任务失败：${failureReason}` : i18next.t("gen.pages.drama.components.DramaVisualPanel.gen_047a6b63")}
         </div>
       ) : null}
     </div>

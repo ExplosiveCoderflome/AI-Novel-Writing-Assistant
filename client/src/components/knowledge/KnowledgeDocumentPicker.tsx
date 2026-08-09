@@ -19,7 +19,7 @@ interface KnowledgeDocumentPickerProps {
 }
 
 function formatDocumentKind(kind: "user_upload" | "analysis_published"): string {
-  return kind === "analysis_published" ? t("gen.components.knowledge.KnowledgeDocumentPicker.gen_baf0c0bb") : t("gen.components.knowledge.KnowledgeDocumentPicker.uploadDocument");
+  return kind === "analysis_published" ? i18next.t("gen.components.knowledge.KnowledgeDocumentPicker.gen_baf0c0bb") : i18next.t("gen.components.knowledge.KnowledgeDocumentPicker.uploadDocument");
 }
 
 export default function KnowledgeDocumentPicker(props: KnowledgeDocumentPickerProps) {
@@ -76,14 +76,14 @@ export default function KnowledgeDocumentPicker(props: KnowledgeDocumentPickerPr
           <Input
             value={keyword}
             onChange={(event) => setKeyword(event.target.value)}
-            placeholder={t("gen.components.knowledge.KnowledgeDocumentPicker.gen_20c81d3d")}
+            placeholder={i18next.t("gen.components.knowledge.KnowledgeDocumentPicker.gen_20c81d3d")}
           />
           <div className="max-h-64 space-y-2 overflow-auto rounded-md border p-2">
             {documentsQuery.isLoading ? (
-              <div className="text-sm text-muted-foreground">{t("gen.components.knowledge.KnowledgeDocumentPicker.gen_26b5bd49")}</div>
+              <div className="text-sm text-muted-foreground">{i18next.t("gen.components.knowledge.KnowledgeDocumentPicker.gen_26b5bd49")}</div>
             ) : null}
             {visibleDocuments.length === 0 && !documentsQuery.isLoading ? (
-              <div className="text-sm text-muted-foreground">{t("gen.components.knowledge.KnowledgeDocumentPicker.gen_286b4cb3")}</div>
+              <div className="text-sm text-muted-foreground">{i18next.t("gen.components.knowledge.KnowledgeDocumentPicker.gen_286b4cb3")}</div>
             ) : null}
             {visibleDocuments.map((item) => {
               const checked = selectedIds.includes(item.id);

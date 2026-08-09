@@ -12,7 +12,7 @@ export function NovelListPagination(props: {
     return null;
   }
   return (
-    <nav className="flex flex-wrap items-center justify-end gap-2" aria-label={t("gen.pages.novels.components.list.NovelListPagination.gen_5ecc53d5")}>
+    <nav className="flex flex-wrap items-center justify-end gap-2" aria-label={i18next.t("gen.pages.novels.components.list.NovelListPagination.gen_5ecc53d5")}>
       <Button
         type="button"
         variant="outline"

@@ -51,7 +51,7 @@ export default function StageIdea({
 
   const useIdeaInspiration = (text: string) => {
     if (idea.trim()) {
-      const confirmed = window.confirm(t("gen.pages.novels.autoDirector.StageIdea.confirmOverwrite"));
+      const confirmed = window.confirm(i18next.t("gen.pages.novels.autoDirector.StageIdea.confirmOverwrite"));
       if (!confirmed) {
         return;
       }
@@ -117,7 +117,7 @@ export default function StageIdea({
           className="min-h-[180px] w-full resize-none bg-transparent px-1 py-1 text-base leading-7 text-foreground outline-none placeholder:text-muted-foreground/60 sm:text-lg sm:leading-8"
           value={idea}
           onChange={(event) => onIdeaChange(event.target.value)}
-          placeholder={t("gen.pages.novels.autoDirector.StageIdea.exampleOrdinaryFemaleUniversityStudentEnteredAbilitiesOrganizationWorkingAndStudyingWhileInvestigatingFatherDisappearedTruth")}
+          placeholder={i18next.t("gen.pages.novels.autoDirector.StageIdea.exampleOrdinaryFemaleUniversityStudentEnteredAbilitiesOrganizationWorkingAndStudyingWhileInvestigatingFatherDisappearedTruth")}
         />
         <div className="flex flex-col gap-2 pt-3 sm:flex-row sm:items-center sm:justify-between">
           <button
@@ -127,7 +127,7 @@ export default function StageIdea({
             disabled={isGeneratingIdeaInspirations}
           >
             <Sparkles className="h-4 w-4" />
-            {isGeneratingIdeaInspirations ? t("gen.pages.novels.autoDirector.StageIdea.gen_95e81025") : t("gen.pages.novels.autoDirector.StageIdea.gen_fab2c176")}
+            {isGeneratingIdeaInspirations ? i18next.t("gen.pages.novels.autoDirector.StageIdea.gen_95e81025") : i18next.t("gen.pages.novels.autoDirector.StageIdea.gen_fab2c176")}
           </button>
           <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
             <button
@@ -136,7 +136,7 @@ export default function StageIdea({
               onClick={onQuickGenerate}
               disabled={!canContinue || isGenerating}
             >
-              {isGenerating ? t("gen.pages.novels.autoDirector.StageIdea.gen_4d020ba3") : t("gen.pages.novels.autoDirector.StageIdea.gen_9649cffc")}
+              {isGenerating ? i18next.t("gen.pages.novels.autoDirector.StageIdea.gen_4d020ba3") : i18next.t("gen.pages.novels.autoDirector.StageIdea.gen_9649cffc")}
             </button>
             <Button type="button" onClick={onContinue} disabled={!canContinue}>
               继续完善设定

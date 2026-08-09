@@ -29,16 +29,16 @@ export function getMobileNovelSaveState(
     case "basic":
       return {
         visible: true,
-        label: i18next.t("gen.pages.novels.mobile.mobileNovelWorkspaceUtils.saveBasicInfo"),
-        savingLabel: i18next.t("gen.pages.novels.mobile.mobileNovelWorkspaceUtils.savingInProgressDotDotDot"),
+        label: i18next.i18next.t("gen.pages.novels.mobile.mobileNovelWorkspaceUtils.saveBasicInfo"),
+        savingLabel: i18next.i18next.t("gen.pages.novels.mobile.mobileNovelWorkspaceUtils.savingInProgressDotDotDot"),
         isSaving: props.basicTab.isSaving,
         onSave: props.basicTab.onSave,
       };
     case "story_macro":
       return {
         visible: true,
-        label: i18next.t("gen.pages.novels.mobile.mobileNovelWorkspaceUtils.saveStoryPlanning"),
-        savingLabel: i18next.t("gen.pages.novels.mobile.mobileNovelWorkspaceUtils.savingInProgressDotDotDot"),
+        label: i18next.i18next.t("gen.pages.novels.mobile.mobileNovelWorkspaceUtils.saveStoryPlanning"),
+        savingLabel: i18next.i18next.t("gen.pages.novels.mobile.mobileNovelWorkspaceUtils.savingInProgressDotDotDot"),
         isSaving: props.storyMacroTab.isSaving,
         onSave: props.storyMacroTab.onSaveEdits,
       };
@@ -53,24 +53,24 @@ export function getMobileNovelSaveState(
     case "character":
       return {
         visible: true,
-        label: i18next.t("gen.pages.novels.mobile.mobileNovelWorkspaceUtils.gen_保存角色_02kg"),
-        savingLabel: i18next.t("gen.pages.novels.mobile.mobileNovelWorkspaceUtils.savingInProgressDotDotDot"),
+        label: i18next.i18next.t("gen.pages.novels.mobile.mobileNovelWorkspaceUtils.gen_保存角色_02kg"),
+        savingLabel: i18next.i18next.t("gen.pages.novels.mobile.mobileNovelWorkspaceUtils.savingInProgressDotDotDot"),
         isSaving: props.characterTab.isSavingCharacter,
         onSave: props.characterTab.onSaveCharacter,
       };
     case "outline":
       return {
         visible: true,
-        label: i18next.t("gen.pages.novels.mobile.mobileNovelWorkspaceUtils.saveVolumeWorkspace"),
-        savingLabel: i18next.t("gen.pages.novels.mobile.mobileNovelWorkspaceUtils.savingInProgressDotDotDot"),
+        label: i18next.i18next.t("gen.pages.novels.mobile.mobileNovelWorkspaceUtils.saveVolumeWorkspace"),
+        savingLabel: i18next.i18next.t("gen.pages.novels.mobile.mobileNovelWorkspaceUtils.savingInProgressDotDotDot"),
         isSaving: props.outlineTab.isSaving,
         onSave: props.outlineTab.onSave,
       };
     case "structured":
       return {
         visible: true,
-        label: i18next.t("gen.pages.novels.mobile.mobileNovelWorkspaceUtils.saveSplitChapters"),
-        savingLabel: i18next.t("gen.pages.novels.mobile.mobileNovelWorkspaceUtils.savingInProgressDotDotDot"),
+        label: i18next.i18next.t("gen.pages.novels.mobile.mobileNovelWorkspaceUtils.saveSplitChapters"),
+        savingLabel: i18next.i18next.t("gen.pages.novels.mobile.mobileNovelWorkspaceUtils.savingInProgressDotDotDot"),
         isSaving: props.structuredTab.isSaving,
         onSave: props.structuredTab.onSave,
       };

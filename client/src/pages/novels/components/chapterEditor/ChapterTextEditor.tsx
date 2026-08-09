@@ -119,11 +119,11 @@ function renderLoadingPreview(
 
       <div className="space-y-3">
         <div className="rounded-2xl border border-amber-200/80 bg-amber-50/80 p-4">
-          <div className="mb-2 text-xs font-medium text-amber-700">{t("gen.pages.novels.components.chapterEditor.ChapterTextEditor.gen_e922128c")}</div>
+          <div className="mb-2 text-xs font-medium text-amber-700">{i18next.t("gen.pages.novels.components.chapterEditor.ChapterTextEditor.gen_e922128c")}</div>
           <TextBlock text={preview.originalText} className="text-amber-950" />
         </div>
         <div className="rounded-2xl border border-dashed border-border/70 bg-background/80 p-4">
-          <div className="mb-2 text-xs font-medium text-muted-foreground">{t("gen.pages.novels.components.chapterEditor.ChapterTextEditor.aiGeneratingCandidateVersion")}</div>
+          <div className="mb-2 text-xs font-medium text-muted-foreground">{i18next.t("gen.pages.novels.components.chapterEditor.ChapterTextEditor.aiGeneratingCandidateVersion")}</div>
           <div className="space-y-2">
             <div className="h-4 w-11/12 rounded-full bg-muted/70" />
             <div className="h-4 w-full rounded-full bg-muted/60" />
@@ -148,11 +148,11 @@ function renderBlockPreview(
 
       <div className="space-y-3">
         <div className="rounded-2xl border border-rose-200/80 bg-rose-50/80 p-4">
-          <div className="mb-2 text-xs font-medium text-rose-700">{t("gen.pages.novels.components.chapterEditor.ChapterTextEditor.gen_e5729e94")}</div>
+          <div className="mb-2 text-xs font-medium text-rose-700">{i18next.t("gen.pages.novels.components.chapterEditor.ChapterTextEditor.gen_e5729e94")}</div>
           <TextBlock text={preview.originalText} className="text-rose-950" />
         </div>
         <div className="rounded-2xl border border-emerald-200/80 bg-emerald-50/90 p-4">
-          <div className="mb-2 text-xs font-medium text-emerald-700">{t("gen.pages.novels.components.chapterEditor.ChapterTextEditor.gen_670c24f0")}</div>
+          <div className="mb-2 text-xs font-medium text-emerald-700">{i18next.t("gen.pages.novels.components.chapterEditor.ChapterTextEditor.gen_670c24f0")}</div>
           <TextBlock text={preview.candidateText} className="text-emerald-950" />
         </div>
       </div>
@@ -255,14 +255,14 @@ export default function ChapterTextEditor(props: ChapterTextEditorProps) {
   );
 
   const helperText = preview?.mode === "inline"
-    ? t("gen.pages.novels.components.chapterEditor.ChapterTextEditor.gen_6b7629e0")
+    ? i18next.t("gen.pages.novels.components.chapterEditor.ChapterTextEditor.gen_6b7629e0")
     : preview?.mode === "loading"
-      ? t("gen.pages.novels.components.chapterEditor.ChapterTextEditor.aiGeneratingCandidatesRetainingOriginal")
+      ? i18next.t("gen.pages.novels.components.chapterEditor.ChapterTextEditor.aiGeneratingCandidatesRetainingOriginal")
       : preview?.mode === "block"
-        ? t("gen.pages.novels.components.chapterEditor.ChapterTextEditor.gen_09a5d331")
+        ? i18next.t("gen.pages.novels.components.chapterEditor.ChapterTextEditor.gen_09a5d331")
         : readOnly
-          ? t("gen.pages.novels.components.chapterEditor.ChapterTextEditor.gen_35ac7097")
-      : t("gen.pages.novels.components.chapterEditor.ChapterTextEditor.gen_9f896df1");
+          ? i18next.t("gen.pages.novels.components.chapterEditor.ChapterTextEditor.gen_35ac7097")
+      : i18next.t("gen.pages.novels.components.chapterEditor.ChapterTextEditor.gen_9f896df1");
 
   useEffect(() => {
     const surface = surfaceRef.current;
@@ -362,7 +362,7 @@ export default function ChapterTextEditor(props: ChapterTextEditorProps) {
   return (
     <div ref={containerRef} className="relative flex h-full min-h-[540px] flex-col overflow-hidden rounded-3xl border border-border/70 bg-background shadow-sm xl:min-h-0">
       <div className="shrink-0 flex items-center justify-between border-b border-border/70 px-4 py-3">
-        <div className="text-sm font-medium text-foreground">{t("gen.pages.novels.components.chapterEditor.ChapterTextEditor.gen_58378f0d")}</div>
+        <div className="text-sm font-medium text-foreground">{i18next.t("gen.pages.novels.components.chapterEditor.ChapterTextEditor.gen_58378f0d")}</div>
         <div className="text-xs text-muted-foreground">{helperText}</div>
       </div>
 

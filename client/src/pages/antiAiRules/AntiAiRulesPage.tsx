@@ -115,20 +115,20 @@ export default function AntiAiRulesPage() {
     mutationFn: (payload: ReturnType<typeof buildPayload>) => createAntiAiRule(payload),
     onSuccess: async () => {
       await refreshRules();
-      toast.success(t("gen.pages.antiAiRules.AntiAiRulesPage.gen_f829c4e3"));
+      toast.success(i18next.t("gen.pages.antiAiRules.AntiAiRulesPage.gen_f829c4e3"));
       setDialogOpen(false);
     },
-    onError: (error) => toast.error(error instanceof Error ? error.message : t("gen.pages.antiAiRules.AntiAiRulesPage.gen_5d41aa1f")),
+    onError: (error) => toast.error(error instanceof Error ? error.message : i18next.t("gen.pages.antiAiRules.AntiAiRulesPage.gen_5d41aa1f")),
   });
 
   const updateMutation = useMutation({
     mutationFn: ({ id, payload }: { id: string; payload: Partial<ReturnType<typeof buildPayload>> }) => updateAntiAiRule(id, payload),
     onSuccess: async () => {
       await refreshRules();
-      toast.success(t("gen.pages.antiAiRules.AntiAiRulesPage.gen_e0dcdc7e"));
+      toast.success(i18next.t("gen.pages.antiAiRules.AntiAiRulesPage.gen_e0dcdc7e"));
       setDialogOpen(false);
     },
-    onError: (error) => toast.error(error instanceof Error ? error.message : t("gen.pages.antiAiRules.AntiAiRulesPage.saveRulesFailedDot")),
+    onError: (error) => toast.error(error instanceof Error ? error.message : i18next.t("gen.pages.antiAiRules.AntiAiRulesPage.saveRulesFailedDot")),
   });
 
   const aiDraftMutation = useMutation({
@@ -152,7 +152,7 @@ export default function AntiAiRulesPage() {
     onSuccess: (response) => {
       const result = response.data;
       if (!result) {
-        toast.error(t("gen.pages.antiAiRules.AntiAiRulesPage.aiNoAvailableDraft"));
+        toast.error(i18next.t("gen.pages.antiAiRules.AntiAiRulesPage.aiNoAvailableDraft"));
         return;
       }
       setForm({
@@ -168,9 +168,9 @@ export default function AntiAiRulesPage() {
         globalBaselineEnabled: result.draft.globalBaselineEnabled,
         autoRewrite: result.draft.autoRewrite,
       });
-      toast.success(t("gen.pages.antiAiRules.AntiAiRulesPage.gen_f7e519a6"));
+      toast.success(i18next.t("gen.pages.antiAiRules.AntiAiRulesPage.gen_f7e519a6"));
     },
-    onError: (error) => toast.error(error instanceof Error ? error.message : t("gen.pages.antiAiRules.AntiAiRulesPage.aiFailedToGenerateDraft")),
+    onError: (error) => toast.error(error instanceof Error ? error.message : i18next.t("gen.pages.antiAiRules.AntiAiRulesPage.aiFailedToGenerateDraft")),
   });
 
   const detectionMutation = useMutation({
@@ -183,7 +183,7 @@ export default function AntiAiRulesPage() {
       temperature: 0.2,
     }),
     onSuccess: () => setRewritePreview(""),
-    onError: (error) => toast.error(error instanceof Error ? error.message : t("gen.pages.antiAiRules.AntiAiRulesPage.gen_fc0bacd6")),
+    onError: (error) => toast.error(error instanceof Error ? error.message : i18next.t("gen.pages.antiAiRules.AntiAiRulesPage.gen_fc0bacd6")),
   });
 
   const rewriteMutation = useMutation({
@@ -216,7 +216,7 @@ export default function AntiAiRulesPage() {
       });
     },
     onSuccess: (response) => setRewritePreview(response.data?.content ?? ""),
-    onError: (error) => toast.error(error instanceof Error ? error.message : t("gen.pages.antiAiRules.AntiAiRulesPage.gen_59f7c94a")),
+    onError: (error) => toast.error(error instanceof Error ? error.message : i18next.t("gen.pages.antiAiRules.AntiAiRulesPage.gen_59f7c94a")),
   });
 
   useEffect(() => {
@@ -243,7 +243,7 @@ export default function AntiAiRulesPage() {
     event.preventDefault();
     const payload = buildPayload(form);
     if (!payload.key || !payload.name || !payload.description) {
-      toast.error(t("gen.pages.antiAiRules.AntiAiRulesPage.gen_2d603f07"));
+      toast.error(i18next.t("gen.pages.antiAiRules.AntiAiRulesPage.gen_2d603f07"));
       return;
     }
     if (editingRule) {

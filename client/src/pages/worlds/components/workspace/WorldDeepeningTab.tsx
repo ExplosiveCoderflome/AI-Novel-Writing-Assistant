@@ -92,7 +92,7 @@ export default function WorldDeepeningTab(props: WorldDeepeningTabProps) {
   return (
     <Card>
       <CardHeader>
-        <CardTitle>{t("gen.pages.worlds.components.workspace.WorldDeepeningTab.gen_5aca8bac")}</CardTitle>
+        <CardTitle>{i18next.t("gen.pages.worlds.components.workspace.WorldDeepeningTab.gen_5aca8bac")}</CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
         {/* 增补小说/相关作品关联面板 */}
@@ -163,7 +163,7 @@ export default function WorldDeepeningTab(props: WorldDeepeningTabProps) {
         {/* 生成提问主控制栏 */}
         <div className="flex flex-col gap-3 rounded-md border p-3 lg:flex-row lg:items-center lg:justify-between">
           <div>
-            <div className="text-sm font-medium">{t("gen.pages.worlds.components.workspace.WorldDeepeningTab.gen_c425f122")}</div>
+            <div className="text-sm font-medium">{i18next.t("gen.pages.worlds.components.workspace.WorldDeepeningTab.gen_c425f122")}</div>
             <div className="mt-1 text-xs leading-5 text-muted-foreground">
               系统会根据此世界手册及已绑定的全量增补小说提出针对性问题。回答后整合进世界设定，帮助规则、势力、地点和冲突更清晰。
             </div>
@@ -177,7 +177,7 @@ export default function WorldDeepeningTab(props: WorldDeepeningTabProps) {
           <div className="grid gap-3 lg:grid-cols-[260px_minmax(0,1fr)]">
             <div className="space-y-2 rounded-md border p-3">
               <div className="flex items-center justify-between gap-2">
-                <div className="text-sm font-medium">{t("gen.pages.worlds.components.workspace.WorldDeepeningTab.gen_30d4af46")}</div>
+                <div className="text-sm font-medium">{i18next.t("gen.pages.worlds.components.workspace.WorldDeepeningTab.gen_30d4af46")}</div>
                 <div className="text-xs text-muted-foreground">{answeredCount}/{questions.length}</div>
               </div>
               {questions.map((question, index) => {
@@ -196,7 +196,7 @@ export default function WorldDeepeningTab(props: WorldDeepeningTabProps) {
                     <div className="flex items-center justify-between gap-2">
                       <span className="font-medium text-foreground">问题 {index + 1}</span>
                       <span className={answered ? "text-xs text-primary" : "text-xs text-muted-foreground"}>
-                        {answered ? t("gen.pages.worlds.components.workspace.WorldDeepeningTab.gen_8ce34e40") : t("gen.pages.worlds.components.workspace.WorldDeepeningTab.gen_94f1ce1b")}
+                        {answered ? i18next.t("gen.pages.worlds.components.workspace.WorldDeepeningTab.gen_8ce34e40") : i18next.t("gen.pages.worlds.components.workspace.WorldDeepeningTab.gen_94f1ce1b")}
                       </span>
                     </div>
                     <div className="mt-1 line-clamp-2 text-xs leading-5 text-muted-foreground">
@@ -217,7 +217,7 @@ export default function WorldDeepeningTab(props: WorldDeepeningTabProps) {
                 </div>
                 {activeQuickOptions.length > 0 ? (
                   <div className="space-y-2">
-                    <div className="text-xs text-muted-foreground">{t("gen.pages.worlds.components.workspace.WorldDeepeningTab.gen_ef7ab18a")}</div>
+                    <div className="text-xs text-muted-foreground">{i18next.t("gen.pages.worlds.components.workspace.WorldDeepeningTab.gen_ef7ab18a")}</div>
                     <div className="flex flex-wrap gap-2">
                       {activeQuickOptions.map((option) => (
                         <Button
@@ -245,7 +245,7 @@ export default function WorldDeepeningTab(props: WorldDeepeningTabProps) {
                   onChange={(event) =>
                     setAnswerDrafts((prev) => ({ ...prev, [activeQuestion.id]: event.target.value }))
                   }
-                  placeholder={t("gen.pages.worlds.components.workspace.WorldDeepeningTab.gen_a201e60c")}
+                  placeholder={i18next.t("gen.pages.worlds.components.workspace.WorldDeepeningTab.gen_a201e60c")}
                 />
               </div>
             ) : null}
@@ -260,7 +260,7 @@ export default function WorldDeepeningTab(props: WorldDeepeningTabProps) {
             onClick={onSubmit}
             disabled={submitPending || answeredCount === 0 || questions.length === 0}
           >
-            {submitPending ? t("gen.pages.worlds.components.workspace.WorldDeepeningTab.gen_2202334c") : t("gen.pages.worlds.components.workspace.WorldDeepeningTab.gen_4dc912d6")}
+            {submitPending ? i18next.t("gen.pages.worlds.components.workspace.WorldDeepeningTab.gen_2202334c") : i18next.t("gen.pages.worlds.components.workspace.WorldDeepeningTab.gen_4dc912d6")}
           </Button>
         </div>
       </CardContent>

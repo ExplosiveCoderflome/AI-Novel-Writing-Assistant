@@ -27,16 +27,16 @@ type FactoryMode = "novel" | "brief" | "adapt";
 
 const MODE_COPY: Record<FactoryMode, { title: string; description: string }> = {
   novel: {
-    title: t("gen.pages.titles.components.TitleFactoryPanel.gen_c0b5a8ae"),
-    description: t("gen.pages.titles.components.TitleFactoryPanel.gen_5a1a30d0"),
+    title: i18next.t("gen.pages.titles.components.TitleFactoryPanel.gen_c0b5a8ae"),
+    description: i18next.t("gen.pages.titles.components.TitleFactoryPanel.gen_5a1a30d0"),
   },
   brief: {
-    title: t("gen.pages.titles.components.TitleFactoryPanel.gen_5375d812"),
-    description: t("gen.pages.titles.components.TitleFactoryPanel.gen_697ece5c"),
+    title: i18next.t("gen.pages.titles.components.TitleFactoryPanel.gen_5375d812"),
+    description: i18next.t("gen.pages.titles.components.TitleFactoryPanel.gen_697ece5c"),
   },
   adapt: {
-    title: t("gen.pages.titles.components.TitleFactoryPanel.gen_6907616c"),
-    description: t("gen.pages.titles.components.TitleFactoryPanel.gen_36c8377c"),
+    title: i18next.t("gen.pages.titles.components.TitleFactoryPanel.gen_6907616c"),
+    description: i18next.t("gen.pages.titles.components.TitleFactoryPanel.gen_36c8377c"),
   },
 };
 
@@ -72,7 +72,7 @@ export default function TitleFactoryPanel({ genreTree, novels }: TitleFactoryPan
     mutationFn: async () => {
       if (mode === "novel") {
         if (!selectedNovelId) {
-          throw new Error(t("gen.pages.titles.components.TitleFactoryPanel.gen_bc7b49a8"));
+          throw new Error(i18next.t("gen.pages.titles.components.TitleFactoryPanel.gen_bc7b49a8"));
         }
         const response = await generateNovelTitles(selectedNovelId, {
           provider: llm.provider,
@@ -109,7 +109,7 @@ export default function TitleFactoryPanel({ genreTree, novels }: TitleFactoryPan
     mutationFn: (suggestion: TitleFactorySuggestion) => {
       const resolvedGenreId = mode === "novel" ? selectedNovel?.genre?.id ?? null : genreId || null;
       const description = mode === "novel"
-        ? `来源项目：${selectedNovel?.title ?? t("gen.pages.titles.components.TitleFactoryPanel.gen_e47afac6")}`
+        ? `来源项目：${selectedNovel?.title ?? i18next.t("gen.pages.titles.components.TitleFactoryPanel.gen_e47afac6")}`
         : mode === "adapt"
           ? `参考标题：${referenceTitle.trim()}`
           : brief.trim().slice(0, 400);
@@ -128,14 +128,14 @@ export default function TitleFactoryPanel({ genreTree, novels }: TitleFactoryPan
     },
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: queryKeys.titles.all });
-      toast.success(t("gen.pages.titles.components.TitleFactoryPanel.gen_fccedc6f"));
+      toast.success(i18next.t("gen.pages.titles.components.TitleFactoryPanel.gen_fccedc6f"));
     },
   });
 
   const handleCopy = async (suggestion: TitleFactorySuggestion) => {
     await navigator.clipboard.writeText(suggestion.title);
     setSelectedTitle(suggestion.title);
-    toast.success(t("gen.pages.titles.components.TitleFactoryPanel.gen_3257008e"));
+    toast.success(i18next.t("gen.pages.titles.components.TitleFactoryPanel.gen_3257008e"));
   };
 
   const handlePrimaryAction = async (suggestion: TitleFactorySuggestion) => {
@@ -155,9 +155,9 @@ export default function TitleFactoryPanel({ genreTree, novels }: TitleFactoryPan
             </div>
 
             <TabsList className="grid h-10 w-full grid-cols-3 bg-background/70 p-1 shadow-sm lg:w-[420px]">
-              <TabsTrigger value="novel">{t("gen.pages.titles.components.TitleFactoryPanel.gen_c0b5a8ae")}</TabsTrigger>
-              <TabsTrigger value="brief">{t("gen.pages.titles.components.TitleFactoryPanel.gen_5375d812")}</TabsTrigger>
-              <TabsTrigger value="adapt">{t("gen.pages.titles.components.TitleFactoryPanel.gen_6907616c")}</TabsTrigger>
+              <TabsTrigger value="novel">{i18next.t("gen.pages.titles.components.TitleFactoryPanel.gen_c0b5a8ae")}</TabsTrigger>
+              <TabsTrigger value="brief">{i18next.t("gen.pages.titles.components.TitleFactoryPanel.gen_5375d812")}</TabsTrigger>
+              <TabsTrigger value="adapt">{i18next.t("gen.pages.titles.components.TitleFactoryPanel.gen_6907616c")}</TabsTrigger>
             </TabsList>
           </div>
 
@@ -173,7 +173,7 @@ export default function TitleFactoryPanel({ genreTree, novels }: TitleFactoryPan
                   value={selectedNovelId}
                   onChange={(event) => setSelectedNovelId(event.target.value)}
                 >
-                  <option value="">{t("gen.pages.titles.components.TitleFactoryPanel.gen_9fc2e26b")}</option>
+                  <option value="">{i18next.t("gen.pages.titles.components.TitleFactoryPanel.gen_9fc2e26b")}</option>
                   {novels.map((novel) => (
                     <option key={novel.id} value={novel.id}>
                       {novel.title}
@@ -196,7 +196,7 @@ export default function TitleFactoryPanel({ genreTree, novels }: TitleFactoryPan
                   className={`${textareaClassName} min-h-[176px]`}
                   value={brief}
                   onChange={(event) => setBrief(event.target.value)}
-                  placeholder={t("gen.pages.titles.components.TitleFactoryPanel.gen_224614a8")}
+                  placeholder={i18next.t("gen.pages.titles.components.TitleFactoryPanel.gen_224614a8")}
                 />
               </div>
               <div className="space-y-3">
@@ -209,7 +209,7 @@ export default function TitleFactoryPanel({ genreTree, novels }: TitleFactoryPan
                   value={genreId}
                   onChange={(event) => setGenreId(event.target.value)}
                 >
-                  <option value="">{t("gen.pages.titles.components.TitleFactoryPanel.unspecifiedType")}</option>
+                  <option value="">{i18next.t("gen.pages.titles.components.TitleFactoryPanel.unspecifiedType")}</option>
                   {genreOptions.map((option) => (
                     <option key={option.id} value={option.id}>
                       {option.path}
@@ -232,7 +232,7 @@ export default function TitleFactoryPanel({ genreTree, novels }: TitleFactoryPan
                     id="title-factory-reference"
                     value={referenceTitle}
                     onChange={(event) => setReferenceTitle(event.target.value)}
-                    placeholder={t("gen.pages.titles.components.TitleFactoryPanel.exampleScavengePropertiesDust")}
+                    placeholder={i18next.t("gen.pages.titles.components.TitleFactoryPanel.exampleScavengePropertiesDust")}
                     className={inputClassName}
                   />
                 </div>
@@ -246,7 +246,7 @@ export default function TitleFactoryPanel({ genreTree, novels }: TitleFactoryPan
                     value={genreId}
                     onChange={(event) => setGenreId(event.target.value)}
                   >
-                    <option value="">{t("gen.pages.titles.components.TitleFactoryPanel.unspecifiedType")}</option>
+                    <option value="">{i18next.t("gen.pages.titles.components.TitleFactoryPanel.unspecifiedType")}</option>
                     {genreOptions.map((option) => (
                       <option key={option.id} value={option.id}>
                         {option.path}
@@ -264,7 +264,7 @@ export default function TitleFactoryPanel({ genreTree, novels }: TitleFactoryPan
                   className={`${textareaClassName} min-h-[132px]`}
                   value={brief}
                   onChange={(event) => setBrief(event.target.value)}
-                  placeholder={t("gen.pages.titles.components.TitleFactoryPanel.gen_7bf3fd6a")}
+                  placeholder={i18next.t("gen.pages.titles.components.TitleFactoryPanel.gen_7bf3fd6a")}
                 />
               </div>
             </TabsContent>
@@ -277,12 +277,12 @@ export default function TitleFactoryPanel({ genreTree, novels }: TitleFactoryPan
               onClick={() => setShowModelSettings((value) => !value)}
             >
               <Settings2 className="h-3.5 w-3.5" />
-              <span>{t("gen.pages.titles.components.TitleFactoryPanel.gen_4a6ca1bb")}</span>
+              <span>{i18next.t("gen.pages.titles.components.TitleFactoryPanel.gen_4a6ca1bb")}</span>
             </button>
 
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-end">
               <label className="flex items-center gap-2 text-sm">
-                <span className="font-medium text-foreground">{t("gen.pages.titles.components.TitleFactoryPanel.gen_0bf60b32")}</span>
+                <span className="font-medium text-foreground">{i18next.t("gen.pages.titles.components.TitleFactoryPanel.gen_0bf60b32")}</span>
                 <Input
                   type="number"
                   min={3}
@@ -300,7 +300,7 @@ export default function TitleFactoryPanel({ genreTree, novels }: TitleFactoryPan
                 disabled={generateMutation.isPending}
               >
                 <Sparkles className="h-4 w-4" />
-                {generateMutation.isPending ? t("gen.pages.titles.components.TitleFactoryPanel.gen_4d020ba3") : t("gen.pages.titles.components.TitleFactoryPanel.gen_5a237b85")}
+                {generateMutation.isPending ? i18next.t("gen.pages.titles.components.TitleFactoryPanel.gen_4d020ba3") : i18next.t("gen.pages.titles.components.TitleFactoryPanel.gen_5a237b85")}
               </Button>
             </div>
           </div>
@@ -315,20 +315,20 @@ export default function TitleFactoryPanel({ genreTree, novels }: TitleFactoryPan
 
       <section className="space-y-3">
         <div className="flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
-          <h3 className="text-base font-semibold text-foreground">{t("gen.pages.titles.components.TitleFactoryPanel.gen_e995da4f")}</h3>
+          <h3 className="text-base font-semibold text-foreground">{i18next.t("gen.pages.titles.components.TitleFactoryPanel.gen_e995da4f")}</h3>
           <div className="text-xs text-muted-foreground">
-            {suggestions.length > 0 ? `已按点击潜力排序，共 ${suggestions.length} 个` : t("gen.pages.titles.components.TitleFactoryPanel.gen_0df2129e")}
+            {suggestions.length > 0 ? `已按点击潜力排序，共 ${suggestions.length} 个` : i18next.t("gen.pages.titles.components.TitleFactoryPanel.gen_0df2129e")}
           </div>
         </div>
         <TitleSuggestionList
           suggestions={suggestions}
           selectedTitle={selectedTitle}
-          primaryActionLabel={t("gen.pages.titles.components.TitleFactoryPanel.gen_6f3398e0")}
+          primaryActionLabel={i18next.t("gen.pages.titles.components.TitleFactoryPanel.gen_6f3398e0")}
           onPrimaryAction={handlePrimaryAction}
           onCopy={handleCopy}
           onSave={(suggestion) => saveMutation.mutate(suggestion)}
           savingTitle={saveMutation.isPending ? saveMutation.variables?.title ?? "" : ""}
-          emptyMessage={t("gen.pages.titles.components.TitleFactoryPanel.gen_44832a62")}
+          emptyMessage={i18next.t("gen.pages.titles.components.TitleFactoryPanel.gen_44832a62")}
         />
       </section>
     </div>

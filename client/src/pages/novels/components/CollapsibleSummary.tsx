@@ -20,8 +20,8 @@ export default function CollapsibleSummary(props: CollapsibleSummaryProps) {
     description,
     meta,
     className,
-    collapsedLabel = t("gen.pages.novels.components.CollapsibleSummary.gen_02e099f5"),
-    expandedLabel = t("gen.pages.novels.components.CollapsibleSummary.gen_6f47e370"),
+    collapsedLabel = i18next.t("gen.pages.novels.components.CollapsibleSummary.gen_02e099f5"),
+    expandedLabel = i18next.t("gen.pages.novels.components.CollapsibleSummary.gen_6f47e370"),
   } = props;
 
   return (

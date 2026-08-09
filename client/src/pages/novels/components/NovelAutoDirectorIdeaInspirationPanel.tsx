@@ -30,7 +30,7 @@ export default function NovelAutoDirectorIdeaInspirationPanel({
         </div>
         <Button type="button" size="sm" variant="ghost" onClick={onGenerate} disabled={isGenerating}>
           <RefreshCw className="h-4 w-4" />
-          {isGenerating ? t("gen.pages.novels.components.NovelAutoDirectorIdeaInspirationPanel.gen_4d020ba3") : ideas.length > 0 ? t("gen.pages.novels.components.NovelAutoDirectorIdeaInspirationPanel.gen_ab0c9ba8") : t("gen.pages.novels.components.NovelAutoDirectorIdeaInspirationPanel.gen_b1307309")}
+          {isGenerating ? i18next.t("gen.pages.novels.components.NovelAutoDirectorIdeaInspirationPanel.gen_4d020ba3") : ideas.length > 0 ? i18next.t("gen.pages.novels.components.NovelAutoDirectorIdeaInspirationPanel.gen_ab0c9ba8") : i18next.t("gen.pages.novels.components.NovelAutoDirectorIdeaInspirationPanel.gen_b1307309")}
         </Button>
       </div>
       {ideas.length > 0 ? (

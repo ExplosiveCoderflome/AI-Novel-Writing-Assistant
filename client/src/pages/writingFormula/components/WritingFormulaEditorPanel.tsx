@@ -64,24 +64,24 @@ function FieldBlock(props: {
 
 const FEATURE_DECISION_META: Record<NonNullable<StyleProfileFeature["selectedDecision"]>, { label: string; className: string }> = {
   keep: {
-    label: t("gen.pages.writingFormula.components.WritingFormulaEditorPanel.preserve"),
+    label: i18next.t("gen.pages.writingFormula.components.WritingFormulaEditorPanel.preserve"),
     className: "border-emerald-200 bg-emerald-50 text-emerald-700",
   },
   weaken: {
-    label: t("gen.pages.writingFormula.components.WritingFormulaEditorPanel.gen_e235157f"),
+    label: i18next.t("gen.pages.writingFormula.components.WritingFormulaEditorPanel.gen_e235157f"),
     className: "border-amber-200 bg-amber-50 text-amber-700",
   },
   remove: {
-    label: t("gen.pages.writingFormula.components.WritingFormulaEditorPanel.gen_9b012c13"),
+    label: i18next.t("gen.pages.writingFormula.components.WritingFormulaEditorPanel.gen_9b012c13"),
     className: "border-rose-200 bg-rose-50 text-rose-700",
   },
 };
 
 const RULE_PATCH_SECTION_LABELS: Record<keyof StyleRulePatch, string> = {
-  narrativeRules: t("gen.pages.writingFormula.components.WritingFormulaEditorPanel.gen_95553c6d"),
-  characterRules: t("gen.pages.writingFormula.components.WritingFormulaEditorPanel.characterExpression"),
-  languageRules: t("gen.pages.writingFormula.components.WritingFormulaEditorPanel.gen_98416f13"),
-  rhythmRules: t("gen.pages.writingFormula.components.WritingFormulaEditorPanel.gen_3c7541b8"),
+  narrativeRules: i18next.t("gen.pages.writingFormula.components.WritingFormulaEditorPanel.gen_95553c6d"),
+  characterRules: i18next.t("gen.pages.writingFormula.components.WritingFormulaEditorPanel.characterExpression"),
+  languageRules: i18next.t("gen.pages.writingFormula.components.WritingFormulaEditorPanel.gen_98416f13"),
+  rhythmRules: i18next.t("gen.pages.writingFormula.components.WritingFormulaEditorPanel.gen_3c7541b8"),
 };
 
 function formatScorePercent(value: number): string {
@@ -208,7 +208,7 @@ export default function WritingFormulaEditorPanel(props: WritingFormulaEditorPan
     <Card data-writing-formula-editor-panel tabIndex={-1}>
       <CardHeader>
         <div className="flex items-center justify-between gap-2">
-          <CardTitle>{t("gen.pages.writingFormula.components.WritingFormulaEditorPanel.gen_94a3c6e8")}</CardTitle>
+          <CardTitle>{i18next.t("gen.pages.writingFormula.components.WritingFormulaEditorPanel.gen_94a3c6e8")}</CardTitle>
           {selectedProfile ? (
             <Button size="sm" variant="destructive" onClick={onDelete} disabled={deletePending}>
               删除
@@ -218,7 +218,7 @@ export default function WritingFormulaEditorPanel(props: WritingFormulaEditorPan
       </CardHeader>
       <CardContent className="space-y-5">
         {!selectedProfile ? (
-          <div className="text-sm text-muted-foreground">{t("gen.pages.writingFormula.components.WritingFormulaEditorPanel.gen_f6fb452c")}</div>
+          <div className="text-sm text-muted-foreground">{i18next.t("gen.pages.writingFormula.components.WritingFormulaEditorPanel.gen_f6fb452c")}</div>
         ) : (
           <>
             {isStarterStyleProfile(selectedProfile) ? (
@@ -234,14 +234,14 @@ export default function WritingFormulaEditorPanel(props: WritingFormulaEditorPan
 
             <div className="space-y-4 rounded-2xl border p-4">
               <div className="space-y-1">
-                <div className="text-base font-semibold text-slate-950">{t("gen.pages.writingFormula.components.WritingFormulaEditorPanel.gen_983dbea1")}</div>
+                <div className="text-base font-semibold text-slate-950">{i18next.t("gen.pages.writingFormula.components.WritingFormulaEditorPanel.gen_983dbea1")}</div>
                 <div className="text-sm leading-6 text-slate-500">
                   先把这套写法到底想写成什么感觉讲清楚，列表页展开时也会优先展示这里的内容。
                 </div>
               </div>
 
               <div className="grid gap-4 md:grid-cols-2">
-                <FieldBlock label={t("gen.pages.writingFormula.components.WritingFormulaEditorPanel.gen_a5d0edd4")} hint={t("gen.pages.writingFormula.components.WritingFormulaEditorPanel.gen_ae722c6b")}>
+                <FieldBlock label={i18next.t("gen.pages.writingFormula.components.WritingFormulaEditorPanel.gen_a5d0edd4")} hint={i18next.t("gen.pages.writingFormula.components.WritingFormulaEditorPanel.gen_ae722c6b")}>
                   <input
                     data-writing-formula-primary-input
                     className="w-full rounded-md border p-2 text-sm"
@@ -249,10 +249,10 @@ export default function WritingFormulaEditorPanel(props: WritingFormulaEditorPan
                     onChange={(event) => onEditorChange({ name: event.target.value })}
                   />
                 </FieldBlock>
-                <FieldBlock label={t("gen.pages.writingFormula.components.WritingFormulaEditorPanel.gen_d0771a42")} hint={t("gen.pages.writingFormula.components.WritingFormulaEditorPanel.gen_34a9dd9c")}>
+                <FieldBlock label={i18next.t("gen.pages.writingFormula.components.WritingFormulaEditorPanel.gen_d0771a42")} hint={i18next.t("gen.pages.writingFormula.components.WritingFormulaEditorPanel.gen_34a9dd9c")}>
                   <input
                     className="w-full rounded-md border p-2 text-sm"
-                    placeholder={t("gen.pages.writingFormula.components.WritingFormulaEditorPanel.gen_例如都市热血_5rom")}
+                    placeholder={i18next.t("gen.pages.writingFormula.components.WritingFormulaEditorPanel.gen_例如都市热血_5rom")}
                     value={editor.category}
                     onChange={(event) => onEditorChange({ category: event.target.value })}
                   />
@@ -260,30 +260,30 @@ export default function WritingFormulaEditorPanel(props: WritingFormulaEditorPan
               </div>
 
               <FieldBlock
-                label={t("gen.pages.writingFormula.components.WritingFormulaEditorPanel.oneLineIntro")}
-                hint={t("gen.pages.writingFormula.components.WritingFormulaEditorPanel.gen_ca589769")}
+                label={i18next.t("gen.pages.writingFormula.components.WritingFormulaEditorPanel.oneLineIntro")}
+                hint={i18next.t("gen.pages.writingFormula.components.WritingFormulaEditorPanel.gen_ca589769")}
               >
                 <textarea
                   className="min-h-[96px] w-full rounded-md border p-2 text-sm"
-                  placeholder={t("gen.pages.writingFormula.components.WritingFormulaEditorPanel.exampleConflictsIntenseProgressiveDirectDialogueEmotionUrbanUpgrade")}
+                  placeholder={i18next.t("gen.pages.writingFormula.components.WritingFormulaEditorPanel.exampleConflictsIntenseProgressiveDirectDialogueEmotionUrbanUpgrade")}
                   value={editor.description}
                   onChange={(event) => onEditorChange({ description: event.target.value })}
                 />
               </FieldBlock>
 
               <div className="grid gap-4 md:grid-cols-2">
-                <FieldBlock label={t("gen.pages.writingFormula.components.WritingFormulaEditorPanel.gen_14d34236")} hint={t("gen.pages.writingFormula.components.WritingFormulaEditorPanel.gen_e4fc65e3")}>
+                <FieldBlock label={i18next.t("gen.pages.writingFormula.components.WritingFormulaEditorPanel.gen_14d34236")} hint={i18next.t("gen.pages.writingFormula.components.WritingFormulaEditorPanel.gen_e4fc65e3")}>
                   <input
                     className="w-full rounded-md border p-2 text-sm"
-                    placeholder={t("gen.pages.writingFormula.components.WritingFormulaEditorPanel.exampleLightReadFastRhythmStrongConflict")}
+                    placeholder={i18next.t("gen.pages.writingFormula.components.WritingFormulaEditorPanel.exampleLightReadFastRhythmStrongConflict")}
                     value={editor.tags}
                     onChange={(event) => onEditorChange({ tags: event.target.value })}
                   />
                 </FieldBlock>
-                <FieldBlock label={t("gen.pages.writingFormula.components.WritingFormulaEditorPanel.gen_2fdc5592")} hint={t("gen.pages.writingFormula.components.WritingFormulaEditorPanel.gen_ce4e9b7d")}>
+                <FieldBlock label={i18next.t("gen.pages.writingFormula.components.WritingFormulaEditorPanel.gen_2fdc5592")} hint={i18next.t("gen.pages.writingFormula.components.WritingFormulaEditorPanel.gen_ce4e9b7d")}>
                   <input
                     className="w-full rounded-md border p-2 text-sm"
-                    placeholder={t("gen.pages.writingFormula.components.WritingFormulaEditorPanel.exampleUrbanHeatUpgradeFlow")}
+                    placeholder={i18next.t("gen.pages.writingFormula.components.WritingFormulaEditorPanel.exampleUrbanHeatUpgradeFlow")}
                     value={editor.applicableGenres}
                     onChange={(event) => onEditorChange({ applicableGenres: event.target.value })}
                   />
@@ -296,7 +296,7 @@ export default function WritingFormulaEditorPanel(props: WritingFormulaEditorPan
             || editor.sourceContent.trim() ? (
               <div className="space-y-4 rounded-2xl border p-4">
                 <div className="space-y-1">
-                  <div className="text-base font-semibold text-slate-950">{t("gen.pages.writingFormula.components.WritingFormulaEditorPanel.gen_7f63b649")}</div>
+                  <div className="text-base font-semibold text-slate-950">{i18next.t("gen.pages.writingFormula.components.WritingFormulaEditorPanel.gen_7f63b649")}</div>
                   <div className="text-sm leading-6 text-slate-500">
                     这部分是这套写法的“证据层”。从文本或知识库原文提取出来的写法，后续回看和重提取都会依赖这里。
                     这里会把特征说明、证据、分数、预设建议和推荐规则一起展示出来。
@@ -304,12 +304,12 @@ export default function WritingFormulaEditorPanel(props: WritingFormulaEditorPan
                 </div>
 
                 <FieldBlock
-                  label={t("gen.pages.writingFormula.components.WritingFormulaEditorPanel.gen_0e7cba99")}
-                  hint={t("gen.pages.writingFormula.components.WritingFormulaEditorPanel.gen_1c0b6190")}
+                  label={i18next.t("gen.pages.writingFormula.components.WritingFormulaEditorPanel.gen_0e7cba99")}
+                  hint={i18next.t("gen.pages.writingFormula.components.WritingFormulaEditorPanel.gen_1c0b6190")}
                 >
                   <textarea
                     className="min-h-[160px] w-full rounded-md border p-2 text-sm"
-                    placeholder={t("gen.pages.writingFormula.components.WritingFormulaEditorPanel.gen_fc48be6a")}
+                    placeholder={i18next.t("gen.pages.writingFormula.components.WritingFormulaEditorPanel.gen_fc48be6a")}
                     value={editor.sourceContent}
                     onChange={(event) => onEditorChange({ sourceContent: event.target.value })}
                   />
@@ -318,7 +318,7 @@ export default function WritingFormulaEditorPanel(props: WritingFormulaEditorPan
                 <div className="rounded-2xl border p-3">
                   <div className="mb-2 flex items-center justify-between gap-3">
                     <div>
-                      <div className="text-sm font-medium text-slate-900">{t("gen.pages.writingFormula.components.WritingFormulaEditorPanel.gen_b62a0800")}</div>
+                      <div className="text-sm font-medium text-slate-900">{i18next.t("gen.pages.writingFormula.components.WritingFormulaEditorPanel.gen_b62a0800")}</div>
                       <div className="text-xs leading-6 text-slate-500">
                         这里会列出原文里抽出来的风格特征。勾选表示继续保留到这套写法里。
                         {editor.extractedFeatures.length > 0 ? ` 当前共 ${editor.extractedFeatures.length} 项。` : ""}
@@ -326,7 +326,7 @@ export default function WritingFormulaEditorPanel(props: WritingFormulaEditorPan
                     </div>
                     {editor.sourceContent.trim() ? (
                       <Button size="sm" variant="outline" onClick={onReextractFeatures} disabled={reextractPending}>
-                        {reextractPending ? t("gen.pages.writingFormula.components.WritingFormulaEditorPanel.gen_e43aeb21") : t("gen.pages.writingFormula.components.WritingFormulaEditorPanel.gen_94aaf87a")}
+                        {reextractPending ? i18next.t("gen.pages.writingFormula.components.WritingFormulaEditorPanel.gen_e43aeb21") : i18next.t("gen.pages.writingFormula.components.WritingFormulaEditorPanel.gen_94aaf87a")}
                       </Button>
                     ) : null}
                   </div>
@@ -352,7 +352,7 @@ export default function WritingFormulaEditorPanel(props: WritingFormulaEditorPan
                               ) : null}
                             </span>
                             <span className="mt-1 block text-xs leading-6 text-muted-foreground">{feature.description}</span>
-                            <span className="mt-1 block text-xs leading-6 text-muted-foreground">{t("gen.pages.writingFormula.components.WritingFormulaEditorPanel.gen_c3d5aa3f")}</span>
+                            <span className="mt-1 block text-xs leading-6 text-muted-foreground">{i18next.t("gen.pages.writingFormula.components.WritingFormulaEditorPanel.gen_c3d5aa3f")}</span>
                             <span className="mt-2 grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
                               <span className="rounded-lg bg-slate-100 px-2 py-1 text-[11px] font-medium text-slate-600">
                                 重要度 {formatScorePercent(feature.importance)}
@@ -388,7 +388,7 @@ export default function WritingFormulaEditorPanel(props: WritingFormulaEditorPan
                       {extractionPresets.length > 0 ? (
                         <div className="rounded-2xl border bg-slate-50/70 p-3">
                           <div className="space-y-1">
-                            <div className="text-sm font-medium text-slate-900">{t("gen.pages.writingFormula.components.WritingFormulaEditorPanel.gen_361c117b")}</div>
+                            <div className="text-sm font-medium text-slate-900">{i18next.t("gen.pages.writingFormula.components.WritingFormulaEditorPanel.gen_361c117b")}</div>
                             <div className="text-xs leading-6 text-slate-500">
                               这里展示模型给出的三套保留方案。当前保存到写法里的选择会单独标出来，方便你判断是不是要换一种保留力度。
                             </div>
@@ -432,7 +432,7 @@ export default function WritingFormulaEditorPanel(props: WritingFormulaEditorPan
                       {selectedProfile.extractionAntiAiRuleKeys.length > 0 ? (
                         <div className="rounded-2xl border bg-slate-50/70 p-3">
                           <div className="space-y-1">
-                            <div className="text-sm font-medium text-slate-900">{t("gen.pages.writingFormula.components.WritingFormulaEditorPanel.gen_280d121e")}</div>
+                            <div className="text-sm font-medium text-slate-900">{i18next.t("gen.pages.writingFormula.components.WritingFormulaEditorPanel.gen_280d121e")}</div>
                             <div className="text-xs leading-6 text-slate-500">
                               这些是提取阶段推荐一起绑定的规则。已绑定会直接标出来，未绑定的也会继续保留原始建议名。
                             </div>
@@ -451,7 +451,7 @@ export default function WritingFormulaEditorPanel(props: WritingFormulaEditorPan
                                   }`}
                                 >
                                   {matchedRule?.name ?? ruleKey}
-                                  {isBound ? t("gen.pages.writingFormula.components.WritingFormulaEditorPanel.isBound") : matchedRule ? t("gen.pages.writingFormula.components.WritingFormulaEditorPanel.recommendedUnbound") : t("gen.pages.writingFormula.components.WritingFormulaEditorPanel.originalSuggestion")}
+                                  {isBound ? i18next.t("gen.pages.writingFormula.components.WritingFormulaEditorPanel.isBound") : matchedRule ? i18next.t("gen.pages.writingFormula.components.WritingFormulaEditorPanel.recommendedUnbound") : i18next.t("gen.pages.writingFormula.components.WritingFormulaEditorPanel.originalSuggestion")}
                                 </span>
                               );
                             })}
@@ -470,14 +470,14 @@ export default function WritingFormulaEditorPanel(props: WritingFormulaEditorPan
 
             <div className="space-y-4 rounded-2xl border p-4">
               <div className="space-y-1">
-                <div className="text-base font-semibold text-slate-950">{t("gen.pages.writingFormula.components.WritingFormulaEditorPanel.gen_047fe1ff")}</div>
+                <div className="text-base font-semibold text-slate-950">{i18next.t("gen.pages.writingFormula.components.WritingFormulaEditorPanel.gen_047fe1ff")}</div>
                 <div className="text-sm leading-6 text-slate-500">
                   这里不是给读者看的文案，而是给你自己和系统回看时用的补充说明。可以写为什么保留这套写法、它最重要的气质是什么。
                 </div>
               </div>
               <textarea
                 className="min-h-[110px] w-full rounded-md border p-2 text-sm"
-                placeholder={t("gen.pages.writingFormula.components.WritingFormulaEditorPanel.exampleThisStyleFocusStrongProgressDirectDialogueNotSeekSubtleExpression")}
+                placeholder={i18next.t("gen.pages.writingFormula.components.WritingFormulaEditorPanel.exampleThisStyleFocusStrongProgressDirectDialogueNotSeekSubtleExpression")}
                 value={editor.analysisMarkdown}
                 onChange={(event) => onEditorChange({ analysisMarkdown: event.target.value })}
               />
@@ -485,7 +485,7 @@ export default function WritingFormulaEditorPanel(props: WritingFormulaEditorPan
 
             <div className="space-y-4 rounded-2xl border p-4">
               <div className="space-y-1">
-                <div className="text-base font-semibold text-slate-950">{t("gen.pages.writingFormula.components.WritingFormulaEditorPanel.gen_6528dbe6")}</div>
+                <div className="text-base font-semibold text-slate-950">{i18next.t("gen.pages.writingFormula.components.WritingFormulaEditorPanel.gen_6528dbe6")}</div>
                 <div className="text-sm leading-6 text-slate-500">
                   这四块是系统真正执行时会读取的机器规则层。不了解字段含义时，可以先看标题和说明，再决定是否要改。
                   如果当前主要显示“总述”字段，说明这次提取更多给出了摘要级规则，细颗粒兼容字段还不算多。
@@ -498,29 +498,29 @@ export default function WritingFormulaEditorPanel(props: WritingFormulaEditorPan
 
               <div className="grid gap-4 md:grid-cols-2">
                 <RuleFieldCard
-                  title={t("gen.pages.writingFormula.components.WritingFormulaEditorPanel.gen_a9e43c4c")}
-                  hint={t("gen.pages.writingFormula.components.WritingFormulaEditorPanel.gen_c47dc063")}
+                  title={i18next.t("gen.pages.writingFormula.components.WritingFormulaEditorPanel.gen_a9e43c4c")}
+                  hint={i18next.t("gen.pages.writingFormula.components.WritingFormulaEditorPanel.gen_c47dc063")}
                   section="narrativeRules"
                   value={editor.narrativeRules}
                   onChange={(value) => onEditorChange({ narrativeRules: value })}
                 />
                 <RuleFieldCard
-                  title={t("gen.pages.writingFormula.components.WritingFormulaEditorPanel.characterExpressionRules")}
-                  hint={t("gen.pages.writingFormula.components.WritingFormulaEditorPanel.gen_f758d715")}
+                  title={i18next.t("gen.pages.writingFormula.components.WritingFormulaEditorPanel.characterExpressionRules")}
+                  hint={i18next.t("gen.pages.writingFormula.components.WritingFormulaEditorPanel.gen_f758d715")}
                   section="characterRules"
                   value={editor.characterRules}
                   onChange={(value) => onEditorChange({ characterRules: value })}
                 />
                 <RuleFieldCard
-                  title={t("gen.pages.writingFormula.components.WritingFormulaEditorPanel.gen_1f9170eb")}
-                  hint={t("gen.pages.writingFormula.components.WritingFormulaEditorPanel.gen_4fecc854")}
+                  title={i18next.t("gen.pages.writingFormula.components.WritingFormulaEditorPanel.gen_1f9170eb")}
+                  hint={i18next.t("gen.pages.writingFormula.components.WritingFormulaEditorPanel.gen_4fecc854")}
                   section="languageRules"
                   value={editor.languageRules}
                   onChange={(value) => onEditorChange({ languageRules: value })}
                 />
                 <RuleFieldCard
-                  title={t("gen.pages.writingFormula.components.WritingFormulaEditorPanel.gen_16e6dc89")}
-                  hint={t("gen.pages.writingFormula.components.WritingFormulaEditorPanel.gen_9930819a")}
+                  title={i18next.t("gen.pages.writingFormula.components.WritingFormulaEditorPanel.gen_16e6dc89")}
+                  hint={i18next.t("gen.pages.writingFormula.components.WritingFormulaEditorPanel.gen_9930819a")}
                   section="rhythmRules"
                   value={editor.rhythmRules}
                   onChange={(value) => onEditorChange({ rhythmRules: value })}
@@ -530,7 +530,7 @@ export default function WritingFormulaEditorPanel(props: WritingFormulaEditorPan
 
             <div className="space-y-4 rounded-2xl border p-4">
               <div className="space-y-1">
-                <div className="text-base font-semibold text-slate-950">{t("gen.pages.writingFormula.components.WritingFormulaEditorPanel.gen_1c0d9b75")}</div>
+                <div className="text-base font-semibold text-slate-950">{i18next.t("gen.pages.writingFormula.components.WritingFormulaEditorPanel.gen_1c0d9b75")}</div>
                 <div className="text-sm leading-6 text-slate-500">
                   这里决定系统在检测和修正文稿时优先防什么问题。规则绑得越清楚，“去 AI 味”越有方向感。
                 </div>

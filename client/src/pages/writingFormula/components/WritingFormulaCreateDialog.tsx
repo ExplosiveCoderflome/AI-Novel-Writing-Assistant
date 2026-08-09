@@ -23,18 +23,18 @@ import type {
 const EXTRACTION_PRESET_OPTIONS = [
   {
     key: "imitate",
-    label: t("gen.pages.writingFormula.components.WritingFormulaCreateDialog.gen_670b95ab"),
-    summary: t("gen.pages.writingFormula.components.WritingFormulaCreateDialog.gen_38cd0be2"),
+    label: i18next.t("gen.pages.writingFormula.components.WritingFormulaCreateDialog.gen_670b95ab"),
+    summary: i18next.t("gen.pages.writingFormula.components.WritingFormulaCreateDialog.gen_38cd0be2"),
   },
   {
     key: "balanced",
-    label: t("gen.pages.writingFormula.components.WritingFormulaCreateDialog.preserveMainReadFeel"),
-    summary: t("gen.pages.writingFormula.components.WritingFormulaCreateDialog.preserveReadFeelAndProgressRhythmWeakenOverStrongFingerprintSuitableForMostProjectsDirectUse"),
+    label: i18next.t("gen.pages.writingFormula.components.WritingFormulaCreateDialog.preserveMainReadFeel"),
+    summary: i18next.t("gen.pages.writingFormula.components.WritingFormulaCreateDialog.preserveReadFeelAndProgressRhythmWeakenOverStrongFingerprintSuitableForMostProjectsDirectUse"),
   },
   {
     key: "transfer",
-    label: t("gen.pages.writingFormula.components.WritingFormulaCreateDialog.gen_6da989b7"),
-    summary: t("gen.pages.writingFormula.components.WritingFormulaCreateDialog.gen_ef957e52"),
+    label: i18next.t("gen.pages.writingFormula.components.WritingFormulaCreateDialog.gen_6da989b7"),
+    summary: i18next.t("gen.pages.writingFormula.components.WritingFormulaCreateDialog.gen_ef957e52"),
   },
 ] as const;
 
@@ -45,18 +45,18 @@ const MATERIAL_SOURCE_OPTIONS: Array<{
 }> = [
   {
     key: "direct_text",
-    label: t("gen.pages.writingFormula.components.WritingFormulaCreateDialog.gen_26f1d00f"),
-    summary: t("gen.pages.writingFormula.components.WritingFormulaCreateDialog.gen_62c7ec91"),
+    label: i18next.t("gen.pages.writingFormula.components.WritingFormulaCreateDialog.gen_26f1d00f"),
+    summary: i18next.t("gen.pages.writingFormula.components.WritingFormulaCreateDialog.gen_62c7ec91"),
   },
   {
     key: "knowledge_document",
-    label: t("gen.pages.writingFormula.components.WritingFormulaCreateDialog.gen_51a7e4d2"),
-    summary: t("gen.pages.writingFormula.components.WritingFormulaCreateDialog.gen_04b0ad79"),
+    label: i18next.t("gen.pages.writingFormula.components.WritingFormulaCreateDialog.gen_51a7e4d2"),
+    summary: i18next.t("gen.pages.writingFormula.components.WritingFormulaCreateDialog.gen_04b0ad79"),
   },
   {
     key: "book_analysis",
-    label: t("gen.pages.writingFormula.components.WritingFormulaCreateDialog.gen_64d477d1"),
-    summary: t("gen.pages.writingFormula.components.WritingFormulaCreateDialog.gen_585484cd"),
+    label: i18next.t("gen.pages.writingFormula.components.WritingFormulaCreateDialog.gen_64d477d1"),
+    summary: i18next.t("gen.pages.writingFormula.components.WritingFormulaCreateDialog.gen_585484cd"),
   },
 ];
 
@@ -68,54 +68,54 @@ const KNOWLEDGE_SOURCE_PROCESSING_OPTIONS: Array<{
 }> = [
   {
     key: "representative_sample",
-    label: t("gen.pages.writingFormula.components.WritingFormulaCreateDialog.gen_a42e20c2"),
-    summary: t("gen.pages.writingFormula.components.WritingFormulaCreateDialog.extractRepresentativeSamples"),
-    badge: t("gen.pages.writingFormula.components.WritingFormulaCreateDialog.gen_3f981012"),
+    label: i18next.t("gen.pages.writingFormula.components.WritingFormulaCreateDialog.gen_a42e20c2"),
+    summary: i18next.t("gen.pages.writingFormula.components.WritingFormulaCreateDialog.extractRepresentativeSamples"),
+    badge: i18next.t("gen.pages.writingFormula.components.WritingFormulaCreateDialog.gen_3f981012"),
   },
   {
     key: "full_text",
-    label: t("gen.pages.writingFormula.components.WritingFormulaCreateDialog.gen_fc456238"),
-    summary: t("gen.pages.writingFormula.components.WritingFormulaCreateDialog.gen_04ac9582"),
+    label: i18next.t("gen.pages.writingFormula.components.WritingFormulaCreateDialog.gen_fc456238"),
+    summary: i18next.t("gen.pages.writingFormula.components.WritingFormulaCreateDialog.gen_04ac9582"),
   },
 ];
 
 function formatTaskStatus(task: UnifiedTaskDetail | null): string {
   if (!task) {
-    return t("gen.pages.writingFormula.components.WritingFormulaCreateDialog.gen_0589e591");
+    return i18next.t("gen.pages.writingFormula.components.WritingFormulaCreateDialog.gen_0589e591");
   }
   if (task.status === "queued") {
-    return t("gen.pages.writingFormula.components.WritingFormulaCreateDialog.gen_e5ac1d20");
+    return i18next.t("gen.pages.writingFormula.components.WritingFormulaCreateDialog.gen_e5ac1d20");
   }
   if (task.status === "running") {
-    return t("gen.pages.writingFormula.components.WritingFormulaCreateDialog.gen_5d459d55");
+    return i18next.t("gen.pages.writingFormula.components.WritingFormulaCreateDialog.gen_5d459d55");
   }
   if (task.status === "succeeded") {
-    return t("gen.pages.writingFormula.components.WritingFormulaCreateDialog.gen_fad5222c");
+    return i18next.t("gen.pages.writingFormula.components.WritingFormulaCreateDialog.gen_fad5222c");
   }
   if (task.status === "failed") {
-    return t("gen.pages.writingFormula.components.WritingFormulaCreateDialog.gen_acd5cb84");
+    return i18next.t("gen.pages.writingFormula.components.WritingFormulaCreateDialog.gen_acd5cb84");
   }
   if (task.status === "cancelled") {
-    return t("gen.pages.writingFormula.components.WritingFormulaCreateDialog.gen_2111ccbb");
+    return i18next.t("gen.pages.writingFormula.components.WritingFormulaCreateDialog.gen_2111ccbb");
   }
-  return t("gen.pages.writingFormula.components.WritingFormulaCreateDialog.gen_3ced7e48");
+  return i18next.t("gen.pages.writingFormula.components.WritingFormulaCreateDialog.gen_3ced7e48");
 }
 
 function formatCharCount(value: number | null | undefined): string {
   if (!value) {
-    return t("gen.pages.writingFormula.components.WritingFormulaCreateDialog.zeroCharacters");
+    return i18next.t("gen.pages.writingFormula.components.WritingFormulaCreateDialog.zeroCharacters");
   }
   return `${value.toLocaleString("zh-CN")} 字`;
 }
 
 function formatKnowledgeStatus(status: KnowledgeDocumentSummary["status"]): string {
   if (status === "enabled") {
-    return t("gen.pages.writingFormula.components.WritingFormulaCreateDialog.gen_ad6b7038");
+    return i18next.t("gen.pages.writingFormula.components.WritingFormulaCreateDialog.gen_ad6b7038");
   }
   if (status === "disabled") {
-    return t("gen.pages.writingFormula.components.WritingFormulaCreateDialog.gen_5c56a889");
+    return i18next.t("gen.pages.writingFormula.components.WritingFormulaCreateDialog.gen_5c56a889");
   }
-  return t("gen.pages.writingFormula.components.WritingFormulaCreateDialog.gen_2f51c18f");
+  return i18next.t("gen.pages.writingFormula.components.WritingFormulaCreateDialog.gen_2f51c18f");
 }
 
 interface WritingFormulaCreateDialogProps {
@@ -197,16 +197,16 @@ export default function WritingFormulaCreateDialog(props: WritingFormulaCreateDi
     || (form.materialSource === "knowledge_document" && !knowledgeDocumentReady)
     || (form.materialSource === "book_analysis" && !bookAnalysisReady);
   const materialSubmitLabel = form.materialSource === "book_analysis"
-    ? t("gen.pages.writingFormula.components.WritingFormulaCreateDialog.gen_从拆书结果创建写法_spus")
+    ? i18next.t("gen.pages.writingFormula.components.WritingFormulaCreateDialog.gen_从拆书结果创建写法_spus")
     : form.materialSource === "knowledge_document"
-      ? t("gen.pages.writingFormula.components.WritingFormulaCreateDialog.extractAndAutoSaveOriginalTextKnowledgeBase")
-      : t("gen.pages.writingFormula.components.WritingFormulaCreateDialog.gen_3a428b93");
+      ? i18next.t("gen.pages.writingFormula.components.WritingFormulaCreateDialog.extractAndAutoSaveOriginalTextKnowledgeBase")
+      : i18next.t("gen.pages.writingFormula.components.WritingFormulaCreateDialog.gen_3a428b93");
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="flex max-h-[92vh] max-w-5xl flex-col overflow-hidden">
         <DialogHeader className="shrink-0">
-          <DialogTitle>{t("gen.pages.writingFormula.components.WritingFormulaCreateDialog.gen_68a34a89")}</DialogTitle>
+          <DialogTitle>{i18next.t("gen.pages.writingFormula.components.WritingFormulaCreateDialog.gen_68a34a89")}</DialogTitle>
           <DialogDescription>
             先选最省力的起步方式。创建完成后会自动打开当前写法编辑，继续补规则、试写和绑定。
           </DialogDescription>
@@ -214,9 +214,9 @@ export default function WritingFormulaCreateDialog(props: WritingFormulaCreateDi
 
         <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as typeof activeTab)} className="flex min-h-0 flex-1 flex-col space-y-4">
           <TabsList className="grid w-full shrink-0 grid-cols-3">
-            <TabsTrigger value="quick_start">{t("gen.pages.writingFormula.components.WritingFormulaCreateDialog.gen_fefda8fe")}</TabsTrigger>
-            <TabsTrigger value="blank">{t("gen.pages.writingFormula.components.WritingFormulaCreateDialog.gen_63db6415")}</TabsTrigger>
-            <TabsTrigger value="extract">{t("gen.pages.writingFormula.components.WritingFormulaCreateDialog.extractFromMaterials")}</TabsTrigger>
+            <TabsTrigger value="quick_start">{i18next.t("gen.pages.writingFormula.components.WritingFormulaCreateDialog.gen_fefda8fe")}</TabsTrigger>
+            <TabsTrigger value="blank">{i18next.t("gen.pages.writingFormula.components.WritingFormulaCreateDialog.gen_63db6415")}</TabsTrigger>
+            <TabsTrigger value="extract">{i18next.t("gen.pages.writingFormula.components.WritingFormulaCreateDialog.extractFromMaterials")}</TabsTrigger>
           </TabsList>
 
           <TabsContent value="quick_start" className="min-h-0 flex-1 space-y-4 overflow-y-auto pr-1">
@@ -231,7 +231,7 @@ export default function WritingFormulaCreateDialog(props: WritingFormulaCreateDi
                       <div className="text-base font-semibold text-foreground">{template.name}</div>
                       <div className="mt-1 text-xs text-muted-foreground">{template.category}</div>
                     </div>
-                    <Badge variant="outline">{t("gen.pages.writingFormula.components.WritingFormulaCreateDialog.gen_59cf15fe")}</Badge>
+                    <Badge variant="outline">{i18next.t("gen.pages.writingFormula.components.WritingFormulaCreateDialog.gen_59cf15fe")}</Badge>
                   </div>
                   <div className="mt-3 text-sm leading-6 text-muted-foreground">{template.description}</div>
                   {template.tags.length > 0 ? (
@@ -252,7 +252,7 @@ export default function WritingFormulaCreateDialog(props: WritingFormulaCreateDi
                     onClick={() => onCreateFromTemplate(template.id)}
                     disabled={createFromTemplatePending}
                   >
-                    {createFromTemplatePending ? t("gen.pages.writingFormula.components.WritingFormulaCreateDialog.gen_b26107b6") : t("gen.pages.writingFormula.components.WritingFormulaCreateDialog.gen_e32593d7")}
+                    {createFromTemplatePending ? i18next.t("gen.pages.writingFormula.components.WritingFormulaCreateDialog.gen_b26107b6") : i18next.t("gen.pages.writingFormula.components.WritingFormulaCreateDialog.gen_e32593d7")}
                   </Button>
                 </div>
               ))}
@@ -266,7 +266,7 @@ export default function WritingFormulaCreateDialog(props: WritingFormulaCreateDi
             <div className="grid gap-4 lg:grid-cols-2">
               <div className="rounded-lg border p-4">
                 <div className="mb-3">
-                  <div className="text-sm font-medium text-foreground">{t("gen.pages.writingFormula.components.WritingFormulaCreateDialog.gen_53a4c0f4")}</div>
+                  <div className="text-sm font-medium text-foreground">{i18next.t("gen.pages.writingFormula.components.WritingFormulaCreateDialog.gen_53a4c0f4")}</div>
                   <div className="mt-1 text-xs leading-5 text-muted-foreground">
                     适合你已经知道自己要维护什么类型的写法，只想先建一个空壳。
                   </div>
@@ -274,7 +274,7 @@ export default function WritingFormulaCreateDialog(props: WritingFormulaCreateDi
                 <div className="space-y-3">
                   <input
                     className="w-full rounded-md border p-2 text-sm"
-                    placeholder={t("gen.pages.writingFormula.components.WritingFormulaCreateDialog.gen_例如都市强冲突快推流_hf3h")}
+                    placeholder={i18next.t("gen.pages.writingFormula.components.WritingFormulaCreateDialog.gen_例如都市强冲突快推流_hf3h")}
                     value={form.manualName}
                     onChange={(event) => onFormChange({ manualName: event.target.value })}
                   />
@@ -283,14 +283,14 @@ export default function WritingFormulaCreateDialog(props: WritingFormulaCreateDi
                     onClick={onCreateManual}
                     disabled={!form.manualName.trim() || createManualPending}
                   >
-                    {createManualPending ? t("gen.pages.writingFormula.components.WritingFormulaCreateDialog.gen_b26107b6") : t("gen.pages.writingFormula.components.WritingFormulaCreateDialog.gen_94dde803")}
+                    {createManualPending ? i18next.t("gen.pages.writingFormula.components.WritingFormulaCreateDialog.gen_b26107b6") : i18next.t("gen.pages.writingFormula.components.WritingFormulaCreateDialog.gen_94dde803")}
                   </Button>
                 </div>
               </div>
 
               <div className="rounded-lg border p-4">
                 <div className="mb-3">
-                  <div className="text-sm font-medium text-foreground">{t("gen.pages.writingFormula.components.WritingFormulaCreateDialog.aiHelpBuildSet")}</div>
+                  <div className="text-sm font-medium text-foreground">{i18next.t("gen.pages.writingFormula.components.WritingFormulaCreateDialog.aiHelpBuildSet")}</div>
                   <div className="mt-1 text-xs leading-5 text-muted-foreground">
                     适合你只知道想写成什么感觉，还不想先手填规则字段。
                   </div>
@@ -298,19 +298,19 @@ export default function WritingFormulaCreateDialog(props: WritingFormulaCreateDi
                 <div className="space-y-3">
                   <input
                     className="w-full rounded-md border p-2 text-sm"
-                    placeholder={t("gen.pages.writingFormula.components.WritingFormulaCreateDialog.gen_5eac1d80")}
+                    placeholder={i18next.t("gen.pages.writingFormula.components.WritingFormulaCreateDialog.gen_5eac1d80")}
                     value={form.briefName}
                     onChange={(event) => onFormChange({ briefName: event.target.value })}
                   />
                   <input
                     className="w-full rounded-md border p-2 text-sm"
-                    placeholder={t("gen.pages.writingFormula.components.WritingFormulaCreateDialog.gen_1befc273")}
+                    placeholder={i18next.t("gen.pages.writingFormula.components.WritingFormulaCreateDialog.gen_1befc273")}
                     value={form.briefCategory}
                     onChange={(event) => onFormChange({ briefCategory: event.target.value })}
                   />
                   <textarea
                     className="min-h-[180px] w-full rounded-md border p-2 text-sm"
-                    placeholder={t("gen.pages.writingFormula.components.WritingFormulaCreateDialog.exampleFastProgressiveConflictDirectDialogueEmotionFitsUrbanHeatUpgrade")}
+                    placeholder={i18next.t("gen.pages.writingFormula.components.WritingFormulaCreateDialog.exampleFastProgressiveConflictDirectDialogueEmotionFitsUrbanHeatUpgrade")}
                     value={form.briefPrompt}
                     onChange={(event) => onFormChange({ briefPrompt: event.target.value })}
                   />
@@ -319,7 +319,7 @@ export default function WritingFormulaCreateDialog(props: WritingFormulaCreateDi
                     onClick={onCreateFromBrief}
                     disabled={!form.briefPrompt.trim() || createFromBriefPending}
                   >
-                    {createFromBriefPending ? t("gen.pages.writingFormula.components.WritingFormulaCreateDialog.aiGeneratingLoading") : t("gen.pages.writingFormula.components.WritingFormulaCreateDialog.aiGenerateWritingStyleSet")}
+                    {createFromBriefPending ? i18next.t("gen.pages.writingFormula.components.WritingFormulaCreateDialog.aiGeneratingLoading") : i18next.t("gen.pages.writingFormula.components.WritingFormulaCreateDialog.aiGenerateWritingStyleSet")}
                   </Button>
                 </div>
               </div>
@@ -335,14 +335,14 @@ export default function WritingFormulaCreateDialog(props: WritingFormulaCreateDi
                 <div className={form.materialSource === "book_analysis" ? "grid gap-3" : "grid gap-3 md:grid-cols-2"}>
                   <input
                     className="rounded-md border p-2 text-sm"
-                    placeholder={t("gen.pages.writingFormula.components.WritingFormulaCreateDialog.gen_a5d0edd4")}
+                    placeholder={i18next.t("gen.pages.writingFormula.components.WritingFormulaCreateDialog.gen_a5d0edd4")}
                     value={form.extractName}
                     onChange={(event) => onFormChange({ extractName: event.target.value })}
                   />
                   {form.materialSource !== "book_analysis" ? (
                     <input
                       className="rounded-md border p-2 text-sm"
-                      placeholder={t("gen.pages.writingFormula.components.WritingFormulaCreateDialog.gen_1befc273")}
+                      placeholder={i18next.t("gen.pages.writingFormula.components.WritingFormulaCreateDialog.gen_1befc273")}
                       value={form.extractCategory}
                       onChange={(event) => onFormChange({ extractCategory: event.target.value })}
                     />
@@ -375,7 +375,7 @@ export default function WritingFormulaCreateDialog(props: WritingFormulaCreateDi
                 {form.materialSource === "direct_text" ? (
                   <textarea
                     className="min-h-[260px] w-full rounded-md border p-2 text-sm"
-                    placeholder={t("gen.pages.writingFormula.components.WritingFormulaCreateDialog.gen_55494a88")}
+                    placeholder={i18next.t("gen.pages.writingFormula.components.WritingFormulaCreateDialog.gen_55494a88")}
                     value={form.extractSourceText}
                     onChange={(event) => onFormChange({ extractSourceText: event.target.value })}
                   />
@@ -385,7 +385,7 @@ export default function WritingFormulaCreateDialog(props: WritingFormulaCreateDi
                   <div className="space-y-3">
                     <input
                       className="w-full rounded-md border p-2 text-sm"
-                      placeholder={t("gen.pages.writingFormula.components.WritingFormulaCreateDialog.gen_32d6b5f5")}
+                      placeholder={i18next.t("gen.pages.writingFormula.components.WritingFormulaCreateDialog.gen_32d6b5f5")}
                       value={form.knowledgeSearchKeyword}
                       onChange={(event) => onFormChange({ knowledgeSearchKeyword: event.target.value })}
                     />
@@ -422,7 +422,7 @@ export default function WritingFormulaCreateDialog(props: WritingFormulaCreateDi
                                 <div className="mt-1 text-xs leading-5 text-slate-500">{document.fileName}</div>
                               </div>
                               <Badge variant={selected ? "default" : "outline"}>
-                                {selected ? t("gen.pages.writingFormula.components.WritingFormulaCreateDialog.gen_f08afd1f") : formatKnowledgeStatus(document.status)}
+                                {selected ? i18next.t("gen.pages.writingFormula.components.WritingFormulaCreateDialog.gen_f08afd1f") : formatKnowledgeStatus(document.status)}
                               </Badge>
                             </div>
                             <div className="mt-2 text-xs leading-5 text-slate-500">
@@ -434,7 +434,7 @@ export default function WritingFormulaCreateDialog(props: WritingFormulaCreateDi
                     </div>
                     <div className="space-y-2 rounded-xl border bg-white p-3">
                       <div className="flex flex-wrap items-center justify-between gap-2">
-                        <div className="text-sm font-medium text-slate-950">{t("gen.pages.writingFormula.components.WritingFormulaCreateDialog.gen_3d97e69b")}</div>
+                        <div className="text-sm font-medium text-slate-950">{i18next.t("gen.pages.writingFormula.components.WritingFormulaCreateDialog.gen_3d97e69b")}</div>
                         {activeKnowledgeVersion ? (
                           <div className="text-xs text-slate-500">
                             来源快照 {formatCharCount(activeKnowledgeVersion.charCount)}
@@ -480,7 +480,7 @@ export default function WritingFormulaCreateDialog(props: WritingFormulaCreateDi
                     </div>
                     <div className="rounded-xl border bg-slate-50/80 p-3 text-sm leading-6 text-slate-700">
                       {selectedKnowledgeDocumentLoading ? (
-                        t("gen.pages.writingFormula.components.WritingFormulaCreateDialog.gen_b363cd08")
+                        i18next.t("gen.pages.writingFormula.components.WritingFormulaCreateDialog.gen_b363cd08")
                       ) : selectedKnowledgeDocument ? (
                         <>
                           <div className="font-medium text-slate-950">{selectedKnowledgeDocument.title}</div>
@@ -489,14 +489,14 @@ export default function WritingFormulaCreateDialog(props: WritingFormulaCreateDi
                               活动版本 v{activeKnowledgeVersion.versionNumber} · {formatCharCount(activeKnowledgeVersion.charCount)}
                             </div>
                           ) : (
-                            <div className="mt-1 text-xs text-amber-700">{t("gen.pages.writingFormula.components.WritingFormulaCreateDialog.gen_e6b3a549")}</div>
+                            <div className="mt-1 text-xs text-amber-700">{i18next.t("gen.pages.writingFormula.components.WritingFormulaCreateDialog.gen_e6b3a549")}</div>
                           )}
                           {activeKnowledgeVersion && !activeKnowledgeVersion.content.trim() ? (
-                            <div className="mt-1 text-xs text-amber-700">{t("gen.pages.writingFormula.components.WritingFormulaCreateDialog.gen_0ee1d1fb")}</div>
+                            <div className="mt-1 text-xs text-amber-700">{i18next.t("gen.pages.writingFormula.components.WritingFormulaCreateDialog.gen_0ee1d1fb")}</div>
                           ) : null}
                         </>
                       ) : (
-                        t("gen.pages.writingFormula.components.WritingFormulaCreateDialog.gen_131c45bb")
+                        i18next.t("gen.pages.writingFormula.components.WritingFormulaCreateDialog.gen_131c45bb")
                       )}
                     </div>
                   </div>
@@ -506,7 +506,7 @@ export default function WritingFormulaCreateDialog(props: WritingFormulaCreateDi
                   <div className="space-y-3">
                     <input
                       className="w-full rounded-md border p-2 text-sm"
-                      placeholder={t("gen.pages.writingFormula.components.WritingFormulaCreateDialog.gen_8af1aea1")}
+                      placeholder={i18next.t("gen.pages.writingFormula.components.WritingFormulaCreateDialog.gen_8af1aea1")}
                       value={form.bookAnalysisSearchKeyword}
                       onChange={(event) => onFormChange({ bookAnalysisSearchKeyword: event.target.value })}
                     />
@@ -542,11 +542,11 @@ export default function WritingFormulaCreateDialog(props: WritingFormulaCreateDi
                                 <div className="mt-1 text-xs leading-5 text-slate-500">{analysis.documentTitle}</div>
                               </div>
                               <Badge variant={selected ? "default" : "outline"}>
-                                {selected ? t("gen.pages.writingFormula.components.WritingFormulaCreateDialog.gen_f08afd1f") : t("gen.pages.writingFormula.components.WritingFormulaCreateDialog.gen_882ba885")}
+                                {selected ? i18next.t("gen.pages.writingFormula.components.WritingFormulaCreateDialog.gen_f08afd1f") : i18next.t("gen.pages.writingFormula.components.WritingFormulaCreateDialog.gen_882ba885")}
                               </Badge>
                             </div>
                             <div className="mt-2 text-xs leading-5 text-slate-500">
-                              来源版本 v{analysis.documentVersionNumber} · {analysis.summary || t("gen.pages.writingFormula.components.WritingFormulaCreateDialog.gen_5299f9e8")}
+                              来源版本 v{analysis.documentVersionNumber} · {analysis.summary || i18next.t("gen.pages.writingFormula.components.WritingFormulaCreateDialog.gen_5299f9e8")}
                             </div>
                           </button>
                         );
@@ -562,9 +562,9 @@ export default function WritingFormulaCreateDialog(props: WritingFormulaCreateDi
                     disabled={materialSubmitDisabled}
                   >
                     {extractTaskSubmitting
-                      ? form.materialSource === "book_analysis" ? t("gen.pages.writingFormula.components.WritingFormulaCreateDialog.gen_4d020ba3") : t("gen.pages.writingFormula.components.WritingFormulaCreateDialog.gen_c661e656")
+                      ? form.materialSource === "book_analysis" ? i18next.t("gen.pages.writingFormula.components.WritingFormulaCreateDialog.gen_4d020ba3") : i18next.t("gen.pages.writingFormula.components.WritingFormulaCreateDialog.gen_c661e656")
                       : extractionTaskIsActive && form.materialSource !== "book_analysis"
-                        ? t("gen.pages.writingFormula.components.WritingFormulaCreateDialog.gen_c5a43600")
+                        ? i18next.t("gen.pages.writingFormula.components.WritingFormulaCreateDialog.gen_c5a43600")
                         : materialSubmitLabel}
                   </Button>
                 </div>
@@ -574,7 +574,7 @@ export default function WritingFormulaCreateDialog(props: WritingFormulaCreateDi
                 {form.materialSource === "book_analysis" ? (
                   <>
                     <div>
-                      <div className="text-sm font-medium text-foreground">{t("gen.pages.writingFormula.components.WritingFormulaCreateDialog.gen_0ea66184")}</div>
+                      <div className="text-sm font-medium text-foreground">{i18next.t("gen.pages.writingFormula.components.WritingFormulaCreateDialog.gen_0ea66184")}</div>
                       <div className="mt-1 text-xs leading-5 text-muted-foreground">
                         这一路会直接读取拆书里的文风与技法小节，生成后立即打开写法编辑。
                       </div>
@@ -591,14 +591,14 @@ export default function WritingFormulaCreateDialog(props: WritingFormulaCreateDi
                           ) : null}
                         </>
                       ) : (
-                        t("gen.pages.writingFormula.components.WritingFormulaCreateDialog.gen_47d21a58")
+                        i18next.t("gen.pages.writingFormula.components.WritingFormulaCreateDialog.gen_47d21a58")
                       )}
                     </div>
                   </>
                 ) : (
                   <>
                     <div>
-                      <div className="text-sm font-medium text-foreground">{t("gen.pages.writingFormula.components.WritingFormulaCreateDialog.preserveStrategy")}</div>
+                      <div className="text-sm font-medium text-foreground">{i18next.t("gen.pages.writingFormula.components.WritingFormulaCreateDialog.preserveStrategy")}</div>
                       <div className="mt-1 text-xs leading-5 text-muted-foreground">
                         先决定你要保留多少原始指纹，系统会按这个策略自动生成并保存写法。
                       </div>
@@ -619,7 +619,7 @@ export default function WritingFormulaCreateDialog(props: WritingFormulaCreateDi
                           >
                             <div className="flex items-center justify-between gap-3">
                               <div className="text-base font-semibold">{preset.label}</div>
-                              {active ? <Badge variant="secondary" className="bg-white/10 text-white">{t("gen.pages.writingFormula.components.WritingFormulaCreateDialog.gen_ce717abb")}</Badge> : null}
+                              {active ? <Badge variant="secondary" className="bg-white/10 text-white">{i18next.t("gen.pages.writingFormula.components.WritingFormulaCreateDialog.gen_ce717abb")}</Badge> : null}
                             </div>
                             <div className={`mt-2 text-sm leading-6 ${active ? "text-slate-200" : "text-slate-600"}`}>
                               {preset.summary}
@@ -634,17 +634,17 @@ export default function WritingFormulaCreateDialog(props: WritingFormulaCreateDi
                     {activeExtractionTask ? (
                       <div className="rounded-xl border bg-slate-50/80 p-4 text-sm text-slate-700">
                         <div className="flex items-center justify-between gap-3">
-                          <div className="font-medium text-slate-900">{t("gen.pages.writingFormula.components.WritingFormulaCreateDialog.gen_fea28a8c")}</div>
+                          <div className="font-medium text-slate-900">{i18next.t("gen.pages.writingFormula.components.WritingFormulaCreateDialog.gen_fea28a8c")}</div>
                           <Badge variant={extractionTaskIsActive ? "secondary" : "outline"}>
                             {formatTaskStatus(activeExtractionTask)}
                           </Badge>
                         </div>
                         <div className="mt-3 space-y-2 text-xs leading-5 text-slate-600">
-                          <div>{t("gen.pages.writingFormula.components.WritingFormulaCreateDialog.taskTitleActiveExtractionTask")}</div>
-                          <div>{t("gen.pages.writingFormula.components.WritingFormulaCreateDialog.gen_f024aecf")}</div>
-                          <div>{t("gen.pages.writingFormula.components.WritingFormulaCreateDialog.taskProgressRoundActiveExtractionTaskProgress100Percent")}</div>
+                          <div>{i18next.t("gen.pages.writingFormula.components.WritingFormulaCreateDialog.taskTitleActiveExtractionTask")}</div>
+                          <div>{i18next.t("gen.pages.writingFormula.components.WritingFormulaCreateDialog.gen_f024aecf")}</div>
+                          <div>{i18next.t("gen.pages.writingFormula.components.WritingFormulaCreateDialog.taskProgressRoundActiveExtractionTaskProgress100Percent")}</div>
                           {activeExtractionTask.failureSummary ? (
-                            <div className="text-rose-600">{t("gen.pages.writingFormula.components.WritingFormulaCreateDialog.gen_bd248a2f")}</div>
+                            <div className="text-rose-600">{i18next.t("gen.pages.writingFormula.components.WritingFormulaCreateDialog.gen_bd248a2f")}</div>
                           ) : null}
                         </div>
                         {onOpenTaskCenter ? (

@@ -116,7 +116,7 @@ export function useNovelAutoDirectorCandidateMutations({
     },
     onSuccess: ({ batch, workflowTaskId: nextWorkflowTaskId }) => {
       if (!batch) {
-        toast.error(i18next.t("gen.pages.novels.components.useNovelAutoDirectorCandidateMutations.gen_3331a794"));
+        toast.error(i18next.i18next.t("gen.pages.novels.components.useNovelAutoDirectorCandidateMutations.gen_3331a794"));
         return;
       }
       if (nextWorkflowTaskId && nextWorkflowTaskId !== workflowTaskId) {
@@ -134,7 +134,7 @@ export function useNovelAutoDirectorCandidateMutations({
     },
     onError: (error) => {
       setDialogMode("execution_failed");
-      setExecutionError(error instanceof Error ? error.message : i18next.t("gen.pages.novels.components.useNovelAutoDirectorCandidateMutations.gen_6bd0d323"));
+      setExecutionError(error instanceof Error ? error.message : i18next.i18next.t("gen.pages.novels.components.useNovelAutoDirectorCandidateMutations.gen_6bd0d323"));
     },
   });
 
@@ -164,18 +164,18 @@ export function useNovelAutoDirectorCandidateMutations({
     },
     onSuccess: ({ batch, workflowTaskId: nextWorkflowTaskId, candidateId }) => {
       if (!batch) {
-        toast.error(i18next.t("gen.pages.novels.components.useNovelAutoDirectorCandidateMutations.gen_4b487bbe"));
+        toast.error(i18next.i18next.t("gen.pages.novels.components.useNovelAutoDirectorCandidateMutations.gen_4b487bbe"));
         return;
       }
       applyUpdatedBatch(batch, nextWorkflowTaskId);
       setCandidatePatchFeedbacks((prev) => ({ ...prev, [candidateId]: "" }));
       setDialogMode("candidate_selection");
       setCandidateDialogOpen(true);
-      toast.success(i18next.t("gen.pages.novels.components.useNovelAutoDirectorCandidateMutations.gen_54581a6f"));
+      toast.success(i18next.i18next.t("gen.pages.novels.components.useNovelAutoDirectorCandidateMutations.gen_54581a6f"));
     },
     onError: (error) => {
       setDialogMode("execution_failed");
-      setExecutionError(error instanceof Error ? error.message : i18next.t("gen.pages.novels.components.useNovelAutoDirectorCandidateMutations.gen_55a06a5e"));
+      setExecutionError(error instanceof Error ? error.message : i18next.i18next.t("gen.pages.novels.components.useNovelAutoDirectorCandidateMutations.gen_55a06a5e"));
     },
   });
 
@@ -205,18 +205,18 @@ export function useNovelAutoDirectorCandidateMutations({
     },
     onSuccess: ({ batch, workflowTaskId: nextWorkflowTaskId, candidateId }) => {
       if (!batch) {
-        toast.error(i18next.t("gen.pages.novels.components.useNovelAutoDirectorCandidateMutations.gen_6d1c2eb9"));
+        toast.error(i18next.i18next.t("gen.pages.novels.components.useNovelAutoDirectorCandidateMutations.gen_6d1c2eb9"));
         return;
       }
       applyUpdatedBatch(batch, nextWorkflowTaskId);
       setTitlePatchFeedbacks((prev) => ({ ...prev, [candidateId]: "" }));
       setDialogMode("candidate_selection");
       setCandidateDialogOpen(true);
-      toast.success(i18next.t("gen.pages.novels.components.useNovelAutoDirectorCandidateMutations.gen_02a0ef43"));
+      toast.success(i18next.i18next.t("gen.pages.novels.components.useNovelAutoDirectorCandidateMutations.gen_02a0ef43"));
     },
     onError: (error) => {
       setDialogMode("execution_failed");
-      setExecutionError(error instanceof Error ? error.message : i18next.t("gen.pages.novels.components.useNovelAutoDirectorCandidateMutations.gen_ad897586"));
+      setExecutionError(error instanceof Error ? error.message : i18next.i18next.t("gen.pages.novels.components.useNovelAutoDirectorCandidateMutations.gen_ad897586"));
     },
   });
 

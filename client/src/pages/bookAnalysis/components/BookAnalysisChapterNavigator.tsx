@@ -60,7 +60,7 @@ export default function BookAnalysisChapterNavigator({
                 title={chapter.title}
               >
                 <div className="font-medium">{chapter.chapterIndex + 1}. {chapter.title}</div>
-                <div className="mt-0.5 text-[11px] text-muted-foreground">{t("gen.pages.bookAnalysis.components.BookAnalysisChapterNavigator.gen_821cf47a")}</div>
+                <div className="mt-0.5 text-[11px] text-muted-foreground">{i18next.t("gen.pages.bookAnalysis.components.BookAnalysisChapterNavigator.gen_821cf47a")}</div>
               </button>
             );
           })}

@@ -89,8 +89,8 @@ function TimelineNodeList({ nodes }: { nodes: BookAnalysisTimelineNode[] }) {
               <div className="leading-5 text-foreground">{node.label}</div>
               {node.timeHint || node.sourceRefs?.length ? (
                 <div className="mt-1 flex flex-wrap gap-1 text-[11px] text-muted-foreground">
-                  {node.timeHint ? <span>{t("gen.pages.bookAnalysis.components.BookAnalysisStructuredSummary.gen_c45f354d")}</span> : null}
-                  {node.sourceRefs?.length ? <span>{t("gen.pages.bookAnalysis.components.BookAnalysisStructuredSummary.gen_1e5fb252")}</span> : null}
+                  {node.timeHint ? <span>{i18next.t("gen.pages.bookAnalysis.components.BookAnalysisStructuredSummary.gen_c45f354d")}</span> : null}
+                  {node.sourceRefs?.length ? <span>{i18next.t("gen.pages.bookAnalysis.components.BookAnalysisStructuredSummary.gen_1e5fb252")}</span> : null}
                 </div>
               ) : null}
             </div>
@@ -121,9 +121,9 @@ export default function BookAnalysisStructuredSummary({
   return (
     <div className="space-y-3 rounded-md border bg-muted/20 p-3">
       <div className="flex items-center justify-between gap-2">
-        <div className="text-sm font-medium">{t("gen.pages.bookAnalysis.components.BookAnalysisStructuredSummary.gen_0945e166")}</div>
+        <div className="text-sm font-medium">{i18next.t("gen.pages.bookAnalysis.components.BookAnalysisStructuredSummary.gen_0945e166")}</div>
         <div className="text-xs text-muted-foreground">
-          {analysisMode === "diagnosis" ? t("gen.pages.bookAnalysis.components.BookAnalysisStructuredSummary.gen_e1933430") : t("gen.pages.bookAnalysis.components.BookAnalysisStructuredSummary.gen_ecc54e73")}
+          {analysisMode === "diagnosis" ? i18next.t("gen.pages.bookAnalysis.components.BookAnalysisStructuredSummary.gen_e1933430") : i18next.t("gen.pages.bookAnalysis.components.BookAnalysisStructuredSummary.gen_ecc54e73")}
         </div>
       </div>
       {warningLabels.length > 0 ? (
@@ -145,7 +145,7 @@ export default function BookAnalysisStructuredSummary({
                 </span>
               ) : null}
               {currentChapterIndex !== null && row.timelineNodes.length > 0 && row.evidence.some((item) => item.chapterIndex === currentChapterIndex) ? (
-                <Badge variant="secondary">{t("gen.pages.bookAnalysis.components.BookAnalysisStructuredSummary.gen_071a68fb")}</Badge>
+                <Badge variant="secondary">{i18next.t("gen.pages.bookAnalysis.components.BookAnalysisStructuredSummary.gen_071a68fb")}</Badge>
               ) : null}
             </div>
             {row.timelineNodes.length > 0 ? (
@@ -163,7 +163,7 @@ export default function BookAnalysisStructuredSummary({
                       className="inline-flex items-center gap-1 rounded-md border bg-muted/30 px-2 py-1 text-xs leading-5 text-foreground"
                     >
                       <span>{value}</span>
-                      {isCurrentChapterValue ? <Badge variant="secondary">{t("gen.pages.bookAnalysis.components.BookAnalysisStructuredSummary.gen_071a68fb")}</Badge> : null}
+                      {isCurrentChapterValue ? <Badge variant="secondary">{i18next.t("gen.pages.bookAnalysis.components.BookAnalysisStructuredSummary.gen_071a68fb")}</Badge> : null}
                     </span>
                   );
                 })}

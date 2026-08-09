@@ -27,7 +27,7 @@ function FieldBlock({ label, value }: { label: string; value?: string | null }) 
   return (
     <div className="rounded-lg border border-border/70 bg-background p-3">
       <div className="text-xs text-muted-foreground">{label}</div>
-      <div className="mt-1 text-sm leading-6 text-foreground">{t("gen.components.tensionCurve.TensionCurveChapterDetailSidebar.gen_e123035e")}</div>
+      <div className="mt-1 text-sm leading-6 text-foreground">{i18next.t("gen.components.tensionCurve.TensionCurveChapterDetailSidebar.gen_e123035e")}</div>
     </div>
   );
 }
@@ -47,20 +47,20 @@ export function TensionCurveChapterDetailSidebar(props: TensionCurveChapterDetai
     <aside className="space-y-3 rounded-xl border border-border/70 bg-muted/10 p-3">
       <div className="space-y-2">
         <div className="flex flex-wrap items-center gap-2">
-          <Badge>{t("gen.components.tensionCurve.TensionCurveChapterDetailSidebar.gen_db44b183")}</Badge>
+          <Badge>{i18next.t("gen.components.tensionCurve.TensionCurveChapterDetailSidebar.gen_db44b183")}</Badge>
           {beatLabel ? <Badge variant="outline">{beatLabel}</Badge> : null}
-          {chapter.conflictLevelSource === "user" ? <Badge variant="secondary">{t("gen.components.tensionCurve.TensionCurveChapterDetailSidebar.gen_7d1de53a")}</Badge> : <Badge variant="outline">{t("gen.components.tensionCurve.TensionCurveChapterDetailSidebar.gen_f3c74370")}</Badge>}
+          {chapter.conflictLevelSource === "user" ? <Badge variant="secondary">{i18next.t("gen.components.tensionCurve.TensionCurveChapterDetailSidebar.gen_7d1de53a")}</Badge> : <Badge variant="outline">{i18next.t("gen.components.tensionCurve.TensionCurveChapterDetailSidebar.gen_f3c74370")}</Badge>}
         </div>
         <div className="text-base font-semibold leading-6 text-foreground">{chapter.title || `第${chapter.chapterOrder}章`}</div>
         <div className="flex items-center gap-2 text-xs text-muted-foreground">
           <BookOpenText className="h-3.5 w-3.5" aria-hidden="true" />
-          冲突强度 {typeof chapter.conflictLevel === "number" ? chapter.conflictLevel : t("gen.components.tensionCurve.TensionCurveChapterDetailSidebar.gen_75c038ec")}
+          冲突强度 {typeof chapter.conflictLevel === "number" ? chapter.conflictLevel : i18next.t("gen.components.tensionCurve.TensionCurveChapterDetailSidebar.gen_75c038ec")}
         </div>
       </div>
 
-      <FieldBlock label={t("gen.components.tensionCurve.TensionCurveChapterDetailSidebar.gen_913f4561")} value={chapter.summary} />
-      <FieldBlock label={t("gen.components.tensionCurve.TensionCurveChapterDetailSidebar.gen_5e2adc42")} value={chapter.purpose} />
-      <FieldBlock label={t("gen.components.tensionCurve.TensionCurveChapterDetailSidebar.gen_23e47820")} value={chapter.exclusiveEvent} />
+      <FieldBlock label={i18next.t("gen.components.tensionCurve.TensionCurveChapterDetailSidebar.gen_913f4561")} value={chapter.summary} />
+      <FieldBlock label={i18next.t("gen.components.tensionCurve.TensionCurveChapterDetailSidebar.gen_5e2adc42")} value={chapter.purpose} />
+      <FieldBlock label={i18next.t("gen.components.tensionCurve.TensionCurveChapterDetailSidebar.gen_23e47820")} value={chapter.exclusiveEvent} />
 
       {onOpenChapterDetail ? (
         <Button type="button" className="w-full justify-between" variant="outline" onClick={onOpenChapterDetail}>

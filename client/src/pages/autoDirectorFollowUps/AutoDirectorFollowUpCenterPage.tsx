@@ -1,3 +1,4 @@
+import i18next from "i18next";
 import { useTranslation } from "react-i18next";
 import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -254,7 +255,7 @@ export default function AutoDirectorFollowUpCenterPage() {
     }),
     onSuccess: async (response) => {
       await invalidateFollowUps();
-      toast.success(formatActionFeedbackMessage(response.message ?? "", t("gen.pages.autoDirectorFollowUps.AutoDirectorFollowUpCenterPage.gen_f40347bf")));
+      toast.success(formatActionFeedbackMessage(response.message ?? "", i18next.t("gen.pages.autoDirectorFollowUps.AutoDirectorFollowUpCenterPage.gen_f40347bf")));
     },
   });
 
@@ -269,7 +270,7 @@ export default function AutoDirectorFollowUpCenterPage() {
     }),
     onSuccess: async (response) => {
       await invalidateFollowUps();
-      toast.success(formatActionFeedbackMessage(response.message ?? "", t("gen.pages.autoDirectorFollowUps.AutoDirectorFollowUpCenterPage.gen_682cd178")));
+      toast.success(formatActionFeedbackMessage(response.message ?? "", i18next.t("gen.pages.autoDirectorFollowUps.AutoDirectorFollowUpCenterPage.gen_682cd178")));
       setSelectedDirectorTaskIds([]);
     },
   });
@@ -281,7 +282,7 @@ export default function AutoDirectorFollowUpCenterPage() {
         queryKeys.autoDirectorFollowUps.detail(directorTaskId),
         response,
       );
-      toast.success(t("gen.pages.autoDirectorFollowUps.AutoDirectorFollowUpCenterPage.gen_97b1c7da"));
+      toast.success(i18next.t("gen.pages.autoDirectorFollowUps.AutoDirectorFollowUpCenterPage.gen_97b1c7da"));
     },
   });
 

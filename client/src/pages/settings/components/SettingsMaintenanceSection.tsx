@@ -12,7 +12,7 @@ export default function SettingsMaintenanceSection() {
     return (
       <Card className="min-w-0 overflow-hidden">
         <CardHeader>
-          <CardTitle>{t("gen.pages.settings.components.SettingsMaintenanceSection.gen_e58e3369")}</CardTitle>
+          <CardTitle>{i18next.t("gen.pages.settings.components.SettingsMaintenanceSection.gen_e58e3369")}</CardTitle>
           <CardDescription className={AUTO_DIRECTOR_MOBILE_CLASSES.wrapText}>
             当前环境没有需要处理的桌面维护事项。
           </CardDescription>
@@ -25,7 +25,7 @@ export default function SettingsMaintenanceSection() {
     <div className="min-w-0 space-y-4">
       <Card className="min-w-0 overflow-hidden">
         <CardHeader>
-          <CardTitle>{t("gen.pages.settings.components.SettingsMaintenanceSection.gen_e58e3369")}</CardTitle>
+          <CardTitle>{i18next.t("gen.pages.settings.components.SettingsMaintenanceSection.gen_e58e3369")}</CardTitle>
           <CardDescription className={AUTO_DIRECTOR_MOBILE_CLASSES.wrapText}>
             检查桌面更新或导入本机旧数据；这些操作不会影响当前创作配置。
           </CardDescription>

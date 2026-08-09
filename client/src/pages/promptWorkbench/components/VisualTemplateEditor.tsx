@@ -33,10 +33,10 @@ const PromptTokenPlugin = createSlatePlugin({
 });
 
 const REFERENCE_GROUP_LABELS: Record<PromptTemplateReferenceItem["group"], string> = {
-  required_context: t("gen.pages.promptWorkbench.components.VisualTemplateEditor.gen_249df3d6"),
-  optional_context: t("gen.pages.promptWorkbench.components.VisualTemplateEditor.gen_09053474"),
-  input: t("gen.pages.promptWorkbench.components.VisualTemplateEditor.gen_6f1fc776"),
-  slot: t("gen.pages.promptWorkbench.components.VisualTemplateEditor.gen_5e8e1d63"),
+  required_context: i18next.t("gen.pages.promptWorkbench.components.VisualTemplateEditor.gen_249df3d6"),
+  optional_context: i18next.t("gen.pages.promptWorkbench.components.VisualTemplateEditor.gen_09053474"),
+  input: i18next.t("gen.pages.promptWorkbench.components.VisualTemplateEditor.gen_6f1fc776"),
+  slot: i18next.t("gen.pages.promptWorkbench.components.VisualTemplateEditor.gen_5e8e1d63"),
 };
 
 function groupReferences(items: PromptTemplateReferenceItem[], query: string) {
@@ -69,13 +69,13 @@ function TokenMenu(props: {
         <Input
           value={props.query}
           onChange={(event) => props.onQueryChange(event.target.value)}
-          placeholder={t("gen.pages.promptWorkbench.components.VisualTemplateEditor.gen_7ca6421c")}
+          placeholder={i18next.t("gen.pages.promptWorkbench.components.VisualTemplateEditor.gen_7ca6421c")}
           className="h-8 border-[#cbdad6]"
         />
       </div>
       <div className="max-h-80 overflow-auto p-2">
         {grouped.length === 0 ? (
-          <div className="px-2 py-3 text-sm text-muted-foreground">{t("gen.pages.promptWorkbench.components.VisualTemplateEditor.gen_d410caa8")}</div>
+          <div className="px-2 py-3 text-sm text-muted-foreground">{i18next.t("gen.pages.promptWorkbench.components.VisualTemplateEditor.gen_d410caa8")}</div>
         ) : grouped.map((section) => (
           <div key={section.group} className="mb-2 last:mb-0">
             <div className="px-2 pb-1 text-[11px] font-semibold text-[#52606d]">
@@ -143,8 +143,8 @@ function PromptTokenElement(props: {
     element.label,
     keyText,
     element.description,
-    element.required ? t("gen.pages.promptWorkbench.components.VisualTemplateEditor.gen_249df3d6") : "",
-    element.hasPreviewBlock === false ? t("gen.pages.promptWorkbench.components.VisualTemplateEditor.gen_d6081554") : "",
+    element.required ? i18next.t("gen.pages.promptWorkbench.components.VisualTemplateEditor.gen_249df3d6") : "",
+    element.hasPreviewBlock === false ? i18next.t("gen.pages.promptWorkbench.components.VisualTemplateEditor.gen_d6081554") : "",
   ].filter(Boolean).join("\n");
 
   return (
@@ -220,7 +220,7 @@ function TemplateSourceTextarea(props: {
       <div className="flex items-center justify-between gap-3 border-b border-[#e1ebe8] px-3 py-2">
         <div>
           <div className="text-sm font-semibold text-[#25443f]">{props.label}</div>
-          <div className="text-[11px] text-muted-foreground">{t("gen.pages.promptWorkbench.components.VisualTemplateEditor.gen_71008670")}</div>
+          <div className="text-[11px] text-muted-foreground">{i18next.t("gen.pages.promptWorkbench.components.VisualTemplateEditor.gen_71008670")}</div>
         </div>
         <Button
           type="button"
@@ -411,7 +411,7 @@ export function VisualTemplateEditor(props: {
       <div className="flex items-center justify-between gap-3 border-b border-[#e1ebe8] px-3 py-2">
         <div>
           <div className="text-sm font-semibold text-[#25443f]">{props.label}</div>
-          <div className="text-[11px] text-muted-foreground">{t("gen.pages.promptWorkbench.components.VisualTemplateEditor.gen_5eb6247d")}</div>
+          <div className="text-[11px] text-muted-foreground">{i18next.t("gen.pages.promptWorkbench.components.VisualTemplateEditor.gen_5eb6247d")}</div>
         </div>
         <div className="flex flex-wrap gap-2">
           <Button
@@ -452,7 +452,7 @@ export function VisualTemplateEditor(props: {
             <Plate editor={editor} onValueChange={handleValueChange}>
               <PlateContent
                 readOnly={props.disabled}
-                placeholder={t("gen.pages.promptWorkbench.components.VisualTemplateEditor.gen_98f67dda")}
+                placeholder={i18next.t("gen.pages.promptWorkbench.components.VisualTemplateEditor.gen_98f67dda")}
                 renderElement={renderTemplateElement}
                 onFocus={() => props.onFocusRole(props.role)}
                 onKeyDown={handleKeyDown}

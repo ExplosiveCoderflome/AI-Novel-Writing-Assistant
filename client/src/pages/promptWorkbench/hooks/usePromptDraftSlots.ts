@@ -82,20 +82,20 @@ function getSectionSource(input: {
   const { globalOverride, novelOverride, scope } = input;
   if (scope === "novel") {
     if (isOfficialDefaultEntry(novelOverride)) {
-      return { source: "novel_official_default", sourceLabel: i18next.t("gen.pages.promptWorkbench.hooks.usePromptDraftSlots.gen_1680287e") };
+      return { source: "novel_official_default", sourceLabel: i18next.i18next.t("gen.pages.promptWorkbench.hooks.usePromptDraftSlots.gen_1680287e") };
     }
     if (novelOverride) {
-      return { source: "novel", sourceLabel: i18next.t("gen.pages.promptWorkbench.hooks.usePromptDraftSlots.gen_9c2e07fe") };
+      return { source: "novel", sourceLabel: i18next.i18next.t("gen.pages.promptWorkbench.hooks.usePromptDraftSlots.gen_9c2e07fe") };
     }
     if (globalOverride && !isOfficialDefaultEntry(globalOverride)) {
-      return { source: "global", sourceLabel: i18next.t("gen.pages.promptWorkbench.hooks.usePromptDraftSlots.gen_603d1174") };
+      return { source: "global", sourceLabel: i18next.i18next.t("gen.pages.promptWorkbench.hooks.usePromptDraftSlots.gen_603d1174") };
     }
-    return { source: "official", sourceLabel: i18next.t("gen.pages.promptWorkbench.hooks.usePromptDraftSlots.gen_0ccefc6c") };
+    return { source: "official", sourceLabel: i18next.i18next.t("gen.pages.promptWorkbench.hooks.usePromptDraftSlots.gen_0ccefc6c") };
   }
   if (globalOverride && !isOfficialDefaultEntry(globalOverride)) {
-    return { source: "global", sourceLabel: i18next.t("gen.pages.promptWorkbench.hooks.usePromptDraftSlots.gen_603d1174") };
+    return { source: "global", sourceLabel: i18next.i18next.t("gen.pages.promptWorkbench.hooks.usePromptDraftSlots.gen_603d1174") };
   }
-  return { source: "official", sourceLabel: i18next.t("gen.pages.promptWorkbench.hooks.usePromptDraftSlots.gen_0ccefc6c") };
+  return { source: "official", sourceLabel: i18next.i18next.t("gen.pages.promptWorkbench.hooks.usePromptDraftSlots.gen_0ccefc6c") };
 }
 
 export function buildPromptEditorSections(input: {
@@ -222,7 +222,7 @@ export function usePromptDraftSlots(prompt: PromptCatalogItem | null) {
   useEffect(() => {
     if (saveMutation.isError) {
       const error = saveMutation.error;
-      setSaveError(error instanceof Error ? error.message : i18next.t("gen.pages.promptWorkbench.hooks.usePromptDraftSlots.saveFailedPleaseRetry"));
+      setSaveError(error instanceof Error ? error.message : i18next.i18next.t("gen.pages.promptWorkbench.hooks.usePromptDraftSlots.saveFailedPleaseRetry"));
     }
   }, [saveMutation.error, saveMutation.isError]);
 

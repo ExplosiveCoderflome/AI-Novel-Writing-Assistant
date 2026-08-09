@@ -71,8 +71,8 @@ const RUN_MODE_OPTIONS: Array<{ value: DirectorRunMode; label: string; descripti
   },
   {
     value: "full_book_autopilot",
-    label: t("gen.pages.novels.components.NovelExistingProjectTakeoverDialog.gen_a86a8754"),
-    description: t("gen.pages.novels.components.NovelExistingProjectTakeoverDialog.aiFillEntireBookGoal"),
+    label: i18next.t("gen.pages.novels.components.NovelExistingProjectTakeoverDialog.gen_a86a8754"),
+    description: i18next.t("gen.pages.novels.components.NovelExistingProjectTakeoverDialog.aiFillEntireBookGoal"),
   },
   {
     value: "auto_to_ready",
@@ -81,21 +81,21 @@ const RUN_MODE_OPTIONS: Array<{ value: DirectorRunMode; label: string; descripti
   },
   {
     value: "auto_to_execution",
-    label: t("gen.pages.novels.components.NovelExistingProjectTakeoverDialog.gen_88309d03"),
-    description: t("gen.pages.novels.components.NovelExistingProjectTakeoverDialog.gen_19ede094"),
+    label: i18next.t("gen.pages.novels.components.NovelExistingProjectTakeoverDialog.gen_88309d03"),
+    description: i18next.t("gen.pages.novels.components.NovelExistingProjectTakeoverDialog.gen_19ede094"),
   },
 ];
 
 const STRATEGY_OPTIONS: Array<{ value: DirectorTakeoverStrategy; label: string; description: string }> = [
   {
     value: "continue_existing",
-    label: t("gen.pages.novels.components.NovelExistingProjectTakeoverDialog.gen_53d2332c"),
-    description: t("gen.pages.novels.components.NovelExistingProjectTakeoverDialog.prioritizeSkipCompletedAssetsOnlyFillMissingOrRestoreCurrentBatch"),
+    label: i18next.t("gen.pages.novels.components.NovelExistingProjectTakeoverDialog.gen_53d2332c"),
+    description: i18next.t("gen.pages.novels.components.NovelExistingProjectTakeoverDialog.prioritizeSkipCompletedAssetsOnlyFillMissingOrRestoreCurrentBatch"),
   },
   {
     value: "restart_current_step",
-    label: t("gen.pages.novels.components.NovelExistingProjectTakeoverDialog.gen_f231c588"),
-    description: t("gen.pages.novels.components.NovelExistingProjectTakeoverDialog.gen_a5f11e53"),
+    label: i18next.t("gen.pages.novels.components.NovelExistingProjectTakeoverDialog.gen_f231c588"),
+    description: i18next.t("gen.pages.novels.components.NovelExistingProjectTakeoverDialog.gen_a5f11e53"),
   },
 ];
 
@@ -241,7 +241,7 @@ export default function NovelExistingProjectTakeoverDialog({
   );
   const progressInspection = buildTakeoverProgressInspection(readiness, contextTaskSnapshot);
   const readinessErrorMessage = readinessQuery.isError
-    ? readinessQuery.error instanceof Error ? readinessQuery.error.message : t("gen.pages.novels.components.NovelExistingProjectTakeoverDialog.gen_3cecd2a8")
+    ? readinessQuery.error instanceof Error ? readinessQuery.error.message : i18next.t("gen.pages.novels.components.NovelExistingProjectTakeoverDialog.gen_3cecd2a8")
     : null;
 
   const enterCurrentTask = () => {
@@ -356,7 +356,7 @@ export default function NovelExistingProjectTakeoverDialog({
     onSuccess: async (response) => {
       const data = response.data;
       if (!data?.taskId) {
-        toast.error(t("gen.pages.novels.components.NovelExistingProjectTakeoverDialog.gen_73ba7490"));
+        toast.error(i18next.t("gen.pages.novels.components.NovelExistingProjectTakeoverDialog.gen_73ba7490"));
         return;
       }
       await queryClient.invalidateQueries({ queryKey: queryKeys.novels.autoDirectorTask(novelId) });
@@ -368,10 +368,10 @@ export default function NovelExistingProjectTakeoverDialog({
       setOpen(false);
       toast.success(
         effectiveRunMode === "full_book_autopilot"
-          ? t("gen.pages.novels.components.NovelExistingProjectTakeoverDialog.gen_b4951973")
+          ? i18next.t("gen.pages.novels.components.NovelExistingProjectTakeoverDialog.gen_b4951973")
           : effectiveRunMode === "auto_to_execution"
           ? `自动导演接管任务已提交，可在 AI 驾驶舱查看 ${buildDirectorAutoExecutionPlanLabel(autoExecutionPlan)} 的执行进度。`
-          : t("gen.pages.novels.components.NovelExistingProjectTakeoverDialog.gen_b87ce241"),
+          : i18next.t("gen.pages.novels.components.NovelExistingProjectTakeoverDialog.gen_b87ce241"),
       );
       navigate(buildEditRoute({
         novelId,
@@ -397,7 +397,7 @@ export default function NovelExistingProjectTakeoverDialog({
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent className={AUTO_DIRECTOR_MOBILE_CLASSES.takeoverDialogContent}>
           <DialogHeader className="shrink-0 border-b px-4 pb-4 pr-12 pt-5 text-left sm:px-6 sm:pt-6">
-            <DialogTitle>{t("gen.pages.novels.components.NovelExistingProjectTakeoverDialog.gen_4af814f1")}</DialogTitle>
+            <DialogTitle>{i18next.t("gen.pages.novels.components.NovelExistingProjectTakeoverDialog.gen_4af814f1")}</DialogTitle>
             <DialogDescription>
               先读取当前项目真实进度，再明确告诉你这次会跳过、继续还是重跑哪些步骤。
             </DialogDescription>
@@ -431,21 +431,21 @@ export default function NovelExistingProjectTakeoverDialog({
                 </summary>
                 <div className="mt-4 space-y-4">
               <div className="min-w-0 rounded-xl border bg-background/80 p-3 sm:p-4">
-                <div className="text-sm font-medium text-foreground">{t("gen.pages.novels.components.NovelExistingProjectTakeoverDialog.gen_96467e71")}</div>
+                <div className="text-sm font-medium text-foreground">{i18next.t("gen.pages.novels.components.NovelExistingProjectTakeoverDialog.gen_96467e71")}</div>
                 <div className="mt-3"><LLMSelector /></div>
               </div>
               <div className="min-w-0 rounded-xl border bg-background/80 p-3 sm:p-4">
-                <div className="text-sm font-medium text-foreground">{t("gen.pages.novels.components.NovelExistingProjectTakeoverDialog.gen_9b2f093e")}</div>
+                <div className="text-sm font-medium text-foreground">{i18next.t("gen.pages.novels.components.NovelExistingProjectTakeoverDialog.gen_9b2f093e")}</div>
                 <div className="mt-3 rounded-lg border bg-muted/15 p-3">
                   <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                     <div className="space-y-1">
-                      <div className="text-sm font-medium text-foreground">{t("gen.pages.novels.components.NovelExistingProjectTakeoverDialog.gen_9c8d9efd")}</div>
+                      <div className="text-sm font-medium text-foreground">{i18next.t("gen.pages.novels.components.NovelExistingProjectTakeoverDialog.gen_9c8d9efd")}</div>
                       <div className={`text-xs leading-5 text-muted-foreground ${AUTO_DIRECTOR_MOBILE_CLASSES.wrapText}`}>
                         开启后，章节正文生成完成时会检测 AI 味风险，并在命中可修正问题时生成修订稿。
                       </div>
                     </div>
                     <Switch
-                      aria-label={t("gen.pages.novels.components.NovelExistingProjectTakeoverDialog.gen_9c8d9efd")}
+                      aria-label={i18next.t("gen.pages.novels.components.NovelExistingProjectTakeoverDialog.gen_9c8d9efd")}
                       checked={postGenerationStyleReviewEnabled}
                       onCheckedChange={setPostGenerationStyleReviewEnabled}
                     />
@@ -491,7 +491,7 @@ export default function NovelExistingProjectTakeoverDialog({
                 ) : null}
                 {runMode === "full_book_autopilot" ? (
                   <div className={`mt-3 rounded-md border border-primary/15 bg-primary/5 p-3 text-xs leading-5 text-muted-foreground ${AUTO_DIRECTOR_MOBILE_CLASSES.wrapText}`}>
-                    <div className="text-sm font-medium text-foreground">{t("gen.pages.novels.components.NovelExistingProjectTakeoverDialog.gen_a86a8754")}</div>
+                    <div className="text-sm font-medium text-foreground">{i18next.t("gen.pages.novels.components.NovelExistingProjectTakeoverDialog.gen_a86a8754")}</div>
                     <div className="mt-1">
                       系统会以整本书为目标接管当前项目，继续补齐规划、章节执行、审校和修复。只有模型不可用、服务异常、正文保护或不可恢复风险会停下。
                     </div>
@@ -500,7 +500,7 @@ export default function NovelExistingProjectTakeoverDialog({
               </div>
 
               <div className="min-w-0 rounded-xl border bg-background/80 p-3 sm:p-4">
-                <div className="text-sm font-medium text-foreground">{t("gen.pages.novels.components.NovelExistingProjectTakeoverDialog.gen_855ed7ff")}</div>
+                <div className="text-sm font-medium text-foreground">{i18next.t("gen.pages.novels.components.NovelExistingProjectTakeoverDialog.gen_855ed7ff")}</div>
                 <div className={`mt-1 text-xs leading-5 text-muted-foreground ${AUTO_DIRECTOR_MOBILE_CLASSES.wrapText}`}>
                   绑定书级默认写法后，接管时建议沿用它。前半段导演只读取轻量摘要，避免干扰结构规划。
                 </div>
@@ -510,7 +510,7 @@ export default function NovelExistingProjectTakeoverDialog({
                     value={selectedStyleProfileId}
                     onChange={(event) => setSelectedStyleProfileId(event.target.value)}
                   >
-                    <option value="">{t("gen.pages.novels.components.NovelExistingProjectTakeoverDialog.gen_7097c369")}</option>
+                    <option value="">{i18next.t("gen.pages.novels.components.NovelExistingProjectTakeoverDialog.gen_7097c369")}</option>
                     {styleProfiles.map((profile) => (
                       <option key={profile.id} value={profile.id}>{profile.name}</option>
                     ))}
@@ -532,12 +532,12 @@ export default function NovelExistingProjectTakeoverDialog({
 
               <div className="min-w-0 rounded-xl border bg-background/80 p-3 sm:p-4">
                 <div className="flex items-center justify-between gap-3">
-                  <div className="text-sm font-medium text-foreground">{t("gen.pages.novels.components.NovelExistingProjectTakeoverDialog.gen_1837ba81")}</div>
-                  {readinessQuery.isLoading ? <Badge variant="outline">{t("gen.pages.novels.components.NovelExistingProjectTakeoverDialog.gen_26d335b3")}</Badge> : null}
+                  <div className="text-sm font-medium text-foreground">{i18next.t("gen.pages.novels.components.NovelExistingProjectTakeoverDialog.gen_1837ba81")}</div>
+                  {readinessQuery.isLoading ? <Badge variant="outline">{i18next.t("gen.pages.novels.components.NovelExistingProjectTakeoverDialog.gen_26d335b3")}</Badge> : null}
                 </div>
                 {readinessQuery.isError ? (
                   <div className={`mt-3 rounded-lg border border-destructive/30 bg-destructive/5 px-3 py-2 text-sm text-destructive ${AUTO_DIRECTOR_MOBILE_CLASSES.wrapText}`}>
-                    {readinessQuery.error instanceof Error ? readinessQuery.error.message : t("gen.pages.novels.components.NovelExistingProjectTakeoverDialog.gen_3cecd2a8")}
+                    {readinessQuery.error instanceof Error ? readinessQuery.error.message : i18next.t("gen.pages.novels.components.NovelExistingProjectTakeoverDialog.gen_3cecd2a8")}
                   </div>
                 ) : null}
 
@@ -545,27 +545,27 @@ export default function NovelExistingProjectTakeoverDialog({
                   <>
                     <div className="mt-3 grid min-w-0 gap-3 sm:grid-cols-2 lg:grid-cols-4">
                       <div className="rounded-lg border bg-muted/15 p-3">
-                        <div className="text-xs text-muted-foreground">{t("gen.pages.novels.components.NovelExistingProjectTakeoverDialog.chapterPlanning")}</div>
-                        <div className="mt-1 text-sm font-medium text-foreground">{t("gen.pages.novels.components.NovelExistingProjectTakeoverDialog.storyMacroPlanReady")}</div>
+                        <div className="text-xs text-muted-foreground">{i18next.t("gen.pages.novels.components.NovelExistingProjectTakeoverDialog.chapterPlanning")}</div>
+                        <div className="mt-1 text-sm font-medium text-foreground">{i18next.t("gen.pages.novels.components.NovelExistingProjectTakeoverDialog.storyMacroPlanReady")}</div>
                       </div>
                       <div className="rounded-lg border bg-muted/15 p-3">
-                        <div className="text-xs text-muted-foreground">{t("gen.pages.novels.components.NovelExistingProjectTakeoverDialog.gen_7191a9b4")}</div>
-                        <div className="mt-1 text-sm font-medium text-foreground">{t("gen.pages.novels.components.NovelExistingProjectTakeoverDialog.bookContractReady")}</div>
+                        <div className="text-xs text-muted-foreground">{i18next.t("gen.pages.novels.components.NovelExistingProjectTakeoverDialog.gen_7191a9b4")}</div>
+                        <div className="mt-1 text-sm font-medium text-foreground">{i18next.t("gen.pages.novels.components.NovelExistingProjectTakeoverDialog.bookContractReady")}</div>
                       </div>
                       <div className="rounded-lg border bg-muted/15 p-3">
-                        <div className="text-xs text-muted-foreground">{t("gen.pages.novels.components.NovelExistingProjectTakeoverDialog.gen_487f3949")}</div>
+                        <div className="text-xs text-muted-foreground">{i18next.t("gen.pages.novels.components.NovelExistingProjectTakeoverDialog.gen_487f3949")}</div>
                         <div className="mt-1 text-sm font-medium text-foreground">{readiness.snapshot.characterCount}</div>
                       </div>
                       <div className="rounded-lg border bg-muted/15 p-3">
-                        <div className="text-xs text-muted-foreground">{t("gen.pages.novels.components.NovelExistingProjectTakeoverDialog.gen_0b218e75")}</div>
+                        <div className="text-xs text-muted-foreground">{i18next.t("gen.pages.novels.components.NovelExistingProjectTakeoverDialog.gen_0b218e75")}</div>
                         <div className="mt-1 text-sm font-medium text-foreground">{readiness.snapshot.volumeCount} / {readiness.snapshot.firstVolumeChapterCount}</div>
                       </div>
                     </div>
 
                     {readiness.hasActiveTask ? (
                       <div className="mt-4 rounded-lg border border-amber-500/30 bg-amber-500/10 p-4">
-                        <div className="text-sm font-medium text-foreground">{t("gen.pages.novels.components.NovelExistingProjectTakeoverDialog.gen_de3efd01")}</div>
-                        <div className="mt-1 text-sm text-muted-foreground">{t("gen.pages.novels.components.NovelExistingProjectTakeoverDialog.avoidRepeatHandover")}</div>
+                        <div className="text-sm font-medium text-foreground">{i18next.t("gen.pages.novels.components.NovelExistingProjectTakeoverDialog.gen_de3efd01")}</div>
+                        <div className="mt-1 text-sm text-muted-foreground">{i18next.t("gen.pages.novels.components.NovelExistingProjectTakeoverDialog.avoidRepeatHandover")}</div>
                         <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:justify-end">
                           <Button
                             type="button"
@@ -610,13 +610,13 @@ export default function NovelExistingProjectTakeoverDialog({
                                 <div className="flex items-center justify-between gap-2">
                                   <div className="break-words text-sm font-medium text-foreground [overflow-wrap:anywhere]">{entry.label}</div>
                                   <div className="flex shrink-0 flex-wrap items-center gap-2">
-                                    {entry.recommended ? <Badge>{t("gen.pages.novels.components.NovelExistingProjectTakeoverDialog.gen_3f981012")}</Badge> : null}
+                                    {entry.recommended ? <Badge>{i18next.t("gen.pages.novels.components.NovelExistingProjectTakeoverDialog.gen_3f981012")}</Badge> : null}
                                     <Badge variant="outline">{entry.status}</Badge>
                                   </div>
                                 </div>
                                 <div className={`mt-2 text-xs leading-5 text-muted-foreground ${AUTO_DIRECTOR_MOBILE_CLASSES.wrapText}`}>{entry.description}</div>
                                 <div className={`mt-3 text-xs leading-5 text-muted-foreground ${AUTO_DIRECTOR_MOBILE_CLASSES.wrapText}`}>
-                                  {allowedForScope ? entry.reason : t("gen.pages.novels.components.NovelExistingProjectTakeoverDialog.gen_a6b2c5fb")}
+                                  {allowedForScope ? entry.reason : i18next.t("gen.pages.novels.components.NovelExistingProjectTakeoverDialog.gen_a6b2c5fb")}
                                 </div>
                               </button>
                             );
@@ -644,16 +644,16 @@ export default function NovelExistingProjectTakeoverDialog({
 
                         {selectedEntry ? (
                           <div className="mt-4 min-w-0 rounded-xl border bg-muted/15 p-3 sm:p-4">
-                            <div className="text-sm font-medium text-foreground">{t("gen.pages.novels.components.NovelExistingProjectTakeoverDialog.gen_a444c658")}</div>
+                            <div className="text-sm font-medium text-foreground">{i18next.t("gen.pages.novels.components.NovelExistingProjectTakeoverDialog.gen_a444c658")}</div>
                             <div className={`mt-2 text-sm text-muted-foreground ${AUTO_DIRECTOR_MOBILE_CLASSES.wrapText}`}>{selectedPreview?.summary ?? selectedEntry.reason}</div>
                             <div className={`mt-3 text-xs leading-5 text-muted-foreground ${AUTO_DIRECTOR_MOBILE_CLASSES.wrapText}`}>{selectedPreview?.effectSummary ?? selectedEntry.description}</div>
                             {selectedPreview ? (
                               <>
                                 <div className="mt-3 flex min-w-0 flex-wrap gap-2">
-                                  <Badge variant="secondary" className="max-w-full whitespace-normal break-words text-left [overflow-wrap:anywhere]">{t("gen.pages.novels.components.NovelExistingProjectTakeoverDialog.gen_66fab546")}</Badge>
-                                  <Badge variant="outline" className="max-w-full whitespace-normal break-words text-left [overflow-wrap:anywhere]">{t("gen.pages.novels.components.NovelExistingProjectTakeoverDialog.gen_ffbc22d4")}</Badge>
-                                  <Badge variant="outline" className="max-w-full whitespace-normal break-words text-left [overflow-wrap:anywhere]">{t("gen.pages.novels.components.NovelExistingProjectTakeoverDialog.gen_7bad3a35")}</Badge>
-                                  {selectedPreview.usesCurrentBatch ? <Badge>{t("gen.pages.novels.components.NovelExistingProjectTakeoverDialog.gen_b3d4b4f4")}</Badge> : null}
+                                  <Badge variant="secondary" className="max-w-full whitespace-normal break-words text-left [overflow-wrap:anywhere]">{i18next.t("gen.pages.novels.components.NovelExistingProjectTakeoverDialog.gen_66fab546")}</Badge>
+                                  <Badge variant="outline" className="max-w-full whitespace-normal break-words text-left [overflow-wrap:anywhere]">{i18next.t("gen.pages.novels.components.NovelExistingProjectTakeoverDialog.gen_ffbc22d4")}</Badge>
+                                  <Badge variant="outline" className="max-w-full whitespace-normal break-words text-left [overflow-wrap:anywhere]">{i18next.t("gen.pages.novels.components.NovelExistingProjectTakeoverDialog.gen_7bad3a35")}</Badge>
+                                  {selectedPreview.usesCurrentBatch ? <Badge>{i18next.t("gen.pages.novels.components.NovelExistingProjectTakeoverDialog.gen_b3d4b4f4")}</Badge> : null}
                                 </div>
                                 {readiness.activePipelineJob ? (
                                   <div className={`mt-3 text-xs leading-5 text-muted-foreground ${AUTO_DIRECTOR_MOBILE_CLASSES.wrapText}`}>
@@ -673,7 +673,7 @@ export default function NovelExistingProjectTakeoverDialog({
                                   </div>
                                 ) : null}
                                 {selectedPreview.skipSteps.length > 0 ? (
-                                  <div className={`mt-3 text-xs leading-5 text-muted-foreground ${AUTO_DIRECTOR_MOBILE_CLASSES.wrapText}`}>{t("gen.pages.novels.components.NovelExistingProjectTakeoverDialog.willSkipSelectedPreviewSkipStepsJoinBySlash")}</div>
+                                  <div className={`mt-3 text-xs leading-5 text-muted-foreground ${AUTO_DIRECTOR_MOBILE_CLASSES.wrapText}`}>{i18next.t("gen.pages.novels.components.NovelExistingProjectTakeoverDialog.willSkipSelectedPreviewSkipStepsJoinBySlash")}</div>
                                 ) : null}
                                 <div className={`mt-3 space-y-1 text-xs leading-5 text-muted-foreground ${AUTO_DIRECTOR_MOBILE_CLASSES.wrapText}`}>
                                   {selectedPreview.impactNotes.map((note) => <div key={note}>• {note}</div>)}
@@ -690,7 +690,7 @@ export default function NovelExistingProjectTakeoverDialog({
                             disabled={startMutation.isPending || !selectedEntry || !selectedEntry.available || !selectedEntryAllowedForScope}
                             onClick={() => startMutation.mutate()}
                           >
-                            {startMutation.isPending ? t("gen.pages.novels.components.NovelExistingProjectTakeoverDialog.gen_684c9230") : t("gen.pages.novels.components.NovelExistingProjectTakeoverDialog.gen_779abc23")}
+                            {startMutation.isPending ? i18next.t("gen.pages.novels.components.NovelExistingProjectTakeoverDialog.gen_684c9230") : i18next.t("gen.pages.novels.components.NovelExistingProjectTakeoverDialog.gen_779abc23")}
                           </Button>
                         </div>
                       </>

@@ -13,7 +13,7 @@ function Toaster(props: ToasterProps) {
       mobileOffset={mobileOffset ?? 12}
       toastOptions={{
         ...toastOptions,
-        closeButtonAriaLabel: toastOptions?.closeButtonAriaLabel ?? t("gen.components.ui.toast.gen_c335e973"),
+        closeButtonAriaLabel: toastOptions?.closeButtonAriaLabel ?? i18next.t("gen.components.ui.toast.gen_c335e973"),
         classNames: {
           ...toastOptions?.classNames,
           toast: `max-w-[calc(100vw-1.5rem)] overflow-visible ${toastOptions?.classNames?.toast ?? ""}`.trim(),

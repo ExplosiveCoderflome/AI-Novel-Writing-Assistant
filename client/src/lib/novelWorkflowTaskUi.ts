@@ -16,7 +16,7 @@ type WorkflowTaskLike = {
 export const LIVE_TASK_STATUSES = new Set<TaskStatus>(["queued", "running", "waiting_approval"]);
 export const BACKGROUND_RUNNING_TASK_STATUSES = new Set<TaskStatus>(["running"]);
 
-function getExecutionScopeLabel(scopeLabel?: string | null, fallback = i18next.t("gen.lib.novelWorkflowTaskUi.gen_fe4033ac")): string {
+function getExecutionScopeLabel(scopeLabel?: string | null, fallback = i18next.i18next.t("gen.lib.novelWorkflowTaskUi.gen_fe4033ac")): string {
   return scopeLabel?.trim() || fallback;
 }
 
@@ -34,27 +34,27 @@ function buildAutoExecutionCancelledLabel(scopeLabel?: string | null): string {
 
 export function formatWorkflowCheckpoint(checkpoint?: NovelWorkflowCheckpoint | null, scopeLabel?: string | null): string {
   if (checkpoint === "candidate_selection_required") {
-    return i18next.t("gen.lib.novelWorkflowTaskUi.gen_dbc67929");
+    return i18next.i18next.t("gen.lib.novelWorkflowTaskUi.gen_dbc67929");
   }
   if (checkpoint === "book_contract_ready") {
-    return i18next.t("gen.lib.novelWorkflowTaskUi.gen_BookContra_ppep");
+    return i18next.i18next.t("gen.lib.novelWorkflowTaskUi.gen_BookContra_ppep");
   }
   if (checkpoint === "character_setup_required") {
-    return i18next.t("gen.lib.novelWorkflowTaskUi.gen_67358797");
+    return i18next.i18next.t("gen.lib.novelWorkflowTaskUi.gen_67358797");
   }
   if (checkpoint === "volume_strategy_ready") {
-    return i18next.t("gen.lib.novelWorkflowTaskUi.gen_1172d3de");
+    return i18next.i18next.t("gen.lib.novelWorkflowTaskUi.gen_1172d3de");
   }
   if (checkpoint === "chapter_batch_ready") {
     return buildAutoExecutionPausedLabel(scopeLabel);
   }
   if (checkpoint === "replan_required") {
-    return i18next.t("gen.lib.novelWorkflowTaskUi.gen_930a7919");
+    return i18next.i18next.t("gen.lib.novelWorkflowTaskUi.gen_930a7919");
   }
   if (checkpoint === "workflow_completed") {
-    return i18next.t("gen.lib.novelWorkflowTaskUi.gen_ccb5c92e");
+    return i18next.i18next.t("gen.lib.novelWorkflowTaskUi.gen_ccb5c92e");
   }
-  return i18next.t("gen.lib.novelWorkflowTaskUi.gen_1772aede");
+  return i18next.i18next.t("gen.lib.novelWorkflowTaskUi.gen_1772aede");
 }
 
 export function getWorkflowBadge(task?: NovelAutoDirectorTaskSummary | null): {
@@ -90,31 +90,31 @@ export function getWorkflowBadge(task?: NovelAutoDirectorTaskSummary | null): {
   }
   if (task.status === "running") {
     return {
-      label: displayStatus ?? i18next.t("gen.lib.novelWorkflowTaskUi.gen_ce6c5058"),
+      label: displayStatus ?? i18next.i18next.t("gen.lib.novelWorkflowTaskUi.gen_ce6c5058"),
       variant: "default",
     };
   }
   if (task.status === "queued") {
     return {
-      label: displayStatus ?? i18next.t("gen.lib.novelWorkflowTaskUi.gen_c26287bc"),
+      label: displayStatus ?? i18next.i18next.t("gen.lib.novelWorkflowTaskUi.gen_c26287bc"),
       variant: "secondary",
     };
   }
   if (task.status === "failed") {
     return {
-      label: displayStatus ?? i18next.t("gen.lib.novelWorkflowTaskUi.gen_8a03db74"),
+      label: displayStatus ?? i18next.i18next.t("gen.lib.novelWorkflowTaskUi.gen_8a03db74"),
       variant: "destructive",
     };
   }
   if (task.status === "cancelled") {
     return {
-      label: displayStatus ?? i18next.t("gen.lib.novelWorkflowTaskUi.gen_6f6440f0"),
+      label: displayStatus ?? i18next.i18next.t("gen.lib.novelWorkflowTaskUi.gen_6f6440f0"),
       variant: "outline",
     };
   }
   return {
     label: displayStatus ?? (task.checkpointType === "workflow_completed"
-      ? i18next.t("gen.lib.novelWorkflowTaskUi.gen_ccb5c92e")
+      ? i18next.i18next.t("gen.lib.novelWorkflowTaskUi.gen_ccb5c92e")
       : formatWorkflowCheckpoint(task.checkpointType, task.executionScopeLabel)),
     variant: "outline",
   };

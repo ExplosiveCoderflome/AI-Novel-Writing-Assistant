@@ -83,60 +83,60 @@ export function useVolumeVersionControl({
       if (nextVersionId) {
         setSelectedVersionId(nextVersionId);
       }
-      setMessage(response.message ?? i18next.t("gen.pages.novels.hooks.useVolumeVersionControl.gen_a69308e8"));
+      setMessage(response.message ?? i18next.i18next.t("gen.pages.novels.hooks.useVolumeVersionControl.gen_a69308e8"));
       await invalidateVersionList();
     },
     onError: (error) => {
-      setMessage(error instanceof Error ? error.message : i18next.t("gen.pages.novels.hooks.useVolumeVersionControl.gen_9e0e39c3"));
+      setMessage(error instanceof Error ? error.message : i18next.i18next.t("gen.pages.novels.hooks.useVolumeVersionControl.gen_9e0e39c3"));
     },
   });
 
   const activateVersionMutation = useMutation({
     mutationFn: () => {
       if (!selectedVersionId) {
-        throw new Error(i18next.t("gen.pages.novels.hooks.useVolumeVersionControl.gen_b8ccbcfc"));
+        throw new Error(i18next.i18next.t("gen.pages.novels.hooks.useVolumeVersionControl.gen_b8ccbcfc"));
       }
       return activateVolumeVersion(novelId, selectedVersionId);
     },
     onSuccess: async (response) => {
-      setMessage(response.message ?? i18next.t("gen.pages.novels.hooks.useVolumeVersionControl.gen_b64724b6"));
+      setMessage(response.message ?? i18next.i18next.t("gen.pages.novels.hooks.useVolumeVersionControl.gen_b64724b6"));
       await invalidateVersionList();
       await invalidateNovelDetail();
     },
     onError: (error) => {
-      setMessage(error instanceof Error ? error.message : i18next.t("gen.pages.novels.hooks.useVolumeVersionControl.gen_5c4833b3"));
+      setMessage(error instanceof Error ? error.message : i18next.i18next.t("gen.pages.novels.hooks.useVolumeVersionControl.gen_5c4833b3"));
     },
   });
 
   const freezeVersionMutation = useMutation({
     mutationFn: () => {
       if (!selectedVersionId) {
-        throw new Error(i18next.t("gen.pages.novels.hooks.useVolumeVersionControl.gen_b8ccbcfc"));
+        throw new Error(i18next.i18next.t("gen.pages.novels.hooks.useVolumeVersionControl.gen_b8ccbcfc"));
       }
       return freezeVolumeVersion(novelId, selectedVersionId);
     },
     onSuccess: async (response) => {
-      setMessage(response.message ?? i18next.t("gen.pages.novels.hooks.useVolumeVersionControl.gen_4519b3fb"));
+      setMessage(response.message ?? i18next.i18next.t("gen.pages.novels.hooks.useVolumeVersionControl.gen_4519b3fb"));
       await invalidateVersionList();
     },
     onError: (error) => {
-      setMessage(error instanceof Error ? error.message : i18next.t("gen.pages.novels.hooks.useVolumeVersionControl.gen_040f912d"));
+      setMessage(error instanceof Error ? error.message : i18next.i18next.t("gen.pages.novels.hooks.useVolumeVersionControl.gen_040f912d"));
     },
   });
 
   const diffMutation = useMutation({
     mutationFn: () => {
       if (!selectedVersionId) {
-        throw new Error(i18next.t("gen.pages.novels.hooks.useVolumeVersionControl.gen_b8ccbcfc"));
+        throw new Error(i18next.i18next.t("gen.pages.novels.hooks.useVolumeVersionControl.gen_b8ccbcfc"));
       }
       return getVolumeDiff(novelId, selectedVersionId);
     },
     onSuccess: (response) => {
       setDiffResult(response.data ?? null);
-      setMessage(response.message ?? i18next.t("gen.pages.novels.hooks.useVolumeVersionControl.gen_436e727f"));
+      setMessage(response.message ?? i18next.i18next.t("gen.pages.novels.hooks.useVolumeVersionControl.gen_436e727f"));
     },
     onError: (error) => {
-      setMessage(error instanceof Error ? error.message : i18next.t("gen.pages.novels.hooks.useVolumeVersionControl.gen_bb98c27a"));
+      setMessage(error instanceof Error ? error.message : i18next.i18next.t("gen.pages.novels.hooks.useVolumeVersionControl.gen_bb98c27a"));
     },
   });
 
@@ -144,40 +144,40 @@ export function useVolumeVersionControl({
     mutationFn: () => analyzeVolumeImpact(novelId, { volumes: draftDocument.volumes }),
     onSuccess: (response) => {
       setImpactResult(response.data ?? null);
-      setMessage(response.message ?? i18next.t("gen.pages.novels.hooks.useVolumeVersionControl.gen_52fea1df"));
+      setMessage(response.message ?? i18next.i18next.t("gen.pages.novels.hooks.useVolumeVersionControl.gen_52fea1df"));
     },
     onError: (error) => {
-      setMessage(error instanceof Error ? error.message : i18next.t("gen.pages.novels.hooks.useVolumeVersionControl.gen_7fa8f912"));
+      setMessage(error instanceof Error ? error.message : i18next.i18next.t("gen.pages.novels.hooks.useVolumeVersionControl.gen_7fa8f912"));
     },
   });
 
   const analyzeVersionImpactMutation = useMutation({
     mutationFn: () => {
       if (!selectedVersionId) {
-        throw new Error(i18next.t("gen.pages.novels.hooks.useVolumeVersionControl.gen_b8ccbcfc"));
+        throw new Error(i18next.i18next.t("gen.pages.novels.hooks.useVolumeVersionControl.gen_b8ccbcfc"));
       }
       return analyzeVolumeImpact(novelId, { versionId: selectedVersionId });
     },
     onSuccess: (response) => {
       setImpactResult(response.data ?? null);
-      setMessage(response.message ?? i18next.t("gen.pages.novels.hooks.useVolumeVersionControl.gen_1a5590e4"));
+      setMessage(response.message ?? i18next.i18next.t("gen.pages.novels.hooks.useVolumeVersionControl.gen_1a5590e4"));
     },
     onError: (error) => {
-      setMessage(error instanceof Error ? error.message : i18next.t("gen.pages.novels.hooks.useVolumeVersionControl.gen_d2c7a968"));
+      setMessage(error instanceof Error ? error.message : i18next.i18next.t("gen.pages.novels.hooks.useVolumeVersionControl.gen_d2c7a968"));
     },
   });
 
   const loadSelectedVersionMutation = useMutation({
     mutationFn: () => {
       if (!selectedVersionId) {
-        throw new Error(i18next.t("gen.pages.novels.hooks.useVolumeVersionControl.gen_b8ccbcfc"));
+        throw new Error(i18next.i18next.t("gen.pages.novels.hooks.useVolumeVersionControl.gen_b8ccbcfc"));
       }
       return getVolumeVersion(novelId, selectedVersionId);
     },
     onSuccess: (response) => {
       const version = response.data;
       if (!version) {
-        setMessage(i18next.t("gen.pages.novels.hooks.useVolumeVersionControl.gen_e4fa5194"));
+        setMessage(i18next.i18next.t("gen.pages.novels.hooks.useVolumeVersionControl.gen_e4fa5194"));
         return;
       }
       try {
@@ -189,11 +189,11 @@ export function useVolumeVersionControl({
         setRebalanceDecisions(parsed.rebalanceDecisions ?? []);
         setMessage(`已加载 V${version.version} 到当前卷级草稿。`);
       } catch {
-        setMessage(i18next.t("gen.pages.novels.hooks.useVolumeVersionControl.gen_e4fa5194"));
+        setMessage(i18next.i18next.t("gen.pages.novels.hooks.useVolumeVersionControl.gen_e4fa5194"));
       }
     },
     onError: (error) => {
-      setMessage(error instanceof Error ? error.message : i18next.t("gen.pages.novels.hooks.useVolumeVersionControl.gen_e4fa5194"));
+      setMessage(error instanceof Error ? error.message : i18next.i18next.t("gen.pages.novels.hooks.useVolumeVersionControl.gen_e4fa5194"));
     },
   });
 

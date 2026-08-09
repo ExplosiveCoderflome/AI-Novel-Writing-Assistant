@@ -1,3 +1,4 @@
+import i18next from "i18next";
 import { useTranslation } from "react-i18next";
 import type { MouseEvent } from "react";
 import { useMemo } from "react";
@@ -80,8 +81,8 @@ export default function Home() {
         error instanceof Error
           ? error.message
           : input.mode === "auto_execute_range"
-            ? t("gen.pages.Home.gen_73ebdc25", "继续自动执行当前章节范围失败。")
-            : t("gen.pages.Home.gen_bb8020bb", "继续自动导演失败。"),
+            ? i18next.t("gen.pages.Home.gen_73ebdc25", "继续自动执行当前章节范围失败。")
+            : i18next.t("gen.pages.Home.gen_bb8020bb", "继续自动导演失败。"),
       );
     },
   });
@@ -147,7 +148,7 @@ export default function Home() {
           }}
           disabled={isWorkflowPending}
         >
-          {isWorkflowPending ? t("gen.pages.Home.gen_eddf5894") : (task?.resumeAction ?? `继续自动执行${task?.executionScopeLabel ?? t("gen.pages.Home.gen_d7432bb5")}`)}
+          {isWorkflowPending ? i18next.t("gen.pages.Home.gen_eddf5894") : (task?.resumeAction ?? `继续自动执行${task?.executionScopeLabel ?? i18next.t("gen.pages.Home.gen_d7432bb5")}`)}
         </Button>
       );
     }
@@ -167,7 +168,7 @@ export default function Home() {
           }}
           disabled={isWorkflowPending}
         >
-          {isWorkflowPending ? t("gen.pages.Home.gen_95ee3e92") : (task?.resumeAction ?? t("gen.pages.Home.gen_1f32f18b"))}
+          {isWorkflowPending ? i18next.t("gen.pages.Home.gen_95ee3e92") : (task?.resumeAction ?? i18next.t("gen.pages.Home.gen_1f32f18b"))}
         </Button>
       );
     }
@@ -179,7 +180,7 @@ export default function Home() {
             to={getCandidateSelectionLink(task!.id)}
             onClick={stopPropagation ? stopCardClick : undefined}
           >
-            {task!.resumeAction ?? t("gen.pages.Home.gen_4763a24b")}
+            {task!.resumeAction ?? i18next.t("gen.pages.Home.gen_4763a24b")}
           </Link>
         </Button>
       );

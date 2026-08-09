@@ -13,12 +13,12 @@ interface WorldPropertyOptionSelectorProps {
 }
 
 const WORLD_LAYER_LABELS: Record<WorldPropertyOption["targetLayer"], string> = {
-  foundation: t("gen.pages.worlds.components.generator.WorldPropertyOptionSelector.gen_34772a39"),
-  power: t("gen.pages.worlds.components.generator.WorldPropertyOptionSelector.gen_4d95a92c"),
-  society: t("gen.pages.worlds.components.generator.WorldPropertyOptionSelector.gen_a34badd4"),
-  culture: t("gen.pages.worlds.components.generator.WorldPropertyOptionSelector.gen_bd51806b"),
-  history: t("gen.pages.worlds.components.generator.WorldPropertyOptionSelector.gen_fdde939d"),
-  conflict: t("gen.pages.worlds.components.generator.WorldPropertyOptionSelector.gen_41c8c763"),
+  foundation: i18next.t("gen.pages.worlds.components.generator.WorldPropertyOptionSelector.gen_34772a39"),
+  power: i18next.t("gen.pages.worlds.components.generator.WorldPropertyOptionSelector.gen_4d95a92c"),
+  society: i18next.t("gen.pages.worlds.components.generator.WorldPropertyOptionSelector.gen_a34badd4"),
+  culture: i18next.t("gen.pages.worlds.components.generator.WorldPropertyOptionSelector.gen_bd51806b"),
+  history: i18next.t("gen.pages.worlds.components.generator.WorldPropertyOptionSelector.gen_fdde939d"),
+  conflict: i18next.t("gen.pages.worlds.components.generator.WorldPropertyOptionSelector.gen_41c8c763"),
 };
 
 export default function WorldPropertyOptionSelector({
@@ -58,7 +58,7 @@ export default function WorldPropertyOptionSelector({
                     {WORLD_LAYER_LABELS[option.targetLayer]}
                   </span>
                   <span className="rounded-full bg-secondary px-2 py-0.5 text-xs text-secondary-foreground">
-                    {option.source === "library" ? t("gen.pages.worlds.components.generator.WorldPropertyOptionSelector.gen_5e0fcc8f") : t("gen.pages.worlds.components.generator.WorldPropertyOptionSelector.gen_9894629c")}
+                    {option.source === "library" ? i18next.t("gen.pages.worlds.components.generator.WorldPropertyOptionSelector.gen_5e0fcc8f") : i18next.t("gen.pages.worlds.components.generator.WorldPropertyOptionSelector.gen_9894629c")}
                   </span>
                 </div>
                 <div className="text-muted-foreground">{option.description}</div>
@@ -74,7 +74,7 @@ export default function WorldPropertyOptionSelector({
               <div className="space-y-3">
                 {option.choices && option.choices.length > 0 ? (
                   <div className="space-y-2 rounded-md border border-dashed p-3">
-                    <div className="text-xs font-medium text-muted-foreground">{t("gen.pages.worlds.components.generator.WorldPropertyOptionSelector.gen_4f19a083")}</div>
+                    <div className="text-xs font-medium text-muted-foreground">{i18next.t("gen.pages.worlds.components.generator.WorldPropertyOptionSelector.gen_4f19a083")}</div>
                     <div className="space-y-2">
                       {option.choices.map((choice) => {
                         const selected = selectedChoiceIds[option.id] === choice.id;
@@ -100,7 +100,7 @@ export default function WorldPropertyOptionSelector({
 
                 <textarea
                   className="min-h-[88px] w-full rounded-md border p-2 text-sm"
-                  placeholder={t("gen.pages.worlds.components.generator.WorldPropertyOptionSelector.gen_fbf14bef")}
+                  placeholder={i18next.t("gen.pages.worlds.components.generator.WorldPropertyOptionSelector.gen_fbf14bef")}
                   value={details[option.id] ?? ""}
                   onChange={(event) => onDetailChange(option.id, event.target.value)}
                 />

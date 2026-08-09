@@ -55,7 +55,7 @@ export function BookFramingQuickFillButton(props: BookFramingQuickFillButtonProp
     onSuccess: (response) => {
       const suggestion = response.data;
       if (!suggestion) {
-        toast.error(t("gen.pages.novels.components.basicInfoForm.BookFramingQuickFillButton.gen_80c8ab11"));
+        toast.error(i18next.t("gen.pages.novels.components.basicInfoForm.BookFramingQuickFillButton.gen_80c8ab11"));
         return;
       }
       onApplySuggestion({
@@ -65,20 +65,20 @@ export function BookFramingQuickFillButton(props: BookFramingQuickFillButtonProp
         bookSellingPoint: suggestion.bookSellingPoint,
         first30ChapterPromise: suggestion.first30ChapterPromise,
       });
-      toast.success(t("gen.pages.novels.components.basicInfoForm.BookFramingQuickFillButton.gen_763cfa0f"));
+      toast.success(i18next.t("gen.pages.novels.components.basicInfoForm.BookFramingQuickFillButton.gen_763cfa0f"));
     },
     onError: (error) => {
-      toast.error(error instanceof Error ? error.message : t("gen.pages.novels.components.basicInfoForm.BookFramingQuickFillButton.gen_1524b265"));
+      toast.error(error instanceof Error ? error.message : i18next.t("gen.pages.novels.components.basicInfoForm.BookFramingQuickFillButton.gen_1524b265"));
     },
   });
 
   const handleGenerate = () => {
     if (!basicForm.title.trim() && !effectiveDescription) {
-      toast.error(t("gen.pages.novels.components.basicInfoForm.BookFramingQuickFillButton.gen_868e0f94"));
+      toast.error(i18next.t("gen.pages.novels.components.basicInfoForm.BookFramingQuickFillButton.gen_868e0f94"));
       return;
     }
     if (hasExistingFramingContent(basicForm)) {
-      const confirmed = window.confirm(t("gen.pages.novels.components.basicInfoForm.BookFramingQuickFillButton.gen_a9ef584a"));
+      const confirmed = window.confirm(i18next.t("gen.pages.novels.components.basicInfoForm.BookFramingQuickFillButton.gen_a9ef584a"));
       if (!confirmed) {
         return;
       }
@@ -94,7 +94,7 @@ export function BookFramingQuickFillButton(props: BookFramingQuickFillButtonProp
       onClick={handleGenerate}
       disabled={suggestionMutation.isPending}
     >
-      {suggestionMutation.isPending ? t("gen.pages.novels.components.basicInfoForm.BookFramingQuickFillButton.gen_275cd8ec") : t("gen.pages.novels.components.basicInfoForm.BookFramingQuickFillButton.gen_e5f5767d")}
+      {suggestionMutation.isPending ? i18next.t("gen.pages.novels.components.basicInfoForm.BookFramingQuickFillButton.gen_275cd8ec") : i18next.t("gen.pages.novels.components.basicInfoForm.BookFramingQuickFillButton.gen_e5f5767d")}
     </AiButton>
   );
 }

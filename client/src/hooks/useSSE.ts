@@ -151,7 +151,7 @@ export function useSSE(options?: UseSSEOptions) {
         }
       } catch (streamError) {
         if ((streamError as Error).name !== "AbortError") {
-          setError(streamError instanceof Error ? streamError.message : i18next.t("gen.hooks.useSSE.gen_19c02c2c"));
+          setError(streamError instanceof Error ? streamError.message : i18next.i18next.t("gen.hooks.useSSE.gen_19c02c2c"));
           setIsStreaming(false);
         }
       } finally {

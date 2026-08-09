@@ -139,7 +139,7 @@ export function ContextInjectionPanel(props: {
       <div className="shrink-0 border-b border-[#d8e2de] bg-[#fbfdfb] px-4 py-4">
         <div className="flex items-center justify-between gap-3">
           <div>
-            <h3 className="text-sm font-semibold text-[#25443f]">{t("gen.pages.promptWorkbench.components.ContextInjectionPanel.gen_a8d62ba2")}</h3>
+            <h3 className="text-sm font-semibold text-[#25443f]">{i18next.t("gen.pages.promptWorkbench.components.ContextInjectionPanel.gen_a8d62ba2")}</h3>
             <p className="mt-1 text-xs text-muted-foreground">
               查看本次预览使用的资料块、裁剪和摘要状态
             </p>
@@ -155,7 +155,7 @@ export function ContextInjectionPanel(props: {
             <Input
               value={query}
               onChange={(event) => setQuery(event.target.value)}
-              placeholder={t("gen.pages.promptWorkbench.components.ContextInjectionPanel.gen_43cdd606")}
+              placeholder={i18next.t("gen.pages.promptWorkbench.components.ContextInjectionPanel.gen_43cdd606")}
               className="h-9 border-[#cbdad6] bg-white pl-9 shadow-sm"
             />
           </div>
@@ -166,10 +166,10 @@ export function ContextInjectionPanel(props: {
               onChange={(event) => setSortMode(event.target.value as SortMode)}
               className="h-9 w-full rounded-md border border-[#cbdad6] bg-white pl-9 pr-3 text-sm shadow-sm"
             >
-              <option value="status">{t("gen.pages.promptWorkbench.components.ContextInjectionPanel.gen_e9c4ac93")}</option>
-              <option value="priority">{t("gen.pages.promptWorkbench.components.ContextInjectionPanel.gen_107262a3")}</option>
-              <option value="tokens">{t("gen.pages.promptWorkbench.components.ContextInjectionPanel.gen_c4a0f05c")}</option>
-              <option value="group">{t("gen.pages.promptWorkbench.components.ContextInjectionPanel.gen_e0e42086")}</option>
+              <option value="status">{i18next.t("gen.pages.promptWorkbench.components.ContextInjectionPanel.gen_e9c4ac93")}</option>
+              <option value="priority">{i18next.t("gen.pages.promptWorkbench.components.ContextInjectionPanel.gen_107262a3")}</option>
+              <option value="tokens">{i18next.t("gen.pages.promptWorkbench.components.ContextInjectionPanel.gen_c4a0f05c")}</option>
+              <option value="group">{i18next.t("gen.pages.promptWorkbench.components.ContextInjectionPanel.gen_e0e42086")}</option>
             </SelectControl>
           </div>
         </div>
@@ -225,13 +225,13 @@ export function ContextInjectionPanel(props: {
                     </div>
                   </div>
                   <div className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1 text-[11px] text-muted-foreground">
-                    <span>{t("gen.pages.promptWorkbench.components.ContextInjectionPanel.gen_648791e0")}</span>
+                    <span>{i18next.t("gen.pages.promptWorkbench.components.ContextInjectionPanel.gen_648791e0")}</span>
                     <span>·</span>
                     <span>P{block.priority}</span>
                     {block.locked ? (
                       <>
                         <span>·</span>
-                        <span>{t("gen.pages.promptWorkbench.components.ContextInjectionPanel.gen_29a91e99")}</span>
+                        <span>{i18next.t("gen.pages.promptWorkbench.components.ContextInjectionPanel.gen_29a91e99")}</span>
                       </>
                     ) : null}
                   </div>

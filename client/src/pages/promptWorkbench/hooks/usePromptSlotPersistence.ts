@@ -60,7 +60,7 @@ export function usePromptSlotPersistence(input: UsePromptSlotPersistenceInput) {
   const saveMutation = useMutation({
     mutationFn: (updates: Record<string, unknown>) => {
       if (!prompt) {
-        throw new Error(i18next.t("gen.pages.promptWorkbench.hooks.usePromptSlotPersistence.gen_e6e90235"));
+        throw new Error(i18next.i18next.t("gen.pages.promptWorkbench.hooks.usePromptSlotPersistence.gen_e6e90235"));
       }
       return saveSlotOverride({
         scope,
@@ -79,7 +79,7 @@ export function usePromptSlotPersistence(input: UsePromptSlotPersistenceInput) {
   const resetMutation = useMutation({
     mutationFn: (slotKeys: string[]) => {
       if (!prompt) {
-        throw new Error(i18next.t("gen.pages.promptWorkbench.hooks.usePromptSlotPersistence.gen_03c0e177"));
+        throw new Error(i18next.i18next.t("gen.pages.promptWorkbench.hooks.usePromptSlotPersistence.gen_03c0e177"));
       }
       return deleteSlotOverride({
         scope,
@@ -98,7 +98,7 @@ export function usePromptSlotPersistence(input: UsePromptSlotPersistenceInput) {
   const adoptMutation = useMutation({
     mutationFn: (slotKeys: string[]) => {
       if (!prompt) {
-        throw new Error(i18next.t("gen.pages.promptWorkbench.hooks.usePromptSlotPersistence.gen_bb975261"));
+        throw new Error(i18next.i18next.t("gen.pages.promptWorkbench.hooks.usePromptSlotPersistence.gen_bb975261"));
       }
       return applyOfficialSlots({
         promptId: prompt.id,
@@ -116,7 +116,7 @@ export function usePromptSlotPersistence(input: UsePromptSlotPersistenceInput) {
   const keepMutation = useMutation({
     mutationFn: (slotKeys: string[]) => {
       if (!prompt) {
-        throw new Error(i18next.t("gen.pages.promptWorkbench.hooks.usePromptSlotPersistence.gen_bb975261"));
+        throw new Error(i18next.i18next.t("gen.pages.promptWorkbench.hooks.usePromptSlotPersistence.gen_bb975261"));
       }
       return keepMySlots({
         promptId: prompt.id,

@@ -37,7 +37,7 @@ export default function WritingFormulaRulesPanel(props: WritingFormulaRulesPanel
           在规则中心查看、创建和调整反 AI 规则；写法编辑区继续负责选择哪些规则绑定到当前写法。
         </div>
         <Button className="w-full" variant="secondary" asChild>
-          <Link to="/anti-ai-rules">{t("gen.pages.writingFormula.components.WritingFormulaRulesPanel.gen_e54140ea")}</Link>
+          <Link to="/anti-ai-rules">{i18next.t("gen.pages.writingFormula.components.WritingFormulaRulesPanel.gen_e54140ea")}</Link>
         </Button>
       </CardContent>
     </Card>

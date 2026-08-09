@@ -69,20 +69,20 @@ export default function ChapterEditorDirectorPanel(props: ChapterEditorDirectorP
   const isWorkspaceLoading = workspaceStatus === "loading";
   const statusText = isIdle
     ? isWorkspaceLoading
-      ? t("gen.pages.novels.components.chapterEditor.ChapterEditorDirectorPanel.aiAnalyzingMacroPositionAndTasks")
-      : t("gen.pages.novels.components.chapterEditor.ChapterEditorDirectorPanel.aiConsiderChapterPositionInVolume")
+      ? i18next.t("gen.pages.novels.components.chapterEditor.ChapterEditorDirectorPanel.aiAnalyzingMacroPositionAndTasks")
+      : i18next.t("gen.pages.novels.components.chapterEditor.ChapterEditorDirectorPanel.aiConsiderChapterPositionInVolume")
     : session.status === "loading"
-      ? session.requestLabel || t("gen.pages.novels.components.chapterEditor.ChapterEditorDirectorPanel.gen_4ff96754")
+      ? session.requestLabel || i18next.t("gen.pages.novels.components.chapterEditor.ChapterEditorDirectorPanel.gen_4ff96754")
       : session.status === "error"
-        ? session.errorMessage || t("gen.pages.novels.components.chapterEditor.ChapterEditorDirectorPanel.gen_7f7de8a2")
-        : session.resolvedIntent?.reasoningSummary || t("gen.pages.novels.components.chapterEditor.ChapterEditorDirectorPanel.gen_2c1db253");
+        ? session.errorMessage || i18next.t("gen.pages.novels.components.chapterEditor.ChapterEditorDirectorPanel.gen_7f7de8a2")
+        : session.resolvedIntent?.reasoningSummary || i18next.t("gen.pages.novels.components.chapterEditor.ChapterEditorDirectorPanel.gen_2c1db253");
 
   return (
     <div className="flex h-full min-h-[420px] flex-col overflow-hidden rounded-3xl border border-border/70 bg-background shadow-sm xl:min-h-0">
       <div className="shrink-0 space-y-3 border-b border-border/70 px-4 py-4">
         <div className="flex items-center justify-between gap-3">
           <div>
-            <div className="text-sm font-medium text-foreground">{t("gen.pages.novels.components.chapterEditor.ChapterEditorDirectorPanel.aiCorrectDirectorPanel")}</div>
+            <div className="text-sm font-medium text-foreground">{i18next.t("gen.pages.novels.components.chapterEditor.ChapterEditorDirectorPanel.aiCorrectDirectorPanel")}</div>
             <div className="text-xs text-muted-foreground">{statusText}</div>
           </div>
           <div className="flex items-center gap-2">
@@ -128,7 +128,7 @@ export default function ChapterEditorDirectorPanel(props: ChapterEditorDirectorP
           <>
             {isWorkspaceLoading ? (
               <div className="rounded-2xl border border-dashed border-border/70 bg-muted/10 p-4">
-                <div className="text-sm font-medium text-foreground">{t("gen.pages.novels.components.chapterEditor.ChapterEditorDirectorPanel.aiReviewingCurrentChapter")}</div>
+                <div className="text-sm font-medium text-foreground">{i18next.t("gen.pages.novels.components.chapterEditor.ChapterEditorDirectorPanel.aiReviewingCurrentChapter")}</div>
                 <div className="mt-2 text-sm leading-6 text-muted-foreground">
                   正在分析本章在卷中的位置、优先修正任务和可直接处理的片段，你可以稍等几秒再开始。
                 </div>
@@ -141,7 +141,7 @@ export default function ChapterEditorDirectorPanel(props: ChapterEditorDirectorP
             ) : null}
 
             <div className="rounded-2xl border border-border/70 bg-muted/10 p-4">
-              <div className="text-sm font-medium text-foreground">{t("gen.pages.novels.components.chapterEditor.ChapterEditorDirectorPanel.gen_f2a2904e")}</div>
+              <div className="text-sm font-medium text-foreground">{i18next.t("gen.pages.novels.components.chapterEditor.ChapterEditorDirectorPanel.gen_f2a2904e")}</div>
               {isWorkspaceLoading ? (
                 <div className="mt-3 space-y-3">
                   <LoadingBar widthClassName="w-1/2" />
@@ -154,11 +154,11 @@ export default function ChapterEditorDirectorPanel(props: ChapterEditorDirectorP
                   <div className="mt-2 text-sm leading-6 text-muted-foreground">
                     {recommendedTask
                       ? `${recommendedTask.title}。${recommendedTask.summary}`
-                      : t("gen.pages.novels.components.chapterEditor.ChapterEditorDirectorPanel.aiNoRecommendedTask")}
+                      : i18next.t("gen.pages.novels.components.chapterEditor.ChapterEditorDirectorPanel.aiNoRecommendedTask")}
                   </div>
                   <div className="mt-3 flex flex-wrap gap-2">
                     <Button size="sm" onClick={onRunRecommended} disabled={!recommendedTask || isGenerating}>
-                      {isGenerating ? t("gen.pages.novels.components.chapterEditor.ChapterEditorDirectorPanel.gen_2fb90b05") : t("gen.pages.novels.components.chapterEditor.ChapterEditorDirectorPanel.gen_99ddac21")}
+                      {isGenerating ? i18next.t("gen.pages.novels.components.chapterEditor.ChapterEditorDirectorPanel.gen_2fb90b05") : i18next.t("gen.pages.novels.components.chapterEditor.ChapterEditorDirectorPanel.gen_99ddac21")}
                     </Button>
                   </div>
                 </>
@@ -187,7 +187,7 @@ export default function ChapterEditorDirectorPanel(props: ChapterEditorDirectorP
             ) : null}
 
             <div className="rounded-2xl border border-border/70 bg-muted/10 p-4">
-              <div className="text-sm font-medium text-foreground">{t("gen.pages.novels.components.chapterEditor.ChapterEditorDirectorPanel.gen_96b8f15f")}</div>
+              <div className="text-sm font-medium text-foreground">{i18next.t("gen.pages.novels.components.chapterEditor.ChapterEditorDirectorPanel.gen_96b8f15f")}</div>
               {isWorkspaceLoading ? (
                 <div className="mt-3 space-y-3">
                   <LoadingBar widthClassName="w-1/3" />
@@ -203,23 +203,23 @@ export default function ChapterEditorDirectorPanel(props: ChapterEditorDirectorP
                   <textarea
                     className="mt-3 min-h-[140px] w-full resize-none rounded-2xl border border-border bg-background px-3 py-3 text-sm outline-none"
                     placeholder={revisionScope === "selection"
-                      ? t("gen.pages.novels.components.chapterEditor.ChapterEditorDirectorPanel.exampleMakeThisPartMorePressuringNotChangePlotDetailAndMakeRhythmTighter")
-                      : t("gen.pages.novels.components.chapterEditor.ChapterEditorDirectorPanel.exampleMakeChapterMorePressuringButNotChangePlotDetailCloserToMiddlePressureStage")}
+                      ? i18next.t("gen.pages.novels.components.chapterEditor.ChapterEditorDirectorPanel.exampleMakeThisPartMorePressuringNotChangePlotDetailAndMakeRhythmTighter")
+                      : i18next.t("gen.pages.novels.components.chapterEditor.ChapterEditorDirectorPanel.exampleMakeChapterMorePressuringButNotChangePlotDetailCloserToMiddlePressureStage")}
                     value={revisionInstruction}
                     onChange={(event) => onInstructionChange(event.target.value)}
                   />
                   <div className="mt-3 flex flex-wrap items-center justify-between gap-2">
                     <div className="text-xs text-muted-foreground">
                       {revisionScope === "selection"
-                        ? t("gen.pages.novels.components.chapterEditor.ChapterEditorDirectorPanel.gen_ec22d4ce")
-                        : t("gen.pages.novels.components.chapterEditor.ChapterEditorDirectorPanel.gen_c0e9328a")}
+                        ? i18next.t("gen.pages.novels.components.chapterEditor.ChapterEditorDirectorPanel.gen_ec22d4ce")
+                        : i18next.t("gen.pages.novels.components.chapterEditor.ChapterEditorDirectorPanel.gen_c0e9328a")}
                     </div>
                     <Button
                       size="sm"
                       onClick={onRunFreeform}
                       disabled={isGenerating || revisionInstruction.trim().length === 0 || (revisionScope === "selection" && !canRunSelectionRevision)}
                     >
-                      {isGenerating ? t("gen.pages.novels.components.chapterEditor.ChapterEditorDirectorPanel.gen_4d020ba3") : t("gen.pages.novels.components.chapterEditor.ChapterEditorDirectorPanel.gen_ac6f0e0e")}
+                      {isGenerating ? i18next.t("gen.pages.novels.components.chapterEditor.ChapterEditorDirectorPanel.gen_4d020ba3") : i18next.t("gen.pages.novels.components.chapterEditor.ChapterEditorDirectorPanel.gen_ac6f0e0e")}
                     </Button>
                   </div>
                 </>
@@ -236,21 +236,21 @@ export default function ChapterEditorDirectorPanel(props: ChapterEditorDirectorP
 
         {session.status === "error" ? (
           <div className="rounded-2xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-900">
-            {session.errorMessage || t("gen.pages.novels.components.chapterEditor.ChapterEditorDirectorPanel.gen_319a5871")}
+            {session.errorMessage || i18next.t("gen.pages.novels.components.chapterEditor.ChapterEditorDirectorPanel.gen_319a5871")}
           </div>
         ) : null}
 
         {session.status === "ready" && activeCandidate ? (
           <>
             <div className="rounded-2xl border border-border/70 bg-muted/10 p-4">
-              <div className="text-sm font-medium text-foreground">{t("gen.pages.novels.components.chapterEditor.ChapterEditorDirectorPanel.aiUnderstoodRevisionGoal")}</div>
+              <div className="text-sm font-medium text-foreground">{i18next.t("gen.pages.novels.components.chapterEditor.ChapterEditorDirectorPanel.aiUnderstoodRevisionGoal")}</div>
               <div className="mt-3 space-y-2 text-sm leading-6 text-muted-foreground">
-                <div>{t("gen.pages.novels.components.chapterEditor.ChapterEditorDirectorPanel.gen_e60a3a56")}</div>
-                <div>{t("gen.pages.novels.components.chapterEditor.ChapterEditorDirectorPanel.gen_365c185b")}</div>
-                <div>{t("gen.pages.novels.components.chapterEditor.ChapterEditorDirectorPanel.gen_a33d806e")}</div>
-                <div>{t("gen.pages.novels.components.chapterEditor.ChapterEditorDirectorPanel.gen_6bcaf650")}</div>
-                <div>{t("gen.pages.novels.components.chapterEditor.ChapterEditorDirectorPanel.gen_4aacc342")}</div>
-                <div>{t("gen.pages.novels.components.chapterEditor.ChapterEditorDirectorPanel.gen_9eb70cc8")}</div>
+                <div>{i18next.t("gen.pages.novels.components.chapterEditor.ChapterEditorDirectorPanel.gen_e60a3a56")}</div>
+                <div>{i18next.t("gen.pages.novels.components.chapterEditor.ChapterEditorDirectorPanel.gen_365c185b")}</div>
+                <div>{i18next.t("gen.pages.novels.components.chapterEditor.ChapterEditorDirectorPanel.gen_a33d806e")}</div>
+                <div>{i18next.t("gen.pages.novels.components.chapterEditor.ChapterEditorDirectorPanel.gen_6bcaf650")}</div>
+                <div>{i18next.t("gen.pages.novels.components.chapterEditor.ChapterEditorDirectorPanel.gen_4aacc342")}</div>
+                <div>{i18next.t("gen.pages.novels.components.chapterEditor.ChapterEditorDirectorPanel.gen_9eb70cc8")}</div>
               </div>
               {session.macroAlignmentNote ? (
                 <div className="mt-3 rounded-2xl border border-emerald-200 bg-emerald-50/90 p-3 text-sm leading-6 text-emerald-900">
@@ -278,7 +278,7 @@ export default function ChapterEditorDirectorPanel(props: ChapterEditorDirectorP
                 <div className="text-sm leading-6 text-muted-foreground">{activeCandidate.summary}</div>
               ) : null}
               {activeCandidate.rationale ? (
-                <div className="text-sm leading-6 text-foreground/80">{t("gen.pages.novels.components.chapterEditor.ChapterEditorDirectorPanel.whyChange")}</div>
+                <div className="text-sm leading-6 text-foreground/80">{i18next.t("gen.pages.novels.components.chapterEditor.ChapterEditorDirectorPanel.whyChange")}</div>
               ) : null}
               {activeCandidate.riskNotes && activeCandidate.riskNotes.length > 0 ? (
                 <div className="rounded-2xl border border-amber-200 bg-amber-50/90 p-3 text-sm leading-6 text-amber-900">
@@ -298,7 +298,7 @@ export default function ChapterEditorDirectorPanel(props: ChapterEditorDirectorP
           再生成
         </Button>
         <Button size="sm" onClick={onAccept} disabled={session.status !== "ready" || !activeCandidate || isApplying}>
-          {isApplying ? t("gen.pages.novels.components.chapterEditor.ChapterEditorDirectorPanel.gen_e596edd9") : t("gen.pages.novels.components.chapterEditor.ChapterEditorDirectorPanel.gen_3f8a36ff")}
+          {isApplying ? i18next.t("gen.pages.novels.components.chapterEditor.ChapterEditorDirectorPanel.gen_e596edd9") : i18next.t("gen.pages.novels.components.chapterEditor.ChapterEditorDirectorPanel.gen_3f8a36ff")}
         </Button>
       </div>
     </div>

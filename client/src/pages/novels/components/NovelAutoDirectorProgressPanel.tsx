@@ -56,12 +56,12 @@ type DirectorStepDefinition = {
 };
 
 const DIRECTOR_EXECUTION_STEPS: DirectorStepDefinition[] = [
-  { key: "novel_create", label: t("gen.pages.novels.components.NovelAutoDirectorProgressPanel.gen_39da6755") },
-  { key: "book_contract", label: t("gen.pages.novels.components.NovelAutoDirectorProgressPanel.bookContractStoryPlanning") },
-  { key: "character_setup", label: t("gen.pages.novels.components.NovelAutoDirectorProgressPanel.gen_3ed577c6") },
-  { key: "volume_strategy", label: t("gen.pages.novels.components.NovelAutoDirectorProgressPanel.gen_5bfd70f2") },
-  { key: "beat_sheet", label: t("gen.pages.novels.components.NovelAutoDirectorProgressPanel.gen_8d16cac8") },
-  { key: "chapter_detail_bundle", label: t("gen.pages.novels.components.NovelAutoDirectorProgressPanel.gen_1019a5ce") },
+  { key: "novel_create", label: i18next.t("gen.pages.novels.components.NovelAutoDirectorProgressPanel.gen_39da6755") },
+  { key: "book_contract", label: i18next.t("gen.pages.novels.components.NovelAutoDirectorProgressPanel.bookContractStoryPlanning") },
+  { key: "character_setup", label: i18next.t("gen.pages.novels.components.NovelAutoDirectorProgressPanel.gen_3ed577c6") },
+  { key: "volume_strategy", label: i18next.t("gen.pages.novels.components.NovelAutoDirectorProgressPanel.gen_5bfd70f2") },
+  { key: "beat_sheet", label: i18next.t("gen.pages.novels.components.NovelAutoDirectorProgressPanel.gen_8d16cac8") },
+  { key: "chapter_detail_bundle", label: i18next.t("gen.pages.novels.components.NovelAutoDirectorProgressPanel.gen_1019a5ce") },
 ];
 
 const DIRECTOR_CANDIDATE_SETUP_STEP_KEYS = new Set<string>(
@@ -69,17 +69,17 @@ const DIRECTOR_CANDIDATE_SETUP_STEP_KEYS = new Set<string>(
 );
 
 const AUTO_DIRECTOR_PLACEHOLDER_TITLES = new Set([
-  t("gen.pages.novels.components.NovelAutoDirectorProgressPanel.aiAutoDirectorNovel"),
-  t("gen.pages.novels.components.NovelAutoDirectorProgressPanel.gen_56ce28ff"),
+  i18next.t("gen.pages.novels.components.NovelAutoDirectorProgressPanel.aiAutoDirectorNovel"),
+  i18next.t("gen.pages.novels.components.NovelAutoDirectorProgressPanel.gen_56ce28ff"),
 ]);
 
 function formatDate(value: string | null | undefined): string {
   if (!value) {
-    return t("gen.pages.novels.components.NovelAutoDirectorProgressPanel.gen_f61f4cf6");
+    return i18next.t("gen.pages.novels.components.NovelAutoDirectorProgressPanel.gen_f61f4cf6");
   }
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) {
-    return t("gen.pages.novels.components.NovelAutoDirectorProgressPanel.gen_f61f4cf6");
+    return i18next.t("gen.pages.novels.components.NovelAutoDirectorProgressPanel.gen_f61f4cf6");
   }
   return date.toLocaleString();
 }
@@ -132,19 +132,19 @@ function formatCheckpoint(
   task: UnifiedTaskDetail | null,
 ): string {
   if (checkpoint === "rewrite_snapshot_created") {
-    return t("gen.pages.novels.components.NovelAutoDirectorProgressPanel.gen_40c91bfe");
+    return i18next.t("gen.pages.novels.components.NovelAutoDirectorProgressPanel.gen_40c91bfe");
   }
   if (checkpoint === "candidate_selection_required") {
-    return t("gen.pages.novels.components.NovelAutoDirectorProgressPanel.gen_dbc67929");
+    return i18next.t("gen.pages.novels.components.NovelAutoDirectorProgressPanel.gen_dbc67929");
   }
   if (checkpoint === "book_contract_ready") {
-    return t("gen.pages.novels.components.NovelAutoDirectorProgressPanel.gen_BookContra_ppep");
+    return i18next.t("gen.pages.novels.components.NovelAutoDirectorProgressPanel.gen_BookContra_ppep");
   }
   if (checkpoint === "character_setup_required") {
-    return t("gen.pages.novels.components.NovelAutoDirectorProgressPanel.gen_67358797");
+    return i18next.t("gen.pages.novels.components.NovelAutoDirectorProgressPanel.gen_67358797");
   }
   if (checkpoint === "volume_strategy_ready") {
-    return t("gen.pages.novels.components.NovelAutoDirectorProgressPanel.gen_c3eafe6f");
+    return i18next.t("gen.pages.novels.components.NovelAutoDirectorProgressPanel.gen_c3eafe6f");
   }
   if (checkpoint === "production_experience_required") {
     return "已可开写，等待选择生产方式";
@@ -156,12 +156,12 @@ function formatCheckpoint(
     return "当前步骤待检查";
   }
   if (checkpoint === "replan_required") {
-    return t("gen.pages.novels.components.NovelAutoDirectorProgressPanel.gen_73ce2a55");
+    return i18next.t("gen.pages.novels.components.NovelAutoDirectorProgressPanel.gen_73ce2a55");
   }
   if (checkpoint === "workflow_completed") {
-    return t("gen.pages.novels.components.NovelAutoDirectorProgressPanel.mainProcessComplete");
+    return i18next.t("gen.pages.novels.components.NovelAutoDirectorProgressPanel.mainProcessComplete");
   }
-  return t("gen.pages.novels.components.NovelAutoDirectorProgressPanel.gen_f61f4cf6");
+  return i18next.t("gen.pages.novels.components.NovelAutoDirectorProgressPanel.gen_f61f4cf6");
 }
 
 function isCandidateSetupFlow(task: UnifiedTaskDetail | null): boolean {
@@ -327,7 +327,7 @@ export default function NovelAutoDirectorProgressPanel({
     ? {
       summary: fallbackError?.trim() ?? "",
       route: null,
-      label: t("gen.pages.novels.components.NovelAutoDirectorProgressPanel.gen_62c615c2"),
+      label: i18next.t("gen.pages.novels.components.NovelAutoDirectorProgressPanel.gen_62c615c2"),
     }
     : null;
   const rawChapterTitleWarning = taskChapterTitleWarning ?? fallbackChapterTitleWarning;
@@ -342,15 +342,15 @@ export default function NovelAutoDirectorProgressPanel({
     || runtimeProjectionForDisplay?.currentLabel?.trim()
     || task?.currentItemLabel?.trim()
     || (visualMode === "execution_failed"
-      ? t("gen.pages.novels.components.NovelAutoDirectorProgressPanel.gen_cccc17f6")
-      : (chapterTitleWarning ? t("gen.pages.novels.components.NovelAutoDirectorProgressPanel.gen_af135789") : t("gen.pages.novels.components.NovelAutoDirectorProgressPanel.gen_35e91899")));
+      ? i18next.t("gen.pages.novels.components.NovelAutoDirectorProgressPanel.gen_cccc17f6")
+      : (chapterTitleWarning ? i18next.t("gen.pages.novels.components.NovelAutoDirectorProgressPanel.gen_af135789") : i18next.t("gen.pages.novels.components.NovelAutoDirectorProgressPanel.gen_35e91899")));
   const activityTags = extractWorkflowActivityTags(displayState?.currentFactStepLabel || task?.currentItemLabel);
   const workflowTitle = task?.title?.trim() || "";
   const hintedTitle = titleHint?.trim() || "";
   const taskTitle = (
     hintedTitle && (!workflowTitle || AUTO_DIRECTOR_PLACEHOLDER_TITLES.has(workflowTitle))
       ? hintedTitle
-      : workflowTitle || hintedTitle || t("gen.pages.novels.components.NovelAutoDirectorProgressPanel.gen_be78e77b")
+      : workflowTitle || hintedTitle || i18next.t("gen.pages.novels.components.NovelAutoDirectorProgressPanel.gen_be78e77b")
   );
   const milestones = Array.isArray(task?.meta.milestones)
     ? task.meta.milestones as NovelWorkflowMilestone[]
@@ -363,7 +363,7 @@ export default function NovelAutoDirectorProgressPanel({
   const steps = candidateSetupFlow
     ? resolveDirectorStepStatuses(task, visualMode, stepDefinitions)
     : displaySteps.map((step) => mapDisplayStepStatus(step.status));
-  const failureMessage = task?.lastError?.trim() || fallbackError?.trim() || t("gen.pages.novels.components.NovelAutoDirectorProgressPanel.gen_95f323c9");
+  const failureMessage = task?.lastError?.trim() || fallbackError?.trim() || i18next.t("gen.pages.novels.components.NovelAutoDirectorProgressPanel.gen_95f323c9");
   const tokenUsage = task?.tokenUsage ?? null;
   const styleSeed = resolveDirectorStyleSeed(task);
   const containerMode: AITakeoverMode = visualMode === "execution_failed"
@@ -376,24 +376,24 @@ export default function NovelAutoDirectorProgressPanel({
   const description = candidateSetupFlow
     ? (
       visualMode === "execution_failed"
-        ? t("gen.pages.novels.components.NovelAutoDirectorProgressPanel.gen_76a33707")
-        : t("gen.pages.novels.components.NovelAutoDirectorProgressPanel.gen_6d159c9d")
+        ? i18next.t("gen.pages.novels.components.NovelAutoDirectorProgressPanel.gen_76a33707")
+        : i18next.t("gen.pages.novels.components.NovelAutoDirectorProgressPanel.gen_6d159c9d")
     )
     : (
       dashboardView?.description
       || displayState?.description
       || (visualMode === "execution_failed"
-        ? t("gen.pages.novels.components.NovelAutoDirectorProgressPanel.taskPausedAtLastStepViewDetailsAndDecideRecovery")
+        ? i18next.t("gen.pages.novels.components.NovelAutoDirectorProgressPanel.taskPausedAtLastStepViewDetailsAndDecideRecovery")
         : chapterTitleWarning
-          ? t("gen.pages.novels.components.NovelAutoDirectorProgressPanel.gen_04183780")
+          ? i18next.t("gen.pages.novels.components.NovelAutoDirectorProgressPanel.gen_04183780")
           : task?.status === "waiting_approval"
-            ? t("gen.pages.novels.components.NovelAutoDirectorProgressPanel.gen_182aac00")
-            : t("gen.pages.novels.components.NovelAutoDirectorProgressPanel.gen_3f06f770"))
+            ? i18next.t("gen.pages.novels.components.NovelAutoDirectorProgressPanel.gen_182aac00")
+            : i18next.t("gen.pages.novels.components.NovelAutoDirectorProgressPanel.gen_3f06f770"))
     );
   const resolveDashboardAction = (dashboardAction: DirectorDashboardAction) => {
     if (dashboardAction.type === "confirm_and_continue" && onConfirmAndContinue) {
       return {
-        label: isConfirmingAndContinuing ? t("gen.pages.novels.components.NovelAutoDirectorProgressPanel.gen_95ee3e92") : dashboardAction.label,
+        label: isConfirmingAndContinuing ? i18next.t("gen.pages.novels.components.NovelAutoDirectorProgressPanel.gen_95ee3e92") : dashboardAction.label,
         onClick: onConfirmAndContinue,
         variant: "default" as const,
         disabled: isConfirmingAndContinuing,
@@ -432,14 +432,14 @@ export default function NovelAutoDirectorProgressPanel({
     : [];
   const actions = chapterTitleWarning
     ? [{
-      label: t("gen.pages.novels.components.NovelAutoDirectorProgressPanel.gen_39f2c47d"),
+      label: i18next.t("gen.pages.novels.components.NovelAutoDirectorProgressPanel.gen_39f2c47d"),
       onClick: onOpenTaskCenter,
       variant: "default" as const,
     }]
     : (dashboardActions.length > 0
       ? dashboardActions
       : [{
-        label: t("gen.pages.novels.components.NovelAutoDirectorProgressPanel.gen_39f2c47d"),
+        label: i18next.t("gen.pages.novels.components.NovelAutoDirectorProgressPanel.gen_39f2c47d"),
         onClick: onOpenTaskCenter,
         variant: "default" as const,
       }]);
@@ -537,11 +537,11 @@ export default function NovelAutoDirectorProgressPanel({
 
         {styleSeed ? (
           <div className="mt-5">
-            <div className="text-sm font-medium text-foreground">{t("gen.pages.novels.components.NovelAutoDirectorProgressPanel.gen_ee74457f")}</div>
+            <div className="text-sm font-medium text-foreground">{i18next.t("gen.pages.novels.components.NovelAutoDirectorProgressPanel.gen_ee74457f")}</div>
             <div className="mt-2 text-sm text-foreground">{styleSeed.title}</div>
             {styleSeed.summaryLines.length > 0 ? (
               <div className="mt-3 space-y-2">
-                <div className="text-xs font-medium text-muted-foreground">{t("gen.pages.novels.components.NovelAutoDirectorProgressPanel.gen_104e6747")}</div>
+                <div className="text-xs font-medium text-muted-foreground">{i18next.t("gen.pages.novels.components.NovelAutoDirectorProgressPanel.gen_104e6747")}</div>
                 {styleSeed.summaryLines.map((line) => (
                   <div key={line} className="text-xs leading-6 text-muted-foreground">
                     {line}
@@ -555,21 +555,21 @@ export default function NovelAutoDirectorProgressPanel({
         {tokenUsage ? (
           <div className="mt-4 grid gap-3 md:grid-cols-4">
             <div className="rounded-lg bg-muted/15 p-3">
-              <div className="text-xs text-muted-foreground">{t("gen.pages.novels.components.NovelAutoDirectorProgressPanel.gen_9476dc8a")}</div>
+              <div className="text-xs text-muted-foreground">{i18next.t("gen.pages.novels.components.NovelAutoDirectorProgressPanel.gen_9476dc8a")}</div>
               <div className="mt-1 text-sm font-medium text-foreground">{formatTokenCount(tokenUsage.llmCallCount)}</div>
             </div>
             <div className="rounded-lg bg-muted/15 p-3">
-              <div className="text-xs text-muted-foreground">{t("gen.pages.novels.components.NovelAutoDirectorProgressPanel.gen_5986a637")}</div>
+              <div className="text-xs text-muted-foreground">{i18next.t("gen.pages.novels.components.NovelAutoDirectorProgressPanel.gen_5986a637")}</div>
               <div className="mt-1 text-sm font-medium text-foreground">{formatTokenCount(tokenUsage.promptTokens)}</div>
             </div>
             <div className="rounded-lg bg-muted/15 p-3">
-              <div className="text-xs text-muted-foreground">{t("gen.pages.novels.components.NovelAutoDirectorProgressPanel.gen_171cf50a")}</div>
+              <div className="text-xs text-muted-foreground">{i18next.t("gen.pages.novels.components.NovelAutoDirectorProgressPanel.gen_171cf50a")}</div>
               <div className="mt-1 text-sm font-medium text-foreground">{formatTokenCount(tokenUsage.completionTokens)}</div>
             </div>
             <div className="rounded-lg bg-muted/15 p-3">
-              <div className="text-xs text-muted-foreground">{t("gen.pages.novels.components.NovelAutoDirectorProgressPanel.gen_461f619e")}</div>
+              <div className="text-xs text-muted-foreground">{i18next.t("gen.pages.novels.components.NovelAutoDirectorProgressPanel.gen_461f619e")}</div>
               <div className="mt-1 text-sm font-medium text-foreground">{formatTokenCount(tokenUsage.totalTokens)}</div>
-              <div className="mt-1 text-[11px] text-muted-foreground">{t("gen.pages.novels.components.NovelAutoDirectorProgressPanel.gen_e99dbe86")}</div>
+              <div className="mt-1 text-[11px] text-muted-foreground">{i18next.t("gen.pages.novels.components.NovelAutoDirectorProgressPanel.gen_e99dbe86")}</div>
             </div>
           </div>
         ) : null}
@@ -578,7 +578,7 @@ export default function NovelAutoDirectorProgressPanel({
 
         {chapterTitleWarning ? (
           <div className="mt-4 rounded-xl border border-amber-300/60 bg-amber-50/80 p-4 text-sm text-amber-950">
-            <div className="font-medium">{t("gen.pages.novels.components.NovelAutoDirectorProgressPanel.gen_d7df9e41")}</div>
+            <div className="font-medium">{i18next.t("gen.pages.novels.components.NovelAutoDirectorProgressPanel.gen_d7df9e41")}</div>
             <div className="mt-1">{chapterTitleWarning.summary}</div>
             <div className="mt-3 flex flex-wrap gap-2">
               {task && chapterTitleWarning ? (
@@ -591,7 +591,7 @@ export default function NovelAutoDirectorProgressPanel({
                   disabled={chapterTitleRepairMutation.isPending}
                 >
                   {chapterTitleRepairMutation.isPending && chapterTitleRepairMutation.pendingTaskId === task.id
-                    ? t("gen.pages.novels.components.NovelAutoDirectorProgressPanel.aiIsRepairing")
+                    ? i18next.t("gen.pages.novels.components.NovelAutoDirectorProgressPanel.aiIsRepairing")
                     : chapterTitleWarning.label}
                 </Button>
               ) : null}
@@ -606,10 +606,10 @@ export default function NovelAutoDirectorProgressPanel({
           </div>
         ) : visualMode === "execution_failed" ? (
           <div className="mt-4 rounded-xl border border-destructive/30 bg-destructive/5 p-4 text-sm text-destructive">
-            <div className="font-medium">{t("gen.pages.novels.components.NovelAutoDirectorProgressPanel.gen_8b4429c4")}</div>
+            <div className="font-medium">{i18next.t("gen.pages.novels.components.NovelAutoDirectorProgressPanel.gen_8b4429c4")}</div>
             <div className="mt-1">{failureMessage}</div>
             {task?.recoveryHint ? (
-              <div className="mt-2 text-xs text-destructive/80">{t("gen.pages.novels.components.NovelAutoDirectorProgressPanel.gen_25766e25")}</div>
+              <div className="mt-2 text-xs text-destructive/80">{i18next.t("gen.pages.novels.components.NovelAutoDirectorProgressPanel.gen_25766e25")}</div>
             ) : null}
           </div>
         ) : null}
@@ -633,7 +633,7 @@ export default function NovelAutoDirectorProgressPanel({
                 <div key={`${item.checkpointType}:${item.createdAt}`} className="text-sm">
                   <div className="font-medium text-foreground">{formatCheckpoint(item.checkpointType, task)}</div>
                   <div className="mt-1 text-sm text-muted-foreground">{item.summary}</div>
-                  <div className="mt-1 text-xs text-muted-foreground">{t("gen.pages.novels.components.NovelAutoDirectorProgressPanel.gen_b6387af6")}</div>
+                  <div className="mt-1 text-xs text-muted-foreground">{i18next.t("gen.pages.novels.components.NovelAutoDirectorProgressPanel.gen_b6387af6")}</div>
                 </div>
               ))}
           </div>

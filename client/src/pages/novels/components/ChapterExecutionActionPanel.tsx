@@ -109,8 +109,8 @@ function resolvePrimaryAction(params: {
 
   if (!selectedChapter) {
     return {
-      label: t("gen.pages.novels.components.ChapterExecutionActionPanel.gen_7f46c7f9"),
-      reason: t("gen.pages.novels.components.ChapterExecutionActionPanel.gen_fad1164a"),
+      label: i18next.t("gen.pages.novels.components.ChapterExecutionActionPanel.gen_7f46c7f9"),
+      reason: i18next.t("gen.pages.novels.components.ChapterExecutionActionPanel.gen_fad1164a"),
       variant: "default",
       disabled: true,
     };
@@ -118,8 +118,8 @@ function resolvePrimaryAction(params: {
 
   if (selectedChapter.chapterStatus === "needs_repair") {
     return {
-      label: t("gen.pages.novels.components.ChapterExecutionActionPanel.gen_a90ec8b1"),
-      reason: t("gen.pages.novels.components.ChapterExecutionActionPanel.gen_87c7bd63"),
+      label: i18next.t("gen.pages.novels.components.ChapterExecutionActionPanel.gen_a90ec8b1"),
+      reason: i18next.t("gen.pages.novels.components.ChapterExecutionActionPanel.gen_87c7bd63"),
       variant: "default",
       href: `/novels/${novelId}/chapters/${selectedChapter.id}`,
     };
@@ -132,8 +132,8 @@ function resolvePrimaryAction(params: {
     || selectedChapter.generationState === "drafted"
   ) {
     return {
-      label: isRunningFullAudit ? t("gen.pages.novels.components.ChapterExecutionActionPanel.gen_1791183e") : t("gen.pages.novels.components.ChapterExecutionActionPanel.gen_b2b7d019"),
-      reason: t("gen.pages.novels.components.ChapterExecutionActionPanel.gen_f322e9a6"),
+      label: isRunningFullAudit ? i18next.t("gen.pages.novels.components.ChapterExecutionActionPanel.gen_1791183e") : i18next.t("gen.pages.novels.components.ChapterExecutionActionPanel.gen_b2b7d019"),
+      reason: i18next.t("gen.pages.novels.components.ChapterExecutionActionPanel.gen_f322e9a6"),
       variant: "default",
       ai: true,
       onClick: onRunFullAudit,
@@ -143,8 +143,8 @@ function resolvePrimaryAction(params: {
 
   if (selectedChapter.chapterStatus === "unplanned" || !chapterHasPreparationAssets(selectedChapter)) {
     return {
-      label: isGeneratingChapterPlan ? t("gen.pages.novels.components.ChapterExecutionActionPanel.gen_3584a9d9") : t("gen.pages.novels.components.ChapterExecutionActionPanel.gen_c6bdbb8e"),
-      reason: t("gen.pages.novels.components.ChapterExecutionActionPanel.gen_614aa02e"),
+      label: isGeneratingChapterPlan ? i18next.t("gen.pages.novels.components.ChapterExecutionActionPanel.gen_3584a9d9") : i18next.t("gen.pages.novels.components.ChapterExecutionActionPanel.gen_c6bdbb8e"),
+      reason: i18next.t("gen.pages.novels.components.ChapterExecutionActionPanel.gen_614aa02e"),
       variant: "default",
       ai: true,
       onClick: onGenerateChapterPlan,
@@ -154,8 +154,8 @@ function resolvePrimaryAction(params: {
 
   if (!selectedChapter.content?.trim() || selectedChapter.chapterStatus === "pending_generation") {
     return {
-      label: isSelectedChapterStreaming ? t("gen.pages.novels.components.ChapterExecutionActionPanel.gen_c5a3c631") : t("gen.pages.novels.components.ChapterExecutionActionPanel.gen_dc9c1e62"),
-      reason: t("gen.pages.novels.components.ChapterExecutionActionPanel.gen_da1d4960"),
+      label: isSelectedChapterStreaming ? i18next.t("gen.pages.novels.components.ChapterExecutionActionPanel.gen_c5a3c631") : i18next.t("gen.pages.novels.components.ChapterExecutionActionPanel.gen_dc9c1e62"),
+      reason: i18next.t("gen.pages.novels.components.ChapterExecutionActionPanel.gen_da1d4960"),
       variant: "default",
       ai: true,
       onClick: onGenerateSelectedChapter,
@@ -164,8 +164,8 @@ function resolvePrimaryAction(params: {
   }
 
   return {
-    label: t("gen.pages.novels.components.ChapterExecutionActionPanel.gen_a90ec8b1"),
-    reason: t("gen.pages.novels.components.ChapterExecutionActionPanel.gen_464b3f75"),
+    label: i18next.t("gen.pages.novels.components.ChapterExecutionActionPanel.gen_a90ec8b1"),
+    reason: i18next.t("gen.pages.novels.components.ChapterExecutionActionPanel.gen_464b3f75"),
     variant: "default",
     href: `/novels/${novelId}/chapters/${selectedChapter.id}`,
   };
@@ -230,8 +230,8 @@ export default function ChapterExecutionActionPanel(props: ChapterExecutionActio
   const displayedStatus = selectedChapter ? resolveDisplayedChapterStatus(selectedChapter) : undefined;
 
   const selectedChapterLabel = selectedChapter
-    ? `第${selectedChapter.order}章 ${selectedChapter.title || t("gen.pages.novels.components.ChapterExecutionActionPanel.gen_db55d102")}`
-    : t("gen.pages.novels.components.ChapterExecutionActionPanel.gen_cde5cc98");
+    ? `第${selectedChapter.order}章 ${selectedChapter.title || i18next.t("gen.pages.novels.components.ChapterExecutionActionPanel.gen_db55d102")}`
+    : i18next.t("gen.pages.novels.components.ChapterExecutionActionPanel.gen_cde5cc98");
 
   const primaryAction = resolvePrimaryAction({
     novelId,
@@ -267,26 +267,26 @@ export default function ChapterExecutionActionPanel(props: ChapterExecutionActio
     backgroundActivities: backgroundSyncActivities,
   });
 
-  const showQuickEditorAction = Boolean(selectedChapter && primaryAction.label !== t("gen.pages.novels.components.ChapterExecutionActionPanel.gen_a90ec8b1"));
-  const showQuickAuditAction = Boolean(selectedChapter && primaryAction.label !== t("gen.pages.novels.components.ChapterExecutionActionPanel.gen_b2b7d019") && primaryAction.label !== t("gen.pages.novels.components.ChapterExecutionActionPanel.gen_1791183e"));
+  const showQuickEditorAction = Boolean(selectedChapter && primaryAction.label !== i18next.t("gen.pages.novels.components.ChapterExecutionActionPanel.gen_a90ec8b1"));
+  const showQuickAuditAction = Boolean(selectedChapter && primaryAction.label !== i18next.t("gen.pages.novels.components.ChapterExecutionActionPanel.gen_b2b7d019") && primaryAction.label !== i18next.t("gen.pages.novels.components.ChapterExecutionActionPanel.gen_1791183e"));
   const showQuickRepairAction = Boolean(
     selectedChapter
       && displayedStatus === "needs_repair"
-      && primaryAction.label !== t("gen.pages.novels.components.ChapterExecutionActionPanel.gen_09f7167f")
-      && primaryAction.label !== t("gen.pages.novels.components.ChapterExecutionActionPanel.gen_87166347"),
+      && primaryAction.label !== i18next.t("gen.pages.novels.components.ChapterExecutionActionPanel.gen_09f7167f")
+      && primaryAction.label !== i18next.t("gen.pages.novels.components.ChapterExecutionActionPanel.gen_87166347"),
   );
 
   return (
     <Card className="self-start overflow-hidden border-border/70 lg:sticky lg:top-4">
       <CardHeader className="gap-3 border-b bg-gradient-to-b from-muted/30 to-background pb-4">
         <div className="space-y-1">
-          <CardTitle className="text-base">{t("gen.pages.novels.components.ChapterExecutionActionPanel.aiExecutionDesk")}</CardTitle>
+          <CardTitle className="text-base">{i18next.t("gen.pages.novels.components.ChapterExecutionActionPanel.aiExecutionDesk")}</CardTitle>
           <p className="text-sm leading-6 text-muted-foreground">
             默认只保留当前最推荐的一步。其他动作还在，但都退到下面的折叠区，避免右侧按钮堆满。
           </p>
         </div>
         <div className="rounded-2xl border border-border/70 bg-background/90 p-3">
-          <div className="text-xs text-muted-foreground">{t("gen.pages.novels.components.ChapterExecutionActionPanel.gen_e63fe9ef")}</div>
+          <div className="text-xs text-muted-foreground">{i18next.t("gen.pages.novels.components.ChapterExecutionActionPanel.gen_e63fe9ef")}</div>
           <div className="mt-1 text-sm font-semibold text-foreground">{selectedChapterLabel}</div>
           {selectedChapter ? (
             <div className="mt-2 flex flex-wrap gap-1.5">
@@ -304,7 +304,7 @@ export default function ChapterExecutionActionPanel(props: ChapterExecutionActio
 
       <CardContent className="space-y-4 pt-4">
         <div className="rounded-2xl border border-primary/15 bg-primary/5 p-4">
-          <div className="text-xs text-muted-foreground">{t("gen.pages.novels.components.ChapterExecutionActionPanel.gen_f2a2904e")}</div>
+          <div className="text-xs text-muted-foreground">{i18next.t("gen.pages.novels.components.ChapterExecutionActionPanel.gen_f2a2904e")}</div>
           <div className="mt-2 text-sm leading-6 text-foreground">{primaryAction.reason}</div>
           <div className="mt-3">
             <PrimaryActionButton action={primaryAction} className="w-full" />
@@ -312,17 +312,17 @@ export default function ChapterExecutionActionPanel(props: ChapterExecutionActio
           <div className="mt-3 grid gap-2">
             {showQuickEditorAction ? (
               <Button asChild variant="outline" className="w-full">
-                <Link to={`/novels/${novelId}/chapters/${selectedChapter!.id}`}>{t("gen.pages.novels.components.ChapterExecutionActionPanel.gen_a90ec8b1")}</Link>
+                <Link to={`/novels/${novelId}/chapters/${selectedChapter!.id}`}>{i18next.t("gen.pages.novels.components.ChapterExecutionActionPanel.gen_a90ec8b1")}</Link>
               </Button>
             ) : null}
             {showQuickAuditAction ? (
               <AiButton className="w-full" variant="outline" onClick={onRunFullAudit} disabled={!selectedChapter || isReviewingChapter}>
-                {isRunningFullAudit ? t("gen.pages.novels.components.ChapterExecutionActionPanel.gen_1791183e") : t("gen.pages.novels.components.ChapterExecutionActionPanel.gen_b2b7d019")}
+                {isRunningFullAudit ? i18next.t("gen.pages.novels.components.ChapterExecutionActionPanel.gen_1791183e") : i18next.t("gen.pages.novels.components.ChapterExecutionActionPanel.gen_b2b7d019")}
               </AiButton>
             ) : null}
             {showQuickRepairAction ? (
               <AiButton className="w-full" variant="secondary" onClick={onAutoRepair} disabled={!selectedChapter || isSelectedChapterRepairing}>
-                {isSelectedChapterRepairing && repairActionKind === "autoRepair" ? t("gen.pages.novels.components.ChapterExecutionActionPanel.gen_87166347") : t("gen.pages.novels.components.ChapterExecutionActionPanel.gen_09f7167f")}
+                {isSelectedChapterRepairing && repairActionKind === "autoRepair" ? i18next.t("gen.pages.novels.components.ChapterExecutionActionPanel.gen_87166347") : i18next.t("gen.pages.novels.components.ChapterExecutionActionPanel.gen_09f7167f")}
               </AiButton>
             ) : null}
           </div>
@@ -337,25 +337,25 @@ export default function ChapterExecutionActionPanel(props: ChapterExecutionActio
           </summary>
           <div className="mt-3 grid gap-2">
             <AiButton size="sm" variant="outline" onClick={onGenerateTaskSheet} disabled={!selectedChapter || isExecutionContractPending}>
-              {isGeneratingTaskSheet ? t("gen.pages.novels.components.ChapterExecutionActionPanel.gen_9d296c77") : t("gen.pages.novels.components.ChapterExecutionActionPanel.gen_1a742abd")}
+              {isGeneratingTaskSheet ? i18next.t("gen.pages.novels.components.ChapterExecutionActionPanel.gen_9d296c77") : i18next.t("gen.pages.novels.components.ChapterExecutionActionPanel.gen_1a742abd")}
             </AiButton>
             <AiButton size="sm" variant="outline" onClick={onGenerateSceneCards} disabled={!selectedChapter || isExecutionContractPending}>
-              {isGeneratingSceneCards ? t("gen.pages.novels.components.ChapterExecutionActionPanel.gen_e3c96a66") : t("gen.pages.novels.components.ChapterExecutionActionPanel.gen_6b1143e4")}
+              {isGeneratingSceneCards ? i18next.t("gen.pages.novels.components.ChapterExecutionActionPanel.gen_e3c96a66") : i18next.t("gen.pages.novels.components.ChapterExecutionActionPanel.gen_6b1143e4")}
             </AiButton>
             <AiButton size="sm" variant="outline" onClick={onSummarizeChapter} disabled={!selectedChapter || isSummarizingChapter}>
-              {isSummarizingChapter ? t("gen.pages.novels.components.ChapterExecutionActionPanel.gen_f29a225b") : t("gen.pages.novels.components.ChapterExecutionActionPanel.gen_674e018c")}
+              {isSummarizingChapter ? i18next.t("gen.pages.novels.components.ChapterExecutionActionPanel.gen_f29a225b") : i18next.t("gen.pages.novels.components.ChapterExecutionActionPanel.gen_674e018c")}
             </AiButton>
             <AiButton size="sm" variant="outline" onClick={onReplanChapter} disabled={!selectedChapter || isReplanningChapter}>
-              {isReplanningChapter ? t("gen.pages.novels.components.ChapterExecutionActionPanel.gen_19dd7256") : t("gen.pages.novels.components.ChapterExecutionActionPanel.gen_ee7c109b")}
+              {isReplanningChapter ? i18next.t("gen.pages.novels.components.ChapterExecutionActionPanel.gen_19dd7256") : i18next.t("gen.pages.novels.components.ChapterExecutionActionPanel.gen_ee7c109b")}
             </AiButton>
             <AiButton size="sm" variant="outline" onClick={onCheckContinuity} disabled={!selectedChapter || isReviewingChapter}>
-              {isReviewingChapter && reviewActionKind === "continuity" ? t("gen.pages.novels.components.ChapterExecutionActionPanel.gen_9e6d0a42") : t("gen.pages.novels.components.ChapterExecutionActionPanel.gen_d990f8d8")}
+              {isReviewingChapter && reviewActionKind === "continuity" ? i18next.t("gen.pages.novels.components.ChapterExecutionActionPanel.gen_9e6d0a42") : i18next.t("gen.pages.novels.components.ChapterExecutionActionPanel.gen_d990f8d8")}
             </AiButton>
             <AiButton size="sm" variant="outline" onClick={onCheckCharacterConsistency} disabled={!selectedChapter || isReviewingChapter}>
-              {isReviewingChapter && reviewActionKind === "character_consistency" ? t("gen.pages.novels.components.ChapterExecutionActionPanel.gen_1f619228") : t("gen.pages.novels.components.ChapterExecutionActionPanel.gen_adf472e7")}
+              {isReviewingChapter && reviewActionKind === "character_consistency" ? i18next.t("gen.pages.novels.components.ChapterExecutionActionPanel.gen_1f619228") : i18next.t("gen.pages.novels.components.ChapterExecutionActionPanel.gen_adf472e7")}
             </AiButton>
             <AiButton size="sm" variant="outline" onClick={onCheckPacing} disabled={!selectedChapter || isReviewingChapter}>
-              {isReviewingChapter && reviewActionKind === "pacing" ? t("gen.pages.novels.components.ChapterExecutionActionPanel.gen_67164c5d") : t("gen.pages.novels.components.ChapterExecutionActionPanel.gen_fc2ad421")}
+              {isReviewingChapter && reviewActionKind === "pacing" ? i18next.t("gen.pages.novels.components.ChapterExecutionActionPanel.gen_67164c5d") : i18next.t("gen.pages.novels.components.ChapterExecutionActionPanel.gen_fc2ad421")}
             </AiButton>
           </div>
         </details>
@@ -366,28 +366,28 @@ export default function ChapterExecutionActionPanel(props: ChapterExecutionActio
           </summary>
           <div className="mt-3 grid gap-2">
             <AiButton size="sm" variant="outline" onClick={onRewriteChapter} disabled={!hasCharacters || !selectedChapter || isSelectedChapterStreaming}>
-              {isSelectedChapterStreaming && generationActionKind === "rewrite" ? t("gen.pages.novels.components.ChapterExecutionActionPanel.gen_d71ac76a") : t("gen.pages.novels.components.ChapterExecutionActionPanel.gen_33feb7a6")}
+              {isSelectedChapterStreaming && generationActionKind === "rewrite" ? i18next.t("gen.pages.novels.components.ChapterExecutionActionPanel.gen_d71ac76a") : i18next.t("gen.pages.novels.components.ChapterExecutionActionPanel.gen_33feb7a6")}
             </AiButton>
             <AiButton size="sm" variant="outline" onClick={onExpandChapter} disabled={!selectedChapter || isSelectedChapterRepairing}>
-              {isSelectedChapterRepairing && repairActionKind === "expand" ? t("gen.pages.novels.components.ChapterExecutionActionPanel.gen_05c3a342") : t("gen.pages.novels.components.ChapterExecutionActionPanel.gen_c07f09c1")}
+              {isSelectedChapterRepairing && repairActionKind === "expand" ? i18next.t("gen.pages.novels.components.ChapterExecutionActionPanel.gen_05c3a342") : i18next.t("gen.pages.novels.components.ChapterExecutionActionPanel.gen_c07f09c1")}
             </AiButton>
             <AiButton size="sm" variant="outline" onClick={onCompressChapter} disabled={!selectedChapter || isSelectedChapterRepairing}>
-              {isSelectedChapterRepairing && repairActionKind === "compress" ? t("gen.pages.novels.components.ChapterExecutionActionPanel.gen_bd2062e5") : t("gen.pages.novels.components.ChapterExecutionActionPanel.gen_264a9641")}
+              {isSelectedChapterRepairing && repairActionKind === "compress" ? i18next.t("gen.pages.novels.components.ChapterExecutionActionPanel.gen_bd2062e5") : i18next.t("gen.pages.novels.components.ChapterExecutionActionPanel.gen_264a9641")}
             </AiButton>
             <AiButton size="sm" variant="outline" onClick={onStrengthenConflict} disabled={!selectedChapter || isSelectedChapterRepairing}>
-              {isSelectedChapterRepairing && repairActionKind === "strengthenConflict" ? t("gen.pages.novels.components.ChapterExecutionActionPanel.gen_a7d40af6") : t("gen.pages.novels.components.ChapterExecutionActionPanel.gen_4f0071ff")}
+              {isSelectedChapterRepairing && repairActionKind === "strengthenConflict" ? i18next.t("gen.pages.novels.components.ChapterExecutionActionPanel.gen_a7d40af6") : i18next.t("gen.pages.novels.components.ChapterExecutionActionPanel.gen_4f0071ff")}
             </AiButton>
             <AiButton size="sm" variant="outline" onClick={onEnhanceEmotion} disabled={!selectedChapter || isSelectedChapterRepairing}>
-              {isSelectedChapterRepairing && repairActionKind === "enhanceEmotion" ? t("gen.pages.novels.components.ChapterExecutionActionPanel.gen_9684e365") : t("gen.pages.novels.components.ChapterExecutionActionPanel.gen_7b6547bb")}
+              {isSelectedChapterRepairing && repairActionKind === "enhanceEmotion" ? i18next.t("gen.pages.novels.components.ChapterExecutionActionPanel.gen_9684e365") : i18next.t("gen.pages.novels.components.ChapterExecutionActionPanel.gen_7b6547bb")}
             </AiButton>
             <AiButton size="sm" variant="outline" onClick={onUnifyStyle} disabled={!selectedChapter || isSelectedChapterRepairing}>
-              {isSelectedChapterRepairing && repairActionKind === "unifyStyle" ? t("gen.pages.novels.components.ChapterExecutionActionPanel.gen_2756f913") : t("gen.pages.novels.components.ChapterExecutionActionPanel.gen_5a4291bb")}
+              {isSelectedChapterRepairing && repairActionKind === "unifyStyle" ? i18next.t("gen.pages.novels.components.ChapterExecutionActionPanel.gen_2756f913") : i18next.t("gen.pages.novels.components.ChapterExecutionActionPanel.gen_5a4291bb")}
             </AiButton>
             <AiButton size="sm" variant="outline" onClick={onAddDialogue} disabled={!selectedChapter || isSelectedChapterRepairing}>
-              {isSelectedChapterRepairing && repairActionKind === "addDialogue" ? t("gen.pages.novels.components.ChapterExecutionActionPanel.gen_3c01c4f9") : t("gen.pages.novels.components.ChapterExecutionActionPanel.gen_231d57a6")}
+              {isSelectedChapterRepairing && repairActionKind === "addDialogue" ? i18next.t("gen.pages.novels.components.ChapterExecutionActionPanel.gen_3c01c4f9") : i18next.t("gen.pages.novels.components.ChapterExecutionActionPanel.gen_231d57a6")}
             </AiButton>
             <AiButton size="sm" variant="outline" onClick={onAddDescription} disabled={!selectedChapter || isSelectedChapterRepairing}>
-              {isSelectedChapterRepairing && repairActionKind === "addDescription" ? t("gen.pages.novels.components.ChapterExecutionActionPanel.gen_d86d4eb5") : t("gen.pages.novels.components.ChapterExecutionActionPanel.gen_86e2289b")}
+              {isSelectedChapterRepairing && repairActionKind === "addDescription" ? i18next.t("gen.pages.novels.components.ChapterExecutionActionPanel.gen_d86d4eb5") : i18next.t("gen.pages.novels.components.ChapterExecutionActionPanel.gen_86e2289b")}
             </AiButton>
           </div>
         </details>
@@ -401,32 +401,32 @@ export default function ChapterExecutionActionPanel(props: ChapterExecutionActio
           </div>
           <div className="mt-3 grid gap-3">
             <label htmlFor="chapter-strategy-run-mode" className="space-y-1 text-xs text-muted-foreground">
-              <span>{t("gen.pages.novels.components.ChapterExecutionActionPanel.gen_44c4aaa1")}</span>
+              <span>{i18next.t("gen.pages.novels.components.ChapterExecutionActionPanel.gen_44c4aaa1")}</span>
               <SelectControl
                 id="chapter-strategy-run-mode"
                 className="w-full rounded-xl border bg-background p-2 text-sm text-foreground"
                 value={strategy.runMode}
                 onChange={(event) => onStrategyChange("runMode", event.target.value)}
               >
-                <option value="fast">{t("gen.pages.novels.components.ChapterExecutionActionPanel.gen_f63762a0")}</option>
-                <option value="polish">{t("gen.pages.novels.components.ChapterExecutionActionPanel.gen_41ed42e6")}</option>
+                <option value="fast">{i18next.t("gen.pages.novels.components.ChapterExecutionActionPanel.gen_f63762a0")}</option>
+                <option value="polish">{i18next.t("gen.pages.novels.components.ChapterExecutionActionPanel.gen_41ed42e6")}</option>
               </SelectControl>
             </label>
             <label htmlFor="chapter-strategy-word-size" className="space-y-1 text-xs text-muted-foreground">
-              <span>{t("gen.pages.novels.components.ChapterExecutionActionPanel.gen_cdbcaa9c")}</span>
+              <span>{i18next.t("gen.pages.novels.components.ChapterExecutionActionPanel.gen_cdbcaa9c")}</span>
               <SelectControl
                 id="chapter-strategy-word-size"
                 className="w-full rounded-xl border bg-background p-2 text-sm text-foreground"
                 value={strategy.wordSize}
                 onChange={(event) => onStrategyChange("wordSize", event.target.value)}
               >
-                <option value="short">{t("gen.pages.novels.components.ChapterExecutionActionPanel.gen_b58b94d8")}</option>
-                <option value="medium">{t("gen.pages.novels.components.ChapterExecutionActionPanel.mid")}</option>
-                <option value="long">{t("gen.pages.novels.components.ChapterExecutionActionPanel.gen_092acb9c")}</option>
+                <option value="short">{i18next.t("gen.pages.novels.components.ChapterExecutionActionPanel.gen_b58b94d8")}</option>
+                <option value="medium">{i18next.t("gen.pages.novels.components.ChapterExecutionActionPanel.mid")}</option>
+                <option value="long">{i18next.t("gen.pages.novels.components.ChapterExecutionActionPanel.gen_092acb9c")}</option>
               </SelectControl>
             </label>
             <label htmlFor="chapter-strategy-conflict" className="space-y-1 text-xs text-muted-foreground">
-              <span>{t("gen.pages.novels.components.ChapterExecutionActionPanel.gen_3e85c65a")}</span>
+              <span>{i18next.t("gen.pages.novels.components.ChapterExecutionActionPanel.gen_3e85c65a")}</span>
               <input
                 id="chapter-strategy-conflict"
                 className="w-full rounded-xl border bg-background p-2 text-sm text-foreground"
@@ -438,33 +438,33 @@ export default function ChapterExecutionActionPanel(props: ChapterExecutionActio
               />
             </label>
             <label htmlFor="chapter-strategy-pace" className="space-y-1 text-xs text-muted-foreground">
-              <span>{t("gen.pages.novels.components.ChapterExecutionActionPanel.gen_dd608458")}</span>
+              <span>{i18next.t("gen.pages.novels.components.ChapterExecutionActionPanel.gen_dd608458")}</span>
               <SelectControl
                 id="chapter-strategy-pace"
                 className="w-full rounded-xl border bg-background p-2 text-sm text-foreground"
                 value={strategy.pace}
                 onChange={(event) => onStrategyChange("pace", event.target.value)}
               >
-                <option value="slow">{t("gen.pages.novels.components.ChapterExecutionActionPanel.gen_e0b665f2")}</option>
-                <option value="balanced">{t("gen.pages.novels.components.ChapterExecutionActionPanel.gen_f07d8f75")}</option>
-                <option value="fast">{t("gen.pages.novels.components.ChapterExecutionActionPanel.gen_8fcedbfd")}</option>
+                <option value="slow">{i18next.t("gen.pages.novels.components.ChapterExecutionActionPanel.gen_e0b665f2")}</option>
+                <option value="balanced">{i18next.t("gen.pages.novels.components.ChapterExecutionActionPanel.gen_f07d8f75")}</option>
+                <option value="fast">{i18next.t("gen.pages.novels.components.ChapterExecutionActionPanel.gen_8fcedbfd")}</option>
               </SelectControl>
             </label>
             <label htmlFor="chapter-strategy-ai-freedom" className="space-y-1 text-xs text-muted-foreground">
-              <span>{t("gen.pages.novels.components.ChapterExecutionActionPanel.aiFreedomDegree")}</span>
+              <span>{i18next.t("gen.pages.novels.components.ChapterExecutionActionPanel.aiFreedomDegree")}</span>
               <SelectControl
                 id="chapter-strategy-ai-freedom"
                 className="w-full rounded-xl border bg-background p-2 text-sm text-foreground"
                 value={strategy.aiFreedom}
                 onChange={(event) => onStrategyChange("aiFreedom", event.target.value)}
               >
-                <option value="low">{t("gen.pages.novels.components.ChapterExecutionActionPanel.low")}</option>
-                <option value="medium">{t("gen.pages.novels.components.ChapterExecutionActionPanel.mid")}</option>
-                <option value="high">{t("gen.pages.novels.components.ChapterExecutionActionPanel.gen_4296d7d2")}</option>
+                <option value="low">{i18next.t("gen.pages.novels.components.ChapterExecutionActionPanel.low")}</option>
+                <option value="medium">{i18next.t("gen.pages.novels.components.ChapterExecutionActionPanel.mid")}</option>
+                <option value="high">{i18next.t("gen.pages.novels.components.ChapterExecutionActionPanel.gen_4296d7d2")}</option>
               </SelectControl>
             </label>
             <Button className="w-full" size="sm" onClick={onApplyStrategy} disabled={isApplyingStrategy || !selectedChapter}>
-              {isApplyingStrategy ? t("gen.pages.novels.components.ChapterExecutionActionPanel.gen_b55d59e2") : t("gen.pages.novels.components.ChapterExecutionActionPanel.gen_ed14b566")}
+              {isApplyingStrategy ? i18next.t("gen.pages.novels.components.ChapterExecutionActionPanel.gen_b55d59e2") : i18next.t("gen.pages.novels.components.ChapterExecutionActionPanel.gen_ed14b566")}
             </Button>
           </div>
         </details>

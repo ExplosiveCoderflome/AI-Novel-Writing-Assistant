@@ -67,17 +67,17 @@ function firstNonEmptyText(...values: unknown[]): string {
 function formatSourceTypeLabel(sourceType: StyleProfile["sourceType"]): string {
   switch (sourceType) {
     case "manual":
-      return i18next.t("gen.pages.writingFormula.writingFormulaLandingItems.gen_fb55585e");
+      return i18next.i18next.t("gen.pages.writingFormula.writingFormulaLandingItems.gen_fb55585e");
     case "from_text":
-      return i18next.t("gen.pages.writingFormula.writingFormulaLandingItems.extractFromText");
+      return i18next.i18next.t("gen.pages.writingFormula.writingFormulaLandingItems.extractFromText");
     case "from_book_analysis":
-      return i18next.t("gen.pages.writingFormula.writingFormulaLandingItems.gen_4fa1017a");
+      return i18next.i18next.t("gen.pages.writingFormula.writingFormulaLandingItems.gen_4fa1017a");
     case "from_knowledge_document":
-      return i18next.t("gen.pages.writingFormula.writingFormulaLandingItems.gen_51a7e4d2");
+      return i18next.i18next.t("gen.pages.writingFormula.writingFormulaLandingItems.gen_51a7e4d2");
     case "from_current_work":
-      return i18next.t("gen.pages.writingFormula.writingFormulaLandingItems.gen_19fc8a04");
+      return i18next.i18next.t("gen.pages.writingFormula.writingFormulaLandingItems.gen_19fc8a04");
     default:
-      return i18next.t("gen.pages.writingFormula.writingFormulaLandingItems.gen_f334d1b1");
+      return i18next.i18next.t("gen.pages.writingFormula.writingFormulaLandingItems.gen_f334d1b1");
   }
 }
 
@@ -97,19 +97,19 @@ function formatUpdatedAtLabel(value: string): string {
 }
 
 function buildNarrativeSummary(profile: StyleProfile): string {
-  return buildReadableRuleSummary("narrativeRules", profile.narrativeRules, i18next.t("gen.pages.writingFormula.writingFormulaLandingItems.gen_32cf1b3d"));
+  return buildReadableRuleSummary("narrativeRules", profile.narrativeRules, i18next.i18next.t("gen.pages.writingFormula.writingFormulaLandingItems.gen_32cf1b3d"));
 }
 
 function buildCharacterSummary(profile: StyleProfile): string {
-  return buildReadableRuleSummary("characterRules", profile.characterRules, i18next.t("gen.pages.writingFormula.writingFormulaLandingItems.gen_b659b6f5"));
+  return buildReadableRuleSummary("characterRules", profile.characterRules, i18next.i18next.t("gen.pages.writingFormula.writingFormulaLandingItems.gen_b659b6f5"));
 }
 
 function buildLanguageSummary(profile: StyleProfile): string {
-  return buildReadableRuleSummary("languageRules", profile.languageRules, i18next.t("gen.pages.writingFormula.writingFormulaLandingItems.gen_3e81e119"));
+  return buildReadableRuleSummary("languageRules", profile.languageRules, i18next.i18next.t("gen.pages.writingFormula.writingFormulaLandingItems.gen_3e81e119"));
 }
 
 function buildRhythmSummary(profile: StyleProfile): string {
-  return buildReadableRuleSummary("rhythmRules", profile.rhythmRules, i18next.t("gen.pages.writingFormula.writingFormulaLandingItems.gen_8d3f695d"));
+  return buildReadableRuleSummary("rhythmRules", profile.rhythmRules, i18next.i18next.t("gen.pages.writingFormula.writingFormulaLandingItems.gen_8d3f695d"));
 }
 
 function buildSourceContentPreview(sourceContent?: string | null): string | null {
@@ -177,9 +177,9 @@ export function buildLandingProfileItems(params: BuildLandingProfileItemsParams)
         id: profile.id,
         name: profile.name,
         originLabel: getStyleProfileOriginLabel(profile),
-        summaryLine: detailLines[0] ?? profile.description ?? i18next.t("gen.pages.writingFormula.writingFormulaLandingItems.gen_c7933614"),
+        summaryLine: detailLines[0] ?? profile.description ?? i18next.i18next.t("gen.pages.writingFormula.writingFormulaLandingItems.gen_c7933614"),
         detailLines,
-        description: firstNonEmptyText(profile.description, profileSummary?.readingFeel, i18next.t("gen.pages.writingFormula.writingFormulaLandingItems.gen_09fd9eba")),
+        description: firstNonEmptyText(profile.description, profileSummary?.readingFeel, i18next.i18next.t("gen.pages.writingFormula.writingFormulaLandingItems.gen_09fd9eba")),
         recentNovelTitle: recentNovelBinding
           ? (novelTitleMap[recentNovelBinding.targetId] ?? recentNovelBinding.targetId)
           : null,

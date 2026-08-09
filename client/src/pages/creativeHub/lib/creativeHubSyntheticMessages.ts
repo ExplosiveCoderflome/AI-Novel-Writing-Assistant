@@ -15,19 +15,19 @@ function compactArgs(record: Record<string, string | boolean | null | undefined>
 function toStatusLabel(status: string): string {
   switch (status) {
     case "running":
-      return i18next.t("gen.pages.creativeHub.lib.creativeHubSyntheticMessages.gen_d679aea3");
+      return i18next.i18next.t("gen.pages.creativeHub.lib.creativeHubSyntheticMessages.gen_d679aea3");
     case "queued":
-      return i18next.t("gen.pages.creativeHub.lib.creativeHubSyntheticMessages.gen_e5ac1d20");
+      return i18next.i18next.t("gen.pages.creativeHub.lib.creativeHubSyntheticMessages.gen_e5ac1d20");
     case "waiting_approval":
-      return i18next.t("gen.pages.creativeHub.lib.creativeHubSyntheticMessages.gen_3ced7e48");
+      return i18next.i18next.t("gen.pages.creativeHub.lib.creativeHubSyntheticMessages.gen_3ced7e48");
     case "succeeded":
-      return i18next.t("gen.pages.creativeHub.lib.creativeHubSyntheticMessages.gen_fad5222c");
+      return i18next.i18next.t("gen.pages.creativeHub.lib.creativeHubSyntheticMessages.gen_fad5222c");
     case "failed":
-      return i18next.t("gen.pages.creativeHub.lib.creativeHubSyntheticMessages.gen_acd5cb84");
+      return i18next.i18next.t("gen.pages.creativeHub.lib.creativeHubSyntheticMessages.gen_acd5cb84");
     case "cancelled":
-      return i18next.t("gen.pages.creativeHub.lib.creativeHubSyntheticMessages.gen_2111ccbb");
+      return i18next.i18next.t("gen.pages.creativeHub.lib.creativeHubSyntheticMessages.gen_2111ccbb");
     case "interrupted":
-      return i18next.t("gen.pages.creativeHub.lib.creativeHubSyntheticMessages.gen_2a2772fa");
+      return i18next.i18next.t("gen.pages.creativeHub.lib.creativeHubSyntheticMessages.gen_2a2772fa");
     default:
       return status;
   }
@@ -174,8 +174,8 @@ function buildDebugTraceEntry(
       runId,
       entry: {
         id: `run_status_${sequence}`,
-        kind: i18next.t("gen.pages.creativeHub.lib.creativeHubSyntheticMessages.gen_e4b51d5c"),
-        title: i18next.t("gen.pages.creativeHub.lib.creativeHubSyntheticMessages.gen_e4b51d5c"),
+        kind: i18next.i18next.t("gen.pages.creativeHub.lib.creativeHubSyntheticMessages.gen_e4b51d5c"),
+        title: i18next.i18next.t("gen.pages.creativeHub.lib.creativeHubSyntheticMessages.gen_e4b51d5c"),
         summary: frame.data.message || `当前状态：${toStatusLabel(frame.data.status)}`,
         meta: [toStatusLabel(frame.data.status), `Run ${runId.slice(0, 8)}`],
         tone: frame.data.status === "failed" || frame.data.status === "cancelled"
@@ -196,9 +196,9 @@ function buildDebugTraceEntry(
       runId,
       entry: {
         id: `tool_call_${sequence}`,
-        kind: i18next.t("gen.pages.creativeHub.lib.creativeHubSyntheticMessages.gen_850b4e4d"),
+        kind: i18next.i18next.t("gen.pages.creativeHub.lib.creativeHubSyntheticMessages.gen_850b4e4d"),
         title: frame.data.toolName,
-        summary: frame.data.inputSummary || i18next.t("gen.pages.creativeHub.lib.creativeHubSyntheticMessages.gen_3bf9d00a"),
+        summary: frame.data.inputSummary || i18next.i18next.t("gen.pages.creativeHub.lib.creativeHubSyntheticMessages.gen_3bf9d00a"),
         meta: [
           `Run ${runId.slice(0, 8)}`,
           frame.data.stepId ? `Step ${frame.data.stepId.slice(0, 8)}` : "",
@@ -216,11 +216,11 @@ function buildDebugTraceEntry(
       runId,
       entry: {
         id: `tool_result_${sequence}`,
-        kind: frame.data.success ? i18next.t("gen.pages.creativeHub.lib.creativeHubSyntheticMessages.gen_ee256eb7") : i18next.t("gen.pages.creativeHub.lib.creativeHubSyntheticMessages.gen_85044a6f"),
+        kind: frame.data.success ? i18next.i18next.t("gen.pages.creativeHub.lib.creativeHubSyntheticMessages.gen_ee256eb7") : i18next.i18next.t("gen.pages.creativeHub.lib.creativeHubSyntheticMessages.gen_85044a6f"),
         title: frame.data.toolName,
-        summary: frame.data.outputSummary || i18next.t("gen.pages.creativeHub.lib.creativeHubSyntheticMessages.gen_1a535b67"),
+        summary: frame.data.outputSummary || i18next.i18next.t("gen.pages.creativeHub.lib.creativeHubSyntheticMessages.gen_1a535b67"),
         meta: [
-          frame.data.success ? i18next.t("gen.pages.creativeHub.lib.creativeHubSyntheticMessages.gen_330363df") : i18next.t("gen.pages.creativeHub.lib.creativeHubSyntheticMessages.gen_acd5cb84"),
+          frame.data.success ? i18next.i18next.t("gen.pages.creativeHub.lib.creativeHubSyntheticMessages.gen_330363df") : i18next.i18next.t("gen.pages.creativeHub.lib.creativeHubSyntheticMessages.gen_acd5cb84"),
           `Run ${runId.slice(0, 8)}`,
         ],
         tone: frame.data.success ? "default" : "destructive",
@@ -237,9 +237,9 @@ function buildDebugTraceEntry(
       runId,
       entry: {
         id: `approval_${sequence}`,
-        kind: i18next.t("gen.pages.creativeHub.lib.creativeHubSyntheticMessages.gen_9d52b787"),
-        title: frame.data.action === "approved" ? i18next.t("gen.pages.creativeHub.lib.creativeHubSyntheticMessages.gen_ec5de211") : i18next.t("gen.pages.creativeHub.lib.creativeHubSyntheticMessages.gen_cb281e93"),
-        summary: frame.data.note?.trim() || i18next.t("gen.pages.creativeHub.lib.creativeHubSyntheticMessages.gen_fb68e9b8"),
+        kind: i18next.i18next.t("gen.pages.creativeHub.lib.creativeHubSyntheticMessages.gen_9d52b787"),
+        title: frame.data.action === "approved" ? i18next.i18next.t("gen.pages.creativeHub.lib.creativeHubSyntheticMessages.gen_ec5de211") : i18next.i18next.t("gen.pages.creativeHub.lib.creativeHubSyntheticMessages.gen_cb281e93"),
+        summary: frame.data.note?.trim() || i18next.i18next.t("gen.pages.creativeHub.lib.creativeHubSyntheticMessages.gen_fb68e9b8"),
         meta: [
           `Approval ${frame.data.approvalId.slice(0, 8)}`,
         ],
@@ -257,8 +257,8 @@ function buildDebugTraceEntry(
       runId,
       entry: {
         id: `error_${sequence}`,
-        kind: i18next.t("gen.pages.creativeHub.lib.creativeHubSyntheticMessages.gen_c227402e"),
-        title: i18next.t("gen.pages.creativeHub.lib.creativeHubSyntheticMessages.gen_c227402e"),
+        kind: i18next.i18next.t("gen.pages.creativeHub.lib.creativeHubSyntheticMessages.gen_c227402e"),
+        title: i18next.i18next.t("gen.pages.creativeHub.lib.creativeHubSyntheticMessages.gen_c227402e"),
         summary: frame.data.message,
         meta: [`Run ${runId.slice(0, 8)}`],
         tone: "destructive",
@@ -275,8 +275,8 @@ function buildDebugTraceEntry(
       runId,
       entry: {
         id: `reasoning_${sequence}`,
-        kind: i18next.t("gen.pages.creativeHub.lib.creativeHubSyntheticMessages.gen_cef4670b"),
-        title: i18next.t("gen.pages.creativeHub.lib.creativeHubSyntheticMessages.gen_cef4670b"),
+        kind: i18next.i18next.t("gen.pages.creativeHub.lib.creativeHubSyntheticMessages.gen_cef4670b"),
+        title: i18next.i18next.t("gen.pages.creativeHub.lib.creativeHubSyntheticMessages.gen_cef4670b"),
         summary: frame.data.reasoning,
         meta: [`Run ${runId.slice(0, 8)}`],
       },
@@ -293,8 +293,8 @@ function buildDebugTraceEntry(
       runId,
       entry: {
         id: `planner_${sequence}`,
-        kind: i18next.t("gen.pages.creativeHub.lib.creativeHubSyntheticMessages.gen_e3a26af0"),
-        title: i18next.t("gen.pages.creativeHub.lib.creativeHubSyntheticMessages.gen_e3a26af0"),
+        kind: i18next.i18next.t("gen.pages.creativeHub.lib.creativeHubSyntheticMessages.gen_e3a26af0"),
+        title: i18next.i18next.t("gen.pages.creativeHub.lib.creativeHubSyntheticMessages.gen_e3a26af0"),
         summary: `来源：${getPlannerSourceDisplayLabel(planner.source)}；意图：${getIntentDisplayLabel(planner.intent)}`,
         meta: [
           "confidence" in planner ? `置信度 ${String(planner.confidence ?? "-")}` : "",
@@ -316,7 +316,7 @@ function buildDebugTraceEntry(
       entry: {
         id: `checkpoint_${sequence}`,
         kind: "Checkpoint",
-        title: i18next.t("gen.pages.creativeHub.lib.creativeHubSyntheticMessages.gen_b07b635c"),
+        title: i18next.i18next.t("gen.pages.creativeHub.lib.creativeHubSyntheticMessages.gen_b07b635c"),
         summary: `Checkpoint ${frame.data.checkpointId.slice(0, 8)} 已写回线程历史。`,
         meta: [`Run ${runId.slice(0, 8)}`],
       },

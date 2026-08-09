@@ -50,39 +50,39 @@ export default function AutoDirectorSettingsSection(props: {
   const saveAutoDirectorChannelsMutation = useMutation({
     mutationFn: saveAutoDirectorChannelSettings,
     onSuccess: async (response) => {
-      onActionResult(response.message ?? t("gen.pages.settings.AutoDirectorSettingsSection.gen_a20173bc"));
+      onActionResult(response.message ?? i18next.t("gen.pages.settings.AutoDirectorSettingsSection.gen_a20173bc"));
       if (response.data) {
         setAutoDirectorChannelDraft(buildAutoDirectorChannelDraft(response.data));
       }
       await queryClient.invalidateQueries({ queryKey: queryKeys.settings.autoDirectorChannels });
     },
     onError: (error) => {
-      onActionResult(error instanceof Error ? error.message : t("gen.pages.settings.AutoDirectorSettingsSection.saveDirectorFollowUpChannelConfigFailed"));
+      onActionResult(error instanceof Error ? error.message : i18next.t("gen.pages.settings.AutoDirectorSettingsSection.saveDirectorFollowUpChannelConfigFailed"));
     },
   });
 
   const saveApprovalPreferenceMutation = useMutation({
     mutationFn: saveAutoDirectorApprovalPreferenceSettings,
     onSuccess: async (response) => {
-      onActionResult(response.message ?? t("gen.pages.settings.AutoDirectorSettingsSection.gen_0c54d981"));
+      onActionResult(response.message ?? i18next.t("gen.pages.settings.AutoDirectorSettingsSection.gen_0c54d981"));
       if (response.data) {
         setApprovalPreferenceDraft(response.data.approvalPointCodes);
       }
       await queryClient.invalidateQueries({ queryKey: queryKeys.settings.autoDirectorApprovalPreferences });
     },
     onError: (error) => {
-      onActionResult(error instanceof Error ? error.message : t("gen.pages.settings.AutoDirectorSettingsSection.saveApprovalAuthorizationPreferenceFailed"));
+      onActionResult(error instanceof Error ? error.message : i18next.t("gen.pages.settings.AutoDirectorSettingsSection.saveApprovalAuthorizationPreferenceFailed"));
     },
   });
 
   const savePendingReviewAutoPromotionMutation = useMutation({
     mutationFn: savePendingReviewAutoPromotionSettings,
     onSuccess: async (response) => {
-      onActionResult(response.message ?? t("gen.pages.settings.AutoDirectorSettingsSection.gen_58e7d74a"));
+      onActionResult(response.message ?? i18next.t("gen.pages.settings.AutoDirectorSettingsSection.gen_58e7d74a"));
       await queryClient.invalidateQueries({ queryKey: queryKeys.settings.pendingReviewAutoPromotion });
     },
     onError: (error) => {
-      onActionResult(error instanceof Error ? error.message : t("gen.pages.settings.AutoDirectorSettingsSection.gen_3cbc83c7"));
+      onActionResult(error instanceof Error ? error.message : i18next.t("gen.pages.settings.AutoDirectorSettingsSection.gen_3cbc83c7"));
     },
   });
 

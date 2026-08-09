@@ -23,9 +23,9 @@ interface BookAnalysisSourceRangePickerProps {
 }
 
 const CHAR_PRESETS = [
-  { label: t("gen.pages.bookAnalysis.components.BookAnalysisSourceRangePicker.gen_9981494e"), value: 50_000 },
-  { label: t("gen.pages.bookAnalysis.components.BookAnalysisSourceRangePicker.gen_ac3f6db5"), value: 100_000 },
-  { label: t("gen.pages.bookAnalysis.components.BookAnalysisSourceRangePicker.gen_ca76f377"), value: 200_000 },
+  { label: i18next.t("gen.pages.bookAnalysis.components.BookAnalysisSourceRangePicker.gen_9981494e"), value: 50_000 },
+  { label: i18next.t("gen.pages.bookAnalysis.components.BookAnalysisSourceRangePicker.gen_ac3f6db5"), value: 100_000 },
+  { label: i18next.t("gen.pages.bookAnalysis.components.BookAnalysisSourceRangePicker.gen_ca76f377"), value: 200_000 },
 ];
 
 const numberFormatter = new Intl.NumberFormat("zh-CN");
@@ -52,7 +52,7 @@ function parseCharInput(input: string): number | null {
     return null;
   }
   const unit = match[2];
-  if (unit === t("gen.pages.bookAnalysis.components.BookAnalysisSourceRangePicker.gen_9d032066")) {
+  if (unit === i18next.t("gen.pages.bookAnalysis.components.BookAnalysisSourceRangePicker.gen_9d032066")) {
     return Math.round(value * 10_000);
   }
   if (unit === "k") {
@@ -244,23 +244,23 @@ export default function BookAnalysisSourceRangePicker({
 
   const rangeTitle = selectedRange && selectedStartChapter && selectedEndChapter
     ? `第 ${selectedStartChapter.chapterIndex + 1} 章 ~ 第 ${selectedEndChapter.chapterIndex + 1} 章`
-    : t("gen.pages.bookAnalysis.components.BookAnalysisSourceRangePicker.gen_42d39e02");
+    : i18next.t("gen.pages.bookAnalysis.components.BookAnalysisSourceRangePicker.gen_42d39e02");
   const rangeDetail = selectedRange && selectedStartChapter && selectedEndChapter
     ? `${selectedChapterCount} 章 · 约 ${formatCount(selectedCharCount)} 字 · 占全文 ${Math.round(percent)}%`
     : `${sortedChapters.length > 0 ? `${sortedChapters.length} 章 · ` : ""}约 ${formatCount(sourceCharCount)} 字`;
   const charModeHint = selectedRange && selectedStartChapter && selectedEndChapter
     ? `按章节边界覆盖第 ${selectedStartChapter.chapterIndex + 1} 章 ~ 第 ${selectedEndChapter.chapterIndex + 1} 章`
-    : t("gen.pages.bookAnalysis.components.BookAnalysisSourceRangePicker.gen_035c0223");
+    : i18next.t("gen.pages.bookAnalysis.components.BookAnalysisSourceRangePicker.gen_035c0223");
 
   return (
     <div className="space-y-2 rounded-md border bg-background p-3">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <div className="text-sm font-medium">{t("gen.pages.bookAnalysis.components.BookAnalysisSourceRangePicker.gen_d7957d21")}</div>
+        <div className="text-sm font-medium">{i18next.t("gen.pages.bookAnalysis.components.BookAnalysisSourceRangePicker.gen_d7957d21")}</div>
         <div className="inline-flex rounded-md bg-muted/40 p-1">
           {([
-            ["full", t("gen.pages.bookAnalysis.components.BookAnalysisSourceRangePicker.gen_42d39e02")],
-            ["chapter", t("gen.pages.bookAnalysis.components.BookAnalysisSourceRangePicker.gen_c4bf99f5")],
-            ["chars", t("gen.pages.bookAnalysis.components.BookAnalysisSourceRangePicker.gen_0270c742")],
+            ["full", i18next.t("gen.pages.bookAnalysis.components.BookAnalysisSourceRangePicker.gen_42d39e02")],
+            ["chapter", i18next.t("gen.pages.bookAnalysis.components.BookAnalysisSourceRangePicker.gen_c4bf99f5")],
+            ["chars", i18next.t("gen.pages.bookAnalysis.components.BookAnalysisSourceRangePicker.gen_0270c742")],
           ] as const).map(([key, label]) => (
             <button
               key={key}
@@ -336,7 +336,7 @@ export default function BookAnalysisSourceRangePicker({
               disabled={!canUseChapterRange}
               onChange={(event) => setCharStartInput(event.target.value)}
               onBlur={() => applyCharRange(charStartInput, charEndInput)}
-              placeholder={t("gen.pages.bookAnalysis.components.BookAnalysisSourceRangePicker.gen_0fba1a30")}
+              placeholder={i18next.t("gen.pages.bookAnalysis.components.BookAnalysisSourceRangePicker.gen_0fba1a30")}
             />
             <Input
               className="h-9 text-xs"
@@ -344,7 +344,7 @@ export default function BookAnalysisSourceRangePicker({
               disabled={!canUseChapterRange}
               onChange={(event) => setCharEndInput(event.target.value)}
               onBlur={() => applyCharRange(charStartInput, charEndInput)}
-              placeholder={t("gen.pages.bookAnalysis.components.BookAnalysisSourceRangePicker.gen_bddbfb09")}
+              placeholder={i18next.t("gen.pages.bookAnalysis.components.BookAnalysisSourceRangePicker.gen_bddbfb09")}
             />
           </div>
           <div className="text-xs text-muted-foreground">{charModeHint}</div>
@@ -417,15 +417,15 @@ function RangeLoadHint({
   error?: string;
   sourceSelected: boolean;
 }) {
-  let message = t("gen.pages.bookAnalysis.components.BookAnalysisSourceRangePicker.gen_75736243");
+  let message = i18next.t("gen.pages.bookAnalysis.components.BookAnalysisSourceRangePicker.gen_75736243");
   if (sourceSelected && loading) {
-    message = t("gen.pages.bookAnalysis.components.BookAnalysisSourceRangePicker.gen_cde484ed");
+    message = i18next.t("gen.pages.bookAnalysis.components.BookAnalysisSourceRangePicker.gen_cde484ed");
   } else if (sourceSelected && error) {
-    message = t("gen.pages.bookAnalysis.components.BookAnalysisSourceRangePicker.gen_9f824aba");
+    message = i18next.t("gen.pages.bookAnalysis.components.BookAnalysisSourceRangePicker.gen_9f824aba");
   } else if (sourceSelected && requested) {
-    message = t("gen.pages.bookAnalysis.components.BookAnalysisSourceRangePicker.gen_585a6c1e");
+    message = i18next.t("gen.pages.bookAnalysis.components.BookAnalysisSourceRangePicker.gen_585a6c1e");
   } else if (sourceSelected) {
-    message = t("gen.pages.bookAnalysis.components.BookAnalysisSourceRangePicker.gen_636038db");
+    message = i18next.t("gen.pages.bookAnalysis.components.BookAnalysisSourceRangePicker.gen_636038db");
   }
   return (
     <div className="rounded-md border bg-muted/20 px-3 py-2 text-xs leading-5 text-muted-foreground">

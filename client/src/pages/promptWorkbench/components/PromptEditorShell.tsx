@@ -98,7 +98,7 @@ export function PromptEditorShell(props: PromptEditorShellProps) {
             </div>
             <div className="mt-3 flex flex-wrap items-center gap-2 text-xs">
               <span className="rounded-md bg-[#eef6f4] px-2 py-1 text-[#315f58]">
-                {prompt.language === "zh" ? t("gen.pages.promptWorkbench.components.PromptEditorShell.zhLanguage") : prompt.language}
+                {prompt.language === "zh" ? i18next.t("gen.pages.promptWorkbench.components.PromptEditorShell.zhLanguage") : prompt.language}
               </span>
               <span className="rounded-md bg-[#eef3fb] px-2 py-1 text-[#385273]">{prompt.family}</span>
               <span className="rounded-md bg-[#fff3dc] px-2 py-1 text-[#7a5620]">
@@ -108,7 +108,7 @@ export function PromptEditorShell(props: PromptEditorShellProps) {
                 "rounded-md px-2 py-1",
                 prompt.slotSupported ? "bg-[#e8f7f2] text-[#0f766e]" : "bg-muted text-muted-foreground",
               )}>
-                {prompt.slotSupported ? `${prompt.slots.length} 个槽位` : t("gen.pages.promptWorkbench.components.PromptEditorShell.gen_72d0cd0d")}
+                {prompt.slotSupported ? `${prompt.slots.length} 个槽位` : i18next.t("gen.pages.promptWorkbench.components.PromptEditorShell.gen_72d0cd0d")}
               </span>
               {capabilities.map((label) => (
                 <span key={label} className="rounded-md bg-white/80 px-2 py-1 text-[#52606d] ring-1 ring-[#dfe7ee]">
@@ -136,8 +136,8 @@ export function PromptEditorShell(props: PromptEditorShellProps) {
               onValueChange={(value) => onScopeChange(value as PromptSlotOverrideScope)}
             >
               <TabsList className="h-10">
-                <TabsTrigger value="global" className="px-4">{t("gen.pages.promptWorkbench.components.PromptEditorShell.gen_2be75b10")}</TabsTrigger>
-                <TabsTrigger value="novel" className="px-4">{t("gen.pages.promptWorkbench.components.PromptEditorShell.gen_6e980d96")}</TabsTrigger>
+                <TabsTrigger value="global" className="px-4">{i18next.t("gen.pages.promptWorkbench.components.PromptEditorShell.gen_2be75b10")}</TabsTrigger>
+                <TabsTrigger value="novel" className="px-4">{i18next.t("gen.pages.promptWorkbench.components.PromptEditorShell.gen_6e980d96")}</TabsTrigger>
               </TabsList>
             </Tabs>
 
@@ -147,7 +147,7 @@ export function PromptEditorShell(props: PromptEditorShellProps) {
                 onChange={(event) => onNovelChange(event.target.value)}
                 className="h-10 min-w-52 rounded-md border border-[#cfdad7] bg-white px-3 text-sm shadow-sm"
               >
-                <option value="">{t("gen.pages.promptWorkbench.components.PromptEditorShell.gen_44cddc3d")}</option>
+                <option value="">{i18next.t("gen.pages.promptWorkbench.components.PromptEditorShell.gen_44cddc3d")}</option>
                 {novels.map((novel) => (
                   <option key={novel.id} value={novel.id}>
                     {novel.title || novel.id}
@@ -162,10 +162,10 @@ export function PromptEditorShell(props: PromptEditorShellProps) {
                 onChange={(event) => onChapterChange(event.target.value)}
                 className="h-10 min-w-52 rounded-md border border-[#cfdad7] bg-white px-3 text-sm shadow-sm"
               >
-                <option value="">{t("gen.pages.promptWorkbench.components.PromptEditorShell.gen_f77b185a")}</option>
+                <option value="">{i18next.t("gen.pages.promptWorkbench.components.PromptEditorShell.gen_f77b185a")}</option>
                 {chapters.map((chapter) => (
                   <option key={chapter.id} value={chapter.id}>
-                    第 {chapter.order ?? "?"} 章 {chapter.title || t("gen.pages.promptWorkbench.components.PromptEditorShell.gen_db55d102")}{chapter.hasContent ? "" : t("gen.pages.promptWorkbench.components.PromptEditorShell.gen_f9b40122")}
+                    第 {chapter.order ?? "?"} 章 {chapter.title || i18next.t("gen.pages.promptWorkbench.components.PromptEditorShell.gen_db55d102")}{chapter.hasContent ? "" : i18next.t("gen.pages.promptWorkbench.components.PromptEditorShell.gen_f9b40122")}
                   </option>
                 ))}
               </SelectControl>
@@ -182,10 +182,10 @@ export function PromptEditorShell(props: PromptEditorShellProps) {
                     ? "bg-white text-[#0f5f59] hover:bg-[#eef8f5]"
                     : "bg-[#0f766e] text-white hover:bg-[#0b5f59]",
                 )}
-                title={immersive ? t("gen.pages.promptWorkbench.components.PromptEditorShell.gen_366974a5") : t("gen.pages.promptWorkbench.components.PromptEditorShell.gen_d00db38e")}
+                title={immersive ? i18next.t("gen.pages.promptWorkbench.components.PromptEditorShell.gen_366974a5") : i18next.t("gen.pages.promptWorkbench.components.PromptEditorShell.gen_d00db38e")}
               >
                 {immersive ? <Minimize2 className="h-4 w-4" /> : <Maximize2 className="h-4 w-4" />}
-                {immersive ? t("gen.pages.promptWorkbench.components.PromptEditorShell.gen_451f01d5") : t("gen.pages.promptWorkbench.components.PromptEditorShell.gen_01e14767")}
+                {immersive ? i18next.t("gen.pages.promptWorkbench.components.PromptEditorShell.gen_451f01d5") : i18next.t("gen.pages.promptWorkbench.components.PromptEditorShell.gen_01e14767")}
               </Button>
             ) : null}
           </div>
@@ -211,7 +211,7 @@ export function PromptEditorShell(props: PromptEditorShellProps) {
                   <span className="ml-1 opacity-60">·{SLOT_KIND_LABELS[slot.kind] ?? slot.kind}</span>
                 </span>
               )) : (
-                <span className="text-xs text-muted-foreground">{t("gen.pages.promptWorkbench.components.PromptEditorShell.gen_edbe11cb")}</span>
+                <span className="text-xs text-muted-foreground">{i18next.t("gen.pages.promptWorkbench.components.PromptEditorShell.gen_edbe11cb")}</span>
               )}
             </div>
           </div>
