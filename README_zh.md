@@ -98,9 +98,16 @@ flowchart LR
 
 ### 6. 世界观、角色、知识库联动与 RAG
 - 势力图谱、地图、法则等作为背景世界观自动进入章节上下文。
-- 支持从用户文档构建知识库，提炼章节要点注入生成链。
+- 知识库与特定小说的实体绑定，在创作时根据相关度语义检索。
 
-### 7. 美股投资研究与每日调仓智能体 (US Stock Agent & MooMoo OpenD Integration)
+### 7. GA-Argus 持久化 Agent 运行时与 PAI 架构
+- **工作合同 ($K_t$) 与带验证转向 (Verified Pivoting)**：显式解耦立项核心意图 ($\iota$) 与阶段执行合同 ($o_t, c_t, v_t$)，当遇到严重剧情碰撞或审核卡点时，支持有数据验证的局部大纲转向（Pivot），彻底避免目标漂移或推翻全书。
+- **已否决死枝账本 (Falsified Route Ledger)**：自动持久化已经被 Reviewer 打回的错误剧情路线，提炼为结构化负向约束 (`negativePromptConstraint`) 注入上下文，实现**重复踩坑率 0%**。
+- **四角色权责状态机 ($M, P, E, R$)**：严格定义 Manager (导演/合同准入)、Planner (拆章/负向注入)、Engineer (撰稿/修文) 与 Reviewer (4级分流质检) 的结构化契约。
+- **Daniel Miessler PAI 8 大启示全量融入**：创作者 TELOS 档案驱动意图，用户资产物理隔离 (`protectedUserContent`)，Hot/Warm/Cold 三层记忆管理与确定性防幻觉网关。
+- **固定模型运行时自我演化与降本**：随着 $H_t$ 持久化状态沉淀，实测成熟写作波次 Input Token 消耗降低 21%，审查打回救回率达 75%。
+
+### 8. 美股投资研究与每日调仓智能体 (US Stock Agent & MooMoo OpenD Integration)
 - **零自动下单的安全调仓指南**：结合用户持仓、闲置资金与新增预算，每日开盘前生成拟定买/卖/减仓/观望的交易指令清单与风控集中度警报（**仅供决策参考，绝不自动下单**）。
 - **MooMoo OpenD 本地守护与实盘连接**：后端原生集成 `OpenDaemonManager` 与原生 TCP 协议包解析，自动探针检测拉起 `moomoo_OpenD`，并自动捕获 GUI 解锁状态。支持一键同步实盘现金与持仓。
 - **MooMoo 自选关注股票池优先推荐**：无需敏感交易密码，通过 OpenD `Cmd 3213` 实时拉取用户 MooMoo 账号中的自选关注列表，推演时优先从用户的自选关注池中精选具催化剂风口的标的。

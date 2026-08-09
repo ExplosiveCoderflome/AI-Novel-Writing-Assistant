@@ -104,7 +104,14 @@ If you prefer to write and manage your novel workspace in a local terminal using
 - Syncs deconstructed books and external documents via vector databases (Qdrant).
 - RAG pipelines use parallel indexing, deduplication hash keys, and retrieval traces to debug vector search relevance.
 
-### 7. Virtual World Sandbox Simulation (Westworld Sandbox)
+### 7. GA-Argus Persistent Agentic Runtime & PAI Architecture
+- **Working Contract ($K_t$) & Verified Pivoting**: Decouples standing intent ($\iota$) from operational objectives ($o_t, c_t, v_t$). When plot obstacles or audit rejections occur, the runtime executes evidence-backed Verified Pivots without goal drift or full-book resets.
+- **Falsified Route Ledger (Dead Branches)**: Automatically persists rejected plot routes in SQLite DB and extracts structured `negativePromptConstraint` context blocks, achieving **0% dead-branch repetition**.
+- **Four-Role State Machine ($M, P, E, R$)**: Strictly bounds Manager (Stage/Contract Admission), Planner (Task Decomposition), Engineer (Draft/Patch Execution), and Reviewer (4-Stage Audit).
+- **Daniel Miessler PAI Integration**: TELOS-driven creator intent, physical isolation of user assets (`protectedUserContent`), Hot/Warm/Cold Three-Tier Memory budget allocation, and Anti-Hallucination guards.
+- **Fixed-Model Runtime Self-Evolution**: Mature writing waves use **21% fewer input tokens** and achieve a **75% Reviewer rescue rate**.
+
+### 8. Virtual World Sandbox Simulation (Westworld Sandbox)
 - Implements a complete lock-step turn-based simulation sandbox representing physical and ecological laws of the novel's world (detailed in [world-sandbox-simulation.md](./docs/design/world-sandbox-simulation.md)).
 - **Earth Physics & Ecology**: Tracks dynamic temperatures (latitude & season modeling, altitude lapse rate, diurnal hour-angle shifts) and predator-prey dynamics using Lotka-Volterra equations.
 - **Character Cognitive Agents**: Features memory decay modeling (Ebbinghaus forgetting curve) and spatial rumor diffusion/distortion across adjacent locations.

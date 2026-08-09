@@ -4168,3 +4168,47 @@ model StockTradingDiscipline {
   @@index([portfolioId, relatedSymbol])
   @@index([portfolioId, isDeprecated])
 }
+
+// GA-Argus: Director Working Contract Ledger (Kt)
+model DirectorWorkingContract {
+  id                    String   @id @default(uuid())
+  novelId               String
+  version               Int      @default(1)
+  standingIntentJson    String   // JSON encoded StandingIntent (\iota)
+  operationalObjective  String   // JSON encoded OperationalObjective (o_t)
+  constraintsJson       String   // JSON encoded ContractConstraints (c_t)
+  verificationCriteria  String   // JSON encoded VerificationCriteria (v_t)
+  isActive              Boolean  @default(true)
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+
+  @@index([novelId, isActive])
+}
+
+// GA-Argus: Falsified Route Ledger (Dead Branches / Rejected Paths)
+model DirectorFalsifiedRoute {
+  id                        String   @id @default(uuid())
+  novelId                   String
+  volumeOrder               Int?
+  chapterOrder              Int?
+  failedPlanSummary         String
+  rejectionReason           String
+  rootCauseCode             String
+  evidenceArtifactId        String?
+  negativePromptConstraint  String
+  createdAt                 DateTime @default(now())
+
+  @@index([novelId])
+}
+
+// GA-Argus: Persistent Runtime State (Ht: Memory, Skills, Dynamic Verifiers)
+model DirectorRuntimeState {
+  id                  String   @id @default(uuid())
+  novelId             String   @unique
+  verifiedSkillsJson  String   @default("[]") // Accumulated writing skills
+  customVerifiersJson String   @default("[]") // Project-specific quality verifiers
+  totalPivotsCount    Int      @default(0)
+  totalBlockedCount   Int      @default(0)
+  updatedAt           DateTime @updatedAt
+}
+
