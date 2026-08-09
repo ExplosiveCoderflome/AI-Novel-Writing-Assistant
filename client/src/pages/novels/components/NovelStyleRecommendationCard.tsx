@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -15,6 +16,7 @@ interface NovelStyleRecommendationCardProps {
 }
 
 export default function NovelStyleRecommendationCard({ novelId }: NovelStyleRecommendationCardProps) {
+  const { t } = useTranslation();
   const llm = useLLMStore();
   const queryClient = useQueryClient();
   const [recommendation, setRecommendation] = useState<StyleRecommendationResult | null>(null);

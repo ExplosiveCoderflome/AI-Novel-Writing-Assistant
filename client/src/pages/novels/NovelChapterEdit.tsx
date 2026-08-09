@@ -1,5 +1,5 @@
+import { useTranslation } from "react-i18next";
 import i18next from "i18next";
-const t = (key: string, options?: any) => i18next.t(key, options) as string;
 import { useMemo } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
@@ -16,6 +16,7 @@ function PageStateCard(props: { message: string }) {
 }
 
 export default function NovelChapterEdit() {
+  const { t } = useTranslation();
   const { id = "", chapterId = "" } = useParams();
   const navigate = useNavigate();
 

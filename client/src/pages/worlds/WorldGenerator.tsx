@@ -1,5 +1,5 @@
+import { useTranslation } from "react-i18next";
 import i18next from "i18next";
-const t = (key: string, options?: any) => i18next.t(key, options) as string;
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
@@ -46,6 +46,7 @@ import {
 } from "./components/generator/worldGeneratorShared";
 import { useWorldGeneratorDerivedState } from "./components/generator/useWorldGeneratorDerivedState";
 export default function WorldGenerator() {
+  const { t } = useTranslation();
   const llm = useLLMStore();
   const navigate = useNavigate();
   const queryClient = useQueryClient();

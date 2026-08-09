@@ -1,5 +1,5 @@
+import { useTranslation } from "react-i18next";
 import i18next from "i18next";
-const t = (key: string, options?: any) => i18next.t(key, options) as string;
 import { useEffect, useMemo, useState } from "react";
 import type { DirectorContinuationMode } from "@ai-novel/shared/types/novelDirector";
 import type {
@@ -53,6 +53,7 @@ function createDownload(blob: Blob, fileName: string): void {
 }
 
 export default function NovelList() {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [status, setStatus] = useState<StatusFilter>("all");

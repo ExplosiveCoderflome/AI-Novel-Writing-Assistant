@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import type { SSEFrame } from "@ai-novel/shared/types/api";
 import type {
   AuditReport,
@@ -520,6 +521,7 @@ export function chapterHasPreparationAssets(chapter: Chapter): boolean {
 }
 
 export function parseChapterScenePlanForDisplay(chapter: Chapter) {
+  const { t } = useTranslation();
   return parseChapterScenePlan(chapter.sceneCards, {
     targetWordCount: chapter.targetWordCount ?? undefined,
   });

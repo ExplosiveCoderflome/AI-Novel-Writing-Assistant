@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import type { Character } from "@ai-novel/shared/types/novel";
 import { Crown, Trash2, UsersRound } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
@@ -106,6 +107,7 @@ function CharacterCard(props: {
 }
 
 export default function CharacterAssetSidebar(props: CharacterAssetSidebarProps) {
+  const { t } = useTranslation();
   const {
     characters,
     selectedCharacterId,

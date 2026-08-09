@@ -1,5 +1,5 @@
+import { useTranslation } from "react-i18next";
 import i18next from "i18next";
-const t = (key: string, options?: any) => i18next.t(key, options) as string;
 import { Braces, PenLine, RefreshCw, Search } from "lucide-react";
 import type { PromptCatalogItem } from "@/api/promptWorkbench";
 import { Button } from "@/components/ui/button";
@@ -90,6 +90,7 @@ function PromptListItem(props: {
 }
 
 export function PromptCatalogSidebar(props: PromptCatalogSidebarProps) {
+  const { t } = useTranslation();
   const {
     isFetching,
     isLoading,

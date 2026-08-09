@@ -1,5 +1,5 @@
+import { useTranslation } from "react-i18next";
 import i18next from "i18next";
-const t = (key: string, options?: any) => i18next.t(key, options) as string;
 import type { ReactNode } from "react";
 import { ChevronDown } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -14,6 +14,7 @@ interface CollapsibleSummaryProps {
 }
 
 export default function CollapsibleSummary(props: CollapsibleSummaryProps) {
+  const { t } = useTranslation();
   const {
     title,
     description,

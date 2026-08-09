@@ -1,5 +1,5 @@
+import { useTranslation } from "react-i18next";
 import i18next from "i18next";
-const t = (key: string, options?: any) => i18next.t(key, options) as string;
 import type { AntiAiRule, StyleProfile, StyleProfileFeature } from "@ai-novel/shared/types/styleEngine";
 import WritingFormulaEditorPanel from "./WritingFormulaEditorPanel";
 
@@ -35,6 +35,7 @@ interface WritingFormulaAdvancedWorkspaceProps {
 }
 
 export default function WritingFormulaAdvancedWorkspace(props: WritingFormulaAdvancedWorkspaceProps) {
+  const { t } = useTranslation();
   return (
     <div className="mx-auto flex h-full min-h-0 max-w-[1120px] flex-col gap-4 overflow-y-auto xl:pr-1">
       <div className="rounded-2xl border bg-slate-50/70 px-4 py-3 text-sm leading-7 text-slate-700">

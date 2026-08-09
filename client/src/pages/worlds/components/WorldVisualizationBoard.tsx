@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import { useMemo, useRef, useState } from "react";
 import type {
   WorldGeographyDirection,
@@ -633,6 +634,7 @@ function DraggableGraph(props: {
 }
 
 export default function WorldVisualizationBoard({ payload }: WorldVisualizationBoardProps) {
+  const { t } = useTranslation();
   const [mode, setMode] = useState<"faction" | "geography" | "power" | "timeline">("faction");
   const [keyword, setKeyword] = useState("");
   const [factionType, setFactionType] = useState("all");

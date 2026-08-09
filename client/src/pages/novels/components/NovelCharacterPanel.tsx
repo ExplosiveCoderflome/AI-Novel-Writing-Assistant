@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import { useState } from "react";
 import type { ReactNode } from "react";
 import type {
@@ -85,6 +86,7 @@ interface NovelCharacterPanelProps {
 }
 
 export default function NovelCharacterPanel(props: NovelCharacterPanelProps) {
+  const { t } = useTranslation();
   const {
     novelId,
     llmProvider,

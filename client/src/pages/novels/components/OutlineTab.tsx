@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import { useEffect, useState } from "react";
 import AiButton from "@/components/common/AiButton";
 import { Badge } from "@/components/ui/badge";
@@ -94,6 +95,7 @@ function formatBeatChapterOrders(chapterOrders: number[]): string {
 }
 
 export default function OutlineTab(props: OutlineTabViewProps) {
+  const { t } = useTranslation();
   const {
     worldInjectionSummary,
     hasCharacters,

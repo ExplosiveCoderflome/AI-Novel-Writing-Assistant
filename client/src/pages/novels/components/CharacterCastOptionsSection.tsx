@@ -1,5 +1,5 @@
+import { useTranslation } from "react-i18next";
 import i18next from "i18next";
-const t = (key: string, options?: any) => i18next.t(key, options) as string;
 import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type { Character, CharacterCastOption, CharacterCastRole, CharacterGender } from "@ai-novel/shared/types/novel";
@@ -88,6 +88,7 @@ function buildCharacterCastApplyConfirmMessage(option: CharacterCastOption, warn
 }
 
 export default function CharacterCastOptionsSection(props: CharacterCastOptionsSectionProps) {
+  const { t } = useTranslation();
   const { novelId, characters, selectedCharacter, onSelectedCharacterChange, llmProvider, llmModel } = props;
   const queryClient = useQueryClient();
   const [storyInput, setStoryInput] = useState("");

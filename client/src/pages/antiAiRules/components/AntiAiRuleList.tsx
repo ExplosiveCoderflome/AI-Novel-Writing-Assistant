@@ -1,5 +1,5 @@
+import { useTranslation } from "react-i18next";
 import i18next from "i18next";
-const t = (key: string, options?: any) => i18next.t(key, options) as string;
 import type { AntiAiRule } from "@ai-novel/shared/types/styleEngine";
 import { CheckCircle2, Edit3, FileText, FlaskConical } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
@@ -22,6 +22,7 @@ interface AntiAiRuleListProps {
 }
 
 export default function AntiAiRuleList(props: AntiAiRuleListProps) {
+  const { t } = useTranslation();
   const testingRuleIdSet = new Set(props.testingRuleIds);
 
   return (

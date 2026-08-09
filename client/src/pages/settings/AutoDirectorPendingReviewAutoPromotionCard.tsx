@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import { useMemo, useState } from "react";
 import { AlertTriangle, ShieldAlert } from "lucide-react";
 import type { PendingReviewAutoPromotionSettings } from "@/api/settings";

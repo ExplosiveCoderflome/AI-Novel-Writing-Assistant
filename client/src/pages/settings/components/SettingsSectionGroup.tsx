@@ -1,5 +1,5 @@
+import { useTranslation } from "react-i18next";
 import i18next from "i18next";
-const t = (key: string, options?: any) => i18next.t(key, options) as string;
 import type { ReactNode } from "react";
 import { Badge } from "@/components/ui/badge";
 import { AUTO_DIRECTOR_MOBILE_CLASSES } from "@/mobile/autoDirector";
@@ -19,6 +19,7 @@ export default function SettingsSectionGroup(props: {
   status: SettingsSectionStatus;
   children: ReactNode;
 }) {
+  const { t } = useTranslation();
   const { title, description, status, children } = props;
 
   return (

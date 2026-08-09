@@ -1,5 +1,5 @@
+import { useTranslation } from "react-i18next";
 import i18next from "i18next";
-const t = (key: string, options?: any) => i18next.t(key, options) as string;
 import {
   STYLE_ENGINE_COMPATIBILITY_FIELDS,
   type AntiAiRule,
@@ -184,6 +184,7 @@ function RuleFieldCard(props: {
 }
 
 export default function WritingFormulaEditorPanel(props: WritingFormulaEditorPanelProps) {
+  const { t } = useTranslation();
   const {
     selectedProfile,
     editor,

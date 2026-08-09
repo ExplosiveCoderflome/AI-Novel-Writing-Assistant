@@ -1,5 +1,5 @@
+import { useTranslation } from "react-i18next";
 import i18next from "i18next";
-const t = (key: string, options?: any) => i18next.t(key, options) as string;
 import type { ReactNode } from "react";
 import { Group, Panel, Separator } from "react-resizable-panels";
 import { LockKeyhole, Maximize2, Minimize2, ShieldCheck } from "lucide-react";
@@ -38,6 +38,7 @@ interface PromptEditorShellProps {
 }
 
 export function PromptEditorShell(props: PromptEditorShellProps) {
+  const { t } = useTranslation();
   const {
     bodyPanel,
     contextPanel,

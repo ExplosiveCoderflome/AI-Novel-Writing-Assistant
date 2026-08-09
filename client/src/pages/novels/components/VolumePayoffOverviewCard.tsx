@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import type { VolumePlan } from "@ai-novel/shared/types/novel";
@@ -24,6 +25,7 @@ function isLikelySamePayoff(left: string, right: string): boolean {
 }
 
 export default function VolumePayoffOverviewCard(props: VolumePayoffOverviewCardProps) {
+  const { t } = useTranslation();
   const { selectedVolume } = props;
   const chapterPayoffGroups = selectedVolume.chapters
     .map((chapter) => ({

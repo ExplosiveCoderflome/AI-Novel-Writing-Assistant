@@ -1,5 +1,5 @@
+import { useTranslation } from "react-i18next";
 import i18next from "i18next";
-const t = (key: string, options?: any) => i18next.t(key, options) as string;
 import { useMemo } from "react";
 import type { AntiAiRule } from "@ai-novel/shared/types/styleEngine";
 import { ShieldCheck } from "lucide-react";
@@ -13,6 +13,7 @@ interface WritingFormulaRulesPanelProps {
 }
 
 export default function WritingFormulaRulesPanel(props: WritingFormulaRulesPanelProps) {
+  const { t } = useTranslation();
   const { antiAiRules } = props;
 
   const enabledCount = useMemo(

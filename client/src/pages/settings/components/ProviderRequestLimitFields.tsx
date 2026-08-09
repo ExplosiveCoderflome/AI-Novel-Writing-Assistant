@@ -1,5 +1,5 @@
+import { useTranslation } from "react-i18next";
 import i18next from "i18next";
-const t = (key: string, options?: any) => i18next.t(key, options) as string;
 import { Input } from "@/components/ui/input";
 
 interface ProviderRequestLimitFieldsProps {
@@ -16,6 +16,7 @@ export default function ProviderRequestLimitFields({
   requestIntervalMs,
   onChange,
 }: ProviderRequestLimitFieldsProps) {
+  const { t } = useTranslation();
   return (
     <div className="grid gap-3 rounded-md border bg-muted/20 p-3 sm:grid-cols-2">
       <div className="space-y-1">

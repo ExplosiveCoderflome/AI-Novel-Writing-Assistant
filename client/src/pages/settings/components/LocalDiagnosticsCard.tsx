@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import { useQuery } from "@tanstack/react-query";
 import { Cpu, Server, ShieldCheck, AlertTriangle, RefreshCw, Layers } from "lucide-react";
 import { getSystemDiagnostics, type DiagnosticResult } from "@/api/settings";
@@ -6,6 +7,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge";
 
 export default function LocalDiagnosticsCard() {
+  const { t } = useTranslation();
   const { data, isLoading, isRefetching, refetch, error } = useQuery({
     queryKey: ["settings", "diagnostics"],
     queryFn: getSystemDiagnostics,

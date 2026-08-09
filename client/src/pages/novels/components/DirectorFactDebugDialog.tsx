@@ -1,5 +1,5 @@
+import { useTranslation } from "react-i18next";
 import i18next from "i18next";
-const t = (key: string, options?: any) => i18next.t(key, options) as string;
 import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { AlertTriangle, Bug, CheckCircle2, Loader2, RefreshCw } from "lucide-react";
@@ -192,6 +192,7 @@ export default function DirectorFactDebugDialog(input: {
   taskId?: string | null;
   disabled?: boolean;
 }) {
+  const { t } = useTranslation();
   const { novelId, disabled = false } = input;
   const [open, setOpen] = useState(false);
   const query = useQuery({

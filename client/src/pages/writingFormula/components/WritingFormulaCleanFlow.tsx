@@ -1,5 +1,5 @@
+import { useTranslation } from "react-i18next";
 import i18next from "i18next";
-const t = (key: string, options?: any) => i18next.t(key, options) as string;
 import type { StyleDetectionReport, StyleProfile } from "@ai-novel/shared/types/styleEngine";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -25,6 +25,7 @@ interface WritingFormulaCleanFlowProps {
 }
 
 export default function WritingFormulaCleanFlow(props: WritingFormulaCleanFlowProps) {
+  const { t } = useTranslation();
   const {
     profiles,
     selectedProfileId,

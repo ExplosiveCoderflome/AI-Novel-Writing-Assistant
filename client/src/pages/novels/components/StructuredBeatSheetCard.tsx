@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import type { ReactNode } from "react";
 import AiButton from "@/components/common/AiButton";
 import { Badge } from "@/components/ui/badge";
@@ -35,6 +36,7 @@ function renderMetric(label: string, value: string) {
 }
 
 export default function StructuredBeatSheetCard(props: StructuredBeatSheetCardProps) {
+  const { t } = useTranslation();
   const {
     selectedVolume,
     selectedVolumeChapters,

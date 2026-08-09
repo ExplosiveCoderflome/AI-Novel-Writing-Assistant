@@ -1,5 +1,5 @@
+import { useTranslation } from "react-i18next";
 import i18next from "i18next";
-const t = (key: string, options?: any) => i18next.t(key, options) as string;
 import type { SSEFrame } from "@ai-novel/shared/types/api";
 import type { ChapterRuntimePackage } from "@ai-novel/shared/types/chapterRuntime";
 import type { AuditReport, Chapter, StoryStateSnapshot } from "@ai-novel/shared/types/novel";
@@ -172,6 +172,7 @@ function resolvePrimaryAction(params: {
 }
 
 export default function ChapterExecutionActionPanel(props: ChapterExecutionActionPanelProps) {
+  const { t } = useTranslation();
   const {
     novelId,
     selectedChapter,

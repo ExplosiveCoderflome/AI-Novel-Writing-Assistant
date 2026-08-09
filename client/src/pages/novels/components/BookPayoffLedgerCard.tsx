@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
@@ -91,6 +92,7 @@ function sourceSummary(item: PayoffLedgerItem): string {
 }
 
 export default function BookPayoffLedgerCard(props: BookPayoffLedgerCardProps) {
+  const { t } = useTranslation();
   const { latestStateSnapshot, payoffLedger } = props;
   const ledgerItems = payoffLedger?.items ?? [];
   const ledgerSummary = payoffLedger?.summary;

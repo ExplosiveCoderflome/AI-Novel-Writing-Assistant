@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import { useEffect, useMemo, useState } from "react";
 import { UnlockKeyhole } from "lucide-react";
 import AiButton from "@/components/common/AiButton";
@@ -61,6 +62,7 @@ interface StructuredChapterDetailCardProps {
 }
 
 export default function StructuredChapterDetailCard(props: StructuredChapterDetailCardProps) {
+  const { t } = useTranslation();
   const {
     selectedVolume,
     selectedChapter,

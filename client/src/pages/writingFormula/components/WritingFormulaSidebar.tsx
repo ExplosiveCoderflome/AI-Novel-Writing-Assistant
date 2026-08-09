@@ -1,5 +1,5 @@
+import { useTranslation } from "react-i18next";
 import i18next from "i18next";
-const t = (key: string, options?: any) => i18next.t(key, options) as string;
 import { useMemo, useState } from "react";
 import type { AntiAiRule, StyleProfile, StyleTemplate } from "@ai-novel/shared/types/styleEngine";
 import { Badge } from "@/components/ui/badge";
@@ -46,6 +46,7 @@ interface WritingFormulaSidebarProps {
 }
 
 export default function WritingFormulaSidebar(props: WritingFormulaSidebarProps) {
+  const { t } = useTranslation();
   const {
     createForm,
     onCreateFormChange,

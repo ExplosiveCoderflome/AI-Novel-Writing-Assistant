@@ -1,5 +1,5 @@
+import { useTranslation } from "react-i18next";
 import i18next from "i18next";
-const t = (key: string, options?: any) => i18next.t(key, options) as string;
 import { useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -20,6 +20,7 @@ import {
 import DirectorTakeoverEntryPanel from "./DirectorTakeoverEntryPanel";
 
 export default function ChapterManagementTab(props: ChapterTabViewProps) {
+  const { t } = useTranslation();
   const {
     novelId,
     worldInjectionSummary,

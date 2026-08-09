@@ -1,5 +1,5 @@
+import { useTranslation } from "react-i18next";
 import i18next from "i18next";
-const t = (key: string, options?: any) => i18next.t(key, options) as string;
 import type { LLMProvider } from "@ai-novel/shared/types/llm";
 import type { APIKeyStatus, ProviderBalanceStatus } from "@/api/settings";
 import { Button } from "@/components/ui/button";

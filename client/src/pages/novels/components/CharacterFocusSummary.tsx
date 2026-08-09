@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import type { Character } from "@ai-novel/shared/types/novel";
 import type { ReactNode } from "react";
 import { Activity, BookOpen, Crown, Target } from "lucide-react";
@@ -10,6 +11,7 @@ interface CharacterFocusSummaryProps {
 }
 
 export default function CharacterFocusSummary(props: CharacterFocusSummaryProps) {
+  const { t } = useTranslation();
   const { selectedCharacter, lastAppearanceChapter } = props;
   const isProtagonist = isProtagonistCharacter(selectedCharacter);
   const primaryLine = isProtagonist

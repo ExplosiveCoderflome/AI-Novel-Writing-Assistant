@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import { useEffect, useState } from "react";
 import { BellRing } from "lucide-react";
 import { Button } from "@/components/ui/button";

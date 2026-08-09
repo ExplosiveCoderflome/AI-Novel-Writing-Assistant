@@ -1,5 +1,5 @@
+import { useTranslation } from "react-i18next";
 import i18next from "i18next";
-const t = (key: string, options?: any) => i18next.t(key, options) as string;
 import WorkflowProgressBar, { normalizeProgressPercent } from "@/components/workflow/WorkflowProgressBar";
 import { cn } from "@/lib/utils";
 
@@ -10,6 +10,7 @@ interface NovelWorkflowRunningIndicatorProps {
 }
 
 export default function NovelWorkflowRunningIndicator(props: NovelWorkflowRunningIndicatorProps) {
+  const { t } = useTranslation();
   const {
     progress,
     className,

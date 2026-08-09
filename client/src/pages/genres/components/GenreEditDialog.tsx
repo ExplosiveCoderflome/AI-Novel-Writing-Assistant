@@ -1,5 +1,5 @@
+import { useTranslation } from "react-i18next";
 import i18next from "i18next";
-const t = (key: string, options?: any) => i18next.t(key, options) as string;
 import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { updateGenre, type GenreOption, type GenreTreeNode } from "@/api/genre";
@@ -28,6 +28,7 @@ export default function GenreEditDialog({
   parentOptions,
   blockedParentIds,
 }: GenreEditDialogProps) {
+  const { t } = useTranslation();
   const queryClient = useQueryClient();
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");

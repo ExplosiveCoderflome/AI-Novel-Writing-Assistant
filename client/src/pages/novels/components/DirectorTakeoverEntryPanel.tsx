@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import type { ReactNode } from "react";
 
 interface DirectorTakeoverEntryPanelProps {
@@ -11,6 +12,7 @@ export default function DirectorTakeoverEntryPanel({
   description,
   entry,
 }: DirectorTakeoverEntryPanelProps) {
+  const { t } = useTranslation();
   if (!entry) {
     return null;
   }

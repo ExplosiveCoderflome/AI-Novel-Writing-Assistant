@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import { useState } from "react";
 import { ChevronDown } from "lucide-react";
 import type { LLMProvider } from "@ai-novel/shared/types/llm";

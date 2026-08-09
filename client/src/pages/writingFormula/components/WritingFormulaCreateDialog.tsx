@@ -1,5 +1,5 @@
+import { useTranslation } from "react-i18next";
 import i18next from "i18next";
-const t = (key: string, options?: any) => i18next.t(key, options) as string;
 import { useEffect, useState } from "react";
 import type { BookAnalysis } from "@ai-novel/shared/types/bookAnalysis";
 import type { KnowledgeDocumentDetail, KnowledgeDocumentSummary } from "@ai-novel/shared/types/knowledge";
@@ -145,6 +145,7 @@ interface WritingFormulaCreateDialogProps {
 }
 
 export default function WritingFormulaCreateDialog(props: WritingFormulaCreateDialogProps) {
+  const { t } = useTranslation();
   const {
     open,
     onOpenChange,

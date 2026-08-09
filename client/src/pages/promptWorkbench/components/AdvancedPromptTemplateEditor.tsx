@@ -1,5 +1,5 @@
+import { useTranslation } from "react-i18next";
 import i18next from "i18next";
-const t = (key: string, options?: any) => i18next.t(key, options) as string;
 import { useMemo, useState } from "react";
 import { GitBranch, History, RotateCcw, Save, ShieldCheck } from "lucide-react";
 import type {
@@ -81,6 +81,7 @@ export function AdvancedPromptTemplateEditor(props: {
   testRunError?: string | null;
   disabled?: boolean;
 }) {
+  const { t } = useTranslation();
   const {
     disabled,
     preview,

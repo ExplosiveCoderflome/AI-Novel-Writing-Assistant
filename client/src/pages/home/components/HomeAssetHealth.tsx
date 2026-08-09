@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import { Boxes, Globe2, ScrollText, Users } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
@@ -7,6 +8,7 @@ import { toneTextClass } from "./homeTone";
 const iconById: Record<string, typeof Boxes> = { world: Globe2, characters: Users, chapters: ScrollText, readiness: Boxes };
 
 export function HomeAssetHealth(props: { items: HomeAssetHealthItem[]; showStarterActions?: boolean }) {
+  const { t } = useTranslation();
   return (
     <Card className="home-asset-health border-border/80 shadow-none">
       <CardHeader className="pb-3"><CardTitle className="text-base tracking-normal">创作资产概览</CardTitle></CardHeader>

@@ -1,5 +1,5 @@
+import { useTranslation } from "react-i18next";
 import i18next from "i18next";
-const t = (key: string, options?: any) => i18next.t(key, options) as string;
 interface StatTileProps {
   label: string;
   value: number;
@@ -24,6 +24,7 @@ interface AntiAiRuleStatsProps {
 }
 
 export default function AntiAiRuleStats(props: AntiAiRuleStatsProps) {
+  const { t } = useTranslation();
   return (
     <div className="grid gap-3 md:grid-cols-4">
       <StatTile label={t("gen.pages.antiAiRules.components.AntiAiRuleStats.gen_17cea87d")} value={props.total} hint={t("gen.pages.antiAiRules.components.AntiAiRuleStats.gen_01aa8262")} />

@@ -1,5 +1,5 @@
+import { useTranslation } from "react-i18next";
 import i18next from "i18next";
-const t = (key: string, options?: any) => i18next.t(key, options) as string;
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import type { GenreTreeDraft } from "@/api/genre";
@@ -28,6 +28,7 @@ export default function GenreTreeEditor({
   depth = 0,
   maxDepth = 2,
 }: GenreTreeEditorProps) {
+  const { t } = useTranslation();
   const canAddChild = depth < maxDepth;
 
   const updateChild = (index: number, nextChild: GenreTreeDraft) => {

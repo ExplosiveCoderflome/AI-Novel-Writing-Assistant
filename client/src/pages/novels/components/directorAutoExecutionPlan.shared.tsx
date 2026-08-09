@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import type {
   DirectorAutoExecutionMode,
   DirectorAutoExecutionPlan,
@@ -238,6 +239,7 @@ export function DirectorAutoExecutionPlanFields({
   usage = "new_book",
   maxChapterCount,
 }: DirectorAutoExecutionPlanFieldsProps) {
+  const { t } = useTranslation();
   const plan = buildDirectorAutoExecutionPlanFromDraft(draft, { usage, maxChapterCount });
   const scopeLabel = buildDirectorAutoExecutionPlanLabel(plan);
   const scopeOptions = usage === "takeover" ? TAKEOVER_SCOPE_OPTIONS : NEW_BOOK_SCOPE_OPTIONS;

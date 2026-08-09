@@ -1,5 +1,5 @@
+import { useTranslation } from "react-i18next";
 import i18next from "i18next";
-const t = (key: string, options?: any) => i18next.t(key, options) as string;
 import type { TitleFactorySuggestion } from "@ai-novel/shared/types/title";
 import { BookmarkPlus, Check, Copy } from "lucide-react";
 import { Button } from "@/components/ui/button";

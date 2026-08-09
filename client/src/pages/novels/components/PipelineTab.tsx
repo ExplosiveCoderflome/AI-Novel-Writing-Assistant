@@ -1,5 +1,5 @@
+import { useTranslation } from "react-i18next";
 import i18next from "i18next";
-const t = (key: string, options?: any) => i18next.t(key, options) as string;
 import type { ReactNode } from "react";
 import type { Chapter, NovelBible, PipelineJob, PlotBeat, QualityScore, ReviewIssue } from "@ai-novel/shared/types/novel";
 import AiButton from "@/components/common/AiButton";
@@ -102,6 +102,7 @@ function stageStatusLabel(state: "pending" | "active" | "completed" | "failed"):
 }
 
 export default function PipelineTab(props: PipelineTabProps) {
+  const { t } = useTranslation();
   const {
     worldInjectionSummary,
     hasCharacters,

@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import type { Descendant, Value } from "platejs";
 import { ParagraphPlugin, Plate, PlateContent, usePlateEditor } from "platejs/react";

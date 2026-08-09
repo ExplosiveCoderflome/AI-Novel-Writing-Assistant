@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import type { Chapter } from "@ai-novel/shared/types/novel";
 import { Trash2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
@@ -30,6 +31,7 @@ interface ChapterExecutionQueueCardProps {
 }
 
 export default function ChapterExecutionQueueCard(props: ChapterExecutionQueueCardProps) {
+  const { t } = useTranslation();
   const {
     chapters,
     selectedChapterId,

@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import { Link } from "react-router-dom";
 import { ArrowRight, CheckCircle2, CircleAlert, CircleDashed, Loader2 } from "lucide-react";
 import type {
@@ -117,6 +118,7 @@ export function buildSettingsReadinessItems(input: {
 export default function SettingsReadinessCard(props: {
   items: SettingsReadinessItem[];
 }) {
+  const { t } = useTranslation();
   const { items } = props;
   const modelItem = items.find((item) => item.key === "model");
   const routesItem = items.find((item) => item.key === "routes");

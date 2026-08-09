@@ -1,5 +1,5 @@
+import { useTranslation } from "react-i18next";
 import i18next from "i18next";
-const t = (key: string, options?: any) => i18next.t(key, options) as string;
 import type { AntiAiEffectiveRuleItem } from "@ai-novel/shared/types/styleEngine";
 import { Badge } from "@/components/ui/badge";
 import { severityLabels, typeLabels } from "../antiAiRulesPage.shared";
@@ -11,6 +11,7 @@ interface EffectiveRuleListProps {
 }
 
 export default function EffectiveRuleList(props: EffectiveRuleListProps) {
+  const { t } = useTranslation();
   return (
     <div className="space-y-2">
       <div className="text-sm font-medium text-foreground">{props.title}</div>

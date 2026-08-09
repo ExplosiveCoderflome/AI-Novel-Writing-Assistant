@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import { Check, Circle, Sparkles } from "lucide-react";
 import { cn } from "@/lib/utils";
 import OnboardingTip from "@/components/onboarding/OnboardingTip";
@@ -47,6 +48,7 @@ export default function NovelDirectorPreparationJourney({
   steps,
   statuses,
 }: NovelDirectorPreparationJourneyProps) {
+  const { t } = useTranslation();
   return (
     <div className="space-y-4">
       <OnboardingTip

@@ -1,5 +1,5 @@
+import { useTranslation } from "react-i18next";
 import i18next from "i18next";
-const t = (key: string, options?: any) => i18next.t(key, options) as string;
 import { useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Loader2, RotateCcw, FileImage } from "lucide-react";
@@ -44,6 +44,7 @@ import {
 import { StepHero } from "./workspaceShell";
 
 export default function NovelEditView(props: NovelEditViewProps) {
+  const { t } = useTranslation();
   const isMobileViewport = useIsMobileViewport();
 
   if (isMobileViewport) {

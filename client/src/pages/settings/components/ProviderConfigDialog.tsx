@@ -1,5 +1,5 @@
+import { useTranslation } from "react-i18next";
 import i18next from "i18next";
-const t = (key: string, options?: any) => i18next.t(key, options) as string;
 import type { Dispatch, SetStateAction } from "react";
 import type { APIKeyStatus } from "@/api/settings";
 import SearchableSelect from "@/components/common/SearchableSelect";
@@ -65,6 +65,7 @@ export default function ProviderConfigDialog({
   deleteDisabled,
   deleteLabel,
 }: ProviderConfigDialogProps) {
+  const { t } = useTranslation();
   const primaryModelLabel = isCreatingCustomProvider ? t("gen.pages.settings.components.ProviderConfigDialog.gen_4a007d89") : isCustomDialog ? t("gen.pages.settings.components.ProviderConfigDialog.gen_b11de232") : t("gen.pages.settings.components.ProviderConfigDialog.gen_920fe38e");
   const canSelectListedModels = selectableModels.length > 0;
   const imageModelOptions = editingConfig?.imageModels ?? [];

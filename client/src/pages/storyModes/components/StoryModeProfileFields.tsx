@@ -1,5 +1,5 @@
+import { useTranslation } from "react-i18next";
 import i18next from "i18next";
-const t = (key: string, options?: any) => i18next.t(key, options) as string;
 import type { StoryModeProfile } from "@ai-novel/shared/types/storyMode";
 import SelectControl from "@/components/common/SelectControl";
 
@@ -23,6 +23,7 @@ export default function StoryModeProfileFields({
   value,
   onChange,
 }: StoryModeProfileFieldsProps) {
+  const { t } = useTranslation();
   const updateList = (field: keyof Pick<
     StoryModeProfile,
     "progressionUnits" | "allowedConflictForms" | "forbiddenConflictForms" | "mandatorySignals" | "antiSignals"

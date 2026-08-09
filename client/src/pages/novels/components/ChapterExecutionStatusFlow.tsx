@@ -1,5 +1,5 @@
+import { useTranslation } from "react-i18next";
 import i18next from "i18next";
-const t = (key: string, options?: any) => i18next.t(key, options) as string;
 import { cn } from "@/lib/utils";
 import type {
   ChapterExecutionFlowStage,
@@ -34,6 +34,7 @@ function dotClassName(status: ChapterExecutionFlowStageStatus, isCurrent: boolea
 }
 
 export default function ChapterExecutionStatusFlow(props: ChapterExecutionStatusFlowProps) {
+  const { t } = useTranslation();
   const { stages, currentStageKey, currentStageNote } = props;
 
   return (

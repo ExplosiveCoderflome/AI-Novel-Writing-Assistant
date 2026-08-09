@@ -1,5 +1,5 @@
+import { useTranslation } from "react-i18next";
 import i18next from "i18next";
-const t = (key: string, options?: any) => i18next.t(key, options) as string;
 import type { APIKeyStatus } from "@/api/settings";
 import SearchableSelect from "@/components/common/SearchableSelect";
 import { Input } from "@/components/ui/input";
@@ -40,6 +40,7 @@ export default function ModelRouteFields({
   manualModelPlaceholder,
   showProtocolFields = true,
 }: ModelRouteFieldsProps) {
+  const { t } = useTranslation();
   const modelOptions = getModelOptions(providerConfigs, draft.provider, draft.model);
 
   return (

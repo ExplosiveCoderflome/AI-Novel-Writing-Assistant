@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import type { BasicTabProps } from "./NovelEditView.types";
 import NovelBasicInfoForm from "./NovelBasicInfoForm";
 import NovelStyleRecommendationCard from "./NovelStyleRecommendationCard";
@@ -8,6 +9,7 @@ import { NovelCoverCard } from "./cover/NovelCoverCard";
 import { DetailDisclosure, SectionBlock } from "./workspaceShell";
 
 export default function BasicInfoTab(props: BasicTabProps) {
+  const { t } = useTranslation();
   return (
     <div className="space-y-5">
       <DirectorTakeoverEntryPanel

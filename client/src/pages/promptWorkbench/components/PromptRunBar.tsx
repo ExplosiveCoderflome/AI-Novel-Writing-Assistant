@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import { useState } from "react";
 import { Eye, FlaskConical, RotateCcw, Save, ShieldCheck } from "lucide-react";
 import type { PromptCatalogItem } from "@/api/promptWorkbench";
@@ -33,6 +34,7 @@ interface PromptRunBarProps {
 }
 
 export function PromptRunBar(props: PromptRunBarProps) {
+  const { t } = useTranslation();
   const {
     dirtyCount,
     estimatedTokens,

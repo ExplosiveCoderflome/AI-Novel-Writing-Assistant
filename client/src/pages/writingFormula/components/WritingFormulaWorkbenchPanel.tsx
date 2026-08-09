@@ -1,5 +1,5 @@
+import { useTranslation } from "react-i18next";
 import i18next from "i18next";
-const t = (key: string, options?: any) => i18next.t(key, options) as string;
 import type { StyleBinding } from "@ai-novel/shared/types/styleEngine";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -39,6 +39,7 @@ interface WritingFormulaWorkbenchPanelProps {
 }
 
 export default function WritingFormulaWorkbenchPanel(props: WritingFormulaWorkbenchPanelProps) {
+  const { t } = useTranslation();
   const {
     selectedProfileId,
     bindingForm,

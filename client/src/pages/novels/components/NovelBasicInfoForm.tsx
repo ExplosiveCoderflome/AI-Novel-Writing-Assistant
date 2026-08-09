@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import type { ReactNode } from "react";
 import type { BookAnalysisSectionKey } from "@ai-novel/shared/types/bookAnalysis";
 import { Button } from "@/components/ui/button";
@@ -78,6 +79,7 @@ interface NovelBasicInfoFormProps {
 }
 
 export default function NovelBasicInfoForm(props: NovelBasicInfoFormProps) {
+  const { t } = useTranslation();
   const {
     basicForm,
     genreOptions,

@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import type { AntiAiRule, StyleDetectionReport } from "@ai-novel/shared/types/styleEngine";
 import { FlaskConical, X } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
@@ -21,6 +22,7 @@ interface AntiAiRuleEffectTestCardProps {
 }
 
 export default function AntiAiRuleEffectTestCard(props: AntiAiRuleEffectTestCardProps) {
+  const { t } = useTranslation();
   const totalRuleCount = props.effectiveRuleCount + props.previewRules.length;
 
   return (

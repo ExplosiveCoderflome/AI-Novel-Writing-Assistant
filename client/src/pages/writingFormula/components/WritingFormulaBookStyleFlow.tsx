@@ -1,5 +1,5 @@
+import { useTranslation } from "react-i18next";
 import i18next from "i18next";
-const t = (key: string, options?: any) => i18next.t(key, options) as string;
 ﻿import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -12,6 +12,7 @@ interface WritingFormulaBookStyleFlowProps {
 }
 
 export default function WritingFormulaBookStyleFlow(props: WritingFormulaBookStyleFlowProps) {
+  const { t } = useTranslation();
   const {
     novelId,
     novelTitle,

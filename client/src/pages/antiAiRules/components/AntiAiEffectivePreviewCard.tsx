@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import type { AntiAiEffectiveRulesResult, StyleProfile } from "@ai-novel/shared/types/styleEngine";
 import { SlidersHorizontal } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -13,6 +14,7 @@ interface AntiAiEffectivePreviewCardProps {
 }
 
 export default function AntiAiEffectivePreviewCard(props: AntiAiEffectivePreviewCardProps) {
+  const { t } = useTranslation();
   return (
     <Card>
       <CardHeader>

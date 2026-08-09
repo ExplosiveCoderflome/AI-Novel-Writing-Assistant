@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import { useState } from "react";
 import { useMutation } from "@tanstack/react-query";
 import type { NovelCreateResourceRecommendation } from "@ai-novel/shared/types/novelResourceRecommendation";
@@ -67,6 +68,7 @@ function matchesRecommendation(
 export default function NovelCreateResourceRecommendationCard(
   props: NovelCreateResourceRecommendationCardProps,
 ) {
+  const { t } = useTranslation();
   const { basicForm, onApplySuggestion, contextHint = "" } = props;
   const llm = useLLMStore();
   const [recommendation, setRecommendation] = useState<NovelCreateResourceRecommendation | null>(null);

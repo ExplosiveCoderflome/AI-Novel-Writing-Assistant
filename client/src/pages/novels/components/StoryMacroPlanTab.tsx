@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import type { StoryConflictLayers } from "@ai-novel/shared/types/storyMacro";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -20,6 +21,7 @@ const EMPTY_CONFLICT_LAYERS: StoryConflictLayers = {
 };
 
 export default function StoryMacroPlanTab(props: StoryMacroTabProps) {
+  const { t } = useTranslation();
   const expansion = props.expansion ?? {
     expanded_premise: "",
     protagonist_core: "",

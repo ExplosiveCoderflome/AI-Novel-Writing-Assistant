@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import type { StoryMacroField } from "@ai-novel/shared/types/storyMacro";
 import AiButton from "@/components/common/AiButton";
 import { Button } from "@/components/ui/button";
@@ -35,6 +36,7 @@ export function listToText(value: string[]): string {
 }
 
 export function textareaClassName(minHeight = "min-h-28") {
+  const { t } = useTranslation();
   return `${minHeight} w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm outline-none ring-offset-background placeholder:text-muted-foreground focus-visible:ring-2 focus-visible:ring-ring`;
 }
 

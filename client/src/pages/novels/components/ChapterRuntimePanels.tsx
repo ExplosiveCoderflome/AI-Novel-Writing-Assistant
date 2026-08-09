@@ -1,5 +1,5 @@
+import { useTranslation } from "react-i18next";
 import i18next from "i18next";
-const t = (key: string, options?: any) => i18next.t(key, options) as string;
 import type { ChapterRuntimePackage } from "@ai-novel/shared/types/chapterRuntime";
 import type { AuditReport, ReplanRecommendation, ReplanResult, StoryPlan, StoryStateSnapshot } from "@ai-novel/shared/types/novel";
 import { Badge } from "@/components/ui/badge";
@@ -144,6 +144,7 @@ function SeverityBadge({ severity }: { severity: string }) {
 export function ChapterRuntimeLengthCard(props: {
   runtimePackage: ChapterRuntimePackage | null;
 }) {
+  const { t } = useTranslation();
   const lengthControl = props.runtimePackage?.lengthControl ?? null;
 
   return (

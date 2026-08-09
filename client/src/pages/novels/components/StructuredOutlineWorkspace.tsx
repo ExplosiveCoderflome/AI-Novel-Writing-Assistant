@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import { useEffect, useState } from "react";
 import AiButton from "@/components/common/AiButton";
 import TensionCurvePanel, { type TensionCurveSeries, type TensionCurveViewportOption } from "@/components/tensionCurve/TensionCurvePanel";
@@ -62,6 +63,7 @@ function chapterMatchesSelection(chapter: StructuredChapter, selectedId: string)
 }
 
 export default function StructuredOutlineWorkspace(props: StructuredTabViewProps) {
+  const { t } = useTranslation();
   const {
     novelId,
     directorTakeoverEntry,

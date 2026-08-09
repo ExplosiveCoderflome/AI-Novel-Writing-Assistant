@@ -1,5 +1,5 @@
+import { useTranslation } from "react-i18next";
 import i18next from "i18next";
-const t = (key: string, options?: any) => i18next.t(key, options) as string;
 import { useEffect, useMemo, useState } from "react";
 import type { Chapter, ChapterStatus } from "@ai-novel/shared/types/novel";
 import { useQuery } from "@tanstack/react-query";
@@ -81,6 +81,7 @@ async function writeTextToClipboard(text: string): Promise<void> {
 }
 
 export default function NovelPreview() {
+  const { t } = useTranslation();
   const { id = "" } = useParams();
   const [searchParams, setSearchParams] = useSearchParams();
   const [copiedChapterId, setCopiedChapterId] = useState<string | null>(null);

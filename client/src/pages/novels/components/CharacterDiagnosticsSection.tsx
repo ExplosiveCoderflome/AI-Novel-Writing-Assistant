@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import { useEffect, useState } from "react";
 import type { Character } from "@ai-novel/shared/types/novel";
 import type { LLMProvider } from "@ai-novel/shared/types/llm";
@@ -15,6 +16,7 @@ interface CharacterDiagnosticsSectionProps {
 }
 
 export default function CharacterDiagnosticsSection(props: CharacterDiagnosticsSectionProps) {
+  const { t } = useTranslation();
   const {
     novelId,
     characters,

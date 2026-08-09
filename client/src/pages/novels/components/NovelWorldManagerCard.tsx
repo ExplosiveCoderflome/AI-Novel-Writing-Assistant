@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import { useMemo, useState } from "react";
 import { ArrowRight, BookOpen, Map, Network, Workflow } from "lucide-react";
 import type {
@@ -148,6 +149,7 @@ function GenerationChain() {
 }
 
 export default function NovelWorldManagerCard(props: NovelWorldManagerCardProps) {
+  const { t } = useTranslation();
   const [selectedSyncSections, setSelectedSyncSections] = useState<NovelWorldSyncInput["sections"]>([]);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [dialogTab, setDialogTab] = useState<NovelWorldDialogTab>("overview");

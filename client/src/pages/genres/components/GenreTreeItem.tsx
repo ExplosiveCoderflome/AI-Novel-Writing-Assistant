@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import { useState } from "react";
 import { ChevronDown, ChevronRight, Pencil, Plus, Trash2 } from "lucide-react";
 import type { GenreTreeNode } from "@/api/genre";
@@ -21,6 +22,7 @@ export default function GenreTreeItem({
   onDelete,
   deletingId,
 }: GenreTreeItemProps) {
+  const { t } = useTranslation();
   const [expanded, setExpanded] = useState(true);
   const hasChildren = node.children.length > 0;
   const boundNovelCount = countGenreNovelBindingsInSubtree(node);

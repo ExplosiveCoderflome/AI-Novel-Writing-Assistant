@@ -1,6 +1,6 @@
 import { useTranslation } from "react-i18next";
+import { useTranslation } from "react-i18next";
 import i18next from "i18next";
-const t = (key: string, options?: any) => i18next.t(key, options) as string;
 import { Link } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { BookOpen, Castle, Compass, GitBranch, MapPin, Pencil, Sparkles, Trash2 } from "lucide-react";

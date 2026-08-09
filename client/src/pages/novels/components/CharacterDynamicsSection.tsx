@@ -1,5 +1,5 @@
+import { useTranslation } from "react-i18next";
 import i18next from "i18next";
-const t = (key: string, options?: any) => i18next.t(key, options) as string;
 import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type { Character } from "@ai-novel/shared/types/novel";
@@ -41,6 +41,7 @@ function riskTone(risk: "none" | "info" | "warn" | "high"): string {
 }
 
 export default function CharacterDynamicsSection(props: CharacterDynamicsSectionProps) {
+  const { t } = useTranslation();
   const { novelId, selectedCharacter, selectedCharacterId, onSelectedCharacterChange } = props;
   const queryClient = useQueryClient();
   const [activeView, setActiveView] = useState<DynamicsView>("overview");

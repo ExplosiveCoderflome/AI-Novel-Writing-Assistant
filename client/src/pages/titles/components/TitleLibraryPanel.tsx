@@ -1,5 +1,5 @@
+import { useTranslation } from "react-i18next";
 import i18next from "i18next";
-const t = (key: string, options?: any) => i18next.t(key, options) as string;
 import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Check, Copy, Trash2 } from "lucide-react";
@@ -19,6 +19,7 @@ const controlClassName = "h-11 rounded-lg border-0 bg-muted/35 ring-1 ring-trans
 const selectClassName = "w-full rounded-lg border-0 bg-muted/35 px-3 py-2.5 text-sm outline-none ring-1 ring-transparent transition hover:bg-muted/50 focus:bg-background focus:ring-2 focus:ring-primary/25";
 
 export default function TitleLibraryPanel({ genreOptions }: TitleLibraryPanelProps) {
+  const { t } = useTranslation();
   const queryClient = useQueryClient();
   const [search, setSearch] = useState("");
   const [genreId, setGenreId] = useState("");

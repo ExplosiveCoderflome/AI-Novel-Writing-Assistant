@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import { useEffect, useMemo, useState } from "react";
 import { Castle, MapPinned, ShieldAlert, SlidersHorizontal } from "lucide-react";
 import type { StoryWorldSliceOverrides, StoryWorldSliceView } from "@ai-novel/shared/types/storyWorldSlice";
@@ -248,6 +249,7 @@ export function NovelWorldUsageSummary(props: NovelWorldUsageCardProps & {
 export function NovelWorldUsageDetails(props: NovelWorldUsageCardProps & {
   draft: NovelWorldUsageDraftState;
 }) {
+  const { t } = useTranslation();
   const slice = props.view?.slice ?? null;
   const hasWorld = props.view?.hasWorld ?? false;
   const hasSlice = Boolean(slice);

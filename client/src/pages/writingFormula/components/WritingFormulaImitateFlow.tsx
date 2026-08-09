@@ -1,5 +1,5 @@
+import { useTranslation } from "react-i18next";
 import i18next from "i18next";
-const t = (key: string, options?: any) => i18next.t(key, options) as string;
 import type { StyleExtractionDraft } from "@ai-novel/shared/types/styleEngine";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -22,6 +22,7 @@ interface WritingFormulaImitateFlowProps {
 }
 
 export default function WritingFormulaImitateFlow(props: WritingFormulaImitateFlowProps) {
+  const { t } = useTranslation();
   const {
     form,
     draft,

@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import { useState } from "react";
 import { ChevronDown, ChevronRight, Pencil, Plus, Trash2 } from "lucide-react";
 import type { StoryModeTreeNode } from "@/api/storyMode";
@@ -28,6 +29,7 @@ export default function StoryModeTreeCard({
   onDelete,
   deletingId,
 }: StoryModeTreeCardProps) {
+  const { t } = useTranslation();
   const [expanded, setExpanded] = useState(true);
   const hasChildren = node.children.length > 0;
   const boundNovelCount = countNovelBindingsInSubtree(node);

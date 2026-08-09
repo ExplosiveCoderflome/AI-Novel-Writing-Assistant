@@ -1,5 +1,5 @@
+import { useTranslation } from "react-i18next";
 import i18next from "i18next";
-const t = (key: string, options?: any) => i18next.t(key, options) as string;
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createNovelSnapshot, listNovelSnapshots, restoreNovelSnapshot } from "@/api/novel";
 import { queryKeys } from "@/api/queryKeys";
@@ -24,6 +24,7 @@ function formatSnapshotTrigger(triggerType: string): string {
 }
 
 export default function VersionHistoryTab({ novelId }: VersionHistoryTabProps) {
+  const { t } = useTranslation();
   const queryClient = useQueryClient();
   const snapshotsQuery = useQuery({
     queryKey: queryKeys.novels.snapshots(novelId),

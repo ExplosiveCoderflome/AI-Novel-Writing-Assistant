@@ -1,5 +1,5 @@
+import { useTranslation } from "react-i18next";
 import i18next from "i18next";
-const t = (key: string, options?: any) => i18next.t(key, options) as string;
 ﻿import type {
   NovelWorkflowMilestone,
   NovelWorkflowMilestoneType,
@@ -281,6 +281,7 @@ export default function NovelTaskDrawer({
   capabilities,
   onOpenFullTaskCenter,
 }: NovelTaskDrawerState) {
+  const { t } = useTranslation();
   const milestones = Array.isArray(task?.meta.milestones)
     ? task.meta.milestones as NovelWorkflowMilestone[]
     : [];

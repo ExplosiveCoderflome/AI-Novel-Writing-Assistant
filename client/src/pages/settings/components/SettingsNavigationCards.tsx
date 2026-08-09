@@ -1,5 +1,5 @@
+import { useTranslation } from "react-i18next";
 import i18next from "i18next";
-const t = (key: string, options?: any) => i18next.t(key, options) as string;
 import { useMemo } from "react";
 import { Link } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
@@ -13,6 +13,7 @@ import { AUTO_DIRECTOR_MOBILE_CLASSES } from "@/mobile/autoDirector";
 export default function SettingsNavigationCards(props: {
   mode?: "all" | "routes" | "knowledge";
 }) {
+  const { t } = useTranslation();
   const { mode = "all" } = props;
   const ragSettingsQuery = useQuery({
     queryKey: queryKeys.settings.rag,

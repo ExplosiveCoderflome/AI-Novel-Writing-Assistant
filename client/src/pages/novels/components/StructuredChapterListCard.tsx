@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import AiButton from "@/components/common/AiButton";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -72,6 +73,7 @@ function chapterHasDraftContent(chapter: StructuredChapter, draftedChapterIds: S
 }
 
 export default function StructuredChapterListCard(props: StructuredChapterListCardProps) {
+  const { t } = useTranslation();
   const {
     selectedVolume,
     selectedBeat,

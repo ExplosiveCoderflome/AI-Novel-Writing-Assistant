@@ -1,5 +1,5 @@
+import { useTranslation } from "react-i18next";
 import i18next from "i18next";
-const t = (key: string, options?: any) => i18next.t(key, options) as string;
 import type { TitleFactorySuggestion } from "@ai-novel/shared/types/title";
 import { motion, useReducedMotion } from "framer-motion";
 import { ArrowRight, Check, ChevronDown, RefreshCw, Wand2 } from "lucide-react";
@@ -75,6 +75,7 @@ function formatToneKeywords(candidate: DirectorCandidate): string {
 }
 
 export default function NovelAutoDirectorCandidateBatches(props: NovelAutoDirectorCandidateBatchesProps) {
+  const { t } = useTranslation();
   const {
     batches,
     selectedPresets,

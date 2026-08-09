@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import { useMemo } from "react";
 import type { LucideIcon } from "lucide-react";
 import { Activity, Brain, Clock3, Eye, Network, Package, ScrollText, UserRound } from "lucide-react";
@@ -30,6 +31,7 @@ const WORKSPACE_TABS: Array<{ value: string; label: string; icon: LucideIcon }> 
 ];
 
 export default function CharacterAssetWorkspace(props: CharacterAssetWorkspaceProps) {
+  const { t } = useTranslation();
   const {
     novelId,
     llmProvider,

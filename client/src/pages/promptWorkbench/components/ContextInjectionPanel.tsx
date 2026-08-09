@@ -1,5 +1,5 @@
+import { useTranslation } from "react-i18next";
 import i18next from "i18next";
-const t = (key: string, options?: any) => i18next.t(key, options) as string;
 import { useMemo, useState } from "react";
 import { ArrowDownUp, LockKeyhole, Plus, Search } from "lucide-react";
 import type { PromptPreviewResult, PromptTemplateReferenceCatalog } from "@/api/promptWorkbench";

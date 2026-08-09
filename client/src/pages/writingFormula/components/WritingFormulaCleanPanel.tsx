@@ -1,5 +1,5 @@
+import { useTranslation } from "react-i18next";
 import i18next from "i18next";
-const t = (key: string, options?: any) => i18next.t(key, options) as string;
 import type { StyleDetectionReport, StyleProfile } from "@ai-novel/shared/types/styleEngine";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -17,6 +17,7 @@ interface WritingFormulaCleanPanelProps {
 }
 
 export default function WritingFormulaCleanPanel(props: WritingFormulaCleanPanelProps) {
+  const { t } = useTranslation();
   const {
     selectedProfile,
     detectInput,

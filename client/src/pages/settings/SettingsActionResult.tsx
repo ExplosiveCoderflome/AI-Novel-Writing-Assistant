@@ -1,8 +1,10 @@
+import { useTranslation } from "react-i18next";
 import { AUTO_DIRECTOR_MOBILE_CLASSES } from "@/mobile/autoDirector";
 
 export default function SettingsActionResult(props: {
   message: string;
 }) {
+  const { t } = useTranslation();
   if (!props.message) {
     return null;
   }

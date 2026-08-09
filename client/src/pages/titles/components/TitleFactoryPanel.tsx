@@ -1,5 +1,5 @@
+import { useTranslation } from "react-i18next";
 import i18next from "i18next";
-const t = (key: string, options?: any) => i18next.t(key, options) as string;
 import { useMemo, useState } from "react";
 import type { TitleFactorySuggestion } from "@ai-novel/shared/types/title";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
@@ -49,6 +49,7 @@ function sortSuggestions<T extends { clickRate: number }>(items: T[]): T[] {
 }
 
 export default function TitleFactoryPanel({ genreTree, novels }: TitleFactoryPanelProps) {
+  const { t } = useTranslation();
   const llm = useLLMStore();
   const queryClient = useQueryClient();
   const genreOptions = useMemo(() => flattenGenreTreeOptions(genreTree), [genreTree]);

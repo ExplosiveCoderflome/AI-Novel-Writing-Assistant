@@ -1,5 +1,5 @@
+import { useTranslation } from "react-i18next";
 import i18next from "i18next";
-const t = (key: string, options?: any) => i18next.t(key, options) as string;
 import { LockKeyhole } from "lucide-react";
 import type { PromptPreviewResult, PromptTestRunResult } from "@/api/promptWorkbench";
 import { Badge } from "@/components/ui/badge";
@@ -19,6 +19,7 @@ export function PromptTestRunResultPanel(props: {
   isPending?: boolean;
   error?: string | null;
 }) {
+  const { t } = useTranslation();
   const { error, isPending, result } = props;
   if (isPending) {
     return (

@@ -1,10 +1,11 @@
+import { useTranslation } from "react-i18next";
 import i18next from "i18next";
-const t = (key: string, options?: any) => i18next.t(key, options) as string;
 interface WorldInjectionHintProps {
   worldInjectionSummary: string | null;
 }
 
 export default function WorldInjectionHint({ worldInjectionSummary }: WorldInjectionHintProps) {
+  const { t } = useTranslation();
   return (
     <div className="rounded-md border border-emerald-300 bg-emerald-50 p-2 text-xs text-emerald-900">
       {worldInjectionSummary ? (
