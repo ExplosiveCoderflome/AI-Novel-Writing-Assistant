@@ -165,9 +165,10 @@ export function resolveCreativeHubWorkspacePresentation(input: {
       threadStatusLabel,
       recommendation: {
         tone: "warning",
-        action: "send_prompt",
-        actionLabel: "按建议继续",
-        prompt: nextSuggestion,
+        title: input.interrupt.title || i18next.t("creativeHub.titleHandleInterrupt", "处理待确认的创作操作"),
+        description: input.interrupt.summary || i18next.t("creativeHub.descHandleInterrupt", "本轮执行正在等待你的确认，处理后才能继续当前动作。"),
+        action: "focus_interrupt",
+        actionLabel: i18next.t("creativeHub.actionViewInterrupt", "查看待确认项"),
       },
     };
   }
