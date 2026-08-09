@@ -465,3 +465,27 @@ stockRouter.post("/knowledge-graph/update", async (req: Request, res: Response) 
     return res.status(500).json({ success: false, error: err.message || err });
   }
 });
+
+// 12. 查询本地 SearXNG 搜索引擎连通状态
+stockRouter.get("/search/status", async (_req: Request, res: Response) => {
+  try {
+    const { searxngSearchService } = await import("../services/searxngSearchService");
+    const status = await searxngSearchService.getStatus();
+    return res.json({ success: true, data: status });
+  } catch (err: any) {
+    return res.status(500).json({ success: false, error: err.message || err });
+  }
+});
+
+// 13. 测试 SearXNG 实时新闻检索与抓取
+stockRouter.post("/search/test", async (req: Request, res: Response) => {
+  try {
+    const { query = "NVDA" } = req.body || {};
+    const { searxngSearchService } = await import("../services/searxngSearchService");
+    const results = await searxngSearchService.searchStockNews(String(query), 5);
+    return res.json({ success: true, data: results, count: results.length });
+  } catch (err: any) {
+    return res.status(500).json({ success: false, error: err.message || err });
+  }
+});
+

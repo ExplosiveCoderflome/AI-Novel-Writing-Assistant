@@ -108,7 +108,7 @@ flowchart LR
 - **隔夜推演实时毛玻璃虚化与无缝刷新**：AI 推演过程中，受影响的推荐指令与研报区域自动开启 `Backdrop Blur` 虚化遮罩与醒目推演提示，推演完成后平滑解冻刷新。
 
 ### 8. 世界沙盒模拟与物理生态引擎 (World Sandbox Simulation)
-- 实现了完整的锁步时序轮转模拟沙盒，遵循小说的物理与生态法则（详见 [world-sandbox-simulation_CN.md](file:///c:/Users/lilin/GeneralAgent/docs/design/world-sandbox-simulation_CN.md)）。
+- 实现了完整的锁步时序轮转模拟沙盒，遵循小说的物理与生态法则（详见 [world-sandbox-simulation_CN.md](./docs/design/world-sandbox-simulation_CN.md)）。
 - **地球物理与生态仿真**：根据纬度、季节和海拔垂直递减率实时计算气温、太阳光照、土壤湿度，并运用 Lotka-Volterra 方程组模拟食物链群落的捕食者-猎物数量演变。
 - **智能体认知仿真**：基于艾宾浩斯遗忘曲线模拟角色记忆衰减，并实现了谣言/传言在邻接地区传播过程中的空间扩散与信息失真变异模型。
 - **混合精细度决策 (LOD)**：背景角色运行确定性行为树（LOD 2，追踪理智、精力、饥饿等），主角/主要角色决策（LOD 1）则委派给大模型智能调度器。
@@ -148,7 +148,7 @@ flowchart LR
 - **启示八 (规格测试先行 & 防幻觉“不知道”机制)**：定量评估检索知识置信度，在检索缺乏依据时强行注入“设定未明确”屏蔽指令，拦截未证实断言，防范大模型胡乱臆造。
 
 ### 11. OpenRSI 演化算子引擎与 Crossover (基因熔炼交叉)
-融合 Frontis OpenRSI 递归自我改进 (RSI) 演化思想，构建标准化的 4 大原子演化算子链（位于 [server/src/services/novel/director/operators/](file:///c:/Users/lilin/GeneralAgent/server/src/services/novel/director/operators/)）：
+融合 Frontis OpenRSI 递归自我改进 (RSI) 演化思想，构建标准化的 4 大原子演化算子链（位于 [server/src/services/novel/director/operators/](./server/src/services/novel/director/operators/)）：
 - **`Draft` 算子**：基于大纲上下文与创作者画像生成全新章节初稿。
 - **`Improve` 算子**：结合 `AuditService` 诊断意见执行增量文笔与剧情提升，保留原精粹段落。
 - **`Debug` 算子**：针对违背设定或角色出戏等硬性错误，进行外科手术式精准修补 (Surgical Patch)。
@@ -182,8 +182,8 @@ flowchart LR
   - **AI 基因进化树 (`getChapterMutationLineage`)**：记录父本/子本文本哈希、评分差值 (`scoreDelta`) 与重组理由，可视化呈现文章演化脉络。
   - **防降级自动回滚保护 (`shouldRollbackMutation`)**：自动检测负向变异 ($scoreDelta < 0$) 并触发回滚，硬性保证文本质量只升不降。
   - **高质量 RAG 向量库回灌 (`getEliteMutationNodes`)**：筛选高分变异节点 ($scoreDelta \ge +0.15$) 回灌至 Qdrant 向量库，保证上下文库全是精英文本。
-- **零伪造硬核物理打点验证**：
-  构建了 [real-empirical-agent-test.js](file:///c:/Users/lilin/GeneralAgent/scripts/real-empirical-agent-test.js)、[stageHandoffTwoLayer.test.js](file:///c:/Users/lilin/GeneralAgent/server/tests/stageHandoffTwoLayer.test.js)、[autoWakeScheduler.test.js](file:///c:/Users/lilin/GeneralAgent/server/tests/autoWakeScheduler.test.js)、[agentKanbanTodo.test.js](file:///c:/Users/lilin/GeneralAgent/server/tests/agentKanbanTodo.test.js) 与 [evidenceTraceLogger.test.js](file:///c:/Users/lilin/GeneralAgent/server/tests/evidenceTraceLogger.test.js) 测试套件，真实验证静态 Prompt Head 100% 精确匹配、两层门控断言、无人值守自动唤醒、持久化看板抢单与演化算子证据链。
+- **物理打点与自动化测试**：
+  提供 [real-empirical-agent-test.js](./scripts/real-empirical-agent-test.js)、[stageHandoffTwoLayer.test.js](./server/tests/stageHandoffTwoLayer.test.js)、[autoWakeScheduler.test.js](./server/tests/autoWakeScheduler.test.js)、[agentKanbanTodo.test.js](./server/tests/agentKanbanTodo.test.js) 与 [evidenceTraceLogger.test.js](./server/tests/evidenceTraceLogger.test.js) 测试套件，验证静态 Prompt Head 精确匹配、两层门控断言、无人值守自动唤醒、持久化看板抢单与演化算子证据链。
 
 ---
 
@@ -285,7 +285,7 @@ pnpm dev
 3. **前端客户端**：`pnpm dev:client` (启动在 `http://localhost:5173`)
 
 #### 方式 C：使用后台管理脚本 (macOS 推荐)
-使用 [scripts/manage.sh](file:///Users/nvidia/GeneralAgent/scripts/manage.sh) 控制后台常驻进程：
+使用 [scripts/manage.sh](./scripts/manage.sh) 控制后台常驻进程：
 - 启动：`./scripts/manage.sh start`
 - 停止：`./scripts/manage.sh stop`
 - 查看状态：`./scripts/manage.sh status`
@@ -349,6 +349,40 @@ node server/scripts/test-e2e-api-simulation.js
 2. **访问美股投研工作台**：项目启动后，在浏览器访问 `http://localhost:5173/stock` 或在侧边栏点击 **【美股投研与调仓】**。
 3. **零配置安全 Fallback**：即使未启动 OpenD，工作台也支持一键拖拽/导入 MooMoo 导出的持仓 CSV 文件或全选复制持仓文本。
 4. **安全提示**：系统仅生成开盘前操作建议与风控分析 (Advisory Only)，**绝不会自动下单**，最终挂单操作完全由你在 MooMoo 客户端上确认执行。
+
+---
+
+### 7. SearXNG 本地 Docker 开源搜索引擎配置与运行 (美股热点抓取可选)
+
+美股投研 Agent 深度集成了本地运行在 Docker 容器中的开源元搜索引擎 **SearXNG**（运行在 `http://127.0.0.1:8080`），实现美股盘前新闻、隔夜宏观热点与个股催化剂的自动检索、切片与 AI 研报注入。
+
+#### 7.1 Docker 安装与运行
+
+```bash
+# 方式 1：Docker 一键快捷运行（推荐 8088 端口映射，避免 8080 被占用）
+docker run -d \
+  --name searxng \
+  -p 8088:8080 \
+  -v $(pwd)/scratch/searxng/settings.yml:/etc/searxng/settings.yml:ro \
+  searxng/searxng:latest
+
+# 方式 2：使用 Docker Compose（长期常驻）
+# 镜像配置文件 settings.yml 需开启 JSON 格式支持 (search.formats: [html, json])
+```
+
+#### 7.2 环境变量说明
+- **`SEARXNG_URL`** (可选，默认 `http://127.0.0.1:8088`)：指向 SearXNG 服务的 URL 地址。
+
+#### 7.3 验证与测试
+- 浏览器访问或使用 cURL 验证 API：
+  ```bash
+  curl "http://127.0.0.1:8080/search?q=NVDA+stock+news&format=json"
+  ```
+- 运行后端真实环境测试脚本（无 Mock）：
+  ```bash
+  node server/scripts/runSearXNGTest.cjs
+  ```
+- **零中断降级保护**：当 SearXNG 容器未启动时，系统会自动平滑降级为“使用盘口+存量知识图谱模式”，保障主服务稳定运行。
 
 ---
 

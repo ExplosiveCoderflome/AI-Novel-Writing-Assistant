@@ -2,6 +2,8 @@ import { prisma } from "../../../db/prisma";
 import { openDaemonManager } from "./openDaemonManager";
 import { moomooAdapter } from "../adapters/moomooAdapter";
 import { stockKnowledgeGraphStoreService } from "./stockKnowledgeGraphStore";
+import { searxngSearchService } from "./searxngSearchService";
+import { stockContextManager } from "./stockContextManager";
 import { DailyAllocationOutput, StockPositionItem, RetroPnLResult } from "../types/stockTypes";
 import { stockAllocationPrompt } from "../../../prompting/prompts/stock/stock.prompts";
 import { runStructuredPrompt } from "../../../prompting/core/promptRunner";
@@ -214,11 +216,29 @@ export class DailyStrategyDirector {
         }).join("\n")
       : "暂无自选关注项";
 
+    // STEP 3.5: 尝试调用 SearXNG 抓取美股实时新闻
+    let rawSearXNGNewsText = "";
+    let searxngStatusMsg = "";
+    try {
+      const searxngRes = await searxngSearchService.fetchAndCacheMarketNews(allSymbols);
+      rawSearXNGNewsText = searxngRes.rawNewsText;
+      searxngStatusMsg = searxngRes.searxngConnected
+        ? `🟢 SearXNG 本地搜索引擎正常，成功检索并切片 ${searxngRes.newsItemsCount} 条实时新闻`
+        : "⚠️ SearXNG 本地 Docker 容器未连通，已自动降级并使用存量知识图谱";
+    } catch (e: any) {
+      console.warn("[DailyStrategyDirector] SearXNG search notice:", e);
+      searxngStatusMsg = `⚠️ SearXNG 检索 notice: ${e.message || e}`;
+    }
+
     const quotesTextList = realQuotes
       .map((q) => `- ${q.symbol}: $${q.price.toFixed(2)} (${q.changePercent >= 0 ? "+" : ""}${q.changePercent.toFixed(2)}%)`)
       .join("\n");
 
-    const marketIntelContext = `【OpenD 真实即时行情】(买卖建议估价必须以此价格为准)：\n${quotesTextList}\n\n- 宏观分析: 美股高位震荡，算力芯片与科技龙头表现坚挺。\n- 【严禁虚构价格指令】：调仓建议 actions 中的 estimatedPrice 必须与上述真实即时现价一致！`;
+    const newsIntelSnippet = rawSearXNGNewsText
+      ? `【SearXNG 实时搜到的美股新闻快讯切片】:\n${rawSearXNGNewsText}\n\n`
+      : "";
+
+    const marketIntelContext = `【SearXNG 搜索引擎状态】：${searxngStatusMsg}\n\n${newsIntelSnippet}【OpenD 真实即时行情】(买卖建议估价必须以此价格为准)：\n${quotesTextList}\n\n- 宏观分析: 美股高位震荡，算力芯片与科技龙头表现坚挺。\n- 【严禁虚构价格指令】：调仓建议 actions 中的 estimatedPrice 必须与上述真实即时现价一致！`;
 
     // STEP 8: 调用 AI 生成 (图谱优先推理链驱动)
     const runResult = await runStructuredPrompt({

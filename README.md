@@ -105,7 +105,7 @@ If you prefer to write and manage your novel workspace in a local terminal using
 - RAG pipelines use parallel indexing, deduplication hash keys, and retrieval traces to debug vector search relevance.
 
 ### 7. Virtual World Sandbox Simulation (Westworld Sandbox)
-- Implements a complete lock-step turn-based simulation sandbox representing physical and ecological laws of the novel's world (detailed in [world-sandbox-simulation.md](file:///c:/Users/lilin/GeneralAgent/docs/design/world-sandbox-simulation.md)).
+- Implements a complete lock-step turn-based simulation sandbox representing physical and ecological laws of the novel's world (detailed in [world-sandbox-simulation.md](./docs/design/world-sandbox-simulation.md)).
 - **Earth Physics & Ecology**: Tracks dynamic temperatures (latitude & season modeling, altitude lapse rate, diurnal hour-angle shifts) and predator-prey dynamics using Lotka-Volterra equations.
 - **Character Cognitive Agents**: Features memory decay modeling (Ebbinghaus forgetting curve) and spatial rumor diffusion/distortion across adjacent locations.
 - **Behavior Trees & LLM Scheduler**: Employs LOD 2 Behavior Trees tracking hunger, energy, and sanity for background characters, while scheduling LOD 1 protagonist decisions using the Sandbox LLM Scheduler.
@@ -145,7 +145,7 @@ Fully implemented Daniel Miessler's Personal AI Infrastructure (PAI) architectur
 - **Insight #8 (Specs-First & Anti-Hallucination Guard)**: Quantitative knowledge confidence evaluation (`evaluateKnowledgeConfidence`). Automatically appends `ALLOW "I DON'T KNOW"` prompt instructions when context is missing, preventing AI hallucinations.
 
 ### 11. OpenRSI Evolutionary Operator Engine & Crossover Recombination
-Integrated Frontis OpenRSI Recursive Self-Improvement (RSI) principles to build standardized atomic program/text evolution operators under [server/src/services/novel/director/operators/](file:///c:/Users/lilin/GeneralAgent/server/src/services/novel/director/operators/):
+Integrated Frontis OpenRSI Recursive Self-Improvement (RSI) principles to build standardized atomic program/text evolution operators under [server/src/services/novel/director/operators/](./server/src/services/novel/director/operators/):
 - **`Draft` Operator**: Generates initial chapter candidates based on outline context, 3-tier memory, and creator profile (TELOS).
 - **`Improve` Operator**: Applies non-destructive prose & pacing enhancements guided by `AuditService` diagnostics while preserving parent text highlights.
 - **`Debug` Operator**: Executes surgical patches for critical constraint violations (setting breaches, character voice OOC, timeline errors).
@@ -180,7 +180,7 @@ Evolved Daydream Engine from session-assembled prompts into an organized **Agent
   - **Anti-Degradation Rollback Guard (`shouldRollbackMutation`)**: Automatically detects negative score deltas ($scoreDelta < 0$) and triggers rollbacks to pre-mutation states to guarantee prose quality strictly increases.
   - **Elite Vector RAG Feedback Loop (`getEliteMutationNodes`)**: Filters high-gain mutation nodes ($scoreDelta \ge +0.15$) for index insertion into Qdrant, keeping vector context pristine.
 - **Empirical Automated Benchmarking**:
-  Built [real-empirical-agent-test.js](file:///c:/Users/lilin/GeneralAgent/scripts/real-empirical-agent-test.js), [stageHandoffTwoLayer.test.js](file:///c:/Users/lilin/GeneralAgent/server/tests/stageHandoffTwoLayer.test.js), [autoWakeScheduler.test.js](file:///c:/Users/lilin/GeneralAgent/server/tests/autoWakeScheduler.test.js), [agentKanbanTodo.test.js](file:///c:/Users/lilin/GeneralAgent/server/tests/agentKanbanTodo.test.js), and [evidenceTraceLogger.test.js](file:///c:/Users/lilin/GeneralAgent/server/tests/evidenceTraceLogger.test.js) for un-mocked verification of prompt head exact-matching, two-layer handoff gates, auto-wake heartbeat recovery, durable Kanban claiming, and mutation trace logging.
+  Includes [real-empirical-agent-test.js](./scripts/real-empirical-agent-test.js), [stageHandoffTwoLayer.test.js](./server/tests/stageHandoffTwoLayer.test.js), [autoWakeScheduler.test.js](./server/tests/autoWakeScheduler.test.js), [agentKanbanTodo.test.js](./server/tests/agentKanbanTodo.test.js), and [evidenceTraceLogger.test.js](./server/tests/evidenceTraceLogger.test.js) for verifying prompt head exact-matching, two-layer handoff gates, auto-wake heartbeat recovery, durable Kanban claiming, and mutation trace logging.
 
 ### 13. US Stock Investment Research & Daily Rebalancing Agent (MooMoo OpenD Integration)
 - **Zero-Auto-Order Advisory Blueprint**: Combines local holdings, cash balances, and budget constraints to generate pre-market BUY/SELL/TRIM/HOLD actions and concentration risk alerts (**Advisory Only, no auto-trading**).
@@ -338,6 +338,26 @@ Open `http://localhost:5173` in your browser.
 - 默认 SQLite 即可跑通主链；需要 RAG 检索时再接入 Qdrant
 - RAG 并发数、限速等运行时参数从 .env 迁到设置面板，改完即生效无需重启
 - Monorepo 拆分（pnpm workspace），桌面版 / 介绍站 / 服务端 / 客户端独立可构建
+
+### 10. SearXNG Local Docker Search Engine (Optional)
+
+The Stock Agent integrates with a locally hosted **SearXNG** Docker container (`http://127.0.0.1:8080`) for real-time stock news retrieval and market intelligence extraction.
+
+```bash
+# Run SearXNG container locally (Mapped to port 8088)
+docker run -d \
+  --name searxng \
+  -p 8088:8080 \
+  -v $(pwd)/scratch/searxng/settings.yml:/etc/searxng/settings.yml:ro \
+  searxng/searxng:latest
+
+# Environment Variable (Optional, defaults to http://127.0.0.1:8088)
+# SEARXNG_URL=http://127.0.0.1:8088
+
+# Verify real connection test
+node server/scripts/runSearXNGTest.cjs
+```
+- **Fallback Protection**: If SearXNG Docker is not running, the Stock Agent automatically falls back to static quote context without throwing any runtime errors.
 
 
 ## 典型使用路径
@@ -636,7 +656,7 @@ Open three separate terminal tabs/windows:
    (Starts on `http://localhost:5173`).
 
 #### Option C: Background Service Manager Script (macOS Utility)
-A utility helper script is available at [scripts/manage.sh](file:///Users/nvidia/GeneralAgent/scripts/manage.sh):
+A utility helper script is available at [scripts/manage.sh](./scripts/manage.sh):
 - **Start all services in background**: `./scripts/manage.sh start`
 - **Stop all background services**: `./scripts/manage.sh stop`
 - **Check service status**: `./scripts/manage.sh status`

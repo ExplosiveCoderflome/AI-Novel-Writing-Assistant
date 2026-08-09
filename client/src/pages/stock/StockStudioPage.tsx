@@ -136,6 +136,28 @@ export default function StockStudioPage() {
     connected: false,
     message: "检测 OpenD 连通状态...",
   });
+  const [searxngStatus, setSearxngStatus] = useState<{ connected: boolean; message: string }>({
+    connected: false,
+    message: "检测 SearXNG 本地搜索引擎连通状态...",
+  });
+
+  const checkSearXNGStatus = async () => {
+    try {
+      const res = await fetch("/api/stock/search/status");
+      const data = await res.json();
+      if (data.success && data.data) {
+        setSearxngStatus({
+          connected: data.data.connected,
+          message: data.data.message,
+        });
+      }
+    } catch (e) {
+      setSearxngStatus({
+        connected: false,
+        message: "🔴 未检测到 SearXNG 本地 Docker 服务 (127.0.0.1:8080)",
+      });
+    }
+  };
   const [isUnlocked, setIsUnlocked] = useState<boolean>(false);
   const [customBudget, setCustomBudget] = useState<number>(1000);
   const [activeReportTab, setActiveReportTab] = useState<"institutional" | "narrative">("narrative");
@@ -377,6 +399,7 @@ export default function StockStudioPage() {
 
   useEffect(() => {
     checkOpenDStatus();
+    checkSearXNGStatus();
     fetchPortfolio();
     fetchQuotes();
     fetchWatchlist();
@@ -695,6 +718,29 @@ export default function StockStudioPage() {
 
     return (
       <div className="space-y-5 animate-fadeIn">
+        {/* 数据源双引擎连通审计栏：MooMoo OpenD 实盘网关 + SearXNG 本地搜索引擎 */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 p-3.5 bg-slate-900/90 border border-indigo-900/50 rounded-xl shadow-sm text-xs font-mono">
+          <div className="flex items-center justify-between bg-slate-950 p-2.5 rounded-lg border border-slate-800">
+            <span className="text-slate-300 font-bold flex items-center gap-1.5">
+              <Activity className="w-4 h-4 text-emerald-400" />
+              MooMoo OpenD 账户网关:
+            </span>
+            <span className={`px-2 py-0.5 rounded text-[11px] font-bold ${openDStatus.connected ? "bg-emerald-950 text-emerald-300 border border-emerald-800" : "bg-amber-950 text-amber-300 border border-amber-800"}`}>
+              {openDStatus.message}
+            </span>
+          </div>
+
+          <div className="flex items-center justify-between bg-slate-950 p-2.5 rounded-lg border border-slate-800">
+            <span className="text-slate-300 font-bold flex items-center gap-1.5">
+              <Sparkles className="w-4 h-4 text-sky-400" />
+              SearXNG 本地搜索引擎:
+            </span>
+            <span className={`px-2 py-0.5 rounded text-[11px] font-bold ${searxngStatus.connected ? "bg-sky-950 text-sky-300 border border-sky-800" : "bg-slate-800 text-slate-400 border border-slate-700"}`}>
+              {searxngStatus.message}
+            </span>
+          </div>
+        </div>
+
         {/* 三大核心指南：已有仓位增减 + 新仓位建立 + 昨日指南复盘沉淀 */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           {/* 指南一：已有仓位增减 */}
