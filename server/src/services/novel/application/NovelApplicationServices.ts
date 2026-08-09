@@ -597,6 +597,10 @@ export class DefaultNovelApplicationServices {
     return this.characterPreparationService.applyCharacterCastOption(...args);
   }
 
+  runDeferredCharacterEnhancements(...args: Parameters<CharacterPreparationService["runDeferredEnhancements"]>) {
+    return this.characterPreparationService.runDeferredEnhancements(...args);
+  }
+
   generateSupplementalCharacters(...args: Parameters<CharacterPreparationService["generateSupplementalCharacters"]>) {
     return this.characterPreparationService.generateSupplementalCharacters(...args);
   }

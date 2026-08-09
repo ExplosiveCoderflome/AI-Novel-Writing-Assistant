@@ -55,7 +55,11 @@ export default function TaskCenterDetailPanel(props: TaskCenterDetailPanelProps)
   const task = props.task;
 
   return (
-    <TaskQueueSection title="任务详情" description="先判断是否阻塞，再决定继续、恢复或只记录质量提醒。">
+    <TaskQueueSection
+      title="任务详情"
+      description="查看当前影响和推荐动作，运行参数按需展开。"
+      className="overflow-hidden rounded-2xl border-border/40 bg-card/60 shadow-[0_12px_36px_rgba(15,23,42,0.035)]"
+    >
       <div className="space-y-4 text-sm">
         {props.loading ? (
           <WorkspaceStateNotice loading title="正在读取任务详情" description="正在同步任务状态、检查点和最近步骤。" />
@@ -161,20 +165,27 @@ export default function TaskCenterDetailPanel(props: TaskCenterDetailPanelProps)
               />
             )}
 
-            <div className="space-y-2">
-              <div className="font-medium">步骤状态</div>
-              {props.steps.length === 0 ? (
-                <WorkspaceStateNotice compact title="暂无步骤状态" description="该任务尚未提供可展示的细分步骤。" />
-              ) : props.steps.map((step) => (
-                <div key={step.key} className="flex items-center justify-between rounded-md border border-border/70 px-3 py-2">
-                  <div>{step.label}</div>
-                  <TaskQueueStatusBadge
-                    label={step.status === "succeeded" ? "已完成" : step.status === "failed" ? "失败" : step.status === "running" ? "进行中" : step.status === "cancelled" ? "已取消" : "未开始"}
-                    tone={step.status === "succeeded" ? "success" : step.status === "failed" ? "danger" : step.status === "running" ? "info" : "neutral"}
-                  />
-                </div>
-              ))}
-            </div>
+            <details className="group border-t border-border/35 pt-3">
+              <summary className="flex cursor-pointer list-none items-center justify-between text-sm font-medium marker:hidden">
+                <span>执行步骤 {props.steps.length > 0 ? `(${props.steps.length})` : ""}</span>
+                <span className="text-xs font-normal text-muted-foreground group-open:hidden">展开</span>
+                <span className="hidden text-xs font-normal text-muted-foreground group-open:inline">收起</span>
+              </summary>
+              <div className="mt-3 space-y-2">
+                {props.steps.length === 0 ? (
+                  <WorkspaceStateNotice compact title="暂无步骤状态" description="该任务尚未提供可展示的细分步骤。" />
+                ) : props.steps.map((step) => (
+                  <div key={step.key} className="flex items-center justify-between rounded-xl bg-muted/25 px-3 py-2">
+                    <div>{step.label}</div>
+                    <TaskQueueStatusBadge
+                      label={step.status === "succeeded" ? "已完成" : step.status === "failed" ? "失败" : step.status === "running" ? "进行中" : step.status === "cancelled" ? "已取消" : "未开始"}
+                      tone={step.status === "succeeded" ? "success" : step.status === "failed" ? "danger" : step.status === "running" ? "info" : "neutral"}
+                      className="border-0 bg-background/70 font-normal"
+                    />
+                  </div>
+                ))}
+              </div>
+            </details>
 
             {task.kind === "novel_workflow" ? <TaskCenterMilestoneHistory milestones={props.milestones} /> : null}
           </>

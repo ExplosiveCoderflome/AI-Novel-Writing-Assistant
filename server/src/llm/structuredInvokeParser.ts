@@ -368,6 +368,17 @@ export async function parseStructuredLlmRawContentDetailed<T>(
     fallbackAvailable: input.fallbackAvailable,
     fallbackUsed: input.fallbackUsed,
   });
+  if (!input.rawContent.trim()) {
+    throw buildStructuredError({
+      message: `[${input.label}] 模型没有返回可用内容，无法执行结构校验或 JSON 修复。`,
+      category: "transport_error",
+      strategy: input.strategy,
+      profile: input.profile,
+      reasoningForcedOff: input.reasoningForcedOff,
+      fallbackAvailable: input.fallbackAvailable,
+      fallbackUsed: input.fallbackUsed,
+    });
+  }
   const initialParse = tryParseStructuredJsonValue(input.rawContent);
   const parseErrorMessage = "error" in initialParse ? initialParse.error : "";
   const parsed = "parsed" in initialParse ? initialParse.parsed : null;

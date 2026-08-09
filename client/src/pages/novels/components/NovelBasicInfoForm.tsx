@@ -14,6 +14,7 @@ import {
   PROJECT_STATUS_OPTIONS,
   PUBLICATION_STATUS_OPTIONS,
   WRITING_MODE_OPTIONS,
+  WRITING_PLATFORM_OPTIONS,
   type NovelBasicFormState,
 } from "../novelBasicInfo.shared";
 import {
@@ -165,7 +166,7 @@ export default function NovelBasicInfoForm(props: NovelBasicInfoFormProps) {
               value={basicForm.genreId}
               onChange={(event) => onFormChange({ genreId: event.target.value })}
             >
-              <option value="">暂不设置题材基底</option>
+              <option value="">交给 AI 推荐题材</option>
               {genreOptions.map((genre) => (
                 <option key={genre.id} value={genre.id}>
                   {genre.path}
@@ -221,7 +222,7 @@ export default function NovelBasicInfoForm(props: NovelBasicInfoFormProps) {
               value={basicForm.primaryStoryModeId}
               onChange={(event) => onFormChange({ primaryStoryModeId: event.target.value })}
             >
-              <option value="">暂不设置主推进模式</option>
+              <option value="">交给 AI 推荐主要推进方式</option>
               {storyModeOptions.map((storyMode) => (
                 <option key={storyMode.id} value={storyMode.id}>
                   {storyMode.path}
@@ -318,6 +319,18 @@ export default function NovelBasicInfoForm(props: NovelBasicInfoFormProps) {
             surface="none"
           >
             <div className="grid gap-3 md:grid-cols-2">
+              <div className="space-y-2">
+                <FieldLabel htmlFor="basic-writing-platform" hint="保存后只影响后续规划、正文、审校和修改，不会重写已有正文。">目标平台</FieldLabel>
+                <SelectControl
+                  id="basic-writing-platform"
+                  className="w-full rounded-md border bg-background p-2 text-sm"
+                  value={basicForm.writingPlatformPreference}
+                  onChange={(event) => onFormChange({ writingPlatformPreference: event.target.value as NovelBasicFormState["writingPlatformPreference"] })}
+                >
+                  {WRITING_PLATFORM_OPTIONS.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
+                </SelectControl>
+                <div className="text-xs text-muted-foreground">{findOptionSummary(WRITING_PLATFORM_OPTIONS, basicForm.writingPlatformPreference)}</div>
+              </div>
               <div className="space-y-2">
                 <FieldLabel htmlFor="basic-pov" hint={BASIC_INFO_FIELD_HINTS.narrativePov}>叙事视角</FieldLabel>
                 <SelectControl

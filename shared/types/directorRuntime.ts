@@ -1,6 +1,10 @@
 import type { LLMProvider } from "./llm";
 import type { NovelWorkflowStage } from "./novelWorkflow";
-import type { DirectorCircuitBreakerState, DirectorQualityLoopBudgetNextAction } from "./novelDirector";
+import type {
+  DirectorCircuitBreakerState,
+  DirectorQualityLoopBudgetNextAction,
+  DirectorStartupPreparation,
+} from "./novelDirector";
 
 export const DIRECTOR_POLICY_MODES = [
   "suggest_only",
@@ -551,6 +555,7 @@ export interface DirectorChapterExecutionProgressSummary {
 export interface DirectorRuntimeProjection {
   runId: string;
   novelId?: string | null;
+  startupPreparation?: DirectorStartupPreparation | null;
   status: DirectorRuntimeProjectionStatus;
   runtimeId?: string | null;
   runtimeStatus?: string | null;

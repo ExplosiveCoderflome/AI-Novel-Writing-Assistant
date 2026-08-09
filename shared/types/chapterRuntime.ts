@@ -465,6 +465,7 @@ export const chapterCharacterHardFactSchema = z.object({
 
 export const chapterWriteContextSchema = z.object({
   bookContract: bookContractContextSchema,
+  productionFoundationPrompt: z.string().default(""),
   macroConstraints: macroConstraintContextSchema.nullable(),
   volumeWindow: volumeWindowContextSchema.nullable(),
   narrativeProgressHint: z.string().nullable().optional(),

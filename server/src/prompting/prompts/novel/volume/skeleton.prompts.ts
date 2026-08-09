@@ -48,7 +48,7 @@ export function createVolumeSkeletonPrompt(
 > {
   return {
     id: "novel.volume.skeleton",
-    version: "v2",
+    version: "v3",
     taskType: "planner",
     mode: "structured",
     language: "zh",
@@ -66,6 +66,8 @@ export function createVolumeSkeletonPrompt(
         `必须严格输出 ${targetVolumeCount} 卷，数量不得多也不得少。`,
         "当前阶段只做“卷级骨架规划”，不得展开为章节大纲、场景细纲、人物小传或具体对话。",
         "每卷 summary 必须是卷级概括，不得写成详细剧情复述。",
+        "每个文本字段只写 1-2 句，单字段不超过 120 个汉字；openPayoffs 最多 8 条，每条不超过 80 个汉字。",
+        "完成最后一卷后立即结束 JSON，禁止续写章节、正文、自我检查过程或同义复述。",
         "",
         "【字段要求】",
         "每卷必须完整包含以下字段，不得缺漏、合并或改名：",

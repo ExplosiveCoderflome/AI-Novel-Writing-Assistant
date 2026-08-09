@@ -24,7 +24,7 @@ import { Button } from "@/components/ui/button";
 import { toast } from "@/components/ui/toast";
 import GenreCreateDialog from "./components/GenreCreateDialog";
 import GenreEditDialog from "./components/GenreEditDialog";
-import GenreTreeItem from "./components/GenreTreeItem";
+import GenreTreeBrowser from "./components/GenreTreeBrowser";
 import {
   collectDescendantIds,
   countGenreNovelBindingsInSubtree,
@@ -241,7 +241,7 @@ export default function GenreManagementPage() {
 
       <AssetLibrarySection
         title="题材结构"
-        description="从主要题材逐层展开细分方向。正在被小说使用的分类，需要先调整关联小说的题材后才能删除。"
+        description="从左侧目录展开细分方向，在右侧查看定位和维护节点。正在被小说使用的分类，需要先调整关联作品后才能删除。"
       >
         {genreTreeQuery.isLoading ? (
           <div
@@ -282,18 +282,13 @@ export default function GenreManagementPage() {
         ) : null}
 
         {!genreTreeQuery.isLoading && !genreTreeQuery.isError && genreTree.length > 0 ? (
-          <div className="space-y-3">
-            {genreTree.map((node) => (
-              <GenreTreeItem
-                key={node.id}
-                node={node}
-                onCreateChild={handleCreateChild}
-                onEdit={setEditingGenreId}
-                onDelete={handleDelete}
-                deletingId={deleteMutation.isPending ? deleteMutation.variables : undefined}
-              />
-            ))}
-          </div>
+          <GenreTreeBrowser
+            nodes={genreTree}
+            onCreateChild={handleCreateChild}
+            onEdit={setEditingGenreId}
+            onDelete={handleDelete}
+            deletingId={deleteMutation.isPending ? deleteMutation.variables : undefined}
+          />
         ) : null}
       </AssetLibrarySection>
     </div>

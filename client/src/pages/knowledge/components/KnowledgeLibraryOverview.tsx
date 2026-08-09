@@ -3,8 +3,6 @@ import {
   BookOpenCheck,
   CircleAlert,
   Database,
-  FileCheck2,
-  Files,
   LoaderCircle,
   RefreshCw,
   SearchCheck,
@@ -13,7 +11,6 @@ import {
 import {
   AssetLibraryHeader,
   AssetLibraryRecommendation,
-  AssetLibraryStatusGrid,
   type AssetLibraryTone,
 } from "@/components/assetLibrary";
 import OpenInCreativeHubButton from "@/components/creativeHub/OpenInCreativeHubButton";
@@ -189,53 +186,33 @@ export default function KnowledgeLibraryOverview(props: KnowledgeLibraryOverview
         )}
       />
 
-      <AssetLibraryStatusGrid
-        items={[
-          {
-            key: "documents",
-            label: props.hasFilters ? "当前筛选结果" : "当前资料",
-            value: documentStatusUnavailable ? "—" : props.visibleDocumentCount,
-            detail: props.hasFilters ? "按当前搜索和状态条件统计" : "默认展示未归档资料",
-            icon: Files,
-          },
-          {
-            key: "enabled",
-            label: "已启用",
-            value: documentStatusUnavailable ? "—" : props.enabledCount,
-            detail: "可被选择用于创作",
-            icon: FileCheck2,
-            tone: documentStatusUnavailable ? "neutral" : props.enabledCount > 0 ? "success" : "neutral",
-          },
-          {
-            key: "searchable",
-            label: "可检索",
-            value: documentStatusUnavailable ? "—" : props.searchableDocumentCount,
-            detail: "已启用且索引完成",
-            icon: SearchCheck,
-            tone: documentStatusUnavailable
-              ? "neutral"
-              : props.searchableDocumentCount > 0 ? "success" : "warning",
-          },
-          {
-            key: "index-jobs",
-            label: "正在同步",
-            value: props.activeJobCount,
-            detail: props.failedJobCount > 0
-              ? `${props.failedJobCount} 份资料的最近索引失败`
-              : "没有失败任务需要处理",
-            icon: RefreshCw,
-            tone: props.failedJobCount > 0 ? "danger" : props.activeJobCount > 0 ? "info" : "neutral",
-          },
-        ]}
-      />
+      <section aria-label="知识资料状态" className="flex flex-wrap items-center gap-x-6 gap-y-3 rounded-2xl bg-muted/25 px-5 py-3">
+        {[
+          { label: props.hasFilters ? "筛选结果" : "全部资料", value: documentStatusUnavailable ? "—" : props.visibleDocumentCount, dot: "bg-muted-foreground/45" },
+          { label: "已启用", value: documentStatusUnavailable ? "—" : props.enabledCount, dot: "bg-success" },
+          { label: "可检索", value: documentStatusUnavailable ? "—" : props.searchableDocumentCount, dot: "bg-success" },
+          { label: "同步中", value: props.activeJobCount, dot: props.failedJobCount > 0 ? "bg-destructive" : "bg-info" },
+        ].map((item) => (
+          <div key={item.label} className="flex items-center gap-2 text-sm">
+            <span className={`h-2 w-2 rounded-full ${item.dot}`} aria-hidden="true" />
+            <span className="text-muted-foreground">{item.label}</span>
+            <span className="font-semibold tabular-nums text-foreground">{item.value}</span>
+          </div>
+        ))}
+        {props.failedJobCount > 0 ? (
+          <span className="text-xs text-destructive">{props.failedJobCount} 个索引任务需要处理</span>
+        ) : null}
+      </section>
 
-      <AssetLibraryRecommendation
-        icon={recommendation.icon}
-        title={recommendation.title}
-        description={recommendation.description}
-        tone={recommendation.tone}
-        action={recommendationAction}
-      />
+      {recommendation.tone !== "success" ? (
+        <AssetLibraryRecommendation
+          icon={recommendation.icon}
+          title={recommendation.title}
+          description={recommendation.description}
+          tone={recommendation.tone}
+          action={recommendationAction}
+        />
+      ) : null}
     </>
   );
 }

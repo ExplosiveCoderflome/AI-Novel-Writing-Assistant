@@ -12,15 +12,12 @@ import { useLocation } from "react-router-dom";
 import { getQuickSetupStatus } from "@/api/onboarding";
 import { queryKeys } from "@/api/queryKeys";
 import QuickSetupDialog from "./QuickSetupDialog";
+import {
+  shouldOpenAutomaticSetupPrompt,
+  shouldOpenSetupPromptForRoute,
+} from "./creationSetupState";
 
 const DISMISSED_STORAGE_KEY = "ai-novel.quick-setup.dismissed.v1";
-const GATED_ROUTE_PREFIXES = [
-  "/novels/auto-director",
-  "/creative-hub",
-  "/book-analysis",
-  "/style-engine",
-  "/worlds/generator",
-];
 
 interface CreationSetupContextValue {
   readyForCreation: boolean;
@@ -67,7 +64,7 @@ export function CreationSetupProvider({ children }: { children: ReactNode }) {
   }, [readyForCreation]);
 
   useEffect(() => {
-    if (automaticPromptChecked || statusQuery.isPending || statusQuery.isError) {
+    if (automaticPromptChecked || !statusQuery.isSuccess) {
       return;
     }
     setAutomaticPromptChecked(true);
@@ -75,19 +72,24 @@ export function CreationSetupProvider({ children }: { children: ReactNode }) {
       window.localStorage.removeItem(DISMISSED_STORAGE_KEY);
       return;
     }
-    if (window.localStorage.getItem(DISMISSED_STORAGE_KEY) !== "true") {
+    if (shouldOpenAutomaticSetupPrompt({
+      statusResolved: statusQuery.isSuccess,
+      readyForCreation,
+      dismissed: window.localStorage.getItem(DISMISSED_STORAGE_KEY) === "true",
+    })) {
       setDialogOpen(true);
     }
-  }, [automaticPromptChecked, readyForCreation, statusQuery.isError, statusQuery.isPending]);
+  }, [automaticPromptChecked, readyForCreation, statusQuery.isSuccess]);
 
   useEffect(() => {
-    if (
-      !readyForCreation
-      && GATED_ROUTE_PREFIXES.some((prefix) => location.pathname.startsWith(prefix))
-    ) {
+    if (shouldOpenSetupPromptForRoute({
+      statusResolved: statusQuery.isSuccess,
+      readyForCreation,
+      pathname: location.pathname,
+    })) {
       setDialogOpen(true);
     }
-  }, [location.pathname, readyForCreation, statusQuery.isError, statusQuery.isPending]);
+  }, [location.pathname, readyForCreation, statusQuery.isSuccess]);
 
   const handleOpenChange = (open: boolean) => {
     setDialogOpen(open);

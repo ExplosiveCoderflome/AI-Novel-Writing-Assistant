@@ -30,7 +30,7 @@ export const volumeBeatSheetPrompt: PromptAsset<
   ReturnType<typeof createVolumeBeatSheetSchema>["_output"]
 > = {
   id: "novel.volume.beat_sheet",
-  version: "v2",
+  version: "v3",
   taskType: "planner",
   mode: "structured",
   language: "zh",
@@ -91,6 +91,8 @@ export const volumeBeatSheetPrompt: PromptAsset<
       "8. 各 beat 的节奏职责必须有差异，不能把多个 beat 都写成‘冲突升级’或‘继续推进’。",
       "9. 不要把高潮前挤压写成提前高潮，也不要把卷尾钩子写成泛泛留白。",
       `10. 所有 chapterSpanHint 必须从第 1 章连续覆盖到第 ${input.targetChapterCount} 章附近，不能只覆盖少量开头章节。`,
+      "11. summary 控制在 40-120 个汉字；mustDeliver 每条控制在 12-80 个汉字，禁止展开成剧情正文。",
+      "12. 整份输出只保留 6-8 个节奏段所需信息，完成最后一个 beat 后立即结束 JSON。",
       "",
       "【卷骨架承接要求】",
       "1. open_hook 必须承接 target_volume 中的 openingHook 与 mainPromise。",

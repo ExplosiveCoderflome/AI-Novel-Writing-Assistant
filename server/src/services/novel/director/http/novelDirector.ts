@@ -97,6 +97,7 @@ const projectContextSchema = z.object({
   writingMode: z.enum(["original", "continuation"]).optional(),
   projectMode: z.enum(["ai_led", "co_pilot", "draft_mode", "auto_pipeline"]).optional(),
   readerChannelPreference: z.enum(["ai_judge", "male_oriented", "female_oriented", "general"]).optional(),
+  writingPlatformPreference: z.enum(["ai_recommend", "fanqie_free", "qidian_male", "jinjiang_female"]).optional(),
   narrativePov: z.enum(["first_person", "third_person", "mixed"]).optional(),
   pacePreference: z.enum(["slow", "balanced", "fast"]).optional(),
   styleTone: z.string().trim().optional(),
@@ -133,8 +134,11 @@ const candidatesSchema = projectContextSchema.extend({
 const ideaInspirationsSchema = projectContextSchema.extend({
   currentIdea: z.string().trim().max(1000).optional(),
   genreLabel: z.string().trim().max(120).optional(),
+  genreDescription: z.string().trim().max(1000).optional(),
   primaryStoryModeLabel: z.string().trim().max(120).optional(),
+  primaryStoryModeDescription: z.string().trim().max(1000).optional(),
   secondaryStoryModeLabel: z.string().trim().max(120).optional(),
+  secondaryStoryModeDescription: z.string().trim().max(1000).optional(),
   worldName: z.string().trim().max(120).optional(),
 }).merge(llmOptionsSchema);
 

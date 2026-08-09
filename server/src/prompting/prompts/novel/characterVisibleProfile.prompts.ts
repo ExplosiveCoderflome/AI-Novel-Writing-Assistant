@@ -29,7 +29,7 @@ export const characterVisibleProfileCompletionPrompt: PromptAsset<
   z.infer<typeof characterVisibleProfileOutputSchema>
 > = {
   id: "novel.character.visible_profile.complete",
-  version: "v1",
+  version: "v2",
   taskType: "planner",
   mode: "structured",
   language: "zh",
@@ -64,6 +64,8 @@ export const characterVisibleProfileCompletionPrompt: PromptAsset<
       "5. 外显资料必须服务题材、角色功能位、关系张力和书级承诺，不能只做静态人设图鉴。",
       "6. 不要把性格分析、剧情总结、成长弧分析写进外显字段。",
       "7. 如果作者给了补全倾向，优先吸收为外显方向；但不能违背已给定的题材、身份、世界规则和明确角色资料。",
+      "8. 每个外显字段控制在 24-80 个汉字，只写一个稳定、可反复使用的辨识重点；禁止扩写动作场面、剧情片段或长篇修辞。",
+      "9. 整个 JSON 应控制在 900 个汉字以内；完成 warnings 后立即以 } 结束，不得续写、复读或自我修正。",
       "",
       "质量要求：",
       "1. appearance 要包含可视化记忆点，例如眉眼、肤色、发型、表情习惯中的具体组合。",

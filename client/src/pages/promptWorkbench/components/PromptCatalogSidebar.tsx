@@ -1,4 +1,4 @@
-import { Braces, PenLine, RefreshCw, Search } from "lucide-react";
+import { Braces, Layers3, PenLine, RefreshCw, Search } from "lucide-react";
 import type { PromptCatalogItem } from "@/api/promptWorkbench";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -18,6 +18,7 @@ interface PromptCatalogSidebarProps {
   isFetching: boolean;
   onSelect: (prompt: PromptCatalogItem) => void;
   onRefresh: () => void;
+  onManagePlatforms: () => void;
 }
 
 function PromptListItem(props: {
@@ -26,7 +27,7 @@ function PromptListItem(props: {
   onSelect: () => void;
 }) {
   const { active, onSelect, prompt } = props;
-  const isChapterWriterPrompt = prompt.id === "novel.chapter.writer";
+  const isChapterWriterPrompt = prompt.capabilities.isProseGeneration;
 
   return (
     <button
@@ -54,11 +55,11 @@ function PromptListItem(props: {
           {isChapterWriterPrompt ? (
             <div className="mb-1 inline-flex max-w-full items-center gap-1 rounded-md bg-[#0f766e] px-1.5 py-0.5 text-[11px] font-medium leading-4 text-white">
               <PenLine className="h-3 w-3 shrink-0" />
-              <span className="truncate">正文生成主提示词</span>
+              <span className="truncate">小说正文生成</span>
             </div>
           ) : null}
-          <div className="truncate text-[13px] font-semibold leading-5 text-foreground" title={prompt.description || prompt.id}>
-            {prompt.description || prompt.id}
+          <div className="truncate text-[13px] font-semibold leading-5 text-foreground" title={prompt.description || prompt.shortDescription || prompt.id}>
+            {prompt.shortDescription || prompt.description || prompt.id}
           </div>
           <div className="mt-0.5 truncate font-mono text-[11px] leading-4 text-muted-foreground/75" title={prompt.id}>
             {prompt.id}
@@ -97,6 +98,7 @@ export function PromptCatalogSidebar(props: PromptCatalogSidebarProps) {
     onSelect,
     prompts,
     selectedKey,
+    onManagePlatforms,
   } = props;
 
   return (
@@ -136,6 +138,9 @@ export function PromptCatalogSidebar(props: PromptCatalogSidebarProps) {
             className="h-9 border-[#ccd9df] bg-white pl-9 shadow-sm"
           />
         </div>
+        <Button type="button" variant="outline" className="mt-2 h-9 w-full justify-start bg-white" onClick={onManagePlatforms}>
+          <Layers3 className="mr-2 h-4 w-4 text-[#0f766e]" />平台写法
+        </Button>
       </div>
 
       <div className="flex min-h-0 flex-1 flex-col gap-1.5 overflow-y-auto overscroll-contain px-2.5 py-3 [scrollbar-gutter:stable]">

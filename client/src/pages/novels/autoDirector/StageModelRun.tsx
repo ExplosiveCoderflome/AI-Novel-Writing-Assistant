@@ -85,11 +85,11 @@ export default function StageModelRun({
           <summary className="cursor-pointer list-none">
             <div className="text-sm font-medium text-foreground">模型设置</div>
             <div className={`mt-1 text-xs leading-5 text-muted-foreground ${AUTO_DIRECTOR_MOBILE_CLASSES.wrapText}`}>
-              默认使用顶部已选模型；需要临时换模型时再展开调整。
+              调整本次开书使用的模型、温度与输出上限。结构规划建议将温度保持在 0.3～0.7。
             </div>
           </summary>
           <div className="mt-4">
-            <LLMSelector />
+            <LLMSelector showParameters />
           </div>
         </details>
       </div>

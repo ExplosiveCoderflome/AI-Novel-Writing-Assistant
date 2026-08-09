@@ -10,6 +10,7 @@ import { NovelVolumeService } from "./volume/NovelVolumeService";
 import { STORY_WORLD_SLICE_SCHEMA_VERSION } from "./storyWorldSlice/storyWorldSlicePersistence";
 import { syncChapterArtifacts } from "./novelChapterArtifacts";
 import { listNovelTokenUsageByNovelIds } from "./novelTokenUsageSummary";
+import { toImageAsset } from "../image/imageGenerationMappers";
 import {
   ChapterInput,
   CreateNovelInput,
@@ -34,12 +35,25 @@ export class NovelCoreCrudService {
     }
   }
 
-  async listNovels({ page, limit }: PaginationInput) {
+  async listNovels({ page, limit, search, status, narrativeForm, writingMode, sort = "updated" }: PaginationInput) {
+    const normalizedSearch = search?.trim();
+    const orderBy = sort === "created" ? { createdAt: "desc" as const } : { updatedAt: "desc" as const };
     const [items, total] = await Promise.all([
       prisma.novel.findMany({
         skip: (page - 1) * limit,
         take: limit,
-        orderBy: { updatedAt: "desc" },
+        orderBy,
+        where: {
+          ...(status ? { status } : {}),
+          ...(narrativeForm ? { narrativeForm } : {}),
+          ...(writingMode ? { writingMode } : {}),
+          ...(normalizedSearch ? {
+            OR: [
+              { title: { contains: normalizedSearch } },
+              { description: { contains: normalizedSearch } },
+            ],
+          } : {}),
+        },
         select: {
           id: true,
           title: true,
@@ -52,6 +66,11 @@ export class NovelCoreCrudService {
           status: true,
           writingMode: true,
           projectMode: true,
+          narrativeForm: true,
+          targetWordCount: true,
+          derivedFromNovelId: true,
+          writingPlatform: true,
+          writingPlatformProfileVersion: true,
           narrativePov: true,
           pacePreference: true,
           styleTone: true,
@@ -76,28 +95,128 @@ export class NovelCoreCrudService {
           updatedAt: true,
           genre: { select: { id: true, name: true } },
           world: { select: { id: true, name: true, worldType: true } },
+          novelWorld: {
+            select: {
+              id: true,
+              title: true,
+              sourceWorld: { select: { id: true, name: true, worldType: true } },
+            },
+          },
           _count: { select: { chapters: true, characters: true, plotBeats: true } },
         },
       }),
-      prisma.novel.count(),
+      prisma.novel.count({
+        where: {
+          ...(status ? { status } : {}),
+          ...(narrativeForm ? { narrativeForm } : {}),
+          ...(writingMode ? { writingMode } : {}),
+          ...(normalizedSearch ? {
+            OR: [
+              { title: { contains: normalizedSearch } },
+              { description: { contains: normalizedSearch } },
+            ],
+          } : {}),
+        },
+      }),
     ]);
 
     const latestAutoDirectorTaskByNovelId = await this.listLatestVisibleAutoDirectorTasksByNovelIds(
       items.map((item) => item.id),
     );
+    const latestCreationStudioTaskByNovelId = await this.listLatestCreationStudioTasksByNovelIds(
+      items.map((item) => item.id),
+    );
     const tokenUsageByNovelId = await listNovelTokenUsageByNovelIds(items.map((item) => item.id));
+    const novelIds = items.map((item) => item.id);
+    const [coverAssets, coverTasks] = await Promise.all([
+      prisma.imageAsset.findMany({
+        where: { sceneType: "novel_cover", novelId: { in: novelIds }, isPrimary: true },
+        orderBy: [{ createdAt: "desc" }],
+      }),
+      prisma.imageGenerationTask.findMany({
+        where: {
+          sceneType: "novel_cover",
+          novelId: { in: novelIds },
+        },
+        orderBy: [{ updatedAt: "desc" }, { id: "desc" }],
+      }),
+    ]);
+    const primaryCoverByNovelId = new Map<string, ReturnType<typeof toImageAsset>>();
+    for (const asset of coverAssets) {
+      if (asset.novelId && !primaryCoverByNovelId.has(asset.novelId)) {
+        primaryCoverByNovelId.set(asset.novelId, toImageAsset(asset));
+      }
+    }
+    const coverTaskByNovelId = new Map<string, (typeof coverTasks)[number]>();
+    for (const task of coverTasks) {
+      if (task.novelId && !coverTaskByNovelId.has(task.novelId)) coverTaskByNovelId.set(task.novelId, task);
+    }
 
     return {
-      items: items.map((item) => ({
-        ...normalizeNovelOutput(item),
+      items: items.map((item) => {
+        const normalized = normalizeNovelOutput(item);
+        const world = normalized.world ?? (normalized.novelWorld
+          ? {
+            id: normalized.novelWorld.sourceWorld?.id ?? normalized.novelWorld.id,
+            name: normalized.novelWorld.sourceWorld?.name ?? normalized.novelWorld.title ?? "本书世界",
+            worldType: normalized.novelWorld.sourceWorld?.worldType ?? null,
+          }
+          : null);
+        return {
+        ...normalized,
+        world,
         latestAutoDirectorTask: latestAutoDirectorTaskByNovelId.get(item.id) ?? null,
+        latestCreationStudioTask: latestCreationStudioTaskByNovelId.get(item.id) ?? null,
         tokenUsage: tokenUsageByNovelId.get(item.id) ?? null,
-      })),
+        primaryCover: primaryCoverByNovelId.get(item.id) ?? null,
+        coverGeneration: coverTaskByNovelId.has(item.id)
+          ? { taskId: coverTaskByNovelId.get(item.id)!.id, status: coverTaskByNovelId.get(item.id)!.status }
+          : null,
+        };
+      }),
       page,
       limit,
       total,
       totalPages: Math.max(1, Math.ceil(total / limit)),
     };
+  }
+
+  private async listLatestCreationStudioTasksByNovelIds(
+    novelIds: string[],
+  ): Promise<Map<string, NovelAutoDirectorTaskSummary>> {
+    const uniqueNovelIds = Array.from(new Set(novelIds.filter(Boolean)));
+    if (uniqueNovelIds.length === 0) return new Map();
+    const rows = await prisma.novelWorkflowTask.findMany({
+      where: { lane: "creation_studio", novelId: { in: uniqueNovelIds } },
+      select: {
+        id: true,
+        novelId: true,
+        lane: true,
+        status: true,
+        progress: true,
+        currentStage: true,
+        currentItemKey: true,
+        currentItemLabel: true,
+        checkpointType: true,
+        checkpointSummary: true,
+        resumeTargetJson: true,
+        seedPayloadJson: true,
+        lastError: true,
+        heartbeatAt: true,
+        finishedAt: true,
+        milestonesJson: true,
+        title: true,
+        updatedAt: true,
+      },
+      orderBy: [{ updatedAt: "desc" }, { id: "desc" }],
+    });
+    const archivedTaskIds = await getArchivedTaskIdSet("novel_workflow", rows.map((row) => row.id));
+    const result = new Map<string, NovelAutoDirectorTaskSummary>();
+    for (const row of rows) {
+      if (!row.novelId || result.has(row.novelId) || archivedTaskIds.has(row.id)) continue;
+      result.set(row.novelId, mapNovelAutoDirectorTaskSummary(row));
+    }
+    return result;
   }
 
   private async listLatestVisibleAutoDirectorTasksByNovelIds(
@@ -241,6 +360,9 @@ export class NovelCoreCrudService {
         writingMode,
         projectMode: input.projectMode,
         creationExperience: input.creationExperience ?? "professional",
+        narrativeForm: input.narrativeForm ?? "long_novel",
+        targetWordCount: input.targetWordCount,
+        derivedFromNovelId: input.derivedFromNovelId,
         narrativePov: input.narrativePov,
         pacePreference: input.pacePreference,
         styleTone: input.styleTone,

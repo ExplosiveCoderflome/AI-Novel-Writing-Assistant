@@ -1,5 +1,4 @@
 import type { TaskKind, TaskStatus } from "@ai-novel/shared/types/task";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import type { TaskSortMode } from "../taskCenterUtils";
 import SelectControl from "@/components/common/SelectControl";
@@ -30,14 +29,11 @@ export default function TaskCenterFilterPanel({
   onSortModeChange,
 }: TaskCenterFilterPanelProps) {
   return (
-    <Card className="task-filter-card">
-      <CardHeader className="task-filter-header">
-        <CardTitle className="text-base">筛选</CardTitle>
-      </CardHeader>
-      <CardContent className="task-filter-controls grid min-w-0 grid-cols-3 gap-2 xl:grid-cols-1">
+    <section aria-label="筛选运行记录" className="task-filter-card rounded-2xl bg-muted/20 px-4 py-3">
+      <div className="task-filter-controls grid min-w-0 gap-2 sm:grid-cols-2 xl:grid-cols-[150px_150px_minmax(220px,1fr)_220px_auto] xl:items-center">
         <SelectControl
           aria-label="按任务类型筛选"
-          className="task-filter-kind col-start-1 row-start-1 w-full rounded-md border bg-background px-2 py-2 text-sm xl:col-auto xl:row-auto"
+          className="task-filter-kind h-10 w-full rounded-xl border-border/45 bg-background px-3 text-sm"
           value={kind}
           onChange={(event) => onKindChange(event.target.value as TaskKind | "")}
         >
@@ -52,7 +48,7 @@ export default function TaskCenterFilterPanel({
         </SelectControl>
         <SelectControl
           aria-label="按任务状态筛选"
-          className="task-filter-status col-start-2 row-start-1 w-full rounded-md border bg-background px-2 py-2 text-sm xl:col-auto xl:row-auto"
+          className="task-filter-status h-10 w-full rounded-xl border-border/45 bg-background px-3 text-sm"
           value={status}
           onChange={(event) => onStatusChange(event.target.value as TaskStatus | "")}
         >
@@ -64,24 +60,16 @@ export default function TaskCenterFilterPanel({
           <option value="cancelled">已取消</option>
           <option value="succeeded">已完成</option>
         </SelectControl>
-        <label className="task-filter-pill col-start-3 row-start-1 flex items-center gap-1.5 rounded-md border bg-muted/30 px-1.5 py-2 text-xs text-muted-foreground sm:gap-2 sm:px-2 sm:text-sm xl:col-auto xl:row-auto">
-          <input
-            type="checkbox"
-            checked={onlyAnomaly}
-            onChange={(event) => onOnlyAnomalyChange(event.target.checked)}
-          />
-          仅看需处理
-        </label>
         <Input
           aria-label="按标题或关联对象搜索"
-          className="task-filter-keyword col-span-2 col-start-1 row-start-2 h-10 px-2 xl:col-auto xl:row-auto"
+          className="task-filter-keyword h-10 rounded-xl border-border/45 bg-background px-3"
           value={keyword}
           onChange={(event) => onKeywordChange(event.target.value)}
           placeholder="标题或关联对象"
         />
         <SelectControl
           aria-label="任务排序方式"
-          className="task-filter-sort col-start-3 row-start-2 w-full rounded-md border bg-background px-2 py-2 text-sm xl:col-auto xl:row-auto"
+          className="task-filter-sort h-10 w-full rounded-xl border-border/45 bg-background px-3 text-sm"
           value={sortMode}
           onChange={(event) => onSortModeChange(event.target.value as TaskSortMode)}
         >
@@ -91,7 +79,18 @@ export default function TaskCenterFilterPanel({
           <option value="heartbeat_asc">按最近心跳排序：最早优先</option>
           <option value="default">默认排序：需处理优先</option>
         </SelectControl>
-      </CardContent>
-    </Card>
+        <label className={`task-filter-pill flex h-10 cursor-pointer items-center justify-center gap-2 rounded-full px-4 text-sm transition-colors ${
+          onlyAnomaly ? "bg-destructive/10 text-destructive" : "bg-background text-muted-foreground hover:bg-muted"
+        }`}>
+          <input
+            type="checkbox"
+            className="sr-only"
+            checked={onlyAnomaly}
+            onChange={(event) => onOnlyAnomalyChange(event.target.checked)}
+          />
+          只看需处理
+        </label>
+      </div>
+    </section>
   );
 }

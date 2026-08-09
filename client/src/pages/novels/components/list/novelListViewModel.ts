@@ -11,6 +11,7 @@ import {
   isWorkflowRunningInBackground,
   requiresCandidateSelection,
 } from "@/lib/novelWorkflowTaskUi";
+import { featureFlags } from "@/config/featureFlags";
 
 export type NovelListItem = NovelListResponse["items"][number];
 export type StatusFilter = "all" | "draft" | "published";
@@ -18,6 +19,10 @@ export type WritingModeFilter = "all" | "original" | "continuation";
 export type NovelListTone = "neutral" | "info" | "success" | "warning" | "danger";
 
 export const DIRECTOR_CREATE_LINK = "/novels/auto-director";
+export const SHORT_STORY_CREATE_LINK = featureFlags.creationStudioEnabled
+  ? "/create?form=short_story"
+  : null;
+export const PRIMARY_CREATE_LABEL = "AI 自动导演开书";
 export const MANUAL_CREATE_LINK = "/novels/create";
 export const NOVEL_LIST_PAGE_SIZE = 24;
 
@@ -37,6 +42,12 @@ export interface WorkflowDisplay {
   currentAction: string;
   lastHealthyStage: string;
   running: boolean;
+}
+
+export function getNovelWorkflowTask(novel: NovelListItem): NovelAutoDirectorTaskSummary | null {
+  return novel.narrativeForm === "short_story"
+    ? novel.latestCreationStudioTask ?? null
+    : novel.latestAutoDirectorTask ?? null;
 }
 
 export function filterNovelList(input: {
@@ -80,20 +91,24 @@ export function formatTokenCount(value?: number | null): string {
 
 export function buildNovelListSummary(novels: NovelListItem[]): NovelListSummaryItem[] {
   const running = novels.filter((novel) => {
-    const task = novel.latestAutoDirectorTask;
+    const task = getNovelWorkflowTask(novel);
     return task?.status === "queued" || task?.status === "running";
   }).length;
-  const waiting = novels.filter((novel) => novel.latestAutoDirectorTask?.status === "waiting_approval").length;
-  const ready = novels.filter((novel) => canEnterChapterExecution(novel.latestAutoDirectorTask ?? null)).length;
+  const waiting = novels.filter((novel) => getNovelWorkflowTask(novel)?.status === "waiting_approval").length;
+  const ready = novels.filter((novel) => (
+    novel.narrativeForm === "short_story"
+      ? getNovelWorkflowTask(novel)?.status === "succeeded"
+      : canEnterChapterExecution(getNovelWorkflowTask(novel))
+  )).length;
   const issue = novels.filter((novel) => {
-    const status = novel.latestAutoDirectorTask?.status;
+    const status = getNovelWorkflowTask(novel)?.status;
     return status === "failed" || status === "cancelled";
   }).length;
 
   return [
     { id: "running", label: "推进中", value: running, tone: running > 0 ? "info" : "neutral" },
     { id: "waiting", label: "待确认", value: waiting, tone: waiting > 0 ? "warning" : "neutral" },
-    { id: "ready", label: "可写章节", value: ready, tone: ready > 0 ? "success" : "neutral" },
+    { id: "ready", label: "可继续", value: ready, tone: ready > 0 ? "success" : "neutral" },
     { id: "issue", label: "暂停/失败", value: issue, tone: issue > 0 ? "danger" : "neutral" },
   ];
 }
@@ -118,7 +133,22 @@ export function getWorkflowTone(task?: NovelAutoDirectorTaskSummary | null): Nov
 }
 
 export function buildWorkflowDisplay(novel: NovelListItem): WorkflowDisplay {
-  const task = novel.latestAutoDirectorTask ?? null;
+  const task = getNovelWorkflowTask(novel);
+  if (novel.narrativeForm === "short_story") {
+    return {
+      tone: task?.status === "failed" ? "danger" : task?.status === "succeeded" ? "success" : "info",
+      label: task?.status === "succeeded" ? "完整短篇" : "短篇创作中",
+      description: task?.checkpointSummary?.trim()
+        || task?.currentItemLabel?.trim()
+        || novel.description?.trim()
+        || "AI 正在把已确认的方向写成一篇连续作品。",
+      progress: Math.round((task?.progress ?? 0) * 100),
+      currentStage: "连续作品",
+      currentAction: task?.currentItemLabel?.trim() || "",
+      lastHealthyStage: "",
+      running: task?.status === "queued" || task?.status === "running",
+    };
+  }
   const description = getWorkflowDescription(task);
   if (!task) {
     return {
@@ -146,7 +176,10 @@ export function buildWorkflowDisplay(novel: NovelListItem): WorkflowDisplay {
 }
 
 export function getPrimaryActionLabel(novel: NovelListItem): string {
-  const task = novel.latestAutoDirectorTask ?? null;
+  if (novel.narrativeForm === "short_story") {
+    return "打开作品";
+  }
+  const task = getNovelWorkflowTask(novel);
   if (canContinueChapterBatchAutoExecution(task)) {
     return task?.resumeAction ?? `继续自动执行${task?.executionScopeLabel ?? "当前章节范围"}`;
   }
@@ -170,6 +203,14 @@ export function getProjectAssetRows(novel: NovelListItem): Array<{
   value: string;
   tone?: NovelListTone;
 }> {
+  if (novel.narrativeForm === "short_story") {
+    return [
+      { label: "形式", value: "短篇" },
+      { label: "目标", value: `${(novel.targetWordCount ?? 0).toLocaleString()} 字` },
+      { label: "正文", value: getNovelWorkflowTask(novel)?.status === "succeeded" ? "已完成" : "生成中", tone: "info" },
+      { label: "来源", value: novel.derivedFromNovelId ? "派生作品" : "原创" },
+    ];
+  }
   return [
     { label: "章节", value: String(novel._count.chapters) },
     { label: "角色", value: String(novel._count.characters) },

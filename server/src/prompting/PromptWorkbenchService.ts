@@ -20,7 +20,10 @@ import { createDefaultContextResolverRegistry } from "./context/defaultContextRe
 import { derivePromptContextRequirements } from "./context/promptContextResolution";
 import type { PromptExecutionContext } from "./context/types";
 import { findRegisteredPromptAssetById, getRegisteredPromptAsset, listRegisteredPromptAssets } from "./registry";
-import { getPromptCatalogDescription } from "./addendums/PromptAddendumService";
+import {
+  getPromptCatalogDescription,
+  getPromptCatalogShortDescription,
+} from "./addendums/PromptAddendumService";
 import { CUSTOM_SLOT_CONTEXT_GROUP, resolvePromptOverlays } from "./slots/slotResolution";
 import { promptSlotOverrideService } from "./slots/PromptSlotOverrideService";
 import type { PromptSlotDef } from "./slots/slotTypes";
@@ -32,7 +35,7 @@ import type {
   PromptTemplateReferenceCatalog,
   PromptTemplateReferenceItem,
 } from "./templates/templateTypes";
-import { ADVANCED_TEMPLATE_PROMPT_ID, WRITER_REQUIRED_CONTEXT_GROUPS } from "./templates/templateTypes";
+import { getRequiredTemplateContextGroups, supportsAdvancedPromptTemplate } from "./templates/templateTypes";
 import {
   prepareWorkbenchPreviewExecutionContext,
   type PromptWorkbenchPreviewDb,
@@ -49,6 +52,7 @@ export interface PromptCatalogItem {
   mode: string;
   language: string;
   family: string;
+  shortDescription: string;
   description: string;
   outputType: "structured" | "text";
   contextPolicy: UnknownPromptAsset["contextPolicy"];
@@ -56,13 +60,17 @@ export interface PromptCatalogItem {
   slots: PromptSlotDef[];
   slotSupported: boolean;
   lockedFields: string[];
-  managementStatus: "complete" | "missing_context_requirements" | "missing_slots";
+  managementStatus: "complete" | "missing_context_requirements" | "missing_slots" | "missing_advanced_template";
+  management: UnknownPromptAsset["management"];
   capabilities: {
     hasOutputSchema: boolean;
     hasPostValidate: boolean;
     hasSemanticRetryPolicy: boolean;
     hasRepairPolicy: boolean;
     hasStructuredOutputHint: boolean;
+    supportsAdvancedTemplate: boolean;
+    isProductPrompt: boolean;
+    isProseGeneration: boolean;
   };
 }
 
@@ -166,10 +174,13 @@ function toCatalogItem(asset: UnknownPromptAsset): PromptCatalogItem {
   const contextRequirements = derivePromptContextRequirements(asset);
   const slots: PromptSlotDef[] = asset.slots ?? [];
   const slotSupported = slots.length > 0;
+  const prosePrompt = Boolean(asset.management?.proseGeneration);
   const managementStatus: PromptCatalogItem["managementStatus"] = contextRequirements.length === 0
     ? "missing_context_requirements"
     : !slotSupported
       ? "missing_slots"
+      : prosePrompt && !asset.management?.editModes.includes("advanced_template")
+        ? "missing_advanced_template"
       : "complete";
   return {
     key: buildPromptAssetKey(asset),
@@ -179,6 +190,7 @@ function toCatalogItem(asset: UnknownPromptAsset): PromptCatalogItem {
     mode: asset.mode,
     language: asset.language,
     family: asset.id.split(".")[0] ?? asset.id,
+    shortDescription: getPromptCatalogShortDescription(asset.id, asset.taskType),
     description: getPromptCatalogDescription(asset.id, asset.taskType),
     outputType: asset.mode === "structured" ? "structured" : "text",
     contextPolicy: asset.contextPolicy,
@@ -187,12 +199,16 @@ function toCatalogItem(asset: UnknownPromptAsset): PromptCatalogItem {
     slotSupported,
     lockedFields: LOCKED_PROMPT_FIELDS,
     managementStatus,
+    management: asset.management,
     capabilities: {
       hasOutputSchema: Boolean(asset.outputSchema),
       hasPostValidate: Boolean(asset.postValidate),
       hasSemanticRetryPolicy: Boolean(asset.semanticRetryPolicy),
       hasRepairPolicy: Boolean(asset.repairPolicy),
       hasStructuredOutputHint: Boolean(asset.structuredOutputHint),
+      supportsAdvancedTemplate: Boolean(asset.management?.editModes.includes("advanced_template")),
+      isProductPrompt: Boolean(asset.management?.productPrompt),
+      isProseGeneration: prosePrompt,
     },
   };
 }
@@ -268,9 +284,8 @@ function matchesCatalogFilter(item: PromptCatalogItem, filter?: PromptCatalogFil
 }
 
 function sortCatalogItems(left: PromptCatalogItem, right: PromptCatalogItem): number {
-  const writerPromptId = ADVANCED_TEMPLATE_PROMPT_ID;
-  const leftIsWriterPrompt = left.id === writerPromptId;
-  const rightIsWriterPrompt = right.id === writerPromptId;
+  const leftIsWriterPrompt = left.capabilities.isProseGeneration;
+  const rightIsWriterPrompt = right.capabilities.isProseGeneration;
   if (leftIsWriterPrompt !== rightIsWriterPrompt) {
     return leftIsWriterPrompt ? -1 : 1;
   }
@@ -360,7 +375,14 @@ function formatPreviewRenderError(error: unknown, asset: UnknownPromptAsset): Er
   return new Error(`提示词预览渲染失败（${asset.id}@${asset.version}）：${message}`);
 }
 
-function buildPromptInputReferenceItems(): PromptTemplateReferenceItem[] {
+function buildPromptInputReferenceItems(promptId?: string): PromptTemplateReferenceItem[] {
+  if (promptId === "novel.short_story.segment.write") {
+    return [
+      { key: "segment", label: "当前内部片段任务", token: "{{input.segment}}", group: "input" },
+      { key: "previousContinuity", label: "前文连续性摘要", token: "{{input.previousContinuity}}", group: "input" },
+      { key: "previousContentTail", label: "前文正文尾部", token: "{{input.previousContentTail}}", group: "input" },
+    ];
+  }
   return [
     { key: "novelTitle", label: "小说标题", token: "{{input.novelTitle}}", group: "input" },
     { key: "chapterOrder", label: "章节序号", token: "{{input.chapterOrder}}", group: "input" },
@@ -386,11 +408,12 @@ function buildSlotReferenceItems(slotDefs: PromptSlotDef[]): PromptTemplateRefer
 function buildContextReferenceItems(input: {
   requirements: PromptContextRequirement[];
   blocks: Array<{ group: string }>;
+  promptId: string;
 }): PromptTemplateReferenceItem[] {
   const previewGroups = new Set(input.blocks.map((block) => block.group));
   const requiredGroups = new Set([
     ...input.requirements.filter((requirement) => requirement.required).map((requirement) => requirement.group),
-    ...WRITER_REQUIRED_CONTEXT_GROUPS,
+    ...getRequiredTemplateContextGroups(input.promptId),
   ]);
   return input.requirements
     .map((requirement) => ({
@@ -419,7 +442,7 @@ async function resolvePreviewTemplate(input: {
   template: PromptTemplateJson;
   activeVersionNo?: number;
 } | null> {
-  if (input.asset.id !== ADVANCED_TEMPLATE_PROMPT_ID || !input.novelId) {
+  if (!supportsAdvancedPromptTemplate(input.asset.id) || !input.novelId) {
     return null;
   }
   if (input.templateDraft) {
@@ -562,7 +585,7 @@ export class PromptWorkbenchService {
           slotDefs,
           slots: resolvedSlots,
           allowedContextGroups: prompt.contextRequirements.map((requirement) => requirement.group),
-          requiredContextGroups: [...WRITER_REQUIRED_CONTEXT_GROUPS],
+          requiredContextGroups: getRequiredTemplateContextGroups(asset.id),
         });
         if (hasBlockingPromptTemplateDiagnostics(compiled.diagnostics)) {
           const details = [
@@ -736,8 +759,8 @@ export class PromptWorkbenchService {
     if (!asset) {
       throw new Error(`提示词未注册：${input.promptId}`);
     }
-    if (asset.id !== ADVANCED_TEMPLATE_PROMPT_ID) {
-      throw new Error("第一阶段仅支持正文写作提示词的上下文引用菜单。");
+    if (!supportsAdvancedPromptTemplate(asset.id)) {
+      throw new Error("该提示词不支持高级模板上下文引用。");
     }
     const prompt = toCatalogItem(asset);
     const previewContext = await this.preparePreviewExecutionContext({
@@ -761,8 +784,9 @@ export class PromptWorkbenchService {
         ...buildContextReferenceItems({
           requirements: prompt.contextRequirements,
           blocks: brokerResolution.blocks,
+          promptId: asset.id,
         }),
-        ...buildPromptInputReferenceItems(),
+        ...buildPromptInputReferenceItems(asset.id),
         ...buildSlotReferenceItems(asset.slots ?? []),
       ],
       missingRequiredGroups: brokerResolution.missingRequiredGroups,

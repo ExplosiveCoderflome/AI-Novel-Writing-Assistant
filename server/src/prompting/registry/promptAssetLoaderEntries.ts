@@ -10,6 +10,34 @@ export interface PromptAssetLoaderEntry {
 
 export const promptAssetLoaderEntries: PromptAssetLoaderEntry[] = [
   {
+    key: "novel.writing_platform.recommend@v1",
+    load: () => require("../prompts/novel/writingPlatformRecommendation.prompts").writingPlatformRecommendationPrompt as UnknownPromptAsset,
+  },
+  {
+    key: "creation.intent.interpret@v2",
+    load: () => require("../prompts/creation/creationIntent.prompts").creationIntentInterpretPrompt as UnknownPromptAsset,
+  },
+  {
+    key: "novel.short_story.plan@v2",
+    load: () => require("../prompts/shortStory/shortStory.prompts").shortStoryPlanPrompt as UnknownPromptAsset,
+  },
+  {
+    key: "novel.short_story.segment.write@v2",
+    load: () => require("../prompts/shortStory/shortStory.prompts").shortStorySegmentWritePrompt as UnknownPromptAsset,
+  },
+  {
+    key: "novel.short_story.full.audit@v2",
+    load: () => require("../prompts/shortStory/shortStory.prompts").shortStoryFullAuditPrompt as UnknownPromptAsset,
+  },
+  {
+    key: "novel.short_story.patch.repair@v2",
+    load: () => require("../prompts/shortStory/shortStory.prompts").shortStoryPatchRepairPrompt as UnknownPromptAsset,
+  },
+  {
+    key: "novel.short_story.revision.impact@v2",
+    load: () => require("../prompts/shortStory/shortStory.prompts").shortStoryRevisionImpactPrompt as UnknownPromptAsset,
+  },
+  {
     key: "planner.intent.parse@v1",
     load: () => require("../prompts/agent/plannerIntent.prompt").plannerIntentPrompt as UnknownPromptAsset,
   },
@@ -182,7 +210,7 @@ export const promptAssetLoaderEntries: PromptAssetLoaderEntry[] = [
     load: () => require("../prompts/rag/contextualChunk.prompts").ragContextualChunkPrompt as UnknownPromptAsset,
   },
   {
-    key: "novel.director.candidates@v1",
+    key: "novel.director.candidates@v2",
     load: () => require("../prompts/novel/directorPlanning.prompts").directorCandidatePrompt as UnknownPromptAsset,
   },
   {
@@ -278,15 +306,15 @@ export const promptAssetLoaderEntries: PromptAssetLoaderEntry[] = [
     load: () => require("../prompts/novel/volume/strategy.prompts").volumeStrategyCritiquePrompt as UnknownPromptAsset,
   },
   {
-    key: "novel.volume.skeleton@v2",
+    key: "novel.volume.skeleton@v3",
     load: () => require("../prompts/novel/volume/skeleton.prompts").createVolumeSkeletonPrompt(1) as UnknownPromptAsset,
   },
   {
-    key: "novel.volume.beat_sheet@v2",
+    key: "novel.volume.beat_sheet@v3",
     load: () => require("../prompts/novel/volume/beatSheet.prompts").volumeBeatSheetPrompt as UnknownPromptAsset,
   },
   {
-    key: "novel.volume.chapter_list@v7",
+    key: "novel.volume.chapter_list@v8",
     load: () => require("../prompts/novel/volume/chapterList.prompts").createVolumeChapterListPrompt(1) as UnknownPromptAsset,
   },
   {
@@ -302,7 +330,7 @@ export const promptAssetLoaderEntries: PromptAssetLoaderEntry[] = [
     load: () => require("../prompts/novel/volume/chapterDetail.prompts").volumeChapterTaskSheetPrompt as UnknownPromptAsset,
   },
   {
-    key: "novel.volume.chapter_execution_contract@v2",
+    key: "novel.volume.chapter_execution_contract@v3",
     load: () => require("../prompts/novel/volume/chapterDetail.prompts").volumeChapterExecutionContractPrompt as UnknownPromptAsset,
   },
   {
@@ -370,7 +398,7 @@ export const promptAssetLoaderEntries: PromptAssetLoaderEntry[] = [
     load: () => require("../prompts/novel/coreCharacter.prompts").characterEvolutionPrompt as UnknownPromptAsset,
   },
   {
-    key: "novel.character.visible_profile.complete@v1",
+    key: "novel.character.visible_profile.complete@v2",
     load: () => require("../prompts/novel/characterVisibleProfile.prompts").characterVisibleProfileCompletionPrompt as UnknownPromptAsset,
   },
   {
@@ -438,7 +466,7 @@ export const promptAssetLoaderEntries: PromptAssetLoaderEntry[] = [
     load: () => require("../prompts/novel/resourceRecommendation.prompts").novelCreateResourceRecommendationPrompt as UnknownPromptAsset,
   },
   {
-    key: "novel.director.idea_inspiration@v1",
+    key: "novel.director.idea_inspiration@v3",
     load: () => require("../prompts/novel/ideaInspiration.prompts").directorIdeaInspirationPrompt as UnknownPromptAsset,
   },
   {

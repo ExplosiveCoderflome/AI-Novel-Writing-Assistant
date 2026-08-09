@@ -27,6 +27,7 @@ export default function AppLayout() {
   const [isWorkspaceRailCollapsed, setIsWorkspaceRailCollapsed] = useState(false);
   const [workspaceNavMode, setWorkspaceNavMode] = useState<"workspace" | "project">("project");
   const isMobileViewport = useIsMobileViewport();
+  const isNovelPreview = Boolean(matchPath("/novels/:id/preview", location.pathname));
 
   const workspaceRoute = useMemo(() => {
     const editMatch = matchPath("/novels/:id/edit", location.pathname);
@@ -77,20 +78,37 @@ export default function AppLayout() {
     setWorkspaceNavMode(isNovelWorkspace ? "workspace" : "project");
   }, [isNovelWorkspace, location.pathname]);
 
+  if (isNovelPreview) {
+    return (
+      <CreationSetupProvider>
+        <TaskRecoveryProvider>
+          <div className="h-[100dvh] overflow-hidden bg-[#faf9f6]">
+            <AutoDirectorPauseNotificationWatcher />
+            <LLMSelectionBootstrap />
+            <Suspense fallback={<AppRouteFallback />}>
+              <Outlet />
+            </Suspense>
+            <TaskRecoveryDialog />
+          </div>
+        </TaskRecoveryProvider>
+      </CreationSetupProvider>
+    );
+  }
+
   if (useMobileBareLayout) {
     return (
       <CreationSetupProvider>
-      <TaskRecoveryProvider>
-        <div className="min-h-screen bg-background">
-          <AutoDirectorPauseNotificationWatcher />
-          <LiveExecutionDialog compact className="fixed bottom-16 right-3 z-50 h-9 w-9 bg-background px-0 shadow-sm" />
-          <LLMSelectionBootstrap />
-          <Suspense fallback={<AppRouteFallback />}>
-            <Outlet />
-          </Suspense>
-          <TaskRecoveryDialog />
-        </div>
-      </TaskRecoveryProvider>
+        <TaskRecoveryProvider>
+          <div className="min-h-screen bg-background">
+            <AutoDirectorPauseNotificationWatcher />
+            <LiveExecutionDialog compact className="fixed bottom-16 right-3 z-50 h-9 w-9 bg-background px-0 shadow-sm" />
+            <LLMSelectionBootstrap />
+            <Suspense fallback={<AppRouteFallback />}>
+              <Outlet />
+            </Suspense>
+            <TaskRecoveryDialog />
+          </div>
+        </TaskRecoveryProvider>
       </CreationSetupProvider>
     );
   }

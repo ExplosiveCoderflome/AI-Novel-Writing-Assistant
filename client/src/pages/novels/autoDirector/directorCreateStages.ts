@@ -27,12 +27,17 @@ function findLabel(options: Array<{ value: string; label: string }>, value: stri
   return options.find((option) => option.value === value)?.label ?? value;
 }
 
-export function summarizeIdea(idea: string): string {
+export function summarizeIdea(idea: string, foundation?: {
+  genre?: string;
+  storyMode?: string;
+}): string {
   const normalized = idea.trim().replace(/\s+/g, " ");
   if (!normalized) {
     return "等待填写起始想法";
   }
-  return normalized.length > 42 ? `${normalized.slice(0, 42)}...` : normalized;
+  const ideaSummary = normalized.length > 30 ? `${normalized.slice(0, 30)}...` : normalized;
+  const foundationSummary = [foundation?.genre, foundation?.storyMode].filter(Boolean).join(" · ");
+  return foundationSummary ? `${ideaSummary} · ${foundationSummary}` : ideaSummary;
 }
 
 export function summarizeBasicStage(basicForm: NovelBasicFormState): string {

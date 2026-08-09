@@ -1,6 +1,10 @@
 import type { PromptSlotDef } from "../slots/slotTypes";
 
-export const ADVANCED_TEMPLATE_PROMPT_ID = "novel.chapter.writer";
+export const ADVANCED_TEMPLATE_PROMPT_IDS = [
+  "novel.chapter.writer",
+  "novel.short_story.segment.write",
+] as const;
+export const ADVANCED_TEMPLATE_PROMPT_ID = ADVANCED_TEMPLATE_PROMPT_IDS[0];
 export const ADVANCED_TEMPLATE_SCOPE = "novel";
 export const ADVANCED_TEMPLATE_MAX_CHARS = 60000;
 
@@ -15,6 +19,26 @@ export const WRITER_REQUIRED_CONTEXT_GROUPS = [
   "local_state",
   "style_contract",
 ] as const;
+
+export const SHORT_STORY_WRITER_REQUIRED_CONTEXT_GROUPS = [
+  "creation_intent",
+  "short_story_plan",
+  "short_story_continuity",
+  "writing_platform",
+  "book_style",
+] as const;
+
+export function supportsAdvancedPromptTemplate(promptId: string): boolean {
+  return (ADVANCED_TEMPLATE_PROMPT_IDS as readonly string[]).includes(promptId);
+}
+
+export function getRequiredTemplateContextGroups(promptId: string): string[] {
+  return promptId === "novel.short_story.segment.write"
+    ? [...SHORT_STORY_WRITER_REQUIRED_CONTEXT_GROUPS]
+    : promptId === "novel.chapter.writer"
+      ? [...WRITER_REQUIRED_CONTEXT_GROUPS, "writing_platform"]
+      : [];
+}
 
 export type PromptTemplateOverrideMode = "official" | "custom";
 export type PromptTemplateMessageRole = "system" | "human";

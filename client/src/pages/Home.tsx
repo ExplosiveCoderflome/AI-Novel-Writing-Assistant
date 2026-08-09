@@ -23,6 +23,7 @@ import {
   buildHomeNextAction,
   HOME_NOVEL_FETCH_LIMIT,
   HOME_RECENT_LIMIT,
+  getHomeNovelTask,
   selectPrimaryNovel,
   type HomeNovelItem,
 } from "./home/homeViewModel";
@@ -108,7 +109,10 @@ export default function Home() {
   };
 
   const openNovelEditor = (novelId: string) => {
-    navigate(`/novels/${novelId}/edit`);
+    const novel = allNovels.find((item) => item.id === novelId);
+    navigate(novel?.narrativeForm === "short_story"
+      ? `/novels/${novelId}/story`
+      : `/novels/${novelId}/edit`);
   };
 
   const renderNovelPrimaryAction = (
@@ -119,7 +123,7 @@ export default function Home() {
     },
   ) => {
     const { size = "sm", stopPropagation = false } = options ?? {};
-    const task = novel.latestAutoDirectorTask ?? null;
+    const task = getHomeNovelTask(novel);
     const isWorkflowPending = continueWorkflowMutation.isPending
       && continueWorkflowMutation.variables?.taskId === task?.id;
 
@@ -128,6 +132,19 @@ export default function Home() {
         stopCardClick(event);
       }
     };
+
+    if (novel.narrativeForm === "short_story") {
+      return (
+        <Button asChild size={size}>
+          <Link
+            to={`/novels/${novel.id}/story`}
+            onClick={stopPropagation ? stopCardClick : undefined}
+          >
+            打开作品
+          </Link>
+        </Button>
+      );
+    }
 
     if (canContinueChapterBatchAutoExecution(task)) {
       return (
