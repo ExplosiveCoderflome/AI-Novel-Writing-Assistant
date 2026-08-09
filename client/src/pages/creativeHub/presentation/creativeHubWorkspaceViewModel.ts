@@ -1,5 +1,5 @@
 import i18next from "i18next";
-import type { FailureDiagnostic } from "@ai-novel/shared/types/novelDirector";
+import type { FailureDiagnostic } from "@ai-novel/shared/types/agent";
 import type {
   CreativeHubInterrupt,
   CreativeHubNovelSetupStatus,
@@ -11,6 +11,7 @@ import type { WorkspaceTone } from "@/components/workspace";
 
 export type CreativeHubWorkspaceActionKind =
   | "retry_threads"
+  | "retry_thread"
   | "retry_create_thread"
   | "retry_state"
   | "retry_novels"
@@ -21,7 +22,11 @@ export type CreativeHubWorkspaceActionKind =
   | "view_setup"
   | "continue_target"
   | "select_novel"
-  | "view_production_entry";
+  | "view_production_entry"
+  | "send_prompt"
+  | "open_production"
+  | "review_interrupt"
+  | "view_activity";
 
 export interface CreativeHubWorkspaceRecommendation {
   tone: WorkspaceTone;
@@ -29,6 +34,7 @@ export interface CreativeHubWorkspaceRecommendation {
   description: string;
   action: CreativeHubWorkspaceActionKind;
   actionLabel: string;
+  prompt?: string;
 }
 
 export interface CreativeHubWorkspacePresentation {
