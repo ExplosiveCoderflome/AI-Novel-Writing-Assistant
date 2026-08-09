@@ -1,4 +1,5 @@
 import type { CreativeHubThread } from "@ai-novel/shared/types/creativeHub";
+import { useTranslation } from "react-i18next";
 import { RefreshCw } from "lucide-react";
 import { WorkspaceStateNotice } from "@/components/workspace";
 import { Badge } from "@/components/ui/badge";
@@ -53,6 +54,7 @@ export default function CreativeHubThreadList({
   onArchive,
   onDelete,
 }: CreativeHubThreadListProps) {
+  const { t } = useTranslation();
   return (
     <Card
       className="flex h-full min-h-0 flex-col rounded-lg shadow-none"

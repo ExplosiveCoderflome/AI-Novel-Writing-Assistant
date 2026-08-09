@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 import type { RefObject } from "react";
 import type {
   BookAnalysisDetail,
@@ -95,6 +96,7 @@ interface BookAnalysisDetailPanelProps {
 }
 
 export default function BookAnalysisDetailPanel(props: BookAnalysisDetailPanelProps) {
+  const { t } = useTranslation();
   const {
     analysisMode,
     selectedAnalysis,

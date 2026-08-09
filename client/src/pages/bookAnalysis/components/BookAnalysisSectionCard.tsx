@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import {
   BOOK_ANALYSIS_STRUCTURED_FIELD_LABELS,
   type BookAnalysisSection,
@@ -48,6 +49,7 @@ function formatEvidenceBinding(item: SectionEvidenceItem): string {
 }
 
 export default function BookAnalysisSectionCard(props: BookAnalysisSectionCardProps) {
+  const { t } = useTranslation();
   const {
     analysisMode,
     section,

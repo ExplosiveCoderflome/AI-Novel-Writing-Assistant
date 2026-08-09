@@ -1,4 +1,5 @@
 import type { BookAnalysisDetail } from "@ai-novel/shared/types/bookAnalysis";
+import { useTranslation } from "react-i18next";
 import { Columns2, Pencil } from "lucide-react";
 import { Link } from "react-router-dom";
 import { Badge } from "@/components/ui/badge";
@@ -42,6 +43,7 @@ interface BookAnalysisWorkspaceToolbarProps {
 }
 
 export default function BookAnalysisWorkspaceToolbar(props: BookAnalysisWorkspaceToolbarProps) {
+  const { t } = useTranslation();
   const {
     selectedAnalysis,
     selectedNovelId,

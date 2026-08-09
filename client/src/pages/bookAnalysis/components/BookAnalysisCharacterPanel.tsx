@@ -1,4 +1,5 @@
 import i18next from "i18next";
+import { useTranslation } from "react-i18next";
 const t = (key: string, options?: any) => i18next.t(key, options) as string;
 import { useMemo, useState } from "react";
 import type {
@@ -137,6 +138,7 @@ function availableChapterAnchors(character: BookAnalysisCharacter): number[] {
 }
 
 export default function BookAnalysisCharacterPanel(props: BookAnalysisCharacterPanelProps) {
+  const { t, i18n } = useTranslation();
   const {
     characters,
     analysisId,

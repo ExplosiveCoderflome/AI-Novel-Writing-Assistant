@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 import type { FailureDiagnostic } from "@ai-novel/shared/types/agent";
 import type {
   CreativeHubInterrupt,
@@ -210,6 +211,7 @@ export default function CreativeHubSidebar({
   onCreateNovel,
   onStartProduction,
 }: CreativeHubSidebarProps) {
+  const { t, i18n } = useTranslation();
   const [novelTitleDraft, setNovelTitleDraft] = useState("");
   const [isBindingNovel, setIsBindingNovel] = useState(false);
   const [isCreatingNovel, setIsCreatingNovel] = useState(false);

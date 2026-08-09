@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import type {
   BookAnalysis,
   BookAnalysisStatus,
@@ -25,6 +26,7 @@ interface BookAnalysisSidebarProps {
 }
 
 export default function BookAnalysisSidebar(props: BookAnalysisSidebarProps) {
+  const { t } = useTranslation();
   const {
     keyword,
     status,
