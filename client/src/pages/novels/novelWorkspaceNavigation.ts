@@ -67,9 +67,24 @@ export function getNextNovelWorkspaceFlowTab(value: string | null | undefined): 
   return NOVEL_WORKSPACE_FLOW_STEPS[currentIndex + 1]?.key ?? null;
 }
 
-export function getNovelWorkspaceTabLabel(value: string | null | undefined): string {
+export function getNovelWorkspaceTabLabel(value: string | null | undefined, t?: (key: string, defaultValue?: string) => string): string {
   const normalized = normalizeNovelWorkspaceTab(value);
-  return [...NOVEL_WORKSPACE_FLOW_STEPS, ...NOVEL_WORKSPACE_TOOL_TABS].find((item) => item.key === normalized)?.label ?? "项目设定";
+  if (!t) {
+    const item = [...NOVEL_WORKSPACE_FLOW_STEPS, ...NOVEL_WORKSPACE_TOOL_TABS].find((item) => item.key === normalized);
+    return item?.label ?? "项目设定";
+  }
+  switch (normalized) {
+    case "basic": return t("home.projectSetup", "项目设定");
+    case "story_macro": return t("home.storyMacro", "故事宏观规划");
+    case "world": return t("home.worldPrep", "世界观准备");
+    case "character": return t("home.characterPrep", "角色准备");
+    case "outline": return t("home.outlineStrategy", "卷战略 / 卷骨架");
+    case "structured": return t("home.pacingChapters", "节奏 / 拆章");
+    case "chapter": return t("home.chapterExecution", "章节执行");
+    case "pipeline": return t("home.qualityRepair", "质量修复");
+    case "history": return t("home.versionHistory", "版本历史");
+    default: return t("home.projectSetup", "项目设定");
+  }
 }
 
 export function scopeFromWorkspaceTab(tab: string): DirectorLockScope | null {

@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type { DirectorContinuationMode } from "@ai-novel/shared/types/novelDirector";
 import type { TaskKind, TaskStatus, UnifiedTaskStep } from "@ai-novel/shared/types/task";

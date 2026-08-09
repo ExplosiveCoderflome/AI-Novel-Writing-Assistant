@@ -28,61 +28,21 @@
     "failedAutoDirector": "Failed to continue auto-direction."
   },
   "home": {
-    "metric": {
-      "recentAutoProgress": "Auto-Progressing",
-      "recentAutoProgressHint": "Recent projects actively running auto-director or auto-execution in the background.",
-      "recentActionRequired": "Awaiting Your Action",
-      "recentActionRequiredHint": "Recent projects waiting for review, failed, or cancelled that require your next step.",
-      "recentExecutionReady": "Ready for Writing",
-      "recentExecutionReadyHint": "Recent projects ready for writing; you can directly proceed to chapter production.",
-      "backgroundFailedTasks": "Failed Background Tasks",
-      "backgroundFailedTasksHint": "Total count of failed tasks in the task center, which can be managed later."
-    },
-    "recommendation": {
-      "badgeRecommend": "Highly Recommended",
-      "badgeLowBar": "Easy Start",
-      "titleHasNovels": "Want to start your next book quickly? Let AI auto-direct first.",
-      "titleNoNovels": "First time? Let AI auto-direct guide you to open a book.",
-      "description": "You only need to provide a rough idea, and AI will generate direction schemes, title packages, and book setup first, stopping at key stages to wait for your approval. You don't need to know the whole structure from the beginning.",
-      "suitability1": "Suitable when you haven't fully figured out the theme, selling points, and first 30 chapters' promise",
-      "suitability2": "Also suitable to quickly spin up a new project",
-      "buttonAutoDirector": "AI Auto-Direct",
-      "buttonManualCreate": "Manual Create",
-      "buttonGetStarted": "Get Started"
-    },
-    "recentProject": {
-      "title": "Continue Recent Project",
-      "description": "The home page directly takes you back to the most relevant book to continue writing.",
-      "errorLoading": "Failed to read project list; cannot recommend the next step on home page.",
-      "buttonReload": "Reload Project",
-      "progress": "Progress",
-      "buttonExecutionDetails": "Execution Details",
-      "buttonOpenProject": "Open Project",
-      "buttonEditNovel": "Edit Novel",
-      "emptyTitle": "You haven't started any novel projects yet. For the first time, it's recommended to go with AI Auto-Direct, which sets up your direction and preparation.",
-      "executing": "Executing...",
-      "continuing": "Continuing...",
-      "continueAutoExecute": "Continue Auto-Executing {{scope}}",
-      "currentScope": "Current Chapter Range",
-      "continueDirector": "Continue Director",
-      "continueConfirmDirection": "Continue Confirming Direction",
-      "enterChapterExecution": "Enter Chapter Execution",
-      "viewProgressStatus": "View Progress Status"
-    },
-    "quickOps": {
-      "title": "Quick Actions",
-      "description": "Common entry points and the easiest ways to start a book are grouped together.",
-      "newBookAnalysis": "New Book Analysis",
-      "backgroundTasks": "Task Center"
-    },
-    "recentProjectsList": {
-      "title": "Recent Projects",
-      "description": "Displays not only titles but also current stages and resumption entry points.",
-      "errorLoading": "Failed to load recent projects. Please try again later.",
-      "emptyList": "No novel projects yet. Start by creating a new novel.",
-      "noWorkflowTask": "No auto-director task",
-      "progressPercent": "Progress {{percent}}%"
-    }
+    "whyNow": "Why Now",
+    "currentlyWriting": "Currently Writing",
+    "viewExecutionDetails": "View Execution Details",
+    "openProject": "Open Project",
+    "letAiStart": "Let AI Start for Me",
+    "manualCreateNovel": "Create Novel Manually",
+    "projectSetup": "Project Setup",
+    "storyMacro": "Story Macro Planning",
+    "worldPrep": "Worldbuilding Setup",
+    "characterPrep": "Character Setup",
+    "outlineStrategy": "Volume Strategy & Outline",
+    "pacingChapters": "Pacing & Chapter Breakdown",
+    "chapterExecution": "Chapter Execution",
+    "qualityRepair": "Quality Repair",
+    "versionHistory": "Version History"
   },
   "basicInfo": {
     "tipsTitle": "Form Advice",
@@ -6917,5 +6877,82 @@
     "noPositions": "No holdings data available. Click top right to import holdings or connect MooMoo OpenD.",
     "noActions": "No urgent portfolio adjustments required. Maintain current positions.",
     "disclaimer": "⚠️ Risk Warning: This workbench provides pre-market decision guidance and risk warnings only (Advisory Only). The system will NEVER auto-place orders. Final trades must be executed manually in your MooMoo client."
+  },
+  "onboarding": {
+    "guide": "Writing Guide",
+    "firstCompleted": "First Chapter Completed",
+    "stepProgress": "Step {{current}} of {{total}}",
+    "whyRecommended": "Why Recommended",
+    "currentWork": "Current Project",
+    "simpleMode": "Simple Mode",
+    "proMode": "Professional Mode",
+    "firstBookRoadmap": "First Novel Roadmap",
+    "roadmapDesc": "Progress is driven by real models, tasks, and drafts, no manual checking needed.",
+    "completedProgress": "{{completed}}/{{total}} Completed",
+    "currentStep": "Current Step",
+    "needsAction": "Action Required",
+    "optionalEnhancements": "Optional Enhancements",
+    "enhancementsDesc": "These capabilities enhance long-term writing without blocking chapter 1 completion.",
+    "roadmapComplete": "First Novel Onboarding Completed",
+    "roadmapCompleteDesc": "The guide preserves this progress. Home will focus on your active project and next steps.",
+    "viewAllNovels": "View All Novels",
+    "noNeedToLearnAll": "No Need to Learn Everything First",
+    "followSingleAction": "Simply follow the single recommended action above. World, characters, volume plans, and quality issues are handled by AI in the background.",
+    "loadingRoadmap": "Organizing your writing roadmap...",
+    "errorTitle": "Unable to load onboarding progress",
+    "errorDesc": "Reload to continue recommending next steps based on model, project, and chapter status.",
+    "reload": "Reload",
+    "quickSetupNoticeTitle": "Complete quick setup to start AI writing",
+    "quickSetupNoticeDefaultDesc": "Select a text model, and the system will automatically configure task routes needed for planning, draft writing, review, and repair.",
+    "quickSetupBtn": "Quick Setup",
+    "dismissTip": "Dismiss tip",
+    "nextStep": "Next step: {{next}}",
+    "milestones": {
+      "environment": {
+        "title": "Writing Environment",
+        "description": "Configure a text model capable of planning, draft writing, and review."
+      },
+      "inspiration": {
+        "title": "Inspiration & Direction",
+        "description": "Write a one-sentence inspiration and choose from AI directions."
+      },
+      "preparation": {
+        "title": "Project Setup",
+        "description": "AI prepares story, world, characters, volume planning, and execution resources."
+      },
+      "production": {
+        "title": "Production Mode",
+        "description": "Choose AI auto-director or switch to professional workbench."
+      },
+      "first_chapter": {
+        "title": "First Chapter Draft",
+        "description": "Wait for chapter 1 to finish, then open text to read."
+      }
+    },
+    "headlines": {
+      "environment": "Configure AI Text Model",
+      "inspiration": "Set Story Inspiration & Direction",
+      "preparation": "AI Preparing Project Setup Resources",
+      "production": "Choose Auto-Director or Pro Workbench",
+      "first_chapter": "First Chapter Ready to Read"
+    },
+    "reasons": {
+      "environment": "Text models provide core capabilities for novel planning, drafting, and quality review.",
+      "inspiration": "A simple one-sentence inspiration enables AI to generate full novel planning for you.",
+      "preparation": "These resources directly drive subsequent chapters without requiring item-by-item manual review.",
+      "production": "You can seamlessly switch between fully automated production and deep detail refinement.",
+      "first_chapter": "You can continue observing full-book production or open workbench to refine contents."
+    }
+  },
+  "novels": {
+    "listTitle": "Novel List",
+    "listSubtitle": "Manage novels in progress and quickly determine next actions or required status handling.",
+    "startWithAiDirector": "Start with AI Director",
+    "createManually": "Create Novel Manually",
+    "pageLabel": "Page",
+    "pageValue": "Page {{page}} of {{totalPages}}",
+    "totalLabel": "Total",
+    "totalValue": "{{total}} novels",
+    "pendingRecovery": "Pending Recovery {{count}}"
   }
 }

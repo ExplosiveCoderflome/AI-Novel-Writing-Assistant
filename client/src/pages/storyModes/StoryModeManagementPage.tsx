@@ -1,5 +1,4 @@
-import i18next from "i18next";
-const t = (key: string, options?: any) => i18next.t(key, options) as string;
+import { useTranslation } from "react-i18next";
 import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type { StoryModeProfile } from "@ai-novel/shared/types/storyMode";
@@ -126,6 +125,7 @@ function toDialogState(node?: StoryModeTreeNode | null): StoryModeDialogState {
 }
 
 export default function StoryModeManagementPage() {
+  const { t, i18n } = useTranslation();
   const llm = useLLMStore();
   const queryClient = useQueryClient();
   const [createDialogOpen, setCreateDialogOpen] = useState(false);

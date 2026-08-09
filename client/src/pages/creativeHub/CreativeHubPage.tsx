@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type { ApiResponse } from "@ai-novel/shared/types/api";
@@ -39,10 +40,11 @@ import {
 import { resolveCreativeHubWorkspacePresentation } from "./presentation/creativeHubWorkspaceViewModel";
 
 const RUNTIME_DETAILS_COLLAPSED_STORAGE_KEY = "creative-hub.runtime-details-collapsed";
-const DEFAULT_THREAD_TITLE = "\u65b0\u5bf9\u8bdd";
+const DEFAULT_THREAD_TITLE = "新对话";
 const pendingAutoCreateThreadKeys = new Set<string>();
 
 export default function CreativeHubPage() {
+  const { t, i18n } = useTranslation();
   const llm = useLLMStore();
   const queryClient = useQueryClient();
   const [searchParams, setSearchParams] = useSearchParams();

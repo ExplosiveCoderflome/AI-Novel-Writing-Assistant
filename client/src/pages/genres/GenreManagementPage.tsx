@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   BookOpen,
@@ -33,6 +34,7 @@ import {
 } from "./genreManagement.shared";
 
 export default function GenreManagementPage() {
+  const { t, i18n } = useTranslation();
   const queryClient = useQueryClient();
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [defaultParentId, setDefaultParentId] = useState("");

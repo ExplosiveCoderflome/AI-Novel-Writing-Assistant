@@ -5,20 +5,8 @@ import { Link } from "react-router-dom";
 import { getFirstNovelOnboarding } from "@/api/onboarding";
 import { queryKeys } from "@/api/queryKeys";
 
-function trHeadline(headline: string | undefined, isEn: boolean): string {
-  if (!headline) return "";
-  if (!isEn) return headline;
-  return headline
-    .replace(/^第一章可以阅读$/, "First Chapter Ready to Read")
-    .replace(/形成可读成稿，从灵感到正文的完整流程顺利跑通。/g, "Draft formed into readable chapter, completing full flow from idea to text.")
-    .replace(/继续完成第一章/g, "Continue Chapter 1")
-    .replace(/开书准备需要处理/g, "Project Setup Needs Action")
-    .replace(/AI 正在准备开书资源/g, "AI Preparing Project Setup");
-}
-
 export default function FirstNovelJourneyStrip() {
-  const { t, i18n } = useTranslation();
-  const isEn = i18n.language === "en";
+  const { t } = useTranslation();
   const query = useQuery({
     queryKey: queryKeys.onboarding.firstNovel,
     queryFn: getFirstNovelOnboarding,
@@ -42,14 +30,19 @@ export default function FirstNovelJourneyStrip() {
           <div className="flex flex-wrap items-center gap-2">
             <span className="text-sm font-semibold">{t("onboarding.guide", "第一本书向导")}</span>
             <span className="text-xs text-muted-foreground">
-              {isEn ? `${journey.completedCount}/${journey.totalCount} completed` : `${journey.completedCount}/${journey.totalCount} 步完成`}
+              {t("onboarding.completedProgress", "{{completed}}/{{total}} 完成", {
+                completed: journey.completedCount,
+                total: journey.totalCount,
+              })}
             </span>
           </div>
-          <p className="mt-1 truncate text-xs text-muted-foreground">{trHeadline(journey.headline, isEn)}</p>
+          <p className="mt-1 truncate text-xs text-muted-foreground">
+            {t(`onboarding.headlines.${journey.currentMilestone}`, journey.headline)}
+          </p>
         </div>
       </div>
       <div className="flex items-center gap-3">
-        <div className="flex gap-1" aria-label={isEn ? `${journey.completedCount} steps completed` : `已完成 ${journey.completedCount} 个步骤`}>
+        <div className="flex gap-1" aria-label={t("onboarding.completedProgress", "{{completed}}/{{total}} 完成", { completed: journey.completedCount, total: journey.totalCount })}>
           {journey.milestones.map((milestone) => (
             <span
               key={milestone.key}

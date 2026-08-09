@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { BookOpenText, ListChecks, Plus, RefreshCw } from "lucide-react";
 import OpenInCreativeHubButton from "@/components/creativeHub/OpenInCreativeHubButton";
 import {
@@ -26,6 +27,7 @@ import {
 import { formatStage, formatStatus } from "./bookAnalysis.utils";
 
 export default function BookAnalysisPage() {
+  const { t, i18n } = useTranslation();
   const workspace = useBookAnalysisWorkspace();
   const dualPanePreference = useBookAnalysisDualPanePreference();
   const chapterReader = useBookAnalysisChapterReader();

@@ -1,5 +1,4 @@
-import i18next from "i18next";
-const t = (key: string, options?: any) => i18next.t(key, options) as string;
+import { useTranslation } from "react-i18next";
 import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type {
@@ -64,7 +63,6 @@ function buildListParamsKey(input: {
 }): string {
   return JSON.stringify(input);
 }
-
 function isBatchActionAllowedForSection(
   section: AutoDirectorFollowUpSection,
   actionCode: AutoDirectorMutationActionCode,
@@ -118,6 +116,7 @@ function parseEnumParam<T extends string>(value: string | null, candidates: read
 }
 
 export default function AutoDirectorFollowUpCenterPage() {
+  const { t, i18n } = useTranslation();
   const queryClient = useQueryClient();
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();

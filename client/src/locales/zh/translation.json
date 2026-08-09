@@ -28,61 +28,21 @@
     "failedAutoDirector": "继续自动导演失败。"
   },
   "home": {
-    "metric": {
-      "recentAutoProgress": "最近自动推进中",
-      "recentAutoProgressHint": "最近项目中仍在后台推进的自动导演或自动执行项目。",
-      "recentActionRequired": "最近待你处理",
-      "recentActionRequiredHint": "最近项目里等待审核、失败或已取消后需要你决定下一步的项目。",
-      "recentExecutionReady": "最近可进入章节执行",
-      "recentExecutionReadyHint": "最近项目里准备到可开写阶段，可以直接进入章节写作。",
-      "backgroundFailedTasks": "后台失败任务",
-      "backgroundFailedTasksHint": "来自任务中心的失败任务总数，可后续集中处理。"
-    },
-    "recommendation": {
-      "badgeRecommend": "新手推荐",
-      "badgeLowBar": "低门槛开书",
-      "titleHasNovels": "想快速开启下一本书？先交给 AI 自动导演。",
-      "titleNoNovels": "第一次使用？先让 AI 自动导演带你开一本书。",
-      "description": "你只需要提供一个模糊想法，AI 会先帮你生成方向方案、标题包 and 开书准备，并在关键阶段停下来等你确认，不需要你一开始就把结构全部想清楚。",
-      "suitability1": "适合还没想清楚题材、卖点和前 30 章承诺时使用",
-      "suitability2": "也适合先快速搭起一本可继续推进的新项目",
-      "buttonAutoDirector": "AI 自动导演开书",
-      "buttonManualCreate": "手动创建小说",
-      "buttonGetStarted": "新手上路"
-    },
-    "recentProject": {
-      "title": "继续最近项目",
-      "description": "首页应该直接把你送回当前最值得继续的一本书。",
-      "errorLoading": "当前无法读取项目列表，首页没法为你推荐下一步入口。",
-      "buttonReload": "重新加载项目",
-      "progress": "进度",
-      "buttonExecutionDetails": "执行详情",
-      "buttonOpenProject": "打开项目",
-      "buttonEditNovel": "编辑小说",
-      "emptyTitle": "你还没有开始小说项目。第一次使用时，推荐直接走 AI 自动导演，它会先帮你搭好方向和开写准备。",
-      "executing": "继续执行中...",
-      "continuing": "继续中...",
-      "continueAutoExecute": "继续自动执行{{scope}}",
-      "currentScope": "当前章节范围",
-      "continueDirector": "继续导演",
-      "continueConfirmDirection": "继续确认书级方向",
-      "enterChapterExecution": "进入章节执行",
-      "viewProgressStatus": "查看推进状态"
-    },
-    "quickOps": {
-      "title": "快捷操作",
-      "description": "把常用入口和新手最容易上手的开书方式放在一起。",
-      "newBookAnalysis": "新建拆书",
-      "backgroundTasks": "后台任务"
-    },
-    "recentProjectsList": {
-      "title": "最近项目",
-      "description": "这里不只显示标题，也直接显示当前所处阶段 and 恢复入口。",
-      "errorLoading": "当前无法加载最近项目，稍后可以重试。",
-      "emptyList": "暂无小说项目，先从“新建小说”开始。",
-      "noWorkflowTask": "无自动导演任务",
-      "progressPercent": "进度 {{percent}}%"
-    }
+    "whyNow": "为什么是现在",
+    "currentlyWriting": "正在创作",
+    "viewExecutionDetails": "查看执行详情",
+    "openProject": "打开项目",
+    "letAiStart": "让 AI 带我开始",
+    "manualCreateNovel": "手动创建小说",
+    "projectSetup": "项目设定",
+    "storyMacro": "故事宏观规划",
+    "worldPrep": "世界观准备",
+    "characterPrep": "角色准备",
+    "outlineStrategy": "卷战略 / 卷骨架",
+    "pacingChapters": "节奏 / 拆章",
+    "chapterExecution": "章节执行",
+    "qualityRepair": "质量修复",
+    "versionHistory": "版本历史"
   },
   "basicInfo": {
     "tipsTitle": "填写建议",
@@ -6917,5 +6877,82 @@
     "noPositions": "暂无持仓数据，可点击右上角导入持仓或连接 MooMoo OpenD",
     "noActions": "当前组合无须紧急调整，建议继续观望持有",
     "disclaimer": "⚠️ 风险提示：本工作台仅输出盘前决策参考与风控预警（Advisory Only），系统绝不会自动下单，最终挂单请在 MooMoo 客户端确认执行。"
+  },
+  "onboarding": {
+    "guide": "创作向导",
+    "firstCompleted": "首章已完成",
+    "stepProgress": "第 {{current}} 步 / 共 {{total}} 步",
+    "whyRecommended": "为什么推荐这一步",
+    "currentWork": "当前作品",
+    "simpleMode": "简易创作",
+    "proMode": "专业创作",
+    "firstBookRoadmap": "第一本书路线",
+    "roadmapDesc": "进度来自真实模型、导演任务和章节成稿，不需要手动打勾。",
+    "completedProgress": "{{completed}}/{{total}} 完成",
+    "currentStep": "当前步骤",
+    "needsAction": "需要处理",
+    "optionalEnhancements": "可选增强",
+    "enhancementsDesc": "这些能力可以提升长期创作，但不会阻塞你完成第一章。",
+    "roadmapComplete": "第一本书的新手路线完成",
+    "roadmapCompleteDesc": "向导会保留这份成果，首页将继续聚焦当前项目和下一步创作。",
+    "viewAllNovels": "查看全部小说",
+    "noNeedToLearnAll": "你不需要先学会所有功能",
+    "followSingleAction": "沿着上面的唯一推荐动作推进即可。世界、角色、卷章规划和普通质量问题会由 AI 在主链中持续处理。",
+    "loadingRoadmap": "正在整理你的创作路线",
+    "errorTitle": "暂时无法读取创作进度",
+    "errorDesc": "重新加载后，系统会继续根据模型、项目和章节状态推荐下一步。",
+    "reload": "重新加载",
+    "quickSetupNoticeTitle": "完成快捷配置后就可以启动 AI 创作",
+    "quickSetupNoticeDefaultDesc": "选择一个文本模型，系统会自动准备规划、正文、审校和修复所需的任务路由。",
+    "quickSetupBtn": "快捷配置",
+    "dismissTip": "关闭此条引导",
+    "nextStep": "接下来：{{next}}",
+    "milestones": {
+      "environment": {
+        "title": "创作环境",
+        "description": "配置一个能完成规划、正文和审校的文本模型。"
+      },
+      "inspiration": {
+        "title": "灵感与方向",
+        "description": "写下一句话灵感，并从 AI 给出的方向中选择一套。"
+      },
+      "preparation": {
+        "title": "开书准备",
+        "description": "AI 准备故事、世界、角色、卷章规划和执行资源。"
+      },
+      "production": {
+        "title": "生产方式",
+        "description": "选择 AI 持续写完整本书，或进入专业工作台。"
+      },
+      "first_chapter": {
+        "title": "首章成稿",
+        "description": "等待第一章完成后，打开正文开始阅读。"
+      }
+    },
+    "headlines": {
+      "environment": "配置 AI 文本模型",
+      "inspiration": "确定故事灵感与方向",
+      "preparation": "AI 正在准备开书资源",
+      "production": "选择全自动或专业创作",
+      "first_chapter": "第一章可以阅读"
+    },
+    "reasons": {
+      "environment": "文本模型是小说规划、正文书写与质量审查的核心能力。",
+      "inspiration": "简单的一句话灵感就能让 AI 为你生成完整的书级规划。",
+      "preparation": "这些资源会直接驱动后续章节，不需要你逐项审核。",
+      "production": "您可以随时在全自动与深度细节微调之间无缝切换。",
+      "first_chapter": "接下来可以继续观察整书生产，或进入工作台完善后续内容。"
+    }
+  },
+  "novels": {
+    "listTitle": "小说列表",
+    "listSubtitle": "管理正在推进的小说项目，快速判断哪些可以继续写、哪些需要先处理状态。",
+    "startWithAiDirector": "AI 自动导演开书",
+    "createManually": "手动创建小说",
+    "pageLabel": "当前",
+    "pageValue": "第 {{page}} / {{totalPages}} 页",
+    "totalLabel": "总数",
+    "totalValue": "{{total}} 本",
+    "pendingRecovery": "待恢复 {{count}}"
   }
 }

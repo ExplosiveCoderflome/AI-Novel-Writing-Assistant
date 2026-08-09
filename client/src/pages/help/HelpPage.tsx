@@ -44,52 +44,8 @@ function MilestoneIcon({ milestone, index }: { milestone: FirstNovelMilestone; i
   return <span className="text-xs font-semibold">{index + 1}</span>;
 }
 
-function trText(text: string | undefined | null, isEn: boolean): string {
-  if (!text) return "";
-  if (!isEn) return text;
-  return text
-    .replace(/^第一章可以阅读$/, "First Chapter Ready to Read")
-    .replace(/形成可读成稿，从灵感到正文的完整流程顺利跑通。/g, "Draft formed into readable chapter, completing full flow from idea to text.")
-    .replace(/接下来可以继续观察整书生产，或进入工作台完善后续内容。/g, "You can continue observing full-book production or open workbench to refine contents.")
-    .replace(/阅读第一章/g, "Read Chapter 1")
-    .replace(/第一本书路线/g, "First Novel Roadmap")
-    .replace(/创作环境/g, "Writing Environment")
-    .replace(/配置一个能完成规划、正文和审校的文本模型。/g, "Configure a text model capable of planning, draft writing, and review.")
-    .replace(/灵感与方向/g, "Inspiration & Direction")
-    .replace(/写下一句话灵感，并从 AI 给出的方向中选择一套。/g, "Write a one-sentence inspiration and choose from AI directions.")
-    .replace(/开书准备/g, "Project Setup")
-    .replace(/AI 准备故事、世界、角色、卷章规划和执行资源。/g, "AI prepares story, world, characters, volume planning, and execution resources.")
-    .replace(/生产方式/g, "Production Mode")
-    .replace(/选择 AI 持续写完整本书，或进入专业工作台。/g, "Choose AI auto-director or switch to professional workbench.")
-    .replace(/首章成稿/g, "First Chapter Draft")
-    .replace(/等待第一章完成后，打开正文开始阅读。/g, "Wait for chapter 1 to finish, then open text to read.")
-    .replace(/知识库/g, "Knowledge Base")
-    .replace(/需要参考资料或长期设定时再启用，不影响开始创作。/g, "Enable when reference material is needed; does not block starting writing.")
-    .replace(/写法引擎/g, "Style Engine")
-    .replace(/有明确文风样本后再提取写法，首章创作无需等待这项配置。/g, "Extract style when writing samples exist; first chapter requires no wait.")
-    .replace(/图像能力/g, "Image Generation")
-    .replace(/需要封面或角色图时再配置图像模型。/g, "Configure image models when cover or character art is needed.")
-    .replace(/正在细化第/g, "Elaborating Ch.")
-    .replace(/章 · 任务单/g, " · Task List")
-    .replace(/可阅读/g, " Readable")
-    .replace(/专业创作/g, "Pro Writing")
-    .replace(/简易创作/g, "Simple Writing")
-    .replace(/当前作品/g, "Current Novel")
-    .replace(/为什么推荐这一步/g, "Why Recommended")
-    .replace(/进度来自真实模型、导演任务和章节成稿，不需要手动打勾。/g, "Progress is driven by real models, tasks, and drafts, no manual checking needed.")
-    .replace(/这些能力可以提升长期创作，但不会阻塞你完成第一章。/g, "These capabilities enhance long-term writing without blocking chapter 1 completion.")
-    .replace(/第一本书的新手路线完成/g, "First Novel Onboarding Completed")
-    .replace(/向导会保留这份成果，首页将继续聚焦当前项目和下一步创作。/g, "The guide preserves this progress. Home will focus on your active project and next steps.")
-    .replace(/你不需要先学会所有功能/g, "No Need to Learn Everything First")
-    .replace(/沿着上面的唯一推荐动作推进即可。世界、角色、卷章规划和普通质量问题会由 AI 在主链中持续处理。/g, "Simply follow the single recommended action above. World, characters, volume plans, and quality issues are handled by AI in the background.")
-    .replace(/查看全部小说/g, "View All Novels")
-    .replace(/当前步骤/g, "Current Step")
-    .replace(/需要处理/g, "Action Required");
-}
-
 export default function HelpPage() {
-  const { t, i18n } = useTranslation();
-  const isEn = i18n.language === "en";
+  const { t } = useTranslation();
   const { openQuickSetup } = useCreationSetup();
   const journeyQuery = useQuery({
     queryKey: queryKeys.onboarding.firstNovel,
@@ -119,7 +75,7 @@ export default function HelpPage() {
     );
   }
 
-  const primaryButtonLabel = trText(journey.primaryAction.label, isEn);
+  const primaryButtonLabel = t(`onboarding.actions.${journey.primaryAction.kind}`, journey.primaryAction.label);
   const primaryButton = journey.primaryAction.kind === "open_quick_setup"
     ? (
         <Button size="lg" className="w-full sm:w-auto" onClick={openQuickSetup}>
@@ -145,16 +101,23 @@ export default function HelpPage() {
               <Badge className="border-white/15 bg-white/10 text-slate-200 hover:bg-white/10">
                 {journey.graduated
                   ? t("onboarding.firstCompleted", "首章已完成")
-                  : isEn
-                    ? `Step ${Math.min(journey.completedCount + 1, journey.totalCount)} of ${journey.totalCount}`
-                    : `第 ${Math.min(journey.completedCount + 1, journey.totalCount)} 步 / 共 ${journey.totalCount} 步`}
+                  : t("onboarding.stepProgress", "第 {{current}} 步 / 共 {{total}} 步", {
+                      current: Math.min(journey.completedCount + 1, journey.totalCount),
+                      total: journey.totalCount,
+                    })}
               </Badge>
             </div>
-            <h1 className="mt-5 max-w-3xl text-3xl font-semibold leading-tight tracking-normal sm:text-4xl">{trText(journey.headline, isEn)}</h1>
-            <p className="mt-4 max-w-3xl text-sm leading-7 text-slate-300">{trText(journey.description, isEn)}</p>
+            <h1 className="mt-5 max-w-3xl text-3xl font-semibold leading-tight tracking-normal sm:text-4xl">
+              {t(`onboarding.headlines.${journey.currentMilestone}`, journey.headline)}
+            </h1>
+            <p className="mt-4 max-w-3xl text-sm leading-7 text-slate-300">
+              {journey.description}
+            </p>
             <div className="mt-6 border-l border-sky-300/70 pl-4">
               <div className="text-xs font-medium uppercase tracking-[0.12em] text-sky-200">{t("onboarding.whyRecommended", "为什么推荐这一步")}</div>
-              <p className="mt-2 text-sm leading-6 text-slate-300">{trText(journey.reason, isEn)}</p>
+              <p className="mt-2 text-sm leading-6 text-slate-300">
+                {t(`onboarding.reasons.${journey.currentMilestone}`, journey.reason)}
+              </p>
             </div>
           </div>
           <div className="space-y-3">
@@ -162,6 +125,7 @@ export default function HelpPage() {
             {journey.novel ? (
               <div className="rounded-xl border border-white/10 bg-white/5 p-4">
                 <div className="text-xs text-slate-400">{t("onboarding.currentWork", "当前作品")}</div>
+                {/* User-created novel title is preserved in original language as required */}
                 <div className="mt-1 truncate font-semibold">{journey.novel.title}</div>
                 <div className="mt-1 text-xs text-slate-300">
                   {journey.novel.creationExperience === "simple"
@@ -182,7 +146,10 @@ export default function HelpPage() {
               <p className="mt-2 text-sm text-muted-foreground">{t("onboarding.roadmapDesc", "进度来自真实模型、导演任务和章节成稿，不需要手动打勾。")}</p>
             </div>
             <div className="text-sm font-medium text-muted-foreground">
-              {journey.completedCount}/{journey.totalCount} {isEn ? "Completed" : "完成"}
+              {t("onboarding.completedProgress", "{{completed}}/{{total}} 完成", {
+                completed: journey.completedCount,
+                total: journey.totalCount,
+              })}
             </div>
           </div>
         </CardHeader>
@@ -207,12 +174,12 @@ export default function HelpPage() {
                   <MilestoneIcon milestone={milestone} index={index} />
                 </span>
                 <div className="min-w-0">
-                  <div className="font-semibold">{trText(milestone.title, isEn)}</div>
-                  <p className="mt-1 text-sm leading-6 text-muted-foreground">{trText(milestone.description, isEn)}</p>
+                  <div className="font-semibold">{t(`onboarding.milestones.${milestone.key}.title`, milestone.title)}</div>
+                  <p className="mt-1 text-sm leading-6 text-muted-foreground">{t(`onboarding.milestones.${milestone.key}.description`, milestone.description)}</p>
                 </div>
                 <div className="pl-12 text-xs sm:pl-0 sm:text-right">
                   {milestone.resultSummary ? (
-                    <span className="inline-flex max-w-56 rounded-full bg-muted px-3 py-1.5 text-muted-foreground">{trText(milestone.resultSummary, isEn)}</span>
+                    <span className="inline-flex max-w-56 rounded-full bg-muted px-3 py-1.5 text-muted-foreground">{milestone.resultSummary}</span>
                   ) : milestone.status === "current" ? (
                     <Badge>{t("onboarding.currentStep", "当前步骤")}</Badge>
                   ) : milestone.status === "attention" ? (
@@ -238,8 +205,8 @@ export default function HelpPage() {
                 <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-muted text-muted-foreground group-hover:bg-primary/10 group-hover:text-primary">
                   <Icon className="h-5 w-5" />
                 </div>
-                <div className="mt-4 font-semibold">{trText(item.title, isEn)}</div>
-                <p className="mt-2 text-sm leading-6 text-muted-foreground">{trText(item.description, isEn)}</p>
+                <div className="mt-4 font-semibold">{t(`onboarding.enhancements.${item.key}.title`, item.title)}</div>
+                <p className="mt-2 text-sm leading-6 text-muted-foreground">{t(`onboarding.enhancements.${item.key}.description`, item.description)}</p>
               </Link>
             );
           })}
