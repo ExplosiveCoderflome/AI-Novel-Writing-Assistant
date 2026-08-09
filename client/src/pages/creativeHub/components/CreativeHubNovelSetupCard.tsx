@@ -1,3 +1,4 @@
+import i18next from "i18next";
 import type { CreativeHubNovelSetupStatus } from "@ai-novel/shared/types/creativeHub";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -41,7 +42,7 @@ export default function CreativeHubNovelSetupCard({
   return (
     <div className="space-y-3">
       <div className="mb-3 flex items-center justify-between gap-2">
-        <div className="text-xs font-medium text-muted-foreground">开书信息</div>
+        <div className="text-xs font-medium text-muted-foreground">{i18next.t("creativeHub.setupInfo", "开书信息")}</div>
         <Badge variant="outline">{stageLabel(setup.stage)}</Badge>
       </div>
 
@@ -55,7 +56,7 @@ export default function CreativeHubNovelSetupCard({
           </div>
           <div className="text-right">
             <div className="text-lg font-semibold text-foreground">{setup.completionRatio}%</div>
-            <div className="text-[11px] text-muted-foreground">完成度</div>
+            <div className="text-[11px] text-muted-foreground">{i18next.t("creativeHub.completion", "完成度")}</div>
           </div>
         </div>
         <div

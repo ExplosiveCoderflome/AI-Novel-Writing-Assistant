@@ -1,3 +1,4 @@
+import i18next from "i18next";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import type { FailureDiagnostic } from "@ai-novel/shared/types/agent";
@@ -48,7 +49,7 @@ interface CreativeHubSidebarProps {
 }
 
 function bindingStatusLabel(value: string | null | undefined): string {
-  return value?.trim() ? "已绑定" : "未绑定";
+  return value?.trim() ? i18next.t("creativeHub.bound", "已绑定") : i18next.t("creativeHub.unbound", "未绑定");
 }
 
 function pipelineStatusLabel(status: string | null | undefined): string {

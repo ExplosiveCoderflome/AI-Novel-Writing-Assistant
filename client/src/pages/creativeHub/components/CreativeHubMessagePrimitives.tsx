@@ -1,3 +1,4 @@
+import i18next from "i18next";
 import {
   ActionBarPrimitive,
   BranchPickerPrimitive,
@@ -24,7 +25,7 @@ function BranchControls() {
     >
       <BranchPickerPrimitive.Previous asChild>
         <Button type="button" size="sm" variant="ghost" className="h-6 px-1 text-[11px]" disabled={actionDisabled}>
-          上一支
+          {i18next.t("creativeHub.prevBranch", "上一支")}
         </Button>
       </BranchPickerPrimitive.Previous>
       <span className="tabular-nums">
@@ -32,7 +33,7 @@ function BranchControls() {
       </span>
       <BranchPickerPrimitive.Next asChild>
         <Button type="button" size="sm" variant="ghost" className="h-6 px-1 text-[11px]" disabled={actionDisabled}>
-          下一支
+          {i18next.t("creativeHub.nextBranch", "下一支")}
         </Button>
       </BranchPickerPrimitive.Next>
     </BranchPickerPrimitive.Root>
@@ -53,7 +54,7 @@ function UserMessageActions() {
     >
       <ActionBarPrimitive.Edit asChild>
         <Button type="button" size="sm" variant="outline" className="h-7 px-2 text-[11px]" disabled={actionDisabled}>
-          编辑
+          {i18next.t("creativeHub.edit", "编辑")}
         </Button>
       </ActionBarPrimitive.Edit>
     </ActionBarPrimitive.Root>
@@ -75,7 +76,7 @@ function AssistantMessageActions() {
     >
       <ActionBarPrimitive.Reload asChild>
         <Button type="button" size="sm" variant="outline" className="h-7 px-2 text-[11px]" disabled={actionDisabled}>
-          重新生成
+          {i18next.t("creativeHub.regenerate", "重新生成")}
         </Button>
       </ActionBarPrimitive.Reload>
     </ActionBarPrimitive.Root>

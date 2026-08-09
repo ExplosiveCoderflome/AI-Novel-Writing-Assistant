@@ -176,7 +176,7 @@ function buildDebugTraceEntry(
         id: `run_status_${sequence}`,
         kind: i18next.t("gen.pages.creativeHub.lib.creativeHubSyntheticMessages.gen_e4b51d5c"),
         title: i18next.t("gen.pages.creativeHub.lib.creativeHubSyntheticMessages.gen_e4b51d5c"),
-        summary: frame.data.message || `当前状态：${toStatusLabel(frame.data.status)}`,
+        summary: frame.data.message || `${i18next.t("creativeHub.currentStatus", "当前状态：")}${toStatusLabel(frame.data.status)}`,
         meta: [toStatusLabel(frame.data.status), `Run ${runId.slice(0, 8)}`],
         tone: frame.data.status === "failed" || frame.data.status === "cancelled"
           ? "destructive"
@@ -295,9 +295,9 @@ function buildDebugTraceEntry(
         id: `planner_${sequence}`,
         kind: i18next.t("gen.pages.creativeHub.lib.creativeHubSyntheticMessages.gen_e3a26af0"),
         title: i18next.t("gen.pages.creativeHub.lib.creativeHubSyntheticMessages.gen_e3a26af0"),
-        summary: `来源：${getPlannerSourceDisplayLabel(planner.source)}；意图：${getIntentDisplayLabel(planner.intent)}`,
+        summary: `${i18next.t("creativeHub.plannerSource", "来源：")}${getPlannerSourceDisplayLabel(planner.source)}${i18next.t("creativeHub.plannerIntent", "；意图：")}${getIntentDisplayLabel(planner.intent)}`,
         meta: [
-          "confidence" in planner ? `置信度 ${String(planner.confidence ?? "-")}` : "",
+          "confidence" in planner ? `${i18next.t("creativeHub.confidence", "置信度")} ${String(planner.confidence ?? "-")}` : "",
           `Run ${runId.slice(0, 8)}`,
         ].filter(Boolean),
       },
@@ -317,7 +317,7 @@ function buildDebugTraceEntry(
         id: `checkpoint_${sequence}`,
         kind: "Checkpoint",
         title: i18next.t("gen.pages.creativeHub.lib.creativeHubSyntheticMessages.gen_b07b635c"),
-        summary: `Checkpoint ${frame.data.checkpointId.slice(0, 8)} 已写回线程历史。`,
+        summary: `${i18next.t("creativeHub.checkpointWritten", "Checkpoint {{id}} 已写回线程历史。", { id: frame.data.checkpointId.slice(0, 8) })}`,
         meta: [`Run ${runId.slice(0, 8)}`],
       },
     };

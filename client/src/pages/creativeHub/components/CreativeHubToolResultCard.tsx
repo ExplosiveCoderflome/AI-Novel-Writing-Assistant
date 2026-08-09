@@ -1,3 +1,4 @@
+import i18next from "i18next";
 import { useId, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -32,7 +33,7 @@ function itemLabel(item: Record<string, unknown>): string {
   if (typeof item.id === "string" && item.id.trim()) {
     return item.id.trim();
   }
-  return "未命名条目";
+  return i18next.t("creativeHub.unnamedItem", "未命名条目");
 }
 
 function compactText(value: string, max = 140): string {

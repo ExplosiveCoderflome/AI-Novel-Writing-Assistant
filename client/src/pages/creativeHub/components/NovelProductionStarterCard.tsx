@@ -1,4 +1,6 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
+import { useTranslation } from "react-i18next";
+import i18next from "i18next";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import type { CreativeHubProductionStatus } from "@ai-novel/shared/types/creativeHub";
 import { RefreshCw } from "lucide-react";
@@ -196,6 +198,7 @@ export default function NovelProductionStarterCard({
   onSubmit,
   onQuickAction,
 }: NovelProductionStarterCardProps) {
+  const { t } = useTranslation();
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [targetChapterCount, setTargetChapterCount] = useState(20);

@@ -1,3 +1,4 @@
+import i18next from "i18next";
 import { useId, useState } from "react";
 import type { ToolCallMessagePartProps } from "@assistant-ui/react";
 import CreativeHubToolResultCard from "./CreativeHubToolResultCard";

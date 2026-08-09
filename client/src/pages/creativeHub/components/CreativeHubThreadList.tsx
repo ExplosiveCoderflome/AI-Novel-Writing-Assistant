@@ -1,3 +1,4 @@
+import i18next from "i18next";
 import type { CreativeHubThread } from "@ai-novel/shared/types/creativeHub";
 import { useTranslation } from "react-i18next";
 import { RefreshCw } from "lucide-react";
