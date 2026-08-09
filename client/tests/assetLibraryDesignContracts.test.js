@@ -36,6 +36,9 @@ const storyModePage = readClientFile("src/pages/storyModes/StoryModeManagementPa
 const storyModeTreeBrowser = readClientFile("src/pages/storyModes/components/StoryModeTreeBrowser.tsx");
 const assetTreeNavigator = readClientFile("src/components/assetLibrary/AssetTreeNavigator.tsx");
 const characterPage = readClientFile("src/pages/characters/CharacterLibrary.tsx");
+const writingFormulaLanding = readClientFile("src/pages/writingFormula/components/WritingFormulaLanding.tsx");
+const writingFormulaWorkbench = readClientFile("src/pages/writingFormula/components/WritingFormulaWorkbenchPanel.tsx");
+const writingFormulaCreateDialog = readClientFile("src/pages/writingFormula/components/WritingFormulaCreateDialog.tsx");
 
 test("asset library semantic status colors are registered as theme tokens", () => {
   for (const token of ["success", "warning", "info"]) {
@@ -191,4 +194,24 @@ test("story mode library reuses the tree navigator and keeps mode contracts in t
   assert.match(storyModeTreeBrowser, /推进单元/);
   assert.match(storyModeTreeBrowser, /冲突上限/);
   assert.doesNotMatch(storyModeTreeBrowser, /shadow-(?:sm|md|lg|xl|2xl)/);
+});
+
+test("writing formula keeps a compact asset list and reveals the selected profile in place", () => {
+  assert.match(writingFormulaLanding, /先选一套写法，再决定要编辑、应用还是去 AI 味/);
+  assert.match(writingFormulaLanding, /isSelected \? \(/);
+  assert.match(writingFormulaLanding, /读感与定位/);
+  assert.match(writingFormulaLanding, /规则摘要/);
+  assert.match(writingFormulaLanding, /资产概览/);
+  assert.match(writingFormulaLanding, /编辑设定/);
+  assert.match(writingFormulaLanding, /应用与测试/);
+  assert.match(writingFormulaLanding, /去 AI 味/);
+  assert.doesNotMatch(writingFormulaLanding, /xl:sticky xl:top-4/);
+  assert.match(writingFormulaCreateDialog, /从一种读感开始/);
+  assert.match(writingFormulaCreateDialog, /用模板开始/);
+  assert.match(writingFormulaCreateDialog, /说一句想法/);
+  assert.match(writingFormulaCreateDialog, /从素材学习/);
+  assert.match(writingFormulaCreateDialog, /AI 帮我先搭一套/);
+  assert.ok(writingFormulaLanding.split("\n").length < 450);
+  assert.ok(writingFormulaWorkbench.split("\n").length < 350);
+  assert.ok(writingFormulaCreateDialog.split("\n").length < 700);
 });

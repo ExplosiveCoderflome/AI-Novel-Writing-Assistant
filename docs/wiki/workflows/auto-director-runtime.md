@@ -86,6 +86,8 @@ Web API 只接收命令和返回轻量投影；Worker 负责执行重型生产�
 - 接管入口只能把 `directorTaskId`、当前 active auto-director task 或 live auto-director projection 作为“当前导演任务”上下文。`workspaceTaskId` 属于普通编辑工作流 lane，不能传入接管弹窗参与“进入当前任务”判断；否则被本地收起但仍处于 `waiting_approval` 的手动流程会误导接管入口，以为存在可继续的自动导演任务。
 - 书级自动化投影如果返回 `failed`、`blocked` 或 `waiting_recovery` 且包含 `latestTask.id`，前端必须把它视为当前需要处理的导演状态。即使 URL 没有 `directorTaskId`、active auto-director task 查询返回空，AI 驾驶舱、任务抽屉入口和恢复入口也要显示该投影，并在用户打开详情时把 `latestTask.id` 写入 `directorTaskId`。`completed` / `cancelled` 终态可以继续只在 URL 钉住时展示，避免旧任务反复打扰。
 - 当接管入口能从任务快照或小说资产推断出下一章和章节总数时，默认入口可以提供“推进至第 N 章”的轻量选择。该选择必须生成显式 `chapter_range` 的 `autoExecutionPlan`，范围从当前待执行章开始，到用户选择的目标章结束；高级设置打开时仍以高级范围配置为准。
+- 现有项目接管进入执行面时，用户提交的 `runMode`、`chapter_range` 与自动审批配置必须作为同一份执行契约写入任务 Seed，并驱动后续拆章细化与章节执行。运行时不得把范围接管降级为 `auto_to_ready`，也不得回退读取上一条已完成任务的范围；若最终持久化范围和用户请求不一致，应明确失败并保留可诊断证据，而不能显示为流程完成。
+- `workflow_completed` 是任务主状态的终态事实。章节正文、连续性、角色资源和读者承诺的索引事件可以在安全落库后异步补记，但只能作为历史事件，不能覆盖完成任务的主进度、当前动作或检查点展示。
 - 接管任务的 `downstreamReset` 元数据只表达“从接管点开始，后续旧资产需要重新校验”，不能覆盖任务已经推进到更后阶段的事实进度。UI 合成步骤状态时，应以当前运行阶段为边界，只把当前阶段及其后的 reset steps 显示为待推进；早于当前阶段的步骤应按任务进度或真实资产显示已完成。
 - `chapter_batch_ready` 的质量提醒属于当前批次的继续门。用户点击“继续自动执行章节”后，`approveAutoExecutionScope` 应允许 AI 主驾跳过当前质量提醒并启动剩余章节。
 - 章节范围自动执行的 StepModule 事实门控必须按本次授权范围裁剪章节进度。`chapter.draft.write`、`chapter.state.commit` 等范围内步骤只能校验当前 `autoExecution` / `autoExecutionPlan` 的章节区间，不能让范围外已有正文但缺状态提交的旧章节阻塞当前批次完成。

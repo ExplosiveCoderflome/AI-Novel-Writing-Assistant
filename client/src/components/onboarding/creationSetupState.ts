@@ -18,6 +18,11 @@ interface RouteSetupPromptInput {
   pathname: string;
 }
 
+interface FirstNovelHandoffInput {
+  configurationSucceeded: boolean;
+  forceConfiguration: boolean;
+}
+
 export function shouldOpenAutomaticSetupPrompt(input: AutomaticSetupPromptInput): boolean {
   return input.statusResolved && !input.readyForCreation && !input.dismissed;
 }
@@ -26,4 +31,8 @@ export function shouldOpenSetupPromptForRoute(input: RouteSetupPromptInput): boo
   return input.statusResolved
     && !input.readyForCreation
     && GATED_ROUTE_PREFIXES.some((prefix) => input.pathname.startsWith(prefix));
+}
+
+export function shouldShowFirstNovelHandoff(input: FirstNovelHandoffInput): boolean {
+  return input.configurationSucceeded && !input.forceConfiguration;
 }

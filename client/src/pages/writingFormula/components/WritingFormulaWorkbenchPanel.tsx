@@ -1,4 +1,5 @@
 import type { StyleBinding } from "@ai-novel/shared/types/styleEngine";
+import { BookOpenText, FlaskConical, Link2, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import SelectControl from "@/components/common/SelectControl";
@@ -54,22 +55,39 @@ export default function WritingFormulaWorkbenchPanel(props: WritingFormulaWorkbe
     onRunTestWrite,
   } = props;
 
+  const bindingTargetLabel: Record<StyleBinding["targetType"], string> = {
+    novel: "整本书",
+    chapter: "章节",
+    task: "本次任务",
+  };
+
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>当前写法的应用与测试</CardTitle>
+    <Card className="border-slate-200/80 bg-white shadow-none">
+      <CardHeader className="border-b border-slate-100 pb-5">
+        <div className="flex items-center gap-3">
+          <div className="flex size-10 items-center justify-center rounded-2xl bg-slate-950 text-white">
+            <FlaskConical className="size-5" />
+          </div>
+          <div>
+            <CardTitle>把写法放进故事里验证</CardTitle>
+            <div className="mt-1 text-sm text-slate-500">先试读感，再决定让它在哪个创作环节生效。</div>
+          </div>
+        </div>
       </CardHeader>
-      <CardContent className="space-y-5">
-        <div className="rounded-2xl border bg-slate-50/70 px-4 py-3 text-sm leading-7 text-slate-700">
-          这里只处理两件事：把这套写法绑定到小说/章节/任务，以及先试写一段看看效果。
-          “去 AI 味”已经拆成独立入口，不再和这里混在一起。
+      <CardContent className="space-y-6 pt-6">
+        <div className="flex gap-3 rounded-2xl border border-sky-100 bg-sky-50/70 px-4 py-3 text-sm leading-7 text-slate-700">
+          <Sparkles className="mt-1 size-4 shrink-0 text-sky-700" />
+          <span>这里负责绑定与试写。想修正已有正文时，请从“去 AI 味”进入，避免把写法设定和正文处理混在一起。</span>
         </div>
 
-        <div className="space-y-4 rounded-2xl border p-4">
-          <div className="space-y-1">
-            <div className="text-base font-semibold text-slate-950">绑定到目标</div>
+        <div className="space-y-5 rounded-3xl border border-slate-200 bg-[linear-gradient(135deg,rgba(248,250,252,0.96),rgba(255,255,255,0.96))] p-4 md:p-5">
+          <div className="flex gap-3">
+            <div className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-white text-slate-800 shadow-sm ring-1 ring-slate-200"><Link2 className="size-4" /></div>
+            <div className="space-y-1">
+              <div className="text-base font-semibold text-slate-950">绑定到目标</div>
             <div className="text-sm leading-6 text-slate-500">
               绑定后，这套写法会在对应小说、章节或任务里参与生成。优先级越高，影响越靠前；权重越高，参与程度越强。
+            </div>
             </div>
           </div>
 
@@ -155,14 +173,18 @@ export default function WritingFormulaWorkbenchPanel(props: WritingFormulaWorkbe
           </div>
 
           <Button onClick={onCreateBinding} disabled={createBindingPending || !selectedProfileId}>
+            <Link2 className="size-4" />
             创建绑定
           </Button>
 
           <div className="space-y-2">
             {bindings.length > 0 ? (
               bindings.map((binding) => (
-                <div key={binding.id} className="flex items-center justify-between gap-3 rounded-xl border p-3 text-sm">
-                  <span>{binding.targetType} / {binding.targetId} / P{binding.priority} / W{binding.weight}</span>
+                <div key={binding.id} className="flex items-center justify-between gap-3 rounded-2xl border border-slate-200 bg-white p-3 text-sm">
+                  <div className="min-w-0">
+                    <div className="font-medium text-slate-900">{bindingTargetLabel[binding.targetType]}</div>
+                    <div className="mt-1 truncate text-xs text-slate-500">目标 {binding.targetId} · 优先级 {binding.priority} · 影响 {binding.weight}</div>
+                  </div>
                   <Button size="sm" variant="ghost" onClick={() => onDeleteBinding(binding.id)}>删除</Button>
                 </div>
               ))
@@ -174,11 +196,14 @@ export default function WritingFormulaWorkbenchPanel(props: WritingFormulaWorkbe
           </div>
         </div>
 
-        <div className="space-y-4 rounded-2xl border p-4">
-          <div className="space-y-1">
-            <div className="text-base font-semibold text-slate-950">先试写一段</div>
+        <div className="space-y-5 rounded-3xl border border-slate-200 p-4 md:p-5">
+          <div className="flex gap-3">
+            <div className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-amber-50 text-amber-800 ring-1 ring-amber-100"><BookOpenText className="size-4" /></div>
+            <div className="space-y-1">
+              <div className="text-base font-semibold text-slate-950">先试写一段</div>
             <div className="text-sm leading-6 text-slate-500">
               不确定这套写法到底有没有落地成功时，先生成一段或改写一段，是最直观的验证方式。
+            </div>
             </div>
           </div>
 
@@ -217,11 +242,12 @@ export default function WritingFormulaWorkbenchPanel(props: WritingFormulaWorkbe
           )}
 
           <Button onClick={onRunTestWrite} disabled={testWritePending || !selectedProfileId}>
-            执行试写
+            <FlaskConical className="size-4" />
+            {testWritePending ? "正在试写..." : "开始试写"}
           </Button>
 
           {testWriteOutput ? (
-            <pre className="max-h-[320px] overflow-auto whitespace-pre-wrap rounded-xl border bg-muted/20 p-4 text-sm">
+            <pre className="max-h-[320px] overflow-auto whitespace-pre-wrap rounded-2xl border border-slate-800 bg-slate-950 p-4 text-sm leading-7 text-slate-100">
               {testWriteOutput}
             </pre>
           ) : (
