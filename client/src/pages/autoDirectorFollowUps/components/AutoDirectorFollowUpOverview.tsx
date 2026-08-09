@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import type { AutoDirectorFollowUpListResponse, AutoDirectorFollowUpOverview } from "@ai-novel/shared/types/autoDirectorFollowUp";
 import type { AutoDirectorFollowUpSection } from "@ai-novel/shared/types/autoDirectorValidation";
 import { TaskQueueSection } from "@/components/taskQueue";
@@ -26,6 +27,7 @@ export function AutoDirectorFollowUpOverviewCards({
   activeSection,
   onSectionChange,
 }: AutoDirectorFollowUpOverviewCardsProps) {
+  const { t } = useTranslation();
   const counters = list?.countersBySection ?? overview?.countersBySection;
   const reasonCounters = overview?.countersByReason ?? list?.countersByReason;
   const blockingExceptionCount = (reasonCounters?.manual_recovery_required ?? 0)
@@ -34,43 +36,43 @@ export function AutoDirectorFollowUpOverviewCards({
   const cards: OverviewCardConfig[] = [
     {
       section: "",
-      label: "全部",
-      description: "查看所有需要跟进的导演任务",
+      label: t("autoDirector.secAll", "全部"),
+      description: t("autoDirector.secAllDesc", "查看所有需要跟进的导演任务"),
       count: overview?.totalCount ?? list?.pagination.total ?? 0,
       tone: "neutral",
     },
     {
       section: "needs_validation",
-      label: "需校验",
-      description: "先确认任务和资产是否一致",
+      label: t("autoDirector.secNeedsValidation", "需校验"),
+      description: t("autoDirector.secNeedsValidationDesc", "先确认任务和资产是否一致"),
       count: counters?.needs_validation ?? 0,
       tone: "danger",
     },
     {
       section: "exception",
-      label: "异常与恢复",
-      description: blockingExceptionCount > 0 ? "失败或人工恢复需要先处理" : "取消记录可按需恢复",
+      label: t("autoDirector.secException", "异常与恢复"),
+      description: blockingExceptionCount > 0 ? t("autoDirector.secExceptionDesc", "失败或人工恢复需要先处理") : t("autoDirector.secExceptionNeutralDesc", "取消记录可按需恢复"),
       count: counters?.exception ?? 0,
       tone: blockingExceptionCount > 0 ? "danger" : "neutral",
     },
     {
       section: "pending",
-      label: "待处理",
-      description: pendingIncludesReplan ? "包含必须先处理的重规划" : "需要确认或继续的节点",
+      label: t("autoDirector.secPending", "待处理"),
+      description: pendingIncludesReplan ? t("autoDirector.secPendingReplanDesc", "包含必须先处理的重规划") : t("autoDirector.secPendingNormalDesc", "需要确认或继续的节点"),
       count: counters?.pending ?? 0,
-      tone: pendingIncludesReplan ? "danger" : "info",
+      tone: pendingIncludesReplan ? "danger" : (counters?.pending ?? 0) > 0 ? "info" : "neutral",
     },
     {
       section: "auto_progress",
-      label: "自动推进",
-      description: "正在推进的任务和最近自动通过记录",
+      label: t("autoDirector.secAutoProgress", "自动推进"),
+      description: t("autoDirector.secAutoProgressDesc", "正在推进的任务和最近自动通过记录"),
       count: counters?.auto_progress ?? 0,
       tone: "info",
     },
     {
       section: "replaced",
-      label: "已替代",
-      description: "被新任务接管的旧任务",
+      label: t("autoDirector.secReplaced", "已替代"),
+      description: t("autoDirector.secReplacedDesc", "被新任务接管的旧任务"),
       count: counters?.replaced ?? 0,
       tone: "neutral",
     },

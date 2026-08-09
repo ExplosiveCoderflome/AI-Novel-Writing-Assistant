@@ -1,3 +1,5 @@
+import { useTranslation } from "react-i18next";
+import i18next from "i18next";
 import type {
   AutoDirectorFollowUpAvailableFilters,
   AutoDirectorFollowUpItem,
@@ -50,41 +52,41 @@ interface AutoDirectorFollowUpListPanelProps {
 }
 
 function formatStatus(status: TaskStatus): string {
-  if (status === "waiting_approval") return "等待审批";
-  if (status === "failed") return "失败";
-  if (status === "cancelled") return "已取消";
-  if (status === "running") return "运行中";
-  if (status === "queued") return "排队中";
-  return "已完成";
+  if (status === "waiting_approval") return i18next.t("tasks.filterStatusWaitingApproval", "等待操作");
+  if (status === "failed") return i18next.t("tasks.filterStatusFailed", "失败");
+  if (status === "cancelled") return i18next.t("tasks.filterStatusCancelled", "已取消");
+  if (status === "running") return i18next.t("tasks.filterStatusRunning", "运行中");
+  if (status === "queued") return i18next.t("tasks.filterStatusQueued", "排队中");
+  return i18next.t("tasks.filterStatusSucceeded", "已完成");
 }
 
 function formatReason(reason: AutoDirectorFollowUpItem["reason"]): string {
   const labels: Record<AutoDirectorFollowUpItem["reason"], string> = {
-    manual_recovery_required: "人工恢复待处理",
-    runtime_failed: "失败待重试",
-    candidate_selection_required: "待确认书级方向",
-    replan_required: "待处理重规划",
-    runtime_cancelled: "已取消待恢复",
-    chapter_batch_execution_pending: "自动执行待继续",
-    quality_repair_pending: "质量修复待继续",
-    auto_progress_running: "自动推进中",
-    auto_approval_completed: "最近自动通过",
-    runtime_replaced: "任务已替代",
-    validation_required: "需要重新校验",
+    manual_recovery_required: i18next.t("autoDirector.reasonManualRecovery", "人工恢复待处理"),
+    runtime_failed: i18next.t("autoDirector.reasonRuntimeFailed", "失败待重试"),
+    candidate_selection_required: i18next.t("autoDirector.reasonCandidateSelection", "待确认书级方向"),
+    replan_required: i18next.t("autoDirector.reasonReplanRequired", "待处理重规划"),
+    runtime_cancelled: i18next.t("autoDirector.reasonRuntimeCancelled", "已取消待恢复"),
+    chapter_batch_execution_pending: i18next.t("autoDirector.reasonBatchPending", "自动执行待继续"),
+    quality_repair_pending: i18next.t("autoDirector.reasonQualityRepair", "质量修复待继续"),
+    auto_progress_running: i18next.t("autoDirector.reasonAutoRunning", "自动推进中"),
+    auto_approval_completed: i18next.t("autoDirector.reasonAutoPassed", "最近自动通过"),
+    runtime_replaced: i18next.t("autoDirector.reasonReplaced", "任务已替代"),
+    validation_required: i18next.t("autoDirector.reasonValidationRequired", "需要重新校验"),
   };
-  return labels[reason];
+  return labels[reason] || reason;
 }
 
 function formatSection(section: AutoDirectorFollowUpSection): string {
-  if (section === "needs_validation") return "需校验";
-  if (section === "exception") return "异常";
-  if (section === "pending") return "待处理";
-  if (section === "auto_progress") return "自动推进";
-  return "已替代";
+  if (section === "needs_validation") return i18next.t("autoDirector.secNeedsValidation", "需校验");
+  if (section === "exception") return i18next.t("autoDirector.secException", "异常");
+  if (section === "pending") return i18next.t("autoDirector.secPending", "待处理");
+  if (section === "auto_progress") return i18next.t("autoDirector.secAutoProgress", "自动推进");
+  return i18next.t("autoDirector.secReplaced", "已替代");
 }
 
 function formatActiveSection(section: AutoDirectorFollowUpSection | ""): string {
-  return section ? formatSection(section) : "全部分区";
+  return section ? formatSection(section) : i18next.t("autoDirector.allSections", "全部分区");
 }
 
 function buildChannelBadges(item: AutoDirectorFollowUpItem): string[] {
@@ -99,26 +101,29 @@ function buildChannelBadges(item: AutoDirectorFollowUpItem): string[] {
 }
 
 function formatItemType(item: AutoDirectorFollowUpItem): string {
-  return item.itemType === "auto_approval_record" ? "最近自动通过" : "正在推进";
+  return item.itemType === "auto_approval_record"
+    ? i18next.t("autoDirector.reasonAutoPassed", "最近自动通过")
+    : i18next.t("autoDirector.reasonAutoRunning", "正在推进");
 }
 
 export function AutoDirectorFollowUpListPanel(props: AutoDirectorFollowUpListPanelProps) {
+  const { t } = useTranslation();
   const totalPages = props.pagination ? Math.max(1, Math.ceil(props.pagination.total / props.pagination.pageSize)) : 1;
 
   return (
     <TaskQueueSection
       title={formatActiveSection(props.activeSection)}
-      description="按结构化原因和状态筛选；质量提醒与阻塞任务使用不同等级。"
+      description={t("autoDirector.listDesc", "按结构化原因和状态筛选；质量提醒与阻塞任务使用不同等级。")}
       className="min-w-0 overflow-hidden"
     >
       <div className="space-y-4">
         <div className={AUTO_DIRECTOR_MOBILE_CLASSES.followUpFilterGrid}>
           <Select value={props.activeReason || "__all__"} onValueChange={(value) => props.onFilterChange("reason", value === "__all__" ? "" : value)}>
-            <SelectTrigger aria-label="按跟进原因筛选" className={AUTO_DIRECTOR_MOBILE_CLASSES.followUpFilterTrigger}>
-              <SelectValue placeholder="全部原因" />
+            <SelectTrigger aria-label={t("autoDirector.filterReasonLabel", "按跟进原因筛选")} className={AUTO_DIRECTOR_MOBILE_CLASSES.followUpFilterTrigger}>
+              <SelectValue placeholder={t("autoDirector.allReasons", "全部原因")} />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="__all__">全部原因</SelectItem>
+              <SelectItem value="__all__">{t("autoDirector.allReasons", "全部原因")}</SelectItem>
               {(props.filters?.reasons ?? []).map((reason) => (
                 <SelectItem key={reason} value={reason}>{formatReason(reason)}</SelectItem>
               ))}

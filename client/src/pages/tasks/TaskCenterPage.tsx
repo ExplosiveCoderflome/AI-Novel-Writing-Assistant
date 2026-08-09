@@ -533,17 +533,17 @@ export default function TaskCenterPage() {
     <div className="space-y-5">
       <WorkspaceHeader
         icon={ListChecks}
-        context="执行历史与恢复"
-        title="运行记录"
-        description="按需查询创作、拆书、知识索引和图片任务的历史、异常与恢复信息；实时生成请从顶部“AI 实况”查看。"
+        context={t("tasks.context", "执行历史与恢复")}
+        title={t("tasks.title", "运行记录")}
+        description={t("tasks.description", "按需查询创作、拆书、知识索引和图片任务的历史、异常与恢复信息；实时生成请从顶部“AI 实况”查看。")}
         meta={(
           <>
-            <span>当前显示 {visibleRows.length} 项</span>
-            <span>全局执行 {runningCount + queuedCount} 项</span>
-            <span>等待操作 {waitingActionCount} 项</span>
-            <span>失败 {failedTaskCount} 项</span>
-            <span>可恢复 {recoveryCandidateCount} 项</span>
-            <span>质量提醒 {qualityReminderCount} 项</span>
+            <span>{t("tasks.metaVisible", "当前显示 {{count}} 项", { count: visibleRows.length })}</span>
+            <span>{t("tasks.metaRunning", "全局执行 {{count}} 项", { count: runningCount + queuedCount })}</span>
+            <span>{t("tasks.metaWaiting", "等待操作 {{count}} 项", { count: waitingActionCount })}</span>
+            <span>{t("tasks.metaFailed", "失败 {{count}} 项", { count: failedTaskCount })}</span>
+            <span>{t("tasks.metaRecoverable", "可恢复 {{count}} 项", { count: recoveryCandidateCount })}</span>
+            <span>{t("tasks.metaQuality", "质量提醒 {{count}} 项", { count: qualityReminderCount })}</span>
           </>
         )}
         actions={(
@@ -554,7 +554,7 @@ export default function TaskCenterPage() {
             disabled={overviewQuery.isFetching || recoveryCandidatesQuery.isFetching || listQuery.isFetching}
           >
             <RefreshCw className={overviewQuery.isFetching || recoveryCandidatesQuery.isFetching || listQuery.isFetching ? "h-4 w-4 animate-spin" : "h-4 w-4"} aria-hidden="true" />
-            刷新记录
+            {t("tasks.refresh", "刷新记录")}
           </Button>
         )}
       />

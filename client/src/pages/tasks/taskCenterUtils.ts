@@ -99,14 +99,14 @@ export function getTaskQueueTone(task: TaskQueuePresentationInput): WorkspaceTon
 
 export function getTaskQueueLevelLabel(task: TaskQueuePresentationInput): string {
   const tone = getTaskQueueTone(task);
-  if (isTaskReplanRequired(task)) return "需要重规划";
-  if (task.pendingManualRecovery) return "需要恢复";
-  if (tone === "danger") return task.status === "failed" ? "任务失败" : "阻塞";
-  if (tone === "warning" && isTaskQueueQualityReminder(task)) return "质量提醒";
-  if (tone === "warning") return "待操作";
-  if (tone === "info") return task.status === "waiting_approval" ? "待操作" : "进行中";
-  if (tone === "success") return "已完成";
-  return "普通任务";
+  if (isTaskReplanRequired(task)) return i18next.t("tasks.levelReplanRequired", "需要重规划");
+  if (task.pendingManualRecovery) return i18next.t("tasks.levelRecoveryRequired", "需要恢复");
+  if (tone === "danger") return task.status === "failed" ? i18next.t("tasks.levelFailed", "任务失败") : i18next.t("tasks.levelBlocking", "阻塞");
+  if (tone === "warning" && isTaskQueueQualityReminder(task)) return i18next.t("tasks.levelQuality", "质量提醒");
+  if (tone === "warning") return i18next.t("tasks.levelPendingAction", "待操作");
+  if (tone === "info") return task.status === "waiting_approval" ? i18next.t("tasks.levelPendingAction", "待操作") : i18next.t("tasks.levelRunning", "进行中");
+  if (tone === "success") return i18next.t("tasks.levelCompleted", "已完成");
+  return i18next.t("tasks.levelNormal", "普通任务");
 }
 
 export function getTaskQueueSeverity(task: TaskQueuePresentationInput): TaskQueueSeverity {

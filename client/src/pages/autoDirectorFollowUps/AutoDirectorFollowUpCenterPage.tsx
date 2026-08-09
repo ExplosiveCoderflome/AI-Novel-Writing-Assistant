@@ -413,14 +413,14 @@ export default function AutoDirectorFollowUpCenterPage() {
     <div className={AUTO_DIRECTOR_MOBILE_CLASSES.followUpPageRoot}>
       <WorkspaceHeader
         icon={ShieldAlert}
-        context="自动导演"
-        title="导演跟进中心"
-        description="只汇总 AI 自动导演任务，不混入手动工作区任务；阻塞、质量提醒、待操作和自动推进使用不同等级。"
+        context={t("autoDirector.context", "自动导演")}
+        title={t("autoDirector.title", "导演跟进中心")}
+        description={t("autoDirector.description", "只汇总 AI 自动导演任务，不混入手动工作区任务；阻塞、质量提醒、待操作和自动推进使用不同等级。")}
         meta={(
           <>
-            <span>阻塞 {criticalCount} 项</span>
-            <span>待操作 {pendingActionCount} 项</span>
-            <span>自动推进 {progressCount} 项</span>
+            <span>{t("autoDirector.metaBlocking", "阻塞 {{count}} 项", { count: criticalCount })}</span>
+            <span>{t("autoDirector.metaPending", "待操作 {{count}} 项", { count: pendingActionCount })}</span>
+            <span>{t("autoDirector.metaAuto", "自动推进 {{count}} 项", { count: progressCount })}</span>
           </>
         )}
         actions={(
@@ -431,7 +431,7 @@ export default function AutoDirectorFollowUpCenterPage() {
             onClick={() => void Promise.all([overviewQuery.refetch(), listQuery.refetch()])}
           >
             <RefreshCw className={overviewQuery.isFetching || listQuery.isFetching ? "h-4 w-4 animate-spin" : "h-4 w-4"} aria-hidden="true" />
-            刷新跟进
+            {t("autoDirector.refresh", "刷新跟进")}
           </Button>
         )}
       />

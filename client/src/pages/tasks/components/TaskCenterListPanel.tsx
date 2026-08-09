@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import type { UnifiedTaskSummary } from "@ai-novel/shared/types/task";
 import { Button } from "@/components/ui/button";
 import {
@@ -37,8 +38,9 @@ export default function TaskCenterListPanel({
   onRetry,
   onSelectTask,
 }: TaskCenterListPanelProps) {
+  const { t } = useTranslation();
   return (
-    <TaskQueueSection title="任务列表" description="阻塞任务优先，质量提醒不会自动等同于全局失败。">
+    <TaskQueueSection title={t("tasks.listTitle", "任务列表")} description={t("tasks.listDesc", "阻塞任务优先，质量提醒不会自动等同于全局失败。")}>
       <div className="space-y-3">
         {loading ? (
           <WorkspaceStateNotice compact loading title="正在读取任务" description="正在汇总任务状态和最近进度。" />
