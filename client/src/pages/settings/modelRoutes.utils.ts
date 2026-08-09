@@ -103,24 +103,24 @@ export function isSameRouteDraft(draft: RouteDraft, route: SavedModelRoute | und
 
 export function formatStructuredStatus(status: ModelRouteConnectivityStatus["structured"]): string {
   if (!status) {
-    return i18next.i18next.t("gen.pages.settings.modelRoutes.utils.gen_eb184123");
+    return i18next.t("gen.pages.settings.modelRoutes.utils.gen_eb184123");
   }
   if (status.ok) {
-    return `结构化正常 · ${status.requestProtocol ?? "auto"} · ${status.strategy ?? "prompt_json"}${status.reasoningForcedOff ? i18next.i18next.t("gen.pages.settings.modelRoutes.utils.willCloseThinking") : ""}`;
+    return `结构化正常 · ${status.requestProtocol ?? "auto"} · ${status.strategy ?? "prompt_json"}${status.reasoningForcedOff ? i18next.t("gen.pages.settings.modelRoutes.utils.willCloseThinking") : ""}`;
   }
-  return `结构化异常 · ${status.errorCategory ?? "unknown"} · ${status.error ?? i18next.i18next.t("gen.pages.settings.modelRoutes.utils.gen_974e7484")}`;
+  return `结构化异常 · ${status.errorCategory ?? "unknown"} · ${status.error ?? i18next.t("gen.pages.settings.modelRoutes.utils.gen_974e7484")}`;
 }
 
 export function formatConnectivityStatus(status?: ModelRouteConnectivityStatus | null): string {
   if (!status) {
-    return i18next.i18next.t("gen.pages.settings.modelRoutes.utils.gen_a2db68b2");
+    return i18next.t("gen.pages.settings.modelRoutes.utils.gen_a2db68b2");
   }
   const parts: string[] = [];
   if (status.plain) {
     parts.push(
       status.plain.ok
         ? `普通连通正常${status.plain.latency != null ? ` · ${status.plain.latency}ms` : ""}`
-        : `普通连通失败 · ${status.plain.error ?? i18next.i18next.t("gen.pages.settings.modelRoutes.utils.gen_974e7484")}`,
+        : `普通连通失败 · ${status.plain.error ?? i18next.t("gen.pages.settings.modelRoutes.utils.gen_974e7484")}`,
     );
   }
   parts.push(formatStructuredStatus(status.structured));

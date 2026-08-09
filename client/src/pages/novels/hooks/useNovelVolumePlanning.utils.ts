@@ -103,7 +103,7 @@ export function resolveCustomVolumeCountInput(
   if (!Number.isFinite(parsed)) {
     return {
       value: null,
-      message: i18next.i18next.t("gen.pages.novels.hooks.useNovelVolumePlanning.utils.gen_ea9ad81e"),
+      message: i18next.t("gen.pages.novels.hooks.useNovelVolumePlanning.utils.gen_ea9ad81e"),
     };
   }
   if (
@@ -123,6 +123,6 @@ export function resolveCustomVolumeCountInput(
 
 export function buildGenerationNotice(strategyPlan: VolumeStrategyPlan | null): string {
   return strategyPlan
-    ? i18next.i18next.t("gen.pages.novels.hooks.useNovelVolumePlanning.utils.gen_57dade65")
-    : i18next.i18next.t("gen.pages.novels.hooks.useNovelVolumePlanning.utils.gen_7f61f727");
+    ? i18next.t("gen.pages.novels.hooks.useNovelVolumePlanning.utils.gen_57dade65")
+    : i18next.t("gen.pages.novels.hooks.useNovelVolumePlanning.utils.gen_7f61f727");
 }

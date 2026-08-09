@@ -58,18 +58,18 @@ export function filterNovelList(input: {
 
 export function formatProgressStatus(status?: ProjectProgressStatus | null): string {
   if (status === "completed") {
-    return i18next.i18next.t("gen.pages.novels.components.list.novelListViewModel.gen_fad5222c");
+    return i18next.t("gen.pages.novels.components.list.novelListViewModel.gen_fad5222c");
   }
   if (status === "in_progress") {
-    return i18next.i18next.t("gen.pages.novels.components.list.novelListViewModel.gen_fb852fc6");
+    return i18next.t("gen.pages.novels.components.list.novelListViewModel.gen_fb852fc6");
   }
   if (status === "rework") {
-    return i18next.i18next.t("gen.pages.novels.components.list.novelListViewModel.gen_87ebc735");
+    return i18next.t("gen.pages.novels.components.list.novelListViewModel.gen_87ebc735");
   }
   if (status === "blocked") {
-    return i18next.i18next.t("gen.pages.novels.components.list.novelListViewModel.gen_644fe1bd");
+    return i18next.t("gen.pages.novels.components.list.novelListViewModel.gen_644fe1bd");
   }
-  return i18next.i18next.t("gen.pages.novels.components.list.novelListViewModel.gen_dd4e55c3");
+  return i18next.t("gen.pages.novels.components.list.novelListViewModel.gen_dd4e55c3");
 }
 
 export function formatTokenCount(value?: number | null): string {
@@ -92,10 +92,10 @@ export function buildNovelListSummary(novels: NovelListItem[]): NovelListSummary
   }).length;
 
   return [
-    { id: "running", label: i18next.i18next.t("gen.pages.novels.components.list.novelListViewModel.gen_007edf50"), value: running, tone: running > 0 ? "info" : "neutral" },
-    { id: "waiting", label: i18next.i18next.t("gen.pages.novels.components.list.novelListViewModel.gen_2a2772fa"), value: waiting, tone: waiting > 0 ? "warning" : "neutral" },
-    { id: "ready", label: i18next.i18next.t("gen.pages.novels.components.list.novelListViewModel.gen_7d7acbea"), value: ready, tone: ready > 0 ? "success" : "neutral" },
-    { id: "issue", label: i18next.i18next.t("gen.pages.novels.components.list.novelListViewModel.gen_0df14edc"), value: issue, tone: issue > 0 ? "danger" : "neutral" },
+    { id: "running", label: i18next.t("gen.pages.novels.components.list.novelListViewModel.gen_007edf50"), value: running, tone: running > 0 ? "info" : "neutral" },
+    { id: "waiting", label: i18next.t("gen.pages.novels.components.list.novelListViewModel.gen_2a2772fa"), value: waiting, tone: waiting > 0 ? "warning" : "neutral" },
+    { id: "ready", label: i18next.t("gen.pages.novels.components.list.novelListViewModel.gen_7d7acbea"), value: ready, tone: ready > 0 ? "success" : "neutral" },
+    { id: "issue", label: i18next.t("gen.pages.novels.components.list.novelListViewModel.gen_0df14edc"), value: issue, tone: issue > 0 ? "danger" : "neutral" },
   ];
 }
 
@@ -124,10 +124,10 @@ export function buildWorkflowDisplay(novel: NovelListItem): WorkflowDisplay {
   if (!task) {
     return {
       tone: "neutral",
-      label: i18next.i18next.t("gen.pages.novels.components.list.novelListViewModel.gen_cdbb5133"),
-      description: novel.description?.trim() || i18next.i18next.t("gen.pages.novels.components.list.novelListViewModel.gen_476d9bdf"),
+      label: i18next.t("gen.pages.novels.components.list.novelListViewModel.gen_cdbb5133"),
+      description: novel.description?.trim() || i18next.t("gen.pages.novels.components.list.novelListViewModel.gen_476d9bdf"),
       progress: 0,
-      currentStage: i18next.i18next.t("gen.pages.novels.components.list.novelListViewModel.gen_945c0411"),
+      currentStage: i18next.t("gen.pages.novels.components.list.novelListViewModel.gen_945c0411"),
       currentAction: "",
       lastHealthyStage: "",
       running: false,
@@ -136,10 +136,10 @@ export function buildWorkflowDisplay(novel: NovelListItem): WorkflowDisplay {
   const currentAction = task.currentItemLabel?.trim() || "";
   return {
     tone: getWorkflowTone(task),
-    label: task.displayStatus?.trim() || task.resumeAction?.trim() || task.nextActionLabel?.trim() || i18next.i18next.t("gen.pages.novels.components.list.novelListViewModel.gen_1772aede"),
-    description: description || i18next.i18next.t("gen.pages.novels.components.list.novelListViewModel.gen_8766510d"),
+    label: task.displayStatus?.trim() || task.resumeAction?.trim() || task.nextActionLabel?.trim() || i18next.t("gen.pages.novels.components.list.novelListViewModel.gen_1772aede"),
+    description: description || i18next.t("gen.pages.novels.components.list.novelListViewModel.gen_8766510d"),
     progress: Math.round(task.progress * 100),
-    currentStage: task.currentStage ?? i18next.i18next.t("gen.pages.novels.components.list.novelListViewModel.gen_1772aede"),
+    currentStage: task.currentStage ?? i18next.t("gen.pages.novels.components.list.novelListViewModel.gen_1772aede"),
     currentAction,
     lastHealthyStage: task.lastHealthyStage ?? "",
     running: isWorkflowRunningInBackground(task),
@@ -149,21 +149,21 @@ export function buildWorkflowDisplay(novel: NovelListItem): WorkflowDisplay {
 export function getPrimaryActionLabel(novel: NovelListItem): string {
   const task = novel.latestAutoDirectorTask ?? null;
   if (canContinueChapterBatchAutoExecution(task)) {
-    return task?.resumeAction ?? `继续自动执行${task?.executionScopeLabel ?? i18next.i18next.t("gen.pages.novels.components.list.novelListViewModel.gen_d7432bb5")}`;
+    return task?.resumeAction ?? `继续自动执行${task?.executionScopeLabel ?? i18next.t("gen.pages.novels.components.list.novelListViewModel.gen_d7432bb5")}`;
   }
   if (canContinueDirector(task)) {
-    return task?.resumeAction ?? i18next.i18next.t("gen.pages.novels.components.list.novelListViewModel.gen_1f32f18b");
+    return task?.resumeAction ?? i18next.t("gen.pages.novels.components.list.novelListViewModel.gen_1f32f18b");
   }
   if (requiresCandidateSelection(task)) {
-    return task?.resumeAction ?? i18next.i18next.t("gen.pages.novels.components.list.novelListViewModel.gen_e92496b4");
+    return task?.resumeAction ?? i18next.t("gen.pages.novels.components.list.novelListViewModel.gen_e92496b4");
   }
   if (canEnterChapterExecution(task)) {
-    return i18next.i18next.t("gen.pages.novels.components.list.novelListViewModel.gen_98b5f8b5");
+    return i18next.t("gen.pages.novels.components.list.novelListViewModel.gen_98b5f8b5");
   }
   if (task) {
-    return i18next.i18next.t("gen.pages.novels.components.list.novelListViewModel.gen_ffc75805");
+    return i18next.t("gen.pages.novels.components.list.novelListViewModel.gen_ffc75805");
   }
-  return i18next.i18next.t("gen.pages.novels.components.list.novelListViewModel.gen_699b4b33");
+  return i18next.t("gen.pages.novels.components.list.novelListViewModel.gen_699b4b33");
 }
 
 export function getProjectAssetRows(novel: NovelListItem): Array<{
@@ -172,15 +172,15 @@ export function getProjectAssetRows(novel: NovelListItem): Array<{
   tone?: NovelListTone;
 }> {
   return [
-    { label: i18next.i18next.t("gen.pages.novels.components.list.novelListViewModel.gen_9290b644"), value: String(novel._count.chapters) },
-    { label: i18next.i18next.t("gen.pages.novels.components.list.novelListViewModel.gen_464f3d4e"), value: String(novel._count.characters) },
+    { label: i18next.t("gen.pages.novels.components.list.novelListViewModel.gen_9290b644"), value: String(novel._count.chapters) },
+    { label: i18next.t("gen.pages.novels.components.list.novelListViewModel.gen_464f3d4e"), value: String(novel._count.characters) },
     {
-      label: i18next.i18next.t("gen.pages.novels.components.list.novelListViewModel.gen_cfb83c02"),
-      value: novel.world?.name ?? i18next.i18next.t("gen.pages.novels.components.list.novelListViewModel.gen_906ad18b"),
+      label: i18next.t("gen.pages.novels.components.list.novelListViewModel.gen_cfb83c02"),
+      value: novel.world?.name ?? i18next.t("gen.pages.novels.components.list.novelListViewModel.gen_906ad18b"),
       tone: novel.world?.name ? "neutral" : "warning",
     },
     {
-      label: i18next.i18next.t("gen.pages.novels.components.list.novelListViewModel.gen_eee83a92"),
+      label: i18next.t("gen.pages.novels.components.list.novelListViewModel.gen_eee83a92"),
       value: `${novel.resourceReadyScore ?? 0}/100`,
       tone: (novel.resourceReadyScore ?? 0) >= 60 ? "success" : "warning",
     },

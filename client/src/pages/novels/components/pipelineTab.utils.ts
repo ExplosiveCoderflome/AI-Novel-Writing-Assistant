@@ -7,13 +7,13 @@ export interface PipelineStageItem {
 }
 
 export const PIPELINE_STAGE_ITEMS: PipelineStageItem[] = [
-  { key: "assemble_context", label: i18next.i18next.t("gen.pages.novels.components.pipelineTab.utils.gen_82bec748") },
-  { key: "generate_task_sheet", label: i18next.i18next.t("gen.pages.novels.components.pipelineTab.utils.gen_1a742abd") },
-  { key: "generate_scene_cards", label: i18next.i18next.t("gen.pages.novels.components.pipelineTab.utils.gen_041f3497") },
-  { key: "generate_content", label: i18next.i18next.t("gen.pages.novels.components.pipelineTab.utils.gen_df396e50") },
-  { key: "quality_check", label: i18next.i18next.t("gen.pages.novels.components.pipelineTab.utils.gen_46da0840") },
-  { key: "auto_repair", label: i18next.i18next.t("gen.pages.novels.components.pipelineTab.utils.gen_fcc3d39a") },
-  { key: "update_memory", label: i18next.i18next.t("gen.pages.novels.components.pipelineTab.utils.gen_60b095f1") },
+  { key: "assemble_context", label: i18next.t("gen.pages.novels.components.pipelineTab.utils.gen_82bec748") },
+  { key: "generate_task_sheet", label: i18next.t("gen.pages.novels.components.pipelineTab.utils.gen_1a742abd") },
+  { key: "generate_scene_cards", label: i18next.t("gen.pages.novels.components.pipelineTab.utils.gen_041f3497") },
+  { key: "generate_content", label: i18next.t("gen.pages.novels.components.pipelineTab.utils.gen_df396e50") },
+  { key: "quality_check", label: i18next.t("gen.pages.novels.components.pipelineTab.utils.gen_46da0840") },
+  { key: "auto_repair", label: i18next.t("gen.pages.novels.components.pipelineTab.utils.gen_fcc3d39a") },
+  { key: "update_memory", label: i18next.t("gen.pages.novels.components.pipelineTab.utils.gen_60b095f1") },
 ];
 
 function mapCurrentStage(currentStage: string | null | undefined): string | null {

@@ -32,19 +32,19 @@ apiClient.interceptors.response.use(
     const backendError = error.response?.data?.error;
     const backendMessage = error.response?.data?.message;
     const silentErrorStatuses = error.config?.silentErrorStatuses ?? [];
-    let title = backendError ?? error.message ?? i18next.i18next.t("gen.api.client.gen_8836d4a2");
+    let title = backendError ?? error.message ?? i18next.t("gen.api.client.gen_8836d4a2");
     let description = backendMessage && backendMessage !== backendError ? backendMessage : undefined;
 
     if (!status) {
-      title = i18next.i18next.t("gen.api.client.gen_f90f1ace");
+      title = i18next.t("gen.api.client.gen_f90f1ace");
       description = undefined;
     } else if (status >= 500) {
-      title = backendError ?? i18next.i18next.t("gen.api.client.gen_f7742f64");
+      title = backendError ?? i18next.t("gen.api.client.gen_f7742f64");
       description = backendMessage && backendMessage !== title ? backendMessage : undefined;
     }
 
     if (!status || !silentErrorStatuses.includes(status)) {
-      const isGenericServerErrorToast = title === i18next.i18next.t("gen.api.client.gen_f7742f64");
+      const isGenericServerErrorToast = title === i18next.t("gen.api.client.gen_f7742f64");
 
       if (description) {
         toast.error(

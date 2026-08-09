@@ -70,7 +70,7 @@ export const useChatStore = create<ChatStoreState>((setState, getState) => ({
       hydrated: true,
     });
   },
-  createSession: async (title = i18next.i18next.t("gen.store.chatStore.gen_1ac07a4b")) => {
+  createSession: async (title = i18next.t("gen.store.chatStore.gen_1ac07a4b")) => {
     const now = new Date().toISOString();
     const session: ChatSession = {
       id: generateId("session"),

@@ -103,7 +103,7 @@ export function useNovelEditMutations({
       await syncNovelWorkflowStageSilently({
         novelId: id,
         stage: "project_setup",
-        itemLabel: i18next.i18next.t("gen.pages.novels.hooks.useNovelEditMutations.gen_d7149fb5"),
+        itemLabel: i18next.t("gen.pages.novels.hooks.useNovelEditMutations.gen_d7149fb5"),
         status: "waiting_approval",
       });
       await invalidateNovelDetail();
@@ -119,9 +119,9 @@ export function useNovelEditMutations({
       await syncNovelWorkflowStageSilently({
         novelId: id,
         stage: "volume_strategy",
-        itemLabel: i18next.i18next.t("gen.pages.novels.hooks.useNovelEditMutations.gen_78b07fdd"),
+        itemLabel: i18next.t("gen.pages.novels.hooks.useNovelEditMutations.gen_78b07fdd"),
         checkpointType: "volume_strategy_ready",
-        checkpointSummary: i18next.i18next.t("gen.pages.novels.hooks.useNovelEditMutations.gen_48933871"),
+        checkpointSummary: i18next.t("gen.pages.novels.hooks.useNovelEditMutations.gen_48933871"),
         status: "waiting_approval",
       });
       await invalidateNovelDetail();
@@ -134,11 +134,11 @@ export function useNovelEditMutations({
       syncToChapterExecution: true,
     }),
     onSuccess: async () => {
-      setStructuredMessage(i18next.i18next.t("gen.pages.novels.hooks.useNovelEditMutations.gen_f5b07847"));
+      setStructuredMessage(i18next.t("gen.pages.novels.hooks.useNovelEditMutations.gen_f5b07847"));
       await syncNovelWorkflowStageSilently({
         novelId: id,
         stage: "structured_outline",
-        itemLabel: i18next.i18next.t("gen.pages.novels.hooks.useNovelEditMutations.gen_f9c338a6"),
+        itemLabel: i18next.t("gen.pages.novels.hooks.useNovelEditMutations.gen_f9c338a6"),
         status: "waiting_approval",
       });
       await invalidateNovelDetail();
@@ -195,15 +195,15 @@ export function useNovelEditMutations({
       await syncNovelWorkflowStageSilently({
         novelId: id,
         stage: "structured_outline",
-        itemLabel: i18next.i18next.t("gen.pages.novels.hooks.useNovelEditMutations.gen_8dadfb98"),
+        itemLabel: i18next.t("gen.pages.novels.hooks.useNovelEditMutations.gen_8dadfb98"),
         checkpointType: "chapter_batch_ready",
-        checkpointSummary: i18next.i18next.t("gen.pages.novels.hooks.useNovelEditMutations.gen_e16212bd"),
+        checkpointSummary: i18next.t("gen.pages.novels.hooks.useNovelEditMutations.gen_e16212bd"),
         status: "waiting_approval",
       });
       await invalidateNovelDetail();
     },
     onError: (error) => {
-      const message = error instanceof Error ? error.message : i18next.i18next.t("gen.pages.novels.hooks.useNovelEditMutations.gen_27dd03ed");
+      const message = error instanceof Error ? error.message : i18next.t("gen.pages.novels.hooks.useNovelEditMutations.gen_27dd03ed");
       setStructuredMessage(message);
     },
   });
@@ -222,7 +222,7 @@ export function useNovelEditMutations({
       await syncNovelWorkflowStageSilently({
         novelId: id,
         stage: "chapter_execution",
-        itemLabel: i18next.i18next.t("gen.pages.novels.hooks.useNovelEditMutations.gen_32dc10e9"),
+        itemLabel: i18next.t("gen.pages.novels.hooks.useNovelEditMutations.gen_32dc10e9"),
         chapterId: response.data?.id,
         status: "waiting_approval",
       });
@@ -270,7 +270,7 @@ export function useNovelEditMutations({
       await syncNovelWorkflowStageSilently({
         novelId: id,
         stage: "quality_repair",
-        itemLabel: i18next.i18next.t("gen.pages.novels.hooks.useNovelEditMutations.gen_1f45424b"),
+        itemLabel: i18next.t("gen.pages.novels.hooks.useNovelEditMutations.gen_1f45424b"),
         status: "running",
       });
       await queryClient.invalidateQueries({ queryKey: queryKeys.novels.pipelineJob(id, response.data?.id ?? "none") });
@@ -290,7 +290,7 @@ export function useNovelEditMutations({
       await syncNovelWorkflowStageSilently({
         novelId: id,
         stage: "quality_repair",
-        itemLabel: i18next.i18next.t("gen.pages.novels.hooks.useNovelEditMutations.gen_38470cc3"),
+        itemLabel: i18next.t("gen.pages.novels.hooks.useNovelEditMutations.gen_38470cc3"),
         status: "waiting_approval",
       });
       await queryClient.invalidateQueries({ queryKey: queryKeys.novels.qualityReport(id) });
@@ -310,7 +310,7 @@ export function useNovelEditMutations({
       await syncNovelWorkflowStageSilently({
         novelId: id,
         stage: "chapter_execution",
-        itemLabel: i18next.i18next.t("gen.pages.novels.hooks.useNovelEditMutations.gen_a65b6536"),
+        itemLabel: i18next.t("gen.pages.novels.hooks.useNovelEditMutations.gen_a65b6536"),
         chapterId: selectedChapterId || undefined,
         status: "waiting_approval",
       });

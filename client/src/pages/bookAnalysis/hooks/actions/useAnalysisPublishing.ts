@@ -50,7 +50,7 @@ export function useAnalysisPublishing(input: {
       await refreshAnalysisData(payload.id);
     },
     onError: (error) => {
-      const message = error instanceof Error ? error.message : i18next.i18next.t("gen.pages.bookAnalysis.hooks.actions.useAnalysisPublishing.gen_923c283d");
+      const message = error instanceof Error ? error.message : i18next.t("gen.pages.bookAnalysis.hooks.actions.useAnalysisPublishing.gen_923c283d");
       setLastPublishResult(null);
       setPublishFeedback(message);
     },
@@ -64,7 +64,7 @@ export function useAnalysisPublishing(input: {
       temperature: llmConfig.temperature,
     }),
     onMutate: () => {
-      setStyleProfileFeedback(i18next.i18next.t("gen.pages.bookAnalysis.hooks.actions.useAnalysisPublishing.gen_0f58ca85"));
+      setStyleProfileFeedback(i18next.t("gen.pages.bookAnalysis.hooks.actions.useAnalysisPublishing.gen_0f58ca85"));
     },
     onSuccess: async (response) => {
       const createdProfile = response.data;
@@ -72,12 +72,12 @@ export function useAnalysisPublishing(input: {
         return;
       }
       setStyleProfileFeedback("");
-      toast.success(i18next.i18next.t("gen.pages.bookAnalysis.hooks.actions.useAnalysisPublishing.gen_440f5cc3"));
+      toast.success(i18next.t("gen.pages.bookAnalysis.hooks.actions.useAnalysisPublishing.gen_440f5cc3"));
       await queryClient.invalidateQueries({ queryKey: queryKeys.styleEngine.profiles });
       navigate(`/style-engine?profileId=${createdProfile.id}&source=book-analysis`);
     },
     onError: (error) => {
-      const message = error instanceof Error ? error.message : i18next.i18next.t("gen.pages.bookAnalysis.hooks.actions.useAnalysisPublishing.gen_从拆书生成写法失败_qtlc");
+      const message = error instanceof Error ? error.message : i18next.t("gen.pages.bookAnalysis.hooks.actions.useAnalysisPublishing.gen_从拆书生成写法失败_qtlc");
       setStyleProfileFeedback(message);
     },
   });

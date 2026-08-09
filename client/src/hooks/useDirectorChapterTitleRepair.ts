@@ -23,7 +23,7 @@ export function useDirectorChapterTitleRepair(options: DirectorChapterTitleRepai
     mutationFn: async (task: UnifiedTaskDetail) => {
       const warning = resolveChapterTitleWarning(task);
       if (!warning) {
-        throw new Error(i18next.i18next.t("gen.hooks.useDirectorChapterTitleRepair.gen_4af5dfdc"));
+        throw new Error(i18next.t("gen.hooks.useDirectorChapterTitleRepair.gen_4af5dfdc"));
       }
       const response = await repairNovelWorkflowChapterTitles(task.id, {
         volumeId: warning.volumeId ?? undefined,
@@ -53,10 +53,10 @@ export function useDirectorChapterTitleRepair(options: DirectorChapterTitleRepai
           warning,
         })).catch(() => {});
       }
-      toast.success(i18next.i18next.t("gen.hooks.useDirectorChapterTitleRepair.gen_1feed74e"));
+      toast.success(i18next.t("gen.hooks.useDirectorChapterTitleRepair.gen_1feed74e"));
     },
     onError: (error) => {
-      const message = error instanceof Error ? error.message : i18next.i18next.t("gen.hooks.useDirectorChapterTitleRepair.aiFailedToFixChapterTitle");
+      const message = error instanceof Error ? error.message : i18next.t("gen.hooks.useDirectorChapterTitleRepair.aiFailedToFixChapterTitle");
       toast.error(message);
     },
   });
@@ -64,7 +64,7 @@ export function useDirectorChapterTitleRepair(options: DirectorChapterTitleRepai
   return {
     startRepair: (task: UnifiedTaskDetail | null | undefined) => {
       if (!task) {
-        toast.error(i18next.i18next.t("gen.hooks.useDirectorChapterTitleRepair.gen_eff58f78"));
+        toast.error(i18next.t("gen.hooks.useDirectorChapterTitleRepair.gen_eff58f78"));
         return;
       }
       mutation.mutate(task);

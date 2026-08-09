@@ -78,11 +78,11 @@ export function useStorylineVersionControl({
       if (nextVersionId) {
         setSelectedVersionId(nextVersionId);
       }
-      setStorylineMessage(response.message ?? i18next.i18next.t("gen.pages.novels.hooks.useStorylineVersionControl.mainDraftVersionCreated"));
+      setStorylineMessage(response.message ?? i18next.t("gen.pages.novels.hooks.useStorylineVersionControl.mainDraftVersionCreated"));
       await invalidateVersionList();
     },
     onError: (error) => {
-      const message = error instanceof Error ? error.message : i18next.i18next.t("gen.pages.novels.hooks.useStorylineVersionControl.gen_03aa49b7");
+      const message = error instanceof Error ? error.message : i18next.t("gen.pages.novels.hooks.useStorylineVersionControl.gen_03aa49b7");
       setStorylineMessage(message);
     },
   });
@@ -90,17 +90,17 @@ export function useStorylineVersionControl({
   const activateVersionMutation = useMutation({
     mutationFn: () => {
       if (!selectedVersionId) {
-        throw new Error(i18next.i18next.t("gen.pages.novels.hooks.useStorylineVersionControl.gen_f75fd1ff"));
+        throw new Error(i18next.t("gen.pages.novels.hooks.useStorylineVersionControl.gen_f75fd1ff"));
       }
       return activateStorylineVersion(novelId, selectedVersionId);
     },
     onSuccess: async (response) => {
-      setStorylineMessage(response.message ?? i18next.i18next.t("gen.pages.novels.hooks.useStorylineVersionControl.gen_918e4b38"));
+      setStorylineMessage(response.message ?? i18next.t("gen.pages.novels.hooks.useStorylineVersionControl.gen_918e4b38"));
       await invalidateVersionList();
       await invalidateNovelDetail();
     },
     onError: (error) => {
-      const message = error instanceof Error ? error.message : i18next.i18next.t("gen.pages.novels.hooks.useStorylineVersionControl.gen_5c4833b3");
+      const message = error instanceof Error ? error.message : i18next.t("gen.pages.novels.hooks.useStorylineVersionControl.gen_5c4833b3");
       setStorylineMessage(message);
     },
   });
@@ -108,16 +108,16 @@ export function useStorylineVersionControl({
   const freezeVersionMutation = useMutation({
     mutationFn: () => {
       if (!selectedVersionId) {
-        throw new Error(i18next.i18next.t("gen.pages.novels.hooks.useStorylineVersionControl.gen_f75fd1ff"));
+        throw new Error(i18next.t("gen.pages.novels.hooks.useStorylineVersionControl.gen_f75fd1ff"));
       }
       return freezeStorylineVersion(novelId, selectedVersionId);
     },
     onSuccess: async (response) => {
-      setStorylineMessage(response.message ?? i18next.i18next.t("gen.pages.novels.hooks.useStorylineVersionControl.mainVersionFrozen"));
+      setStorylineMessage(response.message ?? i18next.t("gen.pages.novels.hooks.useStorylineVersionControl.mainVersionFrozen"));
       await invalidateVersionList();
     },
     onError: (error) => {
-      const message = error instanceof Error ? error.message : i18next.i18next.t("gen.pages.novels.hooks.useStorylineVersionControl.gen_5341f192");
+      const message = error instanceof Error ? error.message : i18next.t("gen.pages.novels.hooks.useStorylineVersionControl.gen_5341f192");
       setStorylineMessage(message);
     },
   });
@@ -125,16 +125,16 @@ export function useStorylineVersionControl({
   const diffMutation = useMutation({
     mutationFn: () => {
       if (!selectedVersionId) {
-        throw new Error(i18next.i18next.t("gen.pages.novels.hooks.useStorylineVersionControl.gen_f75fd1ff"));
+        throw new Error(i18next.t("gen.pages.novels.hooks.useStorylineVersionControl.gen_f75fd1ff"));
       }
       return getStorylineDiff(novelId, selectedVersionId);
     },
     onSuccess: (response) => {
       setDiffResult(response.data ?? null);
-      setStorylineMessage(response.message ?? i18next.i18next.t("gen.pages.novels.hooks.useStorylineVersionControl.mainVersionDiffUpdated"));
+      setStorylineMessage(response.message ?? i18next.t("gen.pages.novels.hooks.useStorylineVersionControl.mainVersionDiffUpdated"));
     },
     onError: (error) => {
-      const message = error instanceof Error ? error.message : i18next.i18next.t("gen.pages.novels.hooks.useStorylineVersionControl.gen_6537ecc8");
+      const message = error instanceof Error ? error.message : i18next.t("gen.pages.novels.hooks.useStorylineVersionControl.gen_6537ecc8");
       setStorylineMessage(message);
     },
   });
@@ -143,10 +143,10 @@ export function useStorylineVersionControl({
     mutationFn: () => analyzeStorylineImpact(novelId, { content: draftText }),
     onSuccess: (response) => {
       setImpactResult(response.data ?? null);
-      setStorylineMessage(response.message ?? i18next.i18next.t("gen.pages.novels.hooks.useStorylineVersionControl.gen_10f8e0c9"));
+      setStorylineMessage(response.message ?? i18next.t("gen.pages.novels.hooks.useStorylineVersionControl.gen_10f8e0c9"));
     },
     onError: (error) => {
-      const message = error instanceof Error ? error.message : i18next.i18next.t("gen.pages.novels.hooks.useStorylineVersionControl.gen_780ab73e");
+      const message = error instanceof Error ? error.message : i18next.t("gen.pages.novels.hooks.useStorylineVersionControl.gen_780ab73e");
       setStorylineMessage(message);
     },
   });
@@ -154,16 +154,16 @@ export function useStorylineVersionControl({
   const analyzeVersionImpactMutation = useMutation({
     mutationFn: () => {
       if (!selectedVersionId) {
-        throw new Error(i18next.i18next.t("gen.pages.novels.hooks.useStorylineVersionControl.gen_f75fd1ff"));
+        throw new Error(i18next.t("gen.pages.novels.hooks.useStorylineVersionControl.gen_f75fd1ff"));
       }
       return analyzeStorylineImpact(novelId, { versionId: selectedVersionId });
     },
     onSuccess: (response) => {
       setImpactResult(response.data ?? null);
-      setStorylineMessage(response.message ?? i18next.i18next.t("gen.pages.novels.hooks.useStorylineVersionControl.gen_40fb1cf0"));
+      setStorylineMessage(response.message ?? i18next.t("gen.pages.novels.hooks.useStorylineVersionControl.gen_40fb1cf0"));
     },
     onError: (error) => {
-      const message = error instanceof Error ? error.message : i18next.i18next.t("gen.pages.novels.hooks.useStorylineVersionControl.gen_f2d5956b");
+      const message = error instanceof Error ? error.message : i18next.t("gen.pages.novels.hooks.useStorylineVersionControl.gen_f2d5956b");
       setStorylineMessage(message);
     },
   });

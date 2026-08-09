@@ -75,7 +75,7 @@ export function useNovelEditChapterRuntime({
       temperature: llm.temperature,
     }),
     onSuccess: async () => {
-      setChapterOperationMessage(i18next.i18next.t("gen.pages.novels.hooks.useNovelEditChapterRuntime.gen_bd375894"));
+      setChapterOperationMessage(i18next.t("gen.pages.novels.hooks.useNovelEditChapterRuntime.gen_bd375894"));
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: queryKeys.novels.chapterPlan(novelId, selectedChapterId) }),
         invalidateNovelDetail(),
@@ -100,7 +100,7 @@ export function useNovelEditChapterRuntime({
       setChapterOperationMessage(
         affectedOrders.length > 0
           ? `已重规划第 ${affectedOrders.join("、")} 章。`
-          : i18next.i18next.t("gen.pages.novels.hooks.useNovelEditChapterRuntime.gen_7989d2e4"),
+          : i18next.t("gen.pages.novels.hooks.useNovelEditChapterRuntime.gen_7989d2e4"),
       );
       await queryClient.invalidateQueries({ queryKey: queryKeys.novels.detail(novelId) });
       await queryClient.invalidateQueries({ queryKey: queryKeys.novels.qualityReport(novelId) });
@@ -122,7 +122,7 @@ export function useNovelEditChapterRuntime({
     }),
     onSuccess: async (response) => {
       setReviewResult(response.data ?? null);
-      setChapterOperationMessage(i18next.i18next.t("gen.pages.novels.hooks.useNovelEditChapterRuntime.gen_718913a2"));
+      setChapterOperationMessage(i18next.t("gen.pages.novels.hooks.useNovelEditChapterRuntime.gen_718913a2"));
       await queryClient.invalidateQueries({ queryKey: queryKeys.novels.chapterAuditReports(novelId, selectedChapterId) });
       await queryClient.invalidateQueries({ queryKey: queryKeys.novels.qualityReport(novelId) });
     },
@@ -140,10 +140,10 @@ export function useNovelEditChapterRuntime({
     if (!selectedChapter) {
       return;
     }
-    setChapterOperationMessage(i18next.i18next.t("gen.pages.novels.hooks.useNovelEditChapterRuntime.gen_bdfaaac4"));
+    setChapterOperationMessage(i18next.t("gen.pages.novels.hooks.useNovelEditChapterRuntime.gen_bdfaaac4"));
     setActiveChapterStream({
       chapterId: selectedChapter.id,
-      chapterLabel: `第${selectedChapter.order}章 ${selectedChapter.title || i18next.i18next.t("gen.pages.novels.hooks.useNovelEditChapterRuntime.gen_db55d102")}`,
+      chapterLabel: `第${selectedChapter.order}章 ${selectedChapter.title || i18next.t("gen.pages.novels.hooks.useNovelEditChapterRuntime.gen_db55d102")}`,
     });
     void chapterSSE.start(`/novels/${novelId}/chapters/${selectedChapter.id}/generate`, {
       provider: llm.provider,
@@ -154,26 +154,26 @@ export function useNovelEditChapterRuntime({
 
   const handleAbortChapterStream = () => {
     chapterSSE.abort();
-    setChapterOperationMessage(i18next.i18next.t("gen.pages.novels.hooks.useNovelEditChapterRuntime.gen_ad7a384f"));
+    setChapterOperationMessage(i18next.t("gen.pages.novels.hooks.useNovelEditChapterRuntime.gen_ad7a384f"));
   };
 
   const handleAbortRepair = () => {
     repairSSE.abort();
     setActiveRepairStream(null);
-    setChapterOperationMessage(i18next.i18next.t("gen.pages.novels.hooks.useNovelEditChapterRuntime.gen_4b810879"));
+    setChapterOperationMessage(i18next.t("gen.pages.novels.hooks.useNovelEditChapterRuntime.gen_4b810879"));
   };
 
   const startChapterRepair = (issues: ReviewIssue[]) => {
     if (!selectedChapterId) {
-      setChapterOperationMessage(i18next.i18next.t("gen.pages.novels.hooks.useNovelEditChapterRuntime.gen_c0bd44c0"));
+      setChapterOperationMessage(i18next.t("gen.pages.novels.hooks.useNovelEditChapterRuntime.gen_c0bd44c0"));
       return;
     }
-    setChapterOperationMessage(i18next.i18next.t("gen.pages.novels.hooks.useNovelEditChapterRuntime.gen_910fe070"));
+    setChapterOperationMessage(i18next.t("gen.pages.novels.hooks.useNovelEditChapterRuntime.gen_910fe070"));
     setRepairBeforeContent(selectedChapter?.content ?? "");
     setRepairAfterContent("");
     setActiveRepairStream({
       chapterId: selectedChapterId,
-      chapterLabel: selectedChapter ? `第${selectedChapter.order}章 ${selectedChapter.title || i18next.i18next.t("gen.pages.novels.hooks.useNovelEditChapterRuntime.gen_db55d102")}` : i18next.i18next.t("gen.pages.novels.hooks.useNovelEditChapterRuntime.gen_25afd065"),
+      chapterLabel: selectedChapter ? `第${selectedChapter.order}章 ${selectedChapter.title || i18next.t("gen.pages.novels.hooks.useNovelEditChapterRuntime.gen_db55d102")}` : i18next.t("gen.pages.novels.hooks.useNovelEditChapterRuntime.gen_25afd065"),
     });
     void repairSSE.start(`/novels/${novelId}/chapters/${selectedChapterId}/repair`, {
       provider: llm.provider,

@@ -57,8 +57,8 @@ export interface DesktopDataImportResult {
 const DEFAULT_BOOTSTRAP_SNAPSHOT: DesktopBootstrapSnapshot = {
   state: "launching",
   stage: "launching",
-  title: i18next.i18next.t("gen.lib.desktop.gen_a1c11778"),
-  detail: i18next.i18next.t("gen.lib.desktop.gen_7377ff62"),
+  title: i18next.t("gen.lib.desktop.gen_a1c11778"),
+  detail: i18next.t("gen.lib.desktop.gen_7377ff62"),
   logDir: "",
   logFile: "",
   updatedAt: "",

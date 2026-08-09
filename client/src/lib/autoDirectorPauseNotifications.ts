@@ -100,7 +100,7 @@ export function showAutoDirectorPauseNotification(input: {
     return false;
   }
 
-  const notification = new window.Notification(i18next.i18next.t("gen.lib.autoDirectorPauseNotifications.gen_b6f5335c"), {
+  const notification = new window.Notification(i18next.t("gen.lib.autoDirectorPauseNotifications.gen_b6f5335c"), {
     body: buildAutoDirectorPauseNotificationBody(input.item),
     tag: NOTIFICATION_TAG,
   });

@@ -4,21 +4,21 @@ import type { RagJobSummary } from "@/api/knowledge";
 export function formatStatus(status: string): string {
   switch (status) {
     case "enabled":
-      return i18next.i18next.t("gen.pages.knowledge.components.knowledgeRagUi.gen_53ace430");
+      return i18next.t("gen.pages.knowledge.components.knowledgeRagUi.gen_53ace430");
     case "disabled":
-      return i18next.i18next.t("gen.pages.knowledge.components.knowledgeRagUi.gen_69b0f684");
+      return i18next.t("gen.pages.knowledge.components.knowledgeRagUi.gen_69b0f684");
     case "archived":
-      return i18next.i18next.t("gen.pages.knowledge.components.knowledgeRagUi.gen_c3ba167c");
+      return i18next.t("gen.pages.knowledge.components.knowledgeRagUi.gen_c3ba167c");
     case "idle":
-      return i18next.i18next.t("gen.pages.knowledge.components.knowledgeRagUi.gen_87bb5bbc");
+      return i18next.t("gen.pages.knowledge.components.knowledgeRagUi.gen_87bb5bbc");
     case "queued":
-      return i18next.i18next.t("gen.pages.knowledge.components.knowledgeRagUi.gen_e5ac1d20");
+      return i18next.t("gen.pages.knowledge.components.knowledgeRagUi.gen_e5ac1d20");
     case "running":
-      return i18next.i18next.t("gen.pages.knowledge.components.knowledgeRagUi.gen_46e38679");
+      return i18next.t("gen.pages.knowledge.components.knowledgeRagUi.gen_46e38679");
     case "succeeded":
-      return i18next.i18next.t("gen.pages.knowledge.components.knowledgeRagUi.gen_330363df");
+      return i18next.t("gen.pages.knowledge.components.knowledgeRagUi.gen_330363df");
     case "failed":
-      return i18next.i18next.t("gen.pages.knowledge.components.knowledgeRagUi.gen_acd5cb84");
+      return i18next.t("gen.pages.knowledge.components.knowledgeRagUi.gen_acd5cb84");
     default:
       return status;
   }
