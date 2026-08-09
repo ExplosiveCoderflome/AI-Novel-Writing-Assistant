@@ -1,41 +1,47 @@
+# 依赖与构建产物
 node_modules/
-dist/
-.turbo/
-.DS_Store
-.env
-.env.local
+client/node_modules/
+server/node_modules/
+desktop/node_modules/
+shared/dist/
+server/dist/
+client/dist/
+desktop/dist/
+site/dist/
+
+# 数据库（本地运行产生的）
 dev.db
-client/.env
-client/.env.local
-server/.env
-server/.env.local
+dev.db-shm
+dev.db-wal
+*.db-journal
 server/dev.db
 server/dev.db-shm
 server/dev.db-wal
-server/tmp_*.js
-server/tmp/**/*.db
-server/tmp/**/*.db*
-server/tmp/**/*.db-*
-server/tmp/**/*.sqlite
-server/tmp/**/*.sqlite*
-server/tmp/**/*.sqlite-*
-server/storage/
-server/src/prisma/dev.db
-server/src/prisma/dev.db-journal
-.history/
-.histyory/
-.logs/
-.tmp/
-.codegraph/
-.trae/
-server/.tmp/
-desktop/build/
-desktop/runtime-migration-smoke/
-server/prisma-diff-migrations-to-schema.sql
 
-# AI tool artifacts
-.claude/plan/
-.claude/memory/
-.spec-workflow/
-.codex-backups/
-.cursor/
+# Android 构建产物
+android-app/.gradle/
+android-app/build/
+android-app/app/build/
+android-app/app/.cxx/
+android-app/local.properties
+android-app/C:Androidbuild_done.flag
+# node 资产（重二进制/可重建产物；保留手写源码 app.js / init-db.cjs）
+android-app/app/src/main/assets/nodejs/node-project.zip
+android-app/app/src/main/assets/nodejs/bundle.cjs
+android-app/app/src/main/assets/nodejs/node_modules/
+android-app/app/src/main/assets/nodejs/dev.db
+android-app/app/src/main/assets/nodejs/.extracted
+android-app/app/src/main/assets/www/
+android-app/app/src/main/assets/www.zip
+android-app/app/src/main/assets/*.zip
+*.iml
+
+# 测试残留
+server/selftest.js
+server/test-android.db
+server/test-android.db-shm
+server/test-android.db-wal
+
+# 其他
+ARM64/
+android-app/release.keystore

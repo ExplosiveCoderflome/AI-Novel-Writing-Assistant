@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { ArrowLeft } from "lucide-react";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import type { UnifiedTaskDetail } from "@ai-novel/shared/types/task";
 import { useMutation, useQuery } from "@tanstack/react-query";
@@ -314,10 +315,15 @@ export default function AutoDirectorCreatePage() {
     <div className="mx-auto max-w-6xl space-y-4 px-3 py-4 sm:px-4 lg:px-0">
       {showSummaryBar ? (
         <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-          <div>
-            <div className="text-2xl font-semibold tracking-normal text-foreground">AI 自动导演创建</div>
-            <div className="mt-1 text-sm leading-6 text-muted-foreground">
-              从一个起始想法开始，AI 完成整本规划准备后，再由你选择正文生产方式。
+          <div className="flex min-w-0 items-start gap-2">
+            <Button type="button" variant="ghost" size="icon" className="-ml-2 mt-0.5 h-8 w-8 shrink-0 lg:hidden" aria-label="返回" onClick={() => navigate(-1)}>
+              <ArrowLeft className="h-4 w-4" />
+            </Button>
+            <div className="min-w-0">
+              <div className="text-2xl font-semibold tracking-normal text-foreground">AI 自动导演创建</div>
+              <div className="mt-1 text-sm leading-6 text-muted-foreground">
+                从一个起始想法开始，AI 完成整本规划准备后，再由你选择正文生产方式。
+              </div>
             </div>
           </div>
           <Button type="button" variant="outline" asChild>

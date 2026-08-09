@@ -141,6 +141,7 @@ export function createApp() {
   app.use("/api/novel-workflows", novelWorkflowsRouter);
   app.use("/api/novels", novelExportRouter);
   app.use("/api/drama", dramaRouter);
+  // 漫画工坊：安卓端使用 NDK 交叉编译的 bionic libvips + sharp 原生 .node（在 node-project.zip 内）
   app.use("/api/comic", comicRouter);
   app.use("/api/worlds", worldRouter);
   app.use("/api/rag", ragRouter);

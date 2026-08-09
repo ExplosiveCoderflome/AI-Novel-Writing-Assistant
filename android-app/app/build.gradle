@@ -1,0 +1,71 @@
+plugins {
+    id 'com.android.application'
+}
+
+android {
+    namespace 'com.ainovel.assistant'
+    compileSdk 35
+
+    defaultConfig {
+        applicationId "com.ainovel.assistant"
+        minSdk 31
+        targetSdk 35
+        versionCode 3
+        versionName "0.4.7.2"
+        ndk {
+            abiFilters 'arm64-v8a'
+        }
+    }
+
+    signingConfigs {
+        release {
+            storeFile file('../release.keystore')
+            storePassword 'ainovel123'
+            keyAlias 'ainovel'
+            keyPassword 'ainovel123'
+        }
+    }
+
+    buildTypes {
+        debug {
+            minifyEnabled false
+            applicationIdSuffix ".debug"
+        }
+        release {
+            minifyEnabled false
+            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+            signingConfig signingConfigs.release
+        }
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+
+    // 排除 nodejs/node_modules 冗余目录（已在 node-project.zip 内，仅作打包源用；
+    // 见 build-android-assets.sh 步骤 3。运行时只解压 zip）
+    sourceSets {
+        main {
+            assets {
+                srcDirs 'src/main/assets'
+                exclude 'nodejs/node_modules/**'
+            }
+        }
+    }
+
+    aaptOptions {
+        noCompress 'node', 'js', 'so', 'zip'
+    }
+
+    buildFeatures {
+        viewBinding true
+    }
+}
+
+dependencies {
+    implementation 'androidx.appcompat:appcompat:1.7.0'
+    implementation 'androidx.constraintlayout:constraintlayout:2.1.4'
+    implementation 'androidx.webkit:webkit:1.11.0'
+    implementation 'com.google.android.material:material:1.12.0'
+}

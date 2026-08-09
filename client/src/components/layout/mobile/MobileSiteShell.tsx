@@ -159,7 +159,7 @@ export default function MobileSiteShell({ children }: MobileSiteShellProps) {
         <div className="grid grid-cols-5 gap-1">
           {primaryNavItems.map((item) => {
             const Icon = primaryIcons[item.key as MobilePrimaryNavKey];
-            const isActive = item.key === "more" ? activeGroup === "more" || moreOpen : activeGroup === item.key;
+            const isActive = item.key === "more" ? moreOpen : !moreOpen && activeGroup === item.key;
             return (
               <button
                 key={item.key}

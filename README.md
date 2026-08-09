@@ -160,7 +160,43 @@
 - 世界时间线使用事件节点和推进轨道呈现世界局势变化；桌面端横向浏览，窄屏自动切换纵向时间线。
 - 桌面版发布版本更新为 `0.4.8`，可从 GitHub Releases 获取对应安装包。
 
+### 2026-08-03
+
+- 安卓端构建资产全部入库，fork 仓库后按文档两步即可构建出可运行的 APK。
+- 漫画工作台渲染改用 WASM sharp，免原生库依赖，真机渲染稳定，APK 体积降至约 163MB。
+- 修复首次启动模型配置弹窗、安卓网络连接失败等问题；导出文件写入公共下载目录。
+- 手机端统一为桌面布局（横屏固定），操作入口与电脑端一致。
+
 > 查看完整更新历史：[docs/releases/release-notes.md](./docs/releases/release-notes.md)
+
+## 安卓端构建（fork 后构建必读）
+
+安卓 APK 需要的全部内嵌资产已**入库**（`node-project.zip` 40MB / `noderuntime/` 48MB / `migrations.sqlite/`），
+fork 后 clone 下来即可直接构建，无需从 Release 下载或从 APK 提取：
+
+```bash
+git clone https://github.com/<你的 fork>/AI-Novel-Writing-Assistant.git
+cd AI-Novel-Writing-Assistant
+pnpm install                          # 安装依赖（esbuild / vite / prisma 等）
+bash android/build-android-assets.sh  # 生成 bundle.cjs + www.zip（node-project.zip 为固定资产，跳过重建）
+cd android-app
+# 首次需创建 local.properties 指向你的 Android SDK：sdk.dir=C:/Android/sdk
+gradle clean assembleDebug
+```
+
+产物：`android-app/app/build/outputs/apk/debug/app-debug.apk`（约 166MB，含内嵌 Node 运行时）。
+
+> 脚本会：① 构建 `@ai-novel/shared`（workspace 包，tsc 生成 dist）；② esbuild 完整打包
+> `server/src/app.ts` → `bundle.cjs`（express 等打进包内，仅 sharp/better-sqlite3/@prisma/client
+> 走原生加载）；③ 打包前端 `www/` → `www.zip`；④ `node-project.zip` 是固定资产（依赖锁定，
+> 含安卓 ELF better-sqlite3 + WASM sharp），存在则跳过重建。
+>
+> 漫画工作台 sharp 使用 **WASM 版**（@img/sharp-wasm32 + @emnapi/runtime，免原生库）：
+> 原生 bionic 版依赖 libvips 全家，libstdc++ ABI 在真机不兼容（dlopen 失败），故已弃用。
+> 旧文档见 [android/sharp-android/README.md](./android/sharp-android/README.md)（历史参考）。
+>
+> 构建环境需配置：Android SDK（compileSdk 35）、JDK 17、Gradle 8.9（或使用 wrapper）。
+> 构建脚本在 MSYS/Git-Bash / Linux / macOS 下均可运行（路径已兼容）。
 
 ## 功能预览
 ### 功能概览中的95%以上编写都是AI完成
