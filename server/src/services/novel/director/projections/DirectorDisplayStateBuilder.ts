@@ -156,6 +156,14 @@ function buildCurrentAction(input: {
   task: SnapshotTaskLike;
   isLiveRunning: boolean;
 }): string {
+  if (input.mode === "completed") {
+    return (
+      input.task.currentItemLabel?.trim()
+      || input.task.checkpointSummary?.trim()
+      || input.factStep?.progress.label?.trim()
+      || "本轮自动导演已完成"
+    );
+  }
   if (input.mode === "needs_recovery") {
     return (
       input.task.lastError?.trim()
