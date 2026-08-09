@@ -201,6 +201,19 @@ function normalizeContinueExistingAutoExecutionPlan(input: {
   };
 }
 
+export function resolveTakeoverExecutionDirectorInput(input: {
+  request: DirectorTakeoverRequest;
+  directorInput: DirectorConfirmRequest;
+  autoExecutionPlan: DirectorConfirmRequest["autoExecutionPlan"];
+}): DirectorConfirmRequest {
+  return {
+    ...input.directorInput,
+    runMode: input.request.runMode ?? input.directorInput.runMode,
+    autoExecutionPlan: input.autoExecutionPlan,
+    autoApproval: input.request.autoApproval ?? input.directorInput.autoApproval,
+  };
+}
+
 function buildResumeTargetFromPlan(input: {
   novelId: string;
   workflowTaskId?: string | null;
@@ -340,11 +353,11 @@ export async function startDirectorTakeoverExecution(
       ...input.request,
       autoExecutionPlan: normalizedAutoExecutionPlan,
     };
-  const directorInput: DirectorConfirmRequest = {
-    ...input.directorInput,
-    runMode: "auto_to_ready",
-    autoExecutionPlan: undefined,
-  };
+  const directorInput = resolveTakeoverExecutionDirectorInput({
+    request,
+    directorInput: input.directorInput,
+    autoExecutionPlan: normalizedAutoExecutionPlan,
+  });
   const selection = normalizeTakeoverSelection(request);
   const plan = resolveDirectorTakeoverPlan({
     entryStep: selection.entryStep,
