@@ -210,6 +210,9 @@ function buildProgress(input: {
   displayState: DirectorDisplayState;
 }): { percent: number; source: DirectorDashboardProgressSource } {
   const taskPercent = progressFromTask(input.task.progress);
+  if (input.mode === "completed" && taskPercent !== null) {
+    return { percent: taskPercent, source: "task_final" };
+  }
   if (input.mode === "running" && taskPercent !== null) {
     return { percent: taskPercent, source: "task_live" };
   }
@@ -266,6 +269,13 @@ function buildCurrentAction(input: {
       || input.task.currentItemLabel?.trim()
       || input.projection?.currentAction?.trim()
       || input.displayState.currentAction
+      || null;
+  }
+  if (input.mode === "completed") {
+    return input.task.currentItemLabel?.trim()
+      || input.task.checkpointSummary?.trim()
+      || input.displayState.currentAction
+      || input.projection?.currentLabel?.trim()
       || null;
   }
   return input.displayState.currentAction

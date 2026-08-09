@@ -918,6 +918,7 @@ export type DirectorDashboardMode =
 
 export type DirectorDashboardProgressSource =
   | "task_live"
+  | "task_final"
   | "worker_live"
   | "chapter_facts"
   | "checkpoint"
