@@ -37,6 +37,14 @@
 - 建议优先下载 `Setup.exe` 安装版；如果你不想安装，或者想放在 U 盘 / 临时目录里直接运行，再选择 `portable` 版本
 - 公开介绍站：[GitHub Pages 介绍站](https://explosivecoderflome.github.io/AI-Novel-Writing-Assistant/) 提供功能预览、模块文档和使用指南
 
+## 支持项目
+
+如果这个项目对你有帮助，欢迎通过支付宝扫码支持持续开发与维护。
+
+<p align="center">
+  <img src="./images/c838dd8eb412d6fde536b2a43f53e95.jpg" alt="支付宝捐赠二维码" width="320" />
+</p>
+
 ## 用 Codex 持续创作长篇：Ani Book Skill
 
 如果你希望直接在 Codex 的本地工作区推进小说，可以使用 [Ani Book Skill](https://github.com/ExplosiveCoderflome/ani-book-skill)。它将方向判断、故事发动机、章节推进、审校修复和连续性管理组织为一条可恢复、可追溯的长篇创作流程。
@@ -154,6 +162,7 @@
 - 从已有项目接管自动导演时，选择“推进至第 N 章”会按所选范围继续准备、生成和审校，不会回退到已完成的旧章节。
 - 接管任务会保留本次选择的推进方式与自动审批设置，进度展示对应实际提交的章节范围。
 - 章节批次完成后，后台资源索引等收尾事件不会覆盖主任务的完成状态，页面会继续显示真实进度和章节范围。
+- README 提供支付宝捐赠二维码，方便支持项目持续开发与维护。
 
 > 查看完整更新历史：[docs/releases/release-notes.md](./docs/releases/release-notes.md)
 
