@@ -164,9 +164,7 @@ export default function TitleFactoryPanel({ genreTree, novels }: TitleFactoryPan
           <div className="mt-6">
             <TabsContent value="novel" className="mt-0 space-y-3">
               <div className="grid gap-3 md:grid-cols-[132px_minmax(0,1fr)] md:items-center">
-                <label htmlFor="title-factory-novel" className="text-sm font-medium text-foreground">
-                  选择小说项目
-                </label>
+                <label htmlFor="title-factory-novel" className="text-sm font-medium text-foreground">{t("gen.pages.titles.components.TitleFactoryPanel.gen_a55779fe", "选择小说项目")}</label>
                 <SelectControl
                   id="title-factory-novel"
                   className={controlClassName}
@@ -181,16 +179,12 @@ export default function TitleFactoryPanel({ genreTree, novels }: TitleFactoryPan
                   ))}
                 </SelectControl>
               </div>
-              <div className="pl-0 text-xs leading-5 text-muted-foreground md:pl-[132px]">
-                适合已填写简介和类型的作品，系统会结合项目资料生成候选标题。
-              </div>
+              <div className="pl-0 text-xs leading-5 text-muted-foreground md:pl-[132px]">{t("gen.pages.titles.components.TitleFactoryPanel.gen_acb6f93b", "适合已填写简介和类型的作品，系统会结合项目资料生成候选标题。")}</div>
             </TabsContent>
 
             <TabsContent value="brief" className="mt-0 grid gap-4 md:grid-cols-[minmax(0,1fr)_240px]">
               <div className="space-y-3">
-                <label htmlFor="title-factory-brief" className="text-sm font-medium text-foreground">
-                  创作简报
-                </label>
+                <label htmlFor="title-factory-brief" className="text-sm font-medium text-foreground">{t("gen.pages.titles.components.TitleFactoryPanel.gen_c4d4530e", "创作简报")}</label>
                 <textarea
                   id="title-factory-brief"
                   className={`${textareaClassName} min-h-[176px]`}
@@ -200,9 +194,7 @@ export default function TitleFactoryPanel({ genreTree, novels }: TitleFactoryPan
                 />
               </div>
               <div className="space-y-3">
-                <label htmlFor="title-factory-genre" className="text-sm font-medium text-foreground">
-                  类型过滤
-                </label>
+                <label htmlFor="title-factory-genre" className="text-sm font-medium text-foreground">{t("gen.pages.titles.components.TitleFactoryPanel.gen_6ad27cd6", "类型过滤")}</label>
                 <SelectControl
                   id="title-factory-genre"
                   className={controlClassName}
@@ -216,18 +208,14 @@ export default function TitleFactoryPanel({ genreTree, novels }: TitleFactoryPan
                     </option>
                   ))}
                 </SelectControl>
-                <p className="text-xs leading-5 text-muted-foreground">
-                  不确定类型时可以留空，让模型先按简报自行判断标题方向。
-                </p>
+                <p className="text-xs leading-5 text-muted-foreground">{t("gen.pages.titles.components.TitleFactoryPanel.gen_2ed143f7", "不确定类型时可以留空，让模型先按简报自行判断标题方向。")}</p>
               </div>
             </TabsContent>
 
             <TabsContent value="adapt" className="mt-0 space-y-4">
               <div className="grid gap-4 md:grid-cols-[minmax(0,1fr)_240px]">
                 <div className="space-y-3">
-                  <label htmlFor="title-factory-reference" className="text-sm font-medium text-foreground">
-                    参考标题
-                  </label>
+                  <label htmlFor="title-factory-reference" className="text-sm font-medium text-foreground">{t("gen.pages.titles.components.TitleFactoryPanel.gen_3757d569", "参考标题")}</label>
                   <Input
                     id="title-factory-reference"
                     value={referenceTitle}
@@ -237,9 +225,7 @@ export default function TitleFactoryPanel({ genreTree, novels }: TitleFactoryPan
                   />
                 </div>
                 <div className="space-y-3">
-                  <label htmlFor="title-factory-adapt-genre" className="text-sm font-medium text-foreground">
-                    类型过滤
-                  </label>
+                  <label htmlFor="title-factory-adapt-genre" className="text-sm font-medium text-foreground">{t("gen.pages.titles.components.TitleFactoryPanel.gen_6ad27cd6", "类型过滤")}</label>
                   <SelectControl
                     id="title-factory-adapt-genre"
                     className={controlClassName}
@@ -256,9 +242,7 @@ export default function TitleFactoryPanel({ genreTree, novels }: TitleFactoryPan
                 </div>
               </div>
               <div className="space-y-3">
-                <label htmlFor="title-factory-adapt-brief" className="text-sm font-medium text-foreground">
-                  作品简报
-                </label>
+                <label htmlFor="title-factory-adapt-brief" className="text-sm font-medium text-foreground">{t("gen.pages.titles.components.TitleFactoryPanel.gen_9da6007d", "作品简报")}</label>
                 <textarea
                   id="title-factory-adapt-brief"
                   className={`${textareaClassName} min-h-[132px]`}

@@ -1,3 +1,5 @@
+import i18next from "i18next";
+import { useTranslation } from "react-i18next";
 import type { KeyboardEvent, MouseEvent } from "react";
 import { BookOpen, Gauge, Trash2 } from "lucide-react";
 import { Link } from "react-router-dom";
@@ -163,16 +165,12 @@ export function NovelProjectCard(props: {
           <div className="flex flex-wrap items-center gap-1">
             {task ? (
               <Button asChild size="sm" variant="ghost">
-                <Link to={`/novels/${props.novel.id}/edit?directorTaskId=${task.id}&taskPanel=1`} onClick={stopCardClick}>
-                  执行详情
-                </Link>
+                <Link to={`/novels/${props.novel.id}/edit?directorTaskId=${task.id}&taskPanel=1`} onClick={stopCardClick}>{t("gen.pages.novels.components.list.NovelProjectCard.gen_2eceed7d", "执行详情")}</Link>
               </Button>
             ) : null}
             <Button asChild size="sm" variant="ghost">
               <Link to={`/novels/${props.novel.id}/preview`} onClick={stopCardClick}>
-                <BookOpen className="mr-1.5 h-4 w-4" aria-hidden="true" />
-                预览
-              </Link>
+                <BookOpen className="mr-1.5 h-4 w-4" aria-hidden="true" />{t("gen.pages.novels.components.list.NovelProjectCard.gen_645dbc55", "预览")}</Link>
             </Button>
             <Button
               size="sm"

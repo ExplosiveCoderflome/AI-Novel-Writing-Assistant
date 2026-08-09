@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import i18next from "i18next";
 const t = (key: string, options?: any) => i18next.t(key, options) as string;
 import { useEffect, useMemo, useState } from "react";
@@ -59,6 +60,7 @@ export function CharacterEditDialog({
   onOpenChange,
   onSubmit,
 }: CharacterEditDialogProps) {
+  const { t } = useTranslation();
   const [form, setForm] = useState<EditableBaseCharacter>(createEmptyForm());
 
   useEffect(() => {
@@ -170,9 +172,7 @@ export function CharacterEditDialog({
         </div>
 
         <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={saving}>
-            取消
-          </Button>
+          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={saving}>{t("gen.pages.characters.components.CharacterEditDialog.gen_625fb26b", "取消")}</Button>
           <Button onClick={handleSubmit} disabled={saving || !hasRequiredFields || !character}>
             {saving ? i18next.t("gen.pages.characters.components.CharacterEditDialog.savingInProgressDotDotDot") : i18next.t("gen.pages.characters.components.CharacterEditDialog.saveChanges")}
           </Button>

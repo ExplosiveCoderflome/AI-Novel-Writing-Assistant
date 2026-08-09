@@ -216,16 +216,12 @@ export default function DirectorFactDebugDialog(input: {
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
         <Button variant="outline" disabled={disabled || !novelId}>
-          <Bug className="h-4 w-4" />
-          调试检查
-        </Button>
+          <Bug className="h-4 w-4" />{t("gen.pages.novels.components.DirectorFactDebugDialog.gen_bfd9cd1c", "调试检查")}</Button>
       </DialogTrigger>
       <DialogContent className="max-h-[90vh] w-[calc(100vw-2rem)] max-w-5xl overflow-hidden p-0">
         <DialogHeader className="border-b border-border/70 px-6 py-5">
           <DialogTitle>{i18next.t("gen.pages.novels.components.DirectorFactDebugDialog.gen_e04600ca")}</DialogTitle>
-          <DialogDescription>
-            这里展示的是每一步基于真实产出的检查结果。你可以直接看到哪一步已经有结果、哪一步缺前置条件、系统现在准备先补哪里。
-          </DialogDescription>
+          <DialogDescription>{t("gen.pages.novels.components.DirectorFactDebugDialog.gen_295db422", "这里展示的是每一步基于真实产出的检查结果。你可以直接看到哪一步已经有结果、哪一步缺前置条件、系统现在准备先补哪里。")}</DialogDescription>
         </DialogHeader>
 
         <div className="flex max-h-[calc(90vh-88px)] flex-col overflow-hidden">
@@ -258,9 +254,7 @@ export default function DirectorFactDebugDialog(input: {
           <div className="flex-1 overflow-y-auto px-6 py-5">
             {query.isLoading || query.isFetching ? (
               <div className="flex min-h-[240px] items-center justify-center text-sm text-muted-foreground">
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                正在读取当前导演链的完整度检查结果...
-              </div>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />{t("gen.pages.novels.components.DirectorFactDebugDialog.gen_847a140a", "正在读取当前导演链的完整度检查结果...")}</div>
             ) : query.isError ? (
               <div className="flex min-h-[240px] items-center justify-center">
                 <div className="max-w-md rounded-lg border border-destructive/30 bg-destructive/5 px-4 py-4 text-sm text-destructive">
@@ -269,9 +263,7 @@ export default function DirectorFactDebugDialog(input: {
               </div>
             ) : !inspection ? (
               <div className="flex min-h-[240px] items-center justify-center">
-                <div className="max-w-md rounded-lg border border-border/70 bg-muted/10 px-4 py-4 text-sm text-muted-foreground">
-                  当前还没有可检查的导演任务。先启动或接手一次 AI 导演流程，这里才会出现逐步骤检查结果。
-                </div>
+                <div className="max-w-md rounded-lg border border-border/70 bg-muted/10 px-4 py-4 text-sm text-muted-foreground">{t("gen.pages.novels.components.DirectorFactDebugDialog.gen_7efe23a8", "当前还没有可检查的导演任务。先启动或接手一次 AI 导演流程，这里才会出现逐步骤检查结果。")}</div>
               </div>
             ) : (
               <div className="space-y-4">
@@ -279,9 +271,7 @@ export default function DirectorFactDebugDialog(input: {
                   <Card className="rounded-lg border-primary/20 bg-primary/5">
                     <CardHeader className="p-4 pb-2">
                       <CardTitle className="flex items-center gap-2 text-base">
-                        <CheckCircle2 className="h-4 w-4" />
-                        当前系统会先补这一段
-                      </CardTitle>
+                        <CheckCircle2 className="h-4 w-4" />{t("gen.pages.novels.components.DirectorFactDebugDialog.gen_3e223ec5", "当前系统会先补这一段")}</CardTitle>
                     </CardHeader>
                     <CardContent className="space-y-3 p-4 pt-0">
                       <div className="text-sm text-foreground">{i18next.t("gen.pages.novels.components.DirectorFactDebugDialog.inspectionStatus")}</div>
@@ -300,9 +290,7 @@ export default function DirectorFactDebugDialog(input: {
 
                 {inspection.steps.some((step) => step.inspectError) ? (
                   <div className="flex items-start gap-2 rounded-lg border border-amber-300/60 bg-amber-50/60 px-4 py-3 text-sm text-amber-900">
-                    <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
-                    有些步骤的检查没有拿到完整结果。通常是因为当前任务现场不完整，或者这一段还需要补更多事实来源。
-                  </div>
+                    <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />{t("gen.pages.novels.components.DirectorFactDebugDialog.gen_c647cea2", "有些步骤的检查没有拿到完整结果。通常是因为当前任务现场不完整，或者这一段还需要补更多事实来源。")}</div>
                 ) : null}
               </div>
             )}

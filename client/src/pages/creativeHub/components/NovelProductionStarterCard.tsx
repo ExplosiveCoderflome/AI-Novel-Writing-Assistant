@@ -422,9 +422,9 @@ export default function NovelProductionStarterCard({
               onChange={(event) => setNarrativePov(event.target.value)}
             >
               <option value="">{t("creativeHub.letAiDecide", "交给 AI 判断")}</option>
-              <option value="第一人称">{t("creativeHub.povFirst", "第一人称")}</option>
-              <option value="第三人称">{t("creativeHub.povThird", "第三人称")}</option>
-              <option value="混合视角">{t("creativeHub.povMixed", "混合视角")}</option>
+              <option value={t("gen.pages.creativeHub.components.NovelProductionStarterCard.gen_f69e8c5f", "第一人称")}>{t("creativeHub.povFirst", "第一人称")}</option>
+              <option value={t("gen.pages.creativeHub.components.NovelProductionStarterCard.gen_5eff3cab", "第三人称")}>{t("creativeHub.povThird", "第三人称")}</option>
+              <option value={t("gen.pages.creativeHub.components.NovelProductionStarterCard.gen_73b444ba", "混合视角")}>{t("creativeHub.povMixed", "混合视角")}</option>
             </SelectControl>
           </ProductionField>
           <ProductionField htmlFor="creative-hub-production-pace" label={t("creativeHub.labelPace", "推进节奏")}>
@@ -435,10 +435,10 @@ export default function NovelProductionStarterCard({
               disabled={formDisabled}
               onChange={(event) => setPacePreference(event.target.value)}
             >
-              <option value="">交给 AI 判断</option>
-              <option value="慢节奏">{t("creativeHub.paceSlow", "慢节奏")}</option>
-              <option value="均衡节奏">{t("creativeHub.paceBalanced", "均衡节奏")}</option>
-              <option value="快节奏">{t("creativeHub.paceFast", "快节奏")}</option>
+              <option value="">{t("gen.pages.creativeHub.components.NovelProductionStarterCard.gen_d285a633", "交给 AI 判断")}</option>
+              <option value={t("gen.pages.creativeHub.components.NovelProductionStarterCard.gen_7209da38", "慢节奏")}>{t("creativeHub.paceSlow", "慢节奏")}</option>
+              <option value={t("gen.pages.creativeHub.components.NovelProductionStarterCard.gen_ca6502d7", "均衡节奏")}>{t("creativeHub.paceBalanced", "均衡节奏")}</option>
+              <option value={t("gen.pages.creativeHub.components.NovelProductionStarterCard.gen_de82b2fd", "快节奏")}>{t("creativeHub.paceFast", "快节奏")}</option>
             </SelectControl>
           </ProductionField>
         </div>
@@ -454,9 +454,9 @@ export default function NovelProductionStarterCard({
             >
               <option value="">{t("creativeHub.useNovelDefault", "使用小说默认值")}</option>
               <option value="AI 主导">{t("creativeHub.modeAiDriven", "AI 主导")}</option>
-              <option value="人机协作">{t("creativeHub.modeCoop", "人机协作")}</option>
-              <option value="草稿优先">{t("creativeHub.modeDraftFirst", "草稿优先")}</option>
-              <option value="自动流水线">{t("creativeHub.modeAutoPipeline", "自动流水线")}</option>
+              <option value={t("gen.pages.creativeHub.components.NovelProductionStarterCard.gen_3656af17", "人机协作")}>{t("creativeHub.modeCoop", "人机协作")}</option>
+              <option value={t("gen.pages.creativeHub.components.NovelProductionStarterCard.gen_8ca38b73", "草稿优先")}>{t("creativeHub.modeDraftFirst", "草稿优先")}</option>
+              <option value={t("gen.pages.creativeHub.components.NovelProductionStarterCard.gen_ba7518f8", "自动流水线")}>{t("creativeHub.modeAutoPipeline", "自动流水线")}</option>
             </SelectControl>
           </ProductionField>
           <ProductionField htmlFor="creative-hub-production-emotion" label={t("creativeHub.labelEmotion", "情绪强度")}>
@@ -467,10 +467,10 @@ export default function NovelProductionStarterCard({
               disabled={formDisabled}
               onChange={(event) => setEmotionIntensity(event.target.value)}
             >
-              <option value="">使用小说默认值</option>
-              <option value="低">{t("creativeHub.levelLow", "低")}</option>
-              <option value="中">{t("creativeHub.levelMedium", "中")}</option>
-              <option value="高">{t("creativeHub.levelHigh", "高")}</option>
+              <option value="">{t("gen.pages.creativeHub.components.NovelProductionStarterCard.gen_0776f722", "使用小说默认值")}</option>
+              <option value={t("gen.pages.creativeHub.components.NovelProductionStarterCard.gen_19ac677a", "低")}>{t("creativeHub.levelLow", "低")}</option>
+              <option value={t("gen.pages.creativeHub.components.NovelProductionStarterCard.gen_aed1dfbc", "中")}>{t("creativeHub.levelMedium", "中")}</option>
+              <option value={t("gen.pages.creativeHub.components.NovelProductionStarterCard.gen_4296d7d2", "高")}>{t("creativeHub.levelHigh", "高")}</option>
             </SelectControl>
           </ProductionField>
           <ProductionField htmlFor="creative-hub-production-freedom" label={t("creativeHub.labelFreedom", "AI 自由度")}>
@@ -481,10 +481,10 @@ export default function NovelProductionStarterCard({
               disabled={formDisabled}
               onChange={(event) => setAiFreedom(event.target.value)}
             >
-              <option value="">使用小说默认值</option>
-              <option value="低">低</option>
-              <option value="中">中</option>
-              <option value="高">高</option>
+              <option value="">{t("gen.pages.creativeHub.components.NovelProductionStarterCard.gen_0776f722", "使用小说默认值")}</option>
+              <option value={t("gen.pages.creativeHub.components.NovelProductionStarterCard.gen_19ac677a", "低")}>{t("gen.pages.creativeHub.components.NovelProductionStarterCard.gen_19ac677a", "低")}</option>
+              <option value={t("gen.pages.creativeHub.components.NovelProductionStarterCard.gen_aed1dfbc", "中")}>{t("gen.pages.creativeHub.components.NovelProductionStarterCard.gen_aed1dfbc", "中")}</option>
+              <option value={t("gen.pages.creativeHub.components.NovelProductionStarterCard.gen_4296d7d2", "高")}>{t("gen.pages.creativeHub.components.NovelProductionStarterCard.gen_4296d7d2", "高")}</option>
             </SelectControl>
           </ProductionField>
         </div>

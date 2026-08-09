@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import i18next from "i18next";
 const t = (key: string, options?: any) => i18next.t(key, options) as string;
 import { Badge } from "@/components/ui/badge";
@@ -19,6 +20,7 @@ interface TensionCurveBeatContextStripProps {
 }
 
 export function TensionCurveBeatContextStrip(props: TensionCurveBeatContextStripProps) {
+  const { t } = useTranslation();
   const { beats, selectedBeatKey, onBeatChange } = props;
   const selectedBeat = selectedBeatKey === "all"
     ? null
@@ -34,9 +36,7 @@ export function TensionCurveBeatContextStrip(props: TensionCurveBeatContextStrip
             variant={selectedBeatKey === "all" ? "secondary" : "outline"}
             className="h-8 shrink-0 px-3 text-xs"
             onClick={() => onBeatChange("all")}
-          >
-            整卷
-          </Button>
+          >{t("gen.components.tensionCurve.TensionCurveBeatContextStrip.gen_ff3145ff", "整卷")}</Button>
           {beats.map((beat) => (
             <Button
               key={beat.key}

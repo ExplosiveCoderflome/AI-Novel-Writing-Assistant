@@ -192,9 +192,7 @@ export default function Home() {
           <Link
             to={`/novels/${novel.id}/edit`}
             onClick={stopPropagation ? stopCardClick : undefined}
-          >
-            进入章节执行
-          </Link>
+          >{t("gen.pages.Home.gen_98b5f8b5", "进入章节执行")}</Link>
         </Button>
       );
     }
@@ -205,9 +203,7 @@ export default function Home() {
           <Link
             to={`/novels/${novel.id}/edit?directorTaskId=${task.id}`}
             onClick={stopPropagation ? stopCardClick : undefined}
-          >
-            查看推进状态
-          </Link>
+          >{t("gen.pages.Home.gen_ffc75805", "查看推进状态")}</Link>
         </Button>
       );
     }
@@ -217,9 +213,7 @@ export default function Home() {
         <Link
           to={`/novels/${novel.id}/edit`}
           onClick={stopPropagation ? stopCardClick : undefined}
-        >
-          编辑小说
-        </Link>
+        >{t("gen.pages.Home.gen_699b4b33", "编辑小说")}</Link>
       </Button>
     );
   };

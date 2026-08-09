@@ -449,9 +449,7 @@ export default function StoryModeManagementPage() {
                     setActiveGeneratedChildIndex(null);
                     setCreateDraft(createEmptyDraft());
                   }}
-                >
-                  重置草稿
-                </Button>
+                >{t("gen.pages.storyModes.StoryModeManagementPage.gen_72bf9fa4", "重置草稿")}</Button>
               </div>
               {isCreatingChild && generatedChildCandidates.length > 0 ? (
                 <div className="space-y-2 rounded-lg border border-border/70 bg-background/60 p-3">
@@ -461,9 +459,7 @@ export default function StoryModeManagementPage() {
                       已选 {selectedGeneratedChildIndexes.length} / {generatedChildCandidates.length}
                     </div>
                   </div>
-                  <div className="text-xs leading-5 text-muted-foreground">
-                    勾选后可批量保存；点击候选卡片会切换到下方表单进行单独编辑。
-                  </div>
+                  <div className="text-xs leading-5 text-muted-foreground">{t("gen.pages.storyModes.StoryModeManagementPage.gen_b2f9d524", "勾选后可批量保存；点击候选卡片会切换到下方表单进行单独编辑。")}</div>
                   <div className="grid gap-2">
                     {generatedChildCandidates.map((candidate, index) => (
                       <div
@@ -534,9 +530,7 @@ export default function StoryModeManagementPage() {
           </div>
 
           <DialogFooter className="gap-2">
-            <Button type="button" variant="outline" onClick={() => setCreateDialogOpen(false)}>
-              取消
-            </Button>
+            <Button type="button" variant="outline" onClick={() => setCreateDialogOpen(false)}>{t("gen.pages.storyModes.StoryModeManagementPage.gen_625fb26b", "取消")}</Button>
             {isCreatingChild && generatedChildCandidates.length > 0 ? (
               <Button
                 type="button"
@@ -564,9 +558,7 @@ export default function StoryModeManagementPage() {
         <DialogContent className="max-h-[90vh] max-w-4xl overflow-auto">
           <DialogHeader>
             <DialogTitle>{i18next.t("gen.pages.storyModes.StoryModeManagementPage.gen_4695e35c")}</DialogTitle>
-            <DialogDescription>
-              可以修改名称、描述、模板和 profile。两级树限制仍会保留。
-            </DialogDescription>
+            <DialogDescription>{t("gen.pages.storyModes.StoryModeManagementPage.gen_9cd63748", "可以修改名称、描述、模板和 profile。两级树限制仍会保留。")}</DialogDescription>
           </DialogHeader>
 
           {editingStoryMode ? (
@@ -604,9 +596,7 @@ export default function StoryModeManagementPage() {
           ) : null}
 
           <DialogFooter className="gap-2">
-            <Button type="button" variant="outline" onClick={() => setEditingStoryModeId("")}>
-              取消
-            </Button>
+            <Button type="button" variant="outline" onClick={() => setEditingStoryModeId("")}>{t("gen.pages.storyModes.StoryModeManagementPage.gen_625fb26b", "取消")}</Button>
             <Button type="button" onClick={() => updateMutation.mutate()} disabled={updateMutation.isPending || !editState.name.trim()}>
               {updateMutation.isPending ? i18next.t("gen.pages.storyModes.StoryModeManagementPage.savingInProgressDotDotDot") : i18next.t("gen.pages.storyModes.StoryModeManagementPage.saveChanges")}
             </Button>
@@ -618,15 +608,11 @@ export default function StoryModeManagementPage() {
         <CardHeader className="flex flex-row items-start justify-between gap-4">
           <div className="space-y-1">
             <CardTitle>{i18next.t("gen.pages.storyModes.StoryModeManagementPage.gen_68cf75d1")}</CardTitle>
-            <CardDescription>
-              这里维护作品的推进模式，例如系统流、无敌流、种田流、治愈日常。它回答的是“这本书靠什么持续推进和兑现”，会作为后续规划和生成的硬约束输入。
-            </CardDescription>
+            <CardDescription>{t("gen.pages.storyModes.StoryModeManagementPage.gen_c79ddea6", "这里维护作品的推进模式，例如系统流、无敌流、种田流、治愈日常。它回答的是“这本书靠什么持续推进和兑现”，会作为后续规划和生成的硬约束输入。")}</CardDescription>
           </div>
           <div className="flex flex-col items-end gap-2">
             <div className="text-sm text-muted-foreground">{i18next.t("gen.pages.storyModes.StoryModeManagementPage.gen_f1e23e80")}</div>
-            <Button type="button" onClick={handleCreateRoot}>
-              新建推进模式树
-            </Button>
+            <Button type="button" onClick={handleCreateRoot}>{t("gen.pages.storyModes.StoryModeManagementPage.gen_23f55efc", "新建推进模式树")}</Button>
           </div>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -637,13 +623,9 @@ export default function StoryModeManagementPage() {
           {!storyModeTreeQuery.isLoading && storyModeTree.length === 0 ? (
             <div className="rounded-xl border border-dashed p-6 text-center">
               <div className="text-sm font-medium text-foreground">{i18next.t("gen.pages.storyModes.StoryModeManagementPage.gen_3e114c69")}</div>
-              <div className="mt-1 text-sm text-muted-foreground">
-                可以先手动建一个根推进模式，也可以直接让 AI 生成一份结构化草稿。
-              </div>
+              <div className="mt-1 text-sm text-muted-foreground">{t("gen.pages.storyModes.StoryModeManagementPage.gen_d8d79376", "可以先手动建一个根推进模式，也可以直接让 AI 生成一份结构化草稿。")}</div>
               <div className="mt-4">
-                <Button type="button" onClick={handleCreateRoot}>
-                  开始创建
-                </Button>
+                <Button type="button" onClick={handleCreateRoot}>{t("gen.pages.storyModes.StoryModeManagementPage.gen_03e78a04", "开始创建")}</Button>
               </div>
             </div>
           ) : null}

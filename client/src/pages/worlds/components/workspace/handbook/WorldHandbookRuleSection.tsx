@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import i18next from "i18next";
 const t = (key: string, options?: any) => i18next.t(key, options) as string;
 import { Plus, WandSparkles } from "lucide-react";
@@ -12,6 +13,7 @@ export default function WorldHandbookRuleSection(props: {
   draftStructure: WorldStructuredData;
   setDraftStructure: Dispatch<SetStateAction<WorldStructuredData | null>>;
 }) {
+  const { t } = useTranslation();
   const { draftStructure, setDraftStructure } = props;
 
   const addRule = () => {
@@ -71,9 +73,7 @@ export default function WorldHandbookRuleSection(props: {
                       prev ? { ...prev, rules: { ...prev.rules, axioms: removeItem(prev.rules.axioms, index) } } : prev,
                     )
                   }
-                >
-                  移除
-                </Button>
+                >{t("gen.pages.worlds.components.workspace.handbook.WorldHandbookRuleSection.gen_86048b4f", "移除")}</Button>
               </div>
               <div className="mt-3 grid gap-3">
                 <HandbookField title={i18next.t("gen.pages.worlds.components.workspace.handbook.WorldHandbookRuleSection.gen_87080256")} hint={i18next.t("gen.pages.worlds.components.workspace.handbook.WorldHandbookRuleSection.gen_357e0b0c")}>
@@ -155,9 +155,7 @@ export default function WorldHandbookRuleSection(props: {
           ))}
         </div>
         <Button type="button" variant="outline" onClick={addRule}>
-          <Plus className="mr-2 h-4 w-4" aria-hidden="true" />
-          增加核心规则
-        </Button>
+          <Plus className="mr-2 h-4 w-4" aria-hidden="true" />{t("gen.pages.worlds.components.workspace.handbook.WorldHandbookRuleSection.gen_6b5e0c3a", "增加核心规则")}</Button>
       </div>
     </section>
   );

@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import i18next from "i18next";
 const t = (key: string, options?: any) => i18next.t(key, options) as string;
 import type { DocumentChapter } from "@ai-novel/shared/types/knowledge";
@@ -110,9 +111,7 @@ const BookAnalysisChapterReader = forwardRef<BookAnalysisChapterReaderHandle, Bo
 
     if (sortedChapters.length === 0) {
       return (
-        <aside className="rounded-md border bg-background p-4 text-sm text-muted-foreground">
-          当前文档还没有可用于对照阅读的章节缓存。
-        </aside>
+        <aside className="rounded-md border bg-background p-4 text-sm text-muted-foreground">{t("gen.pages.bookAnalysis.components.BookAnalysisChapterReader.gen_74115351", "当前文档还没有可用于对照阅读的章节缓存。")}</aside>
       );
     }
 

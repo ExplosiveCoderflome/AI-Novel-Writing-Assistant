@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import i18next from "i18next";
 const t = (key: string, options?: any) => i18next.t(key, options) as string;
 import { useEffect, useMemo, useState } from "react";
@@ -44,6 +45,7 @@ export function CharacterImageDialog({
   onOpenChange,
   onTaskCompleted,
 }: CharacterImageDialogProps) {
+  const { t } = useTranslation();
   const [activeTaskId, setActiveTaskId] = useState<string | null>(null);
   const [sourcePrompt, setSourcePrompt] = useState("");
   const [promptMode, setPromptMode] = useState<ImagePromptMode>("character_chain");
@@ -254,9 +256,7 @@ export function CharacterImageDialog({
           <section className="space-y-2 rounded-2xl border border-slate-200 bg-slate-50/65 p-4">
             <div className="space-y-1">
               <div className="text-sm font-semibold text-slate-900">{i18next.t("gen.pages.characters.components.CharacterImageDialog.gen_80015db9")}</div>
-              <div className="text-xs leading-5 text-slate-500">
-                这里填写角色描述。点击“AI优化Prompt”后，会把这段描述整理成图片生成专用 prompt。
-              </div>
+              <div className="text-xs leading-5 text-slate-500">{t("gen.pages.characters.components.CharacterImageDialog.gen_a8a80917", "这里填写角色描述。点击“AI优化Prompt”后，会把这段描述整理成图片生成专用 prompt。")}</div>
             </div>
             <textarea
               className="min-h-[190px] max-h-[38vh] w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm leading-7 text-slate-900 shadow-sm outline-none transition focus:border-slate-400 focus:ring-2 focus:ring-slate-200"
@@ -277,9 +277,7 @@ export function CharacterImageDialog({
                     size="sm"
                     className="min-w-[92px] flex-1 rounded-lg sm:flex-none"
                     onClick={() => setOptimizedPromptLanguage("zh")}
-                  >
-                    中文
-                  </Button>
+                  >{t("gen.pages.characters.components.CharacterImageDialog.gen_a7bac223", "中文")}</Button>
                   <Button
                     type="button"
                     variant={optimizedPromptLanguage === "en" ? "default" : "ghost"}
@@ -309,9 +307,7 @@ export function CharacterImageDialog({
                     className="whitespace-nowrap rounded-xl px-4 text-slate-600 hover:bg-slate-100 hover:text-slate-900"
                     onClick={restoreOriginalChainPrompt}
                     disabled={promptMode !== "direct" && !hasDirectPrompt}
-                  >
-                    恢复原链路
-                  </Button>
+                  >{t("gen.pages.characters.components.CharacterImageDialog.gen_780bf992", "恢复原链路")}</Button>
                 </div>
 
                 <div className="flex flex-wrap items-center gap-2 text-sm xl:justify-end">
@@ -325,9 +321,7 @@ export function CharacterImageDialog({
           <section className="space-y-2 rounded-2xl border border-slate-200 bg-slate-50/55 p-4">
             <div className="space-y-1">
               <div className="text-sm font-semibold text-slate-900">{i18next.t("gen.pages.characters.components.CharacterImageDialog.gen_236c0cf1")}</div>
-              <div className="text-xs leading-5 text-slate-500">
-                这里展示最终会发送给图像模型的 prompt。你可以直接手动编辑；AI 优化后，也可以继续在这里修改。
-              </div>
+              <div className="text-xs leading-5 text-slate-500">{t("gen.pages.characters.components.CharacterImageDialog.gen_5e63eeb2", "这里展示最终会发送给图像模型的 prompt。你可以直接手动编辑；AI 优化后，也可以继续在这里修改。")}</div>
             </div>
             <textarea
               className="min-h-[240px] max-h-[42vh] w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm leading-7 text-slate-900 shadow-sm outline-none transition focus:border-slate-400 focus:ring-2 focus:ring-slate-200"

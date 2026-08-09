@@ -1,3 +1,4 @@
+import i18next from "i18next";
 import { useTranslation } from "react-i18next";
 import { useState } from "react";
 import { ChevronDown, ChevronRight, Pencil, Plus, Trash2 } from "lucide-react";
@@ -76,14 +77,10 @@ export default function StoryModeTreeCard({
           <div className="flex shrink-0 flex-wrap justify-end gap-1">
             {depth === 0 ? (
               <Button type="button" variant="ghost" size="sm" onClick={() => onCreateChild(node.id)}>
-                <Plus className="mr-1 h-4 w-4" />
-                新增子类
-              </Button>
+                <Plus className="mr-1 h-4 w-4" />{t("gen.pages.storyModes.components.StoryModeTreeCard.gen_82537dc1", "新增子类")}</Button>
             ) : null}
             <Button type="button" variant="ghost" size="sm" onClick={() => onEdit(node.id)}>
-              <Pencil className="mr-1 h-4 w-4" />
-              编辑
-            </Button>
+              <Pencil className="mr-1 h-4 w-4" />{t("gen.pages.storyModes.components.StoryModeTreeCard.gen_95b351c8", "编辑")}</Button>
             <Button
               type="button"
               variant="ghost"

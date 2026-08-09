@@ -239,9 +239,7 @@ export default function PromptWorkbenchPage() {
                 <div className="flex flex-col gap-3 rounded-md border border-[#d7e4e0] bg-white/80 p-3 lg:flex-row lg:items-center lg:justify-between">
                   <div>
                     <div className="text-sm font-semibold text-[#25443f]">{i18next.t("gen.pages.promptWorkbench.PromptWorkbenchPage.gen_ce0e89aa")}</div>
-                    <div className="text-xs text-muted-foreground">
-                      安全槽位适合稳定调整，高级模板适合本书正文写作自定义。
-                    </div>
+                    <div className="text-xs text-muted-foreground">{t("gen.pages.promptWorkbench.PromptWorkbenchPage.gen_83927f2d", "安全槽位适合稳定调整，高级模板适合本书正文写作自定义。")}</div>
                   </div>
                   <Tabs value={activeEditMode} onValueChange={(value) => setEditMode(value as PromptEditMode)}>
                     <TabsList className="h-10">
@@ -250,16 +248,12 @@ export default function PromptWorkbenchPage() {
                         value="advanced"
                         className="px-4"
                         disabled={!advancedTemplateSupported}
-                      >
-                        高级模板
-                      </TabsTrigger>
+                      >{t("gen.pages.promptWorkbench.PromptWorkbenchPage.gen_29944085", "高级模板")}</TabsTrigger>
                     </TabsList>
                   </Tabs>
                 </div>
                 {slotState.isNovelScopeDisabled ? (
-                  <div className="rounded-md bg-muted/[0.35] px-4 py-3 text-sm text-muted-foreground">
-                    选择小说后可设置本书独立的槽位覆盖；未选择小说时仅能查看继承值和生成通用预览。
-                  </div>
+                  <div className="rounded-md bg-muted/[0.35] px-4 py-3 text-sm text-muted-foreground">{t("gen.pages.promptWorkbench.PromptWorkbenchPage.gen_a1c7f3f6", "选择小说后可设置本书独立的槽位覆盖；未选择小说时仅能查看继承值和生成通用预览。")}</div>
                 ) : null}
                 {isAdvancedMode ? (
                   <AdvancedPromptTemplateEditor
@@ -344,9 +338,7 @@ export default function PromptWorkbenchPage() {
           />
         ) : (
           <div className="flex h-full items-center justify-center p-8">
-            <div className="rounded-md border border-dashed bg-background/80 p-6 text-sm text-muted-foreground">
-              请选择一个提示词。
-            </div>
+            <div className="rounded-md border border-dashed bg-background/80 p-6 text-sm text-muted-foreground">{t("gen.pages.promptWorkbench.PromptWorkbenchPage.gen_6eebc166", "请选择一个提示词。")}</div>
           </div>
         )}
       </main>

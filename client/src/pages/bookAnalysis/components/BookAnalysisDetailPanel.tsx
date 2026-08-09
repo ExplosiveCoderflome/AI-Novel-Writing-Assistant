@@ -1,3 +1,4 @@
+import i18next from "i18next";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import type { RefObject } from "react";
@@ -238,9 +239,7 @@ export default function BookAnalysisDetailPanel(props: BookAnalysisDetailPanelPr
 
       {sourceLoading || chaptersLoading ? (
         <div className="flex items-center gap-2 rounded-md border border-info/25 bg-info/5 p-3 text-sm text-muted-foreground" aria-live="polite">
-          <Loader2 className="h-4 w-4 animate-spin text-info" aria-hidden="true" />
-          正在加载原文阅读位置，拆书结果仍可继续查看。
-        </div>
+          <Loader2 className="h-4 w-4 animate-spin text-info" aria-hidden="true" />{t("gen.pages.bookAnalysis.components.BookAnalysisDetailPanel.gen_c8e2b6a6", "正在加载原文阅读位置，拆书结果仍可继续查看。")}</div>
       ) : null}
 
       {sourceError || chaptersError ? (
@@ -248,7 +247,7 @@ export default function BookAnalysisDetailPanel(props: BookAnalysisDetailPanelPr
           <div className="flex min-w-0 items-start gap-2">
             <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-warning" aria-hidden="true" />
             <div>
-              <div className="font-medium text-foreground">原文对照暂时不可用</div>
+              <div className="font-medium text-foreground">{t("gen.pages.bookAnalysis.components.BookAnalysisDetailPanel.gen_f44f4b76", "原文对照暂时不可用")}</div>
               <div className="mt-1 text-muted-foreground">
                 {chaptersError || sourceError} 已生成的拆书结果不会被隐藏或删除。
               </div>
@@ -260,9 +259,7 @@ export default function BookAnalysisDetailPanel(props: BookAnalysisDetailPanelPr
             variant="outline"
             onClick={chaptersError ? onRetryChapters : onRetrySource}
           >
-            <RefreshCw className="mr-1.5 h-3.5 w-3.5" aria-hidden="true" />
-            重试原文加载
-          </Button>
+            <RefreshCw className="mr-1.5 h-3.5 w-3.5" aria-hidden="true" />{t("gen.pages.bookAnalysis.components.BookAnalysisDetailPanel.gen_0873b967", "重试原文加载")}</Button>
         </div>
       ) : null}
 
@@ -281,14 +278,14 @@ export default function BookAnalysisDetailPanel(props: BookAnalysisDetailPanelPr
             <summary className="cursor-pointer list-none">
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <div>
-                  <div className="text-sm font-medium">分析信息与发布</div>
+                  <div className="text-sm font-medium">{t("gen.pages.bookAnalysis.components.BookAnalysisDetailPanel.gen_20e71449", "分析信息与发布")}</div>
                   <div className="mt-1 text-xs text-muted-foreground">
                     计划小节 {sectionStats.readableExpected}/{sectionStats.expected} 可阅读
                     {sectionStats.unselected > 0 ? `，本次未选择 ${sectionStats.unselected} 节` : ""}
                     {sectionStats.frozenReadable > 0 ? `，已冻结结果 ${sectionStats.frozenReadable} 节` : ""}
                   </div>
                 </div>
-                <Badge variant="outline">展开</Badge>
+                <Badge variant="outline">{t("gen.pages.bookAnalysis.components.BookAnalysisDetailPanel.gen_e2edde5a", "展开")}</Badge>
               </div>
             </summary>
             <div className="mt-3 space-y-3">
@@ -303,14 +300,14 @@ export default function BookAnalysisDetailPanel(props: BookAnalysisDetailPanelPr
                 </div>
               ) : null}
               <div className="rounded-md border p-3 text-sm">
-                <div className="mb-2 font-medium">发布到小说知识库</div>
+                <div className="mb-2 font-medium">{t("gen.pages.bookAnalysis.components.BookAnalysisDetailPanel.gen_a3db6e46", "发布到小说知识库")}</div>
                 <div className="flex flex-wrap items-center gap-2">
                   <SelectControl
                     className="h-9 min-w-[220px] rounded-md border bg-background px-2 text-sm"
                     value={selectedNovelId}
                     onChange={(event) => onSelectedNovelChange(event.target.value)}
                   >
-                    <option value="">选择目标小说</option>
+                    <option value="">{t("gen.pages.bookAnalysis.components.BookAnalysisDetailPanel.gen_58d92a5f", "选择目标小说")}</option>
                     {novelOptions.map((novel) => (
                       <option key={novel.id} value={novel.id}>
                         {novel.title}
@@ -321,9 +318,7 @@ export default function BookAnalysisDetailPanel(props: BookAnalysisDetailPanelPr
                     size="sm"
                     onClick={onPublish}
                     disabled={!selectedNovelId || pending.publish || selectedAnalysis.status === "archived"}
-                  >
-                    发布并绑定
-                  </Button>
+                  >{t("gen.pages.bookAnalysis.components.BookAnalysisDetailPanel.gen_7ad79546", "发布并绑定")}</Button>
                 </div>
                 {publishFeedback ? <div className="mt-2 text-xs text-muted-foreground">{publishFeedback}</div> : null}
                 {lastPublishResult ? (
@@ -332,13 +327,13 @@ export default function BookAnalysisDetailPanel(props: BookAnalysisDetailPanelPr
               </div>
               <div className="grid gap-3 md:grid-cols-2">
                 <div className="rounded-md border p-3 text-sm">
-                  <div className="font-medium">概要</div>
+                  <div className="font-medium">{t("gen.pages.bookAnalysis.components.BookAnalysisDetailPanel.gen_7f1b21a5", "概要")}</div>
                   <div className="mt-2 whitespace-pre-wrap text-muted-foreground">
                     {selectedAnalysis.summary?.trim() || "生成总览后会在此显示概要内容。"}
                   </div>
                 </div>
                 <div className="rounded-md border p-3 text-sm">
-                  <div className="font-medium">运行元信息</div>
+                  <div className="font-medium">{t("gen.pages.bookAnalysis.components.BookAnalysisDetailPanel.gen_5d37ac7d", "运行元信息")}</div>
                   <div className="mt-2 space-y-1 text-muted-foreground">
                     <div>提供商：{selectedAnalysis.provider ?? "deepseek"}</div>
                     <div>模型：{selectedAnalysis.model || "默认"}</div>
@@ -353,7 +348,7 @@ export default function BookAnalysisDetailPanel(props: BookAnalysisDetailPanelPr
                       <div
                         className="h-1.5 overflow-hidden rounded-full bg-muted"
                         role="progressbar"
-                        aria-label="拆书预算使用进度"
+                        aria-label={t("gen.pages.bookAnalysis.components.BookAnalysisDetailPanel.gen_0a9a0488", "拆书预算使用进度")}
                         aria-valuemin={0}
                         aria-valuemax={100}
                         aria-valuenow={Math.round(budgetUsageRatio * 100)}
@@ -379,7 +374,7 @@ export default function BookAnalysisDetailPanel(props: BookAnalysisDetailPanelPr
           <section className="rounded-md border bg-background">
             <div className="flex flex-wrap items-center justify-between gap-3 border-b p-3">
               <div className="flex flex-wrap items-center gap-2">
-                <div className="text-base font-semibold">拆书内容</div>
+                <div className="text-base font-semibold">{t("gen.pages.bookAnalysis.components.BookAnalysisDetailPanel.gen_ff3b883f", "拆书内容")}</div>
                 <Badge variant="outline">可读 {sectionStats.readableExpected}/{sectionStats.expected}</Badge>
                 {sectionStats.unselected > 0 ? <Badge variant="secondary">本次未选择 {sectionStats.unselected}</Badge> : null}
                 {sectionStats.frozenReadable > 0 ? <Badge variant="secondary">已冻结结果 {sectionStats.frozenReadable}</Badge> : null}
@@ -389,26 +384,20 @@ export default function BookAnalysisDetailPanel(props: BookAnalysisDetailPanelPr
                   size="sm"
                   variant={readingMode === "summary" ? "default" : "ghost"}
                   onClick={() => setReadingMode("summary")}
-                >
-                  重点速览
-                </Button>
+                >{t("gen.pages.bookAnalysis.components.BookAnalysisDetailPanel.gen_cf503912", "重点速览")}</Button>
                 <Button
                   size="sm"
                   variant={readingMode === "full" ? "default" : "ghost"}
                   onClick={() => setReadingMode("full")}
-                >
-                  完整阅读
-                </Button>
+                >{t("gen.pages.bookAnalysis.components.BookAnalysisDetailPanel.gen_73e4dea1", "完整阅读")}</Button>
               </div>
             </div>
             <div className="space-y-3 p-3">
               {selectedAnalysis.sections.length === 0 ? (
                 <div className="rounded-md border border-dashed border-warning/40 bg-warning/5 px-5 py-8 text-center">
                   <AlertTriangle className="mx-auto h-5 w-5 text-warning" aria-hidden="true" />
-                  <div className="mt-3 text-sm font-medium text-foreground">没有可展示的拆书小节</div>
-                  <p className="mx-auto mt-1 max-w-xl text-sm leading-6 text-muted-foreground">
-                    这份任务没有返回可阅读内容。源文档仍然安全，可以从上方重新生成或打开任务中心查看详情。
-                  </p>
+                  <div className="mt-3 text-sm font-medium text-foreground">{t("gen.pages.bookAnalysis.components.BookAnalysisDetailPanel.gen_3540059d", "没有可展示的拆书小节")}</div>
+                  <p className="mx-auto mt-1 max-w-xl text-sm leading-6 text-muted-foreground">{t("gen.pages.bookAnalysis.components.BookAnalysisDetailPanel.gen_c948d4e9", "这份任务没有返回可阅读内容。源文档仍然安全，可以从上方重新生成或打开任务中心查看详情。")}</p>
                 </div>
               ) : (
               <Tabs

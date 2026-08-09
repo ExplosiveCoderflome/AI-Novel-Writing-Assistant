@@ -228,7 +228,11 @@
           "gen_0b5880b9": "Queued",
           "gen_88b4d042": "Handoff",
           "gen_1a6aa24e": "Execute",
-          "gen_c7db6d4f": "Resume"
+          "gen_c7db6d4f": "Resume",
+          "gen_607e7a4f": "查看",
+          "gen_2eceed7d": "执行详情",
+          "gen_0a48c66e": "后台执行",
+          "gen_9d67b142": "产物记录"
         },
         "AutoDirectorApprovalPointMultiSelect": {
           "notAutoApprove": "Will not automatically pass approval points",
@@ -240,7 +244,10 @@
           "gen_6c318cbd": "Auto-progress: System will automatically confirm planning, chapter execution, quality repairs, and replanning within target scope.",
           "aiAutoAdvance": "AI Auto Advance",
           "aiCopilotConfirm": "Confirm AI Copilot",
-          "gen_4e5a0912": "AutoProgress"
+          "gen_4e5a0912": "AutoProgress",
+          "gen_4c1ff159": "目标范围内全自动推进；只有模型不可用、服务异常、保护正文或不可恢复风险会停下。",
+          "gen_dc6d3bc7": "按高级审批授权放行低风险节点，其余审批点交给你判断。",
+          "gen_c9e12612": "高级审批授权"
         }
       },
       "common": {
@@ -253,7 +260,8 @@
           "gen_474dc540": "allText Preview",
           "optimizePreview": "Optimize Preview",
           "gen_c7117d60": "ApplyPreview",
-          "gen_63b5a88c": "CancelPreview"
+          "gen_63b5a88c": "CancelPreview",
+          "gen_2ba69422": "仅优化选中内容"
         },
         "LLMSelector": {
           "gen_19e57799": "Max Tokens (leave empty for unlimited)",
@@ -264,7 +272,8 @@
           "gen_c6d3930b": "Select Provider",
           "gen_f2d3731b": "Select Model",
           "gen_8288a2e8": "Search Models",
-          "gen_8000f187": "module"
+          "gen_8000f187": "module",
+          "gen_79444613": "当前没有已配置且启用的模型厂商，请先到系统设置里完成 API Key 和模型配置。"
         },
         "SearchableSelect": {
           "gen_da6453cd": "No Available Options",
@@ -278,7 +287,8 @@
           "gen_8cffe33c": "Word Count: {wordCount}",
           "gen_56fb4083": "Waiting for streaming output...",
           "gen_c422af87": "Generating...",
-          "aiOutput": "AI Output"
+          "aiOutput": "AI Output",
+          "gen_dda4c027": "停止生成"
         }
       },
       "creativeHub": {
@@ -315,7 +325,15 @@
           "gen_2b689f7b": "Already Modify",
           "gen_0e07c241": "Already",
           "gen_5110a0d1": "Assets",
-          "gen_c931653c": ""
+          "gen_c931653c": "",
+          "gen_625fb26b": "取消",
+          "gen_7425d51b": "正在准备生图素材...",
+          "gen_9136b0f4": "参考素材",
+          "gen_1dded66f": "恢复全部",
+          "gen_1dc6031f": "本次生图不附带参考图（纯文生图）",
+          "gen_eb397b07": "本次生成不会发送参考图",
+          "gen_7468f3e5": "恢复默认",
+          "gen_288f0c40": "清空"
         }
       },
       "knowledge": {
@@ -331,7 +349,11 @@
           "gen_20c81d3d": "Search Text",
           "gen_26b5bd49": "add in ...",
           "gen_baf0c0bb": "Analyze Book",
-          "uploadDocument": "Upload Document"
+          "uploadDocument": "Upload Document",
+          "gen_3aed2c11": "自动",
+          "gen_f1d4ff50": "自定义",
+          "gen_63ac283b": "当前使用自动规则：若有实体绑定文档则优先使用绑定文档，否则回退到全部启用文档。",
+          "gen_31a84195": "查看来源拆书"
         }
       },
       "layout": {
@@ -382,7 +404,15 @@
           "downloading": "Downloading",
           "gen_72482be2": "",
           "gen_b6c4f3de": "newVersion",
-          "gen_3fea7ca7": "Status"
+          "gen_3fea7ca7": "Status",
+          "gen_21b6ed5b": "下载更新",
+          "gen_c4b8ad9d": "重启安装",
+          "gen_21d0b94f": "桌面版 · 测试通道",
+          "gen_9be05d51": "这个页面只会在桌面版启动时短暂出现，用来承接本地服务启动，避免先看到白屏或空白窗口。",
+          "gen_5493c586": "如果启动卡住、本地服务提前退出，或者你要定位启动耗时，可以直接查看桌面端日志。",
+          "gen_5ac06f69": "打开日志目录",
+          "gen_a617be7f": "复制日志路径",
+          "gen_9ebc9e13": "重新启动"
         },
         "DesktopModelSetupGate": {
           "gen_07582133": "Viewnew on path"
@@ -415,16 +445,22 @@
           "gen_082d10d0": "View in",
           "gen_c1d8599d": "Progress",
           "gen_c195df63": "diff",
-          "gen_87bb5bbc": ""
+          "gen_87bb5bbc": "",
+          "gen_cbaa05fa": "创作工作台",
+          "gen_34c53534": "查看这本书的推进步骤、最近进展和 AI 用量。"
         },
         "ProjectGithubLink": {
           "gen_8f9e4b3e": "open GitHub storage library"
         },
         "ServerStartupGate": {
-          "gen_da4a0654": "in novelsly Writing"
+          "gen_da4a0654": "in novelsly Writing",
+          "gen_d78287fa": "页面已准备好，系统会在服务可用后自动进入工作台。",
+          "gen_a1ad5204": "重新检查"
         },
         "Sidebar": {
-          "gen_2729e0da": "Comic Workbench in Beta Stage"
+          "gen_2729e0da": "Comic Workbench in Beta Stage",
+          "gen_46fd7fca": "多媒体改编仍在 Beta 阶段",
+          "gen_0aece445": "即将推出"
         },
         "TaskRecoveryContext": {
           "gen_3c783b2d": "CurrentNo Can Resume 。",
@@ -451,7 +487,8 @@
           "gen_7e47d5e6": "Continueall",
           "gen_d8a255ce": "Running",
           "gen_e8a5ba34": "Queued",
-          "gen_02737149": "ContinuesingleItems"
+          "gen_02737149": "ContinuesingleItems",
+          "gen_45292500": "稍后处理"
         },
         "mobile": {
           "MobileSiteShell": {
@@ -459,7 +496,10 @@
             "aiNovelStudioBoard": "AI Novel Studio Board",
             "gen_6d7e3528": "Close multiin",
             "gen_5e1c0faa": "open multiin",
-            "gen_b9d4b8b3": "multiin"
+            "gen_b9d4b8b3": "multiin",
+            "gen_299b2b89": "打开视觉资源库",
+            "gen_cc596cc2": "视觉资源库",
+            "gen_935de69b": "开书"
           },
           "mobileSiteNavigation": {
             "gen_d6a7d091": "Anti-AI Rules",
@@ -497,6 +537,29 @@
             "gen_93d695ff": "Writing",
             "gen_0ec9eaf9": "multi"
           }
+        },
+        "AppVersionBadge": {
+          "gen_6dc622aa": "打开版本与更新"
+        },
+        "DesktopLegacyDataImportCard": {
+          "gen_d8a8951b": "当前桌面库看起来是空的",
+          "gen_6fab4182": "导入前请先关闭旧的 web/开发版进程，避免同一份 SQLite 文件还在被写入。"
+        },
+        "DesktopUpdateCard": {
+          "gen_3892c0f6": "桌面版更新",
+          "gen_4d43b082": "查看详细版本状态，也可以直接点击工作区顶部的版本号快速打开更新面板。"
+        },
+        "DesktopUpdateDialog": {
+          "gen_3c1d148b": "版本与更新",
+          "gen_777abf83": "查看桌面版状态，并在确认后下载和安装新版本。"
+        },
+        "DesktopUpdatePanel": {
+          "gen_bfedfa19": "本机版本",
+          "gen_597b1a51": "更新状态",
+          "gen_29afa32e": "可用版本",
+          "gen_b23d01fa": "下载进度",
+          "gen_21b6ed5b": "下载更新",
+          "gen_ac5ffa2a": "保存工作并重启安装"
         }
       },
       "tensionCurve": {
@@ -505,7 +568,8 @@
           "gen_118ad7ff": "this 1Paragraph No Section Notes，Suggestionsfirst to Section patch Target。",
           "gen_c9889375": "CurrentVolume No Section Paragraph ，first GenerateSection after by Paragraph check wire 。",
           "gen_826a713b": "this 1Paragraph No Items 。",
-          "gen_e28ab624": "novelsParagraph must"
+          "gen_e28ab624": "novelsParagraph must",
+          "gen_ff3145ff": "整卷"
         },
         "TensionCurveChapterDetailSidebar": {
           "gen_e123035e": "{value?.trim() || \"this 1Items No write 。\"}",
@@ -516,14 +580,20 @@
           "gen_913f4561": "novelsChapter need",
           "gen_5e2adc42": "novelsChapter 's",
           "gen_23e47820": "component",
-          "gen_75c038ec": "define"
+          "gen_75c038ec": "define",
+          "gen_68f23646": "点选曲线上的章节节点后，这里会显示该章标题、摘要、目的和独占事件，方便对照叙事意图再调整强度。",
+          "gen_00be1db7": "打开完整章节细节卡片"
         },
         "TensionCurveEditDialog": {
           "gen_7848117c": "or Can multiChapter； point by Shift Can by 1 point 。",
           "gen_26e6c369": "{userAnchorCount} Items define point",
           "gen_fbd9193d": "Display wire",
           "gen_f193d3a1": "No no define point",
-          "gen_78e6e8fc": "wire"
+          "gen_78e6e8fc": "wire",
+          "gen_e018164f": "整卷交还 AI",
+          "gen_3fad9773": "当前节奏段交还 AI",
+          "gen_8cfeeb9f": "完成编辑",
+          "gen_9fa3e382": "拖动章节节点会固定该章强度；点选节点可在右侧查看章节摘要。"
         },
         "TensionCurveNodes": {
           "gen_2649545a": "AI will define point rule ，Can point select Node after AI。",
@@ -533,14 +603,23 @@
           "gen_59a9b828": "only Chapterposition place ，No Not and wire 。",
           "gen_3ac6a320": "first Generate or write novelsChapter strong",
           "gen_59a14da9": "，use define",
-          "gen_fe2d26a2": "Not Settings"
+          "gen_fe2d26a2": "Not Settings",
+          "gen_75c038ec": "待定",
+          "gen_5b0520a9": "应用",
+          "gen_50d71b11": "交还 AI",
+          "gen_b5d7cd3c": "当前走势",
+          "gen_7d1de53a": "手动固定",
+          "gen_0c583542": "暂无强度",
+          "gen_84df0881": "参考模板"
         },
         "TensionCurvePanel": {
           "gen_a17e13a9": "or Can multiChapter；double /Ctrl+ View Section 。",
           "gen_26e6c369": "{userAnchorCount} Items define point",
           "gen_fbd9193d": "Display wire",
           "gen_78e6e8fc": "wire",
-          "gen_85541bd9": "onlyread"
+          "gen_85541bd9": "onlyread",
+          "gen_15915af4": "编辑紧张度曲线",
+          "gen_94c442da": "当前视图只用于查看，不会改动草稿"
         },
         "TensionCurveVolumeContextBar": {
           "gen_660b87b7": "{contextText(volume?.escalationFocus, \"let Highpoint novelsVolume re need 's Progress。\")}",
@@ -587,6 +666,125 @@
           "gen_f013ea9d": "add in",
           "gen_047109de": "logic",
           "gen_e13531d7": "Already in"
+        }
+      },
+      "assetLibrary": {
+        "AssetLibrarySection": {
+          "gen_9ff48c30": "推荐下一步"
+        },
+        "AssetLibraryStatusGrid": {
+          "gen_34294ae7": "资产状态"
+        }
+      },
+      "characterConversation": {
+        "CharacterConversationWorkbench": {
+          "gen_99ec7cc8": "收起谈话",
+          "gen_cf2c9638": "截至",
+          "gen_6efb0950": "正在整理角色的谈话依据...",
+          "gen_b3a68d61": "场景分析",
+          "gen_c4ddddf3": "角色基础",
+          "gen_7cde3a32": "此刻处境",
+          "gen_7c803425": "回应依据",
+          "gen_3cedcf6e": "交流边界"
+        }
+      },
+      "comic": {
+        "GeneratedImageCard": {
+          "gen_a7c23201": "重新生成",
+          "gen_2f4aaddd": "删除",
+          "gen_2b6ab100": "上传图片替代 AI 生成",
+          "gen_1ae3a984": "生成中",
+          "gen_729330a1": "生成失败，可重试",
+          "gen_418dde27": "待生成"
+        }
+      },
+      "liveExecution": {
+        "LiveExecutionDialog": {
+          "gen_a98bdcf2": "查看 AI 创作实况",
+          "gen_5ed5bed1": "关闭 AI 创作实况",
+          "gen_254e8df5": "每次调用独立显示。新调用会自动聚焦，已完成调用会收起；清空只影响当前窗口。",
+          "gen_f443ce45": "清空前台",
+          "gen_72360f91": "回到最新输出"
+        }
+      },
+      "onboarding": {
+        "QuickSetupDialog": {
+          "gen_7395f8c6": "让 AI 创作环境先跑起来",
+          "gen_a6b6bea8": "只配置一个文本模型，系统会自动准备规划、正文、审校和修复所需的任务路由。",
+          "gen_86591187": "例如：我的模型网关",
+          "gen_69f6b64c": "选择上方模型，或直接填写模型名称",
+          "gen_63c3d953": "填写连接信息",
+          "gen_e6210140": "返回选择",
+          "gen_d6ad55bd": "检测并完成配置",
+          "gen_1d037c3c": "查看高级设置",
+          "gen_576d0110": "开始创作",
+          "gen_2e4b9b00": "修改配置",
+          "gen_b91709a3": "正在检查创作环境",
+          "gen_28a04c4c": "暂时无法读取模型配置",
+          "gen_7ca5592b": "重新加载后，系统会继续判断是否可以开始创作。",
+          "gen_64ca9bab": "重新加载",
+          "gen_c81ab9e2": "创作环境可以使用",
+          "gen_40bc1a22": "继续创作",
+          "gen_592ff5c1": "选择你已有账号或接口的厂商",
+          "gen_3224ad11": "第一次只选一个即可，之后仍能在系统设置中增加更多厂商。",
+          "gen_57a794e1": "自定义兼容接口",
+          "gen_67b09fe0": "适合中转服务、本地网关或其他 OpenAI 兼容地址。",
+          "gen_99b8ee4c": "厂商名称",
+          "gen_2415bb91": "文本模型",
+          "gen_f632c379": "完成后，这个模型会作为规划、正文、审核、修复、重规划和摘要等核心任务的初始默认值。",
+          "gen_7ae01ea0": "正在检测普通文本与结构化输出",
+          "gen_dc6ed950": "检测通过后，系统会自动准备全部核心创作任务，不需要逐项配置路由。",
+          "gen_49124d29": "创作环境配置完成",
+          "gen_ed5281d5": "模型检测没有通过"
+        }
+      },
+      "taskQueue": {
+        "TaskQueuePrimitives": {
+          "gen_a6bccb60": "任务状态摘要"
+        }
+      },
+      "visualAssets": {
+        "VisualAssetDetails": {
+          "gen_31d01601": "素材详情",
+          "gen_48d25b45": "关闭素材详情",
+          "gen_2f8df7ca": "素材类型",
+          "gen_26ca20b1": "来源",
+          "gen_ed3bfd4d": "获取方式",
+          "gen_a352a593": "所属内容",
+          "gen_eca37cb0": "创建时间",
+          "gen_c8339fd2": "尺寸",
+          "gen_a205ae17": "生成工具",
+          "gen_eaa97e66": "正在读取素材详情",
+          "gen_2b049f1f": "暂时无法读取这项素材。",
+          "gen_64ca9bab": "重新加载",
+          "gen_fd1e2fff": "查看原图",
+          "gen_7bfb4903": "画面描述"
+        },
+        "VisualAssetGrid": {
+          "gen_f08afd1f": "已选择"
+        },
+        "VisualAssetLibrary": {
+          "gen_cc596cc2": "视觉资源库",
+          "gen_be7d29d9": "搜索素材名称、描述或提示词",
+          "gen_e8c9daab": "搜索视觉素材",
+          "gen_226b0912": "类型",
+          "gen_26ca20b1": "来源",
+          "gen_9c63d138": "暂时无法加载视觉素材",
+          "gen_8ddf17fd": "请检查连接后重新加载。",
+          "gen_64ca9bab": "重新加载",
+          "gen_a47f46b7": "没有找到匹配的视觉素材",
+          "gen_45a3572c": "正在加载视觉素材",
+          "gen_a8b0c204": "全部",
+          "gen_a95500ef": "清除筛选",
+          "gen_f08afd1f": "已选择",
+          "gen_dc6e4e18": "项素材",
+          "gen_16e19306": "清空选择",
+          "gen_6d0d4854": "使用已选素材"
+        }
+      },
+      "workspace": {
+        "WorkspaceNextAction": {
+          "gen_9ff48c30": "推荐下一步"
         }
       }
     },
@@ -660,7 +858,10 @@
         "gen_4763a24b": "ContinueConfirmBook",
         "gen_d7432bb5": "CurrentChapter",
         "gen_95ee3e92": "Continue in ...",
-        "gen_1f32f18b": "Continue"
+        "gen_1f32f18b": "Continue",
+        "gen_98b5f8b5": "进入章节执行",
+        "gen_ffc75805": "查看推进状态",
+        "gen_699b4b33": "编辑小说"
       },
       "antiAiRules": {
         "AntiAiRulesPage": {
@@ -673,7 +874,10 @@
           "gen_5d41aa1f": "CreateRulesFailed。",
           "saveRulesFailedDot": "Save Rules Failed.",
           "gen_fc0bacd6": "test Failed。",
-          "gen_59f7c94a": "fix Failed。"
+          "gen_59f7c94a": "fix Failed。",
+          "gen_d6a7d091": "反 AI 规则",
+          "gen_ff9a2298": "管理正文生成会参考的反 AI 规则，控制哪些规则进入全局默认，哪些只留给写法资产绑定使用。",
+          "gen_f10ed468": "新建规则"
         },
         "components": {
           "AntiAiRuleDialog": {
@@ -712,7 +916,8 @@
             "gen_f411d0f1": "Notes",
             "low": "Low",
             "mid": "Mid",
-            "gen_4296d7d2": "High"
+            "gen_4296d7d2": "High",
+            "gen_625fb26b": "取消"
           },
           "AntiAiRuleList": {
             "promptMissing": "Prompt Not Written",
@@ -732,7 +937,11 @@
             "gen_5c688139": "Not write",
             "gen_a8b0c204": "all",
             "gen_7854b52a": "use",
-            "gen_5c56a889": "use"
+            "gen_5c56a889": "use",
+            "gen_7c8ecad1": "这个筛选下没有规则。",
+            "gen_eba49f80": "生成指令",
+            "gen_fbbf1096": "修正建议",
+            "gen_95b351c8": "编辑"
           },
           "AntiAiRuleStats": {
             "gen_01aa8262": "Ruleslibrary in Can Viewsum Edit's all Rules。",
@@ -747,6 +956,32 @@
           "EffectiveRuleList": {
             "gen_1c65ec9e": "alllayout",
             "gen_ad46ae97": "write method Rules"
+          },
+          "AntiAiEffectivePreviewCard": {
+            "gen_1cbc8e2d": "选择预览上下文",
+            "gen_3b21a5ea": "全局默认规则",
+            "gen_ab3f8e48": "没有全局默认规则。",
+            "gen_c84820f6": "写法专属规则",
+            "gen_a69c10b4": "预览上下文没有叠加写法专属规则。",
+            "gen_310d967b": "生效预览",
+            "gen_0934624b": "查看正文生成会拿到的全局规则，以及选中写法后叠加的专属规则。",
+            "gen_d5e317cc": "只看全局默认",
+            "gen_efe89cf1": "正在计算生效规则...",
+            "gen_44f051b1": "全局基线",
+            "gen_5670c3c7": "生效规则"
+          },
+          "AntiAiRuleEffectTestCard": {
+            "gen_b9016d5f": "移出测试",
+            "gen_7e51fbc8": "粘贴待检测正文。建议输入一段完整场景，便于判断总结腔、解释腔和模板感。",
+            "gen_0ba12df3": "效果测试",
+            "gen_88992628": "粘贴一段正文，检查规则会怎样判断 AI 味，并生成一版只用于预览的修订稿。",
+            "gen_3455fcca": "测试规则",
+            "gen_f17f0a85": "临时加入",
+            "gen_2fb2fe27": "临时测试规则",
+            "gen_288f0c40": "清空",
+            "gen_b25fa53c": "从左侧规则列表加入测试，可以在不改变规则状态的情况下比较效果。",
+            "gen_91c34675": "没有发现值得进入修正流程的问题。",
+            "gen_b4d3f1ac": "修订稿预览"
           }
         }
       },
@@ -761,14 +996,22 @@
         "AutoDirectorFollowUpCenterPage": {
           "gen_97b1c7da": "verify Already Refresh。",
           "gen_682cd178": "quantity Already Submit",
-          "gen_f40347bf": "ActionAlready Submit"
+          "gen_f40347bf": "ActionAlready Submit",
+          "gen_8455781a": "正在读取导演跟进",
+          "gen_0852aea6": "正在汇总阻塞、待操作和自动推进任务，请稍候。",
+          "gen_95bfb1ad": "重新读取导演跟进",
+          "gen_be304c1a": "只重新读取跟进摘要，不会执行恢复、重试或重规划。",
+          "gen_9e56f482": "重新读取",
+          "gen_f425ee8e": "查看推荐分区"
         },
         "components": {
           "AutoDirectorFollowUpBatchBar": {
             "gen_c0cbe472": "Currentwhere select Items No same quantity",
             "gen_71049067": "the split zone Not quantity",
             "gen_0f957366": "quantity Retrydiff",
-            "gen_358353a3": "quantity Low RiskContinue"
+            "gen_358353a3": "quantity Low RiskContinue",
+            "gen_288f0c40": "清空",
+            "gen_dde05ba1": "执行批量动作"
           },
           "AutoDirectorFollowUpDetail": {
             "onlyFixLowRiskItems": "Only fix items marked with low risk in status, checkpoints, progress, recovery targets, automatic reconciliation, alternative reasons, audit, and notification records; no clear text will be overwritten, assets rewritten, plans revised, candidate confirmed, or content generated.",
@@ -793,7 +1036,7 @@
             "taskException": "Task Exception",
             "gen_9a392ae5": "Progress",
             "gen_e8146ae5": "Details",
-            "gen_cb36d263": "",
+            "gen_cb36d263": "通道触达",
             "gen_f87f48f2": "Already",
             "gen_cc59b89d": "in",
             "gen_b70e8e43": "Already Resume",
@@ -802,7 +1045,19 @@
             "gen_e7b46ab3": "Not",
             "gen_f61f4cf6": "No no",
             "gen_4a0e9142": "",
-            "micro": "Micro"
+            "micro": "Micro",
+            "gen_6a23d80e": "每个动作都会说明后果；跟进项会保持对应的导演任务身份，不与手动工作区任务混用。",
+            "gen_93090859": "正在读取跟进详情",
+            "gen_bd28f2de": "正在同步导演任务、检查点和最近校验结果。",
+            "gen_2a78b2f6": "跟进详情读取失败",
+            "gen_e2a79bad": "请选择一个导演跟进项",
+            "gen_7312042d": "选择后可查看阻塞范围、下一步和安全动作。",
+            "gen_76f1c846": "风险说明",
+            "gen_0eb7011b": "仅修复校验标记为低风险的状态、检查点、进度、恢复目标、自动执行对账、替代原因、审计和通知记录；不会清除正文、重写资产、重规划、确认候选、切换模型或生成内容。",
+            "gen_9e56f482": "重新读取",
+            "gen_1fe803fc": "安全修复只处理状态对账，不会清除正文、重写规划、确认候选、切换模型或替你做创作选择。",
+            "gen_ce9af719": "一键重新校验",
+            "gen_026afd42": "一键安全修复"
           },
           "AutoDirectorFollowUpList": {
             "gen_821503ca": "CurrentNo in Progress's or Auto Logs。",
@@ -832,7 +1087,18 @@
             "gen_acd5cb84": "Failed",
             "gen_c195df63": "diff",
             "gen_a8b0c204": "all",
-            "gen_f61f4cf6": "No no"
+            "gen_f61f4cf6": "No no",
+            "gen_bd0a3496": "按任务状态筛选",
+            "gen_46bf07ff": "按批量操作能力筛选",
+            "gen_0fffc2e3": "正在读取跟进项",
+            "gen_0a5f6c12": "正在同步导演任务和最近自动通过记录。",
+            "gen_f274750c": "跟进列表读取失败",
+            "gen_35da2303": "当前没有符合条件的跟进项",
+            "gen_4a9107b3": "仅可批量",
+            "gen_29a89710": "仅不可批量",
+            "gen_9e56f482": "重新读取",
+            "gen_f4f85316": "上一页",
+            "gen_b4e1b508": "下一页"
           },
           "AutoDirectorFollowUpOverview": {
             "gen_10ab0f5b": "in Progress's sum Auto Logs",
@@ -847,14 +1113,25 @@
             "gen_047109de": "logic",
             "gen_5d7c27b7": "Already",
             "gen_a8b0c204": "all",
-            "gen_c195df63": "diff"
+            "gen_c195df63": "diff",
+            "gen_1cc02357": "跟进分区"
           }
         }
       },
       "bookAnalysis": {
         "BookAnalysisPage": {
           "gen_81021efb": "Analyze Book Writing in",
-          "gen_d150be05": "Analyze BookAnalysis zone"
+          "gen_d150be05": "Analyze BookAnalysis zone",
+          "gen_0b0ffdc8": "在创作中枢引用",
+          "gen_976c1767": "正在读取拆书结果",
+          "gen_b5ff0509": "结果加载完成后会直接显示可阅读小节和原文证据。",
+          "gen_839d2c7c": "无法读取这份拆书结果",
+          "gen_955d343a": "正在读取拆书列表",
+          "gen_56d8783d": "正在确认已有分析和最近进度，加载完成后会给出下一步。",
+          "gen_4d24e3ef": "无法读取拆书列表",
+          "gen_989a71a3": "新建拆书",
+          "gen_af52d9d7": "重试详情",
+          "gen_64ca9bab": "重新加载"
         },
         "bookAnalysis": {
           "utils": {
@@ -885,15 +1162,22 @@
             "gen_836cc341": "Save",
             "gen_a94ab700": "use quantity",
             "gen_b474d723": "on",
-            "gen_8441b348": "Not"
+            "gen_8441b348": "Not",
+            "gen_625fb26b": "取消",
+            "gen_18544156": "新预算上限",
+            "gen_0eba7cd0": "调低预算不会立即终止当前小节，会在下个小节边界按新上限检查。",
+            "gen_9aecb45a": "新预算低于累计用量，继续生成时会触发预算停止。"
           },
           "BookAnalysisChapterNavigator": {
-            "gen_821cf47a": "{chapter.charCount} Char"
+            "gen_821cf47a": "{chapter.charCount} Char",
+            "gen_fc6bbbac": "上一章",
+            "gen_981cc1b3": "下一章"
           },
           "BookAnalysisChapterReader": {
             "gen_067a3cdb": "{sortedChapters.length} Chapter Can correct",
             "gen_821cf47a": "{chapter.charCount} Char",
-            "gen_8cb781c5": "Text Chapter"
+            "gen_8cb781c5": "Text Chapter",
+            "gen_74115351": "当前文档还没有可用于对照阅读的章节缓存。"
           },
           "BookAnalysisCharacterAppearancePanel": {
             "gen_942cedba": "{pendingTerms.length > 0 ? \" select Can Word Items after Addto Characterouter 。\" : \"No no ConfirmWord Items \"}",
@@ -937,7 +1221,13 @@
             "gen_2111ccbb": "Already Cancel",
             "gen_06155bfc": "in",
             "gen_fad5222c": "Already Completed",
-            "gen_bf1456e7": "maingraph"
+            "gen_bf1456e7": "maingraph",
+            "gen_83110b93": "忽略词条",
+            "gen_a7922c54": "章节快照",
+            "gen_f4f85316": "上一页",
+            "gen_b4e1b508": "下一页",
+            "gen_c941bdb8": "生成图",
+            "gen_8c750c9c": "暂无带形象信息的章节。可以查看全部章节，或继续增量扫描。"
           },
           "BookAnalysisCharacterImagePanel": {
             "gen_5237e99c": "{asset.isPrimary ? \"maingraph \" : \" select graph \"}",
@@ -959,7 +1249,13 @@
             "gen_2111ccbb": "Already Cancel",
             "gen_6da70687": "form graph",
             "gen_dbec491f": "select graph",
-            "gen_bf1456e7": "maingraph"
+            "gen_bf1456e7": "maingraph",
+            "gen_f0fe57f1": "生成形象图",
+            "gen_719ddb45": "加入角色库",
+            "gen_93de17f5": "设主图",
+            "gen_2f4aaddd": "删除",
+            "gen_625fb26b": "取消",
+            "gen_2f4220bd": "会把该角色的人物字段复制到角色库；拆书证据和场景记录仍保留在拆书档案中。"
           },
           "BookAnalysisCharacterPanel": {
             "gen_1a5c3564": "{candidateExpanded ? \" begin \" : \" open \"}",
@@ -984,7 +1280,14 @@
             "gen_618d64f8": "deep in",
             "gen_63c59813": "",
             "gen_def9e98b": "begin",
-            "gen_e2edde5a": "open"
+            "gen_e2edde5a": "open",
+            "gen_63edd678": "手动添加",
+            "gen_ce26955a": "知道了",
+            "gen_be5fbbe3": "保存",
+            "gen_625fb26b": "取消",
+            "gen_f5c94dfe": "基于原文访谈",
+            "gen_95b351c8": "编辑",
+            "gen_2f4aaddd": "删除"
           },
           "BookAnalysisCreateDialog": {
             "gen_95778722": "will according NovelDraft Textlong module token。Chapter multi，AnalysisTimesum token use quantity High；Suggestionsfirst Select merge novelsTimes check 's Book 。",
@@ -1015,7 +1318,12 @@
             "gen_7588ab69": "（Current）",
             "gen_b474d723": "on",
             "gen_1a00cbf4": "Analysis",
-            "gen_8000f187": "module"
+            "gen_8000f187": "module",
+            "gen_625fb26b": "取消",
+            "gen_f867aaea": "参考作品",
+            "gen_d315f7e5": "诊断稿子",
+            "gen_26e16e0d": "系统会导出这本小说的当前章节正文，作为新的知识文档创建诊断拆书。",
+            "gen_34a741fb": "留空使用服务端默认值。累计用量达到上限后停止任务，已完成的小节会保留。"
           },
           "BookAnalysisDetailPanel": {
             "gen_868792f4": "Current section：{selectedAnalysis.currentItemLabel ?? \"No no \"}",
@@ -1044,10 +1352,20 @@
             "gen_8441b348": "Not",
             "gen_42d39e02": "allText",
             "gen_f61f4cf6": "No no",
-            "gen_28a28695": ""
+            "gen_28a28695": "",
+            "gen_0a9a0488": "拆书预算使用进度",
+            "gen_c8e2b6a6": "正在加载原文阅读位置，拆书结果仍可继续查看。",
+            "gen_f44f4b76": "原文对照暂时不可用",
+            "gen_0873b967": "重试原文加载",
+            "gen_7ad79546": "发布并绑定",
+            "gen_cf503912": "重点速览",
+            "gen_73e4dea1": "完整阅读",
+            "gen_3540059d": "没有可展示的拆书小节",
+            "gen_c948d4e9": "这份任务没有返回可阅读内容。源文档仍然安全，可以从上方重新生成或打开任务中心查看详情。"
           },
           "BookAnalysisDiagnosisTipBanner": {
-            "gen_03311a5e": "Mode"
+            "gen_03311a5e": "Mode",
+            "gen_63e012ad": "这里用拆书框架检查自己的稿子，重点看节奏、人物、主题、伏笔和商业卖点是否清楚；结论用于改稿判断，不会改变原小说正文。"
           },
           "BookAnalysisSidebar": {
             "gen_4b5ebf8c": "：{item.sourceRange.label ?? \"select define Chapter\"}",
@@ -1061,7 +1379,11 @@
             "gen_dca0c13b": "Already",
             "gen_22b4334f": "Draft",
             "gen_330363df": "Success",
-            "gen_acd5cb84": "Failed"
+            "gen_acd5cb84": "Failed",
+            "gen_989a71a3": "新建拆书",
+            "gen_2111ccbb": "已取消",
+            "gen_ec03a579": "正在加载拆书分析...",
+            "gen_64ca9bab": "重新加载"
           },
           "BookAnalysisSourceRangePicker": {
             "gen_3c15ea1f": "applyChapterPreset(\"middleThird\")}> in 1/3",
@@ -1084,7 +1406,12 @@
             "gen_c4bf99f5": "by Chapter",
             "gen_0270c742": "by Char number",
             "gen_42d39e02": "allText",
-            "gen_9d032066": "10k"
+            "gen_9d032066": "10k",
+            "gen_8a3c5fb6": "前 5 章",
+            "gen_2d5a1b88": "后 5 章",
+            "gen_75285e4a": "前 1/3",
+            "gen_2fd00c66": "中 1/3",
+            "gen_3610bac9": "后 1/3"
           },
           "BookAnalysisStructuredSummary": {
             "gen_0945e166": "{analysisMode === \"diagnosis\" ? \" \" : \"close \"}",
@@ -1116,7 +1443,42 @@
             "gen_2488f577": "in",
             "gen_ac303505": "Generatewrite method",
             "gen_dca0c13b": "Already",
-            "gen_83611abd": "Publish"
+            "gen_83611abd": "Publish",
+            "gen_b9bb2ae9": "结果工具",
+            "gen_9df93f7a": "阅读结果是当前主任务；发布、导出和维护操作可按需使用。",
+            "gen_4a98bf0c": "任务详情",
+            "gen_bf7dbd72": "更多维护操作",
+            "gen_b12bc66c": "复制分析",
+            "gen_a7c23201": "重新生成",
+            "gen_c4c506a4": "调整预算",
+            "gen_6f498373": "导出 MD",
+            "gen_e1b05f87": "导出 JSON",
+            "gen_2f51c18f": "归档"
+          },
+          "BookAnalysisCharacterCandidateCard": {
+            "gen_2f4aaddd": "删除"
+          },
+          "BookAnalysisSectionCard": {
+            "gen_d57e3569": "例如：只看阶段推进里的转折证据，或重点检查人物高光是否能复用。",
+            "gen_106e9702": "在此直接编辑当前小节草稿。",
+            "gen_65d9364d": "输入优化或修正提示词，例如：压缩冗余、突出冲突、保持同样事实。",
+            "gen_67c633f0": "添加备注、假设或后续行动。",
+            "gen_92cff461": "已冻结",
+            "gen_a7c23201": "重新生成",
+            "gen_be5fbbe3": "保存",
+            "gen_f49476bf": "本节证据",
+            "gen_e5729e94": "原文",
+            "gen_b555e9cd": "已在左侧原文章节中定位这条证据。",
+            "gen_23ab5797": "这条证据暂无可跳转的章节定位。",
+            "gen_ac889f1c": "分析正文",
+            "gen_1651e22e": "查看完整正文",
+            "gen_50d61b26": "跳过自动重跑，并保留这个小节的现有内容。",
+            "gen_ba0928c7": "本节特别关注",
+            "gen_67cbbd00": "编辑正文",
+            "gen_3e2b62e3": "优化预览",
+            "gen_451b6bd3": "应用到当前草稿",
+            "gen_63b5a88c": "取消预览",
+            "gen_2432b575": "备注"
           }
         },
         "hooks": {
@@ -1148,7 +1510,20 @@
           "gen_7b89282f": "Characterlibrary Writing in",
           "gen_fd38c170": "belt CharacterContinue",
           "gen_95a8b408": "No no Character。",
-          "gen_f53b5122": "CharacterList"
+          "gen_f53b5122": "CharacterList",
+          "gen_acd264fd": "跨小说复用资产",
+          "gen_846c1dd1": "基础角色库",
+          "gen_bc4fff7e": "把常用角色原型、核心动机和形象资料沉淀为可复用资产。创建小说或完善人物时，可以让 AI 直接读取这些角色基础。",
+          "gen_14ad80ab": "带着角色库继续创作",
+          "gen_88afed0d": "角色资产",
+          "gen_f7ea71f1": "先维护能影响剧情选择的核心信息；形象图和扩展资料可以在需要时继续补充。",
+          "gen_0f990b4e": "正在整理角色资产",
+          "gen_2b8964f5": "角色列表与形象资料加载完成后会显示在这里。",
+          "gen_78d75a38": "角色库暂时无法加载",
+          "gen_63d708c8": "现有角色不会受到影响。可以重新加载列表后继续。",
+          "gen_944f0de1": "还没有基础角色",
+          "gen_c55f1945": "使用页面右上角的“创建角色”，先建立一个目标明确、弱点清晰的主角。",
+          "gen_64ca9bab": "重新加载"
         },
         "components": {
           "CharacterCreateDialog": {
@@ -1192,7 +1567,8 @@
             "gen_58c5a448": "Setback",
             "gen_96213d99": "Turning Point",
             "gen_f6fef1f0": "Awakening",
-            "gen_5c2ed3e4": "Resolution"
+            "gen_5c2ed3e4": "Resolution",
+            "gen_49657a24": "一键清空高级设定"
           },
           "CharacterEditDialog": {
             "gen_04c16cd4": "Tag（ split ）",
@@ -1208,7 +1584,8 @@
             "gen_4578b906": "long",
             "gen_cbf6f4f8": "close component",
             "saveChanges": "Save Changes",
-            "gen_689150c2": ""
+            "gen_689150c2": "",
+            "gen_625fb26b": "取消"
           },
           "CharacterImageDialog": {
             "gen_f33bd525": "Current Status：{IMAGE_STATUS_TEXT[activeTask.status] ?? activeTask.status}",
@@ -1242,7 +1619,29 @@
             "twoPages": "2 Pages",
             "threePages": "3 Pages",
             "fourPages": "4 Pages",
-            "gen_c8339fd2": ""
+            "gen_c8339fd2": "",
+            "gen_a8a80917": "这里填写角色描述。点击“AI优化Prompt”后，会把这段描述整理成图片生成专用 prompt。",
+            "gen_a7bac223": "中文",
+            "gen_780bf992": "恢复原链路",
+            "gen_5e63eeb2": "这里展示最终会发送给图像模型的 prompt。你可以直接手动编辑；AI 优化后，也可以继续在这里修改。"
+          },
+          "CharacterCard": {
+            "gen_cc0815c9": "背景与来处",
+            "gen_17360a75": "成长方向",
+            "gen_b2833ce5": "弱点与代价",
+            "gen_33788c89": "外貌与体态",
+            "gen_7c837dc1": "习惯与特长",
+            "gen_549089df": "关键经历",
+            "gen_52ad09ab": "点击预览",
+            "gen_688b8d6f": "与角色交谈",
+            "gen_f0fe57f1": "生成形象图",
+            "gen_95b351c8": "编辑",
+            "gen_fbd068d5": "角色形象",
+            "gen_7cec5926": "保存主形象后，可在后续视觉生成中保持角色识别度。",
+            "gen_26b5bd49": "加载中...",
+            "gen_f1c720b8": "暂无图片，点击“生成形象图”创建。",
+            "gen_e6fc1cd7": "文件详情",
+            "gen_1e41907f": "设为主图"
           }
         }
       },
@@ -1287,7 +1686,8 @@
           "gen_f82661e8": "Repair",
           "gen_d58e850d": "write",
           "gen_330363df": "Success",
-          "gen_d81bb206": "no"
+          "gen_d81bb206": "no",
+          "gen_f2b14f27": "新建对话"
         },
         "CreativeHubPage": {
           "gen_0c658f29": "{boundRunId.slice(0, 8)}",
@@ -1316,7 +1716,9 @@
             "dataPlaceholder": "[Data]",
             "gen_3d1dec1f": "logic process",
             "gen_7f0425a8": "Not",
-            "hello": "Hello!"
+            "hello": "Hello!",
+            "gen_1535fcfa": "发送",
+            "gen_095e938e": "停止"
           },
           "RuntimeSidebar": {
             "gen_RAG当前已禁用请先_qn49": "RAG CurrentAlready use ，Please first in on use after make use Text 。",
@@ -1346,7 +1748,19 @@
             "gen_8000f187": "module",
             "gen_c9bf0b88": "",
             "gen_e47d59b1": "in",
-            "gen_8ba7c3a7": "out"
+            "gen_8ba7c3a7": "out",
+            "gen_4e690898": "轨迹",
+            "gen_4f725969": "同意并继续",
+            "gen_7173f809": "拒绝",
+            "gen_caaaacc9": "当前没有待处理审批。",
+            "gen_18cc65a0": "审批历史",
+            "gen_e01dd6d6": "运行配置",
+            "gen_8131a435": "启用知识检索（RAG）",
+            "gen_15b8c44e": "仅显示后续仍有工具调用的步骤。",
+            "gen_3fe72529": "从这里继续",
+            "gen_20de040f": "干运行",
+            "gen_b8ab36c5": "当前所选运行没有可继续重放的步骤。",
+            "gen_a7a3c15d": "暂无运行事件。"
           }
         }
       },
@@ -1391,7 +1805,12 @@
           "gen_aa1262ed": "",
           "gen_18c63459": "",
           "gen_c931653c": "",
-          "gen_55405ea6": "Export"
+          "gen_55405ea6": "Export",
+          "gen_523fa49c": "导出前请确保所有格子已生成图像。图像内文字由模型直接渲染。",
+          "gen_1bb33934": "工作台",
+          "gen_625fb26b": "取消",
+          "gen_cf395763": "内容源已导入",
+          "gen_a0a85801": "请先生成分话大纲。"
         },
         "ComicWorkspacePage": {
           "gen_89608257": "short 's check set define 、main sum large （200-800 Char ）…",
@@ -1460,7 +1879,14 @@
           "gen_308fdfa0": "begin",
           "gen_9407ae4d": "",
           "gen_1c421318": "",
-          "gen_c5ef4ac4": "merge"
+          "gen_c5ef4ac4": "merge",
+          "gen_9acb817c": "打开工作台",
+          "gen_f7d48bd5": "导入内容源",
+          "gen_eeb69088": "上一步",
+          "gen_38ce27d8": "下一步",
+          "gen_27d0220a": "漫画改编工作台",
+          "gen_b1c07f4f": "将小说或原创故事一键生成条漫分格脚本与图像",
+          "gen_a1a9f6e5": "新建项目"
         },
         "project": {
           "CharactersPanel": {
@@ -1563,7 +1989,27 @@
             "gen_0d98c747": "its",
             "gen_b58c7549": "Add",
             "gen_36a4908a": "",
-            "gen_87c835a6": ""
+            "gen_87c835a6": "",
+            "gen_95b351c8": "编辑",
+            "gen_369bef10": "所有生图的源头：三视图、表情稿、资产、格子图都读这里。改一次，后续生成全部跟上。",
+            "gen_b0ef9048": "丢弃",
+            "gen_4403fca0": "清除",
+            "gen_c1ccf3c1": "当主外貌里有「锐利如刀刻」「三角眼」等与你期望脸型矛盾的词时，把脸型描述填到这里——生图 prompt 会以最高优先级压制冲突词，无需删原描述。",
+            "gen_625fb26b": "取消",
+            "gen_bf82eb4b": "调整三视图",
+            "gen_19a71a62": "生成三视图",
+            "gen_c318b815": "更新表情稿",
+            "gen_604ea3dc": "生成表情稿",
+            "gen_98610b5d": "恢复推荐提示词",
+            "gen_adc456b5": "常规微调只改风格、服装细节或姿态；角色脸型、发型和标志特征会随外貌锚点一起锁定。",
+            "gen_14806220": "生成微调图",
+            "gen_65857653": "打开提示词微调",
+            "gen_a5f398c3": "先生成三视图，系统会保存本次提示词，并允许基于当前图继续微调。",
+            "gen_769d88e4": "完成",
+            "gen_3fbe934a": "点击上方任意彩色标签即可快速添加。",
+            "gen_90682e44": "生格子图时会自动把对应资产合成到参考图，锁定服装 / 武器 / 道具外形。",
+            "gen_a94d1dfb": "生成分格脚本后系统自动提取，用于保证跨话剧情与角色状态一致性。可手动删除不准确的条目。",
+            "gen_e995ba1e": "尚无事实条目。生成至少一话的分格脚本后会自动提取。"
           },
           "EpisodeListPanel": {
             "densityLabel": "Density",
@@ -1598,7 +2044,13 @@
             "gen_f07d8f75": "avg",
             "gen_03e59bb3": "",
             "gen_a8448604": "card point",
-            "gen_32c65d8d": ""
+            "gen_32c65d8d": "",
+            "gen_d5dcd42f": "付费卡点集",
+            "gen_625fb26b": "取消",
+            "gen_354eb893": "生成脚本...",
+            "gen_058a7cfa": "生成分格脚本",
+            "gen_057d3450": "分格生成要求",
+            "gen_7ed4d235": "尚无分话大纲，点击「生成大纲」开始。"
           },
           "PanelsGridPanel": {
             "layoutType": "Four Koma / Current Layout Type",
@@ -1628,7 +2080,21 @@
             "gen_cb456b11": "Not",
             "gen_5110a0d1": "Assets",
             "gen_c931653c": "",
-            "gen_95b351c8": "Edit"
+            "gen_95b351c8": "Edit",
+            "gen_cf79602a": "修改指令，例如：将红框中的头发改为银色，去除背景中的杂物",
+            "gen_768c25e1": "待重抽",
+            "gen_19a9bcfe": "生图",
+            "gen_b3b1a8ff": "重抽",
+            "gen_3e8b4898": "画面脚本已在上次生图后修改，重抽后图片才会使用新的脚本。",
+            "gen_47ecf44a": "在图上拖拽绘制红色标记框，并输入修改指令：",
+            "gen_625fb26b": "取消",
+            "gen_af4135d0": "保存并生图",
+            "gen_d2a89be3": "本次生图使用的参考素材",
+            "gen_76535c30": "这些素材会被合成为雪碧图后传给图像模型，用于锁定角色外形、服装、道具与场景。",
+            "gen_dd7a1c76": "上次发送给图像模型的 Prompt",
+            "gen_f124b919": "生图后可在这里查看模型实际收到的完整 prompt。",
+            "gen_dfabcb02": "该话尚无格子脚本，请先在「分话大纲」中生成分格脚本。",
+            "gen_47b7af95": "提示词"
           },
           "ScenesPanel": {
             "gen_0138d439": "Generatesplit novels after will Auto ， Can Add。",
@@ -1661,8 +2127,17 @@
             "gen_fc30335a": "",
             "gen_d8f11435": "",
             "gen_0d98c747": "its",
-            "gen_e3623348": ""
+            "gen_e3623348": "",
+            "gen_e555b92b": "这些视觉约束会在生成该场景下每一格时注入提示词，锁定空间一致性。",
+            "gen_e4cdb182": "设定图会作为低权重参考图传给图像模型，只锁定色调/布局/材质，镜头仍按每格自由运镜。建议先保存场景圣经再生成。",
+            "gen_cc9155a5": "场景在生成分格脚本时自动识别，可在此编辑场景圣经并生成设定图，用于锁定跨格/跨话的空间一致性。",
+            "gen_461211c2": "添加场景",
+            "gen_e83a256e": "确认",
+            "gen_625fb26b": "取消"
           }
+        },
+        "ComicImageGenerationNotice": {
+          "gen_8f1d1b5c": "临时提示：漫画图片生成暂只支持 gpt-image-2。请选择已配置该模型的图片服务后再生成角色设计稿或格子图。"
         }
       },
       "creativeHub": {
@@ -1698,11 +2173,19 @@
             "gen_3ced7e48": "audit",
             "gen_1b9b6c32": "Not Target",
             "gen_02e820e7": "begin number",
-            "gen_6fa6500b": "View number"
+            "gen_6fa6500b": "View number",
+            "gen_70f361ce": "等待确认",
+            "gen_94f67ed0": "审批目标信息",
+            "gen_7173f809": "拒绝",
+            "gen_4e6bf87f": "工具执行",
+            "gen_722d25ad": "请求参数默认收起，可按需查看。"
           },
           "CreativeHubMessagePrimitives": {
             "gen_6402b0c3": "Editthis Items after Generatenew's split",
-            "gen_3d1dec1f": "logic process"
+            "gen_3d1dec1f": "logic process",
+            "gen_8a95e28c": "编辑消息并生成新分支",
+            "gen_625fb26b": "取消",
+            "gen_669e5ca7": "发送新分支"
           },
           "CreativeHubSidebar": {
             "gen_ce7c6588": "Text : {bindings.knowledgeDocumentIds?.length ?? 0}",
@@ -1772,7 +2255,29 @@
             "gen_87bb5bbc": "",
             "gen_e082621c": "",
             "gen_e2edde5a": "open",
-            "gen_18c63459": ""
+            "gen_18c63459": "",
+            "gen_1fb52965": "小说",
+            "gen_9290b644": "章节",
+            "gen_cfb83c02": "世界观",
+            "gen_0e46d8d6": "任务",
+            "gen_f90e9a49": "拆书分析",
+            "gen_c2f65126": "写作公式",
+            "gen_41af7851": "写法档案",
+            "gen_9a36d1be": "基础角色",
+            "gen_a597ef78": "知识文档",
+            "gen_11d9f3ce": "待确认目标",
+            "gen_e15f6aa0": "当前小说与状态",
+            "gen_0e090051": "当前小说与资源",
+            "gen_13de1814": "正在读取可用小说，完成前不能切换工作区。",
+            "gen_c9f655a8": "小说列表读取失败，现有线程不会受影响。",
+            "gen_3e75fa7b": "新小说标题",
+            "gen_2d0ada46": "查看小说",
+            "gen_a2129b8c": "开书准备",
+            "gen_bf14cb3a": "整本生产设置",
+            "gen_f00c17be": "选择小说并发起整本创作后，这里会显示阶段与进度。",
+            "gen_6785b32d": "运行与调试信息",
+            "gen_4015eaf8": "运行细节显示",
+            "gen_e2aa35ea": "资源绑定 ID"
           },
           "CreativeHubThreadList": {
             "gen_119cfb79": "wire process List",
@@ -1781,7 +2286,50 @@
             "gen_047109de": "logic",
             "gen_c195df63": "diff",
             "gen_87bb5bbc": "",
-            "gen_2f51c18f": ""
+            "gen_2f51c18f": "",
+            "gen_31548d01": "正在加载线程",
+            "gen_04de76c7": "请稍候。",
+            "gen_68f639ca": "线程列表加载失败",
+            "gen_41cc8194": "创作线程",
+            "gen_2f4aaddd": "删除",
+            "gen_0baee924": "创建线程后，可以围绕同一小说持续保留创作目标和执行记录。"
+          },
+          "CreativeHubDebugTraceCard": {
+            "gen_575d44ff": "运行细节",
+            "gen_a43d9f73": "当前回合还没有可展示的调试信息。",
+            "gen_2ccc17ec": "默认已折叠底层运行、工具与检查点细节；展开后可查看完整调试轨迹。"
+          },
+          "CreativeHubNovelSetupCard": {
+            "gen_9322bdef": "开书信息完成度",
+            "gen_4fc1fd0a": "生产前确认",
+            "gen_b737649d": "补这项",
+            "gen_c3666112": "给我备选",
+            "gen_636c8913": "生产前待确认",
+            "gen_beffa430": "生成确认清单",
+            "gen_7e084800": "批量给我备选",
+            "gen_acf4d5ca": "下一项信息",
+            "gen_b97af93a": "按引导继续",
+            "gen_7126c56a": "查看初始化摘要"
+          },
+          "CreativeHubToolResultCard": {
+            "gen_b568c569": "设为当前工作区",
+            "gen_75ce310d": "详细执行结果默认收起，可按需查看。"
+          },
+          "NovelProductionStarterCard": {
+            "gen_f69e8c5f": "第一人称",
+            "gen_5eff3cab": "第三人称",
+            "gen_73b444ba": "混合视角",
+            "gen_7209da38": "慢节奏",
+            "gen_ca6502d7": "均衡节奏",
+            "gen_de82b2fd": "快节奏",
+            "gen_3656af17": "人机协作",
+            "gen_8ca38b73": "草稿优先",
+            "gen_ba7518f8": "自动流水线",
+            "gen_19ac677a": "低",
+            "gen_aed1dfbc": "中",
+            "gen_4296d7d2": "高",
+            "gen_d285a633": "交给 AI 判断",
+            "gen_0776f722": "使用小说默认值"
           }
         },
         "hooks": {
@@ -1926,7 +2474,17 @@
           "gen_f3a30b06": "split",
           "gen_4b8c5856": "novels",
           "gen_3a7170b9": "quantity",
-          "gen_32c65d8d": ""
+          "gen_32c65d8d": "",
+          "gen_7f83dc3d": "生成台本",
+          "gen_6fc8894d": "质量检查",
+          "gen_f82661e8": "修复",
+          "gen_f666b01a": "保存编辑",
+          "gen_2db07e05": "按“素材 → 策略 → 分集 → 台本 → 质量 → 分镜视频”的顺序推进这部短剧。",
+          "gen_694fc5ef": "刷新",
+          "gen_f33dea55": "导出 Markdown",
+          "gen_e1b05f87": "导出 JSON",
+          "gen_46e80b19": "导出本集 SRT",
+          "gen_71ae747d": "导出剪辑草稿"
         },
         "DramaWorkspacePage": {
           "exampleWifeDivorcedRealSheWasInheritedPatronFamilyPubliclyRetaliateAllWhoHumiliatedHer": "Example: wife_divorced_real_she_was_inherited_patron_family_publicly_retaliate_all_who_humiliated_her",
@@ -1978,7 +2536,16 @@
           "gen_2d711b09": "inner",
           "gen_ea887bd0": "rule",
           "gen_79c58c55": "",
-          "gen_31ecc0e6": "Project"
+          "gen_31ecc0e6": "Project",
+          "gen_9acb817c": "打开工作台",
+          "gen_eeb01df4": "整理素材",
+          "gen_5f66b6de": "生成策略",
+          "gen_ecc3b873": "生成前 12 集",
+          "gen_7a534604": "从小说、原创灵感或导入文本整理短剧素材，再生成竖屏付费短剧策略和分集台本。",
+          "gen_eeb69088": "上一步",
+          "gen_38ce27d8": "下一步",
+          "gen_694fc5ef": "刷新",
+          "gen_ae23d359": "还没有短剧项目。先从左侧创建一个项目。"
         },
         "components": {
           "DramaCharactersPanel": {
@@ -2017,7 +2584,12 @@
             "gen_ad282ec2": "yet Not Generate",
             "gen_bf513d2f": "short can",
             "gen_c5e6d122": "no",
-            "gen_11b8c0b8": "out"
+            "gen_11b8c0b8": "out",
+            "gen_752f815a": "固定造型锚点",
+            "gen_9758d2f1": "表演和声音锚点",
+            "gen_6c3f7724": "保存角色资产",
+            "gen_cff1212c": "保存到短剧角色库",
+            "gen_1a4bdb2a": "导入角色资产"
           },
           "DramaEpisodeAudioPanel": {
             "gen_8eb998f7": "：{formatCost(latestProgress.cost, latestProgress.cost.estimated)}",
@@ -2041,7 +2613,9 @@
             "gen_a2d930fd": "Paused",
             "gen_fad5222c": "Already Completed",
             "gen_5930eaab": "in",
-            "gen_01ab0b75": "config"
+            "gen_01ab0b75": "config",
+            "gen_fbb10e22": "合成本集配音",
+            "gen_60637682": "重试失败镜头"
           },
           "DramaNextStepPanel": {
             "gen_68c68a2c": "Current HintWord ：{(props.project.videoPrompts ?? []).filter(isActiveVideoPrompt).length} Items",
@@ -2109,7 +2683,15 @@
             "mediumLevel": "Medium",
             "gen_fc7e3846": "re need",
             "critical": "Critical",
-            "gen_02d9819d": "Tip"
+            "gen_02d9819d": "Tip",
+            "gen_e6634232": "还没有分集大纲。生成分集和台本后，这里会汇总每集质量检查结果。",
+            "gen_8d435f11": "检查全部台本合规",
+            "gen_2b447b1b": "当前没有待处理的质量问题。",
+            "gen_c5b9c60e": "查看台本",
+            "gen_a1ad5204": "重新检查",
+            "gen_f82661e8": "修复",
+            "gen_72e8820f": "这集需要处理，但没有结构化问题明细。",
+            "gen_4328677c": "检查"
           },
           "DramaSourcePanel": {
             "exampleMainRetainVengeanceWomenLoveTangEvilNotCliched": "Example: main_must_retain_vengance_women_love_more_tender_evil_not_cliche",
@@ -2147,7 +2729,8 @@
             "gen_93e88f38": "need patch",
             "gen_4281b2b4": "Can Continue",
             "gen_ad6b7038": "Can use",
-            "gen_8efef589": ""
+            "gen_8efef589": "",
+            "gen_31950d90": "还没有整理来源素材。先点击“整理素材”，系统会把小说、灵感或导入文本整理成短剧可用的梗概、节拍、角色和硬事实。"
           },
           "DramaVisualPanel": {
             "gen_cf55aa11": "：{formatCost(progress.cost, progress.cost.estimated)}",
@@ -2207,7 +2790,15 @@
             "gen_5930eaab": "in",
             "gen_71499936": "",
             "gen_acd5cb84": "Failed",
-            "gen_974b4a33": "split"
+            "gen_974b4a33": "split",
+            "gen_3d45375e": "生成分镜",
+            "gen_2b8b7963": "生成本集首帧",
+            "gen_c87865f3": "创建本集视频任务",
+            "gen_e02e2b9f": "视频提示词",
+            "gen_4f8d48ef": "刷新状态",
+            "gen_6ef95fe9": "创建任务",
+            "gen_60637682": "重试失败镜头",
+            "gen_faf900b7": "查看生成结果"
           }
         },
         "dramaDisplay": {
@@ -2231,7 +2822,32 @@
           "gen_8ca5aa71": "in add bottom ...",
           "gen_01e51f35": "No bottom",
           "gen_b67dd646": "bottom Already Delete。",
-          "gen_5f4916da": "Genre Base Library"
+          "gen_5f4916da": "Genre Base Library",
+          "gen_6a7aa347": "重新加载题材基底",
+          "gen_50220b9a": "暂时无法读取题材结构。重新加载后，可以继续查看、编辑和维护题材。",
+          "gen_aaf0dc06": "正在确认题材基底状态",
+          "gen_7e01e421": "加载完成后，会根据题材覆盖和说明完整度给出下一步建议。",
+          "gen_e419dabd": "先建立第一棵题材基底树",
+          "gen_d6241b7f": "描述你想覆盖的创作方向，可以手动搭建层级，也可以让 AI 生成草稿后再调整。",
+          "gen_c00e4cfe": "明确作品定位、读者期待和核心冲突，能帮助 AI 在开书和规划时更准确地理解这个题材。",
+          "gen_598b348b": "题材基底可以支持开书选择",
+          "gen_0da623a3": "现有题材都有明确说明。需要覆盖新的创作方向时，再新增根题材或细分子类。",
+          "gen_60f8b380": "创作资产 / 小说定位",
+          "gen_2b97a4fa": "维护小说可复用的题材定位与分类层级。开书时选择合适的题材基底，AI 会据此理解作品类型、读者期待和主要创作方向。",
+          "gen_53480a85": "题材结构",
+          "gen_aba9d60c": "从主要题材逐层展开细分方向。正在被小说使用的分类，需要先调整关联小说的题材后才能删除。",
+          "gen_363ab3ee": "题材基底暂时无法加载",
+          "gen_87c01ad9": "请检查服务连接后重新加载。已有题材不会受到影响。",
+          "gen_e8af4f85": "还没有可供开书选择的题材基底",
+          "gen_90a741fb": "先创建一个主要题材。你可以手动填写，也可以描述创作方向，让 AI 生成包含子类的题材树草稿。",
+          "gen_64ca9bab": "重新加载",
+          "gen_b4ef637a": "创建题材基底",
+          "gen_865de93e": "补充说明",
+          "gen_9752aef2": "扩充题材",
+          "gen_32f3aaf4": "新建题材基底树",
+          "gen_72b70758": "正在加载题材结构",
+          "gen_0385837f": "请稍候，题材与小说关联正在同步。",
+          "gen_982a3aaa": "创建第一棵题材树"
         },
         "components": {
           "GenreCreateDialog": {
@@ -2244,7 +2860,12 @@
             "gen_保存题材基底树_bv55": "Save bottom",
             "gen_4d020ba3": "Generate in ...",
             "savingInProgressDotDotDot": "Saving... (dots)",
-            "aiGenerated": "AI Generated"
+            "aiGenerated": "AI Generated",
+            "gen_85422224": "先确定父级位置，再手动填写结构或让 AI 先生成一个草稿。这里维护的是作品的题材基底，也就是“这是什么书”。",
+            "gen_7ea23b87": "适合先把大类、子类和下级题材基底一起打出来，再手动微调。",
+            "gen_72bf9fa4": "重置草稿",
+            "gen_3f0265bd": "父级题材基底",
+            "gen_625fb26b": "取消"
           },
           "GenreEditDialog": {
             "gen_f060ecf0": "Can Modify 、Notessum position place 。 Node and Already define Novel will Continuekeep 。",
@@ -2256,7 +2877,8 @@
             "gen_3f0265bd": "bottom",
             "saveChanges": "Save Changes",
             "gen_d7ec2d3f": "Name",
-            "gen_3bdd08ad": "Description"
+            "gen_3bdd08ad": "Description",
+            "gen_625fb26b": "取消"
           },
           "GenreTreeEditor": {
             "gen_20e1df31": "Descriptionthis Items Type's check 、 point 、 Storyline or read 。",
@@ -2268,7 +2890,8 @@
             "mainType": "Main Type",
             "gen_2a89ece2": "Type",
             "gen_d7ec2d3f": "Name",
-            "gen_3bdd08ad": "Description"
+            "gen_3bdd08ad": "Description",
+            "gen_426cd14e": "删除当前节点"
           },
           "GenreTreeItem": {
             "gen_641898a3": "Please first CurrentCategory or its Category under 's Novel after Delete。",
@@ -2276,7 +2899,9 @@
             "gen_76241c5b": "No no 。",
             "gen_e082621c": "",
             "gen_e2edde5a": "open",
-            "gen_2f4aaddd": "Delete"
+            "gen_2f4aaddd": "Delete",
+            "gen_82537dc1": "新增子类",
+            "gen_95b351c8": "编辑"
           }
         }
       },
@@ -2339,13 +2964,15 @@
             "aiAutoDirectorBookStart": "AI Auto Director Book Start",
             "gen_0e0512ed": "Character and World View",
             "gen_e40b8718": "Create Novel Manually",
-            "gen_9ca4fd2e": "open start newProject"
+            "gen_9ca4fd2e": "open start newProject",
+            "gen_46a7e15a": "创作资产概览"
           },
           "HomeAttentionQueue": {
             "gen_5a5e0eee": "CreateNovel after ，this will DisplayConfirm、Failed、Resumesum quantity 。",
             "gen_9d3d5b9e": "Can by Recommended ContinueProgressProject。",
             "gen_39595608": "No Needs Action's Writing Items",
-            "gen_599afbac": "No home pageRecommended's Items"
+            "gen_599afbac": "No home pageRecommended's Items",
+            "gen_e8ea3ea0": "创作提醒"
           },
           "HomeNextActionPanel": {
             "gen_367a67a0": "{novel.writingMode === \"continuation\" ? \" write \" : \" create \"}",
@@ -2366,7 +2993,15 @@
             "gen_3f00cc1b": "create",
             "gen_9290b644": "Chapter",
             "gen_464f3d4e": "Character",
-            "gen_32ac152b": "Update"
+            "gen_32ac152b": "Update",
+            "gen_06dc9b38": "最近更新",
+            "gen_45f63aa7": "正在整理你的创作工作台...",
+            "gen_1a7362f2": "暂时无法读取项目",
+            "gen_d551eef4": "还不能为你判断下一步",
+            "gen_f2913c89": "重新加载项目后，系统会继续为你整理最合适的创作入口。",
+            "gen_765aa48e": "为什么是现在",
+            "gen_70b6302d": "正在创作",
+            "gen_a4cc3fca": "让 AI 带我开始"
           },
           "HomeRecentNovels": {
             "gen_b505eac1": "Progress {Math.round(workflowTask.progress * 100)}%",
@@ -2378,7 +3013,10 @@
             "gen_906ad18b": "Not define",
             "gen_9290b644": "Chapter",
             "gen_464f3d4e": "Character",
-            "gen_32ac152b": "Update"
+            "gen_32ac152b": "Update",
+            "gen_2eafa38f": "我的小说",
+            "gen_24c1eda7": "当前无法加载小说项目。",
+            "gen_d74b1c8b": "创建小说后，这里会显示可以继续推进的作品。"
           },
           "HomeStatusStrip": {
             "gen_a493e1cf": "WritingStatus need"
@@ -2442,7 +3080,9 @@
           "gen_dbbdc047": "to Writing in",
           "gen_e4b51d5c": "Status",
           "gen_acb3166d": "Settings",
-          "gen_32536950": "Text"
+          "gen_32536950": "Text",
+          "gen_5012c867": "创作资料",
+          "gen_89fcfd64": "索引与任务"
         },
         "components": {
           "KnowledgeDocumentDetailDialog": {
@@ -2460,7 +3100,14 @@
             "gen_6fceed52": "Current",
             "gen_9699a50e": "close Word",
             "gen_6ace83bd": "re",
-            "gen_97005534": "quantity"
+            "gen_97005534": "quantity",
+            "gen_48f9e660": "手动重建索引",
+            "gen_b7c8e93c": "恢复启用并完成索引后，可以测试召回效果。",
+            "gen_be63ae93": "仅针对当前激活且已建立索引的版本执行召回测试。",
+            "gen_69056c87": "当前查询没有召回到任何分块内容。",
+            "gen_2be2585f": "当前激活版本索引成功后，才可以执行召回测试。",
+            "gen_69c6f5ef": "切换为激活版本",
+            "gen_fcb57cbf": "正在加载文档详情..."
           },
           "KnowledgeDocumentsTab": {
             "gen_b4c7ab1f": "1Times SelectmultiItems `.txt` Text component 。Already save in same andinner same 's Text will Auto 。",
@@ -2481,7 +3128,29 @@
             "uploadResult": "Upload Result",
             "onlyEnable": "Only Enable",
             "onlyDisable": "Only Disable",
-            "onlyArchive": "Only Archive"
+            "onlyArchive": "Only Archive",
+            "gen_2a6fe47a": "创作资料暂时无法加载",
+            "gen_5012c867": "创作资料",
+            "gen_22c6d617": "按标题或状态查找资料，确认索引完成后再用于拆书和正文创作。",
+            "gen_c485b330": "上传文档",
+            "gen_06837c46": "添加可用于检索、拆书和创作参考的文本资料。",
+            "gen_b9e30320": "可选标题，留空则使用文件名",
+            "gen_df887b36": "移除已选择的文件",
+            "gen_53ae41e2": "查看版本",
+            "gen_06dab430": "恢复启用",
+            "gen_2ed53cd2": "召回测试",
+            "gen_be0ade04": "重建索引",
+            "gen_5c56a889": "停用",
+            "gen_7854b52a": "启用",
+            "gen_2f51c18f": "归档",
+            "gen_c37038e1": "正在加载创作资料",
+            "gen_68ecff89": "正在确认资料版本和索引状态。",
+            "gen_64ca9bab": "重新加载",
+            "gen_a95500ef": "清除筛选",
+            "gen_40f8a119": "上传第一份资料",
+            "gen_6b58808b": "上传资料",
+            "gen_f588f09f": "仅支持 .txt 文本文件",
+            "gen_2091f5c1": "同名标题会追加为新版本并设为当前版本"
           },
           "KnowledgeOpsTab": {
             "gen_9811f598": "CurrentListText number ：{visibleDocumentsCount}",
@@ -2498,7 +3167,8 @@
             "gen_cad670fb": "",
             "gen_fd6e80f1": "",
             "gen_c195df63": "diff",
-            "gen_2f4aaddd": "Delete"
+            "gen_2f4aaddd": "Delete",
+            "gen_ae068eb6": "清理已结束的索引记录，排队中和执行中的任务会保留。"
           },
           "knowledgeRagUi": {
             "gen_53ace430": "Already use",
@@ -2509,6 +3179,62 @@
             "gen_87bb5bbc": "",
             "gen_330363df": "Success",
             "gen_acd5cb84": "Failed"
+          },
+          "KnowledgeEmbeddingSettingsCard": {
+            "gen_b86c33b4": "选择 Embedding 模型",
+            "gen_b96a51bf": "搜索 Embedding 模型",
+            "gen_1eeb1227": "没有匹配的 Embedding 模型",
+            "gen_390fef99": "例如：text-embedding-3-small",
+            "gen_12dbeba9": "集合命名方式",
+            "gen_cdd514f5": "例如：kb / prod / novel",
+            "gen_79c79a5a": "例如：ai_novel_rag_openai_text_embedding_3_small_kb_v1",
+            "gen_06395e61": "知识检索设置",
+            "gen_44618608": "选择向量模型和向量库地址即可开始检索。需要精细控制召回质量或任务性能时，再展开高级配置。",
+            "gen_e19716c1": "向量模型",
+            "gen_df5bfd12": "选择用于生成向量的服务商和模型。",
+            "gen_f988439c": "正在加载可用的 Embedding 模型...",
+            "gen_56a8dde3": "向量库连接",
+            "gen_c047a788": "填写 Qdrant Cloud、自托管 Qdrant 或本机向量库地址。",
+            "gen_b1ff9fce": "向量库 URL",
+            "gen_e8720f06": "本机默认地址通常是 http://127.0.0.1:6333；云端地址可以直接填写完整 URL。",
+            "gen_f5453462": "向量库 API Key",
+            "gen_d6fd5959": "保存时清除已保存的向量库 API Key",
+            "gen_1f318234": "高级配置",
+            "gen_eb646697": "集合命名、索引重建、检索质量、超时和后台任务参数都收在这里。",
+            "gen_e2edde5a": "展开",
+            "gen_def9e98b": "收起",
+            "gen_626727e1": "集合与索引",
+            "gen_154505fb": "自动命名会按服务商、模型、标签和版本区分集合，降低向量维度冲突风险。",
+            "gen_f16fd7f9": "集合标签",
+            "gen_0327296d": "用一个简短标签区分环境或不同数据分组。",
+            "gen_54c26689": "目标集合",
+            "gen_6b6959e8": "连接与写入参数",
+            "gen_7ac4f427": "默认值适合大多数知识库；只有连接慢、批量写入失败或需要暂停检索时再调整。",
+            "gen_9a2f6e15": "向量库超时（毫秒）",
+            "gen_d00d8413": "单次写入最大字节数",
+            "gen_a5d1102e": "向量库写入并发数",
+            "gen_8194cbfb": "向 Qdrant 并发提交分块批次的最大并发数。默认 3，大文档可调至 4-6 提速。",
+            "gen_8029282d": "检索调优",
+            "gen_dbe9edfd": "当召回内容不够准，或检索延迟需要控制时，可以调整切块和候选数量。",
+            "gen_c284effd": "切块大小",
+            "gen_5882219e": "切块重叠",
+            "gen_827bf955": "最终 Top K",
+            "gen_75e4f348": "向量候选数",
+            "gen_a610a2a6": "关键词候选数",
+            "gen_1ed85a16": "大批量导入或服务响应较慢时，可以调节批大小、超时、重试和轮询参数。",
+            "gen_f7442ee8": "同时发起的 embedding API 请求数。默认 4；调高可大幅缩短大文档索引时间，但要看服务商配额。"
+          },
+          "KnowledgeLibraryOverview": {
+            "gen_728fba79": "创作资产 · 知识与检索",
+            "gen_d3afa095": "知识资料库",
+            "gen_472c7d80": "集中管理可复用的创作资料，确认索引状态，再把可靠内容带入拆书、规划和正文创作。",
+            "gen_dbbdc047": "发送到创作中枢",
+            "gen_6b58808b": "上传资料",
+            "gen_64ca9bab": "重新加载",
+            "gen_a95500ef": "清除筛选",
+            "gen_dedb1b21": "查看索引状态",
+            "gen_356fdedf": "正在加载",
+            "gen_0336dcfd": "查看资料"
           }
         }
       },
@@ -2522,7 +3248,9 @@
           "aiAutoDirectorBookStart": "AI Auto Director Book Start",
           "gen_c7d882ae": "Create and in Project",
           "gen_25179dcd": "CreateNovelProject",
-          "gen_4364e2f1": "Create"
+          "gen_4364e2f1": "Create",
+          "gen_3bf8a2fd": "推荐先让 AI 自动导演从一句灵感整理方向、世界、角色和章节准备。需要完全手动填写时，也可以继续使用下方表单。",
+          "gen_8dc7b195": "手动路径适合你已经清楚题材、卖点和前期承诺的项目；创建后仍可在工作台继续调整。"
         },
         "NovelEdit": {
           "gen_任务记录显示已完成开_6ffr": "LogsDisplayAlready Completedopen Book ，butCurrentProject No Character ，where Characterapprove sum ChapterExecute Not 。Can patch ， will ContinueRepair。",
@@ -2611,7 +3339,9 @@
           "gen_fc09ee9d": "NovelAlready Delete。",
           "gen_70576156": "ExportAlready open start 。",
           "aiCockpit": "AI Cockpit",
-          "gen_64ca9bab": "re newadd"
+          "gen_64ca9bab": "re newadd",
+          "gen_8c110533": "读取这本书的 AI 状态...",
+          "gen_9e56f482": "重新读取"
         },
         "NovelPreview": {
           "chapterWordCount": "X Words",
@@ -2643,7 +3373,12 @@
           "gen_9c39cadc": "has Draft Text",
           "gen_6de9bb70": "no Draft Text",
           "gen_52e6abbe": "Already make",
-          "gen_22b4334f": "Draft"
+          "gen_22b4334f": "Draft",
+          "gen_da73ca26": "按章节阅读已生成正文，适合检查连贯性、节奏和已经写出的内容。",
+          "gen_ce521baf": "打开工作区",
+          "gen_64ca9bab": "重新加载",
+          "gen_9ff328fd": "章节目录",
+          "gen_ab796994": "进入章节编辑页生成或补写正文后，这里会显示完整内容。"
         },
         "autoDirector": {
           "AutoDirectorCreatePage": {
@@ -2651,7 +3386,9 @@
             "aiAutoDirectorCreate": "AI Auto Director Create",
             "gen_7c5ab588": "Generate select",
             "gen_d3ec695c": "Progressing in",
-            "gen_4364e2f1": "Create"
+            "gen_4364e2f1": "Create",
+            "gen_88a94f3d": "从一个起始想法开始，AI 完成整本规划准备后，再由你选择正文生产方式。",
+            "gen_bfcaa5a4": "正在恢复自动导演现场。"
           },
           "StageBasicSetup": {
             "exampleFirst30ChaptersEstablishMainStanceCoreOpponentRelationshipReverseCliffHanger": "Example: first_30_chapters_must_make_reader_see_main_stable_core_opponent_appear_relationship_first_reverse_cliff_hanger",
@@ -2667,10 +3404,25 @@
             "gen_15dd65d3": "",
             "gen_d9dab569": "Section good",
             "gen_7c4d3215": "",
-            "gen_17301063": "Back method"
+            "gen_17301063": "Back method",
+            "gen_7de1f406": "这里只确认影响整本书阅读感的基础参数。不确定时保持默认，AI 会继续根据你的起始想法判断。",
+            "gen_25f0666e": "约 1 分钟",
+            "gen_a0cdc4d8": "会作为整书结构密度和后续卷章规划的参考，不是硬性上限。",
+            "gen_93651da0": "建议先小范围尝试：先查看规划和前期章节方向，确认符合想法后再扩大产出范围。",
+            "gen_6fae060b": "不确定可以先跳过。补充后，AI 会更清楚这本书写给谁、前 30 章要给读者什么。",
+            "gen_65d2a655": "目标读者",
+            "gen_abcb8835": "核心商业标签",
+            "gen_e596a595": "竞品感 / 熟悉阅读感",
+            "gen_466fe102": "本书核心卖点",
+            "gen_a76ca55a": "前 30 章承诺"
           },
           "StageCandidates": {
-            "gen_875c5ec8": "select"
+            "gen_875c5ec8": "select",
+            "gen_5259d640": "这里只需要判断哪本书更想读",
+            "gen_12f58e97": "重点比较主角欲望、核心冲突和持续爽点；标题与局部设定以后仍可调整。",
+            "gen_0f53a2f8": "确认后，AI 会继续准备角色、世界和卷章资源。",
+            "gen_af37f1c0": "先选最贴近你想法的一套方向；不满意时再展开调整或生成新一轮。",
+            "gen_470f9048": "回改设定"
           },
           "StageIdea": {
             "exampleOrdinaryFemaleUniversityStudentEnteredAbilitiesOrganizationWorkingAndStudyingWhileInvestigatingFatherDisappearedTruth": "Example: ordinary_female_university_student_entered_abilities_organization_working_and_studying_while_investigating_father_disappeared_truth",
@@ -2678,7 +3430,12 @@
             "gen_95e81025": "in approve Items open head ...",
             "gen_9649cffc": "use Settings Generate",
             "gen_fab2c176": "No method ？view Items open head",
-            "gen_4d020ba3": "Generate in ..."
+            "gen_4d020ba3": "Generate in ...",
+            "gen_ea200939": "一句话不需要写成完整大纲",
+            "gen_4cbff80d": "写清主角、处境或最想看的冲突即可。题材、卖点和长篇推进方式会由 AI 在下一步整理。",
+            "gen_41ce7e28": "用一句话，开始你的整本书",
+            "gen_14c587fb": "写下你想看的故事，AI 会先帮你整理成可选择的整本书方向。",
+            "gen_64c3a12e": "继续完善设定"
           },
           "StageModelRun": {
             "gen_5f0c896e": "this Times AI Progressto",
@@ -2689,7 +3446,17 @@
             "gen_6a1d99e4": "allBook Auto Book",
             "gen_4d020ba3": "Generate in ...",
             "gen_b21c2a02": "open start Generate",
-            "gen_96467e71": "module Settings"
+            "gen_96467e71": "module Settings",
+            "gen_6bf313d0": "确认模型与生产准备",
+            "gen_1242e965": "确认后，AI 会先给出两套整书方向，再自动完成开写前的角色和卷章准备。",
+            "gen_b53d3ca1": "启动前最后一步",
+            "gen_bc58dd1f": "自动导演会这样推进",
+            "gen_b079e44b": "系统完成角色、卷战略、拆章和章节执行资源。",
+            "gen_8df92c88": "简易创作由 AI 写完整本书；专业创作进入完整工作台。",
+            "gen_c7a8a71e": "正文会停在开写前等待你的选择",
+            "gen_1db3b088": "不会提前生成章节正文",
+            "gen_c4d8ff2b": "开启后，章节正文生成完成时会检测 AI 味风险，并在命中可修正问题时生成修订稿。",
+            "gen_a73469dd": "默认使用顶部已选模型；需要临时换模型时再展开调整。"
           },
           "StageWorldStyle": {
             "gen_50639e05": "this onlygive Auto fast 。 Import、Generatesum SyncPlease in Novel page's “ novelsBook World” in Completed。",
@@ -2705,7 +3472,12 @@
             "gen_5dcc48bb": "No Notmake use World View",
             "gen_53eb83ee": "ConfirmWorld and write method",
             "gen_2c26f042": "novelsBook World logic",
-            "gen_995130f1": "Backbegin start Settings"
+            "gen_995130f1": "Backbegin start Settings",
+            "gen_8524235e": "可以选一个世界样本给 AI 参考，也可以让它根据起始想法自动整理本书世界。写法会作为后续规划和正文的默认语气。",
+            "gen_67335685": "可保持默认",
+            "gen_01d8fd87": "适合奇幻、玄幻、科幻、悬疑等需要世界规则支撑的项目。",
+            "gen_99c7118b": "适合现实题材、轻设定项目，角色和章节会主要依据书级规划推进。",
+            "gen_2e8ab626": "书级默认写法"
           },
           "directorCreateStages": {
             "gen_ae77d6e9": "Not Draft Text after AI test",
@@ -2743,7 +3515,10 @@
             "chapterLocationBasicInfo": "Chapter Location and Basic Information",
             "saveBasicInfo": "Save Basic Information",
             "gen_b59a7318": "write method Suggestions",
-            "gen_d1de791d": "write method"
+            "gen_d1de791d": "write method",
+            "gen_b5f2826d": "书级定位",
+            "gen_970e009e": "先确认这本书面向谁、靠什么吸引读者、前期必须兑现什么，再让后续世界、角色和章节围绕同一组承诺展开。",
+            "gen_2afe9d6f": "保存基本信息"
           },
           "ChapterExecutionActionPanel": {
             "gen_87c7bd63": "this Chapter Already has Draft Text。now make Review ， Notshould ContinueEdit； Can first in Editdevice ， or in under 1 Repair。",
@@ -2813,7 +3588,13 @@
             "gen_e0b665f2": "slow",
             "gen_8fcedbfd": "fast",
             "low": "Low",
-            "gen_4296d7d2": "High"
+            "gen_4296d7d2": "High",
+            "gen_ffaef7a9": "默认只保留当前最推荐的一步。其他动作还在，但都退到下面的折叠区，避免右侧按钮堆满。",
+            "gen_50b2330b": "如果你不确定该点什么，优先用这里的推荐动作。更细的补充能力都还在下方。",
+            "gen_c110cd96": "资产补全与专项检查",
+            "gen_76f0eae5": "润色增强",
+            "gen_26639a5d": "高级写作策略",
+            "gen_8b6db225": "不确定时先保持默认值。只有你明确知道这一章需要更快节奏、更强冲突或更高自由度时，再手动调整。"
           },
           "ChapterExecutionResultPanel": {
             "aiOutputtingChapterContentObservingRhythm": "AI is continuously outputting the body text of this chapter. Please observe the rhythm and feel here first, and you can stop at any time if you are not satisfied.",
@@ -2833,7 +3614,11 @@
             "gen_e5b868d7": "Already SaveVersion",
             "fixButton": "Fix Button",
             "gen_08e4466c": "1Chapter",
-            "gen_604bd4b3": "Review"
+            "gen_604bd4b3": "Review",
+            "gen_fca605be": "先从左侧选中一个章节，这里会变成当前章节的主写作区，集中展示正文、任务单、质量反馈和修复记录。",
+            "gen_73c8823d": "查看建议",
+            "gen_dda4c027": "停止生成",
+            "gen_5631dbe0": "当前章节还没有正文。建议先补章节计划或任务单，然后从右侧直接执行“写本章”。"
           },
           "ChapterExecutionStatusFlow": {
             "gen_dd4e55c3": "Not open start"
@@ -2853,7 +3638,8 @@
             "gen_285214d7": "fix",
             "gen_fad5222c": "Already Completed",
             "gen_528e1003": "state column",
-            "gen_a8b0c204": "all"
+            "gen_a8b0c204": "all",
+            "gen_a7ecba20": "把这里收成真正的主工作台：左侧只管切章，中间完整承接正文，右侧专心放 AI 动作和策略。"
           },
           "ChapterRuntimePanels": {
             "lengthRange": "Soft Min Max Word Range",
@@ -2923,7 +3709,14 @@
             "gen_cdc447dc": "patch all",
             "gen_a10fa763": "define position",
             "mainCharacter": "Main Character",
-            "gen_2f4aaddd": "Delete"
+            "gen_2f4aaddd": "Delete",
+            "gen_ca40c5a5": "删除角色",
+            "gen_83b681f4": "主角",
+            "gen_19618429": "主角位",
+            "gen_4f1b7b08": "当前阵容还没有标记主角，可在角色定位中补充主角信息。",
+            "gen_1f968469": "配角与关系角色",
+            "gen_3010513a": "当前小说还没有角色，先在上方向导里创建或导入角色。",
+            "gen_e7bbce33": "当前阵容只有主角，后续可补充对手、同盟或关系压力角色。"
           },
           "CharacterAssetWorkspace": {
             "useWindowChapters": "Use Window: Chapter {expectedUseStartChapterOrder} to Chapter {expectedUseEndChapterOrder}",
@@ -3040,7 +3833,11 @@
             "gen_2fe3dee8": "bottom",
             "gen_df9c9706": "make",
             "mainCharacter": "Main Character",
-            "gen_0897e758": ""
+            "gen_0897e758": "",
+            "gen_7a03f43d": "角色资产控制台",
+            "gen_829116c3": "左侧切换阵容，右侧按场景查看和维护当前角色，减少长篇表单滚动。",
+            "gen_83b681f4": "主角",
+            "gen_704ea028": "先从左侧选择一个角色，再进入档案、外显、资源、时间线和关系维护。"
           },
           "CharacterCastOptionsSection": {
             "exampleMainChooseFamilyOrFreedomEvilNotPureControl": "Example: main_must_choose_family_responsibility_or_personal_freedom_evil_not_pure_control",
@@ -3106,11 +3903,26 @@
             "gen_3f981012": "Recommended",
             "gen_2f4aaddd": "Delete",
             "gen_36a4908a": "",
-            "gen_87c835a6": ""
+            "gen_87c835a6": "",
+            "gen_b8c3c475": "更适合前期搭建角色系统，或在故事方向大改后重新规划阵容。",
+            "gen_e9c04d8e": "查看其余方案",
+            "gen_65f3fea2": "重新规划阵容",
+            "gen_5d5b6cab": "可补充主角欲望、对手压力、关系张力，或你想重点强化的人物方向。",
+            "gen_ccea85cc": "基于本书世界生成",
+            "gen_600ada31": "检查世界规则合规",
+            "gen_aeb26bb3": "本书世界还没有准备好。本轮会优先根据书级信息和你的生成指令设计角色。",
+            "gen_2456f46b": "本书世界存在，但使用范围还未整理。建议先到基础信息页整理本书使用范围，或继续让 AI 按世界手册保守生成。",
+            "gen_c5e0a767": "收起方案区",
+            "gen_27ce77c2": "应用某套阵容后，会同步创建/更新角色，并刷新角色资产工作台。",
+            "gen_9ee33066": "正在加载阵容方案...",
+            "gen_eebf82cb": "系统发现它和当前故事设定还有不完全匹配的地方。你可以先应用，再到角色资产里调整。",
+            "gen_876ccb57": "还没有阵容方案。先输入一点人物方向，再点击“生成 3 套阵容”。",
+            "gen_2f6d05f7": "还没有角色关系。应用一套角色阵容后会在这里出现。"
           },
           "CharacterDiagnosticsSection": {
             "gen_a7c85e0b": "this inner merge in need need patch position 、check or logic close open 。 Editfirst view under Character 。",
-            "gen_fc84cea5": "Character and close"
+            "gen_fc84cea5": "Character and close",
+            "gen_1720cbdf": "需要补位、查缺口或整理阵容方案时再展开；角色动态、候选和卷级职责集中在“动态”页。"
           },
           "CharacterDynamicsSection": {
             "gen_895e8e81": "out ：{item.lastAppearanceChapterOrder ?? \"No no \"} / out Times number ：{item.appearanceCount}",
@@ -3155,7 +3967,12 @@
             "gen_2a2772fa": "Confirm",
             "gen_0e3de5a8": "Not split config",
             "gen_43307462": "define",
-            "gen_f61f4cf6": "No no"
+            "gen_f61f4cf6": "No no",
+            "gen_ac5b25a1": "这里把卷级职责、缺席风险、新角色候选和关系阶段放回角色页主流程，不再依赖你自己手工追踪。",
+            "gen_b7313050": "正在加载动态角色系统...",
+            "gen_d6a8c65c": "还没有待确认的新角色候选。写完几章后，这里会自动汇总 AI 抽取到的新人物入口。",
+            "gen_32d87874": "当前还没有关系阶段数据。应用阵容或完成章节后，这里会自动出现。",
+            "gen_23ab1942": "当前卷还没有角色职责投影。点击上方“重建动态角色”即可初始化。"
           },
           "CharacterFocusSummary": {
             "gen_7e669142": "use ：{selectedCharacter.storyFunction || \" patch all\"}",
@@ -3166,7 +3983,14 @@
             "gen_cebc6bbb": "Not define",
             "gen_cdc447dc": "patch all",
             "mainCharacter": "Main Character",
-            "gen_f61f4cf6": "No no"
+            "gen_f61f4cf6": "No no",
+            "gen_293a3516": "身份",
+            "gen_3fea7ca7": "状态",
+            "gen_09ee973e": "最近出场",
+            "gen_deb979f8": "当前目标",
+            "gen_5fd43ab7": "出场状态",
+            "gen_83b681f4": "主角",
+            "gen_c72a850f": "故事作用"
           },
           "CollapsibleSummary": {
             "gen_02e099f5": "open View",
@@ -3216,7 +4040,13 @@
             "gen_5c8a4a0e": "quantity",
             "gen_ffdc5d4f": "",
             "gen_398b9519": "according",
-            "gen_19ac37e4": "Volume rule"
+            "gen_19ac37e4": "Volume rule",
+            "gen_bfd9cd1c": "调试检查",
+            "gen_295db422": "这里展示的是每一步基于真实产出的检查结果。你可以直接看到哪一步已经有结果、哪一步缺前置条件、系统现在准备先补哪里。",
+            "gen_847a140a": "正在读取当前导演链的完整度检查结果...",
+            "gen_7efe23a8": "当前还没有可检查的导演任务。先启动或接手一次 AI 导演流程，这里才会出现逐步骤检查结果。",
+            "gen_3e223ec5": "当前系统会先补这一段",
+            "gen_c647cea2": "有些步骤的检查没有拿到完整结果。通常是因为当前任务现场不完整，或者这一段还需要补更多事实来源。"
           },
           "NovelAutoDirectorCandidateBatches": {
             "gen_72724574": "{candidate.targetChapterCount} Chapter",
@@ -3249,12 +4079,21 @@
             "gen_ce329b20": "Recommendedfirst view",
             "gen_4c1f0748": "select use this",
             "gen_6a848b19": "Can select Book",
-            "mainHook": "Main Hook"
+            "mainHook": "Main Hook",
+            "gen_1e4994a8": "先给 AI 一句灵感，它会先产出第一批整本书方向候选。",
+            "gen_95f7a293": "展开完整设定",
+            "gen_2a13978f": "调整书名与方向",
+            "gen_964d3a4d": "重做标题组",
+            "gen_d89381d3": "调整方向",
+            "gen_8eec4229": "点几个修正方向，再补一句你想要的感觉。系统会保留上一轮，再生成一批新的方案。",
+            "gen_d0d98caf": "再补一句修正建议"
           },
           "NovelAutoDirectorIdeaInspirationPanel": {
             "gen_4d020ba3": "Generate in ...",
             "gen_b1307309": "Generate",
-            "gen_ab0c9ba8": "1group"
+            "gen_ab0c9ba8": "1group",
+            "gen_ddbd386e": "这些只是临时灵感，使用后仍可继续改。",
+            "gen_ecff77a8": "使用"
           },
           "NovelAutoDirectorProgressPanel": {
             "gen_04183780": "ChapterListAlready keep ，this Yes 1Items Can logic 's Structure 。 Can fast Repair ， define Whether Continue after flow process 。",
@@ -3299,7 +4138,11 @@
             "gen_9476dc8a": "use",
             "gen_d7df9e41": "Current",
             "gen_8b4429c4": "Failed need",
-            "gen_f61f4cf6": "No no"
+            "gen_f61f4cf6": "No no",
+            "gen_5921db08": "运行详情",
+            "gen_1092e9d8": "按需查看实时指标、事件记录、写法和 AI 用量",
+            "gen_434f293e": "查看可恢复检查点与完成记录",
+            "gen_fa260277": "任务已创建，正在等待第一个稳定里程碑写入。"
           },
           "NovelBasicInfoForm": {
             "gen_bd720a25": "first write 、1Sentence 、Targetread 、check point sum before 30 Chapter ， patch WritingMode、 sum Progress ；this will after Storylinerule 、Volume Chapter Progresssum Draft TextGenerate。",
@@ -3340,9 +4183,9 @@
             "gen_a7535508": "WritingMode",
             "gen_daa08375": "bottom",
             "gen_c178e56a": "body verify",
-            "gen_15dd65d3": "",
+            "gen_15dd65d3": "叙事视角",
             "gen_d9dab569": "Section good",
-            "gen_7c4d3215": "",
+            "gen_7c4d3215": "情绪浓度",
             "gen_97da2dae": "ProjectMode",
             "gen_4847d889": "open Settings",
             "gen_4f5318f5": "begin Settings",
@@ -3351,7 +4194,19 @@
             "gen_3b94c707": "ProjectStatus",
             "gen_39e440e6": "StorylineStatus",
             "gen_b2430dc7": "OutlineStatus",
-            "gen_401cbdbf": "PublishStatus"
+            "gen_401cbdbf": "PublishStatus",
+            "gen_3389a297": "作品定位",
+            "gen_136451a4": "先写清楚这本书要兑现的读者承诺，再补创作模式、题材和推进方式；这些会直接影响后续主线规划、卷章推进和正文生成。",
+            "gen_378a392e": "题材基底回答“这是什么书”，例如修仙、都市、历史架空；推进模式回答“这本书靠什么持续推进和兑现”，例如系统流、无敌流、种田流。",
+            "gen_25a1be46": "默认章节字数",
+            "gen_c8ac2fad": "预计章节数",
+            "gen_2c26cae7": "主推进模式",
+            "gen_88ae2aa9": "副推进模式",
+            "gen_a8cb140c": "这里只用于记录初始化参考。完整导入、生成和同步请在创建后到小说工作台的“本书世界”中完成。",
+            "gen_e177d3df": "资源完备度",
+            "gen_c4d8ff2b": "开启后，章节正文生成完成时会检测 AI 味风险，并在命中可修正问题时生成修订稿。",
+            "gen_756f954f": "续写模式下需要先选择明确的上游来源，才能保存基本信息。",
+            "gen_1c76300a": "拆书结果需要搭配要注入的拆书章节。"
           },
           "NovelCharacterPanel": {
             "gen_f98b4efe": "novels Mode：{SUPPLEMENTAL_MODE_LABELS[supplementalResult.mode]}",
@@ -3446,7 +4301,8 @@
             "gen_27dd76d8": "Antagonist",
             "gen_f61f4cf6": "No no",
             "gen_36a4908a": "",
-            "gen_87c835a6": ""
+            "gen_87c835a6": "",
+            "gen_eaeb014a": "从角色准备接管"
           },
           "NovelEditView": {
             "currentPagePrefix": "Current Page: ",
@@ -3472,7 +4328,10 @@
             "gen_82e75116": "novelsBook",
             "gen_16fe50f9": "Not rule",
             "gen_c195df63": "diff",
-            "gen_55405ea6": "Export"
+            "gen_55405ea6": "Export",
+            "gen_9aa4252e": "改编漫画",
+            "gen_d869b179": "当前步骤会按你正在查看的工作台导出；整本书会把项目设定、故事规划、角色、卷规划、拆章、章节和质量修复资产一起导出。",
+            "gen_30e9d9c8": "这里收纳次级信息。首屏只保留当前步骤和恢复接管入口，避免主工作区被项目辅助信息挤满。"
           },
           "NovelExistingProjectTakeoverDialog": {
             "storyMacroPlanReady": "Has Story Macro Plan / Does Not Have",
@@ -3516,7 +4375,13 @@
             "gen_26d335b3": "read in",
             "gen_4845a292": "Already tool",
             "gen_461e96f3": "Not tool",
-            "gen_3f981012": "Recommended"
+            "gen_3f981012": "Recommended",
+            "gen_b5220f71": "先读取当前项目真实进度，再明确告诉你这次会跳过、继续还是重跑哪些步骤。",
+            "gen_e370757f": "高级设置",
+            "gen_c4d8ff2b": "开启后，章节正文生成完成时会检测 AI 味风险，并在命中可修正问题时生成修订稿。",
+            "gen_963f34aa": "系统会以整本书为目标接管当前项目，继续补齐规划、章节执行、审校和修复。只有模型不可用、服务异常、正文保护或不可恢复风险会停下。",
+            "gen_2574315e": "绑定书级默认写法后，接管时建议沿用它。前半段导演只读取轻量摘要，避免干扰结构规划。",
+            "gen_a23c9801": "处理当前任务"
           },
           "NovelTaskDrawer": {
             "evidencePrefix": "Evidence: ",
@@ -3603,7 +4468,15 @@
             "gen_ea4a363d": "Not Enabled",
             "gen_acd5cb84": "Failed",
             "gen_f61f4cf6": "No no",
-            "gen_27ca568b": "Continue"
+            "gen_27ca568b": "Continue",
+            "gen_f3ef03ed": "查看来源",
+            "gen_77ff4e7b": "查看本书 AI 推进记录、快捷处理动作和排查信息。",
+            "gen_2b13a91c": "这些判断会影响后续章节能使用哪些关键资源。",
+            "gen_c259caba": "当前没有可直接执行的快捷动作。",
+            "gen_5079c7bd": "当前任务还没有累计到可展示的 token 用量；一旦模型开始返回 usage，这里会自动刷新。",
+            "gen_3810583e": "当前还没有可显示的里程碑记录。",
+            "gen_ab108ae0": "当前小说还没有可见的自动导演任务。你可以继续手动创作，或在后台任务中心查看其他任务。",
+            "gen_e8f338fa": "打开后台任务中心"
           },
           "NovelWorkflowRunningIndicator": {
             "aiProgressingInBackground": "AI is continuously progressing in the background"
@@ -3696,7 +4569,7 @@
             "gen_8ee917f8": "define Volume number",
             "gen_e9a2d9e3": "Versioncontrol make",
             "gen_e8540d99": "Analysis",
-            "gen_c8b6fdbc": "",
+            "gen_c8b6fdbc": "升级梯度",
             "midTurn": "Mid Turn",
             "gen_67523299": "open Volume",
             "mainOppressor": "Main Oppressor",
@@ -3733,7 +4606,18 @@
             "gen_a6d66917": "",
             "gen_a208527a": "",
             "gen_8c90bea6": "out",
-            "gen_2f4aaddd": "Delete"
+            "gen_2f4aaddd": "Delete",
+            "gen_d88460f2": "从卷战略接管",
+            "gen_0ed4c99f": "卷战略控制台",
+            "gen_13b83dfd": "先确定整本书的卷级推进方式，再审当前卷的承诺、压力、兑现和下卷牵引。",
+            "gen_2eeddac4": "当前工作区已经具备继续推进的基础条件。",
+            "gen_d16a7644": "结构建议区间",
+            "gen_1580425d": "恢复系统建议",
+            "gen_8d4f455b": "当前卷",
+            "gen_0c1f7d5f": "战略总览",
+            "gen_f8a6b30c": "资产约束",
+            "gen_5692d9fb": "中盘转向",
+            "gen_7da519a5": "当前还没有卷战略建议。先点击“生成卷战略建议”。"
           },
           "PipelineTab": {
             "gen_onRunPipel_yvb9": "onRunPipeline()} disabled={isRunningPipeline || !hasCharacters}> quantity Generate",
@@ -3826,7 +4710,13 @@
             "gen_41ed42e6": "fix",
             "gen_f63762a0": "fast",
             "gen_f61f4cf6": "No no",
-            "gen_3df555d4": "allBook"
+            "gen_3df555d4": "allBook",
+            "gen_04111616": "自动审校",
+            "gen_fcc3d39a": "自动修复",
+            "gen_e39fc380": "跳过已完成章节",
+            "gen_4bd6d43a": "启动批量生成",
+            "gen_34f1e128": "仅重跑低分章节",
+            "gen_eb05564d": "这里是作品圣经里的文字记录；章节生成优先读取“本书世界”里的世界手册和使用范围。"
           },
           "StoryMacroPlanTab": {
             "aiCheckStoryMacroBookContract": "AI will first determine if the Story Macro / Book Contract is available, then decide whether to continue filling in missing content or re-run the current step according to your choice.",
@@ -3855,7 +4745,7 @@
             "gen_66cdbb1d": "create",
             "savingInProgressDotDotDot": "Saving... (dots)",
             "gen_270e2ebb": "method in",
-            "gen_e9965e52": "",
+            "gen_e9965e52": "故事引擎原型",
             "gen_b3bbd74d": "Character position",
             "gen_54a58752": "layout must out",
             "gen_15d16c90": "layout must",
@@ -3869,7 +4759,7 @@
             "gen_73eab2f9": "in",
             "gen_b450bec2": "InfoNot",
             "gen_99d0017d": "Rules",
-            "gen_1a452679": "",
+            "gen_1a452679": "约束引擎",
             "gen_c9de405e": "before",
             "gen_6f4a9bfe": "check Not",
             "gen_bd942d84": "wire",
@@ -3879,9 +4769,18 @@
             "gen_b1356fcd": "Status",
             "gen_ea328dc7": "CurrentStage",
             "saveStatus": "Save Status",
-            "gen_41c8c763": "",
-            "gen_a75820ba": "",
-            "gen_c7bff79d": "Progress"
+            "gen_41c8c763": "冲突层",
+            "gen_a75820ba": "硬约束",
+            "gen_c7bff79d": "Progress",
+            "gen_595eff3a": "从故事宏观规划接管",
+            "gen_337519db": "主角内在恐惧、欲望或误判怎样反噬自己。",
+            "gen_e163cdfa": "例如：仍在否认真相，但已经无法退出。",
+            "gen_2743f16f": "这里定义故事为什么能一直写下去：主角如何被困、冲突怎样升级、未知如何驱动读者继续读。",
+            "gen_e00c0917": "这里的规则会作为后续生成的硬边界，防止故事在下游被写散。",
+            "gen_feb6f0c0": "当前保存的是后续角色、主线、章节规划可以直接消费的规则源。",
+            "gen_21a6e214": "还没有约束引擎。先完成故事引擎拆解，再点击“构建约束引擎”。",
+            "gen_2cfe4fb7": "保存当前阶段和主角处境，方便后续章节推进时复用。",
+            "gen_cb7a468a": "主角当前处境"
           },
           "StructuredOutlineWorkspace": {
             "refinementProgress": "X Refinements out of Y Chapters Completed",
@@ -3936,7 +4835,14 @@
             "preserve": "Preserve",
             "gen_2f4aaddd": "Delete",
             "gen_ff3145ff": "Volume",
-            "gen_d81bb206": "no"
+            "gen_d81bb206": "no",
+            "gen_78b95b32": "不用回到项目设定，直接在这里重新进入自动导演，让 AI 继续推进节奏拆章或后续自动执行。",
+            "gen_8b1093d0": "保留已有正文",
+            "gen_44beb372": "同步时删除卷纲外章节",
+            "gen_e306c1af": "统一冲突等级 60",
+            "gen_47d92d84": "统一字数 2500",
+            "gen_4c0c2f7f": "批量补任务单",
+            "gen_ebccb95f": "当前章节规划先以“选章 + 细化”为主。批量补任务单、连接差异和 JSON 预览默认收起，避免打断主流程。"
           },
           "VersionHistoryTab": {
             "gen_snapshotla_36vz": "{snapshot.label || \"Not Version\"}",
@@ -3950,7 +4856,10 @@
             "gen_d89a0b16": "Not Version",
             "gen_291fb3fc": "Save",
             "gen_387b56ef": "Versionfast",
-            "gen_6fdd8590": "VersionHistory"
+            "gen_6fdd8590": "VersionHistory",
+            "gen_8a183aa7": "这里优先帮你找回最近的稳定版本。恢复前系统会自动再备份一次当前状态。",
+            "gen_a159f3ca": "这个版本适合在你想退回到更稳定的章节推进状态时使用。",
+            "gen_cb497484": "当前还没有版本记录。建议在大改方向、批量生成或大段重写前，先手动保存一个版本。"
           },
           "WorldInjectionHint": {
             "gen_08266721": "few Can use 's novelsBook World，Generate process will first according Novel InfoProgress。",
@@ -3972,7 +4881,13 @@
               "exampleReadersWhoLoveUrbanPressureReverseRelationshipAndContinuedChasingNewHooks": "Example: readers_who_love_urban_pressure_reverse_relationship_and_continued_chasing_new_hooks",
               "exampleRealityWorkplacePressureWithSlightColdHumorAndHighDensityRelationshipTug": "Example: reality_workplace_pressure_with_slight_cold_humor_and_high_density_relationship_tug",
               "exampleRevengeStrongConflictTensionedNegotiationOfficeRivalry": "Example: revenge_strong_conflict_tensioned_negotation_office_rivalry",
-              "gen_822ab1f4": "read and point"
+              "gen_822ab1f4": "read and point",
+              "gen_341f081d": "用最直白的话说清楚：这本书写给谁、卖点是什么、读者前 30 章会得到什么。不会写专业策划词也没关系，按你的直觉描述即可。",
+              "gen_65d2a655": "目标读者",
+              "gen_abcb8835": "核心商业标签",
+              "gen_e596a595": "竞品感 / 熟悉阅读感",
+              "gen_466fe102": "本书核心卖点",
+              "gen_a76ca55a": "前 30 章承诺"
             },
             "ContinuationSourceSection": {
               "gen_03c72dde": "write Mode under ，need need use 's on Novel or Text ， and define Whether in Book 。",
@@ -3989,7 +4904,35 @@
               "gen_30a3cbb1": "write source",
               "gen_ec8327f5": "station inner Novel",
               "gen_f9418451": "before Novel",
-              "gen_64d477d1": "Analyze Book"
+              "gen_64d477d1": "Analyze Book",
+              "gen_bd43b7d2": "拆书引用",
+              "gen_65f2794e": "当前续写来源暂无可用拆书结果，需要先完成成功的拆书分析。",
+              "gen_66eeacd9": "全选",
+              "gen_288f0c40": "清空"
+            },
+            "BasicInfoFormPrimitives": {
+              "gen_3f981012": "推荐"
+            },
+            "BookPositioningStudio": {
+              "gen_5f0c464b": "例如：雾港审判局",
+              "gen_db2128bf": "用 2-4 句话说明主角、核心冲突和故事看点。",
+              "gen_65d2a655": "目标读者",
+              "gen_144c6d68": "核心卖点",
+              "gen_4677bbcf": "前 30 章牵引",
+              "gen_23fb2e57": "待补",
+              "gen_0a6db431": "书级资产",
+              "gen_4344e6c7": "后续规划、角色和章节生成会优先读取这里",
+              "gen_374300d3": "定位这本书的读者承诺",
+              "gen_bdc21fe9": "先把标题、主冲突、读者期待和前 30 章必须兑现的内容收束清楚，再让 AI 继续展开世界、角色和章节。",
+              "gen_88af8bf5": "小说标题",
+              "gen_d4ed84ef": "一句话概述",
+              "gen_4707500c": "定位完成度",
+              "gen_085ceba9": "商业标签",
+              "gen_66c34c33": "填入 3-6 个标签，帮助后续标题、简介、章节钩子保持统一。",
+              "gen_2160aed3": "故事规划会读取读者承诺与商业标签。",
+              "gen_5290a439": "世界资产可在下方继续具现为规则、地点和势力。",
+              "gen_54683b4f": "章节执行会用前 30 章牵引约束早期正文。",
+              "gen_3e010cd4": "封面视觉"
             }
           },
           "chapterEditor": {
@@ -4002,7 +4945,16 @@
               "gen_e596edd9": "Apply in ...",
               "gen_7f7de8a2": "GenerateFailed",
               "gen_7c71e233": "edit write",
-              "gen_3f8a36ff": "all"
+              "gen_3f8a36ff": "all",
+              "gen_62113286": "段落对比",
+              "gen_f9769a5a": "细节标记",
+              "gen_5f5ec6f0": "右侧结果面板已固定保留。你可以先在正文中选中一段，再从浮动工具条发起“优化表达、扩写、精简、强化情绪、强化冲突或自定义指令”。",
+              "gen_bbb5aa0b": "发起改写后，这里会展示 2 到 3 个候选版本、改写摘要和段落对比。",
+              "gen_495c2d98": "正在基于选中文本生成 2 到 3 个候选版本，请稍候。",
+              "gen_7256b05a": "中间正文区正在显示段落 patch 对比。原文会以淡红块保留，改写会以浅绿块落在同一位置，便于按小说阅读顺序直接判断是否采纳。",
+              "gen_d96fe0ac": "中间正文区正在显示细节标记 diff，适合确认具体删改位置；如果更想顺着小说去读，切回“段落对比”会更轻松。",
+              "gen_ecc4410d": "拒绝全部",
+              "gen_a8943d52": "再生成"
             },
             "ChapterEditorDirectorPanel": {
               "gen_6bcaf650": "：{session.resolvedIntent?.conflictAdjustment}",
@@ -4033,7 +4985,15 @@
               "gen_4d020ba3": "Generate in ...",
               "gen_e596edd9": "Apply in ...",
               "gen_7f7de8a2": "GenerateFailed",
-              "gen_3f8a36ff": "all"
+              "gen_3f8a36ff": "all",
+              "gen_62113286": "段落对比",
+              "gen_f9769a5a": "细节标记",
+              "gen_946f5197": "片段模式",
+              "gen_1bffeb80": "整章模式",
+              "gen_e9994d11": "正在分析本章在卷中的位置、优先修正任务和可直接处理的片段，你可以稍等几秒再开始。",
+              "gen_5d47b03e": "直接用 AI 处理这张问题卡",
+              "gen_ecc4410d": "拒绝全部",
+              "gen_a8943d52": "再生成"
             },
             "ChapterEditorShell": {
               "gen_d8ad2137": "Please first select in Draft Text Paragraph ， or first from card define position to correct should Paragraph 。",
@@ -4050,7 +5010,11 @@
               "gen_f04a616c": "in Generatefix",
               "gen_91d500a5": "ChapterSaveFailed。",
               "gen_d4e517ac": "yet Not select in Paragraph",
-              "gen_cacb093a": "Chapter Draft Text"
+              "gen_cacb093a": "Chapter Draft Text",
+              "gen_ed002b91": "章节历史版本",
+              "gen_305a6c5c": "选择并恢复之前保存的章节版本。恢复前系统会自动备份当前状态。",
+              "gen_c3d68179": "请选择一个章节后开始编辑正文。",
+              "gen_9fceb8b4": "暂无历史版本记录。"
             },
             "ChapterEditorSidebar": {
               "aiNoClearIssuesYet": "AI hasn't organized clear issues yet. You can enter revision suggestions directly on the right or manually select a segment to correct.",
@@ -4075,7 +5039,13 @@
               "gen_777439b5": "Generate",
               "gen_ed62f56e": "Canceldefine position",
               "save": "Save",
-              "gen_d8766580": "Chapter"
+              "gen_d8766580": "Chapter",
+              "gen_678b8321": "返回章节执行页",
+              "gen_091493b9": "版本入口",
+              "gen_bef0a17b": "宏观定位暂时加载失败，你仍然可以先编辑正文或在右侧直接发起 AI 修正。",
+              "gen_1199cdd8": "正在准备本章的卷内定位和节奏建议。",
+              "gen_2498b7b4": "推荐先修",
+              "gen_1e39dcdc": "直接用 AI 处理"
             },
             "ChapterTextEditor": {
               "gen_09a5d331": "Current in DisplayParagraph patch correct ratio ， Text sum edit write will in Draft Text position place and 。",
@@ -4090,7 +5060,10 @@
               "gen_58378f0d": "Draft Text"
             },
             "SelectionAIFloatingToolbar": {
-              "exampleMakeThisPartMorePressuringKeepOriginalInfoButMakeRhythmTighter": "Example: make_this_part_more_pressuring_keep_original_info_but_make_rhythm_tighter"
+              "exampleMakeThisPartMorePressuringKeepOriginalInfoButMakeRhythmTighter": "Example: make_this_part_more_pressuring_keep_original_info_but_make_rhythm_tighter",
+              "gen_96b8f15f": "告诉 AI 怎么改",
+              "gen_625fb26b": "取消",
+              "gen_4e805c04": "提交指令"
             },
             "chapterEditorUtils": {
               "gen_4dde09a0": "define",
@@ -4140,7 +5113,8 @@
               "gen_332305cd": "approve control Char",
               "gen_d15aa8f4": "merge control Char",
               "gen_b25ee1ff": "Not set define",
-              "gen_f61f4cf6": "No no"
+              "gen_f61f4cf6": "No no",
+              "gen_9430f699": "选中章节后，这里显示本章状态、目标、字数、质量和待处理问题。"
             },
             "ChapterExecutionReferencePanel": {
               "gen_ceb81222": "No no single。 Can first let AI Generate single， Continuewrite this Chapter 。",
@@ -4184,7 +5158,9 @@
               "gen_b141e85c": "totalbody",
               "gen_dd608458": "Section",
               "gen_c50632e5": "Text",
-              "gen_d81bb206": "no"
+              "gen_d81bb206": "no",
+              "gen_95d85081": "选中章节后，这里会显示任务单、场景拆解、质量反馈、修复记录和诊断信息。",
+              "gen_bc8a3a82": "查看本章任务、质量和修复依据，不占用正文阅读区。"
             },
             "CharacterDynamicsPanel": {
               "gen_106bbc74": "this onlyview will under 1step Progress's Info，Not in this Edit。",
@@ -4200,7 +5176,8 @@
               "gen_9ed5f724": "close",
               "gen_076a259e": "newStatus",
               "gen_eefd8316": "close",
-              "foreshadowing": "Foreshadowing"
+              "foreshadowing": "Foreshadowing",
+              "gen_4054280a": "选中章节后，这里显示角色状态变化、关系变化和关键伏笔。"
             },
             "ResourceRiskPanel": {
               "proposalSourceText": "Auto Sync Discovery / Manual Review Found",
@@ -4241,7 +5218,8 @@
               "gen_5c6585e0": "Not test",
               "gen_e83a256e": "Confirm",
               "gen_c0d5d68f": "",
-              "gen_d81bb206": "no"
+              "gen_d81bb206": "no",
+              "gen_409634f9": "资源边界读取中。"
             },
             "TimelinePanel": {
               "gen_c318b98f": "split number {Math.round(timelineCheck.score * 100)}",
@@ -4269,7 +5247,11 @@
               "gen_87f88cff": "",
               "gen_7030ff64": "Error",
               "gen_4b027f39": "",
-              "gen_d8c7e04c": "Info"
+              "gen_d8c7e04c": "Info",
+              "gen_80cdb28b": "时间线检测读取中",
+              "gen_826ce696": "选中章节后，这里显示本章时间线检测结果。",
+              "gen_7528b9d5": "本章还没有时间线检测结果。",
+              "gen_9a9e0957": "选中章节后，这里显示本章时间锚点、上一章钩子、计划推进和禁止事项。"
             }
           },
           "characterAssetWorkspace": {
@@ -4327,6 +5309,65 @@
               "gen_2ca174f4": "",
               "gen_587f2127": "",
               "gen_42f8a02a": "flat"
+            },
+            "CharacterCreateDialog": {
+              "gen_85c3b8ab": "角色名称（必填）",
+              "gen_83b681f4": "主角",
+              "gen_f14665fc": "配角",
+              "gen_27dd76d8": "反派",
+              "gen_d62518be": "导师",
+              "gen_d56d71b4": "情感线",
+              "gen_813bdd02": "功能角色",
+              "gen_c25eecba": "与主角关系（如：试探合作）",
+              "gen_80ee2781": "在故事中的作用（如：推动真相线）",
+              "gen_4c09eaa7": "角色关键词（逗号分隔）",
+              "gen_098d06b1": "新增角色",
+              "gen_a06a1e92": "适合快速补齐阵容占位。创建后可在角色资产控制台继续完善档案、外显、资源和事件。",
+              "gen_433d87d0": "快速创建",
+              "gen_cd90f0a3": "先建立可上场的人物，再让 AI 补齐性格、背景和当前目标。",
+              "gen_6b27e255": "自动补齐性格、背景、成长弧和当前状态",
+              "gen_695cd6ed": "从基础角色库导入",
+              "gen_17134c0d": "适合复用已有模板，再按当前小说需求继续调整。",
+              "gen_c8ac8a1b": "管理基础角色库",
+              "gen_b080f029": "基础角色库为空，请先创建。"
+            },
+            "CharacterPreparationHero": {
+              "gen_ca1588b6": "角色阵容",
+              "gen_3ed577c6": "角色准备",
+              "gen_02a09a52": "把人物当作可持续运行的叙事资产来维护：先补齐阵容，再切换查看档案、外显、资源、时间线和关系。",
+              "gen_95d760ff": "下一步建议",
+              "gen_098d06b1": "新增角色",
+              "gen_d8d10894": "补充角色"
+            },
+            "SupplementalCharacterDialog": {
+              "gen_f4659006": "例如：补一个能持续给主角施压、但又不是纯反派的人；或补一个和母亲线相关的旧识。",
+              "gen_d8d10894": "补充角色",
+              "gen_104ecdb5": "适合补齐对手、同盟、压力源或关键关系人物。AI 会结合现有阵容给出可创建候选。",
+              "gen_620500d9": "补位方式",
+              "gen_b5a9e1e7": "默认交给 AI 判断；只有明确知道要补哪类人物时再手动指定。",
+              "gen_2eb92b6f": "基于现有角色衍生关系角色",
+              "gen_9d6ec340": "生成相对独立角色",
+              "gen_f82db5ca": "参考已有角色",
+              "gen_d6efe2d9": "可不选；不选时 AI 会自己判断应该围绕谁补位。",
+              "gen_92846493": "期望角色功能",
+              "gen_83b681f4": "主角",
+              "gen_32691290": "主对手",
+              "gen_9669fc43": "同盟",
+              "gen_d7fc88ac": "镜像角色",
+              "gen_d62518be": "导师",
+              "gen_65c52a7e": "情感牵引",
+              "gen_7aa91c6c": "压力源",
+              "gen_f57197c6": "催化者",
+              "gen_e99dfdf4": "生成数量",
+              "gen_a63d16b7": "额外说明",
+              "gen_ccea85cc": "基于本书世界生成",
+              "gen_9f13a0d0": "数量不选时由 AI 判断",
+              "gen_d3053d0b": "关系角色会优先围绕现有角色补位",
+              "gen_e995da4f": "候选结果",
+              "gen_3f5ddc26": "正在分析当前角色网并生成补位候选...",
+              "gen_543133bf": "先说明你想补哪类角色，或直接交给 AI 判断，再生成候选。",
+              "gen_a0237f0c": "建议同步的关系",
+              "gen_e01f7fa7": "这名角色更偏向独立补位，不强制写入角色关系。"
             }
           },
           "cover": {
@@ -4373,7 +5414,15 @@
               "gen_dbec491f": "select graph",
               "gen_c8339fd2": "",
               "gen_1fb52965": "Novel",
-              "gen_2f4aaddd": "Delete"
+              "gen_2f4aaddd": "Delete",
+              "gen_14097695": "系统设置",
+              "gen_af8adf82": "系统已经根据当前小说基础信息整理了一版封面输入草稿。你可以直接改，也可以先点“AI优化Prompt”再继续手动调整。",
+              "gen_a7bac223": "中文",
+              "gen_780bf992": "恢复原链路",
+              "gen_53458566": "这里展示最终会发送给图像模型的 prompt。你可以直接编辑，也可以在 AI 优化后继续做细调。",
+              "gen_802b3223": "生成成功后会自动回到这里。第一张成功图会在当前没有主封面时自动设为主图。",
+              "gen_17b0f589": "正在读取封面图库...",
+              "gen_bd05244e": "还没有封面图。先提交一次生成任务，成功后会出现在这里。"
             },
             "novelCoverDraft": {
               "lowEmotionalIntensity": "Low Emotional Intensity",
@@ -4386,6 +5435,15 @@
               "gen_7209da38": "slow Section",
               "gen_de82b2fd": "fast Section",
               "gen_f07d8f75": "avg"
+            },
+            "NovelCoverCard": {
+              "gen_1cb4d7d3": "打开封面图库",
+              "gen_7da5ee1b": "小说封面主画面",
+              "gen_2d4e3aaf": "先生成这本书的封面主画面。当前阶段不直接生成可用书名字体，后续仍可继续排版成正式封面。",
+              "gen_532507aa": "正在读取当前封面图库...",
+              "gen_7e9c0d70": "还没有封面主画面。点击上方按钮，系统会先根据当前小说信息整理一版封面输入草稿。",
+              "gen_c92a64ca": "当前主封面",
+              "gen_b1e69a0a": "主封面会随图片域里的 `isPrimary` 切换，不会把封面状态写死到小说主表里。"
             }
           },
           "list": {
@@ -4419,7 +5477,11 @@
               "gen_9ed7d3ad": "Total"
             },
             "NovelListPagination": {
-              "gen_5ecc53d5": "Novel Listsplit page"
+              "gen_5ecc53d5": "Novel Listsplit page",
+              "gen_f4f85316": "上一页",
+              "gen_ac007746": "第",
+              "gen_5fccd018": "页",
+              "gen_b4e1b508": "下一页"
             },
             "novelListViewModel": {
               "gen_476d9bdf": "No Auto ，Can in ProjectContinue or Chapter。",
@@ -4447,6 +5509,10 @@
               "gen_9290b644": "Chapter",
               "gen_464f3d4e": "Character",
               "gen_eee83a92": "source"
+            },
+            "NovelProjectCard": {
+              "gen_2eceed7d": "执行详情",
+              "gen_645dbc55": "预览"
             }
           },
           "novelExistingProjectTakeoverViewModel": {
@@ -4586,7 +5652,11 @@
               "gen_dcfe557b": "",
               "gen_fc1a7d3c": "ly point",
               "gen_1d0274a5": "",
-              "gen_6f36dc9d": ""
+              "gen_6f36dc9d": "",
+              "gen_c312cf8f": "本书世界会作为独立副本使用。需要同步时，可以手动推送本书世界或拉取世界库内容。",
+              "gen_bf971021": "关闭同步",
+              "gen_d90df0f0": "本书世界和世界库样本保持一致。",
+              "gen_2471356e": "把本书世界保存为可复用样本，后续可以推送本书修改或拉取世界库内容。"
             },
             "NovelWorldSourcePanel": {
               "gen_e270c2d5": "merge No Worldset define ，let according 、 、 point sum TypeGenerate novelsBook World。",
@@ -4610,7 +5680,16 @@
               "gen_b26107b6": "Create in ...",
               "oneLineSummary": "One Line Summary",
               "gen_1dce4d42": "novelsBook sub novels",
-              "worldName": "World Name"
+              "worldName": "World Name",
+              "gen_8e27e1ee": "从样本库导入",
+              "gen_5e9130d3": "例如：紫霞界",
+              "gen_40a39272": "例如：星核枯竭的边境帝国，魔法与权力都要付出代价。",
+              "gen_bfdf32f8": "先决定这本小说的世界从哪里来，再展开对应操作。新建世界会同时保存到世界库，并与本书关联。",
+              "gen_f64840e9": "导入会复制外部世界手册。本书生成时使用这份副本，外部世界库不会被自动改动。",
+              "gen_46b45bde": "系统会根据标题、简介、卖点、读者承诺和类型信息生成一套本书世界，同时保存到世界库，方便后续复用和维护。",
+              "gen_a26aa7a6": "先创建一份空白世界手册，并同步保存到世界库；再到世界工作台补齐核心规则、主要势力、故事舞台和关键张力。",
+              "gen_3ed0b0ee": "世界名称",
+              "gen_daaabf70": "一句话概要"
             }
           },
           "pipelineTab": {
@@ -4665,15 +5744,19 @@
               "gen_06b045ba": "Progressto"
             },
             "TakeoverContextSummaryPanel": {
-              "gen_335ffbc2": "CurrentProjectInfo will for Auto in"
+              "gen_335ffbc2": "CurrentProjectInfo will for Auto in",
+              "gen_751d992f": "当前信息较少，建议至少补一句故事概述或书级卖点后再接管。"
             },
             "TakeoverDiagnosisPanel": {
               "gen_86f85aff": "read ProjectProgress",
               "gen_684c9230": "in ...",
-              "gen_e5efd363": ""
+              "gen_e5efd363": "",
+              "gen_50f2047b": "进入当前任务",
+              "gen_b8193640": "默认保留已有资产，仅在高级设置选择重跑时才会重建对应步骤。"
             },
             "TakeoverProgressInspectionPanel": {
-              "gen_a6cccc7c": "in read Current 's Progress..."
+              "gen_a6cccc7c": "in read Current 's Progress...",
+              "gen_6ad7266b": "当前任务详细进度读取失败，已先显示项目资产体检。"
             }
           },
           "titleWorkshop": {
@@ -4702,7 +5785,15 @@
               "gen_e6e71acf": "fast Generate",
               "gen_e99dfdf4": "GenerateCount",
               "gen_9dc08cbe": "in",
-              "gen_bf94700b": "Currentselect in"
+              "gen_bf94700b": "Currentselect in",
+              "gen_98b3600b": "不做绑定关系，只是帮你更快把标题写进创建表单。可以直接生成候选，也可以从标题库挑一个回填。",
+              "gen_79fb8c8d": "会优先读取当前创建页里已经填写的简介、题材、文风、节奏和叙事视角。你也可以在下面临时补充一句简报，不用先回到表单里填写。",
+              "gen_92a670b8": "补充标题简报",
+              "gen_f08bf870": "这里只影响这一次生成，不会自动回写到小说创建表单。",
+              "gen_3757d569": "参考标题",
+              "gen_7e76ff36": "至少先补一句标题简报，或填写一个参考标题；如果创建页里已经有简介、类型或文风，也会自动参与生成。",
+              "gen_9764eda5": "标题库加载中...",
+              "gen_d451b340": "当前条件下还没有可用标题。可以切到“快速生成”先产出一批候选。"
             },
             "NovelTitleWorkshop": {
               "gen_ebad2918": "point 1Times Generate， can get to 1 CurrentProjectset define 's select 。",
@@ -4715,7 +5806,8 @@
               "saveCurrentTitle": "Save Current Title",
               "gen_4d020ba3": "Generate in ...",
               "gen_65b0c5a6": "Generate select",
-              "gen_42767810": "Applyto Project"
+              "gen_42767810": "Applyto Project",
+              "gen_c26e0674": "基于当前已保存的小说简介和类型生成候选。如果刚修改过简介或类型，建议先保存基本信息再生成。"
             }
           },
           "useNovelAutoDirectorCandidateMutations": {
@@ -4727,6 +5819,402 @@
             "gen_6bd0d323": "select GenerateFailed。",
             "gen_55a06a5e": "define fix Failed。",
             "gen_ad897586": "group fix Failed。"
+          },
+          "BookPayoffLedgerCard": {
+            "gen_524ff4b3": "全书 Canonical 伏笔账本",
+            "gen_92869af8": "这块是整本书级别的 canonical 伏笔账本，不跟随当前卷切换。默认收起，需要检查整条伏笔链或整体回收压力时再展开。",
+            "gen_75118e6e": "展开全书账本",
+            "gen_1b97f5f5": "收起全书账本",
+            "gen_bd0fa33e": "后续规划、写作、审查和修复优先消费这里的 canonical 结果，不再只盯某一处原始字段。",
+            "gen_13db784d": "当前还没有可用的 canonical 伏笔账本。首次进入老项目时，系统会懒同步这份账本；如果现在仍为空，说明相关规划或状态材料还不够。",
+            "gen_b26ec16a": "全书最新状态快照",
+            "gen_4863cd8f": "这里显示的是全书最新状态，不只限当前卷，用来辅助判断整体回收压力。",
+            "gen_f54a64d5": "待跟进",
+            "gen_71eac023": "当前没有待跟进的伏笔状态。",
+            "gen_68b30ffc": "已回收",
+            "gen_a85a627a": "已失效",
+            "gen_abbaad66": "还没有可用的伏笔状态快照。先执行章节生成或审计后，这里的状态会逐步充实。"
+          },
+          "ChapterExecutionQueueCard": {
+            "gen_54d1ba31": "章节队列",
+            "gen_9d798f90": "左侧只负责切章和查看推进状态，把正文阅读区完整留给中间的主写作面板。",
+            "gen_507c26f2": "当前筛选下还没有章节。",
+            "gen_008677f0": "修复中",
+            "gen_38ce27d8": "下一步",
+            "gen_ff9c965e": "当前字数"
+          },
+          "characterWorkspace": {
+            "CharacterDialogueStage": {
+              "gen_7beed6f8": "正在读取谈话记录...",
+              "gen_380a5680": "从一句话开始",
+              "gen_3638809e": "不确定之处：",
+              "gen_fcf69835": "依据",
+              "gen_51331bb2": "对角色说的话",
+              "gen_4056c83d": "这段谈话留下的创作倾向"
+            },
+            "CharacterIntelligenceTab": {
+              "gen_d0eaa49e": "正在整理角色的谈话场景...",
+              "gen_5c672acc": "准备谈话场景"
+            },
+            "CharacterMindSceneAnalysis": {
+              "gen_c8678319": "谈话中的关注点",
+              "gen_cb69990e": "可能的误读",
+              "gen_4d025ca0": "受压时的反应",
+              "gen_36e6bbb9": "当前情绪与立场",
+              "gen_22180cfd": "什么会改变决定",
+              "gen_7c922379": "当前相信",
+              "gen_aa27c363": "推断依据",
+              "gen_6a19aea3": "角色场景分析",
+              "gen_3ebd6274": "他如何看待眼前局面"
+            },
+            "CharacterOverviewTab": {
+              "gen_6bf1f392": "当前状态",
+              "gen_deb979f8": "当前目标",
+              "gen_477845d5": "情绪信号",
+              "gen_ae633931": "秘密状态",
+              "gen_4360c49d": "关键资源",
+              "gen_6d576357": "风险提示",
+              "gen_c72a850f": "故事作用",
+              "gen_3c8838b3": "外在目标",
+              "gen_8b0a265b": "内在需求",
+              "gen_9ce2975b": "恐惧 / 伤口",
+              "gen_913edca2": "错误信念",
+              "gen_6130a3d1": "道德底线",
+              "gen_439fbb41": "角色运行状态",
+              "gen_47ccea8e": "先看角色下一章能做什么、想要什么、受什么限制。",
+              "gen_dccda2d1": "行动边界",
+              "gen_e0646024": "与主角关系",
+              "gen_f2e5413f": "戏剧引擎",
+              "gen_383f251a": "角色功能",
+              "gen_cdff8ac4": "成长轨道",
+              "gen_cc4d70b4": "可后续接入思路线"
+            },
+            "CharacterProfileTab": {
+              "gen_10a6f121": "角色名称",
+              "gen_22cffcec": "角色定位",
+              "gen_ca7f49bf": "当前状态（例如：重伤闭关）",
+              "gen_bad43983": "当前目标（例如：三个月内突破）",
+              "gen_e3bb2ab7": "性格补充",
+              "gen_06575dab": "背景补充",
+              "gen_6f6c3755": "成长弧补充",
+              "gen_3a771e17": "基础档案",
+              "gen_c083d32f": "这里维护角色进入章节生成时最稳定的资料。当前状态和当前目标会影响后续章节行动判断。",
+              "gen_bf22e442": "性别：未知",
+              "gen_940ec4fe": "性别：男",
+              "gen_6e2fb7fd": "性别：女",
+              "gen_3a5b7ca6": "性别：其他",
+              "gen_2bba6740": "当前处境",
+              "gen_18387993": "外显字段快速编辑"
+            },
+            "CharacterRelationshipGraphPanel": {
+              "gen_6606fcbf": "角色关系网",
+              "gen_1059631b": "以图谱方式观察角色之间的压力、合作、秘密和下一转折点。",
+              "gen_a5901efd": "全屏查看",
+              "gen_49041f24": "退出全屏",
+              "gen_deb979f8": "当前目标",
+              "gen_6bf1f392": "当前状态",
+              "gen_c72a850f": "故事作用",
+              "gen_e0646024": "与主角关系",
+              "gen_ef069f6d": "关系数",
+              "gen_a7b813a0": "动态阶段",
+              "gen_71414076": "表层关系",
+              "gen_ea328dc7": "当前阶段",
+              "gen_881f5901": "隐藏张力",
+              "gen_7e5066b6": "冲突来源",
+              "gen_5113255e": "秘密不对称",
+              "gen_7006c845": "下一转折点",
+              "gen_7cfb85b5": "阶段数",
+              "gen_57846ffb": "风险",
+              "gen_1b243c5e": "正在读取角色关系网...",
+              "gen_9114fe73": "普通关系",
+              "gen_8dbec279": "高张力",
+              "gen_4be74c70": "当前角色在左侧，直接关系向右展开；点击连线查看关系细节。",
+              "gen_976a3e8e": "核心",
+              "gen_0c7f896a": "点击角色或关系线查看详情。",
+              "gen_a8abe813": "叙事核心",
+              "gen_40c7827e": "关系网还没有可绘制内容",
+              "gen_7e239bca": "先应用一套角色阵容，或完成几章后同步角色动态；系统会把表层关系、隐藏张力和动态阶段汇总到这里。"
+            },
+            "CharacterResourceTab": {
+              "gen_4360c49d": "关键资源",
+              "gen_05018ba7": "关键道具、线索、身份凭证或底牌会在章节写作后沉淀到这里；临时角色只保留会影响后续章节的资源。"
+            },
+            "CharacterTimelineTab": {
+              "gen_31455571": "角色事件流",
+              "gen_f934ba1a": "用最近章节事件观察角色处境变化，必要时同步时间线后再继续写作。",
+              "gen_72b998fb": "暂无事件，先点击“同步角色时间线”。"
+            },
+            "CharacterVisibleProfileTab": {
+              "gen_42466b39": "补全倾向（可选）：例如更有压迫感、带一点病弱感、声音更温和、不要写成传统美人",
+              "gen_8c542af9": "外显资料生成",
+              "gen_21459dc4": "补齐外貌、体态、声音和登场记忆点，让角色在正文中更容易被读者识别。",
+              "gen_dfee7e26": "请先看下面差异，确认后点击保存到角色卡。",
+              "gen_e301c9b1": "点击“AI 补全外显资料”后，会先在这里显示即将保存的差异；确认后再保存到角色卡。"
+            }
+          },
+          "directorAutoExecutionPlan": {
+            "shared": {
+              "gen_7b5d1764": "例如 10",
+              "gen_95181ff9": "例如 11",
+              "gen_69dc052b": "例如 20",
+              "gen_b2c5b372": "例如 2",
+              "gen_4ebd9a1f": "切换正文生成后是否自动审核",
+              "gen_23d01516": "切换审核后是否自动修复",
+              "gen_ff0bfdcb": "自动执行范围",
+              "gen_4404ffa3": "章节数量",
+              "gen_4f82436f": "起始章节",
+              "gen_1024805a": "结束章节",
+              "gen_8abd1736": "卷序号",
+              "gen_8610fff5": "正文生成后自动审核",
+              "gen_87a2ea59": "关闭后，正文生成完成即结束当前章节，质量校验交给你手动处理。",
+              "gen_554873f0": "审核不通过时自动修复",
+              "gen_e5a5b651": "只在开启自动审核后生效；关闭时会保留问题，等待你手动处理或重跑。"
+            }
+          },
+          "DirectorTakeoverEntryPanel": {
+            "gen_f0fa830b": "接管前会先读取当前项目真实进度，并明确告诉你这次会跳过、继续还是重跑哪些步骤。"
+          },
+          "NovelCreateResourceRecommendationCard": {
+            "gen_a265e2ec": "先让 AI 推荐一套开书底座",
+            "gen_ea5cd7b9": "你不用先理解题材基底库和推进模式库。先写一句灵感、卖点或前 30 章承诺，系统会帮你推荐一套更适合新手起步的默认组合。",
+            "gen_c439c0d7": "已填入当前表单",
+            "gen_4f641461": "先补一句灵感、概述、目标读者、卖点或前 30 章承诺中的任意一项，AI 才能更稳地判断你该从哪种题材和推进模式起步。",
+            "gen_91a9766f": "你刚刚改过开书信息，建议重新推荐一次，让题材和推进模式跟上最新方向。",
+            "gen_5c3b741f": "推荐题材基底",
+            "gen_49a4d661": "推荐主推进模式",
+            "gen_43f1e65b": "推荐副推进模式",
+            "gen_1e44453c": "当前更适合先把主推进模式跑稳，不建议一开始叠太多风味。"
+          },
+          "NovelDirectorPreparationJourney": {
+            "gen_6ceb1aac": "这段准备不需要逐项审核",
+            "gen_bd929ae9": "所有开写资源准备好后，再选择简易创作或专业创作。",
+            "gen_2b2cc1d5": "开写前准备",
+            "gen_be8f97ff": "正文尚未开始生成",
+            "gen_3925c349": "准备完成后，由你选择正文生产方式",
+            "gen_1ea8d690": "系统会停在开写前，不会提前生成正文。",
+            "gen_7dbec81e": "简易创作 · AI 写完整本书",
+            "gen_e2d93777": "专业创作 · 进入完整工作台"
+          },
+          "NovelProductionExperienceHandoff": {
+            "gen_693fccfa": "这是正文开始前唯一一次生产方式选择",
+            "gen_8ea4b146": "新手推荐简易创作：AI 会持续写作、审校和修复，你只看稳定的完成稿。需要亲自修改时再选专业创作。",
+            "gen_ccd1b8ed": "开写前准备完成",
+            "gen_5a8902a2": "故事方向、角色和卷章安排准备完毕。接下来可以让 AI 持续写完整本书，也可以进入完整工作台亲自控制。",
+            "gen_04c79172": "推荐新手",
+            "gen_1fd86181": "简易创作",
+            "gen_30bcd4fb": "专业创作",
+            "gen_5f26e3af": "保留完整控制权，检查规划后自行安排正文生产。"
+          },
+          "NovelStyleRecommendationCard": {
+            "gen_389dc596": "这本书的默认写法",
+            "gen_41a7dd90": "这里负责为当前小说选择和应用书级写法。写法资产属于资源层，应该在这里被小说消费，而不是从资产库反向决定“哪本书来用它”。",
+            "gen_21d1ad66": "打开资产库 / 高级编辑",
+            "gen_7fe19fe6": "去新建一套写法",
+            "gen_a99bd7d7": "当前书级默认写法",
+            "gen_1832995d": "这本书还没有绑定默认写法。推荐先让系统根据当前小说的目标读者、卖点和前 30 章承诺给出 2-3 套候选。",
+            "gen_5a2b4de3": "生效方式",
+            "gen_4ee43e9f": "规划期：自动导演和章节规划只读取“读感承诺 / 语言密度 / 对白风格 / 情绪外显 / 反 AI 摘要”。",
+            "gen_1a5e0424": "正文期：绑定成功后，planner 和 runtime 会继续使用完整写法规则与反 AI 约束。",
+            "gen_7d284ee8": "重新推荐",
+            "gen_29e0f60e": "推荐结果",
+            "gen_288baf1f": "当前还没有可推荐的写法资产。可以先去写法引擎沉淀 1-2 套，再回来为这本书做选择。",
+            "gen_d5270841": "这里会展示系统为当前小说挑出的 2-3 套写法方案，并告诉你为什么适合、有哪些注意事项。"
+          },
+          "NovelWorldManagerCard": {
+            "gen_0a431a82": "核心规则",
+            "gen_39564dbc": "主要势力",
+            "gen_bf876a86": "故事舞台",
+            "gen_b7cadb8f": "关键张力",
+            "gen_7a3505c9": "选择或生成本书世界",
+            "gen_81ee3c6c": "从世界库导入、根据本书生成，或先创建一个自定义世界骨架。",
+            "gen_43d22961": "待选择",
+            "gen_26d335b3": "读取中",
+            "gen_e83ed182": "本书世界",
+            "gen_0b5405d2": "打开完整世界手册",
+            "gen_72d8b4e7": "整理使用范围",
+            "gen_d916ff4a": "处理同步差异",
+            "gen_1d7818dd": "生成链会读取这份世界",
+            "gen_54b6dcf5": "世界约束条"
+          },
+          "NovelWorldUsageCard": {
+            "gen_fcd9b267": "主舞台",
+            "gen_26f05301": "活跃势力",
+            "gen_3fd96627": "故事地点",
+            "gen_6d93df36": "硬规则",
+            "gen_e83ed182": "本书世界",
+            "gen_ca4bb86a": "章节生成读取的是这本书的世界副本。",
+            "gen_8ac8e795": "故事想法来源",
+            "gen_6ccfa1ce": "使用范围会结合当前故事方向裁剪。",
+            "gen_820ef10b": "请选择主舞台",
+            "gen_3c8502ed": "必须保留的组织、地点和规则",
+            "gen_ef4627f0": "适合开局地点、关键盟友、主要敌人和不能突破的力量代价。",
+            "gen_d28cb76e": "必须保留的组织",
+            "gen_04faf2b2": "主角出身、主要敌人、关键盟友这类前期不能漏掉的势力。",
+            "gen_70d12403": "本书世界里还没有可选组织。",
+            "gen_e6c83226": "必须保留的地点",
+            "gen_0494d750": "开局地点、试炼地、冲突爆发地和读者需要反复记住的舞台。",
+            "gen_05a6d26a": "本书世界里还没有可选地点。",
+            "gen_c0ad1d48": "必须遵守的规则",
+            "gen_b2331435": "力量代价、身份禁忌和不能被剧情随意突破的边界。",
+            "gen_3401905f": "本书世界里还没有可选规则。",
+            "gen_74071472": "例如：保留原作的现实商业环境和人物压迫感，不要引入超自然体系。",
+            "gen_483341fb": "使用范围详情",
+            "gen_a810386f": "查看和调整本书前期必须保留的世界约束。",
+            "gen_553a34e5": "章节生成使用范围",
+            "gen_59fb60f0": "调整保留项",
+            "gen_b550c279": "边界：",
+            "gen_d8c40a7a": "生成使用范围",
+            "gen_3ff040cb": "这里确认章节生成实际会读取的规则、势力和地点。你可以只指定少量必须保留项，其余交给系统按本书方向裁剪。",
+            "gen_c2c3bcb7": "这本小说还没有本书世界。先从世界库导入，或根据本书主题生成一套世界，再整理当前故事会重点使用的规则、势力和地点。",
+            "gen_f3b342c6": "世界底色",
+            "gen_3419a5a3": "会用到的组织",
+            "gen_7bc063ef": "会用到的地点",
+            "gen_0a431a82": "核心规则",
+            "gen_f61f4cf6": "暂无",
+            "gen_bc6823e0": "压力来源",
+            "gen_a3737c81": "不要越过的边界",
+            "gen_8a416bb1": "手动保留项",
+            "gen_7251aeea": "这里只指定必须出现或必须遵守的少量内容，不需要重填整套世界。",
+            "gen_d86d0336": "不额外指定",
+            "gen_4793dda7": "前期不要越界的边界说明",
+            "gen_5d46e874": "可以补一句边界，例如“保留现实都市基底，不要转成玄幻升级文”。",
+            "gen_c72e790f": "这本书还没有整理出当前故事会用到的世界范围。点击“整理本书使用范围”后，会根据本书世界和故事想法生成一版可确认的规则、势力和地点范围。"
+          },
+          "outline": {
+            "OutlineCurrentVolumeWorkspace": {
+              "gen_623fc2f6": "本卷紧张度",
+              "gen_342a60dd": "查看章节冲突强度走向，红点表示你固定给后续 AI 保留的强度。",
+              "gen_086ea3e5": "卷定位",
+              "gen_92e26b19": "确定这一卷给读者的第一印象、阅读承诺和核心卖点。",
+              "gen_5a33e631": "卷标题",
+              "gen_4f518d8c": "卷摘要",
+              "gen_67523299": "开卷抓手",
+              "gen_d36764b6": "主承诺",
+              "gen_144c6d68": "核心卖点",
+              "gen_dc53da4f": "推进压力",
+              "gen_7d48cf66": "控制本卷的压迫来源、升级方式和角色变化，避免中段松散。",
+              "gen_23da32e5": "主压迫源",
+              "gen_bc363719": "升级方式",
+              "gen_301bf42e": "主角变化",
+              "gen_268a9414": "中段风险",
+              "gen_a2784e65": "兑现牵引",
+              "gen_c19cdecd": "明确卷末回报、遗留承诺和进入下一卷的牵引。",
+              "gen_c268bee7": "卷末高潮",
+              "gen_057e169f": "兑现类型",
+              "gen_345ca1da": "下卷钩子",
+              "gen_315e0a35": "卷间重置点",
+              "gen_db7f46ca": "本卷未兑现事项",
+              "gen_756ea85e": "每行一个，或用中文逗号分隔。",
+              "gen_9ba41750": "左侧先选择一卷，或先生成全书卷骨架，再在这里编辑当前卷详情。",
+              "gen_75e002ab": "压迫源",
+              "gen_9ffe12d4": "卷末兑现",
+              "gen_a0fa6f5c": "卷导航",
+              "gen_dd22e3c6": "左侧用卷标题和卷描述定位当前要编辑的卷。",
+              "gen_495efc7f": "新增卷",
+              "gen_5aa16c21": "当前还没有卷骨架。先生成卷战略建议，再点击“生成全书卷骨架”。",
+              "gen_6a888e12": "去节奏 / 拆章编辑曲线",
+              "gen_315eacd1": "上移",
+              "gen_17acd250": "下移",
+              "gen_2f4aaddd": "删除"
+            },
+            "OutlineResourceCommitments": {
+              "gen_f6a53b87": "本卷关键资源承诺",
+              "gen_4ceac86e": "只显示会影响本卷行动边界、铺垫或后续兑现的资源。",
+              "gen_e1686c11": "当前卷没有需要特别盯住的角色资源承诺。"
+            }
+          },
+          "storyMacroPlan": {
+            "StoryEngineStudio": {
+              "gen_4620ef74": "用自然语言描述故事想法、想要的压迫感、想避免的风格和结局倾向。",
+              "gen_a1741ac4": "每行一个关键兑现点。",
+              "gen_4fd31a9e": "宏观规划就绪度",
+              "gen_23fb2e57": "待补",
+              "gen_ce251da4": "故事引擎",
+              "gen_4514594b": "把书级承诺拆成后续规划可以执行的骨架",
+              "gen_f754047d": "控制主线如何持续推进",
+              "gen_054c37f1": "这里不急着写章节，而是先定义读者为什么追、长期对立如何升级、主角怎样变化，以及前中后期必须兑现哪些节点。",
+              "gen_270e2ebb": "故事想法输入",
+              "gen_070403f1": "读者追更理由",
+              "gen_ae6f7246": "长期压力源",
+              "gen_c681f960": "关键兑现点",
+              "gen_1f7fb7d0": "主线骨架",
+              "gen_50b87e80": "这组字段会进入后续角色、卷战略、节奏拆章和章节任务，是故事能否持续推进的核心资产。",
+              "gen_436e71b0": "满意的字段先锁定",
+              "gen_c2f23046": "再局部重生成"
+            }
+          },
+          "StructuredBeatSheetCard": {
+            "gen_0d966871": "当前卷节奏",
+            "gen_1ddd8bad": "先看当前聚焦区间，再在下方按节奏分组的章节导航里切换节奏并选章细化。",
+            "gen_7b61f0ba": "当前聚焦区间",
+            "gen_d4459101": "这段负责推进什么",
+            "gen_e28ab624": "本段必须交付",
+            "gen_48da4ce5": "这段还没有明确交付项，建议回到节奏生成结果里补充更具体的兑现目标。",
+            "gen_dd307201": "当前卷总览",
+            "gen_8ce16890": "本卷核心承诺",
+            "gen_5830e57a": "先为当前卷生成节奏板。"
+          },
+          "StructuredChapterDetailCard": {
+            "gen_be3fe21d": "解除锚定，交还 AI 优化",
+            "gen_757d59d3": "已细化",
+            "gen_9e61af80": "细化中",
+            "gen_8b4a5ea9": "待细化",
+            "gen_40d404ef": "当前章节细化",
+            "gen_d1cca200": "批量细化",
+            "gen_f36b3482": "可以从当前章起按数量连续细化，也可以直接补齐当前可见章节或本卷全部章节。",
+            "gen_df011658": "范围",
+            "gen_dae1e946": "从当前章起连续细化",
+            "gen_d73f876c": "当前可见章节",
+            "gen_49eb32e6": "本卷全部章节",
+            "gen_123f397f": "章节标题",
+            "gen_d8f0aad6": "章节摘要",
+            "gen_85f9e2b5": "章节目标",
+            "gen_c8ba67e1": "任务单",
+            "gen_e370757f": "高级设置",
+            "gen_971cbaa4": "冲突等级",
+            "gen_50d71b11": "交还 AI",
+            "gen_53fe8284": "揭露等级",
+            "gen_b71c2e84": "目标字数",
+            "gen_e586f3e2": "禁止事项",
+            "gen_3e47f4e2": "兑现关联",
+            "gen_315eacd1": "上移",
+            "gen_17acd250": "下移",
+            "gen_2f4aaddd": "删除",
+            "gen_27b915f8": "冲突等级、揭露等级、字数、禁止事项和兑现关联已收进高级设置，避免一上来就把表单铺满。",
+            "gen_c33e38eb": "先在左侧选择一个章节，再开始细化。"
+          },
+          "StructuredChapterListCard": {
+            "gen_cfd7b8b9": "删除这个未归入节奏段的章节",
+            "gen_757d59d3": "已细化",
+            "gen_9e61af80": "细化中",
+            "gen_8b4a5ea9": "待细化",
+            "gen_1ae3a984": "生成中",
+            "gen_62f15392": "已有正文锁定",
+            "gen_418dde27": "待生成",
+            "gen_884f7a5d": "需重试",
+            "gen_c2ad1f29": "已生成",
+            "gen_6409cb19": "节奏 / 章节导航",
+            "gen_ee545f79": "全部节奏",
+            "gen_34a7fe06": "该节奏段下暂时还没有映射到章节。",
+            "gen_6035b315": "未归入节奏段",
+            "gen_b6c40f43": "这些章节暂时没有落到任何节奏段"
+          },
+          "VolumePayoffOverviewCard": {
+            "gen_24507314": "当前卷伏笔 / 回收参考",
+            "gen_fdae1036": "这里只看当前选中卷，用来核对本卷待兑现事项和章节兑现安排是否一致。全书级 canonical 账本已经挪到上方的独立模块。",
+            "gen_41c8a65b": "本卷待兑现事项",
+            "gen_0ad8eba6": "这里是卷战略里声明的待兑现事项，用来看这一卷到底有哪些坑要埋、哪些点要回收。",
+            "gen_b6bab201": "这条待兑现事项还没有挂到本卷具体章节，建议在拆章时补上兑现关联。",
+            "gen_43463a11": "当前卷还没有填写待兑现事项。",
+            "gen_f4537df0": "本卷章节兑现安排",
+            "gen_2e69c275": "这里看的是当前卷已经挂到章节里的兑现关联，用来检查拆章是否真正落到了章节级执行。",
+            "gen_56d36496": "当前卷章节还没有填写兑现关联，后续拆章时会更难核对哪些铺垫该回收。"
+          },
+          "WorldSetupTab": {
+            "gen_1da83d27": "让 AI 完成本书世界观",
+            "gen_47cffac0": "先确定世界规则、势力和关键约束，再让角色、卷规划与章节生产围绕同一份世界观继续推进。",
+            "gen_c9b4a383": "世界观准备",
+            "gen_b9d8c3d3": "这里维护本书实际使用的世界观。生成、检查和确认世界观时，AI 会以这些资产为依据。"
           }
         },
         "hooks": {
@@ -4967,7 +6455,8 @@
             "gen_d81bb206": "no"
           },
           "MobileNovelStepNav": {
-            "gen_2ddce323": "NovelWritingStep"
+            "gen_2ddce323": "NovelWritingStep",
+            "gen_44420c5a": "流程推荐"
           },
           "mobileNovelWorkspaceUtils": {
             "saveBasicInfo": "Save Basic Information",
@@ -5027,6 +6516,35 @@
             "gen_32c65d8d": "",
             "gen_3ae14696": "need"
           }
+        },
+        "simpleCreation": {
+          "SimpleCreationMaterialsPanel": {
+            "gen_9b3f0626": "整书方向",
+            "gen_51ed3c1e": "故事承诺",
+            "gen_bdc8031f": "故事世界",
+            "gen_ca1588b6": "角色阵容",
+            "gen_1071f20e": "分卷路线",
+            "gen_4f5b4966": "只读查看故事承诺、世界、角色和分卷成果；AI 会继续用这些资源保持后续章节一致。",
+            "gen_4633b856": "世界规则完成后会在这里显示摘要。",
+            "gen_e755aaf3": "角色阵容准备完成后会在这里显示。",
+            "gen_50d7234e": "其余分卷已纳入全书生产。",
+            "gen_f32fe145": "卷战略与章节路线完成后会在这里显示。"
+          },
+          "SimpleNovelShelfPage": {
+            "gen_dd264b74": "只阅读已完成的稳定正文",
+            "gen_7912bea9": "生成中的章节会经历写作、审校和修复，完成前不会提前展示。你可以离开页面，后台任务仍会继续。",
+            "gen_21172b12": "第一章完成后，书架会自动突出最新成稿。",
+            "gen_f3044a73": "正在打开章节书架",
+            "gen_9c469174": "返回小说列表",
+            "gen_b372862e": "简易创作 · 只读",
+            "gen_dd94eabe": "导出已完成章节",
+            "gen_d01a6957": "转为专业创作",
+            "gen_5d50904e": "实时章节书架",
+            "gen_03b8530b": "章节正在路上",
+            "gen_cf4db920": "转为专业创作？",
+            "gen_2bac75d1": "转换后可编辑设定、规划和章节正文，现有内容与后台任务都会保留。此操作不能切回简易创作。",
+            "gen_d6ad9d15": "继续使用简易创作"
+          }
         }
       },
       "promptWorkbench": {
@@ -5036,7 +6554,11 @@
           "gen_ce0e89aa": "EditMode",
           "gen_ed5d26aa": "all position",
           "gen_0bda51e1": "Version",
-          "saveOverlay": "Save Overlay"
+          "saveOverlay": "Save Overlay",
+          "gen_83927f2d": "安全槽位适合稳定调整，高级模板适合本书正文写作自定义。",
+          "gen_29944085": "高级模板",
+          "gen_a1c7f3f6": "选择小说后可设置本书独立的槽位覆盖；未选择小说时仅能查看继承值和生成通用预览。",
+          "gen_6eebc166": "请选择一个提示词。"
         },
         "components": {
           "AdvancedPromptTemplateEditor": {
@@ -5050,7 +6572,19 @@
             "gen_d328cfb5": "novelsBook define",
             "gen_9ca25cc5": "Template",
             "gen_c16e2ef8": "use in",
-            "gen_d81bb206": "no"
+            "gen_d81bb206": "no",
+            "gen_607e7a4f": "查看",
+            "gen_d00b485b": "回滚",
+            "gen_128bc06e": "选择正文写作提示词、本书范围和具体小说后可编辑高级模板。",
+            "gen_25559968": "高级模板会影响本书正文生成；必需上下文缺失时生成会停止。",
+            "gen_36018f02": "恢复官方模板",
+            "gen_fd528847": "保存为新版本",
+            "gen_092d2f88": "版本说明",
+            "gen_53632c4c": "预览注入结果",
+            "gen_08634b9c": "最终 Messages",
+            "gen_6fdd8590": "版本历史",
+            "gen_82a1d1f2": "保存自定义模板后会生成版本历史。",
+            "gen_05d11a5b": "放弃未保存修改"
           },
           "ContextInjectionPanel": {
             "gen_648791e0": "{block.required ? \"must need \" : \"Can select \"}",
@@ -5062,7 +6596,11 @@
             "gen_e0e42086": "by split group",
             "gen_ca611377": "must need",
             "gen_c20cba89": "Can select",
-            "gen_29a91e99": "define"
+            "gen_29a91e99": "define",
+            "gen_9aae16cb": "查看本次预览使用的资料块、裁剪和摘要状态",
+            "gen_2fd650e9": "生成预览后，这里会显示已注入、被裁剪和被摘要的上下文块。",
+            "gen_f005ed9c": "没有匹配的上下文块。",
+            "gen_76a317fa": "插入到模板"
           },
           "PromptBodyEditor": {
             "gen_f9e4fc60": "：{section.slot.patternHint}",
@@ -5086,14 +6624,27 @@
             "gen_cc42dd31": "Enable",
             "gen_b15d9127": "Close",
             "gen_d81bb206": "no",
-            "gen_b7612b71": ""
+            "gen_b7612b71": "",
+            "gen_1f28fc81": "锚点：",
+            "gen_6deab984": "官方版本对齐",
+            "gen_8bb23df4": "对照当前官方槽位，恢复可靠默认值，或保留你的设置并消除版本提醒。",
+            "gen_42420354": "恢复官方当前版",
+            "gen_d3015a51": "保留我的设置",
+            "gen_6a07e1bd": "正在读取官方版本...",
+            "gen_a1bb326d": "当前槽位与官方当前版一致。",
+            "gen_1680287e": "本书使用官方默认",
+            "gen_cb2e451c": "上下文引用",
+            "gen_f716dfbd": "提示词只读",
+            "gen_0f00ce21": "该提示词没有声明可编辑槽位。可以查看最终 messages 与上下文注入，但不能直接替换 system prompt 或修改上下文策略。"
           },
           "PromptCatalogSidebar": {
             "gen_1e819138": "Search id、 、 on under Text or position",
             "gen_2043e5c6": "SelectHintWord and ViewCan Edit position",
             "gen_00baeb42": "Draft TextGeneratemainHintWord",
             "gen_90b5a467": "Refresh",
-            "gen_82b22215": "Can define make"
+            "gen_82b22215": "Can define make",
+            "gen_2c0cac87": "正在读取提示词目录...",
+            "gen_0e5716c9": "没有匹配的提示词。"
           },
           "PromptEditorShell": {
             "gen_edbe11cb": "the HintWord Not open table position 。",
@@ -5108,7 +6659,9 @@
             "gen_01e14767": "Edit",
             "zhLanguage": "Chinese Language",
             "gen_2be75b10": "alllayout",
-            "gen_6e980d96": "novelsBook"
+            "gen_6e980d96": "novelsBook",
+            "gen_40d075cf": "可编辑槽位",
+            "gen_870c10f2": "锁定边界"
           },
           "PromptPreviewPanel": {
             "estimateToken": "Estimate Token",
@@ -5116,7 +6669,10 @@
             "gen_f6c73e62": "Items",
             "gen_5639f70c": "in",
             "gen_fd4bef54": "",
-            "gen_85541bd9": "onlyread"
+            "gen_85541bd9": "onlyread",
+            "gen_9cf22271": "正在使用当前草稿调用模型，完成后会显示测试产出。",
+            "gen_af564b50": "模型测试产出",
+            "gen_ccd6e9f5": "点击底部“生成预览”后，可查看最终 messages、上下文选择和诊断结果。"
           },
           "PromptRunBar": {
             "savingInProgressDotDotDot": "Saving... (dots)",
@@ -5130,7 +6686,15 @@
             "saveStatus": "Save Status",
             "saveFailed": "Save Failed",
             "gen_b542b0a0": "GeneratePreview",
-            "gen_f8dfedcd": "Already Save"
+            "gen_f8dfedcd": "Already Save",
+            "gen_8a0b352a": "测试产出",
+            "gen_563f9840": "选择本次测试使用的模型参数，系统会用当前未保存草稿生成一次结果。",
+            "gen_e857b170": "测试模型",
+            "gen_1399b5a4": "可选覆盖",
+            "gen_8e7e4efb": "保存状态",
+            "gen_07246dad": "重置修改",
+            "gen_625fb26b": "取消",
+            "gen_f6435f06": "测试产出会调用真实模型并消耗额度；结果只用于调试，不会保存为章节正文。"
           },
           "VisualTemplateEditor": {
             "gen_71008670": "source try graph will Display start Template token",
@@ -5142,7 +6706,12 @@
             "gen_249df3d6": "must need on under Text",
             "gen_09053474": "Can select on under Text",
             "gen_6f1fc776": "quantity",
-            "gen_5e8e1d63": "position"
+            "gen_5e8e1d63": "position",
+            "gen_ca611377": "必需",
+            "gen_b15d9127": "关闭",
+            "gen_b0916aa5": "插入引用",
+            "gen_185df7fb": "返回可视化编辑",
+            "gen_8ff17786": "源码视图"
           }
         },
         "hooks": {
@@ -5395,7 +6964,17 @@
           "gen_d4c366cb": "test in",
           "gen_5c6585e0": "Not test",
           "gen_29953c6f": "Save",
-          "gen_d81bb206": "no"
+          "gen_d81bb206": "no",
+          "gen_e0272125": "为不同创作任务指定合适模型，并检查 JSON 输出是否稳定。",
+          "gen_a8a0f23f": "返回系统设置",
+          "gen_43b7ad98": "快速套用模型",
+          "gen_04ef1fdb": "先选一套模型，再填入多个任务；统一保存后，后续创作会按新路由执行。",
+          "gen_53a4bfe8": "套用到全部任务",
+          "gen_33aa8d59": "套用到异常任务",
+          "gen_7d7cc6d6": "补齐空白任务",
+          "gen_c6c22102": "主模型能对话但 JSON 不稳时，可在所有结构化任务上统一启用备用模型。",
+          "gen_f3fa3d39": "主模型的结构化策略全部失败后，才会切到这套备用模型。",
+          "gen_bea7f966": "保存路由"
         },
         "SettingsPage": {
           "gen_c1d19ef6": "this Settings will Highlong Continuity、 sum write method ；Not first open start Writing。",
@@ -5472,7 +7051,10 @@
             "gen_99b8ee4c": "factory quotient",
             "gen_13388721": "Can use module",
             "gen_f2d3731b": "Select Model",
-            "gen_8288a2e8": "Search Models"
+            "gen_8288a2e8": "Search Models",
+            "gen_69e74756": "测试连接",
+            "gen_fb19447d": "填写后，角色形象图生成可以选择这个厂商；留空则只用于文本模型。",
+            "gen_1a01d599": "图片生成会调用这个厂商的 OpenAI 兼容图像接口。"
           },
           "ProviderRequestLimitFields": {
             "gen_16f55bcd": "same module Please space （ ）",
@@ -5480,10 +7062,15 @@
             "unlimited": "Unlimited"
           },
           "ProviderSettingsSection": {
-            "gen_b51bd70b": "module factory quotient"
+            "gen_b51bd70b": "module factory quotient",
+            "gen_4414e078": "先保证至少一个文本模型可用；余额明细、请求限制和模型列表可以在高级详情里检查。",
+            "gen_86fc689e": "新增自定义厂商"
           },
           "SettingsMaintenanceSection": {
-            "gen_e58e3369": "System"
+            "gen_e58e3369": "System",
+            "gen_936f86fc": "当前环境没有需要处理的桌面维护事项。",
+            "gen_8fcb0586": "检查桌面更新或导入本机旧数据；这些操作不会影响当前创作配置。",
+            "gen_2b1e5abc": "没有维护需求时，可以直接回到上面的创作配置。"
           },
           "SettingsNavigationCards": {
             "apiKeyAvailable": "API Key Available",
@@ -5496,13 +7083,53 @@
             "gen_79126156": "Status",
             "gen_0361f422": "Model Routes",
             "gen_c16e2ef8": "use in",
-            "gen_4637765b": "Not use"
+            "gen_4637765b": "Not use",
+            "gen_e7e1fc85": "不配置也可以开始创作；启用后，长篇设定、资料和上下文召回会更稳。",
+            "gen_5ab10271": "为开书、拆章、正文生成和审核任务选择可用模型。",
+            "gen_ef3488b9": "路由健康时，自动导演和章节生产会按任务自动选择模型。"
           },
           "SettingsSectionGroup": {
             "gen_e7c25780": "open start Writingmust need",
             "gen_124a0559": "write quantity strong",
             "gen_c72f1d50": "Auto High",
             "gen_e58e3369": "System"
+          },
+          "LocalDiagnosticsCard": {
+            "gen_45d37fcd": "诊断系统平台硬件配置，自适应生成最匹配的本地模型加速级别。",
+            "gen_fd3da9ca": "正在收集平台硬件与 GPU 拓扑信息...",
+            "gen_14d3ddc6": "系统与算力架构",
+            "gen_30d23ef4": "操作系统",
+            "gen_ed412d8f": "逻辑核心",
+            "gen_2ccbf5c9": "系统物理内存",
+            "gen_dfabd7a3": "显卡加速详情",
+            "gen_8636a795": "加速类型",
+            "gen_bd672794": "可用统一内存",
+            "gen_f96a07ec": "显卡型号",
+            "gen_ce80bf17": "总显存",
+            "gen_19ee09b4": "空闲显存",
+            "gen_1e6c23cd": "未检测到 NVIDIA CUDA 显卡",
+            "gen_cf1b8463": "或 Apple Silicon MPS 加速器",
+            "gen_4ba5c68a": "当前模式下单张分镜画稿预期渲染耗时"
+          },
+          "ProviderStatusCard": {
+            "gen_f1d4ff50": "自定义",
+            "gen_2415bb91": "文本模型",
+            "gen_89208d23": "图像模型",
+            "gen_808e9dd3": "高级详情",
+            "gen_6441c3c1": "思考功能",
+            "gen_bb9a2b05": "余额明细",
+            "gen_5d54ba46": "自定义 OpenAI 兼容厂商暂不接入余额查询。"
+          },
+          "SettingsReadinessCard": {
+            "gen_6371064c": "创作可用性检查",
+            "gen_cb602416": "先确认开始写小说必需的模型和路由是否可用；知识库属于增强项，可以稍后再补。"
+          },
+          "StyleEngineRuntimeSettingsCard": {
+            "gen_2419b570": "写法引擎运行设置",
+            "gen_918bb1f1": "控制写法提取等待模型返回的最长时间。长篇原文提取可以适当调高，短文本保持较短更容易发现异常。",
+            "gen_89051ebd": "当前选择",
+            "gen_e370757f": "高级设置",
+            "gen_5ec3428c": "写法提取超时（分钟）"
           }
         },
         "modelRouteLabels": {
@@ -5536,6 +7163,44 @@
             "gen_a2db68b2": "yet Not test path 。",
             "gen_974e7484": "Not Error"
           }
+        },
+        "AutoDirectorApprovalPreferenceCard": {
+          "gen_9aa86d04": "审批授权偏好",
+          "gen_f16e7bfc": "自动导演按范围执行时，会先带入这里的默认授权。未授权的审批点仍会停下等待你确认。"
+        },
+        "AutoDirectorBrowserNotificationSettingsCard": {
+          "gen_c1f9ea8e": "开启或关闭自动导演暂停提醒",
+          "gen_17a08531": "自动导演暂停提醒",
+          "gen_10ea7c8b": "当自动导演等待确认、需要恢复或被校验拦住时，通过浏览器通知提醒你回到跟进中心。",
+          "gen_3f5374a0": "桌面提醒",
+          "gen_e8e7b6e4": "只影响这台电脑上的当前浏览器。",
+          "gen_506b3793": "若浏览器已阻止通知，请在地址栏权限设置中允许本网站发送通知。",
+          "gen_baf3c7c2": "授权浏览器通知"
+        },
+        "AutoDirectorChannelSettingsCard": {
+          "gen_c57c894e": "可选；未配置则只保留站内跳转",
+          "gen_af428825": "导演跟进通道配置",
+          "gen_7e1820fe": "集中配置钉钉与企微的 webhook、回调 token、用户映射和事件订阅。未配完整回调能力时，消息会自动降级成仅跳转站内。",
+          "gen_b2c3b4e9": "站内访问地址",
+          "gen_42650aff": "用于钉钉/企微消息里的“打开跟进中心 / 查看详情”链接。未填写时会回退到服务端环境中的站点地址。",
+          "gen_220b1f52": "回调 Token",
+          "gen_c8d1176d": "用户映射 JSON",
+          "gen_e4cde7a8": "订阅事件",
+          "gen_9eebe704": "去看模型路由"
+        },
+        "AutoDirectorPendingReviewAutoPromotionCard": {
+          "gen_110907ed": "开启待确认状态自动放行",
+          "gen_a678a064": "这个设置会把符合条件的待确认关系与认知提案提交为正史事实。",
+          "gen_676d90e8": "待确认状态自动放行",
+          "gen_8e4ca44d": "开启后，仅处理基准时间之后产生、超过 14 天且没有命中未解决冲突的角色关系与信息认知提案。",
+          "gen_4711de43": "自动放行处于开启状态。符合条件的提案会按正史提交；如需回退，需要依据留痕记录人工核对。",
+          "gen_e4fe2e4b": "开关状态",
+          "gen_8e541ff0": "生效基准时间",
+          "gen_c6eafca7": "存量待确认提案不进入自动放行范围。提案命中未解决冲突时会继续保留为待确认，等待人工处理。",
+          "gen_625fb26b": "取消",
+          "gen_13fed64f": "开启后，系统只处理生效基准时间之后产生的提案；存量待确认提案不进入自动放行范围。符合条件的提案会被提交为正史事实，系统不会自动撤销。",
+          "gen_3a3aa3cf": "我了解这项能力会自动提交待确认的状态变更，并会通过导演留痕记录每次动作。",
+          "gen_a1181d39": "输入确认文本"
         }
       },
       "storyModes": {
@@ -5586,7 +7251,15 @@
           "gen_c465be75": "Not find to",
           "gen_f01dea24": "Node",
           "gen_d7ec2d3f": "Name",
-          "gen_3bdd08ad": "Description"
+          "gen_3bdd08ad": "Description",
+          "gen_72bf9fa4": "重置草稿",
+          "gen_b2f9d524": "勾选后可批量保存；点击候选卡片会切换到下方表单进行单独编辑。",
+          "gen_625fb26b": "取消",
+          "gen_9cd63748": "可以修改名称、描述、模板和 profile。两级树限制仍会保留。",
+          "gen_c79ddea6": "这里维护作品的推进模式，例如系统流、无敌流、种田流、治愈日常。它回答的是“这本书靠什么持续推进和兑现”，会作为后续规划和生成的硬约束输入。",
+          "gen_23f55efc": "新建推进模式树",
+          "gen_d8d79376": "可以先手动建一个根推进模式，也可以直接让 AI 生成一份结构化草稿。",
+          "gen_03e78a04": "开始创建"
         },
         "components": {
           "StoryModeProfileFields": {
@@ -5601,6 +7274,10 @@
             "gen_b6dc687b": "",
             "gen_29a87b53": "Chapter",
             "gen_d695fe48": "Volume final"
+          },
+          "StoryModeTreeCard": {
+            "gen_82537dc1": "新增子类",
+            "gen_95b351c8": "编辑"
           }
         }
       },
@@ -5626,7 +7303,8 @@
           "gen_9600c918": "ViewProgress",
           "gen_d96a7b07": "StepStatus",
           "gen_27ca568b": "Continue",
-          "gen_132c5cdc": "Retry"
+          "gen_132c5cdc": "Retry",
+          "gen_9e56f482": "重新读取"
         },
         "components": {
           "TaskCenterDetailSummary": {
@@ -5680,7 +7358,13 @@
           "TaskCenterListPanel": {
             "gen_5c3a622e": "Continuemainflow process",
             "taskList": "Task List",
-            "gen_f61f4cf6": "No no"
+            "gen_f61f4cf6": "No no",
+            "gen_0935a18a": "正在读取任务",
+            "gen_446d08ac": "正在汇总任务状态和最近进度。",
+            "gen_643254bb": "任务列表读取失败",
+            "gen_f388438a": "没有符合条件的任务",
+            "gen_3cfe3212": "可以清除筛选条件，或回到来源页面发起新的创作与资料处理任务。",
+            "gen_9e56f482": "重新读取"
           },
           "TaskCenterMilestoneHistory": {
             "gen_b6387af6": "LogsTime：{formatDate(item.createdAt)}",
@@ -5691,6 +7375,41 @@
             "gen_d679aea3": "Running",
             "gen_e5ac1d20": "Queued",
             "gen_acd5cb84": "Failed"
+          },
+          "TaskCenterDetailPanel": {
+            "gen_4a98bf0c": "任务详情",
+            "gen_9577cb4e": "先判断是否阻塞，再决定继续、恢复或只记录质量提醒。",
+            "gen_d72a825f": "正在读取任务详情",
+            "gen_4e00e335": "正在同步任务状态、检查点和最近步骤。",
+            "gen_1e5a4495": "任务详情读取失败",
+            "gen_86bb1ef0": "请选择一个任务",
+            "gen_944abf97": "从任务列表选择一项后，可查看影响范围、恢复位置和可执行动作。",
+            "gen_30590f5e": "最近一次执行失败",
+            "gen_067d1583": "最近检查点",
+            "gen_fab2c45a": "导演任务操作入口",
+            "gen_b55c56ac": "继续、恢复、切换模型和推进策略请回到小说页面的执行详情处理；任务中心保留状态、取消、归档和来源入口。",
+            "gen_492476d9": "打开来源页面",
+            "gen_931d5a21": "只打开任务来源，不会改变任务状态。",
+            "gen_7759c707": "暂无步骤状态",
+            "gen_a7436090": "该任务尚未提供可展示的细分步骤。",
+            "gen_9e56f482": "重新读取",
+            "gen_bdd966d4": "可执行动作",
+            "gen_d96a7b07": "步骤状态"
+          },
+          "TaskCenterManualEditImpactCard": {
+            "gen_ec4f36de": "需要确认",
+            "gen_427e18d6": "受影响章节",
+            "gen_7201c1e1": "推荐处理路径",
+            "gen_8fafb409": "章节改动影响",
+            "gen_76f94de4": "检查当前正文和导演运行记录的差异，给出最小复查或修复路径。"
+          },
+          "TaskCenterRuntimePolicyCard": {
+            "gen_fac11603": "导演推进方式",
+            "gen_846acfda": "选择系统接下来怎么推进这个导演任务。",
+            "gen_4b97994b": "允许执行更完整的审校",
+            "gen_bffe15e1": "用于章节质量检查、近期章节复盘等步骤，系统会在执行前记录策略。",
+            "gen_0c3cb38e": "允许改写受保护的内容",
+            "gen_c9d14820": "仅在你确认要让系统处理已编辑正文或关键设定时开启。"
           }
         },
         "taskCenterUtils": {
@@ -5760,7 +7479,14 @@
             "gen_5a237b85": "Generate",
             "gen_e995da4f": "select",
             "gen_6f3398e0": "make",
-            "gen_0bf60b32": "Count"
+            "gen_0bf60b32": "Count",
+            "gen_a55779fe": "选择小说项目",
+            "gen_acb6f93b": "适合已填写简介和类型的作品，系统会结合项目资料生成候选标题。",
+            "gen_c4d4530e": "创作简报",
+            "gen_6ad27cd6": "类型过滤",
+            "gen_2ed143f7": "不确定类型时可以留空，让模型先按简报自行判断标题方向。",
+            "gen_3757d569": "参考标题",
+            "gen_9da6007d": "作品简报"
           },
           "TitleLibraryPanel": {
             "gen_使用entryuse_721v": "make use {entry.usedCount}",
@@ -5780,13 +7506,21 @@
             "gen_c360e994": "sequence",
             "gen_4584c097": "",
             "gen_7b4eb56b": "use",
-            "gen_2f4aaddd": "Delete"
+            "gen_2f4aaddd": "Delete",
+            "gen_f431deee": "正在加载标题库...",
+            "gen_ccdef2bd": "先去标题工坊生成一批候选，再把值得复用的标题沉淀进来。",
+            "gen_79d3abe9": "复制",
+            "gen_f4f85316": "上一页",
+            "gen_b4e1b508": "下一页"
           },
           "TitleSuggestionList": {
             "gen_2b2c3000": "No Generate 。",
             "gen_6f3398e0": "make",
             "gen_bf94700b": "Currentselect in",
-            "gen_4584c097": ""
+            "gen_4584c097": "",
+            "gen_79d3abe9": "复制",
+            "gen_7cbf2d09": "保存中",
+            "gen_aeaa7f29": "入库"
           }
         }
       },
@@ -5832,7 +7566,10 @@
           "gen_dcfe557b": "",
           "gen_fc1a7d3c": "ly point",
           "gen_eefd8316": "close",
-          "gen_2f4aaddd": "Delete"
+          "gen_2f4aaddd": "Delete",
+          "gen_28229ddb": "这里保存可复用的世界样本。小说需要使用世界时，从小说基础信息页导入为本书世界副本，再决定是否手动同步。",
+          "gen_6b8fda7c": "查看世界手册",
+          "gen_d5d444f4": "整理样本"
         },
         "WorldWorkspace": {
           "gen_2bbede65": "View Manual",
@@ -5848,7 +7585,10 @@
           "visualize": "/Visualize",
           "gen_89b03150": "split",
           "gen_7e7f0b6b": "patch",
-          "gen_01a3a187": "body"
+          "gen_01a3a187": "body",
+          "gen_79b70a06": "世界沙盒模拟",
+          "gen_e3d6511f": "返回整理手册",
+          "gen_a0da9ee7": "这里用于处理势力关系、地点控制权、结构导入等细节。普通整理优先回到世界手册。"
         },
         "components": {
           "generator": {
@@ -5903,7 +7643,12 @@
               "gen_bc61e32e": "card",
               "gen_0796ba76": "",
               "gen_544fac40": "approve",
-              "gen_1f0a3a1c": ""
+              "gen_1f0a3a1c": "",
+              "gen_7e49ef51": "名称可以留空，系统会先创建一份可继续整理的世界样本。",
+              "gen_ca9838b6": "题材基底决定世界的读者预期、力量规则和常见冲突。",
+              "gen_7c921728": "去题材基底库",
+              "gen_8a85d92e": "先确定题材基底，再生成概念卡、世界属性和后续骨架选择。",
+              "gen_f248a206": "默认会给出 6 个标准世界属性，通常不用调整。"
             },
             "WorldGeneratorStepThree": {
               "gen_skeletonas_fbxw": "{skeleton.assessment.readyForNovelUse ? \"Can in World \" : \"Suggestionsfirst patch \"}",
@@ -5926,7 +7671,8 @@
               "gen_ef535ae0": "close",
               "gen_b1440585": "ly logic close",
               "gen_2ff7e9ff": "in",
-              "gen_184a8145": "read"
+              "gen_184a8145": "read",
+              "gen_7e5531a4": "返回调整规模"
             },
             "WorldGeneratorStepTwo": {
               "gen_35f03500": "Entrypoints",
@@ -5948,7 +7694,9 @@
               "gen_6892df3b": "tool body",
               "gen_ce7830fa": "close ly point",
               "gen_2ff7e9ff": "in",
-              "gen_c0099a4f": "Count"
+              "gen_c0099a4f": "Count",
+              "gen_b18834e2": "规模会决定 AI 生成多少规则、阵营、具体势力、关键地点和可开书入口。默认推荐“标准长篇”。",
+              "gen_63c1f742": "新手建议保持默认；只有明确想要更小或更大的世界时再调整。"
             },
             "WorldLibraryQuickPick": {
               "gen_d2e30b24": "Search library Items ，Can by or close Word",
@@ -5956,7 +7704,9 @@
               "gen_b6708780": "library before place in",
               "gen_6bc042a7": "Already add in graph",
               "gen_8c3ec9df": "No no",
-              "gen_808b8a65": "add in graph"
+              "gen_808b8a65": "add in graph",
+              "gen_46da244c": "旧版 V2 会在正式生成前就允许从属性库选素材。这里保留这个思路，但接到当前蓝图结构里。",
+              "gen_73bc8a01": "没有匹配的素材库条目。"
             },
             "WorldPropertyOptionSelector": {
               "gen_fbf14bef": "Can select ：patch 's good ，ratio if keep 、 large 、 make 。",
@@ -5968,7 +7718,8 @@
               "gen_bd51806b": "Text",
               "gen_fdde939d": "History",
               "gen_41c8c763": "",
-              "gen_5e0fcc8f": "library"
+              "gen_5e0fcc8f": "library",
+              "gen_1f1a239e": "当前还没有拿到可用的关键方向。通常说明上一步分析失败了，可以返回第 1 步重新生成。"
             },
             "WorldReferenceSeedSelector": {
               "gen_e4a743c8": "this Items World ， after aspect AutoGenerate will this bottom Rules。",
@@ -5982,7 +7733,9 @@
               "gen_5a3c4ab0": "Rules",
               "gen_ee3765a1": "",
               "gen_4c347e95": "all Cancel",
-              "gen_15a110bb": "all keep"
+              "gen_15a110bb": "all keep",
+              "gen_2e0b7f96": "这次没有从参考作品里稳定提取出可直接沿用的组织、地点或规则，后面会继续按你的改造方向生成。",
+              "gen_18193012": "系统会从参考作品里提取一批可沿用设定，并默认勾选。保留它们可以明显减少后续手动填写。"
             }
           },
           "workspace": {
@@ -6038,7 +7791,17 @@
               "gen_003ad50b": "kind",
               "gen_eee83a92": "source",
               "event": "Event",
-              "gen_b7612b71": ""
+              "gen_b7612b71": "",
+              "gen_de662c61": "地图、势力图谱、时间线和体系树都从世界手册延伸出来。先把规则、势力、地点和张力整理清楚，再生成可视化资产。",
+              "gen_694fc5ef": "刷新",
+              "gen_80884294": "保存当前设定为世界素材",
+              "gen_3c15a862": "加入势力手册",
+              "gen_07e4adf2": "加入地点手册",
+              "gen_3eacefe7": "创建快照",
+              "gen_c7db6d4f": "恢复",
+              "gen_cebba449": "对比差异",
+              "gen_02783c1c": "导出 Markdown（复制到剪贴板）",
+              "gen_b91ad202": "导出 JSON（复制到剪贴板）"
             },
             "WorldConsistencyTab": {
               "gen_99d72418": "Can merge World check this Items 。",
@@ -6055,7 +7818,12 @@
               "gen_21b31425": "logic Status",
               "gen_047109de": "logic",
               "gen_5ad6056a": "Already logic",
-              "gen_1622dc9b": "Not"
+              "gen_1622dc9b": "Not",
+              "gen_aecde24a": "检查核心规则、题材信号、力量体系和冲突支撑是否互相冲突。发现问题后逐条处理即可。",
+              "gen_ab539648": "运行检查后，这里会展示世界手册的体检结果和需要处理的问题。",
+              "gen_23d8b34b": "标记已解决",
+              "gen_c0d5d68f": "忽略",
+              "gen_14b428ad": "还没有一致性问题记录，运行检查后会在这里展示结果。"
             },
             "WorldDeepeningTab": {
               "gen_b23b540c": "{index + 1}",
@@ -6069,7 +7837,16 @@
               "gen_2202334c": "merge in ...",
               "gen_30d4af46": "patch",
               "gen_8ce34e40": "has",
-              "gen_94f1ce1b": ""
+              "gen_94f1ce1b": "",
+              "gen_5fbad7c1": "选择作为世界样本增补的相关小说与知识库文档",
+              "gen_ad5cba4f": "勾选需包含的作品。保存后，AI 会根据最新的增补文本内容生成深化问题与碰撞建议。",
+              "gen_777639fa": "在此添加/修改作为世界样本增补的相关小说与设定文档。生成深化提问时，系统将跨全量关联作品提炼更精准的问题。",
+              "gen_550d8082": "当前尚未关联增补小说或设定文本。点击「选择 / 增添相关小说文档」添加知识库作品作为世界样本增补。",
+              "gen_625fb26b": "取消",
+              "gen_ca91d738": "系统会根据此世界手册及已绑定的全量增补小说提出针对性问题。回答后整合进世界设定，帮助规则、势力、地点和冲突更清晰。",
+              "gen_68f92206": "这条回答会用于补齐世界手册。",
+              "gen_85cf864f": "可以直接写你的设定答案，也可以先用一句话描述方向。",
+              "gen_441208c8": "这里会展示能帮助世界成型的问题。添加增补小说并生成问题后，逐条补充即可。"
             },
             "WorldHandbookEditor": {
               "exampleStarcoreDepletedFightingForLifeLingeringEmpireWantToSuppressTruthBorderMagicExploitingOpportunity": "Example: star_core_depleted_fighting_for_life_lingering_empire_want_to_suppress_truth_border_magic_exploiting_opportunity",
@@ -6128,7 +7905,17 @@
               "gen_b0fae043": "Rules",
               "gen_dcfe557b": "",
               "gen_fc1a7d3c": "ly point",
-              "gen_cbfbefb4": ""
+              "gen_cbfbefb4": "",
+              "gen_b2a6e0f7": "先看清这个世界的阅读印象、核心规则、主要势力、故事舞台和冲突张力；需要细调时再进入对应区块。",
+              "gen_66110ef4": "查看手册",
+              "gen_fea669e5": "整理世界概要",
+              "gen_9a8bad16": "让 AI 根据已有内容补齐一个手册区块；你可以继续改写后再保存。",
+              "gen_28c97b0f": "整理规则",
+              "gen_010fd8e9": "整理势力",
+              "gen_4f7abda5": "整理地点",
+              "gen_59f902b7": "整理张力",
+              "gen_83f9e46a": "正在整理选中区块，保存后会更新上方手册概览。",
+              "gen_e2e4be88": "收起编辑"
             },
             "WorldLayersTab": {
               "gen_a89fc05a": "System will put World logic for 、 quantity 、 will 、Text 、Historysum 6Items write need 。",
@@ -6204,7 +7991,11 @@
               "gen_9319c358": "patch",
               "gen_5e668eba": "patch",
               "gen_483498d1": "patch Rules",
-              "gen_f4b3b085": "Can logic"
+              "gen_f4b3b085": "Can logic",
+              "gen_1abc494a": "编修手册",
+              "gen_ad07c885": "世界手册会把零散设定整理成规则、势力、地点和剧情压力，方便作者理解，也方便本书使用。",
+              "gen_9cb9ee1e": "世界资产入口",
+              "gen_971791c6": "地图和图谱是世界手册的可视化资产，不参与自动同步覆盖，也不替代世界手册的规则来源。"
             },
             "WorldStructureTab": {
               "topicKeywordSeparated": "Topic Keywords separated by a comma or semicolon.",
@@ -6238,7 +8029,9 @@
               "gen_fbc2f117": "in make",
               "gen_9eb03213": "open",
               "cost": "Cost",
-              "gen_57846ffb": ""
+              "gen_57846ffb": "",
+              "gen_ba3c802f": "新增规则",
+              "gen_bd468226": "新增地点"
             },
             "handbook": {
               "HandbookPrimitives": {
@@ -6262,7 +8055,9 @@
                 "majorForce": "Major Force",
                 "gen_e548e9c0": "",
                 "gen_f81810c7": "Type",
-                "gen_deb979f8": "CurrentTarget"
+                "gen_deb979f8": "CurrentTarget",
+                "gen_86048b4f": "移除",
+                "gen_81c403d7": "增加主要势力"
               },
               "WorldHandbookLocationSection": {
                 "gen_5eab593a": "put World Can ly 's ly point ：open layout in 、 merge 、 merge 。",
@@ -6282,7 +8077,9 @@
                 "gen_051e077a": "read Page 1",
                 "gen_bf876a86": "",
                 "gen_6608b1e8": "ly point",
-                "gen_8a9c3f14": ""
+                "gen_8a9c3f14": "",
+                "gen_86048b4f": "移除",
+                "gen_2ead6ba5": "增加故事地点"
               },
               "WorldHandbookRuleSection": {
                 "gen_c5c8c56a": "this Rules will Character 、 quantity border sum source ， novelsBook write need need 's bottom set define 。",
@@ -6302,7 +8099,9 @@
                 "gen_9c10e19a": "Rulestotal",
                 "gen_87080256": "Rules",
                 "gen_fda6e32b": "",
-                "cost": "Cost"
+                "cost": "Cost",
+                "gen_86048b4f": "移除",
+                "gen_6b5e0c3a": "增加核心规则"
               },
               "WorldHandbookTensionSection": {
                 "gen_341fa0a6": "put Worldset define can 's ， Worldonly Yes 。",
@@ -6315,7 +8114,11 @@
                 "worldCoreConflict": "World Core Conflict",
                 "gen_b7cadb8f": "close",
                 "gen_8ef6f2f5": "same after",
-                "gen_9d4a3def": "group merge"
+                "gen_9d4a3def": "group merge",
+                "gen_1b0251bd": "需要细调势力关系、地点控制权、导入结构数据时，再进入高级字段维护。普通作者只需要维护本页的手册内容。",
+                "gen_52384c69": "问答补齐",
+                "gen_89b03150": "分层草稿",
+                "gen_6d58393f": "高级字段维护"
               }
             },
             "structure": {
@@ -6339,7 +8142,11 @@
                 "gen_14c7f185": "/ Worldstation",
                 "gen_e87fe613": "and",
                 "gen_7f0425a8": "Not",
-                "gen_f61f4cf6": "No no"
+                "gen_f61f4cf6": "No no",
+                "gen_2ea92b54": "新增阵营",
+                "gen_495db24d": "新增势力",
+                "gen_78af1dc1": "阵营卡描述的是抽象站队，不是具体公司、部门或人脉网络。",
+                "gen_d299eb13": "势力卡描述的是能施压、能占据地点、能参与关系网络的具体组织或圈层。"
               },
               "WorldRelationsSection": {
                 "gen_31d9207b": "this onlyread Worldsample novels in Novel after 's Can use 。",
@@ -6362,9 +8169,41 @@
                 "gen_dcfe557b": "",
                 "gen_fc1a7d3c": "ly point",
                 "gen_f411d0f1": "Notes",
-                "gen_f61f4cf6": "No no"
+                "gen_f61f4cf6": "No no",
+                "gen_ae42fa77": "新增势力关系",
+                "gen_f3fe6187": "新增地点控制"
               }
+            },
+            "WorldAxiomsCard": {
+              "gen_51e50e29": "核心规则（公理）",
+              "gen_b42b4473": "可以把它理解成“这个世界不能随便打破的底层规则”。后面的自动生成和手册体检都会参考这里。",
+              "gen_188d9f36": "新增一条"
+            },
+            "WorldSandboxTab": {
+              "gen_68156e05": "时间流速换挡:",
+              "gen_b609a636": "地表植被度:",
+              "gen_e1c876f2": "局部剧情张力:",
+              "gen_c0926bfe": "在地图上点击节点进行查看和物理修改。",
+              "gen_ba9814b9": "在地图上选择粉色人物标记检视状态。",
+              "gen_185f7bf6": "数据类型",
+              "gen_075ea7b9": "已注册属性："
             }
+          },
+          "WorldVisualizationBoard": {
+            "gen_169c6735": "按名称或关键词筛选",
+            "gen_05853d9c": "缩放",
+            "gen_4b9c3271": "重置",
+            "gen_9e08f63a": "北",
+            "gen_48029ea2": "南",
+            "gen_d62cb2a2": "西",
+            "gen_d9ca5d6e": "东",
+            "gen_c68069b4": "拖动画布可移动视图，使用滑块调整缩放。",
+            "gen_de942453": "势力图谱",
+            "gen_f643de0d": "地理地图",
+            "gen_9185e0fc": "力量体系",
+            "gen_7b62f32e": "世界时间线",
+            "gen_cf4fa105": "显示数量",
+            "gen_ddd307b0": "暂无匹配内容"
           }
         },
         "worldConsistencyUi": {
@@ -6435,7 +8274,10 @@
           "gen_94a3c6e8": "EditCurrentwrite method",
           "gen_b589a6aa": "AI",
           "gen_da3a12f6": "Style Engine",
-          "gen_20b79693": "this write method"
+          "gen_20b79693": "this write method",
+          "gen_884bc6ef": "这里专门整理写法本身的设定说明。应用测试和去 AI 味已经拆到独立入口，避免混在一个窗口里。",
+          "gen_e3378cc4": "这里专门处理绑定到小说、章节和试写验证，不修改写法字段本身。",
+          "gen_3b263363": "这里专门做正文检测和修正，不进入写法字段编辑，也不混入绑定和试写操作。"
         },
         "components": {
           "WritingFormulaAdvancedWorkspace": {
@@ -6449,7 +8291,11 @@
             "whatEachEntranceDoes": "What Each Entrance Does",
             "gen_f0336b3a": "Novel pageSettings write method",
             "gen_5e20e280": "in should the from in",
-            "nextStep": "Next Step"
+            "nextStep": "Next Step",
+            "gen_0aea08f2": "写法引擎负责创建、测试和整理写法资产。当前小说要使用哪套默认写法，请回到小说基础信息里确认，再带入后续导演和正文流程。",
+            "gen_ea524588": "先去小说页确认这本书的默认写法。如果当前资产库里还没有合适的写法，再回到写法引擎创建或整理资产。",
+            "gen_94a3c6e8": "编辑当前写法",
+            "gen_6a2cf30a": "新建一套写法"
           },
           "WritingFormulaCleanFlow": {
             "gen_6151c64c": "first AI 's 1Paragraph Draft Text。",
@@ -6464,7 +8310,14 @@
             "gen_a8064f51": "card and split",
             "gen_6042481d": "in",
             "gen_47648ba4": "first test",
-            "gen_9c724608": "split"
+            "gen_9c724608": "split",
+            "gen_e646ae58": "检测先帮你指出哪一段写得像模板话，再给一版可以直接比较的修订稿。重复出现的问题，我会顺手整理成规则建议，方便你带回当前写法编辑继续处理。",
+            "gen_d6800ab7": "先跑一次检测，这里会告诉你哪些段落最像 AI 在说话，以及它们为什么让读者出戏。",
+            "gen_add0e1ab": "这里按段落行做轻量对比，方便你快速判断这次修正是在压模板感，还是把原有语气也一起削掉了。",
+            "gen_f252cb8d": "一键修订后，这里会直接出现前后对照。",
+            "gen_49fdfe11": "这一版不会强行替你落库，但会先把重复问题整理成建议，方便你带回当前写法编辑决定是否固化。",
+            "gen_6d51aafd": "查看当前写法编辑",
+            "gen_8e650894": "检测出问题后，这里才会出现可沉淀的规则建议。"
           },
           "WritingFormulaCleanPanel": {
             "gen_5feae2d7": "split ：{detectionReport.riskScore}",
@@ -6472,7 +8325,14 @@
             "gen_2273a526": "test Draft Text",
             "gen_b589a6aa": "AI",
             "gen_c59ebd75": "test Draft Text",
-            "gen_1bc513b8": "fix"
+            "gen_1bc513b8": "fix",
+            "gen_d4532637": "先从列表里选中一套写法，再来检测正文。",
+            "gen_6dbe2911": "如果这套写法绑了反 AI 规则，检测和修正会优先按这些约束去判断问题。",
+            "gen_58212f1e": "这套写法还没有绑定明确的反 AI 规则。当前检测会更依赖通用风险判断，结果可能不够贴合你的预期。",
+            "gen_e8d063d8": "粘贴你想检查的正文。建议一次给一段完整场景，这样更容易看出叙述腔、对白腔和解释腔的问题。",
+            "gen_f7fd724a": "执行检测",
+            "gen_c067a274": "一键修正",
+            "gen_2b2a9db7": "检测结果会在这里显示，重点告诉你哪些句段最像 AI 腔、为什么会被判成风险，以及可以往什么方向改。"
           },
           "WritingFormulaCreateDialog": {
             "taskProgressRoundActiveExtractionTaskProgress100Percent": "Task Progress: {Math.round(activeExtractionTask.progress * 100)}%",
@@ -6546,7 +8406,23 @@
             "gen_ad6b7038": "Can use",
             "gen_5c56a889": "use",
             "gen_2f51c18f": "",
-            "gen_59cf15fe": "Template"
+            "gen_59cf15fe": "Template",
+            "gen_5a824c9a": "先选最省力的起步方式。创建完成后会自动打开当前写法编辑，继续补规则、试写和绑定。",
+            "gen_e99b3b79": "手里还没有明确规则时，先从模板起一套最省力。后面都可以继续改。",
+            "gen_46c87263": "你可以手动建一个空白写法，也可以先说一句想要的读感，让 AI 帮你搭第一版骨架。",
+            "gen_ddc7dd48": "适合你已经知道自己要维护什么类型的写法，只想先建一个空壳。",
+            "gen_2fd0fae4": "适合你只知道想写成什么感觉，还不想先手填规则字段。",
+            "gen_afed1912": "从素材中创建写法。文本和知识库原文会进入后台提取任务；拆书结果会直接使用文风与技法分析生成写法。",
+            "gen_18a3dbb4": "检索知识库文档中...",
+            "gen_d17e11fe": "没有找到可用知识库文档。可以先到知识库上传原文，再回到这里创建写法。",
+            "gen_89392fe4": "写法资产会继续保留完整来源预览；模型只读取代表性样本，避免长篇全文一次性超出模型承载能力。",
+            "gen_65d6a91b": "全文提取会把活动版本全文交给模型。长篇原文建议先使用智能抽样。",
+            "gen_89ba2e73": "检索拆书结果中...",
+            "gen_0fd4f3d0": "没有找到可用拆书结果。完成拆书后，可以在这里直接生成写法。",
+            "gen_0e11abeb": "这一路会直接读取拆书里的文风与技法小节，生成后立即打开写法编辑。",
+            "gen_023bb393": "先决定你要保留多少原始指纹，系统会按这个策略自动生成并保存写法。",
+            "gen_1d919e4c": "去任务中心查看",
+            "gen_7d1bd18b": "提交后系统会在后台完成提取、套用保留策略并自动保存写法。你可以先关掉弹窗，完成后会自动打开结果。"
           },
           "WritingFormulaEditorPanel": {
             "gen_1c0b6190": "this Save this write method 's Text novels。sample novels ， easy to define 。",
@@ -6597,7 +8473,23 @@
             "gen_e235157f": "weak",
             "gen_9b012c13": "",
             "gen_d0771a42": "Category",
-            "gen_14d34236": "Tag"
+            "gen_14d34236": "Tag",
+            "gen_aa6892e8": "这块规则当前还没有可读字段。你可以先依赖上面的简介和反 AI 规则，确实需要精细兼容时再展开高级 JSON。",
+            "gen_e8028e10": "查看或编辑高级 JSON",
+            "gen_2e739d6c": "这里保留原始 JSON 入口，主要用于兼容旧资产或做精细调参。常规情况下先看上面的可读字段即可。",
+            "gen_75a88e5a": "当前 JSON 结构无法正常识别。保存时系统会尽量回退为空对象，建议先修正格式再保存。",
+            "gen_2f4aaddd": "删除",
+            "gen_6ca3e2ab": "这是系统预置给你的起步写法。可以直接按自己的项目修改，不需要先复制一份再编辑。",
+            "gen_c59cd0c3": "先把这套写法到底想写成什么感觉讲清楚，列表页展开时也会优先展示这里的内容。",
+            "gen_6b158ade": "当前只有摘要级规则",
+            "gen_fb060615": "这里展示模型给出的三套保留方案。当前保存到写法里的选择会单独标出来，方便你判断是不是要换一种保留力度。",
+            "gen_7d80ffb7": "当前套用",
+            "gen_c9c3a5fa": "这些是提取阶段推荐一起绑定的规则。已绑定会直接标出来，未绑定的也会继续保留原始建议名。",
+            "gen_368f2228": "这条文本写法还没生成可选特征条目。可以点“重新提取特征”，重新从原文样本生成完整特征池。",
+            "gen_7a7d9832": "这里不是给读者看的文案，而是给你自己和系统回看时用的补充说明。可以写为什么保留这套写法、它最重要的气质是什么。",
+            "gen_970a50c6": "这里决定系统在检测和修正文稿时优先防什么问题。规则绑得越清楚，“去 AI 味”越有方向感。",
+            "gen_acf2f3a0": "保存后，这套写法的展开详情、去 AI 味检测和应用测试都会同步读取新设定。",
+            "gen_a71fa1e0": "保存当前写法"
           },
           "WritingFormulaImitateFlow": {
             "gen_87a205f3": "module 's Text novels。Suggestionsto few give 1Paragraph ，let can view out distance 、correct sum Sentence Section 。",
@@ -6611,7 +8503,11 @@
             "extractFeaturesFirst": "2. First extract features",
             "gen_4f2fa708": "module 1kind write method",
             "gen_1befc273": "Category（Can select ）",
-            "gen_ce717abb": "Current"
+            "gen_ce717abb": "Current",
+            "gen_dcd8ba37": "你先给我一段明确的参考文本，我把它拆成可执行写法，再决定是贴近模仿、保留骨架，还是只迁移可复用部分。",
+            "gen_cf41f32a": "先完成特征提取，这里才会出现三种保留策略和对应的读感说明。",
+            "gen_a394472e": "保存后会自动进入当前写法编辑，你可以继续调整规则、绑定到目标，或者直接拿去试写。",
+            "gen_61b5d946": "还没有可预览的特征。先完成特征提取，再决定保存方式。"
           },
           "WritingFormulaLanding": {
             "gen_6a72ae84": "this 1 fast this write method write ， merge first type Project。",
@@ -6650,10 +8546,25 @@
             "nextStep": "Next Step",
             "gen_2f4aaddd": "Delete",
             "gen_26ca20b1": "source",
-            "gen_f61f4cf6": "No no"
+            "gen_f61f4cf6": "No no",
+            "gen_b5aa7f95": "编辑设定",
+            "gen_a6008377": "应用与测试",
+            "gen_b589a6aa": "去 AI 味",
+            "gen_c2007e7e": "这套写法还没有绑定明确的反 AI 约束，所以“去 AI 味”时可读性会偏弱。",
+            "gen_b6795e9a": "我的写法资产",
+            "gen_ed3884d0": "先选一套写法，再决定要编辑、应用还是去 AI 味。",
+            "gen_79938b10": "首页负责看清你已有的写法资产。展开后会直接展示这套写法的读感定位、规则摘要、反 AI 约束和当前成熟度。",
+            "gen_6a2cf30a": "新建一套写法",
+            "gen_353db8f4": "书级默认写法请从小说基础信息进入，由小说来选择要使用的写法资产，再带入后续导演和正文流程。",
+            "gen_d458893d": "先创建第一套写法，后面再回来慢慢补规则、做试写和绑定目标。",
+            "gen_a2d48eb8": "去创建第一套写法",
+            "gen_bbf07e06": "这些是你沉淀下来的可复用资产，应该优先在这里挑。",
+            "gen_2cabef3a": "这些预置资产适合先借一套骨架，再按当前项目改成自己的写法。"
           },
           "WritingFormulaRulesPanel": {
-            "gen_e54140ea": "in Rules in"
+            "gen_e54140ea": "in Rules in",
+            "gen_d6a7d091": "反 AI 规则",
+            "gen_05005f3c": "在规则中心查看、创建和调整反 AI 规则；写法编辑区继续负责选择哪些规则绑定到当前写法。"
           },
           "WritingFormulaSidebar": {
             "exampleSimilarToBookFarawaySaviorStyleOverallCurtainPowerThinkingStrongDialogueSharpLessJitangMoreRealityFriction": "Example: similar_to_book_far_away_savior_style_overall_curtain_power_thinking_strong_dialogue_sharp_less_jitang_more_reality_friction",
@@ -6682,7 +8593,17 @@
             "gen_c182e73c": "fast open start",
             "gen_a5d0edd4": "write method",
             "gen_5c888f73": "place",
-            "gen_59cf15fe": "Template"
+            "gen_59cf15fe": "Template",
+            "gen_20ef71fc": "第一次使用时，不用先理解所有规则字段。先从预置写法里挑一套最像你想写的感觉，再进去改名字、标签和规则，会顺很多。",
+            "gen_9a807712": "适合快速新建一套新写法，不必从空白开始。",
+            "gen_41aa68dd": "这里负责切换弹窗中的编辑对象。完整资产列表在首页查看。",
+            "gen_77630d2b": "当前还没有写法资产。点上方“新建或导入写法”，先从模板快速起一套最省心。",
+            "gen_623c0c91": "推荐先走“快速开始”或“空白 / AI”里的句子生成。手里有稳定样本文本时，再使用“从文本提取”。",
+            "gen_773581fd": "左侧放了几套可直接修改的起步写法。想再新开一套时，从模板快速生成会更省力，再按项目微调。",
+            "gen_891a2f72": "这里有两种轻量起步方式：如果你清楚自己要维护一套规则，就手动建空白；如果你只知道“想写成什么感觉”，直接写一句话交给 AI 搭骨架。",
+            "gen_bb1850e2": "适合你清楚自己要维护哪类风格规则，只想先建一个空壳再慢慢补。",
+            "gen_ecd8eac5": "不想先研究规则字段时，直接描述你想要的读感、气质或参考方向，AI 会先生成一套可编辑写法。",
+            "gen_c2131f51": "适合你手里有一段稳定的参考文本，想让系统先提取特征再进入编辑。没有现成样本时，建议先从模板或 AI 起步。"
           },
           "WritingFormulaWorkbenchPanel": {
             "gen_onDeleteBi_ry8m": "onDeleteBinding(binding.id)}>Delete",
@@ -6706,7 +8627,13 @@
             "priorityLevel": "Priority Level",
             "gen_9290b644": "Chapter",
             "gen_4aac5591": "re",
-            "gen_2f4aaddd": "Delete"
+            "gen_2f4aaddd": "Delete",
+            "gen_cd9ed1be": "绑定后，这套写法会在对应小说、章节或任务里参与生成。优先级越高，影响越靠前；权重越高，参与程度越强。",
+            "gen_d0c15d8e": "创建绑定",
+            "gen_d166242f": "这套写法还没有绑定到任何目标。先绑定到小说或章节，后面的生成链路才会自动带上它。",
+            "gen_2bad160c": "不确定这套写法到底有没有落地成功时，先生成一段或改写一段，是最直观的验证方式。",
+            "gen_c9735112": "执行试写",
+            "gen_f49f00a5": "这里会显示试写结果。你可以用它判断这套写法的推进感、对白质感和整体语气是否已经到位。"
           }
         },
         "useWritingFormulaCreateFlow": {
@@ -6828,6 +8755,105 @@
           "gen_e0b665f2": "slow",
           "gen_0a60ac8f": "Yes",
           "gen_c9744f45": "No"
+        }
+      },
+      "stock": {
+        "StockStudioPage": {
+          "gen_c335e973": "关闭提示",
+          "gen_527f2fa5": "刷新 MooMoo 自选关注列表",
+          "gen_d9064347": "请粘贴从 MooMoo 客户端复制的持仓文本或资金信息...",
+          "gen_54e3560e": "代码 (如 NVDA)",
+          "gen_4ef52482": "股数",
+          "gen_8b319dbb": "成本 $",
+          "gen_1c5df6c5": "现价 $",
+          "gen_e52a7115": "输入 6 位交易密码",
+          "gen_df2381fe": "例如：鸿海精密 / 富士康 (Foxconn) 或 台积电 CoWoS",
+          "gen_ee803292": "例如：iPhone 独家精密组装",
+          "gen_dc4bf7f5": "例如：全球最大智能手机代工厂，苹果供应链重要组件及产能出货核心保障",
+          "gen_5648310a": "美股每日操盘与风险诊断报告",
+          "gen_c1c29f5e": "基于股票的知识图谱与 OpenD / 互联网新闻资讯",
+          "gen_02d7223c": "可视化展示每只股票的产业链上下游节点、互联网资讯快讯与 AI 研判逻辑",
+          "gen_4f83279d": "点击弹出【全景 2D 交互知识图谱】",
+          "gen_730c8936": "查看 2D 全景图",
+          "gen_fc1f2690": "点击交互 ➔",
+          "gen_cf3e4afc": "全流程确定性校验: 100% 实时公式审计",
+          "gen_7629f4e3": "本视图**100% 无任何硬编码模拟数据**，所有节点数据均从 OpenD 本地通道实时调取，所有的交易预算、股数与总价均由精确数学公式计算确定。",
+          "gen_5999fec9": "主账户ID: 283726803950473678",
+          "gen_006b36c3": "从 OpenD 接口实时传输中...",
+          "gen_6c64ea45": "纯公式实时求导校验",
+          "gen_f2e9f884": "上次指南质量",
+          "gen_29affed9": "避免损失",
+          "gen_eed846d6": "跟单率",
+          "gen_8e5b2028": "指南预期 P&amp;L",
+          "gen_733bc1c2": "按全部执行",
+          "gen_73374e1c": "闲置现金可用",
+          "gen_6de026f2": "数据源类型",
+          "gen_2fdfa76e": "实时 P&amp;L 汇总",
+          "gen_af1a41aa": "总市值",
+          "gen_b9550d2d": "流动现金",
+          "gen_518272b7": "净资产",
+          "gen_f03a2673": "暂无持仓数据，点击上方“一键从 MooMoo 同步”即可从 OpenD 拉取",
+          "gen_be5df650": "同步自选",
+          "gen_3db7095c": "未检测到自选股，点击“同步自选”或在 MooMoo 软件添加",
+          "gen_280aee33": "系统正在融合隔夜美股宏观数据与当前 MooMoo 持仓进行量化推演。推演完成后，下方的操作指令与专业研报将自动覆盖更新。",
+          "gen_bb5594f3": "即将更新：今日买卖指令清单 / 风险警报 / 策略诊断研报",
+          "gen_a44e5a78": "隔夜美股宏观概述：",
+          "gen_f2895fd9": "保持观望",
+          "gen_e045deae": "尚未生成今日美股操盘策略",
+          "gen_a8d27333": "请确认左侧持仓组合与新增预算无误后，点击左下角的“生成今日 MooMoo 操盘指南”开启 AI 智能体推演。",
+          "gen_3bdf62b2": "在 MooMoo APP / 桌面端中复制持仓文本直接粘贴至下方：",
+          "gen_9b3e6967": "持仓股票列表",
+          "gen_625fb26b": "取消",
+          "gen_ba5daf09": "保存持仓并更新",
+          "gen_712d5474": "输入 MooMoo 交易密码",
+          "gen_cee7f870": "你的 MooMoo 交易密码",
+          "gen_97b15ba7": "节点深度关联透视面板",
+          "gen_80701c28": "在左侧 2D 拓扑图中点击任意节点，查看产业链深度解读与数据流来源。",
+          "gen_78349771": "最新美股现价",
+          "gen_52956a59": "资产关联状态",
+          "gen_191b085a": "关闭 2D 全景全屏视图",
+          "gen_c3021f16": "融合 4 大数据源：",
+          "gen_fe483c48": "网络资讯快讯",
+          "gen_099cb456": "实盘组合持仓",
+          "gen_62a3bc01": "人工研判修正",
+          "gen_f913937c": "保存并实时更新 2D 拓扑图谱"
+        }
+      },
+      "video": {
+        "VideoWorkspacePage": {
+          "gen_7369466d": "例如：逆袭之路预告片",
+          "gen_f034ded4": "例如: deepseek-r1:8b",
+          "gen_d0b4a80f": "例如: http://127.0.0.1:7860",
+          "gen_4c12908a": "例如: http://127.0.0.1:8000/v1",
+          "gen_50bc391b": "提交渲染",
+          "gen_4f8d48ef": "刷新状态",
+          "gen_fb82cd70": "渲染完成：",
+          "gen_18a1f33f": "视频改编工作台",
+          "gen_55f956ae": "将小说章节改编为短视频或预告片。AI 生成视频脚本后提交到 VellumReel 渲染。",
+          "gen_03febcd6": "环境未就绪 — 请确保系统已安装 Node.js 20+ 并配置 FFmpeg/ffprobe 环境变量",
+          "gen_d6d1034b": "新建视频项目",
+          "gen_3296e9b0": "选择要改编的小说或直接创建自定义视频项目。",
+          "gen_738a41f9": "项目名称",
+          "gen_431cf74d": "关联小说",
+          "gen_2bb91223": "不关联小说（自定义）",
+          "gen_226b0912": "类型",
+          "gen_e844fa7e": "章节改编",
+          "gen_d95cf6d2": "预告片",
+          "gen_f1d4ff50": "自定义",
+          "gen_442f7292": "目标时长（秒）",
+          "gen_79852be7": "视觉风格",
+          "gen_f7acd802": "电影感",
+          "gen_52faa1aa": "动漫风",
+          "gen_1c4c222a": "水彩风",
+          "gen_7eb3b629": "极简",
+          "gen_37f92c1a": "本地离线模型设置",
+          "gen_a0f89244": "配置完全离线模式下的本地模型服务接口",
+          "gen_1e1696d5": "开启本地完全离线模式",
+          "gen_e417db6a": "项目列表",
+          "gen_82ba93e1": "从脚本生成到渲染提交的视频制作流程。",
+          "gen_694fc5ef": "刷新",
+          "gen_60abc90a": "正在加载视频项目...",
+          "gen_80ea4467": "还没有视频项目。先在左侧创建一个项目。"
         }
       }
     },

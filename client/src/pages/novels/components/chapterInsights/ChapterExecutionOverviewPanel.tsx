@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import i18next from "i18next";
 const t = (key: string, options?: any) => i18next.t(key, options) as string;
 import { Link } from "react-router-dom";
@@ -49,6 +50,7 @@ function OverviewStat(props: { label: string; value: string; hint?: string }) {
 }
 
 export default function ChapterExecutionOverviewPanel(props: ChapterExecutionOverviewPanelProps) {
+  const { t } = useTranslation();
   const {
     selectedChapter,
     chapterPlan,
@@ -60,9 +62,7 @@ export default function ChapterExecutionOverviewPanel(props: ChapterExecutionOve
 
   if (!selectedChapter) {
     return (
-      <section className="rounded-2xl border border-dashed border-border/70 bg-background p-4 text-sm leading-6 text-muted-foreground">
-        选中章节后，这里显示本章状态、目标、字数、质量和待处理问题。
-      </section>
+      <section className="rounded-2xl border border-dashed border-border/70 bg-background p-4 text-sm leading-6 text-muted-foreground">{t("gen.pages.novels.components.chapterInsights.ChapterExecutionOverviewPanel.gen_9430f699", "选中章节后，这里显示本章状态、目标、字数、质量和待处理问题。")}</section>
     );
   }
 

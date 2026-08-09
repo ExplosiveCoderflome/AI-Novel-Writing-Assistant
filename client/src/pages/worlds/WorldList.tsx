@@ -249,9 +249,7 @@ export default function WorldList() {
       <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
         <div>
           <h1 className="text-xl font-semibold tracking-normal">{i18next.t("gen.pages.worlds.WorldList.worldSampleLibrary")}</h1>
-          <p className="mt-1 max-w-3xl text-sm leading-6 text-muted-foreground">
-            这里保存可复用的世界样本。小说需要使用世界时，从小说基础信息页导入为本书世界副本，再决定是否手动同步。
-          </p>
+          <p className="mt-1 max-w-3xl text-sm leading-6 text-muted-foreground">{t("gen.pages.worlds.WorldList.gen_28229ddb", "这里保存可复用的世界样本。小说需要使用世界时，从小说基础信息页导入为本书世界副本，再决定是否手动同步。")}</p>
         </div>
         <div className="flex flex-wrap justify-end gap-2">
           {featureFlags.worldWizardEnabled ? (
@@ -367,15 +365,11 @@ export default function WorldList() {
                   <div className="flex flex-wrap items-center gap-2 pt-1">
                     <Button asChild size="sm">
                       <Link to={`/worlds/${world.id}/workspace`}>
-                        <Compass className="mr-1 h-4 w-4" aria-hidden="true" />
-                        查看世界手册
-                      </Link>
+                        <Compass className="mr-1 h-4 w-4" aria-hidden="true" />{t("gen.pages.worlds.WorldList.gen_6b8fda7c", "查看世界手册")}</Link>
                     </Button>
                     <Button asChild size="sm" variant="outline">
                       <Link to={`/worlds/${world.id}/workspace`}>
-                        <Pencil className="mr-1 h-4 w-4" aria-hidden="true" />
-                        整理样本
-                      </Link>
+                        <Pencil className="mr-1 h-4 w-4" aria-hidden="true" />{t("gen.pages.worlds.WorldList.gen_d5d444f4", "整理样本")}</Link>
                     </Button>
                     <Button
                       size="sm"

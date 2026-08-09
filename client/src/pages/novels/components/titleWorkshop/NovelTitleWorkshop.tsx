@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import i18next from "i18next";
 const t = (key: string, options?: any) => i18next.t(key, options) as string;
 import { useState } from "react";
@@ -29,6 +30,7 @@ export default function NovelTitleWorkshop({
   genreId,
   onApplyTitle,
 }: NovelTitleWorkshopProps) {
+  const { t } = useTranslation();
   const llm = useLLMStore();
   const queryClient = useQueryClient();
   const [selectedTitle, setSelectedTitle] = useState(currentTitle);
@@ -95,9 +97,7 @@ export default function NovelTitleWorkshop({
         <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
           <div className="space-y-1">
             <div className="text-sm font-semibold text-foreground">{i18next.t("gen.pages.novels.components.titleWorkshop.NovelTitleWorkshop.gen_c7a5bed7")}</div>
-            <div className="text-sm leading-6 text-muted-foreground">
-              基于当前已保存的小说简介和类型生成候选。如果刚修改过简介或类型，建议先保存基本信息再生成。
-            </div>
+            <div className="text-sm leading-6 text-muted-foreground">{t("gen.pages.novels.components.titleWorkshop.NovelTitleWorkshop.gen_c26e0674", "基于当前已保存的小说简介和类型生成候选。如果刚修改过简介或类型，建议先保存基本信息再生成。")}</div>
           </div>
           <Button type="button" variant="outline" disabled={!currentTitle.trim() || saveCurrentMutation.isPending} onClick={() => saveCurrentMutation.mutate()}>
             {saveCurrentMutation.isPending ? i18next.t("gen.pages.novels.components.titleWorkshop.NovelTitleWorkshop.savingInProgressDotDotDot") : i18next.t("gen.pages.novels.components.titleWorkshop.NovelTitleWorkshop.saveCurrentTitle")}

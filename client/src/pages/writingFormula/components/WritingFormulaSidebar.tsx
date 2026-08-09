@@ -84,9 +84,7 @@ export default function WritingFormulaSidebar(props: WritingFormulaSidebarProps)
           <CardTitle>{i18next.t("gen.pages.writingFormula.components.WritingFormulaSidebar.gen_ec608b06")}</CardTitle>
         </CardHeader>
         <CardContent className="space-y-3">
-          <div className="text-sm leading-6 text-muted-foreground">
-            第一次使用时，不用先理解所有规则字段。先从预置写法里挑一套最像你想写的感觉，再进去改名字、标签和规则，会顺很多。
-          </div>
+          <div className="text-sm leading-6 text-muted-foreground">{t("gen.pages.writingFormula.components.WritingFormulaSidebar.gen_20ef71fc", "第一次使用时，不用先理解所有规则字段。先从预置写法里挑一套最像你想写的感觉，再进去改名字、标签和规则，会顺很多。")}</div>
           <div className="grid gap-3 sm:grid-cols-2">
             <div className="rounded-lg border bg-muted/20 p-3">
               <div className="text-xs font-medium text-muted-foreground">{i18next.t("gen.pages.writingFormula.components.WritingFormulaSidebar.gen_86f13660")}</div>
@@ -98,14 +96,10 @@ export default function WritingFormulaSidebar(props: WritingFormulaSidebarProps)
             <div className="rounded-lg border bg-muted/20 p-3">
               <div className="text-xs font-medium text-muted-foreground">{i18next.t("gen.pages.writingFormula.components.WritingFormulaSidebar.gen_653ba861")}</div>
               <div className="mt-1 text-2xl font-semibold text-foreground">{templates.length}</div>
-              <div className="mt-1 text-xs text-muted-foreground">
-                适合快速新建一套新写法，不必从空白开始。
-              </div>
+              <div className="mt-1 text-xs text-muted-foreground">{t("gen.pages.writingFormula.components.WritingFormulaSidebar.gen_9a807712", "适合快速新建一套新写法，不必从空白开始。")}</div>
             </div>
           </div>
-          <Button className="w-full" onClick={() => setCreateDialogOpen(true)}>
-            新建或导入写法
-          </Button>
+          <Button className="w-full" onClick={() => setCreateDialogOpen(true)}>{t("gen.pages.writingFormula.components.WritingFormulaSidebar.gen_ff2de9f0", "新建或导入写法")}</Button>
         </CardContent>
       </Card>
 
@@ -114,9 +108,7 @@ export default function WritingFormulaSidebar(props: WritingFormulaSidebarProps)
           <CardTitle>{i18next.t("gen.pages.writingFormula.components.WritingFormulaSidebar.gen_4350a39e")}</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="text-xs leading-6 text-muted-foreground">
-            这里负责切换弹窗中的编辑对象。完整资产列表在首页查看。
-          </div>
+          <div className="text-xs leading-6 text-muted-foreground">{t("gen.pages.writingFormula.components.WritingFormulaSidebar.gen_41aa68dd", "这里负责切换弹窗中的编辑对象。完整资产列表在首页查看。")}</div>
 
           {customProfiles.length > 0 ? (
             <div className="space-y-2">
@@ -167,9 +159,7 @@ export default function WritingFormulaSidebar(props: WritingFormulaSidebarProps)
           ) : null}
 
           {profiles.length === 0 ? (
-            <div className="rounded-md border border-dashed p-4 text-sm text-muted-foreground">
-              当前还没有写法资产。点上方“新建或导入写法”，先从模板快速起一套最省心。
-            </div>
+            <div className="rounded-md border border-dashed p-4 text-sm text-muted-foreground">{t("gen.pages.writingFormula.components.WritingFormulaSidebar.gen_77630d2b", "当前还没有写法资产。点上方“新建或导入写法”，先从模板快速起一套最省心。")}</div>
           ) : null}
         </CardContent>
       </Card>
@@ -180,9 +170,7 @@ export default function WritingFormulaSidebar(props: WritingFormulaSidebarProps)
         <DialogContent className="max-w-5xl">
           <DialogHeader>
             <DialogTitle>{i18next.t("gen.pages.writingFormula.components.WritingFormulaSidebar.gen_ff2de9f0")}</DialogTitle>
-            <DialogDescription>
-              推荐先走“快速开始”或“空白 / AI”里的句子生成。手里有稳定样本文本时，再使用“从文本提取”。
-            </DialogDescription>
+            <DialogDescription>{t("gen.pages.writingFormula.components.WritingFormulaSidebar.gen_623c0c91", "推荐先走“快速开始”或“空白 / AI”里的句子生成。手里有稳定样本文本时，再使用“从文本提取”。")}</DialogDescription>
           </DialogHeader>
 
           <Tabs value={activeCreateTab} onValueChange={setActiveCreateTab} className="space-y-4">
@@ -193,9 +181,7 @@ export default function WritingFormulaSidebar(props: WritingFormulaSidebarProps)
             </TabsList>
 
             <TabsContent value="quick_start" className="space-y-4">
-              <div className="rounded-lg border bg-muted/20 p-4 text-sm leading-6 text-muted-foreground">
-                左侧放了几套可直接修改的起步写法。想再新开一套时，从模板快速生成会更省力，再按项目微调。
-              </div>
+              <div className="rounded-lg border bg-muted/20 p-4 text-sm leading-6 text-muted-foreground">{t("gen.pages.writingFormula.components.WritingFormulaSidebar.gen_773581fd", "左侧放了几套可直接修改的起步写法。想再新开一套时，从模板快速生成会更省力，再按项目微调。")}</div>
               <div className="grid max-h-[58vh] gap-3 overflow-y-auto pr-1 md:grid-cols-2">
                 {templates.map((template) => (
                   <div key={template.id} className="rounded-lg border p-4">
@@ -233,16 +219,12 @@ export default function WritingFormulaSidebar(props: WritingFormulaSidebarProps)
             </TabsContent>
 
             <TabsContent value="blank" className="space-y-4">
-              <div className="rounded-lg border bg-muted/20 p-4 text-sm leading-6 text-muted-foreground">
-                这里有两种轻量起步方式：如果你清楚自己要维护一套规则，就手动建空白；如果你只知道“想写成什么感觉”，直接写一句话交给 AI 搭骨架。
-              </div>
+              <div className="rounded-lg border bg-muted/20 p-4 text-sm leading-6 text-muted-foreground">{t("gen.pages.writingFormula.components.WritingFormulaSidebar.gen_891a2f72", "这里有两种轻量起步方式：如果你清楚自己要维护一套规则，就手动建空白；如果你只知道“想写成什么感觉”，直接写一句话交给 AI 搭骨架。")}</div>
               <div className="grid gap-4 lg:grid-cols-2">
                 <div className="rounded-lg border p-4">
                   <div className="mb-3">
                     <div className="text-sm font-medium text-foreground">{i18next.t("gen.pages.writingFormula.components.WritingFormulaSidebar.gen_53a4c0f4")}</div>
-                    <div className="mt-1 text-xs leading-5 text-muted-foreground">
-                      适合你清楚自己要维护哪类风格规则，只想先建一个空壳再慢慢补。
-                    </div>
+                    <div className="mt-1 text-xs leading-5 text-muted-foreground">{t("gen.pages.writingFormula.components.WritingFormulaSidebar.gen_bb1850e2", "适合你清楚自己要维护哪类风格规则，只想先建一个空壳再慢慢补。")}</div>
                   </div>
                   <div className="space-y-3">
                     <input
@@ -264,9 +246,7 @@ export default function WritingFormulaSidebar(props: WritingFormulaSidebarProps)
                 <div className="rounded-lg border p-4">
                   <div className="mb-3">
                     <div className="text-sm font-medium text-foreground">{i18next.t("gen.pages.writingFormula.components.WritingFormulaSidebar.aiHelpBuildSet")}</div>
-                    <div className="mt-1 text-xs leading-5 text-muted-foreground">
-                      不想先研究规则字段时，直接描述你想要的读感、气质或参考方向，AI 会先生成一套可编辑写法。
-                    </div>
+                    <div className="mt-1 text-xs leading-5 text-muted-foreground">{t("gen.pages.writingFormula.components.WritingFormulaSidebar.gen_ecd8eac5", "不想先研究规则字段时，直接描述你想要的读感、气质或参考方向，AI 会先生成一套可编辑写法。")}</div>
                   </div>
                   <div className="space-y-3">
                     <input
@@ -300,9 +280,7 @@ export default function WritingFormulaSidebar(props: WritingFormulaSidebarProps)
             </TabsContent>
 
             <TabsContent value="extract" className="space-y-4">
-              <div className="rounded-lg border bg-muted/20 p-4 text-sm leading-6 text-muted-foreground">
-                适合你手里有一段稳定的参考文本，想让系统先提取特征再进入编辑。没有现成样本时，建议先从模板或 AI 起步。
-              </div>
+              <div className="rounded-lg border bg-muted/20 p-4 text-sm leading-6 text-muted-foreground">{t("gen.pages.writingFormula.components.WritingFormulaSidebar.gen_c2131f51", "适合你手里有一段稳定的参考文本，想让系统先提取特征再进入编辑。没有现成样本时，建议先从模板或 AI 起步。")}</div>
               <div className="rounded-lg border p-4">
                 <div className="space-y-3">
                   <input

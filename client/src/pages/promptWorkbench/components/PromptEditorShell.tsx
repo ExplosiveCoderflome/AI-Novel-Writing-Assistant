@@ -82,9 +82,7 @@ export function PromptEditorShell(props: PromptEditorShellProps) {
                 {prompt.version}
               </span>
               {immersive ? (
-                <span className="rounded-md border border-[#b8d9d0] bg-[#eaf7f2] px-2 py-0.5 text-xs font-medium text-[#0f766e]">
-                  沉浸编辑
-                </span>
+                <span className="rounded-md border border-[#b8d9d0] bg-[#eaf7f2] px-2 py-0.5 text-xs font-medium text-[#0f766e]">{t("gen.pages.promptWorkbench.components.PromptEditorShell.gen_01e14767", "沉浸编辑")}</span>
               ) : null}
             </div>
             <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted-foreground">
@@ -197,9 +195,7 @@ export function PromptEditorShell(props: PromptEditorShellProps) {
         )}>
           <div className="min-w-0">
             <div className="mb-2 flex items-center gap-2 text-xs font-semibold text-[#25443f]">
-              <ShieldCheck className="h-4 w-4 text-[#0f766e]" />
-              可编辑槽位
-            </div>
+              <ShieldCheck className="h-4 w-4 text-[#0f766e]" />{t("gen.pages.promptWorkbench.components.PromptEditorShell.gen_40d075cf", "可编辑槽位")}</div>
             <div className="flex flex-wrap gap-1.5">
               {prompt.slots.length > 0 ? prompt.slots.map((slot) => (
                 <span
@@ -217,9 +213,7 @@ export function PromptEditorShell(props: PromptEditorShellProps) {
           </div>
           <div className="min-w-0 lg:border-l lg:border-[#dbe5e2] lg:pl-4">
             <div className="mb-2 flex items-center gap-2 text-xs font-semibold text-[#3c4a63]">
-              <LockKeyhole className="h-4 w-4 text-[#5a6f95]" />
-              锁定边界
-            </div>
+              <LockKeyhole className="h-4 w-4 text-[#5a6f95]" />{t("gen.pages.promptWorkbench.components.PromptEditorShell.gen_870c10f2", "锁定边界")}</div>
             <div className="flex flex-wrap gap-1.5">
               {prompt.lockedFields.map((field) => (
                 <span

@@ -1,3 +1,5 @@
+import i18next from "i18next";
+import { useTranslation } from "react-i18next";
 import type { CharacterTimeline } from "@ai-novel/shared/types/novel";
 import AiButton from "@/components/common/AiButton";
 import { Badge } from "@/components/ui/badge";
@@ -11,6 +13,7 @@ interface CharacterTimelineTabProps {
 }
 
 export default function CharacterTimelineTab(props: CharacterTimelineTabProps) {
+  const { t } = useTranslation();
   const { timelineEvents, onSyncTimeline, isSyncingTimeline, onSyncAllTimeline, isSyncingAllTimeline } = props;
 
   return (
@@ -18,10 +21,8 @@ export default function CharacterTimelineTab(props: CharacterTimelineTabProps) {
       <section className="rounded-xl border border-border/70 bg-muted/10 p-4">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <div className="text-sm font-medium">角色事件流</div>
-            <div className="mt-1 text-xs leading-5 text-muted-foreground">
-              用最近章节事件观察角色处境变化，必要时同步时间线后再继续写作。
-            </div>
+            <div className="text-sm font-medium">{t("gen.pages.novels.components.characterWorkspace.CharacterTimelineTab.gen_31455571", "角色事件流")}</div>
+            <div className="mt-1 text-xs leading-5 text-muted-foreground">{t("gen.pages.novels.components.characterWorkspace.CharacterTimelineTab.gen_f934ba1a", "用最近章节事件观察角色处境变化，必要时同步时间线后再继续写作。")}</div>
           </div>
           <div className="flex flex-wrap gap-2">
             <AiButton size="sm" variant="outline" onClick={onSyncTimeline} disabled={isSyncingTimeline}>
@@ -51,9 +52,7 @@ export default function CharacterTimelineTab(props: CharacterTimelineTabProps) {
           ))}
         </div>
       ) : (
-        <div className="rounded-xl border border-dashed p-4 text-sm text-muted-foreground">
-          暂无事件，先点击“同步角色时间线”。
-        </div>
+        <div className="rounded-xl border border-dashed p-4 text-sm text-muted-foreground">{t("gen.pages.novels.components.characterWorkspace.CharacterTimelineTab.gen_72b998fb", "暂无事件，先点击“同步角色时间线”。")}</div>
       )}
     </div>
   );

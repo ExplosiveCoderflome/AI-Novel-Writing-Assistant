@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import i18next from "i18next";
 const t = (key: string, options?: any) => i18next.t(key, options) as string;
 import type { TakeoverProgressInspectionViewModel } from "../novelExistingProjectTakeoverViewModel";
@@ -14,6 +15,7 @@ export default function TakeoverProgressInspectionPanel({
   isLoadingTaskSnapshot,
   hasTaskSnapshotError,
 }: TakeoverProgressInspectionPanelProps) {
+  const { t } = useTranslation();
   return (
     <div className="mt-3 rounded-lg border bg-background/70 p-3">
       <div className={`text-xs leading-5 text-muted-foreground ${AUTO_DIRECTOR_MOBILE_CLASSES.wrapText}`}>
@@ -31,9 +33,7 @@ export default function TakeoverProgressInspectionPanel({
         ))}
       </div>
       {hasTaskSnapshotError ? (
-        <div className={`mt-2 text-xs leading-5 text-muted-foreground ${AUTO_DIRECTOR_MOBILE_CLASSES.wrapText}`}>
-          当前任务详细进度读取失败，已先显示项目资产体检。
-        </div>
+        <div className={`mt-2 text-xs leading-5 text-muted-foreground ${AUTO_DIRECTOR_MOBILE_CLASSES.wrapText}`}>{t("gen.pages.novels.components.takeover.TakeoverProgressInspectionPanel.gen_6ad7266b", "当前任务详细进度读取失败，已先显示项目资产体检。")}</div>
       ) : null}
     </div>
   );

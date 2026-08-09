@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import i18next from "i18next";
 const t = (key: string, options?: any) => i18next.t(key, options) as string;
 import type { Dispatch, SetStateAction } from "react";
@@ -21,6 +22,7 @@ export default function WorldRelationsSection(props: {
   forceNameById: Map<string, string>;
   locationNameById: Map<string, string>;
 }) {
+  const { t } = useTranslation();
   const { draftStructure, draftBindingSupport, setDraftStructure, forceNameById, locationNameById } = props;
 
   return (
@@ -55,9 +57,7 @@ export default function WorldRelationsSection(props: {
                     : prev,
                 )
               }
-            >
-              新增势力关系
-            </Button>
+            >{t("gen.pages.worlds.components.workspace.structure.WorldRelationsSection.gen_ae42fa77", "新增势力关系")}</Button>
             <Button
               size="sm"
               variant="outline"
@@ -83,9 +83,7 @@ export default function WorldRelationsSection(props: {
                     : prev,
                 )
               }
-            >
-              新增地点控制
-            </Button>
+            >{t("gen.pages.worlds.components.workspace.structure.WorldRelationsSection.gen_f3fe6187", "新增地点控制")}</Button>
           </div>
         </div>
         {draftStructure.relations.forceRelations.map((relation, index) => (

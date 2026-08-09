@@ -1,3 +1,4 @@
+import i18next from "i18next";
 import { useTranslation } from "react-i18next";
 import { Link } from "react-router-dom";
 import { ArrowRight, CheckCircle2, CircleAlert, CircleDashed, Loader2 } from "lucide-react";
@@ -136,10 +137,8 @@ export default function SettingsReadinessCard(props: {
     <Card className="min-w-0 overflow-hidden border-primary/20 bg-primary/5">
       <CardHeader className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
         <div className="min-w-0 space-y-1">
-          <CardTitle>创作可用性检查</CardTitle>
-          <CardDescription className={AUTO_DIRECTOR_MOBILE_CLASSES.wrapText}>
-            先确认开始写小说必需的模型和路由是否可用；知识库属于增强项，可以稍后再补。
-          </CardDescription>
+          <CardTitle>{t("gen.pages.settings.components.SettingsReadinessCard.gen_6371064c", "创作可用性检查")}</CardTitle>
+          <CardDescription className={AUTO_DIRECTOR_MOBILE_CLASSES.wrapText}>{t("gen.pages.settings.components.SettingsReadinessCard.gen_cb602416", "先确认开始写小说必需的模型和路由是否可用；知识库属于增强项，可以稍后再补。")}</CardDescription>
         </div>
         <Button asChild className={AUTO_DIRECTOR_MOBILE_CLASSES.fullWidthAction}>
           <Link to={primaryAction.to}>

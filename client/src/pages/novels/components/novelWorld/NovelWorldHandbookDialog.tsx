@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import i18next from "i18next";
 const t = (key: string, options?: any) => i18next.t(key, options) as string;
 import { Link } from "react-router-dom";
@@ -383,9 +384,7 @@ function SyncPanel(props: Pick<NovelWorldHandbookDialogProps,
       ) : null}
 
       {!novelWorld.syncEnabled ? (
-        <div className="mt-3 rounded-md border border-dashed p-3 text-sm text-muted-foreground">
-          本书世界会作为独立副本使用。需要同步时，可以手动推送本书世界或拉取世界库内容。
-        </div>
+        <div className="mt-3 rounded-md border border-dashed p-3 text-sm text-muted-foreground">{t("gen.pages.novels.components.novelWorld.NovelWorldHandbookDialog.gen_c312cf8f", "本书世界会作为独立副本使用。需要同步时，可以手动推送本书世界或拉取世界库内容。")}</div>
       ) : null}
 
       {syncDiff?.canSync === false ? (
@@ -427,9 +426,7 @@ function SyncPanel(props: Pick<NovelWorldHandbookDialogProps,
             <Button type="button" variant="secondary" disabled={props.isSyncing || !effectiveSyncSections?.length} onClick={() => props.onSync({ direction: "push", sections: effectiveSyncSections })}>
               {props.isSyncing ? i18next.t("gen.pages.novels.components.novelWorld.NovelWorldHandbookDialog.gen_f787f452") : i18next.t("gen.pages.novels.components.novelWorld.NovelWorldHandbookDialog.gen_a7b36193")}
             </Button>
-            <Button type="button" variant="outline" disabled={props.isSyncing} onClick={() => props.onSync({ direction: "none" })}>
-              关闭同步
-            </Button>
+            <Button type="button" variant="outline" disabled={props.isSyncing} onClick={() => props.onSync({ direction: "none" })}>{t("gen.pages.novels.components.novelWorld.NovelWorldHandbookDialog.gen_bf971021", "关闭同步")}</Button>
           </div>
         </div>
       ) : !novelWorld.syncEnabled ? (
@@ -442,9 +439,7 @@ function SyncPanel(props: Pick<NovelWorldHandbookDialogProps,
           </Button>
         </div>
       ) : (
-        <div className="mt-3 rounded-md border border-dashed p-3 text-sm text-muted-foreground">
-          本书世界和世界库样本保持一致。
-        </div>
+        <div className="mt-3 rounded-md border border-dashed p-3 text-sm text-muted-foreground">{t("gen.pages.novels.components.novelWorld.NovelWorldHandbookDialog.gen_d90df0f0", "本书世界和世界库样本保持一致。")}</div>
       )}
 
       {props.syncHistory.length > 0 ? (
@@ -476,9 +471,7 @@ function SourceAndLibraryPanel(props: Pick<NovelWorldHandbookDialogProps,
         <div className="mt-4 flex flex-col gap-3 rounded-xl bg-muted/15 p-4 lg:flex-row lg:items-center lg:justify-between">
           <div>
             <div className="text-sm font-medium text-foreground">{i18next.t("gen.pages.novels.components.novelWorld.NovelWorldHandbookDialog.gen_cd592245")}</div>
-            <div className="mt-1 text-sm leading-6 text-muted-foreground">
-              把本书世界保存为可复用样本，后续可以推送本书修改或拉取世界库内容。
-            </div>
+            <div className="mt-1 text-sm leading-6 text-muted-foreground">{t("gen.pages.novels.components.novelWorld.NovelWorldHandbookDialog.gen_2471356e", "把本书世界保存为可复用样本，后续可以推送本书修改或拉取世界库内容。")}</div>
           </div>
           <Button type="button" variant="secondary" disabled={props.isSavingToLibrary} onClick={() => props.onSaveToLibrary()}>
             <Library className="size-4" />
@@ -512,6 +505,7 @@ function SourceAndLibraryPanel(props: Pick<NovelWorldHandbookDialogProps,
 }
 
 export function NovelWorldHandbookDialog(props: NovelWorldHandbookDialogProps) {
+  const { t } = useTranslation();
   return (
     <Dialog open={props.open} onOpenChange={props.onOpenChange}>
       <AppDialogContent

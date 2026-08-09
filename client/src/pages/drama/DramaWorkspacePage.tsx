@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import i18next from "i18next";
 const t = (key: string, options?: any) => i18next.t(key, options) as string;
 import { useMemo, useState } from "react";
@@ -122,9 +123,7 @@ function ProjectCard(props: {
       </CardHeader>
       <CardContent className="flex flex-wrap gap-2">
         <Button asChild type="button" size="sm">
-          <Link to={`/drama/projects/${props.project.id}`}>
-            打开工作台
-            <ArrowRight className="h-4 w-4" />
+          <Link to={`/drama/projects/${props.project.id}`}>{t("gen.pages.drama.DramaWorkspacePage.gen_9acb817c", "打开工作台")}<ArrowRight className="h-4 w-4" />
           </Link>
         </Button>
         <Button
@@ -134,9 +133,7 @@ function ProjectCard(props: {
           disabled={isBusy}
           onClick={() => props.onAssemble(props.project)}
         >
-          <Layers3 className="h-4 w-4" />
-          整理素材
-        </Button>
+          <Layers3 className="h-4 w-4" />{t("gen.pages.drama.DramaWorkspacePage.gen_eeb01df4", "整理素材")}</Button>
         <Button
           type="button"
           size="sm"
@@ -144,24 +141,21 @@ function ProjectCard(props: {
           disabled={isBusy}
           onClick={() => props.onStrategy(props.project)}
         >
-          <Sparkles className="h-4 w-4" />
-          生成策略
-        </Button>
+          <Sparkles className="h-4 w-4" />{t("gen.pages.drama.DramaWorkspacePage.gen_5f66b6de", "生成策略")}</Button>
         <Button
           type="button"
           size="sm"
           disabled={isBusy}
           onClick={() => props.onOutline(props.project)}
         >
-          <ListVideo className="h-4 w-4" />
-          生成前 12 集
-        </Button>
+          <ListVideo className="h-4 w-4" />{t("gen.pages.drama.DramaWorkspacePage.gen_ecc3b873", "生成前 12 集")}</Button>
       </CardContent>
     </Card>
   );
 }
 
 export default function DramaWorkspacePage() {
+  const { t } = useTranslation();
   const queryClient = useQueryClient();
   const navigate = useNavigate();
   const [stepIndex, setStepIndex] = useState(0);
@@ -315,9 +309,7 @@ export default function DramaWorkspacePage() {
     <div className="space-y-5">
       <div className="space-y-2">
         <h1 className="text-2xl font-semibold tracking-normal">{i18next.t("gen.pages.drama.DramaWorkspacePage.gen_8eb337a1")}</h1>
-        <p className="max-w-3xl text-sm text-muted-foreground">
-          从小说、原创灵感或导入文本整理短剧素材，再生成竖屏付费短剧策略和分集台本。
-        </p>
+        <p className="max-w-3xl text-sm text-muted-foreground">{t("gen.pages.drama.DramaWorkspacePage.gen_7a534604", "从小说、原创灵感或导入文本整理短剧素材，再生成竖屏付费短剧策略和分集台本。")}</p>
       </div>
 
       <div className="grid gap-4 xl:grid-cols-[minmax(320px,420px)_1fr]">
@@ -505,14 +497,10 @@ export default function DramaWorkspacePage() {
 
             <div className="flex flex-wrap gap-2">
               {stepIndex > 0 ? (
-                <Button type="button" variant="outline" onClick={() => setStepIndex((current) => Math.max(0, current - 1))}>
-                  上一步
-                </Button>
+                <Button type="button" variant="outline" onClick={() => setStepIndex((current) => Math.max(0, current - 1))}>{t("gen.pages.drama.DramaWorkspacePage.gen_eeb69088", "上一步")}</Button>
               ) : null}
               {stepIndex < WIZARD_STEPS.length - 1 ? (
-                <Button type="button" onClick={goNext}>
-                  下一步
-                  <ArrowRight className="h-4 w-4" />
+                <Button type="button" onClick={goNext}>{t("gen.pages.drama.DramaWorkspacePage.gen_38ce27d8", "下一步")}<ArrowRight className="h-4 w-4" />
                 </Button>
               ) : (
                 <Button type="button" disabled={createMutation.isPending} onClick={handleCreate}>
@@ -537,9 +525,7 @@ export default function DramaWorkspacePage() {
               disabled={projectsQuery.isFetching}
               onClick={() => void projectsQuery.refetch()}
             >
-              <RefreshCw className="h-4 w-4" />
-              刷新
-            </Button>
+              <RefreshCw className="h-4 w-4" />{t("gen.pages.drama.DramaWorkspacePage.gen_694fc5ef", "刷新")}</Button>
           </div>
 
           {projectsQuery.isLoading ? (
@@ -547,9 +533,7 @@ export default function DramaWorkspacePage() {
           ) : null}
 
           {!projectsQuery.isLoading && projects.length === 0 ? (
-            <div className="rounded-md border border-dashed p-6 text-center text-sm text-muted-foreground">
-              还没有短剧项目。先从左侧创建一个项目。
-            </div>
+            <div className="rounded-md border border-dashed p-6 text-center text-sm text-muted-foreground">{t("gen.pages.drama.DramaWorkspacePage.gen_ae23d359", "还没有短剧项目。先从左侧创建一个项目。")}</div>
           ) : null}
 
           <div className="grid gap-3">

@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import i18next from "i18next";
 const t = (key: string, options?: any) => i18next.t(key, options) as string;
 import { useMemo, useState } from "react";
@@ -52,6 +53,7 @@ interface TensionCurveEditDialogProps {
 }
 
 export function TensionCurveEditDialog(props: TensionCurveEditDialogProps) {
+  const { t } = useTranslation();
   const {
     open,
     onOpenChange,
@@ -129,18 +131,12 @@ export function TensionCurveEditDialog(props: TensionCurveEditDialogProps) {
             </div>
             <div className="flex flex-wrap items-center justify-end gap-2">
               {userAnchorCount > 0 ? (
-                <Button type="button" size="sm" variant="outline" onClick={() => releaseScope("all")}>
-                  整卷交还 AI
-                </Button>
+                <Button type="button" size="sm" variant="outline" onClick={() => releaseScope("all")}>{t("gen.components.tensionCurve.TensionCurveEditDialog.gen_e018164f", "整卷交还 AI")}</Button>
               ) : null}
               {selectedViewportKey !== "all" && selectedUserAnchorCount > 0 ? (
-                <Button type="button" size="sm" variant="outline" onClick={() => releaseScope("selected")}>
-                  当前节奏段交还 AI
-                </Button>
+                <Button type="button" size="sm" variant="outline" onClick={() => releaseScope("selected")}>{t("gen.components.tensionCurve.TensionCurveEditDialog.gen_3fad9773", "当前节奏段交还 AI")}</Button>
               ) : null}
-              <Button type="button" size="sm" variant="secondary" onClick={() => onOpenChange(false)}>
-                完成编辑
-              </Button>
+              <Button type="button" size="sm" variant="secondary" onClick={() => onOpenChange(false)}>{t("gen.components.tensionCurve.TensionCurveEditDialog.gen_8cfeeb9f", "完成编辑")}</Button>
             </div>
           </>
         )}
@@ -156,9 +152,7 @@ export function TensionCurveEditDialog(props: TensionCurveEditDialogProps) {
         <div className="grid min-h-0 gap-4 xl:grid-cols-[minmax(0,1fr)_320px]">
           <div className="min-w-0 space-y-3">
             <div className="flex flex-col gap-3 rounded-xl border border-border/70 bg-background p-3 lg:flex-row lg:items-center lg:justify-between">
-              <div className="text-sm text-muted-foreground">
-                拖动章节节点会固定该章强度；点选节点可在右侧查看章节摘要。
-              </div>
+              <div className="text-sm text-muted-foreground">{t("gen.components.tensionCurve.TensionCurveEditDialog.gen_9fa3e382", "拖动章节节点会固定该章强度；点选节点可在右侧查看章节摘要。")}</div>
               {primaryPointCount > 1 ? (
                 <div className="flex items-center gap-2 rounded-md border border-border/70 px-2 py-1">
                   <span className="text-xs text-muted-foreground">{i18next.t("gen.components.tensionCurve.TensionCurveEditDialog.gen_78e6e8fc")}</span>

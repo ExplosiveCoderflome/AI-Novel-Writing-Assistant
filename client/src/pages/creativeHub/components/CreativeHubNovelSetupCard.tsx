@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import i18next from "i18next";
 import type { CreativeHubNovelSetupStatus } from "@ai-novel/shared/types/creativeHub";
 import { Badge } from "@/components/ui/badge";
@@ -37,6 +38,7 @@ export default function CreativeHubNovelSetupCard({
   actionDisabled = false,
   onQuickAction,
 }: CreativeHubNovelSetupCardProps) {
+  const { t } = useTranslation();
   const pendingItems = setup.checklist.filter((item) => item.status !== "ready");
 
   return (
@@ -62,7 +64,7 @@ export default function CreativeHubNovelSetupCard({
         <div
           className="mt-3 h-2 overflow-hidden rounded-full bg-muted"
           role="progressbar"
-          aria-label="开书信息完成度"
+          aria-label={t("gen.pages.creativeHub.components.CreativeHubNovelSetupCard.gen_9322bdef", "开书信息完成度")}
           aria-valuemin={0}
           aria-valuemax={100}
           aria-valuenow={setup.completionRatio}
@@ -85,9 +87,7 @@ export default function CreativeHubNovelSetupCard({
               <div className="text-sm font-medium">{item.label}</div>
               <div className="flex items-center gap-2 text-[11px]">
                 {item.requiredForProduction ? (
-                  <span className="rounded-md border border-current/20 bg-background/70 px-2 py-0.5">
-                    生产前确认
-                  </span>
+                  <span className="rounded-md border border-current/20 bg-background/70 px-2 py-0.5">{t("gen.pages.creativeHub.components.CreativeHubNovelSetupCard.gen_4fc1fd0a", "生产前确认")}</span>
                 ) : null}
                 <span>
                   {item.status === "ready" ? "已就绪" : item.status === "partial" ? "待补充" : "缺失"}
@@ -107,9 +107,7 @@ export default function CreativeHubNovelSetupCard({
                     variant="outline"
                     disabled={actionDisabled}
                     onClick={() => onQuickAction?.(item.recommendedAction!)}
-                  >
-                    补这项
-                  </Button>
+                  >{t("gen.pages.creativeHub.components.CreativeHubNovelSetupCard.gen_b737649d", "补这项")}</Button>
                 ) : null}
                 {item.optionPrompt ? (
                   <Button
@@ -118,9 +116,7 @@ export default function CreativeHubNovelSetupCard({
                     variant="outline"
                     disabled={actionDisabled}
                     onClick={() => onQuickAction?.(item.optionPrompt!)}
-                  >
-                    给我备选
-                  </Button>
+                  >{t("gen.pages.creativeHub.components.CreativeHubNovelSetupCard.gen_c3666112", "给我备选")}</Button>
                 ) : null}
               </div>
             ) : null}
@@ -130,7 +126,7 @@ export default function CreativeHubNovelSetupCard({
 
       {pendingItems.length > 0 ? (
         <div className="rounded-md border border-warning/30 bg-warning/5 p-3">
-          <div className="text-xs font-medium text-warning">生产前待确认</div>
+          <div className="text-xs font-medium text-warning">{t("gen.pages.creativeHub.components.CreativeHubNovelSetupCard.gen_636c8913", "生产前待确认")}</div>
           <div className="mt-2 text-sm leading-6 text-foreground">
             {pendingItems.slice(0, 4).map((item) => item.label).join("、")}
             {pendingItems.length > 4 ? " 等" : ""}
@@ -141,24 +137,20 @@ export default function CreativeHubNovelSetupCard({
               size="sm"
               disabled={actionDisabled}
               onClick={() => onQuickAction?.("总结当前小说进入整本生产前仍需确认的条件，并按优先级给出补齐顺序。")}
-            >
-              生成确认清单
-            </Button>
+            >{t("gen.pages.creativeHub.components.CreativeHubNovelSetupCard.gen_beffa430", "生成确认清单")}</Button>
             <Button
               type="button"
               size="sm"
               variant="outline"
               disabled={actionDisabled}
               onClick={() => onQuickAction?.("根据当前小说信息，为生产前缺失的关键条件各给出 3 个备选答案，方便我逐项选择。")}
-            >
-              批量给我备选
-            </Button>
+            >{t("gen.pages.creativeHub.components.CreativeHubNovelSetupCard.gen_7e084800", "批量给我备选")}</Button>
           </div>
         </div>
       ) : null}
 
       <div className="rounded-md border border-info/30 bg-info/5 p-3">
-        <div className="text-xs font-medium text-info">下一项信息</div>
+        <div className="text-xs font-medium text-info">{t("gen.pages.creativeHub.components.CreativeHubNovelSetupCard.gen_acf4d5ca", "下一项信息")}</div>
         <div className="mt-2 text-sm leading-6 text-foreground">{setup.nextQuestion}</div>
       </div>
 
@@ -168,18 +160,14 @@ export default function CreativeHubNovelSetupCard({
           size="sm"
           disabled={actionDisabled}
           onClick={() => onQuickAction?.(setup.recommendedAction)}
-        >
-          按引导继续
-        </Button>
+        >{t("gen.pages.creativeHub.components.CreativeHubNovelSetupCard.gen_b97af93a", "按引导继续")}</Button>
         <Button
           type="button"
           size="sm"
           variant="outline"
           disabled={actionDisabled}
           onClick={() => onQuickAction?.("总结当前这本书的初始化完成度，并告诉我还缺哪些关键信息。")}
-        >
-          查看初始化摘要
-        </Button>
+        >{t("gen.pages.creativeHub.components.CreativeHubNovelSetupCard.gen_7126c56a", "查看初始化摘要")}</Button>
       </div>
     </div>
   );

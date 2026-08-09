@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import i18next from "i18next";
 const t = (key: string, options?: any) => i18next.t(key, options) as string;
 import type { ChapterEditorCandidate } from "@ai-novel/shared/types/novel";
@@ -16,6 +17,7 @@ interface AIDiffPanelProps {
 }
 
 export default function AIDiffPanel(props: AIDiffPanelProps) {
+  const { t } = useTranslation();
   const {
     session,
     activeCandidate,
@@ -50,17 +52,13 @@ export default function AIDiffPanel(props: AIDiffPanelProps) {
               variant={session.viewMode === "block" ? "default" : "outline"}
               onClick={() => onChangeViewMode("block")}
               disabled={isIdle}
-            >
-              段落对比
-            </Button>
+            >{t("gen.pages.novels.components.chapterEditor.AIDiffPanel.gen_62113286", "段落对比")}</Button>
             <Button
               size="sm"
               variant={session.viewMode === "inline" ? "default" : "outline"}
               onClick={() => onChangeViewMode("inline")}
               disabled={isIdle}
-            >
-              细节标记
-            </Button>
+            >{t("gen.pages.novels.components.chapterEditor.AIDiffPanel.gen_f9769a5a", "细节标记")}</Button>
           </div>
         </div>
 
@@ -83,22 +81,16 @@ export default function AIDiffPanel(props: AIDiffPanelProps) {
       <div className="min-h-0 flex-1 space-y-4 overflow-y-auto px-4 py-4">
         {isIdle ? (
           <>
-            <div className="rounded-2xl border border-dashed border-border/70 bg-muted/10 p-4 text-sm leading-6 text-muted-foreground">
-              右侧结果面板已固定保留。你可以先在正文中选中一段，再从浮动工具条发起“优化表达、扩写、精简、强化情绪、强化冲突或自定义指令”。
-            </div>
+            <div className="rounded-2xl border border-dashed border-border/70 bg-muted/10 p-4 text-sm leading-6 text-muted-foreground">{t("gen.pages.novels.components.chapterEditor.AIDiffPanel.gen_5f5ec6f0", "右侧结果面板已固定保留。你可以先在正文中选中一段，再从浮动工具条发起“优化表达、扩写、精简、强化情绪、强化冲突或自定义指令”。")}</div>
             <div className="rounded-2xl border border-border/70 bg-muted/10 p-4">
               <div className="text-sm font-medium text-foreground">{i18next.t("gen.pages.novels.components.chapterEditor.AIDiffPanel.gen_7c71e233")}</div>
-              <div className="mt-2 text-sm leading-6 text-muted-foreground">
-                发起改写后，这里会展示 2 到 3 个候选版本、改写摘要和段落对比。
-              </div>
+              <div className="mt-2 text-sm leading-6 text-muted-foreground">{t("gen.pages.novels.components.chapterEditor.AIDiffPanel.gen_bbb5aa0b", "发起改写后，这里会展示 2 到 3 个候选版本、改写摘要和段落对比。")}</div>
             </div>
           </>
         ) : null}
 
         {session.status === "loading" ? (
-          <div className="rounded-2xl border border-dashed border-border/70 bg-muted/10 p-4 text-sm text-muted-foreground">
-            正在基于选中文本生成 2 到 3 个候选版本，请稍候。
-          </div>
+          <div className="rounded-2xl border border-dashed border-border/70 bg-muted/10 p-4 text-sm text-muted-foreground">{t("gen.pages.novels.components.chapterEditor.AIDiffPanel.gen_495c2d98", "正在基于选中文本生成 2 到 3 个候选版本，请稍候。")}</div>
         ) : null}
 
         {session.status === "error" ? (
@@ -128,25 +120,17 @@ export default function AIDiffPanel(props: AIDiffPanelProps) {
             </div>
 
             {session.viewMode === "block" ? (
-              <div className="rounded-2xl border border-border/70 bg-muted/10 p-3 text-sm leading-6 text-muted-foreground">
-                中间正文区正在显示段落 patch 对比。原文会以淡红块保留，改写会以浅绿块落在同一位置，便于按小说阅读顺序直接判断是否采纳。
-              </div>
+              <div className="rounded-2xl border border-border/70 bg-muted/10 p-3 text-sm leading-6 text-muted-foreground">{t("gen.pages.novels.components.chapterEditor.AIDiffPanel.gen_7256b05a", "中间正文区正在显示段落 patch 对比。原文会以淡红块保留，改写会以浅绿块落在同一位置，便于按小说阅读顺序直接判断是否采纳。")}</div>
             ) : (
-              <div className="rounded-2xl border border-border/70 bg-muted/10 p-3 text-sm leading-6 text-muted-foreground">
-                中间正文区正在显示细节标记 diff，适合确认具体删改位置；如果更想顺着小说去读，切回“段落对比”会更轻松。
-              </div>
+              <div className="rounded-2xl border border-border/70 bg-muted/10 p-3 text-sm leading-6 text-muted-foreground">{t("gen.pages.novels.components.chapterEditor.AIDiffPanel.gen_d96fe0ac", "中间正文区正在显示细节标记 diff，适合确认具体删改位置；如果更想顺着小说去读，切回“段落对比”会更轻松。")}</div>
             )}
           </>
         ) : null}
       </div>
 
       <div className="shrink-0 flex flex-wrap items-center justify-end gap-2 border-t border-border/70 px-4 py-4">
-        <Button size="sm" variant="outline" onClick={onReject} disabled={isIdle || session.status === "loading" || isApplying}>
-          拒绝全部
-        </Button>
-        <Button size="sm" variant="outline" onClick={onRegenerate} disabled={isIdle || session.status === "loading" || isApplying}>
-          再生成
-        </Button>
+        <Button size="sm" variant="outline" onClick={onReject} disabled={isIdle || session.status === "loading" || isApplying}>{t("gen.pages.novels.components.chapterEditor.AIDiffPanel.gen_ecc4410d", "拒绝全部")}</Button>
+        <Button size="sm" variant="outline" onClick={onRegenerate} disabled={isIdle || session.status === "loading" || isApplying}>{t("gen.pages.novels.components.chapterEditor.AIDiffPanel.gen_a8943d52", "再生成")}</Button>
         <Button size="sm" onClick={onAccept} disabled={session.status !== "ready" || !activeCandidate || isApplying}>
           {isApplying ? i18next.t("gen.pages.novels.components.chapterEditor.AIDiffPanel.gen_e596edd9") : i18next.t("gen.pages.novels.components.chapterEditor.AIDiffPanel.gen_3f8a36ff")}
         </Button>

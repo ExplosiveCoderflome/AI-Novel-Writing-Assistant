@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import i18next from "i18next";
 const t = (key: string, options?: any) => i18next.t(key, options) as string;
 import { useEffect, useMemo, useState } from "react";
@@ -56,6 +57,7 @@ interface BookAnalysisBudgetAdjustDialogProps {
 }
 
 export default function BookAnalysisBudgetAdjustDialog(props: BookAnalysisBudgetAdjustDialogProps) {
+  const { t } = useTranslation();
   const {
     open,
     mode,
@@ -115,9 +117,7 @@ export default function BookAnalysisBudgetAdjustDialog(props: BookAnalysisBudget
         className="max-w-xl"
         footer={
           <div className="flex w-full justify-end gap-2">
-            <Button type="button" variant="outline" onClick={() => onOpenChange(false)} disabled={pending}>
-              取消
-            </Button>
+            <Button type="button" variant="outline" onClick={() => onOpenChange(false)} disabled={pending}>{t("gen.pages.bookAnalysis.components.BookAnalysisBudgetAdjustDialog.gen_625fb26b", "取消")}</Button>
             <Button type="button" onClick={handleSubmit} disabled={!canSubmit}>
               {pending ? i18next.t("gen.pages.bookAnalysis.components.BookAnalysisBudgetAdjustDialog.gen_abe2c5d2") : mode === "resume" ? i18next.t("gen.pages.bookAnalysis.components.BookAnalysisBudgetAdjustDialog.gen_60a60c37") : i18next.t("gen.pages.bookAnalysis.components.BookAnalysisBudgetAdjustDialog.gen_836cc341")}
             </Button>
@@ -157,9 +157,7 @@ export default function BookAnalysisBudgetAdjustDialog(props: BookAnalysisBudget
 
           <div className="space-y-2">
             <div className="flex items-center justify-between gap-3">
-              <label htmlFor="book-analysis-budget-input" className="text-sm font-medium">
-                新预算上限
-              </label>
+              <label htmlFor="book-analysis-budget-input" className="text-sm font-medium">{t("gen.pages.bookAnalysis.components.BookAnalysisBudgetAdjustDialog.gen_18544156", "新预算上限")}</label>
               {mode === "resume" ? (
                 <button
                   type="button"
@@ -190,14 +188,10 @@ export default function BookAnalysisBudgetAdjustDialog(props: BookAnalysisBudget
               </div>
             ) : null}
             {mode === "adjust" && analysis.status === "running" ? (
-              <div className="text-xs leading-5 text-muted-foreground">
-                调低预算不会立即终止当前小节，会在下个小节边界按新上限检查。
-              </div>
+              <div className="text-xs leading-5 text-muted-foreground">{t("gen.pages.bookAnalysis.components.BookAnalysisBudgetAdjustDialog.gen_0eba7cd0", "调低预算不会立即终止当前小节，会在下个小节边界按新上限检查。")}</div>
             ) : null}
             {budgetIsFinite && remainingTokens !== null && remainingTokens < 0 ? (
-              <div className="text-xs leading-5 text-warning">
-                新预算低于累计用量，继续生成时会触发预算停止。
-              </div>
+              <div className="text-xs leading-5 text-warning">{t("gen.pages.bookAnalysis.components.BookAnalysisBudgetAdjustDialog.gen_9aecb45a", "新预算低于累计用量，继续生成时会触发预算停止。")}</div>
             ) : null}
           </div>
         </div>

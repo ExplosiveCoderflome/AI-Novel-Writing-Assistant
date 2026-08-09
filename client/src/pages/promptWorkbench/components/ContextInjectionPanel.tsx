@@ -140,9 +140,7 @@ export function ContextInjectionPanel(props: {
         <div className="flex items-center justify-between gap-3">
           <div>
             <h3 className="text-sm font-semibold text-[#25443f]">{i18next.t("gen.pages.promptWorkbench.components.ContextInjectionPanel.gen_a8d62ba2")}</h3>
-            <p className="mt-1 text-xs text-muted-foreground">
-              查看本次预览使用的资料块、裁剪和摘要状态
-            </p>
+            <p className="mt-1 text-xs text-muted-foreground">{t("gen.pages.promptWorkbench.components.ContextInjectionPanel.gen_9aae16cb", "查看本次预览使用的资料块、裁剪和摘要状态")}</p>
           </div>
           <span className="rounded-md bg-[#eaf7f2] px-2 py-1 text-xs font-medium text-[#0f766e]">
             {visibleBlocks.length} 块
@@ -176,16 +174,12 @@ export function ContextInjectionPanel(props: {
       </div>
 
       {!preview ? (
-        <div className="m-4 rounded-md border border-dashed border-[#cbdad6] bg-white/70 p-4 text-sm text-muted-foreground">
-          生成预览后，这里会显示已注入、被裁剪和被摘要的上下文块。
-        </div>
+        <div className="m-4 rounded-md border border-dashed border-[#cbdad6] bg-white/70 p-4 text-sm text-muted-foreground">{t("gen.pages.promptWorkbench.components.ContextInjectionPanel.gen_2fd650e9", "生成预览后，这里会显示已注入、被裁剪和被摘要的上下文块。")}</div>
       ) : (
         <>
           <div className="min-h-0 flex-1 space-y-1.5 overflow-y-auto p-3">
             {visibleBlocks.length === 0 ? (
-              <div className="rounded-md border border-dashed border-[#cbdad6] bg-white/70 p-4 text-sm text-muted-foreground">
-                没有匹配的上下文块。
-              </div>
+              <div className="rounded-md border border-dashed border-[#cbdad6] bg-white/70 p-4 text-sm text-muted-foreground">{t("gen.pages.promptWorkbench.components.ContextInjectionPanel.gen_f005ed9c", "没有匹配的上下文块。")}</div>
             ) : (
               visibleBlocks.map((block) => (
                 <button
@@ -261,9 +255,7 @@ export function ContextInjectionPanel(props: {
                       onClick={() => onInsertToken(activeContextToken)}
                       className="w-full border-[#b8d9d0] text-[#0f5f59]"
                     >
-                      <Plus className="mr-1.5 h-3.5 w-3.5" />
-                      插入到模板
-                    </Button>
+                      <Plus className="mr-1.5 h-3.5 w-3.5" />{t("gen.pages.promptWorkbench.components.ContextInjectionPanel.gen_76a317fa", "插入到模板")}</Button>
                   </div>
                 ) : null}
                 <pre className="max-h-64 overflow-auto whitespace-pre-wrap p-3 text-xs leading-relaxed text-[#1f2937]">

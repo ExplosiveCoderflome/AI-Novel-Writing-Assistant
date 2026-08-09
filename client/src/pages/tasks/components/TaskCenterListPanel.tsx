@@ -1,3 +1,4 @@
+import i18next from "i18next";
 import { useTranslation } from "react-i18next";
 import type { UnifiedTaskSummary } from "@ai-novel/shared/types/task";
 import { Button } from "@/components/ui/button";
@@ -43,15 +44,15 @@ export default function TaskCenterListPanel({
     <TaskQueueSection title={t("tasks.listTitle", "任务列表")} description={t("tasks.listDesc", "阻塞任务优先，质量提醒不会自动等同于全局失败。")}>
       <div className="space-y-3">
         {loading ? (
-          <WorkspaceStateNotice compact loading title="正在读取任务" description="正在汇总任务状态和最近进度。" />
+          <WorkspaceStateNotice compact loading title={t("gen.pages.tasks.components.TaskCenterListPanel.gen_0935a18a", "正在读取任务")} description={t("gen.pages.tasks.components.TaskCenterListPanel.gen_446d08ac", "正在汇总任务状态和最近进度。")} />
         ) : null}
         {errorMessage ? (
           <WorkspaceStateNotice
             compact
             tone="danger"
-            title="任务列表读取失败"
+            title={t("gen.pages.tasks.components.TaskCenterListPanel.gen_643254bb", "任务列表读取失败")}
             description={errorMessage}
-            action={<Button size="sm" variant="outline" onClick={onRetry}>重新读取</Button>}
+            action={<Button size="sm" variant="outline" onClick={onRetry}>{t("gen.pages.tasks.components.TaskCenterListPanel.gen_9e56f482", "重新读取")}</Button>}
           />
         ) : null}
         {tasks.map((task) => {
@@ -100,8 +101,8 @@ export default function TaskCenterListPanel({
         })}
         {!loading && !errorMessage && tasks.length === 0 ? (
           <TaskQueueEmptyState
-            title="没有符合条件的任务"
-            description="可以清除筛选条件，或回到来源页面发起新的创作与资料处理任务。"
+            title={t("gen.pages.tasks.components.TaskCenterListPanel.gen_f388438a", "没有符合条件的任务")}
+            description={t("gen.pages.tasks.components.TaskCenterListPanel.gen_3cfe3212", "可以清除筛选条件，或回到来源页面发起新的创作与资料处理任务。")}
           />
         ) : null}
       </div>

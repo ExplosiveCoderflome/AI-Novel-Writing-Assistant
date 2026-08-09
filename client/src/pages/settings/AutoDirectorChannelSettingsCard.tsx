@@ -1,3 +1,4 @@
+import i18next from "i18next";
 import { useTranslation } from "react-i18next";
 import { useState } from "react";
 import { ChevronDown } from "lucide-react";
@@ -85,10 +86,8 @@ export function AutoDirectorChannelSettingsCard(props: {
     <Card className="min-w-0 overflow-hidden">
       <CardHeader className="flex-row items-start justify-between gap-3 space-y-0">
         <div className="min-w-0 space-y-1.5">
-          <CardTitle>导演跟进通道配置</CardTitle>
-          <CardDescription className={AUTO_DIRECTOR_MOBILE_CLASSES.wrapText}>
-            集中配置钉钉与企微的 webhook、回调 token、用户映射和事件订阅。未配完整回调能力时，消息会自动降级成仅跳转站内。
-          </CardDescription>
+          <CardTitle>{t("gen.pages.settings.AutoDirectorChannelSettingsCard.gen_af428825", "导演跟进通道配置")}</CardTitle>
+          <CardDescription className={AUTO_DIRECTOR_MOBILE_CLASSES.wrapText}>{t("gen.pages.settings.AutoDirectorChannelSettingsCard.gen_7e1820fe", "集中配置钉钉与企微的 webhook、回调 token、用户映射和事件订阅。未配完整回调能力时，消息会自动降级成仅跳转站内。")}</CardDescription>
         </div>
         <Button
           type="button"
@@ -107,15 +106,13 @@ export function AutoDirectorChannelSettingsCard(props: {
       {isOpen ? (
         <CardContent id="auto-director-channel-settings-content" className="space-y-6">
           <div className="space-y-1">
-            <div className="text-xs text-muted-foreground">站内访问地址</div>
+            <div className="text-xs text-muted-foreground">{t("gen.pages.settings.AutoDirectorChannelSettingsCard.gen_b2c3b4e9", "站内访问地址")}</div>
             <Input
               value={channelDraft.baseUrl}
               placeholder="https://book.example.com"
               onChange={(event) => onBaseUrlChange(event.target.value)}
             />
-            <div className={`${AUTO_DIRECTOR_MOBILE_CLASSES.wrapText} text-xs text-muted-foreground`}>
-              用于钉钉/企微消息里的“打开跟进中心 / 查看详情”链接。未填写时会回退到服务端环境中的站点地址。
-            </div>
+            <div className={`${AUTO_DIRECTOR_MOBILE_CLASSES.wrapText} text-xs text-muted-foreground`}>{t("gen.pages.settings.AutoDirectorChannelSettingsCard.gen_42650aff", "用于钉钉/企微消息里的“打开跟进中心 / 查看详情”链接。未填写时会回退到服务端环境中的站点地址。")}</div>
           </div>
 
           {(["dingtalk", "wecom"] as const).map((channelType) => (
@@ -131,16 +128,16 @@ export function AutoDirectorChannelSettingsCard(props: {
                   />
                 </div>
                 <div className="space-y-1">
-                  <div className="text-xs text-muted-foreground">回调 Token</div>
+                  <div className="text-xs text-muted-foreground">{t("gen.pages.settings.AutoDirectorChannelSettingsCard.gen_220b1f52", "回调 Token")}</div>
                   <Input
                     value={channelDraft[channelType].callbackToken}
-                    placeholder="可选；未配置则只保留站内跳转"
+                    placeholder={t("gen.pages.settings.AutoDirectorChannelSettingsCard.gen_c57c894e", "可选；未配置则只保留站内跳转")}
                     onChange={(event) => onPatchChannelDraft(channelType, { callbackToken: event.target.value })}
                   />
                 </div>
               </div>
               <div className="space-y-1">
-                <div className="text-xs text-muted-foreground">用户映射 JSON</div>
+                <div className="text-xs text-muted-foreground">{t("gen.pages.settings.AutoDirectorChannelSettingsCard.gen_c8d1176d", "用户映射 JSON")}</div>
                 <Input
                   value={channelDraft[channelType].operatorMapJson}
                   placeholder='{"ding_user_1":"user_1"}'
@@ -148,7 +145,7 @@ export function AutoDirectorChannelSettingsCard(props: {
                 />
               </div>
               <div className="space-y-1">
-                <div className="text-xs text-muted-foreground">订阅事件</div>
+                <div className="text-xs text-muted-foreground">{t("gen.pages.settings.AutoDirectorChannelSettingsCard.gen_e4cde7a8", "订阅事件")}</div>
                 <AutoDirectorEventMultiSelect
                   value={channelDraft[channelType].eventTypes}
                   onChange={(eventTypes) => onPatchChannelDraft(channelType, { eventTypes })}
@@ -159,7 +156,7 @@ export function AutoDirectorChannelSettingsCard(props: {
 
           <div className={AUTO_DIRECTOR_MOBILE_CLASSES.channelSettingsActionRow}>
             <Button variant="outline" asChild className={AUTO_DIRECTOR_MOBILE_CLASSES.fullWidthAction}>
-              <Link to="/settings/model-routes">去看模型路由</Link>
+              <Link to="/settings/model-routes">{t("gen.pages.settings.AutoDirectorChannelSettingsCard.gen_9eebe704", "去看模型路由")}</Link>
             </Button>
             <Button className={AUTO_DIRECTOR_MOBILE_CLASSES.fullWidthAction} onClick={onSave} disabled={isSaving}>
               {isSaving ? "保存中..." : "保存导演跟进通道配置"}

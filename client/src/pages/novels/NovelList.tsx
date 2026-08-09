@@ -280,9 +280,7 @@ export default function NovelList() {
           }
         >
           {cockpitProjectionQuery.isPending ? (
-            <div className="rounded-lg border p-3 text-sm text-muted-foreground">
-              读取这本书的 AI 状态...
-            </div>
+            <div className="rounded-lg border p-3 text-sm text-muted-foreground">{t("gen.pages.novels.NovelList.gen_8c110533", "读取这本书的 AI 状态...")}</div>
           ) : cockpitProjectionQuery.isError ? (
             <div className="rounded-lg border p-3">
               <div className="text-sm text-muted-foreground">{i18next.t("gen.pages.novels.NovelList.gen_59ae355e")}</div>
@@ -292,9 +290,7 @@ export default function NovelList() {
                 variant="outline"
                 className="mt-3"
                 onClick={() => void cockpitProjectionQuery.refetch()}
-              >
-                重新读取
-              </Button>
+              >{t("gen.pages.novels.NovelList.gen_9e56f482", "重新读取")}</Button>
             </div>
           ) : cockpitProjection ? (
             <AICockpit

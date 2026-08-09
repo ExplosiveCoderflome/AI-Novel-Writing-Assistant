@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import i18next from "i18next";
 const t = (key: string, options?: any) => i18next.t(key, options) as string;
 import type { WorldPropertyOption } from "@ai-novel/shared/types/worldWizard";
@@ -30,11 +31,10 @@ export default function WorldPropertyOptionSelector({
   onChoiceSelect,
   onDetailChange,
 }: WorldPropertyOptionSelectorProps) {
+  const { t } = useTranslation();
   if (options.length === 0) {
     return (
-      <div className="rounded-md border border-dashed p-4 text-sm text-muted-foreground">
-        当前还没有拿到可用的关键方向。通常说明上一步分析失败了，可以返回第 1 步重新生成。
-      </div>
+      <div className="rounded-md border border-dashed p-4 text-sm text-muted-foreground">{t("gen.pages.worlds.components.generator.WorldPropertyOptionSelector.gen_1f1a239e", "当前还没有拿到可用的关键方向。通常说明上一步分析失败了，可以返回第 1 步重新生成。")}</div>
     );
   }
 

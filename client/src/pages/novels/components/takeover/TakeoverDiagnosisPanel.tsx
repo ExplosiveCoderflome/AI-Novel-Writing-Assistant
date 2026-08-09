@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import i18next from "i18next";
 const t = (key: string, options?: any) => i18next.t(key, options) as string;
 import { Badge } from "@/components/ui/badge";
@@ -44,6 +45,7 @@ export default function TakeoverDiagnosisPanel({
   onChapterTargetChange,
   onStart,
 }: TakeoverDiagnosisPanelProps) {
+  const { t } = useTranslation();
   const quickActionLabel = chapterTarget && !isAdvancedOpen ? chapterTarget.actionLabel : guidance.actionLabel;
   return (
     <div className="min-w-0 rounded-xl border border-primary/20 bg-primary/5 p-3 sm:p-4">
@@ -89,9 +91,7 @@ export default function TakeoverDiagnosisPanel({
               variant="outline"
               className={AUTO_DIRECTOR_MOBILE_CLASSES.fullWidthAction}
               onClick={onEnterCurrentTask}
-            >
-              进入当前任务
-            </Button>
+            >{t("gen.pages.novels.components.takeover.TakeoverDiagnosisPanel.gen_50f2047b", "进入当前任务")}</Button>
           ) : (
             <>
               {!isAdvancedOpen && chapterTarget ? (
@@ -111,9 +111,7 @@ export default function TakeoverDiagnosisPanel({
               </Button>
             </>
           )}
-          <div className={`text-xs leading-5 text-muted-foreground ${AUTO_DIRECTOR_MOBILE_CLASSES.wrapText}`}>
-            默认保留已有资产，仅在高级设置选择重跑时才会重建对应步骤。
-          </div>
+          <div className={`text-xs leading-5 text-muted-foreground ${AUTO_DIRECTOR_MOBILE_CLASSES.wrapText}`}>{t("gen.pages.novels.components.takeover.TakeoverDiagnosisPanel.gen_b8193640", "默认保留已有资产，仅在高级设置选择重跑时才会重建对应步骤。")}</div>
         </div>
       </div>
     </div>

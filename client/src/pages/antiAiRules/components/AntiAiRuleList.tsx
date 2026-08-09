@@ -58,9 +58,7 @@ export default function AntiAiRuleList(props: AntiAiRuleListProps) {
           <div className="text-sm text-muted-foreground">{i18next.t("gen.pages.antiAiRules.components.AntiAiRuleList.gen_dfc98d9c")}</div>
         ) : null}
         {!props.loading && props.rules.length === 0 ? (
-          <div className="rounded-lg border border-dashed p-6 text-center text-sm text-muted-foreground">
-            这个筛选下没有规则。
-          </div>
+          <div className="rounded-lg border border-dashed p-6 text-center text-sm text-muted-foreground">{t("gen.pages.antiAiRules.components.AntiAiRuleList.gen_7c8ecad1", "这个筛选下没有规则。")}</div>
         ) : null}
         {props.rules.map((rule) => {
           const isTesting = testingRuleIdSet.has(rule.id);
@@ -86,16 +84,12 @@ export default function AntiAiRuleList(props: AntiAiRuleListProps) {
                   <div className="mt-3 grid gap-2 text-sm md:grid-cols-2">
                     <div className="rounded-md border bg-muted/20 p-3">
                       <div className="mb-1 flex items-center gap-2 text-xs font-medium text-muted-foreground">
-                        <FileText className="h-3.5 w-3.5" />
-                        生成指令
-                      </div>
+                        <FileText className="h-3.5 w-3.5" />{t("gen.pages.antiAiRules.components.AntiAiRuleList.gen_eba49f80", "生成指令")}</div>
                       <div className="leading-6 text-foreground">{i18next.t("gen.pages.antiAiRules.components.AntiAiRuleList.promptMissing")}</div>
                     </div>
                     <div className="rounded-md border bg-muted/20 p-3">
                       <div className="mb-1 flex items-center gap-2 text-xs font-medium text-muted-foreground">
-                        <CheckCircle2 className="h-3.5 w-3.5" />
-                        修正建议
-                      </div>
+                        <CheckCircle2 className="h-3.5 w-3.5" />{t("gen.pages.antiAiRules.components.AntiAiRuleList.gen_fbbf1096", "修正建议")}</div>
                       <div className="leading-6 text-foreground">{i18next.t("gen.pages.antiAiRules.components.AntiAiRuleList.rewriteSuggestionEmpty")}</div>
                     </div>
                   </div>
@@ -124,9 +118,7 @@ export default function AntiAiRuleList(props: AntiAiRuleListProps) {
                     {isTesting ? i18next.t("gen.pages.antiAiRules.components.AntiAiRuleList.gen_b9016d5f") : i18next.t("gen.pages.antiAiRules.components.AntiAiRuleList.gen_32dbefcf")}
                   </Button>
                   <Button type="button" variant="outline" size="sm" onClick={() => props.onEditRule(rule)}>
-                    <Edit3 className="h-4 w-4" />
-                    编辑
-                  </Button>
+                    <Edit3 className="h-4 w-4" />{t("gen.pages.antiAiRules.components.AntiAiRuleList.gen_95b351c8", "编辑")}</Button>
                 </div>
               </div>
             </div>

@@ -1,3 +1,4 @@
+import i18next from "i18next";
 import { useTranslation } from "react-i18next";
 import { Boxes, Globe2, ScrollText, Users } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -11,7 +12,7 @@ export function HomeAssetHealth(props: { items: HomeAssetHealthItem[]; showStart
   const { t } = useTranslation();
   return (
     <Card className="home-asset-health border-border/80 shadow-none">
-      <CardHeader className="pb-3"><CardTitle className="text-base tracking-normal">创作资产概览</CardTitle></CardHeader>
+      <CardHeader className="pb-3"><CardTitle className="text-base tracking-normal">{t("gen.pages.home.components.HomeAssetHealth.gen_46a7e15a", "创作资产概览")}</CardTitle></CardHeader>
       <CardContent>
         <div className="space-y-1">
           {props.items.map((item) => {

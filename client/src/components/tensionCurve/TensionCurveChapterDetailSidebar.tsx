@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import i18next from "i18next";
 const t = (key: string, options?: any) => i18next.t(key, options) as string;
 import { ArrowRight, BookOpenText } from "lucide-react";
@@ -33,13 +34,12 @@ function FieldBlock({ label, value }: { label: string; value?: string | null }) 
 }
 
 export function TensionCurveChapterDetailSidebar(props: TensionCurveChapterDetailSidebarProps) {
+  const { t } = useTranslation();
   const { chapter, beatLabel, onOpenChapterDetail } = props;
 
   if (!chapter) {
     return (
-      <aside className="rounded-xl border border-dashed p-4 text-sm text-muted-foreground">
-        点选曲线上的章节节点后，这里会显示该章标题、摘要、目的和独占事件，方便对照叙事意图再调整强度。
-      </aside>
+      <aside className="rounded-xl border border-dashed p-4 text-sm text-muted-foreground">{t("gen.components.tensionCurve.TensionCurveChapterDetailSidebar.gen_68f23646", "点选曲线上的章节节点后，这里会显示该章标题、摘要、目的和独占事件，方便对照叙事意图再调整强度。")}</aside>
     );
   }
 
@@ -63,9 +63,7 @@ export function TensionCurveChapterDetailSidebar(props: TensionCurveChapterDetai
       <FieldBlock label={i18next.t("gen.components.tensionCurve.TensionCurveChapterDetailSidebar.gen_23e47820")} value={chapter.exclusiveEvent} />
 
       {onOpenChapterDetail ? (
-        <Button type="button" className="w-full justify-between" variant="outline" onClick={onOpenChapterDetail}>
-          打开完整章节细节卡片
-          <ArrowRight className="h-4 w-4" aria-hidden="true" />
+        <Button type="button" className="w-full justify-between" variant="outline" onClick={onOpenChapterDetail}>{t("gen.components.tensionCurve.TensionCurveChapterDetailSidebar.gen_00be1db7", "打开完整章节细节卡片")}<ArrowRight className="h-4 w-4" aria-hidden="true" />
         </Button>
       ) : null}
     </aside>

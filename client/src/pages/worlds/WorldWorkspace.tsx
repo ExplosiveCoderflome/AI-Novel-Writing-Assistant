@@ -340,7 +340,7 @@ export default function WorldWorkspace() {
           <TabsTrigger value="deepening">{i18next.t("gen.pages.worlds.WorldWorkspace.gen_7e7f0b6b")}</TabsTrigger>
           <TabsTrigger value="consistency">{i18next.t("gen.pages.worlds.WorldWorkspace.gen_01a3a187")}</TabsTrigger>
           <TabsTrigger value="assets">{i18next.t("gen.pages.worlds.WorldWorkspace.gen_e63dc6c9")}</TabsTrigger>
-          <TabsTrigger value="sandbox">世界沙盒模拟</TabsTrigger>
+          <TabsTrigger value="sandbox">{t("gen.pages.worlds.WorldWorkspace.gen_79b70a06", "世界沙盒模拟")}</TabsTrigger>
         </TabsList>
 
         <TabsContent value="overview">
@@ -394,13 +394,9 @@ export default function WorldWorkspace() {
               <Card>
                 <CardHeader className="flex flex-row items-center justify-between gap-3">
                   <CardTitle>{i18next.t("gen.pages.worlds.WorldWorkspace.gen_6d58393f")}</CardTitle>
-                  <Button variant="outline" size="sm" onClick={() => setAdvancedStructureOpen(false)}>
-                    返回整理手册
-                  </Button>
+                  <Button variant="outline" size="sm" onClick={() => setAdvancedStructureOpen(false)}>{t("gen.pages.worlds.WorldWorkspace.gen_e3d6511f", "返回整理手册")}</Button>
                 </CardHeader>
-                <CardContent className="text-sm text-muted-foreground">
-                  这里用于处理势力关系、地点控制权、结构导入等细节。普通整理优先回到世界手册。
-                </CardContent>
+                <CardContent className="text-sm text-muted-foreground">{t("gen.pages.worlds.WorldWorkspace.gen_a0da9ee7", "这里用于处理势力关系、地点控制权、结构导入等细节。普通整理优先回到世界手册。")}</CardContent>
               </Card>
               {id ? (
                 <WorldAxiomsCard

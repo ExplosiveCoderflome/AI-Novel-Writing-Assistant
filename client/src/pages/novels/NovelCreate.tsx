@@ -173,9 +173,7 @@ export default function NovelCreate() {
       <section className="flex flex-col gap-5 sm:flex-row sm:items-start sm:justify-between">
         <div className="max-w-3xl">
           <h1 className="text-3xl font-semibold tracking-normal text-foreground">{i18next.t("gen.pages.novels.NovelCreate.gen_25179dcd")}</h1>
-          <p className="mt-3 text-sm leading-6 text-muted-foreground">
-            推荐先让 AI 自动导演从一句灵感整理方向、世界、角色和章节准备。需要完全手动填写时，也可以继续使用下方表单。
-          </p>
+          <p className="mt-3 text-sm leading-6 text-muted-foreground">{t("gen.pages.novels.NovelCreate.gen_3bf8a2fd", "推荐先让 AI 自动导演从一句灵感整理方向、世界、角色和章节准备。需要完全手动填写时，也可以继续使用下方表单。")}</p>
         </div>
         <Button type="button" asChild className="shrink-0">
           <Link to="/novels/auto-director">{i18next.t("gen.pages.novels.NovelCreate.aiAutoDirectorBookStart")}</Link>
@@ -185,9 +183,7 @@ export default function NovelCreate() {
       <section className="space-y-4">
         <div>
           <div className="text-lg font-semibold leading-7 text-foreground">{i18next.t("gen.pages.novels.NovelCreate.gen_4364e2f1")}</div>
-          <div className="mt-1 max-w-3xl text-sm leading-6 text-muted-foreground">
-            手动路径适合你已经清楚题材、卖点和前期承诺的项目；创建后仍可在工作台继续调整。
-          </div>
+          <div className="mt-1 max-w-3xl text-sm leading-6 text-muted-foreground">{t("gen.pages.novels.NovelCreate.gen_8dc7b195", "手动路径适合你已经清楚题材、卖点和前期承诺的项目；创建后仍可在工作台继续调整。")}</div>
         </div>
         <NovelBasicInfoForm
           basicForm={basicForm}

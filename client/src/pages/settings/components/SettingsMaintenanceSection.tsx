@@ -13,9 +13,7 @@ export default function SettingsMaintenanceSection() {
       <Card className="min-w-0 overflow-hidden">
         <CardHeader>
           <CardTitle>{i18next.t("gen.pages.settings.components.SettingsMaintenanceSection.gen_e58e3369")}</CardTitle>
-          <CardDescription className={AUTO_DIRECTOR_MOBILE_CLASSES.wrapText}>
-            当前环境没有需要处理的桌面维护事项。
-          </CardDescription>
+          <CardDescription className={AUTO_DIRECTOR_MOBILE_CLASSES.wrapText}>{t("gen.pages.settings.components.SettingsMaintenanceSection.gen_936f86fc", "当前环境没有需要处理的桌面维护事项。")}</CardDescription>
         </CardHeader>
       </Card>
     );
@@ -26,13 +24,9 @@ export default function SettingsMaintenanceSection() {
       <Card className="min-w-0 overflow-hidden">
         <CardHeader>
           <CardTitle>{i18next.t("gen.pages.settings.components.SettingsMaintenanceSection.gen_e58e3369")}</CardTitle>
-          <CardDescription className={AUTO_DIRECTOR_MOBILE_CLASSES.wrapText}>
-            检查桌面更新或导入本机旧数据；这些操作不会影响当前创作配置。
-          </CardDescription>
+          <CardDescription className={AUTO_DIRECTOR_MOBILE_CLASSES.wrapText}>{t("gen.pages.settings.components.SettingsMaintenanceSection.gen_8fcb0586", "检查桌面更新或导入本机旧数据；这些操作不会影响当前创作配置。")}</CardDescription>
         </CardHeader>
-        <CardContent className={`text-sm text-muted-foreground ${AUTO_DIRECTOR_MOBILE_CLASSES.wrapText}`}>
-          没有维护需求时，可以直接回到上面的创作配置。
-        </CardContent>
+        <CardContent className={`text-sm text-muted-foreground ${AUTO_DIRECTOR_MOBILE_CLASSES.wrapText}`}>{t("gen.pages.settings.components.SettingsMaintenanceSection.gen_2b1e5abc", "没有维护需求时，可以直接回到上面的创作配置。")}</CardContent>
       </Card>
       <DesktopUpdateCard />
       <DesktopLegacyDataImportCard compact />

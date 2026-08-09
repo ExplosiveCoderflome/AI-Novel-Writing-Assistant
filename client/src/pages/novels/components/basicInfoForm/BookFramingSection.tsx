@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import i18next from "i18next";
 const t = (key: string, options?: any) => i18next.t(key, options) as string;
 import type { ReactNode } from "react";
@@ -12,6 +13,7 @@ interface BookFramingSectionProps {
 }
 
 export function BookFramingSection(props: BookFramingSectionProps) {
+  const { t } = useTranslation();
   const { basicForm, onFormChange, quickFill } = props;
 
   return (
@@ -19,18 +21,14 @@ export function BookFramingSection(props: BookFramingSectionProps) {
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div>
           <div className="text-sm font-semibold text-foreground">{i18next.t("gen.pages.novels.components.basicInfoForm.BookFramingSection.gen_822ab1f4")}</div>
-          <div className="mt-1 text-sm leading-6 text-muted-foreground">
-            用最直白的话说清楚：这本书写给谁、卖点是什么、读者前 30 章会得到什么。不会写专业策划词也没关系，按你的直觉描述即可。
-          </div>
+          <div className="mt-1 text-sm leading-6 text-muted-foreground">{t("gen.pages.novels.components.basicInfoForm.BookFramingSection.gen_341f081d", "用最直白的话说清楚：这本书写给谁、卖点是什么、读者前 30 章会得到什么。不会写专业策划词也没关系，按你的直觉描述即可。")}</div>
         </div>
         {quickFill ? <div className="shrink-0">{quickFill}</div> : null}
       </div>
 
       <div className="grid gap-3 md:grid-cols-2">
         <div className="space-y-2">
-          <FieldLabel htmlFor="basic-target-audience" hint={BASIC_INFO_FIELD_HINTS.targetAudience}>
-            目标读者
-          </FieldLabel>
+          <FieldLabel htmlFor="basic-target-audience" hint={BASIC_INFO_FIELD_HINTS.targetAudience}>{t("gen.pages.novels.components.basicInfoForm.BookFramingSection.gen_65d2a655", "目标读者")}</FieldLabel>
           <Input
             id="basic-target-audience"
             value={basicForm.targetAudience}
@@ -40,9 +38,7 @@ export function BookFramingSection(props: BookFramingSectionProps) {
         </div>
 
         <div className="space-y-2">
-          <FieldLabel htmlFor="basic-commercial-tags" hint={BASIC_INFO_FIELD_HINTS.commercialTagsText}>
-            核心商业标签
-          </FieldLabel>
+          <FieldLabel htmlFor="basic-commercial-tags" hint={BASIC_INFO_FIELD_HINTS.commercialTagsText}>{t("gen.pages.novels.components.basicInfoForm.BookFramingSection.gen_abcb8835", "核心商业标签")}</FieldLabel>
           <Input
             id="basic-commercial-tags"
             value={basicForm.commercialTagsText}
@@ -52,9 +48,7 @@ export function BookFramingSection(props: BookFramingSectionProps) {
         </div>
 
         <div className="space-y-2">
-          <FieldLabel htmlFor="basic-competing-feel" hint={BASIC_INFO_FIELD_HINTS.competingFeel}>
-            竞品感 / 熟悉阅读感
-          </FieldLabel>
+          <FieldLabel htmlFor="basic-competing-feel" hint={BASIC_INFO_FIELD_HINTS.competingFeel}>{t("gen.pages.novels.components.basicInfoForm.BookFramingSection.gen_e596a595", "竞品感 / 熟悉阅读感")}</FieldLabel>
           <Input
             id="basic-competing-feel"
             value={basicForm.competingFeel}
@@ -64,9 +58,7 @@ export function BookFramingSection(props: BookFramingSectionProps) {
         </div>
 
         <div className="space-y-2">
-          <FieldLabel htmlFor="basic-book-selling-point" hint={BASIC_INFO_FIELD_HINTS.bookSellingPoint}>
-            本书核心卖点
-          </FieldLabel>
+          <FieldLabel htmlFor="basic-book-selling-point" hint={BASIC_INFO_FIELD_HINTS.bookSellingPoint}>{t("gen.pages.novels.components.basicInfoForm.BookFramingSection.gen_466fe102", "本书核心卖点")}</FieldLabel>
           <textarea
             id="basic-book-selling-point"
             rows={3}
@@ -79,9 +71,7 @@ export function BookFramingSection(props: BookFramingSectionProps) {
       </div>
 
       <div className="space-y-2">
-        <FieldLabel htmlFor="basic-first30-promise" hint={BASIC_INFO_FIELD_HINTS.first30ChapterPromise}>
-          前 30 章承诺
-        </FieldLabel>
+        <FieldLabel htmlFor="basic-first30-promise" hint={BASIC_INFO_FIELD_HINTS.first30ChapterPromise}>{t("gen.pages.novels.components.basicInfoForm.BookFramingSection.gen_a76ca55a", "前 30 章承诺")}</FieldLabel>
         <textarea
           id="basic-first30-promise"
           rows={5}

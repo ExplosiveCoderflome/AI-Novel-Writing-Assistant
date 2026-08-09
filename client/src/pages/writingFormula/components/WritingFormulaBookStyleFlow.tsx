@@ -25,9 +25,7 @@ export default function WritingFormulaBookStyleFlow(props: WritingFormulaBookSty
     <Card className="border-slate-200/80 bg-white/90 shadow-[0_20px_60px_rgba(15,23,42,0.06)]">
       <CardHeader>
         <CardTitle>{i18next.t("gen.pages.writingFormula.components.WritingFormulaBookStyleFlow.setBookLevelDefaultWritingStyle")}</CardTitle>
-        <div className="text-sm leading-7 text-muted-foreground">
-          写法引擎负责创建、测试和整理写法资产。当前小说要使用哪套默认写法，请回到小说基础信息里确认，再带入后续导演和正文流程。
-        </div>
+        <div className="text-sm leading-7 text-muted-foreground">{t("gen.pages.writingFormula.components.WritingFormulaBookStyleFlow.gen_0aea08f2", "写法引擎负责创建、测试和整理写法资产。当前小说要使用哪套默认写法，请回到小说基础信息里确认，再带入后续导演和正文流程。")}</div>
       </CardHeader>
       <CardContent className="space-y-5">
         <div className="grid gap-4 xl:grid-cols-[minmax(0,1.05fr)_minmax(0,0.95fr)]">
@@ -49,19 +47,13 @@ export default function WritingFormulaBookStyleFlow(props: WritingFormulaBookSty
 
           <div className="space-y-4 rounded-2xl border bg-white p-4">
             <div className="text-sm font-medium text-slate-900">{i18next.t("gen.pages.writingFormula.components.WritingFormulaBookStyleFlow.nextStep")}</div>
-            <div className="rounded-2xl border bg-slate-50/70 p-4 text-sm leading-7 text-slate-700">
-              先去小说页确认这本书的默认写法。如果当前资产库里还没有合适的写法，再回到写法引擎创建或整理资产。
-            </div>
+            <div className="rounded-2xl border bg-slate-50/70 p-4 text-sm leading-7 text-slate-700">{t("gen.pages.writingFormula.components.WritingFormulaBookStyleFlow.gen_ea524588", "先去小说页确认这本书的默认写法。如果当前资产库里还没有合适的写法，再回到写法引擎创建或整理资产。")}</div>
             <div className="flex flex-wrap gap-3">
               <Button asChild type="button">
                 <Link to={novelRoute}>{i18next.t("gen.pages.writingFormula.components.WritingFormulaBookStyleFlow.gen_f0336b3a")}</Link>
               </Button>
-              <Button type="button" variant="outline" onClick={onOpenAdvanced}>
-                编辑当前写法
-              </Button>
-              <Button type="button" variant="outline" onClick={onOpenCreate}>
-                新建一套写法
-              </Button>
+              <Button type="button" variant="outline" onClick={onOpenAdvanced}>{t("gen.pages.writingFormula.components.WritingFormulaBookStyleFlow.gen_94a3c6e8", "编辑当前写法")}</Button>
+              <Button type="button" variant="outline" onClick={onOpenCreate}>{t("gen.pages.writingFormula.components.WritingFormulaBookStyleFlow.gen_6a2cf30a", "新建一套写法")}</Button>
             </div>
           </div>
         </div>

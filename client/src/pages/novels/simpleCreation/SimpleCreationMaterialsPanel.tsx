@@ -1,3 +1,5 @@
+import i18next from "i18next";
+import { useTranslation } from "react-i18next";
 import type { SimpleCreationShelfProjection } from "@ai-novel/shared/types/novel";
 import type { ReactNode } from "react";
 import { BookMarked, Boxes, Globe2, Sparkles, Users } from "lucide-react";
@@ -31,6 +33,7 @@ function ResourceCard(props: {
 export default function SimpleCreationMaterialsPanel({
   materials,
 }: SimpleCreationMaterialsPanelProps) {
+  const { t } = useTranslation();
   const sellingPoint = materials.story.coreSellingPoint
     || materials.description
     || "AI 正在沉淀整书方向。";
@@ -51,9 +54,7 @@ export default function SimpleCreationMaterialsPanel({
           </span>
           <div>
             <div className="font-medium text-foreground">AI 已准备的创作资源</div>
-            <div className="mt-1 text-xs leading-5 text-muted-foreground">
-              只读查看故事承诺、世界、角色和分卷成果；AI 会继续用这些资源保持后续章节一致。
-            </div>
+            <div className="mt-1 text-xs leading-5 text-muted-foreground">{t("gen.pages.novels.simpleCreation.SimpleCreationMaterialsPanel.gen_4f5b4966", "只读查看故事承诺、世界、角色和分卷成果；AI 会继续用这些资源保持后续章节一致。")}</div>
           </div>
         </div>
         <div className="hidden shrink-0 flex-wrap gap-2 text-xs sm:flex">
@@ -63,7 +64,7 @@ export default function SimpleCreationMaterialsPanel({
       </summary>
 
       <div className="grid gap-3 border-t border-border/60 p-4 md:grid-cols-2 xl:grid-cols-4">
-        <ResourceCard icon={Sparkles} title="整书方向" meta="故事承诺">
+        <ResourceCard icon={Sparkles} title={t("gen.pages.novels.simpleCreation.SimpleCreationMaterialsPanel.gen_9b3f0626", "整书方向")} meta={t("gen.pages.novels.simpleCreation.SimpleCreationMaterialsPanel.gen_51ed3c1e", "故事承诺")}>
           <p className="text-foreground">{sellingPoint}</p>
           {readingPromise ? <p className="mt-2">{readingPromise}</p> : null}
           {materials.story.first30ChapterPromise ? (
@@ -73,7 +74,7 @@ export default function SimpleCreationMaterialsPanel({
 
         <ResourceCard
           icon={Globe2}
-          title="故事世界"
+          title={t("gen.pages.novels.simpleCreation.SimpleCreationMaterialsPanel.gen_bdc8031f", "故事世界")}
           meta={materials.world ? "准备完成" : "准备中"}
         >
           {materials.world ? (
@@ -82,11 +83,11 @@ export default function SimpleCreationMaterialsPanel({
               <p className="mt-1">{materials.world.summary || "核心世界规则已纳入章节生产。"}</p>
             </>
           ) : (
-            <p>世界规则完成后会在这里显示摘要。</p>
+            <p>{t("gen.pages.novels.simpleCreation.SimpleCreationMaterialsPanel.gen_4633b856", "世界规则完成后会在这里显示摘要。")}</p>
           )}
         </ResourceCard>
 
-        <ResourceCard icon={Users} title="角色阵容" meta={`${materials.characterCount} 位`}>
+        <ResourceCard icon={Users} title={t("gen.pages.novels.simpleCreation.SimpleCreationMaterialsPanel.gen_ca1588b6", "角色阵容")} meta={`${materials.characterCount} 位`}>
           {materials.characters.length > 0 ? (
             <div className="space-y-2">
               {displayedCharacters.map((character) => (
@@ -101,11 +102,11 @@ export default function SimpleCreationMaterialsPanel({
               ) : null}
             </div>
           ) : (
-            <p>角色阵容准备完成后会在这里显示。</p>
+            <p>{t("gen.pages.novels.simpleCreation.SimpleCreationMaterialsPanel.gen_e755aaf3", "角色阵容准备完成后会在这里显示。")}</p>
           )}
         </ResourceCard>
 
-        <ResourceCard icon={BookMarked} title="分卷路线" meta={`${materials.volumeCount} 卷`}>
+        <ResourceCard icon={BookMarked} title={t("gen.pages.novels.simpleCreation.SimpleCreationMaterialsPanel.gen_1071f20e", "分卷路线")} meta={`${materials.volumeCount} 卷`}>
           {materials.volumes.length > 0 ? (
             <div className="space-y-2">
               {displayedVolumes.map((volume) => (
@@ -116,10 +117,10 @@ export default function SimpleCreationMaterialsPanel({
                   </div>
                 </div>
               ))}
-              {materials.volumeCount > displayedVolumes.length ? <div className="text-xs">其余分卷已纳入全书生产。</div> : null}
+              {materials.volumeCount > displayedVolumes.length ? <div className="text-xs">{t("gen.pages.novels.simpleCreation.SimpleCreationMaterialsPanel.gen_50d7234e", "其余分卷已纳入全书生产。")}</div> : null}
             </div>
           ) : (
-            <p>卷战略与章节路线完成后会在这里显示。</p>
+            <p>{t("gen.pages.novels.simpleCreation.SimpleCreationMaterialsPanel.gen_f32fe145", "卷战略与章节路线完成后会在这里显示。")}</p>
           )}
         </ResourceCard>
       </div>

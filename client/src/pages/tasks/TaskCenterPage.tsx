@@ -1,3 +1,4 @@
+import i18next from "i18next";
 import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -591,9 +592,7 @@ export default function TaskCenterPage() {
                 : "只重新读取恢复候选，不会自动执行恢复。"
             : undefined}
         action={overviewErrorMessage ? (
-          <Button type="button" size="sm" variant="outline" onClick={() => void overviewQuery.refetch()}>
-            重新读取
-          </Button>
+          <Button type="button" size="sm" variant="outline" onClick={() => void overviewQuery.refetch()}>{t("gen.pages.tasks.TaskCenterPage.gen_9e56f482", "重新读取")}</Button>
         ) : !overviewQuery.isLoading && hasRecommendedAction ? (
           <Button
             type="button"

@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import i18next from "i18next";
 const t = (key: string, options?: any) => i18next.t(key, options) as string;
 import { useMemo } from "react";
@@ -175,6 +176,7 @@ export default function AssistantChatPanel({
   onValidationError,
   onPersistConversation,
 }: AssistantChatPanelProps) {
+  const { t } = useTranslation();
   const seedMessages = useMemo(
     () =>
       initialMessages.map((message) => ({
@@ -436,17 +438,13 @@ export default function AssistantChatPanel({
               <button
                 type="button"
                 className="rounded-xl bg-slate-900 px-4 py-2 text-sm font-medium text-white transition hover:bg-slate-800"
-              >
-                发送
-              </button>
+              >{t("gen.pages.chat.components.AssistantChatPanel.gen_1535fcfa", "发送")}</button>
             </ComposerPrimitive.Send>
             <ComposerPrimitive.Cancel asChild>
               <button
                 type="button"
                 className="rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50"
-              >
-                停止
-              </button>
+              >{t("gen.pages.chat.components.AssistantChatPanel.gen_095e938e", "停止")}</button>
             </ComposerPrimitive.Cancel>
           </div>
         </ComposerPrimitive.Root>

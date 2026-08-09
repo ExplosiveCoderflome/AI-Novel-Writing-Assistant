@@ -441,17 +441,17 @@ export default function AutoDirectorFollowUpCenterPage() {
         <WorkspaceNextAction
           icon={Activity}
           tone="info"
-          title="正在读取导演跟进"
-          description="正在汇总阻塞、待操作和自动推进任务，请稍候。"
+          title={t("gen.pages.autoDirectorFollowUps.AutoDirectorFollowUpCenterPage.gen_8455781a", "正在读取导演跟进")}
+          description={t("gen.pages.autoDirectorFollowUps.AutoDirectorFollowUpCenterPage.gen_0852aea6", "正在汇总阻塞、待操作和自动推进任务，请稍候。")}
         />
       ) : overviewErrorMessage ? (
         <WorkspaceNextAction
           icon={RefreshCw}
           tone="danger"
-          title="重新读取导演跟进"
+          title={t("gen.pages.autoDirectorFollowUps.AutoDirectorFollowUpCenterPage.gen_95bfb1ad", "重新读取导演跟进")}
           description={overviewErrorMessage}
-          consequence="只重新读取跟进摘要，不会执行恢复、重试或重规划。"
-          action={<Button size="sm" variant="outline" onClick={() => void overviewQuery.refetch()}>重新读取</Button>}
+          consequence={t("gen.pages.autoDirectorFollowUps.AutoDirectorFollowUpCenterPage.gen_be304c1a", "只重新读取跟进摘要，不会执行恢复、重试或重规划。")}
+          action={<Button size="sm" variant="outline" onClick={() => void overviewQuery.refetch()}>{t("gen.pages.autoDirectorFollowUps.AutoDirectorFollowUpCenterPage.gen_9e56f482", "重新读取")}</Button>}
         />
       ) : (
         <WorkspaceNextAction
@@ -469,9 +469,7 @@ export default function AutoDirectorFollowUpCenterPage() {
                 : "后续出现审批、异常或恢复需要时，会按影响等级出现在这里。"}
           consequence={recommendedSection ? "只切换跟进分区，不会自动执行导演动作。" : undefined}
           action={recommendedSection ? (
-            <Button size="sm" variant={criticalCount > 0 ? "destructive" : "outline"} onClick={() => handleSectionChange(recommendedSection)}>
-              查看推荐分区
-            </Button>
+            <Button size="sm" variant={criticalCount > 0 ? "destructive" : "outline"} onClick={() => handleSectionChange(recommendedSection)}>{t("gen.pages.autoDirectorFollowUps.AutoDirectorFollowUpCenterPage.gen_f425ee8e", "查看推荐分区")}</Button>
           ) : undefined}
         />
       )}

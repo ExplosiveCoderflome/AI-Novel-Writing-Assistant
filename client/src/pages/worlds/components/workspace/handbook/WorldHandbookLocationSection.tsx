@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import i18next from "i18next";
 const t = (key: string, options?: any) => i18next.t(key, options) as string;
 import { MapPinned, Plus } from "lucide-react";
@@ -12,6 +13,7 @@ export default function WorldHandbookLocationSection(props: {
   draftStructure: WorldStructuredData;
   setDraftStructure: Dispatch<SetStateAction<WorldStructuredData | null>>;
 }) {
+  const { t } = useTranslation();
   const { draftStructure, setDraftStructure } = props;
 
   const addLocation = () => {
@@ -60,9 +62,7 @@ export default function WorldHandbookLocationSection(props: {
                     prev ? { ...prev, locations: removeItem(prev.locations, index) } : prev,
                   )
                 }
-              >
-                移除
-              </Button>
+              >{t("gen.pages.worlds.components.workspace.handbook.WorldHandbookLocationSection.gen_86048b4f", "移除")}</Button>
             </div>
             <div className="mt-3 grid gap-3">
               <HandbookField title={i18next.t("gen.pages.worlds.components.workspace.handbook.WorldHandbookLocationSection.gen_6608b1e8")} hint={i18next.t("gen.pages.worlds.components.workspace.handbook.WorldHandbookLocationSection.gen_4c64c523")}>
@@ -133,9 +133,7 @@ export default function WorldHandbookLocationSection(props: {
         ))}
       </div>
       <Button type="button" className="mt-3" variant="outline" onClick={addLocation}>
-        <Plus className="mr-2 h-4 w-4" aria-hidden="true" />
-        增加故事地点
-      </Button>
+        <Plus className="mr-2 h-4 w-4" aria-hidden="true" />{t("gen.pages.worlds.components.workspace.handbook.WorldHandbookLocationSection.gen_2ead6ba5", "增加故事地点")}</Button>
     </section>
   );
 }

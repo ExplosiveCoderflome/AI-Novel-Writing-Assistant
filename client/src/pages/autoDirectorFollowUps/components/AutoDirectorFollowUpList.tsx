@@ -131,11 +131,11 @@ export function AutoDirectorFollowUpListPanel(props: AutoDirectorFollowUpListPan
           </Select>
 
           <Select value={props.activeStatus || "__all__"} onValueChange={(value) => props.onFilterChange("status", value === "__all__" ? "" : value)}>
-            <SelectTrigger aria-label="按任务状态筛选" className={AUTO_DIRECTOR_MOBILE_CLASSES.followUpFilterTrigger}>
-              <SelectValue placeholder="全部状态" />
+            <SelectTrigger aria-label={t("gen.pages.autoDirectorFollowUps.components.AutoDirectorFollowUpList.gen_bd0a3496", "按任务状态筛选")} className={AUTO_DIRECTOR_MOBILE_CLASSES.followUpFilterTrigger}>
+              <SelectValue placeholder={t("gen.pages.autoDirectorFollowUps.components.AutoDirectorFollowUpList.gen_443483c9", "全部状态")} />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="__all__">全部状态</SelectItem>
+              <SelectItem value="__all__">{t("gen.pages.autoDirectorFollowUps.components.AutoDirectorFollowUpList.gen_443483c9", "全部状态")}</SelectItem>
               {(props.filters?.statuses ?? []).map((status) => (
                 <SelectItem key={status} value={status}>{formatStatus(status)}</SelectItem>
               ))}
@@ -143,13 +143,13 @@ export function AutoDirectorFollowUpListPanel(props: AutoDirectorFollowUpListPan
           </Select>
 
           <Select value={props.activeSupportsBatch || "__all__"} onValueChange={(value) => props.onFilterChange("supportsBatch", value === "__all__" ? "" : value)}>
-            <SelectTrigger aria-label="按批量操作能力筛选" className={AUTO_DIRECTOR_MOBILE_CLASSES.followUpFilterTrigger}>
-              <SelectValue placeholder="批量能力" />
+            <SelectTrigger aria-label={t("gen.pages.autoDirectorFollowUps.components.AutoDirectorFollowUpList.gen_46bf07ff", "按批量操作能力筛选")} className={AUTO_DIRECTOR_MOBILE_CLASSES.followUpFilterTrigger}>
+              <SelectValue placeholder={t("gen.pages.autoDirectorFollowUps.components.AutoDirectorFollowUpList.gen_4db4c06a", "批量能力")} />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="__all__">全部</SelectItem>
-              <SelectItem value="true">仅可批量</SelectItem>
-              <SelectItem value="false">仅不可批量</SelectItem>
+              <SelectItem value="__all__">{t("gen.pages.autoDirectorFollowUps.components.AutoDirectorFollowUpList.gen_a8b0c204", "全部")}</SelectItem>
+              <SelectItem value="true">{t("gen.pages.autoDirectorFollowUps.components.AutoDirectorFollowUpList.gen_4a9107b3", "仅可批量")}</SelectItem>
+              <SelectItem value="false">{t("gen.pages.autoDirectorFollowUps.components.AutoDirectorFollowUpList.gen_29a89710", "仅不可批量")}</SelectItem>
             </SelectContent>
           </Select>
 
@@ -157,22 +157,22 @@ export function AutoDirectorFollowUpListPanel(props: AutoDirectorFollowUpListPan
 
         <div className="space-y-3">
           {props.loading ? (
-            <WorkspaceStateNotice compact loading title="正在读取跟进项" description="正在同步导演任务和最近自动通过记录。" />
+            <WorkspaceStateNotice compact loading title={t("gen.pages.autoDirectorFollowUps.components.AutoDirectorFollowUpList.gen_0fffc2e3", "正在读取跟进项")} description={t("gen.pages.autoDirectorFollowUps.components.AutoDirectorFollowUpList.gen_0a5f6c12", "正在同步导演任务和最近自动通过记录。")} />
           ) : null}
 
           {props.errorMessage ? (
             <WorkspaceStateNotice
               compact
               tone="danger"
-              title="跟进列表读取失败"
+              title={t("gen.pages.autoDirectorFollowUps.components.AutoDirectorFollowUpList.gen_f274750c", "跟进列表读取失败")}
               description={props.errorMessage}
-              action={<Button size="sm" variant="outline" onClick={props.onRetry}>重新读取</Button>}
+              action={<Button size="sm" variant="outline" onClick={props.onRetry}>{t("gen.pages.autoDirectorFollowUps.components.AutoDirectorFollowUpList.gen_9e56f482", "重新读取")}</Button>}
             />
           ) : null}
 
           {!props.loading && !props.errorMessage && props.items.length === 0 ? (
             <TaskQueueEmptyState
-              title="当前没有符合条件的跟进项"
+              title={t("gen.pages.autoDirectorFollowUps.components.AutoDirectorFollowUpList.gen_35da2303", "当前没有符合条件的跟进项")}
               description={props.activeSection === "auto_progress"
                 ? "当前没有正在推进的任务或最近自动通过记录。"
                 : props.activeSection === "replaced"
@@ -210,7 +210,7 @@ export function AutoDirectorFollowUpListPanel(props: AutoDirectorFollowUpListPan
                   <TaskQueueStatusBadge label={item.reasonLabel} tone="neutral" />
                   <TaskQueueStatusBadge label={getFollowUpPriorityLabel(item.priority, item.reason)} tone={tone} />
                   {item.executionScope ? <TaskQueueStatusBadge label={item.executionScope} tone="neutral" className={`max-w-full whitespace-normal text-left ${AUTO_DIRECTOR_MOBILE_CLASSES.wrapText}`} /> : null}
-                  {item.supportsBatch ? <TaskQueueStatusBadge label="可批量" tone="info" /> : null}
+                  {item.supportsBatch ? <TaskQueueStatusBadge label={t("gen.pages.autoDirectorFollowUps.components.AutoDirectorFollowUpList.gen_07945f54", "可批量")} tone="info" /> : null}
                   {buildChannelBadges(item).map((label) => (
                     <TaskQueueStatusBadge key={`${item.directorTaskId}:${label}`} label={label} tone="info" />
                   ))}
@@ -247,18 +247,14 @@ export function AutoDirectorFollowUpListPanel(props: AutoDirectorFollowUpListPan
               className={AUTO_DIRECTOR_MOBILE_CLASSES.fullWidthAction}
               disabled={(props.pagination?.page ?? 1) <= 1}
               onClick={() => props.onPageChange((props.pagination?.page ?? 1) - 1)}
-            >
-              上一页
-            </Button>
+            >{t("gen.pages.autoDirectorFollowUps.components.AutoDirectorFollowUpList.gen_f4f85316", "上一页")}</Button>
             <Button
               variant="outline"
               size="sm"
               className={AUTO_DIRECTOR_MOBILE_CLASSES.fullWidthAction}
               disabled={(props.pagination?.page ?? 1) >= totalPages}
               onClick={() => props.onPageChange((props.pagination?.page ?? 1) + 1)}
-            >
-              下一页
-            </Button>
+            >{t("gen.pages.autoDirectorFollowUps.components.AutoDirectorFollowUpList.gen_b4e1b508", "下一页")}</Button>
           </div>
         </div>
       </div>

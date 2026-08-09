@@ -1,3 +1,5 @@
+import i18next from "i18next";
+import { useTranslation } from "react-i18next";
 import type { AutoDirectorFollowUpItem, AutoDirectorMutationActionCode } from "@ai-novel/shared/types/autoDirectorFollowUp";
 import type { AutoDirectorFollowUpSection } from "@ai-novel/shared/types/autoDirectorValidation";
 import { Button } from "@/components/ui/button";
@@ -34,6 +36,7 @@ export function AutoDirectorFollowUpBatchBar({
   onClear,
   onExecute,
 }: AutoDirectorFollowUpBatchBarProps) {
+  const { t } = useTranslation();
   if (selectedItems.length === 0) {
     return null;
   }
@@ -52,12 +55,8 @@ export function AutoDirectorFollowUpBatchBar({
         tone={selectedSection === "exception" ? "danger" : "info"}
         action={(
           <div className="grid grid-cols-2 gap-2 md:flex">
-          <Button variant="outline" size="sm" className="w-full md:w-auto" onClick={onClear} disabled={loading}>
-            清空
-          </Button>
-          <Button size="sm" className="w-full md:w-auto" onClick={() => void onExecute()} disabled={!batchActionCode || loading}>
-            执行批量动作
-          </Button>
+          <Button variant="outline" size="sm" className="w-full md:w-auto" onClick={onClear} disabled={loading}>{t("gen.pages.autoDirectorFollowUps.components.AutoDirectorFollowUpBatchBar.gen_288f0c40", "清空")}</Button>
+          <Button size="sm" className="w-full md:w-auto" onClick={() => void onExecute()} disabled={!batchActionCode || loading}>{t("gen.pages.autoDirectorFollowUps.components.AutoDirectorFollowUpBatchBar.gen_dde05ba1", "执行批量动作")}</Button>
           </div>
         )}
       />

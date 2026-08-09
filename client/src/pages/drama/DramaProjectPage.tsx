@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import i18next from "i18next";
 const t = (key: string, options?: any) => i18next.t(key, options) as string;
 import { useEffect, useMemo, useState } from "react";
@@ -342,21 +343,13 @@ function EpisodesPanel(props: {
             </div>
             <div className="flex flex-wrap gap-2">
               <Button size="sm" type="button" disabled={props.busy} onClick={() => props.onGenerateScript(selectedEpisode.order)}>
-                <Wand2 className="h-4 w-4" />
-                生成台本
-              </Button>
+                <Wand2 className="h-4 w-4" />{t("gen.pages.drama.DramaProjectPage.gen_7f83dc3d", "生成台本")}</Button>
               <Button size="sm" type="button" variant="outline" disabled={props.busy || !selectedEpisode.content?.trim()} onClick={() => props.onReview(selectedEpisode.order)}>
-                <CheckCircle2 className="h-4 w-4" />
-                质量检查
-              </Button>
+                <CheckCircle2 className="h-4 w-4" />{t("gen.pages.drama.DramaProjectPage.gen_6fc8894d", "质量检查")}</Button>
               <Button size="sm" type="button" variant="outline" disabled={props.busy || !selectedEpisode.content?.trim()} onClick={() => props.onRepair(selectedEpisode.order)}>
-                <RefreshCw className="h-4 w-4" />
-                修复
-              </Button>
+                <RefreshCw className="h-4 w-4" />{t("gen.pages.drama.DramaProjectPage.gen_f82661e8", "修复")}</Button>
               <Button size="sm" type="button" variant="outline" disabled={props.busy} onClick={() => props.onSave(selectedEpisode.order, draft)}>
-                <Save className="h-4 w-4" />
-                保存编辑
-              </Button>
+                <Save className="h-4 w-4" />{t("gen.pages.drama.DramaProjectPage.gen_f666b01a", "保存编辑")}</Button>
             </div>
           </CardHeader>
           <CardContent className="space-y-4">
@@ -415,6 +408,7 @@ function EpisodesPanel(props: {
 }
 
 export default function DramaProjectPage() {
+  const { t } = useTranslation();
   const { id } = useParams();
   const queryClient = useQueryClient();
   const [activeTab, setActiveTab] = useState<DramaTab>("source");
@@ -555,14 +549,10 @@ export default function DramaProjectPage() {
               </Badge>
             ) : null}
           </div>
-          <p className="text-sm text-muted-foreground">
-            按“素材 → 策略 → 分集 → 台本 → 质量 → 分镜视频”的顺序推进这部短剧。
-          </p>
+          <p className="text-sm text-muted-foreground">{t("gen.pages.drama.DramaProjectPage.gen_2db07e05", "按“素材 → 策略 → 分集 → 台本 → 质量 → 分镜视频”的顺序推进这部短剧。")}</p>
         </div>
         <Button type="button" variant="outline" disabled={projectQuery.isFetching} onClick={() => void projectQuery.refetch()}>
-          <RefreshCw className="h-4 w-4" />
-          刷新
-        </Button>
+          <RefreshCw className="h-4 w-4" />{t("gen.pages.drama.DramaProjectPage.gen_694fc5ef", "刷新")}</Button>
       </div>
 
       <ProjectProgress project={project} />
@@ -684,23 +674,15 @@ export default function DramaProjectPage() {
           </CardHeader>
           <CardContent className="flex flex-wrap gap-2">
             <Button type="button" onClick={() => void handleExport("markdown")}>
-              <Download className="h-4 w-4" />
-              导出 Markdown
-            </Button>
+              <Download className="h-4 w-4" />{t("gen.pages.drama.DramaProjectPage.gen_f33dea55", "导出 Markdown")}</Button>
             <Button type="button" variant="outline" onClick={() => void handleExport("json")}>
-              <Download className="h-4 w-4" />
-              导出 JSON
-            </Button>
+              <Download className="h-4 w-4" />{t("gen.pages.drama.DramaProjectPage.gen_e1b05f87", "导出 JSON")}</Button>
             {selectedOrderValue ? (
               <>
                 <Button type="button" variant="outline" onClick={() => void handleEpisodeExport(selectedOrderValue, "srt")}>
-                  <Download className="h-4 w-4" />
-                  导出本集 SRT
-                </Button>
+                  <Download className="h-4 w-4" />{t("gen.pages.drama.DramaProjectPage.gen_46e80b19", "导出本集 SRT")}</Button>
                 <Button type="button" variant="outline" onClick={() => void handleEpisodeExport(selectedOrderValue, "timeline-json")}>
-                  <Download className="h-4 w-4" />
-                  导出剪辑草稿
-                </Button>
+                  <Download className="h-4 w-4" />{t("gen.pages.drama.DramaProjectPage.gen_71ae747d", "导出剪辑草稿")}</Button>
               </>
             ) : null}
           </CardContent>

@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import i18next from "i18next";
 const t = (key: string, options?: any) => i18next.t(key, options) as string;
 import type { RecoverableTaskSummary } from "@ai-novel/shared/types/task";
@@ -28,6 +29,7 @@ function formatTaskKind(kind: RecoverableTaskSummary["kind"]): string {
 }
 
 export default function TaskRecoveryDialog() {
+  const { t } = useTranslation();
   const {
     items,
     isOpen,
@@ -46,9 +48,7 @@ export default function TaskRecoveryDialog() {
         description={i18next.t("gen.components.layout.TaskRecoveryDialog.gen_5f4f5676")}
         footer={(
           <>
-            <Button variant="outline" onClick={closeDialog}>
-              稍后处理
-            </Button>
+            <Button variant="outline" onClick={closeDialog}>{t("gen.components.layout.TaskRecoveryDialog.gen_45292500", "稍后处理")}</Button>
             <Button onClick={resumeAll} disabled={isResumeSinglePending || isResumeAllPending}>
               {isResumeAllPending ? i18next.t("gen.components.layout.TaskRecoveryDialog.gen_e4f9620b") : i18next.t("gen.components.layout.TaskRecoveryDialog.gen_7e47d5e6")}
             </Button>

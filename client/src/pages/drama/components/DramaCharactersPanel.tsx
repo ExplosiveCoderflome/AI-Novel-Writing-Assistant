@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import i18next from "i18next";
 const t = (key: string, options?: any) => i18next.t(key, options) as string;
 import { useEffect, useMemo, useState } from "react";
@@ -373,9 +374,7 @@ function CharacterAssetEditor(props: {
         <div className="grid gap-3 lg:grid-cols-2">
           <label className="block space-y-1.5 text-sm">
             <span className="flex items-center gap-1 font-medium">
-              <Video className="h-4 w-4" />
-              固定造型锚点
-            </span>
+              <Video className="h-4 w-4" />{t("gen.pages.drama.components.DramaCharactersPanel.gen_752f815a", "固定造型锚点")}</span>
             <textarea
               className="min-h-24 w-full rounded-md border bg-background px-3 py-2 text-sm"
               value={draft.visualAnchor}
@@ -385,9 +384,7 @@ function CharacterAssetEditor(props: {
           </label>
           <label className="block space-y-1.5 text-sm">
             <span className="flex items-center gap-1 font-medium">
-              <Mic2 className="h-4 w-4" />
-              表演和声音锚点
-            </span>
+              <Mic2 className="h-4 w-4" />{t("gen.pages.drama.components.DramaCharactersPanel.gen_9758d2f1", "表演和声音锚点")}</span>
             <textarea
               className="min-h-24 w-full rounded-md border bg-background px-3 py-2 text-sm"
               value={draft.voiceAnchor}
@@ -419,12 +416,8 @@ function CharacterAssetEditor(props: {
 
         <div className="flex flex-wrap gap-2">
           <Button type="button" size="sm" disabled={props.busy} onClick={() => props.onSave(props.character, draft)}>
-            <Save className="h-4 w-4" />
-            保存角色资产
-          </Button>
-          <Button type="button" size="sm" variant="outline" disabled={props.busy} onClick={() => props.onSaveToLibrary(props.character)}>
-            保存到短剧角色库
-          </Button>
+            <Save className="h-4 w-4" />{t("gen.pages.drama.components.DramaCharactersPanel.gen_6c3f7724", "保存角色资产")}</Button>
+          <Button type="button" size="sm" variant="outline" disabled={props.busy} onClick={() => props.onSaveToLibrary(props.character)}>{t("gen.pages.drama.components.DramaCharactersPanel.gen_cff1212c", "保存到短剧角色库")}</Button>
         </div>
 
         <CharacterImagesBlock
@@ -476,9 +469,7 @@ export function DramaCharactersPanel(props: {
             disabled={props.busy || !selectedLibraryId}
             onClick={() => props.onImportFromLibrary(selectedLibraryId)}
           >
-            <Download className="h-4 w-4" />
-            导入角色资产
-          </Button>
+            <Download className="h-4 w-4" />{t("gen.pages.drama.components.DramaCharactersPanel.gen_1a4bdb2a", "导入角色资产")}</Button>
         </CardContent>
       </Card>
 

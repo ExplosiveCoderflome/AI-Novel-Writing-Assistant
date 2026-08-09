@@ -207,9 +207,7 @@ export default function WritingFormulaCreateDialog(props: WritingFormulaCreateDi
       <DialogContent className="flex max-h-[92vh] max-w-5xl flex-col overflow-hidden">
         <DialogHeader className="shrink-0">
           <DialogTitle>{i18next.t("gen.pages.writingFormula.components.WritingFormulaCreateDialog.gen_68a34a89")}</DialogTitle>
-          <DialogDescription>
-            先选最省力的起步方式。创建完成后会自动打开当前写法编辑，继续补规则、试写和绑定。
-          </DialogDescription>
+          <DialogDescription>{t("gen.pages.writingFormula.components.WritingFormulaCreateDialog.gen_5a824c9a", "先选最省力的起步方式。创建完成后会自动打开当前写法编辑，继续补规则、试写和绑定。")}</DialogDescription>
         </DialogHeader>
 
         <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as typeof activeTab)} className="flex min-h-0 flex-1 flex-col space-y-4">
@@ -220,9 +218,7 @@ export default function WritingFormulaCreateDialog(props: WritingFormulaCreateDi
           </TabsList>
 
           <TabsContent value="quick_start" className="min-h-0 flex-1 space-y-4 overflow-y-auto pr-1">
-            <div className="rounded-lg border bg-muted/20 p-4 text-sm leading-6 text-muted-foreground">
-              手里还没有明确规则时，先从模板起一套最省力。后面都可以继续改。
-            </div>
+            <div className="rounded-lg border bg-muted/20 p-4 text-sm leading-6 text-muted-foreground">{t("gen.pages.writingFormula.components.WritingFormulaCreateDialog.gen_e99b3b79", "手里还没有明确规则时，先从模板起一套最省力。后面都可以继续改。")}</div>
             <div className="grid gap-3 pr-1 md:grid-cols-2">
               {templates.map((template) => (
                 <div key={template.id} className="rounded-lg border p-4">
@@ -260,16 +256,12 @@ export default function WritingFormulaCreateDialog(props: WritingFormulaCreateDi
           </TabsContent>
 
           <TabsContent value="blank" className="min-h-0 flex-1 space-y-4 overflow-y-auto pr-1">
-            <div className="rounded-lg border bg-muted/20 p-4 text-sm leading-6 text-muted-foreground">
-              你可以手动建一个空白写法，也可以先说一句想要的读感，让 AI 帮你搭第一版骨架。
-            </div>
+            <div className="rounded-lg border bg-muted/20 p-4 text-sm leading-6 text-muted-foreground">{t("gen.pages.writingFormula.components.WritingFormulaCreateDialog.gen_46c87263", "你可以手动建一个空白写法，也可以先说一句想要的读感，让 AI 帮你搭第一版骨架。")}</div>
             <div className="grid gap-4 lg:grid-cols-2">
               <div className="rounded-lg border p-4">
                 <div className="mb-3">
                   <div className="text-sm font-medium text-foreground">{i18next.t("gen.pages.writingFormula.components.WritingFormulaCreateDialog.gen_53a4c0f4")}</div>
-                  <div className="mt-1 text-xs leading-5 text-muted-foreground">
-                    适合你已经知道自己要维护什么类型的写法，只想先建一个空壳。
-                  </div>
+                  <div className="mt-1 text-xs leading-5 text-muted-foreground">{t("gen.pages.writingFormula.components.WritingFormulaCreateDialog.gen_ddc7dd48", "适合你已经知道自己要维护什么类型的写法，只想先建一个空壳。")}</div>
                 </div>
                 <div className="space-y-3">
                   <input
@@ -291,9 +283,7 @@ export default function WritingFormulaCreateDialog(props: WritingFormulaCreateDi
               <div className="rounded-lg border p-4">
                 <div className="mb-3">
                   <div className="text-sm font-medium text-foreground">{i18next.t("gen.pages.writingFormula.components.WritingFormulaCreateDialog.aiHelpBuildSet")}</div>
-                  <div className="mt-1 text-xs leading-5 text-muted-foreground">
-                    适合你只知道想写成什么感觉，还不想先手填规则字段。
-                  </div>
+                  <div className="mt-1 text-xs leading-5 text-muted-foreground">{t("gen.pages.writingFormula.components.WritingFormulaCreateDialog.gen_2fd0fae4", "适合你只知道想写成什么感觉，还不想先手填规则字段。")}</div>
                 </div>
                 <div className="space-y-3">
                   <input
@@ -327,9 +317,7 @@ export default function WritingFormulaCreateDialog(props: WritingFormulaCreateDi
           </TabsContent>
 
           <TabsContent value="extract" className="min-h-0 flex-1 space-y-4 overflow-y-auto pr-1">
-            <div className="rounded-lg border bg-muted/20 p-4 text-sm leading-6 text-muted-foreground">
-              从素材中创建写法。文本和知识库原文会进入后台提取任务；拆书结果会直接使用文风与技法分析生成写法。
-            </div>
+            <div className="rounded-lg border bg-muted/20 p-4 text-sm leading-6 text-muted-foreground">{t("gen.pages.writingFormula.components.WritingFormulaCreateDialog.gen_afed1912", "从素材中创建写法。文本和知识库原文会进入后台提取任务；拆书结果会直接使用文风与技法分析生成写法。")}</div>
             <div className="grid gap-5 xl:grid-cols-[minmax(0,1.05fr)_minmax(320px,0.95fr)]">
               <div className="space-y-4 rounded-lg border p-4">
                 <div className={form.materialSource === "book_analysis" ? "grid gap-3" : "grid gap-3 md:grid-cols-2"}>
@@ -391,14 +379,10 @@ export default function WritingFormulaCreateDialog(props: WritingFormulaCreateDi
                     />
                     <div className="grid max-h-[220px] gap-2 overflow-y-auto pr-1">
                       {knowledgeDocumentsLoading && knowledgeDocuments.length === 0 ? (
-                        <div className="rounded-xl border border-dashed p-3 text-sm text-muted-foreground">
-                          检索知识库文档中...
-                        </div>
+                        <div className="rounded-xl border border-dashed p-3 text-sm text-muted-foreground">{t("gen.pages.writingFormula.components.WritingFormulaCreateDialog.gen_18a3dbb4", "检索知识库文档中...")}</div>
                       ) : null}
                       {!knowledgeDocumentsLoading && knowledgeDocuments.length === 0 ? (
-                        <div className="rounded-xl border border-dashed p-3 text-sm text-muted-foreground">
-                          没有找到可用知识库文档。可以先到知识库上传原文，再回到这里创建写法。
-                        </div>
+                        <div className="rounded-xl border border-dashed p-3 text-sm text-muted-foreground">{t("gen.pages.writingFormula.components.WritingFormulaCreateDialog.gen_d17e11fe", "没有找到可用知识库文档。可以先到知识库上传原文，再回到这里创建写法。")}</div>
                       ) : null}
                       {knowledgeDocuments.map((document) => {
                         const selected = document.id === form.knowledgeDocumentId;
@@ -469,13 +453,9 @@ export default function WritingFormulaCreateDialog(props: WritingFormulaCreateDi
                         })}
                       </div>
                       {form.knowledgeSourceProcessingMode === "representative_sample" ? (
-                        <div className="text-xs leading-5 text-slate-500">
-                          写法资产会继续保留完整来源预览；模型只读取代表性样本，避免长篇全文一次性超出模型承载能力。
-                        </div>
+                        <div className="text-xs leading-5 text-slate-500">{t("gen.pages.writingFormula.components.WritingFormulaCreateDialog.gen_89392fe4", "写法资产会继续保留完整来源预览；模型只读取代表性样本，避免长篇全文一次性超出模型承载能力。")}</div>
                       ) : (
-                        <div className="text-xs leading-5 text-amber-700">
-                          全文提取会把活动版本全文交给模型。长篇原文建议先使用智能抽样。
-                        </div>
+                        <div className="text-xs leading-5 text-amber-700">{t("gen.pages.writingFormula.components.WritingFormulaCreateDialog.gen_65d6a91b", "全文提取会把活动版本全文交给模型。长篇原文建议先使用智能抽样。")}</div>
                       )}
                     </div>
                     <div className="rounded-xl border bg-slate-50/80 p-3 text-sm leading-6 text-slate-700">
@@ -512,14 +492,10 @@ export default function WritingFormulaCreateDialog(props: WritingFormulaCreateDi
                     />
                     <div className="grid max-h-[290px] gap-2 overflow-y-auto pr-1">
                       {bookAnalysesLoading && bookAnalyses.length === 0 ? (
-                        <div className="rounded-xl border border-dashed p-3 text-sm text-muted-foreground">
-                          检索拆书结果中...
-                        </div>
+                        <div className="rounded-xl border border-dashed p-3 text-sm text-muted-foreground">{t("gen.pages.writingFormula.components.WritingFormulaCreateDialog.gen_89ba2e73", "检索拆书结果中...")}</div>
                       ) : null}
                       {!bookAnalysesLoading && bookAnalyses.length === 0 ? (
-                        <div className="rounded-xl border border-dashed p-3 text-sm text-muted-foreground">
-                          没有找到可用拆书结果。完成拆书后，可以在这里直接生成写法。
-                        </div>
+                        <div className="rounded-xl border border-dashed p-3 text-sm text-muted-foreground">{t("gen.pages.writingFormula.components.WritingFormulaCreateDialog.gen_0fd4f3d0", "没有找到可用拆书结果。完成拆书后，可以在这里直接生成写法。")}</div>
                       ) : null}
                       {bookAnalyses.map((analysis) => {
                         const selected = analysis.id === form.bookAnalysisId;
@@ -575,9 +551,7 @@ export default function WritingFormulaCreateDialog(props: WritingFormulaCreateDi
                   <>
                     <div>
                       <div className="text-sm font-medium text-foreground">{i18next.t("gen.pages.writingFormula.components.WritingFormulaCreateDialog.gen_0ea66184")}</div>
-                      <div className="mt-1 text-xs leading-5 text-muted-foreground">
-                        这一路会直接读取拆书里的文风与技法小节，生成后立即打开写法编辑。
-                      </div>
+                      <div className="mt-1 text-xs leading-5 text-muted-foreground">{t("gen.pages.writingFormula.components.WritingFormulaCreateDialog.gen_0e11abeb", "这一路会直接读取拆书里的文风与技法小节，生成后立即打开写法编辑。")}</div>
                     </div>
                     <div className="rounded-xl border bg-slate-50/80 p-4 text-sm leading-6 text-slate-700">
                       {selectedBookAnalysis ? (
@@ -599,9 +573,7 @@ export default function WritingFormulaCreateDialog(props: WritingFormulaCreateDi
                   <>
                     <div>
                       <div className="text-sm font-medium text-foreground">{i18next.t("gen.pages.writingFormula.components.WritingFormulaCreateDialog.preserveStrategy")}</div>
-                      <div className="mt-1 text-xs leading-5 text-muted-foreground">
-                        先决定你要保留多少原始指纹，系统会按这个策略自动生成并保存写法。
-                      </div>
+                      <div className="mt-1 text-xs leading-5 text-muted-foreground">{t("gen.pages.writingFormula.components.WritingFormulaCreateDialog.gen_023bb393", "先决定你要保留多少原始指纹，系统会按这个策略自动生成并保存写法。")}</div>
                     </div>
                     <div className="grid gap-3">
                       {EXTRACTION_PRESET_OPTIONS.map((preset) => {
@@ -653,15 +625,11 @@ export default function WritingFormulaCreateDialog(props: WritingFormulaCreateDi
                             variant="outline"
                             className="mt-4 w-full"
                             onClick={() => onOpenTaskCenter(activeExtractionTask)}
-                          >
-                            去任务中心查看
-                          </Button>
+                          >{t("gen.pages.writingFormula.components.WritingFormulaCreateDialog.gen_1d919e4c", "去任务中心查看")}</Button>
                         ) : null}
                       </div>
                     ) : (
-                      <div className="rounded-xl border border-dashed p-4 text-sm leading-6 text-muted-foreground">
-                        提交后系统会在后台完成提取、套用保留策略并自动保存写法。你可以先关掉弹窗，完成后会自动打开结果。
-                      </div>
+                      <div className="rounded-xl border border-dashed p-4 text-sm leading-6 text-muted-foreground">{t("gen.pages.writingFormula.components.WritingFormulaCreateDialog.gen_7d1bd18b", "提交后系统会在后台完成提取、套用保留策略并自动保存写法。你可以先关掉弹窗，完成后会自动打开结果。")}</div>
                     )}
                   </>
                 )}

@@ -1,3 +1,5 @@
+import i18next from "i18next";
+import { useTranslation } from "react-i18next";
 import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { listImageAssets, resolveImageAssetUrl } from "@/api/images";
@@ -35,6 +37,7 @@ interface NovelCoverCardProps {
 }
 
 export function NovelCoverCard(props: NovelCoverCardProps) {
+  const { t } = useTranslation();
   const [open, setOpen] = useState(false);
 
   const assetsQuery = useQuery({
@@ -57,10 +60,8 @@ export function NovelCoverCard(props: NovelCoverCardProps) {
       <section className="space-y-4 border-t border-border/60 pt-4">
         <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
           <div className="space-y-1">
-            <div className="text-sm font-semibold text-foreground">小说封面主画面</div>
-            <div className="text-sm leading-6 text-muted-foreground">
-              先生成这本书的封面主画面。当前阶段不直接生成可用书名字体，后续仍可继续排版成正式封面。
-            </div>
+            <div className="text-sm font-semibold text-foreground">{t("gen.pages.novels.components.cover.NovelCoverCard.gen_7da5ee1b", "小说封面主画面")}</div>
+            <div className="text-sm leading-6 text-muted-foreground">{t("gen.pages.novels.components.cover.NovelCoverCard.gen_2d4e3aaf", "先生成这本书的封面主画面。当前阶段不直接生成可用书名字体，后续仍可继续排版成正式封面。")}</div>
           </div>
           <Button type="button" variant="outline" className="shrink-0" onClick={() => setOpen(true)}>
             {assets.length > 0 ? "管理封面图库" : "生成封面主画面"}
@@ -68,15 +69,11 @@ export function NovelCoverCard(props: NovelCoverCardProps) {
         </div>
 
         {assetsQuery.isLoading ? (
-          <div className="py-5 text-sm text-muted-foreground">
-            正在读取当前封面图库...
-          </div>
+          <div className="py-5 text-sm text-muted-foreground">{t("gen.pages.novels.components.cover.NovelCoverCard.gen_532507aa", "正在读取当前封面图库...")}</div>
         ) : null}
 
         {!assetsQuery.isLoading && !primaryAsset ? (
-          <div className="py-5 text-sm leading-6 text-muted-foreground">
-            还没有封面主画面。点击上方按钮，系统会先根据当前小说信息整理一版封面输入草稿。
-          </div>
+          <div className="py-5 text-sm leading-6 text-muted-foreground">{t("gen.pages.novels.components.cover.NovelCoverCard.gen_7e9c0d70", "还没有封面主画面。点击上方按钮，系统会先根据当前小说信息整理一版封面输入草稿。")}</div>
         ) : null}
 
         {primaryAsset ? (
@@ -94,15 +91,11 @@ export function NovelCoverCard(props: NovelCoverCardProps) {
 
             <div className="space-y-3">
               <div className="flex flex-wrap items-center gap-2">
-                <span className="rounded-full bg-emerald-50 px-3 py-1 text-xs font-medium text-emerald-700">
-                  当前主封面
-                </span>
+                <span className="rounded-full bg-emerald-50 px-3 py-1 text-xs font-medium text-emerald-700">{t("gen.pages.novels.components.cover.NovelCoverCard.gen_c92a64ca", "当前主封面")}</span>
                 <span className="text-xs text-muted-foreground">共 {assets.length} 张候选图</span>
               </div>
 
-              <div className="text-sm leading-6 text-muted-foreground">
-                主封面会随图片域里的 `isPrimary` 切换，不会把封面状态写死到小说主表里。
-              </div>
+              <div className="text-sm leading-6 text-muted-foreground">{t("gen.pages.novels.components.cover.NovelCoverCard.gen_b1e69a0a", "主封面会随图片域里的 `isPrimary` 切换，不会把封面状态写死到小说主表里。")}</div>
 
               {assets.length > 1 ? (
                 <div className="grid grid-cols-4 gap-2 sm:grid-cols-5 lg:grid-cols-6">
@@ -112,7 +105,7 @@ export function NovelCoverCard(props: NovelCoverCardProps) {
                       type="button"
                       className="overflow-hidden rounded-lg bg-muted/15 opacity-80 transition hover:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
                       onClick={() => setOpen(true)}
-                      title="打开封面图库"
+                      title={t("gen.pages.novels.components.cover.NovelCoverCard.gen_1cb4d7d3", "打开封面图库")}
                     >
                       <div className="aspect-[2/3] w-full">
                         <img

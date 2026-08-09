@@ -71,9 +71,7 @@ export default function WritingFormulaWorkbenchPanel(props: WritingFormulaWorkbe
         <div className="space-y-4 rounded-2xl border p-4">
           <div className="space-y-1">
             <div className="text-base font-semibold text-slate-950">{i18next.t("gen.pages.writingFormula.components.WritingFormulaWorkbenchPanel.gen_b3a2c9bd")}</div>
-            <div className="text-sm leading-6 text-slate-500">
-              绑定后，这套写法会在对应小说、章节或任务里参与生成。优先级越高，影响越靠前；权重越高，参与程度越强。
-            </div>
+            <div className="text-sm leading-6 text-slate-500">{t("gen.pages.writingFormula.components.WritingFormulaWorkbenchPanel.gen_cd9ed1be", "绑定后，这套写法会在对应小说、章节或任务里参与生成。优先级越高，影响越靠前；权重越高，参与程度越强。")}</div>
           </div>
 
           <div className="grid gap-3 md:grid-cols-2">
@@ -157,9 +155,7 @@ export default function WritingFormulaWorkbenchPanel(props: WritingFormulaWorkbe
             </label>
           </div>
 
-          <Button onClick={onCreateBinding} disabled={createBindingPending || !selectedProfileId}>
-            创建绑定
-          </Button>
+          <Button onClick={onCreateBinding} disabled={createBindingPending || !selectedProfileId}>{t("gen.pages.writingFormula.components.WritingFormulaWorkbenchPanel.gen_d0c15d8e", "创建绑定")}</Button>
 
           <div className="space-y-2">
             {bindings.length > 0 ? (
@@ -170,9 +166,7 @@ export default function WritingFormulaWorkbenchPanel(props: WritingFormulaWorkbe
                 </div>
               ))
             ) : (
-              <div className="rounded-xl border border-dashed px-3 py-3 text-sm leading-6 text-slate-500">
-                这套写法还没有绑定到任何目标。先绑定到小说或章节，后面的生成链路才会自动带上它。
-              </div>
+              <div className="rounded-xl border border-dashed px-3 py-3 text-sm leading-6 text-slate-500">{t("gen.pages.writingFormula.components.WritingFormulaWorkbenchPanel.gen_d166242f", "这套写法还没有绑定到任何目标。先绑定到小说或章节，后面的生成链路才会自动带上它。")}</div>
             )}
           </div>
         </div>
@@ -180,9 +174,7 @@ export default function WritingFormulaWorkbenchPanel(props: WritingFormulaWorkbe
         <div className="space-y-4 rounded-2xl border p-4">
           <div className="space-y-1">
             <div className="text-base font-semibold text-slate-950">{i18next.t("gen.pages.writingFormula.components.WritingFormulaWorkbenchPanel.gen_e07b94bf")}</div>
-            <div className="text-sm leading-6 text-slate-500">
-              不确定这套写法到底有没有落地成功时，先生成一段或改写一段，是最直观的验证方式。
-            </div>
+            <div className="text-sm leading-6 text-slate-500">{t("gen.pages.writingFormula.components.WritingFormulaWorkbenchPanel.gen_2bad160c", "不确定这套写法到底有没有落地成功时，先生成一段或改写一段，是最直观的验证方式。")}</div>
           </div>
 
           <label className="space-y-2">
@@ -219,18 +211,14 @@ export default function WritingFormulaWorkbenchPanel(props: WritingFormulaWorkbe
             </label>
           )}
 
-          <Button onClick={onRunTestWrite} disabled={testWritePending || !selectedProfileId}>
-            执行试写
-          </Button>
+          <Button onClick={onRunTestWrite} disabled={testWritePending || !selectedProfileId}>{t("gen.pages.writingFormula.components.WritingFormulaWorkbenchPanel.gen_c9735112", "执行试写")}</Button>
 
           {testWriteOutput ? (
             <pre className="max-h-[320px] overflow-auto whitespace-pre-wrap rounded-xl border bg-muted/20 p-4 text-sm">
               {testWriteOutput}
             </pre>
           ) : (
-            <div className="rounded-xl border border-dashed px-3 py-3 text-sm leading-6 text-slate-500">
-              这里会显示试写结果。你可以用它判断这套写法的推进感、对白质感和整体语气是否已经到位。
-            </div>
+            <div className="rounded-xl border border-dashed px-3 py-3 text-sm leading-6 text-slate-500">{t("gen.pages.writingFormula.components.WritingFormulaWorkbenchPanel.gen_f49f00a5", "这里会显示试写结果。你可以用它判断这套写法的推进感、对白质感和整体语气是否已经到位。")}</div>
           )}
         </div>
       </CardContent>

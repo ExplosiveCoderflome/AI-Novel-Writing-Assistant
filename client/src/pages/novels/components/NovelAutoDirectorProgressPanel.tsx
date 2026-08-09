@@ -489,8 +489,8 @@ export default function NovelAutoDirectorProgressPanel({
         <details className="group mt-4 overflow-hidden rounded-2xl border border-border/70 bg-muted/[0.12]">
           <summary className="flex cursor-pointer list-none items-center justify-between gap-4 px-4 py-3.5">
             <div>
-              <div className="text-sm font-medium text-foreground">运行详情</div>
-              <div className="mt-0.5 text-xs text-muted-foreground">按需查看实时指标、事件记录、写法和 AI 用量</div>
+              <div className="text-sm font-medium text-foreground">{t("gen.pages.novels.components.NovelAutoDirectorProgressPanel.gen_5921db08", "运行详情")}</div>
+              <div className="mt-0.5 text-xs text-muted-foreground">{t("gen.pages.novels.components.NovelAutoDirectorProgressPanel.gen_1092e9d8", "按需查看实时指标、事件记录、写法和 AI 用量")}</div>
             </div>
             <ChevronDown className="h-4 w-4 shrink-0 text-muted-foreground transition group-open:rotate-180" />
           </summary>
@@ -599,9 +599,7 @@ export default function NovelAutoDirectorProgressPanel({
                 size="sm"
                 variant="outline"
                 onClick={onOpenTaskCenter}
-              >
-                查看执行详情
-              </Button>
+              >{t("gen.pages.novels.components.NovelAutoDirectorProgressPanel.gen_39f2c47d", "查看执行详情")}</Button>
             </div>
           </div>
         ) : visualMode === "execution_failed" ? (
@@ -618,8 +616,8 @@ export default function NovelAutoDirectorProgressPanel({
       <details className="group rounded-2xl border border-border/70 bg-background">
         <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-4 py-3.5">
           <div>
-            <div className="text-sm font-medium text-foreground">里程碑历史</div>
-            <div className="mt-0.5 text-xs text-muted-foreground">查看可恢复检查点与完成记录</div>
+            <div className="text-sm font-medium text-foreground">{t("gen.pages.novels.components.NovelAutoDirectorProgressPanel.gen_8e910f68", "里程碑历史")}</div>
+            <div className="mt-0.5 text-xs text-muted-foreground">{t("gen.pages.novels.components.NovelAutoDirectorProgressPanel.gen_434f293e", "查看可恢复检查点与完成记录")}</div>
           </div>
           <ChevronDown className="h-4 w-4 text-muted-foreground transition group-open:rotate-180" />
         </summary>
@@ -638,9 +636,7 @@ export default function NovelAutoDirectorProgressPanel({
               ))}
           </div>
         ) : (
-          <div className="mt-3 text-sm text-muted-foreground">
-            任务已创建，正在等待第一个稳定里程碑写入。
-          </div>
+          <div className="mt-3 text-sm text-muted-foreground">{t("gen.pages.novels.components.NovelAutoDirectorProgressPanel.gen_fa260277", "任务已创建，正在等待第一个稳定里程碑写入。")}</div>
         )}
         </div>
       </details>

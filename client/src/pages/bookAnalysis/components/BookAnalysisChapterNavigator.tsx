@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import i18next from "i18next";
 const t = (key: string, options?: any) => i18next.t(key, options) as string;
 import type { DocumentChapter } from "@ai-novel/shared/types/knowledge";
@@ -14,6 +15,7 @@ export default function BookAnalysisChapterNavigator({
   currentChapterIndex,
   onSelectChapter,
 }: BookAnalysisChapterNavigatorProps) {
+  const { t } = useTranslation();
   const currentPosition = chapters.findIndex((chapter) => chapter.chapterIndex === currentChapterIndex);
   const canGoPrev = currentPosition > 0;
   const canGoNext = currentPosition >= 0 && currentPosition < chapters.length - 1;
@@ -28,18 +30,14 @@ export default function BookAnalysisChapterNavigator({
             variant="outline"
             disabled={!canGoPrev}
             onClick={() => onSelectChapter(chapters[currentPosition - 1].chapterIndex)}
-          >
-            上一章
-          </Button>
+          >{t("gen.pages.bookAnalysis.components.BookAnalysisChapterNavigator.gen_fc6bbbac", "上一章")}</Button>
           <Button
             type="button"
             size="sm"
             variant="outline"
             disabled={!canGoNext}
             onClick={() => onSelectChapter(chapters[currentPosition + 1].chapterIndex)}
-          >
-            下一章
-          </Button>
+          >{t("gen.pages.bookAnalysis.components.BookAnalysisChapterNavigator.gen_981cc1b3", "下一章")}</Button>
         </div>
       </div>
 

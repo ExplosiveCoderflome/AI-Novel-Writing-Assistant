@@ -1,3 +1,4 @@
+import i18next from "i18next";
 import { useTranslation } from "react-i18next";
 import type { ReactNode } from "react";
 
@@ -26,9 +27,7 @@ export default function DirectorTakeoverEntryPanel({
         </div>
         <div className="shrink-0">{entry}</div>
       </div>
-      <div className="mt-2 text-xs leading-5 text-muted-foreground">
-        接管前会先读取当前项目真实进度，并明确告诉你这次会跳过、继续还是重跑哪些步骤。
-      </div>
+      <div className="mt-2 text-xs leading-5 text-muted-foreground">{t("gen.pages.novels.components.DirectorTakeoverEntryPanel.gen_f0fa830b", "接管前会先读取当前项目真实进度，并明确告诉你这次会跳过、继续还是重跑哪些步骤。")}</div>
     </section>
   );
 }

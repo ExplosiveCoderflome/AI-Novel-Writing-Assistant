@@ -1,3 +1,5 @@
+import i18next from "i18next";
+import { useTranslation } from "react-i18next";
 import { useEffect, useId, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -32,6 +34,7 @@ export default function CreativeHubDebugTraceCard({
   entries,
   defaultCollapsed,
 }: CreativeHubDebugTraceCardProps) {
+  const { t } = useTranslation();
   const [expanded, setExpanded] = useState(!defaultCollapsed);
   const detailsId = useId();
 
@@ -43,7 +46,7 @@ export default function CreativeHubDebugTraceCard({
     <div className="mt-3 rounded-md border border-border bg-muted/20 px-4 py-3">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div>
-          <div className="text-sm font-medium text-foreground">运行细节</div>
+          <div className="text-sm font-medium text-foreground">{t("gen.pages.creativeHub.components.CreativeHubDebugTraceCard.gen_575d44ff", "运行细节")}</div>
           <div className="mt-1 text-xs text-muted-foreground">
             底层执行记录 · {entries.length} 条
           </div>
@@ -68,9 +71,7 @@ export default function CreativeHubDebugTraceCard({
             </div>
           ) : null}
           {entries.length === 0 ? (
-            <div className="rounded-md border border-dashed border-border bg-background px-3 py-3 text-xs text-muted-foreground">
-              当前回合还没有可展示的调试信息。
-            </div>
+            <div className="rounded-md border border-dashed border-border bg-background px-3 py-3 text-xs text-muted-foreground">{t("gen.pages.creativeHub.components.CreativeHubDebugTraceCard.gen_a43d9f73", "当前回合还没有可展示的调试信息。")}</div>
           ) : (
             entries.map((entry) => (
               <div key={entry.id} className="rounded-md border border-border bg-background px-3 py-3">
@@ -93,9 +94,7 @@ export default function CreativeHubDebugTraceCard({
           )}
         </div>
       ) : (
-        <div className="mt-2 text-xs text-muted-foreground">
-          默认已折叠底层运行、工具与检查点细节；展开后可查看完整调试轨迹。
-        </div>
+        <div className="mt-2 text-xs text-muted-foreground">{t("gen.pages.creativeHub.components.CreativeHubDebugTraceCard.gen_2ccc17ec", "默认已折叠底层运行、工具与检查点细节；展开后可查看完整调试轨迹。")}</div>
       )}
     </div>
   );

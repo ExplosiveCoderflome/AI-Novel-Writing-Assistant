@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import i18next from "i18next";
 const t = (key: string, options?: any) => i18next.t(key, options) as string;
 import { useMemo } from "react";
@@ -13,6 +14,7 @@ export default function WorldHandbookForceSection(props: {
   draftStructure: WorldStructuredData;
   setDraftStructure: Dispatch<SetStateAction<WorldStructuredData | null>>;
 }) {
+  const { t } = useTranslation();
   const { draftStructure, setDraftStructure } = props;
   const forceSummary = useMemo(() => {
     const forceNames = draftStructure.forces.map((force) => force.name).filter(Boolean).slice(0, 4);
@@ -64,9 +66,7 @@ export default function WorldHandbookForceSection(props: {
                 onClick={() =>
                   setDraftStructure((prev) => (prev ? { ...prev, forces: removeItem(prev.forces, index) } : prev))
                 }
-              >
-                移除
-              </Button>
+              >{t("gen.pages.worlds.components.workspace.handbook.WorldHandbookForceSection.gen_86048b4f", "移除")}</Button>
             </div>
             <div className="mt-3 grid gap-3">
               <HandbookField title={i18next.t("gen.pages.worlds.components.workspace.handbook.WorldHandbookForceSection.gen_e548e9c0")} hint={i18next.t("gen.pages.worlds.components.workspace.handbook.WorldHandbookForceSection.gen_ee03f569")}>
@@ -132,9 +132,7 @@ export default function WorldHandbookForceSection(props: {
         ))}
       </div>
       <Button type="button" className="mt-3" variant="outline" onClick={addForce}>
-        <Plus className="mr-2 h-4 w-4" aria-hidden="true" />
-        增加主要势力
-      </Button>
+        <Plus className="mr-2 h-4 w-4" aria-hidden="true" />{t("gen.pages.worlds.components.workspace.handbook.WorldHandbookForceSection.gen_81c403d7", "增加主要势力")}</Button>
     </section>
   );
 }

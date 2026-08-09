@@ -1,3 +1,5 @@
+import i18next from "i18next";
+import { useTranslation } from "react-i18next";
 import type { LucideIcon } from "lucide-react";
 import type { ReactNode } from "react";
 import { ArrowRight } from "lucide-react";
@@ -15,10 +17,11 @@ interface WorkspaceNextActionProps {
 }
 
 export default function WorkspaceNextAction(props: WorkspaceNextActionProps) {
+  const { t } = useTranslation();
   const Icon = props.icon ?? ArrowRight;
   return (
     <section
-      aria-label="推荐下一步"
+      aria-label={t("gen.components.workspace.WorkspaceNextAction.gen_9ff48c30", "推荐下一步")}
       className={cn(
         "flex flex-col gap-4 rounded-md border px-4 py-3 sm:flex-row sm:items-center sm:justify-between",
         workspaceToneSurfaceClass[props.tone ?? "info"],

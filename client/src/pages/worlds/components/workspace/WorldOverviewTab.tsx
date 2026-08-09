@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import i18next from "i18next";
 const t = (key: string, options?: any) => i18next.t(key, options) as string;
 import {
@@ -117,6 +118,7 @@ function WorldAssetPreviewBlock({
 }
 
 export default function WorldOverviewTab(props: WorldOverviewTabProps) {
+  const { t } = useTranslation();
   const { summary, sections, structure, visualization, onOpenStructure, onOpenLayers } = props;
   const profile = structure?.profile;
   const hasHandbook = Boolean(structure);
@@ -160,9 +162,7 @@ export default function WorldOverviewTab(props: WorldOverviewTabProps) {
           <CardTitle>{i18next.t("gen.pages.worlds.components.workspace.WorldOverviewTab.worldManual")}</CardTitle>
           <div className="flex flex-wrap gap-2">
             <Button type="button" size="sm" variant="secondary" onClick={onOpenStructure}>
-              <Pencil className="mr-2 h-4 w-4" aria-hidden="true" />
-              编修手册
-            </Button>
+              <Pencil className="mr-2 h-4 w-4" aria-hidden="true" />{t("gen.pages.worlds.components.workspace.WorldOverviewTab.gen_1abc494a", "编修手册")}</Button>
             <Button type="button" size="sm" variant="outline" onClick={onOpenLayers}>
               <WandSparkles className="mr-2 h-4 w-4" aria-hidden="true" />
               AI 构建
@@ -250,9 +250,7 @@ export default function WorldOverviewTab(props: WorldOverviewTabProps) {
                 <div className="mt-3 text-lg font-semibold leading-7">
                   {compactText(summary, i18next.t("gen.pages.worlds.components.workspace.WorldOverviewTab.gen_73b0d57c"), 160)}
                 </div>
-                <div className="mt-2 text-sm leading-6 text-muted-foreground">
-                  世界手册会把零散设定整理成规则、势力、地点和剧情压力，方便作者理解，也方便本书使用。
-                </div>
+                <div className="mt-2 text-sm leading-6 text-muted-foreground">{t("gen.pages.worlds.components.workspace.WorldOverviewTab.gen_ad07c885", "世界手册会把零散设定整理成规则、势力、地点和剧情压力，方便作者理解，也方便本书使用。")}</div>
               </div>
 
               <div className="rounded-md border bg-background p-4">
@@ -263,9 +261,7 @@ export default function WorldOverviewTab(props: WorldOverviewTabProps) {
                     AI 构建世界
                   </Button>
                   <Button type="button" size="sm" variant="outline" onClick={onOpenStructure}>
-                    <Pencil className="mr-2 h-4 w-4" aria-hidden="true" />
-                    编修手册
-                  </Button>
+                    <Pencil className="mr-2 h-4 w-4" aria-hidden="true" />{t("gen.pages.worlds.components.workspace.WorldOverviewTab.gen_1abc494a", "编修手册")}</Button>
                 </div>
               </div>
             </div>
@@ -299,12 +295,8 @@ export default function WorldOverviewTab(props: WorldOverviewTabProps) {
             <div className="flex flex-col gap-2 lg:flex-row lg:items-start lg:justify-between">
               <div>
                 <div className="flex items-center gap-2 text-sm font-medium text-foreground">
-                  <Map className="h-4 w-4 text-primary" aria-hidden="true" />
-                  世界资产入口
-                </div>
-                <div className="mt-1 text-sm leading-6 text-muted-foreground">
-                  地图和图谱是世界手册的可视化资产，不参与自动同步覆盖，也不替代世界手册的规则来源。
-                </div>
+                  <Map className="h-4 w-4 text-primary" aria-hidden="true" />{t("gen.pages.worlds.components.workspace.WorldOverviewTab.gen_9cb9ee1e", "世界资产入口")}</div>
+                <div className="mt-1 text-sm leading-6 text-muted-foreground">{t("gen.pages.worlds.components.workspace.WorldOverviewTab.gen_971791c6", "地图和图谱是世界手册的可视化资产，不参与自动同步覆盖，也不替代世界手册的规则来源。")}</div>
               </div>
               <Badge variant="outline">{i18next.t("gen.pages.worlds.components.workspace.WorldOverviewTab.gen_6a6b9478")}</Badge>
             </div>

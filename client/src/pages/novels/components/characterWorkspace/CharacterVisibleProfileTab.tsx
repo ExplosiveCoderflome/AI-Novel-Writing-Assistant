@@ -1,3 +1,5 @@
+import i18next from "i18next";
+import { useTranslation } from "react-i18next";
 import { useState } from "react";
 import type {
   Character,
@@ -25,6 +27,7 @@ interface CharacterVisibleProfileTabProps {
 }
 
 export default function CharacterVisibleProfileTab(props: CharacterVisibleProfileTabProps) {
+  const { t } = useTranslation();
   const {
     characters,
     selectedCharacter,
@@ -53,10 +56,8 @@ export default function CharacterVisibleProfileTab(props: CharacterVisibleProfil
       <section className="rounded-xl border border-border/70 bg-muted/10 p-4">
         <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
           <div>
-            <div className="text-sm font-medium">外显资料生成</div>
-            <div className="mt-1 text-xs leading-5 text-muted-foreground">
-              补齐外貌、体态、声音和登场记忆点，让角色在正文中更容易被读者识别。
-            </div>
+            <div className="text-sm font-medium">{t("gen.pages.novels.components.characterWorkspace.CharacterVisibleProfileTab.gen_8c542af9", "外显资料生成")}</div>
+            <div className="mt-1 text-xs leading-5 text-muted-foreground">{t("gen.pages.novels.components.characterWorkspace.CharacterVisibleProfileTab.gen_21459dc4", "补齐外貌、体态、声音和登场记忆点，让角色在正文中更容易被读者识别。")}</div>
           </div>
           <div className="flex flex-wrap gap-2">
             <AiButton
@@ -79,7 +80,7 @@ export default function CharacterVisibleProfileTab(props: CharacterVisibleProfil
         </div>
         <textarea
           className="mt-3 min-h-[72px] w-full rounded-md border bg-background p-2 text-sm"
-          placeholder="补全倾向（可选）：例如更有压迫感、带一点病弱感、声音更温和、不要写成传统美人"
+          placeholder={t("gen.pages.novels.components.characterWorkspace.CharacterVisibleProfileTab.gen_42466b39", "补全倾向（可选）：例如更有压迫感、带一点病弱感、声音更温和、不要写成传统美人")}
           value={visibleProfileGuidance}
           onChange={(event) => setVisibleProfileGuidance(event.target.value)}
         />
@@ -100,9 +101,7 @@ export default function CharacterVisibleProfileTab(props: CharacterVisibleProfil
                   ? `已为“${visibleProfileSuggestion.characterName}”生成 ${applicableVisibleProfileCount} 项可写入外显资料`
                   : `“${visibleProfileSuggestion.characterName}”当前没有可写入的外显资料`}
               </div>
-              <div className="mt-1 text-xs text-muted-foreground">
-                请先看下面差异，确认后点击保存到角色卡。
-              </div>
+              <div className="mt-1 text-xs text-muted-foreground">{t("gen.pages.novels.components.characterWorkspace.CharacterVisibleProfileTab.gen_dfee7e26", "请先看下面差异，确认后点击保存到角色卡。")}</div>
             </div>
             <Button
               size="sm"
@@ -136,9 +135,7 @@ export default function CharacterVisibleProfileTab(props: CharacterVisibleProfil
       ) : null}
 
       {!isGeneratingVisibleProfile && !hasVisibleProfileSuggestionForSelected ? (
-        <div className="rounded-lg border border-dashed p-3 text-xs text-muted-foreground">
-          点击“AI 补全外显资料”后，会先在这里显示即将保存的差异；确认后再保存到角色卡。
-        </div>
+        <div className="rounded-lg border border-dashed p-3 text-xs text-muted-foreground">{t("gen.pages.novels.components.characterWorkspace.CharacterVisibleProfileTab.gen_e301c9b1", "点击“AI 补全外显资料”后，会先在这里显示即将保存的差异；确认后再保存到角色卡。")}</div>
       ) : null}
 
       {batchVisibleProfileResult ? (

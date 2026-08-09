@@ -1,3 +1,4 @@
+import i18next from "i18next";
 import React, { useState, useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import {
@@ -534,9 +535,7 @@ export default function StockStudioPage() {
           <div className="flex flex-wrap justify-between items-center gap-3">
             <div className="flex items-center gap-2">
               <Sparkles className="w-5 h-5 text-indigo-400" />
-              <h4 className="text-sm font-bold text-slate-100">
-                美股每日操盘与风险诊断报告
-              </h4>
+              <h4 className="text-sm font-bold text-slate-100">{t("gen.pages.stock.StockStudioPage.gen_5648310a", "美股每日操盘与风险诊断报告")}</h4>
             </div>
             <div className="flex gap-2">
               <span className="px-2.5 py-1 rounded-lg bg-emerald-950/80 border border-emerald-700/60 text-emerald-300 text-xs font-semibold flex items-center gap-1">
@@ -802,12 +801,8 @@ export default function StockStudioPage() {
           <div className="flex flex-col sm:flex-row justify-between sm:items-center border-b border-slate-800 pb-3 gap-2">
             <div>
               <h3 className="text-sm font-bold text-slate-100 flex items-center gap-2">
-                <PieChart className="w-4 h-4 text-purple-400" />
-                基于股票的知识图谱与 OpenD / 互联网新闻资讯
-              </h3>
-              <p className="text-[11px] text-slate-400">
-                可视化展示每只股票的产业链上下游节点、互联网资讯快讯与 AI 研判逻辑
-              </p>
+                <PieChart className="w-4 h-4 text-purple-400" />{t("gen.pages.stock.StockStudioPage.gen_c1c29f5e", "基于股票的知识图谱与 OpenD / 互联网新闻资讯")}</h3>
+              <p className="text-[11px] text-slate-400">{t("gen.pages.stock.StockStudioPage.gen_02d7223c", "可视化展示每只股票的产业链上下游节点、互联网资讯快讯与 AI 研判逻辑")}</p>
             </div>
 
             <div className="flex items-center gap-2">
@@ -815,9 +810,7 @@ export default function StockStudioPage() {
                 onClick={() => setKgModalOpen(true)}
                 className="px-3 py-1.5 bg-purple-600/90 hover:bg-purple-500 text-white rounded-lg text-xs font-bold transition-all shadow-lg flex items-center gap-1.5 cursor-pointer animate-pulse"
               >
-                <Zap className="w-3.5 h-3.5 text-amber-300" />
-                点击弹出【全景 2D 交互知识图谱】
-              </button>
+                <Zap className="w-3.5 h-3.5 text-amber-300" />{t("gen.pages.stock.StockStudioPage.gen_4f83279d", "点击弹出【全景 2D 交互知识图谱】")}</button>
 
               {/* 股票 Selector */}
               <div className="flex flex-wrap gap-1.5 bg-slate-950 p-1 rounded-lg border border-slate-800">
@@ -855,9 +848,7 @@ export default function StockStudioPage() {
                   onClick={() => setKgModalOpen(true)}
                   className="px-2.5 py-1 rounded text-xs font-bold font-mono bg-purple-950 text-purple-300 border border-purple-800 hover:bg-purple-900 transition-all cursor-pointer flex items-center gap-1"
                 >
-                  <Sparkles className="w-3 h-3 text-purple-400" />
-                  查看 2D 全景图
-                </button>
+                  <Sparkles className="w-3 h-3 text-purple-400" />{t("gen.pages.stock.StockStudioPage.gen_730c8936", "查看 2D 全景图")}</button>
               </div>
 
               {/* 知识图谱节点关联 */}
@@ -875,7 +866,7 @@ export default function StockStudioPage() {
                     >
                       <div className="text-[10px] text-purple-400 flex justify-between">
                         <span>[{edge.relation}]</span>
-                        <span className="text-[9px] text-slate-500">点击交互 ➔</span>
+                        <span className="text-[9px] text-slate-500">{t("gen.pages.stock.StockStudioPage.gen_fc1f2690", "点击交互 ➔")}</span>
                       </div>
                       <div className="font-bold text-slate-100 flex items-center justify-between text-[11px]">
                         <span className="text-amber-300">{edge.source}</span>
@@ -915,14 +906,10 @@ export default function StockStudioPage() {
               <Activity className="w-4 h-4 text-indigo-400" />
               操盘指南生成工作流与数据审计 (Generation Pipeline & Audit)
             </h3>
-            <span className="text-xs bg-emerald-950 text-emerald-300 border border-emerald-800 px-2.5 py-0.5 rounded-full font-mono shrink-0">
-              全流程确定性校验: 100% 实时公式审计
-            </span>
+            <span className="text-xs bg-emerald-950 text-emerald-300 border border-emerald-800 px-2.5 py-0.5 rounded-full font-mono shrink-0">{t("gen.pages.stock.StockStudioPage.gen_cf3e4afc", "全流程确定性校验: 100% 实时公式审计")}</span>
           </div>
 
-          <p className="text-xs text-slate-400 leading-relaxed">
-            本视图**100% 无任何硬编码模拟数据**，所有节点数据均从 OpenD 本地通道实时调取，所有的交易预算、股数与总价均由精确数学公式计算确定。
-          </p>
+          <p className="text-xs text-slate-400 leading-relaxed">{t("gen.pages.stock.StockStudioPage.gen_7629f4e3", "本视图**100% 无任何硬编码模拟数据**，所有节点数据均从 OpenD 本地通道实时调取，所有的交易预算、股数与总价均由精确数学公式计算确定。")}</p>
 
           {/* 5 步链路节点 */}
           <div className="space-y-3">
@@ -947,7 +934,7 @@ export default function StockStudioPage() {
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 text-[11px] text-slate-400 font-mono bg-slate-950 p-2.5 rounded border border-slate-800/60">
                 <div>券商实体: MooMoo Financial SG (FUTUSG)</div>
-                <div>主账户ID: 283726803950473678</div>
+                <div>{t("gen.pages.stock.StockStudioPage.gen_5999fec9", "主账户ID: 283726803950473678")}</div>
                 <div>传输协议: 44字节 Native Header (64位 uint64)</div>
               </div>
             </div>
@@ -1003,7 +990,7 @@ export default function StockStudioPage() {
                     </div>
                   ))
                 ) : (
-                  <span className="text-xs text-slate-500 font-mono">从 OpenD 接口实时传输中...</span>
+                  <span className="text-xs text-slate-500 font-mono">{t("gen.pages.stock.StockStudioPage.gen_006b36c3", "从 OpenD 接口实时传输中...")}</span>
                 )}
               </div>
             </div>
@@ -1040,9 +1027,7 @@ export default function StockStudioPage() {
                   </span>
                   <span className="text-xs font-bold text-indigo-300">🛡️ 确定性风控与数学校准层 (Guardrail Layer)</span>
                 </div>
-                <span className="text-[11px] font-mono bg-emerald-900/80 text-emerald-200 border border-emerald-700 px-2 py-0.5 rounded font-bold">
-                  纯公式实时求导校验
-                </span>
+                <span className="text-[11px] font-mono bg-emerald-900/80 text-emerald-200 border border-emerald-700 px-2 py-0.5 rounded font-bold">{t("gen.pages.stock.StockStudioPage.gen_6c64ea45", "纯公式实时求导校验")}</span>
               </div>
               <div className="space-y-1.5 text-[11px] text-slate-300 font-mono bg-slate-950 p-2.5 rounded border border-slate-800">
                 <div className="text-emerald-400">
@@ -1203,7 +1188,7 @@ export default function StockStudioPage() {
               {retroPnLData && (
                 <div className="flex items-center gap-3 bg-slate-950/60 border border-slate-800 rounded-lg px-3 py-2">
                   <div className="text-center">
-                    <p className="text-[9px] text-slate-400">上次指南质量</p>
+                    <p className="text-[9px] text-slate-400">{t("gen.pages.stock.StockStudioPage.gen_f2e9f884", "上次指南质量")}</p>
                     <p className={`text-lg font-bold font-mono ${
                       retroPnLData.accuracyScore >= 70 ? "text-emerald-400" : retroPnLData.accuracyScore >= 50 ? "text-amber-400" : "text-rose-400"
                     }`}>{retroPnLData.accuracyScore}<span className="text-xs text-slate-500">/100</span></p>
@@ -1211,12 +1196,12 @@ export default function StockStudioPage() {
                   </div>
                   <div className="w-px h-8 bg-slate-700" />
                   <div className="text-center">
-                    <p className="text-[9px] text-slate-400">避免损失</p>
+                    <p className="text-[9px] text-slate-400">{t("gen.pages.stock.StockStudioPage.gen_29affed9", "避免损失")}</p>
                     <p className="text-base font-bold font-mono text-emerald-400">+${retroPnLData.avoidedLoss.toFixed(0)}</p>
                   </div>
                   <div className="w-px h-8 bg-slate-700" />
                   <div className="text-center">
-                    <p className="text-[9px] text-slate-400">跟单率</p>
+                    <p className="text-[9px] text-slate-400">{t("gen.pages.stock.StockStudioPage.gen_eed846d6", "跟单率")}</p>
                     <p className="text-base font-bold font-mono text-indigo-300">{(retroPnLData.executionMatchRate * 100).toFixed(0)}%</p>
                   </div>
                 </div>
@@ -1224,11 +1209,11 @@ export default function StockStudioPage() {
               {projectedPnLData && (
                 <div className="flex items-center gap-3 bg-slate-950/60 border border-slate-800 rounded-lg px-3 py-2">
                   <div className="text-center">
-                    <p className="text-[9px] text-slate-400">指南预期 P&amp;L</p>
+                    <p className="text-[9px] text-slate-400">{t("gen.pages.stock.StockStudioPage.gen_8e5b2028", "指南预期 P&amp;L")}</p>
                     <p className={`text-lg font-bold font-mono ${projectedPnLData.totalProjectedChange >= 0 ? "text-emerald-400" : "text-rose-400"}`}>
                       {projectedPnLData.totalProjectedChange >= 0 ? "+" : ""}${projectedPnLData.totalProjectedChange.toFixed(0)}
                     </p>
-                    <p className="text-[9px] text-slate-500">按全部执行</p>
+                    <p className="text-[9px] text-slate-500">{t("gen.pages.stock.StockStudioPage.gen_733bc1c2", "按全部执行")}</p>
                   </div>
                 </div>
               )}
@@ -1277,7 +1262,7 @@ export default function StockStudioPage() {
                 <button
                   onClick={() => setSyncNotice(null)}
                   className="text-slate-400 hover:text-slate-200 shrink-0 text-xs font-bold p-0.5"
-                  title="关闭提示"
+                  title={t("gen.pages.stock.StockStudioPage.gen_c335e973", "关闭提示")}
                 >
                   ✕
                 </button>
@@ -1286,13 +1271,13 @@ export default function StockStudioPage() {
 
             <div className="grid grid-cols-2 gap-3">
               <div className="bg-slate-950/70 border border-slate-800 p-3 rounded-lg">
-                <p className="text-xs text-slate-400">闲置现金可用</p>
+                <p className="text-xs text-slate-400">{t("gen.pages.stock.StockStudioPage.gen_73374e1c", "闲置现金可用")}</p>
                 <p className="text-lg font-bold text-emerald-400">
                   ${portfolio?.cashBalance !== undefined ? portfolio.cashBalance.toFixed(2) : "0.00"}
                 </p>
               </div>
               <div className="bg-slate-950/70 border border-slate-800 p-3 rounded-lg">
-                <p className="text-xs text-slate-400">数据源类型</p>
+                <p className="text-xs text-slate-400">{t("gen.pages.stock.StockStudioPage.gen_6de026f2", "数据源类型")}</p>
                 <p className="text-sm font-bold text-indigo-300 mt-1">
                   {openDStatus.connected ? "MooMoo OpenD 直连" : "手动/模板导入"}
                 </p>
@@ -1365,9 +1350,7 @@ export default function StockStudioPage() {
               <div className="bg-slate-950/80 border border-slate-800 rounded-xl p-3 space-y-2 mt-1">
                 <div className="flex items-center justify-between mb-1">
                   <span className="text-xs font-bold text-slate-300 flex items-center gap-1.5">
-                    <DollarSign className="w-3.5 h-3.5 text-emerald-400" />
-                    实时 P&amp;L 汇总
-                  </span>
+                    <DollarSign className="w-3.5 h-3.5 text-emerald-400" />{t("gen.pages.stock.StockStudioPage.gen_2fdfa76e", "实时 P&amp;L 汇总")}</span>
                   <span className={`text-xs font-bold font-mono px-2 py-0.5 rounded ${
                     totalPnLData.totalPnL >= 0
                       ? "bg-emerald-950/80 text-emerald-400 border border-emerald-800"
@@ -1378,15 +1361,15 @@ export default function StockStudioPage() {
                 </div>
                 <div className="grid grid-cols-3 gap-1.5 text-[10px]">
                   <div className="bg-slate-900 rounded p-1.5 text-center">
-                    <p className="text-slate-400">总市值</p>
+                    <p className="text-slate-400">{t("gen.pages.stock.StockStudioPage.gen_af1a41aa", "总市值")}</p>
                     <p className="font-bold text-slate-200 font-mono">${totalPnLData.totalMarketValue.toFixed(0)}</p>
                   </div>
                   <div className="bg-slate-900 rounded p-1.5 text-center">
-                    <p className="text-slate-400">流动现金</p>
+                    <p className="text-slate-400">{t("gen.pages.stock.StockStudioPage.gen_b9550d2d", "流动现金")}</p>
                     <p className="font-bold text-emerald-300 font-mono">${totalPnLData.cashBalance.toFixed(0)}</p>
                   </div>
                   <div className="bg-slate-900 rounded p-1.5 text-center">
-                    <p className="text-slate-400">净资产</p>
+                    <p className="text-slate-400">{t("gen.pages.stock.StockStudioPage.gen_518272b7", "净资产")}</p>
                     <p className="font-bold text-indigo-300 font-mono">${totalPnLData.netAssets.toFixed(0)}</p>
                   </div>
                 </div>
@@ -1441,7 +1424,7 @@ export default function StockStudioPage() {
                     );
                   })
                 ) : (
-                  <p className="text-xs text-slate-500 text-center py-4">暂无持仓数据，点击上方“一键从 MooMoo 同步”即可从 OpenD 拉取</p>
+                  <p className="text-xs text-slate-500 text-center py-4">{t("gen.pages.stock.StockStudioPage.gen_f03a2673", "暂无持仓数据，点击上方“一键从 MooMoo 同步”即可从 OpenD 拉取")}</p>
                 )}
               </div>
             </div>
@@ -1469,10 +1452,10 @@ export default function StockStudioPage() {
                 <button
                   onClick={fetchWatchlist}
                   className="text-[11px] text-indigo-400 hover:text-indigo-300 flex items-center gap-1 font-medium"
-                  title="刷新 MooMoo 自选关注列表"
+                  title={t("gen.pages.stock.StockStudioPage.gen_527f2fa5", "刷新 MooMoo 自选关注列表")}
                 >
                   <RefreshCw className="w-3 h-3" />
-                  <span>同步自选</span>
+                  <span>{t("gen.pages.stock.StockStudioPage.gen_be5df650", "同步自选")}</span>
                 </button>
               </div>
               <p className="text-[11px] text-slate-400 leading-tight">
@@ -1491,7 +1474,7 @@ export default function StockStudioPage() {
                     </span>
                   ))
                 ) : (
-                  <span className="text-xs text-slate-500 py-1">未检测到自选股，点击“同步自选”或在 MooMoo 软件添加</span>
+                  <span className="text-xs text-slate-500 py-1">{t("gen.pages.stock.StockStudioPage.gen_3db7095c", "未检测到自选股，点击“同步自选”或在 MooMoo 软件添加")}</span>
                 )}
               </div>
             </div>
@@ -1530,14 +1513,10 @@ export default function StockStudioPage() {
                   <Sparkles className="w-5 h-5 text-amber-400" />
                   <span>AI 智能体隔夜推演中...</span>
                 </h3>
-                <p className="text-xs text-indigo-200/90 leading-relaxed font-sans">
-                  系统正在融合隔夜美股宏观数据与当前 MooMoo 持仓进行量化推演。推演完成后，下方的操作指令与专业研报将自动覆盖更新。
-                </p>
+                <p className="text-xs text-indigo-200/90 leading-relaxed font-sans">{t("gen.pages.stock.StockStudioPage.gen_280aee33", "系统正在融合隔夜美股宏观数据与当前 MooMoo 持仓进行量化推演。推演完成后，下方的操作指令与专业研报将自动覆盖更新。")}</p>
               </div>
               <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-indigo-950/90 text-indigo-300 border border-indigo-800 rounded-full text-xs font-mono shadow-inner">
-                <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping" />
-                即将更新：今日买卖指令清单 / 风险警报 / 策略诊断研报
-              </div>
+                <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping" />{t("gen.pages.stock.StockStudioPage.gen_bb5594f3", "即将更新：今日买卖指令清单 / 风险警报 / 策略诊断研报")}</div>
             </div>
           )}
 
@@ -1603,7 +1582,7 @@ export default function StockStudioPage() {
                     <>
                       {/* 隔夜大盘宏观 */}
                       <div className="bg-indigo-950/30 border border-indigo-900/50 p-3.5 rounded-lg text-sm text-indigo-200">
-                        <span className="font-semibold text-indigo-300">隔夜美股宏观概述：</span>
+                        <span className="font-semibold text-indigo-300">{t("gen.pages.stock.StockStudioPage.gen_a44e5a78", "隔夜美股宏观概述：")}</span>
                         {strategy.marketOverview}
                       </div>
 
@@ -1613,14 +1592,14 @@ export default function StockStudioPage() {
                           {retroPnLData && (
                             <>
                               <div className="text-center">
-                                <p className="text-[9px] text-slate-400">上次指南质量</p>
+                                <p className="text-[9px] text-slate-400">{t("gen.pages.stock.StockStudioPage.gen_f2e9f884", "上次指南质量")}</p>
                                 <p className={`text-sm font-bold font-mono ${
                                   retroPnLData.accuracyScore >= 70 ? "text-emerald-400" : retroPnLData.accuracyScore >= 50 ? "text-amber-400" : "text-rose-400"
                                 }`}>{retroPnLData.accuracyScore}/100</p>
                                 <p className="text-[9px] text-slate-500">{retroPnLData.strategyDate}</p>
                               </div>
                               <div className="text-center">
-                                <p className="text-[9px] text-slate-400">避免损失</p>
+                                <p className="text-[9px] text-slate-400">{t("gen.pages.stock.StockStudioPage.gen_29affed9", "避免损失")}</p>
                                 <p className="text-sm font-bold font-mono text-emerald-400">+${retroPnLData.avoidedLoss.toFixed(0)}</p>
                                 <p className="text-[9px] text-slate-500">跨单{(retroPnLData.executionMatchRate * 100).toFixed(0)}%</p>
                               </div>
@@ -1628,11 +1607,11 @@ export default function StockStudioPage() {
                           )}
                           {projectedPnLData && (
                             <div className="text-center">
-                              <p className="text-[9px] text-slate-400">指南预期 P&amp;L</p>
+                              <p className="text-[9px] text-slate-400">{t("gen.pages.stock.StockStudioPage.gen_8e5b2028", "指南预期 P&amp;L")}</p>
                               <p className={`text-sm font-bold font-mono ${
                                 projectedPnLData.totalProjectedChange >= 0 ? "text-emerald-400" : "text-rose-400"
                               }`}>{projectedPnLData.totalProjectedChange >= 0 ? "+" : ""}${projectedPnLData.totalProjectedChange.toFixed(0)}</p>
-                              <p className="text-[9px] text-slate-500">按全部执行</p>
+                              <p className="text-[9px] text-slate-500">{t("gen.pages.stock.StockStudioPage.gen_733bc1c2", "按全部执行")}</p>
                             </div>
                           )}
                         </div>
@@ -1701,7 +1680,7 @@ export default function StockStudioPage() {
                                       建议操作: {act.suggestedShares} 股
                                     </p>
                                   ) : (
-                                    <p className="text-sm text-slate-400">保持观望</p>
+                                    <p className="text-sm text-slate-400">{t("gen.pages.stock.StockStudioPage.gen_f2895fd9", "保持观望")}</p>
                                   )}
                                   <p className="text-xs text-slate-500">
                                     参考价: ${act.estimatedPrice} | 估额: ${act.estimatedAmount}
@@ -1798,12 +1777,8 @@ export default function StockStudioPage() {
                   <div className="p-4 bg-indigo-950/40 text-indigo-400 rounded-full inline-block border border-indigo-800/50">
                     <Zap className="w-8 h-8" />
                   </div>
-                  <h3 className="text-base font-bold text-slate-200">
-                    尚未生成今日美股操盘策略
-                  </h3>
-                  <p className="text-xs text-slate-400 max-w-sm mx-auto">
-                    请确认左侧持仓组合与新增预算无误后，点击左下角的“生成今日 MooMoo 操盘指南”开启 AI 智能体推演。
-                  </p>
+                  <h3 className="text-base font-bold text-slate-200">{t("gen.pages.stock.StockStudioPage.gen_e045deae", "尚未生成今日美股操盘策略")}</h3>
+                  <p className="text-xs text-slate-400 max-w-sm mx-auto">{t("gen.pages.stock.StockStudioPage.gen_a8d27333", "请确认左侧持仓组合与新增预算无误后，点击左下角的“生成今日 MooMoo 操盘指南”开启 AI 智能体推演。")}</p>
                 </div>
               )
             )}
@@ -1855,12 +1830,10 @@ export default function StockStudioPage() {
             {importTab === "paste" ? (
               <div className="space-y-4">
                 <div>
-                  <label className="text-xs font-semibold text-slate-300 block mb-1">
-                    在 MooMoo APP / 桌面端中复制持仓文本直接粘贴至下方：
-                  </label>
+                  <label className="text-xs font-semibold text-slate-300 block mb-1">{t("gen.pages.stock.StockStudioPage.gen_3bdf62b2", "在 MooMoo APP / 桌面端中复制持仓文本直接粘贴至下方：")}</label>
                   <textarea
                     rows={6}
-                    placeholder="请粘贴从 MooMoo 客户端复制的持仓文本或资金信息..."
+                    placeholder={t("gen.pages.stock.StockStudioPage.gen_d9064347", "请粘贴从 MooMoo 客户端复制的持仓文本或资金信息...")}
                     value={pasteText}
                     onChange={(e) => setPasteText(e.target.value)}
                     className="w-full bg-slate-950 border border-slate-800 rounded-lg p-3 text-xs text-slate-200 font-mono placeholder:text-slate-600"
@@ -1891,9 +1864,7 @@ export default function StockStudioPage() {
                 {/* 股票列表编辑 */}
                 <div className="space-y-3">
                   <div className="flex justify-between items-center">
-                    <label className="text-xs font-semibold text-slate-300">
-                      持仓股票列表
-                    </label>
+                    <label className="text-xs font-semibold text-slate-300">{t("gen.pages.stock.StockStudioPage.gen_9b3e6967", "持仓股票列表")}</label>
                     <button
                       onClick={() =>
                         setEditingPositions([
@@ -1915,7 +1886,7 @@ export default function StockStudioPage() {
                       <div className="col-span-3">
                         <input
                           type="text"
-                          placeholder="代码 (如 NVDA)"
+                          placeholder={t("gen.pages.stock.StockStudioPage.gen_54e3560e", "代码 (如 NVDA)")}
                           value={pos.symbol}
                           onChange={(e) => {
                             const updated = [...editingPositions];
@@ -1928,7 +1899,7 @@ export default function StockStudioPage() {
                       <div className="col-span-2">
                         <input
                           type="number"
-                          placeholder="股数"
+                          placeholder={t("gen.pages.stock.StockStudioPage.gen_4ef52482", "股数")}
                           value={pos.shares}
                           onChange={(e) => {
                             const updated = [...editingPositions];
@@ -1941,7 +1912,7 @@ export default function StockStudioPage() {
                       <div className="col-span-3">
                         <input
                           type="number"
-                          placeholder="成本 $"
+                          placeholder={t("gen.pages.stock.StockStudioPage.gen_8b319dbb", "成本 $")}
                           value={pos.costBasis}
                           onChange={(e) => {
                             const updated = [...editingPositions];
@@ -1954,7 +1925,7 @@ export default function StockStudioPage() {
                       <div className="col-span-3">
                         <input
                           type="number"
-                          placeholder="现价 $"
+                          placeholder={t("gen.pages.stock.StockStudioPage.gen_1c5df6c5", "现价 $")}
                           value={pos.marketPrice || pos.costBasis}
                           onChange={(e) => {
                             const updated = [...editingPositions];
@@ -1984,15 +1955,11 @@ export default function StockStudioPage() {
               <button
                 onClick={() => setEditModalOpen(false)}
                 className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-medium rounded-lg"
-              >
-                取消
-              </button>
+              >{t("gen.pages.stock.StockStudioPage.gen_625fb26b", "取消")}</button>
               <button
                 onClick={handleSavePortfolio}
                 className="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold rounded-lg shadow-lg shadow-indigo-500/20"
-              >
-                保存持仓并更新
-              </button>
+              >{t("gen.pages.stock.StockStudioPage.gen_ba5daf09", "保存持仓并更新")}</button>
             </div>
           </div>
         </div>
@@ -2004,9 +1971,7 @@ export default function StockStudioPage() {
           <div className="bg-slate-900 border border-slate-800 rounded-2xl w-full max-w-md p-6 space-y-5 shadow-2xl">
             <div className="flex justify-between items-center border-b border-slate-800 pb-3">
               <h3 className="text-lg font-bold text-slate-100 flex items-center gap-2">
-                <span className="p-1 bg-emerald-950 text-emerald-400 rounded border border-emerald-800 text-sm">🔑</span>
-                输入 MooMoo 交易密码
-              </h3>
+                <span className="p-1 bg-emerald-950 text-emerald-400 rounded border border-emerald-800 text-sm">🔑</span>{t("gen.pages.stock.StockStudioPage.gen_712d5474", "输入 MooMoo 交易密码")}</h3>
               <button
                 onClick={() => setUnlockModalOpen(false)}
                 className="text-slate-400 hover:text-slate-200"
@@ -2020,12 +1985,10 @@ export default function StockStudioPage() {
             </p>
 
             <div className="space-y-2">
-              <label className="text-xs font-semibold text-slate-300 block">
-                你的 MooMoo 交易密码
-              </label>
+              <label className="text-xs font-semibold text-slate-300 block">{t("gen.pages.stock.StockStudioPage.gen_cee7f870", "你的 MooMoo 交易密码")}</label>
               <input
                 type="password"
-                placeholder="输入 6 位交易密码"
+                placeholder={t("gen.pages.stock.StockStudioPage.gen_e52a7115", "输入 6 位交易密码")}
                 value={tradePassword}
                 onChange={(e) => setTradePassword(e.target.value)}
                 className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2.5 text-sm text-slate-100 placeholder:text-slate-600 font-mono"
@@ -2036,9 +1999,7 @@ export default function StockStudioPage() {
               <button
                 onClick={() => setUnlockModalOpen(false)}
                 className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-medium rounded-lg"
-              >
-                取消
-              </button>
+              >{t("gen.pages.stock.StockStudioPage.gen_625fb26b", "取消")}</button>
               <button
                 onClick={handleUnlockTrade}
                 disabled={unlocking || !tradePassword}
@@ -2229,9 +2190,7 @@ export default function StockStudioPage() {
               <div className="p-6 bg-slate-900 flex flex-col justify-between space-y-4 overflow-y-auto">
                 <div className="space-y-4">
                   <h4 className="text-xs font-bold text-slate-300 uppercase tracking-wider border-b border-slate-800 pb-2 flex items-center gap-2">
-                    <Activity className="w-4 h-4 text-purple-400" />
-                    节点深度关联透视面板
-                  </h4>
+                    <Activity className="w-4 h-4 text-purple-400" />{t("gen.pages.stock.StockStudioPage.gen_97b15ba7", "节点深度关联透视面板")}</h4>
 
                   {activeModalNode ? (
                     <div className="space-y-3 bg-slate-950 p-4 rounded-xl border border-purple-500/30 animate-in fade-in">
@@ -2246,9 +2205,7 @@ export default function StockStudioPage() {
                   ) : (
                     <div className="bg-slate-950 p-4 rounded-xl border border-slate-800 text-center space-y-2">
                       <Sparkles className="w-6 h-6 text-purple-400 mx-auto animate-bounce" />
-                      <p className="text-xs text-slate-400">
-                        在左侧 2D 拓扑图中点击任意节点，查看产业链深度解读与数据流来源。
-                      </p>
+                      <p className="text-xs text-slate-400">{t("gen.pages.stock.StockStudioPage.gen_80701c28", "在左侧 2D 拓扑图中点击任意节点，查看产业链深度解读与数据流来源。")}</p>
                     </div>
                   )}
 
@@ -2260,13 +2217,13 @@ export default function StockStudioPage() {
                     </h5>
                     <div className="grid grid-cols-2 gap-2 text-xs font-mono pt-1">
                       <div className="bg-slate-900 p-2 rounded border border-slate-800">
-                        <div className="text-[10px] text-slate-500">最新美股现价</div>
+                        <div className="text-[10px] text-slate-500">{t("gen.pages.stock.StockStudioPage.gen_78349771", "最新美股现价")}</div>
                         <div className="text-emerald-400 font-bold">
                           ${quotesMap.get(currentKgItem.symbol)?.toFixed(2) || "实时获取中..."}
                         </div>
                       </div>
                       <div className="bg-slate-900 p-2 rounded border border-slate-800">
-                        <div className="text-[10px] text-slate-500">资产关联状态</div>
+                        <div className="text-[10px] text-slate-500">{t("gen.pages.stock.StockStudioPage.gen_52956a59", "资产关联状态")}</div>
                         <div className="text-purple-300 font-bold">
                           {currentKgItem.positionCategory === "EXISTING" ? "已有持仓" : "自选关注池"}
                         </div>
@@ -2278,9 +2235,7 @@ export default function StockStudioPage() {
                 <button
                   onClick={() => setKgModalOpen(false)}
                   className="w-full py-2.5 bg-purple-600 hover:bg-purple-500 text-white rounded-xl text-xs font-bold transition-all shadow-lg cursor-pointer"
-                >
-                  关闭 2D 全景全屏视图
-                </button>
+                >{t("gen.pages.stock.StockStudioPage.gen_191b085a", "关闭 2D 全景全屏视图")}</button>
               </div>
             </div>
           </div>
@@ -2303,8 +2258,7 @@ export default function StockStudioPage() {
               </button>
             </div>
 
-            <p className="text-xs text-slate-300 leading-relaxed bg-slate-950 p-3 rounded-lg border border-slate-800 font-sans">
-              融合 4 大数据源：<strong className="text-emerald-400">OpenD 盘口</strong> + <strong className="text-cyan-400">网络资讯快讯</strong> + <strong className="text-amber-400">实盘组合持仓</strong> + <strong className="text-purple-400">人工研判修正</strong>。你可以随时在此添加专属关联实体与语义三元组。
+            <p className="text-xs text-slate-300 leading-relaxed bg-slate-950 p-3 rounded-lg border border-slate-800 font-sans">{t("gen.pages.stock.StockStudioPage.gen_c3021f16", "融合 4 大数据源：")}<strong className="text-emerald-400">OpenD 盘口</strong> + <strong className="text-cyan-400">{t("gen.pages.stock.StockStudioPage.gen_fe483c48", "网络资讯快讯")}</strong> + <strong className="text-amber-400">{t("gen.pages.stock.StockStudioPage.gen_099cb456", "实盘组合持仓")}</strong> + <strong className="text-purple-400">{t("gen.pages.stock.StockStudioPage.gen_62a3bc01", "人工研判修正")}</strong>。你可以随时在此添加专属关联实体与语义三元组。
             </p>
 
             <div className="space-y-4 text-xs font-sans">
@@ -2312,7 +2266,7 @@ export default function StockStudioPage() {
                 <label className="text-slate-300 font-semibold block">关联实体名称 (Entity Name)</label>
                 <input
                   type="text"
-                  placeholder="例如：鸿海精密 / 富士康 (Foxconn) 或 台积电 CoWoS"
+                  placeholder={t("gen.pages.stock.StockStudioPage.gen_df2381fe", "例如：鸿海精密 / 富士康 (Foxconn) 或 台积电 CoWoS")}
                   value={newEntityName}
                   onChange={(e) => setNewEntityName(e.target.value)}
                   className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2.5 text-slate-100 placeholder:text-slate-600 font-mono text-xs"
@@ -2339,7 +2293,7 @@ export default function StockStudioPage() {
                   <label className="text-slate-300 font-semibold block">语义关联谓词 (Relation)</label>
                   <input
                     type="text"
-                    placeholder="例如：iPhone 独家精密组装"
+                    placeholder={t("gen.pages.stock.StockStudioPage.gen_ee803292", "例如：iPhone 独家精密组装")}
                     value={newRelationText}
                     onChange={(e) => setNewRelationText(e.target.value)}
                     className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2.5 text-slate-100 placeholder:text-slate-600 font-mono text-xs"
@@ -2351,7 +2305,7 @@ export default function StockStudioPage() {
                 <label className="text-slate-300 font-semibold block">实体深度基本面说明 (Description)</label>
                 <textarea
                   rows={3}
-                  placeholder="例如：全球最大智能手机代工厂，苹果供应链重要组件及产能出货核心保障"
+                  placeholder={t("gen.pages.stock.StockStudioPage.gen_dc4bf7f5", "例如：全球最大智能手机代工厂，苹果供应链重要组件及产能出货核心保障")}
                   value={newEntityDesc}
                   onChange={(e) => setNewEntityDesc(e.target.value)}
                   className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-slate-100 placeholder:text-slate-600 font-sans text-xs"
@@ -2363,16 +2317,12 @@ export default function StockStudioPage() {
               <button
                 onClick={() => setEditKgModalOpen(false)}
                 className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-medium rounded-lg cursor-pointer"
-              >
-                取消
-              </button>
+              >{t("gen.pages.stock.StockStudioPage.gen_625fb26b", "取消")}</button>
               <button
                 onClick={handleAddCustomEntity}
                 disabled={!newEntityName.trim()}
                 className="px-4 py-2 bg-amber-600 hover:bg-amber-500 text-white text-xs font-bold rounded-lg shadow-lg shadow-amber-500/20 disabled:opacity-50 cursor-pointer"
-              >
-                保存并实时更新 2D 拓扑图谱
-              </button>
+              >{t("gen.pages.stock.StockStudioPage.gen_f913937c", "保存并实时更新 2D 拓扑图谱")}</button>
             </div>
           </div>
         </div>

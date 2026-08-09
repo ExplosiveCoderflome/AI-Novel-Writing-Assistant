@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import i18next from "i18next";
 const t = (key: string, options?: any) => i18next.t(key, options) as string;
 import { useRef, useState } from "react";
@@ -204,9 +205,7 @@ function SceneDetail({
         {/* 场景圣经编辑 */}
         <div className="min-w-0 space-y-3 border-b p-4 lg:border-b-0 lg:border-r">
           <p className="text-sm font-medium">{i18next.t("gen.pages.comic.project.ScenesPanel.gen_500f3bd6")}</p>
-          <p className="text-xs text-muted-foreground">
-            这些视觉约束会在生成该场景下每一格时注入提示词，锁定空间一致性。
-          </p>
+          <p className="text-xs text-muted-foreground">{t("gen.pages.comic.project.ScenesPanel.gen_e555b92b", "这些视觉约束会在生成该场景下每一格时注入提示词，锁定空间一致性。")}</p>
           {BIBLE_FIELDS.map((field) => (
             <div key={field.key} className="space-y-1">
               <label className="text-xs font-medium text-muted-foreground">{field.label}</label>
@@ -262,9 +261,7 @@ function SceneDetail({
           {sheet.status === "error" && (
             <p className="mt-1.5 text-[11px] text-destructive">{sheet.error}</p>
           )}
-          <p className="mt-2 text-[11px] text-muted-foreground">
-            设定图会作为低权重参考图传给图像模型，只锁定色调/布局/材质，镜头仍按每格自由运镜。建议先保存场景圣经再生成。
-          </p>
+          <p className="mt-2 text-[11px] text-muted-foreground">{t("gen.pages.comic.project.ScenesPanel.gen_e4cdb182", "设定图会作为低权重参考图传给图像模型，只锁定色调/布局/材质，镜头仍按每格自由运镜。建议先保存场景圣经再生成。")}</p>
           <div className="mt-2 flex gap-2">
             <Button
               type="button"
@@ -313,6 +310,7 @@ export function ScenesPanel({
   project: { id: string };
   provider: string;
 }) {
+  const { t } = useTranslation();
   const queryClient = useQueryClient();
   const [selectedId, setSelectedId] = useState("");
   const [newName, setNewName] = useState("");
@@ -342,13 +340,9 @@ export function ScenesPanel({
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <p className="text-sm text-muted-foreground">
-          场景在生成分格脚本时自动识别，可在此编辑场景圣经并生成设定图，用于锁定跨格/跨话的空间一致性。
-        </p>
+        <p className="text-sm text-muted-foreground">{t("gen.pages.comic.project.ScenesPanel.gen_cc9155a5", "场景在生成分格脚本时自动识别，可在此编辑场景圣经并生成设定图，用于锁定跨格/跨话的空间一致性。")}</p>
         <Button type="button" size="sm" variant="outline" onClick={() => setShowAdd((v) => !v)}>
-          <Plus className="h-4 w-4" />
-          添加场景
-        </Button>
+          <Plus className="h-4 w-4" />{t("gen.pages.comic.project.ScenesPanel.gen_461211c2", "添加场景")}</Button>
       </div>
 
       {showAdd && (
@@ -360,12 +354,8 @@ export function ScenesPanel({
             onChange={(e) => setNewName(e.target.value)}
             onKeyDown={(e) => { if (e.key === "Enter" && newName.trim()) createMut.mutate(); }}
           />
-          <Button type="button" size="sm" disabled={!newName.trim() || createMut.isPending} onClick={() => createMut.mutate()}>
-            确认
-          </Button>
-          <Button type="button" size="sm" variant="outline" onClick={() => { setShowAdd(false); setNewName(""); }}>
-            取消
-          </Button>
+          <Button type="button" size="sm" disabled={!newName.trim() || createMut.isPending} onClick={() => createMut.mutate()}>{t("gen.pages.comic.project.ScenesPanel.gen_e83a256e", "确认")}</Button>
+          <Button type="button" size="sm" variant="outline" onClick={() => { setShowAdd(false); setNewName(""); }}>{t("gen.pages.comic.project.ScenesPanel.gen_625fb26b", "取消")}</Button>
         </div>
       )}
 

@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import i18next from "i18next";
 const t = (key: string, options?: any) => i18next.t(key, options) as string;
 import { useEffect, useRef, useState } from "react";
@@ -350,14 +351,10 @@ function VisualAnchorEditor({ character }: { character: ComicCharacter }) {
             type="button"
             className="text-[11px] text-muted-foreground underline-offset-2 hover:text-foreground hover:underline"
             onClick={() => setEditing(true)}
-          >
-            编辑
-          </button>
+          >{t("gen.pages.comic.project.CharactersPanel.gen_95b351c8", "编辑")}</button>
         )}
       </div>
-      <p className="mt-1 text-[11px] text-muted-foreground">
-        所有生图的源头：三视图、表情稿、资产、格子图都读这里。改一次，后续生成全部跟上。
-      </p>
+      <p className="mt-1 text-[11px] text-muted-foreground">{t("gen.pages.comic.project.CharactersPanel.gen_369bef10", "所有生图的源头：三视图、表情稿、资产、格子图都读这里。改一次，后续生成全部跟上。")}</p>
 
       {editing ? (
         <>
@@ -420,7 +417,7 @@ function VisualAnchorEditor({ character }: { character: ComicCharacter }) {
                     )}
                     <div className="flex gap-2 pt-1">
                       <Button type="button" size="sm" onClick={adoptSuggestion}>{i18next.t("gen.pages.comic.project.CharactersPanel.gen_7b4eb56b")}</Button>
-                      <Button type="button" size="sm" variant="outline" onClick={() => setSuggestion(null)}>丢弃</Button>
+                      <Button type="button" size="sm" variant="outline" onClick={() => setSuggestion(null)}>{t("gen.pages.comic.project.CharactersPanel.gen_b0ef9048", "丢弃")}</Button>
                     </div>
                   </div>
                 )}
@@ -445,14 +442,10 @@ function VisualAnchorEditor({ character }: { character: ComicCharacter }) {
                   type="button"
                   className="text-[10px] text-muted-foreground hover:text-destructive"
                   onClick={() => setOverride("")}
-                >
-                  清除
-                </button>
+                >{t("gen.pages.comic.project.CharactersPanel.gen_4403fca0", "清除")}</button>
               )}
             </div>
-            <p className="mt-0.5 text-[10px] leading-relaxed text-muted-foreground">
-              当主外貌里有「锐利如刀刻」「三角眼」等与你期望脸型矛盾的词时，把脸型描述填到这里——生图 prompt 会以最高优先级压制冲突词，无需删原描述。
-            </p>
+            <p className="mt-0.5 text-[10px] leading-relaxed text-muted-foreground">{t("gen.pages.comic.project.CharactersPanel.gen_c1ccf3c1", "当主外貌里有「锐利如刀刻」「三角眼」等与你期望脸型矛盾的词时，把脸型描述填到这里——生图 prompt 会以最高优先级压制冲突词，无需删原描述。")}</p>
             <textarea
               className="mt-1.5 w-full resize-y rounded border bg-background px-2 py-1 text-xs leading-relaxed"
               style={{ minHeight: 48 }}
@@ -494,9 +487,7 @@ function VisualAnchorEditor({ character }: { character: ComicCharacter }) {
               variant="outline"
               disabled={saveMut.isPending}
               onClick={() => { setText(initial); setOverride(initialOverride); setEditing(false); }}
-            >
-              取消
-            </Button>
+            >{t("gen.pages.comic.project.CharactersPanel.gen_625fb26b", "取消")}</Button>
           </div>
         </>
       ) : (
@@ -605,9 +596,7 @@ function CharacterDetail({
                   disabled={isGenerating || showSheetTuning}
                   onClick={openSheetTuning}
                 >
-                  <Wand2 className="h-4 w-4" />
-                  调整三视图
-                </Button>
+                  <Wand2 className="h-4 w-4" />{t("gen.pages.comic.project.CharactersPanel.gen_bf82eb4b", "调整三视图")}</Button>
               )}
             </div>
           </div>
@@ -632,9 +621,7 @@ function CharacterDetail({
                   <p className="mt-1 text-xs">{i18next.t("gen.pages.comic.project.CharactersPanel.gen_64805be5")}</p>
                 </div>
                 <Button type="button" size="sm" disabled={isGenerating} onClick={() => startSheetGeneration(undefined)}>
-                  <Sparkles className="h-4 w-4" />
-                  生成三视图
-                </Button>
+                  <Sparkles className="h-4 w-4" />{t("gen.pages.comic.project.CharactersPanel.gen_19a71a62", "生成三视图")}</Button>
               </div>
             )}
           </div>
@@ -658,19 +645,13 @@ function CharacterDetail({
               >
                 {isExpressionGenerating ? (
                   <>
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                    生成中
-                  </>
+                    <Loader2 className="h-4 w-4 animate-spin" />{t("gen.pages.comic.project.CharactersPanel.gen_1ae3a984", "生成中")}</>
                 ) : expressionData.status === "done" ? (
                   <>
-                    <RefreshCw className="h-4 w-4" />
-                    更新表情稿
-                  </>
+                    <RefreshCw className="h-4 w-4" />{t("gen.pages.comic.project.CharactersPanel.gen_c318b815", "更新表情稿")}</>
                 ) : (
                   <>
-                    <Smile className="h-4 w-4" />
-                    生成表情稿
-                  </>
+                    <Smile className="h-4 w-4" />{t("gen.pages.comic.project.CharactersPanel.gen_604ea3dc", "生成表情稿")}</>
                 )}
               </Button>
             </div>
@@ -725,13 +706,9 @@ function CharacterDetail({
                         className="h-7 px-2 text-xs"
                         disabled={isGenerating}
                         onClick={() => setDraftPrompt(recommendedSheetPrompt)}
-                      >
-                        恢复推荐提示词
-                      </Button>
+                      >{t("gen.pages.comic.project.CharactersPanel.gen_98610b5d", "恢复推荐提示词")}</Button>
                     </div>
-                    <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
-                      常规微调只改风格、服装细节或姿态；角色脸型、发型和标志特征会随外貌锚点一起锁定。
-                    </p>
+                    <p className="mt-1 text-xs leading-relaxed text-muted-foreground">{t("gen.pages.comic.project.CharactersPanel.gen_adc456b5", "常规微调只改风格、服装细节或姿态；角色脸型、发型和标志特征会随外貌锚点一起锁定。")}</p>
                   </div>
                   <textarea
                     className="min-h-[180px] w-full resize-y rounded-md border bg-background px-3 py-2 text-xs leading-relaxed"
@@ -795,14 +772,10 @@ function CharacterDetail({
                     >
                       {isGenerating ? (
                         <>
-                          <Loader2 className="h-4 w-4 animate-spin" />
-                          生成中
-                        </>
+                          <Loader2 className="h-4 w-4 animate-spin" />{t("gen.pages.comic.project.CharactersPanel.gen_1ae3a984", "生成中")}</>
                       ) : (
                         <>
-                          <Sparkles className="h-4 w-4" />
-                          生成微调图
-                        </>
+                          <Sparkles className="h-4 w-4" />{t("gen.pages.comic.project.CharactersPanel.gen_14806220", "生成微调图")}</>
                       )}
                     </Button>
                     <Button
@@ -811,9 +784,7 @@ function CharacterDetail({
                       variant="outline"
                       disabled={isGenerating}
                       onClick={() => setShowSheetTuning(false)}
-                    >
-                      取消
-                    </Button>
+                    >{t("gen.pages.comic.project.CharactersPanel.gen_625fb26b", "取消")}</Button>
                   </div>
                 </div>
               ) : (
@@ -824,14 +795,10 @@ function CharacterDetail({
                   disabled={isGenerating}
                   onClick={openSheetTuning}
                 >
-                  <Wand2 className="h-4 w-4" />
-                  打开提示词微调
-                </Button>
+                  <Wand2 className="h-4 w-4" />{t("gen.pages.comic.project.CharactersPanel.gen_65857653", "打开提示词微调")}</Button>
               )
             ) : (
-              <div className="mt-3 rounded-md border border-dashed bg-muted/30 px-3 py-4 text-xs leading-relaxed text-muted-foreground">
-                先生成三视图，系统会保存本次提示词，并允许基于当前图继续微调。
-              </div>
+              <div className="mt-3 rounded-md border border-dashed bg-muted/30 px-3 py-4 text-xs leading-relaxed text-muted-foreground">{t("gen.pages.comic.project.CharactersPanel.gen_a5f398c3", "先生成三视图，系统会保存本次提示词，并允许基于当前图继续微调。")}</div>
             )}
           </div>
         </aside>
@@ -1026,9 +993,7 @@ function AssetAddRow({
           type="button"
           className="text-[11px] text-muted-foreground hover:text-foreground"
           onClick={onClose}
-        >
-          完成
-        </button>
+        >{t("gen.pages.comic.project.CharactersPanel.gen_769d88e4", "完成")}</button>
       </div>
       <div className="flex gap-2">
         <input
@@ -1130,9 +1095,7 @@ function AssetSection({
 
       {isLoading && (
         <div className="flex items-center justify-center gap-2 py-6 text-xs text-muted-foreground">
-          <Loader2 className="h-3.5 w-3.5 animate-spin" />
-          加载中...
-        </div>
+          <Loader2 className="h-3.5 w-3.5 animate-spin" />{t("gen.pages.comic.project.CharactersPanel.gen_26b5bd49", "加载中...")}</div>
       )}
 
       {isEmpty && !activeAddType && (
@@ -1141,10 +1104,7 @@ function AssetSection({
             <Plus className="h-5 w-5" />
           </div>
           <p className="text-xs font-semibold text-foreground">{i18next.t("gen.pages.comic.project.CharactersPanel.gen_25e2a7b4")}</p>
-          <p className="mt-1 text-[11px] leading-relaxed text-muted-foreground">
-            点击上方任意彩色标签即可快速添加。<br />
-            生格子图时会自动把对应资产合成到参考图，锁定服装 / 武器 / 道具外形。
-          </p>
+          <p className="mt-1 text-[11px] leading-relaxed text-muted-foreground">{t("gen.pages.comic.project.CharactersPanel.gen_3fbe934a", "点击上方任意彩色标签即可快速添加。")}<br />{t("gen.pages.comic.project.CharactersPanel.gen_90682e44", "生格子图时会自动把对应资产合成到参考图，锁定服装 / 武器 / 道具外形。")}</p>
         </div>
       )}
 
@@ -1220,16 +1180,12 @@ function FactsSection({ projectId }: { projectId: string }) {
         <p className="text-sm font-medium">{i18next.t("gen.pages.comic.project.CharactersPanel.gen_04df517b")}</p>
         <span className="rounded border bg-muted px-1.5 py-0.5 text-[11px] text-muted-foreground">{facts.length}</span>
       </div>
-      <p className="mb-3 text-xs text-muted-foreground">
-        生成分格脚本后系统自动提取，用于保证跨话剧情与角色状态一致性。可手动删除不准确的条目。
-      </p>
+      <p className="mb-3 text-xs text-muted-foreground">{t("gen.pages.comic.project.CharactersPanel.gen_a94d1dfb", "生成分格脚本后系统自动提取，用于保证跨话剧情与角色状态一致性。可手动删除不准确的条目。")}</p>
 
       {isLoading && <div className="text-xs text-muted-foreground">{i18next.t("gen.pages.comic.project.CharactersPanel.gen_26b5bd49")}</div>}
 
       {!isLoading && facts.length === 0 && (
-        <div className="rounded-md border border-dashed bg-muted/30 px-3 py-4 text-center text-xs text-muted-foreground">
-          尚无事实条目。生成至少一话的分格脚本后会自动提取。
-        </div>
+        <div className="rounded-md border border-dashed bg-muted/30 px-3 py-4 text-center text-xs text-muted-foreground">{t("gen.pages.comic.project.CharactersPanel.gen_e995ba1e", "尚无事实条目。生成至少一话的分格脚本后会自动提取。")}</div>
       )}
 
       <div className="space-y-3">
@@ -1278,6 +1234,7 @@ export function CharactersPanel({
   project: { id: string; characters: ComicCharacter[] };
   provider: string;
 }) {
+  const { t } = useTranslation();
   const [selectedCharacterId, setSelectedCharacterId] = useState(project.characters[0]?.id ?? "");
 
   if (project.characters.length === 0) {

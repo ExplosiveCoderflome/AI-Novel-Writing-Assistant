@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import i18next from "i18next";
 const t = (key: string, options?: any) => i18next.t(key, options) as string;
 import { AlertTriangle, ArrowRight, Clock3, Loader2, ShieldAlert, Sparkles, UsersRound } from "lucide-react";
@@ -111,9 +112,7 @@ function TimelineCheckPanel(props: {
     return (
       <div className="rounded-xl border border-border/70 bg-muted/20 p-3 text-xs leading-6 text-muted-foreground">
         <div className="flex items-center gap-2 font-medium text-foreground">
-          <Loader2 className="h-4 w-4 animate-spin" />
-          时间线检测读取中
-        </div>
+          <Loader2 className="h-4 w-4 animate-spin" />{t("gen.pages.novels.components.chapterInsights.TimelinePanel.gen_80cdb28b", "时间线检测读取中")}</div>
         <div className="mt-1">{i18next.t("gen.pages.novels.components.chapterInsights.TimelinePanel.gen_ad0e994a")}</div>
       </div>
     );
@@ -121,17 +120,13 @@ function TimelineCheckPanel(props: {
 
   if (!hasChapter) {
     return (
-      <div className="rounded-xl border border-dashed border-border/70 bg-muted/10 p-3 text-xs leading-6 text-muted-foreground">
-        选中章节后，这里显示本章时间线检测结果。
-      </div>
+      <div className="rounded-xl border border-dashed border-border/70 bg-muted/10 p-3 text-xs leading-6 text-muted-foreground">{t("gen.pages.novels.components.chapterInsights.TimelinePanel.gen_826ce696", "选中章节后，这里显示本章时间线检测结果。")}</div>
     );
   }
 
   if (!timelineCheck) {
     return (
-      <div className="rounded-xl border border-dashed border-border/70 bg-muted/10 p-3 text-xs leading-6 text-muted-foreground">
-        本章还没有时间线检测结果。
-      </div>
+      <div className="rounded-xl border border-dashed border-border/70 bg-muted/10 p-3 text-xs leading-6 text-muted-foreground">{t("gen.pages.novels.components.chapterInsights.TimelinePanel.gen_7528b9d5", "本章还没有时间线检测结果。")}</div>
     );
   }
 
@@ -166,6 +161,7 @@ export default function TimelinePanel(props: {
   isLoadingChapterTimeline?: boolean;
   chapterRuntimePackage?: ChapterRuntimePackage | null;
 }) {
+  const { t } = useTranslation();
   const { selectedChapter, chapterTimeline, isLoadingChapterTimeline = false, chapterRuntimePackage } = props;
   const context = chapterTimeline?.context ?? null;
   const timelineCheck = (chapterTimeline?.latestReport ?? chapterRuntimePackage?.timelineCheck ?? null) as TimelineCheckSummary | null;
@@ -244,9 +240,7 @@ export default function TimelinePanel(props: {
           </div>
         </>
       ) : (
-        <div className="rounded-xl border border-dashed border-border/70 bg-muted/10 p-3 text-xs leading-6 text-muted-foreground">
-          选中章节后，这里显示本章时间锚点、上一章钩子、计划推进和禁止事项。
-        </div>
+        <div className="rounded-xl border border-dashed border-border/70 bg-muted/10 p-3 text-xs leading-6 text-muted-foreground">{t("gen.pages.novels.components.chapterInsights.TimelinePanel.gen_9a9e0957", "选中章节后，这里显示本章时间锚点、上一章钩子、计划推进和禁止事项。")}</div>
       )}
     </div>
   );

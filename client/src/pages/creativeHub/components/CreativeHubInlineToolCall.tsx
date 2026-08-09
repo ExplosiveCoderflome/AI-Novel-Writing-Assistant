@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import i18next from "i18next";
 import { useId, useState } from "react";
 import type { ToolCallMessagePartProps } from "@assistant-ui/react";
@@ -91,6 +92,7 @@ function readArtifact(
 }
 
 export default function CreativeHubInlineToolCall(props: ToolCallMessagePartProps) {
+  const { t } = useTranslation();
   const [showArgs, setShowArgs] = useState(false);
   const argsPanelId = useId();
   const approvalNoteId = useId();
@@ -117,24 +119,22 @@ export default function CreativeHubInlineToolCall(props: ToolCallMessagePartProp
       >
         <div className="flex items-center justify-between gap-2">
           <div className="text-sm font-medium text-foreground">{title}</div>
-          <Badge variant="secondary">等待确认</Badge>
+          <Badge variant="secondary">{t("gen.pages.creativeHub.components.CreativeHubInlineToolCall.gen_70f361ce", "等待确认")}</Badge>
         </div>
         <div className="mt-3 text-sm leading-6 text-foreground">{summary}</div>
         <details className="mt-3 rounded-md border border-border/70 bg-background/70 px-3 py-2 text-xs text-muted-foreground">
-          <summary className="cursor-pointer">审批目标信息</summary>
+          <summary className="cursor-pointer">{t("gen.pages.creativeHub.components.CreativeHubInlineToolCall.gen_94f67ed0", "审批目标信息")}</summary>
           <div className="mt-2 break-all">类型：{targetType}</div>
           <div className="mt-1 break-all">资源 ID：{targetId}</div>
         </details>
-        <label htmlFor={approvalNoteId} className="mt-3 block text-xs font-medium text-muted-foreground">
-          审批备注（可选）
-        </label>
+        <label htmlFor={approvalNoteId} className="mt-3 block text-xs font-medium text-muted-foreground">{t("gen.pages.creativeHub.components.CreativeHubInlineToolCall.gen_cd98d717", "审批备注（可选）")}</label>
         <textarea
           id={approvalNoteId}
           className="mt-2 min-h-[88px] w-full rounded-md border border-input bg-background p-3 text-base text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-60 md:text-sm"
           value={inlineControls.approvalNote}
           disabled={approvalDisabled}
           onChange={(event) => inlineControls.onApprovalNoteChange?.(event.target.value)}
-          placeholder="审批备注（可选）"
+          placeholder={t("gen.pages.creativeHub.components.CreativeHubInlineToolCall.gen_cd98d717", "审批备注（可选）")}
         />
         <div className="mt-3 flex gap-2">
           <Button
@@ -151,9 +151,7 @@ export default function CreativeHubInlineToolCall(props: ToolCallMessagePartProp
             variant="destructive"
             disabled={approvalDisabled}
             onClick={() => inlineControls.onResolveInterrupt?.("reject")}
-          >
-            拒绝
-          </Button>
+          >{t("gen.pages.creativeHub.components.CreativeHubInlineToolCall.gen_7173f809", "拒绝")}</Button>
         </div>
       </div>
     );
@@ -201,7 +199,7 @@ export default function CreativeHubInlineToolCall(props: ToolCallMessagePartProp
               {showArgs ? "收起参数" : "查看参数"}
             </Button>
           ) : null}
-          <Badge variant="outline">工具执行</Badge>
+          <Badge variant="outline">{t("gen.pages.creativeHub.components.CreativeHubInlineToolCall.gen_4e6bf87f", "工具执行")}</Badge>
         </div>
       </div>
       {argsText && showArgs ? (
@@ -209,7 +207,7 @@ export default function CreativeHubInlineToolCall(props: ToolCallMessagePartProp
           {argsText}
         </pre>
       ) : argsText ? (
-        <div className="mt-2 text-xs text-muted-foreground">请求参数默认收起，可按需查看。</div>
+        <div className="mt-2 text-xs text-muted-foreground">{t("gen.pages.creativeHub.components.CreativeHubInlineToolCall.gen_722d25ad", "请求参数默认收起，可按需查看。")}</div>
       ) : null}
       {(resultText || artifact.summary) ? (
         <div className="mt-3">

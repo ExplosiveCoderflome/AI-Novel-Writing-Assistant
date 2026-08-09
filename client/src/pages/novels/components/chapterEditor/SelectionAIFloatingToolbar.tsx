@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import i18next from "i18next";
 const t = (key: string, options?: any) => i18next.t(key, options) as string;
 import { useEffect, useState } from "react";
@@ -16,6 +17,7 @@ interface SelectionAIFloatingToolbarProps {
 const SECONDARY_OPERATIONS: ChapterEditorOperation[] = ["expand", "compress", "emotion", "conflict"];
 
 export default function SelectionAIFloatingToolbar(props: SelectionAIFloatingToolbarProps) {
+  const { t } = useTranslation();
   const { visible, position, disabled = false, onRunOperation } = props;
   const [customInstruction, setCustomInstruction] = useState("");
   const [isCustomOpen, setIsCustomOpen] = useState(false);
@@ -72,9 +74,7 @@ export default function SelectionAIFloatingToolbar(props: SelectionAIFloatingToo
           disabled={disabled}
           onMouseDown={(event) => event.preventDefault()}
           onClick={() => setIsCustomOpen((current) => !current)}
-        >
-          告诉 AI 怎么改
-        </Button>
+        >{t("gen.pages.novels.components.chapterEditor.SelectionAIFloatingToolbar.gen_96b8f15f", "告诉 AI 怎么改")}</Button>
       </div>
 
       {isCustomOpen ? (
@@ -94,17 +94,13 @@ export default function SelectionAIFloatingToolbar(props: SelectionAIFloatingToo
                 setIsCustomOpen(false);
                 setCustomInstruction("");
               }}
-            >
-              取消
-            </Button>
+            >{t("gen.pages.novels.components.chapterEditor.SelectionAIFloatingToolbar.gen_625fb26b", "取消")}</Button>
             <Button
               size="sm"
               disabled={disabled || customInstruction.trim().length === 0}
               onMouseDown={(event) => event.preventDefault()}
               onClick={() => onRunOperation("custom", customInstruction.trim())}
-            >
-              提交指令
-            </Button>
+            >{t("gen.pages.novels.components.chapterEditor.SelectionAIFloatingToolbar.gen_4e805c04", "提交指令")}</Button>
           </div>
         </div>
       ) : null}

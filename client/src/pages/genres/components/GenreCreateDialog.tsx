@@ -100,18 +100,14 @@ export default function GenreCreateDialog({
       <DialogContent className="max-h-[90vh] max-w-4xl overflow-auto">
         <DialogHeader>
           <DialogTitle>{i18next.t("gen.pages.genres.components.GenreCreateDialog.gen_32f3aaf4")}</DialogTitle>
-          <DialogDescription>
-            先确定父级位置，再手动填写结构或让 AI 先生成一个草稿。这里维护的是作品的题材基底，也就是“这是什么书”。
-          </DialogDescription>
+          <DialogDescription>{t("gen.pages.genres.components.GenreCreateDialog.gen_85422224", "先确定父级位置，再手动填写结构或让 AI 先生成一个草稿。这里维护的是作品的题材基底，也就是“这是什么书”。")}</DialogDescription>
         </DialogHeader>
 
         <div className="space-y-4">
           <div className="space-y-3 rounded-xl border border-primary/20 bg-primary/5 p-4">
             <div className="space-y-1">
               <div className="text-sm font-semibold text-foreground">{i18next.t("gen.pages.genres.components.GenreCreateDialog.aiGenerated")}</div>
-              <div className="text-xs leading-5 text-muted-foreground">
-                适合先把大类、子类和下级题材基底一起打出来，再手动微调。
-              </div>
+              <div className="text-xs leading-5 text-muted-foreground">{t("gen.pages.genres.components.GenreCreateDialog.gen_7ea23b87", "适合先把大类、子类和下级题材基底一起打出来，再手动微调。")}</div>
             </div>
             <LLMSelector />
             <textarea
@@ -133,16 +129,12 @@ export default function GenreCreateDialog({
                 type="button"
                 variant="outline"
                 onClick={() => setDraft(createEmptyGenreDraft())}
-              >
-                重置草稿
-              </Button>
+              >{t("gen.pages.genres.components.GenreCreateDialog.gen_72bf9fa4", "重置草稿")}</Button>
             </div>
           </div>
 
           <div className="space-y-2">
-            <label htmlFor="genre-parent" className="text-sm font-medium text-foreground">
-              父级题材基底
-            </label>
+            <label htmlFor="genre-parent" className="text-sm font-medium text-foreground">{t("gen.pages.genres.components.GenreCreateDialog.gen_3f0265bd", "父级题材基底")}</label>
             <SelectControl
               id="genre-parent"
               className="w-full rounded-md border bg-background p-2 text-sm"
@@ -162,9 +154,7 @@ export default function GenreCreateDialog({
         </div>
 
         <DialogFooter className="gap-2">
-          <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
-            取消
-          </Button>
+          <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>{t("gen.pages.genres.components.GenreCreateDialog.gen_625fb26b", "取消")}</Button>
           <Button type="button" onClick={() => createMutation.mutate()} disabled={!canSubmit || createMutation.isPending}>
             {createMutation.isPending ? i18next.t("gen.pages.genres.components.GenreCreateDialog.savingInProgressDotDotDot") : i18next.t("gen.pages.genres.components.GenreCreateDialog.gen_保存题材基底树_bv55")}
           </Button>

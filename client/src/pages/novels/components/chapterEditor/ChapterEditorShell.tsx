@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import i18next from "i18next";
 const t = (key: string, options?: any) => i18next.t(key, options) as string;
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -71,6 +72,7 @@ function toSelectionFromRange(
 }
 
 export default function ChapterEditorShell(props: ChapterEditorShellProps) {
+  const { t } = useTranslation();
   const {
     novelId,
     chapter,
@@ -380,9 +382,7 @@ export default function ChapterEditorShell(props: ChapterEditorShellProps) {
 
   if (!chapter) {
     return (
-      <div className="rounded-3xl border border-dashed border-border/70 bg-muted/10 p-10 text-center text-sm text-muted-foreground">
-        请选择一个章节后开始编辑正文。
-      </div>
+      <div className="rounded-3xl border border-dashed border-border/70 bg-muted/10 p-10 text-center text-sm text-muted-foreground">{t("gen.pages.novels.components.chapterEditor.ChapterEditorShell.gen_c3d68179", "请选择一个章节后开始编辑正文。")}</div>
     );
   }
 
@@ -636,8 +636,8 @@ export default function ChapterEditorShell(props: ChapterEditorShellProps) {
 
       <Dialog open={isVersionHistoryOpen} onOpenChange={setIsVersionHistoryOpen}>
         <AppDialogContent
-          title="章节历史版本"
-          description="选择并恢复之前保存的章节版本。恢复前系统会自动备份当前状态。"
+          title={t("gen.pages.novels.components.chapterEditor.ChapterEditorShell.gen_ed002b91", "章节历史版本")}
+          description={t("gen.pages.novels.components.chapterEditor.ChapterEditorShell.gen_305a6c5c", "选择并恢复之前保存的章节版本。恢复前系统会自动备份当前状态。")}
         >
           {snapshotsQuery.isLoading ? (
             <div className="space-y-4">
@@ -675,9 +675,7 @@ export default function ChapterEditorShell(props: ChapterEditorShellProps) {
               })}
             </div>
           ) : (
-            <div className="rounded-2xl border border-dashed border-border/70 bg-muted/10 p-6 text-center text-sm text-muted-foreground">
-              暂无历史版本记录。
-            </div>
+            <div className="rounded-2xl border border-dashed border-border/70 bg-muted/10 p-6 text-center text-sm text-muted-foreground">{t("gen.pages.novels.components.chapterEditor.ChapterEditorShell.gen_9fceb8b4", "暂无历史版本记录。")}</div>
           )}
         </AppDialogContent>
       </Dialog>

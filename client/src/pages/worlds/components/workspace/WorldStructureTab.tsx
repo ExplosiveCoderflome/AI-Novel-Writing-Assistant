@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import i18next from "i18next";
 const t = (key: string, options?: any) => i18next.t(key, options) as string;
 import { useEffect, useMemo, useState } from "react";
@@ -239,9 +240,7 @@ export default function WorldStructureTab(props: {
                     : prev,
                 )
               }
-            >
-              新增规则
-            </Button>
+            >{t("gen.pages.worlds.components.workspace.WorldStructureTab.gen_ba3c802f", "新增规则")}</Button>
           </div>
           <textarea
             className="min-h-[80px] w-full rounded-md border bg-background p-2 text-sm"
@@ -404,9 +403,7 @@ export default function WorldStructureTab(props: {
                     : prev,
                 )
               }
-            >
-              新增地点
-            </Button>
+            >{t("gen.pages.worlds.components.workspace.WorldStructureTab.gen_bd468226", "新增地点")}</Button>
           </div>
           {draftStructure.locations.map((location, index) => (
             <div key={location.id || index} className="rounded-md border p-3 space-y-2">

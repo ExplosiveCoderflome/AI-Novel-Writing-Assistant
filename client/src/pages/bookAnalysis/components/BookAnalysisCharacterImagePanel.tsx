@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import i18next from "i18next";
 const t = (key: string, options?: any) => i18next.t(key, options) as string;
 import { useEffect, useMemo, useState } from "react";
@@ -40,6 +41,7 @@ export default function BookAnalysisCharacterImagePanel({
   character,
   disabled,
 }: BookAnalysisCharacterImagePanelProps) {
+  const { t } = useTranslation();
   const queryClient = useQueryClient();
   const flow = useImageGenerationFlow();
   const [activeTaskId, setActiveTaskId] = useState("");
@@ -127,12 +129,8 @@ export default function BookAnalysisCharacterImagePanel({
           {primaryAsset ? <Badge variant="secondary">{i18next.t("gen.pages.bookAnalysis.components.BookAnalysisCharacterImagePanel.gen_71c474b0")}</Badge> : null}
         </div>
         <div className="flex flex-wrap gap-2">
-          <Button size="sm" variant="outline" onClick={startGenerate} disabled={disabled || Boolean(activeTaskId)}>
-            生成形象图
-          </Button>
-          <Button size="sm" variant="outline" onClick={() => setPromoteOpen(true)} disabled={disabled || promoteMutation.isPending}>
-            加入角色库
-          </Button>
+          <Button size="sm" variant="outline" onClick={startGenerate} disabled={disabled || Boolean(activeTaskId)}>{t("gen.pages.bookAnalysis.components.BookAnalysisCharacterImagePanel.gen_f0fe57f1", "生成形象图")}</Button>
+          <Button size="sm" variant="outline" onClick={() => setPromoteOpen(true)} disabled={disabled || promoteMutation.isPending}>{t("gen.pages.bookAnalysis.components.BookAnalysisCharacterImagePanel.gen_719ddb45", "加入角色库")}</Button>
         </div>
       </div>
 
@@ -165,9 +163,7 @@ export default function BookAnalysisCharacterImagePanel({
                     variant="outline"
                     onClick={() => setPrimaryMutation.mutate(asset.id)}
                     disabled={asset.isPrimary || setPrimaryMutation.isPending}
-                  >
-                    设主图
-                  </Button>
+                  >{t("gen.pages.bookAnalysis.components.BookAnalysisCharacterImagePanel.gen_93de17f5", "设主图")}</Button>
                   <Button
                     size="sm"
                     variant="outline"
@@ -177,9 +173,7 @@ export default function BookAnalysisCharacterImagePanel({
                       }
                     }}
                     disabled={deleteMutation.isPending && deleteMutation.variables?.id === asset.id}
-                  >
-                    删除
-                  </Button>
+                  >{t("gen.pages.bookAnalysis.components.BookAnalysisCharacterImagePanel.gen_2f4aaddd", "删除")}</Button>
                 </div>
               </div>
             </div>
@@ -193,18 +187,14 @@ export default function BookAnalysisCharacterImagePanel({
           bodyClassName="space-y-3"
           footer={(
             <>
-              <Button type="button" variant="outline" onClick={() => setPromoteOpen(false)} disabled={promoteMutation.isPending}>
-                取消
-              </Button>
+              <Button type="button" variant="outline" onClick={() => setPromoteOpen(false)} disabled={promoteMutation.isPending}>{t("gen.pages.bookAnalysis.components.BookAnalysisCharacterImagePanel.gen_625fb26b", "取消")}</Button>
               <Button type="button" onClick={() => promoteMutation.mutate()} disabled={promoteMutation.isPending}>
                 {promoteMutation.isPending ? i18next.t("gen.pages.bookAnalysis.components.BookAnalysisCharacterImagePanel.gen_49ac5fc6") : i18next.t("gen.pages.bookAnalysis.components.BookAnalysisCharacterImagePanel.gen_a7b4e2cf")}
               </Button>
             </>
           )}
         >
-          <div className="text-sm text-muted-foreground">
-            会把该角色的人物字段复制到角色库；拆书证据和场景记录仍保留在拆书档案中。
-          </div>
+          <div className="text-sm text-muted-foreground">{t("gen.pages.bookAnalysis.components.BookAnalysisCharacterImagePanel.gen_2f4220bd", "会把该角色的人物字段复制到角色库；拆书证据和场景记录仍保留在拆书档案中。")}</div>
           <label className="flex items-center gap-2 text-sm">
             <input
               type="checkbox"

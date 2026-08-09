@@ -271,17 +271,11 @@ export default function AntiAiRulesPage() {
         <CardHeader className="flex flex-row items-start justify-between gap-4">
           <div className="space-y-1">
             <CardTitle className="flex items-center gap-2">
-              <ShieldCheck className="h-5 w-5" />
-              反 AI 规则
-            </CardTitle>
-            <CardDescription>
-              管理正文生成会参考的反 AI 规则，控制哪些规则进入全局默认，哪些只留给写法资产绑定使用。
-            </CardDescription>
+              <ShieldCheck className="h-5 w-5" />{t("gen.pages.antiAiRules.AntiAiRulesPage.gen_d6a7d091", "反 AI 规则")}</CardTitle>
+            <CardDescription>{t("gen.pages.antiAiRules.AntiAiRulesPage.gen_ff9a2298", "管理正文生成会参考的反 AI 规则，控制哪些规则进入全局默认，哪些只留给写法资产绑定使用。")}</CardDescription>
           </div>
           <Button type="button" onClick={openCreateDialog}>
-            <Plus className="h-4 w-4" />
-            新建规则
-          </Button>
+            <Plus className="h-4 w-4" />{t("gen.pages.antiAiRules.AntiAiRulesPage.gen_f10ed468", "新建规则")}</Button>
         </CardHeader>
         <CardContent>
           <AntiAiRuleStats {...stats} />

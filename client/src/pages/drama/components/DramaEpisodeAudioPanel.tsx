@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import i18next from "i18next";
 const t = (key: string, options?: any) => i18next.t(key, options) as string;
 import { useEffect, useMemo, useState } from "react";
@@ -128,9 +129,7 @@ export function DramaEpisodeAudioPanel(props: {
             disabled={props.busy || ttsActive || !hasStoryboardShots}
             onClick={() => props.onBatchJob(props.episode.order, { type: "tts", provider: activeProvider })}
           >
-            <Headphones className="h-4 w-4" />
-            合成本集配音
-          </Button>
+            <Headphones className="h-4 w-4" />{t("gen.pages.drama.components.DramaEpisodeAudioPanel.gen_fbb10e22", "合成本集配音")}</Button>
         </div>
       </div>
       <CostEstimate
@@ -169,9 +168,7 @@ export function DramaEpisodeAudioPanel(props: {
                   failedShotIds,
                 })}
               >
-                <RefreshCw className="h-4 w-4" />
-                重试失败镜头
-              </Button>
+                <RefreshCw className="h-4 w-4" />{t("gen.pages.drama.components.DramaEpisodeAudioPanel.gen_60637682", "重试失败镜头")}</Button>
             </div>
           ) : null}
         </div>

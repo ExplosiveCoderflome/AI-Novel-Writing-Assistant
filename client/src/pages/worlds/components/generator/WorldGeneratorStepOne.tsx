@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import i18next from "i18next";
 const t = (key: string, options?: any) => i18next.t(key, options) as string;
 import { useState } from "react";
@@ -77,6 +78,7 @@ interface WorldGeneratorStepOneProps {
 }
 
 export default function WorldGeneratorStepOne(props: WorldGeneratorStepOneProps) {
+  const { t } = useTranslation();
   const {
     worldName,
     selectedGenreId,
@@ -123,9 +125,7 @@ export default function WorldGeneratorStepOne(props: WorldGeneratorStepOneProps)
       <div className="rounded-md border bg-background p-4 space-y-3">
         <div>
           <div className="text-sm font-medium">{i18next.t("gen.pages.worlds.components.generator.WorldGeneratorStepOne.gen_c250dfe1")}</div>
-          <div className="mt-1 text-xs text-muted-foreground">
-            名称可以留空，系统会先创建一份可继续整理的世界样本。
-          </div>
+          <div className="mt-1 text-xs text-muted-foreground">{t("gen.pages.worlds.components.generator.WorldGeneratorStepOne.gen_7e49ef51", "名称可以留空，系统会先创建一份可继续整理的世界样本。")}</div>
         </div>
         <input
           className="w-full rounded-md border p-2 text-sm"
@@ -138,9 +138,7 @@ export default function WorldGeneratorStepOne(props: WorldGeneratorStepOneProps)
       <div className="space-y-2">
         <div>
           <div className="text-sm font-medium">{i18next.t("gen.pages.worlds.components.generator.WorldGeneratorStepOne.gen_f994b83c")}</div>
-          <div className="mt-1 text-xs text-muted-foreground">
-            题材基底决定世界的读者预期、力量规则和常见冲突。
-          </div>
+          <div className="mt-1 text-xs text-muted-foreground">{t("gen.pages.worlds.components.generator.WorldGeneratorStepOne.gen_ca9838b6", "题材基底决定世界的读者预期、力量规则和常见冲突。")}</div>
         </div>
         <SelectControl
           className="w-full rounded-md border bg-background p-2 text-sm"
@@ -168,14 +166,10 @@ export default function WorldGeneratorStepOne(props: WorldGeneratorStepOneProps)
           {!genreLoading && genreOptions.length === 0 ? (
             <div className="rounded-md border border-dashed p-3 text-xs text-muted-foreground space-y-2">
             <div>{i18next.t("gen.pages.worlds.components.generator.WorldGeneratorStepOne.gen_ce68b833")}</div>
-            <Button type="button" variant="outline" onClick={onOpenGenreManager}>
-              去题材基底库
-            </Button>
+            <Button type="button" variant="outline" onClick={onOpenGenreManager}>{t("gen.pages.worlds.components.generator.WorldGeneratorStepOne.gen_7c921728", "去题材基底库")}</Button>
           </div>
         ) : null}
-        <div className="text-xs text-muted-foreground">
-          先确定题材基底，再生成概念卡、世界属性和后续骨架选择。
-        </div>
+        <div className="text-xs text-muted-foreground">{t("gen.pages.worlds.components.generator.WorldGeneratorStepOne.gen_8a85d92e", "先确定题材基底，再生成概念卡、世界属性和后续骨架选择。")}</div>
       </div>
 
       <div className="space-y-2">
@@ -277,9 +271,7 @@ export default function WorldGeneratorStepOne(props: WorldGeneratorStepOneProps)
         <div className="flex flex-wrap items-center justify-between gap-2">
           <div>
             <div className="font-medium">{i18next.t("gen.pages.worlds.components.generator.WorldGeneratorStepOne.gen_dd477c7b")}</div>
-            <div className="mt-1 text-xs text-muted-foreground">
-              默认会给出 6 个标准世界属性，通常不用调整。
-            </div>
+            <div className="mt-1 text-xs text-muted-foreground">{t("gen.pages.worlds.components.generator.WorldGeneratorStepOne.gen_f248a206", "默认会给出 6 个标准世界属性，通常不用调整。")}</div>
           </div>
           <Button type="button" variant="outline" size="sm" onClick={() => setPreferencesOpen((value) => !value)}>
             {preferencesOpen ? i18next.t("gen.pages.worlds.components.generator.WorldGeneratorStepOne.gen_b91f3d0f") : i18next.t("gen.pages.worlds.components.generator.WorldGeneratorStepOne.gen_8af07582")}

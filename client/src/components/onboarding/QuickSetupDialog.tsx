@@ -1,3 +1,4 @@
+import i18next from "i18next";
 import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
@@ -192,27 +193,26 @@ export default function QuickSetupDialog(props: QuickSetupDialogProps) {
     ? null
     : step === 1
       ? (
-          <Button onClick={() => setStep(2)} disabled={!canContinueProvider}>
-            填写连接信息 <ArrowRight className="h-4 w-4" />
+          <Button onClick={() => setStep(2)} disabled={!canContinueProvider}>{t("gen.components.onboarding.QuickSetupDialog.gen_63c3d953", "填写连接信息")}<ArrowRight className="h-4 w-4" />
           </Button>
         )
       : step === 2
         ? (
             <>
-              <Button variant="ghost" onClick={() => setStep(1)}><ArrowLeft className="h-4 w-4" /> 返回选择</Button>
-              <Button onClick={submit} disabled={!canSubmit}>检测并完成配置 <PlugZap className="h-4 w-4" /></Button>
+              <Button variant="ghost" onClick={() => setStep(1)}><ArrowLeft className="h-4 w-4" />{t("gen.components.onboarding.QuickSetupDialog.gen_e6210140", "返回选择")}</Button>
+              <Button onClick={submit} disabled={!canSubmit}>{t("gen.components.onboarding.QuickSetupDialog.gen_d6ad55bd", "检测并完成配置")}<PlugZap className="h-4 w-4" /></Button>
             </>
           )
         : completeMutation.isSuccess
           ? (
               <>
-                <Button variant="outline" asChild><Link to="/settings">查看高级设置</Link></Button>
-                <Button onClick={() => props.onOpenChange(false)}>开始创作 <Sparkles className="h-4 w-4" /></Button>
+                <Button variant="outline" asChild><Link to="/settings">{t("gen.components.onboarding.QuickSetupDialog.gen_1d037c3c", "查看高级设置")}</Link></Button>
+                <Button onClick={() => props.onOpenChange(false)}>{t("gen.components.onboarding.QuickSetupDialog.gen_576d0110", "开始创作")}<Sparkles className="h-4 w-4" /></Button>
               </>
             )
           : completeMutation.isError
             ? (
-                <Button variant="outline" onClick={() => setStep(2)}><ArrowLeft className="h-4 w-4" /> 修改配置</Button>
+                <Button variant="outline" onClick={() => setStep(2)}><ArrowLeft className="h-4 w-4" />{t("gen.components.onboarding.QuickSetupDialog.gen_2e4b9b00", "修改配置")}</Button>
               )
             : null;
 
@@ -220,8 +220,8 @@ export default function QuickSetupDialog(props: QuickSetupDialogProps) {
     <Dialog open={props.open} onOpenChange={props.onOpenChange}>
       <AppDialogContent
         className="max-w-3xl"
-        title="让 AI 创作环境先跑起来"
-        description="只配置一个文本模型，系统会自动准备规划、正文、审校和修复所需的任务路由。"
+        title={t("gen.components.onboarding.QuickSetupDialog.gen_7395f8c6", "让 AI 创作环境先跑起来")}
+        description={t("gen.components.onboarding.QuickSetupDialog.gen_a6b6bea8", "只配置一个文本模型，系统会自动准备规划、正文、审校和修复所需的任务路由。")}
         footer={footer}
         footerClassName="gap-2"
       >
@@ -247,33 +247,32 @@ export default function QuickSetupDialog(props: QuickSetupDialogProps) {
 
         {props.loading ? (
           <div className="flex min-h-56 items-center justify-center text-sm text-muted-foreground">
-            <Loader2 className="mr-2 h-5 w-5 animate-spin" /> 正在检查创作环境
-          </div>
+            <Loader2 className="mr-2 h-5 w-5 animate-spin" />{t("gen.components.onboarding.QuickSetupDialog.gen_b91709a3", "正在检查创作环境")}</div>
         ) : props.error ? (
           <div className="flex min-h-56 flex-col items-center justify-center gap-4 text-center">
             <CircleAlert className="h-9 w-9 text-amber-600" />
             <div>
-              <div className="font-semibold">暂时无法读取模型配置</div>
-              <div className="mt-1 text-sm text-muted-foreground">重新加载后，系统会继续判断是否可以开始创作。</div>
+              <div className="font-semibold">{t("gen.components.onboarding.QuickSetupDialog.gen_28a04c4c", "暂时无法读取模型配置")}</div>
+              <div className="mt-1 text-sm text-muted-foreground">{t("gen.components.onboarding.QuickSetupDialog.gen_7ca5592b", "重新加载后，系统会继续判断是否可以开始创作。")}</div>
             </div>
-            <Button variant="outline" onClick={props.onRetry}>重新加载</Button>
+            <Button variant="outline" onClick={props.onRetry}>{t("gen.components.onboarding.QuickSetupDialog.gen_64ca9bab", "重新加载")}</Button>
           </div>
         ) : props.status?.readyForCreation && !completeMutation.isSuccess ? (
           <div className="flex min-h-56 flex-col items-center justify-center gap-4 text-center">
             <CheckCircle2 className="h-10 w-10 text-emerald-600" />
             <div>
-              <div className="text-lg font-semibold">创作环境可以使用</div>
+              <div className="text-lg font-semibold">{t("gen.components.onboarding.QuickSetupDialog.gen_c81ab9e2", "创作环境可以使用")}</div>
               <div className="mt-2 text-sm text-muted-foreground">
                 {props.status.selectedProvider} · {props.status.selectedModel}，{props.status.routeCoverage.total} 类核心任务均已就绪。
               </div>
             </div>
-            <Button onClick={() => props.onOpenChange(false)}>继续创作</Button>
+            <Button onClick={() => props.onOpenChange(false)}>{t("gen.components.onboarding.QuickSetupDialog.gen_40bc1a22", "继续创作")}</Button>
           </div>
         ) : step === 1 ? (
           <div className="space-y-4">
             <div>
-              <h3 className="font-semibold">选择你已有账号或接口的厂商</h3>
-              <p className="mt-1 text-sm text-muted-foreground">第一次只选一个即可，之后仍能在系统设置中增加更多厂商。</p>
+              <h3 className="font-semibold">{t("gen.components.onboarding.QuickSetupDialog.gen_592ff5c1", "选择你已有账号或接口的厂商")}</h3>
+              <p className="mt-1 text-sm text-muted-foreground">{t("gen.components.onboarding.QuickSetupDialog.gen_3224ad11", "第一次只选一个即可，之后仍能在系统设置中增加更多厂商。")}</p>
             </div>
             <div className="grid gap-3 sm:grid-cols-2">
               {props.status?.providers.map((provider) => (
@@ -304,8 +303,8 @@ export default function QuickSetupDialog(props: QuickSetupDialogProps) {
                 )}
                 onClick={chooseCustom}
               >
-                <div className="flex items-center gap-2 font-semibold"><ServerCog className="h-4 w-4" /> 自定义兼容接口</div>
-                <div className="mt-2 text-xs leading-5 text-muted-foreground">适合中转服务、本地网关或其他 OpenAI 兼容地址。</div>
+                <div className="flex items-center gap-2 font-semibold"><ServerCog className="h-4 w-4" />{t("gen.components.onboarding.QuickSetupDialog.gen_57a794e1", "自定义兼容接口")}</div>
+                <div className="mt-2 text-xs leading-5 text-muted-foreground">{t("gen.components.onboarding.QuickSetupDialog.gen_67b09fe0", "适合中转服务、本地网关或其他 OpenAI 兼容地址。")}</div>
               </button>
             </div>
           </div>
@@ -317,8 +316,8 @@ export default function QuickSetupDialog(props: QuickSetupDialogProps) {
             </div>
             {form.providerKind === "custom" ? (
               <label className="block space-y-1.5">
-                <span className="text-sm font-medium">厂商名称</span>
-                <Input value={form.customProviderName} placeholder="例如：我的模型网关" onChange={(event) => setForm((current) => ({ ...current, customProviderName: event.target.value }))} />
+                <span className="text-sm font-medium">{t("gen.components.onboarding.QuickSetupDialog.gen_99b8ee4c", "厂商名称")}</span>
+                <Input value={form.customProviderName} placeholder={t("gen.components.onboarding.QuickSetupDialog.gen_86591187", "例如：我的模型网关")} onChange={(event) => setForm((current) => ({ ...current, customProviderName: event.target.value }))} />
               </label>
             ) : null}
             <label className="block space-y-1.5">
@@ -359,12 +358,10 @@ export default function QuickSetupDialog(props: QuickSetupDialogProps) {
               </div>
             ) : null}
             <label className="block space-y-1.5">
-              <span className="text-sm font-medium">文本模型</span>
-              <Input value={form.model} placeholder="选择上方模型，或直接填写模型名称" onChange={(event) => setForm((current) => ({ ...current, model: event.target.value }))} />
+              <span className="text-sm font-medium">{t("gen.components.onboarding.QuickSetupDialog.gen_2415bb91", "文本模型")}</span>
+              <Input value={form.model} placeholder={t("gen.components.onboarding.QuickSetupDialog.gen_69f6b64c", "选择上方模型，或直接填写模型名称")} onChange={(event) => setForm((current) => ({ ...current, model: event.target.value }))} />
             </label>
-            <div className="rounded-lg border bg-muted/20 p-3 text-xs leading-5 text-muted-foreground">
-              完成后，这个模型会作为规划、正文、审核、修复、重规划和摘要等核心任务的初始默认值。
-            </div>
+            <div className="rounded-lg border bg-muted/20 p-3 text-xs leading-5 text-muted-foreground">{t("gen.components.onboarding.QuickSetupDialog.gen_f632c379", "完成后，这个模型会作为规划、正文、审核、修复、重规划和摘要等核心任务的初始默认值。")}</div>
           </div>
         ) : (
           <div className="flex min-h-64 flex-col items-center justify-center gap-4 text-center">
@@ -374,8 +371,8 @@ export default function QuickSetupDialog(props: QuickSetupDialogProps) {
                   <Loader2 className="h-7 w-7 animate-spin text-primary" />
                 </div>
                 <div>
-                  <div className="text-lg font-semibold">正在检测普通文本与结构化输出</div>
-                  <div className="mt-2 max-w-md text-sm leading-6 text-muted-foreground">检测通过后，系统会自动准备全部核心创作任务，不需要逐项配置路由。</div>
+                  <div className="text-lg font-semibold">{t("gen.components.onboarding.QuickSetupDialog.gen_7ae01ea0", "正在检测普通文本与结构化输出")}</div>
+                  <div className="mt-2 max-w-md text-sm leading-6 text-muted-foreground">{t("gen.components.onboarding.QuickSetupDialog.gen_dc6ed950", "检测通过后，系统会自动准备全部核心创作任务，不需要逐项配置路由。")}</div>
                 </div>
               </>
             ) : completeMutation.isSuccess ? (
@@ -384,7 +381,7 @@ export default function QuickSetupDialog(props: QuickSetupDialogProps) {
                   <CheckCircle2 className="h-8 w-8 text-emerald-700" />
                 </div>
                 <div>
-                  <div className="text-lg font-semibold">创作环境配置完成</div>
+                  <div className="text-lg font-semibold">{t("gen.components.onboarding.QuickSetupDialog.gen_49124d29", "创作环境配置完成")}</div>
                   <div className="mt-2 text-sm text-muted-foreground">{completeMutation.data.data?.model} 已可用于整条小说生产链。</div>
                 </div>
               </>
@@ -394,7 +391,7 @@ export default function QuickSetupDialog(props: QuickSetupDialogProps) {
                   <CircleAlert className="h-8 w-8 text-amber-700" />
                 </div>
                 <div>
-                  <div className="text-lg font-semibold">模型检测没有通过</div>
+                  <div className="text-lg font-semibold">{t("gen.components.onboarding.QuickSetupDialog.gen_ed5281d5", "模型检测没有通过")}</div>
                   <div className="mt-2 max-w-lg text-sm leading-6 text-destructive">
                     {completeMutation.error instanceof Error ? completeMutation.error.message : "请检查 API Key、地址和模型名称后重试。"}
                   </div>

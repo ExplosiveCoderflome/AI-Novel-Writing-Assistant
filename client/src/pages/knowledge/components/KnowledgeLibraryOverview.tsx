@@ -1,3 +1,5 @@
+import i18next from "i18next";
+import { useTranslation } from "react-i18next";
 import type { LucideIcon } from "lucide-react";
 import {
   BookOpenCheck,
@@ -121,6 +123,7 @@ function getRecommendation(props: KnowledgeLibraryOverviewProps): Recommendation
 }
 
 export default function KnowledgeLibraryOverview(props: KnowledgeLibraryOverviewProps) {
+  const { t } = useTranslation();
   const recommendation = getRecommendation(props);
   const documentStatusUnavailable = props.isLoading || props.isError;
 
@@ -129,41 +132,29 @@ export default function KnowledgeLibraryOverview(props: KnowledgeLibraryOverview
       case "upload":
         return (
           <Button type="button" size="sm" onClick={props.onUpload}>
-            <Upload className="h-4 w-4" />
-            上传资料
-          </Button>
+            <Upload className="h-4 w-4" />{t("gen.pages.knowledge.components.KnowledgeLibraryOverview.gen_6b58808b", "上传资料")}</Button>
         );
       case "retry":
         return (
           <Button type="button" size="sm" variant="outline" onClick={props.onRetry}>
-            <RefreshCw className="h-4 w-4" />
-            重新加载
-          </Button>
+            <RefreshCw className="h-4 w-4" />{t("gen.pages.knowledge.components.KnowledgeLibraryOverview.gen_64ca9bab", "重新加载")}</Button>
         );
       case "clear_filters":
         return (
-          <Button type="button" size="sm" variant="outline" onClick={props.onClearFilters}>
-            清除筛选
-          </Button>
+          <Button type="button" size="sm" variant="outline" onClick={props.onClearFilters}>{t("gen.pages.knowledge.components.KnowledgeLibraryOverview.gen_a95500ef", "清除筛选")}</Button>
         );
       case "open_ops":
         return (
-          <Button type="button" size="sm" variant="outline" onClick={props.onOpenOps}>
-            查看索引状态
-          </Button>
+          <Button type="button" size="sm" variant="outline" onClick={props.onOpenOps}>{t("gen.pages.knowledge.components.KnowledgeLibraryOverview.gen_dedb1b21", "查看索引状态")}</Button>
         );
       default:
         if (props.isLoading) {
           return (
-            <Button type="button" size="sm" variant="outline" disabled>
-              正在加载
-            </Button>
+            <Button type="button" size="sm" variant="outline" disabled>{t("gen.pages.knowledge.components.KnowledgeLibraryOverview.gen_356fdedf", "正在加载")}</Button>
           );
         }
         return (
-          <Button type="button" size="sm" variant="outline" onClick={props.onOpenDocuments}>
-            查看资料
-          </Button>
+          <Button type="button" size="sm" variant="outline" onClick={props.onOpenDocuments}>{t("gen.pages.knowledge.components.KnowledgeLibraryOverview.gen_0336dcfd", "查看资料")}</Button>
         );
     }
   })();
@@ -172,18 +163,16 @@ export default function KnowledgeLibraryOverview(props: KnowledgeLibraryOverview
     <>
       <AssetLibraryHeader
         icon={Database}
-        context="创作资产 · 知识与检索"
-        title="知识资料库"
-        description="集中管理可复用的创作资料，确认索引状态，再把可靠内容带入拆书、规划和正文创作。"
+        context={t("gen.pages.knowledge.components.KnowledgeLibraryOverview.gen_728fba79", "创作资产 · 知识与检索")}
+        title={t("gen.pages.knowledge.components.KnowledgeLibraryOverview.gen_d3afa095", "知识资料库")}
+        description={t("gen.pages.knowledge.components.KnowledgeLibraryOverview.gen_472c7d80", "集中管理可复用的创作资料，确认索引状态，再把可靠内容带入拆书、规划和正文创作。")}
         actions={(
           <>
             <Button type="button" onClick={props.onUpload}>
-              <Upload className="h-4 w-4" />
-              上传资料
-            </Button>
+              <Upload className="h-4 w-4" />{t("gen.pages.knowledge.components.KnowledgeLibraryOverview.gen_6b58808b", "上传资料")}</Button>
             <OpenInCreativeHubButton
               bindings={{ knowledgeDocumentIds: props.selectedDocumentId ? [props.selectedDocumentId] : [] }}
-              label="发送到创作中枢"
+              label={t("gen.pages.knowledge.components.KnowledgeLibraryOverview.gen_dbbdc047", "发送到创作中枢")}
             />
           </>
         )}

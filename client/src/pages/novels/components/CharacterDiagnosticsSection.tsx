@@ -1,3 +1,4 @@
+import i18next from "i18next";
 import { useTranslation } from "react-i18next";
 import { useEffect, useState } from "react";
 import type { Character } from "@ai-novel/shared/types/novel";
@@ -41,8 +42,8 @@ export default function CharacterDiagnosticsSection(props: CharacterDiagnosticsS
     >
       <summary className="cursor-pointer list-none">
         <CollapsibleSummary
-          title="角色阵容与关系诊断"
-          description="需要补位、查缺口或整理阵容方案时再展开；角色动态、候选和卷级职责集中在“动态”页。"
+          title={t("gen.pages.novels.components.CharacterDiagnosticsSection.gen_fc84cea5", "角色阵容与关系诊断")}
+          description={t("gen.pages.novels.components.CharacterDiagnosticsSection.gen_1720cbdf", "需要补位、查缺口或整理阵容方案时再展开；角色动态、候选和卷级职责集中在“动态”页。")}
         />
       </summary>
 

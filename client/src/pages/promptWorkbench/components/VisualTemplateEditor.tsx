@@ -94,9 +94,7 @@ function TokenMenu(props: {
                     <div className="flex items-center justify-between gap-2">
                       <span className="text-sm font-medium text-[#25443f]">{displayLabel}</span>
                       {item.required ? (
-                        <span className="rounded-md bg-[#eaf7f2] px-1.5 py-0.5 text-[11px] text-[#0f766e]">
-                          必需
-                        </span>
+                        <span className="rounded-md bg-[#eaf7f2] px-1.5 py-0.5 text-[11px] text-[#0f766e]">{t("gen.pages.promptWorkbench.components.VisualTemplateEditor.gen_ca611377", "必需")}</span>
                       ) : null}
                     </div>
                     <div className="mt-1 font-mono text-[11px] text-muted-foreground">{item.token}</div>
@@ -108,9 +106,7 @@ function TokenMenu(props: {
         ))}
       </div>
       <div className="border-t border-[#dce8e4] p-2 text-right">
-        <Button type="button" variant="ghost" size="sm" onClick={props.onClose}>
-          关闭
-        </Button>
+        <Button type="button" variant="ghost" size="sm" onClick={props.onClose}>{t("gen.pages.promptWorkbench.components.VisualTemplateEditor.gen_b15d9127", "关闭")}</Button>
       </div>
     </div>
   );
@@ -230,9 +226,7 @@ function TemplateSourceTextarea(props: {
           onClick={() => props.onOpenTokenMenu(props.role)}
           disabled={props.disabled}
         >
-          <Sparkles className="mr-1.5 h-3.5 w-3.5" />
-          插入引用
-        </Button>
+          <Sparkles className="mr-1.5 h-3.5 w-3.5" />{t("gen.pages.promptWorkbench.components.VisualTemplateEditor.gen_b0916aa5", "插入引用")}</Button>
       </div>
       <textarea
         ref={props.textareaRef}
@@ -398,9 +392,7 @@ export function VisualTemplateEditor(props: {
             onClick={() => setSourceMode(false)}
             className="text-[#0f5f59] hover:bg-[#eef7f4] hover:text-[#0f5f59]"
           >
-            <Tags className="mr-1.5 h-3.5 w-3.5" />
-            返回可视化编辑
-          </Button>
+            <Tags className="mr-1.5 h-3.5 w-3.5" />{t("gen.pages.promptWorkbench.components.VisualTemplateEditor.gen_185df7fb", "返回可视化编辑")}</Button>
         </div>
       </div>
     );
@@ -422,9 +414,7 @@ export function VisualTemplateEditor(props: {
             onClick={() => setSourceMode(true)}
             disabled={props.disabled}
           >
-            <Code2 className="mr-1.5 h-3.5 w-3.5" />
-            源码视图
-          </Button>
+            <Code2 className="mr-1.5 h-3.5 w-3.5" />{t("gen.pages.promptWorkbench.components.VisualTemplateEditor.gen_8ff17786", "源码视图")}</Button>
           <Button
             type="button"
             variant="outline"
@@ -436,9 +426,7 @@ export function VisualTemplateEditor(props: {
             }}
             disabled={props.disabled}
           >
-            <Sparkles className="mr-1.5 h-3.5 w-3.5" />
-            插入引用
-          </Button>
+            <Sparkles className="mr-1.5 h-3.5 w-3.5" />{t("gen.pages.promptWorkbench.components.VisualTemplateEditor.gen_b0916aa5", "插入引用")}</Button>
         </div>
       </div>
       <div className="flex min-h-0">

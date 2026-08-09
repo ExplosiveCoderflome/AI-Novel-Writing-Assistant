@@ -1,3 +1,4 @@
+import i18next from "i18next";
 import { useTranslation } from "react-i18next";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { ArrowRight, BookOpen, Check, Loader2, Settings2, Sparkles } from "lucide-react";
@@ -48,22 +49,18 @@ export default function NovelProductionExperienceHandoff({
     <section className="mx-auto max-w-5xl space-y-5 px-3 py-6 sm:px-4 lg:px-0">
       <OnboardingTip
         storageKey="production-experience-handoff"
-        title="这是正文开始前唯一一次生产方式选择"
-        description="新手推荐简易创作：AI 会持续写作、审校和修复，你只看稳定的完成稿。需要亲自修改时再选专业创作。"
+        title={t("gen.pages.novels.components.NovelProductionExperienceHandoff.gen_693fccfa", "这是正文开始前唯一一次生产方式选择")}
+        description={t("gen.pages.novels.components.NovelProductionExperienceHandoff.gen_8ea4b146", "新手推荐简易创作：AI 会持续写作、审校和修复，你只看稳定的完成稿。需要亲自修改时再选专业创作。")}
       />
       <div className="relative overflow-hidden rounded-3xl bg-foreground px-6 py-7 text-background shadow-[0_30px_80px_-50px_hsl(var(--foreground))] sm:px-8 sm:py-9">
         <div className="absolute -right-20 -top-24 h-64 w-64 rounded-full bg-primary/25 blur-3xl" />
         <div className="relative">
           <div className="flex items-center gap-2 text-sm font-medium text-background/70">
-            <BookOpen className="h-4 w-4" />
-            开写前准备完成
-          </div>
+            <BookOpen className="h-4 w-4" />{t("gen.pages.novels.components.NovelProductionExperienceHandoff.gen_ccd1b8ed", "开写前准备完成")}</div>
           <h1 className="mt-4 max-w-3xl text-2xl font-semibold tracking-tight sm:text-3xl">
             选择《{novelTitle?.trim() || "这本小说"}》的正文生产方式
           </h1>
-          <p className="mt-3 max-w-3xl text-sm leading-6 text-background/70">
-            故事方向、角色和卷章安排准备完毕。接下来可以让 AI 持续写完整本书，也可以进入完整工作台亲自控制。
-          </p>
+          <p className="mt-3 max-w-3xl text-sm leading-6 text-background/70">{t("gen.pages.novels.components.NovelProductionExperienceHandoff.gen_5a8902a2", "故事方向、角色和卷章安排准备完毕。接下来可以让 AI 持续写完整本书，也可以进入完整工作台亲自控制。")}</p>
         </div>
       </div>
       <div className="grid gap-4 md:grid-cols-2">
@@ -72,9 +69,9 @@ export default function NovelProductionExperienceHandoff({
             <span className="inline-flex h-11 w-11 items-center justify-center rounded-2xl bg-primary text-primary-foreground">
               <Sparkles className="h-5 w-5" />
             </span>
-            <span className="rounded-full bg-primary px-2.5 py-1 text-xs font-medium text-primary-foreground">推荐新手</span>
+            <span className="rounded-full bg-primary px-2.5 py-1 text-xs font-medium text-primary-foreground">{t("gen.pages.novels.components.NovelProductionExperienceHandoff.gen_04c79172", "推荐新手")}</span>
           </div>
-          <h2 className="mt-5 text-xl font-semibold text-foreground">简易创作</h2>
+          <h2 className="mt-5 text-xl font-semibold text-foreground">{t("gen.pages.novels.components.NovelProductionExperienceHandoff.gen_1fd86181", "简易创作")}</h2>
           <p className="mt-2 text-sm leading-6 text-muted-foreground">AI 接管正文生产，你只需关注章节进度和完成稿。</p>
           <ul className="mt-5 flex-1 space-y-3 text-sm text-foreground">
             {["持续写完整本书", "自动审校、修复与必要重规划", "进入只读章节书架"].map((item) => (
@@ -94,8 +91,8 @@ export default function NovelProductionExperienceHandoff({
           <span className="inline-flex h-11 w-11 items-center justify-center rounded-2xl bg-muted text-muted-foreground">
             <Settings2 className="h-5 w-5" />
           </span>
-          <h2 className="mt-5 text-xl font-semibold text-foreground">专业创作</h2>
-          <p className="mt-2 text-sm leading-6 text-muted-foreground">保留完整控制权，检查规划后自行安排正文生产。</p>
+          <h2 className="mt-5 text-xl font-semibold text-foreground">{t("gen.pages.novels.components.NovelProductionExperienceHandoff.gen_30bcd4fb", "专业创作")}</h2>
+          <p className="mt-2 text-sm leading-6 text-muted-foreground">{t("gen.pages.novels.components.NovelProductionExperienceHandoff.gen_5f26e3af", "保留完整控制权，检查规划后自行安排正文生产。")}</p>
           <ul className="mt-5 flex-1 space-y-3 text-sm text-foreground">
             {["查看并调整全部创作资产", "自由修改卷章规划与正文", "自行决定章节生产范围"].map((item) => (
               <li key={item} className="flex items-center gap-2.5">

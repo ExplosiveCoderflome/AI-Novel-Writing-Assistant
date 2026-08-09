@@ -1,3 +1,4 @@
+import i18next from "i18next";
 import { useTranslation } from "react-i18next";
 import type { Character } from "@ai-novel/shared/types/novel";
 import { Crown, Trash2, UsersRound } from "lucide-react";
@@ -77,9 +78,7 @@ function CharacterCard(props: {
             <div className="truncate font-medium">{character.name}</div>
             {isProtagonist ? (
               <Badge variant="secondary" className="gap-1 px-1.5">
-                <Crown className="h-3 w-3" />
-                主角
-              </Badge>
+                <Crown className="h-3 w-3" />{t("gen.pages.novels.components.CharacterAssetSidebar.gen_83b681f4", "主角")}</Badge>
             ) : null}
           </div>
           <div className="mt-1 line-clamp-2 text-xs leading-5 text-muted-foreground">
@@ -98,7 +97,7 @@ function CharacterCard(props: {
         disabled={isDeletingThis}
         onClick={() => confirmDeleteCharacter(character, onDeleteCharacter)}
         className="h-8 w-8 shrink-0 self-center p-0 text-muted-foreground opacity-60 hover:bg-destructive/10 hover:text-destructive group-hover:opacity-100"
-        title="删除角色"
+        title={t("gen.pages.novels.components.CharacterAssetSidebar.gen_ca40c5a5", "删除角色")}
       >
         {isDeletingThis ? "..." : <Trash2 className="h-4 w-4" />}
       </Button>
@@ -124,10 +123,8 @@ export default function CharacterAssetSidebar(props: CharacterAssetSidebarProps)
       <section className="space-y-2">
         <div className="flex items-center justify-between gap-2">
           <div className="flex items-center gap-2 text-xs font-medium text-muted-foreground">
-            <Crown className="h-3.5 w-3.5 text-emerald-600" />
-            主角位
-          </div>
-          {protagonist ? <Badge variant="outline">主角</Badge> : null}
+            <Crown className="h-3.5 w-3.5 text-emerald-600" />{t("gen.pages.novels.components.CharacterAssetSidebar.gen_19618429", "主角位")}</div>
+          {protagonist ? <Badge variant="outline">{t("gen.pages.novels.components.CharacterAssetSidebar.gen_83b681f4", "主角")}</Badge> : null}
         </div>
         {protagonist ? (
           <CharacterCard
@@ -140,21 +137,15 @@ export default function CharacterAssetSidebar(props: CharacterAssetSidebarProps)
             isProtagonist
           />
         ) : (
-          <div className="rounded-xl border border-dashed border-primary/30 bg-primary/5 p-3 text-xs leading-5 text-muted-foreground">
-            当前阵容还没有标记主角，可在角色定位中补充主角信息。
-          </div>
+          <div className="rounded-xl border border-dashed border-primary/30 bg-primary/5 p-3 text-xs leading-5 text-muted-foreground">{t("gen.pages.novels.components.CharacterAssetSidebar.gen_4f1b7b08", "当前阵容还没有标记主角，可在角色定位中补充主角信息。")}</div>
         )}
       </section>
 
       <section className="space-y-2">
         <div className="flex items-center gap-2 text-xs font-medium text-muted-foreground">
-          <UsersRound className="h-3.5 w-3.5 text-sky-600" />
-          配角与关系角色
-        </div>
+          <UsersRound className="h-3.5 w-3.5 text-sky-600" />{t("gen.pages.novels.components.CharacterAssetSidebar.gen_1f968469", "配角与关系角色")}</div>
         {characters.length === 0 ? (
-          <div className="rounded-xl border border-dashed p-4 text-sm text-muted-foreground">
-            当前小说还没有角色，先在上方向导里创建或导入角色。
-          </div>
+          <div className="rounded-xl border border-dashed p-4 text-sm text-muted-foreground">{t("gen.pages.novels.components.CharacterAssetSidebar.gen_3010513a", "当前小说还没有角色，先在上方向导里创建或导入角色。")}</div>
         ) : supportingCharacters.length > 0 ? (
           <div className="max-h-[460px] space-y-2 overflow-auto pr-1">
             {supportingCharacters.map((character) => (
@@ -170,9 +161,7 @@ export default function CharacterAssetSidebar(props: CharacterAssetSidebarProps)
             ))}
           </div>
         ) : (
-          <div className="rounded-xl border border-dashed p-4 text-sm text-muted-foreground">
-            当前阵容只有主角，后续可补充对手、同盟或关系压力角色。
-          </div>
+          <div className="rounded-xl border border-dashed p-4 text-sm text-muted-foreground">{t("gen.pages.novels.components.CharacterAssetSidebar.gen_e7bbce33", "当前阵容只有主角，后续可补充对手、同盟或关系压力角色。")}</div>
         )}
       </section>
     </div>

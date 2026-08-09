@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import i18next from "i18next";
 const t = (key: string, options?: any) => i18next.t(key, options) as string;
 import { Badge } from "@/components/ui/badge";
@@ -20,6 +21,7 @@ export default function MobileNovelStepNav({
   workflowCurrentTab,
   onSelectTab,
 }: MobileNovelStepNavProps) {
+  const { t } = useTranslation();
   const steps = [...NOVEL_WORKSPACE_FLOW_STEPS, ...NOVEL_WORKSPACE_TOOL_TABS];
 
   return (
@@ -47,9 +49,7 @@ export default function MobileNovelStepNav({
               ) : null}
               <span className="max-w-32 truncate">{step.label}</span>
               {isRecommended ? (
-                <Badge variant="secondary" className="rounded-full px-1.5 py-0 text-[10px]">
-                  流程推荐
-                </Badge>
+                <Badge variant="secondary" className="rounded-full px-1.5 py-0 text-[10px]">{t("gen.pages.novels.mobile.MobileNovelStepNav.gen_44420c5a", "流程推荐")}</Badge>
               ) : null}
             </span>
           </Button>

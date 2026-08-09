@@ -1,3 +1,4 @@
+import i18next from "i18next";
 import { useTranslation } from "react-i18next";
 import type { AutoDirectorFollowUpListResponse, AutoDirectorFollowUpOverview } from "@ai-novel/shared/types/autoDirectorFollowUp";
 import type { AutoDirectorFollowUpSection } from "@ai-novel/shared/types/autoDirectorValidation";
@@ -81,7 +82,7 @@ export function AutoDirectorFollowUpOverviewCards({
   return (
     <div className={AUTO_DIRECTOR_MOBILE_CLASSES.followUpOverviewGrid}>
       <TaskQueueSection
-        title="跟进分区"
+        title={t("gen.pages.autoDirectorFollowUps.components.AutoDirectorFollowUpOverview.gen_1cc02357", "跟进分区")}
         description={`今日恢复 ${list?.summaryCounters.recoveredToday ?? 0} 项，今日完成 ${list?.summaryCounters.completedToday ?? 0} 项；阻塞、待操作与自动推进分开处理。`}
         className={AUTO_DIRECTOR_MOBILE_CLASSES.followUpOverviewCard}
       >

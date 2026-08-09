@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import i18next from "i18next";
 const t = (key: string, options?: any) => i18next.t(key, options) as string;
 import { useEffect, useMemo, useState } from "react";
@@ -220,27 +221,21 @@ export function DramaVisualPanel(props: {
         </div>
         <div className="flex flex-wrap gap-2">
           <Button type="button" disabled={props.busy || !selectedEpisode.content?.trim()} onClick={() => props.onStoryboard(selectedEpisode.order)}>
-            <Film className="h-4 w-4" />
-            生成分镜
-          </Button>
+            <Film className="h-4 w-4" />{t("gen.pages.drama.components.DramaVisualPanel.gen_3d45375e", "生成分镜")}</Button>
           <Button
             type="button"
             variant="outline"
             disabled={props.busy || !hasStoryboardShots || imageProviders.length === 0 || keyframeBatchActive}
             onClick={() => props.onBatchJob(selectedEpisode.order, { type: "keyframes", provider: activeImageProvider || undefined, useCharacterRefImages })}
           >
-            <ImageIcon className="h-4 w-4" />
-            生成本集首帧
-          </Button>
+            <ImageIcon className="h-4 w-4" />{t("gen.pages.drama.components.DramaVisualPanel.gen_2b8b7963", "生成本集首帧")}</Button>
           <Button
             type="button"
             variant="outline"
             disabled={props.busy || !hasStoryboardShots || videoBatchActive}
             onClick={() => props.onBatchJob(selectedEpisode.order, { type: "videos", provider: props.selectedProvider })}
           >
-            <Sparkles className="h-4 w-4" />
-            创建本集视频任务
-          </Button>
+            <Sparkles className="h-4 w-4" />{t("gen.pages.drama.components.DramaVisualPanel.gen_c87865f3", "创建本集视频任务")}</Button>
         </div>
       </div>
       {hasStoryboardShots ? (
@@ -326,9 +321,7 @@ export function DramaVisualPanel(props: {
                         {keyframe.status === "done" ? i18next.t("gen.pages.drama.components.DramaVisualPanel.gen_8f5ba26d") : i18next.t("gen.pages.drama.components.DramaVisualPanel.gen_64a4e687")}
                       </Button>
                       <Button size="sm" type="button" variant="outline" disabled={props.busy} onClick={() => props.onVideoPrompt(shot)}>
-                        <Video className="h-4 w-4" />
-                        视频提示词
-                      </Button>
+                        <Video className="h-4 w-4" />{t("gen.pages.drama.components.DramaVisualPanel.gen_e02e2b9f", "视频提示词")}</Button>
                       {prompt ? (
                         <>
                           <Button size="sm" type="button" disabled={props.busy || Boolean(prompt.providerTaskId)} onClick={() => props.onProviderTask(prompt, props.selectedProvider)}>
@@ -337,9 +330,7 @@ export function DramaVisualPanel(props: {
                           </Button>
                           {prompt.providerTaskId ? (
                             <Button size="sm" type="button" variant="outline" disabled={props.busy} onClick={() => props.onRefreshProviderTask(prompt)}>
-                              <RefreshCw className="h-4 w-4" />
-                              刷新状态
-                            </Button>
+                              <RefreshCw className="h-4 w-4" />{t("gen.pages.drama.components.DramaVisualPanel.gen_4f8d48ef", "刷新状态")}</Button>
                           ) : null}
                         </>
                       ) : null}
@@ -379,14 +370,10 @@ export function DramaVisualPanel(props: {
                   <div className="flex flex-wrap gap-2">
                     {!prompt.providerTaskId ? (
                       <Button size="sm" type="button" disabled={props.busy || !isActiveVideoPrompt(prompt)} onClick={() => props.onProviderTask(prompt, props.selectedProvider)}>
-                        <Sparkles className="h-4 w-4" />
-                        创建任务
-                      </Button>
+                        <Sparkles className="h-4 w-4" />{t("gen.pages.drama.components.DramaVisualPanel.gen_6ef95fe9", "创建任务")}</Button>
                     ) : (
                       <Button size="sm" type="button" variant="outline" disabled={props.busy} onClick={() => props.onRefreshProviderTask(prompt)}>
-                        <RefreshCw className="h-4 w-4" />
-                        刷新状态
-                      </Button>
+                        <RefreshCw className="h-4 w-4" />{t("gen.pages.drama.components.DramaVisualPanel.gen_4f8d48ef", "刷新状态")}</Button>
                     )}
                   </div>
                 </div>
@@ -493,9 +480,7 @@ function BatchJobStatus(props: {
             disabled={props.disabled || isActiveBatch(props.job)}
             onClick={() => props.onRetry(failedShotIds)}
           >
-            <RefreshCw className="h-4 w-4" />
-            重试失败镜头
-          </Button>
+            <RefreshCw className="h-4 w-4" />{t("gen.pages.drama.components.DramaVisualPanel.gen_60637682", "重试失败镜头")}</Button>
         </div>
       ) : null}
     </div>
@@ -653,9 +638,7 @@ function VideoPromptDetails({ prompt, compact = false }: { prompt: DramaVideoPro
           href={resultUrl}
           target="_blank"
           rel="noreferrer"
-        >
-          查看生成结果
-          <ExternalLink className="h-4 w-4" />
+        >{t("gen.pages.drama.components.DramaVisualPanel.gen_faf900b7", "查看生成结果")}<ExternalLink className="h-4 w-4" />
         </a>
       ) : null}
       {prompt.status === "failed" ? (

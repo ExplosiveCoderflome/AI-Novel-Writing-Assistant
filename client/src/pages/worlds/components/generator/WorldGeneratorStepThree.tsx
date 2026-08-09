@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import i18next from "i18next";
 const t = (key: string, options?: any) => i18next.t(key, options) as string;
 import type { WorldSkeletonGenerationPayload } from "@ai-novel/shared/types/worldWizard";
@@ -27,6 +28,7 @@ function SectionList(props: { title: string; items: string[]; emptyText: string 
 }
 
 export default function WorldGeneratorStepThree(props: WorldGeneratorStepThreeProps) {
+  const { t } = useTranslation();
   const { skeleton, savePending, onBackToScale, onSave } = props;
   const structure = skeleton.structuredData;
   const forceNameById = new Map(structure.forces.map((item) => [item.id, item.name]));
@@ -146,9 +148,7 @@ export default function WorldGeneratorStepThree(props: WorldGeneratorStepThreePr
       ) : null}
 
       <div className="flex flex-wrap gap-2">
-        <Button variant="secondary" onClick={onBackToScale}>
-          返回调整规模
-        </Button>
+        <Button variant="secondary" onClick={onBackToScale}>{t("gen.pages.worlds.components.generator.WorldGeneratorStepThree.gen_7e5531a4", "返回调整规模")}</Button>
         <Button onClick={onSave} disabled={savePending}>
           {savePending ? i18next.t("gen.pages.worlds.components.generator.WorldGeneratorStepThree.savingWorldInTheMiddle") : i18next.t("gen.pages.worlds.components.generator.WorldGeneratorStepThree.saveAndEnterWorldManual")}
         </Button>

@@ -153,9 +153,7 @@ export default function ChapterManagementTab(props: ChapterTabViewProps) {
         <div className="flex flex-col gap-3 xl:flex-row xl:items-start xl:justify-between">
           <div className="space-y-1">
             <CardTitle>{i18next.t("gen.pages.novels.components.ChapterManagementTab.gen_663bbefc")}</CardTitle>
-            <div className="text-sm leading-6 text-muted-foreground">
-              把这里收成真正的主工作台：左侧只管切章，中间完整承接正文，右侧专心放 AI 动作和策略。
-            </div>
+            <div className="text-sm leading-6 text-muted-foreground">{t("gen.pages.novels.components.ChapterManagementTab.gen_a7ecba20", "把这里收成真正的主工作台：左侧只管切章，中间完整承接正文，右侧专心放 AI 动作和策略。")}</div>
           </div>
           <Button onClick={onCreateChapter} disabled={isCreatingChapter}>
             {isCreatingChapter ? i18next.t("gen.pages.novels.components.ChapterManagementTab.gen_b26107b6") : i18next.t("gen.pages.novels.components.ChapterManagementTab.gen_fa0e627a")}

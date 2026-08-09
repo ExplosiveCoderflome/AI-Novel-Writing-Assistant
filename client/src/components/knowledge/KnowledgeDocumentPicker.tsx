@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import i18next from "i18next";
 const t = (key: string, options?: any) => i18next.t(key, options) as string;
 import { useMemo, useState } from "react";
@@ -23,6 +24,7 @@ function formatDocumentKind(kind: "user_upload" | "analysis_published"): string 
 }
 
 export default function KnowledgeDocumentPicker(props: KnowledgeDocumentPickerProps) {
+  const { t } = useTranslation();
   const [keyword, setKeyword] = useState("");
 
   const documentsQuery = useQuery({
@@ -54,23 +56,17 @@ export default function KnowledgeDocumentPicker(props: KnowledgeDocumentPickerPr
             type="button"
             className={`rounded-md border px-3 py-1 text-sm ${isAuto ? "bg-accent" : ""}`}
             onClick={() => props.onChange(null)}
-          >
-            自动
-          </button>
+          >{t("gen.components.knowledge.KnowledgeDocumentPicker.gen_3aed2c11", "自动")}</button>
           <button
             type="button"
             className={`rounded-md border px-3 py-1 text-sm ${!isAuto ? "bg-accent" : ""}`}
             onClick={() => props.onChange(selectedIds)}
-          >
-            自定义
-          </button>
+          >{t("gen.components.knowledge.KnowledgeDocumentPicker.gen_f1d4ff50", "自定义")}</button>
         </div>
       ) : null}
 
       {isAuto ? (
-        <div className="rounded-md border border-dashed p-3 text-sm text-muted-foreground">
-          当前使用自动规则：若有实体绑定文档则优先使用绑定文档，否则回退到全部启用文档。
-        </div>
+        <div className="rounded-md border border-dashed p-3 text-sm text-muted-foreground">{t("gen.components.knowledge.KnowledgeDocumentPicker.gen_63ac283b", "当前使用自动规则：若有实体绑定文档则优先使用绑定文档，否则回退到全部启用文档。")}</div>
       ) : (
         <>
           <Input
@@ -118,9 +114,7 @@ export default function KnowledgeDocumentPicker(props: KnowledgeDocumentPickerPr
                         to={`/book-analysis?analysisId=${item.sourceAnalysisId}`}
                         className="text-xs text-primary hover:underline"
                         onClick={(event) => event.stopPropagation()}
-                      >
-                        查看来源拆书
-                      </Link>
+                      >{t("gen.components.knowledge.KnowledgeDocumentPicker.gen_31a84195", "查看来源拆书")}</Link>
                     ) : null}
                   </div>
                 </label>

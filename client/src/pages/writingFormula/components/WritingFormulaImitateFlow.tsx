@@ -39,9 +39,7 @@ export default function WritingFormulaImitateFlow(props: WritingFormulaImitateFl
     <Card className="border-slate-200/80 bg-white/90 shadow-[0_20px_60px_rgba(15,23,42,0.06)]">
       <CardHeader>
         <CardTitle>{i18next.t("gen.pages.writingFormula.components.WritingFormulaImitateFlow.gen_4f2fa708")}</CardTitle>
-        <div className="text-sm leading-7 text-muted-foreground">
-          你先给我一段明确的参考文本，我把它拆成可执行写法，再决定是贴近模仿、保留骨架，还是只迁移可复用部分。
-        </div>
+        <div className="text-sm leading-7 text-muted-foreground">{t("gen.pages.writingFormula.components.WritingFormulaImitateFlow.gen_dcd8ba37", "你先给我一段明确的参考文本，我把它拆成可执行写法，再决定是贴近模仿、保留骨架，还是只迁移可复用部分。")}</div>
       </CardHeader>
       <CardContent className="space-y-5">
         <div className="grid gap-5 xl:grid-cols-[minmax(0,1.1fr)_minmax(300px,0.9fr)]">
@@ -107,9 +105,7 @@ export default function WritingFormulaImitateFlow(props: WritingFormulaImitateFl
                 </div>
               </>
             ) : (
-              <div className="rounded-xl border border-dashed p-4 text-sm leading-7 text-muted-foreground">
-                先完成特征提取，这里才会出现三种保留策略和对应的读感说明。
-              </div>
+              <div className="rounded-xl border border-dashed p-4 text-sm leading-7 text-muted-foreground">{t("gen.pages.writingFormula.components.WritingFormulaImitateFlow.gen_cf41f32a", "先完成特征提取，这里才会出现三种保留策略和对应的读感说明。")}</div>
             )}
           </section>
         </div>
@@ -118,9 +114,7 @@ export default function WritingFormulaImitateFlow(props: WritingFormulaImitateFl
           <div className="flex items-start justify-between gap-4">
             <div>
               <div className="text-sm font-medium text-slate-900">{i18next.t("gen.pages.writingFormula.components.WritingFormulaImitateFlow.previewWritingSkeleton")}</div>
-              <div className="mt-1 text-xs leading-6 text-muted-foreground">
-                保存后会自动进入当前写法编辑，你可以继续调整规则、绑定到目标，或者直接拿去试写。
-              </div>
+              <div className="mt-1 text-xs leading-6 text-muted-foreground">{t("gen.pages.writingFormula.components.WritingFormulaImitateFlow.gen_a394472e", "保存后会自动进入当前写法编辑，你可以继续调整规则、绑定到目标，或者直接拿去试写。")}</div>
             </div>
             <Button type="button" onClick={onCreate} disabled={!draft || createPending}>
               {createPending ? i18next.t("gen.pages.writingFormula.components.WritingFormulaImitateFlow.gen_9ed210f2") : i18next.t("gen.pages.writingFormula.components.WritingFormulaImitateFlow.saveAsWritingAsset")}
@@ -139,9 +133,7 @@ export default function WritingFormulaImitateFlow(props: WritingFormulaImitateFl
               ))}
             </div>
           ) : (
-            <div className="mt-4 rounded-xl border border-dashed p-4 text-sm text-muted-foreground">
-              还没有可预览的特征。先完成特征提取，再决定保存方式。
-            </div>
+            <div className="mt-4 rounded-xl border border-dashed p-4 text-sm text-muted-foreground">{t("gen.pages.writingFormula.components.WritingFormulaImitateFlow.gen_61b5d946", "还没有可预览的特征。先完成特征提取，再决定保存方式。")}</div>
           )}
         </section>
       </CardContent>

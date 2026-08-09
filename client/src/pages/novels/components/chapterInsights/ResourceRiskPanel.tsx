@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import i18next from "i18next";
 const t = (key: string, options?: any) => i18next.t(key, options) as string;
 import { RefreshCw } from "lucide-react";
@@ -36,6 +37,7 @@ function ResourceGroup(props: {
 }
 
 export default function ResourceRiskPanel(props: ChapterExecutionInsightsSidebarProps) {
+  const { t } = useTranslation();
   const {
     selectedChapter,
     chapterResourceContext,
@@ -123,9 +125,7 @@ export default function ResourceRiskPanel(props: ChapterExecutionInsightsSidebar
       </div>
 
       {isLoadingChapterResourceContext ? (
-        <div className="rounded-xl border border-dashed border-border/70 bg-muted/10 p-3 text-xs leading-6 text-muted-foreground">
-          资源边界读取中。
-        </div>
+        <div className="rounded-xl border border-dashed border-border/70 bg-muted/10 p-3 text-xs leading-6 text-muted-foreground">{t("gen.pages.novels.components.chapterInsights.ResourceRiskPanel.gen_409634f9", "资源边界读取中。")}</div>
       ) : null}
 
       <div className="space-y-3">

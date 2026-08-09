@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import i18next from "i18next";
 const t = (key: string, options?: any) => i18next.t(key, options) as string;
 import { Trash2 } from "lucide-react";
@@ -49,6 +50,7 @@ export default function KnowledgeOpsTab({
   onDeleteJob,
   getOwnerName,
 }: KnowledgeOpsTabProps) {
+  const { t } = useTranslation();
   const finishedJobCount = jobs.filter((job) => canDeleteRagJob(job)).length;
 
   return (
@@ -99,9 +101,7 @@ export default function KnowledgeOpsTab({
           <CardHeader className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
             <div className="min-w-0 space-y-1">
               <CardTitle>{i18next.t("gen.pages.knowledge.components.KnowledgeOpsTab.gen_cad670fb")}</CardTitle>
-              <div className="text-xs text-muted-foreground">
-                清理已结束的索引记录，排队中和执行中的任务会保留。
-              </div>
+              <div className="text-xs text-muted-foreground">{t("gen.pages.knowledge.components.KnowledgeOpsTab.gen_ae068eb6", "清理已结束的索引记录，排队中和执行中的任务会保留。")}</div>
             </div>
             <Button
               type="button"

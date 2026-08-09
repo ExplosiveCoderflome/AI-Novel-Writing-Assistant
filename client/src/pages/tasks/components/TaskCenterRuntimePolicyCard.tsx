@@ -1,3 +1,5 @@
+import i18next from "i18next";
+import { useTranslation } from "react-i18next";
 import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import type {
@@ -47,6 +49,7 @@ export default function TaskCenterRuntimePolicyCard({
   taskId,
   snapshot,
 }: TaskCenterRuntimePolicyCardProps) {
+  const { t } = useTranslation();
   const queryClient = useQueryClient();
   const currentMode = snapshot?.policy.mode ?? "run_until_gate";
   const [selectedMode, setSelectedMode] = useState<DirectorPolicyMode>(currentMode);
@@ -85,10 +88,8 @@ export default function TaskCenterRuntimePolicyCard({
     <div className="rounded-md border bg-muted/20 p-3">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <div className="font-medium">导演推进方式</div>
-          <div className="mt-1 text-sm leading-6 text-muted-foreground">
-            选择系统接下来怎么推进这个导演任务。
-          </div>
+          <div className="font-medium">{t("gen.pages.tasks.components.TaskCenterRuntimePolicyCard.gen_fac11603", "导演推进方式")}</div>
+          <div className="mt-1 text-sm leading-6 text-muted-foreground">{t("gen.pages.tasks.components.TaskCenterRuntimePolicyCard.gen_846acfda", "选择系统接下来怎么推进这个导演任务。")}</div>
         </div>
         <Badge variant="outline">{formatPolicyMode(snapshot.policy.mode)}</Badge>
       </div>
@@ -113,10 +114,8 @@ export default function TaskCenterRuntimePolicyCard({
             onChange={(event) => setAllowExpensiveReview(event.target.checked)}
           />
           <span>
-            <span className="block font-medium">允许执行更完整的审校</span>
-            <span className="block text-xs leading-5 text-muted-foreground">
-              用于章节质量检查、近期章节复盘等步骤，系统会在执行前记录策略。
-            </span>
+            <span className="block font-medium">{t("gen.pages.tasks.components.TaskCenterRuntimePolicyCard.gen_4b97994b", "允许执行更完整的审校")}</span>
+            <span className="block text-xs leading-5 text-muted-foreground">{t("gen.pages.tasks.components.TaskCenterRuntimePolicyCard.gen_bffe15e1", "用于章节质量检查、近期章节复盘等步骤，系统会在执行前记录策略。")}</span>
           </span>
         </label>
         <label className="flex items-start gap-2 text-sm">
@@ -127,10 +126,8 @@ export default function TaskCenterRuntimePolicyCard({
             onChange={(event) => setMayOverwriteUserContent(event.target.checked)}
           />
           <span>
-            <span className="block font-medium">允许改写受保护的内容</span>
-            <span className="block text-xs leading-5 text-muted-foreground">
-              仅在你确认要让系统处理已编辑正文或关键设定时开启。
-            </span>
+            <span className="block font-medium">{t("gen.pages.tasks.components.TaskCenterRuntimePolicyCard.gen_0c3cb38e", "允许改写受保护的内容")}</span>
+            <span className="block text-xs leading-5 text-muted-foreground">{t("gen.pages.tasks.components.TaskCenterRuntimePolicyCard.gen_c9d14820", "仅在你确认要让系统处理已编辑正文或关键设定时开启。")}</span>
           </span>
         </label>
       </div>

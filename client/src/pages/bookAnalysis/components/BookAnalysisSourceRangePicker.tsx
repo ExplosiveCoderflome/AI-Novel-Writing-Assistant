@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import i18next from "i18next";
 const t = (key: string, options?: any) => i18next.t(key, options) as string;
 import { useEffect, useMemo, useState } from "react";
@@ -132,6 +133,7 @@ export default function BookAnalysisSourceRangePicker({
   onRangeChange,
   onRequestChapters,
 }: BookAnalysisSourceRangePickerProps) {
+  const { t } = useTranslation();
   const [mode, setMode] = useState<RangeMode>(selectedRange ? "chapter" : "full");
   const sortedChapters = useMemo(() => sortChapters(sourceChapters), [sourceChapters]);
   const canUseChapterRange = sortedChapters.length > 1;
@@ -361,11 +363,11 @@ export default function BookAnalysisSourceRangePicker({
 
       {mode === "chapter" && canUseChapterRange ? (
         <div className="flex flex-wrap gap-1.5">
-          <QuickButton onClick={() => applyChapterPreset("first5")}>前 5 章</QuickButton>
-          <QuickButton onClick={() => applyChapterPreset("last5")}>后 5 章</QuickButton>
-          <QuickButton onClick={() => applyChapterPreset("frontThird")}>前 1/3</QuickButton>
-          <QuickButton onClick={() => applyChapterPreset("middleThird")}>中 1/3</QuickButton>
-          <QuickButton onClick={() => applyChapterPreset("backThird")}>后 1/3</QuickButton>
+          <QuickButton onClick={() => applyChapterPreset("first5")}>{t("gen.pages.bookAnalysis.components.BookAnalysisSourceRangePicker.gen_8a3c5fb6", "前 5 章")}</QuickButton>
+          <QuickButton onClick={() => applyChapterPreset("last5")}>{t("gen.pages.bookAnalysis.components.BookAnalysisSourceRangePicker.gen_2d5a1b88", "后 5 章")}</QuickButton>
+          <QuickButton onClick={() => applyChapterPreset("frontThird")}>{t("gen.pages.bookAnalysis.components.BookAnalysisSourceRangePicker.gen_75285e4a", "前 1/3")}</QuickButton>
+          <QuickButton onClick={() => applyChapterPreset("middleThird")}>{t("gen.pages.bookAnalysis.components.BookAnalysisSourceRangePicker.gen_2fd00c66", "中 1/3")}</QuickButton>
+          <QuickButton onClick={() => applyChapterPreset("backThird")}>{t("gen.pages.bookAnalysis.components.BookAnalysisSourceRangePicker.gen_3610bac9", "后 1/3")}</QuickButton>
         </div>
       ) : null}
 

@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import i18next from "i18next";
 import { useId, useState } from "react";
 import { Button } from "@/components/ui/button";
@@ -110,9 +111,7 @@ function renderNovelList(output: Record<string, unknown>, onQuickAction?: (promp
                     size="sm"
                     variant="outline"
                     onClick={() => onQuickAction(`把《${title}》设为当前工作区`)}
-                  >
-                    设为当前工作区
-                  </Button>
+                  >{t("gen.pages.creativeHub.components.CreativeHubToolResultCard.gen_b568c569", "设为当前工作区")}</Button>
                 </div>
               ) : null}
             </div>
@@ -339,6 +338,7 @@ export default function CreativeHubToolResultCard({
   errorCode,
   onQuickAction,
 }: CreativeHubToolResultCardProps) {
+  const { t } = useTranslation();
   const [expanded, setExpanded] = useState(false);
   const detailsId = useId();
   const payload = asRecord(output);
@@ -499,7 +499,7 @@ export default function CreativeHubToolResultCard({
           {cardContent}
         </div>
       ) : (
-        <div className="mt-2 text-xs text-muted-foreground">详细执行结果默认收起，可按需查看。</div>
+        <div className="mt-2 text-xs text-muted-foreground">{t("gen.pages.creativeHub.components.CreativeHubToolResultCard.gen_75ce310d", "详细执行结果默认收起，可按需查看。")}</div>
       )}
     </div>
   );

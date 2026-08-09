@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import i18next from "i18next";
 const t = (key: string, options?: any) => i18next.t(key, options) as string;
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -63,6 +64,7 @@ interface AiRevisionWorkspaceProps {
 }
 
 export default function AiRevisionWorkspace(props: AiRevisionWorkspaceProps) {
+  const { t } = useTranslation();
   const {
     value,
     onChange,
@@ -187,9 +189,7 @@ export default function AiRevisionWorkspace(props: AiRevisionWorkspaceProps) {
               onMouseDown={(event) => event.preventDefault()}
               onClick={() => onOptimizeSelection(selectedText)}
               disabled={isOptimizing || instruction.trim().length === 0 || selectedText.length === 0}
-            >
-              仅优化选中内容
-            </Button>
+            >{t("gen.components.common.AiRevisionWorkspace.gen_2ba69422", "仅优化选中内容")}</Button>
           </div>
           {preview.trim() ? (
             <div className="space-y-2">

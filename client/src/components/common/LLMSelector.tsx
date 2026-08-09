@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import i18next from "i18next";
 const t = (key: string, options?: any) => i18next.t(key, options) as string;
 import { useCallback, useEffect, useMemo, useRef } from "react";
@@ -61,6 +62,7 @@ export default function LLMSelector({
   showHelperText = true,
   className,
 }: LLMSelectorProps) {
+  const { t } = useTranslation();
   const store = useLLMStore();
   const queryClient = useQueryClient();
   const latestProviderRefreshRef = useRef<LLMProvider | null>(null);
@@ -281,9 +283,7 @@ export default function LLMSelector({
           </SelectTrigger>
           <SelectContent>
             {!hasRunnableProviders ? (
-              <SelectItem value={NO_PROVIDER_VALUE} disabled>
-                请先配置可用厂商
-              </SelectItem>
+              <SelectItem value={NO_PROVIDER_VALUE} disabled>{t("gen.components.common.LLMSelector.gen_0597dad8", "请先配置可用厂商")}</SelectItem>
             ) : null}
             {providerOptions.map((provider) => (
               <SelectItem key={provider} value={provider}>
@@ -309,9 +309,7 @@ export default function LLMSelector({
       </div>
 
       {showHelperText && !hasRunnableProviders && !apiKeySettingsQuery.isLoading ? (
-        <div className="text-xs text-muted-foreground">
-          当前没有已配置且启用的模型厂商，请先到系统设置里完成 API Key 和模型配置。
-        </div>
+        <div className="text-xs text-muted-foreground">{t("gen.components.common.LLMSelector.gen_79444613", "当前没有已配置且启用的模型厂商，请先到系统设置里完成 API Key 和模型配置。")}</div>
       ) : null}
 
       {showParameters ? (

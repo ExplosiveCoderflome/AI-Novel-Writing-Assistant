@@ -219,9 +219,7 @@ function DesktopNovelEditView(props: NovelEditViewProps) {
 
             <Button variant="outline" asChild>
               <Link to={`/comic?sourceType=novel_import&sourceRef=${id}&novelTitle=${encodeURIComponent(novelTitle)}`}>
-                <FileImage className="mr-1.5 h-4 w-4 text-primary" />
-                改编漫画
-              </Link>
+                <FileImage className="mr-1.5 h-4 w-4 text-primary" />{t("gen.pages.novels.components.NovelEditView.gen_9aa4252e", "改编漫画")}</Link>
             </Button>
 
             <Dialog open={isExportDialogOpen} onOpenChange={setIsExportDialogOpen}>
@@ -231,9 +229,7 @@ function DesktopNovelEditView(props: NovelEditViewProps) {
               <DialogContent className="max-w-2xl">
                 <DialogHeader>
                   <DialogTitle>{i18next.t("gen.pages.novels.components.NovelEditView.gen_379ad801")}</DialogTitle>
-                  <DialogDescription>
-                    当前步骤会按你正在查看的工作台导出；整本书会把项目设定、故事规划、角色、卷规划、拆章、章节和质量修复资产一起导出。
-                  </DialogDescription>
+                  <DialogDescription>{t("gen.pages.novels.components.NovelEditView.gen_d869b179", "当前步骤会按你正在查看的工作台导出；整本书会把项目设定、故事规划、角色、卷规划、拆章、章节和质量修复资产一起导出。")}</DialogDescription>
                 </DialogHeader>
                 <div className="grid gap-4 md:grid-cols-2">
                   <Card>
@@ -291,9 +287,7 @@ function DesktopNovelEditView(props: NovelEditViewProps) {
               <DialogContent className="max-h-[90vh] w-[calc(100vw-2rem)] max-w-4xl overflow-auto">
                 <DialogHeader>
                   <DialogTitle>{i18next.t("gen.pages.novels.components.NovelEditView.gen_81904c4a")}</DialogTitle>
-                  <DialogDescription>
-                    这里收纳次级信息。首屏只保留当前步骤和恢复接管入口，避免主工作区被项目辅助信息挤满。
-                  </DialogDescription>
+                  <DialogDescription>{t("gen.pages.novels.components.NovelEditView.gen_30e9d9c8", "这里收纳次级信息。首屏只保留当前步骤和恢复接管入口，避免主工作区被项目辅助信息挤满。")}</DialogDescription>
                 </DialogHeader>
                 <div className="grid gap-3 md:grid-cols-2">
                   <Card>

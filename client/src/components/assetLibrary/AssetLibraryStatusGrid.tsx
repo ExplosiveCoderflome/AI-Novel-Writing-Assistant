@@ -1,3 +1,5 @@
+import i18next from "i18next";
+import { useTranslation } from "react-i18next";
 import type { LucideIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -21,8 +23,9 @@ const toneClass: Record<AssetLibraryTone, string> = {
 };
 
 export default function AssetLibraryStatusGrid(props: { items: AssetLibraryStatusItem[] }) {
+  const { t } = useTranslation();
   return (
-    <section aria-label="资产状态" className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+    <section aria-label={t("gen.components.assetLibrary.AssetLibraryStatusGrid.gen_34294ae7", "资产状态")} className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
       {props.items.map((item) => {
         const Icon = item.icon;
         return (

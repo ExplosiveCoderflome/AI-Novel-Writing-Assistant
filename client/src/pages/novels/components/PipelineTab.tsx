@@ -351,25 +351,19 @@ export default function PipelineTab(props: PipelineTabProps) {
                     type="checkbox"
                     checked={pipelineForm.autoReview}
                     onChange={(event) => onPipelineFormChange("autoReview", event.target.checked)}
-                  />
-                  自动审校
-                </label>
+                  />{t("gen.pages.novels.components.PipelineTab.gen_04111616", "自动审校")}</label>
                 <label className="flex items-center gap-1">
                   <input
                     type="checkbox"
                     checked={pipelineForm.autoRepair}
                     onChange={(event) => onPipelineFormChange("autoRepair", event.target.checked)}
-                  />
-                  自动修复
-                </label>
+                  />{t("gen.pages.novels.components.PipelineTab.gen_fcc3d39a", "自动修复")}</label>
                 <label className="flex items-center gap-1">
                   <input
                     type="checkbox"
                     checked={pipelineForm.skipCompleted}
                     onChange={(event) => onPipelineFormChange("skipCompleted", event.target.checked)}
-                  />
-                  跳过已完成章节
-                </label>
+                  />{t("gen.pages.novels.components.PipelineTab.gen_e39fc380", "跳过已完成章节")}</label>
               </div>
               <div className="rounded-md border bg-muted/20 p-2 text-xs text-muted-foreground">
                 当前设置：{pipelineForm.runMode === "polish" ? i18next.t("gen.pages.novels.components.PipelineTab.gen_41ed42e6") : i18next.t("gen.pages.novels.components.PipelineTab.gen_f63762a0")} | 阈值 {pipelineForm.qualityThreshold} | {repairModeLabel(pipelineForm.repairMode)}
@@ -414,7 +408,7 @@ export default function PipelineTab(props: PipelineTabProps) {
               </CardHeader>
               <CardContent className="space-y-3">
                 <div className="flex flex-wrap gap-2">
-                  <AiButton onClick={() => onRunPipeline()} disabled={isRunningPipeline || !hasCharacters}>启动批量生成</AiButton>
+                  <AiButton onClick={() => onRunPipeline()} disabled={isRunningPipeline || !hasCharacters}>{t("gen.pages.novels.components.PipelineTab.gen_4bd6d43a", "启动批量生成")}</AiButton>
                   <AiButton
                     variant="outline"
                     onClick={() => {
@@ -428,9 +422,7 @@ export default function PipelineTab(props: PipelineTabProps) {
                       });
                     }}
                     disabled={isRunningPipeline || !lowScoreRange}
-                  >
-                    仅重跑低分章节
-                  </AiButton>
+                  >{t("gen.pages.novels.components.PipelineTab.gen_34f1e128", "仅重跑低分章节")}</AiButton>
                   <Button variant="outline" onClick={exportPipelineReport}>{i18next.t("gen.pages.novels.components.PipelineTab.gen_55edcfc0")}</Button>
                   <AiButton onClick={onGenerateBible} disabled={isBibleStreaming || !hasCharacters}>{i18next.t("gen.pages.novels.components.PipelineTab.gen_e874b56f")}</AiButton>
                   <Button variant="secondary" onClick={onAbortBible} disabled={!isBibleStreaming}>{i18next.t("gen.pages.novels.components.PipelineTab.gen_7ad87f4a")}</Button>
@@ -521,9 +513,7 @@ export default function PipelineTab(props: PipelineTabProps) {
                     <div className="rounded-md border p-2"><div className="font-medium">{i18next.t("gen.pages.novels.components.PipelineTab.gen_3f78c39a")}</div><div className="text-muted-foreground">{i18next.t("gen.pages.novels.components.PipelineTab.bibleCoreSetting")}</div></div>
                     <div className="rounded-md border p-2">
                       <div className="font-medium">{i18next.t("gen.pages.novels.components.PipelineTab.bibleWorldRecord")}</div>
-                      <div className="text-xs leading-5 text-muted-foreground">
-                        这里是作品圣经里的文字记录；章节生成优先读取“本书世界”里的世界手册和使用范围。
-                      </div>
+                      <div className="text-xs leading-5 text-muted-foreground">{t("gen.pages.novels.components.PipelineTab.gen_eb05564d", "这里是作品圣经里的文字记录；章节生成优先读取“本书世界”里的世界手册和使用范围。")}</div>
                       <div className="mt-2 text-muted-foreground">{i18next.t("gen.pages.novels.components.PipelineTab.bibleWorldRules")}</div>
                     </div>
                   </>
