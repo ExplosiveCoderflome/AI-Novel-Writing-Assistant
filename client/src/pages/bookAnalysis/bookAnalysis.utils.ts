@@ -50,7 +50,7 @@ export function isBookAnalysisBudgetExceeded(lastError?: string | null): boolean
 
 export function formatDate(value?: string | null): string {
   if (!value) {
-    return "暂无";
+    return i18next.t("common.none");
   }
   return new Date(value).toLocaleString();
 }

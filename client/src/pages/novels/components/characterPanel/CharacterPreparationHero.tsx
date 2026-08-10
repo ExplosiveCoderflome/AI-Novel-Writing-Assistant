@@ -95,16 +95,16 @@ function getRecommendedAction(input: {
   pendingCharacterResourceCount: number;
 }): string {
   if (input.characterCount === 0) {
-    return "先建立主角或导入基础角色，让后续世界、卷规划和章节生成有明确行动主体。";
+    return i18next.t("novels.characterPreparationHero.pf5yzd");
   }
   if (input.coreCharacterCount === 0) {
-    return "把主角、主要对手或关键同盟标记清楚，避免后续章节缺少稳定压力源。";
+    return i18next.t("novels.characterPreparationHero.nbhff3");
   }
   if (input.pendingCharacterResourceCount > 0) {
     return `有 ${input.pendingCharacterResourceCount} 条资源变更等待确认，建议到“资源”页核对。`;
   }
   if (!input.selectedCharacter) {
-    return "从左侧选择一个角色，进入档案、外显、资源和时间线的切换式维护。";
+    return i18next.t("novels.characterPreparationHero.i0a8op");
   }
-  return "优先检查当前目标、最近出场和关键资源，再决定是否让 AI 演进状态。";
+  return i18next.t("novels.characterPreparationHero.ruyund");
 }

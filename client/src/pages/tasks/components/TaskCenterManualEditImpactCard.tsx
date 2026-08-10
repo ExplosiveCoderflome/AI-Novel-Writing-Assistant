@@ -14,15 +14,15 @@ interface TaskCenterManualEditImpactCardProps {
 
 function formatImpactLevel(level: DirectorManualEditImpactLevel): string {
   if (level === "none") {
-    return "没有发现影响";
+    return i18next.t("tasks.taskCenterManualEditImpactCard.dum81v");
   }
   if (level === "low") {
-    return "轻微影响";
+    return i18next.t("tasks.taskCenterManualEditImpactCard.ihyuz3");
   }
   if (level === "medium") {
-    return "中等影响";
+    return i18next.t("tasks.taskCenterManualEditImpactCard.adhkjc");
   }
-  return "高影响";
+  return i18next.t("tasks.taskCenterManualEditImpactCard.n56qc");
 }
 
 function impactVariant(level: DirectorManualEditImpactLevel): "default" | "outline" | "secondary" | "destructive" {
@@ -91,7 +91,7 @@ export default function TaskCenterManualEditImpactCard({
       ai: true,
     }),
     onError: (error) => {
-      toast.error(error instanceof Error ? error.message : "检查章节改动影响失败");
+      toast.error(error instanceof Error ? error.message : i18next.t("tasks.taskCenterManualEditImpactCard.otvr4q"));
     },
   });
 

@@ -119,35 +119,35 @@ export function getFollowUpPriorityLabel(
   priority: AutoDirectorFollowUpPriority,
   reason?: AutoDirectorFollowUpReason,
 ): string {
-  if (reason === "replan_required") return "立即处理";
-  if (reason === "runtime_cancelled") return "可按需恢复";
-  if (reason === "runtime_replaced") return "历史记录";
-  if (reason === "quality_repair_pending") return "可稍后处理";
-  if (priority === "P0") return "立即处理";
-  if (priority === "P1") return "尽快处理";
-  return "可稍后处理";
+  if (reason === "replan_required") return i18next.t("autoDirectorFollowUps.followUpPresentation.fu7tl6");
+  if (reason === "runtime_cancelled") return i18next.t("autoDirectorFollowUps.followUpPresentation.duve4v");
+  if (reason === "runtime_replaced") return i18next.t("autoDirectorFollowUps.followUpPresentation.aw7utt");
+  if (reason === "quality_repair_pending") return i18next.t("autoDirectorFollowUps.followUpPresentation.b87b8u");
+  if (priority === "P0") return i18next.t("autoDirectorFollowUps.followUpPresentation.fu7tl6");
+  if (priority === "P1") return i18next.t("autoDirectorFollowUps.followUpPresentation.c1b13k");
+  return i18next.t("autoDirectorFollowUps.followUpPresentation.b87b8u");
 }
 
 export function getFollowUpActionConsequence(action: AutoDirectorAction): string {
   if (action.kind === "navigation") {
-    return "只打开对应处理页面，不会改变当前导演任务状态。";
+    return i18next.t("autoDirectorFollowUps.followUpPresentation.criijs");
   }
   if (action.code === "continue_auto_execution") {
-    return "向当前导演任务提交继续命令，并从现有检查点推进自动执行范围。";
+    return i18next.t("autoDirectorFollowUps.followUpPresentation.2m02ca");
   }
   if (action.code === "continue_generic") {
-    return "向当前导演任务提交恢复命令，并从可恢复位置继续。";
+    return i18next.t("autoDirectorFollowUps.followUpPresentation.xcvlcm");
   }
   if (action.code === "retry_with_task_model") {
-    return "使用任务保存的模型重新入队，不会把其他工作区任务当作当前导演任务。";
+    return i18next.t("autoDirectorFollowUps.followUpPresentation.wh879y");
   }
   if (action.code === "retry_with_route_model") {
-    return "使用当前模型路由重新执行；该操作需要再次确认。";
+    return i18next.t("autoDirectorFollowUps.followUpPresentation.eanxix");
   }
   if (action.code === "auto_backfill_structured_outline") {
-    return "补齐校验确认缺失的拆章资产，再继续当前导演任务。";
+    return i18next.t("autoDirectorFollowUps.followUpPresentation.h4i0px");
   }
-  return "只执行校验声明为低风险的状态修复，不替用户确认候选或重写正文。";
+  return i18next.t("autoDirectorFollowUps.followUpPresentation.gzxdl4");
 }
 
 export function getFollowUpActionTone(action: AutoDirectorAction): WorkspaceTone {
@@ -158,10 +158,10 @@ export function getFollowUpActionTone(action: AutoDirectorAction): WorkspaceTone
 
 export function getFollowUpActionRiskDescription(action: AutoDirectorAction): string {
   if (action.riskLevel === "high") {
-    return "较高，执行前请核对影响范围。";
+    return i18next.t("autoDirectorFollowUps.followUpPresentation.lsfir2");
   }
   if (action.riskLevel === "medium" || action.requiresConfirm) {
-    return "需要确认，提交前请核对任务和写入范围。";
+    return i18next.t("autoDirectorFollowUps.followUpPresentation.pdghjh");
   }
   return action.kind === "navigation"
     ? "低风险，只打开处理页面。"

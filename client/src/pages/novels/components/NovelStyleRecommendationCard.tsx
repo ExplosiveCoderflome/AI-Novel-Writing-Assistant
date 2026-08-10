@@ -43,7 +43,7 @@ export default function NovelStyleRecommendationCard({ novelId }: NovelStyleReco
       setMessage("");
     },
     onError: (error) => {
-      setMessage(error instanceof Error ? error.message : "写法推荐失败，请稍后再试。");
+      setMessage(error instanceof Error ? error.message : i18next.t("novels.novelStyleRecommendationCard.b5zwvq"));
     },
   });
 
@@ -62,7 +62,7 @@ export default function NovelStyleRecommendationCard({ novelId }: NovelStyleReco
       await queryClient.invalidateQueries({ queryKey: queryKeys.styleEngine.bindings("all") });
     },
     onError: (error) => {
-      setMessage(error instanceof Error ? error.message : "写法绑定失败，请稍后再试。");
+      setMessage(error instanceof Error ? error.message : i18next.t("novels.novelStyleRecommendationCard.io1d79"));
     },
   });
 

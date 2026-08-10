@@ -53,26 +53,26 @@ function bindingStatusLabel(value: string | null | undefined): string {
 }
 
 function pipelineStatusLabel(status: string | null | undefined): string {
-  if (status === "queued") return "等待执行";
-  if (status === "running") return "执行中";
-  if (status === "succeeded") return "已完成";
-  if (status === "failed") return "执行失败";
-  if (status === "cancelled") return "已取消";
-  return "未启动";
+  if (status === "queued") return i18next.t("creativeHub.creativeHubSidebar.fy9mox");
+  if (status === "running") return i18next.t("creativeHub.statusBusy");
+  if (status === "succeeded") return i18next.t("tasks.filterStatusSucceeded");
+  if (status === "failed") return i18next.t("creativeHub.creativeHubSidebar.cz7pg9");
+  if (status === "cancelled") return i18next.t("tasks.filterStatusCancelled");
+  return i18next.t("dict.gen_f4baf7c6");
 }
 
 function turnStatusLabel(status: CreativeHubTurnSummary["status"]): string {
   switch (status) {
     case "succeeded":
-      return "已完成";
+      return i18next.t("tasks.filterStatusSucceeded");
     case "interrupted":
-      return "待确认";
+      return i18next.t("dict.gen_2a2772fa");
     case "failed":
-      return "失败";
+      return i18next.t("tasks.filterStatusFailed");
     case "cancelled":
-      return "已取消";
+      return i18next.t("tasks.filterStatusCancelled");
     case "running":
-      return "进行中";
+      return i18next.t("tasks.levelRunning");
     default:
       return status;
   }
@@ -81,15 +81,15 @@ function turnStatusLabel(status: CreativeHubTurnSummary["status"]): string {
 function threadStatusLabel(status: CreativeHubThread["status"] | undefined): string {
   switch (status) {
     case "busy":
-      return "执行中";
+      return i18next.t("creativeHub.statusBusy");
     case "interrupted":
-      return "待处理";
+      return i18next.t("autoDirector.secPending");
     case "error":
-      return "异常";
+      return i18next.t("dict.gen_c195df63");
     case "idle":
-      return "空闲";
+      return i18next.t("dict.gen_87bb5bbc");
     default:
-      return "未初始化";
+      return i18next.t("dict.gen_aeade8e9");
   }
 }
 
@@ -121,7 +121,7 @@ function buildBlockerCardData(input: {
         input.interrupt.targetType ? `目标类型: ${input.interrupt.targetType}` : "",
       ].filter(Boolean),
       tone: "border-warning/30 bg-warning/5 text-foreground",
-      actionLabel: "查看待确认项",
+      actionLabel: i18next.t("creativeHub.actionViewInterrupt"),
       actionPrompt: "总结当前待确认的创作决策，并说明推荐处理方式",
     };
   }
@@ -135,7 +135,7 @@ function buildBlockerCardData(input: {
         input.diagnostics.recoveryHint ? `恢复建议: ${input.diagnostics.recoveryHint}` : "",
       ].filter(Boolean),
       tone: "border-destructive/30 bg-destructive/5 text-foreground",
-      actionLabel: "生成恢复方案",
+      actionLabel: i18next.t("creativeHub.actionGenerateRecovery"),
       actionPrompt: input.diagnostics.recoveryHint || "分析当前失败原因并给出恢复步骤",
     };
   }
@@ -149,7 +149,7 @@ function buildBlockerCardData(input: {
         `当前阶段: ${input.productionStatus.currentStage}`,
       ].filter(Boolean),
       tone: "border-destructive/30 bg-destructive/5 text-foreground",
-      actionLabel: "处理当前阻塞",
+      actionLabel: i18next.t("dict.gen_24068591"),
       actionPrompt: input.productionStatus.recoveryHint || "分析当前生产阻塞并继续推进",
     };
   }
@@ -163,14 +163,14 @@ function buildBlockerCardData(input: {
         `状态: ${turnStatusLabel(input.latestTurnSummary.status)}`,
       ],
       tone: "border-info/30 bg-info/5 text-foreground",
-      actionLabel: "按建议继续",
+      actionLabel: i18next.t("creativeHub.actionContinueSuggested"),
       actionPrompt: input.latestTurnSummary.nextSuggestion,
     };
   }
 
   return {
     title: i18next.t("dict.gen_6bf1f392"),
-    summary: "当前没有需要立即处理的阻塞项，可以继续推进创作。",
+    summary: i18next.t("dict.gen_1d85a303"),
     details: input.latestTurnSummary?.nextSuggestion
       ? [`建议下一步: ${input.latestTurnSummary.nextSuggestion}`]
       : [],
@@ -264,7 +264,7 @@ export default function CreativeHubSidebar({
                   setIsBindingNovel(true);
                   void Promise.resolve(onNovelChange(novelId))
                     .catch((error: unknown) => {
-                      toast.error(error instanceof Error ? error.message : "小说工作区切换失败，请重试。");
+                      toast.error(error instanceof Error ? error.message : i18next.t("creativeHub.creativeHubSidebar.eukr5u"));
                     })
                     .finally(() => setIsBindingNovel(false));
                 }}
@@ -335,7 +335,7 @@ export default function CreativeHubSidebar({
                           await onCreateNovel?.(title);
                           setNovelTitleDraft("");
                         } catch (error) {
-                          toast.error(error instanceof Error ? error.message : "小说创建失败，请重试。");
+                          toast.error(error instanceof Error ? error.message : i18next.t("creativeHub.creativeHubSidebar.qknmx5"));
                         } finally {
                           creatingNovelInFlightRef.current = false;
                           setIsCreatingNovel(false);

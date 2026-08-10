@@ -322,55 +322,55 @@ export function resolveDisplayedChapterStatus(chapter: Chapter): Chapter["chapte
 export function chapterStatusLabel(status?: Chapter["chapterStatus"] | null): string {
   switch (status) {
     case "unplanned":
-      return "待准备";
+      return i18next.t("dict.gen_5a562457");
     case "pending_generation":
-      return "待写作";
+      return i18next.t("dict.gen_9c3c4a2c");
     case "generating":
-      return "写作中";
+      return i18next.t("novels.chapterExecution.shared.cc6ui");
     case "pending_review":
-      return "已审校";
+      return i18next.t("novels.chapterExecution.shared.e7j0y");
     case "needs_repair":
-      return "建议修复";
+      return i18next.t("dict.gen_c94222f6");
     case "completed":
-      return "已完成";
+      return i18next.t("tasks.filterStatusSucceeded");
     default:
-      return "未设置";
+      return i18next.t("dict.gen_fe2d26a2");
   }
 }
 
 export function chapterStatusDescription(status?: Chapter["chapterStatus"] | null): string {
   switch (status) {
     case "unplanned":
-      return "待准备：这章还缺少执行素材，通常要先补章节目标、任务单或场景卡。";
+      return i18next.t("novels.chapterExecution.shared.i88lqy");
     case "pending_generation":
-      return "待写作：章节计划已基本齐备，可以开始生成正文。";
+      return i18next.t("novels.chapterExecution.shared.rq3vo6");
     case "generating":
-      return "写作中：AI 正在生成本章正文，或正在做生成后的收尾处理。";
+      return i18next.t("novels.chapterExecution.shared.c8duqs");
     case "pending_review":
-      return "已审校：正文已经完成当前轮审核。你可以查看建议、直接继续编辑，或按需处理问题。";
+      return i18next.t("novels.chapterExecution.shared.jkb1ma");
     case "needs_repair":
-      return "建议修复：审核发现了问题，但不会阻止继续编辑。你可以一键修复，也可以先继续写。";
+      return i18next.t("novels.chapterExecution.shared.uwtwqz");
     case "completed":
-      return "已完成：本章已通过当前流程，可以继续润色或进入下一章。";
+      return i18next.t("novels.chapterExecution.shared.540d76");
     default:
-      return "未设置：当前章节还没有明确的流程状态。";
+      return i18next.t("novels.chapterExecution.shared.sybmoj");
   }
 }
 
 export function generationStateLabel(state?: Chapter["generationState"] | null): string {
   switch (state) {
     case "planned":
-      return "已入目录";
+      return i18next.t("novels.chapterExecution.shared.c72gii");
     case "drafted":
-      return "已成稿";
+      return i18next.t("novels.chapterExecution.shared.e8q01");
     case "reviewed":
-      return "已审校";
+      return i18next.t("novels.chapterExecution.shared.e7j0y");
     case "repaired":
-      return "已修复";
+      return i18next.t("novels.chapterExecution.shared.e5gep");
     case "approved":
-      return "已确认";
+      return i18next.t("novels.chapterExecution.shared.ecmeg");
     case "published":
-      return "已发布";
+      return i18next.t("common.published");
     default:
       return "";
   }
@@ -379,17 +379,17 @@ export function generationStateLabel(state?: Chapter["generationState"] | null):
 export function generationStateDescription(state?: Chapter["generationState"] | null): string {
   switch (state) {
     case "planned":
-      return "已入目录：章节已进入目录或拆章结果，但还没有正文草稿。";
+      return i18next.t("novels.chapterExecution.shared.8vshpi");
     case "drafted":
-      return "已成稿：已经生成过正文草稿，但还没完成审校确认。";
+      return i18next.t("novels.chapterExecution.shared.7bhfnv");
     case "reviewed":
-      return "已审校：已经完成一轮审校，后续可能继续修复或确认。";
+      return i18next.t("novels.chapterExecution.shared.qqbcu5");
     case "repaired":
-      return "已修复：已经根据问题修过一轮，通常下一步是再次审校或确认。";
+      return i18next.t("novels.chapterExecution.shared.k8hbc7");
     case "approved":
-      return "已确认：本章已通过当前质量门槛，自动执行时会视为已完成并跳过。";
+      return i18next.t("novels.chapterExecution.shared.hmv2wk");
     case "published":
-      return "已发布：本章已进入发布状态，自动执行不会再重复生成。";
+      return i18next.t("novels.chapterExecution.shared.tigv67");
     default:
       return "";
   }
@@ -410,13 +410,13 @@ function stringifyRiskLabel(value: unknown): string | null {
 function qualityLoopActionLabel(value: unknown): string | null {
   switch (value) {
     case "continue":
-      return "质量可继续";
+      return i18next.t("novels.chapterExecution.shared.2f40em");
     case "patch_repair":
-      return "建议补写修复";
+      return i18next.t("novels.chapterExecution.shared.h8dyf");
     case "replan":
-      return "建议重规划";
+      return i18next.t("novels.chapterExecution.shared.yfiew7");
     case "manual_gate":
-      return "需要确认修复边界";
+      return i18next.t("novels.chapterExecution.shared.1nburt");
     default:
       return null;
   }
@@ -425,11 +425,11 @@ function qualityLoopActionLabel(value: unknown): string | null {
 function qualityLoopStatusLabel(value: unknown): string | null {
   switch (value) {
     case "risk":
-      return "质量有风险";
+      return i18next.t("novels.chapterExecution.shared.2i19nh");
     case "invalid":
-      return "质量需修复";
+      return i18next.t("novels.chapterExecution.shared.2opgbc");
     case "missing":
-      return "质量信息缺失";
+      return i18next.t("novels.chapterExecution.shared.3chdvw");
     default:
       return null;
   }
@@ -438,13 +438,13 @@ function qualityLoopStatusLabel(value: unknown): string | null {
 function qualityLoopArtifactLabel(value: unknown): string | null {
   switch (value) {
     case "chapter_retention_contract":
-      return "留存风险";
+      return i18next.t("novels.chapterExecution.shared.f6ydve");
     case "continuity_state":
-      return "连贯性风险";
+      return i18next.t("novels.chapterExecution.shared.chm6fl");
     case "rolling_window_review":
-      return "章节衔接风险";
+      return i18next.t("novels.chapterExecution.shared.7sepam");
     case "prose_quality":
-      return "正文自然度/退化检测";
+      return i18next.t("novels.chapterExecution.shared.o3g8hm");
     default:
       return null;
   }
@@ -543,9 +543,9 @@ export function resolveChapterQueuePreview(chapter: Chapter): string {
       : "这一章已生成场景预算合同。";
   }
   if (hasText(chapter.sceneCards)) {
-    return "这章存在旧版场景拆解，建议重新生成。";
+    return i18next.t("novels.chapterExecution.shared.idfut4");
   }
-  return "这一章还没有明确目标，适合先补章节计划。";
+  return i18next.t("novels.chapterExecution.shared.xl6mlc");
 }
 
 export function chapterSuggestedActionLabel(chapter: Chapter): string {
@@ -553,18 +553,18 @@ export function chapterSuggestedActionLabel(chapter: Chapter): string {
     return hasText(chapter.content) ? "继续下一章" : "写本章";
   }
   const status = resolveDisplayedChapterStatus(chapter);
-  if (status === "generating") return "等待生成";
-  if (status === "needs_repair") return "一键修复";
+  if (status === "generating") return i18next.t("novels.chapterExecution.shared.fyclrh");
+  if (status === "needs_repair") return i18next.t("dict.fixButton");
   if (status === "pending_review") {
     return chapter.generationState === "reviewed" || chapter.generationState === "approved"
       ? "查看建议"
       : "运行审校";
   }
-  if (status === "completed") return "继续润色";
-  if (status === "unplanned" || !chapterHasPreparationAssets(chapter)) return "补章节计划";
-  if (!hasText(chapter.content) || status === "pending_generation") return "写本章";
-  if (chapter.generationState === "drafted") return "运行审校";
-  return "打开编辑器";
+  if (status === "completed") return i18next.t("novels.chapterExecution.shared.gjce0i");
+  if (status === "unplanned" || !chapterHasPreparationAssets(chapter)) return i18next.t("novels.chapterExecution.shared.iwegrs");
+  if (!hasText(chapter.content) || status === "pending_generation") return i18next.t("dict.gen_dc9c1e62");
+  if (chapter.generationState === "drafted") return i18next.t("novels.chapterExecution.shared.iperks");
+  return i18next.t("novels.chapterExecution.shared.t7z2qo");
 }
 
 export function chapterMatchesQueueFilter(chapter: Chapter, filter: QueueFilterKey): boolean {

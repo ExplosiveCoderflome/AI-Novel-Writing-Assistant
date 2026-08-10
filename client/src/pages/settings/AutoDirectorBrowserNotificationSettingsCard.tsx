@@ -18,13 +18,13 @@ import { AUTO_DIRECTOR_MOBILE_CLASSES } from "@/mobile/autoDirector";
 function formatPermission(permission: BrowserNotificationPermissionState): string {
   switch (permission) {
     case "granted":
-      return "已允许";
+      return i18next.t("settings.autoDirectorBrowserNotificationSettingsCard.e5yix");
     case "denied":
-      return "已阻止";
+      return i18next.t("settings.autoDirectorBrowserNotificationSettingsCard.ehiih");
     case "default":
-      return "待授权";
+      return i18next.t("settings.autoDirectorBrowserNotificationSettingsCard.eh62o");
     case "unsupported":
-      return "不支持";
+      return i18next.t("settings.autoDirectorBrowserNotificationSettingsCard.bxbb3");
   }
 }
 

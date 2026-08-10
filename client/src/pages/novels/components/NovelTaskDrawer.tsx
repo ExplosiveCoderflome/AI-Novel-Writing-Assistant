@@ -90,13 +90,13 @@ function formatCheckpoint(checkpoint: NovelWorkflowMilestoneType | null | undefi
     return i18next.t("dict.gen_2282ccfa");
   }
   if (checkpoint === "production_experience_required") {
-    return "已可开写，等待选择生产方式";
+    return i18next.t("novels.novelAutoDirectorProgressPanel.hallyo");
   }
   if (checkpoint === "chapter_batch_ready") {
     return `${resolvedScopeLabel}自动执行已暂停`;
   }
   if (checkpoint === "step_review_required") {
-    return "当前步骤待检查";
+    return i18next.t("novels.novelAutoDirectorProgressPanel.fotvdd");
   }
   if (checkpoint === "workflow_completed") {
     return i18next.t("dict.mainProcessComplete");

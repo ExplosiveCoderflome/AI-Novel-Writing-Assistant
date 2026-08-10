@@ -27,7 +27,7 @@ function getVolumeResourceWindow(resource: OutlineCharacterResource): string {
   if (resource.lastTouchedChapterOrder) {
     return `最近触达第${resource.lastTouchedChapterOrder}章`;
   }
-  return "后续章节可参考";
+  return i18next.t("dict.gen_589bead6");
 }
 
 function isResourceRelevantToVolume(

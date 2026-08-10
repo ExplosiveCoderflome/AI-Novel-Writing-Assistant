@@ -1082,7 +1082,7 @@ export default function NovelEdit() {
       toast.success(input.action === "validate" ? "当前步骤检查已完成。" : "当前步骤已更新，请检查结果。");
     },
     onError: (error) => {
-      toast.error(error instanceof Error ? error.message : "步骤校准失败。");
+      toast.error(error instanceof Error ? error.message : i18next.t("novels.novelEdit.9itzp2"));
     },
   });
   const acceptManualChangesAndContinueMutation = useMutation({
@@ -1093,7 +1093,7 @@ export default function NovelEdit() {
       toast.success(i18next.t("novels.novelEdit.e6lni3"));
     },
     onError: (error) => {
-      toast.error(error instanceof Error ? error.message : "确认修改并继续失败。");
+      toast.error(error instanceof Error ? error.message : i18next.t("novels.novelEdit.r93bcd"));
     },
   });
   const continueAutoExecutionMutation = useMutation({

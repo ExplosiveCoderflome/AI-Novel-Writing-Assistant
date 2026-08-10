@@ -290,7 +290,7 @@ export default function TitleFactoryPanel({ genreTree, novels }: TitleFactoryPan
           ) : null}
           {generateMutation.error ? (
             <div className="mx-auto mt-4 max-w-4xl rounded-xl bg-destructive/[0.055] px-4 py-3 text-sm text-destructive">
-              {generateMutation.error instanceof Error ? generateMutation.error.message : "标题生成失败，请重试。"}
+              {generateMutation.error instanceof Error ? generateMutation.error.message : i18next.t("titles.titleFactoryPanel.96ayfb")}
             </div>
           ) : null}
         </section>

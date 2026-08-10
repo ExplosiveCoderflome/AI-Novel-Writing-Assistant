@@ -1,3 +1,4 @@
+import i18next from "i18next";
 import type { WorldGeographyDirection } from "@ai-novel/shared/types/world";
 
 export type GraphNode = {
@@ -44,14 +45,14 @@ type Anchor = "top" | "bottom" | "left" | "right" | "topLeft" | "topRight" | "bo
 export type GraphLayout = "force" | "geography" | "map";
 
 export const ROUTE_STYLES: Record<string, { label: string; stroke: string; dash?: string }> = {
-  road: { label: "陆路", stroke: "#64748b" },
-  river: { label: "水路", stroke: "#0284c7", dash: "6 5" },
-  sea: { label: "航线", stroke: "#2563eb", dash: "10 6" },
-  portal: { label: "传送/秘道", stroke: "#7c3aed", dash: "3 5" },
-  trade: { label: "商路", stroke: "#16a34a", dash: "8 5" },
-  military: { label: "行军路线", stroke: "#dc2626", dash: "5 4" },
-  border: { label: "边界关隘", stroke: "#f59e0b", dash: "4 4" },
-  other: { label: "路线", stroke: "#64748b" },
+  road: { label: i18next.t("worlds.worldGraphLayout.qc89"), stroke: "#64748b" },
+  river: { label: i18next.t("worlds.worldGraphLayout.j6m3"), stroke: "#0284c7", dash: "6 5" },
+  sea: { label: i18next.t("worlds.worldGraphLayout.mu39"), stroke: "#2563eb", dash: "10 6" },
+  portal: { label: i18next.t("worlds.worldGraphLayout.rli1sn"), stroke: "#7c3aed", dash: "3 5" },
+  trade: { label: i18next.t("worlds.worldGraphLayout.fa7d"), stroke: "#16a34a", dash: "8 5" },
+  military: { label: i18next.t("worlds.worldGraphLayout.hjijen"), stroke: "#dc2626", dash: "5 4" },
+  border: { label: i18next.t("worlds.worldGraphLayout.im6f08"), stroke: "#f59e0b", dash: "4 4" },
+  other: { label: i18next.t("worlds.worldGraphLayout.ou5s"), stroke: "#64748b" },
 };
 
 export function getRouteStyle(routeType?: string) {

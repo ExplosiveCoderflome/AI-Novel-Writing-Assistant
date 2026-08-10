@@ -49,43 +49,43 @@ interface NovelWorldManagerCardProps {
 function labelSourceType(sourceType: string | null | undefined): string {
   switch (sourceType) {
     case "imported":
-      return "来自世界库";
+      return i18next.t("dict.gen_d6c97812");
     case "generated":
-      return "根据本书生成";
+      return i18next.t("dict.gen_b7ab0cfd");
     case "manual":
-      return "自定义世界";
+      return i18next.t("dict.gen_c1c6046e");
     default:
-      return "未设置";
+      return i18next.t("dict.gen_fe2d26a2");
   }
 }
 
 function labelSyncDirection(direction: string | null | undefined): string {
   switch (direction) {
     case "push":
-      return "只推送到世界库";
+      return i18next.t("dict.gen_3c11209d");
     case "pull":
-      return "只从世界库拉取";
+      return i18next.t("dict.gen_697b6277");
     case "bidirectional":
-      return "可双向同步";
+      return i18next.t("dict.gen_cc89795c");
     default:
-      return "不同步";
+      return i18next.t("dict.gen_db709d59");
   }
 }
 
 function sectionLabel(section: string): string {
   switch (section) {
     case "profile":
-      return "世界概要";
+      return i18next.t("dict.worldOverview");
     case "rules":
-      return "核心规则";
+      return i18next.t("dict.gen_0a431a82");
     case "factions":
-      return "阵营";
+      return i18next.t("dict.gen_42988d4b");
     case "forces":
-      return "势力";
+      return i18next.t("dict.gen_dcfe557b");
     case "locations":
-      return "地点";
+      return i18next.t("dict.gen_fc1a7d3c");
     case "relations":
-      return "关系网络";
+      return i18next.t("dict.gen_bb016fed");
     default:
       return section;
   }

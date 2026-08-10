@@ -18,10 +18,10 @@ export const VISIBLE_PROFILE_FIELDS: Array<{
 
 export function getSecretStatus(selectedCharacter?: Character): string {
   if (!selectedCharacter) {
-    return "暂无";
+    return i18next.t("common.none");
   }
   if (selectedCharacter.secret?.trim()) {
-    return "存在明确秘密";
+    return i18next.t("dict.gen_0a76e858");
   }
   const runtimeSignal = `${selectedCharacter.currentState ?? ""} ${selectedCharacter.currentGoal ?? ""}`;
   return /秘密|隐瞒|卧底|伪装/.test(runtimeSignal) ? "已隐藏关键信息" : "暂无显性秘密";
@@ -30,12 +30,12 @@ export function getSecretStatus(selectedCharacter?: Character): string {
 export function getEmotionSignal(selectedCharacter?: Character): string {
   const runtimeSignal = `${selectedCharacter?.currentState ?? ""} ${selectedCharacter?.currentGoal ?? ""}`;
   if (/愤|怒|焦虑|崩溃|绝望/.test(runtimeSignal)) {
-    return "高压";
+    return i18next.t("dict.gen_32979568");
   }
   if (/平静|稳|冷静|从容/.test(runtimeSignal)) {
-    return "平稳";
+    return i18next.t("dict.gen_42f8a02a");
   }
-  return "待观察";
+  return i18next.t("dict.gen_27b34703");
 }
 
 export function getResourceDisplayMode(character?: Character): {

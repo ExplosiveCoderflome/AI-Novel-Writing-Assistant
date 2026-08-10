@@ -115,7 +115,7 @@ export default function ChapterEditorShell(props: ChapterEditorShellProps) {
       toast.success(i18next.t("novels.chapterEditorShell.dsqb0y"));
     },
     onError: (error) => {
-      toast.error(error instanceof Error ? error.message : "恢复版本失败，请重试。");
+      toast.error(error instanceof Error ? error.message : i18next.t("novels.chapterEditorShell.pi24j8"));
     },
   });
 

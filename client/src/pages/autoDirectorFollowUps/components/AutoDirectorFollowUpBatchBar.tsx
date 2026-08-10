@@ -15,12 +15,12 @@ interface AutoDirectorFollowUpBatchBarProps {
 
 function formatBatchActionLabel(actionCode: AutoDirectorMutationActionCode | null): string {
   if (actionCode === "continue_auto_execution") {
-    return "批量低风险继续";
+    return i18next.t("dict.gen_358353a3");
   }
   if (actionCode === "retry_with_task_model") {
-    return "批量重试异常任务";
+    return i18next.t("dict.gen_0f957366");
   }
-  return "当前所选项没有共同批量动作";
+  return i18next.t("dict.gen_c0cbe472");
 }
 
 function getSelectedSection(items: AutoDirectorFollowUpItem[]): AutoDirectorFollowUpSection | null {

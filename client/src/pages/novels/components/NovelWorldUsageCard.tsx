@@ -49,13 +49,13 @@ function toggleId(ids: string[], id: string, checked: boolean): string[] {
 function labelStoryInputSource(source: string | null | undefined): string {
   switch (source) {
     case "explicit":
-      return "来自你这次手动输入的故事想法";
+      return i18next.t("novels.novelWorldUsageCard.hhg212");
     case "story_macro":
-      return "来自故事宏观规划里的故事想法";
+      return i18next.t("novels.novelWorldUsageCard.r0dkms");
     case "novel_description":
-      return "来自小说简介";
+      return i18next.t("novels.novelWorldUsageCard.h5eoaz");
     default:
-      return "暂无";
+      return i18next.t("common.none");
   }
 }
 

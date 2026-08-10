@@ -549,5 +549,5 @@ function getRelationNames(edge: RelationshipGraphEdge): string {
   if (stage) {
     return `${stage.sourceCharacterName ?? "未知角色"} -> ${stage.targetCharacterName ?? "未知角色"}`;
   }
-  return "角色关系";
+  return i18next.t("novels.characterRelationshipGraphPanel.hxasp4");
 }

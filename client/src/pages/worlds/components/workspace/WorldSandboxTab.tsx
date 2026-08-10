@@ -45,17 +45,17 @@ export default function WorldSandboxTab({ worldId }: { worldId: string }) {
 
   // Mock initial sandbox data
   const [locations, setLocations] = useState<LocationNode[]>([
-    { id: "loc_1", name: "荣国府正堂", latitude: 39.9, longitude: 116.4, elevation: 50, temp: 24, tension: 35, weather: "晴", flora: 0.4 },
-    { id: "loc_2", name: "潇湘馆竹林", latitude: 39.91, longitude: 116.39, elevation: 48, temp: 22, tension: 20, weather: "微风", flora: 0.9 },
-    { id: "loc_3", name: "蘅芜苑花厅", latitude: 39.89, longitude: 116.41, elevation: 52, temp: 23, tension: 25, weather: "晴", flora: 0.75 },
-    { id: "loc_4", name: "大观园假山", latitude: 39.92, longitude: 116.42, elevation: 85, temp: 19, tension: 80, weather: "阴", flora: 0.2 }
+    { id: "loc_1", name: i18next.t("worlds.worldSandboxTab.rvgh9d"), latitude: 39.9, longitude: 116.4, elevation: 50, temp: 24, tension: 35, weather: "晴", flora: 0.4 },
+    { id: "loc_2", name: i18next.t("worlds.worldSandboxTab.ngqt6b"), latitude: 39.91, longitude: 116.39, elevation: 48, temp: 22, tension: 20, weather: "微风", flora: 0.9 },
+    { id: "loc_3", name: i18next.t("worlds.worldSandboxTab.r7kzde"), latitude: 39.89, longitude: 116.41, elevation: 52, temp: 23, tension: 25, weather: "晴", flora: 0.75 },
+    { id: "loc_4", name: i18next.t("worlds.worldSandboxTab.b62ul8"), latitude: 39.92, longitude: 116.42, elevation: 85, temp: 19, tension: 80, weather: "阴", flora: 0.2 }
   ]);
 
   const [characters, setCharacters] = useState<Character[]>([
-    { id: "char_1", name: "林黛玉", locationId: "loc_2", hunger: 20, energy: 75, sanity: 85, stress: 3 },
-    { id: "char_2", name: "贾宝玉", locationId: "loc_1", hunger: 15, energy: 80, sanity: 90, stress: 2 },
-    { id: "char_3", name: "薛宝钗", locationId: "loc_3", hunger: 10, energy: 85, sanity: 95, stress: 2 },
-    { id: "char_4", name: "焦大", locationId: "loc_4", hunger: 60, energy: 15, sanity: 25, stress: 8 }
+    { id: "char_1", name: i18next.t("worlds.worldSandboxTab.fxvqd"), locationId: "loc_2", hunger: 20, energy: 75, sanity: 85, stress: 3 },
+    { id: "char_2", name: i18next.t("worlds.worldSandboxTab.l4zey"), locationId: "loc_1", hunger: 15, energy: 80, sanity: 90, stress: 2 },
+    { id: "char_3", name: i18next.t("worlds.worldSandboxTab.k0wad"), locationId: "loc_3", hunger: 10, energy: 85, sanity: 95, stress: 2 },
+    { id: "char_4", name: i18next.t("worlds.worldSandboxTab.jqgx"), locationId: "loc_4", hunger: 60, energy: 15, sanity: 25, stress: 8 }
   ]);
 
   // SVG dimensions

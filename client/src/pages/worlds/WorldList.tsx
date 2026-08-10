@@ -61,7 +61,7 @@ function extractStructuredPreview(raw: string): string | null {
       if (parts.length > 0) {
         return parts.join("；");
       }
-      return "包含世界手册内容，进入工作台查看详情。";
+      return i18next.t("dict.gen_bfc18a36");
     }
     if (parsed && typeof parsed === "object") {
       const record = parsed as Record<string, unknown>;
@@ -69,7 +69,7 @@ function extractStructuredPreview(raw: string): string | null {
       if (typeof summary === "string" && summary.trim()) {
         return summary.trim();
       }
-      return "包含世界手册内容，进入工作台查看详情。";
+      return i18next.t("dict.gen_bfc18a36");
     }
   } catch {
     return null;
@@ -227,7 +227,7 @@ export default function WorldList() {
       toast.success(i18next.t("dict.worldSampleDeleted"));
     },
     onError: (error) => {
-      toast.error(error instanceof Error ? error.message : "删除世界样本失败。");
+      toast.error(error instanceof Error ? error.message : i18next.t("dict.gen_99bf2197"));
     },
   });
 

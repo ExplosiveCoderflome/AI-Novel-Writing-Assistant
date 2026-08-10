@@ -25,11 +25,11 @@ interface DesktopUpdatePanelProps {
 
 function formatCheckedAt(value: string | null): string {
   if (!value) {
-    return "尚未检查";
+    return i18next.t("layout.desktopUpdatePanel.c1ti0l");
   }
   const parsed = new Date(value);
   if (Number.isNaN(parsed.getTime())) {
-    return "最近检查";
+    return i18next.t("layout.desktopUpdatePanel.dl9cc6");
   }
   return parsed.toLocaleString("zh-CN", { hour12: false });
 }

@@ -1,17 +1,18 @@
+import i18next from "i18next";
 import type { TitleSuggestionStyle } from "@ai-novel/shared/types/title";
 
 export function getTitleStyleLabel(style: TitleSuggestionStyle): string {
   switch (style) {
     case "literary":
-      return "叙事感";
+      return i18next.t("titles.titleStudio.shared.co0p9");
     case "conflict":
-      return "冲突钩子";
+      return i18next.t("titles.titleStudio.shared.atlul2");
     case "suspense":
-      return "悬念感";
+      return i18next.t("titles.titleStudio.shared.emlpy");
     case "high_concept":
-      return "高概念";
+      return i18next.t("titles.titleStudio.shared.n6ykr");
     default:
-      return "标题策略";
+      return i18next.t("titles.titleStudio.shared.drasjk");
   }
 }
 

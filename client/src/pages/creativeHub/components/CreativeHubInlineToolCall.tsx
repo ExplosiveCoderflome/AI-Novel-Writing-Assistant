@@ -34,23 +34,23 @@ function formatToolLabel(toolName: string): string {
     case "list_book_analyses":
     case "list_writing_formulas":
     case "list_base_characters":
-      return "读取创作资料";
+      return i18next.t("creativeHub.creativeHubInlineToolCall.q424un");
     case "create_novel":
     case "select_novel_workspace":
     case "bind_world_to_novel":
-      return "更新小说工作区";
+      return i18next.t("creativeHub.creativeHubInlineToolCall.8h9r2");
     case "generate_world_for_novel":
     case "generate_novel_characters":
     case "generate_story_bible":
     case "generate_novel_outline":
     case "generate_structured_outline":
     case "sync_chapters_from_structured_outline":
-      return "生成小说资产";
+      return i18next.t("creativeHub.creativeHubInlineToolCall.ug8q7t");
     case "start_full_novel_pipeline":
     case "get_novel_production_status":
     case "preview_pipeline_run":
     case "queue_pipeline_run":
-      return "推进整本写作";
+      return i18next.t("creativeHub.creativeHubInlineToolCall.bglmtq");
     case "get_task_failure_reason":
     case "get_run_failure_reason":
     case "get_index_failure_reason":
@@ -58,13 +58,13 @@ function formatToolLabel(toolName: string): string {
     case "explain_generation_blocker":
     case "explain_world_conflict":
     case "failure_diagnostic":
-      return "诊断创作问题";
+      return i18next.t("creativeHub.creativeHubInlineToolCall.kfwium");
     case "get_chapter_content":
     case "get_chapter_content_by_order":
     case "summarize_chapter_range":
-      return "读取章节内容";
+      return i18next.t("creativeHub.creativeHubInlineToolCall.krqd73");
     default:
-      return "执行创作辅助操作";
+      return i18next.t("creativeHub.creativeHubInlineToolCall.i2fv8n");
   }
 }
 
@@ -107,7 +107,7 @@ export default function CreativeHubInlineToolCall(props: ToolCallMessagePartProp
   if (props.toolName === "approval_gate") {
     const approvalDisabled = inlineControls.approvalPending || inlineControls.actionDisabled;
     const title = typeof args.title === "string" ? args.title : i18next.t("dict.gen_3ced7e48");
-    const summary = typeof args.summary === "string" ? args.summary : "当前高影响操作等待确认。";
+    const summary = typeof args.summary === "string" ? args.summary : i18next.t("dict.gen_e2b18e89");
     const targetType = typeof args.targetType === "string" ? args.targetType : inlineControls.interrupt?.targetType ?? "未知目标";
     const targetId = typeof args.targetId === "string" ? args.targetId : inlineControls.interrupt?.targetId ?? "-";
     return (

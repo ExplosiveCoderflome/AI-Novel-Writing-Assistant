@@ -145,7 +145,7 @@ export default function QuickSetupDialog(props: QuickSetupDialogProps) {
     },
     onError: (error) => {
       setCustomModels([]);
-      setCustomModelsMessage(error instanceof Error ? error.message : "获取模型列表失败，可以手动填写模型名称。");
+      setCustomModelsMessage(error instanceof Error ? error.message : i18next.t("onboarding.quickSetupDialog.o8bfje"));
     },
   });
 
@@ -431,7 +431,7 @@ export default function QuickSetupDialog(props: QuickSetupDialogProps) {
                 <div>
                   <div className="text-lg font-semibold">{i18next.t("onboarding.quickSetupDialog.vhv3au")}</div>
                   <div className="mt-2 max-w-lg text-sm leading-6 text-destructive">
-                    {completeMutation.error instanceof Error ? completeMutation.error.message : "请检查 API Key、地址和模型名称后重试。"}
+                    {completeMutation.error instanceof Error ? completeMutation.error.message : i18next.t("onboarding.quickSetupDialog.3c373r")}
                   </div>
                 </div>
               </>

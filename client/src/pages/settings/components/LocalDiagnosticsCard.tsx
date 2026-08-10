@@ -72,7 +72,7 @@ export default function LocalDiagnosticsCard() {
         ) : error ? (
           <div className="rounded-md border border-destructive/20 bg-destructive/5 p-3 text-sm text-destructive flex items-center gap-2">
             <AlertTriangle className="h-4 w-4 flex-shrink-0" />
-            自检失败：{error instanceof Error ? error.message : "无法获取平台硬件参数"}
+            自检失败：{error instanceof Error ? error.message : i18next.t("settings.localDiagnosticsCard.mp5rbd")}
           </div>
         ) : diagnostic ? (
           <div className="space-y-4">

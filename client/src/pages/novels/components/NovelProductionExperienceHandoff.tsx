@@ -42,7 +42,7 @@ export default function NovelProductionExperienceHandoff({
         : "前期准备已完成，可以在专业工作台中继续创作。");
       navigate(response.targetRoute, { replace: true });
     },
-    onError: (error) => toast.error(error instanceof Error ? error.message : "选择生产方式失败，请重试。"),
+    onError: (error) => toast.error(error instanceof Error ? error.message : i18next.t("novels.novelProductionExperienceHandoff.yzx9zx")),
   });
 
   return (

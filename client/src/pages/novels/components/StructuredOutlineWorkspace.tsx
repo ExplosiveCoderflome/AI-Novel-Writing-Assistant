@@ -31,12 +31,12 @@ type StructuredChapter = StructuredVolume["chapters"][number];
 type StructuredBeat = StructuredTabViewProps["beatSheets"][number]["beats"][number];
 
 function actionLabel(action: StructuredTabViewProps["syncPreview"]["items"][number]["action"]) {
-  if (action === "create") return "新增";
-  if (action === "update") return "更新";
-  if (action === "move") return "移动";
-  if (action === "keep") return "保留";
-  if (action === "delete") return "删除";
-  return "待删候选";
+  if (action === "create") return i18next.t("dict.gen_66ab5e9f");
+  if (action === "update") return i18next.t("dict.gen_32ac152b");
+  if (action === "move") return i18next.t("dict.gen_68d982a1");
+  if (action === "keep") return i18next.t("dict.preserve");
+  if (action === "delete") return i18next.t("dict.gen_2f4aaddd");
+  return i18next.t("dict.gen_47e11ee8");
 }
 
 function getWorkspaceGuidance(params: {
@@ -48,7 +48,7 @@ function getWorkspaceGuidance(params: {
 }): string {
   const { locked, selectedBeat, selectedChapter, visibleChapterCount, totalChapterCount } = params;
   if (locked) {
-    return "先为当前卷生成节奏板，系统才能把卷内推进节奏和章节拆分对齐起来。";
+    return i18next.t("dict.gen_c5a0b619");
   }
   if (selectedBeat) {
     const beatLabel = formatBeatDisplayLabel(selectedBeat);

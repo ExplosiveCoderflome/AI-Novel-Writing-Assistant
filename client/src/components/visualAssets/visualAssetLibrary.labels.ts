@@ -1,3 +1,4 @@
+import i18next from "i18next";
 import type {
   VisualAssetKind,
   VisualAssetOrigin,
@@ -57,7 +58,7 @@ export function getVisualAssetScopeLabel(kind: VisualAssetScopeKind) {
 export function formatVisualAssetDate(createdAt: string) {
   const date = new Date(createdAt);
   if (Number.isNaN(date.getTime())) {
-    return "日期未记录";
+    return i18next.t("visualAssets.visualAssetLibrary.labels.ec2dor");
   }
   return new Intl.DateTimeFormat("zh-CN", { month: "short", day: "numeric", year: "numeric" }).format(date);
 }

@@ -183,7 +183,7 @@ export function resolveCreativeHubWorkspacePresentation(input: {
         title: i18next.t("creativeHub.titleSelectNovel"),
         description: i18next.t("creativeHub.descSelectNovel"),
         action: "select_novel",
-        actionLabel: "选择小说",
+        actionLabel: i18next.t("creativeHub.actionSelectNovel"),
       },
     };
   }
@@ -197,7 +197,7 @@ export function resolveCreativeHubWorkspacePresentation(input: {
       title: i18next.t("creativeHub.titleSpecifyTarget"),
       description: i18next.t("creativeHub.descSpecifyTarget"),
       action: "open_production",
-      actionLabel: "查看生产入口",
+      actionLabel: i18next.t("creativeHub.actionViewProduction"),
     },
   };
 }

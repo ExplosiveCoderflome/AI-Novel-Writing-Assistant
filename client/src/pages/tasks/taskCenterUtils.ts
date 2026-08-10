@@ -55,9 +55,9 @@ export function getTaskNoticeSeverity(task: TaskQueuePresentationInput): TaskQue
 }
 
 export function getTaskNoticeTitle(task: TaskQueuePresentationInput): string {
-  if (isTaskReplanRequired(task)) return "需要重规划";
-  if (isTaskQueueQualityReminder(task)) return "质量提醒";
-  return "任务提醒";
+  if (isTaskReplanRequired(task)) return i18next.t("tasks.levelReplanRequired");
+  if (isTaskQueueQualityReminder(task)) return i18next.t("tasks.summaryQuality");
+  return i18next.t("tasks.taskCenterUtils.ab7sy0");
 }
 
 export function getTaskListPriority(task: TaskQueuePresentationInput): number {
@@ -181,7 +181,7 @@ export function formatCheckpoint(checkpoint: NovelWorkflowMilestoneType | null |
     return `${resolvedScopeLabel}自动执行已暂停`;
   }
   if (checkpoint === "step_review_required") {
-    return "当前步骤待检查";
+    return i18next.t("novels.novelAutoDirectorProgressPanel.fotvdd");
   }
   if (checkpoint === "replan_required") {
     return i18next.t("tasks.levelReplanRequired");

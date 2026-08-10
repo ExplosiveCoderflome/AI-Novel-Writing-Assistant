@@ -1,3 +1,4 @@
+import i18next from "i18next";
 import type {
   DirectorPolicyMode,
   DirectorRuntimeProjection,
@@ -212,15 +213,15 @@ function formatRootCauseSummary(projection: DirectorRuntimeProjection, isEn: boo
     return "Draft generation failed. Current chapter needs to be re-executed.";
   }
   if (projection.rootCauseCode === "replan_required") {
-    return "当前问题来自章节职责失配，系统需要先调整附近章节安排。";
+    return i18next.t("autoDirector.directorRuntimeProjectionCard.qwo6zg");
   }
   if (projection.rootCauseCode === "draft_obligation_unmet") {
-    return "正文已经生成，但仍有本章必须完成的内容没有兑现。";
+    return i18next.t("autoDirector.directorRuntimeProjectionCard.x991k7");
   }
   if (projection.rootCauseCode === "draft_repair_exhausted") {
-    return "正文已经生成，但自动修复后仍有阻塞问题需要继续处理。";
+    return i18next.t("autoDirector.directorRuntimeProjectionCard.391rp");
   }
-  return "正文没有成功生成，需要重新执行当前章节。";
+  return i18next.t("autoDirector.directorRuntimeProjectionCard.dbwo8z");
 }
 
 function formatPercent(value: number | null | undefined): string {

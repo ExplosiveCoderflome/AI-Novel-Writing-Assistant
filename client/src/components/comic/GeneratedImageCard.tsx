@@ -12,10 +12,10 @@ const STATUS_DOT: Record<GeneratedImageCardStatus, string> = {
 };
 
 const STATUS_TITLE: Record<GeneratedImageCardStatus, string> = {
-  idle: "未生成",
-  generating: "生成中",
-  done: "已就绪",
-  error: "生成失败",
+  idle: i18next.t("dict.gen_da3b420e"),
+  generating: i18next.t("dict.gen_1ae3a984"),
+  done: i18next.t("dict.gen_c30ecc7a"),
+  error: i18next.t("dict.gen_7f7de8a2"),
 };
 
 const SIZE_STYLE: Record<NonNullable<GeneratedImageCardProps["size"]>, string> = {

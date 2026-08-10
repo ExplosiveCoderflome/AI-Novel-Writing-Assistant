@@ -67,7 +67,7 @@ const DEFAULT_BOOTSTRAP_SNAPSHOT: DesktopBootstrapSnapshot = {
 
 const DEFAULT_UPDATER_SNAPSHOT: DesktopUpdaterSnapshot = {
   status: "disabled",
-  message: "当前运行环境无法使用桌面版更新。",
+  message: i18next.t("lib.desktop.hoxxek"),
   currentVersion: "0.0.0",
   availableVersion: null,
   progressPercent: null,

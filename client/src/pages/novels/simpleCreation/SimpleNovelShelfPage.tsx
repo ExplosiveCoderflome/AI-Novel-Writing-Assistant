@@ -27,10 +27,10 @@ import OnboardingTip from "@/components/onboarding/OnboardingTip";
 const STATUS_LABELS: Record<SimpleCreationShelfChapterStatus, string> = {
   waiting_planning: "等待规划",
   waiting_writing: "等待写作",
-  generating: "生成中",
+  generating: i18next.t("dict.gen_1ae3a984"),
   reviewing: "审校修复中",
   completed: "已完成",
-  error: "异常",
+  error: i18next.t("dict.gen_c195df63"),
 };
 
 function saveBlob(blob: Blob, fileName: string): void {
@@ -102,7 +102,7 @@ export default function SimpleNovelShelfPage() {
       toast.success(i18next.t("novels.simpleNovelShelfPage.85lewk"));
       await queryClient.invalidateQueries({ queryKey: ["novels", id, "simple-shelf"] });
     },
-    onError: (error) => toast.error(error instanceof Error ? error.message : "恢复失败，请重试。"),
+    onError: (error) => toast.error(error instanceof Error ? error.message : i18next.t("novels.simpleNovelShelfPage.l1wr3k")),
   });
 
   const convertMutation = useMutation({
@@ -111,7 +111,7 @@ export default function SimpleNovelShelfPage() {
       await queryClient.invalidateQueries({ queryKey: ["novels", id] });
       navigate(`/novels/${id}/edit`, { replace: true });
     },
-    onError: (error) => toast.error(error instanceof Error ? error.message : "转换失败，请重试。"),
+    onError: (error) => toast.error(error instanceof Error ? error.message : i18next.t("novels.simpleNovelShelfPage.4bcmnv")),
   });
 
   if (shelfQuery.isPending || !shelf) {

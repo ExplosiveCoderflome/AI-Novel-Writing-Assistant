@@ -39,10 +39,10 @@ function connectorTone(
 }
 
 function statusLabel(status: DirectorPreparationStepStatus): string {
-  if (status === "completed") return "准备完成";
-  if (status === "running") return "AI 正在处理";
-  if (status === "failed") return "需要处理";
-  return "等待推进";
+  if (status === "completed") return i18next.t("novels.novelDirectorPreparationJourney.aosf5x");
+  if (status === "running") return i18next.t("dict.aiProcessing");
+  if (status === "failed") return i18next.t("onboarding.needsAction");
+  return i18next.t("novels.novelDirectorPreparationJourney.fy9vv3");
 }
 
 export default function NovelDirectorPreparationJourney({

@@ -1,3 +1,4 @@
+import i18next from "i18next";
 import type {
   CharacterCastRole,
   CharacterGender,
@@ -31,14 +32,14 @@ export const SUPPLEMENTAL_MODE_LABELS: Record<SupplementalCharacterGenerationMod
 
 export function getCastRoleLabel(castRole?: CharacterCastRole | "auto" | null): string {
   if (!castRole || castRole === "auto") {
-    return "AI 判断";
+    return i18next.t("dict.aiJudging");
   }
   return CAST_ROLE_LABELS[castRole] ?? castRole;
 }
 
 export function getCharacterGenderLabel(gender?: CharacterGender | null): string {
   if (!gender) {
-    return "未知";
+    return i18next.t("dict.gen_1622dc9b");
   }
   return CHARACTER_GENDER_LABELS[gender] ?? gender;
 }

@@ -86,6 +86,9 @@ files.forEach((filePath) => {
 
     const trimmed = line.trim();
 
+    // 移除这一行中所有合法的 i18next.t() 与 t() 调用（包含其 fallback 默认字符串参数）
+    const lineWithoutI18n = line.replace(/(?:i18next\.)?t\(\s*["'][^"']+["'](?:\s*,\s*(?:"[^"]*"|'[^']*'|`[^`]*`|\{[\s\S]*?\}))?\s*\)/g, '');
+
     // ====== 1. 检查伪 Key gen_* ======
     if (line.includes('gen_') && (line.includes('i18next.t(') || line.includes('t('))) {
       const match = line.match(/(?:i18next\.)?t\(\s*["'`](gen\.[^"'`]+)["'`]/);
@@ -100,7 +103,7 @@ files.forEach((filePath) => {
     }
 
     // ====== 2. 检查 JSX 裸中文属性 ======
-    const attrMatch = line.match(/\b(placeholder|title|description|label|tooltip|aria-label|alt|buttonText|helpText)=["']([^"']*[\u4e00-\u9fa5]+[^"']*)["']/);
+    const attrMatch = lineWithoutI18n.match(/\b(placeholder|title|description|label|tooltip|aria-label|alt|buttonText|helpText)=["']([^"']*[\u4e00-\u9fa5]+[^"']*)["']/);
     if (attrMatch) {
       errors.push({
         file: relPath,
@@ -139,7 +142,7 @@ files.forEach((filePath) => {
     }
 
     // ====== 5. 检查对象字面量中的中文 label/title/description ======
-    const objLabelMatch = line.match(/\b(label|title|description|text|message|summary|heading)\s*:\s*["']([^"']*[\u4e00-\u9fa5]+[^"']*)["']/);
+    const objLabelMatch = lineWithoutI18n.match(/\b(label|title|description|text|message|summary|heading)\s*:\s*["']([^"']*[\u4e00-\u9fa5]+[^"']*)["']/);
     if (objLabelMatch) {
       errors.push({
         file: relPath,
@@ -150,49 +153,31 @@ files.forEach((filePath) => {
     }
 
     // ====== 6. 检查 return 语句中的中文字符串 ======
-    const returnMatch = line.match(/\breturn\s+["']([^"']*[\u4e00-\u9fa5]+[^"']*)["']/);
+    const returnMatch = lineWithoutI18n.match(/\breturn\s+["']([^"']*[\u4e00-\u9fa5]+[^"']*)["']/);
     if (returnMatch) {
-      // 跳过已经使用 i18next.t 的行
-      if (!line.includes('i18next.t(')) {
+      errors.push({
+        file: relPath,
+        line: lineNum,
+        type: 'HARDCODED_RETURN',
+        message: `return 语句包含裸中文: "${returnMatch[1].substring(0, 60)}"`
+      });
+    }
+
+    // ====== 7. 检查模板字面量中的中文 ======
+    if (/`[^`]*[\u4e00-\u9fa5]+[^`]*`/.test(lineWithoutI18n)) {
+      // 跳过 CSS class 模板字面量
+      if (!/\b(?:flex|grid|text-|bg-|border|rounded|px-|py-|gap-|items-|justify-|w-|h-)\b/.test(lineWithoutI18n) && !line.includes('isEn')) {
         errors.push({
           file: relPath,
           line: lineNum,
-          type: 'HARDCODED_RETURN',
-          message: `return 语句包含裸中文: "${returnMatch[1].substring(0, 60)}"`
+          type: 'HARDCODED_TEMPLATE',
+          message: `模板字面量包含裸中文: ${trimmed.substring(0, 100)}`
         });
       }
     }
 
-    // ====== 7. 检查模板字面量中的中文 ======
-    if (/`[^`]*[\u4e00-\u9fa5]+[^`]*`/.test(line)) {
-      // 跳过已经被 i18next.t() 包裹的情况
-      const withoutI18n = line.replace(/i18next\.t\([^)]*\)/g, '');
-      if (/`[^`]*[\u4e00-\u9fa5]+[^`]*`/.test(withoutI18n)) {
-        // 跳过 CSS class 模板字面量
-        if (/\b(?:flex|grid|text-|bg-|border|rounded|px-|py-|gap-|items-|justify-|w-|h-)\b/.test(line)) return;
-        // 跳过已经含 isEn 判断的行（属于 BINARY_LANG_CHECK 类别）
-        if (line.includes('isEn')) return;
-        // 跳过模板中已含 i18next.t 调用的混合行（已部分国际化）
-        if (/`[^`]*i18next\.t\(/.test(line)) {
-          warnings.push({
-            file: relPath,
-            line: lineNum,
-            type: 'PARTIAL_I18N_TEMPLATE',
-            message: `模板字面量已部分国际化但仍有裸中文: ${trimmed.substring(0, 100)}`
-          });
-        } else {
-          errors.push({
-            file: relPath,
-            line: lineNum,
-            type: 'HARDCODED_TEMPLATE',
-            message: `模板字面量包含裸中文: ${trimmed.substring(0, 100)}`
-          });
-        }
-      }
-    }
-
     // ====== 8. 检查 toast/confirm/alert 中的中文 ======
-    const toastMatch = line.match(/\b(toast\.(?:success|error|info|warning|loading)|window\.confirm|window\.alert)\(\s*["']([^"']*[\u4e00-\u9fa5]+[^"']*)["']/);
+    const toastMatch = lineWithoutI18n.match(/\b(toast\.(?:success|error|info|warning|loading)|window\.confirm|window\.alert)\(\s*["']([^"']*[\u4e00-\u9fa5]+[^"']*)["']/);
     if (toastMatch) {
       errors.push({
         file: relPath,
@@ -204,12 +189,11 @@ files.forEach((filePath) => {
 
     // ====== 9. 检查 Record/Map 对象值中的中文 ======
     // 如 { pending: "待生成" } — 不在 label/title 等已覆盖的 prop 名中
-    const recordMatch = line.match(/(\w+)\s*:\s*["']([\u4e00-\u9fa5][\u4e00-\u9fa5\w\s]{0,40})["']/);
+    const recordMatch = lineWithoutI18n.match(/(\w+)\s*:\s*["']([\u4e00-\u9fa5][\u4e00-\u9fa5\w\s]{0,40})["']/);
     if (recordMatch) {
       const propName = recordMatch[1];
-      // 排除已经由 Pass 5 覆盖的属性名
+      // 排除已覆盖属性名与常见标识符
       if (!['label', 'title', 'description', 'text', 'message', 'summary', 'heading', 'name', 'placeholder', 'tooltip', 'buttonText', 'helpText'].includes(propName)) {
-        // 排除 import/from/type 等
         if (!trimmed.startsWith('import') && !trimmed.startsWith('export type') && !trimmed.startsWith('type ')) {
           errors.push({
             file: relPath,
@@ -222,7 +206,7 @@ files.forEach((filePath) => {
     }
 
     // ====== 10. 检查 throw new Error 中的中文 ======
-    const throwMatch = line.match(/throw\s+new\s+Error\(\s*["']([^"']*[\u4e00-\u9fa5]+[^"']*)["']/);
+    const throwMatch = lineWithoutI18n.match(/throw\s+new\s+Error\(\s*["']([^"']*[\u4e00-\u9fa5]+[^"']*)["']/);
     if (throwMatch) {
       errors.push({
         file: relPath,

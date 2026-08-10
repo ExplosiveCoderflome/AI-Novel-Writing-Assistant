@@ -265,9 +265,8 @@ files.forEach((filePath) => {
     return `${fnCall}(i18next.t("${keyPath}"))`;
   });
 
-  // ====== Pass 5: 安全的对象字面量属性 (仅单双引号字面量) ======
-  // 如 { label: "基础背景" } 或 { title: "创作提醒" }
-  const objPropRegex = /\b(label|title|description|placeholder|tooltip|buttonText|helpText|heading)(\s*:\s*)["']([^"'`]*[\u4e00-\u9fa5]+[^"'`]*)["']/g;
+  // ====== Pass 5: 安全的对象字面量属性 ======
+  const objPropRegex = /\b(label|title|description|placeholder|tooltip|buttonText|helpText|heading|message|summary|status|name|text|reason|action|actionLabel|hint|subtitle|category|typeLabel|header|caption|idle|generating|done|error)(\s*:\s*)["']([^"'`]*[\u4e00-\u9fa5]+[^"'`]*)["']/g;
   content = content.replace(objPropRegex, (match, propName, separator, zhVal) => {
     const trimmed = cleanChineseText(zhVal);
     if (!trimmed) return match;
@@ -276,6 +275,17 @@ files.forEach((filePath) => {
     stats.objLiteralsReplaced++;
     isModified = true;
     return `${propName}${separator}i18next.t("${keyPath}")`;
+  });
+
+  // ====== Pass 6: Return 语句中的硬编码字符串 ======
+  const returnStrRegex = /\breturn\s+["']([^"']*[\u4e00-\u9fa5]+[^"']*)["'];?/g;
+  content = content.replace(returnStrRegex, (match, zhVal) => {
+    const trimmed = cleanChineseText(zhVal);
+    if (!trimmed || match.includes('i18next.t')) return match;
+    const keyPath = getOrCreateKey(trimmed, ns, comp);
+    stats.rawChineseExtracted++;
+    isModified = true;
+    return `return i18next.t("${keyPath}");`;
   });
 
   // 确保 import i18next

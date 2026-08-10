@@ -68,7 +68,7 @@ export default function TaskCenterRuntimePolicyCard({
       toast.success(i18next.t("tasks.taskCenterRuntimePolicyCard.24q7bh"));
     },
     onError: (error) => {
-      toast.error(error instanceof Error ? error.message : "更新导演推进方式失败");
+      toast.error(error instanceof Error ? error.message : i18next.t("tasks.taskCenterRuntimePolicyCard.w1ubgx"));
     },
   });
 

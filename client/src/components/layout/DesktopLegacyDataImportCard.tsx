@@ -56,7 +56,7 @@ export default function DesktopLegacyDataImportCard({
       })
       .catch((error) => {
         if (!cancelled) {
-          toast.error(error instanceof Error ? error.message : "旧数据探测失败。");
+          toast.error(error instanceof Error ? error.message : i18next.t("layout.desktopLegacyDataImportCard.6sdelc"));
         }
       })
       .finally(() => {
@@ -91,7 +91,7 @@ export default function DesktopLegacyDataImportCard({
         toast("正在准备导入旧数据，应用会自动重启一次。");
       }
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "导入旧数据失败。");
+      toast.error(error instanceof Error ? error.message : i18next.t("layout.desktopLegacyDataImportCard.ncju7i"));
     } finally {
       setIsImporting(false);
     }

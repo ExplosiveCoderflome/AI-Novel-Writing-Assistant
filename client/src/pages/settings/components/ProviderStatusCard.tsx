@@ -30,10 +30,10 @@ function getBalanceSummary(input: {
 }) {
   const { provider, balance, isBalanceLoading } = input;
   if (provider.kind === "custom") {
-    return "自定义厂商暂不接入余额查询。";
+    return i18next.t("settings.providerStatusCard.pcnbaf");
   }
   if (isBalanceLoading) {
-    return "正在查询余额...";
+    return i18next.t("settings.providerStatusCard.v4h4o");
   }
   if (balance?.status === "available") {
     return `余额 ${formatBalanceAmount(balance.availableBalance, balance.currency)}`;

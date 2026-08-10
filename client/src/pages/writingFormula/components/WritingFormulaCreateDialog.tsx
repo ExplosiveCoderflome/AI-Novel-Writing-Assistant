@@ -24,17 +24,17 @@ const EXTRACTION_PRESET_OPTIONS = [
   {
     key: "imitate",
     label: i18next.t("dict.gen_670b95ab"),
-    summary: "尽量保留强烈指纹和表达习惯，适合短期临摹、风格试写和对照学习。",
+    summary: i18next.t("dict.gen_38cd0be2"),
   },
   {
     key: "balanced",
     label: i18next.t("dict.preserveMainReadFeel"),
-    summary: "保留读感和推进节奏，弱化过强指纹，适合大多数项目直接使用。",
+    summary: i18next.t("dict.preserveReadFeelAndProgressRhythmWeakenOverStrongFingerprintSuitableForMostProjectsDirectUse"),
   },
   {
     key: "transfer",
     label: i18next.t("dict.gen_6da989b7"),
-    summary: "更多保留可复用的节奏、结构和对白逻辑，适合长期项目和整书默认写法。",
+    summary: i18next.t("dict.gen_ef957e52"),
   },
 ] as const;
 
@@ -46,17 +46,17 @@ const MATERIAL_SOURCE_OPTIONS: Array<{
   {
     key: "direct_text",
     label: i18next.t("dict.gen_26f1d00f"),
-    summary: "把样本文本交给后台提取任务，适合手里已有片段或章节。",
+    summary: i18next.t("dict.gen_62c7ec91"),
   },
   {
     key: "knowledge_document",
     label: i18next.t("dict.gen_51a7e4d2"),
-    summary: "选择知识库文档活动版本，系统冻结全文快照后用代表性样本学习写法。",
+    summary: i18next.t("dict.gen_04b0ad79"),
   },
   {
     key: "book_analysis",
     label: i18next.t("dict.gen_64d477d1"),
-    summary: "直接使用拆书里的文风与技法结果生成写法。",
+    summary: i18next.t("dict.gen_585484cd"),
   },
 ];
 
@@ -69,53 +69,53 @@ const KNOWLEDGE_SOURCE_PROCESSING_OPTIONS: Array<{
   {
     key: "representative_sample",
     label: i18next.t("dict.gen_a42e20c2"),
-    summary: "从开篇、中段、后段和收束抽取代表性样本，适合长篇原文，速度和稳定性更好。",
+    summary: i18next.t("dict.extractRepresentativeSamples"),
     badge: "推荐",
   },
   {
     key: "full_text",
     label: i18next.t("dict.gen_fc456238"),
-    summary: "把活动版本全文作为模型输入，适合短文档；长篇可能更慢，也更容易触发模型上下文或超时限制。",
+    summary: i18next.t("dict.gen_04ac9582"),
   },
 ];
 
 function formatTaskStatus(task: UnifiedTaskDetail | null): string {
   if (!task) {
-    return "暂无任务";
+    return i18next.t("dict.gen_0589e591");
   }
   if (task.status === "queued") {
-    return "排队中";
+    return i18next.t("tasks.filterStatusQueued");
   }
   if (task.status === "running") {
-    return "处理中";
+    return i18next.t("dict.gen_5d459d55");
   }
   if (task.status === "succeeded") {
-    return "已完成";
+    return i18next.t("tasks.filterStatusSucceeded");
   }
   if (task.status === "failed") {
-    return "失败";
+    return i18next.t("tasks.filterStatusFailed");
   }
   if (task.status === "cancelled") {
-    return "已取消";
+    return i18next.t("tasks.filterStatusCancelled");
   }
-  return "等待审批";
+  return i18next.t("dict.gen_3ced7e48");
 }
 
 function formatCharCount(value: number | null | undefined): string {
   if (!value) {
-    return "0 字";
+    return i18next.t("dict.zeroCharacters");
   }
   return `${value.toLocaleString("zh-CN")} 字`;
 }
 
 function formatKnowledgeStatus(status: KnowledgeDocumentSummary["status"]): string {
   if (status === "enabled") {
-    return "可用";
+    return i18next.t("dict.gen_ad6b7038");
   }
   if (status === "disabled") {
-    return "停用";
+    return i18next.t("dict.gen_5c56a889");
   }
-  return "归档";
+  return i18next.t("dict.gen_2f51c18f");
 }
 
 interface WritingFormulaCreateDialogProps {

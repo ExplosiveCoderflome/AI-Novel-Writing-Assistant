@@ -42,7 +42,7 @@ const IMAGE_STATUS_TEXT: Record<string, string> = {
 
 function formatJsonSummary(value: Record<string, unknown> | null | undefined): string {
   if (!value || Object.keys(value).length === 0) {
-    return "暂无稳定特征";
+    return i18next.t("dict.gen_cdd9ef03");
   }
   return Object.entries(value)
     .slice(0, 6)
@@ -342,7 +342,7 @@ export default function BookAnalysisCharacterAppearancePanel({
       {appearanceQuery.isLoading ? <div className="text-xs text-muted-foreground">{i18next.t("dict.gen_f041a0ef")}</div> : null}
       {scanMutation.error ? (
         <div className="text-xs text-destructive">
-          {scanMutation.error instanceof Error ? scanMutation.error.message : "形象扫描失败。"}
+          {scanMutation.error instanceof Error ? scanMutation.error.message : i18next.t("dict.gen_6433648a")}
         </div>
       ) : null}
       {scanJob || lastScanJob ? (
@@ -353,12 +353,12 @@ export default function BookAnalysisCharacterAppearancePanel({
       ) : null}
       {scanJobQuery.error ? (
         <div className="text-xs text-destructive">
-          {scanJobQuery.error instanceof Error ? scanJobQuery.error.message : "读取扫描进度失败。"}
+          {scanJobQuery.error instanceof Error ? scanJobQuery.error.message : i18next.t("dict.gen_fb2e15c1")}
         </div>
       ) : null}
       {mergeTermsMutation.error ? (
         <div className="text-xs text-destructive">
-          {mergeTermsMutation.error instanceof Error ? mergeTermsMutation.error.message : "融合外貌失败。"}
+          {mergeTermsMutation.error instanceof Error ? mergeTermsMutation.error.message : i18next.t("dict.gen_8c437f26")}
         </div>
       ) : null}
       {activeTask ? (

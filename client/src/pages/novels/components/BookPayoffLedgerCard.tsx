@@ -18,17 +18,17 @@ interface BookPayoffLedgerCardProps {
 function payoffStatusLabel(status: string): string {
   switch (status) {
     case "setup":
-      return "已埋设";
+      return i18next.t("novels.bookPayoffLedgerCard.e72kl");
     case "hinted":
-      return "已提示";
+      return i18next.t("novels.bookPayoffLedgerCard.e90ik");
     case "pending_payoff":
-      return "待回收";
+      return i18next.t("novels.bookPayoffLedgerCard.ef04d");
     case "paid_off":
-      return "已回收";
+      return i18next.t("novels.bookPayoffLedgerCard.e6pai");
     case "failed":
-      return "已失效";
+      return i18next.t("novels.bookPayoffLedgerCard.e73jd");
     case "overdue":
-      return "已逾期";
+      return i18next.t("novels.bookPayoffLedgerCard.egh03");
     default:
       return status || "未知";
   }
@@ -71,17 +71,17 @@ function formatWindow(item: PayoffLedgerItem): string {
   if (typeof item.targetStartChapterOrder === "number") {
     return `从第 ${item.targetStartChapterOrder} 章开始`;
   }
-  return "未限定";
+  return i18next.t("novels.bookPayoffLedgerCard.fu1v8");
 }
 
 function scopeLabel(scopeType: PayoffLedgerItem["scopeType"]): string {
   if (scopeType === "book") {
-    return "全书";
+    return i18next.t("dict.gen_3df555d4");
   }
   if (scopeType === "volume") {
-    return "卷级";
+    return i18next.t("novels.bookPayoffLedgerCard.ew40");
   }
-  return "章节";
+  return i18next.t("dict.gen_9290b644");
 }
 
 function sourceSummary(item: PayoffLedgerItem): string {

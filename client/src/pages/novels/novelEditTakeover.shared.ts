@@ -1,3 +1,4 @@
+import i18next from "i18next";
 ﻿import type { UnifiedTaskDetail } from "@ai-novel/shared/types/task";
 import type { DirectorLockScope } from "@ai-novel/shared/types/novelDirector";
 import type { NovelEditTakeoverState } from "./components/NovelEditView.types";
@@ -22,27 +23,27 @@ export function formatTakeoverCheckpoint(
   task: UnifiedTaskDetail | null,
 ): string {
   if (checkpoint === "candidate_selection_required") {
-    return "等待确认书级方向";
+    return i18next.t("dict.gen_dbc67929");
   }
   if (checkpoint === "book_contract_ready") {
-    return "Book Contract 待确认";
+    return i18next.t("novels.novelEditTakeover.shared.zgtczo");
   }
   if (checkpoint === "character_setup_required") {
-    return "角色准备待审核";
+    return i18next.t("dict.gen_67358797");
   }
   if (checkpoint === "volume_strategy_ready") {
-    return "卷战略 / 卷骨架待审核";
+    return i18next.t("dict.gen_2282ccfa");
   }
   if (checkpoint === "chapter_batch_ready") {
     return `${resolveAutoExecutionScopeLabel(task)}自动执行已暂停`;
   }
   if (checkpoint === "replan_required") {
-    return "等待处理重规划建议";
+    return i18next.t("novels.novelEditTakeover.shared.cvz4wf");
   }
   if (checkpoint === "workflow_completed") {
-    return "主流程已完成";
+    return i18next.t("novels.novelEditTakeover.shared.j3k1sf");
   }
-  return "导演流程进行中";
+  return i18next.t("novels.novelEditTakeover.shared.ld8j7q");
 }
 
 export function buildTakeoverTitle(input: {
@@ -100,34 +101,34 @@ export function buildTakeoverDescription(input: {
   }
   if (input.mode === "waiting" || input.mode === "action_required") {
     if (input.checkpointType === "candidate_selection_required") {
-      return "书级方向候选已经生成。请先回到书级方向确认页选定或修正方案，自动导演才能继续推进后续主链。";
+      return i18next.t("novels.novelEditTakeover.shared.7l4cai");
     }
     if (input.checkpointType === "character_setup_required") {
-      return "角色准备已经生成。你可以先检查核心角色、关系和当前目标，确认后再继续自动导演。";
+      return i18next.t("novels.novelEditTakeover.shared.6hxkwg");
     }
     if (input.checkpointType === "volume_strategy_ready") {
-      return "当前可以审核并微调卷战略 / 卷骨架。确认后再继续自动生成节奏板、拆章和已选章节批次的细化资源。";
+      return i18next.t("novels.novelEditTakeover.shared.y8xosu");
     }
     if (input.checkpointType === "workflow_completed") {
       return `自动导演已经完成${input.scopeLabel}的章节执行、审核与修复。你可以直接进入章节执行继续写作，也可以完成并退出导演模式。`;
     }
     if (input.checkpointType === "replan_required") {
-      return "AI 在已选章节批次执行后判断后续章节需要重规划。你可以先进入质量修复区处理建议，也可以把本次问题留到后续质量回收，先继续自动执行后面的章节。";
+      return i18next.t("novels.novelEditTakeover.shared.5eupdy");
     }
     if (input.reviewScope) {
-      return "自动导演已到达审核点。请先检查当前阶段产物，再决定是否继续推进。";
+      return i18next.t("novels.novelEditTakeover.shared.i1ffgv");
     }
   }
   if (input.mode === "failed") {
     if (input.checkpointType === "chapter_batch_ready") {
       return `${input.scopeLabel}自动执行已暂停。可以先查看执行详情或质量修复区，再决定是否继续自动执行。`;
     }
-    return "后台导演流程已中断。可以先查看执行详情，再决定是否从最近进度点恢复。";
+    return i18next.t("novels.novelEditTakeover.shared.jj1vtt");
   }
   if (input.mode === "loading") {
-    return "正在同步当前自动导演状态。";
+    return i18next.t("novels.novelEditTakeover.shared.do7m5l");
   }
-  return "AI 正在后台接管这本书的开书流程。你可以继续手动操作当前项目；如果与自动导演同时改同一块内容，以最新写入结果为准。";
+  return i18next.t("novels.novelEditTakeover.shared.ssqyhc");
 }
 
 export function buildContinueAutoExecutionActionLabel(scopeLabel: string, isPending: boolean): string {

@@ -278,7 +278,7 @@ export default function WorldWorkspace() {
       navigate("/worlds", { replace: true });
     },
     onError: (error) => {
-      toast.error(error instanceof Error ? error.message : "删除世界样本失败。");
+      toast.error(error instanceof Error ? error.message : i18next.t("dict.gen_99bf2197"));
     },
   });
 

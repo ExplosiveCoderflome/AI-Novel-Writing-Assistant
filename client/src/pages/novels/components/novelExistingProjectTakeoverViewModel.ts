@@ -124,7 +124,7 @@ export function buildTakeoverGuidance(
         "继续当前任务不会新开一条重复接管。",
       ],
       riskLevel: "safe",
-      actionLabel: "进入当前任务",
+      actionLabel: i18next.t("dict.gen_50f2047b"),
     };
   }
   if (!readiness) {
@@ -181,10 +181,10 @@ function buildPrimaryActionLabel(input: {
   const drafted = progress?.draftedChapterCount ?? input.readiness?.snapshot.generatedChapterCount ?? 0;
   const approved = progress?.approvedChapterCount ?? input.readiness?.snapshot.approvedChapterCount ?? 0;
   if (drafted > approved) {
-    return "处理待确认章节";
+    return i18next.t("dict.gen_21b5d972");
   }
   if ((input.readiness?.snapshot.chapterCount ?? 0) > 0) {
-    return "继续章节执行";
+    return i18next.t("dict.gen_aa7745d1");
   }
   return input.fallback;
 }
@@ -333,10 +333,10 @@ export function buildTakeoverProgressInspection(
 export function formatTakeoverStartError(error: unknown): string {
   const message = error instanceof Error ? error.message : String(error || "");
   if (message.includes("章节范围只能从节奏拆章、章节执行或质量修复开始")) {
-    return "当前项目还没有进入章节生产阶段，不能直接从章节范围继续。建议使用系统推荐位置继续推进。";
+    return i18next.t("dict.gen_1dc45f3e");
   }
   if (message.includes("当前已有自动导演任务")) {
-    return "当前已有自动导演任务在处理这本书，请先进入当前任务继续或取消后再接管。";
+    return i18next.t("dict.gen_68d3ea47");
   }
   return message || "启动自动导演接管失败。";
 }

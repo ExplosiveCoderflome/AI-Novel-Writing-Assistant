@@ -64,7 +64,7 @@ export default function StyleEngineRuntimeSettingsCard() {
       await queryClient.invalidateQueries({ queryKey: queryKeys.settings.styleEngineRuntime });
     },
     onError: (error) => {
-      setFeedback(error instanceof Error ? error.message : "写法引擎运行设置保存失败。");
+      setFeedback(error instanceof Error ? error.message : i18next.t("settings.styleEngineRuntimeSettingsCard.9r3wtu"));
     },
   });
 

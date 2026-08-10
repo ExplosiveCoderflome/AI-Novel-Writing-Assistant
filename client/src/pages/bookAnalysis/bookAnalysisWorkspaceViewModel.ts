@@ -145,7 +145,7 @@ export function resolveBookAnalysisNextAction(input: {
       title: i18next.t("bookAnalysis.bookAnalysisWorkspaceViewModel.1rlsfo"),
       description: i18next.t("bookAnalysis.bookAnalysisWorkspaceViewModel.9muso5"),
       action: "create",
-      actionLabel: "新建拆书",
+      actionLabel: i18next.t("dict.gen_989a71a3"),
     };
   }
 
@@ -170,7 +170,7 @@ export function resolveBookAnalysisNextAction(input: {
       title: i18next.t("bookAnalysis.bookAnalysisWorkspaceViewModel.a9vqvy"),
       description: `已有 ${sections.readable} 个可阅读小节会保留。${describeMissingExpectedSections(sections)}扩容续跑只处理尚未成功的部分。`,
       action: "resume_budget",
-      actionLabel: "扩容预算并续跑",
+      actionLabel: i18next.t("dict.gen_a69ce727"),
     };
   }
 
@@ -181,7 +181,7 @@ export function resolveBookAnalysisNextAction(input: {
         title: i18next.t("bookAnalysis.bookAnalysisWorkspaceViewModel.oya78w"),
         description: i18next.t("bookAnalysis.bookAnalysisWorkspaceViewModel.b37c2b"),
         action: "rebuild",
-        actionLabel: "重新生成分析",
+        actionLabel: i18next.t("bookAnalysis.bookAnalysisWorkspaceViewModel.roxt0i"),
       };
     }
     if (sections.missingExpected > 0) {
@@ -190,7 +190,7 @@ export function resolveBookAnalysisNextAction(input: {
         title: i18next.t("bookAnalysis.bookAnalysisWorkspaceViewModel.nl1aem"),
         description: `已有 ${sections.readableExpected}/${sections.expected} 个计划生成的小节可阅读，仍有 ${sections.missingExpected} 个小节可通过重新生成补齐。`,
         action: "view_results",
-        actionLabel: "查看已有结果",
+        actionLabel: i18next.t("bookAnalysis.bookAnalysisWorkspaceViewModel.11bypy"),
       };
     }
     if (sections.failedExpected > 0) {
@@ -199,7 +199,7 @@ export function resolveBookAnalysisNextAction(input: {
         title: i18next.t("bookAnalysis.bookAnalysisWorkspaceViewModel.5guiur"),
         description: `${sections.readableExpected}/${sections.expected} 个计划小节均有可读内容，其中 ${sections.failedExpected} 个小节最近一次生成失败。先检查保留内容，再决定是否重新生成。`,
         action: "view_results",
-        actionLabel: "查看已有结果",
+        actionLabel: i18next.t("bookAnalysis.bookAnalysisWorkspaceViewModel.11bypy"),
       };
     }
     return {
@@ -207,7 +207,7 @@ export function resolveBookAnalysisNextAction(input: {
       title: i18next.t("bookAnalysis.bookAnalysisWorkspaceViewModel.344rn9"),
       description: `共 ${sections.readable} 个小节已生成，可继续查看证据、整理角色，或发布到小说知识库。`,
       action: "view_results",
-      actionLabel: "查看拆书结果",
+      actionLabel: i18next.t("bookAnalysis.bookAnalysisWorkspaceViewModel.1jn9sf"),
     };
   }
 
@@ -218,7 +218,7 @@ export function resolveBookAnalysisNextAction(input: {
         title: i18next.t("bookAnalysis.bookAnalysisWorkspaceViewModel.66fjli"),
         description: `已保留 ${sections.readable} 个可阅读小节。${describeMissingExpectedSections(sections)}先检查已有结果，再决定是否重新生成。`,
         action: "view_results",
-        actionLabel: "查看已有结果",
+        actionLabel: i18next.t("bookAnalysis.bookAnalysisWorkspaceViewModel.11bypy"),
       };
     }
     return {
@@ -226,7 +226,7 @@ export function resolveBookAnalysisNextAction(input: {
       title: i18next.t("bookAnalysis.bookAnalysisWorkspaceViewModel.uxf7wf"),
       description: analysis.lastError?.trim() || "本次分析没有生成可阅读结果，源文档不会受影响。",
       action: "rebuild",
-      actionLabel: "重新生成分析",
+      actionLabel: i18next.t("bookAnalysis.bookAnalysisWorkspaceViewModel.roxt0i"),
     };
   }
 
@@ -247,6 +247,6 @@ export function resolveBookAnalysisNextAction(input: {
     title: i18next.t("bookAnalysis.bookAnalysisWorkspaceViewModel.wve6z"),
     description: i18next.t("bookAnalysis.bookAnalysisWorkspaceViewModel.tt94xa"),
     action: "rebuild",
-    actionLabel: "开始生成",
+    actionLabel: i18next.t("dict.gen_dac38a8b"),
   };
 }

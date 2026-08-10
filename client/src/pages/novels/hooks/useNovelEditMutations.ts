@@ -242,7 +242,7 @@ export function useNovelEditMutations({
       await invalidateNovelDetail();
     },
     onError: (error) => {
-      setPipelineMessage(error instanceof Error ? error.message : "移除章节失败，请稍后重试。");
+      setPipelineMessage(error instanceof Error ? error.message : i18next.t("novels.useNovelEditMutations.ge0rhr"));
     },
   });
 

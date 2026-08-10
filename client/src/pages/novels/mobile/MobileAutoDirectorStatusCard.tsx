@@ -1,3 +1,4 @@
+import i18next from "i18next";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import WorkflowProgressBar, {
@@ -14,16 +15,16 @@ interface MobileAutoDirectorStatusCardProps {
 function modeLabel(mode: NovelEditTakeoverState["mode"]): string {
   switch (mode) {
     case "loading":
-      return "加载中";
+      return i18next.t("dict.gen_f013ea9d");
     case "running":
-      return "接管中";
+      return i18next.t("novels.mobileAutoDirectorStatusCard.f6vpt");
     case "waiting":
-      return "等待确认";
+      return i18next.t("creativeHub.statusInterrupted");
     case "action_required":
-      return "待处理";
+      return i18next.t("autoDirector.secPending");
     case "failed":
     default:
-      return "异常";
+      return i18next.t("dict.gen_c195df63");
   }
 }
 

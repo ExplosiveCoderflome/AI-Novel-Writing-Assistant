@@ -295,16 +295,16 @@ function PromptSlotSection(props: {
 }
 
 function reconcileStateLabel(item: PromptSlotReconcileItem): string {
-  if (item.state === "drifted") return "官方文案已更新";
-  if (item.state === "new") return "官方新增槽位";
-  return "槽位已移除";
+  if (item.state === "drifted") return i18next.t("dict.gen_fd658afa");
+  if (item.state === "new") return i18next.t("dict.gen_56a10e06");
+  return i18next.t("dict.gen_1310244c");
 }
 
 function displaySlotValue(value: string | boolean | undefined): string {
-  if (value === undefined) return "无";
+  if (value === undefined) return i18next.t("dict.gen_d81bb206");
   if (typeof value === "boolean") return value ? "开启" : "关闭";
   const trimmed = value.trim();
-  if (!trimmed) return "空";
+  if (!trimmed) return i18next.t("dict.gen_b7612b71");
   return trimmed.length > 160 ? `${trimmed.slice(0, 160)}...` : trimmed;
 }
 

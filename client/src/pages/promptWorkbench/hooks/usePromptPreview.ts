@@ -156,7 +156,7 @@ function buildPreviewPromptInput(
       previousChapterBridge: "上一章留下追踪线索。",
       nextChapterBridge: "下一章进入正面对抗。",
       activePlotThreads: ["追踪档案站"],
-      paragraphs: [{ index: 1, text: "主角走进旧仓库。" }],
+      paragraphs: [{ index: 1, text: i18next.t("dict.mainCharacterEntersOldWarehouse") }],
       openIssues: [],
     };
   }
@@ -166,7 +166,7 @@ function buildPreviewPromptInput(
       generationDepth: "standard",
       selectedDimensions: ["basic", "personality", "arc"],
       character: {
-        name: "林澈",
+        name: i18next.t("dict.gen_e4abe8b6"),
         role: "主角",
         briefDescription: "被迫追查旧仓库暗号的年轻调查员。",
         importance: "high",
@@ -232,7 +232,7 @@ function buildPreviewPromptInput(
       classicElements: ["旧城区", "地下组织", "线索暗号"],
       pitfalls: ["不要把所有谜团一次解释完", "不要让规则只停留在概念"],
       axioms: "旧城的暗号系统真实存在，并会影响人物行动。",
-      summary: "旧城由表面生活区和地下线索网络构成。",
+      summary: i18next.t("dict.gen_4f216488"),
       blueprintPromptBlock: "核心舞台是废弃仓库、老街和被遮蔽的档案站。",
       existingJson: "{}",
       ragContext: "无额外参考。",

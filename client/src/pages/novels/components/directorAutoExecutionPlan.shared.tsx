@@ -191,7 +191,7 @@ export function buildDirectorAutoExecutionPlanLabel(
   plan: DirectorAutoExecutionPlan | null | undefined,
 ): string {
   if (plan?.mode === "book") {
-    return "全书";
+    return i18next.t("dict.gen_3df555d4");
   }
   if (plan?.mode === "chapter_range") {
     const startOrder = normalizePositiveInteger(plan.startOrder, 1);

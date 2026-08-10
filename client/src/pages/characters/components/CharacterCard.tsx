@@ -50,7 +50,7 @@ export function CharacterCard({
       await onDeleteAsset(asset);
       setPreviewAsset((current) => (current?.id === asset.id ? null : current));
     } catch (error) {
-      window.alert(error instanceof Error ? error.message : "删除图片失败，请稍后重试。");
+      window.alert(error instanceof Error ? error.message : i18next.t("characters.characterCard.qgcs6r"));
     }
   };
 

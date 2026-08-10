@@ -101,7 +101,7 @@ export default function CharacterDialogueStage(props: CharacterDialogueStageProp
           </form>
         </>
       ) : null}
-      {props.error ? <div className="border-t border-destructive/20 bg-destructive/5 px-4 py-3 text-sm text-destructive">{props.error instanceof Error ? props.error.message : "暂时无法继续这段谈话，请稍后重试。"}</div> : null}
+      {props.error ? <div className="border-t border-destructive/20 bg-destructive/5 px-4 py-3 text-sm text-destructive">{props.error instanceof Error ? props.error.message : i18next.t("novels.characterDialogueStage.dvq3gy")}</div> : null}
     </section>
   );
 }

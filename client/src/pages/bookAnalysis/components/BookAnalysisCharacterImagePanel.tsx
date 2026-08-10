@@ -204,7 +204,7 @@ export default function BookAnalysisCharacterImagePanel({
           </label>
           {promoteMutation.error ? (
             <div className="text-sm text-destructive">
-              {promoteMutation.error instanceof Error ? promoteMutation.error.message : "加入角色库失败。"}
+              {promoteMutation.error instanceof Error ? promoteMutation.error.message : i18next.t("dict.gen_ebb6f767")}
             </div>
           ) : null}
         </AppDialogContent>

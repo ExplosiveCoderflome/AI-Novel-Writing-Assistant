@@ -51,13 +51,13 @@ export const WRITING_MODE_OPTIONS: BasicInfoOption<NovelBasicFormState["writingM
   {
     value: "original",
     label: i18next.t("common.original"),
-    summary: "从零开始创建世界、角色和主线，适合大多数新项目。",
+    summary: i18next.t("novels.novelBasicInfo.shared.9a65cx"),
     recommended: true,
   },
   {
     value: "continuation",
     label: i18next.t("common.continuation"),
-    summary: "基于已有小说或知识文档继续创作，后续会优先注入既有设定和拆书内容。",
+    summary: i18next.t("novels.novelBasicInfo.shared.q6tg6j"),
   },
 ];
 
@@ -65,23 +65,23 @@ export const PROJECT_MODE_OPTIONS: BasicInfoOption<NovelBasicFormState["projectM
   {
     value: "co_pilot",
     label: i18next.t("novels.novelBasicInfo.shared.11grmv"),
-    summary: "你定方向，AI 提方案和草稿，适合前期打磨和高频人工决策。",
+    summary: i18next.t("novels.novelBasicInfo.shared.9rah21"),
     recommended: true,
   },
   {
     value: "ai_led",
     label: i18next.t("novels.novelBasicInfo.shared.11jixg"),
-    summary: "AI 负责主推进，你在关键节点审核，适合已有明确目标的项目。",
+    summary: i18next.t("novels.novelBasicInfo.shared.c7v4n4"),
   },
   {
     value: "draft_mode",
     label: i18next.t("creativeHub.novelProductionStarterCard.h2eo5i"),
-    summary: "先快速产出文本和方向，结构约束较弱，适合试故事和找感觉。",
+    summary: i18next.t("novels.novelBasicInfo.shared.rerl6x"),
   },
   {
     value: "auto_pipeline",
     label: i18next.t("novels.novelBasicInfo.shared.f62ou4"),
-    summary: "适合设定较完整后按规划、生成、审计、修复连续推进。",
+    summary: i18next.t("novels.novelBasicInfo.shared.oe7g75"),
   },
 ];
 
@@ -89,23 +89,23 @@ export const READER_CHANNEL_OPTIONS: BasicInfoOption<NovelBasicFormState["reader
   {
     value: "ai_judge",
     label: i18next.t("dict.aiJudging"),
-    summary: "让 AI 根据题材、卖点和起始想法判断默认读者频道倾向，适合作为默认选择。",
+    summary: i18next.t("novels.novelBasicInfo.shared.7pdep2"),
     recommended: true,
   },
   {
     value: "male_oriented",
     label: i18next.t("novels.novelBasicInfo.shared.hwhef"),
-    summary: "更强调目标、升级、竞争、爽点兑现和外部事件推进。",
+    summary: i18next.t("novels.novelBasicInfo.shared.mvb6td"),
   },
   {
     value: "female_oriented",
     label: i18next.t("novels.novelBasicInfo.shared.du2qb"),
-    summary: "更强调关系线、情绪牵引、人物选择和细腻的阶段性反馈。",
+    summary: i18next.t("novels.novelBasicInfo.shared.lixekm"),
   },
   {
     value: "general",
     label: i18next.t("novels.novelBasicInfo.shared.e6go5n"),
-    summary: "不限定频道倾向，让 AI 优先按故事本身和目标读者描述来规划。",
+    summary: i18next.t("novels.novelBasicInfo.shared.445gfy"),
   },
 ];
 
@@ -113,18 +113,18 @@ export const POV_OPTIONS: BasicInfoOption<NovelBasicFormState["narrativePov"]>[]
   {
     value: "third_person",
     label: i18next.t("dict.gen_5eff3cab"),
-    summary: "最稳，适合多角色和复杂主线。",
+    summary: i18next.t("novels.novelBasicInfo.shared.vmwto8"),
     recommended: true,
   },
   {
     value: "first_person",
     label: i18next.t("dict.gen_f69e8c5f"),
-    summary: "代入感强，但信息受限，适合强主角视角叙事。",
+    summary: i18next.t("novels.novelBasicInfo.shared.e3rzg9"),
   },
   {
     value: "mixed",
     label: i18next.t("dict.gen_73b444ba"),
-    summary: "更灵活，但更容易失控，适合成熟项目。",
+    summary: i18next.t("novels.novelBasicInfo.shared.km8jno"),
   },
 ];
 
@@ -132,18 +132,18 @@ export const PACE_OPTIONS: BasicInfoOption<NovelBasicFormState["pacePreference"]
   {
     value: "balanced",
     label: i18next.t("dict.gen_f07d8f75"),
-    summary: "推进和铺垫兼顾，适合作为默认选择。",
+    summary: i18next.t("novels.novelBasicInfo.shared.ehy0pa"),
     recommended: true,
   },
   {
     value: "slow",
     label: i18next.t("dict.gen_7209da38"),
-    summary: "更重铺垫、氛围和情绪发酵。",
+    summary: i18next.t("novels.novelBasicInfo.shared.210sxp"),
   },
   {
     value: "fast",
     label: i18next.t("dict.gen_de82b2fd"),
-    summary: "更重事件驱动、钩子和连续推进。",
+    summary: i18next.t("novels.novelBasicInfo.shared.s4i63j"),
   },
 ];
 
@@ -151,18 +151,18 @@ export const EMOTION_OPTIONS: BasicInfoOption<NovelBasicFormState["emotionIntens
   {
     value: "medium",
     label: i18next.t("dict.mediumEmotionalIntensity"),
-    summary: "保留起伏但不过载，适合作为默认值。",
+    summary: i18next.t("novels.novelBasicInfo.shared.enkepd"),
     recommended: true,
   },
   {
     value: "low",
     label: i18next.t("dict.lowEmotionalIntensity"),
-    summary: "更克制，适合冷静叙事或偏理性作品。",
+    summary: i18next.t("novels.novelBasicInfo.shared.ap89ok"),
   },
   {
     value: "high",
     label: i18next.t("dict.gen_13fc3cc2"),
-    summary: "更强调爆发、冲突和强刺激场面。",
+    summary: i18next.t("novels.novelBasicInfo.shared.d44uzm"),
   },
 ];
 
@@ -170,18 +170,18 @@ export const AI_FREEDOM_OPTIONS: BasicInfoOption<NovelBasicFormState["aiFreedom"
   {
     value: "medium",
     label: i18next.t("novels.novelBasicInfo.shared.aeka0i"),
-    summary: "允许 AI 在设定内补充细节和局部推进，适合作为默认值。",
+    summary: i18next.t("novels.novelBasicInfo.shared.pb5ggp"),
     recommended: true,
   },
   {
     value: "low",
     label: i18next.t("novels.novelBasicInfo.shared.ajot81"),
-    summary: "严格按设定和规划执行，适合前期控盘。",
+    summary: i18next.t("novels.novelBasicInfo.shared.izc9lu"),
   },
   {
     value: "high",
     label: i18next.t("novels.novelBasicInfo.shared.k2olk7"),
-    summary: "允许 AI 主动扩展剧情和细节，适合中后期稳定项目。",
+    summary: i18next.t("novels.novelBasicInfo.shared.c9b47c"),
   },
 ];
 
@@ -189,13 +189,13 @@ export const PUBLICATION_STATUS_OPTIONS: BasicInfoOption<NovelBasicFormState["st
   {
     value: "draft",
     label: i18next.t("common.draft"),
-    summary: "仍在开发和打磨阶段，适合绝大多数项目。",
+    summary: i18next.t("novels.novelBasicInfo.shared.s54x9r"),
     recommended: true,
   },
   {
     value: "published",
     label: i18next.t("common.published"),
-    summary: "用于标记已成型或已对外发布的作品。",
+    summary: i18next.t("novels.novelBasicInfo.shared.v20hj6"),
   },
 ];
 
@@ -229,7 +229,7 @@ export const BASIC_INFO_FIELD_HINTS = {
   primaryStoryModeId: "主推进模式回答“这本书靠什么持续推进和兑现”，例如系统流、无敌流、种田流。后续规划和生成会优先服从它。",
   secondaryStoryModeId: "副推进模式只负责补充风味，例如在治愈日常中叠加小店经营感，在无敌流中叠加马甲感，不能覆盖主模式的边界。",
   worldId: "这里只记录一个参考样本，方便初始化本书世界。小说生成会优先读取页面上方“本书世界”卡片中的内容。",
-  status: "只是作品生命周期标记，不影响基础创作能力，但会影响列表和项目管理状态。",
+  status: i18next.t("novels.novelBasicInfo.shared.mpw8fo"),
   continuationSourceType: "续写时选择是引用站内小说，还是知识库里的文档版本。",
   continuationBookAnalysis: "拆书内容会作为高权重结构化上下文，适合续写项目保持风格和设定一致。",
 } satisfies Record<string, string>;

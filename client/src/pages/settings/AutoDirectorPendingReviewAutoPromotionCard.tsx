@@ -15,7 +15,7 @@ import { AUTO_DIRECTOR_MOBILE_CLASSES } from "@/mobile/autoDirector";
 
 function formatBaseline(value: string | null | undefined): string {
   if (!value) {
-    return "未建立";
+    return i18next.t("settings.autoDirectorPendingReviewAutoPromotionCard.fkt6j");
   }
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) {

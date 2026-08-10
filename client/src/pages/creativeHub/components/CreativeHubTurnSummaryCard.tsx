@@ -11,15 +11,15 @@ interface CreativeHubTurnSummaryCardProps {
 function toStatusLabel(status: CreativeHubTurnSummary["status"]): string {
   switch (status) {
     case "succeeded":
-      return "已完成";
+      return i18next.t("tasks.filterStatusSucceeded");
     case "interrupted":
-      return "待确认";
+      return i18next.t("dict.gen_2a2772fa");
     case "failed":
-      return "失败";
+      return i18next.t("tasks.filterStatusFailed");
     case "cancelled":
-      return "已取消";
+      return i18next.t("tasks.filterStatusCancelled");
     case "running":
-      return "进行中";
+      return i18next.t("tasks.levelRunning");
     default:
       return status;
   }

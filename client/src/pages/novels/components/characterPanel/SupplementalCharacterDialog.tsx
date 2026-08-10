@@ -91,7 +91,7 @@ export default function SupplementalCharacterDialog(props: SupplementalCharacter
       setSupplementalResult(response.data ?? null);
       setSupplementalStatusMessage(response.message ?? "补充角色候选已生成。");
     } catch (error) {
-      setSupplementalStatusMessage(error instanceof Error ? error.message : "补充角色生成失败。");
+      setSupplementalStatusMessage(error instanceof Error ? error.message : i18next.t("dict.gen_c7b0928b"));
     }
   };
 
@@ -111,7 +111,7 @@ export default function SupplementalCharacterDialog(props: SupplementalCharacter
         ?? `${createdName} 已加入当前小说${relationCount > 0 ? `，并同步 ${relationCount} 条关系` : ""}。`,
       );
     } catch (error) {
-      setSupplementalStatusMessage(error instanceof Error ? error.message : "应用补充角色失败。");
+      setSupplementalStatusMessage(error instanceof Error ? error.message : i18next.t("dict.gen_e113be50"));
     }
   };
 

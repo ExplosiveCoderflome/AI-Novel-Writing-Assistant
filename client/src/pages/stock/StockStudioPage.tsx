@@ -139,11 +139,11 @@ export default function StockStudioPage() {
   const [syncing, setSyncing] = useState(false);
   const [openDStatus, setOpenDStatus] = useState<{ connected: boolean; message: string }>({
     connected: false,
-    message: "检测 OpenD 连通状态...",
+    message: i18next.t("stock.stockStudioPage.nchdf0"),
   });
   const [searxngStatus, setSearxngStatus] = useState<{ connected: boolean; message: string }>({
     connected: false,
-    message: "检测 SearXNG 本地搜索引擎连通状态...",
+    message: i18next.t("stock.stockStudioPage.jh3fx9"),
   });
 
   const checkSearXNGStatus = async () => {
@@ -159,7 +159,7 @@ export default function StockStudioPage() {
     } catch (e) {
       setSearxngStatus({
         connected: false,
-        message: "🔴 未检测到 SearXNG 本地 Docker 服务 (127.0.0.1:8080)",
+        message: i18next.t("stock.stockStudioPage.jtc982"),
       });
     }
   };
@@ -622,7 +622,7 @@ export default function StockStudioPage() {
             { id: p.symbol.toUpperCase(), name: p.companyName || p.symbol, type: "ROOT_STOCK", marketSymbol: p.symbol.toUpperCase(), description: `实盘持仓: ${p.shares}股` },
             { id: `SUP_${p.symbol}`, name: `${p.symbol} 核心供应商`, type: "SUPPLIER", description: `${p.symbol} 上游关键零部件与服务提供商` },
             { id: `CLI_${p.symbol}`, name: `${p.symbol} 下游核心客户`, type: "CLIENT", description: `${p.symbol} 核心产品采购与大单需求方` },
-            { id: "FED_POLICY", name: "美联储降息周期", type: "MACRO", description: i18next.t("stock.stockStudioPage.yhojqs") },
+            { id: "FED_POLICY", name: i18next.t("stock.stockStudioPage.i2i5zv"), type: "MACRO", description: i18next.t("stock.stockStudioPage.yhojqs") },
           ],
           edges: [
             { source: p.symbol.toUpperCase(), target: `SUP_${p.symbol}`, relation: "上游供应链与零件代工", impact: "POSITIVE" },

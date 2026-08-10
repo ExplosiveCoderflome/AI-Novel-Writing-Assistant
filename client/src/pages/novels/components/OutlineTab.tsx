@@ -19,9 +19,9 @@ import type { VolumeBeatImpactItem } from "@ai-novel/shared/types/novel";
 type OutlineWorkspaceTab = "current" | "strategy" | "assets";
 
 function versionStatusLabel(status: "draft" | "active" | "frozen"): string {
-  if (status === "active") return "已生效";
-  if (status === "frozen") return "已冻结";
-  return "草稿";
+  if (status === "active") return i18next.t("dict.gen_30ce1021");
+  if (status === "frozen") return i18next.t("dict.gen_92cff461");
+  return i18next.t("common.draft");
 }
 
 function versionStatusVariant(status: "draft" | "active" | "frozen"): "secondary" | "outline" | "default" {
@@ -54,11 +54,11 @@ const readinessSteps = [
 ] as const;
 
 function getNextOutlineAction(readiness: OutlineTabViewProps["readiness"]): string {
-  if (!readiness.canGenerateStrategy) return "先生成卷战略建议";
-  if (!readiness.canGenerateSkeleton) return "现在适合生成全书卷骨架";
-  if (!readiness.canGenerateBeatSheet) return "卷骨架已准备好，下一步进入节奏 / 拆章";
-  if (!readiness.canGenerateChapterList) return "先做当前卷节奏板，再拆当前卷章节";
-  return "卷战略阶段已齐备，可以继续进入节奏 / 拆章";
+  if (!readiness.canGenerateStrategy) return i18next.t("dict.gen_3a72a2c1");
+  if (!readiness.canGenerateSkeleton) return i18next.t("dict.gen_90dfb1da");
+  if (!readiness.canGenerateBeatSheet) return i18next.t("dict.gen_9ac0d332");
+  if (!readiness.canGenerateChapterList) return i18next.t("dict.gen_95eb1ea6");
+  return i18next.t("dict.gen_3a1a6074");
 }
 
 function getVolumeScaleProfileLabel(profile: OutlineTabViewProps["volumeCountGuidance"]["volumeScaleProfile"]): string {
@@ -74,9 +74,9 @@ function getVolumeScaleProfileLabel(profile: OutlineTabViewProps["volumeCountGui
 }
 
 function getBeatImpactStatusLabel(status: VolumeBeatImpactItem["status"]): string {
-  if (status === "locked_with_draft") return "已有正文锁定";
-  if (status === "pending") return "待生成";
-  return "可接入未写段";
+  if (status === "locked_with_draft") return i18next.t("novels.structuredChapterListCard.cr9lhw");
+  if (status === "pending") return i18next.t("dict.gen_418dde27");
+  return i18next.t("novels.outlineTab.9rnq4p");
 }
 
 function getBeatImpactStatusVariant(status: VolumeBeatImpactItem["status"]): "secondary" | "outline" | "default" {
@@ -87,7 +87,7 @@ function getBeatImpactStatusVariant(status: VolumeBeatImpactItem["status"]): "se
 
 function formatBeatChapterOrders(chapterOrders: number[]): string {
   if (chapterOrders.length === 0) {
-    return "待生成章节";
+    return i18next.t("novels.outlineTab.xigchk");
   }
   const sorted = chapterOrders.slice().sort((left, right) => left - right);
   return sorted[0] === sorted[sorted.length - 1]

@@ -38,9 +38,9 @@ function ProductionField(props: {
 }
 
 function fromNarrativePov(value: "first_person" | "third_person" | "mixed" | null | undefined): string {
-  if (value === "first_person") return "第一人称";
-  if (value === "third_person") return "第三人称";
-  if (value === "mixed") return "混合视角";
+  if (value === "first_person") return i18next.t("dict.gen_f69e8c5f");
+  if (value === "third_person") return i18next.t("dict.gen_5eff3cab");
+  if (value === "mixed") return i18next.t("dict.gen_73b444ba");
   return "";
 }
 
@@ -52,9 +52,9 @@ function toNarrativePov(value: string): "first_person" | "third_person" | "mixed
 }
 
 function fromPacePreference(value: "slow" | "balanced" | "fast" | null | undefined): string {
-  if (value === "slow") return "慢节奏";
-  if (value === "balanced") return "均衡节奏";
-  if (value === "fast") return "快节奏";
+  if (value === "slow") return i18next.t("dict.gen_7209da38");
+  if (value === "balanced") return i18next.t("creativeHub.novelProductionStarterCard.bkwd53");
+  if (value === "fast") return i18next.t("dict.gen_de82b2fd");
   return "";
 }
 
@@ -66,10 +66,10 @@ function toPacePreference(value: string): "slow" | "balanced" | "fast" | null {
 }
 
 function fromProjectMode(value: "ai_led" | "co_pilot" | "draft_mode" | "auto_pipeline" | null | undefined): string {
-  if (value === "ai_led") return "AI 主导";
-  if (value === "co_pilot") return "人机协作";
-  if (value === "draft_mode") return "草稿优先";
-  if (value === "auto_pipeline") return "自动流水线";
+  if (value === "ai_led") return i18next.t("creativeHub.novelProductionStarterCard.11fpjt");
+  if (value === "co_pilot") return i18next.t("creativeHub.novelProductionStarterCard.aczqnh");
+  if (value === "draft_mode") return i18next.t("creativeHub.novelProductionStarterCard.h2eo5i");
+  if (value === "auto_pipeline") return i18next.t("creativeHub.novelProductionStarterCard.lmnhou");
   return "";
 }
 
@@ -82,9 +82,9 @@ function toProjectMode(value: string): "ai_led" | "co_pilot" | "draft_mode" | "a
 }
 
 function fromLevel(value: "low" | "medium" | "high" | null | undefined): string {
-  if (value === "low") return "低";
-  if (value === "medium") return "中";
-  if (value === "high") return "高";
+  if (value === "low") return i18next.t("dict.low");
+  if (value === "medium") return i18next.t("dict.mid");
+  if (value === "high") return i18next.t("dict.gen_4296d7d2");
   return "";
 }
 
@@ -297,7 +297,7 @@ export default function NovelProductionStarterCard({
       }));
     },
     onError: (error) => {
-      toast.error(error instanceof Error ? error.message : "整本生产启动失败。");
+      toast.error(error instanceof Error ? error.message : i18next.t("creativeHub.novelProductionStarterCard.iso3x1"));
     },
   });
   const formDisabled = actionDisabled

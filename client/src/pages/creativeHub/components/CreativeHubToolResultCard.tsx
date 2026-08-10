@@ -47,15 +47,15 @@ function compactText(value: string, max = 140): string {
 function formatNovelProjectStatus(value: unknown): string | null {
   switch (value) {
     case "in_progress":
-      return "在写中";
+      return i18next.t("creativeHub.creativeHubToolResultCard.d5vq4");
     case "not_started":
-      return "未开始";
+      return i18next.t("dict.gen_dd4e55c3");
     case "completed":
-      return "已完成";
+      return i18next.t("tasks.filterStatusSucceeded");
     case "rework":
-      return "返工中";
+      return i18next.t("creativeHub.creativeHubToolResultCard.lisvw");
     case "blocked":
-      return "已阻塞";
+      return i18next.t("creativeHub.creativeHubToolResultCard.eher9");
     default:
       return null;
   }
