@@ -15,6 +15,8 @@ import {
   saveAutoDirectorApprovalPreferenceSettings,
 } from "../services/settings/AutoDirectorApprovalPreferenceService";
 import { qualityDebtSettingsService } from "../services/settings/QualityDebtSettingsService";
+import { directorIssuePolicySchema } from "@ai-novel/shared/types/directorIssue";
+import { directorIssuePolicyService } from "../services/novel/director/issues";
 
 const router = Router();
 
@@ -44,6 +46,36 @@ const pendingReviewAutoPromotionSchema = z.object({
 });
 
 router.use(authMiddleware);
+
+router.get("/risk-policy", async (_req, res, next) => {
+  try {
+    const data = await directorIssuePolicyService.getGlobalPolicy();
+    res.status(200).json({
+      success: true,
+      data,
+      message: "自动导演问题处理规则已加载。",
+    } satisfies ApiResponse<typeof data>);
+  } catch (error) {
+    next(error);
+  }
+});
+
+router.put(
+  "/risk-policy",
+  validate({ body: directorIssuePolicySchema }),
+  async (req, res, next) => {
+    try {
+      const data = await directorIssuePolicyService.saveGlobalPolicy(req.body);
+      res.status(200).json({
+        success: true,
+        data,
+        message: "自动导演问题处理规则已保存。",
+      } satisfies ApiResponse<typeof data>);
+    } catch (error) {
+      next(error);
+    }
+  },
+);
 
 router.get("/channels", async (_req, res, next) => {
   try {

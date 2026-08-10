@@ -83,11 +83,14 @@ export function classifyChapterQualityLoopRisk(
   ) {
     return "blocking";
   }
-  if (recommendedAction === "manual_gate") {
-    return "blocking";
-  }
+  // A chapter can carry local quality debt while the autopilot is explicitly
+  // allowed to continue. The terminal action is the authoritative workflow
+  // decision; do not re-promote the stored recommendation to a global block.
   if (qualityLoop.terminalAction === "defer_and_continue") {
     return "non_blocking_quality_debt";
+  }
+  if (recommendedAction === "manual_gate") {
+    return "blocking";
   }
   if (hasBlockingObligations(qualityLoop.blockingObligations)) {
     return "blocking";
@@ -120,6 +123,16 @@ export function hasContinuableChapterQualityLoopRiskFlags(riskFlags: string | nu
       && qualityLoop.overallStatus === "valid"
       && qualityLoop.recommendedAction === "continue"
     );
+}
+
+/**
+ * 标识必须先调整章节窗口的结构性问题。该判断只消费已落库的结构化质量闭环结果，
+ * 供任务投影与阅读入口区分“待优化”与“等待重规划”。
+ */
+export function hasChapterQualityLoopReplanRequiredRiskFlags(riskFlags: string | null | undefined): boolean {
+  const qualityLoop = parseRiskFlagsObject(riskFlags)?.qualityLoop;
+  return isRecord(qualityLoop)
+    && (qualityLoop.rootCauseCode === "replan_required" || qualityLoop.recommendedAction === "replan");
 }
 
 export interface ChapterQualityLoopAssessmentInput {

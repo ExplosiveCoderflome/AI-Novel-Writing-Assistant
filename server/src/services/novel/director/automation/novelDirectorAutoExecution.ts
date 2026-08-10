@@ -369,6 +369,7 @@ export function buildDirectorAutoExecutionState(input: {
   preparedVolumeIds?: string[];
   beatChapterListReady?: boolean;
   volumeChapterListComplete?: boolean;
+  completionProfile?: DirectorAutoExecutionState["completionProfile"];
   pipelineJobId?: string | null;
   pipelineStatus?: PipelineJobStatus | null;
 }): DirectorAutoExecutionState {
@@ -409,6 +410,11 @@ export function buildDirectorAutoExecutionState(input: {
     .slice(-40);
   return {
     enabled: true,
+    riskPolicy: (input.plan as DirectorAutoExecutionState | null | undefined)?.riskPolicy,
+    latestRiskAssessment: (input.plan as DirectorAutoExecutionState | null | undefined)?.latestRiskAssessment ?? null,
+    completionProfile: input.completionProfile
+      ?? (input.plan as DirectorAutoExecutionState | null | undefined)?.completionProfile,
+    closingExtensionCount: (input.plan as DirectorAutoExecutionState | null | undefined)?.closingExtensionCount ?? 0,
     mode: plan.mode,
     autoReview: plan.autoReview ?? true,
     autoRepair: plan.autoReview === false ? false : (plan.autoRepair ?? true),
@@ -445,6 +451,17 @@ export function buildDirectorAutoExecutionState(input: {
 
 export function buildDirectorAutoExecutionPausedLabel(state: DirectorAutoExecutionState): string {
   return `${buildDirectorAutoExecutionScopeLabelFromState(state)}自动执行已暂停`;
+}
+
+export function buildDirectorAutoExecutionStageLabel(state: DirectorAutoExecutionState): string {
+  if (state.completionProfile?.mode !== "compact_book") {
+    return `正在自动执行${buildDirectorAutoExecutionScopeLabelFromState(state)}`;
+  }
+  const remaining = state.remainingChapterCount ?? 0;
+  if (remaining <= 3) return "正在补齐结局";
+  if (remaining <= 8) return "正在收束主线";
+  if ((state.completedChapterCount ?? 0) <= 3) return "正在完成开篇";
+  return "正在推进故事";
 }
 
 export function buildDirectorAutoExecutionPausedSummary(input: {
@@ -512,7 +529,9 @@ export function buildDirectorAutoExecutionPipelineOptions(input: {
     startOrder: input.startOrder,
     endOrder: input.endOrder,
     controlPolicy: buildPipelineExecutionControlPolicy("director_start", input.controlAdvanceMode),
-    maxRetries: 1,
+    // Auto-director retries the current chapter before exposing a recoverable
+    // failure. Manual single-chapter runs keep their lighter default.
+    maxRetries: input.controlAdvanceMode === "full_book_autopilot" ? 2 : 1,
     runMode: input.runMode ?? "fast",
     autoReview,
     autoRepair: autoReview ? (input.autoRepair ?? true) : false,

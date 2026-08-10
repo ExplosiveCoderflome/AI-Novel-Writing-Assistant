@@ -5,6 +5,7 @@ import type { NovelStoryMode } from "./storyMode";
 import type { TaskStatus, TaskTokenUsageSummary } from "./task";
 import type { NarrativeForm } from "./creationStudio";
 import type { WritingPlatform } from "./writingPlatform";
+import type { DirectorRiskHistoryItem, DirectorRiskPolicy } from "./directorRisk";
 export type {
   BaseCharacter,
   Character,
@@ -109,6 +110,8 @@ export type SimpleCreationShelfChapterStatus =
   | "waiting_writing"
   | "generating"
   | "reviewing"
+  | "quality_debt"
+  | "replan_required"
   | "completed"
   | "error";
 
@@ -128,6 +131,9 @@ export interface SimpleCreationShelfProjection {
     status: "queued" | "running" | "paused" | "failed" | "completed";
     canRetry: boolean;
     safetyMessage?: string | null;
+    riskPolicy?: DirectorRiskPolicy | null;
+    latestRiskAssessment?: DirectorRiskHistoryItem | null;
+    riskHistory?: DirectorRiskHistoryItem[];
   };
   chapters: Array<{
     id: string;
@@ -185,6 +191,8 @@ export type PipelineRepairMode =
 export interface NovelAutoDirectorTaskSummary {
   id: string;
   status: TaskStatus;
+  /** The production lane selected for this task; used to restore the correct workspace entry. */
+  productionExperience?: "simple" | "professional" | null;
   pendingManualRecovery?: boolean;
   progress: number;
   currentStage?: string | null;

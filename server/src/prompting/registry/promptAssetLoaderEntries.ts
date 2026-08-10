@@ -10,6 +10,10 @@ export interface PromptAssetLoaderEntry {
 
 export const promptAssetLoaderEntries: PromptAssetLoaderEntry[] = [
   {
+    key: "director.risk.assessment@v1",
+    load: () => require("../prompts/director/directorRiskAssessment.prompts").directorRiskAssessmentPrompt as UnknownPromptAsset,
+  },
+  {
     key: "novel.writing_platform.recommend@v1",
     load: () => require("../prompts/novel/writingPlatformRecommendation.prompts").writingPlatformRecommendationPrompt as UnknownPromptAsset,
   },
@@ -466,6 +470,14 @@ export const promptAssetLoaderEntries: PromptAssetLoaderEntry[] = [
     load: () => require("../prompts/novel/resourceRecommendation.prompts").novelCreateResourceRecommendationPrompt as UnknownPromptAsset,
   },
   {
+    key: "novel.compact_book.structure@v1",
+    load: () => require("../prompts/novel/completion/compactBook.prompts").compactBookStructurePrompt as UnknownPromptAsset,
+  },
+  {
+    key: "novel.compact_book.ending_audit@v1",
+    load: () => require("../prompts/novel/completion/compactBook.prompts").compactBookEndingAuditPrompt as UnknownPromptAsset,
+  },
+  {
     key: "novel.director.idea_inspiration@v3",
     load: () => require("../prompts/novel/ideaInspiration.prompts").directorIdeaInspirationPrompt as UnknownPromptAsset,
   },
@@ -484,6 +496,10 @@ export const promptAssetLoaderEntries: PromptAssetLoaderEntry[] = [
   {
     key: "storyMode.child.generate@v1",
     load: () => require("../prompts/storyMode/storyMode.prompts").storyModeChildPrompt as UnknownPromptAsset,
+  },
+  {
+    key: "storyMode.expansion.recommend@v1",
+    load: () => require("../prompts/storyMode/storyMode.prompts").storyModeExpansionPrompt as UnknownPromptAsset,
   },
   {
     key: "storyWorldSlice.generate@v1",

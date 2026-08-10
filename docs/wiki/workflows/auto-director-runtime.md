@@ -74,6 +74,8 @@ Web API 只接收命令和返回轻量投影；Worker 负责执行重型生产�
 - 自动导演不得在 director 内部补写时间线提交逻辑。stable/degraded timeline、`ChapterTimeAnchor`、hook 承接、checkpoint metadata 都属于统一章节 runtime，不属于导演专属恢复逻辑。
 - 自动导演驱动章节生产时，章节 pipeline 的 LLM 用量必须写入导演用量遥测，并带上 `chapterId`。每章累计 token 超过硬预算时，运行时应打开 `usage_anomaly` 熔断并暂停后续自动执行，防止任务重启、质量循环或上下文膨胀继续放大消耗。
 - 自动导演投影必须把 `terminalAction=defer_and_continue` 且非重规划的质量结果视为“已记录质量债务”，不能升级成 `action_required`、`error` 或“出错需处理”。这类质量债务只影响后续优化提示，不阻塞继续执行。
+- 自动导演问题治理由稳定问题码、风险分和处理策略共同决定。全局策略可为不同问题指定自动重试、提醒后继续、暂停处理或结束任务；运行时安全、受保护内容和数据完整性约束始终优先于用户偏好。
+- 小说可以覆盖全局问题策略，但启动中的导演任务必须继续使用其启动时已解析的策略快照。策略调整只能影响后续新任务，避免运行到一半改变恢复语义或自动化边界。
 - 自动导演执行面只能把明确的 `stop_for_replan` / `replan_required` 接入重规划检查点。章节审核返回 `local_patch_plan`、`continue_with_warning`、`patchable_obligation_gap` 或修复后仍有可记录义务缺口时，应登记为质量债务或局部修复建议并继续剩余章节，不能因为 `recommended=true` 就写入 `replanAlertDetails`。
 - `replan_required` 即使出现在全书自动成书或 AI 主驾自动执行中，也仍是阻塞检查点。运行时应停止在实际触发章节，并把摘要写成“已执行至第 N 章，后续需重规划”，不能把目标范围直接显示为已完成。
 - `auto_execute_range` 是用户对当前章节执行范围的显式继续授权。恢复链路即使先回到结构化大纲或执行合同同步，也必须把该授权传入后续 Pipeline 的 `approveAutoExecutionScope`，并在结构化同步后主动进入章节执行节点；不能只依赖自动审批偏好，否则命令会成功结束但章节执行节点仍停在审批门。

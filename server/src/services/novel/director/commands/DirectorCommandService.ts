@@ -36,6 +36,7 @@ import {
   type DirectorCommandPayload,
 } from "./DirectorCommandServiceHelpers";
 import { taskDispatcher } from "../../../../workers/TaskDispatcher";
+import { directorIssueService, loadDirectorIssueTaskContext } from "../issues";
 
 const ACTIVE_COMMAND_STATUSES: DirectorRunCommandStatus[] = ["queued", "leased", "running"];
 const EXECUTION_COMMAND_TYPES: DirectorRunCommandType[] = [
@@ -558,6 +559,26 @@ export class DirectorCommandService {
         },
       }).catch(() => null);
       taskDispatcher.notify();
+      for (const command of autoRecoverableCommands) {
+        const governance = await loadDirectorIssueTaskContext(command.taskId);
+        if (!governance?.novelId) continue;
+        await directorIssueService.reportIssue({
+          issueGovernanceVersion: governance.issueGovernanceVersion,
+          taskId: command.taskId,
+          novelId: governance.novelId,
+          issueCode: "runtime.worker_stale",
+          stage: "director_worker",
+          summary: STALE_COMMAND_AUTO_RECOVERY_MESSAGE,
+          evidence: `command=${command.commandType}; attempt=${command.attempt}`,
+          attempt: command.attempt,
+          maxAttempts: command.attempt + 1,
+          hasUsableOutput: false,
+          runMode: governance.runMode,
+          fingerprint: ["worker_stale", command.id, command.attempt].join(":"),
+          policy: governance.policy,
+          policySource: governance.policySource,
+        }).catch(() => null);
+      }
     }
 
     if (manualRecoveryCommands.length === 0) {
@@ -587,6 +608,26 @@ export class DirectorCommandService {
       }).catch(() => null);
       await this.workflowService.requeueTaskForRecovery(taskId, STALE_COMMAND_MANUAL_RECOVERY_MESSAGE)
         .catch(() => null);
+      const governance = await loadDirectorIssueTaskContext(taskId);
+      if (governance?.novelId) {
+        const command = manualRecoveryCommands.find((item) => item.taskId === taskId);
+        await directorIssueService.reportIssue({
+          issueGovernanceVersion: governance.issueGovernanceVersion,
+          taskId,
+          novelId: governance.novelId,
+          issueCode: "runtime.worker_stale",
+          stage: "director_worker",
+          summary: STALE_COMMAND_MANUAL_RECOVERY_MESSAGE,
+          evidence: command ? `command=${command.commandType}; attempt=${command.attempt}` : undefined,
+          attempt: command?.attempt ?? 1,
+          maxAttempts: command?.attempt ?? 1,
+          hasUsableOutput: false,
+          runMode: governance.runMode,
+          fingerprint: ["worker_stale", command?.id ?? taskId, command?.attempt ?? 1].join(":"),
+          policy: governance.policy,
+          policySource: governance.policySource,
+        }).catch(() => null);
+      }
     }
     return staleCommands.length;
   }

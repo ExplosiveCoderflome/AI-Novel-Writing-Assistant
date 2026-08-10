@@ -7,6 +7,7 @@ import { flattenGenreTreeOptions, getGenreTree } from "@/api/genre";
 import { flattenStoryModeTreeOptions, getStoryModeTree } from "@/api/storyMode";
 import { bootstrapNovelWorkflow } from "@/api/novelWorkflow";
 import { queryKeys } from "@/api/queryKeys";
+import { DEFAULT_DIRECTOR_RISK_POLICY, getDirectorRiskPolicy } from "@/api/directorRiskPolicy";
 import { getWorldList } from "@/api/world";
 import { Button } from "@/components/ui/button";
 import { toast } from "@/components/ui/toast";
@@ -30,6 +31,7 @@ import {
   summarizeWorldStyleStage,
 } from "./directorCreateStages";
 import { useAutoDirectorCreateController } from "./useAutoDirectorCreateController";
+import { DirectorRiskPolicySummary } from "../components/DirectorRiskPolicySummary";
 
 const STAGE_ORDER: AutoDirectorCreateStageKey[] = ["idea", "basic", "world_style", "model_run", "candidates"];
 
@@ -73,6 +75,12 @@ export default function AutoDirectorCreatePage() {
     queryKey: queryKeys.storyModes.all,
     queryFn: getStoryModeTree,
   });
+  const riskPolicyQuery = useQuery({
+    queryKey: queryKeys.settings.autoDirectorRiskPolicy,
+    queryFn: getDirectorRiskPolicy,
+    retry: false,
+  });
+  const riskPolicy = riskPolicyQuery.data?.data ?? DEFAULT_DIRECTOR_RISK_POLICY;
   const genreTree = genreTreeQuery.data?.data ?? [];
   const storyModeTree = storyModeTreeQuery.data?.data ?? [];
   const genreOptions = flattenGenreTreeOptions(genreTree);
@@ -139,6 +147,7 @@ export default function AutoDirectorCreatePage() {
     onWorkflowTaskChange: replaceTaskId,
     onBasicFormChange: (patch) => setBasicForm((prev) => patchNovelBasicForm(prev, patch)),
   });
+  const createdNovelId = controller.directorTask?.resumeTarget?.novelId?.trim() ?? "";
 
   useEffect(() => {
     if (controller.batches.length === 0 && !controller.hasActiveDirectorTask) {
@@ -320,11 +329,20 @@ export default function AutoDirectorCreatePage() {
               从一个起始想法开始，AI 完成整本规划准备后，再由你选择正文生产方式。
             </div>
           </div>
-          <Button type="button" variant="outline" asChild>
-            <Link to="/novels/create">手动创建</Link>
-          </Button>
+          <div className="flex flex-wrap gap-2">
+            {createdNovelId ? (
+              <Button type="button" variant="default" asChild>
+                <Link to={`/novels/${createdNovelId}/simple`}>打开小说书架</Link>
+              </Button>
+            ) : null}
+            <Button type="button" variant="outline" asChild>
+              <Link to="/novels/create">手动创建</Link>
+            </Button>
+          </div>
         </div>
       ) : null}
+
+      <DirectorRiskPolicySummary policy={riskPolicy} compact />
 
       {showSummaryBar ? (
         <div className="flex min-w-0 flex-wrap gap-2">

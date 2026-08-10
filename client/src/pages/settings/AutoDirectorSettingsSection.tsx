@@ -3,9 +3,11 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   getAutoDirectorApprovalPreferenceSettings,
   getAutoDirectorChannelSettings,
+  getAutoDirectorIssuePolicy,
   getPendingReviewAutoPromotionSettings,
   saveAutoDirectorApprovalPreferenceSettings,
   saveAutoDirectorChannelSettings,
+  saveAutoDirectorIssuePolicy,
   savePendingReviewAutoPromotionSettings,
 } from "@/api/settings";
 import { queryKeys } from "@/api/queryKeys";
@@ -13,6 +15,7 @@ import { AutoDirectorApprovalPreferenceCard } from "./AutoDirectorApprovalPrefer
 import { AutoDirectorBrowserNotificationSettingsCard } from "./AutoDirectorBrowserNotificationSettingsCard";
 import { AutoDirectorChannelSettingsCard } from "./AutoDirectorChannelSettingsCard";
 import { AutoDirectorPendingReviewAutoPromotionCard } from "./AutoDirectorPendingReviewAutoPromotionCard";
+import { AutoDirectorIssuePolicyCard } from "./AutoDirectorIssuePolicyCard";
 import {
   buildAutoDirectorChannelDraft,
   type AutoDirectorChannelDraft,
@@ -34,14 +37,18 @@ export default function AutoDirectorSettingsSection(props: {
     queryKey: queryKeys.settings.autoDirectorApprovalPreferences,
     queryFn: getAutoDirectorApprovalPreferenceSettings,
   });
+  const issuePolicyQuery = useQuery({
+    queryKey: queryKeys.settings.autoDirectorIssuePolicy,
+    queryFn: getAutoDirectorIssuePolicy,
+  });
   const pendingReviewAutoPromotionQuery = useQuery({
     queryKey: queryKeys.settings.pendingReviewAutoPromotion,
     queryFn: getPendingReviewAutoPromotionSettings,
   });
-
   const autoDirectorChannels = autoDirectorChannelsQuery.data?.data;
   const approvalPreference = approvalPreferenceQuery.data?.data;
   const pendingReviewAutoPromotion = pendingReviewAutoPromotionQuery.data?.data;
+  const issuePolicy = issuePolicyQuery.data?.data;
   const channelDraft = autoDirectorChannelDraft ?? buildAutoDirectorChannelDraft(autoDirectorChannels);
   const approvalCodes = approvalPreferenceDraft ?? approvalPreference?.approvalPointCodes ?? [];
 
@@ -83,6 +90,16 @@ export default function AutoDirectorSettingsSection(props: {
       onActionResult(error instanceof Error ? error.message : "保存待确认状态自动放行设置失败。");
     },
   });
+  const saveIssuePolicyMutation = useMutation({
+    mutationFn: saveAutoDirectorIssuePolicy,
+    onSuccess: async (response) => {
+      onActionResult(response.message ?? "问题处理规则已保存。");
+      await queryClient.invalidateQueries({ queryKey: queryKeys.settings.autoDirectorIssuePolicy });
+    },
+    onError: (error) => {
+      onActionResult(error instanceof Error ? error.message : "保存问题处理规则失败。");
+    },
+  });
 
   const patchChannelDraft = (
     channelType: "dingtalk" | "wecom",
@@ -103,6 +120,13 @@ export default function AutoDirectorSettingsSection(props: {
   return (
     <>
       <AutoDirectorBrowserNotificationSettingsCard onActionResult={onActionResult} />
+
+      <AutoDirectorIssuePolicyCard
+        policy={issuePolicy}
+        isLoading={issuePolicyQuery.isLoading}
+        isSaving={saveIssuePolicyMutation.isPending}
+        onSave={(nextPolicy) => saveIssuePolicyMutation.mutate(nextPolicy)}
+      />
 
       <AutoDirectorApprovalPreferenceCard
         settings={approvalPreference}

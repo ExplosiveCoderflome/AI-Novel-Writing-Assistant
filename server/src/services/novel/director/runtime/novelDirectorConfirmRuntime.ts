@@ -7,6 +7,8 @@ import type {
   DirectorConfirmApiResponse,
   DirectorConfirmRequest,
 } from "@ai-novel/shared/types/novelDirector";
+import type { DirectorRiskPolicy } from "@ai-novel/shared/types/directorRisk";
+import { buildDirectorCompletionProfile } from "@ai-novel/shared/types/directorCompletion";
 import type { NovelContextService } from "../../NovelContextService";
 import type { NovelWorkflowService } from "../../workflow/NovelWorkflowService";
 import {
@@ -59,6 +61,7 @@ export class NovelDirectorConfirmRuntime {
     ensurePrimaryNovelStyleBinding: (novelId: string, styleProfileId: string | null | undefined) => Promise<void>;
     withWorkflowTaskUsage: <T>(workflowTaskId: string | null | undefined, runner: () => Promise<T>) => Promise<T>;
     scheduleBackgroundRun: (taskId: string, runner: () => Promise<void>) => void;
+    resolveRiskPolicy: (novelId: string) => Promise<DirectorRiskPolicy>;
   }) {}
 
   async confirmCandidate(input: DirectorConfirmRequest): Promise<DirectorConfirmApiResponse> {
@@ -66,6 +69,8 @@ export class NovelDirectorConfirmRuntime {
       ...await this.deps.enrichDirectorStyleContext(input),
       runMode: "full_book_autopilot" as const,
       startupPreparation: input.startupPreparation ?? DEFAULT_DIRECTOR_STARTUP_PREPARATION,
+      completionProfile: input.completionProfile
+        ?? buildDirectorCompletionProfile(input.estimatedChapterCount ?? input.candidate.targetChapterCount),
     });
     const runMode = "full_book_autopilot" as const;
     const title = resolvedInput.candidate.workingTitle.trim() || resolvedInput.title?.trim() || "未命名项目";
@@ -273,6 +278,10 @@ export class NovelDirectorConfirmRuntime {
         if (!createdNovel?.id) {
           throw new Error("自动导演建书节点没有返回小说项目。");
         }
+        const executionDirectorInput: DirectorConfirmRequest = {
+          ...resolvedDirectorInput,
+          riskPolicy: resolvedDirectorInput.riskPolicy ?? await this.deps.resolveRiskPolicy(createdNovel.id),
+        };
         await prisma.novel.update({
           where: { id: createdNovel.id },
           data: {
@@ -298,9 +307,9 @@ export class NovelDirectorConfirmRuntime {
           novelId: createdNovel.id,
           lane: "auto_director",
           title,
-          seedPayload: this.deps.buildDirectorSeedPayload(resolvedDirectorInput, createdNovel.id, {
+          seedPayload: this.deps.buildDirectorSeedPayload(executionDirectorInput, createdNovel.id, {
             productionExperience: "simple",
-            startupPreparation: resolvedDirectorInput.startupPreparation,
+            startupPreparation: executionDirectorInput.startupPreparation,
             directorSession,
             resumeTarget,
           }),
@@ -323,7 +332,7 @@ export class NovelDirectorConfirmRuntime {
           await this.deps.pipelineRuntime.runPipeline({
             taskId: workflowTask.id,
             novelId: createdNovel.id,
-            input: resolvedDirectorInput,
+            input: executionDirectorInput,
             startPhase: "story_macro",
             scope: "book",
             approveCurrentGate: isFullBookAutopilotRunMode(runMode),

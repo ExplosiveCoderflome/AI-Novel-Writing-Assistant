@@ -1,12 +1,13 @@
 import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import type { StoryModeProfile } from "@ai-novel/shared/types/storyMode";
+import type { NovelStoryMode, StoryModeProfile } from "@ai-novel/shared/types/storyMode";
 import {
   createStoryModeChildren,
   createStoryModeTree,
   deleteStoryMode,
   flattenStoryModeTreeOptions,
   generateStoryModeChild,
+  generateStoryModeExpansion,
   generateStoryModeTree,
   getStoryModeTree,
   updateStoryMode,
@@ -14,7 +15,6 @@ import {
   type StoryModeTreeNode,
 } from "@/api/storyMode";
 import { queryKeys } from "@/api/queryKeys";
-import LLMSelector from "@/components/common/LLMSelector";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import {
@@ -31,6 +31,8 @@ import { useLLMStore } from "@/store/llmStore";
 import StoryModeProfileFields from "./components/StoryModeProfileFields";
 import StoryModeTreeBrowser from "./components/StoryModeTreeBrowser";
 import SelectControl from "@/components/common/SelectControl";
+import StoryModeCreateDialog from "./components/StoryModeCreateDialog";
+import StoryModeExpansionDialog from "./components/StoryModeExpansionDialog";
 
 type StoryModeProfileDraft = StoryModeProfile;
 
@@ -136,6 +138,12 @@ export default function StoryModeManagementPage() {
   const [activeGeneratedChildIndex, setActiveGeneratedChildIndex] = useState<number | null>(null);
   const [createDraft, setCreateDraft] = useState<StoryModeTreeDraft>(createEmptyDraft());
   const [editState, setEditState] = useState<StoryModeDialogState>(toDialogState());
+  const [expansionDialogOpen, setExpansionDialogOpen] = useState(false);
+  const [expansionParentId, setExpansionParentId] = useState("");
+  const [expansionPrompt, setExpansionPrompt] = useState("");
+  const [expansionCount, setExpansionCount] = useState(3);
+  const [expansionCandidates, setExpansionCandidates] = useState<StoryModeTreeDraft[]>([]);
+  const [selectedExpansionIndexes, setSelectedExpansionIndexes] = useState<number[]>([]);
 
   const storyModeTreeQuery = useQuery({
     queryKey: queryKeys.storyModes.all,
@@ -153,6 +161,7 @@ export default function StoryModeManagementPage() {
     () => flattenStoryModeTreeOptions(storyModeTree).filter((item) => item.level === 0),
     [storyModeTree],
   );
+  const rootOptions = parentOptions;
   const blockedParentIds = useMemo(
     () => editingStoryMode ? new Set([editingStoryMode.id, ...collectDescendantIds(editingStoryMode)]) : new Set<string>(),
     [editingStoryMode],
@@ -256,6 +265,57 @@ export default function StoryModeManagementPage() {
     onSuccess: async () => {
       await invalidate();
       toast.success("推进模式已删除。");
+    },
+  });
+
+  const expansionMutation = useMutation({
+    mutationFn: async () => {
+      const response = await generateStoryModeExpansion({
+        ...(expansionParentId ? { parentId: expansionParentId } : {}),
+        prompt: expansionPrompt.trim() || undefined,
+        count: expansionCount,
+        provider: llm.provider,
+        model: llm.model,
+        temperature: llm.temperature,
+        maxTokens: llm.maxTokens,
+      });
+      return response.data ?? [];
+    },
+    onSuccess: (drafts) => {
+      setExpansionCandidates(drafts.map(cloneDraft));
+      setSelectedExpansionIndexes(drafts.map((_draft, index) => index));
+      toast.success(`AI 已推荐 ${drafts.length} 个新的推进方向。`);
+    },
+  });
+
+  const saveExpansionMutation = useMutation({
+    mutationFn: async () => {
+      const drafts = selectedExpansionIndexes
+        .map((index) => expansionCandidates[index])
+        .filter((draft): draft is StoryModeTreeDraft => Boolean(draft))
+        .map((draft) => ({ ...cloneDraft(draft), children: [], profile: normalizeProfileInput(draft.profile) }));
+      if (drafts.length === 0) throw new Error("请至少选择一个推进模式方向。");
+      if (expansionParentId) {
+        return createStoryModeChildren({ parentId: expansionParentId, drafts });
+      }
+      const created: NovelStoryMode[] = [];
+      for (const draft of drafts) {
+        const response = await createStoryModeTree({
+          name: draft.name,
+          description: draft.description,
+          template: draft.template,
+          profile: draft.profile,
+          parentId: null,
+          children: [],
+        });
+        if (response.data) created.push(response.data);
+      }
+      return { success: true, data: created, message: "推进模式根节点创建成功。" };
+    },
+    onSuccess: async (response) => {
+      await invalidate();
+      toast.success(`已加入 ${response.data?.length ?? selectedExpansionIndexes.length} 个新的推进模式。`);
+      setExpansionDialogOpen(false);
     },
   });
 
@@ -377,185 +437,58 @@ export default function StoryModeManagementPage() {
 
   return (
     <div className="space-y-4">
-      <Dialog open={createDialogOpen} onOpenChange={setCreateDialogOpen}>
-        <DialogContent className="max-h-[90vh] max-w-5xl overflow-auto">
-          <DialogHeader>
-            <DialogTitle>{isCreatingChild ? "新增推进模式子类" : "新建推进模式"}</DialogTitle>
-            <DialogDescription>
-              {isCreatingChild
-                ? "当前会在指定父类下新增子类。你可以手动填写，也可以先让 AI 基于父类和现有兄弟节点生成多个子类候选，再多选批量保存。"
-                : "先确定挂载位置，再手动填写 profile，或者先让 AI 生成一份两级树草稿。"}
-            </DialogDescription>
-          </DialogHeader>
+      <StoryModeCreateDialog
+        open={createDialogOpen}
+        onOpenChange={setCreateDialogOpen}
+        isCreatingChild={isCreatingChild}
+        selectedParentLabel={selectedParentLabel}
+        generationPrompt={generationPrompt}
+        onGenerationPromptChange={setGenerationPrompt}
+        childDerivationCount={childDerivationCount}
+        onChildDerivationCountChange={setChildDerivationCount}
+        draft={createDraft}
+        onDraftChange={updateCreateDraft}
+        generatedChildCandidates={generatedChildCandidates}
+        selectedGeneratedChildIndexes={selectedGeneratedChildIndexes}
+        activeGeneratedChildIndex={activeGeneratedChildIndex}
+        onApplyGeneratedChild={handleApplyGeneratedChild}
+        onToggleGeneratedChildSelection={handleToggleGeneratedChildSelection}
+        onGenerate={() => generateMutation.mutate()}
+        onReset={() => {
+          setActiveGeneratedChildIndex(null);
+          setCreateDraft(createEmptyDraft());
+        }}
+        isGenerating={generateMutation.isPending}
+        onSaveCurrent={() => createMutation.mutate()}
+        isSavingCurrent={createMutation.isPending}
+        onSaveSelectedChildren={() => createSelectedChildrenMutation.mutate()}
+        isSavingSelectedChildren={createSelectedChildrenMutation.isPending}
+      />
 
-          <div className="space-y-4">
-            <div className="rounded-xl border border-primary/20 bg-primary/5 p-4">
-              <div className="text-sm font-semibold text-foreground">当前挂载位置</div>
-              <div className="mt-1 text-sm text-muted-foreground">{selectedParentLabel}</div>
-            </div>
-
-            <div className="space-y-3 rounded-xl border border-primary/20 bg-primary/5 p-4">
-              <div className="space-y-1">
-                <div className="text-sm font-semibold text-foreground">{isCreatingChild ? "AI 生成子类草稿" : "AI 生成草稿"}</div>
-                <div className="text-xs leading-5 text-muted-foreground">
-                  {isCreatingChild
-                    ? "AI 会基于当前父类和现有兄弟节点输出一个或多个子类节点草稿，不会再生成整棵树。补充方向可以留空。保存前仍然会校验 profile 结构。"
-                    : "AI 会输出一个可直接编辑的推进模式树草稿，保存前仍然会校验 profile 结构。"}
-                </div>
-              </div>
-              <LLMSelector />
-              {isCreatingChild ? (
-                <label className="space-y-2 text-sm">
-                  <span className="font-medium text-foreground">衍生数量</span>
-                  <SelectControl
-                    className="w-full rounded-md border bg-background p-2 text-sm"
-                    value={childDerivationCount}
-                    onChange={(event) => setChildDerivationCount(Number(event.target.value))}
-                  >
-                    <option value={1}>1 个</option>
-                    <option value={2}>2 个</option>
-                    <option value={3}>3 个</option>
-                    <option value={4}>4 个</option>
-                    <option value={5}>5 个</option>
-                  </SelectControl>
-                </label>
-              ) : null}
-              <textarea
-                rows={4}
-                className="w-full rounded-md border bg-background px-3 py-2 text-sm outline-none transition focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
-                value={generationPrompt}
-                onChange={(event) => setGenerationPrompt(event.target.value)}
-                placeholder={isCreatingChild
-                  ? "可选：补充你想偏向的子类方向。不填则 AI 会直接基于父类和现有兄弟节点衍生。"
-                  : "请输入你希望生成的推进模式树方向。"}
-              />
-              <div className="flex gap-2">
-                <Button
-                  type="button"
-                  onClick={() => generateMutation.mutate()}
-                  disabled={(!generationPrompt.trim() && !isCreatingChild) || generateMutation.isPending}
-                >
-                  {generateMutation.isPending
-                    ? "生成中..."
-                    : isCreatingChild ? "生成子类草稿" : "生成推进模式草稿"}
-                </Button>
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => {
-                    setActiveGeneratedChildIndex(null);
-                    setCreateDraft(createEmptyDraft());
-                  }}
-                >
-                  重置草稿
-                </Button>
-              </div>
-              {isCreatingChild && generatedChildCandidates.length > 0 ? (
-                <div className="space-y-2 rounded-lg border border-border/70 bg-background/60 p-3">
-                  <div className="flex items-center justify-between gap-3">
-                    <div className="text-sm font-medium text-foreground">已生成的子类候选</div>
-                    <div className="text-xs text-muted-foreground">
-                      已选 {selectedGeneratedChildIndexes.length} / {generatedChildCandidates.length}
-                    </div>
-                  </div>
-                  <div className="text-xs leading-5 text-muted-foreground">
-                    勾选后可批量保存；点击候选卡片会切换到下方表单进行单独编辑。
-                  </div>
-                  <div className="grid gap-2">
-                    {generatedChildCandidates.map((candidate, index) => (
-                      <div
-                        key={`${candidate.name}-${index}`}
-                        className={`rounded-lg border bg-background px-3 py-3 transition ${
-                          activeGeneratedChildIndex === index
-                            ? "border-primary/60 bg-primary/5"
-                            : "border-border/70"
-                        }`}
-                      >
-                        <div className="flex items-start gap-3">
-                          <input
-                            type="checkbox"
-                            className="mt-1 h-4 w-4 rounded border-border"
-                            checked={selectedGeneratedChildIndexes.includes(index)}
-                            onChange={() => handleToggleGeneratedChildSelection(index)}
-                          />
-                          <button
-                            type="button"
-                            className="min-w-0 flex-1 text-left"
-                            onClick={() => handleApplyGeneratedChild(candidate, index)}
-                          >
-                            <div className="flex items-center justify-between gap-3">
-                              <div className="text-sm font-medium text-foreground">{candidate.name}</div>
-                              <span className="text-xs text-muted-foreground">
-                                {activeGeneratedChildIndex === index ? "当前编辑" : `候选 ${index + 1}`}
-                              </span>
-                            </div>
-                            <div className="mt-1 text-sm text-muted-foreground">
-                              {candidate.description?.trim() || candidate.profile.coreDrive}
-                            </div>
-                          </button>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              ) : null}
-            </div>
-
-            <label className="space-y-2 text-sm">
-              <span className="font-medium text-foreground">名称</span>
-              <Input value={createDraft.name} onChange={(event) => updateCreateDraft((prev) => ({ ...prev, name: event.target.value }))} />
-            </label>
-            <label className="space-y-2 text-sm">
-              <span className="font-medium text-foreground">描述</span>
-              <textarea
-                rows={3}
-                className="w-full rounded-md border bg-background px-3 py-2 text-sm outline-none transition focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
-                value={createDraft.description ?? ""}
-                onChange={(event) => updateCreateDraft((prev) => ({ ...prev, description: event.target.value }))}
-              />
-            </label>
-            <label className="space-y-2 text-sm">
-              <span className="font-medium text-foreground">人工模板补充</span>
-              <textarea
-                rows={3}
-                className="w-full rounded-md border bg-background px-3 py-2 text-sm outline-none transition focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
-                value={createDraft.template ?? ""}
-                onChange={(event) => updateCreateDraft((prev) => ({ ...prev, template: event.target.value }))}
-              />
-            </label>
-
-            <StoryModeProfileFields
-              value={createDraft.profile}
-              onChange={(profile) => updateCreateDraft((prev) => ({ ...prev, profile }))}
-            />
-          </div>
-
-          <DialogFooter className="gap-2">
-            <Button type="button" variant="outline" onClick={() => setCreateDialogOpen(false)}>
-              取消
-            </Button>
-            {isCreatingChild && generatedChildCandidates.length > 0 ? (
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => createSelectedChildrenMutation.mutate()}
-                disabled={createSelectedChildrenMutation.isPending || selectedGeneratedChildIndexes.length === 0}
-              >
-                {createSelectedChildrenMutation.isPending
-                  ? "批量保存中..."
-                  : `批量保存选中子类 (${selectedGeneratedChildIndexes.length})`}
-              </Button>
-            ) : null}
-            <Button
-              type="button"
-              onClick={() => createMutation.mutate()}
-              disabled={createMutation.isPending || createSelectedChildrenMutation.isPending || !createDraft.name.trim()}
-            >
-              {createMutation.isPending ? "保存中..." : isCreatingChild ? "保存当前子类" : "保存推进模式"}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <StoryModeExpansionDialog
+        open={expansionDialogOpen}
+        onOpenChange={(open) => {
+          setExpansionDialogOpen(open);
+          if (!open) {
+            setExpansionCandidates([]);
+            setSelectedExpansionIndexes([]);
+          }
+        }}
+        rootOptions={rootOptions}
+        parentId={expansionParentId}
+        onParentIdChange={(id) => { setExpansionParentId(id); setExpansionCandidates([]); setSelectedExpansionIndexes([]); }}
+        prompt={expansionPrompt}
+        onPromptChange={setExpansionPrompt}
+        count={expansionCount}
+        onCountChange={setExpansionCount}
+        candidates={expansionCandidates}
+        selectedIndexes={selectedExpansionIndexes}
+        onToggle={(index) => setSelectedExpansionIndexes((prev) => prev.includes(index) ? prev.filter((item) => item !== index) : [...prev, index].sort((a, b) => a - b))}
+        onGenerate={() => expansionMutation.mutate()}
+        onSave={() => saveExpansionMutation.mutate()}
+        isGenerating={expansionMutation.isPending}
+        isSaving={saveExpansionMutation.isPending}
+      />
 
       <Dialog open={Boolean(editingStoryMode)} onOpenChange={(open) => { if (!open) setEditingStoryModeId(""); }}>
         <DialogContent className="max-h-[90vh] max-w-4xl overflow-auto">
@@ -621,9 +554,19 @@ export default function StoryModeManagementPage() {
           </div>
           <div className="flex flex-col items-end gap-2">
             <div className="text-sm text-muted-foreground">当前推进模式数：{totalStoryModes}</div>
-            <Button type="button" onClick={handleCreateRoot}>
-              新建推进模式树
-            </Button>
+            <div className="flex gap-2">
+              {storyModeTree.length > 0 ? (
+                <Button type="button" variant="outline" onClick={() => {
+                  setExpansionParentId(rootOptions[0]?.id ?? "");
+                  setExpansionCandidates([]);
+                  setSelectedExpansionIndexes([]);
+                  setExpansionDialogOpen(true);
+                }}>
+                  扩展推进模式
+                </Button>
+              ) : null}
+              <Button type="button" onClick={handleCreateRoot}>新建推进模式树</Button>
+            </div>
           </div>
         </CardHeader>
         <CardContent className="space-y-4">

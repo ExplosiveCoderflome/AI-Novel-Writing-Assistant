@@ -16,6 +16,7 @@ import type {
   DirectorTaskNotice,
 } from "@ai-novel/shared/types/novelDirector";
 import type { DirectorRuntimeSnapshot } from "@ai-novel/shared/types/directorRuntime";
+import type { DirectorIssuePolicy } from "@ai-novel/shared/types/directorIssue";
 import {
   DIRECTOR_CORRECTION_PRESETS,
   DIRECTOR_MAX_TARGET_CHAPTER_COUNT,
@@ -35,6 +36,8 @@ import { titleGenerationService } from "../../../title/TitleGenerationService";
 import { isNearDuplicateTitle } from "../../../title/titleGeneration.shared";
 import type { NovelWorkflowResumeTarget } from "@ai-novel/shared/types/novelWorkflow";
 import type { DirectorBookContractParsed } from "./novelDirectorSchemas";
+import type { DirectorCompletionProfile } from "@ai-novel/shared/types/directorCompletion";
+import { buildDirectorCompletionProfile } from "@ai-novel/shared/types/directorCompletion";
 
 export type LLMOptions = Pick<DirectorCandidatesRequest, "provider" | "model" | "temperature">;
 
@@ -56,11 +59,15 @@ export interface DirectorWorkflowSeedPayload extends Record<string, unknown> {
   productionExperience?: "simple" | "professional";
   pendingProductionExperience?: "professional";
   startupPreparation?: DirectorConfirmRequest["startupPreparation"];
+  completionProfile?: DirectorCompletionProfile;
   novelId?: string | null;
   provider?: DirectorLLMOptions["provider"] | null;
   model?: string | null;
   temperature?: number | null;
   runMode?: DirectorRunMode;
+  issueGovernanceVersion?: 1;
+  issuePolicy?: DirectorIssuePolicy;
+  issuePolicySource?: "global" | "novel";
   autoExecutionPlan?: DirectorAutoExecutionPlan;
   autoApproval?: DirectorAutoApprovalConfig | null;
   batches?: DirectorCandidateBatch[];
@@ -398,8 +405,9 @@ export function toBookSpec(
     endingDirection: candidate.endingDirection.trim(),
     hookStrategy: candidate.hookStrategy.trim(),
     progressionLoop: candidate.progressionLoop.trim(),
-    targetChapterCount: normalizeDirectorTargetChapterCount(
-      overrideTargetChapterCount ?? candidate.targetChapterCount,
+    targetChapterCount: normalizeDirectorTargetChapterCount(overrideTargetChapterCount ?? candidate.targetChapterCount),
+    completionProfile: buildDirectorCompletionProfile(
+      normalizeDirectorTargetChapterCount(overrideTargetChapterCount ?? candidate.targetChapterCount),
     ),
   };
 }
@@ -471,6 +479,8 @@ export function buildWorkflowSeedPayload(
     idea: string;
     autoExecutionPlan?: DirectorAutoExecutionPlan;
     autoApproval?: DirectorAutoApprovalConfig;
+    completionProfile?: DirectorCompletionProfile;
+    riskPolicy?: import("@ai-novel/shared/types/directorRisk").DirectorRiskPolicy;
   },
   extra?: Record<string, unknown>,
 ): Record<string, unknown> {
@@ -511,6 +521,8 @@ export function buildWorkflowSeedPayload(
   const autoApproval = Object.prototype.hasOwnProperty.call(input, "autoApproval")
     ? normalizeDirectorAutoApprovalConfig(input.autoApproval)
     : null;
+  const completionProfile = input.completionProfile
+    ?? buildDirectorCompletionProfile(basicForm.estimatedChapterCount ?? 80);
   return {
     title: basicForm.title || null,
     description: basicForm.description || null,
@@ -540,9 +552,20 @@ export function buildWorkflowSeedPayload(
     model: input.model?.trim() || null,
     temperature: typeof input.temperature === "number" ? input.temperature : null,
     runMode: input.runMode ?? "auto_to_ready",
+    ...("issueGovernanceVersion" in input && input.issueGovernanceVersion === 1
+      ? { issueGovernanceVersion: input.issueGovernanceVersion }
+      : {}),
+    ...("issuePolicy" in input && input.issuePolicy
+      ? { issuePolicy: input.issuePolicy }
+      : {}),
+    ...("issuePolicySource" in input && (input.issuePolicySource === "global" || input.issuePolicySource === "novel")
+      ? { issuePolicySource: input.issuePolicySource }
+      : {}),
     ...(input.autoExecutionPlan ? { autoExecutionPlan: input.autoExecutionPlan } : {}),
     ...(autoApproval ? { autoApproval } : {}),
     estimatedChapterCount: basicForm.estimatedChapterCount,
+    completionProfile,
+    riskPolicy: input.riskPolicy ?? null,
     idea: input.idea.trim(),
     basicForm,
     ...extra,

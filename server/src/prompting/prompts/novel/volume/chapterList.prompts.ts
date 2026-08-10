@@ -56,20 +56,23 @@ function resolvePromptConfig(
   input:
     | number
     | {
-        targetChapterCount: number;
-        targetBeatKey?: string;
-        targetBeatLabel?: string | null;
+      targetChapterCount: number;
+      targetBeatKey?: string;
+      targetBeatLabel?: string | null;
+      isBookFinale?: boolean;
       },
 ): {
   targetChapterCount: number;
   targetBeatKey: string;
   targetBeatLabel: string;
+  isBookFinale: boolean;
 } {
   if (typeof input === "number") {
     return {
       targetChapterCount: input,
       targetBeatKey: "target_beat",
       targetBeatLabel: "目标节奏段",
+      isBookFinale: false,
     };
   }
 
@@ -77,6 +80,7 @@ function resolvePromptConfig(
     targetChapterCount: input.targetChapterCount,
     targetBeatKey: input.targetBeatKey?.trim() || "target_beat",
     targetBeatLabel: input.targetBeatLabel?.trim() || "目标节奏段",
+    isBookFinale: input.isBookFinale === true,
   };
 }
 
@@ -267,12 +271,13 @@ export function createVolumeChapterListPrompt(
         targetChapterCount: number;
         targetBeatKey?: string;
         targetBeatLabel?: string | null;
+        isBookFinale?: boolean;
       },
 ): PromptAsset<
   VolumeChapterListPromptInput,
   ReturnType<typeof createVolumeChapterBeatBlockSchema>["_output"]
 > {
-  const { targetChapterCount, targetBeatKey, targetBeatLabel } =
+  const { targetChapterCount, targetBeatKey, targetBeatLabel, isBookFinale = false } =
     resolvePromptConfig(input);
 
   return {
@@ -327,7 +332,9 @@ export function createVolumeChapterListPrompt(
               "10. 标题必须是客观章名，不用第一人称，不写成完整剧情句，核心字数不超过 16 个。",
               "11. 每章 beatKey 必须保持为当前目标 beatKey。",
               "12. 摘要必须体现本章造成的局面变化，不得空泛复述标题。",
-              "13. 最后一章必须完成当前 beat 的 mustDeliver，同时留下阅读牵引，但不得提前兑现下一 beat 的核心事件。",
+              isBookFinale
+                ? "13. 全书终章必须完成结局合同，不得创建必须续写的新主线或下一 beat 钩子。"
+                : "13. 最后一章必须完成当前 beat 的 mustDeliver，同时留下阅读牵引，但不得提前兑现下一 beat 的核心事件。",
               "",
               "上一次的 JSON 输出：",
               safeJsonStringify(parsedOutput),
@@ -383,7 +390,9 @@ export function createVolumeChapterListPrompt(
           "3. 连续章节不能承担完全相同的功能，尤其不能连续多章只做调查、讨论、铺垫、等待、意识到或发现。",
           "4. 若目标章数大于等于 5，至少应包含一次局面加压、一次关键发现或判断反转、一次阶段性兑现或明确转向。",
           "5. 关键推进可以占更多章节，过渡章要短促有力，不要为了凑数制造低信息密度章节。",
-          "6. 最后一章必须完成当前 beat 的 mustDeliver，同时留下进入下一 beat 的阅读牵引，但不得提前兑现下一 beat 的核心事件。",
+          isBookFinale
+            ? "6. 全书终章必须完成结局合同中的主冲突、关系变化、核心回报与主题落点，不得留下必须续写的新主线。"
+            : "6. 最后一章必须完成当前 beat 的 mustDeliver，同时留下进入下一 beat 的阅读牵引，但不得提前兑现下一 beat 的核心事件。",
           "",
           "五、章节推进质量要求",
           "1. 每章 summary 都要体现核心视角角色的选择、试探、反击、隐忍、交换、布局、揭穿、妥协或承担代价，避免角色只是旁观外部事件。",
@@ -420,7 +429,9 @@ export function createVolumeChapterListPrompt(
           "1. 本次只覆盖当前目标 beat，不得为相邻 beats 生成章节。",
           "2. 开头章节要承接前序已生成章节状态，不能把已经发生的推进重新起一遍。",
           "3. 中段章节要围绕当前 beat 的核心矛盾持续加压、试探、转折或兑现。",
-          "4. 结尾章节要把当前 beat 的 mustDeliver 落到位，但不要提前偷跑下一 beat 的核心兑现。",
+          isBookFinale
+            ? "4. 全书终章必须完成结局合同，不再要求下一阶段牵引。"
+            : "4. 结尾章节要把当前 beat 的 mustDeliver 落到位，但不要提前偷跑下一 beat 的核心兑现。",
           "",
           "九、质量自检要求",
           "1. 输出前在脑内检查：章节数量是否精确、beatKey 是否一致、是否越界、是否有重复功能章。",

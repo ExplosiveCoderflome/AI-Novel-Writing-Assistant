@@ -291,6 +291,10 @@ export const bookContractContextSchema = z.object({
   escalationLadder: z.string().default(""),
   relationshipMainline: z.string().default(""),
   activeMilestonePayoffs: z.array(z.string()).default([]),
+  completionMode: z.enum(["compact_book", "serial_book"]).default("serial_book"),
+  promiseScope: z.enum(["whole_book", "first_30_chapters"]).default("first_30_chapters"),
+  targetChapterCount: z.number().int().positive().nullable().default(null),
+  endingRequiredBy: z.number().int().positive().nullable().default(null),
 });
 
 export const macroConstraintContextSchema = z.object({

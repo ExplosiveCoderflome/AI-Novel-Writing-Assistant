@@ -69,7 +69,10 @@ export function renderBookContractText(contract: BookContractContext): string {
     `题材：${displayPromptValue(contract.genre)}`,
     `目标读者：${displayPromptValue(contract.targetAudience)}`,
     `核心卖点：${displayPromptValue(contract.sellingPoint)}`,
-    `前 30 章承诺：${displayPromptValue(contract.first30ChapterPromise)}`,
+    `${contract.promiseScope === "whole_book" ? "全书核心承诺" : "前 30 章承诺"}：${displayPromptValue(contract.first30ChapterPromise)}`,
+    contract.completionMode === "compact_book"
+      ? `紧凑全书合同：目标 ${contract.targetChapterCount ?? "未定"} 章，结局最迟第 ${contract.endingRequiredBy ?? "目标"} 章完成；终章不得开启必须续写的新主线。`
+      : "",
     contract.readingPromise ? `阅读承诺：${displayPromptValue(contract.readingPromise)}` : "",
     contract.protagonistFantasy ? `主角幻想：${displayPromptValue(contract.protagonistFantasy)}` : "",
     contract.coreSellingPoint ? `合同核心卖点：${displayPromptValue(contract.coreSellingPoint)}` : "",

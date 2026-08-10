@@ -18,8 +18,11 @@ import type { NovelCreateResourceRecommendation } from "./novelResourceRecommend
 import type { StoryMacroPlan } from "./storyMacro";
 import type { BookContract, BookContractDraft } from "./novelWorkflow";
 import type { TitleFactorySuggestion } from "./title";
+import type { DirectorCompletionProfile } from "./directorCompletion";
 import type { StyleIntentSummary } from "./styleEngine";
 import type { DirectorAutoApprovalConfig } from "./autoDirectorApproval";
+import type { DirectorIssuePolicy } from "./directorIssue";
+import type { DirectorRiskPolicy, DirectorRiskAssessment } from "./directorRisk";
 
 export const DIRECTOR_CORRECTION_PRESETS = [
   {
@@ -265,6 +268,11 @@ export function normalizeDirectorContinuationMode(
 
 export interface DirectorAutoExecutionState extends DirectorAutoExecutionPlan {
   enabled: boolean;
+  /** Frozen at task start so later settings changes cannot alter a running run. */
+  riskPolicy?: DirectorRiskPolicy;
+  latestRiskAssessment?: DirectorRiskAssessment | null;
+  completionProfile?: import("./directorCompletion").DirectorCompletionProfile;
+  closingExtensionCount?: number;
   scopeLabel?: string | null;
   volumeTitle?: string | null;
   preparedVolumeIds?: string[];
@@ -378,6 +386,7 @@ export interface BookSpec {
   hookStrategy: string;
   progressionLoop: string;
   targetChapterCount: number;
+  completionProfile?: DirectorCompletionProfile;
 }
 
 export interface DirectorCandidate {
@@ -447,6 +456,8 @@ export interface DirectorTaskSeedPayloadSnapshot {
   idea?: string;
   batches?: DirectorCandidateBatch[];
   productionFoundation?: NovelCreateResourceRecommendation;
+  startupPreparation?: DirectorStartupPreparation;
+  completionProfile?: DirectorCompletionProfile;
   directorCommandResults?: Record<string, unknown>;
   worldId?: string | null;
   worldSetupMode?: "auto_generate" | "skip" | null;
@@ -694,6 +705,12 @@ export interface DirectorConfirmRequest extends DirectorProjectContextInput, Dir
   autoApproval?: DirectorAutoApprovalConfig;
   startupPreparation?: DirectorStartupPreparation;
   stepCalibrationInstruction?: string | null;
+  issueGovernanceVersion?: 1;
+  issuePolicy?: DirectorIssuePolicy;
+  issuePolicySource?: "global" | "novel";
+  completionProfile?: DirectorCompletionProfile;
+  /** Resolved once for this task; global/novel defaults are not re-read mid-run. */
+  riskPolicy?: DirectorRiskPolicy;
 }
 
 export interface DirectorPlanScene {

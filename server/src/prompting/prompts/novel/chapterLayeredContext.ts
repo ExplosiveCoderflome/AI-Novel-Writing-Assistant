@@ -104,6 +104,10 @@ export function buildBookContractContext(input: {
   escalationLadder?: string | null;
   relationshipMainline?: string | null;
   activeMilestonePayoffs?: string[];
+  completionMode?: "compact_book" | "serial_book";
+  promiseScope?: "whole_book" | "first_30_chapters";
+  targetChapterCount?: number | null;
+  endingRequiredBy?: number | null;
 }): BookContractContext {
   return {
     title: compactText(input.title),
@@ -125,6 +129,10 @@ export function buildBookContractContext(input: {
     escalationLadder: compactText(input.escalationLadder),
     relationshipMainline: compactText(input.relationshipMainline),
     activeMilestonePayoffs: takeUnique(input.activeMilestonePayoffs ?? [], 2),
+    completionMode: input.completionMode ?? "serial_book",
+    promiseScope: input.promiseScope ?? "first_30_chapters",
+    targetChapterCount: input.targetChapterCount ?? null,
+    endingRequiredBy: input.endingRequiredBy ?? null,
   };
 }
 

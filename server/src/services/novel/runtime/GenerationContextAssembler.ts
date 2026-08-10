@@ -43,6 +43,7 @@ import {
 } from "../characters/characterHardFacts";
 import { NovelVolumeService } from "../volume/NovelVolumeService";
 import { ChapterPlanJITService } from "../planning/ChapterPlanJITService";
+import { buildDirectorCompletionProfile } from "@ai-novel/shared/types/directorCompletion";
 import { ChapterRouteWindowService } from "../planning/ChapterRouteWindowService";
 import {
   buildBlockingPendingReviewProposalWhere,
@@ -159,6 +160,8 @@ export class GenerationContextAssembler {
         provider: request.provider,
         model: request.model,
         temperature: request.temperature,
+        taskId: request.workflowTaskId,
+        completionProfile: buildDirectorCompletionProfile(novel.estimatedChapterCount ?? 80),
       });
     }
     const ensuredPlan = await plannerService.ensureChapterPlan(novelId, chapterId, request);
@@ -362,6 +365,15 @@ export class GenerationContextAssembler {
         chapter10Payoff: novel.bookContract?.chapter10Payoff,
         chapter30Payoff: novel.bookContract?.chapter30Payoff,
       }),
+      ...(() => {
+        const completion = buildDirectorCompletionProfile(novel.estimatedChapterCount ?? 80);
+        return {
+          completionMode: completion.mode,
+          promiseScope: completion.promiseScope,
+          targetChapterCount: completion.targetChapterCount,
+          endingRequiredBy: completion.endingRequiredBy,
+        };
+      })(),
     });
     const macroConstraints = buildMacroConstraintContext(storyMacroPlan);
     const productionFoundationPrompt = [
