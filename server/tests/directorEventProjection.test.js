@@ -450,3 +450,47 @@ test("director event projection keeps heartbeat as latest running progress", () 
   assert.equal(projection.detail, "最近进展：正在生成卷战略（已等待 30s）");
   assert.equal(projection.recentEvents[0].type, "node_heartbeat");
 });
+
+test("director event projection exposes governed issue records", () => {
+  const service = new DirectorEventProjectionService();
+  const occurrence = {
+    schemaVersion: 1,
+    issueCode: "quality.chapter_below_threshold",
+    stage: "chapter_review",
+    summary: "第 3 章质量分未达标。",
+    chapterId: "chapter-3",
+    chapterOrder: 3,
+    riskScore: 6,
+    attempt: 1,
+    maxAttempts: 1,
+    hasUsableOutput: true,
+    runMode: "full_book_autopilot",
+    fingerprint: "job-1:quality.chapter_below_threshold:chapter-3:1",
+    occurredAt: "2026-08-10T00:00:00.000Z",
+  };
+  const decision = {
+    issueCode: occurrence.issueCode,
+    action: "continue_with_warning",
+    reason: "保留正文并继续。",
+    locked: true,
+    policySource: "safety",
+    retryExhaustedAction: "continue_with_warning",
+  };
+  const projection = service.buildSnapshotProjection(buildSnapshot({
+    events: [{
+      eventId: "issue-action-1",
+      type: "issue_action_applied",
+      taskId: "task-1",
+      novelId: "novel-1",
+      nodeKey: "chapter_review",
+      summary: "章节质量分未达标已执行：continue_with_warning",
+      occurredAt: occurrence.occurredAt,
+      metadata: { schemaVersion: 1, occurrence, decision },
+    }],
+  }));
+
+  assert.equal(projection.recentIssues.length, 1);
+  assert.equal(projection.recentIssues[0].occurrence.chapterOrder, 3);
+  assert.equal(projection.recentIssues[0].decision.action, "continue_with_warning");
+  assert.equal(projection.recentEvents[0].issue.issueCode, occurrence.issueCode);
+});

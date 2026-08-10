@@ -246,6 +246,8 @@ async function generateBeatChapterBlock(params: {
       targetChapterCount: params.beatPlan.chapterCount,
       targetBeatKey: params.beatPlan.beat.key,
       targetBeatLabel: params.beatPlan.beat.label,
+      isBookFinale: params.novel.completionProfile?.mode === "compact_book"
+        && params.beatPlan.chapterEndOrder >= (params.novel.completionProfile.endingRequiredBy ?? Number.MAX_SAFE_INTEGER),
     }),
     promptInput,
     contextBlocks: buildVolumeChapterListContextBlocks(promptInput),

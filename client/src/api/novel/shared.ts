@@ -24,6 +24,7 @@ export type NovelListItem = Pick<
   | "status"
   | "writingMode"
   | "projectMode"
+  | "creationExperience"
   | "narrativeForm"
   | "targetWordCount"
   | "derivedFromNovelId"

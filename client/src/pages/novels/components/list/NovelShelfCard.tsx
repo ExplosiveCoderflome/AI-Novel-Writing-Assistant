@@ -4,7 +4,7 @@ import type { ImageTaskStatus } from "@ai-novel/shared/types/image";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { resolveImageAssetUrl } from "@/api/images";
-import type { NovelListItem } from "./novelListViewModel";
+import { getNovelWorkspaceHref, type NovelListItem } from "./novelListViewModel";
 
 function formatDate(value: string): string {
   const date = new Date(value);
@@ -33,13 +33,14 @@ function getPrimaryAction(novel: NovelListItem): { label: string; href: string }
     };
   }
   const task = novel.latestAutoDirectorTask;
+  const workspaceHref = getNovelWorkspaceHref(novel);
   if (task?.status === "failed" || task?.status === "cancelled") {
-    return { label: "恢复创作", href: `/novels/${novel.id}/edit?directorTaskId=${task.id}` };
+    return { label: "恢复创作", href: workspaceHref };
   }
   if (task?.status === "waiting_approval") {
-    return { label: "继续处理", href: `/novels/${novel.id}/edit?directorTaskId=${task.id}` };
+    return { label: "继续处理", href: workspaceHref };
   }
-  return { label: task ? "继续创作" : "编辑作品", href: `/novels/${novel.id}/edit` };
+  return { label: task ? "继续创作" : "编辑作品", href: workspaceHref };
 }
 
 function getPreviewHref(novel: NovelListItem): string {

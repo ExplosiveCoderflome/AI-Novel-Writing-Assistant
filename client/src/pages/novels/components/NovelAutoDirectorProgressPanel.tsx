@@ -361,6 +361,7 @@ export default function NovelAutoDirectorProgressPanel({
     ? resolveDirectorStepStatuses(task, visualMode, stepDefinitions)
     : displaySteps.map((step) => mapDisplayStepStatus(step.status));
   const failureMessage = task?.lastError?.trim() || fallbackError?.trim() || "导演任务执行失败，但没有记录明确错误。";
+  const isHighMemoryConflict = /高内存卷规划生成正在处理同一范围|高内存.*同一范围|已有自动导演任务正在处理同一范围/.test(failureMessage);
   const tokenUsage = task?.tokenUsage ?? null;
   const styleSeed = resolveDirectorStyleSeed(task);
   const containerMode: AITakeoverMode = visualMode === "execution_failed"
@@ -410,11 +411,12 @@ export default function NovelAutoDirectorProgressPanel({
         variant: dashboardAction.emphasis === "primary" ? ("default" as const) : ("outline" as const),
       };
     }
-    if (dashboardAction.type === "resume_from_checkpoint" || dashboardAction.type === "retry") {
+    if ((dashboardAction.type === "resume_from_checkpoint" || dashboardAction.type === "retry") && onConfirmAndContinue) {
       return {
-        label: dashboardAction.label,
-        onClick: onOpenTaskCenter,
-        variant: "outline" as const,
+        label: isConfirmingAndContinuing ? "正在恢复..." : (isHighMemoryConflict ? "从检查点重新尝试" : dashboardAction.label),
+        onClick: onConfirmAndContinue,
+        variant: "default" as const,
+        disabled: isConfirmingAndContinuing,
       };
     }
     return null;
@@ -605,8 +607,28 @@ export default function NovelAutoDirectorProgressPanel({
           <div className="mt-4 rounded-xl border border-destructive/30 bg-destructive/5 p-4 text-sm text-destructive">
             <div className="font-medium">失败摘要</div>
             <div className="mt-1">{failureMessage}</div>
+            {isHighMemoryConflict ? (
+              <div className="mt-3 rounded-lg border border-destructive/20 bg-background/60 p-3 text-xs leading-5 text-destructive/90">
+                这是一项可恢复的资源冲突，已完成的设定和章节规划不会丢失。资源释放后可从当前安全检查点继续，不需要重新开始。
+              </div>
+            ) : null}
             {task?.recoveryHint ? (
               <div className="mt-2 text-xs text-destructive/80">恢复建议：{task.recoveryHint}</div>
+            ) : null}
+            {isHighMemoryConflict && onConfirmAndContinue ? (
+              <div className="mt-3 flex flex-wrap gap-2">
+                <Button
+                  type="button"
+                  size="sm"
+                  onClick={onConfirmAndContinue}
+                  disabled={isConfirmingAndContinuing}
+                >
+                  {isConfirmingAndContinuing ? "正在恢复..." : "从检查点重新尝试"}
+                </Button>
+                <Button type="button" size="sm" variant="outline" onClick={onOpenTaskCenter}>
+                  查看运行详情
+                </Button>
+              </div>
             ) : null}
           </div>
         ) : null}

@@ -31,10 +31,18 @@ function toRunningStatus(status: string): RecoverableTaskSummary["status"] {
   return status === "running" ? "running" : "queued";
 }
 
-function buildWorkflowSourceRoute(row: { id: string; novelId: string | null }): string {
-  return row.novelId
-    ? `/novels/${row.novelId}/edit?directorTaskId=${row.id}&taskPanel=1`
-    : `/tasks?kind=novel_workflow&id=${row.id}`;
+function buildWorkflowSourceRoute(row: {
+  id: string;
+  novelId: string | null;
+  creationExperience?: "simple" | "professional" | null;
+}): string {
+  if (!row.novelId) {
+    return `/tasks?kind=novel_workflow&id=${row.id}`;
+  }
+  if (row.creationExperience === "simple") {
+    return `/novels/${row.novelId}/simple`;
+  }
+  return `/novels/${row.novelId}/edit?directorTaskId=${row.id}&taskPanel=1`;
 }
 
 function buildImagePresentation(row: {
@@ -121,7 +129,7 @@ export class RecoveryTaskService {
           checkpointSummary: true,
           lastError: true,
           updatedAt: true,
-          novel: { select: { title: true } },
+          novel: { select: { title: true, creationExperience: true } },
         },
         orderBy: [{ updatedAt: "desc" }, { id: "desc" }],
       }),
@@ -210,7 +218,11 @@ export class RecoveryTaskService {
         currentStage: row.currentStage,
         currentItemLabel: row.currentItemLabel,
         resumeAction: "恢复自动导演",
-        sourceRoute: buildWorkflowSourceRoute(row),
+        sourceRoute: buildWorkflowSourceRoute({
+          id: row.id,
+          novelId: row.novelId,
+          creationExperience: row.novel?.creationExperience,
+        }),
         recoveryHint: row.lastError?.trim() || row.checkpointSummary?.trim() || "服务重启后任务已暂停，等待恢复。",
         updatedAt: row.updatedAt,
       })),

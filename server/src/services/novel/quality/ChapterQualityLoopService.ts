@@ -1,6 +1,6 @@
 import type { ChapterRuntimePackage } from "@ai-novel/shared/types/chapterRuntime";
 import type { QualityScore, ReviewIssue } from "@ai-novel/shared/types/novel";
-import type { ChapterStatus, Prisma } from "@prisma/client";
+import type { Prisma } from "@prisma/client";
 import {
   buildChapterQualityLoopAssessment,
   type ChapterQualityLoopAssessment,
@@ -25,6 +25,7 @@ interface RecordChapterQualityLoopInput {
 }
 
 type ChapterQualityLoopChapter = {
+  content?: string | null;
   riskFlags: string | null;
   repairHistory: string | null;
   chapterStatus: string | null;
@@ -92,14 +93,16 @@ function appendRepairHistory(
   return lines.join("\n");
 }
 
-function resolveContinuableChapterStatus(chapter: Pick<ChapterQualityLoopChapter, "chapterStatus" | "generationState">): ChapterStatus | undefined {
-  if (chapter.chapterStatus !== "needs_repair") {
-    return undefined;
+function resolveContinuableChapterState(
+  chapter: Pick<ChapterQualityLoopChapter, "content" | "chapterStatus" | "generationState">,
+): Pick<Prisma.ChapterUpdateInput, "chapterStatus" | "generationState"> {
+  if (!chapter.content?.trim()) {
+    return {};
   }
-  if (chapter.generationState === "approved" || chapter.generationState === "published") {
-    return "completed";
-  }
-  return "pending_review";
+  return {
+    chapterStatus: "completed",
+    generationState: "approved",
+  };
 }
 
 export function buildChapterQualityLoopChapterUpdate(
@@ -111,13 +114,13 @@ export function buildChapterQualityLoopChapterUpdate(
 ): Prisma.ChapterUpdateInput {
   const nextRepairHistory = appendRepairHistory(chapter.repairHistory, assessment, terminalAction);
   const shouldContinueChapter = assessment.recommendedAction === "continue" || terminalAction === "defer_and_continue";
-  const nextChapterStatus: ChapterStatus | undefined = shouldContinueChapter
-    ? resolveContinuableChapterStatus(chapter)
-    : "needs_repair";
+  const continuableChapterState = shouldContinueChapter
+    ? resolveContinuableChapterState(chapter)
+    : {};
   return {
     riskFlags: serializeRiskFlags(chapter.riskFlags, assessment, source, terminalAction, qualityDebtAttribution),
     ...(nextRepairHistory !== undefined ? { repairHistory: nextRepairHistory } : {}),
-    ...(nextChapterStatus ? { chapterStatus: nextChapterStatus } : {}),
+    ...(shouldContinueChapter ? continuableChapterState : { chapterStatus: "needs_repair" }),
   };
 }
 
@@ -128,6 +131,7 @@ export class ChapterQualityLoopService {
       select: {
         id: true,
         order: true,
+        content: true,
         riskFlags: true,
         repairHistory: true,
         chapterStatus: true,

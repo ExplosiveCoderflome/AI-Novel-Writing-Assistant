@@ -1,6 +1,7 @@
 import type { StoryMacroPlan } from "@ai-novel/shared/types/storyMacro";
 import type { ResolvedStyleContext } from "@ai-novel/shared/types/styleEngine";
 import type { PayoffLedgerResponse } from "@ai-novel/shared/types/payoffLedger";
+import { isPayoffOverdueAtChapter } from "../payoff/payoffLedgerShared";
 import { buildPlannerStyleContractSummaryText } from "../styleEngine/styleContractText";
 import { buildStoryModePromptBlock, normalizeStoryModeOutput } from "../storyMode/storyModeProfile";
 import { characterDynamicsQueryService } from "../novel/dynamics/CharacterDynamicsQueryService";
@@ -264,7 +265,7 @@ export function buildPlannerPayoffLedgerContext(ledger: PayoffLedgerResponse, ch
     .slice(0, 6)
     .map((item) => `${item.title} | ${item.summary}`);
   const overdueItems = ledger.items
-    .filter((item) => item.currentStatus === "overdue")
+    .filter((item) => isPayoffOverdueAtChapter(item, chapterOrder))
     .slice(0, 4)
     .map((item) => `${item.title} | ${item.statusReason ?? item.summary}`);
   const touchNowItems = ledger.items
@@ -272,7 +273,7 @@ export function buildPlannerPayoffLedgerContext(ledger: PayoffLedgerResponse, ch
     .filter((item) => (
       (typeof item.targetStartChapterOrder === "number" && item.targetStartChapterOrder <= chapterOrder)
       || (typeof item.targetEndChapterOrder === "number" && item.targetEndChapterOrder <= chapterOrder + 1)
-      || item.currentStatus === "overdue"
+      || isPayoffOverdueAtChapter(item, chapterOrder)
     ))
     .slice(0, 5)
     .map((item) => `${item.title} | 窗口=${item.targetStartChapterOrder ?? "?"}-${item.targetEndChapterOrder ?? "?"}`);

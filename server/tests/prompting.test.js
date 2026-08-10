@@ -94,6 +94,7 @@ const {
 } = require("../dist/prompting/prompts/novel/volume/skeleton.prompts.js");
 const {
   storyModeChildPrompt,
+  storyModeExpansionPrompt,
   storyModeTreePrompt,
 } = require("../dist/prompting/prompts/storyMode/storyMode.prompts.js");
 const {
@@ -179,6 +180,7 @@ test("prompt registry exposes versioned planning assets", () => {
     "novel.characterDynamics.volumeProjection@v3",
     "novel.character_resource.extract_updates@v1",
     "storyMode.child.generate@v1",
+    "storyMode.expansion.recommend@v1",
     "storyMode.tree.generate@v1",
     "storyWorldSlice.generate@v1",
     promptKey(styleDetectionPrompt),
@@ -1176,6 +1178,57 @@ test("story mode child prompt post validator rejects duplicate sibling names and
       antiSignals: ["脱离经营主线"],
     },
     existingSiblingNames: ["基建种田流"],
+  }));
+});
+
+test("story mode expansion prompt uses the library summary to find distinct additions", () => {
+  const messages = storyModeExpansionPrompt.render({
+    count: 2,
+    parentName: "成长冒险",
+    parentDescription: "以能力和地图拓展推动长期阅读。",
+    parentTemplate: "目标升级，探索新区域，兑现阶段能力。",
+    parentProfile: {
+      coreDrive: "升级与探索",
+      readerReward: "能力成长",
+      progressionUnits: ["挑战", "新区域"],
+      allowedConflictForms: ["资源争夺"],
+      forbiddenConflictForms: ["无代价碾压"],
+      conflictCeiling: "high",
+      resolutionStyle: "能力突破",
+      chapterUnit: "目标和挑战",
+      volumeReward: "新区域解锁",
+      mandatorySignals: ["成长反馈"],
+      antiSignals: ["重复副本"],
+    },
+    existingSiblingNames: ["升级成长"],
+    librarySummary: "根 成长冒险\n- 升级成长：挑战与突破",
+    prompt: "增加更强调探索回报的玩法。",
+  });
+  const rendered = messages.map((message) => String(message.content)).join("\n");
+  assert.match(rendered, /当前推进模式库摘要/);
+  assert.match(rendered, /增长|探索/);
+  assert.throws(() => storyModeExpansionPrompt.postValidate([{
+    name: "升级成长",
+    description: "重复",
+    template: "重复",
+    profile: {
+      coreDrive: "重复", readerReward: "重复", progressionUnits: ["重复"], allowedConflictForms: ["重复"], forbiddenConflictForms: ["重复"], conflictCeiling: "medium", resolutionStyle: "重复", chapterUnit: "重复", volumeReward: "重复", mandatorySignals: ["重复"], antiSignals: ["重复"],
+    },
+    children: [],
+  }, {
+    name: "探索远征",
+    description: "探索不同区域",
+    template: "探索并兑现地图资源",
+    profile: {
+      coreDrive: "探索", readerReward: "发现", progressionUnits: ["区域"], allowedConflictForms: ["未知威胁"], forbiddenConflictForms: ["无意义内耗"], conflictCeiling: "high", resolutionStyle: "发现与突破", chapterUnit: "新区域", volumeReward: "地图推进", mandatorySignals: ["新发现"], antiSignals: ["重复地图"],
+    },
+    children: [],
+  }], {
+    count: 2,
+    parentName: "成长冒险",
+    parentDescription: "", parentTemplate: "", parentProfile: {
+      coreDrive: "升级", readerReward: "成长", progressionUnits: ["挑战"], allowedConflictForms: ["挑战"], forbiddenConflictForms: ["无"], conflictCeiling: "high", resolutionStyle: "突破", chapterUnit: "挑战", volumeReward: "成长", mandatorySignals: ["成长"], antiSignals: ["重复"],
+    }, existingSiblingNames: ["升级成长"], librarySummary: "", prompt: "",
   }));
 });
 

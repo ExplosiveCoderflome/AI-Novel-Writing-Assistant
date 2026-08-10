@@ -1,4 +1,5 @@
 import type { LLMProvider } from "@ai-novel/shared/types/llm";
+import type { DirectorCompletionProfile } from "@ai-novel/shared/types/directorCompletion";
 import type { VolumePlanDocument } from "@ai-novel/shared/types/novel";
 import { prisma } from "../../../db/prisma";
 import { NovelVolumeService } from "../volume/NovelVolumeService";
@@ -13,6 +14,9 @@ export interface ChapterRouteWindowOptions {
   provider?: LLMProvider;
   model?: string;
   temperature?: number;
+  completionProfile?: DirectorCompletionProfile;
+  /** Keeps JIT planning owned by the same auto-director task as chapter execution. */
+  taskId?: string;
 }
 
 export interface ChapterRouteWindowResult {
@@ -47,6 +51,15 @@ export class ChapterRouteWindowService {
   ): Promise<ChapterRouteWindowResult> {
     const minimum = Math.max(1, options.min ?? 3);
     const target = Math.max(minimum, options.target ?? 5);
+    const compactTarget = options.completionProfile?.mode === "compact_book"
+      ? options.completionProfile.targetChapterCount
+      : null;
+    const remaining = compactTarget == null ? null : Math.max(0, compactTarget - fromChapterOrder + 1);
+    const closingGuidance = remaining != null && remaining <= 3
+      ? `紧凑全书终章倒计时：剩余约 ${remaining} 章。只生成结局合同所需的收束路线，不要创建新的主线或下一阶段钩子。`
+      : remaining != null && remaining <= 8
+        ? `紧凑全书收束规划：剩余约 ${remaining} 章。优先完成主冲突、关系变化和未兑现回报，不扩展远期世界或新主线。`
+        : undefined;
     let availableRouteCount = await this.countAvailableRoute(novelId, fromChapterOrder);
     if (availableRouteCount >= minimum) {
       return { availableRouteCount, extended: false };
@@ -67,6 +80,8 @@ export class ChapterRouteWindowService {
           provider: options.provider,
           model: options.model,
           temperature: options.temperature,
+          taskId: options.taskId,
+          guidance: closingGuidance,
           entrypoint: "jit_route_window",
         });
         workspace = await this.volumeService.updateVolumesWithOptions(novelId, workspace, {
@@ -86,6 +101,8 @@ export class ChapterRouteWindowService {
         provider: options.provider,
         model: options.model,
         temperature: options.temperature,
+        taskId: options.taskId,
+        guidance: closingGuidance,
         entrypoint: "jit_route_window",
       });
       await this.volumeService.syncVolumeChaptersWithOptions(novelId, {

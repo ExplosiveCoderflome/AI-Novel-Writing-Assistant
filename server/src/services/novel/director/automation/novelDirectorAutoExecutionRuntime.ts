@@ -9,6 +9,7 @@ import {
   buildDirectorAutoExecutionPausedSummary,
   buildDirectorAutoExecutionScopeLabelFromState,
   buildDirectorAutoExecutionDeferredQualityState,
+  buildDirectorAutoExecutionStageLabel,
   buildDirectorAutoExecutionPipelineOptions,
   resolveDirectorAutoExecutionRepairMode,
   resolveDirectorAutoExecutionWorkflowState,
@@ -183,7 +184,7 @@ export class NovelDirectorAutoExecutionRuntime {
         await this.deps.workflowService.markTaskRunning(input.taskId, {
           stage: "chapter_execution",
           itemKey: "chapter_execution",
-          itemLabel: `正在自动执行${buildDirectorAutoExecutionScopeLabelFromState(autoExecution, range.totalChapterCount)}`,
+          itemLabel: buildDirectorAutoExecutionStageLabel(autoExecution),
           progress: 0.93,
           clearCheckpoint: shouldClearAutoExecutionCheckpoint(input.resumeCheckpointType),
         });
@@ -361,7 +362,9 @@ export class NovelDirectorAutoExecutionRuntime {
             novelId: input.novelId,
             request: input.request,
             range,
-            autoExecution,
+            // The risk decision is part of the checkpoint snapshot so every
+            // recovery surface reads the same explanation immediately.
+            autoExecution: noticeAction.checkpointState,
             pipelineJobId,
             pipelineStatus: job.status,
             checkpointType: noticeAction.checkpointType,

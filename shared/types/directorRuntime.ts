@@ -307,7 +307,9 @@ export type DirectorEventType =
   | "pending_review_auto_promotion"
   | "circuit_breaker_opened"
   | "circuit_breaker_reset"
-  | "continue_with_risk";
+  | "continue_with_risk"
+  | "issue_detected"
+  | "issue_action_applied";
 
 export interface DirectorEvent {
   eventId: string;
@@ -391,6 +393,8 @@ export interface DirectorRuntimeProjectionEvent {
   severity?: DirectorEvent["severity"];
   occurredAt: string;
   usage?: DirectorLlmUsageSummary | null;
+  issue?: import("./directorIssue").DirectorIssueOccurrence | null;
+  issueDecision?: import("./directorIssue").DirectorIssueDecision | null;
 }
 
 export type DirectorAutopilotRecoveryDecision =
@@ -596,6 +600,11 @@ export interface DirectorRuntimeProjection {
   progressBreakdown?: DirectorRuntimeProgressBreakdown;
   chapterExecutionProgress?: DirectorChapterExecutionProgressSummary | null;
   visibleRiskBadges?: DirectorRuntimeVisibleRiskBadge[];
+  latestRiskAssessment?: import("./directorRisk").DirectorRiskAssessment | null;
+  /** Scored issues recorded for this task, newest first. */
+  riskHistory?: import("./directorRisk").DirectorRiskHistoryItem[];
+  riskHistoryTotal?: number;
+  riskPolicy?: import("./directorRisk").DirectorRiskPolicy | null;
   rootCauseCode?: "none" | "draft_generation_failed" | "draft_obligation_unmet" | "draft_repair_exhausted" | "replan_required" | null;
   blockingObligations?: Array<{
     kind: "must_hit_now" | "must_preserve" | "payoff_touch" | "character_appearance" | "goal_change" | "forbidden_crossing";
@@ -612,6 +621,10 @@ export interface DirectorRuntimeProjection {
   stepUsage?: DirectorStepUsageSummary[];
   promptUsage?: DirectorPromptUsageSummary[];
   circuitBreaker?: DirectorCircuitBreakerState | null;
+  recentIssues?: Array<{
+    occurrence: import("./directorIssue").DirectorIssueOccurrence;
+    decision?: import("./directorIssue").DirectorIssueDecision | null;
+  }>;
 }
 
 export interface DirectorRuntimeEventHistoryResponse {
