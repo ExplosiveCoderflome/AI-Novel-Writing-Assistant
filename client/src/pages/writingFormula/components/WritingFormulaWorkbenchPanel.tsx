@@ -1,6 +1,6 @@
-import { useTranslation } from "react-i18next";
 import i18next from "i18next";
 import type { StyleBinding } from "@ai-novel/shared/types/styleEngine";
+import { BookOpenText, FlaskConical, Link2, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import SelectControl from "@/components/common/SelectControl";
@@ -39,7 +39,6 @@ interface WritingFormulaWorkbenchPanelProps {
 }
 
 export default function WritingFormulaWorkbenchPanel(props: WritingFormulaWorkbenchPanelProps) {
-  const { t } = useTranslation();
   const {
     selectedProfileId,
     bindingForm,
@@ -57,18 +56,38 @@ export default function WritingFormulaWorkbenchPanel(props: WritingFormulaWorkbe
     onRunTestWrite,
   } = props;
 
-  return (
-    <Card>
-      <CardHeader>
-        <CardTitle>{i18next.t("dict.gen_4f43fb8b")}</CardTitle>
-      </CardHeader>
-      <CardContent className="space-y-5">
-        <div className="rounded-2xl border bg-slate-50/70 px-4 py-3 text-sm leading-7 text-slate-700">{i18next.t("writingFormula.writingFormulaWorkbenchPanel.l6d0oq")}</div>
+  const bindingTargetLabel: Record<StyleBinding["targetType"], string> = {
+    novel: "整本书",
+    chapter: "章节",
+    task: "本次任务",
+  };
 
-        <div className="space-y-4 rounded-2xl border p-4">
-          <div className="space-y-1">
-            <div className="text-base font-semibold text-slate-950">{i18next.t("dict.gen_b3a2c9bd")}</div>
+  return (
+    <Card className="border-slate-200/80 bg-white shadow-none">
+      <CardHeader className="border-b border-slate-100 pb-5">
+        <div className="flex items-center gap-3">
+          <div className="flex size-10 items-center justify-center rounded-2xl bg-slate-950 text-white">
+            <FlaskConical className="size-5" />
+          </div>
+          <div>
+            <CardTitle>{i18next.t("writingFormula.writingFormulaWorkbenchPanel.o5d9x4")}</CardTitle>
+            <div className="mt-1 text-sm text-slate-500">{i18next.t("writingFormula.writingFormulaWorkbenchPanel.9uw6cw")}</div>
+          </div>
+        </div>
+      </CardHeader>
+      <CardContent className="space-y-6 pt-6">
+        <div className="flex gap-3 rounded-2xl border border-sky-100 bg-sky-50/70 px-4 py-3 text-sm leading-7 text-slate-700">
+          <Sparkles className="mt-1 size-4 shrink-0 text-sky-700" />
+          <span>{i18next.t("writingFormula.writingFormulaWorkbenchPanel.if2d8l")}</span>
+        </div>
+
+        <div className="space-y-5 rounded-3xl border border-slate-200 bg-[linear-gradient(135deg,rgba(248,250,252,0.96),rgba(255,255,255,0.96))] p-4 md:p-5">
+          <div className="flex gap-3">
+            <div className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-white text-slate-800 shadow-sm ring-1 ring-slate-200"><Link2 className="size-4" /></div>
+            <div className="space-y-1">
+              <div className="text-base font-semibold text-slate-950">{i18next.t("dict.gen_b3a2c9bd")}</div>
             <div className="text-sm leading-6 text-slate-500">{i18next.t("writingFormula.writingFormulaWorkbenchPanel.bugz9d")}</div>
+            </div>
           </div>
 
           <div className="grid gap-3 md:grid-cols-2">
@@ -152,13 +171,17 @@ export default function WritingFormulaWorkbenchPanel(props: WritingFormulaWorkbe
             </label>
           </div>
 
-          <Button onClick={onCreateBinding} disabled={createBindingPending || !selectedProfileId}>{i18next.t("writingFormula.writingFormulaWorkbenchPanel.arc12g")}</Button>
+          <Button onClick={onCreateBinding} disabled={createBindingPending || !selectedProfileId}>
+            <Link2 className="size-4" />{i18next.t("writingFormula.writingFormulaWorkbenchPanel.arc12g")}</Button>
 
           <div className="space-y-2">
             {bindings.length > 0 ? (
               bindings.map((binding) => (
-                <div key={binding.id} className="flex items-center justify-between gap-3 rounded-xl border p-3 text-sm">
-                  <span>{binding.targetType} / {binding.targetId} / P{binding.priority} / W{binding.weight}</span>
+                <div key={binding.id} className="flex items-center justify-between gap-3 rounded-2xl border border-slate-200 bg-white p-3 text-sm">
+                  <div className="min-w-0">
+                    <div className="font-medium text-slate-900">{bindingTargetLabel[binding.targetType]}</div>
+                    <div className="mt-1 truncate text-xs text-slate-500">目标 {binding.targetId} · 优先级 {binding.priority} · 影响 {binding.weight}</div>
+                  </div>
                   <Button size="sm" variant="ghost" onClick={() => onDeleteBinding(binding.id)}>{i18next.t("dict.gen_2f4aaddd")}</Button>
                 </div>
               ))
@@ -168,10 +191,13 @@ export default function WritingFormulaWorkbenchPanel(props: WritingFormulaWorkbe
           </div>
         </div>
 
-        <div className="space-y-4 rounded-2xl border p-4">
-          <div className="space-y-1">
-            <div className="text-base font-semibold text-slate-950">{i18next.t("dict.gen_e07b94bf")}</div>
+        <div className="space-y-5 rounded-3xl border border-slate-200 p-4 md:p-5">
+          <div className="flex gap-3">
+            <div className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-amber-50 text-amber-800 ring-1 ring-amber-100"><BookOpenText className="size-4" /></div>
+            <div className="space-y-1">
+              <div className="text-base font-semibold text-slate-950">{i18next.t("dict.gen_e07b94bf")}</div>
             <div className="text-sm leading-6 text-slate-500">{i18next.t("writingFormula.writingFormulaWorkbenchPanel.esoi5s")}</div>
+            </div>
           </div>
 
           <label className="space-y-2">
@@ -208,10 +234,13 @@ export default function WritingFormulaWorkbenchPanel(props: WritingFormulaWorkbe
             </label>
           )}
 
-          <Button onClick={onRunTestWrite} disabled={testWritePending || !selectedProfileId}>{i18next.t("writingFormula.writingFormulaWorkbenchPanel.czfzs9")}</Button>
+          <Button onClick={onRunTestWrite} disabled={testWritePending || !selectedProfileId}>
+            <FlaskConical className="size-4" />
+            {testWritePending ? "正在试写..." : "开始试写"}
+          </Button>
 
           {testWriteOutput ? (
-            <pre className="max-h-[320px] overflow-auto whitespace-pre-wrap rounded-xl border bg-muted/20 p-4 text-sm">
+            <pre className="max-h-[320px] overflow-auto whitespace-pre-wrap rounded-2xl border border-slate-800 bg-slate-950 p-4 text-sm leading-7 text-slate-100">
               {testWriteOutput}
             </pre>
           ) : (

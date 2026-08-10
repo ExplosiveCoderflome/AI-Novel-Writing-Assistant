@@ -1,6 +1,8 @@
 import { useLocation } from "react-router-dom";
 import { useTranslation } from "react-i18next";
+import { SlidersHorizontal } from "lucide-react";
 import LLMSelector from "@/components/common/LLMSelector";
+import { useCreationSetup } from "@/components/onboarding/CreationSetupContext";
 import AppVersionBadge from "@/components/layout/AppVersionBadge";
 import DesktopBrandMark from "@/components/layout/DesktopBrandMark";
 import LiveExecutionDialog from "@/components/liveExecution/LiveExecutionDialog";
@@ -20,6 +22,7 @@ interface NavbarProps {
 export default function Navbar(props: NavbarProps) {
   const { workspaceNavMode, onWorkspaceNavModeChange } = props;
   const { t } = useTranslation();
+  const { openQuickSetup } = useCreationSetup();
   const location = useLocation();
   const isHome = location.pathname === "/";
   const showWorkspaceToggle = Boolean(workspaceNavMode && onWorkspaceNavModeChange);
@@ -52,6 +55,16 @@ export default function Navbar(props: NavbarProps) {
         ) : null}
         <LiveExecutionDialog />
         <LanguageSwitcher />
+        <Button
+          type="button"
+          size="sm"
+          variant="outline"
+          className="gap-1.5"
+          onClick={openQuickSetup}
+        >
+          <SlidersHorizontal className="h-4 w-4" />
+          <span className="hidden lg:inline">{t("navbar.quickSetup", "模型设置")}</span>
+        </Button>
         <div className={useMobileAutoDirectorShell ? AUTO_DIRECTOR_MOBILE_CLASSES.navbarModelSelector : undefined}>
           <LLMSelector compact showBadge={false} showHelperText={false} />
         </div>

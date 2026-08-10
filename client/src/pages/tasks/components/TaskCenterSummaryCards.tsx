@@ -1,6 +1,4 @@
-import { useTranslation } from "react-i18next";
-import { TaskQueueSummaryGrid } from "@/components/taskQueue";
-
+import i18next from "i18next";
 interface TaskCenterSummaryCardsProps {
   activeCount: number;
   waitingActionCount: number;
@@ -14,13 +12,22 @@ export default function TaskCenterSummaryCards({
   mustHandleCount,
   qualityReminderCount,
 }: TaskCenterSummaryCardsProps) {
-  const { t } = useTranslation();
+  const items = [
+    { key: "active", label: i18next.t("tasks.levelRunning"), value: activeCount, dot: "bg-info" },
+    { key: "waiting", label: i18next.t("tasks.taskCenterSummaryCards.fvwlgm"), value: waitingActionCount, dot: "bg-primary" },
+    { key: "must-handle", label: i18next.t("onboarding.needsAction"), value: mustHandleCount, dot: "bg-destructive" },
+    { key: "quality", label: i18next.t("tasks.summaryQuality"), value: qualityReminderCount, dot: "bg-warning" },
+  ];
+
   return (
-    <TaskQueueSummaryGrid className="task-status-summary-grid" items={[
-      { key: "active", label: t("tasks.summaryActive", "全局执行"), value: activeCount, detail: t("tasks.summaryActiveDetail", "运行中或排队中的任务"), tone: "info" },
-      { key: "waiting", label: t("tasks.summaryWaiting", "等待操作"), value: waitingActionCount, detail: t("tasks.summaryWaitingDetail", "确认、选择或继续当前批次"), tone: waitingActionCount > 0 ? "info" : "neutral" },
-      { key: "must-handle", label: t("tasks.summaryMustHandle", "必须处理"), value: mustHandleCount, detail: t("tasks.summaryMustHandleDetail", "失败、人工恢复或明确重规划"), tone: mustHandleCount > 0 ? "danger" : "neutral" },
-      { key: "quality", label: t("tasks.summaryQuality", "质量提醒"), value: qualityReminderCount, detail: t("tasks.summaryQualityDetail", "可继续推进并稍后处理"), tone: qualityReminderCount > 0 ? "warning" : "neutral" },
-    ]} />
+    <section aria-label={i18next.t("taskQueue.taskQueuePrimitives.x7k8ee")} className="task-status-summary-grid flex flex-wrap items-center gap-x-6 gap-y-3 rounded-2xl bg-muted/25 px-5 py-3">
+      {items.map((item) => (
+        <div key={item.key} className="flex items-center gap-2 text-sm">
+          <span className={`h-2 w-2 rounded-full ${item.dot}`} aria-hidden="true" />
+          <span className="text-muted-foreground">{item.label}</span>
+          <span className="font-semibold tabular-nums text-foreground">{item.value}</span>
+        </div>
+      ))}
+    </section>
   );
 }

@@ -1,7 +1,6 @@
-import { useTranslation } from "react-i18next";
 import i18next from "i18next";
 import type { TitleFactorySuggestion } from "@ai-novel/shared/types/title";
-import { BookmarkPlus, Check, Copy } from "lucide-react";
+import { BookmarkPlus, Check, Copy, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { getTitleStyleLabel } from "../titleStudio.shared";
 
@@ -14,19 +13,32 @@ interface TitleSuggestionListProps {
   onSave?: (suggestion: TitleFactorySuggestion) => void;
   savingTitle?: string;
   emptyMessage?: string;
+  layout?: "list" | "grid";
 }
 
 export default function TitleSuggestionList({
   suggestions,
   selectedTitle = "",
-  primaryActionLabel = i18next.t("dict.gen_6f3398e0"),
+  primaryActionLabel = "复制标题",
   onPrimaryAction,
   onCopy,
   onSave,
   savingTitle = "",
-  emptyMessage = i18next.t("dict.gen_2b2c3000"),
+  emptyMessage = "还没有生成任何标题。",
+  layout = "list",
 }: TitleSuggestionListProps) {
   if (suggestions.length === 0) {
+    if (layout === "grid") {
+      return (
+        <div className="rounded-3xl bg-muted/[0.16] px-6 py-14 text-center">
+          <div className="mx-auto flex h-11 w-11 items-center justify-center rounded-full bg-primary/[0.08] text-primary">
+            <Sparkles className="h-5 w-5" aria-hidden="true" />
+          </div>
+          <div className="mt-4 text-sm font-medium text-foreground">{i18next.t("titles.titleSuggestionList.89bqv8")}</div>
+          <div className="mx-auto mt-1 max-w-md text-sm leading-6 text-muted-foreground">{emptyMessage}</div>
+        </div>
+      );
+    }
     return (
       <div className="py-10 text-center text-sm text-muted-foreground">
         {emptyMessage}
@@ -35,15 +47,75 @@ export default function TitleSuggestionList({
   }
 
   return (
-    <div className="divide-y divide-border/55">
+    <div className={layout === "grid" ? "grid gap-3 md:grid-cols-2" : "divide-y divide-border/55"}>
       {suggestions.map((suggestion) => {
         const isSelected = selectedTitle === suggestion.title;
-        const showSecondaryCopy = Boolean(onCopy && primaryActionLabel !== i18next.t("dict.gen_6f3398e0"));
+        const showSecondaryCopy = Boolean(onCopy && primaryActionLabel !== "复制标题");
         const metadata = [
           getTitleStyleLabel(suggestion.style),
           suggestion.angle,
-          isSelected ? i18next.t("dict.gen_bf94700b") : null,
+          isSelected ? "当前选中" : null,
         ].filter((item): item is string => Boolean(item));
+        const actions = (
+          <div className="flex flex-wrap items-center gap-2">
+            {onPrimaryAction ? (
+              <Button type="button" size="sm" className="gap-1.5 rounded-full" onClick={() => onPrimaryAction(suggestion)}>
+                {primaryActionLabel === "复制标题" ? <Copy className="h-3.5 w-3.5" /> : null}
+                {primaryActionLabel}
+              </Button>
+            ) : null}
+            {showSecondaryCopy ? (
+              <Button type="button" variant="ghost" size="sm" className="gap-1.5 rounded-full" onClick={() => onCopy?.(suggestion)}>
+                <Copy className="h-3.5 w-3.5" />{i18next.t("titles.titleLibraryPanel.fljd")}</Button>
+            ) : null}
+            {onSave ? (
+              <Button
+                type="button"
+                variant="secondary"
+                size="sm"
+                className="gap-1.5 rounded-full"
+                disabled={savingTitle === suggestion.title}
+                onClick={() => onSave(suggestion)}
+              >
+                {savingTitle === suggestion.title ? (
+                  <>
+                    <Check className="h-3.5 w-3.5" />{i18next.t("dict.savingInProgress")}</>
+                ) : (
+                  <>
+                    <BookmarkPlus className="h-3.5 w-3.5" />{i18next.t("titles.titleSuggestionList.ed3i")}</>
+                )}
+              </Button>
+            ) : null}
+          </div>
+        );
+
+        if (layout === "grid") {
+          return (
+            <article
+              key={suggestion.title}
+              className={`flex min-h-56 flex-col rounded-2xl border p-5 transition-all ${
+                isSelected
+                  ? "border-primary/30 bg-primary/[0.04] shadow-[inset_3px_0_0_hsl(var(--primary))]"
+                  : "border-border/35 bg-card/70 hover:border-border/65 hover:shadow-[0_12px_32px_rgba(15,23,42,0.035)]"
+              }`}
+            >
+              <div className="flex items-center justify-between gap-3 text-xs text-muted-foreground">
+                <div className="flex flex-wrap gap-x-2 gap-y-1">
+                  {metadata.map((item) => <span key={`${suggestion.title}-${item}`}>{item}</span>)}
+                </div>
+                <span className="shrink-0 rounded-full bg-muted/60 px-2.5 py-1 font-medium tabular-nums text-foreground">
+                  潜力 {suggestion.clickRate}
+                </span>
+              </div>
+              <h4 className="mt-4 text-xl font-semibold leading-8 tracking-normal text-foreground">{suggestion.title}</h4>
+              {suggestion.reason ? (
+                <p className="mt-2 line-clamp-3 text-sm leading-6 text-muted-foreground">{suggestion.reason}</p>
+              ) : null}
+              <div className="mt-auto pt-5">{actions}</div>
+            </article>
+          );
+        }
+
         return (
           <div
             key={suggestion.title}
@@ -69,36 +141,7 @@ export default function TitleSuggestionList({
                 ) : null}
               </div>
 
-              <div className="flex flex-wrap items-center gap-2 lg:justify-end">
-                {onPrimaryAction ? (
-                  <Button type="button" size="sm" className="gap-1.5" onClick={() => onPrimaryAction(suggestion)}>
-                    {primaryActionLabel === i18next.t("dict.gen_6f3398e0") ? <Copy className="h-3.5 w-3.5" /> : null}
-                    {primaryActionLabel}
-                  </Button>
-                ) : null}
-                {showSecondaryCopy ? (
-                  <Button type="button" variant="outline" size="sm" className="gap-1.5" onClick={() => onCopy?.(suggestion)}>
-                    <Copy className="h-3.5 w-3.5" />{i18next.t("titles.titleLibraryPanel.fljd")}</Button>
-                ) : null}
-                {onSave ? (
-                  <Button
-                    type="button"
-                    variant="secondary"
-                    size="sm"
-                    className="gap-1.5"
-                    disabled={savingTitle === suggestion.title}
-                    onClick={() => onSave(suggestion)}
-                  >
-                    {savingTitle === suggestion.title ? (
-                      <>
-                        <Check className="h-3.5 w-3.5" />{i18next.t("dict.savingInProgress")}</>
-                    ) : (
-                      <>
-                        <BookmarkPlus className="h-3.5 w-3.5" />{i18next.t("titles.titleSuggestionList.ed3i")}</>
-                    )}
-                  </Button>
-                ) : null}
-              </div>
+              <div className="lg:justify-self-end">{actions}</div>
             </div>
           </div>
         );

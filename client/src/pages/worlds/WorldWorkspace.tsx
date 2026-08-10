@@ -1,8 +1,8 @@
-import { useTranslation } from "react-i18next";
 import i18next from "i18next";
 import { useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { ArrowLeft, Globe2, Trash2 } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -51,7 +51,6 @@ import WorldHandbookEditor from "./components/workspace/WorldHandbookEditor";
 import WorldLayersTab from "./components/workspace/WorldLayersTab";
 import WorldOverviewTab from "./components/workspace/WorldOverviewTab";
 import WorldStructureTab from "./components/workspace/WorldStructureTab";
-import WorldSandboxTab from "./components/workspace/WorldSandboxTab";
 import {
   LAYERS,
   parseLayerStates,
@@ -60,7 +59,6 @@ import {
 } from "./components/workspace/worldWorkspaceShared";
 
 export default function WorldWorkspace() {
-  const { t } = useTranslation();
   const navigate = useNavigate();
   const { id = "" } = useParams();
   const llm = useLLMStore();
@@ -280,7 +278,7 @@ export default function WorldWorkspace() {
       navigate("/worlds", { replace: true });
     },
     onError: (error) => {
-      toast.error(error instanceof Error ? error.message : i18next.t("dict.gen_99bf2197"));
+      toast.error(error instanceof Error ? error.message : "删除世界样本失败。");
     },
   });
 
@@ -305,23 +303,48 @@ export default function WorldWorkspace() {
   };
 
   return (
-    <div className="space-y-4">
-      <Card>
-        <CardHeader className="flex flex-row items-center justify-between">
-          <CardTitle>世界工作台：{world?.name ?? i18next.t("dict.gen_26b5bd49")} {world?.version ? `(v${world.version})` : ""}</CardTitle>
-          <div className="flex flex-wrap items-center justify-end gap-2">
-            <LLMSelector />
-            <Button
-              variant="destructive"
-              size="sm"
-              onClick={handleDelete}
-              disabled={!id || !world || deleteWorldMutation.isPending}
-            >
-              {deleteWorldMutation.isPending ? i18next.t("dict.gen_09f2fb82") : i18next.t("dict.gen_4ffdc87d")}
-            </Button>
+    <div className="space-y-6">
+      <header className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+        <div className="flex min-w-0 items-start gap-3">
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            className="mt-0.5 shrink-0 rounded-full"
+            onClick={() => navigate("/worlds")}
+            aria-label={i18next.t("worlds.worldWorkspace.b9tx7i")}
+          >
+            <ArrowLeft className="h-4 w-4" />
+          </Button>
+          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-primary/[0.07] text-primary">
+            <Globe2 className="h-5 w-5" aria-hidden="true" />
           </div>
-        </CardHeader>
-      </Card>
+          <div className="min-w-0">
+            <div className="text-xs text-muted-foreground">{i18next.t("worlds.worldWorkspace.ocgk2z")}</div>
+            <h1 className="mt-1 truncate text-2xl font-semibold tracking-tight">{world?.name ?? "正在读取世界样本"}</h1>
+            {world?.version ? <div className="mt-1 text-xs text-muted-foreground">版本 v{world.version}</div> : null}
+          </div>
+        </div>
+        <div className="flex flex-wrap items-start justify-end gap-2">
+          <details className="group rounded-2xl bg-muted/25 px-4 py-2">
+            <summary className="cursor-pointer list-none text-sm font-medium marker:hidden">{i18next.t("worlds.worldWorkspace.aoy50r")}</summary>
+            <div className="mt-3 w-[420px] max-w-[70vw]">
+              <LLMSelector />
+            </div>
+          </details>
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            className="rounded-full text-muted-foreground hover:text-destructive"
+            onClick={handleDelete}
+            disabled={!id || !world || deleteWorldMutation.isPending}
+          >
+            <Trash2 className="h-4 w-4" />
+            {deleteWorldMutation.isPending ? "删除中..." : "删除样本"}
+          </Button>
+        </div>
+      </header>
 
       <Tabs
         value={activeTab}
@@ -331,16 +354,15 @@ export default function WorldWorkspace() {
             setAdvancedStructureOpen(false);
           }
         }}
-        className="space-y-4"
+        className="space-y-5"
       >
-        <TabsList className="flex flex-wrap">
-          <TabsTrigger value="structure">{i18next.t("dict.gen_eea623bc")}</TabsTrigger>
-          <TabsTrigger value="overview">{i18next.t("worlds.worldHandbookEditor.dlnppj")}{featureFlags.worldVisEnabled ? `/${i18next.t("worlds.worldWorkspace.cygxr")}` : ""}</TabsTrigger>
-          <TabsTrigger value="layers">{i18next.t("dict.gen_89b03150")}</TabsTrigger>
-          <TabsTrigger value="deepening">{i18next.t("dict.gen_7e7f0b6b")}</TabsTrigger>
-          <TabsTrigger value="consistency">{i18next.t("dict.gen_01a3a187")}</TabsTrigger>
-          <TabsTrigger value="assets">{i18next.t("dict.gen_e63dc6c9")}</TabsTrigger>
-          <TabsTrigger value="sandbox">{i18next.t("worlds.worldWorkspace.6rfu37")}</TabsTrigger>
+        <TabsList className="h-11 w-full justify-start gap-1 overflow-x-auto rounded-full bg-muted/30 p-1">
+          <TabsTrigger value="structure" className="rounded-full px-5">{i18next.t("worlds.worldWorkspace.cqr2wj")}</TabsTrigger>
+          <TabsTrigger value="overview" className="rounded-full px-5">{i18next.t("worlds.worldWorkspace.ypx9ed")}</TabsTrigger>
+          <TabsTrigger value="layers" className="rounded-full px-5">AI 分层</TabsTrigger>
+          <TabsTrigger value="deepening" className="rounded-full px-5">{i18next.t("worlds.worldWorkspace.hvbomf")}</TabsTrigger>
+          <TabsTrigger value="consistency" className="rounded-full px-5">{i18next.t("dict.consistency")}</TabsTrigger>
+          <TabsTrigger value="assets" className="rounded-full px-5">{i18next.t("dict.gen_e63dc6c9")}</TabsTrigger>
         </TabsList>
 
         <TabsContent value="overview">
@@ -391,10 +413,10 @@ export default function WorldWorkspace() {
             />
           ) : (
             <>
-              <Card>
+              <Card className="rounded-3xl border-border/35 shadow-none">
                 <CardHeader className="flex flex-row items-center justify-between gap-3">
-                  <CardTitle>{i18next.t("dict.gen_6d58393f")}</CardTitle>
-                  <Button variant="outline" size="sm" onClick={() => setAdvancedStructureOpen(false)}>{i18next.t("worlds.worldWorkspace.sic4vx")}</Button>
+                  <CardTitle className="text-lg">{i18next.t("dict.gen_6d58393f")}</CardTitle>
+                  <Button variant="ghost" size="sm" className="rounded-full" onClick={() => setAdvancedStructureOpen(false)}>{i18next.t("worlds.worldWorkspace.sic4vx")}</Button>
                 </CardHeader>
                 <CardContent className="text-sm text-muted-foreground">{i18next.t("worlds.worldWorkspace.dssi9w")}</CardContent>
               </Card>
@@ -483,7 +505,6 @@ export default function WorldWorkspace() {
 
         <TabsContent value="deepening">
           <WorldDeepeningTab
-            worldId={id}
             questions={visibleDeepeningQuestions}
             answerDrafts={answerDrafts}
             setAnswerDrafts={setAnswerDrafts}
@@ -558,10 +579,6 @@ export default function WorldWorkspace() {
             onExport={handleExport}
             onImport={() => importMutation.mutate()}
           />
-        </TabsContent>
-
-        <TabsContent value="sandbox">
-          <WorldSandboxTab worldId={id} />
         </TabsContent>
       </Tabs>
     </div>

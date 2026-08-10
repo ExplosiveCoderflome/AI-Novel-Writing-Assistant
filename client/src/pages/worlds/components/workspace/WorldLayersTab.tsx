@@ -1,9 +1,7 @@
 import i18next from "i18next";
-const t = (key: string, options?: any) => i18next.t(key, options) as string;
 import type { Dispatch, SetStateAction } from "react";
 import type { World } from "@ai-novel/shared/types/world";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import StreamOutput from "@/components/common/StreamOutput";
 import {
   LAYERS,
@@ -91,25 +89,29 @@ export default function WorldLayersTab(props: WorldLayersTabProps) {
     confirmLayerPending && confirmLayerVariable === selectedLayerMeta.key;
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>{i18next.t("dict.gen_3fa44531")}</CardTitle>
-      </CardHeader>
-      <CardContent className="space-y-4">
-        <div className="flex flex-wrap items-center gap-2 rounded-md border p-3">
-          <Button onClick={onGenerateAll} disabled={generateAllPending || !world}>
-            {generateAllPending ? i18next.t("dict.gen_d92453f0") : isInitialLayerGeneration ? i18next.t("dict.aiOrganizeSixLevelSummary") : i18next.t("dict.gen_def9350c")}
-          </Button>
-          <div className="text-xs text-muted-foreground">
-            {isInitialLayerGeneration
-              ? i18next.t("dict.gen_a89fc05a")
-              : i18next.t("dict.gen_34d7319e")}
-          </div>
+    <section className="space-y-6">
+        <div>
+          <h2 className="text-xl font-semibold tracking-tight">AI 分层整理</h2>
+          <p className="mt-1 text-sm leading-6 text-muted-foreground">{i18next.t("worlds.worldLayersTab.cvqbdu")}</p>
         </div>
 
-        <div className="grid gap-3 lg:grid-cols-[240px_minmax(0,1fr)]">
-          <div className="space-y-2 rounded-md border p-3">
-            <div className="text-sm font-medium">{i18next.t("dict.gen_12473ca6")}</div>
+        <div className="flex flex-col gap-3 rounded-3xl bg-primary/[0.055] p-5 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <div className="font-medium">{isInitialLayerGeneration ? "生成六层写作摘要" : "更新六层写作摘要"}</div>
+            <div className="mt-1 text-xs leading-5 text-muted-foreground">
+              {isInitialLayerGeneration
+                ? "AI 会从现有世界手册提炼基础、力量、社会、文化、历史和冲突六层内容。"
+                : "世界手册调整后，可以重新整理全部摘要，也可以只修改其中一层。"}
+            </div>
+          </div>
+          <Button className="shrink-0 rounded-full" onClick={onGenerateAll} disabled={generateAllPending || !world}>
+            {generateAllPending ? "整理中..." : isInitialLayerGeneration ? "AI 整理六层摘要" : "重新整理六层摘要"}
+          </Button>
+        </div>
+
+        <div className="grid gap-4 lg:grid-cols-[220px_minmax(0,1fr)]">
+          <div className="space-y-2 rounded-3xl bg-muted/20 p-3">
+            <div className="px-2 py-1 text-xs font-medium text-muted-foreground">{i18next.t("worlds.worldLayersTab.iky945")}</div>
             <div className="space-y-2">
               {LAYERS.map((layer) => {
                 const layerStatus = layerStates[layer.key]?.status ?? "pending";
@@ -120,8 +122,8 @@ export default function WorldLayersTab(props: WorldLayersTabProps) {
                     key={layer.key}
                     type="button"
                     className={[
-                      "w-full rounded-md border p-2 text-left text-sm transition-colors",
-                      selectedLayer === layer.key ? "border-primary bg-primary/5" : "border-border/70 bg-background hover:bg-muted/40",
+                      "w-full rounded-2xl px-3 py-2.5 text-left text-sm transition-colors",
+                      selectedLayer === layer.key ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:bg-background/60",
                     ].join(" ")}
                     onClick={() => setSelectedLayer(layer.key)}
                   >
@@ -138,7 +140,7 @@ export default function WorldLayersTab(props: WorldLayersTabProps) {
             </div>
           </div>
 
-          <div className="rounded-md border p-3 space-y-3">
+          <div className="space-y-4 rounded-3xl border border-border/35 bg-card/70 p-5">
             <div className="flex flex-wrap items-center justify-between gap-2">
               <div>
                 <div className="font-medium">{selectedLayerMeta.label}</div>
@@ -149,7 +151,7 @@ export default function WorldLayersTab(props: WorldLayersTabProps) {
               {hasSelectedDraft ? <div className="text-xs text-primary">{i18next.t("dict.gen_5b8d2077")}</div> : null}
             </div>
             <textarea
-              className="min-h-[260px] w-full rounded-md border bg-background p-2 text-sm"
+              className="min-h-[300px] w-full rounded-2xl border border-border/45 bg-background/80 p-4 text-sm leading-6"
               value={selectedLayerValue}
               onChange={(event) =>
                 setLayerDrafts((prev) => ({
@@ -160,6 +162,7 @@ export default function WorldLayersTab(props: WorldLayersTabProps) {
             />
             <div className="flex flex-wrap gap-2">
               <Button
+                className="rounded-full"
                 onClick={() => {
                   if (isInitialLayerGeneration) {
                     onGenerateAll();
@@ -171,35 +174,40 @@ export default function WorldLayersTab(props: WorldLayersTabProps) {
               >
                 {isInitialLayerGeneration
                   ? generateAllPending
-                    ? i18next.t("dict.gen_764b448d")
-                    : i18next.t("dict.gen_11ba5ba1")
+                    ? "六层生成中..."
+                    : "首次 AI 生成六层"
                   : isGeneratingSelectedLayer
-                    ? i18next.t("dict.gen_92f67f46")
-                    : i18next.t("dict.aiOrganizeCurrentLevel")}
+                    ? "重写中..."
+                    : "AI 整理本层"}
               </Button>
               <Button
+                className="rounded-full"
                 variant="secondary"
                 onClick={() => onSaveLayer({ layerKey: selectedLayerMeta.key, content: selectedLayerValue })}
                 disabled={saveLayerPending || generateAllPending || !selectedLayerValue.trim()}
               >
-                {isSavingSelectedLayer ? i18next.t("common.saving") : i18next.t("dict.saveThisLayer")}
+                {isSavingSelectedLayer ? "保存中..." : "保存本层"}
               </Button>
               <Button
+                className="rounded-full"
                 variant="outline"
                 onClick={() => onConfirmLayer(selectedLayerMeta.key)}
                 disabled={confirmLayerPending || generateAllPending}
               >
-                {isConfirmingSelectedLayer ? i18next.t("dict.gen_1fb26ee2") : i18next.t("dict.gen_5ff268b9")}
+                {isConfirmingSelectedLayer ? "确认中..." : "确认本层"}
               </Button>
             </div>
           </div>
         </div>
 
-        <div className="rounded-md border p-3">
-          <div className="mb-2 text-sm font-medium">{i18next.t("dict.aiPolishing")}</div>
-          <div className="grid gap-2 md:grid-cols-4">
+        <details className="group rounded-3xl bg-muted/20 p-5">
+          <summary className="cursor-pointer list-none marker:hidden">
+            <div className="font-medium">AI 精修当前内容</div>
+            <div className="mt-1 text-xs text-muted-foreground">{i18next.t("worlds.worldLayersTab.is9zmm")}</div>
+          </summary>
+          <div className="mt-4 grid gap-2 md:grid-cols-4">
             <SelectControl
-              className="rounded-md border bg-background p-2 text-sm"
+              className="rounded-xl border border-border/45 bg-background p-2 text-sm"
               value={refineAttribute}
               onChange={(event) => setRefineAttribute(event.target.value as RefineAttribute)}
             >
@@ -210,7 +218,7 @@ export default function WorldLayersTab(props: WorldLayersTabProps) {
               ))}
             </SelectControl>
             <SelectControl
-              className="rounded-md border bg-background p-2 text-sm"
+              className="rounded-xl border border-border/45 bg-background p-2 text-sm"
               value={refineMode}
               onChange={(event) => setRefineMode(event.target.value as "replace" | "alternatives")}
             >
@@ -218,20 +226,19 @@ export default function WorldLayersTab(props: WorldLayersTabProps) {
               <option value="alternatives">{i18next.t("dict.gen_c87058b2")}</option>
             </SelectControl>
             <SelectControl
-              className="rounded-md border bg-background p-2 text-sm"
+              className="rounded-xl border border-border/45 bg-background p-2 text-sm"
               value={refineLevel}
               onChange={(event) => setRefineLevel(event.target.value as "light" | "deep")}
             >
               <option value="light">{i18next.t("dict.gen_271fda47")}</option>
               <option value="deep">{i18next.t("dict.gen_237fb19a")}</option>
             </SelectControl>
-            <Button onClick={onStartRefine} disabled={refineStreaming}>
-              {refineStreaming ? i18next.t("dict.gen_d4ffc81b") : selectedLayer === "foundation" ? i18next.t("dict.gen_a65da34b") : i18next.t("dict.gen_8d3d0618")}
+            <Button className="rounded-full" onClick={onStartRefine} disabled={refineStreaming}>
+              {refineStreaming ? "精修中..." : selectedLayer === "foundation" ? "精修世界基底" : "精修本层"}
             </Button>
           </div>
           <StreamOutput content={refineContent} isStreaming={refineStreaming} onAbort={onAbortRefine} />
-        </div>
-      </CardContent>
-    </Card>
+        </details>
+    </section>
   );
 }
