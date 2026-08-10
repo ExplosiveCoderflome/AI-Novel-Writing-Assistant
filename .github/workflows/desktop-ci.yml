@@ -1,0 +1,219 @@
+name: Desktop CI
+
+on:
+  pull_request:
+    branches:
+      - beta
+      - main
+    paths:
+      - ".github/scripts/**"
+      - ".github/workflows/desktop-ci.yml"
+      - ".github/workflows/desktop-release.yml"
+      - ".npmrc"
+      - "client/**"
+      - "desktop/**"
+      - "package.json"
+      - "pnpm-lock.yaml"
+      - "pnpm-workspace.yaml"
+      - "scripts/bump-desktop-version.cjs"
+      - "scripts/bump-desktop-version.test.cjs"
+      - "scripts/trigger-desktop-release.cjs"
+      - "scripts/trigger-desktop-release.test.cjs"
+      - "scripts/update-desktop-release-notes.cjs"
+      - "scripts/update-desktop-release-notes.test.cjs"
+      - "server/**"
+      - "shared/**"
+      - "tsconfig.base.json"
+  push:
+    branches:
+      - beta
+      - main
+    paths:
+      - ".github/scripts/**"
+      - ".github/workflows/desktop-ci.yml"
+      - ".github/workflows/desktop-release.yml"
+      - ".npmrc"
+      - "client/**"
+      - "desktop/**"
+      - "package.json"
+      - "pnpm-lock.yaml"
+      - "pnpm-workspace.yaml"
+      - "scripts/bump-desktop-version.cjs"
+      - "scripts/bump-desktop-version.test.cjs"
+      - "scripts/trigger-desktop-release.cjs"
+      - "scripts/trigger-desktop-release.test.cjs"
+      - "scripts/update-desktop-release-notes.cjs"
+      - "scripts/update-desktop-release-notes.test.cjs"
+      - "server/**"
+      - "shared/**"
+      - "tsconfig.base.json"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: desktop-ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  quality:
+    name: Desktop contracts and typecheck
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v6
+        with:
+          version: 10.6.0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: 24
+          cache: pnpm
+
+      - name: Install frozen dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Run desktop packaging contracts
+        run: pnpm test:desktop-packaging
+
+      - name: Typecheck workspace
+        run: pnpm typecheck
+
+  native-package:
+    name: ${{ matrix.name }}
+    needs: quality
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: Windows x64
+            os: windows-2025
+            platform: win
+            arch: x64
+          - name: macOS arm64
+            os: macos-15
+            platform: mac
+            arch: arm64
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 60
+    env:
+      AI_NOVEL_RELEASE_MODE: verify
+      AI_NOVEL_TARGET_PLATFORM: ${{ matrix.platform }}
+      DESKTOP_PACKAGE_TARGET: ${{ github.event_name == 'pull_request' && 'dir' || 'all' }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v6
+        with:
+          version: 10.6.0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: 24
+          cache: pnpm
+
+      - name: Configure short Windows virtual store
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $virtualStore = Join-Path $env:RUNNER_TEMP "pnpm-vstore"
+          "npm_config_virtual_store_dir=$virtualStore" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+          "npm_config_virtual_store_dir_max_length=32" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+
+      - name: Install frozen dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build desktop workspace inputs
+        run: corepack pnpm run build:desktop:all
+
+      - name: Build and stage native desktop app
+        run: >-
+          node desktop/scripts/stage-desktop.cjs
+          --platform ${{ matrix.platform }}
+          --arch ${{ matrix.arch }}
+          --mode verify
+
+      - name: Package native desktop app
+        run: >-
+          node desktop/scripts/run-electron-builder.cjs
+          --platform ${{ matrix.platform }}
+          --arch ${{ matrix.arch }}
+          --mode verify
+          --target ${{ env.DESKTOP_PACKAGE_TARGET }}
+
+      - name: Smoke packaged native modules
+        run: >-
+          node desktop/scripts/run-packaged-smoke.cjs
+          --platform ${{ matrix.platform }}
+          --arch ${{ matrix.arch }}
+          --mode verify
+
+      - name: Smoke Windows installer lifecycle
+        if: runner.os == 'Windows' && github.event_name != 'pull_request'
+        run: node desktop/scripts/verify-desktop-installer.cjs
+
+      - name: Verify macOS disk image
+        if: runner.os == 'macOS' && github.event_name != 'pull_request'
+        shell: bash
+        run: |
+          set -euo pipefail
+          shopt -s nullglob
+          dmgs=(desktop/build/dist/*.dmg)
+          if (( ${#dmgs[@]} != 1 )); then
+            echo "Expected exactly one macOS DMG, found ${#dmgs[@]}." >&2
+            exit 1
+          fi
+          hdiutil verify "${dmgs[0]}"
+
+      - name: Verify macOS ZIP archive layout
+        if: runner.os == 'macOS' && github.event_name != 'pull_request'
+        shell: bash
+        run: |
+          set -euo pipefail
+          shopt -s nullglob
+          zips=(desktop/build/dist/*.zip)
+          if (( ${#zips[@]} != 1 )); then
+            echo "Expected exactly one macOS ZIP, found ${#zips[@]}." >&2
+            exit 1
+          fi
+          unzip -t "${zips[0]}"
+          zip_listing="$(unzip -Z1 "${zips[0]}")"
+          if ! grep -Eq '^[^/]+\.app/Contents/Resources/app\.asar$' <<< "${zip_listing}"; then
+            echo "macOS ZIP does not contain <app>.app/Contents/Resources/app.asar." >&2
+            exit 1
+          fi
+
+      - name: Upload Windows verification installers
+        if: runner.os == 'Windows' && github.event_name != 'pull_request'
+        uses: actions/upload-artifact@v7
+        with:
+          name: desktop-ci-win-x64-${{ github.sha }}-${{ github.run_attempt }}
+          path: desktop/build/dist/*.exe
+          if-no-files-found: error
+          retention-days: 7
+
+      - name: Upload macOS verification installers
+        if: runner.os == 'macOS' && github.event_name != 'pull_request'
+        uses: actions/upload-artifact@v7
+        with:
+          name: desktop-ci-mac-arm64-${{ github.sha }}-${{ github.run_attempt }}
+          path: |
+            desktop/build/dist/*.dmg
+            desktop/build/dist/*.dmg.blockmap
+            desktop/build/dist/*.zip
+            desktop/build/dist/*.zip.blockmap
+          if-no-files-found: error
+          retention-days: 7

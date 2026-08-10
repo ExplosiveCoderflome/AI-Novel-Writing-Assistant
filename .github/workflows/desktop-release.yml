@@ -1,30 +1,285 @@
 name: Desktop Release
 
 on:
-  workflow_dispatch:
   push:
     tags:
       - "v*"
-      - "desktop-v*"
+  workflow_dispatch:
 
 permissions:
-  contents: write
+  contents: read
+
+concurrency:
+  group: desktop-release-${{ github.ref }}
+  cancel-in-progress: false
 
 jobs:
-  publish-release:
-    if: ${{ startsWith(github.ref_name, 'desktop-v') || !contains(github.ref_name, '-') }}
-    runs-on: windows-latest
-    env:
-      AI_NOVEL_RELEASE_CHANNEL: release
-      AI_NOVEL_ALLOW_UNSIGNED_RELEASE: "true"
-      AI_NOVEL_GITHUB_OWNER: ExplosiveCoderflome
-      AI_NOVEL_GITHUB_REPO: AI-Novel-Writing-Assistant
-      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      CSC_LINK: ${{ secrets.WINDOWS_CSC_LINK }}
-      CSC_KEY_PASSWORD: ${{ secrets.WINDOWS_CSC_KEY_PASSWORD }}
+  manual-dry-run:
+    name: Validate release from selected branch
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
-      - name: Checkout repository
+      - name: Checkout repository history
         uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: 24
+
+      - name: Checkout the selected branch explicitly
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ "${GITHUB_REF_TYPE}" != "branch" || ( "${GITHUB_REF_NAME}" != "beta" && "${GITHUB_REF_NAME}" != "main" ) ]]; then
+            echo "Manual desktop release validation is allowed only from the beta or main branch." >&2
+            exit 1
+          fi
+          git fetch --no-tags origin "+refs/heads/${GITHUB_REF_NAME}:refs/remotes/origin/${GITHUB_REF_NAME}"
+          git checkout -B "${GITHUB_REF_NAME}" "refs/remotes/origin/${GITHUB_REF_NAME}"
+
+      - name: Run release trigger dry-run
+        run: node scripts/trigger-desktop-release.cjs --dry-run
+
+  validate-release:
+    name: Validate tag and release state
+    if: github.event_name == 'push'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    outputs:
+      branch: ${{ steps.contract.outputs.branch }}
+      channel: ${{ steps.contract.outputs.channel }}
+      mode: ${{ steps.contract.outputs.mode }}
+      release_id: ${{ steps.existing.outputs.release_id }}
+      release_state: ${{ steps.existing.outputs.state }}
+      release_type: ${{ steps.contract.outputs.releaseType }}
+      tag: ${{ steps.contract.outputs.tag }}
+      tag_commit: ${{ steps.contract.outputs.tagCommit }}
+      version: ${{ steps.contract.outputs.version }}
+    steps:
+      - name: Checkout repository history
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: 24
+
+      - name: Validate exact tag, version, repository, and branch ancestry
+        id: contract
+        shell: bash
+        env:
+          RELEASE_REPOSITORY_INPUT: ${{ github.repository }}
+          RELEASE_REPO_ROOT_INPUT: ${{ github.workspace }}
+          RELEASE_TAG_INPUT: ${{ github.ref_name }}
+        run: >-
+          node .github/scripts/validate-desktop-release-ref.cjs
+          --tag "${RELEASE_TAG_INPUT}"
+          --repository "${RELEASE_REPOSITORY_INPUT}"
+          --repo-root "${RELEASE_REPO_ROOT_INPUT}"
+          --github-output "${GITHUB_OUTPUT}"
+
+      - name: Find the exact release and allow only a single draft retry
+        id: existing
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          EXPECTED_PRERELEASE: ${{ steps.contract.outputs.mode == 'beta' }}
+        run: |
+          set -euo pipefail
+          releases="${RUNNER_TEMP}/desktop-releases.json"
+          matches="${RUNNER_TEMP}/desktop-release-matches.json"
+          gh api --paginate --slurp "repos/${GITHUB_REPOSITORY}/releases?per_page=100" > "${releases}"
+          jq --arg tag "${GITHUB_REF_NAME}" '[.[][] | select(.tag_name == $tag)]' "${releases}" > "${matches}"
+          count="$(jq 'length' "${matches}")"
+          if [[ "${count}" == "0" ]]; then
+            echo "state=none" >> "${GITHUB_OUTPUT}"
+            echo "release_id=" >> "${GITHUB_OUTPUT}"
+          elif [[ "${count}" == "1" ]]; then
+            if [[ "$(jq -r '.[0].draft' "${matches}")" != "true" ]]; then
+              echo "A public GitHub Release already exists for ${GITHUB_REF_NAME}; refusing to overwrite it." >&2
+              exit 1
+            fi
+            if [[ "$(jq -r '.[0].prerelease' "${matches}")" != "${EXPECTED_PRERELEASE}" ]]; then
+              echo "Existing draft prerelease state does not match the validated tag mode." >&2
+              exit 1
+            fi
+            echo "state=draft" >> "${GITHUB_OUTPUT}"
+            echo "release_id=$(jq -r '.[0].id' "${matches}")" >> "${GITHUB_OUTPUT}"
+          else
+            echo "Found ${count} releases for exact tag ${GITHUB_REF_NAME}; refusing an ambiguous retry." >&2
+            exit 1
+          fi
+
+  build-windows:
+    name: Build Windows x64 release
+    if: github.event_name == 'push'
+    needs: validate-release
+    runs-on: windows-2025
+    timeout-minutes: 60
+    environment:
+      name: desktop-release-windows
+    permissions:
+      contents: read
+    outputs:
+      artifact_name: ${{ steps.artifact.outputs.name }}
+      signing_status: ${{ steps.signing.outputs.status }}
+    env:
+      AI_NOVEL_RELEASE_MODE: ${{ needs.validate-release.outputs.mode }}
+      AI_NOVEL_TARGET_PLATFORM: win
+      WIN_CSC_LINK: ${{ secrets.WINDOWS_CSC_LINK }}
+      WIN_CSC_KEY_PASSWORD: ${{ secrets.WINDOWS_CSC_KEY_PASSWORD }}
+    steps:
+      - name: Checkout release tag
+        uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v6
+        with:
+          version: 10.6.0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: 24
+          cache: pnpm
+
+      - name: Configure short Windows virtual store
+        shell: pwsh
+        run: |
+          $virtualStore = Join-Path $env:RUNNER_TEMP "pnpm-vstore"
+          "npm_config_virtual_store_dir=$virtualStore" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+          "npm_config_virtual_store_dir_max_length=32" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+
+      - name: Resolve Windows signing status
+        id: signing
+        shell: pwsh
+        run: |
+          $hasLink = -not [string]::IsNullOrWhiteSpace($env:WIN_CSC_LINK)
+          $hasPassword = -not [string]::IsNullOrWhiteSpace($env:WIN_CSC_KEY_PASSWORD)
+          if ($hasLink -ne $hasPassword) {
+            throw "Windows signing requires both WINDOWS_CSC_LINK and WINDOWS_CSC_KEY_PASSWORD, or neither."
+          }
+          $status = if ($hasLink) { "full" } else { "none" }
+          "status=$status" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
+
+      - name: Install frozen dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build desktop workspace inputs
+        run: corepack pnpm run build:desktop:all
+
+      - name: Build and stage Windows release
+        run: >-
+          node desktop/scripts/stage-desktop.cjs
+          --platform win
+          --arch x64
+          --mode ${{ needs.validate-release.outputs.mode }}
+
+      - name: Package Windows release without publishing
+        run: >-
+          node desktop/scripts/run-electron-builder.cjs
+          --platform win
+          --arch x64
+          --mode ${{ needs.validate-release.outputs.mode }}
+          --target all
+
+      - name: Smoke packaged Windows native modules
+        run: >-
+          node desktop/scripts/run-packaged-smoke.cjs
+          --platform win
+          --arch x64
+          --mode ${{ needs.validate-release.outputs.mode }}
+
+      - name: Smoke Windows installer lifecycle
+        run: node desktop/scripts/verify-desktop-installer.cjs
+
+      - name: Verify Windows Authenticode signatures
+        if: steps.signing.outputs.status == 'full'
+        shell: pwsh
+        run: |
+          $executables = Get-ChildItem desktop/build/dist -Filter *.exe
+          if ($executables.Count -lt 2) {
+            throw "Expected signed NSIS and portable executables."
+          }
+          foreach ($executable in $executables) {
+            $signature = Get-AuthenticodeSignature $executable.FullName
+            if ($signature.Status -ne "Valid") {
+              throw "Invalid Authenticode signature for $($executable.Name): $($signature.Status)"
+            }
+          }
+
+      - name: Collect and validate Windows release assets
+        shell: pwsh
+        run: |
+          $assetDirectory = "desktop/build/release-assets/win"
+          New-Item -ItemType Directory -Path $assetDirectory -Force | Out-Null
+          $patterns = @("*.exe", "*.exe.blockmap", "beta.yml", "latest.yml")
+          foreach ($pattern in $patterns) {
+            Get-ChildItem -Path "desktop/build/dist" -File -Filter $pattern | ForEach-Object {
+              Copy-Item -LiteralPath $_.FullName -Destination $assetDirectory
+            }
+          }
+          node desktop/scripts/validate-release-assets.cjs `
+            --tag "${{ needs.validate-release.outputs.tag }}" `
+            --version "${{ needs.validate-release.outputs.version }}" `
+            --mode "${{ needs.validate-release.outputs.mode }}" `
+            --platform win `
+            --assets-dir $assetDirectory `
+            --expected-repo "${{ github.repository }}" `
+            --signing-status "${{ steps.signing.outputs.status }}" `
+            > desktop/build/release-assets-win.json
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          Get-Content desktop/build/release-assets-win.json
+
+      - name: Resolve Windows artifact name
+        id: artifact
+        shell: pwsh
+        run: |
+          "name=desktop-release-win-x64-$env:GITHUB_RUN_ID-$env:GITHUB_RUN_ATTEMPT" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
+
+      - name: Upload Windows release assets
+        uses: actions/upload-artifact@v7
+        with:
+          name: ${{ steps.artifact.outputs.name }}
+          path: desktop/build/release-assets/win/*
+          if-no-files-found: error
+          retention-days: 7
+
+  build-macos:
+    name: Build macOS arm64 release
+    if: github.event_name == 'push'
+    needs: validate-release
+    runs-on: macos-15
+    timeout-minutes: 90
+    environment:
+      name: desktop-release-macos
+    permissions:
+      contents: read
+    outputs:
+      artifact_name: ${{ steps.artifact.outputs.name }}
+      signing_status: ${{ steps.signing.outputs.status }}
+    env:
+      AI_NOVEL_RELEASE_MODE: ${{ needs.validate-release.outputs.mode }}
+      AI_NOVEL_TARGET_PLATFORM: mac
+      APPLE_API_KEY_ID: ${{ secrets.APPLE_API_KEY_ID }}
+      APPLE_API_ISSUER: ${{ secrets.APPLE_API_ISSUER }}
+      MAC_CSC_LINK: ${{ secrets.MAC_CSC_LINK }}
+      MAC_CSC_KEY_PASSWORD: ${{ secrets.MAC_CSC_KEY_PASSWORD }}
+    steps:
+      - name: Checkout release tag
+        uses: actions/checkout@v6
+        with:
+          persist-credentials: false
 
       - name: Setup pnpm
         uses: pnpm/action-setup@v6
@@ -42,26 +297,423 @@ jobs:
         with:
           python-version: "3.11"
 
-      - name: Install dependencies
+      - name: Resolve macOS signing and notarization status
+        id: signing
+        shell: bash
+        env:
+          APPLE_API_KEY_P8_BASE64: ${{ secrets.APPLE_API_KEY_P8_BASE64 }}
+        run: |
+          set -euo pipefail
+          values=(
+            "${MAC_CSC_LINK:-}"
+            "${MAC_CSC_KEY_PASSWORD:-}"
+            "${APPLE_API_KEY_P8_BASE64:-}"
+            "${APPLE_API_KEY_ID:-}"
+            "${APPLE_API_ISSUER:-}"
+          )
+          present=0
+          for value in "${values[@]}"; do
+            [[ -n "${value}" ]] && present=$((present + 1))
+          done
+          if (( present == 0 )); then
+            echo "status=none" >> "${GITHUB_OUTPUT}"
+          elif (( present == ${#values[@]} )); then
+            key_path="${RUNNER_TEMP}/AuthKey_${APPLE_API_KEY_ID}.p8"
+            API_KEY_PATH="${key_path}" python3 -c 'import base64, os, pathlib; pathlib.Path(os.environ["API_KEY_PATH"]).write_bytes(base64.b64decode(os.environ["APPLE_API_KEY_P8_BASE64"], validate=True))'
+            chmod 600 "${key_path}"
+            echo "APPLE_API_KEY=${key_path}" >> "${GITHUB_ENV}"
+            echo "status=full" >> "${GITHUB_OUTPUT}"
+          else
+            echo "macOS signing requires the complete Developer ID pair and App Store Connect API key tuple, or no signing secrets." >&2
+            exit 1
+          fi
+
+      - name: Install frozen dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Install desktop icon tooling
-        run: python -m pip install --disable-pip-version-check pillow
+      - name: Build desktop workspace inputs
+        run: corepack pnpm run build:desktop:all
 
-      - name: Regenerate desktop icon assets
-        run: python desktop/scripts/generate-desktop-icons.py
+      - name: Build and stage macOS release
+        run: >-
+          node desktop/scripts/stage-desktop.cjs
+          --platform mac
+          --arch arm64
+          --mode ${{ needs.validate-release.outputs.mode }}
 
-      - name: Typecheck
-        run: pnpm typecheck
+      - name: Package macOS release without publishing
+        run: >-
+          node desktop/scripts/run-electron-builder.cjs
+          --platform mac
+          --arch arm64
+          --mode ${{ needs.validate-release.outputs.mode }}
+          --target all
 
-      - name: Build and stage desktop app
-        run: pnpm stage:desktop
+      - name: Smoke packaged macOS native modules
+        run: >-
+          node desktop/scripts/run-packaged-smoke.cjs
+          --platform mac
+          --arch arm64
+          --mode ${{ needs.validate-release.outputs.mode }}
 
-      - name: Verify packaged desktop layout
-        run: pnpm verify:desktop-package:reuse-stage
+      - name: Verify macOS disk image
+        shell: bash
+        run: |
+          set -euo pipefail
+          shopt -s nullglob
+          dmgs=(desktop/build/dist/*.dmg)
+          if (( ${#dmgs[@]} != 1 )); then
+            echo "Expected exactly one macOS DMG, found ${#dmgs[@]}." >&2
+            exit 1
+          fi
+          hdiutil verify "${dmgs[0]}"
 
-      - name: Publish desktop release to GitHub Releases
-        run: pnpm publish:desktop:release:reuse-stage
+      - name: Verify macOS ZIP archive layout
+        shell: bash
+        run: |
+          set -euo pipefail
+          shopt -s nullglob
+          zips=(desktop/build/dist/*.zip)
+          if (( ${#zips[@]} != 1 )); then
+            echo "Expected exactly one macOS ZIP, found ${#zips[@]}." >&2
+            exit 1
+          fi
+          unzip -t "${zips[0]}"
+          zip_listing="$(unzip -Z1 "${zips[0]}")"
+          if ! grep -Eq '^[^/]+\.app/Contents/Resources/app\.asar$' <<< "${zip_listing}"; then
+            echo "macOS ZIP does not contain <app>.app/Contents/Resources/app.asar." >&2
+            exit 1
+          fi
 
-      - name: Update GitHub release notes
-        run: node scripts/update-desktop-release-notes.cjs
+      - name: Verify Developer ID signature and notarization
+        if: steps.signing.outputs.status == 'full'
+        shell: bash
+        run: |
+          set -euo pipefail
+          shopt -s nullglob
+          apps=(desktop/build/dist/mac-arm64/*.app)
+          if (( ${#apps[@]} != 1 )); then
+            echo "Expected exactly one packaged macOS app, found ${#apps[@]}." >&2
+            exit 1
+          fi
+          codesign --verify --deep --strict --verbose=2 "${apps[0]}"
+          spctl --assess --type execute --verbose=2 "${apps[0]}"
+          xcrun stapler validate "${apps[0]}"
+
+      - name: Collect and validate macOS release assets
+        shell: bash
+        run: |
+          set -euo pipefail
+          shopt -s nullglob
+          asset_directory="desktop/build/release-assets/mac"
+          mkdir -p "${asset_directory}"
+          assets=(
+            desktop/build/dist/*.dmg
+            desktop/build/dist/*.dmg.blockmap
+            desktop/build/dist/*.zip
+            desktop/build/dist/*.zip.blockmap
+            desktop/build/dist/beta-mac.yml
+            desktop/build/dist/latest-mac.yml
+          )
+          for asset in "${assets[@]}"; do
+            cp "${asset}" "${asset_directory}/"
+          done
+          node desktop/scripts/validate-release-assets.cjs \
+            --tag "${{ needs.validate-release.outputs.tag }}" \
+            --version "${{ needs.validate-release.outputs.version }}" \
+            --mode "${{ needs.validate-release.outputs.mode }}" \
+            --platform mac \
+            --assets-dir "${asset_directory}" \
+            --expected-repo "${{ github.repository }}" \
+            --signing-status "${{ steps.signing.outputs.status }}" \
+            > desktop/build/release-assets-mac.json
+          cat desktop/build/release-assets-mac.json
+
+      - name: Resolve macOS artifact name
+        id: artifact
+        shell: bash
+        run: echo "name=desktop-release-mac-arm64-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}" >> "${GITHUB_OUTPUT}"
+
+      - name: Upload signed macOS release assets
+        if: steps.signing.outputs.status == 'full'
+        uses: actions/upload-artifact@v7
+        with:
+          name: ${{ steps.artifact.outputs.name }}
+          path: desktop/build/release-assets/mac/*
+          if-no-files-found: error
+          retention-days: 7
+
+      - name: Upload unsigned macOS release assets
+        if: steps.signing.outputs.status == 'none'
+        uses: actions/upload-artifact@v7
+        with:
+          name: ${{ steps.artifact.outputs.name }}
+          path: desktop/build/release-assets/mac/*
+          if-no-files-found: error
+          retention-days: 7
+
+  publish-release:
+    name: Publish validated desktop release
+    if: github.event_name == 'push'
+    needs:
+      - validate-release
+      - build-windows
+      - build-macos
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout release tag
+        uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: 24
+
+      - name: Download Windows release assets
+        uses: actions/download-artifact@v8
+        with:
+          name: ${{ needs.build-windows.outputs.artifact_name }}
+          path: release-assets/win
+
+      - name: Download macOS release assets
+        uses: actions/download-artifact@v8
+        with:
+          name: ${{ needs.build-macos.outputs.artifact_name }}
+          path: release-assets/mac
+
+      - name: Revalidate downloaded platform assets
+        shell: bash
+        run: |
+          set -euo pipefail
+          node desktop/scripts/validate-release-assets.cjs \
+            --tag "${{ needs.validate-release.outputs.tag }}" \
+            --version "${{ needs.validate-release.outputs.version }}" \
+            --mode "${{ needs.validate-release.outputs.mode }}" \
+            --platform win \
+            --assets-dir release-assets/win \
+            --expected-repo "${{ github.repository }}" \
+            --signing-status "${{ needs.build-windows.outputs.signing_status }}"
+          node desktop/scripts/validate-release-assets.cjs \
+            --tag "${{ needs.validate-release.outputs.tag }}" \
+            --version "${{ needs.validate-release.outputs.version }}" \
+            --mode "${{ needs.validate-release.outputs.mode }}" \
+            --platform mac \
+            --assets-dir release-assets/mac \
+            --expected-repo "${{ github.repository }}" \
+            --signing-status "${{ needs.build-macos.outputs.signing_status }}"
+
+      - name: Collect assets without basename collisions
+        run: >-
+          node .github/scripts/collect-desktop-release-assets.cjs
+          --source release-assets/win
+          --source release-assets/mac
+          --output release-assets/all
+
+      - name: Validate complete cross-platform release assets
+        run: >-
+          node desktop/scripts/validate-release-assets.cjs
+          --tag "${{ needs.validate-release.outputs.tag }}"
+          --version "${{ needs.validate-release.outputs.version }}"
+          --mode "${{ needs.validate-release.outputs.mode }}"
+          --platform all
+          --assets-dir release-assets/all
+          --expected-repo "${{ github.repository }}"
+          --windows-signing-status "${{ needs.build-windows.outputs.signing_status }}"
+          --mac-signing-status "${{ needs.build-macos.outputs.signing_status }}"
+
+      - name: Generate checksums and release notes
+        shell: bash
+        run: |
+          set -euo pipefail
+          (
+            cd release-assets/all
+            sha256sum -- * > SHA256SUMS.txt
+          )
+          node scripts/update-desktop-release-notes.cjs --write-body "${RUNNER_TEMP}/desktop-release-body.md"
+
+      - name: Create or reuse draft release
+        id: draft
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_MODE: ${{ needs.validate-release.outputs.mode }}
+          RELEASE_TAG: ${{ needs.validate-release.outputs.tag }}
+          TAG_COMMIT: ${{ needs.validate-release.outputs.tag_commit }}
+        run: |
+          set -euo pipefail
+          prerelease=false
+          [[ "${RELEASE_MODE}" == "beta" ]] && prerelease=true
+          payload="${RUNNER_TEMP}/desktop-release-draft-payload.json"
+          jq -n \
+            --arg tag "${RELEASE_TAG}" \
+            --arg target "${TAG_COMMIT}" \
+            --arg name "${RELEASE_TAG}" \
+            --rawfile body "${RUNNER_TEMP}/desktop-release-body.md" \
+            --argjson prerelease "${prerelease}" \
+            '{tag_name: $tag, target_commitish: $target, name: $name, body: $body, draft: true, prerelease: $prerelease}' \
+            > "${payload}"
+          releases="${RUNNER_TEMP}/desktop-publisher-releases.json"
+          matches="${RUNNER_TEMP}/desktop-publisher-release-matches.json"
+          gh api --paginate --slurp "repos/${GITHUB_REPOSITORY}/releases?per_page=100" > "${releases}"
+          jq --arg tag "${RELEASE_TAG}" '[.[][] | select(.tag_name == $tag)]' "${releases}" > "${matches}"
+          count="$(jq 'length' "${matches}")"
+          if [[ "${count}" == "0" ]]; then
+            gh api \
+              --method POST \
+              "repos/${GITHUB_REPOSITORY}/releases" \
+              --input "${payload}" \
+              > "${RUNNER_TEMP}/desktop-release-draft.json"
+          elif [[ "${count}" == "1" ]]; then
+            if [[ "$(jq -r '.[0].draft' "${matches}")" != "true" ]]; then
+              echo "A public GitHub Release already exists for ${RELEASE_TAG}; refusing to overwrite it." >&2
+              exit 1
+            fi
+            if [[ "$(jq -r '.[0].prerelease' "${matches}")" != "${prerelease}" ]]; then
+              echo "Existing draft prerelease state does not match the validated tag mode." >&2
+              exit 1
+            fi
+            existing_release_id="$(jq -r '.[0].id' "${matches}")"
+            if ! [[ "${existing_release_id}" =~ ^[0-9]+$ ]]; then
+              echo "Existing exact-tag draft is missing a numeric release id." >&2
+              exit 1
+            fi
+            gh api \
+              --method PATCH \
+              "repos/${GITHUB_REPOSITORY}/releases/${existing_release_id}" \
+              --input "${payload}" \
+              > "${RUNNER_TEMP}/desktop-release-draft.json"
+          else
+            echo "Found ${count} releases for exact tag ${RELEASE_TAG}; refusing an ambiguous retry." >&2
+            exit 1
+          fi
+          release_id="$(jq -r '.id' "${RUNNER_TEMP}/desktop-release-draft.json")"
+          if ! [[ "${release_id}" =~ ^[0-9]+$ ]] || \
+             ! jq -e --arg tag "${RELEASE_TAG}" --argjson prerelease "${prerelease}" \
+               '.tag_name == $tag and .draft == true and .prerelease == $prerelease' \
+               "${RUNNER_TEMP}/desktop-release-draft.json" >/dev/null; then
+            echo "GitHub did not return the exact expected draft release." >&2
+            exit 1
+          fi
+          echo "release_id=${release_id}" >> "${GITHUB_OUTPUT}"
+
+      - name: Replace draft assets with the validated local set
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_ID: ${{ steps.draft.outputs.release_id }}
+          RELEASE_TAG: ${{ needs.validate-release.outputs.tag }}
+        run: |
+          set -euo pipefail
+          mapfile -d '' assets < <(find release-assets/all -maxdepth 1 -type f -print0 | sort -z)
+          if (( ${#assets[@]} == 0 )); then
+            echo "No release assets were collected." >&2
+            exit 1
+          fi
+          gh api "repos/${GITHUB_REPOSITORY}/releases/${RELEASE_ID}" > "${RUNNER_TEMP}/desktop-release-before-upload.json"
+          while IFS= read -r asset_id; do
+            [[ -z "${asset_id}" ]] && continue
+            gh api --method DELETE "repos/${GITHUB_REPOSITORY}/releases/assets/${asset_id}"
+          done < <(jq -r '.assets[].id' "${RUNNER_TEMP}/desktop-release-before-upload.json")
+          gh release upload "${RELEASE_TAG}" "${assets[@]}" --repo "${GITHUB_REPOSITORY}"
+
+      - name: Download and revalidate every draft asset
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_ID: ${{ steps.draft.outputs.release_id }}
+          RELEASE_TAG: ${{ needs.validate-release.outputs.tag }}
+          RELEASE_MODE: ${{ needs.validate-release.outputs.mode }}
+        run: |
+          set -euo pipefail
+          release_json="${RUNNER_TEMP}/desktop-release-after-upload.json"
+          remote_dir="${RUNNER_TEMP}/desktop-release-remote-assets"
+          mkdir -p "${remote_dir}"
+          gh api "repos/${GITHUB_REPOSITORY}/releases/${RELEASE_ID}" > "${release_json}"
+          prerelease=false
+          [[ "${RELEASE_MODE}" == "beta" ]] && prerelease=true
+          node .github/scripts/validate-github-release-draft.cjs \
+            --release-json "${release_json}" \
+            --assets-dir release-assets/all \
+            --tag "${RELEASE_TAG}" \
+            --prerelease "${prerelease}"
+          while IFS= read -r encoded; do
+            asset="$(printf '%s' "${encoded}" | base64 --decode)"
+            name="$(jq -r '.name' <<< "${asset}")"
+            asset_id="$(jq -r '.id' <<< "${asset}")"
+            if [[ -z "${name}" || "${name}" == "." || "${name}" == ".." || "${name}" == */* || "${name}" == *\\* ]]; then
+              echo "GitHub returned an unsafe release asset name: ${name}." >&2
+              exit 1
+            fi
+            curl --fail --silent --show-error --location \
+              --header 'Accept: application/octet-stream' \
+              --header "Authorization: Bearer ${GH_TOKEN}" \
+              --header 'X-GitHub-Api-Version: 2022-11-28' \
+              --output "${remote_dir}/${name}" \
+              "${GITHUB_API_URL}/repos/${GITHUB_REPOSITORY}/releases/assets/${asset_id}"
+          done < <(jq -r '.assets[] | @base64' "${release_json}")
+          (
+            cd "${remote_dir}"
+            sha256sum --check SHA256SUMS.txt
+          )
+          node desktop/scripts/validate-release-assets.cjs \
+            --tag "${RELEASE_TAG}" \
+            --version "${{ needs.validate-release.outputs.version }}" \
+            --mode "${RELEASE_MODE}" \
+            --platform all \
+            --assets-dir "${remote_dir}" \
+            --expected-repo "${GITHUB_REPOSITORY}" \
+            --windows-signing-status "${{ needs.build-windows.outputs.signing_status }}" \
+            --mac-signing-status "${{ needs.build-macos.outputs.signing_status }}"
+
+      - name: Publish validated draft
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_ID: ${{ steps.draft.outputs.release_id }}
+          RELEASE_TAG: ${{ needs.validate-release.outputs.tag }}
+          RELEASE_MODE: ${{ needs.validate-release.outputs.mode }}
+        run: |
+          set -euo pipefail
+          prerelease=false
+          make_latest=true
+          if [[ "${RELEASE_MODE}" == "beta" ]]; then
+            prerelease=true
+            make_latest=false
+          fi
+          payload="${RUNNER_TEMP}/desktop-release-publish-payload.json"
+          jq -n \
+            --argjson prerelease "${prerelease}" \
+            --arg make_latest "${make_latest}" \
+            '{draft: false, prerelease: $prerelease, make_latest: $make_latest}' \
+            > "${payload}"
+          gh api \
+            --method PATCH \
+            "repos/${GITHUB_REPOSITORY}/releases/${RELEASE_ID}" \
+            --input "${payload}" \
+            > "${RUNNER_TEMP}/desktop-release-public.json"
+          jq -e \
+            --arg tag "${RELEASE_TAG}" \
+            --argjson prerelease "${prerelease}" \
+            '.tag_name == $tag and .draft == false and .prerelease == $prerelease' \
+            "${RUNNER_TEMP}/desktop-release-public.json" >/dev/null
+          if [[ "${RELEASE_MODE}" == "stable" ]]; then
+            latest_verified=false
+            for attempt in 1 2 3 4 5; do
+              gh api "repos/${GITHUB_REPOSITORY}/releases/latest" > "${RUNNER_TEMP}/desktop-release-latest.json"
+              if jq -e --arg tag "${RELEASE_TAG}" '.tag_name == $tag and .draft == false and .prerelease == false' \
+                "${RUNNER_TEMP}/desktop-release-latest.json" >/dev/null; then
+                latest_verified=true
+                break
+              fi
+              sleep 2
+            done
+            if [[ "${latest_verified}" != "true" ]]; then
+              echo "Stable release ${RELEASE_TAG} was published but is not the repository latest release." >&2
+              exit 1
+            fi
+          fi
