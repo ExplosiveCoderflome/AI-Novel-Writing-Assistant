@@ -112,7 +112,7 @@ test("novel workflow auto director route returns null when only historical visib
   }
 });
 
-test("novel workflow continue route enqueues auto_execute_range continuation mode", { concurrency: false }, async () => {
+test("novel workflow continue route accepts range and full-book continuation modes", { concurrency: false }, async () => {
   const calls = [];
   const originalEnqueue = DirectorCommandService.prototype.enqueueContinueCommand;
   const originalDetail = NovelWorkflowTaskAdapter.prototype.detail;
@@ -155,11 +155,25 @@ test("novel workflow continue route enqueues auto_execute_range continuation mod
     const payload = await response.json();
     assert.equal(payload.success, true);
     assert.equal(payload.data.commandId, "command-1");
+    const fullBookResponse = await fetch(`http://127.0.0.1:${port}/api/novel-workflows/workflow-auto-exec/continue`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        continuationMode: "full_book_autopilot",
+      }),
+    });
+    assert.equal(fullBookResponse.status, 202);
     assert.deepEqual(calls, [
       {
         taskId: "workflow-auto-exec",
         input: {
           continuationMode: "auto_execute_range",
+        },
+      },
+      {
+        taskId: "workflow-auto-exec",
+        input: {
+          continuationMode: "full_book_autopilot",
         },
       },
     ]);

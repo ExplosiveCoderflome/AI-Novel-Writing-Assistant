@@ -99,7 +99,7 @@ export class NovelDirectorAutoExecutionRuntime {
       }
     }
     if (isDirectorCircuitBreakerOpen(autoExecution.circuitBreaker)) {
-      await stopAutoExecutionForCircuitBreaker(this.deps, {
+      const continuedState = await stopAutoExecutionForCircuitBreaker(this.deps, {
         taskId: input.taskId,
         novelId: input.novelId,
         request: input.request,
@@ -108,7 +108,8 @@ export class NovelDirectorAutoExecutionRuntime {
         circuitBreaker: autoExecution.circuitBreaker,
         resumeStage: input.resumeStage,
       });
-      return;
+      if (!continuedState) return;
+      autoExecution = continuedState;
     }
 
     try {
@@ -297,7 +298,7 @@ export class NovelDirectorAutoExecutionRuntime {
         if (usageCircuitBreaker) {
           autoExecution = withCircuitBreakerState(autoExecution, usageCircuitBreaker);
           if (isDirectorCircuitBreakerOpen(usageCircuitBreaker)) {
-            await stopAutoExecutionForCircuitBreaker(this.deps, {
+            const continuedState = await stopAutoExecutionForCircuitBreaker(this.deps, {
               taskId: input.taskId,
               novelId: input.novelId,
               request: input.request,
@@ -306,7 +307,8 @@ export class NovelDirectorAutoExecutionRuntime {
               circuitBreaker: usageCircuitBreaker,
               resumeStage: "pipeline",
             });
-            return;
+            if (!continuedState) return;
+            autoExecution = continuedState;
           }
           await syncAutoExecutionTaskState(this.deps, {
             taskId: input.taskId,
@@ -640,7 +642,7 @@ export class NovelDirectorAutoExecutionRuntime {
           }
         }
         if (isDirectorCircuitBreakerOpen(failureCircuitBreaker)) {
-          await stopAutoExecutionForCircuitBreaker(this.deps, {
+          const continuedState = await stopAutoExecutionForCircuitBreaker(this.deps, {
             taskId: input.taskId,
             novelId: input.novelId,
             request: input.request,
@@ -649,7 +651,9 @@ export class NovelDirectorAutoExecutionRuntime {
             circuitBreaker: failureCircuitBreaker,
             resumeStage: "pipeline",
           });
-          return;
+          if (!continuedState) return;
+          autoExecution = continuedState;
+          continue autoExecutionLoop;
         }
         await this.deps.workflowService.markTaskFailed(input.taskId, failureMessage, {
           stage: "quality_repair",

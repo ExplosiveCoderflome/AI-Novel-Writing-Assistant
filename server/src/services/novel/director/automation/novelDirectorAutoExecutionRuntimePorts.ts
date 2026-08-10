@@ -49,6 +49,7 @@ export interface NovelDirectorAutoExecutionWorkflowPort {
     chapterId?: string | null;
     progress?: number;
   }): Promise<unknown>;
+  requeueTaskForRecovery(taskId: string, message: string): Promise<unknown>;
 }
 
 export interface NovelDirectorAutoExecutionNovelPort {

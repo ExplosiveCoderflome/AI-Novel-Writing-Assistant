@@ -7,7 +7,6 @@ import {
   DIRECTOR_RISK_PAUSE_THRESHOLD_MIN,
   type DirectorRiskPolicy as SharedDirectorRiskPolicy,
 } from "@ai-novel/shared/types/directorRisk";
-import { isAxiosError } from "axios";
 import { apiClient } from "./client";
 
 export type DirectorRiskPolicy = SharedDirectorRiskPolicy;
@@ -43,22 +42,9 @@ export function normalizeDirectorRiskPolicy(value?: DirectorRiskPolicyPayload | 
   };
 }
 
-export function isDirectorRiskPolicyEndpointUnavailable(error: unknown): boolean {
-  return isAxiosError(error) && [404, 405, 501].includes(error.response?.status ?? 0);
-}
-
 export async function getDirectorRiskPolicy() {
-  const { data } = await apiClient.get<ApiResponse<DirectorRiskPolicyPayload>>("/settings/auto-director/risk-policy");
-  return {
-    ...data,
-    data: normalizeDirectorRiskPolicy(data.data),
-  };
-}
-
-export async function saveDirectorRiskPolicy(payload: DirectorRiskPolicy) {
-  const { data } = await apiClient.put<ApiResponse<DirectorRiskPolicyPayload>>(
+  const { data } = await apiClient.get<ApiResponse<DirectorRiskPolicyPayload>>(
     "/settings/auto-director/risk-policy",
-    normalizeDirectorRiskPolicy(payload),
   );
   return {
     ...data,
@@ -80,24 +66,6 @@ export async function getNovelDirectorRiskPolicy(novelId: string) {
       ...effectivePolicy,
       override,
       source: override ? "novel" as const : "global" as const,
-    },
-  };
-}
-
-export async function saveNovelDirectorRiskPolicy(novelId: string, override: DirectorRiskPolicy | null) {
-  const { data } = await apiClient.put<ApiResponse<DirectorRiskPolicyPayload>>(
-    `/novels/${novelId}/auto-director/risk-policy`,
-    { override: override ? normalizeDirectorRiskPolicy(override) : null },
-  );
-  const nextOverride = data.data?.override ? normalizeDirectorRiskPolicy(data.data.override) : null;
-  const globalResponse = await getDirectorRiskPolicy();
-  const effectivePolicy = nextOverride ?? globalResponse.data ?? DEFAULT_DIRECTOR_RISK_POLICY;
-  return {
-    ...data,
-    data: {
-      ...effectivePolicy,
-      override: nextOverride,
-      source: nextOverride ? "novel" as const : "global" as const,
     },
   };
 }

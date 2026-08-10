@@ -1,4 +1,3 @@
-import type { ReviewIssue } from "@ai-novel/shared/types/novel";
 import type { Prisma } from "@prisma/client";
 import { prisma } from "../../../db/prisma";
 import { novelEventBus } from "../../../events";
@@ -13,18 +12,19 @@ import {
   logPipelineError,
   logPipelineInfo,
   logPipelineWarn,
-  normalizeScore,
   type PipelinePayload,
   type PipelineRunOptions,
 } from "../novelCoreShared";
-import { createQualityReport } from "../novelCoreReviewService";
-import { chapterQualityLoopService } from "../quality/ChapterQualityLoopService";
 import {
-  directorIssueService,
+  isDirectorIssueActionInterrupt,
   loadDirectorIssueTaskContext,
-  type DirectorIssueTaskContext,
 } from "../director/issues";
-import type { DirectorIssueCode } from "@ai-novel/shared/types/directorIssue";
+import {
+  applyPipelineIssueInterrupt,
+  reportPipelineIssue,
+} from "./issueGovernance/PipelineIssueGovernance";
+import { consumeProfessionalHandoffAtChapterBoundary } from "./handoff/ProfessionalProductionHandoff";
+import { applyChapterQualityClosure } from "./qualityClosure/ChapterQualityClosure";
 import {
   buildPipelineCurrentItemLabel,
   buildPipelineStageProgress,
@@ -44,57 +44,6 @@ function buildEmptyChapterDetail(chapter: { order: number; title: string }): str
   return `第${chapter.order}章「${chapter.title}」正文生成失败：模型连续未返回可保存正文，已暂停继续。`;
 }
 
-async function reportPipelineIssue(input: {
-  governance: DirectorIssueTaskContext | null;
-  workflowTaskId?: string;
-  novelId: string;
-  jobId: string;
-  issueCode: DirectorIssueCode;
-  stage: string;
-  summary: string;
-  evidence?: string;
-  chapterId?: string;
-  chapterOrder?: number;
-  qualityScores?: Record<string, number>;
-  attempt?: number;
-  maxAttempts?: number;
-  hasUsableOutput?: boolean;
-  provider?: PipelinePayload["provider"];
-  model?: string;
-  temperature?: number;
-}): Promise<void> {
-  if (!input.governance || !input.workflowTaskId) return;
-  await directorIssueService.reportIssue({
-    issueGovernanceVersion: input.governance.issueGovernanceVersion,
-    taskId: input.workflowTaskId,
-    novelId: input.novelId,
-    issueCode: input.issueCode,
-    stage: input.stage,
-    summary: input.summary,
-    evidence: input.evidence,
-    affectedScope: input.chapterId ? `chapter:${input.chapterId}` : `pipeline:${input.jobId}`,
-    chapterId: input.chapterId,
-    chapterOrder: input.chapterOrder,
-    qualityScores: input.qualityScores,
-    attempt: input.attempt,
-    maxAttempts: input.maxAttempts,
-    hasUsableOutput: input.hasUsableOutput,
-    runMode: input.governance.runMode,
-    fingerprint: [input.jobId, input.issueCode, input.chapterId ?? "book", input.attempt ?? 0].join(":"),
-    policy: input.governance.policy,
-    policySource: input.governance.policySource,
-    provider: input.provider,
-    model: input.model,
-    temperature: input.temperature,
-  }).catch((error) => {
-    logPipelineWarn("自动导演问题记录失败", {
-      jobId: input.jobId,
-      issueCode: input.issueCode,
-      error: error instanceof Error ? error.message : String(error),
-    });
-  });
-}
-
 function buildSkipCompletedChapterWhere(): Prisma.ChapterWhereInput {
   return {
     NOT: {
@@ -109,6 +58,8 @@ function buildSkipCompletedChapterWhere(): Prisma.ChapterWhereInput {
               AND: [
                 { riskFlags: { not: null } },
                 { riskFlags: { contains: TERMINAL_CONTINUE_QUALITY_LOOP_RISK_FLAG_FRAGMENT } },
+                { riskFlags: { not: { contains: '"rootCauseCode":"replan_required"' } } },
+                { riskFlags: { not: { contains: '"recommendedAction":"replan"' } } },
               ],
             },
           ],
@@ -116,58 +67,6 @@ function buildSkipCompletedChapterWhere(): Prisma.ChapterWhereInput {
       ],
     },
   };
-}
-
-async function consumeProfessionalHandoffAtChapterBoundary(
-  workflowTaskId: string | null | undefined,
-  novelId: string,
-): Promise<boolean> {
-  if (!workflowTaskId) return false;
-  const task = await prisma.novelWorkflowTask.findUnique({
-    where: { id: workflowTaskId },
-    select: { seedPayloadJson: true },
-  });
-  if (!task?.seedPayloadJson) return false;
-  let seed: Record<string, unknown>;
-  try {
-    seed = JSON.parse(task.seedPayloadJson) as Record<string, unknown>;
-  } catch {
-    return false;
-  }
-  if (seed.pendingProductionExperience !== "professional") return false;
-  const directorInput = seed.directorInput && typeof seed.directorInput === "object"
-    ? { ...(seed.directorInput as Record<string, unknown>), runMode: "auto_to_ready", autoExecutionPlan: undefined }
-    : seed.directorInput;
-  const nextSeed = {
-    ...seed,
-    productionExperience: "professional",
-    pendingProductionExperience: undefined,
-    runMode: "auto_to_ready",
-    autoExecutionPlan: undefined,
-    directorInput,
-  };
-  await prisma.$transaction([
-    prisma.novel.update({
-      where: { id: novelId },
-      data: { creationExperience: "professional" },
-    }),
-    prisma.novelWorkflowTask.update({
-      where: { id: workflowTaskId },
-      data: {
-        seedPayloadJson: JSON.stringify(nextSeed),
-        status: "succeeded",
-        progress: 1,
-        currentStage: "chapter_execution",
-        currentItemKey: "professional_production_handoff",
-        currentItemLabel: "已暂停并交接精细创作",
-        checkpointType: "workflow_completed",
-        checkpointSummary: "当前章节已安全保存，后续自动章节已停止。",
-        pendingManualRecovery: false,
-        finishedAt: new Date(),
-      },
-    }),
-  ]);
-  return true;
 }
 
 export class NovelPipelineExecutor {
@@ -353,7 +252,6 @@ export class NovelPipelineExecutor {
           const chapter = chaptersToProcess[chapterIndex];
           await this.ensurePipelineNotCancelled(jobId);
 
-          let final = { score: normalizeScore({}), issues: [] as ReviewIssue[] };
           let shouldStopAfterCurrentChapter = false;
           const currentItemLabel = buildPipelineCurrentItemLabel({
             completedCount: completed,
@@ -478,6 +376,7 @@ export class NovelPipelineExecutor {
                 if (error instanceof Error && error.message === "PIPELINE_CANCELLED") {
                   throw error;
                 }
+                if (isDirectorIssueActionInterrupt(error)) throw error;
                 const canRetry = executionAttempt < chapterExecutionRetryLimit;
                 if (!canRetry) {
                   throw error;
@@ -507,137 +406,19 @@ export class NovelPipelineExecutor {
           }
 
           totalRetryCount += chapterResult.retryCountUsed;
-          final = { score: chapterResult.score, issues: chapterResult.issues };
-          if (runtimePayload.autoReview && !chapterResult.reviewExecuted) {
-            await reportPipelineIssue({
-              governance: issueGovernance,
-              workflowTaskId: runtimePayload.workflowTaskId,
-              novelId,
-              jobId,
-              issueCode: "quality.acceptance_unavailable",
-              stage: "chapter_review",
-              summary: `第${chapter.order}章接收检查未能执行，正文已保留并等待后续复查。`,
-              chapterId: chapter.id,
-              chapterOrder: chapter.order,
-              hasUsableOutput: true,
-              provider: runtimePayload.provider,
-              model: runtimePayload.model,
-              temperature: runtimePayload.temperature,
-            });
-          }
-          const replanRecommendation = chapterResult.runtimePackage?.replanRecommendation;
-          const qualityDebtTerminalAction = chapterResult.pass || replanRecommendation?.action === "stop_for_replan"
-            ? null
-            : "defer_and_continue" as const;
-          if (chapterResult.recoverableRepairFailure) {
-            recoverableRepairDetails.push(
-              `第${chapter.order}章需要后续修复：${chapterResult.recoverableRepairFailure.message}`,
-            );
-            logPipelineWarn("章节局部修复未安全应用，已记录并继续后续章节", {
-              jobId,
-              order: chapter.order,
-              reason: chapterResult.recoverableRepairFailure.message,
-              failureTypes: chapterResult.recoverableRepairFailure.failureTypes,
-            });
-            await reportPipelineIssue({
-              governance: issueGovernance,
-              workflowTaskId: runtimePayload.workflowTaskId,
-              novelId,
-              jobId,
-              issueCode: "quality.local_repair_failed",
-              stage: "chapter_repair",
-              summary: chapterResult.recoverableRepairFailure.message,
-              evidence: chapterResult.recoverableRepairFailure.failureTypes.join(", "),
-              chapterId: chapter.id,
-              chapterOrder: chapter.order,
-              hasUsableOutput: true,
-              provider: runtimePayload.provider,
-              model: runtimePayload.model,
-              temperature: runtimePayload.temperature,
-            });
-          }
-          if (chapterResult.reviewExecuted) {
-            await createQualityReport(novelId, chapter.id, final.score, final.issues);
-            await chapterQualityLoopService.recordAssessment({
-              novelId,
-              chapterId: chapter.id,
-              chapterOrder: chapter.order,
-              score: final.score,
-              issues: final.issues,
-              runtimePackage: chapterResult.runtimePackage,
-              source: chapterResult.retryCountUsed > 0 ? "repair_recheck" : "pipeline_review",
-              terminalAction: qualityDebtTerminalAction,
-              taskId: runtimePayload.workflowTaskId,
-              qualityDebtAttribution: chapterResult.qualityDebtAttribution ?? null,
-            }).catch((error) => {
-              logPipelineError("记录章节质量闭环状态失败", {
-                jobId,
-                novelId,
-                chapterId: chapter.id,
-                error: error instanceof Error ? error.message : String(error),
-              });
-            });
-          }
-
-          if (chapterResult.reviewExecuted && !chapterResult.pass) {
-            qualityAlertDetails.push(
-              `第${chapter.order}章（coherence=${final.score.coherence}, repetition=${final.score.repetition}, engagement=${final.score.engagement}）`,
-            );
-            logPipelineWarn("章节最终未达标", {
-              jobId,
-              order: chapter.order,
-              score: final.score,
-            });
-            await reportPipelineIssue({
-              governance: issueGovernance,
-              workflowTaskId: runtimePayload.workflowTaskId,
-              novelId,
-              jobId,
-              issueCode: "quality.chapter_below_threshold",
-              stage: "chapter_review",
-              summary: `第${chapter.order}章质量分未达到 ${qualityThreshold} 分。`,
-              chapterId: chapter.id,
-              chapterOrder: chapter.order,
-              qualityScores: {
-                coherence: final.score.coherence,
-                repetition: final.score.repetition,
-                engagement: final.score.engagement,
-              },
-              hasUsableOutput: true,
-              provider: runtimePayload.provider,
-              model: runtimePayload.model,
-              temperature: runtimePayload.temperature,
-            });
-          }
-
-          if (replanRecommendation?.recommended) {
-            const impactedOrders = replanRecommendation.affectedChapterOrders?.length
-              ? `影响章节=${replanRecommendation.affectedChapterOrders.join(",")}`
-              : `锚点章节=${replanRecommendation.anchorChapterOrder ?? chapter.order}`;
-            const detail = `第${chapter.order}章${replanRecommendation.action === "stop_for_replan" ? "需要重规划" : "建议局部处理"}（${impactedOrders}；原因=${replanRecommendation.triggerReason ?? replanRecommendation.reason}）`;
-            if (replanRecommendation.action === "stop_for_replan") {
-              await reportPipelineIssue({
-                governance: issueGovernance,
-                workflowTaskId: runtimePayload.workflowTaskId,
-                novelId,
-                jobId,
-                issueCode: "quality.replan_required",
-                stage: "chapter_review",
-                summary: detail,
-                evidence: replanRecommendation.reason,
-                chapterId: chapter.id,
-                chapterOrder: chapter.order,
-                hasUsableOutput: true,
-                provider: runtimePayload.provider,
-                model: runtimePayload.model,
-                temperature: runtimePayload.temperature,
-              });
-              replanAlertDetails.push(detail);
-              shouldStopAfterCurrentChapter = true;
-            } else if (!qualityAlertDetails.includes(detail)) {
-              qualityAlertDetails.push(detail);
-            }
-          }
+          ({ shouldStopAfterCurrentChapter } = await applyChapterQualityClosure({
+            governance: issueGovernance,
+            workflowTaskId: runtimePayload.workflowTaskId,
+            novelId,
+            jobId,
+            chapter,
+            chapterResult,
+            qualityThreshold,
+            runtimePayload,
+            qualityAlertDetails,
+            replanAlertDetails,
+            recoverableRepairDetails,
+          }));
 
           const handedOffToProfessional = await consumeProfessionalHandoffAtChapterBoundary(
             runtimePayload.workflowTaskId,
@@ -825,6 +606,11 @@ export class NovelPipelineExecutor {
       }
 
       const message = error instanceof Error ? error.message : "流水线执行失败";
+      const governedInterruptApplied = await applyPipelineIssueInterrupt({
+        error,
+        workflowTaskId: runtimePayload.workflowTaskId,
+        novelId,
+      });
       if (isChapterEmptyContentError(error)) {
         logPipelineError("任务因章节空正文失败", {
           jobId,
@@ -837,23 +623,31 @@ export class NovelPipelineExecutor {
           contentLength: error.details.trimmedLength,
           rawContentLength: error.details.rawLength,
         });
-      } else {
-        await reportPipelineIssue({
-          governance: issueGovernance,
-          workflowTaskId: runtimePayload.workflowTaskId,
-          novelId,
-          jobId,
-          issueCode: "generation.runtime_failed",
-          stage: "chapter_execution",
-          summary: message,
-          evidence: error instanceof Error ? error.stack : undefined,
-          attempt: maxRetries,
-          maxAttempts: maxRetries,
-          hasUsableOutput: false,
-          provider: runtimePayload.provider,
-          model: runtimePayload.model,
-          temperature: runtimePayload.temperature,
-        });
+      } else if (!governedInterruptApplied) {
+        try {
+          await reportPipelineIssue({
+            governance: issueGovernance,
+            workflowTaskId: runtimePayload.workflowTaskId,
+            novelId,
+            jobId,
+            issueCode: "generation.runtime_failed",
+            stage: "chapter_execution",
+            summary: message,
+            evidence: error instanceof Error ? error.stack : undefined,
+            attempt: maxRetries,
+            maxAttempts: maxRetries,
+            hasUsableOutput: false,
+            provider: runtimePayload.provider,
+            model: runtimePayload.model,
+            temperature: runtimePayload.temperature,
+          });
+        } catch (governanceError) {
+          await applyPipelineIssueInterrupt({
+            error: governanceError,
+            workflowTaskId: runtimePayload.workflowTaskId,
+            novelId,
+          });
+        }
       }
       await this.updateJobSafe(jobId, {
         status: "failed",

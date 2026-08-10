@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   DIRECTOR_ISSUE_ACTIONS,
-  DIRECTOR_ISSUE_CATALOG,
+  DIRECTOR_CONFIGURABLE_ISSUE_CATALOG,
   type DirectorIssueAction,
   type DirectorIssueCode,
   type DirectorIssuePolicyOverride,
@@ -19,7 +19,7 @@ const ACTION_LABELS: Record<DirectorIssueAction, string> = {
   fail_task: "结束任务",
 };
 
-const CONFIGURABLE_ISSUES = DIRECTOR_ISSUE_CATALOG;
+const CONFIGURABLE_ISSUES = DIRECTOR_CONFIGURABLE_ISSUE_CATALOG;
 
 export default function NovelDirectorIssuePolicyCard({ novelId }: { novelId: string }) {
   const queryClient = useQueryClient();
@@ -60,7 +60,7 @@ export default function NovelDirectorIssuePolicyCard({ novelId }: { novelId: str
     <Card>
       <CardHeader>
         <CardTitle>本书问题处理偏好</CardTitle>
-        <CardDescription>每个问题码都可以单独选择动作。留空时自动继承全局设置；安全保护触发时，运行时仍会优先保护作品。</CardDescription>
+        <CardDescription>为本书的可恢复问题单独选择处理方式。留空会继承全局设置；涉及内容或数据安全时，系统会优先保护作品。</CardDescription>
       </CardHeader>
       <CardContent className="space-y-3">
         {CONFIGURABLE_ISSUES.map((entry) => (

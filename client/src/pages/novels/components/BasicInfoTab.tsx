@@ -6,7 +6,7 @@ import NovelCreateTitleQuickFill from "./titleWorkshop/NovelCreateTitleQuickFill
 import DirectorTakeoverEntryPanel from "./DirectorTakeoverEntryPanel";
 import { NovelCoverCard } from "./cover/NovelCoverCard";
 import { DetailDisclosure, SectionBlock } from "./workspaceShell";
-import { NovelDirectorRiskPolicyCard } from "./NovelDirectorRiskPolicyCard";
+import NovelDirectorIssuePolicyCard from "./NovelDirectorIssuePolicyCard";
 
 export default function BasicInfoTab(props: BasicTabProps) {
   return (
@@ -70,11 +70,11 @@ export default function BasicInfoTab(props: BasicTabProps) {
       </DetailDisclosure>
 
       <DetailDisclosure
-        title="自动导演风险规则"
-        description="设置本书在何时提醒你、何时在安全节点后暂停；默认沿用系统规则。"
+        title="自动导演问题处理"
+        description="设置本书遇到生成、质量或运行问题时如何继续；安全保护始终优先。"
         meta="可选"
       >
-        <NovelDirectorRiskPolicyCard novelId={props.novelId} />
+        <NovelDirectorIssuePolicyCard novelId={props.novelId} />
       </DetailDisclosure>
     </div>
   );

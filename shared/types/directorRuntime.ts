@@ -309,6 +309,7 @@ export type DirectorEventType =
   | "circuit_breaker_reset"
   | "continue_with_risk"
   | "issue_detected"
+  | "issue_decided"
   | "issue_action_applied";
 
 export interface DirectorEvent {
@@ -677,7 +678,7 @@ export interface DirectorBookAutomationAction {
   target: DirectorBookAutomationActionTarget;
   commandPayload?: {
     taskId?: string | null;
-    continuationMode?: "resume" | "auto_execute_range" | null;
+    continuationMode?: "resume" | "auto_execute_range" | "full_book_autopilot" | null;
   } | null;
   emphasis?: "primary" | "secondary" | "destructive";
 }

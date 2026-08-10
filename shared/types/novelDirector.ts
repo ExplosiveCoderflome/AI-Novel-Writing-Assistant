@@ -245,7 +245,7 @@ export function buildFullBookAutopilotExecutionPlan(): DirectorAutoExecutionPlan
   };
 }
 
-export type DirectorContinuationMode = "resume" | "auto_execute_range" | "skip_quality_repair";
+export type DirectorContinuationMode = "resume" | "auto_execute_range" | "skip_quality_repair" | "full_book_autopilot";
 
 export const DIRECTOR_STEP_CALIBRATION_ACTIONS = ["validate", "improve", "regenerate"] as const;
 export type DirectorStepCalibrationAction = typeof DIRECTOR_STEP_CALIBRATION_ACTIONS[number];
@@ -260,7 +260,12 @@ export interface DirectorStepCalibrationRequest {
 export function normalizeDirectorContinuationMode(
   value: unknown,
 ): DirectorContinuationMode | null {
-  if (value === "resume" || value === "auto_execute_range" || value === "skip_quality_repair") {
+  if (
+    value === "resume"
+    || value === "auto_execute_range"
+    || value === "skip_quality_repair"
+    || value === "full_book_autopilot"
+  ) {
     return value;
   }
   return null;

@@ -128,8 +128,12 @@ export interface SimpleCreationShelfProjection {
     completedChapters: number;
     totalChapters: number;
     currentAction: string;
-    status: "queued" | "running" | "paused" | "failed" | "completed";
+    status: "queued" | "running" | "paused" | "failed" | "ready" | "completed";
     canRetry: boolean;
+    canContinue: boolean;
+    continuationStartOrder: number | null;
+    continuationEndOrder: number | null;
+    remainingChapterCount: number;
     safetyMessage?: string | null;
     riskPolicy?: DirectorRiskPolicy | null;
     latestRiskAssessment?: DirectorRiskHistoryItem | null;
