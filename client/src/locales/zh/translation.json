@@ -6905,6 +6905,9 @@
     "noPositions": "暂无持仓数据，可点击右上角导入持仓或连接 MooMoo OpenD",
     "noActions": "当前组合无须紧急调整，建议继续观望持有",
     "disclaimer": "⚠️ 风险提示：本工作台仅输出盘前决策参考与风控预警（Advisory Only），系统绝不会自动下单，最终挂单请在 MooMoo 客户端确认执行。",
+    "deductionProgressTitle": "AI 智能体多维图谱推演实时 Pipeline",
+    "deductionProgressDesc": "正在通过 OpenD 盘口、SearXNG 隔夜新闻与四层图谱记忆进行确定性推导...",
+    "liveTerminalTitle": "实时推演中间状态日志终端 (Live Stream Ticker)",
     "stockStudioPage": {
       "nfp0wz": "美股每日操盘与风险诊断报告",
       "gyevy9": "基于股票的知识图谱与 OpenD / 互联网新闻资讯",

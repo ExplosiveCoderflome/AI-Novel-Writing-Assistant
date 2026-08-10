@@ -333,6 +333,64 @@ stockRouter.post("/daily-strategy/generate", async (req: Request, res: Response)
   }
 });
 
+// 4.5 SSE 流式生成今日操盘指南 (Server-Sent Events 中间状态输出)
+stockRouter.get("/daily-strategy/stream-generate", async (req: Request, res: Response) => {
+  res.setHeader("Content-Type", "text/event-stream");
+  res.setHeader("Cache-Control", "no-cache");
+  res.setHeader("Connection", "keep-alive");
+  if (typeof (res as any).flushHeaders === "function") {
+    (res as any).flushHeaders();
+  }
+
+  const customBudget = req.query.customBudget ? Number(req.query.customBudget) : undefined;
+  const portfolioId = req.query.portfolioId ? String(req.query.portfolioId) : undefined;
+
+  try {
+    let targetPortfolioId = portfolioId;
+    if (!targetPortfolioId) {
+      const portfolio = await prisma.stockPortfolio.findFirst();
+      if (portfolio) {
+        targetPortfolioId = portfolio.id;
+      } else {
+        const openDData = await moomooAdapter.fetchPortfolioFromOpenD();
+        const created = await prisma.stockPortfolio.create({
+          data: {
+            name: "MooMoo 美股主仓位",
+            cashBalance: openDData.cashBalance || 3500.0,
+            totalBudget: customBudget || 1000.0,
+            riskPreference: "BALANCED",
+            positions: {
+              create: openDData.positions.map((p) => ({
+                symbol: p.symbol,
+                companyName: p.companyName,
+                shares: p.shares,
+                costBasis: p.costBasis,
+                marketPrice: p.marketPrice,
+                notes: p.notes,
+              })),
+            },
+          },
+        });
+        targetPortfolioId = created.id;
+      }
+    }
+
+    const result = await dailyStrategyDirector.generateDailyStrategy(
+      targetPortfolioId,
+      customBudget,
+      (stage) => {
+        res.write(`data: ${JSON.stringify({ type: "progress", stage })}\n\n`);
+      }
+    );
+
+    res.write(`data: ${JSON.stringify({ type: "result", data: result })}\n\n`);
+    res.end();
+  } catch (err: any) {
+    res.write(`data: ${JSON.stringify({ type: "error", error: err.message || String(err) })}\n\n`);
+    res.end();
+  }
+});
+
 // 5. 更新用户自定义持仓与资金
 stockRouter.post("/portfolio/update", async (req: Request, res: Response) => {
   try {

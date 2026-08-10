@@ -134,11 +134,37 @@ interface DailyStrategyData {
   openDStatus?: { connected: boolean; message: string };
 }
 
+export interface StrategyProgressStage {
+  step: number;               // 1..6
+  totalSteps: number;         // 6
+  stageId:
+    | "OPEND_CONNECT"
+    | "QUOTES_FETCH"
+    | "NEWS_SEARCH"
+    | "CONTEXT_ASSEMBLE"
+    | "AI_DEDUCTION"
+    | "GUARDRAIL_CALIBRATE"
+    | "FINISHED";
+  title: string;
+  detail: string;
+  progressPercent: number;
+  timestamp: string;
+}
+
+export interface LiveProgressLog {
+  step: number;
+  title: string;
+  detail: string;
+  timestamp: string;
+}
+
 export default function StockStudioPage() {
   const { t, i18n } = useTranslation();
   const isEn = i18n.language.startsWith("en");
 
   const [loading, setLoading] = useState(false);
+  const [currentStage, setCurrentStage] = useState<StrategyProgressStage | null>(null);
+  const [progressLogs, setProgressLogs] = useState<LiveProgressLog[]>([]);
   const [syncing, setSyncing] = useState(false);
   const [openDStatus, setOpenDStatus] = useState<{ connected: boolean; message: string }>({
     connected: false,
@@ -483,43 +509,109 @@ export default function StockStudioPage() {
   }, [portfolio, quotes]);
 
 
-  // 触发生成今日操盘指南
+  // 触发生成今日操盘指南 (支持 SSE 实时流式中间状态输出)
   const handleGenerateStrategy = async () => {
     setLoading(true);
-    try {
-      const res = await fetch("/api/stock/daily-strategy/generate", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ customBudget }),
+    setProgressLogs([]);
+    const initialStage: StrategyProgressStage = {
+      step: 1,
+      totalSteps: 6,
+      stageId: "OPEND_CONNECT",
+      title: "连接 MooMoo OpenD 盘口守护进程",
+      detail: "正在建立 127.0.0.1:11111 原生 TCP 通道...",
+      progressPercent: 10,
+      timestamp: new Date().toLocaleTimeString("zh-CN", { hour12: false }),
+    };
+    setCurrentStage(initialStage);
+    setProgressLogs([{
+      step: 1,
+      title: initialStage.title,
+      detail: initialStage.detail,
+      timestamp: initialStage.timestamp,
+    }]);
+
+    const handleStrategyResultData = (data: any) => {
+      setStrategy({
+        id: data.strategyId,
+        strategyDate: data.strategyDate,
+        marketOverview: data.output.marketOverview,
+        actions: data.output.actions,
+        riskAlerts: data.output.riskAlerts,
+        institutionalReport: data.output.institutionalReport,
+        narrativeReport: data.output.narrativeReport,
       });
-      const data = await res.json();
-      if (data.success && data.data) {
-        setStrategy({
-          id: data.data.strategyId,
-          strategyDate: data.data.strategyDate,
-          marketOverview: data.data.output.marketOverview,
-          actions: data.data.output.actions,
-          riskAlerts: data.data.output.riskAlerts,
-          institutionalReport: data.data.output.institutionalReport,
-          narrativeReport: data.data.output.narrativeReport,
+      if (data.totalPnL) setTotalPnLData(data.totalPnL as TotalPnLState);
+      if (data.projectedPnL) setProjectedPnLData(data.projectedPnL as ProjectedPnLState);
+      if (data.retroPnL) setRetroPnLData(data.retroPnL as RetroPnLState);
+      if (data.generationMode) setGenerationMode(data.generationMode);
+      if (data.driftSummary) setDriftSummary(data.driftSummary);
+      if (data.openDStatus) {
+        setOpenDStatus({
+          connected: data.openDStatus.connected,
+          message: data.openDStatus.message,
         });
-        // P&L KPI 数据
-        if (data.data.totalPnL) setTotalPnLData(data.data.totalPnL as TotalPnLState);
-        if (data.data.projectedPnL) setProjectedPnLData(data.data.projectedPnL as ProjectedPnLState);
-        if (data.data.retroPnL) setRetroPnLData(data.data.retroPnL as RetroPnLState);
-        if (data.data.generationMode) setGenerationMode(data.data.generationMode);
-        if (data.data.driftSummary) setDriftSummary(data.data.driftSummary);
-        if (data.data.openDStatus) {
-          setOpenDStatus({
-            connected: data.data.openDStatus.connected,
-            message: data.data.openDStatus.message,
-          });
+      }
+    };
+
+    const fallbackPostGenerate = async () => {
+      try {
+        const res = await fetch("/api/stock/daily-strategy/generate", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ customBudget }),
+        });
+        const data = await res.json();
+        if (data.success && data.data) {
+          handleStrategyResultData(data.data);
         }
+      } catch (e) {
+        console.error(e);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    try {
+      if (typeof window !== "undefined" && typeof (window as any).EventSource !== "undefined") {
+        const streamUrl = `/api/stock/daily-strategy/stream-generate?customBudget=${encodeURIComponent(customBudget)}`;
+        const eventSource = new EventSource(streamUrl);
+
+        eventSource.onmessage = (event) => {
+          try {
+            const payload = JSON.parse(event.data);
+            if (payload.type === "progress" && payload.stage) {
+              const stage: StrategyProgressStage = payload.stage;
+              setCurrentStage(stage);
+              setProgressLogs((prev) => {
+                const isDup = prev.some((l) => l.step === stage.step && l.detail === stage.detail);
+                if (isDup) return prev;
+                return [...prev, { step: stage.step, title: stage.title, detail: stage.detail, timestamp: stage.timestamp }].slice(-12);
+              });
+            } else if (payload.type === "result" && payload.data) {
+              handleStrategyResultData(payload.data);
+              eventSource.close();
+              setLoading(false);
+            } else if (payload.type === "error") {
+              console.error("[SSE Strategy Stream Error]", payload.error);
+              eventSource.close();
+              fallbackPostGenerate();
+            }
+          } catch (e) {
+            console.error("[SSE Parse Error]", e);
+          }
+        };
+
+        eventSource.onerror = (err) => {
+          console.warn("[SSE Stream Notice]", err);
+          eventSource.close();
+          fallbackPostGenerate();
+        };
+      } else {
+        await fallbackPostGenerate();
       }
     } catch (e) {
       console.error(e);
-    } finally {
-      setLoading(false);
+      await fallbackPostGenerate();
     }
   };
 
@@ -1502,21 +1594,95 @@ export default function StockStudioPage() {
 
         {/* 右侧：操盘指南与双视角报告 (8 cols) */}
         <div className="lg:col-span-8 space-y-6 relative min-h-[400px]">
-          {/* AI 智能体推演中的虚化遮罩与高亮提示 */}
+          {/* AI 智能体推演中的多阶段实时进度 Ticker & 终端日志 */}
           {loading && (
-            <div className="absolute inset-0 z-30 bg-slate-950/75 backdrop-blur-md rounded-xl flex flex-col items-center justify-center p-6 text-center space-y-4 transition-all duration-500 border border-indigo-500/40 shadow-2xl">
-              <div className="p-3 bg-indigo-600/20 text-indigo-400 rounded-full border border-indigo-500/40 animate-pulse">
-                <RefreshCw className="w-8 h-8 animate-spin" />
+            <div className="absolute inset-0 z-30 bg-slate-950/90 backdrop-blur-lg rounded-xl flex flex-col items-center justify-center p-6 text-center space-y-5 transition-all duration-500 border border-indigo-500/40 shadow-2xl overflow-y-auto">
+              <div className="flex items-center gap-3">
+                <div className="p-3 bg-indigo-600/20 text-indigo-400 rounded-full border border-indigo-500/40 animate-pulse">
+                  <RefreshCw className="w-7 h-7 animate-spin text-indigo-400" />
+                </div>
+                <div className="text-left space-y-0.5">
+                  <h3 className="text-lg font-extrabold text-white flex items-center gap-2">
+                    <Sparkles className="w-5 h-5 text-amber-400 animate-bounce" />
+                    <span>{t("stock.deductionProgressTitle", "AI 智能体多维图谱推演实时 Pipeline")}</span>
+                  </h3>
+                  <p className="text-xs text-slate-400">{t("stock.deductionProgressDesc", "正在通过 OpenD 盘口、SearXNG 隔夜新闻与四层图谱记忆进行确定性推导...")}</p>
+                </div>
               </div>
-              <div className="space-y-1.5 max-w-md">
-                <h3 className="text-lg font-extrabold text-white flex items-center justify-center gap-2">
-                  <Sparkles className="w-5 h-5 text-amber-400" />
-                  <span>AI 智能体隔夜推演中...</span>
-                </h3>
-                <p className="text-xs text-indigo-200/90 leading-relaxed font-sans">{i18next.t("stock.stockStudioPage.twnco8")}</p>
+
+              {/* 六阶进度 pipeline 指示器 */}
+              <div className="w-full max-w-xl space-y-2">
+                <div className="flex justify-between text-xs font-mono text-slate-300">
+                  <span className="font-bold text-indigo-300 flex items-center gap-1.5">
+                    <Activity className="w-3.5 h-3.5 text-indigo-400" />
+                    {currentStage?.title || "正在连接服务..."}
+                  </span>
+                  <span className="font-bold text-emerald-400">{currentStage?.progressPercent || 15}%</span>
+                </div>
+                
+                {/* 进度条 */}
+                <div className="w-full bg-slate-900 h-2.5 rounded-full overflow-hidden border border-slate-800 p-0.5">
+                  <div
+                    className="bg-gradient-to-r from-indigo-500 via-purple-500 to-emerald-400 h-full rounded-full transition-all duration-500 shadow-sm"
+                    style={{ width: `${currentStage?.progressPercent || 15}%` }}
+                  />
+                </div>
+
+                {/* 6 大阶段 Step Badges */}
+                <div className="grid grid-cols-6 gap-1.5 pt-2">
+                  {[
+                    { step: 1, label: "OpenD" },
+                    { step: 2, label: "盘口" },
+                    { step: 3, label: "新闻" },
+                    { step: 4, label: "图谱" },
+                    { step: 5, label: "AI推演" },
+                    { step: 6, label: "Guardrail" },
+                  ].map((s) => {
+                    const curStep = currentStage?.step || 1;
+                    const isDone = s.step < curStep;
+                    const isCurrent = s.step === curStep;
+                    return (
+                      <div
+                        key={s.step}
+                        className={`p-1.5 rounded text-[10px] font-mono border transition-all ${
+                          isDone
+                            ? "bg-emerald-950/80 text-emerald-300 border-emerald-800"
+                            : isCurrent
+                            ? "bg-indigo-950 text-indigo-200 border-indigo-500 animate-pulse font-bold shadow-md shadow-indigo-900/50"
+                            : "bg-slate-900/50 text-slate-500 border-slate-800/80 opacity-60"
+                        }`}
+                      >
+                        {isDone ? "✓ " : isCurrent ? "▶ " : ""}{s.label}
+                      </div>
+                    );
+                  })}
+                </div>
               </div>
-              <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-indigo-950/90 text-indigo-300 border border-indigo-800 rounded-full text-xs font-mono shadow-inner">
-                <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping" />{i18next.t("stock.stockStudioPage.9afwhu")}</div>
+
+              {/* 实时推演终端日志 Ticker */}
+              <div className="w-full max-w-xl bg-slate-950 rounded-lg p-3 border border-slate-800 text-left font-mono text-[11px] space-y-1.5 max-h-36 overflow-y-auto shadow-inner">
+                <div className="text-[10px] text-slate-400 flex items-center justify-between border-b border-slate-800/80 pb-1 mb-1">
+                  <span className="flex items-center gap-1">
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping" />
+                    {t("stock.liveTerminalTitle", "实时推演中间状态日志终端 (Live Stream Ticker)")}
+                  </span>
+                  <span className="text-slate-500">SSE Protocol</span>
+                </div>
+
+                {progressLogs.length > 0 ? (
+                  progressLogs.map((log, idx) => (
+                    <div key={idx} className="flex items-start gap-2 leading-relaxed">
+                      <span className="text-slate-500 shrink-0">[{log.timestamp}]</span>
+                      <span className="text-indigo-300 font-bold shrink-0">Step {log.step}:</span>
+                      <span className="text-slate-300">{log.detail}</span>
+                    </div>
+                  ))
+                ) : (
+                  <div className="text-slate-500 italic py-1 text-center">
+                    [{new Date().toLocaleTimeString("zh-CN", { hour12: false })}] 正在建立 SSE 实时管道与 OpenD TCP 通道...
+                  </div>
+                )}
+              </div>
             </div>
           )}
 

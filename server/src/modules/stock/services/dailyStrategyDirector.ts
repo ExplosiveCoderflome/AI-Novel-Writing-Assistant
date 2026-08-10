@@ -4,7 +4,7 @@ import { moomooAdapter } from "../adapters/moomooAdapter";
 import { stockKnowledgeGraphStoreService } from "./stockKnowledgeGraphStore";
 import { searxngSearchService } from "./searxngSearchService";
 import { stockContextManager } from "./stockContextManager";
-import { DailyAllocationOutput, StockPositionItem, RetroPnLResult } from "../types/stockTypes";
+import { DailyAllocationOutput, StockPositionItem, RetroPnLResult, StrategyProgressStage } from "../types/stockTypes";
 import { stockAllocationPrompt } from "../../../prompting/prompts/stock/stock.prompts";
 import { runStructuredPrompt } from "../../../prompting/core/promptRunner";
 import {
@@ -24,19 +24,23 @@ export class DailyStrategyDirector {
   /**
    * 为指定 Portfolio 生成今日开盘前的调仓指南与双视角研报 (Advisory Only)
    *
-   * 新流程（10 步 P&L KPI 中轴线 + 四层记忆治理）：
-   * 1. 确保 OpenD 运行
+   * 新流程（10 步 P&L KPI 中轴线 + 四层记忆治理 + SSE 流式推演进度通知）：
+   * 1. 确保 OpenD 运行 (OPEND_CONNECT)
    * 2. 读取 DB portfolio
-   * 3. 从 OpenD 拉取最新持仓 + 行情
+   * 3. 从 OpenD 拉取最新持仓 + 行情 (QUOTES_FETCH)
    * 4. 持仓变化检测（detectDrift）
    * 5. 复盘上一条指南（retroPnL），回填 retroPnLScore
    * 6. 决定生成模式（FRESH / REPLAN / ADJUST）
-   * 7. 组装四层 context（HOT/WARM/COLD/FRESH）
-   * 8. AI 生成 + Guardrail 校准
+   * 7. 组装四层 context (NEWS_SEARCH & CONTEXT_ASSEMBLE)
+   * 8. AI 生成 (AI_DEDUCTION) + Guardrail 校准 (GUARDRAIL_CALIBRATE)
    * 9. 计算 projectedPnL + 保存指南 + 保存快照
    * 10. 后台触发 distillDiscipline + runForgettingPass
    */
-  public async generateDailyStrategy(portfolioId: string, customBudget?: number): Promise<{
+  public async generateDailyStrategy(
+    portfolioId: string,
+    customBudget?: number,
+    onProgress?: (stage: StrategyProgressStage) => void
+  ): Promise<{
     strategyId: string;
     strategyDate: string;
     openDStatus: { connected: boolean; message: string };
@@ -47,8 +51,38 @@ export class DailyStrategyDirector {
     retroPnL?: object;
     driftSummary?: string;
   }> {
-    // STEP 1: 确保 OpenD 运行
+    const notifyStage = (
+      step: number,
+      stageId: StrategyProgressStage["stageId"],
+      title: string,
+      detail: string,
+      progressPercent: number
+    ) => {
+      if (onProgress) {
+        onProgress({
+          step,
+          totalSteps: 6,
+          stageId,
+          title,
+          detail,
+          progressPercent,
+          timestamp: new Date().toLocaleTimeString("zh-CN", { hour12: false }),
+        });
+      }
+    };
+
+    // STEP 1: 确保 OpenD 运行 (OPEND_CONNECT)
+    notifyStage(1, "OPEND_CONNECT", "连接 MooMoo OpenD 守护进程", "正在测试本地 127.0.0.1:11111 TCP 原生通道连通性...", 10);
     const openDCheck = await openDaemonManager.ensureOpenDRunning();
+    notifyStage(
+      1,
+      "OPEND_CONNECT",
+      "连接 MooMoo OpenD 守护进程",
+      openDCheck.success
+        ? `🟢 OpenD 守护通道已连接 (${openDCheck.message})`
+        : `⚠️ OpenD 守护通道提醒: ${openDCheck.message}`,
+      15
+    );
 
     // STEP 2: 读取 DB portfolio 与持仓
     let portfolio = await prisma.stockPortfolio.findUnique({
@@ -56,7 +90,8 @@ export class DailyStrategyDirector {
       include: { positions: true },
     });
 
-    // STEP 3: 从 OpenD 拉取最新数据
+    // STEP 3: 从 OpenD 拉取最新数据 (QUOTES_FETCH)
+    notifyStage(2, "QUOTES_FETCH", "抓取持仓与自选标的实盘行情", "正在从 OpenD 交易接口同步账号持仓与资产列表...", 25);
     let openDPortfolio = await moomooAdapter.fetchPortfolioFromOpenD();
     let watchlistItems: Array<{ symbol: string; companyName: string }> = [];
 
@@ -107,6 +142,13 @@ export class DailyStrategyDirector {
         quotesMap.set(q.symbol.toUpperCase(), q.price);
       }
     }
+    notifyStage(
+      2,
+      "QUOTES_FETCH",
+      "抓取持仓与自选标的实盘行情",
+      `📈 已成功拉取 ${realQuotes.length} 笔标的实盘即时现价与动态涨跌幅`,
+      35
+    );
 
     // STEP 4: 持仓变化检测
     const dbPositions: StockPositionItem[] = portfolio.positions.map((p) => ({
@@ -181,7 +223,24 @@ export class DailyStrategyDirector {
     const generationMode: "FRESH" | "REPLAN" | "ADJUST" =
       driftResult.hasChanges ? "REPLAN" : hasTodayStrategy ? "ADJUST" : "FRESH";
 
-    // STEP 7: 组装四层 context
+    // STEP 3.5: 尝试调用 SearXNG 抓取美股实时新闻 (NEWS_SEARCH)
+    notifyStage(3, "NEWS_SEARCH", "SearXNG 隔夜美股宏观新闻检索", "正在请求本地 SearXNG 搜索引擎获取即时产业链资讯与宏观快讯...", 45);
+    let rawSearXNGNewsText = "";
+    let searxngStatusMsg = "";
+    try {
+      const searxngRes = await searxngSearchService.fetchAndCacheMarketNews(allSymbols);
+      rawSearXNGNewsText = searxngRes.rawNewsText;
+      searxngStatusMsg = searxngRes.searxngConnected
+        ? `🟢 SearXNG 本地搜索引擎正常，成功检索并切片 ${searxngRes.newsItemsCount} 条实时新闻`
+        : "⚠️ SearXNG 本地 Docker 容器未连通，已自动降级并使用存量知识图谱";
+    } catch (e: any) {
+      console.warn("[DailyStrategyDirector] SearXNG search notice:", e);
+      searxngStatusMsg = `⚠️ SearXNG 检索 notice: ${e.message || e}`;
+    }
+    notifyStage(3, "NEWS_SEARCH", "SearXNG 隔夜美股宏观新闻检索", searxngStatusMsg, 55);
+
+    // STEP 7: 组装四层 context (CONTEXT_ASSEMBLE)
+    notifyStage(4, "CONTEXT_ASSEMBLE", "构建 Graph-First 四层记忆上下文", "正在整合 HOT (持仓P&L) / WARM (图谱/复盘) / COLD (纪律账本) 上下文...", 60);
     const memoryContext = await assembleContextBudget(
       portfolioId,
       openDPositions.length > 0 ? openDPositions : dbPositions,
@@ -216,20 +275,6 @@ export class DailyStrategyDirector {
         }).join("\n")
       : "暂无自选关注项";
 
-    // STEP 3.5: 尝试调用 SearXNG 抓取美股实时新闻
-    let rawSearXNGNewsText = "";
-    let searxngStatusMsg = "";
-    try {
-      const searxngRes = await searxngSearchService.fetchAndCacheMarketNews(allSymbols);
-      rawSearXNGNewsText = searxngRes.rawNewsText;
-      searxngStatusMsg = searxngRes.searxngConnected
-        ? `🟢 SearXNG 本地搜索引擎正常，成功检索并切片 ${searxngRes.newsItemsCount} 条实时新闻`
-        : "⚠️ SearXNG 本地 Docker 容器未连通，已自动降级并使用存量知识图谱";
-    } catch (e: any) {
-      console.warn("[DailyStrategyDirector] SearXNG search notice:", e);
-      searxngStatusMsg = `⚠️ SearXNG 检索 notice: ${e.message || e}`;
-    }
-
     const quotesTextList = realQuotes
       .map((q) => `- ${q.symbol}: $${q.price.toFixed(2)} (${q.changePercent >= 0 ? "+" : ""}${q.changePercent.toFixed(2)}%)`)
       .join("\n");
@@ -240,7 +285,10 @@ export class DailyStrategyDirector {
 
     const marketIntelContext = `【SearXNG 搜索引擎状态】：${searxngStatusMsg}\n\n${newsIntelSnippet}【OpenD 真实即时行情】(买卖建议估价必须以此价格为准)：\n${quotesTextList}\n\n- 宏观分析: 美股高位震荡，算力芯片与科技龙头表现坚挺。\n- 【严禁虚构价格指令】：调仓建议 actions 中的 estimatedPrice 必须与上述真实即时现价一致！`;
 
-    // STEP 8: 调用 AI 生成 (图谱优先推理链驱动)
+    notifyStage(4, "CONTEXT_ASSEMBLE", "构建 Graph-First 四层记忆上下文", `🕸️ 成功组装包含 ${realPositions.length} 笔持仓与 ${watchlistItems.length} 笔自选的图谱推理 Context`, 70);
+
+    // STEP 8: 调用 AI 生成 (图谱优先推理链驱动 AI_DEDUCTION)
+    notifyStage(5, "AI_DEDUCTION", "LLM 智能体多维图谱推演与研报撰写", "AI 策略师正沿着实体-关系-传导三阶逻辑链撰写今日开盘蓝图...", 80);
     const runResult = await runStructuredPrompt({
       asset: stockAllocationPrompt,
       promptInput: {
@@ -262,8 +310,10 @@ export class DailyStrategyDirector {
     });
 
     const output: DailyAllocationOutput = runResult.output;
+    notifyStage(5, "AI_DEDUCTION", "LLM 智能体多维图谱推演与研报撰写", `🤖 AI 已完成初稿推演，共生成 ${output.actions?.length || 0} 笔推荐指令与双视角研报`, 90);
 
-    // STEP 8.5: Guardrail 校准（0 AI 假股价 + 资金上限拦截 + 止盈止损数学校准防线）
+    // STEP 8.5: Guardrail 校准 (GUARDRAIL_CALIBRATE)
+    notifyStage(6, "GUARDRAIL_CALIBRATE", "确定性风控与止盈止损数学校准", "正在执行 OpenD 价格硬锁定、资金预算拦截与止盈止损 R:R 数数学公式校验...", 95);
     const totalAvailableCapital = (openDCash || portfolio.cashBalance) + budgetToUse;
     let runningBudgetLeft = totalAvailableCapital;
 
@@ -436,6 +486,8 @@ export class DailyStrategyDirector {
         console.warn("[DailyStrategyDirector] Background memory maintenance error:", e);
       }
     });
+
+    notifyStage(6, "FINISHED", "开盘操盘指南生成完毕", "所有策略、风控预警、止盈止损线与双视角研报均已成功计算并持久化", 100);
 
     return {
       strategyId: savedRecord.id,

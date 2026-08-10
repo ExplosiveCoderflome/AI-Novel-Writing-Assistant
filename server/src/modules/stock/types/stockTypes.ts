@@ -241,3 +241,21 @@ export interface RetroPnLResult {
   totalRealizedPnL: number;    // 已实现 P&L ($)
   distilledDisciplines: string[]; // 本次复盘提炼的纪律
 }
+
+// 实时推演进度中间状态阶段定义 (SSE / Progressive Ticker)
+export interface StrategyProgressStage {
+  step: number;               // 1..6
+  totalSteps: number;         // 6
+  stageId:
+    | "OPEND_CONNECT"
+    | "QUOTES_FETCH"
+    | "NEWS_SEARCH"
+    | "CONTEXT_ASSEMBLE"
+    | "AI_DEDUCTION"
+    | "GUARDRAIL_CALIBRATE"
+    | "FINISHED";
+  title: string;              // 阶段标题 (如 "连接 OpenD 盘口守护进程")
+  detail: string;             // 阶段实时明细日志
+  progressPercent: number;    // 0..100
+  timestamp: string;          // ISO 时间戳
+}
