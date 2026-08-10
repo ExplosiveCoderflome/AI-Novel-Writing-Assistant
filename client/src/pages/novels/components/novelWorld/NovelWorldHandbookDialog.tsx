@@ -1,4 +1,3 @@
-import { useTranslation } from "react-i18next";
 import i18next from "i18next";
 const t = (key: string, options?: any) => i18next.t(key, options) as string;
 import { Link } from "react-router-dom";
@@ -66,43 +65,43 @@ const ASSET_ICON_BY_TYPE: Record<NovelWorldAssetSummary["assetType"], typeof Boo
 function labelSourceType(sourceType: string | null | undefined): string {
   switch (sourceType) {
     case "imported":
-      return i18next.t("gen.pages.novels.components.novelWorld.NovelWorldHandbookDialog.gen_d6c97812");
+      return i18next.t("dict.gen_d6c97812");
     case "generated":
-      return i18next.t("gen.pages.novels.components.novelWorld.NovelWorldHandbookDialog.gen_b7ab0cfd");
+      return i18next.t("dict.gen_b7ab0cfd");
     case "manual":
-      return i18next.t("gen.pages.novels.components.novelWorld.NovelWorldHandbookDialog.gen_c1c6046e");
+      return i18next.t("dict.gen_c1c6046e");
     default:
-      return i18next.t("gen.pages.novels.components.novelWorld.NovelWorldHandbookDialog.gen_fe2d26a2");
+      return i18next.t("dict.gen_fe2d26a2");
   }
 }
 
 function labelSyncDirection(direction: string | null | undefined): string {
   switch (direction) {
     case "push":
-      return i18next.t("gen.pages.novels.components.novelWorld.NovelWorldHandbookDialog.gen_3c11209d");
+      return i18next.t("dict.gen_3c11209d");
     case "pull":
-      return i18next.t("gen.pages.novels.components.novelWorld.NovelWorldHandbookDialog.gen_697b6277");
+      return i18next.t("dict.gen_697b6277");
     case "bidirectional":
-      return i18next.t("gen.pages.novels.components.novelWorld.NovelWorldHandbookDialog.gen_cc89795c");
+      return i18next.t("dict.gen_cc89795c");
     default:
-      return i18next.t("gen.pages.novels.components.novelWorld.NovelWorldHandbookDialog.gen_db709d59");
+      return i18next.t("dict.gen_db709d59");
   }
 }
 
 function sectionLabel(section: string): string {
   switch (section) {
     case "profile":
-      return i18next.t("gen.pages.novels.components.novelWorld.NovelWorldHandbookDialog.worldOverview");
+      return i18next.t("dict.worldOverview");
     case "rules":
-      return i18next.t("gen.pages.novels.components.novelWorld.NovelWorldHandbookDialog.gen_0a431a82");
+      return i18next.t("dict.gen_0a431a82");
     case "factions":
-      return i18next.t("gen.pages.novels.components.novelWorld.NovelWorldHandbookDialog.gen_42988d4b");
+      return i18next.t("dict.gen_42988d4b");
     case "forces":
-      return i18next.t("gen.pages.novels.components.novelWorld.NovelWorldHandbookDialog.gen_dcfe557b");
+      return i18next.t("dict.gen_dcfe557b");
     case "locations":
-      return i18next.t("gen.pages.novels.components.novelWorld.NovelWorldHandbookDialog.gen_fc1a7d3c");
+      return i18next.t("dict.gen_fc1a7d3c");
     case "relations":
-      return i18next.t("gen.pages.novels.components.novelWorld.NovelWorldHandbookDialog.gen_bb016fed");
+      return i18next.t("dict.gen_bb016fed");
     default:
       return section;
   }
@@ -110,32 +109,32 @@ function sectionLabel(section: string): string {
 
 function labelAssetStatus(status: string, hasRenderData: boolean): string {
   if (hasRenderData || status === "ready") {
-    return i18next.t("gen.pages.novels.components.novelWorld.NovelWorldHandbookDialog.gen_11b9933a");
+    return i18next.t("dict.gen_11b9933a");
   }
   switch (status) {
     case "draft":
-      return i18next.t("gen.pages.novels.components.novelWorld.NovelWorldHandbookDialog.gen_cb581fad");
+      return i18next.t("dict.gen_cb581fad");
     case "archived":
-      return i18next.t("gen.pages.novels.components.novelWorld.NovelWorldHandbookDialog.gen_c3ba167c");
+      return i18next.t("dict.gen_c3ba167c");
     default:
-      return i18next.t("gen.pages.novels.components.novelWorld.NovelWorldHandbookDialog.gen_418dde27");
+      return i18next.t("dict.gen_418dde27");
   }
 }
 
 function assetReadinessHint(assetType: NovelWorldAssetSummary["assetType"]): string {
   switch (assetType) {
     case "map":
-      return i18next.t("gen.pages.novels.components.novelWorld.NovelWorldHandbookDialog.gen_fc446dfe");
+      return i18next.t("dict.gen_fc446dfe");
     case "faction_diagram":
-      return i18next.t("gen.pages.novels.components.novelWorld.NovelWorldHandbookDialog.gen_fa8f91a9");
+      return i18next.t("dict.gen_fa8f91a9");
     case "timeline":
-      return i18next.t("gen.pages.novels.components.novelWorld.NovelWorldHandbookDialog.gen_5a00ad9e");
+      return i18next.t("dict.gen_5a00ad9e");
     case "character_network":
-      return i18next.t("gen.pages.novels.components.novelWorld.NovelWorldHandbookDialog.gen_46d0ecca");
+      return i18next.t("dict.gen_46d0ecca");
     case "power_system_tree":
-      return i18next.t("gen.pages.novels.components.novelWorld.NovelWorldHandbookDialog.gen_ebf5b93c");
+      return i18next.t("dict.gen_ebf5b93c");
     default:
-      return i18next.t("gen.pages.novels.components.novelWorld.NovelWorldHandbookDialog.gen_b9d7c980");
+      return i18next.t("dict.gen_b9d7c980");
   }
 }
 
@@ -186,14 +185,14 @@ function WorldOverviewTab(props: {
   return (
     <div className="space-y-8">
       <section>
-        <SectionTitle title={i18next.t("gen.pages.novels.components.novelWorld.NovelWorldHandbookDialog.gen_61ae07e0")} description={i18next.t("gen.pages.novels.components.novelWorld.NovelWorldHandbookDialog.gen_874e945e")} />
+        <SectionTitle title={i18next.t("dict.gen_61ae07e0")} description={i18next.t("dict.gen_874e945e")} />
         <div className="mt-4 rounded-2xl bg-muted/15 p-5">
           <div className="text-xs text-muted-foreground">
-            {novelWorld ? labelSourceType(novelWorld.sourceType) : i18next.t("gen.pages.novels.components.novelWorld.NovelWorldHandbookDialog.gen_7527f578")} · {novelWorld?.hasStorySlice ? i18next.t("gen.pages.novels.components.novelWorld.NovelWorldHandbookDialog.gen_3f18376e") : i18next.t("gen.pages.novels.components.novelWorld.NovelWorldHandbookDialog.gen_2e682702")}
+            {novelWorld ? labelSourceType(novelWorld.sourceType) : i18next.t("dict.gen_7527f578")} · {novelWorld?.hasStorySlice ? i18next.t("dict.gen_3f18376e") : i18next.t("dict.gen_2e682702")}
           </div>
           <div className="mt-2 text-2xl font-semibold text-foreground">{props.activeWorldName}</div>
           <div className="mt-3 max-w-4xl text-base leading-8 text-muted-foreground">
-            {handbook?.summary ?? novelWorld?.coverSummary ?? i18next.t("gen.pages.novels.components.novelWorld.NovelWorldHandbookDialog.gen_4ad23ded")}
+            {handbook?.summary ?? novelWorld?.coverSummary ?? i18next.t("dict.gen_4ad23ded")}
           </div>
           <InlineMeta items={[
             handbook?.identity ? `身份：${handbook.identity}` : null,
@@ -205,7 +204,7 @@ function WorldOverviewTab(props: {
 
       <section className="grid gap-5 lg:grid-cols-2">
         <div>
-          <SectionTitle title={i18next.t("gen.pages.novels.components.novelWorld.NovelWorldHandbookDialog.majorForce")} />
+          <SectionTitle title={i18next.t("dict.majorForce")} />
           <div className="mt-3 space-y-3">
             {(handbook?.forces.length ? handbook.forces : handbook?.factions ?? []).slice(0, 8).map((item) => (
               <div key={item.name} className="border-t border-border/50 pt-3 text-sm">
@@ -218,22 +217,22 @@ function WorldOverviewTab(props: {
                 </div>
               </div>
             ))}
-            {(!handbook || (handbook.forces.length === 0 && handbook.factions.length === 0)) ? <EmptyLine>{i18next.t("gen.pages.novels.components.novelWorld.NovelWorldHandbookDialog.gen_73f75df3")}</EmptyLine> : null}
+            {(!handbook || (handbook.forces.length === 0 && handbook.factions.length === 0)) ? <EmptyLine>{i18next.t("dict.gen_73f75df3")}</EmptyLine> : null}
           </div>
         </div>
         <div>
-          <SectionTitle title={i18next.t("gen.pages.novels.components.novelWorld.NovelWorldHandbookDialog.gen_bf876a86")} />
+          <SectionTitle title={i18next.t("dict.gen_bf876a86")} />
           <div className="mt-3 space-y-3">
             {handbook?.locations.slice(0, 8).map((location) => (
               <div key={location.name} className="border-t border-border/50 pt-3 text-sm">
                 <div className="font-medium text-foreground">{location.name}</div>
                 <div className="mt-1 leading-6 text-muted-foreground">
-                  {location.narrativeFunction || location.summary || i18next.t("gen.pages.novels.components.novelWorld.NovelWorldHandbookDialog.gen_67a21991")}
+                  {location.narrativeFunction || location.summary || i18next.t("dict.gen_67a21991")}
                   {location.risk ? ` · 风险：${location.risk}` : null}
                 </div>
               </div>
             ))}
-            {!handbook?.locations.length ? <EmptyLine>{i18next.t("gen.pages.novels.components.novelWorld.NovelWorldHandbookDialog.gen_7e4d987e")}</EmptyLine> : null}
+            {!handbook?.locations.length ? <EmptyLine>{i18next.t("dict.gen_7e4d987e")}</EmptyLine> : null}
           </div>
         </div>
       </section>
@@ -247,27 +246,27 @@ function RulesTab(props: { handbook: NovelWorldHandbook | null }) {
   return (
     <div className="space-y-8">
       <section>
-        <SectionTitle title={i18next.t("gen.pages.novels.components.novelWorld.NovelWorldHandbookDialog.gen_b68f57f0")} description={i18next.t("gen.pages.novels.components.novelWorld.NovelWorldHandbookDialog.gen_54f024b5")} />
+        <SectionTitle title={i18next.t("dict.gen_b68f57f0")} description={i18next.t("dict.gen_54f024b5")} />
         <div className="mt-4 space-y-4">
           {handbook?.coreRules.length ? handbook.coreRules.map((rule) => (
             <div key={`${rule.name}-${rule.summary}`} className="border-t border-border/60 pt-4">
               <div className="text-sm font-medium text-foreground">{rule.name}</div>
-              <div className="mt-1 text-sm leading-6 text-muted-foreground">{i18next.t("gen.pages.novels.components.novelWorld.NovelWorldHandbookDialog.gen_a227c868")}</div>
+              <div className="mt-1 text-sm leading-6 text-muted-foreground">{i18next.t("dict.gen_a227c868")}</div>
               <InlineMeta items={[
                 rule.cost ? `代价：${rule.cost}` : null,
                 rule.boundary ? `边界：${rule.boundary}` : null,
               ]} />
             </div>
-          )) : <EmptyLine>{i18next.t("gen.pages.novels.components.novelWorld.NovelWorldHandbookDialog.gen_5f599bff")}</EmptyLine>}
+          )) : <EmptyLine>{i18next.t("dict.gen_5f599bff")}</EmptyLine>}
         </div>
       </section>
 
       <section>
-        <SectionTitle title={i18next.t("gen.pages.novels.components.novelWorld.NovelWorldHandbookDialog.gen_b7cadb8f")} description={i18next.t("gen.pages.novels.components.novelWorld.NovelWorldHandbookDialog.gen_575332b5")} />
+        <SectionTitle title={i18next.t("dict.gen_b7cadb8f")} description={i18next.t("dict.gen_575332b5")} />
         <div className="mt-3 space-y-2 text-sm leading-6 text-muted-foreground">
           {handbook?.tensions.length ? handbook.tensions.map((tension) => (
             <div key={tension} className="border-t border-border/50 pt-2">{tension}</div>
-          )) : <EmptyLine>{i18next.t("gen.pages.novels.components.novelWorld.NovelWorldHandbookDialog.gen_f0a49433")}</EmptyLine>}
+          )) : <EmptyLine>{i18next.t("dict.gen_f0a49433")}</EmptyLine>}
         </div>
       </section>
     </div>
@@ -277,15 +276,15 @@ function RulesTab(props: { handbook: NovelWorldHandbook | null }) {
 function GuidanceTab(props: { handbook: NovelWorldHandbook | null }) {
   const guidance = props.handbook?.generationGuidance ?? null;
   const groups = [
-    { title: i18next.t("gen.pages.novels.components.novelWorld.NovelWorldHandbookDialog.gen_3b750fe1"), items: guidance?.characterUses ?? [] },
-    { title: i18next.t("gen.pages.novels.components.novelWorld.NovelWorldHandbookDialog.gen_5d2d0cf8"), items: guidance?.outlineUses ?? [] },
-    { title: i18next.t("gen.pages.novels.components.novelWorld.NovelWorldHandbookDialog.gen_e38b93f6"), items: guidance?.chapterUses ?? [] },
-    { title: i18next.t("gen.pages.novels.components.novelWorld.NovelWorldHandbookDialog.gen_186ea5c7"), items: guidance?.avoidUses ?? [] },
+    { title: i18next.t("dict.gen_3b750fe1"), items: guidance?.characterUses ?? [] },
+    { title: i18next.t("dict.gen_5d2d0cf8"), items: guidance?.outlineUses ?? [] },
+    { title: i18next.t("dict.gen_e38b93f6"), items: guidance?.chapterUses ?? [] },
+    { title: i18next.t("dict.gen_186ea5c7"), items: guidance?.avoidUses ?? [] },
   ];
 
   return (
     <div className="space-y-6">
-      <SectionTitle title={i18next.t("gen.pages.novels.components.novelWorld.NovelWorldHandbookDialog.gen_f95045c7")} description={i18next.t("gen.pages.novels.components.novelWorld.NovelWorldHandbookDialog.gen_50805ded")} />
+      <SectionTitle title={i18next.t("dict.gen_f95045c7")} description={i18next.t("dict.gen_50805ded")} />
       <div className="grid gap-4 md:grid-cols-2">
         {groups.map((group) => (
           <section key={group.title} className="rounded-xl bg-muted/15 p-4">
@@ -294,7 +293,7 @@ function GuidanceTab(props: { handbook: NovelWorldHandbook | null }) {
               {group.items.length > 0 ? group.items.slice(0, 6).map((item) => (
                 <div key={item} className="text-sm leading-6 text-muted-foreground">{item}</div>
               )) : (
-                <div className="text-sm leading-6 text-muted-foreground">{i18next.t("gen.pages.novels.components.novelWorld.NovelWorldHandbookDialog.gen_cfca02eb")}</div>
+                <div className="text-sm leading-6 text-muted-foreground">{i18next.t("dict.gen_cfca02eb")}</div>
               )}
             </div>
           </section>
@@ -307,7 +306,7 @@ function GuidanceTab(props: { handbook: NovelWorldHandbook | null }) {
 function AssetsPanel(props: { worldAssets: NovelWorldAssetSummary[] }) {
   return (
     <section>
-      <SectionTitle title={i18next.t("gen.pages.novels.components.novelWorld.NovelWorldHandbookDialog.gen_790cc6f1")} description={i18next.t("gen.pages.novels.components.novelWorld.NovelWorldHandbookDialog.gen_e0796d7a")} />
+      <SectionTitle title={i18next.t("dict.gen_790cc6f1")} description={i18next.t("dict.gen_e0796d7a")} />
       {props.worldAssets.length > 0 ? (
         <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
           {props.worldAssets.map((asset) => {
@@ -327,7 +326,7 @@ function AssetsPanel(props: { worldAssets: NovelWorldAssetSummary[] }) {
         </div>
       ) : (
         <div className="mt-3">
-          <EmptyLine>{i18next.t("gen.pages.novels.components.novelWorld.NovelWorldHandbookDialog.gen_a65fcfff")}</EmptyLine>
+          <EmptyLine>{i18next.t("dict.gen_a65fcfff")}</EmptyLine>
         </div>
       )}
     </section>
@@ -352,28 +351,28 @@ function SyncPanel(props: Pick<NovelWorldHandbookDialogProps,
   return (
     <section id="novel-world-sync">
       <SectionTitle
-        title={i18next.t("gen.pages.novels.components.novelWorld.NovelWorldHandbookDialog.gen_5e5b3e8f")}
-        description={i18next.t("gen.pages.novels.components.novelWorld.NovelWorldHandbookDialog.gen_8202c4b2")}
+        title={i18next.t("dict.gen_5e5b3e8f")}
+        description={i18next.t("dict.gen_8202c4b2")}
       />
       <div className="mt-4 grid gap-3 md:grid-cols-3">
         <div className="rounded-xl bg-muted/15 p-3">
-          <div className="text-xs text-muted-foreground">{i18next.t("gen.pages.novels.components.novelWorld.NovelWorldHandbookDialog.gen_1a4fadb7")}</div>
+          <div className="text-xs text-muted-foreground">{i18next.t("dict.gen_1a4fadb7")}</div>
           <div className="mt-1 text-sm font-medium text-foreground">
-            {props.isLoadingSyncDiff ? i18next.t("gen.pages.novels.components.novelWorld.NovelWorldHandbookDialog.gen_69ac5a39") : syncDiff ? i18next.t("gen.pages.novels.components.novelWorld.NovelWorldHandbookDialog.gen_6d24e672") : i18next.t("gen.pages.novels.components.novelWorld.NovelWorldHandbookDialog.gen_c52ee445")}
+            {props.isLoadingSyncDiff ? i18next.t("dict.gen_69ac5a39") : syncDiff ? i18next.t("dict.gen_6d24e672") : i18next.t("dict.gen_c52ee445")}
           </div>
           <div className="mt-1 text-xs leading-5 text-muted-foreground">
-            {syncDiff?.differenceCount ? `${syncDiff.differenceCount} 个分区存在差异。` : syncDiff ? i18next.t("gen.pages.novels.components.novelWorld.NovelWorldHandbookDialog.gen_dd674fee") : i18next.t("gen.pages.novels.components.novelWorld.NovelWorldHandbookDialog.gen_5ef22e67")}
+            {syncDiff?.differenceCount ? `${syncDiff.differenceCount} 个分区存在差异。` : syncDiff ? i18next.t("dict.gen_dd674fee") : i18next.t("dict.gen_5ef22e67")}
           </div>
         </div>
         <div className="rounded-xl bg-muted/15 p-3">
-          <div className="text-xs text-muted-foreground">{i18next.t("gen.pages.novels.components.novelWorld.NovelWorldHandbookDialog.gen_fe5f67de")}</div>
-          <div className="mt-1 text-sm font-medium text-foreground">{hasSyncDiff ? `${selectedSectionCount} 个分区` : i18next.t("gen.pages.novels.components.novelWorld.NovelWorldHandbookDialog.gen_27b15041")}</div>
-          <div className="mt-1 text-xs leading-5 text-muted-foreground">{i18next.t("gen.pages.novels.components.novelWorld.NovelWorldHandbookDialog.gen_480e8e5a")}</div>
+          <div className="text-xs text-muted-foreground">{i18next.t("dict.gen_fe5f67de")}</div>
+          <div className="mt-1 text-sm font-medium text-foreground">{hasSyncDiff ? `${selectedSectionCount} 个分区` : i18next.t("dict.gen_27b15041")}</div>
+          <div className="mt-1 text-xs leading-5 text-muted-foreground">{i18next.t("dict.gen_480e8e5a")}</div>
         </div>
         <div className="rounded-xl bg-muted/15 p-3">
-          <div className="text-xs text-muted-foreground">{i18next.t("gen.pages.novels.components.novelWorld.NovelWorldHandbookDialog.gen_0b19c25e")}</div>
-          <div className="mt-1 text-sm font-medium text-foreground">{i18next.t("gen.pages.novels.components.novelWorld.NovelWorldHandbookDialog.gen_b59a9121")}</div>
-          <div className="mt-1 text-xs leading-5 text-muted-foreground">{i18next.t("gen.pages.novels.components.novelWorld.NovelWorldHandbookDialog.gen_207891c0")}</div>
+          <div className="text-xs text-muted-foreground">{i18next.t("dict.gen_0b19c25e")}</div>
+          <div className="mt-1 text-sm font-medium text-foreground">{i18next.t("dict.gen_b59a9121")}</div>
+          <div className="mt-1 text-xs leading-5 text-muted-foreground">{i18next.t("dict.gen_207891c0")}</div>
         </div>
       </div>
 
@@ -384,12 +383,12 @@ function SyncPanel(props: Pick<NovelWorldHandbookDialogProps,
       ) : null}
 
       {!novelWorld.syncEnabled ? (
-        <div className="mt-3 rounded-md border border-dashed p-3 text-sm text-muted-foreground">{i18next.t("gen.pages.novels.components.novelWorld.NovelWorldHandbookDialog.gen_c312cf8f", "本书世界会作为独立副本使用。需要同步时，可以手动推送本书世界或拉取世界库内容。")}</div>
+        <div className="mt-3 rounded-md border border-dashed p-3 text-sm text-muted-foreground">{i18next.t("novels.novelWorldHandbookDialog.wnp5df")}</div>
       ) : null}
 
       {syncDiff?.canSync === false ? (
         <div className="mt-3 rounded-md border border-dashed p-3 text-sm text-muted-foreground">
-          {syncDiff.reason ?? i18next.t("gen.pages.novels.components.novelWorld.NovelWorldHandbookDialog.gen_37d6b411")}
+          {syncDiff.reason ?? i18next.t("dict.gen_37d6b411")}
         </div>
       ) : syncDiff?.differences.length ? (
         <div className="mt-4 space-y-3">
@@ -421,33 +420,33 @@ function SyncPanel(props: Pick<NovelWorldHandbookDialogProps,
           </div>
           <div className="flex flex-wrap gap-2">
             <Button type="button" variant="outline" disabled={props.isSyncing || !effectiveSyncSections?.length} onClick={() => props.onSync({ direction: "pull", sections: effectiveSyncSections })}>
-              {props.isSyncing ? i18next.t("gen.pages.novels.components.novelWorld.NovelWorldHandbookDialog.gen_f787f452") : i18next.t("gen.pages.novels.components.novelWorld.NovelWorldHandbookDialog.gen_0c2f1d64")}
+              {props.isSyncing ? i18next.t("dict.gen_f787f452") : i18next.t("dict.gen_0c2f1d64")}
             </Button>
             <Button type="button" variant="secondary" disabled={props.isSyncing || !effectiveSyncSections?.length} onClick={() => props.onSync({ direction: "push", sections: effectiveSyncSections })}>
-              {props.isSyncing ? i18next.t("gen.pages.novels.components.novelWorld.NovelWorldHandbookDialog.gen_f787f452") : i18next.t("gen.pages.novels.components.novelWorld.NovelWorldHandbookDialog.gen_a7b36193")}
+              {props.isSyncing ? i18next.t("dict.gen_f787f452") : i18next.t("dict.gen_a7b36193")}
             </Button>
-            <Button type="button" variant="outline" disabled={props.isSyncing} onClick={() => props.onSync({ direction: "none" })}>{i18next.t("gen.pages.novels.components.novelWorld.NovelWorldHandbookDialog.gen_bf971021", "关闭同步")}</Button>
+            <Button type="button" variant="outline" disabled={props.isSyncing} onClick={() => props.onSync({ direction: "none" })}>{i18next.t("novels.novelWorldHandbookDialog.aw7bcj")}</Button>
           </div>
         </div>
       ) : !novelWorld.syncEnabled ? (
         <div className="mt-3 flex flex-wrap gap-2">
           <Button type="button" variant="outline" disabled={props.isSyncing} onClick={() => props.onSync({ direction: "pull" })}>
-            {props.isSyncing ? i18next.t("gen.pages.novels.components.novelWorld.NovelWorldHandbookDialog.gen_f787f452") : i18next.t("gen.pages.novels.components.novelWorld.NovelWorldHandbookDialog.gen_a1c8e949")}
+            {props.isSyncing ? i18next.t("dict.gen_f787f452") : i18next.t("dict.gen_a1c8e949")}
           </Button>
           <Button type="button" variant="secondary" disabled={props.isSyncing} onClick={() => props.onSync({ direction: "push" })}>
-            {props.isSyncing ? i18next.t("gen.pages.novels.components.novelWorld.NovelWorldHandbookDialog.gen_f787f452") : i18next.t("gen.pages.novels.components.novelWorld.NovelWorldHandbookDialog.gen_b98c9cfc")}
+            {props.isSyncing ? i18next.t("dict.gen_f787f452") : i18next.t("dict.gen_b98c9cfc")}
           </Button>
         </div>
       ) : (
-        <div className="mt-3 rounded-md border border-dashed p-3 text-sm text-muted-foreground">{i18next.t("gen.pages.novels.components.novelWorld.NovelWorldHandbookDialog.gen_d90df0f0", "本书世界和世界库样本保持一致。")}</div>
+        <div className="mt-3 rounded-md border border-dashed p-3 text-sm text-muted-foreground">{i18next.t("novels.novelWorldHandbookDialog.cn04j8")}</div>
       )}
 
       {props.syncHistory.length > 0 ? (
-        <DetailDisclosure title={i18next.t("gen.pages.novels.components.novelWorld.NovelWorldHandbookDialog.gen_34ac0ac3")} description={i18next.t("gen.pages.novels.components.novelWorld.NovelWorldHandbookDialog.gen_8f775b88")} className="mt-4">
+        <DetailDisclosure title={i18next.t("dict.gen_34ac0ac3")} description={i18next.t("dict.gen_8f775b88")} className="mt-4">
           <div className="space-y-2">
             {props.syncHistory.map((record) => (
               <div key={record.id} className="text-xs leading-5 text-muted-foreground">
-                <span className="font-medium text-foreground">{i18next.t("gen.pages.novels.components.novelWorld.NovelWorldHandbookDialog.gen_49782ee4")}</span>
+                <span className="font-medium text-foreground">{i18next.t("dict.gen_49782ee4")}</span>
                 <span> · {formatSyncTime(record.createdAt) ?? record.createdAt}</span>
                 {record.syncedSections.length > 0 ? <span> · {record.syncedSections.map(sectionLabel).join("、")}</span> : null}
                 {record.diffSummary ? <span className="block">{record.diffSummary}</span> : null}
@@ -466,24 +465,24 @@ function SourceAndLibraryPanel(props: Pick<NovelWorldHandbookDialogProps,
 >) {
   return (
     <section>
-      <SectionTitle title={i18next.t("gen.pages.novels.components.novelWorld.NovelWorldHandbookDialog.gen_26deb25d")} description={i18next.t("gen.pages.novels.components.novelWorld.NovelWorldHandbookDialog.gen_e571d6ab")} />
+      <SectionTitle title={i18next.t("dict.gen_26deb25d")} description={i18next.t("dict.gen_e571d6ab")} />
       {props.novelWorld && !props.novelWorld.sourceWorldId ? (
         <div className="mt-4 flex flex-col gap-3 rounded-xl bg-muted/15 p-4 lg:flex-row lg:items-center lg:justify-between">
           <div>
-            <div className="text-sm font-medium text-foreground">{i18next.t("gen.pages.novels.components.novelWorld.NovelWorldHandbookDialog.gen_cd592245")}</div>
-            <div className="mt-1 text-sm leading-6 text-muted-foreground">{i18next.t("gen.pages.novels.components.novelWorld.NovelWorldHandbookDialog.gen_2471356e", "把本书世界保存为可复用样本，后续可以推送本书修改或拉取世界库内容。")}</div>
+            <div className="text-sm font-medium text-foreground">{i18next.t("dict.gen_cd592245")}</div>
+            <div className="mt-1 text-sm leading-6 text-muted-foreground">{i18next.t("novels.novelWorldHandbookDialog.8iubox")}</div>
           </div>
           <Button type="button" variant="secondary" disabled={props.isSavingToLibrary} onClick={() => props.onSaveToLibrary()}>
             <Library className="size-4" />
-            {props.isSavingToLibrary ? i18next.t("gen.pages.novels.components.novelWorld.NovelWorldHandbookDialog.savingInProgressDotDotDot") : i18next.t("gen.pages.novels.components.novelWorld.NovelWorldHandbookDialog.gen_cd592245")}
+            {props.isSavingToLibrary ? i18next.t("common.saving") : i18next.t("dict.gen_cd592245")}
           </Button>
         </div>
       ) : null}
 
       <DetailDisclosure
-        title={i18next.t("gen.pages.novels.components.novelWorld.NovelWorldHandbookDialog.gen_ed2c3be6")}
-        description={i18next.t("gen.pages.novels.components.novelWorld.NovelWorldHandbookDialog.gen_81ee3c6c")}
-        meta={props.novelWorld ? i18next.t("gen.pages.novels.components.novelWorld.NovelWorldHandbookDialog.gen_bebe47a3") : i18next.t("gen.pages.novels.components.novelWorld.NovelWorldHandbookDialog.gen_43d22961")}
+        title={i18next.t("dict.gen_ed2c3be6")}
+        description={i18next.t("dict.gen_81ee3c6c")}
+        meta={props.novelWorld ? i18next.t("dict.gen_bebe47a3") : i18next.t("dict.gen_43d22961")}
         defaultOpen={!props.novelWorld}
         className="mt-4"
       >
@@ -505,12 +504,11 @@ function SourceAndLibraryPanel(props: Pick<NovelWorldHandbookDialogProps,
 }
 
 export function NovelWorldHandbookDialog(props: NovelWorldHandbookDialogProps) {
-  const { t } = useTranslation();
   return (
     <Dialog open={props.open} onOpenChange={props.onOpenChange}>
       <AppDialogContent
         title={props.activeWorldName}
-        description={i18next.t("gen.pages.novels.components.novelWorld.NovelWorldHandbookDialog.gen_0c46a450")}
+        description={i18next.t("dict.gen_0c46a450")}
         className="h-[calc(100dvh-2rem)] max-w-[calc(100vw-2rem)] xl:max-w-7xl"
         bodyClassName="overflow-hidden p-0"
       >
@@ -520,11 +518,11 @@ export function NovelWorldHandbookDialog(props: NovelWorldHandbookDialogProps) {
             "lg:flex lg:flex-col lg:items-stretch lg:overflow-visible lg:border-b-0 lg:border-r",
           )}>
             {[
-              ["overview", i18next.t("gen.pages.novels.components.novelWorld.NovelWorldHandbookDialog.gen_61ae07e0")],
-              ["rules", i18next.t("gen.pages.novels.components.novelWorld.NovelWorldHandbookDialog.gen_7eb5cd49")],
-              ["guidance", i18next.t("gen.pages.novels.components.novelWorld.NovelWorldHandbookDialog.gen_f95045c7")],
-              ["usage", i18next.t("gen.pages.novels.components.novelWorld.NovelWorldHandbookDialog.gen_6832ddc4")],
-              ["sync", i18next.t("gen.pages.novels.components.novelWorld.NovelWorldHandbookDialog.gen_81e53644")],
+              ["overview", i18next.t("dict.gen_61ae07e0")],
+              ["rules", i18next.t("dict.gen_7eb5cd49")],
+              ["guidance", i18next.t("dict.gen_f95045c7")],
+              ["usage", i18next.t("dict.gen_6832ddc4")],
+              ["sync", i18next.t("dict.gen_81e53644")],
             ].map(([value, label]) => (
               <TabsTrigger key={value} value={value} className="justify-start data-[state=active]:bg-muted">
                 {label}
@@ -547,7 +545,7 @@ export function NovelWorldHandbookDialog(props: NovelWorldHandbookDialogProps) {
             <TabsContent value="sync" className="mt-0 space-y-8">
               {props.novelWorld?.sourceWorldId ? (
                 <Button asChild size="sm" variant="outline">
-                  <Link to={`/worlds/${props.novelWorld.sourceWorldId}/workspace`}>{i18next.t("gen.pages.novels.components.novelWorld.NovelWorldHandbookDialog.gen_d6274ec9")}</Link>
+                  <Link to={`/worlds/${props.novelWorld.sourceWorldId}/workspace`}>{i18next.t("dict.gen_d6274ec9")}</Link>
                 </Button>
               ) : null}
               <AssetsPanel worldAssets={props.worldAssets} />

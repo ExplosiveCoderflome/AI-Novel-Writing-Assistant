@@ -191,8 +191,8 @@ function buildPreviewPromptInput(
   if (prompt.id === "image.novel_cover.brief") {
     return {
       sourcePrompt: "旧城仓库、墙上暗号、门外脚步声、悬疑感强的竖版封面。",
-      title: "旧城暗号",
-      description: "年轻调查员在旧城废仓中发现改变命运的暗号。",
+      title: i18next.t("dict.gen_a11ed98f"),
+      description: i18next.t("dict.gen_a7dd2e1b"),
       targetAudience: "喜欢都市悬疑和强钩子开篇的读者。",
       bookSellingPoint: "每章都围绕一个可追查的线索推进。",
       competingFeel: "紧张、克制、带一点冷色电影感。",

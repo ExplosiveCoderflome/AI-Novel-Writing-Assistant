@@ -1,5 +1,4 @@
 import i18next from "i18next";
-import { useTranslation } from "react-i18next";
 import type { ReactNode } from "react";
 import type { Character } from "@ai-novel/shared/types/novel";
 import { Activity, AlertTriangle, Box, EyeOff, HeartPulse, Target } from "lucide-react";
@@ -14,15 +13,14 @@ interface CharacterOverviewTabProps {
 }
 
 export default function CharacterOverviewTab(props: CharacterOverviewTabProps) {
-  const { t } = useTranslation();
   const { selectedCharacter, lastAppearanceChapter, resourceCount, pendingCharacterResourceCount } = props;
   const emotionSignal = getEmotionSignal(selectedCharacter);
   const secretStatus = getSecretStatus(selectedCharacter);
   const arcItems = [
-    { label: "起点", value: selectedCharacter.arcStart },
-    { label: "中段", value: selectedCharacter.arcMidpoint },
-    { label: "高潮", value: selectedCharacter.arcClimax },
-    { label: "终点", value: selectedCharacter.arcEnd },
+    { label: i18next.t("dict.gen_9b57745d"), value: selectedCharacter.arcStart },
+    { label: i18next.t("novels.characterOverviewTab.dvzc"), value: selectedCharacter.arcMidpoint },
+    { label: i18next.t("novels.characterOverviewTab.qy6u"), value: selectedCharacter.arcClimax },
+    { label: i18next.t("novels.characterOverviewTab.m6lt"), value: selectedCharacter.arcEnd },
   ];
 
   return (
@@ -32,8 +30,8 @@ export default function CharacterOverviewTab(props: CharacterOverviewTabProps) {
           <div className="border-b border-border/60 bg-muted/20 px-4 py-3">
             <div className="flex flex-wrap items-center justify-between gap-2">
               <div>
-                <div className="text-sm font-medium">{i18next.t("gen.pages.novels.components.characterWorkspace.CharacterOverviewTab.gen_439fbb41", "角色运行状态")}</div>
-                <div className="mt-1 text-xs text-muted-foreground">{i18next.t("gen.pages.novels.components.characterWorkspace.CharacterOverviewTab.gen_47ccea8e", "先看角色下一章能做什么、想要什么、受什么限制。")}</div>
+                <div className="text-sm font-medium">{i18next.t("novels.characterOverviewTab.qnrijd")}</div>
+                <div className="mt-1 text-xs text-muted-foreground">{i18next.t("novels.characterOverviewTab.rksnhw")}</div>
               </div>
               <Badge variant="outline">最近出场：{lastAppearanceChapter ? `第${lastAppearanceChapter}章` : "暂无"}</Badge>
             </div>
@@ -41,25 +39,25 @@ export default function CharacterOverviewTab(props: CharacterOverviewTabProps) {
           <div className="grid gap-0 md:grid-cols-2">
             <StatusPanel
               icon={<Activity className="h-4 w-4" />}
-              label={i18next.t("gen.pages.novels.components.characterWorkspace.CharacterOverviewTab.gen_6bf1f392", "当前状态")}
+              label={i18next.t("dict.gen_6bf1f392")}
               value={selectedCharacter.currentState || "待补全"}
               tone="emerald"
             />
             <StatusPanel
               icon={<Target className="h-4 w-4" />}
-              label={i18next.t("gen.pages.novels.components.characterWorkspace.CharacterOverviewTab.gen_deb979f8", "当前目标")}
+              label={i18next.t("dict.gen_deb979f8")}
               value={selectedCharacter.currentGoal || "待补全"}
               tone="sky"
             />
             <StatusPanel
               icon={<HeartPulse className="h-4 w-4" />}
-              label={i18next.t("gen.pages.novels.components.characterWorkspace.CharacterOverviewTab.gen_477845d5", "情绪信号")}
+              label={i18next.t("novels.characterOverviewTab.cqdfi3")}
               value={emotionSignal}
               tone="rose"
             />
             <StatusPanel
               icon={<EyeOff className="h-4 w-4" />}
-              label={i18next.t("gen.pages.novels.components.characterWorkspace.CharacterOverviewTab.gen_ae633931", "秘密状态")}
+              label={i18next.t("novels.characterOverviewTab.fr8tbt")}
               value={secretStatus}
               tone="amber"
             />
@@ -68,17 +66,17 @@ export default function CharacterOverviewTab(props: CharacterOverviewTabProps) {
 
         <section className="rounded-2xl border border-border/70 bg-[linear-gradient(135deg,hsl(var(--background))_0%,hsl(var(--muted)/0.45)_100%)] p-4 shadow-sm">
           <div className="flex flex-wrap items-center justify-between gap-2">
-            <div className="text-sm font-medium">{i18next.t("gen.pages.novels.components.characterWorkspace.CharacterOverviewTab.gen_dccda2d1", "行动边界")}</div>
+            <div className="text-sm font-medium">{i18next.t("novels.characterOverviewTab.hjobyn")}</div>
             <Badge variant={pendingCharacterResourceCount > 0 ? "secondary" : "outline"}>
               {pendingCharacterResourceCount > 0 ? `${pendingCharacterResourceCount} 条资源待确认` : "资源已同步"}
             </Badge>
           </div>
           <div className="mt-4 grid gap-3 sm:grid-cols-2">
-            <BoundaryMetric icon={<Box className="h-4 w-4" />} label={i18next.t("gen.pages.novels.components.characterWorkspace.CharacterOverviewTab.gen_4360c49d", "关键资源")} value={`${resourceCount} 条`} />
-            <BoundaryMetric icon={<AlertTriangle className="h-4 w-4" />} label={i18next.t("gen.pages.novels.components.characterWorkspace.CharacterOverviewTab.gen_6d576357", "风险提示")} value={pendingCharacterResourceCount > 0 ? "先核对资源变更" : "可继续推进"} />
+            <BoundaryMetric icon={<Box className="h-4 w-4" />} label={i18next.t("dict.gen_4360c49d")} value={`${resourceCount} 条`} />
+            <BoundaryMetric icon={<AlertTriangle className="h-4 w-4" />} label={i18next.t("novels.characterOverviewTab.jwcjyd")} value={pendingCharacterResourceCount > 0 ? "先核对资源变更" : "可继续推进"} />
           </div>
           <div className="mt-4 rounded-xl border border-border/70 bg-background/80 p-3">
-            <div className="text-xs font-medium text-muted-foreground">{i18next.t("gen.pages.novels.components.characterWorkspace.CharacterOverviewTab.gen_e0646024", "与主角关系")}</div>
+            <div className="text-xs font-medium text-muted-foreground">{i18next.t("dict.relationWithProtagonist")}</div>
             <div className="mt-2 text-sm leading-6">{selectedCharacter.relationToProtagonist || "待补全"}</div>
           </div>
         </section>
@@ -87,21 +85,21 @@ export default function CharacterOverviewTab(props: CharacterOverviewTabProps) {
       <div className="grid gap-3 xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
         <section className="rounded-2xl border border-border/70 bg-background p-4 shadow-sm">
           <div className="flex flex-wrap items-center gap-2">
-            <div className="text-sm font-medium">{i18next.t("gen.pages.novels.components.characterWorkspace.CharacterOverviewTab.gen_f2e5413f", "戏剧引擎")}</div>
-            <Badge variant="outline">{i18next.t("gen.pages.novels.components.characterWorkspace.CharacterOverviewTab.gen_383f251a", "角色功能")}</Badge>
+            <div className="text-sm font-medium">{i18next.t("novels.characterOverviewTab.cps429")}</div>
+            <Badge variant="outline">{i18next.t("novels.characterOverviewTab.hxb0ny")}</Badge>
           </div>
           <div className="mt-4 grid gap-3 md:grid-cols-2">
-            <NarrativeBlock label={i18next.t("gen.pages.novels.components.characterWorkspace.CharacterOverviewTab.gen_c72a850f", "故事作用")} value={selectedCharacter.storyFunction} />
-            <NarrativeBlock label={i18next.t("gen.pages.novels.components.characterWorkspace.CharacterOverviewTab.gen_3c8838b3", "外在目标")} value={selectedCharacter.outerGoal} />
-            <NarrativeBlock label={i18next.t("gen.pages.novels.components.characterWorkspace.CharacterOverviewTab.gen_8b0a265b", "内在需求")} value={selectedCharacter.innerNeed} />
-            <NarrativeBlock label={i18next.t("gen.pages.novels.components.characterWorkspace.CharacterOverviewTab.gen_9ce2975b", "恐惧 / 伤口")} value={selectedCharacter.fear || selectedCharacter.wound} />
+            <NarrativeBlock label={i18next.t("novels.characterFocusSummary.d3q1ma")} value={selectedCharacter.storyFunction} />
+            <NarrativeBlock label={i18next.t("novels.characterOverviewTab.bluka3")} value={selectedCharacter.outerGoal} />
+            <NarrativeBlock label={i18next.t("novels.characterOverviewTab.ann7wl")} value={selectedCharacter.innerNeed} />
+            <NarrativeBlock label={i18next.t("novels.characterOverviewTab.gi1jg9")} value={selectedCharacter.fear || selectedCharacter.wound} />
           </div>
         </section>
 
         <section className="rounded-2xl border border-border/70 bg-background p-4 shadow-sm">
           <div className="flex flex-wrap items-center justify-between gap-2">
-            <div className="text-sm font-medium">{i18next.t("gen.pages.novels.components.characterWorkspace.CharacterOverviewTab.gen_cdff8ac4", "成长轨道")}</div>
-            <Badge variant="outline">{i18next.t("gen.pages.novels.components.characterWorkspace.CharacterOverviewTab.gen_cc4d70b4", "可后续接入思路线")}</Badge>
+            <div className="text-sm font-medium">{i18next.t("novels.characterOverviewTab.czuzru")}</div>
+            <Badge variant="outline">{i18next.t("novels.characterOverviewTab.ou0zq9")}</Badge>
           </div>
           <div className="mt-4 space-y-3">
             {arcItems.map((item, index) => (
@@ -120,8 +118,8 @@ export default function CharacterOverviewTab(props: CharacterOverviewTabProps) {
             ))}
           </div>
           <div className="mt-3 grid gap-2 sm:grid-cols-2">
-            <NarrativeBlock label={i18next.t("gen.pages.novels.components.characterWorkspace.CharacterOverviewTab.gen_913edca2", "错误信念")} value={selectedCharacter.misbelief} compact />
-            <NarrativeBlock label={i18next.t("gen.pages.novels.components.characterWorkspace.CharacterOverviewTab.gen_6130a3d1", "道德底线")} value={selectedCharacter.moralLine} compact />
+            <NarrativeBlock label={i18next.t("novels.characterOverviewTab.jdvtm2")} value={selectedCharacter.misbelief} compact />
+            <NarrativeBlock label={i18next.t("dict.gen_6130a3d1")} value={selectedCharacter.moralLine} compact />
           </div>
         </section>
       </div>

@@ -31,7 +31,7 @@ import { useAnalysisPublishing } from "./actions/useAnalysisPublishing";
 import { useAnalysisCharacters } from "./character/useAnalysisCharacters";
 import { useSectionDrafts } from "./drafts/useSectionDrafts";
 
-const DIAGNOSIS_FOCUS_INSTRUCTION = i18next.t("gen.pages.bookAnalysis.hooks.useBookAnalysisWorkspace.gen_516d055f");
+const DIAGNOSIS_FOCUS_INSTRUCTION = i18next.t("dict.gen_516d055f");
 
 function buildNovelOptions(items: Array<{ id: string; title: string }>): NovelOption[] {
   return items.map((item) => ({ id: item.id, title: item.title }));
@@ -161,7 +161,7 @@ export function useBookAnalysisWorkspace(): BookAnalysisWorkspace {
   const sourceChaptersError = sourceChaptersQuery.error instanceof Error
     ? sourceChaptersQuery.error.message
     : sourceChaptersQuery.error
-      ? i18next.t("gen.pages.bookAnalysis.hooks.useBookAnalysisWorkspace.gen_9ccd1db5")
+      ? i18next.t("dict.gen_9ccd1db5")
       : "";
   const versionOptions = sourceDocumentQuery.data?.data?.versions ?? [];
   const selectedPreset = useMemo(
@@ -272,7 +272,7 @@ export function useBookAnalysisWorkspace(): BookAnalysisWorkspace {
       const documentResponse = await exportNovelAsKnowledgeDocument(selectedDiagnosisNovelId);
       const document = documentResponse.data;
       if (!document) {
-        throw new Error(i18next.t("gen.pages.bookAnalysis.hooks.useBookAnalysisWorkspace.gen_06f985f9"));
+        throw new Error(i18next.t("dict.gen_06f985f9"));
       }
       const analysisResponse = await createBookAnalysis({
         documentId: document.id,
@@ -303,7 +303,7 @@ export function useBookAnalysisWorkspace(): BookAnalysisWorkspace {
       await queryClient.invalidateQueries({ queryKey: queryKeys.knowledge.documents("book-analysis-source") });
       await queryClient.invalidateQueries({ queryKey: queryKeys.knowledge.detail(result.document.id) });
       await queryClient.invalidateQueries({ queryKey: queryKeys.bookAnalysis.list(listKey) });
-      toast.success(i18next.t("gen.pages.bookAnalysis.hooks.useBookAnalysisWorkspace.gen_bf1d4971"));
+      toast.success(i18next.t("dict.gen_bf1d4971"));
     },
   });
 

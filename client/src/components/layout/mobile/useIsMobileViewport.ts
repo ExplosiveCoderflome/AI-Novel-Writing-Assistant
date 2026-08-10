@@ -1,4 +1,3 @@
-import i18next from "i18next";
 import { useEffect, useState } from "react";
 
 const MOBILE_WORKSPACE_MEDIA_QUERY = "(max-width: 767px)";

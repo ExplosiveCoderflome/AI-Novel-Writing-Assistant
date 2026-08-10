@@ -114,7 +114,7 @@ function buildBlockerCardData(input: {
 }) {
   if (input.interrupt) {
     return {
-      title: "当前阻塞",
+      title: i18next.t("dict.gen_b144df0f"),
       summary: input.interrupt.summary,
       details: [
         `等待确认: ${input.interrupt.title}`,
@@ -128,7 +128,7 @@ function buildBlockerCardData(input: {
 
   if (input.diagnostics?.failureSummary) {
     return {
-      title: "当前风险",
+      title: i18next.t("dict.gen_72022eb6"),
       summary: input.diagnostics.failureSummary,
       details: [
         input.diagnostics.failureCode ? `错误码: ${input.diagnostics.failureCode}` : "",
@@ -142,7 +142,7 @@ function buildBlockerCardData(input: {
 
   if (input.productionStatus?.failureSummary) {
     return {
-      title: "当前阻塞",
+      title: i18next.t("dict.gen_b144df0f"),
       summary: input.productionStatus.failureSummary,
       details: [
         input.productionStatus.recoveryHint ? `恢复建议: ${input.productionStatus.recoveryHint}` : "",
@@ -156,7 +156,7 @@ function buildBlockerCardData(input: {
 
   if (input.latestTurnSummary?.status === "interrupted") {
     return {
-      title: "当前关注点",
+      title: i18next.t("dict.gen_7c3be765"),
       summary: input.latestTurnSummary.nextSuggestion,
       details: [
         `阶段: ${input.latestTurnSummary.currentStage}`,
@@ -169,7 +169,7 @@ function buildBlockerCardData(input: {
   }
 
   return {
-    title: "当前状态",
+    title: i18next.t("dict.gen_6bf1f392"),
     summary: "当前没有需要立即处理的阻塞项，可以继续推进创作。",
     details: input.latestTurnSummary?.nextSuggestion
       ? [`建议下一步: ${input.latestTurnSummary.nextSuggestion}`]
@@ -246,14 +246,14 @@ export default function CreativeHubSidebar({
       aria-busy={isBindingNovel || isCreatingNovel || novelsRetrying}
     >
       <CardHeader className="pb-4">
-        <CardTitle className="text-base">{i18next.t("gen.pages.creativeHub.components.CreativeHubSidebar.gen_e15f6aa0", "当前小说与状态")}</CardTitle>
+        <CardTitle className="text-base">{i18next.t("creativeHub.creativeHubSidebar.ou2d96")}</CardTitle>
       </CardHeader>
       <CardContent className="min-h-0 flex-1 space-y-3 overflow-y-auto pr-1 text-sm">
         <div className="rounded-md border border-border bg-muted/20 p-3">
-          <div className="mb-2 text-xs font-medium text-muted-foreground">{i18next.t("gen.pages.creativeHub.components.CreativeHubSidebar.gen_0e090051", "当前小说与资源")}</div>
+          <div className="mb-2 text-xs font-medium text-muted-foreground">{i18next.t("creativeHub.creativeHubSidebar.ou6yqj")}</div>
           <div className="space-y-3 text-xs text-muted-foreground">
             <div className="space-y-1">
-              <label htmlFor="creative-hub-novel" className="text-xs font-medium text-muted-foreground">{i18next.t("gen.pages.creativeHub.components.CreativeHubSidebar.gen_ecb24d41", "当前小说")}</label>
+              <label htmlFor="creative-hub-novel" className="text-xs font-medium text-muted-foreground">{i18next.t("dict.gen_ecb24d41")}</label>
               <SelectControl
                 id="creative-hub-novel"
                 className="w-full rounded-md border border-input bg-background p-2 text-base text-foreground disabled:cursor-not-allowed disabled:opacity-60 md:text-sm"
@@ -269,7 +269,7 @@ export default function CreativeHubSidebar({
                     .finally(() => setIsBindingNovel(false));
                 }}
               >
-                <option value="">{i18next.t("gen.pages.creativeHub.components.CreativeHubSidebar.gen_24353ccc", "未绑定小说")}</option>
+                <option value="">{i18next.t("creativeHub.unboundNovel")}</option>
                 {bindings.novelId && !selectedNovel ? (
                   <option value={bindings.novelId}>{currentNovelTitle ?? "当前已绑定小说"}</option>
                 ) : null}
@@ -280,10 +280,10 @@ export default function CreativeHubSidebar({
                 ))}
               </SelectControl>
               {novelsLoading ? (
-                <div className="text-xs leading-5 text-muted-foreground" role="status">{i18next.t("gen.pages.creativeHub.components.CreativeHubSidebar.gen_13de1814", "正在读取可用小说，完成前不能切换工作区。")}</div>
+                <div className="text-xs leading-5 text-muted-foreground" role="status">{i18next.t("creativeHub.creativeHubSidebar.aco0it")}</div>
               ) : novelsErrorMessage ? (
                 <div className="rounded-md border border-destructive/30 bg-destructive/5 p-2 text-xs leading-5 text-foreground">
-                  <div>{i18next.t("gen.pages.creativeHub.components.CreativeHubSidebar.gen_c9f655a8", "小说列表读取失败，现有线程不会受影响。")}</div>
+                  <div>{i18next.t("creativeHub.creativeHubSidebar.h6glyg")}</div>
                   {onRetryNovels ? (
                     <Button
                       type="button"
@@ -300,14 +300,14 @@ export default function CreativeHubSidebar({
               ) : null}
               {!bindings.novelId ? (
                 <div className="mt-2 space-y-2 rounded-md border border-dashed border-border bg-background p-2">
-                  <label htmlFor="creative-hub-new-novel" className="text-xs font-medium text-muted-foreground">{i18next.t("gen.pages.creativeHub.components.CreativeHubSidebar.gen_3e75fa7b", "新小说标题")}</label>
+                  <label htmlFor="creative-hub-new-novel" className="text-xs font-medium text-muted-foreground">{i18next.t("creativeHub.creativeHubSidebar.ge7jh6")}</label>
                   <input
                     id="creative-hub-new-novel"
                     className="w-full rounded-md border border-input bg-muted/20 px-2 py-2 text-base text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-60 md:text-sm"
                     value={novelTitleDraft}
                     disabled={resourceActionDisabled}
                     onChange={(event) => setNovelTitleDraft(event.target.value)}
-                    placeholder={i18next.t("gen.pages.creativeHub.components.CreativeHubSidebar.gen_06199b0d", "输入新小说标题")}
+                    placeholder={i18next.t("dict.gen_06199b0d")}
                   />
                   <div className="flex flex-wrap gap-2">
                     <Button
@@ -316,7 +316,7 @@ export default function CreativeHubSidebar({
                       variant="outline"
                       disabled={resourceActionDisabled}
                       onClick={() => onQuickAction?.("列出当前可用的小说工作区")}
-                    >{i18next.t("gen.pages.creativeHub.components.CreativeHubSidebar.gen_2d0ada46", "查看小说")}</Button>
+                    >{i18next.t("creativeHub.creativeHubSidebar.dlmz2j")}</Button>
                     <Button
                       type="button"
                       size="sm"
@@ -362,7 +362,7 @@ export default function CreativeHubSidebar({
 
         {novelSetup ? (
           <details className="rounded-md border border-border bg-background p-3">
-            <summary className="cursor-pointer text-xs font-medium text-muted-foreground">{i18next.t("gen.pages.creativeHub.components.CreativeHubSidebar.gen_a2129b8c", "开书准备")}</summary>
+            <summary className="cursor-pointer text-xs font-medium text-muted-foreground">{i18next.t("onboarding.milestones.preparation.title")}</summary>
             <div className="mt-3">
               <CreativeHubNovelSetupCard
                 setup={novelSetup}
@@ -375,7 +375,7 @@ export default function CreativeHubSidebar({
 
         {novelSetup?.stage === "setup_in_progress" || novelSetup?.stage === "ready_for_planning" ? null : (
           <details className="rounded-md border border-border bg-background p-3">
-            <summary className="cursor-pointer text-xs font-medium text-muted-foreground">{i18next.t("gen.pages.creativeHub.components.CreativeHubSidebar.gen_bf14cb3a", "整本生产设置")}</summary>
+            <summary className="cursor-pointer text-xs font-medium text-muted-foreground">{i18next.t("creativeHub.creativeHubSidebar.11ghsg")}</summary>
             <div className="mt-3">
               <NovelProductionStarterCard
                 key={bindings.novelId ?? "new-novel"}
@@ -393,7 +393,7 @@ export default function CreativeHubSidebar({
         <div className={cn("rounded-md border p-3", blocker.tone)}>
           <div className="mb-2 flex items-center justify-between gap-2">
             <div className="text-xs font-medium">{blocker.title}</div>
-            {interrupt ? <Badge variant="secondary">{i18next.t("gen.pages.creativeHub.components.CreativeHubSidebar.gen_ec4f36de", "需要确认")}</Badge> : null}
+            {interrupt ? <Badge variant="secondary">{i18next.t("dict.gen_ec4f36de")}</Badge> : null}
           </div>
           <div className="text-sm leading-6">{blocker.summary}</div>
           {blocker.details.length > 0 ? (
@@ -420,28 +420,28 @@ export default function CreativeHubSidebar({
         </div>
 
         <div className="rounded-md border border-border bg-background p-3">
-          <div className="mb-3 text-xs font-medium text-muted-foreground">{i18next.t("gen.pages.creativeHub.components.CreativeHubSidebar.gen_9ae9c15f", "创作阶段")}</div>
+          <div className="mb-3 text-xs font-medium text-muted-foreground">{i18next.t("dict.gen_9ae9c15f")}</div>
           {productionStatus ? (
             <div className="space-y-3">
               <div className="grid gap-2 sm:grid-cols-2">
                 <div className="rounded-md border border-border bg-muted/20 p-3">
-                  <div className="text-xs text-muted-foreground">{i18next.t("gen.pages.creativeHub.components.CreativeHubSidebar.gen_ea328dc7", "当前阶段")}</div>
+                  <div className="text-xs text-muted-foreground">{i18next.t("dict.gen_ea328dc7")}</div>
                   <div className="mt-2 text-sm font-medium text-foreground">{productionStatus.currentStage}</div>
                 </div>
                 <div className="rounded-md border border-border bg-muted/20 p-3">
-                  <div className="text-xs text-muted-foreground">{i18next.t("gen.pages.creativeHub.components.CreativeHubSidebar.gen_9c8e364e", "章节进度")}</div>
+                  <div className="text-xs text-muted-foreground">{i18next.t("dict.gen_9c8e364e")}</div>
                   <div className="mt-2 text-sm font-medium text-foreground">
                     {productionStatus.chapterCount}/{productionStatus.targetChapterCount}
                   </div>
                 </div>
                 <div className="rounded-md border border-border bg-muted/20 p-3">
-                  <div className="text-xs text-muted-foreground">{i18next.t("gen.pages.creativeHub.components.CreativeHubSidebar.gen_ef46403c", "资产完成")}</div>
+                  <div className="text-xs text-muted-foreground">{i18next.t("dict.gen_ef46403c")}</div>
                   <div className="mt-2 text-sm font-medium text-foreground">
                     {completedAssets}/{productionStatus.assetStages.length}
                   </div>
                 </div>
                 <div className="rounded-md border border-border bg-muted/20 p-3">
-                  <div className="text-xs text-muted-foreground">{i18next.t("gen.pages.creativeHub.components.CreativeHubSidebar.gen_fbe15c40", "生产流水线")}</div>
+                  <div className="text-xs text-muted-foreground">{i18next.t("dict.gen_fbe15c40")}</div>
                   <div className="mt-2 text-sm font-medium text-foreground">
                     {pipelineStatusLabel(productionStatus.pipelineStatus)}
                   </div>
@@ -459,15 +459,15 @@ export default function CreativeHubSidebar({
               </div>
             </div>
           ) : (
-            <div className="rounded-md border border-dashed border-border bg-muted/20 p-3 text-xs text-muted-foreground">{i18next.t("gen.pages.creativeHub.components.CreativeHubSidebar.gen_f00c17be", "选择小说并发起整本创作后，这里会显示阶段与进度。")}</div>
+            <div className="rounded-md border border-dashed border-border bg-muted/20 p-3 text-xs text-muted-foreground">{i18next.t("creativeHub.creativeHubSidebar.wagfab")}</div>
           )}
         </div>
 
         <details className="rounded-md border border-border bg-background p-3">
-          <summary className="cursor-pointer list-none text-xs font-medium text-muted-foreground">{i18next.t("gen.pages.creativeHub.components.CreativeHubSidebar.gen_6785b32d", "运行与调试信息")}</summary>
+          <summary className="cursor-pointer list-none text-xs font-medium text-muted-foreground">{i18next.t("creativeHub.creativeHubSidebar.jt7pfy")}</summary>
           <div className="mt-3 space-y-3">
             <div className="rounded-md border border-border bg-muted/20 p-3">
-              <div className="mb-2 text-xs font-medium text-muted-foreground">{i18next.t("gen.pages.creativeHub.components.CreativeHubSidebar.gen_4015eaf8", "运行细节显示")}</div>
+              <div className="mb-2 text-xs font-medium text-muted-foreground">{i18next.t("creativeHub.creativeHubSidebar.a1m8c4")}</div>
               <div className="flex items-center justify-between gap-3 text-xs text-muted-foreground">
                 <span>
                   当前默认
@@ -481,29 +481,29 @@ export default function CreativeHubSidebar({
             </div>
 
             <div className="space-y-2 rounded-md border border-border bg-muted/20 p-3">
-              <div className="text-xs font-medium text-muted-foreground">{i18next.t("gen.pages.creativeHub.components.CreativeHubSidebar.gen_2db7d11c", "线程状态")}</div>
-              <DebugRow label={i18next.t("gen.pages.creativeHub.components.CreativeHubSidebar.gen_208f3f9e", "线程 ID")} value={thread?.id ?? "-"} />
-              <DebugRow label={i18next.t("gen.pages.creativeHub.components.CreativeHubSidebar.gen_2db7d11c", "线程状态")} value={threadStatusLabel(thread?.status)} />
-              <DebugRow label={i18next.t("gen.pages.creativeHub.components.CreativeHubSidebar.gen_a3b12d4f", "最新 Run")} value={latestRunId ?? "-"} />
-              <DebugRow label={i18next.t("gen.pages.creativeHub.components.CreativeHubSidebar.gen_cfd04e1e", "当前 Checkpoint")} value={currentCheckpointId ?? "-"} />
+              <div className="text-xs font-medium text-muted-foreground">{i18next.t("dict.gen_2db7d11c")}</div>
+              <DebugRow label={i18next.t("dict.gen_208f3f9e")} value={thread?.id ?? "-"} />
+              <DebugRow label={i18next.t("dict.gen_2db7d11c")} value={threadStatusLabel(thread?.status)} />
+              <DebugRow label={i18next.t("dict.gen_a3b12d4f")} value={latestRunId ?? "-"} />
+              <DebugRow label={i18next.t("dict.gen_cfd04e1e")} value={currentCheckpointId ?? "-"} />
             </div>
 
             <div className="space-y-2 rounded-md border border-border bg-muted/20 p-3">
-              <div className="text-xs font-medium text-muted-foreground">{i18next.t("gen.pages.creativeHub.components.CreativeHubSidebar.gen_e2aa35ea", "资源绑定 ID")}</div>
-              <DebugRow label={i18next.t("gen.pages.creativeHub.components.CreativeHubSidebar.gen_1fb52965", "小说")} value={bindings.novelId ?? "-"} />
-              <DebugRow label={i18next.t("gen.pages.creativeHub.components.CreativeHubSidebar.gen_9290b644", "章节")} value={bindings.chapterId ?? "-"} />
-              <DebugRow label={i18next.t("gen.pages.creativeHub.components.CreativeHubSidebar.gen_cfb83c02", "世界观")} value={bindings.worldId ?? "-"} />
-              <DebugRow label={i18next.t("gen.pages.creativeHub.components.CreativeHubSidebar.gen_0e46d8d6", "任务")} value={bindings.taskId ?? "-"} />
-              <DebugRow label={i18next.t("gen.pages.creativeHub.components.CreativeHubSidebar.gen_f90e9a49", "拆书分析")} value={bindings.bookAnalysisId ?? "-"} />
-              <DebugRow label={i18next.t("gen.pages.creativeHub.components.CreativeHubSidebar.gen_c2f65126", "写作公式")} value={bindings.formulaId ?? "-"} />
-              <DebugRow label={i18next.t("gen.pages.creativeHub.components.CreativeHubSidebar.gen_41af7851", "写法档案")} value={bindings.styleProfileId ?? "-"} />
-              <DebugRow label={i18next.t("gen.pages.creativeHub.components.CreativeHubSidebar.gen_9a36d1be", "基础角色")} value={bindings.baseCharacterId ?? "-"} />
-              <DebugRow label={i18next.t("gen.pages.creativeHub.components.CreativeHubSidebar.gen_a597ef78", "知识文档")} value={bindings.knowledgeDocumentIds?.join(", ") || "-"} />
-              {interrupt ? <DebugRow label={i18next.t("gen.pages.creativeHub.components.CreativeHubSidebar.gen_11d9f3ce", "待确认目标")} value={interrupt.targetId ?? "-"} /> : null}
+              <div className="text-xs font-medium text-muted-foreground">{i18next.t("creativeHub.creativeHubSidebar.nhxkt6")}</div>
+              <DebugRow label={i18next.t("dict.gen_1fb52965")} value={bindings.novelId ?? "-"} />
+              <DebugRow label={i18next.t("dict.gen_9290b644")} value={bindings.chapterId ?? "-"} />
+              <DebugRow label={i18next.t("dict.gen_cfb83c02")} value={bindings.worldId ?? "-"} />
+              <DebugRow label={i18next.t("dict.task")} value={bindings.taskId ?? "-"} />
+              <DebugRow label={i18next.t("tasks.filterKindBookAnalysis")} value={bindings.bookAnalysisId ?? "-"} />
+              <DebugRow label={i18next.t("creativeHub.creativeHubSidebar.amiyx2")} value={bindings.formulaId ?? "-"} />
+              <DebugRow label={i18next.t("creativeHub.creativeHubSidebar.aqyc2p")} value={bindings.styleProfileId ?? "-"} />
+              <DebugRow label={i18next.t("dict.gen_9a36d1be")} value={bindings.baseCharacterId ?? "-"} />
+              <DebugRow label={i18next.t("dict.gen_a597ef78")} value={bindings.knowledgeDocumentIds?.join(", ") || "-"} />
+              {interrupt ? <DebugRow label={i18next.t("creativeHub.creativeHubSidebar.y3jln8")} value={interrupt.targetId ?? "-"} /> : null}
             </div>
 
             <div className="space-y-2 rounded-md border border-border bg-muted/20 p-3">
-              <div className="text-xs font-medium text-muted-foreground">{i18next.t("gen.pages.creativeHub.components.CreativeHubSidebar.gen_0361f422", "模型路由")}</div>
+              <div className="text-xs font-medium text-muted-foreground">{i18next.t("sidebar.modelRoutes")}</div>
               <DebugRow label="Provider" value={modelSummary.provider} />
               <DebugRow label="Model" value={modelSummary.model} />
               <DebugRow label="Temperature" value={String(modelSummary.temperature)} />
@@ -512,10 +512,10 @@ export default function CreativeHubSidebar({
 
             {latestTurnSummary ? (
               <div className="space-y-2 rounded-md border border-border bg-muted/20 p-3">
-                <div className="text-xs font-medium text-muted-foreground">{i18next.t("gen.pages.creativeHub.components.CreativeHubSidebar.gen_01110358", "最近回合")}</div>
-                <DebugRow label={i18next.t("gen.pages.creativeHub.components.CreativeHubSidebar.gen_6a71551f", "回合状态")} value={turnStatusLabel(latestTurnSummary.status)} />
-                <DebugRow label={i18next.t("gen.pages.creativeHub.components.CreativeHubSidebar.gen_73e797e6", "回合阶段")} value={latestTurnSummary.currentStage} />
-                <DebugRow label={i18next.t("gen.pages.creativeHub.components.CreativeHubSidebar.gen_52952d2c", "摘要 Checkpoint")} value={latestTurnSummary.checkpointId ?? "-"} />
+                <div className="text-xs font-medium text-muted-foreground">{i18next.t("dict.gen_01110358")}</div>
+                <DebugRow label={i18next.t("dict.gen_6a71551f")} value={turnStatusLabel(latestTurnSummary.status)} />
+                <DebugRow label={i18next.t("dict.gen_73e797e6")} value={latestTurnSummary.currentStage} />
+                <DebugRow label={i18next.t("dict.gen_52952d2c")} value={latestTurnSummary.checkpointId ?? "-"} />
               </div>
             ) : null}
           </div>

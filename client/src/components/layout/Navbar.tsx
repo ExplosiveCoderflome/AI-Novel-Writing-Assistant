@@ -1,4 +1,3 @@
-import i18next from "i18next";
 import { useLocation } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import LLMSelector from "@/components/common/LLMSelector";

@@ -17,11 +17,11 @@ export const AUTO_DIRECTOR_CREATE_STAGES: Array<{
   order: number;
   label: string;
 }> = [
-  { key: "idea", order: 0, label: i18next.t("gen.pages.novels.autoDirector.directorCreateStages.gen_ed3a57cd") },
-  { key: "basic", order: 1, label: i18next.t("gen.pages.novels.autoDirector.directorCreateStages.gen_06773c1e") },
-  { key: "world_style", order: 2, label: i18next.t("gen.pages.novels.autoDirector.directorCreateStages.gen_0dffbb3f") },
-  { key: "model_run", order: 3, label: i18next.t("gen.pages.novels.autoDirector.directorCreateStages.gen_061c5fc7") },
-  { key: "candidates", order: 4, label: i18next.t("gen.pages.novels.autoDirector.directorCreateStages.gen_875c5ec8") },
+  { key: "idea", order: 0, label: i18next.t("dict.gen_ed3a57cd") },
+  { key: "basic", order: 1, label: i18next.t("dict.gen_06773c1e") },
+  { key: "world_style", order: 2, label: i18next.t("dict.gen_0dffbb3f") },
+  { key: "model_run", order: 3, label: i18next.t("dict.gen_061c5fc7") },
+  { key: "candidates", order: 4, label: i18next.t("dict.gen_875c5ec8") },
 ];
 
 function findLabel(options: Array<{ value: string; label: string }>, value: string): string {
@@ -31,7 +31,7 @@ function findLabel(options: Array<{ value: string; label: string }>, value: stri
 export function summarizeIdea(idea: string): string {
   const normalized = idea.trim().replace(/\s+/g, " ");
   if (!normalized) {
-    return i18next.t("gen.pages.novels.autoDirector.directorCreateStages.gen_ed870737");
+    return i18next.t("dict.gen_ed870737");
   }
   return normalized.length > 42 ? `${normalized.slice(0, 42)}...` : normalized;
 }
@@ -58,12 +58,12 @@ export function summarizeWorldStyleStage(input: {
   const worldLabel = selectedWorld
     ? `参考世界：${selectedWorld.name}`
     : input.worldSetupMode === "skip"
-      ? i18next.t("gen.pages.novels.autoDirector.directorCreateStages.gen_5dcc48bb")
-      : i18next.t("gen.pages.novels.autoDirector.directorCreateStages.gen_3684d509");
+      ? i18next.t("dict.gen_5dcc48bb")
+      : i18next.t("dict.gen_3684d509");
   const styleProfile = input.styleProfiles.find((profile) => profile.id === input.styleProfileId);
   const styleLabel = styleProfile?.name
     ?? input.selectedStyleSummary?.headline
-    ?? (input.basicForm.styleTone.trim() ? `文风：${input.basicForm.styleTone.trim()}` : i18next.t("gen.pages.novels.autoDirector.directorCreateStages.gen_c9449912"));
+    ?? (input.basicForm.styleTone.trim() ? `文风：${input.basicForm.styleTone.trim()}` : i18next.t("dict.gen_c9449912"));
   return `${worldLabel} · ${styleLabel}`;
 }
 
@@ -73,5 +73,5 @@ export function summarizeModelRunStage(input: {
   postGenerationStyleReviewEnabled: boolean;
 }): string {
   const runModeLabel = input.runModeOptions.find((option) => option.value === input.runMode)?.label ?? input.runMode;
-  return `${runModeLabel} · ${input.postGenerationStyleReviewEnabled ? i18next.t("gen.pages.novels.autoDirector.directorCreateStages.gen_a28d5db1") : i18next.t("gen.pages.novels.autoDirector.directorCreateStages.gen_ae77d6e9")}`;
+  return `${runModeLabel} · ${input.postGenerationStyleReviewEnabled ? i18next.t("dict.gen_a28d5db1") : i18next.t("dict.gen_ae77d6e9")}`;
 }

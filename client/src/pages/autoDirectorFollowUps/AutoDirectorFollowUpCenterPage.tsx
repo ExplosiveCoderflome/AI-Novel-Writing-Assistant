@@ -255,7 +255,7 @@ export default function AutoDirectorFollowUpCenterPage() {
     }),
     onSuccess: async (response) => {
       await invalidateFollowUps();
-      toast.success(formatActionFeedbackMessage(response.message ?? "", i18next.t("gen.pages.autoDirectorFollowUps.AutoDirectorFollowUpCenterPage.gen_f40347bf")));
+      toast.success(formatActionFeedbackMessage(response.message ?? "", i18next.t("dict.gen_f40347bf")));
     },
   });
 
@@ -270,7 +270,7 @@ export default function AutoDirectorFollowUpCenterPage() {
     }),
     onSuccess: async (response) => {
       await invalidateFollowUps();
-      toast.success(formatActionFeedbackMessage(response.message ?? "", i18next.t("gen.pages.autoDirectorFollowUps.AutoDirectorFollowUpCenterPage.gen_682cd178")));
+      toast.success(formatActionFeedbackMessage(response.message ?? "", i18next.t("dict.gen_682cd178")));
       setSelectedDirectorTaskIds([]);
     },
   });
@@ -282,7 +282,7 @@ export default function AutoDirectorFollowUpCenterPage() {
         queryKeys.autoDirectorFollowUps.detail(directorTaskId),
         response,
       );
-      toast.success(i18next.t("gen.pages.autoDirectorFollowUps.AutoDirectorFollowUpCenterPage.gen_97b1c7da"));
+      toast.success(i18next.t("dict.gen_97b1c7da"));
     },
   });
 
@@ -441,17 +441,17 @@ export default function AutoDirectorFollowUpCenterPage() {
         <WorkspaceNextAction
           icon={Activity}
           tone="info"
-          title={i18next.t("gen.pages.autoDirectorFollowUps.AutoDirectorFollowUpCenterPage.gen_8455781a", "正在读取导演跟进")}
-          description={i18next.t("gen.pages.autoDirectorFollowUps.AutoDirectorFollowUpCenterPage.gen_0852aea6", "正在汇总阻塞、待操作和自动推进任务，请稍候。")}
+          title={i18next.t("autoDirectorFollowUps.autoDirectorFollowUpCenterPage.vulnkk")}
+          description={i18next.t("autoDirectorFollowUps.autoDirectorFollowUpCenterPage.9ysv9l")}
         />
       ) : overviewErrorMessage ? (
         <WorkspaceNextAction
           icon={RefreshCw}
           tone="danger"
-          title={i18next.t("gen.pages.autoDirectorFollowUps.AutoDirectorFollowUpCenterPage.gen_95bfb1ad", "重新读取导演跟进")}
+          title={i18next.t("autoDirectorFollowUps.autoDirectorFollowUpCenterPage.twenwu")}
           description={overviewErrorMessage}
-          consequence={i18next.t("gen.pages.autoDirectorFollowUps.AutoDirectorFollowUpCenterPage.gen_be304c1a", "只重新读取跟进摘要，不会执行恢复、重试或重规划。")}
-          action={<Button size="sm" variant="outline" onClick={() => void overviewQuery.refetch()}>{i18next.t("gen.pages.autoDirectorFollowUps.AutoDirectorFollowUpCenterPage.gen_9e56f482", "重新读取")}</Button>}
+          consequence="只重新读取跟进摘要，不会执行恢复、重试或重规划。"
+          action={<Button size="sm" variant="outline" onClick={() => void overviewQuery.refetch()}>{i18next.t("autoDirectorFollowUps.autoDirectorFollowUpCenterPage.itle66")}</Button>}
         />
       ) : (
         <WorkspaceNextAction
@@ -469,7 +469,7 @@ export default function AutoDirectorFollowUpCenterPage() {
                 : "后续出现审批、异常或恢复需要时，会按影响等级出现在这里。"}
           consequence={recommendedSection ? "只切换跟进分区，不会自动执行导演动作。" : undefined}
           action={recommendedSection ? (
-            <Button size="sm" variant={criticalCount > 0 ? "destructive" : "outline"} onClick={() => handleSectionChange(recommendedSection)}>{i18next.t("gen.pages.autoDirectorFollowUps.AutoDirectorFollowUpCenterPage.gen_f425ee8e", "查看推荐分区")}</Button>
+            <Button size="sm" variant={criticalCount > 0 ? "destructive" : "outline"} onClick={() => handleSectionChange(recommendedSection)}>{i18next.t("autoDirectorFollowUps.autoDirectorFollowUpCenterPage.1v6uzm")}</Button>
           ) : undefined}
         />
       )}

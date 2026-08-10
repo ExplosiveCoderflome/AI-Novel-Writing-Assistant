@@ -61,8 +61,8 @@ export default function VolumePayoffOverviewCard(props: VolumePayoffOverviewCard
       <CardHeader className="pb-3">
         <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
           <div>
-            <CardTitle className="text-base">{i18next.t("gen.pages.novels.components.VolumePayoffOverviewCard.gen_24507314", "当前卷伏笔 / 回收参考")}</CardTitle>
-            <div className="text-sm text-muted-foreground">{i18next.t("gen.pages.novels.components.VolumePayoffOverviewCard.gen_fdae1036", "这里只看当前选中卷，用来核对本卷待兑现事项和章节兑现安排是否一致。全书级 canonical 账本已经挪到上方的独立模块。")}</div>
+            <CardTitle className="text-base">{i18next.t("novels.volumePayoffOverviewCard.1xvv0o")}</CardTitle>
+            <div className="text-sm text-muted-foreground">{i18next.t("novels.volumePayoffOverviewCard.l775xj")}</div>
           </div>
           <div className="flex flex-wrap gap-2">
             <Badge variant="outline">第 {selectedVolume.sortOrder} 卷</Badge>
@@ -79,10 +79,10 @@ export default function VolumePayoffOverviewCard(props: VolumePayoffOverviewCard
         <div className="grid gap-3 xl:grid-cols-[minmax(280px,0.9fr)_minmax(0,1.35fr)]">
           <div className="rounded-xl border border-border/70 bg-muted/20 p-4">
             <div className="flex items-center justify-between gap-2">
-              <div className="font-medium text-foreground">{i18next.t("gen.pages.novels.components.VolumePayoffOverviewCard.gen_41c8a65b", "本卷待兑现事项")}</div>
+              <div className="font-medium text-foreground">{i18next.t("novels.volumePayoffOverviewCard.v879w9")}</div>
               <Badge variant="outline">{openPayoffRows.length}</Badge>
             </div>
-            <div className="mt-1 text-xs text-muted-foreground">{i18next.t("gen.pages.novels.components.VolumePayoffOverviewCard.gen_0ad8eba6", "这里是卷战略里声明的待兑现事项，用来看这一卷到底有哪些坑要埋、哪些点要回收。")}</div>
+            <div className="mt-1 text-xs text-muted-foreground">{i18next.t("novels.volumePayoffOverviewCard.klqfv0")}</div>
             <div className="mt-3 space-y-2 text-sm">
               {openPayoffRows.length > 0 ? (
                 openPayoffRows.map((item) => (
@@ -108,22 +108,22 @@ export default function VolumePayoffOverviewCard(props: VolumePayoffOverviewCard
                         ))}
                       </div>
                     ) : (
-                      <div className="mt-2 text-xs text-muted-foreground">{i18next.t("gen.pages.novels.components.VolumePayoffOverviewCard.gen_b6bab201", "这条待兑现事项还没有挂到本卷具体章节，建议在拆章时补上兑现关联。")}</div>
+                      <div className="mt-2 text-xs text-muted-foreground">{i18next.t("novels.volumePayoffOverviewCard.tn0vjq")}</div>
                     )}
                   </div>
                 ))
               ) : (
-                <div className="rounded-lg border border-dashed border-border/70 bg-background p-3 text-xs text-muted-foreground">{i18next.t("gen.pages.novels.components.VolumePayoffOverviewCard.gen_43463a11", "当前卷还没有填写待兑现事项。")}</div>
+                <div className="rounded-lg border border-dashed border-border/70 bg-background p-3 text-xs text-muted-foreground">{i18next.t("novels.volumePayoffOverviewCard.8x45y9")}</div>
               )}
             </div>
           </div>
 
           <div className="rounded-xl border border-border/70 bg-muted/20 p-4">
             <div className="flex items-center justify-between gap-2">
-              <div className="font-medium text-foreground">{i18next.t("gen.pages.novels.components.VolumePayoffOverviewCard.gen_f4537df0", "本卷章节兑现安排")}</div>
+              <div className="font-medium text-foreground">{i18next.t("novels.volumePayoffOverviewCard.lajegb")}</div>
               <Badge variant="outline">{chapterPayoffGroups.length}</Badge>
             </div>
-            <div className="mt-1 text-xs text-muted-foreground">{i18next.t("gen.pages.novels.components.VolumePayoffOverviewCard.gen_2e69c275", "这里看的是当前卷已经挂到章节里的兑现关联，用来检查拆章是否真正落到了章节级执行。")}</div>
+            <div className="mt-1 text-xs text-muted-foreground">{i18next.t("novels.volumePayoffOverviewCard.eqdrnr")}</div>
             <div className="mt-3 space-y-2 text-sm">
               {chapterPayoffGroups.length > 0 ? (
                 chapterPayoffGroups.map((chapter) => (
@@ -147,7 +147,7 @@ export default function VolumePayoffOverviewCard(props: VolumePayoffOverviewCard
                   </div>
                 ))
               ) : (
-                <div className="rounded-lg border border-dashed border-border/70 bg-background p-3 text-xs text-muted-foreground">{i18next.t("gen.pages.novels.components.VolumePayoffOverviewCard.gen_56d36496", "当前卷章节还没有填写兑现关联，后续拆章时会更难核对哪些铺垫该回收。")}</div>
+                <div className="rounded-lg border border-dashed border-border/70 bg-background p-3 text-xs text-muted-foreground">{i18next.t("novels.volumePayoffOverviewCard.2bct4k")}</div>
               )}
             </div>
           </div>

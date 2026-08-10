@@ -1,8 +1,24 @@
-import i18next from "i18next";
 import React from "react";
 import { useTranslation } from "react-i18next";
 import { Globe } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+
+export interface LanguageOption {
+  code: string;
+  label: string;
+  nativeLabel: string;
+}
+
+export const SUPPORTED_LANGUAGES: LanguageOption[] = [
+  { code: "zh", label: "中文", nativeLabel: "简体中文" },
+  { code: "en", label: "English", nativeLabel: "English" },
+];
 
 interface LanguageSwitcherProps {
   variant?: "outline" | "ghost" | "default" | "secondary";
@@ -11,32 +27,40 @@ interface LanguageSwitcherProps {
 }
 
 export default function LanguageSwitcher({
-  variant = "outline",
-  size = "sm",
   className = "",
 }: LanguageSwitcherProps) {
-  const { i18n, t } = useTranslation();
+  const { i18n } = useTranslation();
   const currentLang = (i18n.language || "zh").startsWith("en") ? "en" : "zh";
 
-  const handleToggle = () => {
-    const nextLang = currentLang === "zh" ? "en" : "zh";
-    i18n.changeLanguage(nextLang);
-    localStorage.setItem("app_language", nextLang);
+  const handleLanguageChange = (newLang: string) => {
+    i18n.changeLanguage(newLang);
+    localStorage.setItem("app_language", newLang);
   };
 
   return (
-    <Button
-      type="button"
-      variant={variant}
-      size={size}
-      onClick={handleToggle}
-      className={`flex items-center gap-1.5 font-mono text-xs cursor-pointer transition-all ${className}`}
-      title={currentLang === "zh" ? "Switch to English" : "切换为中文"}
-    >
-      <Globe className="h-3.5 w-3.5 text-indigo-400 shrink-0" />
-      <span className="font-semibold">
-        {currentLang === "zh" ? "EN / 中文" : "中文 / EN"}
-      </span>
-    </Button>
+    <div className={`relative inline-flex items-center ${className}`}>
+      <Select value={currentLang} onValueChange={handleLanguageChange}>
+        <SelectTrigger className="h-8 gap-1.5 border-slate-700/80 bg-slate-800/80 px-2.5 text-xs text-slate-100 shadow-none hover:border-slate-600 hover:bg-slate-800 focus:ring-1 focus:ring-sky-500/50">
+          <Globe className="h-3.5 w-3.5 text-sky-400 shrink-0" />
+          <SelectValue placeholder="Language">
+            {SUPPORTED_LANGUAGES.find((l) => l.code === currentLang)?.label ?? "Language"}
+          </SelectValue>
+        </SelectTrigger>
+        <SelectContent align="end" className="min-w-[9rem] border-slate-700 bg-slate-900 text-slate-100 shadow-lg">
+          {SUPPORTED_LANGUAGES.map((lang) => (
+            <SelectItem
+              key={lang.code}
+              value={lang.code}
+              className="text-xs cursor-pointer focus:bg-slate-800 focus:text-white"
+            >
+              <div className="flex items-center justify-between gap-3 w-full">
+                <span>{lang.nativeLabel}</span>
+                <span className="text-[10px] text-slate-400 uppercase font-mono">{lang.code}</span>
+              </div>
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+    </div>
   );
 }

@@ -1,5 +1,4 @@
 import i18next from "i18next";
-import { useTranslation } from "react-i18next";
 import { useState, type ReactNode } from "react";
 import type { ImageAsset } from "@ai-novel/shared/types/image";
 import { resolveImageAssetUrl } from "@/api/images";
@@ -40,11 +39,10 @@ export function CharacterCard({
   deleting,
   extraActions,
 }: CharacterCardProps) {
-  const { t } = useTranslation();
   const [previewAsset, setPreviewAsset] = useState<ImageAsset | null>(null);
 
   const handleDeleteAsset = async (asset: ImageAsset) => {
-    const confirmed = window.confirm("确认删除这张形象图？此操作不可恢复。");
+    const confirmed = window.confirm(i18next.t("characters.characterCard.z0p119"));
     if (!confirmed) {
       return;
     }
@@ -74,9 +72,9 @@ export function CharacterCard({
         <div className="mobile-full-actions flex shrink-0 flex-wrap items-center gap-2 sm:justify-end">
           {extraActions}
           <Button size="sm" variant="outline" onClick={onConversation}>
-            <MessageCircle className="mr-1.5 h-3.5 w-3.5" />{i18next.t("gen.pages.characters.components.CharacterCard.gen_688b8d6f", "与角色交谈")}</Button>
-          <Button size="sm" variant="outline" onClick={onGenerateImage}>{i18next.t("gen.pages.characters.components.CharacterCard.gen_f0fe57f1", "生成形象图")}</Button>
-          <Button size="sm" variant="outline" onClick={onEdit}>{i18next.t("gen.pages.characters.components.CharacterCard.gen_95b351c8", "编辑")}</Button>
+            <MessageCircle className="mr-1.5 h-3.5 w-3.5" />{i18next.t("characters.characterCard.w1cysu")}</Button>
+          <Button size="sm" variant="outline" onClick={onGenerateImage}>{i18next.t("bookAnalysis.bookAnalysisCharacterImagePanel.qi098y")}</Button>
+          <Button size="sm" variant="outline" onClick={onEdit}>{i18next.t("common.edit")}</Button>
           <Button
             size="sm"
             variant="ghost"
@@ -90,22 +88,22 @@ export function CharacterCard({
       </div>
 
       <div className="grid gap-px border-y border-border/70 bg-border/70 sm:grid-cols-2 xl:grid-cols-3">
-        <CharacterFact label={i18next.t("gen.pages.characters.components.CharacterCard.gen_cc0815c9", "背景与来处")} value={character.background} />
-        <CharacterFact label={i18next.t("gen.pages.characters.components.CharacterCard.gen_17360a75", "成长方向")} value={character.development} />
-        <CharacterFact label={i18next.t("gen.pages.characters.components.CharacterCard.gen_b2833ce5", "弱点与代价")} value={character.weaknesses} />
-        <CharacterFact label={i18next.t("gen.pages.characters.components.CharacterCard.gen_33788c89", "外貌与体态")} value={character.appearance} />
-        <CharacterFact label={i18next.t("gen.pages.characters.components.CharacterCard.gen_7c837dc1", "习惯与特长")} value={character.interests} />
-        <CharacterFact label={i18next.t("gen.pages.characters.components.CharacterCard.gen_549089df", "关键经历")} value={character.keyEvents} />
+        <CharacterFact label={i18next.t("characters.characterCard.jmln7u")} value={character.background} />
+        <CharacterFact label={i18next.t("characters.characterCard.cznkmf")} value={character.development} />
+        <CharacterFact label={i18next.t("dict.gen_b2833ce5")} value={character.weaknesses} />
+        <CharacterFact label={i18next.t("characters.characterCard.b83c12")} value={character.appearance} />
+        <CharacterFact label={i18next.t("dict.habitsAndSkills")} value={character.interests} />
+        <CharacterFact label={i18next.t("characters.characterCard.awaiuq")} value={character.keyEvents} />
       </div>
 
       <div className="space-y-3 px-4 py-4">
         <div>
-          <div className="text-sm font-semibold text-foreground">{i18next.t("gen.pages.characters.components.CharacterCard.gen_fbd068d5", "角色形象")}</div>
-          <div className="mt-1 text-xs text-muted-foreground">{i18next.t("gen.pages.characters.components.CharacterCard.gen_7cec5926", "保存主形象后，可在后续视觉生成中保持角色识别度。")}</div>
+          <div className="text-sm font-semibold text-foreground">{i18next.t("characters.characterCard.hxd927")}</div>
+          <div className="mt-1 text-xs text-muted-foreground">{i18next.t("characters.characterCard.s8k9nt")}</div>
         </div>
-        {assetsLoading ? <div className="text-xs text-muted-foreground">{i18next.t("gen.pages.characters.components.CharacterCard.gen_26b5bd49", "加载中...")}</div> : null}
+        {assetsLoading ? <div className="text-xs text-muted-foreground">{i18next.t("dict.gen_26b5bd49")}</div> : null}
         {!assetsLoading && assets.length === 0 ? (
-          <div className="text-xs text-muted-foreground">{i18next.t("gen.pages.characters.components.CharacterCard.gen_f1c720b8", "暂无图片，点击“生成形象图”创建。")}</div>
+          <div className="text-xs text-muted-foreground">{i18next.t("characters.characterCard.4pqkv3")}</div>
         ) : null}
         {assets.length > 0 ? (
           <div className="grid justify-items-start gap-2 sm:grid-cols-2 lg:grid-cols-4">
@@ -115,7 +113,7 @@ export function CharacterCard({
                   type="button"
                   className="block aspect-square w-full overflow-hidden rounded-md bg-muted"
                   onClick={() => setPreviewAsset(asset)}
-                  title={i18next.t("gen.pages.characters.components.CharacterCard.gen_52ad09ab", "点击预览")}
+                  title={i18next.t("characters.characterCard.ekkvqe")}
                 >
                   <img
                     src={resolveImageAssetUrl(asset.url)}
@@ -125,7 +123,7 @@ export function CharacterCard({
                   />
                 </button>
                 <details className="text-[11px] leading-4 text-muted-foreground">
-                  <summary className="cursor-pointer select-none">{i18next.t("gen.pages.characters.components.CharacterCard.gen_e6fc1cd7", "文件详情")}</summary>
+                  <summary className="cursor-pointer select-none">{i18next.t("characters.characterCard.d58kry")}</summary>
                   <div className="mt-1 break-all">本地路径：{asset.localPath ?? "未落地本地文件"}</div>
                 </details>
                 <div className="flex items-center justify-between gap-2">
@@ -136,7 +134,7 @@ export function CharacterCard({
                       variant="outline"
                       disabled={asset.isPrimary || settingPrimary || deletingAssetId === asset.id}
                       onClick={() => onSetPrimary(asset.id)}
-                    >{i18next.t("gen.pages.characters.components.CharacterCard.gen_1e41907f", "设为主图")}</Button>
+                    >{i18next.t("characters.characterCard.hycuhr")}</Button>
                     <Button
                       size="sm"
                       variant="ghost"
@@ -173,7 +171,7 @@ export function CharacterCard({
                 variant="outline"
                 disabled={previewAsset.isPrimary || settingPrimary || deletingAssetId === previewAsset.id}
                 onClick={() => onSetPrimary(previewAsset.id)}
-              >{i18next.t("gen.pages.characters.components.CharacterCard.gen_1e41907f", "设为主图")}</Button>
+              >{i18next.t("characters.characterCard.hycuhr")}</Button>
               <Button
                 type="button"
                 variant="destructive"

@@ -1,5 +1,4 @@
 import i18next from "i18next";
-import { useTranslation } from "react-i18next";
 import type { Character } from "@ai-novel/shared/types/novel";
 import type { CharacterResourceLedgerItem } from "@ai-novel/shared/types/characterResource";
 import { Badge } from "@/components/ui/badge";
@@ -19,7 +18,6 @@ interface CharacterResourceTabProps {
 }
 
 export default function CharacterResourceTab(props: CharacterResourceTabProps) {
-  const { t } = useTranslation();
   const {
     selectedCharacter,
     selectedCharacterResources,
@@ -37,7 +35,7 @@ export default function CharacterResourceTab(props: CharacterResourceTabProps) {
       <section className="rounded-xl border border-border/70 bg-muted/10 p-4">
         <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <div className="text-sm font-medium">{i18next.t("gen.pages.novels.components.characterWorkspace.CharacterResourceTab.gen_4360c49d", "关键资源")}</div>
+            <div className="text-sm font-medium">{i18next.t("dict.gen_4360c49d")}</div>
             <div className="mt-1 text-xs leading-5 text-muted-foreground">{resourceDisplayMode.helper}</div>
           </div>
           <div className="flex flex-wrap gap-2">
@@ -84,7 +82,7 @@ export default function CharacterResourceTab(props: CharacterResourceTabProps) {
           ))}
         </div>
       ) : (
-        <div className="rounded-xl border border-dashed p-4 text-sm text-muted-foreground">{i18next.t("gen.pages.novels.components.characterWorkspace.CharacterResourceTab.gen_05018ba7", "关键道具、线索、身份凭证或底牌会在章节写作后沉淀到这里；临时角色只保留会影响后续章节的资源。")}</div>
+        <div className="rounded-xl border border-dashed p-4 text-sm text-muted-foreground">{i18next.t("novels.characterResourceTab.28bnus")}</div>
       )}
     </div>
   );

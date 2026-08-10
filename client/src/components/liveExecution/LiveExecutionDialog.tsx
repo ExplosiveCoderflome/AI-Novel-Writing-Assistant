@@ -1,5 +1,4 @@
 import i18next from "i18next";
-import { useTranslation } from "react-i18next";
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import * as DialogPrimitive from "@radix-ui/react-dialog";
 import { ChevronDown, ChevronRight, Eraser, GripHorizontal, Radio, X } from "lucide-react";
@@ -41,7 +40,6 @@ interface LiveExecutionDialogProps {
 }
 
 export default function LiveExecutionDialog(props: LiveExecutionDialogProps) {
-  const { t } = useTranslation();
   const [open, setOpen] = useState(false);
   const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
   const [followingLatest, setFollowingLatest] = useState(true);
@@ -161,7 +159,7 @@ export default function LiveExecutionDialog(props: LiveExecutionDialogProps) {
         variant="outline"
         className={cn("relative", props.className)}
         onClick={() => handleOpenChange(true)}
-        title={i18next.t("gen.components.liveExecution.LiveExecutionDialog.gen_a98bdcf2", "查看 AI 创作实况")}
+        title={i18next.t("liveExecution.liveExecutionDialog.m9968m")}
       >
         <Radio className={activeCount > 0 ? "mr-1.5 h-3.5 w-3.5 animate-pulse text-primary" : "mr-1.5 h-3.5 w-3.5"} aria-hidden="true" />
         {!props.compact ? <span className="hidden sm:inline">AI 实况</span> : null}
@@ -209,7 +207,7 @@ export default function LiveExecutionDialog(props: LiveExecutionDialogProps) {
               <GripHorizontal className="mt-1 h-4 w-4 shrink-0 text-emerald-400/80" aria-hidden="true" />
               <div className="min-w-0 flex-1">
                 <DialogPrimitive.Title className="font-mono text-sm font-semibold tracking-wide text-emerald-100">AI 创作实况 / LIVE LOG</DialogPrimitive.Title>
-                <DialogPrimitive.Description id="live-execution-description" className="mt-1 text-xs leading-5 text-emerald-100/65">{i18next.t("gen.components.liveExecution.LiveExecutionDialog.gen_254e8df5", "每次调用独立显示。新调用会自动聚焦，已完成调用会收起；清空只影响当前窗口。")}</DialogPrimitive.Description>
+                <DialogPrimitive.Description id="live-execution-description" className="mt-1 text-xs leading-5 text-emerald-100/65">{i18next.t("liveExecution.liveExecutionDialog.i2ai6f")}</DialogPrimitive.Description>
               </div>
               <Badge variant="outline" className="shrink-0 border-emerald-400/50 bg-emerald-400/10 font-mono text-emerald-200">
                 {activeCount > 0 ? `${activeCount} 项进行中` : connected ? "等待生成" : "正在连接"}
@@ -224,14 +222,14 @@ export default function LiveExecutionDialog(props: LiveExecutionDialogProps) {
                 onPointerMove={(event) => event.stopPropagation()}
                 onPointerUp={(event) => event.stopPropagation()}
               >
-                <Eraser className="h-3.5 w-3.5" />{i18next.t("gen.components.liveExecution.LiveExecutionDialog.gen_f443ce45", "清空前台")}</Button>
+                <Eraser className="h-3.5 w-3.5" />{i18next.t("liveExecution.liveExecutionDialog.edwbh4")}</Button>
               <DialogPrimitive.Close asChild>
                 <Button
                   type="button"
                   variant="ghost"
                   size="icon"
                   className="-mr-1 -mt-1 h-8 w-8 shrink-0 text-emerald-100 hover:bg-emerald-400/10 hover:text-emerald-50"
-                  aria-label={i18next.t("gen.components.liveExecution.LiveExecutionDialog.gen_5ed5bed1", "关闭 AI 创作实况")}
+                  aria-label={i18next.t("liveExecution.liveExecutionDialog.97qyga")}
                   onPointerDown={(event) => event.stopPropagation()}
                   onPointerMove={(event) => event.stopPropagation()}
                   onPointerUp={(event) => event.stopPropagation()}
@@ -298,7 +296,7 @@ export default function LiveExecutionDialog(props: LiveExecutionDialogProps) {
 
             <footer className="flex shrink-0 items-center justify-between gap-3 border-t border-emerald-400/25 bg-[#0d1714] px-3 py-2 text-xs text-emerald-100/65">
               <span>{followingLatest ? "正在跟随最新输出" : "已停留在当前阅读位置"}</span>
-              <Button type="button" size="sm" variant="ghost" className="h-7 px-2 font-mono text-xs text-emerald-200 hover:bg-emerald-400/10 hover:text-emerald-50" onClick={scrollToLatest}>{i18next.t("gen.components.liveExecution.LiveExecutionDialog.gen_72360f91", "回到最新输出")}</Button>
+              <Button type="button" size="sm" variant="ghost" className="h-7 px-2 font-mono text-xs text-emerald-200 hover:bg-emerald-400/10 hover:text-emerald-50" onClick={scrollToLatest}>{i18next.t("liveExecution.liveExecutionDialog.3uc12v")}</Button>
             </footer>
           </DialogPrimitive.Content>
         </DialogPrimitive.Portal>

@@ -1,4 +1,3 @@
-import { useTranslation } from "react-i18next";
 import i18next from "i18next";
 const t = (key: string, options?: any) => i18next.t(key, options) as string;
 import { useEffect, useState } from "react";
@@ -17,7 +16,6 @@ interface SelectionAIFloatingToolbarProps {
 const SECONDARY_OPERATIONS: ChapterEditorOperation[] = ["expand", "compress", "emotion", "conflict"];
 
 export default function SelectionAIFloatingToolbar(props: SelectionAIFloatingToolbarProps) {
-  const { t } = useTranslation();
   const { visible, position, disabled = false, onRunOperation } = props;
   const [customInstruction, setCustomInstruction] = useState("");
   const [isCustomOpen, setIsCustomOpen] = useState(false);
@@ -74,14 +72,14 @@ export default function SelectionAIFloatingToolbar(props: SelectionAIFloatingToo
           disabled={disabled}
           onMouseDown={(event) => event.preventDefault()}
           onClick={() => setIsCustomOpen((current) => !current)}
-        >{i18next.t("gen.pages.novels.components.chapterEditor.SelectionAIFloatingToolbar.gen_96b8f15f", "告诉 AI 怎么改")}</Button>
+        >{i18next.t("dict.gen_96b8f15f")}</Button>
       </div>
 
       {isCustomOpen ? (
         <div className="mt-2 space-y-2 rounded-xl border border-border/70 bg-muted/20 p-2">
           <textarea
             className="min-h-[96px] w-full resize-none rounded-xl border border-border bg-background px-3 py-2 text-sm outline-none"
-            placeholder={i18next.t("gen.pages.novels.components.chapterEditor.SelectionAIFloatingToolbar.exampleMakeThisPartMorePressuringKeepOriginalInfoButMakeRhythmTighter")}
+            placeholder={i18next.t("dict.exampleMakeThisPartMorePressuringKeepOriginalInfoButMakeRhythmTighter")}
             value={customInstruction}
             onChange={(event) => setCustomInstruction(event.target.value)}
           />
@@ -94,13 +92,13 @@ export default function SelectionAIFloatingToolbar(props: SelectionAIFloatingToo
                 setIsCustomOpen(false);
                 setCustomInstruction("");
               }}
-            >{i18next.t("gen.pages.novels.components.chapterEditor.SelectionAIFloatingToolbar.gen_625fb26b", "取消")}</Button>
+            >{i18next.t("common.cancel")}</Button>
             <Button
               size="sm"
               disabled={disabled || customInstruction.trim().length === 0}
               onMouseDown={(event) => event.preventDefault()}
               onClick={() => onRunOperation("custom", customInstruction.trim())}
-            >{i18next.t("gen.pages.novels.components.chapterEditor.SelectionAIFloatingToolbar.gen_4e805c04", "提交指令")}</Button>
+            >{i18next.t("novels.selectionAIFloatingToolbar.cx7ixd")}</Button>
           </div>
         </div>
       ) : null}

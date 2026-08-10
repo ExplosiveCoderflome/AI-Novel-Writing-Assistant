@@ -37,18 +37,18 @@ const NEW_BOOK_SCOPE_OPTIONS: Array<{
 }> = [
   {
     value: "book",
-    label: "全书",
-    description: "适合直接让 AI 从规划到正文执行覆盖整本书。",
+    label: i18next.t("dict.gen_3df555d4"),
+    description: i18next.t("novels.directorAutoExecutionPlan.shared.k3nuzv"),
   },
   {
     value: "chapter_range",
-    label: "第 1-N 章",
-    description: "适合先跑出开局样章，默认第 1-10 章，可按整书章节数调整。",
+    label: i18next.t("novels.directorAutoExecutionPlan.shared.4ligoy"),
+    description: i18next.t("novels.directorAutoExecutionPlan.shared.qvbrl4"),
   },
   {
     value: "volume",
-    label: "前 1 卷",
-    description: "适合先让 AI 完成第一卷的拆章、写作、审校和修复。",
+    label: i18next.t("novels.directorAutoExecutionPlan.shared.xcd34b"),
+    description: i18next.t("novels.directorAutoExecutionPlan.shared.pg2u8i"),
   },
 ];
 
@@ -59,18 +59,18 @@ const TAKEOVER_SCOPE_OPTIONS: Array<{
 }> = [
   {
     value: "book",
-    label: "全书",
-    description: "适合让 AI 重新校验全本规划，并按整本书范围继续执行。",
+    label: i18next.t("dict.gen_3df555d4"),
+    description: i18next.t("novels.directorAutoExecutionPlan.shared.nuj1rw"),
   },
   {
     value: "chapter_range",
-    label: "章节范围",
-    description: "适合只让 AI 接手某一段，比如第 11-20 章。",
+    label: i18next.t("novels.directorAutoExecutionPlan.shared.g1ocqb"),
+    description: i18next.t("novels.directorAutoExecutionPlan.shared.mq7ayr"),
   },
   {
     value: "volume",
-    label: "卷范围",
-    description: "适合让 AI 接管指定卷及卷下章节。",
+    label: i18next.t("novels.directorAutoExecutionPlan.shared.cuvbc"),
+    description: i18next.t("novels.directorAutoExecutionPlan.shared.a4hh4h"),
   },
 ];
 
@@ -256,7 +256,7 @@ export function DirectorAutoExecutionPlanFields({
   return (
     <div className="mt-3 min-w-0 rounded-md border border-primary/15 bg-primary/5 p-3">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <div className="text-xs font-medium text-foreground">{i18next.t("gen.pages.novels.components.directorAutoExecutionPlan.shared.gen_ff0bfdcb", "自动执行范围")}</div>
+        <div className="text-xs font-medium text-foreground">{i18next.t("novels.directorAutoExecutionPlan.shared.tz39as")}</div>
         <div className={`text-xs text-muted-foreground ${AUTO_DIRECTOR_MOBILE_CLASSES.wrapText}`}>当前将执行：{scopeLabel}</div>
       </div>
 
@@ -283,7 +283,7 @@ export function DirectorAutoExecutionPlanFields({
 
       {canEditChapterCount ? (
         <div className="mt-4 max-w-xs">
-          <div className="text-xs font-medium text-foreground">{i18next.t("gen.pages.novels.components.directorAutoExecutionPlan.shared.gen_4404ffa3", "章节数量")}</div>
+          <div className="text-xs font-medium text-foreground">{i18next.t("novels.directorAutoExecutionPlan.shared.g1jn9d")}</div>
           <Input
             className="mt-2"
             type="number"
@@ -291,7 +291,7 @@ export function DirectorAutoExecutionPlanFields({
             max={maxChapterCount ?? undefined}
             value={draft.endOrder}
             onChange={(event) => onChange({ endOrder: event.target.value })}
-            placeholder={i18next.t("gen.pages.novels.components.directorAutoExecutionPlan.shared.gen_7b5d1764", "例如 10")}
+            placeholder={i18next.t("novels.directorAutoExecutionPlan.shared.wupwu0")}
           />
           {maxChapterCount ? (
             <div className="mt-1 text-xs text-muted-foreground">最多不超过全书规划的 {maxChapterCount} 章。</div>
@@ -302,7 +302,7 @@ export function DirectorAutoExecutionPlanFields({
       {canEditChapterRange ? (
         <div className="mt-4 grid gap-3 sm:grid-cols-2">
           <div>
-            <div className="text-xs font-medium text-foreground">{i18next.t("gen.pages.novels.components.directorAutoExecutionPlan.shared.gen_4f82436f", "起始章节")}</div>
+            <div className="text-xs font-medium text-foreground">{i18next.t("dict.gen_4f82436f")}</div>
             <Input
               className="mt-2"
               type="number"
@@ -310,11 +310,11 @@ export function DirectorAutoExecutionPlanFields({
               max={maxChapterCount ?? undefined}
               value={draft.startOrder}
               onChange={(event) => onChange({ startOrder: event.target.value })}
-              placeholder={i18next.t("gen.pages.novels.components.directorAutoExecutionPlan.shared.gen_95181ff9", "例如 11")}
+              placeholder={i18next.t("novels.directorAutoExecutionPlan.shared.wupwtz")}
             />
           </div>
           <div>
-            <div className="text-xs font-medium text-foreground">{i18next.t("gen.pages.novels.components.directorAutoExecutionPlan.shared.gen_1024805a", "结束章节")}</div>
+            <div className="text-xs font-medium text-foreground">{i18next.t("dict.gen_1024805a")}</div>
             <Input
               className="mt-2"
               type="number"
@@ -322,7 +322,7 @@ export function DirectorAutoExecutionPlanFields({
               max={maxChapterCount ?? undefined}
               value={draft.endOrder}
               onChange={(event) => onChange({ endOrder: event.target.value })}
-              placeholder={i18next.t("gen.pages.novels.components.directorAutoExecutionPlan.shared.gen_69dc052b", "例如 20")}
+              placeholder={i18next.t("novels.directorAutoExecutionPlan.shared.wupwt5")}
             />
           </div>
         </div>
@@ -330,14 +330,14 @@ export function DirectorAutoExecutionPlanFields({
 
       {canEditVolumeOrder ? (
         <div className="mt-4 max-w-xs">
-          <div className="text-xs font-medium text-foreground">{i18next.t("gen.pages.novels.components.directorAutoExecutionPlan.shared.gen_8abd1736", "卷序号")}</div>
+          <div className="text-xs font-medium text-foreground">{i18next.t("novels.directorAutoExecutionPlan.shared.coni7")}</div>
           <Input
             className="mt-2"
             type="number"
             min={1}
             value={draft.volumeOrder}
             onChange={(event) => onChange({ volumeOrder: event.target.value })}
-            placeholder={i18next.t("gen.pages.novels.components.directorAutoExecutionPlan.shared.gen_b2c5b372", "例如 2")}
+            placeholder={i18next.t("novels.directorAutoExecutionPlan.shared.aea9pl")}
           />
         </div>
       ) : null}
@@ -345,8 +345,8 @@ export function DirectorAutoExecutionPlanFields({
       <div className="mt-4 rounded-xl border bg-background/80 p-3">
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0 space-y-1">
-            <div className="text-sm font-medium text-foreground">{i18next.t("gen.pages.novels.components.directorAutoExecutionPlan.shared.gen_8610fff5", "正文生成后自动审核")}</div>
-            <div className={`text-xs leading-5 text-muted-foreground ${AUTO_DIRECTOR_MOBILE_CLASSES.wrapText}`}>{i18next.t("gen.pages.novels.components.directorAutoExecutionPlan.shared.gen_87a2ea59", "关闭后，正文生成完成即结束当前章节，质量校验交给你手动处理。")}</div>
+            <div className="text-sm font-medium text-foreground">{i18next.t("novels.directorAutoExecutionPlan.shared.rjt1ce")}</div>
+            <div className={`text-xs leading-5 text-muted-foreground ${AUTO_DIRECTOR_MOBILE_CLASSES.wrapText}`}>{i18next.t("novels.directorAutoExecutionPlan.shared.93nw9g")}</div>
           </div>
           <Switch
             checked={draft.autoReview}
@@ -354,20 +354,20 @@ export function DirectorAutoExecutionPlanFields({
               autoReview: checked,
               autoRepair: checked ? draft.autoRepair : false,
             })}
-            aria-label={i18next.t("gen.pages.novels.components.directorAutoExecutionPlan.shared.gen_4ebd9a1f", "切换正文生成后是否自动审核")}
+            aria-label={i18next.t("novels.directorAutoExecutionPlan.shared.lcfoxi")}
           />
         </div>
 
         <div className="mt-4 flex items-start justify-between gap-3">
           <div className="min-w-0 space-y-1">
-            <div className="text-sm font-medium text-foreground">{i18next.t("gen.pages.novels.components.directorAutoExecutionPlan.shared.gen_554873f0", "审核不通过时自动修复")}</div>
-            <div className={`text-xs leading-5 text-muted-foreground ${AUTO_DIRECTOR_MOBILE_CLASSES.wrapText}`}>{i18next.t("gen.pages.novels.components.directorAutoExecutionPlan.shared.gen_e5a5b651", "只在开启自动审核后生效；关闭时会保留问题，等待你手动处理或重跑。")}</div>
+            <div className="text-sm font-medium text-foreground">{i18next.t("novels.directorAutoExecutionPlan.shared.4zx20g")}</div>
+            <div className={`text-xs leading-5 text-muted-foreground ${AUTO_DIRECTOR_MOBILE_CLASSES.wrapText}`}>{i18next.t("novels.directorAutoExecutionPlan.shared.nv1nk9")}</div>
           </div>
           <Switch
             checked={draft.autoReview && draft.autoRepair}
             disabled={!draft.autoReview}
             onCheckedChange={(checked) => onChange({ autoRepair: checked })}
-            aria-label={i18next.t("gen.pages.novels.components.directorAutoExecutionPlan.shared.gen_23d01516", "切换审核后是否自动修复")}
+            aria-label={i18next.t("novels.directorAutoExecutionPlan.shared.lx07xs")}
           />
         </div>
       </div>

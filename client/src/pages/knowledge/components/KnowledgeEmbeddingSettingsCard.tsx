@@ -1,5 +1,4 @@
 import i18next from "i18next";
-import { useTranslation } from "react-i18next";
 import { useMemo } from "react";
 import type { Dispatch, SetStateAction } from "react";
 import { ChevronDown } from "lucide-react";
@@ -92,7 +91,6 @@ export default function KnowledgeEmbeddingSettingsCard({
   isSaving,
   onSave,
 }: KnowledgeEmbeddingSettingsCardProps) {
-  const { t } = useTranslation();
   const suggestedCollectionName = useMemo(() => buildSuggestedCollectionName(form), [form]);
   const currentProvider = providers.find((item) => item.provider === form.embeddingProvider);
   const collectionNameToDisplay = form.collectionMode === "auto"
@@ -103,26 +101,26 @@ export default function KnowledgeEmbeddingSettingsCard({
     <Card>
       <CardHeader className="space-y-3">
         <div className="flex flex-wrap items-center gap-2">
-          <CardTitle>{i18next.t("gen.pages.knowledge.components.KnowledgeEmbeddingSettingsCard.gen_06395e61", "知识检索设置")}</CardTitle>
+          <CardTitle>{i18next.t("knowledge.knowledgeEmbeddingSettingsCard.y13jo3")}</CardTitle>
           <Badge variant="outline">集合版本 v{form.collectionVersion}</Badge>
           {currentProvider ? <Badge variant="outline">{currentProvider.name}</Badge> : null}
           <Badge variant={form.enabled ? "default" : "outline"}>
             {form.enabled ? "RAG 启用" : "RAG 暂停"}
           </Badge>
         </div>
-        <div className="text-sm text-muted-foreground">{i18next.t("gen.pages.knowledge.components.KnowledgeEmbeddingSettingsCard.gen_44618608", "选择向量模型和向量库地址即可开始检索。需要精细控制召回质量或任务性能时，再展开高级配置。")}</div>
+        <div className="text-sm text-muted-foreground">{i18next.t("knowledge.knowledgeEmbeddingSettingsCard.bd4t6h")}</div>
       </CardHeader>
       <CardContent className="space-y-6">
         <section className="space-y-4">
           <div className="space-y-1">
-            <div className="text-sm font-medium">{i18next.t("gen.pages.knowledge.components.KnowledgeEmbeddingSettingsCard.gen_e19716c1", "向量模型")}</div>
-            <div className="text-xs text-muted-foreground">{i18next.t("gen.pages.knowledge.components.KnowledgeEmbeddingSettingsCard.gen_df5bfd12", "选择用于生成向量的服务商和模型。")}</div>
+            <div className="text-sm font-medium">{i18next.t("dict.gen_e19716c1")}</div>
+            <div className="text-xs text-muted-foreground">{i18next.t("knowledge.knowledgeEmbeddingSettingsCard.7gvfnz")}</div>
           </div>
 
           <div className="grid gap-4 md:grid-cols-2">
             <div className="space-y-2">
               <SelectField
-                label="Embedding 服务商"
+                label={i18next.t("knowledge.knowledgeEmbeddingSettingsCard.7ludp3")}
                 value={form.embeddingProvider}
                 onValueChange={(value) =>
                   setForm((prev) => ({
@@ -150,22 +148,22 @@ export default function KnowledgeEmbeddingSettingsCard({
             <div className="space-y-2">
               <div className="text-sm font-medium">Embedding 模型</div>
               {modelQuery.isLoading ? (
-                <div className="rounded-md border border-dashed p-3 text-sm text-muted-foreground">{i18next.t("gen.pages.knowledge.components.KnowledgeEmbeddingSettingsCard.gen_f988439c", "正在加载可用的 Embedding 模型...")}</div>
+                <div className="rounded-md border border-dashed p-3 text-sm text-muted-foreground">{i18next.t("knowledge.knowledgeEmbeddingSettingsCard.h5vu90")}</div>
               ) : modelOptions.length > 0 ? (
                 <SearchableSelect
                   value={form.embeddingModel}
                   onValueChange={(value) => setForm((prev) => ({ ...prev, embeddingModel: value }))}
                   options={modelOptions.map((model) => ({ value: model }))}
-                  placeholder={i18next.t("gen.pages.knowledge.components.KnowledgeEmbeddingSettingsCard.gen_b86c33b4", "选择 Embedding 模型")}
-                  searchPlaceholder={i18next.t("gen.pages.knowledge.components.KnowledgeEmbeddingSettingsCard.gen_b96a51bf", "搜索 Embedding 模型")}
-                  emptyText={i18next.t("gen.pages.knowledge.components.KnowledgeEmbeddingSettingsCard.gen_1eeb1227", "没有匹配的 Embedding 模型")}
+                  placeholder={i18next.t("knowledge.knowledgeEmbeddingSettingsCard.mnf6sz")}
+                  searchPlaceholder="搜索 Embedding 模型"
+                  emptyText="没有匹配的 Embedding 模型"
                 />
               ) : null}
               <Input
                 className={modelQuery.isLoading || modelOptions.length > 0 ? "hidden" : undefined}
                 value={form.embeddingModel}
                 onChange={(event) => setForm((prev) => ({ ...prev, embeddingModel: event.target.value }))}
-                placeholder={i18next.t("gen.pages.knowledge.components.KnowledgeEmbeddingSettingsCard.gen_390fef99", "例如：text-embedding-3-small")}
+                placeholder={i18next.t("knowledge.knowledgeEmbeddingSettingsCard.hurah2")}
               />
               {modelQuery.data ? (
                 <div className="text-xs text-muted-foreground">
@@ -181,24 +179,24 @@ export default function KnowledgeEmbeddingSettingsCard({
 
         <section className="space-y-4 rounded-md border bg-background/60 p-4">
           <div className="space-y-1">
-            <div className="text-sm font-medium">{i18next.t("gen.pages.knowledge.components.KnowledgeEmbeddingSettingsCard.gen_56a8dde3", "向量库连接")}</div>
-            <div className="text-xs text-muted-foreground">{i18next.t("gen.pages.knowledge.components.KnowledgeEmbeddingSettingsCard.gen_c047a788", "填写 Qdrant Cloud、自托管 Qdrant 或本机向量库地址。")}</div>
+            <div className="text-sm font-medium">{i18next.t("knowledge.knowledgeEmbeddingSettingsCard.7nu3b8")}</div>
+            <div className="text-xs text-muted-foreground">{i18next.t("knowledge.knowledgeEmbeddingSettingsCard.jerc54")}</div>
           </div>
 
           <div className="space-y-2">
-            <div className="text-sm font-medium">{i18next.t("gen.pages.knowledge.components.KnowledgeEmbeddingSettingsCard.gen_b1ff9fce", "向量库 URL")}</div>
+            <div className="text-sm font-medium">{i18next.t("knowledge.knowledgeEmbeddingSettingsCard.5e79d0")}</div>
             <Input
               value={form.qdrantUrl}
               onChange={(event) => setForm((prev) => ({ ...prev, qdrantUrl: event.target.value }))}
               placeholder="http://127.0.0.1:6333"
             />
-            <div className="text-xs text-muted-foreground">{i18next.t("gen.pages.knowledge.components.KnowledgeEmbeddingSettingsCard.gen_e8720f06", "本机默认地址通常是 http://127.0.0.1:6333；云端地址可以直接填写完整 URL。")}</div>
+            <div className="text-xs text-muted-foreground">{i18next.t("knowledge.knowledgeEmbeddingSettingsCard.qk35b4")}</div>
           </div>
 
           <div className="grid gap-4 md:grid-cols-2">
             <div className="space-y-2">
               <div className="flex items-center justify-between gap-2">
-                <div className="text-sm font-medium">{i18next.t("gen.pages.knowledge.components.KnowledgeEmbeddingSettingsCard.gen_f5453462", "向量库 API Key")}</div>
+                <div className="text-sm font-medium">{i18next.t("knowledge.knowledgeEmbeddingSettingsCard.keoj1q")}</div>
                 <Badge variant={form.qdrantApiKeyConfigured ? "default" : "outline"}>
                   {form.qdrantApiKeyConfigured ? "Key 可用" : "未设置"}
                 </Badge>
@@ -226,19 +224,19 @@ export default function KnowledgeEmbeddingSettingsCard({
                     clearQdrantApiKey: event.target.checked,
                     qdrantApiKey: event.target.checked ? "" : prev.qdrantApiKey,
                   }))}
-              />{i18next.t("gen.pages.knowledge.components.KnowledgeEmbeddingSettingsCard.gen_d6fd5959", "保存时清除已保存的向量库 API Key")}</label>
+              />{i18next.t("knowledge.knowledgeEmbeddingSettingsCard.w9plqb")}</label>
           </div>
         </section>
 
         <details className="group rounded-md border bg-muted/10 p-4">
           <summary className="flex cursor-pointer list-none flex-col gap-2 md:flex-row md:items-center md:justify-between">
             <div className="space-y-1">
-              <div className="text-sm font-semibold">{i18next.t("gen.pages.knowledge.components.KnowledgeEmbeddingSettingsCard.gen_1f318234", "高级配置")}</div>
-              <div className="text-xs text-muted-foreground">{i18next.t("gen.pages.knowledge.components.KnowledgeEmbeddingSettingsCard.gen_eb646697", "集合命名、索引重建、检索质量、超时和后台任务参数都收在这里。")}</div>
+              <div className="text-sm font-semibold">{i18next.t("knowledge.knowledgeEmbeddingSettingsCard.k2cd00")}</div>
+              <div className="text-xs text-muted-foreground">{i18next.t("knowledge.knowledgeEmbeddingSettingsCard.mjspwr")}</div>
             </div>
             <div className="flex shrink-0 items-center gap-2 text-xs text-muted-foreground">
-              <span className="group-open:hidden">{i18next.t("gen.pages.knowledge.components.KnowledgeEmbeddingSettingsCard.gen_e2edde5a", "展开")}</span>
-              <span className="hidden group-open:inline">{i18next.t("gen.pages.knowledge.components.KnowledgeEmbeddingSettingsCard.gen_def9e98b", "收起")}</span>
+              <span className="group-open:hidden">{i18next.t("dict.gen_e2edde5a")}</span>
+              <span className="hidden group-open:inline">{i18next.t("dict.gen_def9e98b")}</span>
               <ChevronDown className="h-4 w-4 transition-transform duration-200 group-open:rotate-180" />
             </div>
           </summary>
@@ -246,13 +244,13 @@ export default function KnowledgeEmbeddingSettingsCard({
           <div className="mt-5 space-y-6">
             <section className="space-y-4">
               <div className="space-y-1">
-                <div className="text-sm font-medium">{i18next.t("gen.pages.knowledge.components.KnowledgeEmbeddingSettingsCard.gen_626727e1", "集合与索引")}</div>
-                <div className="text-xs text-muted-foreground">{i18next.t("gen.pages.knowledge.components.KnowledgeEmbeddingSettingsCard.gen_154505fb", "自动命名会按服务商、模型、标签和版本区分集合，降低向量维度冲突风险。")}</div>
+                <div className="text-sm font-medium">{i18next.t("knowledge.knowledgeEmbeddingSettingsCard.w7fqm7")}</div>
+                <div className="text-xs text-muted-foreground">{i18next.t("knowledge.knowledgeEmbeddingSettingsCard.wq3lrr")}</div>
               </div>
 
               <div className="grid gap-4 md:grid-cols-2">
                 <SelectField
-                  label={i18next.t("gen.pages.knowledge.components.KnowledgeEmbeddingSettingsCard.gen_12dbeba9", "集合命名方式")}
+                  label={i18next.t("knowledge.knowledgeEmbeddingSettingsCard.4m7tt4")}
                   value={form.collectionMode}
                   onValueChange={(value) =>
                     setForm((prev) => ({
@@ -260,19 +258,19 @@ export default function KnowledgeEmbeddingSettingsCard({
                       collectionMode: value as "auto" | "manual",
                     }))}
                   options={[
-                    { value: "auto", label: "自动生成" },
-                    { value: "manual", label: "手动指定" },
+                    { value: "auto", label: i18next.t("knowledge.knowledgeEmbeddingSettingsCard.gqkcpb") },
+                    { value: "manual", label: i18next.t("knowledge.knowledgeEmbeddingSettingsCard.cqwdtc") },
                   ]}
                 />
 
                 <div className="space-y-2">
-                  <div className="text-sm font-medium">{i18next.t("gen.pages.knowledge.components.KnowledgeEmbeddingSettingsCard.gen_f16fd7f9", "集合标签")}</div>
+                  <div className="text-sm font-medium">{i18next.t("knowledge.knowledgeEmbeddingSettingsCard.jdf8ih")}</div>
                   <Input
                     value={form.collectionTag}
                     onChange={(event) => setForm((prev) => ({ ...prev, collectionTag: event.target.value }))}
-                    placeholder={i18next.t("gen.pages.knowledge.components.KnowledgeEmbeddingSettingsCard.gen_cdd514f5", "例如：kb / prod / novel")}
+                    placeholder={i18next.t("knowledge.knowledgeEmbeddingSettingsCard.mdeimf")}
                   />
-                  <div className="text-xs text-muted-foreground">{i18next.t("gen.pages.knowledge.components.KnowledgeEmbeddingSettingsCard.gen_0327296d", "用一个简短标签区分环境或不同数据分组。")}</div>
+                  <div className="text-xs text-muted-foreground">{i18next.t("knowledge.knowledgeEmbeddingSettingsCard.j7n20p")}</div>
                 </div>
               </div>
 
@@ -288,14 +286,14 @@ export default function KnowledgeEmbeddingSettingsCard({
                   <Input
                     value={form.collectionName}
                     onChange={(event) => setForm((prev) => ({ ...prev, collectionName: event.target.value }))}
-                    placeholder={i18next.t("gen.pages.knowledge.components.KnowledgeEmbeddingSettingsCard.gen_79c79a5a", "例如：ai_novel_rag_openai_text_embedding_3_small_kb_v1")}
+                    placeholder={i18next.t("knowledge.knowledgeEmbeddingSettingsCard.1hxcac")}
                   />
                 )}
               </div>
 
               <div className="grid gap-4 md:grid-cols-2">
                 <SelectField
-                  label="Embedding 变更后自动重建索引"
+                  label={i18next.t("knowledge.knowledgeEmbeddingSettingsCard.9l114p")}
                   value={form.autoReindexOnChange ? "true" : "false"}
                   onValueChange={(value) =>
                     setForm((prev) => ({
@@ -303,13 +301,13 @@ export default function KnowledgeEmbeddingSettingsCard({
                       autoReindexOnChange: value === "true",
                     }))}
                   options={[
-                    { value: "true", label: "开启" },
-                    { value: "false", label: "关闭" },
+                    { value: "true", label: i18next.t("dict.gen_cc42dd31") },
+                    { value: "false", label: i18next.t("dict.gen_b15d9127") },
                   ]}
                 />
 
                 <div className="rounded-md border bg-background p-3">
-                  <div className="text-sm font-medium">{i18next.t("gen.pages.knowledge.components.KnowledgeEmbeddingSettingsCard.gen_54c26689", "目标集合")}</div>
+                  <div className="text-sm font-medium">{i18next.t("knowledge.knowledgeEmbeddingSettingsCard.ffz5p7")}</div>
                   <div className="mt-2 font-mono text-xs break-all">{collectionNameToDisplay}</div>
                 </div>
               </div>
@@ -317,13 +315,13 @@ export default function KnowledgeEmbeddingSettingsCard({
 
             <section className="space-y-4">
               <div className="space-y-1">
-                <div className="text-sm font-medium">{i18next.t("gen.pages.knowledge.components.KnowledgeEmbeddingSettingsCard.gen_6b6959e8", "连接与写入参数")}</div>
-                <div className="text-xs text-muted-foreground">{i18next.t("gen.pages.knowledge.components.KnowledgeEmbeddingSettingsCard.gen_7ac4f427", "默认值适合大多数知识库；只有连接慢、批量写入失败或需要暂停检索时再调整。")}</div>
+                <div className="text-sm font-medium">{i18next.t("knowledge.knowledgeEmbeddingSettingsCard.2og7jz")}</div>
+                <div className="text-xs text-muted-foreground">{i18next.t("knowledge.knowledgeEmbeddingSettingsCard.xn28by")}</div>
               </div>
 
               <div className="grid gap-4 md:grid-cols-3">
                 <SelectField
-                  label="RAG 状态"
+                  label={i18next.t("knowledge.knowledgeEmbeddingSettingsCard.v5udvx")}
                   value={form.enabled ? "true" : "false"}
                   onValueChange={(value) =>
                     setForm((prev) => ({
@@ -331,13 +329,13 @@ export default function KnowledgeEmbeddingSettingsCard({
                       enabled: value === "true",
                     }))}
                   options={[
-                    { value: "true", label: "启用" },
-                    { value: "false", label: "暂停" },
+                    { value: "true", label: i18next.t("dict.gen_7854b52a") },
+                    { value: "false", label: i18next.t("knowledge.knowledgeEmbeddingSettingsCard.hvkq") },
                   ]}
                 />
 
                 <div className="space-y-2">
-                  <div className="text-sm font-medium">{i18next.t("gen.pages.knowledge.components.KnowledgeEmbeddingSettingsCard.gen_9a2f6e15", "向量库超时（毫秒）")}</div>
+                  <div className="text-sm font-medium">{i18next.t("knowledge.knowledgeEmbeddingSettingsCard.mhto0w")}</div>
                   <Input
                     type="number"
                     min={1000}
@@ -352,7 +350,7 @@ export default function KnowledgeEmbeddingSettingsCard({
                 </div>
 
                 <div className="space-y-2">
-                  <div className="text-sm font-medium">{i18next.t("gen.pages.knowledge.components.KnowledgeEmbeddingSettingsCard.gen_d00d8413", "单次写入最大字节数")}</div>
+                  <div className="text-sm font-medium">{i18next.t("knowledge.knowledgeEmbeddingSettingsCard.82tw4m")}</div>
                   <Input
                     type="number"
                     min={1024 * 1024}
@@ -367,7 +365,7 @@ export default function KnowledgeEmbeddingSettingsCard({
                 </div>
 
                 <div className="space-y-2">
-                  <div className="text-sm font-medium">{i18next.t("gen.pages.knowledge.components.KnowledgeEmbeddingSettingsCard.gen_a5d1102e", "向量库写入并发数")}</div>
+                  <div className="text-sm font-medium">{i18next.t("knowledge.knowledgeEmbeddingSettingsCard.t8m4s")}</div>
                   <Input
                     type="number"
                     min={1}
@@ -379,20 +377,20 @@ export default function KnowledgeEmbeddingSettingsCard({
                         qdrantUpsertConcurrency: parseNumberInput(event.target.value, prev.qdrantUpsertConcurrency),
                       }))}
                   />
-                  <div className="text-xs text-muted-foreground">{i18next.t("gen.pages.knowledge.components.KnowledgeEmbeddingSettingsCard.gen_8194cbfb", "向 Qdrant 并发提交分块批次的最大并发数。默认 3，大文档可调至 4-6 提速。")}</div>
+                  <div className="text-xs text-muted-foreground">{i18next.t("knowledge.knowledgeEmbeddingSettingsCard.tgpzzi")}</div>
                 </div>
               </div>
             </section>
 
             <section className="space-y-4">
               <div className="space-y-1">
-                <div className="text-sm font-medium">{i18next.t("gen.pages.knowledge.components.KnowledgeEmbeddingSettingsCard.gen_8029282d", "检索调优")}</div>
-                <div className="text-xs text-muted-foreground">{i18next.t("gen.pages.knowledge.components.KnowledgeEmbeddingSettingsCard.gen_dbe9edfd", "当召回内容不够准，或检索延迟需要控制时，可以调整切块和候选数量。")}</div>
+                <div className="text-sm font-medium">{i18next.t("knowledge.knowledgeEmbeddingSettingsCard.dqmqtz")}</div>
+                <div className="text-xs text-muted-foreground">{i18next.t("knowledge.knowledgeEmbeddingSettingsCard.or2vv0")}</div>
               </div>
 
               <div className="grid gap-4 md:grid-cols-3">
                 <div className="space-y-2">
-                  <div className="text-sm font-medium">{i18next.t("gen.pages.knowledge.components.KnowledgeEmbeddingSettingsCard.gen_c284effd", "切块大小")}</div>
+                  <div className="text-sm font-medium">{i18next.t("knowledge.knowledgeEmbeddingSettingsCard.apol4o")}</div>
                   <Input
                     type="number"
                     min={200}
@@ -407,7 +405,7 @@ export default function KnowledgeEmbeddingSettingsCard({
                 </div>
 
                 <div className="space-y-2">
-                  <div className="text-sm font-medium">{i18next.t("gen.pages.knowledge.components.KnowledgeEmbeddingSettingsCard.gen_5882219e", "切块重叠")}</div>
+                  <div className="text-sm font-medium">{i18next.t("knowledge.knowledgeEmbeddingSettingsCard.apy6eb")}</div>
                   <Input
                     type="number"
                     min={0}
@@ -422,7 +420,7 @@ export default function KnowledgeEmbeddingSettingsCard({
                 </div>
 
                 <div className="space-y-2">
-                  <div className="text-sm font-medium">{i18next.t("gen.pages.knowledge.components.KnowledgeEmbeddingSettingsCard.gen_827bf955", "最终 Top K")}</div>
+                  <div className="text-sm font-medium">{i18next.t("knowledge.knowledgeEmbeddingSettingsCard.xptkg8")}</div>
                   <Input
                     type="number"
                     min={1}
@@ -437,7 +435,7 @@ export default function KnowledgeEmbeddingSettingsCard({
                 </div>
 
                 <div className="space-y-2">
-                  <div className="text-sm font-medium">{i18next.t("gen.pages.knowledge.components.KnowledgeEmbeddingSettingsCard.gen_75e4f348", "向量候选数")}</div>
+                  <div className="text-sm font-medium">{i18next.t("knowledge.knowledgeEmbeddingSettingsCard.7pydz2")}</div>
                   <Input
                     type="number"
                     min={1}
@@ -452,7 +450,7 @@ export default function KnowledgeEmbeddingSettingsCard({
                 </div>
 
                 <div className="space-y-2">
-                  <div className="text-sm font-medium">{i18next.t("gen.pages.knowledge.components.KnowledgeEmbeddingSettingsCard.gen_a610a2a6", "关键词候选数")}</div>
+                  <div className="text-sm font-medium">{i18next.t("knowledge.knowledgeEmbeddingSettingsCard.w4jxu6")}</div>
                   <Input
                     type="number"
                     min={1}
@@ -471,7 +469,7 @@ export default function KnowledgeEmbeddingSettingsCard({
             <section className="space-y-4">
               <div className="space-y-1">
                 <div className="text-sm font-medium">Embedding 请求行为</div>
-                <div className="text-xs text-muted-foreground">{i18next.t("gen.pages.knowledge.components.KnowledgeEmbeddingSettingsCard.gen_1ed85a16", "大批量导入或服务响应较慢时，可以调节批大小、超时、重试和轮询参数。")}</div>
+                <div className="text-xs text-muted-foreground">{i18next.t("knowledge.knowledgeEmbeddingSettingsCard.jllkh5")}</div>
               </div>
 
               <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
@@ -503,7 +501,7 @@ export default function KnowledgeEmbeddingSettingsCard({
                         embeddingConcurrency: parseNumberInput(event.target.value, prev.embeddingConcurrency),
                       }))}
                   />
-                  <div className="text-xs text-muted-foreground">{i18next.t("gen.pages.knowledge.components.KnowledgeEmbeddingSettingsCard.gen_f7442ee8", "同时发起的 embedding API 请求数。默认 4；调高可大幅缩短大文档索引时间，但要看服务商配额。")}</div>
+                  <div className="text-xs text-muted-foreground">{i18next.t("knowledge.knowledgeEmbeddingSettingsCard.8ggs9r")}</div>
                 </div>
 
                 <div className="space-y-2">

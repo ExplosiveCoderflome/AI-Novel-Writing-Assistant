@@ -1,4 +1,3 @@
-import i18next from "i18next";
 export { VisualAssetLibrary } from "./VisualAssetLibrary";
 export { VisualAssetLibraryDialog } from "./VisualAssetLibraryDialog";
 export { VisualAssetPickerDialog } from "./VisualAssetPickerDialog";

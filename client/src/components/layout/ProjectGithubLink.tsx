@@ -20,8 +20,8 @@ export default function ProjectGithubLink({ className }: ProjectGithubLinkProps)
         "inline-flex h-5 shrink-0 items-center gap-1 rounded-md px-1 text-[11px] leading-none text-muted-foreground transition-colors hover:bg-accent hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
         className,
       )}
-      title={i18next.t("gen.components.layout.ProjectGithubLink.gen_8f9e4b3e")}
-      aria-label={i18next.t("gen.components.layout.ProjectGithubLink.gen_8f9e4b3e")}
+      title={i18next.t("dict.gen_8f9e4b3e")}
+      aria-label={i18next.t("dict.gen_8f9e4b3e")}
     >
       <Github className="h-3.5 w-3.5" />
       <span className="hidden whitespace-nowrap sm:inline">{PROJECT_GITHUB_LABEL}</span>

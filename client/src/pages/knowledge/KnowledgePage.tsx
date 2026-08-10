@@ -489,14 +489,14 @@ export default function KnowledgePage() {
   };
 
   const handleClearFinishedRagJobs = () => {
-    if (!window.confirm("清理已结束任务记录？排队中和执行中的任务会保留。")) {
+    if (!window.confirm(i18next.t("dict.gen_2d775f38"))) {
       return;
     }
     clearFinishedRagJobsMutation.mutate();
   };
 
   const handleDeleteRagJob = (jobId: string) => {
-    if (!window.confirm("删除这条任务记录？排队中和执行中的任务不能删除。")) {
+    if (!window.confirm(i18next.t("dict.gen_35c42d6b"))) {
       return;
     }
     deleteRagJobMutation.mutate(jobId);
@@ -531,9 +531,9 @@ export default function KnowledgePage() {
         className="space-y-4"
       >
         <TabsList className="h-auto w-full justify-start overflow-x-auto">
-          <TabsTrigger value="documents">{i18next.t("gen.pages.knowledge.KnowledgePage.gen_5012c867", "创作资料")}</TabsTrigger>
-          <TabsTrigger value="ops">{i18next.t("gen.pages.knowledge.KnowledgePage.gen_89fcfd64", "索引与任务")}</TabsTrigger>
-          <TabsTrigger value="settings">{i18next.t("gen.pages.knowledge.KnowledgePage.gen_acb3166d", "检索设置")}</TabsTrigger>
+          <TabsTrigger value="documents">{i18next.t("knowledge.knowledgeDocumentsTab.ap46ye")}</TabsTrigger>
+          <TabsTrigger value="ops">{i18next.t("knowledge.knowledgePage.4dcqkh")}</TabsTrigger>
+          <TabsTrigger value="settings">{i18next.t("dict.gen_acb3166d")}</TabsTrigger>
         </TabsList>
 
         <TabsContent value="documents">

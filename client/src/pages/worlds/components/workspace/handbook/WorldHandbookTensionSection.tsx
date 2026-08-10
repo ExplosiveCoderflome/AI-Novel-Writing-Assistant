@@ -1,4 +1,3 @@
-import { useTranslation } from "react-i18next";
 import i18next from "i18next";
 const t = (key: string, options?: any) => i18next.t(key, options) as string;
 import { GitBranch } from "lucide-react";
@@ -21,20 +20,20 @@ export default function WorldHandbookTensionSection(props: {
     <section className="rounded-md border p-4">
       <SectionHeader
         icon={GitBranch}
-        title={i18next.t("gen.pages.worlds.components.workspace.handbook.WorldHandbookTensionSection.gen_b7cadb8f")}
-        description={i18next.t("gen.pages.worlds.components.workspace.handbook.WorldHandbookTensionSection.gen_341fa0a6")}
+        title={i18next.t("dict.gen_b7cadb8f")}
+        description={i18next.t("dict.gen_341fa0a6")}
       />
       <div className="mt-4 grid gap-3 lg:grid-cols-2">
-        <HandbookField title={i18next.t("gen.pages.worlds.components.workspace.handbook.WorldHandbookTensionSection.worldCoreConflict")} hint={i18next.t("gen.pages.worlds.components.workspace.handbook.WorldHandbookTensionSection.gen_ef6e11f7")}>
+        <HandbookField title={i18next.t("dict.worldCoreConflict")} hint={i18next.t("dict.gen_ef6e11f7")}>
           <HandbookTextarea
             value={draftStructure.profile.coreConflict}
             onChange={(value) =>
               setDraftStructure((prev) => (prev ? { ...prev, profile: { ...prev.profile, coreConflict: value } } : prev))
             }
-            placeholder={i18next.t("gen.pages.worlds.components.workspace.handbook.WorldHandbookTensionSection.exampleResourcesDepletedOrderCollapsedTwoForceSystemsCompete")}
+            placeholder={i18next.t("dict.exampleResourcesDepletedOrderCollapsedTwoForceSystemsCompete")}
           />
         </HandbookField>
-        <HandbookField title={i18next.t("gen.pages.worlds.components.workspace.handbook.WorldHandbookTensionSection.gen_8ef6f2f5")} hint={i18next.t("gen.pages.worlds.components.workspace.handbook.WorldHandbookTensionSection.oneLinePolicy")}>
+        <HandbookField title={i18next.t("dict.gen_8ef6f2f5")} hint={i18next.t("dict.oneLinePolicy")}>
           <HandbookTextarea
             value={listToText(draftStructure.rules.sharedConsequences)}
             onChange={(value) =>
@@ -42,22 +41,22 @@ export default function WorldHandbookTensionSection(props: {
                 prev ? { ...prev, rules: { ...prev.rules, sharedConsequences: textToList(value) } } : prev,
               )
             }
-            placeholder={i18next.t("gen.pages.worlds.components.workspace.handbook.WorldHandbookTensionSection.gen_c46e3820")}
+            placeholder={i18next.t("dict.gen_c46e3820")}
           />
         </HandbookField>
-        <HandbookField title={i18next.t("gen.pages.worlds.components.workspace.handbook.WorldHandbookTensionSection.gen_9d4a3def")} hint={i18next.t("gen.pages.worlds.components.workspace.handbook.WorldHandbookTensionSection.oneLineRestrictions")}>
+        <HandbookField title={i18next.t("dict.gen_9d4a3def")} hint={i18next.t("dict.oneLineRestrictions")}>
           <HandbookTextarea
             value={listToText(draftStructure.rules.taboo)}
             onChange={(value) =>
               setDraftStructure((prev) => (prev ? { ...prev, rules: { ...prev.rules, taboo: textToList(value) } } : prev))
             }
-            placeholder={i18next.t("gen.pages.worlds.components.workspace.handbook.WorldHandbookTensionSection.gen_b1303b9e")}
+            placeholder={i18next.t("dict.gen_b1303b9e")}
           />
         </HandbookField>
-        <div className="rounded-md border border-dashed p-3 text-sm leading-6 text-muted-foreground">{i18next.t("gen.pages.worlds.components.workspace.handbook.WorldHandbookTensionSection.gen_1b0251bd", "需要细调势力关系、地点控制权、导入结构数据时，再进入高级字段维护。普通作者只需要维护本页的手册内容。")}<div className="mt-3 flex flex-wrap gap-2">
-            <Button type="button" variant="outline" size="sm" onClick={onOpenDeepening}>{i18next.t("gen.pages.worlds.components.workspace.handbook.WorldHandbookTensionSection.gen_52384c69", "问答补齐")}</Button>
-            <Button type="button" variant="outline" size="sm" onClick={onOpenLayers}>{i18next.t("gen.pages.worlds.components.workspace.handbook.WorldHandbookTensionSection.gen_89b03150", "分层草稿")}</Button>
-            <Button type="button" variant="ghost" size="sm" onClick={onOpenAdvanced}>{i18next.t("gen.pages.worlds.components.workspace.handbook.WorldHandbookTensionSection.gen_6d58393f", "高级字段维护")}</Button>
+        <div className="rounded-md border border-dashed p-3 text-sm leading-6 text-muted-foreground">{i18next.t("worlds.worldHandbookTensionSection.f6kf15")}<div className="mt-3 flex flex-wrap gap-2">
+            <Button type="button" variant="outline" size="sm" onClick={onOpenDeepening}>{i18next.t("worlds.worldHandbookTensionSection.jfi88h")}</Button>
+            <Button type="button" variant="outline" size="sm" onClick={onOpenLayers}>{i18next.t("dict.gen_89b03150")}</Button>
+            <Button type="button" variant="ghost" size="sm" onClick={onOpenAdvanced}>{i18next.t("dict.gen_6d58393f")}</Button>
           </div>
         </div>
       </div>

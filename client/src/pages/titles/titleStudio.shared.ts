@@ -1,4 +1,3 @@
-import i18next from "i18next";
 import type { TitleSuggestionStyle } from "@ai-novel/shared/types/title";
 
 export function getTitleStyleLabel(style: TitleSuggestionStyle): string {

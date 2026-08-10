@@ -12,15 +12,15 @@ interface VersionHistoryTabProps {
 
 function formatSnapshotTrigger(triggerType: string): string {
   if (triggerType === "manual") {
-    return i18next.t("gen.pages.novels.components.VersionHistoryTab.gen_291fb3fc");
+    return i18next.t("dict.gen_291fb3fc");
   }
   if (triggerType === "auto_milestone") {
-    return i18next.t("gen.pages.novels.components.VersionHistoryTab.gen_55c19f20");
+    return i18next.t("dict.gen_55c19f20");
   }
   if (triggerType === "before_pipeline") {
-    return i18next.t("gen.pages.novels.components.VersionHistoryTab.gen_01a7446d");
+    return i18next.t("dict.gen_01a7446d");
   }
-  return i18next.t("gen.pages.novels.components.VersionHistoryTab.gen_387b56ef");
+  return i18next.t("dict.gen_387b56ef");
 }
 
 export default function VersionHistoryTab({ novelId }: VersionHistoryTabProps) {
@@ -56,11 +56,11 @@ export default function VersionHistoryTab({ novelId }: VersionHistoryTabProps) {
     <div className="space-y-4">
       <div className="flex flex-col gap-3 rounded-2xl border border-border/70 bg-muted/15 p-4 md:flex-row md:items-center md:justify-between">
         <div>
-          <div className="font-medium">{i18next.t("gen.pages.novels.components.VersionHistoryTab.gen_6fdd8590")}</div>
-          <div className="text-sm text-muted-foreground">{i18next.t("gen.pages.novels.components.VersionHistoryTab.gen_8a183aa7", "这里优先帮你找回最近的稳定版本。恢复前系统会自动再备份一次当前状态。")}</div>
+          <div className="font-medium">{i18next.t("home.versionHistory")}</div>
+          <div className="text-sm text-muted-foreground">{i18next.t("novels.versionHistoryTab.euw1wc")}</div>
         </div>
         <Button onClick={() => createMutation.mutate()} disabled={createMutation.isPending}>
-          {createMutation.isPending ? i18next.t("gen.pages.novels.components.VersionHistoryTab.savingInProgressDotDotDot") : i18next.t("gen.pages.novels.components.VersionHistoryTab.saveCurrentVersion")}
+          {createMutation.isPending ? i18next.t("common.saving") : i18next.t("dict.saveCurrentVersion")}
         </Button>
       </div>
 
@@ -73,7 +73,7 @@ export default function VersionHistoryTab({ novelId }: VersionHistoryTabProps) {
               <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
                 <div className="space-y-3">
                   <div className="space-y-1">
-                    <div className="font-medium">{i18next.t("gen.pages.novels.components.VersionHistoryTab.gen_snapshotla_36vz")}</div>
+                    <div className="font-medium">{i18next.t("dict.gen_snapshotla_36vz")}</div>
                     <div className="text-xs text-muted-foreground">
                       {formatSnapshotTrigger(snapshot.triggerType)} · {new Date(snapshot.createdAt).toLocaleString()}
                     </div>
@@ -86,28 +86,28 @@ export default function VersionHistoryTab({ novelId }: VersionHistoryTabProps) {
                     <Badge variant="outline">{new Date(snapshot.createdAt).toLocaleDateString()}</Badge>
                   </div>
 
-                  <div className="text-sm leading-6 text-muted-foreground">{i18next.t("gen.pages.novels.components.VersionHistoryTab.gen_a159f3ca", "这个版本适合在你想退回到更稳定的章节推进状态时使用。")}</div>
+                  <div className="text-sm leading-6 text-muted-foreground">{i18next.t("novels.versionHistoryTab.n0u3ia")}</div>
                 </div>
 
                 <Button
                   variant="secondary"
                   size="sm"
                   onClick={() => {
-                    const confirmed = window.confirm(i18next.t("gen.pages.novels.components.VersionHistoryTab.gen_eecaf902"));
+                    const confirmed = window.confirm(i18next.t("dict.gen_eecaf902"));
                     if (confirmed) {
                       restoreMutation.mutate(snapshot.id);
                     }
                   }}
                   disabled={restoreMutation.isPending}
                 >
-                  {isRestoringCurrent ? i18next.t("gen.pages.novels.components.VersionHistoryTab.gen_3baa9427") : i18next.t("gen.pages.novels.components.VersionHistoryTab.gen_db4a6ab7")}
+                  {isRestoringCurrent ? i18next.t("dict.gen_3baa9427") : i18next.t("dict.gen_db4a6ab7")}
                 </Button>
               </div>
             </div>
           );
         })}
         {snapshots.length === 0 ? (
-          <div className="rounded-2xl border border-dashed p-6 text-sm text-muted-foreground">{i18next.t("gen.pages.novels.components.VersionHistoryTab.gen_cb497484", "当前还没有版本记录。建议在大改方向、批量生成或大段重写前，先手动保存一个版本。")}</div>
+          <div className="rounded-2xl border border-dashed p-6 text-sm text-muted-foreground">{i18next.t("novels.versionHistoryTab.gtu2re")}</div>
         ) : null}
       </div>
     </div>

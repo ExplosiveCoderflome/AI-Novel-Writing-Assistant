@@ -1,5 +1,4 @@
 import i18next from "i18next";
-import { useTranslation } from "react-i18next";
 import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { AlertTriangle, ArrowLeft, BookOpen, Download, Loader2, Settings2 } from "lucide-react";
@@ -46,7 +45,6 @@ function saveBlob(blob: Blob, fileName: string): void {
 }
 
 export default function SimpleNovelShelfPage() {
-  const { t } = useTranslation();
   const { id = "" } = useParams();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
@@ -89,7 +87,7 @@ export default function SimpleNovelShelfPage() {
   const exportMutation = useMutation({
     mutationFn: () => downloadNovelExport(id, "txt", "chapter", shelf?.novel.title),
     onSuccess: ({ blob, fileName }) => saveBlob(blob, fileName),
-    onError: () => toast.error("导出失败，请稍后重试。"),
+    onError: () => toast.error(i18next.t("novels.simpleNovelShelfPage.s4nlto")),
   });
 
   const retryMutation = useMutation({
@@ -101,7 +99,7 @@ export default function SimpleNovelShelfPage() {
       return continueNovelWorkflow(task.data.id);
     },
     onSuccess: async () => {
-      toast.success("AI 已按当前作品继续处理。");
+      toast.success(i18next.t("novels.simpleNovelShelfPage.85lewk"));
       await queryClient.invalidateQueries({ queryKey: ["novels", id, "simple-shelf"] });
     },
     onError: (error) => toast.error(error instanceof Error ? error.message : "恢复失败，请重试。"),
@@ -117,7 +115,7 @@ export default function SimpleNovelShelfPage() {
   });
 
   if (shelfQuery.isPending || !shelf) {
-    return <div className="flex min-h-[60vh] items-center justify-center text-muted-foreground"><Loader2 className="mr-2 h-5 w-5 animate-spin" />{i18next.t("gen.pages.novels.simpleCreation.SimpleNovelShelfPage.gen_f3044a73", "正在打开章节书架")}</div>;
+    return <div className="flex min-h-[60vh] items-center justify-center text-muted-foreground"><Loader2 className="mr-2 h-5 w-5 animate-spin" />{i18next.t("novels.simpleNovelShelfPage.2i8ox0")}</div>;
   }
 
   return (
@@ -125,10 +123,10 @@ export default function SimpleNovelShelfPage() {
       <header className="rounded-2xl border border-border bg-background p-5">
         <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
           <div>
-            <Button variant="ghost" size="sm" asChild className="px-0"><Link to="/novels"><ArrowLeft className="h-4 w-4" />{i18next.t("gen.pages.novels.simpleCreation.SimpleNovelShelfPage.gen_9c469174", "返回小说列表")}</Link></Button>
+            <Button variant="ghost" size="sm" asChild className="px-0"><Link to="/novels"><ArrowLeft className="h-4 w-4" />{i18next.t("dict.gen_9c469174")}</Link></Button>
             <h1 className="mt-2 text-2xl font-semibold text-foreground">{shelf.novel.title}</h1>
             <div className="mt-2 flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
-              <Badge variant="secondary">{i18next.t("gen.pages.novels.simpleCreation.SimpleNovelShelfPage.gen_b372862e", "简易创作 · 只读")}</Badge>
+              <Badge variant="secondary">{i18next.t("novels.simpleNovelShelfPage.dz5rwm")}</Badge>
               <span>已完成 {shelf.progress.completedChapters}/{shelf.progress.totalChapters || "待规划"} 章</span>
               <span>{shelf.progress.currentAction}</span>
             </div>
@@ -144,8 +142,8 @@ export default function SimpleNovelShelfPage() {
               </Button>
             ) : null}
             <Button variant="outline" onClick={() => exportMutation.mutate()} disabled={exportMutation.isPending}>
-              <Download className="h-4 w-4" />{i18next.t("gen.pages.novels.simpleCreation.SimpleNovelShelfPage.gen_dd94eabe", "导出已完成章节")}</Button>
-            <Button variant="ghost" onClick={() => setConvertOpen(true)}><Settings2 className="h-4 w-4" />{i18next.t("gen.pages.novels.simpleCreation.SimpleNovelShelfPage.gen_d01a6957", "转为专业创作")}</Button>
+              <Download className="h-4 w-4" />{i18next.t("novels.simpleNovelShelfPage.9xrrh6")}</Button>
+            <Button variant="ghost" onClick={() => setConvertOpen(true)}><Settings2 className="h-4 w-4" />{i18next.t("novels.simpleNovelShelfPage.deqaom")}</Button>
           </div>
         </div>
         <div className="mt-5 h-2 overflow-hidden rounded-full bg-muted">
@@ -161,16 +159,16 @@ export default function SimpleNovelShelfPage() {
 
       <OnboardingTip
         storageKey="simple-creation-shelf"
-        title={i18next.t("gen.pages.novels.simpleCreation.SimpleNovelShelfPage.gen_dd264b74", "只阅读已完成的稳定正文")}
-        description={i18next.t("gen.pages.novels.simpleCreation.SimpleNovelShelfPage.gen_7912bea9", "生成中的章节会经历写作、审校和修复，完成前不会提前展示。你可以离开页面，后台任务仍会继续。")}
-        next={i18next.t("gen.pages.novels.simpleCreation.SimpleNovelShelfPage.gen_21172b12", "第一章完成后，书架会自动突出最新成稿。")}
+        title={i18next.t("novels.simpleNovelShelfPage.unnfix")}
+        description={i18next.t("novels.simpleNovelShelfPage.obzz9b")}
+        next="第一章完成后，书架会自动突出最新成稿。"
       />
 
       <SimpleCreationMaterialsPanel materials={shelf.materials} />
 
       <div className="grid gap-4 lg:grid-cols-[340px_minmax(0,1fr)]">
         <aside className="rounded-2xl border border-border bg-background p-4 lg:max-h-[calc(100vh-13rem)] lg:overflow-y-auto">
-          <div className="mb-3 font-medium text-foreground">{i18next.t("gen.pages.novels.simpleCreation.SimpleNovelShelfPage.gen_5d50904e", "实时章节书架")}</div>
+          <div className="mb-3 font-medium text-foreground">{i18next.t("novels.simpleNovelShelfPage.cjw9je")}</div>
           <div className="space-y-2">
             {shelf.chapters.length === 0 ? <div className="rounded-xl bg-muted/40 p-4 text-sm leading-6 text-muted-foreground">AI 正在准备全书规划，第一批章节出现后会自动显示在这里。</div> : null}
             {shelf.chapters.map((chapter) => {
@@ -205,7 +203,7 @@ export default function SimpleNovelShelfPage() {
             </>
           ) : (
             <div className="flex min-h-[560px] items-center justify-center px-6 text-center">
-              <div className="max-w-md"><BookOpen className="mx-auto h-10 w-10 text-muted-foreground" /><div className="mt-4 text-lg font-medium text-foreground">{i18next.t("gen.pages.novels.simpleCreation.SimpleNovelShelfPage.gen_03b8530b", "章节正在路上")}</div><p className="mt-2 text-sm leading-6 text-muted-foreground">AI 会先完成规划，再逐章写作、审校和修复。完成后的章节会自动出现在左侧书架。</p></div>
+              <div className="max-w-md"><BookOpen className="mx-auto h-10 w-10 text-muted-foreground" /><div className="mt-4 text-lg font-medium text-foreground">{i18next.t("novels.simpleNovelShelfPage.433s02")}</div><p className="mt-2 text-sm leading-6 text-muted-foreground">AI 会先完成规划，再逐章写作、审校和修复。完成后的章节会自动出现在左侧书架。</p></div>
             </div>
           )}
         </main>
@@ -214,10 +212,10 @@ export default function SimpleNovelShelfPage() {
       <Dialog open={convertOpen} onOpenChange={setConvertOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>{i18next.t("gen.pages.novels.simpleCreation.SimpleNovelShelfPage.gen_cf4db920", "转为专业创作？")}</DialogTitle>
-            <DialogDescription>{i18next.t("gen.pages.novels.simpleCreation.SimpleNovelShelfPage.gen_2bac75d1", "转换后可编辑设定、规划和章节正文，现有内容与后台任务都会保留。此操作不能切回简易创作。")}</DialogDescription>
+            <DialogTitle>{i18next.t("novels.simpleNovelShelfPage.ahzq9j")}</DialogTitle>
+            <DialogDescription>{i18next.t("novels.simpleNovelShelfPage.vfpzip")}</DialogDescription>
           </DialogHeader>
-          <div className="flex justify-end gap-2"><Button variant="ghost" onClick={() => setConvertOpen(false)}>{i18next.t("gen.pages.novels.simpleCreation.SimpleNovelShelfPage.gen_d6ad9d15", "继续使用简易创作")}</Button><Button onClick={() => convertMutation.mutate()} disabled={convertMutation.isPending}>{convertMutation.isPending ? "转换中..." : "确认转为专业创作"}</Button></div>
+          <div className="flex justify-end gap-2"><Button variant="ghost" onClick={() => setConvertOpen(false)}>{i18next.t("novels.simpleNovelShelfPage.cz3yeb")}</Button><Button onClick={() => convertMutation.mutate()} disabled={convertMutation.isPending}>{convertMutation.isPending ? "转换中..." : "确认转为专业创作"}</Button></div>
         </DialogContent>
       </Dialog>
     </div>

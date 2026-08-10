@@ -1,5 +1,4 @@
 import i18next from "i18next";
-import { useTranslation } from "react-i18next";
 import { useRef, type ReactNode } from "react";
 import { Image as ImageIcon, Loader2, Sparkles, Trash2, Upload } from "lucide-react";
 
@@ -65,7 +64,7 @@ export interface GeneratedImageCardProps {
   /** 卡片底部自定义内容（如额外操作按钮、提示） */
   footer?: ReactNode;
 
-  /** 主按钮文案；默认 idle="AI 生图" / done={i18next.t("gen.components.comic.GeneratedImageCard.gen_a7c23201", "重新生成")} */
+  /** 主按钮文案；默认 idle="AI 生图" / done="重新生成" */
   generateLabel?: string;
   /** 删除前确认文案；不传则不弹确认 */
   confirmDeleteText?: string;
@@ -95,7 +94,6 @@ export function GeneratedImageCard({
   generateLabel,
   confirmDeleteText,
 }: GeneratedImageCardProps) {
-  const { t } = useTranslation();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const isGenerating = busy || status === "generating";
@@ -115,7 +113,7 @@ export function GeneratedImageCard({
       {onDelete && (
         <button
           type="button"
-          title={i18next.t("gen.components.comic.GeneratedImageCard.gen_2f4aaddd", "删除")}
+          title={i18next.t("dict.gen_2f4aaddd")}
           disabled={busy}
           className="absolute top-1.5 left-1.5 z-10 rounded-md bg-background/85 p-1 text-muted-foreground/70 opacity-0 backdrop-blur-sm transition-opacity hover:bg-destructive hover:text-white group-hover:opacity-100 disabled:opacity-50"
           onClick={() => {
@@ -138,19 +136,19 @@ export function GeneratedImageCard({
         ) : isGenerating ? (
           <div className="flex flex-col items-center gap-1.5 text-muted-foreground">
             <Loader2 className="h-6 w-6 animate-spin" />
-            <span className="text-[10px]">{i18next.t("gen.components.comic.GeneratedImageCard.gen_1ae3a984", "生成中")}</span>
+            <span className="text-[10px]">{i18next.t("dict.gen_1ae3a984")}</span>
           </div>
         ) : status === "error" ? (
           <div className="flex flex-col items-center gap-1 px-2 text-center text-rose-600 dark:text-rose-400" title={errorMessage}>
             <ImageIcon className="h-6 w-6 opacity-50" />
-            <span className="text-[10px]">{i18next.t("gen.components.comic.GeneratedImageCard.gen_729330a1", "生成失败，可重试")}</span>
+            <span className="text-[10px]">{i18next.t("comic.generatedImageCard.piwiuo")}</span>
           </div>
         ) : emptyHint ? (
           <>{emptyHint}</>
         ) : (
           <div className="flex flex-col items-center gap-1 text-muted-foreground/50">
             <ImageIcon className="h-7 w-7" />
-            <span className="text-[10px]">{i18next.t("gen.components.comic.GeneratedImageCard.gen_418dde27", "待生成")}</span>
+            <span className="text-[10px]">{i18next.t("dict.gen_418dde27")}</span>
           </div>
         )}
       </div>
@@ -188,7 +186,7 @@ export function GeneratedImageCard({
             {onUpload && (
               <button
                 type="button"
-                title={i18next.t("gen.components.comic.GeneratedImageCard.gen_2b6ab100", "上传图片替代 AI 生成")}
+                title={i18next.t("comic.generatedImageCard.iu5z1w")}
                 disabled={isGenerating}
                 className="rounded-md border px-1.5 py-1 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground disabled:opacity-40"
                 onClick={() => fileInputRef.current?.click()}

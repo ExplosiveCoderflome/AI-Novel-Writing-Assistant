@@ -1,4 +1,3 @@
-import { useTranslation } from "react-i18next";
 import i18next from "i18next";
 const t = (key: string, options?: any) => i18next.t(key, options) as string;
 import type {
@@ -78,7 +77,6 @@ function ReferenceNotice(props: { title: string; description: string }) {
 }
 
 export default function ChapterExecutionReferencePanel(props: ChapterExecutionReferencePanelProps) {
-  const { t } = useTranslation();
   const {
     selectedChapter,
     assetTab,
@@ -104,12 +102,12 @@ export default function ChapterExecutionReferencePanel(props: ChapterExecutionRe
 
   if (!selectedChapter) {
     return (
-      <div className="rounded-2xl border border-dashed border-border/70 bg-background p-4 text-sm leading-6 text-muted-foreground">{i18next.t("gen.pages.novels.components.chapterInsights.ChapterExecutionReferencePanel.gen_95d85081", "选中章节后，这里会显示任务单、场景拆解、质量反馈、修复记录和诊断信息。")}</div>
+      <div className="rounded-2xl border border-dashed border-border/70 bg-background p-4 text-sm leading-6 text-muted-foreground">{i18next.t("novels.chapterExecutionReferencePanel.6i11ti")}</div>
     );
   }
 
   const runtimePackage = chapterRuntimePackage?.chapterId === selectedChapter.id ? chapterRuntimePackage : null;
-  const chapterObjective = chapterPlan?.objective ?? selectedChapter.expectation ?? i18next.t("gen.pages.novels.components.chapterInsights.ChapterExecutionReferencePanel.gen_6fc3748d");
+  const chapterObjective = chapterPlan?.objective ?? selectedChapter.expectation ?? i18next.t("dict.gen_6fc3748d");
   const scenePlan = parseChapterScenePlanForDisplay(selectedChapter);
   const isSelectedChapterRepairStreaming = isRepairStreaming && repairStreamingChapterId === selectedChapter.id;
   const isSelectedChapterRepairFinalizing = isSelectedChapterRepairStreaming && repairRunStatus?.phase === "finalizing";
@@ -123,31 +121,31 @@ export default function ChapterExecutionReferencePanel(props: ChapterExecutionRe
       <div className="rounded-2xl border border-border/70 bg-background p-4">
         <div className="flex items-start justify-between gap-3">
           <div>
-            <div className="text-base font-semibold text-foreground">{i18next.t("gen.pages.novels.components.chapterInsights.ChapterExecutionReferencePanel.gen_826a79d9")}</div>
-            <div className="mt-1 text-sm leading-6 text-muted-foreground">{i18next.t("gen.pages.novels.components.chapterInsights.ChapterExecutionReferencePanel.gen_bc8a3a82", "查看本章任务、质量和修复依据，不占用正文阅读区。")}</div>
+            <div className="text-base font-semibold text-foreground">{i18next.t("dict.gen_826a79d9")}</div>
+            <div className="mt-1 text-sm leading-6 text-muted-foreground">{i18next.t("novels.chapterExecutionReferencePanel.ytizxd")}</div>
           </div>
-          <Badge variant="outline" className="shrink-0">{i18next.t("gen.pages.novels.components.chapterInsights.ChapterExecutionReferencePanel.gen_0ad1bb1f")}</Badge>
+          <Badge variant="outline" className="shrink-0">{i18next.t("dict.gen_0ad1bb1f")}</Badge>
         </div>
       </div>
 
       <Tabs value={detailTab} onValueChange={(value) => onAssetTabChange(value as AssetTabKey)}>
         <TabsList className="grid h-auto w-full grid-cols-2 gap-1 rounded-2xl bg-muted/50 p-1.5">
-          <TabsTrigger value="taskSheet" className="rounded-xl text-xs">{i18next.t("gen.pages.novels.components.chapterInsights.ChapterExecutionReferencePanel.singleTask")}</TabsTrigger>
-          <TabsTrigger value="sceneCards" className="rounded-xl text-xs">{i18next.t("gen.pages.novels.components.chapterInsights.ChapterExecutionReferencePanel.gen_c931653c")}</TabsTrigger>
-          <TabsTrigger value="quality" className="rounded-xl text-xs">{i18next.t("gen.pages.novels.components.chapterInsights.ChapterExecutionReferencePanel.gen_3a7170b9")}</TabsTrigger>
-          <TabsTrigger value="repair" className="rounded-xl text-xs">{i18next.t("gen.pages.novels.components.chapterInsights.ChapterExecutionReferencePanel.gen_f82661e8")}</TabsTrigger>
-          <TabsTrigger value="content" className="col-span-2 rounded-xl text-xs">{i18next.t("gen.pages.novels.components.chapterInsights.ChapterExecutionReferencePanel.contextDiagnosis")}</TabsTrigger>
+          <TabsTrigger value="taskSheet" className="rounded-xl text-xs">{i18next.t("dict.singleTask")}</TabsTrigger>
+          <TabsTrigger value="sceneCards" className="rounded-xl text-xs">{i18next.t("dict.gen_c931653c")}</TabsTrigger>
+          <TabsTrigger value="quality" className="rounded-xl text-xs">{i18next.t("dict.gen_3a7170b9")}</TabsTrigger>
+          <TabsTrigger value="repair" className="rounded-xl text-xs">{i18next.t("dict.gen_f82661e8")}</TabsTrigger>
+          <TabsTrigger value="content" className="col-span-2 rounded-xl text-xs">{i18next.t("dict.contextDiagnosis")}</TabsTrigger>
         </TabsList>
 
         <TabsContent value="taskSheet" className="space-y-3">
           <div className="rounded-2xl border bg-muted/20 p-4">
-            <div className="text-xs text-muted-foreground">{i18next.t("gen.pages.novels.components.chapterInsights.ChapterExecutionReferencePanel.gen_d19149f0")}</div>
+            <div className="text-xs text-muted-foreground">{i18next.t("dict.gen_d19149f0")}</div>
             <div className="mt-3 whitespace-pre-wrap text-sm leading-7">
-              {selectedChapter.taskSheet?.trim() || i18next.t("gen.pages.novels.components.chapterInsights.ChapterExecutionReferencePanel.gen_ceb81222")}
+              {selectedChapter.taskSheet?.trim() || i18next.t("dict.gen_ceb81222")}
             </div>
           </div>
-          <PanelHintCard title={i18next.t("gen.pages.novels.components.chapterInsights.ChapterExecutionReferencePanel.gen_85f9e2b5")} content={chapterObjective} />
-          <PanelHintCard title={i18next.t("gen.pages.novels.components.chapterInsights.ChapterExecutionReferencePanel.gen_076a259e")} content={latestStateSnapshot?.summary || i18next.t("gen.pages.novels.components.chapterInsights.ChapterExecutionReferencePanel.gen_43e18541")} />
+          <PanelHintCard title={i18next.t("dict.gen_85f9e2b5")} content={chapterObjective} />
+          <PanelHintCard title={i18next.t("dict.gen_076a259e")} content={latestStateSnapshot?.summary || i18next.t("dict.gen_43e18541")} />
           <ChapterRuntimeContextCard
             runtimePackage={runtimePackage}
             chapterPlan={chapterPlan}
@@ -160,25 +158,25 @@ export default function ChapterExecutionReferencePanel(props: ChapterExecutionRe
           {scenePlan ? (
             <div className="space-y-3">
               <div className="rounded-2xl border bg-muted/20 p-4">
-                <div className="text-xs text-muted-foreground">{i18next.t("gen.pages.novels.components.chapterInsights.ChapterExecutionReferencePanel.gen_41ffb541")}</div>
+                <div className="text-xs text-muted-foreground">{i18next.t("dict.gen_41ffb541")}</div>
                 <div className="mt-3 grid grid-cols-2 gap-3">
-                  <MetricBadge label={i18next.t("gen.pages.novels.components.chapterInsights.ChapterExecutionReferencePanel.gen_85f9e2b5")} value={`${scenePlan.targetWordCount} 字`} />
-                  <MetricBadge label={i18next.t("gen.pages.novels.components.chapterInsights.ChapterExecutionReferencePanel.gen_1c433bf9")} value={String(scenePlan.scenes.length)} />
+                  <MetricBadge label={i18next.t("dict.gen_85f9e2b5")} value={`${scenePlan.targetWordCount} 字`} />
+                  <MetricBadge label={i18next.t("dict.gen_1c433bf9")} value={String(scenePlan.scenes.length)} />
                 </div>
               </div>
               {scenePlan.scenes.map((scene, index) => (
                 <div key={scene.key} className="rounded-2xl border bg-background p-4">
                   <div className="flex flex-wrap items-center gap-2">
-                    <Badge variant="outline">{i18next.t("gen.pages.novels.components.chapterInsights.ChapterExecutionReferencePanel.gen_67ba412c")}</Badge>
-                    <Badge variant="secondary">{i18next.t("gen.pages.novels.components.chapterInsights.ChapterExecutionReferencePanel.targetWordCount")}</Badge>
+                    <Badge variant="outline">{i18next.t("dict.gen_67ba412c")}</Badge>
+                    <Badge variant="secondary">{i18next.t("dict.targetWordCount")}</Badge>
                   </div>
                   <div className="mt-3 text-sm font-semibold text-foreground">{scene.title}</div>
                   <div className="mt-2 text-sm leading-6 text-muted-foreground">{scene.purpose}</div>
                   <div className="mt-3 space-y-2">
-                    <PanelHintCard title={i18next.t("gen.pages.novels.components.chapterInsights.ChapterExecutionReferencePanel.gen_133187a0")} content={scene.mustAdvance.join("；") || i18next.t("gen.pages.novels.components.chapterInsights.ChapterExecutionReferencePanel.gen_d81bb206")} />
-                    <PanelHintCard title={i18next.t("gen.pages.novels.components.chapterInsights.ChapterExecutionReferencePanel.gen_3443f3cf")} content={scene.mustPreserve.join("；") || i18next.t("gen.pages.novels.components.chapterInsights.ChapterExecutionReferencePanel.gen_d81bb206")} />
-                    <PanelHintCard title={i18next.t("gen.pages.novels.components.chapterInsights.ChapterExecutionReferencePanel.gen_8ed11315")} content={scene.entryState} />
-                    <PanelHintCard title={i18next.t("gen.pages.novels.components.chapterInsights.ChapterExecutionReferencePanel.gen_7624b2ba")} content={scene.exitState} />
+                    <PanelHintCard title={i18next.t("dict.gen_133187a0")} content={scene.mustAdvance.join("；") || i18next.t("dict.gen_d81bb206")} />
+                    <PanelHintCard title={i18next.t("dict.gen_3443f3cf")} content={scene.mustPreserve.join("；") || i18next.t("dict.gen_d81bb206")} />
+                    <PanelHintCard title={i18next.t("dict.gen_8ed11315")} content={scene.entryState} />
+                    <PanelHintCard title={i18next.t("dict.gen_7624b2ba")} content={scene.exitState} />
                   </div>
                   {scene.forbiddenExpansion.length > 0 ? (
                     <div className="mt-3 rounded-xl border border-amber-200 bg-amber-50/70 p-3 text-sm leading-6 text-amber-900">
@@ -190,11 +188,11 @@ export default function ChapterExecutionReferencePanel(props: ChapterExecutionRe
             </div>
           ) : (
             <div className="rounded-2xl border bg-muted/20 p-4">
-              <div className="text-xs text-muted-foreground">{i18next.t("gen.pages.novels.components.chapterInsights.ChapterExecutionReferencePanel.gen_d67bb4d4")}</div>
+              <div className="text-xs text-muted-foreground">{i18next.t("dict.gen_d67bb4d4")}</div>
               <div className="mt-3 whitespace-pre-wrap text-sm leading-7">
                 {selectedChapter.sceneCards?.trim()
-                  ? i18next.t("gen.pages.novels.components.chapterInsights.ChapterExecutionReferencePanel.gen_82295758")
-                  : i18next.t("gen.pages.novels.components.chapterInsights.ChapterExecutionReferencePanel.gen_87bfad6b")}
+                  ? i18next.t("dict.gen_82295758")
+                  : i18next.t("dict.gen_87bfad6b")}
               </div>
             </div>
           )}
@@ -202,16 +200,16 @@ export default function ChapterExecutionReferencePanel(props: ChapterExecutionRe
 
         <TabsContent value="quality" className="space-y-3">
           <div className="grid grid-cols-2 gap-3">
-            <MetricBadge label={i18next.t("gen.pages.novels.components.chapterInsights.ChapterExecutionReferencePanel.gen_b141e85c")} value={String(chapterQualityReport?.overall ?? selectedChapter.qualityScore ?? "-")} />
-            <MetricBadge label={i18next.t("gen.pages.novels.components.chapterInsights.ChapterExecutionReferencePanel.gen_5995f0d3")} value={String(chapterQualityReport?.coherence ?? "-")} />
-            <MetricBadge label={i18next.t("gen.pages.novels.components.chapterInsights.ChapterExecutionReferencePanel.gen_3f842f0c")} value={String(chapterQualityReport?.repetition ?? "-")} />
-            <MetricBadge label={i18next.t("gen.pages.novels.components.chapterInsights.ChapterExecutionReferencePanel.gen_dd608458")} value={String(chapterQualityReport?.pacing ?? selectedChapter.pacingScore ?? "-")} />
-            <MetricBadge label={i18next.t("gen.pages.novels.components.chapterInsights.ChapterExecutionReferencePanel.gen_c50632e5")} value={String(chapterQualityReport?.voice ?? "-")} />
-            <MetricBadge label={i18next.t("gen.pages.novels.components.chapterInsights.ChapterExecutionReferencePanel.gen_0e4f9469")} value={String(chapterQualityReport?.engagement ?? "-")} />
+            <MetricBadge label={i18next.t("dict.gen_b141e85c")} value={String(chapterQualityReport?.overall ?? selectedChapter.qualityScore ?? "-")} />
+            <MetricBadge label={i18next.t("dict.gen_5995f0d3")} value={String(chapterQualityReport?.coherence ?? "-")} />
+            <MetricBadge label={i18next.t("dict.gen_3f842f0c")} value={String(chapterQualityReport?.repetition ?? "-")} />
+            <MetricBadge label={i18next.t("dict.gen_dd608458")} value={String(chapterQualityReport?.pacing ?? selectedChapter.pacingScore ?? "-")} />
+            <MetricBadge label={i18next.t("dict.gen_c50632e5")} value={String(chapterQualityReport?.voice ?? "-")} />
+            <MetricBadge label={i18next.t("dict.gen_0e4f9469")} value={String(chapterQualityReport?.engagement ?? "-")} />
           </div>
 
           <div className="rounded-2xl border p-4 text-sm">
-            <div className="font-semibold text-foreground">{i18next.t("gen.pages.novels.components.chapterInsights.ChapterExecutionReferencePanel.gen_8e6ed341")}</div>
+            <div className="font-semibold text-foreground">{i18next.t("dict.gen_8e6ed341")}</div>
             {reviewResult?.issues?.length ? (
               <div className="mt-3 space-y-2 text-xs text-muted-foreground">
                 {reviewResult.issues.slice(0, 5).map((item, index) => (
@@ -222,12 +220,12 @@ export default function ChapterExecutionReferencePanel(props: ChapterExecutionRe
                 ))}
               </div>
             ) : (
-              <div className="mt-3 text-xs leading-6 text-muted-foreground">{i18next.t("gen.pages.novels.components.chapterInsights.ChapterExecutionReferencePanel.gen_a9e1fde8")}</div>
+              <div className="mt-3 text-xs leading-6 text-muted-foreground">{i18next.t("dict.gen_a9e1fde8")}</div>
             )}
           </div>
 
           <div className="rounded-2xl border p-4 text-sm">
-            <div className="font-semibold text-foreground">{i18next.t("gen.pages.novels.components.chapterInsights.ChapterExecutionReferencePanel.gen_df38622b")}</div>
+            <div className="font-semibold text-foreground">{i18next.t("dict.gen_df38622b")}</div>
             {openAuditIssues.length > 0 ? (
               <div className="mt-3 space-y-2 text-xs text-muted-foreground">
                 {openAuditIssues.slice(0, 6).map((item) => (
@@ -238,7 +236,7 @@ export default function ChapterExecutionReferencePanel(props: ChapterExecutionRe
                 ))}
               </div>
             ) : (
-              <div className="mt-3 text-xs leading-6 text-muted-foreground">{i18next.t("gen.pages.novels.components.chapterInsights.ChapterExecutionReferencePanel.gen_6de9e52d")}</div>
+              <div className="mt-3 text-xs leading-6 text-muted-foreground">{i18next.t("dict.gen_6de9e52d")}</div>
             )}
           </div>
 
@@ -255,17 +253,17 @@ export default function ChapterExecutionReferencePanel(props: ChapterExecutionRe
         <TabsContent value="repair" className="space-y-3">
           {repairingOtherChapter ? (
             <ReferenceNotice
-              title={i18next.t("gen.pages.novels.components.chapterInsights.ChapterExecutionReferencePanel.gen_153d3586")}
-              description={`${repairStreamingChapterLabel ?? i18next.t("gen.pages.novels.components.chapterInsights.ChapterExecutionReferencePanel.gen_08e4466c")} 仍在修复中。当前章节不会显示那一章的修复流，返回对应章节即可继续查看。`}
+              title={i18next.t("dict.gen_153d3586")}
+              description={`${repairStreamingChapterLabel ?? i18next.t("dict.gen_08e4466c")} 仍在修复中。当前章节不会显示那一章的修复流，返回对应章节即可继续查看。`}
             />
           ) : null}
 
           {(isSelectedChapterRepairStreaming || hasVisibleRepairOutput) ? (
             <StreamOutput
-              title={i18next.t("gen.pages.novels.components.chapterInsights.ChapterExecutionReferencePanel.gen_f7defa22")}
+              title={i18next.t("dict.gen_f7defa22")}
               emptyText={isSelectedChapterRepairFinalizing
-                ? (repairRunStatus?.message ?? i18next.t("gen.pages.novels.components.chapterInsights.ChapterExecutionReferencePanel.gen_0c718979"))
-                : i18next.t("gen.pages.novels.components.chapterInsights.ChapterExecutionReferencePanel.gen_a4721a68")}
+                ? (repairRunStatus?.message ?? i18next.t("dict.gen_0c718979"))
+                : i18next.t("dict.gen_a4721a68")}
               content={visibleRepairStreamContent}
               isStreaming={isSelectedChapterRepairStreaming}
               onAbort={isSelectedChapterRepairFinalizing ? undefined : onAbortRepair}
@@ -273,9 +271,9 @@ export default function ChapterExecutionReferencePanel(props: ChapterExecutionRe
           ) : null}
 
           <div className="rounded-2xl border bg-muted/20 p-4">
-            <div className="text-xs text-muted-foreground">{i18next.t("gen.pages.novels.components.chapterInsights.ChapterExecutionReferencePanel.gen_57ef330b")}</div>
+            <div className="text-xs text-muted-foreground">{i18next.t("dict.gen_57ef330b")}</div>
             <div className="mt-3 max-h-[420px] overflow-y-auto whitespace-pre-wrap text-sm leading-7">
-              {selectedChapter.repairHistory?.trim() || i18next.t("gen.pages.novels.components.chapterInsights.ChapterExecutionReferencePanel.gen_6dbece44")}
+              {selectedChapter.repairHistory?.trim() || i18next.t("dict.gen_6dbece44")}
             </div>
           </div>
         </TabsContent>

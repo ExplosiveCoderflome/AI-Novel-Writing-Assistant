@@ -62,12 +62,12 @@ function formatCount(value: number): string {
 
 function getBookAnalysisScaleLabel(charCount: number): { label: string; tone: string } {
   if (charCount >= 300_000) {
-    return { label: i18next.t("gen.pages.bookAnalysis.components.BookAnalysisCreateDialog.gen_ef9a46bf"), tone: i18next.t("gen.pages.bookAnalysis.components.BookAnalysisCreateDialog.gen_c2f7f484") };
+    return { label: i18next.t("dict.gen_ef9a46bf"), tone: i18next.t("dict.gen_c2f7f484") };
   }
   if (charCount >= 100_000) {
-    return { label: i18next.t("gen.pages.bookAnalysis.components.BookAnalysisCreateDialog.mediumVolume"), tone: i18next.t("gen.pages.bookAnalysis.components.BookAnalysisCreateDialog.gen_4c932ebc") };
+    return { label: i18next.t("dict.mediumVolume"), tone: i18next.t("dict.gen_4c932ebc") };
   }
-  return { label: i18next.t("gen.pages.bookAnalysis.components.BookAnalysisCreateDialog.gen_9510eff9"), tone: i18next.t("gen.pages.bookAnalysis.components.BookAnalysisCreateDialog.gen_684d2554") };
+  return { label: i18next.t("dict.gen_9510eff9"), tone: i18next.t("dict.gen_684d2554") };
 }
 
 function getPresetSectionTitles(sectionKeys: readonly string[]): string {
@@ -145,18 +145,18 @@ export default function BookAnalysisCreateDialog(props: BookAnalysisCreateDialog
     : Boolean(selectedDocumentId) && sourceRangeValid && !createPending;
   const submitting = isDiagnosisMode ? createDiagnosisPending : createPending;
   const submitLabel = isDiagnosisMode
-    ? (createDiagnosisPending ? i18next.t("gen.pages.bookAnalysis.components.BookAnalysisCreateDialog.gen_c8cb0226") : i18next.t("gen.pages.bookAnalysis.components.BookAnalysisCreateDialog.gen_50e2e2d4"))
-    : (createPending ? i18next.t("gen.pages.bookAnalysis.components.BookAnalysisCreateDialog.gen_890cac7b") : i18next.t("gen.pages.bookAnalysis.components.BookAnalysisCreateDialog.gen_b96a18d9"));
+    ? (createDiagnosisPending ? i18next.t("dict.gen_c8cb0226") : i18next.t("dict.gen_50e2e2d4"))
+    : (createPending ? i18next.t("creativeHub.creatingThread") : i18next.t("dict.gen_b96a18d9"));
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <AppDialogContent
-        title={i18next.t("gen.pages.bookAnalysis.components.BookAnalysisCreateDialog.gen_08277d71")}
-        description={i18next.t("gen.pages.bookAnalysis.components.BookAnalysisCreateDialog.gen_26abfe76")}
+        title={i18next.t("dict.gen_08277d71")}
+        description={i18next.t("dict.gen_26abfe76")}
         className="max-w-4xl"
         footer={
           <div className="flex w-full items-center justify-end gap-2">
-            <Button type="button" variant="outline" onClick={() => onOpenChange(false)} disabled={submitting}>{i18next.t("gen.pages.bookAnalysis.components.BookAnalysisCreateDialog.gen_625fb26b", "取消")}</Button>
+            <Button type="button" variant="outline" onClick={() => onOpenChange(false)} disabled={submitting}>{i18next.t("common.cancel")}</Button>
             <Button
               type="button"
               disabled={!canSubmit}
@@ -175,43 +175,43 @@ export default function BookAnalysisCreateDialog(props: BookAnalysisCreateDialog
                 size="sm"
                 variant={analysisMode === "reference" ? "default" : "ghost"}
                 onClick={() => onModeChange("reference")}
-              >{i18next.t("gen.pages.bookAnalysis.components.BookAnalysisCreateDialog.gen_f867aaea", "参考作品")}</Button>
+              >{i18next.t("bookAnalysis.bookAnalysisCreateDialog.b3g7ja")}</Button>
               <Button
                 type="button"
                 size="sm"
                 variant={isDiagnosisMode ? "default" : "ghost"}
                 onClick={() => onModeChange("diagnosis")}
-              >{i18next.t("gen.pages.bookAnalysis.components.BookAnalysisCreateDialog.gen_d315f7e5", "诊断稿子")}</Button>
+              >{i18next.t("bookAnalysis.bookAnalysisCreateDialog.i27o0k")}</Button>
             </div>
 
             {isDiagnosisMode ? (
               <div className="space-y-2">
-                <div className="text-sm font-medium">{i18next.t("gen.pages.bookAnalysis.components.BookAnalysisCreateDialog.gen_c9eedcd0")}</div>
+                <div className="text-sm font-medium">{i18next.t("dict.gen_c9eedcd0")}</div>
                 <SelectControl
                   className="h-10 w-full rounded-md border bg-background px-3 text-sm"
                   value={selectedDiagnosisNovelId}
                   onChange={(event) => onSelectDiagnosisNovel(event.target.value)}
                 >
-                  <option value="">{i18next.t("gen.pages.bookAnalysis.components.BookAnalysisCreateDialog.gen_44cddc3d")}</option>
+                  <option value="">{i18next.t("creativeHub.actionSelectNovel")}</option>
                   {novelOptions.map((novel) => (
                     <option key={novel.id} value={novel.id}>
                       {novel.title}
                     </option>
                   ))}
                 </SelectControl>
-                <div className="rounded-md border bg-muted/20 p-3 text-xs leading-5 text-muted-foreground">{i18next.t("gen.pages.bookAnalysis.components.BookAnalysisCreateDialog.gen_26e16e0d", "系统会导出这本小说的当前章节正文，作为新的知识文档创建诊断拆书。")}</div>
+                <div className="rounded-md border bg-muted/20 p-3 text-xs leading-5 text-muted-foreground">{i18next.t("bookAnalysis.bookAnalysisCreateDialog.ezyxgd")}</div>
               </div>
             ) : (
               <>
                 <div className="grid gap-3 sm:grid-cols-2">
                 <div className="space-y-2">
-                  <div className="text-sm font-medium">{i18next.t("gen.pages.bookAnalysis.components.BookAnalysisCreateDialog.gen_a597ef78")}</div>
+                  <div className="text-sm font-medium">{i18next.t("dict.gen_a597ef78")}</div>
                   <SelectControl
                     className="h-10 w-full rounded-md border bg-background px-3 text-sm"
                     value={selectedDocumentId}
                     onChange={(event) => onSelectDocument(event.target.value)}
                   >
-                    <option value="">{i18next.t("gen.pages.bookAnalysis.components.BookAnalysisCreateDialog.gen_a70ee8be")}</option>
+                    <option value="">{i18next.t("dict.gen_a70ee8be")}</option>
                     {documentOptions.map((document) => (
                       <option key={document.id} value={document.id}>
                         {document.title}
@@ -220,17 +220,17 @@ export default function BookAnalysisCreateDialog(props: BookAnalysisCreateDialog
                   </SelectControl>
                 </div>
                 <div className="space-y-2">
-                  <div className="text-sm font-medium">{i18next.t("gen.pages.bookAnalysis.components.BookAnalysisCreateDialog.gen_f1cee000")}</div>
+                  <div className="text-sm font-medium">{i18next.t("dict.gen_f1cee000")}</div>
                   <SelectControl
                     className="h-10 w-full rounded-md border bg-background px-3 text-sm"
                     value={selectedVersionId}
                     onChange={(event) => onSelectVersion(event.target.value)}
                     disabled={!selectedDocumentId}
                   >
-                    <option value="">{i18next.t("gen.pages.bookAnalysis.components.BookAnalysisCreateDialog.gen_使用当前激活版本_01b6")}</option>
+                    <option value="">{i18next.t("dict.gen_使用当前激活版本_01b6")}</option>
                     {versionOptions.map((version) => (
                       <option key={version.id} value={version.id}>
-                        v{version.versionNumber} {version.isActive ? i18next.t("gen.pages.bookAnalysis.components.BookAnalysisCreateDialog.gen_7588ab69") : ""}
+                        v{version.versionNumber} {version.isActive ? i18next.t("dict.gen_7588ab69") : ""}
                       </option>
                     ))}
                   </SelectControl>
@@ -251,7 +251,7 @@ export default function BookAnalysisCreateDialog(props: BookAnalysisCreateDialog
             )}
 
             <div className="space-y-2">
-              <div className="text-sm font-medium">{i18next.t("gen.pages.bookAnalysis.components.BookAnalysisCreateDialog.gen_8000f187")}</div>
+              <div className="text-sm font-medium">{i18next.t("dict.gen_8000f187")}</div>
               <LLMSelector
                 value={llmConfig}
                 onChange={(next) =>
@@ -266,8 +266,8 @@ export default function BookAnalysisCreateDialog(props: BookAnalysisCreateDialog
               />
               <div className="grid gap-2 rounded-md border bg-muted/20 p-3 sm:grid-cols-[minmax(0,1fr)_180px] sm:items-center">
                 <div>
-                  <div className="text-sm font-medium">{i18next.t("gen.pages.bookAnalysis.components.BookAnalysisCreateDialog.gen_b474d723")}</div>
-                  <div className="mt-1 text-xs leading-5 text-muted-foreground">{i18next.t("gen.pages.bookAnalysis.components.BookAnalysisCreateDialog.gen_34a741fb", "留空使用服务端默认值。累计用量达到上限后停止任务，已完成的小节会保留。")}</div>
+                  <div className="text-sm font-medium">{i18next.t("dict.gen_b474d723")}</div>
+                  <div className="mt-1 text-xs leading-5 text-muted-foreground">{i18next.t("bookAnalysis.bookAnalysisCreateDialog.bmxb71")}</div>
                 </div>
                 <div className="flex items-center gap-2">
                   <Input
@@ -293,7 +293,7 @@ export default function BookAnalysisCreateDialog(props: BookAnalysisCreateDialog
             </div>
 
             <div className="space-y-2">
-              <div className="text-sm font-medium">{i18next.t("gen.pages.bookAnalysis.components.BookAnalysisCreateDialog.gen_1a00cbf4")}</div>
+              <div className="text-sm font-medium">{i18next.t("dict.gen_1a00cbf4")}</div>
               <div className="grid gap-2 sm:grid-cols-3">
                 {BOOK_ANALYSIS_PRESETS.map((preset) => {
                   const selected = preset.key === analysisPreset;
@@ -308,7 +308,7 @@ export default function BookAnalysisCreateDialog(props: BookAnalysisCreateDialog
                     >
                       <div className="flex items-center justify-between gap-2">
                         <div className="text-sm font-medium">{preset.title}</div>
-                        <div className="text-xs text-muted-foreground">{i18next.t("gen.pages.bookAnalysis.components.BookAnalysisCreateDialog.presetCount")}</div>
+                        <div className="text-xs text-muted-foreground">{i18next.t("dict.presetCount")}</div>
                       </div>
                       <div className="mt-1 text-xs leading-5 text-muted-foreground">{preset.summary}</div>
                       <div className="mt-2 text-xs leading-5 text-muted-foreground">
@@ -321,14 +321,14 @@ export default function BookAnalysisCreateDialog(props: BookAnalysisCreateDialog
             </div>
 
             <div className="space-y-2">
-              <div className="text-sm font-medium">{i18next.t("gen.pages.bookAnalysis.components.BookAnalysisCreateDialog.gen_48b141e3")}</div>
+              <div className="text-sm font-medium">{i18next.t("dict.gen_48b141e3")}</div>
               <textarea
                 className="min-h-[92px] w-full rounded-md border bg-background p-3 text-sm"
                 value={userFocusInstruction}
                 onChange={(event) => onUserFocusInstructionChange(event.target.value)}
                 placeholder={isDiagnosisMode
-                  ? i18next.t("gen.pages.bookAnalysis.components.BookAnalysisCreateDialog.gen_06f379b4")
-                  : i18next.t("gen.pages.bookAnalysis.components.BookAnalysisCreateDialog.gen_9cc5c446")}
+                  ? i18next.t("dict.gen_06f379b4")
+                  : i18next.t("dict.gen_9cc5c446")}
               />
             </div>
           </div>
@@ -336,13 +336,13 @@ export default function BookAnalysisCreateDialog(props: BookAnalysisCreateDialog
           <aside className="space-y-3">
             <div className="rounded-md border border-warning/30 bg-warning/5 p-3 text-xs leading-5 text-foreground">
               {isDiagnosisMode
-                ? i18next.t("gen.pages.bookAnalysis.components.BookAnalysisCreateDialog.gen_95778722")
-                : i18next.t("gen.pages.bookAnalysis.components.BookAnalysisCreateDialog.gen_f5f49733")}
+                ? i18next.t("dict.gen_95778722")
+                : i18next.t("dict.gen_f5f49733")}
             </div>
 
             {!isDiagnosisMode && selectedSourceVersion ? (
               <div className="rounded-md border bg-muted/20 p-3 text-xs leading-5 text-muted-foreground">
-                <div className="font-medium text-foreground">{i18next.t("gen.pages.bookAnalysis.components.BookAnalysisCreateDialog.gen_3011bbd9")}</div>
+                <div className="font-medium text-foreground">{i18next.t("dict.gen_3011bbd9")}</div>
                 <div className="mt-1">
                   约 {formatCount(effectiveSourceCharCount)} 字，预计拆成 {estimatedSegmentCount} 个原文片段，
                   约 {estimatedLlmCalls} 次模型调用。

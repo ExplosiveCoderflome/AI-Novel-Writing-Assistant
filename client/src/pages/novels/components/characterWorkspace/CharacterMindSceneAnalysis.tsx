@@ -1,5 +1,4 @@
 import i18next from "i18next";
-import { useTranslation } from "react-i18next";
 import { useState } from "react";
 import type { CharacterMindSnapshot } from "@ai-novel/shared/types/characterMind";
 import { Brain, ChevronDown, ChevronUp, CircleAlert, Lightbulb, ShieldCheck } from "lucide-react";
@@ -14,22 +13,21 @@ interface CharacterMindSceneAnalysisProps {
 }
 
 export default function CharacterMindSceneAnalysis(props: CharacterMindSceneAnalysisProps) {
-  const { t } = useTranslation();
   const [isExpanded, setIsExpanded] = useState(false);
   return (
     <aside className={cn("min-w-0 rounded-3xl border border-border/70 bg-background p-5 shadow-sm xl:sticky xl:top-0", props.className)}>
-      <div className="flex items-center gap-2 text-sm font-semibold"><Brain className="h-4 w-4 text-primary" />{i18next.t("gen.pages.novels.components.characterWorkspace.CharacterMindSceneAnalysis.gen_6a19aea3", "角色场景分析")}</div>
+      <div className="flex items-center gap-2 text-sm font-semibold"><Brain className="h-4 w-4 text-primary" />{i18next.t("novels.characterMindSceneAnalysis.xxt9cx")}</div>
       <p className="mt-1 text-xs leading-5 text-muted-foreground">以下内容帮助理解 {props.characterName} 的回应逻辑，是 AI 推断，不会改写小说正史。</p>
 
       <section className="mt-5 rounded-2xl border border-primary/15 bg-primary/[0.045] p-4">
-        <div className="text-xs font-medium text-primary">{i18next.t("gen.pages.novels.components.characterWorkspace.CharacterMindSceneAnalysis.gen_3ebd6274", "他如何看待眼前局面")}</div>
+        <div className="text-xs font-medium text-primary">{i18next.t("novels.characterMindSceneAnalysis.3sicc6")}</div>
         <p className="mt-2 text-sm leading-7 text-foreground">{props.mind.currentInterpretation}</p>
       </section>
 
       <div className="mt-4 space-y-3">
-        <AnalysisItem icon={Lightbulb} title={i18next.t("gen.pages.novels.components.characterWorkspace.CharacterMindSceneAnalysis.gen_c8678319", "谈话中的关注点")} value={props.mind.activePlan || props.mind.privateIntent || "AI 尚未判断出稳定关注点。"} />
-        <AnalysisItem icon={CircleAlert} title={i18next.t("gen.pages.novels.components.characterWorkspace.CharacterMindSceneAnalysis.gen_cb69990e", "可能的误读")} value={props.mind.misbeliefs[0] || "暂无明确误读。"} tone="warning" />
-        <AnalysisItem icon={ShieldCheck} title={i18next.t("gen.pages.novels.components.characterWorkspace.CharacterMindSceneAnalysis.gen_4d025ca0", "受压时的反应")} value={props.mind.actionTendency || "AI 尚未判断出稳定反应。"} />
+        <AnalysisItem icon={Lightbulb} title={i18next.t("novels.characterMindSceneAnalysis.i0a07c")} value={props.mind.activePlan || props.mind.privateIntent || "AI 尚未判断出稳定关注点。"} />
+        <AnalysisItem icon={CircleAlert} title={i18next.t("novels.characterMindSceneAnalysis.a7ese6")} value={props.mind.misbeliefs[0] || "暂无明确误读。"} tone="warning" />
+        <AnalysisItem icon={ShieldCheck} title={i18next.t("novels.characterMindSceneAnalysis.aefghj")} value={props.mind.actionTendency || "AI 尚未判断出稳定反应。"} />
       </div>
 
       <Button className="mt-4 w-full justify-between" size="sm" variant="ghost" onClick={() => setIsExpanded((current) => !current)}>
@@ -37,10 +35,10 @@ export default function CharacterMindSceneAnalysis(props: CharacterMindSceneAnal
         {isExpanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
       </Button>
       {isExpanded ? <div className="mt-3 space-y-3 border-t border-border/60 pt-4">
-        <AnalysisItem title={i18next.t("gen.pages.novels.components.characterWorkspace.CharacterMindSceneAnalysis.gen_36e6bbb9", "当前情绪与立场")} value={props.mind.emotionalStance || "未形成稳定判断。"} />
-        <AnalysisItem title={i18next.t("gen.pages.novels.components.characterWorkspace.CharacterMindSceneAnalysis.gen_22180cfd", "什么会改变决定")} value={props.mind.decisionTrigger || "未形成稳定判断。"} />
-        <AnalysisItem title={i18next.t("gen.pages.novels.components.characterWorkspace.CharacterMindSceneAnalysis.gen_7c922379", "当前相信")} value={props.mind.beliefs.join("；") || "暂无需要特别追踪的判断。"} />
-        <AnalysisItem title={i18next.t("gen.pages.novels.components.characterWorkspace.CharacterMindSceneAnalysis.gen_aa27c363", "推断依据")} value={props.mind.evidence.join("；") || "暂无可展示依据。"} />
+        <AnalysisItem title={i18next.t("novels.characterMindSceneAnalysis.tf3vky")} value={props.mind.emotionalStance || "未形成稳定判断。"} />
+        <AnalysisItem title={i18next.t("novels.characterMindSceneAnalysis.408roo")} value={props.mind.decisionTrigger || "未形成稳定判断。"} />
+        <AnalysisItem title={i18next.t("novels.characterMindSceneAnalysis.cdgk3n")} value={props.mind.beliefs.join("；") || "暂无需要特别追踪的判断。"} />
+        <AnalysisItem title={i18next.t("novels.characterMindSceneAnalysis.czs9bq")} value={props.mind.evidence.join("；") || "暂无可展示依据。"} />
       </div> : null}
 
       <div className="mt-5 flex flex-wrap gap-2 border-t border-border/60 pt-4 text-xs text-muted-foreground">

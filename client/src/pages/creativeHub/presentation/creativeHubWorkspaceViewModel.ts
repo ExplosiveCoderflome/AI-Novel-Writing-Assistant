@@ -180,8 +180,8 @@ export function resolveCreativeHubWorkspacePresentation(input: {
       threadStatusLabel,
       recommendation: {
         tone: "info",
-        title: "选择本轮要推进的小说",
-        description: "绑定小说后，AI 才能读取对应的章节、世界、角色和生产状态。",
+        title: i18next.t("creativeHub.titleSelectNovel"),
+        description: i18next.t("creativeHub.descSelectNovel"),
         action: "select_novel",
         actionLabel: "选择小说",
       },
@@ -194,8 +194,8 @@ export function resolveCreativeHubWorkspacePresentation(input: {
     threadStatusLabel,
     recommendation: {
       tone: "neutral",
-      title: "说明本轮要推进的创作目标",
-      description: "可以补充作品问题、调整要求，或打开整本生产设置继续现有小说。",
+      title: i18next.t("creativeHub.titleSpecifyTarget"),
+      description: i18next.t("creativeHub.descSpecifyTarget"),
       action: "open_production",
       actionLabel: "查看生产入口",
     },

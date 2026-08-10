@@ -85,25 +85,25 @@ function compareNullableNumber(a: number | null | undefined, b: number | null | 
 function getChangedFields(existing: OutlineSyncChapter, chapter: StructuredChapter): string[] {
   const changed: string[] = [];
   if (!compareNullableString(existing.title, chapter.title)) {
-    changed.push(i18next.t("gen.pages.novels.structuredOutlineSync.utils.gen_32c65d8d"));
+    changed.push(i18next.t("dict.gen_32c65d8d"));
   }
   if (!compareNullableString(existing.expectation, chapter.summary)) {
-    changed.push(i18next.t("gen.pages.novels.structuredOutlineSync.utils.gen_3ae14696"));
+    changed.push(i18next.t("dict.gen_3ae14696"));
   }
   if (!compareNullableNumber(existing.targetWordCount, chapter.targetWordCount)) {
-    changed.push(i18next.t("gen.pages.novels.structuredOutlineSync.utils.gen_b71c2e84"));
+    changed.push(i18next.t("dict.gen_b71c2e84"));
   }
   if (!compareNullableNumber(existing.conflictLevel, chapter.conflictLevel)) {
-    changed.push(i18next.t("gen.pages.novels.structuredOutlineSync.utils.gen_971cbaa4"));
+    changed.push(i18next.t("dict.gen_971cbaa4"));
   }
   if (!compareNullableNumber(existing.revealLevel, chapter.revealLevel)) {
-    changed.push(i18next.t("gen.pages.novels.structuredOutlineSync.utils.gen_53fe8284"));
+    changed.push(i18next.t("dict.gen_53fe8284"));
   }
   if (!compareNullableString(existing.mustAvoid, chapter.mustAvoid)) {
-    changed.push(i18next.t("gen.pages.novels.structuredOutlineSync.utils.gen_e586f3e2"));
+    changed.push(i18next.t("dict.gen_e586f3e2"));
   }
   if (chapter.taskSheet?.trim() && !compareNullableString(existing.taskSheet, chapter.taskSheet)) {
-    changed.push(i18next.t("gen.pages.novels.structuredOutlineSync.utils.singleTask"));
+    changed.push(i18next.t("dict.singleTask"));
   }
   return changed;
 }
@@ -134,7 +134,7 @@ export function buildStructuredOutlineSyncPreview(
         order: chapter.order,
         nextTitle: chapter.title,
         hasContent: false,
-        changedFields: [i18next.t("gen.pages.novels.structuredOutlineSync.utils.gen_0aab985d")],
+        changedFields: [i18next.t("dict.gen_0aab985d")],
       });
       continue;
     }
@@ -181,7 +181,7 @@ export function buildStructuredOutlineSyncPreview(
         order: chapter.order,
         nextTitle: chapter.title,
         hasContent,
-        changedFields: [i18next.t("gen.pages.novels.structuredOutlineSync.utils.removeFromOutline")],
+        changedFields: [i18next.t("dict.removeFromOutline")],
       });
     } else {
       deleteCandidateCount += 1;
@@ -190,7 +190,7 @@ export function buildStructuredOutlineSyncPreview(
         order: chapter.order,
         nextTitle: chapter.title,
         hasContent,
-        changedFields: [i18next.t("gen.pages.novels.structuredOutlineSync.utils.gen_f85caee0")],
+        changedFields: [i18next.t("dict.gen_f85caee0")],
       });
     }
   }

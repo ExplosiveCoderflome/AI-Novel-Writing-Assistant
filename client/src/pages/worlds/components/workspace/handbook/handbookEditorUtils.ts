@@ -1,4 +1,3 @@
-import i18next from "i18next";
 export function makeId(prefix: string, count: number) {
   return `${prefix}-${Date.now()}-${count + 1}`;
 }

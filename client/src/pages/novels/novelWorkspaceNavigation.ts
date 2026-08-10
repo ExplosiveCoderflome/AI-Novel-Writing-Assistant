@@ -15,18 +15,18 @@ export type NovelWorkspaceFlowTab =
 export type NovelWorkspaceTab = NovelWorkspaceFlowTab | "history";
 
 export const NOVEL_WORKSPACE_FLOW_STEPS: Array<{ key: NovelWorkspaceFlowTab; label: string }> = [
-  { key: "basic", label: "项目设定" },
-  { key: "story_macro", label: "故事宏观规划" },
-  { key: "world", label: "世界观准备" },
-  { key: "character", label: "角色准备" },
-  { key: "outline", label: "卷战略 / 卷骨架" },
-  { key: "structured", label: "节奏 / 拆章" },
-  { key: "chapter", label: "章节执行" },
-  { key: "pipeline", label: "质量修复" },
+  { key: "basic", label: i18next.t("home.projectSetup") },
+  { key: "story_macro", label: i18next.t("home.storyMacro") },
+  { key: "world", label: i18next.t("home.worldPrep") },
+  { key: "character", label: i18next.t("home.characterPrep") },
+  { key: "outline", label: i18next.t("home.outlineStrategy") },
+  { key: "structured", label: i18next.t("home.pacingChapters") },
+  { key: "chapter", label: i18next.t("home.chapterExecution") },
+  { key: "pipeline", label: i18next.t("home.qualityRepair") },
 ];
 
 export const NOVEL_WORKSPACE_TOOL_TABS: Array<{ key: Extract<NovelWorkspaceTab, "history">; label: string }> = [
-  { key: "history", label: "版本历史" },
+  { key: "history", label: i18next.t("home.versionHistory") },
 ];
 
 const NOVEL_WORKSPACE_TAB_SET = new Set<NovelWorkspaceTab>([

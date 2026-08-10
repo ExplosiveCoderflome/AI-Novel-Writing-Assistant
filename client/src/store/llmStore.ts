@@ -1,4 +1,3 @@
-import i18next from "i18next";
 import { create } from "zustand";
 import type { LLMProvider } from "@ai-novel/shared/types/llm";
 

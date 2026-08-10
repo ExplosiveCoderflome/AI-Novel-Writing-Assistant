@@ -1,4 +1,3 @@
-import i18next from "i18next";
 import { lazy, Suspense } from "react";
 import { useTranslation } from "react-i18next";
 import { useSearchParams } from "react-router-dom";

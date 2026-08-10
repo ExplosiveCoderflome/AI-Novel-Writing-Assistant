@@ -30,15 +30,15 @@ export default function AntiAiRuleList(props: AntiAiRuleListProps) {
       <CardHeader className="gap-4">
         <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
           <div>
-            <CardTitle className="text-xl">{i18next.t("gen.pages.antiAiRules.components.AntiAiRuleList.gen_d325b572")}</CardTitle>
-            <CardDescription>{i18next.t("gen.pages.antiAiRules.components.AntiAiRuleList.gen_cdeb9fba")}</CardDescription>
+            <CardTitle className="text-xl">{i18next.t("dict.gen_d325b572")}</CardTitle>
+            <CardDescription>{i18next.t("dict.gen_cdeb9fba")}</CardDescription>
           </div>
           <div className="flex flex-wrap gap-2">
             {[
-              ["all", i18next.t("gen.pages.antiAiRules.components.AntiAiRuleList.gen_a8b0c204")],
-              ["global", i18next.t("gen.pages.antiAiRules.components.AntiAiRuleList.gen_1c65ec9e")],
-              ["style", i18next.t("gen.pages.antiAiRules.components.AntiAiRuleList.gen_42ab6bef")],
-              ["disabled", i18next.t("gen.pages.antiAiRules.components.AntiAiRuleList.gen_69b0f684")],
+              ["all", i18next.t("autoDirector.secAll")],
+              ["global", i18next.t("dict.gen_1c65ec9e")],
+              ["style", i18next.t("dict.gen_42ab6bef")],
+              ["disabled", i18next.t("dict.gen_69b0f684")],
             ].map(([value, label]) => (
               <Button
                 key={value}
@@ -55,10 +55,10 @@ export default function AntiAiRuleList(props: AntiAiRuleListProps) {
       </CardHeader>
       <CardContent className="space-y-3">
         {props.loading ? (
-          <div className="text-sm text-muted-foreground">{i18next.t("gen.pages.antiAiRules.components.AntiAiRuleList.gen_dfc98d9c")}</div>
+          <div className="text-sm text-muted-foreground">{i18next.t("dict.gen_dfc98d9c")}</div>
         ) : null}
         {!props.loading && props.rules.length === 0 ? (
-          <div className="rounded-lg border border-dashed p-6 text-center text-sm text-muted-foreground">{i18next.t("gen.pages.antiAiRules.components.AntiAiRuleList.gen_7c8ecad1", "这个筛选下没有规则。")}</div>
+          <div className="rounded-lg border border-dashed p-6 text-center text-sm text-muted-foreground">{i18next.t("antiAiRules.antiAiRuleList.6xd8gp")}</div>
         ) : null}
         {props.rules.map((rule) => {
           const isTesting = testingRuleIdSet.has(rule.id);
@@ -68,9 +68,9 @@ export default function AntiAiRuleList(props: AntiAiRuleListProps) {
                 <div className="min-w-0 flex-1">
                   <div className="flex flex-wrap items-center gap-2">
                     <div className="text-base font-semibold text-foreground">{rule.name}</div>
-                    <Badge variant={rule.enabled ? "secondary" : "outline"}>{i18next.t("gen.pages.antiAiRules.components.AntiAiRuleList.ruleStatusText")}</Badge>
-                    {rule.globalBaselineEnabled ? <Badge>{i18next.t("gen.pages.antiAiRules.components.AntiAiRuleList.gen_1c65ec9e")}</Badge> : <Badge variant="outline">{i18next.t("gen.pages.antiAiRules.components.AntiAiRuleList.gen_fc0ad279")}</Badge>}
-                    {isTesting ? <Badge variant="secondary">{i18next.t("gen.pages.antiAiRules.components.AntiAiRuleList.gen_f85549cd")}</Badge> : null}
+                    <Badge variant={rule.enabled ? "secondary" : "outline"}>{i18next.t("dict.ruleStatusText")}</Badge>
+                    {rule.globalBaselineEnabled ? <Badge>{i18next.t("dict.gen_1c65ec9e")}</Badge> : <Badge variant="outline">{i18next.t("dict.gen_fc0ad279")}</Badge>}
+                    {isTesting ? <Badge variant="secondary">{i18next.t("dict.gen_f85549cd")}</Badge> : null}
                     <Badge variant="outline">{typeLabels[rule.type]} / {severityLabels[rule.severity]}</Badge>
                   </div>
                   <div className="mt-2 text-sm leading-6 text-muted-foreground">{rule.description}</div>
@@ -84,41 +84,41 @@ export default function AntiAiRuleList(props: AntiAiRuleListProps) {
                   <div className="mt-3 grid gap-2 text-sm md:grid-cols-2">
                     <div className="rounded-md border bg-muted/20 p-3">
                       <div className="mb-1 flex items-center gap-2 text-xs font-medium text-muted-foreground">
-                        <FileText className="h-3.5 w-3.5" />{i18next.t("gen.pages.antiAiRules.components.AntiAiRuleList.gen_eba49f80", "生成指令")}</div>
-                      <div className="leading-6 text-foreground">{i18next.t("gen.pages.antiAiRules.components.AntiAiRuleList.promptMissing")}</div>
+                        <FileText className="h-3.5 w-3.5" />{i18next.t("dict.gen_eba49f80")}</div>
+                      <div className="leading-6 text-foreground">{i18next.t("dict.promptMissing")}</div>
                     </div>
                     <div className="rounded-md border bg-muted/20 p-3">
                       <div className="mb-1 flex items-center gap-2 text-xs font-medium text-muted-foreground">
-                        <CheckCircle2 className="h-3.5 w-3.5" />{i18next.t("gen.pages.antiAiRules.components.AntiAiRuleList.gen_fbbf1096", "修正建议")}</div>
-                      <div className="leading-6 text-foreground">{i18next.t("gen.pages.antiAiRules.components.AntiAiRuleList.rewriteSuggestionEmpty")}</div>
+                        <CheckCircle2 className="h-3.5 w-3.5" />{i18next.t("dict.gen_fbbf1096")}</div>
+                      <div className="leading-6 text-foreground">{i18next.t("dict.rewriteSuggestionEmpty")}</div>
                     </div>
                   </div>
                 </div>
                 <div className="grid min-w-[210px] gap-2">
                   <AntiAiToggleLine
-                    label={i18next.t("gen.pages.antiAiRules.components.AntiAiRuleList.gen_7854b52a")}
+                    label={i18next.t("dict.gen_7854b52a")}
                     checked={rule.enabled}
                     disabled={props.isSaving}
                     onCheckedChange={(checked) => props.onQuickToggle(rule, "enabled", checked)}
                   />
                   <AntiAiToggleLine
-                    label={i18next.t("gen.pages.antiAiRules.components.AntiAiRuleList.gen_1c65ec9e")}
+                    label={i18next.t("dict.gen_1c65ec9e")}
                     checked={rule.globalBaselineEnabled}
                     disabled={props.isSaving}
                     onCheckedChange={(checked) => props.onQuickToggle(rule, "globalBaselineEnabled", checked)}
                   />
                   <AntiAiToggleLine
-                    label={i18next.t("gen.pages.antiAiRules.components.AntiAiRuleList.gen_11519661")}
+                    label={i18next.t("dict.gen_11519661")}
                     checked={rule.autoRewrite}
                     disabled={props.isSaving}
                     onCheckedChange={(checked) => props.onQuickToggle(rule, "autoRewrite", checked)}
                   />
                   <Button type="button" variant={isTesting ? "secondary" : "outline"} size="sm" onClick={() => props.onToggleTestingRule(rule.id)}>
                     <FlaskConical className="h-4 w-4" />
-                    {isTesting ? i18next.t("gen.pages.antiAiRules.components.AntiAiRuleList.gen_b9016d5f") : i18next.t("gen.pages.antiAiRules.components.AntiAiRuleList.gen_32dbefcf")}
+                    {isTesting ? i18next.t("dict.gen_b9016d5f") : i18next.t("dict.gen_32dbefcf")}
                   </Button>
                   <Button type="button" variant="outline" size="sm" onClick={() => props.onEditRule(rule)}>
-                    <Edit3 className="h-4 w-4" />{i18next.t("gen.pages.antiAiRules.components.AntiAiRuleList.gen_95b351c8", "编辑")}</Button>
+                    <Edit3 className="h-4 w-4" />{i18next.t("common.edit")}</Button>
                 </div>
               </div>
             </div>

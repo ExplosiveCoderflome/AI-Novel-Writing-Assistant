@@ -1,4 +1,3 @@
-import { useTranslation } from "react-i18next";
 import i18next from "i18next";
 const t = (key: string, options?: any) => i18next.t(key, options) as string;
 import { useState, useEffect } from "react";
@@ -33,19 +32,19 @@ import SelectControl from "@/components/common/SelectControl";
 // ─── Constants ────────────────────────────────────────────────────────────────
 
 const SOURCE_LABELS: Record<ComicSourceType, string> = {
-  novel_import: i18next.t("gen.pages.comic.ComicWorkspacePage.gen_d093e95b"),
-  original: i18next.t("gen.pages.comic.ComicWorkspacePage.gen_de6d7781"),
-  text_import: i18next.t("gen.pages.comic.ComicWorkspacePage.gen_8ffd512f"),
-  comic_import: i18next.t("gen.pages.comic.ComicWorkspacePage.gen_c12f11f5"),
+  novel_import: i18next.t("dict.gen_d093e95b"),
+  original: i18next.t("dict.gen_de6d7781"),
+  text_import: i18next.t("dict.gen_8ffd512f"),
+  comic_import: i18next.t("dict.gen_c12f11f5"),
 };
 
 const STYLE_PRESETS = [
-  { value: "webtoon_color", label: i18next.t("gen.pages.comic.ComicWorkspacePage.gen_b8cc9e43") },
-  { value: "bl_manga", label: i18next.t("gen.pages.comic.ComicWorkspacePage.gen_3cd93268") },
-  { value: "shounen_bw", label: i18next.t("gen.pages.comic.ComicWorkspacePage.gen_4a12b411") },
-  { value: "ink_traditional", label: i18next.t("gen.pages.comic.ComicWorkspacePage.gen_452631b4") },
-  { value: "chibi", label: i18next.t("gen.pages.comic.ComicWorkspacePage.cuteComicStyle") },
-  { value: "realistic", label: i18next.t("gen.pages.comic.ComicWorkspacePage.gen_11eaab19") },
+  { value: "webtoon_color", label: i18next.t("dict.gen_b8cc9e43") },
+  { value: "bl_manga", label: i18next.t("dict.gen_3cd93268") },
+  { value: "shounen_bw", label: i18next.t("dict.gen_4a12b411") },
+  { value: "ink_traditional", label: i18next.t("dict.gen_452631b4") },
+  { value: "chibi", label: i18next.t("dict.cuteComicStyle") },
+  { value: "realistic", label: i18next.t("dict.gen_11eaab19") },
 ];
 
 export interface ComicFormatDef {
@@ -61,9 +60,9 @@ export interface ComicFormatDef {
 export const COMIC_FORMATS: ComicFormatDef[] = [
   {
     value: "webtoon",
-    label: i18next.t("gen.pages.comic.ComicWorkspacePage.gen_3467bf28"),
-    desc: i18next.t("gen.pages.comic.ComicWorkspacePage.gen_188a633d"),
-    tag: i18next.t("gen.pages.comic.ComicWorkspacePage.gen_c062d322"),
+    label: i18next.t("dict.gen_3467bf28"),
+    desc: i18next.t("dict.gen_188a633d"),
+    tag: i18next.t("dict.gen_c062d322"),
     imageSize: "1024x1536",
     promptKeywords: "webtoon vertical strip panel, tall single frame, mobile scroll comic",
     layoutSvg: (
@@ -78,9 +77,9 @@ export const COMIC_FORMATS: ComicFormatDef[] = [
   },
   {
     value: "4koma",
-    label: i18next.t("gen.pages.comic.ComicWorkspacePage.gen_a1369c09"),
-    desc: i18next.t("gen.pages.comic.ComicWorkspacePage.gen_2c25aa15"),
-    tag: i18next.t("gen.pages.comic.ComicWorkspacePage.gen_e7c37575"),
+    label: i18next.t("dict.gen_a1369c09"),
+    desc: i18next.t("dict.gen_2c25aa15"),
+    tag: i18next.t("dict.gen_e7c37575"),
     imageSize: "1024x1536",
     promptKeywords: "4-koma manga layout, four equal vertical panels in one image, sequential comic strip",
     layoutSvg: (
@@ -88,18 +87,18 @@ export const COMIC_FORMATS: ComicFormatDef[] = [
         {[0, 1, 2, 3].map((i) => (
           <rect key={i} x="8" y={4 + i * 21} width="44" height="18" rx="1.5" fill="currentColor" opacity={0.18 - i * 0.02} stroke="currentColor" strokeWidth="1.5" />
         ))}
-        <text x="30" y="15" textAnchor="middle" fontSize="5" fill="currentColor" opacity="0.4">{i18next.t("gen.pages.comic.ComicWorkspacePage.gen_308fdfa0")}</text>
-        <text x="30" y="36" textAnchor="middle" fontSize="5" fill="currentColor" opacity="0.4">{i18next.t("gen.pages.comic.ComicWorkspacePage.gen_9407ae4d")}</text>
-        <text x="30" y="57" textAnchor="middle" fontSize="5" fill="currentColor" opacity="0.4">{i18next.t("gen.pages.comic.ComicWorkspacePage.gen_1c421318")}</text>
-        <text x="30" y="78" textAnchor="middle" fontSize="5" fill="currentColor" opacity="0.4">{i18next.t("gen.pages.comic.ComicWorkspacePage.gen_c5ef4ac4")}</text>
+        <text x="30" y="15" textAnchor="middle" fontSize="5" fill="currentColor" opacity="0.4">{i18next.t("dict.gen_308fdfa0")}</text>
+        <text x="30" y="36" textAnchor="middle" fontSize="5" fill="currentColor" opacity="0.4">{i18next.t("dict.gen_9407ae4d")}</text>
+        <text x="30" y="57" textAnchor="middle" fontSize="5" fill="currentColor" opacity="0.4">{i18next.t("dict.gen_1c421318")}</text>
+        <text x="30" y="78" textAnchor="middle" fontSize="5" fill="currentColor" opacity="0.4">{i18next.t("dict.gen_c5ef4ac4")}</text>
       </svg>
     ),
   },
   {
     value: "single_page",
-    label: i18next.t("gen.pages.comic.ComicWorkspacePage.gen_852692e9"),
-    desc: i18next.t("gen.pages.comic.ComicWorkspacePage.pageLayout"),
-    tag: i18next.t("gen.pages.comic.ComicWorkspacePage.traditional"),
+    label: i18next.t("dict.gen_852692e9"),
+    desc: i18next.t("dict.pageLayout"),
+    tag: i18next.t("dict.traditional"),
     imageSize: "1024x1536",
     promptKeywords: "single page manga layout, multiple panels varied sizes, dynamic panel composition, Japanese manga page",
     layoutSvg: (
@@ -114,9 +113,9 @@ export const COMIC_FORMATS: ComicFormatDef[] = [
   },
   {
     value: "cinematic",
-    label: i18next.t("gen.pages.comic.ComicWorkspacePage.gen_6073cdf8"),
-    desc: i18next.t("gen.pages.comic.ComicWorkspacePage.gen_2a36800c"),
-    tag: i18next.t("gen.pages.comic.ComicWorkspacePage.gen_62029e91"),
+    label: i18next.t("dict.gen_6073cdf8"),
+    desc: i18next.t("dict.gen_2a36800c"),
+    tag: i18next.t("dict.gen_62029e91"),
     imageSize: "1536x1024",
     promptKeywords: "cinematic widescreen panel, film storyboard style, letterbox 16:9 format, movie scene composition",
     layoutSvg: (
@@ -131,9 +130,9 @@ export const COMIC_FORMATS: ComicFormatDef[] = [
   },
   {
     value: "chat_comic",
-    label: i18next.t("gen.pages.comic.ComicWorkspacePage.gen_9d020707"),
-    desc: i18next.t("gen.pages.comic.ComicWorkspacePage.gen_dc5a6d5f"),
-    tag: i18next.t("gen.pages.comic.ComicWorkspacePage.gen_2247d342"),
+    label: i18next.t("dict.gen_9d020707"),
+    desc: i18next.t("dict.gen_dc5a6d5f"),
+    tag: i18next.t("dict.gen_2247d342"),
     imageSize: "1024x1536",
     promptKeywords: "chat comic style, messenger conversation bubbles, LINE webtoon chat format, casual slice of life",
     layoutSvg: (
@@ -152,9 +151,9 @@ export const COMIC_FORMATS: ComicFormatDef[] = [
   },
   {
     value: "chibi_comic",
-    label: i18next.t("gen.pages.comic.ComicWorkspacePage.gen_Q版萌漫_amz0"),
-    desc: i18next.t("gen.pages.comic.ComicWorkspacePage.gen_e3f26d8f"),
-    tag: i18next.t("gen.pages.comic.ComicWorkspacePage.gen_69097442"),
+    label: i18next.t("dict.gen_Q版萌漫_amz0"),
+    desc: i18next.t("dict.gen_e3f26d8f"),
+    tag: i18next.t("dict.gen_69097442"),
     imageSize: "1024x1024",
     promptKeywords: "chibi SD manga style, cute super-deformed proportions, kawaii comic panel, round adorable characters",
     layoutSvg: (
@@ -172,9 +171,9 @@ export const COMIC_FORMATS: ComicFormatDef[] = [
   },
   {
     value: "ink_comic",
-    label: i18next.t("gen.pages.comic.ComicWorkspacePage.gen_452631b4"),
-    desc: i18next.t("gen.pages.comic.ComicWorkspacePage.traditionalBrushStrokeCalligraphyMoodWhitescopicAesthetic"),
-    tag: i18next.t("gen.pages.comic.ComicWorkspacePage.gen_8daead55"),
+    label: i18next.t("dict.gen_452631b4"),
+    desc: i18next.t("dict.traditionalBrushStrokeCalligraphyMoodWhitescopicAesthetic"),
+    tag: i18next.t("dict.gen_8daead55"),
     imageSize: "1024x1536",
     promptKeywords: "Chinese ink wash painting comic, traditional brush style, xieyi brushwork, classical Chinese aesthetic, negative space",
     layoutSvg: (
@@ -190,9 +189,9 @@ export const COMIC_FORMATS: ComicFormatDef[] = [
   },
   {
     value: "drama_screenshot",
-    label: i18next.t("gen.pages.comic.ComicWorkspacePage.gen_5c88c5f2"),
-    desc: i18next.t("gen.pages.comic.ComicWorkspacePage.gen_1f8c7ce2"),
-    tag: i18next.t("gen.pages.comic.ComicWorkspacePage.gen_3a27b995"),
+    label: i18next.t("dict.gen_5c88c5f2"),
+    desc: i18next.t("dict.gen_1f8c7ce2"),
+    tag: i18next.t("dict.gen_3a27b995"),
     imageSize: "1024x1536",
     promptKeywords: "vertical short drama screenshot style, subtitle bar at bottom, TV drama still frame, cinematic vertical video",
     layoutSvg: (
@@ -209,10 +208,10 @@ export const COMIC_FORMATS: ComicFormatDef[] = [
 ];
 
 const WIZARD_STEPS = [
-  { key: "source", label: i18next.t("gen.pages.comic.ComicWorkspacePage.gen_26ca20b1") },
-  { key: "content", label: i18next.t("gen.pages.comic.ComicWorkspacePage.gen_2d711b09") },
-  { key: "format", label: i18next.t("gen.pages.comic.ComicWorkspacePage.gen_9652b89c") },
-  { key: "style", label: i18next.t("gen.pages.comic.ComicWorkspacePage.gen_aa1262ed") },
+  { key: "source", label: i18next.t("dict.gen_26ca20b1") },
+  { key: "content", label: i18next.t("dict.gen_2d711b09") },
+  { key: "format", label: i18next.t("dict.gen_9652b89c") },
+  { key: "style", label: i18next.t("dict.gen_aa1262ed") },
 ] as const;
 
 function statusBadgeVariant(status: string): "default" | "secondary" | "outline" | "destructive" {
@@ -222,7 +221,7 @@ function statusBadgeVariant(status: string): "default" | "secondary" | "outline"
 }
 function statusLabel(s: string) {
   const m: Record<string, string> = {
-    draft: i18next.t("gen.pages.comic.ComicWorkspacePage.gen_22b4334f"), outlined: i18next.t("gen.pages.comic.ComicWorkspacePage.gen_05dab7aa"), scripted: i18next.t("gen.pages.comic.ComicWorkspacePage.gen_1361ca2d"), completed: i18next.t("gen.pages.comic.ComicWorkspacePage.gen_fad5222c"),
+    draft: i18next.t("common.draft"), outlined: i18next.t("dict.gen_05dab7aa"), scripted: i18next.t("dict.gen_1361ca2d"), completed: i18next.t("tasks.filterStatusSucceeded"),
   };
   return m[s] ?? s;
 }
@@ -250,13 +249,13 @@ function ProjectCard({
           </div>
           <CardDescription>
             {project._count?.episodes ?? 0} 话 · {project._count?.characters ?? 0} 角色
-            {project.sourceBundle ? i18next.t("gen.pages.comic.ComicWorkspacePage.importedContentSource") : ""}
+            {project.sourceBundle ? i18next.t("dict.importedContentSource") : ""}
           </CardDescription>
         </div>
       </CardHeader>
       <CardContent className="flex flex-wrap gap-2">
         <Button asChild type="button" size="sm">
-          <Link to={`/comic/projects/${project.id}`}>{i18next.t("gen.pages.comic.ComicWorkspacePage.gen_9acb817c", "打开工作台")}<ArrowRight className="h-4 w-4" />
+          <Link to={`/comic/projects/${project.id}`}>{i18next.t("comic.comicWorkspacePage.td5110")}<ArrowRight className="h-4 w-4" />
           </Link>
         </Button>
         {!project.sourceBundle && project.sourceType === "novel_import" && (
@@ -267,7 +266,7 @@ function ProjectCard({
             disabled={busy}
             onClick={() => onImport(project)}
           >
-            <Layers3 className="h-4 w-4" />{i18next.t("gen.pages.comic.ComicWorkspacePage.gen_f7d48bd5", "导入内容源")}</Button>
+            <Layers3 className="h-4 w-4" />{i18next.t("dict.gen_f7d48bd5")}</Button>
         )}
       </CardContent>
     </Card>
@@ -306,7 +305,7 @@ function CreateWizard({ onCreated, defaultValues }: CreateWizardProps) {
   const createMut = useMutation({
     mutationFn: (payload: CreateComicProjectPayload) => createComicProject(payload),
     onSuccess: (proj) => {
-      toast.success(i18next.t("gen.pages.comic.ComicWorkspacePage.gen_49fbf911"));
+      toast.success(i18next.t("dict.gen_49fbf911"));
       onCreated(proj.id);
     },
   });
@@ -338,7 +337,7 @@ function CreateWizard({ onCreated, defaultValues }: CreateWizardProps) {
   return (
     <Card className="max-w-xl">
       <CardHeader>
-        <CardTitle className="text-base">{i18next.t("gen.pages.comic.ComicWorkspacePage.gen_3e21ebbc")}</CardTitle>
+        <CardTitle className="text-base">{i18next.t("dict.gen_3e21ebbc")}</CardTitle>
         <div className="flex gap-2 pt-1">
           {WIZARD_STEPS.map((s, i) => (
             <span
@@ -354,15 +353,15 @@ function CreateWizard({ onCreated, defaultValues }: CreateWizardProps) {
         {step === 0 && (
           <>
             <div className="space-y-1">
-              <label className="text-sm font-medium">{i18next.t("gen.pages.comic.ComicWorkspacePage.gen_cac8e6ef")}</label>
+              <label className="text-sm font-medium">{i18next.t("dict.gen_cac8e6ef")}</label>
               <Input
-                placeholder={i18next.t("gen.pages.comic.ComicWorkspacePage.gen_82ea5545")}
+                placeholder={i18next.t("dict.gen_82ea5545")}
                 value={form.title}
                 onChange={(e) => setForm((f) => ({ ...f, title: e.target.value }))}
               />
             </div>
             <div className="space-y-1">
-              <label className="text-sm font-medium">{i18next.t("gen.pages.comic.ComicWorkspacePage.gen_e78b1d7a")}</label>
+              <label className="text-sm font-medium">{i18next.t("dict.gen_e78b1d7a")}</label>
               <div className="flex flex-wrap gap-2">
                 {(Object.keys(SOURCE_LABELS) as ComicSourceType[]).filter(t => t !== "comic_import").map((t) => (
                   <button
@@ -383,13 +382,13 @@ function CreateWizard({ onCreated, defaultValues }: CreateWizardProps) {
           <>
             {form.sourceType === "novel_import" && (
               <div className="space-y-1">
-                <label className="text-sm font-medium">{i18next.t("gen.pages.comic.ComicWorkspacePage.gen_44cddc3d")}</label>
+                <label className="text-sm font-medium">{i18next.t("creativeHub.actionSelectNovel")}</label>
                 <SelectControl
                   className="w-full rounded-md border bg-background px-3 py-2 text-sm"
                   value={form.sourceRef}
                   onChange={(e: React.ChangeEvent<HTMLSelectElement>) => setForm((f) => ({ ...f, sourceRef: e.target.value }))}
                 >
-                  <option value="">{i18next.t("gen.pages.comic.ComicWorkspacePage.selectNovel")}</option>
+                  <option value="">{i18next.t("dict.selectNovel")}</option>
                   {novels?.data?.items?.map((n) => (
                     <option key={n.id} value={n.id}>{n.title || "未命名"}</option>
                   ))}
@@ -398,10 +397,10 @@ function CreateWizard({ onCreated, defaultValues }: CreateWizardProps) {
             )}
             {form.sourceType === "original" && (
               <div className="space-y-1">
-                <label className="text-sm font-medium">{i18next.t("gen.pages.comic.ComicWorkspacePage.gen_12e65d03")}</label>
+                <label className="text-sm font-medium">{i18next.t("dict.gen_12e65d03")}</label>
                 <textarea
                   className="w-full rounded-md border bg-background px-3 py-2 text-sm resize-y min-h-[120px]"
-                  placeholder={i18next.t("gen.pages.comic.ComicWorkspacePage.gen_89608257")}
+                  placeholder={i18next.t("dict.gen_89608257")}
                   rows={6}
                   value={form.inspiration}
                   onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setForm((f) => ({ ...f, inspiration: e.target.value }))}
@@ -410,10 +409,10 @@ function CreateWizard({ onCreated, defaultValues }: CreateWizardProps) {
             )}
             {form.sourceType === "text_import" && (
               <div className="space-y-1">
-                <label className="text-sm font-medium">{i18next.t("gen.pages.comic.ComicWorkspacePage.gen_f45ae383")}</label>
+                <label className="text-sm font-medium">{i18next.t("dict.gen_f45ae383")}</label>
                 <textarea
                   className="w-full rounded-md border bg-background px-3 py-2 text-sm resize-y min-h-[160px]"
-                  placeholder={i18next.t("gen.pages.comic.ComicWorkspacePage.gen_7ddca43b")}
+                  placeholder={i18next.t("dict.gen_7ddca43b")}
                   rows={8}
                   value={form.rawText}
                   onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setForm((f) => ({ ...f, rawText: e.target.value }))}
@@ -426,8 +425,8 @@ function CreateWizard({ onCreated, defaultValues }: CreateWizardProps) {
         {step === 2 && (
           <div className="space-y-3">
             <div>
-              <label className="text-sm font-medium">{i18next.t("gen.pages.comic.ComicWorkspacePage.gen_66c8471a")}</label>
-              <p className="text-xs text-muted-foreground mt-0.5">{i18next.t("gen.pages.comic.ComicWorkspacePage.gen_01f6a08c")}</p>
+              <label className="text-sm font-medium">{i18next.t("dict.gen_66c8471a")}</label>
+              <p className="text-xs text-muted-foreground mt-0.5">{i18next.t("dict.gen_01f6a08c")}</p>
             </div>
             <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
               {COMIC_FORMATS.map((fmt) => {
@@ -458,7 +457,7 @@ function CreateWizard({ onCreated, defaultValues }: CreateWizardProps) {
 
         {step === 3 && (
           <div className="space-y-2">
-            <label className="text-sm font-medium">{i18next.t("gen.pages.comic.ComicWorkspacePage.gen_e9e7f721")}</label>
+            <label className="text-sm font-medium">{i18next.t("dict.gen_e9e7f721")}</label>
             <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
               {STYLE_PRESETS.map((p) => (
                 <button
@@ -481,14 +480,14 @@ function CreateWizard({ onCreated, defaultValues }: CreateWizardProps) {
             size="sm"
             disabled={step === 0}
             onClick={() => setStep((s) => s - 1)}
-          >{i18next.t("gen.pages.comic.ComicWorkspacePage.gen_eeb69088", "上一步")}</Button>
+          >{i18next.t("comic.comicWorkspacePage.btcrz")}</Button>
           {step < WIZARD_STEPS.length - 1 ? (
             <Button
               type="button"
               size="sm"
               disabled={!canNext()}
               onClick={() => setStep((s) => s + 1)}
-            >{i18next.t("gen.pages.comic.ComicWorkspacePage.gen_38ce27d8", "下一步")}</Button>
+            >{i18next.t("dict.nextStep")}</Button>
           ) : (
             <Button
               type="button"
@@ -496,7 +495,7 @@ function CreateWizard({ onCreated, defaultValues }: CreateWizardProps) {
               disabled={createMut.isPending || !canNext()}
               onClick={handleSubmit}
             >
-              {createMut.isPending ? i18next.t("gen.pages.comic.ComicWorkspacePage.gen_d156b373") : i18next.t("gen.pages.comic.ComicWorkspacePage.gen_39da6755")}
+              {createMut.isPending ? i18next.t("dict.gen_d156b373") : i18next.t("dict.gen_39da6755")}
             </Button>
           )}
         </div>
@@ -508,7 +507,6 @@ function CreateWizard({ onCreated, defaultValues }: CreateWizardProps) {
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 export default function ComicWorkspacePage() {
-  const { t } = useTranslation();
   const queryClient = useQueryClient();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
@@ -548,7 +546,7 @@ export default function ComicWorkspacePage() {
     onMutate: (id) => setBusyId(id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["comic", "projects"] });
-      toast.success(i18next.t("gen.pages.comic.ComicWorkspacePage.gen_1358c5c5"));
+      toast.success(i18next.t("dict.gen_1358c5c5"));
     },
     onSettled: () => setBusyId(""),
   });
@@ -558,11 +556,11 @@ export default function ComicWorkspacePage() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="flex items-center gap-2 text-2xl font-semibold">
-            <SquareStack className="h-6 w-6 text-primary" />{i18next.t("gen.pages.comic.ComicWorkspacePage.gen_27d0220a", "漫画改编工作台")}</h1>
-          <p className="mt-1 text-sm text-muted-foreground">{i18next.t("gen.pages.comic.ComicWorkspacePage.gen_b1c07f4f", "将小说或原创故事一键生成条漫分格脚本与图像")}</p>
+            <SquareStack className="h-6 w-6 text-primary" />{i18next.t("comic.comicWorkspacePage.v6b74k")}</h1>
+          <p className="mt-1 text-sm text-muted-foreground">{i18next.t("comic.comicWorkspacePage.wosfnj")}</p>
         </div>
         <Button type="button" onClick={() => setShowWizard((v) => !v)}>
-          <Plus className="h-4 w-4" />{i18next.t("gen.pages.comic.ComicWorkspacePage.gen_a1a9f6e5", "新建项目")}</Button>
+          <Plus className="h-4 w-4" />{i18next.t("comic.comicWorkspacePage.d8dgtb")}</Button>
       </div>
 
       {showWizard && (
@@ -577,16 +575,16 @@ export default function ComicWorkspacePage() {
       )}
 
       {isLoading && (
-        <div className="py-12 text-center text-muted-foreground text-sm">{i18next.t("gen.pages.comic.ComicWorkspacePage.gen_fb4ca1cf")}</div>
+        <div className="py-12 text-center text-muted-foreground text-sm">{i18next.t("dict.gen_fb4ca1cf")}</div>
       )}
 
       {!isLoading && projects.length === 0 && !showWizard && (
         <Card className="py-16 text-center">
           <CardContent className="flex flex-col items-center gap-4">
             <FilePen className="h-10 w-10 text-muted-foreground/40" />
-            <p className="text-muted-foreground">{i18next.t("gen.pages.comic.ComicWorkspacePage.gen_f38af214")}</p>
+            <p className="text-muted-foreground">{i18next.t("dict.gen_f38af214")}</p>
             <Button type="button" onClick={() => setShowWizard(true)}>
-              <Plus className="h-4 w-4" />{i18next.t("gen.pages.comic.ComicWorkspacePage.gen_a1a9f6e5", "新建项目")}</Button>
+              <Plus className="h-4 w-4" />{i18next.t("comic.comicWorkspacePage.d8dgtb")}</Button>
           </CardContent>
         </Card>
       )}

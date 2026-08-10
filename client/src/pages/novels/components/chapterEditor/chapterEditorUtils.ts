@@ -8,12 +8,12 @@ import type {
 } from "./chapterEditorTypes";
 
 export const CHAPTER_EDITOR_OPERATION_LABELS: Record<ChapterEditorOperation, string> = {
-  polish: i18next.t("gen.pages.novels.components.chapterEditor.chapterEditorUtils.optimizeExpression"),
-  expand: i18next.t("gen.pages.novels.components.chapterEditor.chapterEditorUtils.gen_0061f38a"),
-  compress: i18next.t("gen.pages.novels.components.chapterEditor.chapterEditorUtils.gen_06f296c9"),
-  emotion: i18next.t("gen.pages.novels.components.chapterEditor.chapterEditorUtils.gen_5efe70aa"),
-  conflict: i18next.t("gen.pages.novels.components.chapterEditor.chapterEditorUtils.gen_4f0071ff"),
-  custom: i18next.t("gen.pages.novels.components.chapterEditor.chapterEditorUtils.gen_4dde09a0"),
+  polish: i18next.t("dict.optimizeExpression"),
+  expand: i18next.t("dict.gen_0061f38a"),
+  compress: i18next.t("dict.gen_06f296c9"),
+  emotion: i18next.t("dict.gen_5efe70aa"),
+  conflict: i18next.t("dict.gen_4f0071ff"),
+  custom: i18next.t("dict.gen_4dde09a0"),
 };
 
 export function normalizeEditorText(text: string): string {
@@ -334,13 +334,13 @@ export function buildAiRevisionRequest(input: ChapterEditorRequestBuilderInput) 
 
 export function getSaveStatusLabel(status: "idle" | "saving" | "saved" | "error", isDirty: boolean): string {
   if (status === "saving") {
-    return i18next.t("gen.pages.novels.components.chapterEditor.chapterEditorUtils.savingInProgress");
+    return i18next.t("dict.savingInProgress");
   }
   if (status === "saved") {
-    return i18next.t("gen.pages.novels.components.chapterEditor.chapterEditorUtils.gen_f8dfedcd");
+    return i18next.t("dict.gen_f8dfedcd");
   }
   if (status === "error") {
-    return i18next.t("gen.pages.novels.components.chapterEditor.chapterEditorUtils.saveFailed");
+    return i18next.t("dict.saveFailed");
   }
-  return isDirty ? i18next.t("gen.pages.novels.components.chapterEditor.chapterEditorUtils.gen_29953c6f") : i18next.t("gen.pages.novels.components.chapterEditor.chapterEditorUtils.gen_8bf97a5b");
+  return isDirty ? i18next.t("dict.gen_29953c6f") : i18next.t("dict.gen_8bf97a5b");
 }

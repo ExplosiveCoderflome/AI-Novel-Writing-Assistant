@@ -535,7 +535,7 @@ export default function StockStudioPage() {
           <div className="flex flex-wrap justify-between items-center gap-3">
             <div className="flex items-center gap-2">
               <Sparkles className="w-5 h-5 text-indigo-400" />
-              <h4 className="text-sm font-bold text-slate-100">{i18next.t("gen.pages.stock.StockStudioPage.gen_5648310a", "美股每日操盘与风险诊断报告")}</h4>
+              <h4 className="text-sm font-bold text-slate-100">{i18next.t("stock.stockStudioPage.nfp0wz")}</h4>
             </div>
             <div className="flex gap-2">
               <span className="px-2.5 py-1 rounded-lg bg-emerald-950/80 border border-emerald-700/60 text-emerald-300 text-xs font-semibold flex items-center gap-1">
@@ -622,7 +622,7 @@ export default function StockStudioPage() {
             { id: p.symbol.toUpperCase(), name: p.companyName || p.symbol, type: "ROOT_STOCK", marketSymbol: p.symbol.toUpperCase(), description: `实盘持仓: ${p.shares}股` },
             { id: `SUP_${p.symbol}`, name: `${p.symbol} 核心供应商`, type: "SUPPLIER", description: `${p.symbol} 上游关键零部件与服务提供商` },
             { id: `CLI_${p.symbol}`, name: `${p.symbol} 下游核心客户`, type: "CLIENT", description: `${p.symbol} 核心产品采购与大单需求方` },
-            { id: "FED_POLICY", name: "美联储降息周期", type: "MACRO", description: "分母端折现率下行提振长久期科技股估值" },
+            { id: "FED_POLICY", name: "美联储降息周期", type: "MACRO", description: i18next.t("stock.stockStudioPage.yhojqs") },
           ],
           edges: [
             { source: p.symbol.toUpperCase(), target: `SUP_${p.symbol}`, relation: "上游供应链与零件代工", impact: "POSITIVE" },
@@ -801,8 +801,8 @@ export default function StockStudioPage() {
           <div className="flex flex-col sm:flex-row justify-between sm:items-center border-b border-slate-800 pb-3 gap-2">
             <div>
               <h3 className="text-sm font-bold text-slate-100 flex items-center gap-2">
-                <PieChart className="w-4 h-4 text-purple-400" />{i18next.t("gen.pages.stock.StockStudioPage.gen_c1c29f5e", "基于股票的知识图谱与 OpenD / 互联网新闻资讯")}</h3>
-              <p className="text-[11px] text-slate-400">{i18next.t("gen.pages.stock.StockStudioPage.gen_02d7223c", "可视化展示每只股票的产业链上下游节点、互联网资讯快讯与 AI 研判逻辑")}</p>
+                <PieChart className="w-4 h-4 text-purple-400" />{i18next.t("stock.stockStudioPage.gyevy9")}</h3>
+              <p className="text-[11px] text-slate-400">{i18next.t("stock.stockStudioPage.6xzg9e")}</p>
             </div>
 
             <div className="flex items-center gap-2">
@@ -810,7 +810,7 @@ export default function StockStudioPage() {
                 onClick={() => setKgModalOpen(true)}
                 className="px-3 py-1.5 bg-purple-600/90 hover:bg-purple-500 text-white rounded-lg text-xs font-bold transition-all shadow-lg flex items-center gap-1.5 cursor-pointer animate-pulse"
               >
-                <Zap className="w-3.5 h-3.5 text-amber-300" />{i18next.t("gen.pages.stock.StockStudioPage.gen_4f83279d", "点击弹出【全景 2D 交互知识图谱】")}</button>
+                <Zap className="w-3.5 h-3.5 text-amber-300" />{i18next.t("stock.stockStudioPage.50im19")}</button>
 
               {/* 股票 Selector */}
               <div className="flex flex-wrap gap-1.5 bg-slate-950 p-1 rounded-lg border border-slate-800">
@@ -848,15 +848,13 @@ export default function StockStudioPage() {
                   onClick={() => setKgModalOpen(true)}
                   className="px-2.5 py-1 rounded text-xs font-bold font-mono bg-purple-950 text-purple-300 border border-purple-800 hover:bg-purple-900 transition-all cursor-pointer flex items-center gap-1"
                 >
-                  <Sparkles className="w-3 h-3 text-purple-400" />{i18next.t("gen.pages.stock.StockStudioPage.gen_730c8936", "查看 2D 全景图")}</button>
+                  <Sparkles className="w-3 h-3 text-purple-400" />{i18next.t("stock.stockStudioPage.iqsfqb")}</button>
               </div>
 
               {/* 知识图谱节点关联 */}
               <div className="space-y-1.5">
                 <h4 className="text-xs font-bold text-slate-300 flex items-center gap-1.5">
-                  <Sparkles className="w-3.5 h-3.5 text-indigo-400" />
-                  金融语义三元组与实体多跳关联 (Triples: E1 ──[Relation]──► E2):
-                </h4>
+                  <Sparkles className="w-3.5 h-3.5 text-indigo-400" />{i18next.t("stock.stockStudioPage.imnk16")}</h4>
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
                   {(currentKgItem.edges || []).map((edge, idx) => (
                     <div
@@ -866,7 +864,7 @@ export default function StockStudioPage() {
                     >
                       <div className="text-[10px] text-purple-400 flex justify-between">
                         <span>[{edge.relation}]</span>
-                        <span className="text-[9px] text-slate-500">{i18next.t("gen.pages.stock.StockStudioPage.gen_fc1f2690", "点击交互 ➔")}</span>
+                        <span className="text-[9px] text-slate-500">{i18next.t("stock.stockStudioPage.q4j44")}</span>
                       </div>
                       <div className="font-bold text-slate-100 flex items-center justify-between text-[11px]">
                         <span className="text-amber-300">{edge.source}</span>
@@ -881,9 +879,7 @@ export default function StockStudioPage() {
               {/* 互联网新闻与 OpenD 资讯快讯 */}
               <div className="space-y-1.5 pt-1">
                 <h4 className="text-xs font-bold text-slate-300 flex items-center gap-1.5">
-                  <BookOpen className="w-3.5 h-3.5 text-cyan-400" />
-                  互联网新闻与 OpenD 接口资讯快讯 (News Catalysts):
-                </h4>
+                  <BookOpen className="w-3.5 h-3.5 text-cyan-400" />{i18next.t("stock.stockStudioPage.f65mjf")}</h4>
                 <div className="space-y-1.5">
                   {currentKgItem.newsCatalysts.map((news, idx) => (
                     <div
@@ -903,13 +899,11 @@ export default function StockStudioPage() {
         <div className="bg-slate-950/90 border border-slate-800 rounded-xl p-4 space-y-4 shadow-inner">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between border-b border-slate-800 pb-3 gap-2">
             <h3 className="text-sm font-bold text-slate-200 flex items-center gap-2">
-              <Activity className="w-4 h-4 text-indigo-400" />
-              操盘指南生成工作流与数据审计 (Generation Pipeline & Audit)
-            </h3>
-            <span className="text-xs bg-emerald-950 text-emerald-300 border border-emerald-800 px-2.5 py-0.5 rounded-full font-mono shrink-0">{i18next.t("gen.pages.stock.StockStudioPage.gen_cf3e4afc", "全流程确定性校验: 100% 实时公式审计")}</span>
+              <Activity className="w-4 h-4 text-indigo-400" />{i18next.t("stock.stockStudioPage.uwpkd0")}</h3>
+            <span className="text-xs bg-emerald-950 text-emerald-300 border border-emerald-800 px-2.5 py-0.5 rounded-full font-mono shrink-0">{i18next.t("stock.stockStudioPage.u0su7n")}</span>
           </div>
 
-          <p className="text-xs text-slate-400 leading-relaxed">{i18next.t("gen.pages.stock.StockStudioPage.gen_7629f4e3", "本视图**100% 无任何硬编码模拟数据**，所有节点数据均从 OpenD 本地通道实时调取，所有的交易预算、股数与总价均由精确数学公式计算确定。")}</p>
+          <p className="text-xs text-slate-400 leading-relaxed">{i18next.t("stock.stockStudioPage.4tcmws")}</p>
 
           {/* 5 步链路节点 */}
           <div className="space-y-3">
@@ -933,9 +927,9 @@ export default function StockStudioPage() {
                 </span>
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 text-[11px] text-slate-400 font-mono bg-slate-950 p-2.5 rounded border border-slate-800/60">
-                <div>券商实体: MooMoo Financial SG (FUTUSG)</div>
-                <div>{i18next.t("gen.pages.stock.StockStudioPage.gen_5999fec9", "主账户ID: 283726803950473678")}</div>
-                <div>传输协议: 44字节 Native Header (64位 uint64)</div>
+                <div>{i18next.t("stock.stockStudioPage.8i32jp")}</div>
+                <div>{i18next.t("stock.stockStudioPage.2o53uj")}</div>
+                <div>{i18next.t("stock.stockStudioPage.252uvz")}</div>
               </div>
             </div>
 
@@ -990,7 +984,7 @@ export default function StockStudioPage() {
                     </div>
                   ))
                 ) : (
-                  <span className="text-xs text-slate-500 font-mono">{i18next.t("gen.pages.stock.StockStudioPage.gen_006b36c3", "从 OpenD 接口实时传输中...")}</span>
+                  <span className="text-xs text-slate-500 font-mono">{i18next.t("stock.stockStudioPage.jvbaw2")}</span>
                 )}
               </div>
             </div>
@@ -1027,7 +1021,7 @@ export default function StockStudioPage() {
                   </span>
                   <span className="text-xs font-bold text-indigo-300">🛡️ 确定性风控与数学校准层 (Guardrail Layer)</span>
                 </div>
-                <span className="text-[11px] font-mono bg-emerald-900/80 text-emerald-200 border border-emerald-700 px-2 py-0.5 rounded font-bold">{i18next.t("gen.pages.stock.StockStudioPage.gen_6c64ea45", "纯公式实时求导校验")}</span>
+                <span className="text-[11px] font-mono bg-emerald-900/80 text-emerald-200 border border-emerald-700 px-2 py-0.5 rounded font-bold">{i18next.t("stock.stockStudioPage.eo32vl")}</span>
               </div>
               <div className="space-y-1.5 text-[11px] text-slate-300 font-mono bg-slate-950 p-2.5 rounded border border-slate-800">
                 <div className="text-emerald-400">
@@ -1091,7 +1085,7 @@ export default function StockStudioPage() {
       <div className="bg-slate-900/90 border border-slate-800 rounded-xl p-3.5 flex flex-wrap items-center justify-between gap-3 text-xs shadow">
         <div className="flex items-center gap-2 text-slate-400 font-semibold">
           <TrendingUp className="w-4 h-4 text-emerald-400" />
-          <span>美股热门标的实时公开行情 (OpenD 公开频道):</span>
+          <span>{i18next.t("stock.stockStudioPage.nbjqw5")}</span>
         </div>
         <div className="flex flex-wrap items-center gap-4">
           {quotes.map((q) => (
@@ -1188,7 +1182,7 @@ export default function StockStudioPage() {
               {retroPnLData && (
                 <div className="flex items-center gap-3 bg-slate-950/60 border border-slate-800 rounded-lg px-3 py-2">
                   <div className="text-center">
-                    <p className="text-[9px] text-slate-400">{i18next.t("gen.pages.stock.StockStudioPage.gen_f2e9f884", "上次指南质量")}</p>
+                    <p className="text-[9px] text-slate-400">{i18next.t("stock.stockStudioPage.hhf1da")}</p>
                     <p className={`text-lg font-bold font-mono ${
                       retroPnLData.accuracyScore >= 70 ? "text-emerald-400" : retroPnLData.accuracyScore >= 50 ? "text-amber-400" : "text-rose-400"
                     }`}>{retroPnLData.accuracyScore}<span className="text-xs text-slate-500">/100</span></p>
@@ -1196,12 +1190,12 @@ export default function StockStudioPage() {
                   </div>
                   <div className="w-px h-8 bg-slate-700" />
                   <div className="text-center">
-                    <p className="text-[9px] text-slate-400">{i18next.t("gen.pages.stock.StockStudioPage.gen_29affed9", "避免损失")}</p>
+                    <p className="text-[9px] text-slate-400">{i18next.t("stock.stockStudioPage.ikhqzk")}</p>
                     <p className="text-base font-bold font-mono text-emerald-400">+${retroPnLData.avoidedLoss.toFixed(0)}</p>
                   </div>
                   <div className="w-px h-8 bg-slate-700" />
                   <div className="text-center">
-                    <p className="text-[9px] text-slate-400">{i18next.t("gen.pages.stock.StockStudioPage.gen_eed846d6", "跟单率")}</p>
+                    <p className="text-[9px] text-slate-400">{i18next.t("stock.stockStudioPage.l6w35")}</p>
                     <p className="text-base font-bold font-mono text-indigo-300">{(retroPnLData.executionMatchRate * 100).toFixed(0)}%</p>
                   </div>
                 </div>
@@ -1209,11 +1203,11 @@ export default function StockStudioPage() {
               {projectedPnLData && (
                 <div className="flex items-center gap-3 bg-slate-950/60 border border-slate-800 rounded-lg px-3 py-2">
                   <div className="text-center">
-                    <p className="text-[9px] text-slate-400">{i18next.t("gen.pages.stock.StockStudioPage.gen_8e5b2028", "指南预期 P&amp;L")}</p>
+                    <p className="text-[9px] text-slate-400">{i18next.t("stock.stockStudioPage.z93auu")}</p>
                     <p className={`text-lg font-bold font-mono ${projectedPnLData.totalProjectedChange >= 0 ? "text-emerald-400" : "text-rose-400"}`}>
                       {projectedPnLData.totalProjectedChange >= 0 ? "+" : ""}${projectedPnLData.totalProjectedChange.toFixed(0)}
                     </p>
-                    <p className="text-[9px] text-slate-500">{i18next.t("gen.pages.stock.StockStudioPage.gen_733bc1c2", "按全部执行")}</p>
+                    <p className="text-[9px] text-slate-500">{i18next.t("stock.stockStudioPage.s3810y")}</p>
                   </div>
                 </div>
               )}
@@ -1262,7 +1256,7 @@ export default function StockStudioPage() {
                 <button
                   onClick={() => setSyncNotice(null)}
                   className="text-slate-400 hover:text-slate-200 shrink-0 text-xs font-bold p-0.5"
-                  title={i18next.t("gen.pages.stock.StockStudioPage.gen_c335e973", "关闭提示")}
+                  title={i18next.t("dict.gen_c335e973")}
                 >
                   ✕
                 </button>
@@ -1271,13 +1265,13 @@ export default function StockStudioPage() {
 
             <div className="grid grid-cols-2 gap-3">
               <div className="bg-slate-950/70 border border-slate-800 p-3 rounded-lg">
-                <p className="text-xs text-slate-400">{i18next.t("gen.pages.stock.StockStudioPage.gen_73374e1c", "闲置现金可用")}</p>
+                <p className="text-xs text-slate-400">{i18next.t("stock.stockStudioPage.72wsza")}</p>
                 <p className="text-lg font-bold text-emerald-400">
                   ${portfolio?.cashBalance !== undefined ? portfolio.cashBalance.toFixed(2) : "0.00"}
                 </p>
               </div>
               <div className="bg-slate-950/70 border border-slate-800 p-3 rounded-lg">
-                <p className="text-xs text-slate-400">{i18next.t("gen.pages.stock.StockStudioPage.gen_6de026f2", "数据源类型")}</p>
+                <p className="text-xs text-slate-400">{i18next.t("stock.stockStudioPage.gk5by6")}</p>
                 <p className="text-sm font-bold text-indigo-300 mt-1">
                   {openDStatus.connected ? "MooMoo OpenD 直连" : "手动/模板导入"}
                 </p>
@@ -1328,7 +1322,7 @@ export default function StockStudioPage() {
             {/* 新增预算调节 */}
             <div className="space-y-2 pt-2">
               <label className="text-xs font-medium text-slate-300 flex items-center justify-between">
-                <span>今日计划新增注入预算 ($)</span>
+                <span>{i18next.t("stock.stockStudioPage.ioernt")}</span>
                 <span className="text-indigo-400 font-bold">${customBudget} USD</span>
               </label>
               <div className="flex items-center gap-2">
@@ -1350,7 +1344,7 @@ export default function StockStudioPage() {
               <div className="bg-slate-950/80 border border-slate-800 rounded-xl p-3 space-y-2 mt-1">
                 <div className="flex items-center justify-between mb-1">
                   <span className="text-xs font-bold text-slate-300 flex items-center gap-1.5">
-                    <DollarSign className="w-3.5 h-3.5 text-emerald-400" />{i18next.t("gen.pages.stock.StockStudioPage.gen_2fdfa76e", "实时 P&amp;L 汇总")}</span>
+                    <DollarSign className="w-3.5 h-3.5 text-emerald-400" />{i18next.t("stock.stockStudioPage.9iam4j")}</span>
                   <span className={`text-xs font-bold font-mono px-2 py-0.5 rounded ${
                     totalPnLData.totalPnL >= 0
                       ? "bg-emerald-950/80 text-emerald-400 border border-emerald-800"
@@ -1361,15 +1355,15 @@ export default function StockStudioPage() {
                 </div>
                 <div className="grid grid-cols-3 gap-1.5 text-[10px]">
                   <div className="bg-slate-900 rounded p-1.5 text-center">
-                    <p className="text-slate-400">{i18next.t("gen.pages.stock.StockStudioPage.gen_af1a41aa", "总市值")}</p>
+                    <p className="text-slate-400">{i18next.t("stock.stockStudioPage.ejunp")}</p>
                     <p className="font-bold text-slate-200 font-mono">${totalPnLData.totalMarketValue.toFixed(0)}</p>
                   </div>
                   <div className="bg-slate-900 rounded p-1.5 text-center">
-                    <p className="text-slate-400">{i18next.t("gen.pages.stock.StockStudioPage.gen_b9550d2d", "流动现金")}</p>
+                    <p className="text-slate-400">{i18next.t("stock.stockStudioPage.e4r7qg")}</p>
                     <p className="font-bold text-emerald-300 font-mono">${totalPnLData.cashBalance.toFixed(0)}</p>
                   </div>
                   <div className="bg-slate-900 rounded p-1.5 text-center">
-                    <p className="text-slate-400">{i18next.t("gen.pages.stock.StockStudioPage.gen_518272b7", "净资产")}</p>
+                    <p className="text-slate-400">{i18next.t("stock.stockStudioPage.cnixv")}</p>
                     <p className="font-bold text-indigo-300 font-mono">${totalPnLData.netAssets.toFixed(0)}</p>
                   </div>
                 </div>
@@ -1424,7 +1418,7 @@ export default function StockStudioPage() {
                     );
                   })
                 ) : (
-                  <p className="text-xs text-slate-500 text-center py-4">{i18next.t("gen.pages.stock.StockStudioPage.gen_f03a2673", "暂无持仓数据，点击上方“一键从 MooMoo 同步”即可从 OpenD 拉取")}</p>
+                  <p className="text-xs text-slate-500 text-center py-4">{i18next.t("stock.stockStudioPage.1v267m")}</p>
                 )}
               </div>
             </div>
@@ -1452,10 +1446,10 @@ export default function StockStudioPage() {
                 <button
                   onClick={fetchWatchlist}
                   className="text-[11px] text-indigo-400 hover:text-indigo-300 flex items-center gap-1 font-medium"
-                  title={i18next.t("gen.pages.stock.StockStudioPage.gen_527f2fa5", "刷新 MooMoo 自选关注列表")}
+                  title={i18next.t("stock.stockStudioPage.tjo336")}
                 >
                   <RefreshCw className="w-3 h-3" />
-                  <span>{i18next.t("gen.pages.stock.StockStudioPage.gen_be5df650", "同步自选")}</span>
+                  <span>{i18next.t("stock.stockStudioPage.b1zo54")}</span>
                 </button>
               </div>
               <p className="text-[11px] text-slate-400 leading-tight">
@@ -1474,7 +1468,7 @@ export default function StockStudioPage() {
                     </span>
                   ))
                 ) : (
-                  <span className="text-xs text-slate-500 py-1">{i18next.t("gen.pages.stock.StockStudioPage.gen_3db7095c", "未检测到自选股，点击“同步自选”或在 MooMoo 软件添加")}</span>
+                  <span className="text-xs text-slate-500 py-1">{i18next.t("stock.stockStudioPage.j1l702")}</span>
                 )}
               </div>
             </div>
@@ -1513,10 +1507,10 @@ export default function StockStudioPage() {
                   <Sparkles className="w-5 h-5 text-amber-400" />
                   <span>AI 智能体隔夜推演中...</span>
                 </h3>
-                <p className="text-xs text-indigo-200/90 leading-relaxed font-sans">{i18next.t("gen.pages.stock.StockStudioPage.gen_280aee33", "系统正在融合隔夜美股宏观数据与当前 MooMoo 持仓进行量化推演。推演完成后，下方的操作指令与专业研报将自动覆盖更新。")}</p>
+                <p className="text-xs text-indigo-200/90 leading-relaxed font-sans">{i18next.t("stock.stockStudioPage.twnco8")}</p>
               </div>
               <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-indigo-950/90 text-indigo-300 border border-indigo-800 rounded-full text-xs font-mono shadow-inner">
-                <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping" />{i18next.t("gen.pages.stock.StockStudioPage.gen_bb5594f3", "即将更新：今日买卖指令清单 / 风险警报 / 策略诊断研报")}</div>
+                <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping" />{i18next.t("stock.stockStudioPage.9afwhu")}</div>
             </div>
           )}
 
@@ -1582,7 +1576,7 @@ export default function StockStudioPage() {
                     <>
                       {/* 隔夜大盘宏观 */}
                       <div className="bg-indigo-950/30 border border-indigo-900/50 p-3.5 rounded-lg text-sm text-indigo-200">
-                        <span className="font-semibold text-indigo-300">{i18next.t("gen.pages.stock.StockStudioPage.gen_a44e5a78", "隔夜美股宏观概述：")}</span>
+                        <span className="font-semibold text-indigo-300">{i18next.t("stock.stockStudioPage.dqysoy")}</span>
                         {strategy.marketOverview}
                       </div>
 
@@ -1592,14 +1586,14 @@ export default function StockStudioPage() {
                           {retroPnLData && (
                             <>
                               <div className="text-center">
-                                <p className="text-[9px] text-slate-400">{i18next.t("gen.pages.stock.StockStudioPage.gen_f2e9f884", "上次指南质量")}</p>
+                                <p className="text-[9px] text-slate-400">{i18next.t("stock.stockStudioPage.hhf1da")}</p>
                                 <p className={`text-sm font-bold font-mono ${
                                   retroPnLData.accuracyScore >= 70 ? "text-emerald-400" : retroPnLData.accuracyScore >= 50 ? "text-amber-400" : "text-rose-400"
                                 }`}>{retroPnLData.accuracyScore}/100</p>
                                 <p className="text-[9px] text-slate-500">{retroPnLData.strategyDate}</p>
                               </div>
                               <div className="text-center">
-                                <p className="text-[9px] text-slate-400">{i18next.t("gen.pages.stock.StockStudioPage.gen_29affed9", "避免损失")}</p>
+                                <p className="text-[9px] text-slate-400">{i18next.t("stock.stockStudioPage.ikhqzk")}</p>
                                 <p className="text-sm font-bold font-mono text-emerald-400">+${retroPnLData.avoidedLoss.toFixed(0)}</p>
                                 <p className="text-[9px] text-slate-500">跨单{(retroPnLData.executionMatchRate * 100).toFixed(0)}%</p>
                               </div>
@@ -1607,11 +1601,11 @@ export default function StockStudioPage() {
                           )}
                           {projectedPnLData && (
                             <div className="text-center">
-                              <p className="text-[9px] text-slate-400">{i18next.t("gen.pages.stock.StockStudioPage.gen_8e5b2028", "指南预期 P&amp;L")}</p>
+                              <p className="text-[9px] text-slate-400">{i18next.t("stock.stockStudioPage.z93auu")}</p>
                               <p className={`text-sm font-bold font-mono ${
                                 projectedPnLData.totalProjectedChange >= 0 ? "text-emerald-400" : "text-rose-400"
                               }`}>{projectedPnLData.totalProjectedChange >= 0 ? "+" : ""}${projectedPnLData.totalProjectedChange.toFixed(0)}</p>
-                              <p className="text-[9px] text-slate-500">{i18next.t("gen.pages.stock.StockStudioPage.gen_733bc1c2", "按全部执行")}</p>
+                              <p className="text-[9px] text-slate-500">{i18next.t("stock.stockStudioPage.s3810y")}</p>
                             </div>
                           )}
                         </div>
@@ -1638,9 +1632,7 @@ export default function StockStudioPage() {
                       {/* 调仓动作建议表格 */}
                       <div className="space-y-3">
                         <h3 className="text-sm font-semibold text-slate-300 flex items-center gap-2">
-                          <CheckCircle2 className="w-4 h-4 text-emerald-400" />
-                          今日推荐调仓指令清单 (Actions)
-                        </h3>
+                          <CheckCircle2 className="w-4 h-4 text-emerald-400" />{i18next.t("stock.stockStudioPage.b0vaek")}</h3>
 
                         <div className="space-y-2.5">
                           {strategy.actions.map((act, i) => (
@@ -1680,7 +1672,7 @@ export default function StockStudioPage() {
                                       建议操作: {act.suggestedShares} 股
                                     </p>
                                   ) : (
-                                    <p className="text-sm text-slate-400">{i18next.t("gen.pages.stock.StockStudioPage.gen_f2895fd9", "保持观望")}</p>
+                                    <p className="text-sm text-slate-400">{i18next.t("stock.stockStudioPage.ahsod9")}</p>
                                   )}
                                   <p className="text-xs text-slate-500">
                                     参考价: ${act.estimatedPrice} | 估额: ${act.estimatedAmount}
@@ -1732,9 +1724,7 @@ export default function StockStudioPage() {
                   <div className="bg-slate-900 border border-slate-800 rounded-xl p-5 space-y-4 shadow-lg">
                     <div className="flex justify-between items-center border-b border-slate-800 pb-3">
                       <h3 className="font-semibold text-slate-200 flex items-center gap-2">
-                        <BookOpen className="w-4 h-4 text-purple-400" />
-                        多维度专业研报 (Multi-View Research Report)
-                      </h3>
+                        <BookOpen className="w-4 h-4 text-purple-400" />{i18next.t("stock.stockStudioPage.hj9fsb")}</h3>
 
                       {/* 选项卡切换 */}
                       <div className="flex bg-slate-950 p-1 rounded-lg border border-slate-800">
@@ -1777,8 +1767,8 @@ export default function StockStudioPage() {
                   <div className="p-4 bg-indigo-950/40 text-indigo-400 rounded-full inline-block border border-indigo-800/50">
                     <Zap className="w-8 h-8" />
                   </div>
-                  <h3 className="text-base font-bold text-slate-200">{i18next.t("gen.pages.stock.StockStudioPage.gen_e045deae", "尚未生成今日美股操盘策略")}</h3>
-                  <p className="text-xs text-slate-400 max-w-sm mx-auto">{i18next.t("gen.pages.stock.StockStudioPage.gen_a8d27333", "请确认左侧持仓组合与新增预算无误后，点击左下角的“生成今日 MooMoo 操盘指南”开启 AI 智能体推演。")}</p>
+                  <h3 className="text-base font-bold text-slate-200">{i18next.t("stock.stockStudioPage.nuq6h5")}</h3>
+                  <p className="text-xs text-slate-400 max-w-sm mx-auto">{i18next.t("stock.stockStudioPage.dl033c")}</p>
                 </div>
               )
             )}
@@ -1830,10 +1820,10 @@ export default function StockStudioPage() {
             {importTab === "paste" ? (
               <div className="space-y-4">
                 <div>
-                  <label className="text-xs font-semibold text-slate-300 block mb-1">{i18next.t("gen.pages.stock.StockStudioPage.gen_3bdf62b2", "在 MooMoo APP / 桌面端中复制持仓文本直接粘贴至下方：")}</label>
+                  <label className="text-xs font-semibold text-slate-300 block mb-1">{i18next.t("stock.stockStudioPage.52jmjy")}</label>
                   <textarea
                     rows={6}
-                    placeholder={i18next.t("gen.pages.stock.StockStudioPage.gen_d9064347", "请粘贴从 MooMoo 客户端复制的持仓文本或资金信息...")}
+                    placeholder={i18next.t("stock.stockStudioPage.4d3smo")}
                     value={pasteText}
                     onChange={(e) => setPasteText(e.target.value)}
                     className="w-full bg-slate-950 border border-slate-800 rounded-lg p-3 text-xs text-slate-200 font-mono placeholder:text-slate-600"
@@ -1850,9 +1840,7 @@ export default function StockStudioPage() {
               <div className="space-y-4 max-h-[60vh] overflow-y-auto pr-1">
                 {/* 可用现金 */}
                 <div>
-                  <label className="text-xs font-semibold text-slate-300 block mb-1">
-                    可用闲置现金 ($ USD)
-                  </label>
+                  <label className="text-xs font-semibold text-slate-300 block mb-1">{i18next.t("stock.stockStudioPage.jag67x")}</label>
                   <input
                     type="number"
                     value={editingCash}
@@ -1864,7 +1852,7 @@ export default function StockStudioPage() {
                 {/* 股票列表编辑 */}
                 <div className="space-y-3">
                   <div className="flex justify-between items-center">
-                    <label className="text-xs font-semibold text-slate-300">{i18next.t("gen.pages.stock.StockStudioPage.gen_9b3e6967", "持仓股票列表")}</label>
+                    <label className="text-xs font-semibold text-slate-300">{i18next.t("stock.stockStudioPage.y9541i")}</label>
                     <button
                       onClick={() =>
                         setEditingPositions([
@@ -1886,7 +1874,7 @@ export default function StockStudioPage() {
                       <div className="col-span-3">
                         <input
                           type="text"
-                          placeholder={i18next.t("gen.pages.stock.StockStudioPage.gen_54e3560e", "代码 (如 NVDA)")}
+                          placeholder={i18next.t("stock.stockStudioPage.v7fc0")}
                           value={pos.symbol}
                           onChange={(e) => {
                             const updated = [...editingPositions];
@@ -1899,7 +1887,7 @@ export default function StockStudioPage() {
                       <div className="col-span-2">
                         <input
                           type="number"
-                          placeholder={i18next.t("gen.pages.stock.StockStudioPage.gen_4ef52482", "股数")}
+                          placeholder={i18next.t("stock.stockStudioPage.mfov")}
                           value={pos.shares}
                           onChange={(e) => {
                             const updated = [...editingPositions];
@@ -1912,7 +1900,7 @@ export default function StockStudioPage() {
                       <div className="col-span-3">
                         <input
                           type="number"
-                          placeholder={i18next.t("gen.pages.stock.StockStudioPage.gen_8b319dbb", "成本 $")}
+                          placeholder={i18next.t("stock.stockStudioPage.csdkbk")}
                           value={pos.costBasis}
                           onChange={(e) => {
                             const updated = [...editingPositions];
@@ -1925,7 +1913,7 @@ export default function StockStudioPage() {
                       <div className="col-span-3">
                         <input
                           type="number"
-                          placeholder={i18next.t("gen.pages.stock.StockStudioPage.gen_1c5df6c5", "现价 $")}
+                          placeholder={i18next.t("stock.stockStudioPage.ewuxzf")}
                           value={pos.marketPrice || pos.costBasis}
                           onChange={(e) => {
                             const updated = [...editingPositions];
@@ -1955,11 +1943,11 @@ export default function StockStudioPage() {
               <button
                 onClick={() => setEditModalOpen(false)}
                 className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-medium rounded-lg"
-              >{i18next.t("gen.pages.stock.StockStudioPage.gen_625fb26b", "取消")}</button>
+              >{i18next.t("common.cancel")}</button>
               <button
                 onClick={handleSavePortfolio}
                 className="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold rounded-lg shadow-lg shadow-indigo-500/20"
-              >{i18next.t("gen.pages.stock.StockStudioPage.gen_ba5daf09", "保存持仓并更新")}</button>
+              >{i18next.t("stock.stockStudioPage.cxnydh")}</button>
             </div>
           </div>
         </div>
@@ -1971,7 +1959,7 @@ export default function StockStudioPage() {
           <div className="bg-slate-900 border border-slate-800 rounded-2xl w-full max-w-md p-6 space-y-5 shadow-2xl">
             <div className="flex justify-between items-center border-b border-slate-800 pb-3">
               <h3 className="text-lg font-bold text-slate-100 flex items-center gap-2">
-                <span className="p-1 bg-emerald-950 text-emerald-400 rounded border border-emerald-800 text-sm">🔑</span>{i18next.t("gen.pages.stock.StockStudioPage.gen_712d5474", "输入 MooMoo 交易密码")}</h3>
+                <span className="p-1 bg-emerald-950 text-emerald-400 rounded border border-emerald-800 text-sm">🔑</span>{i18next.t("stock.stockStudioPage.ca43ng")}</h3>
               <button
                 onClick={() => setUnlockModalOpen(false)}
                 className="text-slate-400 hover:text-slate-200"
@@ -1985,10 +1973,10 @@ export default function StockStudioPage() {
             </p>
 
             <div className="space-y-2">
-              <label className="text-xs font-semibold text-slate-300 block">{i18next.t("gen.pages.stock.StockStudioPage.gen_cee7f870", "你的 MooMoo 交易密码")}</label>
+              <label className="text-xs font-semibold text-slate-300 block">{i18next.t("stock.stockStudioPage.w1wyaa")}</label>
               <input
                 type="password"
-                placeholder={i18next.t("gen.pages.stock.StockStudioPage.gen_e52a7115", "输入 6 位交易密码")}
+                placeholder={i18next.t("stock.stockStudioPage.mcwe5b")}
                 value={tradePassword}
                 onChange={(e) => setTradePassword(e.target.value)}
                 className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2.5 text-sm text-slate-100 placeholder:text-slate-600 font-mono"
@@ -1999,7 +1987,7 @@ export default function StockStudioPage() {
               <button
                 onClick={() => setUnlockModalOpen(false)}
                 className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-medium rounded-lg"
-              >{i18next.t("gen.pages.stock.StockStudioPage.gen_625fb26b", "取消")}</button>
+              >{i18next.t("common.cancel")}</button>
               <button
                 onClick={handleUnlockTrade}
                 disabled={unlocking || !tradePassword}
@@ -2190,7 +2178,7 @@ export default function StockStudioPage() {
               <div className="p-6 bg-slate-900 flex flex-col justify-between space-y-4 overflow-y-auto">
                 <div className="space-y-4">
                   <h4 className="text-xs font-bold text-slate-300 uppercase tracking-wider border-b border-slate-800 pb-2 flex items-center gap-2">
-                    <Activity className="w-4 h-4 text-purple-400" />{i18next.t("gen.pages.stock.StockStudioPage.gen_97b15ba7", "节点深度关联透视面板")}</h4>
+                    <Activity className="w-4 h-4 text-purple-400" />{i18next.t("stock.stockStudioPage.i7itmp")}</h4>
 
                   {activeModalNode ? (
                     <div className="space-y-3 bg-slate-950 p-4 rounded-xl border border-purple-500/30 animate-in fade-in">
@@ -2205,7 +2193,7 @@ export default function StockStudioPage() {
                   ) : (
                     <div className="bg-slate-950 p-4 rounded-xl border border-slate-800 text-center space-y-2">
                       <Sparkles className="w-6 h-6 text-purple-400 mx-auto animate-bounce" />
-                      <p className="text-xs text-slate-400">{i18next.t("gen.pages.stock.StockStudioPage.gen_80701c28", "在左侧 2D 拓扑图中点击任意节点，查看产业链深度解读与数据流来源。")}</p>
+                      <p className="text-xs text-slate-400">{i18next.t("stock.stockStudioPage.rzry7f")}</p>
                     </div>
                   )}
 
@@ -2217,13 +2205,13 @@ export default function StockStudioPage() {
                     </h5>
                     <div className="grid grid-cols-2 gap-2 text-xs font-mono pt-1">
                       <div className="bg-slate-900 p-2 rounded border border-slate-800">
-                        <div className="text-[10px] text-slate-500">{i18next.t("gen.pages.stock.StockStudioPage.gen_78349771", "最新美股现价")}</div>
+                        <div className="text-[10px] text-slate-500">{i18next.t("stock.stockStudioPage.suehh2")}</div>
                         <div className="text-emerald-400 font-bold">
                           ${quotesMap.get(currentKgItem.symbol)?.toFixed(2) || "实时获取中..."}
                         </div>
                       </div>
                       <div className="bg-slate-900 p-2 rounded border border-slate-800">
-                        <div className="text-[10px] text-slate-500">{i18next.t("gen.pages.stock.StockStudioPage.gen_52956a59", "资产关联状态")}</div>
+                        <div className="text-[10px] text-slate-500">{i18next.t("stock.stockStudioPage.wk16dt")}</div>
                         <div className="text-purple-300 font-bold">
                           {currentKgItem.positionCategory === "EXISTING" ? "已有持仓" : "自选关注池"}
                         </div>
@@ -2235,7 +2223,7 @@ export default function StockStudioPage() {
                 <button
                   onClick={() => setKgModalOpen(false)}
                   className="w-full py-2.5 bg-purple-600 hover:bg-purple-500 text-white rounded-xl text-xs font-bold transition-all shadow-lg cursor-pointer"
-                >{i18next.t("gen.pages.stock.StockStudioPage.gen_191b085a", "关闭 2D 全景全屏视图")}</button>
+                >{i18next.t("stock.stockStudioPage.1dbm9a")}</button>
               </div>
             </div>
           </div>
@@ -2258,15 +2246,15 @@ export default function StockStudioPage() {
               </button>
             </div>
 
-            <p className="text-xs text-slate-300 leading-relaxed bg-slate-950 p-3 rounded-lg border border-slate-800 font-sans">{i18next.t("gen.pages.stock.StockStudioPage.gen_c3021f16", "融合 4 大数据源：")}<strong className="text-emerald-400">OpenD 盘口</strong> + <strong className="text-cyan-400">{i18next.t("gen.pages.stock.StockStudioPage.gen_fe483c48", "网络资讯快讯")}</strong> + <strong className="text-amber-400">{i18next.t("gen.pages.stock.StockStudioPage.gen_099cb456", "实盘组合持仓")}</strong> + <strong className="text-purple-400">{i18next.t("gen.pages.stock.StockStudioPage.gen_62a3bc01", "人工研判修正")}</strong>。你可以随时在此添加专属关联实体与语义三元组。
+            <p className="text-xs text-slate-300 leading-relaxed bg-slate-950 p-3 rounded-lg border border-slate-800 font-sans">{i18next.t("stock.stockStudioPage.sm40ce")}<strong className="text-emerald-400">OpenD 盘口</strong> + <strong className="text-cyan-400">{i18next.t("stock.stockStudioPage.zfb916")}</strong> + <strong className="text-amber-400">{i18next.t("stock.stockStudioPage.7u59rk")}</strong> + <strong className="text-purple-400">{i18next.t("stock.stockStudioPage.jbifdc")}</strong>。你可以随时在此添加专属关联实体与语义三元组。
             </p>
 
             <div className="space-y-4 text-xs font-sans">
               <div className="space-y-1.5">
-                <label className="text-slate-300 font-semibold block">关联实体名称 (Entity Name)</label>
+                <label className="text-slate-300 font-semibold block">{i18next.t("stock.stockStudioPage.m7rsci")}</label>
                 <input
                   type="text"
-                  placeholder={i18next.t("gen.pages.stock.StockStudioPage.gen_df2381fe", "例如：鸿海精密 / 富士康 (Foxconn) 或 台积电 CoWoS")}
+                  placeholder={i18next.t("stock.stockStudioPage.j8pw5h")}
                   value={newEntityName}
                   onChange={(e) => setNewEntityName(e.target.value)}
                   className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2.5 text-slate-100 placeholder:text-slate-600 font-mono text-xs"
@@ -2275,25 +2263,25 @@ export default function StockStudioPage() {
 
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1.5">
-                  <label className="text-slate-300 font-semibold block">实体分类 (Entity Type)</label>
+                  <label className="text-slate-300 font-semibold block">{i18next.t("stock.stockStudioPage.u51yl8")}</label>
                   <select
                     value={newEntityType}
                     onChange={(e) => setNewEntityType(e.target.value as any)}
                     className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2.5 text-slate-100 font-mono text-xs"
                   >
-                    <option value="SUPPLIER">上游供应商 (SUPPLIER)</option>
-                    <option value="CLIENT">下游客户 (CLIENT)</option>
-                    <option value="COMPETITOR">同业竞争者 (COMPETITOR)</option>
-                    <option value="MACRO">宏观因子 (MACRO)</option>
-                    <option value="CONCEPT">概念/板块 (CONCEPT)</option>
+                    <option value="SUPPLIER">{i18next.t("stock.stockStudioPage.6yzzvu")}</option>
+                    <option value="CLIENT">{i18next.t("stock.stockStudioPage.upss0k")}</option>
+                    <option value="COMPETITOR">{i18next.t("stock.stockStudioPage.nsd5g7")}</option>
+                    <option value="MACRO">{i18next.t("stock.stockStudioPage.xhigxk")}</option>
+                    <option value="CONCEPT">{i18next.t("stock.stockStudioPage.h7pqpp")}</option>
                   </select>
                 </div>
 
                 <div className="space-y-1.5">
-                  <label className="text-slate-300 font-semibold block">语义关联谓词 (Relation)</label>
+                  <label className="text-slate-300 font-semibold block">{i18next.t("stock.stockStudioPage.lvmz8y")}</label>
                   <input
                     type="text"
-                    placeholder={i18next.t("gen.pages.stock.StockStudioPage.gen_ee803292", "例如：iPhone 独家精密组装")}
+                    placeholder={i18next.t("stock.stockStudioPage.t3xyd1")}
                     value={newRelationText}
                     onChange={(e) => setNewRelationText(e.target.value)}
                     className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2.5 text-slate-100 placeholder:text-slate-600 font-mono text-xs"
@@ -2302,10 +2290,10 @@ export default function StockStudioPage() {
               </div>
 
               <div className="space-y-1.5">
-                <label className="text-slate-300 font-semibold block">实体深度基本面说明 (Description)</label>
+                <label className="text-slate-300 font-semibold block">{i18next.t("stock.stockStudioPage.b1y88b")}</label>
                 <textarea
                   rows={3}
-                  placeholder={i18next.t("gen.pages.stock.StockStudioPage.gen_dc4bf7f5", "例如：全球最大智能手机代工厂，苹果供应链重要组件及产能出货核心保障")}
+                  placeholder={i18next.t("stock.stockStudioPage.3abxsi")}
                   value={newEntityDesc}
                   onChange={(e) => setNewEntityDesc(e.target.value)}
                   className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-slate-100 placeholder:text-slate-600 font-sans text-xs"
@@ -2317,12 +2305,12 @@ export default function StockStudioPage() {
               <button
                 onClick={() => setEditKgModalOpen(false)}
                 className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-medium rounded-lg cursor-pointer"
-              >{i18next.t("gen.pages.stock.StockStudioPage.gen_625fb26b", "取消")}</button>
+              >{i18next.t("common.cancel")}</button>
               <button
                 onClick={handleAddCustomEntity}
                 disabled={!newEntityName.trim()}
                 className="px-4 py-2 bg-amber-600 hover:bg-amber-500 text-white text-xs font-bold rounded-lg shadow-lg shadow-amber-500/20 disabled:opacity-50 cursor-pointer"
-              >{i18next.t("gen.pages.stock.StockStudioPage.gen_f913937c", "保存并实时更新 2D 拓扑图谱")}</button>
+              >{i18next.t("stock.stockStudioPage.8ge6m")}</button>
             </div>
           </div>
         </div>

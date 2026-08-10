@@ -41,12 +41,12 @@ function formatConnectionTestResult(response: Awaited<ReturnType<typeof testLLMC
     ? plain.ok
       ? `普通连通正常${plain.latency != null ? ` (${plain.latency}ms)` : ""}`
       : `普通连通失败${plain.error ? `：${plain.error}` : ""}`
-    : i18next.t("gen.pages.settings.SettingsPage.gen_51f4fc6d");
+    : i18next.t("dict.gen_51f4fc6d");
   const structuredText = structured
     ? structured.ok
-      ? `结构化正常${structured.strategy ? `，策略 ${structured.strategy}` : ""}${structured.reasoningForcedOff ? i18next.t("gen.pages.settings.SettingsPage.gen_5171d6ff") : ""}`
+      ? `结构化正常${structured.strategy ? `，策略 ${structured.strategy}` : ""}${structured.reasoningForcedOff ? i18next.t("dict.gen_5171d6ff") : ""}`
       : `结构化失败${structured.errorCategory ? `，分类 ${structured.errorCategory}` : ""}${structured.error ? `：${structured.error}` : ""}`
-    : i18next.t("gen.pages.settings.SettingsPage.gen_333d0bf3");
+    : i18next.t("dict.gen_333d0bf3");
   return `连接成功，总耗时 ${latency}ms · ${plainText} · ${structuredText}`;
 }
 
@@ -211,11 +211,11 @@ export default function SettingsPage() {
       }),
     onSuccess: async (response) => {
       resetDialogState();
-      setActionResult(response.message ?? i18next.t("gen.pages.settings.SettingsPage.savedSuccessfully"));
+      setActionResult(response.message ?? i18next.t("dict.savedSuccessfully"));
       await invalidateProviderQueries();
     },
     onError: (error) => {
-      setActionResult(error instanceof Error ? error.message : i18next.t("gen.pages.settings.SettingsPage.saveFailedDot"));
+      setActionResult(error instanceof Error ? error.message : i18next.t("dict.saveFailedDot"));
     },
   });
 
@@ -231,11 +231,11 @@ export default function SettingsPage() {
     }) => createCustomProvider(payload),
     onSuccess: async (response) => {
       resetDialogState();
-      setActionResult(response.message ?? i18next.t("gen.pages.settings.SettingsPage.gen_05a3234b"));
+      setActionResult(response.message ?? i18next.t("dict.gen_05a3234b"));
       await invalidateProviderQueries();
     },
     onError: (error) => {
-      setActionResult(error instanceof Error ? error.message : i18next.t("gen.pages.settings.SettingsPage.gen_3439e49e"));
+      setActionResult(error instanceof Error ? error.message : i18next.t("dict.gen_3439e49e"));
     },
   });
 
@@ -252,7 +252,7 @@ export default function SettingsPage() {
     },
     onError: (error) => {
       setPreviewModels([]);
-      setPreviewModelsResult(error instanceof Error ? error.message : i18next.t("gen.pages.settings.SettingsPage.gen_e8d27ed9"));
+      setPreviewModelsResult(error instanceof Error ? error.message : i18next.t("dict.gen_e8d27ed9"));
     },
   });
 
@@ -260,11 +260,11 @@ export default function SettingsPage() {
     mutationFn: (provider: LLMProvider) => deleteCustomProvider(provider),
     onSuccess: async (response) => {
       resetDialogState();
-      setActionResult(response.message ?? i18next.t("gen.pages.settings.SettingsPage.gen_219a1545"));
+      setActionResult(response.message ?? i18next.t("dict.gen_219a1545"));
       await invalidateProviderQueries();
     },
     onError: (error) => {
-      setActionResult(error instanceof Error ? error.message : i18next.t("gen.pages.settings.SettingsPage.gen_b6324516"));
+      setActionResult(error instanceof Error ? error.message : i18next.t("dict.gen_b6324516"));
     },
   });
 
@@ -284,7 +284,7 @@ export default function SettingsPage() {
       await invalidateProviderAuxiliaryQueries();
     },
     onError: (error) => {
-      setActionResult(error instanceof Error ? error.message : i18next.t("gen.pages.settings.SettingsPage.gen_bea8afd0"));
+      setActionResult(error instanceof Error ? error.message : i18next.t("dict.gen_bea8afd0"));
     },
   });
 
@@ -295,11 +295,11 @@ export default function SettingsPage() {
       }),
     onSuccess: async (_response, variables) => {
       const providerName = providerConfigs.find((item) => item.provider === variables.provider)?.name ?? variables.provider;
-      setActionResult(`${providerName} 思考功能已${variables.reasoningEnabled ? i18next.t("gen.pages.settings.SettingsPage.gen_cc42dd31") : i18next.t("gen.pages.settings.SettingsPage.gen_b15d9127")}。`);
+      setActionResult(`${providerName} 思考功能已${variables.reasoningEnabled ? i18next.t("dict.gen_cc42dd31") : i18next.t("dict.gen_b15d9127")}。`);
       await invalidateProviderQueries();
     },
     onError: (error) => {
-      setActionResult(error instanceof Error ? error.message : i18next.t("gen.pages.settings.SettingsPage.gen_62e3db16"));
+      setActionResult(error instanceof Error ? error.message : i18next.t("dict.gen_62e3db16"));
     },
   });
 
@@ -311,7 +311,7 @@ export default function SettingsPage() {
       await queryClient.invalidateQueries({ queryKey: queryKeys.settings.apiKeyBalances });
     },
     onError: (error) => {
-      setActionResult(error instanceof Error ? error.message : i18next.t("gen.pages.settings.SettingsPage.gen_5089f09b"));
+      setActionResult(error instanceof Error ? error.message : i18next.t("dict.gen_5089f09b"));
     },
   });
 
@@ -417,7 +417,7 @@ export default function SettingsPage() {
         onError: (error) => {
           setProviderTestResults((prev) => ({
             ...prev,
-            [provider.provider]: error instanceof Error ? error.message : i18next.t("gen.pages.settings.SettingsPage.gen_b32cc465"),
+            [provider.provider]: error instanceof Error ? error.message : i18next.t("dict.gen_b32cc465"),
           }));
         },
       },
@@ -438,7 +438,7 @@ export default function SettingsPage() {
           setDialogTestResult(formatConnectionTestResult(response));
         },
         onError: (error) => {
-          setDialogTestResult(error instanceof Error ? error.message : i18next.t("gen.pages.settings.SettingsPage.gen_b32cc465"));
+          setDialogTestResult(error instanceof Error ? error.message : i18next.t("dict.gen_b32cc465"));
         },
       },
     );
@@ -461,13 +461,13 @@ export default function SettingsPage() {
     || (isCustomDialog && !form.displayName.trim())
     || (isCreatingCustomProvider && !form.baseURL.trim())
     || (!isCustomDialog && editingConfig?.requiresApiKey !== false && !form.key.trim() && !editingConfig?.isConfigured);
-  const providerSubmitLabel = isSavingProvider ? i18next.t("gen.pages.settings.SettingsPage.savingInProgressDotDotDot") : isCreatingCustomProvider ? i18next.t("gen.pages.settings.SettingsPage.gen_46bd767f") : i18next.t("gen.pages.settings.SettingsPage.save");
+  const providerSubmitLabel = isSavingProvider ? i18next.t("common.saving") : isCreatingCustomProvider ? i18next.t("dict.gen_46bd767f") : i18next.t("common.save");
 
   return (
     <div className={AUTO_DIRECTOR_MOBILE_CLASSES.settingsPageRoot}>
       <SettingsSectionGroup
-        title={i18next.t("gen.pages.settings.SettingsPage.gen_e7c25780")}
-        description={i18next.t("gen.pages.settings.SettingsPage.gen_12a5e0ea")}
+        title={i18next.t("dict.gen_e7c25780")}
+        description={i18next.t("dict.gen_12a5e0ea")}
         status="required"
       >
         <SettingsReadinessCard items={readinessItems} />
@@ -504,8 +504,8 @@ export default function SettingsPage() {
       </SettingsSectionGroup>
 
       <SettingsSectionGroup
-        title={i18next.t("gen.pages.settings.SettingsPage.gen_124a0559")}
-        description={i18next.t("gen.pages.settings.SettingsPage.gen_c1d19ef6")}
+        title={i18next.t("dict.gen_124a0559")}
+        description={i18next.t("dict.gen_c1d19ef6")}
         status="enhancement"
       >
         <SettingsNavigationCards mode="knowledge" />
@@ -513,16 +513,16 @@ export default function SettingsPage() {
       </SettingsSectionGroup>
 
       <SettingsSectionGroup
-        title={i18next.t("gen.pages.settings.SettingsPage.gen_c72f1d50")}
-        description={i18next.t("gen.pages.settings.SettingsPage.gen_a645b343")}
+        title={i18next.t("dict.gen_c72f1d50")}
+        description={i18next.t("dict.gen_a645b343")}
         status="advanced"
       >
         <AutoDirectorSettingsSection onActionResult={setActionResult} />
       </SettingsSectionGroup>
 
       <SettingsSectionGroup
-        title={i18next.t("gen.pages.settings.SettingsPage.gen_e58e3369")}
-        description={i18next.t("gen.pages.settings.SettingsPage.gen_3b700660")}
+        title={i18next.t("dict.gen_e58e3369")}
+        description={i18next.t("dict.gen_3b700660")}
         status="maintenance"
       >
         <SettingsMaintenanceSection />
@@ -555,7 +555,7 @@ export default function SettingsPage() {
         testResult={dialogTestResult}
         onDeleteCustomProvider={handleDeleteCustomProvider}
         deleteDisabled={deleteCustomProviderMutation.isPending}
-        deleteLabel={deleteCustomProviderMutation.isPending ? i18next.t("gen.pages.settings.SettingsPage.gen_09f2fb82") : i18next.t("gen.pages.settings.SettingsPage.gen_2f4aaddd")}
+        deleteLabel={deleteCustomProviderMutation.isPending ? i18next.t("dict.gen_09f2fb82") : i18next.t("dict.gen_2f4aaddd")}
       />
     </div>
   );

@@ -1,5 +1,4 @@
 import i18next from "i18next";
-import { useTranslation } from "react-i18next";
 import { AlertTriangle, ArrowRight, CheckCircle2, Compass, FileText, Flame, GitBranch, Lock, Sparkles, Target } from "lucide-react";
 import AiButton from "@/components/common/AiButton";
 import { Button } from "@/components/ui/button";
@@ -20,11 +19,11 @@ interface StoryEngineStudioProps {
 }
 
 const readinessItems = [
-  { key: "storyInput", label: "故事意图", icon: <FileText className="h-3.5 w-3.5" /> },
-  { key: "sellingPoint", label: "卖点", icon: <Sparkles className="h-3.5 w-3.5" /> },
-  { key: "conflict", label: "长期对立", icon: <Flame className="h-3.5 w-3.5" /> },
-  { key: "hook", label: "主线钩子", icon: <Target className="h-3.5 w-3.5" /> },
-  { key: "loop", label: "推进回路", icon: <GitBranch className="h-3.5 w-3.5" /> },
+  { key: "storyInput", label: i18next.t("novels.storyEngineStudio.d3sw1h"), icon: <FileText className="h-3.5 w-3.5" /> },
+  { key: "sellingPoint", label: i18next.t("novels.bookPositioningStudio.eskj"), icon: <Sparkles className="h-3.5 w-3.5" /> },
+  { key: "conflict", label: i18next.t("novels.storyEngineStudio.jad1ma"), icon: <Flame className="h-3.5 w-3.5" /> },
+  { key: "hook", label: i18next.t("novels.storyEngineStudio.aehui3"), icon: <Target className="h-3.5 w-3.5" /> },
+  { key: "loop", label: i18next.t("novels.storyEngineStudio.d604zo"), icon: <GitBranch className="h-3.5 w-3.5" /> },
 ] as const;
 
 function hasText(value: unknown): boolean {
@@ -46,28 +45,28 @@ function resolveNextAction(tab: StoryMacroTabProps): {
 } {
   if (!tab.storyInput.trim()) {
     return {
-      title: "先写下故事想法",
-      description: "不用写专业大纲，先说明主角处境、长期压力、想要的读者感受和想避免的方向。",
+      title: i18next.t("novels.storyEngineStudio.vnywle"),
+      description: i18next.t("novels.storyEngineStudio.9g45eh"),
       tone: "warning",
     };
   }
   if (!tab.hasPlan) {
     return {
-      title: "生成故事引擎",
-      description: "让 AI 把想法拆成卖点、长期对立、主线钩子、推进回路和关键兑现点。",
+      title: i18next.t("dict.gen_486311df"),
+      description: i18next.t("novels.storyEngineStudio.xh03vp"),
       tone: "info",
     };
   }
   if (!tab.constraintEngine) {
     return {
-      title: "构建约束引擎",
-      description: "把已确认的故事骨架整理成后续角色、卷规划和章节生成都能遵守的硬边界。",
+      title: i18next.t("dict.gen_66cdbb1d"),
+      description: i18next.t("novels.storyEngineStudio.56kb24"),
       tone: "info",
     };
   }
   return {
-    title: "进入下游规划前先保存",
-    description: "当前故事骨架已经具备可消费的约束，保存后可以继续推进角色、卷战略和拆章。",
+    title: i18next.t("novels.storyEngineStudio.y36q9n"),
+    description: i18next.t("novels.storyEngineStudio.8ezcel"),
     tone: "success",
   };
 }
@@ -89,7 +88,7 @@ function StoryReadinessPanel({ tab }: { tab: StoryMacroTabProps }) {
     <aside className="space-y-4 rounded-lg border border-border/70 bg-muted/10 p-4">
       <div className="flex items-start justify-between gap-3">
         <div>
-          <div className="text-sm font-semibold text-foreground">{i18next.t("gen.pages.novels.components.storyMacroPlan.StoryEngineStudio.gen_4fd31a9e", "宏观规划就绪度")}</div>
+          <div className="text-sm font-semibold text-foreground">{i18next.t("novels.storyEngineStudio.e2q8to")}</div>
           <div className="mt-1 text-xs text-muted-foreground">{readyCount} / {readinessItems.length} 个核心条件已具备</div>
         </div>
         <div className="text-2xl font-semibold text-foreground">{percent}%</div>
@@ -112,7 +111,7 @@ function StoryReadinessPanel({ tab }: { tab: StoryMacroTabProps }) {
             {readiness[item.key] ? (
               <CheckCircle2 className="h-4 w-4 text-emerald-600" />
             ) : (
-              <span className="text-xs text-muted-foreground">{i18next.t("gen.pages.novels.components.storyMacroPlan.StoryEngineStudio.gen_23fb2e57", "待补")}</span>
+              <span className="text-xs text-muted-foreground">{i18next.t("novels.bookPositioningStudio.gzuo")}</span>
             )}
           </div>
         ))}
@@ -185,7 +184,6 @@ function SummaryFieldCard({ tab, field }: { tab: StoryMacroTabProps; field: Stor
 }
 
 export default function StoryEngineStudio({ tab }: StoryEngineStudioProps) {
-  const { t } = useTranslation();
   const payoffs = tab.decomposition.major_payoffs.filter((item) => item.trim());
 
   return (
@@ -195,11 +193,11 @@ export default function StoryEngineStudio({ tab }: StoryEngineStudioProps) {
           <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
             <div className="min-w-0">
               <div className="flex flex-wrap items-center gap-2">
-                <Badge variant="outline" className="border-primary/25 bg-primary/5 text-primary">{i18next.t("gen.pages.novels.components.storyMacroPlan.StoryEngineStudio.gen_ce251da4", "故事引擎")}</Badge>
-                <span className="text-xs font-medium text-muted-foreground">{i18next.t("gen.pages.novels.components.storyMacroPlan.StoryEngineStudio.gen_4514594b", "把书级承诺拆成后续规划可以执行的骨架")}</span>
+                <Badge variant="outline" className="border-primary/25 bg-primary/5 text-primary">{i18next.t("novels.storyEngineStudio.d3smnz")}</Badge>
+                <span className="text-xs font-medium text-muted-foreground">{i18next.t("novels.storyEngineStudio.k03kkm")}</span>
               </div>
-              <h2 className="mt-3 text-lg font-semibold leading-7 text-foreground">{i18next.t("gen.pages.novels.components.storyMacroPlan.StoryEngineStudio.gen_f754047d", "控制主线如何持续推进")}</h2>
-              <p className="mt-1 max-w-3xl text-sm leading-6 text-muted-foreground">{i18next.t("gen.pages.novels.components.storyMacroPlan.StoryEngineStudio.gen_054c37f1", "这里不急着写章节，而是先定义读者为什么追、长期对立如何升级、主角怎样变化，以及前中后期必须兑现哪些节点。")}</p>
+              <h2 className="mt-3 text-lg font-semibold leading-7 text-foreground">{i18next.t("novels.storyEngineStudio.txbwt7")}</h2>
+              <p className="mt-1 max-w-3xl text-sm leading-6 text-muted-foreground">{i18next.t("novels.storyEngineStudio.oqgbvz")}</p>
             </div>
             <div className="flex shrink-0 flex-wrap gap-2">
               <AiButton onClick={tab.onDecompose} disabled={tab.isDecomposing || !tab.storyInput.trim()}>
@@ -219,11 +217,11 @@ export default function StoryEngineStudio({ tab }: StoryEngineStudioProps) {
           </div>
 
           <div className="space-y-2 rounded-lg border border-border/60 bg-muted/10 p-3">
-            <div className="text-sm font-medium text-foreground">{i18next.t("gen.pages.novels.components.storyMacroPlan.StoryEngineStudio.gen_270e2ebb", "故事想法输入")}</div>
+            <div className="text-sm font-medium text-foreground">{i18next.t("dict.gen_270e2ebb")}</div>
             <textarea
               value={tab.storyInput}
               onChange={(event) => tab.onStoryInputChange(event.target.value)}
-              placeholder={i18next.t("gen.pages.novels.components.storyMacroPlan.StoryEngineStudio.gen_4620ef74", "用自然语言描述故事想法、想要的压迫感、想避免的风格和结局倾向。")}
+              placeholder={i18next.t("dict.gen_4620ef74")}
               className={textareaClassName("min-h-36")}
             />
             {tab.message ? (
@@ -235,19 +233,19 @@ export default function StoryEngineStudio({ tab }: StoryEngineStudioProps) {
 
           <div className="grid gap-3 lg:grid-cols-3">
             <div className="rounded-lg border border-border/60 bg-muted/10 p-3">
-              <div className="text-xs font-medium text-muted-foreground">{i18next.t("gen.pages.novels.components.storyMacroPlan.StoryEngineStudio.gen_070403f1", "读者追更理由")}</div>
+              <div className="text-xs font-medium text-muted-foreground">{i18next.t("novels.storyEngineStudio.chac6k")}</div>
               <div className="mt-2 text-sm font-semibold leading-6 text-foreground">
                 {previewText(tab.decomposition.selling_point, "等待生成一句话卖点")}
               </div>
             </div>
             <div className="rounded-lg border border-border/60 bg-muted/10 p-3">
-              <div className="text-xs font-medium text-muted-foreground">{i18next.t("gen.pages.novels.components.storyMacroPlan.StoryEngineStudio.gen_ae6f7246", "长期压力源")}</div>
+              <div className="text-xs font-medium text-muted-foreground">{i18next.t("novels.storyEngineStudio.tmx9y8")}</div>
               <div className="mt-2 text-sm font-semibold leading-6 text-foreground">
                 {previewText(tab.decomposition.core_conflict, "等待生成长期对立")}
               </div>
             </div>
             <div className="rounded-lg border border-border/60 bg-muted/10 p-3">
-              <div className="text-xs font-medium text-muted-foreground">{i18next.t("gen.pages.novels.components.storyMacroPlan.StoryEngineStudio.gen_c681f960", "关键兑现点")}</div>
+              <div className="text-xs font-medium text-muted-foreground">{i18next.t("dict.gen_c681f960")}</div>
               <div className="mt-2 text-sm font-semibold leading-6 text-foreground">
                 {payoffs.length > 0 ? `${payoffs.length} 个节点` : "等待拆出兑现节点"}
               </div>
@@ -263,13 +261,13 @@ export default function StoryEngineStudio({ tab }: StoryEngineStudioProps) {
       <div className="border-t border-border/70 bg-muted/5 p-4 lg:p-5">
         <div className="mb-4 flex flex-col gap-2 lg:flex-row lg:items-end lg:justify-between">
           <div>
-            <h3 className="text-base font-semibold text-foreground">{i18next.t("gen.pages.novels.components.storyMacroPlan.StoryEngineStudio.gen_1f7fb7d0", "主线骨架")}</h3>
-            <p className="mt-1 text-sm leading-6 text-muted-foreground">{i18next.t("gen.pages.novels.components.storyMacroPlan.StoryEngineStudio.gen_50b87e80", "这组字段会进入后续角色、卷战略、节奏拆章和章节任务，是故事能否持续推进的核心资产。")}</p>
+            <h3 className="text-base font-semibold text-foreground">{i18next.t("novels.storyEngineStudio.aeixo2")}</h3>
+            <p className="mt-1 text-sm leading-6 text-muted-foreground">{i18next.t("novels.storyEngineStudio.y05zca")}</p>
           </div>
           <div className="flex items-center gap-2 text-xs text-muted-foreground">
-            <span>{i18next.t("gen.pages.novels.components.storyMacroPlan.StoryEngineStudio.gen_436e71b0", "满意的字段先锁定")}</span>
+            <span>{i18next.t("novels.storyEngineStudio.adm33n")}</span>
             <ArrowRight className="h-3.5 w-3.5" />
-            <span>{i18next.t("gen.pages.novels.components.storyMacroPlan.StoryEngineStudio.gen_c2f23046", "再局部重生成")}</span>
+            <span>{i18next.t("novels.storyEngineStudio.z6qx13")}</span>
           </div>
         </div>
 
@@ -282,7 +280,7 @@ export default function StoryEngineStudio({ tab }: StoryEngineStudioProps) {
           <SummaryFieldCard tab={tab} field="growth_path" />
           <div className="space-y-2 rounded-lg border border-border/60 bg-background p-3 xl:col-span-2">
             <div className="flex flex-wrap items-center justify-between gap-2">
-              <div className="text-sm font-medium text-foreground">{i18next.t("gen.pages.novels.components.storyMacroPlan.StoryEngineStudio.gen_c681f960", "关键兑现点")}</div>
+              <div className="text-sm font-medium text-foreground">{i18next.t("dict.gen_c681f960")}</div>
               <FieldActions
                 field="major_payoffs"
                 lockedFields={tab.lockedFields}
@@ -298,7 +296,7 @@ export default function StoryEngineStudio({ tab }: StoryEngineStudioProps) {
                 "major_payoffs",
                 event.target.value.split(/\r?\n/).map((line) => line.trim()).filter(Boolean),
               )}
-              placeholder={i18next.t("gen.pages.novels.components.storyMacroPlan.StoryEngineStudio.gen_a1741ac4", "每行一个关键兑现点。")}
+              placeholder={i18next.t("dict.gen_a1741ac4")}
               className={textareaClassName("min-h-32")}
             />
           </div>

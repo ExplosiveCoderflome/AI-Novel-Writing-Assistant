@@ -1,4 +1,3 @@
-import i18next from "i18next";
 export type * from "@ai-novel/shared/types/api";
 export type * from "@ai-novel/shared/types/bookAnalysis";
 export type * from "@ai-novel/shared/types/bookAnalysisCharacter";

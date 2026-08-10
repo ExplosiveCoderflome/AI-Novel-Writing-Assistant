@@ -132,7 +132,7 @@ export default function WorldGenerator() {
         const defaultPropertySelection = buildDefaultPropertySelectionState(nextPropertyOptions);
 
         if (!nextConcept) {
-          throw new Error(i18next.t("gen.pages.worlds.WorldGenerator.analysisMissingConceptCard"));
+          throw new Error(i18next.t("dict.analysisMissingConceptCard"));
         }
 
         setConcept(nextConcept);
@@ -148,7 +148,7 @@ export default function WorldGenerator() {
         setSkeleton(null);
         setStep(2);
       } catch (error) {
-        const message = error instanceof Error ? error.message : i18next.t("gen.pages.worlds.WorldGenerator.analysisParseFailed");
+        const message = error instanceof Error ? error.message : i18next.t("dict.analysisParseFailed");
         toast.error(message);
       }
     },
@@ -234,9 +234,9 @@ export default function WorldGenerator() {
         idea: [
           inspirationText.trim(),
           concept?.summary ? `概念卡：${concept.summary}` : "",
-        ].filter(Boolean).join("\n\n") || i18next.t("gen.pages.worlds.WorldGenerator.gen_d441546d"),
-        worldType: selectedGenre?.path || concept?.worldType || matchedTemplateWorldType || selectedTemplate?.worldType || i18next.t("gen.pages.worlds.WorldGenerator.gen_f1d4ff50"),
-        template: selectedTemplate?.name ?? i18next.t("gen.pages.worlds.WorldGenerator.gen_f1d4ff50"),
+        ].filter(Boolean).join("\n\n") || i18next.t("dict.gen_d441546d"),
+        worldType: selectedGenre?.path || concept?.worldType || matchedTemplateWorldType || selectedTemplate?.worldType || i18next.t("dict.gen_f1d4ff50"),
+        template: selectedTemplate?.name ?? i18next.t("dict.gen_f1d4ff50"),
         referenceContext: buildReferenceContext(),
         blueprint: buildGenerationBlueprint(),
         options: {
@@ -256,13 +256,13 @@ export default function WorldGenerator() {
   const finalizeMutation = useMutation({
     mutationFn: async () => {
       if (!skeleton) {
-        throw new Error(i18next.t("gen.pages.worlds.WorldGenerator.gen_fe79fc55"));
+        throw new Error(i18next.t("dict.gen_fe79fc55"));
       }
       const blueprint = buildGenerationBlueprint();
       return createWorld({
-        name: worldName.trim() || skeleton.concept.name || i18next.t("gen.pages.worlds.WorldGenerator.gen_a2a1fdc0"),
+        name: worldName.trim() || skeleton.concept.name || i18next.t("dict.gen_a2a1fdc0"),
         description: skeleton.structuredData.profile.summary || skeleton.concept.oneSentence,
-        worldType: selectedGenre?.path || concept?.worldType || matchedTemplateWorldType || selectedTemplate?.worldType || i18next.t("gen.pages.worlds.WorldGenerator.gen_f1d4ff50"),
+        worldType: selectedGenre?.path || concept?.worldType || matchedTemplateWorldType || selectedTemplate?.worldType || i18next.t("dict.gen_f1d4ff50"),
         templateKey: selectedTemplate?.key ?? "custom",
         selectedDimensions: JSON.stringify(selectedDimensions),
         selectedElements: serializeWorldGenerationBlueprint(blueprint),
@@ -293,7 +293,7 @@ export default function WorldGenerator() {
     <div className="space-y-4">
       <Card>
         <CardHeader className="flex flex-row items-center justify-between">
-          <CardTitle>{i18next.t("gen.pages.worlds.WorldGenerator.gen_85d21f84")}</CardTitle>
+          <CardTitle>{i18next.t("dict.gen_85d21f84")}</CardTitle>
           <LLMSelector />
         </CardHeader>
         <CardContent className="space-y-4">
@@ -332,8 +332,8 @@ export default function WorldGenerator() {
               analyzeStreaming={analyzeStream.isStreaming}
               analyzeButtonLabel={
                 analyzeStream.isStreaming
-                  ? (analyzeStream.latestRun?.message ?? i18next.t("gen.pages.worlds.WorldGenerator.gen_ee0b2c88"))
-                  : (isReferenceMode ? i18next.t("gen.pages.worlds.WorldGenerator.gen_eaa44d22") : i18next.t("gen.pages.worlds.WorldGenerator.gen_f2cedb5b"))
+                  ? (analyzeStream.latestRun?.message ?? i18next.t("dict.gen_ee0b2c88"))
+                  : (isReferenceMode ? i18next.t("dict.gen_eaa44d22") : i18next.t("dict.gen_f2cedb5b"))
               }
               analyzeProgressMessage={analyzeStream.latestRun?.message}
               inspirationSourceMeta={inspirationSourceMeta}

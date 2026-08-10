@@ -1,4 +1,3 @@
-import i18next from "i18next";
 import type { ApiResponse } from "@ai-novel/shared/types/api";
 import type { BookFramingSuggestion, BookFramingSuggestionInput } from "@ai-novel/shared/types/novelFraming";
 import { apiClient } from "./client";

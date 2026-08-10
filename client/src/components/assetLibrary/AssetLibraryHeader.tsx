@@ -1,4 +1,3 @@
-import i18next from "i18next";
 import type { LucideIcon } from "lucide-react";
 import type { ReactNode } from "react";
 import { cn } from "@/lib/utils";

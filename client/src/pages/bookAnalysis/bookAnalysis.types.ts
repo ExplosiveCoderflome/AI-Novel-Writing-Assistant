@@ -1,4 +1,3 @@
-import i18next from "i18next";
 import type { LLMProvider } from "@ai-novel/shared/types/llm";
 import type { BookAnalysisEvidenceItem, BookAnalysisSectionKey } from "@ai-novel/shared/types/bookAnalysis";
 

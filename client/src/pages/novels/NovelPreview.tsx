@@ -33,19 +33,19 @@ function formatCount(value: number): string {
 function formatChapterStatus(status?: ChapterStatus | null): string {
   switch (status) {
     case "completed":
-      return i18next.t("gen.pages.novels.NovelPreview.gen_84af95a7");
+      return i18next.t("dict.gen_84af95a7");
     case "pending_review":
-      return i18next.t("gen.pages.novels.NovelPreview.gen_420b5a47");
+      return i18next.t("dict.gen_420b5a47");
     case "needs_repair":
-      return i18next.t("gen.pages.novels.NovelPreview.gen_a7a05e79");
+      return i18next.t("dict.gen_a7a05e79");
     case "generating":
-      return i18next.t("gen.pages.novels.NovelPreview.gen_1ae3a984");
+      return i18next.t("dict.gen_1ae3a984");
     case "pending_generation":
-      return i18next.t("gen.pages.novels.NovelPreview.gen_418dde27");
+      return i18next.t("dict.gen_418dde27");
     case "unplanned":
-      return i18next.t("gen.pages.novels.NovelPreview.gen_16fe50f9");
+      return i18next.t("dict.gen_16fe50f9");
     default:
-      return i18next.t("gen.pages.novels.NovelPreview.gen_120e6f23");
+      return i18next.t("dict.gen_120e6f23");
   }
 }
 
@@ -142,19 +142,19 @@ export default function NovelPreview() {
 
   const copyActiveChapter = async () => {
     if (!activeChapter || !activeContent) {
-      toast.error(i18next.t("gen.pages.novels.NovelPreview.gen_307412f2"));
+      toast.error(i18next.t("dict.gen_307412f2"));
       return;
     }
 
     try {
       await writeTextToClipboard(activeContent);
       setCopiedChapterId(activeChapter.id);
-      toast.success(i18next.t("gen.pages.novels.NovelPreview.gen_d6f3284a"));
+      toast.success(i18next.t("dict.gen_d6f3284a"));
       window.setTimeout(() => {
         setCopiedChapterId((current) => (current === activeChapter.id ? null : current));
       }, 1600);
     } catch {
-      toast.error(i18next.t("gen.pages.novels.NovelPreview.gen_44bcfdfc"));
+      toast.error(i18next.t("dict.gen_44bcfdfc"));
     }
   };
 
@@ -162,12 +162,12 @@ export default function NovelPreview() {
     return (
       <Card>
         <CardHeader>
-          <CardTitle>{i18next.t("gen.pages.novels.NovelPreview.gen_2813d1e2")}</CardTitle>
-          <CardDescription>{i18next.t("gen.pages.novels.NovelPreview.gen_137f80e7")}</CardDescription>
+          <CardTitle>{i18next.t("dict.gen_2813d1e2")}</CardTitle>
+          <CardDescription>{i18next.t("dict.gen_137f80e7")}</CardDescription>
         </CardHeader>
         <CardContent>
           <Button asChild>
-            <Link to="/novels">{i18next.t("gen.pages.novels.NovelPreview.gen_9c469174")}</Link>
+            <Link to="/novels">{i18next.t("dict.gen_9c469174")}</Link>
           </Button>
         </CardContent>
       </Card>
@@ -183,31 +183,31 @@ export default function NovelPreview() {
         <div className="min-w-0 space-y-2">
           <Button asChild variant="ghost" size="sm" className="px-0 text-muted-foreground">
             <Link to="/novels">
-              <ArrowLeft className="h-4 w-4" aria-hidden="true" />{i18next.t("gen.pages.novels.NovelPreview.gen_9c469174", "返回小说列表")}</Link>
+              <ArrowLeft className="h-4 w-4" aria-hidden="true" />{i18next.t("dict.gen_9c469174")}</Link>
           </Button>
           <div>
             <div className="flex flex-wrap items-center gap-2">
               <h1 className="break-words text-2xl font-semibold tracking-tight">
-                {novel?.title ?? i18next.t("gen.pages.novels.NovelPreview.gen_38cb41c9")}
+                {novel?.title ?? i18next.t("dict.gen_38cb41c9")}
               </h1>
               {novel?.status ? (
                 <Badge variant={novel.status === "published" ? "default" : "secondary"}>
-                  {novel.status === "published" ? i18next.t("gen.pages.novels.NovelPreview.gen_dca0c13b") : i18next.t("gen.pages.novels.NovelPreview.gen_22b4334f")}
+                  {novel.status === "published" ? i18next.t("common.published") : i18next.t("common.draft")}
                 </Badge>
               ) : null}
             </div>
-            <p className="mt-2 max-w-3xl text-sm leading-6 text-muted-foreground">{i18next.t("gen.pages.novels.NovelPreview.gen_da73ca26", "按章节阅读已生成正文，适合检查连贯性、节奏和已经写出的内容。")}</p>
+            <p className="mt-2 max-w-3xl text-sm leading-6 text-muted-foreground">{i18next.t("novels.novelPreview.bwt039")}</p>
           </div>
         </div>
         <div className="flex flex-wrap gap-2">
           <Button asChild variant="outline">
             <Link to={`/novels/${id}/edit`}>
-              <Edit3 className="h-4 w-4" aria-hidden="true" />{i18next.t("gen.pages.novels.NovelPreview.gen_ce521baf", "打开工作区")}</Link>
+              <Edit3 className="h-4 w-4" aria-hidden="true" />{i18next.t("novels.novelPreview.td5162")}</Link>
           </Button>
           {activeChapter ? (
             <Button asChild>
               <Link to={`/novels/${id}/chapters/${activeChapter.id}`}>
-                <FileText className="h-4 w-4" aria-hidden="true" />{i18next.t("gen.pages.novels.NovelPreview.gen_21a7b9c5", "编辑本章")}</Link>
+                <FileText className="h-4 w-4" aria-hidden="true" />{i18next.t("dict.gen_21a7b9c5")}</Link>
             </Button>
           ) : null}
         </div>
@@ -241,26 +241,26 @@ export default function NovelPreview() {
       ) : isError ? (
         <Card>
           <CardHeader>
-            <CardTitle>{i18next.t("gen.pages.novels.NovelPreview.gen_57d68ea3")}</CardTitle>
-            <CardDescription>{i18next.t("gen.pages.novels.NovelPreview.gen_900b1e74")}</CardDescription>
+            <CardTitle>{i18next.t("dict.gen_57d68ea3")}</CardTitle>
+            <CardDescription>{i18next.t("dict.gen_900b1e74")}</CardDescription>
           </CardHeader>
           <CardContent>
             <Button onClick={() => {
               void novelQuery.refetch();
               void chaptersQuery.refetch();
             }}
-            >{i18next.t("gen.pages.novels.NovelPreview.gen_64ca9bab", "重新加载")}</Button>
+            >{i18next.t("common.retry")}</Button>
           </CardContent>
         </Card>
       ) : chapters.length === 0 ? (
         <Card>
           <CardHeader>
-            <CardTitle>{i18next.t("gen.pages.novels.NovelPreview.gen_6c29ec53")}</CardTitle>
-            <CardDescription>{i18next.t("gen.pages.novels.NovelPreview.gen_25b00d48")}</CardDescription>
+            <CardTitle>{i18next.t("dict.gen_6c29ec53")}</CardTitle>
+            <CardDescription>{i18next.t("dict.gen_25b00d48")}</CardDescription>
           </CardHeader>
           <CardContent>
             <Button asChild>
-              <Link to={`/novels/${id}/edit`}>{i18next.t("gen.pages.novels.NovelPreview.gen_781a989a")}</Link>
+              <Link to={`/novels/${id}/edit`}>{i18next.t("dict.gen_781a989a")}</Link>
             </Button>
           </CardContent>
         </Card>
@@ -269,7 +269,7 @@ export default function NovelPreview() {
           <Card className="min-h-0 lg:h-[calc(100vh-13rem)]">
             <CardHeader className="pb-3">
               <CardTitle className="flex items-center gap-2 text-base">
-                <ListTree className="h-4 w-4" aria-hidden="true" />{i18next.t("gen.pages.novels.NovelPreview.gen_9ff328fd", "章节目录")}</CardTitle>
+                <ListTree className="h-4 w-4" aria-hidden="true" />{i18next.t("novels.novelPreview.g1mceh")}</CardTitle>
               <CardDescription>
                 已生成正文 {generatedChapters.length}/{chapters.length} 章，约 {formatCount(totalWordCount)} 字。
               </CardDescription>
@@ -294,16 +294,16 @@ export default function NovelPreview() {
                           第 {chapter.order} 章
                         </div>
                         <div className="mt-1 line-clamp-2 break-words text-muted-foreground">
-                          {chapter.title || i18next.t("gen.pages.novels.NovelPreview.gen_db55d102")}
+                          {chapter.title || i18next.t("dict.gen_db55d102")}
                         </div>
                       </div>
                       <Badge variant={chapterContent ? "outline" : "secondary"}>
-                        {chapterContent ? i18next.t("gen.pages.novels.NovelPreview.gen_9c39cadc") : i18next.t("gen.pages.novels.NovelPreview.gen_6de9bb70")}
+                        {chapterContent ? i18next.t("dict.gen_9c39cadc") : i18next.t("dict.gen_6de9bb70")}
                       </Badge>
                     </div>
                     <div className="mt-2 flex flex-wrap gap-x-3 gap-y-1 text-xs text-muted-foreground">
                       <span>{formatChapterStatus(chapter.chapterStatus)}</span>
-                      <span>{i18next.t("gen.pages.novels.NovelPreview.chapterWordCount")}</span>
+                      <span>{i18next.t("dict.chapterWordCount")}</span>
                     </div>
                   </button>
                 );
@@ -318,7 +318,7 @@ export default function NovelPreview() {
                   <CardTitle className="flex items-center gap-2 text-xl">
                     <BookOpen className="h-5 w-5 shrink-0" aria-hidden="true" />
                     <span className="break-words">
-                      {activeChapter ? `第 ${activeChapter.order} 章：${activeChapter.title || i18next.t("gen.pages.novels.NovelPreview.gen_db55d102")}` : i18next.t("gen.pages.novels.NovelPreview.gen_0ca66ea7")}
+                      {activeChapter ? `第 ${activeChapter.order} 章：${activeChapter.title || i18next.t("dict.gen_db55d102")}` : i18next.t("dict.gen_0ca66ea7")}
                     </span>
                   </CardTitle>
                   {activeChapter ? (
@@ -341,11 +341,11 @@ export default function NovelPreview() {
                       ) : (
                         <Copy className="h-4 w-4" aria-hidden="true" />
                       )}
-                      {copiedChapterId === activeChapter.id ? i18next.t("gen.pages.novels.NovelPreview.gen_52e6abbe") : i18next.t("gen.pages.novels.NovelPreview.gen_26c0d431")}
+                      {copiedChapterId === activeChapter.id ? i18next.t("dict.gen_52e6abbe") : i18next.t("dict.gen_26c0d431")}
                     </Button>
                     <Button asChild variant="outline" size="sm">
                       <Link to={`/novels/${id}/chapters/${activeChapter.id}`}>
-                        <Edit3 className="h-4 w-4" aria-hidden="true" />{i18next.t("gen.pages.novels.NovelPreview.gen_21a7b9c5", "编辑本章")}</Link>
+                        <Edit3 className="h-4 w-4" aria-hidden="true" />{i18next.t("dict.gen_21a7b9c5")}</Link>
                     </Button>
                   </div>
                 ) : null}
@@ -360,11 +360,11 @@ export default function NovelPreview() {
                 <div className="flex min-h-[420px] items-center justify-center px-6 text-center">
                   <div className="max-w-md space-y-3">
                     <FileText className="mx-auto h-10 w-10 text-muted-foreground" aria-hidden="true" />
-                    <div className="text-lg font-medium">{i18next.t("gen.pages.novels.NovelPreview.gen_8722b85f")}</div>
-                    <p className="text-sm leading-6 text-muted-foreground">{i18next.t("gen.pages.novels.NovelPreview.gen_ab796994", "进入章节编辑页生成或补写正文后，这里会显示完整内容。")}</p>
+                    <div className="text-lg font-medium">{i18next.t("dict.gen_8722b85f")}</div>
+                    <p className="text-sm leading-6 text-muted-foreground">{i18next.t("novels.novelPreview.97z2eo")}</p>
                     {activeChapter ? (
                       <Button asChild>
-                        <Link to={`/novels/${id}/chapters/${activeChapter.id}`}>{i18next.t("gen.pages.novels.NovelPreview.gen_21a7b9c5")}</Link>
+                        <Link to={`/novels/${id}/chapters/${activeChapter.id}`}>{i18next.t("dict.gen_21a7b9c5")}</Link>
                       </Button>
                     ) : null}
                   </div>

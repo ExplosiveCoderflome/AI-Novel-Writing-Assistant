@@ -1,4 +1,3 @@
-import i18next from "i18next";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { listAutoDirectorFollowUps } from "@/api/autoDirectorFollowUps";

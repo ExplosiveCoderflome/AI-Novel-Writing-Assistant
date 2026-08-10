@@ -1,4 +1,3 @@
-import { useTranslation } from "react-i18next";
 import i18next from "i18next";
 const t = (key: string, options?: any) => i18next.t(key, options) as string;
 import { useEffect, useMemo, useState, type ReactNode } from "react";
@@ -44,12 +43,12 @@ function ServerStartupScreen(props: {
         <div className="mx-auto flex size-12 items-center justify-center rounded-full border bg-muted/40">
           <LoaderCircle className="size-5 animate-spin text-primary" aria-hidden="true" />
         </div>
-        <h1 className="mt-5 text-xl font-semibold text-foreground">{i18next.t("gen.components.layout.ServerStartupGate.gen_da4a0654")}</h1>
-        <p className="mt-3 text-sm leading-6 text-muted-foreground">{i18next.t("gen.components.layout.ServerStartupGate.gen_d78287fa", "页面已准备好，系统会在服务可用后自动进入工作台。")}</p>
+        <h1 className="mt-5 text-xl font-semibold text-foreground">{i18next.t("dict.gen_da4a0654")}</h1>
+        <p className="mt-3 text-sm leading-6 text-muted-foreground">{i18next.t("layout.serverStartupGate.r8ysxh")}</p>
         {waiting ? (
           <div className="mt-6">
             <Button type="button" variant="outline" size="sm" onClick={onRetry}>
-              <RefreshCw className="mr-2 size-4" aria-hidden="true" />{i18next.t("gen.components.layout.ServerStartupGate.gen_a1ad5204", "重新检查")}</Button>
+              <RefreshCw className="mr-2 size-4" aria-hidden="true" />{i18next.t("dict.gen_a1ad5204")}</Button>
           </div>
         ) : null}
       </div>
@@ -58,7 +57,6 @@ function ServerStartupScreen(props: {
 }
 
 export default function ServerStartupGate({ children }: ServerStartupGateProps) {
-  const { t } = useTranslation();
   const enabled = useMemo(() => shouldUseStartupGate(), []);
   const [status, setStatus] = useState<StartupStatus>(enabled ? "checking" : "ready");
   const [retryToken, setRetryToken] = useState(0);

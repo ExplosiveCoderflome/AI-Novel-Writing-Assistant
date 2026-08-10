@@ -1,4 +1,3 @@
-import i18next from "i18next";
 import type { TaskStatus } from "@ai-novel/shared/types/task";
 import {
   DIRECTOR_CANDIDATE_SETUP_STEPS,

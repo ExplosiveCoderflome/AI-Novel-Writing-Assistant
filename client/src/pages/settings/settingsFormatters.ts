@@ -1,4 +1,3 @@
-import i18next from "i18next";
 export function formatBalanceAmount(amount: number | null | undefined, currency: string | null | undefined): string {
   if (typeof amount !== "number" || Number.isNaN(amount)) {
     return "-";

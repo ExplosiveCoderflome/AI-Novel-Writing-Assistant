@@ -91,29 +91,29 @@ export function AutoDirectorBrowserNotificationSettingsCard(props: {
         <div className="flex min-w-0 items-start gap-3">
           <BellRing className="mt-1 h-5 w-5 shrink-0 text-primary" />
           <div className="min-w-0 space-y-1.5">
-            <CardTitle>{i18next.t("gen.pages.settings.AutoDirectorBrowserNotificationSettingsCard.gen_17a08531", "自动导演暂停提醒")}</CardTitle>
-            <CardDescription className={AUTO_DIRECTOR_MOBILE_CLASSES.wrapText}>{i18next.t("gen.pages.settings.AutoDirectorBrowserNotificationSettingsCard.gen_10ea7c8b", "当自动导演等待确认、需要恢复或被校验拦住时，通过浏览器通知提醒你回到跟进中心。")}</CardDescription>
+            <CardTitle>{i18next.t("settings.autoDirectorBrowserNotificationSettingsCard.ag0ktu")}</CardTitle>
+            <CardDescription className={AUTO_DIRECTOR_MOBILE_CLASSES.wrapText}>{i18next.t("settings.autoDirectorBrowserNotificationSettingsCard.1ybndo")}</CardDescription>
           </div>
         </div>
       </CardHeader>
       <CardContent className="space-y-4">
         <div className="flex min-w-0 items-center justify-between gap-4 rounded-md border bg-muted/10 p-3">
           <div className="min-w-0 space-y-1">
-            <div className="text-sm font-medium">{i18next.t("gen.pages.settings.AutoDirectorBrowserNotificationSettingsCard.gen_3f5374a0", "桌面提醒")}</div>
-            <div className={`${AUTO_DIRECTOR_MOBILE_CLASSES.wrapText} text-xs text-muted-foreground`}>{i18next.t("gen.pages.settings.AutoDirectorBrowserNotificationSettingsCard.gen_e8e7b6e4", "只影响这台电脑上的当前浏览器。")}</div>
+            <div className="text-sm font-medium">{i18next.t("settings.autoDirectorBrowserNotificationSettingsCard.ds8mag")}</div>
+            <div className={`${AUTO_DIRECTOR_MOBILE_CLASSES.wrapText} text-xs text-muted-foreground`}>{i18next.t("settings.autoDirectorBrowserNotificationSettingsCard.mbwrfk")}</div>
           </div>
           <Switch
             checked={enabled && permission === "granted"}
             onCheckedChange={handleToggle}
             disabled={permission === "unsupported"}
-            aria-label={i18next.t("gen.pages.settings.AutoDirectorBrowserNotificationSettingsCard.gen_c1f9ea8e", "开启或关闭自动导演暂停提醒")}
+            aria-label={i18next.t("settings.autoDirectorBrowserNotificationSettingsCard.8417e5")}
           />
         </div>
 
         <div className="flex min-w-0 flex-col gap-3 rounded-md border bg-background p-3 sm:flex-row sm:items-center sm:justify-between">
           <div className="min-w-0 space-y-1">
             <div className="text-sm font-medium">通知权限：{permissionLabel}</div>
-            <div className={`${AUTO_DIRECTOR_MOBILE_CLASSES.wrapText} text-xs text-muted-foreground`}>{i18next.t("gen.pages.settings.AutoDirectorBrowserNotificationSettingsCard.gen_506b3793", "若浏览器已阻止通知，请在地址栏权限设置中允许本网站发送通知。")}</div>
+            <div className={`${AUTO_DIRECTOR_MOBILE_CLASSES.wrapText} text-xs text-muted-foreground`}>{i18next.t("settings.autoDirectorBrowserNotificationSettingsCard.4iunmq")}</div>
           </div>
           {canRequestPermission ? (
             <Button
@@ -121,7 +121,7 @@ export function AutoDirectorBrowserNotificationSettingsCard(props: {
               variant="outline"
               className={AUTO_DIRECTOR_MOBILE_CLASSES.fullWidthAction}
               onClick={() => void handleEnable()}
-            >{i18next.t("gen.pages.settings.AutoDirectorBrowserNotificationSettingsCard.gen_baf3c7c2", "授权浏览器通知")}</Button>
+            >{i18next.t("settings.autoDirectorBrowserNotificationSettingsCard.rgigrl")}</Button>
           ) : null}
         </div>
       </CardContent>

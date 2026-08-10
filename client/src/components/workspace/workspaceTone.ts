@@ -1,4 +1,3 @@
-import i18next from "i18next";
 export type WorkspaceTone = "neutral" | "info" | "success" | "warning" | "danger";
 
 export const workspaceToneSurfaceClass: Record<WorkspaceTone, string> = {

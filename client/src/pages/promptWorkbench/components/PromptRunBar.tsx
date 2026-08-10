@@ -74,18 +74,18 @@ export function PromptRunBar(props: PromptRunBarProps) {
       <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
         <div className="flex flex-wrap items-center gap-x-3 gap-y-2 text-sm">
           <div className="rounded-md bg-[#f2f8f6] px-3 py-2">
-            <span className="text-xs text-muted-foreground">{i18next.t("gen.pages.promptWorkbench.components.PromptRunBar.gen_55b09bd2", "上下文估算")}</span>
+            <span className="text-xs text-muted-foreground">{i18next.t("dict.gen_55b09bd2")}</span>
             <div className="font-semibold text-[#25443f]">
               {estimatedTokens ?? "--"}
               {maxBudget ? <span className="ml-1 text-xs font-normal text-muted-foreground">/ {maxBudget}</span> : null}
             </div>
           </div>
           <div className="rounded-md bg-[#f4f7ff] px-3 py-2">
-            <span className="text-xs text-muted-foreground">{i18next.t("gen.pages.promptWorkbench.components.PromptRunBar.gen_e857b170", "测试模型")}</span>
-            <div className="font-semibold text-[#344d7a]">{i18next.t("gen.pages.promptWorkbench.components.PromptRunBar.gen_1399b5a4", "可选覆盖")}</div>
+            <span className="text-xs text-muted-foreground">{i18next.t("promptWorkbench.promptRunBar.ed952s")}</span>
+            <div className="font-semibold text-[#344d7a]">{i18next.t("promptWorkbench.promptRunBar.b6viiy")}</div>
           </div>
           <div className="rounded-md bg-[#fff7e8] px-3 py-2">
-            <span className="text-xs text-muted-foreground">{i18next.t("gen.pages.promptWorkbench.components.PromptRunBar.gen_8e7e4efb", "保存状态")}</span>
+            <span className="text-xs text-muted-foreground">{i18next.t("dict.saveStatus")}</span>
             <div className={cn(
               "font-semibold",
               saveError ? "text-destructive" : isSaveSuccess ? "text-[#0f766e]" : "text-[#7a5620]",
@@ -143,18 +143,18 @@ export function PromptRunBar(props: PromptRunBarProps) {
             disabled={resetDisabled}
             className="text-[#52606d] hover:bg-[#eef4ff] hover:text-[#344d7a]"
           >
-            <RotateCcw className="mr-2 h-4 w-4" />{i18next.t("gen.pages.promptWorkbench.components.PromptRunBar.gen_07246dad", "重置修改")}</Button>
+            <RotateCcw className="mr-2 h-4 w-4" />{i18next.t("promptWorkbench.promptRunBar.ix30gc")}</Button>
         </div>
       </div>
       <Dialog open={testDialogOpen} onOpenChange={setTestDialogOpen}>
         <AppDialogContent
-          title={i18next.t("gen.pages.promptWorkbench.components.PromptRunBar.gen_8a0b352a", "测试产出")}
-          description={i18next.t("gen.pages.promptWorkbench.components.PromptRunBar.gen_563f9840", "选择本次测试使用的模型参数，系统会用当前未保存草稿生成一次结果。")}
+          title={i18next.t("promptWorkbench.promptRunBar.ed4fq5")}
+          description={i18next.t("promptWorkbench.promptRunBar.t98xhs")}
           className="max-w-2xl"
           bodyClassName="bg-[#fbfdfb]"
           footer={(
             <>
-              <Button type="button" variant="ghost" onClick={() => setTestDialogOpen(false)}>{i18next.t("gen.pages.promptWorkbench.components.PromptRunBar.gen_625fb26b", "取消")}</Button>
+              <Button type="button" variant="ghost" onClick={() => setTestDialogOpen(false)}>{i18next.t("common.cancel")}</Button>
               <Button
                 type="button"
                 onClick={handleStartTestRun}
@@ -176,7 +176,7 @@ export function PromptRunBar(props: PromptRunBarProps) {
                 showParameters
               />
             </div>
-            <div className="rounded-md bg-[#fff7e8] px-3 py-2 text-xs leading-relaxed text-[#7a5620]">{i18next.t("gen.pages.promptWorkbench.components.PromptRunBar.gen_f6435f06", "测试产出会调用真实模型并消耗额度；结果只用于调试，不会保存为章节正文。")}</div>
+            <div className="rounded-md bg-[#fff7e8] px-3 py-2 text-xs leading-relaxed text-[#7a5620]">{i18next.t("promptWorkbench.promptRunBar.sqjtud")}</div>
           </div>
         </AppDialogContent>
       </Dialog>

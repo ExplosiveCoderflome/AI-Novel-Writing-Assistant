@@ -1,5 +1,4 @@
 import i18next from "i18next";
-import { useTranslation } from "react-i18next";
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -29,7 +28,6 @@ interface Character {
 }
 
 export default function WorldSandboxTab({ worldId }: { worldId: string }) {
-  const { t } = useTranslation();
   // Simulator State
   const [isPlaying, setIsPlaying] = useState(false);
   const [tick, setTick] = useState(0);
@@ -158,7 +156,7 @@ export default function WorldSandboxTab({ worldId }: { worldId: string }) {
       });
       const payload = await res.json();
       if (payload.success) {
-        toast.success("自定义属性架构注册成功");
+        toast.success(i18next.t("worlds.worldSandboxTab.9o51r1"));
         setNewPropName("");
         setNewPropLabel("");
         loadSchemas();
@@ -166,7 +164,7 @@ export default function WorldSandboxTab({ worldId }: { worldId: string }) {
         toast.error(payload.error || "注册失败");
       }
     } catch {
-      toast.success("注册成功（离线模拟）");
+      toast.success(i18next.t("worlds.worldSandboxTab.xtl15a"));
       setSchemas(prev => [...prev, { propertyName: newPropName, propertyLabel: newPropLabel, dataType: newPropType }]);
       setNewPropName("");
       setNewPropLabel("");
@@ -175,13 +173,13 @@ export default function WorldSandboxTab({ worldId }: { worldId: string }) {
 
   const handleGodOverride = (nodeId: string, tempChange: number, tension: number) => {
     if (isPlaying) {
-      toast.error("必须暂停沙盒模拟后才能直接干预物理环境");
+      toast.error(i18next.t("worlds.worldSandboxTab.vcd1md"));
       return;
     }
     setLocations(prev =>
       prev.map(loc => (loc.id === nodeId ? { ...loc, temp: loc.temp + tempChange, tension } : loc))
     );
-    toast.success("上帝参数干预完成");
+    toast.success(i18next.t("worlds.worldSandboxTab.89abl5"));
   };
 
   const selectedNode = locations.find(n => n.id === selectedNodeId);
@@ -310,9 +308,9 @@ export default function WorldSandboxTab({ worldId }: { worldId: string }) {
                     const success = await runBackendTick(tick);
                     if (success) {
                       setTick(prev => prev + 1);
-                      toast.success("单步步进 (1 Tick) 成功");
+                      toast.success(i18next.t("worlds.worldSandboxTab.qjh1j4"));
                     } else {
-                      toast.error("单步步进失败");
+                      toast.error(i18next.t("worlds.worldSandboxTab.m3gehm"));
                     }
                   }}
                 >
@@ -321,32 +319,26 @@ export default function WorldSandboxTab({ worldId }: { worldId: string }) {
               </div>
 
               <div className="flex items-center gap-3">
-                <span className="text-xs text-slate-400">{i18next.t("gen.pages.worlds.components.workspace.WorldSandboxTab.gen_68156e05", "时间流速换挡:")}</span>
+                <span className="text-xs text-slate-400">{i18next.t("worlds.worldSandboxTab.cateap")}</span>
                 <div className="flex rounded-md bg-slate-800 p-0.5">
                   <Button
                     variant={pacing === "micro" ? "secondary" : "ghost"}
                     size="sm"
                     className="h-6 px-2 text-xs"
                     onClick={() => setPacing("micro")}
-                  >
-                    微观 (1t)
-                  </Button>
+                  >{i18next.t("worlds.worldSandboxTab.xngrey")}</Button>
                   <Button
                     variant={pacing === "normal" ? "secondary" : "ghost"}
                     size="sm"
                     className="h-6 px-2 text-xs"
                     onClick={() => setPacing("normal")}
-                  >
-                    标准 (6t)
-                  </Button>
+                  >{i18next.t("worlds.worldSandboxTab.xogqqk")}</Button>
                   <Button
                     variant={pacing === "macro" ? "secondary" : "ghost"}
                     size="sm"
                     className="h-6 px-2 text-xs"
                     onClick={() => setPacing("macro")}
-                  >
-                    宏观 (24t)
-                  </Button>
+                  >{i18next.t("worlds.worldSandboxTab.t6oca6")}</Button>
                 </div>
               </div>
             </div>
@@ -370,11 +362,11 @@ export default function WorldSandboxTab({ worldId }: { worldId: string }) {
                 </div>
                 <div className="rounded-md bg-slate-950 p-3 text-xs space-y-2">
                   <div className="flex justify-between">
-                    <span>{i18next.t("gen.pages.worlds.components.workspace.WorldSandboxTab.gen_b609a636", "地表植被度:")}</span>
+                    <span>{i18next.t("worlds.worldSandboxTab.ya01u2")}</span>
                     <span className="font-mono text-emerald-400">{(selectedNode.flora * 100).toFixed(0)}%</span>
                   </div>
                   <div className="flex justify-between">
-                    <span>{i18next.t("gen.pages.worlds.components.workspace.WorldSandboxTab.gen_e1c876f2", "局部剧情张力:")}</span>
+                    <span>{i18next.t("worlds.worldSandboxTab.3jpi87")}</span>
                     <span className={`font-mono ${selectedNode.tension >= 70 ? 'text-red-400' : 'text-slate-300'}`}>
                       {selectedNode.tension} / 100
                     </span>
@@ -383,7 +375,7 @@ export default function WorldSandboxTab({ worldId }: { worldId: string }) {
                 
                 {/* God-Mode override actions */}
                 <div className="pt-2 space-y-2">
-                  <label className="text-xs text-slate-400 font-semibold">上帝维度强干预 (仅暂停时生效)</label>
+                  <label className="text-xs text-slate-400 font-semibold">{i18next.t("worlds.worldSandboxTab.8ml02u")}</label>
                   <div className="grid grid-cols-2 gap-2">
                     <Button
                       variant="outline"
@@ -413,7 +405,7 @@ export default function WorldSandboxTab({ worldId }: { worldId: string }) {
                 </div>
               </div>
             ) : (
-              <p className="text-xs text-slate-400">{i18next.t("gen.pages.worlds.components.workspace.WorldSandboxTab.gen_c0926bfe", "在地图上点击节点进行查看和物理修改。")}</p>
+              <p className="text-xs text-slate-400">{i18next.t("worlds.worldSandboxTab.qaowwe")}</p>
             )}
           </CardContent>
         </Card>
@@ -432,21 +424,21 @@ export default function WorldSandboxTab({ worldId }: { worldId: string }) {
                 </div>
                 <div className="space-y-2 text-xs font-mono">
                   <div className="flex justify-between">
-                    <span>体力 (Energy):</span>
+                    <span>{i18next.t("worlds.worldSandboxTab.amxz7b")}</span>
                     <span>{selectedChar.energy} / 100</span>
                   </div>
                   <div className="flex justify-between">
-                    <span>饥饿度 (Hunger):</span>
+                    <span>{i18next.t("worlds.worldSandboxTab.g8o2h4")}</span>
                     <span>{selectedChar.hunger} / 100</span>
                   </div>
                   <div className="flex justify-between">
-                    <span>心智理智 (Sanity):</span>
+                    <span>{i18next.t("worlds.worldSandboxTab.bcplki")}</span>
                     <span>{selectedChar.sanity} / 100</span>
                   </div>
                 </div>
               </div>
             ) : (
-              <p className="text-xs text-slate-400">{i18next.t("gen.pages.worlds.components.workspace.WorldSandboxTab.gen_ba9814b9", "在地图上选择粉色人物标记检视状态。")}</p>
+              <p className="text-xs text-slate-400">{i18next.t("worlds.worldSandboxTab.6ax9ic")}</p>
             )}
           </CardContent>
         </Card>
@@ -459,7 +451,7 @@ export default function WorldSandboxTab({ worldId }: { worldId: string }) {
           <CardContent>
             <form onSubmit={handleAddProperty} className="space-y-3">
               <div>
-                <label className="text-xs font-semibold text-slate-400">属性代码 (英文标识)</label>
+                <label className="text-xs font-semibold text-slate-400">{i18next.t("worlds.worldSandboxTab.bzputh")}</label>
                 <Input
                   id="propName"
                   value={newPropName}
@@ -469,26 +461,26 @@ export default function WorldSandboxTab({ worldId }: { worldId: string }) {
                 />
               </div>
               <div>
-                <label className="text-xs font-semibold text-slate-400">属性标签 (显示名称)</label>
+                <label className="text-xs font-semibold text-slate-400">{i18next.t("worlds.worldSandboxTab.yapzvi")}</label>
                 <Input
                   id="propLabel"
                   value={newPropLabel}
                   onChange={e => setNewPropLabel(e.target.value)}
-                  placeholder="e.g., 战力, 财富值"
+                  placeholder={i18next.t("worlds.worldSandboxTab.ccpkuh")}
                   className="h-8 bg-slate-950 border-slate-800 text-xs mt-1"
                 />
               </div>
               <div className="flex items-center justify-between gap-4 pt-1">
                 <div>
-                  <label className="text-xs font-semibold text-slate-400">{i18next.t("gen.pages.worlds.components.workspace.WorldSandboxTab.gen_185f7bf6", "数据类型")}</label>
+                  <label className="text-xs font-semibold text-slate-400">{i18next.t("worlds.worldSandboxTab.d7r5da")}</label>
                   <select
                     value={newPropType}
                     onChange={e => setNewPropType(e.target.value as any)}
                     className="block w-full h-8 px-2 rounded-md bg-slate-950 border border-slate-800 text-xs text-slate-300 mt-1"
                   >
-                    <option value="number">数字 (Number)</option>
-                    <option value="string">文本 (String)</option>
-                    <option value="boolean">布尔 (Boolean)</option>
+                    <option value="number">{i18next.t("worlds.worldSandboxTab.cw5o0h")}</option>
+                    <option value="string">{i18next.t("worlds.worldSandboxTab.9dwph")}</option>
+                    <option value="boolean">{i18next.t("worlds.worldSandboxTab.n34wuy")}</option>
                   </select>
                 </div>
                 <Button type="submit" size="sm" className="mt-4 bg-emerald-700 hover:bg-emerald-800 text-xs">
@@ -500,7 +492,7 @@ export default function WorldSandboxTab({ worldId }: { worldId: string }) {
             {/* List of custom properties */}
             {schemas.length > 0 && (
               <div className="mt-4 pt-3 border-t border-slate-800 space-y-1.5">
-                <label className="text-xs text-slate-500 font-semibold">{i18next.t("gen.pages.worlds.components.workspace.WorldSandboxTab.gen_075ea7b9", "已注册属性：")}</label>
+                <label className="text-xs text-slate-500 font-semibold">{i18next.t("worlds.worldSandboxTab.wes4wr")}</label>
                 {schemas.map(s => (
                   <div key={s.propertyName} className="flex justify-between items-center text-xs bg-slate-950 px-2 py-1 rounded">
                     <span>{s.propertyLabel} ({s.propertyName})</span>

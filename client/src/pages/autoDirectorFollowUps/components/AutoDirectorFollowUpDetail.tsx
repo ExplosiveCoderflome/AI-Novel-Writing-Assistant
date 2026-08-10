@@ -1,5 +1,4 @@
 import i18next from "i18next";
-import { useTranslation } from "react-i18next";
 import type {
   AutoDirectorAction,
   AutoDirectorFollowUpDetail,
@@ -48,7 +47,6 @@ export function AutoDirectorFollowUpDetailPanel({
   onSafeFix,
   onRetry,
 }: AutoDirectorFollowUpDetailPanelProps) {
-  const { t } = useTranslation();
   const deliveryStatusLabels = {
     delivered: "已送达",
     pending: "投递中",
@@ -66,26 +64,26 @@ export function AutoDirectorFollowUpDetailPanel({
 
   return (
     <TaskQueueSection
-      title={i18next.t("gen.pages.autoDirectorFollowUps.components.AutoDirectorFollowUpDetail.gen_e8146ae5", "跟进详情")}
-      description={i18next.t("gen.pages.autoDirectorFollowUps.components.AutoDirectorFollowUpDetail.gen_6a23d80e", "每个动作都会说明后果；跟进项会保持对应的导演任务身份，不与手动工作区任务混用。")}
+      title={i18next.t("dict.gen_e8146ae5")}
+      description={i18next.t("autoDirectorFollowUps.autoDirectorFollowUpDetail.nun2xt")}
       className="min-w-0 overflow-hidden"
     >
       <div className="space-y-4">
         {loading ? (
-          <WorkspaceStateNotice loading title={i18next.t("gen.pages.autoDirectorFollowUps.components.AutoDirectorFollowUpDetail.gen_93090859", "正在读取跟进详情")} description={i18next.t("gen.pages.autoDirectorFollowUps.components.AutoDirectorFollowUpDetail.gen_bd28f2de", "正在同步导演任务、检查点和最近校验结果。")} />
+          <WorkspaceStateNotice loading title={i18next.t("autoDirectorFollowUps.autoDirectorFollowUpDetail.wr7k9x")} description={i18next.t("autoDirectorFollowUps.autoDirectorFollowUpDetail.3aj1og")} />
         ) : null}
 
         {errorMessage ? (
           <WorkspaceStateNotice
             tone="danger"
-            title={i18next.t("gen.pages.autoDirectorFollowUps.components.AutoDirectorFollowUpDetail.gen_2a78b2f6", "跟进详情读取失败")}
+            title={i18next.t("autoDirectorFollowUps.autoDirectorFollowUpDetail.mvab92")}
             description={errorMessage}
-            action={<Button size="sm" variant="outline" onClick={() => void onRetry()}>{i18next.t("gen.pages.autoDirectorFollowUps.components.AutoDirectorFollowUpDetail.gen_9e56f482", "重新读取")}</Button>}
+            action={<Button size="sm" variant="outline" onClick={() => void onRetry()}>{i18next.t("autoDirectorFollowUps.autoDirectorFollowUpCenterPage.itle66")}</Button>}
           />
         ) : null}
 
         {!loading && !errorMessage && (!detail || !selectedItem) ? (
-          <WorkspaceStateNotice title={i18next.t("gen.pages.autoDirectorFollowUps.components.AutoDirectorFollowUpDetail.gen_e2a79bad", "请选择一个导演跟进项")} description={i18next.t("gen.pages.autoDirectorFollowUps.components.AutoDirectorFollowUpDetail.gen_7312042d", "选择后可查看阻塞范围、下一步和安全动作。")} />
+          <WorkspaceStateNotice title={i18next.t("autoDirectorFollowUps.autoDirectorFollowUpDetail.c91wfw")} description={i18next.t("autoDirectorFollowUps.autoDirectorFollowUpDetail.rrl6i5")} />
         ) : null}
 
         {detail && selectedItem ? (
@@ -109,7 +107,7 @@ export function AutoDirectorFollowUpDetailPanel({
               <WorkspaceStateNotice
                 compact
                 tone={tone === "danger" ? "danger" : tone === "warning" ? "warning" : "info"}
-                title={i18next.t("gen.pages.autoDirectorFollowUps.components.AutoDirectorFollowUpDetail.gen_76f1c846", "风险说明")}
+                title={i18next.t("autoDirectorFollowUps.autoDirectorFollowUpDetail.jwj9yt")}
                 description={detail.riskNote}
               />
             ) : null}
@@ -125,8 +123,8 @@ export function AutoDirectorFollowUpDetailPanel({
                 <div className="flex items-start gap-2">
                   <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
                   <div>
-                    <div className="font-medium">{i18next.t("gen.pages.autoDirectorFollowUps.components.AutoDirectorFollowUpDetail.gen_f1f37123", "先校验任务和资产状态")}</div>
-                    <div className="mt-1 text-xs">{i18next.t("gen.pages.autoDirectorFollowUps.components.AutoDirectorFollowUpDetail.gen_1fe803fc", "安全修复只处理状态对账，不会清除正文、重写规划、确认候选、切换模型或替你做创作选择。")}</div>
+                    <div className="font-medium">{i18next.t("dict.gen_f1f37123")}</div>
+                    <div className="mt-1 text-xs">{i18next.t("autoDirectorFollowUps.autoDirectorFollowUpDetail.j8b16u")}</div>
                   </div>
                 </div>
                 {(detail.validationSummary?.blockingReasons.length ?? 0) > 0 ? (
@@ -151,22 +149,22 @@ export function AutoDirectorFollowUpDetailPanel({
                     disabled={actionLoading}
                     onClick={() => void onRefreshValidation()}
                   >
-                    <RefreshCw className="h-4 w-4" aria-hidden="true" />{i18next.t("gen.pages.autoDirectorFollowUps.components.AutoDirectorFollowUpDetail.gen_ce9af719", "一键重新校验")}</Button>
+                    <RefreshCw className="h-4 w-4" aria-hidden="true" />{i18next.t("autoDirectorFollowUps.autoDirectorFollowUpDetail.tyfy4k")}</Button>
                   <Button
                     variant="outline"
                     size="sm"
                     disabled={actionLoading}
                     className={`${AUTO_DIRECTOR_MOBILE_CLASSES.fullWidthAction} border-warning/40 bg-warning/10 text-warning hover:bg-warning/15 hover:text-warning`}
-                    title={i18next.t("gen.pages.autoDirectorFollowUps.components.AutoDirectorFollowUpDetail.gen_0eb7011b", "仅修复校验标记为低风险的状态、检查点、进度、恢复目标、自动执行对账、替代原因、审计和通知记录；不会清除正文、重写资产、重规划、确认候选、切换模型或生成内容。")}
+                    title={i18next.t("dict.onlyFixLowRiskItems")}
                     onClick={() => void onSafeFix()}
                   >
-                    <AlertTriangle className="h-4 w-4" aria-hidden="true" />{i18next.t("gen.pages.autoDirectorFollowUps.components.AutoDirectorFollowUpDetail.gen_026afd42", "一键安全修复")}</Button>
+                    <AlertTriangle className="h-4 w-4" aria-hidden="true" />{i18next.t("autoDirectorFollowUps.autoDirectorFollowUpDetail.y56b0s")}</Button>
                 </div>
               </div>
             ) : null}
 
             <div className="space-y-2">
-              <div className="text-sm font-medium">{i18next.t("gen.pages.autoDirectorFollowUps.components.AutoDirectorFollowUpDetail.gen_bdd966d4", "可执行动作")}</div>
+              <div className="text-sm font-medium">{i18next.t("dict.gen_bdd966d4")}</div>
               {detail.availableActions.map((action) => (
                 <TaskQueueActionRow
                   key={action.code}
@@ -189,10 +187,10 @@ export function AutoDirectorFollowUpDetailPanel({
             </div>
 
             <div className="space-y-2">
-              <div className="text-sm font-medium">{i18next.t("gen.pages.autoDirectorFollowUps.components.AutoDirectorFollowUpDetail.gen_0fcd32a9", "最近里程碑")}</div>
+              <div className="text-sm font-medium">{i18next.t("dict.gen_0fcd32a9")}</div>
               <div className="space-y-2">
                 {detail.milestones.length === 0 ? (
-                  <div className="text-sm text-muted-foreground">{i18next.t("gen.pages.autoDirectorFollowUps.components.AutoDirectorFollowUpDetail.gen_c6e96697", "暂无里程碑")}</div>
+                  <div className="text-sm text-muted-foreground">{i18next.t("dict.gen_c6e96697")}</div>
                 ) : detail.milestones.map((milestone) => (
                   <div key={`${milestone.at}:${milestone.label}`} className={`rounded-md border p-3 text-sm ${AUTO_DIRECTOR_MOBILE_CLASSES.wrapText}`}>
                     <div className="font-medium">{milestone.label}</div>
@@ -206,10 +204,10 @@ export function AutoDirectorFollowUpDetailPanel({
             </div>
 
             <div className="space-y-2">
-              <div className="text-sm font-medium">{i18next.t("gen.pages.autoDirectorFollowUps.components.AutoDirectorFollowUpDetail.gen_cb36d263", "通道触达")}</div>
+              <div className="text-sm font-medium">{i18next.t("dict.gen_cb36d263")}</div>
               <div className="space-y-2">
                 {(detail.channelDeliveries?.length ?? 0) === 0 ? (
-                  <div className="text-sm text-muted-foreground">{i18next.t("gen.pages.autoDirectorFollowUps.components.AutoDirectorFollowUpDetail.gen_ede22761", "暂无通道投递记录")}</div>
+                  <div className="text-sm text-muted-foreground">{i18next.t("dict.gen_ede22761")}</div>
                 ) : detail.channelDeliveries?.map((delivery) => (
                   <div key={`${delivery.channelType}:${delivery.eventType}`} className={`rounded-md border p-3 text-sm ${AUTO_DIRECTOR_MOBILE_CLASSES.wrapText}`}>
                     <div className="flex flex-wrap items-center gap-2">

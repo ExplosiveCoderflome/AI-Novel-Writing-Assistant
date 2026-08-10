@@ -1,4 +1,3 @@
-import { useTranslation } from "react-i18next";
 import i18next from "i18next";
 const t = (key: string, options?: any) => i18next.t(key, options) as string;
 import { useMemo, useState } from "react";
@@ -20,11 +19,10 @@ interface KnowledgeDocumentPickerProps {
 }
 
 function formatDocumentKind(kind: "user_upload" | "analysis_published"): string {
-  return kind === "analysis_published" ? i18next.t("gen.components.knowledge.KnowledgeDocumentPicker.gen_baf0c0bb") : i18next.t("gen.components.knowledge.KnowledgeDocumentPicker.uploadDocument");
+  return kind === "analysis_published" ? i18next.t("dict.gen_baf0c0bb") : i18next.t("dict.uploadDocument");
 }
 
 export default function KnowledgeDocumentPicker(props: KnowledgeDocumentPickerProps) {
-  const { t } = useTranslation();
   const [keyword, setKeyword] = useState("");
 
   const documentsQuery = useQuery({
@@ -56,30 +54,30 @@ export default function KnowledgeDocumentPicker(props: KnowledgeDocumentPickerPr
             type="button"
             className={`rounded-md border px-3 py-1 text-sm ${isAuto ? "bg-accent" : ""}`}
             onClick={() => props.onChange(null)}
-          >{i18next.t("gen.components.knowledge.KnowledgeDocumentPicker.gen_3aed2c11", "自动")}</button>
+          >{i18next.t("knowledge.knowledgeDocumentPicker.mjum")}</button>
           <button
             type="button"
             className={`rounded-md border px-3 py-1 text-sm ${!isAuto ? "bg-accent" : ""}`}
             onClick={() => props.onChange(selectedIds)}
-          >{i18next.t("gen.components.knowledge.KnowledgeDocumentPicker.gen_f1d4ff50", "自定义")}</button>
+          >{i18next.t("dict.gen_f1d4ff50")}</button>
         </div>
       ) : null}
 
       {isAuto ? (
-        <div className="rounded-md border border-dashed p-3 text-sm text-muted-foreground">{i18next.t("gen.components.knowledge.KnowledgeDocumentPicker.gen_63ac283b", "当前使用自动规则：若有实体绑定文档则优先使用绑定文档，否则回退到全部启用文档。")}</div>
+        <div className="rounded-md border border-dashed p-3 text-sm text-muted-foreground">{i18next.t("knowledge.knowledgeDocumentPicker.2zku53")}</div>
       ) : (
         <>
           <Input
             value={keyword}
             onChange={(event) => setKeyword(event.target.value)}
-            placeholder={i18next.t("gen.components.knowledge.KnowledgeDocumentPicker.gen_20c81d3d")}
+            placeholder={i18next.t("dict.gen_20c81d3d")}
           />
           <div className="max-h-64 space-y-2 overflow-auto rounded-md border p-2">
             {documentsQuery.isLoading ? (
-              <div className="text-sm text-muted-foreground">{i18next.t("gen.components.knowledge.KnowledgeDocumentPicker.gen_26b5bd49")}</div>
+              <div className="text-sm text-muted-foreground">{i18next.t("dict.gen_26b5bd49")}</div>
             ) : null}
             {visibleDocuments.length === 0 && !documentsQuery.isLoading ? (
-              <div className="text-sm text-muted-foreground">{i18next.t("gen.components.knowledge.KnowledgeDocumentPicker.gen_286b4cb3")}</div>
+              <div className="text-sm text-muted-foreground">{i18next.t("dict.gen_286b4cb3")}</div>
             ) : null}
             {visibleDocuments.map((item) => {
               const checked = selectedIds.includes(item.id);
@@ -114,7 +112,7 @@ export default function KnowledgeDocumentPicker(props: KnowledgeDocumentPickerPr
                         to={`/book-analysis?analysisId=${item.sourceAnalysisId}`}
                         className="text-xs text-primary hover:underline"
                         onClick={(event) => event.stopPropagation()}
-                      >{i18next.t("gen.components.knowledge.KnowledgeDocumentPicker.gen_31a84195", "查看来源拆书")}</Link>
+                      >{i18next.t("dict.gen_31a84195")}</Link>
                     ) : null}
                   </div>
                 </label>

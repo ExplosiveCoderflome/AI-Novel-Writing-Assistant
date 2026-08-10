@@ -1,5 +1,4 @@
 import i18next from "i18next";
-import { useTranslation } from "react-i18next";
 import type { FormEvent } from "react";
 import type { CharacterDialogueInfluence, CharacterDialogueInfluenceStatus } from "@ai-novel/shared/types/characterDialogue";
 import type { CharacterConversationPolicy } from "@ai-novel/shared/types/characterConversation";
@@ -36,7 +35,6 @@ const POLICY_DESCRIPTION: Record<CharacterConversationPolicy, string> = {
 };
 
 export default function CharacterDialogueStage(props: CharacterDialogueStageProps) {
-  const { t } = useTranslation();
   const influence = props.interactionPolicy === "novel_influence" ? props.session?.latestInfluence ?? null : null;
   const submitMessage = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -58,11 +56,11 @@ export default function CharacterDialogueStage(props: CharacterDialogueStageProp
         <span className="pt-0.5 text-xs text-muted-foreground">{props.session ? "谈话进行中" : "等待开启"}</span>
       </header>
 
-      {props.isLoading ? <div className="flex flex-1 items-center justify-center text-sm text-muted-foreground">{i18next.t("gen.pages.novels.components.characterWorkspace.CharacterDialogueStage.gen_7beed6f8", "正在读取谈话记录...")}</div> : null}
+      {props.isLoading ? <div className="flex flex-1 items-center justify-center text-sm text-muted-foreground">{i18next.t("novels.characterDialogueStage.hdse24")}</div> : null}
       {!props.isLoading && !props.session ? (
         <div className="flex flex-1 flex-col items-center justify-center px-6 text-center">
           <div className="flex h-11 w-11 items-center justify-center rounded-lg bg-primary/10 text-primary"><MessageCircle className="h-5 w-5" /></div>
-          <div className="mt-4 text-base font-semibold">{i18next.t("gen.pages.novels.components.characterWorkspace.CharacterDialogueStage.gen_380a5680", "从一句话开始")}</div>
+          <div className="mt-4 text-base font-semibold">{i18next.t("novels.characterDialogueStage.5akl9n")}</div>
           <p className="mt-2 max-w-sm text-sm leading-6 text-muted-foreground">可以询问 {props.characterName} 的顾虑、质疑他的选择，或聊聊他眼前的局面。</p>
           <AiButton className="mt-5" onClick={props.onCreate} disabled={props.isCreating}>
             <Sparkles className="mr-1.5 h-4 w-4" />{props.isCreating ? "准备谈话中..." : `开启与${props.characterName}的谈话`}
@@ -76,14 +74,14 @@ export default function CharacterDialogueStage(props: CharacterDialogueStageProp
               <article key={turn.id} className={turn.role === "author" ? "ml-auto max-w-[82%] rounded-lg bg-primary px-4 py-3.5 text-primary-foreground" : "mr-auto max-w-[88%] border-l-2 border-primary/35 pl-4"}>
                 <div className={`mb-2 text-xs font-medium ${turn.role === "author" ? "text-primary-foreground/70" : "text-primary"}`}>{turn.role === "author" ? "你" : props.characterName}</div>
                 <div className="whitespace-pre-wrap text-sm leading-7">{turn.content}</div>
-                {turn.role === "character" && turn.uncertainty ? <div className="mt-4 border-t border-border/60 pt-3 text-xs leading-5 text-muted-foreground"><span className="mr-1 font-medium text-foreground/75">{i18next.t("gen.pages.novels.components.characterWorkspace.CharacterDialogueStage.gen_3638809e", "不确定之处：")}</span>{turn.uncertainty}</div> : null}
-                {turn.role === "character" && turn.evidence.length > 0 ? <div className="mt-3 border-t border-border/60 pt-3 text-xs leading-5 text-muted-foreground"><span className="mr-2 font-medium text-foreground/75">{i18next.t("gen.pages.novels.components.characterWorkspace.CharacterDialogueStage.gen_fcf69835", "依据")}</span>{turn.evidence.map((evidence, index) => <span key={`${evidence.sourceRef ?? evidence.label}-${index}`}>{index > 0 ? " · " : ""}{evidence.chapterOrder ? `第 ${evidence.chapterOrder} 章 · ` : ""}{evidence.label}</span>)}</div> : null}
+                {turn.role === "character" && turn.uncertainty ? <div className="mt-4 border-t border-border/60 pt-3 text-xs leading-5 text-muted-foreground"><span className="mr-1 font-medium text-foreground/75">{i18next.t("novels.characterDialogueStage.131et4")}</span>{turn.uncertainty}</div> : null}
+                {turn.role === "character" && turn.evidence.length > 0 ? <div className="mt-3 border-t border-border/60 pt-3 text-xs leading-5 text-muted-foreground"><span className="mr-2 font-medium text-foreground/75">{i18next.t("novels.characterDialogueStage.e35d")}</span>{turn.evidence.map((evidence, index) => <span key={`${evidence.sourceRef ?? evidence.label}-${index}`}>{index > 0 ? " · " : ""}{evidence.chapterOrder ? `第 ${evidence.chapterOrder} 章 · ` : ""}{evidence.label}</span>)}</div> : null}
               </article>
             )) : <div className="flex h-full items-center justify-center text-sm text-muted-foreground">说说你想和 {props.characterName} 谈的事。</div>}
           </div>
           {influence ? <DialogueInfluenceNotice influence={influence} isActivating={props.isActivating} isDismissing={props.isDismissing} onActivate={() => props.onActivate(props.session!.id)} onDismiss={() => props.onDismiss(props.session!.id)} /> : null}
           <form className="border-t border-border/60 bg-background pt-4" onSubmit={submitMessage}>
-            <label className="sr-only" htmlFor="character-dialogue-message">{i18next.t("gen.pages.novels.components.characterWorkspace.CharacterDialogueStage.gen_51331bb2", "对角色说的话")}</label>
+            <label className="sr-only" htmlFor="character-dialogue-message">{i18next.t("novels.characterDialogueStage.g8up2k")}</label>
             <textarea
               id="character-dialogue-message"
               value={props.message}
@@ -121,7 +119,7 @@ function DialogueInfluenceNotice(props: {
     <aside className="border-t border-primary/20 bg-primary/[0.045] px-1 py-4">
       <div className="flex flex-wrap items-start justify-between gap-2">
         <div>
-          <div className="text-sm font-semibold">{i18next.t("gen.pages.novels.components.characterWorkspace.CharacterDialogueStage.gen_4056c83d", "这段谈话留下的创作倾向")}</div>
+          <div className="text-sm font-semibold">{i18next.t("novels.characterDialogueStage.bn75e3")}</div>
           <p className="mt-1 text-sm leading-6 text-muted-foreground">{props.influence.summary}</p>
         </div>
         <Badge variant="outline">{influenceStatusLabel(props.influence.status)}</Badge>

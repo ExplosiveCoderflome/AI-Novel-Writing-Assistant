@@ -1,4 +1,3 @@
-import { useTranslation } from "react-i18next";
 import i18next from "i18next";
 const t = (key: string, options?: any) => i18next.t(key, options) as string;
 import { useState } from "react";
@@ -20,18 +19,18 @@ const INSPIRATION_MODE_CARDS: Array<{
 }> = [
   {
     value: "free",
-    title: i18next.t("gen.pages.worlds.components.generator.WorldGeneratorStepOne.startFromInspiration"),
-    description: i18next.t("gen.pages.worlds.components.generator.WorldGeneratorStepOne.gen_80a88384"),
+    title: i18next.t("dict.startFromInspiration"),
+    description: i18next.t("dict.gen_80a88384"),
   },
   {
     value: "reference",
-    title: i18next.t("gen.pages.worlds.components.generator.WorldGeneratorStepOne.gen_0dd7d8a2"),
-    description: i18next.t("gen.pages.worlds.components.generator.WorldGeneratorStepOne.gen_fd5e12ca"),
+    title: i18next.t("dict.gen_0dd7d8a2"),
+    description: i18next.t("dict.gen_fd5e12ca"),
   },
   {
     value: "random",
-    title: i18next.t("gen.pages.worlds.components.generator.WorldGeneratorStepOne.gen_3e7a5205"),
-    description: i18next.t("gen.pages.worlds.components.generator.WorldGeneratorStepOne.gen_1f434df6"),
+    title: i18next.t("dict.gen_3e7a5205"),
+    description: i18next.t("dict.gen_1f434df6"),
   },
 ];
 
@@ -78,7 +77,6 @@ interface WorldGeneratorStepOneProps {
 }
 
 export default function WorldGeneratorStepOne(props: WorldGeneratorStepOneProps) {
-  const { t } = useTranslation();
   const {
     worldName,
     selectedGenreId,
@@ -124,12 +122,12 @@ export default function WorldGeneratorStepOne(props: WorldGeneratorStepOneProps)
     <div className="space-y-4">
       <div className="rounded-md border bg-background p-4 space-y-3">
         <div>
-          <div className="text-sm font-medium">{i18next.t("gen.pages.worlds.components.generator.WorldGeneratorStepOne.gen_c250dfe1")}</div>
-          <div className="mt-1 text-xs text-muted-foreground">{i18next.t("gen.pages.worlds.components.generator.WorldGeneratorStepOne.gen_7e49ef51", "名称可以留空，系统会先创建一份可继续整理的世界样本。")}</div>
+          <div className="text-sm font-medium">{i18next.t("dict.gen_c250dfe1")}</div>
+          <div className="mt-1 text-xs text-muted-foreground">{i18next.t("worlds.worldGeneratorStepOne.8nxlm")}</div>
         </div>
         <input
           className="w-full rounded-md border p-2 text-sm"
-          placeholder={i18next.t("gen.pages.worlds.components.generator.WorldGeneratorStepOne.examplePurpleSkyRealmAshKingdomRainAlleyOldCity")}
+          placeholder={i18next.t("dict.examplePurpleSkyRealmAshKingdomRainAlleyOldCity")}
           value={worldName}
           onChange={(event) => onWorldNameChange(event.target.value)}
         />
@@ -137,8 +135,8 @@ export default function WorldGeneratorStepOne(props: WorldGeneratorStepOneProps)
 
       <div className="space-y-2">
         <div>
-          <div className="text-sm font-medium">{i18next.t("gen.pages.worlds.components.generator.WorldGeneratorStepOne.gen_f994b83c")}</div>
-          <div className="mt-1 text-xs text-muted-foreground">{i18next.t("gen.pages.worlds.components.generator.WorldGeneratorStepOne.gen_ca9838b6", "题材基底决定世界的读者预期、力量规则和常见冲突。")}</div>
+          <div className="text-sm font-medium">{i18next.t("dict.gen_f994b83c")}</div>
+          <div className="mt-1 text-xs text-muted-foreground">{i18next.t("worlds.worldGeneratorStepOne.9w72xd")}</div>
         </div>
         <SelectControl
           className="w-full rounded-md border bg-background p-2 text-sm"
@@ -162,18 +160,18 @@ export default function WorldGeneratorStepOne(props: WorldGeneratorStepOneProps)
             ) : null}
           </div>
         ) : null}
-        {genreLoading ? <div className="text-xs text-muted-foreground">{i18next.t("gen.pages.worlds.components.generator.WorldGeneratorStepOne.gen_8ca5aa71")}</div> : null}
+        {genreLoading ? <div className="text-xs text-muted-foreground">{i18next.t("dict.gen_8ca5aa71")}</div> : null}
           {!genreLoading && genreOptions.length === 0 ? (
             <div className="rounded-md border border-dashed p-3 text-xs text-muted-foreground space-y-2">
-            <div>{i18next.t("gen.pages.worlds.components.generator.WorldGeneratorStepOne.gen_ce68b833")}</div>
-            <Button type="button" variant="outline" onClick={onOpenGenreManager}>{i18next.t("gen.pages.worlds.components.generator.WorldGeneratorStepOne.gen_7c921728", "去题材基底库")}</Button>
+            <div>{i18next.t("dict.gen_ce68b833")}</div>
+            <Button type="button" variant="outline" onClick={onOpenGenreManager}>{i18next.t("worlds.worldGeneratorStepOne.xa7ts5")}</Button>
           </div>
         ) : null}
-        <div className="text-xs text-muted-foreground">{i18next.t("gen.pages.worlds.components.generator.WorldGeneratorStepOne.gen_8a85d92e", "先确定题材基底，再生成概念卡、世界属性和后续骨架选择。")}</div>
+        <div className="text-xs text-muted-foreground">{i18next.t("worlds.worldGeneratorStepOne.ddbt8")}</div>
       </div>
 
       <div className="space-y-2">
-        <div className="text-sm font-medium">{i18next.t("gen.pages.worlds.components.generator.WorldGeneratorStepOne.gen_54757591")}</div>
+        <div className="text-sm font-medium">{i18next.t("dict.gen_54757591")}</div>
         <div className="grid gap-3 md:grid-cols-3">
           {INSPIRATION_MODE_CARDS.map((item) => (
             <button
@@ -197,13 +195,13 @@ export default function WorldGeneratorStepOne(props: WorldGeneratorStepOneProps)
           <KnowledgeDocumentPicker
             selectedIds={selectedKnowledgeDocumentIds}
             onChange={(next) => onKnowledgeDocumentIdsChange(next ?? [])}
-            title={i18next.t("gen.pages.worlds.components.generator.WorldGeneratorStepOne.gen_d7b79c91")}
-            description={i18next.t("gen.pages.worlds.components.generator.WorldGeneratorStepOne.gen_5b93ccba")}
+            title={i18next.t("dict.gen_d7b79c91")}
+            description={i18next.t("dict.gen_5b93ccba")}
             queryStatus="enabled"
           />
 
           <div className="rounded-md border p-3 text-sm space-y-2">
-            <div className="font-medium">{i18next.t("gen.pages.worlds.components.generator.WorldGeneratorStepOne.gen_56ba9d71")}</div>
+            <div className="font-medium">{i18next.t("dict.gen_56ba9d71")}</div>
             <SelectControl
               className="w-full rounded-md border bg-background p-2 text-sm"
               value={referenceMode}
@@ -222,30 +220,30 @@ export default function WorldGeneratorStepOne(props: WorldGeneratorStepOneProps)
 
           <div className="grid gap-3 md:grid-cols-3">
             <div className="rounded-md border p-3 text-sm space-y-2">
-              <div className="font-medium">{i18next.t("gen.pages.worlds.components.generator.WorldGeneratorStepOne.gen_3443f3cf")}</div>
+              <div className="font-medium">{i18next.t("dict.gen_3443f3cf")}</div>
               <textarea
                 className="min-h-[120px] w-full rounded-md border p-2 text-sm"
-                placeholder={i18next.t("gen.pages.worlds.components.generator.WorldGeneratorStepOne.exampleRealityUrbanBasisRentLivingQualityAdultEmotionalTug")}
+                placeholder={i18next.t("dict.exampleRealityUrbanBasisRentLivingQualityAdultEmotionalTug")}
                 value={preserveText}
                 onChange={(event) => onPreserveTextChange(event.target.value)}
               />
             </div>
 
             <div className="rounded-md border p-3 text-sm space-y-2">
-              <div className="font-medium">{i18next.t("gen.pages.worlds.components.generator.WorldGeneratorStepOne.gen_2f99624a")}</div>
+              <div className="font-medium">{i18next.t("dict.gen_2f99624a")}</div>
               <textarea
                 className="min-h-[120px] w-full rounded-md border p-2 text-sm"
-                placeholder={i18next.t("gen.pages.worlds.components.generator.WorldGeneratorStepOne.exampleCityLevelSocialRulesPowerNetworkLocationSystem")}
+                placeholder={i18next.t("dict.exampleCityLevelSocialRulesPowerNetworkLocationSystem")}
                 value={allowedChangesText}
                 onChange={(event) => onAllowedChangesTextChange(event.target.value)}
               />
             </div>
 
             <div className="rounded-md border p-3 text-sm space-y-2">
-              <div className="font-medium">{i18next.t("gen.pages.worlds.components.generator.WorldGeneratorStepOne.gen_26180712")}</div>
+              <div className="font-medium">{i18next.t("dict.gen_26180712")}</div>
               <textarea
                 className="min-h-[120px] w-full rounded-md border p-2 text-sm"
-                placeholder={i18next.t("gen.pages.worlds.components.generator.WorldGeneratorStepOne.exampleAvoidSuperNaturalHeatUpgradeLogic")}
+                placeholder={i18next.t("dict.exampleAvoidSuperNaturalHeatUpgradeLogic")}
                 value={forbiddenText}
                 onChange={(event) => onForbiddenTextChange(event.target.value)}
               />
@@ -258,10 +256,10 @@ export default function WorldGeneratorStepOne(props: WorldGeneratorStepOneProps)
         className="min-h-[180px] w-full rounded-md border p-2 text-sm"
         placeholder={
           isReferenceMode
-            ? i18next.t("gen.pages.worlds.components.generator.WorldGeneratorStepOne.gen_b153714d")
+            ? i18next.t("dict.gen_b153714d")
             : inspirationMode === "random"
-              ? i18next.t("gen.pages.worlds.components.generator.WorldGeneratorStepOne.gen_b62670d3")
-              : i18next.t("gen.pages.worlds.components.generator.WorldGeneratorStepOne.gen_e7057777")
+              ? i18next.t("dict.gen_b62670d3")
+              : i18next.t("dict.gen_e7057777")
         }
         value={inspirationText}
         onChange={(event) => onInspirationTextChange(event.target.value)}
@@ -270,29 +268,29 @@ export default function WorldGeneratorStepOne(props: WorldGeneratorStepOneProps)
       <div className="rounded-md border p-3 text-sm space-y-3">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <div>
-            <div className="font-medium">{i18next.t("gen.pages.worlds.components.generator.WorldGeneratorStepOne.gen_dd477c7b")}</div>
-            <div className="mt-1 text-xs text-muted-foreground">{i18next.t("gen.pages.worlds.components.generator.WorldGeneratorStepOne.gen_f248a206", "默认会给出 6 个标准世界属性，通常不用调整。")}</div>
+            <div className="font-medium">{i18next.t("dict.gen_dd477c7b")}</div>
+            <div className="mt-1 text-xs text-muted-foreground">{i18next.t("worlds.worldGeneratorStepOne.tz2u1")}</div>
           </div>
           <Button type="button" variant="outline" size="sm" onClick={() => setPreferencesOpen((value) => !value)}>
-            {preferencesOpen ? i18next.t("gen.pages.worlds.components.generator.WorldGeneratorStepOne.gen_b91f3d0f") : i18next.t("gen.pages.worlds.components.generator.WorldGeneratorStepOne.gen_8af07582")}
+            {preferencesOpen ? i18next.t("dict.gen_b91f3d0f") : i18next.t("dict.gen_8af07582")}
           </Button>
         </div>
         {preferencesOpen ? (
           <div className="grid gap-3 md:grid-cols-2">
             <div className="space-y-2">
-              <div className="font-medium">{i18next.t("gen.pages.worlds.components.generator.WorldGeneratorStepOne.gen_45b91e77")}</div>
+              <div className="font-medium">{i18next.t("dict.gen_45b91e77")}</div>
               <SelectControl
                 className="w-full rounded-md border bg-background p-2 text-sm"
                 value={optionRefinementLevel}
                 onChange={(event) => onOptionRefinementLevelChange(event.target.value as WorldOptionRefinementLevel)}
               >
-                <option value="basic">{i18next.t("gen.pages.worlds.components.generator.WorldGeneratorStepOne.gen_0796ba76")}</option>
-                <option value="standard">{i18next.t("gen.pages.worlds.components.generator.WorldGeneratorStepOne.gen_544fac40")}</option>
-                <option value="detailed">{i18next.t("gen.pages.worlds.components.generator.WorldGeneratorStepOne.gen_1f0a3a1c")}</option>
+                <option value="basic">{i18next.t("dict.gen_0796ba76")}</option>
+                <option value="standard">{i18next.t("dict.gen_544fac40")}</option>
+                <option value="detailed">{i18next.t("dict.gen_1f0a3a1c")}</option>
               </SelectControl>
             </div>
             <div className="space-y-2">
-              <div className="font-medium">{i18next.t("gen.pages.worlds.components.generator.WorldGeneratorStepOne.worldAttributeCount")}</div>
+              <div className="font-medium">{i18next.t("dict.worldAttributeCount")}</div>
               <input
                 className="w-full rounded-md border p-2 text-sm"
                 type="number"
@@ -312,12 +310,12 @@ export default function WorldGeneratorStepOne(props: WorldGeneratorStepOneProps)
 
       {analyzeStreaming ? (
         <div className="rounded-md border p-3 text-sm space-y-1">
-          <div className="font-medium">{i18next.t("gen.pages.worlds.components.generator.WorldGeneratorStepOne.gen_75ea7b29")}</div>
+          <div className="font-medium">{i18next.t("dict.gen_75ea7b29")}</div>
           <div>{analyzeProgressMessage ?? "正在启动分析..."}</div>
           <div className="text-xs text-muted-foreground">
             {isReferenceMode
-              ? i18next.t("gen.pages.worlds.components.generator.WorldGeneratorStepOne.gen_fbd39c55")
-              : i18next.t("gen.pages.worlds.components.generator.WorldGeneratorStepOne.gen_8f40e0b9")}
+              ? i18next.t("dict.gen_fbd39c55")
+              : i18next.t("dict.gen_8f40e0b9")}
           </div>
         </div>
       ) : null}
@@ -337,7 +335,7 @@ export default function WorldGeneratorStepOne(props: WorldGeneratorStepOneProps)
           <div>前置属性选项：{propertyOptionsCount}</div>
           {isReferenceMode && referenceAnchors.length > 0 ? (
             <div className="space-y-1">
-              <div className="text-xs font-medium text-muted-foreground">{i18next.t("gen.pages.worlds.components.generator.WorldGeneratorStepOne.gen_81c19e9b")}</div>
+              <div className="text-xs font-medium text-muted-foreground">{i18next.t("dict.gen_81c19e9b")}</div>
               {referenceAnchors.map((anchor) => (
                 <div key={anchor.id} className="text-xs text-muted-foreground">
                   {anchor.label}：{anchor.content}

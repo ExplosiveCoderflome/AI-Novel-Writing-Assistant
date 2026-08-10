@@ -1,5 +1,4 @@
 import i18next from "i18next";
-import { useTranslation } from "react-i18next";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type { Character } from "@ai-novel/shared/types/novel";
 import { Brain, RefreshCw } from "lucide-react";
@@ -15,7 +14,6 @@ interface CharacterIntelligenceTabProps {
 }
 
 export default function CharacterIntelligenceTab(props: CharacterIntelligenceTabProps) {
-  const { t } = useTranslation();
   const { novelId, selectedCharacter } = props;
   const queryClient = useQueryClient();
   const mindQueryKey = queryKeys.novels.characterMindState(novelId, selectedCharacter.id);
@@ -30,7 +28,7 @@ export default function CharacterIntelligenceTab(props: CharacterIntelligenceTab
   });
   const mind = mindQuery.data?.data ?? null;
 
-  if (mindQuery.isLoading) return <section className="rounded-3xl border border-dashed p-6 text-sm text-muted-foreground">{i18next.t("gen.pages.novels.components.characterWorkspace.CharacterIntelligenceTab.gen_d0eaa49e", "正在整理角色的谈话场景...")}</section>;
+  if (mindQuery.isLoading) return <section className="rounded-3xl border border-dashed p-6 text-sm text-muted-foreground">{i18next.t("novels.characterIntelligenceTab.ufjgeh")}</section>;
   if (!mind) return <EmptyMindState characterName={selectedCharacter.name} isRefreshing={refreshMutation.isPending} error={refreshMutation.error} onRefresh={() => refreshMutation.mutate()} />;
 
   return (
@@ -44,5 +42,5 @@ export default function CharacterIntelligenceTab(props: CharacterIntelligenceTab
 }
 
 function EmptyMindState(props: { characterName: string; isRefreshing: boolean; error: unknown; onRefresh: () => void }) {
-  return <section className="rounded-3xl border border-dashed bg-muted/10 p-6"><div className="flex flex-wrap items-start justify-between gap-4"><div><div className="flex items-center gap-2 text-sm font-semibold"><Brain className="h-4 w-4" />{i18next.t("gen.pages.novels.components.characterWorkspace.CharacterIntelligenceTab.gen_5c672acc", "准备谈话场景")}</div><p className="mt-2 max-w-2xl text-sm leading-6 text-muted-foreground">AI 会结合角色档案、关系、已发生剧情和当前处境，整理这次谈话需要理解的角色视角。</p></div><AiButton onClick={props.onRefresh} disabled={props.isRefreshing}>{props.isRefreshing ? "整理中..." : "让 AI 整理谈话场景"}</AiButton></div>{props.error ? <div className="mt-3 text-sm text-destructive">{props.error instanceof Error ? props.error.message : "场景整理暂时无法完成，请稍后重试。"}</div> : null}</section>;
+  return <section className="rounded-3xl border border-dashed bg-muted/10 p-6"><div className="flex flex-wrap items-start justify-between gap-4"><div><div className="flex items-center gap-2 text-sm font-semibold"><Brain className="h-4 w-4" />{i18next.t("novels.characterIntelligenceTab.lfxz05")}</div><p className="mt-2 max-w-2xl text-sm leading-6 text-muted-foreground">AI 会结合角色档案、关系、已发生剧情和当前处境，整理这次谈话需要理解的角色视角。</p></div><AiButton onClick={props.onRefresh} disabled={props.isRefreshing}>{props.isRefreshing ? "整理中..." : "让 AI 整理谈话场景"}</AiButton></div>{props.error ? <div className="mt-3 text-sm text-destructive">{props.error instanceof Error ? props.error.message : "场景整理暂时无法完成，请稍后重试。"}</div> : null}</section>;
 }

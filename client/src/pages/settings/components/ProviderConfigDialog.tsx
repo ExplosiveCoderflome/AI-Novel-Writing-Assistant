@@ -66,7 +66,7 @@ export default function ProviderConfigDialog({
   deleteLabel,
 }: ProviderConfigDialogProps) {
   const { t } = useTranslation();
-  const primaryModelLabel = isCreatingCustomProvider ? i18next.t("gen.pages.settings.components.ProviderConfigDialog.gen_4a007d89") : isCustomDialog ? i18next.t("gen.pages.settings.components.ProviderConfigDialog.gen_b11de232") : i18next.t("gen.pages.settings.components.ProviderConfigDialog.gen_920fe38e");
+  const primaryModelLabel = isCreatingCustomProvider ? i18next.t("dict.gen_4a007d89") : isCustomDialog ? i18next.t("dict.gen_b11de232") : i18next.t("dict.gen_920fe38e");
   const canSelectListedModels = selectableModels.length > 0;
   const imageModelOptions = editingConfig?.imageModels ?? [];
   const canSelectImageModels = imageModelOptions.length > 0;
@@ -75,7 +75,7 @@ export default function ProviderConfigDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <AppDialogContent
         className="max-w-lg"
-        title={isCreatingCustomProvider ? i18next.t("gen.pages.settings.components.ProviderConfigDialog.gen_86fc689e") : isCustomDialog ? i18next.t("gen.pages.settings.components.ProviderConfigDialog.gen_c45a36b0") : i18next.t("gen.pages.settings.components.ProviderConfigDialog.gen_1efc6243")}
+        title={isCreatingCustomProvider ? i18next.t("dict.gen_86fc689e") : isCustomDialog ? i18next.t("dict.gen_c45a36b0") : i18next.t("dict.gen_1efc6243")}
         footer={(
           <>
             <Button className="w-full sm:w-auto" onClick={onSubmit} disabled={submitDisabled}>
@@ -87,7 +87,7 @@ export default function ProviderConfigDialog({
               className="w-full sm:w-auto"
               onClick={onTest}
               disabled={testDisabled}
-            >{i18next.t("gen.pages.settings.components.ProviderConfigDialog.gen_69e74756", "测试连接")}</Button>
+            >{i18next.t("settings.providerConfigDialog.edfmk1")}</Button>
 
             {editingConfig?.kind === "custom" ? (
               <Button
@@ -106,10 +106,10 @@ export default function ProviderConfigDialog({
         <div className="space-y-3">
           {isCustomDialog ? (
             <div className="space-y-1">
-              <div className="text-xs text-muted-foreground">{i18next.t("gen.pages.settings.components.ProviderConfigDialog.gen_99b8ee4c")}</div>
+              <div className="text-xs text-muted-foreground">{i18next.t("dict.gen_99b8ee4c")}</div>
               <Input
                 value={form.displayName}
-                placeholder={i18next.t("gen.pages.settings.components.ProviderConfigDialog.exampleMyModelGateway")}
+                placeholder={i18next.t("dict.exampleMyModelGateway")}
                 onChange={(event) => setForm((prev) => ({ ...prev, displayName: event.target.value }))}
               />
             </div>
@@ -124,7 +124,7 @@ export default function ProviderConfigDialog({
           <Input
             type="password"
             value={form.key}
-            placeholder={editingConfig?.isConfigured ? i18next.t("gen.pages.settings.components.ProviderConfigDialog.gen_3cca094e") : i18next.t("gen.pages.settings.components.ProviderConfigDialog.gen_0d3afff6")}
+            placeholder={editingConfig?.isConfigured ? i18next.t("dict.gen_3cca094e") : i18next.t("dict.gen_0d3afff6")}
             onChange={(event) => {
               setForm((prev) => ({ ...prev, key: event.target.value }));
               if (isCreatingCustomProvider) {
@@ -134,7 +134,7 @@ export default function ProviderConfigDialog({
           />
 
           <div className="space-y-1">
-            <div className="text-xs text-muted-foreground">{i18next.t("gen.pages.settings.components.ProviderConfigDialog.apiAddress")}</div>
+            <div className="text-xs text-muted-foreground">{i18next.t("dict.apiAddress")}</div>
             <Input
               value={form.baseURL}
               placeholder={editingConfig?.defaultBaseURL ?? "https://api.example.com/v1"}
@@ -151,8 +151,8 @@ export default function ProviderConfigDialog({
             />
             <div className="text-xs text-muted-foreground">
               {isCreatingCustomProvider
-                ? i18next.t("gen.pages.settings.components.ProviderConfigDialog.gen_708d0597")
-                : i18next.t("gen.pages.settings.components.ProviderConfigDialog.gen_51a13d4e")}
+                ? i18next.t("dict.gen_708d0597")
+                : i18next.t("dict.gen_51a13d4e")}
             </div>
           </div>
 
@@ -165,7 +165,7 @@ export default function ProviderConfigDialog({
                 onClick={onPreviewModels}
                 disabled={isPreviewingModels || !form.baseURL.trim()}
               >
-                {isPreviewingModels ? i18next.t("gen.pages.settings.components.ProviderConfigDialog.gen_4a8d5ce9") : i18next.t("gen.pages.settings.components.ProviderConfigDialog.gen_4162141a")}
+                {isPreviewingModels ? i18next.t("dict.gen_4a8d5ce9") : i18next.t("dict.gen_4162141a")}
               </Button>
               {previewModelsResult ? (
                 <div className="break-words text-xs text-muted-foreground [overflow-wrap:anywhere]">
@@ -177,14 +177,14 @@ export default function ProviderConfigDialog({
 
           {canSelectListedModels ? (
             <div className="space-y-1">
-              <div className="text-xs text-muted-foreground">{i18next.t("gen.pages.settings.components.ProviderConfigDialog.gen_13388721")}</div>
+              <div className="text-xs text-muted-foreground">{i18next.t("dict.gen_13388721")}</div>
               <SearchableSelect
                 value={form.model}
                 onValueChange={(value) => setForm((prev) => ({ ...prev, model: value }))}
                 options={selectableModels.map((model) => ({ value: model }))}
-                placeholder={i18next.t("gen.pages.settings.components.ProviderConfigDialog.gen_f2d3731b")}
-                searchPlaceholder={i18next.t("gen.pages.settings.components.ProviderConfigDialog.gen_8288a2e8")}
-                emptyText={i18next.t("gen.pages.settings.components.ProviderConfigDialog.gen_039e58de")}
+                placeholder={i18next.t("dict.gen_f2d3731b")}
+                searchPlaceholder={i18next.t("dict.gen_8288a2e8")}
+                emptyText={i18next.t("dict.gen_039e58de")}
               />
             </div>
           ) : null}
@@ -193,22 +193,22 @@ export default function ProviderConfigDialog({
             <div className="text-xs text-muted-foreground">{primaryModelLabel}</div>
             <div className="text-xs text-muted-foreground">
               {isCreatingCustomProvider
-                ? i18next.t("gen.pages.settings.components.ProviderConfigDialog.gen_12876110")
+                ? i18next.t("dict.gen_12876110")
                 : editingConfig?.kind === "custom" && !canSelectListedModels
-                  ? i18next.t("gen.pages.settings.components.ProviderConfigDialog.gen_c13f114c")
-                  : i18next.t("gen.pages.settings.components.ProviderConfigDialog.gen_877547cd")}
+                  ? i18next.t("dict.gen_c13f114c")
+                  : i18next.t("dict.gen_877547cd")}
             </div>
           </div>
           <Input
             value={form.model}
-            placeholder={i18next.t("gen.pages.settings.components.ProviderConfigDialog.directManualInputModelName")}
+            placeholder={i18next.t("dict.directManualInputModelName")}
             onChange={(event) => setForm((prev) => ({ ...prev, model: event.target.value }))}
           />
 
           <div className="space-y-3 rounded-md border bg-muted/20 p-3">
             <div className="space-y-1">
-              <div className="text-xs text-muted-foreground">{i18next.t("gen.pages.settings.components.ProviderConfigDialog.gen_c5948a6a")}</div>
-              <div className="text-xs text-muted-foreground">{i18next.t("gen.pages.settings.components.ProviderConfigDialog.gen_fb19447d", "填写后，角色形象图生成可以选择这个厂商；留空则只用于文本模型。")}</div>
+              <div className="text-xs text-muted-foreground">{i18next.t("dict.gen_c5948a6a")}</div>
+              <div className="text-xs text-muted-foreground">{i18next.t("settings.providerConfigDialog.18qlsf")}</div>
             </div>
             {canSelectImageModels ? (
               <div className="space-y-1">
@@ -216,18 +216,18 @@ export default function ProviderConfigDialog({
                   value={form.imageModel}
                   onValueChange={(value) => setForm((prev) => ({ ...prev, imageModel: value }))}
                   options={imageModelOptions.map((model) => ({ value: model }))}
-                  placeholder={i18next.t("gen.pages.settings.components.ProviderConfigDialog.gen_5a7af023")}
-                  searchPlaceholder={i18next.t("gen.pages.settings.components.ProviderConfigDialog.gen_53f93fc3")}
-                  emptyText={i18next.t("gen.pages.settings.components.ProviderConfigDialog.gen_3c12a8fc")}
+                  placeholder={i18next.t("dict.gen_5a7af023")}
+                  searchPlaceholder={i18next.t("dict.gen_53f93fc3")}
+                  emptyText={i18next.t("dict.gen_3c12a8fc")}
                 />
               </div>
             ) : null}
             <Input
               value={form.imageModel}
-              placeholder={editingConfig?.defaultImageModel ?? i18next.t("gen.pages.settings.components.ProviderConfigDialog.gen_6155a156")}
+              placeholder={editingConfig?.defaultImageModel ?? i18next.t("dict.gen_6155a156")}
               onChange={(event) => setForm((prev) => ({ ...prev, imageModel: event.target.value }))}
             />
-            <div className="text-xs text-muted-foreground">{i18next.t("gen.pages.settings.components.ProviderConfigDialog.gen_1a01d599", "图片生成会调用这个厂商的 OpenAI 兼容图像接口。")}</div>
+            <div className="text-xs text-muted-foreground">{i18next.t("settings.providerConfigDialog.jxw2la")}</div>
           </div>
 
           <ProviderRequestLimitFields

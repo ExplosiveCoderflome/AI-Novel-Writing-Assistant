@@ -1,4 +1,3 @@
-import i18next from "i18next";
 import { useTranslation } from "react-i18next";
 import { Dialog, AppDialogContent } from "@/components/ui/dialog";
 import { VisualAssetLibrary } from "./VisualAssetLibrary";

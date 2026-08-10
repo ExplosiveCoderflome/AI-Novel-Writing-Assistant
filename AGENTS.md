@@ -55,6 +55,13 @@
 - If a workflow belongs in another module, explain the correct user entry point directly, for example "从小说基础信息设置书级默认写法", rather than "书级默认写法已经迁回小说页".
 - Before finishing UI work, review newly added copy and rewrite any sentence that sounds like it is talking to the developer or describing the modification process.
 
+## Internationalization (i18n) Governance Rules
+
+- All user-facing display texts (JSX text, user-facing attributes like placeholder/title/description, toast messages, and dialog titles) must be configured through i18n translation resources.
+- Do not write hardcoded Chinese strings directly in JSX or TS code, and do not use machine-generated pseudo keys like `gen_*`.
+- React components must use `useTranslation()` Hook and semantic key paths (e.g. `t('common.actions.save')`, `t('onboarding.quickSetup.title')`).
+- New feature code must be validated with `pnpm i18n:check` before merging, or auto-extracted using `pnpm i18n:scan`.
+
 ## Architecture Rules
 
 - If a single source file becomes too long, it must be split into functional modules.

@@ -71,7 +71,6 @@ export default function KnowledgeDocumentsTab({
   onReindexDocument,
   onUpdateStatus,
 }: KnowledgeDocumentsTabProps) {
-  const { t } = useTranslation();
   const [dragOver, setDragOver] = useState(false);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -112,10 +111,10 @@ export default function KnowledgeDocumentsTab({
     if (!open) setSelectedFile(null);
   };
   const statusOptions = [
-    { value: "", label: "全部未归档" },
-    { value: "enabled", label: "仅启用" },
-    { value: "disabled", label: "仅停用" },
-    { value: "archived", label: "仅归档" },
+    { value: "", label: i18next.t("dict.gen_7d80f755") },
+    { value: "enabled", label: i18next.t("dict.onlyEnable") },
+    { value: "disabled", label: i18next.t("dict.onlyDisable") },
+    { value: "archived", label: i18next.t("dict.onlyArchive") },
   ] as const;
 
   const confirmArchiveDocument = (document: KnowledgeDocumentSummary) => {
@@ -181,49 +180,49 @@ export default function KnowledgeDocumentsTab({
           </div>
         </div>
         <div className="mt-3 flex flex-wrap gap-2">
-          <Button size="sm" variant="secondary" onClick={() => onSelectDocument(document.id)}>{i18next.t("gen.pages.knowledge.components.KnowledgeDocumentsTab.gen_53ae41e2", "查看版本")}</Button>
+          <Button size="sm" variant="secondary" onClick={() => onSelectDocument(document.id)}>{i18next.t("knowledge.knowledgeDocumentsTab.dlqjvu")}</Button>
           {document.status === "archived" ? (
             <Button
               size="sm"
               variant="outline"
               onClick={() => onUpdateStatus(document.id, "enabled")}
-            >{i18next.t("gen.pages.knowledge.components.KnowledgeDocumentsTab.gen_06dab430", "恢复启用")}</Button>
+            >{i18next.t("dict.gen_06dab430")}</Button>
           ) : (
             <>
               <OpenInCreativeHubButton
                 bindings={{ knowledgeDocumentIds: [document.id] }}
-                label={i18next.t("gen.pages.knowledge.components.KnowledgeDocumentsTab.gen_d69e4819", "在创作中枢中继续")}
+                label={i18next.t("dict.gen_d69e4819")}
               />
               <Button asChild size="sm" variant="outline">
-                <Link to={`/book-analysis?documentId=${document.id}`}>{i18next.t("gen.pages.knowledge.components.KnowledgeDocumentsTab.gen_989a71a3", "新建拆书")}</Link>
+                <Link to={`/book-analysis?documentId=${document.id}`}>{i18next.t("dict.gen_989a71a3")}</Link>
               </Button>
               {document.kind === "analysis_published" && document.sourceAnalysisId ? (
                 <Button asChild size="sm" variant="outline">
-                  <Link to={`/book-analysis?analysisId=${document.sourceAnalysisId}`}>{i18next.t("gen.pages.knowledge.components.KnowledgeDocumentsTab.gen_31a84195", "查看来源拆书")}</Link>
+                  <Link to={`/book-analysis?analysisId=${document.sourceAnalysisId}`}>{i18next.t("dict.gen_31a84195")}</Link>
                 </Button>
               ) : null}
               {document.latestIndexStatus === "succeeded" ? (
-                <Button size="sm" variant="outline" onClick={() => onOpenRecallTest(document.id)}>{i18next.t("gen.pages.knowledge.components.KnowledgeDocumentsTab.gen_2ed53cd2", "召回测试")}</Button>
+                <Button size="sm" variant="outline" onClick={() => onOpenRecallTest(document.id)}>{i18next.t("dict.gen_2ed53cd2")}</Button>
               ) : null}
-              <Button size="sm" variant="outline" onClick={() => onReindexDocument(document.id)}>{i18next.t("gen.pages.knowledge.components.KnowledgeDocumentsTab.gen_be0ade04", "重建索引")}</Button>
+              <Button size="sm" variant="outline" onClick={() => onReindexDocument(document.id)}>{i18next.t("knowledge.knowledgeDocumentsTab.isjjk0")}</Button>
               {document.status === "enabled" ? (
                 <Button
                   size="sm"
                   variant="outline"
                   onClick={() => onUpdateStatus(document.id, "disabled")}
-                >{i18next.t("gen.pages.knowledge.components.KnowledgeDocumentsTab.gen_5c56a889", "停用")}</Button>
+                >{i18next.t("dict.gen_5c56a889")}</Button>
               ) : document.status === "disabled" ? (
                 <Button
                   size="sm"
                   variant="outline"
                   onClick={() => onUpdateStatus(document.id, "enabled")}
-                >{i18next.t("gen.pages.knowledge.components.KnowledgeDocumentsTab.gen_7854b52a", "启用")}</Button>
+                >{i18next.t("dict.gen_7854b52a")}</Button>
               ) : null}
               <Button
                 size="sm"
                 variant="outline"
                 onClick={() => confirmArchiveDocument(document)}
-              >{i18next.t("gen.pages.knowledge.components.KnowledgeDocumentsTab.gen_2f51c18f", "归档")}</Button>
+              >{i18next.t("dict.gen_2f51c18f")}</Button>
             </>
           )}
         </div>
@@ -239,8 +238,8 @@ export default function KnowledgeDocumentsTab({
         <div className="flex min-h-40 items-center justify-center rounded-md border border-dashed border-border px-5 py-8 text-center" role="status">
           <div>
             <LoaderCircle className="mx-auto h-5 w-5 animate-spin text-muted-foreground" aria-hidden="true" />
-            <p className="mt-3 text-sm font-medium text-foreground">{i18next.t("gen.pages.knowledge.components.KnowledgeDocumentsTab.gen_c37038e1", "正在加载创作资料")}</p>
-            <p className="mt-1 text-sm text-muted-foreground">{i18next.t("gen.pages.knowledge.components.KnowledgeDocumentsTab.gen_68ecff89", "正在确认资料版本和索引状态。")}</p>
+            <p className="mt-3 text-sm font-medium text-foreground">{i18next.t("knowledge.knowledgeDocumentsTab.bea7t4")}</p>
+            <p className="mt-1 text-sm text-muted-foreground">{i18next.t("knowledge.knowledgeDocumentsTab.yb3m6k")}</p>
           </div>
         </div>
       );
@@ -250,11 +249,11 @@ export default function KnowledgeDocumentsTab({
       return (
         <AssetLibraryEmptyState
           icon={CircleAlert}
-          title={i18next.t("gen.pages.knowledge.components.KnowledgeDocumentsTab.gen_2a6fe47a", "创作资料暂时无法加载")}
+          title={i18next.t("knowledge.knowledgeDocumentsTab.xx0b24")}
           description={`${errorMessage} 重新加载不会修改已有资料。`}
           action={(
             <Button type="button" size="sm" variant="outline" onClick={onRetry}>
-              <RefreshCw className="h-4 w-4" />{i18next.t("gen.pages.knowledge.components.KnowledgeDocumentsTab.gen_64ca9bab", "重新加载")}</Button>
+              <RefreshCw className="h-4 w-4" />{i18next.t("common.retry")}</Button>
           )}
         />
       );
@@ -269,10 +268,10 @@ export default function KnowledgeDocumentsTab({
             ? "调整搜索词或状态筛选，返回其他资料。"
             : "上传 TXT 资料后，系统会建立可供拆书、规划和正文创作使用的检索索引。"}
           action={hasFilters ? (
-            <Button type="button" size="sm" variant="outline" onClick={onClearFilters}>{i18next.t("gen.pages.knowledge.components.KnowledgeDocumentsTab.gen_a95500ef", "清除筛选")}</Button>
+            <Button type="button" size="sm" variant="outline" onClick={onClearFilters}>{i18next.t("visualAssets.visualAssetLibrary.ei6tl9")}</Button>
           ) : (
             <Button type="button" size="sm" onClick={() => onUploadDialogOpenChange(true)}>
-              <Upload className="h-4 w-4" />{i18next.t("gen.pages.knowledge.components.KnowledgeDocumentsTab.gen_40f8a119", "上传第一份资料")}</Button>
+              <Upload className="h-4 w-4" />{i18next.t("knowledge.knowledgeDocumentsTab.bcj6eg")}</Button>
           )}
         />
       );
@@ -285,11 +284,11 @@ export default function KnowledgeDocumentsTab({
     <>
       <AssetLibrarySection
         className="scroll-mt-5"
-        title={i18next.t("gen.pages.knowledge.components.KnowledgeDocumentsTab.gen_5012c867", "创作资料")}
-        description={i18next.t("gen.pages.knowledge.components.KnowledgeDocumentsTab.gen_22c6d617", "按标题或状态查找资料，确认索引完成后再用于拆书和正文创作。")}
+        title={i18next.t("knowledge.knowledgeDocumentsTab.ap46ye")}
+        description={i18next.t("knowledge.knowledgeDocumentsTab.szpequ")}
         actions={(
           <Button type="button" size="sm" variant="outline" onClick={() => onUploadDialogOpenChange(true)}>
-            <Upload className="mr-2 h-4 w-4" />{i18next.t("gen.pages.knowledge.components.KnowledgeDocumentsTab.gen_6b58808b", "上传资料")}</Button>
+            <Upload className="mr-2 h-4 w-4" />{i18next.t("knowledge.knowledgeDocumentsTab.a6m94b")}</Button>
         )}
       >
         <div id="knowledge-documents" className="space-y-4 scroll-mt-5">
@@ -297,13 +296,13 @@ export default function KnowledgeDocumentsTab({
             <Input
               value={keyword}
               onChange={(event) => onKeywordChange(event.target.value)}
-              placeholder={i18next.t("gen.pages.knowledge.components.KnowledgeDocumentsTab.gen_87dbe672", "按标题或文件名搜索")}
+              placeholder={i18next.t("dict.gen_87dbe672")}
             />
             <SelectField
               value={status}
               onValueChange={(value) => onStatusChange(value as KnowledgeDocumentStatus | "")}
               options={statusOptions.map((option) => ({ ...option }))}
-              placeholder={i18next.t("gen.pages.knowledge.components.KnowledgeDocumentsTab.gen_91b44d6f", "筛选状态")}
+              placeholder={i18next.t("dict.gen_91b44d6f")}
               className="space-y-0"
               triggerClassName="h-10"
             />
@@ -315,14 +314,14 @@ export default function KnowledgeDocumentsTab({
       <Dialog open={uploadDialogOpen} onOpenChange={handleDialogOpenChange}>
         <AppDialogContent
           className="max-w-lg"
-          title={i18next.t("gen.pages.knowledge.components.KnowledgeDocumentsTab.gen_c485b330", "上传文档")}
-          description={i18next.t("gen.pages.knowledge.components.KnowledgeDocumentsTab.gen_06837c46", "添加可用于检索、拆书和创作参考的文本资料。")}
+          title={i18next.t("dict.uploadDocument")}
+          description={i18next.t("knowledge.knowledgeDocumentsTab.o337fh")}
         >
           <div className="space-y-4">
             <Input
               value={uploadTitle}
               onChange={(event) => onUploadTitleChange(event.target.value)}
-              placeholder={i18next.t("gen.pages.knowledge.components.KnowledgeDocumentsTab.gen_b9e30320", "可选标题，留空则使用文件名")}
+              placeholder={i18next.t("knowledge.knowledgeDocumentsTab.ilsav6")}
             />
 
             {/* 拖拽上传区域 */}
@@ -373,7 +372,7 @@ export default function KnowledgeDocumentsTab({
                     type="button"
                     onClick={(e) => { e.stopPropagation(); setSelectedFile(null); }}
                     className="absolute right-3 top-3 rounded-full p-1 text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
-                    aria-label={i18next.t("gen.pages.knowledge.components.KnowledgeDocumentsTab.gen_df887b36", "移除已选择的文件")}
+                    aria-label={i18next.t("knowledge.knowledgeDocumentsTab.j2ryne")}
                   >
                     <X className="h-4 w-4" />
                   </button>
@@ -390,14 +389,14 @@ export default function KnowledgeDocumentsTab({
                     <p className="text-sm font-medium">
                       {dragOver ? "松开鼠标上传" : "拖拽文件到此处，或点击选择"}
                     </p>
-                    <p className="text-xs text-muted-foreground">{i18next.t("gen.pages.knowledge.components.KnowledgeDocumentsTab.gen_f588f09f", "仅支持 .txt 文本文件")}</p>
+                    <p className="text-xs text-muted-foreground">{i18next.t("knowledge.knowledgeDocumentsTab.4l0l3")}</p>
                   </div>
                 </>
               )}
             </div>
 
             <div className="flex items-center justify-between gap-3">
-              <p className="text-xs text-muted-foreground leading-5">{i18next.t("gen.pages.knowledge.components.KnowledgeDocumentsTab.gen_2091f5c1", "同名标题会追加为新版本并设为当前版本")}</p>
+              <p className="text-xs text-muted-foreground leading-5">{i18next.t("knowledge.knowledgeDocumentsTab.ebs7qt")}</p>
               <Button
                 type="button"
                 size="sm"

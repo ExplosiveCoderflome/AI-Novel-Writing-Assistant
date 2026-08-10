@@ -1,4 +1,3 @@
-import i18next from "i18next";
 export * from "./structuredOutline.utils";
 export * from "./structuredOutlineSync.utils";
 export * from "./novelBasicInfo.shared";

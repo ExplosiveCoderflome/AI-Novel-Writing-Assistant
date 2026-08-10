@@ -41,7 +41,7 @@ export default function WritingFormulaAdvancedWorkspace(props: WritingFormulaAdv
       <div className="rounded-2xl border bg-slate-50/70 px-4 py-3 text-sm leading-7 text-slate-700">
         {props.selectedProfile
           ? `当前正在维护「${props.selectedProfile.name}」这套写法的设定说明。应用测试和去 AI 味已经拆到独立入口，这里只负责把写法本身整理清楚。`
-          : i18next.t("gen.pages.writingFormula.components.WritingFormulaAdvancedWorkspace.gen_38767024")}
+          : i18next.t("dict.gen_38767024")}
       </div>
 
       <WritingFormulaEditorPanel

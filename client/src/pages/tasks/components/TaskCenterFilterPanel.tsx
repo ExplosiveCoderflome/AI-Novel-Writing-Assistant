@@ -1,4 +1,3 @@
-import i18next from "i18next";
 import { useTranslation } from "react-i18next";
 import type { TaskKind, TaskStatus } from "@ai-novel/shared/types/task";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";

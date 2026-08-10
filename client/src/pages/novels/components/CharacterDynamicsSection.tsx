@@ -129,7 +129,7 @@ export default function CharacterDynamicsSection(props: CharacterDynamicsSection
   const manualStateMutation = useMutation({
     mutationFn: () => {
       if (!selectedCharacterId) {
-        throw new Error(i18next.t("gen.pages.novels.components.CharacterDynamicsSection.gen_4d65e43d"));
+        throw new Error(i18next.t("dict.gen_4d65e43d"));
       }
       return updateCharacterDynamicState(novelId, selectedCharacterId, {
         currentState: manualState.currentState.trim() || undefined,
@@ -150,19 +150,19 @@ export default function CharacterDynamicsSection(props: CharacterDynamicsSection
       <CardHeader className="gap-3">
         <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
           <div className="space-y-1">
-            <CardTitle>{i18next.t("gen.pages.novels.components.CharacterDynamicsSection.gen_dc8352b7")}</CardTitle>
-            <div className="text-sm text-muted-foreground">{i18next.t("gen.pages.novels.components.CharacterDynamicsSection.gen_ac5b25a1", "这里把卷级职责、缺席风险、新角色候选和关系阶段放回角色页主流程，不再依赖你自己手工追踪。")}</div>
+            <CardTitle>{i18next.t("dict.gen_dc8352b7")}</CardTitle>
+            <div className="text-sm text-muted-foreground">{i18next.t("novels.characterDynamicsSection.yhglhi")}</div>
           </div>
           <div className="flex flex-wrap gap-2">
-            <Badge variant="outline">{i18next.t("gen.pages.novels.components.CharacterDynamicsSection.volumeTitle")}</Badge>
-            <Badge variant="outline">{i18next.t("gen.pages.novels.components.CharacterDynamicsSection.pendingCandidates")}</Badge>
+            <Badge variant="outline">{i18next.t("dict.volumeTitle")}</Badge>
+            <Badge variant="outline">{i18next.t("dict.pendingCandidates")}</Badge>
             <AiButton
               variant="outline"
               size="sm"
               onClick={() => rebuildMutation.mutate()}
               disabled={rebuildMutation.isPending}
             >
-              {rebuildMutation.isPending ? i18next.t("gen.pages.novels.components.CharacterDynamicsSection.gen_f282cfb7") : i18next.t("gen.pages.novels.components.CharacterDynamicsSection.gen_a19e94b1")}
+              {rebuildMutation.isPending ? i18next.t("dict.gen_f282cfb7") : i18next.t("dict.gen_a19e94b1")}
             </AiButton>
           </div>
         </div>
@@ -176,10 +176,10 @@ export default function CharacterDynamicsSection(props: CharacterDynamicsSection
               onClick={() => setActiveView(view)}
             >
               {{
-                overview: i18next.t("gen.pages.novels.components.CharacterDynamicsSection.gen_f4d26961"),
-                candidates: i18next.t("gen.pages.novels.components.CharacterDynamicsSection.gen_f6df4806"),
-                relations: i18next.t("gen.pages.novels.components.CharacterDynamicsSection.gen_b2ce9710"),
-                duties: i18next.t("gen.pages.novels.components.CharacterDynamicsSection.gen_3170471d"),
+                overview: i18next.t("dict.gen_f4d26961"),
+                candidates: i18next.t("dict.gen_f6df4806"),
+                relations: i18next.t("dict.gen_b2ce9710"),
+                duties: i18next.t("dict.gen_3170471d"),
               }[view]}
             </Button>
           ))}
@@ -187,7 +187,7 @@ export default function CharacterDynamicsSection(props: CharacterDynamicsSection
       </CardHeader>
       <CardContent className="space-y-4">
         {overviewQuery.isLoading ? (
-          <div className="rounded-2xl border border-dashed p-6 text-sm text-muted-foreground">{i18next.t("gen.pages.novels.components.CharacterDynamicsSection.gen_b7313050", "正在加载动态角色系统...")}</div>
+          <div className="rounded-2xl border border-dashed p-6 text-sm text-muted-foreground">{i18next.t("novels.characterDynamicsSection.uvau5t")}</div>
         ) : null}
 
         {activeView === "overview" && overview ? (
@@ -209,13 +209,13 @@ export default function CharacterDynamicsSection(props: CharacterDynamicsSection
                       <div className="text-xs text-muted-foreground">{item.role}</div>
                     </div>
                     <Badge className={riskTone(item.absenceRisk)} variant="outline">
-                      {item.absenceRisk === "none" ? i18next.t("gen.pages.novels.components.CharacterDynamicsSection.gen_43307462") : `风险 ${item.absenceRisk}`}
+                      {item.absenceRisk === "none" ? i18next.t("dict.gen_43307462") : `风险 ${item.absenceRisk}`}
                     </Badge>
                   </div>
                   <div className="mt-3 space-y-1 text-xs text-muted-foreground">
-                    <div>{i18next.t("gen.pages.novels.components.CharacterDynamicsSection.gen_83f6ee67")}</div>
-                    <div>{i18next.t("gen.pages.novels.components.CharacterDynamicsSection.gen_f3bc1482")}</div>
-                    <div>{i18next.t("gen.pages.novels.components.CharacterDynamicsSection.gen_895e8e81")}</div>
+                    <div>{i18next.t("dict.gen_83f6ee67")}</div>
+                    <div>{i18next.t("dict.gen_f3bc1482")}</div>
+                    <div>{i18next.t("dict.gen_895e8e81")}</div>
                     {item.factionLabel ? <div>阵营：{item.factionLabel}{item.stanceLabel ? ` | 立场：${item.stanceLabel}` : ""}</div> : null}
                   </div>
                 </button>
@@ -224,32 +224,32 @@ export default function CharacterDynamicsSection(props: CharacterDynamicsSection
 
             {selectedCharacter ? (
               <div className="rounded-2xl border border-border/70 bg-background/80 p-4">
-                <div className="mb-3 text-sm font-medium">{i18next.t("gen.pages.novels.components.CharacterDynamicsSection.gen_0e0b47d4")}</div>
+                <div className="mb-3 text-sm font-medium">{i18next.t("dict.gen_0e0b47d4")}</div>
                 <div className="grid gap-3 md:grid-cols-2">
                   <Input
-                    placeholder={i18next.t("gen.pages.novels.components.CharacterDynamicsSection.gen_6bf1f392")}
+                    placeholder={i18next.t("dict.gen_6bf1f392")}
                     value={manualState.currentState}
                     onChange={(event) => setManualState((prev) => ({ ...prev, currentState: event.target.value }))}
                   />
                   <Input
-                    placeholder={i18next.t("gen.pages.novels.components.CharacterDynamicsSection.gen_deb979f8")}
+                    placeholder={i18next.t("dict.gen_deb979f8")}
                     value={manualState.currentGoal}
                     onChange={(event) => setManualState((prev) => ({ ...prev, currentGoal: event.target.value }))}
                   />
                   <Input
-                    placeholder={i18next.t("gen.pages.novels.components.CharacterDynamicsSection.gen_60acb41a")}
+                    placeholder={i18next.t("dict.gen_60acb41a")}
                     value={manualState.factionLabel}
                     onChange={(event) => setManualState((prev) => ({ ...prev, factionLabel: event.target.value }))}
                   />
                   <Input
-                    placeholder={i18next.t("gen.pages.novels.components.CharacterDynamicsSection.gen_7b993498")}
+                    placeholder={i18next.t("dict.gen_7b993498")}
                     value={manualState.stanceLabel}
                     onChange={(event) => setManualState((prev) => ({ ...prev, stanceLabel: event.target.value }))}
                   />
                 </div>
                 <textarea
                   className="mt-3 min-h-[88px] w-full rounded-xl border bg-background p-3 text-sm"
-                  placeholder={i18next.t("gen.pages.novels.components.CharacterDynamicsSection.gen_e29a80f4")}
+                  placeholder={i18next.t("dict.gen_e29a80f4")}
                   value={manualState.summary}
                   onChange={(event) => setManualState((prev) => ({ ...prev, summary: event.target.value }))}
                 />
@@ -258,10 +258,10 @@ export default function CharacterDynamicsSection(props: CharacterDynamicsSection
                     onClick={() => manualStateMutation.mutate()}
                     disabled={manualStateMutation.isPending || !selectedCharacterId}
                   >
-                    {manualStateMutation.isPending ? i18next.t("gen.pages.novels.components.CharacterDynamicsSection.savingInProgressDotDotDot") : i18next.t("gen.pages.novels.components.CharacterDynamicsSection.saveDynamicState")}
+                    {manualStateMutation.isPending ? i18next.t("common.saving") : i18next.t("dict.saveDynamicState")}
                   </Button>
                   {selectedOverviewCharacter?.volumeResponsibility ? (
-                    <Badge variant="outline">{i18next.t("gen.pages.novels.components.CharacterDynamicsSection.gen_72b1ff72")}</Badge>
+                    <Badge variant="outline">{i18next.t("dict.gen_72b1ff72")}</Badge>
                   ) : null}
                 </div>
               </div>
@@ -278,16 +278,16 @@ export default function CharacterDynamicsSection(props: CharacterDynamicsSection
                     <div>
                       <div className="font-medium">{candidate.proposedName}</div>
                       <div className="text-xs text-muted-foreground">
-                        {candidate.proposedRole || i18next.t("gen.pages.novels.components.CharacterDynamicsSection.gen_9c749289")}{typeof candidate.sourceChapterOrder === "number" ? ` | 来源第 ${candidate.sourceChapterOrder} 章` : ""}
+                        {candidate.proposedRole || i18next.t("dict.gen_9c749289")}{typeof candidate.sourceChapterOrder === "number" ? ` | 来源第 ${candidate.sourceChapterOrder} 章` : ""}
                       </div>
                     </div>
-                    <Badge variant="outline">{typeof candidate.confidence === "number" ? `置信度 ${Math.round(candidate.confidence * 100)}%` : i18next.t("gen.pages.novels.components.CharacterDynamicsSection.gen_2a2772fa")}</Badge>
+                    <Badge variant="outline">{typeof candidate.confidence === "number" ? `置信度 ${Math.round(candidate.confidence * 100)}%` : i18next.t("dict.gen_2a2772fa")}</Badge>
                   </div>
                   {candidate.summary ? <div className="mt-3 text-sm text-muted-foreground">{candidate.summary}</div> : null}
                   {candidate.evidence.length > 0 ? (
                     <div className="mt-3 space-y-1 text-xs text-muted-foreground">
                       {candidate.evidence.map((evidence, index) => (
-                        <div key={`${candidate.id}-${index}`}>{i18next.t("gen.pages.novels.components.CharacterDynamicsSection.gen_08bb1f93")}</div>
+                        <div key={`${candidate.id}-${index}`}>{i18next.t("dict.gen_08bb1f93")}</div>
                       ))}
                     </div>
                   ) : null}
@@ -297,7 +297,7 @@ export default function CharacterDynamicsSection(props: CharacterDynamicsSection
                       onClick={() => confirmMutation.mutate(candidate.id)}
                       disabled={confirmMutation.isPending}
                     >
-                      {confirmMutation.isPending ? i18next.t("gen.pages.novels.components.CharacterDynamicsSection.gen_1fb26ee2") : i18next.t("gen.pages.novels.components.CharacterDynamicsSection.gen_bcc42a3d")}
+                      {confirmMutation.isPending ? i18next.t("dict.gen_1fb26ee2") : i18next.t("dict.gen_bcc42a3d")}
                     </Button>
                     <Button
                       size="sm"
@@ -305,14 +305,14 @@ export default function CharacterDynamicsSection(props: CharacterDynamicsSection
                       onClick={() => mergeMutation.mutate(candidate.id)}
                       disabled={mergeMutation.isPending || !selectedCharacterId}
                     >
-                      {mergeMutation.isPending ? i18next.t("gen.pages.novels.components.CharacterDynamicsSection.gen_d5df67d6") : selectedCharacterId ? `并入当前焦点` : i18next.t("gen.pages.novels.components.CharacterDynamicsSection.gen_56c0a651")}
+                      {mergeMutation.isPending ? i18next.t("dict.gen_d5df67d6") : selectedCharacterId ? `并入当前焦点` : i18next.t("dict.gen_56c0a651")}
                     </Button>
                   </div>
                 </div>
               ))}
             </div>
           ) : (
-            <div className="rounded-2xl border border-dashed p-6 text-sm text-muted-foreground">{i18next.t("gen.pages.novels.components.CharacterDynamicsSection.gen_d6a8c65c", "还没有待确认的新角色候选。写完几章后，这里会自动汇总 AI 抽取到的新人物入口。")}</div>
+            <div className="rounded-2xl border border-dashed p-6 text-sm text-muted-foreground">{i18next.t("novels.characterDynamicsSection.qhrsjd")}</div>
           )
         ) : null}
 
@@ -327,15 +327,15 @@ export default function CharacterDynamicsSection(props: CharacterDynamicsSection
                   </div>
                   <div className="mt-3 text-sm text-muted-foreground">{relation.stageSummary}</div>
                   <div className="mt-3 space-y-1 text-xs text-muted-foreground">
-                    {relation.volumeTitle ? <div>{i18next.t("gen.pages.novels.components.CharacterDynamicsSection.gen_861efd62")}</div> : null}
-                    {typeof relation.chapterOrder === "number" ? <div>{i18next.t("gen.pages.novels.components.CharacterDynamicsSection.gen_1a91b2d8")}</div> : null}
-                    {relation.nextTurnPoint ? <div>{i18next.t("gen.pages.novels.components.CharacterDynamicsSection.nextPhaseTrigger")}</div> : null}
+                    {relation.volumeTitle ? <div>{i18next.t("dict.gen_861efd62")}</div> : null}
+                    {typeof relation.chapterOrder === "number" ? <div>{i18next.t("dict.gen_1a91b2d8")}</div> : null}
+                    {relation.nextTurnPoint ? <div>{i18next.t("dict.nextPhaseTrigger")}</div> : null}
                   </div>
                 </div>
               ))}
             </div>
           ) : (
-            <div className="rounded-2xl border border-dashed p-6 text-sm text-muted-foreground">{i18next.t("gen.pages.novels.components.CharacterDynamicsSection.gen_32d87874", "当前还没有关系阶段数据。应用阵容或完成章节后，这里会自动出现。")}</div>
+            <div className="rounded-2xl border border-dashed p-6 text-sm text-muted-foreground">{i18next.t("novels.characterDynamicsSection.638qwi")}</div>
           )
         ) : null}
 
@@ -352,23 +352,23 @@ export default function CharacterDynamicsSection(props: CharacterDynamicsSection
                         <div className="text-xs text-muted-foreground">{assignment?.roleLabel || item.role}</div>
                       </div>
                       <div className="flex flex-wrap gap-2">
-                        {assignment?.isCore ? <Badge variant="secondary">{i18next.t("gen.pages.novels.components.CharacterDynamicsSection.gen_08c47b72")}</Badge> : null}
+                        {assignment?.isCore ? <Badge variant="secondary">{i18next.t("dict.gen_08c47b72")}</Badge> : null}
                         <Badge className={riskTone(item.absenceRisk)} variant="outline">
-                          {item.absenceRisk === "none" ? i18next.t("gen.pages.novels.components.CharacterDynamicsSection.gen_d6692f37") : `缺席 ${item.absenceSpan} 章`}
+                          {item.absenceRisk === "none" ? i18next.t("dict.gen_d6692f37") : `缺席 ${item.absenceSpan} 章`}
                         </Badge>
                       </div>
                     </div>
                     <div className="mt-3 grid gap-2 text-sm text-muted-foreground md:grid-cols-3">
-                      <div>{i18next.t("gen.pages.novels.components.CharacterDynamicsSection.gen_d047d809")}</div>
-                      <div>{i18next.t("gen.pages.novels.components.CharacterDynamicsSection.gen_f5a2c6ae")}</div>
-                      <div>{i18next.t("gen.pages.novels.components.CharacterDynamicsSection.gen_266150b6")}</div>
+                      <div>{i18next.t("dict.gen_d047d809")}</div>
+                      <div>{i18next.t("dict.gen_f5a2c6ae")}</div>
+                      <div>{i18next.t("dict.gen_266150b6")}</div>
                     </div>
                   </div>
                 );
               })}
             </div>
           ) : (
-            <div className="rounded-2xl border border-dashed p-6 text-sm text-muted-foreground">{i18next.t("gen.pages.novels.components.CharacterDynamicsSection.gen_23ab1942", "当前卷还没有角色职责投影。点击上方“重建动态角色”即可初始化。")}</div>
+            <div className="rounded-2xl border border-dashed p-6 text-sm text-muted-foreground">{i18next.t("novels.characterDynamicsSection.zi4lzi")}</div>
           )
         ) : null}
       </CardContent>

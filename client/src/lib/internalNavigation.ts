@@ -1,4 +1,3 @@
-import i18next from "i18next";
 function getCurrentHref(): string {
   if (typeof window === "undefined") {
     return "http://localhost/";

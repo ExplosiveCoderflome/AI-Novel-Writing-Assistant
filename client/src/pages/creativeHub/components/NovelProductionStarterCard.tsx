@@ -38,9 +38,9 @@ function ProductionField(props: {
 }
 
 function fromNarrativePov(value: "first_person" | "third_person" | "mixed" | null | undefined): string {
-  if (value === "first_person") return i18next.t("creativeHub.povFirst", "第一人称");
-  if (value === "third_person") return i18next.t("creativeHub.povThird", "第三人称");
-  if (value === "mixed") return i18next.t("creativeHub.povMixed", "混合视角");
+  if (value === "first_person") return "第一人称";
+  if (value === "third_person") return "第三人称";
+  if (value === "mixed") return "混合视角";
   return "";
 }
 
@@ -52,9 +52,9 @@ function toNarrativePov(value: string): "first_person" | "third_person" | "mixed
 }
 
 function fromPacePreference(value: "slow" | "balanced" | "fast" | null | undefined): string {
-  if (value === "slow") return i18next.t("creativeHub.paceSlow", "慢节奏");
-  if (value === "balanced") return i18next.t("creativeHub.paceBalanced", "均衡节奏");
-  if (value === "fast") return i18next.t("creativeHub.paceFast", "快节奏");
+  if (value === "slow") return "慢节奏";
+  if (value === "balanced") return "均衡节奏";
+  if (value === "fast") return "快节奏";
   return "";
 }
 
@@ -320,31 +320,29 @@ export default function NovelProductionStarterCard({
 
   return (
     <div className="space-y-3" aria-busy={novelDetailQuery.isFetching || submitMutation.isPending}>
-      <div className="text-xs font-medium text-muted-foreground">{t("creativeHub.fullProd", "整本生产")}</div>
+      <div className="text-xs font-medium text-muted-foreground">{i18next.t("dict.gen_080bb6bb")}</div>
       <div className="space-y-3">
         <div className="rounded-md border border-info/25 bg-info/5 px-3 py-2 text-xs text-muted-foreground">
           {isContinueMode
-            ? t("creativeHub.willContinueProd", "当前将继续生产《{{title}}》。", { title: resolvedTitle || t("creativeHub.currentNovel", "当前小说") })
-            : t("creativeHub.globalProdDesc", "当前处于全局模式，可直接创建新书并启动整本生产。")}
+            ? `当前将继续生产《${resolvedTitle || "当前小说"}》。`
+            : "当前处于全局模式，可直接创建新书并启动整本生产。"}
         </div>
-        <div className="rounded-md border border-dashed border-border bg-background px-3 py-2 text-xs leading-5 text-muted-foreground">
-          {t("creativeHub.suggestConfirm", "建议先确认：题材、风格、视角、节奏、章长、AI 自由度。条件越完整，整本生产偏差越小。")}
-        </div>
+        <div className="rounded-md border border-dashed border-border bg-background px-3 py-2 text-xs leading-5 text-muted-foreground">{i18next.t("creativeHub.novelProductionStarterCard.749p3x")}</div>
 
         {novelDetailQuery.isFetching ? (
           <WorkspaceStateNotice
             compact
             loading
             tone="info"
-            title={t("creativeHub.loadingSetupTitle", "正在读取小说设置")}
-            description={t("creativeHub.loadingSetupDesc", "读取完成前不会提交整本生产，避免用空设置覆盖当前小说。")}
+            title={i18next.t("creativeHub.novelProductionStarterCard.vz5lat")}
+            description={i18next.t("creativeHub.novelProductionStarterCard.5uspyy")}
           />
         ) : detailErrorMessage ? (
           <WorkspaceStateNotice
             compact
             tone="danger"
-            title={t("creativeHub.errSetupTitle", "小说设置读取失败")}
-            description={`${detailErrorMessage} ${t("creativeHub.errSetupDesc", "请重新读取后再启动整本生产。")}`}
+            title={i18next.t("creativeHub.novelProductionStarterCard.brg3d0")}
+            description={`${detailErrorMessage} 请重新读取后再启动整本生产。`}
             action={(
               <Button
                 type="button"
@@ -354,7 +352,7 @@ export default function NovelProductionStarterCard({
                 onClick={() => void novelDetailQuery.refetch()}
               >
                 <RefreshCw className="h-3.5 w-3.5" aria-hidden="true" />
-                {novelDetailQuery.isFetching ? t("creativeHub.retrying", "正在重试...") : t("creativeHub.reload", "重新读取")}
+                {novelDetailQuery.isFetching ? "正在重试..." : "重新读取"}
               </Button>
             )}
           />
@@ -363,13 +361,13 @@ export default function NovelProductionStarterCard({
         {!isContinueMode ? (
           <ProductionField
             htmlFor="creative-hub-production-title"
-            label={t("creativeHub.labelTitle", "小说标题")}
-            hint={t("creativeHub.hintTitle", "创建新小说时必填。")}
+            label={i18next.t("basicInfo.novelTitle")}
+            hint="创建新小说时必填。"
           >
             <input
               id="creative-hub-production-title"
               className={fieldClassName}
-              placeholder={t("creativeHub.placeholderTitle", "例如：长夜巡灯人")}
+              placeholder={i18next.t("creativeHub.novelProductionStarterCard.zet2fo")}
               value={title}
               disabled={formDisabled}
               required
@@ -378,11 +376,11 @@ export default function NovelProductionStarterCard({
           </ProductionField>
         ) : null}
 
-        <ProductionField htmlFor="creative-hub-production-description" label={t("creativeHub.labelSynopsis", "简介与核心设定")}>
+        <ProductionField htmlFor="creative-hub-production-description" label={i18next.t("creativeHub.novelProductionStarterCard.rokqy")}>
           <textarea
             id="creative-hub-production-description"
             className={`${fieldClassName} min-h-[88px] resize-y`}
-            placeholder={t("creativeHub.placeholderSynopsis", "概括主角处境、核心冲突和这本书最想兑现的体验")}
+            placeholder={i18next.t("creativeHub.novelProductionStarterCard.5vhr9z")}
             value={description}
             disabled={formDisabled}
             onChange={(event) => setDescription(event.target.value)}
@@ -390,21 +388,21 @@ export default function NovelProductionStarterCard({
         </ProductionField>
 
         <div className="grid gap-2 sm:grid-cols-2">
-          <ProductionField htmlFor="creative-hub-production-genre" label={t("creativeHub.labelGenre", "题材类型")}>
+          <ProductionField htmlFor="creative-hub-production-genre" label={i18next.t("creativeHub.novelProductionStarterCard.jolqnc")}>
             <input
               id="creative-hub-production-genre"
               className={fieldClassName}
-              placeholder={t("creativeHub.placeholderGenre", "例如：东方玄幻")}
+              placeholder={i18next.t("creativeHub.novelProductionStarterCard.ljr4p5")}
               value={genre}
               disabled={formDisabled}
               onChange={(event) => setGenre(event.target.value)}
             />
           </ProductionField>
-          <ProductionField htmlFor="creative-hub-production-style" label={t("creativeHub.labelStyle", "风格基调")}>
+          <ProductionField htmlFor="creative-hub-production-style" label={i18next.t("creativeHub.novelProductionStarterCard.jpj5rr")}>
             <input
               id="creative-hub-production-style"
               className={fieldClassName}
-              placeholder={t("creativeHub.placeholderStyle", "例如：轻快热血")}
+              placeholder={i18next.t("creativeHub.novelProductionStarterCard.dbs8pm")}
               value={styleTone}
               disabled={formDisabled}
               onChange={(event) => setStyleTone(event.target.value)}
@@ -413,7 +411,7 @@ export default function NovelProductionStarterCard({
         </div>
 
         <div className="grid gap-2 sm:grid-cols-2">
-          <ProductionField htmlFor="creative-hub-production-pov" label={t("creativeHub.labelPov", "叙事视角")}>
+          <ProductionField htmlFor="creative-hub-production-pov" label={i18next.t("basicInfo.narrativePov")}>
             <SelectControl
               id="creative-hub-production-pov"
               className={fieldClassName}
@@ -421,13 +419,13 @@ export default function NovelProductionStarterCard({
               disabled={formDisabled}
               onChange={(event) => setNarrativePov(event.target.value)}
             >
-              <option value="">{t("creativeHub.letAiDecide", "交给 AI 判断")}</option>
-              <option value={i18next.t("gen.pages.creativeHub.components.NovelProductionStarterCard.gen_f69e8c5f", "第一人称")}>{t("creativeHub.povFirst", "第一人称")}</option>
-              <option value={i18next.t("gen.pages.creativeHub.components.NovelProductionStarterCard.gen_5eff3cab", "第三人称")}>{t("creativeHub.povThird", "第三人称")}</option>
-              <option value={i18next.t("gen.pages.creativeHub.components.NovelProductionStarterCard.gen_73b444ba", "混合视角")}>{t("creativeHub.povMixed", "混合视角")}</option>
+              <option value="">{i18next.t("creativeHub.novelProductionStarterCard.wknu3u")}</option>
+              <option value="第一人称">{i18next.t("dict.gen_f69e8c5f")}</option>
+              <option value="第三人称">{i18next.t("dict.gen_5eff3cab")}</option>
+              <option value="混合视角">{i18next.t("dict.gen_73b444ba")}</option>
             </SelectControl>
           </ProductionField>
-          <ProductionField htmlFor="creative-hub-production-pace" label={t("creativeHub.labelPace", "推进节奏")}>
+          <ProductionField htmlFor="creative-hub-production-pace" label={i18next.t("creativeHub.novelProductionStarterCard.d679ts")}>
             <SelectControl
               id="creative-hub-production-pace"
               className={fieldClassName}
@@ -435,16 +433,16 @@ export default function NovelProductionStarterCard({
               disabled={formDisabled}
               onChange={(event) => setPacePreference(event.target.value)}
             >
-              <option value="">{i18next.t("gen.pages.creativeHub.components.NovelProductionStarterCard.gen_d285a633", "交给 AI 判断")}</option>
-              <option value={i18next.t("gen.pages.creativeHub.components.NovelProductionStarterCard.gen_7209da38", "慢节奏")}>{t("creativeHub.paceSlow", "慢节奏")}</option>
-              <option value={i18next.t("gen.pages.creativeHub.components.NovelProductionStarterCard.gen_ca6502d7", "均衡节奏")}>{t("creativeHub.paceBalanced", "均衡节奏")}</option>
-              <option value={i18next.t("gen.pages.creativeHub.components.NovelProductionStarterCard.gen_de82b2fd", "快节奏")}>{t("creativeHub.paceFast", "快节奏")}</option>
+              <option value="">{i18next.t("creativeHub.novelProductionStarterCard.wknu3u")}</option>
+              <option value="慢节奏">{i18next.t("dict.gen_7209da38")}</option>
+              <option value="均衡节奏">{i18next.t("creativeHub.novelProductionStarterCard.bkwd53")}</option>
+              <option value="快节奏">{i18next.t("dict.gen_de82b2fd")}</option>
             </SelectControl>
           </ProductionField>
         </div>
 
         <div className="grid gap-2 sm:grid-cols-3">
-          <ProductionField htmlFor="creative-hub-production-mode" label={t("creativeHub.labelMode", "协作模式")}>
+          <ProductionField htmlFor="creative-hub-production-mode" label={i18next.t("creativeHub.novelProductionStarterCard.aueugr")}>
             <SelectControl
               id="creative-hub-production-mode"
               className={fieldClassName}
@@ -452,14 +450,14 @@ export default function NovelProductionStarterCard({
               disabled={formDisabled}
               onChange={(event) => setProjectMode(event.target.value)}
             >
-              <option value="">{t("creativeHub.useNovelDefault", "使用小说默认值")}</option>
-              <option value="AI 主导">{t("creativeHub.modeAiDriven", "AI 主导")}</option>
-              <option value={i18next.t("gen.pages.creativeHub.components.NovelProductionStarterCard.gen_3656af17", "人机协作")}>{t("creativeHub.modeCoop", "人机协作")}</option>
-              <option value={i18next.t("gen.pages.creativeHub.components.NovelProductionStarterCard.gen_8ca38b73", "草稿优先")}>{t("creativeHub.modeDraftFirst", "草稿优先")}</option>
-              <option value={i18next.t("gen.pages.creativeHub.components.NovelProductionStarterCard.gen_ba7518f8", "自动流水线")}>{t("creativeHub.modeAutoPipeline", "自动流水线")}</option>
+              <option value="">{i18next.t("creativeHub.novelProductionStarterCard.x05tr2")}</option>
+              <option value="AI 主导">AI 主导</option>
+              <option value="人机协作">{i18next.t("creativeHub.novelProductionStarterCard.aczqnh")}</option>
+              <option value="草稿优先">{i18next.t("creativeHub.novelProductionStarterCard.h2eo5i")}</option>
+              <option value="自动流水线">{i18next.t("creativeHub.novelProductionStarterCard.lmnhou")}</option>
             </SelectControl>
           </ProductionField>
-          <ProductionField htmlFor="creative-hub-production-emotion" label={t("creativeHub.labelEmotion", "情绪强度")}>
+          <ProductionField htmlFor="creative-hub-production-emotion" label={i18next.t("creativeHub.novelProductionStarterCard.cqg3ld")}>
             <SelectControl
               id="creative-hub-production-emotion"
               className={fieldClassName}
@@ -467,13 +465,13 @@ export default function NovelProductionStarterCard({
               disabled={formDisabled}
               onChange={(event) => setEmotionIntensity(event.target.value)}
             >
-              <option value="">{i18next.t("gen.pages.creativeHub.components.NovelProductionStarterCard.gen_0776f722", "使用小说默认值")}</option>
-              <option value={i18next.t("gen.pages.creativeHub.components.NovelProductionStarterCard.gen_19ac677a", "低")}>{t("creativeHub.levelLow", "低")}</option>
-              <option value={i18next.t("gen.pages.creativeHub.components.NovelProductionStarterCard.gen_aed1dfbc", "中")}>{t("creativeHub.levelMedium", "中")}</option>
-              <option value={i18next.t("gen.pages.creativeHub.components.NovelProductionStarterCard.gen_4296d7d2", "高")}>{t("creativeHub.levelHigh", "高")}</option>
+              <option value="">{i18next.t("creativeHub.novelProductionStarterCard.x05tr2")}</option>
+              <option value="低">{i18next.t("dict.low")}</option>
+              <option value="中">{i18next.t("dict.mid")}</option>
+              <option value="高">{i18next.t("dict.gen_4296d7d2")}</option>
             </SelectControl>
           </ProductionField>
-          <ProductionField htmlFor="creative-hub-production-freedom" label={t("creativeHub.labelFreedom", "AI 自由度")}>
+          <ProductionField htmlFor="creative-hub-production-freedom" label={i18next.t("basicInfo.aiFreedom")}>
             <SelectControl
               id="creative-hub-production-freedom"
               className={fieldClassName}
@@ -481,16 +479,16 @@ export default function NovelProductionStarterCard({
               disabled={formDisabled}
               onChange={(event) => setAiFreedom(event.target.value)}
             >
-              <option value="">{i18next.t("gen.pages.creativeHub.components.NovelProductionStarterCard.gen_0776f722", "使用小说默认值")}</option>
-              <option value={i18next.t("gen.pages.creativeHub.components.NovelProductionStarterCard.gen_19ac677a", "低")}>{i18next.t("gen.pages.creativeHub.components.NovelProductionStarterCard.gen_19ac677a", "低")}</option>
-              <option value={i18next.t("gen.pages.creativeHub.components.NovelProductionStarterCard.gen_aed1dfbc", "中")}>{i18next.t("gen.pages.creativeHub.components.NovelProductionStarterCard.gen_aed1dfbc", "中")}</option>
-              <option value={i18next.t("gen.pages.creativeHub.components.NovelProductionStarterCard.gen_4296d7d2", "高")}>{i18next.t("gen.pages.creativeHub.components.NovelProductionStarterCard.gen_4296d7d2", "高")}</option>
+              <option value="">{i18next.t("creativeHub.novelProductionStarterCard.x05tr2")}</option>
+              <option value="低">{i18next.t("dict.low")}</option>
+              <option value="中">{i18next.t("dict.mid")}</option>
+              <option value="高">{i18next.t("dict.gen_4296d7d2")}</option>
             </SelectControl>
           </ProductionField>
         </div>
 
         <div className="grid gap-2 sm:grid-cols-3">
-          <ProductionField htmlFor="creative-hub-production-chapters" label={t("creativeHub.labelChapters", "目标章节数")}>
+          <ProductionField htmlFor="creative-hub-production-chapters" label={i18next.t("creativeHub.novelProductionStarterCard.ikd4dn")}>
             <input
               id="creative-hub-production-chapters"
               className={fieldClassName}
@@ -502,7 +500,7 @@ export default function NovelProductionStarterCard({
               onChange={(event) => setTargetChapterCount(Number(event.target.value || 20))}
             />
           </ProductionField>
-          <ProductionField htmlFor="creative-hub-production-length" label={t("creativeHub.labelWordCount", "默认章长（字）")}>
+          <ProductionField htmlFor="creative-hub-production-length" label={i18next.t("creativeHub.novelProductionStarterCard.4bldu7")}>
             <input
               id="creative-hub-production-length"
               className={fieldClassName}
@@ -514,11 +512,11 @@ export default function NovelProductionStarterCard({
               onChange={(event) => setDefaultChapterLength(Number(event.target.value || 2500))}
             />
           </ProductionField>
-          <ProductionField htmlFor="creative-hub-production-world" label={t("creativeHub.labelWorldType", "世界观类型（可选）")}>
+          <ProductionField htmlFor="creative-hub-production-world" label={i18next.t("creativeHub.novelProductionStarterCard.nuc5dv")}>
             <input
               id="creative-hub-production-world"
               className={fieldClassName}
-              placeholder={t("creativeHub.placeholderWorldType", "例如：末日废土")}
+              placeholder={i18next.t("creativeHub.novelProductionStarterCard.ie1omb")}
               value={worldType}
               disabled={formDisabled}
               onChange={(event) => setWorldType(event.target.value)}
@@ -531,32 +529,26 @@ export default function NovelProductionStarterCard({
             disabled={submitDisabled}
             onClick={startProduction}
           >
-            {submitMutation.isPending ? t("creativeHub.startingProd", "正在启动...") : isContinueMode ? t("creativeHub.continueProd", "继续整本生产") : t("creativeHub.startProd", "启动整本生产")}
+            {submitMutation.isPending ? "正在启动..." : isContinueMode ? "继续整本生产" : "启动整本生产"}
           </Button>
           <Button
             type="button"
             variant="outline"
             disabled={formDisabled}
             onClick={() => onQuickAction?.("整本生成到哪一步了")}
-          >
-            {t("creativeHub.viewProgress", "查看进度")}
-          </Button>
+          >{i18next.t("dict.gen_9600c918")}</Button>
           <Button
             type="button"
             variant="outline"
             disabled={formDisabled}
             onClick={() => onQuickAction?.("为什么整本生成没有启动")}
-          >
-            {t("creativeHub.viewBlocker", "查看阻塞")}
-          </Button>
+          >{i18next.t("creativeHub.creativeHubToolResultCard.dlwl3d")}</Button>
           <Button
             type="button"
             variant="outline"
             disabled={formDisabled}
             onClick={() => onQuickAction?.("基于当前小说信息，为生产前的题材、风格、视角、节奏、章长和 AI 自由度各给出 3 个备选答案。")}
-          >
-            {t("creativeHub.genAlternatives", "生成备选")}
-          </Button>
+          >{i18next.t("creativeHub.novelProductionStarterCard.f6lw8j")}</Button>
         </div>
       </div>
     </div>

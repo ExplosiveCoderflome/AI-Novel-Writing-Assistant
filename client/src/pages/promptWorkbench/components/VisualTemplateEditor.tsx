@@ -33,10 +33,10 @@ const PromptTokenPlugin = createSlatePlugin({
 });
 
 const REFERENCE_GROUP_LABELS: Record<PromptTemplateReferenceItem["group"], string> = {
-  required_context: i18next.t("gen.pages.promptWorkbench.components.VisualTemplateEditor.gen_249df3d6"),
-  optional_context: i18next.t("gen.pages.promptWorkbench.components.VisualTemplateEditor.gen_09053474"),
-  input: i18next.t("gen.pages.promptWorkbench.components.VisualTemplateEditor.gen_6f1fc776"),
-  slot: i18next.t("gen.pages.promptWorkbench.components.VisualTemplateEditor.gen_5e8e1d63"),
+  required_context: i18next.t("dict.gen_249df3d6"),
+  optional_context: i18next.t("dict.gen_09053474"),
+  input: i18next.t("dict.gen_6f1fc776"),
+  slot: i18next.t("dict.gen_5e8e1d63"),
 };
 
 function groupReferences(items: PromptTemplateReferenceItem[], query: string) {
@@ -69,13 +69,13 @@ function TokenMenu(props: {
         <Input
           value={props.query}
           onChange={(event) => props.onQueryChange(event.target.value)}
-          placeholder={i18next.t("gen.pages.promptWorkbench.components.VisualTemplateEditor.gen_7ca6421c")}
+          placeholder={i18next.t("dict.gen_7ca6421c")}
           className="h-8 border-[#cbdad6]"
         />
       </div>
       <div className="max-h-80 overflow-auto p-2">
         {grouped.length === 0 ? (
-          <div className="px-2 py-3 text-sm text-muted-foreground">{i18next.t("gen.pages.promptWorkbench.components.VisualTemplateEditor.gen_d410caa8")}</div>
+          <div className="px-2 py-3 text-sm text-muted-foreground">{i18next.t("dict.gen_d410caa8")}</div>
         ) : grouped.map((section) => (
           <div key={section.group} className="mb-2 last:mb-0">
             <div className="px-2 pb-1 text-[11px] font-semibold text-[#52606d]">
@@ -94,7 +94,7 @@ function TokenMenu(props: {
                     <div className="flex items-center justify-between gap-2">
                       <span className="text-sm font-medium text-[#25443f]">{displayLabel}</span>
                       {item.required ? (
-                        <span className="rounded-md bg-[#eaf7f2] px-1.5 py-0.5 text-[11px] text-[#0f766e]">{i18next.t("gen.pages.promptWorkbench.components.VisualTemplateEditor.gen_ca611377", "必需")}</span>
+                        <span className="rounded-md bg-[#eaf7f2] px-1.5 py-0.5 text-[11px] text-[#0f766e]">{i18next.t("dict.gen_ca611377")}</span>
                       ) : null}
                     </div>
                     <div className="mt-1 font-mono text-[11px] text-muted-foreground">{item.token}</div>
@@ -106,7 +106,7 @@ function TokenMenu(props: {
         ))}
       </div>
       <div className="border-t border-[#dce8e4] p-2 text-right">
-        <Button type="button" variant="ghost" size="sm" onClick={props.onClose}>{i18next.t("gen.pages.promptWorkbench.components.VisualTemplateEditor.gen_b15d9127", "关闭")}</Button>
+        <Button type="button" variant="ghost" size="sm" onClick={props.onClose}>{i18next.t("dict.gen_b15d9127")}</Button>
       </div>
     </div>
   );
@@ -139,8 +139,8 @@ function PromptTokenElement(props: {
     element.label,
     keyText,
     element.description,
-    element.required ? i18next.t("gen.pages.promptWorkbench.components.VisualTemplateEditor.gen_249df3d6") : "",
-    element.hasPreviewBlock === false ? i18next.t("gen.pages.promptWorkbench.components.VisualTemplateEditor.gen_d6081554") : "",
+    element.required ? i18next.t("dict.gen_249df3d6") : "",
+    element.hasPreviewBlock === false ? i18next.t("dict.gen_d6081554") : "",
   ].filter(Boolean).join("\n");
 
   return (
@@ -216,7 +216,7 @@ function TemplateSourceTextarea(props: {
       <div className="flex items-center justify-between gap-3 border-b border-[#e1ebe8] px-3 py-2">
         <div>
           <div className="text-sm font-semibold text-[#25443f]">{props.label}</div>
-          <div className="text-[11px] text-muted-foreground">{i18next.t("gen.pages.promptWorkbench.components.VisualTemplateEditor.gen_71008670")}</div>
+          <div className="text-[11px] text-muted-foreground">{i18next.t("dict.gen_71008670")}</div>
         </div>
         <Button
           type="button"
@@ -226,7 +226,7 @@ function TemplateSourceTextarea(props: {
           onClick={() => props.onOpenTokenMenu(props.role)}
           disabled={props.disabled}
         >
-          <Sparkles className="mr-1.5 h-3.5 w-3.5" />{i18next.t("gen.pages.promptWorkbench.components.VisualTemplateEditor.gen_b0916aa5", "插入引用")}</Button>
+          <Sparkles className="mr-1.5 h-3.5 w-3.5" />{i18next.t("promptWorkbench.visualTemplateEditor.cxmv2e")}</Button>
       </div>
       <textarea
         ref={props.textareaRef}
@@ -392,7 +392,7 @@ export function VisualTemplateEditor(props: {
             onClick={() => setSourceMode(false)}
             className="text-[#0f5f59] hover:bg-[#eef7f4] hover:text-[#0f5f59]"
           >
-            <Tags className="mr-1.5 h-3.5 w-3.5" />{i18next.t("gen.pages.promptWorkbench.components.VisualTemplateEditor.gen_185df7fb", "返回可视化编辑")}</Button>
+            <Tags className="mr-1.5 h-3.5 w-3.5" />{i18next.t("promptWorkbench.visualTemplateEditor.ye61zk")}</Button>
         </div>
       </div>
     );
@@ -403,7 +403,7 @@ export function VisualTemplateEditor(props: {
       <div className="flex items-center justify-between gap-3 border-b border-[#e1ebe8] px-3 py-2">
         <div>
           <div className="text-sm font-semibold text-[#25443f]">{props.label}</div>
-          <div className="text-[11px] text-muted-foreground">{i18next.t("gen.pages.promptWorkbench.components.VisualTemplateEditor.gen_5eb6247d")}</div>
+          <div className="text-[11px] text-muted-foreground">{i18next.t("dict.gen_5eb6247d")}</div>
         </div>
         <div className="flex flex-wrap gap-2">
           <Button
@@ -414,7 +414,7 @@ export function VisualTemplateEditor(props: {
             onClick={() => setSourceMode(true)}
             disabled={props.disabled}
           >
-            <Code2 className="mr-1.5 h-3.5 w-3.5" />{i18next.t("gen.pages.promptWorkbench.components.VisualTemplateEditor.gen_8ff17786", "源码视图")}</Button>
+            <Code2 className="mr-1.5 h-3.5 w-3.5" />{i18next.t("promptWorkbench.visualTemplateEditor.eg9hk9")}</Button>
           <Button
             type="button"
             variant="outline"
@@ -426,7 +426,7 @@ export function VisualTemplateEditor(props: {
             }}
             disabled={props.disabled}
           >
-            <Sparkles className="mr-1.5 h-3.5 w-3.5" />{i18next.t("gen.pages.promptWorkbench.components.VisualTemplateEditor.gen_b0916aa5", "插入引用")}</Button>
+            <Sparkles className="mr-1.5 h-3.5 w-3.5" />{i18next.t("promptWorkbench.visualTemplateEditor.cxmv2e")}</Button>
         </div>
       </div>
       <div className="flex min-h-0">
@@ -440,7 +440,7 @@ export function VisualTemplateEditor(props: {
             <Plate editor={editor} onValueChange={handleValueChange}>
               <PlateContent
                 readOnly={props.disabled}
-                placeholder={i18next.t("gen.pages.promptWorkbench.components.VisualTemplateEditor.gen_98f67dda")}
+                placeholder={i18next.t("dict.gen_98f67dda")}
                 renderElement={renderTemplateElement}
                 onFocus={() => props.onFocusRole(props.role)}
                 onKeyDown={handleKeyDown}

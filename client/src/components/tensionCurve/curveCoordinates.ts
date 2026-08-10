@@ -1,4 +1,3 @@
-import i18next from "i18next";
 import { scaleLinear } from "d3-scale";
 import { curveMonotoneX, line } from "d3-shape";
 import type { BeatBand, TensionCurvePoint } from "./tensionCurveTypes";
