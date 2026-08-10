@@ -85,12 +85,12 @@ function hasChapterPlanContent(chapter: VolumePlan["chapters"][number]): boolean
 }
 
 function formatTaskStatus(status: string | null | undefined): string {
-  if (status === "running") return i18next.t("gen.components.layout.NovelWorkspaceRail.gen_fb852fc6");
-  if (status === "queued") return i18next.t("gen.components.layout.NovelWorkspaceRail.gen_e5ac1d20");
-  if (status === "waiting_approval") return i18next.t("gen.components.layout.NovelWorkspaceRail.gen_5cb42476");
-  if (status === "failed") return i18next.t("gen.components.layout.NovelWorkspaceRail.gen_c195df63");
-  if (status === "succeeded") return i18next.t("gen.components.layout.NovelWorkspaceRail.gen_fad5222c");
-  return i18next.t("gen.components.layout.NovelWorkspaceRail.gen_87bb5bbc");
+  if (status === "running") return i18next.t("tasks.levelRunning");
+  if (status === "queued") return i18next.t("tasks.filterStatusQueued");
+  if (status === "waiting_approval") return i18next.t("dict.gen_5cb42476");
+  if (status === "failed") return i18next.t("dict.gen_c195df63");
+  if (status === "succeeded") return i18next.t("tasks.filterStatusSucceeded");
+  return i18next.t("dict.gen_87bb5bbc");
 }
 
 function shouldShowBookAutomationProjectionWithoutActiveTask(input: {
@@ -124,7 +124,6 @@ function shouldShowBookAutomationProjectionWithoutActiveTask(input: {
 }
 
 export default function NovelWorkspaceRail(props: NovelWorkspaceRailProps) {
-  const { t } = useTranslation();
   const { novelId, chapterId = "", collapsed, onToggle, onSwitchToProjectNav } = props;
   const navigate = useNavigate();
   const queryClient = useQueryClient();
@@ -307,12 +306,12 @@ export default function NovelWorkspaceRail(props: NovelWorkspaceRailProps) {
           : stepReadiness[step.key]
       );
       const statusLabel = isWorkflowCurrent
-        ? isSelected ? i18next.t("gen.components.layout.NovelWorkspaceRail.gen_59cecbff") : i18next.t("gen.components.layout.NovelWorkspaceRail.gen_32c2b521")
+        ? isSelected ? i18next.t("onboarding.currentStep") : i18next.t("dict.gen_32c2b521")
         : isSelected
-          ? i18next.t("gen.components.layout.NovelWorkspaceRail.gen_082d10d0")
+          ? i18next.t("dict.gen_082d10d0")
           : isDone
-            ? i18next.t("gen.components.layout.NovelWorkspaceRail.gen_fad5222c")
-            : i18next.t("gen.components.layout.NovelWorkspaceRail.gen_c1d8599d");
+            ? i18next.t("tasks.filterStatusSucceeded")
+            : i18next.t("dict.gen_c1d8599d");
 
       return {
         ...step,
@@ -326,13 +325,13 @@ export default function NovelWorkspaceRail(props: NovelWorkspaceRailProps) {
 
   const completedStepCount = stepStates.filter((item) => item.isDone).length;
   const workflowProgressCount = workflowIndex >= 0 ? workflowIndex + 1 : completedStepCount;
-  const novelTitle = novelDetail?.title?.trim() || i18next.t("gen.components.layout.NovelWorkspaceRail.gen_d018fb48");
+  const novelTitle = novelDetail?.title?.trim() || i18next.t("dict.gen_d018fb48");
   const runtimeActionSummary = runtimeProjection?.nextActionLabel
     ? `下一步：${runtimeProjection.nextActionLabel}`
     : null;
   const runtimeSummary = dashboardView?.currentAction?.trim()
     || (dashboardView?.requiresUserAction
-      ? `需要处理：${dashboardView.userActionReason ?? i18next.t("gen.components.layout.NovelWorkspaceRail.gen_719cf084")}`
+      ? `需要处理：${dashboardView.userActionReason ?? i18next.t("dict.gen_719cf084")}`
       : null)
     || runtimeSnapshot?.displayState.currentAction?.trim()
       || runtimeProjection?.headline
@@ -344,11 +343,11 @@ export default function NovelWorkspaceRail(props: NovelWorkspaceRailProps) {
   const cockpitSummary = activeTask
     ? runtimeSummary
       || (activeTask.status === "failed"
-      ? activeTask.lastError || i18next.t("gen.components.layout.NovelWorkspaceRail.gen_3fff0abf")
+      ? activeTask.lastError || i18next.t("dict.gen_3fff0abf")
       : activeTask.status === "waiting_approval"
         ? `等待处理：${getNovelWorkspaceTabLabel(workflowCurrentTab ?? activeTab)}`
       : activeTask.currentItemLabel || `AI 正在推进 ${getNovelWorkspaceTabLabel(workflowCurrentTab ?? activeTab)}`)
-    : i18next.t("gen.components.layout.NovelWorkspaceRail.gen_3461732b");
+    : i18next.t("dict.gen_3461732b");
   const cockpitProjection = useMemo(() => {
     if (!visibleBookAutomationProjection || !runtimeSummary?.trim()) {
       return visibleBookAutomationProjection;
@@ -402,7 +401,7 @@ export default function NovelWorkspaceRail(props: NovelWorkspaceRailProps) {
   const continueDirectorMutation = useMutation({
     mutationFn: async () => {
       if (!activeTask?.id) {
-        throw new Error(i18next.t("gen.components.layout.NovelWorkspaceRail.gen_8b4231ef"));
+        throw new Error(i18next.t("dict.gen_8b4231ef"));
       }
       return continueNovelWorkflow(activeTask.id, {
         continuationMode: resolveDirectorContinueMode(activeTask),
@@ -434,7 +433,7 @@ export default function NovelWorkspaceRail(props: NovelWorkspaceRailProps) {
       toast.success(feedback.message);
     },
     onError: (error) => {
-      toast.error(error instanceof Error ? error.message : i18next.t("gen.components.layout.NovelWorkspaceRail.gen_bb8020bb"));
+      toast.error(error instanceof Error ? error.message : i18next.t("toasts.failedAutoDirector"));
     },
   });
 
@@ -454,7 +453,7 @@ export default function NovelWorkspaceRail(props: NovelWorkspaceRailProps) {
                   <BookOpenText className="h-4 w-4" />
                 </div>
                 <div className="min-w-0">
-                  <div className="text-[11px] font-medium uppercase tracking-[0.18em] text-muted-foreground">{i18next.t("gen.components.layout.NovelWorkspaceRail.gen_cbaa05fa", "创作工作台")}</div>
+                  <div className="text-[11px] font-medium uppercase tracking-[0.18em] text-muted-foreground">{i18next.t("layout.novelWorkspaceRail.npze6g")}</div>
                   <div className="truncate text-sm font-semibold text-foreground">{novelTitle}</div>
                 </div>
               </div>
@@ -465,8 +464,8 @@ export default function NovelWorkspaceRail(props: NovelWorkspaceRailProps) {
               size="icon"
               className="h-8 w-8 shrink-0 text-muted-foreground"
               onClick={onToggle}
-              aria-label={collapsed ? i18next.t("gen.components.layout.NovelWorkspaceRail.gen_74f8ea9b") : i18next.t("gen.components.layout.NovelWorkspaceRail.gen_b7ae016b")}
-              title={collapsed ? i18next.t("gen.components.layout.NovelWorkspaceRail.gen_74f8ea9b") : i18next.t("gen.components.layout.NovelWorkspaceRail.gen_b7ae016b")}
+              aria-label={collapsed ? i18next.t("dict.gen_74f8ea9b") : i18next.t("dict.gen_b7ae016b")}
+              title={collapsed ? i18next.t("dict.gen_74f8ea9b") : i18next.t("dict.gen_b7ae016b")}
             >
               {collapsed ? <ChevronRight className="h-4 w-4" /> : <ChevronLeft className="h-4 w-4" />}
             </Button>
@@ -478,7 +477,7 @@ export default function NovelWorkspaceRail(props: NovelWorkspaceRailProps) {
             variant="outline"
             className="justify-start bg-background"
             onClick={() => navigate("/novels")}
-          >{i18next.t("gen.components.layout.NovelWorkspaceRail.gen_9c469174", "返回小说列表")}</Button>
+          >{i18next.t("dict.gen_9c469174")}</Button>
         ) : (
           <Button
             type="button"
@@ -486,8 +485,8 @@ export default function NovelWorkspaceRail(props: NovelWorkspaceRailProps) {
             size="icon"
             className="mx-auto h-9 w-9"
             onClick={() => navigate("/novels")}
-            title={i18next.t("gen.components.layout.NovelWorkspaceRail.gen_9c469174")}
-            aria-label={i18next.t("gen.components.layout.NovelWorkspaceRail.gen_9c469174")}
+            title={i18next.t("dict.gen_9c469174")}
+            aria-label={i18next.t("dict.gen_9c469174")}
           >
             <BookOpenText className="h-4 w-4" />
           </Button>
@@ -496,7 +495,7 @@ export default function NovelWorkspaceRail(props: NovelWorkspaceRailProps) {
         {!collapsed ? (
           <div className="rounded-2xl bg-background/75 px-3 py-2 text-xs text-muted-foreground">
             <div className="flex items-center justify-between gap-2">
-              <span>{i18next.t("gen.components.layout.NovelWorkspaceRail.workflowPrefix")}{getNovelWorkspaceTabLabel(workflowCurrentTab ?? activeTab)}</span>
+              <span>{i18next.t("layout.novelWorkspaceRail.gm92o")}{getNovelWorkspaceTabLabel(workflowCurrentTab ?? activeTab)}</span>
               <span>{workflowProgressCount}/{NOVEL_WORKSPACE_FLOW_STEPS.length}</span>
             </div>
           </div>
@@ -568,7 +567,7 @@ export default function NovelWorkspaceRail(props: NovelWorkspaceRailProps) {
           <button
             type="button"
             onClick={() => goToTab("history")}
-            title={i18next.t("gen.components.layout.NovelWorkspaceRail.gen_6fdd8590")}
+            title={i18next.t("home.versionHistory")}
             className={cn(
               "flex w-full items-center rounded-xl transition-colors hover:bg-background/75",
               collapsed ? "justify-center px-2 py-3" : "gap-3 px-3 py-3 text-left",
@@ -576,7 +575,7 @@ export default function NovelWorkspaceRail(props: NovelWorkspaceRailProps) {
             )}
           >
             <History className="h-4 w-4 shrink-0" />
-            {!collapsed ? <span className="text-sm font-medium">{i18next.t("gen.components.layout.NovelWorkspaceRail.gen_6fdd8590")}</span> : null}
+            {!collapsed ? <span className="text-sm font-medium">{i18next.t("home.versionHistory")}</span> : null}
           </button>
 
           {!collapsed ? (
@@ -598,7 +597,7 @@ export default function NovelWorkspaceRail(props: NovelWorkspaceRailProps) {
                 className="h-9 w-9"
                 onClick={openProgressDialog}
                 title={`查看导演进度：${formatTaskStatus(activeTask?.status)}`}
-                aria-label={i18next.t("gen.components.layout.NovelWorkspaceRail.gen_efbfb3ff")}
+                aria-label={i18next.t("dict.gen_efbfb3ff")}
               >
                 <ListTodo className="h-4 w-4" />
               </Button>
@@ -609,8 +608,8 @@ export default function NovelWorkspaceRail(props: NovelWorkspaceRailProps) {
                   variant="outline"
                   className="h-9 w-9"
                   onClick={onSwitchToProjectNav}
-                  title={i18next.t("gen.components.layout.NovelWorkspaceRail.gen_047a2c31")}
-                  aria-label={i18next.t("gen.components.layout.NovelWorkspaceRail.gen_047a2c31")}
+                  title={i18next.t("dict.gen_047a2c31")}
+                  aria-label={i18next.t("dict.gen_047a2c31")}
                 >
                   <LayoutDashboard className="h-4 w-4" />
                 </Button>
@@ -624,8 +623,8 @@ export default function NovelWorkspaceRail(props: NovelWorkspaceRailProps) {
       <Dialog open={progressDialogOpen} onOpenChange={setProgressDialogOpen}>
         <DialogContent className="max-h-[88vh] overflow-hidden p-0 sm:max-w-5xl">
           <DialogHeader className="border-b px-5 py-4 text-left">
-            <DialogTitle>{i18next.t("gen.components.layout.NovelWorkspaceRail.aiAutoDirectorProgress")}</DialogTitle>
-            <DialogDescription>{i18next.t("gen.components.layout.NovelWorkspaceRail.gen_34c53534", "查看这本书的推进步骤、最近进展和 AI 用量。")}</DialogDescription>
+            <DialogTitle>{i18next.t("dict.aiAutoDirectorProgress")}</DialogTitle>
+            <DialogDescription>{i18next.t("layout.novelWorkspaceRail.m4mdi")}</DialogDescription>
           </DialogHeader>
           <div className="max-h-[calc(88vh-6.5rem)] overflow-y-auto p-4 sm:p-6">
             <NovelAutoDirectorProgressPanel

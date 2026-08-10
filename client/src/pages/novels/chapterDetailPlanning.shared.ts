@@ -1,4 +1,3 @@
-import i18next from "i18next";
 import type { VolumePlan } from "@ai-novel/shared/types/novel";
 import { assessChapterExecutionContractShape } from "@ai-novel/shared/types/chapterTaskSheetQuality";
 

@@ -135,15 +135,15 @@ export function resolveBookAnalysisNextAction(input: {
     if (input.analysesCount > 0) {
       return {
         tone: "info",
-        title: "选择一份拆书分析",
-        description: "从分析列表选择记录后，这里会显示来源、生成阶段和可阅读结果。",
+        title: i18next.t("bookAnalysis.bookAnalysisWorkspaceViewModel.fz09wn"),
+        description: i18next.t("bookAnalysis.bookAnalysisWorkspaceViewModel.19wqof"),
         action: "select",
       };
     }
     return {
       tone: "info",
-      title: "创建第一份拆书分析",
-      description: "选择一份知识文档和分析范围，AI 会把结果整理为可阅读、可引用的小节。",
+      title: i18next.t("bookAnalysis.bookAnalysisWorkspaceViewModel.1rlsfo"),
+      description: i18next.t("bookAnalysis.bookAnalysisWorkspaceViewModel.9muso5"),
       action: "create",
       actionLabel: "新建拆书",
     };
@@ -167,7 +167,7 @@ export function resolveBookAnalysisNextAction(input: {
   if ((status === "failed" || status === "cancelled") && isBookAnalysisBudgetExceeded(analysis.lastError)) {
     return {
       tone: "warning",
-      title: "扩容预算后继续生成",
+      title: i18next.t("bookAnalysis.bookAnalysisWorkspaceViewModel.a9vqvy"),
       description: `已有 ${sections.readable} 个可阅读小节会保留。${describeMissingExpectedSections(sections)}扩容续跑只处理尚未成功的部分。`,
       action: "resume_budget",
       actionLabel: "扩容预算并续跑",
@@ -178,8 +178,8 @@ export function resolveBookAnalysisNextAction(input: {
     if (sections.readable === 0) {
       return {
         tone: "danger",
-        title: "任务完成，但没有可展示的拆书内容",
-        description: "源文档不会受影响。请重新生成分析，或打开任务中心查看这次任务的详细记录。",
+        title: i18next.t("bookAnalysis.bookAnalysisWorkspaceViewModel.oya78w"),
+        description: i18next.t("bookAnalysis.bookAnalysisWorkspaceViewModel.b37c2b"),
         action: "rebuild",
         actionLabel: "重新生成分析",
       };
@@ -187,7 +187,7 @@ export function resolveBookAnalysisNextAction(input: {
     if (sections.missingExpected > 0) {
       return {
         tone: "warning",
-        title: "先查看已有拆书结果",
+        title: i18next.t("bookAnalysis.bookAnalysisWorkspaceViewModel.nl1aem"),
         description: `已有 ${sections.readableExpected}/${sections.expected} 个计划生成的小节可阅读，仍有 ${sections.missingExpected} 个小节可通过重新生成补齐。`,
         action: "view_results",
         actionLabel: "查看已有结果",
@@ -196,7 +196,7 @@ export function resolveBookAnalysisNextAction(input: {
     if (sections.failedExpected > 0) {
       return {
         tone: "warning",
-        title: "结果可阅读，部分小节需要复核",
+        title: i18next.t("bookAnalysis.bookAnalysisWorkspaceViewModel.5guiur"),
         description: `${sections.readableExpected}/${sections.expected} 个计划小节均有可读内容，其中 ${sections.failedExpected} 个小节最近一次生成失败。先检查保留内容，再决定是否重新生成。`,
         action: "view_results",
         actionLabel: "查看已有结果",
@@ -204,7 +204,7 @@ export function resolveBookAnalysisNextAction(input: {
     }
     return {
       tone: "success",
-      title: "拆书结果可以阅读",
+      title: i18next.t("bookAnalysis.bookAnalysisWorkspaceViewModel.344rn9"),
       description: `共 ${sections.readable} 个小节已生成，可继续查看证据、整理角色，或发布到小说知识库。`,
       action: "view_results",
       actionLabel: "查看拆书结果",
@@ -215,7 +215,7 @@ export function resolveBookAnalysisNextAction(input: {
     if (sections.readable > 0) {
       return {
         tone: "warning",
-        title: "分析已停止，已有结果仍可阅读",
+        title: i18next.t("bookAnalysis.bookAnalysisWorkspaceViewModel.66fjli"),
         description: `已保留 ${sections.readable} 个可阅读小节。${describeMissingExpectedSections(sections)}先检查已有结果，再决定是否重新生成。`,
         action: "view_results",
         actionLabel: "查看已有结果",
@@ -223,7 +223,7 @@ export function resolveBookAnalysisNextAction(input: {
     }
     return {
       tone: "danger",
-      title: "拆书分析需要重新生成",
+      title: i18next.t("bookAnalysis.bookAnalysisWorkspaceViewModel.uxf7wf"),
       description: analysis.lastError?.trim() || "本次分析没有生成可阅读结果，源文档不会受影响。",
       action: "rebuild",
       actionLabel: "重新生成分析",
@@ -244,8 +244,8 @@ export function resolveBookAnalysisNextAction(input: {
 
   return {
     tone: "info",
-    title: "开始生成拆书结果",
-    description: "AI 会按选定范围逐项生成结构、人物、世界和写法结论，并保留每个已完成小节。",
+    title: i18next.t("bookAnalysis.bookAnalysisWorkspaceViewModel.wve6z"),
+    description: i18next.t("bookAnalysis.bookAnalysisWorkspaceViewModel.tt94xa"),
     action: "rebuild",
     actionLabel: "开始生成",
   };

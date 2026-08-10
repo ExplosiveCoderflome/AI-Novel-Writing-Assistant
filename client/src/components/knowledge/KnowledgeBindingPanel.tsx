@@ -55,15 +55,15 @@ export default function KnowledgeBindingPanel(props: KnowledgeBindingPanelProps)
 
   return (
     <div className="space-y-3 rounded-md border p-3">
-      <div className="text-sm font-medium">{i18next.t("gen.components.knowledge.KnowledgeBindingPanel.titleFallback")}</div>
+      <div className="text-sm font-medium">{i18next.t("dict.titleFallback")}</div>
       <KnowledgeDocumentPicker
         selectedIds={selectedIds}
         onChange={(next) => setSelectedIds(next ?? [])}
         queryStatus={undefined}
-        description={i18next.t("gen.components.knowledge.KnowledgeBindingPanel.gen_e7141af4")}
+        description={i18next.t("dict.gen_e7141af4")}
       />
       <Button onClick={() => saveMutation.mutate()} disabled={saveMutation.isPending}>
-        {saveMutation.isPending ? i18next.t("gen.components.knowledge.KnowledgeBindingPanel.savingInProgressDotDotDot") : i18next.t("gen.components.knowledge.KnowledgeBindingPanel.saveBinding")}
+        {saveMutation.isPending ? i18next.t("common.saving") : i18next.t("dict.saveBinding")}
       </Button>
     </div>
   );

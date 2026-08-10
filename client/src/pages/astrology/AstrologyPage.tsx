@@ -6,10 +6,10 @@ export default function AstrologyPage() {
   return (
     <Card>
       <CardHeader>
-        <CardTitle>{i18next.t("gen.pages.astrology.AstrologyPage.gen_79df51a9")}</CardTitle>
-        <CardDescription>{i18next.t("gen.pages.astrology.AstrologyPage.gen_473f55bf")}</CardDescription>
+        <CardTitle>{i18next.t("dict.gen_79df51a9")}</CardTitle>
+        <CardDescription>{i18next.t("dict.gen_473f55bf")}</CardDescription>
       </CardHeader>
-      <CardContent>{i18next.t("gen.pages.astrology.AstrologyPage.gen_6f6dd5d7")}</CardContent>
+      <CardContent>{i18next.t("dict.gen_6f6dd5d7")}</CardContent>
     </Card>
   );
 }

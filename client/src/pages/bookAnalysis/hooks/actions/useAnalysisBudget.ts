@@ -23,12 +23,12 @@ export function useAnalysisBudget(input: {
         return;
       }
       onAnalysisUpdated(response.data);
-      toast.success(i18next.t("gen.pages.bookAnalysis.hooks.actions.useAnalysisBudget.gen_858e0779"));
+      toast.success(i18next.t("dict.gen_858e0779"));
       await queryClient.invalidateQueries({ queryKey: ["book-analysis"] });
       await refreshAnalysisData(payload.id);
     },
     onError: (error) => {
-      toast.error(error instanceof Error ? error.message : i18next.t("gen.pages.bookAnalysis.hooks.actions.useAnalysisBudget.gen_8ee0a0a4"));
+      toast.error(error instanceof Error ? error.message : i18next.t("dict.gen_8ee0a0a4"));
     },
   });
 
@@ -40,12 +40,12 @@ export function useAnalysisBudget(input: {
         return;
       }
       onAnalysisUpdated(response.data);
-      toast.success(i18next.t("gen.pages.bookAnalysis.hooks.actions.useAnalysisBudget.gen_b0ca6863"));
+      toast.success(i18next.t("dict.gen_b0ca6863"));
       await queryClient.invalidateQueries({ queryKey: ["book-analysis"] });
       await refreshAnalysisData(payload.id);
     },
     onError: (error) => {
-      toast.error(error instanceof Error ? error.message : i18next.t("gen.pages.bookAnalysis.hooks.actions.useAnalysisBudget.gen_8538bbd0"));
+      toast.error(error instanceof Error ? error.message : i18next.t("dict.gen_8538bbd0"));
     },
   });
 

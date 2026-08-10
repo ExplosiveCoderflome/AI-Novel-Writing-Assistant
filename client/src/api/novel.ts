@@ -1,4 +1,3 @@
-import i18next from "i18next";
 export * from "./novel/shared";
 export * from "./novel/core";
 export * from "./novel/chapters";

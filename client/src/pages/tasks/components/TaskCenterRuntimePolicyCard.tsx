@@ -1,5 +1,4 @@
 import i18next from "i18next";
-import { useTranslation } from "react-i18next";
 import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import type {
@@ -21,23 +20,23 @@ interface TaskCenterRuntimePolicyCardProps {
 const POLICY_OPTIONS: Array<{ value: DirectorPolicyMode; label: string; description: string }> = [
   {
     value: "suggest_only",
-    label: "只给建议",
-    description: "只分析和给出建议，不自动写入规划或正文。",
+    label: i18next.t("tasks.taskCenterRuntimePolicyCard.b42kir"),
+    description: i18next.t("tasks.taskCenterRuntimePolicyCard.4chujy"),
   },
   {
     value: "run_next_step",
-    label: "推进下一步",
-    description: "只执行当前最小步骤，完成后停下来让你检查。",
+    label: i18next.t("tasks.taskCenterRuntimePolicyCard.i24uhv"),
+    description: i18next.t("tasks.taskCenterRuntimePolicyCard.1uw6xn"),
   },
   {
     value: "run_until_gate",
-    label: "推进到检查点",
-    description: "连续推进到下一个需要确认的节点。",
+    label: i18next.t("tasks.taskCenterRuntimePolicyCard.91gq7r"),
+    description: i18next.t("tasks.taskCenterRuntimePolicyCard.uq7ivv"),
   },
   {
     value: "auto_safe_scope",
-    label: "安全范围自动推进",
-    description: "仅在系统判断风险较低的范围内继续自动处理。",
+    label: i18next.t("tasks.taskCenterRuntimePolicyCard.vj93gf"),
+    description: i18next.t("tasks.taskCenterRuntimePolicyCard.8qnol2"),
   },
 ];
 
@@ -49,7 +48,6 @@ export default function TaskCenterRuntimePolicyCard({
   taskId,
   snapshot,
 }: TaskCenterRuntimePolicyCardProps) {
-  const { t } = useTranslation();
   const queryClient = useQueryClient();
   const currentMode = snapshot?.policy.mode ?? "run_until_gate";
   const [selectedMode, setSelectedMode] = useState<DirectorPolicyMode>(currentMode);
@@ -67,7 +65,7 @@ export default function TaskCenterRuntimePolicyCard({
     }),
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: queryKeys.tasks.directorRuntime(taskId) });
-      toast.success("导演推进方式已更新");
+      toast.success(i18next.t("tasks.taskCenterRuntimePolicyCard.24q7bh"));
     },
     onError: (error) => {
       toast.error(error instanceof Error ? error.message : "更新导演推进方式失败");
@@ -88,8 +86,8 @@ export default function TaskCenterRuntimePolicyCard({
     <div className="rounded-md border bg-muted/20 p-3">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <div className="font-medium">{i18next.t("gen.pages.tasks.components.TaskCenterRuntimePolicyCard.gen_fac11603", "导演推进方式")}</div>
-          <div className="mt-1 text-sm leading-6 text-muted-foreground">{i18next.t("gen.pages.tasks.components.TaskCenterRuntimePolicyCard.gen_846acfda", "选择系统接下来怎么推进这个导演任务。")}</div>
+          <div className="font-medium">{i18next.t("tasks.taskCenterRuntimePolicyCard.iszedd")}</div>
+          <div className="mt-1 text-sm leading-6 text-muted-foreground">{i18next.t("tasks.taskCenterRuntimePolicyCard.1e5oln")}</div>
         </div>
         <Badge variant="outline">{formatPolicyMode(snapshot.policy.mode)}</Badge>
       </div>
@@ -114,8 +112,8 @@ export default function TaskCenterRuntimePolicyCard({
             onChange={(event) => setAllowExpensiveReview(event.target.checked)}
           />
           <span>
-            <span className="block font-medium">{i18next.t("gen.pages.tasks.components.TaskCenterRuntimePolicyCard.gen_4b97994b", "允许执行更完整的审校")}</span>
-            <span className="block text-xs leading-5 text-muted-foreground">{i18next.t("gen.pages.tasks.components.TaskCenterRuntimePolicyCard.gen_bffe15e1", "用于章节质量检查、近期章节复盘等步骤，系统会在执行前记录策略。")}</span>
+            <span className="block font-medium">{i18next.t("tasks.taskCenterRuntimePolicyCard.6maxi4")}</span>
+            <span className="block text-xs leading-5 text-muted-foreground">{i18next.t("tasks.taskCenterRuntimePolicyCard.h2ojy4")}</span>
           </span>
         </label>
         <label className="flex items-start gap-2 text-sm">
@@ -126,8 +124,8 @@ export default function TaskCenterRuntimePolicyCard({
             onChange={(event) => setMayOverwriteUserContent(event.target.checked)}
           />
           <span>
-            <span className="block font-medium">{i18next.t("gen.pages.tasks.components.TaskCenterRuntimePolicyCard.gen_0c3cb38e", "允许改写受保护的内容")}</span>
-            <span className="block text-xs leading-5 text-muted-foreground">{i18next.t("gen.pages.tasks.components.TaskCenterRuntimePolicyCard.gen_c9d14820", "仅在你确认要让系统处理已编辑正文或关键设定时开启。")}</span>
+            <span className="block font-medium">{i18next.t("tasks.taskCenterRuntimePolicyCard.4i6dyp")}</span>
+            <span className="block text-xs leading-5 text-muted-foreground">{i18next.t("tasks.taskCenterRuntimePolicyCard.65jxza")}</span>
           </span>
         </label>
       </div>

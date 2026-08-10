@@ -213,7 +213,7 @@ export function useAutoDirectorCreateController(input: UseAutoDirectorCreateCont
       setIdeaInspirations(response.data?.ideas ?? []);
     },
     onError: (error) => {
-      toast.error(error instanceof Error ? error.message : i18next.t("gen.pages.novels.autoDirector.useAutoDirectorCreateController.gen_116e1049"));
+      toast.error(error instanceof Error ? error.message : i18next.t("dict.gen_116e1049"));
     },
   });
 
@@ -291,7 +291,7 @@ export function useAutoDirectorCreateController(input: UseAutoDirectorCreateCont
   const ensureWorkflowTask = async () => {
     const nextIdea = requestIdea;
     if (!nextIdea) {
-      throw new Error(i18next.t("gen.pages.novels.autoDirector.useAutoDirectorCreateController.gen_eaaf6955"));
+      throw new Error(i18next.t("dict.gen_eaaf6955"));
     }
     if (workflowTaskId) {
       return workflowTaskId;
@@ -337,7 +337,7 @@ export function useAutoDirectorCreateController(input: UseAutoDirectorCreateCont
 
   const buildCandidateRequestPayload = (currentWorkflowTaskId: string) => {
     if (!requestIdea) {
-      throw new Error(i18next.t("gen.pages.novels.autoDirector.useAutoDirectorCreateController.gen_eaaf6955"));
+      throw new Error(i18next.t("dict.gen_eaaf6955"));
     }
     return buildAutoDirectorRequestPayload(
       directorBasicForm,
@@ -378,7 +378,7 @@ export function useAutoDirectorCreateController(input: UseAutoDirectorCreateCont
     mutationFn: async (payload: { candidate: DirectorCandidate; workflowTaskId?: string }) => {
       const currentWorkflowTaskId = payload.workflowTaskId || await ensureWorkflowTask();
       if (!requestIdea) {
-        throw new Error(i18next.t("gen.pages.novels.autoDirector.useAutoDirectorCreateController.gen_eaaf6955"));
+        throw new Error(i18next.t("dict.gen_eaaf6955"));
       }
       const autoExecutionPlan = buildAutoExecutionPlanForRunMode();
       const response = await confirmDirectorCandidate({
@@ -402,8 +402,8 @@ export function useAutoDirectorCreateController(input: UseAutoDirectorCreateCont
     onSuccess: async ({ command, workflowTaskId: nextWorkflowTaskId }) => {
       if (!command) {
         setDialogMode("execution_failed");
-        setExecutionError(i18next.t("gen.pages.novels.autoDirector.useAutoDirectorCreateController.gen_14b51883"));
-        toast.error(i18next.t("gen.pages.novels.autoDirector.useAutoDirectorCreateController.gen_14b51883"));
+        setExecutionError(i18next.t("dict.gen_14b51883"));
+        toast.error(i18next.t("dict.gen_14b51883"));
         return;
       }
       if (nextWorkflowTaskId) {
@@ -419,11 +419,11 @@ export function useAutoDirectorCreateController(input: UseAutoDirectorCreateCont
           queryKey: queryKeys.tasks.detail("novel_workflow", nextWorkflowTaskId),
         });
       }
-      toast.success(i18next.t("gen.pages.novels.autoDirector.useAutoDirectorCreateController.gen_3ad0382f"));
+      toast.success(i18next.t("dict.gen_3ad0382f"));
     },
     onError: async (error, payload) => {
       setDialogMode("execution_failed");
-      setExecutionError(error instanceof Error ? error.message : i18next.t("gen.pages.novels.autoDirector.useAutoDirectorCreateController.gen_3e6ed560"));
+      setExecutionError(error instanceof Error ? error.message : i18next.t("dict.gen_3e6ed560"));
       setExecutionRequested(false);
       if (payload.workflowTaskId) {
         await queryClient.invalidateQueries({
@@ -440,7 +440,7 @@ export function useAutoDirectorCreateController(input: UseAutoDirectorCreateCont
     mutationFn: async () => {
       const taskId = directorTask?.id || workflowTaskId;
       if (!taskId) {
-        throw new Error(i18next.t("gen.pages.novels.autoDirector.useAutoDirectorCreateController.gen_8b4231ef"));
+        throw new Error(i18next.t("dict.gen_8b4231ef"));
       }
       return continueNovelWorkflow(taskId, { continuationMode: "resume" });
     },
@@ -469,10 +469,10 @@ export function useAutoDirectorCreateController(input: UseAutoDirectorCreateCont
       await Promise.allSettled(invalidations);
       setDialogMode("execution_progress");
       setExecutionError("");
-      toast.success(i18next.t("gen.pages.novels.autoDirector.useAutoDirectorCreateController.gen_64cd9396"));
+      toast.success(i18next.t("dict.gen_64cd9396"));
     },
     onError: (error) => {
-      toast.error(error instanceof Error ? error.message : i18next.t("gen.pages.novels.autoDirector.useAutoDirectorCreateController.gen_bb8020bb"));
+      toast.error(error instanceof Error ? error.message : i18next.t("toasts.failedAutoDirector"));
     },
   });
 
@@ -509,7 +509,7 @@ export function useAutoDirectorCreateController(input: UseAutoDirectorCreateCont
       });
     } catch (error) {
       confirmSubmitLockedRef.current = false;
-      const message = error instanceof Error ? error.message : i18next.t("gen.pages.novels.autoDirector.useAutoDirectorCreateController.gen_48bf4f93");
+      const message = error instanceof Error ? error.message : i18next.t("dict.gen_48bf4f93");
       setDialogMode("candidate_selection");
       setExecutionRequested(false);
       setExecutionError(message);
@@ -518,7 +518,7 @@ export function useAutoDirectorCreateController(input: UseAutoDirectorCreateCont
   };
 
   const handleBackgroundContinue = () => {
-    toast.success(i18next.t("gen.pages.novels.autoDirector.useAutoDirectorCreateController.gen_b83767c2"));
+    toast.success(i18next.t("dict.gen_b83767c2"));
     navigate("/");
   };
 

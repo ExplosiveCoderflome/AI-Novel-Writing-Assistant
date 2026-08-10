@@ -199,7 +199,7 @@ export function useNovelVolumePlanning({
     if (hasCharacters) {
       return true;
     }
-    return window.confirm(i18next.t("gen.pages.novels.hooks.useNovelVolumePlanning.gen_d1f32388"));
+    return window.confirm(i18next.t("dict.gen_d1f32388"));
   };
 
   const startStrategyGeneration = () => {
@@ -215,7 +215,7 @@ export function useNovelVolumePlanning({
 
   const startStrategyCritique = () => {
     if (!strategyPlan) {
-      setVolumeGenerationMessage(i18next.t("gen.pages.novels.hooks.useNovelVolumePlanning.gen_b348702c"));
+      setVolumeGenerationMessage(i18next.t("dict.gen_b348702c"));
       return;
     }
     startStrategyCritiqueAction({
@@ -264,11 +264,11 @@ export function useNovelVolumePlanning({
     const targetVolume = normalizedVolumeDraft.find((volume) => volume.id === volumeId);
     const targetChapter = targetVolume?.chapters.find((chapter) => chapter.id === chapterId);
     if (!targetVolume || !targetChapter) {
-      setStructuredMessage(i18next.t("gen.pages.novels.hooks.useNovelVolumePlanning.gen_2f1fbdeb"));
+      setStructuredMessage(i18next.t("dict.gen_2f1fbdeb"));
       return;
     }
     if (!findBeatSheet(beatSheets, volumeId)) {
-      setStructuredMessage(i18next.t("gen.pages.novels.hooks.useNovelVolumePlanning.gen_cec42941"));
+      setStructuredMessage(i18next.t("dict.gen_cec42941"));
       return;
     }
     if (!ensureCharacterGuard()) {
@@ -277,9 +277,9 @@ export function useNovelVolumePlanning({
     const confirmed = window.confirm([
       `将基于当前内容为第${targetChapter.chapterOrder}章《${targetChapter.title}》AI 修正${detailModeLabel(detailMode)}。`,
       hasChapterDetailDraft(targetChapter, detailMode)
-        ? i18next.t("gen.pages.novels.hooks.useNovelVolumePlanning.willPrioritizeCarryingOverCurrentlyFilledResultsOnlyFixMissingFuzzyOrNotExecutableParts")
-        : i18next.t("gen.pages.novels.hooks.useNovelVolumePlanning.gen_0dad7103"),
-      i18next.t("gen.pages.novels.hooks.useNovelVolumePlanning.unchangedChapter"),
+        ? i18next.t("dict.willPrioritizeCarryingOverCurrentlyFilledResultsOnlyFixMissingFuzzyOrNotExecutableParts")
+        : i18next.t("dict.gen_0dad7103"),
+      i18next.t("dict.unchangedChapter"),
     ].join("\n\n"));
     if (!confirmed) {
       return;
@@ -299,15 +299,15 @@ export function useNovelVolumePlanning({
     const targetVolume = normalizedVolumeDraft.find((volume) => volume.id === volumeId);
     const batch = resolveChapterDetailBatch(targetVolume, request);
     if (!targetVolume) {
-      setStructuredMessage(i18next.t("gen.pages.novels.hooks.useNovelVolumePlanning.gen_29193639"));
+      setStructuredMessage(i18next.t("dict.gen_29193639"));
       return;
     }
     if (batch.targets.length === 0) {
-      setStructuredMessage(typeof request === "string" ? i18next.t("gen.pages.novels.hooks.useNovelVolumePlanning.gen_ab82f96b") : i18next.t("gen.pages.novels.hooks.useNovelVolumePlanning.gen_72c1e215"));
+      setStructuredMessage(typeof request === "string" ? i18next.t("dict.gen_ab82f96b") : i18next.t("dict.gen_72c1e215"));
       return;
     }
     if (!findBeatSheet(beatSheets, volumeId)) {
-      setStructuredMessage(batch.targets.length > 1 ? i18next.t("gen.pages.novels.hooks.useNovelVolumePlanning.gen_e4dca0a1") : i18next.t("gen.pages.novels.hooks.useNovelVolumePlanning.gen_00dd7c8d"));
+      setStructuredMessage(batch.targets.length > 1 ? i18next.t("dict.gen_e4dca0a1") : i18next.t("dict.gen_00dd7c8d"));
       return;
     }
     if (!ensureCharacterGuard()) {
@@ -427,7 +427,7 @@ export function useNovelVolumePlanning({
   const applyCustomVolumeCount = () => {
     const resolved = resolveCustomVolumeCountInput(customVolumeCountInput, volumeCountGuidance);
     if (!resolved.value) {
-      setVolumeGenerationMessage(resolved.message ?? i18next.t("gen.pages.novels.hooks.useNovelVolumePlanning.gen_ea9ad81e"));
+      setVolumeGenerationMessage(resolved.message ?? i18next.t("dict.gen_ea9ad81e"));
       return;
     }
     setUserPreferredVolumeCount(resolved.value);

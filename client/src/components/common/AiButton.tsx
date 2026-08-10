@@ -1,4 +1,3 @@
-import i18next from "i18next";
 import type { ReactNode } from "react";
 import AiActionLabel from "@/components/common/AiActionLabel";
 import { Button, type ButtonProps } from "@/components/ui/button";

@@ -1,4 +1,3 @@
-import i18next from "i18next";
 import type { ReviewIssue } from "@ai-novel/shared/types/novel";
 
 export interface ChapterExecutionStrategy {

@@ -139,7 +139,7 @@ async function requireCheckpointIdForBranch(
   if (checkpointId || parentMessages.length === 0) {
     return checkpointId;
   }
-  const message = i18next.t("gen.pages.creativeHub.hooks.useCreativeHubRuntime.gen_004d7b1a");
+  const message = i18next.t("dict.gen_004d7b1a");
   toast.error(message);
   throw new Error(message);
 }
@@ -199,7 +199,7 @@ export function useCreativeHubRuntime({
     () =>
       async function* streamCallback(messages, config) {
         if (!isThreadReady) {
-          throw new Error(i18next.t("gen.pages.creativeHub.hooks.useCreativeHubRuntime.gen_78424316"));
+          throw new Error(i18next.t("dict.gen_78424316"));
         }
         const streamSessionId = streamSessionRef.current;
         const streamThreadId = threadId;

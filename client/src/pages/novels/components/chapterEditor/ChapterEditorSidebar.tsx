@@ -1,4 +1,3 @@
-import { useTranslation } from "react-i18next";
 import i18next from "i18next";
 const t = (key: string, options?: any) => i18next.t(key, options) as string;
 import type { Chapter, ChapterEditorDiagnosticCard, ChapterEditorWorkspaceResponse } from "@ai-novel/shared/types/novel";
@@ -35,7 +34,6 @@ function LoadingBar(props: { widthClassName?: string }) {
 }
 
 export default function ChapterEditorSidebar(props: ChapterEditorSidebarProps) {
-  const { t } = useTranslation();
   const {
     chapter,
     workspace,
@@ -64,19 +62,19 @@ export default function ChapterEditorSidebar(props: ChapterEditorSidebarProps) {
           <div className="flex flex-col gap-4">
             {onBack ? (
               <div>
-                <Button size="sm" variant="outline" onClick={onBack}>{i18next.t("gen.pages.novels.components.chapterEditor.ChapterEditorSidebar.gen_678b8321", "返回章节执行页")}</Button>
+                <Button size="sm" variant="outline" onClick={onBack}>{i18next.t("novels.chapterEditorSidebar.p1qgnw")}</Button>
               </div>
             ) : null}
 
             <div className="space-y-3">
               <div className="text-lg font-semibold leading-7 text-foreground">
-                第 {chapter.order} 章 · {chapter.title?.trim() || i18next.t("gen.pages.novels.components.chapterEditor.ChapterEditorSidebar.gen_db55d102")}
+                第 {chapter.order} 章 · {chapter.title?.trim() || i18next.t("dict.gen_db55d102")}
               </div>
 
               <div className="flex flex-wrap gap-2">
                 <MetaChip label={`${wordCount} 字`} />
                 <MetaChip label={saveStatusLabel} />
-                <MetaChip label={isWorkspaceLoading ? i18next.t("gen.pages.novels.components.chapterEditor.ChapterEditorSidebar.gen_LLM分析中_rwti") : `问题 ${workspace?.chapterMeta.openIssueCount ?? 0}`} />
+                <MetaChip label={isWorkspaceLoading ? i18next.t("dict.gen_LLM分析中_rwti") : `问题 ${workspace?.chapterMeta.openIssueCount ?? 0}`} />
               </div>
 
               {isWorkspaceLoading ? (
@@ -98,10 +96,10 @@ export default function ChapterEditorSidebar(props: ChapterEditorSidebarProps) {
                 disabled={!isDirty || isSaving}
                 className="w-full"
               >
-                {isSaving ? i18next.t("gen.pages.novels.components.chapterEditor.ChapterEditorSidebar.savingInProgressDotDotDot") : i18next.t("gen.pages.novels.components.chapterEditor.ChapterEditorSidebar.save")}
+                {isSaving ? i18next.t("common.saving") : i18next.t("common.save")}
               </Button>
               {onOpenVersionHistory ? (
-                <Button size="sm" variant="outline" onClick={onOpenVersionHistory} className="w-full">{i18next.t("gen.pages.novels.components.chapterEditor.ChapterEditorSidebar.gen_091493b9", "版本入口")}</Button>
+                <Button size="sm" variant="outline" onClick={onOpenVersionHistory} className="w-full">{i18next.t("novels.chapterEditorSidebar.euf01u")}</Button>
               ) : null}
             </div>
           </div>
@@ -109,15 +107,15 @@ export default function ChapterEditorSidebar(props: ChapterEditorSidebarProps) {
 
         <div className="shrink-0 rounded-3xl border border-border/70 bg-background p-4 shadow-sm">
           <div className="mb-3 flex items-center justify-between gap-3">
-            <div className="text-sm font-medium text-foreground">{i18next.t("gen.pages.novels.components.chapterEditor.ChapterEditorSidebar.gen_ba318561")}</div>
+            <div className="text-sm font-medium text-foreground">{i18next.t("dict.gen_ba318561")}</div>
             <span className="text-xs text-muted-foreground">
-              {isWorkspaceLoading ? i18next.t("gen.pages.novels.components.chapterEditor.ChapterEditorSidebar.aiAnalyzing") : workspace?.refreshReason ?? i18next.t("gen.pages.novels.components.chapterEditor.ChapterEditorSidebar.gen_777439b5")}
+              {isWorkspaceLoading ? i18next.t("dict.aiAnalyzing") : workspace?.refreshReason ?? i18next.t("dict.gen_777439b5")}
             </span>
           </div>
 
           {isWorkspaceLoading ? (
             <div className="space-y-4 text-sm leading-6 text-muted-foreground">
-              <div>{i18next.t("gen.pages.novels.components.chapterEditor.ChapterEditorSidebar.aiAnalyzingChapterPlacement")}</div>
+              <div>{i18next.t("dict.aiAnalyzingChapterPlacement")}</div>
               <div className="space-y-3">
                 <LoadingBar widthClassName="w-2/3" />
                 <LoadingBar widthClassName="w-full" />
@@ -128,43 +126,43 @@ export default function ChapterEditorSidebar(props: ChapterEditorSidebarProps) {
           ) : macroContext ? (
             <div className="space-y-4 text-sm leading-6">
               <div>
-                <div className="mb-1 font-medium text-foreground">{i18next.t("gen.pages.novels.components.chapterEditor.ChapterEditorSidebar.gen_f282ce0b")}</div>
+                <div className="mb-1 font-medium text-foreground">{i18next.t("dict.gen_f282ce0b")}</div>
                 <div className="text-muted-foreground">
                   {macroContext.volumeTitle} · {macroContext.volumePositionLabel} · {macroContext.volumePhaseLabel}
                 </div>
               </div>
               <div>
-                <div className="mb-1 font-medium text-foreground">{i18next.t("gen.pages.novels.components.chapterEditor.ChapterEditorSidebar.gen_2fedd0cf")}</div>
+                <div className="mb-1 font-medium text-foreground">{i18next.t("dict.gen_2fedd0cf")}</div>
                 <div className="text-muted-foreground">{macroContext.paceDirective}</div>
               </div>
               <div>
-                <div className="mb-1 font-medium text-foreground">{i18next.t("gen.pages.novels.components.chapterEditor.ChapterEditorSidebar.gen_d6a9f548")}</div>
+                <div className="mb-1 font-medium text-foreground">{i18next.t("dict.gen_d6a9f548")}</div>
                 <div className="text-muted-foreground">{macroContext.chapterMission}</div>
               </div>
               <div>
-                <div className="mb-1 font-medium text-foreground">{i18next.t("gen.pages.novels.components.chapterEditor.ChapterEditorSidebar.gen_d572b319")}</div>
+                <div className="mb-1 font-medium text-foreground">{i18next.t("dict.gen_d572b319")}</div>
                 <div className="space-y-2 text-muted-foreground">
-                  <div>{i18next.t("gen.pages.novels.components.chapterEditor.ChapterEditorSidebar.gen_b874224b")}</div>
-                  <div>{i18next.t("gen.pages.novels.components.chapterEditor.ChapterEditorSidebar.gen_04959dd5")}</div>
+                  <div>{i18next.t("dict.gen_b874224b")}</div>
+                  <div>{i18next.t("dict.gen_04959dd5")}</div>
                 </div>
               </div>
             </div>
           ) : isWorkspaceError ? (
-            <div className="text-sm leading-6 text-muted-foreground">{i18next.t("gen.pages.novels.components.chapterEditor.ChapterEditorSidebar.gen_bef0a17b", "宏观定位暂时加载失败，你仍然可以先编辑正文或在右侧直接发起 AI 修正。")}</div>
+            <div className="text-sm leading-6 text-muted-foreground">{i18next.t("novels.chapterEditorSidebar.19g2dr")}</div>
           ) : (
-            <div className="text-sm leading-6 text-muted-foreground">{i18next.t("gen.pages.novels.components.chapterEditor.ChapterEditorSidebar.gen_1199cdd8", "正在准备本章的卷内定位和节奏建议。")}</div>
+            <div className="text-sm leading-6 text-muted-foreground">{i18next.t("novels.chapterEditorSidebar.ngu25c")}</div>
           )}
         </div>
 
         <div className="min-h-0 shrink-0 rounded-3xl border border-border/70 bg-background p-4 shadow-sm">
           <div className="mb-3 flex items-center justify-between gap-3">
-            <div className="text-sm font-medium text-foreground">{i18next.t("gen.pages.novels.components.chapterEditor.ChapterEditorSidebar.gen_6599e592")}</div>
+            <div className="text-sm font-medium text-foreground">{i18next.t("dict.gen_6599e592")}</div>
             <span className="text-xs text-muted-foreground">
               {isWorkspaceLoading
-                ? i18next.t("gen.pages.novels.components.chapterEditor.ChapterEditorSidebar.aiOrganizing")
+                ? i18next.t("dict.aiOrganizing")
                 : recommendedTask
                   ? `当前推荐：${recommendedTask.title}`
-                  : i18next.t("gen.pages.novels.components.chapterEditor.ChapterEditorSidebar.gen_f9c5b025")}
+                  : i18next.t("dict.gen_f9c5b025")}
             </span>
           </div>
 
@@ -207,11 +205,11 @@ export default function ChapterEditorSidebar(props: ChapterEditorSidebarProps) {
                     <div>
                       <div className="text-sm font-medium text-foreground">{card.title}</div>
                       <div className="mt-1 text-xs text-muted-foreground">
-                        {card.paragraphLabel || i18next.t("gen.pages.novels.components.chapterEditor.ChapterEditorSidebar.gen_d8766580")} · {card.severity}
+                        {card.paragraphLabel || i18next.t("dict.gen_d8766580")} · {card.severity}
                       </div>
                     </div>
                     {isRecommended ? (
-                      <span className="rounded-full bg-emerald-100 px-2 py-1 text-[11px] text-emerald-800">{i18next.t("gen.pages.novels.components.chapterEditor.ChapterEditorSidebar.gen_2498b7b4", "推荐先修")}</span>
+                      <span className="rounded-full bg-emerald-100 px-2 py-1 text-[11px] text-emerald-800">{i18next.t("novels.chapterEditorSidebar.d44pji")}</span>
                     ) : null}
                   </div>
 
@@ -224,19 +222,19 @@ export default function ChapterEditorSidebar(props: ChapterEditorSidebarProps) {
                       variant={isSelected ? "default" : "outline"}
                       onClick={() => onFocusDiagnostic(card)}
                     >
-                      {isSelected ? i18next.t("gen.pages.novels.components.chapterEditor.ChapterEditorSidebar.gen_ed62f56e") : i18next.t("gen.pages.novels.components.chapterEditor.ChapterEditorSidebar.gen_a8a96e49")}
+                      {isSelected ? i18next.t("dict.gen_ed62f56e") : i18next.t("dict.gen_a8a96e49")}
                     </Button>
-                    <Button size="sm" onClick={() => onRunDiagnostic(card)}>{i18next.t("gen.pages.novels.components.chapterEditor.ChapterEditorSidebar.gen_1e39dcdc", "直接用 AI 处理")}</Button>
+                    <Button size="sm" onClick={() => onRunDiagnostic(card)}>{i18next.t("novels.chapterEditorSidebar.rnz07j")}</Button>
                   </div>
                 </div>
               );
             }) : (
               <div className="rounded-2xl border border-dashed border-border/70 bg-muted/10 p-4 text-sm leading-6 text-muted-foreground">
                 {isWorkspaceError
-                  ? i18next.t("gen.pages.novels.components.chapterEditor.ChapterEditorSidebar.gen_d275646c")
+                  ? i18next.t("dict.gen_d275646c")
                   : workspace
-                  ? i18next.t("gen.pages.novels.components.chapterEditor.ChapterEditorSidebar.aiNoClearIssuesYet")
-                  : i18next.t("gen.pages.novels.components.chapterEditor.ChapterEditorSidebar.gen_8cae5a0f")}
+                  ? i18next.t("dict.aiNoClearIssuesYet")
+                  : i18next.t("dict.gen_8cae5a0f")}
               </div>
             )}
           </div>

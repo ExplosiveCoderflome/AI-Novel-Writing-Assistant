@@ -1,5 +1,4 @@
 import i18next from "i18next";
-import { useTranslation } from "react-i18next";
 import type { Character } from "@ai-novel/shared/types/novel";
 import AiButton from "@/components/common/AiButton";
 import { Button } from "@/components/ui/button";
@@ -19,7 +18,6 @@ interface CharacterPreparationHeroProps {
 }
 
 export default function CharacterPreparationHero(props: CharacterPreparationHeroProps) {
-  const { t } = useTranslation();
   const {
     characters,
     coreCharacterCount,
@@ -41,27 +39,27 @@ export default function CharacterPreparationHero(props: CharacterPreparationHero
 
   return (
     <StepHero
-      eyebrow={i18next.t("gen.pages.novels.components.characterPanel.CharacterPreparationHero.gen_ca1588b6", "角色阵容")}
-      title={i18next.t("gen.pages.novels.components.characterPanel.CharacterPreparationHero.gen_3ed577c6", "角色准备")}
-      description={i18next.t("gen.pages.novels.components.characterPanel.CharacterPreparationHero.gen_02a09a52", "把人物当作可持续运行的叙事资产来维护：先补齐阵容，再切换查看档案、外显、资源、时间线和关系。")}
+      eyebrow="角色阵容"
+      title={i18next.t("home.characterPrep")}
+      description={i18next.t("novels.characterPreparationHero.nnzsh3")}
       className="border border-border/60 bg-[linear-gradient(135deg,hsl(var(--background))_0%,hsl(var(--muted))_100%)] shadow-sm"
     >
       <StatusRail
         items={[
           {
-            label: "已建角色",
+            label: i18next.t("dict.gen_4ffb3d3a"),
             value: characters.length,
             description: characters.length > 0 ? "阵容已开始成形。" : "先创建主角或导入基础角色。",
             tone: characters.length > 0 ? "success" : "warning",
           },
           {
-            label: "核心角色",
+            label: i18next.t("dict.gen_992862b2"),
             value: coreCharacterCount,
             description: coreCharacterCount > 0 ? "继续补足对手、同盟和压力源。" : "至少明确主角与主要对手。",
             tone: coreCharacterCount > 0 ? "success" : "warning",
           },
           {
-            label: "当前焦点",
+            label: i18next.t("dict.gen_49f9d850"),
             value: selectedCharacter?.name ?? "尚未选择角色",
             description: selectedCharacter?.role || `${baseCharacterCount} 个基础角色可导入`,
             tone: selectedCharacter ? "info" : "neutral",
@@ -70,12 +68,12 @@ export default function CharacterPreparationHero(props: CharacterPreparationHero
       />
       <StepActionBar
         className="mt-4 border border-border/60 bg-background/80"
-        label={i18next.t("gen.pages.novels.components.characterPanel.CharacterPreparationHero.gen_95d760ff", "下一步建议")}
+        label={i18next.t("novels.characterPreparationHero.vb6kkk")}
         description={recommendedAction}
         actions={(
           <>
-            <Button onClick={onOpenCreateDialog}>{i18next.t("gen.pages.novels.components.characterPanel.CharacterPreparationHero.gen_098d06b1", "新增角色")}</Button>
-            <AiButton variant="outline" onClick={onOpenSupplementalDialog}>{i18next.t("gen.pages.novels.components.characterPanel.CharacterPreparationHero.gen_d8d10894", "补充角色")}</AiButton>
+            <Button onClick={onOpenCreateDialog}>{i18next.t("dict.gen_098d06b1")}</Button>
+            <AiButton variant="outline" onClick={onOpenSupplementalDialog}>{i18next.t("dict.gen_d8d10894")}</AiButton>
             <AiButton
               variant="secondary"
               onClick={onEvolveCharacter}

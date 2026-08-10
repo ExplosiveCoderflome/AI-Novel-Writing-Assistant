@@ -1,4 +1,3 @@
-import { useTranslation } from "react-i18next";
 import i18next from "i18next";
 const t = (key: string, options?: any) => i18next.t(key, options) as string;
 import type { Dispatch, SetStateAction } from "react";
@@ -23,13 +22,12 @@ export default function WorldFactionsSection(props: {
   factionNameById: Map<string, string>;
   forceNameById: Map<string, string>;
 }) {
-  const { t } = useTranslation();
   const { draftStructure, setDraftStructure, factionNameById, forceNameById } = props;
 
   return (
     <div className="rounded-md border p-3 space-y-3">
       <div className="flex items-center justify-between">
-        <div className="font-medium">{i18next.t("gen.pages.worlds.components.workspace.structure.WorldFactionsSection.gen_e87fe613")}</div>
+        <div className="font-medium">{i18next.t("dict.gen_e87fe613")}</div>
         <div className="flex gap-2">
           <Button
             size="sm"
@@ -55,7 +53,7 @@ export default function WorldFactionsSection(props: {
                   : prev,
               )
             }
-          >{i18next.t("gen.pages.worlds.components.workspace.structure.WorldFactionsSection.gen_2ea92b54", "新增阵营")}</Button>
+          >{i18next.t("worlds.worldFactionsSection.d7fmda")}</Button>
           <Button
             size="sm"
             variant="outline"
@@ -83,31 +81,31 @@ export default function WorldFactionsSection(props: {
                   : prev,
               )
             }
-          >{i18next.t("gen.pages.worlds.components.workspace.structure.WorldFactionsSection.gen_495db24d", "新增势力")}</Button>
+          >{i18next.t("worlds.worldFactionsSection.d73vhm")}</Button>
         </div>
       </div>
       <div className="rounded-md border border-dashed p-3 text-xs text-muted-foreground space-y-1">
-        <div>{i18next.t("gen.pages.worlds.components.workspace.structure.WorldFactionsSection.gen_952bc134")}</div>
-        <div>{i18next.t("gen.pages.worlds.components.workspace.structure.WorldFactionsSection.gen_e25af270")}</div>
+        <div>{i18next.t("dict.gen_952bc134")}</div>
+        <div>{i18next.t("dict.gen_e25af270")}</div>
         <div>
           当前阵营 ID：{
             draftStructure.factions.length > 0
-              ? draftStructure.factions.map((item) => `${item.id}（${item.name || i18next.t("gen.pages.worlds.components.workspace.structure.WorldFactionsSection.gen_7f0425a8")}）`).join("、")
-              : i18next.t("gen.pages.worlds.components.workspace.structure.WorldFactionsSection.gen_f61f4cf6")
+              ? draftStructure.factions.map((item) => `${item.id}（${item.name || i18next.t("dict.gen_7f0425a8")}）`).join("、")
+              : i18next.t("common.none")
           }
         </div>
         <div>
           当前势力 ID：{
             draftStructure.forces.length > 0
-              ? draftStructure.forces.map((item) => `${item.id}（${item.name || i18next.t("gen.pages.worlds.components.workspace.structure.WorldFactionsSection.gen_7f0425a8")}）`).join("、")
-              : i18next.t("gen.pages.worlds.components.workspace.structure.WorldFactionsSection.gen_f61f4cf6")
+              ? draftStructure.forces.map((item) => `${item.id}（${item.name || i18next.t("dict.gen_7f0425a8")}）`).join("、")
+              : i18next.t("common.none")
           }
         </div>
       </div>
       <div className="space-y-3">
         {draftStructure.factions.map((faction, index) => (
           <div key={faction.id || index} className="rounded-md border p-3 space-y-2">
-            <div className="text-xs text-muted-foreground">{i18next.t("gen.pages.worlds.components.workspace.structure.WorldFactionsSection.gen_78af1dc1", "阵营卡描述的是抽象站队，不是具体公司、部门或人脉网络。")}</div>
+            <div className="text-xs text-muted-foreground">{i18next.t("worlds.worldFactionsSection.p9ytxg")}</div>
             <Input
               value={faction.name}
               onChange={(event) =>
@@ -123,7 +121,7 @@ export default function WorldFactionsSection(props: {
                     : prev,
                 )
               }
-              placeholder={i18next.t("gen.pages.worlds.components.workspace.structure.WorldFactionsSection.gen_e0be4457")}
+              placeholder={i18next.t("dict.gen_e0be4457")}
             />
             <Input
               value={faction.position}
@@ -140,7 +138,7 @@ export default function WorldFactionsSection(props: {
                     : prev,
                 )
               }
-              placeholder={i18next.t("gen.pages.worlds.components.workspace.structure.WorldFactionsSection.gen_14c7f185")}
+              placeholder={i18next.t("dict.gen_14c7f185")}
             />
             <textarea
               className="min-h-[80px] w-full rounded-md border bg-background p-2 text-sm"
@@ -158,7 +156,7 @@ export default function WorldFactionsSection(props: {
                     : prev,
                 )
               }
-              placeholder={i18next.t("gen.pages.worlds.components.workspace.structure.WorldFactionsSection.gen_135b5e9c")}
+              placeholder={i18next.t("dict.gen_135b5e9c")}
             />
             <div className="grid gap-2 md:grid-cols-2">
               <Input
@@ -176,7 +174,7 @@ export default function WorldFactionsSection(props: {
                       : prev,
                   )
                 }
-                placeholder={i18next.t("gen.pages.worlds.components.workspace.structure.WorldFactionsSection.gen_aa014c30")}
+                placeholder={i18next.t("dict.gen_aa014c30")}
               />
               <Input
                 value={faction.methods.join("、")}
@@ -193,7 +191,7 @@ export default function WorldFactionsSection(props: {
                       : prev,
                   )
                 }
-                placeholder={i18next.t("gen.pages.worlds.components.workspace.structure.WorldFactionsSection.gen_579a5778")}
+                placeholder={i18next.t("dict.gen_579a5778")}
               />
             </div>
             <Input
@@ -211,7 +209,7 @@ export default function WorldFactionsSection(props: {
                     : prev,
                 )
               }
-              placeholder={i18next.t("gen.pages.worlds.components.workspace.structure.WorldFactionsSection.representativePowerIDCommaOrPeriodSeparated")}
+              placeholder={i18next.t("dict.representativePowerIDCommaOrPeriodSeparated")}
             />
             {faction.representativeForceIds.length > 0 ? (
               <div className="text-xs text-muted-foreground">
@@ -222,7 +220,7 @@ export default function WorldFactionsSection(props: {
         ))}
         {draftStructure.forces.map((force, index) => (
           <div key={force.id || index} className="rounded-md border p-3 space-y-2">
-            <div className="text-xs text-muted-foreground">{i18next.t("gen.pages.worlds.components.workspace.structure.WorldFactionsSection.gen_d299eb13", "势力卡描述的是能施压、能占据地点、能参与关系网络的具体组织或圈层。")}</div>
+            <div className="text-xs text-muted-foreground">{i18next.t("worlds.worldFactionsSection.e124r1")}</div>
             <div className="grid gap-2 md:grid-cols-3">
               <Input
                 value={force.name}
@@ -239,7 +237,7 @@ export default function WorldFactionsSection(props: {
                       : prev,
                   )
                 }
-                placeholder={i18next.t("gen.pages.worlds.components.workspace.structure.WorldFactionsSection.gen_6efbdb31")}
+                placeholder={i18next.t("dict.gen_6efbdb31")}
               />
               <Input
                 value={force.type}
@@ -256,7 +254,7 @@ export default function WorldFactionsSection(props: {
                       : prev,
                   )
                 }
-                placeholder={i18next.t("gen.pages.worlds.components.workspace.structure.WorldFactionsSection.gen_92794258")}
+                placeholder={i18next.t("dict.gen_92794258")}
               />
               <Input
                 value={force.factionId ?? ""}
@@ -273,7 +271,7 @@ export default function WorldFactionsSection(props: {
                       : prev,
                   )
                 }
-                placeholder={i18next.t("gen.pages.worlds.components.workspace.structure.WorldFactionsSection.gen_4e7dbc51")}
+                placeholder={i18next.t("dict.gen_4e7dbc51")}
               />
             </div>
             {force.factionId ? (
@@ -297,7 +295,7 @@ export default function WorldFactionsSection(props: {
                     : prev,
                 )
               }
-              placeholder={i18next.t("gen.pages.worlds.components.workspace.structure.WorldFactionsSection.gen_0a9c554c")}
+              placeholder={i18next.t("dict.gen_0a9c554c")}
             />
             <div className="grid gap-2 md:grid-cols-2">
               <Input
@@ -315,7 +313,7 @@ export default function WorldFactionsSection(props: {
                       : prev,
                   )
                 }
-                placeholder={i18next.t("gen.pages.worlds.components.workspace.structure.WorldFactionsSection.gen_e6b04ed6")}
+                placeholder={i18next.t("dict.gen_e6b04ed6")}
               />
               <Input
                 value={force.currentObjective}
@@ -332,7 +330,7 @@ export default function WorldFactionsSection(props: {
                       : prev,
                   )
                 }
-                placeholder={i18next.t("gen.pages.worlds.components.workspace.structure.WorldFactionsSection.gen_7c7eddf5")}
+                placeholder={i18next.t("dict.gen_7c7eddf5")}
               />
             </div>
             <div className="grid gap-2 md:grid-cols-2">
@@ -351,7 +349,7 @@ export default function WorldFactionsSection(props: {
                       : prev,
                   )
                 }
-                placeholder={i18next.t("gen.pages.worlds.components.workspace.structure.WorldFactionsSection.gen_de392f35")}
+                placeholder={i18next.t("dict.gen_de392f35")}
               />
               <Input
                 value={force.pressure}
@@ -368,7 +366,7 @@ export default function WorldFactionsSection(props: {
                       : prev,
                   )
                 }
-                placeholder={i18next.t("gen.pages.worlds.components.workspace.structure.WorldFactionsSection.gen_eb1c0ced")}
+                placeholder={i18next.t("dict.gen_eb1c0ced")}
               />
             </div>
             <div className="grid gap-2 md:grid-cols-1">
@@ -387,7 +385,7 @@ export default function WorldFactionsSection(props: {
                       : prev,
                   )
                 }
-                placeholder={i18next.t("gen.pages.worlds.components.workspace.structure.WorldFactionsSection.gen_08f0ced5")}
+                placeholder={i18next.t("dict.gen_08f0ced5")}
               />
             </div>
           </div>

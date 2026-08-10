@@ -40,8 +40,8 @@ function buildFallbackTitleOption(candidate: DirectorCandidate): TitleFactorySug
     title: candidate.workingTitle,
     clickRate: 60,
     style: "high_concept",
-    angle: i18next.t("gen.pages.novels.components.NovelAutoDirectorCandidateBatches.gen_c4e1c0b2"),
-    reason: i18next.t("gen.pages.novels.components.NovelAutoDirectorCandidateBatches.gen_a93be638"),
+    angle: i18next.t("dict.gen_c4e1c0b2"),
+    reason: i18next.t("dict.gen_a93be638"),
   };
 }
 
@@ -54,19 +54,19 @@ function resolveCandidateTitleOptions(candidate: DirectorCandidate): TitleFactor
 
 function renderPrimaryCandidateDetails(candidate: DirectorCandidate) {
   return [
-    { label: i18next.t("gen.pages.novels.components.NovelAutoDirectorCandidateBatches.gen_144c6d68"), value: candidate.sellingPoint },
-    { label: i18next.t("gen.pages.novels.components.NovelAutoDirectorCandidateBatches.mainConflict"), value: candidate.coreConflict },
-    { label: i18next.t("gen.pages.novels.components.NovelAutoDirectorCandidateBatches.mainPathway"), value: candidate.protagonistPath },
+    { label: i18next.t("dict.gen_144c6d68"), value: candidate.sellingPoint },
+    { label: i18next.t("dict.mainConflict"), value: candidate.coreConflict },
+    { label: i18next.t("dict.mainPathway"), value: candidate.protagonistPath },
   ];
 }
 
 function renderSecondaryCandidateDetails(candidate: DirectorCandidate) {
   return [
-    { label: i18next.t("gen.pages.novels.components.NovelAutoDirectorCandidateBatches.workPlacement"), value: candidate.positioning },
-    { label: i18next.t("gen.pages.novels.components.NovelAutoDirectorCandidateBatches.mainHook"), value: candidate.hookStrategy },
-    { label: i18next.t("gen.pages.novels.components.NovelAutoDirectorCandidateBatches.gen_d7c63a37"), value: candidate.progressionLoop },
-    { label: i18next.t("gen.pages.novels.components.NovelAutoDirectorCandidateBatches.gen_c4938a36"), value: candidate.endingDirection },
-    { label: i18next.t("gen.pages.novels.components.NovelAutoDirectorCandidateBatches.gen_7feb3d33"), value: `约 ${candidate.targetChapterCount} 章` },
+    { label: i18next.t("basicInfo.sectionOrientationTitle"), value: candidate.positioning },
+    { label: i18next.t("dict.mainHook"), value: candidate.hookStrategy },
+    { label: i18next.t("dict.gen_d7c63a37"), value: candidate.progressionLoop },
+    { label: i18next.t("dict.gen_c4938a36"), value: candidate.endingDirection },
+    { label: i18next.t("dict.gen_7feb3d33"), value: `约 ${candidate.targetChapterCount} 章` },
   ];
 }
 
@@ -100,7 +100,7 @@ export default function NovelAutoDirectorCandidateBatches(props: NovelAutoDirect
 
   if (batches.length === 0) {
     return (
-      <div className={`py-10 text-center text-sm text-muted-foreground ${AUTO_DIRECTOR_MOBILE_CLASSES.wrapText}`}>{i18next.t("gen.pages.novels.components.NovelAutoDirectorCandidateBatches.gen_1e4994a8", "先给 AI 一句灵感，它会先产出第一批整本书方向候选。")}</div>
+      <div className={`py-10 text-center text-sm text-muted-foreground ${AUTO_DIRECTOR_MOBILE_CLASSES.wrapText}`}>{i18next.t("novels.novelAutoDirectorCandidateBatches.n3hkx")}</div>
     );
   }
 
@@ -118,7 +118,7 @@ export default function NovelAutoDirectorCandidateBatches(props: NovelAutoDirect
             <div className="min-w-0">
               <div className="break-words text-xs font-medium text-muted-foreground [overflow-wrap:anywhere]">{batch.roundLabel}</div>
               <div className="mt-1 break-words text-base font-semibold text-foreground [overflow-wrap:anywhere]">
-                {batch.refinementSummary?.trim() || i18next.t("gen.pages.novels.components.NovelAutoDirectorCandidateBatches.gen_b8ef9220")}
+                {batch.refinementSummary?.trim() || i18next.t("dict.gen_b8ef9220")}
               </div>
             </div>
             <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted-foreground">
@@ -150,16 +150,16 @@ export default function NovelAutoDirectorCandidateBatches(props: NovelAutoDirect
                         {String(candidateIndex + 1).padStart(2, "0")}
                       </div>
                       {candidateIndex === 0 ? (
-                        <div className="mt-2 text-xs font-medium text-primary">{i18next.t("gen.pages.novels.components.NovelAutoDirectorCandidateBatches.gen_ce329b20")}</div>
+                        <div className="mt-2 text-xs font-medium text-primary">{i18next.t("dict.gen_ce329b20")}</div>
                       ) : null}
                     </div>
 
                     <div className="min-w-0">
                       <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 text-xs font-medium text-muted-foreground">
-                        <span className="lg:hidden">{i18next.t("gen.pages.novels.components.NovelAutoDirectorCandidateBatches.gen_20458081")}</span>
-                        {candidateIndex === 0 ? <span className="lg:hidden">{i18next.t("gen.pages.novels.components.NovelAutoDirectorCandidateBatches.gen_e66558a6")}</span> : null}
+                        <span className="lg:hidden">{i18next.t("dict.gen_20458081")}</span>
+                        {candidateIndex === 0 ? <span className="lg:hidden">{i18next.t("dict.gen_e66558a6")}</span> : null}
                         <span className="lg:hidden">·</span>
-                        <span>{i18next.t("gen.pages.novels.components.NovelAutoDirectorCandidateBatches.gen_72724574")}</span>
+                        <span>{i18next.t("dict.gen_72724574")}</span>
                         {toneSummary ? (
                           <>
                             <span>·</span>
@@ -193,18 +193,18 @@ export default function NovelAutoDirectorCandidateBatches(props: NovelAutoDirect
                         onClick={() => void onConfirmCandidate(candidate)}
                         disabled={isConfirming}
                       >
-                        {isConfirming ? i18next.t("gen.pages.novels.components.NovelAutoDirectorCandidateBatches.gen_b26107b6") : i18next.t("gen.pages.novels.components.NovelAutoDirectorCandidateBatches.gen_4c1f0748")}
+                        {isConfirming ? i18next.t("dict.gen_b26107b6") : i18next.t("dict.gen_4c1f0748")}
                         <ArrowRight className="h-4 w-4" />
                       </Button>
 
                       <div className="space-y-4 text-sm">
                         <div className={AUTO_DIRECTOR_MOBILE_CLASSES.wrapText}>
-                          <div className="text-xs font-medium text-muted-foreground">{i18next.t("gen.pages.novels.components.NovelAutoDirectorCandidateBatches.gen_03f27c74")}</div>
+                          <div className="text-xs font-medium text-muted-foreground">{i18next.t("dict.gen_03f27c74")}</div>
                           <div className="mt-1 line-clamp-5 break-words leading-6 text-foreground/90 [overflow-wrap:anywhere]">{candidate.whyItFits}</div>
                         </div>
                         {toneSummary ? (
                           <div className={AUTO_DIRECTOR_MOBILE_CLASSES.wrapText}>
-                            <div className="text-xs font-medium text-muted-foreground">{i18next.t("gen.pages.novels.components.NovelAutoDirectorCandidateBatches.gen_8b5bb2ce")}</div>
+                            <div className="text-xs font-medium text-muted-foreground">{i18next.t("dict.gen_8b5bb2ce")}</div>
                             <div className="mt-1 break-words leading-6 text-foreground [overflow-wrap:anywhere]">
                               {candidate.toneKeywords.join(" · ")}
                             </div>
@@ -215,7 +215,7 @@ export default function NovelAutoDirectorCandidateBatches(props: NovelAutoDirect
                   </div>
 
                   <details className="group mt-6">
-                    <summary className="flex cursor-pointer list-none items-center justify-between gap-3 text-sm font-medium text-foreground">{i18next.t("gen.pages.novels.components.NovelAutoDirectorCandidateBatches.gen_95f7a293", "展开完整设定")}<ChevronDown className="h-4 w-4 shrink-0 text-muted-foreground transition group-open:rotate-180" />
+                    <summary className="flex cursor-pointer list-none items-center justify-between gap-3 text-sm font-medium text-foreground">{i18next.t("novels.novelAutoDirectorCandidateBatches.3404kx")}<ChevronDown className="h-4 w-4 shrink-0 text-muted-foreground transition group-open:rotate-180" />
                     </summary>
                     <dl className="mt-4 grid gap-x-8 gap-y-4 text-sm md:grid-cols-2">
                       {renderSecondaryCandidateDetails(candidate).map((item) => (
@@ -228,11 +228,11 @@ export default function NovelAutoDirectorCandidateBatches(props: NovelAutoDirect
                   </details>
 
                   <details className="group mt-4">
-                    <summary className="flex cursor-pointer list-none items-center justify-between gap-3 text-sm font-medium text-foreground">{i18next.t("gen.pages.novels.components.NovelAutoDirectorCandidateBatches.gen_2a13978f", "调整书名与方向")}<ChevronDown className="h-4 w-4 shrink-0 text-muted-foreground transition group-open:rotate-180" />
+                    <summary className="flex cursor-pointer list-none items-center justify-between gap-3 text-sm font-medium text-foreground">{i18next.t("novels.novelAutoDirectorCandidateBatches.8ijsi6")}<ChevronDown className="h-4 w-4 shrink-0 text-muted-foreground transition group-open:rotate-180" />
                     </summary>
                     <div className="mt-4 space-y-5">
                       <div>
-                        <div className="text-xs font-medium text-muted-foreground">{i18next.t("gen.pages.novels.components.NovelAutoDirectorCandidateBatches.gen_6a848b19")}</div>
+                        <div className="text-xs font-medium text-muted-foreground">{i18next.t("dict.gen_6a848b19")}</div>
                         <div className="mt-2 divide-y divide-border/45">
                           {titleOptions.map((option) => {
                             const active = option.title === candidate.workingTitle;
@@ -254,7 +254,7 @@ export default function NovelAutoDirectorCandidateBatches(props: NovelAutoDirect
                                     </span>
                                   </span>
                                   <span className={`mt-1 block line-clamp-2 text-xs leading-5 text-muted-foreground ${AUTO_DIRECTOR_MOBILE_CLASSES.wrapText}`}>
-                                    {option.reason?.trim() || option.angle || i18next.t("gen.pages.novels.components.NovelAutoDirectorCandidateBatches.gen_1093d35c")}
+                                    {option.reason?.trim() || option.angle || i18next.t("dict.gen_1093d35c")}
                                   </span>
                                 </span>
                                 <span className={cn("shrink-0 text-xs tabular-nums", active ? "text-primary" : "text-muted-foreground")}>
@@ -269,12 +269,12 @@ export default function NovelAutoDirectorCandidateBatches(props: NovelAutoDirect
                       <div className="grid gap-4 lg:grid-cols-2">
                         <div className="min-w-0">
                           <div className="flex items-center gap-2 text-sm font-medium text-foreground">
-                            <RefreshCw className="h-4 w-4 text-muted-foreground" />{i18next.t("gen.pages.novels.components.NovelAutoDirectorCandidateBatches.gen_964d3a4d", "重做标题组")}</div>
+                            <RefreshCw className="h-4 w-4 text-muted-foreground" />{i18next.t("novels.novelAutoDirectorCandidateBatches.cepycm")}</div>
                           <Input
                             className="mt-2 bg-background"
                             value={titlePatchFeedbacks[candidate.id] ?? ""}
                             onChange={(event) => onTitlePatchFeedbackChange(candidate.id, event.target.value)}
-                            placeholder={i18next.t("gen.pages.novels.components.NovelAutoDirectorCandidateBatches.gen_9634a33b")}
+                            placeholder={i18next.t("dict.gen_9634a33b")}
                           />
                           <div className="mt-2">
                             <Button
@@ -286,19 +286,19 @@ export default function NovelAutoDirectorCandidateBatches(props: NovelAutoDirect
                               onClick={() => onRefineTitle(batch.id, candidate, titlePatchFeedbacks[candidate.id] ?? "")}
                             >
                               <Wand2 className="h-4 w-4" />
-                              {isRefiningTitle ? i18next.t("gen.pages.novels.components.NovelAutoDirectorCandidateBatches.gen_7e2d4cd3") : i18next.t("gen.pages.novels.components.NovelAutoDirectorCandidateBatches.aiRedoTitleGroup")}
+                              {isRefiningTitle ? i18next.t("dict.gen_7e2d4cd3") : i18next.t("dict.aiRedoTitleGroup")}
                             </Button>
                           </div>
                         </div>
 
                         <div className="min-w-0">
                           <div className="flex items-center gap-2 text-sm font-medium text-foreground">
-                            <Wand2 className="h-4 w-4 text-muted-foreground" />{i18next.t("gen.pages.novels.components.NovelAutoDirectorCandidateBatches.gen_d89381d3", "调整方向")}</div>
+                            <Wand2 className="h-4 w-4 text-muted-foreground" />{i18next.t("novels.novelAutoDirectorCandidateBatches.i33cw9")}</div>
                           <Input
                             className="mt-2 bg-background"
                             value={candidatePatchFeedbacks[candidate.id] ?? ""}
                             onChange={(event) => onCandidatePatchFeedbackChange(candidate.id, event.target.value)}
-                            placeholder={i18next.t("gen.pages.novels.components.NovelAutoDirectorCandidateBatches.gen_246d4a4e")}
+                            placeholder={i18next.t("dict.gen_246d4a4e")}
                           />
                           <div className="mt-2">
                             <Button
@@ -310,7 +310,7 @@ export default function NovelAutoDirectorCandidateBatches(props: NovelAutoDirect
                               onClick={() => onPatchCandidate(batch.id, candidate, candidatePatchFeedbacks[candidate.id] ?? "")}
                             >
                               <Wand2 className="h-4 w-4" />
-                              {isPatchingCandidate ? i18next.t("gen.pages.novels.components.NovelAutoDirectorCandidateBatches.gen_520009e5") : i18next.t("gen.pages.novels.components.NovelAutoDirectorCandidateBatches.gen_190596c7")}
+                              {isPatchingCandidate ? i18next.t("dict.gen_520009e5") : i18next.t("dict.gen_190596c7")}
                             </Button>
                           </div>
                         </div>
@@ -325,8 +325,8 @@ export default function NovelAutoDirectorCandidateBatches(props: NovelAutoDirect
       ))}
 
       <section className="min-w-0 pt-4">
-        <div className="break-words text-base font-semibold text-foreground [overflow-wrap:anywhere]">{i18next.t("gen.pages.novels.components.NovelAutoDirectorCandidateBatches.gen_1f8901d7")}</div>
-        <div className="mt-1 max-w-3xl break-words text-sm leading-6 text-muted-foreground [overflow-wrap:anywhere]">{i18next.t("gen.pages.novels.components.NovelAutoDirectorCandidateBatches.gen_8eec4229", "点几个修正方向，再补一句你想要的感觉。系统会保留上一轮，再生成一批新的方案。")}</div>
+        <div className="break-words text-base font-semibold text-foreground [overflow-wrap:anywhere]">{i18next.t("dict.gen_1f8901d7")}</div>
+        <div className="mt-1 max-w-3xl break-words text-sm leading-6 text-muted-foreground [overflow-wrap:anywhere]">{i18next.t("novels.novelAutoDirectorCandidateBatches.871e6z")}</div>
 
         <div className="mt-4 flex min-w-0 flex-wrap gap-2">
           {DIRECTOR_CORRECTION_PRESETS.map((preset) => {
@@ -349,12 +349,12 @@ export default function NovelAutoDirectorCandidateBatches(props: NovelAutoDirect
         </div>
 
         <div className="mt-4 space-y-2">
-          <label htmlFor="director-refine-feedback" className="text-sm font-medium text-foreground">{i18next.t("gen.pages.novels.components.NovelAutoDirectorCandidateBatches.gen_d0d98caf", "再补一句修正建议")}</label>
+          <label htmlFor="director-refine-feedback" className="text-sm font-medium text-foreground">{i18next.t("novels.novelAutoDirectorCandidateBatches.yrfku2")}</label>
           <Input
             id="director-refine-feedback"
             value={feedback}
             onChange={(event) => onFeedbackChange(event.target.value)}
-            placeholder={i18next.t("gen.pages.novels.components.NovelAutoDirectorCandidateBatches.exampleWantStrongerFemaleGrowthNotPureRomanceOrTooDark")}
+            placeholder={i18next.t("dict.exampleWantStrongerFemaleGrowthNotPureRomanceOrTooDark")}
           />
         </div>
 
@@ -366,7 +366,7 @@ export default function NovelAutoDirectorCandidateBatches(props: NovelAutoDirect
             disabled={isGenerating}
           >
             <RefreshCw className="h-4 w-4" />
-            {isGenerating ? i18next.t("gen.pages.novels.components.NovelAutoDirectorCandidateBatches.gen_4d020ba3") : i18next.t("gen.pages.novels.components.NovelAutoDirectorCandidateBatches.gen_4a2da1b8")}
+            {isGenerating ? i18next.t("dict.gen_4d020ba3") : i18next.t("dict.gen_4a2da1b8")}
           </Button>
         </div>
       </section>

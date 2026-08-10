@@ -84,21 +84,21 @@ interface PipelineTabProps {
 
 function repairModeLabel(mode: PipelineTabProps["pipelineForm"]["repairMode"]): string {
   const mapping: Record<PipelineTabProps["pipelineForm"]["repairMode"], string> = {
-    detect_only: i18next.t("gen.pages.novels.components.PipelineTab.gen_af284883"),
-    light_repair: i18next.t("gen.pages.novels.components.PipelineTab.gen_82aaf5f8"),
-    heavy_repair: i18next.t("gen.pages.novels.components.PipelineTab.gen_795f45db"),
-    continuity_only: i18next.t("gen.pages.novels.components.PipelineTab.gen_2f630185"),
-    character_only: i18next.t("gen.pages.novels.components.PipelineTab.gen_53776535"),
-    ending_only: i18next.t("gen.pages.novels.components.PipelineTab.gen_8f96a7e8"),
+    detect_only: i18next.t("dict.gen_af284883"),
+    light_repair: i18next.t("dict.gen_82aaf5f8"),
+    heavy_repair: i18next.t("dict.gen_795f45db"),
+    continuity_only: i18next.t("dict.gen_2f630185"),
+    character_only: i18next.t("dict.gen_53776535"),
+    ending_only: i18next.t("dict.gen_8f96a7e8"),
   };
   return mapping[mode];
 }
 
 function stageStatusLabel(state: "pending" | "active" | "completed" | "failed"): string {
-  if (state === "active") return i18next.t("gen.pages.novels.components.PipelineTab.gen_fb852fc6");
-  if (state === "completed") return i18next.t("gen.pages.novels.components.PipelineTab.gen_fad5222c");
-  if (state === "failed") return i18next.t("gen.pages.novels.components.PipelineTab.gen_c195df63");
-  return i18next.t("gen.pages.novels.components.PipelineTab.gen_6139a699");
+  if (state === "active") return i18next.t("tasks.levelRunning");
+  if (state === "completed") return i18next.t("tasks.filterStatusSucceeded");
+  if (state === "failed") return i18next.t("dict.gen_c195df63");
+  return i18next.t("dict.gen_6139a699");
 }
 
 export default function PipelineTab(props: PipelineTabProps) {
@@ -171,36 +171,36 @@ export default function PipelineTab(props: PipelineTabProps) {
   return (
     <div className="space-y-4">
       <DirectorTakeoverEntryPanel
-        title={i18next.t("gen.pages.novels.components.PipelineTab.takeoverFromQualityFix")}
-        description={i18next.t("gen.pages.novels.components.PipelineTab.aiCheckActiveBatchOrCheckpoint")}
+        title={i18next.t("dict.takeoverFromQualityFix")}
+        description={i18next.t("dict.aiCheckActiveBatchOrCheckpoint")}
         entry={directorTakeoverEntry}
       />
       <Card className="border-0 bg-transparent shadow-none">
         <CardHeader className="rounded-2xl bg-muted/20 px-5 py-4">
-          <CardTitle>{i18next.t("gen.pages.novels.components.PipelineTab.gen_df504fca")}</CardTitle>
+          <CardTitle>{i18next.t("dict.gen_df504fca")}</CardTitle>
         </CardHeader>
         <CardContent className="space-y-3 px-0 pt-5">
           <WorldInjectionHint worldInjectionSummary={worldInjectionSummary} />
           {!hasCharacters ? (
             <div className="flex items-center justify-between gap-2 rounded-2xl bg-amber-50 px-4 py-3 text-xs text-amber-800">
-              <span>{i18next.t("gen.pages.novels.components.PipelineTab.gen_6d1840c2")}</span>
-              <Button size="sm" variant="outline" onClick={onGoToCharacterTab}>{i18next.t("gen.pages.novels.components.PipelineTab.gen_ef2c69b9")}</Button>
+              <span>{i18next.t("dict.gen_6d1840c2")}</span>
+              <Button size="sm" variant="outline" onClick={onGoToCharacterTab}>{i18next.t("dict.gen_ef2c69b9")}</Button>
             </div>
           ) : null}
           <div className="grid gap-3 md:grid-cols-3">
             <div className="rounded-xl bg-muted/15 p-3">
-              <div className="text-xs text-muted-foreground">{i18next.t("gen.pages.novels.components.PipelineTab.gen_657ac21a")}</div>
+              <div className="text-xs text-muted-foreground">{i18next.t("dict.gen_657ac21a")}</div>
               <div className="mt-1 text-sm font-semibold text-foreground">
-                {pendingRepairCount > 0 ? `先处理 ${pendingRepairCount} 个低分章节` : i18next.t("gen.pages.novels.components.PipelineTab.gen_61ca66fc")}
+                {pendingRepairCount > 0 ? `先处理 ${pendingRepairCount} 个低分章节` : i18next.t("dict.gen_61ca66fc")}
               </div>
             </div>
             <div className="rounded-xl bg-muted/15 p-3">
-              <div className="text-xs text-muted-foreground">{i18next.t("gen.pages.novels.components.PipelineTab.gen_ae823fce")}</div>
+              <div className="text-xs text-muted-foreground">{i18next.t("dict.gen_ae823fce")}</div>
               <div className="mt-1 text-sm font-semibold text-foreground">{pipelineForm.qualityThreshold}</div>
             </div>
             <div className="rounded-xl bg-muted/15 p-3">
-              <div className="text-xs text-muted-foreground">{i18next.t("gen.pages.novels.components.PipelineTab.gen_ff87de99")}</div>
-              <div className="mt-1 text-sm font-semibold text-foreground">{i18next.t("gen.pages.novels.components.PipelineTab.runModeText")}</div>
+              <div className="text-xs text-muted-foreground">{i18next.t("dict.gen_ff87de99")}</div>
+              <div className="mt-1 text-sm font-semibold text-foreground">{i18next.t("dict.runModeText")}</div>
             </div>
           </div>
           {pipelineMessage ? <div className="text-sm text-muted-foreground">{pipelineMessage}</div> : null}
@@ -209,7 +209,7 @@ export default function PipelineTab(props: PipelineTabProps) {
 
       <Card className="border-0 bg-muted/15 shadow-none">
         <CardHeader>
-          <CardTitle>{i18next.t("gen.pages.novels.components.PipelineTab.gen_687b3bfc")}</CardTitle>
+          <CardTitle>{i18next.t("dict.gen_687b3bfc")}</CardTitle>
         </CardHeader>
         <CardContent className="space-y-3">
           <SelectControl
@@ -218,37 +218,37 @@ export default function PipelineTab(props: PipelineTabProps) {
             onChange={(event) => onSelectedChapterChange(event.target.value)}
           >
             {chapters.map((chapter) => (
-              <option key={chapter.id} value={chapter.id}>{i18next.t("gen.pages.novels.components.PipelineTab.gen_6b257030")}</option>
+              <option key={chapter.id} value={chapter.id}>{i18next.t("dict.gen_6b257030")}</option>
             ))}
           </SelectControl>
           <div className="flex flex-wrap gap-2">
-            <AiButton onClick={onReviewChapter} disabled={isReviewing || !selectedChapterId}>{i18next.t("gen.pages.novels.components.PipelineTab.gen_72dd900b")}</AiButton>
-            <AiButton variant="secondary" onClick={onRepairChapter} disabled={isRepairing || !selectedChapterId}>{i18next.t("gen.pages.novels.components.PipelineTab.gen_32c8e3bb")}</AiButton>
-            <AiButton variant="outline" onClick={onGenerateHook} disabled={isGeneratingHook || !selectedChapterId}>{i18next.t("gen.pages.novels.components.PipelineTab.gen_195c8390")}</AiButton>
+            <AiButton onClick={onReviewChapter} disabled={isReviewing || !selectedChapterId}>{i18next.t("dict.gen_72dd900b")}</AiButton>
+            <AiButton variant="secondary" onClick={onRepairChapter} disabled={isRepairing || !selectedChapterId}>{i18next.t("dict.gen_32c8e3bb")}</AiButton>
+            <AiButton variant="outline" onClick={onGenerateHook} disabled={isGeneratingHook || !selectedChapterId}>{i18next.t("dict.gen_195c8390")}</AiButton>
           </div>
           {reviewResult ? (
             <div className="rounded-xl bg-background/70 p-3 text-sm">
-              <div className="mb-2 font-medium">{i18next.t("gen.pages.novels.components.PipelineTab.gen_980b1636")}</div>
+              <div className="mb-2 font-medium">{i18next.t("dict.gen_980b1636")}</div>
               <div className="grid gap-1 md:grid-cols-2">
-                <div>{i18next.t("gen.pages.novels.components.PipelineTab.gen_108e646c")}</div>
-                <div>{i18next.t("gen.pages.novels.components.PipelineTab.gen_fea0118e")}</div>
-                <div>{i18next.t("gen.pages.novels.components.PipelineTab.gen_5c05d6df")}</div>
-                <div>{i18next.t("gen.pages.novels.components.PipelineTab.gen_f46055cb")}</div>
-                <div>{i18next.t("gen.pages.novels.components.PipelineTab.gen_685f1bd8")}</div>
-                <div>{i18next.t("gen.pages.novels.components.PipelineTab.gen_987f56e9")}</div>
+                <div>{i18next.t("dict.gen_108e646c")}</div>
+                <div>{i18next.t("dict.gen_fea0118e")}</div>
+                <div>{i18next.t("dict.gen_5c05d6df")}</div>
+                <div>{i18next.t("dict.gen_f46055cb")}</div>
+                <div>{i18next.t("dict.gen_685f1bd8")}</div>
+                <div>{i18next.t("dict.gen_987f56e9")}</div>
               </div>
             </div>
           ) : null}
           <StreamOutput content={repairStreamContent} isStreaming={isRepairStreaming} onAbort={onAbortRepair} />
           {(repairBeforeContent || repairAfterContent) ? (
             <div className="grid gap-3 md:grid-cols-2">
-              <pre className="max-h-[220px] overflow-auto whitespace-pre-wrap rounded-xl bg-background/70 p-3 text-xs">{i18next.t("gen.pages.novels.components.PipelineTab.preRepairInfo")}</pre>
-              <pre className="max-h-[220px] overflow-auto whitespace-pre-wrap rounded-xl bg-background/70 p-3 text-xs">{i18next.t("gen.pages.novels.components.PipelineTab.postRepairDisplay")}</pre>
+              <pre className="max-h-[220px] overflow-auto whitespace-pre-wrap rounded-xl bg-background/70 p-3 text-xs">{i18next.t("dict.preRepairInfo")}</pre>
+              <pre className="max-h-[220px] overflow-auto whitespace-pre-wrap rounded-xl bg-background/70 p-3 text-xs">{i18next.t("dict.postRepairDisplay")}</pre>
             </div>
           ) : null}
           {lowScoreReports.length > 0 ? (
             <div className="space-y-2 rounded-xl bg-background/70 p-3 text-xs">
-              <div className="font-medium">{i18next.t("gen.pages.novels.components.PipelineTab.lowChapterFilteringThresholdQualityThreshold")}</div>
+              <div className="font-medium">{i18next.t("dict.lowChapterFilteringThresholdQualityThreshold")}</div>
               {lowScoreReports.map((item, index) => (
                 <div key={`${item.chapterId}-${index}`} className="flex items-center justify-between">
                   <span>{item.chapterId}</span>
@@ -263,21 +263,21 @@ export default function PipelineTab(props: PipelineTabProps) {
       <details className="group border-t border-border/60 pt-4">
         <summary className="cursor-pointer list-none">
           <CollapsibleSummary
-            title={i18next.t("gen.pages.novels.components.PipelineTab.gen_16809553")}
-            description={i18next.t("gen.pages.novels.components.PipelineTab.gen_2d2bd334")}
+            title={i18next.t("dict.gen_16809553")}
+            description={i18next.t("dict.gen_2d2bd334")}
           />
         </summary>
 
         <div className="mt-4 space-y-4">
           <Card>
             <CardHeader>
-              <CardTitle>{i18next.t("gen.pages.novels.components.PipelineTab.gen_4dc28753")}</CardTitle>
+              <CardTitle>{i18next.t("dict.gen_4dc28753")}</CardTitle>
             </CardHeader>
             <CardContent className="space-y-3">
               <LLMSelector />
               <div className="grid gap-3 md:grid-cols-3">
                 <div className="space-y-1">
-                  <div className="text-xs font-medium text-muted-foreground">{i18next.t("gen.pages.novels.components.PipelineTab.gen_4f82436f")}</div>
+                  <div className="text-xs font-medium text-muted-foreground">{i18next.t("dict.gen_4f82436f")}</div>
                   <Input
                     type="number"
                     min={1}
@@ -287,7 +287,7 @@ export default function PipelineTab(props: PipelineTabProps) {
                   />
                 </div>
                 <div className="space-y-1">
-                  <div className="text-xs font-medium text-muted-foreground">{i18next.t("gen.pages.novels.components.PipelineTab.gen_1024805a")}</div>
+                  <div className="text-xs font-medium text-muted-foreground">{i18next.t("dict.gen_1024805a")}</div>
                   <Input
                     type="number"
                     min={1}
@@ -297,7 +297,7 @@ export default function PipelineTab(props: PipelineTabProps) {
                   />
                 </div>
                 <div className="space-y-1">
-                  <div className="text-xs font-medium text-muted-foreground">{i18next.t("gen.pages.novels.components.PipelineTab.gen_37cd8040")}</div>
+                  <div className="text-xs font-medium text-muted-foreground">{i18next.t("dict.gen_37cd8040")}</div>
                   <Input
                     type="number"
                     min={0}
@@ -309,18 +309,18 @@ export default function PipelineTab(props: PipelineTabProps) {
               </div>
               <div className="grid gap-3 md:grid-cols-3">
                 <div className="space-y-1">
-                  <div className="text-xs font-medium text-muted-foreground">{i18next.t("gen.pages.novels.components.PipelineTab.gen_44c4aaa1")}</div>
+                  <div className="text-xs font-medium text-muted-foreground">{i18next.t("dict.gen_44c4aaa1")}</div>
                   <SelectControl
                     className="w-full rounded-md border bg-background p-2 text-sm"
                     value={pipelineForm.runMode}
                     onChange={(event) => onPipelineFormChange("runMode", event.target.value)}
                   >
-                    <option value="fast">{i18next.t("gen.pages.novels.components.PipelineTab.gen_f63762a0")}</option>
-                    <option value="polish">{i18next.t("gen.pages.novels.components.PipelineTab.gen_41ed42e6")}</option>
+                    <option value="fast">{i18next.t("dict.gen_f63762a0")}</option>
+                    <option value="polish">{i18next.t("dict.gen_41ed42e6")}</option>
                   </SelectControl>
                 </div>
                 <div className="space-y-1">
-                  <div className="text-xs font-medium text-muted-foreground">{i18next.t("gen.pages.novels.components.PipelineTab.gen_ae823fce")}</div>
+                  <div className="text-xs font-medium text-muted-foreground">{i18next.t("dict.gen_ae823fce")}</div>
                   <Input
                     type="number"
                     min={0}
@@ -330,18 +330,18 @@ export default function PipelineTab(props: PipelineTabProps) {
                   />
                 </div>
                 <div className="space-y-1">
-                  <div className="text-xs font-medium text-muted-foreground">{i18next.t("gen.pages.novels.components.PipelineTab.gen_a74dbf0c")}</div>
+                  <div className="text-xs font-medium text-muted-foreground">{i18next.t("dict.gen_a74dbf0c")}</div>
                   <SelectControl
                     className="w-full rounded-md border bg-background p-2 text-sm"
                     value={pipelineForm.repairMode}
                     onChange={(event) => onPipelineFormChange("repairMode", event.target.value)}
                   >
-                    <option value="detect_only">{i18next.t("gen.pages.novels.components.PipelineTab.gen_af284883")}</option>
-                    <option value="light_repair">{i18next.t("gen.pages.novels.components.PipelineTab.gen_82aaf5f8")}</option>
-                    <option value="heavy_repair">{i18next.t("gen.pages.novels.components.PipelineTab.gen_795f45db")}</option>
-                    <option value="continuity_only">{i18next.t("gen.pages.novels.components.PipelineTab.gen_2f630185")}</option>
-                    <option value="character_only">{i18next.t("gen.pages.novels.components.PipelineTab.gen_53776535")}</option>
-                    <option value="ending_only">{i18next.t("gen.pages.novels.components.PipelineTab.gen_8f96a7e8")}</option>
+                    <option value="detect_only">{i18next.t("dict.gen_af284883")}</option>
+                    <option value="light_repair">{i18next.t("dict.gen_82aaf5f8")}</option>
+                    <option value="heavy_repair">{i18next.t("dict.gen_795f45db")}</option>
+                    <option value="continuity_only">{i18next.t("dict.gen_2f630185")}</option>
+                    <option value="character_only">{i18next.t("dict.gen_53776535")}</option>
+                    <option value="ending_only">{i18next.t("dict.gen_8f96a7e8")}</option>
                   </SelectControl>
                 </div>
               </div>
@@ -351,22 +351,22 @@ export default function PipelineTab(props: PipelineTabProps) {
                     type="checkbox"
                     checked={pipelineForm.autoReview}
                     onChange={(event) => onPipelineFormChange("autoReview", event.target.checked)}
-                  />{i18next.t("gen.pages.novels.components.PipelineTab.gen_04111616", "自动审校")}</label>
+                  />{i18next.t("novels.pipelineTab.gqg1su")}</label>
                 <label className="flex items-center gap-1">
                   <input
                     type="checkbox"
                     checked={pipelineForm.autoRepair}
                     onChange={(event) => onPipelineFormChange("autoRepair", event.target.checked)}
-                  />{i18next.t("gen.pages.novels.components.PipelineTab.gen_fcc3d39a", "自动修复")}</label>
+                  />{i18next.t("dict.gen_fcc3d39a")}</label>
                 <label className="flex items-center gap-1">
                   <input
                     type="checkbox"
                     checked={pipelineForm.skipCompleted}
                     onChange={(event) => onPipelineFormChange("skipCompleted", event.target.checked)}
-                  />{i18next.t("gen.pages.novels.components.PipelineTab.gen_e39fc380", "跳过已完成章节")}</label>
+                  />{i18next.t("novels.pipelineTab.kvu49o")}</label>
               </div>
               <div className="rounded-md border bg-muted/20 p-2 text-xs text-muted-foreground">
-                当前设置：{pipelineForm.runMode === "polish" ? i18next.t("gen.pages.novels.components.PipelineTab.gen_41ed42e6") : i18next.t("gen.pages.novels.components.PipelineTab.gen_f63762a0")} | 阈值 {pipelineForm.qualityThreshold} | {repairModeLabel(pipelineForm.repairMode)}
+                当前设置：{pipelineForm.runMode === "polish" ? i18next.t("dict.gen_41ed42e6") : i18next.t("dict.gen_f63762a0")} | 阈值 {pipelineForm.qualityThreshold} | {repairModeLabel(pipelineForm.repairMode)}
               </div>
             </CardContent>
           </Card>
@@ -374,7 +374,7 @@ export default function PipelineTab(props: PipelineTabProps) {
           <div className="grid gap-4 xl:grid-cols-2">
             <Card>
               <CardHeader>
-                <CardTitle>{i18next.t("gen.pages.novels.components.PipelineTab.gen_36c20c7a")}</CardTitle>
+                <CardTitle>{i18next.t("dict.gen_36c20c7a")}</CardTitle>
               </CardHeader>
               <CardContent className="space-y-2">
                 {PIPELINE_STAGE_ITEMS.map((stage) => {
@@ -404,11 +404,11 @@ export default function PipelineTab(props: PipelineTabProps) {
 
             <Card>
               <CardHeader>
-                <CardTitle>{i18next.t("gen.pages.novels.components.PipelineTab.gen_935d16e3")}</CardTitle>
+                <CardTitle>{i18next.t("dict.gen_935d16e3")}</CardTitle>
               </CardHeader>
               <CardContent className="space-y-3">
                 <div className="flex flex-wrap gap-2">
-                  <AiButton onClick={() => onRunPipeline()} disabled={isRunningPipeline || !hasCharacters}>{i18next.t("gen.pages.novels.components.PipelineTab.gen_4bd6d43a", "启动批量生成")}</AiButton>
+                  <AiButton onClick={() => onRunPipeline()} disabled={isRunningPipeline || !hasCharacters}>{i18next.t("novels.pipelineTab.rh1dwg")}</AiButton>
                   <AiButton
                     variant="outline"
                     onClick={() => {
@@ -422,36 +422,36 @@ export default function PipelineTab(props: PipelineTabProps) {
                       });
                     }}
                     disabled={isRunningPipeline || !lowScoreRange}
-                  >{i18next.t("gen.pages.novels.components.PipelineTab.gen_34f1e128", "仅重跑低分章节")}</AiButton>
-                  <Button variant="outline" onClick={exportPipelineReport}>{i18next.t("gen.pages.novels.components.PipelineTab.gen_55edcfc0")}</Button>
-                  <AiButton onClick={onGenerateBible} disabled={isBibleStreaming || !hasCharacters}>{i18next.t("gen.pages.novels.components.PipelineTab.gen_e874b56f")}</AiButton>
-                  <Button variant="secondary" onClick={onAbortBible} disabled={!isBibleStreaming}>{i18next.t("gen.pages.novels.components.PipelineTab.gen_7ad87f4a")}</Button>
-                  <AiButton onClick={onGenerateBeats} disabled={isBeatsStreaming || !hasCharacters}>{i18next.t("gen.pages.novels.components.PipelineTab.gen_5970afec")}</AiButton>
-                  <Button variant="secondary" onClick={onAbortBeats} disabled={!isBeatsStreaming}>{i18next.t("gen.pages.novels.components.PipelineTab.gen_1eed7ce6")}</Button>
+                  >{i18next.t("novels.pipelineTab.rvuuyl")}</AiButton>
+                  <Button variant="outline" onClick={exportPipelineReport}>{i18next.t("dict.gen_55edcfc0")}</Button>
+                  <AiButton onClick={onGenerateBible} disabled={isBibleStreaming || !hasCharacters}>{i18next.t("dict.gen_e874b56f")}</AiButton>
+                  <Button variant="secondary" onClick={onAbortBible} disabled={!isBibleStreaming}>{i18next.t("dict.gen_7ad87f4a")}</Button>
+                  <AiButton onClick={onGenerateBeats} disabled={isBeatsStreaming || !hasCharacters}>{i18next.t("dict.gen_5970afec")}</AiButton>
+                  <Button variant="secondary" onClick={onAbortBeats} disabled={!isBeatsStreaming}>{i18next.t("dict.gen_1eed7ce6")}</Button>
                 </div>
                 {lowScoreRange ? (
                   <div className="text-xs text-muted-foreground">
                     低分章节 {lowScoreRange.count} 个，可重跑范围：第 {lowScoreRange.startOrder} 章 - 第 {lowScoreRange.endOrder} 章。
                   </div>
                 ) : (
-                  <div className="text-xs text-muted-foreground">{i18next.t("gen.pages.novels.components.PipelineTab.gen_a2359212")}</div>
+                  <div className="text-xs text-muted-foreground">{i18next.t("dict.gen_a2359212")}</div>
                 )}
                 <div className="rounded-md border p-3 text-sm">
-                  <div className="mb-2 font-medium">{i18next.t("gen.pages.novels.components.PipelineTab.taskIdStatus")}</div>
+                  <div className="mb-2 font-medium">{i18next.t("dict.taskIdStatus")}</div>
                   {pipelineJob ? (
                     <div className="space-y-1">
-                      <div>{i18next.t("gen.pages.novels.components.PipelineTab.taskIdPipelineJobId")}</div>
-                      <div>{i18next.t("gen.pages.novels.components.PipelineTab.gen_558b534a")}</div>
-                      <div>{i18next.t("gen.pages.novels.components.PipelineTab.gen_f278ee48")}</div>
-                      <div>{i18next.t("gen.pages.novels.components.PipelineTab.gen_0b2eaee1")}</div>
-                      <div>{i18next.t("gen.pages.novels.components.PipelineTab.gen_263a6b07")}</div>
-                      <div>{i18next.t("gen.pages.novels.components.PipelineTab.gen_da8ca2c1")}</div>
-                      <div>{i18next.t("gen.pages.novels.components.PipelineTab.gen_2f767b68")}</div>
-                      {pipelineJob.lastErrorType ? <div>{i18next.t("gen.pages.novels.components.PipelineTab.gen_9e700f27")}</div> : null}
-                      {pipelineJob.error ? <div className="text-red-600">{i18next.t("gen.pages.novels.components.PipelineTab.gen_487cd5cc")}</div> : null}
+                      <div>{i18next.t("dict.taskIdPipelineJobId")}</div>
+                      <div>{i18next.t("dict.gen_558b534a")}</div>
+                      <div>{i18next.t("dict.gen_f278ee48")}</div>
+                      <div>{i18next.t("dict.gen_0b2eaee1")}</div>
+                      <div>{i18next.t("dict.gen_263a6b07")}</div>
+                      <div>{i18next.t("dict.gen_da8ca2c1")}</div>
+                      <div>{i18next.t("dict.gen_2f767b68")}</div>
+                      {pipelineJob.lastErrorType ? <div>{i18next.t("dict.gen_9e700f27")}</div> : null}
+                      {pipelineJob.error ? <div className="text-red-600">{i18next.t("dict.gen_487cd5cc")}</div> : null}
                     </div>
                   ) : (
-                    <div className="text-muted-foreground">{i18next.t("gen.pages.novels.components.PipelineTab.gen_11610df7")}</div>
+                    <div className="text-muted-foreground">{i18next.t("dict.gen_11610df7")}</div>
                   )}
                 </div>
                 <div className="grid gap-3 md:grid-cols-2">
@@ -467,33 +467,33 @@ export default function PipelineTab(props: PipelineTabProps) {
       <details className="group rounded-2xl border border-border/70 bg-background/95 p-4">
         <summary className="cursor-pointer list-none">
           <CollapsibleSummary
-            title={i18next.t("gen.pages.novels.components.PipelineTab.gen_e2372df9")}
-            description={i18next.t("gen.pages.novels.components.PipelineTab.gen_9c58a496")}
+            title={i18next.t("dict.gen_e2372df9")}
+            description={i18next.t("dict.gen_9c58a496")}
           />
         </summary>
 
         <div className="mt-4 space-y-4">
           <Card>
             <CardHeader>
-              <CardTitle>{i18next.t("gen.pages.novels.components.PipelineTab.gen_98001905")}</CardTitle>
+              <CardTitle>{i18next.t("dict.gen_98001905")}</CardTitle>
             </CardHeader>
             <CardContent className="space-y-3">
               {qualitySummary ? (
                 <div className="grid gap-2 md:grid-cols-3">
-                  <Badge variant="outline">{i18next.t("gen.pages.novels.components.PipelineTab.gen_b031f966")}</Badge>
-                  <Badge variant="outline">{i18next.t("gen.pages.novels.components.PipelineTab.gen_6a4abc13")}</Badge>
-                  <Badge variant="outline">{i18next.t("gen.pages.novels.components.PipelineTab.gen_ae9c34a3")}</Badge>
-                  <Badge variant="outline">{i18next.t("gen.pages.novels.components.PipelineTab.gen_975e6dc9")}</Badge>
-                  <Badge variant="outline">{i18next.t("gen.pages.novels.components.PipelineTab.gen_197500cb")}</Badge>
-                  <Badge variant="default">{i18next.t("gen.pages.novels.components.PipelineTab.gen_1d3831b1")}</Badge>
+                  <Badge variant="outline">{i18next.t("dict.gen_b031f966")}</Badge>
+                  <Badge variant="outline">{i18next.t("dict.gen_6a4abc13")}</Badge>
+                  <Badge variant="outline">{i18next.t("dict.gen_ae9c34a3")}</Badge>
+                  <Badge variant="outline">{i18next.t("dict.gen_975e6dc9")}</Badge>
+                  <Badge variant="outline">{i18next.t("dict.gen_197500cb")}</Badge>
+                  <Badge variant="default">{i18next.t("dict.gen_1d3831b1")}</Badge>
                 </div>
               ) : (
-                <div className="text-sm text-muted-foreground">{i18next.t("gen.pages.novels.components.PipelineTab.gen_7b207e94")}</div>
+                <div className="text-sm text-muted-foreground">{i18next.t("dict.gen_7b207e94")}</div>
               )}
               <div className="space-y-2 text-sm">
                 {chapterReports.slice(0, 10).map((item, index) => (
                   <div key={`${item.chapterId ?? "novel"}-${index}`} className="rounded-md border p-2">
-                    <div>{i18next.t("gen.pages.novels.components.PipelineTab.gen_10e8639d")}</div>
+                    <div>{i18next.t("dict.gen_10e8639d")}</div>
                     <div className="text-muted-foreground">
                       综合：{item.overall}，连贯性：{item.coherence}，重复率：{item.repetition}
                     </div>
@@ -505,38 +505,38 @@ export default function PipelineTab(props: PipelineTabProps) {
 
           <div className="grid gap-4 xl:grid-cols-2">
             <Card>
-              <CardHeader><CardTitle>{i18next.t("gen.pages.novels.components.PipelineTab.gen_a6bc98ff")}</CardTitle></CardHeader>
+              <CardHeader><CardTitle>{i18next.t("dict.gen_a6bc98ff")}</CardTitle></CardHeader>
               <CardContent className="space-y-2 text-sm">
                 {bible ? (
                   <>
-                    <div className="rounded-md border p-2"><div className="font-medium">{i18next.t("gen.pages.novels.components.PipelineTab.mainPromiseLine")}</div><div className="text-muted-foreground">{i18next.t("gen.pages.novels.components.PipelineTab.bibleMainPromise")}</div></div>
-                    <div className="rounded-md border p-2"><div className="font-medium">{i18next.t("gen.pages.novels.components.PipelineTab.gen_3f78c39a")}</div><div className="text-muted-foreground">{i18next.t("gen.pages.novels.components.PipelineTab.bibleCoreSetting")}</div></div>
+                    <div className="rounded-md border p-2"><div className="font-medium">{i18next.t("dict.mainPromiseLine")}</div><div className="text-muted-foreground">{i18next.t("dict.bibleMainPromise")}</div></div>
+                    <div className="rounded-md border p-2"><div className="font-medium">{i18next.t("dict.gen_3f78c39a")}</div><div className="text-muted-foreground">{i18next.t("dict.bibleCoreSetting")}</div></div>
                     <div className="rounded-md border p-2">
-                      <div className="font-medium">{i18next.t("gen.pages.novels.components.PipelineTab.bibleWorldRecord")}</div>
-                      <div className="text-xs leading-5 text-muted-foreground">{i18next.t("gen.pages.novels.components.PipelineTab.gen_eb05564d", "这里是作品圣经里的文字记录；章节生成优先读取“本书世界”里的世界手册和使用范围。")}</div>
-                      <div className="mt-2 text-muted-foreground">{i18next.t("gen.pages.novels.components.PipelineTab.bibleWorldRules")}</div>
+                      <div className="font-medium">{i18next.t("dict.bibleWorldRecord")}</div>
+                      <div className="text-xs leading-5 text-muted-foreground">{i18next.t("novels.pipelineTab.eczshx")}</div>
+                      <div className="mt-2 text-muted-foreground">{i18next.t("dict.bibleWorldRules")}</div>
                     </div>
                   </>
                 ) : (
-                  <div className="text-muted-foreground">{i18next.t("gen.pages.novels.components.PipelineTab.gen_16345639")}</div>
+                  <div className="text-muted-foreground">{i18next.t("dict.gen_16345639")}</div>
                 )}
               </CardContent>
             </Card>
             <Card>
-              <CardHeader><CardTitle>{i18next.t("gen.pages.novels.components.PipelineTab.gen_0c698d6f")}</CardTitle></CardHeader>
+              <CardHeader><CardTitle>{i18next.t("dict.gen_0c698d6f")}</CardTitle></CardHeader>
               <CardContent className="space-y-2 text-sm">
                 {plotBeats.length > 0 ? (
                   plotBeats.slice(0, 20).map((beat) => (
                     <div key={beat.id} className="rounded-md border p-2">
                       <div className="flex items-center justify-between gap-2">
-                        <div className="font-medium">{i18next.t("gen.pages.novels.components.PipelineTab.gen_cd1128df")}</div>
+                        <div className="font-medium">{i18next.t("dict.gen_cd1128df")}</div>
                         <Badge variant="outline">{beat.status}</Badge>
                       </div>
-                      <div className="text-xs text-muted-foreground">{i18next.t("gen.pages.novels.components.PipelineTab.gen_cfe84033")}</div>
+                      <div className="text-xs text-muted-foreground">{i18next.t("dict.gen_cfe84033")}</div>
                     </div>
                   ))
                 ) : (
-                  <div className="text-muted-foreground">{i18next.t("gen.pages.novels.components.PipelineTab.gen_69e0bfd2")}</div>
+                  <div className="text-muted-foreground">{i18next.t("dict.gen_69e0bfd2")}</div>
                 )}
               </CardContent>
             </Card>

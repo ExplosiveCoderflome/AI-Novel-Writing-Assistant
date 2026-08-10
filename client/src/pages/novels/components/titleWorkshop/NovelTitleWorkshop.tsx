@@ -1,4 +1,3 @@
-import { useTranslation } from "react-i18next";
 import i18next from "i18next";
 const t = (key: string, options?: any) => i18next.t(key, options) as string;
 import { useState } from "react";
@@ -30,7 +29,6 @@ export default function NovelTitleWorkshop({
   genreId,
   onApplyTitle,
 }: NovelTitleWorkshopProps) {
-  const { t } = useTranslation();
   const llm = useLLMStore();
   const queryClient = useQueryClient();
   const [selectedTitle, setSelectedTitle] = useState(currentTitle);
@@ -62,7 +60,7 @@ export default function NovelTitleWorkshop({
     }),
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: queryKeys.titles.all });
-      toast.success(i18next.t("gen.pages.novels.components.titleWorkshop.NovelTitleWorkshop.gen_fccedc6f"));
+      toast.success(i18next.t("dict.gen_fccedc6f"));
     },
   });
 
@@ -75,20 +73,20 @@ export default function NovelTitleWorkshop({
     }),
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: queryKeys.titles.all });
-      toast.success(i18next.t("gen.pages.novels.components.titleWorkshop.NovelTitleWorkshop.gen_bfcbedb9"));
+      toast.success(i18next.t("dict.gen_bfcbedb9"));
     },
   });
 
   const handleCopy = async (suggestion: TitleFactorySuggestion) => {
     await navigator.clipboard.writeText(suggestion.title);
     setSelectedTitle(suggestion.title);
-    toast.success(i18next.t("gen.pages.novels.components.titleWorkshop.NovelTitleWorkshop.gen_3257008e"));
+    toast.success(i18next.t("dict.gen_3257008e"));
   };
 
   const handleApply = (suggestion: TitleFactorySuggestion) => {
     setSelectedTitle(suggestion.title);
     onApplyTitle(suggestion.title);
-    toast.success(i18next.t("gen.pages.novels.components.titleWorkshop.NovelTitleWorkshop.gen_45732748"));
+    toast.success(i18next.t("dict.gen_45732748"));
   };
 
   return (
@@ -96,18 +94,18 @@ export default function NovelTitleWorkshop({
       <div className="space-y-4">
         <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
           <div className="space-y-1">
-            <div className="text-sm font-semibold text-foreground">{i18next.t("gen.pages.novels.components.titleWorkshop.NovelTitleWorkshop.gen_c7a5bed7")}</div>
-            <div className="text-sm leading-6 text-muted-foreground">{i18next.t("gen.pages.novels.components.titleWorkshop.NovelTitleWorkshop.gen_c26e0674", "基于当前已保存的小说简介和类型生成候选。如果刚修改过简介或类型，建议先保存基本信息再生成。")}</div>
+            <div className="text-sm font-semibold text-foreground">{i18next.t("dict.gen_c7a5bed7")}</div>
+            <div className="text-sm leading-6 text-muted-foreground">{i18next.t("novels.novelTitleWorkshop.ya71sc")}</div>
           </div>
           <Button type="button" variant="outline" disabled={!currentTitle.trim() || saveCurrentMutation.isPending} onClick={() => saveCurrentMutation.mutate()}>
-            {saveCurrentMutation.isPending ? i18next.t("gen.pages.novels.components.titleWorkshop.NovelTitleWorkshop.savingInProgressDotDotDot") : i18next.t("gen.pages.novels.components.titleWorkshop.NovelTitleWorkshop.saveCurrentTitle")}
+            {saveCurrentMutation.isPending ? i18next.t("common.saving") : i18next.t("dict.saveCurrentTitle")}
           </Button>
         </div>
         <div className="space-y-3">
           <LLMSelector />
           <div className="flex justify-end">
             <AiButton type="button" onClick={() => generateMutation.mutate()} disabled={generateMutation.isPending}>
-              {generateMutation.isPending ? i18next.t("gen.pages.novels.components.titleWorkshop.NovelTitleWorkshop.gen_4d020ba3") : i18next.t("gen.pages.novels.components.titleWorkshop.NovelTitleWorkshop.gen_65b0c5a6")}
+              {generateMutation.isPending ? i18next.t("dict.gen_4d020ba3") : i18next.t("dict.gen_65b0c5a6")}
             </AiButton>
           </div>
         </div>
@@ -116,12 +114,12 @@ export default function NovelTitleWorkshop({
       <TitleSuggestionList
         suggestions={suggestions}
         selectedTitle={selectedTitle}
-        primaryActionLabel={i18next.t("gen.pages.novels.components.titleWorkshop.NovelTitleWorkshop.gen_42767810")}
+        primaryActionLabel={i18next.t("dict.gen_42767810")}
         onPrimaryAction={handleApply}
         onCopy={handleCopy}
         onSave={(suggestion) => saveMutation.mutate(suggestion)}
         savingTitle={saveMutation.isPending ? saveMutation.variables?.title ?? "" : ""}
-        emptyMessage={i18next.t("gen.pages.novels.components.titleWorkshop.NovelTitleWorkshop.gen_ebad2918")}
+        emptyMessage={i18next.t("dict.gen_ebad2918")}
       />
     </div>
   );

@@ -1,5 +1,4 @@
 import i18next from "i18next";
-import { useTranslation } from "react-i18next";
 import { useEffect, useMemo, useState } from "react";
 import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
 import type { VisualAssetCatalogItem, VisualAssetSelection, VisualAssetSourceDomain } from "@ai-novel/shared/types/visualAsset";
@@ -42,7 +41,6 @@ export function VisualAssetLibrary({
   onSelect,
   className,
 }: VisualAssetLibraryProps) {
-  const { t } = useTranslation();
   const [searchInput, setSearchInput] = useState("");
   const [selectedKind, setSelectedKind] = useState<VisualAssetCatalogItem["kind"] | undefined>();
   const [selectedSource, setSelectedSource] = useState<VisualAssetSourceDomain | undefined>();
@@ -152,7 +150,7 @@ export function VisualAssetLibrary({
   };
 
   return (
-    <section className={cn("flex h-full min-h-0 flex-col bg-background", className)} aria-label={i18next.t("gen.components.visualAssets.VisualAssetLibrary.gen_cc596cc2", "视觉资源库")}>
+    <section className={cn("flex h-full min-h-0 flex-col bg-background", className)} aria-label={i18next.t("sidebar.visualAssets")}>
       <div className="shrink-0 border-b px-5 py-3.5">
         <div className="flex flex-col gap-3 xl:flex-row xl:items-center">
           <label className="relative block min-w-0 flex-1">
@@ -160,22 +158,22 @@ export function VisualAssetLibrary({
             <Input
               value={searchInput}
               onChange={(event) => setSearchInput(event.target.value)}
-              placeholder={i18next.t("gen.components.visualAssets.VisualAssetLibrary.gen_be7d29d9", "搜索素材名称、描述或提示词")}
+              placeholder={i18next.t("visualAssets.visualAssetLibrary.ed8loq")}
               className="h-10 bg-background pl-9"
-              aria-label={i18next.t("gen.components.visualAssets.VisualAssetLibrary.gen_e8c9daab", "搜索视觉素材")}
+              aria-label={i18next.t("visualAssets.visualAssetLibrary.23d1l3")}
             />
           </label>
           <div className="flex flex-wrap items-center gap-2">
-            <FilterGroup label={i18next.t("gen.components.visualAssets.VisualAssetLibrary.gen_226b0912", "类型")} icon={<SlidersHorizontal className="h-3.5 w-3.5" aria-hidden="true" />}>
-              <FilterButton active={!selectedKind} onClick={() => setSelectedKind(undefined)}>{i18next.t("gen.components.visualAssets.VisualAssetLibrary.gen_a8b0c204", "全部")}</FilterButton>
+            <FilterGroup label={i18next.t("dict.gen_226b0912")} icon={<SlidersHorizontal className="h-3.5 w-3.5" aria-hidden="true" />}>
+              <FilterButton active={!selectedKind} onClick={() => setSelectedKind(undefined)}>{i18next.t("autoDirector.secAll")}</FilterButton>
               {kindFacets.map((facet) => (
                 <FilterButton key={facet.value} active={selectedKind === facet.value} onClick={() => setSelectedKind(facet.value)}>
                   {getVisualAssetKindLabel(facet.value)} <span className="text-muted-foreground">{facet.count}</span>
                 </FilterButton>
               ))}
             </FilterGroup>
-            <FilterGroup label={i18next.t("gen.components.visualAssets.VisualAssetLibrary.gen_26ca20b1", "来源")}>
-              <FilterButton active={!selectedSource} onClick={() => setSelectedSource(undefined)}>{i18next.t("gen.components.visualAssets.VisualAssetLibrary.gen_a8b0c204", "全部")}</FilterButton>
+            <FilterGroup label={i18next.t("dict.gen_26ca20b1")}>
+              <FilterButton active={!selectedSource} onClick={() => setSelectedSource(undefined)}>{i18next.t("autoDirector.secAll")}</FilterButton>
               {sourceFacets.map((facet) => (
                 <FilterButton key={facet.value} active={selectedSource === facet.value} onClick={() => setSelectedSource(facet.value)}>
                   {getVisualAssetSourceLabel(facet.value)} <span className="text-muted-foreground">{facet.count}</span>
@@ -192,22 +190,22 @@ export function VisualAssetLibrary({
             <span>{typeof total === "number" ? `找到 ${total} 项素材` : "正在准备素材"}</span>
             {hasActiveFilters ? (
               <Button type="button" variant="ghost" size="sm" className="h-8 px-2" onClick={clearFilters}>
-                <X className="h-3.5 w-3.5" aria-hidden="true" />{i18next.t("gen.components.visualAssets.VisualAssetLibrary.gen_a95500ef", "清除筛选")}</Button>
+                <X className="h-3.5 w-3.5" aria-hidden="true" />{i18next.t("visualAssets.visualAssetLibrary.ei6tl9")}</Button>
             ) : null}
           </div>
           <div className="px-5 pb-5">
             {catalogQuery.isLoading ? <VisualAssetGridLoading /> : null}
             {catalogQuery.isError ? (
               <InlineState
-                title={i18next.t("gen.components.visualAssets.VisualAssetLibrary.gen_9c63d138", "暂时无法加载视觉素材")}
-                description={i18next.t("gen.components.visualAssets.VisualAssetLibrary.gen_8ddf17fd", "请检查连接后重新加载。")}
-                actionLabel={i18next.t("gen.components.visualAssets.VisualAssetLibrary.gen_64ca9bab", "重新加载")}
+                title={i18next.t("visualAssets.visualAssetLibrary.di022v")}
+                description={i18next.t("visualAssets.visualAssetLibrary.m3ouvd")}
+                actionLabel="重新加载"
                 onAction={() => void catalogQuery.refetch()}
               />
             ) : null}
             {!catalogQuery.isLoading && !catalogQuery.isError && items.length === 0 ? (
               <InlineState
-                title={i18next.t("gen.components.visualAssets.VisualAssetLibrary.gen_a47f46b7", "没有找到匹配的视觉素材")}
+                title={i18next.t("visualAssets.visualAssetLibrary.cw9vpl")}
                 description={hasActiveFilters ? "调整搜索或筛选条件后继续查看。" : "完成图片创作后，素材会显示在这里。"}
                 actionLabel={hasActiveFilters ? "清除筛选" : undefined}
                 onAction={hasActiveFilters ? clearFilters : undefined}
@@ -247,13 +245,13 @@ export function VisualAssetLibrary({
 
       {selectionMode !== "browse" ? (
         <div className="flex shrink-0 flex-col gap-3 border-t bg-background px-5 py-3 sm:flex-row sm:items-center sm:justify-between">
-          <div className="text-sm text-muted-foreground">{i18next.t("gen.components.visualAssets.VisualAssetLibrary.gen_f08afd1f", "已选择")}<span className="font-medium text-foreground">{selectedItems.length}</span>{i18next.t("gen.components.visualAssets.VisualAssetLibrary.gen_dc6e4e18", "项素材")}</div>
+          <div className="text-sm text-muted-foreground">{i18next.t("dict.gen_f08afd1f")}<span className="font-medium text-foreground">{selectedItems.length}</span>{i18next.t("visualAssets.visualAssetLibrary.mxu21")}</div>
           <div className="flex items-center justify-end gap-2">
             {selectedItems.length ? (
-              <Button type="button" variant="ghost" size="sm" onClick={() => setSelectedById(new Map())}>{i18next.t("gen.components.visualAssets.VisualAssetLibrary.gen_16e19306", "清空选择")}</Button>
+              <Button type="button" variant="ghost" size="sm" onClick={() => setSelectedById(new Map())}>{i18next.t("visualAssets.visualAssetLibrary.ee6wgl")}</Button>
             ) : null}
             <Button type="button" disabled={!selectedItems.length || !onSelect} onClick={() => onSelect?.(selectedItems)}>
-              <Check className="h-4 w-4" aria-hidden="true" />{i18next.t("gen.components.visualAssets.VisualAssetLibrary.gen_6d0d4854", "使用已选素材")}</Button>
+              <Check className="h-4 w-4" aria-hidden="true" />{i18next.t("visualAssets.visualAssetLibrary.jt24sw")}</Button>
           </div>
         </div>
       ) : null}
@@ -285,7 +283,7 @@ function FilterButton({ active, children, onClick }: { active: boolean; children
 
 function VisualAssetGridLoading() {
   return (
-    <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5" aria-label={i18next.t("gen.components.visualAssets.VisualAssetLibrary.gen_45a3572c", "正在加载视觉素材")}>
+    <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5" aria-label={i18next.t("visualAssets.visualAssetLibrary.4519fv")}>
       {Array.from({ length: 10 }, (_, index) => (
         <div key={index} className="overflow-hidden rounded-md border">
           <div className="aspect-[4/3] animate-pulse bg-muted" />

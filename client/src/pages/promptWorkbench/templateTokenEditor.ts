@@ -1,4 +1,3 @@
-import i18next from "i18next";
 import type { Descendant, Value } from "platejs";
 import type { PromptTemplateReferenceCatalog, PromptTemplateReferenceItem } from "@/api/promptWorkbench";
 import { CONTEXT_GROUP_LABELS } from "./promptWorkbenchLabels.ts";

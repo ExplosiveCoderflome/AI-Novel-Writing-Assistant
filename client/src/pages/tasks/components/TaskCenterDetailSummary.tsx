@@ -1,4 +1,3 @@
-import i18next from "i18next";
 import type { DirectorDashboardView } from "@ai-novel/shared/types/directorRuntime";
 import type { UnifiedTaskDetail } from "@ai-novel/shared/types/task";
 import { TaskQueueStatusBadge } from "@/components/taskQueue";

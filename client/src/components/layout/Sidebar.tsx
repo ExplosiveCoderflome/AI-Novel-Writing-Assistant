@@ -150,7 +150,7 @@ export default function Sidebar({ collapsed, onToggle }: SidebarProps) {
         <Badge
           variant="outline"
           className="ml-auto h-5 border-amber-300 bg-amber-50 px-1.5 text-[10px] font-medium text-amber-700"
-          title={i18next.t("gen.components.layout.Sidebar.gen_46fd7fca", "多媒体改编仍在 Beta 阶段")}
+          title={i18next.t("layout.sidebar.hncv0e")}
         >
           Beta
         </Badge>
@@ -262,7 +262,7 @@ export default function Sidebar({ collapsed, onToggle }: SidebarProps) {
                 return (
                   <div
                     key={item.to}
-                    title={collapsed ? item.label : "即将推出"}
+                    title={collapsed ? item.label : i18next.t("layout.sidebar.awvfr9")}
                     className={cn(
                       "relative flex cursor-not-allowed items-center rounded-md text-sm opacity-40",
                       collapsed ? "justify-center px-2 py-2.5" : "py-2 pl-4 pr-2",
@@ -273,7 +273,7 @@ export default function Sidebar({ collapsed, onToggle }: SidebarProps) {
                       <span className="truncate">{item.label}</span>
                     ) : null}
                     {!collapsed ? (
-                      <span className="ml-auto text-[10px] text-muted-foreground/60">{i18next.t("gen.components.layout.Sidebar.gen_0aece445", "即将推出")}</span>
+                      <span className="ml-auto text-[10px] text-muted-foreground/60">{i18next.t("layout.sidebar.awvfr9")}</span>
                     ) : null}
                   </div>
                 );

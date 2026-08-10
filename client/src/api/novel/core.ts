@@ -1,4 +1,3 @@
-import i18next from "i18next";
 import type { ApiResponse } from "@ai-novel/shared/types/api";
 import type { BookAnalysisSectionKey } from "@ai-novel/shared/types/bookAnalysis";
 import type { KnowledgeDocumentDetail } from "@ai-novel/shared/types/knowledge";

@@ -1,4 +1,3 @@
-import { useTranslation } from "react-i18next";
 import i18next from "i18next";
 const t = (key: string, options?: any) => i18next.t(key, options) as string;
 import { Badge } from "@/components/ui/badge";
@@ -20,7 +19,6 @@ interface TensionCurveBeatContextStripProps {
 }
 
 export function TensionCurveBeatContextStrip(props: TensionCurveBeatContextStripProps) {
-  const { t } = useTranslation();
   const { beats, selectedBeatKey, onBeatChange } = props;
   const selectedBeat = selectedBeatKey === "all"
     ? null
@@ -36,7 +34,7 @@ export function TensionCurveBeatContextStrip(props: TensionCurveBeatContextStrip
             variant={selectedBeatKey === "all" ? "secondary" : "outline"}
             className="h-8 shrink-0 px-3 text-xs"
             onClick={() => onBeatChange("all")}
-          >{i18next.t("gen.components.tensionCurve.TensionCurveBeatContextStrip.gen_ff3145ff", "整卷")}</Button>
+          >{i18next.t("dict.gen_ff3145ff")}</Button>
           {beats.map((beat) => (
             <Button
               key={beat.key}
@@ -60,11 +58,11 @@ export function TensionCurveBeatContextStrip(props: TensionCurveBeatContextStrip
               {selectedBeat.chapterSpanHint ? <Badge variant="outline">{selectedBeat.chapterSpanHint}</Badge> : null}
             </div>
             <div className="mt-2 text-sm leading-6 text-foreground">
-              {selectedBeat.summary?.trim() || i18next.t("gen.components.tensionCurve.TensionCurveBeatContextStrip.gen_118ad7ff")}
+              {selectedBeat.summary?.trim() || i18next.t("dict.gen_118ad7ff")}
             </div>
           </div>
           <div className="rounded-lg border border-border/70 bg-muted/20 p-3">
-            <div className="text-sm font-medium text-foreground">{i18next.t("gen.components.tensionCurve.TensionCurveBeatContextStrip.gen_e28ab624")}</div>
+            <div className="text-sm font-medium text-foreground">{i18next.t("dict.gen_e28ab624")}</div>
             {selectedBeat.mustDeliver && selectedBeat.mustDeliver.length > 0 ? (
               <ol className="mt-2 space-y-1.5">
                 {selectedBeat.mustDeliver.slice(0, 4).map((item, index) => (
@@ -77,13 +75,13 @@ export function TensionCurveBeatContextStrip(props: TensionCurveBeatContextStrip
                 ))}
               </ol>
             ) : (
-              <div className="mt-2 text-xs leading-5 text-muted-foreground">{i18next.t("gen.components.tensionCurve.TensionCurveBeatContextStrip.gen_826a713b")}</div>
+              <div className="mt-2 text-xs leading-5 text-muted-foreground">{i18next.t("dict.gen_826a713b")}</div>
             )}
           </div>
         </div>
       ) : (
         <div className={cn("rounded-lg border border-dashed p-3 text-sm text-muted-foreground", beats.length === 0 ? "bg-amber-50 text-amber-800" : "")}>
-          {beats.length > 0 ? i18next.t("gen.components.tensionCurve.TensionCurveBeatContextStrip.gen_87785ebf") : i18next.t("gen.components.tensionCurve.TensionCurveBeatContextStrip.gen_c9889375")}
+          {beats.length > 0 ? i18next.t("dict.gen_87785ebf") : i18next.t("dict.gen_c9889375")}
         </div>
       )}
     </div>

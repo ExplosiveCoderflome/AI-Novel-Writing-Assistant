@@ -1,4 +1,3 @@
-import i18next from "i18next";
 import { useTranslation } from "react-i18next";
 import StructuredOutlineWorkspace from "./StructuredOutlineWorkspace";
 import type { StructuredTabViewProps } from "./NovelEditView.types";

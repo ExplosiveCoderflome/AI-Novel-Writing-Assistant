@@ -129,11 +129,11 @@ export default function ChapterManagementTab(props: ChapterTabViewProps) {
 
   const queueFilters = useMemo(
     () => ([
-      { key: "all", label: i18next.t("gen.pages.novels.components.ChapterManagementTab.gen_a8b0c204") },
-      { key: "setup", label: i18next.t("gen.pages.novels.components.ChapterManagementTab.gen_5a562457") },
-      { key: "draft", label: i18next.t("gen.pages.novels.components.ChapterManagementTab.gen_9c3c4a2c") },
-      { key: "review", label: i18next.t("gen.pages.novels.components.ChapterManagementTab.gen_285214d7") },
-      { key: "completed", label: i18next.t("gen.pages.novels.components.ChapterManagementTab.gen_fad5222c") },
+      { key: "all", label: i18next.t("autoDirector.secAll") },
+      { key: "setup", label: i18next.t("dict.gen_5a562457") },
+      { key: "draft", label: i18next.t("dict.gen_9c3c4a2c") },
+      { key: "review", label: i18next.t("dict.gen_285214d7") },
+      { key: "completed", label: i18next.t("tasks.filterStatusSucceeded") },
     ] as const).map((item) => ({
       ...item,
       count: chapters.filter((chapter) => chapterMatchesQueueFilter(chapter, item.key)).length,
@@ -144,19 +144,19 @@ export default function ChapterManagementTab(props: ChapterTabViewProps) {
   return (
     <div className="space-y-4">
       <DirectorTakeoverEntryPanel
-        title={i18next.t("gen.pages.novels.components.ChapterManagementTab.takeoverFromChapterExecution")}
-        description={i18next.t("gen.pages.novels.components.ChapterManagementTab.aiCheckCurrentActiveBatchOrRange")}
+        title={i18next.t("dict.takeoverFromChapterExecution")}
+        description={i18next.t("dict.aiCheckCurrentActiveBatchOrRange")}
         entry={directorTakeoverEntry}
       />
       <Card className="overflow-visible border-0 bg-transparent shadow-none">
       <CardHeader className="gap-3 rounded-2xl bg-muted/20 px-5 py-4">
         <div className="flex flex-col gap-3 xl:flex-row xl:items-start xl:justify-between">
           <div className="space-y-1">
-            <CardTitle>{i18next.t("gen.pages.novels.components.ChapterManagementTab.gen_663bbefc")}</CardTitle>
-            <div className="text-sm leading-6 text-muted-foreground">{i18next.t("gen.pages.novels.components.ChapterManagementTab.gen_a7ecba20", "把这里收成真正的主工作台：左侧只管切章，中间完整承接正文，右侧专心放 AI 动作和策略。")}</div>
+            <CardTitle>{i18next.t("home.chapterExecution")}</CardTitle>
+            <div className="text-sm leading-6 text-muted-foreground">{i18next.t("novels.chapterManagementTab.4g2p4y")}</div>
           </div>
           <Button onClick={onCreateChapter} disabled={isCreatingChapter}>
-            {isCreatingChapter ? i18next.t("gen.pages.novels.components.ChapterManagementTab.gen_b26107b6") : i18next.t("gen.pages.novels.components.ChapterManagementTab.gen_fa0e627a")}
+            {isCreatingChapter ? i18next.t("dict.gen_b26107b6") : i18next.t("dict.gen_fa0e627a")}
           </Button>
         </div>
       </CardHeader>
@@ -172,8 +172,8 @@ export default function ChapterManagementTab(props: ChapterTabViewProps) {
 
         {!hasCharacters ? (
           <div className="flex flex-col gap-3 rounded-2xl bg-amber-50 p-4 text-sm text-amber-900 md:flex-row md:items-center md:justify-between">
-            <span>{i18next.t("gen.pages.novels.components.ChapterManagementTab.gen_91e51489")}</span>
-            <Button size="sm" variant="outline" onClick={onGoToCharacterTab}>{i18next.t("gen.pages.novels.components.ChapterManagementTab.gen_ef2c69b9")}</Button>
+            <span>{i18next.t("dict.gen_91e51489")}</span>
+            <Button size="sm" variant="outline" onClick={onGoToCharacterTab}>{i18next.t("dict.gen_ef2c69b9")}</Button>
           </div>
         ) : null}
 
@@ -229,9 +229,9 @@ export default function ChapterManagementTab(props: ChapterTabViewProps) {
               className="flex h-full min-h-0 flex-col"
             >
               <TabsList className="grid h-auto w-full shrink-0 grid-cols-3 rounded-xl bg-muted/50 p-1.5">
-                <TabsTrigger value="insights" className="rounded-lg px-3 py-2 text-sm">{i18next.t("gen.pages.novels.components.ChapterManagementTab.gen_528e1003")}</TabsTrigger>
-                <TabsTrigger value="reference" className="rounded-lg px-3 py-2 text-sm">{i18next.t("gen.pages.novels.components.ChapterManagementTab.gen_826a79d9")}</TabsTrigger>
-                <TabsTrigger value="agent" className="rounded-lg px-3 py-2 text-sm">{i18next.t("gen.pages.novels.components.ChapterManagementTab.aiExecutionDesk")}</TabsTrigger>
+                <TabsTrigger value="insights" className="rounded-lg px-3 py-2 text-sm">{i18next.t("dict.gen_528e1003")}</TabsTrigger>
+                <TabsTrigger value="reference" className="rounded-lg px-3 py-2 text-sm">{i18next.t("dict.gen_826a79d9")}</TabsTrigger>
+                <TabsTrigger value="agent" className="rounded-lg px-3 py-2 text-sm">{i18next.t("dict.aiExecutionDesk")}</TabsTrigger>
               </TabsList>
               <TabsContent value="insights" className="mt-3 min-h-0 flex-1">
                 <ChapterExecutionInsightsSidebar

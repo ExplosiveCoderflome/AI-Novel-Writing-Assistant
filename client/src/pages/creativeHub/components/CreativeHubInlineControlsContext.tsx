@@ -1,4 +1,3 @@
-import i18next from "i18next";
 import { createContext, useContext, type PropsWithChildren } from "react";
 import type { FailureDiagnostic } from "@ai-novel/shared/types/agent";
 import type { CreativeHubInterrupt } from "@ai-novel/shared/types/creativeHub";

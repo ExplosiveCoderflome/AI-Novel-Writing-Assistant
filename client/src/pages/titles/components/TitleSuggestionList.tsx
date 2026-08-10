@@ -19,12 +19,12 @@ interface TitleSuggestionListProps {
 export default function TitleSuggestionList({
   suggestions,
   selectedTitle = "",
-  primaryActionLabel = i18next.t("gen.pages.titles.components.TitleSuggestionList.gen_6f3398e0"),
+  primaryActionLabel = i18next.t("dict.gen_6f3398e0"),
   onPrimaryAction,
   onCopy,
   onSave,
   savingTitle = "",
-  emptyMessage = i18next.t("gen.pages.titles.components.TitleSuggestionList.gen_2b2c3000"),
+  emptyMessage = i18next.t("dict.gen_2b2c3000"),
 }: TitleSuggestionListProps) {
   if (suggestions.length === 0) {
     return (
@@ -38,11 +38,11 @@ export default function TitleSuggestionList({
     <div className="divide-y divide-border/55">
       {suggestions.map((suggestion) => {
         const isSelected = selectedTitle === suggestion.title;
-        const showSecondaryCopy = Boolean(onCopy && primaryActionLabel !== i18next.t("gen.pages.titles.components.TitleSuggestionList.gen_6f3398e0"));
+        const showSecondaryCopy = Boolean(onCopy && primaryActionLabel !== i18next.t("dict.gen_6f3398e0"));
         const metadata = [
           getTitleStyleLabel(suggestion.style),
           suggestion.angle,
-          isSelected ? i18next.t("gen.pages.titles.components.TitleSuggestionList.gen_bf94700b") : null,
+          isSelected ? i18next.t("dict.gen_bf94700b") : null,
         ].filter((item): item is string => Boolean(item));
         return (
           <div
@@ -53,7 +53,7 @@ export default function TitleSuggestionList({
           >
             <div className="grid gap-3 lg:grid-cols-[64px_minmax(0,1fr)_auto] lg:items-start">
               <div className="text-xs leading-5 text-muted-foreground">
-                <div className="font-medium text-foreground">{i18next.t("gen.pages.titles.components.TitleSuggestionList.gen_4584c097")}</div>
+                <div className="font-medium text-foreground">{i18next.t("dict.gen_4584c097")}</div>
                 <div className="text-lg font-semibold tabular-nums text-foreground">{suggestion.clickRate}</div>
               </div>
 
@@ -72,13 +72,13 @@ export default function TitleSuggestionList({
               <div className="flex flex-wrap items-center gap-2 lg:justify-end">
                 {onPrimaryAction ? (
                   <Button type="button" size="sm" className="gap-1.5" onClick={() => onPrimaryAction(suggestion)}>
-                    {primaryActionLabel === i18next.t("gen.pages.titles.components.TitleSuggestionList.gen_6f3398e0") ? <Copy className="h-3.5 w-3.5" /> : null}
+                    {primaryActionLabel === i18next.t("dict.gen_6f3398e0") ? <Copy className="h-3.5 w-3.5" /> : null}
                     {primaryActionLabel}
                   </Button>
                 ) : null}
                 {showSecondaryCopy ? (
                   <Button type="button" variant="outline" size="sm" className="gap-1.5" onClick={() => onCopy?.(suggestion)}>
-                    <Copy className="h-3.5 w-3.5" />{i18next.t("gen.pages.titles.components.TitleSuggestionList.gen_79d3abe9", "复制")}</Button>
+                    <Copy className="h-3.5 w-3.5" />{i18next.t("titles.titleLibraryPanel.fljd")}</Button>
                 ) : null}
                 {onSave ? (
                   <Button
@@ -91,10 +91,10 @@ export default function TitleSuggestionList({
                   >
                     {savingTitle === suggestion.title ? (
                       <>
-                        <Check className="h-3.5 w-3.5" />{i18next.t("gen.pages.titles.components.TitleSuggestionList.gen_7cbf2d09", "保存中")}</>
+                        <Check className="h-3.5 w-3.5" />{i18next.t("dict.savingInProgress")}</>
                     ) : (
                       <>
-                        <BookmarkPlus className="h-3.5 w-3.5" />{i18next.t("gen.pages.titles.components.TitleSuggestionList.gen_aeaa7f29", "入库")}</>
+                        <BookmarkPlus className="h-3.5 w-3.5" />{i18next.t("titles.titleSuggestionList.ed3i")}</>
                     )}
                   </Button>
                 ) : null}

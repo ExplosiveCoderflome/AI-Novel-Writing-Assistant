@@ -1,4 +1,3 @@
-import i18next from "i18next";
 import type { NovelListTone } from "./novelListViewModel";
 
 export function toneBorderClass(tone: NovelListTone): string {

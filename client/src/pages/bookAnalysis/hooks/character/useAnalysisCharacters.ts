@@ -1,4 +1,3 @@
-import i18next from "i18next";
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type { BookAnalysisDetail } from "@ai-novel/shared/types/bookAnalysis";

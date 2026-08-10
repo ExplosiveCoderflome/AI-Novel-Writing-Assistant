@@ -1,4 +1,3 @@
-import { useTranslation } from "react-i18next";
 import i18next from "i18next";
 const t = (key: string, options?: any) => i18next.t(key, options) as string;
 import type { RecoverableTaskSummary } from "@ai-novel/shared/types/task";
@@ -14,22 +13,21 @@ import { useTaskRecovery } from "./TaskRecoveryContext";
 
 function formatTaskKind(kind: RecoverableTaskSummary["kind"]): string {
   if (kind === "novel_workflow") {
-    return i18next.t("gen.components.layout.TaskRecoveryDialog.gen_398df545");
+    return i18next.t("dict.gen_398df545");
   }
   if (kind === "novel_pipeline") {
-    return i18next.t("gen.components.layout.TaskRecoveryDialog.gen_30261b85");
+    return i18next.t("dict.gen_30261b85");
   }
   if (kind === "book_analysis") {
-    return i18next.t("gen.components.layout.TaskRecoveryDialog.gen_fc2be1f8");
+    return i18next.t("dict.gen_fc2be1f8");
   }
   if (kind === "style_extraction") {
-    return i18next.t("gen.components.layout.TaskRecoveryDialog.gen_f94905b4");
+    return i18next.t("tasks.filterKindStyleExtraction");
   }
-  return i18next.t("gen.components.layout.TaskRecoveryDialog.gen_8cf8ad31");
+  return i18next.t("dict.gen_8cf8ad31");
 }
 
 export default function TaskRecoveryDialog() {
-  const { t } = useTranslation();
   const {
     items,
     isOpen,
@@ -44,13 +42,13 @@ export default function TaskRecoveryDialog() {
   return (
     <Dialog open={isOpen} onOpenChange={(nextOpen) => { if (!nextOpen) closeDialog(); }}>
       <AppDialogContent
-        title={i18next.t("gen.components.layout.TaskRecoveryDialog.gen_875de71e")}
-        description={i18next.t("gen.components.layout.TaskRecoveryDialog.gen_5f4f5676")}
+        title={i18next.t("dict.gen_875de71e")}
+        description={i18next.t("dict.gen_5f4f5676")}
         footer={(
           <>
-            <Button variant="outline" onClick={closeDialog}>{i18next.t("gen.components.layout.TaskRecoveryDialog.gen_45292500", "稍后处理")}</Button>
+            <Button variant="outline" onClick={closeDialog}>{i18next.t("layout.taskRecoveryDialog.fqxp0j")}</Button>
             <Button onClick={resumeAll} disabled={isResumeSinglePending || isResumeAllPending}>
-              {isResumeAllPending ? i18next.t("gen.components.layout.TaskRecoveryDialog.gen_e4f9620b") : i18next.t("gen.components.layout.TaskRecoveryDialog.gen_7e47d5e6")}
+              {isResumeAllPending ? i18next.t("dict.gen_e4f9620b") : i18next.t("dict.gen_7e47d5e6")}
             </Button>
           </>
         )}
@@ -64,11 +62,11 @@ export default function TaskRecoveryDialog() {
                     <div className="flex flex-wrap items-center gap-2">
                       <Badge variant="outline">{formatTaskKind(item.kind)}</Badge>
                       <Badge variant={item.status === "running" ? "default" : "secondary"}>
-                        {item.status === "running" ? i18next.t("gen.components.layout.TaskRecoveryDialog.gen_d8a255ce") : i18next.t("gen.components.layout.TaskRecoveryDialog.gen_e8a5ba34")}
+                        {item.status === "running" ? i18next.t("dict.gen_d8a255ce") : i18next.t("dict.gen_e8a5ba34")}
                       </Badge>
                     </div>
                     <div className="text-base font-semibold">{item.title}</div>
-                    <div className="text-sm text-muted-foreground">{i18next.t("gen.components.layout.TaskRecoveryDialog.gen_7e73a71c")}</div>
+                    <div className="text-sm text-muted-foreground">{i18next.t("dict.gen_7e73a71c")}</div>
                   </div>
                   <div className="flex flex-wrap items-center gap-2">
                     <Button
@@ -76,19 +74,19 @@ export default function TaskRecoveryDialog() {
                       onClick={() => resumeSingle({ kind: item.kind, id: item.id })}
                       disabled={isResumeAllPending || (isResumeSinglePending && busyTaskId !== item.id)}
                     >
-                      {isResumeSinglePending && busyTaskId === item.id ? i18next.t("gen.components.layout.TaskRecoveryDialog.gen_3baa9427") : i18next.t("gen.components.layout.TaskRecoveryDialog.gen_02737149")}
+                      {isResumeSinglePending && busyTaskId === item.id ? i18next.t("dict.gen_3baa9427") : i18next.t("dict.gen_02737149")}
                     </Button>
                     <Button asChild size="sm" variant="outline">
-                      <Link to={item.sourceRoute} onClick={closeDialog}>{i18next.t("gen.components.layout.TaskRecoveryDialog.gen_f103497a")}</Link>
+                      <Link to={item.sourceRoute} onClick={closeDialog}>{i18next.t("dict.gen_f103497a")}</Link>
                     </Button>
                   </div>
                 </div>
 
                 <div className="grid gap-2 text-sm text-muted-foreground">
-                  {item.currentStage ? <div>{i18next.t("gen.components.layout.TaskRecoveryDialog.gen_6e352de9")}</div> : null}
-                  {item.currentItemLabel ? <div>{i18next.t("gen.components.layout.TaskRecoveryDialog.interruptPosition")}</div> : null}
-                  {item.resumeAction ? <div>{i18next.t("gen.components.layout.TaskRecoveryDialog.gen_fbf1c98b")}</div> : null}
-                  {item.recoveryHint ? <div>{i18next.t("gen.components.layout.TaskRecoveryDialog.gen_c0399962")}</div> : null}
+                  {item.currentStage ? <div>{i18next.t("dict.gen_6e352de9")}</div> : null}
+                  {item.currentItemLabel ? <div>{i18next.t("dict.interruptPosition")}</div> : null}
+                  {item.resumeAction ? <div>{i18next.t("dict.gen_fbf1c98b")}</div> : null}
+                  {item.recoveryHint ? <div>{i18next.t("dict.gen_c0399962")}</div> : null}
                 </div>
               </CardContent>
             </Card>

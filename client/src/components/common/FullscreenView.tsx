@@ -1,4 +1,3 @@
-import i18next from "i18next";
 import { useCallback, useEffect, useId, useState } from "react";
 import type { ReactNode } from "react";
 import { Maximize2, Minimize2 } from "lucide-react";

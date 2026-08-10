@@ -1,4 +1,3 @@
-import i18next from "i18next";
 import { Save } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import type { MobileSaveState } from "./mobileNovelWorkspaceUtils";

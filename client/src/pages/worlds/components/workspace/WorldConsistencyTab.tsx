@@ -1,4 +1,3 @@
-import { useTranslation } from "react-i18next";
 import i18next from "i18next";
 const t = (key: string, options?: any) => i18next.t(key, options) as string;
 import { useMemo, useState } from "react";
@@ -24,7 +23,6 @@ interface WorldConsistencyTabProps {
 }
 
 export default function WorldConsistencyTab(props: WorldConsistencyTabProps) {
-  const { t } = useTranslation();
   const { report, issues, checkPending, onCheck, onPatchIssue } = props;
   const [activeIssueId, setActiveIssueId] = useState<string | null>(null);
   const openIssues = useMemo(() => issues.filter((issue) => issue.status === "open"), [issues]);
@@ -44,57 +42,57 @@ export default function WorldConsistencyTab(props: WorldConsistencyTabProps) {
   return (
     <Card>
       <CardHeader>
-        <CardTitle>{i18next.t("gen.pages.worlds.components.workspace.WorldConsistencyTab.worldManualCheck")}</CardTitle>
+        <CardTitle>{i18next.t("dict.worldManualCheck")}</CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
         <div className="flex flex-col gap-3 rounded-md border p-3 lg:flex-row lg:items-center lg:justify-between">
           <div>
-            <div className="text-sm font-medium">{i18next.t("gen.pages.worlds.components.workspace.WorldConsistencyTab.worldManualCheck")}</div>
-            <div className="mt-1 text-xs leading-5 text-muted-foreground">{i18next.t("gen.pages.worlds.components.workspace.WorldConsistencyTab.gen_aecde24a", "检查核心规则、题材信号、力量体系和冲突支撑是否互相冲突。发现问题后逐条处理即可。")}</div>
+            <div className="text-sm font-medium">{i18next.t("dict.worldManualCheck")}</div>
+            <div className="mt-1 text-xs leading-5 text-muted-foreground">{i18next.t("worlds.worldConsistencyTab.sx8dlm")}</div>
           </div>
           <Button onClick={onCheck} disabled={checkPending}>
-            {checkPending ? i18next.t("gen.pages.worlds.components.workspace.WorldConsistencyTab.gen_0410cb00") : i18next.t("gen.pages.worlds.components.workspace.WorldConsistencyTab.gen_bb0d6dab")}
+            {checkPending ? i18next.t("dict.gen_0410cb00") : i18next.t("dict.gen_bb0d6dab")}
           </Button>
         </div>
 
         {report ? (
           <div className="grid gap-3 md:grid-cols-5">
             <div className="rounded-md border p-3 text-sm">
-              <div className="text-xs text-muted-foreground">{i18next.t("gen.pages.worlds.components.workspace.WorldConsistencyTab.gen_a0a7b274")}</div>
+              <div className="text-xs text-muted-foreground">{i18next.t("dict.gen_a0a7b274")}</div>
               <div className="mt-1 font-semibold">{localizeConsistencyStatus(report.status)}</div>
             </div>
             <div className="rounded-md border p-3 text-sm">
-              <div className="text-xs text-muted-foreground">{i18next.t("gen.pages.worlds.components.workspace.WorldConsistencyTab.consistencyScore")}</div>
+              <div className="text-xs text-muted-foreground">{i18next.t("dict.consistencyScore")}</div>
               <div className="mt-1 font-semibold">{report.score}</div>
             </div>
             <div className="rounded-md border p-3 text-sm">
-              <div className="text-xs text-muted-foreground">{i18next.t("gen.pages.worlds.components.workspace.WorldConsistencyTab.gen_047109de")}</div>
+              <div className="text-xs text-muted-foreground">{i18next.t("autoDirector.secPending")}</div>
               <div className="mt-1 font-semibold">{openIssues.length}</div>
             </div>
             <div className="rounded-md border p-3 text-sm">
-              <div className="text-xs text-muted-foreground">{i18next.t("gen.pages.worlds.components.workspace.WorldConsistencyTab.criticalWarning")}</div>
+              <div className="text-xs text-muted-foreground">{i18next.t("dict.criticalWarning")}</div>
               <div className="mt-1 font-semibold">{errorCount}/{warnCount}</div>
             </div>
             <div className="rounded-md border p-3 text-sm">
-              <div className="text-xs text-muted-foreground">{i18next.t("gen.pages.worlds.components.workspace.WorldConsistencyTab.gen_5ad6056a")}</div>
+              <div className="text-xs text-muted-foreground">{i18next.t("dict.gen_5ad6056a")}</div>
               <div className="mt-1 font-semibold">{resolvedCount + ignoredCount}</div>
             </div>
             <div className="rounded-md border p-3 text-sm md:col-span-5">
-              <div className="text-xs text-muted-foreground">{i18next.t("gen.pages.worlds.components.workspace.WorldConsistencyTab.gen_1303e16b")}</div>
+              <div className="text-xs text-muted-foreground">{i18next.t("dict.gen_1303e16b")}</div>
               <div className="mt-1 font-medium">{report.summary}</div>
               <div className="mt-2 text-xs text-muted-foreground">
-                生成时间：{report.generatedAt ? new Date(report.generatedAt).toLocaleString() : i18next.t("gen.pages.worlds.components.workspace.WorldConsistencyTab.gen_1622dc9b")}
+                生成时间：{report.generatedAt ? new Date(report.generatedAt).toLocaleString() : i18next.t("dict.gen_1622dc9b")}
               </div>
             </div>
           </div>
         ) : (
-          <div className="rounded-md border border-dashed p-4 text-sm text-muted-foreground">{i18next.t("gen.pages.worlds.components.workspace.WorldConsistencyTab.gen_ab539648", "运行检查后，这里会展示世界手册的体检结果和需要处理的问题。")}</div>
+          <div className="rounded-md border border-dashed p-4 text-sm text-muted-foreground">{i18next.t("worlds.worldConsistencyTab.ptruj7")}</div>
         )}
 
         {issues.length > 0 ? (
           <div className="grid gap-3 lg:grid-cols-[280px_minmax(0,1fr)]">
             <div className="space-y-2 rounded-md border p-3">
-              <div className="text-sm font-medium">{i18next.t("gen.pages.worlds.components.workspace.WorldConsistencyTab.gen_31cb8c11")}</div>
+              <div className="text-sm font-medium">{i18next.t("dict.gen_31cb8c11")}</div>
               {issues.map((issue) => {
                 const selected = activeIssue?.id === issue.id;
                 return (
@@ -132,19 +130,19 @@ export default function WorldConsistencyTab(props: WorldConsistencyTabProps) {
                   <div className="mt-2 text-sm">{localizeConsistencyIssueMessage(activeIssue)}</div>
                 </div>
                 <div className="rounded-md border border-dashed p-3 text-sm leading-6 text-muted-foreground">
-                  {localizeConsistencyIssueDetail(activeIssue) ?? i18next.t("gen.pages.worlds.components.workspace.WorldConsistencyTab.gen_99d72418")}
+                  {localizeConsistencyIssueDetail(activeIssue) ?? i18next.t("dict.gen_99d72418")}
                 </div>
                 <div className="grid gap-2 md:grid-cols-3">
                   <div className="rounded-md border p-3 text-xs">
-                    <div className="text-muted-foreground">{i18next.t("gen.pages.worlds.components.workspace.WorldConsistencyTab.gen_a53a6102")}</div>
+                    <div className="text-muted-foreground">{i18next.t("dict.gen_a53a6102")}</div>
                     <div className="mt-1 font-medium text-foreground">{localizeConsistencySource(activeIssue.source)}</div>
                   </div>
                   <div className="rounded-md border p-3 text-xs">
-                    <div className="text-muted-foreground">{i18next.t("gen.pages.worlds.components.workspace.WorldConsistencyTab.gen_2ab7c0f2")}</div>
+                    <div className="text-muted-foreground">{i18next.t("dict.gen_2ab7c0f2")}</div>
                     <div className="mt-1 font-medium text-foreground">{localizeConsistencyField(activeIssue.targetField)}</div>
                   </div>
                   <div className="rounded-md border p-3 text-xs">
-                    <div className="text-muted-foreground">{i18next.t("gen.pages.worlds.components.workspace.WorldConsistencyTab.gen_21b31425")}</div>
+                    <div className="text-muted-foreground">{i18next.t("dict.gen_21b31425")}</div>
                     <div className="mt-1 font-medium text-foreground">{localizeConsistencyStatus(activeIssue.status)}</div>
                   </div>
                 </div>
@@ -154,19 +152,19 @@ export default function WorldConsistencyTab(props: WorldConsistencyTabProps) {
                     variant="secondary"
                     onClick={() => onPatchIssue({ issueId: activeIssue.id, status: "resolved" })}
                     disabled={activeIssue.status === "resolved"}
-                  >{i18next.t("gen.pages.worlds.components.workspace.WorldConsistencyTab.gen_23d8b34b", "标记已解决")}</Button>
+                  >{i18next.t("worlds.worldConsistencyTab.1f6h6v")}</Button>
                   <Button
                     size="sm"
                     variant="outline"
                     onClick={() => onPatchIssue({ issueId: activeIssue.id, status: "ignored" })}
                     disabled={activeIssue.status === "ignored"}
-                  >{i18next.t("gen.pages.worlds.components.workspace.WorldConsistencyTab.gen_c0d5d68f", "忽略")}</Button>
+                  >{i18next.t("dict.gen_c0d5d68f")}</Button>
                 </div>
               </div>
             ) : null}
           </div>
         ) : (
-          <div className="rounded-md border p-3 text-sm text-muted-foreground">{i18next.t("gen.pages.worlds.components.workspace.WorldConsistencyTab.gen_14b428ad", "还没有一致性问题记录，运行检查后会在这里展示结果。")}</div>
+          <div className="rounded-md border p-3 text-sm text-muted-foreground">{i18next.t("worlds.worldConsistencyTab.8elqc0")}</div>
         )}
       </CardContent>
     </Card>

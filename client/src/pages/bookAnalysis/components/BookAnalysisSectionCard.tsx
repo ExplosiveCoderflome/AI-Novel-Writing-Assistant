@@ -101,7 +101,7 @@ export default function BookAnalysisSectionCard(props: BookAnalysisSectionCardPr
           <div className="flex items-center gap-2">
             <CardTitle>{section.title}</CardTitle>
             <Badge variant="outline">{unselectedSection ? "本次未选择" : formatStatus(section.status)}</Badge>
-            {draft.frozen && !unselectedSection ? <Badge variant="secondary">{i18next.t("gen.pages.bookAnalysis.components.BookAnalysisSectionCard.gen_92cff461", "已冻结")}</Badge> : null}
+            {draft.frozen && !unselectedSection ? <Badge variant="secondary">{i18next.t("dict.gen_92cff461")}</Badge> : null}
           </div>
           <div className="flex flex-wrap gap-2">
             <Button
@@ -109,8 +109,8 @@ export default function BookAnalysisSectionCard(props: BookAnalysisSectionCardPr
               variant="outline"
               disabled={!canRegenerate}
               onClick={() => onRegenerate(section)}
-            >{i18next.t("gen.pages.bookAnalysis.components.BookAnalysisSectionCard.gen_a7c23201", "重新生成")}</Button>
-            <Button size="sm" disabled={!canOperate || isSaving} onClick={() => onSave(section)}>{i18next.t("gen.pages.bookAnalysis.components.BookAnalysisSectionCard.gen_be5fbbe3", "保存")}</Button>
+            >{i18next.t("dict.gen_a7c23201")}</Button>
+            <Button size="sm" disabled={!canOperate || isSaving} onClick={() => onSave(section)}>{i18next.t("common.save")}</Button>
           </div>
         </div>
       </CardHeader>
@@ -125,7 +125,7 @@ export default function BookAnalysisSectionCard(props: BookAnalysisSectionCardPr
         {evidenceItems.length > 0 ? (
           <div className="space-y-2 rounded-md border bg-muted/10 p-3">
             <div className="flex flex-wrap items-center justify-between gap-2">
-              <div className="text-sm font-medium">{i18next.t("gen.pages.bookAnalysis.components.BookAnalysisSectionCard.gen_f49476bf", "本节证据")}</div>
+              <div className="text-sm font-medium">{i18next.t("bookAnalysis.bookAnalysisSectionCard.dk96w3")}</div>
               <Badge variant="outline">{evidenceItems.length} 条</Badge>
             </div>
             <div className="flex flex-wrap gap-1.5">
@@ -154,7 +154,7 @@ export default function BookAnalysisSectionCard(props: BookAnalysisSectionCardPr
                     )}
                     {item.chapterIndex !== undefined && item.excerptOffsetRange ? (
                       <span className="ml-2 inline-flex items-center gap-1 rounded border px-1 text-[11px] text-muted-foreground">
-                        <LocateFixed className="h-3 w-3" />{i18next.t("gen.pages.bookAnalysis.components.BookAnalysisSectionCard.gen_e5729e94", "原文")}</span>
+                        <LocateFixed className="h-3 w-3" />{i18next.t("dict.gen_e5729e94")}</span>
                     ) : null}
                   </button>
                 );
@@ -188,9 +188,9 @@ export default function BookAnalysisSectionCard(props: BookAnalysisSectionCardPr
                     />
                   </div>
                 ) : isDualPane && selectedEvidenceChapter && selectedEvidence.excerptOffsetRange ? (
-                  <div className="mt-2 text-xs text-muted-foreground">{i18next.t("gen.pages.bookAnalysis.components.BookAnalysisSectionCard.gen_b555e9cd", "已在左侧原文章节中定位这条证据。")}</div>
+                  <div className="mt-2 text-xs text-muted-foreground">{i18next.t("bookAnalysis.bookAnalysisSectionCard.ghz2cu")}</div>
                 ) : (
-                  <div className="mt-2 text-xs text-muted-foreground">{i18next.t("gen.pages.bookAnalysis.components.BookAnalysisSectionCard.gen_23ab5797", "这条证据暂无可跳转的章节定位。")}</div>
+                  <div className="mt-2 text-xs text-muted-foreground">{i18next.t("bookAnalysis.bookAnalysisSectionCard.q5d0ke")}</div>
                 )}
               </div>
             ) : null}
@@ -199,14 +199,14 @@ export default function BookAnalysisSectionCard(props: BookAnalysisSectionCardPr
 
         {readingMode === "full" ? (
           <div className="space-y-2">
-            <div className="text-sm font-medium">{i18next.t("gen.pages.bookAnalysis.components.BookAnalysisSectionCard.gen_ac889f1c", "分析正文")}</div>
+            <div className="text-sm font-medium">{i18next.t("bookAnalysis.bookAnalysisSectionCard.as4n66")}</div>
             <div className="min-h-[220px] rounded-md border bg-muted/20 p-4">
               {contentBlock}
             </div>
           </div>
         ) : (
           <details className="rounded-md border p-3">
-            <summary className="cursor-pointer text-sm font-medium">{i18next.t("gen.pages.bookAnalysis.components.BookAnalysisSectionCard.gen_1651e22e", "查看完整正文")}</summary>
+            <summary className="cursor-pointer text-sm font-medium">{i18next.t("bookAnalysis.bookAnalysisSectionCard.q490y")}</summary>
             <div className="mt-3 min-h-[180px] rounded-md border bg-muted/20 p-4">
               {contentBlock}
             </div>
@@ -222,7 +222,7 @@ export default function BookAnalysisSectionCard(props: BookAnalysisSectionCardPr
                 checked={draft.frozen}
                 disabled={!canOperate}
                 onChange={(event) => onDraftChange(section, { frozen: event.target.checked })}
-              />{i18next.t("gen.pages.bookAnalysis.components.BookAnalysisSectionCard.gen_50d61b26", "跳过自动重跑，并保留这个小节的现有内容。")}</label>
+              />{i18next.t("bookAnalysis.bookAnalysisSectionCard.evb4ep")}</label>
 
             {draft.frozen || frozenChangePending ? (
               <div className="rounded-md border border-warning/30 bg-warning/5 p-2 text-xs text-foreground">
@@ -237,24 +237,24 @@ export default function BookAnalysisSectionCard(props: BookAnalysisSectionCardPr
             ) : null}
 
             <div className="space-y-2">
-              <div className="text-sm font-medium">{i18next.t("gen.pages.bookAnalysis.components.BookAnalysisSectionCard.gen_ba0928c7", "本节特别关注")}</div>
+              <div className="text-sm font-medium">{i18next.t("bookAnalysis.bookAnalysisSectionCard.vsttdp")}</div>
               <textarea
                 className="min-h-[90px] w-full rounded-md border bg-background p-3 text-sm"
                 value={draft.focusInstruction}
                 disabled={!canOperate}
                 onChange={(event) => onDraftChange(section, { focusInstruction: event.target.value })}
-                placeholder={i18next.t("gen.pages.bookAnalysis.components.BookAnalysisSectionCard.gen_d57e3569", "例如：只看阶段推进里的转折证据，或重点检查人物高光是否能复用。")}
+                placeholder={i18next.t("bookAnalysis.bookAnalysisSectionCard.so81lv")}
               />
             </div>
 
             <div className="space-y-2">
-              <div className="text-sm font-medium">{i18next.t("gen.pages.bookAnalysis.components.BookAnalysisSectionCard.gen_67cbbd00", "编辑正文")}</div>
+              <div className="text-sm font-medium">{i18next.t("bookAnalysis.bookAnalysisSectionCard.gmllof")}</div>
               <textarea
                 className="min-h-[220px] w-full rounded-md border bg-background p-3 text-sm"
                 value={draft.editedContent}
                 disabled={!canOperate}
                 onChange={(event) => onDraftChange(section, { editedContent: event.target.value })}
-                placeholder={i18next.t("gen.pages.bookAnalysis.components.BookAnalysisSectionCard.gen_106e9702", "在此直接编辑当前小节草稿。")}
+                placeholder={i18next.t("bookAnalysis.bookAnalysisSectionCard.8jmr61")}
               />
             </div>
 
@@ -265,7 +265,7 @@ export default function BookAnalysisSectionCard(props: BookAnalysisSectionCardPr
                 value={draft.optimizeInstruction}
                 disabled={!canOperate}
                 onChange={(event) => onDraftChange(section, { optimizeInstruction: event.target.value })}
-                placeholder={i18next.t("gen.pages.bookAnalysis.components.BookAnalysisSectionCard.gen_65d9364d", "输入优化或修正提示词，例如：压缩冗余、突出冲突、保持同样事实。")}
+                placeholder={i18next.t("bookAnalysis.bookAnalysisSectionCard.rfq713")}
               />
               <div className="flex flex-wrap gap-2">
                 <Button
@@ -281,25 +281,25 @@ export default function BookAnalysisSectionCard(props: BookAnalysisSectionCardPr
 
             {draft.optimizePreview.trim() ? (
               <div className="space-y-2">
-                <div className="text-xs font-medium text-muted-foreground">{i18next.t("gen.pages.bookAnalysis.components.BookAnalysisSectionCard.gen_3e2b62e3", "优化预览")}</div>
+                <div className="text-xs font-medium text-muted-foreground">{i18next.t("dict.optimizePreview")}</div>
                 <div className="max-h-[320px] overflow-auto rounded-md border bg-muted/20 p-4">
                   <MarkdownViewer content={draft.optimizePreview} />
                 </div>
                 <div className="flex flex-wrap gap-2">
-                  <Button size="sm" disabled={!canOperate} onClick={() => onApplyOptimizePreview(section)}>{i18next.t("gen.pages.bookAnalysis.components.BookAnalysisSectionCard.gen_451b6bd3", "应用到当前草稿")}</Button>
-                  <Button size="sm" variant="outline" disabled={!canOperate} onClick={() => onCancelOptimizePreview(section)}>{i18next.t("gen.pages.bookAnalysis.components.BookAnalysisSectionCard.gen_63b5a88c", "取消预览")}</Button>
+                  <Button size="sm" disabled={!canOperate} onClick={() => onApplyOptimizePreview(section)}>{i18next.t("bookAnalysis.bookAnalysisSectionCard.imb6gk")}</Button>
+                  <Button size="sm" variant="outline" disabled={!canOperate} onClick={() => onCancelOptimizePreview(section)}>{i18next.t("dict.gen_63b5a88c")}</Button>
                 </div>
               </div>
             ) : null}
 
             <div className="space-y-2">
-              <div className="text-sm font-medium">{i18next.t("gen.pages.bookAnalysis.components.BookAnalysisSectionCard.gen_2432b575", "备注")}</div>
+              <div className="text-sm font-medium">{i18next.t("bookAnalysis.bookAnalysisSectionCard.fqo1")}</div>
               <textarea
                 className="min-h-[120px] w-full rounded-md border bg-background p-3 text-sm"
                 value={draft.notes}
                 disabled={!canOperate}
                 onChange={(event) => onDraftChange(section, { notes: event.target.value })}
-                placeholder={i18next.t("gen.pages.bookAnalysis.components.BookAnalysisSectionCard.gen_67c633f0", "添加备注、假设或后续行动。")}
+                placeholder={i18next.t("bookAnalysis.bookAnalysisSectionCard.s2usv7")}
               />
             </div>
           </div>

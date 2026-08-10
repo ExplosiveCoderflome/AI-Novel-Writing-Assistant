@@ -223,7 +223,7 @@ function compactList(items: string[] | undefined): string {
 
 export function buildTaskSheetFromStructuredChapter(chapter: StructuredChapter): string {
   const lines: string[] = [];
-  lines.push(`章节目标：${chapter.purpose || chapter.summary || i18next.t("gen.pages.novels.structuredOutline.utils.gen_cd67f351")}`);
+  lines.push(`章节目标：${chapter.purpose || chapter.summary || i18next.t("dict.gen_cd67f351")}`);
   if (chapter.keyEvents && chapter.keyEvents.length > 0) {
     lines.push(`关键事件：${compactList(chapter.keyEvents)}`);
   }

@@ -46,7 +46,7 @@ export default function ModelRouteFields({
   return (
     <div className={`grid gap-3 ${showProtocolFields ? "md:grid-cols-6" : "md:grid-cols-4"}`}>
       <div className="space-y-1">
-        <div className="text-xs text-muted-foreground">{i18next.t("gen.pages.settings.ModelRouteFields.gen_79f09f89")}</div>
+        <div className="text-xs text-muted-foreground">{i18next.t("dict.gen_79f09f89")}</div>
         <Select
           value={draft.provider}
           onValueChange={(value) => {
@@ -58,7 +58,7 @@ export default function ModelRouteFields({
           }}
         >
           <SelectTrigger>
-            <SelectValue placeholder={i18next.t("gen.pages.settings.ModelRouteFields.gen_73a3144f")} />
+            <SelectValue placeholder={i18next.t("dict.gen_73a3144f")} />
           </SelectTrigger>
           <SelectContent>
             {providerOptions.map((provider) => (
@@ -71,13 +71,13 @@ export default function ModelRouteFields({
       </div>
 
       <div className="space-y-1">
-        <div className="text-xs text-muted-foreground">{i18next.t("gen.pages.settings.ModelRouteFields.gen_8000f187")}</div>
+        <div className="text-xs text-muted-foreground">{i18next.t("dict.gen_8000f187")}</div>
         <SearchableSelect
           value={draft.model || undefined}
           onValueChange={(value) => onPatch({ model: value })}
           options={modelOptions.map((model) => ({ value: model }))}
-          placeholder={i18next.t("gen.pages.settings.ModelRouteFields.gen_f2d3731b")}
-          searchPlaceholder={i18next.t("gen.pages.settings.ModelRouteFields.gen_8288a2e8")}
+          placeholder={i18next.t("dict.gen_f2d3731b")}
+          searchPlaceholder={i18next.t("dict.gen_8288a2e8")}
           emptyText={modelEmptyText}
         />
         <Input
@@ -88,7 +88,7 @@ export default function ModelRouteFields({
       </div>
 
       <div className="space-y-1">
-        <div className="text-xs text-muted-foreground">{i18next.t("gen.pages.settings.ModelRouteFields.gen_c9bf0b88")}</div>
+        <div className="text-xs text-muted-foreground">{i18next.t("dict.gen_c9bf0b88")}</div>
         <Input
           value={draft.temperature}
           placeholder={temperaturePlaceholder}
@@ -97,7 +97,7 @@ export default function ModelRouteFields({
       </div>
 
       <div className="space-y-1">
-        <div className="text-xs text-muted-foreground">{i18next.t("gen.pages.settings.ModelRouteFields.gen_139c79e6")}</div>
+        <div className="text-xs text-muted-foreground">{i18next.t("dict.gen_139c79e6")}</div>
         <Input
           value={draft.maxTokens}
           placeholder={maxTokensPlaceholder}
@@ -107,7 +107,7 @@ export default function ModelRouteFields({
 
       {showProtocolFields ? (
         <div className="space-y-1">
-          <div className="text-xs text-muted-foreground">{i18next.t("gen.pages.settings.ModelRouteFields.gen_424c8dfa")}</div>
+          <div className="text-xs text-muted-foreground">{i18next.t("dict.gen_424c8dfa")}</div>
           <Select
             value={draft.requestProtocol}
             onValueChange={(value) => {
@@ -121,11 +121,11 @@ export default function ModelRouteFields({
             }}
           >
             <SelectTrigger>
-              <SelectValue placeholder={i18next.t("gen.pages.settings.ModelRouteFields.gen_2e2c57b6")} />
+              <SelectValue placeholder={i18next.t("dict.gen_2e2c57b6")} />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="auto">{i18next.t("gen.pages.settings.ModelRouteFields.gen_2e2c57b6")}</SelectItem>
-              <SelectItem value="openai_compatible">{i18next.t("gen.pages.settings.ModelRouteFields.openAiCompatible")}</SelectItem>
+              <SelectItem value="auto">{i18next.t("dict.gen_2e2c57b6")}</SelectItem>
+              <SelectItem value="openai_compatible">{i18next.t("dict.openAiCompatible")}</SelectItem>
               <SelectItem value="anthropic">Anthropic</SelectItem>
             </SelectContent>
           </Select>
@@ -134,7 +134,7 @@ export default function ModelRouteFields({
 
       {showProtocolFields ? (
         <div className="space-y-1">
-          <div className="text-xs text-muted-foreground">{i18next.t("gen.pages.settings.ModelRouteFields.gen_47d4bbe5")}</div>
+          <div className="text-xs text-muted-foreground">{i18next.t("dict.gen_47d4bbe5")}</div>
           <Select
             value={draft.structuredResponseFormat}
             onValueChange={(value) => onPatch({
@@ -142,12 +142,12 @@ export default function ModelRouteFields({
             })}
           >
             <SelectTrigger>
-              <SelectValue placeholder={i18next.t("gen.pages.settings.ModelRouteFields.gen_2e2c57b6")} />
+              <SelectValue placeholder={i18next.t("dict.gen_2e2c57b6")} />
             </SelectTrigger>
             <SelectContent>
               {getStructuredResponseFormatOptions(draft.requestProtocol).map((format) => (
                 <SelectItem key={format} value={format}>
-                  {format === "auto" ? i18next.t("gen.pages.settings.ModelRouteFields.gen_2e2c57b6") : format}
+                  {format === "auto" ? i18next.t("dict.gen_2e2c57b6") : format}
                 </SelectItem>
               ))}
             </SelectContent>

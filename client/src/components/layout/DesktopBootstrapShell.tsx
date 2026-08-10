@@ -1,4 +1,3 @@
-import { useTranslation } from "react-i18next";
 import i18next from "i18next";
 const t = (key: string, options?: any) => i18next.t(key, options) as string;
 import { useEffect, useRef, useState } from "react";
@@ -26,15 +25,15 @@ interface DesktopBootstrapShellProps {
 function resolveStateLabel(snapshot: DesktopBootstrapSnapshot): string {
   switch (snapshot.state) {
     case "launching":
-      return i18next.t("gen.components.layout.DesktopBootstrapShell.gen_f76540a9");
+      return i18next.t("dict.gen_f76540a9");
     case "starting-server":
-      return i18next.t("gen.components.layout.DesktopBootstrapShell.gen_0aeaea86");
+      return i18next.t("dict.gen_0aeaea86");
     case "loading-ui":
-      return i18next.t("gen.components.layout.DesktopBootstrapShell.gen_3a961806");
+      return i18next.t("dict.gen_3a961806");
     case "ready":
-      return i18next.t("gen.components.layout.DesktopBootstrapShell.gen_c30ecc7a");
+      return i18next.t("dict.gen_c30ecc7a");
     case "error":
-      return i18next.t("gen.components.layout.DesktopBootstrapShell.gen_ddea5406");
+      return i18next.t("dict.gen_ddea5406");
     default:
       return snapshot.state;
   }
@@ -43,21 +42,21 @@ function resolveStateLabel(snapshot: DesktopBootstrapSnapshot): string {
 function resolveStageLabel(snapshot: DesktopBootstrapSnapshot): string {
   switch (snapshot.stage) {
     case "launching":
-      return i18next.t("gen.components.layout.DesktopBootstrapShell.gen_86e1e425");
+      return i18next.t("dict.gen_86e1e425");
     case "app-ready":
-      return i18next.t("gen.components.layout.DesktopBootstrapShell.gen_fd76a07b");
+      return i18next.t("dict.gen_fd76a07b");
     case "splash-shown":
-      return i18next.t("gen.components.layout.DesktopBootstrapShell.gen_cb016cfd");
+      return i18next.t("dict.gen_cb016cfd");
     case "server-starting":
-      return i18next.t("gen.components.layout.DesktopBootstrapShell.gen_9e1f9b87");
+      return i18next.t("dict.gen_9e1f9b87");
     case "server-healthy":
-      return i18next.t("gen.components.layout.DesktopBootstrapShell.gen_9abfe65c");
+      return i18next.t("dict.gen_9abfe65c");
     case "renderer-ready":
-      return i18next.t("gen.components.layout.DesktopBootstrapShell.gen_ba8db5ff");
+      return i18next.t("dict.gen_ba8db5ff");
     case "main-window-shown":
-      return i18next.t("gen.components.layout.DesktopBootstrapShell.mainWindowShown");
+      return i18next.t("dict.mainWindowShown");
     case "error":
-      return i18next.t("gen.components.layout.DesktopBootstrapShell.gen_efb08e91");
+      return i18next.t("dict.gen_efb08e91");
     default:
       return snapshot.stage;
   }
@@ -66,15 +65,15 @@ function resolveStageLabel(snapshot: DesktopBootstrapSnapshot): string {
 function resolveProgressHint(snapshot: DesktopBootstrapSnapshot): string {
   switch (snapshot.state) {
     case "launching":
-      return i18next.t("gen.components.layout.DesktopBootstrapShell.gen_7232fb05");
+      return i18next.t("dict.gen_7232fb05");
     case "starting-server":
-      return i18next.t("gen.components.layout.DesktopBootstrapShell.gen_7089b3c7");
+      return i18next.t("dict.gen_7089b3c7");
     case "loading-ui":
-      return i18next.t("gen.components.layout.DesktopBootstrapShell.gen_1ee6b8c8");
+      return i18next.t("dict.gen_1ee6b8c8");
     case "ready":
-      return i18next.t("gen.components.layout.DesktopBootstrapShell.gen_ec85a3d4");
+      return i18next.t("dict.gen_ec85a3d4");
     case "error":
-      return i18next.t("gen.components.layout.DesktopBootstrapShell.gen_87c2722f");
+      return i18next.t("dict.gen_87c2722f");
     default:
       return snapshot.detail;
   }
@@ -83,21 +82,21 @@ function resolveProgressHint(snapshot: DesktopBootstrapSnapshot): string {
 function resolveUpdaterStatusLabel(status: DesktopUpdaterSnapshot["status"]): string {
   switch (status) {
     case "disabled":
-      return i18next.t("gen.components.layout.DesktopBootstrapShell.unavailable");
+      return i18next.t("dict.unavailable");
     case "idle":
-      return i18next.t("gen.components.layout.DesktopBootstrapShell.gen_e556fdff");
+      return i18next.t("dict.gen_e556fdff");
     case "checking":
-      return i18next.t("gen.components.layout.DesktopBootstrapShell.gen_69ac5a39");
+      return i18next.t("dict.gen_69ac5a39");
     case "update-available":
-      return i18next.t("gen.components.layout.DesktopBootstrapShell.gen_5351384d");
+      return i18next.t("dict.gen_5351384d");
     case "downloading":
-      return i18next.t("gen.components.layout.DesktopBootstrapShell.downloading");
+      return i18next.t("dict.downloading");
     case "downloaded":
-      return i18next.t("gen.components.layout.DesktopBootstrapShell.gen_72482be2");
+      return i18next.t("dict.gen_72482be2");
     case "not-available":
-      return i18next.t("gen.components.layout.DesktopBootstrapShell.gen_6b498bfe");
+      return i18next.t("dict.gen_6b498bfe");
     case "error":
-      return i18next.t("gen.components.layout.DesktopBootstrapShell.gen_74bb5c74");
+      return i18next.t("dict.gen_74bb5c74");
     default:
       return status;
   }
@@ -106,11 +105,11 @@ function resolveUpdaterStatusLabel(status: DesktopUpdaterSnapshot["status"]): st
 function resolveUpdaterHint(updater: DesktopUpdaterSnapshot, bootstrapState: DesktopBootstrapSnapshot["state"]): string {
   if (!updater.isSupported) {
     if (updater.isPortable) {
-      return i18next.t("gen.components.layout.DesktopBootstrapShell.portableVersionRequiresDownloadNewInstallPackageManualReplacement");
+      return i18next.t("dict.portableVersionRequiresDownloadNewInstallPackageManualReplacement");
     }
 
     if (!updater.isPackaged) {
-      return i18next.t("gen.components.layout.DesktopBootstrapShell.gen_d025a051");
+      return i18next.t("dict.gen_d025a051");
     }
 
     return updater.message;
@@ -119,20 +118,20 @@ function resolveUpdaterHint(updater: DesktopUpdaterSnapshot, bootstrapState: Des
   switch (updater.status) {
     case "idle":
       return bootstrapState === "error"
-        ? i18next.t("gen.components.layout.DesktopBootstrapShell.gen_f34eb924")
-        : i18next.t("gen.components.layout.DesktopBootstrapShell.gen_250275f3");
+        ? i18next.t("dict.gen_f34eb924")
+        : i18next.t("dict.gen_250275f3");
     case "checking":
-      return i18next.t("gen.components.layout.DesktopBootstrapShell.gen_1f92214e");
+      return i18next.t("dict.gen_1f92214e");
     case "update-available":
-      return `桌面版 ${updater.availableVersion ?? i18next.t("gen.components.layout.DesktopBootstrapShell.gen_b6c4f3de")} 可用，建议先下载更新包。`;
+      return `桌面版 ${updater.availableVersion ?? i18next.t("dict.gen_b6c4f3de")} 可用，建议先下载更新包。`;
     case "downloading":
-      return i18next.t("gen.components.layout.DesktopBootstrapShell.gen_4afc4dfb");
+      return i18next.t("dict.gen_4afc4dfb");
     case "downloaded":
-      return i18next.t("gen.components.layout.DesktopBootstrapShell.gen_faf996b1");
+      return i18next.t("dict.gen_faf996b1");
     case "not-available":
-      return i18next.t("gen.components.layout.DesktopBootstrapShell.gen_1f0f97e4");
+      return i18next.t("dict.gen_1f0f97e4");
     case "error":
-      return updater.message || i18next.t("gen.components.layout.DesktopBootstrapShell.gen_1979e92d");
+      return updater.message || i18next.t("dict.gen_1979e92d");
     default:
       return updater.message;
   }
@@ -207,7 +206,7 @@ function DesktopBootstrapUpdatePanel({ snapshot }: { snapshot: DesktopBootstrapS
       )}
     >
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <div className="text-xs font-medium uppercase tracking-[0.2em] text-slate-400">{i18next.t("gen.components.layout.DesktopBootstrapShell.gen_beed7a8c")}</div>
+        <div className="text-xs font-medium uppercase tracking-[0.2em] text-slate-400">{i18next.t("dict.gen_beed7a8c")}</div>
         <Badge
           variant="outline"
           className={cn(
@@ -221,15 +220,15 @@ function DesktopBootstrapUpdatePanel({ snapshot }: { snapshot: DesktopBootstrapS
 
       <div className="mt-3 grid gap-2 text-sm text-slate-300">
         <div className="flex items-center justify-between gap-3">
-          <span>{i18next.t("gen.components.layout.DesktopBootstrapShell.gen_bfedfa19")}</span>
+          <span>{i18next.t("dict.gen_bfedfa19")}</span>
           <span className="font-medium text-slate-100">{updater.currentVersion}</span>
         </div>
         <div className="flex items-center justify-between gap-3">
-          <span>{i18next.t("gen.components.layout.DesktopBootstrapShell.gen_29afa32e")}</span>
+          <span>{i18next.t("dict.gen_29afa32e")}</span>
           <span className="font-medium text-slate-100">{updater.availableVersion ?? "-"}</span>
         </div>
         <div className="flex items-center justify-between gap-3 text-slate-400">
-          <span>{i18next.t("gen.components.layout.DesktopBootstrapShell.gen_e2aaac6d")}</span>
+          <span>{i18next.t("dict.gen_e2aaac6d")}</span>
           <span className="font-medium text-slate-200">{formatSnapshotTime(updater.lastCheckedAt ?? "")}</span>
         </div>
       </div>
@@ -250,7 +249,7 @@ function DesktopBootstrapUpdatePanel({ snapshot }: { snapshot: DesktopBootstrapS
             onClick={() => void runUpdaterAction("check")}
           >
             <RefreshCw className={cn("h-4 w-4", updater.status === "checking" ? "animate-spin" : null)} aria-hidden="true" />
-            {updater.status === "checking" ? i18next.t("gen.components.layout.DesktopBootstrapShell.gen_69ac5a39") : updater.status === "error" || updater.status === "not-available" ? i18next.t("gen.components.layout.DesktopBootstrapShell.gen_a1ad5204") : i18next.t("gen.components.layout.DesktopBootstrapShell.gen_4ff13370")}
+            {updater.status === "checking" ? i18next.t("dict.gen_69ac5a39") : updater.status === "error" || updater.status === "not-available" ? i18next.t("dict.gen_a1ad5204") : i18next.t("dict.gen_4ff13370")}
           </Button>
         ) : null}
         {showDownloadButton ? (
@@ -261,7 +260,7 @@ function DesktopBootstrapUpdatePanel({ snapshot }: { snapshot: DesktopBootstrapS
             disabled={isBusy || isCheckingOrDownloading}
             onClick={() => void runUpdaterAction("check")}
           >
-            <Download className="h-4 w-4" aria-hidden="true" />{i18next.t("gen.components.layout.DesktopBootstrapShell.gen_21b6ed5b", "下载更新")}</Button>
+            <Download className="h-4 w-4" aria-hidden="true" />{i18next.t("layout.desktopBootstrapShell.afvrf2")}</Button>
         ) : null}
         {showInstallButton ? (
           <Button
@@ -271,7 +270,7 @@ function DesktopBootstrapUpdatePanel({ snapshot }: { snapshot: DesktopBootstrapS
             disabled={isBusy || !updater.canInstall}
             onClick={() => void runUpdaterAction("install")}
           >
-            <RotateCw className="h-4 w-4" aria-hidden="true" />{i18next.t("gen.components.layout.DesktopBootstrapShell.gen_c4b8ad9d", "重启安装")}</Button>
+            <RotateCw className="h-4 w-4" aria-hidden="true" />{i18next.t("layout.desktopBootstrapShell.iqt59a")}</Button>
         ) : null}
       </div>
     </div>
@@ -279,7 +278,6 @@ function DesktopBootstrapUpdatePanel({ snapshot }: { snapshot: DesktopBootstrapS
 }
 
 export default function DesktopBootstrapShell({ snapshot, overlay = false }: DesktopBootstrapShellProps) {
-  const { t } = useTranslation();
   const surfaceClassName = overlay
     ? "bg-background/88 backdrop-blur-xl"
     : "bg-[radial-gradient(circle_at_top_left,rgba(59,130,246,0.18),transparent_42%),radial-gradient(circle_at_bottom_right,rgba(245,158,11,0.16),transparent_38%),linear-gradient(145deg,#08101f_0%,#122033_55%,#101d2e_100%)]";
@@ -293,12 +291,12 @@ export default function DesktopBootstrapShell({ snapshot, overlay = false }: Des
               <DesktopBrandMark className="h-20 w-20" />
               <div className="space-y-2">
                 <div className="flex flex-wrap items-center gap-2">
-                  <Badge className="bg-cyan-500/20 text-cyan-100 hover:bg-cyan-500/20">{i18next.t("gen.components.layout.DesktopBootstrapShell.gen_21d0b94f", "桌面版 · 测试通道")}</Badge>
+                  <Badge className="bg-cyan-500/20 text-cyan-100 hover:bg-cyan-500/20">{i18next.t("layout.desktopBootstrapShell.xl7h6")}</Badge>
                   <Badge variant="outline" className="border-slate-600 bg-slate-900/70 text-slate-100">
                     {resolveStageLabel(snapshot)}
                   </Badge>
                 </div>
-                <h1 className="text-3xl font-semibold tracking-tight">{i18next.t("gen.components.layout.DesktopBootstrapShell.aiNovelStudioBoard")}</h1>
+                <h1 className="text-3xl font-semibold tracking-tight">{i18next.t("navbar.title")}</h1>
               </div>
             </div>
 
@@ -315,23 +313,23 @@ export default function DesktopBootstrapShell({ snapshot, overlay = false }: Des
                   <span className="block h-full w-1/2 animate-[desktop-shell-progress_1.4s_ease-in-out_infinite] rounded-full bg-[linear-gradient(90deg,#76e5ff_0%,#f6b24c_100%)]" />
                 )}
               </div>
-              <div className="rounded-2xl border border-slate-800 bg-slate-900/70 px-4 py-4 text-sm leading-6 text-slate-300">{i18next.t("gen.components.layout.DesktopBootstrapShell.gen_9be05d51", "这个页面只会在桌面版启动时短暂出现，用来承接本地服务启动，避免先看到白屏或空白窗口。")}</div>
+              <div className="rounded-2xl border border-slate-800 bg-slate-900/70 px-4 py-4 text-sm leading-6 text-slate-300">{i18next.t("layout.desktopBootstrapShell.pchne6")}</div>
             </div>
           </section>
 
           <section className="space-y-5 px-8 py-8">
             <div className="rounded-3xl border border-slate-800 bg-slate-900/70 p-5">
-              <div className="text-xs font-medium uppercase tracking-[0.2em] text-slate-400">{i18next.t("gen.components.layout.DesktopBootstrapShell.gen_75ea7b29")}</div>
+              <div className="text-xs font-medium uppercase tracking-[0.2em] text-slate-400">{i18next.t("dict.gen_75ea7b29")}</div>
               <div className="mt-3 space-y-3 text-sm text-slate-200">
                 <div className="flex items-center justify-between gap-3">
-                  <span>{i18next.t("gen.components.layout.DesktopBootstrapShell.gen_3fea7ca7")}</span>
+                  <span>{i18next.t("dict.gen_3fea7ca7")}</span>
                   <span className="font-medium">{resolveStateLabel(snapshot)}</span>
                 </div>
                 <div className="rounded-2xl border border-slate-800 bg-slate-950/60 px-4 py-3 text-slate-300">
                   {resolveProgressHint(snapshot)}
                 </div>
                 <div className="flex items-center justify-between gap-3 text-slate-400">
-                  <span>{i18next.t("gen.components.layout.DesktopBootstrapShell.gen_06dc9b38")}</span>
+                  <span>{i18next.t("dict.gen_06dc9b38")}</span>
                   <span className="font-medium text-slate-200">{formatSnapshotTime(snapshot.updatedAt)}</span>
                 </div>
               </div>
@@ -340,24 +338,24 @@ export default function DesktopBootstrapShell({ snapshot, overlay = false }: Des
             <DesktopBootstrapUpdatePanel snapshot={snapshot} />
 
             <div className="rounded-3xl border border-slate-800 bg-slate-900/70 p-5">
-              <div className="text-xs font-medium uppercase tracking-[0.2em] text-slate-400">{i18next.t("gen.components.layout.DesktopBootstrapShell.gen_3c3bac28")}</div>
-              <div className="mt-3 text-sm leading-6 text-slate-300">{i18next.t("gen.components.layout.DesktopBootstrapShell.gen_5493c586", "如果启动卡住、本地服务提前退出，或者你要定位启动耗时，可以直接查看桌面端日志。")}</div>
+              <div className="text-xs font-medium uppercase tracking-[0.2em] text-slate-400">{i18next.t("dict.gen_3c3bac28")}</div>
+              <div className="mt-3 text-sm leading-6 text-slate-300">{i18next.t("layout.desktopBootstrapShell.etjae0")}</div>
               <div className="mt-4 flex flex-wrap gap-3">
                 <Button
                   variant="secondary"
                   className="bg-slate-50 text-slate-950 hover:bg-white"
                   onClick={() => void openDesktopLogsDirectory()}
-                >{i18next.t("gen.components.layout.DesktopBootstrapShell.gen_5ac06f69", "打开日志目录")}</Button>
+                >{i18next.t("layout.desktopBootstrapShell.e61why")}</Button>
                 <Button
                   variant="outline"
                   className="border-slate-600 bg-slate-800 text-slate-100 hover:bg-slate-700 hover:text-white"
                   onClick={() => void copyDesktopLogPath()}
-                >{i18next.t("gen.components.layout.DesktopBootstrapShell.gen_a617be7f", "复制日志路径")}</Button>
+                >{i18next.t("layout.desktopBootstrapShell.nd6hps")}</Button>
                 {snapshot.state === "error" && snapshot.canRetry ? (
                   <Button
                     className="bg-cyan-400 text-slate-950 hover:bg-cyan-300"
                     onClick={() => void restartDesktopApp()}
-                  >{i18next.t("gen.components.layout.DesktopBootstrapShell.gen_9ebc9e13", "重新启动")}</Button>
+                  >{i18next.t("layout.desktopBootstrapShell.itbw9o")}</Button>
                 ) : null}
               </div>
             </div>

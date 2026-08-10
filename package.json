@@ -54,7 +54,9 @@
     "test": "pnpm --filter @ai-novel/server test",
     "test:client": "pnpm --filter @ai-novel/client test",
     "test:all": "pnpm --filter @ai-novel/server test:all && pnpm --filter @ai-novel/client test",
-    "lint": "pnpm --filter @ai-novel/shared lint && pnpm --filter @ai-novel/server lint && pnpm --filter @ai-novel/client lint"
+    "i18n:scan": "node scripts/scan-and-extract-i18n.cjs",
+    "i18n:check": "node scripts/check-i18n-hardcoded.cjs",
+    "lint": "pnpm i18n:check && pnpm --filter @ai-novel/shared lint && pnpm --filter @ai-novel/server lint && pnpm --filter @ai-novel/client lint"
   },
   "pnpm": {
     "onlyBuiltDependencies": [

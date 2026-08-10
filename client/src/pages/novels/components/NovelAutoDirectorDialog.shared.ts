@@ -15,8 +15,8 @@ export interface DirectorRunModeOption {
 export const RUN_MODE_OPTIONS: DirectorRunModeOption[] = [
   {
     value: "auto_to_ready",
-    label: "先完成导演准备",
-    description: "AI 会准备书级规划、角色、卷章安排和章节执行资源，再由你选择简易生产或专业生产。",
+    label: i18next.t("novels.novelAutoDirectorDialog.shared.yqy2aj"),
+    description: i18next.t("novels.novelAutoDirectorDialog.shared.ebs2sj"),
     recommended: true,
     recommendation: "正文不会提前生成，准备完成后再决定如何生产整本书。",
   },

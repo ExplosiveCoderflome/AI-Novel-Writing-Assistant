@@ -1,5 +1,4 @@
 import i18next from "i18next";
-import { useTranslation } from "react-i18next";
 import { useState } from "react";
 import type {
   Character,
@@ -37,7 +36,6 @@ interface SupplementalCharacterDialogProps extends SupplementalCharacterDialogAc
 }
 
 export default function SupplementalCharacterDialog(props: SupplementalCharacterDialogProps) {
-  const { t } = useTranslation();
   const {
     open,
     onOpenChange,
@@ -121,14 +119,14 @@ export default function SupplementalCharacterDialog(props: SupplementalCharacter
     <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent className="flex max-h-[90vh] w-[calc(100vw-2rem)] max-w-5xl flex-col overflow-hidden p-0">
         <DialogHeader className="shrink-0 px-6 pb-0 pt-6">
-          <DialogTitle>{i18next.t("gen.pages.novels.components.characterPanel.SupplementalCharacterDialog.gen_d8d10894", "补充角色")}</DialogTitle>
-          <DialogDescription>{i18next.t("gen.pages.novels.components.characterPanel.SupplementalCharacterDialog.gen_104ecdb5", "适合补齐对手、同盟、压力源或关键关系人物。AI 会结合现有阵容给出可创建候选。")}</DialogDescription>
+          <DialogTitle>{i18next.t("dict.gen_d8d10894")}</DialogTitle>
+          <DialogDescription>{i18next.t("novels.supplementalCharacterDialog.9rq0f1")}</DialogDescription>
         </DialogHeader>
         <div className="grid min-h-0 flex-1 gap-4 overflow-y-auto px-6 pb-6 pt-4 xl:grid-cols-[minmax(320px,0.9fr)_minmax(0,1.1fr)] xl:overflow-hidden">
           <div className="space-y-4 rounded-xl border border-border/70 bg-muted/10 p-4 xl:min-h-0 xl:overflow-y-auto">
             <div className="space-y-1">
-              <div className="font-medium">{i18next.t("gen.pages.novels.components.characterPanel.SupplementalCharacterDialog.gen_620500d9", "补位方式")}</div>
-              <div className="text-xs text-muted-foreground">{i18next.t("gen.pages.novels.components.characterPanel.SupplementalCharacterDialog.gen_b5a9e1e7", "默认交给 AI 判断；只有明确知道要补哪类人物时再手动指定。")}</div>
+              <div className="font-medium">{i18next.t("dict.gen_620500d9")}</div>
+              <div className="text-xs text-muted-foreground">{i18next.t("novels.supplementalCharacterDialog.ays5db")}</div>
             </div>
             <SelectControl
               className="w-full rounded-md border bg-background p-2 text-sm"
@@ -136,14 +134,14 @@ export default function SupplementalCharacterDialog(props: SupplementalCharacter
               onChange={(event) => setSupplementalMode(event.target.value as SupplementalCharacterGenerationMode)}
             >
               <option value="auto">AI 判断当前更需要哪种补位</option>
-              <option value="linked">{i18next.t("gen.pages.novels.components.characterPanel.SupplementalCharacterDialog.gen_2eb92b6f", "基于现有角色衍生关系角色")}</option>
-              <option value="independent">{i18next.t("gen.pages.novels.components.characterPanel.SupplementalCharacterDialog.gen_9d6ec340", "生成相对独立角色")}</option>
+              <option value="linked">{i18next.t("dict.gen_2eb92b6f")}</option>
+              <option value="independent">{i18next.t("dict.gen_9d6ec340")}</option>
             </SelectControl>
 
             {characters.length > 0 && supplementalMode !== "independent" ? (
               <div className="space-y-2">
-                <div className="font-medium">{i18next.t("gen.pages.novels.components.characterPanel.SupplementalCharacterDialog.gen_f82db5ca", "参考已有角色")}</div>
-                <div className="text-xs text-muted-foreground">{i18next.t("gen.pages.novels.components.characterPanel.SupplementalCharacterDialog.gen_d6efe2d9", "可不选；不选时 AI 会自己判断应该围绕谁补位。")}</div>
+                <div className="font-medium">{i18next.t("dict.gen_f82db5ca")}</div>
+                <div className="text-xs text-muted-foreground">{i18next.t("novels.supplementalCharacterDialog.mcr6pf")}</div>
                 <div className="max-h-40 space-y-2 overflow-auto rounded-xl border bg-background/70 p-3">
                   {characters.map((character) => (
                     <label key={character.id} className="flex items-start gap-2 text-sm">
@@ -164,25 +162,25 @@ export default function SupplementalCharacterDialog(props: SupplementalCharacter
 
             <div className="grid gap-3 md:grid-cols-2">
               <div className="space-y-2">
-                <div className="font-medium">{i18next.t("gen.pages.novels.components.characterPanel.SupplementalCharacterDialog.gen_92846493", "期望角色功能")}</div>
+                <div className="font-medium">{i18next.t("dict.gen_92846493")}</div>
                 <SelectControl
                   className="w-full rounded-md border bg-background p-2 text-sm"
                   value={supplementalTargetRole}
                   onChange={(event) => setSupplementalTargetRole(event.target.value as CharacterCastRole | "auto")}
                 >
                   <option value="auto">AI 判断</option>
-                  <option value="protagonist">{i18next.t("gen.pages.novels.components.characterPanel.SupplementalCharacterDialog.gen_83b681f4", "主角")}</option>
-                  <option value="antagonist">{i18next.t("gen.pages.novels.components.characterPanel.SupplementalCharacterDialog.gen_32691290", "主对手")}</option>
-                  <option value="ally">{i18next.t("gen.pages.novels.components.characterPanel.SupplementalCharacterDialog.gen_9669fc43", "同盟")}</option>
-                  <option value="foil">{i18next.t("gen.pages.novels.components.characterPanel.SupplementalCharacterDialog.gen_d7fc88ac", "镜像角色")}</option>
-                  <option value="mentor">{i18next.t("gen.pages.novels.components.characterPanel.SupplementalCharacterDialog.gen_d62518be", "导师")}</option>
-                  <option value="love_interest">{i18next.t("gen.pages.novels.components.characterPanel.SupplementalCharacterDialog.gen_65c52a7e", "情感牵引")}</option>
-                  <option value="pressure_source">{i18next.t("gen.pages.novels.components.characterPanel.SupplementalCharacterDialog.gen_7aa91c6c", "压力源")}</option>
-                  <option value="catalyst">{i18next.t("gen.pages.novels.components.characterPanel.SupplementalCharacterDialog.gen_f57197c6", "催化者")}</option>
+                  <option value="protagonist">{i18next.t("dict.mainCharacter")}</option>
+                  <option value="antagonist">{i18next.t("dict.mainEnemy")}</option>
+                  <option value="ally">{i18next.t("dict.gen_9669fc43")}</option>
+                  <option value="foil">{i18next.t("dict.gen_d7fc88ac")}</option>
+                  <option value="mentor">{i18next.t("dict.gen_d62518be")}</option>
+                  <option value="love_interest">{i18next.t("dict.gen_65c52a7e")}</option>
+                  <option value="pressure_source">{i18next.t("dict.gen_7aa91c6c")}</option>
+                  <option value="catalyst">{i18next.t("dict.gen_f57197c6")}</option>
                 </SelectControl>
               </div>
               <div className="space-y-2">
-                <div className="font-medium">{i18next.t("gen.pages.novels.components.characterPanel.SupplementalCharacterDialog.gen_e99dfdf4", "生成数量")}</div>
+                <div className="font-medium">{i18next.t("dict.gen_e99dfdf4")}</div>
                 <SelectControl
                   className="w-full rounded-md border bg-background p-2 text-sm"
                   value={supplementalCount}
@@ -197,10 +195,10 @@ export default function SupplementalCharacterDialog(props: SupplementalCharacter
             </div>
 
             <div className="space-y-2">
-              <div className="font-medium">{i18next.t("gen.pages.novels.components.characterPanel.SupplementalCharacterDialog.gen_a63d16b7", "额外说明")}</div>
+              <div className="font-medium">{i18next.t("dict.gen_a63d16b7")}</div>
               <textarea
                 className="min-h-[140px] w-full rounded-xl border bg-background p-3 text-sm"
-                placeholder={i18next.t("gen.pages.novels.components.characterPanel.SupplementalCharacterDialog.gen_f4659006", "例如：补一个能持续给主角施压、但又不是纯反派的人；或补一个和母亲线相关的旧识。")}
+                placeholder={i18next.t("novels.supplementalCharacterDialog.idqa6i")}
                 value={supplementalPrompt}
                 onChange={(event) => setSupplementalPrompt(event.target.value)}
               />
@@ -211,7 +209,7 @@ export default function SupplementalCharacterDialog(props: SupplementalCharacter
                 type="checkbox"
                 checked={supplementalUseWorldContext}
                 onChange={(event) => setSupplementalUseWorldContext(event.target.checked)}
-              />{i18next.t("gen.pages.novels.components.characterPanel.SupplementalCharacterDialog.gen_ccea85cc", "基于本书世界生成")}</label>
+              />{i18next.t("novels.characterCastOptionsSection.1lzcq3")}</label>
 
             <div className="flex flex-wrap gap-2">
               <AiButton
@@ -220,8 +218,8 @@ export default function SupplementalCharacterDialog(props: SupplementalCharacter
               >
                 {isGeneratingSupplementalCharacters ? "生成中..." : "生成补充角色候选"}
               </AiButton>
-              <Badge variant="outline">{i18next.t("gen.pages.novels.components.characterPanel.SupplementalCharacterDialog.gen_9f13a0d0", "数量不选时由 AI 判断")}</Badge>
-              <Badge variant="outline">{i18next.t("gen.pages.novels.components.characterPanel.SupplementalCharacterDialog.gen_d3053d0b", "关系角色会优先围绕现有角色补位")}</Badge>
+              <Badge variant="outline">{i18next.t("novels.supplementalCharacterDialog.7pbown")}</Badge>
+              <Badge variant="outline">{i18next.t("dict.gen_d3053d0b")}</Badge>
             </div>
 
             {supplementalStatusMessage ? (
@@ -233,7 +231,7 @@ export default function SupplementalCharacterDialog(props: SupplementalCharacter
 
           <div className="space-y-3 rounded-xl border border-border/70 bg-background p-4 xl:min-h-0 xl:overflow-y-auto">
             <div className="flex flex-wrap items-center gap-2">
-              <div className="font-medium">{i18next.t("gen.pages.novels.components.characterPanel.SupplementalCharacterDialog.gen_e995da4f", "候选结果")}</div>
+              <div className="font-medium">{i18next.t("dict.gen_e995da4f")}</div>
               {supplementalResult ? <Badge variant="outline">{supplementalResult.candidates.length} 个候选</Badge> : null}
               {supplementalResult?.mode ? <Badge variant="outline">本轮模式：{SUPPLEMENTAL_MODE_LABELS[supplementalResult.mode]}</Badge> : null}
             </div>
@@ -244,7 +242,7 @@ export default function SupplementalCharacterDialog(props: SupplementalCharacter
             ) : null}
 
             {isGeneratingSupplementalCharacters ? (
-              <div className="flex min-h-[320px] items-center justify-center rounded-xl border border-dashed text-sm text-muted-foreground">{i18next.t("gen.pages.novels.components.characterPanel.SupplementalCharacterDialog.gen_3f5ddc26", "正在分析当前角色网并生成补位候选...")}</div>
+              <div className="flex min-h-[320px] items-center justify-center rounded-xl border border-dashed text-sm text-muted-foreground">{i18next.t("novels.supplementalCharacterDialog.5vckl3")}</div>
             ) : supplementalResult?.candidates.length ? (
               <div className="space-y-3">
                 {supplementalResult.candidates.map((candidate) => (
@@ -257,7 +255,7 @@ export default function SupplementalCharacterDialog(props: SupplementalCharacter
                 ))}
               </div>
             ) : (
-              <div className="flex min-h-[320px] items-center justify-center rounded-xl border border-dashed px-6 text-center text-sm text-muted-foreground">{i18next.t("gen.pages.novels.components.characterPanel.SupplementalCharacterDialog.gen_543133bf", "先说明你想补哪类角色，或直接交给 AI 判断，再生成候选。")}</div>
+              <div className="flex min-h-[320px] items-center justify-center rounded-xl border border-dashed px-6 text-center text-sm text-muted-foreground">{i18next.t("novels.supplementalCharacterDialog.i57v7y")}</div>
             )}
           </div>
         </div>
@@ -307,7 +305,7 @@ function SupplementalCandidateCard(props: {
 
       {candidate.relations.length > 0 ? (
         <div className="mt-3 space-y-2">
-          <div className="text-xs font-medium text-muted-foreground">{i18next.t("gen.pages.novels.components.characterPanel.SupplementalCharacterDialog.gen_a0237f0c", "建议同步的关系")}</div>
+          <div className="text-xs font-medium text-muted-foreground">{i18next.t("dict.gen_a0237f0c")}</div>
           <div className="grid gap-2 sm:grid-cols-2">
             {candidate.relations.map((relation, index) => (
               <div key={`${candidate.name}-${relation.sourceName}-${relation.targetName}-${index}`} className="rounded-xl border border-dashed p-3 text-xs text-muted-foreground">
@@ -321,7 +319,7 @@ function SupplementalCandidateCard(props: {
           </div>
         </div>
       ) : (
-        <div className="mt-3 rounded-xl border border-dashed p-3 text-xs text-muted-foreground">{i18next.t("gen.pages.novels.components.characterPanel.SupplementalCharacterDialog.gen_e01f7fa7", "这名角色更偏向独立补位，不强制写入角色关系。")}</div>
+        <div className="mt-3 rounded-xl border border-dashed p-3 text-xs text-muted-foreground">{i18next.t("novels.supplementalCharacterDialog.wh01rs")}</div>
       )}
     </div>
   );

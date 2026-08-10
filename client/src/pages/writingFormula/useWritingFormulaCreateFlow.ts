@@ -159,7 +159,7 @@ export function useWritingFormulaCreateFlow({
       }
       handledTerminalTaskIdRef.current = pendingExtractionTaskId;
       setPendingExtractionTaskId("");
-      onFlowMessage(i18next.t("gen.pages.writingFormula.useWritingFormulaCreateFlow.gen_f4b80b71"));
+      onFlowMessage(i18next.t("dict.gen_f4b80b71"));
       return;
     }
 
@@ -175,9 +175,9 @@ export function useWritingFormulaCreateFlow({
 
     if (task.status === "succeeded") {
       const profileId = readCreatedProfileId(task);
-      const profileName = readCreatedProfileName(task) || form.extractName.trim() || i18next.t("gen.pages.writingFormula.useWritingFormulaCreateFlow.gen_6462c1e2");
+      const profileName = readCreatedProfileName(task) || form.extractName.trim() || i18next.t("dict.gen_6462c1e2");
       if (!profileId) {
-        onFlowMessage(i18next.t("gen.pages.writingFormula.useWritingFormulaCreateFlow.gen_8487c9c4"));
+        onFlowMessage(i18next.t("dict.gen_8487c9c4"));
         return;
       }
       resetCreateFlow();
@@ -190,8 +190,8 @@ export function useWritingFormulaCreateFlow({
     const failureMessage = task.failureSummary
       ?? task.lastError
       ?? (task.status === "cancelled"
-        ? i18next.t("gen.pages.writingFormula.useWritingFormulaCreateFlow.gen_e59397af")
-        : i18next.t("gen.pages.writingFormula.useWritingFormulaCreateFlow.gen_e47866f2"));
+        ? i18next.t("dict.gen_e59397af")
+        : i18next.t("dict.gen_e47866f2"));
     onFlowMessage(failureMessage);
   }, [
     extractionTaskQuery.data,
@@ -262,7 +262,7 @@ export function useWritingFormulaCreateFlow({
     onSuccess: (response) => {
       const task = response.data;
       if (!task) {
-        onFlowMessage(i18next.t("gen.pages.writingFormula.useWritingFormulaCreateFlow.gen_d85cc95d"));
+        onFlowMessage(i18next.t("dict.gen_d85cc95d"));
         return;
       }
       handledTerminalTaskIdRef.current = "";
@@ -285,7 +285,7 @@ export function useWritingFormulaCreateFlow({
     onSuccess: (response) => {
       const task = response.data;
       if (!task) {
-        onFlowMessage(i18next.t("gen.pages.writingFormula.useWritingFormulaCreateFlow.gen_d85cc95d"));
+        onFlowMessage(i18next.t("dict.gen_d85cc95d"));
         return;
       }
       handledTerminalTaskIdRef.current = "";

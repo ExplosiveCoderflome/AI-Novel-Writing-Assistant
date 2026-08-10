@@ -1,4 +1,3 @@
-import i18next from "i18next";
 import { formatVolumeBeatDisplayLabel } from "@ai-novel/shared/types/volumeBeatSlots";
 import type { StructuredTabViewProps } from "./NovelEditView.types";
 

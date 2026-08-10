@@ -1,4 +1,3 @@
-import i18next from "i18next";
 import { useQuery } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import { ArrowRight, KeyRound } from "lucide-react";

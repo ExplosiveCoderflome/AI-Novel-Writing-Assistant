@@ -1,4 +1,3 @@
-import { useTranslation } from "react-i18next";
 import i18next from "i18next";
 const t = (key: string, options?: any) => i18next.t(key, options) as string;
 import { Plus, WandSparkles } from "lucide-react";
@@ -13,7 +12,6 @@ export default function WorldHandbookRuleSection(props: {
   draftStructure: WorldStructuredData;
   setDraftStructure: Dispatch<SetStateAction<WorldStructuredData | null>>;
 }) {
-  const { t } = useTranslation();
   const { draftStructure, setDraftStructure } = props;
 
   const addRule = () => {
@@ -44,18 +42,18 @@ export default function WorldHandbookRuleSection(props: {
     <section className="rounded-md border p-4">
       <SectionHeader
         icon={WandSparkles}
-        title={i18next.t("gen.pages.worlds.components.workspace.handbook.WorldHandbookRuleSection.gen_0a431a82")}
-        description={i18next.t("gen.pages.worlds.components.workspace.handbook.WorldHandbookRuleSection.gen_c5c8c56a")}
+        title={i18next.t("dict.gen_0a431a82")}
+        description={i18next.t("dict.gen_c5c8c56a")}
         count={draftStructure.rules.axioms.length}
       />
       <div className="mt-4 space-y-3">
-        <HandbookField title={i18next.t("gen.pages.worlds.components.workspace.handbook.WorldHandbookRuleSection.gen_9c10e19a")} hint={i18next.t("gen.pages.worlds.components.workspace.handbook.WorldHandbookRuleSection.gen_07fef44f")}>
+        <HandbookField title={i18next.t("dict.gen_9c10e19a")} hint={i18next.t("dict.gen_07fef44f")}>
           <HandbookTextarea
             value={draftStructure.rules.summary}
             onChange={(value) =>
               setDraftStructure((prev) => (prev ? { ...prev, rules: { ...prev.rules, summary: value } } : prev))
             }
-            placeholder={i18next.t("gen.pages.worlds.components.workspace.handbook.WorldHandbookRuleSection.exampleAllSupernaturalPowerFromStellarLoanOveruseDrainsLifespanRecordedByOracleHall")}
+            placeholder={i18next.t("dict.exampleAllSupernaturalPowerFromStellarLoanOveruseDrainsLifespanRecordedByOracleHall")}
             minRows={3}
           />
         </HandbookField>
@@ -73,10 +71,10 @@ export default function WorldHandbookRuleSection(props: {
                       prev ? { ...prev, rules: { ...prev.rules, axioms: removeItem(prev.rules.axioms, index) } } : prev,
                     )
                   }
-                >{i18next.t("gen.pages.worlds.components.workspace.handbook.WorldHandbookRuleSection.gen_86048b4f", "移除")}</Button>
+                >{i18next.t("worlds.worldHandbookForceSection.lknd")}</Button>
               </div>
               <div className="mt-3 grid gap-3">
-                <HandbookField title={i18next.t("gen.pages.worlds.components.workspace.handbook.WorldHandbookRuleSection.gen_87080256")} hint={i18next.t("gen.pages.worlds.components.workspace.handbook.WorldHandbookRuleSection.gen_357e0b0c")}>
+                <HandbookField title={i18next.t("dict.gen_87080256")} hint={i18next.t("dict.gen_357e0b0c")}>
                   <Input
                     value={rule.name}
                     onChange={(event) =>
@@ -92,10 +90,10 @@ export default function WorldHandbookRuleSection(props: {
                           : prev,
                       )
                     }
-                    placeholder={i18next.t("gen.pages.worlds.components.workspace.handbook.WorldHandbookRuleSection.gen_ad19045f")}
+                    placeholder={i18next.t("dict.gen_ad19045f")}
                   />
                 </HandbookField>
-                <HandbookField title={i18next.t("gen.pages.worlds.components.workspace.handbook.WorldHandbookRuleSection.gen_fda6e32b")} hint={i18next.t("gen.pages.worlds.components.workspace.handbook.WorldHandbookRuleSection.gen_ab0b3fa3")}>
+                <HandbookField title={i18next.t("dict.gen_fda6e32b")} hint={i18next.t("dict.gen_ab0b3fa3")}>
                   <HandbookTextarea
                     value={rule.summary}
                     onChange={(value) =>
@@ -108,11 +106,11 @@ export default function WorldHandbookRuleSection(props: {
                           : prev,
                       )
                     }
-                    placeholder={i18next.t("gen.pages.worlds.components.workspace.handbook.WorldHandbookRuleSection.gen_2463cba5")}
+                    placeholder={i18next.t("dict.gen_2463cba5")}
                     minRows={3}
                   />
                 </HandbookField>
-                <HandbookField title={i18next.t("gen.pages.worlds.components.workspace.handbook.WorldHandbookRuleSection.cost")} hint={i18next.t("gen.pages.worlds.components.workspace.handbook.WorldHandbookRuleSection.gen_使用违反或绕开规则时_xd66")}>
+                <HandbookField title={i18next.t("dict.cost")} hint={i18next.t("dict.gen_使用违反或绕开规则时_xd66")}>
                   <Input
                     value={rule.cost}
                     onChange={(event) =>
@@ -128,10 +126,10 @@ export default function WorldHandbookRuleSection(props: {
                           : prev,
                       )
                     }
-                    placeholder={i18next.t("gen.pages.worlds.components.workspace.handbook.WorldHandbookRuleSection.gen_608c6ca1")}
+                    placeholder={i18next.t("dict.gen_608c6ca1")}
                   />
                 </HandbookField>
-                <HandbookField title={i18next.t("gen.pages.worlds.components.workspace.handbook.WorldHandbookRuleSection.boundaryLimit")} hint={i18next.t("gen.pages.worlds.components.workspace.handbook.WorldHandbookRuleSection.gen_f0cedcf9")}>
+                <HandbookField title={i18next.t("dict.boundaryLimit")} hint={i18next.t("dict.gen_f0cedcf9")}>
                   <Input
                     value={rule.boundary}
                     onChange={(event) =>
@@ -147,7 +145,7 @@ export default function WorldHandbookRuleSection(props: {
                           : prev,
                       )
                     }
-                    placeholder={i18next.t("gen.pages.worlds.components.workspace.handbook.WorldHandbookRuleSection.gen_6fdc2189")}
+                    placeholder={i18next.t("dict.gen_6fdc2189")}
                   />
                 </HandbookField>
               </div>
@@ -155,7 +153,7 @@ export default function WorldHandbookRuleSection(props: {
           ))}
         </div>
         <Button type="button" variant="outline" onClick={addRule}>
-          <Plus className="mr-2 h-4 w-4" aria-hidden="true" />{i18next.t("gen.pages.worlds.components.workspace.handbook.WorldHandbookRuleSection.gen_6b5e0c3a", "增加核心规则")}</Button>
+          <Plus className="mr-2 h-4 w-4" aria-hidden="true" />{i18next.t("worlds.worldHandbookRuleSection.2z9kf2")}</Button>
       </div>
     </section>
   );

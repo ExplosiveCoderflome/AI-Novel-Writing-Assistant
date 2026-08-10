@@ -1,4 +1,3 @@
-import { useTranslation } from "react-i18next";
 import i18next from "i18next";
 const t = (key: string, options?: any) => i18next.t(key, options) as string;
 import { useMemo } from "react";
@@ -14,11 +13,10 @@ export default function WorldHandbookForceSection(props: {
   draftStructure: WorldStructuredData;
   setDraftStructure: Dispatch<SetStateAction<WorldStructuredData | null>>;
 }) {
-  const { t } = useTranslation();
   const { draftStructure, setDraftStructure } = props;
   const forceSummary = useMemo(() => {
     const forceNames = draftStructure.forces.map((force) => force.name).filter(Boolean).slice(0, 4);
-    return forceNames.length > 0 ? forceNames.join(" / ") : i18next.t("gen.pages.worlds.components.workspace.handbook.WorldHandbookForceSection.gen_55512ee4");
+    return forceNames.length > 0 ? forceNames.join(" / ") : i18next.t("dict.gen_55512ee4");
   }, [draftStructure.forces]);
 
   const addForce = () => {
@@ -50,7 +48,7 @@ export default function WorldHandbookForceSection(props: {
     <section className="rounded-md border p-4">
       <SectionHeader
         icon={Castle}
-        title={i18next.t("gen.pages.worlds.components.workspace.handbook.WorldHandbookForceSection.majorForce")}
+        title={i18next.t("dict.majorForce")}
         description={`让作者先看懂谁在争夺资源、谁会制造阻力、角色可能从哪里来。${forceSummary}`}
         count={draftStructure.forces.length}
       />
@@ -66,10 +64,10 @@ export default function WorldHandbookForceSection(props: {
                 onClick={() =>
                   setDraftStructure((prev) => (prev ? { ...prev, forces: removeItem(prev.forces, index) } : prev))
                 }
-              >{i18next.t("gen.pages.worlds.components.workspace.handbook.WorldHandbookForceSection.gen_86048b4f", "移除")}</Button>
+              >{i18next.t("worlds.worldHandbookForceSection.lknd")}</Button>
             </div>
             <div className="mt-3 grid gap-3">
-              <HandbookField title={i18next.t("gen.pages.worlds.components.workspace.handbook.WorldHandbookForceSection.gen_e548e9c0")} hint={i18next.t("gen.pages.worlds.components.workspace.handbook.WorldHandbookForceSection.gen_ee03f569")}>
+              <HandbookField title={i18next.t("dict.gen_e548e9c0")} hint={i18next.t("dict.gen_ee03f569")}>
                 <Input
                   value={force.name}
                   onChange={(event) =>
@@ -77,10 +75,10 @@ export default function WorldHandbookForceSection(props: {
                       prev ? { ...prev, forces: updateItem(prev.forces, index, { name: event.target.value }) } : prev,
                     )
                   }
-                  placeholder={i18next.t("gen.pages.worlds.components.workspace.handbook.WorldHandbookForceSection.gen_695b5835")}
+                  placeholder={i18next.t("dict.gen_695b5835")}
                 />
               </HandbookField>
-              <HandbookField title={i18next.t("gen.pages.worlds.components.workspace.handbook.WorldHandbookForceSection.gen_f81810c7")} hint={i18next.t("gen.pages.worlds.components.workspace.handbook.WorldHandbookForceSection.gen_c5bf3f2c")}>
+              <HandbookField title={i18next.t("dict.gen_f81810c7")} hint={i18next.t("dict.gen_c5bf3f2c")}>
                 <Input
                   value={force.type}
                   onChange={(event) =>
@@ -88,10 +86,10 @@ export default function WorldHandbookForceSection(props: {
                       prev ? { ...prev, forces: updateItem(prev.forces, index, { type: event.target.value }) } : prev,
                     )
                   }
-                  placeholder={i18next.t("gen.pages.worlds.components.workspace.handbook.WorldHandbookForceSection.gen_bc47188f")}
+                  placeholder={i18next.t("dict.gen_bc47188f")}
                 />
               </HandbookField>
-              <HandbookField title={i18next.t("gen.pages.worlds.components.workspace.handbook.WorldHandbookForceSection.gen_de605aaa")} hint={i18next.t("gen.pages.worlds.components.workspace.handbook.WorldHandbookForceSection.gen_400e88de")}>
+              <HandbookField title={i18next.t("dict.gen_de605aaa")} hint={i18next.t("dict.gen_400e88de")}>
                 <HandbookTextarea
                   value={force.summary}
                   onChange={(value) =>
@@ -99,11 +97,11 @@ export default function WorldHandbookForceSection(props: {
                       prev ? { ...prev, forces: updateItem(prev.forces, index, { summary: value }) } : prev,
                     )
                   }
-                  placeholder={i18next.t("gen.pages.worlds.components.workspace.handbook.WorldHandbookForceSection.gen_d8420eef")}
+                  placeholder={i18next.t("dict.gen_d8420eef")}
                   minRows={3}
                 />
               </HandbookField>
-              <HandbookField title={i18next.t("gen.pages.worlds.components.workspace.handbook.WorldHandbookForceSection.gen_deb979f8")} hint={i18next.t("gen.pages.worlds.components.workspace.handbook.WorldHandbookForceSection.gen_92320747")}>
+              <HandbookField title={i18next.t("dict.gen_deb979f8")} hint={i18next.t("dict.gen_92320747")}>
                 <Input
                   value={force.currentObjective}
                   onChange={(event) =>
@@ -113,10 +111,10 @@ export default function WorldHandbookForceSection(props: {
                         : prev,
                     )
                   }
-                  placeholder={i18next.t("gen.pages.worlds.components.workspace.handbook.WorldHandbookForceSection.claimMineralsBlockTruthSeekLostHeir")}
+                  placeholder={i18next.t("dict.claimMineralsBlockTruthSeekLostHeir")}
                 />
               </HandbookField>
-              <HandbookField title={i18next.t("gen.pages.worlds.components.workspace.handbook.WorldHandbookForceSection.gen_e2f7b24d")} hint={i18next.t("gen.pages.worlds.components.workspace.handbook.WorldHandbookForceSection.forcedChoiceConsequences")}>
+              <HandbookField title={i18next.t("dict.gen_e2f7b24d")} hint={i18next.t("dict.forcedChoiceConsequences")}>
                 <Input
                   value={force.pressure}
                   onChange={(event) =>
@@ -124,7 +122,7 @@ export default function WorldHandbookForceSection(props: {
                       prev ? { ...prev, forces: updateItem(prev.forces, index, { pressure: event.target.value }) } : prev,
                     )
                   }
-                  placeholder={i18next.t("gen.pages.worlds.components.workspace.handbook.WorldHandbookForceSection.gen_0d057321")}
+                  placeholder={i18next.t("dict.gen_0d057321")}
                 />
               </HandbookField>
             </div>
@@ -132,7 +130,7 @@ export default function WorldHandbookForceSection(props: {
         ))}
       </div>
       <Button type="button" className="mt-3" variant="outline" onClick={addForce}>
-        <Plus className="mr-2 h-4 w-4" aria-hidden="true" />{i18next.t("gen.pages.worlds.components.workspace.handbook.WorldHandbookForceSection.gen_81c403d7", "增加主要势力")}</Button>
+        <Plus className="mr-2 h-4 w-4" aria-hidden="true" />{i18next.t("worlds.worldHandbookForceSection.63ex5o")}</Button>
     </section>
   );
 }

@@ -1,4 +1,3 @@
-import { useTranslation } from "react-i18next";
 import i18next from "i18next";
 const t = (key: string, options?: any) => i18next.t(key, options) as string;
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -64,7 +63,6 @@ interface AiRevisionWorkspaceProps {
 }
 
 export default function AiRevisionWorkspace(props: AiRevisionWorkspaceProps) {
-  const { t } = useTranslation();
   const {
     value,
     onChange,
@@ -77,7 +75,7 @@ export default function AiRevisionWorkspace(props: AiRevisionWorkspaceProps) {
     onApplyPreview,
     onCancelPreview,
     leftLabel,
-    rightLabel = i18next.t("gen.components.common.AiRevisionWorkspace.aiCorrectionInstruction"),
+    rightLabel = i18next.t("dict.aiCorrectionInstruction"),
     minHeightClassName = "min-h-[320px]",
   } = props;
   const [editorSeed, setEditorSeed] = useState(0);
@@ -165,15 +163,15 @@ export default function AiRevisionWorkspace(props: AiRevisionWorkspaceProps) {
             className="min-h-[120px] w-full rounded-md border bg-background p-2 text-sm"
             value={instruction}
             onChange={(event) => onInstructionChange(event.target.value)}
-            placeholder={i18next.t("gen.components.common.AiRevisionWorkspace.gen_68d053de")}
+            placeholder={i18next.t("dict.gen_68d053de")}
           />
           {selectedText ? (
             <div className="rounded-md border bg-muted/20 p-2 text-xs text-muted-foreground">
-              <div className="mb-1 font-medium">{i18next.t("gen.components.common.AiRevisionWorkspace.gen_8cd6761d")}</div>
+              <div className="mb-1 font-medium">{i18next.t("dict.gen_8cd6761d")}</div>
               <div className="max-h-24 overflow-auto whitespace-pre-wrap">{selectedText}</div>
             </div>
           ) : (
-            <div className="text-xs text-muted-foreground">{i18next.t("gen.components.common.AiRevisionWorkspace.gen_d7bd05ff")}</div>
+            <div className="text-xs text-muted-foreground">{i18next.t("dict.gen_d7bd05ff")}</div>
           )}
           <div className="flex flex-wrap gap-2">
             <Button
@@ -181,7 +179,7 @@ export default function AiRevisionWorkspace(props: AiRevisionWorkspaceProps) {
               onClick={onOptimizeFull}
               disabled={isOptimizing || instruction.trim().length === 0}
             >
-              {isOptimizing ? i18next.t("gen.components.common.AiRevisionWorkspace.optimizingInProgress") : i18next.t("gen.components.common.AiRevisionWorkspace.gen_474dc540")}
+              {isOptimizing ? i18next.t("dict.optimizingInProgress") : i18next.t("dict.gen_474dc540")}
             </Button>
             <Button
               size="sm"
@@ -189,17 +187,17 @@ export default function AiRevisionWorkspace(props: AiRevisionWorkspaceProps) {
               onMouseDown={(event) => event.preventDefault()}
               onClick={() => onOptimizeSelection(selectedText)}
               disabled={isOptimizing || instruction.trim().length === 0 || selectedText.length === 0}
-            >{i18next.t("gen.components.common.AiRevisionWorkspace.gen_2ba69422", "仅优化选中内容")}</Button>
+            >{i18next.t("common.aiRevisionWorkspace.o9to11")}</Button>
           </div>
           {preview.trim() ? (
             <div className="space-y-2">
-              <div className="text-xs font-medium text-muted-foreground">{i18next.t("gen.components.common.AiRevisionWorkspace.optimizePreview")}</div>
+              <div className="text-xs font-medium text-muted-foreground">{i18next.t("dict.optimizePreview")}</div>
               <pre className="max-h-[280px] overflow-auto whitespace-pre-wrap rounded-md border bg-muted/20 p-2 text-xs">
                 {preview}
               </pre>
               <div className="flex flex-wrap gap-2">
-                <Button size="sm" onClick={onApplyPreview}>{i18next.t("gen.components.common.AiRevisionWorkspace.gen_c7117d60")}</Button>
-                <Button size="sm" variant="outline" onClick={onCancelPreview}>{i18next.t("gen.components.common.AiRevisionWorkspace.gen_63b5a88c")}</Button>
+                <Button size="sm" onClick={onApplyPreview}>{i18next.t("dict.gen_c7117d60")}</Button>
+                <Button size="sm" variant="outline" onClick={onCancelPreview}>{i18next.t("dict.gen_63b5a88c")}</Button>
               </div>
             </div>
           ) : null}

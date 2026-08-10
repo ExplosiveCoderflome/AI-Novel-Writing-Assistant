@@ -1,4 +1,3 @@
-import { useTranslation } from "react-i18next";
 import i18next from "i18next";
 const t = (key: string, options?: any) => i18next.t(key, options) as string;
 import type {
@@ -18,28 +17,28 @@ const PRESET_CARDS: Array<{
 }> = [
   {
     value: "light",
-    title: i18next.t("gen.pages.worlds.components.generator.WorldGeneratorStepTwo.gen_080bd757"),
-    description: i18next.t("gen.pages.worlds.components.generator.WorldGeneratorStepTwo.gen_8f1b2dec"),
+    title: i18next.t("dict.gen_080bd757"),
+    description: i18next.t("dict.gen_8f1b2dec"),
   },
   {
     value: "standard",
-    title: i18next.t("gen.pages.worlds.components.generator.WorldGeneratorStepTwo.gen_77e7b5d2"),
-    description: i18next.t("gen.pages.worlds.components.generator.WorldGeneratorStepTwo.gen_17cc0890"),
+    title: i18next.t("dict.gen_77e7b5d2"),
+    description: i18next.t("dict.gen_17cc0890"),
   },
   {
     value: "epic",
-    title: i18next.t("gen.pages.worlds.components.generator.WorldGeneratorStepTwo.gen_7dfb0759"),
-    description: i18next.t("gen.pages.worlds.components.generator.WorldGeneratorStepTwo.gen_04522d6d"),
+    title: i18next.t("dict.gen_7dfb0759"),
+    description: i18next.t("dict.gen_04522d6d"),
   },
 ];
 
 const COUNT_LABELS: Record<keyof WorldSkeletonGenerationCounts, string> = {
-  rules: i18next.t("gen.pages.worlds.components.generator.WorldGeneratorStepTwo.gen_0a431a82"),
-  factionGroups: i18next.t("gen.pages.worlds.components.generator.WorldGeneratorStepTwo.gen_b3de18cc"),
-  forces: i18next.t("gen.pages.worlds.components.generator.WorldGeneratorStepTwo.gen_6892df3b"),
-  locations: i18next.t("gen.pages.worlds.components.generator.WorldGeneratorStepTwo.gen_ce7830fa"),
-  conflicts: i18next.t("gen.pages.worlds.components.generator.WorldGeneratorStepTwo.gen_4360e03d"),
-  storyEntrySuggestions: i18next.t("gen.pages.worlds.components.generator.WorldGeneratorStepTwo.gen_2ff7e9ff"),
+  rules: i18next.t("dict.gen_0a431a82"),
+  factionGroups: i18next.t("dict.gen_b3de18cc"),
+  forces: i18next.t("dict.gen_6892df3b"),
+  locations: i18next.t("dict.gen_ce7830fa"),
+  conflicts: i18next.t("dict.gen_4360e03d"),
+  storyEntrySuggestions: i18next.t("dict.gen_2ff7e9ff"),
 };
 
 interface WorldGeneratorStepTwoProps {
@@ -52,7 +51,6 @@ interface WorldGeneratorStepTwoProps {
 }
 
 export default function WorldGeneratorStepTwo(props: WorldGeneratorStepTwoProps) {
-  const { t } = useTranslation();
   const {
     preset,
     counts,
@@ -65,8 +63,8 @@ export default function WorldGeneratorStepTwo(props: WorldGeneratorStepTwoProps)
   return (
     <div className="space-y-4">
       <div className="rounded-md border bg-background p-4">
-        <div className="text-sm font-medium">{i18next.t("gen.pages.worlds.components.generator.WorldGeneratorStepTwo.gen_3d7f4575")}</div>
-        <div className="mt-1 text-xs text-muted-foreground">{i18next.t("gen.pages.worlds.components.generator.WorldGeneratorStepTwo.gen_b18834e2", "规模会决定 AI 生成多少规则、阵营、具体势力、关键地点和可开书入口。默认推荐“标准长篇”。")}</div>
+        <div className="text-sm font-medium">{i18next.t("dict.gen_3d7f4575")}</div>
+        <div className="mt-1 text-xs text-muted-foreground">{i18next.t("worlds.worldGeneratorStepTwo.x8cy6b")}</div>
       </div>
 
       <div className="grid gap-3 md:grid-cols-3">
@@ -82,18 +80,18 @@ export default function WorldGeneratorStepTwo(props: WorldGeneratorStepTwoProps)
             <div className="text-sm font-semibold">{item.title}</div>
             <div className="mt-2 text-xs leading-5 text-muted-foreground">{item.description}</div>
             <div className="mt-3 grid grid-cols-2 gap-1 text-xs text-muted-foreground">
-              <span>{i18next.t("gen.pages.worlds.components.generator.WorldGeneratorStepTwo.gen_e5cf4116")} {WORLD_SKELETON_PRESET_COUNTS[item.value].forces}</span>
-              <span>{i18next.t("gen.pages.worlds.components.generator.WorldGeneratorStepTwo.gen_8579bec0")} {WORLD_SKELETON_PRESET_COUNTS[item.value].locations}</span>
-              <span>{i18next.t("gen.pages.worlds.components.generator.WorldGeneratorStepTwo.gen_459399c1")} {WORLD_SKELETON_PRESET_COUNTS[item.value].conflicts}</span>
-              <span>{i18next.t("gen.pages.worlds.components.generator.WorldGeneratorStepTwo.gen_35f03500")} {WORLD_SKELETON_PRESET_COUNTS[item.value].storyEntrySuggestions}</span>
+              <span>{i18next.t("dict.gen_dcfe557b")} {WORLD_SKELETON_PRESET_COUNTS[item.value].forces}</span>
+              <span>{i18next.t("dict.gen_fc1a7d3c")} {WORLD_SKELETON_PRESET_COUNTS[item.value].locations}</span>
+              <span>{i18next.t("dict.gen_93190be9")} {WORLD_SKELETON_PRESET_COUNTS[item.value].conflicts}</span>
+              <span>{i18next.t("dict.gen_5639f70c")} {WORLD_SKELETON_PRESET_COUNTS[item.value].storyEntrySuggestions}</span>
             </div>
           </button>
         ))}
       </div>
 
       <div className="rounded-md border p-4">
-        <div className="text-sm font-medium">{i18next.t("gen.pages.worlds.components.generator.WorldGeneratorStepTwo.gen_c0099a4f")}</div>
-        <div className="mt-1 text-xs text-muted-foreground">{i18next.t("gen.pages.worlds.components.generator.WorldGeneratorStepTwo.gen_63c1f742", "新手建议保持默认；只有明确想要更小或更大的世界时再调整。")}</div>
+        <div className="text-sm font-medium">{i18next.t("dict.gen_c0099a4f")}</div>
+        <div className="mt-1 text-xs text-muted-foreground">{i18next.t("worlds.worldGeneratorStepTwo.giab0b")}</div>
         <div className="mt-4 grid gap-3 md:grid-cols-2">
           {(Object.keys(COUNT_LABELS) as Array<keyof WorldSkeletonGenerationCounts>).map((key) => {
             const limit = WORLD_SKELETON_COUNT_LIMITS[key];
@@ -119,7 +117,7 @@ export default function WorldGeneratorStepTwo(props: WorldGeneratorStepTwoProps)
       </div>
 
       <Button onClick={onGenerateSkeleton} disabled={generating}>
-        {generating ? i18next.t("gen.pages.worlds.components.generator.WorldGeneratorStepTwo.gen_7ad924ca") : i18next.t("gen.pages.worlds.components.generator.WorldGeneratorStepTwo.gen_a9e8681a")}
+        {generating ? i18next.t("dict.gen_7ad924ca") : i18next.t("dict.gen_a9e8681a")}
       </Button>
     </div>
   );

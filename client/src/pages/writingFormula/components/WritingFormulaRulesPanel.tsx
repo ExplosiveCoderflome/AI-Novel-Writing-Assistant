@@ -25,15 +25,15 @@ export default function WritingFormulaRulesPanel(props: WritingFormulaRulesPanel
     <Card>
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
-          <ShieldCheck className="h-5 w-5" />{i18next.t("gen.pages.writingFormula.components.WritingFormulaRulesPanel.gen_d6a7d091", "反 AI 规则")}</CardTitle>
+          <ShieldCheck className="h-5 w-5" />{i18next.t("sidebar.antiAiRules")}</CardTitle>
       </CardHeader>
       <CardContent className="space-y-3">
         <div className="rounded-md border bg-muted/20 p-3 text-sm">
           启用 {enabledCount} / {antiAiRules.length} 条规则
         </div>
-        <div className="text-sm leading-6 text-muted-foreground">{i18next.t("gen.pages.writingFormula.components.WritingFormulaRulesPanel.gen_05005f3c", "在规则中心查看、创建和调整反 AI 规则；写法编辑区继续负责选择哪些规则绑定到当前写法。")}</div>
+        <div className="text-sm leading-6 text-muted-foreground">{i18next.t("writingFormula.writingFormulaRulesPanel.27k329")}</div>
         <Button className="w-full" variant="secondary" asChild>
-          <Link to="/anti-ai-rules">{i18next.t("gen.pages.writingFormula.components.WritingFormulaRulesPanel.gen_e54140ea")}</Link>
+          <Link to="/anti-ai-rules">{i18next.t("dict.gen_e54140ea")}</Link>
         </Button>
       </CardContent>
     </Card>

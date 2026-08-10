@@ -40,7 +40,7 @@ export default function NovelChapterEdit() {
   if (novelDetailQuery.isLoading && !detail) {
     return (
       <div className="flex h-full min-h-0 flex-col gap-4">
-        <PageStateCard message={i18next.t("gen.pages.novels.NovelChapterEdit.gen_22a1ab24")} />
+        <PageStateCard message={i18next.t("dict.gen_22a1ab24")} />
       </div>
     );
   }
@@ -48,7 +48,7 @@ export default function NovelChapterEdit() {
   if (novelDetailQuery.isError) {
     return (
       <div className="flex h-full min-h-0 flex-col gap-4">
-        <PageStateCard message={i18next.t("gen.pages.novels.NovelChapterEdit.gen_085aa7e4")} />
+        <PageStateCard message={i18next.t("dict.gen_085aa7e4")} />
       </div>
     );
   }
@@ -56,7 +56,7 @@ export default function NovelChapterEdit() {
   if (!chapter) {
     return (
       <div className="flex h-full min-h-0 flex-col gap-4">
-        <PageStateCard message={i18next.t("gen.pages.novels.NovelChapterEdit.gen_116434ee")} />
+        <PageStateCard message={i18next.t("dict.gen_116434ee")} />
       </div>
     );
   }

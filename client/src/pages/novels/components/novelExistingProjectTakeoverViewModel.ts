@@ -290,28 +290,28 @@ export function buildTakeoverProgressInspection(
 
   const cards: TakeoverProgressCard[] = [
     {
-      title: "卷规划进度",
+      title: i18next.t("dict.gen_3ead3ec9"),
       status: factSummary?.hasVolumeStrategy || (snapshot?.volumeCount ?? 0) > 0 ? "已具备卷战略" : "待补卷战略",
       detail: snapshot
         ? `${snapshot.volumeCount} 卷；当前卷章节 ${snapshot.firstVolumeChapterCount} 章；已拆范围 ${volumeRanges.map((range) => `第${range.startOrder}-${range.endOrder}章`).join("、") || "暂无"}`
         : "正在读取卷规划。",
     },
     {
-      title: "拆章同步进度",
+      title: i18next.t("dict.gen_b35a6efb"),
       status: formatRatio(syncedChapterCount, plannedChapterCount),
       detail: selectedChapterCount > 0
         ? `当前可执行范围 ${readiness?.executableRange?.startOrder ?? 1}-${readiness?.executableRange?.endOrder ?? selectedChapterCount} 章。`
         : "尚未检测到可执行章节范围。",
     },
     {
-      title: "章节细化进度",
+      title: i18next.t("dict.gen_1f6d47dd"),
       status: formatRatio(detailDone, detailTotal),
       detail: outline?.chapterDetailReady || detailDone > 0
         ? `已准备 ${detailDone} 个章节任务单 / 执行资源。`
         : "尚未检测到章节细化资源。",
     },
     {
-      title: "正文与质量进度",
+      title: i18next.t("dict.gen_60c6456d"),
       status: formatRatio(drafted, chapterProgress?.totalChapters ?? chapterFacts?.totalChapters ?? plannedChapterCount),
       detail: [
         reviewed > 0 ? `已审校 ${reviewed} 章` : "",

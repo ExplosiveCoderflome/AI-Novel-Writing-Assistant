@@ -1,4 +1,3 @@
-import { useTranslation } from "react-i18next";
 import i18next from "i18next";
 const t = (key: string, options?: any) => i18next.t(key, options) as string;
 import { useState } from "react";
@@ -23,17 +22,17 @@ import { toast } from "@/components/ui/toast";
 type DensityMode = NonNullable<GenerateScriptPayload["densityMode"]>;
 
 const DENSITY_OPTIONS: Array<{ value: DensityMode; label: string; desc: string }> = [
-  { value: "relaxed", label: i18next.t("gen.pages.comic.project.EpisodeListPanel.gen_35b80743"), desc: i18next.t("gen.pages.comic.project.EpisodeListPanel.gen_02c835ff") },
-  { value: "balanced", label: i18next.t("gen.pages.comic.project.EpisodeListPanel.gen_f07d8f75"), desc: i18next.t("gen.pages.comic.project.EpisodeListPanel.gen_bd9afeb7") },
-  { value: "compact", label: i18next.t("gen.pages.comic.project.EpisodeListPanel.gen_03e59bb3"), desc: i18next.t("gen.pages.comic.project.EpisodeListPanel.gen_1b261cec") },
+  { value: "relaxed", label: i18next.t("dict.gen_35b80743"), desc: i18next.t("dict.gen_02c835ff") },
+  { value: "balanced", label: i18next.t("dict.gen_f07d8f75"), desc: i18next.t("dict.gen_bd9afeb7") },
+  { value: "compact", label: i18next.t("dict.gen_03e59bb3"), desc: i18next.t("dict.gen_1b261cec") },
 ];
 
-const DENSITY_LABELS: Record<DensityMode, string> = { relaxed: i18next.t("gen.pages.comic.project.EpisodeListPanel.gen_35b80743"), balanced: i18next.t("gen.pages.comic.project.EpisodeListPanel.gen_f07d8f75"), compact: i18next.t("gen.pages.comic.project.EpisodeListPanel.gen_03e59bb3") };
+const DENSITY_LABELS: Record<DensityMode, string> = { relaxed: i18next.t("dict.gen_35b80743"), balanced: i18next.t("dict.gen_f07d8f75"), compact: i18next.t("dict.gen_03e59bb3") };
 
 const FACT_CATEGORY_ZH: Record<string, string> = {
-  completed: i18next.t("gen.pages.comic.project.EpisodeListPanel.gen_f2665b95"),
-  revealed: i18next.t("gen.pages.comic.project.EpisodeListPanel.gen_ac59bc30"),
-  state_changed: i18next.t("gen.pages.comic.project.EpisodeListPanel.gen_74949e87"),
+  completed: i18next.t("dict.gen_f2665b95"),
+  revealed: i18next.t("dict.gen_ac59bc30"),
+  state_changed: i18next.t("dict.gen_74949e87"),
 };
 
 function parsePresetFormat(raw: string | null | undefined): string {
@@ -101,7 +100,7 @@ function EpisodeCard({
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["comic", "episodes", ep.projectId] });
       setEditing(false);
-      toast.success(i18next.t("gen.pages.comic.project.EpisodeListPanel.gen_1d12601e"));
+      toast.success(i18next.t("dict.gen_1d12601e"));
     },
     onError: (e) => toast.error(String(e)),
   });
@@ -122,12 +121,12 @@ function EpisodeCard({
             第 {ep.order} 话 {ep.title ? `《${ep.title}》` : ""}
           </CardTitle>
           <div className="flex shrink-0 gap-1">
-            {ep.isPaywalled && <Badge variant="destructive" className="h-5 text-[10px]">{i18next.t("gen.pages.comic.project.EpisodeListPanel.gen_a8448604")}</Badge>}
+            {ep.isPaywalled && <Badge variant="destructive" className="h-5 text-[10px]">{i18next.t("dict.gen_a8448604")}</Badge>}
             <Badge variant="outline" className="h-5 text-[10px]">{ep._count?.panels ?? 0} 格</Badge>
             {!editing && (
               <button
                 type="button"
-                title={i18next.t("gen.pages.comic.project.EpisodeListPanel.gen_0122c7e3")}
+                title={i18next.t("dict.gen_0122c7e3")}
                 onClick={startEdit}
                 className="ml-1 rounded p-0.5 text-muted-foreground hover:bg-muted hover:text-foreground"
               >
@@ -140,34 +139,34 @@ function EpisodeCard({
         {editing ? (
           <div className="mt-2 space-y-2">
             <div>
-              <label className="mb-0.5 block text-[11px] text-muted-foreground">{i18next.t("gen.pages.comic.project.EpisodeListPanel.gen_32c65d8d")}</label>
+              <label className="mb-0.5 block text-[11px] text-muted-foreground">{i18next.t("dict.gen_32c65d8d")}</label>
               <input
                 value={draftTitle}
                 maxLength={30}
                 onChange={(e) => setDraftTitle(e.target.value)}
                 className="w-full rounded border bg-background px-2 py-1 text-xs"
-                placeholder={i18next.t("gen.pages.comic.project.EpisodeListPanel.gen_40095ee2")}
+                placeholder={i18next.t("dict.gen_40095ee2")}
               />
             </div>
             <div>
-              <label className="mb-0.5 block text-[11px] text-muted-foreground">{i18next.t("gen.pages.comic.project.EpisodeListPanel.gen_59b359c3")}</label>
+              <label className="mb-0.5 block text-[11px] text-muted-foreground">{i18next.t("dict.gen_59b359c3")}</label>
               <textarea
                 value={draftOutline}
                 maxLength={1000}
                 rows={4}
                 onChange={(e) => setDraftOutline(e.target.value)}
                 className="w-full resize-y rounded border bg-background px-2 py-1 text-xs leading-relaxed"
-                placeholder={i18next.t("gen.pages.comic.project.EpisodeListPanel.gen_b68c202c")}
+                placeholder={i18next.t("dict.gen_b68c202c")}
               />
             </div>
             <div>
-              <label className="mb-0.5 block text-[11px] text-muted-foreground">{i18next.t("gen.pages.comic.project.EpisodeListPanel.gen_d1ed77dc")}</label>
+              <label className="mb-0.5 block text-[11px] text-muted-foreground">{i18next.t("dict.gen_d1ed77dc")}</label>
               <input
                 value={draftCliffhanger}
                 maxLength={100}
                 onChange={(e) => setDraftCliffhanger(e.target.value)}
                 className="w-full rounded border bg-background px-2 py-1 text-xs"
-                placeholder={i18next.t("gen.pages.comic.project.EpisodeListPanel.gen_fab3a679")}
+                placeholder={i18next.t("dict.gen_fab3a679")}
               />
             </div>
             <label className="flex items-center gap-2 text-xs text-muted-foreground">
@@ -175,7 +174,7 @@ function EpisodeCard({
                 type="checkbox"
                 checked={draftPaywalled}
                 onChange={(e) => setDraftPaywalled(e.target.checked)}
-              />{i18next.t("gen.pages.comic.project.EpisodeListPanel.gen_d5dcd42f", "付费卡点集")}</label>
+              />{i18next.t("comic.episodeListPanel.spkp0z")}</label>
             <div className="flex gap-2">
               <Button
                 type="button"
@@ -195,7 +194,7 @@ function EpisodeCard({
                 onClick={() => setEditing(false)}
                 className="h-7 px-3 text-xs"
               >
-                <X className="h-3 w-3" />{i18next.t("gen.pages.comic.project.EpisodeListPanel.gen_625fb26b", "取消")}</Button>
+                <X className="h-3 w-3" />{i18next.t("common.cancel")}</Button>
             </div>
           </div>
         ) : (
@@ -230,10 +229,10 @@ function EpisodeCard({
           >
             {isBusy ? (
               <>
-                <Loader2 className="h-3.5 w-3.5 animate-spin" />{i18next.t("gen.pages.comic.project.EpisodeListPanel.gen_354eb893", "生成脚本...")}</>
+                <Loader2 className="h-3.5 w-3.5 animate-spin" />{i18next.t("comic.episodeListPanel.i4x31n")}</>
             ) : (
               <>
-                <BookOpen className="h-3.5 w-3.5" />{i18next.t("gen.pages.comic.project.EpisodeListPanel.gen_058a7cfa", "生成分格脚本")}</>
+                <BookOpen className="h-3.5 w-3.5" />{i18next.t("comic.episodeListPanel.t1e2vt")}</>
             )}
           </Button>
         </CardContent>
@@ -258,7 +257,7 @@ function CharacterReadinessWarning({ characters }: { characters: ComicCharacter[
     <div className="flex items-start gap-2.5 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2.5 text-xs text-amber-800 dark:border-amber-700 dark:bg-amber-900/20 dark:text-amber-300">
       <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
       <div>
-        <span className="font-semibold">{i18next.t("gen.pages.comic.project.EpisodeListPanel.gen_ef8057e6")}</span>
+        <span className="font-semibold">{i18next.t("dict.gen_ef8057e6")}</span>
         <span className="ml-1">
           {withoutSheet.map((c) => c.name).join("、")} 尚未生成三视图。
           生成分格脚本时会注入角色视觉锚点，有设计稿才能保证各格角色外貌一致。
@@ -277,7 +276,6 @@ export function EpisodeListPanel({
   projectId: string;
   project: ComicProject & { characters: ComicCharacter[] };
 }) {
-  const { t } = useTranslation();
   const queryClient = useQueryClient();
   const [busyEpId, setBusyEpId] = useState("");
   const [densityMode, setDensityMode] = useState<DensityMode>("balanced");
@@ -296,7 +294,7 @@ export function EpisodeListPanel({
     mutationFn: () => importComicSourceBundle(projectId),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["comic", "project", projectId] });
-      toast.success(i18next.t("gen.pages.comic.project.EpisodeListPanel.gen_cf395763"));
+      toast.success(i18next.t("dict.gen_cf395763"));
     },
   });
 
@@ -305,7 +303,7 @@ export function EpisodeListPanel({
       generateComicOutline(projectId, { startOrder, count }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["comic", "episodes", projectId] });
-      toast.success(i18next.t("gen.pages.comic.project.EpisodeListPanel.gen_9de7a42e"));
+      toast.success(i18next.t("dict.gen_9de7a42e"));
     },
     onError: (e) => toast.error(String(e)),
   });
@@ -325,7 +323,7 @@ export function EpisodeListPanel({
 
   const generateScript = (episode: ComicEpisode) => {
     if ((episode._count?.panels ?? 0) > 0) {
-      const ok = window.confirm(i18next.t("gen.pages.comic.project.EpisodeListPanel.gen_ba27dc5b"));
+      const ok = window.confirm(i18next.t("dict.gen_ba27dc5b"));
       if (!ok) return;
     }
     scriptMut.mutate({
@@ -354,7 +352,7 @@ export function EpisodeListPanel({
                 onClick={() => bundleMut.mutate()}
               >
                 <Layers className="h-4 w-4" />
-                {bundleMut.isPending ? i18next.t("gen.pages.comic.project.EpisodeListPanel.gen_763476f8") : i18next.t("gen.pages.comic.project.EpisodeListPanel.gen_f7d48bd5")}
+                {bundleMut.isPending ? i18next.t("dict.gen_763476f8") : i18next.t("dict.gen_f7d48bd5")}
               </Button>
             )}
             <Button
@@ -364,7 +362,7 @@ export function EpisodeListPanel({
               onClick={() => outlineMut.mutate({ startOrder: (episodes.length || 0) + 1, count: 12 })}
             >
               <Sparkles className="h-4 w-4" />
-              {outlineMut.isPending ? i18next.t("gen.pages.comic.project.EpisodeListPanel.gen_4d020ba3") : `生成第 ${(episodes.length || 0) + 1}-${(episodes.length || 0) + 12} 话大纲`}
+              {outlineMut.isPending ? i18next.t("dict.gen_4d020ba3") : `生成第 ${(episodes.length || 0) + 1}-${(episodes.length || 0) + 12} 话大纲`}
             </Button>
             <Button
               type="button"
@@ -372,11 +370,11 @@ export function EpisodeListPanel({
               variant="outline"
               onClick={() => setShowPromptSettings((v) => !v)}
             >
-              <FileText className="h-4 w-4" />{i18next.t("gen.pages.comic.project.EpisodeListPanel.gen_057d3450", "分格生成要求")}</Button>
+              <FileText className="h-4 w-4" />{i18next.t("comic.episodeListPanel.5rjxqw")}</Button>
           </div>
 
           <div className="flex flex-wrap items-center gap-2">
-            <span className="text-xs text-muted-foreground">{i18next.t("gen.pages.comic.project.EpisodeListPanel.gen_e10fbbcf")}</span>
+            <span className="text-xs text-muted-foreground">{i18next.t("dict.gen_e10fbbcf")}</span>
             <div className="flex rounded-md border bg-background p-0.5">
               {DENSITY_OPTIONS.map((option) => (
                 <button
@@ -403,21 +401,21 @@ export function EpisodeListPanel({
               value={scriptPromptInstruction}
               maxLength={1000}
               onChange={(event) => setScriptPromptInstruction(event.target.value)}
-              placeholder={i18next.t("gen.pages.comic.project.EpisodeListPanel.gen_fb062233")}
+              placeholder={i18next.t("dict.gen_fb062233")}
               className="min-h-20 w-full resize-y rounded-md border bg-background px-3 py-2 text-xs leading-relaxed"
             />
             <div className="flex justify-between text-[11px] text-muted-foreground">
-              <span>{i18next.t("gen.pages.comic.project.EpisodeListPanel.gen_b6c20ebd")}</span>
+              <span>{i18next.t("dict.gen_b6c20ebd")}</span>
               <span>{scriptPromptInstruction.length}/1000</span>
             </div>
           </div>
         )}
       </div>
 
-      {isLoading && <div className="py-8 text-center text-sm text-muted-foreground">{i18next.t("gen.pages.comic.project.EpisodeListPanel.gen_26b5bd49")}</div>}
+      {isLoading && <div className="py-8 text-center text-sm text-muted-foreground">{i18next.t("dict.gen_26b5bd49")}</div>}
 
       {!isLoading && episodes.length === 0 && (
-        <div className="py-8 text-center text-sm text-muted-foreground">{i18next.t("gen.pages.comic.project.EpisodeListPanel.gen_7ed4d235", "尚无分话大纲，点击「生成大纲」开始。")}</div>
+        <div className="py-8 text-center text-sm text-muted-foreground">{i18next.t("comic.episodeListPanel.czbmdo")}</div>
       )}
 
       <div className="grid gap-3 sm:grid-cols-2">

@@ -30,31 +30,31 @@ export default function SettingsNavigationCards(props: {
       {mode === "all" || mode === "knowledge" ? (
         <Card className="min-w-0 overflow-hidden">
         <CardHeader>
-          <CardTitle>{i18next.t("gen.pages.settings.components.SettingsNavigationCards.gen_d68b96a8")}</CardTitle>
-          <CardDescription className={AUTO_DIRECTOR_MOBILE_CLASSES.wrapText}>{i18next.t("gen.pages.settings.components.SettingsNavigationCards.gen_e7e1fc85", "不配置也可以开始创作；启用后，长篇设定、资料和上下文召回会更稳。")}</CardDescription>
+          <CardTitle>{i18next.t("dict.gen_d68b96a8")}</CardTitle>
+          <CardDescription className={AUTO_DIRECTOR_MOBILE_CLASSES.wrapText}>{i18next.t("settings.settingsNavigationCards.k6layg")}</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="grid min-w-0 gap-3 md:grid-cols-2">
             <div className="rounded-md border p-3">
-              <div className="text-xs text-muted-foreground">{i18next.t("gen.pages.settings.components.SettingsNavigationCards.gen_1056425f")}</div>
+              <div className="text-xs text-muted-foreground">{i18next.t("dict.gen_1056425f")}</div>
               <div className={`mt-1 font-medium ${AUTO_DIRECTOR_MOBILE_CLASSES.wrapText}`}>{ragProvider?.name ?? ragSettings?.embeddingProvider ?? "-"}</div>
             </div>
             <div className="rounded-md border p-3">
-              <div className="text-xs text-muted-foreground">{i18next.t("gen.pages.settings.components.SettingsNavigationCards.gen_e19716c1")}</div>
+              <div className="text-xs text-muted-foreground">{i18next.t("dict.gen_e19716c1")}</div>
               <div className={`mt-1 font-medium ${AUTO_DIRECTOR_MOBILE_CLASSES.wrapText}`}>{ragSettings?.embeddingModel ?? "-"}</div>
             </div>
           </div>
           <div className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
-            <span>{i18next.t("gen.pages.settings.components.SettingsNavigationCards.gen_79126156")}</span>
+            <span>{i18next.t("dict.gen_79126156")}</span>
             <Badge variant={ragProvider?.isConfigured ? "default" : "outline"}>
-              {ragProvider?.isConfigured ? i18next.t("gen.pages.settings.components.SettingsNavigationCards.apiKeyAvailable") : i18next.t("gen.pages.settings.components.SettingsNavigationCards.gen_2a94549c")}
+              {ragProvider?.isConfigured ? i18next.t("dict.apiKeyAvailable") : i18next.t("dict.gen_2a94549c")}
             </Badge>
             <Badge variant={ragProvider?.isActive ? "default" : "outline"}>
-              {ragProvider?.isActive ? i18next.t("gen.pages.settings.components.SettingsNavigationCards.gen_c16e2ef8") : i18next.t("gen.pages.settings.components.SettingsNavigationCards.gen_4637765b")}
+              {ragProvider?.isActive ? i18next.t("dict.gen_c16e2ef8") : i18next.t("dict.gen_4637765b")}
             </Badge>
           </div>
           <Button asChild className={AUTO_DIRECTOR_MOBILE_CLASSES.fullWidthAction}>
-            <Link to="/knowledge?tab=settings">{i18next.t("gen.pages.settings.components.SettingsNavigationCards.gen_d0c54e51")}</Link>
+            <Link to="/knowledge?tab=settings">{i18next.t("dict.gen_d0c54e51")}</Link>
           </Button>
         </CardContent>
         </Card>
@@ -63,13 +63,13 @@ export default function SettingsNavigationCards(props: {
       {mode === "all" || mode === "routes" ? (
         <Card className="min-w-0 overflow-hidden">
         <CardHeader>
-          <CardTitle>{i18next.t("gen.pages.settings.components.SettingsNavigationCards.gen_0361f422")}</CardTitle>
-          <CardDescription className={AUTO_DIRECTOR_MOBILE_CLASSES.wrapText}>{i18next.t("gen.pages.settings.components.SettingsNavigationCards.gen_5ab10271", "为开书、拆章、正文生成和审核任务选择可用模型。")}</CardDescription>
+          <CardTitle>{i18next.t("sidebar.modelRoutes")}</CardTitle>
+          <CardDescription className={AUTO_DIRECTOR_MOBILE_CLASSES.wrapText}>{i18next.t("settings.settingsNavigationCards.l940rz")}</CardDescription>
         </CardHeader>
         <CardContent className={AUTO_DIRECTOR_MOBILE_CLASSES.settingsEntryActionRow}>
-          <div className={`min-w-0 text-sm text-muted-foreground ${AUTO_DIRECTOR_MOBILE_CLASSES.wrapText}`}>{i18next.t("gen.pages.settings.components.SettingsNavigationCards.gen_ef3488b9", "路由健康时，自动导演和章节生产会按任务自动选择模型。")}</div>
+          <div className={`min-w-0 text-sm text-muted-foreground ${AUTO_DIRECTOR_MOBILE_CLASSES.wrapText}`}>{i18next.t("settings.settingsNavigationCards.rpjje9")}</div>
           <Button asChild className={AUTO_DIRECTOR_MOBILE_CLASSES.fullWidthAction}>
-            <Link to="/settings/model-routes">{i18next.t("gen.pages.settings.components.SettingsNavigationCards.gen_4da087c6")}</Link>
+            <Link to="/settings/model-routes">{i18next.t("dict.gen_4da087c6")}</Link>
           </Button>
         </CardContent>
         </Card>

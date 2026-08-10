@@ -1,4 +1,3 @@
-import i18next from "i18next";
 ﻿import { useEffect, type Dispatch, type RefObject, type SetStateAction } from "react";
 
 export type WritingFormulaDialogFocusIntent = null | "editor" | "detection";

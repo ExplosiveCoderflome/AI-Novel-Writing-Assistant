@@ -1,4 +1,3 @@
-import { useTranslation } from "react-i18next";
 import i18next from "i18next";
 const t = (key: string, options?: any) => i18next.t(key, options) as string;
 import { useEffect, useState } from "react";
@@ -121,7 +120,6 @@ export default function RuntimeSidebar({
   safePreview,
   stepTitle,
 }: RuntimeSidebarProps) {
-  const { t } = useTranslation();
   const [activeTab, setActiveTab] = useState<PanelTab>("console");
 
   useEffect(() => {
@@ -133,7 +131,7 @@ export default function RuntimeSidebar({
   return (
     <Card className="sticky top-4 flex h-[calc(100vh-8rem)] flex-col border-slate-200 shadow-sm">
       <CardHeader className="border-b border-slate-200 pb-3">
-        <CardTitle className="text-base">{i18next.t("gen.pages.chat.components.RuntimeSidebar.gen_935d16e3")}</CardTitle>
+        <CardTitle className="text-base">{i18next.t("dict.gen_935d16e3")}</CardTitle>
       </CardHeader>
 
       <CardContent className="flex-1 space-y-3 overflow-y-auto p-3 text-sm">
@@ -154,39 +152,39 @@ export default function RuntimeSidebar({
               activeTab === "trace" ? "bg-white text-slate-900 shadow-sm" : "text-slate-500"
             }`}
             onClick={() => setActiveTab("trace")}
-          >{i18next.t("gen.pages.chat.components.RuntimeSidebar.gen_4e690898", "轨迹")}</button>
+          >{i18next.t("chat.runtimeSidebar.p6kx")}</button>
         </div>
 
         {activeTab === "console" ? (
           <div className="space-y-3">
             <div className="rounded-xl border border-slate-200 bg-white p-3">
-              <div className="mb-2 text-xs font-medium tracking-wide text-slate-500">{i18next.t("gen.pages.chat.components.RuntimeSidebar.sessionContext")}</div>
+              <div className="mb-2 text-xs font-medium tracking-wide text-slate-500">{i18next.t("dict.sessionContext")}</div>
               <div className="grid gap-2">
                 <div className="grid gap-1">
-                  <label className="text-[11px] text-slate-500">{i18next.t("gen.pages.chat.components.RuntimeSidebar.gen_64af497f")}</label>
+                  <label className="text-[11px] text-slate-500">{i18next.t("dict.gen_64af497f")}</label>
                   <SelectControl
                     className="w-full rounded-lg border border-slate-300 bg-white p-2"
                     value={chatMode}
                     onChange={(event) => onChatModeChange(event.target.value as ChatMode)}
                   >
-                    <option value="standard">{i18next.t("gen.pages.chat.components.RuntimeSidebar.gen_701a85d4")}</option>
-                    <option value="agent">{i18next.t("gen.pages.chat.components.RuntimeSidebar.gen_f5982ed1")}</option>
+                    <option value="standard">{i18next.t("dict.gen_701a85d4")}</option>
+                    <option value="agent">{i18next.t("dict.gen_f5982ed1")}</option>
                   </SelectControl>
                 </div>
                 <div className="grid gap-1">
-                  <label className="text-[11px] text-slate-500">{i18next.t("gen.pages.chat.components.RuntimeSidebar.contextMode")}</label>
+                  <label className="text-[11px] text-slate-500">{i18next.t("dict.contextMode")}</label>
                   <SelectControl
                     className="w-full rounded-lg border border-slate-300 bg-white p-2"
                     value={contextMode}
                     onChange={(event) => onContextModeChange(event.target.value as ContextMode)}
                   >
-                    <option value="global">{i18next.t("gen.pages.chat.components.RuntimeSidebar.gen_2be75b10")}</option>
-                    <option value="novel">{i18next.t("gen.pages.chat.components.RuntimeSidebar.gen_1fb52965")}</option>
+                    <option value="global">{i18next.t("dict.gen_2be75b10")}</option>
+                    <option value="novel">{i18next.t("dict.gen_1fb52965")}</option>
                   </SelectControl>
                 </div>
                 {runHistoryIds.length > 0 ? (
                   <div className="grid gap-1">
-                    <label className="text-[11px] text-slate-500">{i18next.t("gen.pages.chat.components.RuntimeSidebar.sessionRunning")}</label>
+                    <label className="text-[11px] text-slate-500">{i18next.t("dict.sessionRunning")}</label>
                     <SelectControl
                       className="w-full rounded-lg border border-slate-300 bg-white p-2"
                       value={currentRunId}
@@ -202,13 +200,13 @@ export default function RuntimeSidebar({
                 ) : null}
                 {contextMode === "novel" ? (
                   <div className="grid gap-1">
-                    <label className="text-[11px] text-slate-500">{i18next.t("gen.pages.chat.components.RuntimeSidebar.gen_1fb52965")}</label>
+                    <label className="text-[11px] text-slate-500">{i18next.t("dict.gen_1fb52965")}</label>
                     <SelectControl
                       className="w-full rounded-lg border border-slate-300 bg-white p-2"
                       value={novelId}
                       onChange={(event) => onNovelChange(event.target.value)}
                     >
-                      <option value="">{i18next.t("gen.pages.chat.components.RuntimeSidebar.gen_bb9d9811")}</option>
+                      <option value="">{i18next.t("dict.gen_bb9d9811")}</option>
                       {novels.map((novel) => (
                         <option key={novel.id} value={novel.id}>
                           {novel.title}
@@ -222,7 +220,7 @@ export default function RuntimeSidebar({
 
             <div className="rounded-xl border border-slate-200 bg-white p-3">
               <div className="mb-2 flex items-center justify-between">
-                <div className="text-xs font-medium tracking-wide text-slate-500">{i18next.t("gen.pages.chat.components.RuntimeSidebar.gen_0273ba5c")}</div>
+                <div className="text-xs font-medium tracking-wide text-slate-500">{i18next.t("dict.gen_0273ba5c")}</div>
                 {approvalCards.length > 0 ? (
                   <div className="rounded-full bg-amber-50 px-2 py-0.5 text-[11px] font-medium text-amber-700 ring-1 ring-amber-200">
                     {approvalCards.length} 项待处理
@@ -234,7 +232,7 @@ export default function RuntimeSidebar({
                 <div className="space-y-3">
                   {approvalCards.map((item, index) => (
                     <div key={item.approvalId} className="rounded-xl border border-amber-200 bg-amber-50/60 p-3">
-                      <div className="text-sm font-semibold text-slate-900">{i18next.t("gen.pages.chat.components.RuntimeSidebar.gen_81ebf25a")}</div>
+                      <div className="text-sm font-semibold text-slate-900">{i18next.t("dict.gen_81ebf25a")}</div>
                       <div className="mt-1 text-xs text-slate-500">{item.targetType}:{item.targetId}</div>
                       <div className="mt-2 rounded-lg bg-white p-2 text-sm text-slate-800">{item.summary}</div>
                     </div>
@@ -243,20 +241,20 @@ export default function RuntimeSidebar({
                     className="min-h-[88px] w-full rounded-lg border border-slate-300 bg-slate-50 p-2"
                     value={approvalNote}
                     onChange={(event) => onApprovalNoteChange(event.target.value)}
-                    placeholder={i18next.t("gen.pages.chat.components.RuntimeSidebar.gen_cd98d717")}
+                    placeholder={i18next.t("dict.gen_cd98d717")}
                   />
                   <div className="flex gap-2">
-                    <Button size="sm" className="flex-1" onClick={() => onSubmitApproval("approve")} disabled={isStreaming}>{i18next.t("gen.pages.chat.components.RuntimeSidebar.gen_4f725969", "同意并继续")}</Button>
-                    <Button size="sm" variant="destructive" className="flex-1" onClick={() => onSubmitApproval("reject")} disabled={isStreaming}>{i18next.t("gen.pages.chat.components.RuntimeSidebar.gen_7173f809", "拒绝")}</Button>
+                    <Button size="sm" className="flex-1" onClick={() => onSubmitApproval("approve")} disabled={isStreaming}>{i18next.t("chat.runtimeSidebar.dw16kn")}</Button>
+                    <Button size="sm" variant="destructive" className="flex-1" onClick={() => onSubmitApproval("reject")} disabled={isStreaming}>{i18next.t("chat.runtimeSidebar.hi6j")}</Button>
                   </div>
                 </div>
               ) : (
-                <div className="rounded-xl border border-slate-200 bg-slate-50 p-3 text-sm text-slate-600">{i18next.t("gen.pages.chat.components.RuntimeSidebar.gen_caaaacc9", "当前没有待处理审批。")}</div>
+                <div className="rounded-xl border border-slate-200 bg-slate-50 p-3 text-sm text-slate-600">{i18next.t("chat.runtimeSidebar.74z2gr")}</div>
               )}
 
               {approvalHistory.length > 0 ? (
                 <details className="mt-3 rounded-xl border border-slate-200 bg-slate-50 p-2">
-                  <summary className="cursor-pointer px-1 py-1 text-xs font-medium text-slate-700">{i18next.t("gen.pages.chat.components.RuntimeSidebar.gen_18cc65a0", "审批历史")}</summary>
+                  <summary className="cursor-pointer px-1 py-1 text-xs font-medium text-slate-700">{i18next.t("chat.runtimeSidebar.byvs4k")}</summary>
                   <div className="mt-2 space-y-2">
                     {approvalHistory.map((item) => (
                       <div key={item.id} className="rounded-lg border border-slate-200 bg-white px-2 py-2 text-xs">
@@ -270,23 +268,23 @@ export default function RuntimeSidebar({
             </div>
 
             <details className="rounded-xl border border-slate-200 bg-white">
-              <summary className="cursor-pointer px-3 py-2 text-xs font-medium text-slate-700">{i18next.t("gen.pages.chat.components.RuntimeSidebar.gen_e01dd6d6", "运行配置")}</summary>
+              <summary className="cursor-pointer px-3 py-2 text-xs font-medium text-slate-700">{i18next.t("chat.runtimeSidebar.ipo0u5")}</summary>
               <div className="space-y-3 border-t border-slate-200 p-3">
                 <div>
-                  <div className="mb-2 text-xs font-medium tracking-wide text-slate-500">{i18next.t("gen.pages.chat.components.RuntimeSidebar.gen_8000f187")}</div>
+                  <div className="mb-2 text-xs font-medium tracking-wide text-slate-500">{i18next.t("dict.gen_8000f187")}</div>
                   <div className="space-y-2">
                     <div className="rounded-lg bg-slate-50 px-2 py-1.5 text-xs">
-                      <span className="text-slate-500">{i18next.t("gen.pages.chat.components.RuntimeSidebar.gen_a127eb50", "提供方:")}</span>
+                      <span className="text-slate-500">{i18next.t("dict.gen_a127eb50")}</span>
                       <span className="font-medium text-slate-800">{provider}</span>
                     </div>
                     <div className="rounded-lg bg-slate-50 px-2 py-1.5 text-xs">
-                      <span className="text-slate-500">{i18next.t("gen.pages.chat.components.RuntimeSidebar.gen_c1fef619", "模型:")}</span>
+                      <span className="text-slate-500">{i18next.t("dict.gen_c1fef619")}</span>
                       <span className="font-medium text-slate-800">{model}</span>
                     </div>
                   </div>
                   <div className="mt-3 space-y-2">
                     <div className="grid gap-1">
-                      <label className="text-[11px] text-slate-500">{i18next.t("gen.pages.chat.components.RuntimeSidebar.gen_c9bf0b88")}</label>
+                      <label className="text-[11px] text-slate-500">{i18next.t("dict.gen_c9bf0b88")}</label>
                       <input
                         type="number"
                         min={0}
@@ -298,7 +296,7 @@ export default function RuntimeSidebar({
                       />
                     </div>
                     <div className="grid gap-1">
-                      <label className="text-[11px] text-slate-500">{i18next.t("gen.pages.chat.components.RuntimeSidebar.gen_fe2528ff")}</label>
+                      <label className="text-[11px] text-slate-500">{i18next.t("dict.gen_fe2528ff")}</label>
                       <input
                         type="number"
                         min={128}
@@ -319,12 +317,12 @@ export default function RuntimeSidebar({
                 </div>
 
                 <div>
-                  <div className="mb-2 text-xs font-medium tracking-wide text-slate-500">{i18next.t("gen.pages.chat.components.RuntimeSidebar.gen_cbdb6bc9")}</div>
+                  <div className="mb-2 text-xs font-medium tracking-wide text-slate-500">{i18next.t("dict.gen_cbdb6bc9")}</div>
                   <textarea
                     className="min-h-[110px] w-full rounded-lg border border-slate-300 p-2"
                     value={systemPrompt}
                     onChange={(event) => onSystemPromptChange(event.target.value)}
-                    placeholder={i18next.t("gen.pages.chat.components.RuntimeSidebar.gen_69090181")}
+                    placeholder={i18next.t("dict.gen_69090181")}
                   />
                 </div>
 
@@ -334,14 +332,14 @@ export default function RuntimeSidebar({
                       type="checkbox"
                       checked={enableRag}
                       onChange={(event) => onEnableRagChange(event.target.checked)}
-                    />{i18next.t("gen.pages.chat.components.RuntimeSidebar.gen_8131a435", "启用知识检索（RAG）")}</label>
+                    />{i18next.t("chat.runtimeSidebar.4iuo9v")}</label>
                   <KnowledgeDocumentPicker
                     selectedIds={knowledgeDocumentIds}
                     onChange={onKnowledgeDocumentIdsChange}
-                    title={i18next.t("gen.pages.chat.components.RuntimeSidebar.gen_a597ef78")}
+                    title={i18next.t("dict.gen_a597ef78")}
                     description={enableRag
-                      ? i18next.t("gen.pages.chat.components.RuntimeSidebar.gen_b9f2158a")
-                      : i18next.t("gen.pages.chat.components.RuntimeSidebar.gen_RAG当前已禁用请先_qn49")}
+                      ? i18next.t("dict.gen_b9f2158a")
+                      : i18next.t("dict.gen_RAG当前已禁用请先_qn49")}
                     allowAuto
                     queryStatus="enabled"
                   />
@@ -353,8 +351,8 @@ export default function RuntimeSidebar({
           <div className="space-y-3">
             {replayableSteps.length > 0 ? (
               <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
-                <div className="text-xs font-medium text-slate-600">{i18next.t("gen.pages.chat.components.RuntimeSidebar.gen_1d4f1226")}</div>
-                <div className="mt-1 text-[11px] text-slate-500">{i18next.t("gen.pages.chat.components.RuntimeSidebar.gen_15b8c44e", "仅显示后续仍有工具调用的步骤。")}</div>
+                <div className="text-xs font-medium text-slate-600">{i18next.t("dict.gen_1d4f1226")}</div>
+                <div className="mt-1 text-[11px] text-slate-500">{i18next.t("chat.runtimeSidebar.p2y2tq")}</div>
                 <div className="mt-2 flex flex-col gap-2">
                   <SelectControl
                     className="w-full rounded-lg border border-slate-300 bg-white p-2 text-xs"
@@ -368,13 +366,13 @@ export default function RuntimeSidebar({
                     ))}
                   </SelectControl>
                   <div className="flex gap-2">
-                    <Button size="sm" variant="secondary" className="flex-1" onClick={() => onReplay("continue")} disabled={isStreaming}>{i18next.t("gen.pages.chat.components.RuntimeSidebar.gen_3fe72529", "从这里继续")}</Button>
-                    <Button size="sm" variant="secondary" className="flex-1" onClick={() => onReplay("dry_run")} disabled={isStreaming}>{i18next.t("gen.pages.chat.components.RuntimeSidebar.gen_20de040f", "干运行")}</Button>
+                    <Button size="sm" variant="secondary" className="flex-1" onClick={() => onReplay("continue")} disabled={isStreaming}>{i18next.t("chat.runtimeSidebar.s9y515")}</Button>
+                    <Button size="sm" variant="secondary" className="flex-1" onClick={() => onReplay("dry_run")} disabled={isStreaming}>{i18next.t("chat.runtimeSidebar.ej7u6")}</Button>
                   </div>
                 </div>
               </div>
             ) : persistedSteps.length > 0 ? (
-              <div className="rounded-xl border border-slate-200 bg-slate-50 p-3 text-xs text-slate-500">{i18next.t("gen.pages.chat.components.RuntimeSidebar.gen_b8ab36c5", "当前所选运行没有可继续重放的步骤。")}</div>
+              <div className="rounded-xl border border-slate-200 bg-slate-50 p-3 text-xs text-slate-500">{i18next.t("chat.runtimeSidebar.9m802q")}</div>
             ) : null}
 
             <div className="space-y-2">
@@ -399,25 +397,25 @@ export default function RuntimeSidebar({
                     </summary>
                     <div className="mt-2 space-y-2">
                       <div>
-                        <div className="mb-1 text-[11px] font-medium text-slate-500">{i18next.t("gen.pages.chat.components.RuntimeSidebar.gen_e47d59b1")}</div>
+                        <div className="mb-1 text-[11px] font-medium text-slate-500">{i18next.t("dict.gen_e47d59b1")}</div>
                         <pre className="overflow-auto whitespace-pre-wrap rounded-lg bg-white p-2">{safePreview(item.step.inputJson)}</pre>
                       </div>
                       <div>
-                        <div className="mb-1 text-[11px] font-medium text-slate-500">{i18next.t("gen.pages.chat.components.RuntimeSidebar.gen_8ba7c3a7")}</div>
+                        <div className="mb-1 text-[11px] font-medium text-slate-500">{i18next.t("dict.gen_8ba7c3a7")}</div>
                         <pre className="overflow-auto whitespace-pre-wrap rounded-lg bg-white p-2">{safePreview(item.step.outputJson)}</pre>
                       </div>
-                      {item.step.error ? <div className="text-red-600">{i18next.t("gen.pages.chat.components.RuntimeSidebar.gen_57328816")}</div> : null}
+                      {item.step.error ? <div className="text-red-600">{i18next.t("dict.gen_57328816")}</div> : null}
                     </div>
                   </details>
                 ) : (
                   <div key={item.key} className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-xs">
-                    <div className="mb-1 text-[11px] text-slate-400">{i18next.t("gen.pages.chat.components.RuntimeSidebar.eventNumber")}</div>
+                    <div className="mb-1 text-[11px] text-slate-400">{i18next.t("dict.eventNumber")}</div>
                     <div className="text-slate-700">{item.text}</div>
                   </div>
                 )
               ))}
               {!hasLiveEvents && persistedSteps.length === 0 ? (
-                <div className="rounded-xl border border-slate-200 bg-slate-50 p-3 text-xs text-slate-500">{i18next.t("gen.pages.chat.components.RuntimeSidebar.gen_a7a3c15d", "暂无运行事件。")}</div>
+                <div className="rounded-xl border border-slate-200 bg-slate-50 p-3 text-xs text-slate-500">{i18next.t("chat.runtimeSidebar.sbbeir")}</div>
               ) : null}
             </div>
           </div>

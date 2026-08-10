@@ -1,4 +1,3 @@
-import i18next from "i18next";
 import type { APIKeyStatus, LLMSelectionSettings } from "@/api/settings";
 import type { LLMProvider } from "@ai-novel/shared/types/llm";
 

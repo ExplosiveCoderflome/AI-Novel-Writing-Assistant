@@ -1,4 +1,3 @@
-import i18next from "i18next";
 import { Suspense, useEffect, useMemo, useState } from "react";
 import { matchPath, Outlet, useLocation } from "react-router-dom";
 import { useTranslation } from "react-i18next";

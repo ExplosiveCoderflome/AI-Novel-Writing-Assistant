@@ -1,5 +1,4 @@
 import i18next from "i18next";
-import { useTranslation } from "react-i18next";
 import type {
   BookAnalysisCharacter,
   BookAnalysisCharacterDimension,
@@ -25,7 +24,6 @@ interface BookAnalysisCharacterCandidateCardProps {
 }
 
 export default function BookAnalysisCharacterCandidateCard(props: BookAnalysisCharacterCandidateCardProps) {
-  const { t } = useTranslation();
   const {
     character,
     disabled,
@@ -64,7 +62,7 @@ export default function BookAnalysisCharacterCandidateCard(props: BookAnalysisCh
             variant="outline"
             onClick={() => void onDelete(character.id)}
             disabled={disabled || generating}
-          >{i18next.t("gen.pages.bookAnalysis.components.BookAnalysisCharacterCandidateCard.gen_2f4aaddd", "删除")}</Button>
+          >{i18next.t("dict.gen_2f4aaddd")}</Button>
         </div>
       </div>
       {character.briefDescription ? (

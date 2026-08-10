@@ -20,8 +20,8 @@ export default function AntiAiEffectivePreviewCard(props: AntiAiEffectivePreview
     <Card>
       <CardHeader>
         <CardTitle className="flex items-center gap-2 text-xl">
-          <SlidersHorizontal className="h-5 w-5" />{i18next.t("gen.pages.antiAiRules.components.AntiAiEffectivePreviewCard.gen_310d967b", "生效预览")}</CardTitle>
-        <CardDescription>{i18next.t("gen.pages.antiAiRules.components.AntiAiEffectivePreviewCard.gen_0934624b", "查看正文生成会拿到的全局规则，以及选中写法后叠加的专属规则。")}</CardDescription>
+          <SlidersHorizontal className="h-5 w-5" />{i18next.t("antiAiRules.antiAiEffectivePreviewCard.f7dmrx")}</CardTitle>
+        <CardDescription>{i18next.t("antiAiRules.antiAiEffectivePreviewCard.duojr0")}</CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
         <Select
@@ -29,10 +29,10 @@ export default function AntiAiEffectivePreviewCard(props: AntiAiEffectivePreview
           onValueChange={(value) => props.onStyleProfileChange(value === "__global__" ? "" : value)}
         >
           <SelectTrigger>
-            <SelectValue placeholder={i18next.t("gen.pages.antiAiRules.components.AntiAiEffectivePreviewCard.gen_1cbc8e2d", "选择预览上下文")} />
+            <SelectValue placeholder={i18next.t("antiAiRules.antiAiEffectivePreviewCard.epk6ou")} />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="__global__">{i18next.t("gen.pages.antiAiRules.components.AntiAiEffectivePreviewCard.gen_d5e317cc", "只看全局默认")}</SelectItem>
+            <SelectItem value="__global__">{i18next.t("antiAiRules.antiAiEffectivePreviewCard.7cnwxn")}</SelectItem>
             {props.profiles.map((profile) => (
               <SelectItem key={profile.id} value={profile.id}>{profile.name}</SelectItem>
             ))}
@@ -40,30 +40,30 @@ export default function AntiAiEffectivePreviewCard(props: AntiAiEffectivePreview
         </Select>
 
         {props.loading ? (
-          <div className="text-sm text-muted-foreground">{i18next.t("gen.pages.antiAiRules.components.AntiAiEffectivePreviewCard.gen_efe89cf1", "正在计算生效规则...")}</div>
+          <div className="text-sm text-muted-foreground">{i18next.t("antiAiRules.antiAiEffectivePreviewCard.owddx1")}</div>
         ) : null}
 
         {props.effective ? (
           <div className="space-y-4">
             <div className="grid gap-2 text-sm sm:grid-cols-2">
               <div className="rounded-md border bg-muted/20 p-3">
-                <div className="text-xs text-muted-foreground">{i18next.t("gen.pages.antiAiRules.components.AntiAiEffectivePreviewCard.gen_44f051b1", "全局基线")}</div>
+                <div className="text-xs text-muted-foreground">{i18next.t("antiAiRules.antiAiEffectivePreviewCard.ankxy5")}</div>
                 <div className="mt-1 font-semibold">{props.effective.usesGlobalAntiAiBaseline ? "应用" : "未应用"}</div>
               </div>
               <div className="rounded-md border bg-muted/20 p-3">
-                <div className="text-xs text-muted-foreground">{i18next.t("gen.pages.antiAiRules.components.AntiAiEffectivePreviewCard.gen_5670c3c7", "生效规则")}</div>
+                <div className="text-xs text-muted-foreground">{i18next.t("antiAiRules.antiAiEffectivePreviewCard.f7atge")}</div>
                 <div className="mt-1 font-semibold">{props.effective.effectiveRules.length}</div>
               </div>
             </div>
             <EffectiveRuleList
-              title={i18next.t("gen.pages.antiAiRules.components.AntiAiEffectivePreviewCard.gen_3b21a5ea", "全局默认规则")}
+              title={i18next.t("antiAiRules.antiAiEffectivePreviewCard.k26bg9")}
               rules={props.effective.globalBaselineRules}
-              empty={i18next.t("gen.pages.antiAiRules.components.AntiAiEffectivePreviewCard.gen_ab3f8e48", "没有全局默认规则。")}
+              empty="没有全局默认规则。"
             />
             <EffectiveRuleList
-              title={i18next.t("gen.pages.antiAiRules.components.AntiAiEffectivePreviewCard.gen_c84820f6", "写法专属规则")}
+              title={i18next.t("antiAiRules.antiAiEffectivePreviewCard.qooc2k")}
               rules={props.effective.styleSpecificRules}
-              empty={i18next.t("gen.pages.antiAiRules.components.AntiAiEffectivePreviewCard.gen_a69c10b4", "预览上下文没有叠加写法专属规则。")}
+              empty="预览上下文没有叠加写法专属规则。"
             />
           </div>
         ) : null}

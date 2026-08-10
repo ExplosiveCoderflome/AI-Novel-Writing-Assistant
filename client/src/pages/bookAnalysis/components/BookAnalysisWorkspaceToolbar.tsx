@@ -74,16 +74,16 @@ export default function BookAnalysisWorkspaceToolbar(props: BookAnalysisWorkspac
       <div className="flex flex-col gap-3 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="min-w-0">
           <div className="flex flex-wrap items-center gap-2">
-            <h2 className="text-sm font-semibold tracking-normal text-foreground">{i18next.t("gen.pages.bookAnalysis.components.BookAnalysisWorkspaceToolbar.gen_b9bb2ae9", "结果工具")}</h2>
+            <h2 className="text-sm font-semibold tracking-normal text-foreground">{i18next.t("bookAnalysis.bookAnalysisWorkspaceToolbar.gfhq1n")}</h2>
             <Badge variant="outline">{formatStatus(selectedAnalysis.status)}</Badge>
-            {selectedAnalysis.publishedDocumentId ? <Badge variant="secondary">{i18next.t("gen.pages.bookAnalysis.components.BookAnalysisWorkspaceToolbar.gen_dca0c13b", "已发布")}</Badge> : null}
+            {selectedAnalysis.publishedDocumentId ? <Badge variant="secondary">{i18next.t("common.published")}</Badge> : null}
             <Badge variant={budgetExceeded ? "destructive" : "outline"}>
               预算 {budgetTokens
                 ? `${formatTokenCount(usedTokens)}/${formatTokenCount(budgetTokens)}`
                 : `${formatTokenCount(usedTokens)}/不限`}
             </Badge>
           </div>
-          <p className="mt-1 text-xs leading-5 text-muted-foreground">{i18next.t("gen.pages.bookAnalysis.components.BookAnalysisWorkspaceToolbar.gen_9df93f7a", "阅读结果是当前主任务；发布、导出和维护操作可按需使用。")}</p>
+          <p className="mt-1 text-xs leading-5 text-muted-foreground">{i18next.t("bookAnalysis.bookAnalysisWorkspaceToolbar.y8605x")}</p>
         </div>
         <div className="mobile-full-actions flex flex-wrap gap-2">
           {budgetResumeAvailable ? (
@@ -118,21 +118,21 @@ export default function BookAnalysisWorkspaceToolbar(props: BookAnalysisWorkspac
             {pending.publish ? "发布中..." : "发布到知识库"}
           </Button>
           <Button asChild size="sm" variant="outline">
-            <Link to={`/tasks?kind=book_analysis&id=${selectedAnalysis.id}`}>{i18next.t("gen.pages.bookAnalysis.components.BookAnalysisWorkspaceToolbar.gen_4a98bf0c", "任务详情")}</Link>
+            <Link to={`/tasks?kind=book_analysis&id=${selectedAnalysis.id}`}>{i18next.t("dict.taskIdDetails")}</Link>
           </Button>
         </div>
       </div>
 
       <details className="border-t border-border/70 px-4 py-3">
-        <summary className="cursor-pointer text-xs font-medium text-muted-foreground">{i18next.t("gen.pages.bookAnalysis.components.BookAnalysisWorkspaceToolbar.gen_bf7dbd72", "更多维护操作")}</summary>
+        <summary className="cursor-pointer text-xs font-medium text-muted-foreground">{i18next.t("bookAnalysis.bookAnalysisWorkspaceToolbar.cwlzp7")}</summary>
         <div className="mobile-full-actions mt-3 flex flex-wrap gap-2">
-          <Button size="sm" variant="outline" onClick={onCopy} disabled={pending.copy}>{i18next.t("gen.pages.bookAnalysis.components.BookAnalysisWorkspaceToolbar.gen_b12bc66c", "复制分析")}</Button>
+          <Button size="sm" variant="outline" onClick={onCopy} disabled={pending.copy}>{i18next.t("bookAnalysis.bookAnalysisWorkspaceToolbar.bksgk3")}</Button>
           <Button
             size="sm"
             variant="outline"
             onClick={() => onRebuild(selectedAnalysis.id)}
             disabled={pending.rebuild || selectedAnalysis.status === "archived"}
-          >{i18next.t("gen.pages.bookAnalysis.components.BookAnalysisWorkspaceToolbar.gen_a7c23201", "重新生成")}</Button>
+          >{i18next.t("dict.gen_a7c23201")}</Button>
           {canAdjustBudget ? (
             <Button
               type="button"
@@ -141,10 +141,10 @@ export default function BookAnalysisWorkspaceToolbar(props: BookAnalysisWorkspac
               onClick={onOpenBudgetAdjust}
               disabled={pending.updateBudget || pending.resumeWithBudget}
             >
-              <Pencil className="mr-1.5 h-3.5 w-3.5" aria-hidden="true" />{i18next.t("gen.pages.bookAnalysis.components.BookAnalysisWorkspaceToolbar.gen_c4c506a4", "调整预算")}</Button>
+              <Pencil className="mr-1.5 h-3.5 w-3.5" aria-hidden="true" />{i18next.t("bookAnalysis.bookAnalysisWorkspaceToolbar.i3c7qc")}</Button>
           ) : null}
-          <Button size="sm" variant="outline" onClick={() => onDownload("markdown")}>{i18next.t("gen.pages.bookAnalysis.components.BookAnalysisWorkspaceToolbar.gen_6f498373", "导出 MD")}</Button>
-          <Button size="sm" variant="outline" onClick={() => onDownload("json")}>{i18next.t("gen.pages.bookAnalysis.components.BookAnalysisWorkspaceToolbar.gen_e1b05f87", "导出 JSON")}</Button>
+          <Button size="sm" variant="outline" onClick={() => onDownload("markdown")}>{i18next.t("bookAnalysis.bookAnalysisWorkspaceToolbar.eubr09")}</Button>
+          <Button size="sm" variant="outline" onClick={() => onDownload("json")}>{i18next.t("bookAnalysis.bookAnalysisWorkspaceToolbar.do0n92")}</Button>
           <Button
             size="sm"
             variant="outline"
@@ -158,7 +158,7 @@ export default function BookAnalysisWorkspaceToolbar(props: BookAnalysisWorkspac
             variant="outline"
             onClick={() => onArchive(selectedAnalysis.id)}
             disabled={pending.archive || selectedAnalysis.status === "archived"}
-          >{i18next.t("gen.pages.bookAnalysis.components.BookAnalysisWorkspaceToolbar.gen_2f51c18f", "归档")}</Button>
+          >{i18next.t("dict.gen_2f51c18f")}</Button>
         </div>
       </details>
     </div>

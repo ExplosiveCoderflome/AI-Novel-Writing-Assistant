@@ -1,4 +1,3 @@
-import { useTranslation } from "react-i18next";
 import i18next from "i18next";
 const t = (key: string, options?: any) => i18next.t(key, options) as string;
 import { useState, type Dispatch, type SetStateAction } from "react";
@@ -67,33 +66,33 @@ type AssetTool = "visualAssets" | "references" | "library" | "snapshots" | "expo
 const WORLD_ASSET_PRESETS = [
   {
     icon: Map,
-    title: i18next.t("gen.pages.worlds.components.workspace.WorldAssetsTab.worldMap"),
-    description: i18next.t("gen.pages.worlds.components.workspace.WorldAssetsTab.gen_dffe62c3"),
-    readiness: i18next.t("gen.pages.worlds.components.workspace.WorldAssetsTab.gen_6157e679"),
+    title: i18next.t("dict.worldMap"),
+    description: i18next.t("dict.gen_dffe62c3"),
+    readiness: i18next.t("dict.gen_6157e679"),
   },
   {
     icon: Network,
-    title: i18next.t("gen.pages.worlds.components.workspace.WorldAssetsTab.gen_de942453"),
-    description: i18next.t("gen.pages.worlds.components.workspace.WorldAssetsTab.gen_19f83c09"),
-    readiness: i18next.t("gen.pages.worlds.components.workspace.WorldAssetsTab.gen_3abaa31a"),
+    title: i18next.t("dict.gen_de942453"),
+    description: i18next.t("dict.gen_19f83c09"),
+    readiness: i18next.t("dict.gen_3abaa31a"),
   },
   {
     icon: GitFork,
-    title: i18next.t("gen.pages.worlds.components.workspace.WorldAssetsTab.worldTimeline"),
-    description: i18next.t("gen.pages.worlds.components.workspace.WorldAssetsTab.gen_87d3f653"),
-    readiness: i18next.t("gen.pages.worlds.components.workspace.WorldAssetsTab.gen_92e958bf"),
+    title: i18next.t("dict.worldTimeline"),
+    description: i18next.t("dict.gen_87d3f653"),
+    readiness: i18next.t("dict.gen_92e958bf"),
   },
   {
     icon: GitCompareArrows,
-    title: i18next.t("gen.pages.worlds.components.workspace.WorldAssetsTab.gen_6606fcbf"),
-    description: i18next.t("gen.pages.worlds.components.workspace.WorldAssetsTab.gen_e110856a"),
-    readiness: i18next.t("gen.pages.worlds.components.workspace.WorldAssetsTab.gen_8a5d0d5c"),
+    title: i18next.t("dict.gen_6606fcbf"),
+    description: i18next.t("dict.gen_e110856a"),
+    readiness: i18next.t("dict.gen_8a5d0d5c"),
   },
   {
     icon: Workflow,
-    title: i18next.t("gen.pages.worlds.components.workspace.WorldAssetsTab.gen_3e265312"),
-    description: i18next.t("gen.pages.worlds.components.workspace.WorldAssetsTab.gen_c78b2023"),
-    readiness: i18next.t("gen.pages.worlds.components.workspace.WorldAssetsTab.gen_c4907d27"),
+    title: i18next.t("dict.gen_3e265312"),
+    description: i18next.t("dict.gen_c78b2023"),
+    readiness: i18next.t("dict.gen_c4907d27"),
   },
 ];
 
@@ -124,7 +123,6 @@ function AssetToolButton({
 }
 
 export default function WorldAssetsTab(props: WorldAssetsTabProps) {
-  const { t } = useTranslation();
   const [activeTool, setActiveTool] = useState<AssetTool>("visualAssets");
   const {
     selectedLayerPrimaryField,
@@ -168,43 +166,43 @@ export default function WorldAssetsTab(props: WorldAssetsTabProps) {
   return (
     <Card>
       <CardHeader>
-        <CardTitle>{i18next.t("gen.pages.worlds.components.workspace.WorldAssetsTab.worldMaterialsAndVersions")}</CardTitle>
+        <CardTitle>{i18next.t("dict.worldMaterialsAndVersions")}</CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
         <div className="grid gap-3 md:grid-cols-3 xl:grid-cols-6">
           <AssetToolButton
-            label={i18next.t("gen.pages.worlds.components.workspace.WorldAssetsTab.gen_7c9906e4")}
-            description={i18next.t("gen.pages.worlds.components.workspace.WorldAssetsTab.gen_fa9f3c53")}
+            label={i18next.t("dict.gen_7c9906e4")}
+            description={i18next.t("dict.gen_fa9f3c53")}
             selected={activeTool === "visualAssets"}
             onClick={() => setActiveTool("visualAssets")}
           />
           <AssetToolButton
-            label={i18next.t("gen.pages.worlds.components.workspace.WorldAssetsTab.gen_35808e79")}
-            description={i18next.t("gen.pages.worlds.components.workspace.WorldAssetsTab.gen_ab53fb4b")}
+            label={i18next.t("dict.gen_35808e79")}
+            description={i18next.t("dict.gen_ab53fb4b")}
             selected={activeTool === "references"}
             onClick={() => setActiveTool("references")}
           />
           <AssetToolButton
-            label={i18next.t("gen.pages.worlds.components.workspace.WorldAssetsTab.worldAssets")}
-            description={i18next.t("gen.pages.worlds.components.workspace.WorldAssetsTab.gen_7d08c16d")}
+            label={i18next.t("dict.worldAssets")}
+            description={i18next.t("dict.gen_7d08c16d")}
             selected={activeTool === "library"}
             onClick={() => setActiveTool("library")}
           />
           <AssetToolButton
-            label={i18next.t("gen.pages.worlds.components.workspace.WorldAssetsTab.gen_387b56ef")}
-            description={i18next.t("gen.pages.worlds.components.workspace.WorldAssetsTab.saveVersionCompareDifferencesTwoSettings")}
+            label={i18next.t("dict.gen_387b56ef")}
+            description={i18next.t("dict.saveVersionCompareDifferencesTwoSettings")}
             selected={activeTool === "snapshots"}
             onClick={() => setActiveTool("snapshots")}
           />
           <AssetToolButton
-            label={i18next.t("gen.pages.worlds.components.workspace.WorldAssetsTab.gen_9344b89b")}
-            description={i18next.t("gen.pages.worlds.components.workspace.WorldAssetsTab.gen_e38602e1")}
+            label={i18next.t("dict.gen_9344b89b")}
+            description={i18next.t("dict.gen_e38602e1")}
             selected={activeTool === "export"}
             onClick={() => setActiveTool("export")}
           />
           <AssetToolButton
-            label={i18next.t("gen.pages.worlds.components.workspace.WorldAssetsTab.gen_e0b20cd3")}
-            description={i18next.t("gen.pages.worlds.components.workspace.WorldAssetsTab.createWorldFromTextMarkdownJSON")}
+            label={i18next.t("dict.gen_e0b20cd3")}
+            description={i18next.t("dict.createWorldFromTextMarkdownJSON")}
             selected={activeTool === "import"}
             onClick={() => setActiveTool("import")}
           />
@@ -214,10 +212,10 @@ export default function WorldAssetsTab(props: WorldAssetsTabProps) {
           <div className="rounded-md border p-4">
             <div className="flex flex-col gap-2 lg:flex-row lg:items-start lg:justify-between">
               <div>
-                <div className="font-medium">{i18next.t("gen.pages.worlds.components.workspace.WorldAssetsTab.worldAssetPlanning")}</div>
-                <div className="mt-1 text-sm leading-6 text-muted-foreground">{i18next.t("gen.pages.worlds.components.workspace.WorldAssetsTab.gen_de662c61", "地图、势力图谱、时间线和体系树都从世界手册延伸出来。先把规则、势力、地点和张力整理清楚，再生成可视化资产。")}</div>
+                <div className="font-medium">{i18next.t("dict.worldAssetPlanning")}</div>
+                <div className="mt-1 text-sm leading-6 text-muted-foreground">{i18next.t("worlds.worldAssetsTab.wjqi6q")}</div>
               </div>
-              <Badge variant="outline">{i18next.t("gen.pages.worlds.components.workspace.WorldAssetsTab.gen_b8c3131b")}</Badge>
+              <Badge variant="outline">{i18next.t("dict.gen_b8c3131b")}</Badge>
             </div>
             <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
               {WORLD_ASSET_PRESETS.map((asset) => {
@@ -241,17 +239,17 @@ export default function WorldAssetsTab(props: WorldAssetsTabProps) {
 
         {activeTool === "references" ? (
           <div className="rounded-md border p-3">
-            <div className="mb-3 font-medium">{i18next.t("gen.pages.worlds.components.workspace.WorldAssetsTab.gen_35808e79")}</div>
-            <KnowledgeBindingPanel targetType="world" targetId={props.worldId} title={i18next.t("gen.pages.worlds.components.workspace.WorldAssetsTab.gen_35808e79")} />
+            <div className="mb-3 font-medium">{i18next.t("dict.gen_35808e79")}</div>
+            <KnowledgeBindingPanel targetType="world" targetId={props.worldId} title={i18next.t("dict.gen_35808e79")} />
           </div>
         ) : null}
 
         {activeTool === "library" ? (
           <div className="rounded-md border p-3 space-y-2">
-            <div className="font-medium">{i18next.t("gen.pages.worlds.components.workspace.WorldAssetsTab.worldAssets")}</div>
+            <div className="font-medium">{i18next.t("dict.worldAssets")}</div>
             <div className="grid gap-2 md:grid-cols-3">
               <Input
-                placeholder={i18next.t("gen.pages.worlds.components.workspace.WorldAssetsTab.gen_9699a50e")}
+                placeholder={i18next.t("dict.gen_9699a50e")}
                 value={libraryKeyword}
                 onChange={(event) => setLibraryKeyword(event.target.value)}
               />
@@ -260,23 +258,23 @@ export default function WorldAssetsTab(props: WorldAssetsTabProps) {
                 value={libraryCategory}
                 onChange={(event) => setLibraryCategory(event.target.value)}
               >
-                <option value="all">{i18next.t("gen.pages.worlds.components.workspace.WorldAssetsTab.gen_1a750305")}</option>
-                <option value="terrain">{i18next.t("gen.pages.worlds.components.workspace.WorldAssetsTab.gen_68c990ac")}</option>
-                <option value="race">{i18next.t("gen.pages.worlds.components.workspace.WorldAssetsTab.gen_003ad50b")}</option>
-                <option value="power_system">{i18next.t("gen.pages.worlds.components.workspace.WorldAssetsTab.gen_9185e0fc")}</option>
-                <option value="organization">{i18next.t("gen.pages.worlds.components.workspace.WorldAssetsTab.gen_0eb4a414")}</option>
-                <option value="resource">{i18next.t("gen.pages.worlds.components.workspace.WorldAssetsTab.gen_eee83a92")}</option>
-                <option value="event">{i18next.t("gen.pages.worlds.components.workspace.WorldAssetsTab.event")}</option>
-                <option value="artifact">{i18next.t("gen.pages.worlds.components.workspace.WorldAssetsTab.gen_6916ec11")}</option>
-                <option value="custom">{i18next.t("gen.pages.worlds.components.workspace.WorldAssetsTab.gen_f1d4ff50")}</option>
+                <option value="all">{i18next.t("dict.gen_1a750305")}</option>
+                <option value="terrain">{i18next.t("dict.gen_68c990ac")}</option>
+                <option value="race">{i18next.t("dict.gen_003ad50b")}</option>
+                <option value="power_system">{i18next.t("dict.gen_9185e0fc")}</option>
+                <option value="organization">{i18next.t("dict.gen_0eb4a414")}</option>
+                <option value="resource">{i18next.t("dict.gen_eee83a92")}</option>
+                <option value="event">{i18next.t("dict.event")}</option>
+                <option value="artifact">{i18next.t("dict.gen_6916ec11")}</option>
+                <option value="custom">{i18next.t("dict.gen_f1d4ff50")}</option>
               </SelectControl>
-              <Button variant="outline" onClick={onRefreshLibrary}>{i18next.t("gen.pages.worlds.components.workspace.WorldAssetsTab.gen_694fc5ef", "刷新")}</Button>
+              <Button variant="outline" onClick={onRefreshLibrary}>{i18next.t("drama.dramaProjectPage.ejix")}</Button>
             </div>
             <div className="rounded-md border p-2 space-y-2">
-              <div className="text-xs font-semibold text-muted-foreground">{i18next.t("gen.pages.worlds.components.workspace.WorldAssetsTab.gen_80884294", "保存当前设定为世界素材")}</div>
+              <div className="text-xs font-semibold text-muted-foreground">{i18next.t("worlds.worldAssetsTab.4fudf3")}</div>
               <div className="grid gap-2 md:grid-cols-3">
                 <Input
-                  placeholder={i18next.t("gen.pages.worlds.components.workspace.WorldAssetsTab.gen_a78225be")}
+                  placeholder={i18next.t("dict.gen_a78225be")}
                   value={publishName}
                   onChange={(event) => setPublishName(event.target.value)}
                 />
@@ -285,24 +283,24 @@ export default function WorldAssetsTab(props: WorldAssetsTabProps) {
                   value={publishCategory}
                   onChange={(event) => setPublishCategory(event.target.value)}
                 >
-                  <option value="custom">{i18next.t("gen.pages.worlds.components.workspace.WorldAssetsTab.gen_f1d4ff50")}</option>
-                  <option value="terrain">{i18next.t("gen.pages.worlds.components.workspace.WorldAssetsTab.gen_68c990ac")}</option>
-                  <option value="race">{i18next.t("gen.pages.worlds.components.workspace.WorldAssetsTab.gen_003ad50b")}</option>
-                  <option value="power_system">{i18next.t("gen.pages.worlds.components.workspace.WorldAssetsTab.gen_9185e0fc")}</option>
-                  <option value="organization">{i18next.t("gen.pages.worlds.components.workspace.WorldAssetsTab.gen_0eb4a414")}</option>
-                  <option value="resource">{i18next.t("gen.pages.worlds.components.workspace.WorldAssetsTab.gen_eee83a92")}</option>
-                  <option value="event">{i18next.t("gen.pages.worlds.components.workspace.WorldAssetsTab.event")}</option>
-                  <option value="artifact">{i18next.t("gen.pages.worlds.components.workspace.WorldAssetsTab.gen_6916ec11")}</option>
+                  <option value="custom">{i18next.t("dict.gen_f1d4ff50")}</option>
+                  <option value="terrain">{i18next.t("dict.gen_68c990ac")}</option>
+                  <option value="race">{i18next.t("dict.gen_003ad50b")}</option>
+                  <option value="power_system">{i18next.t("dict.gen_9185e0fc")}</option>
+                  <option value="organization">{i18next.t("dict.gen_0eb4a414")}</option>
+                  <option value="resource">{i18next.t("dict.gen_eee83a92")}</option>
+                  <option value="event">{i18next.t("dict.event")}</option>
+                  <option value="artifact">{i18next.t("dict.gen_6916ec11")}</option>
                 </SelectControl>
                 <Button onClick={onPublishLibrary} disabled={publishPending}>
-                  {publishPending ? i18next.t("gen.pages.worlds.components.workspace.WorldAssetsTab.savingInProgressDotDotDot") : i18next.t("gen.pages.worlds.components.workspace.WorldAssetsTab.saveMaterials")}
+                  {publishPending ? i18next.t("common.saving") : i18next.t("dict.saveMaterials")}
                 </Button>
               </div>
               <textarea
                 className="min-h-[80px] w-full rounded-md border bg-background p-2 text-sm"
                 value={publishDescription}
                 onChange={(event) => setPublishDescription(event.target.value)}
-                placeholder={i18next.t("gen.pages.worlds.components.workspace.WorldAssetsTab.gen_dbdf34ed")}
+                placeholder={i18next.t("dict.gen_dbdf34ed")}
               />
             </div>
             {libraryItems.map((item) => (
@@ -319,8 +317,8 @@ export default function WorldAssetsTab(props: WorldAssetsTabProps) {
                   <Button size="sm" onClick={() => onInjectLibraryField(item.id)}>
                     加入当前分层（{selectedLayerPrimaryField}）
                   </Button>
-                  <Button size="sm" variant="outline" onClick={() => onInjectLibraryStructure(item.id, "forces")}>{i18next.t("gen.pages.worlds.components.workspace.WorldAssetsTab.gen_3c15a862", "加入势力手册")}</Button>
-                  <Button size="sm" variant="outline" onClick={() => onInjectLibraryStructure(item.id, "locations")}>{i18next.t("gen.pages.worlds.components.workspace.WorldAssetsTab.gen_07e4adf2", "加入地点手册")}</Button>
+                  <Button size="sm" variant="outline" onClick={() => onInjectLibraryStructure(item.id, "forces")}>{i18next.t("worlds.worldAssetsTab.qk2iji")}</Button>
+                  <Button size="sm" variant="outline" onClick={() => onInjectLibraryStructure(item.id, "locations")}>{i18next.t("worlds.worldAssetsTab.pvhpe9")}</Button>
                 </div>
               </div>
             ))}
@@ -329,21 +327,21 @@ export default function WorldAssetsTab(props: WorldAssetsTabProps) {
 
         {activeTool === "snapshots" ? (
           <div className="rounded-md border p-3 space-y-2">
-          <div className="font-medium">{i18next.t("gen.pages.worlds.components.workspace.WorldAssetsTab.gen_387b56ef")}</div>
+          <div className="font-medium">{i18next.t("dict.gen_387b56ef")}</div>
           <div className="flex gap-2">
             <Input
-              placeholder={i18next.t("gen.pages.worlds.components.workspace.WorldAssetsTab.gen_a595b969")}
+              placeholder={i18next.t("dict.gen_a595b969")}
               value={snapshotLabel}
               onChange={(event) => setSnapshotLabel(event.target.value)}
             />
-            <Button onClick={onCreateSnapshot} disabled={createSnapshotPending}>{i18next.t("gen.pages.worlds.components.workspace.WorldAssetsTab.gen_3eacefe7", "创建快照")}</Button>
+            <Button onClick={onCreateSnapshot} disabled={createSnapshotPending}>{i18next.t("worlds.worldAssetsTab.ar6w63")}</Button>
           </div>
           {snapshots.map((snapshot) => (
             <div key={snapshot.id} className="flex items-center justify-between rounded border p-2 text-sm">
               <div>
                 {snapshot.label ?? snapshot.id.slice(0, 8)} / {new Date(snapshot.createdAt).toLocaleString()}
               </div>
-              <Button size="sm" variant="outline" onClick={() => onRestoreSnapshot(snapshot.id)}>{i18next.t("gen.pages.worlds.components.workspace.WorldAssetsTab.gen_c7db6d4f", "恢复")}</Button>
+              <Button size="sm" variant="outline" onClick={() => onRestoreSnapshot(snapshot.id)}>{i18next.t("dict.gen_c7db6d4f")}</Button>
             </div>
           ))}
           <div className="grid gap-2 md:grid-cols-3">
@@ -352,7 +350,7 @@ export default function WorldAssetsTab(props: WorldAssetsTabProps) {
               value={diffFrom}
               onChange={(event) => setDiffFrom(event.target.value)}
             >
-              <option value="">{i18next.t("gen.pages.worlds.components.workspace.WorldAssetsTab.gen_dbc08aae")}</option>
+              <option value="">{i18next.t("dict.gen_dbc08aae")}</option>
               {snapshots.map((snapshot) => (
                 <option key={`from-${snapshot.id}`} value={snapshot.id}>
                   {snapshot.label ?? snapshot.id.slice(0, 8)}
@@ -364,18 +362,18 @@ export default function WorldAssetsTab(props: WorldAssetsTabProps) {
               value={diffTo}
               onChange={(event) => setDiffTo(event.target.value)}
             >
-              <option value="">{i18next.t("gen.pages.worlds.components.workspace.WorldAssetsTab.gen_aa78a7d5")}</option>
+              <option value="">{i18next.t("dict.gen_aa78a7d5")}</option>
               {snapshots.map((snapshot) => (
                 <option key={`to-${snapshot.id}`} value={snapshot.id}>
                   {snapshot.label ?? snapshot.id.slice(0, 8)}
                 </option>
               ))}
             </SelectControl>
-            <Button onClick={onDiffSnapshots} disabled={!diffFrom || !diffTo}>{i18next.t("gen.pages.worlds.components.workspace.WorldAssetsTab.gen_cebba449", "对比差异")}</Button>
+            <Button onClick={onDiffSnapshots} disabled={!diffFrom || !diffTo}>{i18next.t("worlds.worldAssetsTab.c1v4sv")}</Button>
           </div>
           {diffChanges.map((change) => (
             <div key={change.field} className="rounded border p-2 text-xs">
-              {change.field}: {change.before ?? i18next.t("gen.pages.worlds.components.workspace.WorldAssetsTab.gen_b7612b71")} {"->"} {change.after ?? i18next.t("gen.pages.worlds.components.workspace.WorldAssetsTab.gen_b7612b71")}
+              {change.field}: {change.before ?? i18next.t("dict.gen_b7612b71")} {"->"} {change.after ?? i18next.t("dict.gen_b7612b71")}
             </div>
           ))}
           </div>
@@ -383,23 +381,23 @@ export default function WorldAssetsTab(props: WorldAssetsTabProps) {
 
         {activeTool === "export" ? (
           <div className="rounded-md border p-3 space-y-2">
-          <div className="font-medium">{i18next.t("gen.pages.worlds.components.workspace.WorldAssetsTab.gen_9344b89b")}</div>
+          <div className="font-medium">{i18next.t("dict.gen_9344b89b")}</div>
           <div className="flex gap-2">
-            <Button variant="secondary" onClick={() => void onExport("markdown")}>{i18next.t("gen.pages.worlds.components.workspace.WorldAssetsTab.gen_02783c1c", "导出 Markdown（复制到剪贴板）")}</Button>
-            <Button variant="secondary" onClick={() => void onExport("json")}>{i18next.t("gen.pages.worlds.components.workspace.WorldAssetsTab.gen_b91ad202", "导出 JSON（复制到剪贴板）")}</Button>
+            <Button variant="secondary" onClick={() => void onExport("markdown")}>{i18next.t("worlds.worldAssetsTab.w3d7j8")}</Button>
+            <Button variant="secondary" onClick={() => void onExport("json")}>{i18next.t("worlds.worldAssetsTab.lllem5")}</Button>
           </div>
           </div>
         ) : null}
 
         {activeTool === "import" ? (
           <div className="rounded-md border p-3 space-y-2">
-          <div className="font-medium">{i18next.t("gen.pages.worlds.components.workspace.WorldAssetsTab.gen_e0b20cd3")}</div>
+          <div className="font-medium">{i18next.t("dict.gen_e0b20cd3")}</div>
           <SelectControl
             className="w-full rounded-md border bg-background p-2 text-sm"
             value={importFormat}
             onChange={(event) => setImportFormat(event.target.value as "json" | "markdown" | "text")}
           >
-            <option value="text">{i18next.t("gen.pages.worlds.components.workspace.WorldAssetsTab.gen_ffb01e5b")}</option>
+            <option value="text">{i18next.t("dict.gen_ffb01e5b")}</option>
             <option value="markdown">Markdown</option>
             <option value="json">JSON</option>
           </SelectControl>
@@ -407,10 +405,10 @@ export default function WorldAssetsTab(props: WorldAssetsTabProps) {
             className="min-h-[160px] w-full rounded-md border bg-background p-2 text-sm"
             value={importContent}
             onChange={(event) => setImportContent(event.target.value)}
-            placeholder={i18next.t("gen.pages.worlds.components.workspace.WorldAssetsTab.gen_2ab5150a")}
+            placeholder={i18next.t("dict.gen_2ab5150a")}
           />
           <Button onClick={onImport} disabled={importPending || !importContent.trim()}>
-            {importPending ? i18next.t("gen.pages.worlds.components.workspace.WorldAssetsTab.gen_763476f8") : i18next.t("gen.pages.worlds.components.workspace.WorldAssetsTab.gen_920562d7")}
+            {importPending ? i18next.t("dict.gen_763476f8") : i18next.t("dict.gen_920562d7")}
           </Button>
           </div>
         ) : null}

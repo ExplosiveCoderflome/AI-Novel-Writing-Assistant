@@ -1,4 +1,3 @@
-import i18next from "i18next";
 import type { ReactNode } from "react";
 import { WorkspaceStateNotice } from "@/components/workspace";
 import { TaskQueueMetricGrid, TaskQueueStatusBadge, type TaskQueueMetricItem } from "./TaskQueuePrimitives";

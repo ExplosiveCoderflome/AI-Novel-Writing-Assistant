@@ -14,7 +14,7 @@ export default function NovelWorkflowRunningIndicator(props: NovelWorkflowRunnin
   const {
     progress,
     className,
-    label = i18next.t("gen.pages.novels.components.NovelWorkflowRunningIndicator.aiProgressingInBackground"),
+    label = i18next.t("dict.aiProgressingInBackground"),
   } = props;
   const percent = normalizeProgressPercent(progress);
 

@@ -1,4 +1,3 @@
-import { useTranslation } from "react-i18next";
 import i18next from "i18next";
 import {
   ActionBarPrimitive,
@@ -85,7 +84,6 @@ function AssistantMessageActions() {
 }
 
 export function CreativeHubUserMessage() {
-  const { t } = useTranslation();
   return (
     <MessagePrimitive.If hasContent>
       <MessagePrimitive.Root className="ml-auto max-w-[88%]">
@@ -121,7 +119,7 @@ export function CreativeHubAssistantMessage() {
               ),
               Reasoning: ({ text }: { text: string }) => (
                 <div className="mb-3 rounded-md border border-warning/30 bg-warning/5 p-3 text-xs">
-                  <div className="mb-1 text-[11px] text-warning">{i18next.t("gen.pages.creativeHub.components.CreativeHubMessagePrimitives.gen_3d1dec1f", "推理过程")}</div>
+                  <div className="mb-1 text-[11px] text-warning">{i18next.t("dict.gen_3d1dec1f")}</div>
                   <MarkdownViewer content={text} />
                 </div>
               ),
@@ -144,17 +142,17 @@ export function CreativeHubEditComposer() {
     <ComposerPrimitive.Root className="mt-3 rounded-md border border-info/30 bg-info/5 p-3">
       <ComposerPrimitive.Input
         className="min-h-[88px] w-full resize-none rounded-md border border-input bg-background p-3 text-base outline-none transition focus-visible:ring-2 focus-visible:ring-ring md:text-sm"
-        placeholder={i18next.t("gen.pages.creativeHub.components.CreativeHubMessagePrimitives.gen_6402b0c3", "编辑这条消息后生成新的分支")}
+        placeholder={i18next.t("dict.gen_6402b0c3")}
         submitMode="enter"
         disabled={actionDisabled}
-        aria-label={i18next.t("gen.pages.creativeHub.components.CreativeHubMessagePrimitives.gen_8a95e28c", "编辑消息并生成新分支")}
+        aria-label={i18next.t("creativeHub.creativeHubMessagePrimitives.f52zsc")}
       />
       <div className="mt-3 flex gap-2">
         <ComposerPrimitive.Cancel asChild>
-          <Button type="button" size="sm" variant="outline" disabled={actionDisabled}>{i18next.t("gen.pages.creativeHub.components.CreativeHubMessagePrimitives.gen_625fb26b", "取消")}</Button>
+          <Button type="button" size="sm" variant="outline" disabled={actionDisabled}>{i18next.t("common.cancel")}</Button>
         </ComposerPrimitive.Cancel>
         <ComposerPrimitive.Send asChild>
-          <Button type="button" size="sm" disabled={actionDisabled}>{i18next.t("gen.pages.creativeHub.components.CreativeHubMessagePrimitives.gen_669e5ca7", "发送新分支")}</Button>
+          <Button type="button" size="sm" disabled={actionDisabled}>{i18next.t("creativeHub.creativeHubMessagePrimitives.8ugxbr")}</Button>
         </ComposerPrimitive.Send>
       </div>
     </ComposerPrimitive.Root>

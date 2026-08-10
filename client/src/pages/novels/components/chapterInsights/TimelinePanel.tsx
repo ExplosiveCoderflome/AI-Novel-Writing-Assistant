@@ -1,4 +1,3 @@
-import { useTranslation } from "react-i18next";
 import i18next from "i18next";
 const t = (key: string, options?: any) => i18next.t(key, options) as string;
 import { AlertTriangle, ArrowRight, Clock3, Loader2, ShieldAlert, Sparkles, UsersRound } from "lucide-react";
@@ -13,12 +12,12 @@ import { cn } from "@/lib/utils";
 
 export function getTimelineCheckLabel(status: TimelineCheckSummary["status"]): string {
   if (status === "failed") {
-    return i18next.t("gen.pages.novels.components.chapterInsights.TimelinePanel.gen_ee104a9e");
+    return i18next.t("dict.gen_ee104a9e");
   }
   if (status === "warning") {
-    return i18next.t("gen.pages.novels.components.chapterInsights.TimelinePanel.gen_88604d41");
+    return i18next.t("dict.gen_88604d41");
   }
-  return i18next.t("gen.pages.novels.components.chapterInsights.TimelinePanel.gen_23c1f399");
+  return i18next.t("dict.gen_23c1f399");
 }
 
 function getTimelineCheckTone(status: TimelineCheckSummary["status"]): string {
@@ -43,7 +42,7 @@ function getTimelineCheckBadgeVariant(status: TimelineCheckSummary["status"]): N
 
 function formatTimelineTimeLabel(context?: TimelineContextForChapter | null): string {
   if (!context) {
-    return i18next.t("gen.pages.novels.components.chapterInsights.TimelinePanel.gen_fe2d26a2");
+    return i18next.t("dict.gen_fe2d26a2");
   }
   const parts = [
     typeof context.currentTime?.storyDayIndex === "number" ? `第${context.currentTime.storyDayIndex}天` : "",
@@ -54,15 +53,15 @@ function formatTimelineTimeLabel(context?: TimelineContextForChapter | null): st
 
 function formatIssueSeverity(issue: TimelineIssue): string {
   if (issue.severity === "blocking") {
-    return i18next.t("gen.pages.novels.components.chapterInsights.TimelinePanel.gen_87f88cff");
+    return i18next.t("dict.gen_87f88cff");
   }
   if (issue.severity === "error") {
-    return i18next.t("gen.pages.novels.components.chapterInsights.TimelinePanel.gen_7030ff64");
+    return i18next.t("dict.gen_7030ff64");
   }
   if (issue.severity === "warning") {
-    return i18next.t("gen.pages.novels.components.chapterInsights.TimelinePanel.gen_4b027f39");
+    return i18next.t("dict.gen_4b027f39");
   }
-  return i18next.t("gen.pages.novels.components.chapterInsights.TimelinePanel.gen_d8c7e04c");
+  return i18next.t("dict.gen_d8c7e04c");
 }
 
 function TimelineItemList(props: {
@@ -112,21 +111,21 @@ function TimelineCheckPanel(props: {
     return (
       <div className="rounded-xl border border-border/70 bg-muted/20 p-3 text-xs leading-6 text-muted-foreground">
         <div className="flex items-center gap-2 font-medium text-foreground">
-          <Loader2 className="h-4 w-4 animate-spin" />{i18next.t("gen.pages.novels.components.chapterInsights.TimelinePanel.gen_80cdb28b", "时间线检测读取中")}</div>
-        <div className="mt-1">{i18next.t("gen.pages.novels.components.chapterInsights.TimelinePanel.gen_ad0e994a")}</div>
+          <Loader2 className="h-4 w-4 animate-spin" />{i18next.t("novels.timelinePanel.npiqbq")}</div>
+        <div className="mt-1">{i18next.t("dict.gen_ad0e994a")}</div>
       </div>
     );
   }
 
   if (!hasChapter) {
     return (
-      <div className="rounded-xl border border-dashed border-border/70 bg-muted/10 p-3 text-xs leading-6 text-muted-foreground">{i18next.t("gen.pages.novels.components.chapterInsights.TimelinePanel.gen_826ce696", "选中章节后，这里显示本章时间线检测结果。")}</div>
+      <div className="rounded-xl border border-dashed border-border/70 bg-muted/10 p-3 text-xs leading-6 text-muted-foreground">{i18next.t("novels.timelinePanel.izju38")}</div>
     );
   }
 
   if (!timelineCheck) {
     return (
-      <div className="rounded-xl border border-dashed border-border/70 bg-muted/10 p-3 text-xs leading-6 text-muted-foreground">{i18next.t("gen.pages.novels.components.chapterInsights.TimelinePanel.gen_7528b9d5", "本章还没有时间线检测结果。")}</div>
+      <div className="rounded-xl border border-dashed border-border/70 bg-muted/10 p-3 text-xs leading-6 text-muted-foreground">{i18next.t("novels.timelinePanel.clxmhl")}</div>
     );
   }
 
@@ -134,7 +133,7 @@ function TimelineCheckPanel(props: {
     <div className={cn("rounded-xl border p-3 text-sm", getTimelineCheckTone(timelineCheck.status))}>
       <div className="flex items-center justify-between gap-2">
         <div className="font-medium">{getTimelineCheckLabel(timelineCheck.status)}</div>
-        <Badge variant={getTimelineCheckBadgeVariant(timelineCheck.status)}>{i18next.t("gen.pages.novels.components.chapterInsights.TimelinePanel.gen_c318b98f")}</Badge>
+        <Badge variant={getTimelineCheckBadgeVariant(timelineCheck.status)}>{i18next.t("dict.gen_c318b98f")}</Badge>
       </div>
       {timelineCheck.issues.length > 0 ? (
         <div className="mt-3 space-y-2">
@@ -149,7 +148,7 @@ function TimelineCheckPanel(props: {
           ))}
         </div>
       ) : (
-        <div className="mt-2 text-xs leading-6 opacity-80">{i18next.t("gen.pages.novels.components.chapterInsights.TimelinePanel.gen_01a1d6af")}</div>
+        <div className="mt-2 text-xs leading-6 opacity-80">{i18next.t("dict.gen_01a1d6af")}</div>
       )}
     </div>
   );
@@ -161,12 +160,11 @@ export default function TimelinePanel(props: {
   isLoadingChapterTimeline?: boolean;
   chapterRuntimePackage?: ChapterRuntimePackage | null;
 }) {
-  const { t } = useTranslation();
   const { selectedChapter, chapterTimeline, isLoadingChapterTimeline = false, chapterRuntimePackage } = props;
   const context = chapterTimeline?.context ?? null;
   const timelineCheck = (chapterTimeline?.latestReport ?? chapterRuntimePackage?.timelineCheck ?? null) as TimelineCheckSummary | null;
   const hasChapter = Boolean(selectedChapter);
-  const chapterLabel = selectedChapter ? `第${selectedChapter.order}章` : i18next.t("gen.pages.novels.components.chapterInsights.TimelinePanel.gen_2d731639");
+  const chapterLabel = selectedChapter ? `第${selectedChapter.order}章` : i18next.t("dict.gen_2d731639");
   const timeLabel = formatTimelineTimeLabel(context);
 
   return (
@@ -175,7 +173,7 @@ export default function TimelinePanel(props: {
         <div className="rounded-xl border border-border/70 bg-background p-3">
           <div className="flex items-center gap-2 text-xs font-medium text-muted-foreground">
             <Clock3 className="h-4 w-4" />
-            <span>{i18next.t("gen.pages.novels.components.chapterInsights.TimelinePanel.gen_17361831")}</span>
+            <span>{i18next.t("dict.gen_17361831")}</span>
           </div>
           <div className="mt-2 text-sm font-medium text-foreground">{timeLabel}</div>
           <div className="mt-1 text-xs leading-5 text-muted-foreground">{chapterLabel}</div>
@@ -183,13 +181,13 @@ export default function TimelinePanel(props: {
         <div className="rounded-xl border border-border/70 bg-background p-3">
           <div className="flex items-center gap-2 text-xs font-medium text-muted-foreground">
             <ShieldAlert className="h-4 w-4" />
-            <span>{i18next.t("gen.pages.novels.components.chapterInsights.TimelinePanel.gen_77b9b1d1")}</span>
+            <span>{i18next.t("dict.gen_77b9b1d1")}</span>
           </div>
           <div className="mt-2 text-sm font-medium text-foreground">
-            {timelineCheck ? getTimelineCheckLabel(timelineCheck.status) : isLoadingChapterTimeline ? i18next.t("gen.pages.novels.components.chapterInsights.TimelinePanel.gen_26d335b3") : i18next.t("gen.pages.novels.components.chapterInsights.TimelinePanel.gen_5c6585e0")}
+            {timelineCheck ? getTimelineCheckLabel(timelineCheck.status) : isLoadingChapterTimeline ? i18next.t("dict.gen_26d335b3") : i18next.t("dict.gen_5c6585e0")}
           </div>
           <div className="mt-1 text-xs leading-5 text-muted-foreground">
-            {timelineCheck ? `分数 ${Math.round(timelineCheck.score * 100)}` : i18next.t("gen.pages.novels.components.chapterInsights.TimelinePanel.gen_599b3b57")}
+            {timelineCheck ? `分数 ${Math.round(timelineCheck.score * 100)}` : i18next.t("dict.gen_599b3b57")}
           </div>
         </div>
       </div>
@@ -197,29 +195,29 @@ export default function TimelinePanel(props: {
       {context ? (
         <>
           <TimelineItemList
-            title={i18next.t("gen.pages.novels.components.chapterInsights.TimelinePanel.previousHook")}
+            title={i18next.t("dict.previousHook")}
             icon={<ArrowRight className="h-4 w-4" />}
             items={context.openHooks.map((hook) => ({ title: hook.title, summary: hook.description }))}
-            emptyText={i18next.t("gen.pages.novels.components.chapterInsights.TimelinePanel.gen_d6f6b35b")}
+            emptyText={i18next.t("dict.gen_d6f6b35b")}
             tone={context.openHooks.length > 0 ? "warning" : "default"}
           />
           <TimelineItemList
-            title={i18next.t("gen.pages.novels.components.chapterInsights.TimelinePanel.gen_b6697408")}
+            title={i18next.t("dict.gen_b6697408")}
             icon={<Sparkles className="h-4 w-4" />}
             items={context.plannedEventsThisChapter.map((event) => ({ title: event.title, summary: event.summary }))}
-            emptyText={i18next.t("gen.pages.novels.components.chapterInsights.TimelinePanel.gen_f1f9b703")}
+            emptyText={i18next.t("dict.gen_f1f9b703")}
           />
           <TimelineItemList
-            title={i18next.t("gen.pages.novels.components.chapterInsights.TimelinePanel.gen_8c843be8")}
+            title={i18next.t("dict.gen_8c843be8")}
             icon={<AlertTriangle className="h-4 w-4" />}
             items={context.forbiddenEvents.map((item) => ({ title: item.title, summary: item.reason }))}
-            emptyText={i18next.t("gen.pages.novels.components.chapterInsights.TimelinePanel.gen_5e3c8bd3")}
+            emptyText={i18next.t("dict.gen_5e3c8bd3")}
             tone={context.forbiddenEvents.length > 0 ? "critical" : "default"}
           />
           <div className="rounded-xl border border-border/70 bg-background p-3">
             <div className="flex items-center gap-2 text-xs font-medium text-muted-foreground">
               <UsersRound className="h-4 w-4" />
-              <span>{i18next.t("gen.pages.novels.components.chapterInsights.TimelinePanel.gen_b5c51d6a")}</span>
+              <span>{i18next.t("dict.gen_b5c51d6a")}</span>
             </div>
             {context.previousEvents.length > 0 ? (
               <div className="mt-2 space-y-2">
@@ -231,16 +229,16 @@ export default function TimelinePanel(props: {
                 ))}
               </div>
             ) : (
-              <div className="mt-2 text-xs leading-5 text-muted-foreground">{i18next.t("gen.pages.novels.components.chapterInsights.TimelinePanel.gen_afb1d3bc")}</div>
+              <div className="mt-2 text-xs leading-5 text-muted-foreground">{i18next.t("dict.gen_afb1d3bc")}</div>
             )}
           </div>
           <div className="space-y-2">
-            <div className="text-xs font-medium text-muted-foreground">{i18next.t("gen.pages.novels.components.chapterInsights.TimelinePanel.gen_bd2b9ee5")}</div>
+            <div className="text-xs font-medium text-muted-foreground">{i18next.t("dict.gen_bd2b9ee5")}</div>
             <TimelineCheckPanel timelineCheck={timelineCheck} isLoading={isLoadingChapterTimeline} hasChapter={hasChapter} />
           </div>
         </>
       ) : (
-        <div className="rounded-xl border border-dashed border-border/70 bg-muted/10 p-3 text-xs leading-6 text-muted-foreground">{i18next.t("gen.pages.novels.components.chapterInsights.TimelinePanel.gen_9a9e0957", "选中章节后，这里显示本章时间锚点、上一章钩子、计划推进和禁止事项。")}</div>
+        <div className="rounded-xl border border-dashed border-border/70 bg-muted/10 p-3 text-xs leading-6 text-muted-foreground">{i18next.t("novels.timelinePanel.rdlwqw")}</div>
       )}
     </div>
   );

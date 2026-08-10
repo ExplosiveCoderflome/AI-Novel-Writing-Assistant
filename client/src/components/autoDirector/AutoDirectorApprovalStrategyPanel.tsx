@@ -1,4 +1,3 @@
-import { useTranslation } from "react-i18next";
 import i18next from "i18next";
 const t = (key: string, options?: any) => i18next.t(key, options) as string;
 import type {
@@ -27,10 +26,9 @@ export default function AutoDirectorApprovalStrategyPanel({
   onEnabledChange,
   onApprovalPointCodesChange,
 }: AutoDirectorApprovalStrategyPanelProps) {
-  const { t } = useTranslation();
   return (
     <div className="mt-3 min-w-0 rounded-md border border-primary/15 bg-primary/5 p-3">
-      <div className="text-xs font-medium text-foreground">{i18next.t("gen.components.autoDirector.AutoDirectorApprovalStrategyPanel.gen_4e5a0912")}</div>
+      <div className="text-xs font-medium text-foreground">{i18next.t("dict.gen_4e5a0912")}</div>
       <div className={AUTO_DIRECTOR_MOBILE_CLASSES.approvalStrategyGrid}>
         <button
           type="button"
@@ -39,8 +37,8 @@ export default function AutoDirectorApprovalStrategyPanel({
           }`}
           onClick={() => onEnabledChange(true)}
         >
-          <div className="text-sm font-medium text-foreground">{i18next.t("gen.components.autoDirector.AutoDirectorApprovalStrategyPanel.aiAutoAdvance")}</div>
-          <div className={`mt-1 text-xs leading-5 text-muted-foreground ${AUTO_DIRECTOR_MOBILE_CLASSES.wrapText}`}>{i18next.t("gen.components.autoDirector.AutoDirectorApprovalStrategyPanel.gen_4c1ff159", "目标范围内全自动推进；只有模型不可用、服务异常、保护正文或不可恢复风险会停下。")}</div>
+          <div className="text-sm font-medium text-foreground">{i18next.t("dict.aiAutoAdvance")}</div>
+          <div className={`mt-1 text-xs leading-5 text-muted-foreground ${AUTO_DIRECTOR_MOBILE_CLASSES.wrapText}`}>{i18next.t("autoDirector.autoDirectorApprovalStrategyPanel.9ah77u")}</div>
         </button>
         <button
           type="button"
@@ -49,20 +47,20 @@ export default function AutoDirectorApprovalStrategyPanel({
           }`}
           onClick={() => onEnabledChange(false)}
         >
-          <div className="text-sm font-medium text-foreground">{i18next.t("gen.components.autoDirector.AutoDirectorApprovalStrategyPanel.aiCopilotConfirm")}</div>
-          <div className={`mt-1 text-xs leading-5 text-muted-foreground ${AUTO_DIRECTOR_MOBILE_CLASSES.wrapText}`}>{i18next.t("gen.components.autoDirector.AutoDirectorApprovalStrategyPanel.gen_dc6d3bc7", "按高级审批授权放行低风险节点，其余审批点交给你判断。")}</div>
+          <div className="text-sm font-medium text-foreground">{i18next.t("dict.aiCopilotConfirm")}</div>
+          <div className={`mt-1 text-xs leading-5 text-muted-foreground ${AUTO_DIRECTOR_MOBILE_CLASSES.wrapText}`}>{i18next.t("autoDirector.autoDirectorApprovalStrategyPanel.qj35l")}</div>
         </button>
       </div>
 
       <div className={`mt-3 rounded-md border bg-background/80 p-3 text-xs leading-5 text-muted-foreground ${AUTO_DIRECTOR_MOBILE_CLASSES.wrapText}`}>
         {enabled
-          ? i18next.t("gen.components.autoDirector.AutoDirectorApprovalStrategyPanel.gen_6c318cbd")
+          ? i18next.t("dict.gen_6c318cbd")
           : `副驾确认边界：${summarizeDirectorAutoApprovalPoints(approvalPointCodes)}。未包含的审批点会等待你确认。`}
       </div>
 
       {!enabled ? (
         <details className="mt-3 rounded-md border bg-background">
-          <summary className="cursor-pointer px-3 py-2 text-xs font-medium text-foreground">{i18next.t("gen.components.autoDirector.AutoDirectorApprovalStrategyPanel.gen_c9e12612", "高级审批授权")}</summary>
+          <summary className="cursor-pointer px-3 py-2 text-xs font-medium text-foreground">{i18next.t("autoDirector.autoDirectorApprovalStrategyPanel.qazmyq")}</summary>
           <div className="border-t p-3">
             <AutoDirectorApprovalPointMultiSelect
               value={approvalPointCodes}

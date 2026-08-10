@@ -2,12 +2,12 @@ import i18next from "i18next";
 import type { World } from "@ai-novel/shared/types/world";
 
 export const LAYERS = [
-  { key: "foundation", label: "L1 基础层", primaryField: "background" },
-  { key: "power", label: "L2 力量层", primaryField: "magicSystem" },
-  { key: "society", label: "L3 社会层", primaryField: "politics" },
-  { key: "culture", label: "L4 文化层", primaryField: "cultures" },
-  { key: "history", label: "L5 历史层", primaryField: "history" },
-  { key: "conflict", label: "L6 冲突层", primaryField: "conflicts" },
+  { key: "foundation", label: i18next.t("worlds.worldWorkspaceShared.xwpkfz"), primaryField: "background" },
+  { key: "power", label: i18next.t("worlds.worldWorkspaceShared.xwtqx8"), primaryField: "magicSystem" },
+  { key: "society", label: i18next.t("worlds.worldWorkspaceShared.xqxkib"), primaryField: "politics" },
+  { key: "culture", label: i18next.t("worlds.worldWorkspaceShared.xt91xh"), primaryField: "cultures" },
+  { key: "history", label: i18next.t("worlds.worldWorkspaceShared.xvc1pd"), primaryField: "history" },
+  { key: "conflict", label: i18next.t("worlds.worldWorkspaceShared.xuvc0z"), primaryField: "conflicts" },
 ] as const;
 
 export type LayerKey = (typeof LAYERS)[number]["key"];
@@ -59,19 +59,19 @@ export type RefineAttribute =
   | "factions";
 
 export const REFINE_ATTRIBUTE_OPTIONS: Array<{ value: RefineAttribute; label: string }> = [
-  { value: "background", label: "基础背景" },
-  { value: "geography", label: "地理环境" },
-  { value: "cultures", label: "文化习俗" },
-  { value: "magicSystem", label: "力量体系" },
-  { value: "politics", label: "政治结构" },
-  { value: "races", label: "种族设定" },
-  { value: "religions", label: "宗教信仰" },
-  { value: "technology", label: "技术体系" },
-  { value: "history", label: "历史脉络" },
-  { value: "economy", label: "经济系统" },
-  { value: "conflicts", label: "核心冲突" },
-  { value: "description", label: "世界概述" },
-  { value: "factions", label: "势力关系" },
+  { value: "background", label: i18next.t("worlds.worldWorkspaceShared.blpe7d") },
+  { value: "geography", label: i18next.t("dict.gen_48d19a29") },
+  { value: "cultures", label: i18next.t("dict.gen_cca09e79") },
+  { value: "magicSystem", label: i18next.t("dict.gen_9185e0fc") },
+  { value: "politics", label: i18next.t("dict.gen_9b670f02") },
+  { value: "races", label: i18next.t("dict.gen_fe1521ec") },
+  { value: "religions", label: i18next.t("dict.gen_ba378fee") },
+  { value: "technology", label: i18next.t("dict.gen_ca9a2400") },
+  { value: "history", label: i18next.t("dict.gen_efd9a737") },
+  { value: "economy", label: i18next.t("dict.gen_c557e9a8") },
+  { value: "conflicts", label: i18next.t("dict.gen_ae5f3fde") },
+  { value: "description", label: i18next.t("dict.worldDescription") },
+  { value: "factions", label: i18next.t("dict.gen_ef535ae0") },
 ];
 
 export function normalizeLayerText(raw: unknown): string {

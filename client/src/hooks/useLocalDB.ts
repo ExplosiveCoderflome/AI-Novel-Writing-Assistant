@@ -1,4 +1,3 @@
-import i18next from "i18next";
 import { useCallback } from "react";
 import { del, get, set } from "idb-keyval";
 

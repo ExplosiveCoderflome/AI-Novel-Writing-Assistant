@@ -1,4 +1,3 @@
-import { useTranslation } from "react-i18next";
 import i18next from "i18next";
 const t = (key: string, options?: any) => i18next.t(key, options) as string;
 import { motion } from "framer-motion";
@@ -13,7 +12,7 @@ interface StreamOutputProps {
   emptyText?: string;
 }
 
-export default function StreamOutput({ isStreaming, content, onAbort, title = i18next.t("gen.components.common.StreamOutput.aiOutput"), emptyText = i18next.t("gen.components.common.StreamOutput.gen_56fb4083") }: StreamOutputProps) {
+export default function StreamOutput({ isStreaming, content, onAbort, title = i18next.t("dict.aiOutput"), emptyText = i18next.t("dict.gen_56fb4083") }: StreamOutputProps) {
   const wordCount = content.trim().length;
 
   return (
@@ -27,12 +26,12 @@ export default function StreamOutput({ isStreaming, content, onAbort, title = i1
         <span className="text-sm font-medium">{title}</span>
         <div className="flex items-center gap-2">
           {isStreaming ? (
-            <span className="text-xs text-muted-foreground">{i18next.t("gen.components.common.StreamOutput.gen_c422af87")}</span>
+            <span className="text-xs text-muted-foreground">{i18next.t("dict.gen_c422af87")}</span>
           ) : (
-            <span className="text-xs text-muted-foreground">{i18next.t("gen.components.common.StreamOutput.gen_8cffe33c")}</span>
+            <span className="text-xs text-muted-foreground">{i18next.t("dict.gen_8cffe33c")}</span>
           )}
           {isStreaming && onAbort ? (
-            <Button size="sm" variant="secondary" onClick={onAbort}>{i18next.t("gen.components.common.StreamOutput.gen_dda4c027", "停止生成")}</Button>
+            <Button size="sm" variant="secondary" onClick={onAbort}>{i18next.t("common.streamOutput.al6evr")}</Button>
           ) : null}
         </div>
       </div>

@@ -315,11 +315,11 @@ export default function WritingFormulaPage() {
   const reextractFeaturesMutation = useMutation({
     mutationFn: async () => {
       if (!selectedProfileId || !editor.sourceContent.trim()) {
-        throw new Error(i18next.t("gen.pages.writingFormula.WritingFormulaPage.gen_6fd53c05"));
+        throw new Error(i18next.t("dict.gen_6fd53c05"));
       }
 
       return extractStyleFeaturesFromText({
-        name: editor.name.trim() || selectedProfile?.name || i18next.t("gen.pages.writingFormula.WritingFormulaPage.gen_86a15791"),
+        name: editor.name.trim() || selectedProfile?.name || i18next.t("dict.gen_86a15791"),
         category: editor.category || undefined,
         sourceText: editor.sourceContent,
         provider: llm.provider,
@@ -347,7 +347,7 @@ export default function WritingFormulaPage() {
       setMessage(
         extractedFeatures.length > 0
           ? `已重新提取 ${extractedFeatures.length} 条特征，请确认后保存。`
-          : i18next.t("gen.pages.writingFormula.WritingFormulaPage.gen_51327df9"),
+          : i18next.t("dict.gen_51327df9"),
       );
     },
   });
@@ -375,7 +375,7 @@ export default function WritingFormulaPage() {
       });
     },
     onSuccess: async () => {
-      setMessage(i18next.t("gen.pages.writingFormula.WritingFormulaPage.gen_bfef6323"));
+      setMessage(i18next.t("dict.gen_bfef6323"));
       await refreshStyleData();
     },
   });
@@ -383,7 +383,7 @@ export default function WritingFormulaPage() {
   const deleteProfileMutation = useMutation({
     mutationFn: (id: string) => deleteStyleProfile(id),
     onSuccess: async (_response, deletedProfileId) => {
-      setMessage(i18next.t("gen.pages.writingFormula.WritingFormulaPage.gen_bd342f05"));
+      setMessage(i18next.t("dict.gen_bd342f05"));
       if (deletedProfileId === selectedProfileId) {
         setSelectedProfileId("");
         setActiveWorkspaceDialog(null);
@@ -413,7 +413,7 @@ export default function WritingFormulaPage() {
       });
     },
     onSuccess: async () => {
-      setMessage(i18next.t("gen.pages.writingFormula.WritingFormulaPage.gen_93dea550"));
+      setMessage(i18next.t("dict.gen_93dea550"));
       await refreshStyleData();
     },
   });
@@ -428,7 +428,7 @@ export default function WritingFormulaPage() {
   const testWriteMutation = useMutation({
     mutationFn: () => {
       if (!selectedProfileId) {
-        throw new Error(i18next.t("gen.pages.writingFormula.WritingFormulaPage.gen_f902505d"));
+        throw new Error(i18next.t("dict.gen_f902505d"));
       }
 
       return testWriteWithStyleProfile(selectedProfileId, {
@@ -447,7 +447,7 @@ export default function WritingFormulaPage() {
   const detectionMutation = useMutation({
     mutationFn: () => {
       if (!selectedProfileId) {
-        throw new Error(i18next.t("gen.pages.writingFormula.WritingFormulaPage.gen_f902505d"));
+        throw new Error(i18next.t("dict.gen_f902505d"));
       }
 
       return detectStyleIssues({
@@ -463,7 +463,7 @@ export default function WritingFormulaPage() {
   const rewriteMutation = useMutation({
     mutationFn: async () => {
       if (!selectedProfileId) {
-        throw new Error(i18next.t("gen.pages.writingFormula.WritingFormulaPage.gen_f902505d"));
+        throw new Error(i18next.t("dict.gen_f902505d"));
       }
 
       const report = detectionMutation.data?.data ?? (await detectStyleIssues({
@@ -493,7 +493,7 @@ export default function WritingFormulaPage() {
     },
     onSuccess: (response) => {
       setRewritePreview(response.data?.content ?? "");
-      setMessage(i18next.t("gen.pages.writingFormula.WritingFormulaPage.gen_615fc34b"));
+      setMessage(i18next.t("dict.gen_615fc34b"));
     },
   });
 
@@ -508,9 +508,9 @@ export default function WritingFormulaPage() {
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="space-y-1">
           <div className="text-sm font-medium uppercase tracking-[0.18em] text-slate-500">Style Engine V2</div>
-          <div className="text-2xl font-semibold tracking-tight text-slate-950">{i18next.t("gen.pages.writingFormula.WritingFormulaPage.gen_da3a12f6")}</div>
+          <div className="text-2xl font-semibold tracking-tight text-slate-950">{i18next.t("sidebar.styleEngine")}</div>
         </div>
-        <OpenInCreativeHubButton bindings={{ styleProfileId: selectedProfileId || null }} label={i18next.t("gen.pages.writingFormula.WritingFormulaPage.gen_aa4e584c")} />
+        <OpenInCreativeHubButton bindings={{ styleProfileId: selectedProfileId || null }} label={i18next.t("dict.gen_aa4e584c")} />
       </div>
 
       {message ? <div className="rounded-2xl border bg-muted/30 px-4 py-3 text-sm">{message}</div> : null}
@@ -532,7 +532,7 @@ export default function WritingFormulaPage() {
         onUseProfileForClean={(profileId) => openWorkspaceDialog("clean", profileId)}
         onDeleteProfile={(profileId) => {
           const profile = profiles.find((item) => item.id === profileId);
-          const profileName = profile?.name ?? i18next.t("gen.pages.writingFormula.WritingFormulaPage.gen_20b79693");
+          const profileName = profile?.name ?? i18next.t("dict.gen_20b79693");
           const confirmed = window.confirm(`确认删除“${profileName}”吗？删除后无法恢复。`);
           if (!confirmed) {
             return;
@@ -581,8 +581,8 @@ export default function WritingFormulaPage() {
       >
         <DialogContent ref={editorDialogRef} className="!flex h-[88vh] w-[min(1180px,96vw)] max-w-none flex-col gap-0 overflow-hidden p-0">
           <DialogHeader className="border-b px-6 py-5 pr-14">
-            <DialogTitle>{i18next.t("gen.pages.writingFormula.WritingFormulaPage.gen_94a3c6e8")}</DialogTitle>
-            <DialogDescription>{i18next.t("gen.pages.writingFormula.WritingFormulaPage.gen_884bc6ef", "这里专门整理写法本身的设定说明。应用测试和去 AI 味已经拆到独立入口，避免混在一个窗口里。")}</DialogDescription>
+            <DialogTitle>{i18next.t("dict.gen_94a3c6e8")}</DialogTitle>
+            <DialogDescription>{i18next.t("writingFormula.writingFormulaPage.vfrvnm")}</DialogDescription>
           </DialogHeader>
 
           <div className="h-full min-h-0 overflow-hidden p-6 pt-4">
@@ -628,8 +628,8 @@ export default function WritingFormulaPage() {
       >
         <DialogContent className="!flex h-[84vh] w-[min(1080px,94vw)] max-w-none flex-col gap-0 overflow-hidden p-0">
           <DialogHeader className="border-b px-6 py-5 pr-14">
-            <DialogTitle>{i18next.t("gen.pages.writingFormula.WritingFormulaPage.gen_4f43fb8b")}</DialogTitle>
-            <DialogDescription>{i18next.t("gen.pages.writingFormula.WritingFormulaPage.gen_e3378cc4", "这里专门处理绑定到小说、章节和试写验证，不修改写法字段本身。")}</DialogDescription>
+            <DialogTitle>{i18next.t("dict.gen_4f43fb8b")}</DialogTitle>
+            <DialogDescription>{i18next.t("writingFormula.writingFormulaPage.cl0007")}</DialogDescription>
           </DialogHeader>
 
           <div className="h-full min-h-0 overflow-auto p-6 pt-4">
@@ -659,8 +659,8 @@ export default function WritingFormulaPage() {
       >
         <DialogContent className="!flex h-[84vh] w-[min(980px,92vw)] max-w-none flex-col gap-0 overflow-hidden p-0">
           <DialogHeader className="border-b px-6 py-5 pr-14">
-            <DialogTitle>{i18next.t("gen.pages.writingFormula.WritingFormulaPage.gen_b589a6aa")}</DialogTitle>
-            <DialogDescription>{i18next.t("gen.pages.writingFormula.WritingFormulaPage.gen_3b263363", "这里专门做正文检测和修正，不进入写法字段编辑，也不混入绑定和试写操作。")}</DialogDescription>
+            <DialogTitle>{i18next.t("dict.gen_b589a6aa")}</DialogTitle>
+            <DialogDescription>{i18next.t("writingFormula.writingFormulaPage.jwin8s")}</DialogDescription>
           </DialogHeader>
 
           <div className="h-full min-h-0 overflow-auto p-6 pt-4">

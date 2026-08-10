@@ -21,14 +21,14 @@ export default function LocalDiagnosticsCard() {
     switch (tier) {
       case "tier1":
         return {
-          label: "Tier 1: 高精度本地加速",
+          label: i18next.t("settings.localDiagnosticsCard.izxcm"),
           variant: "default" as const,
           colorClass: "text-emerald-600 bg-emerald-50 border-emerald-200 dark:bg-emerald-950/20 dark:border-emerald-800",
           icon: <ShieldCheck className="h-5 w-5 text-emerald-600" />,
         };
       case "tier2":
         return {
-          label: "Tier 2: 显存量化加速",
+          label: i18next.t("settings.localDiagnosticsCard.mkqw3q"),
           variant: "secondary" as const,
           colorClass: "text-sky-600 bg-sky-50 border-sky-200 dark:bg-sky-950/20 dark:border-sky-800",
           icon: <Layers className="h-5 w-5 text-sky-600" />,
@@ -36,7 +36,7 @@ export default function LocalDiagnosticsCard() {
       case "tier3":
       default:
         return {
-          label: "Tier 3: CPU 纯本地兜底",
+          label: i18next.t("settings.localDiagnosticsCard.b9h5xj"),
           variant: "destructive" as const,
           colorClass: "text-amber-600 bg-amber-50 border-amber-200 dark:bg-amber-950/20 dark:border-amber-800",
           icon: <AlertTriangle className="h-5 w-5 text-amber-600" />,
@@ -54,7 +54,7 @@ export default function LocalDiagnosticsCard() {
             <Cpu className="h-5 w-5 text-primary" />
             SenseNova 本地环境诊断
           </CardTitle>
-          <CardDescription>{i18next.t("gen.pages.settings.components.LocalDiagnosticsCard.gen_45d37fcd", "诊断系统平台硬件配置，自适应生成最匹配的本地模型加速级别。")}</CardDescription>
+          <CardDescription>{i18next.t("settings.localDiagnosticsCard.lpmx1t")}</CardDescription>
         </div>
         <Button
           variant="outline"
@@ -68,7 +68,7 @@ export default function LocalDiagnosticsCard() {
       <CardContent className="space-y-4 pt-2">
         {isLoading ? (
           <div className="flex items-center justify-center py-6 text-sm text-muted-foreground gap-2">
-            <RefreshCw className="h-4 w-4 animate-spin" />{i18next.t("gen.pages.settings.components.LocalDiagnosticsCard.gen_fd3da9ca", "正在收集平台硬件与 GPU 拓扑信息...")}</div>
+            <RefreshCw className="h-4 w-4 animate-spin" />{i18next.t("settings.localDiagnosticsCard.karbts")}</div>
         ) : error ? (
           <div className="rounded-md border border-destructive/20 bg-destructive/5 p-3 text-sm text-destructive flex items-center gap-2">
             <AlertTriangle className="h-4 w-4 flex-shrink-0" />
@@ -93,10 +93,10 @@ export default function LocalDiagnosticsCard() {
             {/* Detailed System Specifications */}
             <div className="grid gap-3 text-xs md:grid-cols-2">
               <div className="rounded-md border p-3 bg-muted/40 flex flex-col gap-2">
-                <span className="font-bold text-muted-foreground uppercase tracking-wider">{i18next.t("gen.pages.settings.components.LocalDiagnosticsCard.gen_14d3ddc6", "系统与算力架构")}</span>
+                <span className="font-bold text-muted-foreground uppercase tracking-wider">{i18next.t("settings.localDiagnosticsCard.skgse4")}</span>
                 <div className="space-y-1.5 text-foreground">
                   <div className="flex justify-between">
-                    <span className="text-muted-foreground">{i18next.t("gen.pages.settings.components.LocalDiagnosticsCard.gen_30d23ef4", "操作系统")}</span>
+                    <span className="text-muted-foreground">{i18next.t("settings.localDiagnosticsCard.d1xjg3")}</span>
                     <span className="font-semibold">{diagnostic.platform.toUpperCase()}</span>
                   </div>
                   <div className="flex justify-between">
@@ -106,11 +106,11 @@ export default function LocalDiagnosticsCard() {
                     </span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-muted-foreground">{i18next.t("gen.pages.settings.components.LocalDiagnosticsCard.gen_ed412d8f", "逻辑核心")}</span>
+                    <span className="text-muted-foreground">{i18next.t("settings.localDiagnosticsCard.isfikh")}</span>
                     <span className="font-semibold">{diagnostic.cpuCores} 核</span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-muted-foreground">{i18next.t("gen.pages.settings.components.LocalDiagnosticsCard.gen_2ccbf5c9", "系统物理内存")}</span>
+                    <span className="text-muted-foreground">{i18next.t("settings.localDiagnosticsCard.wyzj1w")}</span>
                     <span className="font-semibold">{diagnostic.totalMemoryGb} GB</span>
                   </div>
                 </div>
@@ -118,45 +118,45 @@ export default function LocalDiagnosticsCard() {
 
               <div className="rounded-md border p-3 bg-muted/40 flex flex-col gap-2">
                 <span className="font-bold text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
-                  <Server className="h-3.5 w-3.5" />{i18next.t("gen.pages.settings.components.LocalDiagnosticsCard.gen_dfabd7a3", "显卡加速详情")}</span>
+                  <Server className="h-3.5 w-3.5" />{i18next.t("settings.localDiagnosticsCard.f7gwch")}</span>
                 <div className="space-y-1.5 text-foreground">
                   {diagnostic.isAppleSilicon ? (
                     <>
                       <div className="flex justify-between">
-                        <span className="text-muted-foreground">{i18next.t("gen.pages.settings.components.LocalDiagnosticsCard.gen_8636a795", "加速类型")}</span>
+                        <span className="text-muted-foreground">{i18next.t("settings.localDiagnosticsCard.b0vo6n")}</span>
                         <span className="font-semibold text-emerald-600 dark:text-emerald-400">Apple Silicon / MPS</span>
                       </div>
                       <div className="flex justify-between">
-                        <span className="text-muted-foreground">{i18next.t("gen.pages.settings.components.LocalDiagnosticsCard.gen_bd672794", "可用统一内存")}</span>
+                        <span className="text-muted-foreground">{i18next.t("settings.localDiagnosticsCard.6p17ar")}</span>
                         <span className="font-semibold">{diagnostic.totalMemoryGb} GB</span>
                       </div>
                     </>
                   ) : diagnostic.hasNvidiaGpu && diagnostic.gpu ? (
                     <>
                       <div className="flex justify-between">
-                        <span className="text-muted-foreground">{i18next.t("gen.pages.settings.components.LocalDiagnosticsCard.gen_f96a07ec", "显卡型号")}</span>
+                        <span className="text-muted-foreground">{i18next.t("settings.localDiagnosticsCard.d8vqwf")}</span>
                         <span className="font-semibold text-right truncate max-w-[200px]" title={diagnostic.gpu.name}>
                           {diagnostic.gpu.name}
                         </span>
                       </div>
                       <div className="flex justify-between">
-                        <span className="text-muted-foreground">{i18next.t("gen.pages.settings.components.LocalDiagnosticsCard.gen_ce80bf17", "总显存")}</span>
+                        <span className="text-muted-foreground">{i18next.t("settings.localDiagnosticsCard.elb9x")}</span>
                         <span className="font-semibold">{(diagnostic.gpu.totalVramMb / 1024).toFixed(2)} GB</span>
                       </div>
                       <div className="flex justify-between">
-                        <span className="text-muted-foreground">{i18next.t("gen.pages.settings.components.LocalDiagnosticsCard.gen_19ee09b4", "空闲显存")}</span>
+                        <span className="text-muted-foreground">{i18next.t("settings.localDiagnosticsCard.g2kuj6")}</span>
                         <span className="font-semibold">{(diagnostic.gpu.freeVramMb / 1024).toFixed(2)} GB</span>
                       </div>
                     </>
                   ) : (
-                    <div className="h-full flex items-center justify-center text-muted-foreground text-center py-4">{i18next.t("gen.pages.settings.components.LocalDiagnosticsCard.gen_1e6c23cd", "未检测到 NVIDIA CUDA 显卡")}<br />{i18next.t("gen.pages.settings.components.LocalDiagnosticsCard.gen_cf1b8463", "或 Apple Silicon MPS 加速器")}</div>
+                    <div className="h-full flex items-center justify-center text-muted-foreground text-center py-4">{i18next.t("settings.localDiagnosticsCard.sh5mz0")}<br />{i18next.t("settings.localDiagnosticsCard.a5syw8")}</div>
                   )}
                 </div>
               </div>
             </div>
 
             <div className="text-xs text-muted-foreground bg-muted/20 border rounded p-2.5 flex items-center justify-between">
-              <span>{i18next.t("gen.pages.settings.components.LocalDiagnosticsCard.gen_4ba5c68a", "当前模式下单张分镜画稿预期渲染耗时")}</span>
+              <span>{i18next.t("settings.localDiagnosticsCard.qozad9")}</span>
               <span className="font-bold text-primary">
                 ≈ {diagnostic.expectedGenerationTimeSec} 秒 / 张
               </span>

@@ -48,12 +48,12 @@ interface StructuredChapterListCardProps {
 function renderChapterDetailStatusBadge(chapter: StructuredChapter) {
   const status = getChapterExecutionDetailStatus(chapter);
   if (status === "complete") {
-    return <Badge variant="secondary">{i18next.t("gen.pages.novels.components.StructuredChapterListCard.gen_757d59d3", "已细化")}</Badge>;
+    return <Badge variant="secondary">{i18next.t("novels.structuredChapterDetailCard.ede2q")}</Badge>;
   }
   if (status === "partial") {
-    return <Badge>{i18next.t("gen.pages.novels.components.StructuredChapterListCard.gen_9e61af80", "细化中")}</Badge>;
+    return <Badge>{i18next.t("novels.structuredChapterDetailCard.iz199")}</Badge>;
   }
-  return <Badge variant="outline">{i18next.t("gen.pages.novels.components.StructuredChapterListCard.gen_8b4a5ea9", "待细化")}</Badge>;
+  return <Badge variant="outline">{i18next.t("novels.structuredChapterDetailCard.elowl")}</Badge>;
 }
 
 function isBeatGroupComplete(group: {
@@ -137,18 +137,18 @@ export default function StructuredChapterListCard(props: StructuredChapterListCa
     const isGeneratingGroup = isGeneratingCurrentVolume
       && (generatingChapterListMode === "full_volume" || generatingChapterListBeatKey === group.key);
     if (isGeneratingGroup) {
-      return <Badge>{i18next.t("gen.pages.novels.components.StructuredChapterListCard.gen_1ae3a984", "生成中")}</Badge>;
+      return <Badge>{i18next.t("dict.gen_1ae3a984")}</Badge>;
     }
     if (group.hasDraftContent) {
-      return <Badge variant="secondary">{i18next.t("gen.pages.novels.components.StructuredChapterListCard.gen_62f15392", "已有正文锁定")}</Badge>;
+      return <Badge variant="secondary">{i18next.t("novels.structuredChapterListCard.cr9lhw")}</Badge>;
     }
     if (group.chapters.length === 0) {
-      return <Badge variant="outline">{i18next.t("gen.pages.novels.components.StructuredChapterListCard.gen_418dde27", "待生成")}</Badge>;
+      return <Badge variant="outline">{i18next.t("dict.gen_418dde27")}</Badge>;
     }
     if (group.expectedCount > 0 && group.chapters.length !== group.expectedCount) {
-      return <Badge variant="outline">{i18next.t("gen.pages.novels.components.StructuredChapterListCard.gen_884f7a5d", "需重试")}</Badge>;
+      return <Badge variant="outline">{i18next.t("novels.structuredChapterListCard.mtsbs")}</Badge>;
     }
-    return <Badge variant="secondary">{i18next.t("gen.pages.novels.components.StructuredChapterListCard.gen_c2ad1f29", "已生成")}</Badge>;
+    return <Badge variant="secondary">{i18next.t("dict.gen_c2ad1f29")}</Badge>;
   }
 
   return (
@@ -157,7 +157,7 @@ export default function StructuredChapterListCard(props: StructuredChapterListCa
         <div className="space-y-3">
           <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
             <div>
-              <CardTitle className="text-base leading-none">{i18next.t("gen.pages.novels.components.StructuredChapterListCard.gen_6409cb19", "节奏 / 章节导航")}</CardTitle>
+              <CardTitle className="text-base leading-none">{i18next.t("novels.structuredChapterListCard.wj0qjw")}</CardTitle>
               <div className="mt-1 text-sm text-muted-foreground">
                 {selectedBeat
                   ? `当前聚焦「${formatBeatDisplayLabel(selectedBeat)}」。点击组头切换节奏，点击章节直接在右侧继续细化。`
@@ -197,7 +197,7 @@ export default function StructuredChapterListCard(props: StructuredChapterListCa
                 "rounded-full border px-3 py-1.5 transition-colors",
                 selectedBeatKey === "all" ? "border-primary/50 bg-primary/5 text-foreground" : "border-border/70 hover:border-primary/30",
               )}
-            >{i18next.t("gen.pages.novels.components.StructuredChapterListCard.gen_ee545f79", "全部节奏")}</button>
+            >{i18next.t("novels.structuredChapterListCard.avhmkt")}</button>
             <Badge variant="outline">显示 {visibleChapters.length}/{selectedVolumeChapters.length} 章</Badge>
             <Badge variant="outline">{visibleRefinedChapterCount}/{Math.max(visibleChapters.length, 1)} 已细化</Badge>
           </div>
@@ -277,7 +277,7 @@ export default function StructuredChapterListCard(props: StructuredChapterListCa
                             </button>
                           );
                         }) : (
-                          <div className="rounded-lg border border-dashed p-3 text-xs text-muted-foreground">{i18next.t("gen.pages.novels.components.StructuredChapterListCard.gen_34a7fe06", "该节奏段下暂时还没有映射到章节。")}</div>
+                          <div className="rounded-lg border border-dashed p-3 text-xs text-muted-foreground">{i18next.t("novels.structuredChapterListCard.fkzf6w")}</div>
                         )}
                       </div>
                     ) : null}
@@ -289,10 +289,10 @@ export default function StructuredChapterListCard(props: StructuredChapterListCa
                 <div className="rounded-xl border border-dashed p-3">
                   <div className="flex items-center justify-between gap-2">
                     <div className="flex flex-wrap items-center gap-2">
-                      <Badge variant="outline">{i18next.t("gen.pages.novels.components.StructuredChapterListCard.gen_6035b315", "未归入节奏段")}</Badge>
+                      <Badge variant="outline">{i18next.t("novels.structuredChapterListCard.vcx6p7")}</Badge>
                       <Badge variant="secondary">{unmatchedChapters.length}章</Badge>
                     </div>
-                    <span className="text-xs text-muted-foreground">{i18next.t("gen.pages.novels.components.StructuredChapterListCard.gen_b6c40f43", "这些章节暂时没有落到任何节奏段")}</span>
+                    <span className="text-xs text-muted-foreground">{i18next.t("novels.structuredChapterListCard.e6ehjv")}</span>
                   </div>
                   <div className="mt-3 space-y-2">
                     {unmatchedChapters.map((chapter) => {
@@ -323,7 +323,7 @@ export default function StructuredChapterListCard(props: StructuredChapterListCa
                             variant="ghost"
                             className="h-8 w-8 shrink-0 text-muted-foreground hover:text-destructive"
                             disabled={locked || selectedVolume.chapters.length <= 1}
-                            title={i18next.t("gen.pages.novels.components.StructuredChapterListCard.gen_cfd7b8b9", "删除这个未归入节奏段的章节")}
+                            title={i18next.t("novels.structuredChapterListCard.y173sq")}
                             onClick={() => {
                               const confirmed = window.confirm(`确认删除「${title}」？这只会从当前卷的章节拆分中移除该章节。`);
                               if (!confirmed) {
@@ -333,7 +333,7 @@ export default function StructuredChapterListCard(props: StructuredChapterListCa
                             }}
                           >
                             <Trash2 className="h-4 w-4" aria-hidden="true" />
-                            <span className="sr-only">{i18next.t("gen.pages.novels.components.StructuredChapterListCard.gen_cfd7b8b9", "删除这个未归入节奏段的章节")}</span>
+                            <span className="sr-only">{i18next.t("novels.structuredChapterListCard.y173sq")}</span>
                           </Button>
                         </div>
                       );

@@ -7,10 +7,10 @@ import { AUTO_DIRECTOR_MOBILE_CLASSES } from "@/mobile/autoDirector";
 export type SettingsSectionStatus = "required" | "enhancement" | "advanced" | "maintenance";
 
 const STATUS_LABELS: Record<SettingsSectionStatus, string> = {
-  required: i18next.t("gen.pages.settings.components.SettingsSectionGroup.gen_e7c25780"),
-  enhancement: i18next.t("gen.pages.settings.components.SettingsSectionGroup.gen_124a0559"),
-  advanced: i18next.t("gen.pages.settings.components.SettingsSectionGroup.gen_c72f1d50"),
-  maintenance: i18next.t("gen.pages.settings.components.SettingsSectionGroup.gen_e58e3369"),
+  required: i18next.t("dict.gen_e7c25780"),
+  enhancement: i18next.t("dict.gen_124a0559"),
+  advanced: i18next.t("dict.gen_c72f1d50"),
+  maintenance: i18next.t("dict.gen_e58e3369"),
 };
 
 export default function SettingsSectionGroup(props: {

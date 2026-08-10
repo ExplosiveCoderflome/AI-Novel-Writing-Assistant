@@ -1,5 +1,4 @@
 import i18next from "i18next";
-import { useTranslation } from "react-i18next";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { ReactNode } from "react";
 import {
@@ -77,14 +76,13 @@ const MODE_OPTIONS: Array<{
   label: string;
   icon: typeof Network;
 }> = [
-  { value: "all", label: "全部关系", icon: Network },
-  { value: "current", label: "当前角色", icon: RadioTower },
-  { value: "tension", label: "高张力", icon: AlertTriangle },
-  { value: "dynamic", label: "动态阶段", icon: GitBranch },
+  { value: "all", label: i18next.t("novels.characterRelationshipGraphPanel.av9h7s"), icon: Network },
+  { value: "current", label: i18next.t("novels.characterRelationshipGraphPanel.cdk1iy"), icon: RadioTower },
+  { value: "tension", label: i18next.t("novels.characterRelationshipGraphPanel.n54cz"), icon: AlertTriangle },
+  { value: "dynamic", label: i18next.t("novels.characterRelationshipGraphPanel.au3jo8"), icon: GitBranch },
 ];
 
 export default function CharacterRelationshipGraphPanel(props: CharacterRelationshipGraphPanelProps) {
-  const { t } = useTranslation();
   const { model, mode, onModeChange, selectedCharacterId, onSelectedCharacterChange, isLoading = false } = props;
   const [selection, setSelection] = useState<Selection | null>(null);
   const [interactiveNodes, setInteractiveNodes] = useState<RelationshipFlowNode[]>([]);
@@ -184,8 +182,8 @@ export default function CharacterRelationshipGraphPanel(props: CharacterRelation
 
   return (
     <FullscreenView
-      title={i18next.t("gen.pages.novels.components.characterWorkspace.CharacterRelationshipGraphPanel.gen_6606fcbf", "角色关系网")}
-      description={i18next.t("gen.pages.novels.components.characterWorkspace.CharacterRelationshipGraphPanel.gen_1059631b", "以图谱方式观察角色之间的压力、合作、秘密和下一转折点。")}
+      title={i18next.t("dict.gen_6606fcbf")}
+      description={i18next.t("novels.characterRelationshipGraphPanel.xvpisk")}
       meta={(
         <>
           <Badge variant="outline">{model.nodes.length} 个角色</Badge>
@@ -209,14 +207,14 @@ export default function CharacterRelationshipGraphPanel(props: CharacterRelation
           </Button>
         );
       })}
-      toggleLabel={i18next.t("gen.pages.novels.components.characterWorkspace.CharacterRelationshipGraphPanel.gen_a5901efd", "全屏查看")}
-      exitLabel={i18next.t("gen.pages.novels.components.characterWorkspace.CharacterRelationshipGraphPanel.gen_49041f24", "退出全屏")}
+      toggleLabel="全屏查看"
+      exitLabel="退出全屏"
       bodyClassName="grid min-h-[560px] gap-0 xl:grid-cols-[minmax(0,1fr)_340px]"
       fullscreenBodyClassName="h-full min-h-0 grid-cols-[minmax(0,1fr)_360px]"
     >
       <div className="h-full min-h-[520px] min-w-0 border-b border-border/60 bg-[radial-gradient(circle_at_20%_20%,rgba(14,165,233,0.08),transparent_28%),linear-gradient(180deg,hsl(var(--background))_0%,hsl(var(--muted)/0.24)_100%)] xl:border-b-0 xl:border-r">
           {isLoading ? (
-            <div className="flex h-full min-h-[520px] items-center justify-center text-sm text-muted-foreground">{i18next.t("gen.pages.novels.components.characterWorkspace.CharacterRelationshipGraphPanel.gen_1b243c5e", "正在读取角色关系网...")}</div>
+            <div className="flex h-full min-h-[520px] items-center justify-center text-sm text-muted-foreground">{i18next.t("novels.characterRelationshipGraphPanel.157uqt")}</div>
           ) : flowNodes.length > 0 ? (
             <ReactFlow<RelationshipFlowNode, RelationshipFlowEdge>
               nodes={interactiveNodes}
@@ -244,13 +242,13 @@ export default function CharacterRelationshipGraphPanel(props: CharacterRelation
               <Background color="hsl(var(--border))" gap={28} size={1} />
               <Panel position="top-left" className="rounded-xl border border-border/70 bg-background/90 px-3 py-2 text-xs text-muted-foreground shadow-sm">
                 <div className="flex flex-wrap gap-3">
-                  <span className="inline-flex items-center gap-1.5"><span className="h-0.5 w-6 bg-slate-500" />{i18next.t("gen.pages.novels.components.characterWorkspace.CharacterRelationshipGraphPanel.gen_9114fe73", "普通关系")}</span>
-                  <span className="inline-flex items-center gap-1.5"><span className="h-0.5 w-6 bg-orange-500" />{i18next.t("gen.pages.novels.components.characterWorkspace.CharacterRelationshipGraphPanel.gen_8dbec279", "高张力")}</span>
-                  <span className="inline-flex items-center gap-1.5"><span className="h-0.5 w-6 border-t-2 border-dashed border-sky-600" />{i18next.t("gen.pages.novels.components.characterWorkspace.CharacterRelationshipGraphPanel.gen_a7b813a0", "动态阶段")}</span>
+                  <span className="inline-flex items-center gap-1.5"><span className="h-0.5 w-6 bg-slate-500" />{i18next.t("novels.characterRelationshipGraphPanel.dilrv8")}</span>
+                  <span className="inline-flex items-center gap-1.5"><span className="h-0.5 w-6 bg-orange-500" />{i18next.t("novels.characterRelationshipGraphPanel.n54cz")}</span>
+                  <span className="inline-flex items-center gap-1.5"><span className="h-0.5 w-6 border-t-2 border-dashed border-sky-600" />{i18next.t("novels.characterRelationshipGraphPanel.au3jo8")}</span>
                 </div>
               </Panel>
               {mode === "current" ? (
-                <Panel position="bottom-left" className="rounded-xl border border-border/70 bg-background/90 px-3 py-2 text-xs text-muted-foreground shadow-sm">{i18next.t("gen.pages.novels.components.characterWorkspace.CharacterRelationshipGraphPanel.gen_4be74c70", "当前角色在左侧，直接关系向右展开；点击连线查看关系细节。")}</Panel>
+                <Panel position="bottom-left" className="rounded-xl border border-border/70 bg-background/90 px-3 py-2 text-xs text-muted-foreground shadow-sm">{i18next.t("novels.characterRelationshipGraphPanel.1qyacj")}</Panel>
               ) : null}
               <Controls showInteractive={false} position="bottom-right" />
             </ReactFlow>
@@ -317,7 +315,7 @@ function CharacterRelationshipNode(props: NodeProps) {
         </div>
         {isProtagonist ? (
           <span className="inline-flex shrink-0 items-center gap-1 rounded-full border border-emerald-200 bg-emerald-50 px-1.5 py-0.5 text-[10px] font-medium text-emerald-800">
-            <Sparkles className="h-2.5 w-2.5" />{i18next.t("gen.pages.novels.components.characterWorkspace.CharacterRelationshipGraphPanel.gen_976a3e8e", "核心")}</span>
+            <Sparkles className="h-2.5 w-2.5" />{i18next.t("novels.characterRelationshipGraphPanel.i93f")}</span>
         ) : null}
       </div>
       <div className="mt-3 line-clamp-2 min-h-[36px] text-xs leading-[18px] text-muted-foreground">
@@ -392,7 +390,7 @@ function RelationshipDetailPanel(props: {
       ) : selectedNode ? (
         <NodeDetail node={selectedNode} />
       ) : (
-        <div className="flex h-full min-h-[320px] items-center justify-center rounded-2xl border border-dashed p-6 text-center text-sm text-muted-foreground">{i18next.t("gen.pages.novels.components.characterWorkspace.CharacterRelationshipGraphPanel.gen_0c7f896a", "点击角色或关系线查看详情。")}</div>
+        <div className="flex h-full min-h-[320px] items-center justify-center rounded-2xl border border-dashed p-6 text-center text-sm text-muted-foreground">{i18next.t("novels.characterRelationshipGraphPanel.zea1ba")}</div>
       )}
     </aside>
   );
@@ -411,17 +409,17 @@ function NodeDetail(props: { node: RelationshipGraphNode }) {
         <div className="flex flex-wrap items-center gap-2">
           <div className="text-base font-semibold">{character.name}</div>
           <Badge variant="secondary">{getCastRoleLabel(character.castRole)}</Badge>
-          {isProtagonist ? <Badge className="border-emerald-200 bg-emerald-50 text-emerald-800" variant="outline">{i18next.t("gen.pages.novels.components.characterWorkspace.CharacterRelationshipGraphPanel.gen_a8abe813", "叙事核心")}</Badge> : null}
+          {isProtagonist ? <Badge className="border-emerald-200 bg-emerald-50 text-emerald-800" variant="outline">{i18next.t("novels.characterRelationshipGraphPanel.awqc4d")}</Badge> : null}
         </div>
         <div className="mt-2 text-sm leading-6 text-muted-foreground">{character.role || "未定义身份"}</div>
       </div>
-      <DetailBlock title={i18next.t("gen.pages.novels.components.characterWorkspace.CharacterRelationshipGraphPanel.gen_deb979f8", "当前目标")} value={character.currentGoal} />
-      <DetailBlock title={i18next.t("gen.pages.novels.components.characterWorkspace.CharacterRelationshipGraphPanel.gen_6bf1f392", "当前状态")} value={character.currentState} />
-      <DetailBlock title={i18next.t("gen.pages.novels.components.characterWorkspace.CharacterRelationshipGraphPanel.gen_c72a850f", "故事作用")} value={character.storyFunction} />
-      <DetailBlock title={i18next.t("gen.pages.novels.components.characterWorkspace.CharacterRelationshipGraphPanel.gen_e0646024", "与主角关系")} value={character.relationToProtagonist} />
+      <DetailBlock title={i18next.t("dict.gen_deb979f8")} value={character.currentGoal} />
+      <DetailBlock title={i18next.t("dict.gen_6bf1f392")} value={character.currentState} />
+      <DetailBlock title={i18next.t("novels.characterFocusSummary.d3q1ma")} value={character.storyFunction} />
+      <DetailBlock title={i18next.t("dict.relationWithProtagonist")} value={character.relationToProtagonist} />
       <div className="grid grid-cols-2 gap-2 text-xs">
-        <MiniStat icon={<UsersRound className="h-3.5 w-3.5" />} label={i18next.t("gen.pages.novels.components.characterWorkspace.CharacterRelationshipGraphPanel.gen_ef069f6d", "关系数")} value={String(props.node.relationCount)} />
-        <MiniStat icon={<GitBranch className="h-3.5 w-3.5" />} label={i18next.t("gen.pages.novels.components.characterWorkspace.CharacterRelationshipGraphPanel.gen_a7b813a0", "动态阶段")} value={String(props.node.dynamicCount)} />
+        <MiniStat icon={<UsersRound className="h-3.5 w-3.5" />} label={i18next.t("novels.characterRelationshipGraphPanel.cjamg")} value={String(props.node.relationCount)} />
+        <MiniStat icon={<GitBranch className="h-3.5 w-3.5" />} label={i18next.t("novels.characterRelationshipGraphPanel.au3jo8")} value={String(props.node.dynamicCount)} />
       </div>
     </div>
   );
@@ -437,22 +435,22 @@ function EdgeDetail(props: { edge: RelationshipGraphEdge }) {
       <div className="rounded-2xl border border-border/70 bg-muted/10 p-4">
         <div className="flex flex-wrap items-center gap-2">
           <div className="text-base font-semibold">{edge.label}</div>
-          {edge.isDynamic ? <Badge variant="secondary">{i18next.t("gen.pages.novels.components.characterWorkspace.CharacterRelationshipGraphPanel.gen_a7b813a0", "动态阶段")}</Badge> : null}
-          {edge.isHighTension ? <Badge variant="outline">{i18next.t("gen.pages.novels.components.characterWorkspace.CharacterRelationshipGraphPanel.gen_8dbec279", "高张力")}</Badge> : null}
+          {edge.isDynamic ? <Badge variant="secondary">{i18next.t("novels.characterRelationshipGraphPanel.au3jo8")}</Badge> : null}
+          {edge.isHighTension ? <Badge variant="outline">{i18next.t("novels.characterRelationshipGraphPanel.n54cz")}</Badge> : null}
         </div>
         <div className="mt-2 text-sm text-muted-foreground">
           {getRelationNames(edge)}
         </div>
       </div>
-      <DetailBlock title={i18next.t("gen.pages.novels.components.characterWorkspace.CharacterRelationshipGraphPanel.gen_71414076", "表层关系")} value={relation?.surfaceRelation} />
-      <DetailBlock title={i18next.t("gen.pages.novels.components.characterWorkspace.CharacterRelationshipGraphPanel.gen_ea328dc7", "当前阶段")} value={currentStage?.stageSummary ?? currentStage?.stageLabel} />
-      <DetailBlock title={i18next.t("gen.pages.novels.components.characterWorkspace.CharacterRelationshipGraphPanel.gen_881f5901", "隐藏张力")} value={relation?.hiddenTension} />
-      <DetailBlock title={i18next.t("gen.pages.novels.components.characterWorkspace.CharacterRelationshipGraphPanel.gen_7e5066b6", "冲突来源")} value={relation?.conflictSource} />
-      <DetailBlock title={i18next.t("gen.pages.novels.components.characterWorkspace.CharacterRelationshipGraphPanel.gen_5113255e", "秘密不对称")} value={relation?.secretAsymmetry} />
-      <DetailBlock title={i18next.t("gen.pages.novels.components.characterWorkspace.CharacterRelationshipGraphPanel.gen_7006c845", "下一转折点")} value={currentStage?.nextTurnPoint ?? relation?.nextTurnPoint} />
+      <DetailBlock title={i18next.t("novels.characterRelationshipGraphPanel.hlaaf6")} value={relation?.surfaceRelation} />
+      <DetailBlock title={i18next.t("dict.gen_ea328dc7")} value={currentStage?.stageSummary ?? currentStage?.stageLabel} />
+      <DetailBlock title={i18next.t("novels.characterRelationshipGraphPanel.jjphq2")} value={relation?.hiddenTension} />
+      <DetailBlock title={i18next.t("novels.characterRelationshipGraphPanel.ate97e")} value={relation?.conflictSource} />
+      <DetailBlock title={i18next.t("novels.characterRelationshipGraphPanel.8wkgcq")} value={relation?.secretAsymmetry} />
+      <DetailBlock title={i18next.t("novels.characterRelationshipGraphPanel.vgh0d4")} value={currentStage?.nextTurnPoint ?? relation?.nextTurnPoint} />
       <div className="grid grid-cols-2 gap-2 text-xs">
-        <MiniStat icon={<Sparkles className="h-3.5 w-3.5" />} label={i18next.t("gen.pages.novels.components.characterWorkspace.CharacterRelationshipGraphPanel.gen_7cfb85b5", "阶段数")} value={String(edge.dynamicStages.length)} />
-        <MiniStat icon={<AlertTriangle className="h-3.5 w-3.5" />} label={i18next.t("gen.pages.novels.components.characterWorkspace.CharacterRelationshipGraphPanel.gen_57846ffb", "风险")} value={edge.isHighTension ? "高" : "普通"} />
+        <MiniStat icon={<Sparkles className="h-3.5 w-3.5" />} label={i18next.t("novels.characterRelationshipGraphPanel.mixox")} value={String(edge.dynamicStages.length)} />
+        <MiniStat icon={<AlertTriangle className="h-3.5 w-3.5" />} label={i18next.t("dict.gen_57846ffb")} value={edge.isHighTension ? "高" : "普通"} />
       </div>
       {currentStage?.chapterOrder ? (
         <div className="rounded-xl border border-border/70 bg-background p-3 text-xs text-muted-foreground">
@@ -491,8 +489,8 @@ function EmptyGraphState() {
         <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-muted text-muted-foreground">
           <Network className="h-5 w-5" />
         </div>
-        <div className="mt-4 text-sm font-medium">{i18next.t("gen.pages.novels.components.characterWorkspace.CharacterRelationshipGraphPanel.gen_40c7827e", "关系网还没有可绘制内容")}</div>
-        <div className="mt-2 text-sm leading-6 text-muted-foreground">{i18next.t("gen.pages.novels.components.characterWorkspace.CharacterRelationshipGraphPanel.gen_7e239bca", "先应用一套角色阵容，或完成几章后同步角色动态；系统会把表层关系、隐藏张力和动态阶段汇总到这里。")}</div>
+        <div className="mt-4 text-sm font-medium">{i18next.t("novels.characterRelationshipGraphPanel.lej2dy")}</div>
+        <div className="mt-2 text-sm leading-6 text-muted-foreground">{i18next.t("novels.characterRelationshipGraphPanel.e2qdki")}</div>
       </div>
     </div>
   );

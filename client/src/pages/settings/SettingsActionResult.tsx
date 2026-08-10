@@ -1,4 +1,3 @@
-import i18next from "i18next";
 import { useTranslation } from "react-i18next";
 import { AUTO_DIRECTOR_MOBILE_CLASSES } from "@/mobile/autoDirector";
 

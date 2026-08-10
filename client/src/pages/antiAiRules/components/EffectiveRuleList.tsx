@@ -22,7 +22,7 @@ export default function EffectiveRuleList(props: EffectiveRuleListProps) {
               <div className="flex flex-wrap items-center gap-2">
                 <div className="font-medium text-foreground">{item.rule.name}</div>
                 <Badge variant={item.source === "global_baseline" ? "default" : "secondary"}>
-                  {item.source === "global_baseline" ? i18next.t("gen.pages.antiAiRules.components.EffectiveRuleList.gen_1c65ec9e") : i18next.t("gen.pages.antiAiRules.components.EffectiveRuleList.gen_ad46ae97")}
+                  {item.source === "global_baseline" ? i18next.t("dict.gen_1c65ec9e") : i18next.t("dict.gen_ad46ae97")}
                 </Badge>
                 <Badge variant="outline">{typeLabels[item.rule.type]} / {severityLabels[item.rule.severity]}</Badge>
               </div>
