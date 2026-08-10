@@ -85,11 +85,11 @@ AI 小说创作工作台是一套帮助你把灵感推进成长篇小说的创�
 
 ## 下载入口
 
-普通用户优先使用 Windows 桌面版：
+普通用户优先使用 Windows x64 或 Apple 芯片 Mac 桌面版：
 
-- 最新版本页：[GitHub Releases](https://github.com/ExplosiveCoderflome/AI-Novel-Writing-Assistant/releases/latest)
-- 建议优先下载安装版。
-- 不想安装时，可以选择 portable 版本直接运行。
+- 最新版本页：[GitHub Releases](https://github.com/yangtzehina/AI-Novel-Writing-Assistant/releases/latest)
+- Windows 建议优先下载安装版，不想安装时可选择 portable。
+- Apple 芯片 Mac 可选择 DMG 或 ZIP；未签名测试包需要手动更新。
 
 源码和项目仓库：
 

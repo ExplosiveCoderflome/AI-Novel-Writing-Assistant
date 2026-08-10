@@ -11,7 +11,9 @@ const {
   hashNamedFiles,
   parseBuilderCli,
   resolveAppBuilderLibDirectory,
+  resolveDesktopReleaseContract,
 } = require("./desktop-stage-contract.cjs");
+const { normalizePlatformSigningEnvironment } = require("./release-contract.cjs");
 
 const repoRoot = path.resolve(__dirname, "..", "..");
 const desktopDir = path.resolve(__dirname, "..");
@@ -20,53 +22,26 @@ const appDir = path.join(buildDir, "app");
 const resourcesDir = path.join(buildDir, "resources");
 const stageManifestPath = path.join(buildDir, "stage-manifest.json");
 
-function firstNonEmpty(...values) {
-  for (const value of values) {
-    if (typeof value === "string" && value.trim()) {
-      return value.trim();
-    }
+function normalizeBuildEnvironment(sourceEnv, options, releaseContract) {
+  const normalizedSigning = normalizePlatformSigningEnvironment({
+    platform: options.platform,
+    env: sourceEnv,
+  });
+  if (JSON.stringify(normalizedSigning.signing) !== JSON.stringify(releaseContract.signing)) {
+    throw new Error("Normalized signing status does not match the resolved desktop release contract.");
   }
-  return "";
-}
 
-function normalizeBuildEnvironment(sourceEnv, options) {
-  const env = { ...sourceEnv };
-  const allowUnsignedRelease =
-    firstNonEmpty(
-      env.AI_NOVEL_ALLOW_UNSIGNED_RELEASE,
-      env.AI_NOVEL_ALLOW_UNSIGNED_WINDOWS_RELEASE,
-    ).toLowerCase() === "true";
-  const signingLink = firstNonEmpty(
-    env.CSC_LINK,
-    env.WIN_CSC_LINK,
-    env.AI_NOVEL_WINDOWS_CSC_LINK,
-    env.AI_NOVEL_WINDOWS_CSC_FILE,
-  );
-  const signingPassword = firstNonEmpty(
-    env.CSC_KEY_PASSWORD,
-    env.WIN_CSC_KEY_PASSWORD,
-    env.AI_NOVEL_WINDOWS_CSC_KEY_PASSWORD,
-    env.AI_NOVEL_WINDOWS_CSC_PASSWORD,
-  );
-
+  const env = normalizedSigning.env;
   env.AI_NOVEL_TARGET_PLATFORM = options.platform;
-  env.AI_NOVEL_RELEASE_CHANNEL = options.mode === "stable" ? "latest" : "beta";
-  if (signingLink) {
-    env.CSC_LINK = signingLink;
-  }
-  if (signingPassword) {
-    env.CSC_KEY_PASSWORD = signingPassword;
-  }
-
-  const hasSigning = Boolean(signingLink);
-  if (options.platform === "win" && options.mode === "stable" && !hasSigning && !allowUnsignedRelease) {
-    throw new Error(
-      "Stable Windows desktop packages require signing material. Provide CSC_LINK/WIN_CSC_LINK, or explicitly allow an unsigned release.",
-    );
+  env.AI_NOVEL_RELEASE_MODE = options.mode;
+  env.AI_NOVEL_RELEASE_CHANNEL = releaseContract.updateChannel;
+  if (releaseContract.github) {
+    env.AI_NOVEL_GITHUB_OWNER = releaseContract.github.owner;
+    env.AI_NOVEL_GITHUB_REPO = releaseContract.github.repo;
   }
 
   console.log(
-    `[dist:desktop] platform=${options.platform} arch=${options.arch} mode=${options.mode} target=${options.target} publish=never signing=${hasSigning ? "configured" : allowUnsignedRelease ? "unsigned-opt-in" : "not-configured"}`,
+    `[dist:desktop] platform=${options.platform} arch=${options.arch} mode=${options.mode} target=${options.target} publish=never updates=${releaseContract.updatesEnabled ? "enabled" : "disabled"} signing=${normalizedSigning.signing.status} notarization=${normalizedSigning.signing.notarizationMethod || "none"}`,
   );
   return env;
 }
@@ -145,6 +120,13 @@ function main() {
   assertNativeTargetMatchesHost(options);
   assertExactToolchain(repoRoot, desktopDir);
   assertAllSymlinksWithinDirectory(appDir);
+  const releaseContract = resolveDesktopReleaseContract({
+    repoRoot,
+    desktopDir,
+    platform: options.platform,
+    mode: options.mode,
+    env: process.env,
+  });
 
   const expectedManifest = buildStageManifest({
     repoRoot,
@@ -154,6 +136,7 @@ function main() {
     platform: options.platform,
     arch: options.arch,
     mode: options.mode,
+    releaseContract,
   });
   assertStageManifestMatches(stageManifestPath, expectedManifest);
 
@@ -162,7 +145,7 @@ function main() {
     assertWindowsNsisTemplatePathsAreSafe(guardedFiles);
   }
   const hashesBeforeBuild = hashNamedFiles(guardedFiles);
-  const buildEnv = normalizeBuildEnvironment(process.env, options);
+  const buildEnv = normalizeBuildEnvironment(process.env, options, releaseContract);
 
   try {
     execFileSync(process.execPath, [resolveElectronBuilderCli(), ...electronBuilderArgs(options)], {

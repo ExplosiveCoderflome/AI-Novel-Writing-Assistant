@@ -10,11 +10,14 @@ const {
   assertPathWithinDirectory,
   assertStableHoistedPackage,
   buildStageManifest,
-  buildUpdateConfig,
   parseStageCli,
-  renderUpdateConfig,
+  resolveDesktopReleaseContract,
   resolvePackageDirectory,
 } = require("./desktop-stage-contract.cjs");
+const {
+  createPackageReleaseMetadata,
+  renderAppUpdateConfig,
+} = require("./release-contract.cjs");
 
 const repoRoot = path.resolve(__dirname, "..", "..");
 const desktopDir = path.resolve(__dirname, "..");
@@ -23,6 +26,7 @@ const buildDir = path.join(desktopDir, "build");
 const appDir = path.join(buildDir, "app");
 const resourcesDir = path.join(buildDir, "resources");
 const stageManifestPath = path.join(buildDir, "stage-manifest.json");
+const releaseContractPath = path.join(resourcesDir, "release-contract.json");
 const appUpdateConfigPath = path.join(resourcesDir, "app-update.yml");
 const clientSourceDir = path.join(repoRoot, "client", "dist");
 const clientTargetDir = path.join(resourcesDir, "client", "dist");
@@ -63,9 +67,20 @@ function replaceFileContents(targetPath, contents) {
   fs.writeFileSync(targetPath, contents, "utf8");
 }
 
-function writeDesktopUpdaterConfig(mode) {
-  const updateConfig = buildUpdateConfig(mode, process.env);
-  fs.writeFileSync(appUpdateConfigPath, renderUpdateConfig(updateConfig), "utf8");
+function declareStagedPackageManager() {
+  const packageJsonPath = path.join(appDir, "package.json");
+  const packageJson = JSON.parse(fs.readFileSync(packageJsonPath, "utf8"));
+  packageJson.packageManager = "pnpm@10.6.0";
+  replaceFileContents(packageJsonPath, `${JSON.stringify(packageJson, null, 2)}\n`);
+}
+
+function writeDesktopReleaseArtifacts(releaseContract) {
+  const packageMetadata = createPackageReleaseMetadata(releaseContract);
+  fs.writeFileSync(releaseContractPath, `${JSON.stringify(packageMetadata, null, 2)}\n`, "utf8");
+  fs.rmSync(appUpdateConfigPath, { force: true });
+  if (releaseContract.updatesEnabled) {
+    fs.writeFileSync(appUpdateConfigPath, renderAppUpdateConfig(releaseContract), "utf8");
+  }
 }
 
 function resolveWorkspaceGeneratedPrismaClientDir() {
@@ -108,11 +123,16 @@ function syncPrismaRuntime() {
   }
 }
 
-function validateStagedLayout() {
+function validateStagedLayout(releaseContract) {
   assertExists(desktopMainEntry, "desktop main bundle");
   assertExists(serverEntry, "bundled server entry");
   assertExists(path.join(clientTargetDir, "index.html"), "bundled renderer entry");
-  assertExists(appUpdateConfigPath, "desktop updater configuration");
+  assertExists(releaseContractPath, "packaged desktop release metadata");
+  if (releaseContract.updatesEnabled) {
+    assertExists(appUpdateConfigPath, "desktop updater configuration");
+  } else if (fs.existsSync(appUpdateConfigPath)) {
+    throw new Error("app-update.yml must not exist when updates are disabled.");
+  }
   assertExists(
     path.join(stagedNodeModulesDir, ".prisma", "client", "default.js"),
     "stable hoisted generated Prisma runtime",
@@ -134,6 +154,13 @@ function main() {
   assertNativeTargetMatchesHost(options);
   assertExactToolchain(repoRoot, desktopDir);
   assertExists(clientSourceDir, "built client assets");
+  const releaseContract = resolveDesktopReleaseContract({
+    repoRoot,
+    desktopDir,
+    platform: options.platform,
+    mode: options.mode,
+    env: process.env,
+  });
 
   ensureCleanDir(buildDir);
   ensureDir(resourcesDir);
@@ -147,16 +174,18 @@ function main() {
     appDir,
   ]);
 
+  declareStagedPackageManager();
   copyDirectory(clientSourceDir, clientTargetDir);
-  writeDesktopUpdaterConfig(options.mode);
+  writeDesktopReleaseArtifacts(releaseContract);
   syncPrismaRuntime();
-  validateStagedLayout();
+  validateStagedLayout(releaseContract);
 
   const stageManifest = buildStageManifest({
     repoRoot,
     desktopDir,
     appDir,
     resourcesDir,
+    releaseContract,
     ...options,
   });
   fs.writeFileSync(stageManifestPath, `${JSON.stringify(stageManifest, null, 2)}\n`, "utf8");

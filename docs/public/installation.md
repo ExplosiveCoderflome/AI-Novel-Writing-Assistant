@@ -1,18 +1,18 @@
 # 安装与准备
 
-这篇文档帮助你在 Windows 上准备 AI 小说创作工作台，并确认模型、存储和知识库能力是否可用。
+这篇文档帮助你在 Windows x64 或 Apple 芯片 Mac 上准备 AI 小说创作工作台，并确认模型、存储和知识库能力是否可用。
 
 ## 推荐安装方式
 
 普通用户优先使用 GitHub Releases 页面提供的桌面版：
 
-1. 打开 [GitHub Releases](https://github.com/ExplosiveCoderflome/AI-Novel-Writing-Assistant/releases/latest)。
-2. 下载 Windows 安装包或 portable 包。
+1. 打开 [GitHub Releases](https://github.com/yangtzehina/AI-Novel-Writing-Assistant/releases/latest)。
+2. Windows 下载安装包或 portable 包；Apple 芯片 Mac 下载 DMG 或 ZIP。
 3. 运行应用，进入系统设置。
 4. 配置至少一个可用模型供应商。
 5. 创建一本测试小说，跑通新手上路。
 
-安装版适合长期使用；portable 版适合临时试用或放在独立目录中运行。
+Windows 安装版适合长期使用，portable 版适合临时试用或放在独立目录中运行。macOS 未签名测试包不会启用应用内自动更新，需要从 Releases 手动下载新版。
 
 ## 首次启动前准备
 

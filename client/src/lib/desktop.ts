@@ -11,6 +11,7 @@ export type DesktopUpdaterStatus =
   | "downloaded"
   | "not-available"
   | "error";
+export type DesktopUpdateChannel = "beta" | "latest" | "disabled";
 
 export interface DesktopBootstrapSnapshot {
   state: DesktopBootstrapState;
@@ -30,7 +31,7 @@ export interface DesktopUpdaterSnapshot {
   availableVersion: string | null;
   progressPercent: number | null;
   bytesPerSecond: number | null;
-  channel: string;
+  channel: DesktopUpdateChannel;
   isPortable: boolean;
   isPackaged: boolean;
   isSupported: boolean;
@@ -71,7 +72,7 @@ const DEFAULT_UPDATER_SNAPSHOT: DesktopUpdaterSnapshot = {
   availableVersion: null,
   progressPercent: null,
   bytesPerSecond: null,
-  channel: "beta",
+  channel: "disabled",
   isPortable: false,
   isPackaged: false,
   isSupported: false,

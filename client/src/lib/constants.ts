@@ -1,5 +1,6 @@
 const LOOPBACK_HOSTS = new Set(["localhost", "127.0.0.1", "::1"]);
 type AppRuntimeMode = "web" | "desktop";
+type DesktopUpdateChannel = "beta" | "latest" | "disabled";
 type ViteRuntimeEnv = Partial<ImportMetaEnv> & {
   DEV?: boolean;
   VITE_API_BASE_URL?: string;
@@ -15,7 +16,7 @@ interface ClientRuntimeConfig {
   isPackaged?: boolean;
   appVersion?: string;
   isPortable?: boolean;
-  updateChannel?: string;
+  updateChannel?: DesktopUpdateChannel;
 }
 
 function isLoopbackHost(hostname: string | null | undefined): boolean {
@@ -50,7 +51,7 @@ export const APP_RUNTIME: AppRuntimeMode = resolveAppRuntime(runtimeConfig);
 export const APP_RUNTIME_IS_PACKAGED = runtimeConfig.isPackaged === true;
 export const APP_VERSION = runtimeConfig.appVersion?.trim() || viteAppVersion?.trim() || "0.0.0";
 export const APP_RUNTIME_IS_PORTABLE = runtimeConfig.isPortable === true;
-export const APP_UPDATE_CHANNEL = runtimeConfig.updateChannel?.trim() || "beta";
+export const APP_UPDATE_CHANNEL: DesktopUpdateChannel = runtimeConfig.updateChannel || "disabled";
 
 interface ResolveApiBaseUrlInput {
   runtimeConfig?: ClientRuntimeConfig;

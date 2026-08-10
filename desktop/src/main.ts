@@ -15,11 +15,14 @@ import {
   resolveDesktopAppDataDir,
   resolveDesktopLogsDir,
   resolveDesktopRuntimeConfig,
-  resolveDesktopUpdateChannel,
   resolveDesktopWindowIcon,
   resolveRendererDevUrl,
   resolveRendererIndexHtml,
 } from "./runtime/paths";
+import {
+  resolveDesktopReleaseMetadata,
+  type DesktopReleaseMetadata,
+} from "./runtime/releaseMetadata";
 import {
   createBootstrapSnapshot,
   desktopBootstrapStore,
@@ -36,6 +39,7 @@ let mainWindow: BrowserWindow | null = null;
 let splashWindow: BrowserWindow | null = null;
 let stopServer: (() => Promise<void>) | null = null;
 let updaterController: DesktopUpdaterController | null = null;
+let desktopReleaseMetadata: DesktopReleaseMetadata | null = null;
 let desktopServerPort: number | null = null;
 let rendererReady = false;
 let appShellReady = false;
@@ -82,6 +86,18 @@ function closeSplashWindow(): void {
   splashWindow = null;
 }
 
+function getDesktopReleaseMetadata(): DesktopReleaseMetadata {
+  if (!desktopReleaseMetadata) {
+    desktopReleaseMetadata = resolveDesktopReleaseMetadata({
+      isPackaged: app.isPackaged,
+      appPath: app.getAppPath(),
+      appVersion: app.getVersion(),
+      platform: process.platform,
+    });
+  }
+  return desktopReleaseMetadata;
+}
+
 function initializeDesktopUpdaterController(): void {
   if (updaterController) {
     return;
@@ -89,7 +105,7 @@ function initializeDesktopUpdaterController(): void {
 
   updaterController = initializeDesktopUpdater({
     currentVersion: app.getVersion(),
-    updateChannel: resolveDesktopUpdateChannel(),
+    releaseMetadata: getDesktopReleaseMetadata(),
     isPackaged: app.isPackaged,
     isPortable: isPortableDesktopRuntime(),
   });
@@ -164,7 +180,7 @@ function createMainWindow(port: number): BrowserWindow {
     port,
     isPackaged: app.isPackaged,
     appVersion: app.getVersion(),
-    updateChannel: resolveDesktopUpdateChannel(),
+    releaseMetadata: getDesktopReleaseMetadata(),
   });
   process.env.AI_NOVEL_DESKTOP_RUNTIME = JSON.stringify(runtimeConfig);
   const windowIcon = resolveDesktopWindowIcon();

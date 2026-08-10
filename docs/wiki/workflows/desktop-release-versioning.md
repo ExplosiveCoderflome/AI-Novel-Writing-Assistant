@@ -8,19 +8,31 @@
 
 - `desktop/package.json` 的 `version` 是桌面客户端唯一版本源。
 - 前端网页开发态从 Vite 注入的 `VITE_APP_VERSION` 读取该版本，桌面运行态优先读取 Electron runtime 提供的 `appVersion`。
-- 正式发布 tag 必须是 `vX.Y.Z`，并且 `X.Y.Z` 必须等于 `desktop/package.json` 的 `version`。
+- Stable 版本只允许 `X.Y.Z`，tag 必须是 `vX.Y.Z`，且 tag commit 必须属于 `main` 历史。
+- Beta 版本只允许 `X.Y.Z-beta.N`，tag 必须是 `vX.Y.Z-beta.N`，且 tag commit 必须属于 `beta` 历史；不接受其他 prerelease 标签。
 - 不在 UI、README 或发布脚本中硬编码另一个客户端版本号。
 - GitHub 桌面发布 workflow 必须使用 Node 24 运行时和 Node 24 代际的官方 action，不再依赖 `FORCE_JAVASCRIPT_ACTIONS_TO_NODE24` 去强制旧 Node 20 action。
 - 桌面更新状态以 Electron runtime 投影为唯一事实来源；工作区顶部入口、更新弹窗、启动页和系统设置只负责以不同密度展示同一份状态，不各自推断更新结果。
 - 工作区顶部版本号是日常更新入口。发现新版本、下载中或等待重启时，入口必须直接显示对应状态；系统设置保留完整详情，但不能作为唯一入口。
 - 面向用户的更新状态、错误说明和操作按钮使用中文；底层错误详情写入桌面日志，不把英文异常原文直接暴露给用户。
 
+## Release And Update Contract
+
+- `verify` 只用于 CI 和本地验证，不对应 tag 或 GitHub Release，更新通道固定为 `disabled`。
+- `X.Y.Z-beta.N` 对应 GitHub prerelease、`beta` 更新通道及 `beta.yml`；签名 Mac 额外生成 `beta-mac.yml`。
+- `X.Y.Z` 对应正式 GitHub Release、`latest` 更新通道及 `latest.yml`；签名 Mac 额外生成 `latest-mac.yml`。
+- 公开发布仓库必须解析为 `yangtzehina/AI-Novel-Writing-Assistant`。解析优先级为显式完整 owner/repo、`GITHUB_REPOSITORY`、仓库 metadata；发布路径不允许静默回退到上游仓库。
+- 打包 metadata 必须显式写入 `releaseMode`、`updateChannel`、`updatesEnabled` 和 `signingStatus`。运行时只从这份 metadata 初始化 updater，不再默认猜测 Beta。
+- Windows 证书必须成对提供；完全缺失时允许输出带 `-unsigned` 标识的公开包，并保留 Windows 更新 feed。只提供一半证书配置时立即失败。
+- macOS Developer ID 和公证凭据必须完整提供；完整时签名、公证并保留 DMG + ZIP 更新目标。完全缺失时允许输出带 `-unsigned` 标识的 DMG/ZIP，但不打入 `app-update.yml`、不生成 Mac feed，运行时显示自动更新不可用。部分或歧义配置立即失败。
+- Electron builder job 永远使用 `--publish never`。GitHub Release 资产只能由独立、单一 publisher job 上传和公开。
+
 ## Release Steps
 
-1. 发新版桌面包前，先运行 `pnpm release:desktop:bump X.Y.Z` 更新 `desktop/package.json`。
+1. 发新版桌面包前，运行 `pnpm release:desktop:bump X.Y.Z` 或 `pnpm release:desktop:bump X.Y.Z-beta.N` 更新 `desktop/package.json`。
 2. 更新用户可见 release notes 和 README 最新更新，说明该版本面向用户的变化。
-3. 合入 `main` 后运行 `node scripts/trigger-desktop-release.cjs --dry-run`，确认工作区、分支和 tag 规则都通过。
-4. 只使用与 `desktop/package.json` 对齐的 `vX.Y.Z` tag 触发正式 GitHub Release。
+3. Beta 合入 `beta`、Stable 合入 `main` 后运行 `node scripts/trigger-desktop-release.cjs --dry-run`，确认工作区、分支归属和精确 tag 规则都通过。
+4. 只使用与 `desktop/package.json` 完全对齐的 `vX.Y.Z-beta.N` 或 `vX.Y.Z` tag 触发 GitHub Release；Beta 必须标记 prerelease，Stable 才能标记 latest。
 
 ## Desktop Staging Invariants
 
@@ -34,8 +46,9 @@
 ## Failure Modes
 
 - 如果界面顶部显示版本和安装包文件名不一致，先检查打包所用 commit 的 `desktop/package.json`，不要在前端组件里补一个临时版本。
-- 如果 GitHub Release tag 已存在，不能复用同一个版本重新上传；应继续 bump 到新的 `X.Y.Z`。
+- 如果 GitHub Release 已公开，不能复用同一个 tag 覆盖资产；应继续 bump 到新的 Stable 或 Beta 版本。未公开 draft 只能由同一次发布重跑复用。
 - 如果发版前只更新 release notes 但没有 bump 桌面版本，自动更新链路会把新包识别成旧版本，必须先修正版本源再发布。
+- 如果无签名 macOS 包出现 `app-update.yml`、`beta-mac.yml` 或 `latest-mac.yml`，说明签名合同被绕过，必须阻断发布。
 - 如果 GitHub Actions 提示某个 action 仍在使用 Node 20，应优先升级该 action 的 major 版本，而不是重新加入强制运行时环境变量。
 
 ## Related Modules

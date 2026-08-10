@@ -1,6 +1,6 @@
 const fs = require("node:fs");
-const https = require("node:https");
 const path = require("node:path");
+const { parseDesktopReleaseVersion } = require("../desktop/scripts/release-contract.cjs");
 
 const repoRoot = path.resolve(__dirname, "..");
 const desktopPackagePath = path.join(repoRoot, "desktop", "package.json");
@@ -17,20 +17,40 @@ function firstNonEmpty(...values) {
 
 function parseArgs(argv) {
   const options = {
-    dryRun: false,
     help: false,
+    outputMode: "stdout",
+    writeBodyPath: "",
   };
+  let outputWasExplicit = false;
 
-  for (const arg of argv) {
-    if (arg === "--dry-run") {
-      options.dryRun = true;
-      continue;
-    }
+  for (let index = 0; index < argv.length; index += 1) {
+    const arg = argv[index];
     if (arg === "--help" || arg === "-h") {
       options.help = true;
       continue;
     }
-
+    if (arg === "--stdout" || arg === "--dry-run") {
+      if (outputWasExplicit && options.outputMode !== "stdout") {
+        throw new Error("Choose either stdout rendering or --write-body, not both.");
+      }
+      options.outputMode = "stdout";
+      outputWasExplicit = true;
+      continue;
+    }
+    if (arg === "--write-body") {
+      const outputPath = argv[index + 1];
+      if (!outputPath || outputPath.startsWith("--")) {
+        throw new Error("--write-body requires a file path.");
+      }
+      if (outputWasExplicit) {
+        throw new Error("Choose either stdout rendering or --write-body, not both.");
+      }
+      options.outputMode = "file";
+      options.writeBodyPath = outputPath;
+      outputWasExplicit = true;
+      index += 1;
+      continue;
+    }
     throw new Error(`Unknown argument: ${arg}`);
   }
 
@@ -39,43 +59,31 @@ function parseArgs(argv) {
 
 function printHelp() {
   console.log([
-    "Usage: node scripts/update-desktop-release-notes.cjs [--dry-run]",
+    "Usage: node scripts/update-desktop-release-notes.cjs [--stdout | --write-body <path>]",
     "",
-    "Reads the date block for the current desktop/package.json version and writes",
-    "it to the matching GitHub Release. Falls back to the latest date block.",
+    "Renders the date-based release notes for desktop/package.json without calling GitHub.",
+    "--dry-run remains available as a compatibility alias for --stdout.",
+    "Both X.Y.Z and X.Y.Z-beta.N desktop versions are supported.",
   ].join("\n"));
 }
 
-function readDesktopVersion() {
-  const packageJson = JSON.parse(fs.readFileSync(desktopPackagePath, "utf8"));
+function readDesktopVersion(packagePath = desktopPackagePath) {
+  const packageJson = JSON.parse(fs.readFileSync(packagePath, "utf8"));
   const version = typeof packageJson.version === "string" ? packageJson.version.trim() : "";
-  if (!/^\d+\.\d+\.\d+$/.test(version)) {
+  return parseDesktopReleaseVersion(version).version;
+}
+
+function resolveReleaseTag(version, refName = "") {
+  const parsedVersion = parseDesktopReleaseVersion(version);
+  const expectedTag = `v${parsedVersion.version}`;
+  const configuredRefName = firstNonEmpty(refName);
+  if (configuredRefName && configuredRefName !== expectedTag) {
     throw new Error(
-      `desktop/package.json version must be stable semver like 0.3.3, got ${version || "(empty)"}.`,
+      `Desktop release tag must exactly match ${expectedTag}; got ${configuredRefName}. `
+      + "Prefixes such as desktop-v* are not supported.",
     );
   }
-  return version;
-}
-
-function resolveReleaseTag(version) {
-  const refName = firstNonEmpty(process.env.GITHUB_REF_NAME);
-  if (/^v\d+\.\d+\.\d+$/.test(refName)) {
-    return refName;
-  }
-  return `v${version}`;
-}
-
-function extractVersionReleaseNoteBlock(markdown, version) {
-  const headingPattern = /^## v(\d+\.\d+\.\d+)(?:[^\n]*)$/gm;
-  const headings = [...markdown.matchAll(headingPattern)];
-  const heading = headings.find((candidate) => candidate[1] === version);
-  if (!heading) {
-    return null;
-  }
-  const headingIndex = headings.indexOf(heading);
-  const nextHeading = headings[headingIndex + 1];
-  const blockEnd = nextHeading ? nextHeading.index : markdown.length;
-  return markdown.slice(heading.index, blockEnd).trim();
+  return expectedTag;
 }
 
 function extractDatedReleaseNoteBlocks(markdown) {
@@ -93,23 +101,20 @@ function extractDatedReleaseNoteBlocks(markdown) {
   });
 }
 
-function extractReleaseNotesForVersion(markdown, version) {
-  const versionBlock = extractVersionReleaseNoteBlock(markdown, version);
-  if (versionBlock) {
-    return versionBlock;
-  }
+function escapeRegExp(value) {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
 
+function extractReleaseNotesForVersion(markdown, version) {
+  const parsedVersion = parseDesktopReleaseVersion(version);
   const blocks = extractDatedReleaseNoteBlocks(markdown);
-  const versionPattern = new RegExp(`(^|[^\\d])v?${version.replace(/\./g, "\\.")}([^\\d]|$)`);
-  const datedVersionBlock = blocks.find((block) => versionPattern.test(block));
-  const block = datedVersionBlock || blocks[0];
-  if (!block) {
-    throw new Error("Latest release notes block is empty.");
-  }
-  return block;
+  const escapedVersion = escapeRegExp(parsedVersion.version);
+  const versionPattern = new RegExp(`(^|[^0-9A-Za-z.-])v?${escapedVersion}(?=$|[^0-9A-Za-z.-])`);
+  return blocks.find((block) => versionPattern.test(block)) || blocks[0];
 }
 
 function buildReleaseBody(version, notesBlock) {
+  const parsedVersion = parseDesktopReleaseVersion(version);
   return [
     "## 本版本更新说明",
     "",
@@ -117,121 +122,61 @@ function buildReleaseBody(version, notesBlock) {
     "",
     "---",
     "",
-    `桌面客户端版本：v${version}`,
+    `桌面客户端版本：v${parsedVersion.version}`,
   ].join("\n");
 }
 
-function githubRequest({ owner, repo, token, method, path: requestPath, body }) {
-  const payload = body == null ? null : JSON.stringify(body);
-  const headers = {
-    Accept: "application/vnd.github+json",
-    Authorization: `Bearer ${token}`,
-    "User-Agent": "ai-novel-desktop-release-notes",
-    "X-GitHub-Api-Version": "2022-11-28",
-  };
-
-  if (payload != null) {
-    headers["Content-Type"] = "application/json";
-    headers["Content-Length"] = Buffer.byteLength(payload);
-  }
-
-  return new Promise((resolve, reject) => {
-    const request = https.request({
-      hostname: "api.github.com",
-      method,
-      path: `/repos/${owner}/${repo}${requestPath}`,
-      headers,
-    }, (response) => {
-      let responseBody = "";
-      response.setEncoding("utf8");
-      response.on("data", (chunk) => {
-        responseBody += chunk;
-      });
-      response.on("end", () => {
-        let parsed = null;
-        if (responseBody) {
-          try {
-            parsed = JSON.parse(responseBody);
-          } catch (_error) {
-            parsed = responseBody;
-          }
-        }
-
-        if (response.statusCode < 200 || response.statusCode >= 300) {
-          reject(new Error(`GitHub API ${method} ${requestPath} failed with ${response.statusCode}: ${responseBody}`));
-          return;
-        }
-
-        resolve(parsed);
-      });
-    });
-
-    request.on("error", reject);
-    if (payload != null) {
-      request.write(payload);
-    }
-    request.end();
-  });
+function renderReleaseBody({
+  packagePath = desktopPackagePath,
+  notesPath = releaseNotesPath,
+  refName = process.env.GITHUB_REF_NAME,
+} = {}) {
+  const version = readDesktopVersion(packagePath);
+  resolveReleaseTag(version, refName);
+  const markdown = fs.readFileSync(notesPath, "utf8");
+  const notesBlock = extractReleaseNotesForVersion(markdown, version);
+  return buildReleaseBody(version, notesBlock);
 }
 
-async function main() {
-  const options = parseArgs(process.argv.slice(2));
+function main({
+  argv = process.argv.slice(2),
+  cwd = process.cwd(),
+  packagePath = desktopPackagePath,
+  notesPath = releaseNotesPath,
+  refName = process.env.GITHUB_REF_NAME,
+} = {}) {
+  const options = parseArgs(argv);
   if (options.help) {
     printHelp();
     return;
   }
 
-  const version = readDesktopVersion();
-  const tagName = resolveReleaseTag(version);
-  const releaseNotes = extractReleaseNotesForVersion(fs.readFileSync(releaseNotesPath, "utf8"), version);
-  const body = buildReleaseBody(version, releaseNotes);
-
-  const owner = firstNonEmpty(process.env.AI_NOVEL_GITHUB_OWNER, process.env.GITHUB_REPOSITORY_OWNER);
-  const repo = firstNonEmpty(
-    process.env.AI_NOVEL_GITHUB_REPO,
-    process.env.GITHUB_REPOSITORY && process.env.GITHUB_REPOSITORY.split("/")[1],
-  );
-  const token = firstNonEmpty(process.env.GH_TOKEN, process.env.GITHUB_TOKEN);
-
-  console.log(`[desktop-release-notes] tag=${tagName}`);
-  console.log(`[desktop-release-notes] version=${version}`);
-
-  if (options.dryRun) {
-    console.log(body);
+  const body = renderReleaseBody({ packagePath, notesPath, refName });
+  if (options.outputMode === "file") {
+    const outputPath = path.resolve(cwd, options.writeBodyPath);
+    fs.writeFileSync(outputPath, `${body}\n`, "utf8");
     return;
   }
-
-  if (!owner || !repo) {
-    throw new Error("GitHub owner/repo is missing. Set AI_NOVEL_GITHUB_OWNER and AI_NOVEL_GITHUB_REPO.");
-  }
-  if (!token) {
-    throw new Error("GitHub token is missing. Set GH_TOKEN or GITHUB_TOKEN.");
-  }
-
-  const release = await githubRequest({
-    owner,
-    repo,
-    token,
-    method: "GET",
-    path: `/releases/tags/${encodeURIComponent(tagName)}`,
-  });
-
-  await githubRequest({
-    owner,
-    repo,
-    token,
-    method: "PATCH",
-    path: `/releases/${release.id}`,
-    body: {
-      body,
-      name: version,
-    },
-  });
-
-  console.log(`[desktop-release-notes] updated GitHub Release ${tagName}.`);
+  process.stdout.write(`${body}\n`);
 }
 
-main().catch((error) => {
-  console.error(`[desktop-release-notes] ${error.message}`);
-  process.exit(1);
-});
+if (require.main === module) {
+  try {
+    main();
+  } catch (error) {
+    console.error(`[desktop-release-notes] ${error.message}`);
+    process.exit(1);
+  }
+}
+
+module.exports = {
+  buildReleaseBody,
+  escapeRegExp,
+  extractDatedReleaseNoteBlocks,
+  extractReleaseNotesForVersion,
+  main,
+  parseArgs,
+  readDesktopVersion,
+  renderReleaseBody,
+  resolveReleaseTag,
+};

@@ -1,5 +1,6 @@
 import { EventEmitter } from "node:events";
 import { resolveDesktopLogsDir, resolveDesktopMainLogFile } from "./paths";
+import type { DesktopUpdateChannel } from "./releaseMetadata";
 
 export type DesktopBootstrapState = "launching" | "starting-server" | "loading-ui" | "ready" | "error";
 export type DesktopBootstrapStage =
@@ -40,7 +41,7 @@ export interface DesktopUpdaterSnapshot {
   availableVersion: string | null;
   progressPercent: number | null;
   bytesPerSecond: number | null;
-  channel: string;
+  channel: DesktopUpdateChannel;
   isPortable: boolean;
   isPackaged: boolean;
   isSupported: boolean;
@@ -124,7 +125,7 @@ export const desktopUpdaterStore = new SnapshotStore<DesktopUpdaterSnapshot>(
     availableVersion: null,
     progressPercent: null,
     bytesPerSecond: null,
-    channel: "beta",
+    channel: "disabled",
     isPortable: false,
     isPackaged: false,
     isSupported: false,

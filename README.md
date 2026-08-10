@@ -28,13 +28,14 @@
 
 适合**完全不懂写作的新手**走完一本长篇，也适合研究 AI Native 应用、Agent Workflow、LangGraph 编排和长链路任务的开发者参考。
 
-## Windows 桌面版
+## 桌面版（Windows / macOS）
 
 如果你只是想直接下载安装并开始使用，优先从桌面版入口进入：
 
-- 下载入口：[GitHub Releases](https://github.com/ExplosiveCoderflome/AI-Novel-Writing-Assistant/releases)
-- 最新版本页：[Latest Release](https://github.com/ExplosiveCoderflome/AI-Novel-Writing-Assistant/releases/latest)
-- 建议优先下载 `Setup.exe` 安装版；如果你不想安装，或者想放在 U 盘 / 临时目录里直接运行，再选择 `portable` 版本
+- 下载入口：[GitHub Releases](https://github.com/yangtzehina/AI-Novel-Writing-Assistant/releases)
+- 最新版本页：[Latest Release](https://github.com/yangtzehina/AI-Novel-Writing-Assistant/releases/latest)
+- Windows x64 建议优先下载 `Setup.exe`；不想安装或需要放在独立目录时可选 `portable`。
+- Apple 芯片 Mac 可下载 DMG 或 ZIP；未签名测试包需要手动更新，应用内会显示自动更新不可用。
 - 公开介绍站：[GitHub Pages 介绍站](https://explosivecoderflome.github.io/AI-Novel-Writing-Assistant/) 提供功能预览、模块文档和使用指南
 
 ## 用 Codex 持续创作长篇：Ani Book Skill
@@ -153,7 +154,8 @@
 
 - 桌面版新增 macOS Apple 芯片安装包构建能力，可同时生成 DMG 与 ZIP；Windows x64 构建继续保留。
 - macOS 上关闭主窗口后，点击 Dock 图标即可重新打开应用。
-- 两个平台会使用各自适配的图标和安装包配置，为后续双平台测试与发布做好准备。
+- 桌面公开 Beta 采用统一版本与下载规则；Windows x64 与 macOS Apple 芯片安装包会在同一个版本下提供。
+- 未签名的 macOS 测试包仍可手动下载，但应用内会明确提示自动更新不可用；签名与公证完成后才会启用 macOS 自动更新。
 
 > 查看完整更新历史：[docs/releases/release-notes.md](./docs/releases/release-notes.md)
 

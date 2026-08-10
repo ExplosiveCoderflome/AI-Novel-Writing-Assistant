@@ -17,7 +17,7 @@ interface Window {
     isPackaged?: boolean;
     appVersion?: string;
     isPortable?: boolean;
-    updateChannel?: string;
+    updateChannel?: "beta" | "latest" | "disabled";
   };
   __AI_NOVEL_DESKTOP__?: {
     getBootstrapSnapshot?: () => Promise<{
@@ -58,7 +58,7 @@ interface Window {
       availableVersion: string | null;
       progressPercent: number | null;
       bytesPerSecond: number | null;
-      channel: string;
+      channel: "beta" | "latest" | "disabled";
       isPortable: boolean;
       isPackaged: boolean;
       isSupported: boolean;
@@ -74,7 +74,7 @@ interface Window {
         availableVersion: string | null;
         progressPercent: number | null;
         bytesPerSecond: number | null;
-        channel: string;
+        channel: "beta" | "latest" | "disabled";
         isPortable: boolean;
         isPackaged: boolean;
         isSupported: boolean;

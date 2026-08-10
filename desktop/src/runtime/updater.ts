@@ -2,7 +2,9 @@ import fs from "node:fs";
 import path from "node:path";
 import { autoUpdater } from "electron-updater";
 import { appendDesktopLog, logDesktopError } from "./logging";
+import type { DesktopReleaseMetadata } from "./releaseMetadata";
 import { createUpdaterSnapshot, desktopUpdaterStore } from "./state";
+import { applyDesktopAutoUpdaterPolicy, resolveDesktopUpdaterSupport } from "./updaterPolicy";
 
 export interface DesktopUpdaterController {
   checkForUpdates: () => Promise<void>;
@@ -12,7 +14,7 @@ export interface DesktopUpdaterController {
 
 interface DesktopUpdaterOptions {
   currentVersion: string;
-  updateChannel: string;
+  releaseMetadata: DesktopReleaseMetadata;
   isPackaged: boolean;
   isPortable: boolean;
 }
@@ -21,53 +23,36 @@ function markUpdaterSnapshot(snapshot: ReturnType<typeof createUpdaterSnapshot>)
   desktopUpdaterStore.setSnapshot(snapshot);
 }
 
-function isUpdaterSupported(options: DesktopUpdaterOptions): boolean {
-  if (!options.isPackaged) {
-    return false;
-  }
-
-  if (options.isPortable) {
-    return false;
-  }
-
-  return process.env.AI_NOVEL_DESKTOP_DISABLE_UPDATER?.trim() !== "true";
-}
-
 function hasPackagedUpdateFeedConfig(): boolean {
   return fs.existsSync(path.join(process.resourcesPath, "app-update.yml"));
 }
 
 export function initializeDesktopUpdater(options: DesktopUpdaterOptions): DesktopUpdaterController {
-  const supported = isUpdaterSupported(options);
-  const hasFeedConfig = !supported || hasPackagedUpdateFeedConfig();
-  const unsupportedReason = !options.isPackaged
-    ? "开发环境不下载安装包，请在正式安装版中检查更新。"
-    : options.isPortable
-      ? "便携版需要下载新版安装包后手动替换。"
-      : !hasFeedConfig
-        ? "此安装包未配置版本更新通道。"
-        : "桌面版更新已被运行环境关闭。";
+  const hasFeedConfig = hasPackagedUpdateFeedConfig();
+  const support = resolveDesktopUpdaterSupport({
+    releaseMetadata: options.releaseMetadata,
+    isPackaged: options.isPackaged,
+    isPortable: options.isPortable,
+    hasFeedConfig,
+    disabledByEnvironment: process.env.AI_NOVEL_DESKTOP_DISABLE_UPDATER?.trim() === "true",
+  });
 
   markUpdaterSnapshot(createUpdaterSnapshot({
-    status: supported && hasFeedConfig ? "idle" : "disabled",
-    message: supported
-      ? hasFeedConfig
-        ? "可以检查桌面版更新。"
-        : unsupportedReason
-      : unsupportedReason,
+    status: support.supported ? "idle" : "disabled",
+    message: support.message,
     currentVersion: options.currentVersion,
     availableVersion: null,
     progressPercent: null,
     bytesPerSecond: null,
-    channel: options.updateChannel,
+    channel: options.releaseMetadata.updateChannel,
     isPortable: options.isPortable,
     isPackaged: options.isPackaged,
-    isSupported: supported && hasFeedConfig,
+    isSupported: support.supported,
     canInstall: false,
     lastCheckedAt: null,
   }));
 
-  if (!supported || !hasFeedConfig) {
+  if (!support.supported) {
     return {
       async checkForUpdates() {
         return undefined;
@@ -81,10 +66,7 @@ export function initializeDesktopUpdater(options: DesktopUpdaterOptions): Deskto
     };
   }
 
-  autoUpdater.autoDownload = false;
-  autoUpdater.autoInstallOnAppQuit = false;
-  autoUpdater.allowDowngrade = false;
-  autoUpdater.allowPrerelease = options.updateChannel === "beta";
+  applyDesktopAutoUpdaterPolicy(autoUpdater, options.releaseMetadata);
 
   autoUpdater.on("checking-for-update", () => {
     appendDesktopLog("desktop.updater", "Checking GitHub Releases for desktop updates.");

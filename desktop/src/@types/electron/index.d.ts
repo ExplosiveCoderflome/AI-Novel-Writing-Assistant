@@ -62,6 +62,7 @@ declare module "electron" {
     setPath(name: string, value: string): void;
     setAppUserModelId(id: string): void;
     requestSingleInstanceLock(): boolean;
+    getAppPath(): string;
     getVersion(): string;
     whenReady(): Promise<void>;
     on(event: "activate" | "window-all-closed" | "before-quit" | "second-instance", listener: () => void): this;

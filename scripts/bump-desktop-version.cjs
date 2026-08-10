@@ -1,15 +1,20 @@
 const fs = require("node:fs");
 const path = require("node:path");
+const {
+  compareDesktopReleaseVersions,
+  parseDesktopReleaseVersion,
+} = require("../desktop/scripts/release-contract.cjs");
 
 const repoRoot = path.resolve(__dirname, "..");
 const desktopPackagePath = path.join(repoRoot, "desktop", "package.json");
 
 function printHelp() {
   console.log([
-    "Usage: node scripts/bump-desktop-version.cjs [--dry-run] X.Y.Z",
+    "Usage: node scripts/bump-desktop-version.cjs [--dry-run] X.Y.Z[-beta.N]",
     "",
     "Updates desktop/package.json version before a desktop package release.",
-    "Use a stable semver without a leading v, for example 0.3.20.",
+    "Use X.Y.Z for a stable release or X.Y.Z-beta.N for a public beta.",
+    "Do not include a leading v or a desktop-v prefix.",
   ].join("\n"));
 }
 
@@ -41,38 +46,39 @@ function parseArgs(argv) {
   return options;
 }
 
-function parseStableSemver(version, label) {
-  const match = /^(\d+)\.(\d+)\.(\d+)$/.exec(version);
-  if (!match) {
-    throw new Error(`${label} must be stable semver like 0.3.20, got ${version || "(empty)"}.`);
-  }
-  return match.slice(1).map((part) => Number(part));
-}
-
-function compareSemver(left, right) {
-  for (let index = 0; index < 3; index += 1) {
-    if (left[index] > right[index]) {
-      return 1;
-    }
-    if (left[index] < right[index]) {
-      return -1;
-    }
-  }
-  return 0;
-}
-
 function readDesktopPackageJson() {
   return JSON.parse(fs.readFileSync(desktopPackagePath, "utf8"));
 }
 
+function resolveVersionPlan(version) {
+  const parsed = parseDesktopReleaseVersion(version);
+  return {
+    ...parsed,
+    branch: parsed.mode === "beta" ? "beta" : "main",
+  };
+}
+
+function assertVersionUpgrade(currentVersion, targetVersion) {
+  const current = resolveVersionPlan(currentVersion);
+  const target = resolveVersionPlan(targetVersion);
+  if (compareDesktopReleaseVersions(target.version, current.version) <= 0) {
+    throw new Error(`Target version ${target.version} must be greater than current version ${current.version}.`);
+  }
+  return { current, target };
+}
+
 function printNextSteps(nextVersion) {
+  const plan = resolveVersionPlan(nextVersion);
+  const branchGuidance = plan.branch === "beta"
+    ? "Commit the beta version and release notes on beta."
+    : "Promote the verified beta candidate to main, then commit the stable version and release notes.";
   console.log([
     "",
     "Next release steps:",
     "1. Update docs/releases/release-notes.md and README.md for user-visible changes.",
-    "2. Commit the version bump and release notes, then merge the release candidate into main.",
+    `2. ${branchGuidance}`,
     "3. Run: node scripts/trigger-desktop-release.cjs --dry-run",
-    `4. Publish with tag v${nextVersion} only after the dry run passes.`,
+    `4. Publish ${plan.updateChannel} channel tag ${plan.tag} only after the dry run passes.`,
   ].join("\n"));
 }
 
@@ -88,31 +94,40 @@ function main() {
 
   const packageJson = readDesktopPackageJson();
   const currentVersion = typeof packageJson.version === "string" ? packageJson.version.trim() : "";
-  const currentParts = parseStableSemver(currentVersion, "desktop/package.json version");
-  const nextParts = parseStableSemver(options.version, "Target version");
-
-  if (compareSemver(nextParts, currentParts) <= 0) {
-    throw new Error(`Target version ${options.version} must be greater than current version ${currentVersion}.`);
-  }
+  const { target } = assertVersionUpgrade(currentVersion, options.version);
+  const nextVersion = target.version;
 
   console.log(`[desktop-version] current=${currentVersion}`);
-  console.log(`[desktop-version] next=${options.version}`);
+  console.log(`[desktop-version] next=${nextVersion}`);
+  console.log(`[desktop-version] branch=${target.branch}`);
+  console.log(`[desktop-version] channel=${target.updateChannel}`);
+  console.log(`[desktop-version] tag=${target.tag}`);
 
   if (options.dryRun) {
     console.log("[desktop-version] dry run passed; desktop/package.json was not changed.");
-    printNextSteps(options.version);
+    printNextSteps(nextVersion);
     return;
   }
 
-  packageJson.version = options.version;
+  packageJson.version = nextVersion;
   fs.writeFileSync(desktopPackagePath, `${JSON.stringify(packageJson, null, 2)}\n`, "utf8");
-  console.log(`[desktop-version] updated desktop/package.json to ${options.version}.`);
-  printNextSteps(options.version);
+  console.log(`[desktop-version] updated desktop/package.json to ${nextVersion}.`);
+  printNextSteps(nextVersion);
 }
 
-try {
-  main();
-} catch (error) {
-  console.error(`[desktop-version] ${error.message}`);
-  process.exit(1);
+if (require.main === module) {
+  try {
+    main();
+  } catch (error) {
+    console.error(`[desktop-version] ${error.message}`);
+    process.exit(1);
+  }
 }
+
+module.exports = {
+  assertVersionUpgrade,
+  main,
+  parseArgs,
+  printNextSteps,
+  resolveVersionPlan,
+};

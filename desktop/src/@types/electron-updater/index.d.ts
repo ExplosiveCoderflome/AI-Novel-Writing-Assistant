@@ -17,6 +17,7 @@ declare module "electron-updater" {
     autoInstallOnAppQuit: boolean;
     allowDowngrade: boolean;
     allowPrerelease: boolean;
+    channel: string | null;
     on(event: "checking-for-update", listener: () => void): this;
     on(event: "update-available", listener: (info: UpdateInfo) => void): this;
     on(event: "update-not-available", listener: () => void): this;

@@ -5,12 +5,14 @@ const path = require("node:path");
 const test = require("node:test");
 const {
   assertNamedFileHashesUnchanged,
+  assertReleaseArtifactsMatch,
   assertStageManifestMatches,
-  buildUpdateConfig,
   hashNamedFiles,
   parseBuilderCli,
   parseStageCli,
+  resolveDesktopReleaseContract,
 } = require("./desktop-stage-contract.cjs");
+const { createPackageReleaseMetadata } = require("./release-contract.cjs");
 
 test("stage and builder CLIs accept only the explicit contract", () => {
   assert.deepEqual(
@@ -52,22 +54,56 @@ test("stage and builder CLIs accept only the explicit contract", () => {
   );
 });
 
-test("stable update metadata uses the fork and latest channel", () => {
-  assert.deepEqual(buildUpdateConfig("stable", {}), {
-    provider: "github",
-    owner: "yangtzehina",
-    repo: "AI-Novel-Writing-Assistant",
-    channel: "latest",
-    releaseType: "release",
-    updaterCacheDirName: "ai-novel-writing-assistant-v2-updater",
-    publish: "never",
+test("verify release contract is disabled, secret-free, and owns staged release artifacts", () => {
+  const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "desktop-release-contract-"));
+  const desktopDir = path.join(tempDir, "desktop");
+  const resourcesDir = path.join(tempDir, "resources");
+  fs.mkdirSync(desktopDir, { recursive: true });
+  fs.mkdirSync(resourcesDir, { recursive: true });
+  fs.writeFileSync(path.join(tempDir, "package.json"), JSON.stringify({
+    repository: "https://github.com/yangtzehina/AI-Novel-Writing-Assistant.git",
+  }), "utf8");
+  fs.writeFileSync(path.join(desktopDir, "package.json"), JSON.stringify({ version: "1.2.3" }), "utf8");
+
+  const releaseContract = resolveDesktopReleaseContract({
+    repoRoot: tempDir,
+    desktopDir,
+    platform: "win",
+    mode: "verify",
+    env: {
+      WIN_CSC_LINK: "certificate.pfx",
+      WIN_CSC_KEY_PASSWORD: "do-not-persist",
+    },
   });
+  assert.equal(releaseContract.updatesEnabled, false);
+  assert.equal(releaseContract.publishFeed, false);
+  assert.equal(releaseContract.updateChannel, "disabled");
+  assert.equal(JSON.stringify(releaseContract).includes("do-not-persist"), false);
+
+  fs.writeFileSync(
+    path.join(resourcesDir, "release-contract.json"),
+    JSON.stringify(createPackageReleaseMetadata(releaseContract)),
+    "utf8",
+  );
+  assert.doesNotThrow(() => assertReleaseArtifactsMatch(resourcesDir, releaseContract));
+  fs.writeFileSync(path.join(resourcesDir, "app-update.yml"), "must not exist", "utf8");
+  assert.throws(
+    () => assertReleaseArtifactsMatch(resourcesDir, releaseContract),
+    /must not exist/,
+  );
+  fs.rmSync(tempDir, { recursive: true, force: true });
 });
 
 test("reuse requires a byte-for-byte equivalent stage manifest", () => {
   const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "desktop-stage-manifest-"));
   const manifestPath = path.join(tempDir, "stage-manifest.json");
-  const manifest = { schemaVersion: 1, os: "mac", arch: "arm64", mode: "verify" };
+  const manifest = {
+    schemaVersion: 1,
+    os: "mac",
+    arch: "arm64",
+    mode: "verify",
+    releaseContract: { updatesEnabled: false, updateChannel: "disabled" },
+  };
   fs.writeFileSync(manifestPath, JSON.stringify(manifest), "utf8");
   assert.doesNotThrow(() => assertStageManifestMatches(manifestPath, manifest));
   assert.throws(

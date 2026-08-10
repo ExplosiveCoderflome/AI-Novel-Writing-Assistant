@@ -72,6 +72,6 @@ export function getDesktopInstallModeLabel(updater: DesktopUpdaterSnapshot): str
   return "安装版";
 }
 
-export function getDesktopChannelLabel(channel: string): string {
-  return channel === "beta" ? "测试通道" : channel === "latest" ? "稳定通道" : `${channel} 通道`;
+export function getDesktopChannelLabel(channel: DesktopUpdaterSnapshot["channel"]): string {
+  return channel === "beta" ? "测试通道" : channel === "latest" ? "稳定通道" : "不自动更新";
 }

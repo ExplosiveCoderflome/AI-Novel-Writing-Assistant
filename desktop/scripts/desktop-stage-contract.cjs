@@ -2,6 +2,11 @@ const crypto = require("node:crypto");
 const fs = require("node:fs");
 const { createRequire } = require("node:module");
 const path = require("node:path");
+const {
+  createPackageReleaseMetadata,
+  renderAppUpdateConfig,
+  resolveReleaseContract,
+} = require("./release-contract.cjs");
 
 const STAGE_MANIFEST_VERSION = 1;
 const EXPECTED_PACKAGE_MANAGER = "pnpm@10.6.0";
@@ -261,29 +266,49 @@ function assertNamedFileHashesUnchanged(before, after, description) {
   }
 }
 
-function buildUpdateConfig(mode, env = process.env) {
-  const channel = mode === "stable" ? "latest" : "beta";
-  return {
-    provider: "github",
-    owner: (env.AI_NOVEL_GITHUB_OWNER || "yangtzehina").trim(),
-    repo: (env.AI_NOVEL_GITHUB_REPO || "AI-Novel-Writing-Assistant").trim(),
-    channel,
-    releaseType: channel === "beta" ? "prerelease" : "release",
-    updaterCacheDirName: "ai-novel-writing-assistant-v2-updater",
-    publish: "never",
-  };
+function resolveDesktopReleaseContract({ repoRoot, desktopDir, platform, mode, env = process.env }) {
+  const desktopPackageJson = JSON.parse(fs.readFileSync(path.join(desktopDir, "package.json"), "utf8"));
+  const releaseContract = resolveReleaseContract({
+    mode,
+    platform,
+    version: desktopPackageJson.version,
+    env,
+    repoRoot,
+    allowOriginFallback: false,
+  });
+
+  if (
+    mode === "verify"
+    && (
+      releaseContract.updatesEnabled !== false
+      || releaseContract.publishFeed !== false
+      || releaseContract.updateChannel !== "disabled"
+    )
+  ) {
+    throw new Error("Verify desktop packages must have updates and update-feed publication disabled.");
+  }
+  return releaseContract;
 }
 
-function renderUpdateConfig(config) {
-  return [
-    `provider: ${config.provider}`,
-    `owner: ${config.owner}`,
-    `repo: ${config.repo}`,
-    `channel: ${config.channel}`,
-    `releaseType: ${config.releaseType}`,
-    `updaterCacheDirName: ${config.updaterCacheDirName}`,
-    "",
-  ].join("\n");
+function assertReleaseArtifactsMatch(resourcesDir, releaseContract) {
+  const releaseContractPath = path.join(resourcesDir, "release-contract.json");
+  const appUpdateConfigPath = path.join(resourcesDir, "app-update.yml");
+  const expectedMetadata = createPackageReleaseMetadata(releaseContract);
+
+  assertExists(releaseContractPath, "packaged desktop release metadata");
+  const actualMetadata = JSON.parse(fs.readFileSync(releaseContractPath, "utf8"));
+  if (JSON.stringify(actualMetadata) !== JSON.stringify(expectedMetadata)) {
+    throw new Error("Staged release-contract.json does not match the resolved desktop release contract.");
+  }
+
+  if (releaseContract.updatesEnabled) {
+    assertExists(appUpdateConfigPath, "desktop updater configuration");
+    if (fs.readFileSync(appUpdateConfigPath, "utf8") !== renderAppUpdateConfig(releaseContract)) {
+      throw new Error("Staged updater configuration does not match the resolved desktop release contract.");
+    }
+  } else if (fs.existsSync(appUpdateConfigPath)) {
+    throw new Error("app-update.yml must not exist when the desktop release contract disables updates.");
+  }
 }
 
 function assertExactToolchain(repoRoot, desktopDir) {
@@ -291,6 +316,11 @@ function assertExactToolchain(repoRoot, desktopDir) {
   const desktopPackageJson = JSON.parse(fs.readFileSync(path.join(desktopDir, "package.json"), "utf8"));
   if (rootPackageJson.packageManager !== EXPECTED_PACKAGE_MANAGER) {
     throw new Error(`Expected packageManager ${EXPECTED_PACKAGE_MANAGER}, found ${rootPackageJson.packageManager || "<missing>"}.`);
+  }
+  if (desktopPackageJson.packageManager !== EXPECTED_PACKAGE_MANAGER) {
+    throw new Error(
+      `Desktop packageManager must be pinned to ${EXPECTED_PACKAGE_MANAGER}, found ${desktopPackageJson.packageManager || "<missing>"}.`,
+    );
   }
   if (desktopPackageJson.devDependencies?.electron !== EXPECTED_ELECTRON_VERSION) {
     throw new Error(`Electron must be pinned exactly to ${EXPECTED_ELECTRON_VERSION}.`);
@@ -318,20 +348,22 @@ function assertExactToolchain(repoRoot, desktopDir) {
   }
 }
 
-function buildStageManifest({ repoRoot, desktopDir, appDir, resourcesDir, platform, arch, mode, env = process.env }) {
+function buildStageManifest({ repoRoot, desktopDir, appDir, resourcesDir, platform, arch, mode, releaseContract }) {
   const desktopPackageJson = JSON.parse(fs.readFileSync(path.join(desktopDir, "package.json"), "utf8"));
   const stagedPackageJson = JSON.parse(fs.readFileSync(path.join(appDir, "package.json"), "utf8"));
-  const updateConfig = buildUpdateConfig(mode, env);
-  const updateConfigPath = path.join(resourcesDir, "app-update.yml");
-  const renderedUpdateConfig = renderUpdateConfig(updateConfig);
 
-  assertExists(updateConfigPath, "desktop updater configuration");
-  if (fs.readFileSync(updateConfigPath, "utf8") !== renderedUpdateConfig) {
-    throw new Error("Staged updater configuration does not match the requested mode and update settings.");
-  }
   if (stagedPackageJson.name !== desktopPackageJson.name || stagedPackageJson.version !== desktopPackageJson.version) {
     throw new Error("Staged desktop package identity does not match desktop/package.json.");
   }
+  if (
+    !releaseContract
+    || releaseContract.mode !== mode
+    || releaseContract.platform !== platform
+    || releaseContract.version !== desktopPackageJson.version
+  ) {
+    throw new Error("Resolved desktop release contract does not match the requested stage identity.");
+  }
+  assertReleaseArtifactsMatch(resourcesDir, releaseContract);
 
   return {
     schemaVersion: STAGE_MANIFEST_VERSION,
@@ -354,7 +386,7 @@ function buildStageManifest({ repoRoot, desktopDir, appDir, resourcesDir, platfo
       file: "pnpm-lock.yaml",
       sha256: sha256File(path.join(repoRoot, "pnpm-lock.yaml")),
     },
-    updateConfig,
+    releaseContract,
   };
 }
 
@@ -379,15 +411,15 @@ module.exports = {
   assertNamedFileHashesUnchanged,
   assertNativeTargetMatchesHost,
   assertPathWithinDirectory,
+  assertReleaseArtifactsMatch,
   assertStableHoistedPackage,
   assertStageManifestMatches,
   buildStageManifest,
-  buildUpdateConfig,
   expectedSharpPlatformPackages,
   hashNamedFiles,
   parseBuilderCli,
   parseStageCli,
-  renderUpdateConfig,
+  resolveDesktopReleaseContract,
   resolveAppBuilderLibDirectory,
   resolvePackageDirectory,
   stableHoistedPackageDirectory,

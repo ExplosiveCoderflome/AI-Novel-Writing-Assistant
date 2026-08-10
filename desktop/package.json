@@ -2,6 +2,7 @@
   "name": "@ai-novel/desktop",
   "version": "0.4.9",
   "private": true,
+  "packageManager": "pnpm@10.6.0",
   "license": "AGPL-3.0-only",
   "author": "AI Novel Writing Assistant Team",
   "description": "Cross-platform desktop runtime for AI Novel Writing Assistant v2",

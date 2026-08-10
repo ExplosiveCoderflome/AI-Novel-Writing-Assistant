@@ -1,4 +1,13 @@
+const fs = require("node:fs");
 const path = require("node:path");
+const {
+  createElectronBuilderReleaseSettings,
+  resolveReleaseContract,
+} = require("./scripts/release-contract.cjs");
+
+const repoRoot = path.resolve(__dirname, "..");
+const stageManifestPath = path.join(__dirname, "build", "stage-manifest.json");
+const stagedPackageJsonPath = path.join(__dirname, "build", "app", "package.json");
 
 function firstNonEmpty(...values) {
   for (const value of values) {
@@ -9,31 +18,78 @@ function firstNonEmpty(...values) {
   return "";
 }
 
-const releaseChannel = firstNonEmpty(process.env.AI_NOVEL_RELEASE_CHANNEL, "beta").toLowerCase();
-const isBetaRelease = releaseChannel === "beta";
-const targetPlatform = firstNonEmpty(process.env.AI_NOVEL_TARGET_PLATFORM, "win").toLowerCase();
-const isWindowsTarget = targetPlatform === "win";
-const githubOwner = firstNonEmpty(process.env.AI_NOVEL_GITHUB_OWNER, "ExplosiveCoderflome");
-const githubRepo = firstNonEmpty(process.env.AI_NOVEL_GITHUB_REPO, "AI-Novel-Writing-Assistant");
-const windowsSigningLink = firstNonEmpty(
-  process.env.CSC_LINK,
-  process.env.WIN_CSC_LINK,
-  process.env.AI_NOVEL_WINDOWS_CSC_LINK,
-  process.env.AI_NOVEL_WINDOWS_CSC_FILE,
-);
-const allowUnsignedRelease =
-  firstNonEmpty(
-    process.env.AI_NOVEL_ALLOW_UNSIGNED_RELEASE,
-    process.env.AI_NOVEL_ALLOW_UNSIGNED_WINDOWS_RELEASE,
-  ).toLowerCase() === "true";
-const hasWindowsSigningMaterial = Boolean(windowsSigningLink);
+function readJson(filePath, description) {
+  if (!fs.existsSync(filePath)) {
+    throw new Error(`Expected ${description} at ${filePath}. Run the strict desktop stage command first.`);
+  }
+  return JSON.parse(fs.readFileSync(filePath, "utf8"));
+}
+
+function comparableReleaseContract(contract) {
+  return {
+    ...contract,
+    github: contract.github
+      ? {
+          owner: contract.github.owner,
+          repo: contract.github.repo,
+        }
+      : null,
+  };
+}
+
+function resolveBuilderReleaseContract() {
+  const stageManifest = readJson(stageManifestPath, "desktop stage manifest");
+  const stagedPackageJson = readJson(stagedPackageJsonPath, "staged desktop package.json");
+  const mode = firstNonEmpty(process.env.AI_NOVEL_RELEASE_MODE, stageManifest.mode);
+  const platform = firstNonEmpty(process.env.AI_NOVEL_TARGET_PLATFORM, stageManifest.os);
+  if (mode !== stageManifest.mode || platform !== stageManifest.os) {
+    throw new Error("Builder release mode/platform does not match stage-manifest.json.");
+  }
+
+  const resolvedContract = resolveReleaseContract({
+    mode,
+    platform,
+    version: stagedPackageJson.version,
+    env: process.env,
+    repoRoot,
+    allowOriginFallback: true,
+  });
+  if (
+    JSON.stringify(comparableReleaseContract(resolvedContract))
+    !== JSON.stringify(comparableReleaseContract(stageManifest.releaseContract))
+  ) {
+    throw new Error("Builder release contract does not exactly match stage-manifest.json.");
+  }
+  return stageManifest.releaseContract;
+}
+
+const releaseContract = resolveBuilderReleaseContract();
+const releaseSettings = createElectronBuilderReleaseSettings(releaseContract);
+const isWindowsTarget = releaseContract.platform === "win";
+const artifactSuffix = releaseSettings.artifactSuffix;
 const builderIconPath = path.join("builder", "app-icon.ico");
 const macBuilderIconPath = path.join("builder", "app-icon.png");
+const extraResources = [
+  {
+    from: "builder/app-icon.ico",
+    to: "icons/app-icon.ico",
+  },
+  {
+    from: "builder/app-icon.png",
+    to: "icons/app-icon.png",
+  },
+  {
+    from: "build/resources/client",
+    to: "client",
+    filter: ["**/*"],
+  },
+];
 
-if (isWindowsTarget && !isBetaRelease && !hasWindowsSigningMaterial && !allowUnsignedRelease) {
-  throw new Error(
-    "Public Windows desktop releases require signing material. Provide CSC_LINK/WIN_CSC_LINK, or explicitly opt in to an unsigned release.",
-  );
+if (releaseSettings.includeAppUpdateConfig) {
+  extraResources.push({
+    from: "build/resources/app-update.yml",
+    to: "app-update.yml",
+  });
 }
 
 module.exports = {
@@ -49,47 +105,23 @@ module.exports = {
     "package.json",
     "node_modules/.prisma/**/*",
   ],
-  extraResources: [
-    {
-      from: "builder/app-icon.ico",
-      to: "icons/app-icon.ico",
-    },
-    {
-      from: "builder/app-icon.png",
-      to: "icons/app-icon.png",
-    },
-    {
-      from: "build/resources/app-update.yml",
-      to: "app-update.yml",
-    },
-    {
-      from: "build/resources/client",
-      to: "client",
-      filter: ["**/*"],
-    },
-  ],
+  extraResources,
   asar: true,
   asarUnpack: [
     "node_modules/**/*.node",
   ],
   npmRebuild: true,
   nativeRebuilder: "sequential",
+  forceCodeSigning: releaseSettings.forceCodeSigning,
   extraMetadata: {
     main: "dist/main.js",
+    aiNovelRelease: releaseSettings.packageMetadata,
   },
-  publish: [
-    {
-      provider: "github",
-      owner: githubOwner,
-      repo: githubRepo,
-      releaseType: isBetaRelease ? "prerelease" : "release",
-    },
-  ],
+  publish: releaseSettings.publish,
   electronUpdaterCompatibility: ">=2.16",
   generateUpdatesFilesForAllChannels: false,
   win: {
     icon: builderIconPath,
-    // Keep EXE resource editing enabled for unsigned builds so Windows uses the app icon and metadata.
     signAndEditExecutable: true,
     target: [
       {
@@ -105,7 +137,10 @@ module.exports = {
   mac: {
     icon: macBuilderIconPath,
     category: "public.app-category.productivity",
-    artifactName: "${productName}-${version}-mac-${arch}.${ext}",
+    identity: releaseSettings.mac.identity,
+    hardenedRuntime: true,
+    notarize: releaseSettings.mac.notarize,
+    artifactName: `\${productName}-\${version}-mac-\${arch}${artifactSuffix}.\${ext}`,
     target: [
       {
         target: "dmg",
@@ -118,10 +153,10 @@ module.exports = {
     ],
   },
   dmg: {
-    artifactName: "${productName}-${version}-mac-${arch}.${ext}",
+    artifactName: `\${productName}-\${version}-mac-\${arch}${artifactSuffix}.\${ext}`,
   },
   nsis: {
-    artifactName: "${productName}-${version}-setup-${arch}.${ext}",
+    artifactName: `\${productName}-\${version}-setup-\${arch}${isWindowsTarget ? artifactSuffix : ""}.\${ext}`,
     oneClick: false,
     perMachine: false,
     allowToChangeInstallationDirectory: true,
@@ -135,6 +170,6 @@ module.exports = {
     installerHeaderIcon: builderIconPath,
   },
   portable: {
-    artifactName: "${productName}-${version}-portable-${arch}.${ext}",
+    artifactName: `\${productName}-\${version}-portable-\${arch}${isWindowsTarget ? artifactSuffix : ""}.\${ext}`,
   },
 };

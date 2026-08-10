@@ -1,6 +1,7 @@
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
+import type { DesktopReleaseMetadata, DesktopReleaseMode, DesktopUpdateChannel } from "./releaseMetadata";
 
 const APP_NAME = "AI-Novel-Writing-Assistant-v2";
 const PORTABLE_DATA_SUFFIX = "-data";
@@ -12,7 +13,9 @@ export interface DesktopRuntimeConfig {
   isPackaged: boolean;
   appVersion: string;
   isPortable: boolean;
-  updateChannel: string;
+  releaseMode: DesktopReleaseMode;
+  updateChannel: DesktopUpdateChannel;
+  updatesEnabled: boolean;
 }
 
 function resolvePortableDesktopAppDataDir(): string | null {
@@ -65,16 +68,11 @@ export function resolveDesktopMainLogFile(): string {
   return path.join(resolveDesktopLogsDir(), "desktop-main.log");
 }
 
-export function resolveDesktopUpdateChannel(): string {
-  const configuredChannel = process.env.AI_NOVEL_UPDATE_CHANNEL?.trim();
-  return configuredChannel || "beta";
-}
-
 export function resolveDesktopRuntimeConfig(options: {
   port: number;
   isPackaged: boolean;
   appVersion: string;
-  updateChannel?: string;
+  releaseMetadata: DesktopReleaseMetadata;
 }): DesktopRuntimeConfig {
   return {
     mode: "desktop",
@@ -83,7 +81,9 @@ export function resolveDesktopRuntimeConfig(options: {
     isPackaged: options.isPackaged,
     appVersion: options.appVersion,
     isPortable: isPortableDesktopRuntime(),
-    updateChannel: options.updateChannel ?? resolveDesktopUpdateChannel(),
+    releaseMode: options.releaseMetadata.releaseMode,
+    updateChannel: options.releaseMetadata.updateChannel,
+    updatesEnabled: options.releaseMetadata.updatesEnabled,
   };
 }
 
