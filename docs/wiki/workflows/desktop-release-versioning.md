@@ -34,6 +34,26 @@
 3. Beta 合入 `beta`、Stable 合入 `main` 后运行 `node scripts/trigger-desktop-release.cjs --dry-run`，确认工作区、分支归属和精确 tag 规则都通过。
 4. 只使用与 `desktop/package.json` 完全对齐的 `vX.Y.Z-beta.N` 或 `vX.Y.Z` tag 触发 GitHub Release；Beta 必须标记 prerelease，Stable 才能标记 latest。
 
+## GitHub Actions Pipeline
+
+### Desktop CI
+
+- `.github/workflows/desktop-ci.yml` 响应指向 `beta` 或 `main` 的 PR、这两个分支的相关路径 push，以及手动验证。它只有 `contents: read`，不接收发布 token、Windows 证书或 Apple 凭据，也不会创建或修改 GitHub Release。
+- Ubuntu quality job 使用冻结依赖运行桌面打包合同测试和 workspace typecheck。原生矩阵固定为 `windows-2025/x64` 与 `macos-15/arm64`，每个平台只构建自己的原生模块和安装包。
+- PR 只生成 unpacked 应用并运行真实 packaged Electron smoke；`beta`/`main` push 与手动验证生成完整安装包。完整包只作为保留 7 天的 Actions artifact，不是公开下载。
+- Windows runner 把 pnpm virtual store 放在 runner 临时短路径，并继续执行 NSIS 安装、启动、卸载、数据保留和重装验证。Mac runner 验证 DMG 校验和、ZIP 完整性及 `.app/Contents/Resources/app.asar` 布局。
+
+### Desktop Release
+
+- `.github/workflows/desktop-release.yml` 只有精确 `v*` tag push 能进入发布 jobs；手动 dispatch 只运行分支和版本 dry-run。validate job 必须先验证版本/tag、canonical fork、Beta/Stable 分支归属，以及同 tag Release 是否不存在或仅有唯一 draft。
+- Windows 与 Mac build job 在各自原生 runner 上重新冻结安装、stage、package、静态验证和 packaged smoke。两者都只有 `contents: read`，始终使用 `--publish never`；Windows 与 Mac 签名 secret 分别绑定到独立 GitHub Environment。
+- Windows 签名 secret 为完整的 `WINDOWS_CSC_LINK` + `WINDOWS_CSC_KEY_PASSWORD` 对。Mac 签名发布要求完整的 `MAC_CSC_LINK` + `MAC_CSC_KEY_PASSWORD`，以及 `APPLE_API_KEY_P8_BASE64` + `APPLE_API_KEY_ID` + `APPLE_API_ISSUER` 公证凭据；全部缺失允许无签名发布，部分缺失立即失败。
+- 两个 build job 只把顶层安装包、blockmap 和已知 updater feed 复制到干净资产目录。验证器必须看到错误 channel feed 或无签名 Mac 意外生成的 feed，不能通过筛选文件把配置回归隐藏掉。
+- 只有最后的 publisher job 拥有 `contents: write`。它重新验证两个平台 artifact，拒绝重复文件名，生成 `SHA256SUMS.txt`，创建或复用同 tag draft，上传后逐个下载远端资产并复验大小、SHA-256、SHA-512、URL、owner、channel 与更新 metadata，全部一致后才公开。
+- 重跑只允许替换同 tag 的唯一 draft；已经公开的同 tag Release 永不覆盖。Beta 发布为 prerelease，Stable 发布后还必须回读并确认成为仓库 latest Release。
+
+当前正式矩阵只支持 Windows x64 与 macOS arm64。macOS x64、Universal 和 Linux 需要在原生依赖、包体和验证成本单独评估后，以后续阶段增加，不能通过跨平台复用 staging 临时冒充支持。
+
 ## Desktop Staging Invariants
 
 - Windows x64 与 macOS arm64 必须分别在目标系统和目标架构上生成 staging，不能跨平台复用包含原生模块的目录。
@@ -50,6 +70,7 @@
 - 如果发版前只更新 release notes 但没有 bump 桌面版本，自动更新链路会把新包识别成旧版本，必须先修正版本源再发布。
 - 如果无签名 macOS 包出现 `app-update.yml`、`beta-mac.yml` 或 `latest-mac.yml`，说明签名合同被绕过，必须阻断发布。
 - 如果 GitHub Actions 提示某个 action 仍在使用 Node 20，应优先升级该 action 的 major 版本，而不是重新加入强制运行时环境变量。
+- 如果 build job 的 release asset 校验扫描到了 `win-unpacked` 或 `.app` 内部文件，说明没有先收集顶层发布资产；应修复 clean asset 目录，不能放宽重复文件或未知安装包检查。
 
 ## Related Modules
 
@@ -59,4 +80,7 @@
 - `client/src/components/layout/DesktopUpdatePanel.tsx`：供顶部弹窗与系统设置复用的更新操作面板。
 - `desktop/src/main.ts`：桌面运行态把 Electron `app.getVersion()` 注入 renderer。
 - `desktop/src/runtime/updater.ts`：检查、下载和安装状态的事实来源。
+- `.github/workflows/desktop-ci.yml`：无发布权限的跨平台验证矩阵。
+- `.github/workflows/desktop-release.yml`：tag 驱动、原生构建、单 publisher 的公开发布流程。
+- `desktop/scripts/validate-release-assets.cjs`：公开资产、签名状态、更新 metadata 与哈希合同验证。
 - `scripts/bump-desktop-version.cjs` 与 `scripts/trigger-desktop-release.cjs`：版本推进与正式发布 tag 校验。

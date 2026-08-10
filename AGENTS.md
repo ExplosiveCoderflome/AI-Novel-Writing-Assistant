@@ -199,7 +199,7 @@ These areas have the highest priority for wiki accumulation:
 - If `beta` validation fails, fix the issue on the original feature branch when the fault is isolated, or on a short-lived `beta-fix` branch when the failure is caused by integration between multiple features. Merge the fix back into `beta` and rerun the failed checks before promoting.
 - Only promote `beta` to `main` when the release candidate has passed the required functional checks, build checks, and any packaging verification relevant to the release. After promotion, keep `beta` aligned with `main` so the next pre-release cycle starts from the released state.
 - For urgent production hotfixes, it is acceptable to branch from `main`, verify narrowly, merge back to `main`, and then immediately merge or cherry-pick the hotfix into `beta` so the pre-release branch does not lose the production fix.
-- Public desktop packaging and release upload should be performed from `main` or from a release tag created after `beta` has been promoted to `main`, not directly from a feature branch or an unverified `beta` state.
+- Public Stable desktop packaging and release upload must be performed from `main` after `beta` has been promoted and verified. A public Beta may be published from an exact `vX.Y.Z-beta.N` tag whose commit is already in the verified `beta` branch history; never publish from a feature branch or an unverified `beta` state.
 - The branch name is `beta`. Do not create a separate `bate` branch; if such a typo branch appears, migrate any useful work to `beta` and remove the typo branch after confirming nothing is lost.
 
 ### Desktop Branch Completion Workflow
@@ -216,12 +216,13 @@ These areas have the highest priority for wiki accumulation:
 
 ## Desktop Packaging Upload Rules
 
-- Public desktop package upload to GitHub Releases is allowed only when the release version is driven by `desktop/package.json` and the Git tag is exactly `vX.Y.Z`.
-- Before any public desktop upload, verify that `desktop/package.json` `version` is a stable semver like `0.2.3`, with no `desktop-` prefix, no `-r1` style suffix, and no branch-only naming mixed into the version field.
-- The pushed release tag must match `desktop/package.json` exactly after adding the `v` prefix. Example: `desktop/package.json` is `0.2.3`, then the only allowed public release tag is `v0.2.3`.
-- Do not use `desktop-vX.Y.Z-rN`, `desktop-v*`, branch names, workflow dispatch on `main`, or any other non-matching ref as the identifier for a public desktop GitHub Release upload.
-- If a build is triggered manually or from a non-matching tag, treat it as verification or packaging only. It must not be treated as a valid public release upload.
-- If the required `vX.Y.Z` tag and `desktop/package.json` version are not aligned, stop before upload, fix the version/tag pair first, and then rerun the release flow.
+- Public desktop package upload to GitHub Releases is allowed only when the release version is driven by `desktop/package.json` and uses one of two exact forms: Stable `X.Y.Z` or public Beta `X.Y.Z-beta.N`.
+- The pushed tag must always equal `v` plus the complete `desktop/package.json` version. Stable `0.5.0` maps only to `v0.5.0`; Beta `0.5.0-beta.2` maps only to `v0.5.0-beta.2`.
+- Stable tags must point to a commit in `main` history and create a normal latest Release on the `latest` updater channel. Beta tags must point to a commit in `beta` history and create a GitHub prerelease on the `beta` updater channel.
+- No other prerelease label is supported. Reject `desktop-v*`, `release` channels, `-rc`, `-alpha`, branch names, version/tag mismatches, and any non-exact release identifier.
+- A manually dispatched desktop workflow is verification-only and must never create or mutate a public Release. Only an exact `v*` tag satisfying the contract may authorize the publisher job.
+- Platform build jobs must always use `electron-builder --publish never`. Only the isolated publisher job may write GitHub Release state, and it must refuse to overwrite an already public Release.
+- If version, tag, branch ancestry, repository owner, signing state, update metadata, or asset checks disagree, stop before upload and fix the release inputs instead of weakening the validator.
 - When packaging is requested and there is no explicit, current, repo-specific knowledge that local packaging is required, prefer triggering the GitHub-side packaging workflow rather than inventing local packaging steps.
 - Do not run local desktop packaging just to guess the release process. Local packaging is appropriate only when the user explicitly asks for local artifacts, the task is packaging verification, or the relevant docs/scripts clearly require local staging.
 - GitHub-side packaging still must obey the version/tag rules above. If the correct workflow, tag, branch, or version is unclear, stop and verify the release identifier before triggering packaging.
@@ -268,6 +269,7 @@ These areas have the highest priority for wiki accumulation:
 - `docs/releases/release-notes.md`, `README.md` `## 最新更新`, release summaries, and other user-facing update records should continue to use the existing date-first format, for example: `### 2026-04-07`.
 - Keep the date as the primary update identifier until the product workflow, information architecture, and release cadence are stable enough to justify a formal versioning system.
 - If multiple user-visible updates are recorded on the same date, keep them under the same date heading in `docs/releases/release-notes.md` and distinguish them by clear summary text instead of inventing temporary version numbers.
+- Desktop package metadata, Git tags, GitHub Releases, and updater channels are an explicit technical exception: they use the Stable/Beta SemVer contract in the Desktop Packaging Upload Rules. This exception does not convert README or release-note history away from date-first records.
 
 ## Current Product Priorities
 
@@ -280,4 +282,4 @@ These areas have the highest priority for wiki accumulation:
 ### Future Versioning Transition
 
 - When the user later decides the product is stable enough for formal versions, versioning can transition from `date-only` to `version number + date`.
-- Until that explicit transition happens, do not add `v0.x.y`, tags, or release naming conventions into README, changelog, or other product-facing release notes by default.
+- Until that explicit product-wide transition happens, do not make semantic versions the primary heading or organizing scheme in README, changelog, or other product-facing release notes. The existing desktop package/tag exception remains allowed for distribution mechanics.
