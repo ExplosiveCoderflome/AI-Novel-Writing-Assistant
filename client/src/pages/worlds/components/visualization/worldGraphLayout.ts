@@ -41,6 +41,8 @@ export type EdgeLabelPlacement = LabelPlacement & {
 type Obstacle = LabelPlacement & { id?: string };
 type Anchor = "top" | "bottom" | "left" | "right" | "topLeft" | "topRight" | "bottomLeft" | "bottomRight";
 
+export type GraphLayout = "force" | "geography";
+
 export const ROUTE_STYLES: Record<string, { stroke: string; dash?: string }> = {
   road: { stroke: "#64748b" },
   river: { stroke: "#0284c7", dash: "6 5" },
@@ -51,6 +53,11 @@ export const ROUTE_STYLES: Record<string, { stroke: string; dash?: string }> = {
   border: { stroke: "#f59e0b", dash: "4 4" },
   other: { stroke: "#64748b" },
 };
+
+export function getRouteStyle(routeType?: string) {
+  if (!routeType) return ROUTE_STYLES.road;
+  return ROUTE_STYLES[routeType] || ROUTE_STYLES.road;
+}
 
 const DIRECTION_LABELS: Record<WorldGeographyDirection, string> = {
   north: "北",
