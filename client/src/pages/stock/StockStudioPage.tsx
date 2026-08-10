@@ -33,6 +33,9 @@ interface ActionItem {
   // P&L KPI
   targetPrice?: number;
   stopLossPrice?: number;
+  riskRewardRatio?: number;
+  takeProfitPct?: number;
+  stopLossPct?: number;
   projectedPnL?: number;
   projectedPnLPct?: number;
   timeHorizon?: string;
@@ -1033,6 +1036,9 @@ export default function StockStudioPage() {
                 <div className="text-emerald-400">
                   ✓ 交易总额求导: 估算金额 = 推荐股数 × OpenD 实盘现价 (纯数学精确求得)
                 </div>
+                <div className="text-emerald-400">
+                  ✓ 止盈止损防线: 目标止盈价 (+8%~+20%) 与 止损警戒线 (-3%~-8%) 双向确定性数学精算 (包含 R:R 盈亏比自动拦截)
+                </div>
               </div>
             </div>
           </div>
@@ -1680,21 +1686,41 @@ export default function StockStudioPage() {
                                 </div>
                               </div>
 
-                              {/* P&L KPI 字段展示 */}
-                              {(act.projectedPnL !== undefined || act.targetPrice || act.stopLossPrice) && (
-                                <div className="flex flex-wrap gap-2 pt-1 border-t border-slate-800/60">
+                              {/* P&L 止盈止损与 KPI 字段展示 */}
+                              {(act.projectedPnL !== undefined || act.targetPrice || act.stopLossPrice || act.riskRewardRatio) && (
+                                <div className="flex flex-wrap gap-2 pt-2 border-t border-slate-800/60">
                                   {act.targetPrice && (
-                                    <span className="text-[10px] px-2 py-0.5 bg-emerald-950/60 text-emerald-400 border border-emerald-900/60 rounded font-mono">
-                                      🎯 目标价: ${act.targetPrice}
+                                    <span className="text-[11px] px-2.5 py-0.5 bg-emerald-950/80 text-emerald-300 border border-emerald-800 rounded font-mono flex items-center gap-1 font-semibold">
+                                      🎯 止盈目标: ${act.targetPrice}
+                                      {act.takeProfitPct !== undefined && (
+                                        <span className="text-[10px] text-emerald-400 font-bold">
+                                          (+{act.takeProfitPct.toFixed(1)}%)
+                                        </span>
+                                      )}
                                     </span>
                                   )}
                                   {act.stopLossPrice && (
-                                    <span className="text-[10px] px-2 py-0.5 bg-rose-950/60 text-rose-400 border border-rose-900/60 rounded font-mono">
-                                      ❌ 止损价: ${act.stopLossPrice}
+                                    <span className="text-[11px] px-2.5 py-0.5 bg-rose-950/80 text-rose-300 border border-rose-800 rounded font-mono flex items-center gap-1 font-semibold">
+                                      🛡️ 止损警戒: ${act.stopLossPrice}
+                                      {act.stopLossPct !== undefined && (
+                                        <span className="text-[10px] text-rose-400 font-bold">
+                                          (-{act.stopLossPct.toFixed(1)}%)
+                                        </span>
+                                      )}
+                                    </span>
+                                  )}
+                                  {act.riskRewardRatio !== undefined && (
+                                    <span className={`text-[11px] px-2.5 py-0.5 rounded font-mono border font-semibold flex items-center gap-1 ${
+                                      act.riskRewardRatio >= 2.0
+                                        ? "bg-amber-950/80 text-amber-300 border-amber-800"
+                                        : "bg-slate-900 text-slate-300 border-slate-700"
+                                    }`}>
+                                      ⚖️ 盈亏比 (R:R): {act.riskRewardRatio.toFixed(1)}
+                                      {act.riskRewardRatio >= 2.0 && <span className="text-[9px] text-amber-400 font-bold">✓ 达标</span>}
                                     </span>
                                   )}
                                   {act.projectedPnL !== undefined && (
-                                    <span className={`text-[10px] px-2 py-0.5 rounded font-mono border ${
+                                    <span className={`text-[11px] px-2.5 py-0.5 rounded font-mono border font-semibold ${
                                       act.projectedPnL >= 0
                                         ? "bg-emerald-950/60 text-emerald-300 border-emerald-900/60"
                                         : "bg-rose-950/60 text-rose-300 border-rose-900/60"
@@ -1703,7 +1729,7 @@ export default function StockStudioPage() {
                                     </span>
                                   )}
                                   {act.timeHorizon && (
-                                    <span className="text-[10px] px-2 py-0.5 bg-indigo-950/60 text-indigo-400 border border-indigo-900/60 rounded font-mono">
+                                    <span className="text-[11px] px-2.5 py-0.5 bg-indigo-950/60 text-indigo-300 border border-indigo-900/60 rounded font-mono">
                                       ⏱ {act.timeHorizon}
                                     </span>
                                   )}

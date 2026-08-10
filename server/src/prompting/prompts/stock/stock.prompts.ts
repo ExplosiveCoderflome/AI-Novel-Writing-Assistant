@@ -56,18 +56,23 @@ ${modeInstruction}
 3. **第三阶：图谱影响传导与调仓决策 (Impact Propagation ➔ Action)**
    沿着推导出的关系边网络，计算事件对各目标股票价格与风险的影响传导，进而得出最终的买卖调仓指令 (actions: BUY/SELL/TRIM/HOLD、建议股数、目标价、止损价与预期 P&L)。
 
-【重要安全原则与写作要求】
+【重要安全原则与止盈止损风控写作要求】
 1. 本指令仅为投资研究与调仓建议 (Advisory Only)，绝不会自动下单。
 2. 调仓指令必须严格考虑用户的闲置现金与新增预算上限，严禁建议超出可用资金的买入。
 3. 检查单股集中度风险：若单只股票持仓占比超过总资产 30%，需在风控提示 (riskAlerts) 中醒目预警。
 4. 【自选股优先法则】：建议加仓或新建仓位时，【必须优先从【用户 MooMoo 自选关注股票池】中挑选】最具上涨潜力和隔夜催化剂的标的。
 5. 【数据真实性铁律】：AI 仅负责提供专业研判逻辑 (rationale) 与买卖方向决策 (action)，【严禁虚构或自行估计任何股价数字】！必须 100% 忠实于上下文中由 OpenD 实盘抓取的真实股价数据！
-6. 【P&L 输出必须字段】：每条 action 必须包含 targetPrice (目标价)、stopLossPrice (止损价)、projectedPnL (预期盈亏 $)、projectedPnLPct (预期盈亏%)、timeHorizon (预期实现周期)。
-7. 【三大核心指南】必须结构化输出：
-   - existingPositionGuidance：【指南一：已有仓位的增减】
-   - newPositionGuidance：【指南二：新仓位的建立】
-   - retrospectiveGuidance：【指南三：昨日指南复盘与沉淀优化】— 必须包含具体盈亏归因数字。
-8. 策略解读 (narrativeReport)：采用清晰、严谨、条理分明且极具实操价值的专业金融研报结构。`
+6. 【★ 强制止盈与止损规则 (Take-Profit & Stop-Loss Rules)】：
+   - **止盈目标 (targetPrice)**：针对买入/加仓/减仓建议，必须基于技术阻力位与估值空间设定明确的止盈目标价 targetPrice（例如买入标的设定的止盈空间需合理，通常为评估现价的 +8% 至 +20%）。
+   - **止损警戒 (stopLossPrice)**：每项推荐必须设置强制硬止损线 stopLossPrice（买入/加仓建议的止损价必须设在评估现价下方 3% 至 8% 或关键支撑位下方）。
+   - **盈亏比要求 (Risk-Reward Ratio R:R)**：推荐 BUY 标的的预期止盈收益空间与最大止损下行风险的比值 (targetPrice - price) / (price - stopLossPrice) 原则上不得低于 2.0。
+   - **触及止盈止损风控预警**：对已有持仓进行诊断，若某持仓个股现价接近或跌破止损线、或达标止盈线，必须在 riskAlerts 风控提示中醒目输出【止损清仓预警】或【止盈锁盈提示】。
+7. 【P&L 输出必须字段】：每条 action 必须包含 targetPrice (止盈目标价)、stopLossPrice (止损警戒价)、riskRewardRatio (盈亏比)、takeProfitPct (止盈收益%)、stopLossPct (止损风险%)、projectedPnL (预期盈亏 $)、projectedPnLPct (预期盈亏%)、timeHorizon (预期实现周期)。
+8. 【三大核心指南】必须结构化输出：
+   - existingPositionGuidance：【指南一：已有仓位的增减与止盈止损诊断】
+   - newPositionGuidance：【指南二：新仓位的建立与止盈止损规划】
+   - retrospectiveGuidance：【指南三：昨日指南复盘与沉淀优化】— 必须包含具体盈亏归因数字与止盈止损执行率。
+9. 策略解读 (narrativeReport)：采用清晰、严谨、条理分明且极具实操价值的专业金融研报结构。`
       ),
       new HumanMessage(
         `【日期】：${input.strategyDate}
@@ -101,7 +106,7 @@ ${input.warmStrategySummaries}
 ${input.marketIntelContext}
 
 请按照【实体提取 ➔ 关系边与意义推导 ➔ 调仓决策】的三阶图谱推理链，输出包含【指南一：已有仓位增减】、【指南二：新仓位建立】与【指南三：昨日指南复盘沉淀】的今日调仓建议清单、各股票知识图谱实体与三元组边、风控警报与专业机构研报。
-【P&L 输出要求】：每条 action 必须包含 targetPrice, stopLossPrice, projectedPnL, projectedPnLPct, timeHorizon。`
+【P&L 止盈止损输出要求】：每条 action 必须明确输出 targetPrice (止盈价), stopLossPrice (止损价), riskRewardRatio (盈亏比), takeProfitPct, stopLossPct, projectedPnL, projectedPnLPct, timeHorizon。`
       ),
     ];
   },

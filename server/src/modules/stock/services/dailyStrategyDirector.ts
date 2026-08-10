@@ -263,7 +263,7 @@ export class DailyStrategyDirector {
 
     const output: DailyAllocationOutput = runResult.output;
 
-    // STEP 8.5: Guardrail 校准（0 AI 假股价 + 资金上限拦截）
+    // STEP 8.5: Guardrail 校准（0 AI 假股价 + 资金上限拦截 + 止盈止损数学校准防线）
     const totalAvailableCapital = (openDCash || portfolio.cashBalance) + budgetToUse;
     let runningBudgetLeft = totalAvailableCapital;
 
@@ -285,13 +285,53 @@ export class DailyStrategyDirector {
 
         const finalAmount = Number((finalShares * finalPrice).toFixed(2));
 
-        // 重新计算 projectedPnL（基于 OpenD 实时价 + AI 给出的 targetPrice）
+        // 止盈价与止损价确定性防线校准
+        let targetPrice = act.targetPrice;
+        let stopLossPrice = act.stopLossPrice;
+
+        if (finalPrice > 0) {
+          if (act.action === "BUY") {
+            // 止盈价默认预留 +12% 空间（若 AI 未设定或低于现价）
+            if (!targetPrice || targetPrice <= finalPrice) {
+              targetPrice = Number((finalPrice * 1.12).toFixed(2));
+            }
+            // 止损价默认预留 -5% 警戒线（若 AI 未设定或高于现价）
+            if (!stopLossPrice || stopLossPrice >= finalPrice) {
+              stopLossPrice = Number((finalPrice * 0.95).toFixed(2));
+            }
+          } else if (act.action === "TRIM" || act.action === "SELL") {
+            if (!targetPrice) {
+              targetPrice = Number((finalPrice * 1.05).toFixed(2));
+            }
+            if (!stopLossPrice || stopLossPrice >= finalPrice) {
+              stopLossPrice = Number((finalPrice * 0.92).toFixed(2));
+            }
+          } else {
+            if (!targetPrice) {
+              targetPrice = Number((finalPrice * 1.10).toFixed(2));
+            }
+            if (!stopLossPrice) {
+              stopLossPrice = Number((finalPrice * 0.93).toFixed(2));
+            }
+          }
+        }
+
+        const takeProfitPct = finalPrice > 0 && targetPrice ? Number((((targetPrice - finalPrice) / finalPrice) * 100).toFixed(1)) : undefined;
+        const stopLossPct = finalPrice > 0 && stopLossPrice ? Number((((finalPrice - stopLossPrice) / finalPrice) * 100).toFixed(1)) : undefined;
+
+        // 盈亏比 Risk-Reward Ratio (R:R)
+        let riskRewardRatio = act.riskRewardRatio;
+        if (takeProfitPct !== undefined && stopLossPct !== undefined && stopLossPct > 0) {
+          riskRewardRatio = Number((takeProfitPct / stopLossPct).toFixed(2));
+        }
+
+        // 重新计算 projectedPnL（基于 OpenD 实时价 + 校准后的 targetPrice）
         let projectedPnL = act.projectedPnL;
         let projectedPnLPct = act.projectedPnLPct;
-        if (!projectedPnL && act.targetPrice && finalPrice > 0) {
+        if ((!projectedPnL || projectedPnL === 0) && targetPrice && finalPrice > 0 && finalShares > 0) {
           if (act.action === "BUY") {
-            projectedPnL = Number(((act.targetPrice - finalPrice) * finalShares).toFixed(2));
-            projectedPnLPct = Number((((act.targetPrice - finalPrice) / finalPrice) * 100).toFixed(2));
+            projectedPnL = Number(((targetPrice - finalPrice) * finalShares).toFixed(2));
+            projectedPnLPct = Number((((targetPrice - finalPrice) / finalPrice) * 100).toFixed(2));
           }
         }
 
@@ -301,10 +341,44 @@ export class DailyStrategyDirector {
           estimatedPrice: finalPrice,
           suggestedShares: finalShares,
           estimatedAmount: finalAmount,
+          targetPrice,
+          stopLossPrice,
+          riskRewardRatio,
+          takeProfitPct,
+          stopLossPct,
           projectedPnL,
           projectedPnLPct,
         };
       });
+    }
+
+    // 持仓止盈止损线自动预警检测
+    if (!output.riskAlerts) {
+      output.riskAlerts = [];
+    }
+
+    for (const pos of realPositions) {
+      const livePrice = quotesMap.get(pos.symbol.toUpperCase()) || pos.marketPrice || pos.costBasis;
+      if (pos.costBasis > 0 && livePrice > 0) {
+        const pnlPct = ((livePrice - pos.costBasis) / pos.costBasis) * 100;
+        // 浮亏触及 7% 跌幅线
+        if (pnlPct <= -7.0) {
+          output.riskAlerts.unshift({
+            level: "CRITICAL",
+            title: `🚨 触及止损警戒线: ${pos.symbol}`,
+            description: `${pos.companyName || pos.symbol} 当前现价 $${livePrice.toFixed(2)} 较成本价 $${pos.costBasis.toFixed(2)} 累计下跌 ${Math.abs(pnlPct).toFixed(1)}%（超出 7.0% 止损阈值），建议执行严格止损或减仓避险。`,
+            relatedSymbol: pos.symbol,
+          });
+        } else if (pnlPct >= 15.0) {
+          // 浮盈达到 15% 止盈线
+          output.riskAlerts.unshift({
+            level: "INFO",
+            title: `🎯 达标止盈止盈目标: ${pos.symbol}`,
+            description: `${pos.companyName || pos.symbol} 当前现价 $${livePrice.toFixed(2)} 较成本价 $${pos.costBasis.toFixed(2)} 累计上涨 +${pnlPct.toFixed(1)}%（达到 15.0% 止盈收益目标），建议分批锁定利润。`,
+            relatedSymbol: pos.symbol,
+          });
+        }
+      }
     }
 
     // 计算指南整体预期 P&L

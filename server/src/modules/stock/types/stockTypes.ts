@@ -42,8 +42,11 @@ export interface StrategyActionItem {
   rationale: string;             // 调仓逻辑依据
   urgency: "HIGH" | "MEDIUM" | "LOW";
   // === P&L KPI 字段 ===
-  targetPrice?: number;          // AI 预期目标价 ($)
-  stopLossPrice?: number;        // 止损价位 ($)
+  targetPrice?: number;          // AI 预期止盈目标价 ($)
+  stopLossPrice?: number;        // 止损警戒价位 ($)
+  riskRewardRatio?: number;      // 盈亏比 (Risk-Reward Ratio, 如 2.4)
+  takeProfitPct?: number;        // 预期止盈收益比例 (%)
+  stopLossPct?: number;          // 最大止损风险比例 (%)
   projectedPnL?: number;         // 执行此建议预期盈亏 ($)
   projectedPnLPct?: number;      // 预期盈亏百分比
   timeHorizon?: "INTRADAY" | "1-3DAYS" | "1-2WEEKS"; // 预期实现周期
@@ -59,8 +62,11 @@ export const StrategyActionItemSchema = z.object({
   rationale: z.string(),
   urgency: z.enum(["HIGH", "MEDIUM", "LOW"]),
   // P&L KPI
-  targetPrice: z.number().optional().describe("执行此建议后 AI 预期达到的目标价格 ($)"),
-  stopLossPrice: z.number().optional().describe("止损价位 ($)"),
+  targetPrice: z.number().optional().describe("执行此建议后 AI 预期达到的止盈目标价格 ($)"),
+  stopLossPrice: z.number().optional().describe("止损警戒价位 ($)"),
+  riskRewardRatio: z.number().optional().describe("盈亏比 (Target-Price Surplus / Stop-Loss Margin)"),
+  takeProfitPct: z.number().optional().describe("预期止盈收益空间比例 (%)"),
+  stopLossPct: z.number().optional().describe("最大止损下行风险比例 (%)"),
   projectedPnL: z.number().optional().describe("执行此建议预期盈亏 ($), 正数=盈利, 负数=止损"),
   projectedPnLPct: z.number().optional().describe("预期盈亏百分比"),
   timeHorizon: z.enum(["INTRADAY", "1-3DAYS", "1-2WEEKS"]).optional().describe("预期实现周期"),
