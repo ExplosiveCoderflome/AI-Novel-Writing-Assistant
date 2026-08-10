@@ -21,6 +21,7 @@ import {
   Activity,
 } from "lucide-react";
 import LiveExecutionDialog from "@/components/liveExecution/LiveExecutionDialog";
+import MarkdownViewer from "@/components/common/MarkdownViewer";
 
 interface ActionItem {
   action: "BUY" | "SELL" | "HOLD" | "TRIM";
@@ -679,9 +680,9 @@ export default function StockStudioPage() {
                   {icon}
                   <span className={`font-bold text-xs ${titleColor}`}>{title}</span>
                 </div>
-                <p className="text-xs text-slate-300 leading-relaxed whitespace-pre-line font-sans">
-                  {content}
-                </p>
+                <div className="text-xs text-slate-300 leading-relaxed font-sans dark:prose-invert">
+                  <MarkdownViewer content={content} />
+                </div>
               </div>
             );
           })}
@@ -1973,8 +1974,8 @@ export default function StockStudioPage() {
                     {activeReportTab === "narrative" ? (
                       renderNarrativeReport(strategy.narrativeReport)
                     ) : (
-                      <div className="bg-slate-950/80 border border-slate-800/80 rounded-lg p-4 text-sm text-slate-300 whitespace-pre-line leading-relaxed font-mono">
-                        {strategy.institutionalReport}
+                      <div className="bg-slate-950/80 border border-slate-800/80 rounded-lg p-4 text-sm text-slate-300 leading-relaxed font-sans dark:prose-invert">
+                        <MarkdownViewer content={strategy.institutionalReport} />
                       </div>
                     )}
                   </div>
