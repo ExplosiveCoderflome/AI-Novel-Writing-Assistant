@@ -408,11 +408,11 @@ export default function QuickSetupDialog(props: QuickSetupDialogProps) {
                 {showFirstNovelHandoff ? (
                   <div className="w-full max-w-xl rounded-2xl border border-primary/15 bg-primary/[0.035] p-5 text-left shadow-sm">
                     <div className="flex flex-wrap items-center justify-between gap-2">
-                      <div className="text-sm font-semibold text-primary">开始第一本小说</div>
-                      <Link to="/settings" className="text-xs text-muted-foreground underline-offset-4 hover:text-foreground hover:underline">配置更多模型</Link>
+                      <div className="text-sm font-semibold text-primary">{i18next.t("dict.gen_de6465aa")}</div>
+                      <Link to="/settings" className="text-xs text-muted-foreground underline-offset-4 hover:text-foreground hover:underline">{i18next.t("onboarding.quickSetupDialog.aj7ks1")}</Link>
                     </div>
-                    <h3 className="mt-2 text-xl font-semibold tracking-tight">从一句想写的故事开始</h3>
-                    <p className="mt-2 text-sm leading-6 text-muted-foreground">告诉 AI 你想写什么，它会先给出可选方向；选定后继续准备故事、世界、角色和首章。</p>
+                    <h3 className="mt-2 text-xl font-semibold tracking-tight">{i18next.t("onboarding.quickSetupDialog.ge3rh8")}</h3>
+                    <p className="mt-2 text-sm leading-6 text-muted-foreground">{i18next.t("onboarding.quickSetupDialog.75e7os")}</p>
                     <div className="mt-4 grid gap-2 sm:grid-cols-3">
                       {["说想法", "选择方向", "阅读首章"].map((label, index) => (
                         <div key={label} className="rounded-xl border bg-background/80 px-3 py-2.5 text-sm font-medium">

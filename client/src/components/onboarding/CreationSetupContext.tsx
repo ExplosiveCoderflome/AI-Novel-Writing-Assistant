@@ -92,8 +92,6 @@ export function CreationSetupProvider({ children }: { children: ReactNode }) {
       setForceConfiguration(false);
       setDialogOpen(true);
     }
-      setDialogOpen(true);
-    }
   }, [location.pathname, readyForCreation, statusQuery.isError, statusQuery.isPending]);
 
   const handleOpenChange = (open: boolean) => {

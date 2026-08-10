@@ -1,3 +1,4 @@
+import i18next from "i18next";
 import type { DirectorDashboardView, DirectorRuntimeProjection } from "@ai-novel/shared/types/directorRuntime";
 import type { NovelWorkflowMilestone } from "@ai-novel/shared/types/novelWorkflow";
 import type { UnifiedTaskDetail, UnifiedTaskStep } from "@ai-novel/shared/types/task";
@@ -56,24 +57,24 @@ export default function TaskCenterDetailPanel(props: TaskCenterDetailPanelProps)
 
   return (
     <TaskQueueSection
-      title="任务详情"
-      description="查看当前影响和推荐动作，运行参数按需展开。"
+      title={i18next.t("dict.taskIdDetails")}
+      description={i18next.t("tasks.taskCenterDetailPanel.337t8q")}
       className="overflow-hidden rounded-2xl border-border/40 bg-card/60 shadow-[0_12px_36px_rgba(15,23,42,0.035)]"
     >
       <div className="space-y-4 text-sm">
         {props.loading ? (
-          <WorkspaceStateNotice loading title="正在读取任务详情" description="正在同步任务状态、检查点和最近步骤。" />
+          <WorkspaceStateNotice loading title={i18next.t("tasks.taskCenterDetailPanel.u3def9")} description={i18next.t("tasks.taskCenterDetailPanel.hqjq08")} />
         ) : null}
         {props.errorMessage ? (
           <WorkspaceStateNotice
             tone="danger"
-            title="任务详情读取失败"
+            title={i18next.t("tasks.taskCenterDetailPanel.fkj558")}
             description={props.errorMessage}
-            action={<Button size="sm" variant="outline" onClick={props.onRetryLoad}>重新读取</Button>}
+            action={<Button size="sm" variant="outline" onClick={props.onRetryLoad}>{i18next.t("autoDirectorFollowUps.autoDirectorFollowUpCenterPage.itle66")}</Button>}
           />
         ) : null}
         {!props.loading && !props.errorMessage && !task ? (
-          <WorkspaceStateNotice title="请选择一个任务" description="从任务列表选择一项后，可查看影响范围、恢复位置和可执行动作。" />
+          <WorkspaceStateNotice title={i18next.t("tasks.taskCenterDetailPanel.tylw13")} description={i18next.t("tasks.taskCenterDetailPanel.osb17j")} />
         ) : null}
 
         {task ? (
@@ -112,11 +113,11 @@ export default function TaskCenterDetailPanel(props: TaskCenterDetailPanelProps)
             ) : null}
 
             {task.lastError && !props.failureIsQualityReminder && !task.failureCode && !task.failureSummary ? (
-              <WorkspaceStateNotice tone="danger" title="最近一次执行失败" description={task.lastError} />
+              <WorkspaceStateNotice tone="danger" title={i18next.t("tasks.taskCenterDetailPanel.udgblh")} description={task.lastError} />
             ) : null}
 
             {task.kind === "novel_workflow" && task.checkpointSummary ? (
-              <WorkspaceStateNotice compact title="最近检查点" description={task.checkpointSummary} />
+              <WorkspaceStateNotice compact title={i18next.t("dict.gen_067d1583")} description={task.checkpointSummary} />
             ) : null}
 
             {props.isAutoDirectorTask ? <DirectorRuntimeProjectionCard projection={props.runtimeProjection} /> : null}
@@ -125,14 +126,14 @@ export default function TaskCenterDetailPanel(props: TaskCenterDetailPanelProps)
               <WorkspaceStateNotice
                 compact
                 tone="info"
-                title="导演任务操作入口"
-                description="继续、恢复、切换模型和推进策略请回到小说页面的执行详情处理；任务中心保留状态、取消、归档和来源入口。"
+                title={i18next.t("tasks.taskCenterDetailPanel.gn57f9")}
+                description={i18next.t("tasks.taskCenterDetailPanel.3w2i19")}
               />
             ) : null}
 
             {props.actions.length > 0 ? (
               <div className="space-y-2">
-                <div className="font-medium">可执行动作</div>
+                <div className="font-medium">{i18next.t("dict.gen_bdd966d4")}</div>
                 {props.actions.map((action) => (
                   <TaskQueueActionRow
                     key={action.key}
@@ -152,28 +153,28 @@ export default function TaskCenterDetailPanel(props: TaskCenterDetailPanelProps)
                   />
                 ))}
                 <TaskQueueActionRow
-                  title="打开来源页面"
+                  title={i18next.t("dict.gen_492476d9")}
                   consequence="只打开任务来源，不会改变任务状态。"
-                  action={<Button asChild size="sm" variant="outline"><Link to={task.sourceRoute}>打开来源页面</Link></Button>}
+                  action={<Button asChild size="sm" variant="outline"><Link to={task.sourceRoute}>{i18next.t("dict.gen_492476d9")}</Link></Button>}
                 />
               </div>
             ) : (
               <TaskQueueActionRow
-                title="打开来源页面"
+                title={i18next.t("dict.gen_492476d9")}
                 consequence="只打开任务来源，不会改变任务状态。"
-                action={<Button asChild size="sm" variant="outline"><Link to={task.sourceRoute}>打开来源页面</Link></Button>}
+                action={<Button asChild size="sm" variant="outline"><Link to={task.sourceRoute}>{i18next.t("dict.gen_492476d9")}</Link></Button>}
               />
             )}
 
             <details className="group border-t border-border/35 pt-3">
               <summary className="flex cursor-pointer list-none items-center justify-between text-sm font-medium marker:hidden">
                 <span>执行步骤 {props.steps.length > 0 ? `(${props.steps.length})` : ""}</span>
-                <span className="text-xs font-normal text-muted-foreground group-open:hidden">展开</span>
-                <span className="hidden text-xs font-normal text-muted-foreground group-open:inline">收起</span>
+                <span className="text-xs font-normal text-muted-foreground group-open:hidden">{i18next.t("dict.gen_e2edde5a")}</span>
+                <span className="hidden text-xs font-normal text-muted-foreground group-open:inline">{i18next.t("dict.gen_def9e98b")}</span>
               </summary>
               <div className="mt-3 space-y-2">
                 {props.steps.length === 0 ? (
-                  <WorkspaceStateNotice compact title="暂无步骤状态" description="该任务尚未提供可展示的细分步骤。" />
+                  <WorkspaceStateNotice compact title={i18next.t("tasks.taskCenterDetailPanel.j6b0vs")} description={i18next.t("tasks.taskCenterDetailPanel.ihackt")} />
                 ) : props.steps.map((step) => (
                   <div key={step.key} className="flex items-center justify-between rounded-xl bg-muted/25 px-3 py-2">
                     <div>{step.label}</div>

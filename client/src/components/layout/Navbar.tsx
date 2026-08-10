@@ -1,9 +1,6 @@
 import { useLocation } from "react-router-dom";
-<<<<<<< HEAD
 import { useTranslation } from "react-i18next";
-=======
 import { SlidersHorizontal } from "lucide-react";
->>>>>>> 101061e7 (feat(onboarding): add quick model settings entry)
 import LLMSelector from "@/components/common/LLMSelector";
 import { useCreationSetup } from "@/components/onboarding/CreationSetupContext";
 import AppVersionBadge from "@/components/layout/AppVersionBadge";
@@ -24,11 +21,8 @@ interface NavbarProps {
 
 export default function Navbar(props: NavbarProps) {
   const { workspaceNavMode, onWorkspaceNavModeChange } = props;
-<<<<<<< HEAD
   const { t } = useTranslation();
-=======
   const { openQuickSetup } = useCreationSetup();
->>>>>>> 101061e7 (feat(onboarding): add quick model settings entry)
   const location = useLocation();
   const isHome = location.pathname === "/";
   const showWorkspaceToggle = Boolean(workspaceNavMode && onWorkspaceNavModeChange);

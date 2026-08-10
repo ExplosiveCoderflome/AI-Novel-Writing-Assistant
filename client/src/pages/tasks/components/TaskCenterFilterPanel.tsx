@@ -1,3 +1,4 @@
+import i18next from "i18next";
 import type { TaskKind, TaskStatus } from "@ai-novel/shared/types/task";
 import { Input } from "@/components/ui/input";
 import type { TaskSortMode } from "../taskCenterUtils";
@@ -29,55 +30,55 @@ export default function TaskCenterFilterPanel({
   onSortModeChange,
 }: TaskCenterFilterPanelProps) {
   return (
-    <section aria-label="筛选运行记录" className="task-filter-card rounded-2xl bg-muted/20 px-4 py-3">
+    <section aria-label={i18next.t("tasks.taskCenterFilterPanel.m1w829")} className="task-filter-card rounded-2xl bg-muted/20 px-4 py-3">
       <div className="task-filter-controls grid min-w-0 gap-2 sm:grid-cols-2 xl:grid-cols-[150px_150px_minmax(220px,1fr)_220px_auto] xl:items-center">
         <SelectControl
-          aria-label="按任务类型筛选"
+          aria-label={i18next.t("tasks.taskCenterFilterPanel.vj66rx")}
           className="task-filter-kind h-10 w-full rounded-xl border-border/45 bg-background px-3 text-sm"
           value={kind}
           onChange={(event) => onKindChange(event.target.value as TaskKind | "")}
         >
-          <option value="">全部类型</option>
-          <option value="book_analysis">拆书分析</option>
-          <option value="novel_workflow">小说创作</option>
-          <option value="novel_pipeline">小说流水线</option>
-          <option value="knowledge_document">知识库索引</option>
-          <option value="image_generation">图片生成</option>
-          <option value="style_extraction">写法提取</option>
+          <option value="">{i18next.t("tasks.filterKindAll")}</option>
+          <option value="book_analysis">{i18next.t("tasks.filterKindBookAnalysis")}</option>
+          <option value="novel_workflow">{i18next.t("tasks.filterKindNovelWorkflow")}</option>
+          <option value="novel_pipeline">{i18next.t("tasks.filterKindNovelPipeline")}</option>
+          <option value="knowledge_document">{i18next.t("tasks.filterKindKnowledgeDocument")}</option>
+          <option value="image_generation">{i18next.t("tasks.filterKindImageGeneration")}</option>
+          <option value="style_extraction">{i18next.t("tasks.filterKindStyleExtraction")}</option>
           <option value="agent_run">Agent 运行</option>
         </SelectControl>
         <SelectControl
-          aria-label="按任务状态筛选"
+          aria-label={i18next.t("autoDirectorFollowUps.autoDirectorFollowUpList.uc1up4")}
           className="task-filter-status h-10 w-full rounded-xl border-border/45 bg-background px-3 text-sm"
           value={status}
           onChange={(event) => onStatusChange(event.target.value as TaskStatus | "")}
         >
-          <option value="">全部状态</option>
-          <option value="queued">排队中</option>
-          <option value="running">运行中</option>
-          <option value="waiting_approval">等待审批</option>
-          <option value="failed">失败</option>
-          <option value="cancelled">已取消</option>
-          <option value="succeeded">已完成</option>
+          <option value="">{i18next.t("tasks.filterStatusAll")}</option>
+          <option value="queued">{i18next.t("tasks.filterStatusQueued")}</option>
+          <option value="running">{i18next.t("tasks.filterStatusRunning")}</option>
+          <option value="waiting_approval">{i18next.t("dict.gen_3ced7e48")}</option>
+          <option value="failed">{i18next.t("tasks.filterStatusFailed")}</option>
+          <option value="cancelled">{i18next.t("tasks.filterStatusCancelled")}</option>
+          <option value="succeeded">{i18next.t("tasks.filterStatusSucceeded")}</option>
         </SelectControl>
         <Input
-          aria-label="按标题或关联对象搜索"
+          aria-label={i18next.t("tasks.taskCenterFilterPanel.8xdxpn")}
           className="task-filter-keyword h-10 rounded-xl border-border/45 bg-background px-3"
           value={keyword}
           onChange={(event) => onKeywordChange(event.target.value)}
-          placeholder="标题或关联对象"
+          placeholder={i18next.t("dict.gen_702bdace")}
         />
         <SelectControl
-          aria-label="任务排序方式"
+          aria-label={i18next.t("tasks.taskCenterFilterPanel.z4iruv")}
           className="task-filter-sort h-10 w-full rounded-xl border-border/45 bg-background px-3 text-sm"
           value={sortMode}
           onChange={(event) => onSortModeChange(event.target.value as TaskSortMode)}
         >
-          <option value="updated_desc">按更新时间排序：最新优先</option>
-          <option value="updated_asc">按更新时间排序：最早优先</option>
-          <option value="heartbeat_desc">按最近心跳排序：最新优先</option>
-          <option value="heartbeat_asc">按最近心跳排序：最早优先</option>
-          <option value="default">默认排序：需处理优先</option>
+          <option value="updated_desc">{i18next.t("tasks.filterSortUpdatedDesc")}</option>
+          <option value="updated_asc">{i18next.t("tasks.filterSortUpdatedAsc")}</option>
+          <option value="heartbeat_desc">{i18next.t("dict.gen_29dedce4")}</option>
+          <option value="heartbeat_asc">{i18next.t("dict.gen_b2fb0583")}</option>
+          <option value="default">{i18next.t("tasks.taskCenterFilterPanel.f6yvz3")}</option>
         </SelectControl>
         <label className={`task-filter-pill flex h-10 cursor-pointer items-center justify-center gap-2 rounded-full px-4 text-sm transition-colors ${
           onlyAnomaly ? "bg-destructive/10 text-destructive" : "bg-background text-muted-foreground hover:bg-muted"
@@ -87,9 +88,7 @@ export default function TaskCenterFilterPanel({
             className="sr-only"
             checked={onlyAnomaly}
             onChange={(event) => onOnlyAnomalyChange(event.target.checked)}
-          />
-          只看需处理
-        </label>
+          />{i18next.t("tasks.taskCenterFilterPanel.besy2n")}</label>
       </div>
     </section>
   );

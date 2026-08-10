@@ -1,3 +1,4 @@
+import i18next from "i18next";
 import { Link } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { BookOpen, Castle, ChevronDown, Compass, GitBranch, LibraryBig, MapPin, Pencil, Sparkles, Trash2 } from "lucide-react";
@@ -223,7 +224,7 @@ export default function WorldList() {
     mutationFn: (id: string) => deleteWorld(id),
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: queryKeys.worlds.all });
-      toast.success("世界样本已删除。");
+      toast.success(i18next.t("dict.worldSampleDeleted"));
     },
     onError: (error) => {
       toast.error(error instanceof Error ? error.message : "删除世界样本失败。");
@@ -248,16 +249,14 @@ export default function WorldList() {
             <LibraryBig className="h-5 w-5" aria-hidden="true" />
           </div>
           <div>
-            <h1 className="text-xl font-semibold tracking-tight">世界样本库</h1>
-            <p className="mt-1 max-w-3xl text-sm leading-6 text-muted-foreground">
-              浏览可复用的世界设定，从中寻找适合新故事的规则、势力、舞台和冲突线索。
-            </p>
+            <h1 className="text-xl font-semibold tracking-tight">{i18next.t("sidebar.worlds")}</h1>
+            <p className="mt-1 max-w-3xl text-sm leading-6 text-muted-foreground">{i18next.t("worlds.worldList.u66zm4")}</p>
           </div>
         </div>
         <div className="flex flex-wrap justify-end gap-2">
           {featureFlags.worldWizardEnabled ? (
             <Button asChild className="rounded-full">
-              <Link to="/worlds/generator">生成世界样本</Link>
+              <Link to="/worlds/generator">{i18next.t("dict.gen_e112ca29")}</Link>
             </Button>
           ) : null}
         </div>
@@ -265,38 +264,36 @@ export default function WorldList() {
 
       <details className="group rounded-2xl bg-muted/20 px-5 py-3">
         <summary className="flex cursor-pointer list-none items-center justify-between gap-3 text-sm marker:hidden">
-          <span className="font-medium">如何把样本用于小说</span>
+          <span className="font-medium">{i18next.t("worlds.worldList.vc2yl3")}</span>
           <ChevronDown className="h-4 w-4 text-muted-foreground transition-transform group-open:rotate-180" aria-hidden="true" />
         </summary>
         <div className="mt-3 grid gap-3 border-t border-border/30 pt-3 text-sm leading-6 text-muted-foreground md:grid-cols-3">
-          <div><span className="mr-2 font-medium text-foreground">1</span>整理可复用的世界规则、势力、地点和张力。</div>
-          <div><span className="mr-2 font-medium text-foreground">2</span>从小说基础信息页导入，小说会建立自己的世界副本。</div>
-          <div><span className="mr-2 font-medium text-foreground">3</span>样本和本书世界有差异时，再决定推送或拉取。</div>
+          <div><span className="mr-2 font-medium text-foreground">1</span>{i18next.t("worlds.worldList.teic8v")}</div>
+          <div><span className="mr-2 font-medium text-foreground">2</span>{i18next.t("worlds.worldList.x3hlfn")}</div>
+          <div><span className="mr-2 font-medium text-foreground">3</span>{i18next.t("worlds.worldList.hz4etc")}</div>
         </div>
       </details>
 
       {worldListQuery.isLoading ? (
-        <div className="grid gap-4 lg:grid-cols-2 2xl:grid-cols-3" aria-label="正在加载世界样本">
+        <div className="grid gap-4 lg:grid-cols-2 2xl:grid-cols-3" aria-label={i18next.t("worlds.worldList.br5ib7")}>
           {[0, 1, 2].map((item) => (
             <div key={item} className="h-80 animate-pulse rounded-3xl bg-muted/30" />
           ))}
         </div>
       ) : worldListQuery.isError ? (
         <div className="flex min-h-52 flex-col items-center justify-center rounded-3xl bg-destructive/[0.04] px-6 text-center">
-          <div className="font-medium">世界样本加载失败</div>
-          <div className="mt-1 text-sm text-muted-foreground">请检查网络连接后重试。</div>
-          <Button type="button" variant="outline" className="mt-4 rounded-full" onClick={() => void worldListQuery.refetch()}>
-            重新加载
-          </Button>
+          <div className="font-medium">{i18next.t("worlds.worldList.9ekqd8")}</div>
+          <div className="mt-1 text-sm text-muted-foreground">{i18next.t("worlds.worldList.way9ie")}</div>
+          <Button type="button" variant="outline" className="mt-4 rounded-full" onClick={() => void worldListQuery.refetch()}>{i18next.t("common.retry")}</Button>
         </div>
       ) : worlds.length === 0 ? (
         <div className="flex min-h-64 flex-col items-center justify-center rounded-3xl bg-muted/20 px-6 text-center">
           <BookOpen className="h-7 w-7 text-muted-foreground/60" aria-hidden="true" />
-          <div className="mt-3 font-medium">还没有世界样本</div>
-          <div className="mt-1 text-sm text-muted-foreground">生成一个可复用世界，为后续小说准备规则、舞台和冲突来源。</div>
+          <div className="mt-3 font-medium">{i18next.t("worlds.worldList.u5r2jv")}</div>
+          <div className="mt-1 text-sm text-muted-foreground">{i18next.t("worlds.worldList.2gq1eq")}</div>
           {featureFlags.worldWizardEnabled ? (
             <Button asChild className="mt-5 rounded-full">
-              <Link to="/worlds/generator">生成第一个世界样本</Link>
+              <Link to="/worlds/generator">{i18next.t("worlds.worldList.d1zpo0")}</Link>
             </Button>
           ) : null}
         </div>
@@ -335,39 +332,39 @@ export default function WorldList() {
                 ) : null}
 
                 <div className="mt-4 flex flex-wrap gap-x-5 gap-y-2 text-xs text-muted-foreground">
-                  <span><strong className="font-semibold tabular-nums text-foreground">{preview.ruleCount}</strong> 条规则</span>
-                  <span><strong className="font-semibold tabular-nums text-foreground">{preview.forceCount}</strong> 个势力</span>
-                  <span><strong className="font-semibold tabular-nums text-foreground">{preview.locationCount}</strong> 个地点</span>
-                  <span><strong className="font-semibold tabular-nums text-foreground">{preview.relationCount}</strong> 条关系</span>
+                  <span><strong className="font-semibold tabular-nums text-foreground">{preview.ruleCount}</strong>{i18next.t("worlds.worldList.fszxy")}</span>
+                  <span><strong className="font-semibold tabular-nums text-foreground">{preview.forceCount}</strong>{i18next.t("worlds.worldList.buoo6")}</span>
+                  <span><strong className="font-semibold tabular-nums text-foreground">{preview.locationCount}</strong>{i18next.t("worlds.worldList.bvltf")}</span>
+                  <span><strong className="font-semibold tabular-nums text-foreground">{preview.relationCount}</strong>{i18next.t("worlds.worldList.fjnk9")}</span>
                 </div>
 
                 <details className="group mt-4 border-t border-border/30 pt-3">
                   <summary className="flex cursor-pointer list-none items-center justify-between text-xs text-muted-foreground marker:hidden">
-                    <span>展开创作线索</span>
+                    <span>{i18next.t("worlds.worldList.4e5ytt")}</span>
                     <ChevronDown className="h-4 w-4 transition-transform group-open:rotate-180" aria-hidden="true" />
                   </summary>
                   <div className="mt-4 grid gap-4 sm:grid-cols-2">
                     <WorldSampleLine
                       icon={Sparkles}
-                      label="力量与规则"
+                      label={i18next.t("dict.gen_3da452ba")}
                       items={preview.coreRules}
                       fallback="进入工作台整理本世界必须遵守的规则。"
                     />
                     <WorldSampleLine
                       icon={Castle}
-                      label="势力舞台"
+                      label={i18next.t("dict.gen_49de8cf0")}
                       items={preview.majorForces}
                       fallback="进入工作台补充会推动剧情的组织与阵营。"
                     />
                     <WorldSampleLine
                       icon={MapPin}
-                      label="故事发生地"
+                      label={i18next.t("dict.gen_75f7dd64")}
                       items={preview.storyLocations}
                       fallback="进入工作台标记适合小说开局和冲突升级的地点。"
                     />
                     <WorldSampleLine
                       icon={GitBranch}
-                      label="可抽取的冲突线"
+                      label={i18next.t("dict.gen_b4f29303")}
                       items={preview.tensions}
                       fallback="进入工作台整理世界矛盾，供小说生成使用。"
                     />
@@ -378,15 +375,11 @@ export default function WorldList() {
                 <div className="mt-auto flex flex-wrap items-center gap-1 border-t border-border/30 pt-4">
                   <Button asChild size="sm" className="rounded-full">
                     <Link to={`/worlds/${world.id}/workspace`}>
-                      <Compass className="mr-1 h-4 w-4" aria-hidden="true" />
-                      查看世界手册
-                    </Link>
+                      <Compass className="mr-1 h-4 w-4" aria-hidden="true" />{i18next.t("worlds.worldList.wq7tv")}</Link>
                   </Button>
                   <Button asChild size="sm" variant="ghost" className="rounded-full text-muted-foreground">
                     <Link to={`/worlds/${world.id}/workspace`}>
-                      <Pencil className="mr-1 h-4 w-4" aria-hidden="true" />
-                      整理样本
-                    </Link>
+                      <Pencil className="mr-1 h-4 w-4" aria-hidden="true" />{i18next.t("worlds.worldList.da5u93")}</Link>
                   </Button>
                   <Button
                     size="sm"

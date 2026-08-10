@@ -1,3 +1,4 @@
+import i18next from "i18next";
 import type { DirectorDashboardView } from "@ai-novel/shared/types/directorRuntime";
 import type { UnifiedTaskDetail } from "@ai-novel/shared/types/task";
 import { TaskQueueStatusBadge } from "@/components/taskQueue";
@@ -70,21 +71,21 @@ export default function TaskCenterDetailSummary({
       </div>
       <div className="grid gap-3 rounded-xl bg-muted/25 p-4 sm:grid-cols-2 xl:grid-cols-1 2xl:grid-cols-2">
         <div>
-          <div className="text-[11px] text-muted-foreground">当前阶段</div>
+          <div className="text-[11px] text-muted-foreground">{i18next.t("dict.gen_ea328dc7")}</div>
           <div className="mt-1 leading-5 text-foreground/90">{currentStage}</div>
         </div>
         <div>
-          <div className="text-[11px] text-muted-foreground">正在处理</div>
+          <div className="text-[11px] text-muted-foreground">{i18next.t("tasks.taskCenterDetailSummary.dwt10n")}</div>
           <div className="mt-1 leading-5 text-foreground/90">{currentItem}</div>
         </div>
         {task.kind === "novel_workflow" ? (
           <>
             <div>
-              <div className="text-[11px] text-muted-foreground">建议下一步</div>
+              <div className="text-[11px] text-muted-foreground">{i18next.t("dict.gen_fdf768b1")}</div>
               <div className="mt-1 leading-5 text-foreground/90">{task.resumeAction ?? task.nextActionLabel ?? "继续小说主流程"}</div>
             </div>
             <div>
-              <div className="text-[11px] text-muted-foreground">最近检查点</div>
+              <div className="text-[11px] text-muted-foreground">{i18next.t("dict.gen_067d1583")}</div>
               <div className="mt-1 leading-5 text-foreground/90">{formatCheckpoint(task.checkpointType, task.executionScopeLabel)}</div>
             </div>
           </>
@@ -96,16 +97,14 @@ export default function TaskCenterDetailSummary({
         </div>
       ) : null}
       <details className="group border-t border-border/35 pt-3">
-        <summary className="flex cursor-pointer list-none items-center justify-between text-xs font-medium text-muted-foreground marker:hidden">
-          运行信息
-          <span className="group-open:hidden">展开</span>
-          <span className="hidden group-open:inline">收起</span>
+        <summary className="flex cursor-pointer list-none items-center justify-between text-xs font-medium text-muted-foreground marker:hidden">{i18next.t("tasks.taskCenterDetailSummary.ipcq3u")}<span className="group-open:hidden">{i18next.t("dict.gen_e2edde5a")}</span>
+          <span className="hidden group-open:inline">{i18next.t("dict.gen_def9e98b")}</span>
         </summary>
         <dl className="mt-3 grid gap-x-4 gap-y-2 text-xs sm:grid-cols-2 xl:grid-cols-1 2xl:grid-cols-2">
           {task.kind === "novel_workflow" ? (
             <>
-              <div><dt className="text-muted-foreground">恢复目标页</dt><dd className="mt-0.5 text-foreground/85">{formatResumeTarget(task.resumeTarget)}</dd></div>
-              <div><dt className="text-muted-foreground">最近健康阶段</dt><dd className="mt-0.5 text-foreground/85">{task.lastHealthyStage ?? "暂无"}</dd></div>
+              <div><dt className="text-muted-foreground">{i18next.t("tasks.taskCenterDetailSummary.xfhdyp")}</dt><dd className="mt-0.5 text-foreground/85">{formatResumeTarget(task.resumeTarget)}</dd></div>
+              <div><dt className="text-muted-foreground">{i18next.t("tasks.taskCenterDetailSummary.c9j7cu")}</dt><dd className="mt-0.5 text-foreground/85">{task.lastHealthyStage ?? "暂无"}</dd></div>
             </>
           ) : null}
           {technicalRows.map(([label, value]) => (

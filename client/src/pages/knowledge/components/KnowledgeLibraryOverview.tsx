@@ -1,3 +1,4 @@
+import i18next from "i18next";
 import type { LucideIcon } from "lucide-react";
 import {
   BookOpenCheck,
@@ -48,18 +49,18 @@ function getRecommendation(props: KnowledgeLibraryOverviewProps): Recommendation
   if (props.isError) {
     return {
       action: "retry",
-      description: "资料列表暂时无法读取。重新加载不会修改已有资料或索引任务。",
+      description: i18next.t("knowledge.knowledgeLibraryOverview.l9ctnz"),
       icon: CircleAlert,
-      title: "重新加载知识资料",
+      title: i18next.t("knowledge.knowledgeLibraryOverview.2w960m"),
       tone: "danger",
     };
   }
   if (props.isLoading) {
     return {
       action: "open_documents",
-      description: "正在整理资料状态与索引结果，加载完成后会给出可执行的下一步。",
+      description: i18next.t("knowledge.knowledgeLibraryOverview.onm70p"),
       icon: LoaderCircle,
-      title: "正在读取知识资料",
+      title: i18next.t("knowledge.knowledgeLibraryOverview.zhivxy"),
       tone: "neutral",
     };
   }
@@ -68,43 +69,43 @@ function getRecommendation(props: KnowledgeLibraryOverviewProps): Recommendation
       action: "open_ops",
       description: `${props.activeJobCount} 个索引任务正在执行，可查看进度；创作时优先选择已完成索引的资料。`,
       icon: RefreshCw,
-      title: "查看资料同步进度",
+      title: i18next.t("knowledge.knowledgeLibraryOverview.qoti8x"),
       tone: "info",
     };
   }
   if (props.failedIndexDocumentCount > 0 || props.failedJobCount > 0) {
     return {
       action: "open_ops",
-      description: "部分资料尚未完成索引。先查看失败原因并重建索引，其他可用资料仍可继续参与创作。",
+      description: i18next.t("knowledge.knowledgeLibraryOverview.mxsiya"),
       icon: CircleAlert,
-      title: "处理未完成的资料索引",
+      title: i18next.t("knowledge.knowledgeLibraryOverview.pncfds"),
       tone: "warning",
     };
   }
   if (props.visibleDocumentCount === 0 && props.hasFilters) {
     return {
       action: "clear_filters",
-      description: "当前搜索或状态条件没有匹配结果，清除筛选即可返回完整资料列表。",
+      description: i18next.t("knowledge.knowledgeLibraryOverview.6o6wkw"),
       icon: SearchCheck,
-      title: "查看其他知识资料",
+      title: i18next.t("knowledge.knowledgeLibraryOverview.ranblo"),
       tone: "neutral",
     };
   }
   if (props.visibleDocumentCount === 0) {
     return {
       action: "upload",
-      description: "上传一份 TXT 资料，系统会建立索引，供拆书、规划和正文创作调用。",
+      description: i18next.t("knowledge.knowledgeLibraryOverview.ng9fys"),
       icon: Upload,
-      title: "先添加一份创作资料",
+      title: i18next.t("knowledge.knowledgeLibraryOverview.ymayww"),
       tone: "info",
     };
   }
   if (props.searchableDocumentCount === 0) {
     return {
       action: "open_documents",
-      description: "列表中还没有已启用且完成索引的资料。选择一份资料启用或重建索引后即可用于创作。",
+      description: i18next.t("knowledge.knowledgeLibraryOverview.ylfxrj"),
       icon: Database,
-      title: "准备一份可检索资料",
+      title: i18next.t("knowledge.knowledgeLibraryOverview.eeacdk"),
       tone: "warning",
     };
   }
@@ -112,7 +113,7 @@ function getRecommendation(props: KnowledgeLibraryOverviewProps): Recommendation
     action: "open_documents",
     description: `${props.searchableDocumentCount} 份资料可以参与检索。可查看版本、测试召回，或选择资料继续创作。`,
     icon: BookOpenCheck,
-    title: "选择资料继续创作",
+    title: i18next.t("knowledge.knowledgeLibraryOverview.y4s6zg"),
     tone: "success",
   };
 }
@@ -126,41 +127,29 @@ export default function KnowledgeLibraryOverview(props: KnowledgeLibraryOverview
       case "upload":
         return (
           <Button type="button" size="sm" onClick={props.onUpload}>
-            <Upload className="h-4 w-4" />
-            上传资料
-          </Button>
+            <Upload className="h-4 w-4" />{i18next.t("knowledge.knowledgeDocumentsTab.a6m94b")}</Button>
         );
       case "retry":
         return (
           <Button type="button" size="sm" variant="outline" onClick={props.onRetry}>
-            <RefreshCw className="h-4 w-4" />
-            重新加载
-          </Button>
+            <RefreshCw className="h-4 w-4" />{i18next.t("common.retry")}</Button>
         );
       case "clear_filters":
         return (
-          <Button type="button" size="sm" variant="outline" onClick={props.onClearFilters}>
-            清除筛选
-          </Button>
+          <Button type="button" size="sm" variant="outline" onClick={props.onClearFilters}>{i18next.t("visualAssets.visualAssetLibrary.ei6tl9")}</Button>
         );
       case "open_ops":
         return (
-          <Button type="button" size="sm" variant="outline" onClick={props.onOpenOps}>
-            查看索引状态
-          </Button>
+          <Button type="button" size="sm" variant="outline" onClick={props.onOpenOps}>{i18next.t("knowledge.knowledgeLibraryOverview.4xpwlg")}</Button>
         );
       default:
         if (props.isLoading) {
           return (
-            <Button type="button" size="sm" variant="outline" disabled>
-              正在加载
-            </Button>
+            <Button type="button" size="sm" variant="outline" disabled>{i18next.t("knowledge.knowledgeLibraryOverview.dws3b6")}</Button>
           );
         }
         return (
-          <Button type="button" size="sm" variant="outline" onClick={props.onOpenDocuments}>
-            查看资料
-          </Button>
+          <Button type="button" size="sm" variant="outline" onClick={props.onOpenDocuments}>{i18next.t("knowledge.knowledgeLibraryOverview.dlv4t7")}</Button>
         );
     }
   })();
@@ -170,28 +159,26 @@ export default function KnowledgeLibraryOverview(props: KnowledgeLibraryOverview
       <AssetLibraryHeader
         icon={Database}
         context="创作资产 · 知识与检索"
-        title="知识资料库"
-        description="集中管理可复用的创作资料，确认索引状态，再把可靠内容带入拆书、规划和正文创作。"
+        title={i18next.t("knowledge.knowledgeLibraryOverview.a7os77")}
+        description={i18next.t("knowledge.knowledgeLibraryOverview.xdx2dl")}
         actions={(
           <>
             <Button type="button" onClick={props.onUpload}>
-              <Upload className="h-4 w-4" />
-              上传资料
-            </Button>
+              <Upload className="h-4 w-4" />{i18next.t("knowledge.knowledgeDocumentsTab.a6m94b")}</Button>
             <OpenInCreativeHubButton
               bindings={{ knowledgeDocumentIds: props.selectedDocumentId ? [props.selectedDocumentId] : [] }}
-              label="发送到创作中枢"
+              label={i18next.t("dict.gen_dbbdc047")}
             />
           </>
         )}
       />
 
-      <section aria-label="知识资料状态" className="flex flex-wrap items-center gap-x-6 gap-y-3 rounded-2xl bg-muted/25 px-5 py-3">
+      <section aria-label={i18next.t("knowledge.knowledgeLibraryOverview.whs40v")} className="flex flex-wrap items-center gap-x-6 gap-y-3 rounded-2xl bg-muted/25 px-5 py-3">
         {[
           { label: props.hasFilters ? "筛选结果" : "全部资料", value: documentStatusUnavailable ? "—" : props.visibleDocumentCount, dot: "bg-muted-foreground/45" },
-          { label: "已启用", value: documentStatusUnavailable ? "—" : props.enabledCount, dot: "bg-success" },
-          { label: "可检索", value: documentStatusUnavailable ? "—" : props.searchableDocumentCount, dot: "bg-success" },
-          { label: "同步中", value: props.activeJobCount, dot: props.failedJobCount > 0 ? "bg-destructive" : "bg-info" },
+          { label: i18next.t("dict.gen_53ace430"), value: documentStatusUnavailable ? "—" : props.enabledCount, dot: "bg-success" },
+          { label: i18next.t("knowledge.knowledgeLibraryOverview.ct30x"), value: documentStatusUnavailable ? "—" : props.searchableDocumentCount, dot: "bg-success" },
+          { label: i18next.t("knowledge.knowledgeLibraryOverview.ctvg4"), value: props.activeJobCount, dot: props.failedJobCount > 0 ? "bg-destructive" : "bg-info" },
         ].map((item) => (
           <div key={item.label} className="flex items-center gap-2 text-sm">
             <span className={`h-2 w-2 rounded-full ${item.dot}`} aria-hidden="true" />

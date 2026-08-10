@@ -1,3 +1,4 @@
+import i18next from "i18next";
 import {
   BaseEdge,
   EdgeLabelRenderer,
@@ -217,7 +218,7 @@ export function WorldGraphEdge(props: EdgeProps<WorldFlowEdge>) {
                   ) : null}
                 </div>
               ) : null}
-              {data.detailPinned ? <div className="mt-2 text-[10px] text-muted-foreground">点击画布空白处收起</div> : null}
+              {data.detailPinned ? <div className="mt-2 text-[10px] text-muted-foreground">{i18next.t("worlds.worldGraphElements.1enlyg")}</div> : null}
             </div>
           ) : null}
         </div>

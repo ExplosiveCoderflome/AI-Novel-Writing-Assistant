@@ -1,3 +1,4 @@
+import i18next from "i18next";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type { ApiResponse } from "@ai-novel/shared/types/api";
@@ -488,14 +489,14 @@ export default function KnowledgePage() {
   };
 
   const handleClearFinishedRagJobs = () => {
-    if (!window.confirm("清理已结束任务记录？排队中和执行中的任务会保留。")) {
+    if (!window.confirm(i18next.t("dict.gen_2d775f38"))) {
       return;
     }
     clearFinishedRagJobsMutation.mutate();
   };
 
   const handleDeleteRagJob = (jobId: string) => {
-    if (!window.confirm("删除这条任务记录？排队中和执行中的任务不能删除。")) {
+    if (!window.confirm(i18next.t("dict.gen_35c42d6b"))) {
       return;
     }
     deleteRagJobMutation.mutate(jobId);
@@ -530,9 +531,9 @@ export default function KnowledgePage() {
         className="space-y-4"
       >
         <TabsList className="h-11 w-full justify-start gap-1 overflow-x-auto rounded-full bg-muted/30 p-1">
-          <TabsTrigger value="documents" className="rounded-full px-5">创作资料</TabsTrigger>
-          <TabsTrigger value="ops" className="rounded-full px-5">索引与任务</TabsTrigger>
-          <TabsTrigger value="settings" className="rounded-full px-5">检索设置</TabsTrigger>
+          <TabsTrigger value="documents" className="rounded-full px-5">{i18next.t("knowledge.knowledgeDocumentsTab.ap46ye")}</TabsTrigger>
+          <TabsTrigger value="ops" className="rounded-full px-5">{i18next.t("knowledge.knowledgePage.4dcqkh")}</TabsTrigger>
+          <TabsTrigger value="settings" className="rounded-full px-5">{i18next.t("dict.gen_acb3166d")}</TabsTrigger>
         </TabsList>
 
         <TabsContent value="documents">

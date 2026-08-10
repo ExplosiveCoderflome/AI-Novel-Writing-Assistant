@@ -1,3 +1,4 @@
+import i18next from "i18next";
 import { useMemo, useRef, useState } from "react";
 import { Maximize2, Minus, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -85,7 +86,7 @@ export default function WorldGraphCanvas({
             size="icon"
             className="h-8 w-8 rounded-full"
             onClick={() => setZoom((value) => Math.max(0.65, Number((value - 0.1).toFixed(2))))}
-            aria-label="缩小图谱"
+            aria-label={i18next.t("worlds.worldGraphCanvas.gfavll")}
           >
             <Minus className="h-4 w-4" />
           </Button>
@@ -96,11 +97,11 @@ export default function WorldGraphCanvas({
             size="icon"
             className="h-8 w-8 rounded-full"
             onClick={() => setZoom((value) => Math.min(1.8, Number((value + 0.1).toFixed(2))))}
-            aria-label="放大图谱"
+            aria-label={i18next.t("worlds.worldGraphCanvas.d56xy4")}
           >
             <Plus className="h-4 w-4" />
           </Button>
-          <Button type="button" variant="ghost" size="icon" className="h-8 w-8 rounded-full" onClick={resetView} aria-label="重置图谱视图">
+          <Button type="button" variant="ghost" size="icon" className="h-8 w-8 rounded-full" onClick={resetView} aria-label={i18next.t("worlds.worldGraphCanvas.1oz384")}>
             <Maximize2 className="h-4 w-4" />
           </Button>
         </div>
@@ -133,10 +134,10 @@ export default function WorldGraphCanvas({
               <path d="M70 400 C188 318 274 350 380 278 C500 196 620 230 724 164 C830 96 904 138 982 86" fill="none" stroke="rgba(14,165,233,0.10)" strokeWidth="42" strokeLinecap="round" />
               <path d="M92 108 C230 176 338 120 474 170 C610 220 732 184 938 382" fill="none" stroke="rgba(34,197,94,0.075)" strokeWidth="58" strokeLinecap="round" />
               <g fontSize={12} fontWeight={700} fill="#64748b">
-                <text x={width / 2} y={25} textAnchor="middle">北</text>
-                <text x={width / 2} y={height - 15} textAnchor="middle">南</text>
-                <text x={22} y={height / 2} textAnchor="middle">西</text>
-                <text x={width - 22} y={height / 2} textAnchor="middle">东</text>
+                <text x={width / 2} y={25} textAnchor="middle">{i18next.t("worlds.worldVisualizationBoard.gev")}</text>
+                <text x={width / 2} y={height - 15} textAnchor="middle">{i18next.t("worlds.worldVisualizationBoard.ggn")}</text>
+                <text x={22} y={height / 2} textAnchor="middle">{i18next.t("worlds.worldVisualizationBoard.r5r")}</text>
+                <text x={width - 22} y={height / 2} textAnchor="middle">{i18next.t("worlds.worldVisualizationBoard.ffg")}</text>
               </g>
             </g>
           ) : (
@@ -232,7 +233,7 @@ export default function WorldGraphCanvas({
           </g>
         </svg>
       </div>
-      <div className="border-t border-border/25 px-5 py-3 text-xs text-muted-foreground">拖动画布移动视图，使用右上角按钮缩放或重置。</div>
+      <div className="border-t border-border/25 px-5 py-3 text-xs text-muted-foreground">{i18next.t("worlds.worldGraphCanvas.yr6wi2")}</div>
     </section>
   );
 }

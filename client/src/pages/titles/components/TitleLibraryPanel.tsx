@@ -1,3 +1,4 @@
+import i18next from "i18next";
 import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Check, Copy, Trash2 } from "lucide-react";
@@ -48,7 +49,7 @@ export default function TitleLibraryPanel({ genreOptions }: TitleLibraryPanelPro
     mutationFn: (id: string) => deleteTitleLibraryEntry(id),
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: queryKeys.titles.all });
-      toast.success("标题已删除。");
+      toast.success(i18next.t("dict.gen_15974d4f"));
     },
   });
 
@@ -56,13 +57,13 @@ export default function TitleLibraryPanel({ genreOptions }: TitleLibraryPanelPro
     mutationFn: (id: string) => markTitleLibraryUsed(id),
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: queryKeys.titles.all });
-      toast.success("标题使用次数已更新。");
+      toast.success(i18next.t("dict.gen_62f4dfd0"));
     },
   });
 
   const handleCopy = async (title: string) => {
     await navigator.clipboard.writeText(title);
-    toast.success("标题已复制到剪贴板。");
+    toast.success(i18next.t("dict.gen_3257008e"));
   };
 
   const rows = libraryQuery.data?.data?.items ?? [];
@@ -72,22 +73,22 @@ export default function TitleLibraryPanel({ genreOptions }: TitleLibraryPanelPro
     <div className="space-y-5">
       <div className="grid gap-3 rounded-2xl bg-muted/20 p-4 md:grid-cols-[minmax(0,1fr)_220px_180px]">
         <label className="space-y-2 text-sm">
-          <span className="font-medium text-foreground">搜索</span>
+          <span className="font-medium text-foreground">{i18next.t("dict.gen_e5f71fc3")}</span>
           <Input
             value={search}
             onChange={(event) => setSearch(event.target.value)}
-            placeholder="匹配标题、说明或关键词"
+            placeholder={i18next.t("dict.gen_06661890")}
             className={controlClassName}
           />
         </label>
         <label className="space-y-2 text-sm">
-          <span className="font-medium text-foreground">类型</span>
+          <span className="font-medium text-foreground">{i18next.t("dict.gen_226b0912")}</span>
           <SelectControl
             className={selectClassName}
             value={genreId}
             onChange={(event) => setGenreId(event.target.value)}
           >
-            <option value="">全部类型</option>
+            <option value="">{i18next.t("tasks.filterKindAll")}</option>
             {genreOptions.map((option) => (
               <option key={option.id} value={option.id}>
                 {option.path}
@@ -96,31 +97,27 @@ export default function TitleLibraryPanel({ genreOptions }: TitleLibraryPanelPro
           </SelectControl>
         </label>
         <label className="space-y-2 text-sm">
-          <span className="font-medium text-foreground">排序</span>
+          <span className="font-medium text-foreground">{i18next.t("dict.gen_c360e994")}</span>
           <SelectControl
             className={selectClassName}
             value={sort}
             onChange={(event) => setSort(event.target.value as "newest" | "hot" | "clickRate")}
           >
-            <option value="newest">最新加入</option>
-            <option value="hot">使用次数</option>
-            <option value="clickRate">点击潜力</option>
+            <option value="newest">{i18next.t("dict.gen_8ea1927a")}</option>
+            <option value="hot">{i18next.t("dict.usageCount")}</option>
+            <option value="clickRate">{i18next.t("dict.gen_dc9bc95a")}</option>
           </SelectControl>
         </label>
       </div>
 
       {libraryQuery.isLoading ? (
-        <div className="py-10 text-center text-sm text-muted-foreground">
-          正在加载标题库...
-        </div>
+        <div className="py-10 text-center text-sm text-muted-foreground">{i18next.t("titles.titleLibraryPanel.bdejam")}</div>
       ) : null}
 
       {!libraryQuery.isLoading && rows.length === 0 ? (
         <div className="py-10 text-center">
-          <div className="text-sm font-medium text-foreground">标题库还是空的</div>
-          <div className="mt-1 text-sm text-muted-foreground">
-            先去标题工坊生成一批候选，再把值得复用的标题沉淀进来。
-          </div>
+          <div className="text-sm font-medium text-foreground">{i18next.t("dict.gen_0729604b")}</div>
+          <div className="mt-1 text-sm text-muted-foreground">{i18next.t("titles.titleLibraryPanel.4n966w")}</div>
         </div>
       ) : null}
 
@@ -151,9 +148,7 @@ export default function TitleLibraryPanel({ genreOptions }: TitleLibraryPanelPro
 
               <div className="mt-auto flex flex-wrap items-center gap-2 pt-5">
                 <Button type="button" size="sm" className="gap-1.5 rounded-full" onClick={() => void handleCopy(entry.title)}>
-                  <Copy className="h-3.5 w-3.5" />
-                  复制
-                </Button>
+                  <Copy className="h-3.5 w-3.5" />{i18next.t("titles.titleLibraryPanel.fljd")}</Button>
                 <Button
                   type="button"
                   size="sm"
@@ -192,18 +187,14 @@ export default function TitleLibraryPanel({ genreOptions }: TitleLibraryPanelPro
             第 {pagination.page} / {pagination.totalPages} 页，共 {pagination.total} 条
           </div>
           <div className="flex items-center gap-2">
-            <Button type="button" variant="outline" size="sm" disabled={page <= 1} onClick={() => setPage((prev) => prev - 1)}>
-              上一页
-            </Button>
+            <Button type="button" variant="outline" size="sm" disabled={page <= 1} onClick={() => setPage((prev) => prev - 1)}>{i18next.t("autoDirectorFollowUps.autoDirectorFollowUpList.btlof")}</Button>
             <Button
               type="button"
               variant="outline"
               size="sm"
               disabled={page >= pagination.totalPages}
               onClick={() => setPage((prev) => prev + 1)}
-            >
-              下一页
-            </Button>
+            >{i18next.t("autoDirectorFollowUps.autoDirectorFollowUpList.btmf4")}</Button>
           </div>
         </div>
       ) : null}
