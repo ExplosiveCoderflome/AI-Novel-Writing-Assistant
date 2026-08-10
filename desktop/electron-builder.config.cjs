@@ -83,6 +83,10 @@ const extraResources = [
     to: "client",
     filter: ["**/*"],
   },
+  {
+    from: "build/resources/release-contract.json",
+    to: "release-contract.json",
+  },
 ];
 
 if (releaseSettings.includeAppUpdateConfig) {

@@ -29,6 +29,7 @@ import {
   desktopUpdaterStore,
 } from "./runtime/state";
 import { initializeDesktopUpdater, type DesktopUpdaterController } from "./runtime/updater";
+import { executePackagedSmoke, isPackagedSmokeRequested } from "./runtime/packageSmoke";
 
 const APP_USER_MODEL_ID = "com.ai-novel.desktop";
 const MAIN_WINDOW_BACKGROUND = "#08101f";
@@ -594,45 +595,61 @@ async function handleBootstrapFailure(error: unknown): Promise<void> {
   app.exit(1);
 }
 
-app.setPath("userData", resolveDesktopAppDataDir());
-app.setAppUserModelId(APP_USER_MODEL_ID);
-registerDesktopIpcHandlers();
-registerStoreBroadcasts();
+function startNormalDesktopApp(): void {
+  app.setAppUserModelId(APP_USER_MODEL_ID);
+  registerDesktopIpcHandlers();
+  registerStoreBroadcasts();
 
-if (!app.requestSingleInstanceLock()) {
-  app.quit();
-}
-
-app.on("second-instance", () => {
-  focusExistingWindow();
-});
-
-app.on("activate", () => {
-  if (mainWindow || splashWindow) {
-    focusExistingWindow();
-    return;
-  }
-
-  if (desktopServerPort != null && !bootstrapFailed) {
-    openMainWindow(desktopServerPort);
-  }
-});
-
-app.on("window-all-closed", () => {
-  if (process.platform !== "darwin") {
+  if (!app.requestSingleInstanceLock()) {
     app.quit();
   }
-});
 
-app.on("before-quit", () => {
-  if (stopServer) {
-    void stopServer();
-  }
-});
-
-app.whenReady()
-  .then(() => bootstrapDesktopApp())
-  .catch(async (error) => {
-    console.error("[desktop] bootstrap failed.", error);
-    await handleBootstrapFailure(error);
+  app.on("second-instance", () => {
+    focusExistingWindow();
   });
+
+  app.on("activate", () => {
+    if (mainWindow || splashWindow) {
+      focusExistingWindow();
+      return;
+    }
+
+    if (desktopServerPort != null && !bootstrapFailed) {
+      openMainWindow(desktopServerPort);
+    }
+  });
+
+  app.on("window-all-closed", () => {
+    if (process.platform !== "darwin") {
+      app.quit();
+    }
+  });
+
+  app.on("before-quit", () => {
+    if (stopServer) {
+      void stopServer();
+    }
+  });
+
+  app.whenReady()
+    .then(() => bootstrapDesktopApp())
+    .catch(async (error) => {
+      console.error("[desktop] bootstrap failed.", error);
+      await handleBootstrapFailure(error);
+    });
+}
+
+app.setPath("userData", resolveDesktopAppDataDir());
+if (isPackagedSmokeRequested(process.argv)) {
+  app.whenReady()
+    .then(async () => {
+      const exitCode = await executePackagedSmoke(process.argv);
+      app.exit(exitCode);
+    })
+    .catch((error) => {
+      console.error("[desktop] packaged smoke failed before execution.", error);
+      app.exit(1);
+    });
+} else {
+  startNormalDesktopApp();
+}
