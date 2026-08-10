@@ -105,6 +105,25 @@ Web API 只接收命令和返回轻量投影；Worker 负责执行重型生产�
 - 角色阵容“应用”分为核心落库和增强补齐两层。核心落库同步完成主角、主要对手、开篇登场角色及必要关系，足以支持开篇规划与正文。外显资料、心智快照和完整动态投影属于延迟增强；快速启动不得等待它们。首章正文稳定落库后，系统才可为同一本书串行启动一个低优先级增强任务；失败只记录资料待补齐，不得把自动导演标记为失败。
 - 角色阵容质量闸不得用正则、关键词表、固定文本片段或字符比例判断身份承接、隐藏真相、题材理解、语言质量或角色职责。这些创作语义必须交给 AI-first 结构化理解、PromptAsset、semantic retry 或 AI 评估链路。确定性闸门只能检查结构契约，例如是否存在 protagonist、gender、必填字段和可恢复检查点。
 
+### 问题治理执行合同
+
+自动导演问题治理不是日志分类器，而是运行控制合同。有效策略只有三个层级：全局策略、本书覆盖和任务启动快照。新任务启动时必须把已经合并的阈值、问题动作和来源写入任务 Seed；运行中的流水线、熔断器和 Worker 恢复只读取任务快照，不能在中途重新读取设置页并改变任务语义。旧任务缺少新版快照时可以继续使用旧阈值和原恢复规则，但不得伪造新版治理事件。
+
+一次问题处理分为三个可审计阶段：
+
+1. `issue_detected`：保存发生了什么、影响范围、可用产物和重试事实。
+2. `issue_decided`：保存策略与安全规则共同得出的动作。该事件只代表完成裁决。
+3. `issue_action_applied`：只在执行边界成功改变控制流或持久状态后记录。没有动作处理器、动作抛错或状态写入失败时不得写入。
+
+四种动作在不同执行边界必须保持同一语义：
+
+- `auto_retry`：流水线继续使用现有重试预算；Worker 失联命令重新排队；熔断器关闭后恢复执行循环。
+- `continue_with_warning`：只允许已有可用正文或安全产物的场景；局部质量债继续后续章节，后台预取失败也只记录提醒。
+- `pause_for_manual`：流水线任务停在可恢复状态，书级任务进入 `queued + pendingManualRecovery=true`；明确重规划应保留 `replan_required` 载荷，而不是退化成普通失败。
+- `fail_task`：当前命令或书级任务进入失败终态，不得再由普通“继续”静默清除。
+
+全书自动成书中，`quality.chapter_below_threshold`、`quality.acceptance_unavailable`、`quality.local_repair_failed` 和非明确重规划的质量循环只要已有可用正文，就必须降级为质量债继续。`quality.replan_required`、无可用正文、异常用量、受保护内容、数据完整性和关键保存失败仍由安全规则锁定。设置页只开放已经接入流水线、熔断器或 Worker 恢复的可执行问题类型；目录中仅用于历史兼容或 AI 分类、尚无独立执行入口的代码不能显示成可生效的用户开关。
+
 ## 示例
 
 推荐做法：
@@ -136,6 +155,9 @@ Web API 只接收命令和返回轻量投影；Worker 负责执行重型生产�
 - 小说实际存在失败导演任务但 AI 驾驶舱显示空闲：先检查当前 URL 是否只有 `workspaceTaskId` 而没有 `directorTaskId`，再查 `book-automation` 投影是否已经返回 `projection.status=failed` 和 `latestTask.id`。如果投影有失败任务但侧栏仍隐藏，说明前端把未钉住的失败投影当成历史终态过滤了；正确行为是显示失败投影，并让“查看失败原因”跳转到带 `directorTaskId` 的任务详情。
 - 候选确认或恢复入口回到 `/novels/create`：检查 `resumeTargetToRoute`、书级自动化投影、任务 UI helper 和移动端入口是否仍在生成旧的 `workflowTaskId + mode=director` 链接。正确链接应使用 `/novels/auto-director?taskId=...`，旧链接只应由前端兼容跳转处理。
 - 服务重启后假 running：检查租约过期、active step、command 状态和产物断点是否统一投影。
+- 运行记录显示“动作已执行”但任务状态未改变：比较同一 fingerprint 的 `issue_detected`、`issue_decided` 和 `issue_action_applied`。缺少 applied 表示动作没有完成；存在 applied 但状态未变时，检查流水线治理中断、熔断器动作处理器或 Worker 租约恢复是否绕过了统一处理器。
+- 修改问题处理规则后，运行中的任务仍按旧规则推进：这是任务快照的预期行为。若新启动任务也使用旧规则，检查全局 / 本书策略是否在创建或接管时写入 `issuePolicy`、`issuePolicySource` 和治理版本。
+- 局部修复耗尽后全书被暂停：检查熔断上报是否把局部质量问题错误标成 `hasUsableOutput=false`，以及全书模式安全规则是否在策略动作之后执行。
 - 重复点击继续产生多条执行链：检查 command 幂等键和 active command 复用。
 - 新书确认后仍停在生产方式选择：检查任务 Seed 是否缺少 `startupPreparation.strategy=fast_start`，或确认接口是否仍保留 `auto_to_ready`。快速启动新书应从开篇路线直接进入第 1 章；只有旧任务和接管任务继续恢复 `production_experience_required`。
 - `auto_to_ready` 停在“等待确认分卷策略”且没有 checkpoint：检查运行策略是否把普通 `downstream_recompute` 当成人工审批。前期规划门应自动使用安全范围授权，用户保护内容仍由 policy gate 拦截。
@@ -144,7 +166,10 @@ Web API 只接收命令和返回轻量投影；Worker 负责执行重型生产�
 
 ## 相关模块
 
-- `server/src/services/novel/director/DirectorCommandService.ts`
+- `server/src/services/novel/director/commands/DirectorCommandService.ts`
+- `server/src/services/novel/director/commands/leases/`
+- `server/src/services/novel/director/issues/`
+- `server/src/services/novel/production/issueGovernance/`
 - `server/src/services/novel/director/DirectorCommandExecutor.ts`
 - `server/src/services/novel/director/DirectorCommandInterpreter.ts`
 - `server/src/services/novel/director/directorSubsystem.ts`

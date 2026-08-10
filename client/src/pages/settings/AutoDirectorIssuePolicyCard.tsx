@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import {
   DIRECTOR_ISSUE_ACTIONS,
-  DIRECTOR_ISSUE_CATALOG,
+  DIRECTOR_CONFIGURABLE_ISSUE_CATALOG,
   type DirectorIssueAction,
   type DirectorIssueCategory,
   type DirectorIssuePolicy,
@@ -45,7 +45,7 @@ export function AutoDirectorIssuePolicyCard(props: {
     || current.pauseThreshold !== policy.pauseThreshold
     || JSON.stringify(current.issueActions) !== JSON.stringify(policy.issueActions)
   ));
-  const entries = useMemo(() => DIRECTOR_ISSUE_CATALOG.filter((entry) => {
+  const entries = useMemo(() => DIRECTOR_CONFIGURABLE_ISSUE_CATALOG.filter((entry) => {
     const selectedAction = current?.issueActions[entry.code] ?? entry.defaultAction;
     return (category === "all" || entry.category === category)
       && (action === "all" || selectedAction === action);
@@ -61,7 +61,7 @@ export function AutoDirectorIssuePolicyCard(props: {
     <Card>
       <CardHeader>
         <CardTitle>问题处理规则</CardTitle>
-        <CardDescription>每个问题码都可以选择处理偏好。保存后会用于后续任务；涉及内容、数据或重规划的安全保护仍可能覆盖你的选择。</CardDescription>
+        <CardDescription>为自动创作中可恢复的问题选择处理偏好。涉及作品内容、数据安全或重规划时，系统会优先保护作品。</CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
         <div className="grid gap-3 sm:grid-cols-2">
@@ -99,7 +99,7 @@ export function AutoDirectorIssuePolicyCard(props: {
               <div key={entry.code} className="grid gap-2 rounded-md border p-3 md:grid-cols-[minmax(0,1fr)_220px]">
                 <div className="min-w-0">
                   <div className="text-sm font-medium">{entry.label}</div>
-                  <div className="mt-1 break-all text-xs text-muted-foreground">{entry.code} · 默认：{ACTION_LABELS[entry.defaultAction]}</div>
+                  <div className="mt-1 text-xs text-muted-foreground">默认：{ACTION_LABELS[entry.defaultAction]}</div>
                   {entry.lockedReason ? <div className="mt-1 text-xs text-amber-700">安全提示：{entry.lockedReason}{entry.enforcedAction ? ` 当前触发时仍会${ACTION_LABELS[entry.enforcedAction]}。` : ""}</div> : null}
                 </div>
                 <select

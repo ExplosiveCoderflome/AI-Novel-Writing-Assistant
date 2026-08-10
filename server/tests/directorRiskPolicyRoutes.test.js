@@ -13,11 +13,15 @@ function listen(server) {
 
 test("auto director risk policy settings route returns defaults, persists updates, and validates ordering", async () => {
   const originals = {
+    findUnique: prisma.appSetting.findUnique,
     findMany: prisma.appSetting.findMany,
     upsert: prisma.appSetting.upsert,
     transaction: prisma.$transaction,
   };
   const values = new Map();
+  prisma.appSetting.findUnique = async ({ where }) => values.has(where.key)
+    ? { key: where.key, value: values.get(where.key) }
+    : null;
   prisma.appSetting.findMany = async ({ where }) => where.key.in
     .filter((key) => values.has(key))
     .map((key) => ({ key, value: values.get(key) }));
@@ -49,6 +53,7 @@ test("auto director risk policy settings route returns defaults, persists update
     });
     assert.equal(invalidResponse.status, 400);
   } finally {
+    prisma.appSetting.findUnique = originals.findUnique;
     prisma.appSetting.findMany = originals.findMany;
     prisma.appSetting.upsert = originals.upsert;
     prisma.$transaction = originals.transaction;

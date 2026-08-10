@@ -5,6 +5,12 @@ const {
   NovelDirectorAutoExecutionRuntime,
 } = require("../dist/services/novel/director/automation/novelDirectorAutoExecutionRuntime.js");
 const {
+  stopAutoExecutionForCircuitBreaker,
+} = require("../dist/services/novel/director/automation/novelDirectorAutoExecutionCircuitBreakerRuntime.js");
+const {
+  directorIssueService,
+} = require("../dist/services/novel/director/issues/DirectorIssueService.js");
+const {
   buildDirectorAutoExecutionState,
 } = require("../dist/services/novel/director/automation/novelDirectorAutoExecution.js");
 const {
@@ -36,6 +42,116 @@ function buildRequest(overrides = {}) {
     ...overrides,
   };
 }
+
+test("circuit-breaker governance continues, pauses, or fails the real workflow state", async () => {
+  const originalReportIssue = directorIssueService.reportIssue;
+  let selectedAction = "continue_with_warning";
+  const reports = [];
+  directorIssueService.reportIssue = async (input) => {
+    reports.push(input);
+    const result = {
+      occurrence: {
+        schemaVersion: 1,
+        issueCode: input.issueCode,
+        stage: input.stage,
+        summary: input.summary,
+        attempt: input.attempt,
+        maxAttempts: input.maxAttempts,
+        hasUsableOutput: input.hasUsableOutput,
+        fingerprint: input.fingerprint,
+        occurredAt: new Date().toISOString(),
+      },
+      decision: {
+        issueCode: input.issueCode,
+        action: selectedAction,
+        reason: "测试治理动作",
+        locked: false,
+        policySource: "task_snapshot",
+        retryExhaustedAction: "pause_for_manual",
+      },
+    };
+    await input.applyAction(result);
+    return result;
+  };
+
+  const buildHarness = () => {
+    const task = { status: "running", pendingManualRecovery: false };
+    const calls = [];
+    return {
+      task,
+      calls,
+      deps: {
+        workflowService: {
+          async bootstrapTask(input) {
+            calls.push(["bootstrapTask", input.seedPayload.autoExecution.circuitBreaker.status]);
+          },
+          async recordCheckpoint() {},
+          async markTaskFailed() {
+            task.status = "failed";
+            task.pendingManualRecovery = false;
+            calls.push(["markTaskFailed"]);
+          },
+          async requeueTaskForRecovery() {
+            task.status = "queued";
+            task.pendingManualRecovery = true;
+            calls.push(["requeueTaskForRecovery"]);
+          },
+        },
+        buildDirectorSeedPayload(_request, _novelId, extra) {
+          return extra;
+        },
+        automationLedgerEventService: {
+          async recordCircuitBreakerOpened() {},
+          async recordEvent() {},
+        },
+      },
+    };
+  };
+  const baseInput = {
+    taskId: "task-circuit",
+    novelId: "novel-1",
+    request: buildRequest({
+      runMode: "full_book_autopilot",
+      issueGovernanceVersion: 1,
+      issuePolicy: { noticeThreshold: 5, pauseThreshold: 8, issueActions: {} },
+      issuePolicySource: "novel",
+    }),
+    range: { firstChapterId: "chapter-1", startOrder: 1, endOrder: 3, totalChapterCount: 3 },
+    autoExecution: { enabled: true, nextChapterId: "chapter-2", nextChapterOrder: 2, remainingChapterCount: 2 },
+    circuitBreaker: {
+      status: "open",
+      reason: "auto_repair_exhausted",
+      message: "局部修复已耗尽。",
+      chapterId: "chapter-1",
+      chapterOrder: 1,
+      patchFailureCount: 3,
+    },
+  };
+  try {
+    const continued = buildHarness();
+    selectedAction = "continue_with_warning";
+    const continuedState = await stopAutoExecutionForCircuitBreaker(continued.deps, baseInput);
+    assert.equal(continuedState.circuitBreaker.status, "closed");
+    assert.equal(continued.task.status, "running");
+    assert.deepEqual(continued.calls, [["bootstrapTask", "closed"]]);
+
+    const paused = buildHarness();
+    selectedAction = "pause_for_manual";
+    assert.equal(await stopAutoExecutionForCircuitBreaker(paused.deps, baseInput), null);
+    assert.deepEqual(paused.task, { status: "queued", pendingManualRecovery: true });
+    assert.ok(paused.calls.some((call) => call[0] === "requeueTaskForRecovery"));
+
+    const failed = buildHarness();
+    selectedAction = "fail_task";
+    assert.equal(await stopAutoExecutionForCircuitBreaker(failed.deps, baseInput), null);
+    assert.deepEqual(failed.task, { status: "failed", pendingManualRecovery: false });
+    assert.ok(!failed.calls.some((call) => call[0] === "requeueTaskForRecovery"));
+
+    assert.deepEqual(reports.map((report) => report.hasUsableOutput), [true, true, true]);
+  } finally {
+    directorIssueService.reportIssue = originalReportIssue;
+  }
+});
 
 function buildSceneCards(order) {
   return JSON.stringify({

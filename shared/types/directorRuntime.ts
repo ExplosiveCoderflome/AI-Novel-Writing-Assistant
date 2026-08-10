@@ -309,6 +309,7 @@ export type DirectorEventType =
   | "circuit_breaker_reset"
   | "continue_with_risk"
   | "issue_detected"
+  | "issue_decided"
   | "issue_action_applied";
 
 export interface DirectorEvent {
