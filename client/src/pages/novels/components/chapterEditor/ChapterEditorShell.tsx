@@ -112,7 +112,7 @@ export default function ChapterEditorShell(props: ChapterEditorShellProps) {
       await queryClient.invalidateQueries({ queryKey: queryKeys.novels.detail(novelId) });
       await queryClient.invalidateQueries({ queryKey: queryKeys.novels.chapterEditorWorkspace(novelId, chapter?.id ?? "none") });
       setIsVersionHistoryOpen(false);
-      toast.success("已恢复到选定的历史版本。");
+      toast.success(i18next.t("novels.chapterEditorShell.dsqb0y"));
     },
     onError: (error) => {
       toast.error(error instanceof Error ? error.message : "恢复版本失败，请重试。");
@@ -179,7 +179,7 @@ export default function ChapterEditorShell(props: ChapterEditorShellProps) {
   const saveMutation = useMutation({
     mutationFn: async (nextContent: string) => {
       if (!chapter) {
-        throw new Error(t("gen.pages.novels.components.chapterEditor.ChapterEditorShell.gen_af1e4a3a"));
+        throw new Error(i18next.t("dict.gen_af1e4a3a"));
       }
       return updateNovelChapter(novelId, chapter.id, { content: nextContent });
     },
@@ -190,11 +190,11 @@ export default function ChapterEditorShell(props: ChapterEditorShellProps) {
       setSavedContent(nextContent);
       setSaveStatus("saved");
       await invalidateChapterQueries();
-      toast.success(t("gen.pages.novels.components.chapterEditor.ChapterEditorShell.gen_eb725780"));
+      toast.success(i18next.t("dict.gen_eb725780"));
     },
     onError: (error) => {
       setSaveStatus("error");
-      toast.error(error instanceof Error ? error.message : t("gen.pages.novels.components.chapterEditor.ChapterEditorShell.gen_91d500a5"));
+      toast.error(error instanceof Error ? error.message : i18next.t("dict.gen_91d500a5"));
     },
   });
 
@@ -207,7 +207,7 @@ export default function ChapterEditorShell(props: ChapterEditorShellProps) {
       issueFixRequest?: any;
     }) => {
       if (!chapter) {
-        throw new Error(t("gen.pages.novels.components.chapterEditor.ChapterEditorShell.gen_af1e4a3a"));
+        throw new Error(i18next.t("dict.gen_af1e4a3a"));
       }
       if (action.actionType === "continue") {
         return previewChapterContinue(novelId, chapter.id, action.continueRequest);
@@ -257,10 +257,10 @@ export default function ChapterEditorShell(props: ChapterEditorShellProps) {
       } else {
         const req = action.revisionRequest;
         label = req.source === "freeform"
-          ? (req.scope === "chapter" ? t("gen.pages.novels.components.chapterEditor.ChapterEditorShell.gen_d6e77a91") : t("gen.pages.novels.components.chapterEditor.ChapterEditorShell.gen_0bd855a0"))
+          ? (req.scope === "chapter" ? i18next.t("dict.gen_d6e77a91") : i18next.t("dict.gen_0bd855a0"))
           : req.presetOperation
             ? `正在生成${CHAPTER_EDITOR_OPERATION_LABELS[req.presetOperation as ChapterEditorOperation]}方案`
-            : t("gen.pages.novels.components.chapterEditor.ChapterEditorShell.gen_f04a616c");
+            : i18next.t("dict.gen_f04a616c");
         scope = req.scope;
         if (req.selection) {
           targetRange = req.selection;
@@ -286,7 +286,7 @@ export default function ChapterEditorShell(props: ChapterEditorShellProps) {
         setSession((current) => ({
           ...current,
           status: "error",
-          errorMessage: t("gen.pages.novels.components.chapterEditor.ChapterEditorShell.aiNoRewriteResultRetry"),
+          errorMessage: i18next.t("dict.aiNoRewriteResultRetry"),
         }));
         return;
       }
@@ -325,7 +325,7 @@ export default function ChapterEditorShell(props: ChapterEditorShellProps) {
       setSession((current) => ({
         ...current,
         status: "error",
-        errorMessage: error instanceof Error ? error.message : t("gen.pages.novels.components.chapterEditor.ChapterEditorShell.aiCorrectionFailedRetry"),
+        errorMessage: error instanceof Error ? error.message : i18next.t("dict.aiCorrectionFailedRetry"),
       }));
     },
   });
@@ -333,7 +333,7 @@ export default function ChapterEditorShell(props: ChapterEditorShellProps) {
   const acceptMutation = useMutation({
     mutationFn: async () => {
       if (!chapter || !activeCandidate || !session.targetRange) {
-        throw new Error(t("gen.pages.novels.components.chapterEditor.ChapterEditorShell.gen_5aa9265f"));
+        throw new Error(i18next.t("dict.gen_5aa9265f"));
       }
       const label = `chapter-editor:${chapter.order}:${session.scope}:${Date.now()}`;
       const nextContent = applyCandidateToContent(contentDraft, session.targetRange, activeCandidate.content);
@@ -353,10 +353,10 @@ export default function ChapterEditorShell(props: ChapterEditorShellProps) {
       setSession(EMPTY_SESSION);
       setRevisionInstruction("");
       await invalidateChapterQueries();
-      toast.success(t("gen.pages.novels.components.chapterEditor.ChapterEditorShell.gen_32dd4115"));
+      toast.success(i18next.t("dict.gen_32dd4115"));
     },
     onError: (error) => {
-      toast.error(error instanceof Error ? error.message : t("gen.pages.novels.components.chapterEditor.ChapterEditorShell.gen_d25bf6bd"));
+      toast.error(error instanceof Error ? error.message : i18next.t("dict.gen_d25bf6bd"));
     },
   });
 
@@ -380,9 +380,7 @@ export default function ChapterEditorShell(props: ChapterEditorShellProps) {
 
   if (!chapter) {
     return (
-      <div className="rounded-3xl border border-dashed border-border/70 bg-muted/10 p-10 text-center text-sm text-muted-foreground">
-        请选择一个章节后开始编辑正文。
-      </div>
+      <div className="rounded-3xl border border-dashed border-border/70 bg-muted/10 p-10 text-center text-sm text-muted-foreground">{i18next.t("novels.chapterEditorShell.ke8lrh")}</div>
     );
   }
 
@@ -411,7 +409,7 @@ export default function ChapterEditorShell(props: ChapterEditorShellProps) {
       : null;
 
     if (scope === "selection" && !resolvedSelection) {
-      toast.error(t("gen.pages.novels.components.chapterEditor.ChapterEditorShell.gen_d8ad2137"));
+      toast.error(i18next.t("dict.gen_d8ad2137"));
       return;
     }
 
@@ -546,14 +544,14 @@ export default function ChapterEditorShell(props: ChapterEditorShellProps) {
   };
 
   const currentTargetDescription = revisionScope === "chapter"
-    ? t("gen.pages.novels.components.chapterEditor.ChapterEditorShell.gen_cacb093a")
+    ? i18next.t("dict.gen_cacb093a")
     : selection
-      ? t("gen.pages.novels.components.chapterEditor.ChapterEditorShell.selectedTextManually")
+      ? i18next.t("dict.selectedTextManually")
       : selectedDiagnosticCard?.paragraphLabel
         ? `${selectedDiagnosticCard.paragraphLabel} 对应片段`
         : workspace?.recommendedTask?.paragraphLabel
           ? `${workspace.recommendedTask.paragraphLabel} 对应片段`
-          : t("gen.pages.novels.components.chapterEditor.ChapterEditorShell.gen_d4e517ac");
+          : i18next.t("dict.gen_d4e517ac");
   const canRunSelectionRevision = Boolean(getSelectionTarget());
   const headerSaveLabel = getSaveStatusLabel(saveStatus, isDirty);
   const gridClassName = "xl:grid-cols-[320px_minmax(0,1fr)_400px]";
@@ -636,8 +634,8 @@ export default function ChapterEditorShell(props: ChapterEditorShellProps) {
 
       <Dialog open={isVersionHistoryOpen} onOpenChange={setIsVersionHistoryOpen}>
         <AppDialogContent
-          title="章节历史版本"
-          description="选择并恢复之前保存的章节版本。恢复前系统会自动备份当前状态。"
+          title={i18next.t("novels.chapterEditorShell.125j8y")}
+          description={i18next.t("novels.chapterEditorShell.uxfkg1")}
         >
           {snapshotsQuery.isLoading ? (
             <div className="space-y-4">
@@ -675,9 +673,7 @@ export default function ChapterEditorShell(props: ChapterEditorShellProps) {
               })}
             </div>
           ) : (
-            <div className="rounded-2xl border border-dashed border-border/70 bg-muted/10 p-6 text-center text-sm text-muted-foreground">
-              暂无历史版本记录。
-            </div>
+            <div className="rounded-2xl border border-dashed border-border/70 bg-muted/10 p-6 text-center text-sm text-muted-foreground">{i18next.t("novels.chapterEditorShell.p9fn2n")}</div>
           )}
         </AppDialogContent>
       </Dialog>

@@ -1,3 +1,5 @@
+import i18next from "i18next";
+import { useTranslation } from "react-i18next";
 import { Check, Circle, Sparkles } from "lucide-react";
 import { cn } from "@/lib/utils";
 import OnboardingTip from "@/components/onboarding/OnboardingTip";
@@ -47,23 +49,24 @@ export default function NovelDirectorPreparationJourney({
   steps,
   statuses,
 }: NovelDirectorPreparationJourneyProps) {
+  const { t } = useTranslation();
   return (
     <div className="space-y-4">
       <OnboardingTip
         storageKey="director-preparation"
-        title="这段准备不需要逐项审核"
-        description="AI 会把已完成的故事方向转成角色、卷战略、节奏和章节执行资源；页面上的成果可以随时展开查看。"
+        title={i18next.t("novels.novelDirectorPreparationJourney.bueis1")}
+        description={i18next.t("novels.novelDirectorPreparationJourney.26x50u")}
         next="所有开写资源准备好后，再选择简易创作或专业创作。"
       />
       <section className="rounded-2xl border border-border/70 bg-background px-4 py-5 shadow-[0_18px_45px_-38px_hsl(var(--foreground)/0.45)] sm:px-6">
         <div className="flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
           <div>
-            <div className="text-sm font-semibold text-foreground">开写前准备</div>
+            <div className="text-sm font-semibold text-foreground">{i18next.t("novels.novelDirectorPreparationJourney.qximz9")}</div>
             <div className="mt-1 text-xs leading-5 text-muted-foreground">
               AI 正在依次完成整本书的方向、角色和卷章资源。
             </div>
           </div>
-          <div className="text-xs text-muted-foreground">正文尚未开始生成</div>
+          <div className="text-xs text-muted-foreground">{i18next.t("novels.novelDirectorPreparationJourney.2jjoog")}</div>
         </div>
 
         <ol className={cn(
@@ -115,19 +118,13 @@ export default function NovelDirectorPreparationJourney({
               <Sparkles className="h-4 w-4" />
             </span>
             <div className="min-w-0">
-              <div className="text-sm font-semibold text-foreground">准备完成后，由你选择正文生产方式</div>
-              <div className="mt-1 text-xs leading-5 text-muted-foreground">
-                系统会停在开写前，不会提前生成正文。
-              </div>
+              <div className="text-sm font-semibold text-foreground">{i18next.t("novels.novelDirectorPreparationJourney.2rievg")}</div>
+              <div className="mt-1 text-xs leading-5 text-muted-foreground">{i18next.t("novels.novelDirectorPreparationJourney.kh9gsp")}</div>
             </div>
           </div>
           <div className="flex shrink-0 flex-wrap gap-2 text-xs">
-            <span className="rounded-full bg-primary px-3 py-1.5 font-medium text-primary-foreground">
-              简易创作 · AI 写完整本书
-            </span>
-            <span className="rounded-full border border-border bg-background px-3 py-1.5 font-medium text-foreground">
-              专业创作 · 进入完整工作台
-            </span>
+            <span className="rounded-full bg-primary px-3 py-1.5 font-medium text-primary-foreground">{i18next.t("novels.novelDirectorPreparationJourney.l79qyg")}</span>
+            <span className="rounded-full border border-border bg-background px-3 py-1.5 font-medium text-foreground">{i18next.t("novels.novelDirectorPreparationJourney.gd39ui")}</span>
           </div>
         </div>
       </section>

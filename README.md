@@ -104,24 +104,40 @@ If you prefer to write and manage your novel workspace in a local terminal using
 - Syncs deconstructed books and external documents via vector databases (Qdrant).
 - RAG pipelines use parallel indexing, deduplication hash keys, and retrieval traces to debug vector search relevance.
 
-### 7. Virtual World Sandbox Simulation (Westworld Sandbox)
-- Implements a complete lock-step turn-based simulation sandbox representing physical and ecological laws of the novel's world (detailed in [world-sandbox-simulation.md](file:///c:/Users/lilin/GeneralAgent/docs/design/world-sandbox-simulation.md)).
+### 7. GA-Argus Persistent Agentic Runtime & PAI Architecture
+- **Working Contract ($K_t$) & Verified Pivoting**: Decouples standing intent ($\iota$) from operational objectives ($o_t, c_t, v_t$). When plot obstacles or audit rejections occur, the runtime executes evidence-backed Verified Pivots without goal drift or full-book resets.
+- **Falsified Route Ledger (Dead Branches)**: Automatically persists rejected plot routes in SQLite DB and extracts structured `negativePromptConstraint` context blocks, achieving **0% dead-branch repetition**.
+- **Four-Role State Machine ($M, P, E, R$)**: Strictly bounds Manager (Stage/Contract Admission), Planner (Task Decomposition), Engineer (Draft/Patch Execution), and Reviewer (4-Stage Audit).
+- **Daniel Miessler PAI Integration**: TELOS-driven creator intent, physical isolation of user assets (`protectedUserContent`), Hot/Warm/Cold Three-Tier Memory budget allocation, and Anti-Hallucination guards.
+- **Fixed-Model Runtime Self-Evolution**: Mature writing waves use **21% fewer input tokens** and achieve a **75% Reviewer rescue rate**.
+
+### 8. Virtual World Sandbox Simulation (Westworld Sandbox)
+- Implements a complete lock-step turn-based simulation sandbox representing physical and ecological laws of the novel's world (detailed in [world-sandbox-simulation.md](./docs/design/world-sandbox-simulation.md)).
 - **Earth Physics & Ecology**: Tracks dynamic temperatures (latitude & season modeling, altitude lapse rate, diurnal hour-angle shifts) and predator-prey dynamics using Lotka-Volterra equations.
 - **Character Cognitive Agents**: Features memory decay modeling (Ebbinghaus forgetting curve) and spatial rumor diffusion/distortion across adjacent locations.
 - **Behavior Trees & LLM Scheduler**: Employs LOD 2 Behavior Trees tracking hunger, energy, and sanity for background characters, while scheduling LOD 1 protagonist decisions using the Sandbox LLM Scheduler.
 - **Dramatic Tension & Consistency Audit**: Tracks local and global tension, registers encounters, and audits narrative consistency (such as geography flash-teleportation or deceased characters speaking in drafts) using a virtual camera narrative engine.
 
-### 8. Multi-Modal Adaptation Workbenches
+### 9. Multi-Modal Adaptation Workbenches
 - **Comic Workbench**: Generates panels and sheets. Employs user verification prompts prior to generating images to save credits. Automatically ports book profiles (factions, landmarks, character visuals) into the comic generator.
 - **VellumReel Video & Short Drama Pipeline**: Integrated engine mapping storyboard scripts into 9:16 vertical short dramas.
   - **Completely Offline Rendering**: Built-in 6 high-definition hand-drawn ink landscape illustrations for offline fallbacks.
   - **Local High-Fidelity TTS**: Native FastAPI speech server powered by Kokoro-ONNX v1.0 and `misaki[zh]`, enabling offline Chinese/English narration.
   - **Voice Mapping & Prompt Cleaning**: Automatically maps gender attributes (`am_*`/`bm_*` to male voice `zm_yunjian`, `af_*`/`bf_*` to female voice `zf_xiaoxiao`). Cleans character names and stage directions (e.g., `(sighs)`) from the voiceover texts using regex filters.
 
-### 9. Internationalization (i18n) Support
-- Fully integrated with `i18next` and `react-i18next` on the client. UI elements, logs, page labels, and settings routes support complete localization between English and Chinese. User language selections are persisted locally.
+### 10. US Stock Investment Research Agent & MooMoo OpenD Direct Strategy Engine
+- **MooMoo OpenD Direct TCP Connection**: Direct 44-byte binary native header socket protocol communication with OpenD (`127.0.0.1:11111`) handling 64-bit `uint64` account IDs via dedicated Python SDK bridge (`moomoo-api`).
+- **3 Core Guidance Blueprint**:
+  - **Guide 1 (Existing Position Adjustments)**: Dynamic concentration risk diagnostics (>30% risk alert) & profit-taking/stop-loss guidance.
+  - **Guide 2 (New Position Discovery)**: Idle cash & budget allocation prioritizing MooMoo watchlist targets.
+  - **Guide 3 (Retrospective & Execution Audit Loop)**: Compares historical recommendations against actual portfolio changes to distill long-term trading discipline.
+- **Prisma DB-Persisted 2D Interactive Knowledge Graph & Multi-Source Fusion**:
+  - **Multi-Source Data Fusion Engine**: Fuses OpenD real-time bid/ask quotes, web news catalysts, portfolio positions/cash metrics, and manual human insights.
+  - **Strict Semantic Triples $(E_1 \rightarrow R \rightarrow E_2)$**: Classifies entities (`ROOT_STOCK`, `SUPPLIER`, `CLIENT`, `COMPETITOR`, `MACRO`, `CONCEPT`) and directional relation edges with SVG topology network & interactive side-drawer.
+  - **Prisma DB Persistence (`StockKnowledgeGraphStore`) & API (`/api/stock/knowledge-graph/update`)**: Saves each stock's dedicated graph and manual edits (`✏️ 人工修改图谱`) permanently in DB across server restarts and daily refreshes.
+- **Deterministic Guardrails Layer**: 100% mathematical formula calculations for buying power limits and real quote overrides to eliminate AI hallucinations.
 
-### 10. PAI Core Infrastructure Architecture (Insights #1 - #8)
+### 11. PAI Core Infrastructure Architecture (Insights #1 - #8)
 Fully implemented Daniel Miessler's Personal AI Infrastructure (PAI) architecture principles tailored for long-form narrative synthesis:
 - **Insight #1 (Determinism-First Architecture)**: Pure-code lexical JSON repair (`tryFixSyntacticJson`) & coercion across 250+ LLM invocation points, avoiding unnecessary LLM retries and saving latency/tokens.
 - **Insight #2 (User/System Separation & Asset Protection)**: Non-destructive setting management (`UserSettingProtectionService`) and project backup packaging gateway (`UserAssetBackupGateway`). Maintain single canonical prompt templates.
@@ -132,15 +148,15 @@ Fully implemented Daniel Miessler's Personal AI Infrastructure (PAI) architectur
 - **Insight #7 (CLI-First Automation Engine & UNIX Philosophy)**: Standalone CLI automation gateway (`CLIAutomationService` & `cliRunner.ts`) for headless health auditing, asset exports, and RAG index rebuilding via `pnpm --filter server run:cli`.
 - **Insight #8 (Specs-First & Anti-Hallucination Guard)**: Quantitative knowledge confidence evaluation (`evaluateKnowledgeConfidence`). Automatically appends `ALLOW "I DON'T KNOW"` prompt instructions when context is missing, preventing AI hallucinations.
 
-### 11. OpenRSI Evolutionary Operator Engine & Crossover Recombination
-Integrated Frontis OpenRSI Recursive Self-Improvement (RSI) principles to build standardized atomic program/text evolution operators under [server/src/services/novel/director/operators/](file:///c:/Users/lilin/GeneralAgent/server/src/services/novel/director/operators/):
+### 12. OpenRSI Evolutionary Operator Engine & Crossover Recombination
+Integrated Frontis OpenRSI Recursive Self-Improvement (RSI) principles to build standardized atomic program/text evolution operators under [server/src/services/novel/director/operators/](./server/src/services/novel/director/operators/):
 - **`Draft` Operator**: Generates initial chapter candidates based on outline context, 3-tier memory, and creator profile (TELOS).
 - **`Improve` Operator**: Applies non-destructive prose & pacing enhancements guided by `AuditService` diagnostics while preserving parent text highlights.
 - **`Debug` Operator**: Executes surgical patches for critical constraint violations (setting breaches, character voice OOC, timeline errors).
 - **`Crossover` Operator (Core Innovation)**: Deconstructs Parent A (e.g. action pacing / climax payoff) & Parent B (e.g. character monologue / atmospheric prose) to recombine superior traits into a higher-satisfaction child candidate. Full mutation lineage is logged via `MutationTraceNode`.
 - **Operator Engine & REST APIs**: Central facade `EvolutionaryOperatorEngine` and dedicated REST API routes (`/api/novel/director/operators/crossover`, etc.) serving both Creative Hub and Auto-Director.
 
-### 12. Agent Team Architecture & Digital Employee Infrastructure
+### 13. Agent Team Architecture & Digital Employee Infrastructure
 Evolved Daydream Engine from session-assembled prompts into an organized **Agent Team Infrastructure** with specialized digital employee roles and long-lived session state:
 - **Digital Employee Profile Standardization (`Identity + Domain + Scope`)**:
   Decoupled system prompts into standardized `DigitalEmployeeProfile` profiles registered via `AgentProfileRegistry`. Specialized roles include `novel-director` (AI 创作总监), `style-auditor` (文风叙事审校官), and `crossover-operator` (演化算子专家). Each role defines explicit capabilities, tools, RAG collections, and 4-tier risk scopes (`LOW`, `MEDIUM`, `HIGH`, `CRITICAL`).
@@ -168,14 +184,10 @@ Evolved Daydream Engine from session-assembled prompts into an organized **Agent
   - **Anti-Degradation Rollback Guard (`shouldRollbackMutation`)**: Automatically detects negative score deltas ($scoreDelta < 0$) and triggers rollbacks to pre-mutation states to guarantee prose quality strictly increases.
   - **Elite Vector RAG Feedback Loop (`getEliteMutationNodes`)**: Filters high-gain mutation nodes ($scoreDelta \ge +0.15$) for index insertion into Qdrant, keeping vector context pristine.
 - **Empirical Automated Benchmarking**:
-  Built [real-empirical-agent-test.js](file:///c:/Users/lilin/GeneralAgent/scripts/real-empirical-agent-test.js), [stageHandoffTwoLayer.test.js](file:///c:/Users/lilin/GeneralAgent/server/tests/stageHandoffTwoLayer.test.js), [autoWakeScheduler.test.js](file:///c:/Users/lilin/GeneralAgent/server/tests/autoWakeScheduler.test.js), [agentKanbanTodo.test.js](file:///c:/Users/lilin/GeneralAgent/server/tests/agentKanbanTodo.test.js), and [evidenceTraceLogger.test.js](file:///c:/Users/lilin/GeneralAgent/server/tests/evidenceTraceLogger.test.js) for un-mocked verification of prompt head exact-matching, two-layer handoff gates, auto-wake heartbeat recovery, durable Kanban claiming, and mutation trace logging.
+  Includes [real-empirical-agent-test.js](./scripts/real-empirical-agent-test.js), [stageHandoffTwoLayer.test.js](./server/tests/stageHandoffTwoLayer.test.js), [autoWakeScheduler.test.js](./server/tests/autoWakeScheduler.test.js), [agentKanbanTodo.test.js](./server/tests/agentKanbanTodo.test.js), and [evidenceTraceLogger.test.js](./server/tests/evidenceTraceLogger.test.js) for verifying prompt head exact-matching, two-layer handoff gates, auto-wake heartbeat recovery, durable Kanban claiming, and mutation trace logging.
 
-### 13. US Stock Investment Research & Daily Rebalancing Agent (MooMoo OpenD Integration)
-- **Zero-Auto-Order Advisory Blueprint**: Combines local holdings, cash balances, and budget constraints to generate pre-market BUY/SELL/TRIM/HOLD actions and concentration risk alerts (**Advisory Only, no auto-trading**).
-- **MooMoo OpenD Native Connection & Auto-Daemon**: Backend integrates `OpenDaemonManager` to probe port `11111`, auto-spawn `moomoo_OpenD`, detect GUI unlock status, and sync live positions and cash.
-- **MooMoo Watchlist Priority Recommendation**: Automatically queries the user's MooMoo stock Watchlist (Cmd 3213) without trade passwords, prioritizing recommendations from the user's personal favorites pool.
-- **100% Real-Time Market Price Data Integrity**: Fetches live quotes via OpenD `Cmd 3001` & `Cmd 3004` and runs a deterministic post-processing layer to overwrite all action numerical fields with real market prices, eliminating AI hallucinations.
-- **Deduction State Glassmorphism Blur**: Applies a frosted glass blur overlay (`Backdrop Blur`) to updating regions during AI strategy generation, seamlessly unblurring once generation completes.
+### 14. Internationalization (i18n) Support
+- Fully integrated with `i18next` and `react-i18next` on the client. UI elements, logs, page labels, and settings routes support complete localization between English and Chinese. User language selections are persisted locally.
 
 ---
 
@@ -326,6 +338,26 @@ Open `http://localhost:5173` in your browser.
 - 默认 SQLite 即可跑通主链；需要 RAG 检索时再接入 Qdrant
 - RAG 并发数、限速等运行时参数从 .env 迁到设置面板，改完即生效无需重启
 - Monorepo 拆分（pnpm workspace），桌面版 / 介绍站 / 服务端 / 客户端独立可构建
+
+### 10. SearXNG Local Docker Search Engine (Optional)
+
+The Stock Agent integrates with a locally hosted **SearXNG** Docker container (`http://127.0.0.1:8080`) for real-time stock news retrieval and market intelligence extraction.
+
+```bash
+# Run SearXNG container locally (Mapped to port 8088)
+docker run -d \
+  --name searxng \
+  -p 8088:8080 \
+  -v $(pwd)/scratch/searxng/settings.yml:/etc/searxng/settings.yml:ro \
+  searxng/searxng:latest
+
+# Environment Variable (Optional, defaults to http://127.0.0.1:8088)
+# SEARXNG_URL=http://127.0.0.1:8088
+
+# Verify real connection test
+node server/scripts/runSearXNGTest.cjs
+```
+- **Fallback Protection**: If SearXNG Docker is not running, the Stock Agent automatically falls back to static quote context without throwing any runtime errors.
 
 
 ## 典型使用路径
@@ -624,7 +656,7 @@ Open three separate terminal tabs/windows:
    (Starts on `http://localhost:5173`).
 
 #### Option C: Background Service Manager Script (macOS Utility)
-A utility helper script is available at [scripts/manage.sh](file:///Users/nvidia/GeneralAgent/scripts/manage.sh):
+A utility helper script is available at [scripts/manage.sh](./scripts/manage.sh):
 - **Start all services in background**: `./scripts/manage.sh start`
 - **Stop all background services**: `./scripts/manage.sh stop`
 - **Check service status**: `./scripts/manage.sh status`

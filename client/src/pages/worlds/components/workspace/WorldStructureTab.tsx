@@ -20,11 +20,11 @@ import WorldFactionsSection from "./structure/WorldFactionsSection";
 import WorldRelationsSection from "./structure/WorldRelationsSection";
 
 const SECTION_OPTIONS: Array<{ value: WorldStructureSectionKey; label: string }> = [
-  { value: "profile", label: t("gen.pages.worlds.components.workspace.WorldStructureTab.worldOverview") },
-  { value: "rules", label: t("gen.pages.worlds.components.workspace.WorldStructureTab.gen_c1af372a") },
-  { value: "factions", label: t("gen.pages.worlds.components.workspace.WorldStructureTab.gen_e87fe613") },
-  { value: "locations", label: t("gen.pages.worlds.components.workspace.WorldStructureTab.gen_d528ae4b") },
-  { value: "relations", label: t("gen.pages.worlds.components.workspace.WorldStructureTab.gen_bb016fed") },
+  { value: "profile", label: i18next.t("dict.worldOverview") },
+  { value: "rules", label: i18next.t("dict.gen_c1af372a") },
+  { value: "factions", label: i18next.t("dict.gen_e87fe613") },
+  { value: "locations", label: i18next.t("dict.gen_d528ae4b") },
+  { value: "relations", label: i18next.t("dict.gen_bb016fed") },
 ];
 
 function updateArrayItem<T>(items: T[], index: number, nextItem: T): T[] {
@@ -84,9 +84,9 @@ export default function WorldStructureTab(props: {
     return (
       <Card>
         <CardHeader>
-          <CardTitle>{t("gen.pages.worlds.components.workspace.WorldStructureTab.gen_6d58393f")}</CardTitle>
+          <CardTitle>{i18next.t("dict.gen_6d58393f")}</CardTitle>
         </CardHeader>
-        <CardContent className="text-sm text-muted-foreground">{t("gen.pages.worlds.components.workspace.WorldStructureTab.gen_e8be0b1f")}</CardContent>
+        <CardContent className="text-sm text-muted-foreground">{i18next.t("dict.gen_e8be0b1f")}</CardContent>
       </Card>
     );
   }
@@ -94,7 +94,7 @@ export default function WorldStructureTab(props: {
   return (
     <Card>
       <CardHeader>
-        <CardTitle>{t("gen.pages.worlds.components.workspace.WorldStructureTab.gen_6d58393f")}</CardTitle>
+        <CardTitle>{i18next.t("dict.gen_6d58393f")}</CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
         <div className="rounded-md border p-3 space-y-3">
@@ -122,7 +122,7 @@ export default function WorldStructureTab(props: {
               }}
               disabled={backfillPending}
             >
-              {backfillPending ? t("gen.pages.worlds.components.workspace.WorldStructureTab.gen_19b549e6") : hasStructuredData ? t("gen.pages.worlds.components.workspace.WorldStructureTab.gen_a6c139b5") : t("gen.pages.worlds.components.workspace.WorldStructureTab.extractStructureFromExistingSettings")}
+              {backfillPending ? i18next.t("dict.gen_19b549e6") : hasStructuredData ? i18next.t("dict.gen_a6c139b5") : i18next.t("dict.extractStructureFromExistingSettings")}
             </Button>
             <Button
               variant="outline"
@@ -135,16 +135,16 @@ export default function WorldStructureTab(props: {
               }}
               disabled={generatePending}
             >
-              {generatePending ? t("gen.pages.worlds.components.workspace.WorldStructureTab.gen_b6c679e2") : t("gen.pages.worlds.components.workspace.WorldStructureTab.expandCurrentBlock")}
+              {generatePending ? i18next.t("dict.gen_b6c679e2") : i18next.t("dict.expandCurrentBlock")}
             </Button>
             <Button onClick={() => void onSave(draftStructure, draftBindingSupport)} disabled={savePending}>
-              {savePending ? t("gen.pages.worlds.components.workspace.WorldStructureTab.savingInProgressDotDotDot") : t("gen.pages.worlds.components.workspace.WorldStructureTab.saveStructure")}
+              {savePending ? i18next.t("common.saving") : i18next.t("dict.saveStructure")}
             </Button>
           </div>
         </div>
 
         <div className={activeSection === "profile" ? "rounded-md border p-3 space-y-3" : "hidden"}>
-          <div className="font-medium">{t("gen.pages.worlds.components.workspace.WorldStructureTab.worldOverview")}</div>
+          <div className="font-medium">{i18next.t("dict.worldOverview")}</div>
           <Input
             value={draftStructure.profile.identity}
             onChange={(event) =>
@@ -154,7 +154,7 @@ export default function WorldStructureTab(props: {
                   : prev,
               )
             }
-            placeholder={t("gen.pages.worlds.components.workspace.WorldStructureTab.worldIdentityTypeAttire")}
+            placeholder={i18next.t("dict.worldIdentityTypeAttire")}
           />
           <Input
             value={draftStructure.profile.tone}
@@ -165,7 +165,7 @@ export default function WorldStructureTab(props: {
                   : prev,
               )
             }
-            placeholder={t("gen.pages.worlds.components.workspace.WorldStructureTab.gen_a200ee45")}
+            placeholder={i18next.t("dict.gen_a200ee45")}
           />
           <textarea
             className="min-h-[100px] w-full rounded-md border bg-background p-2 text-sm"
@@ -177,7 +177,7 @@ export default function WorldStructureTab(props: {
                   : prev,
               )
             }
-            placeholder={t("gen.pages.worlds.components.workspace.WorldStructureTab.worldSummary")}
+            placeholder={i18next.t("dict.worldSummary")}
           />
           <textarea
             className="min-h-[80px] w-full rounded-md border bg-background p-2 text-sm"
@@ -189,7 +189,7 @@ export default function WorldStructureTab(props: {
                   : prev,
               )
             }
-            placeholder={t("gen.pages.worlds.components.workspace.WorldStructureTab.gen_ae5f3fde")}
+            placeholder={i18next.t("dict.gen_ae5f3fde")}
           />
           <Input
             value={draftStructure.profile.themes.join("、")}
@@ -206,13 +206,13 @@ export default function WorldStructureTab(props: {
                   : prev,
               )
             }
-            placeholder={t("gen.pages.worlds.components.workspace.WorldStructureTab.topicKeywordSeparated")}
+            placeholder={i18next.t("dict.topicKeywordSeparated")}
           />
         </div>
 
         <div className={activeSection === "rules" ? "rounded-md border p-3 space-y-3" : "hidden"}>
           <div className="flex items-center justify-between">
-            <div className="font-medium">{t("gen.pages.worlds.components.workspace.WorldStructureTab.gen_c1af372a")}</div>
+            <div className="font-medium">{i18next.t("dict.gen_c1af372a")}</div>
             <Button
               size="sm"
               variant="outline"
@@ -239,9 +239,7 @@ export default function WorldStructureTab(props: {
                     : prev,
                 )
               }
-            >
-              新增规则
-            </Button>
+            >{i18next.t("worlds.worldStructureTab.d7d8ar")}</Button>
           </div>
           <textarea
             className="min-h-[80px] w-full rounded-md border bg-background p-2 text-sm"
@@ -253,7 +251,7 @@ export default function WorldStructureTab(props: {
                   : prev,
               )
             }
-            placeholder={t("gen.pages.worlds.components.workspace.WorldStructureTab.worldRuleSummary")}
+            placeholder={i18next.t("dict.worldRuleSummary")}
           />
           {draftStructure.rules.axioms.map((rule, index) => (
             <div key={rule.id || index} className="rounded-md border p-3 space-y-2">
@@ -276,7 +274,7 @@ export default function WorldStructureTab(props: {
                         : prev,
                     )
                   }
-                  placeholder={t("gen.pages.worlds.components.workspace.WorldStructureTab.gen_87080256")}
+                  placeholder={i18next.t("dict.gen_87080256")}
                 />
                 <Input
                   value={rule.cost}
@@ -296,7 +294,7 @@ export default function WorldStructureTab(props: {
                         : prev,
                     )
                   }
-                  placeholder={t("gen.pages.worlds.components.workspace.WorldStructureTab.cost")}
+                  placeholder={i18next.t("dict.cost")}
                 />
               </div>
               <textarea
@@ -318,7 +316,7 @@ export default function WorldStructureTab(props: {
                       : prev,
                   )
                 }
-                placeholder={t("gen.pages.worlds.components.workspace.WorldStructureTab.gen_cc807bdb")}
+                placeholder={i18next.t("dict.gen_cc807bdb")}
               />
               <div className="grid gap-2 md:grid-cols-2">
                 <Input
@@ -339,7 +337,7 @@ export default function WorldStructureTab(props: {
                         : prev,
                     )
                   }
-                  placeholder={t("gen.pages.worlds.components.workspace.WorldStructureTab.gen_870f8e99")}
+                  placeholder={i18next.t("dict.gen_870f8e99")}
                 />
                 <Input
                   value={rule.enforcement}
@@ -359,7 +357,7 @@ export default function WorldStructureTab(props: {
                         : prev,
                     )
                   }
-                  placeholder={t("gen.pages.worlds.components.workspace.WorldStructureTab.gen_b1a87e08")}
+                  placeholder={i18next.t("dict.gen_b1a87e08")}
                 />
               </div>
             </div>
@@ -377,7 +375,7 @@ export default function WorldStructureTab(props: {
 
         <div className={activeSection === "locations" ? "rounded-md border p-3 space-y-3" : "hidden"}>
           <div className="flex items-center justify-between">
-            <div className="font-medium">{t("gen.pages.worlds.components.workspace.WorldStructureTab.gen_d528ae4b")}</div>
+            <div className="font-medium">{i18next.t("dict.gen_d528ae4b")}</div>
             <Button
               size="sm"
               variant="outline"
@@ -404,9 +402,7 @@ export default function WorldStructureTab(props: {
                     : prev,
                 )
               }
-            >
-              新增地点
-            </Button>
+            >{i18next.t("worlds.worldStructureTab.d74smv")}</Button>
           </div>
           {draftStructure.locations.map((location, index) => (
             <div key={location.id || index} className="rounded-md border p-3 space-y-2">
@@ -426,7 +422,7 @@ export default function WorldStructureTab(props: {
                         : prev,
                     )
                   }
-                  placeholder={t("gen.pages.worlds.components.workspace.WorldStructureTab.gen_6608b1e8")}
+                  placeholder={i18next.t("dict.gen_6608b1e8")}
                 />
                 <Input
                   value={location.terrain}
@@ -443,7 +439,7 @@ export default function WorldStructureTab(props: {
                         : prev,
                     )
                   }
-                  placeholder={t("gen.pages.worlds.components.workspace.WorldStructureTab.gen_e99df637")}
+                  placeholder={i18next.t("dict.gen_e99df637")}
                 />
               </div>
               <textarea
@@ -462,7 +458,7 @@ export default function WorldStructureTab(props: {
                       : prev,
                   )
                 }
-                placeholder={t("gen.pages.worlds.components.workspace.WorldStructureTab.gen_ed96b49c")}
+                placeholder={i18next.t("dict.gen_ed96b49c")}
               />
               <div className="grid gap-2 md:grid-cols-2">
                 <Input
@@ -480,7 +476,7 @@ export default function WorldStructureTab(props: {
                         : prev,
                     )
                   }
-                  placeholder={t("gen.pages.worlds.components.workspace.WorldStructureTab.gen_dfe66fd3")}
+                  placeholder={i18next.t("dict.gen_dfe66fd3")}
                 />
                 <Input
                   value={location.risk}
@@ -497,7 +493,7 @@ export default function WorldStructureTab(props: {
                         : prev,
                     )
                   }
-                  placeholder={t("gen.pages.worlds.components.workspace.WorldStructureTab.gen_57846ffb")}
+                  placeholder={i18next.t("dict.gen_57846ffb")}
                 />
               </div>
               <div className="grid gap-2 md:grid-cols-2">
@@ -516,7 +512,7 @@ export default function WorldStructureTab(props: {
                         : prev,
                     )
                   }
-                  placeholder={t("gen.pages.worlds.components.workspace.WorldStructureTab.gen_fbc2f117")}
+                  placeholder={i18next.t("dict.gen_fbc2f117")}
                 />
                 <Input
                   value={location.exitCost}
@@ -533,7 +529,7 @@ export default function WorldStructureTab(props: {
                         : prev,
                     )
                   }
-                  placeholder={t("gen.pages.worlds.components.workspace.WorldStructureTab.gen_9eb03213")}
+                  placeholder={i18next.t("dict.gen_9eb03213")}
                 />
               </div>
             </div>

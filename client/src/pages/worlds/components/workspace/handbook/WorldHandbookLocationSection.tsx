@@ -42,8 +42,8 @@ export default function WorldHandbookLocationSection(props: {
     <section className="rounded-md border p-4">
       <SectionHeader
         icon={MapPinned}
-        title={t("gen.pages.worlds.components.workspace.handbook.WorldHandbookLocationSection.gen_bf876a86")}
-        description={t("gen.pages.worlds.components.workspace.handbook.WorldHandbookLocationSection.gen_5eab593a")}
+        title={i18next.t("dict.gen_bf876a86")}
+        description={i18next.t("dict.gen_5eab593a")}
         count={draftStructure.locations.length}
       />
       <div className="mt-4 grid gap-3 lg:grid-cols-2">
@@ -60,12 +60,10 @@ export default function WorldHandbookLocationSection(props: {
                     prev ? { ...prev, locations: removeItem(prev.locations, index) } : prev,
                   )
                 }
-              >
-                移除
-              </Button>
+              >{i18next.t("worlds.worldHandbookForceSection.lknd")}</Button>
             </div>
             <div className="mt-3 grid gap-3">
-              <HandbookField title={t("gen.pages.worlds.components.workspace.handbook.WorldHandbookLocationSection.gen_6608b1e8")} hint={t("gen.pages.worlds.components.workspace.handbook.WorldHandbookLocationSection.gen_4c64c523")}>
+              <HandbookField title={i18next.t("dict.gen_6608b1e8")} hint={i18next.t("dict.gen_4c64c523")}>
                 <Input
                   value={location.name}
                   onChange={(event) =>
@@ -73,10 +71,10 @@ export default function WorldHandbookLocationSection(props: {
                       prev ? { ...prev, locations: updateItem(prev.locations, index, { name: event.target.value }) } : prev,
                     )
                   }
-                  placeholder={t("gen.pages.worlds.components.workspace.handbook.WorldHandbookLocationSection.gen_bf68522b")}
+                  placeholder={i18next.t("dict.gen_bf68522b")}
                 />
               </HandbookField>
-              <HandbookField title={t("gen.pages.worlds.components.workspace.handbook.WorldHandbookLocationSection.gen_8a9c3f14")} hint={t("gen.pages.worlds.components.workspace.handbook.WorldHandbookLocationSection.gen_62ed5e07")}>
+              <HandbookField title={i18next.t("dict.gen_8a9c3f14")} hint={i18next.t("dict.gen_62ed5e07")}>
                 <Input
                   value={location.terrain}
                   onChange={(event) =>
@@ -86,10 +84,10 @@ export default function WorldHandbookLocationSection(props: {
                         : prev,
                     )
                   }
-                  placeholder={t("gen.pages.worlds.components.workspace.handbook.WorldHandbookLocationSection.gen_03d029f6")}
+                  placeholder={i18next.t("dict.gen_03d029f6")}
                 />
               </HandbookField>
-              <HandbookField title={t("gen.pages.worlds.components.workspace.handbook.WorldHandbookLocationSection.gen_051e077a")} hint={t("gen.pages.worlds.components.workspace.handbook.WorldHandbookLocationSection.gen_4bb9a973")}>
+              <HandbookField title={i18next.t("dict.gen_051e077a")} hint={i18next.t("dict.gen_4bb9a973")}>
                 <HandbookTextarea
                   value={location.summary}
                   onChange={(value) =>
@@ -97,11 +95,11 @@ export default function WorldHandbookLocationSection(props: {
                       prev ? { ...prev, locations: updateItem(prev.locations, index, { summary: value }) } : prev,
                     )
                   }
-                  placeholder={t("gen.pages.worlds.components.workspace.handbook.WorldHandbookLocationSection.gen_a9cad450")}
+                  placeholder={i18next.t("dict.gen_a9cad450")}
                   minRows={3}
                 />
               </HandbookField>
-              <HandbookField title={t("gen.pages.worlds.components.workspace.handbook.WorldHandbookLocationSection.gen_b4406c09")} hint={t("gen.pages.worlds.components.workspace.handbook.WorldHandbookLocationSection.gen_8187b5cf")}>
+              <HandbookField title={i18next.t("dict.gen_b4406c09")} hint={i18next.t("dict.gen_8187b5cf")}>
                 <Input
                   value={location.narrativeFunction}
                   onChange={(event) =>
@@ -114,10 +112,10 @@ export default function WorldHandbookLocationSection(props: {
                         : prev,
                     )
                   }
-                  placeholder={t("gen.pages.worlds.components.workspace.handbook.WorldHandbookLocationSection.gen_a28adf5e")}
+                  placeholder={i18next.t("dict.gen_a28adf5e")}
                 />
               </HandbookField>
-              <HandbookField title={t("gen.pages.worlds.components.workspace.handbook.WorldHandbookLocationSection.gen_fd11c0b0")} hint={t("gen.pages.worlds.components.workspace.handbook.WorldHandbookLocationSection.gen_ed9089b3")}>
+              <HandbookField title={i18next.t("dict.gen_fd11c0b0")} hint={i18next.t("dict.gen_ed9089b3")}>
                 <Input
                   value={location.risk}
                   onChange={(event) =>
@@ -125,7 +123,7 @@ export default function WorldHandbookLocationSection(props: {
                       prev ? { ...prev, locations: updateItem(prev.locations, index, { risk: event.target.value }) } : prev,
                     )
                   }
-                  placeholder={t("gen.pages.worlds.components.workspace.handbook.WorldHandbookLocationSection.gen_21edf84f")}
+                  placeholder={i18next.t("dict.gen_21edf84f")}
                 />
               </HandbookField>
             </div>
@@ -133,9 +131,7 @@ export default function WorldHandbookLocationSection(props: {
         ))}
       </div>
       <Button type="button" className="mt-3" variant="outline" onClick={addLocation}>
-        <Plus className="mr-2 h-4 w-4" aria-hidden="true" />
-        增加故事地点
-      </Button>
+        <Plus className="mr-2 h-4 w-4" aria-hidden="true" />{i18next.t("worlds.worldHandbookLocationSection.3fevrj")}</Button>
     </section>
   );
 }

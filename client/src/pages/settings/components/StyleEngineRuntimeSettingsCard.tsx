@@ -1,3 +1,5 @@
+import i18next from "i18next";
+import { useTranslation } from "react-i18next";
 import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { ChevronDown } from "lucide-react";
@@ -27,6 +29,7 @@ function clampMinutes(value: number, min: number, max: number): number {
 }
 
 export default function StyleEngineRuntimeSettingsCard() {
+  const { t } = useTranslation();
   const queryClient = useQueryClient();
   const [timeoutMinutes, setTimeoutMinutes] = useState("10");
   const [feedback, setFeedback] = useState("");
@@ -71,19 +74,19 @@ export default function StyleEngineRuntimeSettingsCard() {
     && parsedMinutes <= limits.maxMinutes;
   const modeOptions = [
     {
-      label: "快速检测",
+      label: i18next.t("settings.styleEngineRuntimeSettingsCard.cp5c0v"),
       value: limits.minMinutes,
-      description: "适合短文本或快速确认样本文风是否可提取。",
+      description: i18next.t("settings.styleEngineRuntimeSettingsCard.vl26ic"),
     },
     {
-      label: "稳定推荐",
+      label: i18next.t("settings.styleEngineRuntimeSettingsCard.fsrnan"),
       value: clampMinutes(limits.defaultMinutes, limits.minMinutes, limits.maxMinutes),
-      description: "适合大多数写法提取任务，等待时间和异常发现更均衡。",
+      description: i18next.t("settings.styleEngineRuntimeSettingsCard.kj5quq"),
     },
     {
-      label: "长文提取",
+      label: i18next.t("settings.styleEngineRuntimeSettingsCard.ja5re6"),
       value: limits.maxMinutes,
-      description: "适合长篇原文或较慢模型，给提取过程更充足时间。",
+      description: i18next.t("settings.styleEngineRuntimeSettingsCard.jcdl42"),
     },
   ];
 
@@ -91,10 +94,8 @@ export default function StyleEngineRuntimeSettingsCard() {
     <Card className="min-w-0 overflow-hidden">
       <CardHeader className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div className="min-w-0 space-y-1">
-          <CardTitle>写法引擎运行设置</CardTitle>
-          <CardDescription className={AUTO_DIRECTOR_MOBILE_CLASSES.wrapText}>
-            控制写法提取等待模型返回的最长时间。长篇原文提取可以适当调高，短文本保持较短更容易发现异常。
-          </CardDescription>
+          <CardTitle>{i18next.t("settings.styleEngineRuntimeSettingsCard.wvignz")}</CardTitle>
+          <CardDescription className={AUTO_DIRECTOR_MOBILE_CLASSES.wrapText}>{i18next.t("settings.styleEngineRuntimeSettingsCard.f0y0gp")}</CardDescription>
         </div>
         <Badge variant="outline">生效值 {limits.effectiveMinutes} 分钟</Badge>
       </CardHeader>
@@ -117,7 +118,7 @@ export default function StyleEngineRuntimeSettingsCard() {
               >
                 <div className="flex items-center justify-between gap-2">
                   <div className="font-medium">{mode.label}</div>
-                  {active ? <Badge variant="default">当前选择</Badge> : null}
+                  {active ? <Badge variant="default">{i18next.t("settings.styleEngineRuntimeSettingsCard.cdkxcq")}</Badge> : null}
                 </div>
                 <div className={`mt-2 text-xs leading-5 text-muted-foreground ${AUTO_DIRECTOR_MOBILE_CLASSES.wrapText}`}>
                   {mode.description}
@@ -140,9 +141,7 @@ export default function StyleEngineRuntimeSettingsCard() {
             className="flex items-center gap-2 text-sm font-medium text-primary"
             aria-expanded={advancedOpen}
             onClick={() => setAdvancedOpen((prev) => !prev)}
-          >
-            高级设置
-            <ChevronDown className={cn("h-4 w-4 transition-transform duration-200", advancedOpen ? "rotate-180" : "")} />
+          >{i18next.t("novels.novelExistingProjectTakeoverDialog.k2beyn")}<ChevronDown className={cn("h-4 w-4 transition-transform duration-200", advancedOpen ? "rotate-180" : "")} />
           </button>
           <Button
             className="w-full sm:w-auto"
@@ -155,7 +154,7 @@ export default function StyleEngineRuntimeSettingsCard() {
 
         {advancedOpen ? (
           <div className="space-y-2 rounded-md border bg-muted/20 p-3">
-            <div className="text-sm font-medium">写法提取超时（分钟）</div>
+            <div className="text-sm font-medium">{i18next.t("settings.styleEngineRuntimeSettingsCard.r43fwb")}</div>
             <Input
               type="number"
               min={limits.minMinutes}

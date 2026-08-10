@@ -1,3 +1,4 @@
+import i18next from "i18next";
 import {
   ActionBarPrimitive,
   BranchPickerPrimitive,
@@ -24,7 +25,7 @@ function BranchControls() {
     >
       <BranchPickerPrimitive.Previous asChild>
         <Button type="button" size="sm" variant="ghost" className="h-6 px-1 text-[11px]" disabled={actionDisabled}>
-          上一支
+          {i18next.t("creativeHub.prevBranch", "上一支")}
         </Button>
       </BranchPickerPrimitive.Previous>
       <span className="tabular-nums">
@@ -32,7 +33,7 @@ function BranchControls() {
       </span>
       <BranchPickerPrimitive.Next asChild>
         <Button type="button" size="sm" variant="ghost" className="h-6 px-1 text-[11px]" disabled={actionDisabled}>
-          下一支
+          {i18next.t("creativeHub.nextBranch", "下一支")}
         </Button>
       </BranchPickerPrimitive.Next>
     </BranchPickerPrimitive.Root>
@@ -53,7 +54,7 @@ function UserMessageActions() {
     >
       <ActionBarPrimitive.Edit asChild>
         <Button type="button" size="sm" variant="outline" className="h-7 px-2 text-[11px]" disabled={actionDisabled}>
-          编辑
+          {i18next.t("creativeHub.edit", "编辑")}
         </Button>
       </ActionBarPrimitive.Edit>
     </ActionBarPrimitive.Root>
@@ -75,7 +76,7 @@ function AssistantMessageActions() {
     >
       <ActionBarPrimitive.Reload asChild>
         <Button type="button" size="sm" variant="outline" className="h-7 px-2 text-[11px]" disabled={actionDisabled}>
-          重新生成
+          {i18next.t("creativeHub.regenerate", "重新生成")}
         </Button>
       </ActionBarPrimitive.Reload>
     </ActionBarPrimitive.Root>
@@ -118,7 +119,7 @@ export function CreativeHubAssistantMessage() {
               ),
               Reasoning: ({ text }: { text: string }) => (
                 <div className="mb-3 rounded-md border border-warning/30 bg-warning/5 p-3 text-xs">
-                  <div className="mb-1 text-[11px] text-warning">推理过程</div>
+                  <div className="mb-1 text-[11px] text-warning">{i18next.t("dict.gen_3d1dec1f")}</div>
                   <MarkdownViewer content={text} />
                 </div>
               ),
@@ -141,21 +142,17 @@ export function CreativeHubEditComposer() {
     <ComposerPrimitive.Root className="mt-3 rounded-md border border-info/30 bg-info/5 p-3">
       <ComposerPrimitive.Input
         className="min-h-[88px] w-full resize-none rounded-md border border-input bg-background p-3 text-base outline-none transition focus-visible:ring-2 focus-visible:ring-ring md:text-sm"
-        placeholder="编辑这条消息后生成新的分支"
+        placeholder={i18next.t("dict.gen_6402b0c3")}
         submitMode="enter"
         disabled={actionDisabled}
-        aria-label="编辑消息并生成新分支"
+        aria-label={i18next.t("creativeHub.creativeHubMessagePrimitives.f52zsc")}
       />
       <div className="mt-3 flex gap-2">
         <ComposerPrimitive.Cancel asChild>
-          <Button type="button" size="sm" variant="outline" disabled={actionDisabled}>
-            取消
-          </Button>
+          <Button type="button" size="sm" variant="outline" disabled={actionDisabled}>{i18next.t("common.cancel")}</Button>
         </ComposerPrimitive.Cancel>
         <ComposerPrimitive.Send asChild>
-          <Button type="button" size="sm" disabled={actionDisabled}>
-            发送新分支
-          </Button>
+          <Button type="button" size="sm" disabled={actionDisabled}>{i18next.t("creativeHub.creativeHubMessagePrimitives.8ugxbr")}</Button>
         </ComposerPrimitive.Send>
       </div>
     </ComposerPrimitive.Root>

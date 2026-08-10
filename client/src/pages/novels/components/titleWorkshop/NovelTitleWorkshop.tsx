@@ -60,7 +60,7 @@ export default function NovelTitleWorkshop({
     }),
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: queryKeys.titles.all });
-      toast.success(t("gen.pages.novels.components.titleWorkshop.NovelTitleWorkshop.gen_fccedc6f"));
+      toast.success(i18next.t("dict.gen_fccedc6f"));
     },
   });
 
@@ -73,20 +73,20 @@ export default function NovelTitleWorkshop({
     }),
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: queryKeys.titles.all });
-      toast.success(t("gen.pages.novels.components.titleWorkshop.NovelTitleWorkshop.gen_bfcbedb9"));
+      toast.success(i18next.t("dict.gen_bfcbedb9"));
     },
   });
 
   const handleCopy = async (suggestion: TitleFactorySuggestion) => {
     await navigator.clipboard.writeText(suggestion.title);
     setSelectedTitle(suggestion.title);
-    toast.success(t("gen.pages.novels.components.titleWorkshop.NovelTitleWorkshop.gen_3257008e"));
+    toast.success(i18next.t("dict.gen_3257008e"));
   };
 
   const handleApply = (suggestion: TitleFactorySuggestion) => {
     setSelectedTitle(suggestion.title);
     onApplyTitle(suggestion.title);
-    toast.success(t("gen.pages.novels.components.titleWorkshop.NovelTitleWorkshop.gen_45732748"));
+    toast.success(i18next.t("dict.gen_45732748"));
   };
 
   return (
@@ -94,20 +94,18 @@ export default function NovelTitleWorkshop({
       <div className="space-y-4">
         <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
           <div className="space-y-1">
-            <div className="text-sm font-semibold text-foreground">{t("gen.pages.novels.components.titleWorkshop.NovelTitleWorkshop.gen_c7a5bed7")}</div>
-            <div className="text-sm leading-6 text-muted-foreground">
-              基于当前已保存的小说简介和类型生成候选。如果刚修改过简介或类型，建议先保存基本信息再生成。
-            </div>
+            <div className="text-sm font-semibold text-foreground">{i18next.t("dict.gen_c7a5bed7")}</div>
+            <div className="text-sm leading-6 text-muted-foreground">{i18next.t("novels.novelTitleWorkshop.ya71sc")}</div>
           </div>
           <Button type="button" variant="outline" disabled={!currentTitle.trim() || saveCurrentMutation.isPending} onClick={() => saveCurrentMutation.mutate()}>
-            {saveCurrentMutation.isPending ? t("gen.pages.novels.components.titleWorkshop.NovelTitleWorkshop.savingInProgressDotDotDot") : t("gen.pages.novels.components.titleWorkshop.NovelTitleWorkshop.saveCurrentTitle")}
+            {saveCurrentMutation.isPending ? i18next.t("common.saving") : i18next.t("dict.saveCurrentTitle")}
           </Button>
         </div>
         <div className="space-y-3">
           <LLMSelector />
           <div className="flex justify-end">
             <AiButton type="button" onClick={() => generateMutation.mutate()} disabled={generateMutation.isPending}>
-              {generateMutation.isPending ? t("gen.pages.novels.components.titleWorkshop.NovelTitleWorkshop.gen_4d020ba3") : t("gen.pages.novels.components.titleWorkshop.NovelTitleWorkshop.gen_65b0c5a6")}
+              {generateMutation.isPending ? i18next.t("dict.gen_4d020ba3") : i18next.t("dict.gen_65b0c5a6")}
             </AiButton>
           </div>
         </div>
@@ -116,12 +114,12 @@ export default function NovelTitleWorkshop({
       <TitleSuggestionList
         suggestions={suggestions}
         selectedTitle={selectedTitle}
-        primaryActionLabel={t("gen.pages.novels.components.titleWorkshop.NovelTitleWorkshop.gen_42767810")}
+        primaryActionLabel={i18next.t("dict.gen_42767810")}
         onPrimaryAction={handleApply}
         onCopy={handleCopy}
         onSave={(suggestion) => saveMutation.mutate(suggestion)}
         savingTitle={saveMutation.isPending ? saveMutation.variables?.title ?? "" : ""}
-        emptyMessage={t("gen.pages.novels.components.titleWorkshop.NovelTitleWorkshop.gen_ebad2918")}
+        emptyMessage={i18next.t("dict.gen_ebad2918")}
       />
     </div>
   );

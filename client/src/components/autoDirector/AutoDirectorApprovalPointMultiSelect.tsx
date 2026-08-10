@@ -19,9 +19,9 @@ interface AutoDirectorApprovalPointMultiSelectProps {
 }
 
 function riskLabel(riskLevel: DirectorAutoApprovalPoint["riskLevel"]): string {
-  if (riskLevel === "high") return t("gen.components.autoDirector.AutoDirectorApprovalPointMultiSelect.gen_4433e710");
-  if (riskLevel === "medium") return t("gen.components.autoDirector.AutoDirectorApprovalPointMultiSelect.midRisk");
-  return t("gen.components.autoDirector.AutoDirectorApprovalPointMultiSelect.lowRisk");
+  if (riskLevel === "high") return i18next.t("dict.gen_4433e710");
+  if (riskLevel === "medium") return i18next.t("dict.midRisk");
+  return i18next.t("dict.lowRisk");
 }
 
 function riskClassName(riskLevel: DirectorAutoApprovalPoint["riskLevel"]): string {
@@ -43,7 +43,7 @@ function toggleCodes(current: string[], targetCodes: string[], checked: boolean)
 export function summarizeDirectorAutoApprovalPoints(codes: string[]): string {
   const normalized = normalizeDirectorAutoApprovalPointCodes(codes, []);
   if (normalized.length === 0) {
-    return t("gen.components.autoDirector.AutoDirectorApprovalPointMultiSelect.notAutoApprove");
+    return i18next.t("dict.notAutoApprove");
   }
   const labels: string[] = normalized
     .map((code) => DIRECTOR_AUTO_APPROVAL_POINTS.find((item) => item.code === code)?.label)

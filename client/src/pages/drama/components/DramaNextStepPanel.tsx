@@ -95,9 +95,9 @@ function buildNextStep(project: DramaProjectDetail): NextStep {
   if (!project.sourceBundle) {
     return {
       kind: "source",
-      title: t("gen.pages.drama.components.DramaNextStepPanel.nextStepOrganizeMaterials"),
-      description: t("gen.pages.drama.components.DramaNextStepPanel.gen_b9b07305"),
-      button: t("gen.pages.drama.components.DramaNextStepPanel.gen_eeb01df4"),
+      title: i18next.t("dict.nextStepOrganizeMaterials"),
+      description: i18next.t("dict.gen_b9b07305"),
+      button: i18next.t("dict.gen_eeb01df4"),
       tab: "source",
       icon: "source",
     };
@@ -105,9 +105,9 @@ function buildNextStep(project: DramaProjectDetail): NextStep {
   if (!project.strategy) {
     return {
       kind: "strategy",
-      title: t("gen.pages.drama.components.DramaNextStepPanel.nextStepGenerateDramaStrategy"),
-      description: t("gen.pages.drama.components.DramaNextStepPanel.gen_cc9d0449"),
-      button: t("gen.pages.drama.components.DramaNextStepPanel.gen_5f66b6de"),
+      title: i18next.t("dict.nextStepGenerateDramaStrategy"),
+      description: i18next.t("dict.gen_cc9d0449"),
+      button: i18next.t("dict.gen_5f66b6de"),
       tab: "strategy",
       icon: "strategy",
     };
@@ -115,9 +115,9 @@ function buildNextStep(project: DramaProjectDetail): NextStep {
   if (episodes.length === 0) {
     return {
       kind: "outline",
-      title: t("gen.pages.drama.components.DramaNextStepPanel.nextStepGenerateFirst12Episodes"),
-      description: t("gen.pages.drama.components.DramaNextStepPanel.gen_1a8b5635"),
-      button: t("gen.pages.drama.components.DramaNextStepPanel.gen_ecc3b873"),
+      title: i18next.t("dict.nextStepGenerateFirst12Episodes"),
+      description: i18next.t("dict.gen_1a8b5635"),
+      button: i18next.t("dict.gen_ecc3b873"),
       tab: "episodes",
       icon: "outline",
     };
@@ -126,8 +126,8 @@ function buildNextStep(project: DramaProjectDetail): NextStep {
     return {
       kind: "script",
       title: `下一步：生成第 ${unscripted.order} 集台本`,
-      description: t("gen.pages.drama.components.DramaNextStepPanel.gen_0cb9ca78"),
-      button: t("gen.pages.drama.components.DramaNextStepPanel.gen_7f83dc3d"),
+      description: i18next.t("dict.gen_0cb9ca78"),
+      button: i18next.t("dict.gen_7f83dc3d"),
       tab: "episodes",
       icon: "script",
       episodeOrder: unscripted.order,
@@ -137,8 +137,8 @@ function buildNextStep(project: DramaProjectDetail): NextStep {
     return {
       kind: "repair",
       title: `下一步：修复第 ${repairable.order} 集质量问题`,
-      description: t("gen.pages.drama.components.DramaNextStepPanel.gen_4e692cb2"),
-      button: t("gen.pages.drama.components.DramaNextStepPanel.gen_98a2f9a0"),
+      description: i18next.t("dict.gen_4e692cb2"),
+      button: i18next.t("dict.gen_98a2f9a0"),
       tab: "episodes",
       icon: "repair",
       episodeOrder: repairable.order,
@@ -148,8 +148,8 @@ function buildNextStep(project: DramaProjectDetail): NextStep {
     return {
       kind: "review",
       title: `下一步：检查第 ${unreviewed.order} 集质量`,
-      description: t("gen.pages.drama.components.DramaNextStepPanel.gen_9c5ff664"),
-      button: t("gen.pages.drama.components.DramaNextStepPanel.gen_6fc8894d"),
+      description: i18next.t("dict.gen_9c5ff664"),
+      button: i18next.t("dict.gen_6fc8894d"),
       tab: "episodes",
       icon: "review",
       episodeOrder: unreviewed.order,
@@ -159,8 +159,8 @@ function buildNextStep(project: DramaProjectDetail): NextStep {
     return {
       kind: "storyboard",
       title: `下一步：生成第 ${unstagedStoryboard.order} 集分镜`,
-      description: t("gen.pages.drama.components.DramaNextStepPanel.gen_65853d35"),
-      button: t("gen.pages.drama.components.DramaNextStepPanel.gen_3d45375e"),
+      description: i18next.t("dict.gen_65853d35"),
+      button: i18next.t("dict.gen_3d45375e"),
       tab: "visual",
       icon: "video",
       episodeOrder: unstagedStoryboard.order,
@@ -170,8 +170,8 @@ function buildNextStep(project: DramaProjectDetail): NextStep {
     return {
       kind: "videoPrompt",
       title: `下一步：生成第 ${shotWithoutPrompt.episode.order} 集视频提示词`,
-      description: t("gen.pages.drama.components.DramaNextStepPanel.gen_b644c21e"),
-      button: t("gen.pages.drama.components.DramaNextStepPanel.gen_9bcc2e2b"),
+      description: i18next.t("dict.gen_b644c21e"),
+      button: i18next.t("dict.gen_9bcc2e2b"),
       tab: "visual",
       icon: "video",
       episodeOrder: shotWithoutPrompt.episode.order,
@@ -181,9 +181,9 @@ function buildNextStep(project: DramaProjectDetail): NextStep {
   if (promptWithoutTask) {
     return {
       kind: "providerTask",
-      title: t("gen.pages.drama.components.DramaNextStepPanel.nextTaskCreateVideo"),
-      description: t("gen.pages.drama.components.DramaNextStepPanel.gen_c66a6fc9"),
-      button: t("gen.pages.drama.components.DramaNextStepPanel.gen_b053cdd5"),
+      title: i18next.t("dict.nextTaskCreateVideo"),
+      description: i18next.t("dict.gen_c66a6fc9"),
+      button: i18next.t("dict.gen_b053cdd5"),
       tab: "visual",
       icon: "video",
       videoPrompt: promptWithoutTask,
@@ -191,9 +191,9 @@ function buildNextStep(project: DramaProjectDetail): NextStep {
   }
   return {
     kind: "export",
-    title: t("gen.pages.drama.components.DramaNextStepPanel.nextStepExportInfo"),
-    description: t("gen.pages.drama.components.DramaNextStepPanel.gen_8d8e1958"),
-    button: t("gen.pages.drama.components.DramaNextStepPanel.gen_f33dea55"),
+    title: i18next.t("dict.nextStepExportInfo"),
+    description: i18next.t("dict.gen_8d8e1958"),
+    button: i18next.t("dict.gen_f33dea55"),
     tab: "export",
     icon: "export",
   };
@@ -251,20 +251,20 @@ export function DramaNextStepPanel(props: {
         <div className="space-y-2">
           <div className="flex flex-wrap items-center gap-2">
             <CardTitle className="text-lg">{step.title}</CardTitle>
-            <Badge variant="outline">{t("gen.pages.drama.components.DramaNextStepPanel.projectTargetEpisodes")}</Badge>
+            <Badge variant="outline">{i18next.t("dict.projectTargetEpisodes")}</Badge>
           </div>
           <CardDescription>{step.description}</CardDescription>
         </div>
         <Button type="button" disabled={props.busy} onClick={runStep}>
           <StepIcon icon={step.icon} />
-          {props.busy ? t("gen.pages.drama.components.DramaNextStepPanel.gen_2fb90b05") : step.button}
+          {props.busy ? i18next.t("dict.gen_2fb90b05") : step.button}
         </Button>
       </CardHeader>
       <CardContent className="flex flex-wrap gap-2 text-sm text-muted-foreground">
-        <span>{t("gen.pages.drama.components.DramaNextStepPanel.gen_ef161d55")}</span>
-        <span>{t("gen.pages.drama.components.DramaNextStepPanel.gen_9a7ad427")}</span>
-        <span>{t("gen.pages.drama.components.DramaNextStepPanel.gen_4ed0720f")}</span>
-        <span>{t("gen.pages.drama.components.DramaNextStepPanel.gen_68c68a2c")}</span>
+        <span>{i18next.t("dict.gen_ef161d55")}</span>
+        <span>{i18next.t("dict.gen_9a7ad427")}</span>
+        <span>{i18next.t("dict.gen_4ed0720f")}</span>
+        <span>{i18next.t("dict.gen_68c68a2c")}</span>
       </CardContent>
     </Card>
   );

@@ -29,19 +29,19 @@ export default function AIDiffPanel(props: AIDiffPanelProps) {
 
   const isIdle = session.status === "idle";
   const statusText = isIdle
-    ? t("gen.pages.novels.components.chapterEditor.AIDiffPanel.gen_55d7d90a")
+    ? i18next.t("dict.gen_55d7d90a")
     : session.status === "loading"
-      ? t("gen.pages.novels.components.chapterEditor.AIDiffPanel.gen_4ff96754")
+      ? i18next.t("dict.gen_4ff96754")
       : session.status === "error"
-        ? session.errorMessage || t("gen.pages.novels.components.chapterEditor.AIDiffPanel.gen_7f7de8a2")
-        : session.requestLabel || t("gen.pages.novels.components.chapterEditor.AIDiffPanel.gen_2c1db253");
+        ? session.errorMessage || i18next.t("dict.gen_7f7de8a2")
+        : session.requestLabel || i18next.t("dict.gen_2c1db253");
 
   return (
     <div className="flex h-full min-h-[420px] flex-col overflow-hidden rounded-3xl border border-border/70 bg-background shadow-sm xl:min-h-0">
       <div className="shrink-0 space-y-3 border-b border-border/70 px-4 py-4">
         <div className="flex items-center justify-between gap-3">
           <div>
-            <div className="text-sm font-medium text-foreground">{t("gen.pages.novels.components.chapterEditor.AIDiffPanel.aiRewriteResult")}</div>
+            <div className="text-sm font-medium text-foreground">{i18next.t("dict.aiRewriteResult")}</div>
             <div className="text-xs text-muted-foreground">{statusText}</div>
           </div>
           <div className="flex items-center gap-2">
@@ -50,17 +50,13 @@ export default function AIDiffPanel(props: AIDiffPanelProps) {
               variant={session.viewMode === "block" ? "default" : "outline"}
               onClick={() => onChangeViewMode("block")}
               disabled={isIdle}
-            >
-              段落对比
-            </Button>
+            >{i18next.t("novels.aIDiffPanel.e4vk83")}</Button>
             <Button
               size="sm"
               variant={session.viewMode === "inline" ? "default" : "outline"}
               onClick={() => onChangeViewMode("inline")}
               disabled={isIdle}
-            >
-              细节标记
-            </Button>
+            >{i18next.t("novels.aIDiffPanel.gj9ath")}</Button>
           </div>
         </div>
 
@@ -83,27 +79,21 @@ export default function AIDiffPanel(props: AIDiffPanelProps) {
       <div className="min-h-0 flex-1 space-y-4 overflow-y-auto px-4 py-4">
         {isIdle ? (
           <>
-            <div className="rounded-2xl border border-dashed border-border/70 bg-muted/10 p-4 text-sm leading-6 text-muted-foreground">
-              右侧结果面板已固定保留。你可以先在正文中选中一段，再从浮动工具条发起“优化表达、扩写、精简、强化情绪、强化冲突或自定义指令”。
-            </div>
+            <div className="rounded-2xl border border-dashed border-border/70 bg-muted/10 p-4 text-sm leading-6 text-muted-foreground">{i18next.t("novels.aIDiffPanel.sx3krt")}</div>
             <div className="rounded-2xl border border-border/70 bg-muted/10 p-4">
-              <div className="text-sm font-medium text-foreground">{t("gen.pages.novels.components.chapterEditor.AIDiffPanel.gen_7c71e233")}</div>
-              <div className="mt-2 text-sm leading-6 text-muted-foreground">
-                发起改写后，这里会展示 2 到 3 个候选版本、改写摘要和段落对比。
-              </div>
+              <div className="text-sm font-medium text-foreground">{i18next.t("dict.gen_7c71e233")}</div>
+              <div className="mt-2 text-sm leading-6 text-muted-foreground">{i18next.t("novels.aIDiffPanel.dd92aq")}</div>
             </div>
           </>
         ) : null}
 
         {session.status === "loading" ? (
-          <div className="rounded-2xl border border-dashed border-border/70 bg-muted/10 p-4 text-sm text-muted-foreground">
-            正在基于选中文本生成 2 到 3 个候选版本，请稍候。
-          </div>
+          <div className="rounded-2xl border border-dashed border-border/70 bg-muted/10 p-4 text-sm text-muted-foreground">{i18next.t("novels.aIDiffPanel.f1cmbf")}</div>
         ) : null}
 
         {session.status === "error" ? (
           <div className="rounded-2xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-900">
-            {session.errorMessage || t("gen.pages.novels.components.chapterEditor.AIDiffPanel.gen_319a5871")}
+            {session.errorMessage || i18next.t("dict.gen_319a5871")}
           </div>
         ) : null}
 
@@ -128,27 +118,19 @@ export default function AIDiffPanel(props: AIDiffPanelProps) {
             </div>
 
             {session.viewMode === "block" ? (
-              <div className="rounded-2xl border border-border/70 bg-muted/10 p-3 text-sm leading-6 text-muted-foreground">
-                中间正文区正在显示段落 patch 对比。原文会以淡红块保留，改写会以浅绿块落在同一位置，便于按小说阅读顺序直接判断是否采纳。
-              </div>
+              <div className="rounded-2xl border border-border/70 bg-muted/10 p-3 text-sm leading-6 text-muted-foreground">{i18next.t("novels.aIDiffPanel.8kn7qh")}</div>
             ) : (
-              <div className="rounded-2xl border border-border/70 bg-muted/10 p-3 text-sm leading-6 text-muted-foreground">
-                中间正文区正在显示细节标记 diff，适合确认具体删改位置；如果更想顺着小说去读，切回“段落对比”会更轻松。
-              </div>
+              <div className="rounded-2xl border border-border/70 bg-muted/10 p-3 text-sm leading-6 text-muted-foreground">{i18next.t("novels.aIDiffPanel.9bzqob")}</div>
             )}
           </>
         ) : null}
       </div>
 
       <div className="shrink-0 flex flex-wrap items-center justify-end gap-2 border-t border-border/70 px-4 py-4">
-        <Button size="sm" variant="outline" onClick={onReject} disabled={isIdle || session.status === "loading" || isApplying}>
-          拒绝全部
-        </Button>
-        <Button size="sm" variant="outline" onClick={onRegenerate} disabled={isIdle || session.status === "loading" || isApplying}>
-          再生成
-        </Button>
+        <Button size="sm" variant="outline" onClick={onReject} disabled={isIdle || session.status === "loading" || isApplying}>{i18next.t("novels.aIDiffPanel.czozd7")}</Button>
+        <Button size="sm" variant="outline" onClick={onRegenerate} disabled={isIdle || session.status === "loading" || isApplying}>{i18next.t("novels.aIDiffPanel.cih3y")}</Button>
         <Button size="sm" onClick={onAccept} disabled={session.status !== "ready" || !activeCandidate || isApplying}>
-          {isApplying ? t("gen.pages.novels.components.chapterEditor.AIDiffPanel.gen_e596edd9") : t("gen.pages.novels.components.chapterEditor.AIDiffPanel.gen_3f8a36ff")}
+          {isApplying ? i18next.t("dict.gen_e596edd9") : i18next.t("dict.gen_3f8a36ff")}
         </Button>
       </div>
     </div>

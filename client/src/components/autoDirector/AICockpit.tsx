@@ -38,12 +38,12 @@ export interface AICockpitProps {
 
 function displayStateLabel(state: DirectorBookAutomationDisplayState): string {
   const labels: Record<DirectorBookAutomationDisplayState, string> = {
-    processing: t("gen.components.autoDirector.AICockpit.aiProcessing"),
-    needs_confirmation: t("gen.components.autoDirector.AICockpit.gen_493b7bc5"),
-    paused: t("gen.components.autoDirector.AICockpit.gen_a2d930fd"),
-    needs_attention: t("gen.components.autoDirector.AICockpit.gen_2144b3d6"),
-    completed: t("gen.components.autoDirector.AICockpit.gen_fad5222c"),
-    idle: t("gen.components.autoDirector.AICockpit.gen_ea4a363d"),
+    processing: i18next.t("dict.aiProcessing"),
+    needs_confirmation: i18next.t("dict.gen_493b7bc5"),
+    paused: i18next.t("dict.gen_a2d930fd"),
+    needs_attention: i18next.t("dict.gen_2144b3d6"),
+    completed: i18next.t("tasks.filterStatusSucceeded"),
+    idle: i18next.t("dict.gen_ea4a363d"),
   };
   return labels[state];
 }
@@ -139,11 +139,11 @@ function stateSoftSurfaceClassName(state: DirectorBookAutomationDisplayState): s
 
 function formatDate(value: string | null | undefined): string {
   if (!value) {
-    return t("gen.components.autoDirector.AICockpit.gen_f61f4cf6");
+    return i18next.t("common.none");
   }
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) {
-    return t("gen.components.autoDirector.AICockpit.gen_f61f4cf6");
+    return i18next.t("common.none");
   }
   return date.toLocaleString();
 }
@@ -159,7 +159,7 @@ function formatDuration(value: number | null | undefined): string | null {
   }
   const seconds = Math.round(value / 1000);
   if (seconds <= 0) {
-    return t("gen.components.autoDirector.AICockpit.lessThanOneSecond");
+    return i18next.t("dict.lessThanOneSecond");
   }
   if (seconds < 60) {
     return `${seconds} 秒`;
@@ -187,7 +187,7 @@ function formatUsageLine(usage: {
 }
 
 function fallbackProjectionReason(props: Pick<AICockpitProps, "fallbackSummary">): string {
-  return props.fallbackSummary?.trim() || t("gen.components.autoDirector.AICockpit.gen_1c5b29dc");
+  return props.fallbackSummary?.trim() || i18next.t("dict.gen_1c5b29dc");
 }
 
 function renderActionLabel(
@@ -198,28 +198,28 @@ function renderActionLabel(
     displayState === "needs_confirmation"
     && (action.type === "continue" || action.type === "auto_execute_range")
   ) {
-    return t("gen.components.autoDirector.AICockpit.gen_eca060fa");
+    return i18next.t("dict.gen_eca060fa");
   }
-  return action.label || t("gen.components.autoDirector.AICockpit.gen_a53fb331");
+  return action.label || i18next.t("dict.gen_a53fb331");
 }
 
 function artifactTypeLabel(type: string): string {
   const labels: Record<string, string> = {
-    book_contract: t("gen.components.autoDirector.AICockpit.chapterConvention"),
-    story_macro: t("gen.components.autoDirector.AICockpit.gen_6a01070b"),
-    character_cast: t("gen.components.autoDirector.AICockpit.gen_464f3d4e"),
-    volume_strategy: t("gen.components.autoDirector.AICockpit.gen_725b781b"),
-    chapter_task_sheet: t("gen.components.autoDirector.AICockpit.singleTask"),
-    chapter_draft: t("gen.components.autoDirector.AICockpit.gen_58378f0d"),
-    audit_report: t("gen.components.autoDirector.AICockpit.gen_4719af71"),
-    repair_ticket: t("gen.components.autoDirector.AICockpit.gen_f82661e8"),
-    reader_promise: t("gen.components.autoDirector.AICockpit.gen_4ac4f0e0"),
-    character_governance_state: t("gen.components.autoDirector.AICockpit.gen_418464ba"),
-    world_skeleton: t("gen.components.autoDirector.AICockpit.worldFramework"),
-    source_knowledge_pack: t("gen.components.autoDirector.AICockpit.gen_2813d60b"),
-    chapter_retention_contract: t("gen.components.autoDirector.AICockpit.gen_03f216fe"),
-    continuity_state: t("gen.components.autoDirector.AICockpit.gen_511e066d"),
-    rolling_window_review: t("gen.components.autoDirector.AICockpit.gen_683cfa71"),
+    book_contract: i18next.t("dict.chapterConvention"),
+    story_macro: i18next.t("dict.gen_6a01070b"),
+    character_cast: i18next.t("dict.gen_464f3d4e"),
+    volume_strategy: i18next.t("dict.gen_725b781b"),
+    chapter_task_sheet: i18next.t("dict.singleTask"),
+    chapter_draft: i18next.t("dict.gen_58378f0d"),
+    audit_report: i18next.t("dict.gen_4719af71"),
+    repair_ticket: i18next.t("dict.gen_f82661e8"),
+    reader_promise: i18next.t("dict.gen_4ac4f0e0"),
+    character_governance_state: i18next.t("dict.gen_418464ba"),
+    world_skeleton: i18next.t("dict.worldFramework"),
+    source_knowledge_pack: i18next.t("dict.gen_2813d60b"),
+    chapter_retention_contract: i18next.t("dict.gen_03f216fe"),
+    continuity_state: i18next.t("dict.gen_511e066d"),
+    rolling_window_review: i18next.t("dict.gen_683cfa71"),
   };
   return labels[type] ?? type;
 }
@@ -228,11 +228,11 @@ function recoveryActionLabel(
   action: NonNullable<DirectorBookAutomationProjection["circuitBreaker"]>["recoveryAction"],
 ): string | null {
   const labels: Record<string, string> = {
-    retry: t("gen.components.autoDirector.AICockpit.gen_67193fe1"),
-    resume_after_review: t("gen.components.autoDirector.AICockpit.gen_72660028"),
-    switch_model: t("gen.components.autoDirector.AICockpit.gen_cb021c7c"),
-    confirm_protected_content: t("gen.components.autoDirector.AICockpit.gen_f59dcf0b"),
-    manual_repair: t("gen.components.autoDirector.AICockpit.gen_895ffcc5"),
+    retry: i18next.t("dict.gen_67193fe1"),
+    resume_after_review: i18next.t("dict.gen_72660028"),
+    switch_model: i18next.t("dict.gen_cb021c7c"),
+    confirm_protected_content: i18next.t("dict.gen_f59dcf0b"),
+    manual_repair: i18next.t("dict.gen_895ffcc5"),
   };
   return action ? labels[action] ?? null : null;
 }
@@ -241,16 +241,16 @@ function workerStateLabel(
   state: NonNullable<DirectorBookAutomationProjection["workerHealth"]>["derivedState"],
 ): string {
   const labels: Record<NonNullable<DirectorBookAutomationProjection["workerHealth"]>["derivedState"], string> = {
-    idle: t("gen.components.autoDirector.AICockpit.gen_4f8a2f0b"),
-    queued_waiting_worker: t("gen.components.autoDirector.AICockpit.gen_bad4ca82"),
-    leased_starting: t("gen.components.autoDirector.AICockpit.gen_a57c2866"),
-    running_step: t("gen.components.autoDirector.AICockpit.gen_1dda67ba"),
-    waiting_gate: t("gen.components.autoDirector.AICockpit.gen_70f361ce"),
-    auto_recovering: t("gen.components.autoDirector.AICockpit.gen_bfa39d48"),
-    cancelled: t("gen.components.autoDirector.AICockpit.gen_82977854"),
-    failed_recoverable: t("gen.components.autoDirector.AICockpit.gen_b77db710"),
-    failed_hard: t("gen.components.autoDirector.AICockpit.gen_54dc8247"),
-    succeeded: t("gen.components.autoDirector.AICockpit.gen_fad5222c"),
+    idle: i18next.t("dict.gen_4f8a2f0b"),
+    queued_waiting_worker: i18next.t("dict.gen_bad4ca82"),
+    leased_starting: i18next.t("dict.gen_a57c2866"),
+    running_step: i18next.t("dict.gen_1dda67ba"),
+    waiting_gate: i18next.t("creativeHub.statusInterrupted"),
+    auto_recovering: i18next.t("dict.gen_bfa39d48"),
+    cancelled: i18next.t("dict.gen_82977854"),
+    failed_recoverable: i18next.t("dict.gen_b77db710"),
+    failed_hard: i18next.t("onboarding.needsAction"),
+    succeeded: i18next.t("tasks.filterStatusSucceeded"),
   };
   return labels[state] ?? state;
 }
@@ -260,15 +260,15 @@ function workerStateDetail(health: NonNullable<DirectorBookAutomationProjection[
     return health.message.trim();
   }
   if (health.queuedCommandCount > 0) {
-    return t("gen.components.autoDirector.AICockpit.taskQueuedBackgroundExecutionWillContinue");
+    return i18next.t("dict.taskQueuedBackgroundExecutionWillContinue");
   }
   if (health.runningCommandCount > 0 || health.leasedCommandCount > 0) {
-    return t("gen.components.autoDirector.AICockpit.gen_4a0c2a9a");
+    return i18next.t("dict.gen_4a0c2a9a");
   }
   if (health.staleCommandCount > 0) {
-    return t("gen.components.autoDirector.AICockpit.gen_37e5615c");
+    return i18next.t("dict.gen_37e5615c");
   }
-  return t("gen.components.autoDirector.AICockpit.gen_e08ee18a");
+  return i18next.t("dict.gen_e08ee18a");
 }
 
 function SummaryMetric(props: {
@@ -332,16 +332,14 @@ export default function AICockpit(props: AICockpitProps) {
           <div className="flex min-w-0 items-start gap-2">
             <span className="mt-0.5 shrink-0 text-muted-foreground">{stateIcon("idle")}</span>
             <div className="min-w-0">
-              <div className="text-sm font-semibold text-foreground">{t("gen.components.autoDirector.AICockpit.aiCockpit")}</div>
+              <div className="text-sm font-semibold text-foreground">{i18next.t("dict.aiCockpit")}</div>
               <div className="mt-1 text-xs leading-5 text-muted-foreground">{fallbackProjectionReason(props)}</div>
             </div>
           </div>
-          <Badge variant="secondary" className="shrink-0">{fallbackStatusLabel ?? t("gen.components.autoDirector.AICockpit.fallbackStatus")}</Badge>
+          <Badge variant="secondary" className="shrink-0">{fallbackStatusLabel ?? i18next.t("dict.gen_ea4a363d")}</Badge>
         </div>
         {onOpenFallbackDetails ? (
-          <Button type="button" size="sm" variant="outline" className="mt-3 w-full" onClick={onOpenFallbackDetails}>
-            查看
-          </Button>
+          <Button type="button" size="sm" variant="outline" className="mt-3 w-full" onClick={onOpenFallbackDetails}>{i18next.t("autoDirector.aICockpit.ibpi")}</Button>
         ) : null}
       </div>
     );
@@ -381,9 +379,9 @@ export default function AICockpit(props: AICockpitProps) {
     || focusProjection.headline?.trim()
     || displayStateLabel(focusProjection.displayState);
   const statusDetail = reason === statusHeadline
-    ? focusProjection.progressSummary?.trim() || t("gen.components.autoDirector.AICockpit.gen_5bb3c43b")
+    ? focusProjection.progressSummary?.trim() || i18next.t("dict.gen_5bb3c43b")
     : reason;
-  const latestRecordText = recentItems[0] ? formatDate(recentItems[0].occurredAt) : t("gen.components.autoDirector.AICockpit.gen_f61f4cf6");
+  const latestRecordText = recentItems[0] ? formatDate(recentItems[0].occurredAt) : i18next.t("common.none");
 
   const handlePrimaryAction = () => {
     if (primaryAction && onAction) {
@@ -416,7 +414,7 @@ export default function AICockpit(props: AICockpitProps) {
           <div className="flex min-w-0 items-start gap-2">
             <span className="mt-0.5 shrink-0 text-foreground">{stateIcon(focusProjection.displayState)}</span>
             <div className="min-w-0">
-              <div className="text-sm font-semibold text-foreground">{t("gen.components.autoDirector.AICockpit.aiCockpit")}</div>
+              <div className="text-sm font-semibold text-foreground">{i18next.t("dict.aiCockpit")}</div>
               <div className="mt-1 line-clamp-1 text-xs leading-5 text-muted-foreground">
                 {focusProjection.userHeadline || focusProjection.headline || reason}
               </div>
@@ -426,9 +424,7 @@ export default function AICockpit(props: AICockpitProps) {
             {displayStateLabel(focusProjection.displayState)}
           </Badge>
         </div>
-        <Button type="button" size="sm" variant="outline" className="mt-3 w-full" onClick={handleCompactOpen}>
-          查看
-        </Button>
+        <Button type="button" size="sm" variant="outline" className="mt-3 w-full" onClick={handleCompactOpen}>{i18next.t("autoDirector.aICockpit.ibpi")}</Button>
       </div>
     );
   }
@@ -455,34 +451,32 @@ export default function AICockpit(props: AICockpitProps) {
 
         <div className="mt-5 grid gap-3 rounded-xl bg-background/60 p-3 sm:grid-cols-3">
           <SummaryMetric
-            label={t("gen.components.autoDirector.AICockpit.gen_6bf1f392")}
+            label={i18next.t("dict.gen_6bf1f392")}
             value={displayStateLabel(focusProjection.displayState)}
             className={stateAccentClassName(focusProjection.displayState)}
           />
-          <SummaryMetric label={t("gen.components.autoDirector.AICockpit.gen_99d93845")} value={focusProjection.progressSummary || t("gen.components.autoDirector.AICockpit.gen_8a5a9e09")} />
-          <SummaryMetric label={t("gen.components.autoDirector.AICockpit.gen_b66b2e82")} value={latestRecordText} />
+          <SummaryMetric label={i18next.t("dict.gen_99d93845")} value={focusProjection.progressSummary || i18next.t("dict.gen_8a5a9e09")} />
+          <SummaryMetric label={i18next.t("dict.gen_b66b2e82")} value={latestRecordText} />
         </div>
 
         <div className="mt-5 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
           <div className="min-w-0">
-            <div className="text-[11px] text-muted-foreground">{t("gen.components.autoDirector.AICockpit.nextStep")}</div>
+            <div className="text-[11px] text-muted-foreground">{i18next.t("dict.nextStep")}</div>
             <div className="mt-1 text-sm font-medium leading-5 text-foreground">
-              {focusProjection.nextActionLabel || t("gen.components.autoDirector.AICockpit.gen_f13fdaab")}
+              {focusProjection.nextActionLabel || i18next.t("dict.gen_f13fdaab")}
             </div>
           </div>
           <div className="flex shrink-0 flex-col gap-2 sm:flex-row">
             <Button type="button" size="sm" onClick={handlePrimaryAction} disabled={isActionPending}>
-              {isActionPending ? t("gen.components.autoDirector.AICockpit.gen_2fb90b05") : renderActionLabel(primaryAction ?? {
+              {isActionPending ? i18next.t("dict.gen_2fb90b05") : renderActionLabel(primaryAction ?? {
                 type: "open_novel",
-                label: t("gen.components.autoDirector.AICockpit.gen_69e59351"),
+                label: i18next.t("dict.gen_69e59351"),
                 target: { novelId: focusProjection.novelId },
               }, focusProjection.displayState)}
             </Button>
             {canOpenDetails ? (
               <Button type="button" size="sm" variant="secondary" onClick={handleDetails}>
-                <ExternalLink className="h-4 w-4" />
-                执行详情
-              </Button>
+                <ExternalLink className="h-4 w-4" />{i18next.t("dict.gen_2eceed7d")}</Button>
             ) : null}
           </div>
         </div>
@@ -490,9 +484,9 @@ export default function AICockpit(props: AICockpitProps) {
 
       {circuitBreaker ? (
         <section className="rounded-xl border border-destructive/30 bg-destructive/5 px-4 py-3 text-sm leading-6 text-destructive">
-          <div className="font-medium">{t("gen.components.autoDirector.AICockpit.gen_a2b070d1")}</div>
-          <div className="mt-1">{circuitBreaker.message || t("gen.components.autoDirector.AICockpit.circuitError")}</div>
-          {circuitRecovery ? <div className="mt-1">{t("gen.components.autoDirector.AICockpit.gen_a6fa6670")}</div> : null}
+          <div className="font-medium">{i18next.t("dict.gen_a2b070d1")}</div>
+          <div className="mt-1">{circuitBreaker.message || i18next.t("dict.gen_d6d274e9")}</div>
+          {circuitRecovery ? <div className="mt-1">{i18next.t("dict.gen_a6fa6670")}</div> : null}
         </section>
       ) : null}
 
@@ -500,21 +494,19 @@ export default function AICockpit(props: AICockpitProps) {
         <section className="rounded-2xl bg-muted/25 px-4 py-3">
           <div className="flex flex-wrap items-center justify-between gap-2">
             <div className="flex items-center gap-2 text-sm font-medium text-foreground">
-              <Database className="h-4 w-4 text-muted-foreground" />
-              后台执行
-            </div>
+              <Database className="h-4 w-4 text-muted-foreground" />{i18next.t("autoDirector.aICockpit.ayfuuf")}</div>
             <span className="text-xs text-muted-foreground">{workerStateLabel(workerHealth.derivedState)}</span>
           </div>
           <div className="mt-1 text-xs leading-5 text-muted-foreground">{workerStateDetail(workerHealth)}</div>
           <div className="mt-3 grid grid-cols-4 gap-3">
-            <SummaryMetric label={t("gen.components.autoDirector.AICockpit.gen_0b5880b9")} value={workerHealth.queuedCommandCount} />
-            <SummaryMetric label={t("gen.components.autoDirector.AICockpit.gen_88b4d042")} value={workerHealth.leasedCommandCount} />
-            <SummaryMetric label={t("gen.components.autoDirector.AICockpit.gen_1a6aa24e")} value={workerHealth.runningCommandCount} />
-            <SummaryMetric label={t("gen.components.autoDirector.AICockpit.gen_c7db6d4f")} value={workerHealth.staleCommandCount} />
+            <SummaryMetric label={i18next.t("dict.gen_0b5880b9")} value={workerHealth.queuedCommandCount} />
+            <SummaryMetric label={i18next.t("dict.gen_88b4d042")} value={workerHealth.leasedCommandCount} />
+            <SummaryMetric label={i18next.t("dict.gen_1a6aa24e")} value={workerHealth.runningCommandCount} />
+            <SummaryMetric label={i18next.t("dict.gen_c7db6d4f")} value={workerHealth.staleCommandCount} />
           </div>
           {workerHealth.oldestQueuedWaitMs ? (
             <div className="mt-2 text-[11px] text-muted-foreground">
-              等待接手 {formatDuration(workerHealth.oldestQueuedWaitMs) ?? t("gen.components.autoDirector.AICockpit.lessThanOneSecond")}
+              等待接手 {formatDuration(workerHealth.oldestQueuedWaitMs) ?? i18next.t("dict.lessThanOneSecond")}
             </div>
           ) : null}
         </section>
@@ -524,9 +516,7 @@ export default function AICockpit(props: AICockpitProps) {
         <section className="rounded-2xl bg-muted/25 px-4 py-3">
           <div className="flex flex-wrap items-center justify-between gap-2">
             <div className="flex items-center gap-2 text-sm font-medium text-foreground">
-              <Database className="h-4 w-4 text-muted-foreground" />
-              产物记录
-            </div>
+              <Database className="h-4 w-4 text-muted-foreground" />{i18next.t("autoDirector.aICockpit.aek98n")}</div>
             {artifactInsightLines.length > 0 ? (
               <span className="text-xs text-muted-foreground">{artifactInsightLines[0]}</span>
             ) : null}
@@ -551,7 +541,7 @@ export default function AICockpit(props: AICockpitProps) {
 
       {usageSummary ? (
         <DetailPanel
-          title={t("gen.components.autoDirector.AICockpit.aiUsage")}
+          title={i18next.t("dict.aiUsage")}
           summary={`${formatTokenCount(usageSummary.llmCallCount)} 次 · ${formatTokenCount(usageSummary.totalTokens)} Tokens`}
           icon={<Activity className="h-4 w-4" />}
         >
@@ -559,7 +549,7 @@ export default function AICockpit(props: AICockpitProps) {
             <div>{formatUsageLine(usageSummary)}</div>
             {promptUsage.length > 0 ? (
               <div className="space-y-1">
-                <div className="font-medium text-foreground">{t("gen.components.autoDirector.AICockpit.gen_e306281d")}</div>
+                <div className="font-medium text-foreground">{i18next.t("dict.gen_e306281d")}</div>
                 <div className="divide-y divide-border/60">
                   {promptUsage.map((item) => (
                     <div key={`${item.promptAssetKey}:${item.promptVersion ?? ""}:${item.nodeKey ?? ""}`} className="grid gap-1 py-2 md:grid-cols-[minmax(0,1fr)_auto] md:items-center">
@@ -574,7 +564,7 @@ export default function AICockpit(props: AICockpitProps) {
             ) : null}
             {stepUsage.length > 0 ? (
               <div className="space-y-1">
-                <div className="font-medium text-foreground">{t("gen.components.autoDirector.AICockpit.gen_6f258816")}</div>
+                <div className="font-medium text-foreground">{i18next.t("dict.gen_6f258816")}</div>
                 <div className="divide-y divide-border/60">
                   {stepUsage.map((item) => (
                     <div key={item.stepIdempotencyKey} className="grid gap-1 py-2 md:grid-cols-[minmax(0,1fr)_auto] md:items-center">
@@ -593,7 +583,7 @@ export default function AICockpit(props: AICockpitProps) {
 
       {recentItems.length > 0 ? (
         <DetailPanel
-          title={t("gen.components.autoDirector.AICockpit.gen_d0fb8b91")}
+          title={i18next.t("dict.gen_d0fb8b91")}
           summary={`${recentItems.length} 条`}
           icon={<History className="h-4 w-4" />}
         >
@@ -604,7 +594,7 @@ export default function AICockpit(props: AICockpitProps) {
                 {item.usage ? (
                   <div className="mt-1 text-muted-foreground">{formatUsageLine(item.usage)}</div>
                 ) : item.durationMs ? (
-                  <div className="mt-1 text-muted-foreground">{t("gen.components.autoDirector.AICockpit.gen_898d03c7")}</div>
+                  <div className="mt-1 text-muted-foreground">{i18next.t("dict.gen_898d03c7")}</div>
                 ) : null}
                 <div className="mt-1 text-muted-foreground">{formatDate(item.occurredAt)}</div>
               </div>

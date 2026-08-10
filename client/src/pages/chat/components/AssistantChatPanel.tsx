@@ -61,14 +61,14 @@ function extractMessageText(message: ThreadMessage): string {
         try {
           return JSON.stringify(part.data);
         } catch {
-          return t("gen.pages.chat.components.AssistantChatPanel.dataPlaceholder");
+          return i18next.t("dict.dataPlaceholder");
         }
       }
       if (part.type === "image") {
-        return `[图片:${part.filename ?? t("gen.pages.chat.components.AssistantChatPanel.gen_7f0425a8")}]`;
+        return `[图片:${part.filename ?? i18next.t("dict.gen_7f0425a8")}]`;
       }
       if (part.type === "file") {
-        return `[文件:${part.filename ?? t("gen.pages.chat.components.AssistantChatPanel.gen_7f0425a8")}]`;
+        return `[文件:${part.filename ?? i18next.t("dict.gen_7f0425a8")}]`;
       }
       return "";
     })
@@ -125,7 +125,7 @@ function AssistantMessage() {
             ),
             Reasoning: ({ text }: { text: string }) => (
               <div className="mb-3 rounded-xl border border-amber-300 bg-amber-50 p-3 text-xs">
-                <div className="mb-1 text-[11px] text-amber-700">{t("gen.pages.chat.components.AssistantChatPanel.gen_3d1dec1f")}</div>
+                <div className="mb-1 text-[11px] text-amber-700">{i18next.t("dict.gen_3d1dec1f")}</div>
                 <MarkdownViewer content={text} />
               </div>
             ),
@@ -194,7 +194,7 @@ export default function AssistantChatPanel({
         let streamError: string | null = null;
         try {
           if (chatMode === "agent" && contextMode === "novel" && !novelId.trim()) {
-            const message = t("gen.pages.chat.components.AssistantChatPanel.gen_b6c950e3");
+            const message = i18next.t("dict.gen_b6c950e3");
             onValidationError(message);
             throw new Error(message);
           }
@@ -208,7 +208,7 @@ export default function AssistantChatPanel({
             .filter((message) => message.content.length > 0)
             .slice(-20);
           if (payloadMessages.length === 0) {
-            payloadMessages.push({ role: "user", content: t("gen.pages.chat.components.AssistantChatPanel.gen_37d781e1") });
+            payloadMessages.push({ role: "user", content: i18next.t("dict.gen_37d781e1") });
           }
 
           const response = await fetch(`${API_BASE_URL}/chat`, {
@@ -331,7 +331,7 @@ export default function AssistantChatPanel({
             {
               id: `msg_${Date.now()}`,
               role: "assistant" as const,
-              content: finalAssistantText || t("gen.pages.chat.components.AssistantChatPanel.gen_d6b96195"),
+              content: finalAssistantText || i18next.t("dict.gen_d6b96195"),
               createdAt: new Date().toISOString(),
             },
           ];
@@ -343,7 +343,7 @@ export default function AssistantChatPanel({
 
           return;
         } catch (error) {
-          streamError = error instanceof Error ? error.message : t("gen.pages.chat.components.AssistantChatPanel.gen_a138b266");
+          streamError = error instanceof Error ? error.message : i18next.t("dict.gen_a138b266");
           onStreamStateChange({ isStreaming: false, error: streamError });
           throw error;
         } finally {
@@ -385,11 +385,11 @@ export default function AssistantChatPanel({
         <ThreadPrimitive.Viewport className="max-h-[52vh] space-y-4 overflow-auto rounded-2xl bg-gradient-to-b from-slate-50 to-slate-100/70 p-4 ring-1 ring-slate-200">
           <ThreadPrimitive.Empty>
             <div className="mx-auto mt-8 max-w-[680px] px-2 text-center">
-              <h3 className="text-4xl font-semibold tracking-tight text-slate-900">{t("gen.pages.chat.components.AssistantChatPanel.hello")}</h3>
-              <p className="mt-2 text-2xl text-slate-500">{t("gen.pages.chat.components.AssistantChatPanel.todayCoCreateScene")}</p>
+              <h3 className="text-4xl font-semibold tracking-tight text-slate-900">{i18next.t("dict.hello")}</h3>
+              <p className="mt-2 text-2xl text-slate-500">{i18next.t("dict.todayCoCreateScene")}</p>
               <div className="mt-8 grid gap-3 md:grid-cols-2">
                 <ThreadPrimitive.Suggestion
-                  prompt={t("gen.pages.chat.components.AssistantChatPanel.gen_fd6369c9")}
+                  prompt={i18next.t("dict.gen_fd6369c9")}
                   send={false}
                   asChild
                 >
@@ -397,12 +397,12 @@ export default function AssistantChatPanel({
                     type="button"
                     className="rounded-2xl border border-slate-200 bg-white p-4 text-left transition hover:border-slate-300 hover:bg-slate-50"
                   >
-                    <div className="text-sm font-medium text-slate-900">{t("gen.pages.chat.components.AssistantChatPanel.worldConsistencyCheck")}</div>
-                    <div className="mt-1 text-xs text-slate-500">{t("gen.pages.chat.components.AssistantChatPanel.gen_bd207e02")}</div>
+                    <div className="text-sm font-medium text-slate-900">{i18next.t("dict.worldConsistencyCheck")}</div>
+                    <div className="mt-1 text-xs text-slate-500">{i18next.t("dict.gen_bd207e02")}</div>
                   </button>
                 </ThreadPrimitive.Suggestion>
                 <ThreadPrimitive.Suggestion
-                  prompt={t("gen.pages.chat.components.AssistantChatPanel.gen_278b8ef1")}
+                  prompt={i18next.t("dict.gen_278b8ef1")}
                   send={false}
                   asChild
                 >
@@ -410,8 +410,8 @@ export default function AssistantChatPanel({
                     type="button"
                     className="rounded-2xl border border-slate-200 bg-white p-4 text-left transition hover:border-slate-300 hover:bg-slate-50"
                   >
-                    <div className="text-sm font-medium text-slate-900">{t("gen.pages.chat.components.AssistantChatPanel.gen_1488a648")}</div>
-                    <div className="mt-1 text-xs text-slate-500">{t("gen.pages.chat.components.AssistantChatPanel.gen_03f0ee1e")}</div>
+                    <div className="text-sm font-medium text-slate-900">{i18next.t("dict.gen_1488a648")}</div>
+                    <div className="mt-1 text-xs text-slate-500">{i18next.t("dict.gen_03f0ee1e")}</div>
                   </button>
                 </ThreadPrimitive.Suggestion>
               </div>
@@ -428,7 +428,7 @@ export default function AssistantChatPanel({
         <ComposerPrimitive.Root className="rounded-2xl border border-slate-200 bg-white p-3 shadow-sm">
           <ComposerPrimitive.Input
             className="min-h-[110px] w-full resize-none rounded-xl border border-slate-200 bg-slate-50 p-3 text-sm outline-none transition focus:border-slate-400 focus:bg-white"
-            placeholder={t("gen.pages.chat.components.AssistantChatPanel.gen_4d5a5644")}
+            placeholder={i18next.t("dict.gen_4d5a5644")}
             submitMode="enter"
           />
           <div className="mt-3 flex gap-2">
@@ -436,17 +436,13 @@ export default function AssistantChatPanel({
               <button
                 type="button"
                 className="rounded-xl bg-slate-900 px-4 py-2 text-sm font-medium text-white transition hover:bg-slate-800"
-              >
-                发送
-              </button>
+              >{i18next.t("chat.assistantChatPanel.f1ow")}</button>
             </ComposerPrimitive.Send>
             <ComposerPrimitive.Cancel asChild>
               <button
                 type="button"
                 className="rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50"
-              >
-                停止
-              </button>
+              >{i18next.t("chat.assistantChatPanel.e9ae")}</button>
             </ComposerPrimitive.Cancel>
           </div>
         </ComposerPrimitive.Root>

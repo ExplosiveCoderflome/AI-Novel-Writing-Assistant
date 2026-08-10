@@ -17,23 +17,23 @@ const GROUP_META: Record<
   }
 > = {
   rules: {
-    title: t("gen.pages.worlds.components.generator.WorldReferenceSeedSelector.gen_5a3c4ab0"),
-    description: t("gen.pages.worlds.components.generator.WorldReferenceSeedSelector.gen_e4a743c8"),
+    title: i18next.t("dict.gen_5a3c4ab0"),
+    description: i18next.t("dict.gen_e4a743c8"),
     selectionKey: "ruleIds",
   },
   factions: {
-    title: t("gen.pages.worlds.components.generator.WorldReferenceSeedSelector.gen_ee3765a1"),
-    description: t("gen.pages.worlds.components.generator.WorldReferenceSeedSelector.gen_adf1177c"),
+    title: i18next.t("dict.gen_ee3765a1"),
+    description: i18next.t("dict.gen_adf1177c"),
     selectionKey: "factionIds",
   },
   forces: {
-    title: t("gen.pages.worlds.components.generator.WorldReferenceSeedSelector.gen_fb292239"),
-    description: t("gen.pages.worlds.components.generator.WorldReferenceSeedSelector.gen_a4f7a74f"),
+    title: i18next.t("dict.gen_fb292239"),
+    description: i18next.t("dict.gen_a4f7a74f"),
     selectionKey: "forceIds",
   },
   locations: {
-    title: t("gen.pages.worlds.components.generator.WorldReferenceSeedSelector.gen_0b08d97f"),
-    description: t("gen.pages.worlds.components.generator.WorldReferenceSeedSelector.gen_5d64133c"),
+    title: i18next.t("dict.gen_0b08d97f"),
+    description: i18next.t("dict.gen_5d64133c"),
     selectionKey: "locationIds",
   },
 };
@@ -62,19 +62,15 @@ export default function WorldReferenceSeedSelector(props: {
   const visibleGroups = (Object.keys(GROUP_META) as GroupKey[]).filter((group) => seeds[group].length > 0);
   if (visibleGroups.length === 0) {
     return (
-      <div className="rounded-md border border-dashed p-4 text-sm text-muted-foreground">
-        这次没有从参考作品里稳定提取出可直接沿用的组织、地点或规则，后面会继续按你的改造方向生成。
-      </div>
+      <div className="rounded-md border border-dashed p-4 text-sm text-muted-foreground">{i18next.t("worlds.worldReferenceSeedSelector.su8mg9")}</div>
     );
   }
 
   return (
     <div className="rounded-md border p-3 text-sm space-y-4">
       <div className="space-y-1">
-        <div className="font-medium">{t("gen.pages.worlds.components.generator.WorldReferenceSeedSelector.gen_db6dfebe")}</div>
-        <div className="text-xs text-muted-foreground">
-          系统会从参考作品里提取一批可沿用设定，并默认勾选。保留它们可以明显减少后续手动填写。
-        </div>
+        <div className="font-medium">{i18next.t("dict.gen_db6dfebe")}</div>
+        <div className="text-xs text-muted-foreground">{i18next.t("worlds.worldReferenceSeedSelector.gobjzl")}</div>
       </div>
 
       {visibleGroups.map((group) => {
@@ -95,7 +91,7 @@ export default function WorldReferenceSeedSelector(props: {
                 variant="outline"
                 onClick={() => onToggleAll(group, !allSelected)}
               >
-                {allSelected ? t("gen.pages.worlds.components.generator.WorldReferenceSeedSelector.gen_4c347e95") : t("gen.pages.worlds.components.generator.WorldReferenceSeedSelector.gen_15a110bb")}
+                {allSelected ? i18next.t("dict.gen_4c347e95") : i18next.t("dict.gen_15a110bb")}
               </Button>
             </div>
 
@@ -116,7 +112,7 @@ export default function WorldReferenceSeedSelector(props: {
                       {summary ? (
                         <div className="text-xs text-muted-foreground">{summary}</div>
                       ) : (
-                        <div className="text-xs text-muted-foreground">{t("gen.pages.worlds.components.generator.WorldReferenceSeedSelector.gen_d9593692")}</div>
+                        <div className="text-xs text-muted-foreground">{i18next.t("dict.gen_d9593692")}</div>
                       )}
                     </div>
                   </label>

@@ -1,3 +1,5 @@
+import i18next from "i18next";
+import { useTranslation } from "react-i18next";
 import { useMemo, useState } from "react";
 import { AlertTriangle, ShieldAlert } from "lucide-react";
 import type { PendingReviewAutoPromotionSettings } from "@/api/settings";
@@ -55,12 +57,8 @@ export function AutoDirectorPendingReviewAutoPromotionCard(props: {
         <CardHeader className="flex-row items-start justify-between gap-3 space-y-0">
           <div className="min-w-0 space-y-1.5">
             <CardTitle className="flex flex-wrap items-center gap-2">
-              <ShieldAlert className="h-5 w-5 text-amber-700" aria-hidden="true" />
-              待确认状态自动放行
-            </CardTitle>
-            <CardDescription className={AUTO_DIRECTOR_MOBILE_CLASSES.wrapText}>
-              开启后，仅处理基准时间之后产生、超过 14 天且没有命中未解决冲突的角色关系与信息认知提案。
-            </CardDescription>
+              <ShieldAlert className="h-5 w-5 text-amber-700" aria-hidden="true" />{i18next.t("settings.autoDirectorPendingReviewAutoPromotionCard.fz563y")}</CardTitle>
+            <CardDescription className={AUTO_DIRECTOR_MOBILE_CLASSES.wrapText}>{i18next.t("settings.autoDirectorPendingReviewAutoPromotionCard.o4er4k")}</CardDescription>
           </div>
           <Switch
             checked={enabled}
@@ -79,26 +77,22 @@ export function AutoDirectorPendingReviewAutoPromotionCard(props: {
           {enabled ? (
             <div className={`flex min-w-0 items-start gap-2 rounded-md border border-amber-300 bg-amber-100/80 px-3 py-2 text-sm text-amber-950 ${AUTO_DIRECTOR_MOBILE_CLASSES.wrapText}`}>
               <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
-              <div>
-                自动放行处于开启状态。符合条件的提案会按正史提交；如需回退，需要依据留痕记录人工核对。
-              </div>
+              <div>{i18next.t("settings.autoDirectorPendingReviewAutoPromotionCard.enrrbh")}</div>
             </div>
           ) : null}
 
           <div className="grid min-w-0 gap-3 text-sm md:grid-cols-3">
             <div className="rounded-md border bg-background/80 p-3">
-              <div className="text-xs text-muted-foreground">开关状态</div>
+              <div className="text-xs text-muted-foreground">{i18next.t("settings.autoDirectorPendingReviewAutoPromotionCard.cbufni")}</div>
               <div className="mt-1 font-medium">{enabled ? "开启中" : "关闭"}</div>
             </div>
             <div className="rounded-md border bg-background/80 p-3 md:col-span-2">
-              <div className="text-xs text-muted-foreground">生效基准时间</div>
+              <div className="text-xs text-muted-foreground">{i18next.t("settings.autoDirectorPendingReviewAutoPromotionCard.sr16st")}</div>
               <div className={`mt-1 font-medium ${AUTO_DIRECTOR_MOBILE_CLASSES.wrapText}`}>{baselineLabel}</div>
             </div>
           </div>
 
-          <div className={`rounded-md border bg-background/70 p-3 text-sm text-muted-foreground ${AUTO_DIRECTOR_MOBILE_CLASSES.wrapText}`}>
-            存量待确认提案不进入自动放行范围。提案命中未解决冲突时会继续保留为待确认，等待人工处理。
-          </div>
+          <div className={`rounded-md border bg-background/70 p-3 text-sm text-muted-foreground ${AUTO_DIRECTOR_MOBILE_CLASSES.wrapText}`}>{i18next.t("settings.autoDirectorPendingReviewAutoPromotionCard.f1l7nv")}</div>
         </CardContent>
       </Card>
 
@@ -112,8 +106,8 @@ export function AutoDirectorPendingReviewAutoPromotionCard(props: {
         }}
       >
         <AppDialogContent
-          title="开启待确认状态自动放行"
-          description="这个设置会把符合条件的待确认关系与认知提案提交为正史事实。"
+          title={i18next.t("settings.autoDirectorPendingReviewAutoPromotionCard.t196d9")}
+          description={i18next.t("settings.autoDirectorPendingReviewAutoPromotionCard.j0hnfq")}
           footer={(
             <>
               <Button
@@ -123,9 +117,7 @@ export function AutoDirectorPendingReviewAutoPromotionCard(props: {
                   setConfirmOpen(false);
                   resetDialog();
                 }}
-              >
-                取消
-              </Button>
+              >{i18next.t("common.cancel")}</Button>
               <Button
                 type="button"
                 disabled={!canConfirm}
@@ -144,9 +136,7 @@ export function AutoDirectorPendingReviewAutoPromotionCard(props: {
           )}
         >
           <div className="space-y-4">
-            <div className={`rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-950 ${AUTO_DIRECTOR_MOBILE_CLASSES.wrapText}`}>
-              开启后，系统只处理生效基准时间之后产生的提案；存量待确认提案不进入自动放行范围。符合条件的提案会被提交为正史事实，系统不会自动撤销。
-            </div>
+            <div className={`rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-950 ${AUTO_DIRECTOR_MOBILE_CLASSES.wrapText}`}>{i18next.t("settings.autoDirectorPendingReviewAutoPromotionCard.iccybj")}</div>
 
             <label className="flex min-w-0 items-start gap-3 rounded-md border p-3 text-sm">
               <input
@@ -155,13 +145,11 @@ export function AutoDirectorPendingReviewAutoPromotionCard(props: {
                 checked={acknowledgedRisks}
                 onChange={(event) => setAcknowledgedRisks(event.target.checked)}
               />
-              <span className={AUTO_DIRECTOR_MOBILE_CLASSES.wrapText}>
-                我了解这项能力会自动提交待确认的状态变更，并会通过导演留痕记录每次动作。
-              </span>
+              <span className={AUTO_DIRECTOR_MOBILE_CLASSES.wrapText}>{i18next.t("settings.autoDirectorPendingReviewAutoPromotionCard.7symkq")}</span>
             </label>
 
             <div className="space-y-2">
-              <div className="text-sm font-medium">输入确认文本</div>
+              <div className="text-sm font-medium">{i18next.t("settings.autoDirectorPendingReviewAutoPromotionCard.l69wib")}</div>
               <Input
                 value={confirmationText}
                 onChange={(event) => setConfirmationText(event.target.value)}

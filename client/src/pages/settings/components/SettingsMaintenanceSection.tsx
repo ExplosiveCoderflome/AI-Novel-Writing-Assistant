@@ -1,5 +1,5 @@
+import { useTranslation } from "react-i18next";
 import i18next from "i18next";
-const t = (key: string, options?: any) => i18next.t(key, options) as string;
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import DesktopLegacyDataImportCard from "@/components/layout/DesktopLegacyDataImportCard";
 import DesktopUpdateCard from "@/components/layout/DesktopUpdateCard";
@@ -7,14 +7,13 @@ import { APP_RUNTIME } from "@/lib/constants";
 import { AUTO_DIRECTOR_MOBILE_CLASSES } from "@/mobile/autoDirector";
 
 export default function SettingsMaintenanceSection() {
+  const { t } = useTranslation();
   if (APP_RUNTIME !== "desktop") {
     return (
       <Card className="min-w-0 overflow-hidden">
         <CardHeader>
-          <CardTitle>{t("gen.pages.settings.components.SettingsMaintenanceSection.gen_e58e3369")}</CardTitle>
-          <CardDescription className={AUTO_DIRECTOR_MOBILE_CLASSES.wrapText}>
-            当前环境没有需要处理的桌面维护事项。
-          </CardDescription>
+          <CardTitle>{i18next.t("dict.gen_e58e3369")}</CardTitle>
+          <CardDescription className={AUTO_DIRECTOR_MOBILE_CLASSES.wrapText}>{i18next.t("settings.settingsMaintenanceSection.z3woxp")}</CardDescription>
         </CardHeader>
       </Card>
     );
@@ -24,14 +23,10 @@ export default function SettingsMaintenanceSection() {
     <div className="min-w-0 space-y-4">
       <Card className="min-w-0 overflow-hidden">
         <CardHeader>
-          <CardTitle>{t("gen.pages.settings.components.SettingsMaintenanceSection.gen_e58e3369")}</CardTitle>
-          <CardDescription className={AUTO_DIRECTOR_MOBILE_CLASSES.wrapText}>
-            检查桌面更新或导入本机旧数据；这些操作不会影响当前创作配置。
-          </CardDescription>
+          <CardTitle>{i18next.t("dict.gen_e58e3369")}</CardTitle>
+          <CardDescription className={AUTO_DIRECTOR_MOBILE_CLASSES.wrapText}>{i18next.t("settings.settingsMaintenanceSection.gy7p4w")}</CardDescription>
         </CardHeader>
-        <CardContent className={`text-sm text-muted-foreground ${AUTO_DIRECTOR_MOBILE_CLASSES.wrapText}`}>
-          没有维护需求时，可以直接回到上面的创作配置。
-        </CardContent>
+        <CardContent className={`text-sm text-muted-foreground ${AUTO_DIRECTOR_MOBILE_CLASSES.wrapText}`}>{i18next.t("settings.settingsMaintenanceSection.x3uyhv")}</CardContent>
       </Card>
       <DesktopUpdateCard />
       <DesktopLegacyDataImportCard compact />

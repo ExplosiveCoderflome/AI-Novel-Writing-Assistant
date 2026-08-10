@@ -1,4 +1,4 @@
-# Daydream Engine (白日做梦引擎)
+# Daydream Engine (白日做梦引擎) / AI 小说整本生产与多模态模拟沙盘引擎
 一个旨在将人类想象力与故事世界具现化的多功能智能体多模态模拟沙盘。
 
 Languages: [English](README.md) | [简体中文](README_zh.md)
@@ -19,7 +19,7 @@ Languages: [English](README.md) | [简体中文](README_zh.md)
 
 ## 🌌 项目愿景与路线图：白日做梦的连续谱
 
-白日做梦引擎（Daydream Engine）不是一个普通的“你写一句、AI补一句”的聊天或编辑器外壳。它的核心设计理念是：把创意写作与生成看作一个多阶段的“编译”和“沙盘演化”过程：
+白日做梦引擎（Daydream Engine）不是一个普通的“你写一句、AI 补一句”的编辑器外壳。它的核心设计理念是将创意写作与生成看作一个多阶段的“编译”和“沙盘演化”过程：
 
 ```mermaid
 flowchart LR
@@ -35,9 +35,9 @@ flowchart LR
 ```
 
 1. **小说整本生产 (第一步 - 目前实现最充分的一步)**
-   将单句的灵感自动导演，规划出方向、世界设定、角色网、卷纲和章节，并提供自动写作、审校、修复与状态回灌的闭环生产链。
-2. **小说生成漫画**
-   提取小说的场景设定与角色视觉特征，保持画面一致性，自动输出分镜面板并生成连贯的漫画资产。
+   将单句灵感和提示词自动导演，规划出方向、故事结构、动态角色网、事实账本，并提供自动写作、审校、修复与状态回灌的闭环生产链。
+2. **小说改漫画**
+   提取小说的场景、视觉特征和角色模型表，在保持画面一致性的前提下，自动输出分镜面板并生成连贯的漫画资产。
 3. **漫画变成分镜剧本**
    将画面序列和剧情节奏解构为专业级别的影视分镜剧本，包含镜头轨迹、对话旁白、舞台调度与配音指令。
 4. **分镜生成短剧 (VellumReel 改编工坊)**
@@ -45,7 +45,7 @@ flowchart LR
 5. **电影级大片**
    向大屏幕演进，扩展本地视频生成模型，提供可控的宏大场景、音轨混合与镜头生成链路。
 6. **终极目标：世界沙盘 (虚拟西部世界)**
-   将小说里的角色、阵营、地理和物理/魔法法则全部映射到一个演化沙盘（Sandbox）中。在这个虚拟“西部世界”里，智能体们拥有长期记忆和个人动机，在网格上自主交互、做出决策并发生冲突。系统将自动记录并生成编年史，源源不断地自动生成无限的故事。
+   将小说里的角色、阵营、地理和物理/法则全部映射到一个演化沙盘（Sandbox）中。在这个虚拟“西部世界”里，智能体拥有长期记忆和动机，在网格上自主交互、做出决策并发生冲突，系统自动记录编年史并源源不断地生成无限故事。
 
 适合**完全不懂写作的新手**走完一本长篇创作并进行视觉延展，也适合研究 AI Native 应用、Agent Workflow、LangGraph 编排和长链路任务的开发者参考。
 
@@ -53,15 +53,16 @@ flowchart LR
 
 ## Windows 桌面版
 
-如果你想直接下载安装运行：
+如果你想直接下载安装运行预编译桌面版：
 - 下载入口：[GitHub Releases](https://github.com/winnerineast/GeneralAgent/releases)
 - 最新版本页：[Latest Release](https://github.com/winnerineast/GeneralAgent/releases/latest)
-- 建议优先下载 `Setup.exe` 安装版。
+- 建议优先下载 `Setup.exe` 安装版；如需免安装运行，可下载 `portable` 便携版。
 - 公开介绍站：[GitHub Pages 介绍站](https://winnerineast.github.io/GeneralAgent/) 提供功能预览、模块文档和使用指南。
 
 ## 本地 Codex 创作：Ani Book Skill
 
-如果你希望直接在 Codex 的本地工作区中推进创作，可以使用 [Ani Book Skill](https://github.com/ExplosiveCoderflome/ani-book-skill)。
+如果你希望直接在 Codex 的本地工作区中推进创作，可以使用 [Ani Book Skill](https://github.com/ExplosiveCoderflome/ani-book-skill)。它将方向判断、故事发动机、章节推进、审校修复和连续性管理组织为一条可恢复、可追溯的长篇创作流程。
+
 - 需要可视化工作台、模型配置和小说/漫画多模态工坊：使用本仓库。
 - 偏好在本地通过 Codex 文件和流程进行无界面纯创作：前往 [Ani Book Skill](https://github.com/ExplosiveCoderflome/ani-book-skill)。
 
@@ -70,22 +71,22 @@ flowchart LR
 ## 🛠️ 已实现功能 (What Has Been Done)
 
 ### 1. AI 自动导演开书与四种运行模式
-- 从一句灵感直接进入自动导演，无需先手写设定；系统整理项目设定、对齐书级 framing，生成多套整本方向与标题组。
+- 从一句灵感直接进入自动导演，无需手写设定；系统整理项目设定、对齐书级 framing，生成多套整本方向与标题组。
 - 方向不满意时可以局部修订，支持单独重做标题组。
 - 四种运行模式：**先准备到可开写**（推荐首本书）、**全书自动成书**、**按范围执行**（全书/前N章/指定卷）、**正文后去 AI 检测与修正**（质量闭环）。
-- 全自动模式下提供智能检查点：遇到配额耗尽或修复失败会主动暂停并保存状态，支持无缝接管与恢复。
+- 智能检查点：遇到配额耗尽或修复失败会主动暂停并保存状态，支持无缝接管与恢复。
 - 批量运行后自动确认 pending 角色，角色信息灌回名册以消除后续生成中的一致性漂移。
 
 ### 2. Creative Hub 与 Agent Runtime
-- 统一创作中枢承载对话、追问、规划、工具调用和回合总结。
+- 统一创作中枢承载对话、追问、规划、工具调用、任务状态卡片和回合总结。
 - 采用 LangGraph 编排，包含 Planner、Tool Registry、Runtime、审批节点和中断恢复链路。
-- checkpoint 到达时自动弹出浏览器暂停通知，后台挂机更安心。
+- 状态到达 checkpoint 时自动弹出浏览器系统通知，后台挂机更安心。
 
 ### 3. 整本生产主链与章节执行
 - 单章运行与整本批量 pipeline 收敛到同一条主链。
 - 章节上下文精确筛选参与角色，防止无关角色污染 context。
 - 章节执行链覆盖正文生成、AI 审核、质量债务记录、角色状态回灌和下一章入口。
-- 限速器按 provider 动态淘汰，彻底解决了长时间挂机运行的内存泄漏问题。
+- 限速器按 provider 动态淘汰，彻底解决长时间挂机运行的内存泄漏问题。
 
 ### 4. 拆书工作台与角色形象演变
 - 角色档案分为简要、标准、深入、完整四档，深度分析会回溯原文片段补全数据。
@@ -96,150 +97,148 @@ flowchart LR
 - 写法可以从现有文本提取写法特征，沉淀为特征池，逐项启用/停用并实时编译为约束。
 - 反 AI 规则减少正文的模板感、叙事解释感和空泛表达。
 
-### 6. 世界观、角色、知识库联动与 RAG
+### 6. 本书世界、角色、知识库联动与 RAG
 - 势力图谱、地图、法则等作为背景世界观自动进入章节上下文。
-- 支持从用户文档构建知识库，提炼章节要点注入生成链。
+- 拆书结论和知识库文档通过 Qdrant 向量库回灌到规划、续写和正文生成。
+- RAG 索引流式并行、chunk hash 去重与 retrieval trace 后端追溯。
 
-### 7. 美股投资研究与每日调仓智能体 (US Stock Agent & MooMoo OpenD Integration)
-- **零自动下单的安全调仓指南**：结合用户持仓、闲置资金与新增预算，每日开盘前生成拟定买/卖/减仓/观望的交易指令清单与风控集中度警报（**仅供决策参考，绝不自动下单**）。
-- **MooMoo OpenD 本地守护与实盘连接**：后端原生集成 `OpenDaemonManager` 与原生 TCP 协议包解析，自动探针检测拉起 `moomoo_OpenD`，并自动捕获 GUI 解锁状态。支持一键同步实盘现金与持仓。
-- **MooMoo 自选关注股票池优先推荐**：无需敏感交易密码，通过 OpenD `Cmd 3213` 实时拉取用户 MooMoo 账号中的自选关注列表，推演时优先从用户的自选关注池中精选具催化剂风口的标的。
-- **100% 真实行情数据硬核保障**：通过 OpenD `Cmd 3001` (Sub) 与 `Cmd 3004` (GetBasicQot) 实时抓取美股盘中/夜盘现价，并通过确定性后处理校验管道强制覆盖 AI 生成结果中的股价与估额，杜绝任何 AI 幻觉与数字虚构。
-- **隔夜推演实时毛玻璃虚化与无缝刷新**：AI 推演过程中，受影响的推荐指令与研报区域自动开启 `Backdrop Blur` 虚化遮罩与醒目推演提示，推演完成后平滑解冻刷新。
+### 7. GA-Argus 持久化 Agent 运行时与 PAI 架构
+- **工作合同 ($K_t$) 与带验证转向 (Verified Pivoting)**：显式解耦立项核心意图 ($\iota$) 与阶段执行合同 ($o_t, c_t, v_t$)，当遇到严重剧情碰撞或审核卡点时，支持有数据验证的局部大纲转向（Pivot），彻底避免目标漂移或推翻全书。
+- **已否决死枝账本 (Falsified Route Ledger)**：自动持久化已经被 Reviewer 打回的错误剧情路线，提炼为结构化负向约束 (`negativePromptConstraint`) 注入上下文，实现**重复踩坑率 0%**。
+- **四角色权责状态机 ($M, P, E, R$)**：严格定义 Manager (导演/合同准入)、Planner (拆章/负向注入)、Engineer (撰稿/修文) 与 Reviewer (4级分流质检) 的结构化契约。
+- **Daniel Miessler PAI 8 大启示全量融入**：创作者 TELOS 档案驱动意图，用户资产物理隔离 (`protectedUserContent`)，Hot/Warm/Cold 三层记忆管理与确定性防幻觉网关。
+- **固定模型运行时自我演化与降本**：随着 $H_t$ 持久化状态沉淀，实测成熟写作波次 Input Token 消耗降低 21%，审查打回救回率达 75%。
 
-### 8. 世界沙盒模拟与物理生态引擎 (World Sandbox Simulation)
-- 实现了完整的锁步时序轮转模拟沙盒，遵循小说的物理与生态法则（详见 [world-sandbox-simulation_CN.md](file:///c:/Users/lilin/GeneralAgent/docs/design/world-sandbox-simulation_CN.md)）。
-- **地球物理与生态仿真**：根据纬度、季节和海拔垂直递减率实时计算气温、太阳光照、土壤湿度，并运用 Lotka-Volterra 方程组模拟食物链群落的捕食者-猎物数量演变。
-- **智能体认知仿真**：基于艾宾浩斯遗忘曲线模拟角色记忆衰减，并实现了谣言/传言在邻接地区传播过程中的空间扩散与信息失真变异模型。
-- **混合精细度决策 (LOD)**：背景角色运行确定性行为树（LOD 2，追踪理智、精力、饥饿等），主角/主要角色决策（LOD 1）则委派给大模型智能调度器。
-- **剧情张力与一致性审计**：动态计算局部和全局剧情张力，检测多角色空间相遇，并通过虚拟相机叙事引擎自动审查初稿中的逻辑悖论（如已死角色现身、瞬间闪现位移等）。
+### 8. 虚拟世界沙盘模拟 (西部世界沙盘)
+- 实现完整的锁步回合制沙盘模拟，反映小说世界的物理与生态法则（详见 [world-sandbox-simulation.md](./docs/design/world-sandbox-simulation.md)）。
+- **地球物理与生态**：实时模拟动态温度（纬度/季节/海拔/时角）与基于 Lotka-Volterra 方程的捕食者-猎物动态。
+- **角色认知智能体**：包含艾宾浩斯遗忘曲线记忆衰减模型与跨区域谣言扩散模型。
+- **行为树与 LLM 调度器**：采用 LOD 2 行为树维护背景角色的饥饿、精力与理智，LOD 1 主角决策交由沙盘 LLM 调度器。
+- **剧情张力与一致性审计**：追踪局部与全局张力，通过虚拟镜头审计地理瞬移或已故角色发言等一致性冲突。
 
-### 8. 漫画与短剧改编工坊
-- **漫画工作台**：场景一致性、角色视觉资产管理，分镜面板生图时提供确认弹窗，防止误触消耗额度。小说页提供一键“改编漫画”按钮，自动同步背景与人设。
-- **短剧改编生产管线 (VellumReel)**：深度集成本地视频渲染引擎，支持一键将剧本生成为 9:16 竖版视频。
-  - **完全离线渲染支持**：集成 6 幅高清晰国风水墨插图作为 SD 离线时的兜底插画，确保渲染不中断。
-  - **本地高保真 TTS 语音合成**：自带基于 Kokoro-ONNX v1.0 模型的本地 FastAPI 语音服务器，实现高保真中文/英文离线配音。
-  - **通用音视频对齐与指令清洗**：自动识别剧本角色性别属性进行配音音色映射，过滤配音文本中夹带的舞台调度信息及角色名（如“（吸气）”等）。
+### 9. 衍生多模态工坊
+- **漫画工作台**：生成分镜与面板，采用确认弹窗防止误触耗额，自动继承角色的视觉资产。
+- **VellumReel 短剧生产管线**：将分镜剧本合成为 9:16 竖版短剧。
+  - **完全离线渲染**：内置 6 张高精水墨风景画作为离线 Fallback。
+  - **本地高保真 TTS**：基于 Kokoro-ONNX v1.0 与 `misaki[zh]` 的 FastAPI 语音服务，支持中英文离线朗读。
+  - **声音映射与提示词清洗**：自动映射性别音色（`am_*`/`bm_*` 映射为男声 `zm_yunjian`，`af_*`/`bf_*` 映射为女声 `zf_xiaoxiao`），正则清洗旁白中的角色名与舞台指示。
 
-### 9. 国际化（i18n）多语言支持
-- 前端全面接入 `i18next` 与 `react-i18next`。全部 UI 界面、日志、页面标签与设置路由均支持中英文双语动态切换，并自动在本地保存用户的语言偏好设置。
+### 10. 美股投资研究与每日调仓智能体 (MooMoo OpenD 直连引擎)
+- **MooMoo OpenD 本地 TCP 直连**：原生 44 字节二进制 Socket 协议通信，通过 Python SDK 桥接支持 64 位账号。
+- **3 大核心指导蓝图**：持仓风控诊断（>30% 集中度预警）、闲置资金配置推荐、历史调仓复盘审计。
+- **Prisma 持久化 2D 交互知识图谱**：融合盘口、新闻、持仓与人工洞察，提取语义三元组 $(E_1 \rightarrow R \rightarrow E_2)$，生成 SVG 拓扑网络并永久存库。
+- **确定性防幻觉护栏**：100% 确定性公式计算买入上限与实时盘口覆盖，消除 AI 幻觉。
 
-### 10. PAI 核心架构与八大启示落地 (Insights #1 - #8)
-全量落地 Daniel Miessler Personal AI Infrastructure (PAI) 核心架构思想，针对长篇小说与叙事生成进行生产级增强：
-- **启示一 (确定性优先架构)**：纯代码词法修复 `tryFixSyntacticJson` 与隐式转换辐射全站 250+ 处 LLM 调用点，避免无效大模型重试，大幅节省 Token 与延迟。
-- **启示二 (USER/SYSTEM 资产分离)**：实现“不存在则创建，存在则保留”的配置保护服务 (`UserSettingProtectionService`) 与快照网关 (`UserAssetBackupGateway`)，保持单一主版本 Prompt。
-- **启示三 (Hot/Warm/Cold 三层记忆架构)**：确定性 15% Hot / 35% Cold / 50% Warm 预算分配与无 Warm 时的 70%/30% 动态再分配算法，锁定世界观与角色底线，防止长篇设定崩溃。
-- **启示四 (事件钩子系统与主动式导演)**：强类型事件总线 (`PipelineHookRegistry`) 与错误隔离机制，渲染完成后自动清空错误状态 (`errorMessage: null`) 并标准化资源路径。
-- **启示五 (TELOS 创作者身份系统)**：10 维创作者模型与【修仙】、【悬疑】、【赛博】、【都市】4 套美学预设，提供一键预设、问答向导与无感学习三种低认知负荷构建路径。
-- **启示六 (确定性安全 Guard 网关)**：四级风险评估 (`SafetyGuardService`)，在删除项目等破坏性高危动作前强行校验确认 Token 并自动导出全量快照备份。
-- **启示七 (CLI 优先自动化引擎 & UNIX 哲学)**：独立 CLI 命令行网关 (`CLIAutomationService` & `cliRunner.ts`)，支持在终端通过 `pnpm --filter server run:cli` 无头执行健康审计与资产导出。
-- **启示八 (规格测试先行 & 防幻觉“不知道”机制)**：定量评估检索知识置信度，在检索缺乏依据时强行注入“设定未明确”屏蔽指令，拦截未证实断言，防范大模型胡乱臆造。
+### 11. PAI 核心基础设施架构 (启示 #1 - #8)
+全量落地 Daniel Miessler 的个人 AI 基础设施 (PAI) 架构思想：
+- **启示 #1 (确定性优先)**：纯代码词法 JSON 修复 (`tryFixSyntacticJson`) 与 250+ 调用点强转换，节省延迟与 Token。
+- **启示 #2 (用户/系统隔离与资产保护)**：非破坏性设置管理与项目备份打包网关。
+- **启示 #3 (三层记忆架构)**：确定性 15% Hot / 35% Cold / 50% Warm 预算分配，锁定世界法则与角色红线。
+- **启示 #4 (Pipeline 钩子与主动导演)**：异步事件总线 (`PipelineHookRegistry`)，带错误隔离与渲染状态自动恢复。
+- **启示 #5 (TELOS 创作者档案)**：10 维创作者画像与 4 大美学预设（修仙、悬疑古风、赛博朋克、都市爽文）。
+- **启示 #6 (安全与权限护栏)**：4 级风险护栏，破坏性操作强制双重确认 Token 与自动快照。
+- **启示 #7 (CLI 优先与 UNIX 哲学)**：独立 CLI 自动化网关 (`pnpm --filter server run:cli`)，支持 Headless 审计与索引重建。
+- **启示 #8 (规格优先与防幻觉)**：定量知识置信度评估，缺少上下文时自动注入 `ALLOW "I DON'T KNOW"`。
 
-### 11. OpenRSI 演化算子引擎与 Crossover (基因熔炼交叉)
-融合 Frontis OpenRSI 递归自我改进 (RSI) 演化思想，构建标准化的 4 大原子演化算子链（位于 [server/src/services/novel/director/operators/](file:///c:/Users/lilin/GeneralAgent/server/src/services/novel/director/operators/)）：
-- **`Draft` 算子**：基于大纲上下文与创作者画像生成全新章节初稿。
-- **`Improve` 算子**：结合 `AuditService` 诊断意见执行增量文笔与剧情提升，保留原精粹段落。
-- **`Debug` 算子**：针对违背设定或角色出戏等硬性错误，进行外科手术式精准修补 (Surgical Patch)。
-- **`Crossover` (基因熔炼交叉算子 - 核心创新)**：解构 Parent A (如高潮打斗/动作节奏) 与 Parent B (如心理独白/环境氛围) 的优异基因特征，结构化融合成体验更佳的子代候选，变异轨迹由 `MutationTraceNode` 完整记录追溯。
-- **演化调度引擎与接口**：统一算子调度中心 `EvolutionaryOperatorEngine` 及 REST API 路由（`/api/novel/director/operators/crossover` 等），为创意中枢与自动导演提供高可用的算法算子支持。
+### 12. OpenRSI 演化算子引擎与杂交重组
+集成 Frontis OpenRSI 递归自我改进 (RSI) 原则，构建标准化文本演化算子：
+- **`Draft` 算子**：基于大纲、三层记忆与 TELOS 生成初始章节候选。
+- **`Improve` 算子**：基于 `AuditService` 诊断进行无损文风与节奏润色。
+- **`Debug` 算子**：对设定碰撞或人设 OOC 进行外科手术式局部修补。
+- **`Crossover` 算子 (核心创新)**：解构亲本 A（动作/高潮）与亲本 B（心理/环境）优良基因，杂交重组为更高满意度的新候选。
+- **演化算子引擎与 REST API**：提供中央门面 `EvolutionaryOperatorEngine` 与 `/api/novel/director/operators/crossover` 等接口。
 
-### 12. Agent 团队组织化与数字员工基础设施
-将白日做梦引擎从“临时拼装 Prompt”演进为结构化的 **Agent 团队基础设施**，赋予专属 Agent 岗位规范与长期会话工龄：
-- **数字员工岗位说明书 (`Identity + Domain + Scope`)**：
-  将系统提示词解耦为统一注册的 `DigitalEmployeeProfile` 岗位规范（由 `AgentProfileRegistry` 集中管理），内置 `novel-director` (AI 创作总监)、`style-auditor` (文风叙事审校官)、`crossover-operator` (演化算子专家) 等专业岗位，明确能力、工具链与四级风险安全护栏 (`LOW`/`MEDIUM`/`HIGH`/`CRITICAL`)。
-- **长期在岗 Thread 引擎与 Prompt Cache 优化**：
-  通过 `LongLivedThreadService` 维护项目绑定的永久会话，构建不变的静态 Head 首部，100% 满足大模型供应商对 Prompt Cache 命中的硬性物理条件，降低 50%~90% 的 API 费用并将响应首字延迟降低 42.5%。
-- **动态 Warm Memory 动态压缩**：
-  当会话轮次增长时自动触发提炼，将历史对话抽取为 `workingMemoryDigest` 摘要，跨轮次 100% 继承用户的修改偏好、习惯与设定规则，同时保持 Token 消耗平稳收敛。
-- **两层通用阶段交接门控与价值函数引擎 ($V_{\text{handoff}}$)**：
-  彻底消除上游导演阶段向下游正文执笔传递破损或占位数据的“假交接”隐患。采用高度解耦的两层元架构：
-  - **第一层 (通用元评估框架引擎 Layer 1)**：100% 领域解耦的纯代码确定性求值引擎，通过 JSON-path 路径运行原子运算符断言（`NON_EMPTY`, `GREATER_THAN`, `MATCHES_REGEX` 等），计算出定量 $V_{\text{handoff}} \in [0.0, 1.0]$ 得分。
-  - **第二层 (动态公式编译器 Layer 2)**：根据传入的任意 Payload 拓扑结构与运行时上下文（世界观公理），动态编译出专属的 `ValueFormulaSpec` 规则、动态权重与硬约束。
-  - **防篡改数字证书**：通过验证的阶段交接 ($V_{\text{handoff}} \ge 0.85$) 自动颁发带 SHA256 签名的 `VerifiedHandoffCertificate`，中度扣分 ($0.60 \le V_{\text{handoff}} < 0.85$) 自动触发 `AUTO_REPAIR` 定向修补。
-- **配额感知无人值守自动唤醒调度器 (Module 2，缺省开启)**：
-  彻底消除 API 429 限流或额度用尽时的人工恢复介入门槛，贴合零基础新手痛点：
-  - **缺省无人值守模式 (`enabled: true`)**：默认开箱即用。捕获限流错误后自动切入 `QUOTA_COOLING` 冷却状态，计算指数退避+抖动时长，后台心跳 Worker 监测倒计时结束自动调用 `resumeTask()` 恢复。
-  - **支持 Opt-out 切回手动**：极少数高级开发者可显式配置 `enabled: false` 切回经典手动恢复弹窗。
-- **原子级持久化 Agent Task 看板引擎 (Module 3)**：
-  将易失的内存管线彻底重构为写在 SQLite 中的持久化 Task 看板 (`AgentExecutableTodo`)，保障 80+ 章长篇小说跨天/跨会话生成时的 100% 崩溃防护与精准零损耗断点续写：
-  - **原子抢单原语 (`claimNextTodo`)**：数据库级排他锁，防止多 Agent 协作时的抢单冲突与重复生成。
-  - **带凭证打卡完成 (`completeTodo`)**：关联模块一的 `VerifiedHandoffCertificate` 电子证书存入数据库。
-  - **崩溃防死锁自愈 (`recoverStaleClaimedTodos`)**：心跳监控自动发现超时崩溃的 Worker，将其节点安全重置为 `PENDING` 重新开启认领。
-- **演化算子证据链追溯与防降级引擎 (Module 4)**：
-  为 OpenRSI 演化算子（`Draft`, `Improve`, `Debug`, `Crossover`）提供 100% 可解释性、黑盒消除与质量护栏：
-  - **AI 基因进化树 (`getChapterMutationLineage`)**：记录父本/子本文本哈希、评分差值 (`scoreDelta`) 与重组理由，可视化呈现文章演化脉络。
-  - **防降级自动回滚保护 (`shouldRollbackMutation`)**：自动检测负向变异 ($scoreDelta < 0$) 并触发回滚，硬性保证文本质量只升不降。
-  - **高质量 RAG 向量库回灌 (`getEliteMutationNodes`)**：筛选高分变异节点 ($scoreDelta \ge +0.15$) 回灌至 Qdrant 向量库，保证上下文库全是精英文本。
-- **零伪造硬核物理打点验证**：
-  构建了 [real-empirical-agent-test.js](file:///c:/Users/lilin/GeneralAgent/scripts/real-empirical-agent-test.js)、[stageHandoffTwoLayer.test.js](file:///c:/Users/lilin/GeneralAgent/server/tests/stageHandoffTwoLayer.test.js)、[autoWakeScheduler.test.js](file:///c:/Users/lilin/GeneralAgent/server/tests/autoWakeScheduler.test.js)、[agentKanbanTodo.test.js](file:///c:/Users/lilin/GeneralAgent/server/tests/agentKanbanTodo.test.js) 与 [evidenceTraceLogger.test.js](file:///c:/Users/lilin/GeneralAgent/server/tests/evidenceTraceLogger.test.js) 测试套件，真实验证静态 Prompt Head 100% 精确匹配、两层门控断言、无人值守自动唤醒、持久化看板抢单与演化算子证据链。
+### 13. 数字员工团队架构与数字员工基础设施
+将 Daydream Engine 从单回合提示词升级为**数字员工团队基础设施**：
+- **数字员工 Profile 标准化 (`Identity + Domain + Scope`)**：注册 `novel-director`、`style-auditor`、`crossover-operator` 等角色，明确能力边界与 4 级风险 Scope。
+- **长寿 Thread 引擎与 Prompt Cache 优化**：固定 `staticPromptHead` 静态角色头，保证 100% 缓存命中，降低 50%-90% API 成本与 42.5% 延迟。
+- **动态 Warm Memory 压缩**：多回合对话自动提炼 `workingMemoryDigest`，控制 Token 膨胀。
+- **双层通用阶段 Hand-off 关卡与价值函数 ($V_{\text{handoff}}$)**：
+  - **Layer 1 (通用元评估器框架)**：确定性计算 $V_{\text{handoff}} \in [0.0, 1.0]$ 得分。
+  - **Layer 2 (载荷驱动公式编译器)**：动态编译 `ValueFormulaSpec` 规则与硬约束。
+  - **防篡改证书**：通关产生带 SHA256 签名证书；轻微扣分自动触发 `AUTO_REPAIR`。
+- **配额感知全自动无看守恢复调度器 (Module 2)**：遇到 429 或配额耗尽自动进入 `QUOTA_COOLING`，后台 Heartbeat Worker 自动恢复运行。
+- **持久化 Agent 可执行 Todo 看板引擎 (Module 3)**：基于 SQLite 数据库 (`AgentExecutableTodo`)，提供原子抢占、凭证完工与死锁自愈。
+- **OpenRSI 演化算子证据追踪日志 (Module 4)**：记录 AI 谱系树 (`getChapterMutationLineage`)、防退化回滚护栏与精英向量 RAG 反馈回路。
+- **经验自动化 Benchmark**：包含完整测试脚本验证 Prompt Head 匹配、双层 Gate、自动唤醒、看板抢占与突变日志。
+
+### 14. 国际化 (i18n) 多语言支持
+- 前端深度集成 `i18next` 与 `react-i18next`，UI 界面、日志、页面标签与设置路由支持中英文无缝切换并本地持久化。
 
 ---
 
-## 🔮 展望与待做 (What Is To Be Done)
+## 🔮 未来规划 (Future Vision)
 
-随着项目定位从“小说引擎”升级到“白日做梦多模态引擎”，后续工作将围绕 **Agent 团队基础设施** 与 **Loop 状态控制面内核** 跨多模态的演进展开：
+随着项目从小说写作引擎演进为完整的 **Daydream Engine**，未来的开发重点集中在深化**数字员工团队**与**循环工程内核**：
 
-### 🎭 阶段 1：多模态管线无缝缝合 (小说 ➔ 漫画 ➔ 短视频)
-- **跨模态交接门控**：将 **模块一两层通用交接门控** 延伸应用于【小说章节 $\rightarrow$ 分镜剧本 $\rightarrow$ 画面资产】的跨模态产物校验，防止脏分镜进入渲染工坊。
-- **多模态持久化看板**：扩展 **模块三持久化 Task 看板** 追踪耗时较长的图像生成、TTS 语音合成与视频渲染拼接任务，保障跨引擎崩溃续传。
-- **视觉资产样式表**：完善跨多模态的“视觉资产样式表”，保证小说生成的漫画人设、场景与生成的短视频角色完美一致。
+### 🎭 阶段 1：无缝衍生改编 (小说 ➔ 漫画 ➔ 短视频)
+- **跨模态 Hand-off Gate**：将 Hand-off 关卡扩展至校验小说章节 $\rightarrow$ 分镜脚本 $\rightarrow$ 视觉资产。
+- **多模态持久化看板**：扩展 Durable Executable Todos 跟踪图像生成、TTS 语音与视频渲染。
+- **持久化视觉 Style Sheet**：建立角色脸型、发型、服装的跨图/跨视频一致性规范。
 
-### 🎬 阶段 2：分镜剧本 ➔ 电影级视频渲染
-- **视频渲染证据链追溯**：扩展 **模块四演化算子证据链** 记录音视频渲染参数变异、美学评分增量与视频自动重渲染回滚。
-- **电影级管线扩展**：将 VellumReel 渲染引擎扩展至 16:9 / 2.39:1 画幅，引入多轨音效时间线管理器与环境音合成。
+### 🎬 阶段 2：分镜剧本 ➔ 电影级大片
+- **视频渲染证据日志**：记录音视频渲染参数与美学得分，支持失败自动回滚。
+- **影视级管线扩展**：扩展本地渲染管线（VellumReel）支持宽屏 (16:9, 2.39:1) 与多轨音效剪辑。
 
-### 🗺️ 阶段 3：可视化沙盒控制台与势力战役
-- **长期数字员工团队沙盘**：结合 **数字员工岗位** 与 **长期在岗 Thread 机制**，支持几十个自主 Agent 智能体在虚拟世界沙盘中长期交融交互。
-- **可视化沙盒控制台**：开发基于地理网格、势力边界与智能体位置的 Web 可视化沙盒运行控制台，支持锁步模拟与编年史自动生成。
+### 🗺️ 阶段 3：可视化西部世界控制台与阵营对抗
+- **长寿 Agent 团队沙盘**：结合数字员工 Profile 与长寿 Thread，支持数十个 Agent 在沙盘中长期自洽互动。
+- **可视化西部世界控制台**：构建 Web 端地理网格、阵营边界与动态角色定位图。
 
 ---
 
-## 🚀 运行指南
+## 🚀 技术运行指南
 
-### 系统要求
+### 环境要求
 
 - **Node.js**: `^20.19.0 || ^22.12.0 || >=24.0.0` (推荐 `20.19.x LTS`)
-- **pnpm**: `>= 10.6` (推荐 `pnpm@10.6.0`)
-- **API Key**: 至少需要一组主流大模型供应商的 API Key，支持在页面上直接配置。
-- **Qdrant**: 可选，如果需要启用知识库和 RAG。
-- **视频工坊附加依赖**:
+- **pnpm**: `>= 10.6.0` (推荐声明的 `pnpm@10.6.0`)
+- **LLM API Key**: 至少配置一个提供商（OpenAI, DeepSeek, SiliconFlow, xAI 等），可在启动后在页面配置。
+- **Qdrant**: 可选，仅在开启知识库 / RAG 检索时需要。
+- **VellumReel 视频管线要求**：
   - Python `^3.10`
-  - 系统本地已配置好 FFmpeg 命令行环境（用于音频拼接和字幕渲染）。
-  - 支持 ONNX 依赖环境（首次运行 TTS 服务器脚本时会自动下载 Kokoro 权重并完成环境适配）。
+  - 系统配置好 FFmpeg（用于视频合成与字幕）
+  - ONNX runtime 依赖（本地 FastAPI TTS 服务首次运行会自动下载 Kokoro 模型权重）
 
 ### 1. 安装依赖
-
 ```bash
 pnpm install
 ```
 
-*注意：默认的 `pnpm install` 不会拉取 Electron 桌面客户端运行时。*
-- 如果只进行 Web/Server 开发，这样就可以了。
-- 首次运行 `pnpm dev:desktop` 时会自动拉取桌面壳运行时。
-- 也可以手动运行预拉取命令：
+*注意: 默认 `pnpm install` 仅安装 Web 与 Server 依赖，不会自动下载 Electron 运行时。*
+- 如果只运行 Web/Server 流程，这就足够了。
+- 如果需要运行桌面端外壳，首次运行 `pnpm dev:desktop` 时会自动下载 Electron。
+- 你也可以手动预拉取 Electron 运行时：
   ```bash
   pnpm run prepare:desktop-runtime
   ```
 
-#### Windows 安装 Prisma 卡住的解决方式：
-1. **检查 Node 版本**：确保在 Prisma 7 的支持范围。
-2. **清除 script-shell 交互设置**：如果您的 npm/pnpm shell 被配置成了交互式 shell（例如带 `/k` 的 `cmd.exe`），会导致 prisma 安装卡住。运行以下命令清除：
+#### Windows 下 Prisma 安装故障排查:
+如果在 Windows 上 `pnpm install` 卡在 `prisma preinstall`，请检查：
+1. **Node 版本**: Prisma 7 要求 Node `^20.19.0 || ^22.12.0 || >=24.0.0`。
+2. **Script-shell 设置**: 如果 npm/pnpm 的 script-shell 被设为交互式终端（如 `cmd.exe /k`），Prisma 预安装脚本会挂起。请检查：
+   ```bash
+   node -v
+   pnpm config get script-shell
+   npm config get script-shell
+   ```
+   如果返回包含 `/k`，请删除并重启终端：
    ```bash
    npm config delete script-shell
    pnpm config delete script-shell
    ```
-   然后重新执行 `pnpm install`。
+   然后重新运行 `pnpm install`。
 
 ---
 
 ### 2. 配置环境变量
 
-项目使用 Monorepo 结构，子包独立读取环境变量：
-- 后端服务运行在 `server/`，读取 `server/.env`。
-- 前端运行在 `client/`，通常不需要配环境变量，同机或局域网访问会自动映射。
+项目结构采用 Monorepo 隔离，配置加载如下：
+- 后端运行在 `server/` 工作区，读取 `server/.env`。
+- 前端运行在 `client/` 工作区，读取 `client/.env` 或 `client/.env.local`。
+- 根目录 `.env.example` 仅作为聚合参考。
 
-#### 2.1 后端环境变量
-复制示例文件：
+#### 2.1 后端环境变量配置
+复制后端示例文件：
 ```bash
 # macOS / Linux
 cp server/.env.example server/.env
@@ -247,96 +246,150 @@ cp server/.env.example server/.env
 # Windows PowerShell
 Copy-Item server/.env.example server/.env
 ```
-最少确认项目：
-- `DATABASE_URL`：默认 SQLite。
-- `RAG_ENABLED`：如果不启用 Qdrant RAG，请设为 `false`。
+`server/.env` 中的核心配置：
+- `DATABASE_URL`: 默认指向本地 SQLite (`file:../prisma/dev.db`)，开箱即用。
+- `RAG_ENABLED`: 未启动 Qdrant/RAG 时请设为 `false`。
+- `QDRANT_URL` / `QDRANT_API_KEY`: 仅在开启 RAG 时填写。
+- API Keys (`OPENAI_API_KEY`, `DEEPSEEK_API_KEY` 等) 可先留空，后续在 Web UI 页面配置。
 
-#### 2.2 在页面中配置模型
-启动项目后，建议在前端页面配置：
-- `/settings`：配置供应商 API Key 和模型连通性。
-- `/settings/model-routes`：给不同任务（大纲、主笔、审计、聊天）路由到不同的模型。
-- `/knowledge?tab=settings`：配置向量模型与集合设置。
+#### 2.2 前端环境变量配置
+默认情况下 Vite 开发服务器会自动将请求映射到 `http(s)://[当前主机名]:3000/api`，局域网开发无需额外配置。仅当前后端分离部署时才需复制配置：
+```bash
+# macOS / Linux
+cp client/.env.example client/.env
+
+# Windows PowerShell
+Copy-Item client/.env.example client/.env
+```
+
+#### 2.3 在 UI 页面配置模型
+无需在 `.env` 中硬编码模型，可在运行后在页面直接管理：
+- `/settings`: 配置 API Key，测试连通性。
+- `/settings/model-routes`: 为规划、正文、审阅不同任务分配不同模型。
+- `/knowledge?tab=settings`: 管理 Embedding 提供商、集合与重建计划。
 
 ---
 
 ### 3. 启动开发环境
 
-#### 方式 A：一键启动全部服务
+#### 方式 A：一键启动（全量服务）
 ```bash
 pnpm dev
 ```
+同时启动 shared 编译器、Express 后端服务与 Vite 前端客户端。
 
-#### 方式 B：分步独立启动（推荐 macOS 调试）
-在三个独立的终端窗口分别执行：
-1. **共享包编译器**：`pnpm dev:shared`
-2. **后端服务**：`pnpm dev:server` (启动在 `http://localhost:3000`)
-3. **前端客户端**：`pnpm dev:client` (启动在 `http://localhost:5173`)
+#### 方式 B：分步启动（推荐 macOS 调试）
+打开三个独立的终端窗口：
+1. **终端 1: Shared 编译**
+   ```bash
+   pnpm dev:shared
+   ```
+2. **终端 2: 后端服务**
+   ```bash
+   pnpm dev:server
+   ```
+   (运行在 `http://localhost:3000`，启动时自动生成 Prisma Client 并应用 DB 迁移)。
+3. **终端 3: 前端客户端**
+   ```bash
+   pnpm dev:client
+   ```
+   (运行在 `http://localhost:5173`)。
 
-#### 方式 C：使用后台管理脚本 (macOS 推荐)
-使用 [scripts/manage.sh](file:///Users/nvidia/GeneralAgent/scripts/manage.sh) 控制后台常驻进程：
-- 启动：`./scripts/manage.sh start`
-- 停止：`./scripts/manage.sh stop`
-- 查看状态：`./scripts/manage.sh status`
-- 重启：`./scripts/manage.sh restart`
+#### 方式 C：后台服务管理脚本 (macOS 脚本)
+在 [scripts/manage.sh](./scripts/manage.sh) 提供了服务管理辅助脚本：
+- **启动所有后台服务**: `./scripts/manage.sh start`
+- **停止所有后台服务**: `./scripts/manage.sh stop`
+- **查看服务状态**: `./scripts/manage.sh status`
+- **重启服务**: `./scripts/manage.sh restart`
 
-#### 方式 D：启动本地离线 TTS 服务器 (视频旁白合成)
+#### 方式 D：本地离线 TTS 服务 (用于 VellumReel 视频配音)
+进行离线语音合成（首次运行会自动安装 ONNX/Kokoro）：
 ```bash
 python scripts/start-local-tts.py
 ```
 
-#### 默认访问地址：
-- 前端界面：`http://localhost:5173`
-- 后端 API：`http://localhost:3000`
-- API 端点：`http://localhost:3000/api`
-- 本地语音服务器：`http://localhost:8000`
+#### 默认访问入口:
+- 前端客户端: `http://localhost:5173`
+- 后端 API 服务: `http://localhost:3000`
+- API Endpoint: `http://localhost:3000/api`
+- 本地 TTS 服务: `http://localhost:8000`
 
 ---
 
-### 4. 本地 SenseNova 多模态图像模型部署 (可选)
+### 4. SenseNova 本地多模态图片模型配置 (可选)
 
-项目支持完全离线运行在 Ollama 上的 `SenseNova-U1-8B-MoT-Infographic-V3` 图像微调和纠错能力。
+系统支持基于本地 Ollama 运行 `SenseNova-U1-8B-MoT-Infographic-V3` 模型进行离线图片微调与文字气泡生成。
 
 #### 4.1 安装 Ollama 并拉取模型
-```bash
-ollama pull sensenova-u1:8b-v3
-```
+1. 安装 [Ollama](https://ollama.com/)。
+2. 手动拉取 SenseNova 模型，或由服务端在首次调用时自动拉取：
+   ```bash
+   ollama pull sensenova-u1:8b-v3
+   ```
 
-#### 4.2 硬件性能分级
-系统在启动时会自动检测本地 `127.0.0.1:11434` 并划分 Tier：
-- **Tier 1 (GPU 高加速)**: 显存 $\ge$ 15GB 或 Mac 统一内存 $\ge$ 32GB。BF16 高精度运行（耗时约 8 秒）。
-- **Tier 2 (GPU 中加速)**: 显存 6GB-14GB 或 Mac 统一内存 16GB-24GB。INT8/INT4 量化运行（耗时约 30 秒）。
-- **Tier 3 (CPU 纯本地)**: CPU 慢速运行（约 1.5 - 3 分钟）。
+#### 4.2 硬件自诊断与性能分级
+服务端启动时会自动诊断显存/内存并划定性能等级：
+- **Tier 1 (显卡强力加速)**: 显存 $\ge$ 15GB 或 Mac 统一内存 $\ge$ 32GB。使用 BF16/FP16 生成（约 8 秒）。
+- **Tier 2 (显卡中度加速)**: 显存 6GB–14GB 或 Mac 统一内存 16GB–24GB。使用 INT8/INT4 模型（约 30 秒）。
+- **Tier 3 (CPU 纯本地)**: 无 GPU 加速，使用 CPU 计算（约 1.5 - 3 分钟）。
+
+若启动时无法连通 `11434` 端口，系统会自动拉起 Ollama 服务。
 
 #### 4.3 运行 SenseNova 测试
-```bash
-# 运行单元测试
-node --test server/tests/sensenovaLocalInference.test.js
-
-# 在服务正常运行状态下，运行端到端模拟集成测试
-node server/scripts/test-e2e-api-simulation.js
-```
+- **运行本地推理测试**:
+  ```bash
+  pnpm --filter @ai-novel/server test
+  # 或直接运行 SenseNova 测试脚本：
+  node --test server/tests/sensenovaLocalInference.test.js
+  ```
+- **运行 E2E API 模拟集成测试**:
+  在主服务 (`pnpm dev`) 运行时执行，模拟图片修改、本地 API 调用与视频渲染：
+  ```bash
+  node server/scripts/test-e2e-api-simulation.js
+  ```
 
 ---
 
-### 5. 部署 Qdrant Vector DB (可选)
+### 5. Qdrant Cloud 云数据库配置 (可选)
 
-1. 在 [Qdrant Cloud](https://cloud.qdrant.io/) 免费创建 Cluster。
-2. 将 Cluster URL 和 API Key 写入 `server/.env`：
+如需开启 RAG，请在 `server/.env` 中设置 `RAG_ENABLED=true` 并按如下步骤配置：
+1. 注册 [Qdrant Cloud](https://cloud.qdrant.io/)。
+2. 创建 Cluster（免费版即可）。
+3. 复制 Cluster URL 和 API Key。
+4. 填入 `server/.env`:
    ```env
    QDRANT_URL=https://your-cluster.region.cloud.qdrant.io:6333
    QDRANT_API_KEY=your_database_api_key
    ```
-3. 在页面 `知识库 -> 向量设置` 中保存 embedding 设置。
+5. 在 Web 页面中配置 Embedding 模型 (`知识库 -> 向量设置`)。
+
+通过 curl 验证连通性：
+```bash
+curl -X GET "https://your-cluster.region.cloud.qdrant.io:6333" \
+  --header "api-key: your_database_api_key"
+```
 
 ---
 
-### 6. MooMoo OpenD 本地美股网关配置与运行 (可选)
+### 6. SearXNG 本地 Docker 开源搜索引擎配置 (美股热点抓取可选)
 
-系统内置了美股投资研究智能体与 MooMoo OpenD 的自动守护集成：
-1. **自动感知与后台唤醒**：只要你本地安装过 `MooMoo OpenD`（或 `FutuOpenD`），运行 GeneralAgent (`pnpm dev`) 后，后端服务会在初始化及调用时自动校验 `127.0.0.1:11111` 端口；若端口未连通，系统会自动在后台静默唤醒本地 OpenD 守护进程。
-2. **访问美股投研工作台**：项目启动后，在浏览器访问 `http://localhost:5173/stock` 或在侧边栏点击 **【美股投研与调仓】**。
-3. **零配置安全 Fallback**：即使未启动 OpenD，工作台也支持一键拖拽/导入 MooMoo 导出的持仓 CSV 文件或全选复制持仓文本。
-4. **安全提示**：系统仅生成开盘前操作建议与风控分析 (Advisory Only)，**绝不会自动下单**，最终挂单操作完全由你在 MooMoo 客户端上确认执行。
+美股投研 Agent 深度集成了本地运行在 Docker 容器中的开源元搜索引擎 **SearXNG**（运行在 `http://127.0.0.1:8080`），实现美股盘前新闻与个股催化剂的自动检索。
+
+```bash
+# 方式 1：Docker 一键快捷运行（推荐 8088 端口映射，避免 8080 被占用）
+docker run -d \
+  --name searxng \
+  -p 8088:8080 \
+  -v $(pwd)/scratch/searxng/settings.yml:/etc/searxng/settings.yml:ro \
+  searxng/searxng:latest
+
+# 环境变量 (可选，默认 http://127.0.0.1:8088)
+# SEARXNG_URL=http://127.0.0.1:8088
+
+# 运行连通性测试
+node server/scripts/runSearXNGTest.cjs
+```
+- **零中断降级保护**：当 SearXNG 容器未启动时，系统会自动平滑降级为“存量知识图谱模式”，保障主服务稳定运行。
 
 ---
 
@@ -346,76 +399,85 @@ node server/scripts/test-e2e-api-simulation.js
 
 | 层级 | 技术 |
 | --- | --- |
-| 前端 | React 19 + Vite + React Router + TanStack Query + Plate 编辑器 |
-| 后端 | Express 5 + Prisma 7 + Zod |
-| AI 编排 | LangChain + LangGraph |
-| 数据库 | SQLite (主库) + Qdrant (向量库/RAG) |
-| 工程形态 | pnpm workspace Monorepo (pnpm@10.6.0) |
-| 桌面端 | Electron (electron-builder 打包) |
-| Node 版本 | `^20.19.0 \|\| ^22.12.0 \|\| >=24.0.0` |
+| **前端** | React 19 + Vite + React Router + TanStack Query + Plate 编辑器 |
+| **后端** | Express 5 + Prisma 7 + Zod |
+| **AI 编排** | LangChain + LangGraph |
+| **数据库** | SQLite (主库) + Qdrant (向量库/RAG) |
+| **工程形态** | pnpm workspace Monorepo (pnpm@10.6.0) |
+| **桌面端** | Electron (electron-builder 打包) |
+| **Node 版本** | `^20.19.0 \|\| ^22.12.0 \|\| >=24.0.0` |
 
-### 项目结构
+### Monorepo 目录结构
 
 ```text
 GeneralAgent/
-├── client/          # 前端 (@ai-novel/client)
-├── server/          # 后端服务与运行时 (@ai-novel/server)
-├── shared/          # 共享类型与协议 (@ai-novel/shared)
-├── desktop/         # Electron 壳 (@ai-novel/desktop)
-├── docs/            # 设计文档与 wiki
-├── images/          # 图片及截图
-├── scripts/         # 脚本工具
-├── infra/           # 基础设施 (Docker)
-└── .github/         # CI/CD Workflows
+├── client/          # React + Vite 前端 (@ai-novel/client)
+├── server/          # Express + Prisma + Agent 运行时 (@ai-novel/server)
+├── shared/          # 共享类型与契约 (@ai-novel/shared)
+├── desktop/         # Electron 桌面端外壳 (@ai-novel/desktop)
+├── docs/            # 设计文档、发布日志与归档
+├── images/          # 架构图、截图与视觉资产
+├── scripts/         # 开发与构建管理脚本
+├── infra/           # 基础设施配置 (Docker 等)
+└── .github/         # CI/CD 工作流
 ```
+
+*详细的代码文件统计与审计见 [docs/sourcegraph/project-source-audit.md](./docs/sourcegraph/project-source-audit.md)。*
 
 ---
 
 ### 核心架构支柱
 
-| 支柱 | 核心机制 |
+为保证长篇故事的连续性与一致性，系统依托五大架构支柱：
+
+| 支柱 | 机制 |
 | :--- | :--- |
-| **物理记忆 (Memory)** | 实时将小说大纲状态与资产快照存盘至 `docs/story_board.json` 与 `docs/story_ledger.md`，支持异常断电后无损重建。 |
-| **分支隔离 (Worktree)** | 在数据库中通过 `ChapterDraft` 隔离，由 `WorktreeManager` 维护隔离写入，通过事务 `mergeAndCommit` 安全并入主干。 |
-| **对抗监察 (Debate)** | `EditorAgent` 依据 Zod 对正文进行格式和逻辑对抗，不合规草稿将被退回重新生成。 |
-| **心跳自诊断 (Heartbeat)** | 后台轮询诊断小说一致性与债务，分诊卡片自动记录到 `docs/STORY_TASKS.md`。 |
-| **驾驶舱看板 (Cockpit)** | 前端展示各 agent 运行状态、健康度评分以及决策实时流。 |
+| **物理记忆 (Physical Memory)** | 定期将激活的剧情与摘要序列化至 `docs/story_board.json` 与 `docs/story_ledger.md`，防止上下文漂移并支持崩溃恢复。 |
+| **分支隔离 (Worktree)** | 在 `ChapterDraft` 数据库中隔离草稿缓冲区，在事务性 `mergeAndCommit` 前通过 `WorktreeManager` 隔离并行编辑会话。 |
+| **辩论审校 (Debate Auditing)** | `EditorAgent` 对照 Zod 校验 Schema 检查文本，返回结构化修改建议或拦截缺陷文本生成。 |
+| **自检心跳 (Self-Checking Heartbeat)** | 后台诊断器自动检查全局叙事冲突，将预警打印至 `docs/STORY_TASKS.md`。 |
+| **驾驶舱控制台 (Cockpit Console)** | 实时展示 Agent 运行状态、模型健康评级、预警标记与实时辩论日志的仪表盘。 |
 
 ---
 
-## 🎨 界面预览
+## 🎨 功能预览与截图
 
-### Creative Hub 创作中枢
-![Creative Hub](./images/创作中枢.png)
+### 创作中枢 (Creative Hub)
+统一承载对话、规划与任务运行步帧的创作控制台。
+![创作中枢](./images/创作中枢.png)
 
-### 提示词编辑器
+### 提示词编辑器 (Prompt Editor)
+调试与维护系统提示词、变量与槽位规则的交互界面。
 ![提示词编辑器](./images/ScreenShot_2026-07-08_140153_328.png)
 
-### 自动导演创建与执行
-![自动导演创建](./images/导演模式-创建.png)
-![自动导演执行](./images/导演模式-创建中.png)
+### 自动导演模式
+包含项目 Setup、标题候选组与定制 Framing 的开书界面。
+![导演创建](./images/导演模式-创建.png)
+![导演生成中](./images/导演模式-创建中.png)
 
-### 分卷与章节节奏设计
-![分卷](./images/write/卷战略.png)
-![节奏拆章](./images/write/节奏拆章.png)
+### 卷战略与拆章
+可视化卷结构布局与目标章节大纲拆解。
+![卷战略](./images/write/卷战略.png)
+![章节拆解](./images/write/节奏拆章.png)
 
-### 漫画与视频改编工坊
+### 漫画与视频衍生工坊
+从已生成小说提取资产并一键渲染 9:16 竖版视频的多模态工坊。
 ![漫画工坊](./images/漫画工坊.png)
 ![视频工坊](./images/视频工坊.png)
 
 ---
 
-## 🗺️ 近期规划
-- **P0**: 提升自动导演在长周期中的稳定性，优化 checkpoint 重试机制与上下文事实一致性。
-- **P1**: 完善由小说自动解构分镜、自动流转到漫画和短视频工作台的编译器。
-- **P2**: 构建世界沙盘（World Sandbox）基础框架：阵营演化算法、智能体社交对话网络、 chronicle 编年史记录仪。
+## 🗺️ Roadmap 路线图
+- **P0**: 核心稳定性、上下文记忆优化、检查点恢复与一致性检查。
+- **P1**: 完善改编编译器管线 (小说 $\rightarrow$ 漫画 $\rightarrow$ 分镜剧本 $\rightarrow$ 短视频)。
+- **P2**: 推出西部世界沙盘框架：阵营网格、自主角色模拟与动态编年史记录。
 
-## 💬 交流与反馈
-欢迎扫码加入 QQ 群进行体验反馈与开发者技术交流：
+## 💬 社区与交流
+如需反馈问题、讨论 LLM 路由、自动导演或多模态合成，欢迎加入 QQ 交流群：
 
 ![QQ 群](./images/群2.png)
 
-## 开源协议与商业授权
-本项目采用双许可证：
-- 默认开源：**AGPLv3 (GNU Affero General Public License v3.0)**，详见 [LICENSE](./LICENSE) 与 [NOTICE](./NOTICE)。
-- 商用托管：将本项目作为 SaaS 或云服务等方式提供给第三方需额外向作者获取商用授权。贡献请参阅 [CONTRIBUTING.md](./CONTRIBUTING.md) 及 [CLA.md](./CLA.md)。
+## 开源协议 (License)
+本项目采用双重许可模式：
+- 默认协议: **GNU Affero General Public License v3.0 (AGPLv3)**。详见 [LICENSE](./LICENSE) 与 [NOTICE](./NOTICE)。
+- Commercial / SaaS 商业授权: 托管或向第三方提供本引擎的修改版本服务需要获取商业授权。贡献条款请参阅 [CONTRIBUTING.md](./CONTRIBUTING.md) 与 [CLA.md](./CLA.md)。

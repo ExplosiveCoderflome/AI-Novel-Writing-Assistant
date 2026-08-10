@@ -23,7 +23,7 @@ export default function MobileNovelStepNav({
   const steps = [...NOVEL_WORKSPACE_FLOW_STEPS, ...NOVEL_WORKSPACE_TOOL_TABS];
 
   return (
-    <nav className="mobile-novel-step-nav -mx-4 flex gap-2 overflow-x-auto px-4 pb-1" aria-label={t("gen.pages.novels.mobile.MobileNovelStepNav.gen_2ddce323")}>
+    <nav className="mobile-novel-step-nav -mx-4 flex gap-2 overflow-x-auto px-4 pb-1" aria-label={i18next.t("dict.gen_2ddce323")}>
       {steps.map((step, index) => {
         const isActive = activeTab === step.key;
         const isRecommended = workflowCurrentTab === step.key && workflowCurrentTab !== activeTab;
@@ -47,9 +47,7 @@ export default function MobileNovelStepNav({
               ) : null}
               <span className="max-w-32 truncate">{step.label}</span>
               {isRecommended ? (
-                <Badge variant="secondary" className="rounded-full px-1.5 py-0 text-[10px]">
-                  流程推荐
-                </Badge>
+                <Badge variant="secondary" className="rounded-full px-1.5 py-0 text-[10px]">{i18next.t("novels.mobileNovelStepNav.eag3de")}</Badge>
               ) : null}
             </span>
           </Button>

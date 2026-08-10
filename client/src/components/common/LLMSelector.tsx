@@ -270,20 +270,18 @@ export default function LLMSelector({
   return (
     <div className={cn("space-y-2", compact && "space-y-1", className)}>
       <div className={cn("flex min-w-0 items-center gap-2", compact ? "flex-nowrap gap-1.5" : "flex-wrap")}>
-        {showBadge ? <Badge variant="secondary">{t("gen.components.common.LLMSelector.gen_8000f187")}</Badge> : null}
+        {showBadge ? <Badge variant="secondary">{i18next.t("dict.gen_8000f187")}</Badge> : null}
         <Select
           value={providerSelectValue}
           onValueChange={onProviderChange}
           disabled={!hasRunnableProviders}
         >
           <SelectTrigger className={cn(compact ? "h-9 w-[148px] lg:w-[164px]" : "w-full sm:w-[180px]")}>
-            <SelectValue placeholder={hasRunnableProviders ? t("gen.components.common.LLMSelector.gen_c6d3930b") : t("gen.components.common.LLMSelector.gen_0597dad8")} />
+            <SelectValue placeholder={hasRunnableProviders ? i18next.t("dict.gen_c6d3930b") : i18next.t("dict.gen_0597dad8")} />
           </SelectTrigger>
           <SelectContent>
             {!hasRunnableProviders ? (
-              <SelectItem value={NO_PROVIDER_VALUE} disabled>
-                请先配置可用厂商
-              </SelectItem>
+              <SelectItem value={NO_PROVIDER_VALUE} disabled>{i18next.t("dict.gen_0597dad8")}</SelectItem>
             ) : null}
             {providerOptions.map((provider) => (
               <SelectItem key={provider} value={provider}>
@@ -298,9 +296,9 @@ export default function LLMSelector({
             value={resolvedModel}
             onValueChange={onModelChange}
             options={models.map((model) => ({ value: model }))}
-            placeholder={hasRunnableProviders ? t("gen.components.common.LLMSelector.gen_f2d3731b") : t("gen.components.common.LLMSelector.gen_2d6b332e")}
-            searchPlaceholder={t("gen.components.common.LLMSelector.gen_8288a2e8")}
-            emptyText={t("gen.components.common.LLMSelector.gen_039e58de")}
+            placeholder={hasRunnableProviders ? i18next.t("dict.gen_f2d3731b") : i18next.t("dict.gen_2d6b332e")}
+            searchPlaceholder={i18next.t("dict.gen_8288a2e8")}
+            emptyText={i18next.t("dict.gen_039e58de")}
             className={cn(compact ? "w-[184px] lg:w-[220px]" : "w-full sm:w-[240px]")}
             triggerClassName={compact ? "h-9 px-2.5" : undefined}
             disabled={!hasRunnableProviders}
@@ -309,15 +307,13 @@ export default function LLMSelector({
       </div>
 
       {showHelperText && !hasRunnableProviders && !apiKeySettingsQuery.isLoading ? (
-        <div className="text-xs text-muted-foreground">
-          当前没有已配置且启用的模型厂商，请先到系统设置里完成 API Key 和模型配置。
-        </div>
+        <div className="text-xs text-muted-foreground">{i18next.t("common.lLMSelector.kpaw69")}</div>
       ) : null}
 
       {showParameters ? (
         <div className="grid gap-2 md:grid-cols-2">
           <label className="space-y-1 text-sm">
-            <span className="text-muted-foreground">{t("gen.components.common.LLMSelector.gen_ac92ced8")}</span>
+            <span className="text-muted-foreground">{i18next.t("dict.gen_ac92ced8")}</span>
             <Input
               type="number"
               step="0.1"
@@ -349,7 +345,7 @@ export default function LLMSelector({
           </label>
 
           <label className="space-y-1 text-sm">
-            <span className="text-muted-foreground">{t("gen.components.common.LLMSelector.gen_19e57799")}</span>
+            <span className="text-muted-foreground">{i18next.t("dict.gen_19e57799")}</span>
             <Input
               type="number"
               step="1"

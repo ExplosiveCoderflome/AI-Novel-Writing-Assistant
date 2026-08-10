@@ -61,7 +61,7 @@ export default function WorldDeepeningTab(props: WorldDeepeningTabProps) {
       await queryClient.invalidateQueries({
         queryKey: queryKeys.worlds.knowledgeDocuments(worldId ?? ""),
       });
-      toast.success("已更新世界样本关联的参考小说/增补作品");
+      toast.success(i18next.t("worlds.worldDeepeningTab.ij1jez"));
     },
     onError: (error) => {
       toast.error(error instanceof Error ? error.message : "更新参考作品失败");
@@ -92,7 +92,7 @@ export default function WorldDeepeningTab(props: WorldDeepeningTabProps) {
   return (
     <Card>
       <CardHeader>
-        <CardTitle>{t("gen.pages.worlds.components.workspace.WorldDeepeningTab.gen_5aca8bac")}</CardTitle>
+        <CardTitle>{i18next.t("dict.gen_5aca8bac")}</CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
         {/* 增补小说/相关作品关联面板 */}
@@ -100,12 +100,10 @@ export default function WorldDeepeningTab(props: WorldDeepeningTabProps) {
           <div className="flex flex-wrap items-center justify-between gap-2">
             <div>
               <div className="flex items-center gap-2">
-                <span className="text-sm font-semibold">参考小说与作品增补 (Knowledge & Novel Supplements)</span>
+                <span className="text-sm font-semibold">{i18next.t("worlds.worldDeepeningTab.nekw0l")}</span>
                 <Badge variant="secondary">已关联 {boundDocuments.length} 篇作品文档</Badge>
               </div>
-              <div className="mt-1 text-xs text-muted-foreground">
-                在此添加/修改作为世界样本增补的相关小说与设定文档。生成深化提问时，系统将跨全量关联作品提炼更精准的问题。
-              </div>
+              <div className="mt-1 text-xs text-muted-foreground">{i18next.t("worlds.worldDeepeningTab.2pw180")}</div>
             </div>
             <Button
               type="button"
@@ -126,9 +124,7 @@ export default function WorldDeepeningTab(props: WorldDeepeningTabProps) {
               ))}
             </div>
           ) : (
-            <div className="text-xs text-amber-700 bg-amber-50 rounded p-2 border border-amber-200">
-              当前尚未关联增补小说或设定文本。点击「选择 / 增添相关小说文档」添加知识库作品作为世界样本增补。
-            </div>
+            <div className="text-xs text-amber-700 bg-amber-50 rounded p-2 border border-amber-200">{i18next.t("worlds.worldDeepeningTab.c58id")}</div>
           )}
 
           {showPicker ? (
@@ -136,8 +132,8 @@ export default function WorldDeepeningTab(props: WorldDeepeningTabProps) {
               <KnowledgeDocumentPicker
                 selectedIds={selectedIds}
                 onChange={(next) => setSelectedIds(next ?? [])}
-                title="选择作为世界样本增补的相关小说与知识库文档"
-                description="勾选需包含的作品。保存后，AI 会根据最新的增补文本内容生成深化问题与碰撞建议。"
+                title={i18next.t("worlds.worldDeepeningTab.pdtznw")}
+                description={i18next.t("worlds.worldDeepeningTab.sczvmm")}
                 queryStatus="enabled"
               />
               <div className="flex justify-end gap-2">
@@ -145,9 +141,7 @@ export default function WorldDeepeningTab(props: WorldDeepeningTabProps) {
                   size="sm"
                   variant="outline"
                   onClick={() => setShowPicker(false)}
-                >
-                  取消
-                </Button>
+                >{i18next.t("common.cancel")}</Button>
                 <Button
                   size="sm"
                   onClick={handleSaveBindings}
@@ -163,10 +157,8 @@ export default function WorldDeepeningTab(props: WorldDeepeningTabProps) {
         {/* 生成提问主控制栏 */}
         <div className="flex flex-col gap-3 rounded-md border p-3 lg:flex-row lg:items-center lg:justify-between">
           <div>
-            <div className="text-sm font-medium">{t("gen.pages.worlds.components.workspace.WorldDeepeningTab.gen_c425f122")}</div>
-            <div className="mt-1 text-xs leading-5 text-muted-foreground">
-              系统会根据此世界手册及已绑定的全量增补小说提出针对性问题。回答后整合进世界设定，帮助规则、势力、地点和冲突更清晰。
-            </div>
+            <div className="text-sm font-medium">{i18next.t("dict.gen_c425f122")}</div>
+            <div className="mt-1 text-xs leading-5 text-muted-foreground">{i18next.t("worlds.worldDeepeningTab.uxxlp4")}</div>
           </div>
           <Button onClick={onGenerate} disabled={generatePending}>
             {generatePending ? "正在结合增补作品生成提问..." : "结合增补作品生成深化问题"}
@@ -177,7 +169,7 @@ export default function WorldDeepeningTab(props: WorldDeepeningTabProps) {
           <div className="grid gap-3 lg:grid-cols-[260px_minmax(0,1fr)]">
             <div className="space-y-2 rounded-md border p-3">
               <div className="flex items-center justify-between gap-2">
-                <div className="text-sm font-medium">{t("gen.pages.worlds.components.workspace.WorldDeepeningTab.gen_30d4af46")}</div>
+                <div className="text-sm font-medium">{i18next.t("dict.gen_30d4af46")}</div>
                 <div className="text-xs text-muted-foreground">{answeredCount}/{questions.length}</div>
               </div>
               {questions.map((question, index) => {
@@ -196,7 +188,7 @@ export default function WorldDeepeningTab(props: WorldDeepeningTabProps) {
                     <div className="flex items-center justify-between gap-2">
                       <span className="font-medium text-foreground">问题 {index + 1}</span>
                       <span className={answered ? "text-xs text-primary" : "text-xs text-muted-foreground"}>
-                        {answered ? t("gen.pages.worlds.components.workspace.WorldDeepeningTab.gen_8ce34e40") : t("gen.pages.worlds.components.workspace.WorldDeepeningTab.gen_94f1ce1b")}
+                        {answered ? i18next.t("dict.gen_8ce34e40") : i18next.t("dict.gen_94f1ce1b")}
                       </span>
                     </div>
                     <div className="mt-1 line-clamp-2 text-xs leading-5 text-muted-foreground">
@@ -211,13 +203,11 @@ export default function WorldDeepeningTab(props: WorldDeepeningTabProps) {
               <div className="rounded-md border p-3 space-y-3">
                 <div>
                   <div className="text-sm font-medium text-foreground">{activeQuestion.question}</div>
-                  <div className="mt-1 text-xs text-muted-foreground">
-                    这条回答会用于补齐世界手册。
-                  </div>
+                  <div className="mt-1 text-xs text-muted-foreground">{i18next.t("worlds.worldDeepeningTab.fmni4e")}</div>
                 </div>
                 {activeQuickOptions.length > 0 ? (
                   <div className="space-y-2">
-                    <div className="text-xs text-muted-foreground">{t("gen.pages.worlds.components.workspace.WorldDeepeningTab.gen_ef7ab18a")}</div>
+                    <div className="text-xs text-muted-foreground">{i18next.t("dict.gen_ef7ab18a")}</div>
                     <div className="flex flex-wrap gap-2">
                       {activeQuickOptions.map((option) => (
                         <Button
@@ -235,9 +225,7 @@ export default function WorldDeepeningTab(props: WorldDeepeningTabProps) {
                     </div>
                   </div>
                 ) : (
-                  <div className="rounded-md border border-dashed p-3 text-xs text-muted-foreground">
-                    可以直接写你的设定答案，也可以先用一句话描述方向。
-                  </div>
+                  <div className="rounded-md border border-dashed p-3 text-xs text-muted-foreground">{i18next.t("worlds.worldDeepeningTab.g4zvuo")}</div>
                 )}
                 <textarea
                   className="min-h-[100px] w-full rounded-md border bg-background p-2 text-sm"
@@ -245,22 +233,20 @@ export default function WorldDeepeningTab(props: WorldDeepeningTabProps) {
                   onChange={(event) =>
                     setAnswerDrafts((prev) => ({ ...prev, [activeQuestion.id]: event.target.value }))
                   }
-                  placeholder={t("gen.pages.worlds.components.workspace.WorldDeepeningTab.gen_a201e60c")}
+                  placeholder={i18next.t("dict.gen_a201e60c")}
                 />
               </div>
             ) : null}
           </div>
         ) : (
-          <div className="rounded-md border border-dashed p-4 text-sm text-muted-foreground">
-            这里会展示能帮助世界成型的问题。添加增补小说并生成问题后，逐条补充即可。
-          </div>
+          <div className="rounded-md border border-dashed p-4 text-sm text-muted-foreground">{i18next.t("worlds.worldDeepeningTab.cv1fd4")}</div>
         )}
         <div className="flex justify-end">
           <Button
             onClick={onSubmit}
             disabled={submitPending || answeredCount === 0 || questions.length === 0}
           >
-            {submitPending ? t("gen.pages.worlds.components.workspace.WorldDeepeningTab.gen_2202334c") : t("gen.pages.worlds.components.workspace.WorldDeepeningTab.gen_4dc912d6")}
+            {submitPending ? i18next.t("dict.gen_2202334c") : i18next.t("dict.gen_4dc912d6")}
           </Button>
         </div>
       </CardContent>

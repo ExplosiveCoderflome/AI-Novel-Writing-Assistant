@@ -108,18 +108,16 @@ export default function BookAnalysisBudgetAdjustDialog(props: BookAnalysisBudget
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <AppDialogContent
-        title={mode === "resume" ? t("gen.pages.bookAnalysis.components.BookAnalysisBudgetAdjustDialog.gen_a69ce727") : t("gen.pages.bookAnalysis.components.BookAnalysisBudgetAdjustDialog.gen_015d69aa")}
+        title={mode === "resume" ? i18next.t("dict.gen_a69ce727") : i18next.t("dict.gen_015d69aa")}
         description={mode === "resume"
-          ? t("gen.pages.bookAnalysis.components.BookAnalysisBudgetAdjustDialog.gen_0ab17915")
-          : t("gen.pages.bookAnalysis.components.BookAnalysisBudgetAdjustDialog.gen_b6e69614")}
+          ? i18next.t("dict.gen_0ab17915")
+          : i18next.t("dict.gen_b6e69614")}
         className="max-w-xl"
         footer={
           <div className="flex w-full justify-end gap-2">
-            <Button type="button" variant="outline" onClick={() => onOpenChange(false)} disabled={pending}>
-              取消
-            </Button>
+            <Button type="button" variant="outline" onClick={() => onOpenChange(false)} disabled={pending}>{i18next.t("common.cancel")}</Button>
             <Button type="button" onClick={handleSubmit} disabled={!canSubmit}>
-              {pending ? t("gen.pages.bookAnalysis.components.BookAnalysisBudgetAdjustDialog.gen_abe2c5d2") : mode === "resume" ? t("gen.pages.bookAnalysis.components.BookAnalysisBudgetAdjustDialog.gen_60a60c37") : t("gen.pages.bookAnalysis.components.BookAnalysisBudgetAdjustDialog.gen_836cc341")}
+              {pending ? i18next.t("basicInfo.submitting") : mode === "resume" ? i18next.t("dict.gen_60a60c37") : i18next.t("dict.gen_836cc341")}
             </Button>
           </div>
         }
@@ -134,20 +132,20 @@ export default function BookAnalysisBudgetAdjustDialog(props: BookAnalysisBudget
 
           <div className="grid gap-2 rounded-md border bg-muted/20 p-3 text-sm sm:grid-cols-3">
             <div>
-              <div className="text-xs text-muted-foreground">{t("gen.pages.bookAnalysis.components.BookAnalysisBudgetAdjustDialog.gen_a94ab700")}</div>
+              <div className="text-xs text-muted-foreground">{i18next.t("dict.gen_a94ab700")}</div>
               <div className="mt-1 font-mono tabular-nums">{formatTokenCount(usedTokens)}</div>
             </div>
             <div>
-              <div className="text-xs text-muted-foreground">{t("gen.pages.bookAnalysis.components.BookAnalysisBudgetAdjustDialog.gen_b474d723")}</div>
+              <div className="text-xs text-muted-foreground">{i18next.t("dict.gen_b474d723")}</div>
               <div className="mt-1 font-mono tabular-nums">
-                {currentBudget ? formatTokenCount(currentBudget) : t("gen.pages.bookAnalysis.components.BookAnalysisBudgetAdjustDialog.gen_8441b348")}
+                {currentBudget ? formatTokenCount(currentBudget) : i18next.t("dict.gen_8441b348")}
               </div>
             </div>
             <div>
-              <div className="text-xs text-muted-foreground">{t("gen.pages.bookAnalysis.components.BookAnalysisBudgetAdjustDialog.gen_d5d007cb")}</div>
+              <div className="text-xs text-muted-foreground">{i18next.t("dict.gen_d5d007cb")}</div>
               <div className="mt-1 font-mono tabular-nums">
                 {parsedBudget === null
-                  ? t("gen.pages.bookAnalysis.components.BookAnalysisBudgetAdjustDialog.gen_8441b348")
+                  ? i18next.t("dict.gen_8441b348")
                   : remainingTokens === null
                     ? "-"
                     : formatTokenCount(remainingTokens)}
@@ -157,9 +155,7 @@ export default function BookAnalysisBudgetAdjustDialog(props: BookAnalysisBudget
 
           <div className="space-y-2">
             <div className="flex items-center justify-between gap-3">
-              <label htmlFor="book-analysis-budget-input" className="text-sm font-medium">
-                新预算上限
-              </label>
+              <label htmlFor="book-analysis-budget-input" className="text-sm font-medium">{i18next.t("bookAnalysis.bookAnalysisBudgetAdjustDialog.8u7t9z")}</label>
               {mode === "resume" ? (
                 <button
                   type="button"
@@ -179,7 +175,7 @@ export default function BookAnalysisBudgetAdjustDialog(props: BookAnalysisBudget
                 step={1_000}
                 value={budgetInput}
                 onChange={(event) => setBudgetInput(event.target.value)}
-                placeholder={allowUnlimited ? t("gen.pages.bookAnalysis.components.BookAnalysisBudgetAdjustDialog.gen_dfb1401d") : String(recommendedResumeBudget)}
+                placeholder={allowUnlimited ? i18next.t("dict.gen_dfb1401d") : String(recommendedResumeBudget)}
                 className="text-right font-mono tabular-nums"
               />
               <span className="shrink-0 text-xs text-muted-foreground">tokens</span>
@@ -190,14 +186,10 @@ export default function BookAnalysisBudgetAdjustDialog(props: BookAnalysisBudget
               </div>
             ) : null}
             {mode === "adjust" && analysis.status === "running" ? (
-              <div className="text-xs leading-5 text-muted-foreground">
-                调低预算不会立即终止当前小节，会在下个小节边界按新上限检查。
-              </div>
+              <div className="text-xs leading-5 text-muted-foreground">{i18next.t("bookAnalysis.bookAnalysisBudgetAdjustDialog.580si3")}</div>
             ) : null}
             {budgetIsFinite && remainingTokens !== null && remainingTokens < 0 ? (
-              <div className="text-xs leading-5 text-warning">
-                新预算低于累计用量，继续生成时会触发预算停止。
-              </div>
+              <div className="text-xs leading-5 text-warning">{i18next.t("bookAnalysis.bookAnalysisBudgetAdjustDialog.yr0nv1")}</div>
             ) : null}
           </div>
         </div>

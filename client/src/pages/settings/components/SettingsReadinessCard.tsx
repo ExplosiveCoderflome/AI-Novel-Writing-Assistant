@@ -1,3 +1,5 @@
+import i18next from "i18next";
+import { useTranslation } from "react-i18next";
 import { Link } from "react-router-dom";
 import { ArrowRight, CheckCircle2, CircleAlert, CircleDashed, Loader2 } from "lucide-react";
 import type {
@@ -79,7 +81,7 @@ export function buildSettingsReadinessItems(input: {
   return [
     {
       key: "model",
-      title: "正文模型",
+      title: i18next.t("settings.settingsReadinessCard.dyzk7i"),
       state: runnableProviders.length > 0 ? "ready" : "warning",
       description: runnableProviders.length > 0
         ? `已可使用 ${runnableProviders[0].name} 进行正文与规划生成。`
@@ -87,7 +89,7 @@ export function buildSettingsReadinessItems(input: {
     },
     {
       key: "routes",
-      title: "模型路由",
+      title: i18next.t("sidebar.modelRoutes"),
       state: isModelRoutesChecking ? "checking" : hasRoutes && failedRouteCount === 0 ? "ready" : "warning",
       description: isModelRoutesChecking
         ? "正在检查开书、拆章、正文生成和审核任务的模型兼容性。"
@@ -97,7 +99,7 @@ export function buildSettingsReadinessItems(input: {
     },
     {
       key: "rag",
-      title: "知识库增强",
+      title: i18next.t("settings.settingsReadinessCard.ael6uq"),
       state: ragSettings?.enabled && currentRagProvider?.isConfigured && currentRagProvider?.isActive ? "ready" : "optional",
       description: ragSettings?.enabled && currentRagProvider?.isConfigured && currentRagProvider?.isActive
         ? "知识库检索已启用，可帮助长篇写作保持资料和设定连续。"
@@ -105,7 +107,7 @@ export function buildSettingsReadinessItems(input: {
     },
     {
       key: "style",
-      title: "写法引擎",
+      title: i18next.t("sidebar.styleEngine"),
       state: !isStyleSettingsLoaded ? "checking" : styleReady ? "ready" : "warning",
       description: styleReady
         ? "写法提取等待时间在可用范围内，可用于学习样本文风。"
@@ -117,6 +119,7 @@ export function buildSettingsReadinessItems(input: {
 export default function SettingsReadinessCard(props: {
   items: SettingsReadinessItem[];
 }) {
+  const { t } = useTranslation();
   const { items } = props;
   const modelItem = items.find((item) => item.key === "model");
   const routesItem = items.find((item) => item.key === "routes");
@@ -125,19 +128,17 @@ export default function SettingsReadinessCard(props: {
   const blockingCount = items.filter((item) => item.key !== "rag" && item.state === "warning").length;
   const canStart = hasModel && hasHealthyRoutes && blockingCount === 0;
   const primaryAction = !hasModel
-    ? { label: "配置正文模型", to: "#settings-provider-section" }
+    ? { label: i18next.t("settings.settingsReadinessCard.b55tn3"), to: "#settings-provider-section" }
     : !hasHealthyRoutes
-      ? { label: "检查模型路由", to: "/settings/model-routes" }
-      : { label: "开始创建小说", to: "/novels/create" };
+      ? { label: i18next.t("settings.settingsReadinessCard.o22hin"), to: "/settings/model-routes" }
+      : { label: i18next.t("settings.settingsReadinessCard.ekcgpb"), to: "/novels/create" };
 
   return (
     <Card className="min-w-0 overflow-hidden border-primary/20 bg-primary/5">
       <CardHeader className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
         <div className="min-w-0 space-y-1">
-          <CardTitle>创作可用性检查</CardTitle>
-          <CardDescription className={AUTO_DIRECTOR_MOBILE_CLASSES.wrapText}>
-            先确认开始写小说必需的模型和路由是否可用；知识库属于增强项，可以稍后再补。
-          </CardDescription>
+          <CardTitle>{i18next.t("settings.settingsReadinessCard.tsu3am")}</CardTitle>
+          <CardDescription className={AUTO_DIRECTOR_MOBILE_CLASSES.wrapText}>{i18next.t("settings.settingsReadinessCard.cdv9i5")}</CardDescription>
         </div>
         <Button asChild className={AUTO_DIRECTOR_MOBILE_CLASSES.fullWidthAction}>
           <Link to={primaryAction.to}>

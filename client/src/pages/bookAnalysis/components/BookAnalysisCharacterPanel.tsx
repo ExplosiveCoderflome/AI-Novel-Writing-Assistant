@@ -1,4 +1,5 @@
 import i18next from "i18next";
+import { useTranslation } from "react-i18next";
 const t = (key: string, options?: any) => i18next.t(key, options) as string;
 import { useMemo, useState } from "react";
 import type {
@@ -137,6 +138,7 @@ function availableChapterAnchors(character: BookAnalysisCharacter): number[] {
 }
 
 export default function BookAnalysisCharacterPanel(props: BookAnalysisCharacterPanelProps) {
+  const { t, i18n } = useTranslation();
   const {
     characters,
     analysisId,
@@ -231,10 +233,10 @@ export default function BookAnalysisCharacterPanel(props: BookAnalysisCharacterP
     <Card>
       <CardHeader>
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <CardTitle>{t("gen.pages.bookAnalysis.components.BookAnalysisCharacterPanel.gen_90154762")}</CardTitle>
+          <CardTitle>{i18next.t("dict.gen_90154762")}</CardTitle>
           <div className="flex flex-wrap gap-2">
-            <Badge variant="outline">{t("gen.pages.bookAnalysis.components.BookAnalysisCharacterPanel.gen_6c68ddc0")}</Badge>
-            {candidateCharacters.length > 0 ? <Badge variant="secondary">{t("gen.pages.bookAnalysis.components.BookAnalysisCharacterPanel.gen_2209d75c")}</Badge> : null}
+            <Badge variant="outline">{i18next.t("dict.gen_6c68ddc0")}</Badge>
+            {candidateCharacters.length > 0 ? <Badge variant="secondary">{i18next.t("dict.gen_2209d75c")}</Badge> : null}
           </div>
         </div>
       </CardHeader>
@@ -255,7 +257,7 @@ export default function BookAnalysisCharacterPanel(props: BookAnalysisCharacterP
           <div className="space-y-3 rounded-md border p-3">
             <div className="flex flex-wrap items-center gap-2">
               <Button size="sm" onClick={() => void onIdentify()} disabled={identifyDisabled}>
-                {pending.identify ? t("gen.pages.bookAnalysis.components.BookAnalysisCharacterPanel.gen_c5437f5f") : characters.length > 0 ? t("gen.pages.bookAnalysis.components.BookAnalysisCharacterPanel.gen_0c223f86") : t("gen.pages.bookAnalysis.components.BookAnalysisCharacterPanel.gen_86de9a2c")}
+                {pending.identify ? i18next.t("dict.gen_c5437f5f") : characters.length > 0 ? i18next.t("dict.gen_0c223f86") : i18next.t("dict.gen_86de9a2c")}
               </Button>
               {candidateCharacters.length > 0 ? (
                 <Button
@@ -264,7 +266,7 @@ export default function BookAnalysisCharacterPanel(props: BookAnalysisCharacterP
                   disabled={generateAllDisabled}
                   title={batchButtonTitle}
                 >
-                  {pending.generateAll ? t("gen.pages.bookAnalysis.components.BookAnalysisCharacterPanel.gen_4d020ba3") : `全部生成 (${pendingCandidateCount})`}
+                  {pending.generateAll ? i18next.t("dict.gen_4d020ba3") : `全部生成 (${pendingCandidateCount})`}
                 </Button>
               ) : null}
               <SelectControl
@@ -273,10 +275,10 @@ export default function BookAnalysisCharacterPanel(props: BookAnalysisCharacterP
                 onChange={(event) => setGenerationDepth(event.target.value as BookAnalysisCharacterGenerationDepth)}
                 disabled={disabled || operationPending}
               >
-                <option value="brief">{t("gen.pages.bookAnalysis.components.BookAnalysisCharacterPanel.gen_2b53097b")}</option>
-                <option value="standard">{t("gen.pages.bookAnalysis.components.BookAnalysisCharacterPanel.gen_544fac40")}</option>
-                <option value="deep">{t("gen.pages.bookAnalysis.components.BookAnalysisCharacterPanel.gen_618d64f8")}</option>
-                <option value="exhaustive">{t("gen.pages.bookAnalysis.components.BookAnalysisCharacterPanel.gen_63c59813")}</option>
+                <option value="brief">{i18next.t("dict.gen_2b53097b")}</option>
+                <option value="standard">{i18next.t("dict.gen_544fac40")}</option>
+                <option value="deep">{i18next.t("dict.gen_618d64f8")}</option>
+                <option value="exhaustive">{i18next.t("dict.gen_63c59813")}</option>
               </SelectControl>
             </div>
             <div className="flex flex-wrap gap-2">
@@ -298,25 +300,23 @@ export default function BookAnalysisCharacterPanel(props: BookAnalysisCharacterP
             <Input
               value={manualName}
               onChange={(event) => setManualName(event.target.value)}
-              placeholder={t("gen.pages.bookAnalysis.components.BookAnalysisCharacterPanel.gen_577c73c2")}
+              placeholder={i18next.t("dict.gen_577c73c2")}
               disabled={disabled || pending.create}
             />
             <Input
               value={manualRole}
               onChange={(event) => setManualRole(event.target.value)}
-              placeholder={t("gen.pages.bookAnalysis.components.BookAnalysisCharacterPanel.gen_22cffcec")}
+              placeholder={i18next.t("dict.gen_22cffcec")}
               disabled={disabled || pending.create}
             />
             <textarea
               className="min-h-[72px] w-full rounded-md border bg-background px-3 py-2 text-sm"
               value={manualPersonality}
               onChange={(event) => setManualPersonality(event.target.value)}
-              placeholder={t("gen.pages.bookAnalysis.components.BookAnalysisCharacterPanel.gen_339e6277")}
+              placeholder={i18next.t("dict.gen_339e6277")}
               disabled={disabled || pending.create}
             />
-            <Button size="sm" variant="outline" onClick={() => void handleCreate()} disabled={createDisabled}>
-              手动添加
-            </Button>
+            <Button size="sm" variant="outline" onClick={() => void handleCreate()} disabled={createDisabled}>{i18next.t("bookAnalysis.bookAnalysisCharacterPanel.cqy742")}</Button>
           </div>
         </div>
 
@@ -343,14 +343,12 @@ export default function BookAnalysisCharacterPanel(props: BookAnalysisCharacterP
                 </div>
               ) : null}
             </div>
-            <Button size="sm" variant="ghost" onClick={onDismissBatchSummary}>
-              知道了
-            </Button>
+            <Button size="sm" variant="ghost" onClick={onDismissBatchSummary}>{i18next.t("bookAnalysis.bookAnalysisCharacterPanel.i96ig")}</Button>
           </div>
         ) : null}
 
         {isLoading ? (
-          <div className="text-sm text-muted-foreground">{t("gen.pages.bookAnalysis.components.BookAnalysisCharacterPanel.gen_ec184058")}</div>
+          <div className="text-sm text-muted-foreground">{i18next.t("dict.gen_ec184058")}</div>
         ) : null}
 
         {!isLoading && candidateCharacters.length > 0 ? (
@@ -361,12 +359,12 @@ export default function BookAnalysisCharacterPanel(props: BookAnalysisCharacterP
               onClick={() => setCandidateExpanded((current) => !current)}
             >
               <div>
-                <div className="text-sm font-medium">{t("gen.pages.bookAnalysis.components.BookAnalysisCharacterPanel.gen_cc06e06c")}</div>
+                <div className="text-sm font-medium">{i18next.t("dict.gen_cc06e06c")}</div>
                 <div className="mt-1 text-xs text-muted-foreground">
                   {candidateCharacters.length} 个候选，可按需生成深度档案。
                 </div>
               </div>
-              <Badge variant="outline">{t("gen.pages.bookAnalysis.components.BookAnalysisCharacterPanel.gen_1a5c3564")}</Badge>
+              <Badge variant="outline">{i18next.t("dict.gen_1a5c3564")}</Badge>
             </button>
             {candidateExpanded ? (
               <div className="grid gap-3 border-t p-3 xl:grid-cols-2">
@@ -411,12 +409,8 @@ export default function BookAnalysisCharacterPanel(props: BookAnalysisCharacterP
                       disabled={pending.update}
                     />
                     <div className="flex flex-wrap gap-2">
-                      <Button size="sm" onClick={() => void saveEdit(character.id)} disabled={pending.update}>
-                        保存
-                      </Button>
-                      <Button size="sm" variant="outline" onClick={cancelEdit} disabled={pending.update}>
-                        取消
-                      </Button>
+                      <Button size="sm" onClick={() => void saveEdit(character.id)} disabled={pending.update}>{i18next.t("common.save")}</Button>
+                      <Button size="sm" variant="outline" onClick={cancelEdit} disabled={pending.update}>{i18next.t("common.cancel")}</Button>
                     </div>
                   </div>
                 ) : (
@@ -439,20 +433,14 @@ export default function BookAnalysisCharacterPanel(props: BookAnalysisCharacterP
                           }}
                           disabled={disabled || availableChapterAnchors(character).length === 0}
                           title={availableChapterAnchors(character).length === 0 ? "该角色缺少带章节号的原文证据，暂时无法开始证据访谈。" : undefined}
-                        >
-                          基于原文访谈
-                        </Button>
-                        <Button size="sm" variant="outline" onClick={() => startEdit(character)} disabled={disabled}>
-                          编辑
-                        </Button>
+                        >{i18next.t("bookAnalysis.bookAnalysisCharacterPanel.s3516j")}</Button>
+                        <Button size="sm" variant="outline" onClick={() => startEdit(character)} disabled={disabled}>{i18next.t("common.edit")}</Button>
                         <Button
                           size="sm"
                           variant="outline"
                           onClick={() => void onDelete(character.id)}
                           disabled={disabled || pending.delete}
-                        >
-                          删除
-                        </Button>
+                        >{i18next.t("dict.gen_2f4aaddd")}</Button>
                       </div>
                     </div>
                     <div className="mt-3 grid gap-2">
@@ -468,12 +456,12 @@ export default function BookAnalysisCharacterPanel(props: BookAnalysisCharacterP
                     </div>
                     {character.arcs.length > 0 ? (
                       <div className="mt-3 space-y-2">
-                        <div className="font-medium">{t("gen.pages.bookAnalysis.components.BookAnalysisCharacterPanel.gen_7a929c32")}</div>
+                        <div className="font-medium">{i18next.t("dict.gen_7a929c32")}</div>
                         {character.arcs.map((arc) => (
                           <div key={arc.id} className="rounded-md border bg-background p-2">
                             <div>{arc.stageLabel}</div>
                             {arc.chapterIndex !== null && arc.chapterIndex !== undefined ? (
-                              <div className="mt-1 text-xs text-muted-foreground">{t("gen.pages.bookAnalysis.components.BookAnalysisCharacterPanel.gen_2e1a684a")}</div>
+                              <div className="mt-1 text-xs text-muted-foreground">{i18next.t("dict.gen_2e1a684a")}</div>
                             ) : null}
                           </div>
                         ))}
@@ -481,7 +469,7 @@ export default function BookAnalysisCharacterPanel(props: BookAnalysisCharacterP
                     ) : null}
                     {character.scenes.length > 0 ? (
                       <div className="mt-3 space-y-2">
-                        <div className="font-medium">{t("gen.pages.bookAnalysis.components.BookAnalysisCharacterPanel.gen_7da599e8")}</div>
+                        <div className="font-medium">{i18next.t("dict.gen_7da599e8")}</div>
                         {character.scenes.map((scene) => (
                           <div key={scene.id} className="rounded-md border bg-background p-2">
                             <div>{scene.sceneLabel}</div>
@@ -510,7 +498,7 @@ export default function BookAnalysisCharacterPanel(props: BookAnalysisCharacterP
         </div>
 
         {!isLoading && characters.length === 0 ? (
-          <div className="text-sm text-muted-foreground">{t("gen.pages.bookAnalysis.components.BookAnalysisCharacterPanel.gen_b90ce47e")}</div>
+          <div className="text-sm text-muted-foreground">{i18next.t("dict.gen_b90ce47e")}</div>
         ) : null}
       </CardContent>
     </Card>

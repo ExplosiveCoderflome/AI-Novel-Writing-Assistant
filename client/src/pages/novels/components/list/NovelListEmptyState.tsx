@@ -13,19 +13,19 @@ export function NovelListEmptyState(props: {
   return (
     <section className="py-12 text-center">
       <h2 className="text-xl font-semibold tracking-normal">
-        {props.hasAnyNovel ? t("gen.pages.novels.components.list.NovelListEmptyState.gen_325f8c1a") : t("gen.pages.novels.components.list.NovelListEmptyState.gen_acec76d7")}
+        {props.hasAnyNovel ? i18next.t("dict.gen_325f8c1a") : i18next.t("dict.gen_acec76d7")}
       </h2>
       <p className="mx-auto mt-3 max-w-xl text-sm leading-6 text-muted-foreground">
         {props.hasAnyNovel
-          ? t("gen.pages.novels.components.list.NovelListEmptyState.gen_860e1882")
-          : t("gen.pages.novels.components.list.NovelListEmptyState.gen_1c5e7b24")}
+          ? i18next.t("dict.gen_860e1882")
+          : i18next.t("dict.gen_1c5e7b24")}
       </p>
       <div className="mt-5 flex flex-wrap justify-center gap-2">
         <Button asChild>
-          <Link to={DIRECTOR_CREATE_LINK}>{t("gen.pages.novels.components.list.NovelListEmptyState.aiAutoDirectorBookStart")}</Link>
+          <Link to={DIRECTOR_CREATE_LINK}>{i18next.t("novels.startWithAiDirector")}</Link>
         </Button>
         <Button asChild variant="outline">
-          <Link to={MANUAL_CREATE_LINK}>{t("gen.pages.novels.components.list.NovelListEmptyState.gen_e40b8718")}</Link>
+          <Link to={MANUAL_CREATE_LINK}>{i18next.t("home.manualCreateNovel")}</Link>
         </Button>
       </div>
     </section>

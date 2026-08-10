@@ -51,7 +51,7 @@ export default function StageIdea({
 
   const useIdeaInspiration = (text: string) => {
     if (idea.trim()) {
-      const confirmed = window.confirm(t("gen.pages.novels.autoDirector.StageIdea.confirmOverwrite"));
+      const confirmed = window.confirm(i18next.t("dict.confirmOverwrite"));
       if (!confirmed) {
         return;
       }
@@ -89,19 +89,15 @@ export default function StageIdea({
         transition={{ duration: reducedMotion ? 0 : 0.2 }}
         className="w-full text-center"
       >
-        <h1 className="text-3xl font-semibold tracking-normal text-foreground sm:text-[32px]">
-          用一句话，开始你的整本书
-        </h1>
-        <p className="mt-3 text-sm leading-6 text-muted-foreground sm:text-base">
-          写下你想看的故事，AI 会先帮你整理成可选择的整本书方向。
-        </p>
+        <h1 className="text-3xl font-semibold tracking-normal text-foreground sm:text-[32px]">{i18next.t("novels.stageIdea.1tnurh")}</h1>
+        <p className="mt-3 text-sm leading-6 text-muted-foreground sm:text-base">{i18next.t("novels.stageIdea.4zhf6p")}</p>
       </motion.div>
 
       <div className="mt-6 w-full">
         <OnboardingTip
           storageKey="auto-director-idea"
-          title="一句话不需要写成完整大纲"
-          description="写清主角、处境或最想看的冲突即可。题材、卖点和长篇推进方式会由 AI 在下一步整理。"
+          title={i18next.t("novels.stageIdea.76i6g0")}
+          description={i18next.t("novels.stageIdea.hgkd5i")}
           next="AI 生成两套差异明确的整书方向。"
         />
       </div>
@@ -117,7 +113,7 @@ export default function StageIdea({
           className="min-h-[180px] w-full resize-none bg-transparent px-1 py-1 text-base leading-7 text-foreground outline-none placeholder:text-muted-foreground/60 sm:text-lg sm:leading-8"
           value={idea}
           onChange={(event) => onIdeaChange(event.target.value)}
-          placeholder={t("gen.pages.novels.autoDirector.StageIdea.exampleOrdinaryFemaleUniversityStudentEnteredAbilitiesOrganizationWorkingAndStudyingWhileInvestigatingFatherDisappearedTruth")}
+          placeholder={i18next.t("dict.exampleOrdinaryFemaleUniversityStudentEnteredAbilitiesOrganizationWorkingAndStudyingWhileInvestigatingFatherDisappearedTruth")}
         />
         <div className="flex flex-col gap-2 pt-3 sm:flex-row sm:items-center sm:justify-between">
           <button
@@ -127,7 +123,7 @@ export default function StageIdea({
             disabled={isGeneratingIdeaInspirations}
           >
             <Sparkles className="h-4 w-4" />
-            {isGeneratingIdeaInspirations ? t("gen.pages.novels.autoDirector.StageIdea.gen_95e81025") : t("gen.pages.novels.autoDirector.StageIdea.gen_fab2c176")}
+            {isGeneratingIdeaInspirations ? i18next.t("dict.gen_95e81025") : i18next.t("dict.gen_fab2c176")}
           </button>
           <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
             <button
@@ -136,11 +132,9 @@ export default function StageIdea({
               onClick={onQuickGenerate}
               disabled={!canContinue || isGenerating}
             >
-              {isGenerating ? t("gen.pages.novels.autoDirector.StageIdea.gen_4d020ba3") : t("gen.pages.novels.autoDirector.StageIdea.gen_9649cffc")}
+              {isGenerating ? i18next.t("dict.gen_4d020ba3") : i18next.t("dict.gen_9649cffc")}
             </button>
-            <Button type="button" onClick={onContinue} disabled={!canContinue}>
-              继续完善设定
-              <ArrowRight className="h-4 w-4" />
+            <Button type="button" onClick={onContinue} disabled={!canContinue}>{i18next.t("novels.stageIdea.kzlreu")}<ArrowRight className="h-4 w-4" />
             </Button>
           </div>
         </div>

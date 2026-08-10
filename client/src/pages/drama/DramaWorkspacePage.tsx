@@ -26,18 +26,18 @@ import { DRAMA_SOURCE_LABELS, DRAMA_TRACK_OPTIONS, dramaTrackLabel } from "./dra
 import SelectControl from "@/components/common/SelectControl";
 
 const WIZARD_STEPS = [
-  { key: "source", label: t("gen.pages.drama.DramaWorkspacePage.gen_26ca20b1") },
-  { key: "content", label: t("gen.pages.drama.DramaWorkspacePage.gen_2d711b09") },
-  { key: "settings", label: t("gen.pages.drama.DramaWorkspacePage.gen_ea887bd0") },
+  { key: "source", label: i18next.t("dict.gen_26ca20b1") },
+  { key: "content", label: i18next.t("dict.gen_2d711b09") },
+  { key: "settings", label: i18next.t("dict.gen_ea887bd0") },
 ] as const;
 
 function statusLabel(status: string): string {
   const labels: Record<string, string> = {
-    draft: t("gen.pages.drama.DramaWorkspacePage.gen_4f1e5fdf"),
-    strategized: t("gen.pages.drama.DramaWorkspacePage.gen_301c0f79"),
-    outlined: t("gen.pages.drama.DramaWorkspacePage.gen_e524427a"),
-    scripting: t("gen.pages.drama.DramaWorkspacePage.gen_92bb42ba"),
-    completed: t("gen.pages.drama.DramaWorkspacePage.gen_fad5222c"),
+    draft: i18next.t("dict.gen_4f1e5fdf"),
+    strategized: i18next.t("dict.gen_301c0f79"),
+    outlined: i18next.t("dict.gen_e524427a"),
+    scripting: i18next.t("dict.gen_92bb42ba"),
+    completed: i18next.t("tasks.filterStatusSucceeded"),
   };
   return labels[status] ?? status;
 }
@@ -55,7 +55,7 @@ function buildRecommendationDigest(form: {
     return form.rawText.trim().slice(0, 12000);
   }
   if (selectedNovel) {
-    return `已选择小说《${selectedNovel.title || t("gen.pages.drama.DramaWorkspacePage.gen_e3f46686")}》，共 ${selectedNovel._count?.chapters ?? 0} 章。`;
+    return `已选择小说《${selectedNovel.title || i18next.t("dict.gen_e3f46686")}》，共 ${selectedNovel._count?.chapters ?? 0} 章。`;
   }
   return "";
 }
@@ -122,9 +122,7 @@ function ProjectCard(props: {
       </CardHeader>
       <CardContent className="flex flex-wrap gap-2">
         <Button asChild type="button" size="sm">
-          <Link to={`/drama/projects/${props.project.id}`}>
-            打开工作台
-            <ArrowRight className="h-4 w-4" />
+          <Link to={`/drama/projects/${props.project.id}`}>{i18next.t("comic.comicWorkspacePage.td5110")}<ArrowRight className="h-4 w-4" />
           </Link>
         </Button>
         <Button
@@ -134,9 +132,7 @@ function ProjectCard(props: {
           disabled={isBusy}
           onClick={() => props.onAssemble(props.project)}
         >
-          <Layers3 className="h-4 w-4" />
-          整理素材
-        </Button>
+          <Layers3 className="h-4 w-4" />{i18next.t("dict.gen_eeb01df4")}</Button>
         <Button
           type="button"
           size="sm"
@@ -144,18 +140,14 @@ function ProjectCard(props: {
           disabled={isBusy}
           onClick={() => props.onStrategy(props.project)}
         >
-          <Sparkles className="h-4 w-4" />
-          生成策略
-        </Button>
+          <Sparkles className="h-4 w-4" />{i18next.t("dict.gen_5f66b6de")}</Button>
         <Button
           type="button"
           size="sm"
           disabled={isBusy}
           onClick={() => props.onOutline(props.project)}
         >
-          <ListVideo className="h-4 w-4" />
-          生成前 12 集
-        </Button>
+          <ListVideo className="h-4 w-4" />{i18next.t("dict.gen_ecc3b873")}</Button>
       </CardContent>
     </Card>
   );
@@ -199,7 +191,7 @@ export default function DramaWorkspacePage() {
     mutationFn: (payload: CreateDramaProjectPayload) => createDramaProject(payload),
     onSuccess: async (response) => {
       await queryClient.invalidateQueries({ queryKey: queryKeys.drama.projects });
-      toast.success(t("gen.pages.drama.DramaWorkspacePage.gen_830d6c93"));
+      toast.success(i18next.t("dict.gen_830d6c93"));
       if (response.data?.id) {
         navigate(`/drama/projects/${response.data.id}`);
         return;
@@ -217,7 +209,7 @@ export default function DramaWorkspacePage() {
 
   const trackRecommendationMutation = useMutation({
     mutationFn: () => recommendDramaTrack({
-      title: form.title.trim() || selectedNovel?.title || t("gen.pages.drama.DramaWorkspacePage.gen_10f4511a"),
+      title: form.title.trim() || selectedNovel?.title || i18next.t("dict.gen_10f4511a"),
       sourceType: form.source,
       sourceDigest: buildRecommendationDigest(form, selectedNovel),
       theme: form.theme.trim() || undefined,
@@ -228,7 +220,7 @@ export default function DramaWorkspacePage() {
       if (recommendation) {
         setTrackRecommendation(recommendation);
         setForm((current) => ({ ...current, track: recommendation.recommendedTrack }));
-        toast.success(t("gen.pages.drama.DramaWorkspacePage.gen_e9a53cf6"));
+        toast.success(i18next.t("dict.gen_e9a53cf6"));
       }
     },
   });
@@ -255,15 +247,15 @@ export default function DramaWorkspacePage() {
     }
     if (stepIndex === 1) {
       if (form.source === "novel_import" && !form.sourceRef.trim()) {
-        toast.error(t("gen.pages.drama.DramaWorkspacePage.gen_3a3792cc"));
+        toast.error(i18next.t("dict.gen_3a3792cc"));
         return false;
       }
       if (form.source === "original" && !form.inspiration.trim()) {
-        toast.error(t("gen.pages.drama.DramaWorkspacePage.gen_5e5e9d94"));
+        toast.error(i18next.t("dict.gen_5e5e9d94"));
         return false;
       }
       if (form.source === "text_import" && !form.rawText.trim()) {
-        toast.error(t("gen.pages.drama.DramaWorkspacePage.gen_f769bdcc"));
+        toast.error(i18next.t("dict.gen_f769bdcc"));
         return false;
       }
     }
@@ -282,19 +274,19 @@ export default function DramaWorkspacePage() {
       return;
     }
     if (!form.title.trim()) {
-      toast.error(t("gen.pages.drama.DramaWorkspacePage.gen_a40e68f5"));
+      toast.error(i18next.t("dict.gen_a40e68f5"));
       return;
     }
     if (form.source === "novel_import" && !form.sourceRef.trim()) {
-      toast.error(t("gen.pages.drama.DramaWorkspacePage.gen_3a3792cc"));
+      toast.error(i18next.t("dict.gen_3a3792cc"));
       return;
     }
     if (form.source === "original" && !form.inspiration.trim()) {
-      toast.error(t("gen.pages.drama.DramaWorkspacePage.gen_5e5e9d94"));
+      toast.error(i18next.t("dict.gen_5e5e9d94"));
       return;
     }
     if (form.source === "text_import" && !form.rawText.trim()) {
-      toast.error(t("gen.pages.drama.DramaWorkspacePage.gen_f769bdcc"));
+      toast.error(i18next.t("dict.gen_f769bdcc"));
       return;
     }
     createMutation.mutate(buildCreatePayload(form));
@@ -305,7 +297,7 @@ export default function DramaWorkspacePage() {
       ...current,
       source,
       sourceRef: "",
-      title: source === "original" && !current.title ? t("gen.pages.drama.DramaWorkspacePage.gen_83158a40") : current.title,
+      title: source === "original" && !current.title ? i18next.t("dict.gen_83158a40") : current.title,
     }));
     setTrackRecommendation(null);
     setStepIndex(1);
@@ -314,17 +306,15 @@ export default function DramaWorkspacePage() {
   return (
     <div className="space-y-5">
       <div className="space-y-2">
-        <h1 className="text-2xl font-semibold tracking-normal">{t("gen.pages.drama.DramaWorkspacePage.gen_8eb337a1")}</h1>
-        <p className="max-w-3xl text-sm text-muted-foreground">
-          从小说、原创灵感或导入文本整理短剧素材，再生成竖屏付费短剧策略和分集台本。
-        </p>
+        <h1 className="text-2xl font-semibold tracking-normal">{i18next.t("dict.gen_8eb337a1")}</h1>
+        <p className="max-w-3xl text-sm text-muted-foreground">{i18next.t("drama.dramaWorkspacePage.gzuz2d")}</p>
       </div>
 
       <div className="grid gap-4 xl:grid-cols-[minmax(320px,420px)_1fr]">
         <Card className="rounded-lg">
           <CardHeader>
-            <CardTitle className="text-lg">{t("gen.pages.drama.DramaWorkspacePage.gen_295a420e")}</CardTitle>
-            <CardDescription>{t("gen.pages.drama.DramaWorkspacePage.gen_ddcaf921")}</CardDescription>
+            <CardTitle className="text-lg">{i18next.t("dict.gen_295a420e")}</CardTitle>
+            <CardDescription>{i18next.t("dict.gen_ddcaf921")}</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="grid grid-cols-3 gap-2">
@@ -343,16 +333,16 @@ export default function DramaWorkspacePage() {
             {stepIndex === 0 ? (
               <div className="grid gap-3">
                 <button type="button" className={`rounded-lg border p-3 text-left ${form.source === "novel_import" ? "border-primary bg-primary/5" : ""}`} onClick={() => chooseSource("novel_import")}>
-                  <div className="flex items-center gap-2 font-medium"><BookOpenText className="h-4 w-4" />{t("gen.pages.drama.DramaWorkspacePage.gen_d093e95b")}</div>
-                  <p className="mt-1 text-sm text-muted-foreground">{t("gen.pages.drama.DramaWorkspacePage.adaptExistingNovel")}</p>
+                  <div className="flex items-center gap-2 font-medium"><BookOpenText className="h-4 w-4" />{i18next.t("dict.gen_d093e95b")}</div>
+                  <p className="mt-1 text-sm text-muted-foreground">{i18next.t("dict.adaptExistingNovel")}</p>
                 </button>
                 <button type="button" className={`rounded-lg border p-3 text-left ${form.source === "original" ? "border-primary bg-primary/5" : ""}`} onClick={() => chooseSource("original")}>
-                  <div className="flex items-center gap-2 font-medium"><Lightbulb className="h-4 w-4" />{t("gen.pages.drama.DramaWorkspacePage.gen_4b6c8cee")}</div>
-                  <p className="mt-1 text-sm text-muted-foreground">{t("gen.pages.drama.DramaWorkspacePage.initFromInspirationSystemOrganize")}</p>
+                  <div className="flex items-center gap-2 font-medium"><Lightbulb className="h-4 w-4" />{i18next.t("dict.gen_4b6c8cee")}</div>
+                  <p className="mt-1 text-sm text-muted-foreground">{i18next.t("dict.initFromInspirationSystemOrganize")}</p>
                 </button>
                 <button type="button" className={`rounded-lg border p-3 text-left ${form.source === "text_import" ? "border-primary bg-primary/5" : ""}`} onClick={() => chooseSource("text_import")}>
-                  <div className="flex items-center gap-2 font-medium"><FileText className="h-4 w-4" />{t("gen.pages.drama.DramaWorkspacePage.gen_28db289c")}</div>
-                  <p className="mt-1 text-sm text-muted-foreground">{t("gen.pages.drama.DramaWorkspacePage.gen_6e3c6f1f")}</p>
+                  <div className="flex items-center gap-2 font-medium"><FileText className="h-4 w-4" />{i18next.t("dict.gen_28db289c")}</div>
+                  <p className="mt-1 text-sm text-muted-foreground">{i18next.t("dict.gen_6e3c6f1f")}</p>
                 </button>
               </div>
             ) : null}
@@ -362,7 +352,7 @@ export default function DramaWorkspacePage() {
                 {form.source === "novel_import" ? (
                   <>
                     <label className="block space-y-1.5 text-sm">
-                      <span className="font-medium">{t("gen.pages.drama.DramaWorkspacePage.gen_44cddc3d")}</span>
+                      <span className="font-medium">{i18next.t("creativeHub.actionSelectNovel")}</span>
                       <SelectControl
                         className="h-10 w-full rounded-md border bg-background px-3 text-sm"
                         value={form.sourceRef}
@@ -377,18 +367,18 @@ export default function DramaWorkspacePage() {
                         }}
                       >
                         <option value="" disabled>
-                          {novelsQuery.isLoading ? t("gen.pages.drama.DramaWorkspacePage.gen_3248501e") : novels.length > 0 ? t("gen.pages.drama.DramaWorkspacePage.gen_9d00f8ec") : t("gen.pages.drama.DramaWorkspacePage.gen_682c7475")}
+                          {novelsQuery.isLoading ? i18next.t("dict.gen_3248501e") : novels.length > 0 ? i18next.t("dict.gen_9d00f8ec") : i18next.t("dict.gen_682c7475")}
                         </option>
                         {novels.map((novel) => (
                           <option key={novel.id} value={novel.id}>
-                            {novel.title || t("gen.pages.drama.DramaWorkspacePage.gen_e3f46686")}（{novel._count.chapters} 章）
+                            {novel.title || i18next.t("dict.gen_e3f46686")}（{novel._count.chapters} 章）
                           </option>
                         ))}
                       </SelectControl>
                     </label>
                     {selectedNovel ? (
                       <div className="rounded-md border p-3 text-sm text-muted-foreground">
-                        已选择 {selectedNovel.title || t("gen.pages.drama.DramaWorkspacePage.gen_e3f46686")}，共 {selectedNovel._count.chapters} 章。创建后会先整理为短剧素材包。
+                        已选择 {selectedNovel.title || i18next.t("dict.gen_e3f46686")}，共 {selectedNovel._count.chapters} 章。创建后会先整理为短剧素材包。
                       </div>
                     ) : null}
                   </>
@@ -396,11 +386,11 @@ export default function DramaWorkspacePage() {
 
                 {form.source === "original" ? (
                   <label className="block space-y-1.5 text-sm">
-                    <span className="font-medium">{t("gen.pages.drama.DramaWorkspacePage.gen_de6d7781")}</span>
+                    <span className="font-medium">{i18next.t("dict.gen_de6d7781")}</span>
                     <textarea
                       className="min-h-32 w-full rounded-md border bg-background px-3 py-2 text-sm"
                       value={form.inspiration}
-                      placeholder={t("gen.pages.drama.DramaWorkspacePage.exampleWifeDivorcedRealSheWasInheritedPatronFamilyPubliclyRetaliateAllWhoHumiliatedHer")}
+                      placeholder={i18next.t("dict.exampleWifeDivorcedRealSheWasInheritedPatronFamilyPubliclyRetaliateAllWhoHumiliatedHer")}
                       onChange={(event) => setForm((current) => ({ ...current, inspiration: event.target.value }))}
                     />
                   </label>
@@ -408,11 +398,11 @@ export default function DramaWorkspacePage() {
 
                 {form.source === "text_import" ? (
                   <label className="block space-y-1.5 text-sm">
-                    <span className="font-medium">{t("gen.pages.drama.DramaWorkspacePage.gen_e0b20cd3")}</span>
+                    <span className="font-medium">{i18next.t("dict.gen_e0b20cd3")}</span>
                     <textarea
                       className="min-h-40 w-full rounded-md border bg-background px-3 py-2 text-sm"
                       value={form.rawText}
-                      placeholder={t("gen.pages.drama.DramaWorkspacePage.gen_d86e82ed")}
+                      placeholder={i18next.t("dict.gen_d86e82ed")}
                       onChange={(event) => setForm((current) => ({ ...current, rawText: event.target.value }))}
                     />
                   </label>
@@ -423,7 +413,7 @@ export default function DramaWorkspacePage() {
             {stepIndex === 2 ? (
               <div className="space-y-4">
                 <label className="block space-y-1.5 text-sm">
-                  <span className="font-medium">{t("gen.pages.drama.DramaWorkspacePage.gen_0848477e")}</span>
+                  <span className="font-medium">{i18next.t("dict.gen_0848477e")}</span>
                   <input
                     className="h-10 w-full rounded-md border bg-background px-3 text-sm"
                     value={form.title}
@@ -432,7 +422,7 @@ export default function DramaWorkspacePage() {
                 </label>
                 <div className="grid gap-3 sm:grid-cols-2">
                   <label className="block space-y-1.5 text-sm">
-                    <span className="font-medium">{t("gen.pages.drama.DramaWorkspacePage.gen_79c58c55")}</span>
+                    <span className="font-medium">{i18next.t("dict.gen_79c58c55")}</span>
                     <SelectControl
                       className="h-10 w-full rounded-md border bg-background px-3 text-sm"
                       value={form.track}
@@ -444,7 +434,7 @@ export default function DramaWorkspacePage() {
                     </SelectControl>
                   </label>
                   <label className="block space-y-1.5 text-sm">
-                    <span className="font-medium">{t("gen.pages.drama.DramaWorkspacePage.gen_2434d076")}</span>
+                    <span className="font-medium">{i18next.t("dict.gen_2434d076")}</span>
                     <input
                       type="number"
                       min="1"
@@ -455,7 +445,7 @@ export default function DramaWorkspacePage() {
                   </label>
                 </div>
                 <label className="block space-y-1.5 text-sm">
-                  <span className="font-medium">{t("gen.pages.drama.DramaWorkspacePage.gen_27571173")}</span>
+                  <span className="font-medium">{i18next.t("dict.gen_27571173")}</span>
                   <input
                     className="h-10 w-full rounded-md border bg-background px-3 text-sm"
                     value={form.theme}
@@ -465,8 +455,8 @@ export default function DramaWorkspacePage() {
                 <div className="space-y-3 rounded-lg border p-3">
                   <div className="flex flex-wrap items-center justify-between gap-2">
                     <div>
-                      <div className="text-sm font-medium">{t("gen.pages.drama.DramaWorkspacePage.gen_918cdabd")}</div>
-                      <p className="text-sm text-muted-foreground">{t("gen.pages.drama.DramaWorkspacePage.gen_1befb652")}</p>
+                      <div className="text-sm font-medium">{i18next.t("dict.gen_918cdabd")}</div>
+                      <p className="text-sm text-muted-foreground">{i18next.t("dict.gen_1befb652")}</p>
                     </div>
                     <Button
                       type="button"
@@ -476,7 +466,7 @@ export default function DramaWorkspacePage() {
                       onClick={() => trackRecommendationMutation.mutate()}
                     >
                       <Sparkles className="h-4 w-4" />
-                      {trackRecommendationMutation.isPending ? t("gen.pages.drama.DramaWorkspacePage.gen_837fbf7f") : t("gen.pages.drama.DramaWorkspacePage.gen_f64d6b4a")}
+                      {trackRecommendationMutation.isPending ? i18next.t("dict.gen_837fbf7f") : i18next.t("dict.gen_f64d6b4a")}
                     </Button>
                   </div>
                   {trackRecommendation ? (
@@ -505,19 +495,15 @@ export default function DramaWorkspacePage() {
 
             <div className="flex flex-wrap gap-2">
               {stepIndex > 0 ? (
-                <Button type="button" variant="outline" onClick={() => setStepIndex((current) => Math.max(0, current - 1))}>
-                  上一步
-                </Button>
+                <Button type="button" variant="outline" onClick={() => setStepIndex((current) => Math.max(0, current - 1))}>{i18next.t("comic.comicWorkspacePage.btcrz")}</Button>
               ) : null}
               {stepIndex < WIZARD_STEPS.length - 1 ? (
-                <Button type="button" onClick={goNext}>
-                  下一步
-                  <ArrowRight className="h-4 w-4" />
+                <Button type="button" onClick={goNext}>{i18next.t("dict.nextStep")}<ArrowRight className="h-4 w-4" />
                 </Button>
               ) : (
                 <Button type="button" disabled={createMutation.isPending} onClick={handleCreate}>
                   <Plus className="h-4 w-4" />
-                  {createMutation.isPending ? t("gen.pages.drama.DramaWorkspacePage.gen_b26107b6") : t("gen.pages.drama.DramaWorkspacePage.gen_d27b9156")}
+                  {createMutation.isPending ? i18next.t("dict.gen_b26107b6") : i18next.t("dict.gen_d27b9156")}
                 </Button>
               )}
             </div>
@@ -527,8 +513,8 @@ export default function DramaWorkspacePage() {
         <div className="space-y-3">
           <div className="flex items-center justify-between gap-3">
             <div>
-              <h2 className="text-lg font-semibold tracking-normal">{t("gen.pages.drama.DramaWorkspacePage.gen_31ecc0e6")}</h2>
-              <p className="text-sm text-muted-foreground">{t("gen.pages.drama.DramaWorkspacePage.gen_a8f344e6")}</p>
+              <h2 className="text-lg font-semibold tracking-normal">{i18next.t("dict.gen_31ecc0e6")}</h2>
+              <p className="text-sm text-muted-foreground">{i18next.t("dict.gen_a8f344e6")}</p>
             </div>
             <Button
               type="button"
@@ -537,19 +523,15 @@ export default function DramaWorkspacePage() {
               disabled={projectsQuery.isFetching}
               onClick={() => void projectsQuery.refetch()}
             >
-              <RefreshCw className="h-4 w-4" />
-              刷新
-            </Button>
+              <RefreshCw className="h-4 w-4" />{i18next.t("drama.dramaProjectPage.ejix")}</Button>
           </div>
 
           {projectsQuery.isLoading ? (
-            <div className="rounded-md border p-4 text-sm text-muted-foreground">{t("gen.pages.drama.DramaWorkspacePage.gen_c5b9ca5a")}</div>
+            <div className="rounded-md border p-4 text-sm text-muted-foreground">{i18next.t("dict.gen_c5b9ca5a")}</div>
           ) : null}
 
           {!projectsQuery.isLoading && projects.length === 0 ? (
-            <div className="rounded-md border border-dashed p-6 text-center text-sm text-muted-foreground">
-              还没有短剧项目。先从左侧创建一个项目。
-            </div>
+            <div className="rounded-md border border-dashed p-6 text-center text-sm text-muted-foreground">{i18next.t("drama.dramaWorkspacePage.tt1p2i")}</div>
           ) : null}
 
           <div className="grid gap-3">
@@ -558,12 +540,12 @@ export default function DramaWorkspacePage() {
                 key={project.id}
                 project={project}
                 busyProjectId={busyProjectId}
-                onAssemble={(item) => void runProjectAction(item, assembleDramaSourceBundle, t("gen.pages.drama.DramaWorkspacePage.gen_971fac72"))}
-                onStrategy={(item) => void runProjectAction(item, generateDramaStrategy, t("gen.pages.drama.DramaWorkspacePage.gen_45be5534"))}
+                onAssemble={(item) => void runProjectAction(item, assembleDramaSourceBundle, i18next.t("dict.gen_971fac72"))}
+                onStrategy={(item) => void runProjectAction(item, generateDramaStrategy, i18next.t("dict.gen_45be5534"))}
                 onOutline={(item) => void runProjectAction(
                   item,
                   (projectId) => generateDramaOutline(projectId, { startOrder: 1, count: 12 }),
-                  t("gen.pages.drama.DramaWorkspacePage.gen_b1c454f5"),
+                  i18next.t("dict.gen_b1c454f5"),
                 )}
               />
             ))}

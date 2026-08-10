@@ -1,3 +1,5 @@
+import i18next from "i18next";
+import { useTranslation } from "react-i18next";
 import type {
   BookAnalysis,
   BookAnalysisStatus,
@@ -25,6 +27,7 @@ interface BookAnalysisSidebarProps {
 }
 
 export default function BookAnalysisSidebar(props: BookAnalysisSidebarProps) {
+  const { t } = useTranslation();
   const {
     keyword,
     status,
@@ -43,45 +46,39 @@ export default function BookAnalysisSidebar(props: BookAnalysisSidebarProps) {
     <Card>
       <CardHeader className="space-y-3">
         <div className="flex items-center justify-between gap-2">
-          <CardTitle>分析列表</CardTitle>
+          <CardTitle>{i18next.t("dict.gen_ff1eb893")}</CardTitle>
           <Badge variant="outline">{analyses.length}</Badge>
         </div>
         <Button type="button" size="sm" className="w-full" onClick={onOpenCreateDialog}>
-          <Plus className="mr-1.5 h-4 w-4" />
-          新建拆书
-        </Button>
+          <Plus className="mr-1.5 h-4 w-4" />{i18next.t("dict.gen_989a71a3")}</Button>
       </CardHeader>
       <CardContent className="space-y-3">
-        <Input value={keyword} onChange={(event) => onKeywordChange(event.target.value)} placeholder="搜索标题或关键词" />
+        <Input value={keyword} onChange={(event) => onKeywordChange(event.target.value)} placeholder={i18next.t("dict.gen_b6228286")} />
         <SelectControl
           className="h-10 w-full rounded-md border bg-background px-3 text-sm"
           value={status}
           onChange={(event) => onStatusChange(event.target.value as BookAnalysisStatus | "")}
         >
-          <option value="">全部状态</option>
-          <option value="draft">草稿</option>
-          <option value="queued">排队中</option>
-          <option value="running">运行中</option>
-          <option value="succeeded">成功</option>
-          <option value="failed">失败</option>
-          <option value="cancelled">已取消</option>
-          <option value="archived">已归档</option>
+          <option value="">{i18next.t("tasks.filterStatusAll")}</option>
+          <option value="draft">{i18next.t("common.draft")}</option>
+          <option value="queued">{i18next.t("tasks.filterStatusQueued")}</option>
+          <option value="running">{i18next.t("tasks.filterStatusRunning")}</option>
+          <option value="succeeded">{i18next.t("dict.gen_330363df")}</option>
+          <option value="failed">{i18next.t("tasks.filterStatusFailed")}</option>
+          <option value="cancelled">{i18next.t("tasks.filterStatusCancelled")}</option>
+          <option value="archived">{i18next.t("dict.gen_c3ba167c")}</option>
         </SelectControl>
 
         <div className="space-y-2">
           {loading ? (
             <div className="flex items-center gap-2 rounded-md border border-dashed px-3 py-4 text-xs text-muted-foreground" aria-live="polite">
-              <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
-              正在加载拆书分析...
-            </div>
+              <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />{i18next.t("bookAnalysis.bookAnalysisSidebar.5s4mf2")}</div>
           ) : null}
           {!loading && errorMessage ? (
             <div className="rounded-md border border-destructive/30 bg-destructive/5 p-3 text-xs text-destructive" role="alert">
               <div>{errorMessage}</div>
               <Button type="button" size="sm" variant="outline" className="mt-3" onClick={onRetry}>
-                <RefreshCw className="mr-1.5 h-3.5 w-3.5" aria-hidden="true" />
-                重新加载
-              </Button>
+                <RefreshCw className="mr-1.5 h-3.5 w-3.5" aria-hidden="true" />{i18next.t("common.retry")}</Button>
             </div>
           ) : null}
           {!loading && !errorMessage ? analyses.map((item) => (
@@ -105,7 +102,7 @@ export default function BookAnalysisSidebar(props: BookAnalysisSidebarProps) {
                 </div>
                 <div className="flex shrink-0 flex-col items-end gap-1">
                   {item.publishedDocumentId && (
-                    <Badge variant="secondary" className="text-[10px]">已发布</Badge>
+                    <Badge variant="secondary" className="text-[10px]">{i18next.t("common.published")}</Badge>
                   )}
                   <Badge variant="outline" className="text-[10px]">{formatStatus(item.status)}</Badge>
                 </div>

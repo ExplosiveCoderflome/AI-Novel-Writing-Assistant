@@ -36,11 +36,11 @@ export function CharacterCreateDialog({ onCreated }: CharacterCreateDialogProps)
   const [isOpen, setIsOpen] = useState(false);
   const [form, setForm] = useState({
     name: "",
-    role: t("gen.pages.characters.components.CharacterCreateDialog.mainCharacter"),
+    role: i18next.t("dict.mainCharacter"),
     personality: "",
     background: "",
     development: "",
-    category: t("gen.pages.characters.components.CharacterCreateDialog.mainCharacter"),
+    category: i18next.t("dict.mainCharacter"),
   });
   const [aiDescription, setAIDescription] = useState("");
   const [constraints, setConstraints] = useState<CharacterGenerateConstraints>(createDefaultConstraints());
@@ -99,45 +99,45 @@ export function CharacterCreateDialog({ onCreated }: CharacterCreateDialogProps)
   return (
     <Dialog open={isOpen} onOpenChange={setIsOpen}>
       <DialogTrigger asChild>
-        <Button>{t("gen.pages.characters.components.CharacterCreateDialog.gen_00d61084")}</Button>
+        <Button>{i18next.t("dict.gen_00d61084")}</Button>
       </DialogTrigger>
       <DialogContent className="w-[96vw] max-h-[90vh] max-w-[1400px] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>{t("gen.pages.characters.components.CharacterCreateDialog.gen_00d61084")}</DialogTitle>
+          <DialogTitle>{i18next.t("dict.gen_00d61084")}</DialogTitle>
         </DialogHeader>
         <div className="space-y-4">
           <Card>
             <CardHeader>
-              <CardTitle>{t("gen.pages.characters.components.CharacterCreateDialog.gen_9da1ccbd")}</CardTitle>
+              <CardTitle>{i18next.t("dict.gen_9da1ccbd")}</CardTitle>
             </CardHeader>
             <CardContent className="grid gap-2 md:grid-cols-2">
               <input
                 className="rounded-md border p-2 text-sm"
-                placeholder={t("gen.pages.characters.components.CharacterCreateDialog.gen_10a6f121")}
+                placeholder={i18next.t("dict.gen_10a6f121")}
                 value={form.name}
                 onChange={(event) => setForm((prev) => ({ ...prev, name: event.target.value }))}
               />
               <input
                 className="rounded-md border p-2 text-sm"
-                placeholder={t("gen.pages.characters.components.CharacterCreateDialog.gen_1461d16d")}
+                placeholder={i18next.t("dict.gen_1461d16d")}
                 value={form.role}
                 onChange={(event) => setForm((prev) => ({ ...prev, role: event.target.value }))}
               />
               <input
                 className="rounded-md border p-2 text-sm"
-                placeholder={t("gen.pages.characters.components.CharacterCreateDialog.gen_12c6fbb0")}
+                placeholder={i18next.t("dict.gen_12c6fbb0")}
                 value={form.personality}
                 onChange={(event) => setForm((prev) => ({ ...prev, personality: event.target.value }))}
               />
               <input
                 className="rounded-md border p-2 text-sm"
-                placeholder={t("gen.pages.characters.components.CharacterCreateDialog.gen_78c847e0")}
+                placeholder={i18next.t("dict.gen_78c847e0")}
                 value={form.background}
                 onChange={(event) => setForm((prev) => ({ ...prev, background: event.target.value }))}
               />
               <input
                 className="rounded-md border p-2 text-sm md:col-span-2"
-                placeholder={t("gen.pages.characters.components.CharacterCreateDialog.gen_4578b906")}
+                placeholder={i18next.t("dict.gen_4578b906")}
                 value={form.development}
                 onChange={(event) => setForm((prev) => ({ ...prev, development: event.target.value }))}
               />
@@ -146,33 +146,31 @@ export function CharacterCreateDialog({ onCreated }: CharacterCreateDialogProps)
                 onClick={() => createMutation.mutate()}
                 disabled={createMutation.isPending || !form.name.trim()}
               >
-                {createMutation.isPending ? t("gen.pages.characters.components.CharacterCreateDialog.gen_b26107b6") : t("gen.pages.characters.components.CharacterCreateDialog.gen_00d61084")}
+                {createMutation.isPending ? i18next.t("dict.gen_b26107b6") : i18next.t("dict.gen_00d61084")}
               </Button>
             </CardContent>
           </Card>
 
           <Card>
             <CardHeader>
-              <CardTitle>{t("gen.pages.characters.components.CharacterCreateDialog.aiGenerateCharacter")}</CardTitle>
+              <CardTitle>{i18next.t("dict.aiGenerateCharacter")}</CardTitle>
             </CardHeader>
             <CardContent className="space-y-3">
               <textarea
                 className="min-h-[120px] w-full rounded-md border p-2 text-sm"
-                placeholder={t("gen.pages.characters.components.CharacterCreateDialog.gen_8d4203f3")}
+                placeholder={i18next.t("dict.gen_8d4203f3")}
                 value={aiDescription}
                 onChange={(event) => setAIDescription(event.target.value)}
               />
 
               <div className="space-y-2 rounded-md border p-3">
                 <div className="flex items-center justify-between gap-2">
-                  <div className="text-sm font-medium">{t("gen.pages.characters.components.CharacterCreateDialog.gen_dc6fc1c8")}</div>
-                  <Button size="sm" variant="outline" onClick={() => setConstraints(createDefaultConstraints())}>
-                    一键清空高级设定
-                  </Button>
+                  <div className="text-sm font-medium">{i18next.t("dict.gen_dc6fc1c8")}</div>
+                  <Button size="sm" variant="outline" onClick={() => setConstraints(createDefaultConstraints())}>{i18next.t("characters.characterCreateDialog.8hydjm")}</Button>
                 </div>
                 <div className="grid gap-2 md:grid-cols-2">
                   <label className="space-y-1 text-sm">
-                    <div className="text-xs text-muted-foreground">{t("gen.pages.characters.components.CharacterCreateDialog.gen_298006e9")}</div>
+                    <div className="text-xs text-muted-foreground">{i18next.t("dict.gen_298006e9")}</div>
                     <SelectControl
                       className="h-10 w-full rounded-md border bg-background px-2 text-sm"
                       value={constraints.storyFunction ?? ""}
@@ -182,17 +180,17 @@ export function CharacterCreateDialog({ onCreated }: CharacterCreateDialogProps)
                           storyFunction: (event.target.value || undefined) as CharacterGenerateConstraints["storyFunction"],
                         }))}
                     >
-                      <option value="">{t("gen.pages.characters.components.CharacterCreateDialog.unspecified")}</option>
-                      <option value={t("gen.pages.characters.components.CharacterCreateDialog.mainCharacter")}>{t("gen.pages.characters.components.CharacterCreateDialog.mainCharacter")}</option>
-                      <option value={t("gen.pages.characters.components.CharacterCreateDialog.gen_27dd76d8")}>{t("gen.pages.characters.components.CharacterCreateDialog.gen_27dd76d8")}</option>
-                      <option value={t("gen.pages.characters.components.CharacterCreateDialog.gen_d62518be")}>{t("gen.pages.characters.components.CharacterCreateDialog.gen_d62518be")}</option>
-                      <option value={t("gen.pages.characters.components.CharacterCreateDialog.gen_964031bc")}>{t("gen.pages.characters.components.CharacterCreateDialog.gen_964031bc")}</option>
-                      <option value={t("gen.pages.characters.components.CharacterCreateDialog.gen_f14665fc")}>{t("gen.pages.characters.components.CharacterCreateDialog.gen_f14665fc")}</option>
+                      <option value="">{i18next.t("dict.unspecified")}</option>
+                      <option value={i18next.t("dict.mainCharacter")}>{i18next.t("dict.mainCharacter")}</option>
+                      <option value={i18next.t("dict.gen_27dd76d8")}>{i18next.t("dict.gen_27dd76d8")}</option>
+                      <option value={i18next.t("dict.gen_d62518be")}>{i18next.t("dict.gen_d62518be")}</option>
+                      <option value={i18next.t("dict.gen_964031bc")}>{i18next.t("dict.gen_964031bc")}</option>
+                      <option value={i18next.t("dict.gen_f14665fc")}>{i18next.t("dict.gen_f14665fc")}</option>
                     </SelectControl>
                   </label>
 
                   <label className="space-y-1 text-sm">
-                    <div className="text-xs text-muted-foreground">{t("gen.pages.characters.components.CharacterCreateDialog.gen_44ce6ba8")}</div>
+                    <div className="text-xs text-muted-foreground">{i18next.t("dict.gen_44ce6ba8")}</div>
                     <SelectControl
                       className="h-10 w-full rounded-md border bg-background px-2 text-sm"
                       value={constraints.growthStage ?? ""}
@@ -202,60 +200,60 @@ export function CharacterCreateDialog({ onCreated }: CharacterCreateDialogProps)
                           growthStage: (event.target.value || undefined) as CharacterGenerateConstraints["growthStage"],
                         }))}
                     >
-                      <option value="">{t("gen.pages.characters.components.CharacterCreateDialog.unspecified")}</option>
-                      <option value={t("gen.pages.characters.components.CharacterCreateDialog.gen_9b57745d")}>{t("gen.pages.characters.components.CharacterCreateDialog.gen_9b57745d")}</option>
-                      <option value={t("gen.pages.characters.components.CharacterCreateDialog.gen_58c5a448")}>{t("gen.pages.characters.components.CharacterCreateDialog.gen_58c5a448")}</option>
-                      <option value={t("gen.pages.characters.components.CharacterCreateDialog.gen_96213d99")}>{t("gen.pages.characters.components.CharacterCreateDialog.gen_96213d99")}</option>
-                      <option value={t("gen.pages.characters.components.CharacterCreateDialog.gen_f6fef1f0")}>{t("gen.pages.characters.components.CharacterCreateDialog.gen_f6fef1f0")}</option>
-                      <option value={t("gen.pages.characters.components.CharacterCreateDialog.gen_5c2ed3e4")}>{t("gen.pages.characters.components.CharacterCreateDialog.gen_5c2ed3e4")}</option>
+                      <option value="">{i18next.t("dict.unspecified")}</option>
+                      <option value={i18next.t("dict.gen_9b57745d")}>{i18next.t("dict.gen_9b57745d")}</option>
+                      <option value={i18next.t("dict.gen_58c5a448")}>{i18next.t("dict.gen_58c5a448")}</option>
+                      <option value={i18next.t("dict.gen_96213d99")}>{i18next.t("dict.gen_96213d99")}</option>
+                      <option value={i18next.t("dict.gen_f6fef1f0")}>{i18next.t("dict.gen_f6fef1f0")}</option>
+                      <option value={i18next.t("dict.gen_5c2ed3e4")}>{i18next.t("dict.gen_5c2ed3e4")}</option>
                     </SelectControl>
                   </label>
 
                   <input
                     className="rounded-md border p-2 text-sm"
-                    placeholder={t("gen.pages.characters.components.CharacterCreateDialog.gen_5dfc673a")}
+                    placeholder={i18next.t("dict.gen_5dfc673a")}
                     value={constraints.externalGoal ?? ""}
                     onChange={(event) => setConstraints((prev) => ({ ...prev, externalGoal: event.target.value }))}
                   />
                   <input
                     className="rounded-md border p-2 text-sm"
-                    placeholder={t("gen.pages.characters.components.CharacterCreateDialog.gen_925f779d")}
+                    placeholder={i18next.t("dict.gen_925f779d")}
                     value={constraints.internalNeed ?? ""}
                     onChange={(event) => setConstraints((prev) => ({ ...prev, internalNeed: event.target.value }))}
                   />
                   <input
                     className="rounded-md border p-2 text-sm"
-                    placeholder={t("gen.pages.characters.components.CharacterCreateDialog.gen_e75f940f")}
+                    placeholder={i18next.t("dict.gen_e75f940f")}
                     value={constraints.coreFear ?? ""}
                     onChange={(event) => setConstraints((prev) => ({ ...prev, coreFear: event.target.value }))}
                   />
                   <input
                     className="rounded-md border p-2 text-sm"
-                    placeholder={t("gen.pages.characters.components.CharacterCreateDialog.gen_6130a3d1")}
+                    placeholder={i18next.t("dict.gen_6130a3d1")}
                     value={constraints.moralBottomLine ?? ""}
                     onChange={(event) => setConstraints((prev) => ({ ...prev, moralBottomLine: event.target.value }))}
                   />
                   <input
                     className="rounded-md border p-2 text-sm"
-                    placeholder={t("gen.pages.characters.components.CharacterCreateDialog.secretUnspoken")}
+                    placeholder={i18next.t("dict.secretUnspoken")}
                     value={constraints.secret ?? ""}
                     onChange={(event) => setConstraints((prev) => ({ ...prev, secret: event.target.value }))}
                   />
                   <input
                     className="rounded-md border p-2 text-sm"
-                    placeholder={t("gen.pages.characters.components.CharacterCreateDialog.gen_49a13094")}
+                    placeholder={i18next.t("dict.gen_49a13094")}
                     value={constraints.coreFlaw ?? ""}
                     onChange={(event) => setConstraints((prev) => ({ ...prev, coreFlaw: event.target.value }))}
                   />
                   <input
                     className="rounded-md border p-2 text-sm md:col-span-2"
-                    placeholder={t("gen.pages.characters.components.CharacterCreateDialog.gen_fc800c81")}
+                    placeholder={i18next.t("dict.gen_fc800c81")}
                     value={constraints.relationshipHooks ?? ""}
                     onChange={(event) => setConstraints((prev) => ({ ...prev, relationshipHooks: event.target.value }))}
                   />
                   <input
                     className="rounded-md border p-2 text-sm md:col-span-2"
-                    placeholder={t("gen.pages.characters.components.CharacterCreateDialog.gen_e7825e21")}
+                    placeholder={i18next.t("dict.gen_e7825e21")}
                     value={constraints.toneStyle ?? ""}
                     onChange={(event) => setConstraints((prev) => ({ ...prev, toneStyle: event.target.value }))}
                   />
@@ -264,13 +262,13 @@ export function CharacterCreateDialog({ onCreated }: CharacterCreateDialogProps)
 
               <div className="grid gap-3 md:grid-cols-2">
                 <div className="space-y-1">
-                  <div className="text-sm font-medium">{t("gen.pages.characters.components.CharacterCreateDialog.gen_ee2a28e8")}</div>
+                  <div className="text-sm font-medium">{i18next.t("dict.gen_ee2a28e8")}</div>
                   <div className="max-h-48 space-y-2 overflow-auto rounded-md border p-2">
                     {knowledgeDocumentsQuery.isLoading ? (
-                      <div className="text-sm text-muted-foreground">{t("gen.pages.characters.components.CharacterCreateDialog.gen_26b5bd49")}</div>
+                      <div className="text-sm text-muted-foreground">{i18next.t("dict.gen_26b5bd49")}</div>
                     ) : null}
                     {!knowledgeDocumentsQuery.isLoading && knowledgeDocuments.length === 0 ? (
-                      <div className="text-sm text-muted-foreground">{t("gen.pages.characters.components.CharacterCreateDialog.gen_3a83bc80")}</div>
+                      <div className="text-sm text-muted-foreground">{i18next.t("dict.gen_3a83bc80")}</div>
                     ) : null}
                     {knowledgeDocuments.map((document) => (
                       <label key={document.id} className="flex items-start gap-2 rounded-md border p-2 text-sm">
@@ -290,17 +288,17 @@ export function CharacterCreateDialog({ onCreated }: CharacterCreateDialogProps)
                       </label>
                     ))}
                   </div>
-                  <div className="text-xs text-muted-foreground">{t("gen.pages.characters.components.CharacterCreateDialog.gen_9a71ba68")}</div>
+                  <div className="text-xs text-muted-foreground">{i18next.t("dict.gen_9a71ba68")}</div>
                 </div>
 
                 <div className="space-y-1">
-                  <div className="text-sm font-medium">{t("gen.pages.characters.components.CharacterCreateDialog.gen_d042c3f6")}</div>
+                  <div className="text-sm font-medium">{i18next.t("dict.gen_d042c3f6")}</div>
                   <div className="max-h-48 space-y-2 overflow-auto rounded-md border p-2">
                     {bookAnalysesQuery.isLoading ? (
-                      <div className="text-sm text-muted-foreground">{t("gen.pages.characters.components.CharacterCreateDialog.gen_26b5bd49")}</div>
+                      <div className="text-sm text-muted-foreground">{i18next.t("dict.gen_26b5bd49")}</div>
                     ) : null}
                     {!bookAnalysesQuery.isLoading && bookAnalyses.length === 0 ? (
-                      <div className="text-sm text-muted-foreground">{t("gen.pages.characters.components.CharacterCreateDialog.gen_90230846")}</div>
+                      <div className="text-sm text-muted-foreground">{i18next.t("dict.gen_90230846")}</div>
                     ) : null}
                     {bookAnalyses.map((analysis) => (
                       <label key={analysis.id} className="flex items-start gap-2 rounded-md border p-2 text-sm">
@@ -320,7 +318,7 @@ export function CharacterCreateDialog({ onCreated }: CharacterCreateDialogProps)
                       </label>
                     ))}
                   </div>
-                  <div className="text-xs text-muted-foreground">{t("gen.pages.characters.components.CharacterCreateDialog.showCompletedDeconstructionAnalysis")}</div>
+                  <div className="text-xs text-muted-foreground">{i18next.t("dict.showCompletedDeconstructionAnalysis")}</div>
                 </div>
               </div>
 
@@ -331,7 +329,7 @@ export function CharacterCreateDialog({ onCreated }: CharacterCreateDialogProps)
                 onClick={() => generateMutation.mutate()}
                 disabled={generateMutation.isPending || !aiDescription.trim()}
               >
-                {generateMutation.isPending ? t("gen.pages.characters.components.CharacterCreateDialog.gen_4d020ba3") : t("gen.pages.characters.components.CharacterCreateDialog.gen_9add1017")}
+                {generateMutation.isPending ? i18next.t("dict.gen_4d020ba3") : i18next.t("dict.gen_9add1017")}
               </Button>
             </CardContent>
           </Card>

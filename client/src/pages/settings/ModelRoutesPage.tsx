@@ -1,5 +1,5 @@
+import { useTranslation } from "react-i18next";
 import i18next from "i18next";
-const t = (key: string, options?: any) => i18next.t(key, options) as string;
 import { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -47,6 +47,7 @@ function RouteStatusDot({ state }: { state: ConnectivityState }) {
 }
 
 export default function ModelRoutesPage() {
+  const { t, i18n } = useTranslation();
   const queryClient = useQueryClient();
   const [actionResult, setActionResult] = useState("");
   const [routeDrafts, setRouteDrafts] = useState<Record<string, RouteDraft>>({});
@@ -79,7 +80,7 @@ export default function ModelRoutesPage() {
   const saveModelRouteMutation = useMutation({
     mutationFn: (payload: RouteSavePayload) => saveModelRoute(payload),
     onSuccess: async () => {
-      setActionResult(t("gen.pages.settings.ModelRoutesPage.savedSuccessfullyTaskWillUseNewRoute"));
+      setActionResult(i18next.t("dict.savedSuccessfullyTaskWillUseNewRoute"));
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: queryKeys.settings.modelRoutes }),
         queryClient.invalidateQueries({ queryKey: queryKeys.settings.modelRouteConnectivity }),
@@ -104,7 +105,7 @@ export default function ModelRoutesPage() {
   const saveStructuredFallbackMutation = useMutation({
     mutationFn: (payload: Partial<StructuredFallbackSettings>) => saveStructuredFallbackConfig(payload),
     onSuccess: async () => {
-      setActionResult(t("gen.pages.settings.ModelRoutesPage.gen_55fad8cd"));
+      setActionResult(i18next.t("dict.gen_55fad8cd"));
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: queryKeys.settings.structuredFallback }),
         queryClient.invalidateQueries({ queryKey: queryKeys.settings.modelRouteConnectivity }),
@@ -212,7 +213,7 @@ export default function ModelRoutesPage() {
 
   function applyBulkDraftToRoutes(targetTaskTypes: ModelRouteTaskType[]) {
     if (targetTaskTypes.length === 0) {
-      setActionResult(t("gen.pages.settings.ModelRoutesPage.gen_ea553185"));
+      setActionResult(i18next.t("dict.gen_ea553185"));
       return;
     }
     const draft = getBulkDraft();
@@ -256,14 +257,12 @@ export default function ModelRoutesPage() {
     <div className="space-y-4">
       <Card>
         <CardHeader>
-          <CardTitle>{t("gen.pages.settings.ModelRoutesPage.gen_15ee8ec2")}</CardTitle>
-          <CardDescription>
-            为不同创作任务指定合适模型，并检查 JSON 输出是否稳定。
-          </CardDescription>
+          <CardTitle>{i18next.t("dict.gen_15ee8ec2")}</CardTitle>
+          <CardDescription>{i18next.t("settings.modelRoutesPage.upqzmn")}</CardDescription>
         </CardHeader>
         <CardContent className="flex flex-wrap items-center justify-between gap-3">
           <div className="space-y-2 text-sm text-muted-foreground">
-            <div>{t("gen.pages.settings.ModelRoutesPage.gen_de22e5ab")}</div>
+            <div>{i18next.t("dict.gen_de22e5ab")}</div>
             <div className="flex flex-wrap items-center gap-3 text-xs">
               <span className="inline-flex items-center gap-2">
                 <RouteStatusDot
@@ -276,13 +275,13 @@ export default function ModelRoutesPage() {
                         : "idle"}
                 />
                 {modelRouteConnectivityQuery.isPending || modelRouteConnectivityQuery.isFetching
-                  ? t("gen.pages.settings.ModelRoutesPage.gen_2da2f9e0")
+                  ? i18next.t("dict.gen_2da2f9e0")
                   : connectivitySummary.total > 0
                     ? `检测结果：${connectivitySummary.total} 条路由，健康 ${connectivitySummary.healthy}，异常 ${connectivitySummary.failed}`
-                    : t("gen.pages.settings.ModelRoutesPage.gen_5a8affb1")}
+                    : i18next.t("dict.gen_5a8affb1")}
               </span>
               {connectivitySummary.testedAt ? (
-                <span>{t("gen.pages.settings.ModelRoutesPage.gen_6b499cdc")}</span>
+                <span>{i18next.t("dict.gen_6b499cdc")}</span>
               ) : null}
             </div>
           </div>
@@ -293,13 +292,11 @@ export default function ModelRoutesPage() {
               disabled={modelRouteConnectivityQuery.isFetching || !modelRoutesQuery.isSuccess}
             >
               <RefreshCw className={`h-4 w-4 ${modelRouteConnectivityQuery.isFetching ? "animate-spin" : ""}`} />
-              {modelRouteConnectivityQuery.isFetching ? t("gen.pages.settings.ModelRoutesPage.gen_84561cc4") : t("gen.pages.settings.ModelRoutesPage.gen_f515f8fb")}
+              {modelRouteConnectivityQuery.isFetching ? i18next.t("dict.gen_84561cc4") : i18next.t("dict.gen_f515f8fb")}
             </Button>
             <Button asChild variant="outline">
               <Link to="/settings">
-                <ArrowLeft className="h-4 w-4" />
-                返回系统设置
-              </Link>
+                <ArrowLeft className="h-4 w-4" />{i18next.t("settings.modelRoutesPage.viygxq")}</Link>
             </Button>
           </div>
         </CardContent>
@@ -308,12 +305,8 @@ export default function ModelRoutesPage() {
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
-            <CopyCheck className="h-5 w-5" />
-            快速套用模型
-          </CardTitle>
-          <CardDescription>
-            先选一套模型，再填入多个任务；统一保存后，后续创作会按新路由执行。
-          </CardDescription>
+            <CopyCheck className="h-5 w-5" />{i18next.t("settings.modelRoutesPage.fwag6p")}</CardTitle>
+          <CardDescription>{i18next.t("settings.modelRoutesPage.3klz44")}</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           <ModelRouteFields
@@ -322,9 +315,9 @@ export default function ModelRoutesPage() {
             providerOptions={providerOptions}
             onPatch={patchBulkDraft}
             temperaturePlaceholder="0.7"
-            maxTokensPlaceholder={t("gen.pages.settings.ModelRoutesPage.gen_042f9716")}
-            modelEmptyText={t("gen.pages.settings.ModelRoutesPage.gen_ea8f2c1b")}
-            manualModelPlaceholder={t("gen.pages.settings.ModelRoutesPage.canManualInputModelName")}
+            maxTokensPlaceholder={i18next.t("dict.gen_042f9716")}
+            modelEmptyText={i18next.t("dict.gen_ea8f2c1b")}
+            manualModelPlaceholder={i18next.t("dict.canManualInputModelName")}
             showProtocolFields={false}
           />
 
@@ -340,9 +333,7 @@ export default function ModelRoutesPage() {
                 onClick={() => applyBulkDraftToRoutes(taskTypes)}
                 disabled={!routeBulkDraft.provider.trim() || !routeBulkDraft.model.trim() || taskTypes.length === 0}
               >
-                <CopyCheck className="h-4 w-4" />
-                套用到全部任务
-              </Button>
+                <CopyCheck className="h-4 w-4" />{i18next.t("settings.modelRoutesPage.rcguhn")}</Button>
               <Button
                 type="button"
                 size="sm"
@@ -350,9 +341,7 @@ export default function ModelRoutesPage() {
                 onClick={() => applyBulkDraftToRoutes(failedTaskTypes)}
                 disabled={!routeBulkDraft.provider.trim() || !routeBulkDraft.model.trim() || failedTaskTypes.length === 0}
               >
-                <CopyCheck className="h-4 w-4" />
-                套用到异常任务
-              </Button>
+                <CopyCheck className="h-4 w-4" />{i18next.t("settings.modelRoutesPage.pu4s11")}</Button>
               <Button
                 type="button"
                 size="sm"
@@ -360,9 +349,7 @@ export default function ModelRoutesPage() {
                 onClick={() => applyBulkDraftToRoutes(emptyRouteTaskTypes)}
                 disabled={!routeBulkDraft.provider.trim() || !routeBulkDraft.model.trim() || emptyRouteTaskTypes.length === 0}
               >
-                <CopyCheck className="h-4 w-4" />
-                补齐空白任务
-              </Button>
+                <CopyCheck className="h-4 w-4" />{i18next.t("settings.modelRoutesPage.icflv0")}</Button>
               <Button
                 type="button"
                 size="sm"
@@ -372,7 +359,7 @@ export default function ModelRoutesPage() {
                 disabled={isSavingRoutes || dirtyTaskTypes.length === 0}
               >
                 <Save className="h-4 w-4" />
-                {saveAllModelRoutesMutation.isPending ? t("gen.pages.settings.ModelRoutesPage.savingInProgressDotDotDot") : `保存全部修改${dirtyTaskTypes.length > 0 ? ` (${dirtyTaskTypes.length})` : ""}`}
+                {saveAllModelRoutesMutation.isPending ? i18next.t("common.saving") : `保存全部修改${dirtyTaskTypes.length > 0 ? ` (${dirtyTaskTypes.length})` : ""}`}
               </Button>
             </div>
           </div>
@@ -381,18 +368,14 @@ export default function ModelRoutesPage() {
 
       <Card>
         <CardHeader>
-          <CardTitle>{t("gen.pages.settings.ModelRoutesPage.gen_ec6a737a")}</CardTitle>
-          <CardDescription>
-            主模型能对话但 JSON 不稳时，可在所有结构化任务上统一启用备用模型。
-          </CardDescription>
+          <CardTitle>{i18next.t("dict.gen_ec6a737a")}</CardTitle>
+          <CardDescription>{i18next.t("settings.modelRoutesPage.ieul42")}</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="flex items-center justify-between rounded-md border p-3">
             <div>
-              <div className="font-medium">{t("gen.pages.settings.ModelRoutesPage.gen_08b94dfa")}</div>
-              <div className="text-sm text-muted-foreground">
-                主模型的结构化策略全部失败后，才会切到这套备用模型。
-              </div>
+              <div className="font-medium">{i18next.t("dict.gen_08b94dfa")}</div>
+              <div className="text-sm text-muted-foreground">{i18next.t("settings.modelRoutesPage.xb7g4c")}</div>
             </div>
             <Switch
               checked={fallbackDraft.enabled}
@@ -406,9 +389,9 @@ export default function ModelRoutesPage() {
             providerOptions={providerOptions}
             onPatch={patchStructuredFallbackDraft}
             temperaturePlaceholder="0.2"
-            maxTokensPlaceholder={t("gen.pages.settings.ModelRoutesPage.gen_042f9716")}
-            modelEmptyText={t("gen.pages.settings.ModelRoutesPage.gen_ea8f2c1b")}
-            manualModelPlaceholder={t("gen.pages.settings.ModelRoutesPage.canManualInputModelName")}
+            maxTokensPlaceholder={i18next.t("dict.gen_042f9716")}
+            modelEmptyText={i18next.t("dict.gen_ea8f2c1b")}
+            manualModelPlaceholder={i18next.t("dict.canManualInputModelName")}
           />
 
           <div className="flex items-center justify-end gap-2">
@@ -423,7 +406,7 @@ export default function ModelRoutesPage() {
               })}
               disabled={saveStructuredFallbackMutation.isPending || !fallbackDraft.provider.trim() || !fallbackDraft.model.trim()}
             >
-              {saveStructuredFallbackMutation.isPending ? t("gen.pages.settings.ModelRoutesPage.savingInProgressDotDotDot") : t("gen.pages.settings.ModelRoutesPage.saveBackupModel")}
+              {saveStructuredFallbackMutation.isPending ? i18next.t("common.saving") : i18next.t("dict.saveBackupModel")}
             </Button>
           </div>
         </CardContent>
@@ -458,14 +441,14 @@ export default function ModelRoutesPage() {
                 <span className="inline-flex items-center gap-2 rounded-full border px-2 py-0.5 text-xs font-normal text-muted-foreground">
                   <RouteStatusDot state={connectivityState} />
                   {connectivityState === "healthy"
-                    ? t("gen.pages.settings.ModelRoutesPage.gen_2fbb4e75")
+                    ? i18next.t("dict.gen_2fbb4e75")
                     : connectivityState === "failed"
-                      ? t("gen.pages.settings.ModelRoutesPage.gen_fce7b9c6")
+                      ? i18next.t("dict.gen_fce7b9c6")
                       : connectivityState === "checking"
-                        ? t("gen.pages.settings.ModelRoutesPage.gen_d4c366cb")
-                        : t("gen.pages.settings.ModelRoutesPage.gen_5c6585e0")}
+                        ? i18next.t("dict.gen_d4c366cb")
+                        : i18next.t("dict.gen_5c6585e0")}
                 </span>
-                {isDirty ? <Badge variant="secondary">{t("gen.pages.settings.ModelRoutesPage.gen_29953c6f")}</Badge> : null}
+                {isDirty ? <Badge variant="secondary">{i18next.t("dict.gen_29953c6f")}</Badge> : null}
               </CardTitle>
               <CardDescription>
                 {label.description}
@@ -479,28 +462,28 @@ export default function ModelRoutesPage() {
                 providerOptions={providerOptions}
                 onPatch={(patch) => patchDraft(taskType, patch)}
                 temperaturePlaceholder="0.7"
-                maxTokensPlaceholder={t("gen.pages.settings.ModelRoutesPage.gen_042f9716")}
-                modelEmptyText={t("gen.pages.settings.ModelRoutesPage.gen_ea8f2c1b")}
-                manualModelPlaceholder={t("gen.pages.settings.ModelRoutesPage.canManualInputModelName")}
+                maxTokensPlaceholder={i18next.t("dict.gen_042f9716")}
+                modelEmptyText={i18next.t("dict.gen_ea8f2c1b")}
+                manualModelPlaceholder={i18next.t("dict.canManualInputModelName")}
               />
 
               <div className="flex items-center justify-between gap-3">
                 <div className="space-y-1 text-xs text-muted-foreground">
-                  <div>{isDirty ? t("gen.pages.settings.ModelRoutesPage.gen_a61d59f8") : `任务使用：${providerName}。`}</div>
+                  <div>{isDirty ? i18next.t("dict.gen_a61d59f8") : `任务使用：${providerName}。`}</div>
                   <div className="flex flex-wrap items-center gap-2">
                     <RouteStatusDot state={connectivityState} />
                     <span>{formatConnectivityStatus(connectivity)}</span>
                   </div>
                   {connectivity?.structured ? (
                     <div>
-                      请求协议：{connectivity.structured.requestProtocol ?? connectivity.requestProtocol ?? t("gen.pages.settings.ModelRoutesPage.gen_d81bb206")}，
-                      结构化策略：{connectivity.structured.strategy ?? t("gen.pages.settings.ModelRoutesPage.gen_d81bb206")}，
-                      {connectivity.structured.reasoningForcedOff ? t("gen.pages.settings.ModelRoutesPage.willCloseThinking") : t("gen.pages.settings.ModelRoutesPage.preserveThinking")}，
-                      {connectivity.structured.fallbackAvailable ? t("gen.pages.settings.ModelRoutesPage.gen_758d06ab") : t("gen.pages.settings.ModelRoutesPage.gen_88d8832f")}
+                      请求协议：{connectivity.structured.requestProtocol ?? connectivity.requestProtocol ?? i18next.t("dict.gen_d81bb206")}，
+                      结构化策略：{connectivity.structured.strategy ?? i18next.t("dict.gen_d81bb206")}，
+                      {connectivity.structured.reasoningForcedOff ? i18next.t("dict.willCloseThinking") : i18next.t("dict.preserveThinking")}，
+                      {connectivity.structured.fallbackAvailable ? i18next.t("dict.gen_758d06ab") : i18next.t("dict.gen_88d8832f")}
                     </div>
                   ) : null}
                   {hasUnsavedRouteDiff ? (
-                    <div>{t("gen.pages.settings.ModelRoutesPage.gen_227039ae")}</div>
+                    <div>{i18next.t("dict.gen_227039ae")}</div>
                   ) : null}
                 </div>
                 <Button
@@ -508,9 +491,7 @@ export default function ModelRoutesPage() {
                   onClick={() => saveModelRouteMutation.mutate(buildRouteSavePayload(taskType, draft))}
                   disabled={isSavingRoutes || !draft.provider.trim() || !draft.model.trim()}
                 >
-                  <Save className="h-4 w-4" />
-                  保存路由
-                </Button>
+                  <Save className="h-4 w-4" />{i18next.t("settings.modelRoutesPage.agp2m5")}</Button>
               </div>
             </CardContent>
           </Card>

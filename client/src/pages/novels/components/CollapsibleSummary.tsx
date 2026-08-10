@@ -1,5 +1,5 @@
+import { useTranslation } from "react-i18next";
 import i18next from "i18next";
-const t = (key: string, options?: any) => i18next.t(key, options) as string;
 import type { ReactNode } from "react";
 import { ChevronDown } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -14,13 +14,14 @@ interface CollapsibleSummaryProps {
 }
 
 export default function CollapsibleSummary(props: CollapsibleSummaryProps) {
+  const { t } = useTranslation();
   const {
     title,
     description,
     meta,
     className,
-    collapsedLabel = t("gen.pages.novels.components.CollapsibleSummary.gen_02e099f5"),
-    expandedLabel = t("gen.pages.novels.components.CollapsibleSummary.gen_6f47e370"),
+    collapsedLabel = i18next.t("dict.gen_02e099f5"),
+    expandedLabel = i18next.t("dict.gen_6f47e370"),
   } = props;
 
   return (

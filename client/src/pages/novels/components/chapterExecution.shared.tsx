@@ -1,3 +1,5 @@
+import i18next from "i18next";
+import { useTranslation } from "react-i18next";
 import type { SSEFrame } from "@ai-novel/shared/types/api";
 import type {
   AuditReport,
@@ -94,13 +96,13 @@ interface ResolveChapterExecutionFlowInput {
 }
 
 const CHAPTER_EXECUTION_FLOW_ORDER: Array<{ key: ChapterExecutionFlowStageKey; label: string }> = [
-  { key: "execution_plan", label: "执行计划" },
-  { key: "writing", label: "正文写作" },
-  { key: "review", label: "审核" },
-  { key: "repair", label: "修复" },
-  { key: "state_sync", label: "状态同步" },
-  { key: "payoff_sync", label: "伏笔回填" },
-  { key: "ready", label: "可继续推进" },
+  { key: "execution_plan", label: i18next.t("novels.chapterExecution.shared.czfymu") },
+  { key: "writing", label: i18next.t("novels.chapterExecution.shared.dyvcdj") },
+  { key: "review", label: i18next.t("novels.chapterExecution.shared.g5o7") },
+  { key: "repair", label: i18next.t("dict.gen_f82661e8") },
+  { key: "state_sync", label: i18next.t("novels.chapterExecution.shared.evc0tg") },
+  { key: "payoff_sync", label: i18next.t("novels.chapterExecution.shared.ahfche") },
+  { key: "ready", label: i18next.t("novels.chapterExecution.shared.afu8s8") },
 ];
 
 function hasOpenAuditIssues(reports: AuditReport[]): boolean {
@@ -520,6 +522,7 @@ export function chapterHasPreparationAssets(chapter: Chapter): boolean {
 }
 
 export function parseChapterScenePlanForDisplay(chapter: Chapter) {
+  const { t } = useTranslation();
   return parseChapterScenePlan(chapter.sceneCards, {
     targetWordCount: chapter.targetWordCount ?? undefined,
   });

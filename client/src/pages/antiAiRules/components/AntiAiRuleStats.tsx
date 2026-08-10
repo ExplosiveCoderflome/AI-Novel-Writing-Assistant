@@ -1,5 +1,5 @@
+import { useTranslation } from "react-i18next";
 import i18next from "i18next";
-const t = (key: string, options?: any) => i18next.t(key, options) as string;
 interface StatTileProps {
   label: string;
   value: number;
@@ -24,12 +24,13 @@ interface AntiAiRuleStatsProps {
 }
 
 export default function AntiAiRuleStats(props: AntiAiRuleStatsProps) {
+  const { t } = useTranslation();
   return (
     <div className="grid gap-3 md:grid-cols-4">
-      <StatTile label={t("gen.pages.antiAiRules.components.AntiAiRuleStats.gen_17cea87d")} value={props.total} hint={t("gen.pages.antiAiRules.components.AntiAiRuleStats.gen_01aa8262")} />
-      <StatTile label={t("gen.pages.antiAiRules.components.AntiAiRuleStats.gen_fd2ea09f")} value={props.enabled} hint={t("gen.pages.antiAiRules.components.AntiAiRuleStats.willParticipateRulesForGlobalOrStyleBindingParsing")} />
-      <StatTile label={t("gen.pages.antiAiRules.components.AntiAiRuleStats.gen_1c65ec9e")} value={props.global} hint={t("gen.pages.antiAiRules.components.AntiAiRuleStats.enterTextGeneration")} />
-      <StatTile label={t("gen.pages.antiAiRules.components.AntiAiRuleStats.gen_11519661")} value={props.autoRewrite} hint={t("gen.pages.antiAiRules.components.AntiAiRuleStats.gen_c82a210c")} />
+      <StatTile label={i18next.t("dict.gen_17cea87d")} value={props.total} hint={i18next.t("dict.gen_01aa8262")} />
+      <StatTile label={i18next.t("dict.gen_fd2ea09f")} value={props.enabled} hint={i18next.t("dict.willParticipateRulesForGlobalOrStyleBindingParsing")} />
+      <StatTile label={i18next.t("dict.gen_1c65ec9e")} value={props.global} hint={i18next.t("dict.enterTextGeneration")} />
+      <StatTile label={i18next.t("dict.gen_11519661")} value={props.autoRewrite} hint={i18next.t("dict.gen_c82a210c")} />
     </div>
   );
 }

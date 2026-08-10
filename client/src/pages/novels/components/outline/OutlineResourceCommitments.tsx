@@ -1,3 +1,4 @@
+import i18next from "i18next";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import type { OutlineTabViewProps } from "../NovelEditView.types";
@@ -60,10 +61,8 @@ export default function OutlineResourceCommitments(props: {
   return (
     <Card>
       <CardHeader className="pb-3">
-        <CardTitle className="text-base">本卷关键资源承诺</CardTitle>
-        <div className="text-sm text-muted-foreground">
-          只显示会影响本卷行动边界、铺垫或后续兑现的资源。
-        </div>
+        <CardTitle className="text-base">{i18next.t("dict.gen_f6a53b87")}</CardTitle>
+        <div className="text-sm text-muted-foreground">{i18next.t("novels.outlineResourceCommitments.w3mjsu")}</div>
       </CardHeader>
       <CardContent className="space-y-3">
         {relevantResources.length > 0 ? (
@@ -83,9 +82,7 @@ export default function OutlineResourceCommitments(props: {
             </div>
           ))
         ) : (
-          <div className="rounded-xl border border-dashed px-4 py-5 text-sm text-muted-foreground">
-            当前卷没有需要特别盯住的角色资源承诺。
-          </div>
+          <div className="rounded-xl border border-dashed px-4 py-5 text-sm text-muted-foreground">{i18next.t("novels.outlineResourceCommitments.qft6lt")}</div>
         )}
       </CardContent>
     </Card>

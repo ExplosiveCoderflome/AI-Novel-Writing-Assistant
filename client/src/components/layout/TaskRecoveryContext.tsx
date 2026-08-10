@@ -82,12 +82,12 @@ export function TaskRecoveryProvider({ children }: { children: ReactNode }) {
         next.add(recoveryItemKey(variables));
         return next;
       });
-      toast.success(t("gen.components.layout.TaskRecoveryContext.gen_07826f27"));
+      toast.success(i18next.t("dict.gen_07826f27"));
       refreshTaskState();
       void recoveryQuery.refetch();
     },
     onError: (error) => {
-      toast.error(error instanceof Error ? error.message : t("gen.components.layout.TaskRecoveryContext.gen_2cf820a2"));
+      toast.error(error instanceof Error ? error.message : i18next.t("dict.gen_2cf820a2"));
     },
   });
 
@@ -102,12 +102,12 @@ export function TaskRecoveryProvider({ children }: { children: ReactNode }) {
         }
         return next;
       });
-      toast.success(resumedCount > 0 ? `已开始恢复 ${resumedCount} 个任务。` : t("gen.components.layout.TaskRecoveryContext.gen_3c783b2d"));
+      toast.success(resumedCount > 0 ? `已开始恢复 ${resumedCount} 个任务。` : i18next.t("dict.gen_3c783b2d"));
       refreshTaskState();
       void recoveryQuery.refetch();
     },
     onError: (error) => {
-      toast.error(error instanceof Error ? error.message : t("gen.components.layout.TaskRecoveryContext.gen_12c15229"));
+      toast.error(error instanceof Error ? error.message : i18next.t("dict.gen_12c15229"));
     },
   });
 

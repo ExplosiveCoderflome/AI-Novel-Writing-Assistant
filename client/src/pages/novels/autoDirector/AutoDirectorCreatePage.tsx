@@ -109,7 +109,7 @@ export default function AutoDirectorCreatePage() {
       }
     },
     onError: (error) => {
-      toast.error(error instanceof Error ? error.message : t("gen.pages.novels.autoDirector.AutoDirectorCreatePage.gen_d20b5da1"));
+      toast.error(error instanceof Error ? error.message : i18next.t("dict.gen_d20b5da1"));
     },
   });
 
@@ -160,8 +160,8 @@ export default function AutoDirectorCreatePage() {
     candidates: controller.batches.length > 0
       ? `已生成 ${controller.batches.length} 批方向候选`
       : controller.hasActiveDirectorTask
-        ? t("gen.pages.novels.autoDirector.AutoDirectorCreatePage.gen_d3ec695c")
-        : t("gen.pages.novels.autoDirector.AutoDirectorCreatePage.gen_7c5ab588"),
+        ? i18next.t("dict.gen_d3ec695c")
+        : i18next.t("dict.gen_7c5ab588"),
   }), [
     controller.batches.length,
     controller.directorBasicForm,
@@ -270,13 +270,11 @@ export default function AutoDirectorCreatePage() {
       {showSummaryBar ? (
         <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
           <div>
-            <div className="text-2xl font-semibold tracking-normal text-foreground">{t("gen.pages.novels.autoDirector.AutoDirectorCreatePage.aiAutoDirectorCreate")}</div>
-            <div className="mt-1 text-sm leading-6 text-muted-foreground">
-              从一个起始想法开始，AI 完成整本规划准备后，再由你选择正文生产方式。
-            </div>
+            <div className="text-2xl font-semibold tracking-normal text-foreground">{i18next.t("dict.aiAutoDirectorCreate")}</div>
+            <div className="mt-1 text-sm leading-6 text-muted-foreground">{i18next.t("novels.autoDirectorCreatePage.8g8kb2")}</div>
           </div>
           <Button type="button" variant="outline" asChild>
-            <Link to="/novels/create">{t("gen.pages.novels.autoDirector.AutoDirectorCreatePage.gen_4364e2f1")}</Link>
+            <Link to="/novels/create">{i18next.t("dict.gen_4364e2f1")}</Link>
           </Button>
         </div>
       ) : null}
@@ -305,9 +303,7 @@ export default function AutoDirectorCreatePage() {
       ) : null}
 
       {restoreWorkflowMutation.isPending && normalizedTaskId ? (
-        <div className="rounded-lg bg-muted/20 px-4 py-3 text-sm text-muted-foreground">
-          正在恢复自动导演现场。
-        </div>
+        <div className="rounded-lg bg-muted/20 px-4 py-3 text-sm text-muted-foreground">{i18next.t("novels.autoDirectorCreatePage.2u9n1q")}</div>
       ) : null}
 
       <AnimatePresence mode="wait">

@@ -27,7 +27,7 @@ export default function WorldRelationsSection(props: {
     <>
       <div className="rounded-md border p-3 space-y-3">
         <div className="flex items-center justify-between">
-          <div className="font-medium">{t("gen.pages.worlds.components.workspace.structure.WorldRelationsSection.gen_bb016fed")}</div>
+          <div className="font-medium">{i18next.t("dict.gen_bb016fed")}</div>
           <div className="flex gap-2">
             <Button
               size="sm"
@@ -55,9 +55,7 @@ export default function WorldRelationsSection(props: {
                     : prev,
                 )
               }
-            >
-              新增势力关系
-            </Button>
+            >{i18next.t("worlds.worldRelationsSection.vsbp0u")}</Button>
             <Button
               size="sm"
               variant="outline"
@@ -83,16 +81,14 @@ export default function WorldRelationsSection(props: {
                     : prev,
                 )
               }
-            >
-              新增地点控制
-            </Button>
+            >{i18next.t("worlds.worldRelationsSection.v3o0uy")}</Button>
           </div>
         </div>
         {draftStructure.relations.forceRelations.map((relation, index) => (
           <div key={relation.id || index} className="rounded-md border p-3 space-y-2">
             <div className="text-xs text-muted-foreground">
-              {forceNameById.get(relation.sourceForceId) || relation.sourceForceId || t("gen.pages.worlds.components.workspace.structure.WorldRelationsSection.gen_a4d80bf3")} {"->"}{" "}
-              {forceNameById.get(relation.targetForceId) || relation.targetForceId || t("gen.pages.worlds.components.workspace.structure.WorldRelationsSection.gen_e9107399")}
+              {forceNameById.get(relation.sourceForceId) || relation.sourceForceId || i18next.t("dict.gen_a4d80bf3")} {"->"}{" "}
+              {forceNameById.get(relation.targetForceId) || relation.targetForceId || i18next.t("dict.gen_e9107399")}
             </div>
             <div className="grid gap-2 md:grid-cols-2">
               <Input
@@ -113,7 +109,7 @@ export default function WorldRelationsSection(props: {
                       : prev,
                   )
                 }
-                placeholder={t("gen.pages.worlds.components.workspace.structure.WorldRelationsSection.gen_d7eeb58b")}
+                placeholder={i18next.t("dict.gen_d7eeb58b")}
               />
               <Input
                 value={relation.targetForceId}
@@ -133,7 +129,7 @@ export default function WorldRelationsSection(props: {
                       : prev,
                   )
                 }
-                placeholder={t("gen.pages.worlds.components.workspace.structure.WorldRelationsSection.gen_e416d85f")}
+                placeholder={i18next.t("dict.gen_e416d85f")}
               />
             </div>
             <div className="grid gap-2 md:grid-cols-2">
@@ -155,7 +151,7 @@ export default function WorldRelationsSection(props: {
                       : prev,
                   )
                 }
-                placeholder={t("gen.pages.worlds.components.workspace.structure.WorldRelationsSection.gen_ed4fdfbc")}
+                placeholder={i18next.t("dict.gen_ed4fdfbc")}
               />
               <Input
                 value={relation.tension}
@@ -175,7 +171,7 @@ export default function WorldRelationsSection(props: {
                       : prev,
                   )
                 }
-                placeholder={t("gen.pages.worlds.components.workspace.structure.WorldRelationsSection.gen_7262d296")}
+                placeholder={i18next.t("dict.gen_7262d296")}
               />
             </div>
             <textarea
@@ -197,15 +193,15 @@ export default function WorldRelationsSection(props: {
                     : prev,
                 )
               }
-              placeholder={t("gen.pages.worlds.components.workspace.structure.WorldRelationsSection.gen_3449d171")}
+              placeholder={i18next.t("dict.gen_3449d171")}
             />
           </div>
         ))}
         {draftStructure.relations.locationControls.map((relation, index) => (
           <div key={relation.id || index} className="rounded-md border p-3 space-y-2">
             <div className="text-xs text-muted-foreground">
-              {(forceNameById.get(relation.forceId) || relation.forceId || t("gen.pages.worlds.components.workspace.structure.WorldRelationsSection.gen_dcfe557b"))} 控制{" "}
-              {(locationNameById.get(relation.locationId) || relation.locationId || t("gen.pages.worlds.components.workspace.structure.WorldRelationsSection.gen_fc1a7d3c"))}
+              {(forceNameById.get(relation.forceId) || relation.forceId || i18next.t("dict.gen_dcfe557b"))} 控制{" "}
+              {(locationNameById.get(relation.locationId) || relation.locationId || i18next.t("dict.gen_fc1a7d3c"))}
             </div>
             <div className="grid gap-2 md:grid-cols-2">
               <Input
@@ -227,7 +223,7 @@ export default function WorldRelationsSection(props: {
                       : prev,
                   )
                 }
-                placeholder={t("gen.pages.worlds.components.workspace.structure.WorldRelationsSection.gen_792e0e0d")}
+                placeholder={i18next.t("dict.gen_792e0e0d")}
               />
               <Input
                 value={relation.locationId}
@@ -248,7 +244,7 @@ export default function WorldRelationsSection(props: {
                       : prev,
                   )
                 }
-                placeholder={t("gen.pages.worlds.components.workspace.structure.WorldRelationsSection.gen_da2ee48f")}
+                placeholder={i18next.t("dict.gen_da2ee48f")}
               />
             </div>
             <Input
@@ -270,7 +266,7 @@ export default function WorldRelationsSection(props: {
                     : prev,
                 )
               }
-              placeholder={t("gen.pages.worlds.components.workspace.structure.WorldRelationsSection.gen_7bf6c4ee")}
+              placeholder={i18next.t("dict.gen_7bf6c4ee")}
             />
             <textarea
               className="min-h-[70px] w-full rounded-md border bg-background p-2 text-sm"
@@ -292,38 +288,38 @@ export default function WorldRelationsSection(props: {
                     : prev,
                 )
               }
-              placeholder={t("gen.pages.worlds.components.workspace.structure.WorldRelationsSection.gen_f411d0f1")}
+              placeholder={i18next.t("dict.gen_f411d0f1")}
             />
           </div>
         ))}
       </div>
 
       <div className="rounded-md border p-3 space-y-2">
-        <div className="font-medium">{t("gen.pages.worlds.components.workspace.structure.WorldRelationsSection.gen_5cdbaa25")}</div>
-        <div className="text-xs text-muted-foreground">{t("gen.pages.worlds.components.workspace.structure.WorldRelationsSection.gen_31d9207b")}</div>
+        <div className="font-medium">{i18next.t("dict.gen_5cdbaa25")}</div>
+        <div className="text-xs text-muted-foreground">{i18next.t("dict.gen_31d9207b")}</div>
         <div className="grid gap-3 md:grid-cols-2">
           <div className="rounded-md border p-3 text-sm">
-            <div className="font-medium">{t("gen.pages.worlds.components.workspace.structure.WorldRelationsSection.gen_eba66266")}</div>
+            <div className="font-medium">{i18next.t("dict.gen_eba66266")}</div>
             <div className="mt-2 whitespace-pre-wrap">
-              {draftBindingSupport.recommendedEntryPoints.join("\n") || t("gen.pages.worlds.components.workspace.structure.WorldRelationsSection.gen_f61f4cf6")}
+              {draftBindingSupport.recommendedEntryPoints.join("\n") || i18next.t("common.none")}
             </div>
           </div>
           <div className="rounded-md border p-3 text-sm">
-            <div className="font-medium">{t("gen.pages.worlds.components.workspace.structure.WorldRelationsSection.gen_64b79357")}</div>
+            <div className="font-medium">{i18next.t("dict.gen_64b79357")}</div>
             <div className="mt-2 whitespace-pre-wrap">
-              {draftBindingSupport.highPressureForces.join("\n") || t("gen.pages.worlds.components.workspace.structure.WorldRelationsSection.gen_f61f4cf6")}
+              {draftBindingSupport.highPressureForces.join("\n") || i18next.t("common.none")}
             </div>
           </div>
           <div className="rounded-md border p-3 text-sm">
-            <div className="font-medium">{t("gen.pages.worlds.components.workspace.structure.WorldRelationsSection.gen_fb706d36")}</div>
+            <div className="font-medium">{i18next.t("dict.gen_fb706d36")}</div>
             <div className="mt-2 whitespace-pre-wrap">
-              {draftBindingSupport.compatibleConflicts.join("\n") || t("gen.pages.worlds.components.workspace.structure.WorldRelationsSection.gen_f61f4cf6")}
+              {draftBindingSupport.compatibleConflicts.join("\n") || i18next.t("common.none")}
             </div>
           </div>
           <div className="rounded-md border p-3 text-sm">
-            <div className="font-medium">{t("gen.pages.worlds.components.workspace.structure.WorldRelationsSection.gen_8deb5ccd")}</div>
+            <div className="font-medium">{i18next.t("dict.gen_8deb5ccd")}</div>
             <div className="mt-2 whitespace-pre-wrap">
-              {draftBindingSupport.forbiddenCombinations.join("\n") || t("gen.pages.worlds.components.workspace.structure.WorldRelationsSection.gen_f61f4cf6")}
+              {draftBindingSupport.forbiddenCombinations.join("\n") || i18next.t("common.none")}
             </div>
           </div>
         </div>

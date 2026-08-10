@@ -1,3 +1,5 @@
+import i18next from "i18next";
+import { useTranslation } from "react-i18next";
 import { useState } from "react";
 import { ChevronDown, ChevronRight, Pencil, Plus, Trash2 } from "lucide-react";
 import type { GenreTreeNode } from "@/api/genre";
@@ -21,6 +23,7 @@ export default function GenreTreeItem({
   onDelete,
   deletingId,
 }: GenreTreeItemProps) {
+  const { t } = useTranslation();
   const [expanded, setExpanded] = useState(true);
   const hasChildren = node.children.length > 0;
   const boundNovelCount = countGenreNovelBindingsInSubtree(node);
@@ -64,13 +67,9 @@ export default function GenreTreeItem({
 
             <div className="flex shrink-0 flex-wrap gap-1 border-t border-border/60 pt-2 lg:justify-end lg:border-t-0 lg:pt-0">
               <Button type="button" variant="ghost" size="sm" onClick={() => onCreateChild(node.id)}>
-                <Plus className="h-4 w-4" aria-hidden="true" />
-                新增子类
-              </Button>
+                <Plus className="h-4 w-4" aria-hidden="true" />{i18next.t("genres.genreTreeItem.d75k7t")}</Button>
               <Button type="button" variant="ghost" size="sm" onClick={() => onEdit(node.id)}>
-                <Pencil className="h-4 w-4" aria-hidden="true" />
-                编辑
-              </Button>
+                <Pencil className="h-4 w-4" aria-hidden="true" />{i18next.t("common.edit")}</Button>
               <Button
                 type="button"
                 variant="ghost"

@@ -16,7 +16,7 @@ interface OpenInCreativeHubButtonProps {
 
 export default function OpenInCreativeHubButton({
   bindings,
-  label = t("gen.components.creativeHub.OpenInCreativeHubButton.gen_d69e4819"),
+  label = i18next.t("dict.gen_d69e4819"),
   variant = "outline",
   size = "sm",
   className,

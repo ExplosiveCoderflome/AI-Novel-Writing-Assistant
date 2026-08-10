@@ -136,7 +136,7 @@ export function useNovelStoryMacro(input: UseNovelStoryMacroInput): {
       temperature: llm.temperature,
     }),
     onSuccess: async (response) => {
-      setMessage(response.message ?? i18next.t("gen.pages.novels.hooks.useNovelStoryMacro.gen_4c2811a6"));
+      setMessage(response.message ?? i18next.t("dict.gen_4c2811a6"));
       setExpansion(normalizeExpansion(response.data?.expansion));
       setDecomposition(response.data?.decomposition ?? EMPTY_DECOMPOSITION);
       setConstraints(response.data?.constraints ?? []);
@@ -145,7 +145,7 @@ export function useNovelStoryMacro(input: UseNovelStoryMacroInput): {
       await syncNovelWorkflowStageSilently({
         novelId,
         stage: "story_macro",
-        itemLabel: i18next.t("gen.pages.novels.hooks.useNovelStoryMacro.gen_f1d786e7"),
+        itemLabel: i18next.t("dict.gen_f1d786e7"),
         status: "waiting_approval",
       });
       await invalidatePlan();
@@ -159,13 +159,13 @@ export function useNovelStoryMacro(input: UseNovelStoryMacroInput): {
       temperature: llm.temperature,
     }),
     onSuccess: async (response) => {
-      setMessage(response.message ?? i18next.t("gen.pages.novels.hooks.useNovelStoryMacro.gen_3c40c8df"));
+      setMessage(response.message ?? i18next.t("dict.gen_3c40c8df"));
       await syncNovelWorkflowStageSilently({
         novelId,
         stage: "story_macro",
-        itemLabel: i18next.t("gen.pages.novels.hooks.useNovelStoryMacro.gen_1327f080"),
+        itemLabel: i18next.t("dict.gen_1327f080"),
         checkpointType: "book_contract_ready",
-        checkpointSummary: i18next.t("gen.pages.novels.hooks.useNovelStoryMacro.gen_2b269744"),
+        checkpointSummary: i18next.t("dict.gen_2b269744"),
         status: "waiting_approval",
       });
       await invalidatePlan();
@@ -181,11 +181,11 @@ export function useNovelStoryMacro(input: UseNovelStoryMacroInput): {
       lockedFields,
     }),
     onSuccess: async (response) => {
-      setMessage(response.message ?? i18next.t("gen.pages.novels.hooks.useNovelStoryMacro.gen_28e4552c"));
+      setMessage(response.message ?? i18next.t("dict.gen_28e4552c"));
       await syncNovelWorkflowStageSilently({
         novelId,
         stage: "story_macro",
-        itemLabel: i18next.t("gen.pages.novels.hooks.useNovelStoryMacro.gen_08b02ffd"),
+        itemLabel: i18next.t("dict.gen_08b02ffd"),
         status: "waiting_approval",
       });
       await invalidatePlan();
@@ -195,7 +195,7 @@ export function useNovelStoryMacro(input: UseNovelStoryMacroInput): {
   const saveStateMutation = useMutation({
     mutationFn: () => updateNovelStoryMacroState(novelId, storyState),
     onSuccess: async () => {
-      setMessage(i18next.t("gen.pages.novels.hooks.useNovelStoryMacro.gen_71e9921f"));
+      setMessage(i18next.t("dict.gen_71e9921f"));
       await invalidatePlan();
     },
   });
@@ -210,7 +210,7 @@ export function useNovelStoryMacro(input: UseNovelStoryMacroInput): {
       });
     },
     onSuccess: async (response) => {
-      setMessage(response.message ?? i18next.t("gen.pages.novels.hooks.useNovelStoryMacro.gen_2404ea38"));
+      setMessage(response.message ?? i18next.t("dict.gen_2404ea38"));
       await invalidatePlan();
     },
     onSettled: () => {

@@ -22,11 +22,11 @@ import { AppDialogContent, Dialog } from "@/components/ui/dialog";
 import { toast } from "@/components/ui/toast";
 
 const IMAGE_STATUS_TEXT: Record<string, string> = {
-  queued: t("gen.pages.bookAnalysis.components.BookAnalysisCharacterImagePanel.gen_e5ac1d20"),
-  running: t("gen.pages.bookAnalysis.components.BookAnalysisCharacterImagePanel.gen_1ae3a984"),
-  succeeded: t("gen.pages.bookAnalysis.components.BookAnalysisCharacterImagePanel.gen_b6c4a445"),
-  failed: t("gen.pages.bookAnalysis.components.BookAnalysisCharacterImagePanel.gen_7f7de8a2"),
-  cancelled: t("gen.pages.bookAnalysis.components.BookAnalysisCharacterImagePanel.gen_2111ccbb"),
+  queued: i18next.t("tasks.filterStatusQueued"),
+  running: i18next.t("dict.gen_1ae3a984"),
+  succeeded: i18next.t("dict.gen_b6c4a445"),
+  failed: i18next.t("dict.gen_7f7de8a2"),
+  cancelled: i18next.t("tasks.filterStatusCancelled"),
 };
 
 interface BookAnalysisCharacterImagePanelProps {
@@ -94,7 +94,7 @@ export default function BookAnalysisCharacterImagePanel({
     onSuccess: async (response) => {
       await queryClient.invalidateQueries({ queryKey: queryKeys.baseCharacters.all });
       setPromoteOpen(false);
-      toast.success(response.data?.baseCharacter.name ? `已加入角色库：${response.data.baseCharacter.name}` : t("gen.pages.bookAnalysis.components.BookAnalysisCharacterImagePanel.gen_846f92e4"));
+      toast.success(response.data?.baseCharacter.name ? `已加入角色库：${response.data.baseCharacter.name}` : i18next.t("dict.gen_846f92e4"));
     },
   });
 
@@ -104,7 +104,7 @@ export default function BookAnalysisCharacterImagePanel({
       generate: async (overrides) => {
         const response = await generateBookAnalysisCharacterImage(analysisId, character.id, {
           count: 2,
-          stylePreset: t("gen.pages.bookAnalysis.components.BookAnalysisCharacterImagePanel.gen_13e2f7b7"),
+          stylePreset: i18next.t("dict.gen_13e2f7b7"),
           overrides,
         });
         if (response.data?.id) {
@@ -122,17 +122,13 @@ export default function BookAnalysisCharacterImagePanel({
       <ImageGenerationConfirmDialog {...flow.dialogProps} />
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div className="flex flex-wrap items-center gap-2">
-          <span className="font-medium">{t("gen.pages.bookAnalysis.components.BookAnalysisCharacterImagePanel.gen_6da70687")}</span>
-          <Badge variant="outline">{t("gen.pages.bookAnalysis.components.BookAnalysisCharacterImagePanel.gen_f10a01b8")}</Badge>
-          {primaryAsset ? <Badge variant="secondary">{t("gen.pages.bookAnalysis.components.BookAnalysisCharacterImagePanel.gen_71c474b0")}</Badge> : null}
+          <span className="font-medium">{i18next.t("dict.gen_6da70687")}</span>
+          <Badge variant="outline">{i18next.t("dict.gen_f10a01b8")}</Badge>
+          {primaryAsset ? <Badge variant="secondary">{i18next.t("dict.gen_71c474b0")}</Badge> : null}
         </div>
         <div className="flex flex-wrap gap-2">
-          <Button size="sm" variant="outline" onClick={startGenerate} disabled={disabled || Boolean(activeTaskId)}>
-            生成形象图
-          </Button>
-          <Button size="sm" variant="outline" onClick={() => setPromoteOpen(true)} disabled={disabled || promoteMutation.isPending}>
-            加入角色库
-          </Button>
+          <Button size="sm" variant="outline" onClick={startGenerate} disabled={disabled || Boolean(activeTaskId)}>{i18next.t("bookAnalysis.bookAnalysisCharacterImagePanel.qi098y")}</Button>
+          <Button size="sm" variant="outline" onClick={() => setPromoteOpen(true)} disabled={disabled || promoteMutation.isPending}>{i18next.t("bookAnalysis.bookAnalysisCharacterImagePanel.l8xpv6")}</Button>
         </div>
       </div>
 
@@ -143,9 +139,9 @@ export default function BookAnalysisCharacterImagePanel({
         </div>
       ) : null}
 
-      {assetsQuery.isLoading ? <div className="text-xs text-muted-foreground">{t("gen.pages.bookAnalysis.components.BookAnalysisCharacterImagePanel.gen_c5cd0e81")}</div> : null}
+      {assetsQuery.isLoading ? <div className="text-xs text-muted-foreground">{i18next.t("dict.gen_c5cd0e81")}</div> : null}
       {!assetsQuery.isLoading && assets.length === 0 ? (
-        <div className="text-xs text-muted-foreground">{t("gen.pages.bookAnalysis.components.BookAnalysisCharacterImagePanel.gen_6936f5f5")}</div>
+        <div className="text-xs text-muted-foreground">{i18next.t("dict.gen_6936f5f5")}</div>
       ) : null}
       {assets.length > 0 ? (
         <div className="grid gap-2 sm:grid-cols-2">
@@ -158,28 +154,24 @@ export default function BookAnalysisCharacterImagePanel({
                 loading="lazy"
               />
               <div className="flex flex-wrap items-center justify-between gap-2">
-                <span className="text-xs text-muted-foreground">{t("gen.pages.bookAnalysis.components.BookAnalysisCharacterImagePanel.gen_5237e99c")}</span>
+                <span className="text-xs text-muted-foreground">{i18next.t("dict.gen_5237e99c")}</span>
                 <div className="flex flex-wrap gap-2">
                   <Button
                     size="sm"
                     variant="outline"
                     onClick={() => setPrimaryMutation.mutate(asset.id)}
                     disabled={asset.isPrimary || setPrimaryMutation.isPending}
-                  >
-                    设主图
-                  </Button>
+                  >{i18next.t("bookAnalysis.bookAnalysisCharacterImagePanel.kun35")}</Button>
                   <Button
                     size="sm"
                     variant="outline"
                     onClick={() => {
-                      if (window.confirm(t("gen.pages.bookAnalysis.components.BookAnalysisCharacterImagePanel.gen_99345c1b"))) {
+                      if (window.confirm(i18next.t("dict.gen_99345c1b"))) {
                         deleteMutation.mutate(asset);
                       }
                     }}
                     disabled={deleteMutation.isPending && deleteMutation.variables?.id === asset.id}
-                  >
-                    删除
-                  </Button>
+                  >{i18next.t("dict.gen_2f4aaddd")}</Button>
                 </div>
               </div>
             </div>
@@ -193,29 +185,25 @@ export default function BookAnalysisCharacterImagePanel({
           bodyClassName="space-y-3"
           footer={(
             <>
-              <Button type="button" variant="outline" onClick={() => setPromoteOpen(false)} disabled={promoteMutation.isPending}>
-                取消
-              </Button>
+              <Button type="button" variant="outline" onClick={() => setPromoteOpen(false)} disabled={promoteMutation.isPending}>{i18next.t("common.cancel")}</Button>
               <Button type="button" onClick={() => promoteMutation.mutate()} disabled={promoteMutation.isPending}>
-                {promoteMutation.isPending ? t("gen.pages.bookAnalysis.components.BookAnalysisCharacterImagePanel.gen_49ac5fc6") : t("gen.pages.bookAnalysis.components.BookAnalysisCharacterImagePanel.gen_a7b4e2cf")}
+                {promoteMutation.isPending ? i18next.t("dict.gen_49ac5fc6") : i18next.t("dict.gen_a7b4e2cf")}
               </Button>
             </>
           )}
         >
-          <div className="text-sm text-muted-foreground">
-            会把该角色的人物字段复制到角色库；拆书证据和场景记录仍保留在拆书档案中。
-          </div>
+          <div className="text-sm text-muted-foreground">{i18next.t("bookAnalysis.bookAnalysisCharacterImagePanel.hijc67")}</div>
           <label className="flex items-center gap-2 text-sm">
             <input
               type="checkbox"
               checked={includePrimaryImage}
               onChange={(event) => setIncludePrimaryImage(event.target.checked)}
             />
-            <span>{t("gen.pages.bookAnalysis.components.BookAnalysisCharacterImagePanel.gen_6014e7fe")}</span>
+            <span>{i18next.t("dict.gen_6014e7fe")}</span>
           </label>
           {promoteMutation.error ? (
             <div className="text-sm text-destructive">
-              {promoteMutation.error instanceof Error ? promoteMutation.error.message : t("gen.pages.bookAnalysis.components.BookAnalysisCharacterImagePanel.gen_ebb6f767")}
+              {promoteMutation.error instanceof Error ? promoteMutation.error.message : i18next.t("dict.gen_ebb6f767")}
             </div>
           ) : null}
         </AppDialogContent>

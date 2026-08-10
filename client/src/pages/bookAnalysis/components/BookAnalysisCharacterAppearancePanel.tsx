@@ -1,3 +1,4 @@
+import i18next from "i18next";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type {
@@ -243,7 +244,7 @@ export default function BookAnalysisCharacterAppearancePanel({
       <ImageGenerationConfirmDialog {...flow.dialogProps} />
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div className="flex flex-wrap items-center gap-2">
-          <span className="font-medium">形象演变</span>
+          <span className="font-medium">{i18next.t("dict.gen_c9f06a16")}</span>
           <Badge variant="outline">{appearance?.coveragePercent ?? 0}%</Badge>
           <Badge variant="secondary">{appearance?.snapshots.length ?? 0} 个章节快照</Badge>
         </div>
@@ -258,7 +259,7 @@ export default function BookAnalysisCharacterAppearancePanel({
       </div>
 
       <div className="rounded-md border bg-background p-2 text-sm">
-        <div className="text-xs text-muted-foreground">当前外貌</div>
+        <div className="text-xs text-muted-foreground">{i18next.t("dict.gen_b5572402")}</div>
         <div className="mt-1 whitespace-pre-wrap">{currentAppearance || "暂无外貌描述"}</div>
       </div>
 
@@ -266,8 +267,8 @@ export default function BookAnalysisCharacterAppearancePanel({
         <div className="rounded-md border bg-background p-2 text-sm">
           <div className="flex flex-wrap items-center justify-between gap-2">
             <div>
-              <div className="text-xs text-muted-foreground">基础形象参考</div>
-              <div className="mt-1 text-sm">生成章节形象图时保持同一角色的脸型、发型和标志细节。</div>
+              <div className="text-xs text-muted-foreground">{i18next.t("dict.gen_14c7c5cd")}</div>
+              <div className="mt-1 text-sm">{i18next.t("dict.gen_0c87a821")}</div>
             </div>
             <Badge variant="outline">{selectedReferenceAssetIds.length} 张参考图</Badge>
           </div>
@@ -301,7 +302,7 @@ export default function BookAnalysisCharacterAppearancePanel({
           </div>
         </div>
       ) : characterImagesQuery.isLoading ? (
-        <div className="rounded-md border bg-background p-2 text-xs text-muted-foreground">正在读取基础形象图。</div>
+        <div className="rounded-md border bg-background p-2 text-xs text-muted-foreground">{i18next.t("dict.gen_4448dcb3")}</div>
       ) : null}
 
       <div className="space-y-2">
@@ -328,11 +329,11 @@ export default function BookAnalysisCharacterAppearancePanel({
           onChange={(event) => setTargetPercent(Number(event.target.value))}
           className="w-full accent-primary"
           disabled={disabled || scanActive}
-          aria-label="目标覆盖率"
+          aria-label={i18next.t("dict.gen_09d465e9")}
         />
       </div>
 
-      {appearanceQuery.isLoading ? <div className="text-xs text-muted-foreground">正在读取形象演变。</div> : null}
+      {appearanceQuery.isLoading ? <div className="text-xs text-muted-foreground">{i18next.t("dict.gen_f041a0ef")}</div> : null}
       {scanMutation.error ? (
         <div className="text-xs text-destructive">
           {scanMutation.error instanceof Error ? scanMutation.error.message : "形象扫描失败。"}
@@ -366,7 +367,7 @@ export default function BookAnalysisCharacterAppearancePanel({
           <div className="rounded-md border bg-background p-2 text-sm">
             <div className="flex flex-wrap items-center justify-between gap-2">
               <div>
-                <div className="text-xs text-muted-foreground">待确认外貌词条</div>
+                <div className="text-xs text-muted-foreground">{i18next.t("dict.gen_c1240cbe")}</div>
                 <div className="mt-1 text-sm">{pendingTerms.length > 0 ? "勾选可信词条后添加到角色外貌。" : "暂无待确认词条"}</div>
               </div>
               <Button
@@ -378,7 +379,7 @@ export default function BookAnalysisCharacterAppearancePanel({
                 {mergeTermsMutation.isPending ? "融合中..." : "融合外貌"}
               </Button>
             </div>
-            {termsQuery.isLoading ? <div className="mt-2 text-xs text-muted-foreground">正在读取词条。</div> : null}
+            {termsQuery.isLoading ? <div className="mt-2 text-xs text-muted-foreground">{i18next.t("dict.gen_374c1aac")}</div> : null}
             {pendingTerms.length > 0 ? (
               <div className="mt-2 flex flex-wrap gap-2">
                 {pendingTerms.map((term) => (
@@ -406,16 +407,14 @@ export default function BookAnalysisCharacterAppearancePanel({
                         rejectTermMutation.mutate(term.id);
                       }}
                       disabled={disabled || rejectTermMutation.isPending}
-                    >
-                      忽略词条
-                    </Button>
+                    >{i18next.t("bookAnalysis.bookAnalysisCharacterAppearancePanel.clptto")}</Button>
                   </label>
                 ))}
               </div>
             ) : null}
           </div>
           <div className="rounded-md border bg-background p-2 text-sm">
-            <div className="text-xs text-muted-foreground">稳定特征</div>
+            <div className="text-xs text-muted-foreground">{i18next.t("dict.gen_6122b2f7")}</div>
             <div className="mt-1 whitespace-pre-wrap">{formatJsonSummary(appearance.consolidatedAppearance)}</div>
           </div>
           {appearance.variantPolicy && Object.keys(appearance.variantPolicy).length > 0 ? (
@@ -427,7 +426,7 @@ export default function BookAnalysisCharacterAppearancePanel({
             <div className="space-y-2">
               <div className="flex flex-wrap items-center justify-between gap-2 rounded-md border bg-background p-2">
                 <div>
-                  <div className="text-sm font-medium">章节快照</div>
+                  <div className="text-sm font-medium">{i18next.t("bookAnalysis.bookAnalysisCharacterAppearancePanel.g1ij26")}</div>
                   <div className="mt-0.5 text-xs text-muted-foreground">
                     {showAllSnapshots
                       ? `显示全部 ${appearance.snapshots.length} 个章节快照`
@@ -451,9 +450,7 @@ export default function BookAnalysisCharacterAppearancePanel({
                         variant="ghost"
                         onClick={() => setSnapshotPage((current) => Math.max(0, current - 1))}
                         disabled={currentSnapshotPage === 0}
-                      >
-                        上一页
-                      </Button>
+                      >{i18next.t("autoDirectorFollowUps.autoDirectorFollowUpList.btlof")}</Button>
                       <span className="min-w-16 text-center text-xs text-muted-foreground">
                         {currentSnapshotPage + 1} / {snapshotPageCount}
                       </span>
@@ -463,9 +460,7 @@ export default function BookAnalysisCharacterAppearancePanel({
                         variant="ghost"
                         onClick={() => setSnapshotPage((current) => Math.min(snapshotPageCount - 1, current + 1))}
                         disabled={currentSnapshotPage >= snapshotPageCount - 1}
-                      >
-                        下一页
-                      </Button>
+                      >{i18next.t("autoDirectorFollowUps.autoDirectorFollowUpList.btmf4")}</Button>
                     </div>
                   ) : null}
                 </div>
@@ -475,7 +470,7 @@ export default function BookAnalysisCharacterAppearancePanel({
                   <div className="flex flex-wrap items-center justify-between gap-2">
                     <div className="flex flex-wrap items-center gap-2">
                       <div className="font-medium">第 {snapshot.chapterIndex + 1} 章</div>
-                      {snapshot.manuallyEdited ? <Badge variant="outline">手动保留</Badge> : null}
+                      {snapshot.manuallyEdited ? <Badge variant="outline">{i18next.t("dict.gen_4bd22121")}</Badge> : null}
                       {(() => {
                         const readyCount = snapshot.images.filter((image) => image.imageAsset).length;
                         return readyCount > 0 ? <Badge variant="secondary">{readyCount} 张图</Badge> : null;
@@ -487,9 +482,7 @@ export default function BookAnalysisCharacterAppearancePanel({
                       variant="outline"
                       onClick={() => startGenerateSnapshotImage(snapshot.id)}
                       disabled={disabled || Boolean(activeTaskId)}
-                    >
-                      生成图
-                    </Button>
+                    >{i18next.t("bookAnalysis.bookAnalysisCharacterAppearancePanel.hmqfh")}</Button>
                   </div>
                   {snapshot.chapterTitle ? (
                     <div className="mt-1 text-xs text-muted-foreground">{snapshot.chapterTitle}</div>
@@ -518,15 +511,13 @@ export default function BookAnalysisCharacterAppearancePanel({
                 </div>
               ))}
               {visibleSnapshots.length === 0 ? (
-                <div className="rounded-md border border-dashed bg-background p-4 text-sm text-muted-foreground">
-                  暂无带形象信息的章节。可以查看全部章节，或继续增量扫描。
-                </div>
+                <div className="rounded-md border border-dashed bg-background p-4 text-sm text-muted-foreground">{i18next.t("bookAnalysis.bookAnalysisCharacterAppearancePanel.i7glse")}</div>
               ) : null}
             </div>
           ) : null}
         </>
       ) : (
-        <div className="text-xs text-muted-foreground">选择覆盖率后增量扫描，系统会按章节抽取这个角色的形象变化。</div>
+        <div className="text-xs text-muted-foreground">{i18next.t("dict.gen_17dcc18c")}</div>
       )}
     </div>
   );

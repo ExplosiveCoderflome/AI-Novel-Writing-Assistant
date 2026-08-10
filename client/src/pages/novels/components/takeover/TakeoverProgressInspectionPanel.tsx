@@ -17,7 +17,7 @@ export default function TakeoverProgressInspectionPanel({
   return (
     <div className="mt-3 rounded-lg border bg-background/70 p-3">
       <div className={`text-xs leading-5 text-muted-foreground ${AUTO_DIRECTOR_MOBILE_CLASSES.wrapText}`}>
-        {isLoadingTaskSnapshot ? t("gen.pages.novels.components.takeover.TakeoverProgressInspectionPanel.gen_a6cccc7c") : inspection.summary}
+        {isLoadingTaskSnapshot ? i18next.t("dict.gen_a6cccc7c") : inspection.summary}
       </div>
       <div className="mt-3 grid min-w-0 gap-2 md:grid-cols-2">
         {inspection.cards.map((card) => (
@@ -31,9 +31,7 @@ export default function TakeoverProgressInspectionPanel({
         ))}
       </div>
       {hasTaskSnapshotError ? (
-        <div className={`mt-2 text-xs leading-5 text-muted-foreground ${AUTO_DIRECTOR_MOBILE_CLASSES.wrapText}`}>
-          当前任务详细进度读取失败，已先显示项目资产体检。
-        </div>
+        <div className={`mt-2 text-xs leading-5 text-muted-foreground ${AUTO_DIRECTOR_MOBILE_CLASSES.wrapText}`}>{i18next.t("novels.takeoverProgressInspectionPanel.n5uipz")}</div>
       ) : null}
     </div>
   );

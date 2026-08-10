@@ -1,3 +1,4 @@
+import i18next from "i18next";
 import { Download, RefreshCw, RotateCw } from "lucide-react";
 import { APP_RUNTIME, APP_VERSION } from "@/lib/constants";
 import { useDesktopUpdater } from "@/lib/desktop";
@@ -43,7 +44,7 @@ export default function AppVersionBadge({ className }: AppVersionBadgeProps) {
                 : "border-border/70 bg-muted/60 text-muted-foreground hover:bg-muted hover:text-foreground",
               className,
             )}
-            title="打开版本与更新"
+            title={i18next.t("layout.appVersionBadge.8t8yvb")}
             aria-label={`打开版本与更新，${label}`}
           >
             {Icon ? <Icon className={cn("h-3 w-3", isChecking && "animate-spin")} aria-hidden="true" /> : null}

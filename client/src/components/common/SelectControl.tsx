@@ -95,7 +95,7 @@ export default function SelectControl({
   className,
   triggerClassName,
   contentClassName,
-  placeholder = t("gen.components.common.SelectControl.gen_708c9d6d"),
+  placeholder = i18next.t("dict.gen_708c9d6d"),
   disabled,
   id,
   name,

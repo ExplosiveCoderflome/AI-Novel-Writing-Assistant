@@ -1,3 +1,4 @@
+import i18next from "i18next";
 import type { CreativeHubNovelSetupStatus } from "@ai-novel/shared/types/creativeHub";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -41,7 +42,7 @@ export default function CreativeHubNovelSetupCard({
   return (
     <div className="space-y-3">
       <div className="mb-3 flex items-center justify-between gap-2">
-        <div className="text-xs font-medium text-muted-foreground">开书信息</div>
+        <div className="text-xs font-medium text-muted-foreground">{i18next.t("creativeHub.setupInfo", "开书信息")}</div>
         <Badge variant="outline">{stageLabel(setup.stage)}</Badge>
       </div>
 
@@ -55,13 +56,13 @@ export default function CreativeHubNovelSetupCard({
           </div>
           <div className="text-right">
             <div className="text-lg font-semibold text-foreground">{setup.completionRatio}%</div>
-            <div className="text-[11px] text-muted-foreground">完成度</div>
+            <div className="text-[11px] text-muted-foreground">{i18next.t("creativeHub.completion", "完成度")}</div>
           </div>
         </div>
         <div
           className="mt-3 h-2 overflow-hidden rounded-full bg-muted"
           role="progressbar"
-          aria-label="开书信息完成度"
+          aria-label={i18next.t("creativeHub.creativeHubNovelSetupCard.eqabqq")}
           aria-valuemin={0}
           aria-valuemax={100}
           aria-valuenow={setup.completionRatio}
@@ -84,9 +85,7 @@ export default function CreativeHubNovelSetupCard({
               <div className="text-sm font-medium">{item.label}</div>
               <div className="flex items-center gap-2 text-[11px]">
                 {item.requiredForProduction ? (
-                  <span className="rounded-md border border-current/20 bg-background/70 px-2 py-0.5">
-                    生产前确认
-                  </span>
+                  <span className="rounded-md border border-current/20 bg-background/70 px-2 py-0.5">{i18next.t("creativeHub.creativeHubNovelSetupCard.t0565h")}</span>
                 ) : null}
                 <span>
                   {item.status === "ready" ? "已就绪" : item.status === "partial" ? "待补充" : "缺失"}
@@ -106,9 +105,7 @@ export default function CreativeHubNovelSetupCard({
                     variant="outline"
                     disabled={actionDisabled}
                     onClick={() => onQuickAction?.(item.recommendedAction!)}
-                  >
-                    补这项
-                  </Button>
+                  >{i18next.t("creativeHub.creativeHubNovelSetupCard.koicl")}</Button>
                 ) : null}
                 {item.optionPrompt ? (
                   <Button
@@ -117,9 +114,7 @@ export default function CreativeHubNovelSetupCard({
                     variant="outline"
                     disabled={actionDisabled}
                     onClick={() => onQuickAction?.(item.optionPrompt!)}
-                  >
-                    给我备选
-                  </Button>
+                  >{i18next.t("creativeHub.creativeHubNovelSetupCard.gerube")}</Button>
                 ) : null}
               </div>
             ) : null}
@@ -129,7 +124,7 @@ export default function CreativeHubNovelSetupCard({
 
       {pendingItems.length > 0 ? (
         <div className="rounded-md border border-warning/30 bg-warning/5 p-3">
-          <div className="text-xs font-medium text-warning">生产前待确认</div>
+          <div className="text-xs font-medium text-warning">{i18next.t("creativeHub.creativeHubNovelSetupCard.o6akae")}</div>
           <div className="mt-2 text-sm leading-6 text-foreground">
             {pendingItems.slice(0, 4).map((item) => item.label).join("、")}
             {pendingItems.length > 4 ? " 等" : ""}
@@ -140,24 +135,20 @@ export default function CreativeHubNovelSetupCard({
               size="sm"
               disabled={actionDisabled}
               onClick={() => onQuickAction?.("总结当前小说进入整本生产前仍需确认的条件，并按优先级给出补齐顺序。")}
-            >
-              生成确认清单
-            </Button>
+            >{i18next.t("creativeHub.creativeHubNovelSetupCard.y0ve7r")}</Button>
             <Button
               type="button"
               size="sm"
               variant="outline"
               disabled={actionDisabled}
               onClick={() => onQuickAction?.("根据当前小说信息，为生产前缺失的关键条件各给出 3 个备选答案，方便我逐项选择。")}
-            >
-              批量给我备选
-            </Button>
+            >{i18next.t("creativeHub.creativeHubNovelSetupCard.kvp4ts")}</Button>
           </div>
         </div>
       ) : null}
 
       <div className="rounded-md border border-info/30 bg-info/5 p-3">
-        <div className="text-xs font-medium text-info">下一项信息</div>
+        <div className="text-xs font-medium text-info">{i18next.t("creativeHub.creativeHubNovelSetupCard.vhpgmq")}</div>
         <div className="mt-2 text-sm leading-6 text-foreground">{setup.nextQuestion}</div>
       </div>
 
@@ -167,18 +158,14 @@ export default function CreativeHubNovelSetupCard({
           size="sm"
           disabled={actionDisabled}
           onClick={() => onQuickAction?.(setup.recommendedAction)}
-        >
-          按引导继续
-        </Button>
+        >{i18next.t("creativeHub.creativeHubNovelSetupCard.qkqtai")}</Button>
         <Button
           type="button"
           size="sm"
           variant="outline"
           disabled={actionDisabled}
           onClick={() => onQuickAction?.("总结当前这本书的初始化完成度，并告诉我还缺哪些关键信息。")}
-        >
-          查看初始化摘要
-        </Button>
+        >{i18next.t("creativeHub.creativeHubNovelSetupCard.fyoy1h")}</Button>
       </div>
     </div>
   );

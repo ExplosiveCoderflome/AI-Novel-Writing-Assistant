@@ -1,3 +1,5 @@
+import i18next from "i18next";
+import { useTranslation } from "react-i18next";
 import { useEffect, useMemo, useState } from "react";
 import { UnlockKeyhole } from "lucide-react";
 import AiButton from "@/components/common/AiButton";
@@ -30,12 +32,12 @@ function renderChapterDetailStatusBadge(
   status: ReturnType<typeof getChapterExecutionDetailStatus>,
 ) {
   if (status === "complete") {
-    return <Badge variant="secondary">已细化</Badge>;
+    return <Badge variant="secondary">{i18next.t("novels.structuredChapterDetailCard.ede2q")}</Badge>;
   }
   if (status === "partial") {
-    return <Badge>细化中</Badge>;
+    return <Badge>{i18next.t("novels.structuredChapterDetailCard.iz199")}</Badge>;
   }
-  return <Badge variant="outline">待细化</Badge>;
+  return <Badge variant="outline">{i18next.t("novels.structuredChapterDetailCard.elowl")}</Badge>;
 }
 
 interface StructuredChapterDetailCardProps {
@@ -61,6 +63,7 @@ interface StructuredChapterDetailCardProps {
 }
 
 export default function StructuredChapterDetailCard(props: StructuredChapterDetailCardProps) {
+  const { t } = useTranslation();
   const {
     selectedVolume,
     selectedChapter,
@@ -182,7 +185,7 @@ export default function StructuredChapterDetailCard(props: StructuredChapterDeta
         <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
           <div className="space-y-2">
             <div className="flex flex-wrap items-center gap-2">
-              <CardTitle className="text-base leading-none">当前章节细化</CardTitle>
+              <CardTitle className="text-base leading-none">{i18next.t("novels.structuredChapterDetailCard.tuyxl8")}</CardTitle>
               {selectedChapter ? (
                 <>
                   <Badge variant="outline">第{selectedChapter.chapterOrder}章</Badge>
@@ -219,10 +222,8 @@ export default function StructuredChapterDetailCard(props: StructuredChapterDeta
             <div className="rounded-xl border border-border/70 bg-muted/20 p-4">
               <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
                 <div className="space-y-1">
-                  <div className="text-sm font-medium">批量细化</div>
-                  <div className="text-xs leading-6 text-muted-foreground">
-                    可以从当前章起按数量连续细化，也可以直接补齐当前可见章节或本卷全部章节。
-                  </div>
+                  <div className="text-sm font-medium">{i18next.t("novels.structuredChapterDetailCard.d13fgm")}</div>
+                  <div className="text-xs leading-6 text-muted-foreground">{i18next.t("novels.structuredChapterDetailCard.tv2i8g")}</div>
                 </div>
                 <AiButton
                   size="sm"
@@ -236,15 +237,15 @@ export default function StructuredChapterDetailCard(props: StructuredChapterDeta
 
               <div className="mt-3 grid gap-3 md:grid-cols-[minmax(0,1fr)_160px]">
                 <label className="space-y-2 text-sm">
-                  <span className="text-xs text-muted-foreground">范围</span>
+                  <span className="text-xs text-muted-foreground">{i18next.t("novels.structuredChapterDetailCard.mrf5")}</span>
                   <SelectControl
                     className="w-full rounded-xl border bg-background px-3 py-2 text-sm text-foreground"
                     value={batchMode}
                     onChange={(event) => setBatchMode(event.target.value as BatchMode)}
                   >
-                    <option value="count" disabled={!hasCountBatch}>从当前章起连续细化</option>
-                    {hasVisibleBatch ? <option value="visible_all">当前可见章节</option> : null}
-                    {hasVolumeBatch ? <option value="volume_all">本卷全部章节</option> : null}
+                    <option value="count" disabled={!hasCountBatch}>{i18next.t("novels.structuredChapterDetailCard.f8pste")}</option>
+                    {hasVisibleBatch ? <option value="visible_all">{i18next.t("novels.structuredChapterDetailCard.oz7acu")}</option> : null}
+                    {hasVolumeBatch ? <option value="volume_all">{i18next.t("novels.structuredChapterDetailCard.dzfh5f")}</option> : null}
                   </SelectControl>
                 </label>
                 <label className="space-y-2 text-sm">
@@ -274,7 +275,7 @@ export default function StructuredChapterDetailCard(props: StructuredChapterDeta
             </div>
 
             <label className="space-y-2 text-sm">
-              <span className="text-xs text-muted-foreground">章节标题</span>
+              <span className="text-xs text-muted-foreground">{i18next.t("novels.structuredChapterDetailCard.g1k4gj")}</span>
               <Input
                 value={selectedChapter.title}
                 onChange={(event) => onChapterFieldChange(selectedVolume.id, selectedChapter.id, "title", event.target.value)}
@@ -282,7 +283,7 @@ export default function StructuredChapterDetailCard(props: StructuredChapterDeta
             </label>
 
             <label className="space-y-2 text-sm">
-              <span className="text-xs text-muted-foreground">章节摘要</span>
+              <span className="text-xs text-muted-foreground">{i18next.t("novels.structuredChapterDetailCard.g1jex7")}</span>
               <textarea
                 className={cn(textareaClassName, "min-h-[130px]")}
                 value={selectedChapter.summary}
@@ -292,7 +293,7 @@ export default function StructuredChapterDetailCard(props: StructuredChapterDeta
 
             <label className="space-y-2 text-sm">
               <div className="flex items-center justify-between gap-2">
-                <span className="text-xs text-muted-foreground">章节目标</span>
+                <span className="text-xs text-muted-foreground">{i18next.t("dict.gen_85f9e2b5")}</span>
                 <AiButton
                   size="sm"
                   variant="outline"
@@ -311,7 +312,7 @@ export default function StructuredChapterDetailCard(props: StructuredChapterDeta
 
             <label className="space-y-2 text-sm">
               <div className="flex items-center justify-between gap-2">
-                <span className="text-xs text-muted-foreground">任务单</span>
+                <span className="text-xs text-muted-foreground">{i18next.t("dict.singleTask")}</span>
                 <AiButton
                   size="sm"
                   variant="outline"
@@ -330,18 +331,18 @@ export default function StructuredChapterDetailCard(props: StructuredChapterDeta
 
             {showChapterAdvanced ? (
               <div className="space-y-4 rounded-xl border border-border/70 bg-muted/20 p-4">
-                <div className="text-sm font-medium">高级设置</div>
+                <div className="text-sm font-medium">{i18next.t("novels.novelExistingProjectTakeoverDialog.k2beyn")}</div>
                 <div className="grid gap-3 md:grid-cols-3">
                   <label className="space-y-2 text-sm">
                     <div className="flex items-center justify-between gap-2">
-                      <span className="text-xs text-muted-foreground">冲突等级</span>
+                      <span className="text-xs text-muted-foreground">{i18next.t("dict.gen_971cbaa4")}</span>
                       {selectedChapter.conflictLevelSource === "user" && typeof selectedChapter.conflictLevel === "number" ? (
                         <Button
                           type="button"
                           size="sm"
                           variant="outline"
                           className="h-7 px-2 text-xs"
-                          title="解除锚定，交还 AI 优化"
+                          title={i18next.t("novels.structuredChapterDetailCard.ikzs8b")}
                           onClick={() => {
                             const conflictLevel = selectedChapter.conflictLevel;
                             if (typeof conflictLevel !== "number") {
@@ -352,9 +353,7 @@ export default function StructuredChapterDetailCard(props: StructuredChapterDeta
                             });
                           }}
                         >
-                          <UnlockKeyhole className="mr-1 h-3.5 w-3.5" aria-hidden="true" />
-                          交还 AI
-                        </Button>
+                          <UnlockKeyhole className="mr-1 h-3.5 w-3.5" aria-hidden="true" />{i18next.t("tensionCurve.tensionCurveNodes.tj0hyk")}</Button>
                       ) : null}
                     </div>
                     <Input
@@ -371,7 +370,7 @@ export default function StructuredChapterDetailCard(props: StructuredChapterDeta
                     />
                   </label>
                   <label className="space-y-2 text-sm">
-                    <span className="text-xs text-muted-foreground">揭露等级</span>
+                    <span className="text-xs text-muted-foreground">{i18next.t("dict.gen_53fe8284")}</span>
                     <Input
                       type="number"
                       min={0}
@@ -381,7 +380,7 @@ export default function StructuredChapterDetailCard(props: StructuredChapterDeta
                     />
                   </label>
                   <label className="space-y-2 text-sm">
-                    <span className="text-xs text-muted-foreground">目标字数</span>
+                    <span className="text-xs text-muted-foreground">{i18next.t("dict.gen_b71c2e84")}</span>
                     <Input
                       type="number"
                       min={200}
@@ -393,7 +392,7 @@ export default function StructuredChapterDetailCard(props: StructuredChapterDeta
                 </div>
 
                 <label className="space-y-2 text-sm">
-                  <span className="text-xs text-muted-foreground">禁止事项</span>
+                  <span className="text-xs text-muted-foreground">{i18next.t("dict.gen_e586f3e2")}</span>
                   <textarea
                     className={cn(textareaClassName, "min-h-[100px]")}
                     value={selectedChapter.mustAvoid ?? ""}
@@ -402,7 +401,7 @@ export default function StructuredChapterDetailCard(props: StructuredChapterDeta
                 </label>
 
                 <label className="space-y-2 text-sm">
-                  <span className="text-xs text-muted-foreground">兑现关联</span>
+                  <span className="text-xs text-muted-foreground">{i18next.t("novels.structuredChapterDetailCard.aqkqo0")}</span>
                   <textarea
                     className={cn(textareaClassName, "min-h-[100px]")}
                     value={selectedChapter.payoffRefs.join("\n")}
@@ -411,27 +410,17 @@ export default function StructuredChapterDetailCard(props: StructuredChapterDeta
                 </label>
 
                 <div className="flex flex-wrap gap-2">
-                  <Button size="sm" variant="outline" onClick={() => onMoveChapter(selectedVolume.id, selectedChapter.id, -1)} disabled={selectedChapterIndex <= 0}>
-                    上移
-                  </Button>
-                  <Button size="sm" variant="outline" onClick={() => onMoveChapter(selectedVolume.id, selectedChapter.id, 1)} disabled={selectedChapterIndex < 0 || selectedChapterIndex >= selectedVolume.chapters.length - 1}>
-                    下移
-                  </Button>
-                  <Button size="sm" variant="outline" onClick={() => onRemoveChapter(selectedVolume.id, selectedChapter.id)} disabled={selectedVolume.chapters.length <= 1}>
-                    删除
-                  </Button>
+                  <Button size="sm" variant="outline" onClick={() => onMoveChapter(selectedVolume.id, selectedChapter.id, -1)} disabled={selectedChapterIndex <= 0}>{i18next.t("novels.outlineCurrentVolumeWorkspace.dxyp")}</Button>
+                  <Button size="sm" variant="outline" onClick={() => onMoveChapter(selectedVolume.id, selectedChapter.id, 1)} disabled={selectedChapterIndex < 0 || selectedChapterIndex >= selectedVolume.chapters.length - 1}>{i18next.t("novels.outlineCurrentVolumeWorkspace.dxzk")}</Button>
+                  <Button size="sm" variant="outline" onClick={() => onRemoveChapter(selectedVolume.id, selectedChapter.id)} disabled={selectedVolume.chapters.length <= 1}>{i18next.t("dict.gen_2f4aaddd")}</Button>
                 </div>
               </div>
             ) : (
-              <div className="rounded-xl border border-dashed p-3 text-sm text-muted-foreground">
-                冲突等级、揭露等级、字数、禁止事项和兑现关联已收进高级设置，避免一上来就把表单铺满。
-              </div>
+              <div className="rounded-xl border border-dashed p-3 text-sm text-muted-foreground">{i18next.t("novels.structuredChapterDetailCard.ki4fdv")}</div>
             )}
           </>
         ) : (
-          <div className="rounded-md border border-dashed p-6 text-sm text-muted-foreground">
-            先在左侧选择一个章节，再开始细化。
-          </div>
+          <div className="rounded-md border border-dashed p-6 text-sm text-muted-foreground">{i18next.t("novels.structuredChapterDetailCard.y0oyav")}</div>
         )}
       </CardContent>
     </Card>

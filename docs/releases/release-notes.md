@@ -4,6 +4,15 @@
 
 ## 更新历史
 
+### 2026-08-09（v0.5.5 美股投研 Agent 与 SearXNG 本地搜索引擎集成发布）
+
+- **美股投研 Stock Agent 集成 SearXNG 开源搜索引擎**：
+  - **SearXNG 本地 Docker 直连**：实现了基于 SearXNG REST API (`http://127.0.0.1:8088/search?q=...&format=json`) 的实时美股热点新闻与宏观快讯检索服务 (`searxngSearchService.ts`)。
+  - **Fresh Memory 动态提炼与注入**：将 SearXNG 抓取到的隔夜新闻与标的快讯切片提炼为真实催化剂与产业链关联节点，无缝注入 AI 研报 Prompt 槽位。
+  - **零中断平滑降级保护**：即使本地未启动 SearXNG 容器或连接阻断，系统会自动静默降级为“盘口+存量知识图谱模式”，保障主流程 100% 稳定运行。
+  - **Stock Studio 工作台数据源审计**：在【⚙️ 调仓生成过程】看板中新增 SearXNG 搜索引擎连通状态检测与双数据源审计。
+  - **真实网络测试与配置文档**：提供了 100% 真实无 Mock 的测试脚本 (`server/scripts/runSearXNGTest.cjs`) 以及 Docker 安装配置指南（更新至 `README_zh.md` 与 `README.md`）。
+
 ### 2026-08-03（v0.5.1 极简创作与新手引导发布 & Agent 团队组织化升级）
 
 - **Agent 团队组织化与数字员工基础设施 (Phase 1 & Phase 2)**：

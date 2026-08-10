@@ -1,5 +1,5 @@
+import { useTranslation } from "react-i18next";
 import i18next from "i18next";
-const t = (key: string, options?: any) => i18next.t(key, options) as string;
 import { useEffect, useMemo, useState } from "react";
 import type { DirectorContinuationMode } from "@ai-novel/shared/types/novelDirector";
 import type {
@@ -53,6 +53,7 @@ function createDownload(blob: Blob, fileName: string): void {
 }
 
 export default function NovelList() {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [status, setStatus] = useState<StatusFilter>("all");
@@ -92,10 +93,10 @@ export default function NovelList() {
     mutationFn: (id: string) => deleteNovel(id),
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: queryKeys.novels.all });
-      toast.success(t("gen.pages.novels.NovelList.gen_fc09ee9d"));
+      toast.success(i18next.t("dict.gen_fc09ee9d"));
     },
     onError: (error) => {
-      toast.error(error instanceof Error ? error.message : t("gen.pages.novels.NovelList.gen_8ece8c38"));
+      toast.error(error instanceof Error ? error.message : i18next.t("dict.gen_8ece8c38"));
     },
   });
 
@@ -108,10 +109,10 @@ export default function NovelList() {
     ),
     onSuccess: ({ blob, fileName }) => {
       createDownload(blob, fileName);
-      toast.success(t("gen.pages.novels.NovelList.gen_70576156"));
+      toast.success(i18next.t("dict.gen_70576156"));
     },
     onError: (error) => {
-      toast.error(error instanceof Error ? error.message : t("gen.pages.novels.NovelList.gen_45b8252a"));
+      toast.error(error instanceof Error ? error.message : i18next.t("dict.gen_45b8252a"));
     },
   });
 
@@ -145,8 +146,8 @@ export default function NovelList() {
         error instanceof Error
           ? error.message
           : input.mode === "auto_execute_range"
-            ? t("gen.pages.novels.NovelList.gen_73ebdc25")
-            : t("gen.pages.novels.NovelList.gen_bb8020bb"),
+            ? i18next.t("toasts.failedAutoExecute")
+            : i18next.t("toasts.failedAutoDirector"),
       );
     },
   });
@@ -221,11 +222,11 @@ export default function NovelList() {
       ) : novelListQuery.isError ? (
         <Card>
           <CardHeader>
-            <CardTitle>{t("gen.pages.novels.NovelList.gen_d7f76120")}</CardTitle>
-            <CardDescription>{t("gen.pages.novels.NovelList.gen_6ad34b4c")}</CardDescription>
+            <CardTitle>{i18next.t("dict.gen_d7f76120")}</CardTitle>
+            <CardDescription>{i18next.t("dict.gen_6ad34b4c")}</CardDescription>
           </CardHeader>
           <CardContent>
-            <Button onClick={() => void novelListQuery.refetch()}>{t("gen.pages.novels.NovelList.gen_64ca9bab")}</Button>
+            <Button onClick={() => void novelListQuery.refetch()}>{i18next.t("common.retry")}</Button>
           </CardContent>
         </Card>
       ) : novels.length === 0 ? (
@@ -271,29 +272,25 @@ export default function NovelList() {
       >
         <AppDialogContent
           className="max-w-2xl"
-          title={t("gen.pages.novels.NovelList.aiCockpit")}
+          title={i18next.t("dict.aiCockpit")}
           description={
             selectedCockpitNovel?.title
               ? `查看《${selectedCockpitNovel.title}》的 AI 推进状态和下一步动作。`
-              : t("gen.pages.novels.NovelList.gen_309ad2d0")
+              : i18next.t("dict.gen_309ad2d0")
           }
         >
           {cockpitProjectionQuery.isPending ? (
-            <div className="rounded-lg border p-3 text-sm text-muted-foreground">
-              读取这本书的 AI 状态...
-            </div>
+            <div className="rounded-lg border p-3 text-sm text-muted-foreground">{i18next.t("novels.novelList.qc8pb5")}</div>
           ) : cockpitProjectionQuery.isError ? (
             <div className="rounded-lg border p-3">
-              <div className="text-sm text-muted-foreground">{t("gen.pages.novels.NovelList.gen_59ae355e")}</div>
+              <div className="text-sm text-muted-foreground">{i18next.t("dict.gen_59ae355e")}</div>
               <Button
                 type="button"
                 size="sm"
                 variant="outline"
                 className="mt-3"
                 onClick={() => void cockpitProjectionQuery.refetch()}
-              >
-                重新读取
-              </Button>
+              >{i18next.t("autoDirectorFollowUps.autoDirectorFollowUpCenterPage.itle66")}</Button>
             </div>
           ) : cockpitProjection ? (
             <AICockpit
@@ -307,7 +304,7 @@ export default function NovelList() {
               }}
             />
           ) : (
-            <AICockpit fallbackSummary={t("gen.pages.novels.NovelList.gen_1f7096a6")} />
+            <AICockpit fallbackSummary={i18next.t("dict.gen_1f7096a6")} />
           )}
         </AppDialogContent>
       </Dialog>

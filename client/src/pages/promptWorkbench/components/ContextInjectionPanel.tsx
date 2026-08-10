@@ -1,5 +1,5 @@
+import { useTranslation } from "react-i18next";
 import i18next from "i18next";
-const t = (key: string, options?: any) => i18next.t(key, options) as string;
 import { useMemo, useState } from "react";
 import { ArrowDownUp, LockKeyhole, Plus, Search } from "lucide-react";
 import type { PromptPreviewResult, PromptTemplateReferenceCatalog } from "@/api/promptWorkbench";
@@ -139,10 +139,8 @@ export function ContextInjectionPanel(props: {
       <div className="shrink-0 border-b border-[#d8e2de] bg-[#fbfdfb] px-4 py-4">
         <div className="flex items-center justify-between gap-3">
           <div>
-            <h3 className="text-sm font-semibold text-[#25443f]">{t("gen.pages.promptWorkbench.components.ContextInjectionPanel.gen_a8d62ba2")}</h3>
-            <p className="mt-1 text-xs text-muted-foreground">
-              查看本次预览使用的资料块、裁剪和摘要状态
-            </p>
+            <h3 className="text-sm font-semibold text-[#25443f]">{i18next.t("dict.gen_a8d62ba2")}</h3>
+            <p className="mt-1 text-xs text-muted-foreground">{i18next.t("promptWorkbench.contextInjectionPanel.m07yuc")}</p>
           </div>
           <span className="rounded-md bg-[#eaf7f2] px-2 py-1 text-xs font-medium text-[#0f766e]">
             {visibleBlocks.length} 块
@@ -155,7 +153,7 @@ export function ContextInjectionPanel(props: {
             <Input
               value={query}
               onChange={(event) => setQuery(event.target.value)}
-              placeholder={t("gen.pages.promptWorkbench.components.ContextInjectionPanel.gen_43cdd606")}
+              placeholder={i18next.t("dict.gen_43cdd606")}
               className="h-9 border-[#cbdad6] bg-white pl-9 shadow-sm"
             />
           </div>
@@ -166,26 +164,22 @@ export function ContextInjectionPanel(props: {
               onChange={(event) => setSortMode(event.target.value as SortMode)}
               className="h-9 w-full rounded-md border border-[#cbdad6] bg-white pl-9 pr-3 text-sm shadow-sm"
             >
-              <option value="status">{t("gen.pages.promptWorkbench.components.ContextInjectionPanel.gen_e9c4ac93")}</option>
-              <option value="priority">{t("gen.pages.promptWorkbench.components.ContextInjectionPanel.gen_107262a3")}</option>
-              <option value="tokens">{t("gen.pages.promptWorkbench.components.ContextInjectionPanel.gen_c4a0f05c")}</option>
-              <option value="group">{t("gen.pages.promptWorkbench.components.ContextInjectionPanel.gen_e0e42086")}</option>
+              <option value="status">{i18next.t("dict.gen_e9c4ac93")}</option>
+              <option value="priority">{i18next.t("dict.gen_107262a3")}</option>
+              <option value="tokens">{i18next.t("dict.gen_c4a0f05c")}</option>
+              <option value="group">{i18next.t("dict.gen_e0e42086")}</option>
             </SelectControl>
           </div>
         </div>
       </div>
 
       {!preview ? (
-        <div className="m-4 rounded-md border border-dashed border-[#cbdad6] bg-white/70 p-4 text-sm text-muted-foreground">
-          生成预览后，这里会显示已注入、被裁剪和被摘要的上下文块。
-        </div>
+        <div className="m-4 rounded-md border border-dashed border-[#cbdad6] bg-white/70 p-4 text-sm text-muted-foreground">{i18next.t("promptWorkbench.contextInjectionPanel.fr01dz")}</div>
       ) : (
         <>
           <div className="min-h-0 flex-1 space-y-1.5 overflow-y-auto p-3">
             {visibleBlocks.length === 0 ? (
-              <div className="rounded-md border border-dashed border-[#cbdad6] bg-white/70 p-4 text-sm text-muted-foreground">
-                没有匹配的上下文块。
-              </div>
+              <div className="rounded-md border border-dashed border-[#cbdad6] bg-white/70 p-4 text-sm text-muted-foreground">{i18next.t("promptWorkbench.contextInjectionPanel.z1hhd5")}</div>
             ) : (
               visibleBlocks.map((block) => (
                 <button
@@ -225,13 +219,13 @@ export function ContextInjectionPanel(props: {
                     </div>
                   </div>
                   <div className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1 text-[11px] text-muted-foreground">
-                    <span>{t("gen.pages.promptWorkbench.components.ContextInjectionPanel.gen_648791e0")}</span>
+                    <span>{i18next.t("dict.gen_648791e0")}</span>
                     <span>·</span>
                     <span>P{block.priority}</span>
                     {block.locked ? (
                       <>
                         <span>·</span>
-                        <span>{t("gen.pages.promptWorkbench.components.ContextInjectionPanel.gen_29a91e99")}</span>
+                        <span>{i18next.t("dict.gen_29a91e99")}</span>
                       </>
                     ) : null}
                   </div>
@@ -261,9 +255,7 @@ export function ContextInjectionPanel(props: {
                       onClick={() => onInsertToken(activeContextToken)}
                       className="w-full border-[#b8d9d0] text-[#0f5f59]"
                     >
-                      <Plus className="mr-1.5 h-3.5 w-3.5" />
-                      插入到模板
-                    </Button>
+                      <Plus className="mr-1.5 h-3.5 w-3.5" />{i18next.t("promptWorkbench.contextInjectionPanel.p9wvlx")}</Button>
                   </div>
                 ) : null}
                 <pre className="max-h-64 overflow-auto whitespace-pre-wrap p-3 text-xs leading-relaxed text-[#1f2937]">

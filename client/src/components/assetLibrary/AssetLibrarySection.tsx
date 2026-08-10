@@ -1,3 +1,4 @@
+import i18next from "i18next";
 import type { LucideIcon } from "lucide-react";
 import type { ReactNode } from "react";
 import { cn } from "@/lib/utils";
@@ -21,7 +22,7 @@ export function AssetLibraryRecommendation(props: {
   const Icon = props.icon;
   return (
     <section
-      aria-label="推荐下一步"
+      aria-label={i18next.t("dict.gen_9ff48c30")}
       className={cn(
         "flex flex-col gap-4 rounded-md border px-4 py-3 sm:flex-row sm:items-center sm:justify-between",
         recommendationToneClass[props.tone ?? "info"],

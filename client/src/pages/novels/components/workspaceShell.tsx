@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import type { ReactNode } from "react";
 import { ChevronDown } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -30,6 +31,7 @@ export function StepHero(props: {
   className?: string;
   children?: ReactNode;
 }) {
+  const { t } = useTranslation();
   return (
     <section className={cn("rounded-2xl px-5 py-4", toneSurfaceClass[props.tone ?? "neutral"], props.className)}>
       <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">

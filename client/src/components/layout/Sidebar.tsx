@@ -1,3 +1,4 @@
+import i18next from "i18next";
 import { useQuery } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import {
@@ -38,6 +39,8 @@ import { Button } from "@/components/ui/button";
 import { VisualAssetLibraryDialog } from "@/components/visualAssets";
 import { cn } from "@/lib/utils";
 
+import { useTranslation } from "react-i18next";
+
 interface NavItem {
   to: string;
   label: string;
@@ -51,53 +54,54 @@ interface NavGroup {
   items: NavItem[];
 }
 
-const navGroups: NavGroup[] = [
-  {
-    title: "创作与扩展",
-    items: [
-      { to: "/", label: "首页", icon: House },
-      { to: "/stock", label: "美股投研与调仓", icon: TrendingUp },
-      { to: "/help", label: "创作向导", icon: CircleHelp },
-      { to: "/novels", label: "小说列表", icon: BookOpenText },
-      { to: "/multimedia", label: "多媒体改编", icon: Film },
-      { to: "/creative-hub", label: "创作中枢", icon: LayoutDashboard },
-      { to: "/book-analysis", label: "拆书", icon: ScanSearch },
-      { to: "/tasks", label: "运行记录", icon: ListTodo },
-      { to: "/auto-director/follow-ups", label: "导演跟进", icon: Workflow },
-    ],
-  },
-  {
-    title: "资产",
-    items: [
-      { to: "/genres", label: "题材基底库", icon: Tags },
-      { to: "/story-modes", label: "推进模式库", icon: Workflow },
-      { to: "/titles", label: "标题工坊", icon: SquarePen },
-      { to: "/knowledge", label: "知识库", icon: Database },
-      { to: "/worlds", label: "世界样本库", icon: Globe2 },
-      { to: "/style-engine", label: "写法引擎", icon: WandSparkles },
-      { to: "/anti-ai-rules", label: "反 AI 规则", icon: ShieldCheck },
-      { to: "/base-characters", label: "基础角色库", icon: UsersRound },
-      { to: "#visual-assets", label: "视觉资源库", icon: Images, action: "visual_asset_library" },
-    ],
-  },
-  {
-    title: "系统",
-    items: [
-      { to: "/prompt-workbench", label: "提示词管理", icon: Braces },
-      { to: "/settings/model-routes", label: "模型路由", icon: Route },
-      { to: "/settings", label: "系统设置", icon: Settings2 },
-    ],
-  },
-];
-
 interface SidebarProps {
   collapsed: boolean;
   onToggle: () => void;
 }
 
 export default function Sidebar({ collapsed, onToggle }: SidebarProps) {
+  const { t } = useTranslation();
   const [badgeQueriesEnabled, setBadgeQueriesEnabled] = useState(false);
   const [visualAssetLibraryOpen, setVisualAssetLibraryOpen] = useState(false);
+
+  const navGroups: NavGroup[] = [
+    {
+      title: t("sidebar.groupCreative", "创作与扩展"),
+      items: [
+        { to: "/", label: t("sidebar.home", "首页"), icon: House },
+        { to: "/stock", label: t("sidebar.stock", "美股投研与调仓"), icon: TrendingUp },
+        { to: "/help", label: t("sidebar.help", "创作向导"), icon: CircleHelp },
+        { to: "/novels", label: t("sidebar.novels", "小说列表"), icon: BookOpenText },
+        { to: "/multimedia", label: t("sidebar.multimedia", "多媒体改编"), icon: Film },
+        { to: "/creative-hub", label: t("sidebar.creativeHub", "创作中枢"), icon: LayoutDashboard },
+        { to: "/book-analysis", label: t("sidebar.bookAnalysis", "拆书"), icon: ScanSearch },
+        { to: "/tasks", label: t("sidebar.tasks", "运行记录"), icon: ListTodo },
+        { to: "/auto-director/follow-ups", label: t("sidebar.autoDirector", "导演跟进"), icon: Workflow },
+      ],
+    },
+    {
+      title: t("sidebar.groupAssets", "资产"),
+      items: [
+        { to: "/genres", label: t("sidebar.genres", "题材基底库"), icon: Tags },
+        { to: "/story-modes", label: t("sidebar.storyModes", "推进模式库"), icon: Workflow },
+        { to: "/titles", label: t("sidebar.titles", "标题工坊"), icon: SquarePen },
+        { to: "/knowledge", label: t("sidebar.knowledge", "知识库"), icon: Database },
+        { to: "/worlds", label: t("sidebar.worlds", "世界样本库"), icon: Globe2 },
+        { to: "/style-engine", label: t("sidebar.styleEngine", "写法引擎"), icon: WandSparkles },
+        { to: "/anti-ai-rules", label: t("sidebar.antiAiRules", "反 AI 规则"), icon: ShieldCheck },
+        { to: "/base-characters", label: t("sidebar.baseCharacters", "基础角色库"), icon: UsersRound },
+        { to: "#visual-assets", label: t("sidebar.visualAssets", "视觉资源库"), icon: Images, action: "visual_asset_library" },
+      ],
+    },
+    {
+      title: t("sidebar.groupSystem", "系统"),
+      items: [
+        { to: "/prompt-workbench", label: t("sidebar.prompts", "提示词管理"), icon: Braces },
+        { to: "/settings/model-routes", label: t("sidebar.modelRoutes", "模型路由"), icon: Route },
+        { to: "/settings", label: t("sidebar.settings", "系统设置"), icon: Settings2 },
+      ],
+    },
+  ];
 
   useEffect(() => {
     const timer = window.setTimeout(() => setBadgeQueriesEnabled(true), 500);
@@ -146,7 +150,7 @@ export default function Sidebar({ collapsed, onToggle }: SidebarProps) {
         <Badge
           variant="outline"
           className="ml-auto h-5 border-amber-300 bg-amber-50 px-1.5 text-[10px] font-medium text-amber-700"
-          title="多媒体改编仍在 Beta 阶段"
+          title={i18next.t("layout.sidebar.hncv0e")}
         >
           Beta
         </Badge>
@@ -258,7 +262,7 @@ export default function Sidebar({ collapsed, onToggle }: SidebarProps) {
                 return (
                   <div
                     key={item.to}
-                    title={collapsed ? item.label : "即将推出"}
+                    title={collapsed ? item.label : i18next.t("layout.sidebar.awvfr9")}
                     className={cn(
                       "relative flex cursor-not-allowed items-center rounded-md text-sm opacity-40",
                       collapsed ? "justify-center px-2 py-2.5" : "py-2 pl-4 pr-2",
@@ -269,7 +273,7 @@ export default function Sidebar({ collapsed, onToggle }: SidebarProps) {
                       <span className="truncate">{item.label}</span>
                     ) : null}
                     {!collapsed ? (
-                      <span className="ml-auto text-[10px] text-muted-foreground/60">即将推出</span>
+                      <span className="ml-auto text-[10px] text-muted-foreground/60">{i18next.t("layout.sidebar.awvfr9")}</span>
                     ) : null}
                   </div>
                 );

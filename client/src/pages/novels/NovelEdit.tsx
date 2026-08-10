@@ -1,5 +1,5 @@
+import { useTranslation } from "react-i18next";
 import i18next from "i18next";
-const t = (key: string, options?: any) => i18next.t(key, options) as string;
 ﻿import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -254,6 +254,7 @@ function resolveActiveStructuredOutlineChapterId(snapshot: DirectorTaskSnapshot 
 }
 
 export default function NovelEdit() {
+  const { t } = useTranslation();
   const { id = "" } = useParams();
   const navigate = useNavigate();
   const llm = useLLMStore();
@@ -325,7 +326,7 @@ export default function NovelEdit() {
   const [selectedBaseCharacterId, setSelectedBaseCharacterId] = useState("");
   const [quickCharacterForm, setQuickCharacterForm] = useState({
     name: "",
-    role: t("gen.pages.novels.NovelEdit.mainCharacter"),
+    role: i18next.t("dict.mainCharacter"),
   });
   const [characterForm, setCharacterForm] = useState({
     name: "",
@@ -533,10 +534,10 @@ export default function NovelEdit() {
     },
     onSuccess: ({ blob, fileName, scope }) => {
       createDownload(blob, fileName);
-      toast.success(scope === "full" ? t("gen.pages.novels.NovelEdit.gen_4c746ccb") : t("gen.pages.novels.NovelEdit.gen_fe2ea9d0"));
+      toast.success(scope === "full" ? i18next.t("dict.gen_4c746ccb") : i18next.t("dict.gen_fe2ea9d0"));
     },
     onError: (error) => {
-      toast.error(error instanceof Error ? error.message : t("gen.pages.novels.NovelEdit.gen_4c31fa95"));
+      toast.error(error instanceof Error ? error.message : i18next.t("dict.gen_4c31fa95"));
     },
   });
 
@@ -925,7 +926,7 @@ export default function NovelEdit() {
       takeoverDismissStorageKey(id),
       activeAutoDirectorRefreshSignature,
     );
-    toast.success(t("gen.pages.novels.NovelEdit.gen_d6ea9c20"));
+    toast.success(i18next.t("dict.gen_d6ea9c20"));
   };
   const isTakeoverDismissed = Boolean(
     activeAutoDirectorRefreshSignature
@@ -1039,7 +1040,7 @@ export default function NovelEdit() {
       const targetTaskId = input?.directorTaskId || actionTargetDirectorTaskId;
       const targetTask = targetTaskId === visibleDirectorTask?.id ? visibleDirectorTask : activeAutoDirectorTask;
       if (!targetTaskId) {
-        throw new Error(t("gen.pages.novels.NovelEdit.gen_8b4231ef"));
+        throw new Error(i18next.t("dict.gen_8b4231ef"));
       }
       return continueNovelWorkflow(targetTaskId, {
         continuationMode: resolveDirectorContinueMode(targetTask),
@@ -1061,7 +1062,7 @@ export default function NovelEdit() {
       toast.success(feedback.message);
     },
     onError: (error) => {
-      const message = error instanceof Error ? error.message : t("gen.pages.novels.NovelEdit.gen_bb8020bb");
+      const message = error instanceof Error ? error.message : i18next.t("toasts.failedAutoDirector");
       toast.error(message);
     },
   });
@@ -1089,7 +1090,7 @@ export default function NovelEdit() {
     onSuccess: async (response, directorTaskId) => {
       setDirectorTaskId(response.data?.taskId ?? directorTaskId);
       await invalidateAutoDirectorTaskState(response.data?.taskId ?? directorTaskId);
-      toast.success("已确认当前修改，导演将从下一个未完成步骤继续。");
+      toast.success(i18next.t("novels.novelEdit.e6lni3"));
     },
     onError: (error) => {
       toast.error(error instanceof Error ? error.message : "确认修改并继续失败。");
@@ -1099,7 +1100,7 @@ export default function NovelEdit() {
     mutationFn: async (input?: { directorTaskId?: string; continuationMode?: "auto_execute_range" | "skip_quality_repair" }) => {
       const targetTaskId = input?.directorTaskId || actionTargetDirectorTaskId;
       if (!targetTaskId) {
-        throw new Error(t("gen.pages.novels.NovelEdit.gen_808dee74"));
+        throw new Error(i18next.t("dict.gen_808dee74"));
       }
       return continueNovelWorkflow(targetTaskId, {
         continuationMode: input?.continuationMode ?? "auto_execute_range",
@@ -1153,7 +1154,7 @@ export default function NovelEdit() {
         ? error.message
         : input.mode === "auto_execute_range"
           ? `继续自动执行${activeAutoExecutionScopeLabel}失败。`
-          : t("gen.pages.novels.NovelEdit.gen_bb8020bb");
+          : i18next.t("toasts.failedAutoDirector");
       toast.error(message);
     },
   });
@@ -1164,7 +1165,7 @@ export default function NovelEdit() {
     }) => {
       const targetTaskId = input.directorTaskId || actionTargetDirectorTaskId;
       if (!targetTaskId) {
-        throw new Error(t("gen.pages.novels.NovelEdit.gen_d8454097"));
+        throw new Error(i18next.t("dict.gen_d8454097"));
       }
       return executeAutoDirectorFollowUpAction(targetTaskId, {
         actionCode: input.actionCode,
@@ -1182,10 +1183,10 @@ export default function NovelEdit() {
         toast.error(result.message);
         return;
       }
-      toast.success(result?.message ?? t("gen.pages.novels.NovelEdit.gen_99d1ef6c"));
+      toast.success(result?.message ?? i18next.t("dict.gen_99d1ef6c"));
     },
     onError: (error) => {
-      toast.error(error instanceof Error ? error.message : t("gen.pages.novels.NovelEdit.gen_2eec4ea4"));
+      toast.error(error instanceof Error ? error.message : i18next.t("dict.gen_2eec4ea4"));
     },
   });
   const consistencyIssue = useMemo(
@@ -1239,7 +1240,7 @@ export default function NovelEdit() {
     if (!showToast) {
       return;
     }
-    toast.success(targetVolumeId ? t("gen.pages.novels.NovelEdit.gen_ba82dca3") : t("gen.pages.novels.NovelEdit.gen_d6bc8f4b"));
+    toast.success(targetVolumeId ? i18next.t("dict.gen_ba82dca3") : i18next.t("dict.gen_d6bc8f4b"));
   };
   const handleTaskDrawerProjectionAction = (action: DirectorBookAutomationAction) => {
     if (!bookAutomationProjection) {
@@ -1314,7 +1315,7 @@ export default function NovelEdit() {
   const retryAutoDirectorWithCurrentModelMutation = useMutation({
     mutationFn: async () => {
       if (!retryableAutoDirectorTask?.id) {
-        throw new Error(t("gen.pages.novels.NovelEdit.gen_9a95b9a5"));
+        throw new Error(i18next.t("dict.gen_9a95b9a5"));
       }
       return retryTask("novel_workflow", retryableAutoDirectorTask.id, {
         llmOverride: {
@@ -1332,14 +1333,14 @@ export default function NovelEdit() {
       toast.success(`已切换到 ${llm.provider} / ${llm.model} 并重新启动自动导演。`);
     },
     onError: (error) => {
-      const message = error instanceof Error ? error.message : t("gen.pages.novels.NovelEdit.gen_ad99ab16");
+      const message = error instanceof Error ? error.message : i18next.t("dict.gen_ad99ab16");
       toast.error(message);
     },
   });
   const retryAutoDirectorWithTaskModelMutation = useMutation({
     mutationFn: async () => {
       if (!retryableAutoDirectorTask?.id) {
-        throw new Error(t("gen.pages.novels.NovelEdit.gen_9a95b9a5"));
+        throw new Error(i18next.t("dict.gen_9a95b9a5"));
       }
       return retryTask("novel_workflow", retryableAutoDirectorTask.id, { resume: true });
     },
@@ -1347,10 +1348,10 @@ export default function NovelEdit() {
       syncAutoDirectorTaskCache(queryClient, id, response.data);
       void invalidateAutoDirectorTaskState(response.data?.id ?? retryableAutoDirectorTask?.id);
       setIsTaskDrawerOpen(true);
-      toast.success(t("gen.pages.novels.NovelEdit.gen_3c3010a2"));
+      toast.success(i18next.t("dict.gen_3c3010a2"));
     },
     onError: (error) => {
-      const message = error instanceof Error ? error.message : t("gen.pages.novels.NovelEdit.gen_634bee94");
+      const message = error instanceof Error ? error.message : i18next.t("dict.gen_634bee94");
       toast.error(message);
     },
   });
@@ -1358,7 +1359,7 @@ export default function NovelEdit() {
     mutationFn: async (targetTaskId?: string) => {
       const taskId = targetTaskId || displayAutoDirectorTask?.id || activeAutoDirectorTask?.id;
       if (!taskId) {
-        throw new Error(t("gen.pages.novels.NovelEdit.gen_bd25565d"));
+        throw new Error(i18next.t("dict.gen_bd25565d"));
       }
       return cancelTask("novel_workflow", taskId);
     },
@@ -1366,10 +1367,10 @@ export default function NovelEdit() {
       setIsDirectorExitActionExpanded(false);
       syncAutoDirectorTaskCache(queryClient, id, response.data);
       void invalidateAutoDirectorTaskState(response.data?.id ?? targetTaskId ?? displayAutoDirectorTask?.id ?? activeAutoDirectorTask?.id);
-      toast.success(t("gen.pages.novels.NovelEdit.gen_1a2d06e1"));
+      toast.success(i18next.t("dict.gen_1a2d06e1"));
     },
     onError: (error) => {
-      const message = error instanceof Error ? error.message : t("gen.pages.novels.NovelEdit.gen_56424223");
+      const message = error instanceof Error ? error.message : i18next.t("dict.gen_56424223");
       toast.error(message);
     },
   });
@@ -1377,17 +1378,17 @@ export default function NovelEdit() {
     mutationFn: async (targetTaskId?: string) => {
       const taskId = targetTaskId || displayAutoDirectorTask?.id;
       if (!taskId) {
-        throw new Error(t("gen.pages.novels.NovelEdit.gen_bb541061"));
+        throw new Error(i18next.t("dict.gen_bb541061"));
       }
       return archiveTask("novel_workflow", taskId);
     },
     onSuccess: async (_response, targetTaskId) => {
       setIsDirectorExitActionExpanded(false);
       await invalidateAutoDirectorTaskState(targetTaskId ?? displayAutoDirectorTask?.id);
-      toast.success(t("gen.pages.novels.NovelEdit.gen_fe8880b1"));
+      toast.success(i18next.t("dict.gen_fe8880b1"));
     },
     onError: (error) => {
-      const message = error instanceof Error ? error.message : t("gen.pages.novels.NovelEdit.gen_008c9a99");
+      const message = error instanceof Error ? error.message : i18next.t("dict.gen_008c9a99");
       toast.error(message);
     },
   });
@@ -1459,18 +1460,18 @@ export default function NovelEdit() {
       task,
       projection: bookAutomationProjection,
     });
-    const novelTitle = novelDetailQuery.data?.data?.title?.trim() || task.title?.trim() || t("gen.pages.novels.NovelEdit.gen_6702a4c6");
+    const novelTitle = novelDetailQuery.data?.data?.title?.trim() || task.title?.trim() || i18next.t("dict.gen_6702a4c6");
     const reviewScope = activeDirectorSession?.reviewScope ?? null;
     const autoExecutionScopeLabel = resolveAutoExecutionScopeLabel(task);
     const actions: NonNullable<NovelEditTakeoverState["actions"]> = [];
     if (activeChapterTitleWarning) {
       actions.push({
         label: chapterTitleRepairMutation.isPending && chapterTitleRepairMutation.pendingTaskId === task.id
-          ? t("gen.pages.novels.NovelEdit.aiIsRepairing")
+          ? i18next.t("dict.aiIsRepairing")
           : activeChapterTitleWarning.label,
         onClick: () => {
           if (hasUnsavedVolumeDraft) {
-            toast.error(t("gen.pages.novels.NovelEdit.gen_af6fe6ee"));
+            toast.error(i18next.t("dict.gen_af6fe6ee"));
             return;
           }
           chapterTitleRepairMutation.startRepair(task);
@@ -1485,7 +1486,7 @@ export default function NovelEdit() {
       && task.checkpointType === "candidate_selection_required"
     ) {
       actions.push({
-        label: t("gen.pages.novels.NovelEdit.gen_1bc805d4"),
+        label: i18next.t("dict.gen_1bc805d4"),
         onClick: () => openCandidateSelection(task.id),
         variant: "default",
       });
@@ -1496,14 +1497,14 @@ export default function NovelEdit() {
       && task.checkpointType !== "chapter_batch_ready"
     ) {
       actions.push({
-        label: t("gen.pages.novels.NovelEdit.gen_c0a47636"),
+        label: i18next.t("dict.gen_c0a47636"),
         onClick: () => setActiveTab(reviewTab),
         variant: "outline",
       });
     }
     if (task.pendingManualRecovery) {
       actions.push({
-        label: continueAutoDirectorMutation.isPending ? t("gen.pages.novels.NovelEdit.gen_95ee3e92") : t("gen.pages.novels.NovelEdit.gen_90eba202"),
+        label: continueAutoDirectorMutation.isPending ? i18next.t("dict.gen_95ee3e92") : i18next.t("dict.gen_90eba202"),
         onClick: () => continueAutoDirectorMutation.mutate({ directorTaskId: task.id }),
         variant: "default",
         disabled: continueAutoDirectorMutation.isPending,
@@ -1572,7 +1573,7 @@ export default function NovelEdit() {
         disabled: continueAutoExecutionMutation.isPending,
       });
       actions.push({
-        label: t("gen.pages.novels.NovelEdit.gen_98b5f8b5"),
+        label: i18next.t("dict.gen_98b5f8b5"),
         onClick: () => {
           if (task.resumeTarget?.chapterId) {
             setSelectedChapterId(task.resumeTarget.chapterId);
@@ -1583,7 +1584,7 @@ export default function NovelEdit() {
       });
     } else if (mode === "waiting" && task.checkpointType === "workflow_completed") {
       actions.push({
-        label: t("gen.pages.novels.NovelEdit.gen_98b5f8b5"),
+        label: i18next.t("dict.gen_98b5f8b5"),
         onClick: () => openChapterExecution(task),
         variant: "default",
       });
@@ -1598,13 +1599,13 @@ export default function NovelEdit() {
         disabled: continueAutoExecutionMutation.isPending,
       });
       actions.push({
-        label: t("gen.pages.novels.NovelEdit.gen_7ac53960"),
+        label: i18next.t("dict.gen_7ac53960"),
         onClick: () => openQualityRepair(task),
         variant: "outline",
       });
     } else if (mode === "waiting") {
       actions.push({
-        label: continueAutoDirectorMutation.isPending ? t("gen.pages.novels.NovelEdit.gen_95ee3e92") : t("gen.pages.novels.NovelEdit.gen_90eba202"),
+        label: continueAutoDirectorMutation.isPending ? i18next.t("dict.gen_95ee3e92") : i18next.t("dict.gen_90eba202"),
         onClick: () => continueAutoDirectorMutation.mutate({ directorTaskId: task.id }),
         variant: "default",
         disabled: continueAutoDirectorMutation.isPending,
@@ -1618,28 +1619,28 @@ export default function NovelEdit() {
         disabled: continueAutoExecutionMutation.isPending,
       });
       actions.push({
-        label: t("gen.pages.novels.NovelEdit.gen_7ac53960"),
+        label: i18next.t("dict.gen_7ac53960"),
         onClick: () => openQualityRepair(task),
         variant: "outline",
       });
     }
     if (consistencyIssue) {
       actions.push({
-        label: continueAutoDirectorMutation.isPending ? t("gen.pages.novels.NovelEdit.gen_70ae8ad6") : t("gen.pages.novels.NovelEdit.gen_7833db9c"),
+        label: continueAutoDirectorMutation.isPending ? i18next.t("dict.gen_70ae8ad6") : i18next.t("dict.gen_7833db9c"),
         onClick: () => continueAutoDirectorMutation.mutate({ directorTaskId: task.id }),
         variant: "default",
         disabled: continueAutoDirectorMutation.isPending,
       });
       if (consistencyIssue === "missing_characters") {
         actions.push({
-          label: t("gen.pages.novels.NovelEdit.gen_1048e18e"),
+          label: i18next.t("dict.gen_1048e18e"),
           onClick: () => setActiveTab("character"),
           variant: "outline",
         });
       }
     } else if (task.checkpointType === "chapter_batch_ready" && mode !== "waiting") {
       actions.push({
-        label: t("gen.pages.novels.NovelEdit.gen_98b5f8b5"),
+        label: i18next.t("dict.gen_98b5f8b5"),
         onClick: () => {
           if (task.resumeTarget?.chapterId) {
             setSelectedChapterId(task.resumeTarget.chapterId);
@@ -1653,27 +1654,27 @@ export default function NovelEdit() {
     if (canCancelTask) {
       if (task.status === "failed") {
         actions.push({
-          label: cancelAutoDirectorMutation.isPending ? t("gen.pages.novels.NovelEdit.gen_e2a06cbb") : t("gen.pages.novels.NovelEdit.gen_d926e2f5"),
+          label: cancelAutoDirectorMutation.isPending ? i18next.t("dict.gen_e2a06cbb") : i18next.t("dict.gen_d926e2f5"),
           onClick: () => cancelAutoDirectorMutation.mutate(task.id),
           variant: "destructive",
           disabled: cancelAutoDirectorMutation.isPending,
         });
       } else if (isDirectorExitActionExpanded) {
         actions.push({
-          label: t("gen.pages.novels.NovelEdit.gen_1f32f18b"),
+          label: i18next.t("dict.gen_1f32f18b"),
           onClick: () => setIsDirectorExitActionExpanded(false),
           variant: "outline",
           disabled: cancelAutoDirectorMutation.isPending,
         });
         actions.push({
-          label: cancelAutoDirectorMutation.isPending ? t("gen.pages.novels.NovelEdit.gen_4dede724") : t("gen.pages.novels.NovelEdit.gen_ecc0f6cb"),
+          label: cancelAutoDirectorMutation.isPending ? i18next.t("dict.gen_4dede724") : i18next.t("dict.gen_ecc0f6cb"),
           onClick: () => cancelAutoDirectorMutation.mutate(task.id),
           variant: "destructive",
           disabled: cancelAutoDirectorMutation.isPending,
         });
       } else {
         actions.push({
-          label: t("gen.pages.novels.NovelEdit.gen_ecc0f6cb"),
+          label: i18next.t("dict.gen_ecc0f6cb"),
           onClick: () => setIsDirectorExitActionExpanded(true),
           variant: "destructive",
           disabled: cancelAutoDirectorMutation.isPending,
@@ -1684,26 +1685,26 @@ export default function NovelEdit() {
       || task.status === "cancelled"
     ) {
       actions.push({
-        label: t("gen.pages.novels.NovelEdit.gen_3dc1f046"),
+        label: i18next.t("dict.gen_3dc1f046"),
         onClick: dismissTakeover,
         variant: "secondary",
       });
     } else if (canArchiveCompletedAutoDirectorTask(task)) {
       actions.push({
-        label: archiveCompletedAutoDirectorMutation.isPending ? t("gen.pages.novels.NovelEdit.gen_5e68ef69") : t("gen.pages.novels.NovelEdit.gen_46521a45"),
+        label: archiveCompletedAutoDirectorMutation.isPending ? i18next.t("dict.gen_5e68ef69") : i18next.t("dict.gen_46521a45"),
         onClick: () => archiveCompletedAutoDirectorMutation.mutate(task.id),
         variant: "secondary",
         disabled: archiveCompletedAutoDirectorMutation.isPending,
       });
     } else if (task.status === "waiting_approval") {
       actions.push({
-        label: t("gen.pages.novels.NovelEdit.gen_3dc1f046"),
+        label: i18next.t("dict.gen_3dc1f046"),
         onClick: dismissTakeover,
         variant: "secondary",
       });
     }
     actions.push({
-      label: t("gen.pages.novels.NovelEdit.gen_2eceed7d"),
+      label: i18next.t("dict.gen_2eceed7d"),
       onClick: () => setIsTaskDrawerOpen(true),
       variant: mode === "running" ? "outline" : "secondary",
     });
@@ -1723,11 +1724,11 @@ export default function NovelEdit() {
             scopeLabel: autoExecutionScopeLabel,
           }),
       description: consistencyIssue === "missing_characters"
-        ? t("gen.pages.novels.NovelEdit.gen_任务记录显示已完成开_6ffr")
+        ? i18next.t("dict.gen_任务记录显示已完成开_6ffr")
         : consistencyIssue === "missing_chapters"
-          ? t("gen.pages.novels.NovelEdit.taskRecordShowsFirstFewChaptersCanBeWrittenButCurrentExecutionAreaEmptyIndicatingDirectorAssetNotFullyLaidDownCanDirectlyFillDirectorAssetAndContinueFixing")
+          ? i18next.t("dict.taskRecordShowsFirstFewChaptersCanBeWrittenButCurrentExecutionAreaEmptyIndicatingDirectorAssetNotFullyLaidDownCanDirectlyFillDirectorAssetAndContinueFixing")
           : task.pendingManualRecovery
-            ? t("gen.pages.novels.NovelEdit.taskPausedAtCurrentProgressContinueFromRecentPoint")
+            ? i18next.t("dict.taskPausedAtCurrentProgressContinueFromRecentPoint")
           : buildTakeoverDescription({
             mode,
             checkpointType: task.checkpointType,
@@ -1738,15 +1739,15 @@ export default function NovelEdit() {
         ? dashboardView.progressPercent
         : task.progress,
       currentAction: consistencyIssue === "missing_characters"
-        ? t("gen.pages.novels.NovelEdit.gen_8d027940")
+        ? i18next.t("dict.gen_8d027940")
         : consistencyIssue === "missing_chapters"
-          ? t("gen.pages.novels.NovelEdit.gen_cdd7418a")
+          ? i18next.t("dict.gen_cdd7418a")
           : task.pendingManualRecovery
             ? (
               task.blockingReason?.trim()
               || task.recoveryHint?.trim()
               || task.lastError?.trim()
-              || t("gen.pages.novels.NovelEdit.taskPausedWaitRecoveryFromRecentCheckPoint")
+              || i18next.t("dict.taskPausedWaitRecoveryFromRecentCheckPoint")
             )
           : dashboardView?.currentAction?.trim()
             ? dashboardView.currentAction.trim()
@@ -1754,13 +1755,13 @@ export default function NovelEdit() {
             ? activeDirectorSnapshot.displayState.currentAction.trim()
           : automationActionText
             ? automationActionText
-          : mode === "running" && task.checkpointType === "chapter_batch_ready" && task.currentItemLabel?.includes(t("gen.pages.novels.NovelEdit.gen_a2d930fd"))
+          : mode === "running" && task.checkpointType === "chapter_batch_ready" && task.currentItemLabel?.includes(i18next.t("dict.gen_a2d930fd"))
             ? `正在继续自动执行${autoExecutionScopeLabel}`
             : task.currentItemLabel ?? null,
       checkpointLabel: consistencyIssue
-        ? t("gen.pages.novels.NovelEdit.gen_dc7d10b3")
+        ? i18next.t("dict.gen_dc7d10b3")
         : task.pendingManualRecovery
-          ? t("gen.pages.novels.NovelEdit.gen_b77db710")
+          ? i18next.t("dict.gen_b77db710")
         : mode === "running" && task.checkpointType === "chapter_batch_ready"
           ? `${autoExecutionScopeLabel}自动执行中`
           : formatTakeoverCheckpoint(task.checkpointType, task),
@@ -1801,11 +1802,11 @@ export default function NovelEdit() {
     if (activeChapterTitleWarning) {
       actions.push({
         label: chapterTitleRepairMutation.isPending && chapterTitleRepairMutation.pendingTaskId === task.id
-          ? t("gen.pages.novels.NovelEdit.aiIsRepairing")
+          ? i18next.t("dict.aiIsRepairing")
           : activeChapterTitleWarning.label,
         onClick: () => {
           if (hasUnsavedVolumeDraft) {
-            toast.error(t("gen.pages.novels.NovelEdit.gen_af6fe6ee"));
+            toast.error(i18next.t("dict.gen_af6fe6ee"));
             return;
           }
           chapterTitleRepairMutation.startRepair(task);
@@ -1816,14 +1817,14 @@ export default function NovelEdit() {
     }
     if (consistencyIssue) {
       actions.push({
-        label: continueAutoDirectorMutation.isPending ? t("gen.pages.novels.NovelEdit.gen_00bf5f5e") : t("gen.pages.novels.NovelEdit.gen_7833db9c"),
+        label: continueAutoDirectorMutation.isPending ? i18next.t("dict.gen_00bf5f5e") : i18next.t("dict.gen_7833db9c"),
         onClick: () => continueAutoDirectorMutation.mutate({ directorTaskId: task.id }),
         variant: "default",
         disabled: continueAutoDirectorMutation.isPending,
       });
       if (consistencyIssue === "missing_characters") {
         actions.push({
-          label: t("gen.pages.novels.NovelEdit.gen_1048e18e"),
+          label: i18next.t("dict.gen_1048e18e"),
           onClick: () => {
             setActiveTab("character");
             setIsTaskDrawerOpen(false);
@@ -1833,7 +1834,7 @@ export default function NovelEdit() {
       }
     } else if (task.pendingManualRecovery) {
       actions.push({
-        label: continueAutoDirectorMutation.isPending ? t("gen.pages.novels.NovelEdit.gen_95ee3e92") : t("gen.pages.novels.NovelEdit.gen_90eba202"),
+        label: continueAutoDirectorMutation.isPending ? i18next.t("dict.gen_95ee3e92") : i18next.t("dict.gen_90eba202"),
         onClick: () => continueAutoDirectorMutation.mutate({ directorTaskId: task.id }),
         variant: "default",
         disabled: continueAutoDirectorMutation.isPending,
@@ -1850,13 +1851,13 @@ export default function NovelEdit() {
         disabled: continueAutoExecutionMutation.isPending,
       });
       actions.push({
-        label: t("gen.pages.novels.NovelEdit.gen_98b5f8b5"),
+        label: i18next.t("dict.gen_98b5f8b5"),
         onClick: () => openChapterExecution(task),
         variant: "outline",
       });
     } else if (task.status === "waiting_approval" && task.checkpointType === "candidate_selection_required") {
       actions.push({
-        label: t("gen.pages.novels.NovelEdit.gen_1bc805d4"),
+        label: i18next.t("dict.gen_1bc805d4"),
         onClick: () => openCandidateSelection(task.id),
         variant: "default",
       });
@@ -1872,7 +1873,7 @@ export default function NovelEdit() {
         disabled: continueAutoExecutionMutation.isPending,
       });
       actions.push({
-        label: t("gen.pages.novels.NovelEdit.gen_7ac53960"),
+        label: i18next.t("dict.gen_7ac53960"),
         onClick: () => openQualityRepair(task),
         variant: "outline",
       });
@@ -1882,12 +1883,12 @@ export default function NovelEdit() {
       && task.checkpointType !== "chapter_batch_ready"
     ) {
       actions.push({
-        label: t("gen.pages.novels.NovelEdit.gen_c0a47636"),
+        label: i18next.t("dict.gen_c0a47636"),
         onClick: openReviewStage,
         variant: "default",
       });
       actions.push({
-        label: continueAutoDirectorMutation.isPending ? t("gen.pages.novels.NovelEdit.gen_95ee3e92") : t("gen.pages.novels.NovelEdit.gen_90eba202"),
+        label: continueAutoDirectorMutation.isPending ? i18next.t("dict.gen_95ee3e92") : i18next.t("dict.gen_90eba202"),
         onClick: () => continueAutoDirectorMutation.mutate({ directorTaskId: task.id }),
         variant: "outline",
         disabled: continueAutoDirectorMutation.isPending,
@@ -1901,13 +1902,13 @@ export default function NovelEdit() {
         disabled: continueAutoExecutionMutation.isPending,
       });
       actions.push({
-        label: t("gen.pages.novels.NovelEdit.gen_7ac53960"),
+        label: i18next.t("dict.gen_7ac53960"),
         onClick: () => openQualityRepair(task),
         variant: "outline",
       });
     } else if (task.checkpointType === "chapter_batch_ready" || task.checkpointType === "workflow_completed") {
       actions.push({
-        label: t("gen.pages.novels.NovelEdit.gen_98b5f8b5"),
+        label: i18next.t("dict.gen_98b5f8b5"),
         onClick: () => openChapterExecution(task),
         variant: "default",
       });
@@ -1917,7 +1918,7 @@ export default function NovelEdit() {
 
     if (canCancelDirectorTask(task)) {
       actions.push({
-        label: cancelAutoDirectorMutation.isPending ? t("gen.pages.novels.NovelEdit.gen_e2a06cbb") : t("gen.pages.novels.NovelEdit.gen_d926e2f5"),
+        label: cancelAutoDirectorMutation.isPending ? i18next.t("dict.gen_e2a06cbb") : i18next.t("dict.gen_d926e2f5"),
         onClick: () => cancelAutoDirectorMutation.mutate(task.id),
         variant: "destructive",
         disabled: cancelAutoDirectorMutation.isPending,
@@ -2029,18 +2030,18 @@ export default function NovelEdit() {
       return;
     }
     const labels: Record<string, string> = {
-      basic: t("gen.pages.novels.NovelEdit.gen_0e9d7d2c"),
-      story_macro: t("gen.pages.novels.NovelEdit.gen_b82b516c"),
-      character: t("gen.pages.novels.NovelEdit.gen_f3e17953"),
-      outline: t("gen.pages.novels.NovelEdit.gen_53043e4c"),
-      structured: t("gen.pages.novels.NovelEdit.gen_c7e9d71a"),
-      chapter: selectedChapter ? `正在查看第${selectedChapter.order}章执行面板` : t("gen.pages.novels.NovelEdit.gen_672a181b"),
-      pipeline: t("gen.pages.novels.NovelEdit.gen_9ea4d520"),
+      basic: i18next.t("dict.gen_0e9d7d2c"),
+      story_macro: i18next.t("dict.gen_b82b516c"),
+      character: i18next.t("dict.gen_f3e17953"),
+      outline: i18next.t("dict.gen_53043e4c"),
+      structured: i18next.t("dict.gen_c7e9d71a"),
+      chapter: selectedChapter ? `正在查看第${selectedChapter.order}章执行面板` : i18next.t("dict.gen_672a181b"),
+      pipeline: i18next.t("dict.gen_9ea4d520"),
     };
     void syncNovelWorkflowStageSilently({
       novelId: id,
       stage: workflowStageFromTab(activeTab),
-      itemLabel: labels[activeTab] ?? t("gen.pages.novels.NovelEdit.gen_11404f74"),
+      itemLabel: labels[activeTab] ?? i18next.t("dict.gen_11404f74"),
       chapterId: activeTab === "chapter" ? selectedChapterId || undefined : undefined,
       volumeId: activeTab === "structured" || activeTab === "outline" ? selectedVolumeId || undefined : undefined,
       status: "waiting_approval",
@@ -2179,10 +2180,10 @@ export default function NovelEdit() {
     mutationFn: (proposalId: string) => confirmCharacterResourceProposal(id, proposalId),
     onSuccess: async () => {
       await invalidateCharacterResourceViews();
-      toast.success(t("gen.pages.novels.NovelEdit.gen_e4ee11e7"));
+      toast.success(i18next.t("dict.gen_e4ee11e7"));
     },
     onError: (error) => {
-      toast.error(error instanceof Error ? error.message : t("gen.pages.novels.NovelEdit.gen_3bf84122"));
+      toast.error(error instanceof Error ? error.message : i18next.t("dict.gen_3bf84122"));
     },
   });
 
@@ -2190,17 +2191,17 @@ export default function NovelEdit() {
     mutationFn: (proposalId: string) => rejectCharacterResourceProposal(id, proposalId),
     onSuccess: async () => {
       await invalidateCharacterResourceViews();
-      toast.success(t("gen.pages.novels.NovelEdit.gen_30fa70e3"));
+      toast.success(i18next.t("dict.gen_30fa70e3"));
     },
     onError: (error) => {
-      toast.error(error instanceof Error ? error.message : t("gen.pages.novels.NovelEdit.gen_bb542db3"));
+      toast.error(error instanceof Error ? error.message : i18next.t("dict.gen_bb542db3"));
     },
   });
 
   const extractChapterResourcesMutation = useMutation({
     mutationFn: async () => {
       if (!selectedChapterId) {
-        throw new Error(t("gen.pages.novels.NovelEdit.gen_caa5edb5"));
+        throw new Error(i18next.t("dict.gen_caa5edb5"));
       }
       return extractChapterResources(id, selectedChapterId, {
         provider: llm.provider,
@@ -2217,10 +2218,10 @@ export default function NovelEdit() {
       }
       toast.success(committedCount > 0
         ? `已复查本章资源，${committedCount} 个变更会用于后续写作。`
-        : t("gen.pages.novels.NovelEdit.gen_1dfe7ad4"));
+        : i18next.t("dict.gen_1dfe7ad4"));
     },
     onError: (error) => {
-      toast.error(error instanceof Error ? error.message : t("gen.pages.novels.NovelEdit.gen_40b323c7"));
+      toast.error(error instanceof Error ? error.message : i18next.t("dict.gen_40b323c7"));
     },
   });
 
@@ -2240,7 +2241,7 @@ export default function NovelEdit() {
         : `已回填最近 ${scanned} 章资源，${committed} 条变化会用于后续写作。`);
     },
     onError: (error) => {
-      toast.error(error instanceof Error ? error.message : t("gen.pages.novels.NovelEdit.gen_de85d527"));
+      toast.error(error instanceof Error ? error.message : i18next.t("dict.gen_de85d527"));
     },
   });
 
@@ -2648,7 +2649,7 @@ export default function NovelEdit() {
     onAbortStream: handleAbortChapterStream,
     directorTakeoverEntry: undefined,
   };
-  const pipelineTab = { novelId: id, worldInjectionSummary, hasCharacters, onGoToCharacterTab: goToCharacterTab, pipelineForm, onPipelineFormChange: (field: "startOrder" | "endOrder" | "maxRetries" | "runMode" | "autoReview" | "autoRepair" | "skipCompleted" | "qualityThreshold" | "repairMode", value: number | boolean | string) => setPipelineForm((prev) => ({ ...prev, [field]: value } as typeof prev)), maxOrder, onGenerateBible: () => void bibleSSE.start(`/novels/${id}/bible/generate`, { provider: llm.provider, model: llm.model, temperature: 0.6 }), onAbortBible: bibleSSE.abort, isBibleStreaming: bibleSSE.isStreaming, bibleStreamContent: bibleSSE.content, onGenerateBeats: () => void beatsSSE.start(`/novels/${id}/beats/generate`, { provider: llm.provider, model: llm.model, targetChapters: pipelineForm.endOrder }), onAbortBeats: beatsSSE.abort, isBeatsStreaming: beatsSSE.isStreaming, beatsStreamContent: beatsSSE.content, onRunPipeline: (patch?: Partial<typeof pipelineForm>) => runPipelineMutation.mutate(patch), isRunningPipeline: runPipelineMutation.isPending, pipelineMessage, pipelineJob: pipelineJobQuery.data?.data, chapters, selectedChapterId, onSelectedChapterChange: setSelectedChapterId, onReviewChapter: () => reviewMutation.mutate(), isReviewing: reviewMutation.isPending, onRepairChapter: () => { setRepairBeforeContent(selectedChapter?.content ?? ""); setRepairAfterContent(""); setActiveRepairStream(selectedChapter ? { chapterId: selectedChapter.id, chapterLabel: `第${selectedChapter.order}章 ${selectedChapter.title || t("gen.pages.novels.NovelEdit.gen_db55d102")}` } : null); void repairSSE.start(`/novels/${id}/chapters/${selectedChapterId}/repair`, { provider: llm.provider, model: llm.model, reviewIssues: reviewResult?.issues ?? [], auditIssueIds: openAuditIssueIds }); }, isRepairing: repairSSE.isStreaming, onGenerateHook: () => hookMutation.mutate(), isGeneratingHook: hookMutation.isPending, reviewResult, repairBeforeContent, repairAfterContent, repairStreamContent: repairSSE.content, isRepairStreaming: repairSSE.isStreaming, onAbortRepair: handleAbortRepair, qualitySummary, chapterReports: qualityReportQuery.data?.data?.chapterReports ?? [], bible, plotBeats };
+  const pipelineTab = { novelId: id, worldInjectionSummary, hasCharacters, onGoToCharacterTab: goToCharacterTab, pipelineForm, onPipelineFormChange: (field: "startOrder" | "endOrder" | "maxRetries" | "runMode" | "autoReview" | "autoRepair" | "skipCompleted" | "qualityThreshold" | "repairMode", value: number | boolean | string) => setPipelineForm((prev) => ({ ...prev, [field]: value } as typeof prev)), maxOrder, onGenerateBible: () => void bibleSSE.start(`/novels/${id}/bible/generate`, { provider: llm.provider, model: llm.model, temperature: 0.6 }), onAbortBible: bibleSSE.abort, isBibleStreaming: bibleSSE.isStreaming, bibleStreamContent: bibleSSE.content, onGenerateBeats: () => void beatsSSE.start(`/novels/${id}/beats/generate`, { provider: llm.provider, model: llm.model, targetChapters: pipelineForm.endOrder }), onAbortBeats: beatsSSE.abort, isBeatsStreaming: beatsSSE.isStreaming, beatsStreamContent: beatsSSE.content, onRunPipeline: (patch?: Partial<typeof pipelineForm>) => runPipelineMutation.mutate(patch), isRunningPipeline: runPipelineMutation.isPending, pipelineMessage, pipelineJob: pipelineJobQuery.data?.data, chapters, selectedChapterId, onSelectedChapterChange: setSelectedChapterId, onReviewChapter: () => reviewMutation.mutate(), isReviewing: reviewMutation.isPending, onRepairChapter: () => { setRepairBeforeContent(selectedChapter?.content ?? ""); setRepairAfterContent(""); setActiveRepairStream(selectedChapter ? { chapterId: selectedChapter.id, chapterLabel: `第${selectedChapter.order}章 ${selectedChapter.title || i18next.t("dict.gen_db55d102")}` } : null); void repairSSE.start(`/novels/${id}/chapters/${selectedChapterId}/repair`, { provider: llm.provider, model: llm.model, reviewIssues: reviewResult?.issues ?? [], auditIssueIds: openAuditIssueIds }); }, isRepairing: repairSSE.isStreaming, onGenerateHook: () => hookMutation.mutate(), isGeneratingHook: hookMutation.isPending, reviewResult, repairBeforeContent, repairAfterContent, repairStreamContent: repairSSE.content, isRepairStreaming: repairSSE.isStreaming, onAbortRepair: handleAbortRepair, qualitySummary, chapterReports: qualityReportQuery.data?.data?.chapterReports ?? [], bible, plotBeats };
   const characterTab = {
     novelId: id,
     llmProvider: llm.provider,

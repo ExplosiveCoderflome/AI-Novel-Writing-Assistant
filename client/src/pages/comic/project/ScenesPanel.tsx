@@ -32,19 +32,19 @@ import { toast } from "@/components/ui/toast";
 import SelectControl from "@/components/common/SelectControl";
 
 const SCENE_TYPE_LABELS: Record<SceneType, string> = {
-  interior: t("gen.pages.comic.project.ScenesPanel.gen_4fd46565"),
-  exterior: t("gen.pages.comic.project.ScenesPanel.gen_bf8f50c7"),
-  landscape: t("gen.pages.comic.project.ScenesPanel.gen_fc30335a"),
-  abstract: t("gen.pages.comic.project.ScenesPanel.gen_d8f11435"),
-  other: t("gen.pages.comic.project.ScenesPanel.gen_0d98c747"),
+  interior: i18next.t("dict.gen_4fd46565"),
+  exterior: i18next.t("dict.gen_bf8f50c7"),
+  landscape: i18next.t("dict.gen_fc30335a"),
+  abstract: i18next.t("dict.gen_d8f11435"),
+  other: i18next.t("dict.gen_0d98c747"),
 };
 
 const BIBLE_FIELDS: Array<{ key: keyof SceneBible; label: string; placeholder: string }> = [
-  { key: "palette", label: t("gen.pages.comic.project.ScenesPanel.gen_cd99c486"), placeholder: t("gen.pages.comic.project.ScenesPanel.gen_e797771e") },
-  { key: "keyElements", label: t("gen.pages.comic.project.ScenesPanel.gen_aa847230"), placeholder: t("gen.pages.comic.project.ScenesPanel.gen_872d6f35") },
-  { key: "materials", label: t("gen.pages.comic.project.ScenesPanel.gen_e3623348"), placeholder: t("gen.pages.comic.project.ScenesPanel.gen_1503e10b") },
-  { key: "ambiance", label: t("gen.pages.comic.project.ScenesPanel.gen_852d1479"), placeholder: t("gen.pages.comic.project.ScenesPanel.gen_9a1252d3") },
-  { key: "layout", label: t("gen.pages.comic.project.ScenesPanel.gen_1d86438b"), placeholder: t("gen.pages.comic.project.ScenesPanel.gen_dcf37314") },
+  { key: "palette", label: i18next.t("dict.gen_cd99c486"), placeholder: i18next.t("dict.gen_e797771e") },
+  { key: "keyElements", label: i18next.t("dict.gen_aa847230"), placeholder: i18next.t("dict.gen_872d6f35") },
+  { key: "materials", label: i18next.t("dict.gen_e3623348"), placeholder: i18next.t("dict.gen_1503e10b") },
+  { key: "ambiance", label: i18next.t("dict.gen_852d1479"), placeholder: i18next.t("dict.gen_9a1252d3") },
+  { key: "layout", label: i18next.t("dict.gen_1d86438b"), placeholder: i18next.t("dict.gen_dcf37314") },
 ];
 
 function parseBible(raw: string | null): SceneBible {
@@ -69,8 +69,8 @@ function SceneList({
   return (
     <aside className="overflow-hidden rounded-lg border bg-background">
       <div className="border-b px-3 py-3">
-        <p className="text-sm font-semibold">{t("gen.pages.comic.project.ScenesPanel.gen_b30e5c25")}</p>
-        <p className="mt-0.5 text-xs text-muted-foreground">{t("gen.pages.comic.project.ScenesPanel.gen_925537c0")}</p>
+        <p className="text-sm font-semibold">{i18next.t("dict.gen_b30e5c25")}</p>
+        <p className="mt-0.5 text-xs text-muted-foreground">{i18next.t("dict.gen_925537c0")}</p>
       </div>
       <div className="max-h-[640px] overflow-y-auto p-2">
         <div className="space-y-1">
@@ -105,7 +105,7 @@ function SceneList({
                     <p className="truncate text-sm font-medium">{scene.name}</p>
                     <p className="mt-0.5 text-[10px] text-muted-foreground">
                       {SCENE_TYPE_LABELS[scene.sceneType]}
-                      {hasSheet && <span className="ml-1.5 text-primary">{t("gen.pages.comic.project.ScenesPanel.gen_6bd9342d")}</span>}
+                      {hasSheet && <span className="ml-1.5 text-primary">{i18next.t("dict.gen_6bd9342d")}</span>}
                     </p>
                   </div>
                 </div>
@@ -141,7 +141,7 @@ function SceneDetail({
 
   const saveMut = useMutation({
     mutationFn: () => updateComicScene(scene.id, { name: name.trim(), sceneType, bible }),
-    onSuccess: () => { onChanged(); toast.success(t("gen.pages.comic.project.ScenesPanel.gen_eaf9301f")); },
+    onSuccess: () => { onChanged(); toast.success(i18next.t("dict.gen_eaf9301f")); },
     onError: (e) => toast.error(String(e)),
   });
 
@@ -191,7 +191,7 @@ function SceneDetail({
         </div>
         <button
           type="button"
-          title={t("gen.pages.comic.project.ScenesPanel.gen_f141ac85")}
+          title={i18next.t("dict.gen_f141ac85")}
           disabled={deleteMut.isPending}
           className="shrink-0 rounded border p-1.5 text-muted-foreground/50 hover:bg-destructive/10 hover:text-destructive disabled:opacity-50"
           onClick={() => deleteMut.mutate()}
@@ -203,10 +203,8 @@ function SceneDetail({
       <div className="grid lg:grid-cols-[minmax(0,1fr)_minmax(280px,0.7fr)]">
         {/* 场景圣经编辑 */}
         <div className="min-w-0 space-y-3 border-b p-4 lg:border-b-0 lg:border-r">
-          <p className="text-sm font-medium">{t("gen.pages.comic.project.ScenesPanel.gen_500f3bd6")}</p>
-          <p className="text-xs text-muted-foreground">
-            这些视觉约束会在生成该场景下每一格时注入提示词，锁定空间一致性。
-          </p>
+          <p className="text-sm font-medium">{i18next.t("dict.gen_500f3bd6")}</p>
+          <p className="text-xs text-muted-foreground">{i18next.t("comic.scenesPanel.6idpgh")}</p>
           {BIBLE_FIELDS.map((field) => (
             <div key={field.key} className="space-y-1">
               <label className="text-xs font-medium text-muted-foreground">{field.label}</label>
@@ -232,10 +230,10 @@ function SceneDetail({
         {/* 设定图 */}
         <aside className="min-w-0 p-4">
           <div className="mb-2 flex items-center justify-between">
-            <p className="text-sm font-medium">{t("gen.pages.comic.project.ScenesPanel.gen_e847f2b4")}</p>
+            <p className="text-sm font-medium">{i18next.t("dict.gen_e847f2b4")}</p>
             {sheet.origin && hasSheet && (
               <span className="text-[10px] text-muted-foreground">
-                {sheet.origin === "uploaded" ? t("gen.pages.comic.project.ScenesPanel.gen_ba7f57c5") : t("gen.pages.comic.project.ScenesPanel.aiGenerated")}
+                {sheet.origin === "uploaded" ? i18next.t("dict.gen_ba7f57c5") : i18next.t("dict.aiGenerated")}
               </span>
             )}
           </div>
@@ -250,21 +248,19 @@ function SceneDetail({
             ) : generatingBusy ? (
               <div className="flex flex-col items-center gap-2 text-muted-foreground">
                 <Loader2 className="h-7 w-7 animate-spin" />
-                <span className="text-xs">{t("gen.pages.comic.project.ScenesPanel.gen_b0b83a3f")}</span>
+                <span className="text-xs">{i18next.t("dict.gen_b0b83a3f")}</span>
               </div>
             ) : (
               <div className="flex flex-col items-center gap-1.5 text-muted-foreground">
                 <ImageIcon className="h-8 w-8 opacity-30" />
-                <span className="text-xs">{t("gen.pages.comic.project.ScenesPanel.gen_e6b2b290")}</span>
+                <span className="text-xs">{i18next.t("dict.gen_e6b2b290")}</span>
               </div>
             )}
           </div>
           {sheet.status === "error" && (
             <p className="mt-1.5 text-[11px] text-destructive">{sheet.error}</p>
           )}
-          <p className="mt-2 text-[11px] text-muted-foreground">
-            设定图会作为低权重参考图传给图像模型，只锁定色调/布局/材质，镜头仍按每格自由运镜。建议先保存场景圣经再生成。
-          </p>
+          <p className="mt-2 text-[11px] text-muted-foreground">{i18next.t("comic.scenesPanel.580o5c")}</p>
           <div className="mt-2 flex gap-2">
             <Button
               type="button"
@@ -275,7 +271,7 @@ function SceneDetail({
               onClick={startGenerate}
             >
               {generatingBusy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
-              {hasSheet ? t("gen.pages.comic.project.ScenesPanel.gen_a7c23201") : t("gen.pages.comic.project.ScenesPanel.aiGenerated")}
+              {hasSheet ? i18next.t("dict.gen_a7c23201") : i18next.t("dict.aiGenerated")}
             </Button>
             <Button
               type="button"
@@ -342,40 +338,32 @@ export function ScenesPanel({
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <p className="text-sm text-muted-foreground">
-          场景在生成分格脚本时自动识别，可在此编辑场景圣经并生成设定图，用于锁定跨格/跨话的空间一致性。
-        </p>
+        <p className="text-sm text-muted-foreground">{i18next.t("comic.scenesPanel.ecxe5h")}</p>
         <Button type="button" size="sm" variant="outline" onClick={() => setShowAdd((v) => !v)}>
-          <Plus className="h-4 w-4" />
-          添加场景
-        </Button>
+          <Plus className="h-4 w-4" />{i18next.t("comic.scenesPanel.e7wqii")}</Button>
       </div>
 
       {showAdd && (
         <div className="flex gap-2 rounded-md border bg-muted/20 p-3">
           <input
             className="flex-1 rounded border bg-background px-2 py-1 text-sm"
-            placeholder={t("gen.pages.comic.project.ScenesPanel.gen_0c1e726b")}
+            placeholder={i18next.t("dict.gen_0c1e726b")}
             value={newName}
             onChange={(e) => setNewName(e.target.value)}
             onKeyDown={(e) => { if (e.key === "Enter" && newName.trim()) createMut.mutate(); }}
           />
-          <Button type="button" size="sm" disabled={!newName.trim() || createMut.isPending} onClick={() => createMut.mutate()}>
-            确认
-          </Button>
-          <Button type="button" size="sm" variant="outline" onClick={() => { setShowAdd(false); setNewName(""); }}>
-            取消
-          </Button>
+          <Button type="button" size="sm" disabled={!newName.trim() || createMut.isPending} onClick={() => createMut.mutate()}>{i18next.t("common.confirm")}</Button>
+          <Button type="button" size="sm" variant="outline" onClick={() => { setShowAdd(false); setNewName(""); }}>{i18next.t("common.cancel")}</Button>
         </div>
       )}
 
       {isLoading ? (
-        <div className="py-12 text-center text-sm text-muted-foreground">{t("gen.pages.comic.project.ScenesPanel.gen_26b5bd49")}</div>
+        <div className="py-12 text-center text-sm text-muted-foreground">{i18next.t("dict.gen_26b5bd49")}</div>
       ) : scenes.length === 0 ? (
         <div className="space-y-2 py-12 text-center text-sm text-muted-foreground">
           <MapPin className="mx-auto h-10 w-10 opacity-30" />
-          <p>{t("gen.pages.comic.project.ScenesPanel.gen_28618e83")}</p>
-          <p className="text-xs">{t("gen.pages.comic.project.ScenesPanel.gen_0138d439")}</p>
+          <p>{i18next.t("dict.gen_28618e83")}</p>
+          <p className="text-xs">{i18next.t("dict.gen_0138d439")}</p>
         </div>
       ) : (
         <div className="grid gap-4 lg:grid-cols-[240px_minmax(0,1fr)]">

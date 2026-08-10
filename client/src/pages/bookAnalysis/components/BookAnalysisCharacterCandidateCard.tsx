@@ -1,3 +1,4 @@
+import i18next from "i18next";
 import type {
   BookAnalysisCharacter,
   BookAnalysisCharacterDimension,
@@ -61,9 +62,7 @@ export default function BookAnalysisCharacterCandidateCard(props: BookAnalysisCh
             variant="outline"
             onClick={() => void onDelete(character.id)}
             disabled={disabled || generating}
-          >
-            删除
-          </Button>
+          >{i18next.t("dict.gen_2f4aaddd")}</Button>
         </div>
       </div>
       {character.briefDescription ? (

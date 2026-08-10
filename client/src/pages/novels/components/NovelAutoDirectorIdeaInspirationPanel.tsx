@@ -1,5 +1,5 @@
+import { useTranslation } from "react-i18next";
 import i18next from "i18next";
-const t = (key: string, options?: any) => i18next.t(key, options) as string;
 import type { DirectorIdeaInspiration } from "@ai-novel/shared/types/novelDirector";
 import { motion, useReducedMotion } from "framer-motion";
 import { Check, RefreshCw } from "lucide-react";
@@ -19,17 +19,16 @@ export default function NovelAutoDirectorIdeaInspirationPanel({
   onGenerate,
   onUseIdea,
 }: NovelAutoDirectorIdeaInspirationPanelProps) {
+  const { t } = useTranslation();
   const reducedMotion = useReducedMotion();
 
   return (
     <div className="mt-5 w-full">
       <div className="flex items-center justify-between gap-3">
-        <div className="text-xs text-muted-foreground">
-          这些只是临时灵感，使用后仍可继续改。
-        </div>
+        <div className="text-xs text-muted-foreground">{i18next.t("novels.novelAutoDirectorIdeaInspirationPanel.vrmkf7")}</div>
         <Button type="button" size="sm" variant="ghost" onClick={onGenerate} disabled={isGenerating}>
           <RefreshCw className="h-4 w-4" />
-          {isGenerating ? t("gen.pages.novels.components.NovelAutoDirectorIdeaInspirationPanel.gen_4d020ba3") : ideas.length > 0 ? t("gen.pages.novels.components.NovelAutoDirectorIdeaInspirationPanel.gen_ab0c9ba8") : t("gen.pages.novels.components.NovelAutoDirectorIdeaInspirationPanel.gen_b1307309")}
+          {isGenerating ? i18next.t("dict.gen_4d020ba3") : ideas.length > 0 ? i18next.t("dict.gen_ab0c9ba8") : i18next.t("dict.gen_b1307309")}
         </Button>
       </div>
       {ideas.length > 0 ? (
@@ -55,9 +54,7 @@ export default function NovelAutoDirectorIdeaInspirationPanel({
                 ) : null}
               </div>
               <span className="mt-0.5 inline-flex shrink-0 items-center gap-1 rounded-md px-2 py-1 text-xs text-primary opacity-0 transition group-hover:opacity-100 group-focus-visible:opacity-100">
-                <Check className="h-4 w-4" />
-                使用
-              </span>
+                <Check className="h-4 w-4" />{i18next.t("novels.novelAutoDirectorIdeaInspirationPanel.e5xl")}</span>
             </motion.button>
           ))}
         </div>

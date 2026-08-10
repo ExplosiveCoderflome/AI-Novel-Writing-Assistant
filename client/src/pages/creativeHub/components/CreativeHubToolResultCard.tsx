@@ -1,3 +1,4 @@
+import i18next from "i18next";
 import { useId, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -32,7 +33,7 @@ function itemLabel(item: Record<string, unknown>): string {
   if (typeof item.id === "string" && item.id.trim()) {
     return item.id.trim();
   }
-  return "未命名条目";
+  return i18next.t("creativeHub.unnamedItem", "未命名条目");
 }
 
 function compactText(value: string, max = 140): string {
@@ -109,9 +110,7 @@ function renderNovelList(output: Record<string, unknown>, onQuickAction?: (promp
                     size="sm"
                     variant="outline"
                     onClick={() => onQuickAction(`把《${title}》设为当前工作区`)}
-                  >
-                    设为当前工作区
-                  </Button>
+                  >{i18next.t("creativeHub.creativeHubToolResultCard.b4yi0d")}</Button>
                 </div>
               ) : null}
             </div>
@@ -131,12 +130,12 @@ function renderWorkspaceCard(
   const chapterCount = typeof output.chapterCount === "number" ? output.chapterCount : 0;
   const actions = variant === "created"
     ? [
-      { label: "查看当前进度", prompt: "这本书当前写到哪一章" },
-      { label: "开始设计第一章", prompt: "为这本书规划第一章" },
+      { label: i18next.t("creativeHub.creativeHubToolResultCard.14mvnv"), prompt: "这本书当前写到哪一章" },
+      { label: i18next.t("creativeHub.creativeHubToolResultCard.rogorm"), prompt: "为这本书规划第一章" },
     ]
     : [
-      { label: "查看当前进度", prompt: "这本书当前写到哪一章" },
-      { label: "查看前两章", prompt: "前两章都写了什么" },
+      { label: i18next.t("creativeHub.creativeHubToolResultCard.14mvnv"), prompt: "这本书当前写到哪一章" },
+      { label: i18next.t("creativeHub.creativeHubToolResultCard.4llf7h"), prompt: "前两章都写了什么" },
     ];
   return (
     <div className="space-y-2">
@@ -166,8 +165,8 @@ function renderWorldBindingCard(output: Record<string, unknown>, onQuickAction?:
         <div className="mt-1 text-xs text-muted-foreground">已绑定世界观《{worldName}》。</div>
       </div>
       {renderActionButtons([
-        { label: "查看世界观约束", prompt: "查看当前小说的世界观规则" },
-        { label: "检查世界观冲突", prompt: "检查当前小说和世界观是否存在冲突" },
+        { label: i18next.t("creativeHub.creativeHubToolResultCard.s0kem9"), prompt: "查看当前小说的世界观规则" },
+        { label: i18next.t("creativeHub.creativeHubToolResultCard.o8u52"), prompt: "检查当前小说和世界观是否存在冲突" },
       ], onQuickAction)}
     </div>
   );
@@ -226,8 +225,8 @@ function renderProductionStatusCard(output: Record<string, unknown>, onQuickActi
         </div>
       ) : null}
       {renderActionButtons([
-        { label: "继续整本生成", prompt: "继续生成当前小说" },
-        { label: "查看整本进度", prompt: "整本生成到哪一步了" },
+        { label: i18next.t("creativeHub.creativeHubToolResultCard.jo56a9"), prompt: "继续生成当前小说" },
+        { label: i18next.t("creativeHub.creativeHubToolResultCard.1zirzd"), prompt: "整本生成到哪一步了" },
       ], onQuickAction)}
     </div>
   );
@@ -252,12 +251,12 @@ function renderPipelineRunCard(
     : `${scope} 的整本写作任务已启动${jobId ? `（任务 ${jobId}）` : ""}。`;
   const actions = toolName === "preview_pipeline_run"
     ? [
-      { label: "查看整本进度", prompt: "整本生成到哪一步了" },
-      { label: "查看阻塞", prompt: "为什么整本生成没有启动" },
+      { label: i18next.t("creativeHub.creativeHubToolResultCard.1zirzd"), prompt: "整本生成到哪一步了" },
+      { label: i18next.t("creativeHub.creativeHubToolResultCard.dlwl3d"), prompt: "为什么整本生成没有启动" },
     ]
     : [
-      { label: "查看整本进度", prompt: "整本生成到哪一步了" },
-      { label: "查看任务状态", prompt: "列出当前系统任务状态" },
+      { label: i18next.t("creativeHub.creativeHubToolResultCard.1zirzd"), prompt: "整本生成到哪一步了" },
+      { label: i18next.t("creativeHub.creativeHubToolResultCard.xnxd5"), prompt: "列出当前系统任务状态" },
     ];
   return renderProductionAssetCard(title, description, actions, onQuickAction);
 }
@@ -272,8 +271,8 @@ function renderDiagnosticCard(output: Record<string, unknown>, onQuickAction?: (
       {failureDetails ? <div className="text-xs leading-5 text-muted-foreground">详情：{failureDetails}</div> : null}
       {recoveryHint ? <div className="text-xs leading-5 text-muted-foreground">建议：{recoveryHint}</div> : null}
       {renderActionButtons([
-        { label: "继续诊断", prompt: "继续解释失败原因和恢复建议" },
-        { label: "查看任务状态", prompt: "列出当前系统任务状态" },
+        { label: i18next.t("creativeHub.creativeHubToolResultCard.gjhcw9"), prompt: "继续解释失败原因和恢复建议" },
+        { label: i18next.t("creativeHub.creativeHubToolResultCard.xnxd5"), prompt: "列出当前系统任务状态" },
       ], onQuickAction)}
     </div>
   );
@@ -300,7 +299,7 @@ function renderListCard(
           </div>
         ))}
       </div>
-      {renderActionButtons([{ label: "继续筛选", prompt: "继续细化这个列表结果" }], onQuickAction)}
+      {renderActionButtons([{ label: i18next.t("creativeHub.creativeHubToolResultCard.gjesms"), prompt: "继续细化这个列表结果" }], onQuickAction)}
     </div>
   );
 }
@@ -323,8 +322,8 @@ function renderChapterCard(output: Record<string, unknown>, onQuickAction?: (pro
         {content || "当前没有可显示的章节内容。"}
       </div>
       {renderActionButtons([
-        { label: "继续总结", prompt: "总结这一段内容的关键剧情" },
-        { label: "检查冲突", prompt: "检查这一章是否和世界观或前文冲突" },
+        { label: i18next.t("creativeHub.creativeHubToolResultCard.gja34u"), prompt: "总结这一段内容的关键剧情" },
+        { label: i18next.t("creativeHub.creativeHubToolResultCard.dn92pg"), prompt: "检查这一章是否和世界观或前文冲突" },
       ], onQuickAction)}
     </div>
   );
@@ -361,8 +360,8 @@ export default function CreativeHubToolResultCard({
         "世界观已生成",
         `已生成世界观《${worldName}》。`,
         [
-          { label: "继续整本生成", prompt: "继续生成当前小说" },
-          { label: "查看生产进度", prompt: "整本生成到哪一步了" },
+          { label: i18next.t("creativeHub.creativeHubToolResultCard.jo56a9"), prompt: "继续生成当前小说" },
+          { label: i18next.t("creativeHub.creativeHubToolResultCard.3v2lw9"), prompt: "整本生成到哪一步了" },
         ],
         onQuickAction,
       );
@@ -373,8 +372,8 @@ export default function CreativeHubToolResultCard({
         "核心角色已生成",
         `已生成 ${characterCount} 个核心角色。`,
         [
-          { label: "继续整本生成", prompt: "继续生成当前小说" },
-          { label: "查看角色状态", prompt: "查看当前小说角色状态" },
+          { label: i18next.t("creativeHub.creativeHubToolResultCard.jo56a9"), prompt: "继续生成当前小说" },
+          { label: i18next.t("creativeHub.creativeHubToolResultCard.6oiawh"), prompt: "查看当前小说角色状态" },
         ],
         onQuickAction,
       );
@@ -386,8 +385,8 @@ export default function CreativeHubToolResultCard({
           ? payload.mainPromise.trim()
           : "当前小说圣经已生成。",
         [
-          { label: "继续整本生成", prompt: "继续生成当前小说" },
-          { label: "查看整本进度", prompt: "整本生成到哪一步了" },
+          { label: i18next.t("creativeHub.creativeHubToolResultCard.jo56a9"), prompt: "继续生成当前小说" },
+          { label: i18next.t("creativeHub.creativeHubToolResultCard.1zirzd"), prompt: "整本生成到哪一步了" },
         ],
         onQuickAction,
       );
@@ -399,8 +398,8 @@ export default function CreativeHubToolResultCard({
           ? payload.outline.trim()
           : "当前小说发展走向已生成。",
         [
-          { label: "继续整本生成", prompt: "继续生成当前小说" },
-          { label: "查看整本进度", prompt: "整本生成到哪一步了" },
+          { label: i18next.t("creativeHub.creativeHubToolResultCard.jo56a9"), prompt: "继续生成当前小说" },
+          { label: i18next.t("creativeHub.creativeHubToolResultCard.1zirzd"), prompt: "整本生成到哪一步了" },
         ],
         onQuickAction,
       );
@@ -411,8 +410,8 @@ export default function CreativeHubToolResultCard({
         "结构化大纲已生成",
         targetChapterCount > 0 ? `已生成 ${targetChapterCount} 章结构化大纲。` : "当前小说结构化大纲已生成。",
         [
-          { label: "同步章节目录", prompt: "继续生成当前小说" },
-          { label: "查看整本进度", prompt: "整本生成到哪一步了" },
+          { label: i18next.t("creativeHub.creativeHubToolResultCard.vf1yzi"), prompt: "继续生成当前小说" },
+          { label: i18next.t("creativeHub.creativeHubToolResultCard.1zirzd"), prompt: "整本生成到哪一步了" },
         ],
         onQuickAction,
       );
@@ -423,8 +422,8 @@ export default function CreativeHubToolResultCard({
         "章节目录已同步",
         chapterCount > 0 ? `已同步 ${chapterCount} 个章节目录。` : "已同步章节目录。",
         [
-          { label: "查看整本进度", prompt: "整本生成到哪一步了" },
-          { label: "启动整本生成", prompt: "继续生成当前小说" },
+          { label: i18next.t("creativeHub.creativeHubToolResultCard.1zirzd"), prompt: "整本生成到哪一步了" },
+          { label: i18next.t("creativeHub.creativeHubToolResultCard.robraa"), prompt: "继续生成当前小说" },
         ],
         onQuickAction,
       );
@@ -498,7 +497,7 @@ export default function CreativeHubToolResultCard({
           {cardContent}
         </div>
       ) : (
-        <div className="mt-2 text-xs text-muted-foreground">详细执行结果默认收起，可按需查看。</div>
+        <div className="mt-2 text-xs text-muted-foreground">{i18next.t("creativeHub.creativeHubToolResultCard.jdv0jd")}</div>
       )}
     </div>
   );

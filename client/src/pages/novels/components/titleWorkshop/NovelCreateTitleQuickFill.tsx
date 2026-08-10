@@ -76,7 +76,7 @@ function renderLibraryDescription(entry: TitleLibraryEntry): string {
   if (entry.keywords?.trim()) {
     return `关键词：${truncateText(entry.keywords, 80)}`;
   }
-  return t("gen.pages.novels.components.titleWorkshop.NovelCreateTitleQuickFill.gen_cbd40d13");
+  return i18next.t("dict.gen_cbd40d13");
 }
 
 function joinKeywords(...values: Array<string | null | undefined>): string | null {
@@ -134,7 +134,7 @@ export default function NovelCreateTitleQuickFill({
   const generateMutation = useMutation({
     mutationFn: async () => {
       if (!hasGenerationContext) {
-        throw new Error(t("gen.pages.novels.components.titleWorkshop.NovelCreateTitleQuickFill.gen_a69a4fbf"));
+        throw new Error(i18next.t("dict.gen_a69a4fbf"));
       }
       const response = await generateTitleIdeas({
         mode: generationMode,
@@ -166,36 +166,32 @@ export default function NovelCreateTitleQuickFill({
     }),
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: queryKeys.titles.all });
-      toast.success(t("gen.pages.novels.components.titleWorkshop.NovelCreateTitleQuickFill.gen_fccedc6f"));
+      toast.success(i18next.t("dict.gen_fccedc6f"));
     },
   });
 
   const handleApplyTitle = (title: string, source: "generated" | "library") => {
     onApplyTitle(title);
     setOpen(false);
-    toast.success(source === "generated" ? t("gen.pages.novels.components.titleWorkshop.NovelCreateTitleQuickFill.gen_1a9606d9") : t("gen.pages.novels.components.titleWorkshop.NovelCreateTitleQuickFill.gen_9550f1e7"));
+    toast.success(source === "generated" ? i18next.t("dict.gen_1a9606d9") : i18next.t("dict.gen_9550f1e7"));
   };
 
   const handleCopySuggestion = async (suggestion: TitleFactorySuggestion) => {
     await navigator.clipboard.writeText(suggestion.title);
-    toast.success(t("gen.pages.novels.components.titleWorkshop.NovelCreateTitleQuickFill.gen_3257008e"));
+    toast.success(i18next.t("dict.gen_3257008e"));
   };
 
   return (
     <>
       <div className="flex items-center justify-end">
-        <AiButton type="button" variant="outline" size="sm" onClick={() => setOpen(true)}>
-          标题快速选填
-        </AiButton>
+        <AiButton type="button" variant="outline" size="sm" onClick={() => setOpen(true)}>{i18next.t("dict.gen_335c8ef6")}</AiButton>
       </div>
 
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent className="max-h-[85vh] max-w-5xl overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>{t("gen.pages.novels.components.titleWorkshop.NovelCreateTitleQuickFill.gen_335c8ef6")}</DialogTitle>
-            <DialogDescription>
-              不做绑定关系，只是帮你更快把标题写进创建表单。可以直接生成候选，也可以从标题库挑一个回填。
-            </DialogDescription>
+            <DialogTitle>{i18next.t("dict.gen_335c8ef6")}</DialogTitle>
+            <DialogDescription>{i18next.t("novels.novelCreateTitleQuickFill.isstt8")}</DialogDescription>
           </DialogHeader>
 
           <Tabs
@@ -204,15 +200,13 @@ export default function NovelCreateTitleQuickFill({
             className="space-y-4"
           >
             <TabsList className="grid w-full grid-cols-2">
-              <TabsTrigger value="generate">{t("gen.pages.novels.components.titleWorkshop.NovelCreateTitleQuickFill.gen_e6e71acf")}</TabsTrigger>
-              <TabsTrigger value="library">{t("gen.pages.novels.components.titleWorkshop.NovelCreateTitleQuickFill.gen_625136b4")}</TabsTrigger>
+              <TabsTrigger value="generate">{i18next.t("dict.gen_e6e71acf")}</TabsTrigger>
+              <TabsTrigger value="library">{i18next.t("dict.gen_625136b4")}</TabsTrigger>
             </TabsList>
 
             <TabsContent value="generate" className="space-y-4">
               <div className="space-y-4">
-                <div className="text-xs leading-6 text-muted-foreground">
-                  会优先读取当前创建页里已经填写的简介、题材、文风、节奏和叙事视角。你也可以在下面临时补充一句简报，不用先回到表单里填写。
-                </div>
+                <div className="text-xs leading-6 text-muted-foreground">{i18next.t("novels.novelCreateTitleQuickFill.ndgaie")}</div>
                 <div>
                   <LLMSelector />
                 </div>
@@ -222,19 +216,15 @@ export default function NovelCreateTitleQuickFill({
                     <label
                       htmlFor="novel-create-title-quick-brief"
                       className="text-sm font-medium text-foreground"
-                    >
-                      补充标题简报
-                    </label>
+                    >{i18next.t("novels.novelCreateTitleQuickFill.thaw2e")}</label>
                     <textarea
                       id="novel-create-title-quick-brief"
                       className="min-h-[132px] w-full rounded-md border bg-background px-3 py-2 text-sm outline-none transition focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
                       value={manualBrief}
                       onChange={(event) => setManualBrief(event.target.value)}
-                      placeholder={t("gen.pages.novels.components.titleWorkshop.NovelCreateTitleQuickFill.examplePostApocalypticDustSomeoneImprisonedRepairmanUnexpectedControlAncientMechCoreWantTitleWithHardCoreSettingAndDestinyFeel")}
+                      placeholder={i18next.t("dict.examplePostApocalypticDustSomeoneImprisonedRepairmanUnexpectedControlAncientMechCoreWantTitleWithHardCoreSettingAndDestinyFeel")}
                     />
-                    <div className="text-xs leading-6 text-muted-foreground">
-                      这里只影响这一次生成，不会自动回写到小说创建表单。
-                    </div>
+                    <div className="text-xs leading-6 text-muted-foreground">{i18next.t("novels.novelCreateTitleQuickFill.3b4cxx")}</div>
                   </div>
 
                   <div className="space-y-3">
@@ -242,34 +232,32 @@ export default function NovelCreateTitleQuickFill({
                       <label
                         htmlFor="novel-create-title-reference"
                         className="text-sm font-medium text-foreground"
-                      >
-                        参考标题
-                      </label>
+                      >{i18next.t("novels.novelCreateTitleQuickFill.b3krzm")}</label>
                       <Input
                         id="novel-create-title-reference"
                         value={referenceTitle}
                         onChange={(event) => setReferenceTitle(event.target.value)}
-                        placeholder={t("gen.pages.novels.components.titleWorkshop.NovelCreateTitleQuickFill.gen_a60012d2")}
+                        placeholder={i18next.t("dict.gen_a60012d2")}
                       />
                     </div>
                     <div className="text-xs leading-6 text-muted-foreground">
                       {referenceTitle.trim()
-                        ? t("gen.pages.novels.components.titleWorkshop.NovelCreateTitleQuickFill.gen_0bd4b906")
-                        : t("gen.pages.novels.components.titleWorkshop.NovelCreateTitleQuickFill.gen_ec923432")}
+                        ? i18next.t("dict.gen_0bd4b906")
+                        : i18next.t("dict.gen_ec923432")}
                     </div>
                   </div>
                 </div>
 
                 <div className="border-l border-border/60 pl-3">
-                  <div className="text-xs font-medium text-foreground">{t("gen.pages.novels.components.titleWorkshop.NovelCreateTitleQuickFill.gen_f40855d0")}</div>
+                  <div className="text-xs font-medium text-foreground">{i18next.t("dict.gen_f40855d0")}</div>
                   <div className="mt-2 whitespace-pre-wrap text-xs leading-6 text-muted-foreground">
-                    {autoBrief || t("gen.pages.novels.components.titleWorkshop.NovelCreateTitleQuickFill.gen_fe38a034")}
+                    {autoBrief || i18next.t("dict.gen_fe38a034")}
                   </div>
                 </div>
 
                 <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
                   <label className="space-y-2 text-sm">
-                    <span className="font-medium text-foreground">{t("gen.pages.novels.components.titleWorkshop.NovelCreateTitleQuickFill.gen_e99dfdf4")}</span>
+                    <span className="font-medium text-foreground">{i18next.t("dict.gen_e99dfdf4")}</span>
                     <Input
                       type="number"
                       min={3}
@@ -285,55 +273,49 @@ export default function NovelCreateTitleQuickFill({
                     onClick={() => generateMutation.mutate()}
                     disabled={generateMutation.isPending || !hasGenerationContext}
                   >
-                    {generateMutation.isPending ? t("gen.pages.novels.components.titleWorkshop.NovelCreateTitleQuickFill.gen_4d020ba3") : t("gen.pages.novels.components.titleWorkshop.NovelCreateTitleQuickFill.gen_65b0c5a6")}
+                    {generateMutation.isPending ? i18next.t("dict.gen_4d020ba3") : i18next.t("dict.gen_65b0c5a6")}
                   </AiButton>
                 </div>
 
                 {!hasGenerationContext ? (
-                  <div className="mt-3 rounded-md border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs text-amber-800">
-                    至少先补一句标题简报，或填写一个参考标题；如果创建页里已经有简介、类型或文风，也会自动参与生成。
-                  </div>
+                  <div className="mt-3 rounded-md border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs text-amber-800">{i18next.t("novels.novelCreateTitleQuickFill.4psxdq")}</div>
                 ) : null}
               </div>
 
               <TitleSuggestionList
                 suggestions={suggestions}
                 selectedTitle={basicForm.title}
-                primaryActionLabel={t("gen.pages.novels.components.titleWorkshop.NovelCreateTitleQuickFill.gen_9dc08cbe")}
+                primaryActionLabel={i18next.t("dict.gen_9dc08cbe")}
                 onPrimaryAction={(suggestion) => handleApplyTitle(suggestion.title, "generated")}
                 onCopy={handleCopySuggestion}
                 onSave={(suggestion) => saveMutation.mutate(suggestion)}
                 savingTitle={saveMutation.isPending ? saveMutation.variables?.title ?? "" : ""}
-                emptyMessage={t("gen.pages.novels.components.titleWorkshop.NovelCreateTitleQuickFill.gen_c7c6298e")}
+                emptyMessage={i18next.t("dict.gen_c7c6298e")}
               />
             </TabsContent>
 
             <TabsContent value="library" className="space-y-4">
               <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
                 <div className="space-y-1">
-                  <div className="text-sm font-medium text-foreground">{t("gen.pages.novels.components.titleWorkshop.NovelCreateTitleQuickFill.quicklySelectFromTitleLibrary")}</div>
+                  <div className="text-sm font-medium text-foreground">{i18next.t("dict.quicklySelectFromTitleLibrary")}</div>
                   <div className="text-xs leading-6 text-muted-foreground">
                     默认按点击率排序
-                    {basicForm.genreId ? t("gen.pages.novels.components.titleWorkshop.NovelCreateTitleQuickFill.gen_263398ad") : ""}
+                    {basicForm.genreId ? i18next.t("dict.gen_263398ad") : ""}
                     。
                   </div>
                 </div>
                 <Input
                   value={search}
                   onChange={(event) => setSearch(event.target.value)}
-                  placeholder={t("gen.pages.novels.components.titleWorkshop.NovelCreateTitleQuickFill.gen_c4ac92cf")}
+                  placeholder={i18next.t("dict.gen_c4ac92cf")}
                   className="md:max-w-xs"
                 />
               </div>
 
               {libraryQuery.isLoading ? (
-                <div className="py-8 text-center text-sm text-muted-foreground">
-                  标题库加载中...
-                </div>
+                <div className="py-8 text-center text-sm text-muted-foreground">{i18next.t("novels.novelCreateTitleQuickFill.cjt2kg")}</div>
               ) : (libraryQuery.data?.data?.items ?? []).length === 0 ? (
-                <div className="py-8 text-center text-sm text-muted-foreground">
-                  当前条件下还没有可用标题。可以切到“快速生成”先产出一批候选。
-                </div>
+                <div className="py-8 text-center text-sm text-muted-foreground">{i18next.t("novels.novelCreateTitleQuickFill.e4ww7h")}</div>
               ) : (
                 <div className="divide-y divide-border/60">
                   {(libraryQuery.data?.data?.items ?? []).map((entry) => {
@@ -354,10 +336,10 @@ export default function NovelCreateTitleQuickFill({
                                 </Badge>
                               ) : null}
                               {typeof entry.usedCount === "number" ? (
-                                <Badge variant="secondary">{t("gen.pages.novels.components.titleWorkshop.NovelCreateTitleQuickFill.gen_4531167e")}</Badge>
+                                <Badge variant="secondary">{i18next.t("dict.gen_4531167e")}</Badge>
                               ) : null}
                               {entry.genre?.name ? <Badge variant="outline">{entry.genre.name}</Badge> : null}
-                              {isSelected ? <Badge variant="outline">{t("gen.pages.novels.components.titleWorkshop.NovelCreateTitleQuickFill.gen_bf94700b")}</Badge> : null}
+                              {isSelected ? <Badge variant="outline">{i18next.t("dict.gen_bf94700b")}</Badge> : null}
                             </div>
                             <div className="text-lg font-semibold text-foreground">{entry.title}</div>
                             <div className="text-sm leading-6 text-muted-foreground">
@@ -366,9 +348,7 @@ export default function NovelCreateTitleQuickFill({
                           </div>
 
                           <div className="flex flex-wrap items-center gap-2">
-                            <Button type="button" size="sm" onClick={() => handleApplyTitle(entry.title, "library")}>
-                              填入标题
-                            </Button>
+                            <Button type="button" size="sm" onClick={() => handleApplyTitle(entry.title, "library")}>{i18next.t("dict.gen_9dc08cbe")}</Button>
                           </div>
                         </div>
                       </div>

@@ -1,3 +1,4 @@
+import i18next from "i18next";
 import AiButton from "@/components/common/AiButton";
 import SelectControl from "@/components/common/SelectControl";
 import { Button } from "@/components/ui/button";
@@ -32,19 +33,17 @@ export default function CharacterProfileTab(props: CharacterProfileTabProps) {
     <div className="space-y-4">
       <section className="rounded-xl border border-border/70 bg-muted/10 p-4">
         <div className="mb-3">
-          <div className="text-sm font-medium">基础档案</div>
-          <div className="mt-1 text-xs leading-5 text-muted-foreground">
-            这里维护角色进入章节生成时最稳定的资料。当前状态和当前目标会影响后续章节行动判断。
-          </div>
+          <div className="text-sm font-medium">{i18next.t("novels.characterProfileTab.bll93f")}</div>
+          <div className="mt-1 text-xs leading-5 text-muted-foreground">{i18next.t("novels.characterProfileTab.7ldxsq")}</div>
         </div>
         <div className="grid gap-2 md:grid-cols-2">
           <Input
-            placeholder="角色名称"
+            placeholder={i18next.t("dict.gen_10a6f121")}
             value={characterForm.name}
             onChange={(event) => onCharacterFormChange("name", event.target.value)}
           />
           <Input
-            placeholder="角色定位"
+            placeholder={i18next.t("dict.gen_22cffcec")}
             value={characterForm.role}
             onChange={(event) => onCharacterFormChange("role", event.target.value)}
           />
@@ -53,24 +52,24 @@ export default function CharacterProfileTab(props: CharacterProfileTabProps) {
             value={characterForm.gender}
             onChange={(event) => onCharacterFormChange("gender", event.target.value)}
           >
-            <option value="unknown">性别：未知</option>
-            <option value="male">性别：男</option>
-            <option value="female">性别：女</option>
-            <option value="other">性别：其他</option>
+            <option value="unknown">{i18next.t("dict.gen_bf22e442")}</option>
+            <option value="male">{i18next.t("dict.gen_940ec4fe")}</option>
+            <option value="female">{i18next.t("dict.gen_6e2fb7fd")}</option>
+            <option value="other">{i18next.t("dict.gen_3a5b7ca6")}</option>
           </SelectControl>
         </div>
       </section>
 
       <section className="rounded-xl border border-border/70 bg-background p-4">
-        <div className="mb-3 text-sm font-medium">当前处境</div>
+        <div className="mb-3 text-sm font-medium">{i18next.t("novels.characterProfileTab.cdbie1")}</div>
         <div className="grid gap-2 md:grid-cols-2">
           <Input
-            placeholder="当前状态（例如：重伤闭关）"
+            placeholder={i18next.t("dict.gen_ca7f49bf")}
             value={characterForm.currentState}
             onChange={(event) => onCharacterFormChange("currentState", event.target.value)}
           />
           <Input
-            placeholder="当前目标（例如：三个月内突破）"
+            placeholder={i18next.t("dict.gen_bad43983")}
             value={characterForm.currentGoal}
             onChange={(event) => onCharacterFormChange("currentGoal", event.target.value)}
           />
@@ -79,24 +78,24 @@ export default function CharacterProfileTab(props: CharacterProfileTabProps) {
 
       <section className="grid gap-3 xl:grid-cols-3">
         <TextAreaField
-          label="性格补充"
+          label={i18next.t("dict.gen_e3bb2ab7")}
           value={characterForm.personality}
           onChange={(value) => onCharacterFormChange("personality", value)}
         />
         <TextAreaField
-          label="背景补充"
+          label={i18next.t("dict.gen_06575dab")}
           value={characterForm.background}
           onChange={(value) => onCharacterFormChange("background", value)}
         />
         <TextAreaField
-          label="成长弧补充"
+          label={i18next.t("dict.gen_6f6c3755")}
           value={characterForm.development}
           onChange={(value) => onCharacterFormChange("development", value)}
         />
       </section>
 
       <section className="rounded-xl border border-border/70 bg-background p-4">
-        <div className="mb-3 text-sm font-medium">外显字段快速编辑</div>
+        <div className="mb-3 text-sm font-medium">{i18next.t("novels.characterProfileTab.jbrh1n")}</div>
         <div className="grid gap-2 md:grid-cols-2">
           {VISIBLE_PROFILE_FIELDS.map((field) => (
             <textarea

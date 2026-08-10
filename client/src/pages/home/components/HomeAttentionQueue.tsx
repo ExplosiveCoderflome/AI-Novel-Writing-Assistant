@@ -1,3 +1,5 @@
+import i18next from "i18next";
+import { useTranslation } from "react-i18next";
 import { AlertTriangle, CheckCircle2, ListChecks } from "lucide-react";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -7,9 +9,10 @@ import type { HomeAttentionItem } from "../homeViewModel";
 import { toneBorderClass, toneTextClass } from "./homeTone";
 
 export function HomeAttentionQueue(props: { items: HomeAttentionItem[]; hasNovels: boolean }) {
+  const { t } = useTranslation();
   return (
     <Card className="home-attention-queue border-0 bg-[#eef5f8] shadow-none">
-      <CardHeader className="pb-2"><CardTitle className="flex items-center gap-2 text-base tracking-normal"><ListChecks className="h-4 w-4 text-sky-700" aria-hidden="true" />创作提醒</CardTitle></CardHeader>
+      <CardHeader className="pb-2"><CardTitle className="flex items-center gap-2 text-base tracking-normal"><ListChecks className="h-4 w-4 text-sky-700" aria-hidden="true" />{i18next.t("home.homeAttentionQueue.aoxdsz")}</CardTitle></CardHeader>
       <CardContent className="space-y-3">
         {props.items.length === 0 ? (
           <div className="flex items-start gap-3 py-1">

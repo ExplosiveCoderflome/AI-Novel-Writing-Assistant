@@ -1,3 +1,5 @@
+import i18next from "i18next";
+import { useTranslation } from "react-i18next";
 import { useMemo, useRef, useState } from "react";
 import type {
   WorldGeographyDirection,
@@ -431,7 +433,7 @@ function DraggableGraph(props: {
       <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
         <div className="font-medium">{title}</div>
         <div className="flex items-center gap-2">
-          <span className="text-xs text-muted-foreground">缩放</span>
+          <span className="text-xs text-muted-foreground">{i18next.t("worlds.worldVisualizationBoard.m6np")}</span>
           <input
             type="range"
             min={0.6}
@@ -440,9 +442,7 @@ function DraggableGraph(props: {
             value={zoom}
             onChange={(event) => setZoom(Number(event.target.value))}
           />
-          <Button size="sm" variant="outline" onClick={() => { setZoom(1); setPan({ x: 0, y: 0 }); }}>
-            重置
-          </Button>
+          <Button size="sm" variant="outline" onClick={() => { setZoom(1); setPan({ x: 0, y: 0 }); }}>{i18next.t("worlds.worldVisualizationBoard.phz5")}</Button>
         </div>
       </div>
       <div
@@ -479,10 +479,10 @@ function DraggableGraph(props: {
                 strokeLinecap="round"
               />
               <g fontSize={13} fontWeight={700} fill="#475569">
-                <text x={width / 2} y={24} textAnchor="middle">北</text>
-                <text x={width / 2} y={height - 14} textAnchor="middle">南</text>
-                <text x={20} y={height / 2} textAnchor="middle">西</text>
-                <text x={width - 20} y={height / 2} textAnchor="middle">东</text>
+                <text x={width / 2} y={24} textAnchor="middle">{i18next.t("worlds.worldVisualizationBoard.gev")}</text>
+                <text x={width / 2} y={height - 14} textAnchor="middle">{i18next.t("worlds.worldVisualizationBoard.ggn")}</text>
+                <text x={20} y={height / 2} textAnchor="middle">{i18next.t("worlds.worldVisualizationBoard.r5r")}</text>
+                <text x={width - 20} y={height / 2} textAnchor="middle">{i18next.t("worlds.worldVisualizationBoard.ffg")}</text>
               </g>
             </g>
           ) : null}
@@ -625,14 +625,13 @@ function DraggableGraph(props: {
           </g>
         </svg>
       </div>
-      <div className="mt-2 text-xs text-muted-foreground">
-        拖动画布可移动视图，使用滑块调整缩放。
-      </div>
+      <div className="mt-2 text-xs text-muted-foreground">{i18next.t("worlds.worldVisualizationBoard.b70oez")}</div>
     </div>
   );
 }
 
 export default function WorldVisualizationBoard({ payload }: WorldVisualizationBoardProps) {
+  const { t } = useTranslation();
   const [mode, setMode] = useState<"faction" | "geography" | "power" | "timeline">("faction");
   const [keyword, setKeyword] = useState("");
   const [factionType, setFactionType] = useState("all");
@@ -712,25 +711,17 @@ export default function WorldVisualizationBoard({ payload }: WorldVisualizationB
   return (
     <div className="space-y-3">
       <div className="flex flex-wrap items-center gap-2">
-        <Button size="sm" variant={mode === "faction" ? "default" : "secondary"} onClick={() => setMode("faction")}>
-          势力图谱
-        </Button>
-        <Button size="sm" variant={mode === "geography" ? "default" : "secondary"} onClick={() => setMode("geography")}>
-          地理地图
-        </Button>
-        <Button size="sm" variant={mode === "power" ? "default" : "secondary"} onClick={() => setMode("power")}>
-          力量体系
-        </Button>
-        <Button size="sm" variant={mode === "timeline" ? "default" : "secondary"} onClick={() => setMode("timeline")}>
-          世界时间线
-        </Button>
+        <Button size="sm" variant={mode === "faction" ? "default" : "secondary"} onClick={() => setMode("faction")}>{i18next.t("dict.gen_de942453")}</Button>
+        <Button size="sm" variant={mode === "geography" ? "default" : "secondary"} onClick={() => setMode("geography")}>{i18next.t("worlds.worldVisualizationBoard.bhayp0")}</Button>
+        <Button size="sm" variant={mode === "power" ? "default" : "secondary"} onClick={() => setMode("power")}>{i18next.t("dict.gen_9185e0fc")}</Button>
+        <Button size="sm" variant={mode === "timeline" ? "default" : "secondary"} onClick={() => setMode("timeline")}>{i18next.t("dict.worldTimeline")}</Button>
       </div>
 
       <div className="grid gap-2 md:grid-cols-3">
         <Input
           value={keyword}
           onChange={(event) => setKeyword(event.target.value)}
-          placeholder="按名称或关键词筛选"
+          placeholder={i18next.t("worlds.worldVisualizationBoard.rbv4ie")}
         />
         {mode === "faction" ? (
           <SelectControl
@@ -749,7 +740,7 @@ export default function WorldVisualizationBoard({ payload }: WorldVisualizationB
         )}
         {mode === "timeline" ? (
           <div className="flex items-center gap-2 text-xs text-muted-foreground">
-            <span>显示数量</span>
+            <span>{i18next.t("worlds.worldVisualizationBoard.dei0pn")}</span>
             <input
               type="range"
               min={3}
@@ -810,7 +801,7 @@ export default function WorldVisualizationBoard({ payload }: WorldVisualizationB
               </div>
             ))}
             {filteredPower.length === 0 ? (
-              <div className="text-xs text-muted-foreground">暂无匹配内容</div>
+              <div className="text-xs text-muted-foreground">{i18next.t("worlds.worldVisualizationBoard.m9l4re")}</div>
             ) : null}
           </div>
         </div>
@@ -827,7 +818,7 @@ export default function WorldVisualizationBoard({ payload }: WorldVisualizationB
               </div>
             ))}
             {filteredTimeline.length === 0 ? (
-              <div className="text-xs text-muted-foreground">暂无匹配内容</div>
+              <div className="text-xs text-muted-foreground">{i18next.t("worlds.worldVisualizationBoard.m9l4re")}</div>
             ) : null}
           </div>
         </div>

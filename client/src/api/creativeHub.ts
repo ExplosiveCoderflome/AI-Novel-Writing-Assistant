@@ -13,7 +13,7 @@ import { apiClient } from "./client";
 function ensureThreadId(threadId: string): string {
   const normalized = threadId.trim();
   if (!normalized) {
-    throw new Error(i18next.t("gen.api.creativeHub.gen_15eb128e"));
+    throw new Error(i18next.t("dict.gen_15eb128e"));
   }
   return normalized;
 }

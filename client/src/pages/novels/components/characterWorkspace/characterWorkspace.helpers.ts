@@ -1,3 +1,4 @@
+import i18next from "i18next";
 import type { Character, CharacterVisibleProfileField } from "@ai-novel/shared/types/novel";
 import type { CharacterResourceLedgerItem } from "@ai-novel/shared/types/characterResource";
 import { isProtagonistCharacter } from "../characterAssetWorkspace.helpers";
@@ -7,12 +8,12 @@ export const VISIBLE_PROFILE_FIELDS: Array<{
   label: string;
   placeholder: string;
 }> = [
-  { key: "appearance", label: "样貌记忆点", placeholder: "眉眼、发型、表情习惯等能被读者记住的样貌特征" },
-  { key: "physique", label: "体态基底", placeholder: "年龄感、身形、行动姿态、身体状态基底" },
-  { key: "attireStyle", label: "常见穿着", placeholder: "日常穿着、身份外观、阶层或职业痕迹" },
-  { key: "signatureDetail", label: "标志细节", placeholder: "标志物、动作、微习惯、气味或反复可用的细节" },
-  { key: "voiceTexture", label: "声音口吻", placeholder: "声线、说话节奏、句式习惯、口吻" },
-  { key: "presenceImpression", label: "登场印象", placeholder: "首次或常规登场时给读者的直观感受" },
+  { key: "appearance", label: i18next.t("dict.gen_17d20844"), placeholder: i18next.t("dict.gen_791666ef") },
+  { key: "physique", label: i18next.t("dict.bodystateBase"), placeholder: i18next.t("dict.gen_1290c311") },
+  { key: "attireStyle", label: i18next.t("dict.gen_53ee6e58"), placeholder: i18next.t("dict.gen_a298f99f") },
+  { key: "signatureDetail", label: i18next.t("dict.gen_6c8bf500"), placeholder: i18next.t("dict.gen_40d9e9a9") },
+  { key: "voiceTexture", label: i18next.t("dict.gen_100ce21f"), placeholder: i18next.t("dict.gen_8ba5764f") },
+  { key: "presenceImpression", label: i18next.t("dict.gen_48e20549"), placeholder: i18next.t("dict.gen_e7dd4310") },
 ];
 
 export function getSecretStatus(selectedCharacter?: Character): string {
@@ -46,7 +47,7 @@ export function getResourceDisplayMode(character?: Character): {
   const roleText = `${character?.role ?? ""} ${character?.castRole ?? ""}`;
   if (isProtagonistCharacter(character)) {
     return {
-      label: "主角完整资源",
+      label: i18next.t("dict.completeCharacterResources"),
       helper: "主角会完整展示道具、线索、身份凭证、底牌和消耗状态，后续章节会优先参考这些行动边界。",
       limit: 10,
       shouldShowResource: () => true,
@@ -54,7 +55,7 @@ export function getResourceDisplayMode(character?: Character): {
   }
   if (/临时|路人|客串|一次性/.test(roleText)) {
     return {
-      label: "临时角色资源",
+      label: i18next.t("dict.tempResource"),
       helper: "临时角色只展示会跨章复用、牵动冲突、绑定伏笔或被主角带走的资源。",
       limit: 5,
       shouldShowResource: (item) => (
@@ -66,7 +67,7 @@ export function getResourceDisplayMode(character?: Character): {
     };
   }
   return {
-    label: "长期角色关键资源",
+    label: i18next.t("dict.gen_fa19d6da"),
     helper: "长期角色优先展示会改变行动选择、关系筹码、读者知情或伏笔兑现的资源。",
     limit: 6,
     shouldShowResource: (item) => item.status !== "stale",

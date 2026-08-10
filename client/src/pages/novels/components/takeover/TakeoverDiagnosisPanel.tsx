@@ -49,8 +49,8 @@ export default function TakeoverDiagnosisPanel({
     <div className="min-w-0 rounded-xl border border-primary/20 bg-primary/5 p-3 sm:p-4">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div className="min-w-0 space-y-2">
-          <div className="text-sm font-medium text-foreground">{t("gen.pages.novels.components.takeover.TakeoverDiagnosisPanel.gen_e5efd363")}</div>
-          {isLoadingReadiness ? <Badge variant="outline">{t("gen.pages.novels.components.takeover.TakeoverDiagnosisPanel.gen_86f85aff")}</Badge> : null}
+          <div className="text-sm font-medium text-foreground">{i18next.t("dict.gen_e5efd363")}</div>
+          {isLoadingReadiness ? <Badge variant="outline">{i18next.t("dict.gen_86f85aff")}</Badge> : null}
           {readinessErrorMessage ? (
             <div className={`rounded-lg border border-destructive/30 bg-destructive/5 px-3 py-2 text-sm text-destructive ${AUTO_DIRECTOR_MOBILE_CLASSES.wrapText}`}>
               {readinessErrorMessage}
@@ -89,9 +89,7 @@ export default function TakeoverDiagnosisPanel({
               variant="outline"
               className={AUTO_DIRECTOR_MOBILE_CLASSES.fullWidthAction}
               onClick={onEnterCurrentTask}
-            >
-              进入当前任务
-            </Button>
+            >{i18next.t("dict.gen_50f2047b")}</Button>
           ) : (
             <>
               {!isAdvancedOpen && chapterTarget ? (
@@ -107,13 +105,11 @@ export default function TakeoverDiagnosisPanel({
                 disabled={startDisabled}
                 onClick={onStart}
               >
-                {isStarting ? t("gen.pages.novels.components.takeover.TakeoverDiagnosisPanel.gen_684c9230") : quickActionLabel}
+                {isStarting ? i18next.t("dict.gen_684c9230") : quickActionLabel}
               </Button>
             </>
           )}
-          <div className={`text-xs leading-5 text-muted-foreground ${AUTO_DIRECTOR_MOBILE_CLASSES.wrapText}`}>
-            默认保留已有资产，仅在高级设置选择重跑时才会重建对应步骤。
-          </div>
+          <div className={`text-xs leading-5 text-muted-foreground ${AUTO_DIRECTOR_MOBILE_CLASSES.wrapText}`}>{i18next.t("novels.takeoverDiagnosisPanel.hhq0eg")}</div>
         </div>
       </div>
     </div>

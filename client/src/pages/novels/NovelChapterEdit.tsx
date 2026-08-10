@@ -1,5 +1,5 @@
+import { useTranslation } from "react-i18next";
 import i18next from "i18next";
-const t = (key: string, options?: any) => i18next.t(key, options) as string;
 import { useMemo } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
@@ -16,6 +16,7 @@ function PageStateCard(props: { message: string }) {
 }
 
 export default function NovelChapterEdit() {
+  const { t } = useTranslation();
   const { id = "", chapterId = "" } = useParams();
   const navigate = useNavigate();
 
@@ -39,7 +40,7 @@ export default function NovelChapterEdit() {
   if (novelDetailQuery.isLoading && !detail) {
     return (
       <div className="flex h-full min-h-0 flex-col gap-4">
-        <PageStateCard message={t("gen.pages.novels.NovelChapterEdit.gen_22a1ab24")} />
+        <PageStateCard message={i18next.t("dict.gen_22a1ab24")} />
       </div>
     );
   }
@@ -47,7 +48,7 @@ export default function NovelChapterEdit() {
   if (novelDetailQuery.isError) {
     return (
       <div className="flex h-full min-h-0 flex-col gap-4">
-        <PageStateCard message={t("gen.pages.novels.NovelChapterEdit.gen_085aa7e4")} />
+        <PageStateCard message={i18next.t("dict.gen_085aa7e4")} />
       </div>
     );
   }
@@ -55,7 +56,7 @@ export default function NovelChapterEdit() {
   if (!chapter) {
     return (
       <div className="flex h-full min-h-0 flex-col gap-4">
-        <PageStateCard message={t("gen.pages.novels.NovelChapterEdit.gen_116434ee")} />
+        <PageStateCard message={i18next.t("dict.gen_116434ee")} />
       </div>
     );
   }

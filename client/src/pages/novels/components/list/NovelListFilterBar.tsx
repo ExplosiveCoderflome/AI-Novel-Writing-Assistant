@@ -11,15 +11,15 @@ export function NovelListFilterBar(props: {
 }) {
   return (
     <section className="flex flex-wrap items-center justify-between gap-4 border-b border-border/60 pb-4">
-      <FilterGroup label={t("gen.pages.novels.components.list.NovelListFilterBar.gen_3fea7ca7")}>
-        <SegmentButton active={props.status === "all"} onClick={() => props.onStatusChange("all")}>{t("gen.pages.novels.components.list.NovelListFilterBar.gen_a8b0c204")}</SegmentButton>
-        <SegmentButton active={props.status === "draft"} onClick={() => props.onStatusChange("draft")}>{t("gen.pages.novels.components.list.NovelListFilterBar.gen_22b4334f")}</SegmentButton>
-        <SegmentButton active={props.status === "published"} onClick={() => props.onStatusChange("published")}>{t("gen.pages.novels.components.list.NovelListFilterBar.gen_dca0c13b")}</SegmentButton>
+      <FilterGroup label={i18next.t("dict.gen_3fea7ca7")}>
+        <SegmentButton active={props.status === "all"} onClick={() => props.onStatusChange("all")}>{i18next.t("autoDirector.secAll")}</SegmentButton>
+        <SegmentButton active={props.status === "draft"} onClick={() => props.onStatusChange("draft")}>{i18next.t("common.draft")}</SegmentButton>
+        <SegmentButton active={props.status === "published"} onClick={() => props.onStatusChange("published")}>{i18next.t("common.published")}</SegmentButton>
       </FilterGroup>
-      <FilterGroup label={t("gen.pages.novels.components.list.NovelListFilterBar.gen_226b0912")}>
-        <SegmentButton active={props.writingMode === "all"} onClick={() => props.onWritingModeChange("all")}>{t("gen.pages.novels.components.list.NovelListFilterBar.gen_a8b0c204")}</SegmentButton>
-        <SegmentButton active={props.writingMode === "original"} onClick={() => props.onWritingModeChange("original")}>{t("gen.pages.novels.components.list.NovelListFilterBar.gen_3f00cc1b")}</SegmentButton>
-        <SegmentButton active={props.writingMode === "continuation"} onClick={() => props.onWritingModeChange("continuation")}>{t("gen.pages.novels.components.list.NovelListFilterBar.gen_d8b07d16")}</SegmentButton>
+      <FilterGroup label={i18next.t("dict.gen_226b0912")}>
+        <SegmentButton active={props.writingMode === "all"} onClick={() => props.onWritingModeChange("all")}>{i18next.t("autoDirector.secAll")}</SegmentButton>
+        <SegmentButton active={props.writingMode === "original"} onClick={() => props.onWritingModeChange("original")}>{i18next.t("common.original")}</SegmentButton>
+        <SegmentButton active={props.writingMode === "continuation"} onClick={() => props.onWritingModeChange("continuation")}>{i18next.t("common.continuation")}</SegmentButton>
       </FilterGroup>
     </section>
   );

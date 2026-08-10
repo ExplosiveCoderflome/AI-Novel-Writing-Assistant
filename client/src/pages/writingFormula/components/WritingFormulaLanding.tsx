@@ -1,5 +1,5 @@
+import { useTranslation } from "react-i18next";
 import i18next from "i18next";
-const t = (key: string, options?: any) => i18next.t(key, options) as string;
 import type { KeyboardEvent, ReactNode } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -67,6 +67,7 @@ function SummaryCard(props: { title: string; summary: string }) {
 }
 
 export default function WritingFormulaLanding(props: WritingFormulaLandingProps) {
+  const { t } = useTranslation();
   const {
     onOpenCreate,
     onSelectProfile,
@@ -120,7 +121,7 @@ export default function WritingFormulaLanding(props: WritingFormulaLandingProps)
               </Badge>
             </div>
             <div className="text-sm leading-6 text-slate-600">
-              {truncateText(profile.summaryLine, 120) || t("gen.pages.writingFormula.components.WritingFormulaLanding.gen_c7933614")}
+              {truncateText(profile.summaryLine, 120) || i18next.t("dict.gen_c7933614")}
             </div>
             <div className="flex flex-wrap gap-2">
               {profile.tags.slice(0, 4).map((tag) => (
@@ -145,9 +146,7 @@ export default function WritingFormulaLanding(props: WritingFormulaLandingProps)
                 event.stopPropagation();
                 onEditProfile(profile.id);
               }}
-            >
-              编辑设定
-            </Button>
+            >{i18next.t("writingFormula.writingFormulaLanding.gmr1uf")}</Button>
             <Button
               type="button"
               size="sm"
@@ -156,9 +155,7 @@ export default function WritingFormulaLanding(props: WritingFormulaLandingProps)
                 event.stopPropagation();
                 onOpenWorkbench(profile.id);
               }}
-            >
-              应用与测试
-            </Button>
+            >{i18next.t("writingFormula.writingFormulaLanding.tr3x0k")}</Button>
             <Button
               type="button"
               size="sm"
@@ -167,9 +164,7 @@ export default function WritingFormulaLanding(props: WritingFormulaLandingProps)
                 event.stopPropagation();
                 onUseProfileForClean(profile.id);
               }}
-            >
-              去 AI 味
-            </Button>
+            >{i18next.t("dict.gen_b589a6aa")}</Button>
             <Button
               type="button"
               size="sm"
@@ -180,7 +175,7 @@ export default function WritingFormulaLanding(props: WritingFormulaLandingProps)
                 onDeleteProfile(profile.id);
               }}
             >
-              {deletePending ? t("gen.pages.writingFormula.components.WritingFormulaLanding.gen_09f2fb82") : t("gen.pages.writingFormula.components.WritingFormulaLanding.gen_2f4aaddd")}
+              {deletePending ? i18next.t("dict.gen_09f2fb82") : i18next.t("dict.gen_2f4aaddd")}
             </Button>
           </div>
         </div>
@@ -189,8 +184,8 @@ export default function WritingFormulaLanding(props: WritingFormulaLandingProps)
           <div className="mt-4 space-y-4 border-t border-slate-200/80 pt-4">
             <div className="grid gap-4 xl:grid-cols-[minmax(0,1.15fr)_minmax(0,1fr)_280px]">
               <DetailPanel
-                title={t("gen.pages.writingFormula.components.WritingFormulaLanding.gen_c9d154f7")}
-                description={t("gen.pages.writingFormula.components.WritingFormulaLanding.gen_6a72ae84")}
+                title={i18next.t("dict.gen_c9d154f7")}
+                description={i18next.t("dict.gen_6a72ae84")}
               >
                 <div className="rounded-xl border bg-slate-50/80 p-4 text-sm leading-7 text-slate-700">
                   {profile.description}
@@ -206,7 +201,7 @@ export default function WritingFormulaLanding(props: WritingFormulaLandingProps)
                 ) : null}
                 {profile.sourceContentPreview ? (
                   <div className="rounded-xl border bg-slate-950 px-4 py-4 text-sm leading-7 text-slate-100">
-                    <div className="mb-2 text-xs font-medium uppercase tracking-[0.18em] text-slate-400">{t("gen.pages.writingFormula.components.WritingFormulaLanding.gen_6388f0b7")}</div>
+                    <div className="mb-2 text-xs font-medium uppercase tracking-[0.18em] text-slate-400">{i18next.t("dict.gen_6388f0b7")}</div>
                     <div>{profile.sourceContentPreview}</div>
                   </div>
                 ) : null}
@@ -214,20 +209,20 @@ export default function WritingFormulaLanding(props: WritingFormulaLandingProps)
 
               <div className="space-y-4">
                 <DetailPanel
-                  title={t("gen.pages.writingFormula.components.WritingFormulaLanding.gen_353310ad")}
-                  description={t("gen.pages.writingFormula.components.WritingFormulaLanding.gen_f36606c3")}
+                  title={i18next.t("dict.gen_353310ad")}
+                  description={i18next.t("dict.gen_f36606c3")}
                 >
                   <div className="grid gap-3 md:grid-cols-2">
-                    <SummaryCard title={t("gen.pages.writingFormula.components.WritingFormulaLanding.gen_95553c6d")} summary={profile.narrativeSummary} />
-                    <SummaryCard title={t("gen.pages.writingFormula.components.WritingFormulaLanding.characterExpression")} summary={profile.characterSummary} />
-                    <SummaryCard title={t("gen.pages.writingFormula.components.WritingFormulaLanding.gen_98416f13")} summary={profile.languageSummary} />
-                    <SummaryCard title={t("gen.pages.writingFormula.components.WritingFormulaLanding.gen_b01be94f")} summary={profile.rhythmSummary} />
+                    <SummaryCard title={i18next.t("dict.gen_95553c6d")} summary={profile.narrativeSummary} />
+                    <SummaryCard title={i18next.t("dict.characterExpression")} summary={profile.characterSummary} />
+                    <SummaryCard title={i18next.t("dict.gen_98416f13")} summary={profile.languageSummary} />
+                    <SummaryCard title={i18next.t("dict.gen_b01be94f")} summary={profile.rhythmSummary} />
                   </div>
                 </DetailPanel>
 
                 <DetailPanel
-                  title={t("gen.pages.writingFormula.components.WritingFormulaLanding.gen_fbe42516")}
-                  description={t("gen.pages.writingFormula.components.WritingFormulaLanding.gen_f4c90180")}
+                  title={i18next.t("dict.gen_fbe42516")}
+                  description={i18next.t("dict.gen_f4c90180")}
                 >
                   {profile.antiAiFocus.length > 0 || profile.antiAiRuleNames.length > 0 || profile.extractionAntiAiRecommendationCount > 0 ? (
                     <div className="space-y-3">
@@ -256,51 +251,49 @@ export default function WritingFormulaLanding(props: WritingFormulaLandingProps)
                       ) : null}
                     </div>
                   ) : (
-                    <div className="rounded-xl border border-dashed px-3 py-3 text-sm leading-6 text-slate-500">
-                      这套写法还没有绑定明确的反 AI 约束，所以“去 AI 味”时可读性会偏弱。
-                    </div>
+                    <div className="rounded-xl border border-dashed px-3 py-3 text-sm leading-6 text-slate-500">{i18next.t("writingFormula.writingFormulaLanding.shc9mc")}</div>
                   )}
                 </DetailPanel>
               </div>
 
               <div className="space-y-4">
                 <DetailPanel
-                  title={t("gen.pages.writingFormula.components.WritingFormulaLanding.gen_089761a5")}
-                  description={t("gen.pages.writingFormula.components.WritingFormulaLanding.gen_da7bd02d")}
+                  title={i18next.t("dict.gen_089761a5")}
+                  description={i18next.t("dict.gen_da7bd02d")}
                 >
                   <div className="space-y-2">
-                    <DetailStatRow label={t("gen.pages.writingFormula.components.WritingFormulaLanding.gen_26ca20b1")} value={profile.sourceTypeLabel} />
-                    <DetailStatRow label={t("gen.pages.writingFormula.components.WritingFormulaLanding.gen_06dc9b38")} value={profile.updatedAtLabel} />
-                    <DetailStatRow label={t("gen.pages.writingFormula.components.WritingFormulaLanding.gen_a02411b4")} value={`${profile.extractedFeatureCount} 项`} />
-                    <DetailStatRow label={t("gen.pages.writingFormula.components.WritingFormulaLanding.gen_3ea1f5f1")} value={`${profile.highRiskFeatureCount} 项`} />
+                    <DetailStatRow label={i18next.t("dict.gen_26ca20b1")} value={profile.sourceTypeLabel} />
+                    <DetailStatRow label={i18next.t("dict.gen_06dc9b38")} value={profile.updatedAtLabel} />
+                    <DetailStatRow label={i18next.t("dict.gen_a02411b4")} value={`${profile.extractedFeatureCount} 项`} />
+                    <DetailStatRow label={i18next.t("dict.gen_3ea1f5f1")} value={`${profile.highRiskFeatureCount} 项`} />
                     <DetailStatRow
-                      label={t("gen.pages.writingFormula.components.WritingFormulaLanding.gen_f2069f25")}
-                      value={profile.selectedPresetLabel || t("gen.pages.writingFormula.components.WritingFormulaLanding.gen_9f62b763")}
+                      label={i18next.t("dict.gen_f2069f25")}
+                      value={profile.selectedPresetLabel || i18next.t("dict.gen_9f62b763")}
                     />
                     <DetailStatRow
-                      label={t("gen.pages.writingFormula.components.WritingFormulaLanding.gen_711cbc03")}
-                      value={profile.presetLabels.length > 0 ? profile.presetLabels.join(" / ") : t("gen.pages.writingFormula.components.WritingFormulaLanding.gen_f61f4cf6")}
+                      label={i18next.t("dict.gen_711cbc03")}
+                      value={profile.presetLabels.length > 0 ? profile.presetLabels.join(" / ") : i18next.t("common.none")}
                     />
-                    <DetailStatRow label={t("gen.pages.writingFormula.components.WritingFormulaLanding.gen_34700230")} value={`${profile.bindingCount} 个`} />
+                    <DetailStatRow label={i18next.t("dict.gen_34700230")} value={`${profile.bindingCount} 个`} />
                     <DetailStatRow
-                      label={t("gen.pages.writingFormula.components.WritingFormulaLanding.gen_365ed2d7")}
-                      value={profile.recentNovelTitle || t("gen.pages.writingFormula.components.WritingFormulaLanding.gen_ec9880c7")}
+                      label={i18next.t("dict.gen_365ed2d7")}
+                      value={profile.recentNovelTitle || i18next.t("dict.gen_ec9880c7")}
                     />
                     <DetailStatRow
-                      label={t("gen.pages.writingFormula.components.WritingFormulaLanding.gen_2fdc5592")}
-                      value={profile.applicableGenres.length > 0 ? profile.applicableGenres.join(" / ") : t("gen.pages.writingFormula.components.WritingFormulaLanding.gen_5c688139")}
+                      label={i18next.t("dict.gen_2fdc5592")}
+                      value={profile.applicableGenres.length > 0 ? profile.applicableGenres.join(" / ") : i18next.t("dict.gen_5c688139")}
                     />
                   </div>
                 </DetailPanel>
 
                 <DetailPanel
-                  title={t("gen.pages.writingFormula.components.WritingFormulaLanding.nextStep")}
-                  description={t("gen.pages.writingFormula.components.WritingFormulaLanding.buttonFunctionality")}
+                  title={i18next.t("dict.nextStep")}
+                  description={i18next.t("dict.buttonFunctionality")}
                 >
                   <div className="space-y-2 text-sm leading-6 text-slate-700">
-                    <div>{t("gen.pages.writingFormula.components.WritingFormulaLanding.gen_8c45fe26")}</div>
-                    <div>{t("gen.pages.writingFormula.components.WritingFormulaLanding.gen_8999142e")}</div>
-                    <div>{t("gen.pages.writingFormula.components.WritingFormulaLanding.gen_f240c133")}</div>
+                    <div>{i18next.t("dict.gen_8c45fe26")}</div>
+                    <div>{i18next.t("dict.gen_8999142e")}</div>
+                    <div>{i18next.t("dict.gen_f240c133")}</div>
                   </div>
                 </DetailPanel>
               </div>
@@ -317,38 +310,24 @@ export default function WritingFormulaLanding(props: WritingFormulaLandingProps)
         <CardContent className="space-y-5 p-5 md:p-6">
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div className="space-y-2">
-              <Badge variant="outline" className="border-slate-200 bg-slate-50 text-slate-700">
-                我的写法资产
-              </Badge>
+              <Badge variant="outline" className="border-slate-200 bg-slate-50 text-slate-700">{i18next.t("writingFormula.writingFormulaLanding.1buogi")}</Badge>
               <div className="space-y-2">
-                <h1 className="text-3xl font-semibold tracking-tight text-slate-950">
-                  先选一套写法，再决定要编辑、应用还是去 AI 味。
-                </h1>
-                <p className="max-w-3xl text-sm leading-7 text-slate-600">
-                  首页负责看清你已有的写法资产。展开后会直接展示这套写法的读感定位、规则摘要、反 AI 约束和当前成熟度。
-                </p>
+                <h1 className="text-3xl font-semibold tracking-tight text-slate-950">{i18next.t("writingFormula.writingFormulaLanding.7abhjq")}</h1>
+                <p className="max-w-3xl text-sm leading-7 text-slate-600">{i18next.t("writingFormula.writingFormulaLanding.4tr2z4")}</p>
               </div>
             </div>
 
-            <Button type="button" onClick={onOpenCreate}>
-              新建一套写法
-            </Button>
+            <Button type="button" onClick={onOpenCreate}>{i18next.t("writingFormula.writingFormulaBookStyleFlow.7hr003")}</Button>
           </div>
 
-          <div className="rounded-2xl border border-slate-200 bg-[linear-gradient(135deg,rgba(241,245,249,0.9),rgba(248,250,252,0.95))] px-4 py-3 text-sm leading-7 text-slate-700">
-            书级默认写法请从小说基础信息进入，由小说来选择要使用的写法资产，再带入后续导演和正文流程。
-          </div>
+          <div className="rounded-2xl border border-slate-200 bg-[linear-gradient(135deg,rgba(241,245,249,0.9),rgba(248,250,252,0.95))] px-4 py-3 text-sm leading-7 text-slate-700">{i18next.t("writingFormula.writingFormulaLanding.bqupu8")}</div>
 
           {profileItems.length === 0 ? (
             <div className="rounded-3xl border border-dashed border-slate-300 bg-slate-50/80 p-6">
-              <div className="text-lg font-semibold text-slate-950">{t("gen.pages.writingFormula.components.WritingFormulaLanding.gen_efab47b0")}</div>
-              <div className="mt-2 text-sm leading-7 text-slate-600">
-                先创建第一套写法，后面再回来慢慢补规则、做试写和绑定目标。
-              </div>
+              <div className="text-lg font-semibold text-slate-950">{i18next.t("dict.gen_efab47b0")}</div>
+              <div className="mt-2 text-sm leading-7 text-slate-600">{i18next.t("writingFormula.writingFormulaLanding.s6hecf")}</div>
               <div className="mt-4 flex flex-wrap gap-2">
-                <Button type="button" onClick={onOpenCreate}>
-                  去创建第一套写法
-                </Button>
+                <Button type="button" onClick={onOpenCreate}>{i18next.t("writingFormula.writingFormulaLanding.ep1fz9")}</Button>
               </div>
             </div>
           ) : (
@@ -357,10 +336,8 @@ export default function WritingFormulaLanding(props: WritingFormulaLandingProps)
                 <section className="space-y-3">
                   <div className="flex items-center justify-between gap-3">
                     <div>
-                      <div className="text-sm font-semibold text-slate-950">{t("gen.pages.writingFormula.components.WritingFormulaLanding.yourselfCreatedWritingStyle")}</div>
-                      <div className="text-xs leading-6 text-slate-500">
-                        这些是你沉淀下来的可复用资产，应该优先在这里挑。
-                      </div>
+                      <div className="text-sm font-semibold text-slate-950">{i18next.t("dict.yourselfCreatedWritingStyle")}</div>
+                      <div className="text-xs leading-6 text-slate-500">{i18next.t("writingFormula.writingFormulaLanding.5dmwgk")}</div>
                     </div>
                     <Badge variant="secondary" className="bg-slate-100 text-slate-700">
                       {customProfiles.length} 套
@@ -376,10 +353,8 @@ export default function WritingFormulaLanding(props: WritingFormulaLandingProps)
                 <section className="space-y-3">
                   <div className="flex items-center justify-between gap-3">
                     <div>
-                      <div className="text-sm font-semibold text-slate-950">{t("gen.pages.writingFormula.components.WritingFormulaLanding.gen_f6e53247")}</div>
-                      <div className="text-xs leading-6 text-slate-500">
-                        这些预置资产适合先借一套骨架，再按当前项目改成自己的写法。
-                      </div>
+                      <div className="text-sm font-semibold text-slate-950">{i18next.t("dict.gen_f6e53247")}</div>
+                      <div className="text-xs leading-6 text-slate-500">{i18next.t("writingFormula.writingFormulaLanding.vf4lzu")}</div>
                     </div>
                     <Badge variant="secondary" className="bg-slate-100 text-slate-700">
                       {starterProfiles.length} 套

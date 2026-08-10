@@ -1,5 +1,6 @@
 import { Suspense, useEffect, useMemo, useState } from "react";
 import { matchPath, Outlet, useLocation } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 import AppRouteFallback from "./AppRouteFallback";
 import LLMSelectionBootstrap from "./LLMSelectionBootstrap";
 import Navbar from "./Navbar";
@@ -22,6 +23,7 @@ const WORKSPACE_RAIL_COLLAPSED_STORAGE_KEY = "ai-novel.workspace-rail.collapsed"
 const DEFAULT_APP_MAIN_CLASS_NAME = "h-[calc(100dvh-4rem)] min-w-0 flex-1 overflow-y-auto p-6";
 
 export default function AppLayout() {
+  const { i18n } = useTranslation();
   const location = useLocation();
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [isWorkspaceRailCollapsed, setIsWorkspaceRailCollapsed] = useState(false);
@@ -77,12 +79,12 @@ export default function AppLayout() {
     return (
       <CreationSetupProvider>
       <TaskRecoveryProvider>
-        <div className="min-h-screen bg-background">
+        <div className="min-h-screen bg-background" key={i18n.language}>
           <AutoDirectorPauseNotificationWatcher />
           <LiveExecutionDialog compact className="fixed right-3 top-3 z-50 h-9 w-9 bg-background px-0 shadow-sm" />
           <LLMSelectionBootstrap />
           <Suspense fallback={<AppRouteFallback />}>
-            <Outlet />
+            <Outlet key={i18n.language} />
           </Suspense>
           <TaskRecoveryDialog />
         </div>
@@ -95,11 +97,11 @@ export default function AppLayout() {
     return (
       <CreationSetupProvider>
       <TaskRecoveryProvider>
-        <MobileSiteShell>
+        <MobileSiteShell key={i18n.language}>
           <AutoDirectorPauseNotificationWatcher />
           <LLMSelectionBootstrap />
           <Suspense fallback={<AppRouteFallback />}>
-            <Outlet />
+            <Outlet key={i18n.language} />
           </Suspense>
           <TaskRecoveryDialog />
         </MobileSiteShell>
@@ -135,9 +137,9 @@ export default function AppLayout() {
               />
             )}
           </div>
-          <main className={useMobileFullWidthContent ? AUTO_DIRECTOR_MOBILE_CLASSES.appMain : DEFAULT_APP_MAIN_CLASS_NAME}>
+          <main key={i18n.language} className={useMobileFullWidthContent ? AUTO_DIRECTOR_MOBILE_CLASSES.appMain : DEFAULT_APP_MAIN_CLASS_NAME}>
             <Suspense fallback={<AppRouteFallback />}>
-              <Outlet />
+              <Outlet key={i18n.language} />
             </Suspense>
           </main>
         </div>

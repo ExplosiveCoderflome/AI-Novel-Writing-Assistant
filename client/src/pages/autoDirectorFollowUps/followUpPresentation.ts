@@ -1,3 +1,4 @@
+import i18next from "i18next";
 import type {
   AutoDirectorAction,
   AutoDirectorFollowUpItem,
@@ -90,18 +91,18 @@ export function getFollowUpLevelLabel(item: Pick<
   "section" | "reason" | "priority" | "itemType" | "pendingManualRecovery"
 >): string {
   const tone = getFollowUpTone(item);
-  if (item.reason === "replan_required") return "需要重规划";
-  if (item.pendingManualRecovery || item.reason === "manual_recovery_required") return "需要恢复";
-  if (item.reason === "runtime_failed") return "任务失败";
-  if (item.reason === "validation_required") return "需要校验";
-  if (item.reason === "runtime_cancelled") return "已取消";
-  if (item.reason === "runtime_replaced") return "已替代";
-  if (tone === "danger") return "阻塞";
-  if (item.reason === "quality_repair_pending") return "质量提醒";
-  if (item.reason === "candidate_selection_required" || item.reason === "chapter_batch_execution_pending") return "待操作";
-  if (tone === "info") return "自动推进";
-  if (tone === "success") return "已自动通过";
-  return "普通记录";
+  if (item.reason === "replan_required") return i18next.t("autoDirector.levelReplanRequired", "需要重规划");
+  if (item.pendingManualRecovery || item.reason === "manual_recovery_required") return i18next.t("autoDirector.levelRecoveryRequired", "需要恢复");
+  if (item.reason === "runtime_failed") return i18next.t("autoDirector.levelFailed", "任务失败");
+  if (item.reason === "validation_required") return i18next.t("autoDirector.levelNeedsValidation", "需要校验");
+  if (item.reason === "runtime_cancelled") return i18next.t("autoDirector.levelCancelled", "已取消");
+  if (item.reason === "runtime_replaced") return i18next.t("autoDirector.levelReplaced", "已替代");
+  if (tone === "danger") return i18next.t("autoDirector.levelBlocking", "阻塞");
+  if (item.reason === "quality_repair_pending") return i18next.t("autoDirector.levelQuality", "质量提醒");
+  if (item.reason === "candidate_selection_required" || item.reason === "chapter_batch_execution_pending") return i18next.t("tasks.levelPendingAction", "待操作");
+  if (tone === "info") return i18next.t("autoDirector.secAutoProgress", "自动推进");
+  if (tone === "success") return i18next.t("autoDirector.autoPassed", "已自动通过");
+  return i18next.t("autoDirector.normalRecord", "普通记录");
 }
 
 export function getFollowUpSeverity(item: Pick<

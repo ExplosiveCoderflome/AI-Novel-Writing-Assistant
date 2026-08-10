@@ -23,11 +23,11 @@ export default function BookAnalysisWorkbenchViewTabs(props: BookAnalysisWorkben
       <TabsList>
         <TabsTrigger value="sections" className="gap-1.5">
           <BookOpen className="h-3.5 w-3.5" />
-          <span>{t("gen.pages.bookAnalysis.components.BookAnalysisWorkbenchViewTabs.gen_98016d32")}</span>
+          <span>{i18next.t("dict.gen_98016d32")}</span>
         </TabsTrigger>
         <TabsTrigger value="characters" className="gap-1.5">
           <Users className="h-3.5 w-3.5" />
-          <span>{t("gen.pages.bookAnalysis.components.BookAnalysisWorkbenchViewTabs.gen_90154762")}</span>
+          <span>{i18next.t("dict.gen_90154762")}</span>
           {generatedCharacterCount > 0 ? (
             <Badge variant="secondary" className="ml-1 h-5 px-1.5 text-xs">
               {generatedCharacterCount}

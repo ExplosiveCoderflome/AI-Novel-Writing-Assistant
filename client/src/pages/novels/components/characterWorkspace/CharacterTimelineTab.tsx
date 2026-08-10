@@ -1,3 +1,4 @@
+import i18next from "i18next";
 import type { CharacterTimeline } from "@ai-novel/shared/types/novel";
 import AiButton from "@/components/common/AiButton";
 import { Badge } from "@/components/ui/badge";
@@ -18,10 +19,8 @@ export default function CharacterTimelineTab(props: CharacterTimelineTabProps) {
       <section className="rounded-xl border border-border/70 bg-muted/10 p-4">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <div className="text-sm font-medium">角色事件流</div>
-            <div className="mt-1 text-xs leading-5 text-muted-foreground">
-              用最近章节事件观察角色处境变化，必要时同步时间线后再继续写作。
-            </div>
+            <div className="text-sm font-medium">{i18next.t("novels.characterTimelineTab.cl8a2y")}</div>
+            <div className="mt-1 text-xs leading-5 text-muted-foreground">{i18next.t("novels.characterTimelineTab.90www")}</div>
           </div>
           <div className="flex flex-wrap gap-2">
             <AiButton size="sm" variant="outline" onClick={onSyncTimeline} disabled={isSyncingTimeline}>
@@ -51,9 +50,7 @@ export default function CharacterTimelineTab(props: CharacterTimelineTabProps) {
           ))}
         </div>
       ) : (
-        <div className="rounded-xl border border-dashed p-4 text-sm text-muted-foreground">
-          暂无事件，先点击“同步角色时间线”。
-        </div>
+        <div className="rounded-xl border border-dashed p-4 text-sm text-muted-foreground">{i18next.t("novels.characterTimelineTab.c36eg8")}</div>
       )}
     </div>
   );

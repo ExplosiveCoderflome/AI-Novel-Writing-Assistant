@@ -1,3 +1,4 @@
+import i18next from "i18next";
 /**
  * 视频改编工作台
  *
@@ -124,14 +125,10 @@ function ProjectCard(props: {
             disabled={busy || !hasScript}
             onClick={props.onSubmitRender}
           >
-            <Send className="h-4 w-4" />
-            提交渲染
-          </Button>
+            <Send className="h-4 w-4" />{i18next.t("video.videoWorkspacePage.cx9k8l")}</Button>
           {project.status === "rendering" ? (
             <Button type="button" size="sm" variant="outline" disabled={busy} onClick={props.onCheckStatus}>
-              <RefreshCw className="h-4 w-4" />
-              刷新状态
-            </Button>
+              <RefreshCw className="h-4 w-4" />{i18next.t("drama.dramaVisualPanel.asr9d0")}</Button>
           ) : null}
           <Button type="button" size="sm" variant="ghost" disabled={busy} onClick={props.onDelete}>
             <Trash2 className="h-4 w-4" />
@@ -139,9 +136,7 @@ function ProjectCard(props: {
         </div>
         {videoUrl ? (
           <div className="space-y-2">
-            <div className="rounded-md border bg-green-500/5 p-3 text-sm text-green-600">
-              渲染完成：
-              <a
+            <div className="rounded-md border bg-green-500/5 p-3 text-sm text-green-600">{i18next.t("video.videoWorkspacePage.i5nw9h")}<a
                 href={videoUrl}
                 target="_blank"
                 rel="noreferrer"
@@ -214,7 +209,7 @@ export default function VideoWorkspacePage() {
     mutationFn: (payload: typeof offlineForm) => saveVideoOfflineSettings(payload),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ["video", "offline-settings"] });
-      toast.success("本地离线设置已保存。");
+      toast.success(i18next.t("video.videoWorkspacePage.nt0cbx"));
     },
   });
 
@@ -227,7 +222,7 @@ export default function VideoWorkspacePage() {
     mutationFn: (payload: CreateVideoProjectPayload) => createVideoProject(payload),
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: queryKeys.video.projects });
-      toast.success("视频项目已创建。");
+      toast.success(i18next.t("video.videoWorkspacePage.tc99zl"));
       setForm((c) => ({ ...c, title: "", novelId: "" }));
     },
   });
@@ -237,7 +232,7 @@ export default function VideoWorkspacePage() {
       generateVideoScript(projectId, options),
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: queryKeys.video.projects });
-      toast.success("视频脚本已生成。");
+      toast.success(i18next.t("video.videoWorkspacePage.noq7us"));
     },
     onSettled: () => setBusyProjectId(""),
   });
@@ -246,7 +241,7 @@ export default function VideoWorkspacePage() {
     mutationFn: (projectId: string) => submitVideoRender(projectId),
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: queryKeys.video.projects });
-      toast.success("渲染任务已提交。");
+      toast.success(i18next.t("video.videoWorkspacePage.g5lbh9"));
     },
     onSettled: () => setBusyProjectId(""),
   });
@@ -255,7 +250,7 @@ export default function VideoWorkspacePage() {
     mutationFn: (projectId: string) => getVideoRenderStatus(projectId),
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: queryKeys.video.projects });
-      toast.success("渲染状态已刷新。");
+      toast.success(i18next.t("video.videoWorkspacePage.y1v0w3"));
     },
     onSettled: () => setBusyProjectId(""),
   });
@@ -264,13 +259,13 @@ export default function VideoWorkspacePage() {
     mutationFn: (projectId: string) => deleteVideoProject(projectId),
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: queryKeys.video.projects });
-      toast.success("视频项目已删除。");
+      toast.success(i18next.t("video.videoWorkspacePage.tcit0s"));
     },
   });
 
   const handleCreate = () => {
     if (!form.title.trim()) {
-      toast.error("请填写项目名称。");
+      toast.error(i18next.t("video.videoWorkspacePage.swom7v"));
       return;
     }
     createMutation.mutate({
@@ -294,10 +289,8 @@ export default function VideoWorkspacePage() {
   return (
     <div className="space-y-5">
       <div className="space-y-2">
-        <h1 className="text-2xl font-semibold tracking-normal">视频改编工作台</h1>
-        <p className="max-w-3xl text-sm text-muted-foreground">
-          将小说章节改编为短视频或预告片。AI 生成视频脚本后提交到 VellumReel 渲染。
-        </p>
+        <h1 className="text-2xl font-semibold tracking-normal">{i18next.t("video.videoWorkspacePage.j9hmnl")}</h1>
+        <p className="max-w-3xl text-sm text-muted-foreground">{i18next.t("video.videoWorkspacePage.40lrnh")}</p>
       </div>
 
       {/* VellumReel 状态 */}
@@ -314,9 +307,7 @@ export default function VideoWorkspacePage() {
               已就绪 (Node: {bridgeHealth?.environment?.node || "Yes"}, FFmpeg: 已检测)
             </span>
           ) : (
-            <span className="ml-2 text-destructive">
-              环境未就绪 — 请确保系统已安装 Node.js 20+ 并配置 FFmpeg/ffprobe 环境变量
-            </span>
+            <span className="ml-2 text-destructive">{i18next.t("video.videoWorkspacePage.r7p4n3")}</span>
           )}
         </div>
         <Button
@@ -335,23 +326,21 @@ export default function VideoWorkspacePage() {
         <Card className="rounded-lg">
           <CardHeader>
             <CardTitle className="text-lg">
-              <Film className="mr-2 inline h-5 w-5" />
-              新建视频项目
-            </CardTitle>
-            <CardDescription>选择要改编的小说或直接创建自定义视频项目。</CardDescription>
+              <Film className="mr-2 inline h-5 w-5" />{i18next.t("video.videoWorkspacePage.b97e2")}</CardTitle>
+            <CardDescription>{i18next.t("video.videoWorkspacePage.uxg70")}</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             <label className="block space-y-1.5 text-sm">
-              <span className="font-medium">项目名称</span>
+              <span className="font-medium">{i18next.t("video.videoWorkspacePage.jq5lug")}</span>
               <input
                 className="h-10 w-full rounded-md border bg-background px-3 text-sm"
                 value={form.title}
-                placeholder="例如：逆袭之路预告片"
+                placeholder={i18next.t("video.videoWorkspacePage.fvd51p")}
                 onChange={(e) => setForm((c) => ({ ...c, title: e.target.value }))}
               />
             </label>
             <label className="block space-y-1.5 text-sm">
-              <span className="font-medium">关联小说</span>
+              <span className="font-medium">{i18next.t("genres.genreManagementPage.at2z0m")}</span>
               <select
                 className="h-10 w-full rounded-md border bg-background px-3 text-sm"
                 value={form.novelId}
@@ -364,7 +353,7 @@ export default function VideoWorkspacePage() {
                   }));
                 }}
               >
-                <option value="">不关联小说（自定义）</option>
+                <option value="">{i18next.t("video.videoWorkspacePage.p4iv8b")}</option>
                 {novels.map((novel) => (
                   <option key={novel.id} value={novel.id}>
                     {novel.title || "未命名小说"}（{novel._count.chapters} 章）
@@ -374,19 +363,19 @@ export default function VideoWorkspacePage() {
             </label>
             <div className="grid gap-3 sm:grid-cols-2">
               <label className="block space-y-1.5 text-sm">
-                <span className="font-medium">类型</span>
+                <span className="font-medium">{i18next.t("dict.gen_226b0912")}</span>
                 <select
                   className="h-10 w-full rounded-md border bg-background px-3 text-sm"
                   value={form.sourceType}
                   onChange={(e) => setForm((c) => ({ ...c, sourceType: e.target.value as typeof c.sourceType }))}
                 >
-                  <option value="chapter_adaptation">章节改编</option>
-                  <option value="trailer">预告片</option>
-                  <option value="custom">自定义</option>
+                  <option value="chapter_adaptation">{i18next.t("video.videoWorkspacePage.g1ji8v")}</option>
+                  <option value="trailer">{i18next.t("video.videoWorkspacePage.mr6bl")}</option>
+                  <option value="custom">{i18next.t("dict.gen_f1d4ff50")}</option>
                 </select>
               </label>
               <label className="block space-y-1.5 text-sm">
-                <span className="font-medium">目标时长（秒）</span>
+                <span className="font-medium">{i18next.t("video.videoWorkspacePage.kkenc3")}</span>
                 <input
                   type="number"
                   min="10"
@@ -398,17 +387,17 @@ export default function VideoWorkspacePage() {
               </label>
             </div>
             <label className="block space-y-1.5 text-sm">
-              <span className="font-medium">视觉风格</span>
+              <span className="font-medium">{i18next.t("video.videoWorkspacePage.hyhv01")}</span>
               <select
                 className="h-10 w-full rounded-md border bg-background px-3 text-sm"
                 value={form.visualStyle}
                 onChange={(e) => setForm((c) => ({ ...c, visualStyle: e.target.value }))}
               >
-                <option value="cinematic">电影感</option>
-                <option value="anime">动漫风</option>
-                <option value="watercolor">水彩风</option>
+                <option value="cinematic">{i18next.t("video.videoWorkspacePage.hmsoz")}</option>
+                <option value="anime">{i18next.t("video.videoWorkspacePage.cnlbf")}</option>
+                <option value="watercolor">{i18next.t("video.videoWorkspacePage.gbmbd")}</option>
                 <option value="3d_realistic">3D 写实</option>
-                <option value="minimalist">极简</option>
+                <option value="minimalist">{i18next.t("video.videoWorkspacePage.ia73")}</option>
               </select>
             </label>
             <Button
@@ -431,10 +420,8 @@ export default function VideoWorkspacePage() {
         <Card className="rounded-lg">
           <CardHeader>
             <CardTitle className="text-lg">
-              <Cpu className="mr-2 inline h-5 w-5" />
-              本地离线模型设置
-            </CardTitle>
-            <CardDescription>配置完全离线模式下的本地模型服务接口</CardDescription>
+              <Cpu className="mr-2 inline h-5 w-5" />{i18next.t("video.videoWorkspacePage.ywara6")}</CardTitle>
+            <CardDescription>{i18next.t("video.videoWorkspacePage.de3zlk")}</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             <label className="flex items-center gap-2 text-sm font-medium">
@@ -444,7 +431,7 @@ export default function VideoWorkspacePage() {
                 checked={offlineForm.offlineMode}
                 onChange={(e) => setOfflineForm((c) => ({ ...c, offlineMode: e.target.checked }))}
               />
-              <span>开启本地完全离线模式</span>
+              <span>{i18next.t("video.videoWorkspacePage.x40nep")}</span>
             </label>
 
             {offlineForm.offlineMode && (
@@ -454,7 +441,7 @@ export default function VideoWorkspacePage() {
                   <input
                     className="h-10 w-full rounded-md border bg-background px-3 text-sm"
                     value={offlineForm.ollamaModel}
-                    placeholder="例如: deepseek-r1:8b"
+                    placeholder={i18next.t("video.videoWorkspacePage.ir5n15")}
                     onChange={(e) => setOfflineForm((c) => ({ ...c, ollamaModel: e.target.value }))}
                   />
                 </label>
@@ -464,17 +451,17 @@ export default function VideoWorkspacePage() {
                   <input
                     className="h-10 w-full rounded-md border bg-background px-3 text-sm"
                     value={offlineForm.sdUrl}
-                    placeholder="例如: http://127.0.0.1:7860"
+                    placeholder={i18next.t("video.videoWorkspacePage.iogbot")}
                     onChange={(e) => setOfflineForm((c) => ({ ...c, sdUrl: e.target.value }))}
                   />
                 </label>
 
                 <label className="block space-y-1.5 text-sm">
-                  <span className="font-medium">本地 Speech (TTS) API 地址</span>
+                  <span className="font-medium">{i18next.t("video.videoWorkspacePage.25w7y2")}</span>
                   <input
                     className="h-10 w-full rounded-md border bg-background px-3 text-sm"
                     value={offlineForm.ttsUrl}
-                    placeholder="例如: http://127.0.0.1:8000/v1"
+                    placeholder={i18next.t("video.videoWorkspacePage.sliqxs")}
                     onChange={(e) => setOfflineForm((c) => ({ ...c, ttsUrl: e.target.value }))}
                   />
                 </label>
@@ -503,12 +490,8 @@ export default function VideoWorkspacePage() {
           <div className="flex items-center justify-between gap-3">
             <div>
               <h2 className="text-lg font-semibold tracking-normal">
-                <Video className="mr-2 inline h-5 w-5" />
-                项目列表
-              </h2>
-              <p className="text-sm text-muted-foreground">
-                从脚本生成到渲染提交的视频制作流程。
-              </p>
+                <Video className="mr-2 inline h-5 w-5" />{i18next.t("video.videoWorkspacePage.jq5cp2")}</h2>
+              <p className="text-sm text-muted-foreground">{i18next.t("video.videoWorkspacePage.xdtt0p")}</p>
             </div>
             <Button
               type="button"
@@ -517,23 +500,17 @@ export default function VideoWorkspacePage() {
               disabled={projectsQuery.isFetching}
               onClick={() => void projectsQuery.refetch()}
             >
-              <RefreshCw className={`h-4 w-4 ${projectsQuery.isFetching ? "animate-spin" : ""}`} />
-              刷新
-            </Button>
+              <RefreshCw className={`h-4 w-4 ${projectsQuery.isFetching ? "animate-spin" : ""}`} />{i18next.t("drama.dramaProjectPage.ejix")}</Button>
           </div>
 
           {projectsQuery.isLoading ? (
             <div className="flex items-center gap-2 rounded-md border p-4 text-sm text-muted-foreground">
-              <Loader2 className="h-4 w-4 animate-spin" />
-              正在加载视频项目...
-            </div>
+              <Loader2 className="h-4 w-4 animate-spin" />{i18next.t("video.videoWorkspacePage.wpxs7g")}</div>
           ) : null}
 
           {!projectsQuery.isLoading && projects.length === 0 ? (
             <div className="rounded-md border border-dashed p-6 text-center text-sm text-muted-foreground">
-              <Clapperboard className="mx-auto mb-2 h-8 w-8 opacity-40" />
-              还没有视频项目。先在左侧创建一个项目。
-            </div>
+              <Clapperboard className="mx-auto mb-2 h-8 w-8 opacity-40" />{i18next.t("video.videoWorkspacePage.g5g341")}</div>
           ) : null}
 
           <div className="grid gap-3">

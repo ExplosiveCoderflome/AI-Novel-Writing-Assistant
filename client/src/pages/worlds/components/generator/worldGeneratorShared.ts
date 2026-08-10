@@ -1,3 +1,4 @@
+import i18next from "i18next";
 import type {
   WorldOptionRefinementLevel,
   WorldPropertyOption,
@@ -41,18 +42,18 @@ export const REFERENCE_MODE_OPTIONS: Array<{
 }> = [
   {
     value: "adapt_world",
-    label: "基于原作做架空改造",
-    description: "保留原作世界基底，再决定哪些规则、势力和地点结构可以改造。",
+    label: i18next.t("worlds.worldGeneratorShared.d6u2uk"),
+    description: i18next.t("worlds.worldGeneratorShared.4psgn8"),
   },
   {
     value: "extract_base",
-    label: "提取原作世界基底",
-    description: "先稳定抽出原作世界骨架，后续扩写尽量围绕原作事实展开。",
+    label: i18next.t("worlds.worldGeneratorShared.vlmgp8"),
+    description: i18next.t("worlds.worldGeneratorShared.26osxy"),
   },
   {
     value: "tone_rebuild",
-    label: "只借原作气质与结构重建",
-    description: "保留氛围、关系结构与生活手感，但允许较大幅度重建世界事实。",
+    label: i18next.t("worlds.worldGeneratorShared.wycxh6"),
+    description: i18next.t("worlds.worldGeneratorShared.5tlj9f"),
   },
 ];
 

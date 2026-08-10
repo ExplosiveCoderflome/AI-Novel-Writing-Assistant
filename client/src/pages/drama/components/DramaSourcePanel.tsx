@@ -41,39 +41,39 @@ function SourceQualityChecklist(props: {
 }) {
   const checks = [
     {
-      label: t("gen.pages.drama.components.DramaSourcePanel.gen_cd0f1be8"),
+      label: i18next.t("dict.gen_cd0f1be8"),
       ready: props.synopsisReady,
-      detail: props.synopsisReady ? t("gen.pages.drama.components.DramaSourcePanel.gen_19ae8eaf") : t("gen.pages.drama.components.DramaSourcePanel.gen_d1065368"),
+      detail: props.synopsisReady ? i18next.t("dict.gen_19ae8eaf") : i18next.t("dict.gen_d1065368"),
     },
     {
-      label: t("gen.pages.drama.components.DramaSourcePanel.gen_154ed707"),
+      label: i18next.t("dict.gen_154ed707"),
       ready: props.beatCount >= 8,
       detail: props.beatCount >= 8 ? `${props.beatCount} 个节拍` : `${props.beatCount} 个节拍，可能不足以支撑长集数`,
     },
     {
-      label: t("gen.pages.drama.components.DramaSourcePanel.gen_f200b8db"),
+      label: i18next.t("dict.gen_f200b8db"),
       ready: props.characterCount >= 2,
-      detail: props.characterCount >= 2 ? `${props.characterCount} 个角色` : t("gen.pages.drama.components.DramaSourcePanel.majorRoleInsufficient"),
+      detail: props.characterCount >= 2 ? `${props.characterCount} 个角色` : i18next.t("dict.majorRoleInsufficient"),
     },
     {
-      label: t("gen.pages.drama.components.DramaSourcePanel.gen_ebba644f"),
+      label: i18next.t("dict.gen_ebba644f"),
       ready: props.factCount > 0,
-      detail: props.factCount > 0 ? `${props.factCount} 条硬事实` : t("gen.pages.drama.components.DramaSourcePanel.gen_285382be"),
+      detail: props.factCount > 0 ? `${props.factCount} 条硬事实` : i18next.t("dict.gen_285382be"),
     },
   ];
 
   return (
     <Card className="rounded-lg">
       <CardHeader>
-        <CardTitle className="text-lg">{t("gen.pages.drama.components.DramaSourcePanel.gen_2edbdee6")}</CardTitle>
-        <CardDescription>{t("gen.pages.drama.components.DramaSourcePanel.gen_a9006534")}</CardDescription>
+        <CardTitle className="text-lg">{i18next.t("dict.gen_2edbdee6")}</CardTitle>
+        <CardDescription>{i18next.t("dict.gen_a9006534")}</CardDescription>
       </CardHeader>
       <CardContent className="grid gap-2 sm:grid-cols-2">
         {checks.map((check) => (
           <div key={check.label} className="rounded-md border p-3 text-sm">
             <div className="flex items-center justify-between gap-2">
               <span className="font-medium">{check.label}</span>
-              <Badge variant={check.ready ? "default" : "secondary"}>{t("gen.pages.drama.components.DramaSourcePanel.checkStatus")}</Badge>
+              <Badge variant={check.ready ? "default" : "secondary"}>{i18next.t("dict.checkStatus")}</Badge>
             </div>
             <div className="mt-1 text-muted-foreground">{check.detail}</div>
           </div>
@@ -85,18 +85,18 @@ function SourceQualityChecklist(props: {
 
 function readinessLabel(readiness: DramaSourceSupplementGuidance["readiness"]): string {
   const labels: Record<DramaSourceSupplementGuidance["readiness"], string> = {
-    ready: t("gen.pages.drama.components.DramaSourcePanel.gen_4281b2b4"),
-    needs_supplement: t("gen.pages.drama.components.DramaSourcePanel.gen_be536bcc"),
-    needs_rebuild: t("gen.pages.drama.components.DramaSourcePanel.gen_e675f215"),
+    ready: i18next.t("dict.gen_4281b2b4"),
+    needs_supplement: i18next.t("dict.gen_be536bcc"),
+    needs_rebuild: i18next.t("dict.gen_e675f215"),
   };
   return labels[readiness];
 }
 
 function nextActionLabel(nextAction: DramaSourceSupplementGuidance["nextAction"]): string {
   const labels: Record<DramaSourceSupplementGuidance["nextAction"], string> = {
-    continue: t("gen.pages.drama.components.DramaSourcePanel.gen_fcc6be3b"),
-    supplement_notes: t("gen.pages.drama.components.DramaSourcePanel.gen_db0b4f1e"),
-    rebuild_source_bundle: t("gen.pages.drama.components.DramaSourcePanel.gen_2253b438"),
+    continue: i18next.t("dict.gen_fcc6be3b"),
+    supplement_notes: i18next.t("dict.gen_db0b4f1e"),
+    rebuild_source_bundle: i18next.t("dict.gen_2253b438"),
   };
   return labels[nextAction];
 }
@@ -111,7 +111,7 @@ function SourceSupplementPanel({ project }: { project: DramaProjectDetail }) {
     onSuccess: (response) => {
       if (response.data) {
         setGuidance(response.data);
-        toast.success(t("gen.pages.drama.components.DramaSourcePanel.gen_f06b9b58"));
+        toast.success(i18next.t("dict.gen_f06b9b58"));
       }
     },
   });
@@ -120,20 +120,20 @@ function SourceSupplementPanel({ project }: { project: DramaProjectDetail }) {
     <Card className="rounded-lg">
       <CardHeader className="gap-3 lg:flex-row lg:items-start lg:justify-between">
         <div>
-          <CardTitle className="text-lg">{t("gen.pages.drama.components.DramaSourcePanel.gen_53504bbd")}</CardTitle>
-          <CardDescription>{t("gen.pages.drama.components.DramaSourcePanel.gen_5700cf46")}</CardDescription>
+          <CardTitle className="text-lg">{i18next.t("dict.gen_53504bbd")}</CardTitle>
+          <CardDescription>{i18next.t("dict.gen_5700cf46")}</CardDescription>
         </div>
         <Button type="button" variant="outline" disabled={mutation.isPending} onClick={() => mutation.mutate()}>
-          {mutation.isPending ? t("gen.pages.drama.components.DramaSourcePanel.gen_ee0b2c88") : t("gen.pages.drama.components.DramaSourcePanel.gen_9797008e")}
+          {mutation.isPending ? i18next.t("dict.gen_ee0b2c88") : i18next.t("dict.gen_9797008e")}
         </Button>
       </CardHeader>
       <CardContent className="space-y-4">
         <label className="block space-y-1.5 text-sm">
-          <span className="font-medium">{t("gen.pages.drama.components.DramaSourcePanel.gen_fdeb5225")}</span>
+          <span className="font-medium">{i18next.t("dict.gen_fdeb5225")}</span>
           <textarea
             className="min-h-24 w-full rounded-md border bg-background px-3 py-2 text-sm"
             value={userSupplement}
-            placeholder={t("gen.pages.drama.components.DramaSourcePanel.exampleMainRetainVengeanceWomenLoveTangEvilNotCliched")}
+            placeholder={i18next.t("dict.exampleMainRetainVengeanceWomenLoveTangEvilNotCliched")}
             onChange={(event) => setUserSupplement(event.target.value)}
           />
         </label>
@@ -182,9 +182,7 @@ export function DramaSourcePanel({ project }: { project: DramaProjectDetail }) {
 
   if (!bundle) {
     return (
-      <div className="rounded-md border border-dashed p-6 text-sm text-muted-foreground">
-        还没有整理来源素材。先点击“整理素材”，系统会把小说、灵感或导入文本整理成短剧可用的梗概、节拍、角色和硬事实。
-      </div>
+      <div className="rounded-md border border-dashed p-6 text-sm text-muted-foreground">{i18next.t("drama.dramaSourcePanel.3p6c5u")}</div>
     );
   }
 
@@ -200,24 +198,24 @@ export function DramaSourcePanel({ project }: { project: DramaProjectDetail }) {
       <div className="grid gap-4 xl:grid-cols-[1.2fr_0.8fr]">
         <Card className="rounded-lg">
           <CardHeader>
-            <CardTitle className="text-lg">{t("gen.pages.drama.components.DramaSourcePanel.gen_7b66ea72")}</CardTitle>
-            <CardDescription>{t("gen.pages.drama.components.DramaSourcePanel.gen_01323675")}</CardDescription>
+            <CardTitle className="text-lg">{i18next.t("dict.gen_7b66ea72")}</CardTitle>
+            <CardDescription>{i18next.t("dict.gen_01323675")}</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             <section className="space-y-2">
-              <h3 className="text-sm font-medium">{t("gen.pages.drama.components.DramaSourcePanel.gen_8efef589")}</h3>
-              <p className="whitespace-pre-wrap text-sm leading-6 text-muted-foreground">{t("gen.pages.drama.components.DramaSourcePanel.bundleSynopsis")}</p>
+              <h3 className="text-sm font-medium">{i18next.t("dict.gen_8efef589")}</h3>
+              <p className="whitespace-pre-wrap text-sm leading-6 text-muted-foreground">{i18next.t("dict.bundleSynopsis")}</p>
             </section>
             <section className="space-y-2">
-              <h3 className="text-sm font-medium">{t("gen.pages.drama.components.DramaSourcePanel.gen_56b3529a")}</h3>
-              <p className="whitespace-pre-wrap text-sm leading-6 text-muted-foreground">{t("gen.pages.drama.components.DramaSourcePanel.bundleWorldNotes")}</p>
+              <h3 className="text-sm font-medium">{i18next.t("dict.gen_56b3529a")}</h3>
+              <p className="whitespace-pre-wrap text-sm leading-6 text-muted-foreground">{i18next.t("dict.bundleWorldNotes")}</p>
             </section>
           </CardContent>
         </Card>
         <div className="space-y-4">
           <Card className="rounded-lg">
             <CardHeader>
-              <CardTitle className="text-lg">{t("gen.pages.drama.components.DramaSourcePanel.gen_154ed707")}</CardTitle>
+              <CardTitle className="text-lg">{i18next.t("dict.gen_154ed707")}</CardTitle>
             </CardHeader>
             <CardContent className="max-h-[360px] space-y-2 overflow-auto">
               {beats.length > 0 ? beats.slice(0, 24).map((beat, index) => (
@@ -225,19 +223,19 @@ export function DramaSourcePanel({ project }: { project: DramaProjectDetail }) {
                   <div className="font-medium">{compactText(beat.title || beat.summary || `节拍 ${index + 1}`)}</div>
                   <div className="mt-1 text-muted-foreground">{compactText(beat.summary || beat.description || beat)}</div>
                 </div>
-              )) : <div className="text-sm text-muted-foreground">{t("gen.pages.drama.components.DramaSourcePanel.gen_73a9c79e")}</div>}
+              )) : <div className="text-sm text-muted-foreground">{i18next.t("dict.gen_73a9c79e")}</div>}
             </CardContent>
           </Card>
           <Card className="rounded-lg">
             <CardHeader>
-              <CardTitle className="text-lg">{t("gen.pages.drama.components.DramaSourcePanel.gen_ebba644f")}</CardTitle>
+              <CardTitle className="text-lg">{i18next.t("dict.gen_ebba644f")}</CardTitle>
             </CardHeader>
             <CardContent className="space-y-2">
               {facts.length > 0 ? facts.slice(0, 12).map((fact, index) => (
                 <div key={index} className="rounded-md border px-3 py-2 text-sm">
                   {fact.text || compactText(fact)}
                 </div>
-              )) : <div className="text-sm text-muted-foreground">{t("gen.pages.drama.components.DramaSourcePanel.gen_470296d0")}</div>}
+              )) : <div className="text-sm text-muted-foreground">{i18next.t("dict.gen_470296d0")}</div>}
             </CardContent>
           </Card>
         </div>

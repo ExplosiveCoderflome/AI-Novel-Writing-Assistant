@@ -1,3 +1,4 @@
+import i18next from "i18next";
 import type { VisualAssetCatalogItem } from "@ai-novel/shared/types/visualAsset";
 import { Check, ImageOff, Info } from "lucide-react";
 import { resolveImageAssetUrl } from "@/api/images";
@@ -53,7 +54,7 @@ export function VisualAssetGrid({ items, selectedIds, selectionMode, onSelect, o
                 {isSelected ? (
                   <span className="absolute left-2 top-2 flex h-6 w-6 items-center justify-center rounded-full bg-primary text-primary-foreground">
                     <Check className="h-3.5 w-3.5" aria-hidden="true" />
-                    <span className="sr-only">已选择</span>
+                    <span className="sr-only">{i18next.t("dict.gen_f08afd1f")}</span>
                   </span>
                 ) : null}
               </div>

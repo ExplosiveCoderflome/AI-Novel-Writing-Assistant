@@ -1,3 +1,5 @@
+import i18next from "i18next";
+import { useTranslation } from "react-i18next";
 import { useState } from "react";
 import { ChevronDown, ChevronRight, Pencil, Plus, Trash2 } from "lucide-react";
 import type { StoryModeTreeNode } from "@/api/storyMode";
@@ -28,6 +30,7 @@ export default function StoryModeTreeCard({
   onDelete,
   deletingId,
 }: StoryModeTreeCardProps) {
+  const { t } = useTranslation();
   const [expanded, setExpanded] = useState(true);
   const hasChildren = node.children.length > 0;
   const boundNovelCount = countNovelBindingsInSubtree(node);
@@ -74,14 +77,10 @@ export default function StoryModeTreeCard({
           <div className="flex shrink-0 flex-wrap justify-end gap-1">
             {depth === 0 ? (
               <Button type="button" variant="ghost" size="sm" onClick={() => onCreateChild(node.id)}>
-                <Plus className="mr-1 h-4 w-4" />
-                新增子类
-              </Button>
+                <Plus className="mr-1 h-4 w-4" />{i18next.t("genres.genreTreeItem.d75k7t")}</Button>
             ) : null}
             <Button type="button" variant="ghost" size="sm" onClick={() => onEdit(node.id)}>
-              <Pencil className="mr-1 h-4 w-4" />
-              编辑
-            </Button>
+              <Pencil className="mr-1 h-4 w-4" />{i18next.t("common.edit")}</Button>
             <Button
               type="button"
               variant="ghost"

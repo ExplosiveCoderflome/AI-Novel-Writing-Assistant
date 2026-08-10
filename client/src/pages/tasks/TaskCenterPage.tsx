@@ -1,4 +1,6 @@
+import i18next from "i18next";
 import { useEffect, useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type { DirectorContinuationMode } from "@ai-novel/shared/types/novelDirector";
 import type { TaskKind, TaskStatus, UnifiedTaskStep } from "@ai-novel/shared/types/task";
@@ -60,6 +62,7 @@ function normalizeTaskSteps(steps: unknown): UnifiedTaskStep[] {
 }
 
 export default function TaskCenterPage() {
+  const { t, i18n } = useTranslation();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const llm = useLLMStore();
@@ -239,7 +242,7 @@ export default function TaskCenterPage() {
     mutationFn: (payload: { kind: TaskKind; id: string }) => cancelTask(payload.kind, payload.id),
     onSuccess: async () => {
       await invalidateTaskQueries();
-      toast.success("任务取消请求已提交");
+      toast.success(i18next.t("dict.cancelRequestSubmitted"));
     },
   });
 
@@ -289,7 +292,7 @@ export default function TaskCenterPage() {
         return next;
       });
       await invalidateTaskQueries();
-      toast.success("任务已归档并从任务中心隐藏");
+      toast.success(i18next.t("dict.taskArchivedAndHiddenFromTaskCenter"));
     },
   });
 
@@ -386,7 +389,7 @@ export default function TaskCenterPage() {
   if (selectedTask && !isAutoDirectorTask && needsCandidateSelection) {
     detailActions.push({
       key: "candidate-selection",
-      title: "确认书级方向",
+      title: i18next.t("tasks.taskCenterPage.o0uj3j"),
       label: selectedTask.resumeAction ?? "继续确认书级方向",
       consequence: "打开候选确认页；只有确认后，后续小说生产才会继续。",
       tone: "warning",
@@ -397,7 +400,7 @@ export default function TaskCenterPage() {
   if (selectedTask && !isAutoDirectorTask && canResumeFront10AutoExecution) {
     detailActions.push({
       key: "continue-range",
-      title: "继续当前章节范围",
+      title: i18next.t("tasks.taskCenterPage.jh74mr"),
       label: selectedTask.resumeAction ?? `继续自动执行${selectedTask.executionScopeLabel ?? "当前章节范围"}`,
       consequence: selectedTask.status === "failed" || selectedTask.status === "cancelled"
         ? "任务会从可恢复位置重新入队，并继续当前章节范围。"
@@ -441,8 +444,8 @@ export default function TaskCenterPage() {
   if (selectedTask && (selectedTask.status === "failed" || selectedTask.status === "cancelled") && !isAutoDirectorTask) {
     detailActions.push({
       key: "retry",
-      title: "重新执行任务",
-      label: "重试",
+      title: i18next.t("tasks.taskCenterPage.twcn02"),
+      label: i18next.t("dict.gen_132c5cdc"),
       consequence: "任务会按现有任务配置重新入队；已保存的来源内容不会由重试按钮删除。",
       tone: "danger",
       variant: "default",
@@ -456,8 +459,8 @@ export default function TaskCenterPage() {
   )) {
     detailActions.push({
       key: "cancel",
-      title: "停止后续执行",
-      label: "取消任务",
+      title: i18next.t("tasks.taskCenterPage.dvnzmy"),
+      label: i18next.t("dict.gen_d926e2f5"),
       consequence: "系统会请求停止后续步骤；已保存的产物仍保留在来源页面。",
       tone: "warning",
       disabled: cancelMutation.isPending,
@@ -467,8 +470,8 @@ export default function TaskCenterPage() {
   if (selectedTask && ARCHIVABLE_STATUSES.has(selectedTask.status)) {
     detailActions.push({
       key: "archive",
-      title: "从任务中心收起记录",
-      label: "归档",
+      title: i18next.t("tasks.taskCenterPage.z3nvu8"),
+      label: i18next.t("dict.gen_2f51c18f"),
       consequence: "只隐藏任务中心记录，不删除小说正文、规划或其他生成资产。",
       disabled: archiveMutation.isPending,
       onClick: () => archiveMutation.mutate({ kind: selectedTask.kind, id: selectedTask.id }),
@@ -532,17 +535,17 @@ export default function TaskCenterPage() {
     <div className="space-y-5">
       <WorkspaceHeader
         icon={ListChecks}
-        context="执行历史与恢复"
-        title="运行记录"
-        description="按需查询创作、拆书、知识索引和图片任务的历史、异常与恢复信息；实时生成请从顶部“AI 实况”查看。"
+        context={t("tasks.context", "执行历史与恢复")}
+        title={t("tasks.title", "运行记录")}
+        description={t("tasks.description", "按需查询创作、拆书、知识索引和图片任务的历史、异常与恢复信息；实时生成请从顶部“AI 实况”查看。")}
         meta={(
           <>
-            <span>当前显示 {visibleRows.length} 项</span>
-            <span>全局执行 {runningCount + queuedCount} 项</span>
-            <span>等待操作 {waitingActionCount} 项</span>
-            <span>失败 {failedTaskCount} 项</span>
-            <span>可恢复 {recoveryCandidateCount} 项</span>
-            <span>质量提醒 {qualityReminderCount} 项</span>
+            <span>{t("tasks.metaVisible", "当前显示 {{count}} 项", { count: visibleRows.length })}</span>
+            <span>{t("tasks.metaRunning", "全局执行 {{count}} 项", { count: runningCount + queuedCount })}</span>
+            <span>{t("tasks.metaWaiting", "等待操作 {{count}} 项", { count: waitingActionCount })}</span>
+            <span>{t("tasks.metaFailed", "失败 {{count}} 项", { count: failedTaskCount })}</span>
+            <span>{t("tasks.metaRecoverable", "可恢复 {{count}} 项", { count: recoveryCandidateCount })}</span>
+            <span>{t("tasks.metaQuality", "质量提醒 {{count}} 项", { count: qualityReminderCount })}</span>
           </>
         )}
         actions={(
@@ -553,7 +556,7 @@ export default function TaskCenterPage() {
             disabled={overviewQuery.isFetching || recoveryCandidatesQuery.isFetching || listQuery.isFetching}
           >
             <RefreshCw className={overviewQuery.isFetching || recoveryCandidatesQuery.isFetching || listQuery.isFetching ? "h-4 w-4 animate-spin" : "h-4 w-4"} aria-hidden="true" />
-            刷新记录
+            {t("tasks.refresh", "刷新记录")}
           </Button>
         )}
       />
@@ -589,9 +592,7 @@ export default function TaskCenterPage() {
                 : "只重新读取恢复候选，不会自动执行恢复。"
             : undefined}
         action={overviewErrorMessage ? (
-          <Button type="button" size="sm" variant="outline" onClick={() => void overviewQuery.refetch()}>
-            重新读取
-          </Button>
+          <Button type="button" size="sm" variant="outline" onClick={() => void overviewQuery.refetch()}>{i18next.t("autoDirectorFollowUps.autoDirectorFollowUpCenterPage.itle66")}</Button>
         ) : !overviewQuery.isLoading && hasRecommendedAction ? (
           <Button
             type="button"

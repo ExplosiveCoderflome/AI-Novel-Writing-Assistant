@@ -1,4 +1,6 @@
+import i18next from "i18next";
 import { useEffect, useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
 import {
@@ -56,14 +58,18 @@ const EMPTY_FORM: SetupForm = {
   model: "",
 };
 
-function providerDescription(provider: QuickSetupProviderOption): string {
-  if (provider.id === "deepseek") return "中文长篇规划与写作的低门槛选择";
-  if (provider.id === "ollama") return "使用本机模型，不要求 API Key";
-  if (provider.id === "openai") return "适合通用规划、正文与结构化任务";
-  return provider.configured ? "已有配置，可以直接检测并设为全局默认" : "配置后可用于整条小说生产链";
+function providerDescription(provider: QuickSetupProviderOption, isEn: boolean): string {
+  if (provider.id === "deepseek") return isEn ? "Low threshold choice for long-form planning & writing" : "中文长篇规划与写作的低门槛选择";
+  if (provider.id === "ollama") return isEn ? "Use local models, no API key required" : "使用本机模型，不要求 API Key";
+  if (provider.id === "openai") return isEn ? "Great for general planning, drafts, & structured tasks" : "适合通用规划、正文与结构化任务";
+  return provider.configured
+    ? isEn ? "Configured. Can detect and set as global default." : "已有配置，可以直接检测并设为全局默认"
+    : isEn ? "Can drive the full novel production chain after config" : "配置后可用于整条小说生产链";
 }
 
 export default function QuickSetupDialog(props: QuickSetupDialogProps) {
+  const { t, i18n } = useTranslation();
+  const isEn = i18n.language === "en";
   const queryClient = useQueryClient();
   const llmStore = useLLMStore();
   const [step, setStep] = useState<1 | 2 | 3>(1);
@@ -187,27 +193,26 @@ export default function QuickSetupDialog(props: QuickSetupDialogProps) {
     ? null
     : step === 1
       ? (
-          <Button onClick={() => setStep(2)} disabled={!canContinueProvider}>
-            填写连接信息 <ArrowRight className="h-4 w-4" />
+          <Button onClick={() => setStep(2)} disabled={!canContinueProvider}>{i18next.t("onboarding.quickSetupDialog.q4ugal")}<ArrowRight className="h-4 w-4" />
           </Button>
         )
       : step === 2
         ? (
             <>
-              <Button variant="ghost" onClick={() => setStep(1)}><ArrowLeft className="h-4 w-4" /> 返回选择</Button>
-              <Button onClick={submit} disabled={!canSubmit}>检测并完成配置 <PlugZap className="h-4 w-4" /></Button>
+              <Button variant="ghost" onClick={() => setStep(1)}><ArrowLeft className="h-4 w-4" />{i18next.t("onboarding.quickSetupDialog.iihkay")}</Button>
+              <Button onClick={submit} disabled={!canSubmit}>{i18next.t("onboarding.quickSetupDialog.5bvwcw")}<PlugZap className="h-4 w-4" /></Button>
             </>
           )
         : completeMutation.isSuccess
           ? (
               <>
-                <Button variant="outline" asChild><Link to="/settings">查看高级设置</Link></Button>
-                <Button onClick={() => props.onOpenChange(false)}>开始创作 <Sparkles className="h-4 w-4" /></Button>
+                <Button variant="outline" asChild><Link to="/settings">{i18next.t("onboarding.quickSetupDialog.8tdf7p")}</Link></Button>
+                <Button onClick={() => props.onOpenChange(false)}>{i18next.t("onboarding.quickSetupDialog.ccwsks")}<Sparkles className="h-4 w-4" /></Button>
               </>
             )
           : completeMutation.isError
             ? (
-                <Button variant="outline" onClick={() => setStep(2)}><ArrowLeft className="h-4 w-4" /> 修改配置</Button>
+                <Button variant="outline" onClick={() => setStep(2)}><ArrowLeft className="h-4 w-4" />{i18next.t("onboarding.quickSetupDialog.aignbg")}</Button>
               )
             : null;
 
@@ -215,16 +220,16 @@ export default function QuickSetupDialog(props: QuickSetupDialogProps) {
     <Dialog open={props.open} onOpenChange={props.onOpenChange}>
       <AppDialogContent
         className="max-w-3xl"
-        title="让 AI 创作环境先跑起来"
-        description="只配置一个文本模型，系统会自动准备规划、正文、审校和修复所需的任务路由。"
+        title={i18next.t("onboarding.quickSetupDialog.98ayzx")}
+        description={i18next.t("onboarding.quickSetupDialog.5awtd6")}
         footer={footer}
         footerClassName="gap-2"
       >
         <div className="mb-6 grid grid-cols-3 gap-2">
           {[
-            { index: 1, label: "选择厂商" },
-            { index: 2, label: "连接模型" },
-            { index: 3, label: "检测完成" },
+            { index: 1, label: i18next.t("dict.gen_c6d3930b") },
+            { index: 2, label: i18next.t("onboarding.quickSetupDialog.ikctap") },
+            { index: 3, label: i18next.t("onboarding.quickSetupDialog.do32z3") },
           ].map((item) => (
             <div key={item.index} className={cn(
               "rounded-lg border px-3 py-2 text-xs",
@@ -242,33 +247,32 @@ export default function QuickSetupDialog(props: QuickSetupDialogProps) {
 
         {props.loading ? (
           <div className="flex min-h-56 items-center justify-center text-sm text-muted-foreground">
-            <Loader2 className="mr-2 h-5 w-5 animate-spin" /> 正在检查创作环境
-          </div>
+            <Loader2 className="mr-2 h-5 w-5 animate-spin" />{i18next.t("onboarding.quickSetupDialog.tgo6qn")}</div>
         ) : props.error ? (
           <div className="flex min-h-56 flex-col items-center justify-center gap-4 text-center">
             <CircleAlert className="h-9 w-9 text-amber-600" />
             <div>
-              <div className="font-semibold">暂时无法读取模型配置</div>
-              <div className="mt-1 text-sm text-muted-foreground">重新加载后，系统会继续判断是否可以开始创作。</div>
+              <div className="font-semibold">{i18next.t("onboarding.quickSetupDialog.o6fckv")}</div>
+              <div className="mt-1 text-sm text-muted-foreground">{i18next.t("onboarding.quickSetupDialog.8bck02")}</div>
             </div>
-            <Button variant="outline" onClick={props.onRetry}>重新加载</Button>
+            <Button variant="outline" onClick={props.onRetry}>{i18next.t("common.retry")}</Button>
           </div>
         ) : props.status?.readyForCreation && !completeMutation.isSuccess ? (
           <div className="flex min-h-56 flex-col items-center justify-center gap-4 text-center">
             <CheckCircle2 className="h-10 w-10 text-emerald-600" />
             <div>
-              <div className="text-lg font-semibold">创作环境可以使用</div>
+              <div className="text-lg font-semibold">{i18next.t("onboarding.quickSetupDialog.ubjcss")}</div>
               <div className="mt-2 text-sm text-muted-foreground">
                 {props.status.selectedProvider} · {props.status.selectedModel}，{props.status.routeCoverage.total} 类核心任务均已就绪。
               </div>
             </div>
-            <Button onClick={() => props.onOpenChange(false)}>继续创作</Button>
+            <Button onClick={() => props.onOpenChange(false)}>{i18next.t("onboarding.quickSetupDialog.gj7f9j")}</Button>
           </div>
         ) : step === 1 ? (
           <div className="space-y-4">
             <div>
-              <h3 className="font-semibold">选择你已有账号或接口的厂商</h3>
-              <p className="mt-1 text-sm text-muted-foreground">第一次只选一个即可，之后仍能在系统设置中增加更多厂商。</p>
+              <h3 className="font-semibold">{i18next.t("onboarding.quickSetupDialog.81ue4")}</h3>
+              <p className="mt-1 text-sm text-muted-foreground">{i18next.t("onboarding.quickSetupDialog.do32ko")}</p>
             </div>
             <div className="grid gap-3 sm:grid-cols-2">
               {props.status?.providers.map((provider) => (
@@ -284,9 +288,9 @@ export default function QuickSetupDialog(props: QuickSetupDialogProps) {
                   <div className="flex items-start justify-between gap-3">
                     <div>
                       <div className="font-semibold">{provider.name}</div>
-                      <div className="mt-1 text-xs leading-5 text-muted-foreground">{providerDescription(provider)}</div>
+                      <div className="mt-1 text-xs leading-5 text-muted-foreground">{providerDescription(provider, isEn)}</div>
                     </div>
-                    {provider.configured ? <Badge variant="outline">已有配置</Badge> : null}
+                    {provider.configured ? <Badge variant="outline">{isEn ? "Configured" : "已有配置"}</Badge> : null}
                   </div>
                   <div className="mt-3 text-xs text-muted-foreground">推荐模型：{provider.currentModel || provider.defaultModel}</div>
                 </button>
@@ -299,8 +303,8 @@ export default function QuickSetupDialog(props: QuickSetupDialogProps) {
                 )}
                 onClick={chooseCustom}
               >
-                <div className="flex items-center gap-2 font-semibold"><ServerCog className="h-4 w-4" /> 自定义兼容接口</div>
-                <div className="mt-2 text-xs leading-5 text-muted-foreground">适合中转服务、本地网关或其他 OpenAI 兼容地址。</div>
+                <div className="flex items-center gap-2 font-semibold"><ServerCog className="h-4 w-4" />{i18next.t("onboarding.quickSetupDialog.9wpa9g")}</div>
+                <div className="mt-2 text-xs leading-5 text-muted-foreground">{i18next.t("onboarding.quickSetupDialog.tra135")}</div>
               </button>
             </div>
           </div>
@@ -312,8 +316,8 @@ export default function QuickSetupDialog(props: QuickSetupDialogProps) {
             </div>
             {form.providerKind === "custom" ? (
               <label className="block space-y-1.5">
-                <span className="text-sm font-medium">厂商名称</span>
-                <Input value={form.customProviderName} placeholder="例如：我的模型网关" onChange={(event) => setForm((current) => ({ ...current, customProviderName: event.target.value }))} />
+                <span className="text-sm font-medium">{i18next.t("dict.gen_99b8ee4c")}</span>
+                <Input value={form.customProviderName} placeholder={i18next.t("dict.exampleMyModelGateway")} onChange={(event) => setForm((current) => ({ ...current, customProviderName: event.target.value }))} />
               </label>
             ) : null}
             <label className="block space-y-1.5">
@@ -354,12 +358,10 @@ export default function QuickSetupDialog(props: QuickSetupDialogProps) {
               </div>
             ) : null}
             <label className="block space-y-1.5">
-              <span className="text-sm font-medium">文本模型</span>
-              <Input value={form.model} placeholder="选择上方模型，或直接填写模型名称" onChange={(event) => setForm((current) => ({ ...current, model: event.target.value }))} />
+              <span className="text-sm font-medium">{i18next.t("onboarding.quickSetupDialog.d8mg27")}</span>
+              <Input value={form.model} placeholder={i18next.t("onboarding.quickSetupDialog.q8b9u7")} onChange={(event) => setForm((current) => ({ ...current, model: event.target.value }))} />
             </label>
-            <div className="rounded-lg border bg-muted/20 p-3 text-xs leading-5 text-muted-foreground">
-              完成后，这个模型会作为规划、正文、审核、修复、重规划和摘要等核心任务的初始默认值。
-            </div>
+            <div className="rounded-lg border bg-muted/20 p-3 text-xs leading-5 text-muted-foreground">{i18next.t("onboarding.quickSetupDialog.8bbyqn")}</div>
           </div>
         ) : (
           <div className="flex min-h-64 flex-col items-center justify-center gap-4 text-center">
@@ -369,8 +371,8 @@ export default function QuickSetupDialog(props: QuickSetupDialogProps) {
                   <Loader2 className="h-7 w-7 animate-spin text-primary" />
                 </div>
                 <div>
-                  <div className="text-lg font-semibold">正在检测普通文本与结构化输出</div>
-                  <div className="mt-2 max-w-md text-sm leading-6 text-muted-foreground">检测通过后，系统会自动准备全部核心创作任务，不需要逐项配置路由。</div>
+                  <div className="text-lg font-semibold">{i18next.t("onboarding.quickSetupDialog.j0pc73")}</div>
+                  <div className="mt-2 max-w-md text-sm leading-6 text-muted-foreground">{i18next.t("onboarding.quickSetupDialog.16v7ib")}</div>
                 </div>
               </>
             ) : completeMutation.isSuccess ? (
@@ -379,7 +381,7 @@ export default function QuickSetupDialog(props: QuickSetupDialogProps) {
                   <CheckCircle2 className="h-8 w-8 text-emerald-700" />
                 </div>
                 <div>
-                  <div className="text-lg font-semibold">创作环境配置完成</div>
+                  <div className="text-lg font-semibold">{i18next.t("onboarding.quickSetupDialog.mdq9k6")}</div>
                   <div className="mt-2 text-sm text-muted-foreground">{completeMutation.data.data?.model} 已可用于整条小说生产链。</div>
                 </div>
               </>
@@ -389,7 +391,7 @@ export default function QuickSetupDialog(props: QuickSetupDialogProps) {
                   <CircleAlert className="h-8 w-8 text-amber-700" />
                 </div>
                 <div>
-                  <div className="text-lg font-semibold">模型检测没有通过</div>
+                  <div className="text-lg font-semibold">{i18next.t("onboarding.quickSetupDialog.vhv3au")}</div>
                   <div className="mt-2 max-w-lg text-sm leading-6 text-destructive">
                     {completeMutation.error instanceof Error ? completeMutation.error.message : "请检查 API Key、地址和模型名称后重试。"}
                   </div>

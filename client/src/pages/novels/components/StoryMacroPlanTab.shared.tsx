@@ -1,3 +1,5 @@
+import i18next from "i18next";
+import { useTranslation } from "react-i18next";
 import type { StoryMacroField } from "@ai-novel/shared/types/storyMacro";
 import AiButton from "@/components/common/AiButton";
 import { Button } from "@/components/ui/button";
@@ -8,12 +10,12 @@ export const ENGINE_TEXT_FIELDS: Array<{
   placeholder: string;
   multiline?: boolean;
 }> = [
-  { field: "expanded_premise", label: "强化前提", placeholder: "先写出被强化后的故事前提，让压迫感和悬念成立。", multiline: true },
-  { field: "protagonist_core", label: "主角核心处境", placeholder: "写主角被困住的处境、裂缝和可变化空间。", multiline: true },
-  { field: "conflict_engine", label: "冲突引擎", placeholder: "写清楚故事为什么能持续升级，而不是只写一个冲突。", multiline: true },
-  { field: "mystery_box", label: "核心未知", placeholder: "写读者最想知道、但暂时拿不到答案的问题。", multiline: true },
-  { field: "emotional_line", label: "情绪推进", placeholder: "写情绪如何逐层加深，而不是简单变强。", multiline: true },
-  { field: "tone_reference", label: "叙事气质", placeholder: "写法风格、叙事姿态、控制方式。", multiline: true },
+  { field: "expanded_premise", label: i18next.t("novels.storyMacroPlanTab.shared.ccylvj"), placeholder: i18next.t("novels.storyMacroPlanTab.shared.exd7mf"), multiline: true },
+  { field: "protagonist_core", label: i18next.t("novels.storyMacroPlanTab.shared.jbmts1"), placeholder: i18next.t("novels.storyMacroPlanTab.shared.pqhtbo"), multiline: true },
+  { field: "conflict_engine", label: i18next.t("novels.storyMacroPlanTab.shared.atcsdk"), placeholder: i18next.t("novels.storyMacroPlanTab.shared.8y2bcz"), multiline: true },
+  { field: "mystery_box", label: i18next.t("dict.gen_6f4a9bfe"), placeholder: i18next.t("novels.storyMacroPlanTab.shared.cmyupf"), multiline: true },
+  { field: "emotional_line", label: i18next.t("novels.storyMacroPlanTab.shared.cqh4fs"), placeholder: i18next.t("novels.storyMacroPlanTab.shared.wm7gad"), multiline: true },
+  { field: "tone_reference", label: i18next.t("novels.storyMacroPlanTab.shared.awr8py"), placeholder: i18next.t("novels.storyMacroPlanTab.shared.92k0qh"), multiline: true },
 ];
 
 export const SUMMARY_FIELDS: Array<{
@@ -22,12 +24,12 @@ export const SUMMARY_FIELDS: Array<{
   placeholder: string;
   multiline?: boolean;
 }> = [
-  { field: "selling_point", label: "一句话卖点", placeholder: "一句话说明这部作品最能吸引读者的地方。" },
-  { field: "core_conflict", label: "长期对立", placeholder: "写长期不可调和的对立。" },
-  { field: "main_hook", label: "主线钩子", placeholder: "写带未知的主线问题。" },
-  { field: "progression_loop", label: "推进回路", placeholder: "写清发现 -> 升级 -> 反转如何循环。", multiline: true },
-  { field: "growth_path", label: "成长路径", placeholder: "写主角认知如何阶段性变化。", multiline: true },
-  { field: "ending_flavor", label: "结局味道", placeholder: "例如崩塌、留白、反转、冷静压抑。" },
+  { field: "selling_point", label: i18next.t("novels.storyMacroPlanTab.shared.w0lg3f"), placeholder: i18next.t("novels.storyMacroPlanTab.shared.o7ghsv") },
+  { field: "core_conflict", label: i18next.t("novels.storyEngineStudio.jad1ma"), placeholder: i18next.t("novels.storyMacroPlanTab.shared.xupp5c") },
+  { field: "main_hook", label: i18next.t("novels.storyEngineStudio.aehui3"), placeholder: i18next.t("novels.storyMacroPlanTab.shared.9kgul4") },
+  { field: "progression_loop", label: i18next.t("novels.storyEngineStudio.d604zo"), placeholder: i18next.t("novels.storyMacroPlanTab.shared.7na8fy"), multiline: true },
+  { field: "growth_path", label: i18next.t("dict.gen_eb4c8f80"), placeholder: i18next.t("novels.storyMacroPlanTab.shared.myny5c"), multiline: true },
+  { field: "ending_flavor", label: i18next.t("novels.storyMacroPlanTab.shared.gdskb1"), placeholder: i18next.t("novels.storyMacroPlanTab.shared.2ir0ia") },
 ];
 
 export function listToText(value: string[]): string {
@@ -35,6 +37,7 @@ export function listToText(value: string[]): string {
 }
 
 export function textareaClassName(minHeight = "min-h-28") {
+  const { t } = useTranslation();
   return `${minHeight} w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm outline-none ring-offset-background placeholder:text-muted-foreground focus-visible:ring-2 focus-visible:ring-ring`;
 }
 

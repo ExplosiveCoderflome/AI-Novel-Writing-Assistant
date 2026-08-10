@@ -1,5 +1,5 @@
+import { useTranslation } from "react-i18next";
 import i18next from "i18next";
-const t = (key: string, options?: any) => i18next.t(key, options) as string;
 import type { AntiAiRule, StyleProfile, StyleProfileFeature } from "@ai-novel/shared/types/styleEngine";
 import WritingFormulaEditorPanel from "./WritingFormulaEditorPanel";
 
@@ -35,12 +35,13 @@ interface WritingFormulaAdvancedWorkspaceProps {
 }
 
 export default function WritingFormulaAdvancedWorkspace(props: WritingFormulaAdvancedWorkspaceProps) {
+  const { t } = useTranslation();
   return (
     <div className="mx-auto flex h-full min-h-0 max-w-[1120px] flex-col gap-4 overflow-y-auto xl:pr-1">
       <div className="rounded-2xl border bg-slate-50/70 px-4 py-3 text-sm leading-7 text-slate-700">
         {props.selectedProfile
           ? `当前正在维护「${props.selectedProfile.name}」这套写法的设定说明。应用测试和去 AI 味已经拆到独立入口，这里只负责把写法本身整理清楚。`
-          : t("gen.pages.writingFormula.components.WritingFormulaAdvancedWorkspace.gen_38767024")}
+          : i18next.t("dict.gen_38767024")}
       </div>
 
       <WritingFormulaEditorPanel

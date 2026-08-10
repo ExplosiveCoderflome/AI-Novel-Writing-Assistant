@@ -1,4 +1,6 @@
+import i18next from "i18next";
 import { useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   BookOpen,
@@ -33,6 +35,7 @@ import {
 } from "./genreManagement.shared";
 
 export default function GenreManagementPage() {
+  const { t, i18n } = useTranslation();
   const queryClient = useQueryClient();
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [defaultParentId, setDefaultParentId] = useState("");
@@ -70,7 +73,7 @@ export default function GenreManagementPage() {
   const statusItems = useMemo<AssetLibraryStatusItem[]>(() => [
     {
       key: "genres",
-      label: "题材基底",
+      label: i18next.t("basicInfo.genreId"),
       value: statusUnavailable ? "—" : totalGenres,
       detail: "可供小说选择的分类节点",
       icon: Tags,
@@ -78,14 +81,14 @@ export default function GenreManagementPage() {
     },
     {
       key: "roots",
-      label: "根分类",
+      label: i18next.t("genres.genreManagementPage.fo75a"),
       value: statusUnavailable ? "—" : genreTree.length,
       detail: "用于划分主要创作方向",
       icon: Layers3,
     },
     {
       key: "novels",
-      label: "关联小说",
+      label: i18next.t("genres.genreManagementPage.at2z0m"),
       value: statusUnavailable ? "—" : linkedNovelCount,
       detail: "正在使用这些题材的作品",
       icon: BookOpen,
@@ -93,7 +96,7 @@ export default function GenreManagementPage() {
     },
     {
       key: "descriptions",
-      label: "说明完整",
+      label: i18next.t("genres.genreManagementPage.i2vbeq"),
       value: statusUnavailable ? "—" : `${describedGenreCount}/${totalGenres}`,
       detail: "有明确定位说明的题材",
       icon: FileText,
@@ -113,7 +116,7 @@ export default function GenreManagementPage() {
     mutationFn: (genreId: string) => deleteGenre(genreId),
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: queryKeys.genres.all });
-      toast.success("题材基底已删除。");
+      toast.success(i18next.t("dict.gen_b67dd646"));
     },
   });
 
@@ -142,61 +145,53 @@ export default function GenreManagementPage() {
   const recommendation = genreTreeQuery.isError ? (
     <AssetLibraryRecommendation
       icon={CircleAlert}
-      title="重新加载题材基底"
-      description="暂时无法读取题材结构。重新加载后，可以继续查看、编辑和维护题材。"
+      title={i18next.t("genres.genreManagementPage.6v4w8j")}
+      description={i18next.t("genres.genreManagementPage.az2s4r")}
       tone="danger"
       action={(
-        <Button type="button" variant="outline" onClick={() => void genreTreeQuery.refetch()}>
-          重新加载
-        </Button>
+        <Button type="button" variant="outline" onClick={() => void genreTreeQuery.refetch()}>{i18next.t("common.retry")}</Button>
       )}
     />
   ) : genreTreeQuery.isLoading ? (
     <AssetLibraryRecommendation
       icon={LoaderCircle}
-      title="正在确认题材基底状态"
-      description="加载完成后，会根据题材覆盖和说明完整度给出下一步建议。"
+      title={i18next.t("genres.genreManagementPage.65bamf")}
+      description={i18next.t("genres.genreManagementPage.hdg1sh")}
       tone="neutral"
     />
   ) : totalGenres === 0 ? (
     <AssetLibraryRecommendation
       icon={Sparkles}
-      title="先建立第一棵题材基底树"
-      description="描述你想覆盖的创作方向，可以手动搭建层级，也可以让 AI 生成草稿后再调整。"
+      title={i18next.t("genres.genreManagementPage.buc1fu")}
+      description={i18next.t("genres.genreManagementPage.bcyed1")}
       action={(
         <Button type="button" onClick={handleCreateRoot}>
-          <Plus className="h-4 w-4" aria-hidden="true" />
-          创建题材基底
-        </Button>
+          <Plus className="h-4 w-4" aria-hidden="true" />{i18next.t("genres.genreManagementPage.rj4n8u")}</Button>
       )}
     />
   ) : firstGenreWithoutDescription ? (
     <AssetLibraryRecommendation
       icon={FileText}
       title={`补充「${firstGenreWithoutDescription.name}」的题材说明`}
-      description="明确作品定位、读者期待和核心冲突，能帮助 AI 在开书和规划时更准确地理解这个题材。"
+      description={i18next.t("genres.genreManagementPage.u3amk1")}
       tone="warning"
       action={(
         <Button
           type="button"
           variant="outline"
           onClick={() => setEditingGenreId(firstGenreWithoutDescription.id)}
-        >
-          补充说明
-        </Button>
+        >{i18next.t("genres.genreManagementPage.hjw9ay")}</Button>
       )}
     />
   ) : (
     <AssetLibraryRecommendation
       icon={Sparkles}
-      title="题材基底可以支持开书选择"
-      description="现有题材都有明确说明。需要覆盖新的创作方向时，再新增根题材或细分子类。"
+      title={i18next.t("genres.genreManagementPage.jn6269")}
+      description={i18next.t("genres.genreManagementPage.3gf4sq")}
       tone="success"
       action={(
         <Button type="button" variant="outline" onClick={handleCreateRoot}>
-          <Plus className="h-4 w-4" aria-hidden="true" />
-          扩充题材
-        </Button>
+          <Plus className="h-4 w-4" aria-hidden="true" />{i18next.t("genres.genreManagementPage.crheic")}</Button>
       )}
     />
   );
@@ -225,13 +220,11 @@ export default function GenreManagementPage() {
       <AssetLibraryHeader
         icon={Tags}
         context="创作资产 / 小说定位"
-        title="题材基底库"
-        description="维护小说可复用的题材定位与分类层级。开书时选择合适的题材基底，AI 会据此理解作品类型、读者期待和主要创作方向。"
+        title={i18next.t("sidebar.genres")}
+        description={i18next.t("genres.genreManagementPage.7im1t9")}
         actions={(
           <Button type="button" onClick={handleCreateRoot}>
-            <Plus className="h-4 w-4" aria-hidden="true" />
-            新建题材基底树
-          </Button>
+            <Plus className="h-4 w-4" aria-hidden="true" />{i18next.t("dict.gen_32f3aaf4")}</Button>
         )}
       />
 
@@ -240,8 +233,8 @@ export default function GenreManagementPage() {
       {recommendation}
 
       <AssetLibrarySection
-        title="题材结构"
-        description="从主要题材逐层展开细分方向。正在被小说使用的分类，需要先调整关联小说的题材后才能删除。"
+        title={i18next.t("genres.genreManagementPage.jom85l")}
+        description={i18next.t("genres.genreManagementPage.nfldlo")}
       >
         {genreTreeQuery.isLoading ? (
           <div
@@ -249,20 +242,18 @@ export default function GenreManagementPage() {
             role="status"
           >
             <LoaderCircle className="h-6 w-6 animate-spin text-muted-foreground" aria-hidden="true" />
-            <div className="mt-3 text-sm font-semibold text-foreground">正在加载题材结构</div>
-            <div className="mt-1 text-sm text-muted-foreground">请稍候，题材与小说关联正在同步。</div>
+            <div className="mt-3 text-sm font-semibold text-foreground">{i18next.t("genres.genreManagementPage.2es6lx")}</div>
+            <div className="mt-1 text-sm text-muted-foreground">{i18next.t("genres.genreManagementPage.ubt6dr")}</div>
           </div>
         ) : null}
 
         {genreTreeQuery.isError ? (
           <AssetLibraryEmptyState
             icon={CircleAlert}
-            title="题材基底暂时无法加载"
-            description="请检查服务连接后重新加载。已有题材不会受到影响。"
+            title={i18next.t("genres.genreManagementPage.wucaxz")}
+            description={i18next.t("genres.genreManagementPage.yy1il6")}
             action={(
-              <Button type="button" variant="outline" onClick={() => void genreTreeQuery.refetch()}>
-                重新加载
-              </Button>
+              <Button type="button" variant="outline" onClick={() => void genreTreeQuery.refetch()}>{i18next.t("common.retry")}</Button>
             )}
           />
         ) : null}
@@ -270,13 +261,11 @@ export default function GenreManagementPage() {
         {!genreTreeQuery.isLoading && !genreTreeQuery.isError && genreTree.length === 0 ? (
           <AssetLibraryEmptyState
             icon={Tags}
-            title="还没有可供开书选择的题材基底"
-            description="先创建一个主要题材。你可以手动填写，也可以描述创作方向，让 AI 生成包含子类的题材树草稿。"
+            title={i18next.t("genres.genreManagementPage.vlwi2j")}
+            description={i18next.t("genres.genreManagementPage.ufcy6p")}
             action={(
               <Button type="button" onClick={handleCreateRoot}>
-                <Plus className="h-4 w-4" aria-hidden="true" />
-                创建第一棵题材树
-              </Button>
+                <Plus className="h-4 w-4" aria-hidden="true" />{i18next.t("genres.genreManagementPage.3bhqp5")}</Button>
             )}
           />
         ) : null}
