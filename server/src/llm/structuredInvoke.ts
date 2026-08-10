@@ -63,6 +63,7 @@ export interface StructuredInvokeInput<T> {
   maxRepairAttempts?: number;
   promptMeta?: PromptInvocationMeta;
   disableFallbackModel?: boolean;
+  onStreamChunk?: (delta: string, accumulatedText: string) => void;
 }
 
 interface StructuredAttemptTarget {
@@ -236,6 +237,13 @@ async function invokeStructuredAttempt<T>(input: {
           const content = toText(chunk.content);
           rawContent += content;
           liveSession.delta(content);
+          if (input.baseInput.onStreamChunk) {
+            try {
+              input.baseInput.onStreamChunk(content, rawContent);
+            } catch (e) {
+              // ignore callback error
+            }
+          }
           tokenUsage = mergeStreamTokenUsage(tokenUsage, extractLlmTokenUsage(chunk));
         }
         return { rawContent, tokenUsage };

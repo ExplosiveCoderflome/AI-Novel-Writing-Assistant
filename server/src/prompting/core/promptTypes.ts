@@ -138,6 +138,7 @@ export interface PromptExecutionOptions {
   sceneIndex?: number;
   roundIndex?: number;
   triggerReason?: string;
+  onStreamChunk?: (delta: string, accumulatedText: string) => void;
 }
 
 export interface PromptExecutionMeta {

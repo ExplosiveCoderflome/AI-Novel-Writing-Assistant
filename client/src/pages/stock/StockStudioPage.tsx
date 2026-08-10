@@ -1660,6 +1660,27 @@ export default function StockStudioPage() {
                     );
                   })}
                 </div>
+
+                {/* Step 5 AI推演 细化 4 步 breakdown 标志 */}
+                {currentStage?.step === 5 && (
+                  <div className="pt-1.5 flex justify-center gap-1.5">
+                    {["1/4 盘口概览", "2/4 传导推演", "3/4 机构研报", "4/4 操盘蓝图"].map((subLabel) => {
+                      const active = currentStage.title.includes(subLabel);
+                      return (
+                        <span
+                          key={subLabel}
+                          className={`text-[9px] px-2 py-0.5 rounded font-mono border transition-all ${
+                            active
+                              ? "bg-purple-900 text-purple-100 border-purple-400 animate-pulse font-bold shadow-sm shadow-purple-900"
+                              : "bg-slate-900/80 text-slate-500 border-slate-800/80"
+                          }`}
+                        >
+                          {subLabel}
+                        </span>
+                      );
+                    })}
+                  </div>
+                )}
               </div>
 
               {/* 实时推演终端日志 Ticker */}

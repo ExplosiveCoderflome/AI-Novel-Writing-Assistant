@@ -796,6 +796,7 @@ export async function runStructuredPrompt<I, O, R = O>(input: {
       schema: outputSchema,
       maxRepairAttempts: resolveStructuredRepairAttempts(input.asset as PromptAsset<unknown, unknown, unknown>),
       promptMeta: prepared.invocation,
+      onStreamChunk: input.options?.onStreamChunk,
     });
     logMemoryUsage({
       event: "structured_invoke_done",

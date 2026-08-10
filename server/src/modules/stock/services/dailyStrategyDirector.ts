@@ -287,8 +287,12 @@ export class DailyStrategyDirector {
 
     notifyStage(4, "CONTEXT_ASSEMBLE", "构建 Graph-First 四层记忆上下文", `🕸️ 成功组装包含 ${realPositions.length} 笔持仓与 ${watchlistItems.length} 笔自选的图谱推理 Context`, 70);
 
-    // STEP 8: 调用 AI 生成 (图谱优先推理链驱动 AI_DEDUCTION)
-    notifyStage(5, "AI_DEDUCTION", "LLM 智能体多维图谱推演与研报撰写", "AI 策略师正沿着实体-关系-传导三阶逻辑链撰写今日开盘蓝图...", 80);
+    // STEP 8: 调用 AI 生成 (图谱优先推理链驱动 AI_DEDUCTION - 包含 4 步 breakdown 实时细化)
+    notifyStage(5, "AI_DEDUCTION", "LLM 多维图谱推演 (1/4 盘口概览)", "AI 策略师正沿着【实体-关系-传导】逻辑链解析宏观流动性与科技龙头盘口...", 75);
+
+    let lastNotifyTime = 0;
+    let lastSubStage = "";
+
     const runResult = await runStructuredPrompt({
       asset: stockAllocationPrompt,
       promptInput: {
@@ -306,6 +310,44 @@ export class DailyStrategyDirector {
         retroContext: retroPnL ? `指南 ${retroPnL.strategyDate} 得分${retroPnL.accuracyScore}/100，跟单率${(retroPnL.executionMatchRate * 100).toFixed(0)}%，避险+$${retroPnL.avoidedLoss.toFixed(0)}，实现P&L${retroPnL.totalRealizedPnL >= 0 ? "+" : ""}$${retroPnL.totalRealizedPnL.toFixed(0)}` : undefined,
         disciplineContext: memoryContext.coldContext,
         warmStrategySummaries: memoryContext.warmContext,
+      },
+      options: {
+        onStreamChunk: (_delta, totalText) => {
+          const now = Date.now();
+          const len = totalText.length;
+
+          let currentSubStage = "1/4 盘口概览";
+          let subDetail = `🤖 [Breakdown 1/4]: 解析美股盘口与隔夜宏观快讯... (已生成 ${len} 字符)`;
+          let subPct = 78;
+
+          if (totalText.includes('"actions"') || len > 400) {
+            currentSubStage = "2/4 传导推演";
+            subDetail = `🤖 [Breakdown 2/4]: 正沿【实体-关系-传导】链计算持仓与自选量化建议... (已生成 ${len} 字符)`;
+            subPct = 82;
+          }
+          if (totalText.includes('"institutionalReport"') || len > 1000) {
+            currentSubStage = "3/4 机构研报";
+            subDetail = `🤖 [Breakdown 3/4]: 撰写机构级产业链对冲与避险分析... (已生成 ${len} 字符)`;
+            subPct = 86;
+          }
+          if (totalText.includes('"narrativeReport"') || len > 1800) {
+            currentSubStage = "4/4 操盘蓝图";
+            subDetail = `🤖 [Breakdown 4/4]: 整理开盘前三格操盘蓝图与双视角细节... (已生成 ${len} 字符)`;
+            subPct = 89;
+          }
+
+          if (currentSubStage !== lastSubStage || now - lastNotifyTime >= 350) {
+            lastSubStage = currentSubStage;
+            lastNotifyTime = now;
+            notifyStage(
+              5,
+              "AI_DEDUCTION",
+              `LLM 多维图谱推演 (${currentSubStage})`,
+              subDetail,
+              subPct
+            );
+          }
+        },
       },
     });
 
