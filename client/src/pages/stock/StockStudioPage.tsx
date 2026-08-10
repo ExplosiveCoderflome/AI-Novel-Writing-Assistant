@@ -20,7 +20,6 @@ import {
   ShieldCheck,
   Activity,
 } from "lucide-react";
-import LiveExecutionDialog from "@/components/liveExecution/LiveExecutionDialog";
 import MarkdownViewer from "@/components/common/MarkdownViewer";
 
 interface ActionItem {
@@ -1180,8 +1179,6 @@ export default function StockStudioPage() {
           >
             <span>{isEn ? "🚀 Launch MooMoo Client" : "🚀 唤起 MooMoo 客户端"}</span>
           </button>
-          <div className="h-4 w-px bg-slate-800" />
-          <LiveExecutionDialog autoOpenOnActivity />
         </div>
       </header>
       <div className="bg-slate-900/90 border border-slate-800 rounded-xl p-3.5 flex flex-wrap items-center justify-between gap-3 text-xs shadow">
@@ -1692,7 +1689,6 @@ export default function StockStudioPage() {
                     {t("stock.liveTerminalTitle", "实时推演中间状态日志终端 (Live Stream Ticker)")}
                   </span>
                   <div className="flex items-center gap-2">
-                    <LiveExecutionDialog compact />
                     <span className="text-slate-500">SSE Protocol</span>
                   </div>
                 </div>

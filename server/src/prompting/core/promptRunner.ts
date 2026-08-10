@@ -905,6 +905,9 @@ export async function runTextPrompt<I>(input: {
     promptMeta: prepared.invocation,
     provider: input.options?.provider,
     model: input.options?.model,
+    promptPreview: Array.isArray(messages)
+      ? messages.map((m: any) => `[${String(m.role || "user").toUpperCase()}]: ${typeof m.content === "string" ? m.content : JSON.stringify(m.content)}`).join("\n\n").slice(0, 4000)
+      : String(messages).slice(0, 4000),
   });
   try {
     const llm = await promptRunnerLLMFactory(input.options?.provider, {
@@ -1006,6 +1009,9 @@ export async function streamTextPrompt<I>(input: {
     promptMeta: prepared.invocation,
     provider: input.options?.provider,
     model: input.options?.model,
+    promptPreview: Array.isArray(messages)
+      ? messages.map((m: any) => `[${String(m.role || "user").toUpperCase()}]: ${typeof m.content === "string" ? m.content : JSON.stringify(m.content)}`).join("\n\n").slice(0, 4000)
+      : String(messages).slice(0, 4000),
   });
   let captured: ReturnType<typeof captureStreamOutput>;
   try {
@@ -1115,6 +1121,9 @@ export async function streamStructuredPrompt<I, O, R = O>(input: {
     promptMeta: prepared.invocation,
     provider: input.options?.provider,
     model: input.options?.model,
+    promptPreview: Array.isArray(prepared.messages)
+      ? prepared.messages.map((m: any) => `[${String(m.role || "user").toUpperCase()}]: ${typeof m.content === "string" ? m.content : JSON.stringify(m.content)}`).join("\n\n").slice(0, 4000)
+      : String(prepared.messages).slice(0, 4000),
   });
   let captured: ReturnType<typeof captureStreamOutput>;
   let strategy!: ReturnType<typeof selectStructuredOutputStrategy>;

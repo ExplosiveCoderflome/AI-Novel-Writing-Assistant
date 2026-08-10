@@ -55,10 +55,15 @@ export default function LiveExecutionDialog(props: LiveExecutionDialogProps) {
     taskId: props.taskId,
   });
   const orderedSessions = useMemo(
-    () => [...sessions],
+    () =>
+      [...sessions].sort(
+        (a, b) =>
+          new Date(b.startedAt || b.updatedAt).getTime() -
+          new Date(a.startedAt || a.updatedAt).getTime()
+      ),
     [sessions],
   );
-  const latestSession = orderedSessions[orderedSessions.length - 1] ?? null;
+  const latestSession = orderedSessions[0] ?? null;
   const latestSessionId = latestSession ? sessionId(latestSession) : null;
   const activeCount = sessions.filter((session) => isActive(session.phase)).length;
 
@@ -89,7 +94,7 @@ export default function LiveExecutionDialog(props: LiveExecutionDialogProps) {
     }
     const frame = window.requestAnimationFrame(() => {
       if (latestSessionRef.current && followLatestRef.current) {
-        latestSessionRef.current.scrollIntoView({ block: "end" });
+        latestSessionRef.current.scrollIntoView({ block: "start" });
       }
     });
     return () => window.cancelAnimationFrame(frame);
@@ -119,7 +124,7 @@ export default function LiveExecutionDialog(props: LiveExecutionDialogProps) {
     followLatestRef.current = true;
     setFollowingLatest(true);
     if (logRef.current) {
-      latestSessionRef.current?.scrollIntoView({ block: "end" });
+      latestSessionRef.current?.scrollIntoView({ block: "start" });
     }
   };
 
@@ -278,9 +283,35 @@ export default function LiveExecutionDialog(props: LiveExecutionDialogProps) {
                           </span>
                         </button>
                         {!collapsed ? (
-                          <div className="border-t border-emerald-400/15 px-3 py-2">
-                            <div className="mb-2 text-[11px] text-emerald-100/60">{session.phaseMessage}</div>
-                            <pre className="m-0 whitespace-pre-wrap break-words text-emerald-100">{session.preview || "等待模型开始返回内容…"}</pre>
+                          <div className="border-t border-emerald-400/15 px-3 py-2.5 space-y-2">
+                            <div className="text-[11px] text-emerald-100/60 font-semibold flex items-center justify-between">
+                              <span>{session.phaseMessage}</span>
+                              <span className="text-[10px] text-emerald-500/60 font-mono">{session.startedAt ? new Date(session.startedAt).toLocaleTimeString() : ""}</span>
+                            </div>
+
+                            {/* 上下文窗口 Input Prompt */}
+                            {(session.promptPreview || session.context.promptPreview) && (
+                              <div className="rounded border border-emerald-900/60 bg-[#040807] p-2 space-y-1">
+                                <div className="text-[10px] text-emerald-400/80 font-bold uppercase tracking-wider flex justify-between items-center">
+                                  <span>📥 上下文窗口 Input Prompt</span>
+                                  <span className="text-[9px] text-emerald-500/50">Context Window</span>
+                                </div>
+                                <pre className="m-0 whitespace-pre-wrap break-words text-[11px] text-slate-300 font-mono leading-relaxed max-h-48 overflow-y-auto">
+                                  {session.promptPreview || session.context.promptPreview}
+                                </pre>
+                              </div>
+                            )}
+
+                            {/* LLM 返回 Output */}
+                            <div className="rounded border border-emerald-800/40 bg-[#050b09] p-2 space-y-1">
+                              <div className="text-[10px] text-emerald-400/80 font-bold uppercase tracking-wider flex justify-between items-center">
+                                <span>📤 LLM 实时返回 Output</span>
+                                <span className="text-[9px] text-emerald-500/50">{session.totalChars.toLocaleString()} 字符</span>
+                              </div>
+                              <pre className="m-0 whitespace-pre-wrap break-words text-xs text-emerald-100 font-mono leading-relaxed max-h-60 overflow-y-auto">
+                                {session.preview || "等待模型开始返回内容…"}
+                              </pre>
+                            </div>
                           </div>
                         ) : null}
                       </section>

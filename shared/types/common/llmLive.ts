@@ -27,6 +27,7 @@ export interface LlmLiveContext {
   itemKey?: string | null;
   provider?: string | null;
   model?: string | null;
+  promptPreview?: string | null;
 }
 
 export type LlmLiveEvent =
@@ -74,6 +75,7 @@ export interface LlmLiveSessionSnapshot {
   phase: LlmLivePhase;
   phaseMessage: string;
   preview: string;
+  promptPreview?: string | null;
   totalChars: number;
   startedAt: string;
   updatedAt: string;

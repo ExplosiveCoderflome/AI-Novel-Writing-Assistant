@@ -28,7 +28,11 @@ export class LlmLiveBroker {
     this.pruneCompletedSessions();
     const now = new Date();
     const interactionId = input.interactionId ?? randomUUID();
-    const context: LlmLiveContext = { ...input, interactionId };
+    const context: LlmLiveContext = {
+      ...input,
+      promptPreview: input.promptPreview ?? null,
+      interactionId,
+    };
     const snapshot: LlmLiveSessionSnapshot = {
       context,
       seq: this.nextSequence(),
@@ -74,7 +78,7 @@ export class LlmLiveBroker {
         (!filter.interactionId || snapshot.context.interactionId === filter.interactionId)
         && (!filter.taskId || snapshot.context.taskId === filter.taskId)
       ))
-      .sort((left, right) => left.updatedAt.localeCompare(right.updatedAt));
+      .sort((left, right) => right.startedAt.localeCompare(left.startedAt) || right.updatedAt.localeCompare(left.updatedAt));
   }
 
   updatePhase(interactionId: string, phase: LlmLivePhase, message: string): void {

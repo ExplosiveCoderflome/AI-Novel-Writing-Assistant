@@ -213,12 +213,17 @@ async function invokeStructuredAttempt<T>(input: {
     reasoningForcedOff: resolved.reasoningForcedOff,
   });
   const startedAt = Date.now();
+  const promptPreview = Array.isArray(messages)
+    ? messages.map((m: any) => `[${String(m.role || "user").toUpperCase()}]: ${toText(m.content)}`).join("\n\n")
+    : String(messages);
+
   const liveSession = beginLlmLiveSession({
     label: input.baseInput.label,
     mode: "structured",
     promptMeta: input.baseInput.promptMeta,
     provider: resolved.provider,
     model: resolved.model,
+    promptPreview: promptPreview.slice(0, 4000),
   });
   try {
     liveSession.phase("streaming", "模型正在返回结构化结果");
