@@ -55,3 +55,23 @@ test("task and follow-up pages expose recovery states and keep director identity
   assert.match(followUpList, /aria-label="按跟进原因筛选"/);
   assert.match(followUpOverview, /aria-pressed=/);
 });
+
+test("task center reads as an inbox before exposing runtime diagnostics", () => {
+  const taskPage = read("src/pages/tasks/TaskCenterPage.tsx");
+  const summary = read("src/pages/tasks/components/TaskCenterSummaryCards.tsx");
+  const filters = read("src/pages/tasks/components/TaskCenterFilterPanel.tsx");
+  const list = read("src/pages/tasks/components/TaskCenterListPanel.tsx");
+  const detail = read("src/pages/tasks/components/TaskCenterDetailSummary.tsx");
+  const detailPanel = read("src/pages/tasks/components/TaskCenterDetailPanel.tsx");
+
+  assert.match(taskPage, /xl:grid-cols-\[minmax\(0,1\.25fr\)_minmax\(380px,0\.75fr\)\]/);
+  assert.match(summary, /flex flex-wrap items-center/);
+  assert.match(filters, /aria-label="筛选运行记录"/);
+  assert.match(filters, /sr-only/);
+  assert.match(list, /transition-\[width\]/);
+  assert.match(list, /更新于/);
+  assert.doesNotMatch(list, /最近心跳：/);
+  assert.match(detail, /<details className="group border-t/);
+  assert.match(detail, /运行信息/);
+  assert.match(detailPanel, /执行步骤/);
+});

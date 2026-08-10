@@ -1,4 +1,3 @@
-import { useTranslation } from "react-i18next";
 import i18next from "i18next";
 import type { KeyboardEvent, ReactNode } from "react";
 import { Badge } from "@/components/ui/badge";
@@ -36,9 +35,9 @@ function handleSelectableKeyDown(event: KeyboardEvent<HTMLDivElement>, onSelect:
 
 function DetailPanel(props: { title: string; description?: string; children: ReactNode }) {
   return (
-    <div className="space-y-3 rounded-2xl border bg-white/80 p-4">
+    <div className="space-y-3 rounded-2xl border border-slate-200/80 bg-white/70 p-4 shadow-[0_1px_0_rgba(15,23,42,0.02)]">
       <div className="space-y-1">
-        <div className="text-xs font-medium uppercase tracking-[0.18em] text-slate-500">{props.title}</div>
+        <div className="text-xs font-semibold tracking-[0.12em] text-slate-500">{props.title}</div>
         {props.description ? (
           <div className="text-xs leading-6 text-slate-500">{props.description}</div>
         ) : null}
@@ -59,7 +58,7 @@ function DetailStatRow(props: { label: string; value: string }) {
 
 function SummaryCard(props: { title: string; summary: string }) {
   return (
-    <div className="rounded-xl border bg-slate-50/80 p-3">
+    <div className="rounded-2xl border border-slate-200/80 bg-[linear-gradient(135deg,rgba(248,250,252,0.95),rgba(255,255,255,0.92))] p-3.5">
       <div className="text-sm font-medium text-slate-900">{props.title}</div>
       <div className="mt-2 text-sm leading-6 text-slate-600">{props.summary}</div>
     </div>
@@ -67,7 +66,6 @@ function SummaryCard(props: { title: string; summary: string }) {
 }
 
 export default function WritingFormulaLanding(props: WritingFormulaLandingProps) {
-  const { t } = useTranslation();
   const {
     onOpenCreate,
     onSelectProfile,
@@ -86,11 +84,11 @@ export default function WritingFormulaLanding(props: WritingFormulaLandingProps)
   const renderProfileCard = (profile: LandingProfileItem) => {
     const isSelected = profile.id === selectedProfileId;
     const selectedStyle = profile.isStarter
-      ? "border-sky-500 bg-sky-50/80 shadow-[0_8px_24px_rgba(14,165,233,0.12)]"
-      : "border-slate-950 bg-[linear-gradient(135deg,rgba(15,23,42,0.04),rgba(14,165,233,0.06))] shadow-[0_8px_24px_rgba(15,23,42,0.06)]";
+      ? "border-sky-300 bg-sky-50/55 shadow-[0_6px_18px_rgba(14,165,233,0.07)]"
+      : "border-slate-400 bg-[linear-gradient(135deg,rgba(248,250,252,0.98),rgba(255,255,255,0.96))] shadow-[0_6px_18px_rgba(15,23,42,0.045)]";
     const idleStyle = profile.isStarter
-      ? "border-slate-200 bg-white hover:border-sky-300"
-      : "border-slate-200 bg-slate-50/80 hover:border-slate-300";
+      ? "border-slate-200 bg-white hover:border-sky-300 hover:bg-sky-50/30"
+      : "border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50/70";
     const badgeClassName = profile.isStarter
       ? "h-6 border-sky-200 bg-white text-sky-700"
       : "h-6";
@@ -102,7 +100,7 @@ export default function WritingFormulaLanding(props: WritingFormulaLandingProps)
         tabIndex={0}
         onClick={() => onSelectProfile(profile.id)}
         onKeyDown={(event) => handleSelectableKeyDown(event, () => onSelectProfile(profile.id))}
-        className={`rounded-2xl border px-4 py-4 text-left transition ${isSelected ? selectedStyle : idleStyle}`}
+        className={`rounded-3xl border px-5 py-4 text-left transition duration-200 ${isSelected ? selectedStyle : idleStyle}`}
       >
         <div className="flex flex-col gap-3 xl:flex-row xl:items-start xl:justify-between">
           <div className="min-w-0 flex-1 space-y-2">
@@ -120,8 +118,8 @@ export default function WritingFormulaLanding(props: WritingFormulaLandingProps)
                 {profile.sourceTypeLabel}
               </Badge>
             </div>
-            <div className="text-sm leading-6 text-slate-600">
-              {truncateText(profile.summaryLine, 120) || i18next.t("dict.gen_c7933614")}
+            <div className="max-w-3xl text-sm leading-6 text-slate-600">
+              {truncateText(profile.summaryLine, 120) || "暂无写法摘要。"}
             </div>
             <div className="flex flex-wrap gap-2">
               {profile.tags.slice(0, 4).map((tag) => (
@@ -175,33 +173,33 @@ export default function WritingFormulaLanding(props: WritingFormulaLandingProps)
                 onDeleteProfile(profile.id);
               }}
             >
-              {deletePending ? i18next.t("dict.gen_09f2fb82") : i18next.t("dict.gen_2f4aaddd")}
+              {deletePending ? "删除中..." : "删除"}
             </Button>
           </div>
         </div>
 
         {isSelected ? (
-          <div className="mt-4 space-y-4 border-t border-slate-200/80 pt-4">
+          <div className="mt-5 space-y-4 rounded-2xl border border-slate-200/70 bg-slate-50/55 p-4 md:p-5">
             <div className="grid gap-4 xl:grid-cols-[minmax(0,1.15fr)_minmax(0,1fr)_280px]">
               <DetailPanel
                 title={i18next.t("dict.gen_c9d154f7")}
                 description={i18next.t("dict.gen_6a72ae84")}
               >
-                <div className="rounded-xl border bg-slate-50/80 p-4 text-sm leading-7 text-slate-700">
+                <div className="rounded-2xl border border-slate-200 bg-white/85 p-4 text-sm leading-7 text-slate-700">
                   {profile.description}
                 </div>
                 {profile.detailLines.length > 0 ? (
                   <div className="grid gap-2">
                     {profile.detailLines.map((line) => (
-                      <div key={`${profile.id}-${line}`} className="rounded-xl border bg-white px-3 py-3 text-sm leading-6 text-slate-700">
+                      <div key={`${profile.id}-${line}`} className="rounded-xl border border-slate-200/80 bg-white/75 px-3 py-3 text-sm leading-6 text-slate-700">
                         {line}
                       </div>
                     ))}
                   </div>
                 ) : null}
                 {profile.sourceContentPreview ? (
-                  <div className="rounded-xl border bg-slate-950 px-4 py-4 text-sm leading-7 text-slate-100">
-                    <div className="mb-2 text-xs font-medium uppercase tracking-[0.18em] text-slate-400">{i18next.t("dict.gen_6388f0b7")}</div>
+                  <div className="rounded-2xl border border-slate-200 bg-[linear-gradient(135deg,rgba(241,245,249,0.9),rgba(255,255,255,0.98))] px-4 py-4 text-sm leading-7 text-slate-700">
+                    <div className="mb-2 text-xs font-semibold tracking-[0.12em] text-slate-500">{i18next.t("dict.gen_6388f0b7")}</div>
                     <div>{profile.sourceContentPreview}</div>
                   </div>
                 ) : null}
@@ -229,7 +227,7 @@ export default function WritingFormulaLanding(props: WritingFormulaLandingProps)
                       {profile.antiAiFocus.length > 0 ? (
                         <div className="grid gap-2">
                           {profile.antiAiFocus.map((line) => (
-                            <div key={`${profile.id}-${line}`} className="rounded-xl border bg-amber-50/80 px-3 py-3 text-sm leading-6 text-amber-900">
+                            <div key={`${profile.id}-${line}`} className="rounded-xl border border-amber-100 bg-amber-50/70 px-3 py-3 text-sm leading-6 text-amber-900">
                               {line}
                             </div>
                           ))}
@@ -268,20 +266,20 @@ export default function WritingFormulaLanding(props: WritingFormulaLandingProps)
                     <DetailStatRow label={i18next.t("dict.gen_3ea1f5f1")} value={`${profile.highRiskFeatureCount} 项`} />
                     <DetailStatRow
                       label={i18next.t("dict.gen_f2069f25")}
-                      value={profile.selectedPresetLabel || i18next.t("dict.gen_9f62b763")}
+                      value={profile.selectedPresetLabel || "未锁定"}
                     />
                     <DetailStatRow
                       label={i18next.t("dict.gen_711cbc03")}
-                      value={profile.presetLabels.length > 0 ? profile.presetLabels.join(" / ") : i18next.t("common.none")}
+                      value={profile.presetLabels.length > 0 ? profile.presetLabels.join(" / ") : "暂无"}
                     />
                     <DetailStatRow label={i18next.t("dict.gen_34700230")} value={`${profile.bindingCount} 个`} />
                     <DetailStatRow
                       label={i18next.t("dict.gen_365ed2d7")}
-                      value={profile.recentNovelTitle || i18next.t("dict.gen_ec9880c7")}
+                      value={profile.recentNovelTitle || "还没有绑定到小说"}
                     />
                     <DetailStatRow
                       label={i18next.t("dict.gen_2fdc5592")}
-                      value={profile.applicableGenres.length > 0 ? profile.applicableGenres.join(" / ") : i18next.t("dict.gen_5c688139")}
+                      value={profile.applicableGenres.length > 0 ? profile.applicableGenres.join(" / ") : "未填写"}
                     />
                   </div>
                 </DetailPanel>
@@ -306,8 +304,8 @@ export default function WritingFormulaLanding(props: WritingFormulaLandingProps)
 
   return (
     <div className="space-y-6">
-      <Card className="overflow-hidden border-slate-200/80 bg-white/90 shadow-[0_18px_50px_rgba(15,23,42,0.06)]">
-        <CardContent className="space-y-5 p-5 md:p-6">
+      <Card className="overflow-hidden border-slate-200/80 bg-white/90 shadow-[0_14px_42px_rgba(15,23,42,0.045)]">
+        <CardContent className="space-y-6 p-5 md:p-7">
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div className="space-y-2">
               <Badge variant="outline" className="border-slate-200 bg-slate-50 text-slate-700">{i18next.t("writingFormula.writingFormulaLanding.1buogi")}</Badge>
@@ -320,7 +318,7 @@ export default function WritingFormulaLanding(props: WritingFormulaLandingProps)
             <Button type="button" onClick={onOpenCreate}>{i18next.t("writingFormula.writingFormulaBookStyleFlow.7hr003")}</Button>
           </div>
 
-          <div className="rounded-2xl border border-slate-200 bg-[linear-gradient(135deg,rgba(241,245,249,0.9),rgba(248,250,252,0.95))] px-4 py-3 text-sm leading-7 text-slate-700">{i18next.t("writingFormula.writingFormulaLanding.bqupu8")}</div>
+          <div className="rounded-2xl border border-sky-100 bg-sky-50/55 px-4 py-3 text-sm leading-7 text-slate-700">{i18next.t("writingFormula.writingFormulaLanding.bqupu8")}</div>
 
           {profileItems.length === 0 ? (
             <div className="rounded-3xl border border-dashed border-slate-300 bg-slate-50/80 p-6">

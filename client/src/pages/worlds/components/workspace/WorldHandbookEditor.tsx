@@ -1,5 +1,4 @@
 import i18next from "i18next";
-const t = (key: string, options?: any) => i18next.t(key, options) as string;
 import { useEffect, useState } from "react";
 import { AlertTriangle, BookOpen, Castle, GitBranch, MapPinned, Pencil, Save, ScrollText, WandSparkles } from "lucide-react";
 import type {
@@ -10,7 +9,6 @@ import type {
 import type { WorldStructurePayload } from "@/api/world";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import {
   HandbookField,
@@ -89,14 +87,13 @@ export default function WorldHandbookEditor(props: {
 
   if (!draftStructure || !draftBindingSupport) {
     return (
-      <Card>
-        <CardHeader>
-          <CardTitle>{i18next.t("dict.gen_eea623bc")}</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-3">
-          <div className="text-sm leading-6 text-muted-foreground">{i18next.t("dict.gen_39aa5d99")}</div>
+      <section className="flex min-h-56 flex-col items-center justify-center rounded-3xl bg-muted/20 px-6 text-center">
+          <BookOpen className="h-6 w-6 text-muted-foreground/60" aria-hidden="true" />
+          <div className="mt-3 font-medium">{i18next.t("worlds.worldHandbookEditor.u46tkn")}</div>
+          <div className="mt-1 text-sm leading-6 text-muted-foreground">{i18next.t("worlds.worldHandbookEditor.rbbb6q")}</div>
           <Button
-            variant="secondary"
+            className="mt-4 rounded-full"
+            variant="outline"
             onClick={async () => {
               const result = await onBackfill();
               if (result) {
@@ -106,10 +103,9 @@ export default function WorldHandbookEditor(props: {
             }}
             disabled={backfillPending}
           >
-            {backfillPending ? i18next.t("dict.gen_d92453f0") : i18next.t("dict.gen_51ce33d5")}
+            {backfillPending ? "整理中..." : "让 AI 整理世界手册"}
           </Button>
-        </CardContent>
-      </Card>
+      </section>
     );
   }
 
@@ -126,30 +122,27 @@ export default function WorldHandbookEditor(props: {
   };
 
   return (
-    <Card>
-      <CardHeader>
-        <div className="flex flex-wrap items-start justify-between gap-3">
+    <section className="space-y-6">
+        <div className="flex flex-wrap items-start justify-between gap-4">
           <div>
-            <CardTitle>{i18next.t("dict.gen_eea623bc")}</CardTitle>
-            <div className="mt-2 text-sm leading-6 text-muted-foreground">{i18next.t("worlds.worldHandbookEditor.kw6agf")}</div>
+            <h2 className="text-xl font-semibold tracking-tight">{i18next.t("dict.gen_eea623bc")}</h2>
+            <p className="mt-1 max-w-3xl text-sm leading-6 text-muted-foreground">{i18next.t("worlds.worldHandbookEditor.7mg3ce")}</p>
           </div>
           <div className="flex flex-wrap gap-2">
-            <Button type="button" variant="outline" onClick={onOpenOverview}>
+            <Button type="button" size="sm" variant="ghost" className="rounded-full" onClick={onOpenOverview}>
               <BookOpen className="mr-2 h-4 w-4" aria-hidden="true" />{i18next.t("worlds.worldHandbookEditor.dlnppj")}</Button>
-            <Button type="button" onClick={saveDraft} disabled={savePending}>
+            <Button type="button" size="sm" className="rounded-full" onClick={saveDraft} disabled={savePending}>
               <Save className="mr-2 h-4 w-4" aria-hidden="true" />
-              {savePending ? i18next.t("common.saving") : i18next.t("dict.saveManual")}
+              {savePending ? "保存中..." : "保存手册"}
             </Button>
           </div>
         </div>
-      </CardHeader>
-      <CardContent className="space-y-5">
-        <div className="rounded-md border-l-2 border-primary bg-muted/30 p-4">
+        <div className="rounded-3xl bg-muted/20 p-5 sm:p-6">
           <div className="flex flex-wrap gap-2">
-            <Badge variant="secondary">{i18next.t("dict.worldSample")}</Badge>
-            {draftStructure.profile.tone ? <Badge variant="outline">{draftStructure.profile.tone}</Badge> : null}
+            <Badge variant="secondary" className="border-0 bg-primary/[0.07] font-normal text-primary">{i18next.t("worlds.worldHandbookEditor.ac5kkn")}</Badge>
+            {draftStructure.profile.tone ? <Badge variant="secondary" className="border-0 bg-muted/60 font-normal">{draftStructure.profile.tone}</Badge> : null}
             {draftStructure.profile.themes.slice(0, 4).map((theme) => (
-              <Badge key={theme} variant="outline">
+              <Badge key={theme} variant="secondary" className="border-0 bg-muted/60 font-normal">
                 {theme}
               </Badge>
             ))}
@@ -158,32 +151,32 @@ export default function WorldHandbookEditor(props: {
             <HandbookPreviewLine
               label={i18next.t("dict.worldImpressionOneLine")}
               value={draftStructure.profile.identity}
-              fallback={i18next.t("dict.gen_0ba6d7d0")}
+              fallback="补充一句话世界印象，让作者一眼知道题材、时代感和核心奇观。"
             />
             <HandbookPreviewLine
               label={i18next.t("dict.gen_084e6625")}
               value={draftStructure.profile.summary}
-              fallback={i18next.t("dict.gen_afbe6065")}
+              fallback="补充这个世界的第一眼画面、秩序、危险或奇观。"
             />
             <HandbookPreviewLine
               label={i18next.t("dict.gen_01dae5b3")}
               value={draftStructure.profile.tone || draftStructure.profile.themes.join("、")}
-              fallback={i18next.t("dict.gen_fc96ad78")}
+              fallback="补充阅读气质，例如热血升级、黑暗史诗、轻喜冒险或权谋争霸。"
             />
             <HandbookPreviewLine
               label={i18next.t("dict.gen_3eb3923f")}
               value={draftStructure.profile.coreConflict}
-              fallback={i18next.t("dict.gen_5beda83e")}
+              fallback="补充一个会反复制造角色选择、势力冲突和章节事件的问题。"
             />
           </div>
           <div className="mt-3 flex flex-wrap gap-2">
-            <Button type="button" size="sm" variant="outline" onClick={() => setEditingSection("profile")}>
+            <Button type="button" size="sm" variant="ghost" className="rounded-full" onClick={() => setEditingSection("profile")}>
               <Pencil className="mr-2 h-4 w-4" aria-hidden="true" />{i18next.t("worlds.worldHandbookEditor.oif7sp")}</Button>
           </div>
           {editingSection === "profile" ? (
             <div className="mt-4 grid gap-3 lg:grid-cols-[0.8fr_1.4fr]">
             <div className="space-y-3">
-              <HandbookField title={i18next.t("dict.worldImpressionOneLine")} hint={i18next.t("dict.gen_5ad88891")}>
+              <HandbookField title={i18next.t("dict.worldImpressionOneLine")} hint="让作者和 AI 一眼知道这个世界的类型、时代感和核心奇观。">
                 <Input
                   value={draftStructure.profile.identity}
                   onChange={(event) =>
@@ -194,7 +187,7 @@ export default function WorldHandbookEditor(props: {
                   placeholder={i18next.t("dict.exampleStarcoreDepletedXianxiaDynasty")}
                 />
               </HandbookField>
-              <HandbookField title={i18next.t("dict.gen_01dae5b3")} hint={i18next.t("dict.gen_69eb351c")}>
+              <HandbookField title={i18next.t("dict.gen_01dae5b3")} hint="决定故事是黑暗、热血、轻喜、权谋，还是冒险探索。">
                 <Input
                   value={draftStructure.profile.tone}
                   onChange={(event) =>
@@ -205,7 +198,7 @@ export default function WorldHandbookEditor(props: {
                   placeholder={i18next.t("dict.gen_9e048955")}
                 />
               </HandbookField>
-              <HandbookField title={i18next.t("dict.topicKeywords")} hint={i18next.t("dict.gen_5dd14adf")}>
+              <HandbookField title={i18next.t("dict.topicKeywords")} hint="用顿号分隔，帮助后续角色、地点和冲突保持同一种题材方向。">
                 <Input
                   value={draftStructure.profile.themes.join("、")}
                   onChange={(event) =>
@@ -226,7 +219,7 @@ export default function WorldHandbookEditor(props: {
               </HandbookField>
             </div>
             <div className="space-y-3">
-              <HandbookField title={i18next.t("dict.firstImpressionReader")} hint={i18next.t("dict.gen_7aecbf8a")}>
+              <HandbookField title={i18next.t("dict.firstImpressionReader")} hint="写成作者能直接复述的短段落，不需要拆成地理、文化、历史字段。">
                 <HandbookTextarea
                   value={draftStructure.profile.summary}
                   onChange={(value) =>
@@ -235,7 +228,7 @@ export default function WorldHandbookEditor(props: {
                   placeholder={i18next.t("dict.gen_d7766537")}
                 />
               </HandbookField>
-              <HandbookField title={i18next.t("dict.gen_7b07c1da")} hint={i18next.t("dict.gen_80773d95")}>
+              <HandbookField title={i18next.t("dict.gen_7b07c1da")} hint="这不是背景介绍，而是角色行动、势力冲突和章节事件反复围绕的问题。">
                 <HandbookTextarea
                   value={draftStructure.profile.coreConflict}
                   onChange={(value) =>
@@ -252,10 +245,10 @@ export default function WorldHandbookEditor(props: {
           ) : null}
         </div>
 
-        <div className="rounded-md border bg-background p-4">
+        <div className="rounded-2xl border border-border/35 bg-card/70 p-4">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div>
-              <div className="text-sm font-medium">{i18next.t("dict.aiAssistOrganize")}</div>
+              <div className="text-sm font-medium">AI 辅助整理</div>
               <div className="mt-1 text-sm leading-6 text-muted-foreground">{i18next.t("worlds.worldHandbookEditor.p4ycmr")}</div>
             </div>
             <div className="flex flex-wrap gap-2">
@@ -270,15 +263,16 @@ export default function WorldHandbookEditor(props: {
                   key={item.key}
                   type="button"
                   size="sm"
-                  variant={activeAiSection === item.key ? "default" : "outline"}
+                  variant={activeAiSection === item.key ? "default" : "ghost"}
+                  className="rounded-full"
                   onClick={() => setActiveAiSection(item.key as WorldStructureSectionKey)}
                 >
                   {item.label}
                 </Button>
               ))}
-              <Button type="button" size="sm" variant="secondary" onClick={generateSection} disabled={generatePending}>
+              <Button type="button" size="sm" variant="secondary" className="rounded-full" onClick={generateSection} disabled={generatePending}>
                 <WandSparkles className="mr-2 h-4 w-4" aria-hidden="true" />
-                {generatePending ? i18next.t("dict.gen_00bf5f5e") : i18next.t("dict.gen_18f9853a")}
+                {generatePending ? "补齐中..." : "补齐选中区块"}
               </Button>
             </div>
           </div>
@@ -297,15 +291,15 @@ export default function WorldHandbookEditor(props: {
               <HandbookPreviewLine
                 label={i18next.t("dict.gen_9c10e19a")}
                 value={draftStructure.rules.summary}
-                fallback={i18next.t("dict.gen_7d4f0c01")}
+                fallback="补充世界运转的硬规则，避免角色能力和剧情解决方式失控。"
               />
               <HandbookPreviewLine
                 label={i18next.t("dict.representativeRules")}
                 value={joinPreview(
                   draftStructure.rules.axioms.map((rule) => [rule.name, rule.summary].filter(Boolean).join("：")),
-                  i18next.t("dict.gen_135d43cb"),
+                  "补充 2-3 条必须遵守的核心规则。",
                 )}
-                fallback={i18next.t("dict.gen_135d43cb")}
+                fallback="补充 2-3 条必须遵守的核心规则。"
               />
             </div>
           </HandbookPreviewCard>
@@ -323,17 +317,17 @@ export default function WorldHandbookEditor(props: {
                 label={i18next.t("dict.gen_26f05301")}
                 value={joinPreview(
                   draftStructure.forces.map((force) => [force.name, force.currentObjective].filter(Boolean).join("：")),
-                  i18next.t("dict.gen_cd6a3272"),
+                  "补充主要势力后，角色身份和阵营冲突会更清楚。",
                 )}
-                fallback={i18next.t("dict.gen_cd6a3272")}
+                fallback="补充主要势力后，角色身份和阵营冲突会更清楚。"
               />
               <HandbookPreviewLine
                 label={i18next.t("dict.gen_f969b6a0")}
                 value={joinPreview(
                   draftStructure.forces.map((force) => force.pressure),
-                  i18next.t("dict.gen_1ee22ee9"),
+                  "补充势力给主角和世界秩序造成的压力。",
                 )}
-                fallback={i18next.t("dict.gen_1ee22ee9")}
+                fallback="补充势力给主角和世界秩序造成的压力。"
               />
             </div>
           </HandbookPreviewCard>
@@ -353,17 +347,17 @@ export default function WorldHandbookEditor(props: {
                   draftStructure.locations.map((location) =>
                     [location.name, location.narrativeFunction || location.terrain].filter(Boolean).join("："),
                   ),
-                  i18next.t("dict.gen_4b0b9d23"),
+                  "补充开局地点、试炼地点、冲突地点或真相地点。",
                 )}
-                fallback={i18next.t("dict.gen_4b0b9d23")}
+                fallback="补充开局地点、试炼地点、冲突地点或真相地点。"
               />
               <HandbookPreviewLine
                 label={i18next.t("dict.gen_f9bc7abf")}
                 value={joinPreview(
                   draftStructure.locations.map((location) => location.risk),
-                  i18next.t("dict.gen_4631316b"),
+                  "补充进入地点会遇到的阻力、代价或身份风险。",
                 )}
-                fallback={i18next.t("dict.gen_4631316b")}
+                fallback="补充进入地点会遇到的阻力、代价或身份风险。"
               />
             </div>
           </HandbookPreviewCard>
@@ -383,28 +377,28 @@ export default function WorldHandbookEditor(props: {
                   draftStructure.relations.forceRelations.map((relation) =>
                     [relation.relation, relation.tension || relation.detail].filter(Boolean).join("："),
                   ),
-                  i18next.t("dict.gen_e22baf77"),
+                  "补充谁与谁结盟、敌对、竞争或互相利用。",
                 )}
-                fallback={i18next.t("dict.gen_e22baf77")}
+                fallback="补充谁与谁结盟、敌对、竞争或互相利用。"
               />
               <HandbookPreviewLine
                 label={i18next.t("dict.gen_8ef6f2f5")}
                 value={joinPreview(
                   draftStructure.rules.sharedConsequences,
-                  i18next.t("dict.gen_02a2379e"),
+                  "补充违反规则或冲突升级后会影响全局的后果。",
                 )}
-                fallback={i18next.t("dict.gen_02a2379e")}
+                fallback="补充违反规则或冲突升级后会影响全局的后果。"
               />
             </div>
           </HandbookPreviewCard>
         </div>
 
         {editingSection ? (
-          <div className="rounded-md border border-primary/30 bg-primary/5 p-4">
+          <div className="rounded-2xl bg-primary/[0.055] p-4">
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div className="flex items-center gap-2 text-sm font-medium">
                 <AlertTriangle className="h-4 w-4 text-primary" aria-hidden="true" />{i18next.t("worlds.worldHandbookEditor.s6k16z")}</div>
-              <Button type="button" size="sm" variant="outline" onClick={() => setEditingSection(null)}>{i18next.t("worlds.worldHandbookEditor.dcwikc")}</Button>
+              <Button type="button" size="sm" variant="ghost" className="rounded-full" onClick={() => setEditingSection(null)}>{i18next.t("worlds.worldHandbookEditor.dcwikc")}</Button>
             </div>
           </div>
         ) : null}
@@ -427,7 +421,6 @@ export default function WorldHandbookEditor(props: {
             onOpenAdvanced={onOpenAdvanced}
           />
         ) : null}
-      </CardContent>
-    </Card>
+    </section>
   );
 }

@@ -1,6 +1,5 @@
 import i18next from "i18next";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { useTranslation } from "react-i18next";
 import type { RefObject } from "react";
 import type {
   BookAnalysisDetail,
@@ -97,7 +96,6 @@ interface BookAnalysisDetailPanelProps {
 }
 
 export default function BookAnalysisDetailPanel(props: BookAnalysisDetailPanelProps) {
-  const { t } = useTranslation();
   const {
     analysisMode,
     selectedAnalysis,
@@ -273,8 +271,8 @@ export default function BookAnalysisDetailPanel(props: BookAnalysisDetailPanelPr
         onActiveChapterChange={onActiveChapterChange}
         onSelectChapter={onSelectChapter}
       >
-        <div className="space-y-3">
-          <details className="rounded-md border bg-background p-3">
+        <div className="space-y-5">
+          <details className="rounded-2xl border border-border/45 bg-card/65 px-5 py-4 shadow-[0_8px_28px_rgba(15,23,42,0.03)]">
             <summary className="cursor-pointer list-none">
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <div>
@@ -285,7 +283,7 @@ export default function BookAnalysisDetailPanel(props: BookAnalysisDetailPanelPr
                     {sectionStats.frozenReadable > 0 ? `，已冻结结果 ${sectionStats.frozenReadable} 节` : ""}
                   </div>
                 </div>
-                <Badge variant="outline">{i18next.t("dict.gen_e2edde5a")}</Badge>
+                <Badge variant="secondary" className="border-0 bg-muted/60 font-normal">{i18next.t("dict.gen_e2edde5a")}</Badge>
               </div>
             </summary>
             <div className="mt-3 space-y-3">
@@ -299,7 +297,7 @@ export default function BookAnalysisDetailPanel(props: BookAnalysisDetailPanelPr
                   {styleProfileFeedback}
                 </div>
               ) : null}
-              <div className="rounded-md border p-3 text-sm">
+              <div className="rounded-xl bg-muted/25 p-4 text-sm">
                 <div className="mb-2 font-medium">{i18next.t("dict.gen_a3db6e46")}</div>
                 <div className="flex flex-wrap items-center gap-2">
                   <SelectControl
@@ -326,13 +324,13 @@ export default function BookAnalysisDetailPanel(props: BookAnalysisDetailPanelPr
                 ) : null}
               </div>
               <div className="grid gap-3 md:grid-cols-2">
-                <div className="rounded-md border p-3 text-sm">
+                <div className="rounded-xl bg-muted/20 p-4 text-sm">
                   <div className="font-medium">{i18next.t("dict.gen_7f1b21a5")}</div>
                   <div className="mt-2 whitespace-pre-wrap text-muted-foreground">
                     {selectedAnalysis.summary?.trim() || "生成总览后会在此显示概要内容。"}
                   </div>
                 </div>
-                <div className="rounded-md border p-3 text-sm">
+                <div className="rounded-xl bg-muted/20 p-4 text-sm">
                   <div className="font-medium">{i18next.t("dict.gen_5d37ac7d")}</div>
                   <div className="mt-2 space-y-1 text-muted-foreground">
                     <div>提供商：{selectedAnalysis.provider ?? "deepseek"}</div>
@@ -371,15 +369,15 @@ export default function BookAnalysisDetailPanel(props: BookAnalysisDetailPanelPr
             </div>
           </details>
 
-          <section className="rounded-md border bg-background">
-            <div className="flex flex-wrap items-center justify-between gap-3 border-b p-3">
+          <section className="overflow-hidden rounded-2xl border border-border/45 bg-card shadow-[0_16px_46px_rgba(15,23,42,0.045)]">
+            <div className="flex flex-wrap items-center justify-between gap-4 border-b border-border/35 px-5 py-4">
               <div className="flex flex-wrap items-center gap-2">
-                <div className="text-base font-semibold">{i18next.t("dict.gen_ff3b883f")}</div>
-                <Badge variant="outline">可读 {sectionStats.readableExpected}/{sectionStats.expected}</Badge>
-                {sectionStats.unselected > 0 ? <Badge variant="secondary">本次未选择 {sectionStats.unselected}</Badge> : null}
-                {sectionStats.frozenReadable > 0 ? <Badge variant="secondary">已冻结结果 {sectionStats.frozenReadable}</Badge> : null}
+                <div className="text-lg font-semibold tracking-tight">{i18next.t("dict.gen_ff3b883f")}</div>
+                <Badge variant="secondary" className="border-0 bg-muted/70 font-normal">可读 {sectionStats.readableExpected}/{sectionStats.expected}</Badge>
+                {sectionStats.unselected > 0 ? <Badge variant="secondary" className="border-0 font-normal">本次未选择 {sectionStats.unselected}</Badge> : null}
+                {sectionStats.frozenReadable > 0 ? <Badge variant="secondary" className="border-0 font-normal">已冻结结果 {sectionStats.frozenReadable}</Badge> : null}
               </div>
-              <div className="flex rounded-md border bg-background p-1">
+              <div className="flex rounded-xl bg-muted/55 p-1">
                 <Button
                   size="sm"
                   variant={readingMode === "summary" ? "default" : "ghost"}
@@ -392,7 +390,7 @@ export default function BookAnalysisDetailPanel(props: BookAnalysisDetailPanelPr
                 >{i18next.t("bookAnalysis.bookAnalysisDetailPanel.bz9pfi")}</Button>
               </div>
             </div>
-            <div className="space-y-3 p-3">
+            <div className="space-y-5 p-4 sm:p-5">
               {selectedAnalysis.sections.length === 0 ? (
                 <div className="rounded-md border border-dashed border-warning/40 bg-warning/5 px-5 py-8 text-center">
                   <AlertTriangle className="mx-auto h-5 w-5 text-warning" aria-hidden="true" />
@@ -405,9 +403,9 @@ export default function BookAnalysisDetailPanel(props: BookAnalysisDetailPanelPr
                 onValueChange={(value) => setActiveSectionKey(value as BookAnalysisSectionKey)}
                 className="space-y-3"
               >
-                <TabsList className="flex h-auto flex-wrap justify-start gap-1">
+                <TabsList className="flex h-auto w-full flex-wrap justify-start gap-x-5 gap-y-1 rounded-none border-b border-border/40 bg-transparent p-0">
                   {selectedAnalysis.sections.map((section) => (
-                    <TabsTrigger key={section.sectionKey} value={section.sectionKey} className="gap-2">
+                    <TabsTrigger key={section.sectionKey} value={section.sectionKey} className="gap-2 rounded-none border-b-2 border-transparent bg-transparent px-0 pb-3 pt-2 shadow-none data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none">
                       <span>{section.title}</span>
                       <span className="text-xs text-muted-foreground">
                         {section.frozen

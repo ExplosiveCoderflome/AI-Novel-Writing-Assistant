@@ -56,7 +56,11 @@ export default function TaskCenterDetailPanel(props: TaskCenterDetailPanelProps)
   const task = props.task;
 
   return (
-    <TaskQueueSection title={i18next.t("dict.taskIdDetails")} description={i18next.t("tasks.taskCenterDetailPanel.pqvsjx")}>
+    <TaskQueueSection
+      title={i18next.t("dict.taskIdDetails")}
+      description={i18next.t("tasks.taskCenterDetailPanel.337t8q")}
+      className="overflow-hidden rounded-2xl border-border/40 bg-card/60 shadow-[0_12px_36px_rgba(15,23,42,0.035)]"
+    >
       <div className="space-y-4 text-sm">
         {props.loading ? (
           <WorkspaceStateNotice loading title={i18next.t("tasks.taskCenterDetailPanel.u3def9")} description={i18next.t("tasks.taskCenterDetailPanel.hqjq08")} />
@@ -162,20 +166,27 @@ export default function TaskCenterDetailPanel(props: TaskCenterDetailPanelProps)
               />
             )}
 
-            <div className="space-y-2">
-              <div className="font-medium">{i18next.t("dict.gen_d96a7b07")}</div>
-              {props.steps.length === 0 ? (
-                <WorkspaceStateNotice compact title={i18next.t("tasks.taskCenterDetailPanel.j6b0vs")} description={i18next.t("tasks.taskCenterDetailPanel.ihackt")} />
-              ) : props.steps.map((step) => (
-                <div key={step.key} className="flex items-center justify-between rounded-md border border-border/70 px-3 py-2">
-                  <div>{step.label}</div>
-                  <TaskQueueStatusBadge
-                    label={step.status === "succeeded" ? "已完成" : step.status === "failed" ? "失败" : step.status === "running" ? "进行中" : step.status === "cancelled" ? "已取消" : "未开始"}
-                    tone={step.status === "succeeded" ? "success" : step.status === "failed" ? "danger" : step.status === "running" ? "info" : "neutral"}
-                  />
-                </div>
-              ))}
-            </div>
+            <details className="group border-t border-border/35 pt-3">
+              <summary className="flex cursor-pointer list-none items-center justify-between text-sm font-medium marker:hidden">
+                <span>执行步骤 {props.steps.length > 0 ? `(${props.steps.length})` : ""}</span>
+                <span className="text-xs font-normal text-muted-foreground group-open:hidden">{i18next.t("dict.gen_e2edde5a")}</span>
+                <span className="hidden text-xs font-normal text-muted-foreground group-open:inline">{i18next.t("dict.gen_def9e98b")}</span>
+              </summary>
+              <div className="mt-3 space-y-2">
+                {props.steps.length === 0 ? (
+                  <WorkspaceStateNotice compact title={i18next.t("tasks.taskCenterDetailPanel.j6b0vs")} description={i18next.t("tasks.taskCenterDetailPanel.ihackt")} />
+                ) : props.steps.map((step) => (
+                  <div key={step.key} className="flex items-center justify-between rounded-xl bg-muted/25 px-3 py-2">
+                    <div>{step.label}</div>
+                    <TaskQueueStatusBadge
+                      label={step.status === "succeeded" ? "已完成" : step.status === "failed" ? "失败" : step.status === "running" ? "进行中" : step.status === "cancelled" ? "已取消" : "未开始"}
+                      tone={step.status === "succeeded" ? "success" : step.status === "failed" ? "danger" : step.status === "running" ? "info" : "neutral"}
+                      className="border-0 bg-background/70 font-normal"
+                    />
+                  </div>
+                ))}
+              </div>
+            </details>
 
             {task.kind === "novel_workflow" ? <TaskCenterMilestoneHistory milestones={props.milestones} /> : null}
           </>

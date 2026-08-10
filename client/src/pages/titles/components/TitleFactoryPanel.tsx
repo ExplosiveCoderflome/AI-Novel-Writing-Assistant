@@ -1,4 +1,3 @@
-import { useTranslation } from "react-i18next";
 import i18next from "i18next";
 import { useMemo, useState } from "react";
 import type { TitleFactorySuggestion } from "@ai-novel/shared/types/title";
@@ -49,7 +48,6 @@ function sortSuggestions<T extends { clickRate: number }>(items: T[]): T[] {
 }
 
 export default function TitleFactoryPanel({ genreTree, novels }: TitleFactoryPanelProps) {
-  const { t } = useTranslation();
   const llm = useLLMStore();
   const queryClient = useQueryClient();
   const genreOptions = useMemo(() => flattenGenreTreeOptions(genreTree), [genreTree]);
@@ -72,7 +70,7 @@ export default function TitleFactoryPanel({ genreTree, novels }: TitleFactoryPan
     mutationFn: async () => {
       if (mode === "novel") {
         if (!selectedNovelId) {
-          throw new Error(i18next.t("dict.gen_bc7b49a8"));
+          throw new Error("请先选择一个小说项目。");
         }
         const response = await generateNovelTitles(selectedNovelId, {
           provider: llm.provider,
@@ -109,7 +107,7 @@ export default function TitleFactoryPanel({ genreTree, novels }: TitleFactoryPan
     mutationFn: (suggestion: TitleFactorySuggestion) => {
       const resolvedGenreId = mode === "novel" ? selectedNovel?.genre?.id ?? null : genreId || null;
       const description = mode === "novel"
-        ? `来源项目：${selectedNovel?.title ?? i18next.t("dict.gen_e47afac6")}`
+        ? `来源项目：${selectedNovel?.title ?? "未命名项目"}`
         : mode === "adapt"
           ? `参考标题：${referenceTitle.trim()}`
           : brief.trim().slice(0, 400);
@@ -147,24 +145,20 @@ export default function TitleFactoryPanel({ genreTree, novels }: TitleFactoryPan
   return (
     <div className="space-y-6">
       <Tabs value={mode} onValueChange={(value) => setMode(value as FactoryMode)}>
-        <section className="rounded-2xl bg-muted/[0.18] p-4 shadow-[0_18px_52px_rgba(15,23,42,0.07)] sm:p-5">
-          <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-            <div className="space-y-2">
-              <h2 className="text-xl font-semibold tracking-normal text-foreground">{modeCopy.title}</h2>
-              <p className="max-w-2xl text-sm leading-6 text-muted-foreground">{modeCopy.description}</p>
-            </div>
-
-            <TabsList className="grid h-10 w-full grid-cols-3 bg-background/70 p-1 shadow-sm lg:w-[420px]">
-              <TabsTrigger value="novel">{i18next.t("dict.gen_c0b5a8ae")}</TabsTrigger>
-              <TabsTrigger value="brief">{i18next.t("dict.gen_5375d812")}</TabsTrigger>
-              <TabsTrigger value="adapt">{i18next.t("dict.gen_6907616c")}</TabsTrigger>
+        <section className="rounded-3xl bg-muted/[0.18] p-4 sm:p-6">
+          <div className="mx-auto max-w-3xl">
+            <TabsList className="grid h-11 w-full grid-cols-3 rounded-full bg-background/70 p-1 shadow-sm">
+              <TabsTrigger value="novel" className="rounded-full">{i18next.t("dict.gen_c0b5a8ae")}</TabsTrigger>
+              <TabsTrigger value="brief" className="rounded-full">{i18next.t("dict.gen_5375d812")}</TabsTrigger>
+              <TabsTrigger value="adapt" className="rounded-full">{i18next.t("dict.gen_6907616c")}</TabsTrigger>
             </TabsList>
+            <p className="mt-3 text-center text-sm leading-6 text-muted-foreground">{modeCopy.description}</p>
           </div>
 
-          <div className="mt-6">
+          <div className="mx-auto mt-6 max-w-4xl">
             <TabsContent value="novel" className="mt-0 space-y-3">
-              <div className="grid gap-3 md:grid-cols-[132px_minmax(0,1fr)] md:items-center">
-                <label htmlFor="title-factory-novel" className="text-sm font-medium text-foreground">{i18next.t("titles.titleFactoryPanel.skvpcq")}</label>
+              <div className="space-y-2">
+                <label htmlFor="title-factory-novel" className="text-sm font-medium text-foreground">{i18next.t("titles.titleFactoryPanel.cvtpd2")}</label>
                 <SelectControl
                   id="title-factory-novel"
                   className={controlClassName}
@@ -179,7 +173,7 @@ export default function TitleFactoryPanel({ genreTree, novels }: TitleFactoryPan
                   ))}
                 </SelectControl>
               </div>
-              <div className="pl-0 text-xs leading-5 text-muted-foreground md:pl-[132px]">{i18next.t("titles.titleFactoryPanel.hi5g5")}</div>
+              <div className="text-xs leading-5 text-muted-foreground">{i18next.t("titles.titleFactoryPanel.hi5g5")}</div>
             </TabsContent>
 
             <TabsContent value="brief" className="mt-0 grid gap-4 md:grid-cols-[minmax(0,1fr)_240px]">
@@ -254,14 +248,14 @@ export default function TitleFactoryPanel({ genreTree, novels }: TitleFactoryPan
             </TabsContent>
           </div>
 
-          <div className="mt-5 flex flex-col gap-3 border-t border-border/55 pt-4 lg:flex-row lg:items-center lg:justify-between">
+          <div className="mx-auto mt-6 flex max-w-4xl flex-col gap-3 border-t border-border/40 pt-4 lg:flex-row lg:items-center lg:justify-between">
             <button
               type="button"
               className="inline-flex items-center gap-2 text-left text-xs text-muted-foreground transition hover:text-foreground"
               onClick={() => setShowModelSettings((value) => !value)}
             >
               <Settings2 className="h-3.5 w-3.5" />
-              <span>{i18next.t("dict.gen_4a6ca1bb")}</span>
+              <span>模型 {llm.provider} · {llm.model}</span>
             </button>
 
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-end">
@@ -279,40 +273,46 @@ export default function TitleFactoryPanel({ genreTree, novels }: TitleFactoryPan
               </label>
               <Button
                 type="button"
-                className="h-10 gap-2 px-5"
+                className="h-10 gap-2 rounded-full px-6"
                 onClick={() => generateMutation.mutate()}
                 disabled={generateMutation.isPending}
               >
                 <Sparkles className="h-4 w-4" />
-                {generateMutation.isPending ? i18next.t("dict.gen_4d020ba3") : i18next.t("dict.gen_5a237b85")}
+                {generateMutation.isPending ? "生成中..." : "生成标题"}
               </Button>
             </div>
           </div>
 
           {showModelSettings ? (
-            <div className="mt-4 border-t border-border/55 pt-4">
+            <div className="mx-auto mt-4 max-w-4xl border-t border-border/40 pt-4">
               <LLMSelector showParameters showBadge={false} />
+            </div>
+          ) : null}
+          {generateMutation.error ? (
+            <div className="mx-auto mt-4 max-w-4xl rounded-xl bg-destructive/[0.055] px-4 py-3 text-sm text-destructive">
+              {generateMutation.error instanceof Error ? generateMutation.error.message : "标题生成失败，请重试。"}
             </div>
           ) : null}
         </section>
       </Tabs>
 
-      <section className="space-y-3">
+      <section className="space-y-4">
         <div className="flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
           <h3 className="text-base font-semibold text-foreground">{i18next.t("dict.gen_e995da4f")}</h3>
           <div className="text-xs text-muted-foreground">
-            {suggestions.length > 0 ? `已按点击潜力排序，共 ${suggestions.length} 个` : i18next.t("dict.gen_0df2129e")}
+            {suggestions.length > 0 ? `已按点击潜力排序，共 ${suggestions.length} 个` : "结果会在生成后显示"}
           </div>
         </div>
         <TitleSuggestionList
+          layout="grid"
           suggestions={suggestions}
           selectedTitle={selectedTitle}
-          primaryActionLabel={i18next.t("dict.gen_6f3398e0")}
+          primaryActionLabel="复制标题"
           onPrimaryAction={handlePrimaryAction}
           onCopy={handleCopy}
           onSave={(suggestion) => saveMutation.mutate(suggestion)}
           savingTitle={saveMutation.isPending ? saveMutation.variables?.title ?? "" : ""}
-          emptyMessage={i18next.t("dict.gen_44832a62")}
+          emptyMessage={`${modeCopy.title}准备好后，点击“生成标题”查看不同命名方向。`}
         />
       </section>
     </div>

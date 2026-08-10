@@ -1,3 +1,4 @@
+import i18next from "i18next";
 import React from "react";
 import { useTranslation } from "react-i18next";
 import { Globe } from "lucide-react";
@@ -16,7 +17,7 @@ export interface LanguageOption {
 }
 
 export const SUPPORTED_LANGUAGES: LanguageOption[] = [
-  { code: "zh", label: "中文", nativeLabel: "简体中文" },
+  { code: "zh", label: i18next.t("dict.zhLanguage"), nativeLabel: "简体中文" },
   { code: "en", label: "English", nativeLabel: "English" },
 ];
 

@@ -30,6 +30,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 import { useLLMStore } from "@/store/llmStore";
+import { shouldShowFirstNovelHandoff } from "./creationSetupState";
 
 interface QuickSetupDialogProps {
   open: boolean;
@@ -38,6 +39,7 @@ interface QuickSetupDialogProps {
   loading: boolean;
   error: boolean;
   onRetry: () => void;
+  forceConfiguration?: boolean;
 }
 
 interface SetupForm {
@@ -76,6 +78,12 @@ export default function QuickSetupDialog(props: QuickSetupDialogProps) {
   const [form, setForm] = useState<SetupForm>(EMPTY_FORM);
   const [customModels, setCustomModels] = useState<string[]>([]);
   const [customModelsMessage, setCustomModelsMessage] = useState("");
+
+  useEffect(() => {
+    if (props.open && props.forceConfiguration) {
+      setStep(1);
+    }
+  }, [props.forceConfiguration, props.open]);
 
   const selectedProvider = useMemo(
     () => props.status?.providers.find((provider) => provider.id === form.provider) ?? null,
@@ -176,6 +184,10 @@ export default function QuickSetupDialog(props: QuickSetupDialogProps) {
     && (form.providerKind === "builtin" ? form.provider : form.customProviderName.trim())
     && (!requiresApiKey || form.apiKey.trim() || hasSavedKey),
   );
+  const showFirstNovelHandoff = shouldShowFirstNovelHandoff({
+    configurationSucceeded: completeMutation.isSuccess,
+    forceConfiguration: props.forceConfiguration === true,
+  });
 
   const submit = () => {
     setStep(3);
@@ -189,7 +201,7 @@ export default function QuickSetupDialog(props: QuickSetupDialogProps) {
     });
   };
 
-  const footer = props.loading || props.error || props.status?.readyForCreation
+  const footer = props.loading || props.error || (props.status?.readyForCreation && !props.forceConfiguration)
     ? null
     : step === 1
       ? (
@@ -205,10 +217,19 @@ export default function QuickSetupDialog(props: QuickSetupDialogProps) {
           )
         : completeMutation.isSuccess
           ? (
-              <>
-                <Button variant="outline" asChild><Link to="/settings">{i18next.t("onboarding.quickSetupDialog.8tdf7p")}</Link></Button>
-                <Button onClick={() => props.onOpenChange(false)}>{i18next.t("onboarding.quickSetupDialog.ccwsks")}<Sparkles className="h-4 w-4" /></Button>
-              </>
+              showFirstNovelHandoff
+                ? (
+                    <>
+                      <Button variant="outline" asChild><Link to="/help">{i18next.t("onboarding.quickSetupDialog.viewGuide", "查看创作向导")}</Link></Button>
+                      <Button asChild><Link to="/novels/auto-director">{i18next.t("onboarding.quickSetupDialog.startFirstNovel", "用一句话开始第一本小说")} <ArrowRight className="h-4 w-4" /></Link></Button>
+                    </>
+                  )
+                : (
+                    <>
+                      <Button variant="outline" asChild><Link to="/settings">{i18next.t("onboarding.quickSetupDialog.8tdf7p")}</Link></Button>
+                      <Button onClick={() => props.onOpenChange(false)}>{i18next.t("onboarding.quickSetupDialog.ccwsks")}<Sparkles className="h-4 w-4" /></Button>
+                    </>
+                  )
             )
           : completeMutation.isError
             ? (
@@ -257,7 +278,7 @@ export default function QuickSetupDialog(props: QuickSetupDialogProps) {
             </div>
             <Button variant="outline" onClick={props.onRetry}>{i18next.t("common.retry")}</Button>
           </div>
-        ) : props.status?.readyForCreation && !completeMutation.isSuccess ? (
+        ) : props.status?.readyForCreation && !props.forceConfiguration && !completeMutation.isSuccess ? (
           <div className="flex min-h-56 flex-col items-center justify-center gap-4 text-center">
             <CheckCircle2 className="h-10 w-10 text-emerald-600" />
             <div>
@@ -384,6 +405,23 @@ export default function QuickSetupDialog(props: QuickSetupDialogProps) {
                   <div className="text-lg font-semibold">{i18next.t("onboarding.quickSetupDialog.mdq9k6")}</div>
                   <div className="mt-2 text-sm text-muted-foreground">{completeMutation.data.data?.model} 已可用于整条小说生产链。</div>
                 </div>
+                {showFirstNovelHandoff ? (
+                  <div className="w-full max-w-xl rounded-2xl border border-primary/15 bg-primary/[0.035] p-5 text-left shadow-sm">
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <div className="text-sm font-semibold text-primary">{i18next.t("dict.gen_de6465aa")}</div>
+                      <Link to="/settings" className="text-xs text-muted-foreground underline-offset-4 hover:text-foreground hover:underline">{i18next.t("onboarding.quickSetupDialog.aj7ks1")}</Link>
+                    </div>
+                    <h3 className="mt-2 text-xl font-semibold tracking-tight">{i18next.t("onboarding.quickSetupDialog.ge3rh8")}</h3>
+                    <p className="mt-2 text-sm leading-6 text-muted-foreground">{i18next.t("onboarding.quickSetupDialog.75e7os")}</p>
+                    <div className="mt-4 grid gap-2 sm:grid-cols-3">
+                      {["说想法", "选择方向", "阅读首章"].map((label, index) => (
+                        <div key={label} className="rounded-xl border bg-background/80 px-3 py-2.5 text-sm font-medium">
+                          <span className="mr-2 text-primary">{index + 1}</span>{label}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ) : null}
               </>
             ) : (
               <>

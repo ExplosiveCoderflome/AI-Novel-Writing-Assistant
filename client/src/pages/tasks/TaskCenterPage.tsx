@@ -1,6 +1,5 @@
 import i18next from "i18next";
 import { useEffect, useMemo, useState } from "react";
-import { useTranslation } from "react-i18next";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type { DirectorContinuationMode } from "@ai-novel/shared/types/novelDirector";
 import type { TaskKind, TaskStatus, UnifiedTaskStep } from "@ai-novel/shared/types/task";
@@ -62,7 +61,6 @@ function normalizeTaskSteps(steps: unknown): UnifiedTaskStep[] {
 }
 
 export default function TaskCenterPage() {
-  const { t, i18n } = useTranslation();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const llm = useLLMStore();
@@ -535,19 +533,9 @@ export default function TaskCenterPage() {
     <div className="space-y-5">
       <WorkspaceHeader
         icon={ListChecks}
-        context={t("tasks.context", "执行历史与恢复")}
-        title={t("tasks.title", "运行记录")}
-        description={t("tasks.description", "按需查询创作、拆书、知识索引和图片任务的历史、异常与恢复信息；实时生成请从顶部“AI 实况”查看。")}
-        meta={(
-          <>
-            <span>{t("tasks.metaVisible", "当前显示 {{count}} 项", { count: visibleRows.length })}</span>
-            <span>{t("tasks.metaRunning", "全局执行 {{count}} 项", { count: runningCount + queuedCount })}</span>
-            <span>{t("tasks.metaWaiting", "等待操作 {{count}} 项", { count: waitingActionCount })}</span>
-            <span>{t("tasks.metaFailed", "失败 {{count}} 项", { count: failedTaskCount })}</span>
-            <span>{t("tasks.metaRecoverable", "可恢复 {{count}} 项", { count: recoveryCandidateCount })}</span>
-            <span>{t("tasks.metaQuality", "质量提醒 {{count}} 项", { count: qualityReminderCount })}</span>
-          </>
-        )}
+        context="执行历史与恢复"
+        title={i18next.t("sidebar.tasks")}
+        description={i18next.t("tasks.taskCenterPage.hkfs3o")}
         actions={(
           <Button
             type="button"
@@ -555,13 +543,12 @@ export default function TaskCenterPage() {
             onClick={() => void Promise.all([overviewQuery.refetch(), recoveryCandidatesQuery.refetch(), listQuery.refetch()])}
             disabled={overviewQuery.isFetching || recoveryCandidatesQuery.isFetching || listQuery.isFetching}
           >
-            <RefreshCw className={overviewQuery.isFetching || recoveryCandidatesQuery.isFetching || listQuery.isFetching ? "h-4 w-4 animate-spin" : "h-4 w-4"} aria-hidden="true" />
-            {t("tasks.refresh", "刷新记录")}
-          </Button>
+            <RefreshCw className={overviewQuery.isFetching || recoveryCandidatesQuery.isFetching || listQuery.isFetching ? "h-4 w-4 animate-spin" : "h-4 w-4"} aria-hidden="true" />{i18next.t("tasks.refresh")}</Button>
         )}
       />
 
       <WorkspaceNextAction
+        className="rounded-2xl border-transparent px-5 py-3 shadow-none"
         icon={overviewErrorMessage ? RefreshCw : hasMustHandleTask ? ShieldAlert : Activity}
         tone={overviewQuery.isLoading ? "info" : overviewErrorMessage ? "danger" : hasMustHandleTask ? "danger" : waitingActionCount > 0 ? "info" : qualityReminderCount > 0 ? "warning" : runningCount + queuedCount > 0 ? "info" : allRows.length > 0 ? "success" : "neutral"}
         title={overviewQuery.isLoading ? "正在读取全局任务状态" : overviewErrorMessage ? "重新读取任务概览" : hasMustHandleTask ? "先查看必须处理的任务" : waitingActionCount > 0 ? "完成等待中的操作" : qualityReminderCount > 0 ? "查看质量提醒" : runningCount + queuedCount > 0 ? "关注正在推进的任务" : allRows.length > 0 ? "当前没有阻塞任务" : "任务会在执行后汇总到这里"}
@@ -610,12 +597,6 @@ export default function TaskCenterPage() {
                 }
                 return;
               }
-              // Reset filters so the recommended task is visible
-              setKind("");
-              setStatus("");
-              setKeyword("");
-              setOnlyAnomaly(false);
-
               setSearchParams((prev) => {
                 const next = new URLSearchParams(prev);
                 next.set("kind", recommendedTask.kind);
@@ -636,20 +617,20 @@ export default function TaskCenterPage() {
         qualityReminderCount={qualityReminderCount}
       />
 
-      <div className="grid gap-4 xl:grid-cols-[260px_minmax(0,1fr)_360px]">
-        <TaskCenterFilterPanel
-          kind={kind}
-          status={status}
-          keyword={keyword}
-          onlyAnomaly={onlyAnomaly}
-          sortMode={sortMode}
-          onKindChange={setKind}
-          onStatusChange={setStatus}
-          onKeywordChange={setKeyword}
-          onOnlyAnomalyChange={setOnlyAnomaly}
-          onSortModeChange={setSortMode}
-        />
+      <TaskCenterFilterPanel
+        kind={kind}
+        status={status}
+        keyword={keyword}
+        onlyAnomaly={onlyAnomaly}
+        sortMode={sortMode}
+        onKindChange={setKind}
+        onStatusChange={setStatus}
+        onKeywordChange={setKeyword}
+        onOnlyAnomalyChange={setOnlyAnomaly}
+        onSortModeChange={setSortMode}
+      />
 
+      <div className="grid items-start gap-5 xl:grid-cols-[minmax(0,1.25fr)_minmax(380px,0.75fr)]">
         <TaskCenterListPanel
           tasks={visibleRows}
           selectedKind={selectedKind}

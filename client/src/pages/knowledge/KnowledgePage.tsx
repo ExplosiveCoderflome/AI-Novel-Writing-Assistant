@@ -1,6 +1,5 @@
 import i18next from "i18next";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { useTranslation } from "react-i18next";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type { ApiResponse } from "@ai-novel/shared/types/api";
 import type { KnowledgeDocumentStatus, KnowledgeRecallTestResult } from "@ai-novel/shared/types/knowledge";
@@ -41,7 +40,6 @@ function normalizeTab(raw: string | null): "documents" | "ops" | "settings" {
 }
 
 export default function KnowledgePage() {
-  const { t, i18n } = useTranslation();
   const queryClient = useQueryClient();
   const [searchParams, setSearchParams] = useSearchParams();
   const [keyword, setKeyword] = useState("");
@@ -357,7 +355,9 @@ export default function KnowledgePage() {
   const ragHealthNotice = ragHealthQuery.isError
     ? (ragHealthQuery.error instanceof Error ? ragHealthQuery.error.message : "加载 RAG 健康状态失败。")
     : (ragHealthQuery.data?.message && ragHealthQuery.data.message !== "RAG health check passed."
-      ? ragHealthQuery.data.message
+      ? (ragHealthQuery.data.message === "RAG health check failed."
+        ? "资料检索连接检查未通过。"
+        : ragHealthQuery.data.message)
       : undefined);
   const recallErrorMessage = recallTestMutation.isError
     ? (recallTestMutation.error instanceof Error ? recallTestMutation.error.message : "召回测试失败。")
@@ -530,10 +530,10 @@ export default function KnowledgePage() {
         onValueChange={(value) => setSearchParams({ tab: value })}
         className="space-y-4"
       >
-        <TabsList className="h-auto w-full justify-start overflow-x-auto">
-          <TabsTrigger value="documents">{i18next.t("knowledge.knowledgeDocumentsTab.ap46ye")}</TabsTrigger>
-          <TabsTrigger value="ops">{i18next.t("knowledge.knowledgePage.4dcqkh")}</TabsTrigger>
-          <TabsTrigger value="settings">{i18next.t("dict.gen_acb3166d")}</TabsTrigger>
+        <TabsList className="h-11 w-full justify-start gap-1 overflow-x-auto rounded-full bg-muted/30 p-1">
+          <TabsTrigger value="documents" className="rounded-full px-5">{i18next.t("knowledge.knowledgeDocumentsTab.ap46ye")}</TabsTrigger>
+          <TabsTrigger value="ops" className="rounded-full px-5">{i18next.t("knowledge.knowledgePage.4dcqkh")}</TabsTrigger>
+          <TabsTrigger value="settings" className="rounded-full px-5">{i18next.t("dict.gen_acb3166d")}</TabsTrigger>
         </TabsList>
 
         <TabsContent value="documents">
@@ -582,6 +582,7 @@ export default function KnowledgePage() {
             deletingJobId={deleteRagJobMutation.isPending ? deleteRagJobMutation.variables : undefined}
             onClearFinishedJobs={handleClearFinishedRagJobs}
             onDeleteJob={handleDeleteRagJob}
+            onOpenSettings={() => setSearchParams({ tab: "settings" })}
           />
         </TabsContent>
 

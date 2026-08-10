@@ -1,11 +1,9 @@
 import i18next from "i18next";
-const t = (key: string, options?: any) => i18next.t(key, options) as string;
 import { useState, type Dispatch, type SetStateAction } from "react";
 import { GitCompareArrows, GitFork, Map, Network, Workflow } from "lucide-react";
 import type { World, WorldSnapshot } from "@ai-novel/shared/types/world";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import KnowledgeBindingPanel from "@/components/knowledge/KnowledgeBindingPanel";
 import SelectControl from "@/components/common/SelectControl";
@@ -68,31 +66,31 @@ const WORLD_ASSET_PRESETS = [
     icon: Map,
     title: i18next.t("dict.worldMap"),
     description: i18next.t("dict.gen_dffe62c3"),
-    readiness: i18next.t("dict.gen_6157e679"),
+    readiness: "先补故事舞台、地点风险和势力控制区。",
   },
   {
     icon: Network,
     title: i18next.t("dict.gen_de942453"),
     description: i18next.t("dict.gen_19f83c09"),
-    readiness: i18next.t("dict.gen_3abaa31a"),
+    readiness: "先补主要势力、当前目标和彼此压力。",
   },
   {
     icon: GitFork,
     title: i18next.t("dict.worldTimeline"),
     description: i18next.t("dict.gen_87d3f653"),
-    readiness: i18next.t("dict.gen_92e958bf"),
+    readiness: "先补核心冲突、共同后果和关键历史节点。",
   },
   {
     icon: GitCompareArrows,
     title: i18next.t("dict.gen_6606fcbf"),
     description: i18next.t("dict.gen_e110856a"),
-    readiness: i18next.t("dict.gen_8a5d0d5c"),
+    readiness: "先补角色归属、阵营压力和关键地点。",
   },
   {
     icon: Workflow,
     title: i18next.t("dict.gen_3e265312"),
     description: i18next.t("dict.gen_c78b2023"),
-    readiness: i18next.t("dict.gen_c4907d27"),
+    readiness: "先补核心规则、代价和不可突破的边界。",
   },
 ];
 
@@ -111,13 +109,13 @@ function AssetToolButton({
     <button
       type="button"
       className={[
-        "rounded-md border p-3 text-left transition-colors",
-        selected ? "border-primary bg-primary/5" : "border-border/70 bg-background hover:bg-muted/40",
+        "shrink-0 rounded-full px-4 py-2 text-sm transition-colors",
+        selected ? "bg-background font-medium text-foreground shadow-sm" : "text-muted-foreground hover:bg-background/60 hover:text-foreground",
       ].join(" ")}
       onClick={onClick}
+      title={description}
     >
-      <div className="text-sm font-medium text-foreground">{label}</div>
-      <div className="mt-1 text-xs leading-5 text-muted-foreground">{description}</div>
+      {label}
     </button>
   );
 }
@@ -164,12 +162,13 @@ export default function WorldAssetsTab(props: WorldAssetsTabProps) {
   } = props;
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>{i18next.t("dict.worldMaterialsAndVersions")}</CardTitle>
-      </CardHeader>
-      <CardContent className="space-y-4">
-        <div className="grid gap-3 md:grid-cols-3 xl:grid-cols-6">
+    <section className="space-y-6">
+        <div>
+          <h2 className="text-xl font-semibold tracking-tight">{i18next.t("dict.worldMaterialsAndVersions")}</h2>
+          <p className="mt-1 text-sm leading-6 text-muted-foreground">{i18next.t("worlds.worldAssetsTab.ihjzlu")}</p>
+        </div>
+
+        <div className="flex gap-1 overflow-x-auto rounded-full bg-muted/30 p-1">
           <AssetToolButton
             label={i18next.t("dict.gen_7c9906e4")}
             description={i18next.t("dict.gen_fa9f3c53")}
@@ -209,25 +208,25 @@ export default function WorldAssetsTab(props: WorldAssetsTabProps) {
         </div>
 
         {activeTool === "visualAssets" ? (
-          <div className="rounded-md border p-4">
+          <div className="rounded-3xl border border-border/35 bg-card/70 p-5">
             <div className="flex flex-col gap-2 lg:flex-row lg:items-start lg:justify-between">
               <div>
                 <div className="font-medium">{i18next.t("dict.worldAssetPlanning")}</div>
                 <div className="mt-1 text-sm leading-6 text-muted-foreground">{i18next.t("worlds.worldAssetsTab.wjqi6q")}</div>
               </div>
-              <Badge variant="outline">{i18next.t("dict.gen_b8c3131b")}</Badge>
+              <Badge variant="secondary" className="border-0 bg-muted/60 font-normal">{i18next.t("dict.gen_b8c3131b")}</Badge>
             </div>
             <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
               {WORLD_ASSET_PRESETS.map((asset) => {
                 const Icon = asset.icon;
                 return (
-                  <div key={asset.title} className="rounded-md border border-dashed border-border/80 bg-muted/20 p-3">
+                  <div key={asset.title} className="rounded-2xl bg-muted/20 p-4">
                     <div className="flex items-center gap-2 text-sm font-medium text-foreground">
                       <Icon className="h-4 w-4 text-primary" aria-hidden="true" />
                       {asset.title}
                     </div>
                     <div className="mt-2 text-xs leading-5 text-muted-foreground">{asset.description}</div>
-                    <div className="mt-3 rounded-md bg-background p-2 text-xs leading-5 text-muted-foreground">
+                    <div className="mt-3 rounded-xl bg-background/70 p-3 text-xs leading-5 text-muted-foreground">
                       {asset.readiness}
                     </div>
                   </div>
@@ -238,14 +237,14 @@ export default function WorldAssetsTab(props: WorldAssetsTabProps) {
         ) : null}
 
         {activeTool === "references" ? (
-          <div className="rounded-md border p-3">
+          <div className="rounded-3xl border border-border/35 bg-card/70 p-5">
             <div className="mb-3 font-medium">{i18next.t("dict.gen_35808e79")}</div>
             <KnowledgeBindingPanel targetType="world" targetId={props.worldId} title={i18next.t("dict.gen_35808e79")} />
           </div>
         ) : null}
 
         {activeTool === "library" ? (
-          <div className="rounded-md border p-3 space-y-2">
+          <div className="space-y-4 rounded-3xl border border-border/35 bg-card/70 p-5">
             <div className="font-medium">{i18next.t("dict.worldAssets")}</div>
             <div className="grid gap-2 md:grid-cols-3">
               <Input
@@ -270,7 +269,7 @@ export default function WorldAssetsTab(props: WorldAssetsTabProps) {
               </SelectControl>
               <Button variant="outline" onClick={onRefreshLibrary}>{i18next.t("drama.dramaProjectPage.ejix")}</Button>
             </div>
-            <div className="rounded-md border p-2 space-y-2">
+            <div className="space-y-3 rounded-2xl bg-muted/20 p-4">
               <div className="text-xs font-semibold text-muted-foreground">{i18next.t("worlds.worldAssetsTab.4fudf3")}</div>
               <div className="grid gap-2 md:grid-cols-3">
                 <Input
@@ -293,7 +292,7 @@ export default function WorldAssetsTab(props: WorldAssetsTabProps) {
                   <option value="artifact">{i18next.t("dict.gen_6916ec11")}</option>
                 </SelectControl>
                 <Button onClick={onPublishLibrary} disabled={publishPending}>
-                  {publishPending ? i18next.t("common.saving") : i18next.t("dict.saveMaterials")}
+                  {publishPending ? "保存中..." : "保存素材"}
                 </Button>
               </div>
               <textarea
@@ -304,7 +303,7 @@ export default function WorldAssetsTab(props: WorldAssetsTabProps) {
               />
             </div>
             {libraryItems.map((item) => (
-              <div key={item.id} className="rounded border p-3 text-sm space-y-2">
+              <div key={item.id} className="space-y-3 rounded-2xl border border-border/35 p-4 text-sm">
                 <div className="flex items-center justify-between gap-2">
                   <div>
                     <div>{item.name}</div>
@@ -326,7 +325,7 @@ export default function WorldAssetsTab(props: WorldAssetsTabProps) {
         ) : null}
 
         {activeTool === "snapshots" ? (
-          <div className="rounded-md border p-3 space-y-2">
+          <div className="space-y-4 rounded-3xl border border-border/35 bg-card/70 p-5">
           <div className="font-medium">{i18next.t("dict.gen_387b56ef")}</div>
           <div className="flex gap-2">
             <Input
@@ -337,7 +336,7 @@ export default function WorldAssetsTab(props: WorldAssetsTabProps) {
             <Button onClick={onCreateSnapshot} disabled={createSnapshotPending}>{i18next.t("worlds.worldAssetsTab.ar6w63")}</Button>
           </div>
           {snapshots.map((snapshot) => (
-            <div key={snapshot.id} className="flex items-center justify-between rounded border p-2 text-sm">
+            <div key={snapshot.id} className="flex items-center justify-between rounded-2xl bg-muted/20 p-3 text-sm">
               <div>
                 {snapshot.label ?? snapshot.id.slice(0, 8)} / {new Date(snapshot.createdAt).toLocaleString()}
               </div>
@@ -372,15 +371,15 @@ export default function WorldAssetsTab(props: WorldAssetsTabProps) {
             <Button onClick={onDiffSnapshots} disabled={!diffFrom || !diffTo}>{i18next.t("worlds.worldAssetsTab.c1v4sv")}</Button>
           </div>
           {diffChanges.map((change) => (
-            <div key={change.field} className="rounded border p-2 text-xs">
-              {change.field}: {change.before ?? i18next.t("dict.gen_b7612b71")} {"->"} {change.after ?? i18next.t("dict.gen_b7612b71")}
+            <div key={change.field} className="rounded-2xl bg-muted/20 p-3 text-xs">
+              {change.field}: {change.before ?? "空"} {"->"} {change.after ?? "空"}
             </div>
           ))}
           </div>
         ) : null}
 
         {activeTool === "export" ? (
-          <div className="rounded-md border p-3 space-y-2">
+          <div className="space-y-3 rounded-3xl border border-border/35 bg-card/70 p-5">
           <div className="font-medium">{i18next.t("dict.gen_9344b89b")}</div>
           <div className="flex gap-2">
             <Button variant="secondary" onClick={() => void onExport("markdown")}>{i18next.t("worlds.worldAssetsTab.w3d7j8")}</Button>
@@ -390,7 +389,7 @@ export default function WorldAssetsTab(props: WorldAssetsTabProps) {
         ) : null}
 
         {activeTool === "import" ? (
-          <div className="rounded-md border p-3 space-y-2">
+          <div className="space-y-3 rounded-3xl border border-border/35 bg-card/70 p-5">
           <div className="font-medium">{i18next.t("dict.gen_e0b20cd3")}</div>
           <SelectControl
             className="w-full rounded-md border bg-background p-2 text-sm"
@@ -408,11 +407,10 @@ export default function WorldAssetsTab(props: WorldAssetsTabProps) {
             placeholder={i18next.t("dict.gen_2ab5150a")}
           />
           <Button onClick={onImport} disabled={importPending || !importContent.trim()}>
-            {importPending ? i18next.t("dict.gen_763476f8") : i18next.t("dict.gen_920562d7")}
+            {importPending ? "导入中..." : "导入为新世界"}
           </Button>
           </div>
         ) : null}
-      </CardContent>
-    </Card>
+    </section>
   );
 }

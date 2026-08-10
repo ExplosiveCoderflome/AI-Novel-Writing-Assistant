@@ -1,6 +1,6 @@
-import { useTranslation } from "react-i18next";
 import i18next from "i18next";
 import { useEffect, useState } from "react";
+import { BookOpenText, MessageCircleMore, Sparkles, WandSparkles } from "lucide-react";
 import type { BookAnalysis } from "@ai-novel/shared/types/bookAnalysis";
 import type { KnowledgeDocumentDetail, KnowledgeDocumentSummary } from "@ai-novel/shared/types/knowledge";
 import type { StyleExtractionSourceProcessingMode, StyleTemplate } from "@ai-novel/shared/types/styleEngine";
@@ -24,17 +24,17 @@ const EXTRACTION_PRESET_OPTIONS = [
   {
     key: "imitate",
     label: i18next.t("dict.gen_670b95ab"),
-    summary: i18next.t("dict.gen_38cd0be2"),
+    summary: "尽量保留强烈指纹和表达习惯，适合短期临摹、风格试写和对照学习。",
   },
   {
     key: "balanced",
     label: i18next.t("dict.preserveMainReadFeel"),
-    summary: i18next.t("dict.preserveReadFeelAndProgressRhythmWeakenOverStrongFingerprintSuitableForMostProjectsDirectUse"),
+    summary: "保留读感和推进节奏，弱化过强指纹，适合大多数项目直接使用。",
   },
   {
     key: "transfer",
     label: i18next.t("dict.gen_6da989b7"),
-    summary: i18next.t("dict.gen_ef957e52"),
+    summary: "更多保留可复用的节奏、结构和对白逻辑，适合长期项目和整书默认写法。",
   },
 ] as const;
 
@@ -46,17 +46,17 @@ const MATERIAL_SOURCE_OPTIONS: Array<{
   {
     key: "direct_text",
     label: i18next.t("dict.gen_26f1d00f"),
-    summary: i18next.t("dict.gen_62c7ec91"),
+    summary: "把样本文本交给后台提取任务，适合手里已有片段或章节。",
   },
   {
     key: "knowledge_document",
     label: i18next.t("dict.gen_51a7e4d2"),
-    summary: i18next.t("dict.gen_04b0ad79"),
+    summary: "选择知识库文档活动版本，系统冻结全文快照后用代表性样本学习写法。",
   },
   {
     key: "book_analysis",
     label: i18next.t("dict.gen_64d477d1"),
-    summary: i18next.t("dict.gen_585484cd"),
+    summary: "直接使用拆书里的文风与技法结果生成写法。",
   },
 ];
 
@@ -69,53 +69,53 @@ const KNOWLEDGE_SOURCE_PROCESSING_OPTIONS: Array<{
   {
     key: "representative_sample",
     label: i18next.t("dict.gen_a42e20c2"),
-    summary: i18next.t("dict.extractRepresentativeSamples"),
-    badge: i18next.t("dict.gen_3f981012"),
+    summary: "从开篇、中段、后段和收束抽取代表性样本，适合长篇原文，速度和稳定性更好。",
+    badge: "推荐",
   },
   {
     key: "full_text",
     label: i18next.t("dict.gen_fc456238"),
-    summary: i18next.t("dict.gen_04ac9582"),
+    summary: "把活动版本全文作为模型输入，适合短文档；长篇可能更慢，也更容易触发模型上下文或超时限制。",
   },
 ];
 
 function formatTaskStatus(task: UnifiedTaskDetail | null): string {
   if (!task) {
-    return i18next.t("dict.gen_0589e591");
+    return "暂无任务";
   }
   if (task.status === "queued") {
-    return i18next.t("tasks.filterStatusQueued");
+    return "排队中";
   }
   if (task.status === "running") {
-    return i18next.t("dict.gen_5d459d55");
+    return "处理中";
   }
   if (task.status === "succeeded") {
-    return i18next.t("tasks.filterStatusSucceeded");
+    return "已完成";
   }
   if (task.status === "failed") {
-    return i18next.t("tasks.filterStatusFailed");
+    return "失败";
   }
   if (task.status === "cancelled") {
-    return i18next.t("tasks.filterStatusCancelled");
+    return "已取消";
   }
-  return i18next.t("dict.gen_3ced7e48");
+  return "等待审批";
 }
 
 function formatCharCount(value: number | null | undefined): string {
   if (!value) {
-    return i18next.t("dict.zeroCharacters");
+    return "0 字";
   }
   return `${value.toLocaleString("zh-CN")} 字`;
 }
 
 function formatKnowledgeStatus(status: KnowledgeDocumentSummary["status"]): string {
   if (status === "enabled") {
-    return i18next.t("dict.gen_ad6b7038");
+    return "可用";
   }
   if (status === "disabled") {
-    return i18next.t("dict.gen_5c56a889");
+    return "停用";
   }
-  return i18next.t("dict.gen_2f51c18f");
+  return "归档";
 }
 
 interface WritingFormulaCreateDialogProps {
@@ -145,7 +145,6 @@ interface WritingFormulaCreateDialogProps {
 }
 
 export default function WritingFormulaCreateDialog(props: WritingFormulaCreateDialogProps) {
-  const { t } = useTranslation();
   const {
     open,
     onOpenChange,
@@ -197,31 +196,36 @@ export default function WritingFormulaCreateDialog(props: WritingFormulaCreateDi
     || (form.materialSource === "knowledge_document" && !knowledgeDocumentReady)
     || (form.materialSource === "book_analysis" && !bookAnalysisReady);
   const materialSubmitLabel = form.materialSource === "book_analysis"
-    ? i18next.t("dict.gen_从拆书结果创建写法_spus")
+    ? "从拆书结果创建写法"
     : form.materialSource === "knowledge_document"
-      ? i18next.t("dict.extractAndAutoSaveOriginalTextKnowledgeBase")
-      : i18next.t("dict.gen_3a428b93");
+      ? "从知识库原文提取并自动保存"
+      : "提交提取任务并自动保存";
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="flex max-h-[92vh] max-w-5xl flex-col overflow-hidden">
-        <DialogHeader className="shrink-0">
-          <DialogTitle>{i18next.t("dict.gen_68a34a89")}</DialogTitle>
-          <DialogDescription>{i18next.t("writingFormula.writingFormulaCreateDialog.1urx4c")}</DialogDescription>
+      <DialogContent className="flex h-[min(780px,92vh)] max-w-5xl flex-col overflow-hidden p-0">
+        <DialogHeader className="shrink-0 border-b border-slate-100 bg-[linear-gradient(135deg,rgba(248,250,252,0.95),rgba(255,255,255,0.98))] px-6 py-5 pr-14">
+          <div className="flex items-start gap-3">
+            <div className="flex size-10 shrink-0 items-center justify-center rounded-2xl bg-slate-950 text-white"><WandSparkles className="size-5" /></div>
+            <div>
+              <DialogTitle>{i18next.t("writingFormula.writingFormulaCreateDialog.fv73fa")}</DialogTitle>
+          <DialogDescription>{i18next.t("writingFormula.writingFormulaCreateDialog.ftify8")}</DialogDescription>
+            </div>
+          </div>
         </DialogHeader>
 
-        <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as typeof activeTab)} className="flex min-h-0 flex-1 flex-col space-y-4">
-          <TabsList className="grid w-full shrink-0 grid-cols-3">
-            <TabsTrigger value="quick_start">{i18next.t("dict.gen_fefda8fe")}</TabsTrigger>
-            <TabsTrigger value="blank">{i18next.t("dict.gen_63db6415")}</TabsTrigger>
-            <TabsTrigger value="extract">{i18next.t("dict.extractFromMaterials")}</TabsTrigger>
+        <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as typeof activeTab)} className="flex min-h-0 flex-1 flex-col space-y-4 px-6 pb-6 pt-4">
+          <TabsList className="grid h-auto w-full shrink-0 grid-cols-3 rounded-2xl bg-slate-100/80 p-1">
+            <TabsTrigger value="quick_start" className="gap-1.5 rounded-xl py-2.5"><BookOpenText className="size-4" />{i18next.t("writingFormula.writingFormulaCreateDialog.pbgh73")}</TabsTrigger>
+            <TabsTrigger value="blank" className="gap-1.5 rounded-xl py-2.5"><MessageCircleMore className="size-4" />{i18next.t("writingFormula.writingFormulaCreateDialog.aua61x")}</TabsTrigger>
+            <TabsTrigger value="extract" className="gap-1.5 rounded-xl py-2.5"><Sparkles className="size-4" />{i18next.t("writingFormula.writingFormulaCreateDialog.utcwug")}</TabsTrigger>
           </TabsList>
 
           <TabsContent value="quick_start" className="min-h-0 flex-1 space-y-4 overflow-y-auto pr-1">
-            <div className="rounded-lg border bg-muted/20 p-4 text-sm leading-6 text-muted-foreground">{i18next.t("writingFormula.writingFormulaCreateDialog.jg3bfq")}</div>
+            <div className="rounded-2xl border border-sky-100 bg-sky-50/60 p-4 text-sm leading-6 text-slate-700">{i18next.t("writingFormula.writingFormulaCreateDialog.4vtzlz")}</div>
             <div className="grid gap-3 pr-1 md:grid-cols-2">
               {templates.map((template) => (
-                <div key={template.id} className="rounded-lg border p-4">
+                <div key={template.id} className="rounded-2xl border border-slate-200 bg-white p-4 transition hover:border-slate-400 hover:shadow-sm">
                   <div className="flex items-start justify-between gap-3">
                     <div>
                       <div className="text-base font-semibold text-foreground">{template.name}</div>
@@ -248,7 +252,7 @@ export default function WritingFormulaCreateDialog(props: WritingFormulaCreateDi
                     onClick={() => onCreateFromTemplate(template.id)}
                     disabled={createFromTemplatePending}
                   >
-                    {createFromTemplatePending ? i18next.t("dict.gen_b26107b6") : i18next.t("dict.gen_e32593d7")}
+                    {createFromTemplatePending ? "创建中..." : "基于这套创建"}
                   </Button>
                 </div>
               ))}
@@ -256,11 +260,11 @@ export default function WritingFormulaCreateDialog(props: WritingFormulaCreateDi
           </TabsContent>
 
           <TabsContent value="blank" className="min-h-0 flex-1 space-y-4 overflow-y-auto pr-1">
-            <div className="rounded-lg border bg-muted/20 p-4 text-sm leading-6 text-muted-foreground">{i18next.t("writingFormula.writingFormulaCreateDialog.up8hqi")}</div>
+            <div className="rounded-2xl border border-sky-100 bg-sky-50/60 p-4 text-sm leading-6 text-slate-700">{i18next.t("writingFormula.writingFormulaCreateDialog.jni5sn")}</div>
             <div className="grid gap-4 lg:grid-cols-2">
-              <div className="rounded-lg border p-4">
+              <div className="order-2 rounded-2xl border border-slate-200 bg-white p-4 lg:order-1">
                 <div className="mb-3">
-                  <div className="text-sm font-medium text-foreground">{i18next.t("dict.gen_53a4c0f4")}</div>
+                  <div className="text-sm font-medium text-foreground">{i18next.t("writingFormula.writingFormulaCreateDialog.gpeddh")}</div>
                   <div className="mt-1 text-xs leading-5 text-muted-foreground">{i18next.t("writingFormula.writingFormulaCreateDialog.9mrimd")}</div>
                 </div>
                 <div className="space-y-3">
@@ -275,14 +279,14 @@ export default function WritingFormulaCreateDialog(props: WritingFormulaCreateDi
                     onClick={onCreateManual}
                     disabled={!form.manualName.trim() || createManualPending}
                   >
-                    {createManualPending ? i18next.t("dict.gen_b26107b6") : i18next.t("dict.gen_94dde803")}
+                    {createManualPending ? "创建中..." : "创建空白写法"}
                   </Button>
                 </div>
               </div>
 
-              <div className="rounded-lg border p-4">
+              <div className="order-1 rounded-2xl border border-slate-950 bg-[linear-gradient(135deg,rgba(15,23,42,0.04),rgba(240,249,255,0.86))] p-4 lg:order-2">
                 <div className="mb-3">
-                  <div className="text-sm font-medium text-foreground">{i18next.t("dict.aiHelpBuildSet")}</div>
+                  <div className="flex items-center gap-2 text-sm font-medium text-foreground"><Sparkles className="size-4 text-sky-700" />AI 帮我先搭一套</div>
                   <div className="mt-1 text-xs leading-5 text-muted-foreground">{i18next.t("writingFormula.writingFormulaCreateDialog.xbszfb")}</div>
                 </div>
                 <div className="space-y-3">
@@ -309,7 +313,7 @@ export default function WritingFormulaCreateDialog(props: WritingFormulaCreateDi
                     onClick={onCreateFromBrief}
                     disabled={!form.briefPrompt.trim() || createFromBriefPending}
                   >
-                    {createFromBriefPending ? i18next.t("dict.aiGeneratingLoading") : i18next.t("dict.aiGenerateWritingStyleSet")}
+                    {createFromBriefPending ? "AI 生成中..." : "AI 生成一套写法"}
                   </Button>
                 </div>
               </div>
@@ -406,7 +410,7 @@ export default function WritingFormulaCreateDialog(props: WritingFormulaCreateDi
                                 <div className="mt-1 text-xs leading-5 text-slate-500">{document.fileName}</div>
                               </div>
                               <Badge variant={selected ? "default" : "outline"}>
-                                {selected ? i18next.t("dict.gen_f08afd1f") : formatKnowledgeStatus(document.status)}
+                                {selected ? "已选择" : formatKnowledgeStatus(document.status)}
                               </Badge>
                             </div>
                             <div className="mt-2 text-xs leading-5 text-slate-500">
@@ -460,7 +464,7 @@ export default function WritingFormulaCreateDialog(props: WritingFormulaCreateDi
                     </div>
                     <div className="rounded-xl border bg-slate-50/80 p-3 text-sm leading-6 text-slate-700">
                       {selectedKnowledgeDocumentLoading ? (
-                        i18next.t("dict.gen_b363cd08")
+                        "读取所选文档的活动版本..."
                       ) : selectedKnowledgeDocument ? (
                         <>
                           <div className="font-medium text-slate-950">{selectedKnowledgeDocument.title}</div>
@@ -476,7 +480,7 @@ export default function WritingFormulaCreateDialog(props: WritingFormulaCreateDi
                           ) : null}
                         </>
                       ) : (
-                        i18next.t("dict.gen_131c45bb")
+                        "选择一个知识库文档后，系统会读取活动版本全文并在提交任务时冻结快照。"
                       )}
                     </div>
                   </div>
@@ -518,11 +522,11 @@ export default function WritingFormulaCreateDialog(props: WritingFormulaCreateDi
                                 <div className="mt-1 text-xs leading-5 text-slate-500">{analysis.documentTitle}</div>
                               </div>
                               <Badge variant={selected ? "default" : "outline"}>
-                                {selected ? i18next.t("dict.gen_f08afd1f") : i18next.t("dict.gen_882ba885")}
+                                {selected ? "已选择" : "可生成"}
                               </Badge>
                             </div>
                             <div className="mt-2 text-xs leading-5 text-slate-500">
-                              来源版本 v{analysis.documentVersionNumber} · {analysis.summary || i18next.t("dict.gen_5299f9e8")}
+                              来源版本 v{analysis.documentVersionNumber} · {analysis.summary || "拆书结果可用于生成写法"}
                             </div>
                           </button>
                         );
@@ -538,9 +542,9 @@ export default function WritingFormulaCreateDialog(props: WritingFormulaCreateDi
                     disabled={materialSubmitDisabled}
                   >
                     {extractTaskSubmitting
-                      ? form.materialSource === "book_analysis" ? i18next.t("dict.gen_4d020ba3") : i18next.t("dict.gen_c661e656")
+                      ? form.materialSource === "book_analysis" ? "生成中..." : "提交任务中..."
                       : extractionTaskIsActive && form.materialSource !== "book_analysis"
-                        ? i18next.t("dict.gen_c5a43600")
+                        ? "后台任务进行中..."
                         : materialSubmitLabel}
                   </Button>
                 </div>
@@ -565,7 +569,7 @@ export default function WritingFormulaCreateDialog(props: WritingFormulaCreateDi
                           ) : null}
                         </>
                       ) : (
-                        i18next.t("dict.gen_47d21a58")
+                        "选择一个拆书结果后，系统会用文风与技法分析生成写法，不进入后台提取任务。"
                       )}
                     </div>
                   </>
@@ -612,11 +616,11 @@ export default function WritingFormulaCreateDialog(props: WritingFormulaCreateDi
                           </Badge>
                         </div>
                         <div className="mt-3 space-y-2 text-xs leading-5 text-slate-600">
-                          <div>{i18next.t("dict.taskTitleActiveExtractionTask")}</div>
-                          <div>{i18next.t("dict.gen_f024aecf")}</div>
-                          <div>{i18next.t("dict.taskProgressRoundActiveExtractionTaskProgress100Percent")}</div>
+                          <div>任务标题：{activeExtractionTask.title}</div>
+                          <div>执行阶段：{activeExtractionTask.currentStage ?? "等待调度"}</div>
+                          <div>任务进度：{Math.round(activeExtractionTask.progress * 100)}%</div>
                           {activeExtractionTask.failureSummary ? (
-                            <div className="text-rose-600">{i18next.t("dict.gen_bd248a2f")}</div>
+                            <div className="text-rose-600">异常原因：{activeExtractionTask.failureSummary}</div>
                           ) : null}
                         </div>
                         {onOpenTaskCenter ? (

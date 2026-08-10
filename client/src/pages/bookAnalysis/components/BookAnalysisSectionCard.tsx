@@ -1,5 +1,4 @@
 import i18next from "i18next";
-import { useTranslation } from "react-i18next";
 import {
   BOOK_ANALYSIS_STRUCTURED_FIELD_LABELS,
   type BookAnalysisSection,
@@ -50,7 +49,6 @@ function formatEvidenceBinding(item: SectionEvidenceItem): string {
 }
 
 export default function BookAnalysisSectionCard(props: BookAnalysisSectionCardProps) {
-  const { t } = useTranslation();
   const {
     analysisMode,
     section,
@@ -95,13 +93,16 @@ export default function BookAnalysisSectionCard(props: BookAnalysisSectionCardPr
   );
 
   return (
-    <Card id={`book-analysis-section-${section.sectionKey}`} className="scroll-mt-28">
-      <CardHeader>
+    <Card id={`book-analysis-section-${section.sectionKey}`} className="scroll-mt-28 rounded-2xl border-0 bg-transparent shadow-none">
+      <CardHeader className="px-1 pb-4 pt-2 sm:px-2">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="flex items-center gap-2">
             <CardTitle>{section.title}</CardTitle>
-            <Badge variant="outline">{unselectedSection ? "本次未选择" : formatStatus(section.status)}</Badge>
-            {draft.frozen && !unselectedSection ? <Badge variant="secondary">{i18next.t("dict.gen_92cff461")}</Badge> : null}
+            <Badge variant="secondary" className="border-0 bg-muted/65 font-normal">
+              <span className={`mr-1.5 h-1.5 w-1.5 rounded-full ${section.status === "succeeded" ? "bg-success" : "bg-muted-foreground/50"}`} />
+              {unselectedSection ? "本次未选择" : formatStatus(section.status)}
+            </Badge>
+            {draft.frozen && !unselectedSection ? <Badge variant="secondary" className="border-0 font-normal">{i18next.t("dict.gen_92cff461")}</Badge> : null}
           </div>
           <div className="flex flex-wrap gap-2">
             <Button
@@ -114,7 +115,7 @@ export default function BookAnalysisSectionCard(props: BookAnalysisSectionCardPr
           </div>
         </div>
       </CardHeader>
-      <CardContent className="space-y-4">
+      <CardContent className="space-y-6 px-1 pb-2 sm:px-2">
         <BookAnalysisStructuredSummary
           section={section}
           analysisMode={analysisMode}
@@ -123,10 +124,10 @@ export default function BookAnalysisSectionCard(props: BookAnalysisSectionCardPr
         />
 
         {evidenceItems.length > 0 ? (
-          <div className="space-y-2 rounded-md border bg-muted/10 p-3">
+          <div className="space-y-3 rounded-2xl bg-muted/20 p-4">
             <div className="flex flex-wrap items-center justify-between gap-2">
               <div className="text-sm font-medium">{i18next.t("bookAnalysis.bookAnalysisSectionCard.dk96w3")}</div>
-              <Badge variant="outline">{evidenceItems.length} 条</Badge>
+              <Badge variant="secondary" className="border-0 bg-background/70 font-normal">{evidenceItems.length} 条</Badge>
             </div>
             <div className="flex flex-wrap gap-1.5">
               {evidenceItems.map((item) => {
@@ -135,8 +136,8 @@ export default function BookAnalysisSectionCard(props: BookAnalysisSectionCardPr
                   <button
                     key={item.evidenceKey}
                     type="button"
-                    className={`rounded-md border px-2 py-1 text-left text-xs leading-5 transition-colors ${
-                      selected ? "border-primary bg-primary/10 text-primary" : "bg-background hover:bg-muted/30"
+                    className={`rounded-lg border-0 px-2.5 py-1.5 text-left text-xs leading-5 transition-colors ${
+                      selected ? "bg-primary/10 text-primary" : "bg-background/75 hover:bg-background"
                     }`}
                     onClick={() => onSelectEvidence(item.evidenceKey)}
                     title={item.excerpt}
@@ -161,7 +162,7 @@ export default function BookAnalysisSectionCard(props: BookAnalysisSectionCardPr
               })}
             </div>
             {selectedEvidence ? (
-              <div className="rounded-md border bg-background p-3 text-sm">
+              <div className="rounded-xl bg-background/85 p-4 text-sm shadow-[0_8px_24px_rgba(15,23,42,0.035)]">
                 <div className="flex flex-wrap items-start justify-between gap-2">
                   <div>
                     <div className="font-medium">{selectedEvidence.label}</div>
@@ -200,20 +201,20 @@ export default function BookAnalysisSectionCard(props: BookAnalysisSectionCardPr
         {readingMode === "full" ? (
           <div className="space-y-2">
             <div className="text-sm font-medium">{i18next.t("bookAnalysis.bookAnalysisSectionCard.as4n66")}</div>
-            <div className="min-h-[220px] rounded-md border bg-muted/20 p-4">
+            <div className="min-h-[220px] rounded-2xl bg-muted/20 px-5 py-5 leading-7">
               {contentBlock}
             </div>
           </div>
         ) : (
-          <details className="rounded-md border p-3">
+          <details className="rounded-2xl bg-muted/15 p-4">
             <summary className="cursor-pointer text-sm font-medium">{i18next.t("bookAnalysis.bookAnalysisSectionCard.q490y")}</summary>
-            <div className="mt-3 min-h-[180px] rounded-md border bg-muted/20 p-4">
+            <div className="mt-3 min-h-[180px] rounded-xl bg-background/75 p-4">
               {contentBlock}
             </div>
           </details>
         )}
 
-        <details className="rounded-md border p-3">
+        <details className="rounded-2xl border border-border/40 bg-muted/10 p-4">
           <summary className="cursor-pointer text-sm font-medium">{canOperate ? "编辑与优化" : "归档内容与备注"}</summary>
           <div className="mt-3 space-y-4">
             <label className="flex items-center gap-2 text-sm">
