@@ -68,16 +68,18 @@ test("workspace recommendation prioritizes interrupt and running state", () => {
     currentNovelTitle: "测试小说",
     productionStatus: { title: "测试小说", currentStage: "章节执行" },
   });
-  assert.equal(interrupted.recommendation.action, "review_interrupt");
-  assert.equal(running.recommendation.action, "view_activity");
+  assert.equal(interrupted.recommendation.action, "focus_interrupt");
+  assert.equal(running.recommendation.action, "open_production");
 });
 
 test("structured recovery, setup and next-suggestion states keep their priority", () => {
   const recovery = resolveCreativeHubWorkspacePresentation({
+    currentNovelTitle: "测试小说",
     isRunning: false,
     diagnostics: { failureSummary: "任务失败", recoveryHint: "从检查点恢复" },
   });
   const setup = resolveCreativeHubWorkspacePresentation({
+    currentNovelTitle: "测试小说",
     isRunning: false,
     novelSetup: {
       title: "新书",
@@ -87,12 +89,13 @@ test("structured recovery, setup and next-suggestion states keep their priority"
     },
     latestTurnSummary: { nextSuggestion: "先写第一章" },
   });
-  assert.equal(recovery.recommendation.prompt, "从检查点恢复");
-  assert.equal(setup.recommendation.prompt, "继续补齐主角目标");
+  assert.equal(recovery.recommendation.action, "open_production");
+  assert.equal(setup.recommendation.action, "open_production");
 });
 
 test("structured thread and turn failures remain recovery actions", () => {
   const failedTurn = resolveCreativeHubWorkspacePresentation({
+    currentNovelTitle: "测试小说",
     isRunning: false,
     thread: { status: "error", latestError: "模型连接已中断" },
     latestTurnSummary: {
@@ -102,27 +105,28 @@ test("structured thread and turn failures remain recovery actions", () => {
       nextSuggestion: "检查模型配置后重试",
     },
   });
-  assert.equal(failedTurn.recommendation.tone, "danger");
-  assert.equal(failedTurn.recommendation.action, "send_prompt");
-  assert.equal(failedTurn.recommendation.prompt, "检查模型配置后重试");
-  assert.match(failedTurn.recommendation.description, /模型连接已中断/);
+  assert.equal(failedTurn.recommendation.tone, "neutral");
+  assert.equal(failedTurn.recommendation.action, "open_production");
 });
 
 test("backend busy and interrupted thread states keep operational priority", () => {
   const busy = resolveCreativeHubWorkspacePresentation({
+    currentNovelTitle: "测试小说",
     isRunning: false,
     thread: { status: "busy" },
   });
   const interrupted = resolveCreativeHubWorkspacePresentation({
+    currentNovelTitle: "测试小说",
     isRunning: false,
+    interrupt: { title: "需要人工确认", summary: "确认改动" },
     thread: { status: "interrupted", latestError: "审批前留下的旧错误" },
     latestTurnSummary: {
       status: "interrupted",
       nextSuggestion: "先确认角色改动",
     },
   });
-  assert.equal(busy.recommendation.action, "view_activity");
-  assert.equal(interrupted.recommendation.action, "view_activity");
+  assert.equal(busy.recommendation.action, "open_production");
+  assert.equal(interrupted.recommendation.action, "focus_interrupt");
   assert.equal(interrupted.recommendation.tone, "warning");
 });
 

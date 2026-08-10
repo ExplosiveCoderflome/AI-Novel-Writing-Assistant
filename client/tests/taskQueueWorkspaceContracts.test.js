@@ -51,8 +51,8 @@ test("task and follow-up pages expose recovery states and keep director identity
   assert.match(followUpPage, /WorkspaceNextAction/);
   assert.match(followUpPage, /searchParams\.get\("directorTaskId"\)/);
   assert.doesNotMatch(followUpPage, /workspaceTaskId/);
-  assert.match(taskFilters, /aria-label="按任务类型筛选"/);
-  assert.match(followUpList, /aria-label="按跟进原因筛选"/);
+  assert.match(taskFilters, /(aria-label="按任务类型筛选"|aria-label=\{i18next\.t\("tasks\.taskCenterFilterPanel\.vj66rx"\)\})/);
+  assert.match(followUpList, /(aria-label="按跟进原因筛选"|aria-label=\{i18next\.t\("autoDirectorFollowUps\.autoDirectorFollowUpList\.uc1up4"\)\})/);
   assert.match(followUpOverview, /aria-pressed=/);
 });
 
@@ -66,12 +66,12 @@ test("task center reads as an inbox before exposing runtime diagnostics", () => 
 
   assert.match(taskPage, /xl:grid-cols-\[minmax\(0,1\.25fr\)_minmax\(380px,0\.75fr\)\]/);
   assert.match(summary, /flex flex-wrap items-center/);
-  assert.match(filters, /aria-label="筛选运行记录"/);
+  assert.match(filters, /(aria-label="筛选运行记录"|aria-label=\{i18next\.t\("tasks\.taskCenterFilterPanel\.m1w829"\)\})/);
   assert.match(filters, /sr-only/);
   assert.match(list, /transition-\[width\]/);
-  assert.match(list, /更新于/);
+  assert.match(list, /(更新于|dict\.gen_7fa74eb7)/);
   assert.doesNotMatch(list, /最近心跳：/);
   assert.match(detail, /<details className="group border-t/);
-  assert.match(detail, /运行信息/);
+  assert.match(detail, /(运行信息|tasks\.taskCenterDetailSummary\.ipcq3u)/);
   assert.match(detailPanel, /执行步骤/);
 });

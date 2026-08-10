@@ -72,11 +72,11 @@ test("mobile primary nav keeps core beginner actions visible", () => {
   assert.deepEqual(
     getMobilePrimaryNavItems().map((item) => [item.key, item.to, item.label]),
     [
-      ["home", "/", "首页"],
-      ["novels", "/novels", "小说"],
-      ["creation", "/creative-hub", "创作"],
-      ["tasks", "/tasks", "任务"],
-      ["more", "", "更多"],
+      ["home", "/", "sidebar.home"],
+      ["novels", "/novels", "dict.gen_1fb52965"],
+      ["creation", "/creative-hub", "dict.gen_93d695ff"],
+      ["tasks", "/tasks", "dict.task"],
+      ["more", "", "dict.gen_0ec9eaf9"],
     ],
   );
 });

@@ -3,6 +3,7 @@ import type { TaskKind, TaskStatus } from "@ai-novel/shared/types/task";
 import { Input } from "@/components/ui/input";
 import type { TaskSortMode } from "../taskCenterUtils";
 import SelectControl from "@/components/common/SelectControl";
+import { cn } from "@/lib/utils";
 
 interface TaskCenterFilterPanelProps {
   kind: TaskKind | "";
@@ -34,7 +35,7 @@ export default function TaskCenterFilterPanel({
       <div className="task-filter-controls grid min-w-0 gap-2 sm:grid-cols-2 xl:grid-cols-[150px_150px_minmax(220px,1fr)_220px_auto] xl:items-center">
         <SelectControl
           aria-label={i18next.t("tasks.taskCenterFilterPanel.vj66rx")}
-          className="task-filter-kind h-10 w-full rounded-xl border-border/45 bg-background px-3 text-sm"
+          className="task-filter-kind col-start-1 row-start-1 h-10 w-full rounded-xl border-border/45 bg-background px-3 text-sm"
           value={kind}
           onChange={(event) => onKindChange(event.target.value as TaskKind | "")}
         >
@@ -49,7 +50,7 @@ export default function TaskCenterFilterPanel({
         </SelectControl>
         <SelectControl
           aria-label={i18next.t("autoDirectorFollowUps.autoDirectorFollowUpList.uc1up4")}
-          className="task-filter-status h-10 w-full rounded-xl border-border/45 bg-background px-3 text-sm"
+          className="task-filter-status col-start-2 row-start-1 h-10 w-full rounded-xl border-border/45 bg-background px-3 text-sm"
           value={status}
           onChange={(event) => onStatusChange(event.target.value as TaskStatus | "")}
         >
@@ -61,16 +62,23 @@ export default function TaskCenterFilterPanel({
           <option value="cancelled">{i18next.t("tasks.filterStatusCancelled")}</option>
           <option value="succeeded">{i18next.t("tasks.filterStatusSucceeded")}</option>
         </SelectControl>
+        <label className="task-filter-pill col-start-3 row-start-1 flex h-10 cursor-pointer items-center justify-center gap-2 rounded-full px-4 text-sm transition-colors">
+          <input
+            type="checkbox"
+            className="sr-only"
+            checked={onlyAnomaly}
+            onChange={(event) => onOnlyAnomalyChange(event.target.checked)}
+          />{i18next.t("tasks.taskCenterFilterPanel.besy2n")}</label>
         <Input
           aria-label={i18next.t("tasks.taskCenterFilterPanel.8xdxpn")}
-          className="task-filter-keyword h-10 rounded-xl border-border/45 bg-background px-3"
+          className="task-filter-keyword col-span-2 col-start-1 row-start-2 h-10 rounded-xl border-border/45 bg-background px-3"
           value={keyword}
           onChange={(event) => onKeywordChange(event.target.value)}
           placeholder={i18next.t("dict.gen_702bdace")}
         />
         <SelectControl
           aria-label={i18next.t("tasks.taskCenterFilterPanel.z4iruv")}
-          className="task-filter-sort h-10 w-full rounded-xl border-border/45 bg-background px-3 text-sm"
+          className="task-filter-sort col-start-3 row-start-2 h-10 w-full rounded-xl border-border/45 bg-background px-3 text-sm"
           value={sortMode}
           onChange={(event) => onSortModeChange(event.target.value as TaskSortMode)}
         >
@@ -80,15 +88,6 @@ export default function TaskCenterFilterPanel({
           <option value="heartbeat_asc">{i18next.t("dict.gen_b2fb0583")}</option>
           <option value="default">{i18next.t("tasks.taskCenterFilterPanel.f6yvz3")}</option>
         </SelectControl>
-        <label className={`task-filter-pill flex h-10 cursor-pointer items-center justify-center gap-2 rounded-full px-4 text-sm transition-colors ${
-          onlyAnomaly ? "bg-destructive/10 text-destructive" : "bg-background text-muted-foreground hover:bg-muted"
-        }`}>
-          <input
-            type="checkbox"
-            className="sr-only"
-            checked={onlyAnomaly}
-            onChange={(event) => onOnlyAnomalyChange(event.target.checked)}
-          />{i18next.t("tasks.taskCenterFilterPanel.besy2n")}</label>
       </div>
     </section>
   );
