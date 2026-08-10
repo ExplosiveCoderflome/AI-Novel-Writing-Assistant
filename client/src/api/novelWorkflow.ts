@@ -39,6 +39,14 @@ export async function selectNovelProductionExperience(
   return data;
 }
 
+export async function continueSimpleNovelProduction(directorTaskId: string) {
+  const { data } = await apiClient.post<ApiResponse<NovelProductionExperienceSelectionResponse>>(
+    `/novel-workflows/${directorTaskId}/simple-production/continue`,
+    {},
+  );
+  return data;
+}
+
 export async function repairNovelWorkflowChapterTitles(directorTaskId: string, payload?: {
   volumeId?: string;
 }) {

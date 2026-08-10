@@ -7,6 +7,10 @@ const {
   parseSelectedExperience,
 } = require("../dist/services/novel/director/commands/DirectorProductionExperienceService.js");
 const { isSimpleCreationWriteAllowed } = require("../dist/modules/novel/http/simpleCreationWriteGuard.js");
+const {
+  buildSimpleCreationContinuationSeed,
+  resolveSimpleCreationRemainingRange,
+} = require("../dist/services/novel/director/commands/SimpleCreationProductionService.js");
 
 function candidate(title) {
   return {
@@ -88,4 +92,49 @@ test("simple creation write boundary allows reads, exports and irreversible conv
   assert.equal(isSimpleCreationWriteAllowed("PUT", "/book"), false);
   assert.equal(isSimpleCreationWriteAllowed("DELETE", "/book/chapters/chapter-1"), false);
   assert.equal(isSimpleCreationWriteAllowed("POST", "/book/chapters/chapter-1/generate"), false);
+});
+
+test("simple creation continuation starts from the first chapter without saved content", () => {
+  const chapters = Array.from({ length: 80 }, (_item, index) => ({
+    id: `chapter-${index + 1}`,
+    order: index + 1,
+    content: index < 12 ? `第 ${index + 1} 章正文` : "",
+  }));
+  assert.deepEqual(resolveSimpleCreationRemainingRange({
+    chapters,
+    estimatedChapterCount: 80,
+  }), {
+    startOrder: 13,
+    endOrder: 80,
+    totalChapterCount: 80,
+    savedChapterCount: 12,
+    remainingChapterCount: 68,
+    nextChapterId: "chapter-13",
+  });
+});
+
+test("simple creation continuation replaces a completed local range with the full-book contract", () => {
+  const seed = buildProductionExperienceSeed(directorSeed(), "simple");
+  seed.autoExecutionPlan = { mode: "chapter_range", startOrder: 11, endOrder: 12 };
+  seed.directorInput.autoExecutionPlan = { mode: "chapter_range", startOrder: 11, endOrder: 12 };
+  seed.autoExecution = {
+    enabled: true,
+    mode: "chapter_range",
+    startOrder: 11,
+    endOrder: 12,
+    totalChapterCount: 2,
+    remainingChapterCount: 0,
+  };
+
+  const nextSeed = buildSimpleCreationContinuationSeed({
+    seed,
+    novelId: "novel-1",
+    taskId: "task-1",
+    nextChapterId: "chapter-13",
+  });
+  assert.equal(nextSeed.runMode, "full_book_autopilot");
+  assert.equal(nextSeed.autoExecutionPlan.mode, "book");
+  assert.equal(nextSeed.directorInput.autoExecutionPlan.mode, "book");
+  assert.equal(nextSeed.autoExecution, undefined);
+  assert.equal(nextSeed.resumeTarget.chapterId, "chapter-13");
 });

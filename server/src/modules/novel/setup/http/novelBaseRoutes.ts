@@ -18,6 +18,7 @@ import { validate } from "../../../../middleware/validate";
 import { KnowledgeService } from "../../../../services/knowledge/KnowledgeService";
 import { novelCreateResourceRecommendationService } from "../../../../services/novel/NovelCreateResourceRecommendationService";
 import type { NovelApplicationServices } from "../../../../services/novel/application/NovelApplicationContracts";
+import { resolveSimpleCreationRemainingRange } from "../../../../services/novel/director/commands/SimpleCreationProductionService";
 
 const paginationSchema = z.object({
   page: z.coerce.number().int().min(1).default(1),
@@ -374,18 +375,33 @@ export function registerNovelBaseRoutes(input: RegisterNovelBaseRoutesInput): vo
         || chapter.generationState === "approved"
         || chapter.generationState === "published"
       )).length;
-      const totalChapters = Math.max(
-        novel.chapters.length,
+      const remainingRange = resolveSimpleCreationRemainingRange({
+        chapters: novel.chapters,
+        estimatedChapterCount: novel.estimatedChapterCount,
+      });
+      const savedChapterCount = novel.chapters.filter((chapter) => chapter.content?.trim()).length;
+      const maxChapterOrder = novel.chapters.reduce(
+        (maximum, chapter) => Math.max(maximum, chapter.order),
+        0,
+      );
+      const totalChapters = remainingRange?.totalChapterCount ?? Math.max(
+        maxChapterOrder,
         novel.estimatedChapterCount ?? 0,
-        completedChapters,
+        savedChapterCount,
       );
       const taskStatus = task?.status;
       const progressStatus: SimpleCreationShelfProjection["progress"]["status"] =
         taskStatus === "failed" ? "failed"
-          : taskStatus === "succeeded" ? "completed"
+          : taskStatus === "succeeded" && remainingRange ? "ready"
+            : taskStatus === "succeeded" ? "completed"
             : task?.pendingManualRecovery || taskStatus === "waiting_approval" ? "paused"
               : taskStatus === "running" ? "running"
                 : "queued";
+      const continuationLabel = remainingRange
+        ? remainingRange.startOrder === remainingRange.endOrder
+          ? `第 ${remainingRange.startOrder} 章`
+          : `第 ${remainingRange.startOrder}-${remainingRange.endOrder} 章`
+        : null;
       const data: SimpleCreationShelfProjection = {
         novel: {
           id: novel.id,
@@ -395,12 +411,20 @@ export function registerNovelBaseRoutes(input: RegisterNovelBaseRoutesInput): vo
         },
         progress: {
           directorTaskId: task?.id ?? null,
-          percent: task ? Math.max(0, Math.min(100, Math.round(task.progress))) : 0,
+          percent: totalChapters > 0
+            ? Math.max(0, Math.min(100, Math.round((savedChapterCount / totalChapters) * 100)))
+            : 0,
           completedChapters,
           totalChapters,
-          currentAction: task?.currentItemLabel ?? (progressStatus === "completed" ? "整本书已完成" : "等待 AI 开始处理"),
+          currentAction: progressStatus === "ready" && continuationLabel
+            ? `${continuationLabel}等待继续生成`
+            : task?.currentItemLabel ?? (progressStatus === "completed" ? "全书正文已生成" : "等待 AI 开始处理"),
           status: progressStatus,
           canRetry: progressStatus === "failed" || progressStatus === "paused",
+          canContinue: progressStatus === "ready" && Boolean(task?.id),
+          continuationStartOrder: remainingRange?.startOrder ?? null,
+          continuationEndOrder: remainingRange?.endOrder ?? null,
+          remainingChapterCount: remainingRange?.remainingChapterCount ?? 0,
           safetyMessage: task?.lastError ?? null,
           riskPolicy,
           latestRiskAssessment: riskHistory[0] ?? null,
