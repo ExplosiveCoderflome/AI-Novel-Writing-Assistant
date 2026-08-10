@@ -107,6 +107,37 @@ export class SearXNGSearchService {
   }
 
   /**
+   * 确保本地 SearXNG 容器已启动。若未连通，自动尝试唤起本地 Docker / WSL SearXNG 容器
+   */
+  public async ensureSearXNGRunning(): Promise<SearXNGStatus> {
+    const status = await this.getStatus();
+    if (status.connected) {
+      return status;
+    }
+
+    console.log("[SearXNGSearchService] SearXNG 容器未连通，尝试自动启动...");
+    try {
+      const { execSync } = await import("child_process");
+      try {
+        execSync("docker start searxng", { stdio: "ignore", timeout: 5000 });
+      } catch (e1) {
+        try {
+          execSync("wsl -d Ubuntu -u root service docker start", { stdio: "ignore", timeout: 5000 });
+          execSync("wsl -d Ubuntu -u root docker start searxng", { stdio: "ignore", timeout: 5000 });
+        } catch (e2) {
+          // ignore
+        }
+      }
+
+      await new Promise((resolve) => setTimeout(resolve, 2000));
+      return await this.getStatus();
+    } catch (e: any) {
+      console.warn("[SearXNGSearchService] Auto-start attempt notice:", e);
+      return status;
+    }
+  }
+
+  /**
    * 为给定的股票 Symbol 列表与大盘检索实时新闻，并落库缓存至 StockMarketIntelCache
    */
   public async fetchAndCacheMarketNews(symbols: string[]): Promise<{
@@ -114,7 +145,7 @@ export class SearXNGSearchService {
     newsItemsCount: number;
     searxngConnected: boolean;
   }> {
-    const status = await this.getStatus();
+    const status = await this.ensureSearXNGRunning();
     if (!status.connected) {
       return {
         rawNewsText: "",

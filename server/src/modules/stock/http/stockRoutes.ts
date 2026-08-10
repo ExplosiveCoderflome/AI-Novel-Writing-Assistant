@@ -528,7 +528,7 @@ stockRouter.post("/knowledge-graph/update", async (req: Request, res: Response) 
 stockRouter.get("/search/status", async (_req: Request, res: Response) => {
   try {
     const { searxngSearchService } = await import("../services/searxngSearchService");
-    const status = await searxngSearchService.getStatus();
+    const status = await searxngSearchService.ensureSearXNGRunning();
     return res.json({ success: true, data: status });
   } catch (err: any) {
     return res.status(500).json({ success: false, error: err.message || err });
