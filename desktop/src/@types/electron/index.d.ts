@@ -64,7 +64,7 @@ declare module "electron" {
     requestSingleInstanceLock(): boolean;
     getVersion(): string;
     whenReady(): Promise<void>;
-    on(event: "window-all-closed" | "before-quit" | "second-instance", listener: () => void): this;
+    on(event: "activate" | "window-all-closed" | "before-quit" | "second-instance", listener: () => void): this;
   }
 
   interface MessageBoxOptions {

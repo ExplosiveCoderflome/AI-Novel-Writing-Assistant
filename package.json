@@ -39,6 +39,8 @@
     "dist:desktop:reuse-stage": "node desktop/scripts/run-electron-builder.cjs --win --x64",
     "dist:desktop:portable": "pnpm run stage:desktop && node desktop/scripts/run-electron-builder.cjs --win portable --x64",
     "dist:desktop:portable:reuse-stage": "node desktop/scripts/run-electron-builder.cjs --win portable --x64",
+    "dist:desktop:mac": "pnpm run stage:desktop && node desktop/scripts/run-electron-builder.cjs --mac dmg zip --arm64",
+    "dist:desktop:mac:reuse-stage": "node desktop/scripts/run-electron-builder.cjs --mac dmg zip --arm64",
     "publish:desktop:beta": "pnpm run stage:desktop && node desktop/scripts/publish-desktop-beta.cjs",
     "publish:desktop:beta:reuse-stage": "node desktop/scripts/publish-desktop-beta.cjs",
     "publish:desktop:release": "pnpm run stage:desktop && node desktop/scripts/publish-desktop-release.cjs",

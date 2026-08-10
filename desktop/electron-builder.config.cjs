@@ -11,6 +11,8 @@ function firstNonEmpty(...values) {
 
 const releaseChannel = firstNonEmpty(process.env.AI_NOVEL_RELEASE_CHANNEL, "beta").toLowerCase();
 const isBetaRelease = releaseChannel === "beta";
+const targetPlatform = firstNonEmpty(process.env.AI_NOVEL_TARGET_PLATFORM, "win").toLowerCase();
+const isWindowsTarget = targetPlatform === "win";
 const githubOwner = firstNonEmpty(process.env.AI_NOVEL_GITHUB_OWNER, "ExplosiveCoderflome");
 const githubRepo = firstNonEmpty(process.env.AI_NOVEL_GITHUB_REPO, "AI-Novel-Writing-Assistant");
 const windowsSigningLink = firstNonEmpty(
@@ -26,8 +28,9 @@ const allowUnsignedRelease =
   ).toLowerCase() === "true";
 const hasWindowsSigningMaterial = Boolean(windowsSigningLink);
 const builderIconPath = path.join("builder", "app-icon.ico");
+const macBuilderIconPath = path.join("builder", "app-icon.png");
 
-if (!isBetaRelease && !hasWindowsSigningMaterial && !allowUnsignedRelease) {
+if (isWindowsTarget && !isBetaRelease && !hasWindowsSigningMaterial && !allowUnsignedRelease) {
   throw new Error(
     "Public Windows desktop releases require signing material. Provide CSC_LINK/WIN_CSC_LINK, or explicitly opt in to an unsigned release.",
   );
@@ -50,6 +53,10 @@ module.exports = {
     {
       from: "builder/app-icon.ico",
       to: "icons/app-icon.ico",
+    },
+    {
+      from: "builder/app-icon.png",
+      to: "icons/app-icon.png",
     },
     {
       from: "build/resources/app-update.yml",
@@ -94,6 +101,24 @@ module.exports = {
         arch: ["x64"],
       },
     ],
+  },
+  mac: {
+    icon: macBuilderIconPath,
+    category: "public.app-category.productivity",
+    artifactName: "${productName}-${version}-mac-${arch}.${ext}",
+    target: [
+      {
+        target: "dmg",
+        arch: ["arm64"],
+      },
+      {
+        target: "zip",
+        arch: ["arm64"],
+      },
+    ],
+  },
+  dmg: {
+    artifactName: "${productName}-${version}-mac-${arch}.${ext}",
   },
   nsis: {
     artifactName: "${productName}-${version}-setup-${arch}.${ext}",

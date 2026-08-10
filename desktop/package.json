@@ -4,7 +4,7 @@
   "private": true,
   "license": "AGPL-3.0-only",
   "author": "AI Novel Writing Assistant Team",
-  "description": "Windows desktop runtime for AI Novel Writing Assistant v2",
+  "description": "Cross-platform desktop runtime for AI Novel Writing Assistant v2",
   "productName": "AI Novel Writing Assistant v2",
   "main": "dist/main.js",
   "files": [

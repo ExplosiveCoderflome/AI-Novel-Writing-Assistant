@@ -36,6 +36,7 @@ let mainWindow: BrowserWindow | null = null;
 let splashWindow: BrowserWindow | null = null;
 let stopServer: (() => Promise<void>) | null = null;
 let updaterController: DesktopUpdaterController | null = null;
+let desktopServerPort: number | null = null;
 let rendererReady = false;
 let appShellReady = false;
 let serverHealthy = false;
@@ -198,6 +199,23 @@ function createMainWindow(port: number): BrowserWindow {
   }
 
   return window;
+}
+
+function openMainWindow(port: number): void {
+  rendererReady = false;
+  appShellReady = false;
+  mainWindowShown = false;
+
+  const window = createMainWindow(port);
+  mainWindow = window;
+  window.on("closed", () => {
+    if (mainWindow === window) {
+      mainWindow = null;
+    }
+    rendererReady = false;
+    appShellReady = false;
+    mainWindowShown = false;
+  });
 }
 
 function createSplashHtml(): string {
@@ -368,11 +386,8 @@ async function bootstrapDesktopApp(): Promise<void> {
   }
 
   const port = await resolveDesktopServerPort({ isPackaged: app.isPackaged });
-  mainWindow = createMainWindow(port);
-  mainWindow.on("closed", () => {
-    mainWindow = null;
-    mainWindowShown = false;
-  });
+  desktopServerPort = port;
+  openMainWindow(port);
 
   appendBootstrapStage("server-starting", `Starting desktop server on 127.0.0.1:${port}.`);
   updateBootstrapProgress();
@@ -574,6 +589,17 @@ if (!app.requestSingleInstanceLock()) {
 
 app.on("second-instance", () => {
   focusExistingWindow();
+});
+
+app.on("activate", () => {
+  if (mainWindow || splashWindow) {
+    focusExistingWindow();
+    return;
+  }
+
+  if (desktopServerPort != null && !bootstrapFailed) {
+    openMainWindow(desktopServerPort);
+  }
 });
 
 app.on("window-all-closed", () => {
