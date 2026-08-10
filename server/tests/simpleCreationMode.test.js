@@ -7,10 +7,13 @@ const {
   parseSelectedExperience,
 } = require("../dist/services/novel/director/commands/DirectorProductionExperienceService.js");
 const { isSimpleCreationWriteAllowed } = require("../dist/modules/novel/http/simpleCreationWriteGuard.js");
+const { normalizeDirectorContinuationMode } = require("@ai-novel/shared/types/novelDirector");
 const {
-  buildSimpleCreationContinuationSeed,
+  resolveDirectorContinuationExecutionContract,
+} = require("../dist/services/novel/director/runtime/novelDirectorContinueRuntime.js");
+const {
   resolveSimpleCreationRemainingRange,
-} = require("../dist/services/novel/director/commands/SimpleCreationProductionService.js");
+} = require("../dist/modules/novel/setup/application/simpleCreationShelfProgress.js");
 
 function candidate(title) {
   return {
@@ -113,28 +116,15 @@ test("simple creation continuation starts from the first chapter without saved c
   });
 });
 
-test("simple creation continuation replaces a completed local range with the full-book contract", () => {
-  const seed = buildProductionExperienceSeed(directorSeed(), "simple");
-  seed.autoExecutionPlan = { mode: "chapter_range", startOrder: 11, endOrder: 12 };
-  seed.directorInput.autoExecutionPlan = { mode: "chapter_range", startOrder: 11, endOrder: 12 };
-  seed.autoExecution = {
-    enabled: true,
-    mode: "chapter_range",
-    startOrder: 11,
-    endOrder: 12,
-    totalChapterCount: 2,
-    remainingChapterCount: 0,
-  };
-
-  const nextSeed = buildSimpleCreationContinuationSeed({
-    seed,
-    novelId: "novel-1",
-    taskId: "task-1",
-    nextChapterId: "chapter-13",
+test("simple creation continuation uses the shared full-book director command mode", () => {
+  assert.equal(normalizeDirectorContinuationMode("full_book_autopilot"), "full_book_autopilot");
+  assert.deepEqual(resolveDirectorContinuationExecutionContract({
+    continuationMode: "full_book_autopilot",
+    baseRunMode: "auto_to_execution",
+    requestedSkipQualityRepair: false,
+  }), {
+    resetAutoExecutionState: true,
+    continueAutoExecution: true,
+    runMode: "full_book_autopilot",
   });
-  assert.equal(nextSeed.runMode, "full_book_autopilot");
-  assert.equal(nextSeed.autoExecutionPlan.mode, "book");
-  assert.equal(nextSeed.directorInput.autoExecutionPlan.mode, "book");
-  assert.equal(nextSeed.autoExecution, undefined);
-  assert.equal(nextSeed.resumeTarget.chapterId, "chapter-13");
 });

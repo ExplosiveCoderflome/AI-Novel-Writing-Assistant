@@ -21,7 +21,7 @@ import {
   downloadNovelExport,
   getSimpleCreationShelf,
 } from "@/api/novel";
-import { continueNovelWorkflow, continueSimpleNovelProduction } from "@/api/novelWorkflow";
+import { continueNovelWorkflow } from "@/api/novelWorkflow";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import LiveExecutionDialog from "@/components/liveExecution/LiveExecutionDialog";
@@ -139,7 +139,7 @@ export default function SimpleNovelShelfPage() {
       if (!directorTaskId) {
         throw new Error("没有找到可继续的 AI 任务。");
       }
-      return continueSimpleNovelProduction(directorTaskId);
+      return continueNovelWorkflow(directorTaskId, { continuationMode: "full_book_autopilot" });
     },
     onSuccess: async () => {
       const startOrder = shelf?.progress.continuationStartOrder;
@@ -234,6 +234,12 @@ export default function SimpleNovelShelfPage() {
               <Button size="sm" onClick={() => continueProductionMutation.mutate()} disabled={continueProductionMutation.isPending}>
                 {continueProductionMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
                 继续生成第 {shelf.progress.continuationStartOrder}-{shelf.progress.continuationEndOrder} 章
+              </Button>
+            ) : null}
+            {shelf.progress.status === "queued" || shelf.progress.status === "running" ? (
+              <Button size="sm" variant="secondary" disabled aria-live="polite">
+                <Loader2 className="h-4 w-4 animate-spin" />
+                {shelf.progress.status === "queued" ? "AI 正在排队" : shelf.progress.currentAction}
               </Button>
             ) : null}
             <div className="flex-1" />

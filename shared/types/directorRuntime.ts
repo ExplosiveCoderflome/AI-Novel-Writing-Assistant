@@ -678,7 +678,7 @@ export interface DirectorBookAutomationAction {
   target: DirectorBookAutomationActionTarget;
   commandPayload?: {
     taskId?: string | null;
-    continuationMode?: "resume" | "auto_execute_range" | null;
+    continuationMode?: "resume" | "auto_execute_range" | "full_book_autopilot" | null;
   } | null;
   emphasis?: "primary" | "secondary" | "destructive";
 }

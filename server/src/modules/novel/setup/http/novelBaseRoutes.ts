@@ -18,7 +18,7 @@ import { validate } from "../../../../middleware/validate";
 import { KnowledgeService } from "../../../../services/knowledge/KnowledgeService";
 import { novelCreateResourceRecommendationService } from "../../../../services/novel/NovelCreateResourceRecommendationService";
 import type { NovelApplicationServices } from "../../../../services/novel/application/NovelApplicationContracts";
-import { resolveSimpleCreationRemainingRange } from "../../../../services/novel/director/commands/SimpleCreationProductionService";
+import { resolveSimpleCreationRemainingRange } from "../application/simpleCreationShelfProgress";
 
 const paginationSchema = z.object({
   page: z.coerce.number().int().min(1).default(1),

@@ -43,8 +43,11 @@ test("all issue actions remain editable and changed rules show a safety warning"
 });
 
 test("simple creation shelf continues remaining chapters without leaving the page", () => {
-  assert.match(shelfSource, /continueSimpleNovelProduction/);
+  assert.match(shelfSource, /continueNovelWorkflow/);
+  assert.match(shelfSource, /continuationMode: "full_book_autopilot"/);
   assert.match(shelfSource, /shelf\.progress\.canContinue/);
   assert.match(shelfSource, /继续生成第/);
+  assert.match(shelfSource, /shelf\.progress\.currentAction/);
+  assert.doesNotMatch(shelfSource, /continueSimpleNovelProduction|simple-production/);
   assert.doesNotMatch(shelfSource, /creative-hub/);
 });

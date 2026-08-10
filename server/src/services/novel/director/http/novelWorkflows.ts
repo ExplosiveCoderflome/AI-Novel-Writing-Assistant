@@ -5,7 +5,6 @@ import { authMiddleware } from "../../../../middleware/auth";
 import { validate } from "../../../../middleware/validate";
 import { DirectorCommandService } from "../commands/DirectorCommandService";
 import { DirectorProductionExperienceService } from "../commands/DirectorProductionExperienceService";
-import { SimpleCreationProductionService } from "../commands/SimpleCreationProductionService";
 import { NovelWorkflowService } from "../../workflow/NovelWorkflowService";
 import { NovelWorkflowTaskAdapter } from "../../../task/adapters/NovelWorkflowTaskAdapter";
 
@@ -14,7 +13,6 @@ const workflowService = new NovelWorkflowService();
 const workflowAdapter = new NovelWorkflowTaskAdapter();
 const directorCommandService = new DirectorCommandService(workflowService);
 const productionExperienceService = new DirectorProductionExperienceService(directorCommandService);
-const simpleCreationProductionService = new SimpleCreationProductionService(directorCommandService);
 
 const stageSchema = z.enum([
   "project_setup",
@@ -53,7 +51,7 @@ const continueParamsSchema = z.object({
 });
 
 const continueBodySchema = z.object({
-  continuationMode: z.enum(["resume", "auto_execute_range", "skip_quality_repair"]).optional(),
+  continuationMode: z.enum(["resume", "auto_execute_range", "skip_quality_repair", "full_book_autopilot"]).optional(),
 });
 
 const repairChapterTitlesBodySchema = z.object({
@@ -154,20 +152,6 @@ router.post(
     }
   },
 );
-
-router.post("/:id/simple-production/continue", validate({ params: continueParamsSchema }), async (req, res, next) => {
-  try {
-    const { id } = req.params as z.infer<typeof continueParamsSchema>;
-    const data = await simpleCreationProductionService.continue(id);
-    res.status(202).json({
-      success: true,
-      data,
-      message: "后续章节生成任务已提交。",
-    } satisfies ApiResponse<typeof data>);
-  } catch (error) {
-    next(error);
-  }
-});
 
 router.post("/:id/repair-chapter-titles", validate({ params: continueParamsSchema, body: repairChapterTitlesBodySchema }), async (req, res, next) => {
   try {
