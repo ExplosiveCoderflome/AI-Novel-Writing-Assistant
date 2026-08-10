@@ -22,6 +22,15 @@
 3. 合入 `main` 后运行 `node scripts/trigger-desktop-release.cjs --dry-run`，确认工作区、分支和 tag 规则都通过。
 4. 只使用与 `desktop/package.json` 对齐的 `vX.Y.Z` tag 触发正式 GitHub Release。
 
+## Desktop Staging Invariants
+
+- Windows x64 与 macOS arm64 必须分别在目标系统和目标架构上生成 staging，不能跨平台复用包含原生模块的目录。
+- staging 使用项目声明的 `pnpm@10.6.0` 和 hoisted 生产依赖布局。`desktop/build/app` 必须自包含，任何依赖符号链接的真实路径都不能逃出该目录。
+- Prisma 生成客户端通过 Node 包解析定位，并复制到 staging 内稳定的 hoisted 位置；打包脚本不能依赖扫描 staged `.pnpm` 目录。
+- 每次 staging 都生成 `desktop/build/stage-manifest.json`，记录平台、架构、发布模式、应用和 Electron 版本、原生依赖版本、lockfile hash 与更新配置。复用 staging 时必须逐字段完全匹配。
+- 打包包装器只接受显式平台、架构、模式和 target，并始终向 electron-builder 传递 `--publish never`。GitHub Release 发布不属于 builder job 的职责。
+- 禁止在打包期间修改 `app-builder-lib` 或复制、覆盖其 NSIS 模板。打包前后必须比较关键 builder 文件 hash；Windows 路径过长时应缩短 checkout 或 virtual store 路径并明确失败。
+
 ## Failure Modes
 
 - 如果界面顶部显示版本和安装包文件名不一致，先检查打包所用 commit 的 `desktop/package.json`，不要在前端组件里补一个临时版本。

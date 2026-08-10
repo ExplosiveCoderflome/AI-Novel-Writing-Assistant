@@ -210,10 +210,10 @@ importers:
         specifier: ^25.3.3
         version: 25.3.3
       electron:
-        specifier: ^35.7.5
+        specifier: 35.7.5
         version: 35.7.5
       electron-builder:
-        specifier: ^26.1.0
+        specifier: 26.8.1
         version: 26.8.1(electron-builder-squirrel-windows@26.8.1)
       typescript:
         specifier: ^5.9.3

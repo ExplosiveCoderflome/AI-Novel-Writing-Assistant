@@ -5,6 +5,7 @@ packages:
   - site
   - shared
 injectWorkspacePackages: true
+virtualStoreDirMaxLength: 32
 allowBuilds:
   '@prisma/engines': true
   better-sqlite3: true
