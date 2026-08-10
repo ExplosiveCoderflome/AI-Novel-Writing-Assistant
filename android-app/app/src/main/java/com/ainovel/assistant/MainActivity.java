@@ -59,6 +59,8 @@ public class MainActivity extends AppCompatActivity {
         settings.setJavaScriptEnabled(true);
         settings.setDomStorageEnabled(true);
         settings.setAllowFileAccess(true);
+        // 禁止 HTTP 缓存：前端每次随 APK 更新，旧缓存会导致显示旧版本/旧功能
+        settings.setCacheMode(WebSettings.LOAD_NO_CACHE);
         // 允许 file:// 页面访问 http://127.0.0.1:3000 的后端 API（跨域）
         settings.setAllowUniversalAccessFromFileURLs(true);
         settings.setAllowFileAccessFromFileURLs(true);
@@ -109,6 +111,8 @@ public class MainActivity extends AppCompatActivity {
         }
         frontendLoaded = true;
         runOnUiThread(() -> {
+            // 清掉 WebView 历史缓存（旧前端可能残留，导致版本/功能不是最新）
+            webView.clearCache(true);
             // 前端静态资源解压到 files/www，用 file:// 加载（不依赖后端存活）；
             // 后端 API 通过 http://127.0.0.1:3000 访问
             File wwwDir = new File(getFilesDir(), "www");

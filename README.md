@@ -183,6 +183,11 @@ gradle clean assembleDebug
 
 产物：`android-app/app/build/outputs/apk/debug/app-debug.apk`（约 166MB，含内嵌 Node 运行时）。
 
+> ⚠️ **每次构建 APK 前都必须重跑 `build-android-assets.sh`**：NodeService 运行时解压的是
+> `www.zip`（不是 `assets/www/` 目录）。只改前端代码/只同步 `www/` 目录而不重新打 `www.zip`，
+> 打包进 APK 的仍是旧前端（版本号、功能不更新）。前端、后端代码有任何改动，都要先跑
+> `bash android/build-android-assets.sh` 再 `gradle assembleDebug`。
+>
 > 脚本会：① 构建 `@ai-novel/shared`（workspace 包，tsc 生成 dist）；② esbuild 完整打包
 > `server/src/app.ts` → `bundle.cjs`（express 等打进包内，仅 sharp/better-sqlite3/@prisma/client
 > 走原生加载）；③ 打包前端 `www/` → `www.zip`；④ `node-project.zip` 是固定资产（依赖锁定，

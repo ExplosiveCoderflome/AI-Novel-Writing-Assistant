@@ -2,11 +2,16 @@
 # ============================================================================
 # AI-Novel-Writing-Assistant — 安卓端资产构建脚本
 #
-# 作用：从源码生成被 .gitignore 忽略的三个安卓资产（fork 后首次构建必跑）：
+# 作用：从源码生成安卓资产，**每次构建 APK 前都必须运行**（不是只跑一次）：
 #   1) android-app/app/src/main/assets/nodejs/bundle.cjs   （server 打包产物）
 #   2) android-app/app/src/main/assets/www.zip             （前端静态资源）
-#   3) android-app/app/src/main/assets/nodejs/node-project.zip （node 运行环境）
+#   3) android-app/app/src/main/assets/nodejs/node-project.zip （node 运行环境，固定资产）
 #   并注入 NDK 编译的 bionic sharp.node（漫画工作台原生渲染）。
+#
+# ⚠️ 重要：www.zip 必须每次重新生成！NodeService 运行时解压的是 www.zip
+#    （不是 assets/www/ 目录）。若只同步 www/ 目录而不重新打 www.zip，
+#    打包进 APK 的仍是旧前端（版本号/功能不更新）。前端代码有任何改动，
+#    都必须重跑本脚本再构建 APK。
 #
 # 用法（MSYS/Git-Bash 或 Linux/macOS 均可）：
 #   bash android/build-android-assets.sh
