@@ -41,17 +41,17 @@ export type EdgeLabelPlacement = LabelPlacement & {
 type Obstacle = LabelPlacement & { id?: string };
 type Anchor = "top" | "bottom" | "left" | "right" | "topLeft" | "topRight" | "bottomLeft" | "bottomRight";
 
-export type GraphLayout = "force" | "geography";
+export type GraphLayout = "force" | "geography" | "map";
 
-export const ROUTE_STYLES: Record<string, { stroke: string; dash?: string }> = {
-  road: { stroke: "#64748b" },
-  river: { stroke: "#0284c7", dash: "6 5" },
-  sea: { stroke: "#2563eb", dash: "10 6" },
-  portal: { stroke: "#7c3aed", dash: "3 5" },
-  trade: { stroke: "#16a34a", dash: "8 5" },
-  military: { stroke: "#dc2626", dash: "5 4" },
-  border: { stroke: "#f59e0b", dash: "4 4" },
-  other: { stroke: "#64748b" },
+export const ROUTE_STYLES: Record<string, { label: string; stroke: string; dash?: string }> = {
+  road: { label: "陆路", stroke: "#64748b" },
+  river: { label: "水路", stroke: "#0284c7", dash: "6 5" },
+  sea: { label: "航线", stroke: "#2563eb", dash: "10 6" },
+  portal: { label: "传送/秘道", stroke: "#7c3aed", dash: "3 5" },
+  trade: { label: "商路", stroke: "#16a34a", dash: "8 5" },
+  military: { label: "行军路线", stroke: "#dc2626", dash: "5 4" },
+  border: { label: "边界关隘", stroke: "#f59e0b", dash: "4 4" },
+  other: { label: "路线", stroke: "#64748b" },
 };
 
 export function getRouteStyle(routeType?: string) {
