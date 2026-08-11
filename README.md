@@ -646,3 +646,7 @@ docs/     设计文档、阶段检查点、模块计划与历史归档
 - 请遵守开源协议条款，并在适用场景下取得相应授权。
 
 贡献说明：新贡献默认按 [CLA.md](./CLA.md) 提交，可随项目按 AGPL-3.0-only 分发，并可纳入项目维护者另行提供的商业授权；详见 [CONTRIBUTING.md](./CONTRIBUTING.md)。
+
+## 友情链接
+
+- [LINUX DO - 新的理想型社区](https://linux.do/)
