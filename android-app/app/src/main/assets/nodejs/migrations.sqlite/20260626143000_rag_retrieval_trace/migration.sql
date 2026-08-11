@@ -1,0 +1,19 @@
+CREATE TABLE "RagRetrievalTrace" (
+  "id" TEXT NOT NULL PRIMARY KEY,
+  "tenantId" TEXT NOT NULL DEFAULT 'default',
+  "novelId" TEXT,
+  "worldId" TEXT,
+  "queryDigest" TEXT NOT NULL,
+  "queryPreview" TEXT,
+  "scopeJson" TEXT,
+  "candidateCounts" TEXT NOT NULL DEFAULT '{}',
+  "hitsJson" TEXT NOT NULL DEFAULT '[]',
+  "timingsJson" TEXT NOT NULL DEFAULT '{}',
+  "fallbackTriggered" BOOLEAN NOT NULL DEFAULT false,
+  "rerankerUsed" BOOLEAN NOT NULL DEFAULT false,
+  "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX "RagRetrievalTrace_tenantId_createdAt_idx" ON "RagRetrievalTrace"("tenantId", "createdAt");
+CREATE INDEX "RagRetrievalTrace_tenantId_novelId_createdAt_idx" ON "RagRetrievalTrace"("tenantId", "novelId", "createdAt");
+CREATE INDEX "RagRetrievalTrace_queryDigest_idx" ON "RagRetrievalTrace"("queryDigest");
