@@ -128,7 +128,7 @@ function buildHeaders(provider: LLMProvider, apiKey?: string): Record<string, st
   return headers;
 }
 
-async function fetchOllamaModels(baseURL: string): Promise<string[]> {
+export async function fetchOllamaModels(baseURL: string): Promise<string[]> {
   const nativeBaseURL = baseURL.endsWith("/v1") ? baseURL.slice(0, -3) : baseURL;
 
   try {
@@ -157,6 +157,41 @@ async function fetchOllamaModels(baseURL: string): Promise<string[]> {
     throw new Error("模型列表为空。");
   }
   return models;
+}
+
+export function selectBestInstalledOllamaModel(installedModels: string[]): string | null {
+  if (!installedModels || installedModels.length === 0) {
+    return null;
+  }
+
+  // 创作与 Agent 智力适配优先表 (兼顾中文小说创作灵活性、指令遵循度与结构化能力)
+  const priorityOrder = [
+    // 32B / 14B 高阶智力层 (高显存/内存首选)
+    "qwen2.5:32b", "qwen2.5-coder:32b", "deepseek-r1:32b",
+    "qwen2.5:14b", "deepseek-r1:14b", "qwen2.5-coder:14b",
+    // 7B / 8B 主流创作层 (8G-16G 显存/内存最佳平衡)
+    "qwen2.5:7b", "deepseek-r1:8b", "llama3.1:8b", "llama3:8b", "qwen2:7b", "gemma2:9b",
+    // 轻量响应层
+    "qwen2.5:3b", "qwen2.5:1.5b", "deepseek-r1:1.5b",
+  ];
+
+  for (const pref of priorityOrder) {
+    const match = installedModels.find(
+      (m) => m === pref || m === `${pref}:latest` || m.startsWith(`${pref}:`),
+    );
+    if (match) {
+      return match;
+    }
+  }
+
+  // 若未精准命中最优先序列，优先挑选包含 qwen 或 deepseek 的其它衍生版本
+  const qwenMatch = installedModels.find((m) => m.toLowerCase().includes("qwen"));
+  if (qwenMatch) return qwenMatch;
+
+  const deepseekMatch = installedModels.find((m) => m.toLowerCase().includes("deepseek"));
+  if (deepseekMatch) return deepseekMatch;
+
+  return installedModels[0];
 }
 
 async function fetchProviderModels(

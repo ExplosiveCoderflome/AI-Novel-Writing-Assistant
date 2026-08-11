@@ -290,8 +290,8 @@ export async function resolveLLMClientOptions(
   const requestedReasoningEnabled = options.reasoningEnabled ?? dbSecret?.reasoningEnabled ?? true;
   const shouldForceDisableReasoning = Boolean(
     structuredProfile
-      && structuredProfile.requiresNonThinkingForStructured
-      && structuredProfile.supportsReasoningToggle,
+    && structuredProfile.requiresNonThinkingForStructured
+    && structuredProfile.supportsReasoningToggle,
   );
   const reasoningEnabled = shouldForceDisableReasoning ? false : requestedReasoningEnabled;
   let effectiveMaxTokens = resolvedMaxTokens;

@@ -66,7 +66,7 @@ function backupExistingDatabase() {
           fs.unlinkSync(oldBak.path);
         }
       }
-    } catch (e) {}
+    } catch (e) { }
   }
 }
 
@@ -104,7 +104,7 @@ async function inspectEnvironment() {
       const foundPath = ffCheck.stdout.trim().split("\r\n")[0];
       report.ffmpeg = { type: "system", path: foundPath };
     }
-  } catch (e) {}
+  } catch (e) { }
 
   if (!report.ffmpeg) {
     const embeddedFffmpeg = path.join(ROOT_DIR, "runtime", "ffmpeg", "ffmpeg.exe");
@@ -163,13 +163,24 @@ async function inspectEnvironment() {
     }
   }
 
-  // Ollama 探活
+  // Ollama 探活与模型匹配
+  const os = require("os");
+  const totalRamGb = Math.round(os.totalmem() / (1024 * 1024 * 1024));
+  let vramGb = 0;
+  try {
+    const smi = spawnSync("nvidia-smi", ["--query-gpu=memory.total", "--format=csv,noheader,nounits"], { encoding: "utf8" });
+    if (smi.status === 0 && smi.stdout.trim()) {
+      const mb = parseInt(smi.stdout.trim().split("\n")[0], 10);
+      if (!isNaN(mb)) vramGb = Math.round(mb / 1024);
+    }
+  } catch (e) { }
+
   const ollamaProbe = await probeUrl("http://127.0.0.1:11434/api/tags");
   if (ollamaProbe.ok) {
     let models = [];
     try {
       models = JSON.parse(ollamaProbe.body)?.models?.map((m) => m.name) || [];
-    } catch (e) {}
+    } catch (e) { }
     report.ollama = { type: "running", url: "http://127.0.0.1:11434", models };
   }
 
@@ -184,7 +195,7 @@ async function inspectEnvironment() {
       if (dockerCheck.status === 0) {
         report.searxng = { type: "docker_available", url: "http://127.0.0.1:8088" };
       }
-    } catch (e) {}
+    } catch (e) { }
   }
 
   // TTS & 语音模型文件检查
