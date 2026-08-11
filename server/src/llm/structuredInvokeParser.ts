@@ -53,7 +53,7 @@ export interface StructuredInvokeRawParseInput<T> {
 }
 
 function tryFixSyntacticJson(raw: string): string {
-  let text = raw.trim();
+  let text = raw.replace(/<think>[\s\S]*?<\/think>/gi, "").trim();
   if (!text) return text;
 
   // 1. Strip Markdown Code Blocks if present
