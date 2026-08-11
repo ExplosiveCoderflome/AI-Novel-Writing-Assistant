@@ -47,4 +47,12 @@ router.get("/stream", validate({ query: streamQuerySchema }), (req, res) => {
   });
 });
 
+router.post("/internal/event", (req, res) => {
+  const { event, snapshot } = req.body || {};
+  if (event) {
+    llmLiveBroker.ingestRemoteEvent(event, snapshot);
+  }
+  res.json({ ok: true });
+});
+
 export default router;

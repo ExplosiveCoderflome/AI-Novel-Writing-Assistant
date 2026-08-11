@@ -1,4 +1,7 @@
 import "dotenv/config";
+
+process.env.IS_MAIN_API = "true";
+
 import type { Server } from "node:http";
 import os from "node:os";
 import path from "node:path";

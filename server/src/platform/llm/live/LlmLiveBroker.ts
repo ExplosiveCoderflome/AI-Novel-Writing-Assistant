@@ -201,6 +201,34 @@ export class LlmLiveBroker {
     });
   }
 
+  ingestRemoteEvent(event: LlmLiveEvent, snapshot?: LlmLiveSessionSnapshot | null): void {
+    const interactionId = event.type === "session_started"
+      ? event.context.interactionId
+      : event.interactionId;
+    if (snapshot) {
+      this.sessions.set(interactionId, {
+        snapshot,
+        startedAtMs: Date.parse(snapshot.startedAt) || Date.now(),
+      });
+    } else if (event.type === "session_started") {
+      this.sessions.set(interactionId, {
+        snapshot: {
+          context: event.context,
+          seq: event.seq,
+          phase: "requesting",
+          phaseMessage: "正在连接模型",
+          preview: "",
+          totalChars: 0,
+          startedAt: event.at,
+          updatedAt: event.at,
+          completedAt: null,
+        },
+        startedAtMs: Date.parse(event.at) || Date.now(),
+      });
+    }
+    this.publishLocal(event);
+  }
+
   private matches(event: LlmLiveEvent, filter: LlmLiveSubscriptionFilter): boolean {
     const interactionId = event.type === "session_started"
       ? event.context.interactionId
@@ -216,8 +244,36 @@ export class LlmLiveBroker {
   }
 
   private publish(event: LlmLiveEvent): void {
+    this.publishLocal(event);
+    this.forwardToMainApi(event);
+  }
+
+  private publishLocal(event: LlmLiveEvent): void {
     for (const listener of this.listeners) {
       listener(event);
+    }
+  }
+
+  private forwardToMainApi(event: LlmLiveEvent): void {
+    if (process.env.IS_MAIN_API === "true") {
+      return;
+    }
+    const port = process.env.PORT || "3000";
+    const targetUrl = `http://127.0.0.1:${port}/api/llm-live/internal/event`;
+    const interactionId = event.type === "session_started" ? event.context.interactionId : event.interactionId;
+    const record = this.sessions.get(interactionId);
+    const snapshot = record?.snapshot ?? null;
+
+    try {
+      fetch(targetUrl, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ event, snapshot }),
+      }).catch(() => {
+        // Silently ignore if API process is restarting
+      });
+    } catch {
+      // Ignore network dispatch errors
     }
   }
 
