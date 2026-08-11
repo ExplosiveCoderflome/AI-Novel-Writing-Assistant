@@ -70,6 +70,68 @@ function backupExistingDatabase() {
   }
 }
 
+// 1.5 依据实测硬件 Spec 与 Benchmark 打分标准挑选 Ollama 模型
+function benchmarkOllamaSetup(models) {
+  const os = require("os");
+  const totalRamGb = Math.round((os.totalmem() / (1024 * 1024 * 1024)) * 10) / 10;
+  let gpuName = null;
+  let vramGb = 0;
+  try {
+    const smi = spawnSync("nvidia-smi", ["--query-gpu=name,memory.total", "--format=csv,noheader,nounits"], { encoding: "utf8" });
+    if (smi.status === 0 && smi.stdout.trim()) {
+      const parts = smi.stdout.trim().split("\n")[0].split(",");
+      gpuName = parts[0]?.trim() || null;
+      const mb = parseFloat(parts[1]);
+      if (!isNaN(mb)) vramGb = Math.round((mb / 1024) * 10) / 10;
+    }
+  } catch (e) {}
+
+  if (!models || models.length === 0) {
+    const recommendedModel = (vramGb >= 20 || totalRamGb >= 32) ? "qwen2.5:14b" : "qwen2.5:7b";
+    return {
+      selectedModel: null,
+      recommendedModel,
+      isInstalled: false,
+      gpuName,
+      vramGb,
+      totalRamGb,
+      details: [],
+    };
+  }
+
+  const scored = models.map((modelName) => {
+    let score = 50;
+    const lower = modelName.toLowerCase();
+    if (lower.includes("qwen2.5")) score += 45;
+    else if (lower.includes("qwen")) score += 35;
+    else if (lower.includes("deepseek-r1")) score += 40;
+    else if (lower.includes("llama3.1")) score += 30;
+
+    const match = modelName.match(/(\d+(?:\.\d+)?)[bB]/);
+    const paramB = match ? parseFloat(match[1]) : 7;
+    const estMemGb = Math.round((paramB * 0.65 + 1.5) * 10) / 10;
+    const availableMemGb = vramGb > 0 ? vramGb : totalRamGb * 0.7;
+
+    if (estMemGb <= availableMemGb) {
+      score += 20;
+    } else {
+      score -= 30;
+    }
+
+    return { modelName, score, estMemGb, paramB };
+  });
+
+  scored.sort((a, b) => b.score - a.score);
+  return {
+    selectedModel: scored[0].modelName,
+    isInstalled: true,
+    gpuName,
+    vramGb,
+    totalRamGb,
+    details: scored,
+  };
+}
+
 // 2. 探活与扫描各服务及软件
 async function inspectEnvironment() {
   const report = {
@@ -163,25 +225,22 @@ async function inspectEnvironment() {
     }
   }
 
-  // Ollama 探活与模型匹配
-  const os = require("os");
-  const totalRamGb = Math.round(os.totalmem() / (1024 * 1024 * 1024));
-  let vramGb = 0;
-  try {
-    const smi = spawnSync("nvidia-smi", ["--query-gpu=memory.total", "--format=csv,noheader,nounits"], { encoding: "utf8" });
-    if (smi.status === 0 && smi.stdout.trim()) {
-      const mb = parseInt(smi.stdout.trim().split("\n")[0], 10);
-      if (!isNaN(mb)) vramGb = Math.round(mb / 1024);
-    }
-  } catch (e) { }
-
+  // Ollama 探活与模型 Spec/Benchmark 评估
   const ollamaProbe = await probeUrl("http://127.0.0.1:11434/api/tags");
   if (ollamaProbe.ok) {
     let models = [];
     try {
       models = JSON.parse(ollamaProbe.body)?.models?.map((m) => m.name) || [];
     } catch (e) { }
-    report.ollama = { type: "running", url: "http://127.0.0.1:11434", models };
+
+    const benchmark = benchmarkOllamaSetup(models);
+    report.ollama = {
+      type: "running",
+      url: "http://127.0.0.1:11434",
+      models,
+      benchmark,
+      selectedModel: benchmark.selectedModel || benchmark.recommendedModel,
+    };
   }
 
   // SearXNG 探活
@@ -341,6 +400,14 @@ function printReport(report) {
   console.log(`  [已发现模型权重] : ${report.checkpoints.length > 0 ? report.checkpoints.slice(0, 3).join(", ") + ` 等 ${report.checkpoints.length} 个模型` : "暂未检测到本地 safetensors 模型"}`);
   console.log(`  [SearXNG 引擎]   : ${report.searxng ? `已检测到服务 (${report.searxng.type})` : "Docker 未运行，已启动平滑降级"}`);
   console.log(`  [Kokoro TTS 模型]: ${report.ttsModels.kokoro ? "已完整存在 (免重复下载)" : "需断点续传/自动补充下载"}`);
+  if (report.ollama && report.ollama.benchmark) {
+    const b = report.ollama.benchmark;
+    if (b.isInstalled) {
+      console.log(`  [Ollama 本地实测 Benchmark]: 已在 ${report.ollama.models.length} 个真实安装模型中评测，胜出模型 -> ${report.ollama.selectedModel} (实测 GPU: ${b.gpuName || "CPU模式"}, 显存: ${b.vramGb}GB, 内存: ${b.totalRamGb}GB)`);
+    } else {
+      console.log(`  [Ollama 实测硬件推荐]: 本地未安装模型 (实测显存: ${b.vramGb}GB, 内存: ${b.totalRamGb}GB)，基于 Benchmark 标准推荐运行: ollama pull ${b.recommendedModel}`);
+    }
+  }
   console.log("=================================================================\n");
 }
 
