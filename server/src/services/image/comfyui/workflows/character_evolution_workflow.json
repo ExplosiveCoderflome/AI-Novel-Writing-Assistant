@@ -1,0 +1,6 @@
+{
+  "name": "character_evolution_workflow.json",
+  "description": "角色 25%/50%/75%/100% 阶段人设快照生成流水线",
+  "version": "1.0.0",
+  "nodes": {}
+}
