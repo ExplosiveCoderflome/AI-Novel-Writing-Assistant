@@ -5,7 +5,7 @@ import { useMutation, useQuery } from "@tanstack/react-query";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { flattenGenreTreeOptions, getGenreTree } from "@/api/genre";
 import { flattenStoryModeTreeOptions, getStoryModeTree } from "@/api/storyMode";
-import { bootstrapNovelWorkflow } from "@/api/novelWorkflow";
+import { bootstrapNovelWorkflow, selectNovelProductionExperience } from "@/api/novelWorkflow";
 import { queryKeys } from "@/api/queryKeys";
 import { DEFAULT_DIRECTOR_RISK_POLICY, getDirectorRiskPolicy } from "@/api/directorRiskPolicy";
 import { getWorldList } from "@/api/world";
@@ -157,6 +157,17 @@ export default function AutoDirectorCreatePage() {
   const createdNovelRoute = productionExperience === "simple"
     ? `/novels/${createdNovelId}/simple`
     : `/novels/${createdNovelId}/edit`;
+  const enterSimpleMutation = useMutation({
+    mutationFn: () => selectNovelProductionExperience(controller.directorTask!.id, "simple"),
+    onSuccess: (response) => {
+      if (!response.data) {
+        toast.error("没有找到简易创作入口。");
+        return;
+      }
+      navigate(response.data.targetRoute, { replace: true });
+    },
+    onError: (error) => toast.error(error instanceof Error ? error.message : "进入简易创作失败，请重试。"),
+  });
 
   useEffect(() => {
     if (controller.batches.length === 0 && !controller.hasActiveDirectorTask) {
@@ -339,8 +350,18 @@ export default function AutoDirectorCreatePage() {
             </div>
           </div>
           <div className="flex flex-wrap gap-2">
+            {createdNovelId && productionExperience !== "simple" ? (
+              <Button
+                type="button"
+                variant="default"
+                disabled={enterSimpleMutation.isPending}
+                onClick={() => enterSimpleMutation.mutate()}
+              >
+                {enterSimpleMutation.isPending ? "正在进入…" : "进入简易创作"}
+              </Button>
+            ) : null}
             {createdNovelId ? (
-              <Button type="button" variant="default" asChild>
+              <Button type="button" variant={productionExperience === "simple" ? "default" : "outline"} asChild>
                 <Link to={createdNovelRoute}>{productionExperience === "simple" ? "打开章节书架" : "打开小说工作台"}</Link>
               </Button>
             ) : null}

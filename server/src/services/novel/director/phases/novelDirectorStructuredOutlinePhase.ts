@@ -611,12 +611,17 @@ export async function runDirectorStructuredOutlinePhase(input: {
     volumeChapterListComplete: syncCursor.volumeChapterListComplete,
   });
 
-  const currentTask = await dependencies.workflowService.getTaskByIdWithoutHealing?.(taskId);
+  const [currentTask, currentNovel] = await Promise.all([
+    dependencies.workflowService.getTaskByIdWithoutHealing?.(taskId),
+    dependencies.novelContextService.getNovelById(novelId).catch(() => null),
+  ]);
   const currentSeed = parseSeedPayload<{ productionExperience?: unknown }>(currentTask?.seedPayloadJson);
   const selectedProductionExperience = currentSeed?.productionExperience === "simple"
     || currentSeed?.productionExperience === "professional"
     ? currentSeed.productionExperience
-    : null;
+    : (currentNovel as { creationExperience?: unknown } | null)?.creationExperience === "simple"
+      ? "simple"
+      : null;
   const continueSimpleProduction = selectedProductionExperience === "simple";
   const pausedSession = buildDirectorSessionState({
     runMode: request.runMode,

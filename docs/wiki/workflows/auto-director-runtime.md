@@ -56,7 +56,7 @@ Web API 只接收命令和返回轻量投影；Worker 负责执行重型生产�
 
 人工保存的规划资产必须登记为 `user_edited`、`protectedUserContent=true`，更新内容 hash 和版本。上游规划变化只让依赖它的下游规划 artifact 变为 `stale`；`chapter_draft` 不因规划重算被清空或标记为可覆盖。`volume_beat_sheet` 和 `volume_chapter_list` 是独立 artifact 类型，用于区分节奏板、拆章列表和章节正文。
 
-新书确认方向后采用 `full_book_autopilot + fast_start` 进入开篇准备，但不得提前写入 `productionExperience` 或小说的 `creationExperience`。开篇路线与下一章执行合同准备完成后，统一停在 `production_experience_required`，由用户明确选择“简易创作”或“专业创作”；只有选择完成后才能写入生产方式并进入对应正文链路。任务 Seed 必须持久化 `startupPreparation`，使服务重启后仍能恢复路线窗口、下一章细化游标与延迟增强策略。后续因重规划再次进入结构化大纲时，应沿用已确认的简易生产方式，不重复要求选择。
+新书确认方向后采用 `auto_to_ready + fast_start` 进入开篇准备。小说项目一旦建立，用户即可提前选择简易创作并进入只读书架；该选择写入任务 `productionExperience` 和小说 `creationExperience`，但不得跳过角色、卷章和执行合同准备。开篇路线可用后，已选择简易创作的任务自动转为 `full_book_autopilot` 并开始正文；尚未选择的任务停在 `production_experience_required`。任务 Seed 必须持久化 `startupPreparation`，使服务重启后仍能恢复路线窗口、下一章细化游标与延迟增强策略。后续因重规划再次进入结构化大纲时，应沿用已确认的简易生产方式，不重复要求选择。
 
 快速启动的目标是连续抵达首章正文。关键路径只允许等待精简故事基础、开篇世界切片、核心角色、3～5 章路线和下一章执行合同；普通系统规划重算应以安全范围策略自动通过。完整世界手册、非开篇角色增强、远期卷骨架和后续完整章节合同不得占用正文关键路径。若步骤会覆盖 `protectedUserContent`，或命中数据完整性、正文保护、模型服务和运行时安全风险，仍必须暂停。
 
@@ -87,7 +87,7 @@ Web API 只接收命令和返回轻量投影；Worker 负责执行重型生产�
 - 自动导演执行面只能把明确的 `stop_for_replan` / `replan_required` 接入重规划检查点。章节审核返回 `local_patch_plan`、`continue_with_warning`、`patchable_obligation_gap` 或修复后仍有可记录义务缺口时，应登记为质量债务或局部修复建议并继续剩余章节，不能因为 `recommended=true` 就写入 `replanAlertDetails`。
 - `replan_required` 即使出现在全书自动成书或 AI 主驾自动执行中，也仍是阻塞检查点。运行时应停止在实际触发章节，并把摘要写成“已执行至第 N 章，后续需重规划”，不能把目标范围直接显示为已完成。
 - `auto_execute_range` 是用户对当前章节执行范围的显式继续授权。恢复链路即使先回到结构化大纲或执行合同同步，也必须把该授权传入后续 Pipeline 的 `approveAutoExecutionScope`，并在结构化同步后主动进入章节执行节点；不能只依赖自动审批偏好，否则命令会成功结束但章节执行节点仍停在审批门。
-- 用户确认新书方向后，自动导演先投影为“准备开篇”；开篇路线可用后必须投影为“等待选择生产方式”，不得直接显示“正在写第 N 章”。`production_experience_required` 同时适用于快速启动新书与已有项目接管。用户选择简易创作后才允许启动全书正文自动执行；选择专业创作则进入完整工作台且不自动生成正文。用户从简易自动创作切换到专业工作台时必须在章节边界生效：当前章允许安全落库，后续自动章节停止，已有正文和人工内容保持不变。
+- 用户确认新书方向后，自动导演先投影为“准备开篇”。项目建立后可提前选择简易创作进入书架，但正文必须等待开篇路线和执行合同可用；未提前选择时，准备完成后投影为“等待选择生产方式”。选择专业创作则进入完整工作台且不自动生成正文。用户从简易自动创作切换到专业工作台时必须在章节边界生效：当前章允许安全落库，后续自动章节停止，已有正文和人工内容保持不变。
 - 新书自动导演创建的恢复入口是独立页面 `/novels/auto-director?taskId=<workflowTaskId>`。`taskId` 是前端 URL 的主参数；旧的 `/novels/create?mode=director&workflowTaskId=<id>` 只作为兼容输入，进入后应规范化到新页面。任务中心、恢复入口、候选确认链接和服务端 `sourceRoute` 都应指向新页面，保证刷新、桌面重启或崩溃恢复后回到同一个候选/进度现场。
 - `/novels/create` 只承担手动创建表单和旧链接跳转，不再挂载自动导演弹窗。自动导演候选批次、定向修订、标题重做、候选确认和执行进度都属于独立创建页主区，不能再通过候选弹窗套在创建弹窗里展示。
 - 现有项目接管的默认范围是“全书前置规划接管”，不是章节范围。接管可以选择资产起点，但导演必须先补齐 Story Macro / Book Contract / 角色 / 卷战略 / 拆章，随后停在 `production_experience_required`；接管入口携带的旧章节范围或全书自动参数不得提前启动正文。
@@ -145,7 +145,7 @@ Web API 只接收命令和返回轻量投影；Worker 负责执行重型生产�
 - 候选确认或恢复入口回到 `/novels/create`：检查 `resumeTargetToRoute`、书级自动化投影、任务 UI helper 和移动端入口是否仍在生成旧的 `workflowTaskId + mode=director` 链接。正确链接应使用 `/novels/auto-director?taskId=...`，旧链接只应由前端兼容跳转处理。
 - 服务重启后假 running：检查租约过期、active step、command 状态和产物断点是否统一投影。
 - 重复点击继续产生多条执行链：检查 command 幂等键和 active command 复用。
-- 新书开篇路线准备完成后直接开始第 1 章：检查确认接口、结构化大纲阶段或恢复逻辑是否提前写入 `productionExperience=simple` / `creationExperience=simple`，或把检查点改成 `chapter_batch_ready`。正确行为是保留 `startupPreparation`，停在 `production_experience_required`，等待用户选择生产方式。
+- 新书未选择简易创作却在开篇路线准备完成后直接开始第 1 章：检查确认接口、结构化大纲阶段或恢复逻辑是否把默认的 `professional` 误当成显式选择。只有用户提前选择简易创作时才可自动进入 `chapter_batch_ready`；否则必须停在 `production_experience_required`。
 - `auto_to_ready` 停在“等待确认分卷策略”且没有 checkpoint：检查运行策略是否把普通 `downstream_recompute` 当成人工审批。前期规划门应自动使用安全范围授权，用户保护内容仍由 policy gate 拦截。
 - 章节执行出现 `Chapter execution did not produce observable draft content`，实际原因却是“高内存卷规划正在处理同一范围”：优先检查章节执行触发的 JIT 路线预取是否携带同一个 `workflowTaskId`。自动导演在结构化规划阶段已经持有自己的高内存租约；同一任务的 JIT 卷规划必须沿用该所有者，否则会被错误识别为并发任务并返回 409。任务状态已失败但活动步骤仍显示运行中时，应以任务 `status` 和最后检查点为事实源，活动步骤属于待修复的旧投影。
 
@@ -216,9 +216,9 @@ Web API 只接收命令和返回轻量投影；Worker 负责执行重型生产�
 
 ## 生产方式恢复入口
 
-自动导演任务的 `productionExperience` 与小说的 `creationExperience` 共同构成恢复入口的路由事实。书架、任务中心和工作台的“继续创作”“恢复创作”必须先读取任务中保存的生产方式，再以小说字段兜底：`simple` 回到 `/novels/:id/simple`，`professional` 才进入 `/novels/:id/edit`。这样用户退出页面、刷新或从任务卡恢复时，不会因为通用长篇路由把简易自动创作误送进专业工作台。
+小说持久化的 `creationExperience` 是工作区路由事实：`simple` 回到 `/novels/:id/simple`，`professional` 进入 `/novels/:id/edit`。任务 Seed 的 `productionExperience` 用于导演运行与恢复，不得抢先覆盖页面路由；提前选择简易创作时，两者必须在同一事务中写入，避免页面跳转抖动。
 
-只有用户明确执行“转为专业创作”后，才允许把小说和任务的生产方式改为 `professional`。任务字段与小说字段暂时不一致时，不能用默认路由猜测，应优先相信已确认的任务 Seed，并在必要时通过任务恢复完成状态对齐。
+只有用户明确执行“转为专业创作”后，才允许把已选择的简易创作改为 `professional`。任务字段与小说字段暂时不一致时，工作区路由以小说字段为准，运行恢复以任务 Seed 为准，并通过恢复流程完成状态对齐。
 
 ## 简易创作的自动续写
 
@@ -227,9 +227,3 @@ Web API 只接收命令和返回轻量投影；Worker 负责执行重型生产�
 当用户从简易创作书架明确选择继续时，已有可读正文的章节即使带有 `replan_required` 质量标记，也应先保留正文、登记章节级质量债并继续后续章节。该授权不适用于无可用正文、运行时安全、数据完整性或受保护人工内容冲突；这些情况仍需停在可恢复检查点。后续章节通过滚动规划与事实账本重新装配，不应要求新手理解或手动修改内部重规划信息。
 
 简易创作书架需要同时投影当前任务冻结的提醒、暂停阈值，以及该任务的风险事件记录。每条记录展示实际风险分数、证据、影响章节、运行时采取的动作和下一步建议；它们必须来自自动导演的同一份事件账本与任务 Seed，不能在书架重新计算或维护第二套评分。书架风险面板必须直接提供“调整本书风险阈值”的入口，避免新手因简易创作入口而无法找到设置；入口可调整后续新任务或下次恢复的提醒与暂停阈值，但不得把任一风险分提高到 8 分以上。
-
-## 生产方式恢复入口
-
-自动导演任务的 `productionExperience` 与小说的 `creationExperience` 共同构成恢复入口的路由事实。书架和工作台的“继续创作”“恢复创作”必须先读取任务中保存的生产方式，再以小说字段兜底：`simple` 回到 `/novels/:id/simple`，`professional` 才进入 `/novels/:id/edit`。这样用户退出页面、刷新或从任务卡恢复时，不会因为通用长篇路由把简易自动创作误送进专业工作台。
-
-只有用户明确执行“转为专业创作”后，才允许把小说和任务的生产方式改为 `professional`。任务字段与小说字段暂时不一致时，不能用默认路由猜测，应优先相信已确认的任务 Seed，并在必要时通过任务恢复完成状态对齐。
