@@ -61,6 +61,15 @@ const server = http.createServer((req, res) => {
   res.end("Not found");
 });
 
+server.on("error", (err) => {
+  if (err.code === "EADDRINUSE") {
+    console.log("[ComfyUI Mock Server] Port 8188 in use, skipping mock server listener (real ComfyUI running).");
+    process.exit(0);
+  } else {
+    throw err;
+  }
+});
+
 server.listen(8188, "127.0.0.1", async () => {
   console.log("[ComfyUI Mock Server] Listening on http://127.0.0.1:8188");
   try {
