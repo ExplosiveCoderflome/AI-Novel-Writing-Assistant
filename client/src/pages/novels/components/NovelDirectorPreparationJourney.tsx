@@ -1,4 +1,4 @@
-import { Check, Circle, Sparkles } from "lucide-react";
+import { Check, Circle } from "lucide-react";
 import { cn } from "@/lib/utils";
 import OnboardingTip from "@/components/onboarding/OnboardingTip";
 
@@ -53,17 +53,17 @@ export default function NovelDirectorPreparationJourney({
         storageKey="director-preparation"
         title="这段准备不需要逐项审核"
         description="AI 会把已完成的故事方向转成角色、卷战略、节奏和章节执行资源；页面上的成果可以随时展开查看。"
-        next="所有开写资源准备好后，再选择简易创作或专业创作。"
+        next="已完成的资源可以随时查看；AI 会继续补齐后续内容。"
       />
       <section className="rounded-2xl border border-border/70 bg-background px-4 py-5 shadow-[0_18px_45px_-38px_hsl(var(--foreground)/0.45)] sm:px-6">
         <div className="flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
           <div>
-            <div className="text-sm font-semibold text-foreground">开写前准备</div>
+            <div className="text-sm font-semibold text-foreground">创作资源准备</div>
             <div className="mt-1 text-xs leading-5 text-muted-foreground">
-              AI 正在依次完成整本书的方向、角色和卷章资源。
+              AI 正在依次完成整本书的方向、角色和卷章资源，已完成的成果可以直接查看。
             </div>
           </div>
-          <div className="text-xs text-muted-foreground">正文尚未开始生成</div>
+          <div className="text-xs text-muted-foreground">创作任务会继续在后台推进</div>
         </div>
 
         <ol className={cn(
@@ -108,29 +108,6 @@ export default function NovelDirectorPreparationJourney({
         </ol>
       </section>
 
-      <section className="overflow-hidden rounded-2xl border border-primary/15 bg-gradient-to-r from-primary/[0.07] via-background to-background">
-        <div className="flex flex-col gap-4 px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
-          <div className="flex min-w-0 items-start gap-3">
-            <span className="mt-0.5 inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-primary text-primary-foreground shadow-sm">
-              <Sparkles className="h-4 w-4" />
-            </span>
-            <div className="min-w-0">
-              <div className="text-sm font-semibold text-foreground">准备完成后，由你选择正文生产方式</div>
-              <div className="mt-1 text-xs leading-5 text-muted-foreground">
-                系统会停在开写前，不会提前生成正文。
-              </div>
-            </div>
-          </div>
-          <div className="flex shrink-0 flex-wrap gap-2 text-xs">
-            <span className="rounded-full bg-primary px-3 py-1.5 font-medium text-primary-foreground">
-              简易创作 · AI 写完整本书
-            </span>
-            <span className="rounded-full border border-border bg-background px-3 py-1.5 font-medium text-foreground">
-              专业创作 · 进入完整工作台
-            </span>
-          </div>
-        </div>
-      </section>
     </div>
   );
 }

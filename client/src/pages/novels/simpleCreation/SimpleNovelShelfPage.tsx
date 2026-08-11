@@ -24,7 +24,6 @@ import {
 import { continueNovelWorkflow } from "@/api/novelWorkflow";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import LiveExecutionDialog from "@/components/liveExecution/LiveExecutionDialog";
 import {
   Dialog,
   DialogContent,
@@ -198,7 +197,6 @@ export default function SimpleNovelShelfPage() {
           </div>
 
           <div className="flex flex-wrap items-center gap-2 border-t border-border bg-muted/20 px-5 py-3 sm:px-7">
-            <LiveExecutionDialog taskId={shelf.progress.directorTaskId} autoOpenOnActivity />
             {shelf.progress.directorTaskId ? (
               <Button variant="outline" size="sm" asChild>
                 <Link to={`/novels/auto-director?taskId=${encodeURIComponent(shelf.progress.directorTaskId)}`}>查看 AI 导演进度</Link>

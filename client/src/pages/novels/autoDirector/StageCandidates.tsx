@@ -38,10 +38,8 @@ export default function StageCandidates({
           taskId={controller.workflowTaskId}
           titleHint={controller.pendingTitleHint}
           fallbackError={controller.executionError}
-          onBackgroundContinue={controller.handleBackgroundContinue}
           onConfirmAndContinue={() => controller.continueMutation.mutate()}
           isConfirmingAndContinuing={controller.continueMutation.isPending}
-          onOpenTaskCenter={controller.handleOpenTaskCenter}
         />
       </section>
     );
