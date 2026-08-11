@@ -58,9 +58,9 @@
 ## Architecture Rules
 
 - If a single source file becomes too long, it must be split into functional modules.
-- Preferred threshold: keep a single source file around 600 lines.
-- Floating range: 500-700 lines is acceptable when module cohesion is still clear and the file is not becoming hard to maintain.
-- Hard threshold: when a source file exceeds 700 lines, refactoring and modularization are mandatory before continuing feature expansion.
+- Preferred threshold: keep a single source file around 1,200 lines.
+- Floating range: 1,000-1,300 lines is acceptable when module cohesion is still clear and the file is not becoming hard to maintain.
+- Hard threshold: when a source file exceeds 1,300 lines, refactoring and modularization are mandatory before continuing feature expansion.
 - Long-file splitting must improve module boundaries, not merely reduce line count.
 - Before splitting a long file, list its responsibilities and separate business rules, application orchestration, persistence/external adapters, and HTTP/API mapping.
 - Do not split an oversized file by adding loose same-level files such as generic `helper`, `utils`, `shared`, or `runtime` files without clear module ownership.

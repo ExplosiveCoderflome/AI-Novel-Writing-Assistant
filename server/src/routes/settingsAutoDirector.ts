@@ -16,7 +16,9 @@ import {
 } from "../services/settings/AutoDirectorApprovalPreferenceService";
 import { qualityDebtSettingsService } from "../services/settings/QualityDebtSettingsService";
 import { directorIssuePolicySchema } from "@ai-novel/shared/types/directorIssue";
+import { directorRiskPolicySchema } from "@ai-novel/shared/types/directorRisk";
 import { directorIssuePolicyService } from "../services/novel/director/issues";
+import { directorRiskPolicySettingsService } from "../services/settings/DirectorRiskPolicySettingsService";
 
 const router = Router();
 
@@ -49,6 +51,36 @@ router.use(authMiddleware);
 
 router.get("/risk-policy", async (_req, res, next) => {
   try {
+    const data = await directorRiskPolicySettingsService.getRiskPolicy();
+    res.status(200).json({
+      success: true,
+      data,
+      message: "自动导演风险分数规则已加载。",
+    } satisfies ApiResponse<typeof data>);
+  } catch (error) {
+    next(error);
+  }
+});
+
+router.put(
+  "/risk-policy",
+  validate({ body: directorRiskPolicySchema }),
+  async (req, res, next) => {
+    try {
+      const data = await directorRiskPolicySettingsService.saveRiskPolicy(req.body);
+      res.status(200).json({
+        success: true,
+        data,
+        message: "自动导演风险分数规则已保存。",
+      } satisfies ApiResponse<typeof data>);
+    } catch (error) {
+      next(error);
+    }
+  },
+);
+
+router.get("/issue-policy", async (_req, res, next) => {
+  try {
     const data = await directorIssuePolicyService.getGlobalPolicy();
     res.status(200).json({
       success: true,
@@ -61,7 +93,7 @@ router.get("/risk-policy", async (_req, res, next) => {
 });
 
 router.put(
-  "/risk-policy",
+  "/issue-policy",
   validate({ body: directorIssuePolicySchema }),
   async (req, res, next) => {
     try {

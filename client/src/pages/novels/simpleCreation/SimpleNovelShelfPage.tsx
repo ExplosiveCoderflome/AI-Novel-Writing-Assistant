@@ -133,27 +133,6 @@ export default function SimpleNovelShelfPage() {
     onError: (error) => toast.error(error instanceof Error ? error.message : "恢复失败，请重试。"),
   });
 
-  const continueProductionMutation = useMutation({
-    mutationFn: async () => {
-      const directorTaskId = shelf?.progress.directorTaskId;
-      if (!directorTaskId) {
-        throw new Error("没有找到可继续的 AI 任务。");
-      }
-      return continueNovelWorkflow(directorTaskId, { continuationMode: "full_book_autopilot" });
-    },
-    onSuccess: async () => {
-      const startOrder = shelf?.progress.continuationStartOrder;
-      toast.success(startOrder
-        ? `AI 将从第 ${startOrder} 章继续写作、审校和修复。`
-        : "AI 将继续生成后续章节。");
-      await Promise.all([
-        queryClient.invalidateQueries({ queryKey: ["novels", id, "simple-shelf"] }),
-        queryClient.invalidateQueries({ queryKey: ["tasks"] }),
-      ]);
-    },
-    onError: (error) => toast.error(error instanceof Error ? error.message : "继续生成失败，请重试。"),
-  });
-
   const convertMutation = useMutation({
     mutationFn: () => convertNovelToProfessional(id),
     onSuccess: async () => {
@@ -190,7 +169,7 @@ export default function SimpleNovelShelfPage() {
                       <h1 className="truncate text-2xl font-semibold tracking-tight sm:text-3xl">{shelf.novel.title}</h1>
                       <Badge className="border-white/15 bg-white/10 text-slate-100 hover:bg-white/10">简易创作 · 只读</Badge>
                     </div>
-                    <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-300">这里是这本书的阅读台。AI 负责规划、写作和审校；完成一个章节批次后，可在本页继续生成后续内容。</p>
+                    <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-300">这里是这本书的阅读台。AI 会在后台继续规划、写作和审校，你可以随时查看已经保存的正文。</p>
                   </div>
                 </div>
               </div>
@@ -228,18 +207,6 @@ export default function SimpleNovelShelfPage() {
             {shelf.progress.canRetry ? (
               <Button size="sm" onClick={() => retryMutation.mutate()} disabled={retryMutation.isPending}>
                 {retryMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />} 按 AI 建议继续
-              </Button>
-            ) : null}
-            {shelf.progress.canContinue ? (
-              <Button size="sm" onClick={() => continueProductionMutation.mutate()} disabled={continueProductionMutation.isPending}>
-                {continueProductionMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
-                继续生成第 {shelf.progress.continuationStartOrder}-{shelf.progress.continuationEndOrder} 章
-              </Button>
-            ) : null}
-            {shelf.progress.status === "queued" || shelf.progress.status === "running" ? (
-              <Button size="sm" variant="secondary" disabled aria-live="polite">
-                <Loader2 className="h-4 w-4 animate-spin" />
-                {shelf.progress.status === "queued" ? "AI 正在排队" : shelf.progress.currentAction}
               </Button>
             ) : null}
             <div className="flex-1" />

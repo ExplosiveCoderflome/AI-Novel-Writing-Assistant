@@ -54,7 +54,6 @@ interface CircuitBreakerWorkflowPort extends AutoExecutionCheckpointRuntimeDeps 
       chapterId?: string | null;
       progress?: number;
     }): Promise<unknown>;
-    requeueTaskForRecovery(taskId: string, message: string): Promise<unknown>;
   };
   automationLedgerEventService?: AutomationLedgerEventPort;
 }
@@ -134,18 +133,14 @@ function issueCodeForCircuitBreaker(
   }
 }
 
-function hasUsableOutputForCircuitBreaker(reason: DirectorCircuitBreakerState["reason"]): boolean {
-  return reason === "auto_repair_exhausted" || reason === "replan_loop";
-}
-
 export async function stopAutoExecutionForCircuitBreaker(
   deps: CircuitBreakerWorkflowPort,
   input: Parameters<typeof applyCircuitBreakerStop>[1],
-): Promise<DirectorAutoExecutionState | null> {
+): Promise<void> {
   const issuePolicy = input.request.issuePolicy;
   if (input.request.issueGovernanceVersion !== 1 || !issuePolicy) {
     await applyCircuitBreakerStop(deps, input);
-    return null;
+    return;
   }
   const failureCount = Math.max(
     input.circuitBreaker.failureCount ?? 0,
@@ -155,7 +150,6 @@ export async function stopAutoExecutionForCircuitBreaker(
     input.circuitBreaker.usageAnomalyCount ?? 0,
     1,
   );
-  let continuedState: DirectorAutoExecutionState | null = null;
   await directorIssueService.reportIssue({
     issueGovernanceVersion: input.request.issueGovernanceVersion,
     taskId: input.taskId,
@@ -171,7 +165,7 @@ export async function stopAutoExecutionForCircuitBreaker(
     chapterOrder: input.circuitBreaker.chapterOrder ?? undefined,
     attempt: failureCount,
     maxAttempts: failureCount,
-    hasUsableOutput: hasUsableOutputForCircuitBreaker(input.circuitBreaker.reason),
+    hasUsableOutput: false,
     runMode: input.request.runMode,
     fingerprint: [
       "circuit_breaker",
@@ -184,33 +178,8 @@ export async function stopAutoExecutionForCircuitBreaker(
     provider: input.request.provider,
     model: input.request.model,
     temperature: input.request.temperature,
-    applyAction: async ({ decision }) => {
-      if (decision.action === "continue_with_warning" || decision.action === "auto_retry") {
-        continuedState = withCircuitBreakerState(
-          input.autoExecution,
-          buildClosedDirectorCircuitBreakerState(input.circuitBreaker),
-        );
-        await syncAutoExecutionTaskState(deps, {
-          taskId: input.taskId,
-          novelId: input.novelId,
-          request: input.request,
-          range: input.range,
-          autoExecution: continuedState,
-          isBackgroundRunning: true,
-          resumeStage: input.resumeStage ?? "pipeline",
-        });
-        return;
-      }
-      await applyCircuitBreakerStop(deps, input);
-      if (decision.action === "pause_for_manual") {
-        await deps.workflowService.requeueTaskForRecovery(
-          input.taskId,
-          input.circuitBreaker.message?.trim() || "自动导演已在安全位置暂停，等待恢复。",
-        );
-      }
-    },
+    applyAction: async () => applyCircuitBreakerStop(deps, input),
   });
-  return continuedState;
 }
 
 export async function resolveUsageCircuitBreaker(input: {
@@ -449,7 +418,7 @@ export async function runFullBookAutopilotReplanNotice(input: {
         nodeKey: "planner.replan",
       });
       if (isDirectorCircuitBreakerOpen(replanFailureBreaker)) {
-        const continuedState = await stopAutoExecutionForCircuitBreaker(input.deps, {
+        await stopAutoExecutionForCircuitBreaker(input.deps, {
           taskId: input.taskId,
           novelId: input.novelId,
           request: input.request,
@@ -458,14 +427,6 @@ export async function runFullBookAutopilotReplanNotice(input: {
           circuitBreaker: replanFailureBreaker,
           resumeStage: "pipeline",
         });
-        if (continuedState) {
-          return {
-            stopped: false,
-            circuitBreaker: continuedState.circuitBreaker ?? buildClosedDirectorCircuitBreakerState(replanFailureBreaker),
-            autoExecution: continuedState,
-            decision: "defer_and_continue",
-          };
-        }
         return { stopped: true };
       }
       throw error;

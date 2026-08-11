@@ -11,9 +11,6 @@ const {
   parsePersistedDirectorRiskPolicy,
 } = require("../../shared/dist/types/directorRisk.js");
 const {
-  directorIssueAssessmentSchema,
-} = require("../../shared/dist/types/directorIssue.js");
-const {
   directorRiskAssessmentPrompt,
 } = require("../dist/prompting/prompts/director/directorRiskAssessment.prompts.js");
 const {
@@ -71,21 +68,19 @@ test("director risk assessment prompt is registered with a strict structured con
   assert.equal(registered, directorRiskAssessmentPrompt);
   assert.equal(directorRiskAssessmentPrompt.taskType, "critical_review");
   assert.equal(directorRiskAssessmentPrompt.mode, "structured");
-  assert.equal(directorRiskAssessmentPrompt.outputSchema, directorIssueAssessmentSchema);
+  assert.equal(directorRiskAssessmentPrompt.outputSchema, aiDirectorRiskAssessmentSchema);
 
   const messages = directorRiskAssessmentPrompt.render({
-    suggestedIssueCode: "quality.local_debt",
-    stage: "chapter_acceptance",
-    runMode: "auto",
-    summary: "第 4 章局部伏笔仍需补写",
-    evidence: "审校记录",
-    affectedScope: "第 4 章",
-    hasUsableOutput: true,
-    attempt: 1,
-    maxAttempts: 2,
-    detailsJson: "{}",
-  });
-  assert.match(String(messages[0].content), /局部章节低分/);
+    failureStage: "chapter_acceptance",
+    failureType: "quality_debt",
+    failureSummary: "第 4 章局部伏笔仍需补写",
+    failureDetailsJson: "{}",
+    taskContextJson: "{}",
+    auditReportsJson: "[]",
+    replanDecisionJson: "null",
+    existingQualityDebtJson: "[]",
+  }, { blocks: [], selectedBlockIds: [], droppedBlockIds: [], summarizedBlockIds: [], estimatedInputTokens: 0 });
+  assert.match(String(messages[0].content), /canPause 必须为 false/);
   assert.match(String(messages[0].content), /数据完整性/);
 });
 

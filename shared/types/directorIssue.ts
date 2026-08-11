@@ -76,33 +76,13 @@ export const DIRECTOR_ISSUE_CATALOG: readonly DirectorIssueCatalogEntry[] = [
   { code: "runtime.data_integrity", category: "runtime", label: "运行数据完整性风险", defaultAction: "pause_for_manual", allowedActions: DIRECTOR_ISSUE_ACTIONS, exhaustedAction: "pause_for_manual", enforcedAction: "pause_for_manual", lockedReason: "数据完整性风险不可自动放行。" },
   { code: "runtime.persistence_failed", category: "runtime", label: "关键创作结果保存失败", defaultAction: "fail_task", allowedActions: DIRECTOR_ISSUE_ACTIONS, exhaustedAction: "fail_task", enforcedAction: "fail_task", lockedReason: "无法确认保存结果时必须终止当前任务。" },
   { code: "runtime.worker_stale", category: "runtime", label: "后台执行失去响应", defaultAction: "auto_retry", allowedActions: DIRECTOR_ISSUE_ACTIONS, exhaustedAction: "pause_for_manual" },
-  { code: "runtime.background_prefetch_failed", category: "runtime", label: "下一章后台预取失败", defaultAction: "continue_with_warning", allowedActions: DIRECTOR_ISSUE_ACTIONS, exhaustedAction: "continue_with_warning", enforcedAction: "continue_with_warning", lockedReason: "正式执行时会重新准备，不阻断当前章节。" },
+  { code: "runtime.background_prefetch_failed", category: "runtime", label: "下一章后台预取失败", defaultAction: "continue_with_warning", allowedActions: DIRECTOR_ISSUE_ACTIONS, exhaustedAction: "continue_with_warning", lockedReason: "正式执行时会重新准备，不阻断当前章节。" },
   { code: "runtime.unclassified", category: "runtime", label: "尚未识别的运行问题", defaultAction: "pause_for_manual", allowedActions: DIRECTOR_ISSUE_ACTIONS, exhaustedAction: "pause_for_manual" },
 ] as const;
 
 export const DIRECTOR_ISSUE_CATALOG_BY_CODE = Object.fromEntries(
   DIRECTOR_ISSUE_CATALOG.map((entry) => [entry.code, entry]),
 ) as Record<DirectorIssueCode, DirectorIssueCatalogEntry>;
-
-export const DIRECTOR_CONFIGURABLE_ISSUE_CODES = [
-  "planning.route_window_unavailable",
-  "generation.empty_content",
-  "generation.runtime_failed",
-  "quality.chapter_below_threshold",
-  "quality.acceptance_unavailable",
-  "quality.local_repair_failed",
-  "quality.replan_loop",
-  "runtime.model_unavailable",
-  "runtime.service_unavailable",
-  "runtime.worker_stale",
-  "runtime.unclassified",
-] as const satisfies readonly DirectorIssueCode[];
-
-const configurableIssueCodes = new Set<DirectorIssueCode>(DIRECTOR_CONFIGURABLE_ISSUE_CODES);
-
-export const DIRECTOR_CONFIGURABLE_ISSUE_CATALOG = DIRECTOR_ISSUE_CATALOG.filter(
-  (entry) => configurableIssueCodes.has(entry.code) && !entry.enforcedAction,
-);
 
 export const DEFAULT_DIRECTOR_ISSUE_POLICY = {
   noticeThreshold: 5,

@@ -260,12 +260,12 @@ const appendCommandSchema = z.discriminatedUnion("commandType", [
   }) }),
   z.object({ commandType: z.literal("accept_manual_changes_and_continue"), payload: z.object({}).optional() }),
   z.object({ commandType: z.literal("continue"), payload: z.object({
-    continuationMode: z.enum(["resume", "auto_execute_range", "skip_quality_repair", "full_book_autopilot"]).optional(),
+    continuationMode: z.enum(["resume", "auto_execute_range", "skip_quality_repair"]).optional(),
     batchAlreadyStartedCount: z.number().int().min(0).optional(),
     forceResume: z.boolean().optional(),
   }).optional() }),
   z.object({ commandType: z.literal("resume_from_checkpoint"), payload: z.object({
-    continuationMode: z.enum(["resume", "auto_execute_range", "skip_quality_repair", "full_book_autopilot"]).optional(),
+    continuationMode: z.enum(["resume", "auto_execute_range", "skip_quality_repair"]).optional(),
     batchAlreadyStartedCount: z.number().int().min(0).optional(),
     forceResume: z.boolean().optional(),
   }).optional() }),

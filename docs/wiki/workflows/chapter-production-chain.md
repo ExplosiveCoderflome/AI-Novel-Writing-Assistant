@@ -66,6 +66,7 @@
 - 审计和修复仍然负责生成后检测角色冲突，但它们是后置保险，不应作为正文生成时的主要角色事实来源。
 - 章节正文写完后，后置门禁会记录统一 trace：章节、阶段、阻断性、内容 hash、时长和 prompt asset key，用于区分 writer 本身耗时与审校耗时。
 - 章节执行页的前端投影采用三栏职责：左侧只负责切章和查看队列状态，中间只承接正文阅读和必要正文操作，右侧承接章节侧栏和 AI 执行台。
+- 简易创作书架是只读阅读入口：只要 `Chapter.content` 已经持久化，就允许用户查看当前版本；`chapterStatus` / `generationState` 仍用于标记“生成中、审校修复中或已完成”，非完成状态的正文必须明确提示可能继续更新，不能因为状态尚未收口而把已保存内容投影为空。
 - 右侧章节侧栏再细分为 `本章概览 / 时间线 / 角色动态 / 资源风险`。`本章概览` 只放当前章节状态、字数、目标、待处理问题和更新时间，不混入时间线约束；时间线只展示时间锚点、上一章钩子、计划推进、禁止提前发生事项和检测结果。
 - 右侧侧栏不得新增写入流程。时间线来自章节时间线接口，检测摘要优先使用 runtime package 或最新 `TimelineCheckReport`，角色动态来自状态快照，资源与风险来自现有资源上下文和运行时风险摘要。
 - 桌面端左中右三栏应保持同高工作区，并在各自栏内独立滚动；移动端应折叠成分组区域，优先保留正文阅读和章节操作空间。
@@ -90,6 +91,7 @@
 - 自动导演的质量循环预算必须真正影响下一轮修复方式：同一失败签名已经尝试过局部修复后，下一轮章节管线要切到 `heavy_repair`，不能继续硬编码 `light_repair`。
 - 章节执行失败语义必须区分：正文未生成是 `draft_generation_failed`；正文已生成但未兑现本章义务是 `draft_obligation_unmet`；自动修复后仍有阻塞问题是 `draft_repair_exhausted`；需要调整邻章计划是 `replan_required`。UI 和任务详情应展示真实根因，不再把这些情况统一压成 `chapter.draft.write 未满足其完成标准。`
 - 质量闭环投影必须区分阻塞错误和非阻塞质量债务。`terminalAction=defer_and_continue` 且不是 `replan_required` / `recommendedAction=replan` / `blockingObligations` 的章节，只能作为“已记录质量债务”弱提示，不得驱动主状态进入“出错需处理”或生成 repair ticket；`local_patch_plan` / `continue_with_warning` 只能进入质量债务或局部修复建议通道，不得写入 `replanAlertDetails` 或 `PIPELINE_REPLAN_REQUIRED`；`replan_required` 即使同时带有 `defer_and_continue`，也仍是阻塞重规划。
+- 有可用正文的非阻塞质量债，在持久化状态上应完成降级定稿（`generationState=approved`、`chapterStatus=completed`），并保留质量债风险标记用于后续回收；阅读书架把历史遗留的同类记录投影为“已保存 · 待优化”，不能显示成“审校修复中”。只有结构化 `replan_required` 才显示为“等待重规划”。
 - `urgentPayoffs`、`overduePayoffs`、`ledgerSummary.urgentCount / overdueCount` 和 `nextAction=advance_payoff` 都是章节职责或质量债信号。它们可以进入写作上下文、接收闸门和后续质量回收，但不能单独触发全局重规划，否则系统会把“本章应该推进 payoff”误判成“整本计划已经失配”。
 - `replanRecommendation` 必须携带动作语义：`continue_with_warning` 表示只记录提示并继续；`local_patch_plan` 表示局部计划或修复问题，不停止后续章节；`stop_for_replan` 才表示需要暂停批量流水线进入整窗重规划。调用方不得只看 `recommended=true` 就停止章节执行。
 - 逾期 payoff 无论逾期距离、是否落在当前窗口、是否被当前章目标引用，都只能输出 `continue_with_warning`。只有结构化 `nextAction=replan`、人工强制或章节验收确认 `plan_misalignment` 才能输出 `stop_for_replan`；高/严重审计问题输出 `local_patch_plan`，不得停止剩余章节。
@@ -165,3 +167,17 @@
 - [仿写能力与生成链路加固方案](../../plans/imitation-writing-and-chain-hardening-plan.md)
 - [README 最新更新](../../../README.md)
 - [版本更新说明](../../releases/release-notes.md)
+
+## 普通末章与全书终章
+
+连载作品的末章可以保留下一阶段牵引；紧凑全书的终章必须完成结局合同，不创建必须续写的新主线，也不要求下一 beat 钩子。章节列表 Prompt 通过结构化完成配置区分两种合同，不能靠标题或正文关键词判断是否结局。
+
+达到目标章节数后，紧凑作品只允许追加最多 5 章收尾，追加内容应围绕未解决的主冲突、关系变化、核心伏笔和主题落点。超过预算仍未完成时进入明确恢复状态，不覆盖已保存正文。
+
+## 自动导演失败处理
+
+自动导演与手动审校的完成标准不同：自动导演首先保证章节连续产出。正文已保存时，审校未通过、自然度检测或伏笔推进不足应进入一次自动修复；修复仍有普通质量债时，以 `defer_and_continue` 记录并继续下一章。质量闭环的终端动作优先于单次推荐动作，不能同时记录“继续生产”和“全局重规划”两个互相冲突的状态。
+
+运行时异常由当前章节自动重试，默认最多两轮。每次重试复用同一章的事实、写作合同和任务游标；如果章节合同缺失或结构不完整，先由 JIT 规划重新补齐，再重新执行正文。只有连续重试后仍没有可用正文，或触发明确 `replan_required`、数据安全错误时，才暂停并生成可恢复检查点。
+
+回报窗口尚未结束时，账本只能提供当前章的推进提示；不得将 `overdue` 或内部风险代码注入 `mustAdvance`。这样可以避免第一章因尚未兑现远期回报而提前中断整本自动创作。

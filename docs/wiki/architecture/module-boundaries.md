@@ -16,7 +16,7 @@ Wiki 记录稳定规则，计划和检查点保留历史语境。模块治理以
 
 - 根目录只保留入口说明、协作规则、路线图和工具链配置；长期知识进入 `docs/wiki/`。
 - `docs/plans/` 保留执行方案，`docs/checkpoints/` 保留阶段记录，`docs/design/` 保留模块设计，`docs/releases/` 保留用户可见变化。
-- 单个源码文件接近 600 行时应评估职责；超过 700 行后继续扩展前必须拆分。
+- 单个源码文件接近 1200 行时应评估职责；1000 到 1300 行之间可在职责仍清晰时保持内聚，超过 1300 行后继续扩展前必须拆分。
 - 高密度目录新增能力前应先判断是否需要下级责任目录。
 - 高优先级硬约束：控制入口可以不同，但正文生成与正文修复的业务执行链必须唯一；批量执行、自动导演、手动单章生成、手动单章修复不得各自维护独立实现。
 - 任何新增的“会改正文”的入口，必须汇入 `novelProductionOrchestrator + stage runner + ChapterRuntimeCoordinator`。允许保留不同 transport、route、job 或前端流式形态，但不允许绕开统一 runtime 直接拥有 writer、patch repair、heavy repair、正文保存、资产同步或复审状态推进逻辑。

@@ -450,14 +450,14 @@ export async function saveAutoDirectorChannelSettings(payload: Partial<AutoDirec
 
 export async function getAutoDirectorIssuePolicy() {
   const { data } = await apiClient.get<ApiResponse<DirectorIssuePolicy>>(
-    "/settings/auto-director/risk-policy",
+    "/settings/auto-director/issue-policy",
   );
   return data;
 }
 
 export async function saveAutoDirectorIssuePolicy(payload: DirectorIssuePolicy) {
   const { data } = await apiClient.put<ApiResponse<DirectorIssuePolicy>>(
-    "/settings/auto-director/risk-policy",
+    "/settings/auto-director/issue-policy",
     payload,
   );
   return data;

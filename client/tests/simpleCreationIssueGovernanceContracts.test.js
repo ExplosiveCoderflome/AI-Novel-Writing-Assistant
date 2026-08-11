@@ -32,7 +32,7 @@ test("simple creation shelf exposes issue governance without professional conver
 test("all issue actions remain editable and changed rules show a safety warning", () => {
   assert.match(globalPolicySource, /DIRECTOR_ISSUE_ACTIONS\.map/);
   assert.doesNotMatch(globalPolicySource, /disabled=\{entry\.allowedActions\.length === 1\}/);
-  assert.match(novelPolicySource, /const CONFIGURABLE_ISSUES = DIRECTOR_CONFIGURABLE_ISSUE_CATALOG;/);
+  assert.match(novelPolicySource, /const CONFIGURABLE_ISSUES = DIRECTOR_ISSUE_CATALOG;/);
   assert.doesNotMatch(novelPolicySource, /DIRECTOR_ISSUE_CATALOG\.filter/);
   for (const source of [globalPolicySource, novelPolicySource]) {
     assert.match(source, /你修改了/);
@@ -40,14 +40,4 @@ test("all issue actions remain editable and changed rules show a safety warning"
     assert.match(source, /role="status"/);
     assert.match(source, /安全保护/);
   }
-});
-
-test("simple creation shelf continues remaining chapters without leaving the page", () => {
-  assert.match(shelfSource, /continueNovelWorkflow/);
-  assert.match(shelfSource, /continuationMode: "full_book_autopilot"/);
-  assert.match(shelfSource, /shelf\.progress\.canContinue/);
-  assert.match(shelfSource, /继续生成第/);
-  assert.match(shelfSource, /shelf\.progress\.currentAction/);
-  assert.doesNotMatch(shelfSource, /continueSimpleNovelProduction|simple-production/);
-  assert.doesNotMatch(shelfSource, /creative-hub/);
 });

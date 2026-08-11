@@ -10,7 +10,7 @@ const bodySchema = z.object({ override: directorIssuePolicyOverrideSchema.nullab
 
 export function registerDirectorIssuePolicyRoutes(router: Router): void {
   router.get(
-    "/:id/auto-director/risk-policy",
+    "/:id/auto-director/issue-policy",
     validate({ params: paramsSchema }),
     async (req, res, next) => {
       try {
@@ -28,7 +28,7 @@ export function registerDirectorIssuePolicyRoutes(router: Router): void {
   );
 
   router.put(
-    "/:id/auto-director/risk-policy",
+    "/:id/auto-director/issue-policy",
     validate({ params: paramsSchema, body: bodySchema }),
     async (req, res, next) => {
       try {

@@ -132,26 +132,14 @@ export class DirectorRiskAssessmentService {
         const result = await runStructuredPrompt({
           asset: directorRiskAssessmentPrompt,
           promptInput: {
-            suggestedIssueCode: input.forcePause || input.category === "replan"
-              ? "quality.replan_required"
-              : input.localOnly
-                ? "quality.local_repair_failed"
-                : "runtime.unclassified",
-            stage: input.failureStage,
-            runMode: String(input.taskContext?.runMode ?? "unknown"),
-            summary: input.failureSummary,
-            evidence: stringify(input.failureDetails, "{}"),
-            affectedScope: input.localOnly ? "current_chapter" : "task",
-            hasUsableOutput: Boolean(input.localOnly),
-            attempt: 0,
-            maxAttempts: 0,
-            detailsJson: stringify({
-              failureType: input.failureType,
-              taskContext: input.taskContext,
-              auditReports: input.auditReports,
-              replanDecision: input.replanDecision,
-              existingQualityDebt: input.existingQualityDebt,
-            }, "{}"),
+            failureStage: input.failureStage,
+            failureType: input.failureType,
+            failureSummary: input.failureSummary,
+            failureDetailsJson: stringify(input.failureDetails, "{}"),
+            taskContextJson: stringify(input.taskContext, "{}"),
+            auditReportsJson: stringify(input.auditReports, "[]"),
+            replanDecisionJson: stringify(input.replanDecision, "null"),
+            existingQualityDebtJson: stringify(input.existingQualityDebt, "[]"),
           },
           options: {
             taskId: input.taskId,
@@ -165,24 +153,7 @@ export class DirectorRiskAssessmentService {
             triggerReason: input.failureStage,
           },
         });
-        const recommendation = (() => {
-          switch (result.output.suggestedAction) {
-            case "auto_retry": return "retry" as const;
-            case "continue_with_warning": return input.localOnly ? "record_quality_debt" as const : "continue" as const;
-            case "pause_for_manual": return "pause" as const;
-            case "fail_task": return "stop" as const;
-          }
-        })();
-        aiAssessment = {
-          score: result.output.riskScore,
-          category: input.category ?? "unknown",
-          impactScope: input.localOnly ? "current_chapter" : "task",
-          affectedChapterOrders: input.affectedChapterOrders ?? [],
-          evidenceSummary: result.output.summary,
-          recommendation,
-          recommendationReason: result.output.evidence,
-          canPause: result.output.canPause,
-        };
+        aiAssessment = result.output;
       } catch {
         // Do not turn a secondary assessment failure into a new production stop.
         return null;

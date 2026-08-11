@@ -13,15 +13,11 @@ function listen(server) {
 
 test("auto director risk policy settings route returns defaults, persists updates, and validates ordering", async () => {
   const originals = {
-    findUnique: prisma.appSetting.findUnique,
     findMany: prisma.appSetting.findMany,
     upsert: prisma.appSetting.upsert,
     transaction: prisma.$transaction,
   };
   const values = new Map();
-  prisma.appSetting.findUnique = async ({ where }) => values.has(where.key)
-    ? { key: where.key, value: values.get(where.key) }
-    : null;
   prisma.appSetting.findMany = async ({ where }) => where.key.in
     .filter((key) => values.has(key))
     .map((key) => ({ key, value: values.get(key) }));
@@ -36,7 +32,7 @@ test("auto director risk policy settings route returns defaults, persists update
   try {
     const getResponse = await fetch(`http://127.0.0.1:${port}/api/settings/auto-director/risk-policy`);
     assert.equal(getResponse.status, 200);
-    assert.deepEqual((await getResponse.json()).data, { noticeThreshold: 5, pauseThreshold: 8, issueActions: {} });
+    assert.deepEqual((await getResponse.json()).data, { noticeThreshold: 5, pauseThreshold: 8 });
 
     const putResponse = await fetch(`http://127.0.0.1:${port}/api/settings/auto-director/risk-policy`, {
       method: "PUT",
@@ -44,7 +40,7 @@ test("auto director risk policy settings route returns defaults, persists update
       body: JSON.stringify({ noticeThreshold: 6, pauseThreshold: 7 }),
     });
     assert.equal(putResponse.status, 200);
-    assert.deepEqual((await putResponse.json()).data, { noticeThreshold: 6, pauseThreshold: 7, issueActions: {} });
+    assert.deepEqual((await putResponse.json()).data, { noticeThreshold: 6, pauseThreshold: 7 });
 
     const invalidResponse = await fetch(`http://127.0.0.1:${port}/api/settings/auto-director/risk-policy`, {
       method: "PUT",
@@ -53,7 +49,6 @@ test("auto director risk policy settings route returns defaults, persists update
     });
     assert.equal(invalidResponse.status, 400);
   } finally {
-    prisma.appSetting.findUnique = originals.findUnique;
     prisma.appSetting.findMany = originals.findMany;
     prisma.appSetting.upsert = originals.upsert;
     prisma.$transaction = originals.transaction;

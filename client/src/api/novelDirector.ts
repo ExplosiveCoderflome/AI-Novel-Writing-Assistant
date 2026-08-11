@@ -36,7 +36,7 @@ export interface NovelDirectorIssuePolicyResponse {
 
 export async function getNovelDirectorIssuePolicy(novelId: string) {
   const { data } = await apiClient.get<ApiResponse<NovelDirectorIssuePolicyResponse>>(
-    `/novels/${novelId}/auto-director/risk-policy`,
+    `/novels/${novelId}/auto-director/issue-policy`,
   );
   return data;
 }
@@ -46,7 +46,7 @@ export async function saveNovelDirectorIssuePolicy(
   override: DirectorIssuePolicyOverride | null,
 ) {
   const { data } = await apiClient.put<ApiResponse<NovelDirectorIssuePolicyResponse>>(
-    `/novels/${novelId}/auto-director/risk-policy`,
+    `/novels/${novelId}/auto-director/issue-policy`,
     { override },
   );
   return data;

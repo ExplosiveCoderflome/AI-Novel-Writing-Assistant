@@ -51,7 +51,7 @@ const continueParamsSchema = z.object({
 });
 
 const continueBodySchema = z.object({
-  continuationMode: z.enum(["resume", "auto_execute_range", "skip_quality_repair", "full_book_autopilot"]).optional(),
+  continuationMode: z.enum(["resume", "auto_execute_range", "skip_quality_repair"]).optional(),
 });
 
 const repairChapterTitlesBodySchema = z.object({
