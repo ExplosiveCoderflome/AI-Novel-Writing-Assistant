@@ -46,6 +46,7 @@ function updateSession(
       seq: event.seq,
       phase: event.phase,
       phaseMessage: event.message,
+      errorMessage: event.errorMessage ?? current.errorMessage,
       updatedAt: event.at,
       completedAt: event.phase === "completed" || event.phase === "failed" || event.phase === "cancelled"
         ? event.at
@@ -68,6 +69,7 @@ function updateSession(
     seq: event.seq,
     phase: "failed",
     phaseMessage: event.message,
+    errorMessage: event.errorMessage || event.message,
     updatedAt: event.at,
     completedAt: event.at,
   };

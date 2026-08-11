@@ -1623,11 +1623,10 @@
             "gen_35b80743": "舒展",
             "gen_f07d8f75": "均衡",
             "gen_03e59bb3": "紧凑",
-            "gen_a8448604": "卡点",
-            "gen_32c65d8d": "标题"
+            "gen_a8448604": "卡点"
           },
           "PanelsGridPanel": {
-            "layoutType": "{layoutData.layout === \"four_koma\" ? \"四格起承转合\" : layoutData.layout}",
+            "layoutType": "版式结构设定",
             "gen_2a07f258": "检查并调整这一格的画面描述；重新生图会使用保存后的内容。",
             "progressFailed": "{progress.failed} 失败",
             "savedThenNextImageGenerationWillUseThisSceneScript": "保存后，下一次生图会使用这段画面脚本。",
@@ -12783,7 +12782,19 @@
       "edwbh4": "清空前台",
       "3uc12v": "回到最新输出",
       "m9968m": "查看 AI 创作实况",
-      "97qyga": "关闭 AI 创作实况"
+      "97qyga": "关闭 AI 创作实况",
+      "searchPlaceholder": "搜索提示词、AI返回内容或算法阶段…",
+      "copyInput": "复制 Prompt",
+      "copyOutput": "复制 Output",
+      "copied": "已复制",
+      "prettyJson": "JSON 格式化",
+      "rawText": "原始文本",
+      "maximize": "最大化窗口",
+      "restore": "还原窗口",
+      "charsPerSec": "字/秒",
+      "duration": "耗时",
+      "model": "模型",
+      "errorDetails": "错误明细"
     }
   },
   "taskQueue": {

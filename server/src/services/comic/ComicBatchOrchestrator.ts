@@ -1,6 +1,8 @@
 import type { LLMProvider } from "@ai-novel/shared/types/llm";
 import { prisma } from "../../db/prisma";
 import { AppError } from "../../middleware/errorHandler";
+import { isImageProviderSupported } from "../image/provider";
+import { DEFAULT_RUNTIME_PROVIDER } from "../image/runtime";
 import { comicPanelImageService } from "./ComicPanelImageService";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -11,6 +13,7 @@ export interface BatchProgress {
   failed: number;
   failedPanelIds: string[];
   status: "running" | "completed" | "partial";
+  lastError?: string;
 }
 
 export interface StartBatchOptions {
@@ -27,6 +30,7 @@ const COST_PER_IMAGE_CENTS: Partial<Record<string, number>> = {
   openai: 4,   // gpt-image-1 ~$0.04/image
   jimeng: 0.5, // 即梦约 ¥0.04/张
   grok: 10,
+  comfyui: 0,
 };
 
 // ─── Orchestrator ─────────────────────────────────────────────────────────────
@@ -42,7 +46,12 @@ export class ComicBatchOrchestrator {
     episodeId: string,
     opts: StartBatchOptions = {},
   ): Promise<{ jobId: string }> {
-    const { provider = "openai", concurrency = 3, skipDone = true } = opts;
+    const { concurrency = 3, skipDone = true } = opts;
+
+    // 解析有效 Provider：前端未显式指定时，自动使用当前系统默认 Provider（如 comfyui）
+    const provider: LLMProvider = (opts.provider && isImageProviderSupported(opts.provider))
+      ? opts.provider
+      : DEFAULT_RUNTIME_PROVIDER;
 
     const episode = await prisma.comicEpisode.findUnique({
       where: { id: episodeId },
@@ -102,6 +111,15 @@ export class ComicBatchOrchestrator {
     provider: LLMProvider,
     concurrency: number,
   ): Promise<void> {
+    const { beginLlmLiveSession } = await import("../../platform/llm/live/llmLiveSession");
+    const liveSession = beginLlmLiveSession({
+      label: `分格批量生图 (${panelIds.length} 格)`,
+      mode: "text",
+      provider,
+      promptPreview: `开始为 ${panelIds.length} 个漫画分格生成图片...`,
+    });
+    liveSession.phase("requesting", `启动并发分格生图任务 (并发数: ${concurrency}, 引擎: ${provider})...`);
+
     const progress: BatchProgress = {
       total: panelIds.length,
       done: 0,
@@ -118,11 +136,16 @@ export class ComicBatchOrchestrator {
       while (queue.length > 0) {
         const panelId = queue.shift()!;
         try {
+          liveSession.phase("streaming", `正在生成分格图像 (${progress.done + progress.failed + 1}/${progress.total})...`);
           await comicPanelImageService.generatePanelImage(panelId, provider);
           progress.done++;
-        } catch {
+          liveSession.delta(`[分格生成成功] 格子 ID: ${panelId} (${progress.done}/${progress.total})\n`);
+        } catch (err: any) {
+          const errMsg = err?.message || String(err);
           progress.failed++;
           progress.failedPanelIds.push(panelId);
+          progress.lastError = errMsg;
+          liveSession.delta(`[分格生成失败] 格子 ID: ${panelId}\n错误原因: ${errMsg}\n`);
         }
         // 每完成一格就持久化进度
         await prisma.comicBatchJob.update({
@@ -148,81 +171,86 @@ export class ComicBatchOrchestrator {
       },
     }).catch(() => {});
 
-    console.log(
-      `[comic.batch] job=${jobId} done=${progress.done} failed=${progress.failed} status=${finalStatus}`,
-    );
+    if (progress.failed > 0) {
+      liveSession.fail(`分格批量生成完成：${progress.done} 成功，${progress.failed} 失败！错误原因: ${progress.lastError || "未知错误"}`);
+    } else {
+      liveSession.complete();
+    }
   }
 
-  /**
-   * 重试失败的格子（读取 BatchJob 中的 failedPanelIds）。
-   */
-  async retryFailed(jobId: string, opts: { provider?: LLMProvider } = {}): Promise<{ jobId: string }> {
+  async getBatchJob(jobId: string) {
     const job = await prisma.comicBatchJob.findUnique({ where: { id: jobId } });
-    if (!job) throw new AppError(`批量任务不存在：${jobId}`, 404);
-    if (job.status === "running") throw new AppError("任务仍在运行中，请等待完成后重试。", 409);
+    if (!job) throw new AppError(`未找到批量任务：${jobId}`, 404);
+    return job;
+  }
 
-    const prev = JSON.parse(job.progress) as BatchProgress;
-    if (prev.failedPanelIds.length === 0) {
+  async listBatchJobs(projectId: string, limit: number = 20) {
+    return prisma.comicBatchJob.findMany({
+      where: { projectId },
+      orderBy: { createdAt: "desc" },
+      take: limit,
+    });
+  }
+
+  async retryFailed(
+    jobId: string,
+    opts: { provider?: LLMProvider; concurrency?: number } = {},
+  ): Promise<{ jobId: string }> {
+    const job = await prisma.comicBatchJob.findUnique({ where: { id: jobId } });
+    if (!job) throw new AppError(`未找到批量任务：${jobId}`, 404);
+
+    const prevProgress = JSON.parse(job.progress) as BatchProgress;
+    const failedIds = prevProgress.failedPanelIds ?? [];
+    if (failedIds.length === 0) {
       throw new AppError("没有失败的格子需要重试。", 400);
     }
 
-    const provider = opts.provider ?? "openai";
-    const newProgress: BatchProgress = {
-      total: prev.failedPanelIds.length,
+    const provider = (opts.provider && isImageProviderSupported(opts.provider))
+      ? opts.provider
+      : DEFAULT_RUNTIME_PROVIDER;
+
+    // 更新 BatchJob 状态为 running
+    const progress: BatchProgress = {
+      total: failedIds.length,
       done: 0,
       failed: 0,
       failedPanelIds: [],
       status: "running",
     };
-
     await prisma.comicBatchJob.update({
       where: { id: jobId },
-      data: { status: "running", progress: JSON.stringify(newProgress) },
+      data: {
+        status: "running",
+        progress: JSON.stringify(progress),
+      },
     });
 
-    void this._runBatch(jobId, prev.failedPanelIds, provider, 3);
+    void this._runBatch(jobId, failedIds, provider, opts.concurrency ?? 3);
     return { jobId };
   }
 
-  /**
-   * 估算批量生成费用（粗略）。
-   */
-  async estimateCost(episodeId: string, provider: string = "openai"): Promise<{
-    totalPanels: number;
-    pendingPanels: number;
-    estimatedCentsCost: number;
-    providerNote: string;
-  }> {
-    const panels = await prisma.comicPanel.findMany({
-      where: { episodeId },
-      select: { imageData: true },
+  async estimateCost(episodeId: string, provider: string = "openai"): Promise<{ estimatedCentsCost: number; pendingPanels: number }> {
+    const episode = await prisma.comicEpisode.findUnique({
+      where: { id: episodeId },
+      include: { panels: { select: { imageData: true } } },
     });
-    const pending = panels.filter((p) => {
+    if (!episode) return { estimatedCentsCost: 0, pendingPanels: 0 };
+
+    const pendingCount = episode.panels.filter((p) => {
       if (!p.imageData) return true;
       try {
         const d = JSON.parse(p.imageData) as { status?: string };
         return d.status !== "done";
-      } catch { return true; }
-    });
+      } catch {
+        return true;
+      }
+    }).length;
 
-    const centsPerImage = COST_PER_IMAGE_CENTS[provider] ?? 4;
+    const costPerImage = COST_PER_IMAGE_CENTS[provider] ?? 4;
     return {
-      totalPanels: panels.length,
-      pendingPanels: pending.length,
-      estimatedCentsCost: pending.length * centsPerImage,
-      providerNote: `基于 ${provider} 约 ${centsPerImage} 美分/张估算，实际费用以平台账单为准`,
+      estimatedCentsCost: Number((pendingCount * costPerImage).toFixed(1)),
+      pendingPanels: pendingCount,
     };
-  }
-
-  async getBatchJob(jobId: string) {
-    return prisma.comicBatchJob.findUnique({ where: { id: jobId } });
-  }
-
-  async listBatchJobs(projectId: string) {
-    return prisma.comicBatchJob.findMany({
-      where: { projectId },
-      orderBy: { createdAt: "desc" },
-    });
   }
 }
 

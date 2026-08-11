@@ -12771,11 +12771,23 @@
   },
   "liveExecution": {
     "liveExecutionDialog": {
-      "i2ai6f": "每次调用独立显示。新调用会自动聚焦，已完成调用会收起；清空只影响当前窗口。",
-      "edwbh4": "清空前台",
-      "3uc12v": "回到最新输出",
-      "m9968m": "查看 AI 创作实况",
-      "97qyga": "关闭 AI 创作实况"
+      "i2ai6f": "Each call is shown independently. New calls auto-focus, finished ones collapse. Clear only affects current window.",
+      "edwbh4": "Clear Log",
+      "3uc12v": "Back to Latest",
+      "m9968m": "View AI Live Execution",
+      "97qyga": "Close AI Live Execution",
+      "searchPlaceholder": "Search prompt, output or phase...",
+      "copyInput": "Copy Prompt",
+      "copyOutput": "Copy Output",
+      "copied": "Copied",
+      "prettyJson": "Pretty JSON",
+      "rawText": "Raw Text",
+      "maximize": "Maximize",
+      "restore": "Restore",
+      "charsPerSec": "chars/s",
+      "duration": "Duration",
+      "model": "Model",
+      "errorDetails": "Error Details"
     }
   },
   "taskQueue": {

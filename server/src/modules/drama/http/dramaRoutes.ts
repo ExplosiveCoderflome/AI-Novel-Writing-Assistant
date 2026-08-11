@@ -690,7 +690,7 @@ router.get("/shot-images/:shotId/keyframe", validate({ params: shotImageParamsSc
       return;
     }
     res.setHeader("Content-Type", resolved.mimeType);
-    res.setHeader("Cache-Control", "public, max-age=86400");
+    res.setHeader("Cache-Control", "no-cache, must-revalidate");
     fs.createReadStream(resolved.filePath).pipe(res);
   } catch (error) {
     next(error);
@@ -708,7 +708,7 @@ router.get("/shot-images/:shotId/keyframe/:version", validate({ params: shotImag
       return;
     }
     res.setHeader("Content-Type", resolved.mimeType);
-    res.setHeader("Cache-Control", "public, max-age=86400");
+    res.setHeader("Cache-Control", "no-cache, must-revalidate");
     fs.createReadStream(resolved.filePath).pipe(res);
   } catch (error) {
     next(error);
@@ -728,7 +728,7 @@ router.get("/character-images/:characterId/character-sheet", async (req, res, ne
       return;
     }
     res.setHeader("Content-Type", resolved.mimeType);
-    res.setHeader("Cache-Control", "public, max-age=86400");
+    res.setHeader("Cache-Control", "no-cache, must-revalidate");
     fs.createReadStream(resolved.filePath).pipe(res);
   } catch (error) {
     next(error);
@@ -750,7 +750,7 @@ router.get("/character-images/:characterId/character-sheet/:version", validate({
       return;
     }
     res.setHeader("Content-Type", resolved.mimeType);
-    res.setHeader("Cache-Control", "public, max-age=86400");
+    res.setHeader("Cache-Control", "no-cache, must-revalidate");
     fs.createReadStream(resolved.filePath).pipe(res);
   } catch (error) {
     next(error);
@@ -770,7 +770,7 @@ router.get("/character-images/:characterId/portrait", async (req, res, next) => 
       return;
     }
     res.setHeader("Content-Type", resolved.mimeType);
-    res.setHeader("Cache-Control", "public, max-age=86400");
+    res.setHeader("Cache-Control", "no-cache, must-revalidate");
     fs.createReadStream(resolved.filePath).pipe(res);
   } catch (error) {
     next(error);
@@ -793,7 +793,7 @@ router.get(
         return;
       }
       res.setHeader("Content-Type", resolved.mimeType);
-      res.setHeader("Cache-Control", "public, max-age=86400");
+      res.setHeader("Cache-Control", "no-cache, must-revalidate");
       fs.createReadStream(resolved.filePath).pipe(res);
     } catch (error) {
       next(error);

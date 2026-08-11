@@ -88,7 +88,36 @@ export async function runImageGeneration<TState extends GeneratedImageState>(
   } as TState;
   await adapter.saveState(generatingState);
 
-  // 5. 调 provider + 落盘
+  // 5. 调 provider + 落盘 + 实时推送到 AI 实况 (LlmLiveBroker)
+  const { beginLlmLiveSession } = await import("../../../platform/llm/live/llmLiveSession");
+  const liveSession = beginLlmLiveSession({
+    label: `图像生成: ${adapter.kind}`,
+    mode: "text",
+    provider,
+    model,
+    promptPreview: opts.prompt,
+  });
+  liveSession.phase("requesting", "正在准备离线生图环境...");
+
+  // 绑定 ComfyUI 离线模型权重下载进度至【AI 实况】
+  const { modelWeightDownloader } = await import("../comfyui/ComfyUIDaemonService");
+  let lastProgressPercent = -1;
+  const unsubDownloader = modelWeightDownloader.onProgress((info) => {
+    if (info.isDownloading) {
+      liveSession.phase(
+        "streaming",
+        `全自动下载 ComfyUI 离线模型 (${info.fileName}): ${info.percent}% (${info.downloadedMB}MB / ${info.totalMB}MB)`
+      );
+      if (Math.abs(info.percent - lastProgressPercent) >= 5 || info.percent === 100) {
+        lastProgressPercent = info.percent;
+        liveSession.delta(`[ComfyUI 权重下载进度] ${info.fileName} -> ${info.percent}% (${info.downloadedMB}MB / ${info.totalMB}MB)\n`);
+      }
+    } else if (info.percent === 100) {
+      liveSession.phase("requesting", "模型权重下载完成！正在启动 GPU 渲染...");
+      liveSession.delta(`[ComfyUI 离线模型下载] 权重文件 ${info.fileName} 已全自动补充完毕！开始 GPU 渲染...\n`);
+    }
+  });
+
   try {
     const result = await generateImagesByProvider({
       sceneType: opts.sceneType ?? "chapter_illustration",
@@ -111,6 +140,8 @@ export async function runImageGeneration<TState extends GeneratedImageState>(
     if (adapter.cleanupOtherExts) await adapter.cleanupOtherExts(ext);
 
     console.log(`[image.runtime] done kind=${adapter.kind} provider=${provider} model=${model} -> ${path.basename(destPath)}`);
+    liveSession.delta(`[成功生成图像] 格式: .${ext} -> ${path.basename(destPath)}\n图片链接: ${adapter.publicUrl()}`);
+    liveSession.complete();
 
     // 6. 写 done
     const doneBase: GeneratedImageState = {
@@ -129,6 +160,7 @@ export async function runImageGeneration<TState extends GeneratedImageState>(
     return doneState;
   } catch (err) {
     const errMsg = describeError(err);
+    liveSession.fail(errMsg);
     console.error(`[image.runtime] error kind=${adapter.kind} provider=${provider}:`, errMsg);
     const errorState = {
       ...existing,
@@ -140,5 +172,7 @@ export async function runImageGeneration<TState extends GeneratedImageState>(
     } as TState;
     await adapter.saveState(errorState);
     throw err;
+  } finally {
+    unsubDownloader();
   }
 }

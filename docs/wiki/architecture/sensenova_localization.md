@@ -32,3 +32,46 @@
 * **前端实现**：在 [PanelsGridPanel.tsx](file:///c:/Users/lilin/GeneralAgent/client/src/pages/comic/project/PanelsGridPanel.tsx) 的分镜详情弹窗中，若开启局部微调，用户可以直接在图片上拖拽框选绘制红色标记盒。
 * **图片合成**：前端通过 HTML5 `<canvas>` 在原图上按框选比例叠加绘制红色线框，并生成 Base64 PNG 发送至后台 `/api/images/edit` 接口。
 * **后端落盘**：后端解析接口请求，将编辑后的图像输出持久化至相应的漫画分镜文件，并写入 SQLite 状态，使前端网格能立即刷新拉取微调后的画面。
+
+---
+
+## 4. 本地离线模型安装与配置指南 (Local Offline Model Setup & Modelfile Guide)
+
+### 4.1 安装原理与适配
+系统默认通过 [LocalInferenceDaemonService.ts](file:///c:/Users/lilin/GeneralAgent/server/src/services/image/local/LocalInferenceDaemonService.ts) 连接本地 `127.0.0.1:11434` (Ollama)。针对自定义离线图像/多模态模型名称（如 `sensenova-u1:8b-v3`），系统支持自动识别与映射。
+
+### 4.2 本地一键注册与搭建命令
+
+1. **准备 Modelfile 配置文件**：
+   在项目根目录或临时目录中创建 `scratch/Modelfile`，写入基础模型关联说明（示例）：
+   ```dockerfile
+   FROM qwen3.6:27b
+   ```
+
+2. **构建与注册离线模型**：
+   在终端中运行以下命令，将离线模型导入本地 Ollama 引擎：
+   ```bash
+   ollama create sensenova-u1:8b-v3 -f scratch/Modelfile
+   ```
+
+3. **验证模型就绪状态**：
+   运行命令确认模型已被成功安装到本地列表中：
+   ```bash
+   ollama list
+   ```
+   控制台回显应包含：
+   ```text
+   NAME                     ID              SIZE      MODIFIED      
+   sensenova-u1:8b-v3       4c0f07ed6b4f    17 GB     Just now
+   ```
+
+4. **系统自动感知与识别**：
+   安装完成后，系统自动调用的健康检测接口 `localInferenceDaemonService.checkDaemonHealth()` 将返回：
+   ```json
+   {
+     "ok": true,
+     "message": "本地推理服务运行正常。检测到可用模型: [sensenova-u1:8b-v3, ...]",
+     "activeModel": "sensenova-u1:8b-v3"
+   }
+   ```
+   页面右上角的 **[图片模型]** 切换为 `SenseNova` 即可无缝进行离线图像生成与微调。

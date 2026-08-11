@@ -70,7 +70,7 @@ export class LlmLiveBroker {
     return () => this.listeners.delete(wrapped);
   }
 
-  getSnapshots(filter: LlmLiveSubscriptionFilter): LlmLiveSessionSnapshot[] {
+  getSnapshots(filter: LlmLiveSubscriptionFilter = {}): LlmLiveSessionSnapshot[] {
     this.pruneCompletedSessions();
     return [...this.sessions.values()]
       .map((entry) => entry.snapshot)
@@ -81,7 +81,7 @@ export class LlmLiveBroker {
       .sort((left, right) => right.startedAt.localeCompare(left.startedAt) || right.updatedAt.localeCompare(left.updatedAt));
   }
 
-  updatePhase(interactionId: string, phase: LlmLivePhase, message: string): void {
+  updatePhase(interactionId: string, phase: LlmLivePhase, message: string, errorMessage?: string | null): void {
     const record = this.sessions.get(interactionId);
     if (!record) {
       return;
@@ -93,6 +93,7 @@ export class LlmLiveBroker {
       seq,
       phase,
       phaseMessage: message,
+      errorMessage: errorMessage ?? record.snapshot.errorMessage ?? null,
       updatedAt: now,
       completedAt: phase === "completed" || phase === "failed" || phase === "cancelled" ? now : null,
     };
@@ -103,6 +104,7 @@ export class LlmLiveBroker {
       interactionId,
       phase,
       message,
+      errorMessage,
     });
   }
 
@@ -167,12 +169,12 @@ export class LlmLiveBroker {
     });
   }
 
-  fail(interactionId: string, message: string): void {
+  fail(interactionId: string, message: string, errorMessage?: string | null): void {
     const record = this.sessions.get(interactionId);
     if (!record) {
       return;
     }
-    this.updatePhase(interactionId, "failed", message);
+    this.updatePhase(interactionId, "failed", message, errorMessage);
     const snapshot = this.sessions.get(interactionId)?.snapshot;
     if (!snapshot) {
       return;
@@ -184,6 +186,7 @@ export class LlmLiveBroker {
       snapshot: {
         ...snapshot,
         seq,
+        errorMessage: errorMessage || message,
         updatedAt: failedAt,
         completedAt: failedAt,
       },
@@ -194,6 +197,7 @@ export class LlmLiveBroker {
       at: failedAt,
       interactionId,
       message,
+      errorMessage: errorMessage || message,
     });
   }
 
@@ -254,8 +258,9 @@ export class LlmLiveSession {
   }
 
   fail(error: unknown): void {
-    const message = error instanceof Error ? error.message : "模型调用失败";
-    this.broker.fail(this.interactionId, message);
+    const message = error instanceof Error ? error.message : typeof error === "string" ? error : "模型调用失败";
+    const details = error instanceof Error && error.stack ? error.stack : message;
+    this.broker.fail(this.interactionId, message, details);
   }
 }
 

@@ -2,6 +2,7 @@ import { useLocation } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { SlidersHorizontal } from "lucide-react";
 import LLMSelector from "@/components/common/LLMSelector";
+import ImageModelSelector from "@/components/common/ImageModelSelector";
 import { useCreationSetup } from "@/components/onboarding/CreationSetupContext";
 import AppVersionBadge from "@/components/layout/AppVersionBadge";
 import DesktopBrandMark from "@/components/layout/DesktopBrandMark";
@@ -65,8 +66,11 @@ export default function Navbar(props: NavbarProps) {
           <SlidersHorizontal className="h-4 w-4" />
           <span className="hidden lg:inline">{t("navbar.quickSetup", "模型设置")}</span>
         </Button>
-        <div className={useMobileAutoDirectorShell ? AUTO_DIRECTOR_MOBILE_CLASSES.navbarModelSelector : undefined}>
-          <LLMSelector compact showBadge={false} showHelperText={false} />
+        <div className="flex items-center gap-2">
+          <div className={useMobileAutoDirectorShell ? AUTO_DIRECTOR_MOBILE_CLASSES.navbarModelSelector : undefined}>
+            <LLMSelector compact showBadge={false} showHelperText={false} />
+          </div>
+          <ImageModelSelector compact />
         </div>
       </div>
     </header>

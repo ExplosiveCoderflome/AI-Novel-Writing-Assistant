@@ -1,6 +1,6 @@
 import i18next from "i18next";
 const t = (key: string, options?: any) => i18next.t(key, options) as string;
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useParams } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
@@ -37,6 +37,7 @@ import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "@/components/ui/toast";
 import SelectControl from "@/components/common/SelectControl";
+import LLMSelector from "@/components/common/LLMSelector";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -129,7 +130,7 @@ export default function ComicProjectPage() {
     enabled: Boolean(id),
   });
 
-  const { data: providerOptions = [] } = useQuery({
+  const { data: rawProviderOptions = [] } = useQuery({
     queryKey: ["settings", "api-keys"],
     queryFn: getAPIKeySettings,
     select: (res) =>
@@ -137,11 +138,23 @@ export default function ComicProjectPage() {
         .filter((p) => p.supportsImageGeneration && p.isConfigured)
         .map((p) => ({ value: p.provider, label: p.displayName ?? p.name })),
   });
-  // 缓存的 provider 仍存在于可用列表才用，否则回退到第一个（避免引用已失效的 provider 配置）
+
+  const providerOptions = useMemo(() => {
+    const list = [...rawProviderOptions];
+    if (!list.some((p) => p.value === "comfyui")) {
+      list.unshift({ value: "comfyui", label: "ComfyUI (本地离线画师 · MiniMax H3/FLUX/SD)" });
+    }
+    if (!list.some((p) => p.value === "sensenova")) {
+      list.push({ value: "sensenova", label: "SenseNova (本地离线)" });
+    }
+    return list;
+  }, [rawProviderOptions]);
+
+  // 缓存的 provider 仍存在于可用列表才用，默认优先使用 comfyui
   const resolvedProvider =
     (selectedProvider && providerOptions.some((p) => p.value === selectedProvider))
       ? selectedProvider
-      : providerOptions[0]?.value || "";
+      : "comfyui";
 
   const presetMut = useMutation({
     mutationFn: (payload: Parameters<typeof updateComicPreset>[1]) => updateComicPreset(id!, payload),
@@ -338,23 +351,6 @@ export default function ComicProjectPage() {
               {formatDef.tag}
             </span>
           )}
-          {/* 图片模型全局选择器 */}
-          <div className="ml-auto flex items-center gap-2">
-            <span className="text-xs text-muted-foreground whitespace-nowrap">{i18next.t("dict.gen_eae0b949")}</span>
-            {providerOptions.length === 0 ? (
-              <span className="text-xs text-destructive">{i18next.t("dict.gen_15e5d13c")}</span>
-            ) : (
-              <SelectControl
-                className="rounded-md border bg-background px-2.5 py-1 text-xs"
-                value={resolvedProvider}
-                onChange={(e) => handleProviderChange(e.target.value)}
-              >
-                {providerOptions.map((opt) => (
-                  <option key={opt.value} value={opt.value}>{opt.label}</option>
-                ))}
-              </SelectControl>
-            )}
-          </div>
         </div>
       </div>
 

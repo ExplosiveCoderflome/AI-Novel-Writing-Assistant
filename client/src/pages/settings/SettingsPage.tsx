@@ -28,6 +28,7 @@ import SettingsMaintenanceSection from "./components/SettingsMaintenanceSection"
 import SettingsNavigationCards from "./components/SettingsNavigationCards";
 import SettingsReadinessCard, { buildSettingsReadinessItems } from "./components/SettingsReadinessCard";
 import LocalDiagnosticsCard from "./components/LocalDiagnosticsCard";
+import ComfyUIDiagnosticsCard from "./components/ComfyUIDiagnosticsCard";
 import SettingsSectionGroup from "./components/SettingsSectionGroup";
 import StyleEngineRuntimeSettingsCard from "./components/StyleEngineRuntimeSettingsCard";
 import SettingsActionResult from "./SettingsActionResult";
@@ -471,6 +472,7 @@ export default function SettingsPage() {
         status="required"
       >
         <SettingsReadinessCard items={readinessItems} />
+        <ComfyUIDiagnosticsCard />
         <LocalDiagnosticsCard />
         <ProviderSettingsSection
           providers={providerConfigs}

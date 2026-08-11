@@ -63,6 +63,7 @@ const IMAGE_EXTS: Array<[string, string]> = [
   ["png", "image/png"],
   ["jpg", "image/jpeg"],
   ["webp", "image/webp"],
+  ["svg", "image/svg+xml"],
 ];
 
 function sceneDir(sceneId: string): string {
@@ -101,25 +102,19 @@ function buildSceneSheetPrompt(params: {
   stylePrefix?: string;
 }): string {
   const { name, sceneType, bible, stylePrefix } = params;
-  // 十字分割的 2x2 四宫格场景参考图：一张图同时给出四个视角，作参考时信息量最大
   const lines: string[] = [
+    "location concept art, scenery design sheet, environment illustration, single wide view",
+    `location: ${name} (${sceneType})`,
     stylePrefix ?? "webtoon style, vibrant colors, clean lines",
-    `location reference sheet of a ${sceneType} scene: ${name}`,
-    "ONE single square image divided by a cross into a 2x2 grid of four quadrants",
-    "top-left: wide establishing shot of the whole space",
-    "top-right: an alternate angle / reverse view of the same space",
-    "bottom-left: medium shot of the core area with the key landmarks and furniture",
-    "bottom-right: close-up of materials, color swatches and lighting mood",
-    "all four quadrants depict the SAME location with IDENTICAL palette, materials, architecture and lighting",
-    "environment concept art, NO characters or only tiny background figures",
-    "thin clean divider lines between quadrants, so it can be reused as a location reference",
   ];
   if (bible.palette) lines.push(`color palette: ${bible.palette}`);
   if (bible.keyElements) lines.push(`key elements: ${bible.keyElements}`);
   if (bible.materials) lines.push(`materials: ${bible.materials}`);
   if (bible.ambiance) lines.push(`ambiance and lighting: ${bible.ambiance}`);
   if (bible.layout) lines.push(`spatial layout: ${bible.layout}`);
-  lines.push("clean composition, no text labels, no watermark, high quality background art");
+  lines.push(
+    "wide shot establishing view, detailed architectural structure and atmosphere, no characters, empty scenery, high quality background art, master quality"
+  );
   return lines.join(", ");
 }
 
@@ -239,7 +234,7 @@ export class ComicSceneService {
     return {
       adapter,
       prompt,
-      size: "1024x1024" as const,
+      size: "768x512" as const,
       title: `生成场景设定图：${scene.name}`,
     };
   }
@@ -262,9 +257,11 @@ export class ComicSceneService {
     overrides?: import("../image/runtime").ImageGenerationOverrides,
   ): Promise<void> {
     const ctx = await this.buildSceneGenerationContext(sceneId);
+    const defaultNegativePrompt = "(grid:1.4), (collage:1.4), (photo wall:1.4), (multiple views:1.3), (split screen:1.3), (tiled:1.3), multiple rooms, multiple angles, text, watermark, logo, characters, people, crowd, bad geometry, blurry, low quality";
     await runImageGeneration(ctx.adapter, {
       provider: overrides?.providerOverride ?? provider,
       prompt: overrides?.promptOverride ?? ctx.prompt,
+      negativePrompt: overrides?.negativePromptOverride ?? defaultNegativePrompt,
       size: overrides?.sizeOverride ?? ctx.size,
     });
   }

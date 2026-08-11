@@ -107,10 +107,12 @@ function BatchBar({
   episodeId,
   provider,
   onComplete,
+  onTick,
 }: {
   episodeId: string;
   provider: string;
   onComplete: () => void;
+  onTick?: (jobStatus: string) => void;
 }) {
   const [jobId, setJobId] = useState<string | null>(null);
   const [job, setJob] = useState<ComicBatchJob | null>(null);
@@ -129,6 +131,7 @@ function BatchBar({
       try {
         const updated = await getBatchJob(jobId);
         setJob(updated);
+        onTick?.(updated.status);
         if (updated.status !== "running") {
           clearInterval(pollRef.current!);
           pollRef.current = null;
@@ -141,7 +144,7 @@ function BatchBar({
     return () => {
       if (pollRef.current) clearInterval(pollRef.current);
     };
-  }, [jobId, onComplete]);
+  }, [jobId, onComplete, onTick]);
 
   const startMut = useMutation({
     mutationFn: () =>
@@ -196,7 +199,9 @@ function BatchBar({
         {estimate && pendingCount > 0 && (
           <span className="flex items-center gap-1 text-xs text-muted-foreground">
             <CircleDollarSign className="h-3.5 w-3.5" />
-            约 {estimate.estimatedCentsCost} ¢
+            {estimate.estimatedCentsCost === 0
+              ? "免费 (本地模型)"
+              : `约 ${estimate.estimatedCentsCost} 美分`}
           </span>
         )}
 
@@ -228,7 +233,7 @@ function BatchBar({
             <span>
               {progress.done} / {progress.total} 完成
               {progress.failed > 0 && (
-                <span className="ml-1.5 text-destructive">{i18next.t("dict.progressFailed")}</span>
+                <span className="ml-1.5 text-destructive">({progress.failed} 格失败)</span>
               )}
             </span>
             <span>
@@ -622,7 +627,9 @@ function PanelDetailDialog({
               <div>
                 <div className="mb-1 text-xs font-semibold text-muted-foreground">{i18next.t("dict.gen_f573af34")}</div>
                 <div className="rounded border bg-muted/40 px-2 py-2 text-xs leading-relaxed text-muted-foreground">
-                  <div className="font-medium text-foreground">{i18next.t("dict.layoutType")}</div>
+                  <div className="font-medium text-foreground">
+                    版式：{layoutData.layout === "four_koma" ? "四格起承转合" : layoutData.layout}
+                  </div>
                   {layoutData.subPanels?.length ? (
                     <div className="mt-1 space-y-1">
                       {layoutData.subPanels.map((subPanel) => (
@@ -854,6 +861,9 @@ export function PanelsGridPanel({ projectId, provider }: { projectId: string; pr
         <BatchBar
           episodeId={activeEpisode.id}
           provider={provider}
+          onTick={() => {
+            queryClient.invalidateQueries({ queryKey: ["comic", "panels", activeEpisode.id] });
+          }}
           onComplete={() => {
             queryClient.invalidateQueries({ queryKey: ["comic", "panels", activeEpisode.id] });
             void refetchPanels();
@@ -908,7 +918,7 @@ export function PanelsGridPanel({ projectId, provider }: { projectId: string; pr
                 {imageData.status === "done" ? (
                   <div className="relative">
                     <img
-                      src={panelImageUrl(panel.id)}
+                      src={`${panelImageUrl(panel.id)}?t=${imageData.generatedAt || panel.updatedAt || ""}`}
                       alt={`第 ${panel.order} 格`}
                       className="aspect-[2/3] w-full object-cover"
                       loading="lazy"

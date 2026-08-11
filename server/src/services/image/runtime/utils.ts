@@ -20,8 +20,13 @@ export function safeJsonParse<T>(raw: string | null | undefined, fallback: T): T
 export async function saveImageToDisk(imageUrl: string, destPath: string): Promise<void> {
   await fs.mkdir(path.dirname(destPath), { recursive: true });
   if (imageUrl.startsWith("data:")) {
-    const [, b64 = ""] = imageUrl.split(",", 2);
-    await fs.writeFile(destPath, Buffer.from(b64, "base64"));
+    if (imageUrl.startsWith("data:image/svg+xml;utf8,")) {
+      const rawSvg = decodeURIComponent(imageUrl.replace("data:image/svg+xml;utf8,", ""));
+      await fs.writeFile(destPath, Buffer.from(rawSvg, "utf8"));
+    } else {
+      const [, b64 = ""] = imageUrl.split(",", 2);
+      await fs.writeFile(destPath, Buffer.from(b64, "base64"));
+    }
   } else {
     const resp = await fetch(imageUrl);
     if (!resp.ok) throw new Error(`图片下载失败 (${resp.status}): ${imageUrl}`);
@@ -29,10 +34,12 @@ export async function saveImageToDisk(imageUrl: string, destPath: string): Promi
   }
 }
 
-/** 根据 URL 推断扩展名（png/jpg/webp）；无法识别时默认 png */
+/** 根据 URL 推断扩展名（png/jpg/webp/svg）；无法识别时默认 png */
 export function inferExtension(imageUrl: string): string {
-  if (imageUrl.startsWith("data:image/jpeg")) return "jpg";
+  if (imageUrl.startsWith("data:image/svg")) return "svg";
+  if (imageUrl.startsWith("data:image/jpeg") || imageUrl.startsWith("data:image/jpg")) return "jpg";
   if (imageUrl.startsWith("data:image/webp")) return "webp";
+  if (imageUrl.startsWith("data:image/png")) return "png";
   try {
     const ext = path.extname(new URL(imageUrl).pathname).replace(".", "").toLowerCase();
     return ext || "png";

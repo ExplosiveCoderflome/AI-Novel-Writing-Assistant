@@ -36,6 +36,52 @@ router.get("/settings/quick-setup/status", async (_req, res, next) => {
   }
 });
 
+router.get("/settings/comfyui/status", async (_req, res, next) => {
+  try {
+    const { comfyUIDaemonService } = await import("../../../../services/image/comfyui/ComfyUIDaemonService");
+    const data = await comfyUIDaemonService.checkDaemonHealth();
+    res.status(200).json({
+      success: true,
+      data,
+      message: data.message,
+    } satisfies ApiResponse<typeof data>);
+  } catch (error) {
+    next(error);
+  }
+});
+
+router.post("/settings/comfyui/launch", async (req, res, next) => {
+  try {
+    const { customPath } = (req.body ?? {}) as { customPath?: string };
+    if (customPath && typeof customPath === "string" && customPath.trim()) {
+      process.env.COMFYUI_PATH = customPath.trim();
+    }
+    const { comfyUIDaemonService } = await import("../../../../services/image/comfyui/ComfyUIDaemonService");
+    const data = await comfyUIDaemonService.ensureDaemonStarted();
+    res.status(200).json({
+      success: true,
+      data,
+      message: data.message,
+    } satisfies ApiResponse<typeof data>);
+  } catch (error) {
+    next(error);
+  }
+});
+
+router.post("/settings/comfyui/download-model", async (_req, res, next) => {
+  try {
+    const { comfyUIDaemonService } = await import("../../../../services/image/comfyui/ComfyUIDaemonService");
+    const data = await comfyUIDaemonService.triggerAutoDownloadModel();
+    res.status(200).json({
+      success: true,
+      data,
+      message: "已成功启动离线生图模型全自动下载后台任务。",
+    } satisfies ApiResponse<typeof data>);
+  } catch (error) {
+    next(error);
+  }
+});
+
 router.post(
   "/settings/quick-setup/complete",
   validate({ body: completeQuickSetupSchema }),

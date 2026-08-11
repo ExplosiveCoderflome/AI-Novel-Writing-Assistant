@@ -1,7 +1,7 @@
 import type { LLMProvider } from "@ai-novel/shared/types/llm";
 import { prisma } from "../../db/prisma";
 
-export type ImageModelProvider = "openai" | "siliconflow" | "grok" | "sensenova";
+export type ImageModelProvider = "openai" | "siliconflow" | "grok" | "sensenova" | "comfyui";
 
 const IMAGE_MODEL_SETTING_PREFIX = "provider.imageModel";
 
@@ -10,6 +10,7 @@ const IMAGE_MODEL_OPTIONS: Record<ImageModelProvider, string[]> = {
   siliconflow: ["black-forest-labs/FLUX.1-schnell"],
   grok: ["grok-imagine-image"],
   sensenova: ["sensenova-u1:8b-v3"],
+  comfyui: ["MiniMax-H3", "FLUX.1-schnell", "SDXL", "v1-5-pruned"],
 };
 
 function isMissingTableError(error: unknown): boolean {
@@ -34,7 +35,7 @@ export function supportsImageModelSettings(provider: LLMProvider): boolean {
 }
 
 function isKnownImageModelProvider(provider: LLMProvider): provider is ImageModelProvider {
-  return provider === "openai" || provider === "siliconflow" || provider === "grok" || provider === "sensenova";
+  return provider === "openai" || provider === "siliconflow" || provider === "grok" || provider === "sensenova" || provider === "comfyui";
 }
 
 export function getImageModelSettingKey(provider: LLMProvider): string | null {

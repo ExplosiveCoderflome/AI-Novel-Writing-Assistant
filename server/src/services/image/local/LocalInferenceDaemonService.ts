@@ -84,23 +84,50 @@ export class LocalInferenceDaemonService {
   /**
    * 确保模型已拉取并载入本地引擎中
    */
-  async ensureModelLoaded(): Promise<void> {
+  async ensureModelLoaded(modelName = this.defaultModel): Promise<boolean> {
     await this.ensureDaemonStarted();
 
-    console.log(`[LocalInferenceDaemon] 正在向本地引擎确认并拉取模型: ${this.defaultModel}`);
+    // 1. 先检查本地是否已经安装了该模型
+    try {
+      const response = await fetch(`${this.ollamaUrl}/api/tags`, {
+        signal: AbortSignal.timeout(3000),
+      });
+      if (response.ok) {
+        const data = (await response.json()) as { models?: Array<{ name: string }> };
+        const installedModels = data.models?.map((m) => m.name.toLowerCase()) ?? [];
+        const isAlreadyInstalled = installedModels.some((name) =>
+          name.includes(modelName.toLowerCase()) || name.includes("sensenova-u1")
+        );
+        if (isAlreadyInstalled) {
+          console.log(`[LocalInferenceDaemon] 本地引擎检测到 SenseNova 模型已准备就绪: ${modelName}`);
+          return true;
+        }
+      }
+    } catch (err) {
+      console.warn(`[LocalInferenceDaemon] 查询本地已安装模型列表失败:`, err);
+    }
+
+    // 2. 本地未检测到模型，尝试自动发起拉取请求 (同步等待 stream: false)
+    console.log(`[LocalInferenceDaemon] 正在向本地引擎自动发起拉取模型请求: ${modelName}`);
     try {
       const response = await fetch(`${this.ollamaUrl}/api/pull`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name: this.defaultModel }),
+        body: JSON.stringify({ name: modelName, stream: false }),
+        signal: AbortSignal.timeout(30000),
       });
 
-      if (!response.ok) {
-        throw new Error(`本地拉取返回错误码: ${response.status}`);
+      if (response.ok) {
+        console.log(`[LocalInferenceDaemon] 自动拉取模型 ${modelName} 成功完成。`);
+        return true;
+      } else {
+        const errText = await response.text().catch(() => "");
+        console.warn(`[LocalInferenceDaemon] 本地自动拉取模型 ${modelName} 返回状态 ${response.status}: ${errText}`);
       }
     } catch (err) {
-      console.warn(`[LocalInferenceDaemon] 模型验证/拉取时发生警告 (可能是离线环境):`, err);
+      console.warn(`[LocalInferenceDaemon] 模型自动拉取时发生警告或超时 (可能是离线环境或网络受阻):`, err);
     }
+    return false;
   }
 
   /**

@@ -11,6 +11,7 @@ export const LLM_PROVIDERS = [
   "gemini",
   "ollama",
   "sensenova",
+  "comfyui",
 ] as const;
 
 export type BuiltinLLMProvider = typeof LLM_PROVIDERS[number];

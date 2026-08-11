@@ -52,6 +52,7 @@ export type LlmLiveEvent =
     interactionId: string;
     phase: LlmLivePhase;
     message: string;
+    errorMessage?: string | null;
   }
   | {
     type: "session_completed";
@@ -67,6 +68,7 @@ export type LlmLiveEvent =
     at: string;
     interactionId: string;
     message: string;
+    errorMessage?: string | null;
   };
 
 export interface LlmLiveSessionSnapshot {
@@ -80,6 +82,7 @@ export interface LlmLiveSessionSnapshot {
   startedAt: string;
   updatedAt: string;
   completedAt?: string | null;
+  errorMessage?: string | null;
 }
 
 export type LlmLiveStreamFrame =

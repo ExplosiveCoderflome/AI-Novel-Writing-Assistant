@@ -99,11 +99,19 @@ export function ImageGenerationConfirmDialog({
         .map((p) => ({ value: p.provider, label: p.displayName ?? p.name })),
   });
 
-  // 当前 provider 不在可用列表里时，临时追加为选项（不丢失数据）
+  // 当前 provider 不在可用列表里时，临时追加为选项（包含本地离线画师 ComfyUI）
   const providerChoices = useMemo(() => {
-    if (!provider) return providerOptions;
-    if (providerOptions.some((p) => p.value === provider)) return providerOptions;
-    return [...providerOptions, { value: provider, label: provider }];
+    const list = [...providerOptions];
+    if (!list.some((p) => p.value === "comfyui")) {
+      list.unshift({ value: "comfyui", label: "ComfyUI (本地离线画师 · MiniMax H3/FLUX/SD)" });
+    }
+    if (!list.some((p) => p.value === "sensenova")) {
+      list.push({ value: "sensenova", label: "SenseNova (本地离线)" });
+    }
+    if (provider && !list.some((p) => p.value === provider)) {
+      list.push({ value: provider, label: provider });
+    }
+    return list;
   }, [provider, providerOptions]);
 
   // size 也保证当前值在列表里

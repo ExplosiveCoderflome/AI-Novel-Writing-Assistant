@@ -159,7 +159,7 @@ function CharacterList({
                     <User className="h-4 w-4" />
                     {hasSheet && (
                       <img
-                        src={characterSheetImageUrl(character.id)}
+                        src={characterSheetImageUrl(character.id, sheetData?.generatedAt || sheetData?.version)}
                         alt={`${character.name} 头像`}
                         className="absolute inset-0 h-full w-full object-cover object-left"
                         loading="lazy"
@@ -603,7 +603,7 @@ function CharacterDetail({
           <div className="flex min-h-[360px] items-center justify-center bg-muted/30 p-4">
             {hasSheet ? (
               <img
-                src={characterSheetImageUrl(character.id)}
+                src={characterSheetImageUrl(character.id, sheetData?.generatedAt || sheetData?.version)}
                 alt={`${character.name} 设计稿`}
                 className="max-h-[520px] w-full rounded-md object-contain"
               />

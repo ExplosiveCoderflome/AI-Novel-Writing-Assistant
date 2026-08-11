@@ -74,6 +74,7 @@ const IMAGE_EXTS: Array<[string, string]> = [
   ["png", "image/png"],
   ["jpg", "image/jpeg"],
   ["webp", "image/webp"],
+  ["svg", "image/svg+xml"],
 ];
 
 function dramaCharacterDir(charId: string): string {

@@ -73,11 +73,12 @@ export interface CharacterExpressionData {
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 const COMIC_CHARS_DIR = "comic-characters";
-const DEFAULT_PROVIDER: LLMProvider = "openai";
+const DEFAULT_PROVIDER: LLMProvider = "comfyui";
 const IMAGE_EXTS: Array<[string, string]> = [
   ["png", "image/png"],
   ["jpg", "image/jpeg"],
   ["webp", "image/webp"],
+  ["svg", "image/svg+xml"],
 ];
 const EXPRESSION_ORDER: CharacterExpressionId[] = ["neutral", "happy", "angry", "sad", "surprised", "cold"];
 const EXPRESSION_LABELS: Record<CharacterExpressionId, string> = {
@@ -130,6 +131,29 @@ function extractFaceShapeOverride(visualAnchor: string | null | undefined): stri
   return "";
 }
 
+function enforceMandatorySheetHeader(prompt: string): string {
+  const header = "人物三视图，立绘设定图，(character turnaround sheet, 3 views:1.4), (front view, side profile view, back view:1.3), full body standing poses side by side, 1character";
+  if (prompt.startsWith("人物三视图") || prompt.includes("character turnaround sheet")) {
+    return prompt;
+  }
+  return `${header}, ${prompt}`;
+}
+
+/**
+ * 取角色外貌描述。
+ * 优先级：visualSpec.appearance（完整版，含脸型/体格/服饰/标志细节）
+ *       > description（40 字精简版）
+ *       > hint
+ * 三视图/表情稿/资产图都该用完整版，把"外貌锁定"做实而不是只放氛围词。
+ */
+function cleanPromptText(text: string | null | undefined): string {
+  if (!text) return "";
+  return text
+    .replace(/^(pressure_source|appearance|description|hint|visualSpec|persona)\s*[|｜]\s*/gi, "")
+    .replace(/^[|｜]\s*/, "")
+    .trim();
+}
+
 /**
  * 取角色外貌描述。
  * 优先级：visualSpec.appearance（完整版，含脸型/体格/服饰/标志细节）
@@ -144,16 +168,35 @@ function extractVisualDesc(visualAnchor: string | null | undefined): string {
     const spec = parsed.visualSpec as Record<string, unknown> | undefined;
     if (spec && typeof spec.appearance === "string" && spec.appearance.trim()) {
       const signatures = typeof spec.signatureFeatures === "string" ? spec.signatureFeatures.trim() : "";
-      // 完整外貌 + 标志特征（若与 appearance 不重叠）
       if (signatures && !spec.appearance.includes(signatures)) {
-        return `${spec.appearance}，${signatures}`;
+        return cleanPromptText(`${spec.appearance}，${signatures}`);
       }
-      return spec.appearance;
+      return cleanPromptText(spec.appearance);
     }
-    if (typeof parsed.description === "string") return parsed.description;
-    if (typeof parsed.hint === "string") return parsed.hint;
-    return JSON.stringify(parsed);
-  } catch { return visualAnchor; }
+    if (typeof parsed.description === "string") return cleanPromptText(parsed.description);
+    if (typeof parsed.hint === "string") return cleanPromptText(parsed.hint);
+    return cleanPromptText(JSON.stringify(parsed));
+  } catch {
+    return cleanPromptText(visualAnchor);
+  }
+}
+
+function deduplicatePromptParts(visualDesc: string, personaDesc: string): { appearance: string; persona: string } {
+  let v = visualDesc.trim();
+  let p = personaDesc.trim();
+
+  if (v && p) {
+    if (v.startsWith(p) || p.startsWith(v)) {
+      p = "";
+    } else {
+      const vWords = v.split(/[，,。；\s]+/);
+      const pWords = p.split(/[，,。；\s]+/);
+      const uniqueP = pWords.filter(w => w.length > 1 && !vWords.some(vw => vw.includes(w) || w.includes(vw)));
+      p = uniqueP.join("，");
+    }
+  }
+
+  return { appearance: v, persona: p };
 }
 
 function buildSheetPrompt(character: {
@@ -162,37 +205,30 @@ function buildSheetPrompt(character: {
   persona?: string | null;
   visualAnchor?: string | null;
 }, styleKeywords: string): string {
-  const visualDesc = extractVisualDesc(character.visualAnchor);
+  const rawVisual = extractVisualDesc(character.visualAnchor);
+  const rawPersona = cleanPromptText(character.persona);
+  const { appearance: visualDesc, persona: personaDesc } = deduplicatePromptParts(rawVisual, rawPersona);
   const faceOverride = extractFaceShapeOverride(character.visualAnchor);
   const genderLock = buildGenderLockPrompt(character.gender, character.name);
-  // 关键顺序：性别锁 → 布局 → 强制外貌锚定 → 脸型 FINAL OVERRIDE（若有）→ 画风
+
   const lines: string[] = [];
+  lines.push("character sheet, character turnaround sheet, reference sheet, single standing character");
+  lines.push("full body, front view, side profile view, back view, standing poses side by side");
   if (genderLock) lines.push(genderLock);
-  lines.push(
-    "professional character design reference sheet, single image",
-    "LEFT THIRD: close-up portrait of the character's face (frontal view, detailed facial features, natural expression)",
-    "RIGHT TWO-THIRDS: full-body character turnaround showing three views side by side — front view, side view (90-degree profile), back view",
-    "all four views depict the SAME character with IDENTICAL costume, hairstyle, and color scheme",
-  );
+  if (styleKeywords) lines.push(styleKeywords);
+
   if (visualDesc) {
-    lines.push(
-      `THIS SPECIFIC CHARACTER must have the following exact appearance: ${visualDesc}`,
-      "the face shape, eye shape, brow shape, nose, mouth, age range, body proportion and signature features above are mandatory and MUST be faithfully rendered",
-      "do NOT replace facial features with generic idealized beauty template; preserve the character's unique bone structure and identity even if it deviates from the default style",
-    );
+    lines.push(`appearance: ${visualDesc}`);
   }
   if (faceOverride) {
-    // 脸型 FINAL OVERRIDE：权重高于 appearance，显式压制冲突词
-    lines.push(
-      `*** FINAL FACE SHAPE OVERRIDE (highest priority, ignore conflicting words in appearance above) ***: ${faceOverride}`,
-      "if the appearance description contains words like sharp/pointy/triangular/angular jaw/cheekbone that conflict with this override, the OVERRIDE wins for face/jaw/cheek shape; sharp features may remain ONLY in eye gaze or expression, NEVER in bone structure",
-    );
+    lines.push(`face shape override: ${faceOverride}`);
   }
-  if (character.persona) lines.push(`character personality (affects expression but NOT facial structure): ${character.persona}`);
+  if (personaDesc) {
+    lines.push(`expression & persona: ${personaDesc}`);
+  }
+
   lines.push(
-    "white background, clean studio lighting, no text or watermarks",
-    styleKeywords,
-    "consistent character design, high quality illustration",
+    "white background, simple background, studio lighting, clean line art, master quality, high quality illustration"
   );
   return lines.join(", ");
 }
@@ -207,20 +243,15 @@ function buildAppearanceLockPrompt(character: {
   const faceOverride = extractFaceShapeOverride(character.visualAnchor);
   const genderLock = buildGenderLockPrompt(character.gender, character.name);
   const parts = [
-    "CHARACTER IDENTITY LOCK (highest priority)",
     `name: ${character.name}`,
-    `mandatory appearance: ${visualDesc}`,
+    `appearance: ${visualDesc}`,
   ];
   if (genderLock) parts.push(genderLock);
   parts.push(
-    "the face shape, eye shape, brow, nose, mouth, age and body proportion above MUST be preserved exactly",
-    "do NOT drift toward generic idealized beauty template; this character has a unique bone structure that defines their identity",
-    "keep identical face, hairstyle, body type, costume colors, and signature features across all views",
+    "preserve face shape, hairstyle, body type, costume colors across all views"
   );
   if (faceOverride) {
-    parts.push(
-      `*** FACE SHAPE FINAL OVERRIDE: ${faceOverride} (this overrides any conflicting sharp/pointy descriptions in appearance for bone structure; sharpness may remain in gaze only)`,
-    );
+    parts.push(`face shape override: ${faceOverride}`);
   }
   return parts.join(", ");
 }
@@ -253,29 +284,22 @@ function buildExpressionPrompt(character: {
   const visualDesc = extractVisualDesc(character.visualAnchor);
   const faceOverride = extractFaceShapeOverride(character.visualAnchor);
   const genderLock = buildGenderLockPrompt(character.gender, character.name);
+  let personaDesc = cleanPromptText(character.persona);
+  if (personaDesc && visualDesc && visualDesc.includes(personaDesc)) {
+    personaDesc = "";
+  }
+
   const lines: string[] = [];
+  lines.push("manga character expression sheet, 6 portrait busts in one horizontal row, single image");
+  lines.push("expressions from left to right: neutral calm, happy smile, angry glare, sad sorrow, surprised shock, cold indifferent");
   if (genderLock) lines.push(genderLock);
-  lines.push(
-    "professional manga character expression sheet, single 1536x1024 horizontal image",
-    "six evenly spaced portrait busts in one row, same character, same hairstyle, same costume, same color palette",
-    "expressions from left to right: neutral calm, happy smile, angry glare, sad sorrow, surprised shock, cold indifferent",
-    "front-facing face and upper shoulders, high facial consistency, clean white background, no text labels, no watermark",
-  );
-  if (visualDesc) {
-    lines.push(
-      `THIS SPECIFIC CHARACTER must have the following exact appearance: ${visualDesc}`,
-      "preserve the character's unique face shape, eye shape and bone structure across all six expressions; only the expression changes, NOT the underlying identity",
-      "do NOT replace facial features with generic idealized beauty template",
-    );
-  }
-  if (faceOverride) {
-    lines.push(
-      `*** FINAL FACE SHAPE OVERRIDE (highest priority, ignore conflicting words in appearance above) ***: ${faceOverride}`,
-      "if conflicting sharp/pointy features appear in appearance above, they apply ONLY to gaze/expression, NEVER to bone structure",
-    );
-  }
-  if (character.persona) lines.push(`personality flavor for expressions: ${character.persona}`);
-  lines.push(styleKeywords, "consistent character face, reusable comic production reference");
+  if (styleKeywords) lines.push(styleKeywords);
+
+  if (visualDesc) lines.push(`appearance: ${visualDesc}`);
+  if (faceOverride) lines.push(`face shape override: ${faceOverride}`);
+  if (personaDesc) lines.push(`personality flavor: ${personaDesc}`);
+
+  lines.push("same character, identical hairstyle and outfit, white background, no text, high quality");
   return lines.join(", ");
 }
 
@@ -375,10 +399,10 @@ export class ComicCharacterImageService {
 
     return {
       adapter,
-      prompt,
+      prompt: enforceMandatorySheetHeader(prompt),
       refImagePaths: currentReference ? [currentReference.filePath] : undefined,
       referenceImages,
-      size: "1536x1024" as const,
+      size: "768x512" as const,
       title: `${options.prompt?.trim() ? "微调" : "生成"}三视图：${character.name}`,
     };
   }
@@ -411,9 +435,14 @@ export class ComicCharacterImageService {
       referenceImages: ctx.referenceImages,
       excludedReferenceImageUrls: overrides?.excludedReferenceImageUrls,
     });
+    const defaultNegativePrompt = "(multiple characters:1.4), (crowd:1.4), (group of characters:1.3), 2girls, 2boys, multiple faces grid, portrait mosaic, face tile collage, photo wall, crowded headshots, repeated faces, close-up face grid, bad anatomy, low quality, blurry, disfigured, text, watermark, logo";
+    
+    const finalPrompt = enforceMandatorySheetHeader(overrides?.promptOverride ?? ctx.prompt);
+    
     return runImageGeneration(ctx.adapter, {
       provider: overrides?.providerOverride ?? provider,
-      prompt: overrides?.promptOverride ?? ctx.prompt,
+      prompt: finalPrompt,
+      negativePrompt: overrides?.negativePromptOverride ?? defaultNegativePrompt,
       size: overrides?.sizeOverride ?? ctx.size,
       sceneType: "character",
       refImagePaths: refs.refImagePaths,

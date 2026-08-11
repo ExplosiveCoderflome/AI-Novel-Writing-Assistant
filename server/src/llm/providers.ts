@@ -150,6 +150,16 @@ export const PROVIDERS: Record<BuiltinLLMProvider, ProviderConfig> = {
     envModelKey: "SENSENOVA_MODEL",
     requiresApiKey: false,
   },
+  comfyui: {
+    name: "ComfyUI (本地)",
+    baseURL: "http://127.0.0.1:8188",
+    defaultModel: "MiniMax-H3",
+    models: ["MiniMax-H3", "FLUX.1-schnell", "SDXL", "v1-5-pruned"],
+    envKey: "COMFYUI_API_KEY",
+    envBaseURLKey: "COMFYUI_BASE_URL",
+    envModelKey: "COMFYUI_MODEL",
+    requiresApiKey: false,
+  },
 };
 
 export const SUPPORTED_PROVIDERS: BuiltinLLMProvider[] = [...LLM_PROVIDERS];
