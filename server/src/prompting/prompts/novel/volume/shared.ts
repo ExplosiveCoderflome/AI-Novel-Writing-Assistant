@@ -120,6 +120,13 @@ function summarizeCharacters(novel: VolumeGenerationNovel): string {
 
 export function buildCommonNovelContext(novel: VolumeGenerationNovel): string {
   const commercialTags = parseCommercialTags(novel.commercialTagsJson);
+  const completion = novel.completionProfile;
+  const promiseLabel = completion?.promiseScope === "whole_book"
+    ? "whole-book core promise"
+    : "first 30 chapter promise";
+  const structureLine = completion?.mode === "compact_book"
+    ? `compact book structure: three acts; target ${completion.targetChapterCount} chapters; closure required by chapter ${completion.endingRequiredBy}; up to ${completion.maxChapterCount} chapters may be used for closing.`
+    : "serial structure: staged continuation; preserve the next-stage reading pull.";
   return [
     `title: ${novel.title}`,
     `genre: ${novel.genre?.name ?? "unset"}`,
@@ -127,7 +134,8 @@ export function buildCommonNovelContext(novel: VolumeGenerationNovel): string {
     `description: ${compactText(novel.description)}`,
     `target audience: ${compactText(novel.targetAudience)}`,
     `selling point: ${compactText(novel.bookSellingPoint)}`,
-    `first 30 chapter promise: ${compactText(novel.first30ChapterPromise)}`,
+    `${promiseLabel}: ${compactText(novel.first30ChapterPromise)}`,
+    structureLine,
     `narrative pov: ${compactText(novel.narrativePov, "unset")}`,
     `pace preference: ${compactText(novel.pacePreference, "unset")}`,
     `emotion intensity: ${compactText(novel.emotionIntensity, "unset")}`,

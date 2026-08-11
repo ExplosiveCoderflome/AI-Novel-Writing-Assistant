@@ -28,3 +28,7 @@ export const storyModeChildDraftNodeSchema = z.object({
 export const storyModeChildDraftListSchema = z.array(storyModeChildDraftNodeSchema)
   .min(1)
   .max(5);
+
+export const storyModeExpansionDraftListSchema = z.array(storyModeChildDraftNodeSchema)
+  .min(2)
+  .max(5);

@@ -636,10 +636,8 @@ export default function NovelWorkspaceRail(props: NovelWorkspaceRailProps) {
               taskId={activeTask?.id ?? ""}
               titleHint={novelTitle}
               fallbackError={activeTask?.lastError ?? null}
-              onBackgroundContinue={() => setProgressDialogOpen(false)}
               onConfirmAndContinue={() => continueDirectorMutation.mutate()}
               isConfirmingAndContinuing={continueDirectorMutation.isPending}
-              onOpenTaskCenter={openTaskCenter}
             />
           </div>
         </DialogContent>

@@ -33,6 +33,9 @@ const worldTimeline = readClientFile("src/pages/worlds/components/visualization/
 const genrePage = readClientFile("src/pages/genres/GenreManagementPage.tsx");
 const genreTreeBrowser = readClientFile("src/pages/genres/components/GenreTreeBrowser.tsx");
 const storyModePage = readClientFile("src/pages/storyModes/StoryModeManagementPage.tsx");
+const storyModeCreateDialog = readClientFile("src/pages/storyModes/components/StoryModeCreateDialog.tsx");
+const storyModeExpansionDialog = readClientFile("src/pages/storyModes/components/StoryModeExpansionDialog.tsx");
+const storyModeProfileFields = readClientFile("src/pages/storyModes/components/StoryModeProfileFields.tsx");
 const storyModeTreeBrowser = readClientFile("src/pages/storyModes/components/StoryModeTreeBrowser.tsx");
 const assetTreeNavigator = readClientFile("src/components/assetLibrary/AssetTreeNavigator.tsx");
 const characterPage = readClientFile("src/pages/characters/CharacterLibrary.tsx");
@@ -171,7 +174,6 @@ test("world visualizations separate layout, canvas, and view controls", () => {
   assert.ok(worldGraphLayout.split("\n").length < 500);
   assert.ok(worldTimeline.split("\n").length < 250);
 });
-
 test("genre library uses a compact tree browser with a separate detail surface", () => {
   assert.match(genrePage, /GenreTreeBrowser/);
   assert.match(genreTreeBrowser, /AssetTreeNavigator/);
@@ -214,4 +216,30 @@ test("writing formula keeps a compact asset list and reveals the selected profil
   assert.ok(writingFormulaLanding.split("\n").length < 450);
   assert.ok(writingFormulaWorkbench.split("\n").length < 350);
   assert.ok(writingFormulaCreateDialog.split("\n").length < 700);
+});
+
+test("story mode creation keeps AI assistance beside a grouped, independently scrolling draft", () => {
+  assert.match(storyModePage, /StoryModeCreateDialog/);
+  assert.match(storyModeCreateDialog, /AppDialogContent/);
+  assert.match(storyModeCreateDialog, /lg:grid-cols-\[340px_minmax\(0,1fr\)\]/);
+  assert.match(storyModeCreateDialog, /lg:overflow-y-auto/);
+  assert.match(storyModeCreateDialog, /让 AI 起草/);
+  assert.match(storyModeCreateDialog, /同时创建的子类/);
+  assert.match(storyModeCreateDialog, /高级设置：人工提示补充/);
+  assert.doesNotMatch(storyModeCreateDialog, /max-h-\[90vh\].*overflow-auto/);
+
+  for (const section of ["核心体验", "推进节奏", "边界与防跑偏"]) {
+    assert.match(storyModeProfileFields, new RegExp(section));
+  }
+});
+
+test("story mode expansion recommends distinct additions from the existing library", () => {
+  assert.match(storyModePage, /StoryModeExpansionDialog/);
+  assert.match(storyModePage, /generateStoryModeExpansion/);
+  assert.match(storyModePage, /扩展推进模式/);
+  assert.match(storyModeExpansionDialog, /扩展范围/);
+  assert.match(storyModeExpansionDialog, /推荐新方向/);
+  assert.match(storyModeExpansionDialog, /推进单元/);
+  assert.match(storyModeExpansionDialog, /加入模式库/);
+  assert.doesNotMatch(storyModeExpansionDialog, /shadow-(?:sm|md|lg|xl|2xl)/);
 });

@@ -4,6 +4,7 @@ const assert = require("node:assert/strict");
 const {
   buildChapterQualityLoopAssessment,
   classifyChapterQualityLoopRiskFlags,
+  hasChapterQualityLoopReplanRequiredRiskFlags,
   hasContinuableChapterQualityLoopRiskFlags,
 } = require("../../shared/dist/types/chapterQualityLoop.js");
 const {
@@ -275,13 +276,15 @@ test("buildChapterQualityLoopChapterUpdate clears stale repair state after a val
   });
 
   const update = buildChapterQualityLoopChapterUpdate({
+    content: "这是一段已保存的正文。",
     riskFlags: JSON.stringify({ qualityLoop: { recommendedAction: "patch_repair" } }),
     repairHistory: "[quality_loop old] status=invalid action=replan",
     chapterStatus: "needs_repair",
     generationState: "reviewed",
   }, assessment, "repair_recheck");
 
-  assert.equal(update.chapterStatus, "pending_review");
+  assert.equal(update.chapterStatus, "completed");
+  assert.equal(update.generationState, "approved");
   assert.equal(typeof update.riskFlags, "string");
   const riskFlags = JSON.parse(update.riskFlags);
   assert.equal(riskFlags.qualityLoop.recommendedAction, "continue");
@@ -303,13 +306,15 @@ test("buildChapterQualityLoopChapterUpdate marks exhausted auto repair as deferr
   });
 
   const update = buildChapterQualityLoopChapterUpdate({
+    content: "这是一段已保存的正文。",
     riskFlags: JSON.stringify({ qualityLoop: { recommendedAction: "patch_repair" } }),
     repairHistory: "[quality_loop old] status=invalid action=patch_repair",
     chapterStatus: "needs_repair",
     generationState: "reviewed",
   }, assessment, "repair_recheck", "defer_and_continue");
 
-  assert.equal(update.chapterStatus, "pending_review");
+  assert.equal(update.chapterStatus, "completed");
+  assert.equal(update.generationState, "approved");
   assert.equal(typeof update.riskFlags, "string");
   const riskFlags = JSON.parse(update.riskFlags);
   assert.equal(riskFlags.qualityLoop.terminalAction, "defer_and_continue");
@@ -378,4 +383,22 @@ test("quality loop projection keeps replan required blocking even when deferred"
 
   assert.equal(classifyChapterQualityLoopRiskFlags(riskFlags), "blocking");
   assert.equal(hasContinuableChapterQualityLoopRiskFlags(riskFlags), false);
+});
+
+test("quality loop replan flag is exposed separately from ordinary quality debt", () => {
+  const qualityDebt = JSON.stringify({
+    qualityLoop: {
+      recommendedAction: "patch_repair",
+      terminalAction: "defer_and_continue",
+    },
+  });
+  const replan = JSON.stringify({
+    qualityLoop: {
+      recommendedAction: "replan",
+      rootCauseCode: "replan_required",
+    },
+  });
+
+  assert.equal(hasChapterQualityLoopReplanRequiredRiskFlags(qualityDebt), false);
+  assert.equal(hasChapterQualityLoopReplanRequiredRiskFlags(replan), true);
 });

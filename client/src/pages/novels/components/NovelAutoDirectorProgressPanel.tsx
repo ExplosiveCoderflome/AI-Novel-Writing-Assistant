@@ -19,7 +19,6 @@ import {
 } from "@/api/novelDirector";
 import { queryKeys } from "@/api/queryKeys";
 import DirectorRuntimeProjectionCard from "@/components/autoDirector/DirectorRuntimeProjectionCard";
-import LiveExecutionDialog from "@/components/liveExecution/LiveExecutionDialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import AITakeoverContainer, { type AITakeoverMode } from "@/components/workflow/AITakeoverContainer";
@@ -41,10 +40,8 @@ interface NovelAutoDirectorProgressPanelProps {
   taskId: string;
   titleHint?: string;
   fallbackError?: string | null;
-  onBackgroundContinue: () => void;
   onConfirmAndContinue?: () => void;
   isConfirmingAndContinuing?: boolean;
-  onOpenTaskCenter: () => void;
 }
 
 type DirectorStepVisualStatus = DirectorPreparationStepStatus;
@@ -287,10 +284,8 @@ export default function NovelAutoDirectorProgressPanel({
   taskId,
   titleHint,
   fallbackError,
-  onBackgroundContinue,
   onConfirmAndContinue,
   isConfirmingAndContinuing = false,
-  onOpenTaskCenter,
 }: NovelAutoDirectorProgressPanelProps) {
   const taskChapterTitleWarning = resolveChapterTitleWarning(task);
   const chapterTitleRepairMutation = useDirectorChapterTitleRepair();
@@ -361,6 +356,7 @@ export default function NovelAutoDirectorProgressPanel({
     ? resolveDirectorStepStatuses(task, visualMode, stepDefinitions)
     : displaySteps.map((step) => mapDisplayStepStatus(step.status));
   const failureMessage = task?.lastError?.trim() || fallbackError?.trim() || "导演任务执行失败，但没有记录明确错误。";
+  const isHighMemoryConflict = /高内存卷规划生成正在处理同一范围|高内存.*同一范围|已有自动导演任务正在处理同一范围/.test(failureMessage);
   const tokenUsage = task?.tokenUsage ?? null;
   const styleSeed = resolveDirectorStyleSeed(task);
   const containerMode: AITakeoverMode = visualMode === "execution_failed"
@@ -373,14 +369,14 @@ export default function NovelAutoDirectorProgressPanel({
   const description = candidateSetupFlow
     ? (
       visualMode === "execution_failed"
-        ? "候选方向生成链已中断，可以先查看执行详情，再决定是否重试。"
+        ? "候选方向生成链已中断，可以从当前进度重试。"
         : "系统会先整理项目设定、对齐书级 framing，再生成两套书级方案和对应标题组。"
     )
     : (
       dashboardView?.description
       || displayState?.description
       || (visualMode === "execution_failed"
-        ? "任务已停在最近一步，可以先查看执行详情，再决定是否恢复。"
+        ? "任务已停在最近一步，可以从当前进度恢复。"
         : chapterTitleWarning
           ? "章节列表已经保留，这是一条可直接处理的结构提醒。你可以快速修复标题，再决定是否继续后续导演流程。"
           : task?.status === "waiting_approval"
@@ -396,25 +392,13 @@ export default function NovelAutoDirectorProgressPanel({
         disabled: isConfirmingAndContinuing,
       };
     }
-    if (dashboardAction.type === "background_continue") {
+    if (dashboardAction.type === "background_continue" || dashboardAction.type === "open_task_center") return null;
+    if ((dashboardAction.type === "resume_from_checkpoint" || dashboardAction.type === "retry") && onConfirmAndContinue) {
       return {
-        label: "稍后回来查看",
-        onClick: onBackgroundContinue,
-        variant: "outline" as const,
-      };
-    }
-    if (dashboardAction.type === "open_task_center") {
-      return {
-        label: dashboardAction.label,
-        onClick: onOpenTaskCenter,
-        variant: dashboardAction.emphasis === "primary" ? ("default" as const) : ("outline" as const),
-      };
-    }
-    if (dashboardAction.type === "resume_from_checkpoint" || dashboardAction.type === "retry") {
-      return {
-        label: dashboardAction.label,
-        onClick: onOpenTaskCenter,
-        variant: "outline" as const,
+        label: isConfirmingAndContinuing ? "正在恢复..." : (isHighMemoryConflict ? "从检查点重新尝试" : dashboardAction.label),
+        onClick: onConfirmAndContinue,
+        variant: "default" as const,
+        disabled: isConfirmingAndContinuing,
       };
     }
     return null;
@@ -427,19 +411,7 @@ export default function NovelAutoDirectorProgressPanel({
       .map(resolveDashboardAction)
       .filter((item): item is NonNullable<ReturnType<typeof resolveDashboardAction>> => Boolean(item))
     : [];
-  const actions = chapterTitleWarning
-    ? [{
-      label: "查看执行详情",
-      onClick: onOpenTaskCenter,
-      variant: "default" as const,
-    }]
-    : (dashboardActions.length > 0
-      ? dashboardActions
-      : [{
-        label: "查看执行详情",
-        onClick: onOpenTaskCenter,
-        variant: "default" as const,
-      }]);
+  const actions = dashboardActions;
 
   return (
     <div className="space-y-4">
@@ -459,12 +431,6 @@ export default function NovelAutoDirectorProgressPanel({
         taskId={task?.id || taskId}
         actions={actions}
       >
-        <div className="mb-4 flex justify-end">
-          <LiveExecutionDialog
-            taskId={runtimeTaskId}
-            autoOpenOnActivity
-          />
-        </div>
         <NovelDirectorPreparationJourney
           steps={candidateSetupFlow
             ? stepDefinitions
@@ -592,21 +558,31 @@ export default function NovelAutoDirectorProgressPanel({
                     : chapterTitleWarning.label}
                 </Button>
               ) : null}
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={onOpenTaskCenter}
-              >
-                查看执行详情
-              </Button>
             </div>
           </div>
         ) : visualMode === "execution_failed" ? (
           <div className="mt-4 rounded-xl border border-destructive/30 bg-destructive/5 p-4 text-sm text-destructive">
             <div className="font-medium">失败摘要</div>
             <div className="mt-1">{failureMessage}</div>
+            {isHighMemoryConflict ? (
+              <div className="mt-3 rounded-lg border border-destructive/20 bg-background/60 p-3 text-xs leading-5 text-destructive/90">
+                这是一项可恢复的资源冲突，已完成的设定和章节规划不会丢失。资源释放后可从当前安全检查点继续，不需要重新开始。
+              </div>
+            ) : null}
             {task?.recoveryHint ? (
               <div className="mt-2 text-xs text-destructive/80">恢复建议：{task.recoveryHint}</div>
+            ) : null}
+            {isHighMemoryConflict && onConfirmAndContinue ? (
+              <div className="mt-3 flex flex-wrap gap-2">
+                <Button
+                  type="button"
+                  size="sm"
+                  onClick={onConfirmAndContinue}
+                  disabled={isConfirmingAndContinuing}
+                >
+                  {isConfirmingAndContinuing ? "正在恢复..." : "从检查点重新尝试"}
+                </Button>
+              </div>
             ) : null}
           </div>
         ) : null}

@@ -5,8 +5,9 @@ import { useMutation, useQuery } from "@tanstack/react-query";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { flattenGenreTreeOptions, getGenreTree } from "@/api/genre";
 import { flattenStoryModeTreeOptions, getStoryModeTree } from "@/api/storyMode";
-import { bootstrapNovelWorkflow } from "@/api/novelWorkflow";
+import { bootstrapNovelWorkflow, selectNovelProductionExperience } from "@/api/novelWorkflow";
 import { queryKeys } from "@/api/queryKeys";
+import { DEFAULT_DIRECTOR_RISK_POLICY, getDirectorRiskPolicy } from "@/api/directorRiskPolicy";
 import { getWorldList } from "@/api/world";
 import { Button } from "@/components/ui/button";
 import { toast } from "@/components/ui/toast";
@@ -30,6 +31,8 @@ import {
   summarizeWorldStyleStage,
 } from "./directorCreateStages";
 import { useAutoDirectorCreateController } from "./useAutoDirectorCreateController";
+import { DirectorRiskPolicySummary } from "../components/DirectorRiskPolicySummary";
+import { extractDirectorTaskSeedPayloadFromMeta } from "@ai-novel/shared/types/novelDirector";
 
 const STAGE_ORDER: AutoDirectorCreateStageKey[] = ["idea", "basic", "world_style", "model_run", "candidates"];
 
@@ -73,6 +76,12 @@ export default function AutoDirectorCreatePage() {
     queryKey: queryKeys.storyModes.all,
     queryFn: getStoryModeTree,
   });
+  const riskPolicyQuery = useQuery({
+    queryKey: queryKeys.settings.autoDirectorRiskPolicy,
+    queryFn: getDirectorRiskPolicy,
+    retry: false,
+  });
+  const riskPolicy = riskPolicyQuery.data?.data ?? DEFAULT_DIRECTOR_RISK_POLICY;
   const genreTree = genreTreeQuery.data?.data ?? [];
   const storyModeTree = storyModeTreeQuery.data?.data ?? [];
   const genreOptions = flattenGenreTreeOptions(genreTree);
@@ -138,6 +147,26 @@ export default function AutoDirectorCreatePage() {
     restoredTask: restoredWorkflowTask,
     onWorkflowTaskChange: replaceTaskId,
     onBasicFormChange: (patch) => setBasicForm((prev) => patchNovelBasicForm(prev, patch)),
+  });
+  const createdNovelId = controller.directorTask?.resumeTarget?.novelId?.trim() ?? "";
+  const productionExperience = controller.directorTask
+    ? (extractDirectorTaskSeedPayloadFromMeta(controller.directorTask.meta) as {
+      productionExperience?: "simple" | "professional";
+    } | null)?.productionExperience
+    : null;
+  const createdNovelRoute = productionExperience === "simple"
+    ? `/novels/${createdNovelId}/simple`
+    : `/novels/${createdNovelId}/edit`;
+  const enterSimpleMutation = useMutation({
+    mutationFn: () => selectNovelProductionExperience(controller.directorTask!.id, "simple"),
+    onSuccess: (response) => {
+      if (!response.data) {
+        toast.error("没有找到简易创作入口。");
+        return;
+      }
+      navigate(response.data.targetRoute, { replace: true });
+    },
+    onError: (error) => toast.error(error instanceof Error ? error.message : "进入简易创作失败，请重试。"),
   });
 
   useEffect(() => {
@@ -317,14 +346,33 @@ export default function AutoDirectorCreatePage() {
           <div>
             <div className="text-2xl font-semibold tracking-normal text-foreground">AI 自动导演创建</div>
             <div className="mt-1 text-sm leading-6 text-muted-foreground">
-              从一个起始想法开始，AI 完成整本规划准备后，再由你选择正文生产方式。
+              从一个起始想法开始，AI 会持续准备创作资源；项目建立后即可打开查看已完成成果。
             </div>
           </div>
-          <Button type="button" variant="outline" asChild>
-            <Link to="/novels/create">手动创建</Link>
-          </Button>
+          <div className="flex flex-wrap gap-2">
+            {createdNovelId && productionExperience !== "simple" ? (
+              <Button
+                type="button"
+                variant="default"
+                disabled={enterSimpleMutation.isPending}
+                onClick={() => enterSimpleMutation.mutate()}
+              >
+                {enterSimpleMutation.isPending ? "正在进入…" : "进入简易创作"}
+              </Button>
+            ) : null}
+            {createdNovelId ? (
+              <Button type="button" variant={productionExperience === "simple" ? "default" : "outline"} asChild>
+                <Link to={createdNovelRoute}>{productionExperience === "simple" ? "打开章节书架" : "打开小说工作台"}</Link>
+              </Button>
+            ) : null}
+            <Button type="button" variant="outline" asChild>
+              <Link to="/novels/create">手动创建</Link>
+            </Button>
+          </div>
         </div>
       ) : null}
+
+      <DirectorRiskPolicySummary policy={riskPolicy} compact />
 
       {showSummaryBar ? (
         <div className="flex min-w-0 flex-wrap gap-2">

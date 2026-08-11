@@ -11,6 +11,7 @@ import type {
 } from "@ai-novel/shared/types/novelDirector";
 import { buildFullBookAutopilotExecutionPlan } from "@ai-novel/shared/types/novelDirector";
 import { getDirectorTaskSnapshot, getDirectorTakeoverReadiness, startDirectorTakeover } from "@/api/novelDirector";
+import { DEFAULT_DIRECTOR_RISK_POLICY, getNovelDirectorRiskPolicy } from "@/api/directorRiskPolicy";
 import { queryKeys } from "@/api/queryKeys";
 import { getStyleBindings, getStyleProfiles } from "@/api/styleEngine";
 import LLMSelector from "@/components/common/LLMSelector";
@@ -49,6 +50,7 @@ import TakeoverDiagnosisPanel from "./takeover/TakeoverDiagnosisPanel";
 import { useDirectorAutoApprovalDraft } from "./useDirectorAutoApprovalDraft";
 import { AUTO_DIRECTOR_MOBILE_CLASSES } from "@/mobile/autoDirector";
 import SelectControl from "@/components/common/SelectControl";
+import { DirectorRiskPolicySummary } from "./DirectorRiskPolicySummary";
 
 interface NovelExistingProjectTakeoverDialogProps {
   novelId: string;
@@ -169,8 +171,15 @@ export default function NovelExistingProjectTakeoverDialog({
     queryFn: () => getStyleBindings({ targetType: "novel", targetId: novelId }),
     enabled: open && Boolean(novelId),
   });
+  const riskPolicyQuery = useQuery({
+    queryKey: queryKeys.novels.directorRiskPolicy(novelId),
+    queryFn: () => getNovelDirectorRiskPolicy(novelId),
+    enabled: open && Boolean(novelId),
+    retry: false,
+  });
 
   const readiness = readinessQuery.data?.data ?? null;
+  const effectiveRiskPolicy = riskPolicyQuery.data?.data ?? { ...DEFAULT_DIRECTOR_RISK_POLICY, source: "global" as const };
   const contextTaskSnapshot = contextTaskSnapshotQuery.data?.data?.snapshot ?? null;
   const contextTaskIsContinuable = Boolean(
     contextTaskSnapshot?.task
@@ -387,6 +396,7 @@ export default function NovelExistingProjectTakeoverDialog({
           <div className={AUTO_DIRECTOR_MOBILE_CLASSES.dialogBody}>
             <div className="min-w-0 space-y-4">
               <TakeoverContextSummaryPanel lines={contextLines} />
+              <DirectorRiskPolicySummary policy={effectiveRiskPolicy} source={effectiveRiskPolicy.source} compact />
               <TakeoverDiagnosisPanel
                 guidance={takeoverGuidance}
                 inspection={progressInspection}

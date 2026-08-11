@@ -266,6 +266,7 @@ test("confirm runtime creates the novel through the standard runtime node", asyn
     scheduleBackgroundRun: (_taskId, runner) => {
       backgroundRuns.push(runner);
     },
+    resolveRiskPolicy: async () => ({ noticeThreshold: 5, pauseThreshold: 8 }),
   });
   const originalNovelUpdate = prisma.novel.update;
   prisma.novel.update = async ({ where, data }) => {
@@ -281,9 +282,9 @@ test("confirm runtime creates the novel through the standard runtime node", asyn
 
   assert.equal(result.novel.id, "novel_created_demo");
   assert.equal(backgroundRuns.length, 1);
-  assert.ok(calls.some((call) => call[0] === "updateNovel" && call[2] === "simple"));
+  assert.ok(calls.some((call) => call[0] === "updateNovel" && call[2] === undefined));
   assert.equal(builtSeeds[0].directorInput.runMode, "full_book_autopilot");
-  assert.equal(builtSeeds[0].extra.productionExperience, "simple");
+  assert.equal(builtSeeds[0].extra.productionExperience, undefined);
   assert.deepEqual(builtSeeds[0].extra.startupPreparation, {
     strategy: "fast_start",
     routeWindow: { min: 3, target: 5, detailAhead: 1 },

@@ -12,6 +12,9 @@
 
 ## 当前规则
 
+- `director.risk.assessment` 只负责把无法由确定性安全检查直接编码的问题结构化为稳定问题码、1～8 风险分、证据与建议动作。业务服务不得根据异常消息关键词或正则猜测问题类型；已知的空正文、明确重规划、保护内容和数据完整性信号可以直接提供稳定问题码，再由统一治理服务应用策略。
+- 风险评估失败不能生成虚构分类。确定性调用方提供的问题码仍然有效；只有 `runtime.unclassified` 允许 AI 改判为更具体的稳定问题码。安全锁定规则在结构化评估之后执行，AI 建议不能越过全书继续规则或数据安全底线。
+
 - 新增产品级 prompt 必须放在 `server/src/prompting/prompts/<family>/`。
 - 新增产品级 prompt 必须在 `server/src/prompting/registry.ts` 注册。
 - 新增产品级 prompt 还必须进入提示词管理目录，能够被检索、查看版本、预览实际上下文并执行受控测试；只完成 Registry 注册不等于完成提示词管理纳管。
@@ -60,6 +63,7 @@
 - “恢复官方当前版”必须通过官方恢复动作处理，而不是简单删除本书覆盖。删除本书覆盖的含义是回到继承链；在有全局覆盖时，这会重新继承全局值，不等于恢复官方默认。
 - “保留我的设置”只能更新当前槽位的 `baseHash/baseVersion`，用于确认用户接受自己的覆盖与当前官方版本的差异；不能顺手改写官方默认值、schema 或上下文策略。
 - 旧未纳管 prompt 路径被触碰时，默认先迁入 registry，再扩展能力。
+- 推进模式库的“扩展”属于正式产品 AI 能力：它必须由注册 PromptAsset 同时读取选定根模式、现有同级模式和整库摘要，再输出可直接落库的完整 profile 候选。不能在前端按名称相似度或固定类别补齐，更不能把“扩展”退化为只换名称的子类生成。候选保存仍必须通过既有两级树、重复名称与 profile 校验。
 
 批准例外：
 
@@ -135,3 +139,15 @@
 - [Prompt Governance Audit 2026-05-08](../../checkpoints/prompt-governance-audit-2026-05-08.md)
 - [提示词工作台、上下文装配与统一步骤运行时方案](../../plans/prompt-workbench-context-and-step-runtime-plan.md)
 - [LLM Schema Refactor Checkpoint](../../checkpoints/llm-schema-refactor-checkpoint.md)
+
+## 紧凑篇幅与结局 Prompt
+
+`novel.compact_book.structure@v1` 负责三段式结构和结局合同，`novel.compact_book.ending_audit@v1` 负责判断结局合同是否完成。两者都必须注册在 Prompt Registry，并使用结构化 Schema；运行时只用数值章节预算做确定性边界，不用关键词推断结局。
+
+终章正文继续复用 `novel.chapter.writer`，由章节上下文携带终章合同；结构化章节列表在全书终章场景下禁止创建下一主线。结局审校把“可追加收尾”和“必须重规划”区分开，普通文风质量债不得升级成全局失败。
+
+## 自动导演风险评估 Prompt
+
+`director.risk.assessment@v1` 是自动导演异常评分的唯一产品级入口。它接收已结构化的问题、审校结果、重规划建议和任务上下文，返回 1–10 分、类别、影响范围、证据、建议和 `canPause`。评分必须同时覆盖正文可用性、邻章/全书影响、数据与状态风险、可恢复性、用户内容保护和继续生成风险。
+
+运行时只负责确定性安全后处理：运行时安全、数据完整性和明确的全局停止条件统一升为 10 分；章节局部质量债强制禁止暂停。不要在服务层以关键词或正则解释异常、推断风险等级或增加旁路 Prompt；需要改变语义时，应修改该 PromptAsset 的 schema、上下文或指令并保持 Registry 注册。

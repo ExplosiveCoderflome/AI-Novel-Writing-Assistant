@@ -50,6 +50,19 @@ export function getNovelWorkflowTask(novel: NovelListItem): NovelAutoDirectorTas
     : novel.latestAutoDirectorTask ?? null;
 }
 
+export function getNovelWorkspaceHref(novel: NovelListItem): string {
+  if (novel.narrativeForm === "short_story") {
+    return `/novels/${novel.id}/story`;
+  }
+  if (novel.creationExperience === "simple") {
+    return `/novels/${novel.id}/simple`;
+  }
+  const task = novel.latestAutoDirectorTask;
+  return task?.id
+    ? `/novels/${novel.id}/edit?directorTaskId=${encodeURIComponent(task.id)}`
+    : `/novels/${novel.id}/edit`;
+}
+
 export function filterNovelList(input: {
   novels: NovelListItem[];
   status: StatusFilter;

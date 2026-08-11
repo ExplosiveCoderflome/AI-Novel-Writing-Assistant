@@ -41,11 +41,13 @@ import {
 `director/` 根目录只保留稳定门面和兼容桥接。新增自动导演能力必须进入明确职责目录：
 
 - `commands/`：后台命令创建、解释和执行。
+- `commands/leases/`：命令租约领取、续约、终态收束和 Worker 失联治理；外部仍通过 `DirectorCommandService` 门面调用。
 - `state/`：导演任务状态读取、写入和提交。
 - `projections/`：运行时投影、任务快照、进度和展示状态。
 - `recovery/`：恢复、回填、下游重置和结构化大纲恢复游标。
 - `phases/`：自动导演阶段、阶段节点适配和阶段级质量策略。
 - `runtime/`：接管、确认、候选、继续执行、运行时编排和内存/校验策略。
+- `issues/`：问题目录、策略事实源、任务策略快照读取与 detected / decided / applied 事件合同。
 - `http/`：Express 路由映射。
 
 外部模块优先依赖这些目录的门面或稳定入口，不应向 `director/` 根目录继续添加同前缀业务文件。
@@ -61,3 +63,5 @@ import {
 | Legacy Runtime Queue | `DirectorRuntimeInstance` → `DirectorRuntimeCommand` → `DirectorRuntimeExecution` | 仅保留历史投影兼容，不再作为新的后台命令队列写入 |
 
 新代码不应新增 `DirectorRuntimeCommand` / `DirectorRuntimeExecution` 写入路径。需要展示旧任务历史时，可以通过 runtime projection 读取这些历史行；需要排队执行时，必须通过 `DirectorCommandService` 创建 `DirectorRunCommand`。
+
+问题治理动作必须由真实执行边界确认后再登记 `issue_action_applied`。命令租约恢复负责重新排队、人工恢复或失败终态，流水线和熔断器分别负责自己的控制流；这些模块不能只记录策略决定后继续使用旧分支。

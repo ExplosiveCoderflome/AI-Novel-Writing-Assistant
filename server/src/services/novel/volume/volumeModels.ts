@@ -1,5 +1,6 @@
 import type { LLMProvider } from "@ai-novel/shared/types/llm";
 import type { ChapterTaskSheetQualityMode } from "@ai-novel/shared/types/chapterTaskSheetQuality";
+import type { DirectorCompletionProfile } from "@ai-novel/shared/types/directorCompletion";
 import type {
   VolumeChapterListGenerationMode,
   VolumeBeatSheet,
@@ -58,6 +59,7 @@ export interface VolumeGenerationNovel {
   first30ChapterPromise: string | null;
   commercialTagsJson: string | null;
   estimatedChapterCount: number | null;
+  completionProfile?: DirectorCompletionProfile;
   narrativePov: string | null;
   pacePreference: string | null;
   emotionIntensity: string | null;

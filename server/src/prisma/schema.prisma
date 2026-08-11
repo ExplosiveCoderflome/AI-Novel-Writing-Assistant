@@ -340,6 +340,9 @@ model Novel {
   writingPlatform    String?
   writingPlatformProfileVersion Int?
   writingPlatformSnapshotJson String?
+  directorIssuePolicyOverridesJson String?
+  directorRiskNoticeThreshold Int?
+  directorRiskPauseThreshold Int?
   narrativePov      NarrativePov?
   pacePreference    PacePreference?
   styleTone         String?

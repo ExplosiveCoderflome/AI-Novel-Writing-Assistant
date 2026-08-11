@@ -19,6 +19,17 @@ import type {
 } from "@ai-novel/shared/types/novelDirector";
 import { classifyChapterQualityLoopRisk } from "@ai-novel/shared/types/chapterQualityLoop";
 import { resolveDirectorQualityLoopBudgetNextAction } from "./DirectorQualityLoopBudgetLedgerService";
+import {
+  directorIssueOccurrenceSchema,
+  directorIssueDecisionSchema,
+} from "@ai-novel/shared/types/directorIssue";
+
+export function parseDirectorIssueEventMetadata(metadata: Record<string, unknown> | null | undefined) {
+  const occurrence = directorIssueOccurrenceSchema.safeParse(metadata?.occurrence);
+  if (!occurrence.success) return null;
+  const decision = directorIssueDecisionSchema.safeParse(metadata?.decision);
+  return { occurrence: occurrence.data, decision: decision.success ? decision.data : null };
+}
 
 function timestampOf(value?: string | null): number {
   if (!value) {
@@ -730,15 +741,28 @@ export class DirectorEventProjectionService {
     const recentEvents = [...snapshot.events]
       .sort((left, right) => timestampOf(right.occurredAt) - timestampOf(left.occurredAt))
       .slice(0, 8)
-      .map((item) => ({
-        eventId: item.eventId,
-        type: item.type,
-        summary: item.summary,
-        nodeKey: item.nodeKey,
-        artifactType: item.artifactType,
-        severity: item.severity,
-        occurredAt: item.occurredAt,
-      }));
+      .map((item) => {
+        const issue = parseDirectorIssueEventMetadata(item.metadata);
+        return {
+          eventId: item.eventId,
+          type: item.type,
+          summary: item.summary,
+          nodeKey: item.nodeKey,
+          artifactType: item.artifactType,
+          severity: item.severity,
+          occurredAt: item.occurredAt,
+          issue: issue?.occurrence ?? null,
+          issueDecision: issue?.decision ?? null,
+        };
+      });
+    const recentIssues = [...snapshot.events]
+      .sort((left, right) => timestampOf(right.occurredAt) - timestampOf(left.occurredAt))
+      .flatMap((item) => {
+        const issue = parseDirectorIssueEventMetadata(item.metadata);
+        return issue ? [issue] : [];
+      })
+      .filter((item, index, items) => items.findIndex((candidate) => candidate.occurrence.fingerprint === item.occurrence.fingerprint) === index)
+      .slice(0, 12);
 
     return {
       runId: snapshot.runId,
@@ -772,6 +796,7 @@ export class DirectorEventProjectionService {
       policyMode: snapshot.policy.mode,
       updatedAt: snapshot.updatedAt,
       recentEvents,
+      recentIssues,
     };
   }
 }

@@ -66,6 +66,7 @@ export class NovelCoreCrudService {
           status: true,
           writingMode: true,
           projectMode: true,
+          creationExperience: true,
           narrativeForm: true,
           targetWordCount: true,
           derivedFromNovelId: true,

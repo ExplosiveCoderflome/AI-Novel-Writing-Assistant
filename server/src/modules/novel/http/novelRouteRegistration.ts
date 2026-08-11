@@ -27,6 +27,8 @@ import type { NovelHttpServices } from "./novelHttpServices";
 import { guardSimpleCreationUserWrites } from "./simpleCreationWriteGuard";
 import { registerShortStoryRoutes } from "../short-story/http/shortStoryRoutes";
 import { registerWritingPlatformRoutes } from "../writing-platform/http/writingPlatformRoutes";
+import { registerDirectorIssuePolicyRoutes } from "../../../services/novel/director/issues/directorIssuePolicyRoutes";
+import { registerNovelDirectorRiskPolicyRoutes } from "../../../services/novel/director/http/novelDirectorRiskPolicy";
 import {
   aiRevisionPreviewSchema,
   arcPlanParamsSchema,
@@ -90,6 +92,8 @@ export function registerNovelHttpRoutes(router: Router, services: NovelHttpServi
 
   registerShortStoryRoutes(router);
   registerWritingPlatformRoutes(router);
+  registerDirectorIssuePolicyRoutes(router);
+  registerNovelDirectorRiskPolicyRoutes(router);
 
   registerNovelFramingRoutes({
     router,

@@ -35,6 +35,8 @@ import {
 } from "../runtime/DirectorQualityLoopBudgetLedgerService";
 import { directorAutomationLedgerEventService } from "../runtime/DirectorAutomationLedgerEventService";
 import { directorUsageTelemetryQueryService } from "../runtime/DirectorUsageTelemetryQueryService";
+import { directorIssueService } from "../issues";
+import type { DirectorIssueCode } from "@ai-novel/shared/types/directorIssue";
 
 type AutomationLedgerEventPort = Pick<
   typeof directorAutomationLedgerEventService,
@@ -69,7 +71,7 @@ interface ReplanNoticeRuntimePort extends CircuitBreakerWorkflowPort {
   }) => Promise<unknown>;
 }
 
-export async function stopAutoExecutionForCircuitBreaker(
+async function applyCircuitBreakerStop(
   deps: CircuitBreakerWorkflowPort,
   input: {
     taskId: string;
@@ -113,6 +115,70 @@ export async function stopAutoExecutionForCircuitBreaker(
     autoExecution,
     isBackgroundRunning: false,
     resumeStage: input.resumeStage ?? "pipeline",
+  });
+}
+
+function issueCodeForCircuitBreaker(
+  reason: DirectorCircuitBreakerState["reason"],
+): DirectorIssueCode {
+  switch (reason) {
+    case "auto_repair_exhausted": return "quality.local_repair_failed";
+    case "replan_loop": return "quality.replan_loop";
+    case "model_unavailable": return "runtime.model_unavailable";
+    case "service_unavailable": return "runtime.service_unavailable";
+    case "protected_user_content": return "runtime.protected_content";
+    case "unrecoverable_data_risk": return "runtime.data_integrity";
+    case "usage_anomaly": return "runtime.token_budget_exceeded";
+    default: return "runtime.unclassified";
+  }
+}
+
+export async function stopAutoExecutionForCircuitBreaker(
+  deps: CircuitBreakerWorkflowPort,
+  input: Parameters<typeof applyCircuitBreakerStop>[1],
+): Promise<void> {
+  const issuePolicy = input.request.issuePolicy;
+  if (input.request.issueGovernanceVersion !== 1 || !issuePolicy) {
+    await applyCircuitBreakerStop(deps, input);
+    return;
+  }
+  const failureCount = Math.max(
+    input.circuitBreaker.failureCount ?? 0,
+    input.circuitBreaker.patchFailureCount ?? 0,
+    input.circuitBreaker.replanLoopCount ?? 0,
+    input.circuitBreaker.modelFailureCount ?? 0,
+    input.circuitBreaker.usageAnomalyCount ?? 0,
+    1,
+  );
+  await directorIssueService.reportIssue({
+    issueGovernanceVersion: input.request.issueGovernanceVersion,
+    taskId: input.taskId,
+    novelId: input.novelId,
+    issueCode: issueCodeForCircuitBreaker(input.circuitBreaker.reason),
+    stage: input.circuitBreaker.nodeKey ?? "chapter_execution",
+    summary: input.circuitBreaker.message ?? "自动导演安全熔断已触发。",
+    evidence: input.circuitBreaker.reason ?? undefined,
+    affectedScope: input.circuitBreaker.chapterId
+      ? `chapter:${input.circuitBreaker.chapterId}`
+      : "book",
+    chapterId: input.circuitBreaker.chapterId ?? undefined,
+    chapterOrder: input.circuitBreaker.chapterOrder ?? undefined,
+    attempt: failureCount,
+    maxAttempts: failureCount,
+    hasUsableOutput: false,
+    runMode: input.request.runMode,
+    fingerprint: [
+      "circuit_breaker",
+      input.circuitBreaker.reason ?? "unknown",
+      input.circuitBreaker.chapterId ?? "book",
+      failureCount,
+    ].join(":"),
+    policy: issuePolicy,
+    policySource: input.request.issuePolicySource ?? "task_snapshot",
+    provider: input.request.provider,
+    model: input.request.model,
+    temperature: input.request.temperature,
+    applyAction: async () => applyCircuitBreakerStop(deps, input),
   });
 }
 

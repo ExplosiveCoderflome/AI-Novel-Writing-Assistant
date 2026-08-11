@@ -2,6 +2,7 @@ const test = require("node:test");
 const assert = require("node:assert/strict");
 
 const { DirectorCommandService } = require("../dist/services/novel/director/commands/DirectorCommandService.js");
+const { directorIssueService } = require("../dist/services/novel/director/issues/DirectorIssueService.js");
 const { prisma } = require("../dist/db/prisma.js");
 
 function createTask(overrides = {}) {
@@ -79,6 +80,7 @@ function createHarness(task = createTask()) {
     findMany: prisma.directorRunCommand.findMany,
   };
   const originalNovelWorkflowTask = {
+    findUnique: prisma.novelWorkflowTask.findUnique,
     updateMany: prisma.novelWorkflowTask.updateMany,
   };
   const originalDirectorStepRun = {
@@ -118,6 +120,13 @@ function createHarness(task = createTask()) {
       task.pendingManualRecovery = true;
       task.lastError = message;
       task.heartbeatAt = null;
+      task.updatedAt = new Date(task.updatedAt.getTime() + 1);
+      return task;
+    },
+    async markTaskFailed(taskId, message) {
+      task.status = "failed";
+      task.pendingManualRecovery = false;
+      task.lastError = message;
       task.updatedAt = new Date(task.updatedAt.getTime() + 1);
       return task;
     },
@@ -238,6 +247,9 @@ function createHarness(task = createTask()) {
     }
     return { count };
   };
+  prisma.novelWorkflowTask.findUnique = async ({ where }) => where.id === task.id
+    ? { novelId: task.novelId, seedPayloadJson: task.seedPayloadJson ?? null }
+    : null;
   prisma.novelWorkflowTask.updateMany = async (args) => {
     taskUpdates.push(args);
     if (args?.where?.id) {
@@ -645,6 +657,66 @@ test("director command service marks exhausted expired leases stale and requeues
     assert.equal(harness.stepUpdates[0].data.status, "failed");
     assert.match(harness.stepUpdates[0].data.error, /\u79df\u7ea6\u8fc7\u671f/);
   } finally {
+    harness.restore();
+  }
+});
+
+test("director command stale recovery applies the task policy instead of only recording it", async () => {
+  const task = createTask({
+    status: "running",
+    pendingManualRecovery: false,
+    seedPayloadJson: JSON.stringify({
+      issueGovernanceVersion: 1,
+      issuePolicy: {
+        noticeThreshold: 5,
+        pauseThreshold: 8,
+        issueActions: { "runtime.worker_stale": "fail_task" },
+      },
+      issuePolicySource: "novel",
+      runMode: "full_book_autopilot",
+    }),
+  });
+  const harness = createHarness(task);
+  const originalReportIssue = directorIssueService.reportIssue;
+  let reportedPolicy = null;
+  directorIssueService.reportIssue = async (input) => {
+    reportedPolicy = input.policy;
+    await input.applyAction({
+      occurrence: {
+        schemaVersion: 1,
+        issueCode: input.issueCode,
+        stage: input.stage,
+        summary: input.summary,
+        attempt: input.attempt,
+        maxAttempts: input.maxAttempts,
+        hasUsableOutput: false,
+        fingerprint: input.fingerprint,
+        occurredAt: new Date().toISOString(),
+      },
+      decision: {
+        issueCode: input.issueCode,
+        action: "fail_task",
+        reason: "本书规则要求结束任务",
+        locked: false,
+        policySource: "novel",
+        retryExhaustedAction: "pause_for_manual",
+      },
+    });
+  };
+  try {
+    await harness.service.enqueueContinueCommand("task-1");
+    harness.commands[0].status = "running";
+    harness.commands[0].leaseOwner = "worker-a";
+    harness.commands[0].attempt = 1;
+    harness.commands[0].leaseExpiresAt = new Date("2026-04-29T12:00:00.000Z");
+    await harness.service.recoverStaleLeases(new Date("2026-04-29T12:01:00.000Z"));
+    assert.equal(reportedPolicy.issueActions["runtime.worker_stale"], "fail_task");
+    assert.equal(harness.commands[0].status, "failed");
+    assert.equal(harness.task.status, "failed");
+    assert.equal(harness.task.pendingManualRecovery, false);
+    assert.equal(harness.requeued.length, 0);
+  } finally {
+    directorIssueService.reportIssue = originalReportIssue;
     harness.restore();
   }
 });

@@ -37,6 +37,7 @@ import { createDefaultNovelBasicFormState, type NovelBasicFormState } from "./no
 import {
   buildNovelListSummary,
   getNovelWorkflowTask,
+  getNovelWorkspaceHref,
   NOVEL_LIST_PAGE_SIZE,
   type StatusFilter,
   type WritingModeFilter,
@@ -210,9 +211,11 @@ export default function NovelList() {
 
   const openNovelEditor = (novelId: string) => {
     const novel = allNovels.find((item) => item.id === novelId);
-    navigate(novel?.narrativeForm === "short_story"
-      ? `/novels/${novelId}/story`
-      : `/novels/${novelId}/edit`);
+    if (!novel) {
+      navigate(`/novels/${novelId}/edit`);
+      return;
+    }
+    navigate(getNovelWorkspaceHref(novel));
   };
 
   const handleViewChange = (nextView: "shelf" | "workbench") => {
