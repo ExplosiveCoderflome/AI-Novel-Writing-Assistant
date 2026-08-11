@@ -41,7 +41,7 @@ function probeUrl(urlStr, timeoutMs = 2000) {
   });
 }
 
-// 1. 测试前快照保护：备份现有数据库
+// 1. 测试前快照保护：备份现有数据库并保留最近 5 份
 function backupExistingDatabase() {
   const dbPath = path.join(SERVER_DIR, "dev.db");
   if (fs.existsSync(dbPath)) {
@@ -52,6 +52,21 @@ function backupExistingDatabase() {
     const backupPath = path.join(BACKUPS_DIR, `dev_db_pre_setup_${timestamp}.bak`);
     fs.copyFileSync(dbPath, backupPath);
     console.log(`[✓ 测试前保护] 已对现有数据库创建预测试快照: ${path.relative(ROOT_DIR, backupPath)}`);
+
+    // 自动清理多于 5 份的旧备份，防止磁盘臃肿副作用
+    try {
+      const baks = fs
+        .readdirSync(BACKUPS_DIR)
+        .filter((f) => f.startsWith("dev_db_pre_setup_") && f.endsWith(".bak"))
+        .map((f) => ({ name: f, path: path.join(BACKUPS_DIR, f), time: fs.statSync(path.join(BACKUPS_DIR, f)).mtimeMs }))
+        .sort((a, b) => b.time - a.time);
+
+      if (baks.length > 5) {
+        for (const oldBak of baks.slice(5)) {
+          fs.unlinkSync(oldBak.path);
+        }
+      }
+    } catch (e) {}
   }
 }
 
@@ -248,10 +263,10 @@ function updateEnvironmentConfig(report) {
   };
 
   if (report.ffmpeg?.path) {
-    envVars.FFMPEG_PATH = `"${report.ffmpeg.path}"`;
+    envVars.FFMPEG_PATH = `"${report.ffmpeg.path.replace(/\\/g, "/")}"`;
   }
   if (report.comfyui?.dir) {
-    envVars.COMFYUI_PATH = `"${report.comfyui.dir}"`;
+    envVars.COMFYUI_PATH = `"${report.comfyui.dir.replace(/\\/g, "/")}"`;
   }
 
   // 更新 env 键值
