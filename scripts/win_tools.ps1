@@ -8,7 +8,7 @@ $ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
 $RootDir = Split-Path -Parent $ScriptDir
 Set-Location $RootDir
 
-Write-Host "================================================并发控制================================" -ForegroundColor Cyan
+Write-Host "========================================================================================" -ForegroundColor Cyan
 Write-Host "  Daydream Engine - Tool Center & Snapshot Diagnostics" -ForegroundColor Cyan
 Write-Host "========================================================================================" -ForegroundColor Cyan
 Write-Host ""
@@ -16,6 +16,10 @@ Write-Host ""
 if ($Action -eq "diagnose") {
     Write-Host "[1/3] Running Smart Environment Setup & Adaptation..." -ForegroundColor Yellow
     node "$ScriptDir\smart-environment-setup.cjs"
+}
+elseif ($Action -eq "clean") {
+    Write-Host "[1/2] Executing Full Workspace Clean & Reset from Scratch..." -ForegroundColor Yellow
+    node "$ScriptDir\clean-workspace.cjs"
 }
 elseif ($Action -eq "backup") {
     Write-Host "[1/2] Creating full project backup (database & config)..." -ForegroundColor Yellow
@@ -56,6 +60,7 @@ elseif ($Action -eq "dbpush") {
 else {
     Write-Host "Available options:" -ForegroundColor Yellow
     Write-Host "  -Action diagnose  (Run smart environment setup)"
+    Write-Host "  -Action clean     (Clean test data and reset workspace from scratch)"
     Write-Host "  -Action backup    (Backup database snapshot)"
     Write-Host "  -Action restore   (Restore pre-test snapshot)"
     Write-Host "  -Action dbpush    (Sync Prisma Database Schema)"
