@@ -21,7 +21,6 @@ import {
 } from "@/api/novelDirector";
 import { queryKeys } from "@/api/queryKeys";
 import DirectorRuntimeProjectionCard from "@/components/autoDirector/DirectorRuntimeProjectionCard";
-import LiveExecutionDialog from "@/components/liveExecution/LiveExecutionDialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import AITakeoverContainer, { type AITakeoverMode } from "@/components/workflow/AITakeoverContainer";
@@ -462,12 +461,6 @@ export default function NovelAutoDirectorProgressPanel({
         taskId={task?.id || taskId}
         actions={actions}
       >
-        <div className="mb-4 flex justify-end">
-          <LiveExecutionDialog
-            taskId={runtimeTaskId}
-            autoOpenOnActivity
-          />
-        </div>
         <NovelDirectorPreparationJourney
           steps={candidateSetupFlow
             ? stepDefinitions
