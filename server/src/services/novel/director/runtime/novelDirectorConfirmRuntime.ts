@@ -85,7 +85,6 @@ export class NovelDirectorConfirmRuntime {
       lane: "auto_director",
       title,
       seedPayload: this.deps.buildDirectorSeedPayload({ ...resolvedInput, runMode }, null, {
-        productionExperience: "simple",
         startupPreparation: resolvedInput.startupPreparation,
         directorSession: buildDirectorSessionState({
           runMode,
@@ -285,7 +284,6 @@ export class NovelDirectorConfirmRuntime {
         await prisma.novel.update({
           where: { id: createdNovel.id },
           data: {
-            creationExperience: "simple",
             writingPlatform: selectedPlatform,
             writingPlatformProfileVersion: platformSnapshot.profileVersion,
             writingPlatformSnapshotJson: JSON.stringify(platformSnapshot),
@@ -308,7 +306,6 @@ export class NovelDirectorConfirmRuntime {
           lane: "auto_director",
           title,
           seedPayload: this.deps.buildDirectorSeedPayload(executionDirectorInput, createdNovel.id, {
-            productionExperience: "simple",
             startupPreparation: executionDirectorInput.startupPreparation,
             directorSession,
             resumeTarget,

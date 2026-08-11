@@ -126,7 +126,7 @@ export class DirectorCommandLeaseService {
         fingerprint: ["worker_stale", command.id, command.attempt].join(":"),
         policy: governance.policy,
         policySource: governance.policySource,
-        applyAction: ({ decision }) => applyAction(decision.action),
+        applyAction: (decision) => applyAction(decision.action),
       }).catch(async () => {
         if (!actionApplied) await applyAction(autoRecoverable ? "auto_retry" : "pause_for_manual");
       });

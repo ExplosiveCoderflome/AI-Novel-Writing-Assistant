@@ -11,7 +11,7 @@ import {
 } from "@ai-novel/shared/types/directorIssue";
 import type { LLMProvider } from "@ai-novel/shared/types/llm";
 import { runStructuredPrompt } from "../../../../prompting/core/promptRunner";
-import { directorRiskAssessmentPrompt } from "../../../../prompting/prompts/director/directorRiskAssessment.prompts";
+import { directorIssueAssessmentPrompt } from "../../../../prompting/prompts/director/directorIssueAssessment.prompts";
 import { directorAutomationLedgerEventService } from "../runtime/DirectorAutomationLedgerEventService";
 
 const FORCED_SCORE_CODES = new Set<DirectorIssueCode>([
@@ -46,25 +46,12 @@ export interface ReportDirectorIssueInput {
   provider?: LLMProvider;
   model?: string;
   temperature?: number;
-  applyAction?: (result: ReportDirectorIssueResult) => Promise<void>;
+  applyAction?: (decision: DirectorIssueDecision) => Promise<void>;
 }
 
 export interface ReportDirectorIssueResult {
   occurrence: DirectorIssueOccurrence;
   decision: DirectorIssueDecision;
-}
-
-export class DirectorIssueActionInterrupt extends Error {
-  constructor(
-    readonly result: ReportDirectorIssueResult,
-  ) {
-    super(result.occurrence.summary);
-    this.name = "DirectorIssueActionInterrupt";
-  }
-}
-
-export function isDirectorIssueActionInterrupt(error: unknown): error is DirectorIssueActionInterrupt {
-  return error instanceof DirectorIssueActionInterrupt;
 }
 
 function severityFor(action: DirectorIssueAction): "low" | "medium" | "high" {
@@ -82,7 +69,7 @@ export class DirectorIssueService {
     const forcedScore = FORCED_SCORE_CODES.has(input.issueCode) ? 8 : null;
     const assessment = forcedScore === null
       ? await runStructuredPrompt({
-          asset: directorRiskAssessmentPrompt,
+          asset: directorIssueAssessmentPrompt,
           promptInput: {
             suggestedIssueCode: input.issueCode,
             stage: input.stage,
@@ -152,45 +139,11 @@ export class DirectorIssueService {
       occurredAt: occurrence.occurredAt,
     });
 
-    const result = { occurrence, decision };
-    await directorAutomationLedgerEventService.recordEvent({
-      type: "issue_decided",
-      idempotencyKey: `${input.taskId}:${input.fingerprint}:${decision.action}:decided`,
-      taskId: input.taskId,
-      runId: input.runId,
-      novelId: input.novelId,
-      nodeKey: input.stage,
-      summary: `${catalog.label}处理决定：${decision.action}`,
-      affectedScope: occurrence.affectedScope ?? null,
-      severity: severityFor(decision.action),
-      metadata: { schemaVersion: 1, occurrence, decision },
-    });
+    await input.applyAction?.(decision);
 
-    if (!input.applyAction) return result;
-    await input.applyAction(result);
-    await this.recordActionApplied({
-      taskId: input.taskId,
-      runId: input.runId,
-      novelId: input.novelId,
-      stage: input.stage,
-      result,
-    });
-
-    return result;
-  }
-
-  async recordActionApplied(input: {
-    taskId: string;
-    runId?: string | null;
-    novelId: string;
-    stage: string;
-    result: ReportDirectorIssueResult;
-  }): Promise<void> {
-    const { occurrence, decision } = input.result;
-    const catalog = DIRECTOR_ISSUE_CATALOG_BY_CODE[occurrence.issueCode];
     await directorAutomationLedgerEventService.recordEvent({
       type: "issue_action_applied",
-      idempotencyKey: `${input.taskId}:${occurrence.fingerprint}:${decision.action}:applied`,
+      idempotencyKey: `${input.taskId}:${input.fingerprint}:${decision.action}`,
       taskId: input.taskId,
       runId: input.runId,
       novelId: input.novelId,
@@ -200,6 +153,8 @@ export class DirectorIssueService {
       severity: severityFor(decision.action),
       metadata: { schemaVersion: 1, occurrence, decision },
     });
+
+    return { occurrence, decision };
   }
 }
 

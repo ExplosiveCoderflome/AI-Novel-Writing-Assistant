@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useNavigate } from "react-router-dom";
 import { buildStyleIntentSummary } from "@ai-novel/shared/types/styleEngine";
 import type { UnifiedTaskDetail } from "@ai-novel/shared/types/task";
 import {
@@ -97,7 +96,6 @@ export function useAutoDirectorCreateController(input: UseAutoDirectorCreateCont
     onWorkflowTaskChange,
     onBasicFormChange,
   } = input;
-  const navigate = useNavigate();
   const llm = useLLMStore();
   const queryClient = useQueryClient();
   const [idea, setIdea] = useState("");
@@ -607,15 +605,6 @@ export function useAutoDirectorCreateController(input: UseAutoDirectorCreateCont
     }
   };
 
-  const handleBackgroundContinue = () => {
-    toast.success("导演任务会继续在后台运行，可在 AI 驾驶舱查看进度。");
-    navigate("/");
-  };
-
-  const handleOpenTaskCenter = () => {
-    navigate(workflowTaskId ? `/tasks?kind=novel_workflow&id=${workflowTaskId}` : "/tasks");
-  };
-
   return {
     directorBasicForm,
     idea,
@@ -662,7 +651,5 @@ export function useAutoDirectorCreateController(input: UseAutoDirectorCreateCont
     onBasicFormChange,
     applyCandidateTitleOption,
     handleConfirmCandidate,
-    handleBackgroundContinue,
-    handleOpenTaskCenter,
   };
 }

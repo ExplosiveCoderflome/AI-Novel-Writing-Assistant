@@ -1,14 +1,22 @@
-import type { DirectorIssueCode } from "@ai-novel/shared/types/directorIssue";
+import type { DirectorIssueCode, DirectorIssueDecision } from "@ai-novel/shared/types/directorIssue";
 import type { PipelinePayload } from "../../novelCoreShared";
 import { logPipelineWarn } from "../../novelCoreShared";
 import { prisma } from "../../../../db/prisma";
 import {
-  DirectorIssueActionInterrupt,
   directorIssueService,
-  isDirectorIssueActionInterrupt,
   type ReportDirectorIssueResult,
   type DirectorIssueTaskContext,
 } from "../../director/issues";
+
+class DirectorIssueActionInterrupt extends Error {
+  constructor(readonly result: ReportDirectorIssueResult) {
+    super(result.occurrence.summary);
+  }
+}
+
+function isDirectorIssueActionInterrupt(error: unknown): error is DirectorIssueActionInterrupt {
+  return error instanceof DirectorIssueActionInterrupt;
+}
 
 export async function reportPipelineIssue(input: {
   governance: DirectorIssueTaskContext | null;
@@ -28,11 +36,11 @@ export async function reportPipelineIssue(input: {
   provider?: PipelinePayload["provider"];
   model?: string;
   temperature?: number;
-  applyAction?: (result: ReportDirectorIssueResult) => Promise<void>;
+  applyAction?: (decision: DirectorIssueDecision) => Promise<void>;
 }): Promise<void> {
   if (!input.governance || !input.workflowTaskId) return;
   try {
-    await directorIssueService.reportIssue({
+    const result = await directorIssueService.reportIssue({
       issueGovernanceVersion: input.governance.issueGovernanceVersion,
       taskId: input.workflowTaskId,
       novelId: input.novelId,
@@ -54,12 +62,14 @@ export async function reportPipelineIssue(input: {
       provider: input.provider,
       model: input.model,
       temperature: input.temperature,
-      applyAction: input.applyAction ?? (async (result) => {
-        if (result.decision.action === "pause_for_manual" || result.decision.action === "fail_task") {
-          throw new DirectorIssueActionInterrupt(result);
-        }
-      }),
+      applyAction: input.applyAction,
     });
+    if (result && !input.applyAction && (
+      result.decision.action === "pause_for_manual"
+      || result.decision.action === "fail_task"
+    )) {
+      throw new DirectorIssueActionInterrupt(result);
+    }
   } catch (error) {
     if (isDirectorIssueActionInterrupt(error)) throw error;
     logPipelineWarn("自动导演问题治理失败", {
@@ -103,11 +113,5 @@ export async function applyPipelineIssueInterrupt(input: {
       },
     });
   }
-  await directorIssueService.recordActionApplied({
-    taskId: input.workflowTaskId,
-    novelId: input.novelId,
-    stage: occurrence.stage,
-    result: input.error.result,
-  });
   return true;
 }

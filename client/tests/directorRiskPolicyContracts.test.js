@@ -16,23 +16,24 @@ test("director risk policy client uses dedicated global and novel endpoints with
   assert.match(api, /shared\/types\/directorRisk/);
   assert.match(api, /\/settings\/auto-director\/risk-policy/);
   assert.match(api, /\/novels\/\$\{novelId\}\/auto-director\/risk-policy/);
+  assert.match(api, /isDirectorRiskPolicyEndpointUnavailable/);
   assert.match(keys, /autoDirectorRiskPolicy/);
   assert.match(keys, /directorRiskPolicy/);
 });
 
 test("risk-policy controls are available globally and as a novel-level override", () => {
-  const globalCard = read("src/pages/settings/AutoDirectorIssuePolicyCard.tsx");
-  const novelCard = read("src/pages/novels/components/NovelDirectorIssuePolicyCard.tsx");
+  const globalCard = read("src/pages/settings/AutoDirectorRiskPolicyCard.tsx");
+  const novelCard = read("src/pages/novels/components/NovelDirectorRiskPolicyCard.tsx");
   const basicInfo = read("src/pages/novels/components/BasicInfoTab.tsx");
   const simpleIssuePanel = read("src/pages/novels/simpleCreation/SimpleCreationIssueGovernancePanel.tsx");
 
   assert.match(globalCard, /提醒分数/);
-  assert.match(globalCard, /暂停分数/);
+  assert.match(globalCard, /保护性暂停分数/);
   assert.match(globalCard, /max=\{7\}/);
   assert.match(globalCard, /max=\{8\}/);
-  assert.match(novelCard, /本书问题处理偏好/);
-  assert.match(novelCard, /saveNovelDirectorIssuePolicy/);
-  assert.match(basicInfo, /NovelDirectorIssuePolicyCard/);
+  assert.match(novelCard, /为本书单独设置/);
+  assert.match(novelCard, /saveNovelDirectorRiskPolicy/);
+  assert.match(basicInfo, /NovelDirectorRiskPolicyCard/);
   assert.match(simpleIssuePanel, /问题管理/);
   assert.match(simpleIssuePanel, /NovelDirectorIssuePolicyCard/);
   assert.match(simpleIssuePanel, /recentIssues/);

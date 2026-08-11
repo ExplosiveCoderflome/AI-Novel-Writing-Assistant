@@ -14,16 +14,18 @@ function listen(server) {
 test("novel director risk policy route saves a complete override or clears it to inherit global settings", async () => {
   const originals = {
     findUnique: prisma.novel.findUnique,
-    updateMany: prisma.novel.updateMany,
+    update: prisma.novel.update,
   };
   const novel = {
     id: "novel-director-risk-policy-test",
-    directorIssuePolicyOverridesJson: null,
+    directorRiskNoticeThreshold: null,
+    directorRiskPauseThreshold: null,
   };
   prisma.novel.findUnique = async () => ({ ...novel });
-  prisma.novel.updateMany = async ({ data }) => {
-    novel.directorIssuePolicyOverridesJson = data.directorIssuePolicyOverridesJson;
-    return { count: 1 };
+  prisma.novel.update = async ({ data }) => {
+    novel.directorRiskNoticeThreshold = data.directorRiskNoticeThreshold;
+    novel.directorRiskPauseThreshold = data.directorRiskPauseThreshold;
+    return { ...novel };
   };
 
   const server = http.createServer(createApp());
@@ -58,7 +60,7 @@ test("novel director risk policy route saves a complete override or clears it to
     assert.equal(invalidResponse.status, 400);
   } finally {
     prisma.novel.findUnique = originals.findUnique;
-    prisma.novel.updateMany = originals.updateMany;
+    prisma.novel.update = originals.update;
     await new Promise((resolve, reject) => server.close((error) => (error ? reject(error) : resolve())));
   }
 });

@@ -1,19 +1,33 @@
 const test = require("node:test");
 const assert = require("node:assert/strict");
+const fs = require("node:fs");
+const path = require("node:path");
 const { buildWorkflowSeedPayload } = require("../dist/services/novel/director/runtime/novelDirectorHelpers.js");
 const { directorCandidateResponseSchema } = require("../dist/services/novel/director/runtime/novelDirectorSchemas.js");
 const {
+  DirectorProductionExperienceService,
   buildProductionExperienceSeed,
   parseSelectedExperience,
 } = require("../dist/services/novel/director/commands/DirectorProductionExperienceService.js");
+const { prisma } = require("../dist/db/prisma.js");
 const { isSimpleCreationWriteAllowed } = require("../dist/modules/novel/http/simpleCreationWriteGuard.js");
-const { normalizeDirectorContinuationMode } = require("@ai-novel/shared/types/novelDirector");
-const {
-  resolveDirectorContinuationExecutionContract,
-} = require("../dist/services/novel/director/runtime/novelDirectorContinueRuntime.js");
-const {
-  resolveSimpleCreationRemainingRange,
-} = require("../dist/modules/novel/setup/application/simpleCreationShelfProgress.js");
+
+const confirmRuntimeSource = fs.readFileSync(
+  path.resolve(__dirname, "../src/services/novel/director/runtime/novelDirectorConfirmRuntime.ts"),
+  "utf8",
+);
+const outlinePhaseSource = fs.readFileSync(
+  path.resolve(__dirname, "../src/services/novel/director/phases/novelDirectorStructuredOutlinePhase.ts"),
+  "utf8",
+);
+const productionExperienceServiceSource = fs.readFileSync(
+  path.resolve(__dirname, "../src/services/novel/director/commands/DirectorProductionExperienceService.ts"),
+  "utf8",
+);
+const pipelineRuntimeSource = fs.readFileSync(
+  path.resolve(__dirname, "../src/services/novel/director/novelDirectorPipelineRuntime.ts"),
+  "utf8",
+);
 
 function candidate(title) {
   return {
@@ -56,6 +70,13 @@ test("legacy explicit auto_to_ready seed remains compatible", () => {
   assert.equal(seed.productionExperience, undefined);
 });
 
+test("fast-start director waits for the user to choose a production experience", () => {
+  assert.doesNotMatch(confirmRuntimeSource, /productionExperience:\s*"simple"/);
+  assert.doesNotMatch(confirmRuntimeSource, /creationExperience:\s*"simple"/);
+  assert.match(outlinePhaseSource, /checkpointType:\s*continueSimpleProduction\s*\?\s*"chapter_batch_ready"\s*:\s*"production_experience_required"/);
+  assert.doesNotMatch(outlinePhaseSource, /checkpointType:\s*fastStart\s*\?/);
+});
+
 test("production handoff converts the same seed to full-book simple creation", () => {
   const seed = directorSeed();
   const nextSeed = buildProductionExperienceSeed(seed, "simple");
@@ -68,6 +89,61 @@ test("production handoff converts the same seed to full-book simple creation", (
   assert.equal(nextSeed.autoApproval.enabled, true);
   assert.ok(nextSeed.autoApproval.approvalPointCodes.includes("chapter_execution_continue"));
   assert.ok(nextSeed.autoApproval.approvalPointCodes.includes("replan_continue"));
+});
+
+test("simple creation can be selected while preparation continues", () => {
+  assert.match(productionExperienceServiceSource, /experience !== "simple"/);
+  assert.match(productionExperienceServiceSource, /creationExperience: "simple"/);
+  assert.match(outlinePhaseSource, /currentNovel[\s\S]*creationExperience/);
+  assert.match(pipelineRuntimeSource, /earlySimpleSelection/);
+  assert.match(pipelineRuntimeSource, /buildFullBookAutopilotExecutionPlan/);
+});
+
+test("early simple selection keeps the current task and only changes its experience", async () => {
+  const originals = {
+    findUnique: prisma.novelWorkflowTask.findUnique,
+    taskUpdate: prisma.novelWorkflowTask.update,
+    novelUpdate: prisma.novel.update,
+    transaction: prisma.$transaction,
+  };
+  let taskUpdate = null;
+  let novelUpdate = null;
+  prisma.novelWorkflowTask.findUnique = async () => ({
+    id: "director-task-1",
+    lane: "auto_director",
+    novelId: "novel-1",
+    status: "running",
+    checkpointType: null,
+    seedPayloadJson: JSON.stringify(directorSeed()),
+  });
+  prisma.novelWorkflowTask.update = async (input) => {
+    taskUpdate = input;
+    return input;
+  };
+  prisma.novel.update = async (input) => {
+    novelUpdate = input;
+    return input;
+  };
+  prisma.$transaction = async (operations) => Promise.all(operations);
+  const commandService = {
+    enqueueContinueCommand: async () => {
+      throw new Error("early selection must not create a second command");
+    },
+  };
+
+  try {
+    const result = await new DirectorProductionExperienceService(commandService).select("director-task-1", "simple");
+    assert.equal(result.workflowTaskId, "director-task-1");
+    assert.equal(result.targetRoute, "/novels/novel-1/simple");
+    assert.equal(result.backgroundStarted, true);
+    assert.equal(JSON.parse(taskUpdate.data.seedPayloadJson).productionExperience, "simple");
+    assert.equal(novelUpdate.data.creationExperience, "simple");
+  } finally {
+    prisma.novelWorkflowTask.findUnique = originals.findUnique;
+    prisma.novelWorkflowTask.update = originals.taskUpdate;
+    prisma.novel.update = originals.novelUpdate;
+    prisma.$transaction = originals.transaction;
+  }
 });
 
 test("professional handoff keeps preparation-only mode without auto execution", () => {
@@ -95,36 +171,4 @@ test("simple creation write boundary allows reads, exports and irreversible conv
   assert.equal(isSimpleCreationWriteAllowed("PUT", "/book"), false);
   assert.equal(isSimpleCreationWriteAllowed("DELETE", "/book/chapters/chapter-1"), false);
   assert.equal(isSimpleCreationWriteAllowed("POST", "/book/chapters/chapter-1/generate"), false);
-});
-
-test("simple creation continuation starts from the first chapter without saved content", () => {
-  const chapters = Array.from({ length: 80 }, (_item, index) => ({
-    id: `chapter-${index + 1}`,
-    order: index + 1,
-    content: index < 12 ? `第 ${index + 1} 章正文` : "",
-  }));
-  assert.deepEqual(resolveSimpleCreationRemainingRange({
-    chapters,
-    estimatedChapterCount: 80,
-  }), {
-    startOrder: 13,
-    endOrder: 80,
-    totalChapterCount: 80,
-    savedChapterCount: 12,
-    remainingChapterCount: 68,
-    nextChapterId: "chapter-13",
-  });
-});
-
-test("simple creation continuation uses the shared full-book director command mode", () => {
-  assert.equal(normalizeDirectorContinuationMode("full_book_autopilot"), "full_book_autopilot");
-  assert.deepEqual(resolveDirectorContinuationExecutionContract({
-    continuationMode: "full_book_autopilot",
-    baseRunMode: "auto_to_execution",
-    requestedSkipQualityRepair: false,
-  }), {
-    resetAutoExecutionState: true,
-    continueAutoExecution: true,
-    runMode: "full_book_autopilot",
-  });
 });

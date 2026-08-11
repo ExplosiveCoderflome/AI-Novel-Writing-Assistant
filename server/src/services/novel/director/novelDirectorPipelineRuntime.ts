@@ -1,10 +1,12 @@
 import type { CharacterCastOption, VolumePlanDocument } from "@ai-novel/shared/types/novel";
 import type { DirectorConfirmRequest } from "@ai-novel/shared/types/novelDirector";
 import {
+  buildFullBookAutopilotExecutionPlan,
   isDirectorAutoExecutionRunMode,
   isFullBookAutopilotRunMode,
 } from "@ai-novel/shared/types/novelDirector";
 import {
+  buildFullDirectorAutoApprovalConfig,
   normalizeDirectorAutoApprovalConfig,
   shouldAutoApproveDirectorApprovalPoint,
   shouldAutoApproveDirectorCheckpoint,
@@ -21,6 +23,7 @@ import type { NovelWorkflowService } from "../workflow/NovelWorkflowService";
 import { recordAutoDirectorAutoApprovalFromTask } from "../../task/autoDirectorFollowUps/autoDirectorAutoApprovalAudit";
 import { normalizeDirectorMemoryScope } from "./runtime/autoDirectorMemorySafety";
 import {
+  applyDirectorRunModeContract,
   buildWorkflowSeedPayload,
   normalizeDirectorRunMode,
 } from "./runtime/novelDirectorHelpers";
@@ -384,8 +387,22 @@ export class NovelDirectorPipelineRuntime {
   }
 
   private async maybeRunAutoApprovedChapters(input: DirectorPipelineRunInput): Promise<void> {
-    const shouldAutoApproveCheckpoint = this.shouldAutoApproveCheckpoint(input.input, "chapter_batch_ready");
-    if (!input.approveAutoExecutionScope && !shouldAutoApproveCheckpoint) {
+    const novel = await this.deps.novelContextService.getNovelById(input.novelId).catch(() => null);
+    const earlySimpleSelection = (novel as { creationExperience?: unknown } | null)?.creationExperience === "simple"
+      && !isFullBookAutopilotRunMode(input.input.runMode);
+    const request = earlySimpleSelection
+      ? applyDirectorRunModeContract({
+        ...input.input,
+        runMode: "full_book_autopilot",
+        autoExecutionPlan: buildFullBookAutopilotExecutionPlan(),
+        autoApproval: buildFullDirectorAutoApprovalConfig(),
+      })
+      : input.input;
+    const effectiveInput = earlySimpleSelection
+      ? { ...input, input: request, approveCurrentGate: true, approveAutoExecutionScope: true }
+      : input;
+    const shouldAutoApproveCheckpoint = this.shouldAutoApproveCheckpoint(request, "chapter_batch_ready");
+    if (!effectiveInput.approveAutoExecutionScope && !shouldAutoApproveCheckpoint) {
       return;
     }
     if (shouldAutoApproveCheckpoint) {
@@ -394,11 +411,11 @@ export class NovelDirectorPipelineRuntime {
         checkpointType: "chapter_batch_ready",
       });
     }
-    const approval = this.resolveRuntimeApproval(input, "structured_outline_ready");
+    const approval = this.resolveRuntimeApproval(effectiveInput, "structured_outline_ready");
     await this.deps.runtimeOrchestrator.runChapterExecutionNode({
       taskId: input.taskId,
       novelId: input.novelId,
-      request: input.input,
+      request,
       resumeCheckpointType: "chapter_batch_ready",
       approveCurrentGate: approval.approveCurrentGate,
       approveAutoExecutionScope: approval.approveAutoExecutionScope,

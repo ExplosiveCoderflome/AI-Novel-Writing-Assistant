@@ -129,26 +129,6 @@ function shouldSkipCurrentQualityRepair(input: {
     || Boolean(input.currentStage?.includes("质量"));
 }
 
-export function resolveDirectorContinuationExecutionContract(input: {
-  continuationMode: DirectorContinuationMode | null;
-  baseRunMode: ReturnType<typeof normalizeDirectorRunMode>;
-  requestedSkipQualityRepair: boolean;
-}) {
-  const resetAutoExecutionState = input.continuationMode === "full_book_autopilot";
-  const continueAutoExecution = input.continuationMode === "auto_execute_range"
-    || input.requestedSkipQualityRepair
-    || resetAutoExecutionState;
-  return {
-    resetAutoExecutionState,
-    continueAutoExecution,
-    runMode: resetAutoExecutionState
-      ? "full_book_autopilot" as const
-      : continueAutoExecution && !isDirectorAutoExecutionRunMode(input.baseRunMode)
-        ? "auto_to_execution" as const
-        : input.baseRunMode,
-  };
-}
-
 export class NovelDirectorContinueRuntime {
   constructor(private readonly deps: {
     workflowService: NovelWorkflowService;
@@ -320,15 +300,11 @@ export class NovelDirectorContinueRuntime {
       currentItemKey: row.currentItemKey,
       currentStage: row.currentStage,
     });
+    const requestedAutoExecutionContinue = continuationMode === "auto_execute_range" || requestedSkipQualityRepair;
     const baseRunMode = normalizeDirectorRunMode(directorInput.runMode ?? fallbackRunMode);
-    const continuationContract = resolveDirectorContinuationExecutionContract({
-      continuationMode,
-      baseRunMode,
-      requestedSkipQualityRepair,
-    });
-    const requestedFullBookContinue = continuationContract.resetAutoExecutionState;
-    const requestedAutoExecutionContinue = continuationContract.continueAutoExecution;
-    const runMode = continuationContract.runMode;
+    const runMode = requestedAutoExecutionContinue && !isDirectorAutoExecutionRunMode(baseRunMode)
+      ? "auto_to_execution"
+      : baseRunMode;
     const isFullBookAutopilot = isFullBookAutopilotRunMode(runMode);
     const effectiveDirectorInput = applyDirectorRunModeContract({
       ...directorInput,
@@ -351,7 +327,7 @@ export class NovelDirectorContinueRuntime {
     const approveAutoExecutionGate = approveCurrentGate || requestedAutoExecutionContinue;
 
     if (assetFirstRecovery?.type === "auto_execution") {
-      const resumedChapterId = requestedFullBookContinue ? null : (
+      const resumedChapterId = (
         parseResumeTargetLike(row.resumeTargetJson)?.chapterId
         ?? parseResumeTargetLike(seedPayload.resumeTarget)?.chapterId
         ?? seedPayload.autoExecution?.nextChapterId
@@ -378,7 +354,7 @@ export class NovelDirectorContinueRuntime {
             stage: "pipeline",
             chapterId: resumedChapterId,
           }),
-          autoExecution: requestedFullBookContinue ? null : seedPayload.autoExecution ?? null,
+          autoExecution: seedPayload.autoExecution ?? null,
         }),
       });
       this.deps.scheduleBackgroundRun(taskId, async () => {
@@ -392,10 +368,8 @@ export class NovelDirectorContinueRuntime {
             taskId,
             novelId,
             request: effectiveDirectorInput,
-            existingPipelineJobId: requestedFullBookContinue
-              ? null
-              : seedPayload.autoExecution?.pipelineJobId ?? null,
-            existingState: requestedFullBookContinue ? null : seedPayload.autoExecution ?? null,
+            existingPipelineJobId: seedPayload.autoExecution?.pipelineJobId ?? null,
+            existingState: seedPayload.autoExecution ?? null,
             resumeCheckpointType: "chapter_batch_ready",
             previousFailureMessage: row.lastError ?? null,
             allowSkipReviewBlockedChapter: canSkipReviewBlockedChapter,
@@ -407,10 +381,8 @@ export class NovelDirectorContinueRuntime {
           taskId,
           novelId,
           request: effectiveDirectorInput,
-          existingPipelineJobId: requestedFullBookContinue
-            ? null
-            : seedPayload.autoExecution?.pipelineJobId ?? null,
-          existingState: requestedFullBookContinue ? null : seedPayload.autoExecution ?? null,
+          existingPipelineJobId: seedPayload.autoExecution?.pipelineJobId ?? null,
+          existingState: seedPayload.autoExecution ?? null,
           resumeCheckpointType: assetFirstRecovery.resumeCheckpointType,
           previousFailureMessage: row.lastError ?? null,
           allowSkipReviewBlockedChapter: canSkipReviewBlockedChapter,

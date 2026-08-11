@@ -54,7 +54,7 @@ export function getNovelWorkspaceHref(novel: NovelListItem): string {
   if (novel.narrativeForm === "short_story") {
     return `/novels/${novel.id}/story`;
   }
-  if (novel.latestAutoDirectorTask?.productionExperience === "simple" || novel.creationExperience === "simple") {
+  if (novel.creationExperience === "simple") {
     return `/novels/${novel.id}/simple`;
   }
   const task = novel.latestAutoDirectorTask;

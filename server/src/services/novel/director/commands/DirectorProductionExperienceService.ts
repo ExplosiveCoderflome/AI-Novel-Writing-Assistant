@@ -119,7 +119,27 @@ export class DirectorProductionExperienceService {
 
     if (!selected) {
       if (task.checkpointType !== "production_experience_required") {
-        throw new AppError("自动导演还没有完成正文生产前的准备。", 409);
+        if (experience !== "simple") {
+          throw new AppError("自动导演还没有完成正文生产前的准备。", 409);
+        }
+        const nextSeed = buildProductionExperienceSeed(seed, experience);
+        await prisma.$transaction([
+          prisma.novelWorkflowTask.update({
+            where: { id: task.id },
+            data: { seedPayloadJson: JSON.stringify(nextSeed) },
+          }),
+          prisma.novel.update({
+            where: { id: task.novelId },
+            data: { creationExperience: "simple" },
+          }),
+        ]);
+        return {
+          experience,
+          workflowTaskId: task.id,
+          novelId: task.novelId,
+          targetRoute: `/novels/${task.novelId}/simple`,
+          backgroundStarted: task.status === "queued" || task.status === "running",
+        };
       }
       const nextSeed = buildProductionExperienceSeed(seed, experience);
 
