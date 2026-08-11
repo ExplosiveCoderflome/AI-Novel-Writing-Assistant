@@ -420,6 +420,22 @@ export async function parseStructuredLlmRawContentDetailed<T>(
     fallbackAvailable: input.fallbackAvailable,
     fallbackUsed: input.fallbackUsed,
   });
+  if (!input.rawContent || !input.rawContent.trim()) {
+    const modelName = input.model || "未知模型";
+    const emptyMsg = input.provider === "ollama"
+      ? `Ollama 模型 [${modelName}] 未成功返回内容（响应为空）。请确认该模型已在 Ollama 本地成功拉取 ('ollama pull ${modelName}')，且已在顶部模型设置中正确选择。`
+      : `模型 [${modelName}] 响应为空，请检查 LLM 服务配置与网络连通性。`;
+    throw buildStructuredError({
+      message: `[${input.label}] ${emptyMsg}`,
+      category: "transport_error",
+      strategy: input.strategy,
+      profile: input.profile,
+      reasoningForcedOff: input.reasoningForcedOff,
+      fallbackAvailable: input.fallbackAvailable,
+      fallbackUsed: input.fallbackUsed,
+    });
+  }
+
   const initialParse = tryParseStructuredJsonValue(input.rawContent);
   const parseErrorMessage = "error" in initialParse ? initialParse.error : "";
   const parsed = "parsed" in initialParse ? initialParse.parsed : null;
