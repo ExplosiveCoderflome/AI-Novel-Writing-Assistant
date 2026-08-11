@@ -649,4 +649,4 @@ docs/     设计文档、阶段检查点、模块计划与历史归档
 
 ## 友情链接
 
-- [LINUX DO - 新的理想型社区](https://linux.do/)
+- [LINUX DO](https://linux.do/)
