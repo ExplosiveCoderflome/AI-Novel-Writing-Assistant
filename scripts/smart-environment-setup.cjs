@@ -287,8 +287,21 @@ function updateEnvironmentConfig(report) {
 // 5. 数据库自动化初始化与 Seed 数据补全
 function initializeDatabase() {
   console.log("\n-----------------------------------------------------------------");
-  console.log("  开始执行数据库结构同步与 Seed 种子数据灌入...");
+  console.log("  开始执行 shared 库构建与数据库结构同步...");
   console.log("-----------------------------------------------------------------");
+  try {
+    console.log("-> 正在生成 @ai-novel/shared 重导出文件并构建基础模块...");
+    const genScript = path.join(ROOT_DIR, "scripts", "generate-shared-reexports.cjs");
+    if (fs.existsSync(genScript)) {
+      spawnSync(process.execPath, [genScript], { cwd: ROOT_DIR, stdio: "inherit" });
+    }
+    execSync("pnpm --filter @ai-novel/shared build", { cwd: ROOT_DIR, stdio: "inherit", env: process.env });
+    console.log("-> 正在构建 @ai-novel/server 基础 API 服务模块...");
+    execSync("pnpm --filter @ai-novel/server build", { cwd: ROOT_DIR, stdio: "inherit", env: process.env });
+  } catch (e) {
+    console.warn(`[! 编译提示] 基础库构建提示: ${e.message}`);
+  }
+
   const ensureScript = path.join(SERVER_DIR, "scripts", "ensure-dev-prisma.cjs");
   if (fs.existsSync(ensureScript)) {
     const result = spawnSync(process.execPath, [ensureScript], {
