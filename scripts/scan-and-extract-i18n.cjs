@@ -346,8 +346,18 @@ files.forEach((filePath) => {
       }
 
       const exprCode = rawBody.slice(exprStart + 2, exprEnd - 1).trim();
-      // 如果表达式过于复杂（包含三元运算 ? :、嵌套反引号、i18next.t 等），跳过自动替换
-      if (exprCode.includes('?') || exprCode.includes(':') || exprCode.includes('`') || exprCode.includes('i18next') || exprCode.includes('||')) {
+      // 严格跳过包含复杂运算符、引号、嵌套 i18n 或逻辑运算的表达式，确保 100% 语法安全
+      if (
+        exprCode.includes('?') ||
+        exprCode.includes(':') ||
+        exprCode.includes('`') ||
+        exprCode.includes('"') ||
+        exprCode.includes("'") ||
+        exprCode.includes('||') ||
+        exprCode.includes('&&') ||
+        exprCode.includes('??') ||
+        exprCode.includes('i18next')
+      ) {
         hasError = true;
         break;
       }
