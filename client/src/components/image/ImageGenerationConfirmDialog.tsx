@@ -18,6 +18,7 @@ import type { ImageGenerationOverrides, ImageGenerationPreview } from "@/api/com
 import { assistImageGenerationPrompt, resolveImageAssetUrl, type ImagePromptAssistResult } from "@/api/images";
 import { toast } from "@/components/ui/toast";
 import SelectControl from "@/components/common/SelectControl";
+import { resolveImageProviderOptions } from "@/lib/imageModelRegistry";
 
 const SIZE_OPTIONS = [
   { value: "1024x1024", label: i18next.t("dict.gen_4646d30c") },
@@ -90,29 +91,14 @@ export function ImageGenerationConfirmDialog({
   }, [preview]);
 
   // 可用 provider 列表（图像生成 + 已配置）
-  const { data: providerOptions = [] } = useQuery({
+  const { data: apiKeysRes } = useQuery({
     queryKey: ["settings", "api-keys"],
     queryFn: getAPIKeySettings,
-    select: (res) =>
-      (res.data ?? [])
-        .filter((p) => p.supportsImageGeneration && p.isConfigured)
-        .map((p) => ({ value: p.provider, label: p.displayName ?? p.name })),
   });
 
-  // 当前 provider 不在可用列表里时，临时追加为选项（包含本地离线画师 ComfyUI）
   const providerChoices = useMemo(() => {
-    const list = [...providerOptions];
-    if (!list.some((p) => p.value === "comfyui")) {
-      list.unshift({ value: "comfyui", label: i18next.t("image.imageGenerationConfirmDialog.i945b5") });
-    }
-    if (!list.some((p) => p.value === "sensenova")) {
-      list.push({ value: "sensenova", label: i18next.t("image.imageGenerationConfirmDialog.xlrobl") });
-    }
-    if (provider && !list.some((p) => p.value === provider)) {
-      list.push({ value: provider, label: provider });
-    }
-    return list;
-  }, [provider, providerOptions]);
+    return resolveImageProviderOptions(apiKeysRes?.data ?? [], provider);
+  }, [apiKeysRes, provider]);
 
   // size 也保证当前值在列表里
   const sizeChoices = useMemo(() => {

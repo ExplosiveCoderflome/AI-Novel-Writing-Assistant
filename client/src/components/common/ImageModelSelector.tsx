@@ -5,27 +5,17 @@ import { Image as ImageIcon } from "lucide-react";
 import { getAPIKeySettings } from "@/api/settings";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
+import {
+  getStoredImageProvider,
+  setStoredImageProvider,
+  resolveImageProviderOptions,
+} from "@/lib/imageModelRegistry";
+
+export { getStoredImageProvider, setStoredImageProvider, PREFERRED_IMAGE_PROVIDER_KEY } from "@/lib/imageModelRegistry";
 
 interface ImageModelSelectorProps {
   compact?: boolean;
   className?: string;
-}
-
-export const PREFERRED_IMAGE_PROVIDER_KEY = "comic.preferredImageProvider";
-
-export function getStoredImageProvider(): string {
-  try {
-    return localStorage.getItem(PREFERRED_IMAGE_PROVIDER_KEY) ?? "comfyui";
-  } catch {
-    return "comfyui";
-  }
-}
-
-export function setStoredImageProvider(provider: string): void {
-  try {
-    localStorage.setItem(PREFERRED_IMAGE_PROVIDER_KEY, provider);
-    window.dispatchEvent(new CustomEvent("comic-image-provider-changed", { detail: provider }));
-  } catch { /* ignore */ }
 }
 
 export default function ImageModelSelector({ compact = true, className }: ImageModelSelectorProps) {
@@ -37,18 +27,8 @@ export default function ImageModelSelector({ compact = true, className }: ImageM
   });
 
   const providerOptions = useMemo(() => {
-    const list = (apiKeysRes?.data ?? [])
-      .filter((p) => p.supportsImageGeneration && p.isConfigured)
-      .map((p) => ({ value: p.provider, label: p.displayName ?? p.name }));
-
-    if (!list.some((p) => p.value === "comfyui")) {
-      list.unshift({ value: "comfyui", label: i18next.t("common.imageModelSelector.kuc2hs") });
-    }
-    if (!list.some((p) => p.value === "sensenova")) {
-      list.push({ value: "sensenova", label: i18next.t("common.imageModelSelector.r6zsie") });
-    }
-    return list;
-  }, [apiKeysRes]);
+    return resolveImageProviderOptions(apiKeysRes?.data ?? [], selectedProvider);
+  }, [apiKeysRes, selectedProvider]);
 
   const resolvedValue = useMemo(() => {
     if (selectedProvider && providerOptions.some((p) => p.value === selectedProvider)) {
@@ -79,7 +59,7 @@ export default function ImageModelSelector({ compact = true, className }: ImageM
       <Select value={resolvedValue} onValueChange={handleSelect}>
         <SelectTrigger className={cn("h-9 border-input bg-background font-normal text-xs gap-1.5", compact && "w-[170px]")}>
           <ImageIcon className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
-          <SelectValue placeholder={i18next.t("common.imageModelSelector.3jnqsw")} />
+          <SelectValue placeholder={i18next.t("common.imageModelSelector.3jnqsw", { defaultValue: "选择文生图模型" })} />
         </SelectTrigger>
         <SelectContent align="end">
           {providerOptions.map((opt) => (
