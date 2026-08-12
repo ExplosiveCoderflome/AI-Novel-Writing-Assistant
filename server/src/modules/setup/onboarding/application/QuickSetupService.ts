@@ -42,6 +42,12 @@ const ROUTE_TEMPERATURES: Record<ModelRouteTaskType, number> = {
   summary: 0.2,
   fact_extraction: 0.2,
   chat: 0.7,
+  image_gen: 0.7,
+  video_gen: 0.7,
+  embedding: 0.0,
+  asr: 0.0,
+  tts: 0.7,
+  ocr: 0.0,
 };
 
 function normalizeOptionalText(value: string | null | undefined): string | undefined {

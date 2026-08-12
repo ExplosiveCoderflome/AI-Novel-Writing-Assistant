@@ -412,91 +412,122 @@ export default function ModelRoutesPage() {
         </CardContent>
       </Card>
 
-      {taskTypes.map((taskType) => {
-        const draft = getRouteDraft(taskType);
-        const label = MODEL_ROUTE_LABELS[taskType];
-        const providerName = getProviderDisplayName(providerConfigs, draft.provider);
-        const connectivity = connectivityMap.get(taskType);
-        const connectivityState = resolveConnectivityState(
-          connectivity,
-          modelRouteConnectivityQuery.isPending || modelRouteConnectivityQuery.isFetching,
-        );
-        const isDirty = dirtyTaskTypeSet.has(taskType);
-        const hasUnsavedRouteDiff = connectivity != null
-          && (
-            draft.provider !== connectivity.provider
-            || (draft.model.trim().length > 0 && draft.model !== connectivity.model)
-            || (draft.requestProtocol !== "auto" && draft.requestProtocol !== connectivity.requestProtocol)
-            || (
-              draft.structuredResponseFormat !== "auto"
-              && draft.structuredResponseFormat !== connectivity.structured?.strategy
-            )
+      {(() => {
+        const textTaskTypes: ModelRouteTaskType[] = [
+          "planner", "writer", "review", "light_review", "critical_review",
+          "repair", "replan", "state_resolution", "summary", "fact_extraction", "chat"
+        ];
+        const multimodalTaskTypes: ModelRouteTaskType[] = [
+          "image_gen", "video_gen", "embedding", "asr", "tts", "ocr"
+        ];
+
+        const renderTaskCard = (taskType: ModelRouteTaskType) => {
+          const draft = getRouteDraft(taskType);
+          const label = MODEL_ROUTE_LABELS[taskType] ?? { title: taskType, description: "" };
+          const providerName = getProviderDisplayName(providerConfigs, draft.provider);
+          const connectivity = connectivityMap.get(taskType);
+          const connectivityState = resolveConnectivityState(
+            connectivity,
+            modelRouteConnectivityQuery.isPending || modelRouteConnectivityQuery.isFetching,
           );
+          const isDirty = dirtyTaskTypeSet.has(taskType);
+          const hasUnsavedRouteDiff = connectivity != null
+            && (
+              draft.provider !== connectivity.provider
+              || (draft.model.trim().length > 0 && draft.model !== connectivity.model)
+              || (draft.requestProtocol !== "auto" && draft.requestProtocol !== connectivity.requestProtocol)
+              || (
+                draft.structuredResponseFormat !== "auto"
+                && draft.structuredResponseFormat !== connectivity.structured?.strategy
+              )
+            );
+
+          return (
+            <Card key={taskType}>
+              <CardHeader>
+                <CardTitle className="flex flex-wrap items-center gap-2">
+                  <span>{label.title}</span>
+                  <span className="inline-flex items-center gap-2 rounded-full border px-2 py-0.5 text-xs font-normal text-muted-foreground">
+                    <RouteStatusDot state={connectivityState} />
+                    {connectivityState === "healthy"
+                      ? i18next.t("dict.gen_2fbb4e75")
+                      : connectivityState === "failed"
+                        ? i18next.t("dict.gen_fce7b9c6")
+                        : connectivityState === "checking"
+                          ? i18next.t("dict.gen_d4c366cb")
+                          : i18next.t("dict.gen_5c6585e0")}
+                  </span>
+                  {isDirty ? <Badge variant="secondary">{i18next.t("dict.gen_29953c6f")}</Badge> : null}
+                </CardTitle>
+                <CardDescription>
+                  {label.description}
+                  <span className="ml-2 text-xs text-muted-foreground">标识：{taskType}</span>
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                <ModelRouteFields
+                  draft={draft}
+                  providerConfigs={providerConfigs}
+                  providerOptions={providerOptions}
+                  onPatch={(patch) => patchDraft(taskType, patch)}
+                  temperaturePlaceholder="0.7"
+                  maxTokensPlaceholder={i18next.t("dict.gen_042f9716")}
+                  modelEmptyText={i18next.t("dict.gen_ea8f2c1b")}
+                  manualModelPlaceholder={i18next.t("dict.canManualInputModelName")}
+                />
+
+                <div className="flex items-center justify-between gap-3">
+                  <div className="space-y-1 text-xs text-muted-foreground">
+                    <div>{isDirty ? i18next.t("dict.gen_a61d59f8") : `任务使用：${providerName}。`}</div>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <RouteStatusDot state={connectivityState} />
+                      <span>{formatConnectivityStatus(connectivity)}</span>
+                    </div>
+                    {connectivity?.structured ? (
+                      <div>
+                        请求协议：{connectivity.structured.requestProtocol ?? connectivity.requestProtocol ?? i18next.t("dict.gen_d81bb206")}，
+                        结构化策略：{connectivity.structured.strategy ?? i18next.t("dict.gen_d81bb206")}，
+                        {connectivity.structured.reasoningForcedOff ? i18next.t("dict.willCloseThinking") : i18next.t("dict.preserveThinking")}，
+                        {connectivity.structured.fallbackAvailable ? i18next.t("dict.gen_758d06ab") : i18next.t("dict.gen_88d8832f")}
+                      </div>
+                    ) : null}
+                    {hasUnsavedRouteDiff ? (
+                      <div>{i18next.t("dict.gen_227039ae")}</div>
+                    ) : null}
+                  </div>
+                  <Button
+                    size="sm"
+                    onClick={() => saveModelRouteMutation.mutate(buildRouteSavePayload(taskType, draft))}
+                    disabled={isSavingRoutes || !draft.provider.trim() || !draft.model.trim()}
+                  >
+                    <Save className="h-4 w-4" />{i18next.t("settings.modelRoutesPage.agp2m5")}</Button>
+                </div>
+              </CardContent>
+            </Card>
+          );
+        };
 
         return (
-          <Card key={taskType}>
-            <CardHeader>
-              <CardTitle className="flex flex-wrap items-center gap-2">
-                <span>{label.title}</span>
-                <span className="inline-flex items-center gap-2 rounded-full border px-2 py-0.5 text-xs font-normal text-muted-foreground">
-                  <RouteStatusDot state={connectivityState} />
-                  {connectivityState === "healthy"
-                    ? i18next.t("dict.gen_2fbb4e75")
-                    : connectivityState === "failed"
-                      ? i18next.t("dict.gen_fce7b9c6")
-                      : connectivityState === "checking"
-                        ? i18next.t("dict.gen_d4c366cb")
-                        : i18next.t("dict.gen_5c6585e0")}
-                </span>
-                {isDirty ? <Badge variant="secondary">{i18next.t("dict.gen_29953c6f")}</Badge> : null}
-              </CardTitle>
-              <CardDescription>
-                {label.description}
-                <span className="ml-2 text-xs">标识：{taskType}</span>
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              <ModelRouteFields
-                draft={draft}
-                providerConfigs={providerConfigs}
-                providerOptions={providerOptions}
-                onPatch={(patch) => patchDraft(taskType, patch)}
-                temperaturePlaceholder="0.7"
-                maxTokensPlaceholder={i18next.t("dict.gen_042f9716")}
-                modelEmptyText={i18next.t("dict.gen_ea8f2c1b")}
-                manualModelPlaceholder={i18next.t("dict.canManualInputModelName")}
-              />
-
-              <div className="flex items-center justify-between gap-3">
-                <div className="space-y-1 text-xs text-muted-foreground">
-                  <div>{isDirty ? i18next.t("dict.gen_a61d59f8") : `任务使用：${providerName}。`}</div>
-                  <div className="flex flex-wrap items-center gap-2">
-                    <RouteStatusDot state={connectivityState} />
-                    <span>{formatConnectivityStatus(connectivity)}</span>
-                  </div>
-                  {connectivity?.structured ? (
-                    <div>
-                      请求协议：{connectivity.structured.requestProtocol ?? connectivity.requestProtocol ?? i18next.t("dict.gen_d81bb206")}，
-                      结构化策略：{connectivity.structured.strategy ?? i18next.t("dict.gen_d81bb206")}，
-                      {connectivity.structured.reasoningForcedOff ? i18next.t("dict.willCloseThinking") : i18next.t("dict.preserveThinking")}，
-                      {connectivity.structured.fallbackAvailable ? i18next.t("dict.gen_758d06ab") : i18next.t("dict.gen_88d8832f")}
-                    </div>
-                  ) : null}
-                  {hasUnsavedRouteDiff ? (
-                    <div>{i18next.t("dict.gen_227039ae")}</div>
-                  ) : null}
-                </div>
-                <Button
-                  size="sm"
-                  onClick={() => saveModelRouteMutation.mutate(buildRouteSavePayload(taskType, draft))}
-                  disabled={isSavingRoutes || !draft.provider.trim() || !draft.model.trim()}
-                >
-                  <Save className="h-4 w-4" />{i18next.t("settings.modelRoutesPage.agp2m5")}</Button>
+          <>
+            <div className="space-y-4">
+              <div className="flex items-center gap-2 border-b pb-2 text-lg font-semibold text-foreground">
+                <span>📝 文本大模型创作路由节点 ({textTaskTypes.length})</span>
               </div>
-            </CardContent>
-          </Card>
+              {textTaskTypes.map(renderTaskCard)}
+            </div>
+
+            <div className="mt-8 space-y-4">
+              <div className="flex items-center gap-2 border-b pb-2 text-lg font-semibold text-foreground">
+                <span>🎨 多模态与多媒体模型路由节点 ({multimodalTaskTypes.length})</span>
+                <Badge variant="outline" className="border-purple-500/50 text-purple-600 dark:text-purple-400">
+                  支持 ComfyUI / SenseNova 生图与多媒体引擎
+                </Badge>
+              </div>
+              {multimodalTaskTypes.map(renderTaskCard)}
+            </div>
+          </>
         );
-      })}
+      })()}
 
       {actionResult ? <div className="text-sm text-muted-foreground">{actionResult}</div> : null}
     </div>

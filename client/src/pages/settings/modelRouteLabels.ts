@@ -46,4 +46,28 @@ export const MODEL_ROUTE_LABELS: Record<ModelRouteTaskType, { title: string; des
     title: i18next.t("dict.gen_2fd6760d"),
     description: i18next.t("dict.gen_d6fdce38"),
   },
+  image_gen: {
+    title: "文生图 / 角色与插图生成",
+    description: "多媒体小说插图、角色人设图生成。推荐绑定 ComfyUI、SenseNova 或 SiliconFlow。",
+  },
+  video_gen: {
+    title: "文生视频 / 动态推演",
+    description: "小说分镜镜头与故事动态视频推演。推荐绑定 ComfyUI 或 SiliconFlow 视频生成器。",
+  },
+  embedding: {
+    title: "向量 Embedding 嵌入",
+    description: "知识库检索、语义相关度向量提取。推荐绑定 Ollama 本地 embeddinggemma 或 BGE-M3。",
+  },
+  asr: {
+    title: "ASR 语音识别",
+    description: "语音输入转文字创作。推荐绑定 SenseVoice 或 Whisper 语音识别引擎。",
+  },
+  tts: {
+    title: "TTS 语音朗读与合成",
+    description: "小说有声书朗读与角色配音合成。推荐绑定 CosyVoice 或 EdgeTTS 引擎。",
+  },
+  ocr: {
+    title: "OCR 图文识别解析",
+    description: "扫描件、设定集手稿图片转结构化大纲文本。推荐绑定 Step-Vision 或 GOT-OCR 视效模型。",
+  },
 };

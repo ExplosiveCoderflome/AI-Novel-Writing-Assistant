@@ -209,7 +209,13 @@ export type ModelRouteTaskType =
   | "state_resolution"
   | "summary"
   | "fact_extraction"
-  | "chat";
+  | "chat"
+  | "image_gen"
+  | "video_gen"
+  | "embedding"
+  | "asr"
+  | "tts"
+  | "ocr";
 
 export interface Novel {
   id: string;
