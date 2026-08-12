@@ -17,6 +17,7 @@ const allMigrationNames = fs.readdirSync(migrationsDir, { withFileTypes: true })
   .sort((left, right) => left.localeCompare(right));
 
 const targetMigration = "20260318233000_book_analysis_source_cache";
+const novelFactMigration = "20260812120000_novel_fact_ledger";
 
 function createMigrationTable(database) {
   database.exec(`
@@ -225,6 +226,41 @@ test("ensureRuntimeDatabaseReady records a missing migration when schema is alre
 
       assert.ok(migrationRow);
       assert.ok(migrationRow.finished_at);
+    } finally {
+      verifyDb.close();
+    }
+  } finally {
+    fs.rmSync(tempDir, { recursive: true, force: true });
+  }
+});
+
+test("ensureRuntimeDatabaseReady creates the novel fact ledger for existing desktop databases", async () => {
+  const { tempDir, databasePath } = createTempDatabaseFile();
+  const database = new Database(databasePath);
+
+  try {
+    createMigrationTable(database);
+    database.exec('CREATE TABLE "Novel" ("id" TEXT NOT NULL PRIMARY KEY);');
+    for (const migrationName of allMigrationNames) {
+      if (migrationName !== novelFactMigration) {
+        insertMigrationRecord(database, migrationName);
+      }
+    }
+  } finally {
+    database.close();
+  }
+
+  try {
+    await withDesktopRuntime(databasePath, () => ensureRuntimeDatabaseReady());
+
+    const verifyDb = new Database(databasePath, { readonly: true });
+    try {
+      assert.ok(verifyDb.prepare(
+        `SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'NovelFactEntry'`,
+      ).get());
+      assert.ok(verifyDb.prepare(
+        `SELECT name FROM sqlite_master WHERE type = 'index' AND name = 'NovelFactEntry_novelId_chapterOrder_idx'`,
+      ).get());
     } finally {
       verifyDb.close();
     }

@@ -39,6 +39,10 @@ category 说明：
 - `revealed`：信息已揭示（身份、秘密、真相）
 - `state_changed`：不可逆状态变化（人物死亡、关系破裂）
 
+## 升级兼容
+
+事实账本属于章节生成的必经读取链路。发布该能力时，`NovelFactEntry` 必须同时具备 PostgreSQL 与桌面 SQLite 的 Prisma 迁移；桌面端会在本地服务启动前执行 SQLite 迁移，已有作品库也必须能补建该表和索引。不得只更新 Prisma schema，否则升级后的旧数据库会在章节生成时因缺表中断。
+
 ## 写入路径
 
 **触发时机**：章节接收通过后（`ChapterContentFinalizationService.finalizeChapterContent`）。
@@ -96,6 +100,7 @@ Already completed — do NOT re-pursue or re-trigger
 - `server/src/services/novel/runtime/ChapterContentFinalizationService.ts`（写入触发）
 - `server/src/services/novel/runtime/GenerationContextAssembler.ts`（读取注入）
 - `server/src/prisma/schema.prisma`（NovelFactEntry 模型）
+- `server/src/prisma/migrations/` 与 `server/src/prisma/migrations.sqlite/`（事实账本升级迁移）
 - `shared/types/chapterRuntime.ts`（completedMilestones 字段，已有）
 
 ## 后续边界
