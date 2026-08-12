@@ -281,7 +281,22 @@ export class ComicBubbleLayoutService {
       data: { letteredData: JSON.stringify(letteredData) },
     });
 
-    return { buffer: outBuffer, ext: "png", width: imgWidth, height: imgHeight };
+    return {
+      buffer: outBuffer,
+      ext: "png",
+      width: imgWidth,
+      height: imgHeight,
+    };
+  }
+
+  /**
+   * 将 SVG 矢量画面渲染为高清晰度 PNG 图片 Buffer
+   */
+  async renderSvgToPngBuffer(svgString: string, width = 900, height = 1350): Promise<Buffer> {
+    return sharp(Buffer.from(svgString))
+      .resize(width, height)
+      .png({ quality: 90 })
+      .toBuffer();
   }
 
   /** 读取已排版图文件（供 HTTP 路由流式响应） */
