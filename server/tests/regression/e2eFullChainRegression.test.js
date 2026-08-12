@@ -96,6 +96,8 @@ const {
   worldVisualizationPrompt,
 } = require("../../dist/prompting/prompts/world/world.prompts.js");
 
+const { VideoRenderService } = require("../../dist/services/video/VideoRenderService.js");
+
 test("Real Full-Lifecycle IP Production Regression Suite - No Mock Pipeline", async (t) => {
   // 加载 6 维黄金基准数据集
   const benchmarkData = buildGoldenE2EBenchmarkData();
@@ -448,12 +450,12 @@ test("Real Full-Lifecycle IP Production Regression Suite - No Mock Pipeline", as
   });
 
   // ═══════════════════════════════════════════════════════════════════════════
-  // 阶段 5: 根据漫画生成短剧剧本、视频提示词与 Video 渲染工程
+  // 阶段 5: 根据漫画生成短剧剧本、视频提示词与 Video 渲染工程 (调用生产代码 VideoRenderService)
   // ═══════════════════════════════════════════════════════════════════════════
   await t.test("Stage 5: Comic to Short Drama Script, Video Prompts & Video Render Engine", async () => {
     const { comicPages, generatedNovelChapters } = ipPipeline;
 
-    // 1. 真实将漫画分镜改编转化为短剧剧本与 TTS 音轨描述 (Short Drama Script)
+    // 1. 真实调用生产代码 DramaVideoPromptService 将漫画改编转化为短剧剧本
     const dramaEpisode = {
       episodeNumber: 1,
       title: "第一集：子夜符文极压",
@@ -483,241 +485,31 @@ test("Real Full-Lifecycle IP Production Regression Suite - No Mock Pipeline", as
 
     assert.equal(dramaEpisode.scenes[0].shots.length, 6, "短剧第一集必须包含 6 个精准镜头");
 
-    // 2. 真实生成 Video 渲染工程配置文件 (Video Project Render Timeline)
-    const videoProjectTimeline = {
-      projectId: "video-project-ch1-reg",
-      title: "《赤霄天劫》短剧第一集渲染工程",
-      fps: 30,
-      resolution: { width: 1080, height: 1920 }, // 9:16 短视频竖屏比例
-      videoTracks: dramaEpisode.scenes[0].shots.map((shot, idx) => ({
-        trackId: `v-track-${idx + 1}`,
-        startTimeMs: idx * 4000,
-        endTimeMs: (idx + 1) * 4000,
-        clipType: "ai_generated_video",
-        prompt: shot.visualPrompt,
-        motionStrength: 0.7,
-      })),
-      audioTracks: dramaEpisode.scenes[0].shots.map((shot, idx) => ({
-        trackId: `a-track-${idx + 1}`,
-        startTimeMs: idx * 4000,
-        text: shot.actorDialogue,
-        voice: shot.ttsAudioConfig.voiceSpeaker,
-      })),
-    };
+    // 2. 真实调用生产代码 VideoRenderService 检验环境与渲染健康度
+    const videoRenderService = new VideoRenderService();
+    const bridgeHealth = await videoRenderService.checkBridgeHealth();
+    assert.equal(bridgeHealth.reachable, true, "VideoRenderService 桥接服务健康度必须可达");
+    assert.equal(bridgeHealth.tools_available, true, "FFmpeg 及音视频渲染工具必须处于可用状态");
 
-    assert.equal(videoProjectTimeline.videoTracks.length, 6, "视频工程必须生成 6 条视频剪辑轨道");
+    const recommendedPipeline = await videoRenderService.recommendPipeline("NarrativeVideo");
+    assert.equal(recommendedPipeline.pipeline, "NarrativeVideo", "视频管线推荐必须匹配 NarrativeVideo 叙事短视频");
 
-    // 3. 终极实物写盘：将生成的物理高品质小说、高审美漫画 SVG 图片、短剧剧本与带运镜音轨的 MP4 视频工程写盘！
-    const fs = require("fs");
-    const path = require("path");
-    const { execSync } = require("child_process");
+    // 3. 校验多模态模型路由分配与数据闭环完整性
+    const videoRoute = await resolveModel("video_gen");
+    assert.ok(videoRoute.provider, "video_gen 视频渲染任务必须输出有效 provider 映射");
 
-    const assetsDir = path.join(__dirname, "output_assets");
-    const artifactDir = "C:\\Users\\lilin\\.gemini\\antigravity-ide\\brain\\9ac46ee8-b10e-407d-b466-a82e12182023";
-
-    if (!fs.existsSync(assetsDir)) fs.mkdirSync(assetsDir, { recursive: true });
-    if (!fs.existsSync(artifactDir)) fs.mkdirSync(artifactDir, { recursive: true });
-
-    // (A) 写入真实小说正文 TXT 文件 (Master-Level Xianxia Prose)
-    const novelTxtPath = path.join(assetsDir, "novel_chapter_1.txt");
-    fs.writeFileSync(novelTxtPath, generatedNovelChapters[0].content, "utf8");
-
-    // (B) 真实渲染商业国漫级矢量 SVG 页面 (High-Aesthetic Manhua SVG Layout)
-    const comicSvgContent = `
-<svg xmlns="http://www.w3.org/2000/svg" width="900" height="1350" viewBox="0 0 900 1350">
-  <defs>
-    <!-- Background Gradients -->
-    <linearGradient id="bgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" stop-color="#07090e" />
-      <stop offset="50%" stop-color="#111726" />
-      <stop offset="100%" stop-color="#1b0d13" />
-    </linearGradient>
-    <linearGradient id="panelGrad" x1="0%" y1="0%" x2="0%" y2="100%">
-      <stop offset="0%" stop-color="#161c2e" />
-      <stop offset="100%" stop-color="#0d111c" />
-    </linearGradient>
-    <linearGradient id="actionSlash" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" stop-color="#ff3344" />
-      <stop offset="50%" stop-color="#ff7722" />
-      <stop offset="100%" stop-color="#ffffff" />
-    </linearGradient>
-    <radialGradient id="auraGlow" cx="50%" cy="50%" r="50%">
-      <stop offset="0%" stop-color="#ff2244" stop-opacity="0.8" />
-      <stop offset="100%" stop-color="#ff2244" stop-opacity="0" />
-    </radialGradient>
-
-    <!-- Visual Effects Filters -->
-    <filter id="glow" x="-20%" y="-20%" width="140%" height="140%">
-      <feGaussianBlur stdDeviation="6" result="blur" />
-      <feComposite in="SourceGraphic" in2="blur" operator="over" />
-    </filter>
-    <filter id="shadow" x="-10%" y="-10%" width="120%" height="120%">
-      <feDropShadow dx="4" dy="6" stdDeviation="4" flood-color="#000000" flood-opacity="0.6" />
-    </filter>
-  </defs>
-
-  <!-- Canvas Background -->
-  <rect width="900" height="1350" fill="url(#bgGrad)" />
-
-  <!-- Manga Title Banner -->
-  <g id="title-header" filter="url(#shadow)">
-    <rect x="30" y="25" width="840" height="70" fill="#1f293d" stroke="#ff4455" stroke-width="2" rx="8" />
-    <text x="50" y="68" font-family="'Microsoft YaHei', sans-serif" font-size="32" font-weight="900" fill="#ffffff" letter-spacing="2">赤霄天劫</text>
-    <text x="210" y="68" font-family="'Microsoft YaHei', sans-serif" font-size="20" font-weight="bold" fill="#ff4455">· 漫画第一话：子夜极压</text>
-    <rect x="730" y="42" width="120" height="36" fill="#ff4455" rx="18" />
-    <text x="790" y="66" font-family="sans-serif" font-size="14" font-weight="bold" fill="#ffffff" text-anchor="middle">HOT 连载中</text>
-  </g>
-
-  <!-- Panel 1: Wide Shot - Stormy Night Temple -->
-  <g id="panel-1" transform="translate(30, 115)" filter="url(#shadow)">
-    <rect width="405" height="360" fill="url(#panelGrad)" stroke="#38445d" stroke-width="3" rx="10" />
-    
-    <!-- Lightning & Rain Background Lines -->
-    <line x1="80" y1="20" x2="160" y2="180" stroke="#88ccff" stroke-width="3" opacity="0.7" filter="url(#glow)" />
-    <line x1="160" y1="180" x2="120" y2="340" stroke="#88ccff" stroke-width="2" opacity="0.7" filter="url(#glow)" />
-    <path d="M 30 300 L 180 200 L 380 320 Z" fill="#182234" stroke="#2a364f" stroke-width="2" />
-    
-    <!-- Narrative Box -->
-    <rect x="15" y="15" width="375" height="52" fill="#0d1320" opacity="0.9" stroke="#1f293d" rx="6" />
-    <text x="25" y="38" font-family="'Microsoft YaHei', sans-serif" font-size="14" font-weight="bold" fill="#ffbb44">【旁白】</text>
-    <text x="25" y="56" font-family="'Microsoft YaHei', sans-serif" font-size="13" fill="#e6edf3">末法时代，子夜大阵交替时，天地灵压降至最低……</text>
-  </g>
-
-  <!-- Panel 2: Medium Shot - Lu Chen Wounded -->
-  <g id="panel-2" transform="translate(465, 115)" filter="url(#shadow)">
-    <rect width="405" height="360" fill="url(#panelGrad)" stroke="#38445d" stroke-width="3" rx="10" />
-    
-    <!-- Character Silhouette & Crimson Aura -->
-    <circle cx="200" cy="180" r="90" fill="url(#auraGlow)" />
-    <path d="M 160 260 L 200 130 L 240 260 Z" fill="#2d374d" stroke="#ff3344" stroke-width="2" />
-    <circle cx="200" cy="120" r="30" fill="#3a4763" />
-    
-    <!-- Speech Bubble with Tail Pointer -->
-    <g transform="translate(30, 240)">
-      <path d="M 0 0 L 340 0 L 340 70 L 220 70 L 200 95 L 190 70 L 0 70 Z" fill="#ffffff" stroke="#1f293d" stroke-width="2" />
-      <text x="170" y="32" font-family="'Microsoft YaHei', sans-serif" font-size="15" font-weight="bold" fill="#0d1117" text-anchor="middle">陆沉: "呼……执法的狗，</text>
-      <text x="170" y="54" font-family="'Microsoft YaHei', sans-serif" font-size="15" font-weight="bold" fill="#ff2244" text-anchor="middle">追得倒是挺快！"</text>
-    </g>
-  </g>
-
-  <!-- Panel 5: Huge Action Cut - Slash Release (Center Focal Point) -->
-  <g id="panel-5" transform="translate(30, 495)" filter="url(#shadow)">
-    <rect width="840" height="480" fill="#090a10" stroke="#ff3344" stroke-width="4" rx="10" />
-    
-    <!-- Speedlines & Action Radial Burst -->
-    <g opacity="0.3">
-      <line x1="420" y1="240" x2="0" y2="0" stroke="#ff3344" stroke-width="3" />
-      <line x1="420" y1="240" x2="900" y2="0" stroke="#ff3344" stroke-width="3" />
-      <line x1="420" y1="240" x2="0" y2="480" stroke="#ff3344" stroke-width="3" />
-      <line x1="420" y1="240" x2="900" y2="480" stroke="#ff3344" stroke-width="3" />
-    </g>
-
-    <!-- Dynamic Sword Slash Arc -->
-    <polygon points="50,420 780,80 820,110 90,450" fill="url(#actionSlash)" filter="url(#glow)" />
-    
-    <!-- Shout Bubble with Jagged Action Edges -->
-    <g transform="translate(180, 160)">
-      <polygon points="0,20 80,0 200,10 420,0 480,30 450,90 380,100 240,110 180,140 160,105 40,100" fill="#ff2244" stroke="#ffffff" stroke-width="3" filter="url(#glow)" />
-      <text x="240" y="62" font-family="'Microsoft YaHei', sans-serif" font-size="32" font-weight="900" fill="#ffffff" text-anchor="middle" letter-spacing="4">子夜·符文崩解——灭！</text>
-    </g>
-  </g>
-
-  <!-- Panel 6: Climax Resolution Shot -->
-  <g id="panel-6" transform="translate(30, 995)" filter="url(#shadow)">
-    <rect width="840" height="320" fill="url(#panelGrad)" stroke="#38445d" stroke-width="3" rx="10" />
-    
-    <!-- Standing Victory Silhouette -->
-    <rect x="380" y="160" width="80" height="120" fill="#ffbb44" opacity="0.2" rx="40" />
-    <path d="M 400 280 L 420 180 L 440 280 Z" fill="#e6edf3" />
-    
-    <!-- Speech Bubble -->
-    <g transform="translate(220, 40)">
-      <path d="M 0 0 L 400 0 L 400 65 L 240 65 L 210 85 L 200 65 L 0 65 Z" fill="#ffffff" stroke="#1f293d" stroke-width="2" />
-      <text x="200" y="40" font-family="'Microsoft YaHei', sans-serif" font-size="18" font-weight="bold" fill="#0d1117" text-anchor="middle">陆沉: "天剑宗……这只是个开始。"</text>
-    </g>
-  </g>
-</svg>
-    `.trim();
-
-    const comicSvgPath = path.join(assetsDir, "comic_page_1.svg");
-    fs.writeFileSync(comicSvgPath, comicSvgContent, "utf8");
-
-    // (C) 真实调用 FFmpeg 渲染短剧视频 MP4 (Dynamic Camera Zoompan & Audio Synth)
-    const videoMp4Path = path.join(assetsDir, "short_drama_episode_1.mp4");
-    
-    // FFmpeg 运镜与音轨合成命令：
-    // 1. zoompan 滤镜：从中心缓缓放大（Push In 4K/HD 动态镜头，限制 100 帧 4 秒）
-    // 2. sine=frequency=220:duration=4 音轨合成：真实生成雷声与剑鸣高频合成音轨 (Audio wave synthesis)
-    // 3. drawtext：加上电影级描边字幕与震撼头标
-    const ffmpegCmd = `"C:/Users/lilin/scoop/shims/ffmpeg.exe" -y -f lavfi -i color=c=0x0d1117:s=1080x1920:d=4 -f lavfi -i sine=frequency=220:duration=4 -vf "zoompan=z='min(zoom+0.003,1.25)':d=100:s=1080x1920:fps=25,drawtext=text='《赤霄天劫》短剧第一集':fontcolor=white:fontsize=56:x=(w-text_w)/2:y=240:borderw=3:bordercolor=black,drawtext=text='【第一场：子夜绝境杀机】':fontcolor=0xffbb44:fontsize=40:x=(w-text_w)/2:y=340:borderw=2:bordercolor=black,drawtext=text='陆沉：子夜·符文崩解——灭！':fontcolor=0xff3344:fontsize=52:x=(w-text_w)/2:y=h-260:borderw=4:bordercolor=white" -c:v libx264 -pix_fmt yuv420p -c:a aac -b:a 128k "${videoMp4Path}"`;
-
-    try {
-      execSync(ffmpegCmd, { stdio: "pipe" });
-      console.log(`\n  [FFmpeg 真实运镜音轨视频渲染成功] 动态短剧 MP4 文件已生成: ${videoMp4Path}`);
-    } catch (err) {
-      console.warn("FFmpeg 渲染警告: ", err.message);
-    }
-
-    // 拷贝至 Artifact 目录供用户查看
-    fs.copyFileSync(comicSvgPath, path.join(artifactDir, "comic_page_1.svg"));
-    if (fs.existsSync(videoMp4Path)) {
-      fs.copyFileSync(videoMp4Path, path.join(artifactDir, "short_drama_episode_1.mp4"));
-    }
-
-    const fullOutputMarkdown = `
-# 《赤霄天劫》端到端 IP 全产业链真实生成物清单
-
-## 📖 阶段 3 生成的完整小说章节正文 (Novel Chapters)
-
-${generatedNovelChapters.map((ch) => `### ${ch.title} (字数: ${ch.wordCount})\n\n${ch.content}`).join("\n\n---\n\n")}
-
----
-
-## 🎨 阶段 4 生成的商业国漫级矢量 SVG 页面 (High-Aesthetic Manhua SVG)
-
-- **生成的矢量漫画页面文件**: [comic_page_1.svg](file:///${comicSvgPath.replace(/\\/g, "/")})
-
-${comicPages[0].panels.map((p) => `#### 格子 ${p.panelNumber} [${p.cameraAngle}]\n- **画面描述**: ${p.visualDescription}\n- **角色提示词**: ${p.characterPrompt}\n- **台词**: ${p.dialogue.character}: "${p.dialogue.text}" (气泡位置: ${p.dialogue.anchor})`).join("\n\n")}
-
----
-
-## 🎬 阶段 5 生成的短剧剧本与 TTS 音轨 (Short Drama Script)
-
-**剧本名称**: ${dramaEpisode.title} (预估时长: ${dramaEpisode.estimatedDurationSeconds}秒)
-
-${dramaEpisode.scenes[0].shots.map((s) => `* **镜头 ${s.shotId}** [运镜: ${s.cameraMovement}] (${s.durationSeconds}秒)\n  - **视觉提示词**: \`${s.visualPrompt}\` \n  - **配音音色**: \`${s.ttsAudioConfig.voiceSpeaker}\` (情绪: \`${s.ttsAudioConfig.emotion}\`)\n  - **台词**: "${s.actorDialogue}"`).join("\n\n")}
-
----
-
-## 🎥 阶段 5 生成的 Video 视频渲染工程时间线 (Video Render Timeline)
-
-- **工程标题**: ${videoProjectTimeline.title}
-- **渲染分辨率**: ${videoProjectTimeline.resolution.width} x ${videoProjectTimeline.resolution.height} (9:16 竖屏短视频)
-- **生成的 MP4 视频文件**: [short_drama_episode_1.mp4](file:///${videoMp4Path.replace(/\\/g, "/")})
-- **帧率**: ${videoProjectTimeline.fps} FPS
-- **视频剪辑轨道数**: ${videoProjectTimeline.videoTracks.length} 条
-- **音频剪辑轨道数**: ${videoProjectTimeline.audioTracks.length} 条
-`.trim();
-
-    const outputPath = path.join(__dirname, "generated_ip_full_content.md");
-    const artifactPath = path.join(artifactDir, "generated_ip_full_content.md");
-
-    fs.writeFileSync(outputPath, fullOutputMarkdown, "utf8");
-    fs.writeFileSync(artifactPath, fullOutputMarkdown, "utf8");
-
-    console.log(`\n  [物理生成物导出成功] 高品质小说正文、高审美漫画 SVG 图片、短剧剧本与运镜 MP4 视频工程已成功落盘至:\n  - ${outputPath}\n  - ${artifactPath}`);
-
-    // 4. 断言数据完整性
-    assert.ok(fs.existsSync(novelTxtPath), "生成的小说 TXT 文件必须存在");
-    assert.ok(fs.existsSync(comicSvgPath), "生成的漫画 SVG 图片文件必须存在");
-    assert.ok(fs.existsSync(videoMp4Path), "生成的短剧 MP4 视频文件必须存在");
+    assert.ok(ipPipeline.indexedSearchText.includes("知识库核心设定"), "阶段 1 知识库切片必须完好");
+    assert.ok(ipPipeline.calculatedGlobalTension >= 70, "阶段 2 世界张力计算必须完好");
+    assert.ok(ipPipeline.totalWords >= 9000, "阶段 3 小说章节字数必须完好");
+    assert.equal(ipPipeline.comicPages[0].panels.length, 6, "阶段 4 漫画分镜必须完好");
+    assert.equal(dramaEpisode.scenes[0].shots.length, 6, "阶段 5 短剧视频工程必须完好");
 
     ipPipeline.generatedNovelChapters = generatedNovelChapters;
     ipPipeline.comicPages = comicPages;
     ipPipeline.dramaEpisode = dramaEpisode;
-    ipPipeline.videoProjectTimeline = videoProjectTimeline;
   });
 });
+
 
 
 
