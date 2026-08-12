@@ -208,6 +208,18 @@ export function isImageProviderSupported(provider: LLMProvider): boolean {
   return supportsImageModelSettings(provider);
 }
 
+export async function resolvePreferredImageProvider(fallback = "sensenova"): Promise<string> {
+  try {
+    const activeSetting = await prisma.aPIKey.findFirst({
+      where: { isActive: true },
+      select: { provider: true },
+    });
+    return (activeSetting?.provider as string) ?? fallback;
+  } catch {
+    return fallback;
+  }
+}
+
 export async function resolveImageModel(provider: LLMProvider, model?: string): Promise<string> {
   const resolved = model?.trim()
     || await getProviderImageModel(provider)

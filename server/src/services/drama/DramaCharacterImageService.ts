@@ -15,6 +15,7 @@ import { prisma } from "../../db/prisma";
 import { AppError } from "../../middleware/errorHandler";
 import { resolveGeneratedImagesRoot } from "../../runtime/appPaths";
 import { runImageGeneration, safeJsonParse, type ImageTargetAdapter } from "../image/runtime";
+import { resolvePreferredImageProvider } from "../image/provider";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Types
@@ -216,15 +217,16 @@ export class DramaCharacterImageService {
 
   async prepareCharacterSheet(
     characterId: string,
-    provider = DEFAULT_PROVIDER,
+    provider?: string,
   ): Promise<import("../image/runtime").ImageGenerationPreview> {
     const ctx = await this.buildCharacterSheetGenerationContext(characterId);
+    const resolvedProvider = provider ?? await resolvePreferredImageProvider(DEFAULT_PROVIDER);
     return {
       kind: ctx.adapter.kind,
       title: ctx.title,
       prompt: ctx.prompt,
       referenceImages: ctx.referenceImages,
-      provider,
+      provider: resolvedProvider,
       size: ctx.size,
     };
   }
@@ -236,12 +238,13 @@ export class DramaCharacterImageService {
    */
   async generateCharacterSheet(
     characterId: string,
-    provider = DEFAULT_PROVIDER,
+    provider?: string,
     overrides?: import("../image/runtime").ImageGenerationOverrides,
   ): Promise<CharacterSheetData> {
     const ctx = await this.buildCharacterSheetGenerationContext(characterId);
+    const resolvedProvider = overrides?.providerOverride ?? provider ?? await resolvePreferredImageProvider(DEFAULT_PROVIDER);
     return runImageGeneration(ctx.adapter, {
-      provider: overrides?.providerOverride ?? provider,
+      provider: resolvedProvider,
       prompt: overrides?.promptOverride ?? ctx.prompt,
       size: overrides?.sizeOverride ?? ctx.size,
       sceneType: "character",
