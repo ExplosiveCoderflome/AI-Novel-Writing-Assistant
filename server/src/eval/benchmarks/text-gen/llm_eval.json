@@ -1,0 +1,32 @@
+[
+  {
+    "id": "text_gen_json_schema_01",
+    "capability": "text-gen",
+    "category": "json_schema",
+    "title": "嵌套 JSON Schema 格式遵循测试",
+    "description": "测试模型是否能严格输出符合要求的 JSON 格式，包含数组、枚举与浮点数字段，无 Markdown 前后缀。",
+    "promptText": "请为玄幻小说角色【楚阳】生成标准 JSON 结构卡片，严格包含 fields: name (string), gender (string), cultivationLevel (string), skills (string array), battlePower (number 1-100000), reasoning (string 先输出逻辑)。请直接且仅输出纯 JSON 对象。",
+    "expectedOutput": "{\"name\":\"楚阳\",\"cultivationLevel\":\"...\",\"skills\":[...],\"battlePower\":10000}",
+    "isBuiltin": true
+  },
+  {
+    "id": "text_gen_cot_reasoning_01",
+    "capability": "text-gen",
+    "category": "cot_reasoning",
+    "title": "小说分卷冲突与伏线推演",
+    "description": "测试模型在给出了 3 位主角的各自立场与矛盾冲突后，推演后续第二卷高潮战役爆发逻辑的能力。",
+    "promptText": "【前情提要】：主角楚阳拥有一柄太古残剑；同门师兄林天投靠魔宗以换取力量；红颜知己紫苏被家族逼婚。\n【任务】：请进行 Chain-of-Thought 思维链推演，分析三人立场交汇点，推演第二卷【天云城争霸】的高潮战役起因、转折与结局，输出具有剧烈戏剧冲突的策划逻辑。",
+    "expectedOutput": null,
+    "isBuiltin": true
+  },
+  {
+    "id": "text_gen_haystack_01",
+    "capability": "text-gen",
+    "category": "context_haystack",
+    "title": "32k 长上下文针大海召回测试",
+    "description": "在 3000 字世界观背景描述的中后段插入秘密暗号，测试模型对长上下文信息的准确召回率。",
+    "promptText": "【背景】：(系统内置长上下文文本...中间包含 secret_passcode = 'AURORA_CIPHER_9982')\n【问题】：根据上述背景资料，提取出隐藏的 secret_passcode 绝密暗号，并说明其出现在哪个章节。",
+    "expectedOutput": "AURORA_CIPHER_9982",
+    "isBuiltin": true
+  }
+]

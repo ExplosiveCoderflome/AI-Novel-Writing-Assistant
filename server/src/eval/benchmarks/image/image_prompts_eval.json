@@ -1,0 +1,13 @@
+[
+  {
+    "id": "image_gen_01",
+    "capability": "image-gen",
+    "category": "character_portrait",
+    "title": "国风仙侠主角立绘 Prompt 遵循度测试",
+    "description": "测试画师模型对国风人设细节描述（白发、黑袍、九天雷霆）的对齐与画质表现。",
+    "promptText": "国风仙侠男性主角，20岁，白发如雪，身着墨黑金边长袍，手持闪烁电光的古剑，背景为雷暴交加的孤峰之巅，极致细腻，8K分辨率，电影级光影",
+    "expectedOutput": null,
+    "metadataJson": "{\"targetAspectRatio\":\"2:3\",\"width\":768,\"height\":1152}",
+    "isBuiltin": true
+  }
+]

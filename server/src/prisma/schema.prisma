@@ -4300,3 +4300,52 @@ model DirectorRuntimeState {
   updatedAt           DateTime @updatedAt
 }
 
+// 多模态模型评估任务表
+model ModelEvalTask {
+  id                String            @id @default(uuid())
+  name              String
+  targetCapability  String            // text-gen, embedding, sparse, image-gen, video-gen, tts, asr, ocr
+  modelConfigsJson  String            // JSON [{ provider, model, baseURL }]
+  status            String            // PENDING, RUNNING, COMPLETED, FAILED
+  progressPercent   Float             @default(0.0)
+  overallScoresJson String?           // 各模型综合得分 JSON
+  createdAt         DateTime          @default(now())
+  updatedAt         DateTime          @updatedAt
+  results           ModelEvalResult[]
+}
+
+// 评估结果明细表
+model ModelEvalResult {
+  id            String        @id @default(uuid())
+  taskId        String
+  task          ModelEvalTask @relation(fields: [taskId], references: id, onDelete: Cascade)
+  provider      String
+  model         String
+  testCaseId    String
+  testCategory  String        // e.g. "json_schema", "cot_reasoning", "prompt_adherence"
+  metricsJson   String        // e.g. { ttftMs, tps, isJsonValid, judgeScore, clipScore, cer }
+  outputPayload String        // 生成的文本 / 图像 URL / 音频 URL
+  rawLogs       String?
+  createdAt     DateTime      @default(now())
+
+  @@index([taskId])
+}
+
+// 模型评估基准测试集表
+model ModelEvalBenchmarkDataset {
+  id             String   @id @default(uuid())
+  capability     String   // text-gen, embedding, sparse, image-gen, video-gen, tts, asr, ocr
+  category       String?  // e.g. "json_schema", "cot_reasoning", "entity_match"
+  title          String
+  description    String?
+  promptText     String
+  expectedOutput String?  // 期望输出或标准参考 (Ground Truth)
+  metadataJson   String?  // 扩展属性 JSON
+  isBuiltin      Boolean  @default(false)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@index([capability])
+}
+
+

@@ -1,0 +1,13 @@
+[
+  {
+    "id": "sparse_bm25_01",
+    "capability": "sparse",
+    "category": "entity_keyword_match",
+    "title": "生僻人名与功法名称精准匹配测试",
+    "description": "测试分词器与 BM25 检索对生僻词【太古焚天诀】与【独孤傲天】的精确命中率。",
+    "promptText": "独孤傲天 运转 太古焚天诀",
+    "expectedOutput": "独孤傲天在九幽绝境之中闭关三百年，终于修成了传闻中的太古焚天诀第十重。",
+    "metadataJson": "{\"keywords\":[\"独孤傲天\",\"太古焚天诀\"]}",
+    "isBuiltin": true
+  }
+]

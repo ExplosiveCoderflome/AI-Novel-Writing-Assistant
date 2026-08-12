@@ -1,0 +1,24 @@
+[
+  {
+    "id": "tts_eval_01",
+    "capability": "tts",
+    "category": "narration_speech",
+    "title": "小说正文旁白情绪断句测试",
+    "description": "测试 TTS 语音合成模型在朗读长句旁白时的自然断句与音质表现。",
+    "promptText": "夜黑风高，太古禁地之中突然传来了一声惊天动地的兽吼，紧接着一道金光划破长空！",
+    "expectedOutput": null,
+    "metadataJson": "{\"voice\":\"narration_male\",\"targetSpeed\":1.0}",
+    "isBuiltin": true
+  },
+  {
+    "id": "asr_eval_01",
+    "capability": "asr",
+    "category": "speech_recognition",
+    "title": "语音指令识别 CER 字错率测试",
+    "description": "测试 ASR 语音识别模型对创作控制指令的精确识别率。",
+    "promptText": "帮我把第三章的结尾改成主角成功突破到金丹期",
+    "expectedOutput": "帮我把第三章的结尾改成主角成功突破到金丹期",
+    "metadataJson": "{\"audioAssetPath\":\"server/src/eval/benchmarks/audio/assets/sample_cmd.wav\"}",
+    "isBuiltin": true
+  }
+]
