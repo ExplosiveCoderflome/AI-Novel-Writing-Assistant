@@ -102,8 +102,8 @@ Web API 只接收命令和返回轻量投影；Worker 负责执行重型生产�
 - `chapter_batch_ready` 的质量提醒属于当前批次的继续门。用户点击“继续自动执行章节”后，`approveAutoExecutionScope` 应允许 AI 主驾跳过当前质量提醒并启动剩余章节。
 - 章节范围自动执行的 StepModule 事实门控必须按本次授权范围裁剪章节进度。`chapter.draft.write`、`chapter.state.commit` 等范围内步骤只能校验当前 `autoExecution` / `autoExecutionPlan` 的章节区间，不能让范围外已有正文但缺状态提交的旧章节阻塞当前批次完成。
 - 章节质量审校、章节修复和章节状态提交必须使用同一份章节范围事实。局部质量问题已经被质量闭环标记为 `terminalAction=defer_and_continue` 时，它是章节级质量债，不应再因为 `blockingObligations` 或缺少独立 `StoryStateSnapshot` 把全局自动导演卡在 `chapter.state.commit`；只有 `replan_required` / `recommendedAction=replan` 这类明确重规划信号才能阻断后续章节范围。
-- `replan_required` 不是普通审核门。前端展示模式必须优先相信任务 checkpoint，而不能被 projection 的 `waiting_approval` 覆盖成普通“继续自动导演”；否则会发出 `resume` 命令，后端重读同一个重规划结果后原样写回，表现为命令成功但没有新的章节执行。
-- `skip_quality_repair` 是用户显式选择“先跳过本次质量 / 重规划建议并继续”的控制命令。执行面必须把实际触发质量问题且已经生成正文的章节登记到 `qualityDebtSummaries`，再继续剩余章节范围；不能把风险当成已修复，也不能丢弃后续质量回收所需的章节、原因和时间信息。
+- `replan_required` 的继续语义必须由服务端按任务 checkpoint 统一规范化。无论入口发送普通 `resume`、批准关卡或从检查点恢复，运行时都按“保留可用正文、登记质量债、继续剩余章节”处理，不能因前端命令类型不同重读同一个重规划结果并再次暂停。
+- `skip_quality_repair` 表示“先跳过本次质量 / 重规划建议并继续”。执行面必须把实际触发质量问题且已经生成正文的章节登记到 `qualityDebtSummaries`，再继续剩余章节范围；不能把风险当成已修复，也不能丢弃后续质量回收所需的章节、原因和时间信息。
 - 质量债来源必须来自明确的 pipeline job 章节范围或已持久化章节事实，不能从 `nextChapterId` / `nextChapterOrder` 推断。`nextChapter*` 只表示下一章待执行游标，不表示当前质量问题来源；空正文、仅有执行合同或仅有任务单的章节不得进入 `skippedChapterIds`、`skippedChapterOrders`、`qualityDebtChapterIds` 或 `qualityDebtChapterOrders`。
 - 自动导演 projection 必须优先相信任务 checkpoint。任务已经处于 `waiting_approval` 且存在 checkpoint 时，应屏蔽陈旧的 `DirectorStepRun.running`，否则 UI 会把等待处理的质量门显示成仍在执行。
 - 自动导演展示态也必须反向保护真实运行态。任务已经处于 `running` 且存在当前推进标签、当前 item 或实时进度时，应屏蔽陈旧的 `waiting_approval` / `requiresUserAction` 投影；否则驾驶舱会把正在细化、写作或审校的任务误显示成“等待确认”，并露出无效确认按钮。
@@ -133,7 +133,7 @@ Web API 只接收命令和返回轻量投影；Worker 负责执行重型生产�
 
 - 点击继续后普通查询接口一起挂起：优先检查是否有重型执行仍在 API 进程内运行。
 - 点击“继续自动执行章节”后 toast 成功但没有新的 LLM 请求：优先检查 command 是否已成功执行但 `chapter_execution_node` 仍是 `waiting_approval`，以及 `auto_execute_range` 是否在恢复分支或质量提醒分支丢失了 `approveAutoExecutionScope`。
-- 点击 `replan_required` 状态的“继续自动导演”后没有新 LLM 请求：检查 UI 是否把重规划检查点误判成普通 waiting；正确入口应是质量修复 / 重规划处理，或显式 `skip_quality_repair` 后登记质量待回收并继续剩余章节。
+- 点击 `replan_required` 状态的“继续自动导演”后没有新 LLM 请求：检查服务端是否仍把任务 checkpoint 透传为普通 `resume`。继续运行时必须按 checkpoint 自动规范化为质量债继续路径，前端按钮类型不能改变该语义。
 - 点击 `skip_quality_repair` 后直接越过空章节：检查质量债是否错误绑定到 `nextChapterOrder`。正确状态应把质量债绑定到刚完成并触发质量提醒的章节，状态重算后最早空正文章节仍应留在 `remainingChapterOrders` 首位。
 - 跳过质量修复后下一章脱节：检查跳过前是否写入 `timeline_finalization/degraded` checkpoint，以及当前章节是否已有 `ChapterTimeAnchor`。如果没有，说明执行面把跳过误当成直接进入下一章。
 - 单章 token 异常飙升：检查 `DirectorLlmUsageRecord.metadataJson.chapterId` 是否完整、`usage_anomaly` 熔断是否记录了触发章节，以及是否存在重复门禁、重复章节合同或 timeline 上下文膨胀。
