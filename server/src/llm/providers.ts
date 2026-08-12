@@ -133,8 +133,8 @@ export const PROVIDERS: Record<BuiltinLLMProvider, ProviderConfig> = {
   ollama: {
     name: "Ollama",
     baseURL: "http://127.0.0.1:11434/v1",
-    defaultModel: "qwen2.5:7b",
-    models: ["qwen2.5:7b", "qwen2.5:14b", "deepseek-r1:8b", "llama3.1:8b", "muse-glimmer-30b"],
+    defaultModel: "gemma4:12b",
+    models: ["gemma4:12b", "qwen3.6:27b", "sensenova-u1:8b-v3", "muse-glimmer-30b"],
     envKey: "OLLAMA_API_KEY",
     envBaseURLKey: "OLLAMA_BASE_URL",
     envModelKey: "OLLAMA_MODEL",
@@ -220,16 +220,18 @@ export function resolveProviderBaseUrl(
   const normalizedCustom = typeof customBaseURL === "string" && customBaseURL.trim()
     ? normalizeBaseURL(customBaseURL.trim())
     : undefined;
+  let res: string | undefined;
   if (normalizedCustom) {
-    return normalizedCustom;
+    res = normalizedCustom;
+  } else if (isBuiltInProvider(provider)) {
+    res = getProviderEnvBaseUrl(provider) ?? getProviderDefaultBaseUrl(provider);
+  } else if (typeof fallbackBaseURL === "string" && fallbackBaseURL.trim()) {
+    res = normalizeBaseURL(fallbackBaseURL.trim());
   }
-  if (isBuiltInProvider(provider)) {
-    return getProviderEnvBaseUrl(provider) ?? getProviderDefaultBaseUrl(provider);
+  if (provider === "ollama" && res && !res.endsWith("/v1")) {
+    res = `${res.replace(/\/+$/, "")}/v1`;
   }
-  if (typeof fallbackBaseURL === "string" && fallbackBaseURL.trim()) {
-    return normalizeBaseURL(fallbackBaseURL.trim());
-  }
-  return undefined;
+  return res;
 }
 
 export function providerRequiresApiKey(provider: LLMProvider): boolean {

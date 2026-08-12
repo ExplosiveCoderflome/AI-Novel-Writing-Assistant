@@ -128,11 +128,13 @@ async function resolveAttemptTarget(input: {
       && input.structuredStrategy == null,
   );
   const route = shouldResolveRoutePreference ? await resolveModel(input.taskType!) : null;
-  const resolved = await resolveLLMClientOptions(input.provider, {
-    fallbackProvider: "deepseek",
+  const targetProvider = input.provider ?? route?.provider;
+  const targetModel = input.model ?? route?.model;
+  const resolved = await resolveLLMClientOptions(targetProvider, {
+    fallbackProvider: targetProvider ?? "deepseek",
     apiKey: input.apiKey,
     baseURL: input.baseURL,
-    model: input.model,
+    model: targetModel,
     temperature: input.temperature,
     maxTokens: input.maxTokens,
     taskType: input.taskType ?? "planner",

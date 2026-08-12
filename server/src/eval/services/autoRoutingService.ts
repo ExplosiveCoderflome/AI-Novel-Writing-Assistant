@@ -84,7 +84,10 @@ export async function applySmartModelRouting(input?: ApplyAutoRoutesInput): Prom
       temperature = 0.0;
     } else {
       const isLightTask = taskType === "review" || taskType === "light_review" || taskType === "fact_extraction" || taskType === "summary";
-      assignedModel = isLightTask && (hardware.vramGb >= 12 || hardware.totalRamGb >= 32) ? "qwen2.5:7b" : model;
+      const lightModelCandidate = availableModels.find(
+        (m) => m.provider === provider && (m.model.includes("7b") || m.model.includes("8b") || m.model.includes("12b"))
+      )?.model;
+      assignedModel = isLightTask ? (lightModelCandidate ?? model) : model;
       temperature = isLightTask ? 0.2 : 0.7;
     }
 
