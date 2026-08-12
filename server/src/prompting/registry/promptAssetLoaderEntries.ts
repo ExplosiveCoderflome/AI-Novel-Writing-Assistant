@@ -574,7 +574,7 @@ export const promptAssetLoaderEntries: PromptAssetLoaderEntry[] = [
     load: () => require("../prompts/world/worldDraft.prompts").worldDraftGenerationPrompt as UnknownPromptAsset,
   },
   {
-    key: "world.skeleton.generate@v1",
+    key: "world.skeleton.generate@v2",
     load: () => require("../prompts/world/worldDraft.prompts").worldSkeletonGenerationPrompt as UnknownPromptAsset,
   },
   {
@@ -626,7 +626,7 @@ export const promptAssetLoaderEntries: PromptAssetLoaderEntry[] = [
     load: () => require("../prompts/world/world.prompts").worldStructureBackfillPrompt as UnknownPromptAsset,
   },
   {
-    key: "novel.world.generate_from_theme@v1",
+    key: "novel.world.generate_from_theme@v2",
     load: () => require("../prompts/world/world.prompts").novelThemeWorldGenerationPrompt as UnknownPromptAsset,
   },
   {

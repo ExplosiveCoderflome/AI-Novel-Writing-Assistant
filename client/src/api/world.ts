@@ -27,6 +27,7 @@ import type {
 import { apiClient } from "./client";
 
 const WORLD_GENERATE_ALL_TIMEOUT_MS = 3 * 60 * 1000;
+const WORLD_SKELETON_GENERATE_TIMEOUT_MS = 130 * 1000;
 
 function normalizeSuggestedAxioms(raw: unknown): string[] {
   if (!Array.isArray(raw)) {
@@ -232,6 +233,7 @@ export async function generateWorldSkeleton(payload: {
   const { data } = await apiClient.post<ApiResponse<WorldSkeletonGenerationPayload>>(
     "/worlds/skeleton/generate",
     payload,
+    { timeout: WORLD_SKELETON_GENERATE_TIMEOUT_MS },
   );
   return data;
 }

@@ -270,15 +270,20 @@ export const worldSkeletonGenerationPrompt: PromptAsset<
   z.infer<typeof worldSkeletonSchema>
 > = {
   id: "world.skeleton.generate",
-  version: "v1",
+  version: "v2",
   taskType: "planner",
   mode: "structured",
   language: "zh",
   contextPolicy: {
     maxTokensBudget: 0,
   },
+  // 世界骨架包含多组互相引用的数据。对不完整 JSON 重复发送同一份大请求，
+  // 只会延长等待时间，且无法保证第二次不再被模型输出上限截断。
+  repairPolicy: {
+    maxAttempts: 0,
+  },
   semanticRetryPolicy: {
-    maxAttempts: 1,
+    maxAttempts: 0,
   },
   outputSchema: worldSkeletonSchema,
   render: (input) => {
@@ -291,6 +296,13 @@ export const worldSkeletonGenerationPrompt: PromptAsset<
         "只输出一个合法 JSON 对象，不要输出 Markdown、解释、注释、代码块或额外文本。",
         "",
         "输出对象必须包含且只能包含：concept, structuredData, bindingSupport, storyEntrySuggestions, assessment。",
+        "",
+        "输出容量硬约束：",
+        "1. 这是世界骨架，不是世界设定正文。先完成可引用的卡片，再在保存后的世界手册中逐层扩写。",
+        "2. 名称、id、类型、方位等短字段不超过 16 个汉字；说明字段不超过 28 个汉字，使用短语或短句，不写段落。",
+        "3. 所有字符串数组每项不超过 12 个汉字，且每个数组最多 2 项；没有必要信息时输出空数组。",
+        "4. 不得重复解释同一条规则、势力或地点；用户选择较大规模时，仍应压缩每个条目，而不是增加描述篇幅。",
+        "5. 除 JSON 键名、id 和坐标外，全部文本总量控制在约 3,200 个汉字以内。",
         "",
         "全局硬规则：",
         "1. 所有字段值必须使用简体中文。",
