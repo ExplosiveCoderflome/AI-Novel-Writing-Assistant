@@ -139,8 +139,8 @@ export default function ModelRoutesPage() {
       ?? providerConfigs[0],
     [providerConfigs],
   );
-  const defaultProvider = preferredProviderConfig?.provider ?? "deepseek";
-  const defaultModel = getPreferredModel(preferredProviderConfig);
+  const defaultProvider = preferredProviderConfig?.provider ?? providerConfigs[0]?.provider ?? "";
+  const defaultModel = getPreferredModel(preferredProviderConfig) ?? "";
   const dirtyTaskTypes = useMemo(
     () => taskTypes.filter((taskType) => {
       const draft = routeDrafts[taskType];
@@ -169,7 +169,7 @@ export default function ModelRoutesPage() {
     }
     const route = routeMap.get(taskType);
     return {
-      provider: route?.provider ?? "deepseek",
+      provider: route?.provider ?? defaultProvider,
       model: route?.model ?? "",
       temperature: route?.temperature != null ? String(route.temperature) : "0.7",
       maxTokens: route?.maxTokens != null ? String(route.maxTokens) : "",
@@ -233,8 +233,8 @@ export default function ModelRoutesPage() {
     }
     return {
       enabled: structuredFallback?.enabled ?? false,
-      provider: structuredFallback?.provider ?? "deepseek",
-      model: structuredFallback?.model ?? "deepseek-chat",
+      provider: structuredFallback?.provider ?? defaultProvider,
+      model: structuredFallback?.model ?? defaultModel,
       temperature: structuredFallback != null ? String(structuredFallback.temperature) : "0.2",
       maxTokens: structuredFallback?.maxTokens != null ? String(structuredFallback.maxTokens) : "",
       requestProtocol: "auto",
