@@ -1,3 +1,4 @@
+import i18next from "i18next";
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Image, Play, RefreshCw, CheckCircle2, XCircle, FolderOpen, Loader2, Download } from "lucide-react";
@@ -36,7 +37,7 @@ export default function ComfyUIDiagnosticsCard() {
     queryKey: ["settings", "comfyui-status"],
     queryFn: async () => {
       const res = await fetch("/api/settings/comfyui/status");
-      if (!res.ok) throw new Error("获取 ComfyUI 状态失败");
+      if (!res.ok) throw new Error(i18next.t("settings.comfyUIDiagnosticsCard.53ev7c"));
       const json = await res.json();
       return json.data as ComfyUIHealth;
     },
@@ -54,16 +55,16 @@ export default function ComfyUIDiagnosticsCard() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ customPath: customPath.trim() || undefined }),
       });
-      if (!res.ok) throw new Error("启动 ComfyUI 进程失败");
+      if (!res.ok) throw new Error(i18next.t("settings.comfyUIDiagnosticsCard.om71p9"));
       const json = await res.json();
       return json.data as ComfyUIHealth;
     },
     onSuccess: (result) => {
       queryClient.invalidateQueries({ queryKey: ["settings", "comfyui-status"] });
       if (result.ok) {
-        toast.success(`ComfyUI 探测与启动成功 (${result.baseURL})！可用模型: ${result.checkpoints.join(", ") || "已识别"}`);
+        toast.success(i18next.t("settings.comfyUIDiagnosticsCard.u84t4v", { val1: result.baseURL, val2: result.checkpoints.join(", ") || "已识别" }));
       } else {
-        toast.error(`ComfyUI 未响应：${result.message}`);
+        toast.error(i18next.t("settings.comfyUIDiagnosticsCard.94953j", { val1: result.message }));
       }
     },
     onError: (err: any) => {
@@ -76,13 +77,13 @@ export default function ComfyUIDiagnosticsCard() {
       const res = await fetch("/api/settings/comfyui/download-model", {
         method: "POST",
       });
-      if (!res.ok) throw new Error("启动模型下载任务失败");
+      if (!res.ok) throw new Error(i18next.t("settings.comfyUIDiagnosticsCard.1gck6p"));
       const json = await res.json();
       return json.data;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["settings", "comfyui-status"] });
-      toast.info("已启动基础离线生图模型后台下载任务！");
+      toast.info(i18next.t("settings.comfyUIDiagnosticsCard.sfrnih"));
     },
     onError: (err: any) => {
       toast.error(err.message || "触发模型下载失败");
@@ -101,9 +102,7 @@ export default function ComfyUIDiagnosticsCard() {
             <Image className="h-5 w-5 text-primary" />
             ComfyUI 本地离线画师自检与拉起
           </CardTitle>
-          <CardDescription>
-            全自动扫描离线模型与显卡驱动，支持一键自测、离线后台启动与权重文件自动补充
-          </CardDescription>
+          <CardDescription>{i18next.t("settings.comfyUIDiagnosticsCard.725n0e")}</CardDescription>
         </div>
         <Button
           variant="outline"
@@ -117,9 +116,7 @@ export default function ComfyUIDiagnosticsCard() {
       <CardContent className="space-y-4 pt-2">
         {isLoading ? (
           <div className="flex items-center justify-center py-6 text-sm text-muted-foreground gap-2">
-            <RefreshCw className="h-4 w-4 animate-spin" />
-            正在全盘深度探测 ComfyUI 状态与已安装 Checkpoints...
-          </div>
+            <RefreshCw className="h-4 w-4 animate-spin" />{i18next.t("settings.comfyUIDiagnosticsCard.msw8cz")}</div>
         ) : (
           <div className="space-y-4">
             {/* Status Alert Banner */}
@@ -162,9 +159,7 @@ export default function ComfyUIDiagnosticsCard() {
             <div className="grid gap-3 text-xs md:grid-cols-2">
               <div className="rounded-md border p-3 bg-muted/40 flex flex-col gap-2">
                 <span className="font-bold text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
-                  <FolderOpen className="h-3.5 w-3.5" />
-                  动态检测到的本地安装路径
-                </span>
+                  <FolderOpen className="h-3.5 w-3.5" />{i18next.t("settings.comfyUIDiagnosticsCard.3lvs8j")}</span>
                 <span className="font-mono text-foreground break-all">
                   {health?.discoveredPath || "全盘自动匹配中（可下方手动指定）"}
                 </span>
@@ -172,7 +167,7 @@ export default function ComfyUIDiagnosticsCard() {
 
               <div className="rounded-md border p-3 bg-muted/40 flex flex-col gap-2">
                 <span className="font-bold text-muted-foreground uppercase tracking-wider flex items-center justify-between">
-                  <span>已识别可用 Checkpoints (绘图模型)</span>
+                  <span>{i18next.t("settings.comfyUIDiagnosticsCard.kjqcqy")}</span>
                   {health?.checkpoints.length === 0 && (
                     <Button
                       variant="ghost"
@@ -181,9 +176,7 @@ export default function ComfyUIDiagnosticsCard() {
                       onClick={() => downloadMutation.mutate()}
                       disabled={downloadMutation.isPending || isDownloading}
                     >
-                      <Download className="h-3 w-3" />
-                      自动下载预设权重
-                    </Button>
+                      <Download className="h-3 w-3" />{i18next.t("settings.comfyUIDiagnosticsCard.gkhpx0")}</Button>
                   )}
                 </span>
                 <div className="flex flex-wrap gap-1">
@@ -206,7 +199,7 @@ export default function ComfyUIDiagnosticsCard() {
             <div className="flex items-center gap-2 pt-1">
               <Input
                 className="h-8 text-xs font-mono flex-1"
-                placeholder="手动指定启动路径（例: D:\ComfyUI_windows_portable\run_nvidia_gpu.bat）"
+                placeholder={i18next.t("settings.comfyUIDiagnosticsCard.6ey0tl")}
                 value={customPath}
                 onChange={(e) => setCustomPath(e.target.value)}
               />

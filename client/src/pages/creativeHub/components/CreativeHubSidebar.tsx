@@ -117,8 +117,8 @@ function buildBlockerCardData(input: {
       title: i18next.t("dict.gen_b144df0f"),
       summary: input.interrupt.summary,
       details: [
-        `等待确认: ${input.interrupt.title}`,
-        input.interrupt.targetType ? `目标类型: ${input.interrupt.targetType}` : "",
+        i18next.t("creativeHub.creativeHubSidebar.o5vavs", { val1: input.interrupt.title }),
+        input.interrupt.targetType ? i18next.t("creativeHub.creativeHubSidebar.kpfjfj", { val1: input.interrupt.targetType }) : "",
       ].filter(Boolean),
       tone: "border-warning/30 bg-warning/5 text-foreground",
       actionLabel: i18next.t("creativeHub.actionViewInterrupt"),
@@ -131,8 +131,8 @@ function buildBlockerCardData(input: {
       title: i18next.t("dict.gen_72022eb6"),
       summary: input.diagnostics.failureSummary,
       details: [
-        input.diagnostics.failureCode ? `错误码: ${input.diagnostics.failureCode}` : "",
-        input.diagnostics.recoveryHint ? `恢复建议: ${input.diagnostics.recoveryHint}` : "",
+        input.diagnostics.failureCode ? i18next.t("creativeHub.creativeHubSidebar.lysv3", { val1: input.diagnostics.failureCode }) : "",
+        input.diagnostics.recoveryHint ? i18next.t("creativeHub.creativeHubSidebar.ut0i45", { val1: input.diagnostics.recoveryHint }) : "",
       ].filter(Boolean),
       tone: "border-destructive/30 bg-destructive/5 text-foreground",
       actionLabel: i18next.t("creativeHub.actionGenerateRecovery"),
@@ -145,8 +145,8 @@ function buildBlockerCardData(input: {
       title: i18next.t("dict.gen_b144df0f"),
       summary: input.productionStatus.failureSummary,
       details: [
-        input.productionStatus.recoveryHint ? `恢复建议: ${input.productionStatus.recoveryHint}` : "",
-        `当前阶段: ${input.productionStatus.currentStage}`,
+        input.productionStatus.recoveryHint ? i18next.t("creativeHub.creativeHubSidebar.ut0i45", { val1: input.productionStatus.recoveryHint }) : "",
+        i18next.t("creativeHub.creativeHubSidebar.byjw0h", { val1: input.productionStatus.currentStage }),
       ].filter(Boolean),
       tone: "border-destructive/30 bg-destructive/5 text-foreground",
       actionLabel: i18next.t("dict.gen_24068591"),
@@ -159,8 +159,8 @@ function buildBlockerCardData(input: {
       title: i18next.t("dict.gen_7c3be765"),
       summary: input.latestTurnSummary.nextSuggestion,
       details: [
-        `阶段: ${input.latestTurnSummary.currentStage}`,
-        `状态: ${turnStatusLabel(input.latestTurnSummary.status)}`,
+        i18next.t("creativeHub.creativeHubSidebar.t82aej", { val1: input.latestTurnSummary.currentStage }),
+        i18next.t("creativeHub.creativeHubSidebar.4i8fvj", { val1: turnStatusLabel(input.latestTurnSummary.status) }),
       ],
       tone: "border-info/30 bg-info/5 text-foreground",
       actionLabel: i18next.t("creativeHub.actionContinueSuggested"),
@@ -172,7 +172,7 @@ function buildBlockerCardData(input: {
     title: i18next.t("dict.gen_6bf1f392"),
     summary: i18next.t("dict.gen_1d85a303"),
     details: input.latestTurnSummary?.nextSuggestion
-      ? [`建议下一步: ${input.latestTurnSummary.nextSuggestion}`]
+      ? [i18next.t("creativeHub.creativeHubSidebar.6uaeem", { val1: input.latestTurnSummary.nextSuggestion })]
       : [],
     tone: "border-border bg-muted/20 text-foreground",
     actionLabel: input.latestTurnSummary?.nextSuggestion ? "按建议继续" : undefined,

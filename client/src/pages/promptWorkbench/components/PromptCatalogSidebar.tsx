@@ -113,7 +113,7 @@ export function PromptCatalogSidebar(props: PromptCatalogSidebarProps) {
                 Prompt Workbench
               </h1>
               <p className="mt-0.5 text-xs text-muted-foreground">
-                {prompts.length > 0 ? `${prompts.length} 个提示词` : i18next.t("dict.gen_2043e5c6")}
+                {prompts.length > 0 ? i18next.t("promptWorkbench.promptCatalogSidebar.iunj6f", { val1: prompts.length }) : i18next.t("dict.gen_2043e5c6")}
               </p>
             </div>
           </div>

@@ -15,7 +15,7 @@ export function resolveAutoExecutionScopeLabel(task: UnifiedTaskDetail | null): 
     return scopeLabel;
   }
   const fallbackCount = Math.max(1, Math.round(seedPayload?.autoExecution?.totalChapterCount ?? 10));
-  return `第 1-${fallbackCount} 章`;
+  return i18next.t("novels.directorAutoExecutionPlan.shared.7rlj0g", { val1: fallbackCount });
 }
 
 export function formatTakeoverCheckpoint(
@@ -35,7 +35,7 @@ export function formatTakeoverCheckpoint(
     return i18next.t("dict.gen_2282ccfa");
   }
   if (checkpoint === "chapter_batch_ready") {
-    return `${resolveAutoExecutionScopeLabel(task)}自动执行已暂停`;
+    return i18next.t("lib.novelWorkflowTaskUi.mr8bw9", { val1: resolveAutoExecutionScopeLabel(task) });
   }
   if (checkpoint === "replan_required") {
     return i18next.t("novels.novelEditTakeover.shared.cvz4wf");
@@ -56,35 +56,35 @@ export function buildTakeoverTitle(input: {
     input.mode === "running"
     && input.checkpointType === "chapter_batch_ready"
   ) {
-    return `《${input.novelTitle}》正在自动执行${input.scopeLabel}`;
+    return i18next.t("novels.novelEditTakeover.shared.cofuwa", { val1: input.novelTitle, val2: input.scopeLabel });
   }
   if (input.mode === "waiting" || input.mode === "action_required") {
     if (input.checkpointType === "candidate_selection_required") {
-      return `《${input.novelTitle}》等待确认书级方向`;
+      return i18next.t("novels.novelEditTakeover.shared.y9rbdw", { val1: input.novelTitle });
     }
     if (input.checkpointType === "character_setup_required") {
-      return `《${input.novelTitle}》等待审核角色准备`;
+      return i18next.t("novels.novelEditTakeover.shared.xlwh2z", { val1: input.novelTitle });
     }
     if (input.checkpointType === "volume_strategy_ready") {
-      return `《${input.novelTitle}》等待审核卷战略 / 卷骨架`;
+      return i18next.t("novels.novelEditTakeover.shared.jv12i4", { val1: input.novelTitle });
     }
     if (input.checkpointType === "workflow_completed") {
-      return `《${input.novelTitle}》本轮自动导演已完成`;
+      return i18next.t("novels.novelEditTakeover.shared.11igk3", { val1: input.novelTitle });
     }
     if (input.checkpointType === "replan_required") {
-      return `《${input.novelTitle}》需要处理重规划`;
+      return i18next.t("novels.novelEditTakeover.shared.lcfhq1", { val1: input.novelTitle });
     }
   }
   if (input.mode === "failed") {
     if (input.checkpointType === "chapter_batch_ready") {
-      return `《${input.novelTitle}》${input.scopeLabel}自动执行已暂停`;
+      return i18next.t("novels.novelEditTakeover.shared.zfww13", { val1: input.novelTitle, val2: input.scopeLabel });
     }
-    return `《${input.novelTitle}》自动导演已中断`;
+    return i18next.t("novels.novelEditTakeover.shared.cf5mk5", { val1: input.novelTitle });
   }
   if (input.mode === "loading") {
-    return `《${input.novelTitle}》自动导演状态同步中`;
+    return i18next.t("novels.novelEditTakeover.shared.8yg7cy", { val1: input.novelTitle });
   }
-  return `《${input.novelTitle}》正在自动导演`;
+  return i18next.t("novels.novelEditTakeover.shared.8udsek", { val1: input.novelTitle });
 }
 
 export function buildTakeoverDescription(input: {
@@ -97,7 +97,7 @@ export function buildTakeoverDescription(input: {
     input.mode === "running"
     && input.checkpointType === "chapter_batch_ready"
   ) {
-    return `AI 正在后台自动执行${input.scopeLabel}，并会继续完成审核与修复。你仍可继续手动查看和编辑；如果同时修改当前章节，后续自动结果可能覆盖这部分内容。`;
+    return i18next.t("novels.novelEditTakeover.shared.j0jy5t", { val1: input.scopeLabel });
   }
   if (input.mode === "waiting" || input.mode === "action_required") {
     if (input.checkpointType === "candidate_selection_required") {
@@ -110,7 +110,7 @@ export function buildTakeoverDescription(input: {
       return i18next.t("novels.novelEditTakeover.shared.y8xosu");
     }
     if (input.checkpointType === "workflow_completed") {
-      return `自动导演已经完成${input.scopeLabel}的章节执行、审核与修复。你可以直接进入章节执行继续写作，也可以完成并退出导演模式。`;
+      return i18next.t("novels.novelEditTakeover.shared.n5hlo1", { val1: input.scopeLabel });
     }
     if (input.checkpointType === "replan_required") {
       return i18next.t("novels.novelEditTakeover.shared.5eupdy");
@@ -121,7 +121,7 @@ export function buildTakeoverDescription(input: {
   }
   if (input.mode === "failed") {
     if (input.checkpointType === "chapter_batch_ready") {
-      return `${input.scopeLabel}自动执行已暂停。可以先查看执行详情或质量修复区，再决定是否继续自动执行。`;
+      return i18next.t("novels.novelEditTakeover.shared.slhfmx", { val1: input.scopeLabel });
     }
     return i18next.t("novels.novelEditTakeover.shared.jj1vtt");
   }
@@ -132,13 +132,13 @@ export function buildTakeoverDescription(input: {
 }
 
 export function buildContinueAutoExecutionActionLabel(scopeLabel: string, isPending: boolean): string {
-  return isPending ? "继续执行中..." : `继续自动执行${scopeLabel}`;
+  return isPending ? "继续执行中..." : i18next.t("novels.novelEditTakeover.shared.lpivmv", { val1: scopeLabel });
 }
 
 export function buildSkipQualityRepairActionLabel(scopeLabel: string, isPending: boolean): string {
-  return isPending ? "继续执行中..." : `跳过本次建议，继续${scopeLabel}`;
+  return isPending ? "继续执行中..." : i18next.t("novels.novelEditTakeover.shared.okfv4r", { val1: scopeLabel });
 }
 
 export function buildContinueAutoExecutionToast(scopeLabel: string): string {
-  return `自动导演已继续执行${scopeLabel}，并会在后台自动审核与修复。`;
+  return i18next.t("novels.novelEditTakeover.shared.9orta3", { val1: scopeLabel });
 }

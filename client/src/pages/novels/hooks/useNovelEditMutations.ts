@@ -190,7 +190,7 @@ export function useNovelEditMutations({
     onSuccess: async (response) => {
       const preview = response.data;
       setStructuredMessage(
-        `连接修复完成：新增 ${preview?.createCount ?? 0}，更新 ${preview?.updateCount ?? 0}，删除 ${preview?.deleteCount ?? 0}。`,
+        i18next.t("novels.useNovelEditMutations.4aioez", { val1: preview?.createCount ?? 0, val2: preview?.updateCount ?? 0, val3: preview?.deleteCount ?? 0 }),
       );
       await syncNovelWorkflowStageSilently({
         novelId: id,

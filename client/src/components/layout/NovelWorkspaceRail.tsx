@@ -327,7 +327,7 @@ export default function NovelWorkspaceRail(props: NovelWorkspaceRailProps) {
   const workflowProgressCount = workflowIndex >= 0 ? workflowIndex + 1 : completedStepCount;
   const novelTitle = novelDetail?.title?.trim() || i18next.t("dict.gen_d018fb48");
   const runtimeActionSummary = runtimeProjection?.nextActionLabel
-    ? `下一步：${runtimeProjection.nextActionLabel}`
+    ? i18next.t("layout.novelWorkspaceRail.u959pi", { val1: runtimeProjection.nextActionLabel })
     : null;
   const runtimeSummary = dashboardView?.currentAction?.trim()
     || (dashboardView?.requiresUserAction
@@ -345,8 +345,8 @@ export default function NovelWorkspaceRail(props: NovelWorkspaceRailProps) {
       || (activeTask.status === "failed"
       ? activeTask.lastError || i18next.t("dict.gen_3fff0abf")
       : activeTask.status === "waiting_approval"
-        ? `等待处理：${getNovelWorkspaceTabLabel(workflowCurrentTab ?? activeTab)}`
-      : activeTask.currentItemLabel || `AI 正在推进 ${getNovelWorkspaceTabLabel(workflowCurrentTab ?? activeTab)}`)
+        ? i18next.t("layout.novelWorkspaceRail.64fodo", { val1: getNovelWorkspaceTabLabel(workflowCurrentTab ?? activeTab) })
+      : activeTask.currentItemLabel || i18next.t("layout.novelWorkspaceRail.x935c0", { val1: getNovelWorkspaceTabLabel(workflowCurrentTab ?? activeTab) }))
     : i18next.t("dict.gen_3461732b");
   const cockpitProjection = useMemo(() => {
     if (!visibleBookAutomationProjection || !runtimeSummary?.trim()) {
@@ -596,7 +596,7 @@ export default function NovelWorkspaceRail(props: NovelWorkspaceRailProps) {
                 variant="outline"
                 className="h-9 w-9"
                 onClick={openProgressDialog}
-                title={`查看导演进度：${formatTaskStatus(activeTask?.status)}`}
+                title={i18next.t("layout.novelWorkspaceRail.lndi3l", { val1: formatTaskStatus(activeTask?.status) })}
                 aria-label={i18next.t("dict.gen_efbfb3ff")}
               >
                 <ListTodo className="h-4 w-4" />

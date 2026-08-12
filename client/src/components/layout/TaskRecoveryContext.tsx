@@ -102,7 +102,7 @@ export function TaskRecoveryProvider({ children }: { children: ReactNode }) {
         }
         return next;
       });
-      toast.success(resumedCount > 0 ? `已开始恢复 ${resumedCount} 个任务。` : i18next.t("dict.gen_3c783b2d"));
+      toast.success(resumedCount > 0 ? i18next.t("layout.taskRecoveryContext.nkixai", { val1: resumedCount }) : i18next.t("dict.gen_3c783b2d"));
       refreshTaskState();
       void recoveryQuery.refetch();
     },

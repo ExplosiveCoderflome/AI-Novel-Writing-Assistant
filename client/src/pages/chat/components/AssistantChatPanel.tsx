@@ -55,7 +55,7 @@ function extractMessageText(message: ThreadMessage): string {
         return part.title ? `${part.title} (${part.url})` : part.url;
       }
       if (part.type === "tool-call") {
-        return `[工具:${part.toolName}]`;
+        return i18next.t("chat.assistantChatPanel.mzaym8", { val1: part.toolName });
       }
       if (part.type === "data") {
         try {
@@ -236,7 +236,7 @@ export default function AssistantChatPanel({
           });
 
           if (!response.ok || !response.body) {
-            throw new Error(`请求失败，状态码 ${response.status}`);
+            throw new Error(i18next.t("hooks.useSSE.lfqyc9", { val1: response.status }));
           }
 
           const reader = response.body.getReader();

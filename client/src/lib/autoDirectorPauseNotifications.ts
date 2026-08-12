@@ -87,8 +87,8 @@ export function buildAutoDirectorPauseNotificationBody(item: AutoDirectorFollowU
   const scope = item.executionScope?.trim();
   const summary = item.followUpSummary?.trim() || item.reasonLabel;
   const prefix = scope
-    ? `《${item.novelTitle}》${scope}需要处理`
-    : `《${item.novelTitle}》需要处理`;
+    ? i18next.t("lib.autoDirectorPauseNotifications.vmrr9h", { val1: item.novelTitle, val2: scope })
+    : i18next.t("lib.autoDirectorPauseNotifications.69ijsc", { val1: item.novelTitle });
   return clipNotificationBody(`${prefix}：${summary}`);
 }
 

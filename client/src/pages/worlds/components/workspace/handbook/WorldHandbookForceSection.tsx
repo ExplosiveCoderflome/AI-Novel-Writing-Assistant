@@ -49,7 +49,7 @@ export default function WorldHandbookForceSection(props: {
       <SectionHeader
         icon={Castle}
         title={i18next.t("dict.majorForce")}
-        description={`让作者先看懂谁在争夺资源、谁会制造阻力、角色可能从哪里来。${forceSummary}`}
+        description={i18next.t("worlds.worldHandbookForceSection.lrdof", { val1: forceSummary })}
         count={draftStructure.forces.length}
       />
       <div className="mt-4 grid gap-3 lg:grid-cols-2">

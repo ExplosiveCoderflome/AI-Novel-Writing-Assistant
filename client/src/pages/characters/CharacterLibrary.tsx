@@ -156,7 +156,7 @@ export default function CharacterLibrary() {
   };
 
   const handleDeleteCharacter = (character: BaseCharacter) => {
-    const confirmed = window.confirm(`确认删除角色「${character.name}」？此操作不可恢复。`);
+    const confirmed = window.confirm(i18next.t("characters.characterLibrary.mi8kfe", { val1: character.name }));
     if (!confirmed) {
       return;
     }
@@ -207,7 +207,7 @@ export default function CharacterLibrary() {
             key: "images",
             label: i18next.t("characters.characterLibrary.bef0h7"),
             value: characterListQuery.isPending || characterListQuery.isError ? "—" : characterWithImageCount,
-            detail: "至少保存一张角色形象图",
+            detail: i18next.t("characters.characterLibrary.p285eu"),
             icon: ImageIcon,
             tone: characterListQuery.isPending || characterListQuery.isError
               ? "neutral"
@@ -246,7 +246,7 @@ export default function CharacterLibrary() {
             : characters.length === 0
               ? "从一个主角开始即可。先写清目标、弱点和成长方向，AI 会更容易生成有推动力的人物。"
               : incompleteCharacterCount > 0
-                ? `有 ${incompleteCharacterCount} 个角色缺少核心资料。补齐后，章节规划和人物对话会获得更稳定的依据。`
+                ? i18next.t("characters.characterLibrary.rwrih2", { val1: incompleteCharacterCount })
                 : "你可以带着整个角色库进入创作中枢，或为单个角色继续完善形象和对话。"}
         tone={characterListQuery.isError
           ? "danger"

@@ -61,15 +61,15 @@ export function getRouteStyle(routeType?: string) {
 }
 
 const DIRECTION_LABELS: Record<WorldGeographyDirection, string> = {
-  north: "北",
-  south: "南",
-  east: "东",
-  west: "西",
-  center: "中",
-  northeast: "东北",
-  northwest: "西北",
-  southeast: "东南",
-  southwest: "西南",
+  north: i18next.t("worlds.worldVisualizationBoard.gev"),
+  south: i18next.t("worlds.worldVisualizationBoard.ggn"),
+  east: i18next.t("worlds.worldVisualizationBoard.ffg"),
+  west: i18next.t("worlds.worldVisualizationBoard.r5r"),
+  center: i18next.t("dict.mid"),
+  northeast: i18next.t("worlds.worldGraphLayout.dqpn"),
+  northwest: i18next.t("worlds.worldGraphLayout.nud4"),
+  southeast: i18next.t("worlds.worldGraphLayout.dqrf"),
+  southwest: i18next.t("worlds.worldGraphLayout.nuew"),
 };
 
 export function truncateText(text: string, maxLength: number): string {

@@ -67,7 +67,7 @@ export default function ChapterExecutionResultPanel(props: ChapterExecutionResul
     );
   }
 
-  const chapterLabel = `第${selectedChapter.order}章`;
+  const chapterLabel = i18next.t("tensionCurve.tensionCurveChapterDetailSidebar.xrxssk", { val1: selectedChapter.order });
   const chapterTitle = selectedChapter.title || i18next.t("dict.gen_db55d102");
   const chapterObjective = chapterPlan?.objective ?? selectedChapter.expectation ?? i18next.t("dict.gen_6fc3748d");
   const savedChapterContent = selectedChapter.content?.trim() ?? "";

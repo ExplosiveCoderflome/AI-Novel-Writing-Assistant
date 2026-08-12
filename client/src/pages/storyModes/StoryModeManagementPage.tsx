@@ -230,7 +230,7 @@ export default function StoryModeManagementPage() {
     onSuccess: async (response) => {
       await invalidate();
       const savedCount = response.data?.length ?? selectedGeneratedChildIndexes.length;
-      toast.success(`已批量创建 ${savedCount} 个推进模式子类。`);
+      toast.success(i18next.t("storyModes.storyModeManagementPage.p9qu59", { val1: savedCount }));
       setCreateDialogOpen(false);
     },
   });
@@ -305,7 +305,7 @@ export default function StoryModeManagementPage() {
         setSelectedGeneratedChildIndexes(candidates.map((_item, index) => index));
         setActiveGeneratedChildIndex(0);
         setCreateDraft(cloneDraft(candidates[0]));
-        toast.success(`AI 已生成 ${candidates.length} 个推进模式子类草稿。`);
+        toast.success(i18next.t("storyModes.storyModeManagementPage.7xu64v", { val1: candidates.length }));
         return;
       }
       setSelectedGeneratedChildIndexes([]);
@@ -357,8 +357,8 @@ export default function StoryModeManagementPage() {
   const handleDelete = (node: StoryModeTreeNode) => {
     const descendantCount = collectDescendantIds(node).length;
     const message = descendantCount > 0
-      ? `确认删除推进模式「${node.name}」吗？这会同时删除其下 ${descendantCount} 个子类，此操作不可恢复。`
-      : `确认删除推进模式「${node.name}」吗？此操作不可恢复。`;
+      ? i18next.t("storyModes.storyModeManagementPage.zfqqlc", { val1: node.name, val2: descendantCount })
+      : i18next.t("storyModes.storyModeManagementPage.kbsss6", { val1: node.name });
     const confirmed = window.confirm(message);
     if (!confirmed) {
       return;
@@ -485,7 +485,7 @@ export default function StoryModeManagementPage() {
                             <div className="flex items-center justify-between gap-3">
                               <div className="text-sm font-medium text-foreground">{candidate.name}</div>
                               <span className="text-xs text-muted-foreground">
-                                {activeGeneratedChildIndex === index ? i18next.t("dict.gen_b625a745") : `候选 ${index + 1}`}
+                                {activeGeneratedChildIndex === index ? i18next.t("dict.gen_b625a745") : i18next.t("storyModes.storyModeManagementPage.u25cjk", { val1: index + 1 })}
                               </span>
                             </div>
                             <div className="mt-1 text-sm text-muted-foreground">
@@ -540,7 +540,7 @@ export default function StoryModeManagementPage() {
               >
                 {createSelectedChildrenMutation.isPending
                   ? i18next.t("dict.gen_c7b65d86")
-                  : `批量保存选中子类 (${selectedGeneratedChildIndexes.length})`}
+                  : i18next.t("storyModes.storyModeManagementPage.apdqsx", { val1: selectedGeneratedChildIndexes.length })}
               </Button>
             ) : null}
             <Button

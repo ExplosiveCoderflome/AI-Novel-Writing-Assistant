@@ -288,6 +288,91 @@ files.forEach((filePath) => {
     return `return i18next.t("${keyPath}");`;
   });
 
+  // ====== Pass 7: throw new Error 消息 中的硬编码字符串 ======
+  const throwErrRegex = /throw\s+new\s+Error\(\s*["']([^"']*[\u4e00-\u9fa5]+[^"']*)["']\s*\)/g;
+  content = content.replace(throwErrRegex, (match, zhVal) => {
+    const trimmed = cleanChineseText(zhVal);
+    if (!trimmed || match.includes('i18next.t')) return match;
+    const keyPath = getOrCreateKey(trimmed, ns, comp);
+    stats.rawChineseExtracted++;
+    isModified = true;
+    return `throw new Error(i18next.t("${keyPath}"))`;
+  });
+
+  // ====== Pass 8: Record / Map 对象值 中的硬编码字符串 ======
+  const recordValRegex = /(\b[a-zA-Z0-9_$]+\s*:\s*)["']([\u4e00-\u9fa5][\u4e00-\u9fa5\w\s\-\.\,\!\?]{0,50})["']/g;
+  content = content.replace(recordValRegex, (match, prefix, zhVal) => {
+    const trimmed = cleanChineseText(zhVal);
+    if (!trimmed || match.includes('i18next.t') || match.includes('from ') || match.includes('import ')) return match;
+    // 过滤 TypeScript 类型 / key-value 容易误伤的场景
+    if (prefix.trim().startsWith('type') || prefix.trim().startsWith('export')) return match;
+    const keyPath = getOrCreateKey(trimmed, ns, comp);
+    stats.objLiteralsReplaced++;
+    isModified = true;
+    return `${prefix}i18next.t("${keyPath}")`;
+  });
+
+  // ====== Pass 9: 模板字面量中的硬编码中文 ======
+  const templateLiteralRegex = /`([^`\n]*[\u4e00-\u9fa5]+[^`\n]*)`/g;
+  content = content.replace(templateLiteralRegex, (match, rawBody) => {
+    if (match.includes('i18next.t') || match.includes('console.') || match.includes('import')) return match;
+    // 跳过 CSS class 或 SQL 等
+    if (/\b(?:flex|grid|text-|bg-|border|rounded|px-|py-|gap-|items-|justify-|w-|h-)\b/.test(match)) return match;
+
+    let zhTemplateStr = '';
+    const params = [];
+    let exprIdx = 1;
+    let i = 0;
+    let hasError = false;
+
+    while (i < rawBody.length) {
+      const exprStart = rawBody.indexOf('${', i);
+      if (exprStart === -1) {
+        zhTemplateStr += rawBody.slice(i);
+        break;
+      }
+      zhTemplateStr += rawBody.slice(i, exprStart);
+
+      let braceCount = 1;
+      let exprEnd = exprStart + 2;
+      while (exprEnd < rawBody.length && braceCount > 0) {
+        if (rawBody[exprEnd] === '{') braceCount++;
+        else if (rawBody[exprEnd] === '}') braceCount--;
+        exprEnd++;
+      }
+      if (braceCount > 0) {
+        hasError = true;
+        break;
+      }
+
+      const exprCode = rawBody.slice(exprStart + 2, exprEnd - 1).trim();
+      // 如果表达式过于复杂（包含三元运算 ? :、嵌套反引号、i18next.t 等），跳过自动替换
+      if (exprCode.includes('?') || exprCode.includes(':') || exprCode.includes('`') || exprCode.includes('i18next') || exprCode.includes('||')) {
+        hasError = true;
+        break;
+      }
+
+      const paramName = `val${exprIdx++}`;
+      zhTemplateStr += `{{${paramName}}}`;
+      params.push({ name: paramName, expr: exprCode });
+      i = exprEnd;
+    }
+
+    if (hasError || !/[\u4e00-\u9fa5]/.test(zhTemplateStr)) return match;
+
+    const trimmedZh = cleanChineseText(zhTemplateStr);
+    const keyPath = getOrCreateKey(trimmedZh, ns, comp);
+    stats.rawChineseExtracted++;
+    isModified = true;
+
+    if (params.length === 0) {
+      return `i18next.t("${keyPath}")`;
+    } else {
+      const paramsObjStr = params.map(p => `${p.name}: ${p.expr}`).join(', ');
+      return `i18next.t("${keyPath}", { ${paramsObjStr} })`;
+    }
+  });
+
   // 确保 import i18next
   if (isModified && content.includes('i18next.t(') && !content.includes('import i18next') && !content.includes('import i18n')) {
     content = `import i18next from "i18next";\n` + content;

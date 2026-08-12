@@ -48,7 +48,7 @@ function formatConnectionTestResult(response: Awaited<ReturnType<typeof testLLMC
       ? `结构化正常${structured.strategy ? `，策略 ${structured.strategy}` : ""}${structured.reasoningForcedOff ? i18next.t("dict.gen_5171d6ff") : ""}`
       : `结构化失败${structured.errorCategory ? `，分类 ${structured.errorCategory}` : ""}${structured.error ? `：${structured.error}` : ""}`
     : i18next.t("dict.gen_333d0bf3");
-  return `连接成功，总耗时 ${latency}ms · ${plainText} · ${structuredText}`;
+  return i18next.t("settings.settingsPage.81u0s3", { val1: latency, val2: plainText, val3: structuredText });
 }
 
 export default function SettingsPage() {
@@ -245,7 +245,7 @@ export default function SettingsPage() {
     onSuccess: (response) => {
       const models = response.data?.models ?? [];
       setPreviewModels(models);
-      setPreviewModelsResult(response.message ?? `已获取 ${models.length} 个模型。`);
+      setPreviewModelsResult(response.message ?? i18next.t("settings.settingsPage.57dfbj", { val1: models.length }));
       setForm((prev) => ({
         ...prev,
         model: prev.model.trim() || models[0] || "",
@@ -281,7 +281,7 @@ export default function SettingsPage() {
       if (response.data) {
         updateProviderModelsInCache(response.data.provider, response.data.models, response.data.currentModel);
       }
-      setActionResult(`${providerName} 模型列表已刷新（${count} 个）。`);
+      setActionResult(i18next.t("settings.settingsPage.rwiiec", { val1: providerName, val2: count }));
       await invalidateProviderAuxiliaryQueries();
     },
     onError: (error) => {
@@ -308,7 +308,7 @@ export default function SettingsPage() {
     mutationFn: (provider: LLMProvider) => refreshProviderBalance(provider),
     onSuccess: async (response, provider) => {
       const providerName = providerConfigs.find((item) => item.provider === provider)?.name ?? provider;
-      setActionResult(response.message ?? `${providerName} 余额已刷新。`);
+      setActionResult(response.message ?? i18next.t("settings.settingsPage.cb0a39", { val1: providerName }));
       await queryClient.invalidateQueries({ queryKey: queryKeys.settings.apiKeyBalances });
     },
     onError: (error) => {
@@ -449,7 +449,7 @@ export default function SettingsPage() {
     if (!editingProvider || !editingConfig) {
       return;
     }
-    if (!window.confirm(`确认删除自定义厂商 ${editingConfig.name} 吗？`)) {
+    if (!window.confirm(i18next.t("settings.settingsPage.avsn51", { val1: editingConfig.name }))) {
       return;
     }
     deleteCustomProviderMutation.mutate(editingProvider);

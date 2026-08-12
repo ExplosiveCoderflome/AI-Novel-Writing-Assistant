@@ -214,7 +214,7 @@ export default function ChapterEditorShell(props: ChapterEditorShellProps) {
       }
       if (action.actionType === "issue_fix") {
         if (!action.issueId) {
-          throw new Error("无法进行定位问题修复：未指定问题ID。");
+          throw new Error(i18next.t("novels.chapterEditorShell.fn8gqg"));
         }
         return previewChapterIssueFix(novelId, chapter.id, action.issueId, action.issueFixRequest);
       }
@@ -259,7 +259,7 @@ export default function ChapterEditorShell(props: ChapterEditorShellProps) {
         label = req.source === "freeform"
           ? (req.scope === "chapter" ? i18next.t("dict.gen_d6e77a91") : i18next.t("dict.gen_0bd855a0"))
           : req.presetOperation
-            ? `正在生成${CHAPTER_EDITOR_OPERATION_LABELS[req.presetOperation as ChapterEditorOperation]}方案`
+            ? i18next.t("novels.chapterEditorShell.63saad", { val1: CHAPTER_EDITOR_OPERATION_LABELS[req.presetOperation as ChapterEditorOperation] })
             : i18next.t("dict.gen_f04a616c");
         scope = req.scope;
         if (req.selection) {
@@ -548,9 +548,9 @@ export default function ChapterEditorShell(props: ChapterEditorShellProps) {
     : selection
       ? i18next.t("dict.selectedTextManually")
       : selectedDiagnosticCard?.paragraphLabel
-        ? `${selectedDiagnosticCard.paragraphLabel} 对应片段`
+        ? i18next.t("novels.chapterEditorShell.h4rb2f", { val1: selectedDiagnosticCard.paragraphLabel })
         : workspace?.recommendedTask?.paragraphLabel
-          ? `${workspace.recommendedTask.paragraphLabel} 对应片段`
+          ? i18next.t("novels.chapterEditorShell.h4rb2f", { val1: workspace.recommendedTask.paragraphLabel })
           : i18next.t("dict.gen_d4e517ac");
   const canRunSelectionRevision = Boolean(getSelectionTarget());
   const headerSaveLabel = getSaveStatusLabel(saveStatus, isDirty);
@@ -650,7 +650,7 @@ export default function ChapterEditorShell(props: ChapterEditorShellProps) {
                   <div key={snapshot.id} className="flex items-center justify-between rounded-2xl border border-border/70 p-4">
                     <div className="space-y-1">
                       <div className="font-medium text-sm">
-                        {snapshot.label || `版本记录 ${new Date(snapshot.createdAt).toLocaleTimeString()}`}
+                        {snapshot.label || i18next.t("novels.chapterEditorShell.e86ql5", { val1: new Date(snapshot.createdAt).toLocaleTimeString() })}
                       </div>
                       <div className="text-xs text-muted-foreground">
                         {snapshot.triggerType === "manual" ? "手动保存" : snapshot.triggerType === "auto_milestone" ? "里程碑自动保存" : "流水线前保存"} · {new Date(snapshot.createdAt).toLocaleString()}

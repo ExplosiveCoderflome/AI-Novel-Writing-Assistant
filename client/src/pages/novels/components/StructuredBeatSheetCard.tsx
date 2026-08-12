@@ -54,7 +54,7 @@ export default function StructuredBeatSheetCard(props: StructuredBeatSheetCardPr
   } = props;
 
   const hasExistingBeatSheet = Boolean(selectedBeatSheet);
-  const volumeTitle = selectedVolume.title?.trim() || `第${selectedVolume.sortOrder}卷`;
+  const volumeTitle = selectedVolume.title?.trim() || i18next.t("novels.outlineCurrentVolumeWorkspace.xrxl0b", { val1: selectedVolume.sortOrder });
   const volumeSummary = selectedVolume.mainPromise?.trim()
     || selectedVolume.summary?.trim()
     || "先在下方按节奏分组的章节导航里定位当前节奏，再继续细化对应章节。";
@@ -142,9 +142,9 @@ export default function StructuredBeatSheetCard(props: StructuredBeatSheetCardPr
                     </div>
 
                     <div className="grid gap-3 sm:grid-cols-3">
-                      {renderMetric("当前章节数", `${selectedVolumeChapters.length}章`)}
-                      {renderMetric("节奏段数量", `${selectedBeatSheet.beats.length}个`)}
-                      {renderMetric("已细化章节", `${refinedChapterCount}章`)}
+                      {renderMetric("当前章节数", i18next.t("novels.structuredBeatSheetCard.eczkxc", { val1: selectedVolumeChapters.length }))}
+                      {renderMetric("节奏段数量", i18next.t("novels.structuredBeatSheetCard.eczc3e", { val1: selectedBeatSheet.beats.length }))}
+                      {renderMetric("已细化章节", i18next.t("novels.structuredBeatSheetCard.eczkxc", { val1: refinedChapterCount }))}
                     </div>
                   </div>
                 )}

@@ -235,7 +235,7 @@ function DesktopBootstrapUpdatePanel({ snapshot }: { snapshot: DesktopBootstrapS
 
       <div className="mt-3 rounded-2xl border border-slate-800 bg-slate-950/60 px-4 py-3 text-sm leading-6 text-slate-300">
         {resolveUpdaterHint(updater, snapshot.state)}
-        {typeof updater.progressPercent === "number" ? ` 下载进度 ${Math.round(updater.progressPercent)}%。` : ""}
+        {typeof updater.progressPercent === "number" ? i18next.t("layout.desktopBootstrapShell.fczak0", { val1: Math.round(updater.progressPercent) }) : ""}
       </div>
 
       <div className="mt-4 flex flex-wrap gap-3">

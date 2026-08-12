@@ -1,3 +1,4 @@
+import i18next from "i18next";
 import { useEffect, useMemo, useRef, useState } from "react";
 import type {
   LlmLiveEvent,
@@ -17,7 +18,7 @@ function updateSession(
       context: event.context,
       seq: event.seq,
       phase: "requesting",
-      phaseMessage: "正在连接模型",
+      phaseMessage: i18next.t("hooks.useLlmLiveFeed.lsw6ie"),
       preview: "",
       totalChars: 0,
       startedAt: event.at,
@@ -58,7 +59,7 @@ function updateSession(
       ...current,
       seq: event.seq,
       phase: "completed",
-      phaseMessage: "模型结果已准备完成",
+      phaseMessage: i18next.t("hooks.useLlmLiveFeed.tof78k"),
       totalChars: event.totalChars,
       updatedAt: event.at,
       completedAt: event.at,
@@ -150,7 +151,7 @@ export function useLlmLiveFeed(input: {
           { signal: controller.signal },
         );
         if (!response.ok || !response.body) {
-          throw new Error("生成实况连接失败");
+          throw new Error(i18next.t("hooks.useLlmLiveFeed.25luf7"));
         }
         setConnected(true);
         const reader = response.body.getReader();

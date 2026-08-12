@@ -70,7 +70,7 @@ export default function TitleFactoryPanel({ genreTree, novels }: TitleFactoryPan
     mutationFn: async () => {
       if (mode === "novel") {
         if (!selectedNovelId) {
-          throw new Error("请先选择一个小说项目。");
+          throw new Error(i18next.t("dict.gen_bc7b49a8"));
         }
         const response = await generateNovelTitles(selectedNovelId, {
           provider: llm.provider,
@@ -99,7 +99,7 @@ export default function TitleFactoryPanel({ genreTree, novels }: TitleFactoryPan
       const next = sortSuggestions(rows);
       setSuggestions(next);
       setSelectedTitle(next[0]?.title ?? "");
-      toast.success(`已生成 ${next.length} 个标题候选。`);
+      toast.success(i18next.t("novels.novelCreateTitleQuickFill.kt8gei", { val1: next.length }));
     },
   });
 
@@ -107,14 +107,14 @@ export default function TitleFactoryPanel({ genreTree, novels }: TitleFactoryPan
     mutationFn: (suggestion: TitleFactorySuggestion) => {
       const resolvedGenreId = mode === "novel" ? selectedNovel?.genre?.id ?? null : genreId || null;
       const description = mode === "novel"
-        ? `来源项目：${selectedNovel?.title ?? "未命名项目"}`
+        ? i18next.t("titles.titleFactoryPanel.2g89cm", { val1: selectedNovel?.title ?? "未命名项目" })
         : mode === "adapt"
-          ? `参考标题：${referenceTitle.trim()}`
+          ? i18next.t("titles.titleFactoryPanel.9fytaw", { val1: referenceTitle.trim() })
           : brief.trim().slice(0, 400);
       const keywords = mode === "novel"
         ? selectedNovel?.title ?? null
         : mode === "adapt"
-          ? `改编灵感 / ${referenceTitle.trim()}`
+          ? i18next.t("titles.titleFactoryPanel.k8c1fq", { val1: referenceTitle.trim() })
           : brief.trim().slice(0, 160);
       return createTitleLibraryEntry({
         title: suggestion.title,
@@ -300,7 +300,7 @@ export default function TitleFactoryPanel({ genreTree, novels }: TitleFactoryPan
         <div className="flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
           <h3 className="text-base font-semibold text-foreground">{i18next.t("dict.gen_e995da4f")}</h3>
           <div className="text-xs text-muted-foreground">
-            {suggestions.length > 0 ? `已按点击潜力排序，共 ${suggestions.length} 个` : "结果会在生成后显示"}
+            {suggestions.length > 0 ? i18next.t("titles.titleFactoryPanel.5u8wqo", { val1: suggestions.length }) : "结果会在生成后显示"}
           </div>
         </div>
         <TitleSuggestionList
@@ -312,7 +312,7 @@ export default function TitleFactoryPanel({ genreTree, novels }: TitleFactoryPan
           onCopy={handleCopy}
           onSave={(suggestion) => saveMutation.mutate(suggestion)}
           savingTitle={saveMutation.isPending ? saveMutation.variables?.title ?? "" : ""}
-          emptyMessage={`${modeCopy.title}准备好后，点击“生成标题”查看不同命名方向。`}
+          emptyMessage={i18next.t("titles.titleFactoryPanel.5awv6e", { val1: modeCopy.title })}
         />
       </section>
     </div>

@@ -67,7 +67,7 @@ function getRecommendation(props: KnowledgeLibraryOverviewProps): Recommendation
   if (props.activeJobCount > 0) {
     return {
       action: "open_ops",
-      description: `${props.activeJobCount} 个索引任务正在执行，可查看进度；创作时优先选择已完成索引的资料。`,
+      description: i18next.t("knowledge.knowledgeLibraryOverview.e8tdx3", { val1: props.activeJobCount }),
       icon: RefreshCw,
       title: i18next.t("knowledge.knowledgeLibraryOverview.qoti8x"),
       tone: "info",
@@ -111,7 +111,7 @@ function getRecommendation(props: KnowledgeLibraryOverviewProps): Recommendation
   }
   return {
     action: "open_documents",
-    description: `${props.searchableDocumentCount} 份资料可以参与检索。可查看版本、测试召回，或选择资料继续创作。`,
+    description: i18next.t("knowledge.knowledgeLibraryOverview.5051gc", { val1: props.searchableDocumentCount }),
     icon: BookOpenCheck,
     title: i18next.t("knowledge.knowledgeLibraryOverview.y4s6zg"),
     tone: "success",

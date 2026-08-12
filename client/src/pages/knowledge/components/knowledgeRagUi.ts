@@ -38,15 +38,15 @@ export function getRagJobProgressWidth(job: RagJobSummary): string {
 }
 
 export function formatRagJobMeta(job: RagJobSummary): string {
-  const parts = [job.jobType, `尝试 ${job.attempts}/${job.maxAttempts}`];
+  const parts = [job.jobType, i18next.t("knowledge.knowledgeRagUi.cbglk8", { val1: job.attempts, val2: job.maxAttempts })];
   if (job.progress?.current !== undefined && job.progress?.total !== undefined && job.progress.total > 0) {
     parts.push(`${job.progress.current}/${job.progress.total}`);
   }
   if (job.progress?.chunks) {
-    parts.push(`${job.progress.chunks} 分块`);
+    parts.push(i18next.t("knowledge.knowledgeRagUi.k8e4u9", { val1: job.progress.chunks }));
   }
   if (job.progress?.documents) {
-    parts.push(`${job.progress.documents} 文档`);
+    parts.push(i18next.t("knowledge.knowledgeRagUi.k8hjn0", { val1: job.progress.documents }));
   }
   return parts.join(" | ");
 }

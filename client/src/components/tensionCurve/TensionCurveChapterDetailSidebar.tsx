@@ -49,7 +49,7 @@ export function TensionCurveChapterDetailSidebar(props: TensionCurveChapterDetai
           {beatLabel ? <Badge variant="outline">{beatLabel}</Badge> : null}
           {chapter.conflictLevelSource === "user" ? <Badge variant="secondary">{i18next.t("dict.gen_7d1de53a")}</Badge> : <Badge variant="outline">{i18next.t("dict.gen_f3c74370")}</Badge>}
         </div>
-        <div className="text-base font-semibold leading-6 text-foreground">{chapter.title || `第${chapter.chapterOrder}章`}</div>
+        <div className="text-base font-semibold leading-6 text-foreground">{chapter.title || i18next.t("tensionCurve.tensionCurveChapterDetailSidebar.xrxssk", { val1: chapter.chapterOrder })}</div>
         <div className="flex items-center gap-2 text-xs text-muted-foreground">
           <BookOpenText className="h-3.5 w-3.5" aria-hidden="true" />
           冲突强度 {typeof chapter.conflictLevel === "number" ? chapter.conflictLevel : i18next.t("dict.gen_75c038ec")}

@@ -84,7 +84,7 @@ export function buildSettingsReadinessItems(input: {
       title: i18next.t("settings.settingsReadinessCard.dyzk7i"),
       state: runnableProviders.length > 0 ? "ready" : "warning",
       description: runnableProviders.length > 0
-        ? `已可使用 ${runnableProviders[0].name} 进行正文与规划生成。`
+        ? i18next.t("settings.settingsReadinessCard.coub6o", { val1: runnableProviders[0].name })
         : "先配置一个可用模型，就可以开始开书和生成章节。",
     },
     {

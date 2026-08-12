@@ -122,70 +122,70 @@ function buildProductionPrompt(input: {
   const worldType = input.worldType.trim();
   const targetChapterCount = Math.max(1, Math.min(200, Math.floor(input.targetChapterCount || 20)));
   if (input.currentNovelId) {
-    const segments = [`继续生成当前小说。目标章节数：${targetChapterCount}。`];
+    const segments = [i18next.t("creativeHub.novelProductionStarterCard.xudvvj", { val1: targetChapterCount })];
     if (description) {
-      segments.push(`补充设定：${description}。`);
+      segments.push(i18next.t("creativeHub.novelProductionStarterCard.8pa3n0", { val1: description }));
     }
     if (genre) {
-      segments.push(`题材偏好：${genre}。`);
+      segments.push(i18next.t("creativeHub.novelProductionStarterCard.m8s0u6", { val1: genre }));
     }
     if (styleTone) {
-      segments.push(`风格基调：${styleTone}。`);
+      segments.push(i18next.t("creativeHub.novelProductionStarterCard.uy7h2n", { val1: styleTone }));
     }
     if (narrativePov) {
-      segments.push(`叙事视角：${narrativePov}。`);
+      segments.push(i18next.t("creativeHub.novelProductionStarterCard.z32jqi", { val1: narrativePov }));
     }
     if (pacePreference) {
-      segments.push(`推进节奏：${pacePreference}。`);
+      segments.push(i18next.t("creativeHub.novelProductionStarterCard.2hh4zs", { val1: pacePreference }));
     }
     if (projectMode) {
-      segments.push(`协作模式：${projectMode}。`);
+      segments.push(i18next.t("creativeHub.novelProductionStarterCard.4ow7hv", { val1: projectMode }));
     }
     if (emotionIntensity) {
-      segments.push(`情绪强度：${emotionIntensity}。`);
+      segments.push(i18next.t("creativeHub.novelProductionStarterCard.b6n8k7", { val1: emotionIntensity }));
     }
     if (aiFreedom) {
-      segments.push(`AI 自由度：${aiFreedom}。`);
+      segments.push(i18next.t("creativeHub.novelProductionStarterCard.xwtqyp", { val1: aiFreedom }));
     }
     if (defaultChapterLength) {
-      segments.push(`默认章长：约 ${defaultChapterLength} 字。`);
+      segments.push(i18next.t("creativeHub.novelProductionStarterCard.galdn6", { val1: defaultChapterLength }));
     }
     if (worldType) {
-      segments.push(`世界观类型偏好：${worldType}。`);
+      segments.push(i18next.t("creativeHub.novelProductionStarterCard.62eyrm", { val1: worldType }));
     }
     return segments.join("");
   }
   const title = input.title.trim();
-  const segments = [`创建一本${targetChapterCount}章小说《${title}》，并开始整本生成。`];
+  const segments = [i18next.t("creativeHub.novelProductionStarterCard.p7xtau", { val1: targetChapterCount, val2: title })];
   if (description) {
-    segments.push(`简介：${description}。`);
+    segments.push(i18next.t("creativeHub.novelProductionStarterCard.8bjbsz", { val1: description }));
   }
   if (genre) {
-    segments.push(`题材：${genre}。`);
+    segments.push(i18next.t("creativeHub.novelProductionStarterCard.h7t1lc", { val1: genre }));
   }
   if (styleTone) {
-    segments.push(`风格基调：${styleTone}。`);
+    segments.push(i18next.t("creativeHub.novelProductionStarterCard.uy7h2n", { val1: styleTone }));
   }
   if (narrativePov) {
-    segments.push(`叙事视角：${narrativePov}。`);
+    segments.push(i18next.t("creativeHub.novelProductionStarterCard.z32jqi", { val1: narrativePov }));
   }
   if (pacePreference) {
-    segments.push(`推进节奏：${pacePreference}。`);
+    segments.push(i18next.t("creativeHub.novelProductionStarterCard.2hh4zs", { val1: pacePreference }));
   }
   if (projectMode) {
-    segments.push(`协作模式：${projectMode}。`);
+    segments.push(i18next.t("creativeHub.novelProductionStarterCard.4ow7hv", { val1: projectMode }));
   }
   if (emotionIntensity) {
-    segments.push(`情绪强度：${emotionIntensity}。`);
+    segments.push(i18next.t("creativeHub.novelProductionStarterCard.b6n8k7", { val1: emotionIntensity }));
   }
   if (aiFreedom) {
-    segments.push(`AI 自由度：${aiFreedom}。`);
+    segments.push(i18next.t("creativeHub.novelProductionStarterCard.xwtqyp", { val1: aiFreedom }));
   }
   if (defaultChapterLength) {
-    segments.push(`默认章长：约 ${defaultChapterLength} 字。`);
+    segments.push(i18next.t("creativeHub.novelProductionStarterCard.galdn6", { val1: defaultChapterLength }));
   }
   if (worldType) {
-    segments.push(`世界观类型：${worldType}。`);
+    segments.push(i18next.t("creativeHub.novelProductionStarterCard.nxp910", { val1: worldType }));
   }
   return segments.join("");
 }
@@ -324,7 +324,7 @@ export default function NovelProductionStarterCard({
       <div className="space-y-3">
         <div className="rounded-md border border-info/25 bg-info/5 px-3 py-2 text-xs text-muted-foreground">
           {isContinueMode
-            ? `当前将继续生产《${resolvedTitle || "当前小说"}》。`
+            ? i18next.t("creativeHub.novelProductionStarterCard.wut6hj", { val1: resolvedTitle || "当前小说" })
             : "当前处于全局模式，可直接创建新书并启动整本生产。"}
         </div>
         <div className="rounded-md border border-dashed border-border bg-background px-3 py-2 text-xs leading-5 text-muted-foreground">{i18next.t("creativeHub.novelProductionStarterCard.749p3x")}</div>
@@ -342,7 +342,7 @@ export default function NovelProductionStarterCard({
             compact
             tone="danger"
             title={i18next.t("creativeHub.novelProductionStarterCard.brg3d0")}
-            description={`${detailErrorMessage} 请重新读取后再启动整本生产。`}
+            description={i18next.t("creativeHub.novelProductionStarterCard.fz7zxh", { val1: detailErrorMessage })}
             action={(
               <Button
                 type="button"

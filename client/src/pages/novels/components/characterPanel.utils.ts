@@ -58,23 +58,23 @@ export function buildCharacterProfileFromWizard(payload: QuickCharacterCreatePay
     .filter((item) => item.length > 0);
   const keywordText = keywordList.length > 0 ? keywordList.join("、") : i18next.t("dict.gen_a0a7859f");
 
-  const personality = `核心特征：${keywordText}`;
+  const personality = i18next.t("novels.characterPanel.utils.8alrxz", { val1: keywordText });
   const background = joinSegments([
-    payload.relationToProtagonist ? `与主角关系：${payload.relationToProtagonist}` : "",
-    payload.storyFunction ? `故事作用：${payload.storyFunction}` : "",
+    payload.relationToProtagonist ? i18next.t("novels.characterPanel.utils.7evww3", { val1: payload.relationToProtagonist }) : "",
+    payload.storyFunction ? i18next.t("novels.characterPanel.utils.wvdzh4", { val1: payload.storyFunction }) : "",
   ]);
   const development = joinSegments([
-    payload.storyFunction ? `角色成长主轴：围绕“${payload.storyFunction}”推进。` : "",
-    keywordList.length > 0 ? `潜在冲突点：${keywordList.slice(0, 3).join("、")}` : "",
-    keywordList.length > 0 ? `可埋伏笔点：${keywordList.slice(-2).join("、")}` : "",
-    keywordList.length > 0 ? `说话风格建议：偏向${keywordList[0]}语气。` : "",
+    payload.storyFunction ? i18next.t("novels.characterPanel.utils.1hzq6j", { val1: payload.storyFunction }) : "",
+    keywordList.length > 0 ? i18next.t("novels.characterPanel.utils.iwjbn8", { val1: keywordList.slice(0, 3).join("、") }) : "",
+    keywordList.length > 0 ? i18next.t("novels.characterPanel.utils.hmgufm", { val1: keywordList.slice(-2).join("、") }) : "",
+    keywordList.length > 0 ? i18next.t("novels.characterPanel.utils.1x6hdy", { val1: keywordList[0] }) : "",
   ]);
 
   return {
     personality: personality || undefined,
     background: background || undefined,
     development: development || undefined,
-    currentState: payload.relationToProtagonist ? `关系推进中（${payload.relationToProtagonist}）` : i18next.t("dict.gen_eeef0952"),
+    currentState: payload.relationToProtagonist ? i18next.t("novels.characterPanel.utils.xp68u5", { val1: payload.relationToProtagonist }) : i18next.t("dict.gen_eeef0952"),
     currentGoal: payload.storyFunction || i18next.t("dict.gen_2c85cc64"),
   };
 }

@@ -53,10 +53,10 @@ function getWorkspaceGuidance(params: {
   if (selectedBeat) {
     const beatLabel = formatBeatDisplayLabel(selectedBeat);
     return selectedChapter
-      ? `已聚焦到「${beatLabel}」，当前显示 ${visibleChapterCount} 章，右侧正在细化第 ${selectedChapter.chapterOrder} 章。`
-      : `已聚焦到「${beatLabel}」，当前显示 ${visibleChapterCount} 章，接下来在左侧选择要细化的章节。`;
+      ? i18next.t("novels.structuredOutlineWorkspace.niaoux", { val1: beatLabel, val2: visibleChapterCount, val3: selectedChapter.chapterOrder })
+      : i18next.t("novels.structuredOutlineWorkspace.4wa12h", { val1: beatLabel, val2: visibleChapterCount });
   }
-  return `当前展示本卷全部 ${totalChapterCount} 章。建议先点一个节奏段，让系统把对应章节收束出来，再开始细化。`;
+  return i18next.t("novels.structuredOutlineWorkspace.cfv2fr", { val1: totalChapterCount });
 }
 
 function chapterMatchesSelection(chapter: StructuredChapter, selectedId: string): boolean {
@@ -215,7 +215,7 @@ export default function StructuredOutlineWorkspace(props: StructuredTabViewProps
       points: selectedVolumeChapters.map((chapter) => ({
         id: chapter.id,
         chapterOrder: chapter.chapterOrder,
-        title: chapter.title || `第${chapter.chapterOrder}章`,
+        title: chapter.title || i18next.t("tensionCurve.tensionCurveChapterDetailSidebar.xrxssk", { val1: chapter.chapterOrder }),
         value: typeof chapter.conflictLevel === "number" ? chapter.conflictLevel : null,
         source: chapter.conflictLevelSource ?? "ai",
         beatKey: findChapterBeat(chapter, selectedBeatSheet, selectedVolumeChapters)?.key ?? null,
@@ -328,7 +328,7 @@ export default function StructuredOutlineWorkspace(props: StructuredTabViewProps
             chapterId: chapter.chapterId,
             chapterOrder: chapter.chapterOrder,
             beatKey: findChapterBeat(chapter, selectedBeatSheet, selectedVolumeChapters)?.key ?? null,
-            title: chapter.title || `第${chapter.chapterOrder}章`,
+            title: chapter.title || i18next.t("tensionCurve.tensionCurveChapterDetailSidebar.xrxssk", { val1: chapter.chapterOrder }),
             summary: chapter.summary,
             purpose: chapter.purpose,
             exclusiveEvent: chapter.exclusiveEvent,
@@ -406,7 +406,7 @@ export default function StructuredOutlineWorkspace(props: StructuredTabViewProps
                       <Badge variant={isSelected ? "default" : "outline"}>第{volume.sortOrder}卷</Badge>
                       {volumeBeatSheet ? <Badge variant="secondary">{i18next.t("dict.gen_39ecb71d")}</Badge> : <Badge variant="outline">{i18next.t("dict.gen_fc79de31")}</Badge>}
                     </div>
-                    <div className="mt-2 line-clamp-1 text-sm font-medium">{volume.title || `第${volume.sortOrder}卷`}</div>
+                    <div className="mt-2 line-clamp-1 text-sm font-medium">{volume.title || i18next.t("novels.outlineCurrentVolumeWorkspace.xrxl0b", { val1: volume.sortOrder })}</div>
                     <div className="mt-1 line-clamp-2 text-xs text-muted-foreground">
                       {volume.mainPromise || volume.summary || "先补这卷的核心承诺。"}
                     </div>

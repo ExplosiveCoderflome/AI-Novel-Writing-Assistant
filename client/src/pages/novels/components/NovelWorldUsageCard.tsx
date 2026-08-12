@@ -210,17 +210,17 @@ export function NovelWorldUsageSummary(props: NovelWorldUsageCardProps & {
         <MetricItem label={i18next.t("novels.novelWorldUsageCard.c33m5")} value={primaryLocation} detail={props.view?.worldName ?? "等待本书世界"} />
         <MetricItem
           label={i18next.t("dict.gen_26f05301")}
-          value={`${slice?.activeForces.length ?? 0} 个`}
+          value={i18next.t("novels.novelWorldUsageCard.ize8my", { val1: slice?.activeForces.length ?? 0 })}
           detail={namesLine(slice?.activeForces ?? [], "整理后显示")}
         />
         <MetricItem
           label={i18next.t("dict.gen_3fd96627")}
-          value={`${slice?.activeLocations.length ?? 0} 处`}
+          value={i18next.t("novels.novelWorldUsageCard.izeas4", { val1: slice?.activeLocations.length ?? 0 })}
           detail={namesLine(slice?.activeLocations ?? [], "整理后显示")}
         />
         <MetricItem
           label={i18next.t("novels.novelWorldUsageCard.iav5t")}
-          value={`${slice?.appliedRules.length ?? 0} 条`}
+          value={i18next.t("autoDirector.aICockpit.izedm9", { val1: slice?.appliedRules.length ?? 0 })}
           detail={namesLine(slice?.appliedRules ?? [], "整理后显示")}
         />
       </div>

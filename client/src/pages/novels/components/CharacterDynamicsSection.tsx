@@ -209,14 +209,14 @@ export default function CharacterDynamicsSection(props: CharacterDynamicsSection
                       <div className="text-xs text-muted-foreground">{item.role}</div>
                     </div>
                     <Badge className={riskTone(item.absenceRisk)} variant="outline">
-                      {item.absenceRisk === "none" ? i18next.t("dict.gen_43307462") : `风险 ${item.absenceRisk}`}
+                      {item.absenceRisk === "none" ? i18next.t("dict.gen_43307462") : i18next.t("novels.characterDynamicsSection.zgtk5x", { val1: item.absenceRisk })}
                     </Badge>
                   </div>
                   <div className="mt-3 space-y-1 text-xs text-muted-foreground">
                     <div>{i18next.t("dict.gen_83f6ee67")}</div>
                     <div>{i18next.t("dict.gen_f3bc1482")}</div>
                     <div>{i18next.t("dict.gen_895e8e81")}</div>
-                    {item.factionLabel ? <div>阵营：{item.factionLabel}{item.stanceLabel ? ` | 立场：${item.stanceLabel}` : ""}</div> : null}
+                    {item.factionLabel ? <div>阵营：{item.factionLabel}{item.stanceLabel ? i18next.t("novels.characterDynamicsSection.f4iz7b", { val1: item.stanceLabel }) : ""}</div> : null}
                   </div>
                 </button>
               ))}
@@ -278,10 +278,10 @@ export default function CharacterDynamicsSection(props: CharacterDynamicsSection
                     <div>
                       <div className="font-medium">{candidate.proposedName}</div>
                       <div className="text-xs text-muted-foreground">
-                        {candidate.proposedRole || i18next.t("dict.gen_9c749289")}{typeof candidate.sourceChapterOrder === "number" ? ` | 来源第 ${candidate.sourceChapterOrder} 章` : ""}
+                        {candidate.proposedRole || i18next.t("dict.gen_9c749289")}{typeof candidate.sourceChapterOrder === "number" ? i18next.t("novels.characterDynamicsSection.a7n9rh", { val1: candidate.sourceChapterOrder }) : ""}
                       </div>
                     </div>
-                    <Badge variant="outline">{typeof candidate.confidence === "number" ? `置信度 ${Math.round(candidate.confidence * 100)}%` : i18next.t("dict.gen_2a2772fa")}</Badge>
+                    <Badge variant="outline">{typeof candidate.confidence === "number" ? i18next.t("novels.characterDynamicsSection.ngnso8", { val1: Math.round(candidate.confidence * 100) }) : i18next.t("dict.gen_2a2772fa")}</Badge>
                   </div>
                   {candidate.summary ? <div className="mt-3 text-sm text-muted-foreground">{candidate.summary}</div> : null}
                   {candidate.evidence.length > 0 ? (
@@ -305,7 +305,7 @@ export default function CharacterDynamicsSection(props: CharacterDynamicsSection
                       onClick={() => mergeMutation.mutate(candidate.id)}
                       disabled={mergeMutation.isPending || !selectedCharacterId}
                     >
-                      {mergeMutation.isPending ? i18next.t("dict.gen_d5df67d6") : selectedCharacterId ? `并入当前焦点` : i18next.t("dict.gen_56c0a651")}
+                      {mergeMutation.isPending ? i18next.t("dict.gen_d5df67d6") : selectedCharacterId ? i18next.t("novels.characterDynamicsSection.aynmas") : i18next.t("dict.gen_56c0a651")}
                     </Button>
                   </div>
                 </div>
@@ -354,7 +354,7 @@ export default function CharacterDynamicsSection(props: CharacterDynamicsSection
                       <div className="flex flex-wrap gap-2">
                         {assignment?.isCore ? <Badge variant="secondary">{i18next.t("dict.gen_08c47b72")}</Badge> : null}
                         <Badge className={riskTone(item.absenceRisk)} variant="outline">
-                          {item.absenceRisk === "none" ? i18next.t("dict.gen_d6692f37") : `缺席 ${item.absenceSpan} 章`}
+                          {item.absenceRisk === "none" ? i18next.t("dict.gen_d6692f37") : i18next.t("novels.characterDynamicsSection.zh7qil", { val1: item.absenceSpan })}
                         </Badge>
                       </div>
                     </div>

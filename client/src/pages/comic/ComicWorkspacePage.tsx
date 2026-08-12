@@ -528,7 +528,7 @@ export default function ComicWorkspacePage() {
     if (querySourceType === "novel_import" && querySourceRef) {
       const decodedTitle = queryNovelTitle ? decodeURIComponent(queryNovelTitle) : "";
       setDefaultWizardValues({
-        title: decodedTitle ? `${decodedTitle}（漫画改编）` : "漫画改编项目",
+        title: decodedTitle ? i18next.t("comic.comicWorkspacePage.shl124", { val1: decodedTitle }) : "漫画改编项目",
         sourceType: "novel_import",
         sourceRef: querySourceRef,
       });

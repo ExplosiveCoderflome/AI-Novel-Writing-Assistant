@@ -106,7 +106,7 @@ export function PromptEditorShell(props: PromptEditorShellProps) {
                 "rounded-md px-2 py-1",
                 prompt.slotSupported ? "bg-[#e8f7f2] text-[#0f766e]" : "bg-muted text-muted-foreground",
               )}>
-                {prompt.slotSupported ? `${prompt.slots.length} 个槽位` : i18next.t("dict.gen_72d0cd0d")}
+                {prompt.slotSupported ? i18next.t("promptWorkbench.promptEditorShell.c2b2hi", { val1: prompt.slots.length }) : i18next.t("dict.gen_72d0cd0d")}
               </span>
               {capabilities.map((label) => (
                 <span key={label} className="rounded-md bg-white/80 px-2 py-1 text-[#52606d] ring-1 ring-[#dfe7ee]">

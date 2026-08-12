@@ -56,7 +56,7 @@ function formatResumeFrom(resumeFrom?: string | null): string {
     const rawOrder = resumeFrom.slice("chapter:".length).trim();
     const order = Number(rawOrder);
     if (Number.isFinite(order) && order > 0) {
-      return `第 ${order} 章`;
+      return i18next.t("autoDirector.directorRuntimeProjectionCard.vms598", { val1: order });
     }
   }
   return resumeFrom.replace(/_/g, " ").trim() || resumeFrom;

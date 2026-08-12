@@ -49,7 +49,7 @@ export function getDesktopUpdaterHint(updater: DesktopUpdaterSnapshot): string {
     case "checking":
       return i18next.t("layout.desktopUpdaterPresentation.yl4h85");
     case "update-available":
-      return `${formatDesktopVersion(updater.availableVersion ?? "新版本")} 可用，下载期间可以继续使用应用。`;
+      return i18next.t("layout.desktopUpdaterPresentation.gebzkx", { val1: formatDesktopVersion(updater.availableVersion ?? "新版本") });
     case "downloading":
       return i18next.t("layout.desktopUpdaterPresentation.lxenzk");
     case "downloaded":
@@ -74,5 +74,5 @@ export function getDesktopInstallModeLabel(updater: DesktopUpdaterSnapshot): str
 }
 
 export function getDesktopChannelLabel(channel: string): string {
-  return channel === "beta" ? "测试通道" : channel === "latest" ? "稳定通道" : `${channel} 通道`;
+  return channel === "beta" ? "测试通道" : channel === "latest" ? "稳定通道" : i18next.t("layout.desktopUpdaterPresentation.k8p089", { val1: channel });
 }

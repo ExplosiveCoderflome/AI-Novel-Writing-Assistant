@@ -1,3 +1,4 @@
+import i18next from "i18next";
 import { useState, useMemo, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Image as ImageIcon } from "lucide-react";
@@ -41,10 +42,10 @@ export default function ImageModelSelector({ compact = true, className }: ImageM
       .map((p) => ({ value: p.provider, label: p.displayName ?? p.name }));
 
     if (!list.some((p) => p.value === "comfyui")) {
-      list.unshift({ value: "comfyui", label: "ComfyUI 引擎 (FLUX.1 本地模型)" });
+      list.unshift({ value: "comfyui", label: i18next.t("common.imageModelSelector.kuc2hs") });
     }
     if (!list.some((p) => p.value === "sensenova")) {
-      list.push({ value: "sensenova", label: "SenseNova (离线引擎)" });
+      list.push({ value: "sensenova", label: i18next.t("common.imageModelSelector.r6zsie") });
     }
     return list;
   }, [apiKeysRes]);
@@ -78,7 +79,7 @@ export default function ImageModelSelector({ compact = true, className }: ImageM
       <Select value={resolvedValue} onValueChange={handleSelect}>
         <SelectTrigger className={cn("h-9 border-input bg-background font-normal text-xs gap-1.5", compact && "w-[170px]")}>
           <ImageIcon className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
-          <SelectValue placeholder="选择文生图模型" />
+          <SelectValue placeholder={i18next.t("common.imageModelSelector.3jnqsw")} />
         </SelectTrigger>
         <SelectContent align="end">
           {providerOptions.map((opt) => (

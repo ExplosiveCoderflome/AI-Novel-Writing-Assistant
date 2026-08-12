@@ -24,9 +24,9 @@ export default function AppVersionBadge({ className }: AppVersionBadgeProps) {
     const label = isDownloaded
       ? "重启更新"
       : isAvailable
-        ? `可更新 ${formatDesktopVersion(updater.availableVersion ?? "")}`
+        ? i18next.t("layout.appVersionBadge.sv97wl", { val1: formatDesktopVersion(updater.availableVersion ?? "") })
         : isDownloading
-          ? `更新 ${Math.round(updater.progressPercent ?? 0)}%`
+          ? i18next.t("layout.appVersionBadge.vlp7o1", { val1: Math.round(updater.progressPercent ?? 0) })
           : isChecking
             ? "检查更新"
             : currentDesktopVersion;
@@ -45,7 +45,7 @@ export default function AppVersionBadge({ className }: AppVersionBadgeProps) {
               className,
             )}
             title={i18next.t("layout.appVersionBadge.8t8yvb")}
-            aria-label={`打开版本与更新，${label}`}
+            aria-label={i18next.t("layout.appVersionBadge.b25alf", { val1: label })}
           >
             {Icon ? <Icon className={cn("h-3 w-3", isChecking && "animate-spin")} aria-hidden="true" /> : null}
             {label}
@@ -62,8 +62,8 @@ export default function AppVersionBadge({ className }: AppVersionBadgeProps) {
         "shrink-0 rounded-md border border-border/70 bg-muted/60 px-1.5 py-0.5 text-[10px] font-medium leading-none text-muted-foreground",
         className,
       )}
-      title={`当前版本 ${versionLabel}`}
-      aria-label={`当前版本 ${versionLabel}`}
+      title={i18next.t("layout.appVersionBadge.6juxqq", { val1: versionLabel })}
+      aria-label={i18next.t("layout.appVersionBadge.6juxqq", { val1: versionLabel })}
     >
       {versionLabel}
     </span>

@@ -182,7 +182,7 @@ export function useWritingFormulaCreateFlow({
       }
       resetCreateFlow();
       void refreshStyleData().then(() => {
-        onAutoSavedProfileReady(profileId, `写法“${profileName}”已自动保存，已经为你打开当前写法编辑。`);
+        onAutoSavedProfileReady(profileId, i18next.t("writingFormula.useWritingFormulaCreateFlow.wej6b", { val1: profileName }));
       });
       return;
     }
@@ -212,7 +212,7 @@ export function useWritingFormulaCreateFlow({
       }
       resetCreateFlow();
       await refreshStyleData();
-      onImmediateProfileCreated(profile, `写法“${profile.name}”已经创建，可以继续补规则、试写或绑定到目标。`);
+      onImmediateProfileCreated(profile, i18next.t("writingFormula.useWritingFormulaCreateFlow.ljf05q", { val1: profile.name }));
     },
   });
 
@@ -232,7 +232,7 @@ export function useWritingFormulaCreateFlow({
       }
       resetCreateFlow();
       await refreshStyleData();
-      onImmediateProfileCreated(profile, `写法“${profile.name}”已经生成，可以继续补规则、试写或绑定到目标。`);
+      onImmediateProfileCreated(profile, i18next.t("writingFormula.useWritingFormulaCreateFlow.jwncdc", { val1: profile.name }));
     },
   });
 
@@ -245,7 +245,7 @@ export function useWritingFormulaCreateFlow({
       }
       resetCreateFlow();
       await refreshStyleData();
-      onImmediateProfileCreated(profile, `模板写法“${profile.name}”已经创建，可以继续补规则、试写或绑定到目标。`);
+      onImmediateProfileCreated(profile, i18next.t("writingFormula.useWritingFormulaCreateFlow.lp4pro", { val1: profile.name }));
     },
   });
 
@@ -309,7 +309,7 @@ export function useWritingFormulaCreateFlow({
       }
       resetCreateFlow();
       await refreshStyleData();
-      onImmediateProfileCreated(profile, `写法“${profile.name}”来自拆书结果，你可以继续检查规则、试写，或绑定到目标。`);
+      onImmediateProfileCreated(profile, i18next.t("writingFormula.useWritingFormulaCreateFlow.5agrjg", { val1: profile.name }));
     },
   });
 

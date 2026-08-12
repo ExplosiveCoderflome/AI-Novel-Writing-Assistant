@@ -90,7 +90,7 @@ export function PromptRunBar(props: PromptRunBarProps) {
               "font-semibold",
               saveError ? "text-destructive" : isSaveSuccess ? "text-[#0f766e]" : "text-[#7a5620]",
             )}>
-              {saveError ? "保存失败" : isSaveSuccess ? "已保存" : dirtyCount > 0 ? `${dirtyCount} 个未保存` : "无未保存修改"}
+              {saveError ? "保存失败" : isSaveSuccess ? "已保存" : dirtyCount > 0 ? i18next.t("promptWorkbench.promptRunBar.iud5th", { val1: dirtyCount }) : "无未保存修改"}
             </div>
           </div>
           {saveError ? <div className="text-xs text-destructive">{saveError}</div> : null}

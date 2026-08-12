@@ -96,7 +96,7 @@ export function getNovelLeadSummary(novel: HomeNovelItem): string {
     return novel.description.trim();
   }
   if (novel.world?.name) {
-    return `当前项目绑定世界观「${novel.world.name}」，可以继续创作。`;
+    return i18next.t("home.homeViewModel.5kd5ry", { val1: novel.world.name });
   }
   return i18next.t("dict.gen_93364b21");
 }
@@ -132,7 +132,7 @@ export function buildHomeNextAction(primaryNovel: HomeNovelItem | null): HomeNex
     return {
       kind: "novel",
       eyebrow: i18next.t("dict.gen_9ff48c30"),
-      title: `恢复《${primaryNovel.title}》的章节执行`,
+      title: i18next.t("home.homeViewModel.e6nfe7", { val1: primaryNovel.title }),
       description: getNovelLeadSummary(primaryNovel),
       reason: i18next.t("dict.gen_036b9ab0"),
       tone: "danger",
@@ -142,7 +142,7 @@ export function buildHomeNextAction(primaryNovel: HomeNovelItem | null): HomeNex
     return {
       kind: "novel",
       eyebrow: i18next.t("dict.gen_9ff48c30"),
-      title: `确认《${primaryNovel.title}》的书级方向`,
+      title: i18next.t("home.homeViewModel.q2wtqu", { val1: primaryNovel.title }),
       description: getNovelLeadSummary(primaryNovel),
       reason: i18next.t("dict.gen_c2813e84"),
       tone: "warning",
@@ -152,7 +152,7 @@ export function buildHomeNextAction(primaryNovel: HomeNovelItem | null): HomeNex
     return {
       kind: "novel",
       eyebrow: i18next.t("dict.gen_9ff48c30"),
-      title: `继续《${primaryNovel.title}》的自动导演`,
+      title: i18next.t("home.homeViewModel.y0gzur", { val1: primaryNovel.title }),
       description: getNovelLeadSummary(primaryNovel),
       reason: i18next.t("dict.gen_7aa3fedb"),
       tone: "warning",
@@ -162,7 +162,7 @@ export function buildHomeNextAction(primaryNovel: HomeNovelItem | null): HomeNex
     return {
       kind: "novel",
       eyebrow: i18next.t("dict.gen_daf87615"),
-      title: `关注《${primaryNovel.title}》的后台进度`,
+      title: i18next.t("home.homeViewModel.n4foq3", { val1: primaryNovel.title }),
       description: getNovelLeadSummary(primaryNovel),
       reason: i18next.t("dict.gen_e3f5c26f"),
       tone: "info",
@@ -172,7 +172,7 @@ export function buildHomeNextAction(primaryNovel: HomeNovelItem | null): HomeNex
     return {
       kind: "novel",
       eyebrow: i18next.t("dict.gen_9ff48c30"),
-      title: `进入《${primaryNovel.title}》的章节执行`,
+      title: i18next.t("home.homeViewModel.z2cuz4", { val1: primaryNovel.title }),
       description: getNovelLeadSummary(primaryNovel),
       reason: i18next.t("dict.gen_c69fb4b4"),
       tone: "success",
@@ -182,7 +182,7 @@ export function buildHomeNextAction(primaryNovel: HomeNovelItem | null): HomeNex
     return {
       kind: "novel",
       eyebrow: i18next.t("onboarding.needsAction"),
-      title: `查看《${primaryNovel.title}》的推进状态`,
+      title: i18next.t("home.homeViewModel.tb2nez", { val1: primaryNovel.title }),
       description: getNovelLeadSummary(primaryNovel),
       reason: i18next.t("dict.gen_9c5e9796"),
       tone: "danger",
@@ -191,7 +191,7 @@ export function buildHomeNextAction(primaryNovel: HomeNovelItem | null): HomeNex
   return {
     kind: "novel",
     eyebrow: i18next.t("dict.gen_9ff48c30"),
-    title: `继续编辑《${primaryNovel.title}》`,
+    title: i18next.t("home.homeViewModel.ob2k5q", { val1: primaryNovel.title }),
     description: getNovelLeadSummary(primaryNovel),
     reason: i18next.t("dict.gen_083bfa9b"),
     tone: "neutral",
@@ -264,7 +264,7 @@ export function buildHomeAttentionItems(input: {
   if (failedTaskCount > 0 || recoveryCandidateCount > 0) {
     items.push({
       id: "task-recovery",
-      title: failedTaskCount > 0 ? `${failedTaskCount} 个后台任务失败` : `${recoveryCandidateCount} 个任务可恢复`,
+      title: failedTaskCount > 0 ? i18next.t("home.homeViewModel.xdqbqu", { val1: failedTaskCount }) : i18next.t("home.homeViewModel.iwmnqe", { val1: recoveryCandidateCount }),
       description: i18next.t("dict.gen_6b7dbd6f"),
       tone: failedTaskCount > 0 ? "danger" : "warning",
       to: "/tasks",
@@ -274,7 +274,7 @@ export function buildHomeAttentionItems(input: {
   if (actionRequiredCount > 0 || waitingApprovalCount > 0) {
     items.push({
       id: "workflow-action-required",
-      title: `${Math.max(actionRequiredCount, waitingApprovalCount)} 个创作流程等待处理`,
+      title: i18next.t("home.homeViewModel.ajzsil", { val1: Math.max(actionRequiredCount, waitingApprovalCount) }),
       description: i18next.t("dict.gen_3f382d26"),
       tone: "warning",
       to: "/auto-director/follow-ups",
@@ -284,7 +284,7 @@ export function buildHomeAttentionItems(input: {
   if (readyForExecutionCount > 0) {
     items.push({
       id: "chapter-ready",
-      title: `${readyForExecutionCount} 个项目可进入章节执行`,
+      title: i18next.t("home.homeViewModel.pzq6cv", { val1: readyForExecutionCount }),
       description: i18next.t("dict.gen_4b9e5601"),
       tone: "success",
     });
@@ -292,7 +292,7 @@ export function buildHomeAttentionItems(input: {
   if (runningCount > 0) {
     items.push({
       id: "running-tasks",
-      title: `${runningCount} 个任务处理中`,
+      title: i18next.t("home.homeViewModel.ivskwl", { val1: runningCount }),
       description: i18next.t("dict.gen_758ac9f9"),
       tone: "info",
       to: "/tasks",

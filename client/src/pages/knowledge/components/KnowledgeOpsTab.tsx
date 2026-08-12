@@ -29,23 +29,23 @@ interface KnowledgeOpsTabProps {
 const FINISHED_RAG_JOB_STATUSES = new Set<RagJobSummary["status"]>(["succeeded", "failed", "cancelled"]);
 
 const OWNER_LABELS: Record<string, string> = {
-  novel: "小说资料",
-  chapter: "章节正文",
-  world: "本书世界",
-  world_library_item: "世界样本",
-  character: "角色资料",
-  character_timeline: "角色经历",
-  bible: "创作设定",
-  chapter_summary: "章节摘要",
-  consistency_fact: "连续性资料",
-  knowledge_document: "知识资料",
-  chat_message: "创作对话",
+  novel: i18next.t("knowledge.knowledgeOpsTab.c76nve"),
+  chapter: i18next.t("dict.gen_a90e9b2a"),
+  world: i18next.t("novels.novelWorldManagerCard.dcc10w"),
+  world_library_item: i18next.t("dict.worldSample"),
+  character: i18next.t("knowledge.knowledgeOpsTab.hxkud1"),
+  character_timeline: i18next.t("knowledge.knowledgeOpsTab.hxia9j"),
+  bible: i18next.t("knowledge.knowledgeOpsTab.ap3vnh"),
+  chapter_summary: i18next.t("novels.structuredChapterDetailCard.g1jex7"),
+  consistency_fact: i18next.t("knowledge.knowledgeOpsTab.aotc0d"),
+  knowledge_document: i18next.t("knowledge.knowledgeOpsTab.fpjuae"),
+  chat_message: i18next.t("knowledge.knowledgeOpsTab.aow0o5"),
 };
 
 const JOB_TYPE_LABELS: Record<string, string> = {
-  upsert: "更新检索内容",
-  rebuild: "重新建立索引",
-  delete: "移除检索内容",
+  upsert: i18next.t("knowledge.knowledgeOpsTab.xly7zm"),
+  rebuild: i18next.t("knowledge.knowledgeOpsTab.udnwu1"),
+  delete: i18next.t("knowledge.knowledgeOpsTab.qs7ugx"),
 };
 
 function canDeleteRagJob(job: RagJobSummary): boolean {
@@ -153,7 +153,7 @@ export default function KnowledgeOpsTab({
             disabled={isClearingJobs || finishedJobCount === 0}
           >
             <Trash2 className="h-4 w-4" />
-            {isClearingJobs ? "清理中..." : `清理记录 ${finishedJobCount}`}
+            {isClearingJobs ? "清理中..." : i18next.t("knowledge.knowledgeOpsTab.eszdhm", { val1: finishedJobCount })}
           </Button>
         </div>
 

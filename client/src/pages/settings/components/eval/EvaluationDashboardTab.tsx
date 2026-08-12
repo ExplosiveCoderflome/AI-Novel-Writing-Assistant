@@ -1,3 +1,4 @@
+import i18next from "i18next";
 import React from "react";
 import { Award, Zap, ShieldCheck, FileText, Image as ImageIcon, Volume2, Search, Cpu } from "lucide-react";
 import type { DiscoveredModelItem, SystemHardwareSpec } from "@/api/eval";
@@ -12,7 +13,7 @@ export default function EvaluationDashboardTab({ hardware, discoveredModels, onA
   const capabilityCards = [
     {
       capability: "text-gen",
-      title: "LLM 文本生成",
+      title: i18next.t("settings.evaluationDashboardTab.hs1pjd"),
       icon: FileText,
       color: "from-indigo-500/20 to-purple-500/20 border-indigo-500/40 text-indigo-300",
       topModel: "ollama / muse-glimmer-30b",
@@ -21,7 +22,7 @@ export default function EvaluationDashboardTab({ hardware, discoveredModels, onA
     },
     {
       capability: "embedding",
-      title: "文本嵌入模型",
+      title: i18next.t("settings.evaluationDashboardTab.71dh48"),
       icon: Search,
       color: "from-cyan-500/20 to-blue-500/20 border-cyan-500/40 text-cyan-300",
       topModel: "bge-large-zh-v1.5",
@@ -30,7 +31,7 @@ export default function EvaluationDashboardTab({ hardware, discoveredModels, onA
     },
     {
       capability: "image-gen",
-      title: "图像生成 (ComfyUI)",
+      title: i18next.t("settings.createTestCaseModal.2hf0s5"),
       icon: ImageIcon,
       color: "from-purple-500/20 to-pink-500/20 border-purple-500/40 text-purple-300",
       topModel: "comfyui / MiniMax-H3",
@@ -39,7 +40,7 @@ export default function EvaluationDashboardTab({ hardware, discoveredModels, onA
     },
     {
       capability: "tts",
-      title: "TTS 语音合成",
+      title: i18next.t("settings.evaluationDashboardTab.ii9hzv"),
       icon: Volume2,
       color: "from-emerald-500/20 to-teal-500/20 border-emerald-500/40 text-emerald-300",
       topModel: "Kokoro-v1.0 (离线)",
@@ -55,7 +56,7 @@ export default function EvaluationDashboardTab({ hardware, discoveredModels, onA
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-2">
             <Cpu className="w-5 h-5 text-indigo-400" />
-            <h3 className="text-base font-bold text-slate-100">硬件算力梯队与量化速配建议</h3>
+            <h3 className="text-base font-bold text-slate-100">{i18next.t("settings.evaluationDashboardTab.4k4989")}</h3>
           </div>
           <span className="text-xs font-mono text-slate-400">
             实测 GPU: {hardware?.gpuName || "CPU"} | 显存: {hardware?.vramGb || 0}GB
@@ -64,27 +65,27 @@ export default function EvaluationDashboardTab({ hardware, discoveredModels, onA
 
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4 text-xs">
           <div className="p-3.5 rounded-lg bg-slate-950/70 border border-slate-800">
-            <div className="text-slate-400 mb-1">入门级 (VRAM &lt; 6GB)</div>
+            <div className="text-slate-400 mb-1">{i18next.t("settings.evaluationDashboardTab.mieg2n")}</div>
             <div className="font-bold text-slate-200">7B Q4_K_M + SD 1.5</div>
-            <div className="text-[11px] text-slate-500 mt-1">适合短篇写作与基础对话</div>
+            <div className="text-[11px] text-slate-500 mt-1">{i18next.t("settings.evaluationDashboardTab.7fhs17")}</div>
           </div>
 
           <div className="p-3.5 rounded-lg bg-slate-950/70 border border-slate-800">
-            <div className="text-slate-400 mb-1">主流级 (VRAM 6-12GB)</div>
+            <div className="text-slate-400 mb-1">{i18next.t("settings.evaluationDashboardTab.dp7wyv")}</div>
             <div className="font-bold text-indigo-300">14B INT8 + SDXL</div>
-            <div className="text-[11px] text-slate-500 mt-1">标准长篇创作与插图生成</div>
+            <div className="text-[11px] text-slate-500 mt-1">{i18next.t("settings.evaluationDashboardTab.kpiobh")}</div>
           </div>
 
           <div className="p-3.5 rounded-lg bg-slate-950/70 border border-indigo-500/40 bg-indigo-950/20">
-            <div className="text-indigo-300 mb-1 font-semibold">发烧级 (VRAM 12-24GB) ★ 当前匹配</div>
+            <div className="text-indigo-300 mb-1 font-semibold">{i18next.t("settings.evaluationDashboardTab.tkrwly")}</div>
             <div className="font-bold text-purple-300">30B/32B Q4 + FLUX.1-dev</div>
-            <div className="text-[11px] text-slate-400 mt-1">高质量小说导演与精致绘图</div>
+            <div className="text-[11px] text-slate-400 mt-1">{i18next.t("settings.evaluationDashboardTab.httyj2")}</div>
           </div>
 
           <div className="p-3.5 rounded-lg bg-slate-950/70 border border-slate-800">
-            <div className="text-slate-400 mb-1">旗舰级 (VRAM &gt; 24GB)</div>
+            <div className="text-slate-400 mb-1">{i18next.t("settings.evaluationDashboardTab.hx5xti")}</div>
             <div className="font-bold text-emerald-300">70B/72B Full + 音视频渲染</div>
-            <div className="text-[11px] text-slate-500 mt-1">全自动批量长篇与多媒体生成</div>
+            <div className="text-[11px] text-slate-500 mt-1">{i18next.t("settings.evaluationDashboardTab.lpzx26")}</div>
           </div>
         </div>
       </div>
@@ -105,7 +106,7 @@ export default function EvaluationDashboardTab({ hardware, discoveredModels, onA
                   </div>
                   <div>
                     <h4 className="font-bold text-slate-100">{card.title}</h4>
-                    <span className="text-[11px] text-slate-400 font-mono">基准测试榜首模型</span>
+                    <span className="text-[11px] text-slate-400 font-mono">{i18next.t("settings.evaluationDashboardTab.8vf43e")}</span>
                   </div>
                 </div>
 
@@ -127,17 +128,13 @@ export default function EvaluationDashboardTab({ hardware, discoveredModels, onA
       {/* 自动路由应用操作区 */}
       <div className="p-5 rounded-xl bg-slate-900/60 border border-slate-800 flex flex-col sm:flex-row items-center justify-between gap-4">
         <div>
-          <h4 className="font-bold text-slate-100">自动智能模型路由绑定引擎</h4>
-          <p className="text-xs text-slate-400">
-            根据以上评估得分与实测硬件梯队，自动将最优模型绑定至系统写作、分卷策划、评审与生图路由。
-          </p>
+          <h4 className="font-bold text-slate-100">{i18next.t("settings.evaluationDashboardTab.tl48rz")}</h4>
+          <p className="text-xs text-slate-400">{i18next.t("settings.evaluationDashboardTab.dxa7sm")}</p>
         </div>
         <button
           onClick={onApplyAutoRoutes}
           className="px-5 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs shadow-lg shadow-indigo-600/30 transition-all shrink-0"
-        >
-          一键应用最优智能路由
-        </button>
+        >{i18next.t("settings.evaluationDashboardTab.r0gbcv")}</button>
       </div>
     </div>
   );

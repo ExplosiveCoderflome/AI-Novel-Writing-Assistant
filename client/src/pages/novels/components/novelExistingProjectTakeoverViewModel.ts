@@ -42,23 +42,29 @@ export interface TakeoverChapterTargetViewModel {
   summary: string;
 }
 
-const ENTRY_STEP_USER_LABELS: Record<DirectorTakeoverEntryStep, string> = {
-  basic: "项目设定",
-  story_macro: "故事宏观规划",
-  world: "世界观准备",
-  character: "角色准备",
-  outline: "卷规划",
-  structured: "节奏拆章",
-  chapter: "章节执行",
-  pipeline: "质量修复",
-};
+export function getEntryStepUserLabel(step: DirectorTakeoverEntryStep): string {
+  const map: Record<DirectorTakeoverEntryStep, string> = {
+    basic: i18next.t("novels.takeover.entry.basic", { defaultValue: "项目设定" }),
+    story_macro: i18next.t("novels.takeover.entry.story_macro", { defaultValue: "故事宏观规划" }),
+    world: i18next.t("novels.takeover.entry.world", { defaultValue: "世界观准备" }),
+    character: i18next.t("novels.takeover.entry.character", { defaultValue: "角色准备" }),
+    outline: i18next.t("novels.takeover.entry.outline", { defaultValue: "卷规划" }),
+    structured: i18next.t("novels.takeover.entry.structured", { defaultValue: "节奏拆章" }),
+    chapter: i18next.t("novels.takeover.entry.chapter", { defaultValue: "章节执行" }),
+    pipeline: i18next.t("novels.takeover.entry.pipeline", { defaultValue: "质量修复" }),
+  };
+  return map[step] ?? step;
+}
 
-const RUN_MODE_ACTION_LABELS: Record<DirectorRunMode, string> = {
-  auto_to_ready: "继续推进到可开写",
-  auto_to_execution: "按范围继续推进",
-  full_book_autopilot: "接管整本书继续推进",
-  stage_review: "继续推进",
-};
+export function getRunModeActionLabel(runMode: DirectorRunMode): string {
+  const map: Record<DirectorRunMode, string> = {
+    auto_to_ready: i18next.t("novels.takeover.runMode.auto_to_ready", { defaultValue: "继续推进到可开写" }),
+    auto_to_execution: i18next.t("novels.takeover.runMode.auto_to_execution", { defaultValue: "按范围继续推进" }),
+    full_book_autopilot: i18next.t("novels.takeover.runMode.full_book_autopilot", { defaultValue: "接管整本书继续推进" }),
+    stage_review: i18next.t("novels.takeover.runMode.stage_review", { defaultValue: "继续推进" }),
+  };
+  return map[runMode] ?? i18next.t("common.actions.continue", { defaultValue: "继续推进" });
+}
 
 export function isTakeoverEntryStepAllowedForScope(
   entryStep: DirectorTakeoverEntryStep,
@@ -133,11 +139,11 @@ export function buildTakeoverGuidance(
       nextStep: "读取完成后即可继续推进。",
       protectionNotes: ["默认保留已有写作资产。"],
       riskLevel: "safe",
-      actionLabel: RUN_MODE_ACTION_LABELS[runMode] ?? "继续推进",
+      actionLabel: getRunModeActionLabel(runMode),
     };
   }
   const preview = findTakeoverPreview(readiness, entryStep, strategy);
-  const entryLabel = ENTRY_STEP_USER_LABELS[preview?.effectiveStep ?? entryStep] ?? "推荐位置";
+  const entryLabel = getEntryStepUserLabel(preview?.effectiveStep ?? entryStep);
   const hasCharacters = readiness.snapshot.characterCount > 0;
   const hasVolumes = readiness.snapshot.volumeCount > 0;
   const hasChapters = readiness.snapshot.chapterCount > 0;
@@ -153,7 +159,7 @@ export function buildTakeoverGuidance(
     protectionNotes,
     riskLevel,
     actionLabel: buildPrimaryActionLabel({
-      fallback: RUN_MODE_ACTION_LABELS[runMode] ?? "继续推进",
+      fallback: getRunModeActionLabel(runMode),
       taskSnapshot,
       readiness,
     }),

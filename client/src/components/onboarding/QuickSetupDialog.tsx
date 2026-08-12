@@ -140,7 +140,7 @@ export default function QuickSetupDialog(props: QuickSetupDialogProps) {
     onSuccess: (response) => {
       const models = response.data?.models ?? [];
       setCustomModels(models);
-      setCustomModelsMessage(models.length > 0 ? `找到 ${models.length} 个可用模型。` : "接口没有返回模型列表，可以手动填写。");
+      setCustomModelsMessage(models.length > 0 ? i18next.t("onboarding.quickSetupDialog.s36mon", { val1: models.length }) : "接口没有返回模型列表，可以手动填写。");
       setForm((current) => ({ ...current, model: current.model.trim() || models[0] || "" }));
     },
     onError: (error) => {

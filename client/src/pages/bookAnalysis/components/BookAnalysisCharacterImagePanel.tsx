@@ -21,11 +21,11 @@ import { AppDialogContent, Dialog } from "@/components/ui/dialog";
 import { toast } from "@/components/ui/toast";
 
 const IMAGE_STATUS_TEXT: Record<string, string> = {
-  queued: "排队中",
-  running: "生成中",
-  succeeded: "生成成功",
-  failed: "生成失败",
-  cancelled: "已取消",
+  queued: i18next.t("tasks.filterStatusQueued"),
+  running: i18next.t("dict.gen_1ae3a984"),
+  succeeded: i18next.t("dict.gen_b6c4a445"),
+  failed: i18next.t("dict.gen_7f7de8a2"),
+  cancelled: i18next.t("tasks.filterStatusCancelled"),
 };
 
 interface BookAnalysisCharacterImagePanelProps {
@@ -93,7 +93,7 @@ export default function BookAnalysisCharacterImagePanel({
     onSuccess: async (response) => {
       await queryClient.invalidateQueries({ queryKey: queryKeys.baseCharacters.all });
       setPromoteOpen(false);
-      toast.success(response.data?.baseCharacter.name ? `已加入角色库：${response.data.baseCharacter.name}` : "已加入角色库。");
+      toast.success(response.data?.baseCharacter.name ? i18next.t("bookAnalysis.bookAnalysisCharacterImagePanel.bg5t8y", { val1: response.data.baseCharacter.name }) : "已加入角色库。");
     },
   });
 
@@ -103,7 +103,7 @@ export default function BookAnalysisCharacterImagePanel({
       generate: async (overrides) => {
         const response = await generateBookAnalysisCharacterImage(analysisId, character.id, {
           count: 2,
-          stylePreset: "写实角色设定图",
+          stylePreset: i18next.t("dict.gen_13e2f7b7"),
           overrides,
         });
         if (response.data?.id) {
@@ -148,7 +148,7 @@ export default function BookAnalysisCharacterImagePanel({
             <div key={asset.id} className="space-y-2 overflow-hidden rounded-xl bg-muted/20 p-2">
               <img
                 src={resolveImageAssetUrl(asset.url)}
-                alt={`${character.name}-形象图`}
+                alt={i18next.t("bookAnalysis.bookAnalysisCharacterImagePanel.bze2ym", { val1: character.name })}
                 className="aspect-square w-full rounded-lg object-cover"
                 loading="lazy"
               />
@@ -182,7 +182,7 @@ export default function BookAnalysisCharacterImagePanel({
 
       <Dialog open={promoteOpen} onOpenChange={setPromoteOpen}>
         <AppDialogContent
-          title={`加入角色库：${character.name}`}
+          title={i18next.t("bookAnalysis.bookAnalysisCharacterImagePanel.d8ocos", { val1: character.name })}
           bodyClassName="space-y-3"
           footer={(
             <>

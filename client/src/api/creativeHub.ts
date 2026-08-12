@@ -111,7 +111,7 @@ export async function* streamCreativeHubRun(
   });
 
   if (!response.ok || !response.body) {
-    throw new Error(`创作中枢请求失败，状态码 ${response.status}`);
+    throw new Error(i18next.t("api.creativeHub.phhbzl", { val1: response.status }));
   }
 
   const reader = response.body.getReader();

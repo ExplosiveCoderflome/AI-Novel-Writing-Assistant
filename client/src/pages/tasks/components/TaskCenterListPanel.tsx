@@ -40,7 +40,7 @@ export default function TaskCenterListPanel({
   return (
     <TaskQueueSection
       title={i18next.t("tasks.taskCenterListPanel.abeb6z")}
-      description={`${tasks.length} 项结果，优先展示需要处理和等待操作的任务。`}
+      description={i18next.t("tasks.taskCenterListPanel.14p6f1", { val1: tasks.length })}
       className="overflow-hidden rounded-2xl border-border/40 bg-card/60 shadow-[0_12px_36px_rgba(15,23,42,0.035)]"
     >
       <div className="space-y-3">

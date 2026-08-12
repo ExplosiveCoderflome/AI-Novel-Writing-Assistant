@@ -230,8 +230,8 @@ export default function BookAnalysisDetailPanel(props: BookAnalysisDetailPanelPr
       {selectedAnalysis.lastError ? (
         <div className="rounded-md border border-destructive/40 bg-destructive/5 p-3 text-sm text-destructive">
           {budgetExceeded
-            ? `预算用尽，任务已停止。累计用量 ${formatTokenCount(usedTokens)} / ${formatTokenCount(budgetTokens)} tokens。建议先扩容预算后续跑。`
-            : `最近错误：${selectedAnalysis.lastError}`}
+            ? i18next.t("bookAnalysis.bookAnalysisDetailPanel.brc3xc", { val1: formatTokenCount(usedTokens), val2: formatTokenCount(budgetTokens) })
+            : i18next.t("bookAnalysis.bookAnalysisDetailPanel.cxj8gz", { val1: selectedAnalysis.lastError })}
         </div>
       ) : null}
 
@@ -279,8 +279,8 @@ export default function BookAnalysisDetailPanel(props: BookAnalysisDetailPanelPr
                   <div className="text-sm font-medium">{i18next.t("dict.gen_20e71449")}</div>
                   <div className="mt-1 text-xs text-muted-foreground">
                     计划小节 {sectionStats.readableExpected}/{sectionStats.expected} 可阅读
-                    {sectionStats.unselected > 0 ? `，本次未选择 ${sectionStats.unselected} 节` : ""}
-                    {sectionStats.frozenReadable > 0 ? `，已冻结结果 ${sectionStats.frozenReadable} 节` : ""}
+                    {sectionStats.unselected > 0 ? i18next.t("bookAnalysis.bookAnalysisDetailPanel.z0c7", { val1: sectionStats.unselected }) : ""}
+                    {sectionStats.frozenReadable > 0 ? i18next.t("bookAnalysis.bookAnalysisDetailPanel.ke25kl", { val1: sectionStats.frozenReadable }) : ""}
                   </div>
                 </div>
                 <Badge variant="secondary" className="border-0 bg-muted/60 font-normal">{i18next.t("dict.gen_e2edde5a")}</Badge>

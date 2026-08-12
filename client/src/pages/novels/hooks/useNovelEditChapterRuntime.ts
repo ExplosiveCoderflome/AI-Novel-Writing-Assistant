@@ -99,7 +99,7 @@ export function useNovelEditChapterRuntime({
       const affectedChapterIds = response.data?.affectedChapterIds ?? [];
       setChapterOperationMessage(
         affectedOrders.length > 0
-          ? `已重规划第 ${affectedOrders.join("、")} 章。`
+          ? i18next.t("novels.useNovelEditChapterRuntime.w1gsiz", { val1: affectedOrders.join("、") })
           : i18next.t("dict.gen_7989d2e4"),
       );
       await queryClient.invalidateQueries({ queryKey: queryKeys.novels.detail(novelId) });

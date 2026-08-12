@@ -64,7 +64,7 @@ export default function ChapterExecutionOverviewPanel(props: ChapterExecutionOve
     );
   }
 
-  const chapterLabel = `第${selectedChapter.order}章`;
+  const chapterLabel = i18next.t("tensionCurve.tensionCurveChapterDetailSidebar.xrxssk", { val1: selectedChapter.order });
   const chapterTitle = selectedChapter.title || i18next.t("dict.gen_db55d102");
   const chapterObjective = chapterPlan?.objective ?? selectedChapter.expectation ?? i18next.t("dict.gen_6fc3748d");
   const runtimePackage = chapterRuntimePackage?.chapterId === selectedChapter.id ? chapterRuntimePackage : null;
@@ -109,7 +109,7 @@ export default function ChapterExecutionOverviewPanel(props: ChapterExecutionOve
 
       <div className="space-y-2">
         <OverviewStat label={i18next.t("dict.gen_ff9c965e")} value={String(currentWordCount)} hint={i18next.t("dict.panelDisplayLength")} />
-        <OverviewStat label={i18next.t("dict.gen_85f9e2b5")} value={targetWordCount ? `${targetWordCount} 字` : i18next.t("dict.gen_b25ee1ff")} hint={i18next.t("dict.gen_6a869271")} />
+        <OverviewStat label={i18next.t("dict.gen_85f9e2b5")} value={targetWordCount ? i18next.t("novels.chapterEditorSidebar.izeb8n", { val1: targetWordCount }) : i18next.t("dict.gen_b25ee1ff")} hint={i18next.t("dict.gen_6a869271")} />
         <OverviewStat label={i18next.t("dict.gen_0dfc9235")} value={String(issueCount)} hint={i18next.t("dict.gen_8527538c")} />
         <OverviewStat label={i18next.t("dict.gen_06dc9b38")} value={updatedAt} hint={i18next.t("dict.gen_bec6b1bc")} />
       </div>
@@ -119,12 +119,12 @@ export default function ChapterExecutionOverviewPanel(props: ChapterExecutionOve
           <OverviewStat
             label={i18next.t("dict.gen_58e59c31")}
             value={`${lengthControl.softMinWordCount}-${lengthControl.softMaxWordCount}`}
-            hint={`硬上限 ${lengthControl.hardMaxWordCount} 字`}
+            hint={i18next.t("novels.chapterExecutionOverviewPanel.9tohbf", { val1: lengthControl.hardMaxWordCount })}
           />
           <OverviewStat
             label={i18next.t("dict.gen_cfebad7b")}
             value={lengthControl.wordControlMode === "prompt_only" ? i18next.t("dict.gen_e25414a2") : lengthControl.wordControlMode === "balanced" ? i18next.t("dict.gen_332305cd") : i18next.t("dict.gen_d15aa8f4")}
-            hint={`偏差 ${Math.round(lengthControl.variance * 100)}%`}
+            hint={i18next.t("novels.chapterExecutionOverviewPanel.9fipw4", { val1: Math.round(lengthControl.variance * 100) })}
           />
         </div>
       ) : null}

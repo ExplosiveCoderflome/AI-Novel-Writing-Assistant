@@ -1,3 +1,4 @@
+import i18next from "i18next";
 import React, { useState } from "react";
 import { Swords, Play, Trophy } from "lucide-react";
 import type { DiscoveredModelItem, BenchmarkTestCase } from "@/api/eval";
@@ -31,7 +32,7 @@ export default function MultiModelArenaTab({ discoveredModels, benchmarks }: Pro
     setWinner(null);
     try {
       const res = await runEvalTask({
-        taskName: `竞技擂台-${modelA.model}-vs-${modelB.model}`,
+        taskName: i18next.t("settings.multiModelArenaTab.b6ubwf", { val1: modelA.model, val2: modelB.model }),
         capability: "text-gen",
         modelConfigs: [
           { provider: modelA.provider, model: modelA.model },
@@ -64,7 +65,7 @@ export default function MultiModelArenaTab({ discoveredModels, benchmarks }: Pro
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <Swords className="w-5 h-5 text-purple-400" />
-            <h3 className="text-base font-bold text-slate-100">多模型 Side-by-Side 竞技擂台</h3>
+            <h3 className="text-base font-bold text-slate-100">{i18next.t("settings.multiModelArenaTab.f3onb7")}</h3>
           </div>
           <span className="text-xs font-mono text-purple-300 bg-purple-950/60 px-3 py-1 rounded-full border border-purple-800">
             Elo Rating 排名对抗
@@ -73,7 +74,7 @@ export default function MultiModelArenaTab({ discoveredModels, benchmarks }: Pro
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs">
           <div>
-            <label className="block text-slate-400 mb-1">选择擂主 (模型 A)</label>
+            <label className="block text-slate-400 mb-1">{i18next.t("settings.multiModelArenaTab.auhojn")}</label>
             <select
               value={`${modelA.provider}:${modelA.model}`}
               onChange={(e) => {
@@ -91,7 +92,7 @@ export default function MultiModelArenaTab({ discoveredModels, benchmarks }: Pro
           </div>
 
           <div>
-            <label className="block text-slate-400 mb-1">选择挑战者 (模型 B)</label>
+            <label className="block text-slate-400 mb-1">{i18next.t("settings.multiModelArenaTab.xqklx3")}</label>
             <select
               value={`${modelB.provider}:${modelB.model}`}
               onChange={(e) => {
@@ -109,7 +110,7 @@ export default function MultiModelArenaTab({ discoveredModels, benchmarks }: Pro
           </div>
 
           <div>
-            <label className="block text-slate-400 mb-1">测试用例选题</label>
+            <label className="block text-slate-400 mb-1">{i18next.t("settings.multiModelArenaTab.t6rlfg")}</label>
             <select
               value={selectedBenchmarkId}
               onChange={(e) => setSelectedBenchmarkId(e.target.value)}

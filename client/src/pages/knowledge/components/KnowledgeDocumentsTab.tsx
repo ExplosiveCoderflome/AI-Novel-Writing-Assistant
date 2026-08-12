@@ -117,7 +117,7 @@ export default function KnowledgeDocumentsTab({
 
   const confirmArchiveDocument = (document: KnowledgeDocumentSummary) => {
     const confirmed = window.confirm(
-      `确认归档“${document.title}”吗？归档会移出默认检索和资料选择，原文与版本会保留，可在“仅归档”中恢复启用。`,
+      i18next.t("knowledge.knowledgeDocumentsTab.gso9lo", { val1: document.title }),
     );
     if (!confirmed) {
       return;
@@ -262,7 +262,7 @@ export default function KnowledgeDocumentsTab({
         <AssetLibraryEmptyState
           icon={CircleAlert}
           title={i18next.t("knowledge.knowledgeDocumentsTab.xx0b24")}
-          description={`${errorMessage} 重新加载不会修改已有资料。`}
+          description={i18next.t("knowledge.knowledgeDocumentsTab.449tki", { val1: errorMessage })}
           action={(
             <Button type="button" size="sm" variant="outline" onClick={onRetry}>
               <RefreshCw className="h-4 w-4" />{i18next.t("common.retry")}</Button>
@@ -350,7 +350,7 @@ export default function KnowledgeDocumentsTab({
               }}
               role={selectedFile ? undefined : "button"}
               tabIndex={selectedFile ? undefined : 0}
-              aria-label={selectedFile ? undefined : "选择要上传的 TXT 文本资料"}
+              aria-label={selectedFile ? undefined : i18next.t("knowledge.knowledgeDocumentsTab.okc2cd")}
               className={[
                 "relative flex flex-col items-center justify-center gap-3 rounded-md border-2 border-dashed p-8 text-center transition-all",
                 dragOver

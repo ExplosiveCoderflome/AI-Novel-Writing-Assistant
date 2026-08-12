@@ -1,3 +1,4 @@
+import i18next from "i18next";
 import React from "react";
 import { ThumbsUp, Trophy, Zap, Clock } from "lucide-react";
 
@@ -60,7 +61,7 @@ export default function SideBySideResponseCard({
           <div className="font-bold text-purple-300">{metrics.tps}t/s</div>
         </div>
         <div className="p-2 rounded bg-slate-950/70 border border-slate-800/80">
-          <div className="text-[10px] text-slate-400">判官得分</div>
+          <div className="text-[10px] text-slate-400">{i18next.t("settings.sideBySideResponseCard.aqukoz")}</div>
           <div className="font-bold text-amber-300">{metrics.judgeScore}</div>
         </div>
       </div>

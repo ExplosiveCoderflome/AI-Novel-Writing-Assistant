@@ -46,7 +46,7 @@ export default function NovelTitleWorkshop({
       const next = [...(response.data?.titles ?? [])].sort((left, right) => right.clickRate - left.clickRate);
       setSuggestions(next);
       setSelectedTitle(next[0]?.title ?? currentTitle);
-      toast.success(`已生成 ${next.length} 个标题候选。`);
+      toast.success(i18next.t("novels.novelCreateTitleQuickFill.kt8gei", { val1: next.length }));
     },
   });
 

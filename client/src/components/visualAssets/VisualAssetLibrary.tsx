@@ -187,7 +187,7 @@ export function VisualAssetLibrary({
       <div className="flex min-h-0 flex-1">
         <div className="min-w-0 flex-1 overflow-y-auto">
           <div className="flex items-center justify-between gap-3 px-5 py-3 text-sm text-muted-foreground">
-            <span>{typeof total === "number" ? `找到 ${total} 项素材` : "正在准备素材"}</span>
+            <span>{typeof total === "number" ? i18next.t("visualAssets.visualAssetLibrary.ijkrc7", { val1: total }) : "正在准备素材"}</span>
             {hasActiveFilters ? (
               <Button type="button" variant="ghost" size="sm" className="h-8 px-2" onClick={clearFilters}>
                 <X className="h-3.5 w-3.5" aria-hidden="true" />{i18next.t("visualAssets.visualAssetLibrary.ei6tl9")}</Button>
@@ -261,7 +261,7 @@ export function VisualAssetLibrary({
 
 function FilterGroup({ label, icon, children }: { label: string; icon?: React.ReactNode; children: React.ReactNode }) {
   return (
-    <div className="flex max-w-full items-center gap-1 overflow-x-auto rounded-md border bg-muted/[0.18] p-1" aria-label={`${label}筛选`}>
+    <div className="flex max-w-full items-center gap-1 overflow-x-auto rounded-md border bg-muted/[0.18] p-1" aria-label={i18next.t("visualAssets.visualAssetLibrary.izzk8u", { val1: label })}>
       <span className="inline-flex shrink-0 items-center gap-1 px-2 text-xs text-muted-foreground">{icon}{label}</span>
       {children}
     </div>

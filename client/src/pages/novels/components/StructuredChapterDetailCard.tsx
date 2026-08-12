@@ -131,20 +131,20 @@ export default function StructuredChapterDetailCard(props: StructuredChapterDeta
     if (batchMode === "visible_all" && hasVisibleBatch) {
       return {
         count: visibleChapters.length,
-        hint: `会按照当前节奏筛选，一次补齐当前可见的 ${visibleChapters.length} 章。`,
+        hint: i18next.t("novels.structuredChapterDetailCard.679cox", { val1: visibleChapters.length }),
         request: {
           chapterIds: visibleChapters.map((chapter) => chapter.id),
-          label: `当前可见的 ${visibleChapters.length} 章`,
+          label: i18next.t("novels.structuredChapterDetailCard.vqmc8", { val1: visibleChapters.length }),
         },
       };
     }
     if (batchMode === "volume_all" && hasVolumeBatch) {
       return {
         count: volumeChapters.length,
-        hint: `会从第 1 章到第 ${volumeChapters.length} 章，连续补齐当前卷全部章节的细化资产。`,
+        hint: i18next.t("novels.structuredChapterDetailCard.4adn5b", { val1: volumeChapters.length }),
         request: {
           chapterIds: volumeChapters.map((chapter) => chapter.id),
-          label: `本卷全部 ${volumeChapters.length} 章`,
+          label: i18next.t("novels.structuredChapterDetailCard.heymor", { val1: volumeChapters.length }),
         },
       };
     }
@@ -154,10 +154,10 @@ export default function StructuredChapterDetailCard(props: StructuredChapterDeta
     const count = Math.min(Math.max(batchCount, 2), remainingChapters.length);
     return {
       count,
-      hint: `会从第${selectedChapter.chapterOrder}章开始，顺次细化接下来的 ${count} 章。`,
+      hint: i18next.t("novels.structuredChapterDetailCard.h4s3au", { val1: selectedChapter.chapterOrder, val2: count }),
       request: {
         chapterIds: remainingChapters.slice(0, count).map((chapter) => chapter.id),
-        label: `从第${selectedChapter.chapterOrder}章起连续 ${count} 章`,
+        label: i18next.t("novels.structuredChapterDetailCard.jokov7", { val1: selectedChapter.chapterOrder, val2: count }),
       },
     };
   }, [
@@ -261,7 +261,7 @@ export default function StructuredChapterDetailCard(props: StructuredChapterDeta
                     />
                   ) : (
                     <div className="rounded-xl border border-border/70 bg-background px-3 py-2 text-sm text-foreground">
-                      {batchPlan ? `${batchPlan.count} 章` : "不可用"}
+                      {batchPlan ? i18next.t("creativeHub.creativeHubToolResultCard.izehgw", { val1: batchPlan.count }) : "不可用"}
                     </div>
                   )}
                 </label>

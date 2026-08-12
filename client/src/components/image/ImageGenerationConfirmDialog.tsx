@@ -103,10 +103,10 @@ export function ImageGenerationConfirmDialog({
   const providerChoices = useMemo(() => {
     const list = [...providerOptions];
     if (!list.some((p) => p.value === "comfyui")) {
-      list.unshift({ value: "comfyui", label: "ComfyUI (本地离线画师 · MiniMax H3/FLUX/SD)" });
+      list.unshift({ value: "comfyui", label: i18next.t("image.imageGenerationConfirmDialog.i945b5") });
     }
     if (!list.some((p) => p.value === "sensenova")) {
-      list.push({ value: "sensenova", label: "SenseNova (本地离线)" });
+      list.push({ value: "sensenova", label: i18next.t("image.imageGenerationConfirmDialog.xlrobl") });
     }
     if (provider && !list.some((p) => p.value === provider)) {
       list.push({ value: provider, label: provider });
@@ -268,7 +268,7 @@ export function ImageGenerationConfirmDialog({
                           href={resolveImageAssetUrl(ref.url)}
                           target="_blank"
                           rel="noreferrer"
-                          title={`${kindLabel} · ${ref.label}（点击查看大图）`}
+                          title={i18next.t("image.imageGenerationConfirmDialog.cry1qs", { val1: kindLabel, val2: ref.label })}
                           className="flex h-32 items-center justify-center bg-muted/30"
                         >
                           <img

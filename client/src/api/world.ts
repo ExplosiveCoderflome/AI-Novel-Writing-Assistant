@@ -1,3 +1,4 @@
+import i18next from "i18next";
 import type { ApiResponse } from "@ai-novel/shared/types/api";
 import type { LLMProvider } from "@ai-novel/shared/types/llm";
 import type {
@@ -51,7 +52,7 @@ function normalizeSuggestedAxioms(raw: unknown): string[] {
         .find((value) => typeof value === "string") as string | undefined;
 
       if (title && description && effect) {
-        return `${title}（${description}，影响：${effect}）`.trim();
+        return i18next.t("api.world.snc2s", { val1: title, val2: description, val3: effect }).trim();
       }
       if (title && description) {
         return `${title}：${description}`.trim();

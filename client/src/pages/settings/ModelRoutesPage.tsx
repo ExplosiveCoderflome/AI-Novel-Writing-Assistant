@@ -94,7 +94,7 @@ export default function ModelRoutesPage() {
       return payloads.length;
     },
     onSuccess: async (count) => {
-      setActionResult(`保存完成，${count} 个任务会使用新路由。`);
+      setActionResult(i18next.t("settings.modelRoutesPage.sttp5y", { val1: count }));
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: queryKeys.settings.modelRoutes }),
         queryClient.invalidateQueries({ queryKey: queryKeys.settings.modelRouteConnectivity }),
@@ -224,7 +224,7 @@ export default function ModelRoutesPage() {
       });
       return next;
     });
-    setActionResult(`模型设置填入 ${targetTaskTypes.length} 个任务，保存后生效。`);
+    setActionResult(i18next.t("settings.modelRoutesPage.t0knmi", { val1: targetTaskTypes.length }));
   }
 
   function getStructuredFallbackDraft(): StructuredFallbackDraft {
@@ -277,7 +277,7 @@ export default function ModelRoutesPage() {
                 {modelRouteConnectivityQuery.isPending || modelRouteConnectivityQuery.isFetching
                   ? i18next.t("dict.gen_2da2f9e0")
                   : connectivitySummary.total > 0
-                    ? `检测结果：${connectivitySummary.total} 条路由，健康 ${connectivitySummary.healthy}，异常 ${connectivitySummary.failed}`
+                    ? i18next.t("settings.modelRoutesPage.8f25zw", { val1: connectivitySummary.total, val2: connectivitySummary.healthy, val3: connectivitySummary.failed })
                     : i18next.t("dict.gen_5a8affb1")}
               </span>
               {connectivitySummary.testedAt ? (
@@ -478,7 +478,7 @@ export default function ModelRoutesPage() {
 
                 <div className="flex items-center justify-between gap-3">
                   <div className="space-y-1 text-xs text-muted-foreground">
-                    <div>{isDirty ? i18next.t("dict.gen_a61d59f8") : `任务使用：${providerName}。`}</div>
+                    <div>{isDirty ? i18next.t("dict.gen_a61d59f8") : i18next.t("settings.modelRoutesPage.sw8ek9", { val1: providerName })}</div>
                     <div className="flex flex-wrap items-center gap-2">
                       <RouteStatusDot state={connectivityState} />
                       <span>{formatConnectivityStatus(connectivity)}</span>
@@ -519,9 +519,7 @@ export default function ModelRoutesPage() {
             <div className="mt-8 space-y-4">
               <div className="flex items-center gap-2 border-b pb-2 text-lg font-semibold text-foreground">
                 <span>🎨 多模态与多媒体模型路由节点 ({multimodalTaskTypes.length})</span>
-                <Badge variant="outline" className="border-purple-500/50 text-purple-600 dark:text-purple-400">
-                  支持 ComfyUI / SenseNova 生图与多媒体引擎
-                </Badge>
+                <Badge variant="outline" className="border-purple-500/50 text-purple-600 dark:text-purple-400">{i18next.t("settings.modelRoutesPage.ag9zgi")}</Badge>
               </div>
               {multimodalTaskTypes.map(renderTaskCard)}
             </div>

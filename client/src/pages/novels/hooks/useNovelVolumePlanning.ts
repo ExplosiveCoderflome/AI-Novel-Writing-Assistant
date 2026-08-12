@@ -275,7 +275,7 @@ export function useNovelVolumePlanning({
       return;
     }
     const confirmed = window.confirm([
-      `将基于当前内容为第${targetChapter.chapterOrder}章《${targetChapter.title}》AI 修正${detailModeLabel(detailMode)}。`,
+      i18next.t("novels.useNovelVolumePlanning.canz1l", { val1: targetChapter.chapterOrder, val2: targetChapter.title, val3: detailModeLabel(detailMode) }),
       hasChapterDetailDraft(targetChapter, detailMode)
         ? i18next.t("dict.willPrioritizeCarryingOverCurrentlyFilledResultsOnlyFixMissingFuzzyOrNotExecutableParts")
         : i18next.t("dict.gen_0dad7103"),
@@ -432,7 +432,7 @@ export function useNovelVolumePlanning({
     }
     setUserPreferredVolumeCount(resolved.value);
     setForceSystemRecommendedVolumeCount(false);
-    setVolumeGenerationMessage(`当前已固定为 ${resolved.value} 卷。下次生成卷战略时会严格采用这个卷数。`);
+    setVolumeGenerationMessage(i18next.t("novels.useNovelVolumePlanning.dygnvo", { val1: resolved.value }));
   };
 
   const restoreSystemRecommendedVolumeCount = () => {
@@ -440,7 +440,7 @@ export function useNovelVolumePlanning({
     setCustomVolumeCountEnabled(false);
     setCustomVolumeCountInput(String(volumeCountGuidance.systemRecommendedVolumeCount));
     setForceSystemRecommendedVolumeCount(true);
-    setVolumeGenerationMessage(`已恢复系统建议卷数。下次生成卷战略时会优先采用系统建议 ${volumeCountGuidance.systemRecommendedVolumeCount} 卷。`);
+    setVolumeGenerationMessage(i18next.t("novels.useNovelVolumePlanning.vd7dqp", { val1: volumeCountGuidance.systemRecommendedVolumeCount }));
   };
 
   const generationNotice = buildGenerationNotice(strategyPlan);

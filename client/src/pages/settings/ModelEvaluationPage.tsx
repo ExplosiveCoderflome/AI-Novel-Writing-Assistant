@@ -1,3 +1,4 @@
+import i18next from "i18next";
 import React, { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { discoverEvalModels, getEvalBenchmarks, applySmartAutoRoutes } from "@/api/eval";
@@ -26,7 +27,7 @@ export default function ModelEvaluationPage() {
     mutationFn: () => applySmartAutoRoutes(),
     onSuccess: (res) => {
       if (res.success && res.data) {
-        alert(`🎉 成功将评测最优模型路由更新应用至系统！更新了 ${res.data.updatedCount} 条规则。`);
+        alert(i18next.t("settings.modelEvaluationPage.6fsu65", { val1: res.data.updatedCount }));
         void queryClient.invalidateQueries({ queryKey: ["eval"] });
       }
     },
@@ -56,9 +57,7 @@ export default function ModelEvaluationPage() {
               : "bg-slate-900/60 border border-slate-800 text-slate-400 hover:bg-slate-800"
           }`}
         >
-          <BarChart2 className="w-4 h-4" />
-          评估大盘与硬件路由
-        </button>
+          <BarChart2 className="w-4 h-4" />{i18next.t("settings.modelEvaluationPage.3tamal")}</button>
 
         <button
           onClick={() => setActiveTab("single")}
@@ -68,9 +67,7 @@ export default function ModelEvaluationPage() {
               : "bg-slate-900/60 border border-slate-800 text-slate-400 hover:bg-slate-800"
           }`}
         >
-          <Zap className="w-4 h-4 text-amber-400" />
-          单模型健康诊断跑分
-        </button>
+          <Zap className="w-4 h-4 text-amber-400" />{i18next.t("settings.modelEvaluationPage.nrw1yv")}</button>
 
         <button
           onClick={() => setActiveTab("arena")}
@@ -80,9 +77,7 @@ export default function ModelEvaluationPage() {
               : "bg-slate-900/60 border border-slate-800 text-slate-400 hover:bg-slate-800"
           }`}
         >
-          <Swords className="w-4 h-4 text-purple-300" />
-          多模型竞技场 (Side-by-Side)
-        </button>
+          <Swords className="w-4 h-4 text-purple-300" />{i18next.t("settings.modelEvaluationPage.quqlsa")}</button>
 
         <button
           onClick={() => setActiveTab("datasets")}
@@ -92,9 +87,7 @@ export default function ModelEvaluationPage() {
               : "bg-slate-900/60 border border-slate-800 text-slate-400 hover:bg-slate-800"
           }`}
         >
-          <Database className="w-4 h-4" />
-          基准测试数据集与用例
-        </button>
+          <Database className="w-4 h-4" />{i18next.t("settings.modelEvaluationPage.1iuaqn")}</button>
       </div>
 
       {/* Main View Tab Display */}

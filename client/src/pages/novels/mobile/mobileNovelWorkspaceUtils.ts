@@ -15,10 +15,10 @@ export function getMobileNovelWorkspaceStatusText(input: {
   workflowLabel: string;
 }): string {
   if (input.activeLabel === input.workflowLabel) {
-    return `当前步骤：${input.activeLabel}`;
+    return i18next.t("novels.mobileNovelWorkspaceUtils.wv29u7", { val1: input.activeLabel });
   }
 
-  return `当前步骤：${input.activeLabel} · 流程推荐：${input.workflowLabel}`;
+  return i18next.t("novels.mobileNovelWorkspaceUtils.fnwg67", { val1: input.activeLabel, val2: input.workflowLabel });
 }
 
 export function getMobileNovelSaveState(

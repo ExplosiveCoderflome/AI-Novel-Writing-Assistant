@@ -75,7 +75,7 @@ export default function GenreManagementPage() {
       key: "genres",
       label: i18next.t("basicInfo.genreId"),
       value: statusUnavailable ? "—" : totalGenres,
-      detail: "可供小说选择的分类节点",
+      detail: i18next.t("genres.genreManagementPage.7h70jj"),
       icon: Tags,
       tone: statusUnavailable ? "neutral" : "info",
     },
@@ -83,14 +83,14 @@ export default function GenreManagementPage() {
       key: "roots",
       label: i18next.t("genres.genreManagementPage.fo75a"),
       value: statusUnavailable ? "—" : genreTree.length,
-      detail: "用于划分主要创作方向",
+      detail: i18next.t("genres.genreManagementPage.wl0ftl"),
       icon: Layers3,
     },
     {
       key: "novels",
       label: i18next.t("genres.genreManagementPage.at2z0m"),
       value: statusUnavailable ? "—" : linkedNovelCount,
-      detail: "正在使用这些题材的作品",
+      detail: i18next.t("genres.genreManagementPage.k71p7l"),
       icon: BookOpen,
       tone: statusUnavailable ? "neutral" : linkedNovelCount > 0 ? "success" : "neutral",
     },
@@ -98,7 +98,7 @@ export default function GenreManagementPage() {
       key: "descriptions",
       label: i18next.t("genres.genreManagementPage.i2vbeq"),
       value: statusUnavailable ? "—" : `${describedGenreCount}/${totalGenres}`,
-      detail: "有明确定位说明的题材",
+      detail: i18next.t("genres.genreManagementPage.u87vlm"),
       icon: FileText,
       tone: statusUnavailable
         ? "neutral"
@@ -133,8 +133,8 @@ export default function GenreManagementPage() {
   const handleDelete = (genre: GenreTreeNode) => {
     const descendantCount = collectDescendantIds(genre).length;
     const message = descendantCount > 0
-      ? `确认删除题材基底「${genre.name}」？这会同时删除其下 ${descendantCount} 个子分类，此操作不可恢复。`
-      : `确认删除题材基底「${genre.name}」？此操作不可恢复。`;
+      ? i18next.t("genres.genreManagementPage.r9bygx", { val1: genre.name, val2: descendantCount })
+      : i18next.t("genres.genreManagementPage.s9w39f", { val1: genre.name });
     const confirmed = window.confirm(message);
     if (!confirmed) {
       return;
@@ -172,7 +172,7 @@ export default function GenreManagementPage() {
   ) : firstGenreWithoutDescription ? (
     <AssetLibraryRecommendation
       icon={FileText}
-      title={`补充「${firstGenreWithoutDescription.name}」的题材说明`}
+      title={i18next.t("genres.genreManagementPage.gxn545", { val1: firstGenreWithoutDescription.name })}
       description={i18next.t("genres.genreManagementPage.u3amk1")}
       tone="warning"
       action={(

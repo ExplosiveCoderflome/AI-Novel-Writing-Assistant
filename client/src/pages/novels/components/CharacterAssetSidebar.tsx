@@ -28,7 +28,7 @@ function getCharacterCardClass(isSelected: boolean, isProtagonist: boolean): str
 }
 
 function confirmDeleteCharacter(character: Character, onDeleteCharacter: (characterId: string) => void) {
-  const confirmed = window.confirm(`确认删除角色“${character.name}”？此操作不可恢复。`);
+  const confirmed = window.confirm(i18next.t("novels.characterAssetSidebar.utb2ay", { val1: character.name }));
   if (!confirmed) {
     return;
   }
@@ -82,7 +82,7 @@ function CharacterCard(props: {
             ) : null}
           </div>
           <div className="mt-1 line-clamp-2 text-xs leading-5 text-muted-foreground">
-            {isProtagonist ? `身份：${character.role || "待补全"}` : `${supportingLabel}：${supportingLine}`}
+            {isProtagonist ? i18next.t("novels.characterAssetSidebar.xmhrko", { val1: character.role || "待补全" }) : `${supportingLabel}：${supportingLine}`}
           </div>
           {isProtagonist ? (
             <div className="mt-1 line-clamp-2 text-xs leading-5 text-muted-foreground">

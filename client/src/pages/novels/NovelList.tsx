@@ -172,7 +172,7 @@ export default function NovelList() {
   }, [page, totalPages]);
 
   const handleDelete = (novelId: string, title: string) => {
-    const confirmed = window.confirm(`确认删除《${title}》吗？该操作会直接删除当前小说。`);
+    const confirmed = window.confirm(i18next.t("novels.novelList.qz2u0b", { val1: title }));
     if (!confirmed) {
       return;
     }
@@ -275,7 +275,7 @@ export default function NovelList() {
           title={i18next.t("dict.aiCockpit")}
           description={
             selectedCockpitNovel?.title
-              ? `查看《${selectedCockpitNovel.title}》的 AI 推进状态和下一步动作。`
+              ? i18next.t("novels.novelList.i39q8p", { val1: selectedCockpitNovel.title })
               : i18next.t("dict.gen_309ad2d0")
           }
         >

@@ -391,11 +391,11 @@ export default function KnowledgePage() {
 
   const handleUpload = async (file: File) => {
     if (!isTxtFile(file)) {
-      throw new Error("仅支持 .txt 文件。");
+      throw new Error(i18next.t("dict.onlySupportTxtFiles"));
     }
     const content = await readTextFile(file);
     if (!content) {
-      throw new Error("文件内容为空，或编码格式暂不支持。");
+      throw new Error(i18next.t("dict.gen_dd1d03b9"));
     }
     await createKnowledgeDocument({
       title: uploadTitle.trim() || undefined,
@@ -409,11 +409,11 @@ export default function KnowledgePage() {
       return;
     }
     if (!isTxtFile(file)) {
-      throw new Error("仅支持 .txt 文件。");
+      throw new Error(i18next.t("dict.onlySupportTxtFiles"));
     }
     const content = await readTextFile(file);
     if (!content) {
-      throw new Error("文件内容为空，或编码格式暂不支持。");
+      throw new Error(i18next.t("dict.gen_dd1d03b9"));
     }
     await createKnowledgeDocumentVersion(selectedDocumentId, {
       fileName: file.name,

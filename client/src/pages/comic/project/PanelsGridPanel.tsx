@@ -201,7 +201,7 @@ function BatchBar({
             <CircleDollarSign className="h-3.5 w-3.5" />
             {estimate.estimatedCentsCost === 0
               ? "免费 (本地模型)"
-              : `约 ${estimate.estimatedCentsCost} 美分`}
+              : i18next.t("comic.panelsGridPanel.s3z1ym", { val1: estimate.estimatedCentsCost })}
           </span>
         )}
 
@@ -285,7 +285,7 @@ function StripView({
                 <>
                   <img
                     src={panelImageUrl(panel.id)}
-                    alt={`第 ${panel.order} 格`}
+                    alt={i18next.t("comic.panelsGridPanel.vms8xs", { val1: panel.order })}
                     className="w-full object-cover"
                     loading={idx < 3 ? "eager" : "lazy"}
                   />
@@ -462,7 +462,7 @@ function PanelDetailDialog({
       // 触发外部保存状态，以拉取最新图片
       onSaved({ ...panel });
     } catch (err) {
-      toast.error(`微调失败: ${err instanceof Error ? err.message : String(err)}`);
+      toast.error(i18next.t("comic.panelsGridPanel.5kd8f", { val1: err instanceof Error ? err.message : String(err) }));
     } finally {
       setIsSubmittingEdit(false);
     }
@@ -498,7 +498,7 @@ function PanelDetailDialog({
   return (
     <Dialog open onOpenChange={(open) => { if (!open) onClose(); }}>
       <AppDialogContent
-        title={`第 ${panel.order} 格 · ${panel.panelType}`}
+        title={i18next.t("comic.panelsGridPanel.5yn0d6", { val1: panel.order, val2: panel.panelType })}
         description={i18next.t("dict.gen_2a07f258")}
         className="max-w-4xl"
         bodyClassName="p-0"
@@ -515,7 +515,7 @@ function PanelDetailDialog({
                 <img
                   ref={imgRef}
                   src={panelImageUrl(panel.id)}
-                  alt={`第 ${panel.order} 格`}
+                  alt={i18next.t("comic.panelsGridPanel.vms8xs", { val1: panel.order })}
                   className="mx-auto max-h-72 w-full rounded-md object-contain lg:max-h-none pointer-events-none"
                 />
                 {box && (
@@ -716,7 +716,7 @@ function PanelDetailDialog({
                         href={ref.url}
                         target="_blank"
                         rel="noreferrer"
-                        title={`${kindLabel} · ${ref.label}（点击查看大图）`}
+                        title={i18next.t("image.imageGenerationConfirmDialog.cry1qs", { val1: kindLabel, val2: ref.label })}
                         className="group block overflow-hidden rounded border bg-background transition-colors hover:border-primary"
                       >
                         <div className="aspect-square bg-muted/30">
@@ -755,7 +755,7 @@ function PanelDetailDialog({
                   />
                   {imageData.provider && (
                     <div className="mt-1 text-[11px] text-muted-foreground">
-                      模型：{imageData.provider}{imageData.generatedAt ? ` · 生成于 ${new Date(imageData.generatedAt).toLocaleString("zh-CN")}` : ""}
+                      模型：{imageData.provider}{imageData.generatedAt ? i18next.t("comic.panelsGridPanel.edgf8k", { val1: new Date(imageData.generatedAt).toLocaleString("zh-CN") }) : ""}
                     </div>
                   )}
                 </>
@@ -919,7 +919,7 @@ export function PanelsGridPanel({ projectId, provider }: { projectId: string; pr
                   <div className="relative">
                     <img
                       src={`${panelImageUrl(panel.id)}?t=${imageData.generatedAt || panel.updatedAt || ""}`}
-                      alt={`第 ${panel.order} 格`}
+                      alt={i18next.t("comic.panelsGridPanel.vms8xs", { val1: panel.order })}
                       className="aspect-[2/3] w-full object-cover"
                       loading="lazy"
                     />

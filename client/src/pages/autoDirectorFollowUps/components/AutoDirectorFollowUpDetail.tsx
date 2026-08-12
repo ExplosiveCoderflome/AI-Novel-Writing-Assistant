@@ -48,9 +48,9 @@ export function AutoDirectorFollowUpDetailPanel({
   onRetry,
 }: AutoDirectorFollowUpDetailPanelProps) {
   const deliveryStatusLabels = {
-    delivered: "已送达",
-    pending: "投递中",
-    failed: "投递失败",
+    delivered: i18next.t("dict.gen_f87f48f2"),
+    pending: i18next.t("dict.gen_cc59b89d"),
+    failed: i18next.t("dict.gen_eed9797b"),
   } as const;
   const eventTypeLabels = {
     "auto_director.approval_required": "需要处理",
@@ -169,7 +169,7 @@ export function AutoDirectorFollowUpDetailPanel({
                 <TaskQueueActionRow
                   key={action.code}
                   title={action.label}
-                  consequence={`${getFollowUpActionConsequence(action)} 风险：${getFollowUpActionRiskDescription(action)}`}
+                  consequence={i18next.t("autoDirectorFollowUps.autoDirectorFollowUpDetail.wqc63k", { val1: getFollowUpActionConsequence(action), val2: getFollowUpActionRiskDescription(action) })}
                   tone={getFollowUpActionTone(action)}
                   action={(
                     <Button

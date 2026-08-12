@@ -315,7 +315,7 @@ export function EpisodeListPanel({
     onSuccess: (ep) => {
       queryClient.invalidateQueries({ queryKey: ["comic", "episodes", projectId] });
       queryClient.invalidateQueries({ queryKey: ["comic", "panels", ep?.id] });
-      toast.success(`第 ${ep?.order ?? "?"} 话脚本生成完成`);
+      toast.success(i18next.t("comic.episodeListPanel.jkhh8o", { val1: ep?.order ?? "?" }));
     },
     onError: (e) => toast.error(String(e)),
     onSettled: () => setBusyEpId(""),
@@ -362,7 +362,7 @@ export function EpisodeListPanel({
               onClick={() => outlineMut.mutate({ startOrder: (episodes.length || 0) + 1, count: 12 })}
             >
               <Sparkles className="h-4 w-4" />
-              {outlineMut.isPending ? i18next.t("dict.gen_4d020ba3") : `生成第 ${(episodes.length || 0) + 1}-${(episodes.length || 0) + 12} 话大纲`}
+              {outlineMut.isPending ? i18next.t("dict.gen_4d020ba3") : i18next.t("comic.episodeListPanel.f82pe7", { val1: (episodes.length || 0) + 1, val2: (episodes.length || 0) + 12 })}
             </Button>
             <Button
               type="button"

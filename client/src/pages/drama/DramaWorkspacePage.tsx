@@ -362,7 +362,7 @@ export default function DramaWorkspacePage() {
                           setForm((current) => ({
                             ...current,
                             sourceRef: event.target.value,
-                            title: novel?.title ? `《${novel.title}》短剧版` : current.title,
+                            title: novel?.title ? i18next.t("drama.dramaWorkspacePage.e30apv", { val1: novel.title }) : current.title,
                           }));
                         }}
                       >

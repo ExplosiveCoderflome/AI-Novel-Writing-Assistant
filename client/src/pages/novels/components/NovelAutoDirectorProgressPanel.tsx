@@ -99,7 +99,7 @@ function resolveAutoExecutionScopeLabel(task: UnifiedTaskDetail | null): string 
     return scopeLabel;
   }
   const fallbackCount = Math.max(1, Math.round(seedPayload?.autoExecution?.totalChapterCount ?? 10));
-  return `前 ${fallbackCount} 章`;
+  return i18next.t("novels.novelAutoDirectorProgressPanel.6rsuxv", { val1: fallbackCount });
 }
 
 function resolveDirectorStyleSeed(task: UnifiedTaskDetail | null): {
@@ -122,7 +122,7 @@ function resolveDirectorStyleSeed(task: UnifiedTaskDetail | null): {
   }
   return {
     title: fallbackTone,
-    summaryLines: [`文风关键词：${fallbackTone}`],
+    summaryLines: [i18next.t("novels.novelAutoDirectorProgressPanel.ju1bdt", { val1: fallbackTone })],
   };
 }
 
@@ -149,7 +149,7 @@ function formatCheckpoint(
     return i18next.t("novels.novelAutoDirectorProgressPanel.hallyo");
   }
   if (checkpoint === "chapter_batch_ready") {
-    return `${resolveAutoExecutionScopeLabel(task)}自动执行已暂停`;
+    return i18next.t("lib.novelWorkflowTaskUi.mr8bw9", { val1: resolveAutoExecutionScopeLabel(task) });
   }
   if (checkpoint === "step_review_required") {
     return i18next.t("novels.novelAutoDirectorProgressPanel.fotvdd");

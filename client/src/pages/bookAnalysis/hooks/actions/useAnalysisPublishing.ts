@@ -43,7 +43,7 @@ export function useAnalysisPublishing(input: {
       }
       setLastPublishResult(published);
       setPublishFeedback(
-        `发布完成：文档 ${published.knowledgeDocumentId}，版本 v${published.knowledgeDocumentVersionNumber}，绑定 ${published.bindingCount} 项`,
+        i18next.t("bookAnalysis.useAnalysisPublishing.8ltwql", { val1: published.knowledgeDocumentId, val2: published.knowledgeDocumentVersionNumber, val3: published.bindingCount }),
       );
       await queryClient.invalidateQueries({ queryKey: queryKeys.knowledge.documents("book-analysis-source") });
       await queryClient.invalidateQueries({ queryKey: queryKeys.novelsKnowledge.bindings(payload.novelId) });
@@ -104,7 +104,7 @@ export function useAnalysisPublishing(input: {
     }
     await createStyleProfileMutation.mutateAsync({
       bookAnalysisId: selectedAnalysis.id,
-      name: `${selectedAnalysis.title}-写法资产`,
+      name: i18next.t("bookAnalysis.useAnalysisPublishing.i6ib7o", { val1: selectedAnalysis.title }),
     });
   };
 

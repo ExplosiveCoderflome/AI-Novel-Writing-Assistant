@@ -156,13 +156,13 @@ export function buildLandingProfileItems(params: BuildLandingProfileItemsParams)
       const emotionEntry = characterEntries.find((entry) => entry.key === "emotionExpression");
       const detailLines = [
         firstNonEmptyText(profile.description, profileSummary?.readingFeel)
-          ? `读感承诺：${firstNonEmptyText(profile.description, profileSummary?.readingFeel)}`
+          ? i18next.t("writingFormula.writingFormulaLandingItems.w0vxhn", { val1: firstNonEmptyText(profile.description, profileSummary?.readingFeel) })
           : "",
-        `语言质感：${buildLanguageSummary(profile)}`,
-        dialogueEntry ? `对白风格：${dialogueEntry.value}` : "",
-        emotionEntry ? `情绪外显：${emotionEntry.value}` : "",
+        i18next.t("writingFormula.writingFormulaLandingItems.khq5i8", { val1: buildLanguageSummary(profile) }),
+        dialogueEntry ? i18next.t("writingFormula.writingFormulaLandingItems.ie1708", { val1: dialogueEntry.value }) : "",
+        emotionEntry ? i18next.t("writingFormula.writingFormulaLandingItems.gmiqv1", { val1: emotionEntry.value }) : "",
         profileSummary?.antiAiFocus.length
-          ? `反 AI 约束：${profileSummary.antiAiFocus.join("；")}`
+          ? i18next.t("writingFormula.writingFormulaLandingItems.awqap8", { val1: profileSummary.antiAiFocus.join("；") })
           : "",
       ].filter(Boolean);
       const recentNovelBinding = recentNovelBindingsByProfileId.get(profile.id);

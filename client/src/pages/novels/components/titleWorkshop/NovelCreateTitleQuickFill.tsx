@@ -57,14 +57,14 @@ function resolveOptionLabel<T extends string>(
 
 function buildGenerationBrief(basicForm: NovelBasicFormState): string {
   const lines = [
-    basicForm.description.trim() ? `作品概述：${basicForm.description.trim()}` : "",
-    basicForm.title.trim() ? `当前草拟标题：${basicForm.title.trim()}` : "",
-    `创作模式：${resolveOptionLabel(WRITING_MODE_OPTIONS, basicForm.writingMode) ?? basicForm.writingMode}`,
-    `叙事视角：${resolveOptionLabel(POV_OPTIONS, basicForm.narrativePov) ?? basicForm.narrativePov}`,
-    `节奏偏好：${resolveOptionLabel(PACE_OPTIONS, basicForm.pacePreference) ?? basicForm.pacePreference}`,
-    `情绪浓度：${resolveOptionLabel(EMOTION_OPTIONS, basicForm.emotionIntensity) ?? basicForm.emotionIntensity}`,
-    `AI 自由度：${resolveOptionLabel(AI_FREEDOM_OPTIONS, basicForm.aiFreedom) ?? basicForm.aiFreedom}`,
-    basicForm.styleTone.trim() ? `文风关键词：${basicForm.styleTone.trim()}` : "",
+    basicForm.description.trim() ? i18next.t("novels.novelCreateTitleQuickFill.3vumhj", { val1: basicForm.description.trim() }) : "",
+    basicForm.title.trim() ? i18next.t("novels.novelCreateTitleQuickFill.kxuf6x", { val1: basicForm.title.trim() }) : "",
+    i18next.t("novels.novelCreateTitleQuickFill.xmv9dx", { val1: resolveOptionLabel(WRITING_MODE_OPTIONS, basicForm.writingMode) ?? basicForm.writingMode }),
+    i18next.t("novels.novelCreateTitleQuickFill.ux2yac", { val1: resolveOptionLabel(POV_OPTIONS, basicForm.narrativePov) ?? basicForm.narrativePov }),
+    i18next.t("novels.novelCreateTitleQuickFill.qwvlxr", { val1: resolveOptionLabel(PACE_OPTIONS, basicForm.pacePreference) ?? basicForm.pacePreference }),
+    i18next.t("novels.novelCreateTitleQuickFill.xntxbi", { val1: resolveOptionLabel(EMOTION_OPTIONS, basicForm.emotionIntensity) ?? basicForm.emotionIntensity }),
+    i18next.t("novels.novelCreateTitleQuickFill.o3zb4z", { val1: resolveOptionLabel(AI_FREEDOM_OPTIONS, basicForm.aiFreedom) ?? basicForm.aiFreedom }),
+    basicForm.styleTone.trim() ? i18next.t("novels.novelAutoDirectorProgressPanel.ju1bdt", { val1: basicForm.styleTone.trim() }) : "",
   ].filter(Boolean);
   return lines.join("\n");
 }
@@ -74,7 +74,7 @@ function renderLibraryDescription(entry: TitleLibraryEntry): string {
     return truncateText(entry.description, 100);
   }
   if (entry.keywords?.trim()) {
-    return `关键词：${truncateText(entry.keywords, 80)}`;
+    return i18next.t("novels.novelCreateTitleQuickFill.re1gmw", { val1: truncateText(entry.keywords, 80) });
   }
   return i18next.t("dict.gen_cbd40d13");
 }
@@ -104,7 +104,7 @@ export default function NovelCreateTitleQuickFill({
 
   const autoBrief = useMemo(() => buildGenerationBrief(basicForm), [basicForm]);
   const resolvedBrief = useMemo(
-    () => [autoBrief, manualBrief.trim() ? `额外补充：${manualBrief.trim()}` : ""].filter(Boolean).join("\n"),
+    () => [autoBrief, manualBrief.trim() ? i18next.t("novels.novelCreateTitleQuickFill.c79ukx", { val1: manualBrief.trim() }) : ""].filter(Boolean).join("\n"),
     [autoBrief, manualBrief],
   );
   const generationMode = referenceTitle.trim() ? "adapt" : "brief";
@@ -152,7 +152,7 @@ export default function NovelCreateTitleQuickFill({
     onSuccess: (rows) => {
       const next = sortSuggestions(rows);
       setSuggestions(next);
-      toast.success(`已生成 ${next.length} 个标题候选。`);
+      toast.success(i18next.t("novels.novelCreateTitleQuickFill.kt8gei", { val1: next.length }));
     },
   });
 

@@ -495,7 +495,7 @@ function KeyframePreview({ shot, keyframe }: { shot: DramaShot; keyframe: DramaS
           <a href={keyframe.url} target="_blank" rel="noreferrer" className="block">
             <img
               src={keyframe.url}
-              alt={`镜头 ${shot.order} 首帧图`}
+              alt={i18next.t("drama.dramaVisualPanel.q4jhaz", { val1: shot.order })}
               className="h-56 w-full rounded-md border object-cover md:h-40"
             />
           </a>
@@ -570,10 +570,10 @@ function formatCost(cost: DramaBatchCostBreakdown, amount: number): string {
 function costUnitLabel(cost: DramaBatchCostBreakdown): string {
   const parts = [];
   if (cost.unit.costPerImage) {
-    parts.push(`图片 ${formatCost(cost, cost.unit.costPerImage)}/张`);
+    parts.push(i18next.t("drama.dramaVisualPanel.f8d2fc", { val1: formatCost(cost, cost.unit.costPerImage) }));
   }
   if (cost.unit.costPerSecond) {
-    parts.push(`时长 ${formatCost(cost, cost.unit.costPerSecond)}/秒`);
+    parts.push(i18next.t("drama.dramaEpisodeAudioPanel.1fczkm", { val1: formatCost(cost, cost.unit.costPerSecond) }));
   }
   return parts.length ? parts.join("，") : i18next.t("dict.gen_8690d6e2");
 }
@@ -588,7 +588,7 @@ function CostEstimate(props: { title: string; cost?: DramaBatchCostBreakdown; lo
       {props.cost ? (
         <div className="mt-1 text-xs text-muted-foreground">
           {costUnitLabel(props.cost)}
-          {props.cost.estimatedUnits.shots ? ` · ${props.cost.estimatedUnits.shots} 个镜头` : ""}
+          {props.cost.estimatedUnits.shots ? i18next.t("drama.dramaEpisodeAudioPanel.7cbrh7", { val1: props.cost.estimatedUnits.shots }) : ""}
         </div>
       ) : null}
     </div>
@@ -642,7 +642,7 @@ function VideoPromptDetails({ prompt, compact = false }: { prompt: DramaVideoPro
       ) : null}
       {prompt.status === "failed" ? (
         <div className="rounded-md border border-destructive/40 p-3 text-sm text-destructive">
-          {failureReason ? `视频任务失败：${failureReason}` : i18next.t("dict.gen_047a6b63")}
+          {failureReason ? i18next.t("drama.dramaVisualPanel.csic05", { val1: failureReason }) : i18next.t("dict.gen_047a6b63")}
         </div>
       ) : null}
     </div>

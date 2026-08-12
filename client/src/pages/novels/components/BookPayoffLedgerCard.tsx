@@ -63,13 +63,13 @@ function formatWindow(item: PayoffLedgerItem): string {
     typeof item.targetStartChapterOrder === "number"
     && typeof item.targetEndChapterOrder === "number"
   ) {
-    return `第 ${item.targetStartChapterOrder}-${item.targetEndChapterOrder} 章`;
+    return i18next.t("novels.bookPayoffLedgerCard.mv5rga", { val1: item.targetStartChapterOrder, val2: item.targetEndChapterOrder });
   }
   if (typeof item.targetEndChapterOrder === "number") {
-    return `最晚第 ${item.targetEndChapterOrder} 章`;
+    return i18next.t("novels.bookPayoffLedgerCard.avv58i", { val1: item.targetEndChapterOrder });
   }
   if (typeof item.targetStartChapterOrder === "number") {
-    return `从第 ${item.targetStartChapterOrder} 章开始`;
+    return i18next.t("novels.bookPayoffLedgerCard.dg7q7x", { val1: item.targetStartChapterOrder });
   }
   return i18next.t("novels.bookPayoffLedgerCard.fu1v8");
 }
@@ -161,7 +161,7 @@ export default function BookPayoffLedgerCard(props: BookPayoffLedgerCardProps) {
                         <div>
                           最近触碰：
                           {typeof item.lastTouchedChapterOrder === "number"
-                            ? `第 ${item.lastTouchedChapterOrder} 章`
+                            ? i18next.t("autoDirector.directorRuntimeProjectionCard.vms598", { val1: item.lastTouchedChapterOrder })
                             : "暂无"}
                         </div>
                         <div>来源摘要：{sourceSummary(item)}</div>

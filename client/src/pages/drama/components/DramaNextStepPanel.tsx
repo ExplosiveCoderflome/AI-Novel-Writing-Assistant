@@ -125,7 +125,7 @@ function buildNextStep(project: DramaProjectDetail): NextStep {
   if (unscripted) {
     return {
       kind: "script",
-      title: `下一步：生成第 ${unscripted.order} 集台本`,
+      title: i18next.t("drama.dramaNextStepPanel.jq3gqn", { val1: unscripted.order }),
       description: i18next.t("dict.gen_0cb9ca78"),
       button: i18next.t("dict.gen_7f83dc3d"),
       tab: "episodes",
@@ -136,7 +136,7 @@ function buildNextStep(project: DramaProjectDetail): NextStep {
   if (repairable) {
     return {
       kind: "repair",
-      title: `下一步：修复第 ${repairable.order} 集质量问题`,
+      title: i18next.t("drama.dramaNextStepPanel.rgttb0", { val1: repairable.order }),
       description: i18next.t("dict.gen_4e692cb2"),
       button: i18next.t("dict.gen_98a2f9a0"),
       tab: "episodes",
@@ -147,7 +147,7 @@ function buildNextStep(project: DramaProjectDetail): NextStep {
   if (unreviewed) {
     return {
       kind: "review",
-      title: `下一步：检查第 ${unreviewed.order} 集质量`,
+      title: i18next.t("drama.dramaNextStepPanel.g3rw3k", { val1: unreviewed.order }),
       description: i18next.t("dict.gen_9c5ff664"),
       button: i18next.t("dict.gen_6fc8894d"),
       tab: "episodes",
@@ -158,7 +158,7 @@ function buildNextStep(project: DramaProjectDetail): NextStep {
   if (unstagedStoryboard) {
     return {
       kind: "storyboard",
-      title: `下一步：生成第 ${unstagedStoryboard.order} 集分镜`,
+      title: i18next.t("drama.dramaNextStepPanel.jq3jc5", { val1: unstagedStoryboard.order }),
       description: i18next.t("dict.gen_65853d35"),
       button: i18next.t("dict.gen_3d45375e"),
       tab: "visual",
@@ -169,7 +169,7 @@ function buildNextStep(project: DramaProjectDetail): NextStep {
   if (shotWithoutPrompt) {
     return {
       kind: "videoPrompt",
-      title: `下一步：生成第 ${shotWithoutPrompt.episode.order} 集视频提示词`,
+      title: i18next.t("drama.dramaNextStepPanel.idibbn", { val1: shotWithoutPrompt.episode.order }),
       description: i18next.t("dict.gen_b644c21e"),
       button: i18next.t("dict.gen_9bcc2e2b"),
       tab: "visual",

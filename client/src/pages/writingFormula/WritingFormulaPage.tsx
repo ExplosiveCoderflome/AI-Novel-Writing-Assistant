@@ -237,7 +237,7 @@ export default function WritingFormulaPage() {
     setActiveWorkspaceDialog("editor");
     setEditorFocusIntent("editor");
     if (incomingSource === "book-analysis") {
-      setMessage(`写法“${incomingProfile.name}”来自拆书结果，你可以继续检查规则、试写，或绑定到目标。`);
+      setMessage(i18next.t("writingFormula.useWritingFormulaCreateFlow.5agrjg", { val1: incomingProfile.name }));
     }
     setSearchParams(nextSearchParams, { replace: true });
   }, [incomingProfileId, incomingSource, profiles, searchParams, setSearchParams]);
@@ -300,7 +300,7 @@ export default function WritingFormulaPage() {
     },
     onExtractionTaskQueued: (task) => {
       setCreateDialogOpen(false);
-      setMessage(`写法提取任务“${task.title}”已提交。系统会在后台自动提取并保存，完成后会自动打开结果。`);
+      setMessage(i18next.t("writingFormula.writingFormulaPage.vrmx9y", { val1: task.title }));
     },
     onFlowMessage: setMessage,
   });
@@ -346,7 +346,7 @@ export default function WritingFormulaPage() {
       }));
       setMessage(
         extractedFeatures.length > 0
-          ? `已重新提取 ${extractedFeatures.length} 条特征，请确认后保存。`
+          ? i18next.t("writingFormula.writingFormulaPage.h6ti60", { val1: extractedFeatures.length })
           : i18next.t("dict.gen_51327df9"),
       );
     },
@@ -533,7 +533,7 @@ export default function WritingFormulaPage() {
         onDeleteProfile={(profileId) => {
           const profile = profiles.find((item) => item.id === profileId);
           const profileName = profile?.name ?? i18next.t("dict.gen_20b79693");
-          const confirmed = window.confirm(`确认删除“${profileName}”吗？删除后无法恢复。`);
+          const confirmed = window.confirm(i18next.t("writingFormula.writingFormulaPage.31m8zv", { val1: profileName }));
           if (!confirmed) {
             return;
           }

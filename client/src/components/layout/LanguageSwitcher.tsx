@@ -1,3 +1,4 @@
+import i18next from "i18next";
 import React from "react";
 import { useTranslation } from "react-i18next";
 import { Globe } from "lucide-react";
@@ -28,7 +29,7 @@ export default function LanguageSwitcher({
   const currentLang = (i18n.language || "zh").startsWith("en") ? "en" : "zh";
 
   const supportedLanguages: LanguageOption[] = [
-    { code: "zh", label: "简体中文", nativeLabel: "简体中文" },
+    { code: "zh", label: i18next.t("layout.languageSwitcher.fwrpxp"), nativeLabel: i18next.t("layout.languageSwitcher.fwrpxp") },
     { code: "en", label: "English", nativeLabel: "English" },
   ];
 

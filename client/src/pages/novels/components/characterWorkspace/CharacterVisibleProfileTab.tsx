@@ -96,8 +96,8 @@ export default function CharacterVisibleProfileTab(props: CharacterVisibleProfil
             <div>
               <div className="text-sm font-medium">
                 {applicableVisibleProfileCount > 0
-                  ? `已为“${visibleProfileSuggestion.characterName}”生成 ${applicableVisibleProfileCount} 项可写入外显资料`
-                  : `“${visibleProfileSuggestion.characterName}”当前没有可写入的外显资料`}
+                  ? i18next.t("novels.characterVisibleProfileTab.8i1maw", { val1: visibleProfileSuggestion.characterName, val2: applicableVisibleProfileCount })
+                  : i18next.t("novels.characterVisibleProfileTab.nclvpj", { val1: visibleProfileSuggestion.characterName })}
               </div>
               <div className="mt-1 text-xs text-muted-foreground">{i18next.t("novels.characterVisibleProfileTab.9wp7r7")}</div>
             </div>
@@ -153,7 +153,7 @@ export default function CharacterVisibleProfileTab(props: CharacterVisibleProfil
               <div key={result.characterId} className="rounded-md border bg-muted/10 p-2 text-xs leading-5">
                 <div className="font-medium">{result.characterName}</div>
                 <div className="text-muted-foreground">
-                  {result.hasApplicableChanges ? `可写入 ${Object.keys(result.fields).length} 项` : "没有可写入项"}
+                  {result.hasApplicableChanges ? i18next.t("novels.characterVisibleProfileTab.6vlumq", { val1: Object.keys(result.fields).length }) : "没有可写入项"}
                 </div>
                 <div>{VISIBLE_PROFILE_FIELDS.map((field) => result.fields[field.key]).filter(Boolean).join(" / ")}</div>
               </div>

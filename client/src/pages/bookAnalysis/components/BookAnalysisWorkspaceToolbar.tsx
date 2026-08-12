@@ -82,7 +82,7 @@ export default function BookAnalysisWorkspaceToolbar(props: BookAnalysisWorkspac
             <Badge variant={budgetExceeded ? "destructive" : "secondary"} className="border-0 font-normal">
               预算 {budgetTokens
                 ? `${formatTokenCount(usedTokens)}/${formatTokenCount(budgetTokens)}`
-                : `${formatTokenCount(usedTokens)}/不限`}
+                : i18next.t("bookAnalysis.bookAnalysisWorkspaceToolbar.k8e42q", { val1: formatTokenCount(usedTokens) })}
             </Badge>
           </div>
           <p className="mt-1 text-xs leading-5 text-muted-foreground">{i18next.t("bookAnalysis.bookAnalysisWorkspaceToolbar.y8605x")}</p>

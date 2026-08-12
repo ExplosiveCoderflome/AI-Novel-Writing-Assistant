@@ -195,7 +195,7 @@ export default function BookAnalysisPage() {
         <WorkspaceStateNotice
           tone="danger"
           title={i18next.t("bookAnalysis.bookAnalysisPage.4q47yb")}
-          description={`${workspace.queryState.detailError} 来源文档和已保存结果不会被覆盖。`}
+          description={i18next.t("bookAnalysis.bookAnalysisPage.gchsuj", { val1: workspace.queryState.detailError })}
           action={(
             <Button type="button" size="sm" variant="outline" onClick={workspace.retryDetail}>
               <RefreshCw className="mr-1.5 h-3.5 w-3.5" aria-hidden="true" />{i18next.t("bookAnalysis.bookAnalysisPage.iz6l3b")}</Button>
@@ -212,7 +212,7 @@ export default function BookAnalysisPage() {
         <WorkspaceStateNotice
           tone="danger"
           title={i18next.t("bookAnalysis.bookAnalysisPage.wtjlof")}
-          description={`${workspace.queryState.analysesError} 现有来源文档和分析结果不会被修改。`}
+          description={i18next.t("bookAnalysis.bookAnalysisPage.gk9jyw", { val1: workspace.queryState.analysesError })}
           action={(
             <Button type="button" size="sm" variant="outline" onClick={workspace.retryAnalyses}>
               <RefreshCw className="mr-1.5 h-3.5 w-3.5" aria-hidden="true" />{i18next.t("common.retry")}</Button>

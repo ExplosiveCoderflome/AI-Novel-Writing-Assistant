@@ -112,7 +112,7 @@ export function resolveCustomVolumeCountInput(
   ) {
     return {
       value: null,
-      message: `固定卷数必须落在 ${volumeCountGuidance.allowedVolumeCountRange.min}-${volumeCountGuidance.allowedVolumeCountRange.max} 卷之间。`,
+      message: i18next.t("novels.useNovelVolumePlanning.utils.op3w5i", { val1: volumeCountGuidance.allowedVolumeCountRange.min, val2: volumeCountGuidance.allowedVolumeCountRange.max }),
     };
   }
   return {

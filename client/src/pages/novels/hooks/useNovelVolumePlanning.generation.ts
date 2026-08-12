@@ -344,8 +344,8 @@ export function useVolumeGenerationMutation({
       const label = detailModeLabel(payload.detailMode ?? "purpose");
       setStructuredMessage(
         result.autoSyncedToChapterExecution
-          ? `${label}已完成 AI 修正并自动保存，章节执行区也已自动同步最新内容。`
-          : `${label}已完成 AI 修正并自动保存。`,
+          ? i18next.t("novels.useNovelVolumePlanning.generation.c1x3dd", { val1: label })
+          : i18next.t("novels.useNovelVolumePlanning.generation.3swvvq", { val1: label }),
       );
     },
     onError: async (error, payload, context) => {

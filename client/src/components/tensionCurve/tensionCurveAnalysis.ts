@@ -63,7 +63,7 @@ export function analyzeTensionCurveShape(points: TensionCurvePoint[]): TensionCu
         hints.push({
           key: `flat-${values[flatStartIndex].id}-${values[index].id}`,
           label: i18next.t("dict.gen_adab029b"),
-          detail: `第${values[flatStartIndex].chapterOrder}-${values[index].chapterOrder}章冲突强度变化很小，可以检查这里是否需要更清晰的推进或回报。`,
+          detail: i18next.t("tensionCurve.tensionCurveAnalysis.r1bwmp", { val1: values[flatStartIndex].chapterOrder, val2: values[index].chapterOrder }),
         });
         break;
       }
@@ -79,7 +79,7 @@ export function analyzeTensionCurveShape(points: TensionCurvePoint[]): TensionCu
     hints.push({
       key: "late-peak-missing",
       label: i18next.t("dict.gen_6dfc576d"),
-      detail: `当前最高点在第${peak.chapterOrder}章，卷末四分之一没有形成更强峰值，可以检查高潮承诺是否足够集中。`,
+      detail: i18next.t("tensionCurve.tensionCurveAnalysis.ugjpib", { val1: peak.chapterOrder }),
     });
   }
 
@@ -102,7 +102,7 @@ export function analyzeTensionCurveShape(points: TensionCurvePoint[]): TensionCu
       hints.push({
         key: `beat-flat-${group[0].beatKey}`,
         label: i18next.t("dict.gen_92d121bd"),
-        detail: `第${group[0].chapterOrder}-${group[group.length - 1].chapterOrder}章在同一节拍内接近持平，可以检查是否需要转折点。`,
+        detail: i18next.t("tensionCurve.tensionCurveAnalysis.tuvlve", { val1: group[0].chapterOrder, val2: group[group.length - 1].chapterOrder }),
       });
       break;
     }

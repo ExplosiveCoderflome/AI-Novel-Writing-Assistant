@@ -43,17 +43,17 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { toast } from "@/components/ui/toast";
 
 const STATUS_LABELS: Record<string, string> = {
-  draft: "草稿",
-  script_ready: "脚本已生成",
-  rendering: "渲染中",
-  completed: "已完成",
-  failed: "失败",
+  draft: i18next.t("common.draft"),
+  script_ready: i18next.t("dict.gen_1361ca2d"),
+  rendering: i18next.t("video.videoWorkspacePage.gn59o"),
+  completed: i18next.t("tasks.filterStatusSucceeded"),
+  failed: i18next.t("tasks.filterStatusFailed"),
 };
 
 const SOURCE_TYPE_LABELS: Record<string, string> = {
-  chapter_adaptation: "章节改编",
-  trailer: "预告片",
-  custom: "自定义",
+  chapter_adaptation: i18next.t("video.videoWorkspacePage.g1ji8v"),
+  trailer: i18next.t("video.videoWorkspacePage.mr6bl"),
+  custom: i18next.t("dict.gen_f1d4ff50"),
 };
 
 function statusLabel(status: string): string {
@@ -349,7 +349,7 @@ export default function VideoWorkspacePage() {
                   setForm((c) => ({
                     ...c,
                     novelId: e.target.value,
-                    title: novel?.title ? `《${novel.title}》视频版` : c.title,
+                    title: novel?.title ? i18next.t("video.videoWorkspacePage.e0293o", { val1: novel.title }) : c.title,
                   }));
                 }}
               >

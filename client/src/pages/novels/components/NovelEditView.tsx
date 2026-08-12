@@ -80,7 +80,7 @@ function DesktopNovelEditView(props: NovelEditViewProps) {
   const resetChaptersMutation = useMutation({
     mutationFn: () => devResetNovelChapters(id),
     onSuccess: async (result) => {
-      toast.success(`已重置 ${result.resetCount} 个章节正文，可重新生成。`);
+      toast.success(i18next.t("novels.novelEditView.88a1ge", { val1: result.resetCount }));
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: queryKeys.novels.detail(id) }),
         queryClient.invalidateQueries({ queryKey: queryKeys.novels.chapters(id) }),
@@ -110,7 +110,7 @@ function DesktopNovelEditView(props: NovelEditViewProps) {
   const pendingResourceProposalCount = taskDrawer?.resourceProposals?.length ?? 0;
   const taskAttentionLabel = (() => {
     if (pendingResourceProposalCount > 0) {
-      return `${pendingResourceProposalCount} 条资源`;
+      return i18next.t("novels.novelEditView.byfxtv", { val1: pendingResourceProposalCount });
     }
     if (!taskDrawer?.task) {
       return null;
@@ -204,7 +204,7 @@ function DesktopNovelEditView(props: NovelEditViewProps) {
           )}
           title={currentStepLabel}
           description={showWorkflowRecommendation && workflowStepLabel
-            ? `流程推荐：建议切换到「${workflowStepLabel}」继续推进。`
+            ? i18next.t("novels.novelEditView.4i4lpd", { val1: workflowStepLabel })
             : i18next.t("dict.gen_dea4f01e")}
           actions={(
             <>
@@ -339,7 +339,7 @@ function DesktopNovelEditView(props: NovelEditViewProps) {
                         className="border-yellow-500/60 text-yellow-700 hover:bg-yellow-100 dark:text-yellow-400 dark:hover:bg-yellow-900/30"
                         disabled={resetChaptersMutation.isPending}
                         onClick={() => {
-                          if (window.confirm(`确认重置本小说所有 ${totalChapters} 个章节的正文？此操作不可撤销（但快照数据保留）。`)) {
+                          if (window.confirm(i18next.t("novels.novelEditView.ykty5q", { val1: totalChapters }))) {
                             resetChaptersMutation.mutate();
                           }
                         }}

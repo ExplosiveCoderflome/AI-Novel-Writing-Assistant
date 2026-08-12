@@ -191,7 +191,7 @@ export default function PipelineTab(props: PipelineTabProps) {
             <div className="rounded-xl bg-muted/15 p-3">
               <div className="text-xs text-muted-foreground">{i18next.t("dict.gen_657ac21a")}</div>
               <div className="mt-1 text-sm font-semibold text-foreground">
-                {pendingRepairCount > 0 ? `先处理 ${pendingRepairCount} 个低分章节` : i18next.t("dict.gen_61ca66fc")}
+                {pendingRepairCount > 0 ? i18next.t("novels.pipelineTab.7ok0h6", { val1: pendingRepairCount }) : i18next.t("dict.gen_61ca66fc")}
               </div>
             </div>
             <div className="rounded-xl bg-muted/15 p-3">

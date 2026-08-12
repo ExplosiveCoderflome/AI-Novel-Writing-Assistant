@@ -262,8 +262,8 @@ export default function WritingFormulaLanding(props: WritingFormulaLandingProps)
                   <div className="space-y-2">
                     <DetailStatRow label={i18next.t("dict.gen_26ca20b1")} value={profile.sourceTypeLabel} />
                     <DetailStatRow label={i18next.t("dict.gen_06dc9b38")} value={profile.updatedAtLabel} />
-                    <DetailStatRow label={i18next.t("dict.gen_a02411b4")} value={`${profile.extractedFeatureCount} 项`} />
-                    <DetailStatRow label={i18next.t("dict.gen_3ea1f5f1")} value={`${profile.highRiskFeatureCount} 项`} />
+                    <DetailStatRow label={i18next.t("dict.gen_a02411b4")} value={i18next.t("novels.novelExistingProjectTakeoverViewModel.izenbd", { val1: profile.extractedFeatureCount })} />
+                    <DetailStatRow label={i18next.t("dict.gen_3ea1f5f1")} value={i18next.t("novels.novelExistingProjectTakeoverViewModel.izenbd", { val1: profile.highRiskFeatureCount })} />
                     <DetailStatRow
                       label={i18next.t("dict.gen_f2069f25")}
                       value={profile.selectedPresetLabel || "未锁定"}
@@ -272,7 +272,7 @@ export default function WritingFormulaLanding(props: WritingFormulaLandingProps)
                       label={i18next.t("dict.gen_711cbc03")}
                       value={profile.presetLabels.length > 0 ? profile.presetLabels.join(" / ") : "暂无"}
                     />
-                    <DetailStatRow label={i18next.t("dict.gen_34700230")} value={`${profile.bindingCount} 个`} />
+                    <DetailStatRow label={i18next.t("dict.gen_34700230")} value={i18next.t("novels.novelWorldUsageCard.ize8my", { val1: profile.bindingCount })} />
                     <DetailStatRow
                       label={i18next.t("dict.gen_365ed2d7")}
                       value={profile.recentNovelTitle || "还没有绑定到小说"}

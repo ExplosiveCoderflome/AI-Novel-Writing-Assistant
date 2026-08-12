@@ -76,30 +76,30 @@ export function getResourceDisplayMode(character?: Character): {
 
 export function getResourceStatusLabel(status: CharacterResourceLedgerItem["status"]): string {
   const labels: Record<CharacterResourceLedgerItem["status"], string> = {
-    available: "可用",
-    hidden: "隐藏",
-    borrowed: "借用",
-    transferred: "转交",
-    lost: "丢失",
-    consumed: "已消耗",
-    damaged: "受损",
-    destroyed: "毁坏",
-    stale: "淡出",
+    available: i18next.t("dict.gen_ad6b7038"),
+    hidden: i18next.t("dict.gen_dce5379c"),
+    borrowed: i18next.t("dict.gen_5d971fd1"),
+    transferred: i18next.t("dict.gen_e1dc6851"),
+    lost: i18next.t("dict.lost"),
+    consumed: i18next.t("dict.gen_67d4508d"),
+    damaged: i18next.t("dict.gen_a6d66917"),
+    destroyed: i18next.t("dict.gen_a208527a"),
+    stale: i18next.t("dict.gen_8c90bea6"),
   };
   return labels[status] ?? status;
 }
 
 export function getResourceFunctionLabel(value: CharacterResourceLedgerItem["narrativeFunction"]): string {
   const labels: Record<CharacterResourceLedgerItem["narrativeFunction"], string> = {
-    tool: "工具",
-    clue: "线索",
-    weapon: "武器",
-    proof: "证据",
-    key: "钥匙",
-    cost: "代价",
-    promise: "伏笔",
-    hidden_card: "底牌",
-    constraint: "限制",
+    tool: i18next.t("dict.gen_20dce2c6"),
+    clue: i18next.t("dict.gen_ad46a96c"),
+    weapon: i18next.t("dict.gen_44a3d9a4"),
+    proof: i18next.t("dict.gen_a1619f59"),
+    key: i18next.t("dict.gen_02b66eb5"),
+    cost: i18next.t("dict.cost"),
+    promise: i18next.t("dict.foreshadowing"),
+    hidden_card: i18next.t("dict.gen_2fe3dee8"),
+    constraint: i18next.t("dict.gen_df9c9706"),
   };
   return labels[value] ?? value;
 }

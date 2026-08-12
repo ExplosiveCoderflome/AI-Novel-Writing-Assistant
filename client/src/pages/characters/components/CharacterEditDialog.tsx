@@ -98,7 +98,7 @@ export function CharacterEditDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="w-[96vw] max-h-[90vh] max-w-[1100px] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>{character ? `编辑角色：${character.name}` : i18next.t("dict.gen_ac775e9a")}</DialogTitle>
+          <DialogTitle>{character ? i18next.t("characters.characterEditDialog.3x0t3j", { val1: character.name }) : i18next.t("dict.gen_ac775e9a")}</DialogTitle>
         </DialogHeader>
 
         <div className="grid gap-2 md:grid-cols-2">

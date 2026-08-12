@@ -181,7 +181,7 @@ export default function KnowledgeEmbeddingSettingsCard({
               {modelQuery.data ? (
                 <div className="text-xs text-muted-foreground">
                   {modelQuery.data.source === "remote"
-                    ? `服务商可用模型：${modelQuery.data.models.length} 个。`
+                    ? i18next.t("knowledge.knowledgeEmbeddingSettingsCard.nwa3n", { val1: modelQuery.data.models.length })
                     : "可先使用推荐模型；连接配置可用时，列表会展示服务商模型。"}
                 </div>
               ) : null}

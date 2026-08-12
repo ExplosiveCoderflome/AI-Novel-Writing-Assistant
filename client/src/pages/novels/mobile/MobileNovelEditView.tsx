@@ -73,7 +73,7 @@ export default function MobileNovelEditView(props: NovelEditViewProps) {
   ).length;
   const taskAttentionLabel = (() => {
     if (pendingResourceProposalCount > 0) {
-      return `${pendingResourceProposalCount} 条资源`;
+      return i18next.t("novels.novelEditView.byfxtv", { val1: pendingResourceProposalCount });
     }
     if (!taskDrawer?.task) {
       return null;

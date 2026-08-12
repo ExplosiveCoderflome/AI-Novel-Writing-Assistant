@@ -160,7 +160,7 @@ function CharacterList({
                     {hasSheet && (
                       <img
                         src={characterSheetImageUrl(character.id, sheetData?.generatedAt || sheetData?.version)}
-                        alt={`${character.name} 头像`}
+                        alt={i18next.t("comic.charactersPanel.k8fbij", { val1: character.name })}
                         className="absolute inset-0 h-full w-full object-cover object-left"
                         loading="lazy"
                         onError={(event) => {
@@ -533,7 +533,7 @@ function CharacterDetail({
       generate: (overrides) => generateCharacterSheet(character.id, provider || undefined, options, overrides),
       onSuccess: () => {
         queryClient.invalidateQueries({ queryKey: ["comic", "project"] });
-        toast.success(`${character.name} 设计稿生成完成`);
+        toast.success(i18next.t("comic.charactersPanel.5glpwf", { val1: character.name }));
         setShowSheetTuning(false);
       },
     });
@@ -545,7 +545,7 @@ function CharacterDetail({
       generate: (overrides) => generateCharacterExpressionSheet(character.id, provider || undefined, overrides),
       onSuccess: () => {
         queryClient.invalidateQueries({ queryKey: ["comic", "project"] });
-        toast.success(`${character.name} 表情稿生成完成`);
+        toast.success(i18next.t("comic.charactersPanel.mkc7c7", { val1: character.name }));
       },
     });
   };
@@ -604,7 +604,7 @@ function CharacterDetail({
             {hasSheet ? (
               <img
                 src={characterSheetImageUrl(character.id, sheetData?.generatedAt || sheetData?.version)}
-                alt={`${character.name} 设计稿`}
+                alt={i18next.t("comic.charactersPanel.bt4et0", { val1: character.name })}
                 className="max-h-[520px] w-full rounded-md object-contain"
               />
             ) : isGenerating ? (
@@ -658,7 +658,7 @@ function CharacterDetail({
               <div className="overflow-hidden rounded-md border bg-muted">
                 <img
                   src={characterExpressionImageUrl(character.id)}
-                  alt={`${character.name} 表情稿`}
+                  alt={i18next.t("comic.charactersPanel.bttai6", { val1: character.name })}
                   className="max-h-56 w-full object-contain"
                   loading="lazy"
                 />
@@ -901,7 +901,7 @@ function AssetCard({
         onUpload={(file) => uploadMut.mutate(file)}
         onDelete={() => deleteMut.mutate()}
         busy={uploadMut.isPending || deleteMut.isPending}
-        confirmDeleteText={`删除资产「${asset.name}」？此操作不可撤销。`}
+        confirmDeleteText={i18next.t("comic.charactersPanel.v7seqg", { val1: asset.name })}
       />
     </>
   );
@@ -998,7 +998,7 @@ function AssetAddRow({
         <input
           ref={inputRef}
           className="flex-1 rounded-md border bg-background px-2.5 py-1.5 text-xs outline-none focus:border-primary focus:ring-1 focus:ring-primary/20"
-          placeholder={`${ASSET_TYPE_LABELS[type]}名称（如：${placeholderName}）`}
+          placeholder={i18next.t("comic.charactersPanel.1ozd6z", { val1: ASSET_TYPE_LABELS[type], val2: placeholderName })}
           value={name}
           disabled={createMut.isPending}
           onChange={(e) => setName(e.target.value)}
@@ -1063,7 +1063,7 @@ function AssetSection({
         <p className="text-sm font-semibold">{i18next.t("dict.gen_fb3d6e79")}</p>
         <span className="text-[11px] text-muted-foreground">
           {assets.length > 0
-            ? `${assets.length} 个资产 · 已按类型分组`
+            ? i18next.t("comic.charactersPanel.bngmmn", { val1: assets.length })
             : i18next.t("dict.gen_1cce0929")}
         </span>
       </div>

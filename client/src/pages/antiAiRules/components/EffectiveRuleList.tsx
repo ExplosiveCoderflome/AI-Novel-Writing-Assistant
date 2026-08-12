@@ -27,7 +27,7 @@ export default function EffectiveRuleList(props: EffectiveRuleListProps) {
                 <Badge variant="outline">{typeLabels[item.rule.type]} / {severityLabels[item.rule.severity]}</Badge>
               </div>
               <div className="mt-2 text-xs leading-5 text-muted-foreground">
-                {item.sourceLabel}{item.weight !== 1 ? `，强度 ${item.weight}` : ""}
+                {item.sourceLabel}{item.weight !== 1 ? i18next.t("antiAiRules.effectiveRuleList.35pilk", { val1: item.weight }) : ""}
               </div>
               {item.rule.promptInstruction ? (
                 <div className="mt-2 text-sm leading-6 text-muted-foreground">{item.rule.promptInstruction}</div>

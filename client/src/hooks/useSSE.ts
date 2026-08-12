@@ -117,7 +117,7 @@ export function useSSE(options?: UseSSEOptions) {
         });
 
         if (!response.ok || !response.body) {
-          throw new Error(`请求失败，状态码 ${response.status}`);
+          throw new Error(i18next.t("hooks.useSSE.lfqyc9", { val1: response.status }));
         }
 
         const reader = response.body.getReader();

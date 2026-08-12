@@ -282,7 +282,7 @@ export default function WorldHandbookEditor(props: {
           <HandbookPreviewCard
             icon={ScrollText}
             title={i18next.t("dict.gen_0a431a82")}
-            description={`${draftStructure.rules.axioms.length} 条规则会限制力量、资源、禁忌和代价。`}
+            description={i18next.t("worlds.worldHandbookEditor.jzdrqp", { val1: draftStructure.rules.axioms.length })}
             action={
               <Button type="button" size="sm" variant="outline" onClick={() => setEditingSection("rules")}>{i18next.t("worlds.worldHandbookEditor.dabfjb")}</Button>
             }
@@ -307,7 +307,7 @@ export default function WorldHandbookEditor(props: {
           <HandbookPreviewCard
             icon={Castle}
             title={i18next.t("dict.majorForce")}
-            description={`${draftStructure.forces.length} 个势力决定角色归属、阵营压力和资源争夺。`}
+            description={i18next.t("worlds.worldHandbookEditor.d0k7ch", { val1: draftStructure.forces.length })}
             action={
               <Button type="button" size="sm" variant="outline" onClick={() => setEditingSection("forces")}>{i18next.t("worlds.worldHandbookEditor.da22q6")}</Button>
             }
@@ -335,7 +335,7 @@ export default function WorldHandbookEditor(props: {
           <HandbookPreviewCard
             icon={MapPinned}
             title={i18next.t("dict.gen_bf876a86")}
-            description={`${draftStructure.locations.length} 个地点承载开局、升级、转折、决战和地图资产。`}
+            description={i18next.t("worlds.worldHandbookEditor.eb0rmq", { val1: draftStructure.locations.length })}
             action={
               <Button type="button" size="sm" variant="outline" onClick={() => setEditingSection("locations")}>{i18next.t("worlds.worldHandbookEditor.da2zvf")}</Button>
             }

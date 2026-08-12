@@ -45,10 +45,10 @@ function formatTimelineTimeLabel(context?: TimelineContextForChapter | null): st
     return i18next.t("dict.gen_fe2d26a2");
   }
   const parts = [
-    typeof context.currentTime?.storyDayIndex === "number" ? `第${context.currentTime.storyDayIndex}天` : "",
+    typeof context.currentTime?.storyDayIndex === "number" ? i18next.t("novels.timelinePanel.xrxm4t", { val1: context.currentTime.storyDayIndex }) : "",
     context.currentTime?.label?.trim() ?? "",
   ].filter(Boolean);
-  return parts.join(" · ") || `第${context.currentChapterIndex}章`;
+  return parts.join(" · ") || i18next.t("tensionCurve.tensionCurveChapterDetailSidebar.xrxssk", { val1: context.currentChapterIndex });
 }
 
 function formatIssueSeverity(issue: TimelineIssue): string {
@@ -164,7 +164,7 @@ export default function TimelinePanel(props: {
   const context = chapterTimeline?.context ?? null;
   const timelineCheck = (chapterTimeline?.latestReport ?? chapterRuntimePackage?.timelineCheck ?? null) as TimelineCheckSummary | null;
   const hasChapter = Boolean(selectedChapter);
-  const chapterLabel = selectedChapter ? `第${selectedChapter.order}章` : i18next.t("dict.gen_2d731639");
+  const chapterLabel = selectedChapter ? i18next.t("tensionCurve.tensionCurveChapterDetailSidebar.xrxssk", { val1: selectedChapter.order }) : i18next.t("dict.gen_2d731639");
   const timeLabel = formatTimelineTimeLabel(context);
 
   return (
@@ -187,7 +187,7 @@ export default function TimelinePanel(props: {
             {timelineCheck ? getTimelineCheckLabel(timelineCheck.status) : isLoadingChapterTimeline ? i18next.t("dict.gen_26d335b3") : i18next.t("dict.gen_5c6585e0")}
           </div>
           <div className="mt-1 text-xs leading-5 text-muted-foreground">
-            {timelineCheck ? `分数 ${Math.round(timelineCheck.score * 100)}` : i18next.t("dict.gen_599b3b57")}
+            {timelineCheck ? i18next.t("novels.timelinePanel.irkpye", { val1: Math.round(timelineCheck.score * 100) }) : i18next.t("dict.gen_599b3b57")}
           </div>
         </div>
       </div>

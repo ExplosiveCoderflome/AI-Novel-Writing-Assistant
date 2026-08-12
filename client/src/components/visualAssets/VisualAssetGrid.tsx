@@ -34,7 +34,7 @@ export function VisualAssetGrid({ items, selectedIds, selectionMode, onSelect, o
             <button
               type="button"
               aria-pressed={selectionMode === "browse" ? undefined : isSelected}
-              aria-label={canSelect ? `选择${sourceLabel}` : `查看${sourceLabel}`}
+              aria-label={canSelect ? i18next.t("visualAssets.visualAssetGrid.cof19s", { val1: sourceLabel }) : i18next.t("visualAssets.visualAssetGrid.rle48m", { val1: sourceLabel })}
               className="block w-full text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset"
               onClick={() => onSelect(asset)}
             >
@@ -71,7 +71,7 @@ export function VisualAssetGrid({ items, selectedIds, selectionMode, onSelect, o
               variant="ghost"
               size="icon"
               className="absolute right-1.5 top-1.5 h-7 w-7 bg-background/80 opacity-0 backdrop-blur-sm transition-opacity group-hover:opacity-100 focus-visible:opacity-100"
-              aria-label={`查看${sourceLabel}详情`}
+              aria-label={i18next.t("visualAssets.visualAssetGrid.njj0ut", { val1: sourceLabel })}
               onClick={() => onOpenDetails(asset)}
             >
               <Info className="h-3.5 w-3.5" aria-hidden="true" />

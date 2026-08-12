@@ -256,7 +256,7 @@ export function ChapterRuntimeContextCard(props: {
               <div>{plan.objective}</div>
               {(plan.planRole || plan.phaseLabel) ? (
                 <div className="text-xs text-muted-foreground">
-                  {[plan.planRole ? `职责：${plan.planRole}` : "", plan.phaseLabel ? `阶段：${plan.phaseLabel}` : ""].filter(Boolean).join(" | ")}
+                  {[plan.planRole ? i18next.t("novels.chapterRuntimePanels.gywrvx", { val1: plan.planRole }) : "", plan.phaseLabel ? i18next.t("novels.chapterRuntimePanels.d5jx7v", { val1: plan.phaseLabel }) : ""].filter(Boolean).join(" | ")}
                 </div>
               ) : null}
               {plan.participants.length > 0 ? (

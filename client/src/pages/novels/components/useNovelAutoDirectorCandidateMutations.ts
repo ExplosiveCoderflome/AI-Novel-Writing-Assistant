@@ -130,7 +130,7 @@ export function useNovelAutoDirectorCandidateMutations({
       setCandidateDialogOpen(true);
       setExecutionRequested(false);
       setExecutionError("");
-      toast.success(`${batch.roundLabel} 已生成 ${batch.candidates.length} 套方案。`);
+      toast.success(i18next.t("novels.useNovelAutoDirectorCandidateMutations.8oepj6", { val1: batch.roundLabel, val2: batch.candidates.length }));
     },
     onError: (error) => {
       setDialogMode("execution_failed");

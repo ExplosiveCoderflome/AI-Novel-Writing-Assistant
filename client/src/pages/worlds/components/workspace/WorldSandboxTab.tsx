@@ -45,10 +45,10 @@ export default function WorldSandboxTab({ worldId }: { worldId: string }) {
 
   // Mock initial sandbox data
   const [locations, setLocations] = useState<LocationNode[]>([
-    { id: "loc_1", name: i18next.t("worlds.worldSandboxTab.rvgh9d"), latitude: 39.9, longitude: 116.4, elevation: 50, temp: 24, tension: 35, weather: "晴", flora: 0.4 },
-    { id: "loc_2", name: i18next.t("worlds.worldSandboxTab.ngqt6b"), latitude: 39.91, longitude: 116.39, elevation: 48, temp: 22, tension: 20, weather: "微风", flora: 0.9 },
-    { id: "loc_3", name: i18next.t("worlds.worldSandboxTab.r7kzde"), latitude: 39.89, longitude: 116.41, elevation: 52, temp: 23, tension: 25, weather: "晴", flora: 0.75 },
-    { id: "loc_4", name: i18next.t("worlds.worldSandboxTab.b62ul8"), latitude: 39.92, longitude: 116.42, elevation: 85, temp: 19, tension: 80, weather: "阴", flora: 0.2 }
+    { id: "loc_1", name: i18next.t("worlds.worldSandboxTab.rvgh9d"), latitude: 39.9, longitude: 116.4, elevation: 50, temp: 24, tension: 35, weather: i18next.t("worlds.worldSandboxTab.k8k"), flora: 0.4 },
+    { id: "loc_2", name: i18next.t("worlds.worldSandboxTab.ngqt6b"), latitude: 39.91, longitude: 116.39, elevation: 48, temp: 22, tension: 20, weather: i18next.t("worlds.worldSandboxTab.h42o"), flora: 0.9 },
+    { id: "loc_3", name: i18next.t("worlds.worldSandboxTab.r7kzde"), latitude: 39.89, longitude: 116.41, elevation: 52, temp: 23, tension: 25, weather: i18next.t("worlds.worldSandboxTab.k8k"), flora: 0.75 },
+    { id: "loc_4", name: i18next.t("worlds.worldSandboxTab.b62ul8"), latitude: 39.92, longitude: 116.42, elevation: 85, temp: 19, tension: 80, weather: i18next.t("worlds.worldSandboxTab.to4"), flora: 0.2 }
   ]);
 
   const [characters, setCharacters] = useState<Character[]>([
@@ -95,7 +95,7 @@ export default function WorldSandboxTab({ worldId }: { worldId: string }) {
         setCharacters(result.data.characters);
         if (result.data.events && result.data.events.length > 0) {
           result.data.events.forEach((evt: string) => {
-            toast.success(`事件: ${evt}`);
+            toast.success(i18next.t("worlds.worldSandboxTab.5jfwip", { val1: evt }));
           });
         }
         return true;

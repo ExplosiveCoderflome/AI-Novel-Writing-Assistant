@@ -48,14 +48,14 @@ function formatDuration(value: number | null | undefined, isEn: boolean): string
     return isEn ? "<1 sec" : "<1 秒";
   }
   if (seconds < 60) {
-    return isEn ? `${seconds} sec` : `${seconds} 秒`;
+    return isEn ? `${seconds} sec` : i18next.t("autoDirector.aICockpit.izeh9e", { val1: seconds });
   }
   const minutes = Math.floor(seconds / 60);
   const restSeconds = seconds % 60;
   if (isEn) {
     return restSeconds > 0 ? `${minutes}m ${restSeconds}s` : `${minutes}m`;
   }
-  return restSeconds > 0 ? `${minutes} 分 ${restSeconds} 秒` : `${minutes} 分`;
+  return restSeconds > 0 ? i18next.t("autoDirector.aICockpit.ggv39v", { val1: minutes, val2: restSeconds }) : i18next.t("autoDirector.aICockpit.ize9ee", { val1: minutes });
 }
 
 function formatUsageLine(
@@ -79,11 +79,11 @@ function formatUsageLine(
     ].filter(Boolean).join(" · ");
   }
   return [
-    `${formatTokenCount(usage.llmCallCount)} 次调用`,
-    `输入 ${formatTokenCount(usage.promptTokens)}`,
-    `输出 ${formatTokenCount(usage.completionTokens)}`,
-    `总计 ${formatTokenCount(usage.totalTokens)} Tokens`,
-    duration ? `累计调用耗时 ${duration}` : null,
+    i18next.t("autoDirector.aICockpit.bxwccq", { val1: formatTokenCount(usage.llmCallCount) }),
+    i18next.t("autoDirector.aICockpit.x8og4i", { val1: formatTokenCount(usage.promptTokens) }),
+    i18next.t("autoDirector.aICockpit.k9r253", { val1: formatTokenCount(usage.completionTokens) }),
+    i18next.t("autoDirector.aICockpit.s0glo0", { val1: formatTokenCount(usage.totalTokens) }),
+    duration ? i18next.t("autoDirector.aICockpit.4f60u2", { val1: duration }) : null,
   ].filter(Boolean).join(" · ");
 }
 
@@ -175,9 +175,9 @@ function formatQualityDebtSummary(summary: DirectorRuntimeProjection["qualityDeb
     return `Quality debt pending recovery${orderText}. System will continue writing subsequent chapters and recover these issues during repair phase.`;
   }
   const orderText = summary.deferredChapterOrders.length > 0
-    ? `：第 ${summary.deferredChapterOrders.join("、")} 章`
+    ? i18next.t("autoDirector.directorRuntimeProjectionCard.kqy2ri", { val1: summary.deferredChapterOrders.join("、") })
     : "";
-  return `质量待回收${orderText}。系统会先继续写后续章节，并在质量修复阶段回收这些问题。`;
+  return i18next.t("autoDirector.directorRuntimeProjectionCard.9vb4ov", { val1: orderText });
 }
 
 function formatQualityBudgetSummary(summary: DirectorRuntimeProjection["qualityBudgetSummary"] | null | undefined, isEn: boolean): string | null {
@@ -191,9 +191,9 @@ function formatQualityBudgetSummary(summary: DirectorRuntimeProjection["qualityB
     return `${chapterText} Quality Budget: Local Repair ${summary.patchRepairUsed}/1, Rewrite Chapter ${summary.chapterRewriteUsed}/1, Window Replan ${summary.windowReplanUsed}/1. ${summary.nextActionLabel}`;
   }
   const chapterText = typeof summary.currentChapterOrder === "number"
-    ? `第 ${summary.currentChapterOrder} 章`
+    ? i18next.t("autoDirector.directorRuntimeProjectionCard.vms598", { val1: summary.currentChapterOrder })
     : "当前章节";
-  return `${chapterText}质量预算：局部修复 ${summary.patchRepairUsed}/1，整章重写 ${summary.chapterRewriteUsed}/1，窗口重规划 ${summary.windowReplanUsed}/1。${summary.nextActionLabel}`;
+  return i18next.t("autoDirector.directorRuntimeProjectionCard.i3iyts", { val1: chapterText, val2: summary.patchRepairUsed, val3: summary.chapterRewriteUsed, val4: summary.windowReplanUsed, val5: summary.nextActionLabel });
 }
 
 function formatRootCauseSummary(projection: DirectorRuntimeProjection, isEn: boolean): string | null {

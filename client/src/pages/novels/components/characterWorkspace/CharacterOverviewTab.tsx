@@ -33,7 +33,7 @@ export default function CharacterOverviewTab(props: CharacterOverviewTabProps) {
                 <div className="text-sm font-medium">{i18next.t("novels.characterOverviewTab.qnrijd")}</div>
                 <div className="mt-1 text-xs text-muted-foreground">{i18next.t("novels.characterOverviewTab.rksnhw")}</div>
               </div>
-              <Badge variant="outline">最近出场：{lastAppearanceChapter ? `第${lastAppearanceChapter}章` : "暂无"}</Badge>
+              <Badge variant="outline">最近出场：{lastAppearanceChapter ? i18next.t("tensionCurve.tensionCurveChapterDetailSidebar.xrxssk", { val1: lastAppearanceChapter }) : "暂无"}</Badge>
             </div>
           </div>
           <div className="grid gap-0 md:grid-cols-2">
@@ -68,11 +68,11 @@ export default function CharacterOverviewTab(props: CharacterOverviewTabProps) {
           <div className="flex flex-wrap items-center justify-between gap-2">
             <div className="text-sm font-medium">{i18next.t("novels.characterOverviewTab.hjobyn")}</div>
             <Badge variant={pendingCharacterResourceCount > 0 ? "secondary" : "outline"}>
-              {pendingCharacterResourceCount > 0 ? `${pendingCharacterResourceCount} 条资源待确认` : "资源已同步"}
+              {pendingCharacterResourceCount > 0 ? i18next.t("novels.characterOverviewTab.h1w9i6", { val1: pendingCharacterResourceCount }) : "资源已同步"}
             </Badge>
           </div>
           <div className="mt-4 grid gap-3 sm:grid-cols-2">
-            <BoundaryMetric icon={<Box className="h-4 w-4" />} label={i18next.t("dict.gen_4360c49d")} value={`${resourceCount} 条`} />
+            <BoundaryMetric icon={<Box className="h-4 w-4" />} label={i18next.t("dict.gen_4360c49d")} value={i18next.t("autoDirector.aICockpit.izedm9", { val1: resourceCount })} />
             <BoundaryMetric icon={<AlertTriangle className="h-4 w-4" />} label={i18next.t("novels.characterOverviewTab.jwcjyd")} value={pendingCharacterResourceCount > 0 ? "先核对资源变更" : "可继续推进"} />
           </div>
           <div className="mt-4 rounded-xl border border-border/70 bg-background/80 p-3">

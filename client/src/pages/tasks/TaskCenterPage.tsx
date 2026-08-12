@@ -230,7 +230,7 @@ export default function TaskCenterPage() {
       }
       toast.success(
         variables.llmOverride
-          ? `已切换到 ${variables.llmOverride.provider ?? "当前提供商"} / ${variables.llmOverride.model ?? "当前模型"} 并重试任务`
+          ? i18next.t("tasks.taskCenterPage.4wz6o7", { val1: variables.llmOverride.provider ?? "当前提供商", val2: variables.llmOverride.model ?? "当前模型" })
           : "任务已重新入队",
       );
     },
@@ -399,7 +399,7 @@ export default function TaskCenterPage() {
     detailActions.push({
       key: "continue-range",
       title: i18next.t("tasks.taskCenterPage.jh74mr"),
-      label: selectedTask.resumeAction ?? `继续自动执行${selectedTask.executionScopeLabel ?? "当前章节范围"}`,
+      label: selectedTask.resumeAction ?? i18next.t("novels.novelEditTakeover.shared.lpivmv", { val1: selectedTask.executionScopeLabel ?? "当前章节范围" }),
       consequence: selectedTask.status === "failed" || selectedTask.status === "cancelled"
         ? "任务会从可恢复位置重新入队，并继续当前章节范围。"
         : "系统会提交继续执行命令，并从当前检查点推进该章节范围。",
@@ -555,7 +555,7 @@ export default function TaskCenterPage() {
         description={overviewQuery.isLoading
           ? "正在汇总执行、等待操作、失败和可恢复任务，请稍候。"
           : overviewErrorMessage
-            ? `${overviewErrorMessage} 当前不会据此判断是否存在阻塞任务。`
+            ? i18next.t("tasks.taskCenterPage.8z723g", { val1: overviewErrorMessage })
             : hasMustHandleTask
               ? recoveryCandidatesQuery.isLoading && !recommendedBlockingTask && failedTaskCount === 0
                 ? "正在定位可恢复任务；读取完成后会提供对应入口。"

@@ -301,7 +301,7 @@ export default function WritingFormulaEditorPanel(props: WritingFormulaEditorPan
                       <div className="text-sm font-medium text-slate-900">{i18next.t("dict.gen_b62a0800")}</div>
                       <div className="text-xs leading-6 text-slate-500">
                         这里会列出原文里抽出来的风格特征。勾选表示继续保留到这套写法里。
-                        {editor.extractedFeatures.length > 0 ? ` 当前共 ${editor.extractedFeatures.length} 项。` : ""}
+                        {editor.extractedFeatures.length > 0 ? i18next.t("writingFormula.writingFormulaEditorPanel.y5h9dc", { val1: editor.extractedFeatures.length }) : ""}
                       </div>
                     </div>
                     {editor.sourceContent.trim() ? (

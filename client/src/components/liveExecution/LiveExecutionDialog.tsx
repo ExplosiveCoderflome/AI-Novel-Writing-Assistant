@@ -28,16 +28,16 @@ import { cn } from "@/lib/utils";
 
 function phaseLabel(phase: string): string {
   const labels: Record<string, string> = {
-    requesting: "正在连接",
-    streaming: "正在生成",
-    assembling: "正在整理",
-    validating: "正在检查",
-    repairing: "正在修复",
-    applying: "正在应用",
-    persisting: "正在保存",
-    completed: "已完成",
-    failed: "生成失败",
-    cancelled: "已取消",
+    requesting: i18next.t("liveExecution.liveExecutionDialog.dx29nw"),
+    streaming: i18next.t("liveExecution.liveExecutionDialog.dwxpkm"),
+    assembling: i18next.t("liveExecution.liveExecutionDialog.dwv56f"),
+    validating: i18next.t("layout.desktopUpdaterPresentation.dwvmyy"),
+    repairing: i18next.t("liveExecution.liveExecutionDialog.dwrc1w"),
+    applying: i18next.t("liveExecution.liveExecutionDialog.dwtzax"),
+    persisting: i18next.t("liveExecution.liveExecutionDialog.dwrc3k"),
+    completed: i18next.t("tasks.filterStatusSucceeded"),
+    failed: i18next.t("dict.gen_7f7de8a2"),
+    cancelled: i18next.t("tasks.filterStatusCancelled"),
   };
   return labels[phase] ?? "正在处理";
 }
@@ -281,7 +281,7 @@ export default function LiveExecutionDialog(props: LiveExecutionDialogProps) {
         />
         {!props.compact ? <span className="hidden sm:inline">AI 实况</span> : null}
         {activeCount > 0 ? (
-          <Badge className="ml-1.5 h-5 min-w-5 px-1.5 text-[10px] bg-emerald-500 text-slate-950 font-bold" aria-label={`${activeCount} 项 AI 生成正在进行`}>
+          <Badge className="ml-1.5 h-5 min-w-5 px-1.5 text-[10px] bg-emerald-500 text-slate-950 font-bold" aria-label={i18next.t("liveExecution.liveExecutionDialog.r6ht0o", { val1: activeCount })}>
             {activeCount}
           </Badge>
         ) : null}
@@ -337,7 +337,7 @@ export default function LiveExecutionDialog(props: LiveExecutionDialogProps) {
 
               {/* Real-time Status Badge */}
               <Badge variant="outline" className="shrink-0 border-emerald-400/50 bg-emerald-400/10 font-mono text-emerald-200 text-[11px] px-2 py-0.5">
-                {activeCount > 0 ? `${activeCount} 项进行中` : connected ? "等待生成" : "正在连接"}
+                {activeCount > 0 ? i18next.t("liveExecution.liveExecutionDialog.9aqf1p", { val1: activeCount }) : connected ? "等待生成" : "正在连接"}
               </Badge>
 
               {/* Maximize Toggle */}
@@ -605,7 +605,7 @@ export default function LiveExecutionDialog(props: LiveExecutionDialogProps) {
                                         <p className="mb-1 text-[10px] font-bold text-emerald-300">🖼️ 渲染生成结果图像 (Image Output Preview)</p>
                                         <img
                                           src={imgUrl}
-                                          alt="AI Live 图像预览"
+                                          alt={i18next.t("liveExecution.liveExecutionDialog.enarf3")}
                                           className="max-h-64 rounded border border-emerald-500/20 object-contain bg-black/50"
                                         />
                                       </div>

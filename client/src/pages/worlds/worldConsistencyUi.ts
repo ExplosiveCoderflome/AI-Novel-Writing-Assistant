@@ -63,10 +63,10 @@ function localizeSummary(summary: string, status: WorldConsistencyReport["status
   const errorCount = issues.filter((item) => item.severity === "error").length;
   const warnCount = issues.filter((item) => item.severity === "warn").length;
   if (status === "error") {
-    return `检测到 ${errorCount} 个严重冲突，${warnCount} 个警告项。`;
+    return i18next.t("worlds.worldConsistencyUi.rs9atk", { val1: errorCount, val2: warnCount });
   }
   if (status === "warn") {
-    return `检测到 ${warnCount} 个警告项，建议继续修正。`;
+    return i18next.t("worlds.worldConsistencyUi.5h8v21", { val1: warnCount });
   }
   return i18next.t("dict.worldManualCheckCompleted");
 }
@@ -148,7 +148,7 @@ export function localizeConsistencyIssueMessage(issue: WorldConsistencyIssue): s
     return issue.message;
   }
   return ISSUE_MESSAGE_LABELS[issue.code]
-    ?? `${localizeConsistencyField(issue.targetField)}存在一致性风险。`;
+    ?? i18next.t("worlds.worldConsistencyUi.auyctw", { val1: localizeConsistencyField(issue.targetField) });
 }
 
 export function localizeConsistencyIssueDetail(issue: WorldConsistencyIssue): string | null {
@@ -159,7 +159,7 @@ export function localizeConsistencyIssueDetail(issue: WorldConsistencyIssue): st
     return ISSUE_DETAIL_LABELS[issue.code];
   }
   if (issue.detail) {
-    return `系统检测到一条${localizeConsistencyField(issue.targetField)}相关问题，请结合世界手册复核这项风险。`;
+    return i18next.t("worlds.worldConsistencyUi.h65raq", { val1: localizeConsistencyField(issue.targetField) });
   }
   return null;
 }

@@ -120,7 +120,7 @@ function buildPreviewPromptInput(
     return {
       novelTitle: previewNovel?.title || "示例小说",
       chapterTitle: previewChapter
-        ? `第 ${previewChapter.order ?? "?"} 章 ${previewChapter.title || "未命名章节"}`
+        ? i18next.t("promptWorkbench.usePromptPreview.6690b7", { val1: previewChapter.order ?? "?", val2: previewChapter.title || "未命名章节" })
         : "示例章节",
       requestedTypes: ["plot", "character", "continuity"],
       storyModeContext: previewNovel
@@ -148,11 +148,11 @@ function buildPreviewPromptInput(
 
   if (prompt.id === "novel.chapter_editor.workspace_diagnosis") {
     return {
-      chapterTitle: "示例章节",
+      chapterTitle: i18next.t("dict.gen_922be4ec"),
       chapterMission: "让主角发现关键线索。",
-      volumePositionLabel: "第一卷中段",
-      volumePhaseLabel: "冲突展开",
-      paceDirective: "加快推进",
+      volumePositionLabel: i18next.t("dict.gen_9ca42306"),
+      volumePhaseLabel: i18next.t("dict.gen_bd3b7f55"),
+      paceDirective: i18next.t("dict.gen_ad61eb88"),
       previousChapterBridge: "上一章留下追踪线索。",
       nextChapterBridge: "下一章进入正面对抗。",
       activePlotThreads: ["追踪档案站"],
@@ -167,7 +167,7 @@ function buildPreviewPromptInput(
       selectedDimensions: ["basic", "personality", "arc"],
       character: {
         name: i18next.t("dict.gen_e4abe8b6"),
-        role: "主角",
+        role: i18next.t("dict.mainCharacter"),
         briefDescription: "被迫追查旧仓库暗号的年轻调查员。",
         importance: "high",
         occurringChapters: ["第 1 章"],
@@ -198,24 +198,24 @@ function buildPreviewPromptInput(
       competingFeel: "紧张、克制、带一点冷色电影感。",
       first30ChapterPromise: "揭开旧城暗号背后的组织，并让主角卷入更大的阴谋。",
       commercialTags: ["都市悬疑", "线索追查", "高压开局"],
-      genreLabel: "都市悬疑",
-      primaryStoryModeLabel: "线索推进",
-      secondaryStoryModeLabel: "身份谜团",
-      worldName: "旧城",
+      genreLabel: i18next.t("dict.gen_b6f72e6e"),
+      primaryStoryModeLabel: i18next.t("dict.gen_7128794b"),
+      secondaryStoryModeLabel: i18next.t("dict.gen_9e9456bf"),
+      worldName: i18next.t("dict.gen_cd574c1e"),
       worldSummary: "一座表面平静、地下线索交错的旧城区。",
       styleTone: "冷峻、紧凑、画面感强",
-      narrativePovLabel: "第三人称有限视角",
-      pacePreferenceLabel: "中快节奏",
-      emotionIntensityLabel: "高压克制",
+      narrativePovLabel: i18next.t("dict.gen_d6180b7f"),
+      pacePreferenceLabel: i18next.t("dict.gen_a53ec413"),
+      emotionIntensityLabel: i18next.t("dict.gen_20da5903"),
     };
   }
 
   if (prompt.id === "novel.character.castAuto.relations") {
     return {
       storyInput: "主角在旧城追查暗号，逐步发现身边人的隐瞒与组织压力。",
-      optionTitle: "旧城追踪阵容",
+      optionTitle: i18next.t("dict.gen_b9a8b7e7"),
       optionSummary: "主角、线索提供者和压力来源围绕旧城秘密形成互相试探的关系网。",
-      protagonistName: "林澈",
+      protagonistName: i18next.t("dict.gen_e4abe8b6"),
       memberNames: ["林澈", "沈雾", "顾衡"],
       memberRosterText: "林澈：主角，年轻调查员。\n沈雾：线索提供者，知道旧城暗号来源。\n顾衡：压力来源，试图阻止调查。",
     };
@@ -225,9 +225,9 @@ function buildPreviewPromptInput(
     return {
       layerKey: "foundation",
       targetFields: ["background", "geography"],
-      worldName: "旧城",
-      worldType: "都市异闻",
-      templateName: "都市悬疑",
+      worldName: i18next.t("dict.gen_cd574c1e"),
+      worldType: i18next.t("dict.gen_49ce2313"),
+      templateName: i18next.t("dict.gen_b6f72e6e"),
       templateDescription: "现实城市表层下隐藏长期运转的秘密秩序。",
       classicElements: ["旧城区", "地下组织", "线索暗号"],
       pitfalls: ["不要把所有谜团一次解释完", "不要让规则只停留在概念"],
@@ -261,7 +261,7 @@ function buildPreviewPromptInput(
   if (prompt.id === "novel.chapter_editor.rewrite_candidates") {
     return {
       operation: "polish",
-      operationLabel: "润色选中片段",
+      operationLabel: i18next.t("dict.gen_88f06f8a"),
       scope: "selection",
       customInstruction: "",
       selectedText: "门外脚步声停住了。林澈按住呼吸，指尖擦过墙上的暗号。",
@@ -279,11 +279,11 @@ function buildPreviewPromptInput(
   }
 
   return {
-    goal: "查看提示词预览",
+    goal: i18next.t("dict.gen_497aacb7"),
     messages: [],
     contextMode: "novel",
     novelId: "novel-1",
-    chapterTitle: "示例章节",
+    chapterTitle: i18next.t("dict.gen_922be4ec"),
     chapterMission: "让主角发现关键线索。",
   };
 }
@@ -313,7 +313,7 @@ export function usePromptPreview(input: UsePromptPreviewInput) {
 
   const buildPayload = useCallback((): PromptPreviewPayload => {
     if (!prompt) {
-      throw new Error("请选择提示词后再生成预览。");
+      throw new Error(i18next.t("dict.gen_7ea1f499"));
     }
     const executionNovelId = novelId || "novel-1";
     const executionChapterId = chapterId || previewChapter?.id || (novelId ? undefined : "chapter-1");
@@ -325,7 +325,7 @@ export function usePromptPreview(input: UsePromptPreviewInput) {
         entrypoint,
         novelId: executionNovelId,
         chapterId: executionChapterId,
-        userGoal: "查看提示词预览",
+        userGoal: i18next.t("dict.gen_497aacb7"),
         resourceBindings: {
           novelId: executionNovelId,
           ...(executionChapterId ? { chapterId: executionChapterId } : {}),

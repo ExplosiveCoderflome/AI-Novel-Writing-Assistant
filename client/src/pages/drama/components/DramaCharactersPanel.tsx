@@ -199,7 +199,7 @@ function CharacterImagesBlock(props: {
         <a href={sheet.url} target="_blank" rel="noreferrer" className="block">
           <img
             src={sheet.url}
-            alt={`${props.character.name} 角色设计稿`}
+            alt={i18next.t("drama.dramaCharactersPanel.7yaa7g", { val1: props.character.name })}
             className="w-full rounded-md border object-contain shadow-sm"
             style={{ maxHeight: "240px" }}
           />

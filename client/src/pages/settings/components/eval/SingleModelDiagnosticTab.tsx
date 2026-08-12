@@ -1,3 +1,4 @@
+import i18next from "i18next";
 import React, { useState } from "react";
 import { Play, CheckCircle2, AlertCircle, Clock, Zap, FileJson, Sparkles } from "lucide-react";
 import type { DiscoveredModelItem } from "@/api/eval";
@@ -17,10 +18,10 @@ export default function SingleModelDiagnosticTab({ discoveredModels }: Props) {
 
   const handleRunDiagnostic = async () => {
     setIsRunning(true);
-    setLogs(["[00:01] 正在启动单模型基准诊断...", `[00:02] 连接 Provider: ${selectedProvider} | Model: ${selectedModel}`]);
+    setLogs(["[00:01] 正在启动单模型基准诊断...", i18next.t("settings.singleModelDiagnosticTab.mjn8ns", { val1: selectedProvider, val2: selectedModel })]);
     try {
       const res = await runEvalTask({
-        taskName: `单模型诊断-${selectedModel}`,
+        taskName: i18next.t("settings.singleModelDiagnosticTab.qahndn", { val1: selectedModel }),
         capability,
         modelConfigs: [{ provider: selectedProvider, model: selectedModel }],
       });
@@ -36,7 +37,7 @@ export default function SingleModelDiagnosticTab({ discoveredModels }: Props) {
         setLogs((prev) => [...prev, "[00:05] 基准测试用例全部执行完成！已计算完整指标。"]);
       }
     } catch (e: any) {
-      setLogs((prev) => [...prev, `[错误]: ${e.message || e}`]);
+      setLogs((prev) => [...prev, i18next.t("settings.singleModelDiagnosticTab.tefoam", { val1: e.message || e })]);
     } finally {
       setIsRunning(false);
     }
@@ -47,30 +48,28 @@ export default function SingleModelDiagnosticTab({ discoveredModels }: Props) {
       {/* 诊断配置侧边栏 */}
       <div className="lg:col-span-1 p-5 rounded-xl bg-slate-900/60 border border-slate-800 space-y-4 backdrop-blur-md">
         <h3 className="font-bold text-slate-100 flex items-center gap-2">
-          <Zap className="w-4 h-4 text-amber-400" />
-          单模型健康跑分配置
-        </h3>
+          <Zap className="w-4 h-4 text-amber-400" />{i18next.t("settings.singleModelDiagnosticTab.nljg0p")}</h3>
 
         <div className="space-y-3 text-xs">
           <div>
-            <label className="block text-slate-400 mb-1">评估模态</label>
+            <label className="block text-slate-400 mb-1">{i18next.t("settings.singleModelDiagnosticTab.hyqjfw")}</label>
             <select
               value={capability}
               onChange={(e) => setCapability(e.target.value)}
               className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-slate-200"
             >
-              <option value="text-gen">文本生成 (LLM)</option>
-              <option value="embedding">文本嵌入 (Embedding)</option>
-              <option value="sparse">稀疏检索 (BM25)</option>
-              <option value="image-gen">图像生成 (ComfyUI)</option>
-              <option value="tts">语音合成 (TTS)</option>
-              <option value="asr">语音识别 (ASR)</option>
-              <option value="ocr">文字识别 (OCR)</option>
+              <option value="text-gen">{i18next.t("settings.createTestCaseModal.2257ja")}</option>
+              <option value="embedding">{i18next.t("settings.createTestCaseModal.4pqzpk")}</option>
+              <option value="sparse">{i18next.t("settings.createTestCaseModal.opffpa")}</option>
+              <option value="image-gen">{i18next.t("settings.createTestCaseModal.2hf0s5")}</option>
+              <option value="tts">{i18next.t("settings.createTestCaseModal.4tehsk")}</option>
+              <option value="asr">{i18next.t("settings.createTestCaseModal.slcylg")}</option>
+              <option value="ocr">{i18next.t("settings.createTestCaseModal.1vx88o")}</option>
             </select>
           </div>
 
           <div>
-            <label className="block text-slate-400 mb-1">选择目标 Provider</label>
+            <label className="block text-slate-400 mb-1">{i18next.t("settings.singleModelDiagnosticTab.gfizrc")}</label>
             <select
               value={selectedProvider}
               onChange={(e) => {
@@ -89,7 +88,7 @@ export default function SingleModelDiagnosticTab({ discoveredModels }: Props) {
           </div>
 
           <div>
-            <label className="block text-slate-400 mb-1">选择待测模型</label>
+            <label className="block text-slate-400 mb-1">{i18next.t("settings.singleModelDiagnosticTab.svvpm8")}</label>
             <select
               value={selectedModel}
               onChange={(e) => setSelectedModel(e.target.value)}
@@ -122,21 +121,17 @@ export default function SingleModelDiagnosticTab({ discoveredModels }: Props) {
           <div className="p-5 rounded-xl bg-slate-900/60 border border-slate-800 space-y-4 backdrop-blur-md">
             <div className="flex items-center justify-between">
               <h3 className="font-bold text-slate-100 flex items-center gap-2">
-                <Sparkles className="w-4 h-4 text-purple-400" />
-                诊断报告结论卡
-              </h3>
-              <span className="text-xs font-mono px-2.5 py-0.5 rounded-full bg-emerald-950 text-emerald-300 border border-emerald-800 font-bold">
-                评级: A+ (极佳)
-              </span>
+                <Sparkles className="w-4 h-4 text-purple-400" />{i18next.t("settings.singleModelDiagnosticTab.bf560e")}</h3>
+              <span className="text-xs font-mono px-2.5 py-0.5 rounded-full bg-emerald-950 text-emerald-300 border border-emerald-800 font-bold">{i18next.t("settings.singleModelDiagnosticTab.xtld0")}</span>
             </div>
 
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-center text-xs font-mono">
               <div className="p-3 bg-slate-950/70 border border-slate-800 rounded-lg">
-                <div className="text-slate-400 text-[10px]">首 Token 延时 (TTFT)</div>
+                <div className="text-slate-400 text-[10px]">{i18next.t("settings.singleModelDiagnosticTab.e26rem")}</div>
                 <div className="text-base font-bold text-indigo-300">{report.avgTtftMs} ms</div>
               </div>
               <div className="p-3 bg-slate-950/70 border border-slate-800 rounded-lg">
-                <div className="text-slate-400 text-[10px]">生成吞吐率 (TPS)</div>
+                <div className="text-slate-400 text-[10px]">{i18next.t("settings.singleModelDiagnosticTab.mby4de")}</div>
                 <div className="text-base font-bold text-purple-300">{report.avgTps} t/s</div>
               </div>
               <div className="p-3 bg-slate-950/70 border border-slate-800 rounded-lg">
@@ -144,7 +139,7 @@ export default function SingleModelDiagnosticTab({ discoveredModels }: Props) {
                 <div className="text-base font-bold text-emerald-300">{report.jsonAdherencePct}%</div>
               </div>
               <div className="p-3 bg-slate-950/70 border border-slate-800 rounded-lg">
-                <div className="text-slate-400 text-[10px]">判官质量综合分</div>
+                <div className="text-slate-400 text-[10px]">{i18next.t("settings.singleModelDiagnosticTab.y3y16p")}</div>
                 <div className="text-base font-bold text-amber-300">{report.overallJudgeScore} / 5.0</div>
               </div>
             </div>
@@ -153,9 +148,9 @@ export default function SingleModelDiagnosticTab({ discoveredModels }: Props) {
 
         {/* 实时进度日志框 */}
         <div className="p-5 rounded-xl bg-slate-950 border border-slate-800 font-mono text-xs text-slate-300 space-y-2">
-          <div className="text-slate-400 font-bold border-b border-slate-800 pb-2">实时诊断执行日志</div>
+          <div className="text-slate-400 font-bold border-b border-slate-800 pb-2">{i18next.t("settings.singleModelDiagnosticTab.a3xhhu")}</div>
           {logs.length === 0 ? (
-            <div className="text-slate-500 py-4 text-center">点击左侧“启动单模型健康跑分”开始测试...</div>
+            <div className="text-slate-500 py-4 text-center">{i18next.t("settings.singleModelDiagnosticTab.dct634")}</div>
           ) : (
             logs.map((log, idx) => <div key={idx}>{log}</div>)
           )}

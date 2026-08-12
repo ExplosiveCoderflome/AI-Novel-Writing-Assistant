@@ -81,7 +81,7 @@ function buildCharacterCastApplyConfirmMessage(option: CharacterCastOption, warn
     .map((warning, index) => `${index + 1}. ${warning}`)
     .join("\n");
   return [
-    `阵容「${option.title}」和当前故事设定还有不完全匹配的地方。`,
+    i18next.t("novels.characterCastOptionsSection.2nl6du", { val1: option.title }),
     warningText,
     i18next.t("dict.stillApplyToAssetWorkshop"),
   ].filter((line) => line.trim().length > 0).join("\n\n");
@@ -152,8 +152,8 @@ export default function CharacterCastOptionsSection(props: CharacterCastOptionsS
   function handleDeleteOption(option: CharacterCastOption) {
     const confirmed = window.confirm(
       option.status === "applied"
-        ? `确认删除方案「${option.title}」？这只会删除方案记录，不会回滚已同步的角色与关系。`
-        : `确认删除方案「${option.title}」？`,
+        ? i18next.t("novels.characterCastOptionsSection.9zsyzi", { val1: option.title })
+        : i18next.t("novels.characterCastOptionsSection.ei7dr9", { val1: option.title }),
     );
     if (!confirmed) {
       return;
@@ -165,7 +165,7 @@ export default function CharacterCastOptionsSection(props: CharacterCastOptionsS
     const confirmed = window.confirm(
       appliedOption
         ? i18next.t("dict.gen_a3322cb5")
-        : `确认清空当前 ${castOptions.length} 套阵容方案？`,
+        : i18next.t("novels.characterCastOptionsSection.pszstm", { val1: castOptions.length }),
     );
     if (!confirmed) {
       return;
@@ -226,8 +226,8 @@ export default function CharacterCastOptionsSection(props: CharacterCastOptionsS
       const backgroundHint = i18next.t("dict.gen_e12b44f1");
       setStatusMessage(
         response.data?.qualityOverrideApplied
-          ? `已按你的确认应用这套阵容，同步 ${createdCount} 个新角色，更新 ${updatedCount} 个既有角色。${backgroundHint}`
-          : `${response.message ?? `已同步 ${createdCount} 个新角色，更新 ${updatedCount} 个既有角色。`}${backgroundHint}`,
+          ? i18next.t("novels.characterCastOptionsSection.r9svbu", { val1: createdCount, val2: updatedCount, val3: backgroundHint })
+          : `${response.message ?? i18next.t("novels.characterCastOptionsSection.ue1vyf", { val1: createdCount, val2: updatedCount })}${backgroundHint}`,
       );
       setIsPlannerExpanded(false);
       await refreshAppliedCharacterWorkspace();
@@ -273,9 +273,9 @@ export default function CharacterCastOptionsSection(props: CharacterCastOptionsS
       if (deletedCount === 0) {
         setStatusMessage(i18next.t("dict.gen_82c3bdac"));
       } else if (deletedAppliedCount > 0) {
-        setStatusMessage(`已清空 ${deletedCount} 套阵容方案记录；已同步的角色与关系不会自动回滚。`);
+        setStatusMessage(i18next.t("novels.characterCastOptionsSection.acf3zz", { val1: deletedCount }));
       } else {
-        setStatusMessage(`已清空 ${deletedCount} 套阵容方案。`);
+        setStatusMessage(i18next.t("novels.characterCastOptionsSection.c3vy0f", { val1: deletedCount }));
       }
       setIsPlannerExpanded(true);
       await refreshCastOptions();

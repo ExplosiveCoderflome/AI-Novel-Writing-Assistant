@@ -25,11 +25,11 @@ import SimpleCreationMaterialsPanel from "./SimpleCreationMaterialsPanel";
 import OnboardingTip from "@/components/onboarding/OnboardingTip";
 
 const STATUS_LABELS: Record<SimpleCreationShelfChapterStatus, string> = {
-  waiting_planning: "等待规划",
-  waiting_writing: "等待写作",
+  waiting_planning: i18next.t("novels.simpleNovelShelfPage.fyg10q"),
+  waiting_writing: i18next.t("novels.simpleNovelShelfPage.fy6gjj"),
   generating: i18next.t("dict.gen_1ae3a984"),
-  reviewing: "审校修复中",
-  completed: "已完成",
+  reviewing: i18next.t("novels.simpleNovelShelfPage.gkzvke"),
+  completed: i18next.t("tasks.filterStatusSucceeded"),
   error: i18next.t("dict.gen_c195df63"),
 };
 
@@ -94,7 +94,7 @@ export default function SimpleNovelShelfPage() {
     mutationFn: async () => {
       const task = await getActiveAutoDirectorTask(id);
       if (!task.data?.id) {
-        throw new Error("没有找到可恢复的 AI 任务。");
+        throw new Error(i18next.t("novels.simpleNovelShelfPage.75wrsw"));
       }
       return continueNovelWorkflow(task.data.id);
     },

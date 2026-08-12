@@ -110,13 +110,13 @@ function summarizeCurrentContext(
   const primaryStoryModePath = storyModeOptions.find((item) => item.id === basicForm.primaryStoryModeId)?.path ?? basicForm.primaryStoryModeId;
   const worldName = worldOptions.find((item) => item.id === basicForm.worldId)?.name ?? basicForm.worldId;
   return [
-    basicForm.description.trim() ? `概述：${basicForm.description.trim()}` : "",
-    basicForm.targetAudience.trim() ? `目标读者：${basicForm.targetAudience.trim()}` : "",
-    basicForm.bookSellingPoint.trim() ? `书级卖点：${basicForm.bookSellingPoint.trim()}` : "",
-    genrePath ? `题材：${genrePath}` : "",
-    primaryStoryModePath ? `主推进模式：${primaryStoryModePath}` : "",
-    worldName ? `参考世界样本：${worldName}` : "",
-    commercialTags.length > 0 ? `商业标签：${commercialTags.join(" / ")}` : "",
+    basicForm.description.trim() ? i18next.t("novels.novelExistingProjectTakeoverDialog.d4b4x0", { val1: basicForm.description.trim() }) : "",
+    basicForm.targetAudience.trim() ? i18next.t("novels.novelExistingProjectTakeoverDialog.xh2lp5", { val1: basicForm.targetAudience.trim() }) : "",
+    basicForm.bookSellingPoint.trim() ? i18next.t("novels.novelExistingProjectTakeoverDialog.sahdzu", { val1: basicForm.bookSellingPoint.trim() }) : "",
+    genrePath ? i18next.t("novels.novelExistingProjectTakeoverDialog.vitx1u", { val1: genrePath }) : "",
+    primaryStoryModePath ? i18next.t("novels.novelExistingProjectTakeoverDialog.wam8i6", { val1: primaryStoryModePath }) : "",
+    worldName ? i18next.t("novels.novelExistingProjectTakeoverDialog.woqjcu", { val1: worldName }) : "",
+    commercialTags.length > 0 ? i18next.t("novels.novelExistingProjectTakeoverDialog.yynum7", { val1: commercialTags.join(" / ") }) : "",
   ].filter(Boolean);
 }
 
@@ -370,7 +370,7 @@ export default function NovelExistingProjectTakeoverDialog({
         effectiveRunMode === "full_book_autopilot"
           ? i18next.t("dict.gen_b4951973")
           : effectiveRunMode === "auto_to_execution"
-          ? `自动导演接管任务已提交，可在 AI 驾驶舱查看 ${buildDirectorAutoExecutionPlanLabel(autoExecutionPlan)} 的执行进度。`
+          ? i18next.t("novels.novelExistingProjectTakeoverDialog.s5djua", { val1: buildDirectorAutoExecutionPlanLabel(autoExecutionPlan) })
           : i18next.t("dict.gen_b87ce241"),
       );
       navigate(buildEditRoute({
@@ -645,19 +645,19 @@ export default function NovelExistingProjectTakeoverDialog({
                                 </div>
                                 {readiness.activePipelineJob ? (
                                   <div className={`mt-3 text-xs leading-5 text-muted-foreground ${AUTO_DIRECTOR_MOBILE_CLASSES.wrapText}`}>
-                                    当前活动批次：{readiness.activePipelineJob.currentItemLabel || `范围 ${readiness.activePipelineJob.startOrder}-${readiness.activePipelineJob.endOrder}`}
+                                    当前活动批次：{readiness.activePipelineJob.currentItemLabel || i18next.t("novels.novelExistingProjectTakeoverDialog.fykw0x", { val1: readiness.activePipelineJob.startOrder, val2: readiness.activePipelineJob.endOrder })}
                                   </div>
                                 ) : null}
                                 {readiness.latestCheckpoint?.checkpointType ? (
                                   <div className={`mt-2 text-xs leading-5 text-muted-foreground ${AUTO_DIRECTOR_MOBILE_CLASSES.wrapText}`}>
                                     最近检查点：{readiness.latestCheckpoint.checkpointType}
-                                    {readiness.latestCheckpoint.chapterOrder ? ` · 第${readiness.latestCheckpoint.chapterOrder}章` : ""}
+                                    {readiness.latestCheckpoint.chapterOrder ? i18next.t("novels.novelExistingProjectTakeoverDialog.tbqcqb", { val1: readiness.latestCheckpoint.chapterOrder }) : ""}
                                   </div>
                                 ) : null}
                                 {readiness.executableRange ? (
                                   <div className={`mt-2 text-xs leading-5 text-muted-foreground ${AUTO_DIRECTOR_MOBILE_CLASSES.wrapText}`}>
                                     当前可执行范围：第 {readiness.executableRange.startOrder}-{readiness.executableRange.endOrder} 章
-                                    {readiness.executableRange.nextChapterOrder ? ` · 下一章第 ${readiness.executableRange.nextChapterOrder} 章` : ""}
+                                    {readiness.executableRange.nextChapterOrder ? i18next.t("novels.novelExistingProjectTakeoverDialog.b76u6y", { val1: readiness.executableRange.nextChapterOrder }) : ""}
                                   </div>
                                 ) : null}
                                 {selectedPreview.skipSteps.length > 0 ? (

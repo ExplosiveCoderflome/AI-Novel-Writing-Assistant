@@ -510,7 +510,7 @@ export default function DramaProjectPage() {
         content: input.content,
         durationSec: durationSec !== undefined && Number.isFinite(durationSec) ? durationSec : null,
       }),
-      `第 ${order} 集已保存。`,
+      i18next.t("drama.dramaProjectPage.b5jrmp", { val1: order }),
     );
   };
 
@@ -563,11 +563,11 @@ export default function DramaProjectPage() {
         onAssembleSource={() => runAction(() => assembleDramaSourceBundle(project.id), i18next.t("dict.gen_971fac72"))}
         onGenerateStrategy={() => runAction(() => generateDramaStrategy(project.id), i18next.t("dict.gen_45be5534"))}
         onGenerateOutline={() => runAction(() => generateDramaOutline(project.id, { startOrder: 1, count: 12 }), i18next.t("dict.gen_b1c454f5"))}
-        onGenerateScript={(order) => runAction(() => generateDramaEpisodeScript(project.id, order), `第 ${order} 集台本已生成。`)}
-        onReviewEpisode={(order) => runAction(() => reviewDramaEpisode(project.id, order), `第 ${order} 集质量检查完成。`)}
-        onRepairEpisode={(order) => runAction(() => repairDramaEpisode(project.id, order), `第 ${order} 集已按质量建议修复。`)}
-        onGenerateStoryboard={(order) => runAction(() => generateDramaStoryboard(project.id, order), `第 ${order} 集分镜已生成。`)}
-        onGenerateVideoPrompt={(shot) => runAction(() => generateDramaVideoPrompt(project.id, shot.id), `镜头 ${shot.order} 的视频提示词已生成。`)}
+        onGenerateScript={(order) => runAction(() => generateDramaEpisodeScript(project.id, order), i18next.t("drama.dramaProjectPage.lqzuat", { val1: order }))}
+        onReviewEpisode={(order) => runAction(() => reviewDramaEpisode(project.id, order), i18next.t("drama.dramaProjectPage.okjt08", { val1: order }))}
+        onRepairEpisode={(order) => runAction(() => repairDramaEpisode(project.id, order), i18next.t("drama.dramaProjectPage.tlhjax", { val1: order }))}
+        onGenerateStoryboard={(order) => runAction(() => generateDramaStoryboard(project.id, order), i18next.t("drama.dramaProjectPage.tnrmyp", { val1: order }))}
+        onGenerateVideoPrompt={(shot) => runAction(() => generateDramaVideoPrompt(project.id, shot.id), i18next.t("drama.dramaProjectPage.af4t4r", { val1: shot.order }))}
         onCreateProviderTask={(prompt) => runAction(() => createDramaVideoProviderTask(prompt.id, activeVideoProvider), i18next.t("dict.gen_787d2d5a"))}
         onExportMarkdown={() => void handleExport("markdown")}
       />
@@ -596,9 +596,9 @@ export default function DramaProjectPage() {
           ttsProviders={ttsProviders}
           onBatchJob={(order, input) => runAction(() => createDramaEpisodeBatchJob(project.id, order, input), i18next.t("dict.gen_213ca205"))}
           busy={actionMutation.isPending}
-          onGenerateScript={(order) => runAction(() => generateDramaEpisodeScript(project.id, order), `第 ${order} 集台本已生成。`)}
-          onReview={(order) => runAction(() => reviewDramaEpisode(project.id, order), `第 ${order} 集质量检查完成。`)}
-          onRepair={(order) => runAction(() => repairDramaEpisode(project.id, order), `第 ${order} 集已按质量建议修复。`)}
+          onGenerateScript={(order) => runAction(() => generateDramaEpisodeScript(project.id, order), i18next.t("drama.dramaProjectPage.lqzuat", { val1: order }))}
+          onReview={(order) => runAction(() => reviewDramaEpisode(project.id, order), i18next.t("drama.dramaProjectPage.okjt08", { val1: order }))}
+          onRepair={(order) => runAction(() => repairDramaEpisode(project.id, order), i18next.t("drama.dramaProjectPage.tlhjax", { val1: order }))}
           onSave={handleSaveEpisode}
         />
       ) : null}
@@ -608,9 +608,9 @@ export default function DramaProjectPage() {
           busy={actionMutation.isPending}
           onSelectEpisode={setSelectedOrder}
           onOpenEpisodes={() => setActiveTab("episodes")}
-          onReview={(order) => runAction(() => reviewDramaEpisode(project.id, order), `第 ${order} 集质量检查完成。`)}
+          onReview={(order) => runAction(() => reviewDramaEpisode(project.id, order), i18next.t("drama.dramaProjectPage.okjt08", { val1: order }))}
           onComplianceAll={() => runAction(() => checkDramaProjectCompliance(project.id), i18next.t("dict.gen_603ed7bb"))}
-          onRepair={(order) => runAction(() => repairDramaEpisode(project.id, order), `第 ${order} 集已按质量建议修复。`)}
+          onRepair={(order) => runAction(() => repairDramaEpisode(project.id, order), i18next.t("drama.dramaProjectPage.tlhjax", { val1: order }))}
         />
       ) : null}
       {activeTab === "characters" ? (
@@ -633,12 +633,12 @@ export default function DramaProjectPage() {
                 voiceProfile: input.voiceAnchor.trim() || undefined,
                 relations: input.relationMap.trim() || undefined,
               }),
-              `${input.name || character.name} 已保存。`,
+              i18next.t("drama.dramaProjectPage.gy2o6z", { val1: input.name || character.name }),
             );
           }}
           onSaveToLibrary={(character) => runAction(
             () => saveDramaCharacterToLibrary(project.id, character.id),
-            `${character.name} 已保存到角色库。`,
+            i18next.t("drama.dramaProjectPage.7viule", { val1: character.name }),
           )}
           onImportFromLibrary={(libraryId) => runAction(
             () => importDramaCharacterFromLibrary(project.id, libraryId),
@@ -653,10 +653,10 @@ export default function DramaProjectPage() {
           selectedOrder={selectedOrderValue}
           onSelectOrder={setSelectedOrder}
           busy={actionMutation.isPending}
-          onStoryboard={(order) => runAction(() => generateDramaStoryboard(project.id, order), `第 ${order} 集分镜已生成。`)}
+          onStoryboard={(order) => runAction(() => generateDramaStoryboard(project.id, order), i18next.t("drama.dramaProjectPage.tnrmyp", { val1: order }))}
           onBatchJob={(order, input) => runAction(() => createDramaEpisodeBatchJob(project.id, order, input), i18next.t("dict.gen_a2471e35"))}
-          onKeyframe={(shot, provider, useCharacterRefImages, overrides) => runAction(() => generateDramaShotKeyframe(project.id, shot.id, provider, useCharacterRefImages, overrides), `镜头 ${shot.order} 的首帧图已生成。`)}
-          onVideoPrompt={(shot) => runAction(() => generateDramaVideoPrompt(project.id, shot.id), `镜头 ${shot.order} 的视频提示词已生成。`)}
+          onKeyframe={(shot, provider, useCharacterRefImages, overrides) => runAction(() => generateDramaShotKeyframe(project.id, shot.id, provider, useCharacterRefImages, overrides), i18next.t("drama.dramaProjectPage.oae6c0", { val1: shot.order }))}
+          onVideoPrompt={(shot) => runAction(() => generateDramaVideoPrompt(project.id, shot.id), i18next.t("drama.dramaProjectPage.af4t4r", { val1: shot.order }))}
           videoProviders={videoProviders}
           selectedProvider={activeVideoProvider}
           onSelectProvider={setSelectedVideoProvider}

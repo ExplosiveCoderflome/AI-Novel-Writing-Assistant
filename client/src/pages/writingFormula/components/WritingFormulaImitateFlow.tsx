@@ -101,7 +101,7 @@ export default function WritingFormulaImitateFlow(props: WritingFormulaImitateFl
                   })}
                 </div>
                 <div className="rounded-xl border bg-amber-50/80 p-3 text-xs leading-6 text-amber-900">
-                  `imitate` 更适合临摹试写，`balanced` 适合大多数项目，`transfer` 更适合整书绑定，能主动避开高指纹风险。
+                  `imitatei18next.t("writingFormula.writingFormulaImitateFlow.x96i0n")balancedi18next.t("writingFormula.writingFormulaImitateFlow.7cmxq8")transfer` 更适合整书绑定，能主动避开高指纹风险。
                 </div>
               </>
             ) : (

@@ -175,12 +175,12 @@ export default function BookAnalysisCharacterPanel(props: BookAnalysisCharacterP
   const freshCandidateCount = candidateCharacters.filter((character) => character.status === "candidate").length;
   const batchButtonTitle = (() => {
     if (failedCandidateCount > 0 && freshCandidateCount > 0) {
-      return `为 ${freshCandidateCount} 个新候选生成档案，并重试 ${failedCandidateCount} 个失败角色`;
+      return i18next.t("bookAnalysis.bookAnalysisCharacterPanel.o4suih", { val1: freshCandidateCount, val2: failedCandidateCount });
     }
     if (failedCandidateCount > 0) {
-      return `重试 ${failedCandidateCount} 个失败的角色`;
+      return i18next.t("bookAnalysis.bookAnalysisCharacterPanel.1540iq", { val1: failedCandidateCount });
     }
-    return `为 ${freshCandidateCount} 个候选生成深度档案`;
+    return i18next.t("bookAnalysis.bookAnalysisCharacterPanel.bqb7kr", { val1: freshCandidateCount });
   })();
   const operationPending = pending.generate || pending.identify || pending.generateProfile || pending.generateAll;
   const identifyDisabled = disabled || pending.identify;
@@ -277,7 +277,7 @@ export default function BookAnalysisCharacterPanel(props: BookAnalysisCharacterP
                   disabled={generateAllDisabled}
                   title={batchButtonTitle}
                 >
-                  {pending.generateAll ? "生成中..." : `全部生成 (${pendingCandidateCount})`}
+                  {pending.generateAll ? "生成中..." : i18next.t("bookAnalysis.bookAnalysisCharacterPanel.rokwsg", { val1: pendingCandidateCount })}
                 </Button>
               ) : null}
               <SelectControl
@@ -351,14 +351,14 @@ export default function BookAnalysisCharacterPanel(props: BookAnalysisCharacterP
             <div className="space-y-1">
               <div className="font-medium">
                 {batchSummary.failed + batchSummary.pending === 0
-                  ? `本次批量已生成 ${batchSummary.generated} / ${batchSummary.total} 个角色档案`
-                  : `本次批量已生成 ${batchSummary.generated} 个，未完成 ${batchSummary.failed + batchSummary.pending} 个`}
+                  ? i18next.t("bookAnalysis.bookAnalysisCharacterPanel.5d52wp", { val1: batchSummary.generated, val2: batchSummary.total })
+                  : i18next.t("bookAnalysis.bookAnalysisCharacterPanel.7523xl", { val1: batchSummary.generated, val2: batchSummary.failed + batchSummary.pending })}
               </div>
               {batchSummary.failed + batchSummary.pending > 0 ? (
                 <div className="text-xs">
-                  {batchSummary.failed > 0 ? `失败 ${batchSummary.failed} 个` : ""}
+                  {batchSummary.failed > 0 ? i18next.t("bookAnalysis.bookAnalysisCharacterPanel.2swxxi", { val1: batchSummary.failed }) : ""}
                   {batchSummary.failed > 0 && batchSummary.pending > 0 ? "，" : ""}
-                  {batchSummary.pending > 0 ? `因预算用尽未跑 ${batchSummary.pending} 个` : ""}
+                  {batchSummary.pending > 0 ? i18next.t("bookAnalysis.bookAnalysisCharacterPanel.kjitzf", { val1: batchSummary.pending }) : ""}
                   。可调整预算或扩容后再点「全部生成」继续。
                 </div>
               ) : null}

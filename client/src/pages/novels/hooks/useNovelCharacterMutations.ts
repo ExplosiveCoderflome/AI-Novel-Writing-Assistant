@@ -122,7 +122,7 @@ export function useNovelCharacterMutations(input: UseNovelCharacterMutationsInpu
         endOrder: pipelineForm.endOrder,
       }),
     onSuccess: async (response) => {
-      setCharacterMessage(response.message ?? `角色时间线同步完成，本次新增 ${response.data?.syncedCount ?? 0} 条。`);
+      setCharacterMessage(response.message ?? i18next.t("novels.useNovelCharacterMutations.hm5mv2", { val1: response.data?.syncedCount ?? 0 }));
       await invalidateCharacterViews(queryClient, id, selectedCharacterId || "none");
     },
   });
@@ -134,7 +134,7 @@ export function useNovelCharacterMutations(input: UseNovelCharacterMutationsInpu
         endOrder: pipelineForm.endOrder,
       }),
     onSuccess: async (response) => {
-      setCharacterMessage(response.message ?? `全角色时间线同步完成，共新增 ${response.data?.syncedCount ?? 0} 条事件。`);
+      setCharacterMessage(response.message ?? i18next.t("novels.useNovelCharacterMutations.jd2ytr", { val1: response.data?.syncedCount ?? 0 }));
       await invalidateCharacterViews(queryClient, id, selectedCharacterId || "none");
     },
   });
@@ -162,7 +162,7 @@ export function useNovelCharacterMutations(input: UseNovelCharacterMutationsInpu
       }),
     onSuccess: (response) => {
       const count = Object.keys(response.data?.fields ?? {}).length;
-      setCharacterMessage(count > 0 ? `已生成 ${count} 项外显资料建议，请确认后写入。` : i18next.t("dict.gen_7adea5b7"));
+      setCharacterMessage(count > 0 ? i18next.t("novels.useNovelCharacterMutations.5ertsw", { val1: count }) : i18next.t("dict.gen_7adea5b7"));
     },
     onError: (error) => {
       setCharacterMessage(error instanceof Error ? error.message : i18next.t("dict.gen_5465a1ee"));
@@ -179,7 +179,7 @@ export function useNovelCharacterMutations(input: UseNovelCharacterMutationsInpu
     },
     onSuccess: async (response) => {
       const count = response.data?.appliedFields.length ?? 0;
-      setCharacterMessage(count > 0 ? `已写入 ${count} 项外显资料。` : i18next.t("dict.gen_1df73f4d"));
+      setCharacterMessage(count > 0 ? i18next.t("novels.useNovelCharacterMutations.ah1lty", { val1: count }) : i18next.t("dict.gen_1df73f4d"));
       await invalidateCharacterViews(queryClient, id, selectedCharacterId || "none");
     },
     onError: (error) => {
@@ -197,7 +197,7 @@ export function useNovelCharacterMutations(input: UseNovelCharacterMutationsInpu
       }),
     onSuccess: (response) => {
       const count = response.data?.results.filter((item) => item.hasApplicableChanges).length ?? 0;
-      setCharacterMessage(count > 0 ? `已生成 ${count} 个角色的外显资料建议，请确认后写入。` : i18next.t("dict.gen_29423d7e"));
+      setCharacterMessage(count > 0 ? i18next.t("novels.useNovelCharacterMutations.ceyxjt", { val1: count }) : i18next.t("dict.gen_29423d7e"));
     },
     onError: (error) => {
       setCharacterMessage(error instanceof Error ? error.message : i18next.t("dict.gen_43843e60"));
@@ -217,7 +217,7 @@ export function useNovelCharacterMutations(input: UseNovelCharacterMutationsInpu
     },
     onSuccess: async (response) => {
       const count = response.data?.results.reduce((sum, item) => sum + item.appliedFields.length, 0) ?? 0;
-      setCharacterMessage(count > 0 ? `已批量写入 ${count} 项外显资料。` : i18next.t("dict.gen_0aedf9d4"));
+      setCharacterMessage(count > 0 ? i18next.t("novels.useNovelCharacterMutations.i2spm8", { val1: count }) : i18next.t("dict.gen_0aedf9d4"));
       await invalidateCharacterViews(queryClient, id, selectedCharacterId || "none");
     },
     onError: (error) => {
@@ -238,7 +238,7 @@ export function useNovelCharacterMutations(input: UseNovelCharacterMutationsInpu
       const issueText = (response.data?.issues ?? [])
         .map((item) => `${item.severity.toUpperCase()}: ${item.message}`)
         .join(" | ");
-      setCharacterMessage(`世界规则检查(${status}) ${warningText} ${issueText}`.trim());
+      setCharacterMessage(i18next.t("novels.useNovelCharacterMutations.x760gu", { val1: status, val2: warningText, val3: issueText }).trim());
     },
     onError: (error) => {
       setCharacterMessage(error instanceof Error ? error.message : i18next.t("dict.worldRuleCheckFailed"));

@@ -160,7 +160,7 @@ export default function StructuredChapterListCard(props: StructuredChapterListCa
               <CardTitle className="text-base leading-none">{i18next.t("novels.structuredChapterListCard.wj0qjw")}</CardTitle>
               <div className="mt-1 text-sm text-muted-foreground">
                 {selectedBeat
-                  ? `当前聚焦「${formatBeatDisplayLabel(selectedBeat)}」。点击组头切换节奏，点击章节直接在右侧继续细化。`
+                  ? i18next.t("novels.structuredChapterListCard.xf3r58", { val1: formatBeatDisplayLabel(selectedBeat) })
                   : "按节奏分组显示章节。点击组头可聚焦该节奏，点击章节直接在右侧继续细化。"}
               </div>
             </div>
@@ -273,7 +273,7 @@ export default function StructuredChapterListCard(props: StructuredChapterListCa
                                 <Badge variant={isSelected ? "default" : "outline"}>第{chapter.chapterOrder}章</Badge>
                                 {renderChapterDetailStatusBadge(chapter)}
                               </div>
-                              <div className="mt-2 text-sm font-medium">{chapter.title || `第${chapter.chapterOrder}章`}</div>
+                              <div className="mt-2 text-sm font-medium">{chapter.title || i18next.t("tensionCurve.tensionCurveChapterDetailSidebar.xrxssk", { val1: chapter.chapterOrder })}</div>
                             </button>
                           );
                         }) : (
@@ -297,7 +297,7 @@ export default function StructuredChapterListCard(props: StructuredChapterListCa
                   <div className="mt-3 space-y-2">
                     {unmatchedChapters.map((chapter) => {
                       const isSelected = selectedChapter?.id === chapter.id;
-                      const title = chapter.title || `第${chapter.chapterOrder}章`;
+                      const title = chapter.title || i18next.t("tensionCurve.tensionCurveChapterDetailSidebar.xrxssk", { val1: chapter.chapterOrder });
                       return (
                         <div
                           key={chapter.id}
@@ -325,7 +325,7 @@ export default function StructuredChapterListCard(props: StructuredChapterListCa
                             disabled={locked || selectedVolume.chapters.length <= 1}
                             title={i18next.t("novels.structuredChapterListCard.y173sq")}
                             onClick={() => {
-                              const confirmed = window.confirm(`确认删除「${title}」？这只会从当前卷的章节拆分中移除该章节。`);
+                              const confirmed = window.confirm(i18next.t("novels.structuredChapterListCard.z60f67", { val1: title }));
                               if (!confirmed) {
                                 return;
                               }

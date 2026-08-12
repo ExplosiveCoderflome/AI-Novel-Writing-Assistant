@@ -70,7 +70,7 @@ const KNOWLEDGE_SOURCE_PROCESSING_OPTIONS: Array<{
     key: "representative_sample",
     label: i18next.t("dict.gen_a42e20c2"),
     summary: i18next.t("dict.extractRepresentativeSamples"),
-    badge: "推荐",
+    badge: i18next.t("dict.gen_3f981012"),
   },
   {
     key: "full_text",
@@ -105,7 +105,7 @@ function formatCharCount(value: number | null | undefined): string {
   if (!value) {
     return i18next.t("dict.zeroCharacters");
   }
-  return `${value.toLocaleString("zh-CN")} 字`;
+  return i18next.t("novels.chapterEditorSidebar.izeb8n", { val1: value.toLocaleString("zh-CN") });
 }
 
 function formatKnowledgeStatus(status: KnowledgeDocumentSummary["status"]): string {
@@ -401,7 +401,7 @@ export default function WritingFormulaCreateDialog(props: WritingFormulaCreateDi
                             onClick={() => onFormChange({
                               knowledgeDocumentId: document.id,
                               knowledgeDocumentTitle: document.title,
-                              extractName: form.extractName.trim() ? form.extractName : `${document.title}写法`,
+                              extractName: form.extractName.trim() ? form.extractName : i18next.t("writingFormula.writingFormulaCreateDialog.izs9l8", { val1: document.title }),
                             })}
                           >
                             <div className="flex items-start justify-between gap-3">
@@ -513,7 +513,7 @@ export default function WritingFormulaCreateDialog(props: WritingFormulaCreateDi
                             onClick={() => onFormChange({
                               bookAnalysisId: analysis.id,
                               bookAnalysisTitle: analysis.title,
-                              extractName: form.extractName.trim() ? form.extractName : `${analysis.title}写法`,
+                              extractName: form.extractName.trim() ? form.extractName : i18next.t("writingFormula.writingFormulaCreateDialog.izs9l8", { val1: analysis.title }),
                             })}
                           >
                             <div className="flex items-start justify-between gap-3">

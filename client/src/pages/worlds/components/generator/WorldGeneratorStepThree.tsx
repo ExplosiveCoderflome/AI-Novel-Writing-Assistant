@@ -65,7 +65,7 @@ export default function WorldGeneratorStepThree(props: WorldGeneratorStepThreePr
           title={i18next.t("dict.gen_0a431a82")}
           emptyText={i18next.t("dict.gen_9aaf310c")}
           items={structure.rules.axioms.map((item) =>
-            [item.name, item.summary, item.cost && `代价：${item.cost}`, item.boundary && `边界：${item.boundary}`]
+            [item.name, item.summary, item.cost && i18next.t("novels.novelWorldHandbookDialog.a7mhxy", { val1: item.cost }), item.boundary && i18next.t("novels.novelWorldHandbookDialog.egy51l", { val1: item.boundary })]
               .filter(Boolean)
               .join(" | "),
           )}
@@ -78,8 +78,8 @@ export default function WorldGeneratorStepThree(props: WorldGeneratorStepThreePr
               item.name,
               item.type,
               item.role,
-              item.currentObjective && `目标：${item.currentObjective}`,
-              item.pressure && `压力：${item.pressure}`,
+              item.currentObjective && i18next.t("worlds.worldGeneratorStepThree.k7723z", { val1: item.currentObjective }),
+              item.pressure && i18next.t("worlds.worldGeneratorStepThree.f8u146", { val1: item.pressure }),
             ].filter(Boolean).join(" | "),
           )}
         />
@@ -92,7 +92,7 @@ export default function WorldGeneratorStepThree(props: WorldGeneratorStepThreePr
               item.type,
               item.directionHint,
               item.terrain,
-              item.riskLevel ? `风险 ${item.riskLevel}` : item.risk,
+              item.riskLevel ? i18next.t("novels.characterDynamicsSection.zgtk5x", { val1: item.riskLevel }) : item.risk,
               item.storyRelevance || item.narrativeFunction,
             ].filter(Boolean).join(" | "),
           )}

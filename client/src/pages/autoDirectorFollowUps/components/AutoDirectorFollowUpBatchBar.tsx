@@ -48,7 +48,7 @@ export function AutoDirectorFollowUpBatchBar({
   return (
     <div className={AUTO_DIRECTOR_MOBILE_CLASSES.followUpBatchBar}>
       <TaskQueueActionRow
-        title={`已选择 ${selectedItems.length} 项 · ${selectedSection === "pending" || selectedSection === "exception" ? formatBatchActionLabel(batchActionCode) : "该分区不提供批量动作"}`}
+        title={i18next.t("autoDirectorFollowUps.autoDirectorFollowUpBatchBar.sg51xf", { val1: selectedItems.length, val2: selectedSection === "pending" || selectedSection === "exception" ? formatBatchActionLabel(batchActionCode) : "该分区不提供批量动作" })}
         consequence={consequence}
         tone={selectedSection === "exception" ? "danger" : "info"}
         action={(

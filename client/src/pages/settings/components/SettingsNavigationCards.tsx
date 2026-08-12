@@ -77,17 +77,13 @@ export default function SettingsNavigationCards(props: {
 
           <Card className="min-w-0 overflow-hidden border-indigo-500/30 bg-slate-900/40">
             <CardHeader>
-              <CardTitle className="text-indigo-300">模型基准评估与能力竞技场</CardTitle>
-              <CardDescription className={AUTO_DIRECTOR_MOBILE_CLASSES.wrapText}>
-                测试各模型在 8 大模态下的速度、格式遵循度与算力匹配，一键更新智能模型路由。
-              </CardDescription>
+              <CardTitle className="text-indigo-300">{i18next.t("settings.settingsNavigationCards.cei9ce")}</CardTitle>
+              <CardDescription className={AUTO_DIRECTOR_MOBILE_CLASSES.wrapText}>{i18next.t("settings.settingsNavigationCards.mb5x5v")}</CardDescription>
             </CardHeader>
             <CardContent className={AUTO_DIRECTOR_MOBILE_CLASSES.settingsEntryActionRow}>
-              <div className={`min-w-0 text-sm text-muted-foreground ${AUTO_DIRECTOR_MOBILE_CLASSES.wrapText}`}>
-                自动探测硬件显存并提供 Side-by-Side 擂台比拼
-              </div>
+              <div className={`min-w-0 text-sm text-muted-foreground ${AUTO_DIRECTOR_MOBILE_CLASSES.wrapText}`}>{i18next.t("settings.settingsNavigationCards.298o23")}</div>
               <Button asChild className={`${AUTO_DIRECTOR_MOBILE_CLASSES.fullWidthAction} bg-indigo-600 hover:bg-indigo-500`}>
-                <Link to="/settings/model-evaluation">进入模型评估中枢</Link>
+                <Link to="/settings/model-evaluation">{i18next.t("settings.settingsNavigationCards.wu3ll7")}</Link>
               </Button>
             </CardContent>
           </Card>

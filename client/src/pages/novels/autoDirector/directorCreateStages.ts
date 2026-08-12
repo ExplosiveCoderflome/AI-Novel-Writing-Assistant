@@ -42,7 +42,7 @@ export function summarizeBasicStage(basicForm: NovelBasicFormState): string {
     findLabel(POV_OPTIONS, basicForm.narrativePov),
     findLabel(PACE_OPTIONS, basicForm.pacePreference),
     findLabel(EMOTION_OPTIONS, basicForm.emotionIntensity),
-    `约 ${basicForm.estimatedChapterCount} 章`,
+    i18next.t("novels.directorCreateStages.lj13u2", { val1: basicForm.estimatedChapterCount }),
   ].join(" · ");
 }
 
@@ -56,14 +56,14 @@ export function summarizeWorldStyleStage(input: {
 }): string {
   const selectedWorld = input.worldOptions.find((world) => world.id === input.basicForm.worldId);
   const worldLabel = selectedWorld
-    ? `参考世界：${selectedWorld.name}`
+    ? i18next.t("novels.directorCreateStages.4pxcz7", { val1: selectedWorld.name })
     : input.worldSetupMode === "skip"
       ? i18next.t("dict.gen_5dcc48bb")
       : i18next.t("dict.gen_3684d509");
   const styleProfile = input.styleProfiles.find((profile) => profile.id === input.styleProfileId);
   const styleLabel = styleProfile?.name
     ?? input.selectedStyleSummary?.headline
-    ?? (input.basicForm.styleTone.trim() ? `文风：${input.basicForm.styleTone.trim()}` : i18next.t("dict.gen_c9449912"));
+    ?? (input.basicForm.styleTone.trim() ? i18next.t("novels.directorCreateStages.kfakg3", { val1: input.basicForm.styleTone.trim() }) : i18next.t("dict.gen_c9449912"));
   return `${worldLabel} · ${styleLabel}`;
 }
 

@@ -201,8 +201,8 @@ export default function NovelWorldManagerCard(props: NovelWorldManagerCardProps)
     ?? novelWorld?.coverSummary
     ?? (novelWorld ? "这本书的世界正在整理中。" : "先创建一份属于这本书的世界副本，后续角色、大纲和章节都会读取这里的设定边界。");
   const themeLine = inlineText([
-    handbook?.identity ? `身份：${handbook.identity}` : null,
-    handbook?.tone ? `气质：${handbook.tone}` : null,
+    handbook?.identity ? i18next.t("novels.characterAssetSidebar.xmhrko", { val1: handbook.identity }) : null,
+    handbook?.tone ? i18next.t("novels.novelWorldHandbookDialog.6qjh9y", { val1: handbook.tone }) : null,
     ...(handbook?.themes.slice(0, 4) ?? []),
   ]);
 

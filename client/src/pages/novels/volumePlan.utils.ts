@@ -70,7 +70,7 @@ export function createEmptyVolume(sortOrder: number): VolumePlan {
     id: createLocalId("volume"),
     novelId: "",
     sortOrder,
-    title: `第${sortOrder}卷`,
+    title: i18next.t("novels.outlineCurrentVolumeWorkspace.xrxl0b", { val1: sortOrder }),
     summary: "",
     openingHook: "",
     mainPromise: "",
@@ -98,7 +98,7 @@ export function createEmptyChapter(chapterOrder: number): VolumeChapterPlan {
     volumeId: "",
     chapterOrder,
     beatKey: null,
-    title: `第${chapterOrder}章`,
+    title: i18next.t("tensionCurve.tensionCurveChapterDetailSidebar.xrxssk", { val1: chapterOrder }),
     summary: "",
     purpose: "",
     conflictLevel: null,
@@ -116,11 +116,11 @@ export function createEmptyChapter(chapterOrder: number): VolumeChapterPlan {
 export function buildTaskSheetFromVolumeChapter(chapter: VolumeChapterPlan): string {
   const lines = [
     `章节目标：${chapter.purpose || chapter.summary || i18next.t("dict.gen_e7168520")}`,
-    typeof chapter.conflictLevel === "number" ? `冲突等级：${chapter.conflictLevel}` : "",
-    typeof chapter.revealLevel === "number" ? `揭露等级：${chapter.revealLevel}` : "",
-    typeof chapter.targetWordCount === "number" ? `目标字数：${chapter.targetWordCount}` : "",
-    chapter.mustAvoid?.trim() ? `禁止事项：${chapter.mustAvoid.trim()}` : "",
-    chapter.payoffRefs.length > 0 ? `兑现关联：${chapter.payoffRefs.join("、")}` : "",
+    typeof chapter.conflictLevel === "number" ? i18next.t("novels.structuredOutline.utils.2vuot9", { val1: chapter.conflictLevel }) : "",
+    typeof chapter.revealLevel === "number" ? i18next.t("novels.structuredOutline.utils.1y9wmx", { val1: chapter.revealLevel }) : "",
+    typeof chapter.targetWordCount === "number" ? i18next.t("novels.volumePlan.utils.qvy0w8", { val1: chapter.targetWordCount }) : "",
+    chapter.mustAvoid?.trim() ? i18next.t("novels.structuredOutline.utils.j4v8kb", { val1: chapter.mustAvoid.trim() }) : "",
+    chapter.payoffRefs.length > 0 ? i18next.t("novels.volumePlan.utils.zhghbq", { val1: chapter.payoffRefs.join("、") }) : "",
   ].filter(Boolean);
   return lines.join("\n");
 }
@@ -167,21 +167,21 @@ export function buildOutlinePreviewFromVolumes(volumes: VolumePlan[]): string {
         ? `${volume.chapters[0]?.chapterOrder ?? "-"}-${volume.chapters[volume.chapters.length - 1]?.chapterOrder ?? "-"}`
         : i18next.t("dict.gen_797359eb");
       return [
-        `【第${volume.sortOrder}卷】${volume.title}`,
-        volume.summary?.trim() ? `卷摘要：${volume.summary.trim()}` : "",
-        volume.openingHook?.trim() ? `开卷抓手：${volume.openingHook.trim()}` : "",
-        volume.mainPromise?.trim() ? `主承诺：${volume.mainPromise.trim()}` : "",
-        volume.primaryPressureSource?.trim() ? `主压迫源：${volume.primaryPressureSource.trim()}` : "",
-        volume.coreSellingPoint?.trim() ? `核心卖点：${volume.coreSellingPoint.trim()}` : "",
-        volume.escalationMode?.trim() ? `升级方式：${volume.escalationMode.trim()}` : "",
-        volume.protagonistChange?.trim() ? `主角变化：${volume.protagonistChange.trim()}` : "",
-        volume.midVolumeRisk?.trim() ? `中段风险：${volume.midVolumeRisk.trim()}` : "",
-        volume.climax?.trim() ? `卷末高潮：${volume.climax.trim()}` : "",
-        volume.payoffType?.trim() ? `兑现类型：${volume.payoffType.trim()}` : "",
-        volume.nextVolumeHook?.trim() ? `下卷钩子：${volume.nextVolumeHook.trim()}` : "",
-        volume.resetPoint?.trim() ? `重置点：${volume.resetPoint.trim()}` : "",
-        volume.openPayoffs.length > 0 ? `未兑现事项：${volume.openPayoffs.join("；")}` : "",
-        `章节范围：${chapterSpan}`,
+        i18next.t("novels.volumePlan.utils.brsd3d", { val1: volume.sortOrder, val2: volume.title }),
+        volume.summary?.trim() ? i18next.t("novels.volumePlan.utils.w0q0yy", { val1: volume.summary.trim() }) : "",
+        volume.openingHook?.trim() ? i18next.t("novels.volumePlan.utils.87n4px", { val1: volume.openingHook.trim() }) : "",
+        volume.mainPromise?.trim() ? i18next.t("novels.volumePlan.utils.7xgb3o", { val1: volume.mainPromise.trim() }) : "",
+        volume.primaryPressureSource?.trim() ? i18next.t("novels.volumePlan.utils.u0l06t", { val1: volume.primaryPressureSource.trim() }) : "",
+        volume.coreSellingPoint?.trim() ? i18next.t("novels.volumePlan.utils.r2hct8", { val1: volume.coreSellingPoint.trim() }) : "",
+        volume.escalationMode?.trim() ? i18next.t("novels.volumePlan.utils.bda0mk", { val1: volume.escalationMode.trim() }) : "",
+        volume.protagonistChange?.trim() ? i18next.t("novels.volumePlan.utils.f4pnxx", { val1: volume.protagonistChange.trim() }) : "",
+        volume.midVolumeRisk?.trim() ? i18next.t("novels.volumePlan.utils.j9xy3d", { val1: volume.midVolumeRisk.trim() }) : "",
+        volume.climax?.trim() ? i18next.t("novels.volumePlan.utils.z5pjds", { val1: volume.climax.trim() }) : "",
+        volume.payoffType?.trim() ? i18next.t("novels.volumePlan.utils.kilkvv", { val1: volume.payoffType.trim() }) : "",
+        volume.nextVolumeHook?.trim() ? i18next.t("novels.volumePlan.utils.o9xgx5", { val1: volume.nextVolumeHook.trim() }) : "",
+        volume.resetPoint?.trim() ? i18next.t("novels.volumePlan.utils.h3v92q", { val1: volume.resetPoint.trim() }) : "",
+        volume.openPayoffs.length > 0 ? i18next.t("novels.volumePlan.utils.in2r5f", { val1: volume.openPayoffs.join("；") }) : "",
+        i18next.t("novels.volumePlan.utils.74lwp5", { val1: chapterSpan }),
       ].filter(Boolean).join("\n");
     })
     .join("\n\n");

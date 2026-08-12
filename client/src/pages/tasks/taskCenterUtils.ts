@@ -178,7 +178,7 @@ export function formatCheckpoint(checkpoint: NovelWorkflowMilestoneType | null |
     return i18next.t("dict.gen_c3eafe6f");
   }
   if (checkpoint === "chapter_batch_ready") {
-    return `${resolvedScopeLabel}自动执行已暂停`;
+    return i18next.t("lib.novelWorkflowTaskUi.mr8bw9", { val1: resolvedScopeLabel });
   }
   if (checkpoint === "step_review_required") {
     return i18next.t("novels.novelAutoDirectorProgressPanel.fotvdd");

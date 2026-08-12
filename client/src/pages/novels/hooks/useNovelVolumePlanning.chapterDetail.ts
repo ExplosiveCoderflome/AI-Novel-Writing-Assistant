@@ -60,7 +60,7 @@ function buildFallbackLabel(targets: ChapterDetailTarget[]): string {
   if (!first || !last) {
     return i18next.t("dict.gen_d7432bb5");
   }
-  return `第${first.chapterOrder}-${last.chapterOrder}章（共 ${targets.length} 章）`;
+  return i18next.t("novels.useNovelVolumePlanning.chapterDetail.hym2de", { val1: first.chapterOrder, val2: last.chapterOrder, val3: targets.length });
 }
 
 function resolveMissingChapterDetailModes(
@@ -115,13 +115,13 @@ export function buildChapterDetailBatchConfirmationMessage(
 ): string {
   return [
     batch.targets.length === 1
-      ? `将基于当前内容为${batch.label} AI 补齐章节目标、执行边界和任务单。`
-      : `将基于当前内容为${batch.label}连续补齐章节目标、执行边界和任务单。`,
+      ? i18next.t("novels.useNovelVolumePlanning.chapterDetail.jaoli", { val1: batch.label })
+      : i18next.t("novels.useNovelVolumePlanning.chapterDetail.cb9tp", { val1: batch.label }),
     batch.hasExistingDrafts
       ? i18next.t("dict.willPrioritizeCarryingOverFilledResultsInEachChapterOnlyFixMissingFuzzyOrNotExecutableParts")
       : i18next.t("dict.gen_5c0e0c7f"),
     i18next.t("dict.unchangedSummary"),
-    batch.missingCount > 0 ? `有 ${batch.missingCount} 章已不在当前卷草稿中，会自动跳过。` : "",
+    batch.missingCount > 0 ? i18next.t("novels.useNovelVolumePlanning.chapterDetail.o731qa", { val1: batch.missingCount }) : "",
   ].filter(Boolean).join("\n\n");
 }
 
@@ -141,7 +141,7 @@ export async function runChapterDetailBatchGeneration({
   setIsGenerating(true);
   setCurrentMode("");
   setCurrentChapterId(targets[0]?.chapterId ?? "");
-  setStructuredMessage(`正在为${label}补齐缺失的章节目标、执行边界和任务单...`);
+  setStructuredMessage(i18next.t("novels.useNovelVolumePlanning.chapterDetail.p7j57u", { val1: label }));
 
   try {
     for (const target of targets) {
@@ -165,8 +165,8 @@ export async function runChapterDetailBatchGeneration({
     }
     setStructuredMessage(
       processedModeCount > 0
-        ? `${label}的章节目标、执行边界和任务单已补齐并自动保存。`
-        : `${label}当前已经完整，无需重复生成章节细化。`,
+        ? i18next.t("novels.useNovelVolumePlanning.chapterDetail.icoaot", { val1: label })
+        : i18next.t("novels.useNovelVolumePlanning.chapterDetail.4m2wte", { val1: label }),
     );
   } catch {
     // error message is handled by mutation onError

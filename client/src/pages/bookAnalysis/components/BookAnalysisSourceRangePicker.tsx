@@ -243,13 +243,13 @@ export default function BookAnalysisSourceRangePicker({
   };
 
   const rangeTitle = selectedRange && selectedStartChapter && selectedEndChapter
-    ? `第 ${selectedStartChapter.chapterIndex + 1} 章 ~ 第 ${selectedEndChapter.chapterIndex + 1} 章`
+    ? i18next.t("bookAnalysis.bookAnalysisSourceRangePicker.t2yikd", { val1: selectedStartChapter.chapterIndex + 1, val2: selectedEndChapter.chapterIndex + 1 })
     : i18next.t("dict.gen_42d39e02");
   const rangeDetail = selectedRange && selectedStartChapter && selectedEndChapter
-    ? `${selectedChapterCount} 章 · 约 ${formatCount(selectedCharCount)} 字 · 占全文 ${Math.round(percent)}%`
-    : `${sortedChapters.length > 0 ? `${sortedChapters.length} 章 · ` : ""}约 ${formatCount(sourceCharCount)} 字`;
+    ? i18next.t("bookAnalysis.bookAnalysisSourceRangePicker.62un8k", { val1: selectedChapterCount, val2: formatCount(selectedCharCount), val3: Math.round(percent) })
+    : `${sortedChapters.length > 0 ? i18next.t("bookAnalysis.bookAnalysisSourceRangePicker.bw9qwp", { val1: sortedChapters.length }) : ""}约 ${formatCount(sourceCharCount)} 字`;
   const charModeHint = selectedRange && selectedStartChapter && selectedEndChapter
-    ? `按章节边界覆盖第 ${selectedStartChapter.chapterIndex + 1} 章 ~ 第 ${selectedEndChapter.chapterIndex + 1} 章`
+    ? i18next.t("bookAnalysis.bookAnalysisSourceRangePicker.7336ej", { val1: selectedStartChapter.chapterIndex + 1, val2: selectedEndChapter.chapterIndex + 1 })
     : i18next.t("dict.gen_035c0223");
 
   return (

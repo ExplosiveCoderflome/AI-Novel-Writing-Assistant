@@ -83,7 +83,7 @@ export function AutoDirectorFollowUpOverviewCards({
     <div className={AUTO_DIRECTOR_MOBILE_CLASSES.followUpOverviewGrid}>
       <TaskQueueSection
         title={i18next.t("autoDirectorFollowUps.autoDirectorFollowUpOverview.ihniz4")}
-        description={`今日恢复 ${list?.summaryCounters.recoveredToday ?? 0} 项，今日完成 ${list?.summaryCounters.completedToday ?? 0} 项；阻塞、待操作与自动推进分开处理。`}
+        description={i18next.t("autoDirectorFollowUps.autoDirectorFollowUpOverview.6k1yja", { val1: list?.summaryCounters.recoveredToday ?? 0, val2: list?.summaryCounters.completedToday ?? 0 })}
         className={AUTO_DIRECTOR_MOBILE_CLASSES.followUpOverviewCard}
       >
           <div className={AUTO_DIRECTOR_MOBILE_CLASSES.followUpOverviewSectionGrid}>

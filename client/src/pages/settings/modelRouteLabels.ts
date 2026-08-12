@@ -47,27 +47,27 @@ export const MODEL_ROUTE_LABELS: Record<ModelRouteTaskType, { title: string; des
     description: i18next.t("dict.gen_d6fdce38"),
   },
   image_gen: {
-    title: "文生图 / 角色与插图生成",
-    description: "多媒体小说插图、角色人设图生成。推荐绑定 ComfyUI、SenseNova 或 SiliconFlow。",
+    title: i18next.t("settings.modelRouteLabels.uf82hs"),
+    description: i18next.t("settings.modelRouteLabels.vpf95b"),
   },
   video_gen: {
-    title: "文生视频 / 动态推演",
-    description: "小说分镜镜头与故事动态视频推演。推荐绑定 ComfyUI 或 SiliconFlow 视频生成器。",
+    title: i18next.t("settings.modelRouteLabels.dbdai5"),
+    description: i18next.t("settings.modelRouteLabels.yn5bax"),
   },
   embedding: {
-    title: "向量 Embedding 嵌入",
-    description: "知识库检索、语义相关度向量提取。推荐绑定 Ollama 本地 embeddinggemma 或 BGE-M3。",
+    title: i18next.t("settings.modelRouteLabels.y5c6ck"),
+    description: i18next.t("settings.modelRouteLabels.f82kwq"),
   },
   asr: {
-    title: "ASR 语音识别",
-    description: "语音输入转文字创作。推荐绑定 SenseVoice 或 Whisper 语音识别引擎。",
+    title: i18next.t("settings.modelRouteLabels.nz4f7v"),
+    description: i18next.t("settings.modelRouteLabels.bqoqks"),
   },
   tts: {
-    title: "TTS 语音朗读与合成",
-    description: "小说有声书朗读与角色配音合成。推荐绑定 CosyVoice 或 EdgeTTS 引擎。",
+    title: i18next.t("settings.modelRouteLabels.j2vyu7"),
+    description: i18next.t("settings.modelRouteLabels.wml1iu"),
   },
   ocr: {
-    title: "OCR 图文识别解析",
-    description: "扫描件、设定集手稿图片转结构化大纲文本。推荐绑定 Step-Vision 或 GOT-OCR 视效模型。",
+    title: i18next.t("settings.modelRouteLabels.pux6vx"),
+    description: i18next.t("settings.modelRouteLabels.wjis84"),
   },
 };

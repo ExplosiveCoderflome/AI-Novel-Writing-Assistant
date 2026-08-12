@@ -20,7 +20,7 @@ function VersionContentPreview({ content }: { content: string }) {
 
   const handleExpand = () => {
     if (!expanded && isLarge) {
-      if (!window.confirm(`文档共 ${content.length.toLocaleString()} 字符，展开全文可能导致页面卡顿，确认继续？`)) {
+      if (!window.confirm(i18next.t("knowledge.knowledgeDocumentDetailDialog.upa5ey", { val1: content.length.toLocaleString() }))) {
         return;
       }
     }
@@ -40,8 +40,8 @@ function VersionContentPreview({ content }: { content: string }) {
           onClick={handleExpand}
         >
           {expanded
-            ? `收起（共 ${content.length.toLocaleString()} 字符）`
-            : `仅显示前 ${PREVIEW_CHAR_LIMIT.toLocaleString()} 字符，点击展开全文（共 ${content.length.toLocaleString()} 字符）`}
+            ? i18next.t("knowledge.knowledgeDocumentDetailDialog.80uef4", { val1: content.length.toLocaleString() })
+            : i18next.t("knowledge.knowledgeDocumentDetailDialog.kx8b3p", { val1: PREVIEW_CHAR_LIMIT.toLocaleString(), val2: content.length.toLocaleString() })}
         </button>
       ) : null}
     </div>

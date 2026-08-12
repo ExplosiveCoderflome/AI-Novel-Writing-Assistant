@@ -27,7 +27,7 @@ function DesktopSidebar(props: ChapterExecutionInsightsSidebarProps) {
             <p className="text-sm leading-6 text-muted-foreground">{i18next.t("dict.gen_127a16e0")}</p>
           </div>
           <Badge variant="outline" className="shrink-0">
-            {props.selectedChapter ? `第${props.selectedChapter.order}章` : i18next.t("dict.gen_d5084cea")}
+            {props.selectedChapter ? i18next.t("tensionCurve.tensionCurveChapterDetailSidebar.xrxssk", { val1: props.selectedChapter.order }) : i18next.t("dict.gen_d5084cea")}
           </Badge>
         </div>
       </CardHeader>
@@ -82,7 +82,7 @@ function MobileSidebar(props: ChapterExecutionInsightsSidebarProps) {
             <div className="text-sm font-semibold text-foreground">{i18next.t("dict.gen_802a56bf")}</div>
             <div className="mt-1 text-xs leading-5 text-muted-foreground">{i18next.t("dict.gen_127a16e0")}</div>
           </div>
-          <Badge variant="outline">{props.selectedChapter ? `第${props.selectedChapter.order}章` : i18next.t("dict.gen_d5084cea")}</Badge>
+          <Badge variant="outline">{props.selectedChapter ? i18next.t("tensionCurve.tensionCurveChapterDetailSidebar.xrxssk", { val1: props.selectedChapter.order }) : i18next.t("dict.gen_d5084cea")}</Badge>
         </div>
       </div>
 

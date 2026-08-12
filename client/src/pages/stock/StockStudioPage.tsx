@@ -277,7 +277,7 @@ export default function StockStudioPage() {
         setPortfolio(data.data);
         setEditModalOpen(false);
         setPasteText("");
-        setSyncNotice(`🎉 成功识别导入 ${data.data.positions?.length || 0} 笔持仓！点击下方按钮即可生成策略指南。`);
+        setSyncNotice(i18next.t("stock.stockStudioPage.dg333u", { val1: data.data.positions?.length || 0 }));
       }
     } catch (e) {
       console.error(e);
@@ -293,7 +293,7 @@ export default function StockStudioPage() {
         setOpenDStatus({
           connected: data.data.connected,
           message: data.data.connected
-            ? `MooMoo OpenD 已连接 (${data.data.host}:${data.data.port})`
+            ? i18next.t("stock.stockStudioPage.k1yhft", { val1: data.data.host, val2: data.data.port })
             : "OpenD 离线，请运行并登录 OpenD-GUI",
         });
         if (data.data.unlocked !== undefined) {
@@ -357,7 +357,7 @@ export default function StockStudioPage() {
             "💡 OpenD 通道已连接。如果您的 OpenD 未解密或账户无持仓，您可以点击“✏️ 修改持仓”或选择“一键粘贴导入”。"
           );
         } else {
-          setSyncNotice(`✅ 成功从 MooMoo 实时同步到 ${data.data.positions.length} 笔真实持仓！`);
+          setSyncNotice(i18next.t("stock.stockStudioPage.l36sqh", { val1: data.data.positions.length }));
         }
       }
     } catch (e: any) {
@@ -518,7 +518,7 @@ export default function StockStudioPage() {
       step: 1,
       totalSteps: 6,
       stageId: "OPEND_CONNECT",
-      title: "连接 MooMoo OpenD 盘口守护进程",
+      title: i18next.t("stock.stockStudioPage.sis4ws"),
       detail: "正在建立 127.0.0.1:11111 原生 TCP 通道...",
       progressPercent: 10,
       timestamp: new Date().toLocaleTimeString("zh-CN", { hour12: false }),
@@ -648,7 +648,7 @@ export default function StockStudioPage() {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
           {sections.map((sec, idx) => {
             const titleMatch = sec.match(/【([^】]+)】/);
-            const title = titleMatch ? titleMatch[1] : `策略要点 ${idx + 1}`;
+            const title = titleMatch ? titleMatch[1] : i18next.t("stock.stockStudioPage.415e4p", { val1: idx + 1 });
             const content = sec.replace(/【[^】]+】[:：]?/, "").trim();
 
             let icon = <PieChart className="w-4 h-4 text-indigo-400" />;
@@ -709,21 +709,21 @@ export default function StockStudioPage() {
           symbol: p.symbol.toUpperCase(),
           companyName: p.companyName || p.symbol,
           positionCategory: "EXISTING",
-          industrySector: "实盘持仓资产",
+          industrySector: i18next.t("stock.stockStudioPage.4bj0b3"),
           newsCatalysts: [
-            `【OpenD 接口】正在监听 ${p.symbol} 实时盘口与最新快讯...`,
-            `集中度占比分析: ${((p.shares * (p.marketPrice || p.costBasis || 0) / Math.max(1, posList.reduce((acc, item) => acc + item.shares * (item.marketPrice || item.costBasis || 0), 0))) * 100).toFixed(1)}%`,
+            i18next.t("stock.stockStudioPage.ghl7es", { val1: p.symbol }),
+            i18next.t("stock.stockStudioPage.lxyjhq", { val1: ((p.shares * (p.marketPrice || p.costBasis || 0) / Math.max(1, posList.reduce((acc, item) => acc + item.shares * (item.marketPrice || item.costBasis || 0), 0))) * 100).toFixed(1) }),
           ],
           nodes: [
-            { id: p.symbol.toUpperCase(), name: p.companyName || p.symbol, type: "ROOT_STOCK", marketSymbol: p.symbol.toUpperCase(), description: `实盘持仓: ${p.shares}股` },
-            { id: `SUP_${p.symbol}`, name: `${p.symbol} 核心供应商`, type: "SUPPLIER", description: `${p.symbol} 上游关键零部件与服务提供商` },
-            { id: `CLI_${p.symbol}`, name: `${p.symbol} 下游核心客户`, type: "CLIENT", description: `${p.symbol} 核心产品采购与大单需求方` },
+            { id: p.symbol.toUpperCase(), name: p.companyName || p.symbol, type: "ROOT_STOCK", marketSymbol: p.symbol.toUpperCase(), description: i18next.t("stock.stockStudioPage.e6ztgh", { val1: p.shares }) },
+            { id: `SUP_${p.symbol}`, name: i18next.t("stock.stockStudioPage.e09qr6", { val1: p.symbol }), type: "SUPPLIER", description: i18next.t("stock.stockStudioPage.y5fse4", { val1: p.symbol }) },
+            { id: `CLI_${p.symbol}`, name: i18next.t("stock.stockStudioPage.kaofq5", { val1: p.symbol }), type: "CLIENT", description: i18next.t("stock.stockStudioPage.upbrvu", { val1: p.symbol }) },
             { id: "FED_POLICY", name: i18next.t("stock.stockStudioPage.i2i5zv"), type: "MACRO", description: i18next.t("stock.stockStudioPage.yhojqs") },
           ],
           edges: [
-            { source: p.symbol.toUpperCase(), target: `SUP_${p.symbol}`, relation: "上游供应链与零件代工", impact: "POSITIVE" },
-            { source: p.symbol.toUpperCase(), target: `CLI_${p.symbol}`, relation: "核心产品大单采购", impact: "POSITIVE" },
-            { source: "FED_POLICY", target: p.symbol.toUpperCase(), relation: "降息预期提振科技股估值", impact: "POSITIVE" },
+            { source: p.symbol.toUpperCase(), target: `SUP_${p.symbol}`, relation: i18next.t("stock.stockStudioPage.5efd2x"), impact: "POSITIVE" },
+            { source: p.symbol.toUpperCase(), target: `CLI_${p.symbol}`, relation: i18next.t("stock.stockStudioPage.1o5n1j"), impact: "POSITIVE" },
+            { source: "FED_POLICY", target: p.symbol.toUpperCase(), relation: i18next.t("stock.stockStudioPage.nzauny"), impact: "POSITIVE" },
           ],
           actionAdvice: "HOLD",
           guidanceText: "针对已有持仓进行动态诊断，点击生成获取最新推演。",
@@ -758,7 +758,7 @@ export default function StockStudioPage() {
       id: customId,
       name: newEntityName.trim(),
       type: newEntityType,
-      description: newEntityDesc.trim() || `人工添加自定义实体 (${newEntityName})`,
+      description: newEntityDesc.trim() || i18next.t("stock.stockStudioPage.3pqegd", { val1: newEntityName }),
     };
 
     const newEdge: KnowledgeGraphRelationEdge = {
@@ -852,7 +852,7 @@ export default function StockStudioPage() {
             </div>
             <p className="text-xs text-slate-300 leading-relaxed font-sans whitespace-pre-line">
               {strategy?.existingPositionGuidance ||
-                `• 针对现有 ${posList.length} 笔实盘持仓进行动态诊断：\n• 请点击「生成今日 MooMoo 操盘指南」，AI 智能体将基于最新 OpenD 数据与集中度风控指标，实时计算输出已有仓位的加减仓策略。`}
+                i18next.t("stock.stockStudioPage.ghnn2t", { val1: posList.length })}
             </p>
           </div>
 
@@ -866,7 +866,7 @@ export default function StockStudioPage() {
             </div>
             <p className="text-xs text-slate-300 leading-relaxed font-sans whitespace-pre-line">
               {strategy?.newPositionGuidance ||
-                `• 针对现有闲置现金 ($${totalCash.toFixed(2)}) 与新增预算 ($${customBudget.toFixed(2)}) 规划新仓：\n• 请点击「生成今日 MooMoo 操盘指南」，AI 将优先从您的 MooMoo 自选关注池与隔夜风口中挖掘最具催化剂的新标的。`}
+                i18next.t("stock.stockStudioPage.iffao5", { val1: totalCash.toFixed(2), val2: customBudget.toFixed(2) })}
             </p>
           </div>
 
@@ -886,7 +886,7 @@ export default function StockStudioPage() {
             <div className="space-y-1.5 text-xs text-slate-300 leading-relaxed font-sans">
               <p className="text-slate-300 text-[11px] whitespace-pre-line">
                 {strategy?.retrospectiveGuidance ||
-                  `• 历史指令与实盘对比复盘：\n根据历史操盘指南与当前 MooMoo 实际仓位变化，系统将自动复盘跟单执行完成度、计算避险/收益效果，并沉淀为长效交易纪律。`}
+                  i18next.t("stock.stockStudioPage.jqrdfs")}
               </p>
             </div>
           </div>
@@ -1050,7 +1050,7 @@ export default function StockStudioPage() {
               <div className="text-[11px] font-mono bg-slate-950 p-2.5 rounded border border-slate-800/60 text-slate-300">
                 <span className="text-slate-400">实盘持仓明细 ({posList.length} 笔): </span>
                 {posList.length > 0
-                  ? posList.map((p) => `${p.symbol} (${p.shares}股 @ 成本$${p.costBasis})`).join(" | ")
+                  ? posList.map((p) => i18next.t("stock.stockStudioPage.73meeh", { val1: p.symbol, val2: p.shares, val3: p.costBasis })).join(" | ")
                   : "暂无持仓"}
               </div>
             </div>
@@ -1633,10 +1633,10 @@ export default function StockStudioPage() {
                 <div className="grid grid-cols-6 gap-1.5 pt-2">
                   {[
                     { step: 1, label: "OpenD" },
-                    { step: 2, label: "盘口" },
-                    { step: 3, label: "新闻" },
-                    { step: 4, label: "图谱" },
-                    { step: 5, label: "AI推演" },
+                    { step: 2, label: i18next.t("stock.stockStudioPage.koaz") },
+                    { step: 3, label: i18next.t("stock.stockStudioPage.i4az") },
+                    { step: 4, label: i18next.t("stock.stockStudioPage.fkdv") },
+                    { step: 5, label: i18next.t("stock.stockStudioPage.1okgk") },
                     { step: 6, label: "Guardrail" },
                   ].map((s) => {
                     const curStep = currentStage?.step || 1;
@@ -2347,11 +2347,11 @@ export default function StockStudioPage() {
                     };
 
                     const typeBadges: Record<string, string> = {
-                      SUPPLIER: "上游供应商",
-                      CLIENT: "下游客户",
-                      COMPETITOR: "同业竞争者",
-                      MACRO: "宏观因子",
-                      CONCEPT: "概念板块",
+                      SUPPLIER: i18next.t("stock.stockStudioPage.z8ufhb"),
+                      CLIENT: i18next.t("stock.stockStudioPage.aaydya"),
+                      COMPETITOR: i18next.t("stock.stockStudioPage.g66dlg"),
+                      MACRO: i18next.t("stock.stockStudioPage.c4c1qb"),
+                      CONCEPT: i18next.t("stock.stockStudioPage.dpmlyj"),
                     };
 
                     return (
@@ -2362,7 +2362,7 @@ export default function StockStudioPage() {
                             id: node.id,
                             label: node.name,
                             relation: matchingEdge?.relation || typeBadges[node.type] || "关联实体",
-                            detail: node.description || `金融实体 ID: ${node.id}，涉及多跳关联特征。`,
+                            detail: node.description || i18next.t("stock.stockStudioPage.yf7rtf", { val1: node.id }),
                             type: node.type as any,
                           })
                         }

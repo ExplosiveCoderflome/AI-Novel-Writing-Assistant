@@ -160,7 +160,7 @@ export default function ChapterExecutionReferencePanel(props: ChapterExecutionRe
               <div className="rounded-2xl border bg-muted/20 p-4">
                 <div className="text-xs text-muted-foreground">{i18next.t("dict.gen_41ffb541")}</div>
                 <div className="mt-3 grid grid-cols-2 gap-3">
-                  <MetricBadge label={i18next.t("dict.gen_85f9e2b5")} value={`${scenePlan.targetWordCount} 字`} />
+                  <MetricBadge label={i18next.t("dict.gen_85f9e2b5")} value={i18next.t("novels.chapterEditorSidebar.izeb8n", { val1: scenePlan.targetWordCount })} />
                   <MetricBadge label={i18next.t("dict.gen_1c433bf9")} value={String(scenePlan.scenes.length)} />
                 </div>
               </div>

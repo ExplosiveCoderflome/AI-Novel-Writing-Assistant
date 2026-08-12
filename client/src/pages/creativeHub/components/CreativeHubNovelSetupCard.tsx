@@ -66,7 +66,7 @@ export default function CreativeHubNovelSetupCard({
           aria-valuemin={0}
           aria-valuemax={100}
           aria-valuenow={setup.completionRatio}
-          aria-valuetext={`开书信息完成 ${setup.completionRatio}%`}
+          aria-valuetext={i18next.t("creativeHub.creativeHubNovelSetupCard.h8jyi5", { val1: setup.completionRatio })}
         >
           <div
             className="h-full rounded-full bg-primary transition-all"

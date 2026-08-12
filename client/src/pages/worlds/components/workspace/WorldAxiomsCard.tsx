@@ -48,7 +48,7 @@ export default function WorldAxiomsCard(props: {
           <Input
             key={`${index}-${axiom}`}
             value={axiom}
-            placeholder={`核心规则 ${index + 1}`}
+            placeholder={i18next.t("worlds.worldAxiomsCard.qstjkg", { val1: index + 1 })}
             onChange={(event) =>
               setDraftAxioms((prev) => prev.map((item, itemIndex) => (itemIndex === index ? event.target.value : item)))
             }

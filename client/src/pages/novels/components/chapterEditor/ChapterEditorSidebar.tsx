@@ -72,9 +72,9 @@ export default function ChapterEditorSidebar(props: ChapterEditorSidebarProps) {
               </div>
 
               <div className="flex flex-wrap gap-2">
-                <MetaChip label={`${wordCount} 字`} />
+                <MetaChip label={i18next.t("novels.chapterEditorSidebar.izeb8n", { val1: wordCount })} />
                 <MetaChip label={saveStatusLabel} />
-                <MetaChip label={isWorkspaceLoading ? i18next.t("dict.gen_LLM分析中_rwti") : `问题 ${workspace?.chapterMeta.openIssueCount ?? 0}`} />
+                <MetaChip label={isWorkspaceLoading ? i18next.t("dict.gen_LLM分析中_rwti") : i18next.t("novels.chapterEditorSidebar.acpvq2", { val1: workspace?.chapterMeta.openIssueCount ?? 0 })} />
               </div>
 
               {isWorkspaceLoading ? (
@@ -161,7 +161,7 @@ export default function ChapterEditorSidebar(props: ChapterEditorSidebarProps) {
               {isWorkspaceLoading
                 ? i18next.t("dict.aiOrganizing")
                 : recommendedTask
-                  ? `当前推荐：${recommendedTask.title}`
+                  ? i18next.t("novels.chapterEditorSidebar.s56ku0", { val1: recommendedTask.title })
                   : i18next.t("dict.gen_f9c5b025")}
             </span>
           </div>

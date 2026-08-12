@@ -61,7 +61,7 @@ export default function CharacterPreparationHero(props: CharacterPreparationHero
           {
             label: i18next.t("dict.gen_49f9d850"),
             value: selectedCharacter?.name ?? "尚未选择角色",
-            description: selectedCharacter?.role || `${baseCharacterCount} 个基础角色可导入`,
+            description: selectedCharacter?.role || i18next.t("novels.characterPreparationHero.mtxnnc", { val1: baseCharacterCount }),
             tone: selectedCharacter ? "info" : "neutral",
           },
         ]}
@@ -101,7 +101,7 @@ function getRecommendedAction(input: {
     return i18next.t("novels.characterPreparationHero.nbhff3");
   }
   if (input.pendingCharacterResourceCount > 0) {
-    return `有 ${input.pendingCharacterResourceCount} 条资源变更等待确认，建议到“资源”页核对。`;
+    return i18next.t("novels.characterPreparationHero.ox81xv", { val1: input.pendingCharacterResourceCount });
   }
   if (!input.selectedCharacter) {
     return i18next.t("novels.characterPreparationHero.i0a8op");

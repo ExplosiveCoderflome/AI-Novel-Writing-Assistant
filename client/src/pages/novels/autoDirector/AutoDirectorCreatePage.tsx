@@ -158,7 +158,7 @@ export default function AutoDirectorCreatePage() {
       postGenerationStyleReviewEnabled: controller.directorBasicForm.postGenerationStyleReviewEnabled,
     }),
     candidates: controller.batches.length > 0
-      ? `已生成 ${controller.batches.length} 批方向候选`
+      ? i18next.t("novels.autoDirectorCreatePage.jxm1vy", { val1: controller.batches.length })
       : controller.hasActiveDirectorTask
         ? i18next.t("dict.gen_d3ec695c")
         : i18next.t("dict.gen_7c5ab588"),

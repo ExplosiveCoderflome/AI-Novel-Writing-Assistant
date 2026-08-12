@@ -197,14 +197,14 @@ export function buildDirectorAutoExecutionPlanLabel(
     const startOrder = normalizePositiveInteger(plan.startOrder, 1);
     const endOrder = Math.max(startOrder, normalizePositiveInteger(plan.endOrder, startOrder));
     if (startOrder === endOrder) {
-      return `第 ${startOrder} 章`;
+      return i18next.t("autoDirector.directorRuntimeProjectionCard.vms598", { val1: startOrder });
     }
-    return `第 ${startOrder}-${endOrder} 章`;
+    return i18next.t("novels.bookPayoffLedgerCard.mv5rga", { val1: startOrder, val2: endOrder });
   }
   if (plan?.mode === "volume") {
-    return `第 ${normalizePositiveInteger(plan.volumeOrder, 1)} 卷`;
+    return i18next.t("novels.directorAutoExecutionPlan.shared.vmsd1h", { val1: normalizePositiveInteger(plan.volumeOrder, 1) });
   }
-  return `第 1-${normalizePositiveInteger(plan?.endOrder, 10)} 章`;
+  return i18next.t("novels.directorAutoExecutionPlan.shared.7rlj0g", { val1: normalizePositiveInteger(plan?.endOrder, 10) });
 }
 
 export function buildTakeoverAutoExecutionDraftFromExecutableRange(

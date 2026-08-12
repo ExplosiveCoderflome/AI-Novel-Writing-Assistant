@@ -295,7 +295,7 @@ export default function WorldWorkspace() {
     if (!id || !world) {
       return;
     }
-    const confirmed = window.confirm(`确认删除世界样本「${world.name}」？此操作不可恢复。`);
+    const confirmed = window.confirm(i18next.t("worlds.worldList.b8pr91", { val1: world.name }));
     if (!confirmed) {
       return;
     }

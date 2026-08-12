@@ -142,10 +142,10 @@ export default function ComicProjectPage() {
   const providerOptions = useMemo(() => {
     const list = [...rawProviderOptions];
     if (!list.some((p) => p.value === "comfyui")) {
-      list.unshift({ value: "comfyui", label: "ComfyUI (本地离线画师 · MiniMax H3/FLUX/SD)" });
+      list.unshift({ value: "comfyui", label: i18next.t("image.imageGenerationConfirmDialog.i945b5") });
     }
     if (!list.some((p) => p.value === "sensenova")) {
-      list.push({ value: "sensenova", label: "SenseNova (本地离线)" });
+      list.push({ value: "sensenova", label: i18next.t("image.imageGenerationConfirmDialog.xlrobl") });
     }
     return list;
   }, [rawProviderOptions]);

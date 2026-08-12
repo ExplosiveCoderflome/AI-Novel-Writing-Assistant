@@ -66,13 +66,13 @@ function toAgentNameLabel(name: string): string {
 
 function formatEvent(event: RuntimeEvent): string {
   if (event.type === "tool_call") {
-    return `调用工具 ${event.toolName}: ${event.inputSummary}`;
+    return i18next.t("chat.chatPage.dl8yvk", { val1: event.toolName, val2: event.inputSummary });
   }
   if (event.type === "tool_result") {
     return `${event.toolName} ${event.success ? i18next.t("dict.gen_330363df") : i18next.t("tasks.filterStatusFailed")}: ${event.outputSummary}`;
   }
   if (event.type === "approval_required") {
-    return `等待审批: ${event.summary}`;
+    return i18next.t("chat.chatPage.uo1l7u", { val1: event.summary });
   }
   return `审批结果: ${toApprovalActionLabel(event.action)}${event.note ? ` (${event.note})` : ""}`;
 }

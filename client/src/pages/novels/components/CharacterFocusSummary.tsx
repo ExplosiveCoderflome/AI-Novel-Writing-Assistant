@@ -46,7 +46,7 @@ export default function CharacterFocusSummary(props: CharacterFocusSummaryProps)
               <div className="flex flex-wrap gap-2 text-xs text-muted-foreground">
                 <SignalPill icon={<BookOpen className="h-3.5 w-3.5" />} label={i18next.t("novels.characterFocusSummary.op82")} value={selectedCharacter.role || "未定义"} />
                 <SignalPill icon={<Activity className="h-3.5 w-3.5" />} label={i18next.t("dict.gen_3fea7ca7")} value={selectedCharacter.currentState || "待补全"} />
-                <SignalPill icon={<Target className="h-3.5 w-3.5" />} label={i18next.t("novels.characterFocusSummary.dl5dld")} value={lastAppearanceChapter ? `第${lastAppearanceChapter}章` : "暂无"} />
+                <SignalPill icon={<Target className="h-3.5 w-3.5" />} label={i18next.t("novels.characterFocusSummary.dl5dld")} value={lastAppearanceChapter ? i18next.t("tensionCurve.tensionCurveChapterDetailSidebar.xrxssk", { val1: lastAppearanceChapter }) : "暂无"} />
               </div>
             </div>
           </div>

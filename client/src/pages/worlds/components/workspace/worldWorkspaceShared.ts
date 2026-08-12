@@ -28,10 +28,10 @@ export type LayerField =
   | "factions";
 
 export const LAYER_STATUS_LABELS: Record<string, string> = {
-  pending: "待生成",
-  generated: "已生成",
-  confirmed: "已确认",
-  stale: "待重建",
+  pending: i18next.t("dict.gen_418dde27"),
+  generated: i18next.t("dict.gen_c2ad1f29"),
+  confirmed: i18next.t("novels.chapterExecution.shared.ecmeg"),
+  stale: i18next.t("worlds.worldWorkspaceShared.eozrm"),
 };
 
 export const LAYER_FIELDS_BY_KEY: Record<LayerKey, LayerField[]> = {

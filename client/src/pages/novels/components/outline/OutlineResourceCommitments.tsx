@@ -7,25 +7,25 @@ type OutlineCharacterResource = NonNullable<OutlineTabViewProps["characterResour
 
 function getResourceStatusLabel(status: OutlineCharacterResource["status"]): string {
   const labels: Record<OutlineCharacterResource["status"], string> = {
-    available: "可用",
-    hidden: "隐藏",
-    borrowed: "借用",
-    transferred: "已转交",
-    lost: "已丢失",
-    consumed: "已消耗",
-    damaged: "受损",
-    destroyed: "毁坏",
-    stale: "淡出",
+    available: i18next.t("dict.gen_ad6b7038"),
+    hidden: i18next.t("dict.gen_dce5379c"),
+    borrowed: i18next.t("dict.gen_5d971fd1"),
+    transferred: i18next.t("dict.gen_6c17ffcd"),
+    lost: i18next.t("dict.gen_365cbe81"),
+    consumed: i18next.t("dict.gen_67d4508d"),
+    damaged: i18next.t("dict.gen_a6d66917"),
+    destroyed: i18next.t("dict.gen_a208527a"),
+    stale: i18next.t("dict.gen_8c90bea6"),
   };
   return labels[status] ?? status;
 }
 
 function getVolumeResourceWindow(resource: OutlineCharacterResource): string {
   if (resource.expectedUseStartChapterOrder || resource.expectedUseEndChapterOrder) {
-    return `预计第${resource.expectedUseStartChapterOrder ?? "?"}章至第${resource.expectedUseEndChapterOrder ?? "?"}章使用`;
+    return i18next.t("novels.outlineResourceCommitments.hpzwm6", { val1: resource.expectedUseStartChapterOrder ?? "?", val2: resource.expectedUseEndChapterOrder ?? "?" });
   }
   if (resource.lastTouchedChapterOrder) {
-    return `最近触达第${resource.lastTouchedChapterOrder}章`;
+    return i18next.t("novels.outlineResourceCommitments.9y4tn7", { val1: resource.lastTouchedChapterOrder });
   }
   return i18next.t("dict.gen_589bead6");
 }

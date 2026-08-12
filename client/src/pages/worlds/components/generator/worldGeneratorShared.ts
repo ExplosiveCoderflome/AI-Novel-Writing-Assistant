@@ -67,12 +67,12 @@ export const DEFAULT_DIMENSIONS: Record<string, boolean> = {
 };
 
 const DIMENSION_LABELS: Record<string, string> = {
-  foundation: "基础层",
-  power: "力量层",
-  society: "社会层",
-  culture: "文化层",
-  history: "历史层",
-  conflict: "冲突层",
+  foundation: i18next.t("dict.gen_34772a39"),
+  power: i18next.t("dict.gen_4d95a92c"),
+  society: i18next.t("dict.gen_a34badd4"),
+  culture: i18next.t("dict.gen_bd51806b"),
+  history: i18next.t("dict.gen_fdde939d"),
+  conflict: i18next.t("dict.gen_41c8c763"),
 };
 
 export const REFERENCE_SEED_SELECTION_KEYS: Record<

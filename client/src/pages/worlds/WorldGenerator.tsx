@@ -233,7 +233,7 @@ export default function WorldGenerator() {
       const response = await generateWorldSkeleton({
         idea: [
           inspirationText.trim(),
-          concept?.summary ? `概念卡：${concept.summary}` : "",
+          concept?.summary ? i18next.t("worlds.worldGenerator.9fwrgk", { val1: concept.summary }) : "",
         ].filter(Boolean).join("\n\n") || i18next.t("dict.gen_d441546d"),
         worldType: selectedGenre?.path || concept?.worldType || matchedTemplateWorldType || selectedTemplate?.worldType || i18next.t("dict.gen_f1d4ff50"),
         template: selectedTemplate?.name ?? i18next.t("dict.gen_f1d4ff50"),

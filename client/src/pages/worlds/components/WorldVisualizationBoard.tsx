@@ -11,12 +11,12 @@ interface WorldVisualizationBoardProps {
 }
 
 const FACTION_TYPE_LABELS: Record<string, string> = {
-  all: "全部类型",
-  state: "政权",
-  faction: "阵营",
-  race: "种族",
-  organization: "组织",
-  other: "其他",
+  all: i18next.t("tasks.filterKindAll"),
+  state: i18next.t("worlds.worldGraphElements.hsdg"),
+  faction: i18next.t("dict.gen_42988d4b"),
+  race: i18next.t("dict.gen_003ad50b"),
+  organization: i18next.t("worlds.worldGraphElements.m9ab"),
+  other: i18next.t("dict.gen_0d98c747"),
 };
 
 const FACTION_TYPE_COLORS: Record<string, string> = {
@@ -152,7 +152,7 @@ export default function WorldVisualizationBoard({ payload }: WorldVisualizationB
             ))}
           </div>
           <WorldGraphCanvas
-            title={`势力图谱 · ${factionNodes.length} 个节点 · ${factionEdges.length} 条关系`}
+            title={i18next.t("worlds.worldVisualizationBoard.u144a0", { val1: factionNodes.length, val2: factionEdges.length })}
             nodes={factionNodes}
             edges={factionEdges}
             colorByType={(type) => FACTION_TYPE_COLORS[type ?? "other"] ?? FACTION_TYPE_COLORS.other}
@@ -162,7 +162,7 @@ export default function WorldVisualizationBoard({ payload }: WorldVisualizationB
 
       {mode === "geography" ? (
         <WorldGraphCanvas
-          title={`世界地图 · ${geographyNodes.length} 个地点 · ${geographyEdges.length} 条路线`}
+          title={i18next.t("worlds.worldVisualizationBoard.ij1in7", { val1: geographyNodes.length, val2: geographyEdges.length })}
           nodes={geographyNodes}
           edges={geographyEdges}
           layout="map"

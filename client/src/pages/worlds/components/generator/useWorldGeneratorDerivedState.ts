@@ -1,3 +1,4 @@
+import i18next from "i18next";
 import { useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import type { WorldPropertyOption } from "@ai-novel/shared/types/worldWizard";
@@ -65,10 +66,10 @@ export function useWorldGeneratorDerivedState(input: UseWorldGeneratorDerivedSta
       return "";
     }
     return [
-      `主类型：${selectedGenre.name}`,
-      `类型路径：${selectedGenre.path}`,
-      selectedGenre.description?.trim() ? `类型说明：${selectedGenre.description.trim()}` : "",
-      selectedGenre.template?.trim() ? `类型模板：${selectedGenre.template.trim()}` : "",
+      i18next.t("worlds.useWorldGeneratorDerivedState.cavdfj", { val1: selectedGenre.name }),
+      i18next.t("worlds.useWorldGeneratorDerivedState.b1i70l", { val1: selectedGenre.path }),
+      selectedGenre.description?.trim() ? i18next.t("worlds.useWorldGeneratorDerivedState.mg0qkg", { val1: selectedGenre.description.trim() }) : "",
+      selectedGenre.template?.trim() ? i18next.t("worlds.useWorldGeneratorDerivedState.sgkuec", { val1: selectedGenre.template.trim() }) : "",
     ]
       .filter(Boolean)
       .join("\n");

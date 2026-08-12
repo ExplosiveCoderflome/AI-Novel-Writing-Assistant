@@ -51,7 +51,7 @@ export function summarizeDirectorAutoApprovalPoints(codes: string[]): string {
   if (labels.length <= 2) {
     return labels.join("、");
   }
-  return `${labels.slice(0, 2).join("、")} 等 ${labels.length} 项`;
+  return i18next.t("autoDirector.autoDirectorApprovalPointMultiSelect.gjl0z5", { val1: labels.slice(0, 2).join("、"), val2: labels.length });
 }
 
 export default function AutoDirectorApprovalPointMultiSelect({

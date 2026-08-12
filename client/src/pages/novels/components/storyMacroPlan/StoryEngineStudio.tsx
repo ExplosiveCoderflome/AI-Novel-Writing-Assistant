@@ -134,11 +134,11 @@ function StoryReadinessPanel({ tab }: { tab: StoryMacroTabProps }) {
       <div className="grid gap-2 text-xs text-muted-foreground">
         <div className="flex items-start gap-2 rounded-md bg-background/70 p-2">
           <Lock className="mt-0.5 h-3.5 w-3.5 text-primary" />
-          <span>{lockedCount > 0 ? `${lockedCount} 个字段已锁定，重生成时会被保护。` : "确认满意的字段后可以锁定，再让 AI 只重生成其他部分。"}</span>
+          <span>{lockedCount > 0 ? i18next.t("novels.storyEngineStudio.i9cal5", { val1: lockedCount }) : "确认满意的字段后可以锁定，再让 AI 只重生成其他部分。"}</span>
         </div>
         <div className="flex items-start gap-2 rounded-md bg-background/70 p-2">
           <AlertTriangle className="mt-0.5 h-3.5 w-3.5 text-amber-600" />
-          <span>{tab.issues.length > 0 ? `${tab.issues.length} 条冲突或缺口需要处理。` : "当前没有显式冲突提醒。"}</span>
+          <span>{tab.issues.length > 0 ? i18next.t("novels.storyEngineStudio.grz7i8", { val1: tab.issues.length }) : "当前没有显式冲突提醒。"}</span>
         </div>
       </div>
     </aside>
@@ -247,7 +247,7 @@ export default function StoryEngineStudio({ tab }: StoryEngineStudioProps) {
             <div className="rounded-lg border border-border/60 bg-muted/10 p-3">
               <div className="text-xs font-medium text-muted-foreground">{i18next.t("dict.gen_c681f960")}</div>
               <div className="mt-2 text-sm font-semibold leading-6 text-foreground">
-                {payoffs.length > 0 ? `${payoffs.length} 个节点` : "等待拆出兑现节点"}
+                {payoffs.length > 0 ? i18next.t("novels.storyEngineStudio.c26pqn", { val1: payoffs.length }) : "等待拆出兑现节点"}
               </div>
             </div>
           </div>

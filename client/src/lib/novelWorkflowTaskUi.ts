@@ -21,15 +21,15 @@ function getExecutionScopeLabel(scopeLabel?: string | null, fallback = i18next.t
 }
 
 function buildAutoExecutionRunningLabel(scopeLabel?: string | null): string {
-  return `${getExecutionScopeLabel(scopeLabel)}自动执行中`;
+  return i18next.t("lib.novelWorkflowTaskUi.816qjq", { val1: getExecutionScopeLabel(scopeLabel) });
 }
 
 function buildAutoExecutionPausedLabel(scopeLabel?: string | null): string {
-  return `${getExecutionScopeLabel(scopeLabel)}自动执行已暂停`;
+  return i18next.t("lib.novelWorkflowTaskUi.mr8bw9", { val1: getExecutionScopeLabel(scopeLabel) });
 }
 
 function buildAutoExecutionCancelledLabel(scopeLabel?: string | null): string {
-  return `${getExecutionScopeLabel(scopeLabel)}自动执行已取消`;
+  return i18next.t("lib.novelWorkflowTaskUi.mr5bbl", { val1: getExecutionScopeLabel(scopeLabel) });
 }
 
 export function formatWorkflowCheckpoint(checkpoint?: NovelWorkflowCheckpoint | null, scopeLabel?: string | null): string {
@@ -128,10 +128,10 @@ export function getWorkflowDescription(task?: NovelAutoDirectorTaskSummary | nul
     (task.status === "queued" || task.status === "running")
     && task.checkpointType === "chapter_batch_ready"
   ) {
-    return `AI 正在后台继续执行${getExecutionScopeLabel(task.executionScopeLabel)}，当前进度 ${Math.round(task.progress * 100)}%。`;
+    return i18next.t("lib.novelWorkflowTaskUi.yr7son", { val1: getExecutionScopeLabel(task.executionScopeLabel), val2: Math.round(task.progress * 100) });
   }
   if ((task.status === "failed" || task.status === "cancelled") && task.checkpointType === "chapter_batch_ready") {
-    return `${getExecutionScopeLabel(task.executionScopeLabel)}自动执行在批量阶段暂停了，建议先查看任务，再决定是否继续自动执行。`;
+    return i18next.t("lib.novelWorkflowTaskUi.pfe4lg", { val1: getExecutionScopeLabel(task.executionScopeLabel) });
   }
   if (task.blockingReason?.trim()) {
     return task.blockingReason.trim();
@@ -143,10 +143,10 @@ export function getWorkflowDescription(task?: NovelAutoDirectorTaskSummary | nul
     return task.currentItemLabel.trim();
   }
   if (task.resumeAction?.trim()) {
-    return `推荐继续：${task.resumeAction.trim()}`;
+    return i18next.t("lib.novelWorkflowTaskUi.5si0zg", { val1: task.resumeAction.trim() });
   }
   if (task.nextActionLabel?.trim()) {
-    return `下一步：${task.nextActionLabel.trim()}`;
+    return i18next.t("layout.novelWorkspaceRail.u959pi", { val1: task.nextActionLabel.trim() });
   }
   return null;
 }

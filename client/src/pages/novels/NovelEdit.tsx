@@ -1123,7 +1123,7 @@ export default function NovelEdit() {
       toast.success(feedback.message);
     },
     onError: (error) => {
-      const message = error instanceof Error ? error.message : `继续自动执行${activeAutoExecutionScopeLabel}失败。`;
+      const message = error instanceof Error ? error.message : i18next.t("lib.novelWorkflowContinuation.3mlaph", { val1: activeAutoExecutionScopeLabel });
       toast.error(message);
     },
   });
@@ -1153,7 +1153,7 @@ export default function NovelEdit() {
       const message = error instanceof Error
         ? error.message
         : input.mode === "auto_execute_range"
-          ? `继续自动执行${activeAutoExecutionScopeLabel}失败。`
+          ? i18next.t("lib.novelWorkflowContinuation.3mlaph", { val1: activeAutoExecutionScopeLabel })
           : i18next.t("toasts.failedAutoDirector");
       toast.error(message);
     },
@@ -1330,7 +1330,7 @@ export default function NovelEdit() {
       syncAutoDirectorTaskCache(queryClient, id, response.data);
       void invalidateAutoDirectorTaskState(response.data?.id ?? retryableAutoDirectorTask?.id);
       setIsTaskDrawerOpen(true);
-      toast.success(`已切换到 ${llm.provider} / ${llm.model} 并重新启动自动导演。`);
+      toast.success(i18next.t("novels.novelEdit.2kfgo5", { val1: llm.provider, val2: llm.model }));
     },
     onError: (error) => {
       const message = error instanceof Error ? error.message : i18next.t("dict.gen_ad99ab16");
@@ -1712,11 +1712,11 @@ export default function NovelEdit() {
     return {
       mode,
       title: consistencyIssue === "missing_characters"
-        ? `《${novelTitle}》导演产物未补齐角色准备`
+        ? i18next.t("novels.novelEdit.xys9zp", { val1: novelTitle })
         : consistencyIssue === "missing_chapters"
-          ? `《${novelTitle}》导演产物未连接到章节执行区`
+          ? i18next.t("novels.novelEdit.417uo9", { val1: novelTitle })
           : task.pendingManualRecovery
-            ? `《${novelTitle}》等待从检查点恢复`
+            ? i18next.t("novels.novelEdit.rm518i", { val1: novelTitle })
           : buildTakeoverTitle({
             mode,
             novelTitle,
@@ -1756,14 +1756,14 @@ export default function NovelEdit() {
           : automationActionText
             ? automationActionText
           : mode === "running" && task.checkpointType === "chapter_batch_ready" && task.currentItemLabel?.includes(i18next.t("dict.gen_a2d930fd"))
-            ? `正在继续自动执行${autoExecutionScopeLabel}`
+            ? i18next.t("novels.novelEdit.zfl5j6", { val1: autoExecutionScopeLabel })
             : task.currentItemLabel ?? null,
       checkpointLabel: consistencyIssue
         ? i18next.t("dict.gen_dc7d10b3")
         : task.pendingManualRecovery
           ? i18next.t("dict.gen_b77db710")
         : mode === "running" && task.checkpointType === "chapter_batch_ready"
-          ? `${autoExecutionScopeLabel}自动执行中`
+          ? i18next.t("lib.novelWorkflowTaskUi.816qjq", { val1: autoExecutionScopeLabel })
           : formatTakeoverCheckpoint(task.checkpointType, task),
       taskId: task.id,
       actions,
@@ -2035,7 +2035,7 @@ export default function NovelEdit() {
       character: i18next.t("dict.gen_f3e17953"),
       outline: i18next.t("dict.gen_53043e4c"),
       structured: i18next.t("dict.gen_c7e9d71a"),
-      chapter: selectedChapter ? `正在查看第${selectedChapter.order}章执行面板` : i18next.t("dict.gen_672a181b"),
+      chapter: selectedChapter ? i18next.t("novels.novelEdit.vc6f1r", { val1: selectedChapter.order }) : i18next.t("dict.gen_672a181b"),
       pipeline: i18next.t("dict.gen_9ea4d520"),
     };
     void syncNovelWorkflowStageSilently({
@@ -2213,11 +2213,11 @@ export default function NovelEdit() {
       const committedCount = response.data?.committed.length ?? 0;
       const pendingCount = response.data?.pendingReview.length ?? 0;
       if (pendingCount > 0) {
-        toast.success(`已复查本章资源，${pendingCount} 个变更需要你判断。`);
+        toast.success(i18next.t("novels.novelEdit.kjhvri", { val1: pendingCount }));
         return;
       }
       toast.success(committedCount > 0
-        ? `已复查本章资源，${committedCount} 个变更会用于后续写作。`
+        ? i18next.t("novels.novelEdit.mnrzns", { val1: committedCount })
         : i18next.t("dict.gen_1dfe7ad4"));
     },
     onError: (error) => {
@@ -2237,8 +2237,8 @@ export default function NovelEdit() {
       const committed = response.data?.committedCount ?? 0;
       const pending = response.data?.pendingReviewCount ?? 0;
       toast.success(pending > 0
-        ? `已回填最近 ${scanned} 章资源，${pending} 条变化需要你判断。`
-        : `已回填最近 ${scanned} 章资源，${committed} 条变化会用于后续写作。`);
+        ? i18next.t("novels.novelEdit.whb0tm", { val1: scanned, val2: pending })
+        : i18next.t("novels.novelEdit.2m2jlc", { val1: scanned, val2: committed }));
     },
     onError: (error) => {
       toast.error(error instanceof Error ? error.message : i18next.t("dict.gen_de85d527"));
@@ -2565,7 +2565,7 @@ export default function NovelEdit() {
     onCreateChapter: () => createChapterMutation.mutate(),
     isCreatingChapter: createChapterMutation.isPending,
     onRemoveChapter: (chapter: Chapter) => {
-      const confirmed = window.confirm(`确认移除「第${chapter.order}章 ${chapter.title || "未命名章节"}」吗？该章节尚未开始写作，移除后不可恢复。`);
+      const confirmed = window.confirm(i18next.t("novels.novelEdit.ittdv8", { val1: chapter.order, val2: chapter.title || "未命名章节" }));
       if (confirmed) {
         deleteManualChapterMutation.mutate(chapter.id);
       }

@@ -173,7 +173,7 @@ export function useStorylineVersionControl({
       return;
     }
     setDraftText(selectedVersion.content);
-    setStorylineMessage(`已加载 V${selectedVersion.version} 到当前草稿。`);
+    setStorylineMessage(i18next.t("novels.useStorylineVersionControl.kv789f", { val1: selectedVersion.version }));
   };
 
   return {

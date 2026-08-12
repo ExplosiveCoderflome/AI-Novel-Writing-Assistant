@@ -162,11 +162,11 @@ function formatDuration(value: number | null | undefined): string | null {
     return i18next.t("dict.lessThanOneSecond");
   }
   if (seconds < 60) {
-    return `${seconds} 秒`;
+    return i18next.t("autoDirector.aICockpit.izeh9e", { val1: seconds });
   }
   const minutes = Math.floor(seconds / 60);
   const restSeconds = seconds % 60;
-  return restSeconds > 0 ? `${minutes} 分 ${restSeconds} 秒` : `${minutes} 分`;
+  return restSeconds > 0 ? i18next.t("autoDirector.aICockpit.ggv39v", { val1: minutes, val2: restSeconds }) : i18next.t("autoDirector.aICockpit.ize9ee", { val1: minutes });
 }
 
 function formatUsageLine(usage: {
@@ -178,11 +178,11 @@ function formatUsageLine(usage: {
 }): string {
   const duration = formatDuration(usage.durationMs);
   return [
-    `${formatTokenCount(usage.llmCallCount)} 次调用`,
-    `输入 ${formatTokenCount(usage.promptTokens)}`,
-    `输出 ${formatTokenCount(usage.completionTokens)}`,
-    `总计 ${formatTokenCount(usage.totalTokens)} Tokens`,
-    duration ? `累计调用耗时 ${duration}` : null,
+    i18next.t("autoDirector.aICockpit.bxwccq", { val1: formatTokenCount(usage.llmCallCount) }),
+    i18next.t("autoDirector.aICockpit.x8og4i", { val1: formatTokenCount(usage.promptTokens) }),
+    i18next.t("autoDirector.aICockpit.k9r253", { val1: formatTokenCount(usage.completionTokens) }),
+    i18next.t("autoDirector.aICockpit.s0glo0", { val1: formatTokenCount(usage.totalTokens) }),
+    duration ? i18next.t("autoDirector.aICockpit.4f60u2", { val1: duration }) : null,
   ].filter(Boolean).join(" · ");
 }
 
@@ -358,16 +358,16 @@ export default function AICockpit(props: AICockpitProps) {
   const workerHealth = focusProjection.workerHealth ?? null;
   const artifactInsightLines = [
     focusProjection.artifactSummary.affectedChapterCount
-      ? `影响 ${focusProjection.artifactSummary.affectedChapterCount} 个章节`
+      ? i18next.t("autoDirector.aICockpit.qmelc0", { val1: focusProjection.artifactSummary.affectedChapterCount })
       : null,
     focusProjection.artifactSummary.recentStaleArtifacts?.length
-      ? `${focusProjection.artifactSummary.recentStaleArtifacts.length} 个产物需复核`
+      ? i18next.t("autoDirector.aICockpit.fwpv69", { val1: focusProjection.artifactSummary.recentStaleArtifacts.length })
       : null,
     focusProjection.artifactSummary.recentRepairArtifacts?.length
-      ? `${focusProjection.artifactSummary.recentRepairArtifacts.length} 条修复记录`
+      ? i18next.t("autoDirector.aICockpit.8rrkj9", { val1: focusProjection.artifactSummary.recentRepairArtifacts.length })
       : null,
     focusProjection.artifactSummary.recentVersionedArtifacts?.length
-      ? `${focusProjection.artifactSummary.recentVersionedArtifacts.length} 个产物有新版本`
+      ? i18next.t("autoDirector.aICockpit.1yczp5", { val1: focusProjection.artifactSummary.recentVersionedArtifacts.length })
       : null,
   ].filter((line): line is string => Boolean(line));
   const reason = focusProjection.userReason?.trim()
@@ -542,7 +542,7 @@ export default function AICockpit(props: AICockpitProps) {
       {usageSummary ? (
         <DetailPanel
           title={i18next.t("dict.aiUsage")}
-          summary={`${formatTokenCount(usageSummary.llmCallCount)} 次 · ${formatTokenCount(usageSummary.totalTokens)} Tokens`}
+          summary={i18next.t("autoDirector.aICockpit.2kc4z5", { val1: formatTokenCount(usageSummary.llmCallCount), val2: formatTokenCount(usageSummary.totalTokens) })}
           icon={<Activity className="h-4 w-4" />}
         >
           <div className="space-y-3 text-xs leading-5 text-muted-foreground">
@@ -584,7 +584,7 @@ export default function AICockpit(props: AICockpitProps) {
       {recentItems.length > 0 ? (
         <DetailPanel
           title={i18next.t("dict.gen_d0fb8b91")}
-          summary={`${recentItems.length} 条`}
+          summary={i18next.t("autoDirector.aICockpit.izedm9", { val1: recentItems.length })}
           icon={<History className="h-4 w-4" />}
         >
           <div className="divide-y divide-border/60 text-xs leading-5">

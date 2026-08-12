@@ -207,8 +207,8 @@ function CostEstimate(props: { cost?: DramaBatchCostBreakdown; loading: boolean 
       </div>
       {props.cost ? (
         <div className="mt-1 text-xs text-muted-foreground">
-          {props.cost.unit.costPerSecond ? `时长 ${formatCost(props.cost, props.cost.unit.costPerSecond)}/秒` : i18next.t("dict.gen_8690d6e2")}
-          {props.cost.estimatedUnits.shots ? ` · ${props.cost.estimatedUnits.shots} 个镜头` : ""}
+          {props.cost.unit.costPerSecond ? i18next.t("drama.dramaEpisodeAudioPanel.1fczkm", { val1: formatCost(props.cost, props.cost.unit.costPerSecond) }) : i18next.t("dict.gen_8690d6e2")}
+          {props.cost.estimatedUnits.shots ? i18next.t("drama.dramaEpisodeAudioPanel.7cbrh7", { val1: props.cost.estimatedUnits.shots }) : ""}
         </div>
       ) : null}
     </div>

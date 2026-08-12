@@ -33,11 +33,11 @@ interface BookAnalysisCharacterAppearancePanelProps {
 const COVERAGE_MARKS = [25, 50, 75, 100];
 const SNAPSHOT_PAGE_SIZE = 12;
 const IMAGE_STATUS_TEXT: Record<string, string> = {
-  queued: "排队中",
-  running: "生成中",
-  succeeded: "生成成功",
-  failed: "生成失败",
-  cancelled: "已取消",
+  queued: i18next.t("tasks.filterStatusQueued"),
+  running: i18next.t("dict.gen_1ae3a984"),
+  succeeded: i18next.t("dict.gen_b6c4a445"),
+  failed: i18next.t("dict.gen_7f7de8a2"),
+  cancelled: i18next.t("tasks.filterStatusCancelled"),
 };
 
 function formatJsonSummary(value: Record<string, unknown> | null | undefined): string {
@@ -214,7 +214,7 @@ export default function BookAnalysisCharacterAppearancePanel({
       generate: async (overrides) => {
         const response = await generateBookAnalysisCharacterAppearanceImage(analysisId, character.id, snapshotId, {
           count: 2,
-          stylePreset: "同一角色章节形象演变图",
+          stylePreset: i18next.t("dict.gen_3b02846a"),
           referenceImageAssetIds: selectedReferenceAssetIds,
           overrides,
         });
@@ -284,7 +284,7 @@ export default function BookAnalysisCharacterAppearancePanel({
                 />
                 <img
                   src={resolveImageAssetUrl(image.url)}
-                  alt={`${character.name}基础形象参考`}
+                  alt={i18next.t("bookAnalysis.bookAnalysisCharacterAppearancePanel.cpruy", { val1: character.name })}
                   className="aspect-[4/3] w-full object-cover"
                   loading="lazy"
                 />
@@ -294,7 +294,7 @@ export default function BookAnalysisCharacterAppearancePanel({
                   </span>
                 ) : null}
                 <span className="flex items-center justify-between gap-2 px-2.5 py-2 text-xs">
-                  <span className="truncate font-medium">{image.isPrimary ? "主图" : `参考 ${image.sortOrder + 1}`}</span>
+                  <span className="truncate font-medium">{image.isPrimary ? "主图" : i18next.t("bookAnalysis.bookAnalysisCharacterAppearancePanel.gmr4dr", { val1: image.sortOrder + 1 })}</span>
                   <span className="truncate text-[10px] text-muted-foreground">{image.provider}</span>
                 </span>
               </label>
@@ -335,7 +335,7 @@ export default function BookAnalysisCharacterAppearancePanel({
           disabled={disabled || scanActive}
         >
           <ScanLine className="mr-1.5 h-3.5 w-3.5" aria-hidden="true" />
-          {scanActive ? "扫描中..." : `扫描至 ${targetPercent}%`}
+          {scanActive ? "扫描中..." : i18next.t("bookAnalysis.bookAnalysisCharacterAppearancePanel.5t7suc", { val1: targetPercent })}
         </Button>
       </div>
 
@@ -440,8 +440,8 @@ export default function BookAnalysisCharacterAppearancePanel({
                   <div className="text-sm font-medium">{i18next.t("bookAnalysis.bookAnalysisCharacterAppearancePanel.2sdy2u")}</div>
                   <div className="mt-0.5 text-xs text-muted-foreground">
                     {showAllSnapshots
-                      ? `显示全部 ${appearance.snapshots.length} 个章节快照`
-                      : `优先显示 ${meaningfulSnapshots.length} 个有形象信息的关键章节`}
+                      ? i18next.t("bookAnalysis.bookAnalysisCharacterAppearancePanel.fli9wc", { val1: appearance.snapshots.length })
+                      : i18next.t("bookAnalysis.bookAnalysisCharacterAppearancePanel.m8hlaf", { val1: meaningfulSnapshots.length })}
                   </div>
                 </div>
                 <div className="flex flex-wrap items-center gap-2">
@@ -505,7 +505,7 @@ export default function BookAnalysisCharacterAppearancePanel({
                       <div className="mt-2 text-sm">{snapshot.summaryCaption}</div>
                     ) : null}
                     <div className="mt-2 text-xs text-muted-foreground">
-                      {snapshot.evidence.length > 0 ? `${snapshot.evidence.length} 条证据` : "暂无证据"}
+                      {snapshot.evidence.length > 0 ? i18next.t("bookAnalysis.bookAnalysisCharacterAppearancePanel.byg9aa", { val1: snapshot.evidence.length }) : "暂无证据"}
                     </div>
                     {snapshot.images.some((image) => image.imageAsset) ? (
                       <div className="mt-2 grid gap-2 sm:grid-cols-2">
@@ -515,7 +515,7 @@ export default function BookAnalysisCharacterAppearancePanel({
                             <img
                               key={image.id}
                               src={resolveImageAssetUrl(image.imageAsset!.url)}
-                              alt={`${character.name}-第${snapshot.chapterIndex + 1}章形象图`}
+                              alt={i18next.t("bookAnalysis.bookAnalysisCharacterAppearancePanel.n6op6p", { val1: character.name, val2: snapshot.chapterIndex + 1 })}
                               className="aspect-square w-full rounded-xl object-cover"
                               loading="lazy"
                             />

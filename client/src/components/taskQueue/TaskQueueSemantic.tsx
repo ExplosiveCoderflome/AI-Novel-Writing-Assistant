@@ -1,3 +1,4 @@
+import i18next from "i18next";
 import type { ReactNode } from "react";
 import { WorkspaceStateNotice } from "@/components/workspace";
 import { TaskQueueMetricGrid, TaskQueueStatusBadge, type TaskQueueMetricItem } from "./TaskQueuePrimitives";
@@ -11,9 +12,9 @@ const severityTone = {
 } as const;
 
 const severityLabel = {
-  blocking: "阻塞",
-  quality: "质量提醒",
-  normal: "普通状态",
+  blocking: i18next.t("tasks.levelBlocking"),
+  quality: i18next.t("tasks.summaryQuality"),
+  normal: i18next.t("taskQueue.taskQueueSemantic.dir9tj"),
 } as const;
 
 export function TaskQueueSeverityBadge(props: { severity: TaskQueueSeverity; label?: string }) {

@@ -110,7 +110,7 @@ export function NovelProjectCard(props: {
           ) : (
             <div className="mt-3 flex items-center justify-between rounded-lg bg-background/45 px-3 py-2 text-xs text-muted-foreground">
               <span className="line-clamp-1">
-                {workflow.lastHealthyStage ? `最近健康阶段：${workflow.lastHealthyStage}` : "等待下一步操作"}
+                {workflow.lastHealthyStage ? i18next.t("novels.novelProjectCard.xhqmwo", { val1: workflow.lastHealthyStage }) : "等待下一步操作"}
               </span>
               <span className="font-medium tabular-nums text-foreground">{workflow.progress}%</span>
             </div>

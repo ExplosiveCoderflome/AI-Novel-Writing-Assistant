@@ -187,7 +187,7 @@ export function useVolumeVersionControl({
         setCritiqueReport(parsed.critiqueReport ?? null);
         setBeatSheets(parsed.beatSheets ?? []);
         setRebalanceDecisions(parsed.rebalanceDecisions ?? []);
-        setMessage(`已加载 V${version.version} 到当前卷级草稿。`);
+        setMessage(i18next.t("novels.useVolumeVersionControl.4ur76l", { val1: version.version }));
       } catch {
         setMessage(i18next.t("dict.gen_e4fa5194"));
       }

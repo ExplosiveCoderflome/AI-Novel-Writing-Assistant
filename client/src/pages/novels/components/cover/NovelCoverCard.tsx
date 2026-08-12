@@ -80,7 +80,7 @@ export function NovelCoverCard(props: NovelCoverCardProps) {
               <div className="aspect-[2/3] w-full">
                 <img
                   src={resolveImageAssetUrl(primaryAsset.url)}
-                  alt={`${props.basicForm.title || "小说"}当前封面`}
+                  alt={i18next.t("novels.novelCoverCard.1hrat", { val1: props.basicForm.title || "小说" })}
                   className="h-full w-full object-cover"
                   loading="lazy"
                 />
@@ -108,7 +108,7 @@ export function NovelCoverCard(props: NovelCoverCardProps) {
                       <div className="aspect-[2/3] w-full">
                         <img
                           src={resolveImageAssetUrl(asset.url)}
-                          alt={`${props.basicForm.title || "小说"}封面候选图`}
+                          alt={i18next.t("novels.novelCoverCard.5lqvkz", { val1: props.basicForm.title || "小说" })}
                           className="h-full w-full object-cover"
                           loading="lazy"
                         />

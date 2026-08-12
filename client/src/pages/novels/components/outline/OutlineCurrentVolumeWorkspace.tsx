@@ -47,7 +47,7 @@ export default function OutlineCurrentVolumeWorkspace(props: OutlineCurrentVolum
           points: selectedVolume.chapters.map((chapter) => ({
             id: chapter.id,
             chapterOrder: chapter.chapterOrder,
-            title: chapter.title || `第${chapter.chapterOrder}章`,
+            title: chapter.title || i18next.t("tensionCurve.tensionCurveChapterDetailSidebar.xrxssk", { val1: chapter.chapterOrder }),
             value: typeof chapter.conflictLevel === "number" ? chapter.conflictLevel : null,
             source: chapter.conflictLevelSource ?? "ai",
           })),
@@ -76,7 +76,7 @@ export default function OutlineCurrentVolumeWorkspace(props: OutlineCurrentVolum
               <Badge variant="outline">{selectedVolume.chapters.length} 章</Badge>
             </div>
             <div className="text-lg font-semibold tracking-tight">
-              {selectedVolume.title || selectedStrategyVolume?.roleLabel || `第${selectedVolume.sortOrder}卷`}
+              {selectedVolume.title || selectedStrategyVolume?.roleLabel || i18next.t("novels.outlineCurrentVolumeWorkspace.xrxl0b", { val1: selectedVolume.sortOrder })}
             </div>
             <div className="max-w-4xl text-sm leading-6 text-muted-foreground">
               {selectedVolume.mainPromise || selectedVolume.summary || selectedStrategyVolume?.coreReward || "先确认这一卷要给读者什么回报，再补开卷抓手、压力源和卷末牵引。"}
@@ -132,7 +132,7 @@ export default function OutlineCurrentVolumeWorkspace(props: OutlineCurrentVolum
                         ) : null}
                       </div>
                       <div className="mt-2 text-sm font-medium">
-                        {volume.title || strategyVolume?.roleLabel || `第${volume.sortOrder}卷`}
+                        {volume.title || strategyVolume?.roleLabel || i18next.t("novels.outlineCurrentVolumeWorkspace.xrxl0b", { val1: volume.sortOrder })}
                       </div>
                       <div className="mt-1 line-clamp-3 text-xs leading-5 text-muted-foreground">
                         {volume.summary || volume.mainPromise || strategyVolume?.coreReward || "先补这卷的标题和描述，便于后续导航。"}
@@ -172,7 +172,7 @@ export default function OutlineCurrentVolumeWorkspace(props: OutlineCurrentVolum
                   {selectedStrategyVolume?.roleLabel ? <span className="text-sm text-muted-foreground">{selectedStrategyVolume.roleLabel}</span> : null}
                   <span className="text-sm text-muted-foreground">
                     {selectedVolume.chapters.length > 0
-                      ? `章节 ${selectedVolume.chapters[0]?.chapterOrder}-${selectedVolume.chapters[selectedVolume.chapters.length - 1]?.chapterOrder}`
+                      ? i18next.t("novels.outlineCurrentVolumeWorkspace.hvh0k0", { val1: selectedVolume.chapters[0]?.chapterOrder, val2: selectedVolume.chapters[selectedVolume.chapters.length - 1]?.chapterOrder })
                       : "未拆章"}
                   </span>
                 </div>

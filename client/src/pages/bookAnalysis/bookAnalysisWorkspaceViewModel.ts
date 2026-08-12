@@ -121,7 +121,7 @@ export function getPreferredBookAnalysisSection(
 
 function describeMissingExpectedSections(sections: BookAnalysisSectionSummary): string {
   return sections.missingExpected > 0
-    ? `仍有 ${sections.missingExpected} 个计划小节缺少可读结果。`
+    ? i18next.t("bookAnalysis.bookAnalysisWorkspaceViewModel.50fklo", { val1: sections.missingExpected })
     : "计划范围内没有缺失小节。";
 }
 
@@ -157,8 +157,8 @@ export function resolveBookAnalysisNextAction(input: {
       tone: "info",
       title: status === "queued" ? "拆书分析正在排队" : "拆书分析正在生成",
       description: hasReadableResults
-        ? `当前进度 ${Math.round(analysis.progress * 100)}%，已有 ${sections.readable} 个小节可阅读；其余计划小节继续生成。`
-        : `当前进度 ${Math.round(analysis.progress * 100)}%。已完成的小节会直接保留，全部完成后可在“拆书内容”中阅读。`,
+        ? i18next.t("bookAnalysis.bookAnalysisWorkspaceViewModel.yipa53", { val1: Math.round(analysis.progress * 100), val2: sections.readable })
+        : i18next.t("bookAnalysis.bookAnalysisWorkspaceViewModel.t1alq9", { val1: Math.round(analysis.progress * 100) }),
       action: hasReadableResults ? "view_results" : null,
       actionLabel: hasReadableResults ? "查看已有结果" : undefined,
     };
@@ -168,7 +168,7 @@ export function resolveBookAnalysisNextAction(input: {
     return {
       tone: "warning",
       title: i18next.t("bookAnalysis.bookAnalysisWorkspaceViewModel.a9vqvy"),
-      description: `已有 ${sections.readable} 个可阅读小节会保留。${describeMissingExpectedSections(sections)}扩容续跑只处理尚未成功的部分。`,
+      description: i18next.t("bookAnalysis.bookAnalysisWorkspaceViewModel.nkec7v", { val1: sections.readable, val2: describeMissingExpectedSections(sections) }),
       action: "resume_budget",
       actionLabel: i18next.t("dict.gen_a69ce727"),
     };
@@ -188,7 +188,7 @@ export function resolveBookAnalysisNextAction(input: {
       return {
         tone: "warning",
         title: i18next.t("bookAnalysis.bookAnalysisWorkspaceViewModel.nl1aem"),
-        description: `已有 ${sections.readableExpected}/${sections.expected} 个计划生成的小节可阅读，仍有 ${sections.missingExpected} 个小节可通过重新生成补齐。`,
+        description: i18next.t("bookAnalysis.bookAnalysisWorkspaceViewModel.nbsprl", { val1: sections.readableExpected, val2: sections.expected, val3: sections.missingExpected }),
         action: "view_results",
         actionLabel: i18next.t("bookAnalysis.bookAnalysisWorkspaceViewModel.11bypy"),
       };
@@ -197,7 +197,7 @@ export function resolveBookAnalysisNextAction(input: {
       return {
         tone: "warning",
         title: i18next.t("bookAnalysis.bookAnalysisWorkspaceViewModel.5guiur"),
-        description: `${sections.readableExpected}/${sections.expected} 个计划小节均有可读内容，其中 ${sections.failedExpected} 个小节最近一次生成失败。先检查保留内容，再决定是否重新生成。`,
+        description: i18next.t("bookAnalysis.bookAnalysisWorkspaceViewModel.69yvxt", { val1: sections.readableExpected, val2: sections.expected, val3: sections.failedExpected }),
         action: "view_results",
         actionLabel: i18next.t("bookAnalysis.bookAnalysisWorkspaceViewModel.11bypy"),
       };
@@ -205,7 +205,7 @@ export function resolveBookAnalysisNextAction(input: {
     return {
       tone: "success",
       title: i18next.t("bookAnalysis.bookAnalysisWorkspaceViewModel.344rn9"),
-      description: `共 ${sections.readable} 个小节已生成，可继续查看证据、整理角色，或发布到小说知识库。`,
+      description: i18next.t("bookAnalysis.bookAnalysisWorkspaceViewModel.otju55", { val1: sections.readable }),
       action: "view_results",
       actionLabel: i18next.t("bookAnalysis.bookAnalysisWorkspaceViewModel.1jn9sf"),
     };
@@ -216,7 +216,7 @@ export function resolveBookAnalysisNextAction(input: {
       return {
         tone: "warning",
         title: i18next.t("bookAnalysis.bookAnalysisWorkspaceViewModel.66fjli"),
-        description: `已保留 ${sections.readable} 个可阅读小节。${describeMissingExpectedSections(sections)}先检查已有结果，再决定是否重新生成。`,
+        description: i18next.t("bookAnalysis.bookAnalysisWorkspaceViewModel.qk3eo9", { val1: sections.readable, val2: describeMissingExpectedSections(sections) }),
         action: "view_results",
         actionLabel: i18next.t("bookAnalysis.bookAnalysisWorkspaceViewModel.11bypy"),
       };

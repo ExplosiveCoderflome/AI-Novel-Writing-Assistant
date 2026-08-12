@@ -66,7 +66,7 @@ function renderSecondaryCandidateDetails(candidate: DirectorCandidate) {
     { label: i18next.t("dict.mainHook"), value: candidate.hookStrategy },
     { label: i18next.t("dict.gen_d7c63a37"), value: candidate.progressionLoop },
     { label: i18next.t("dict.gen_c4938a36"), value: candidate.endingDirection },
-    { label: i18next.t("dict.gen_7feb3d33"), value: `约 ${candidate.targetChapterCount} 章` },
+    { label: i18next.t("dict.gen_7feb3d33"), value: i18next.t("novels.directorCreateStages.lj13u2", { val1: candidate.targetChapterCount }) },
   ];
 }
 

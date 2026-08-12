@@ -57,9 +57,9 @@ export default function WritingFormulaWorkbenchPanel(props: WritingFormulaWorkbe
   } = props;
 
   const bindingTargetLabel: Record<StyleBinding["targetType"], string> = {
-    novel: "整本书",
-    chapter: "章节",
-    task: "本次任务",
+    novel: i18next.t("dict.gen_82e75116"),
+    chapter: i18next.t("dict.gen_9290b644"),
+    task: i18next.t("dict.gen_e71d8d2f"),
   };
 
   return (

@@ -40,7 +40,7 @@ export default function WritingFormulaAdvancedWorkspace(props: WritingFormulaAdv
     <div className="mx-auto flex h-full min-h-0 max-w-[1120px] flex-col gap-4 overflow-y-auto xl:pr-1">
       <div className="rounded-2xl border bg-slate-50/70 px-4 py-3 text-sm leading-7 text-slate-700">
         {props.selectedProfile
-          ? `当前正在维护「${props.selectedProfile.name}」这套写法的设定说明。应用测试和去 AI 味已经拆到独立入口，这里只负责把写法本身整理清楚。`
+          ? i18next.t("writingFormula.writingFormulaAdvancedWorkspace.kvru7p", { val1: props.selectedProfile.name })
           : i18next.t("dict.gen_38767024")}
       </div>
 

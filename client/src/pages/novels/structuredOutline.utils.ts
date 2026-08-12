@@ -225,25 +225,25 @@ export function buildTaskSheetFromStructuredChapter(chapter: StructuredChapter):
   const lines: string[] = [];
   lines.push(`章节目标：${chapter.purpose || chapter.summary || i18next.t("dict.gen_cd67f351")}`);
   if (chapter.keyEvents && chapter.keyEvents.length > 0) {
-    lines.push(`关键事件：${compactList(chapter.keyEvents)}`);
+    lines.push(i18next.t("novels.structuredOutline.utils.rgsjqc", { val1: compactList(chapter.keyEvents) }));
   }
   if (chapter.involvedRoles && chapter.involvedRoles.length > 0) {
-    lines.push(`涉及角色：${compactList(chapter.involvedRoles)}`);
+    lines.push(i18next.t("novels.structuredOutline.utils.4iystl", { val1: compactList(chapter.involvedRoles) }));
   }
   if (typeof chapter.conflictLevel === "number") {
-    lines.push(`冲突等级：${chapter.conflictLevel}`);
+    lines.push(i18next.t("novels.structuredOutline.utils.2vuot9", { val1: chapter.conflictLevel }));
   }
   if (typeof chapter.revealLevel === "number") {
-    lines.push(`揭露等级：${chapter.revealLevel}`);
+    lines.push(i18next.t("novels.structuredOutline.utils.1y9wmx", { val1: chapter.revealLevel }));
   }
   if (chapter.pacing?.trim()) {
-    lines.push(`节奏：${chapter.pacing.trim()}`);
+    lines.push(i18next.t("novels.structuredOutline.utils.1p5ntp", { val1: chapter.pacing.trim() }));
   }
   if (chapter.foreshadow?.trim()) {
-    lines.push(`伏笔：${chapter.foreshadow.trim()}`);
+    lines.push(i18next.t("novels.structuredOutline.utils.26ndad", { val1: chapter.foreshadow.trim() }));
   }
   if (chapter.mustAvoid?.trim()) {
-    lines.push(`禁止事项：${chapter.mustAvoid.trim()}`);
+    lines.push(i18next.t("novels.structuredOutline.utils.j4v8kb", { val1: chapter.mustAvoid.trim() }));
   }
   return lines.join("\n");
 }

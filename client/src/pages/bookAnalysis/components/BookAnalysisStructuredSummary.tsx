@@ -138,7 +138,7 @@ export default function BookAnalysisStructuredSummary({
               <span>{row.label}</span>
               {row.evidence.length > 0 ? (
                 <span
-                  aria-label={`${row.label}的来源摘录`}
+                  aria-label={i18next.t("bookAnalysis.bookAnalysisStructuredSummary.l39ows", { val1: row.label })}
                   title={formatEvidenceTooltip(row.evidence)}
                 >
                   <Info className="h-3.5 w-3.5 text-primary" />

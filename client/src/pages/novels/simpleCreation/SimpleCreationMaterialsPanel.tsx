@@ -85,7 +85,7 @@ export default function SimpleCreationMaterialsPanel({
           )}
         </ResourceCard>
 
-        <ResourceCard icon={Users} title={i18next.t("dict.gen_ca1588b6")} meta={`${materials.characterCount} 位`}>
+        <ResourceCard icon={Users} title={i18next.t("dict.gen_ca1588b6")} meta={i18next.t("novels.simpleCreationMaterialsPanel.ize8v1", { val1: materials.characterCount })}>
           {materials.characters.length > 0 ? (
             <div className="space-y-2">
               {displayedCharacters.map((character) => (
@@ -104,7 +104,7 @@ export default function SimpleCreationMaterialsPanel({
           )}
         </ResourceCard>
 
-        <ResourceCard icon={BookMarked} title={i18next.t("novels.simpleCreationMaterialsPanel.apcom9")} meta={`${materials.volumeCount} 卷`}>
+        <ResourceCard icon={BookMarked} title={i18next.t("novels.simpleCreationMaterialsPanel.apcom9")} meta={i18next.t("novels.simpleCreationMaterialsPanel.ize9on", { val1: materials.volumeCount })}>
           {materials.volumes.length > 0 ? (
             <div className="space-y-2">
               {displayedVolumes.map((volume) => (

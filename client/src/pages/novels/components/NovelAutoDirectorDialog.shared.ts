@@ -33,8 +33,8 @@ export interface AutoDirectorRequestLlmOptions {
 export function buildInitialIdea(basicForm: NovelBasicFormState): string {
   const lines = [
     basicForm.description.trim(),
-    basicForm.title.trim() ? `我想写一本暂名为《${basicForm.title.trim()}》的小说。` : "",
-    basicForm.styleTone.trim() ? `文风希望偏 ${basicForm.styleTone.trim()}。` : "",
+    basicForm.title.trim() ? i18next.t("novels.novelAutoDirectorDialog.shared.z8oxka", { val1: basicForm.title.trim() }) : "",
+    basicForm.styleTone.trim() ? i18next.t("novels.novelAutoDirectorDialog.shared.8lhk0b", { val1: basicForm.styleTone.trim() }) : "",
   ].filter(Boolean);
   return lines.join("\n");
 }

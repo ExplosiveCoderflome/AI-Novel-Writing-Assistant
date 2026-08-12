@@ -167,7 +167,7 @@ export default function TitleLibraryPanel({ genreOptions }: TitleLibraryPanelPro
                   className="gap-1.5 rounded-full text-muted-foreground hover:text-destructive"
                   disabled={deleteMutation.isPending && deleteMutation.variables === entry.id}
                   onClick={() => {
-                    const confirmed = window.confirm(`确认删除标题「${entry.title}」？`);
+                    const confirmed = window.confirm(i18next.t("titles.titleLibraryPanel.rj58kd", { val1: entry.title }));
                     if (confirmed) {
                       deleteMutation.mutate(entry.id);
                     }

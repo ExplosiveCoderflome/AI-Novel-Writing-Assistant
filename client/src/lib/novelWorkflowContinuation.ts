@@ -24,7 +24,7 @@ export function resolveWorkflowContinuationFeedback(
         || task.blockingReason?.trim()
         || task.lastError?.trim()
         || (options?.mode === "auto_execute_range"
-          ? `继续自动执行${scopeLabel}失败。`
+          ? i18next.t("lib.novelWorkflowContinuation.3mlaph", { val1: scopeLabel })
           : i18next.t("toasts.failedAutoDirector")),
     };
   }
@@ -32,9 +32,9 @@ export function resolveWorkflowContinuationFeedback(
   return {
     tone: "success",
     message: options?.mode === "skip_quality_repair"
-      ? `已跳过本次质量建议，自动导演会继续执行${scopeLabel}。`
+      ? i18next.t("lib.novelWorkflowContinuation.h7o82v", { val1: scopeLabel })
       : options?.mode === "auto_execute_range"
-        ? `已继续自动执行${scopeLabel}。`
+        ? i18next.t("lib.novelWorkflowContinuation.hqyzqh", { val1: scopeLabel })
         : i18next.t("dict.gen_8c4efb64"),
   };
 }

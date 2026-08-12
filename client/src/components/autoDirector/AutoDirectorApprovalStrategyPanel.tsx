@@ -55,7 +55,7 @@ export default function AutoDirectorApprovalStrategyPanel({
       <div className={`mt-3 rounded-md border bg-background/80 p-3 text-xs leading-5 text-muted-foreground ${AUTO_DIRECTOR_MOBILE_CLASSES.wrapText}`}>
         {enabled
           ? i18next.t("dict.gen_6c318cbd")
-          : `副驾确认边界：${summarizeDirectorAutoApprovalPoints(approvalPointCodes)}。未包含的审批点会等待你确认。`}
+          : i18next.t("autoDirector.autoDirectorApprovalStrategyPanel.dvbxh", { val1: summarizeDirectorAutoApprovalPoints(approvalPointCodes) })}
       </div>
 
       {!enabled ? (

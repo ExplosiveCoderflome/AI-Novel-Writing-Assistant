@@ -42,7 +42,7 @@ export default function CharacterTimelineTab(props: CharacterTimelineTabProps) {
                 <Badge variant="outline">{event.source}</Badge>
               </div>
               <div className="text-xs text-muted-foreground">
-                {event.chapterOrder ? `章节 ${event.chapterOrder}` : "无章节归属"} ·{" "}
+                {event.chapterOrder ? i18next.t("novels.characterTimelineTab.kc3uum", { val1: event.chapterOrder }) : "无章节归属"} ·{" "}
                 {new Date(event.createdAt).toLocaleString()}
               </div>
               <div className="mt-1 text-xs text-muted-foreground">{event.content}</div>

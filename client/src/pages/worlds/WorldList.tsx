@@ -234,7 +234,7 @@ export default function WorldList() {
   const worlds = worldListQuery.data?.data ?? [];
 
   const handleDelete = (worldId: string, worldName: string) => {
-    const confirmed = window.confirm(`确认删除世界样本「${worldName}」？此操作不可恢复。`);
+    const confirmed = window.confirm(i18next.t("worlds.worldList.b8pr91", { val1: worldName }));
     if (!confirmed) {
       return;
     }
@@ -387,7 +387,7 @@ export default function WorldList() {
                     className="ml-auto rounded-full px-2 text-muted-foreground hover:text-destructive"
                     onClick={() => handleDelete(world.id, world.name)}
                     disabled={deleteWorldMutation.isPending && deleteWorldMutation.variables === world.id}
-                    aria-label={`删除世界样本 ${world.name}`}
+                    aria-label={i18next.t("worlds.worldList.lxph0f", { val1: world.name })}
                   >
                     <Trash2 className="h-4 w-4" aria-hidden="true" />
                     {deleteWorldMutation.isPending && deleteWorldMutation.variables === world.id ? "删除中..." : "删除"}

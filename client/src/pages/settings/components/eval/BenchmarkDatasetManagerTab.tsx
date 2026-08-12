@@ -1,3 +1,4 @@
+import i18next from "i18next";
 import React, { useState } from "react";
 import { Plus, Database, Tag, Sparkles } from "lucide-react";
 import type { BenchmarkTestCase } from "@/api/eval";
@@ -20,21 +21,15 @@ export default function BenchmarkDatasetManagerTab({ benchmarks, onRefresh }: Pr
       <div className="p-5 rounded-xl bg-slate-900/60 border border-slate-800 flex flex-col sm:flex-row items-center justify-between gap-4 backdrop-blur-md">
         <div>
           <h3 className="font-bold text-slate-100 flex items-center gap-2">
-            <Database className="w-5 h-5 text-indigo-400" />
-            基准测试数据集与用例管理
-          </h3>
-          <p className="text-xs text-slate-400">
-            涵盖 8 大模态内置测试用例，支持手动新增自定义测试集，随 Git 代码库一同版本化管理。
-          </p>
+            <Database className="w-5 h-5 text-indigo-400" />{i18next.t("settings.benchmarkDatasetManagerTab.rnysf0")}</h3>
+          <p className="text-xs text-slate-400">{i18next.t("settings.benchmarkDatasetManagerTab.fenhg7")}</p>
         </div>
 
         <button
           onClick={() => setModalOpen(true)}
           className="px-4 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs flex items-center gap-1.5 shadow-lg shadow-indigo-600/30 transition-all shrink-0"
         >
-          <Plus className="w-4 h-4" />
-          新增自定义测试用例
-        </button>
+          <Plus className="w-4 h-4" />{i18next.t("settings.benchmarkDatasetManagerTab.pfw008")}</button>
       </div>
 
       {/* 8 大模态过滤 Pill Tabs */}
@@ -57,9 +52,7 @@ export default function BenchmarkDatasetManagerTab({ benchmarks, onRefresh }: Pr
       {/* 用例卡片列表 */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         {filtered.length === 0 ? (
-          <div className="md:col-span-2 py-12 text-center text-xs text-slate-500 bg-slate-900/40 rounded-xl border border-slate-800">
-            当前模态下暂无测试用例，点击右上角“新增自定义测试用例”添加...
-          </div>
+          <div className="md:col-span-2 py-12 text-center text-xs text-slate-500 bg-slate-900/40 rounded-xl border border-slate-800">{i18next.t("settings.benchmarkDatasetManagerTab.x2y78v")}</div>
         ) : (
           filtered.map((item) => (
             <div key={item.id} className="p-4 rounded-xl bg-slate-900/60 border border-slate-800 space-y-3 text-xs">

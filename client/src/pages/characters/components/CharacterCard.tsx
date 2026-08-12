@@ -117,7 +117,7 @@ export function CharacterCard({
                 >
                   <img
                     src={resolveImageAssetUrl(asset.url)}
-                    alt={`${character.name}-形象图`}
+                    alt={i18next.t("bookAnalysis.bookAnalysisCharacterImagePanel.bze2ym", { val1: character.name })}
                     className="h-full w-full object-cover transition-transform duration-200 hover:scale-[1.02]"
                     loading="lazy"
                   />
@@ -162,7 +162,7 @@ export function CharacterCard({
       >
         <AppDialogContent
           className="max-w-[1000px]"
-          title={previewAsset ? `${character.name} - 图片预览` : "图片预览"}
+          title={previewAsset ? i18next.t("characters.characterCard.mt8qds", { val1: character.name }) : "图片预览"}
           bodyClassName="space-y-3"
           footer={previewAsset ? (
             <>
@@ -189,7 +189,7 @@ export function CharacterCard({
               <div className="flex max-h-[70vh] items-center justify-center overflow-auto rounded-md bg-muted/30 p-2">
                 <img
                   src={resolveImageAssetUrl(previewAsset.url)}
-                  alt={`${character.name}-预览图`}
+                  alt={i18next.t("characters.characterCard.br19ib", { val1: character.name })}
                   className="max-h-[66vh] w-auto max-w-full rounded-md object-contain"
                 />
               </div>

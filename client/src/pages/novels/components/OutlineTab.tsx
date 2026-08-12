@@ -63,12 +63,12 @@ function getNextOutlineAction(readiness: OutlineTabViewProps["readiness"]): stri
 
 function getVolumeScaleProfileLabel(profile: OutlineTabViewProps["volumeCountGuidance"]["volumeScaleProfile"]): string {
   const labels: Record<OutlineTabViewProps["volumeCountGuidance"]["volumeScaleProfile"], string> = {
-    short: "短篇结构",
-    compact: "紧凑中篇",
-    standard: "标准长篇",
-    long: "长篇展开",
-    epic: "大长篇",
-    mega: "超长篇",
+    short: i18next.t("novels.outlineTab.fna5mz"),
+    compact: i18next.t("novels.outlineTab.g4n2v8"),
+    standard: i18next.t("dict.gen_77e7b5d2"),
+    long: i18next.t("novels.outlineTab.jddvg3"),
+    epic: i18next.t("novels.outlineTab.ds7f3"),
+    mega: i18next.t("novels.outlineTab.lgc4t"),
   };
   return labels[profile] ?? "结构建议";
 }
@@ -91,8 +91,8 @@ function formatBeatChapterOrders(chapterOrders: number[]): string {
   }
   const sorted = chapterOrders.slice().sort((left, right) => left - right);
   return sorted[0] === sorted[sorted.length - 1]
-    ? `第 ${sorted[0]} 章`
-    : `第 ${sorted[0]}-${sorted[sorted.length - 1]} 章`;
+    ? i18next.t("autoDirector.directorRuntimeProjectionCard.vms598", { val1: sorted[0] })
+    : i18next.t("novels.bookPayoffLedgerCard.mv5rga", { val1: sorted[0], val2: sorted[sorted.length - 1] });
 }
 
 export default function OutlineTab(props: OutlineTabViewProps) {
@@ -161,10 +161,10 @@ export default function OutlineTab(props: OutlineTabViewProps) {
   const [selectedVolumeId, setSelectedVolumeId] = useState(volumes[0]?.id ?? "");
   const [workspaceTab, setWorkspaceTab] = useState<OutlineWorkspaceTab>("current");
   const volumeCountModeLabel = volumeCountGuidance.userPreferredVolumeCount != null
-    ? `当前固定 ${volumeCountGuidance.userPreferredVolumeCount} 卷`
+    ? i18next.t("novels.outlineTab.925rjh", { val1: volumeCountGuidance.userPreferredVolumeCount })
     : volumeCountGuidance.respectedExistingVolumeCount != null
-      ? `当前沿用草稿 ${volumeCountGuidance.respectedExistingVolumeCount} 卷`
-      : `当前按系统建议 ${volumeCountGuidance.systemRecommendedVolumeCount} 卷`;
+      ? i18next.t("novels.outlineTab.yf24xe", { val1: volumeCountGuidance.respectedExistingVolumeCount })
+      : i18next.t("novels.outlineTab.gase3k", { val1: volumeCountGuidance.systemRecommendedVolumeCount });
   const volumeScaleProfileLabel = getVolumeScaleProfileLabel(volumeCountGuidance.volumeScaleProfile);
 
   useEffect(() => {
@@ -248,7 +248,7 @@ export default function OutlineTab(props: OutlineTabViewProps) {
                     {outlineStageReady
                       ? "当前卷战略阶段已经具备完整推进条件。"
                       : readiness.blockingReasons.length > 0
-                        ? `还有 ${readiness.blockingReasons.length} 项阻塞条件需要处理。`
+                        ? i18next.t("novels.outlineTab.7upa5t", { val1: readiness.blockingReasons.length })
                         : "当前可以继续推进本阶段。"}
                   </div>
                 </div>
@@ -569,7 +569,7 @@ export default function OutlineTab(props: OutlineTabViewProps) {
                   <div className="text-xs">{i18next.t("dict.gen_659ff89a")}</div>
                   <div className="mt-2 leading-6">
                     {strategyPlan.volumes
-                      .map((volume) => `第${volume.sortOrder}卷：${volume.roleLabel}，${volume.coreReward}`)
+                      .map((volume) => i18next.t("novels.outlineTab.thk4ya", { val1: volume.sortOrder, val2: volume.roleLabel, val3: volume.coreReward }))
                       .join("；")}
                   </div>
                 </div>

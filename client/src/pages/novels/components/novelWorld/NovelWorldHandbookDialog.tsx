@@ -195,8 +195,8 @@ function WorldOverviewTab(props: {
             {handbook?.summary ?? novelWorld?.coverSummary ?? i18next.t("dict.gen_4ad23ded")}
           </div>
           <InlineMeta items={[
-            handbook?.identity ? `身份：${handbook.identity}` : null,
-            handbook?.tone ? `气质：${handbook.tone}` : null,
+            handbook?.identity ? i18next.t("novels.characterAssetSidebar.xmhrko", { val1: handbook.identity }) : null,
+            handbook?.tone ? i18next.t("novels.novelWorldHandbookDialog.6qjh9y", { val1: handbook.tone }) : null,
             ...(handbook?.themes.slice(0, 4) ?? []),
           ]} />
         </div>
@@ -228,7 +228,7 @@ function WorldOverviewTab(props: {
                 <div className="font-medium text-foreground">{location.name}</div>
                 <div className="mt-1 leading-6 text-muted-foreground">
                   {location.narrativeFunction || location.summary || i18next.t("dict.gen_67a21991")}
-                  {location.risk ? ` · 风险：${location.risk}` : null}
+                  {location.risk ? i18next.t("novels.novelWorldHandbookDialog.osdq56", { val1: location.risk }) : null}
                 </div>
               </div>
             ))}
@@ -253,8 +253,8 @@ function RulesTab(props: { handbook: NovelWorldHandbook | null }) {
               <div className="text-sm font-medium text-foreground">{rule.name}</div>
               <div className="mt-1 text-sm leading-6 text-muted-foreground">{i18next.t("dict.gen_a227c868")}</div>
               <InlineMeta items={[
-                rule.cost ? `代价：${rule.cost}` : null,
-                rule.boundary ? `边界：${rule.boundary}` : null,
+                rule.cost ? i18next.t("novels.novelWorldHandbookDialog.a7mhxy", { val1: rule.cost }) : null,
+                rule.boundary ? i18next.t("novels.novelWorldHandbookDialog.egy51l", { val1: rule.boundary }) : null,
               ]} />
             </div>
           )) : <EmptyLine>{i18next.t("dict.gen_5f599bff")}</EmptyLine>}
@@ -361,12 +361,12 @@ function SyncPanel(props: Pick<NovelWorldHandbookDialogProps,
             {props.isLoadingSyncDiff ? i18next.t("dict.gen_69ac5a39") : syncDiff ? i18next.t("dict.gen_6d24e672") : i18next.t("dict.gen_c52ee445")}
           </div>
           <div className="mt-1 text-xs leading-5 text-muted-foreground">
-            {syncDiff?.differenceCount ? `${syncDiff.differenceCount} 个分区存在差异。` : syncDiff ? i18next.t("dict.gen_dd674fee") : i18next.t("dict.gen_5ef22e67")}
+            {syncDiff?.differenceCount ? i18next.t("novels.novelWorldHandbookDialog.sy3dow", { val1: syncDiff.differenceCount }) : syncDiff ? i18next.t("dict.gen_dd674fee") : i18next.t("dict.gen_5ef22e67")}
           </div>
         </div>
         <div className="rounded-xl bg-muted/15 p-3">
           <div className="text-xs text-muted-foreground">{i18next.t("dict.gen_fe5f67de")}</div>
-          <div className="mt-1 text-sm font-medium text-foreground">{hasSyncDiff ? `${selectedSectionCount} 个分区` : i18next.t("dict.gen_27b15041")}</div>
+          <div className="mt-1 text-sm font-medium text-foreground">{hasSyncDiff ? i18next.t("novels.novelWorldHandbookDialog.c2f4gi", { val1: selectedSectionCount }) : i18next.t("dict.gen_27b15041")}</div>
           <div className="mt-1 text-xs leading-5 text-muted-foreground">{i18next.t("dict.gen_480e8e5a")}</div>
         </div>
         <div className="rounded-xl bg-muted/15 p-3">

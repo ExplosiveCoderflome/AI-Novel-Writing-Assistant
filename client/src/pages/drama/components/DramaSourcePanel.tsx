@@ -48,17 +48,17 @@ function SourceQualityChecklist(props: {
     {
       label: i18next.t("dict.gen_154ed707"),
       ready: props.beatCount >= 8,
-      detail: props.beatCount >= 8 ? `${props.beatCount} 个节拍` : `${props.beatCount} 个节拍，可能不足以支撑长集数`,
+      detail: props.beatCount >= 8 ? i18next.t("drama.dramaSourcePanel.c26shn", { val1: props.beatCount }) : i18next.t("drama.dramaSourcePanel.4znmwz", { val1: props.beatCount }),
     },
     {
       label: i18next.t("dict.gen_f200b8db"),
       ready: props.characterCount >= 2,
-      detail: props.characterCount >= 2 ? `${props.characterCount} 个角色` : i18next.t("dict.majorRoleInsufficient"),
+      detail: props.characterCount >= 2 ? i18next.t("drama.dramaSourcePanel.c25dgm", { val1: props.characterCount }) : i18next.t("dict.majorRoleInsufficient"),
     },
     {
       label: i18next.t("dict.gen_ebba644f"),
       ready: props.factCount > 0,
-      detail: props.factCount > 0 ? `${props.factCount} 条硬事实` : i18next.t("dict.gen_285382be"),
+      detail: props.factCount > 0 ? i18next.t("drama.dramaSourcePanel.flcpiq", { val1: props.factCount }) : i18next.t("dict.gen_285382be"),
     },
   ];
 
@@ -220,7 +220,7 @@ export function DramaSourcePanel({ project }: { project: DramaProjectDetail }) {
             <CardContent className="max-h-[360px] space-y-2 overflow-auto">
               {beats.length > 0 ? beats.slice(0, 24).map((beat, index) => (
                 <div key={index} className="rounded-md border p-3 text-sm">
-                  <div className="font-medium">{compactText(beat.title || beat.summary || `节拍 ${index + 1}`)}</div>
+                  <div className="font-medium">{compactText(beat.title || beat.summary || i18next.t("drama.dramaSourcePanel.amddlx", { val1: index + 1 }))}</div>
                   <div className="mt-1 text-muted-foreground">{compactText(beat.summary || beat.description || beat)}</div>
                 </div>
               )) : <div className="text-sm text-muted-foreground">{i18next.t("dict.gen_73a9c79e")}</div>}

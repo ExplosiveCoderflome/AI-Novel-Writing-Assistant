@@ -93,7 +93,7 @@ function formatCheckpoint(checkpoint: NovelWorkflowMilestoneType | null | undefi
     return i18next.t("novels.novelAutoDirectorProgressPanel.hallyo");
   }
   if (checkpoint === "chapter_batch_ready") {
-    return `${resolvedScopeLabel}自动执行已暂停`;
+    return i18next.t("lib.novelWorkflowTaskUi.mr8bw9", { val1: resolvedScopeLabel });
   }
   if (checkpoint === "step_review_required") {
     return i18next.t("novels.novelAutoDirectorProgressPanel.fotvdd");
@@ -199,7 +199,7 @@ function ResourceProposalCard(props: {
         <div className="min-w-0 flex-1">
           <div className="text-sm font-medium text-foreground">{resourceName}</div>
           <div className="mt-1 text-xs leading-5 text-muted-foreground">
-            {holderName ? `${holderName}相关资源` : i18next.t("dict.gen_80b3004c")}
+            {holderName ? i18next.t("novels.novelTaskDrawer.2xyw8n", { val1: holderName }) : i18next.t("dict.gen_80b3004c")}
           </div>
         </div>
         <Badge variant={proposal.riskLevel === "high" ? "destructive" : "secondary"}>

@@ -126,7 +126,7 @@ export default function BookAnalysisBudgetAdjustDialog(props: BookAnalysisBudget
           {mode === "resume" ? (
             <div className="rounded-md border border-warning/30 bg-warning/5 p-3 text-sm leading-6 text-foreground">
               本次会重做 {retrySectionCount} 节，成功的 {succeededSectionCount} 节保留
-              {frozenSectionCount > 0 ? `，另有 ${frozenSectionCount} 节不纳入本次续跑` : ""}。
+              {frozenSectionCount > 0 ? i18next.t("bookAnalysis.bookAnalysisBudgetAdjustDialog.v1lzkl", { val1: frozenSectionCount }) : ""}。
             </div>
           ) : null}
 

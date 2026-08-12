@@ -456,7 +456,7 @@ export default function CreativeHubPage() {
     if (!normalized) {
       return;
     }
-    await handleQuickAction(`创建一本小说《${normalized}》。`);
+    await handleQuickAction(i18next.t("creativeHub.creativeHubPage.ykb0bl", { val1: normalized }));
   }, [handleQuickAction]);
 
   const focusWorkspaceArea = (id: "creative-hub-activity" | "creative-hub-context") => {
