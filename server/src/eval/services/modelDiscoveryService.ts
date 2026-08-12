@@ -142,6 +142,11 @@ export async function discoverAllModels(): Promise<{
       } catch (e) {
         isOnline = false;
       }
+    } else if (providerKey === "sensenova") {
+      isOnline = true;
+      const candidates = custom?.model ? Array.from(new Set([custom.model, ...pConfig.models])) : pConfig.models;
+      const filtered = candidates.filter((m) => m.toLowerCase().includes("sensenova"));
+      realModels = filtered.length > 0 ? filtered : ["sensenova-u1:8b-v3"];
     } else {
       // 云端 AI 厂商 (如 DeepSeek, OpenAI, Qwen 等)：测试 API Key 连通性
       isOnline = Boolean(effectiveKey);

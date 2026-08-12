@@ -186,7 +186,11 @@ async function fetchProviderModels(
     headers: buildHeaders(provider, apiKey),
   });
 
-  const models = parseModelIds(payload);
+  let models = parseModelIds(payload);
+  if (provider === "sensenova") {
+    const filtered = models.filter((m) => m.toLowerCase().includes("sensenova"));
+    models = filtered.length > 0 ? filtered : ["sensenova-u1:8b-v3"];
+  }
   if (models.length === 0) {
     throw new Error("模型列表为空。");
   }
