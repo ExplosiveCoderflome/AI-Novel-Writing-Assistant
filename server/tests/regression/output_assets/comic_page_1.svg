@@ -1,0 +1,40 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="800" height="1200" viewBox="0 0 800 1200">
+  <rect width="800" height="1200" fill="#0d1117" />
+  <!-- Title -->
+  <text x="400" y="50" font-family="sans-serif" font-size="28" font-weight="bold" fill="#ff7b72" text-anchor="middle">《赤霄天劫》漫画第一话：子夜极压</text>
+  
+  <!-- Panel 1 -->
+  <g transform="translate(40, 80)">
+    <rect width="340" height="320" fill="#161b22" stroke="#30363d" stroke-width="3" rx="8" />
+    <path d="M 40 40 L 300 280 M 300 40 L 40 280" stroke="#21262d" stroke-width="2" />
+    <text x="170" y="160" font-family="sans-serif" font-size="18" fill="#8b949e" text-anchor="middle">[镜头 1: 暴雨古庙子夜]</text>
+    <rect x="10" y="10" width="320" height="45" fill="#1f6feb" opacity="0.8" rx="4" />
+    <text x="20" y="38" font-family="sans-serif" font-size="14" fill="#ffffff">旁白: 赤霄大千界，末法时代，子夜灵压降至最低……</text>
+  </g>
+
+  <!-- Panel 2 -->
+  <g transform="translate(420, 80)">
+    <rect width="340" height="320" fill="#161b22" stroke="#30363d" stroke-width="3" rx="8" />
+    <circle cx="170" cy="140" r="60" fill="#da3633" opacity="0.4" />
+    <text x="170" y="145" font-family="sans-serif" font-size="18" fill="#f0f6fc" text-anchor="middle">陆沉 (按压右掌剑印)</text>
+    <rect x="20" y="240" width="300" height="50" fill="#238636" rx="10" />
+    <text x="170" y="270" font-family="sans-serif" font-size="14" fill="#ffffff" text-anchor="middle">陆沉: "执法的狗，追得倒是挺快！"</text>
+  </g>
+
+  <!-- Panel 5 (Action Cut) -->
+  <g transform="translate(40, 430)">
+    <rect width="720" height="400" fill="#161b22" stroke="#ff7b72" stroke-width="4" rx="8" />
+    <polygon points="60,350 660,100 680,120 80,370" fill="#ff7b72" opacity="0.9" />
+    <text x="360" y="200" font-family="sans-serif" font-size="24" font-weight="bold" fill="#ffffff" text-anchor="middle">子夜·符文崩解——灭！</text>
+    <rect x="380" y="300" width="320" height="60" fill="#da3633" rx="12" />
+    <text x="540" y="338" font-family="sans-serif" font-size="18" font-weight="bold" fill="#ffffff" text-anchor="middle">【极压必杀斩击击穿画面】</text>
+  </g>
+
+  <!-- Panel 6 -->
+  <g transform="translate(40, 850)">
+    <rect width="720" height="300" fill="#161b22" stroke="#30363d" stroke-width="3" rx="8" />
+    <text x="360" y="140" font-family="sans-serif" font-size="20" fill="#8b949e" text-anchor="middle">黑面客倒地，陆沉执剑挺立雨中</text>
+    <rect x="180" y="210" width="400" height="50" fill="#1f6feb" rx="8" />
+    <text x="380" y="242" font-family="sans-serif" font-size="16" fill="#ffffff" text-anchor="middle">陆沉: "天剑宗……这只是个开始。"</text>
+  </g>
+</svg>
