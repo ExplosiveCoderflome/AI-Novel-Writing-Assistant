@@ -242,7 +242,6 @@ export class NovelDirectorContinueRuntime {
     forceResume?: boolean;
     acceptManualChanges?: boolean;
   }): Promise<void> {
-    const continuationMode = normalizeDirectorContinuationMode(input?.continuationMode);
     const row = await this.deps.workflowService.getTaskById(taskId);
     if (!row) {
       throw new Error("自动导演任务不存在。");
@@ -251,6 +250,10 @@ export class NovelDirectorContinueRuntime {
       await this.deps.workflowService.continueTask(taskId);
       return;
     }
+    // A generic continue command must not replay the same replan checkpoint.
+    const continuationMode: DirectorContinuationMode | null = row.checkpointType === "replan_required"
+      ? "skip_quality_repair"
+      : normalizeDirectorContinuationMode(input?.continuationMode);
     if (row.status === "running" && !row.pendingManualRecovery && input?.forceResume !== true) {
       return;
     }

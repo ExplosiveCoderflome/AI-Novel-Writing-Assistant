@@ -997,11 +997,12 @@ test("continueTask does not skip the current chapter when approving a waiting au
   }
 });
 
-test("continueTask normalizes auto_execute_range into skip_quality_repair at a quality-repair checkpoint", async () => {
+test("continueTask normalizes a generic resume into skip_quality_repair at a replan checkpoint", async () => {
   const service = new NovelDirectorService();
   const originalContinueCandidateStageTask = service.continueCandidateStageTask;
   const originalGetTaskById = service.workflowService.getTaskById;
   const originalResolveAssetFirstRecovery = service.resolveAssetFirstRecovery;
+  const originalResolveDirectorRiskPolicy = service.resolveDirectorRiskPolicy;
   const originalMarkTaskRunning = service.workflowService.markTaskRunning;
   const originalScheduleBackgroundRun = service.scheduleBackgroundRun;
   const originalRunFromReady = service.autoExecutionRuntime.runFromReady;
@@ -1015,6 +1016,7 @@ test("continueTask normalizes auto_execute_range into skip_quality_repair at a q
     type: "auto_execution",
     resumeCheckpointType: "replan_required",
   });
+  service.resolveDirectorRiskPolicy = async () => null;
   service.workflowService.getTaskById = async () => ({
     id: "task_quality_repair_skip_normalized",
     lane: "auto_director",
@@ -1071,7 +1073,7 @@ test("continueTask normalizes auto_execute_range into skip_quality_repair at a q
 
   try {
     await service.continueTask("task_quality_repair_skip_normalized", {
-      continuationMode: "auto_execute_range",
+      continuationMode: "resume",
     });
     assert.equal(runningCalls.length, 1);
     assert.equal(runningCalls[0].stage, "quality_repair");
@@ -1087,6 +1089,7 @@ test("continueTask normalizes auto_execute_range into skip_quality_repair at a q
     service.continueCandidateStageTask = originalContinueCandidateStageTask;
     service.workflowService.getTaskById = originalGetTaskById;
     service.resolveAssetFirstRecovery = originalResolveAssetFirstRecovery;
+    service.resolveDirectorRiskPolicy = originalResolveDirectorRiskPolicy;
     service.workflowService.markTaskRunning = originalMarkTaskRunning;
     service.scheduleBackgroundRun = originalScheduleBackgroundRun;
     service.autoExecutionRuntime.runFromReady = originalRunFromReady;

@@ -5,6 +5,47 @@ const { prisma } = require("../dist/db/prisma.js");
 const { KnowledgeService } = require("../dist/services/knowledge/KnowledgeService.js");
 const { RagIndexService } = require("../dist/services/rag/RagIndexService.js");
 const { ragServices } = require("../dist/services/rag/index.js");
+const { ragConfig } = require("../dist/config/rag.js");
+
+test("reindexing while RAG is disabled leaves the document idle without queuing a job", async () => {
+  const service = new KnowledgeService();
+  const originalEnabled = ragConfig.enabled;
+  const originalFindUnique = prisma.knowledgeDocument.findUnique;
+  const originalUpdate = prisma.knowledgeDocument.update;
+  const originalEnqueueOwnerJob = ragServices.ragIndexService.enqueueOwnerJob;
+  let updateArgs = null;
+  let enqueueCount = 0;
+
+  ragConfig.enabled = false;
+  prisma.knowledgeDocument.findUnique = async () => ({
+    id: "knowledge-doc-1",
+    activeVersionId: "knowledge-version-1",
+    status: "enabled",
+  });
+  prisma.knowledgeDocument.update = async (args) => {
+    updateArgs = args;
+    return { id: args.where.id, latestIndexStatus: args.data.latestIndexStatus };
+  };
+  ragServices.ragIndexService.enqueueOwnerJob = async () => {
+    enqueueCount += 1;
+  };
+
+  try {
+    const result = await service.reindexDocument("knowledge-doc-1");
+
+    assert.equal(result.latestIndexStatus, "idle");
+    assert.deepEqual(updateArgs, {
+      where: { id: "knowledge-doc-1" },
+      data: { latestIndexStatus: "idle" },
+    });
+    assert.equal(enqueueCount, 0);
+  } finally {
+    ragConfig.enabled = originalEnabled;
+    prisma.knowledgeDocument.findUnique = originalFindUnique;
+    prisma.knowledgeDocument.update = originalUpdate;
+    ragServices.ragIndexService.enqueueOwnerJob = originalEnqueueOwnerJob;
+  }
+});
 
 test("restoring archived knowledge document queues a rebuild and marks indexing queued", async () => {
   const service = new KnowledgeService();

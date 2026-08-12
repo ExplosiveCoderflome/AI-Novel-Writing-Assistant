@@ -85,6 +85,7 @@ const {
 const {
   worldDraftGenerationPrompt,
   worldDraftRefineAlternativesPrompt,
+  worldSkeletonGenerationPrompt,
 } = require("../dist/prompting/prompts/world/worldDraft.prompts.js");
 const {
   createVolumeStrategyPrompt,
@@ -1337,6 +1338,39 @@ test("world draft generation post validator requires requested dimension coverag
       history: false,
     },
   }));
+});
+
+test("world skeleton prompt keeps large world output within a recoverable one-shot budget", () => {
+  const messages = worldSkeletonGenerationPrompt.render({
+    idea: "灵气复苏后的都市调查故事",
+    worldType: "都市异能",
+    template: "现代都市",
+    referenceContext: null,
+    blueprint: null,
+    options: {
+      preset: "epic",
+      counts: {
+        rules: 6,
+        factionGroups: 4,
+        forces: 7,
+        locations: 9,
+        conflicts: 6,
+        storyEntrySuggestions: 4,
+      },
+    },
+  }, {
+    blocks: [],
+    selectedBlockIds: [],
+    droppedBlockIds: [],
+    summarizedBlockIds: [],
+    estimatedInputTokens: 0,
+  });
+
+  assert.equal(worldSkeletonGenerationPrompt.version, "v2");
+  assert.equal(worldSkeletonGenerationPrompt.repairPolicy.maxAttempts, 0);
+  assert.equal(worldSkeletonGenerationPrompt.semanticRetryPolicy.maxAttempts, 0);
+  assert.match(String(messages[0].content), /输出容量硬约束/);
+  assert.match(String(messages[0].content), /3,200 个汉字以内/);
 });
 
 test("world draft refine alternatives post validator enforces exact alternative count", () => {

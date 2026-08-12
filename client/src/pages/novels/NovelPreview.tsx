@@ -1,10 +1,10 @@
 import { useEffect, useMemo, useState } from "react";
 import type { Chapter, ChapterStatus } from "@ai-novel/shared/types/novel";
-import { useQuery } from "@tanstack/react-query";
-import { ArrowLeft, BookOpen, Check, Copy, Edit3, List, Settings2, X } from "lucide-react";
+import { useMutation, useQuery } from "@tanstack/react-query";
+import { ArrowLeft, BookOpen, Check, Copy, Download, Edit3, List, Settings2, X } from "lucide-react";
 import { Link, useParams, useSearchParams } from "react-router-dom";
 import { toast } from "sonner";
-import { getNovelChapters, getNovelDetail } from "@/api/novel";
+import { downloadNovelExport, getNovelChapters, getNovelDetail } from "@/api/novel";
 import { queryKeys } from "@/api/queryKeys";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -54,6 +54,19 @@ async function copyText(text: string): Promise<void> {
   }
 }
 
+function downloadBlob(blob: Blob, fileName: string): void {
+  const url = URL.createObjectURL(blob);
+  const anchor = document.createElement("a");
+  anchor.href = url;
+  anchor.download = fileName;
+  anchor.click();
+  URL.revokeObjectURL(url);
+}
+
+function safeFileNamePart(value: string): string {
+  return value.replace(/[\\/:*?"<>|]/g, "-").trim() || "小说";
+}
+
 export default function NovelPreview() {
   const { id = "" } = useParams();
   const [searchParams, setSearchParams] = useSearchParams();
@@ -84,6 +97,14 @@ export default function NovelPreview() {
   );
   const activeContent = chapterText(activeChapter?.content);
   const totalWordCount = useMemo(() => chapters.reduce((sum, chapter) => sum + countWords(chapter.content), 0), [chapters]);
+  const downloadFullMutation = useMutation({
+    mutationFn: () => downloadNovelExport(id, "txt", "full", novel?.title),
+    onSuccess: ({ blob, fileName }) => {
+      downloadBlob(blob, fileName);
+      toast.success("整本正文下载已开始。");
+    },
+    onError: (error) => toast.error(error instanceof Error ? error.message : "整本正文下载失败。"),
+  });
 
   useEffect(() => {
     if (!activeChapter || selectedChapterId === activeChapter.id) return;
@@ -117,6 +138,17 @@ export default function NovelPreview() {
     }
   };
 
+  const handleDownloadChapter = () => {
+    if (!activeChapter || !activeContent) return toast.error("当前章节还没有正文。");
+    const title = safeFileNamePart(novel?.title ?? "小说");
+    const chapterTitle = activeChapter.title?.trim() ? safeFileNamePart(activeChapter.title) : "";
+    downloadBlob(
+      new Blob(["\uFEFF", `第 ${activeChapter.order} 章${chapterTitle ? ` ${chapterTitle}` : ""}\n\n${activeContent}`], { type: "text/plain;charset=utf-8" }),
+      `${title}-第${activeChapter.order}章${chapterTitle ? `-${chapterTitle}` : ""}.txt`,
+    );
+    toast.success("本章正文下载已开始。");
+  };
+
   if (!id) {
     return <div className="flex min-h-full items-center justify-center"><Button asChild><Link to="/novels">返回小说列表</Link></Button></div>;
   }
@@ -148,17 +180,27 @@ export default function NovelPreview() {
   return (
     <div className="relative h-full overflow-y-auto bg-[#faf9f6] text-slate-900">
       <header className="sticky top-0 z-20 border-b border-slate-200/70 bg-[#faf9f6]/90 backdrop-blur">
-        <div className="mx-auto flex h-16 max-w-5xl items-center justify-between gap-4 px-5 lg:pl-72">
-          <Button asChild variant="ghost" size="sm" className="-ml-2 text-slate-500 hover:text-slate-900">
-            <Link to="/novels" aria-label="返回书架"><ArrowLeft className="h-4 w-4" /></Link>
-          </Button>
+        <div className={cn("mx-auto flex h-16 max-w-5xl items-center justify-between gap-4 px-5 transition-[padding]", showChapters && "lg:pl-[22.5rem]")}>
+          <div className="flex items-center gap-1">
+            {!showChapters ? (
+              <Button type="button" variant="ghost" size="sm" className="-ml-2 text-slate-500 hover:text-slate-900" onClick={() => setShowChapters(true)} title="打开目录" aria-label="打开目录">
+                <List className="h-4 w-4" />
+              </Button>
+            ) : null}
+            <Button asChild variant="ghost" size="sm" className="text-slate-500 hover:text-slate-900">
+              <Link to="/novels" aria-label="返回书架"><ArrowLeft className="h-4 w-4" /></Link>
+            </Button>
+          </div>
           <div className="min-w-0 flex-1 text-center">
             <div className="truncate text-sm font-medium">{novel?.title ?? "小说预览"}</div>
             <div className="mt-0.5 text-xs text-slate-400">{activeChapter ? `第 ${activeChapter.order} 章` : "阅读"}</div>
           </div>
           <div className="flex items-center gap-1">
-            <Button type="button" variant={showChapters ? "secondary" : "ghost"} size="sm" className="text-slate-500 hover:text-slate-900" onClick={() => setShowChapters((value) => !value)} title="打开目录" aria-label="打开目录">
-              <List className="h-4 w-4" />
+            <Button type="button" variant="ghost" size="sm" className="text-slate-500 hover:text-slate-900" onClick={handleDownloadChapter} disabled={!activeContent} title="下载本章" aria-label="下载本章">
+              <Download className="h-4 w-4" /><span className="ml-1.5 hidden xl:inline">本章</span>
+            </Button>
+            <Button type="button" variant="ghost" size="sm" className="text-slate-500 hover:text-slate-900" onClick={() => downloadFullMutation.mutate()} disabled={downloadFullMutation.isPending || generatedChapters.length === 0} title="下载整本" aria-label="下载整本">
+              <BookOpen className="h-4 w-4" /><span className="ml-1.5 hidden xl:inline">整本</span>
             </Button>
             <Button asChild variant="ghost" size="sm" className="text-slate-500 hover:text-slate-900" title="打开工作区" aria-label="打开工作区">
               <Link to={`/novels/${id}/edit`}><Settings2 className="h-4 w-4" /></Link>
@@ -167,7 +209,7 @@ export default function NovelPreview() {
         </div>
       </header>
 
-      <main className="px-6 pb-24 pt-16 sm:px-10 sm:pt-20 lg:pl-[22.5rem]">
+      <main className={cn("px-6 pb-24 pt-16 transition-[padding] sm:px-10 sm:pt-20", showChapters && "lg:pl-[22.5rem]")}>
         <div className="mx-auto max-w-3xl">
           <div className="mb-12 text-center">
           <div className="text-xs tracking-[0.22em] text-slate-400">{novel?.status === "published" ? "PUBLISHED" : "DRAFT"}</div>
