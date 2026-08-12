@@ -163,11 +163,12 @@ test("director candidate contract requires exactly two directions", () => {
   }).success, false);
 });
 
-test("simple creation write boundary allows reads, exports and irreversible conversion only", () => {
+test("simple creation write boundary allows reads, exports and experience switching only", () => {
   assert.equal(isSimpleCreationWriteAllowed("GET", "/book/simple-shelf"), true);
   assert.equal(isSimpleCreationWriteAllowed("GET", "/book/export"), true);
   assert.equal(isSimpleCreationWriteAllowed("POST", "/book/export-as-document"), true);
   assert.equal(isSimpleCreationWriteAllowed("POST", "/book/creation-experience/professional"), true);
+  assert.equal(isSimpleCreationWriteAllowed("POST", "/book/creation-experience/simple"), true);
   assert.equal(isSimpleCreationWriteAllowed("PUT", "/book"), false);
   assert.equal(isSimpleCreationWriteAllowed("DELETE", "/book/chapters/chapter-1"), false);
   assert.equal(isSimpleCreationWriteAllowed("POST", "/book/chapters/chapter-1/generate"), false);

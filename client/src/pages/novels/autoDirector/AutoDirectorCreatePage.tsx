@@ -6,8 +6,8 @@ import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { flattenGenreTreeOptions, getGenreTree } from "@/api/genre";
 import { flattenStoryModeTreeOptions, getStoryModeTree } from "@/api/storyMode";
 import { bootstrapNovelWorkflow, selectNovelProductionExperience } from "@/api/novelWorkflow";
+import { setNovelCreationExperience } from "@/api/novel";
 import { queryKeys } from "@/api/queryKeys";
-import { DEFAULT_DIRECTOR_RISK_POLICY, getDirectorRiskPolicy } from "@/api/directorRiskPolicy";
 import { getWorldList } from "@/api/world";
 import { Button } from "@/components/ui/button";
 import { toast } from "@/components/ui/toast";
@@ -31,7 +31,6 @@ import {
   summarizeWorldStyleStage,
 } from "./directorCreateStages";
 import { useAutoDirectorCreateController } from "./useAutoDirectorCreateController";
-import { DirectorRiskPolicySummary } from "../components/DirectorRiskPolicySummary";
 import { extractDirectorTaskSeedPayloadFromMeta } from "@ai-novel/shared/types/novelDirector";
 
 const STAGE_ORDER: AutoDirectorCreateStageKey[] = ["idea", "basic", "world_style", "model_run", "candidates"];
@@ -76,12 +75,6 @@ export default function AutoDirectorCreatePage() {
     queryKey: queryKeys.storyModes.all,
     queryFn: getStoryModeTree,
   });
-  const riskPolicyQuery = useQuery({
-    queryKey: queryKeys.settings.autoDirectorRiskPolicy,
-    queryFn: getDirectorRiskPolicy,
-    retry: false,
-  });
-  const riskPolicy = riskPolicyQuery.data?.data ?? DEFAULT_DIRECTOR_RISK_POLICY;
   const genreTree = genreTreeQuery.data?.data ?? [];
   const storyModeTree = storyModeTreeQuery.data?.data ?? [];
   const genreOptions = flattenGenreTreeOptions(genreTree);
@@ -166,7 +159,12 @@ export default function AutoDirectorCreatePage() {
       }
       navigate(response.data.targetRoute, { replace: true });
     },
-    onError: (error) => toast.error(error instanceof Error ? error.message : "进入简易创作失败，请重试。"),
+    onError: (error) => toast.error(error instanceof Error ? error.message : "进入简易模式失败，请重试。"),
+  });
+  const enterProfessionalMutation = useMutation({
+    mutationFn: () => setNovelCreationExperience(createdNovelId, "professional"),
+    onSuccess: () => navigate(`/novels/${createdNovelId}/edit`, { replace: true }),
+    onError: (error) => toast.error(error instanceof Error ? error.message : "进入专业模式失败，请重试。"),
   });
 
   useEffect(() => {
@@ -357,12 +355,16 @@ export default function AutoDirectorCreatePage() {
                 disabled={enterSimpleMutation.isPending}
                 onClick={() => enterSimpleMutation.mutate()}
               >
-                {enterSimpleMutation.isPending ? "正在进入…" : "进入简易创作"}
+                {enterSimpleMutation.isPending ? "正在进入…" : "简易模式"}
               </Button>
             ) : null}
-            {createdNovelId ? (
-              <Button type="button" variant={productionExperience === "simple" ? "default" : "outline"} asChild>
-                <Link to={createdNovelRoute}>{productionExperience === "simple" ? "打开章节书架" : "打开小说工作台"}</Link>
+            {createdNovelId && productionExperience === "simple" ? (
+              <Button type="button" variant="outline" disabled={enterProfessionalMutation.isPending} onClick={() => enterProfessionalMutation.mutate()}>
+                {enterProfessionalMutation.isPending ? "正在进入…" : "专业模式"}
+              </Button>
+            ) : createdNovelId ? (
+              <Button type="button" variant="outline" asChild>
+                <Link to={createdNovelRoute}>专业模式</Link>
               </Button>
             ) : null}
             <Button type="button" variant="outline" asChild>
@@ -371,8 +373,6 @@ export default function AutoDirectorCreatePage() {
           </div>
         </div>
       ) : null}
-
-      <DirectorRiskPolicySummary policy={riskPolicy} compact />
 
       {showSummaryBar ? (
         <div className="flex min-w-0 flex-wrap gap-2">

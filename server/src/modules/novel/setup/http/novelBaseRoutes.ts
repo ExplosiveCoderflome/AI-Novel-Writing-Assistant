@@ -43,6 +43,9 @@ const bookAnalysisSectionKeySchema = z.enum([
 const idParamsSchema = z.object({
   id: z.string().trim().min(1),
 });
+const creationExperienceParamsSchema = idParamsSchema.extend({
+  experience: z.enum(["simple", "professional"]),
+});
 
 function parseJsonRecord(value: string | null | undefined): Record<string, unknown> | null {
   if (!value?.trim()) return null;
@@ -527,11 +530,11 @@ export function registerNovelBaseRoutes(input: RegisterNovelBaseRoutesInput): vo
   );
 
   router.post(
-    "/:id/creation-experience/professional",
-    validate({ params: idParamsSchema }),
+    "/:id/creation-experience/:experience",
+    validate({ params: creationExperienceParamsSchema }),
     async (req, res, next) => {
       try {
-        const { id } = req.params as z.infer<typeof idParamsSchema>;
+        const { id, experience } = req.params as z.infer<typeof creationExperienceParamsSchema>;
         const current = await novelService.getNovelById(id);
         if (!current) {
           res.status(404).json({
@@ -540,13 +543,15 @@ export function registerNovelBaseRoutes(input: RegisterNovelBaseRoutesInput): vo
           } satisfies ApiResponse<null>);
           return;
         }
-        const data = current.creationExperience === "professional"
+        const data = current.creationExperience === experience
           ? current
-          : await novelService.updateNovel(id, { creationExperience: "professional" });
+          : await novelService.updateNovel(id, { creationExperience: experience });
         res.status(200).json({
           success: true,
           data,
-          message: "已转为专业创作，可使用完整编辑工作台。",
+          message: experience === "simple"
+            ? "已切换到简易模式，可在章节书架阅读进度与成稿。"
+            : "已切换到专业模式，可使用完整编辑工作台。",
         } satisfies ApiResponse<typeof data>);
       } catch (error) {
         next(error);

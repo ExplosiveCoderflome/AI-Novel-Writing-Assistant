@@ -12,6 +12,11 @@ interface DirectorPreparationStep {
 interface NovelDirectorPreparationJourneyProps {
   steps: ReadonlyArray<DirectorPreparationStep>;
   statuses: ReadonlyArray<DirectorPreparationStepStatus>;
+  onboardingStorageKey: string;
+  chapterProgress?: {
+    completed: number;
+    total: number;
+  } | null;
 }
 
 function stepTone(status: DirectorPreparationStepStatus): string {
@@ -46,11 +51,13 @@ function statusLabel(status: DirectorPreparationStepStatus): string {
 export default function NovelDirectorPreparationJourney({
   steps,
   statuses,
+  onboardingStorageKey,
+  chapterProgress = null,
 }: NovelDirectorPreparationJourneyProps) {
   return (
     <div className="space-y-4">
       <OnboardingTip
-        storageKey="director-preparation"
+        storageKey={onboardingStorageKey}
         title="这段准备不需要逐项审核"
         description="AI 会把已完成的故事方向转成角色、卷战略、节奏和章节执行资源；页面上的成果可以随时展开查看。"
         next="已完成的资源可以随时查看；AI 会继续补齐后续内容。"
@@ -63,7 +70,11 @@ export default function NovelDirectorPreparationJourney({
               AI 正在依次完成整本书的方向、角色和卷章资源，已完成的成果可以直接查看。
             </div>
           </div>
-          <div className="text-xs text-muted-foreground">创作任务会继续在后台推进</div>
+          <div className="text-xs text-muted-foreground">
+            {chapterProgress
+              ? `正文已生成 ${chapterProgress.completed}/${chapterProgress.total} 章`
+              : "创作任务会继续在后台推进"}
+          </div>
         </div>
 
         <ol className={cn(

@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { Loader2, RotateCcw } from "lucide-react";
+import { Loader2, RotateCcw, Sparkles } from "lucide-react";
 import { useIsMobileViewport } from "@/components/layout/mobile/useIsMobileViewport";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -67,6 +67,8 @@ function DesktopNovelEditView(props: NovelEditViewProps) {
     takeover,
     taskDrawer,
     activeStepTakeoverEntry,
+    onSwitchToSimpleMode,
+    isSwitchingToSimpleMode = false,
   } = props;
 
   const [isProjectToolsOpen, setIsProjectToolsOpen] = useState(false);
@@ -204,6 +206,12 @@ function DesktopNovelEditView(props: NovelEditViewProps) {
             : "按当前步骤整理这本书的生产资产，需要时可以交给 AI 自动导演接管。"}
           actions={(
             <>
+            {onSwitchToSimpleMode ? (
+              <Button type="button" variant="outline" onClick={onSwitchToSimpleMode} disabled={isSwitchingToSimpleMode}>
+                {isSwitchingToSimpleMode ? <Loader2 className="animate-spin" /> : <Sparkles />}
+                简易模式
+              </Button>
+            ) : null}
             {!hideTakeoverEntry ? (
               isTakeoverLoading ? (
                 <Button type="button" size="sm" disabled>

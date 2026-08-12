@@ -313,6 +313,19 @@ export default function NovelAutoDirectorProgressPanel({
     ),
   );
   const runtimeProjectionForDisplay = dashboardView?.mode === "recovering" || staleActionProjection ? null : runtimeProjection;
+  const chapterFacts = snapshot?.factSummary?.chapterExecutionFacts
+    ?? runtimeProjectionForDisplay?.factSummary?.chapterExecutionFacts
+    ?? null;
+  const chapterProductionStarted = resolveDirectorExecutionStepIndex(task) >= 5;
+  const chapterProgress = chapterFacts && chapterFacts.totalChapters > 0 && (
+    chapterProductionStarted || chapterFacts.completedChapters > 0
+  )
+    ? {
+      completed: chapterFacts.completedChapters,
+      total: chapterFacts.expectedChapterCount ?? chapterFacts.totalChapters,
+    }
+    : null;
+  const onboardingNovelId = task?.resumeTarget?.novelId?.trim() || runtimeTaskId;
   const historyEvents = snapshot?.recentEvents ?? [];
   const displayProgress = dashboardView?.progressPercent ?? displayState?.progressPercent ?? task?.progress ?? null;
   const fallbackChapterTitleWarning = !taskChapterTitleWarning && isChapterTitleDiversitySummary(fallbackError)
@@ -436,6 +449,8 @@ export default function NovelAutoDirectorProgressPanel({
             ? stepDefinitions
             : displaySteps.map((step) => ({ key: step.key, label: step.label }))}
           statuses={steps}
+          onboardingStorageKey={`director-preparation-${onboardingNovelId}`}
+          chapterProgress={chapterProgress}
         />
 
         {activityTags.length > 0 ? (

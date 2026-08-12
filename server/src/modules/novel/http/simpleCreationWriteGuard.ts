@@ -7,7 +7,7 @@ export function isSimpleCreationWriteAllowed(method: string, path: string): bool
     return true;
   }
   const normalizedPath = path.toLowerCase();
-  return normalizedPath.endsWith("/creation-experience/professional")
+  return /\/creation-experience\/(simple|professional)$/.test(normalizedPath)
     || normalizedPath.includes("/export");
 }
 
@@ -32,7 +32,7 @@ export async function guardSimpleCreationUserWrites(
     });
     if (novel?.creationExperience === "simple") {
       next(new AppError(
-        "简易创作项目由 AI 自动完成，当前内容仅供阅读。如需修改，请先转为专业创作。",
+        "简易模式项目当前仅供阅读。如需修改，请先切换到专业模式。",
         409,
       ));
       return;

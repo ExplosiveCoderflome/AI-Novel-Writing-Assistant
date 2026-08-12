@@ -29,6 +29,18 @@ test("simple creation shelf exposes issue governance without professional conver
   assert.doesNotMatch(panelSource, /convertNovelToProfessional/);
 });
 
+test("simple creation shelf provides a preview shortcut for the current chapter", () => {
+  assert.match(shelfSource, /进入预览模式/);
+  assert.match(shelfSource, /\/novels\/\$\{id\}\/preview/);
+  assert.match(shelfSource, /chapterId=\$\{encodeURIComponent\(selectedChapter\.id\)\}/);
+});
+
+test("simple creation shelf switches to professional mode without an irreversible conversion dialog", () => {
+  assert.match(shelfSource, /setNovelCreationExperience\(id, "professional"\)/);
+  assert.match(shelfSource, /专业模式/);
+  assert.doesNotMatch(shelfSource, /此操作不能切回简易创作/);
+});
+
 test("all issue actions remain editable and changed rules show a safety warning", () => {
   assert.match(globalPolicySource, /DIRECTOR_ISSUE_ACTIONS\.map/);
   assert.doesNotMatch(globalPolicySource, /disabled=\{entry\.allowedActions\.length === 1\}/);

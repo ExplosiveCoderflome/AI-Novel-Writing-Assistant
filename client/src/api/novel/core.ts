@@ -92,10 +92,12 @@ export async function createNovel(payload: {
   return data;
 }
 
-export async function convertNovelToProfessional(id: string) {
-  const { data } = await apiClient.post<ApiResponse<Novel>>(`/novels/${id}/creation-experience/professional`);
+export async function setNovelCreationExperience(id: string, experience: CreationExperience) {
+  const { data } = await apiClient.post<ApiResponse<Novel>>(`/novels/${id}/creation-experience/${experience}`);
   return data;
 }
+
+export const convertNovelToProfessional = (id: string) => setNovelCreationExperience(id, "professional");
 
 export async function getSimpleCreationShelf(id: string) {
   const { data } = await apiClient.get<ApiResponse<SimpleCreationShelfProjection>>(`/novels/${id}/simple-shelf`);

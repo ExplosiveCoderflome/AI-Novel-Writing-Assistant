@@ -43,6 +43,7 @@ import {
   getNovelCharacterResources,
   getNovelPayoffLedger,
   getNovelDetail,
+  setNovelCreationExperience,
   downloadNovelExport,
   getNovelPipelineJob,
   getNovelVolumeWorkspace,
@@ -355,6 +356,14 @@ export default function NovelEdit() {
     queryKey: queryKeys.novels.detail(id),
     queryFn: () => getNovelDetail(id),
     enabled: Boolean(id),
+  });
+  const switchToSimpleMutation = useMutation({
+    mutationFn: () => setNovelCreationExperience(id, "simple"),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: queryKeys.novels.detail(id) });
+      navigate(`/novels/${id}/simple`, { replace: true });
+    },
+    onError: (error) => toast.error(error instanceof Error ? error.message : "切换模式失败，请重试。"),
   });
 
   useEffect(() => {
@@ -2787,6 +2796,8 @@ export default function NovelEdit() {
       characterTab={characterTab}
       takeover={isTakeoverDismissed ? null : takeover}
       activeStepTakeoverEntry={activeStepTakeoverEntry}
+      onSwitchToSimpleMode={() => switchToSimpleMutation.mutate()}
+      isSwitchingToSimpleMode={switchToSimpleMutation.isPending}
       taskDrawer={{
         open: isTaskDrawerOpen,
         onOpenChange: (open) => {

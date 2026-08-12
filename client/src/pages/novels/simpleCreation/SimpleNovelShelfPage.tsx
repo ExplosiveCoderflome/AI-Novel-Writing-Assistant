@@ -8,6 +8,7 @@ import {
   CheckCircle2,
   Clock3,
   Download,
+  Eye,
   FileText,
   Loader2,
   PauseCircle,
@@ -17,20 +18,13 @@ import {
 import { Link, useNavigate, useParams } from "react-router-dom";
 import type { SimpleCreationShelfChapterStatus } from "@ai-novel/shared/types/novel";
 import {
-  convertNovelToProfessional,
   downloadNovelExport,
   getSimpleCreationShelf,
+  setNovelCreationExperience,
 } from "@/api/novel";
 import { continueNovelWorkflow } from "@/api/novelWorkflow";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
 import { toast } from "@/components/ui/toast";
 import SimpleCreationMaterialsPanel from "./SimpleCreationMaterialsPanel";
 import OnboardingTip from "@/components/onboarding/OnboardingTip";
@@ -74,7 +68,6 @@ export default function SimpleNovelShelfPage() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [selectedChapterId, setSelectedChapterId] = useState("");
-  const [convertOpen, setConvertOpen] = useState(false);
 
   const shelfQuery = useQuery({
     queryKey: ["novels", id, "simple-shelf"],
@@ -132,13 +125,13 @@ export default function SimpleNovelShelfPage() {
     onError: (error) => toast.error(error instanceof Error ? error.message : "恢复失败，请重试。"),
   });
 
-  const convertMutation = useMutation({
-    mutationFn: () => convertNovelToProfessional(id),
+  const switchExperienceMutation = useMutation({
+    mutationFn: () => setNovelCreationExperience(id, "professional"),
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: ["novels", id] });
       navigate(`/novels/${id}/edit`, { replace: true });
     },
-    onError: (error) => toast.error(error instanceof Error ? error.message : "转换失败，请重试。"),
+    onError: (error) => toast.error(error instanceof Error ? error.message : "切换模式失败，请重试。"),
   });
 
   if (shelfQuery.isPending || !shelf) {
@@ -153,36 +146,36 @@ export default function SimpleNovelShelfPage() {
     <div className="min-h-screen bg-muted/20">
       <div className="mx-auto max-w-[1480px] space-y-4 px-3 py-4 sm:px-5 lg:px-8">
         <header className="overflow-hidden rounded-3xl border border-border bg-background shadow-sm">
-          <div className="bg-gradient-to-br from-slate-950 via-slate-900 to-slate-800 px-5 py-5 text-white sm:px-7 sm:py-6">
+          <div className="bg-muted/[0.28] px-5 py-5 sm:px-7 sm:py-6">
             <div className="flex flex-col gap-5 xl:flex-row xl:items-start xl:justify-between">
               <div className="min-w-0">
-                <Button variant="ghost" size="sm" asChild className="-ml-2 px-2 text-slate-300 hover:bg-white/10 hover:text-white">
+                <Button variant="ghost" size="sm" asChild className="-ml-2 px-2 text-muted-foreground hover:bg-background hover:text-foreground">
                   <Link to="/novels"><ArrowLeft className="h-4 w-4" /> 返回小说列表</Link>
                 </Button>
                 <div className="mt-4 flex items-start gap-3">
-                  <span className="hidden h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-white/10 sm:flex">
-                    <BookOpenText className="h-6 w-6 text-sky-200" />
+                  <span className="hidden h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-primary/10 sm:flex">
+                    <BookOpenText className="h-6 w-6 text-primary" />
                   </span>
                   <div className="min-w-0">
                     <div className="flex flex-wrap items-center gap-2">
-                      <h1 className="truncate text-2xl font-semibold tracking-tight sm:text-3xl">{shelf.novel.title}</h1>
-                      <Badge className="border-white/15 bg-white/10 text-slate-100 hover:bg-white/10">简易创作 · 只读</Badge>
+                      <h1 className="truncate text-2xl font-semibold tracking-tight text-foreground sm:text-3xl">{shelf.novel.title}</h1>
+                      <Badge variant="outline">简易模式 · 只读</Badge>
                     </div>
-                    <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-300">这里是这本书的阅读台。AI 会在后台继续规划、写作和审校，你可以随时查看已经保存的正文。</p>
+                    <p className="mt-2 max-w-2xl text-sm leading-6 text-muted-foreground">这里是这本书的阅读台。AI 会在后台继续规划、写作和审校，你可以随时查看已经保存的正文。</p>
                   </div>
                 </div>
               </div>
 
-              <div className="w-full rounded-2xl border border-white/10 bg-white/[0.08] p-4 xl:max-w-sm">
-                <div className="flex items-center justify-between gap-3 text-sm">
-                  <span className="text-slate-300">全书生产进度</span>
-                  <span className="font-semibold text-white">{shelf.progress.percent}%</span>
+              <div className="w-full rounded-2xl border border-border/80 bg-background/80 p-4 shadow-sm xl:max-w-sm">
+                <div className="flex items-center justify-between gap-3 text-sm text-foreground">
+                  <span className="text-muted-foreground">全书生产进度</span>
+                  <span className="font-semibold">{shelf.progress.percent}%</span>
                 </div>
-                <div className="mt-3 h-2 overflow-hidden rounded-full bg-white/10">
-                  <div className="h-full rounded-full bg-sky-300 transition-all" style={{ width: `${shelf.progress.percent}%` }} />
+                <div className="mt-3 h-2 overflow-hidden rounded-full bg-muted">
+                  <div className="h-full rounded-full bg-primary/70 transition-all" style={{ width: `${shelf.progress.percent}%` }} />
                 </div>
-                <div className="mt-3 flex items-start gap-2 text-xs leading-5 text-slate-300">
-                  {shelf.progress.status === "paused" || shelf.progress.status === "failed" ? <PauseCircle className="mt-0.5 h-4 w-4 shrink-0 text-amber-300" /> : <Sparkles className="mt-0.5 h-4 w-4 shrink-0 text-sky-300" />}
+                <div className="mt-3 flex items-start gap-2 text-xs leading-5 text-muted-foreground">
+                  {shelf.progress.status === "paused" || shelf.progress.status === "failed" ? <PauseCircle className="mt-0.5 h-4 w-4 shrink-0 text-amber-600" /> : <Sparkles className="mt-0.5 h-4 w-4 shrink-0 text-primary" />}
                   <span>{shelf.progress.currentAction}</span>
                 </div>
               </div>
@@ -209,7 +202,7 @@ export default function SimpleNovelShelfPage() {
             ) : null}
             <div className="flex-1" />
             <Button variant="outline" size="sm" onClick={() => exportMutation.mutate()} disabled={exportMutation.isPending}><Download className="h-4 w-4" /> 导出已完成章节</Button>
-            <Button variant="ghost" size="sm" onClick={() => setConvertOpen(true)}><Settings2 className="h-4 w-4" /> 转为专业创作</Button>
+            <Button variant="ghost" size="sm" onClick={() => switchExperienceMutation.mutate()} disabled={switchExperienceMutation.isPending}><Settings2 className="h-4 w-4" /> 专业模式</Button>
           </div>
           {shelf.progress.safetyMessage ? (
             <div className="flex items-start gap-3 border-t border-amber-200 bg-amber-50 px-5 py-3 text-sm leading-6 text-amber-950 sm:px-7">
@@ -238,7 +231,14 @@ export default function SimpleNovelShelfPage() {
               <span className="inline-flex h-9 w-9 items-center justify-center rounded-xl bg-primary/10 text-primary"><FileText className="h-4 w-4" /></span>
               <div><div className="font-semibold text-foreground">正文阅读台</div><div className="text-xs text-muted-foreground">选择章节后在右侧阅读当前保存版本</div></div>
             </div>
-            <div className="text-xs text-muted-foreground">{savedDraftCount} 章有正文 · {stableChapterCount} 章已稳定</div>
+            <div className="flex items-center gap-3">
+              <div className="text-xs text-muted-foreground">{savedDraftCount} 章有正文 · {stableChapterCount} 章已稳定</div>
+              <Button variant="outline" size="sm" asChild>
+                <Link to={`/novels/${id}/preview${selectedChapter ? `?chapterId=${encodeURIComponent(selectedChapter.id)}` : ""}`}>
+                  <Eye className="h-4 w-4" /> 进入预览模式
+                </Link>
+              </Button>
+            </div>
           </div>
 
           <div className="grid min-h-0 flex-1 lg:grid-cols-[300px_minmax(0,1fr)]">
@@ -327,15 +327,6 @@ export default function SimpleNovelShelfPage() {
           </div>
         </section>
 
-      <Dialog open={convertOpen} onOpenChange={setConvertOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>转为专业创作？</DialogTitle>
-            <DialogDescription>转换后可编辑设定、规划和章节正文，现有内容与后台任务都会保留。此操作不能切回简易创作。</DialogDescription>
-          </DialogHeader>
-          <div className="flex justify-end gap-2"><Button variant="ghost" onClick={() => setConvertOpen(false)}>继续使用简易创作</Button><Button onClick={() => convertMutation.mutate()} disabled={convertMutation.isPending}>{convertMutation.isPending ? "转换中..." : "确认转为专业创作"}</Button></div>
-        </DialogContent>
-      </Dialog>
       </div>
     </div>
   );
