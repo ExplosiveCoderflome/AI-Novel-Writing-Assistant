@@ -17,6 +17,10 @@ import {
   createStyleProfileFromTemplate,
 } from "@/api/styleEngine";
 import { queryKeys } from "@/api/queryKeys";
+import {
+  type WritingFormulaPresetKey,
+  DEFAULT_WRITING_FORMULA_PRESET_KEY,
+} from "./writingFormulaPresets.catalog";
 
 export type WritingFormulaMaterialSource = "direct_text" | "knowledge_document" | "book_analysis";
 
@@ -95,13 +99,13 @@ export function useWritingFormulaCreateFlow({
   onFlowMessage,
 }: UseWritingFormulaCreateFlowOptions) {
   const [form, setForm] = useState<WritingFormulaCreateFormState>(INITIAL_WRITING_FORMULA_CREATE_FORM);
-  const [selectedPresetKey, setSelectedPresetKey] = useState<"imitate" | "balanced" | "transfer">("balanced");
+  const [selectedPresetKey, setSelectedPresetKey] = useState<WritingFormulaPresetKey>(DEFAULT_WRITING_FORMULA_PRESET_KEY);
   const [pendingExtractionTaskId, setPendingExtractionTaskId] = useState("");
   const handledTerminalTaskIdRef = useRef("");
 
   const resetCreateFlow = () => {
     setForm(INITIAL_WRITING_FORMULA_CREATE_FORM);
-    setSelectedPresetKey("balanced");
+    setSelectedPresetKey(DEFAULT_WRITING_FORMULA_PRESET_KEY);
   };
 
   const handleFormChange = (patch: Partial<WritingFormulaCreateFormState>) => {

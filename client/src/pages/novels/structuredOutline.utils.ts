@@ -1,4 +1,6 @@
 import i18next from "i18next";
+import { clampScore, clampWordCount } from "@ai-novel/shared";
+
 export interface StructuredChapter {
   order: number;
   title: string;
@@ -262,10 +264,10 @@ export function applyStructuredChapterBatch(
     chapters: (volume.chapters ?? []).map((chapter) => {
       const nextChapter: StructuredChapter = { ...chapter };
       if (typeof patch.conflictLevel === "number") {
-        nextChapter.conflictLevel = Math.max(0, Math.min(100, Math.round(patch.conflictLevel)));
+        nextChapter.conflictLevel = clampScore(patch.conflictLevel);
       }
       if (typeof patch.targetWordCount === "number") {
-        nextChapter.targetWordCount = Math.max(200, Math.round(patch.targetWordCount));
+        nextChapter.targetWordCount = clampWordCount(patch.targetWordCount);
       }
       if (patch.generateTaskSheet) {
         nextChapter.taskSheet = buildTaskSheetFromStructuredChapter(nextChapter);
