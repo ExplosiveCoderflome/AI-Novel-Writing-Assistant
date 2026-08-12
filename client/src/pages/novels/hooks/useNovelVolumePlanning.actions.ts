@@ -1,3 +1,4 @@
+import i18next from "i18next";
 import type {
   VolumeBeatSheet,
   VolumeChapterListGenerationMode,
@@ -44,12 +45,12 @@ export function startStrategyGenerationAction(params: {
     "将生成卷战略建议，帮助决定推荐卷数、硬规划卷数和各卷角色定位。",
     "这一步不会直接生成卷骨架，也不会拆章节。",
     params.userPreferredVolumeCount != null
-      ? `本次将固定为 ${params.userPreferredVolumeCount} 卷生成分卷策略。`
+      ? i18next.t("novels.prefVolNotice", { count: params.userPreferredVolumeCount, defaultValue: `本次将固定为 ${params.userPreferredVolumeCount} 卷生成分卷策略。` })
       : params.forceSystemRecommendedVolumeCount
-        ? `本次将按系统建议卷数生成（当前建议 ${params.volumeCountGuidance.systemRecommendedVolumeCount} 卷），不沿用现有草稿卷数。`
+        ? i18next.t("novels.sysVolNotice", { count: params.volumeCountGuidance.systemRecommendedVolumeCount, defaultValue: `本次将按系统建议卷数生成（当前建议 ${params.volumeCountGuidance.systemRecommendedVolumeCount} 卷），不沿用现有草稿卷数。` })
         : params.volumeCountGuidance.respectedExistingVolumeCount != null
-          ? `本次会优先沿用当前草稿的 ${params.volumeCountGuidance.respectedExistingVolumeCount} 卷结构，同时保持在允许区间 ${params.volumeCountGuidance.allowedVolumeCountRange.min}-${params.volumeCountGuidance.allowedVolumeCountRange.max} 内。`
-          : `当前系统建议 ${params.volumeCountGuidance.systemRecommendedVolumeCount} 卷，结构建议区间 ${params.volumeCountGuidance.decisionVolumeCountRange.min}-${params.volumeCountGuidance.decisionVolumeCountRange.max} 卷。`,
+          ? i18next.t("novels.respectVolNotice", { count: params.volumeCountGuidance.respectedExistingVolumeCount, min: params.volumeCountGuidance.allowedVolumeCountRange.min, max: params.volumeCountGuidance.allowedVolumeCountRange.max, defaultValue: `本次会优先沿用当前草稿的 ${params.volumeCountGuidance.respectedExistingVolumeCount} 卷结构，同时保持在允许区间 ${params.volumeCountGuidance.allowedVolumeCountRange.min}-${params.volumeCountGuidance.allowedVolumeCountRange.max} 内。` })
+          : i18next.t("novels.suggestVolNotice", { rec: params.volumeCountGuidance.systemRecommendedVolumeCount, min: params.volumeCountGuidance.decisionVolumeCountRange.min, max: params.volumeCountGuidance.decisionVolumeCountRange.max, defaultValue: `当前系统建议 ${params.volumeCountGuidance.systemRecommendedVolumeCount} 卷，结构建议区间 ${params.volumeCountGuidance.decisionVolumeCountRange.min}-${params.volumeCountGuidance.decisionVolumeCountRange.max} 卷。` }),
     params.hasUnsavedVolumeDraft ? "本次会直接使用当前页面未保存草稿作为参考。" : "本次会基于当前工作区状态生成建议。",
   ].join("\n\n"));
   if (!confirmed) {
@@ -105,13 +106,11 @@ export function startBeatSheetGenerationAction(params: {
     params.setStructuredMessage("请先生成卷战略建议，再生成当前卷节奏板。");
     return;
   }
-  if (!params.ensureCharacterGuard()) {
-    return;
-  }
   const existingBeatSheet = findBeatSheet(params.beatSheets, params.volumeId);
   if (existingBeatSheet) {
+    const volumeName = targetVolume.title?.trim() || i18next.t("novels.volumeName", { order: targetVolume.sortOrder, defaultValue: `第${targetVolume.sortOrder}卷` });
     const confirmed = window.confirm([
-      `将重新生成「${targetVolume.title?.trim() || `第${targetVolume.sortOrder}卷`}」的节奏板。`,
+      i18next.t("novels.reGenBeatMsg", { volumeName, defaultValue: `将重新生成「${volumeName}」的节奏板。` }),
       "这一步会覆盖当前卷现有节奏段与交付项。",
       "已有章节列表和章节细化资产不会被直接删除，但如果新节奏区间发生变化，建议随后检查章节列表是否仍然匹配。",
     ].join("\n\n"));
@@ -175,11 +174,12 @@ export function buildChapterListSuccessMessage(params: {
   if (params.generationMode === "single_beat" && params.targetVolumeId && params.targetBeatKey) {
     const targetBeat = findBeatSheet(params.document.beatSheets, params.targetVolumeId)?.beats
       .find((beat) => beat.key === params.targetBeatKey);
+    const beatName = targetBeat ? `${targetBeat.label}${targetBeat.title ? ` · ${targetBeat.title}` : ""}` : params.targetBeatKey;
     return updatedChapterCount > 0
-      ? `当前卷节奏段「${targetBeat ? `${targetBeat.label}${targetBeat.title ? ` · ${targetBeat.title}` : ""}` : params.targetBeatKey}」已生成并自动保存${syncSuffix}，本卷现有 ${updatedChapterCount} 章。`
-      : `当前卷节奏段「${targetBeat ? `${targetBeat.label}${targetBeat.title ? ` · ${targetBeat.title}` : ""}` : params.targetBeatKey}」已生成并自动保存${syncSuffix}。`;
+      ? i18next.t("novels.singleBeatSuccessCount", { beatName, syncSuffix, count: updatedChapterCount, defaultValue: `当前卷节奏段「${beatName}」已生成并自动保存${syncSuffix}，本卷现有 ${updatedChapterCount} 章。` })
+      : i18next.t("novels.singleBeatSuccess", { beatName, syncSuffix, defaultValue: `当前卷节奏段「${beatName}」已生成并自动保存${syncSuffix}。` });
   }
   return updatedChapterCount > 0
-    ? `当前卷章节列表已生成并自动保存${syncSuffix}，现已更新为 ${updatedChapterCount} 章，相邻卷再平衡建议也已同步更新。`
-    : `当前卷章节列表已生成并自动保存${syncSuffix}，相邻卷再平衡建议也已同步更新。`;
+    ? i18next.t("novels.fullVolumeSuccessCount", { syncSuffix, count: updatedChapterCount, defaultValue: `当前卷章节列表已生成并自动保存${syncSuffix}，现已更新为 ${updatedChapterCount} 章，相邻卷再平衡建议也已同步更新。` })
+    : i18next.t("novels.fullVolumeSuccess", { syncSuffix, defaultValue: `当前卷章节列表已生成并自动保存${syncSuffix}，相邻卷再平衡建议也已同步更新。` });
 }

@@ -40,13 +40,13 @@ function formatConnectionTestResult(response: Awaited<ReturnType<typeof testLLMC
   const structured = response.data?.structured;
   const plainText = plain
     ? plain.ok
-      ? `普通连通正常${plain.latency != null ? ` (${plain.latency}ms)` : ""}`
-      : `普通连通失败${plain.error ? `：${plain.error}` : ""}`
+      ? i18next.t("settings.plainSuccess", { latencyText: plain.latency != null ? ` (${plain.latency}ms)` : "", defaultValue: `普通连通正常${plain.latency != null ? ` (${plain.latency}ms)` : ""}` })
+      : i18next.t("settings.plainFailed", { errorText: plain.error ? `：${plain.error}` : "", defaultValue: `普通连通失败${plain.error ? `：${plain.error}` : ""}` })
     : i18next.t("dict.gen_51f4fc6d");
   const structuredText = structured
     ? structured.ok
-      ? `结构化正常${structured.strategy ? `，策略 ${structured.strategy}` : ""}${structured.reasoningForcedOff ? i18next.t("dict.gen_5171d6ff") : ""}`
-      : `结构化失败${structured.errorCategory ? `，分类 ${structured.errorCategory}` : ""}${structured.error ? `：${structured.error}` : ""}`
+      ? i18next.t("settings.structuredSuccess", { strategyText: structured.strategy ? `，策略 ${structured.strategy}` : "", reasoningText: structured.reasoningForcedOff ? i18next.t("dict.gen_5171d6ff") : "", defaultValue: `结构化正常${structured.strategy ? `，策略 ${structured.strategy}` : ""}${structured.reasoningForcedOff ? i18next.t("dict.gen_5171d6ff") : ""}` })
+      : i18next.t("settings.structuredFailed", { categoryText: structured.errorCategory ? `，分类 ${structured.errorCategory}` : "", errorText: structured.error ? `：${structured.error}` : "", defaultValue: `结构化失败${structured.errorCategory ? `，分类 ${structured.errorCategory}` : ""}${structured.error ? `：${structured.error}` : ""}` })
     : i18next.t("dict.gen_333d0bf3");
   return i18next.t("settings.settingsPage.81u0s3", { val1: latency, val2: plainText, val3: structuredText });
 }

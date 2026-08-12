@@ -346,18 +346,8 @@ files.forEach((filePath) => {
       }
 
       const exprCode = rawBody.slice(exprStart + 2, exprEnd - 1).trim();
-      // 严格跳过包含复杂运算符、引号、嵌套 i18n 或逻辑运算的表达式，确保 100% 语法安全
-      if (
-        exprCode.includes('?') ||
-        exprCode.includes(':') ||
-        exprCode.includes('`') ||
-        exprCode.includes('"') ||
-        exprCode.includes("'") ||
-        exprCode.includes('||') ||
-        exprCode.includes('&&') ||
-        exprCode.includes('??') ||
-        exprCode.includes('i18next')
-      ) {
+      // 只跳过包含嵌套反引号 ` 或 i18next 调用的表达式，防范嵌套报错
+      if (exprCode.includes('`') || exprCode.includes('i18next')) {
         hasError = true;
         break;
       }
@@ -378,7 +368,7 @@ files.forEach((filePath) => {
     if (params.length === 0) {
       return `i18next.t("${keyPath}")`;
     } else {
-      const paramsObjStr = params.map(p => `${p.name}: ${p.expr}`).join(', ');
+      const paramsObjStr = params.map(p => `${p.name}: (${p.expr})`).join(', ');
       return `i18next.t("${keyPath}", { ${paramsObjStr} })`;
     }
   });

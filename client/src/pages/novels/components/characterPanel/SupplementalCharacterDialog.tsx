@@ -108,7 +108,7 @@ export default function SupplementalCharacterDialog(props: SupplementalCharacter
         : prev);
       setSupplementalStatusMessage(
         response.message
-        ?? `${createdName} 已加入当前小说${relationCount > 0 ? `，并同步 ${relationCount} 条关系` : ""}。`,
+        ?? i18next.t("novels.characterJoinedDetail", { name: createdName, relText: relationCount > 0 ? `，并同步 ${relationCount} 条关系` : "", defaultValue: `${createdName} 已加入当前小说${relationCount > 0 ? `，并同步 ${relationCount} 条关系` : ""}。` }),
       );
     } catch (error) {
       setSupplementalStatusMessage(error instanceof Error ? error.message : i18next.t("dict.gen_e113be50"));

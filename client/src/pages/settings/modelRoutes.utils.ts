@@ -119,8 +119,8 @@ export function formatConnectivityStatus(status?: ModelRouteConnectivityStatus |
   if (status.plain) {
     parts.push(
       status.plain.ok
-        ? `普通连通正常${status.plain.latency != null ? ` · ${status.plain.latency}ms` : ""}`
-        : `普通连通失败 · ${status.plain.error ?? i18next.t("dict.gen_974e7484")}`,
+        ? i18next.t("settings.plainConnectOk", { latencyText: status.plain.latency != null ? ` · ${status.plain.latency}ms` : "", defaultValue: `普通连通正常${status.plain.latency != null ? ` · ${status.plain.latency}ms` : ""}` })
+        : i18next.t("settings.plainConnectFailed", { errorText: status.plain.error ?? i18next.t("dict.gen_974e7484"), defaultValue: `普通连通失败 · ${status.plain.error ?? i18next.t("dict.gen_974e7484")}` }),
     );
   }
   parts.push(formatStructuredStatus(status.structured));

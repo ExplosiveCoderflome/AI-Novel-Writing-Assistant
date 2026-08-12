@@ -231,7 +231,9 @@ export default function StructuredChapterDetailCard(props: StructuredChapterDeta
                   onClick={() => onGenerateChapterDetailBundle(selectedVolume.id, batchPlan?.request ?? { chapterIds: [] })}
                   disabled={isGeneratingChapterDetail || locked || !batchPlan}
                 >
-                  {isGeneratingChapterDetailBundle ? "批量细化中..." : `批量细化${batchPlan ? ` ${batchPlan.count} 章` : ""}`}
+                  {isGeneratingChapterDetailBundle
+                    ? i18next.t("novels.batchRefiningInProgress", { defaultValue: "批量细化中..." })
+                    : i18next.t("novels.batchRefineCount", { count: batchPlan?.count ?? 0, defaultValue: `批量细化${batchPlan ? ` ${batchPlan.count} 章` : ""}` })}
                 </AiButton>
               </div>
 

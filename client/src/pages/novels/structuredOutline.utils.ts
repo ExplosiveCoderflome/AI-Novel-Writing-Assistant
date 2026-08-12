@@ -223,7 +223,8 @@ function compactList(items: string[] | undefined): string {
 
 export function buildTaskSheetFromStructuredChapter(chapter: StructuredChapter): string {
   const lines: string[] = [];
-  lines.push(`章节目标：${chapter.purpose || chapter.summary || i18next.t("dict.gen_cd67f351")}`);
+  const targetText = chapter.purpose || chapter.summary || i18next.t("dict.gen_cd67f351");
+  lines.push(i18next.t("novels.structuredOutline.purposeTarget", { targetText, defaultValue: `章节目标：${targetText}` }));
   if (chapter.keyEvents && chapter.keyEvents.length > 0) {
     lines.push(i18next.t("novels.structuredOutline.utils.rgsjqc", { val1: compactList(chapter.keyEvents) }));
   }

@@ -74,7 +74,9 @@ function formatEvent(event: RuntimeEvent): string {
   if (event.type === "approval_required") {
     return i18next.t("chat.chatPage.uo1l7u", { val1: event.summary });
   }
-  return `审批结果: ${toApprovalActionLabel(event.action)}${event.note ? ` (${event.note})` : ""}`;
+  const actionText = toApprovalActionLabel(event.action);
+  const noteText = event.note ? ` (${event.note})` : "";
+  return i18next.t("chat.approvalResult", { actionText, noteText, defaultValue: `审批结果: ${actionText}${noteText}` });
 }
 
 function safePreview(json: string | null | undefined): string {

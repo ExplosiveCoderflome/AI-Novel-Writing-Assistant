@@ -37,7 +37,7 @@ export default function TaskCenterDetailSummary({
     ["开始时间", formatDate(task.startedAt)],
     ["结束时间", formatDate(task.finishedAt)],
     ["重试次数", task.retryCountLabel],
-    ...((task.provider || task.model) ? [["调用模型", `${task.provider ?? "暂无"} / ${task.model ?? "暂无"}`]] : []),
+    ...((task.provider || task.model) ? [[i18next.t("tasks.callModel", { defaultValue: "调用模型" }), `${task.provider ?? i18next.t("common.none", { defaultValue: "暂无" })} / ${task.model ?? i18next.t("common.none", { defaultValue: "暂无" })}`]] : []),
     ...(isAutoDirectorTask ? [["界面模型", currentModelLabel]] : []),
     ...((task.tokenUsage || task.provider || task.model) ? [
       ["累计调用", formatTokenCount(task.tokenUsage?.llmCallCount ?? 0)],

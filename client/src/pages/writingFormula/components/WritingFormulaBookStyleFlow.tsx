@@ -33,7 +33,7 @@ export default function WritingFormulaBookStyleFlow(props: WritingFormulaBookSty
             <div className="text-sm font-medium text-slate-900">{i18next.t("dict.gen_5e20e280")}</div>
             <div className="rounded-2xl border bg-white p-4 text-sm leading-7 text-slate-700">
               {novelId
-                ? `当前小说${novelTitle ? `《${novelTitle}》` : ""}的“默认写法”已经放到小说基础信息页里。`
+                ? i18next.t("writingFormula.bookStyleNotice", { titleText: novelTitle ? `《${novelTitle}》` : "", defaultValue: `当前小说${novelTitle ? `《${novelTitle}》` : ""}的“默认写法”已经放到小说基础信息页里。` })
                 : i18next.t("dict.gen_6c23a22f")}
             </div>
             <div className="rounded-2xl border bg-slate-950 p-4 text-white">

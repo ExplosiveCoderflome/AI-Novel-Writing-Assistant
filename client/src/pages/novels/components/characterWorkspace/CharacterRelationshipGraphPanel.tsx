@@ -538,16 +538,17 @@ function getEdgeTone(edge?: RelationshipGraphEdge) {
 }
 
 function getRelationNames(edge: RelationshipGraphEdge): string {
+  const unknownLabel = i18next.t("common.unknownCharacter", { defaultValue: "未知角色" });
   if (edge.sourceName || edge.targetName) {
-    return `${edge.sourceName || "未知角色"} -> ${edge.targetName || "未知角色"}`;
+    return `${edge.sourceName || unknownLabel} -> ${edge.targetName || unknownLabel}`;
   }
   const staticRelation = edge.staticRelation;
   if (staticRelation?.sourceCharacterName || staticRelation?.targetCharacterName) {
-    return `${staticRelation.sourceCharacterName ?? "未知角色"} -> ${staticRelation.targetCharacterName ?? "未知角色"}`;
+    return `${staticRelation.sourceCharacterName ?? unknownLabel} -> ${staticRelation.targetCharacterName ?? unknownLabel}`;
   }
   const stage = edge.dynamicStages[0];
   if (stage) {
-    return `${stage.sourceCharacterName ?? "未知角色"} -> ${stage.targetCharacterName ?? "未知角色"}`;
+    return `${stage.sourceCharacterName ?? unknownLabel} -> ${stage.targetCharacterName ?? unknownLabel}`;
   }
   return i18next.t("novels.characterRelationshipGraphPanel.hxasp4");
 }

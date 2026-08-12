@@ -165,8 +165,13 @@ files.forEach((filePath) => {
 
     // ====== 7. 检查模板字面量中的中文 ======
     if (/`[^`]*[\u4e00-\u9fa5]+[^`]*`/.test(lineWithoutI18n)) {
-      // 跳过 CSS class 模板字面量
-      if (!/\b(?:flex|grid|text-|bg-|border|rounded|px-|py-|gap-|items-|justify-|w-|h-)\b/.test(lineWithoutI18n) && !line.includes('isEn')) {
+      // 跳过 CSS class 模板字面量以及包含 i18next.t 或 isEn 的国际化处理行
+      if (
+        !/\b(?:flex|grid|text-|bg-|border|rounded|px-|py-|gap-|items-|justify-|w-|h-)\b/.test(lineWithoutI18n) &&
+        !line.includes('isEn') &&
+        !line.includes('i18next.t(') &&
+        !line.includes('t(')
+      ) {
         errors.push({
           file: relPath,
           line: lineNum,

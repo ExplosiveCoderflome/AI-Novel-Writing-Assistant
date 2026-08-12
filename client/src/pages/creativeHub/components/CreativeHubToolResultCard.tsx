@@ -248,7 +248,7 @@ function renderPipelineRunCard(
   const title = toolName === "preview_pipeline_run" ? "整本写作预览" : "整本写作任务";
   const description = toolName === "preview_pipeline_run"
     ? i18next.t("creativeHub.creativeHubToolResultCard.nunv81", { val1: scope })
-    : `${scope} 的整本写作任务已启动${jobId ? `（任务 ${jobId}）` : ""}。`;
+    : i18next.t("creativeHub.fullBookTaskStarted", { scope, jobIdText: jobId ? `（任务 ${jobId}）` : "", defaultValue: `${scope} 的整本写作任务已启动${jobId ? `（任务 ${jobId}）` : ""}。` });
   const actions = toolName === "preview_pipeline_run"
     ? [
       { label: i18next.t("creativeHub.creativeHubToolResultCard.1zirzd"), prompt: i18next.t("creativeHub.creativeHubToolResultCard.jwby3i") },

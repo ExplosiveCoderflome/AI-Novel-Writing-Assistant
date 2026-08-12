@@ -1102,8 +1102,8 @@ export default function StockStudioPage() {
                 <div>
                   <span className="text-slate-400">输出策略指令共 ({actionsList.length} 项): </span>
                   {actionsList.length > 0
-                    ? actionsList.map((a) => `${a.action === "BUY" ? "加仓" : a.action === "TRIM" ? "减仓" : "观望"}${a.symbol}`).join(" | ")
-                    : "暂无推荐指令"}
+                    ? actionsList.map((a) => `${a.action === "BUY" ? i18next.t("stock.buyAction", { defaultValue: "加仓" }) : a.action === "TRIM" ? i18next.t("stock.trimAction", { defaultValue: "减仓" }) : i18next.t("stock.holdAction", { defaultValue: "观望" })}${a.symbol}`).join(" | ")
+                    : i18next.t("stock.noActions", { defaultValue: "暂无推荐指令" })}
                 </div>
               </div>
             </div>

@@ -114,8 +114,9 @@ export function createEmptyChapter(chapterOrder: number): VolumeChapterPlan {
 }
 
 export function buildTaskSheetFromVolumeChapter(chapter: VolumeChapterPlan): string {
+  const targetText = chapter.purpose || chapter.summary || i18next.t("dict.gen_e7168520");
   const lines = [
-    `章节目标：${chapter.purpose || chapter.summary || i18next.t("dict.gen_e7168520")}`,
+    i18next.t("novels.volumePlan.purposeTarget", { targetText, defaultValue: `章节目标：${targetText}` }),
     typeof chapter.conflictLevel === "number" ? i18next.t("novels.structuredOutline.utils.2vuot9", { val1: chapter.conflictLevel }) : "",
     typeof chapter.revealLevel === "number" ? i18next.t("novels.structuredOutline.utils.1y9wmx", { val1: chapter.revealLevel }) : "",
     typeof chapter.targetWordCount === "number" ? i18next.t("novels.volumePlan.utils.qvy0w8", { val1: chapter.targetWordCount }) : "",

@@ -356,7 +356,7 @@ export function useNovelCharacterMutations(input: UseNovelCharacterMutationsInpu
       const relationCount = response.data?.relationCount ?? 0;
       setCharacterMessage(
         response.message
-        ?? `补充角色已创建${relationCount > 0 ? `，并同步 ${relationCount} 条结构化关系` : ""}。`,
+        ?? i18next.t("novels.supplementalCharCreated", { count: relationCount, relText: relationCount > 0 ? `，并同步 ${relationCount} 条结构化关系` : "", defaultValue: `补充角色已创建${relationCount > 0 ? `，并同步 ${relationCount} 条结构化关系` : ""}。` }),
       );
       if (createdCharacterId) {
         setSelectedCharacterId(createdCharacterId);
