@@ -7,26 +7,16 @@ import {
   createCustomProvider,
   deleteCustomProvider,
   getAPIKeySettings,
-  getModelRoutes,
   getProviderBalances,
-  getRagSettings,
-  getStyleEngineRuntimeSettings,
   previewCustomProviderModels,
   refreshProviderBalance,
   refreshProviderModelList,
   saveAPIKeySetting,
   testLLMConnection,
-  testModelRouteConnectivity,
 } from "@/api/settings";
 import { queryKeys } from "@/api/queryKeys";
-import AutoDirectorSettingsSection from "./AutoDirectorSettingsSection";
 import ProviderConfigDialog, { type ProviderFormState } from "./components/ProviderConfigDialog";
 import ProviderSettingsSection from "./components/ProviderSettingsSection";
-import SettingsMaintenanceSection from "./components/SettingsMaintenanceSection";
-import SettingsNavigationCards from "./components/SettingsNavigationCards";
-import SettingsReadinessCard, { buildSettingsReadinessItems } from "./components/SettingsReadinessCard";
-import SettingsSectionGroup from "./components/SettingsSectionGroup";
-import StyleEngineRuntimeSettingsCard from "./components/StyleEngineRuntimeSettingsCard";
 import SettingsActionResult from "./SettingsActionResult";
 import { AUTO_DIRECTOR_MOBILE_CLASSES } from "@/mobile/autoDirector";
 
@@ -76,28 +66,6 @@ export default function SettingsPage() {
     queryFn: getProviderBalances,
   });
 
-  const ragSettingsQuery = useQuery({
-    queryKey: queryKeys.settings.rag,
-    queryFn: getRagSettings,
-  });
-
-  const styleEngineRuntimeQuery = useQuery({
-    queryKey: queryKeys.settings.styleEngineRuntime,
-    queryFn: getStyleEngineRuntimeSettings,
-  });
-
-  const modelRoutesQuery = useQuery({
-    queryKey: queryKeys.settings.modelRoutes,
-    queryFn: getModelRoutes,
-  });
-
-  const modelRouteConnectivityQuery = useQuery({
-    queryKey: queryKeys.settings.modelRouteConnectivity,
-    queryFn: testModelRouteConnectivity,
-    enabled: modelRoutesQuery.isSuccess,
-    refetchOnWindowFocus: false,
-  });
-
   const providerConfigs = useMemo(() => apiKeySettingsQuery.data?.data ?? [], [apiKeySettingsQuery.data?.data]);
   const editingConfig = useMemo(
     () => providerConfigs.find((item) => item.provider === editingProvider),
@@ -107,28 +75,6 @@ export default function SettingsPage() {
   const isCustomDialog = isCreatingCustomProvider || editingConfig?.kind === "custom";
   const modelOptions = editingConfig?.models ?? [];
   const selectableModels = isCreatingCustomProvider ? previewModels : modelOptions;
-  const readinessItems = useMemo(
-    () => buildSettingsReadinessItems({
-      providers: providerConfigs,
-      ragSettings: ragSettingsQuery.data?.data,
-      styleSettings: styleEngineRuntimeQuery.data?.data,
-      modelRoutes: modelRoutesQuery.data?.data,
-      modelRouteConnectivity: modelRouteConnectivityQuery.data?.data,
-      isModelRoutesChecking: modelRouteConnectivityQuery.isPending || modelRouteConnectivityQuery.isFetching,
-      isStyleSettingsLoaded: styleEngineRuntimeQuery.isSuccess,
-    }),
-    [
-      providerConfigs,
-      ragSettingsQuery.data?.data,
-      styleEngineRuntimeQuery.data?.data,
-      styleEngineRuntimeQuery.isSuccess,
-      modelRoutesQuery.data?.data,
-      modelRouteConnectivityQuery.data?.data,
-      modelRouteConnectivityQuery.isPending,
-      modelRouteConnectivityQuery.isFetching,
-    ],
-  );
-
   const resetDialogState = () => {
     setEditingProvider("");
     setIsCreatingCustomProvider(false);
@@ -150,10 +96,7 @@ export default function SettingsPage() {
     await Promise.all([
       queryClient.invalidateQueries({ queryKey: queryKeys.settings.apiKeys }),
       queryClient.invalidateQueries({ queryKey: queryKeys.settings.apiKeyBalances }),
-      queryClient.invalidateQueries({ queryKey: queryKeys.settings.rag }),
       queryClient.invalidateQueries({ queryKey: queryKeys.llm.providers }),
-      queryClient.invalidateQueries({ queryKey: queryKeys.settings.modelRoutes }),
-      queryClient.invalidateQueries({ queryKey: queryKeys.settings.modelRouteConnectivity }),
     ]);
   };
 
@@ -178,10 +121,7 @@ export default function SettingsPage() {
   const invalidateProviderAuxiliaryQueries = async () => {
     await Promise.all([
       queryClient.invalidateQueries({ queryKey: queryKeys.settings.apiKeyBalances }),
-      queryClient.invalidateQueries({ queryKey: queryKeys.settings.rag }),
       queryClient.invalidateQueries({ queryKey: queryKeys.llm.providers }),
-      queryClient.invalidateQueries({ queryKey: queryKeys.settings.modelRoutes }),
-      queryClient.invalidateQueries({ queryKey: queryKeys.settings.modelRouteConnectivity }),
     ]);
   };
 
@@ -461,12 +401,7 @@ export default function SettingsPage() {
 
   return (
     <div className={AUTO_DIRECTOR_MOBILE_CLASSES.settingsPageRoot}>
-      <SettingsSectionGroup
-        title="开始创作必需"
-        description="先让模型和任务路由可用，新手就能进入自动导演、开书和章节生产。"
-        status="required"
-      >
-        <SettingsReadinessCard items={readinessItems} />
+      <div className="space-y-4">
         <ProviderSettingsSection
           providers={providerConfigs}
           balances={providerBalancesQuery.data?.data ?? []}
@@ -494,34 +429,9 @@ export default function SettingsPage() {
               reasoningEnabled,
             });
           }}
+          defaultShowConfiguredOnly
         />
-        <SettingsNavigationCards mode="routes" />
-      </SettingsSectionGroup>
-
-      <SettingsSectionGroup
-        title="写作质量增强"
-        description="这些设置会提高长篇连续性、资料召回和写法学习效果；不影响你先开始创作。"
-        status="enhancement"
-      >
-        <SettingsNavigationCards mode="knowledge" />
-        <StyleEngineRuntimeSettingsCard />
-      </SettingsSectionGroup>
-
-      <SettingsSectionGroup
-        title="自动导演高级"
-        description="需要自动确认审批点或接入钉钉、企业微信跟进时，再展开这里配置。"
-        status="advanced"
-      >
-        <AutoDirectorSettingsSection onActionResult={setActionResult} />
-      </SettingsSectionGroup>
-
-      <SettingsSectionGroup
-        title="系统维护"
-        description="桌面更新和旧数据导入放在这里，避免打断日常创作配置。"
-        status="maintenance"
-      >
-        <SettingsMaintenanceSection />
-      </SettingsSectionGroup>
+      </div>
 
       <SettingsActionResult message={actionResult} />
 

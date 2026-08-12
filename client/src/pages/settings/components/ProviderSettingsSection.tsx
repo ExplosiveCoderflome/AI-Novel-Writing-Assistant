@@ -1,3 +1,4 @@
+import { useMemo, useState } from "react";
 import type { LLMProvider } from "@ai-novel/shared/types/llm";
 import type { APIKeyStatus, ProviderBalanceStatus } from "@/api/settings";
 import { Button } from "@/components/ui/button";
@@ -20,6 +21,7 @@ export default function ProviderSettingsSection(props: {
   onRefreshModels: (provider: LLMProvider) => void;
   onRefreshBalance: (provider: LLMProvider) => void;
   onToggleReasoning: (provider: LLMProvider, reasoningEnabled: boolean) => void;
+  defaultShowConfiguredOnly?: boolean;
 }) {
   const {
     providers,
@@ -36,7 +38,9 @@ export default function ProviderSettingsSection(props: {
     onRefreshModels,
     onRefreshBalance,
     onToggleReasoning,
+    defaultShowConfiguredOnly = false,
   } = props;
+  const [showAllProviders, setShowAllProviders] = useState(!defaultShowConfiguredOnly);
   const balanceMap = new Map(balances.map((item) => [item.provider, item]));
   const viewModels: ProviderCardViewModel[] = providers.map((provider) => {
     const balance = balanceMap.get(provider.provider);
@@ -56,6 +60,11 @@ export default function ProviderSettingsSection(props: {
       testResult: providerTestResults[provider.provider],
     };
   });
+  const visibleViewModels = useMemo(
+    () => showAllProviders ? viewModels : viewModels.filter(({ provider }) => provider.isConfigured && provider.isActive),
+    [showAllProviders, viewModels],
+  );
+  const hiddenProviderCount = viewModels.length - visibleViewModels.length;
 
   return (
     <Card id="settings-provider-section" className="min-w-0 scroll-mt-20 overflow-hidden">
@@ -66,12 +75,19 @@ export default function ProviderSettingsSection(props: {
             先保证至少一个文本模型可用；余额明细、请求限制和模型列表可以在高级详情里检查。
           </CardDescription>
         </div>
-        <Button className={AUTO_DIRECTOR_MOBILE_CLASSES.fullWidthAction} onClick={onCreateCustomProvider}>
-          新增自定义厂商
-        </Button>
+        <div className="flex flex-wrap gap-2">
+          {defaultShowConfiguredOnly && hiddenProviderCount > 0 ? (
+            <Button variant="outline" onClick={() => setShowAllProviders((current) => !current)}>
+              {showAllProviders ? "收起其他厂商" : `管理全部厂商 (${hiddenProviderCount})`}
+            </Button>
+          ) : null}
+          <Button className={AUTO_DIRECTOR_MOBILE_CLASSES.fullWidthAction} onClick={onCreateCustomProvider}>
+            新增自定义厂商
+          </Button>
+        </div>
       </CardHeader>
       <CardContent className="grid min-w-0 gap-3 md:grid-cols-2">
-        {viewModels.map((item) => (
+        {visibleViewModels.map((item) => (
           <ProviderStatusCard
             key={item.provider.provider}
             item={item}
@@ -83,6 +99,11 @@ export default function ProviderSettingsSection(props: {
             isRefreshingModels={refreshingModelProvider === item.provider.provider}
           />
         ))}
+        {!visibleViewModels.length ? (
+          <div className="rounded-md border border-dashed p-4 text-sm text-muted-foreground md:col-span-2">
+            还没有启用的模型厂商。展开全部厂商或新增自定义厂商后完成配置。
+          </div>
+        ) : null}
       </CardContent>
     </Card>
   );

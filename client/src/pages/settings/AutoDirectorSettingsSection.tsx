@@ -23,8 +23,9 @@ import {
 
 export default function AutoDirectorSettingsSection(props: {
   onActionResult: (message: string) => void;
+  collapseAdvanced?: boolean;
 }) {
-  const { onActionResult } = props;
+  const { onActionResult, collapseAdvanced = false } = props;
   const queryClient = useQueryClient();
   const [autoDirectorChannelDraft, setAutoDirectorChannelDraft] = useState<AutoDirectorChannelDraft | null>(null);
   const [approvalPreferenceDraft, setApprovalPreferenceDraft] = useState<string[] | null>(null);
@@ -138,44 +139,37 @@ export default function AutoDirectorSettingsSection(props: {
         isSaving={saveApprovalPreferenceMutation.isPending}
       />
 
+      {collapseAdvanced ? (
+        <details className="rounded-md border bg-muted/20 p-4">
+          <summary className="cursor-pointer text-sm font-medium">高级控制</summary>
+          <div className="mt-4 space-y-4">
+            <AdvancedControls />
+          </div>
+        </details>
+      ) : <AdvancedControls />}
+    </>
+  );
+
+  function AdvancedControls() {
+    return <>
       <AutoDirectorPendingReviewAutoPromotionCard
         settings={pendingReviewAutoPromotion}
         isLoading={pendingReviewAutoPromotionQuery.isLoading}
         isSaving={savePendingReviewAutoPromotionMutation.isPending}
-        onEnable={(payload) => savePendingReviewAutoPromotionMutation.mutate({
-          enabled: true,
-          acknowledgedRisks: payload.acknowledgedRisks,
-          confirmationText: payload.confirmationText,
-        })}
-        onDisable={() => savePendingReviewAutoPromotionMutation.mutate({
-          enabled: false,
-        })}
+        onEnable={(payload) => savePendingReviewAutoPromotionMutation.mutate({ enabled: true, acknowledgedRisks: payload.acknowledgedRisks, confirmationText: payload.confirmationText })}
+        onDisable={() => savePendingReviewAutoPromotionMutation.mutate({ enabled: false })}
       />
-
       <AutoDirectorChannelSettingsCard
         channelDraft={channelDraft}
-        onBaseUrlChange={(value) => setAutoDirectorChannelDraft((prev) => ({
-          ...(prev ?? channelDraft),
-          baseUrl: value,
-        }))}
+        onBaseUrlChange={(value) => setAutoDirectorChannelDraft((prev) => ({ ...(prev ?? channelDraft), baseUrl: value }))}
         onPatchChannelDraft={patchChannelDraft}
         onSave={() => saveAutoDirectorChannelsMutation.mutate({
           baseUrl: channelDraft.baseUrl.trim(),
-          dingtalk: {
-            webhookUrl: channelDraft.dingtalk.webhookUrl.trim(),
-            callbackToken: channelDraft.dingtalk.callbackToken.trim(),
-            operatorMapJson: channelDraft.dingtalk.operatorMapJson.trim(),
-            eventTypes: channelDraft.dingtalk.eventTypes,
-          },
-          wecom: {
-            webhookUrl: channelDraft.wecom.webhookUrl.trim(),
-            callbackToken: channelDraft.wecom.callbackToken.trim(),
-            operatorMapJson: channelDraft.wecom.operatorMapJson.trim(),
-            eventTypes: channelDraft.wecom.eventTypes,
-          },
+          dingtalk: { webhookUrl: channelDraft.dingtalk.webhookUrl.trim(), callbackToken: channelDraft.dingtalk.callbackToken.trim(), operatorMapJson: channelDraft.dingtalk.operatorMapJson.trim(), eventTypes: channelDraft.dingtalk.eventTypes },
+          wecom: { webhookUrl: channelDraft.wecom.webhookUrl.trim(), callbackToken: channelDraft.wecom.callbackToken.trim(), operatorMapJson: channelDraft.wecom.operatorMapJson.trim(), eventTypes: channelDraft.wecom.eventTypes },
         })}
         isSaving={saveAutoDirectorChannelsMutation.isPending}
       />
-    </>
-  );
+    </>;
+  }
 }

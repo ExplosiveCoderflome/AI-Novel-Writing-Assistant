@@ -13,7 +13,6 @@ import {
   LayoutDashboard,
   ListTodo,
   MonitorPlay,
-  Route,
   SquareStack,
   ScanSearch,
   Settings2,
@@ -81,7 +80,6 @@ const navGroups: NavGroup[] = [
     title: "系统",
     items: [
       { to: "/prompt-workbench", label: "提示词管理", icon: Braces },
-      { to: "/settings/model-routes", label: "模型路由", icon: Route },
       { to: "/settings", label: "系统设置", icon: Settings2 },
     ],
   },
