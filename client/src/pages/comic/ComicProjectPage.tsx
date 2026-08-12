@@ -1,4 +1,5 @@
 import i18next from "i18next";
+import { resolveImageProviderOptions, getStoredImageProvider } from "@/lib/imageModelRegistry";
 const t = (key: string, options?: any) => i18next.t(key, options) as string;
 import { useState, useMemo } from "react";
 import { useParams } from "react-router-dom";
@@ -130,31 +131,19 @@ export default function ComicProjectPage() {
     enabled: Boolean(id),
   });
 
-  const { data: rawProviderOptions = [] } = useQuery({
+  const { data: apiKeysRes } = useQuery({
     queryKey: ["settings", "api-keys"],
     queryFn: getAPIKeySettings,
-    select: (res) =>
-      (res.data ?? [])
-        .filter((p) => p.supportsImageGeneration && p.isConfigured)
-        .map((p) => ({ value: p.provider, label: p.displayName ?? p.name })),
   });
 
   const providerOptions = useMemo(() => {
-    const list = [...rawProviderOptions];
-    if (!list.some((p) => p.value === "comfyui")) {
-      list.unshift({ value: "comfyui", label: i18next.t("image.imageGenerationConfirmDialog.i945b5") });
-    }
-    if (!list.some((p) => p.value === "sensenova")) {
-      list.push({ value: "sensenova", label: i18next.t("image.imageGenerationConfirmDialog.xlrobl") });
-    }
-    return list;
-  }, [rawProviderOptions]);
+    return resolveImageProviderOptions(apiKeysRes?.data ?? [], selectedProvider);
+  }, [apiKeysRes?.data, selectedProvider]);
 
   // 缓存的 provider 仍存在于可用列表才用，默认优先使用 comfyui
-  const resolvedProvider =
-    (selectedProvider && providerOptions.some((p) => p.value === selectedProvider))
-      ? selectedProvider
-      : "comfyui";
+  const resolvedProvider = (selectedProvider && providerOptions.some((p) => p.value === selectedProvider))
+    ? selectedProvider
+    : getStoredImageProvider();
 
   const presetMut = useMutation({
     mutationFn: (payload: Parameters<typeof updateComicPreset>[1]) => updateComicPreset(id!, payload),
