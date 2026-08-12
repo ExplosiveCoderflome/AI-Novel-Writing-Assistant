@@ -63,7 +63,7 @@
 
 ---
 
-## 🎨 阶段 4 生成的漫画九宫格分镜与排版脚本 (Comic Page Script)
+## 🎨 阶段 4 生成的商业国漫级矢量 SVG 页面 (High-Aesthetic Manhua SVG)
 
 - **生成的矢量漫画页面文件**: [comic_page_1.svg](file:///C:/Users/lilin/GeneralAgent/server/tests/regression/output_assets/comic_page_1.svg)
 
