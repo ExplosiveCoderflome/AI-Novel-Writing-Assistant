@@ -52,38 +52,42 @@ export default function ModelEvalHeaderCard({
 
       {/* Hardware Spec Quick Badge Bar */}
       {hardware && (
-        <div className="mt-6 pt-4 border-t border-slate-800/80 grid grid-cols-2 sm:grid-cols-4 gap-4 text-xs font-mono">
-          <div className="flex items-center gap-2.5 bg-slate-950/50 px-3.5 py-2 rounded-xl border border-slate-800/60">
+        <div className="mt-6 pt-4 border-t border-slate-800/80 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 text-xs font-mono">
+          <div className="flex items-center gap-2.5 bg-slate-950/50 px-3.5 py-2.5 rounded-xl border border-slate-800/60 min-w-0">
             <Cpu className="w-4 h-4 text-indigo-400 shrink-0" />
-            <div>
-              <div className="text-slate-400 text-[10px]">显卡设备 (GPU)</div>
-              <div className="font-bold text-slate-200 truncate">{hardware.gpuName || "CPU 共享运算"}</div>
+            <div className="min-w-0 flex-1">
+              <div className="text-slate-400 text-[10px] truncate">显卡设备 (GPU)</div>
+              <div className="font-bold text-slate-200 truncate" title={hardware.gpuName || "CPU 共享运算"}>
+                {hardware.gpuName || "CPU 共享运算"}
+              </div>
             </div>
           </div>
 
-          <div className="flex items-center gap-2.5 bg-slate-950/50 px-3.5 py-2 rounded-xl border border-slate-800/60">
+          <div className="flex items-center gap-2.5 bg-slate-950/50 px-3.5 py-2.5 rounded-xl border border-slate-800/60 min-w-0">
             <HardDrive className="w-4 h-4 text-purple-400 shrink-0" />
-            <div>
-              <div className="text-slate-400 text-[10px]">显存 / 内存 (VRAM / RAM)</div>
-              <div className="font-bold text-indigo-300">
+            <div className="min-w-0 flex-1">
+              <div className="text-slate-400 text-[10px] truncate">显存 / 内存 (VRAM / RAM)</div>
+              <div className="font-bold text-indigo-300 truncate">
                 {hardware.vramGb > 0 ? `${hardware.vramGb} GB VRAM` : `${hardware.totalRamGb} GB RAM`}
               </div>
             </div>
           </div>
 
-          <div className="flex items-center gap-2.5 bg-slate-950/50 px-3.5 py-2 rounded-xl border border-slate-800/60">
+          <div className="flex items-center gap-2.5 bg-slate-950/50 px-3.5 py-2.5 rounded-xl border border-slate-800/60 min-w-0">
             <Zap className="w-4 h-4 text-amber-400 shrink-0" />
-            <div>
-              <div className="text-slate-400 text-[10px]">推荐量化与梯队</div>
-              <div className="font-bold text-amber-300 truncate">{hardware.recommendedQuantization}</div>
+            <div className="min-w-0 flex-1">
+              <div className="text-slate-400 text-[10px] truncate">推荐量化与梯队</div>
+              <div className="font-bold text-amber-300 truncate" title={hardware.recommendedQuantization}>
+                {hardware.recommendedQuantization}
+              </div>
             </div>
           </div>
 
-          <div className="flex items-center gap-2.5 bg-slate-950/50 px-3.5 py-2 rounded-xl border border-slate-800/60">
+          <div className="flex items-center gap-2.5 bg-slate-950/50 px-3.5 py-2.5 rounded-xl border border-slate-800/60 min-w-0">
             <Sparkles className="w-4 h-4 text-cyan-400 shrink-0" />
-            <div>
-              <div className="text-slate-400 text-[10px]">在线可用模型</div>
-              <div className="font-bold text-cyan-300">{discoveredModelCount} 个模型已准备</div>
+            <div className="min-w-0 flex-1">
+              <div className="text-slate-400 text-[10px] truncate">在线可用模型</div>
+              <div className="font-bold text-cyan-300 truncate">{discoveredModelCount} 个模型已准备</div>
             </div>
           </div>
         </div>
