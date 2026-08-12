@@ -6,6 +6,10 @@ Write-Host "  Daydream Engine - Service Orchestrator & Daemon Launcher" -Foregro
 Write-Host "========================================================================================" -ForegroundColor Cyan
 Write-Host ""
 
+# 配置 Ollama GPU 多并发并行推理环境变量
+$env:OLLAMA_NUM_PARALLEL = "4"
+$env:OLLAMA_MAX_LOADED_MODELS = "2"
+
 $ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
 $RootDir = Split-Path -Parent $ScriptDir
 Set-Location $RootDir

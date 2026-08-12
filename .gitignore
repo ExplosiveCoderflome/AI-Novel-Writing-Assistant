@@ -55,6 +55,8 @@ server/scripts/reset-and-seed-db.js
 
 # Local service PID and scan temp outputs
 .services.pid
+.qdrant-initialized
+storage/
 chinese_scan_results.json
 raw_chinese_strings.json
 

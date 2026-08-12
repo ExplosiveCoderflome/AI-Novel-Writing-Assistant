@@ -300,9 +300,10 @@ export async function resolveLLMClientOptions(
   } else if (
     structuredProfile
     && typeof structuredProfile.safeStructuredMaxTokens === "number"
-    && typeof effectiveMaxTokens === "number"
   ) {
-    effectiveMaxTokens = Math.min(effectiveMaxTokens, structuredProfile.safeStructuredMaxTokens);
+    effectiveMaxTokens = typeof effectiveMaxTokens === "number"
+      ? Math.max(effectiveMaxTokens, structuredProfile.safeStructuredMaxTokens)
+      : structuredProfile.safeStructuredMaxTokens;
   }
   const baseModelKwargs: Record<string, unknown> = {
     ...(options.modelKwargs ?? {}),

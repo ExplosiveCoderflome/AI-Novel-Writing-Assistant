@@ -226,40 +226,18 @@ export function resolveStructuredOutputProfile(input: {
       safeStructuredMaxTokens: 8192,
     });
   }
+  if (input.provider === "ollama") {
+    return buildProfile({
+      family: qwenFamily ? "ollama_qwen" : "ollama",
+      preferredStructuredStrategy: "prompt_json",
+      safeStructuredMaxTokens: 16384,
+    });
+  }
   if (qwenFamily) {
     return buildProfile({
       family: "custom_openai_compatible_qwen",
       preferredStructuredStrategy: "prompt_json",
-      safeStructuredMaxTokens: 8192,
-    });
-  }
-  if (input.provider === "openai" || OPENAI_HOST_PATTERN.test(host)) {
-    return buildProfile({
-      family: "openai",
-      nativeJsonSchema: true,
-      nativeJsonObject: true,
-      preferredStructuredStrategy: "json_schema",
-    });
-  }
-  if (input.provider === "anthropic") {
-    return buildProfile({
-      family: "anthropic",
-      preferredStructuredStrategy: "prompt_json",
-      safeStructuredMaxTokens: 8192,
-    });
-  }
-  if (input.provider === "siliconflow") {
-    return buildProfile({
-      family: "siliconflow",
-      preferredStructuredStrategy: "prompt_json",
-      safeStructuredMaxTokens: 8192,
-    });
-  }
-  if (input.provider === "ollama") {
-    return buildProfile({
-      family: "ollama",
-      preferredStructuredStrategy: "prompt_json",
-      safeStructuredMaxTokens: 8192,
+      safeStructuredMaxTokens: 16384,
     });
   }
   if (customProvider) {

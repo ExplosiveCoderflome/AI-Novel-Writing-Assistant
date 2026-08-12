@@ -1,12 +1,28 @@
 import net from "net";
 import crypto from "crypto";
 import path from "path";
+import fs from "fs";
 import { StockPositionItem } from "../types/stockTypes";
 import { openDaemonManager } from "../services/openDaemonManager";
 import { prisma } from "../../../db/prisma";
 
 const OPEND_HOST = process.env.OPEND_HOST || "127.0.0.1";
 const OPEND_PORT = Number(process.env.OPEND_PORT) || 11111;
+
+function getMoomooBridgeScriptPath(): string {
+  const possiblePaths = [
+    path.join(__dirname, "../services/moomoo_bridge.py"),
+    path.resolve(__dirname, "../../../src/modules/stock/services/moomoo_bridge.py"),
+    path.resolve(process.cwd(), "server/src/modules/stock/services/moomoo_bridge.py"),
+    path.resolve(process.cwd(), "src/modules/stock/services/moomoo_bridge.py"),
+  ];
+  for (const p of possiblePaths) {
+    if (fs.existsSync(p)) {
+      return p;
+    }
+  }
+  return possiblePaths[0];
+}
 
 /**
  * 构造 OpenD 原生 TCP 协议数据包 (44 字节 Binary Header + JSON Body)
@@ -108,7 +124,7 @@ export class MooMooAdapter {
     lockMessage?: string;
     hasLockError?: boolean;
   } | null> {
-    const bridgeScript = path.join(__dirname, "../services/moomoo_bridge.py");
+    const bridgeScript = getMoomooBridgeScriptPath();
     const { exec } = require("child_process");
 
     return new Promise((resolve) => {

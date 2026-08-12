@@ -263,6 +263,42 @@ async function inspectEnvironment() {
   report.ttsModels.kokoro = fs.existsSync(kokoroFile);
   report.ttsModels.whisper = fs.existsSync(whisperFile);
 
+  // Muse-Glimmer 30B & llama-server 探活与权重检测
+  const llamaServerProbe = await probeUrl("http://127.0.0.1:8080/v1/models");
+  const userHome = process.env.USERPROFILE || "C:\\Users\\lilin";
+  const llamaServerBuiltinPath = path.join(userHome, ".unsloth", "llama.cpp", "build", "bin", "Release", "llama-server.exe");
+  let llamaServerInstalled = fs.existsSync(llamaServerBuiltinPath);
+  if (!llamaServerInstalled) {
+    try {
+      const llamaCheck = spawnSync("where", ["llama-server"], { encoding: "utf8" });
+      if (llamaCheck.status === 0 && llamaCheck.stdout.trim()) {
+        llamaServerInstalled = true;
+      }
+    } catch (e) { }
+  }
+
+  let museGlimmerFile = null;
+  const possibleModelDirs = ["C:\\models", path.join(ROOT_DIR, "models")];
+  for (const d of possibleModelDirs) {
+    if (fs.existsSync(d)) {
+      try {
+        const files = fs.readdirSync(d).filter((f) => f.toLowerCase().includes("muse-glimmer") && f.endsWith(".gguf"));
+        if (files.length > 0) {
+          museGlimmerFile = path.join(d, files[0]);
+          break;
+        }
+      } catch (e) { }
+    }
+  }
+
+  report.museGlimmer = {
+    running: llamaServerProbe.ok,
+    url: "http://127.0.0.1:8080/v1",
+    engineInstalled: llamaServerInstalled,
+    modelDownloaded: !!museGlimmerFile,
+    modelPath: museGlimmerFile,
+  };
+
   return report;
 }
 
@@ -406,6 +442,17 @@ function printReport(report) {
       console.log(`  [Ollama 本地实测 Benchmark]: 已在 ${report.ollama.models.length} 个真实安装模型中评测，胜出模型 -> ${report.ollama.selectedModel} (实测 GPU: ${b.gpuName || "CPU模式"}, 显存: ${b.vramGb}GB, 内存: ${b.totalRamGb}GB)`);
     } else {
       console.log(`  [Ollama 实测硬件推荐]: 本地未安装模型 (实测显存: ${b.vramGb}GB, 内存: ${b.totalRamGb}GB)，基于 Benchmark 标准推荐运行: ollama pull ${b.recommendedModel}`);
+    }
+  }
+  if (report.museGlimmer) {
+    if (report.museGlimmer.running) {
+      console.log(`  [Muse-Glimmer 30B LLM]: llama-server 在线运行中 (${report.museGlimmer.url})`);
+    } else if (report.museGlimmer.modelDownloaded) {
+      console.log(`  [Muse-Glimmer 30B LLM]: GGUF 权重已就绪 (${path.basename(report.museGlimmer.modelPath)}) - 可在工具箱 [7] 启动`);
+    } else if (report.museGlimmer.engineInstalled) {
+      console.log(`  [Muse-Glimmer 30B LLM]: llama.cpp 推理引擎就绪 - 可在工具箱 [6] 一键下载 30B 权重`);
+    } else {
+      console.log(`  [Muse-Glimmer 30B LLM]: 未检测到本地权重，可在工具箱 [6] 配置下载`);
     }
   }
   console.log("=================================================================\n");

@@ -5391,7 +5391,7 @@
           "gen_c9bf0b88": "温度"
         },
         "ModelRoutesPage": {
-          "gen_6b499cdc": "检测时间：{new Date(connectivitySummary.testedAt).toLocaleString()}",
+          "gen_6b499cdc": "检测时间：{{time}}",
           "gen_de22e5ab": "检测会覆盖普通对话和结构化输出；表单修改需要保存后参与检测。",
           "gen_227039ae": "检测结果来自生效路由；保存后会自动重新检测。",
           "savedSuccessfullyTaskWillUseNewRoute": "保存完成，这个任务会使用新路由。",
@@ -11528,7 +11528,7 @@
     "gen_de22e5ab": "检测会覆盖普通对话和结构化输出；表单修改需要保存后参与检测。",
     "gen_2da2f9e0": "正在检测生效路由...",
     "gen_5a8affb1": "尚未执行模型兼容性检测",
-    "gen_6b499cdc": "检测时间：{new Date(connectivitySummary.testedAt).toLocaleString()}",
+    "gen_6b499cdc": "检测时间：{{time}}",
     "gen_84561cc4": "检测中...",
     "gen_f515f8fb": "重新检测",
     "gen_042f9716": "留空则使用系统默认",

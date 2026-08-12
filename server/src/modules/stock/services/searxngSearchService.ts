@@ -110,31 +110,61 @@ export class SearXNGSearchService {
    * 确保本地 SearXNG 容器已启动。若未连通，自动尝试唤起本地 Docker / WSL SearXNG 容器
    */
   public async ensureSearXNGRunning(): Promise<SearXNGStatus> {
-    const status = await this.getStatus();
+    let status = await this.getStatus();
     if (status.connected) {
       return status;
     }
 
-    console.log("[SearXNGSearchService] SearXNG 容器未连通，尝试自动启动...");
-    try {
-      const { execSync } = await import("child_process");
-      try {
-        execSync("docker start searxng", { stdio: "ignore", timeout: 5000 });
-      } catch (e1) {
-        try {
-          execSync("wsl -d Ubuntu -u root service docker start", { stdio: "ignore", timeout: 5000 });
-          execSync("wsl -d Ubuntu -u root docker start searxng", { stdio: "ignore", timeout: 5000 });
-        } catch (e2) {
-          // ignore
-        }
-      }
+    console.log("[SearXNGSearchService] SearXNG 容器未连通，正在自动尝试拉起本地 Docker / WSL SearXNG 容器...");
+    const { execSync } = require("child_process");
 
-      await new Promise((resolve) => setTimeout(resolve, 2000));
-      return await this.getStatus();
-    } catch (e: any) {
-      console.warn("[SearXNGSearchService] Auto-start attempt notice:", e);
+    // 尝试 1: 直接在 Windows 宿主机运行 docker start / run
+    try {
+      execSync("docker start searxng", { stdio: "ignore", timeout: 8000 });
+    } catch (e1) {
+      try {
+        execSync("docker run -d -p 8088:8080 --name searxng searxng/searxng:latest", { stdio: "ignore", timeout: 15000 });
+      } catch (e1_2) {}
+    }
+
+    // 检查宿主机直接连通状态
+    status = await this.getStatus();
+    if (status.connected) {
+      console.log("[SearXNGSearchService] 🟢 宿主机 Docker SearXNG 唤醒成功！");
       return status;
     }
+
+    // 尝试 2: 唤起 WSL Ubuntu 中的 Docker 服务及 searxng 容器
+    try {
+      // 先启动 WSL docker 后台守护进程
+      try {
+        execSync("wsl -d Ubuntu -u root service docker start", { stdio: "ignore", timeout: 10000 });
+      } catch (wslDockerErr) {}
+
+      // 启动或创建 searxng 容器
+      try {
+        execSync("wsl -d Ubuntu -u root docker start searxng", { stdio: "ignore", timeout: 8000 });
+      } catch (wslStartErr) {
+        try {
+          execSync("wsl -d Ubuntu -u root docker run -d -p 8088:8080 --name searxng searxng/searxng:latest", { stdio: "ignore", timeout: 20000 });
+        } catch (wslRunErr) {}
+      }
+    } catch (e2) {
+      console.warn("[SearXNGSearchService] WSL Docker auto-start notice:", e2);
+    }
+
+    // 轮询检查连通性 (最多等待 10 秒)
+    for (let attempt = 1; attempt <= 10; attempt++) {
+      await new Promise((resolve) => setTimeout(resolve, 1000));
+      status = await this.getStatus();
+      if (status.connected) {
+        console.log(`[SearXNGSearchService] 🟢 SearXNG 容器在第 ${attempt} 秒成功启动并完成初始化连通！`);
+        return status;
+      }
+    }
+
+    console.warn("[SearXNGSearchService] 🔴 SearXNG 自动拉起重试完成，当前状态:", status.message);
+    return status;
   }
 
   /**

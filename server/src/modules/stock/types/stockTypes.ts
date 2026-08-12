@@ -49,7 +49,7 @@ export interface StrategyActionItem {
   stopLossPct?: number;          // 最大止损风险比例 (%)
   projectedPnL?: number;         // 执行此建议预期盈亏 ($)
   projectedPnLPct?: number;      // 预期盈亏百分比
-  timeHorizon?: "INTRADAY" | "1-3DAYS" | "1-2WEEKS"; // 预期实现周期
+  timeHorizon?: string;                             // 预期实现周期
 }
 
 export const StrategyActionItemSchema = z.object({
@@ -69,7 +69,7 @@ export const StrategyActionItemSchema = z.object({
   stopLossPct: z.number().optional().describe("最大止损下行风险比例 (%)"),
   projectedPnL: z.number().optional().describe("执行此建议预期盈亏 ($), 正数=盈利, 负数=止损"),
   projectedPnLPct: z.number().optional().describe("预期盈亏百分比"),
-  timeHorizon: z.enum(["INTRADAY", "1-3DAYS", "1-2WEEKS"]).optional().describe("预期实现周期"),
+  timeHorizon: z.string().optional().describe("预期实现周期"),
 });
 
 
@@ -82,7 +82,7 @@ export interface StrategyRiskAlert {
 }
 
 export const StrategyRiskAlertSchema = z.object({
-  level: z.enum(["WARNING", "CRITICAL", "INFO"]),
+  level: z.string(),
   title: z.string(),
   description: z.string(),
   relatedSymbol: z.string().optional(),
@@ -93,8 +93,8 @@ export const StrategyRiskAlertSchema = z.object({
 export interface KnowledgeGraphEntityNode {
   id: string;                                           // 实体 ID (如 "AAPL", "TSMC", "FED_RATE")
   name: string;                                         // 实体显示名 (如 "苹果公司", "台积电", "美联储利率")
-  type: "ROOT_STOCK" | "SUPPLIER" | "CLIENT" | "COMPETITOR" | "MACRO" | "CONCEPT"; // 实体类型
-  marketSymbol?: string;                                // 若为美股则带股票代码
+  type: string;                                         // 实体类型
+  marketSymbol?: string | null;                         // 若为美股则带股票代码
   description?: string;                                 // 实体描述
 }
 
@@ -102,41 +102,41 @@ export interface KnowledgeGraphRelationEdge {
   source: string;                                       // 源实体 ID (E1)
   target: string;                                       // 目标实体 ID (E2)
   relation: string;                                     // 关系谓词 (如 "晶圆代工依赖", "同业芯片竞争", "云端算力采购")
-  impact: "POSITIVE" | "NEGATIVE" | "NEUTRAL";          // 传导影响方向
+  impact: string;                                       // 传导影响方向
 }
 
 export interface StockKnowledgeGraphItem {
   symbol: string;
   companyName: string;
-  positionCategory: "EXISTING" | "NEW_DISCOVERY";
+  positionCategory: string;
   industrySector: string;
   nodes: KnowledgeGraphEntityNode[];                    // 多实体节点集
   edges: KnowledgeGraphRelationEdge[];                  // 实体间关系边集
   newsCatalysts: string[];
-  actionAdvice: "BUY" | "SELL" | "HOLD" | "TRIM";
+  actionAdvice: string;
   guidanceText: string;
 }
 
 export const StockKnowledgeGraphItemSchema = z.object({
   symbol: z.string(),
   companyName: z.string(),
-  positionCategory: z.enum(["EXISTING", "NEW_DISCOVERY"]),
+  positionCategory: z.string(),
   industrySector: z.string(),
   nodes: z.array(z.object({
     id: z.string(),
     name: z.string(),
-    type: z.enum(["ROOT_STOCK", "SUPPLIER", "CLIENT", "COMPETITOR", "MACRO", "CONCEPT"]),
-    marketSymbol: z.string().optional(),
+    type: z.string(),
+    marketSymbol: z.string().nullable().optional(),
     description: z.string().optional(),
   })),
   edges: z.array(z.object({
     source: z.string(),
     target: z.string(),
     relation: z.string(),
-    impact: z.enum(["POSITIVE", "NEGATIVE", "NEUTRAL"]),
+    impact: z.string(),
   })),
   newsCatalysts: z.array(z.string()).describe("互联网新闻与OpenD API资讯快讯"),
-  actionAdvice: z.enum(["BUY", "SELL", "HOLD", "TRIM"]),
+  actionAdvice: z.string(),
   guidanceText: z.string().describe("增减仓或新建仓的具体策略研判"),
 });
 

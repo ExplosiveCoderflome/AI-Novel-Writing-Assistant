@@ -170,6 +170,20 @@ function ensureGenerationQuality(titles: TitleFactorySuggestion[], targetCount: 
 }
 
 export class TitleGenerationService {
+  private inFlightRequests = new Map<string, Promise<{ titles: TitleFactorySuggestion[] }>>();
+
+  private getDedupeKey(context: TitlePromptContext, llmOptions: TitleGenerationLLMOptions): string {
+    return JSON.stringify({
+      mode: context.mode,
+      brief: context.brief?.trim(),
+      referenceTitle: context.referenceTitle?.trim(),
+      genreName: context.genreName,
+      count: context.count,
+      provider: llmOptions.provider,
+      model: llmOptions.model,
+    });
+  }
+
   async generateTitleIdeas(input: GenerateTitleIdeasInput): Promise<{ titles: TitleFactorySuggestion[] }> {
     const mode = input.mode;
     const brief = toTrimmedString(input.brief);
@@ -190,7 +204,7 @@ export class TitleGenerationService {
       })
       : null;
 
-    return this.runGeneration({
+    const promptContext: TitlePromptContext = {
       mode,
       count,
       brief: brief || `请围绕参考标题《${referenceTitle}》做结构学习式改写，产出原创标题。`,
@@ -199,17 +213,14 @@ export class TitleGenerationService {
       currentTitle: "",
       genreName: genre?.name ?? "",
       genreDescription: genre?.description ?? "",
-    }, {
-      provider: input.provider,
-      model: input.model,
-      temperature: input.temperature,
-      maxTokens: input.maxTokens,
-    });
+    };
+
+    return this.generateTitleIdeasWithDedupe(promptContext, input);
   }
 
   async generateNovelTitles(
     novelId: string,
-    input: GenerateNovelTitlesInput = {},
+    options: GenerateNovelTitlesInput = {},
   ): Promise<{ titles: TitleFactorySuggestion[] }> {
     const novel = await prisma.novel.findUnique({
       where: { id: novelId },
@@ -232,17 +243,38 @@ export class TitleGenerationService {
     }
 
     const brief = buildNovelBrief(novel);
-
-    return this.runGeneration({
+    const promptContext: TitlePromptContext = {
       mode: "novel",
-      count: normalizeRequestedCount(input.count, DEFAULT_TITLE_COUNT),
+      count: normalizeRequestedCount(options.count, DEFAULT_TITLE_COUNT),
       brief,
       referenceTitle: "",
       novelTitle: novel.title,
       currentTitle: novel.title,
       genreName: novel.genre?.name ?? "",
       genreDescription: novel.genre?.description ?? "",
-    }, input, novel.title ? [novel.title] : []);
+    };
+
+    return this.generateTitleIdeasWithDedupe(promptContext, options, novel.title ? [novel.title] : []);
+  }
+
+  private async generateTitleIdeasWithDedupe(
+    promptContext: TitlePromptContext,
+    llmOptions: TitleGenerationLLMOptions,
+    blockedTitles: string[] = [],
+  ): Promise<{ titles: TitleFactorySuggestion[] }> {
+    const dedupeKey = this.getDedupeKey(promptContext, llmOptions);
+    const existingInFlight = this.inFlightRequests.get(dedupeKey);
+    if (existingInFlight) {
+      console.log(`[TitleGenerationService] 触发并发去重锁，直接复用当前响应: ${dedupeKey}`);
+      return existingInFlight;
+    }
+
+    const promise = this.runGeneration(promptContext, llmOptions, blockedTitles).finally(() => {
+      this.inFlightRequests.delete(dedupeKey);
+    });
+
+    this.inFlightRequests.set(dedupeKey, promise);
+    return promise;
   }
 
   private async runGeneration(

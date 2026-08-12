@@ -312,6 +312,7 @@ export class DailyStrategyDirector {
         warmStrategySummaries: memoryContext.warmContext,
       },
       options: {
+        timeoutMs: 300000,
         onStreamChunk: (_delta, totalText) => {
           const now = Date.now();
           const len = totalText.length;

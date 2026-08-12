@@ -5392,7 +5392,7 @@
           "gen_c9bf0b88": ""
         },
         "ModelRoutesPage": {
-          "gen_6b499cdc": "test Time：{new Date(connectivitySummary.testedAt).toLocaleString()}",
+          "gen_6b499cdc": "Test Time: {{time}}",
           "gen_de22e5ab": "test will correct sum Structure out ；table singleModifyneed need Save after and test 。",
           "gen_227039ae": "test path ；Save after will Autore new test 。",
           "savedSuccessfullyTaskWillUseNewRoute": "Saved Successfully. This Task Will Use New Route.",
@@ -11521,7 +11521,7 @@
     "gen_de22e5ab": "检测会覆盖普通对话和结构化输出；表单修改需要保存后参与检测。",
     "gen_2da2f9e0": "正在检测生效路由...",
     "gen_5a8affb1": "尚未执行模型兼容性检测",
-    "gen_6b499cdc": "检测时间：{new Date(connectivitySummary.testedAt).toLocaleString()}",
+    "gen_6b499cdc": "Test Time: {{time}}",
     "gen_84561cc4": "检测中...",
     "gen_f515f8fb": "重新检测",
     "gen_042f9716": "留空则使用系统默认",

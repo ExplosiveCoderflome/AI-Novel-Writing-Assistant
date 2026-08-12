@@ -281,7 +281,7 @@ export default function ModelRoutesPage() {
                     : i18next.t("dict.gen_5a8affb1")}
               </span>
               {connectivitySummary.testedAt ? (
-                <span>{i18next.t("dict.gen_6b499cdc")}</span>
+                <span>{t("dict.gen_6b499cdc", { time: new Date(connectivitySummary.testedAt).toLocaleString() })}</span>
               ) : null}
             </div>
           </div>
