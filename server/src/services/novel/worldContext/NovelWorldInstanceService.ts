@@ -27,6 +27,9 @@ import { listNovelWorldSyncRecords } from "./novelWorldSyncRecords";
 import { NovelWorldSyncService } from "./NovelWorldSyncService";
 import { normalizeStoryWorldSlice } from "../storyWorldSlice/storyWorldSlicePersistence";
 
+const NOVEL_THEME_WORLD_GENERATION_TIMEOUT_MS = 120_000;
+const NOVEL_THEME_WORLD_GENERATION_MAX_TOKENS = 4_800;
+
 function buildGeneratedOpeningWorldSlice(input: {
   novelId: string;
   worldId: string;
@@ -499,9 +502,11 @@ export class NovelWorldInstanceService {
       },
       options: {
         novelId: input.novelId,
-        provider: input.provider ?? "deepseek",
+        provider: input.provider,
         model: input.model,
         temperature: input.temperature ?? 0.5,
+        maxTokens: NOVEL_THEME_WORLD_GENERATION_MAX_TOKENS,
+        timeoutMs: NOVEL_THEME_WORLD_GENERATION_TIMEOUT_MS,
         entrypoint: "novel-world-generate",
       },
     });
@@ -547,7 +552,7 @@ export class NovelWorldInstanceService {
     const generationPolicyJson = JSON.stringify({
       promptId: result.meta.invocation.promptId,
       promptVersion: result.meta.invocation.promptVersion,
-      provider: result.meta.provider ?? input.provider ?? "deepseek",
+      provider: result.meta.provider ?? input.provider ?? null,
       model: result.meta.model ?? input.model ?? null,
       temperature: input.temperature ?? 0.5,
       saveToLibrary: true,
