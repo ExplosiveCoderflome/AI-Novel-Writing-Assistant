@@ -8,6 +8,7 @@ import {
   openDesktopLogsDirectory,
   restartDesktopApp,
   quitAndInstallDesktopUpdate,
+  bundleDesktopLogs,
   type DesktopBootstrapSnapshot,
   type DesktopUpdaterSnapshot,
   useDesktopUpdater,
@@ -335,7 +336,8 @@ export default function DesktopBootstrapShell({ snapshot, overlay = false }: Des
               <summary className="cursor-pointer list-none text-xs font-medium uppercase tracking-[0.2em] text-muted-foreground">日志与排查 <span className="float-right transition-transform group-open:rotate-180">⌄</span></summary>
               <div className="mt-4 text-sm leading-6 text-muted-foreground">如果启动卡住或本地服务提前退出，可以打开日志目录定位问题。</div>
               <div className="mt-4 flex flex-wrap gap-2">
-                <Button variant="secondary" size="sm" onClick={() => void openDesktopLogsDirectory()}>打开日志目录</Button>
+                <Button variant="secondary" size="sm" onClick={() => void bundleDesktopLogs()}>下载近期日志包</Button>
+                <Button variant="outline" size="sm" onClick={() => void openDesktopLogsDirectory()}>打开日志目录</Button>
                 <Button variant="outline" size="sm" onClick={() => void copyDesktopLogPath()}>复制日志路径</Button>
                 {snapshot.state === "error" && snapshot.canRetry ? <Button size="sm" onClick={() => void restartDesktopApp()}>重新启动</Button> : null}
               </div>

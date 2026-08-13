@@ -1,5 +1,7 @@
-import path from "node:path";
 import { app, BrowserWindow, clipboard, dialog, ipcMain, shell } from "electron";
+import fs from "node:fs";
+import os from "node:os";
+import path from "node:path";
 import {
   createDatabaseImportRelaunchArgs,
   createSanitizedRelaunchArgs,
@@ -26,6 +28,7 @@ import {
   desktopUpdaterStore,
 } from "./runtime/state";
 import { initializeDesktopUpdater, type DesktopUpdaterController } from "./runtime/updater";
+import { createDesktopLogBundle } from "./runtime/logBundle";
 
 const APP_USER_MODEL_ID = "com.ai-novel.desktop";
 const MAIN_WINDOW_BACKGROUND = "#08101f";
@@ -439,6 +442,37 @@ function registerDesktopIpcHandlers(): void {
     const logPath = desktopBootstrapStore.getSnapshot().logFile;
     clipboard.writeText(logPath);
     return logPath;
+  });
+  ipcMain.handle("desktop:bundle-logs", async () => {
+    const suggestedName = `AI-Novel-logs-${new Date().toISOString().replace(/[:.]/g, "-")}.zip`;
+    const result = await dialog.showSaveDialog({
+      title: "保存桌面日志包",
+      defaultPath: path.join(app.getPath("downloads"), suggestedName),
+      filters: [{ name: "日志压缩包", extensions: ["zip"] }],
+    });
+    if (result.canceled || !result.filePath) return null;
+    const bootstrap = desktopBootstrapStore.getSnapshot();
+    const updater = desktopUpdaterStore.getSnapshot();
+    const summary = [
+      "AI 小说创作工作台近期日志包摘要",
+      `生成时间: ${new Date().toISOString()}`,
+      `应用版本: ${app.getVersion()}`,
+      `平台: ${process.platform} ${process.arch}`,
+      `系统: ${os.release()}`,
+      `更新通道: ${updater.channel}`,
+      `更新状态: ${updater.status}`,
+      `启动状态: ${bootstrap.state}`,
+      `启动阶段: ${bootstrap.stage}`,
+      `启动说明: ${bootstrap.detail}`,
+    ].join("\n");
+    const tempPath = createDesktopLogBundle(summary);
+    try {
+      await fs.promises.copyFile(tempPath, result.filePath);
+      appendDesktopLog("desktop.logs.bundle", `Saved log bundle to ${result.filePath}.`);
+      return result.filePath;
+    } finally {
+      await fs.promises.rm(tempPath, { force: true });
+    }
   });
   ipcMain.handle("desktop:restart-app", () => {
     relaunchApp();

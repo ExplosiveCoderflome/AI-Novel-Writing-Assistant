@@ -112,6 +112,10 @@ export async function copyDesktopLogPath(): Promise<string | undefined> {
   return getDesktopBridge()?.copyLogPath?.();
 }
 
+export async function bundleDesktopLogs(): Promise<string | null> {
+  return getDesktopBridge()?.bundleLogs?.() ?? null;
+}
+
 export async function restartDesktopApp(): Promise<void> {
   await getDesktopBridge()?.restartApp?.();
 }
