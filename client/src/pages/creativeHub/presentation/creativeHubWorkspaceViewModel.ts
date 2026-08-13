@@ -174,7 +174,7 @@ export function resolveCreativeHubWorkspacePresentation(input: {
         tone: "warning",
         title: "查看待确认的创作操作",
         description: input.latestTurnSummary?.nextSuggestion?.trim()
-          || "当前线程仍在等待确认，请先查看执行记录中的待确认项。",
+          || "当前线程仍在等待确认，请先处理待确认项。",
         action: "view_activity",
         actionLabel: "查看待确认项",
       },
@@ -189,9 +189,9 @@ export function resolveCreativeHubWorkspacePresentation(input: {
       recommendation: {
         tone: "info",
         title: "AI 正在推进当前创作目标",
-        description: `当前阶段：${stageLabel}。执行记录、工具结果和需要确认的事项会持续显示在主工作区。`,
+        description: `当前阶段：${stageLabel}。系统会持续更新状态，并在需要时提示你处理。`,
         action: "view_activity",
-        actionLabel: "查看执行记录",
+        actionLabel: "查看当前状态",
       },
     };
   }
