@@ -35,6 +35,8 @@ export const INTENT_NAMES = [
   "inspect_world",
   "search_knowledge",
   "ideate_novel_setup",
+  "workflow_handoff",
+  "out_of_scope",
   "general_chat",
   "unknown",
 ] as const satisfies readonly StructuredIntent["intent"][];
@@ -258,13 +260,21 @@ export function summarizeIntentValidationFailure(
 export function buildPlannerIntentPromptParts(input: PlannerInput): { systemPrompt: string; userPrompt: string } {
   const permissionSummary = getPermissionMatrixSummary();
   const recentMessages = input.messages.slice(-12).map((item) => `${item.role}: ${item.content}`).join("\n");
+  const readonly = input.profile === "creative_hub_readonly";
   const semanticCatalog = buildSemanticCatalog();
-  const workflowRecipes = buildWorkflowRecipeCatalog();
-  const toolCatalog = buildToolCatalog();
+  const workflowRecipes = readonly ? "只提供查询、诊断、解释和导航，不提供生产 workflow。" : buildWorkflowRecipeCatalog();
+  const toolCatalog = readonly
+    ? listAgentToolDefinitions()
+      .filter((item) => ["read", "inspect"].includes(item.category) && !["preview_pipeline_run", "diff_chapter_patch"].includes(item.name))
+      .map((item) => `- ${item.name}: ${item.description}`)
+      .join("\n")
+    : buildToolCatalog();
 
   return {
     systemPrompt: [
-      "创作中枢默认是协作式创作搭档，不是命令路由器。",
+      readonly
+        ? "当前是创作中枢只读模式：只能查询小说状态、诊断问题、查看执行记录、解释下一步并推荐正式入口。不得创建、生成、写作、保存、修改、恢复、重试、取消或启动任何任务。"
+        : "创作中枢默认是协作式创作搭档，不是命令路由器。",
       "你必须在 JSON 中显式返回 interactionMode、assistantResponse、shouldAskFollowup、missingInfo。",
       "如果用户还在探索方向、比较方案、表达不满、寻求诊断，或者创作目标本身还不够清晰，优先把 interactionMode 设为 co_create 或 review，并把 shouldAskFollowup 设为 true。",
       "只有当用户明确要求立即创建、绑定、保存、启动任务或直接写内容时，才把 interactionMode 设为 execute。",
@@ -272,7 +282,11 @@ export function buildPlannerIntentPromptParts(input: PlannerInput): { systemProm
       "如果用户只是寒暄、打招呼、简单问候，且还没有进入具体创作任务，intent 应优先使用 social_opening，而不是 general_chat。",
       "你是小说创作 Agent 的意图解析器，只能返回一个 JSON 对象。",
       "你的任务不是直接规划所有工具，而是先识别用户真实意图和章节槽位。",
-      `intent 必须是以下枚举之一：${INTENT_NAMES.join(", ")}。`,
+      `intent 必须是以下枚举之一：${(readonly ? INTENT_NAMES.filter((intent) => !["create_novel", "select_novel_workspace", "bind_world_to_novel", "unbind_world_from_novel", "produce_novel", "run_director_next_step", "run_director_until_gate", "switch_director_policy", "write_chapter", "rewrite_chapter", "save_chapter_draft", "start_pipeline", "ideate_novel_setup"].includes(intent)) : INTENT_NAMES).join(", ")}。`,
+      ...(readonly ? [
+        "用户要求创建、生成、写作、修改、保存、启动、继续、恢复、重试、取消或审批时，统一返回 workflow_handoff，并在 note 中说明应该进入正式小说工作台、自动导演、任务中心或模型设置。",
+        "不要用 preview_pipeline_run 或任何只读工具替代正式执行。",
+      ] : []),
       "优先使用原子意图语义目录识别列表、查询、检索、绑定这类单一意图。",
       "只有在用户请求明显属于整本生产、章节写作、失败诊断等复合流程时，才使用 workflow intent。",
       "如果用户表达命中目录中的 aliases 或 phrases，请返回对应的 canonical intent，不要返回别名或 tool 名。",

@@ -92,9 +92,9 @@ export default function CreativeHubConversation({
                 >
                   <ThreadPrimitive.Empty>
                     <div className="mx-auto mt-8 max-w-xl rounded-md border border-dashed border-border px-5 py-8 text-center">
-                      <h3 className="text-base font-semibold tracking-normal text-foreground">开始一轮创作推进</h3>
+                      <h3 className="text-base font-semibold tracking-normal text-foreground">查看当前小说状态</h3>
                       <p className="mt-2 text-sm leading-6 text-muted-foreground">
-                        使用上方推荐动作，或在下方补充作品问题、调整要求和希望 AI 推进的目标。
+                        使用上方入口查看进度、诊断问题或了解下一步；也可以直接描述你想查询的内容。
                       </p>
                     </div>
                   </ThreadPrimitive.Empty>
@@ -109,10 +109,10 @@ export default function CreativeHubConversation({
                 <ComposerPrimitive.Root className="rounded-md border border-border bg-background p-3">
                   <ComposerPrimitive.Input
                     className="min-h-[110px] w-full resize-none rounded-md border border-input bg-muted/20 p-3 text-base text-foreground outline-none transition focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-60 md:text-sm"
-                    placeholder="补充作品问题、调整要求或本轮创作目标；Enter 发送，Shift+Enter 换行。"
+                    placeholder="询问小说进度、失败原因、执行记录或下一步入口；Enter 发送，Shift+Enter 换行。"
                     submitMode="enter"
                     disabled={actionDisabled}
-                    aria-label="本轮创作目标或调整要求"
+                    aria-label="状态查询或诊断问题"
                   />
                   <div className="mt-3 flex gap-2">
                     <ComposerPrimitive.Send asChild>

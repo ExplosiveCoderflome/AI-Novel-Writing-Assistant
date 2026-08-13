@@ -18,6 +18,18 @@ const COLLABORATION_FIRST_INTENTS = new Set<StructuredIntent["intent"]>([
   "unknown",
 ]);
 
+function composeWorkflowHandoffAnswer(
+  structuredIntent: StructuredIntent,
+  context: Omit<ToolExecutionContext, "runId" | "agentName">,
+): string {
+  const note = structuredIntent.note?.trim();
+  const target = note?.includes("任务中心") ? ["打开任务中心", "/tasks"]
+    : note?.includes("模型") ? ["打开模型设置", "/settings/models"]
+      : note?.includes("自动导演") ? ["打开 AI 自动导演", "/novels/auto-director"]
+        : ["打开小说工作台", context.novelId ? `/novels/${context.novelId}/edit` : "/novels"];
+  return `这项操作需要在正式工作台中执行，系统会在那里保存产物并维护完整任务状态。\n\n[${target[0]}](${target[1]})`;
+}
+
 function truncateText(value: string, max = 320): string {
   const normalized = value.replace(/\s+/g, " ").trim();
   if (!normalized) {
@@ -589,6 +601,17 @@ export async function composeAssistantMessage(
 ): Promise<string> {
   if (structuredIntent?.intent === "social_opening") {
     return composeSocialOpeningAnswer(context);
+  }
+
+  if (context.plannerProfile === "creative_hub_readonly"
+    && (structuredIntent?.intent === "workflow_handoff" || structuredIntent?.intent === "out_of_scope")) {
+    return composeWorkflowHandoffAnswer(structuredIntent, context);
+  }
+
+  if (context.plannerProfile === "creative_hub_readonly"
+    && structuredIntent
+    && ["create_novel", "bind_world_to_novel", "unbind_world_from_novel", "produce_novel", "run_director_next_step", "run_director_until_gate", "switch_director_policy", "write_chapter", "rewrite_chapter", "save_chapter_draft", "start_pipeline", "ideate_novel_setup"].includes(structuredIntent.intent)) {
+    return composeWorkflowHandoffAnswer({ ...structuredIntent, note: structuredIntent.note ?? "自动导演" }, context);
   }
 
   if (

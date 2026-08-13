@@ -288,10 +288,10 @@ function FilterButton({ active, children, onClick }: { active: boolean; children
 
 function VisualAssetGridLoading() {
   return (
-    <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5" aria-label="正在加载视觉素材">
+    <div className="columns-2 gap-3 sm:columns-3 xl:columns-4 2xl:columns-5" aria-label="正在加载视觉素材">
       {Array.from({ length: 10 }, (_, index) => (
-        <div key={index} className="overflow-hidden rounded-md border">
-          <div className="aspect-[4/3] animate-pulse bg-muted" />
+        <div key={index} className="mb-3 break-inside-avoid overflow-hidden rounded-md border">
+          <div className="h-40 animate-pulse bg-muted" />
           <div className="space-y-2 p-3"><div className="h-4 w-3/4 animate-pulse rounded bg-muted" /><div className="h-3 w-1/2 animate-pulse rounded bg-muted" /></div>
         </div>
       ))}
