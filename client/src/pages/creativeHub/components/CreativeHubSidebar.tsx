@@ -144,8 +144,8 @@ function buildBlockerCardData(input: {
         `当前阶段: ${input.productionStatus.currentStage}`,
       ].filter(Boolean),
       tone: "border-destructive/30 bg-destructive/5 text-foreground",
-      actionLabel: "处理当前阻塞",
-      actionPrompt: input.productionStatus.recoveryHint || "分析当前生产阻塞并继续推进",
+      actionLabel: "查看当前阻塞",
+      actionPrompt: input.productionStatus.recoveryHint || "分析当前生产阻塞和正式处理入口",
     };
   }
 
@@ -158,20 +158,22 @@ function buildBlockerCardData(input: {
         `状态: ${turnStatusLabel(input.latestTurnSummary.status)}`,
       ],
       tone: "border-info/30 bg-info/5 text-foreground",
-      actionLabel: "按建议继续",
-      actionPrompt: input.latestTurnSummary.nextSuggestion,
+      actionLabel: "查看建议",
+      actionPrompt: `解释当前建议和正式入口：${input.latestTurnSummary.nextSuggestion}`,
     };
   }
 
   return {
     title: "当前状态",
-    summary: "当前没有需要立即处理的阻塞项，可以继续推进创作。",
+    summary: "当前没有需要处理的状态问题，可以查看小说进度或执行记录。",
     details: input.latestTurnSummary?.nextSuggestion
       ? [`建议下一步: ${input.latestTurnSummary.nextSuggestion}`]
       : [],
     tone: "border-border bg-muted/20 text-foreground",
-    actionLabel: input.latestTurnSummary?.nextSuggestion ? "按建议继续" : undefined,
-    actionPrompt: input.latestTurnSummary?.nextSuggestion,
+    actionLabel: input.latestTurnSummary?.nextSuggestion ? "查看建议" : undefined,
+    actionPrompt: input.latestTurnSummary?.nextSuggestion
+      ? `解释当前建议和正式入口：${input.latestTurnSummary.nextSuggestion}`
+      : undefined,
   };
 }
 

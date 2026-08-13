@@ -215,11 +215,11 @@ export function resolveCreativeHubWorkspacePresentation(input: {
       threadStatusLabel,
       recommendation: {
         tone: "danger",
-        title: "处理当前创作阻塞",
+        title: "查看当前状态异常",
         description: `${failureSummary} 恢复操作会继续使用现有小说资产和任务记录。`,
         action: "send_prompt",
-        actionLabel: "生成恢复方案",
-        prompt: recoveryHint,
+        actionLabel: "查看失败原因",
+        prompt: `请解释失败原因、执行记录和正式处理入口：${recoveryHint}`,
       },
     };
   }
@@ -251,11 +251,11 @@ export function resolveCreativeHubWorkspacePresentation(input: {
       threadStatusLabel,
       recommendation: {
         tone: "info",
-        title: "继续当前创作目标",
+        title: "查看当前诊断结果",
         description: nextSuggestion,
         action: "send_prompt",
-        actionLabel: "按建议继续",
-        prompt: nextSuggestion,
+        actionLabel: "查看建议",
+        prompt: `请解释当前状态、执行记录和建议入口：${nextSuggestion}`,
       },
     };
   }

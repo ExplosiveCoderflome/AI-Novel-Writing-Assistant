@@ -38,7 +38,7 @@ test("Creative Hub filters mixed plans and removes empty actions", () => {
     },
   ]);
 
-  assert.deepEqual(result.allowedActions.map((action) => action.calls.map((item) => item.tool)), [["list_novels"]]);
+  assert.deepEqual(result.allowedActions.map((action) => action.calls.map((item) => item.tool)), []);
   assert.deepEqual(result.blockedTools.sort(), ["create_novel", "save_chapter_draft"]);
 });
 

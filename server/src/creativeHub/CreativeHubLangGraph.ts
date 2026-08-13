@@ -183,6 +183,7 @@ export class CreativeHubLangGraph {
       currentRunId: run.id,
       currentRunStatus: "running",
       currentStep: "planning",
+      profile: "creative_hub_readonly",
     };
     let plannerResult;
     try {
@@ -358,6 +359,7 @@ export class CreativeHubLangGraph {
         model: state.runSettings.model,
         temperature: state.runSettings.temperature,
         maxTokens: state.runSettings.maxTokens,
+        plannerProfile: "creative_hub_readonly",
       },
       state.plannerResult.structuredIntent,
       (runId, message, agentName, innerCallbacks) => this.failRun(runId, message, agentName, state, innerCallbacks),
