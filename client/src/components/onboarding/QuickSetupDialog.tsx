@@ -59,7 +59,7 @@ const EMPTY_FORM: SetupForm = {
 };
 
 function providerDescription(provider: QuickSetupProviderOption): string {
-  if (provider.id === "deepseek") return "中文长篇规划与写作的低门槛选择";
+  if (provider.id === "deepseek") return "推荐 DeepSeek V4 Flash，兼顾中文长篇质量与响应速度";
   if (provider.id === "ollama") return "使用本机模型，不要求 API Key";
   if (provider.id === "openai") return "适合通用规划、正文与结构化任务";
   return provider.configured ? "已有配置，可以直接检测并设为全局默认" : "配置后可用于整条小说生产链";

@@ -578,9 +578,9 @@ test("GET /api/settings/api-keys uses lightweight local model metadata", async (
     assert.equal(payload.success, true);
     const deepseek = payload.data.find((item) => item.provider === "deepseek");
     assert.ok(deepseek);
-    assert.equal(deepseek.currentModel, "deepseek-chat");
+    assert.equal(deepseek.currentModel, "deepseek-v4-flash");
     assert.equal(deepseek.isConfigured, true);
-    assert.ok(deepseek.models.includes("deepseek-chat"));
+    assert.ok(deepseek.models.includes("deepseek-v4-flash"));
   } finally {
     prisma.aPIKey.findMany = originalFindMany;
     global.fetch = originalFetch;
