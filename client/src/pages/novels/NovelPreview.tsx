@@ -178,31 +178,31 @@ export default function NovelPreview() {
   }
 
   return (
-    <div className="relative h-full overflow-y-auto bg-[#faf9f6] text-slate-900">
-      <header className="sticky top-0 z-20 border-b border-slate-200/70 bg-[#faf9f6]/90 backdrop-blur">
+    <div className="relative h-full overflow-y-auto bg-background text-foreground">
+      <header className="sticky top-0 z-20 border-b border-border/70 bg-background/90 backdrop-blur">
         <div className={cn("mx-auto flex h-16 max-w-5xl items-center justify-between gap-4 px-5 transition-[padding]", showChapters && "lg:pl-[22.5rem]")}>
           <div className="flex items-center gap-1">
             {!showChapters ? (
-              <Button type="button" variant="ghost" size="sm" className="-ml-2 text-slate-500 hover:text-slate-900" onClick={() => setShowChapters(true)} title="打开目录" aria-label="打开目录">
+              <Button type="button" variant="ghost" size="sm" className="-ml-2 text-muted-foreground hover:text-foreground" onClick={() => setShowChapters(true)} title="打开目录" aria-label="打开目录">
                 <List className="h-4 w-4" />
               </Button>
             ) : null}
-            <Button asChild variant="ghost" size="sm" className="text-slate-500 hover:text-slate-900">
+            <Button asChild variant="ghost" size="sm" className="text-muted-foreground hover:text-foreground">
               <Link to="/novels" aria-label="返回书架"><ArrowLeft className="h-4 w-4" /></Link>
             </Button>
           </div>
           <div className="min-w-0 flex-1 text-center">
             <div className="truncate text-sm font-medium">{novel?.title ?? "小说预览"}</div>
-            <div className="mt-0.5 text-xs text-slate-400">{activeChapter ? `第 ${activeChapter.order} 章` : "阅读"}</div>
+            <div className="mt-0.5 text-xs text-muted-foreground">{activeChapter ? `第 ${activeChapter.order} 章` : "阅读"}</div>
           </div>
           <div className="flex items-center gap-1">
-            <Button type="button" variant="ghost" size="sm" className="text-slate-500 hover:text-slate-900" onClick={handleDownloadChapter} disabled={!activeContent} title="下载本章" aria-label="下载本章">
+            <Button type="button" variant="ghost" size="sm" className="text-muted-foreground hover:text-foreground" onClick={handleDownloadChapter} disabled={!activeContent} title="下载本章" aria-label="下载本章">
               <Download className="h-4 w-4" /><span className="ml-1.5 hidden xl:inline">本章</span>
             </Button>
-            <Button type="button" variant="ghost" size="sm" className="text-slate-500 hover:text-slate-900" onClick={() => downloadFullMutation.mutate()} disabled={downloadFullMutation.isPending || generatedChapters.length === 0} title="下载整本" aria-label="下载整本">
+            <Button type="button" variant="ghost" size="sm" className="text-muted-foreground hover:text-foreground" onClick={() => downloadFullMutation.mutate()} disabled={downloadFullMutation.isPending || generatedChapters.length === 0} title="下载整本" aria-label="下载整本">
               <BookOpen className="h-4 w-4" /><span className="ml-1.5 hidden xl:inline">整本</span>
             </Button>
-            <Button asChild variant="ghost" size="sm" className="text-slate-500 hover:text-slate-900" title="打开工作区" aria-label="打开工作区">
+            <Button asChild variant="ghost" size="sm" className="text-muted-foreground hover:text-foreground" title="打开工作区" aria-label="打开工作区">
               <Link to={`/novels/${id}/edit`}><Settings2 className="h-4 w-4" /></Link>
             </Button>
           </div>
@@ -212,22 +212,22 @@ export default function NovelPreview() {
       <main className={cn("px-6 pb-24 pt-16 transition-[padding] sm:px-10 sm:pt-20", showChapters && "lg:pl-[22.5rem]")}>
         <div className="mx-auto max-w-3xl">
           <div className="mb-12 text-center">
-          <div className="text-xs tracking-[0.22em] text-slate-400">{novel?.status === "published" ? "PUBLISHED" : "DRAFT"}</div>
-          <h1 className="mt-4 text-3xl font-semibold tracking-normal text-slate-900 sm:text-4xl">{novel?.title ?? "小说预览"}</h1>
-          <p className="mt-3 text-sm text-slate-500">{formatCount(totalWordCount)} 字 · {generatedChapters.length}/{chapters.length} 章已生成</p>
+          <div className="text-xs tracking-[0.22em] text-muted-foreground">{novel?.status === "published" ? "PUBLISHED" : "DRAFT"}</div>
+          <h1 className="mt-4 text-3xl font-semibold tracking-normal text-foreground sm:text-4xl">{novel?.title ?? "小说预览"}</h1>
+          <p className="mt-3 text-sm text-muted-foreground">{formatCount(totalWordCount)} 字 · {generatedChapters.length}/{chapters.length} 章已生成</p>
           </div>
 
-          <article className="whitespace-pre-wrap text-[17px] leading-[2.15] text-slate-800 sm:text-[18px]">
+          <article className="whitespace-pre-wrap text-[17px] leading-[2.15] text-foreground sm:text-[18px]">
             {activeContent || "本章还没有正文。"}
           </article>
 
-          <footer className="mt-20 flex items-center justify-center gap-2 border-t border-slate-200/70 pt-6">
-            <Button type="button" variant="ghost" size="sm" className="text-slate-500" onClick={() => void handleCopy()} disabled={!activeContent}>
+          <footer className="mt-20 flex items-center justify-center gap-2 border-t border-border/70 pt-6">
+            <Button type="button" variant="ghost" size="sm" className="text-muted-foreground" onClick={() => void handleCopy()} disabled={!activeContent}>
               {copied ? <Check className="mr-1.5 h-4 w-4" /> : <Copy className="mr-1.5 h-4 w-4" />}
               {copied ? "已复制" : "复制本章"}
             </Button>
             {activeChapter ? (
-              <Button asChild variant="ghost" size="sm" className="text-slate-500">
+                <Button asChild variant="ghost" size="sm" className="text-muted-foreground">
                 <Link to={`/novels/${id}/chapters/${activeChapter.id}`}><Edit3 className="mr-1.5 h-4 w-4" />编辑本章</Link>
               </Button>
             ) : null}
@@ -237,20 +237,20 @@ export default function NovelPreview() {
 
       {showChapters ? (
         <>
-          <button type="button" aria-label="关闭目录" className="fixed inset-0 z-30 bg-slate-900/20 lg:hidden" onClick={() => setShowChapters(false)} />
-          <aside className="fixed inset-y-0 left-0 z-40 flex w-[min(360px,88vw)] flex-col border-r border-slate-200 bg-[#faf9f6] shadow-xl lg:shadow-none">
-            <div className="flex items-center justify-between border-b border-slate-200/70 px-5 py-4">
-              <div><div className="font-medium">目录</div><div className="mt-1 text-xs text-slate-400">{generatedChapters.length}/{chapters.length} 章 · {formatCount(totalWordCount)} 字</div></div>
+          <button type="button" aria-label="关闭目录" className="fixed inset-0 z-30 bg-foreground/20 lg:hidden" onClick={() => setShowChapters(false)} />
+          <aside className="fixed inset-y-0 left-0 z-40 flex w-[min(360px,88vw)] flex-col border-r border-border bg-background shadow-xl lg:shadow-none">
+            <div className="flex items-center justify-between border-b border-border/70 px-5 py-4">
+              <div><div className="font-medium">目录</div><div className="mt-1 text-xs text-muted-foreground">{generatedChapters.length}/{chapters.length} 章 · {formatCount(totalWordCount)} 字</div></div>
               <Button type="button" variant="ghost" size="sm" onClick={() => setShowChapters(false)} title="关闭目录" aria-label="关闭目录"><X className="h-4 w-4" /></Button>
             </div>
             <nav className="min-h-0 flex-1 space-y-1 overflow-y-auto p-3">
               {chapters.map((chapter) => {
                 const hasContent = Boolean(chapterText(chapter.content));
                 return (
-                  <button key={chapter.id} type="button" className={cn("w-full rounded-md px-3 py-3 text-left transition hover:bg-slate-200/60", activeChapter?.id === chapter.id && "bg-slate-200/70")} onClick={() => selectChapter(chapter)}>
-                    <div className="flex items-center justify-between gap-3"><span className="text-sm font-medium">第 {chapter.order} 章</span><span className="text-xs text-slate-400">{formatCount(countWords(chapter.content))} 字</span></div>
-                    <div className="mt-1 truncate text-sm text-slate-500">{chapter.title || "未命名章节"}</div>
-                    <div className="mt-1 text-xs text-slate-400">{hasContent ? formatChapterStatus(chapter.chapterStatus) : "暂无正文"}</div>
+                  <button key={chapter.id} type="button" className={cn("w-full rounded-md px-3 py-3 text-left transition hover:bg-muted/70", activeChapter?.id === chapter.id && "bg-muted")} onClick={() => selectChapter(chapter)}>
+                    <div className="flex items-center justify-between gap-3"><span className="text-sm font-medium">第 {chapter.order} 章</span><span className="text-xs text-muted-foreground">{formatCount(countWords(chapter.content))} 字</span></div>
+                    <div className="mt-1 truncate text-sm text-muted-foreground">{chapter.title || "未命名章节"}</div>
+                    <div className="mt-1 text-xs text-muted-foreground">{hasContent ? formatChapterStatus(chapter.chapterStatus) : "暂无正文"}</div>
                   </button>
                 );
               })}

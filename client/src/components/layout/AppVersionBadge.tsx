@@ -21,9 +21,9 @@ export default function AppVersionBadge({ className }: AppVersionBadgeProps) {
     const isDownloading = updater.status === "downloading";
     const isChecking = updater.status === "checking";
     const label = isDownloaded
-      ? "重启更新"
+      ? "重启安装"
       : isAvailable
-        ? `可更新 ${formatDesktopVersion(updater.availableVersion ?? "")}`
+        ? "立即更新"
         : isDownloading
           ? `更新 ${Math.round(updater.progressPercent ?? 0)}%`
           : isChecking
