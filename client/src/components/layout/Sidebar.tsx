@@ -58,8 +58,6 @@ const navGroups: NavGroup[] = [
       { to: "/comic", label: "漫画工作台", icon: SquareStack },
       { to: "/creative-hub", label: "创作中枢", icon: LayoutDashboard },
       { to: "/book-analysis", label: "拆书", icon: ScanSearch },
-      { to: "/tasks", label: "运行记录", icon: ListTodo },
-      { to: "/auto-director/follow-ups", label: "导演跟进", icon: Workflow },
     ],
   },
   {
@@ -79,6 +77,8 @@ const navGroups: NavGroup[] = [
   {
     title: "系统",
     items: [
+      { to: "/tasks", label: "运行记录", icon: ListTodo },
+      { to: "/auto-director/follow-ups", label: "导演跟进", icon: Workflow },
       { to: "/prompt-workbench", label: "提示词管理", icon: Braces },
       { to: "/settings", label: "系统设置", icon: Settings2 },
     ],

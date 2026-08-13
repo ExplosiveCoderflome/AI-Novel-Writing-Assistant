@@ -8,6 +8,7 @@ import {
   openDesktopLogsDirectory,
   restartDesktopApp,
   quitAndInstallDesktopUpdate,
+  bundleDesktopLogs,
   type DesktopBootstrapSnapshot,
   type DesktopUpdaterSnapshot,
   useDesktopUpdater,
@@ -199,39 +200,39 @@ function DesktopBootstrapUpdatePanel({ snapshot }: { snapshot: DesktopBootstrapS
       className={cn(
         "rounded-3xl border p-5",
         isPromptingUpdate
-          ? "border-amber-300/70 bg-amber-300/10"
-          : "border-slate-800 bg-slate-900/70",
+          ? "border-warning/45 bg-warning/10"
+          : "border-border/60 bg-background/55",
       )}
     >
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <div className="text-xs font-medium uppercase tracking-[0.2em] text-slate-400">版本检查</div>
+        <div className="text-xs font-medium uppercase tracking-[0.2em] text-muted-foreground">版本检查</div>
         <Badge
           variant="outline"
           className={cn(
-            "border-slate-600 bg-slate-950/60 text-slate-100",
-            isPromptingUpdate ? "border-amber-300/80 bg-amber-300/15 text-amber-100" : null,
+            "border-border bg-muted/60 text-foreground",
+            isPromptingUpdate ? "border-warning/50 bg-warning/10 text-warning" : null,
           )}
         >
           {resolveUpdaterStatusLabel(updater.status)}
         </Badge>
       </div>
 
-      <div className="mt-3 grid gap-2 text-sm text-slate-300">
+      <div className="mt-3 grid gap-2 text-sm text-muted-foreground">
         <div className="flex items-center justify-between gap-3">
           <span>本机版本</span>
-          <span className="font-medium text-slate-100">{updater.currentVersion}</span>
+          <span className="font-medium text-foreground">{updater.currentVersion}</span>
         </div>
         <div className="flex items-center justify-between gap-3">
           <span>可用版本</span>
-          <span className="font-medium text-slate-100">{updater.availableVersion ?? "-"}</span>
+          <span className="font-medium text-foreground">{updater.availableVersion ?? "-"}</span>
         </div>
-        <div className="flex items-center justify-between gap-3 text-slate-400">
+        <div className="flex items-center justify-between gap-3 text-muted-foreground">
           <span>检查时间</span>
-          <span className="font-medium text-slate-200">{formatSnapshotTime(updater.lastCheckedAt ?? "")}</span>
+          <span className="font-medium text-foreground">{formatSnapshotTime(updater.lastCheckedAt ?? "")}</span>
         </div>
       </div>
 
-      <div className="mt-3 rounded-2xl border border-slate-800 bg-slate-950/60 px-4 py-3 text-sm leading-6 text-slate-300">
+      <div className="mt-3 rounded-xl border border-border/60 bg-muted/35 px-4 py-3 text-sm leading-6 text-muted-foreground">
         {resolveUpdaterHint(updater, snapshot.state)}
         {typeof updater.progressPercent === "number" ? ` 下载进度 ${Math.round(updater.progressPercent)}%。` : ""}
       </div>
@@ -242,7 +243,7 @@ function DesktopBootstrapUpdatePanel({ snapshot }: { snapshot: DesktopBootstrapS
             type="button"
             size="sm"
             variant="outline"
-            className="border-slate-600 bg-slate-800 text-slate-100 hover:bg-slate-700 hover:text-white"
+            className="border-border bg-background text-foreground hover:bg-muted"
             disabled={isBusy || updater.status === "checking"}
             onClick={() => void runUpdaterAction("check")}
           >
@@ -254,7 +255,7 @@ function DesktopBootstrapUpdatePanel({ snapshot }: { snapshot: DesktopBootstrapS
           <Button
             type="button"
             size="sm"
-            className="bg-amber-300 text-slate-950 hover:bg-amber-200"
+            className="bg-warning text-warning-foreground hover:bg-warning/90"
             disabled={isBusy || isCheckingOrDownloading}
             onClick={() => void runUpdaterAction("check")}
           >
@@ -266,7 +267,7 @@ function DesktopBootstrapUpdatePanel({ snapshot }: { snapshot: DesktopBootstrapS
           <Button
             type="button"
             size="sm"
-            className="bg-cyan-400 text-slate-950 hover:bg-cyan-300"
+            className="bg-primary text-primary-foreground hover:bg-primary/90"
             disabled={isBusy || !updater.canInstall}
             onClick={() => void runUpdaterAction("install")}
           >
@@ -282,97 +283,65 @@ function DesktopBootstrapUpdatePanel({ snapshot }: { snapshot: DesktopBootstrapS
 export default function DesktopBootstrapShell({ snapshot, overlay = false }: DesktopBootstrapShellProps) {
   const surfaceClassName = overlay
     ? "bg-background/88 backdrop-blur-xl"
-    : "bg-[radial-gradient(circle_at_top_left,rgba(59,130,246,0.18),transparent_42%),radial-gradient(circle_at_bottom_right,rgba(245,158,11,0.16),transparent_38%),linear-gradient(145deg,#08101f_0%,#122033_55%,#101d2e_100%)]";
+    : "bg-[radial-gradient(circle_at_18%_18%,hsl(var(--info)/0.22),transparent_34%),radial-gradient(circle_at_88%_82%,hsl(var(--primary)/0.18),transparent_38%),hsl(var(--background))]";
 
   return (
-    <div className={cn("fixed inset-0 z-[90] flex items-center justify-center px-6 py-8", surfaceClassName)}>
-      <div className="w-full max-w-3xl overflow-hidden rounded-[30px] border border-slate-700/50 bg-slate-950/82 text-slate-50 shadow-[0_24px_90px_rgba(2,6,23,0.5)]">
-        <div className="grid gap-0 lg:grid-cols-[1.15fr_0.85fr]">
-          <section className="space-y-6 border-b border-slate-800/80 px-8 py-8 lg:border-b-0 lg:border-r">
-            <div className="flex items-center gap-4">
-              <DesktopBrandMark className="h-20 w-20" />
-              <div className="space-y-2">
-                <div className="flex flex-wrap items-center gap-2">
-                  <Badge className="bg-cyan-500/20 text-cyan-100 hover:bg-cyan-500/20">
-                    桌面版 · 测试通道
-                  </Badge>
-                  <Badge variant="outline" className="border-slate-600 bg-slate-900/70 text-slate-100">
-                    {resolveStageLabel(snapshot)}
-                  </Badge>
+    <div className={cn("fixed inset-0 z-[90] flex items-center justify-center overflow-y-auto px-5 py-6 sm:px-8", surfaceClassName)}>
+      <div className="relative w-full max-w-5xl overflow-hidden rounded-[32px] border border-border/70 bg-card/88 text-card-foreground shadow-[0_32px_120px_-48px_hsl(var(--foreground)/0.55)] backdrop-blur-2xl">
+        <div className="pointer-events-none absolute -right-24 -top-28 h-80 w-80 rounded-full bg-info/15 blur-3xl" />
+        <div className="pointer-events-none absolute -bottom-32 left-1/3 h-72 w-72 rounded-full bg-primary/10 blur-3xl" />
+        <div className="relative grid gap-0 lg:grid-cols-[minmax(0,1.2fr)_minmax(300px,0.8fr)]">
+          <section className="flex min-h-[420px] flex-col justify-between border-b border-border/60 px-7 py-8 sm:px-10 sm:py-10 lg:border-b-0 lg:border-r">
+            <div>
+              <div className="flex items-start justify-between gap-6">
+                <div className="flex items-center gap-4">
+                  <div className="rounded-[24px] bg-primary/10 p-2 ring-1 ring-primary/20"><DesktopBrandMark className="h-16 w-16" /></div>
+                  <div>
+                    <div className="text-xs font-medium uppercase tracking-[0.24em] text-info">AI NOVEL STUDIO</div>
+                    <h1 className="mt-2 text-2xl font-semibold tracking-tight sm:text-3xl">AI 小说创作工作台</h1>
+                  </div>
                 </div>
-                <h1 className="text-3xl font-semibold tracking-tight">AI 小说创作工作台</h1>
+                <Badge variant="outline" className="hidden border-info/30 bg-info/10 text-info sm:inline-flex">桌面版 · {resolveStageLabel(snapshot)}</Badge>
+              </div>
+
+              <div className="mt-20 max-w-xl">
+                <div className="flex items-center gap-2 text-sm font-medium text-info"><span className="h-2 w-2 animate-pulse rounded-full bg-info" />{resolveStateLabel(snapshot)}</div>
+                <h2 className="mt-4 text-4xl font-semibold leading-tight tracking-[-0.04em] sm:text-5xl">{snapshot.title}</h2>
+                <p className="mt-5 max-w-lg text-sm leading-7 text-muted-foreground">{snapshot.detail}</p>
               </div>
             </div>
 
-            <div className="space-y-3">
-              <h2 className="text-2xl font-semibold tracking-tight">{snapshot.title}</h2>
-              <p className="max-w-xl text-sm leading-7 text-slate-300">{snapshot.detail}</p>
-            </div>
-
-            <div className="space-y-3">
-              <div className="h-2 w-full overflow-hidden rounded-full bg-slate-800">
-                {snapshot.state === "error" ? (
-                  <span className="block h-full w-full rounded-full bg-rose-400" />
-                ) : (
-                  <span className="block h-full w-1/2 animate-[desktop-shell-progress_1.4s_ease-in-out_infinite] rounded-full bg-[linear-gradient(90deg,#76e5ff_0%,#f6b24c_100%)]" />
-                )}
+            <div className="mt-12 space-y-3">
+              <div className="flex items-center justify-between text-xs text-muted-foreground"><span>正在连接你的创作空间</span><span>{resolveStageLabel(snapshot)}</span></div>
+              <div className="h-1.5 w-full overflow-hidden rounded-full bg-muted">
+                {snapshot.state === "error" ? <span className="block h-full w-full rounded-full bg-destructive" /> : <span className="block h-full w-1/2 animate-[desktop-shell-progress_1.4s_ease-in-out_infinite] rounded-full bg-[linear-gradient(90deg,hsl(var(--info)),hsl(var(--primary)))]" />}
               </div>
-              <div className="rounded-2xl border border-slate-800 bg-slate-900/70 px-4 py-4 text-sm leading-6 text-slate-300">
-                这个页面只会在桌面版启动时短暂出现，用来承接本地服务启动，避免先看到白屏或空白窗口。
-              </div>
+              <p className="text-xs leading-5 text-muted-foreground">启动页只在准备本地服务时短暂出现，工作区就绪后会自动进入。</p>
             </div>
           </section>
 
-          <section className="space-y-5 px-8 py-8">
-            <div className="rounded-3xl border border-slate-800 bg-slate-900/70 p-5">
-              <div className="text-xs font-medium uppercase tracking-[0.2em] text-slate-400">当前进度</div>
-              <div className="mt-3 space-y-3 text-sm text-slate-200">
-                <div className="flex items-center justify-between gap-3">
-                  <span>状态</span>
-                  <span className="font-medium">{resolveStateLabel(snapshot)}</span>
-                </div>
-                <div className="rounded-2xl border border-slate-800 bg-slate-950/60 px-4 py-3 text-slate-300">
-                  {resolveProgressHint(snapshot)}
-                </div>
-                <div className="flex items-center justify-between gap-3 text-slate-400">
-                  <span>最近更新</span>
-                  <span className="font-medium text-slate-200">{formatSnapshotTime(snapshot.updatedAt)}</span>
-                </div>
+          <section className="space-y-4 bg-muted/20 px-7 py-8 sm:px-8 sm:py-10">
+            <div className="rounded-2xl border border-border/60 bg-background/55 p-5">
+              <div className="text-xs font-medium uppercase tracking-[0.2em] text-muted-foreground">启动状态</div>
+              <div className="mt-4 space-y-3 text-sm">
+                <div className="flex items-center justify-between gap-3"><span className="text-muted-foreground">当前阶段</span><span className="font-medium">{resolveStateLabel(snapshot)}</span></div>
+                <div className="rounded-xl border border-border/60 bg-muted/35 px-3.5 py-3 text-sm leading-6 text-muted-foreground">{resolveProgressHint(snapshot)}</div>
+                <div className="flex items-center justify-between gap-3 text-xs text-muted-foreground"><span>最近更新</span><span>{formatSnapshotTime(snapshot.updatedAt)}</span></div>
               </div>
             </div>
 
             <DesktopBootstrapUpdatePanel snapshot={snapshot} />
 
-            <div className="rounded-3xl border border-slate-800 bg-slate-900/70 p-5">
-              <div className="text-xs font-medium uppercase tracking-[0.2em] text-slate-400">日志与排查</div>
-              <div className="mt-3 text-sm leading-6 text-slate-300">
-                如果启动卡住、本地服务提前退出，或者你要定位启动耗时，可以直接查看桌面端日志。
+            <details className="group rounded-2xl border border-border/60 bg-background/45 p-5">
+              <summary className="cursor-pointer list-none text-xs font-medium uppercase tracking-[0.2em] text-muted-foreground">日志与排查 <span className="float-right transition-transform group-open:rotate-180">⌄</span></summary>
+              <div className="mt-4 text-sm leading-6 text-muted-foreground">如果启动卡住或本地服务提前退出，可以打开日志目录定位问题。</div>
+              <div className="mt-4 flex flex-wrap gap-2">
+                <Button variant="secondary" size="sm" onClick={() => void bundleDesktopLogs()}>下载近期日志包</Button>
+                <Button variant="outline" size="sm" onClick={() => void openDesktopLogsDirectory()}>打开日志目录</Button>
+                <Button variant="outline" size="sm" onClick={() => void copyDesktopLogPath()}>复制日志路径</Button>
+                {snapshot.state === "error" && snapshot.canRetry ? <Button size="sm" onClick={() => void restartDesktopApp()}>重新启动</Button> : null}
               </div>
-              <div className="mt-4 flex flex-wrap gap-3">
-                <Button
-                  variant="secondary"
-                  className="bg-slate-50 text-slate-950 hover:bg-white"
-                  onClick={() => void openDesktopLogsDirectory()}
-                >
-                  打开日志目录
-                </Button>
-                <Button
-                  variant="outline"
-                  className="border-slate-600 bg-slate-800 text-slate-100 hover:bg-slate-700 hover:text-white"
-                  onClick={() => void copyDesktopLogPath()}
-                >
-                  复制日志路径
-                </Button>
-                {snapshot.state === "error" && snapshot.canRetry ? (
-                  <Button
-                    className="bg-cyan-400 text-slate-950 hover:bg-cyan-300"
-                    onClick={() => void restartDesktopApp()}
-                  >
-                    重新启动
-                  </Button>
-                ) : null}
-              </div>
-            </div>
+            </details>
           </section>
         </div>
       </div>

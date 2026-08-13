@@ -4,7 +4,7 @@ import type { ApiResponse } from "@ai-novel/shared/types/api";
 import type { CreativeHubResourceBinding, CreativeHubThread } from "@ai-novel/shared/types/creativeHub";
 import type { LangChainMessage } from "@assistant-ui/react-langgraph";
 import { useSearchParams } from "react-router-dom";
-import { MessagesSquare, RefreshCw } from "lucide-react";
+import { ExternalLink, MessagesSquare, RefreshCw } from "lucide-react";
 import {
   createCreativeHubThread,
   deleteCreativeHubThread,
@@ -448,14 +448,6 @@ export default function CreativeHubPage() {
     await runtimeState.sendPrompt(prompt);
   }, [activeThreadId, runtimeState]);
 
-  const handleCreateNovelQuickAction = useCallback(async (title: string) => {
-    const normalized = title.trim();
-    if (!normalized) {
-      return;
-    }
-    await handleQuickAction(`创建一本小说《${normalized}》。`);
-  }, [handleQuickAction]);
-
   const focusWorkspaceArea = (id: "creative-hub-activity" | "creative-hub-context") => {
     document.getElementById(id)?.scrollIntoView({ behavior: "smooth", block: "start" });
   };
@@ -552,7 +544,7 @@ export default function CreativeHubPage() {
         icon={MessagesSquare}
         context="当前小说与创作线程"
         title="创作中枢"
-        description="围绕当前小说整理创作目标、查看 AI 执行记录，并从真实任务状态继续推进整本作品。"
+        description="绑定一本小说后，可查询创作状态、诊断阻塞，并获得可操作的下一步建议。"
         meta={(
           <>
             <span>小说：{workspacePresentation.objectTitle}</span>
@@ -576,6 +568,26 @@ export default function CreativeHubPage() {
         )}
       />
 
+      <section className="rounded-lg border border-info/30 bg-info/5 p-4" aria-label="独立 Agent 项目提示">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+          <div>
+            <h2 className="text-sm font-semibold text-foreground">需要完整 Agent 驱动创作？</h2>
+            <p className="mt-1 max-w-3xl text-sm leading-6 text-muted-foreground">
+              创作中枢用于查询小说状态、诊断问题和获得下一步建议。完整的 Agent 工作流、工具调用、暂停恢复与本地小说工件，可使用独立项目。
+            </p>
+            <p className="mt-2 break-all font-mono text-xs text-foreground">git clone https://github.com/ExplosiveCoderflome/ani-book-agent.git</p>
+            <p className="mt-1 text-xs text-muted-foreground">进入 ani-book-agent 目录，依次运行 pnpm install 和 pnpm dev；默认工作台地址为 http://127.0.0.1:5175。</p>
+            <p className="mt-1 text-xs text-muted-foreground">独立项目使用自己的小说工作区和运行记录，不会直接修改这里的小说。</p>
+          </div>
+          <Button asChild size="sm" variant="outline" className="shrink-0">
+            <a href="https://github.com/ExplosiveCoderflome/ani-book-agent" target="_blank" rel="noreferrer">
+              查看 Agent 仓库
+              <ExternalLink className="ml-1.5 h-3.5 w-3.5" aria-hidden="true" />
+            </a>
+          </Button>
+        </div>
+      </section>
+
       {threadsQuery.isLoading
         || createThreadMutation.isPending && !activeThreadId
         || Boolean(activeThreadId && (stateQuery.isLoading || runtimeState.isThreadLoading)) ? (
@@ -583,7 +595,7 @@ export default function CreativeHubPage() {
           loading
           tone="info"
           title="正在准备当前创作现场"
-          description="系统正在读取线程、小说绑定和最近执行记录，完成后会给出唯一推荐下一步。"
+          description="系统正在读取线程和小说状态，完成后会给出唯一推荐下一步。"
         />
       ) : (
         <WorkspaceNextAction
@@ -654,8 +666,6 @@ export default function CreativeHubPage() {
             onRetryNovels={() => void novelsQuery.refetch()}
             onNovelChange={(novelId) => handleBindingsChange({ novelId: novelId || null })}
             onQuickAction={(prompt) => void handleQuickAction(prompt)}
-            onCreateNovel={handleCreateNovelQuickAction}
-            onStartProduction={handleQuickAction}
           />
         </div>
 

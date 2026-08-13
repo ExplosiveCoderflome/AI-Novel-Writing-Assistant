@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { toast } from "@/components/ui/toast";
 import {
   checkForDesktopUpdates,
+  bundleDesktopLogs,
   quitAndInstallDesktopUpdate,
   type DesktopUpdaterSnapshot,
 } from "@/lib/desktop";
@@ -54,6 +55,15 @@ export default function DesktopUpdatePanel({ updater, showEnvironment = true }: 
     }
   };
 
+  const exportLogs = async () => {
+    try {
+      const filePath = await bundleDesktopLogs();
+      if (filePath) toast.success("日志包已保存，可以发送给开发者。");
+    } catch {
+      toast.error("日志包保存失败，请稍后重试。");
+    }
+  };
+
   return (
     <div className="space-y-4">
       {showEnvironment ? (
@@ -100,6 +110,9 @@ export default function DesktopUpdatePanel({ updater, showEnvironment = true }: 
       </div>
 
       <div className="flex flex-wrap gap-2">
+        <Button type="button" variant="ghost" onClick={() => void exportLogs()}>
+          下载近期日志包
+        </Button>
         {showCheckButton ? (
           <Button
             type="button"

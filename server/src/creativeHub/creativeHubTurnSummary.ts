@@ -45,6 +45,10 @@ function formatIntentLabel(intent: StructuredIntent["intent"] | undefined): stri
       return "查阅知识资料";
     case "ideate_novel_setup":
       return "生成设定备选";
+    case "workflow_handoff":
+      return "前往正式工作台";
+    case "out_of_scope":
+      return "查看合适入口";
     case "inspect_world":
       return "检查世界观约束";
     case "inspect_characters":
@@ -190,8 +194,11 @@ function buildNextSuggestion(
       return "根据已找到的资料继续追问，或将关键材料绑定到当前工作区。";
     case "ideate_novel_setup":
       return "从当前备选里挑出最接近的一版，再继续细化主角、冲突和故事承诺。";
+    case "workflow_handoff":
+    case "out_of_scope":
+      return "打开正式小说工作台、自动导演或任务中心完成后续操作。";
     default:
-      return "继续围绕当前工作区推进下一步创作。";
+      return "查看当前状态、失败原因或下一步建议。";
   }
 }
 

@@ -55,7 +55,7 @@ const primaryNavItems: MobileNavItem[] = [
   { key: "home", label: "首页", to: "/", group: "home" },
   { key: "novels", label: "小说", to: "/novels", group: "novels" },
   { key: "creation", label: "创作", to: "/creative-hub", group: "creation" },
-  { key: "tasks", label: "任务", to: "/tasks", group: "tasks" },
+  { key: "tasks", label: "任务", to: "/tasks", group: "more" },
   { key: "more", label: "更多", to: "", group: "more" },
 ];
 
@@ -66,7 +66,6 @@ const moreNavGroups: MobileNavGroup[] = [
       { key: "help", label: "创作向导", to: "/help", group: "more" },
       { key: "drama", label: "短剧工作台", to: "/drama", group: "creation" },
       { key: "book-analysis", label: "拆书", to: "/book-analysis", group: "creation" },
-      { key: "auto-director-follow-ups", label: "导演跟进", to: "/auto-director/follow-ups", group: "tasks" },
       { key: "chat-legacy", label: "旧版聊天", to: "/chat-legacy", group: "creation" },
     ],
   },
@@ -85,6 +84,8 @@ const moreNavGroups: MobileNavGroup[] = [
   {
     title: "世界与系统",
     items: [
+      { key: "tasks", label: "运行记录", to: "/tasks", group: "more" },
+      { key: "auto-director-follow-ups", label: "导演跟进", to: "/auto-director/follow-ups", group: "more" },
       { key: "worlds", label: "世界样本库", to: "/worlds", group: "more" },
       { key: "world-generator", label: "创建世界样本", to: "/worlds/generator", group: "more" },
       { key: "prompt-workbench", label: "提示词管理", to: "/prompt-workbench", group: "more" },

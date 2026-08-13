@@ -87,6 +87,7 @@ interface Window {
     quitAndInstall?: () => Promise<unknown>;
     openLogsDirectory?: () => Promise<unknown>;
     copyLogPath?: () => Promise<string | undefined>;
+    bundleLogs?: () => Promise<string | null>;
     restartApp?: () => Promise<unknown>;
     importLegacyDatabase?: (options?: { preferSuggested?: boolean }) => Promise<{
       scheduled: boolean;

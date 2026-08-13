@@ -67,6 +67,13 @@ export default function ProviderConfigDialog({
   const canSelectListedModels = selectableModels.length > 0;
   const imageModelOptions = editingConfig?.imageModels ?? [];
   const canSelectImageModels = imageModelOptions.length > 0;
+  const modelGuidance = editingConfig?.provider === "deepseek"
+    ? "推荐使用 DeepSeek V4 Flash，兼顾中文长篇质量与响应速度；也可以选择其他可用模型。"
+    : isCreatingCustomProvider
+      ? "获取模型列表后会自动填入第一个可用模型；接口不返回列表时，可以手动填写。"
+      : editingConfig?.kind === "custom" && !canSelectListedModels
+        ? "可点击厂商卡片的“刷新模型”获取列表，也可以手动填写默认模型。"
+        : "如果列表里没有目标模型，可以手动输入。";
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -190,13 +197,7 @@ export default function ProviderConfigDialog({
 
           <div className="space-y-1">
             <div className="text-xs text-muted-foreground">{primaryModelLabel}</div>
-            <div className="text-xs text-muted-foreground">
-              {isCreatingCustomProvider
-                ? "获取模型列表后会自动填入第一个可用模型；接口不返回列表时，可以手动填写。"
-                : editingConfig?.kind === "custom" && !canSelectListedModels
-                  ? "可点击厂商卡片的“刷新模型”获取列表，也可以手动填写默认模型。"
-                  : "如果列表里没有目标模型，可以手动输入。"}
-            </div>
+            <div className="text-xs text-muted-foreground">{modelGuidance}</div>
           </div>
           <Input
             value={form.model}

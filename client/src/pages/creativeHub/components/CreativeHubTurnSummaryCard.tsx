@@ -74,7 +74,7 @@ export default function CreativeHubTurnSummaryCard({
                 variant="outline"
                 onClick={() => onQuickAction(summary.nextSuggestion)}
               >
-                沿这个方向继续
+                查看建议
               </Button>
             </div>
           ) : null}

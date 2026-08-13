@@ -8,6 +8,7 @@ import { safeJson } from "../agents/runtime/runtimeHelpers";
 import { novelProductionService } from "../services/novel/NovelProductionService";
 import type { ProductionStatusResult } from "../services/novel/NovelProductionStatusService";
 import { sanitizeCreativeHubToolOutput } from "./toolEventPayloads";
+import { filterCreativeHubActions } from "./creativeHubToolPolicy";
 import { creativeHubService } from "./CreativeHubService";
 import { buildCreativeHubTurnSummary } from "./creativeHubTurnSummary";
 import { latestHumanGoal, toRunStatusContext } from "./creativeHubGraphHelpers";
@@ -182,6 +183,7 @@ export class CreativeHubLangGraph {
       currentRunId: run.id,
       currentRunStatus: "running",
       currentStep: "planning",
+      profile: "creative_hub_readonly",
     };
     let plannerResult;
     try {
@@ -326,10 +328,29 @@ export class CreativeHubLangGraph {
       },
     };
 
+    const { allowedActions, blockedTools } = filterCreativeHubActions(state.plannerResult.actions);
+    if (blockedTools.length > 0) {
+      const warning = `创作中枢只提供查询、诊断和引导；以下写入或执行操作请从正式小说工作台或自动导演入口发起：${blockedTools.join("、")}`;
+      this.emitFrame(state, {
+        event: "metadata",
+        data: { governance: { blockedTools, warning } },
+      });
+      await this.store.addStep({
+        runId: state.runId,
+        agentName: "Planner",
+        stepType: "reasoning",
+        status: "succeeded",
+        inputJson: safeJson({ blockedTools, warning }),
+        outputJson: safeJson({ blockedTools }),
+        provider: state.runSettings.provider,
+        model: state.runSettings.model,
+      });
+    }
+
     const executionResult = await this.executor.runActionPlan(
       state.runId,
       state.goal,
-      state.plannerResult.actions,
+      allowedActions,
       {
         contextMode: state.resourceBindings.novelId ? "novel" : "global",
         novelId: state.resourceBindings.novelId ?? undefined,
@@ -338,6 +359,7 @@ export class CreativeHubLangGraph {
         model: state.runSettings.model,
         temperature: state.runSettings.temperature,
         maxTokens: state.runSettings.maxTokens,
+        plannerProfile: "creative_hub_readonly",
       },
       state.plannerResult.structuredIntent,
       (runId, message, agentName, innerCallbacks) => this.failRun(runId, message, agentName, state, innerCallbacks),

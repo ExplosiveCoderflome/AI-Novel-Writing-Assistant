@@ -78,7 +78,7 @@ export default function AppLayout() {
     return (
       <CreationSetupProvider>
         <TaskRecoveryProvider>
-          <div className="h-[100dvh] overflow-hidden bg-[#faf9f6]">
+          <div className="h-[100dvh] overflow-hidden bg-background text-foreground">
             <AutoDirectorPauseNotificationWatcher />
             <LLMSelectionBootstrap />
             <Suspense fallback={<AppRouteFallback />}>

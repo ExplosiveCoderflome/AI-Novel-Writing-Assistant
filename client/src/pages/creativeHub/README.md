@@ -2,9 +2,9 @@
 
 ## 模块职责
 
-Creative Hub 是围绕小说持续推进的创作工作台。它负责展示当前小说、创作线程、AI 执行记录、待确认操作和推荐下一步，并把用户动作交给既有 Creative Hub Runtime 与受控工具。
+Creative Hub 是围绕小说状态进行查询、诊断和下一步引导的工作台。它负责展示当前小说、创作线程、AI 执行记录、待确认操作和推荐下一步，并把查询动作交给既有 Creative Hub Runtime 与受控工具。
 
-本模块不是小说生产事实源，也不是通用聊天入口。自动导演、章节生产、任务投影和资源服务继续维护各自事实；Creative Hub 只读取这些结构化状态、解释影响并发起已有命令。
+本模块不是小说生产事实源，也不是第二套小说生产器。自动导演、章节生产、任务投影和资源服务继续维护各自事实；Creative Hub 只读取这些结构化状态、解释影响并导航到正式工作流。完整 Agent 驱动创作使用独立项目：`https://github.com/ExplosiveCoderflome/ani-book-agent`，使用者从 GitHub 克隆后独立安装和运行。
 
 ## 目录所有权
 
@@ -13,7 +13,7 @@ Creative Hub 是围绕小说持续推进的创作工作台。它负责展示当�
 - `presentation/`：把已有线程、初始化、生产、诊断和回合摘要投影为当前对象、阶段和唯一推荐动作。这里不得通过关键词识别用户意图。
 - `hooks/useCreativeHubRuntime.ts`：assistant-ui/LangGraph 适配、线程消息装载、流式运行、checkpoint、分支和运行产物投影。
 - `components/CreativeHubConversation.tsx` 与消息组件：创作推进记录、自由输入、消息编辑、分支、重新生成、Tool UI 和审批交互。
-- `components/CreativeHubSidebar.tsx`：当前小说和资源绑定、初始化/生产入口、阻塞摘要与折叠的运行详情。
+- `components/CreativeHubSidebar.tsx`：当前小说和资源绑定、正式工作流导航、阻塞摘要与折叠的运行详情。
 - `components/CreativeHubThreadList.tsx`：线程选择、创建、归档和删除；不读取 API。
 - `components/CreativeHubToolResultCard.tsx`：对结构化工具名和工具输出做确定性 UI 映射。工具名映射属于结构化结果展示，不承担意图路由。
 - `lib/creativeHubSyntheticMessages.ts`：把回合摘要、诊断与调试事件投影成消息流内联产物。
@@ -30,8 +30,8 @@ Creative Hub 是围绕小说持续推进的创作工作台。它负责展示当�
 4. 线程、最近回合、诊断或生产处于结构化失败：使用已有恢复建议。
 5. 新书初始化未完成：使用 `novelSetup.recommendedAction`。
 6. 最近回合有下一步：使用 `latestTurnSummary.nextSuggestion`。
-7. 未绑定小说：引导选择或创建小说。
-8. 其余可生产状态：进入现有整本生产设置。
+7. 未绑定小说：引导选择小说或打开正式创建入口。
+8. 其余状态：进入现有正式小说工作台或自动导演入口。
 
 该优先级只对 AI/Runtime 已输出的结构化结论做确定性展示，不得增加关键词、正则或自由文本分流。
 

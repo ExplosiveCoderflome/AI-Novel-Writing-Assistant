@@ -9,6 +9,7 @@ import { APP_RUNTIME } from "./lib/constants";
 import AppRouter from "./router";
 import { Toaster } from "./components/ui/toast";
 import "./index.css";
+import { ThemeProvider } from "./components/theme/ThemeProvider";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -23,15 +24,17 @@ const AppRouterProvider = APP_RUNTIME === "desktop" ? HashRouter : BrowserRouter
 
 ReactDOM.createRoot(document.getElementById("root")!).render(
   <React.StrictMode>
-    <QueryClientProvider client={queryClient}>
-      <AppRouterProvider>
-        <DesktopBootstrapBoundary>
-          <ServerStartupGate>
-            <AppRouter />
-          </ServerStartupGate>
-        </DesktopBootstrapBoundary>
-        <Toaster />
-      </AppRouterProvider>
-    </QueryClientProvider>
+    <ThemeProvider>
+      <QueryClientProvider client={queryClient}>
+        <AppRouterProvider>
+          <DesktopBootstrapBoundary>
+            <ServerStartupGate>
+              <AppRouter />
+            </ServerStartupGate>
+          </DesktopBootstrapBoundary>
+          <Toaster />
+        </AppRouterProvider>
+      </QueryClientProvider>
+    </ThemeProvider>
   </React.StrictMode>,
 );

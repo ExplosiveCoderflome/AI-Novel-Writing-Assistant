@@ -31,6 +31,116 @@
   --radius: 0.75rem;
 }
 
+:root[data-theme="paper"] {
+  --background: 42 33% 97%;
+  --foreground: 28 28% 16%;
+  --card: 42 36% 99%;
+  --card-foreground: 28 28% 16%;
+  --popover: 42 36% 99%;
+  --popover-foreground: 28 28% 16%;
+  --primary: 28 55% 27%;
+  --primary-foreground: 42 40% 98%;
+  --secondary: 37 27% 91%;
+  --secondary-foreground: 28 38% 22%;
+  --muted: 37 23% 93%;
+  --muted-foreground: 28 15% 42%;
+  --accent: 38 44% 88%;
+  --accent-foreground: 28 45% 22%;
+  --border: 34 22% 84%;
+  --input: 34 22% 84%;
+  --ring: 28 55% 27%;
+}
+
+:root[data-theme="night"] {
+  --background: 198 28% 96%;
+  --foreground: 222 47% 10%;
+  --card: 200 32% 99%;
+  --card-foreground: 222 47% 10%;
+  --popover: 200 32% 99%;
+  --popover-foreground: 222 47% 10%;
+  --primary: 166 70% 34%;
+  --primary-foreground: 0 0% 100%;
+  --secondary: 196 25% 88%;
+  --secondary-foreground: 222 38% 16%;
+  --muted: 198 24% 91%;
+  --muted-foreground: 215 24% 40%;
+  --accent: 182 35% 86%;
+  --accent-foreground: 190 55% 20%;
+  --border: 200 22% 80%;
+  --input: 200 22% 80%;
+  --ring: 166 70% 34%;
+}
+
+:root.dark[data-theme="paper"] {
+  --background: 28 23% 10%;
+  --foreground: 40 30% 94%;
+  --card: 28 22% 14%;
+  --card-foreground: 40 30% 94%;
+  --popover: 28 22% 14%;
+  --popover-foreground: 40 30% 94%;
+  --primary: 36 71% 62%;
+  --primary-foreground: 28 23% 10%;
+  --secondary: 29 20% 21%;
+  --secondary-foreground: 40 30% 94%;
+  --muted: 29 20% 18%;
+  --muted-foreground: 35 15% 72%;
+  --accent: 29 28% 24%;
+  --accent-foreground: 40 38% 91%;
+  --border: 29 18% 29%;
+  --input: 29 18% 29%;
+  --ring: 36 71% 62%;
+}
+
+:root[data-density="compact"] {
+  --radius: 0.55rem;
+}
+
+.dark {
+  --background: 222.2 47.4% 11.2%;
+  --foreground: 210 40% 98%;
+  --card: 222.2 47.4% 13.5%;
+  --card-foreground: 210 40% 98%;
+  --popover: 222.2 47.4% 13.5%;
+  --popover-foreground: 210 40% 98%;
+  --primary: 210 40% 98%;
+  --primary-foreground: 222.2 47.4% 11.2%;
+  --secondary: 217.2 32.6% 20%;
+  --secondary-foreground: 210 40% 98%;
+  --muted: 217.2 32.6% 20%;
+  --muted-foreground: 215 20.2% 70%;
+  --accent: 217.2 32.6% 23%;
+  --accent-foreground: 210 40% 98%;
+  --border: 217.2 32.6% 26%;
+  --input: 217.2 32.6% 26%;
+  --ring: 212.7 26.8% 83.9%;
+  --success: 142 55% 48%;
+  --warning: 38 92% 55%;
+  --info: 199 80% 58%;
+}
+
+.dark[data-theme="night"] {
+  --background: 222 47% 8%;
+  --foreground: 210 40% 96%;
+  --card: 222 42% 12%;
+  --card-foreground: 210 40% 96%;
+  --popover: 222 42% 12%;
+  --popover-foreground: 210 40% 96%;
+  --primary: 166 70% 42%;
+  --primary-foreground: 222 47% 8%;
+  --secondary: 218 32% 19%;
+  --secondary-foreground: 210 40% 96%;
+  --muted: 218 32% 17%;
+  --muted-foreground: 215 20% 70%;
+  --accent: 196 43% 20%;
+  --accent-foreground: 186 80% 88%;
+  --border: 217 28% 25%;
+  --input: 217 28% 25%;
+  --ring: 166 70% 42%;
+  --success: 155 70% 48%;
+  --warning: 42 92% 58%;
+  --info: 190 80% 58%;
+}
+
 * {
   @apply border-border;
 }
@@ -404,10 +514,19 @@ body {
     gap: 0.5rem;
   }
 
-  .mobile-route-home .home-status-summary-grid > .rounded-xl,
+  .mobile-route-home .home-status-summary-grid > .home-status-metric-card,
   .mobile-route-tasks .task-status-summary-grid > .rounded-xl {
     border-radius: 0.75rem;
     box-shadow: none;
+  }
+
+  .mobile-route-home .home-status-metric-card {
+    min-height: 4.75rem;
+    padding: 0.5rem;
+  }
+
+  .mobile-route-home .home-status-metric-card > span {
+    display: none;
   }
 
   .mobile-route-home .home-status-summary-grid .p-6,

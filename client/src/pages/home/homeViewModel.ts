@@ -141,7 +141,7 @@ export function buildHomeNextAction(primaryNovel: HomeNovelItem | null): HomeNex
     return {
       kind: "novel",
       eyebrow: task?.status === "succeeded" ? "完整作品" : "创作进行中",
-      title: task?.status === "succeeded" ? `继续完善《${primaryNovel.title}》` : `查看《${primaryNovel.title}》的成稿进度`,
+      title: task?.status === "succeeded" ? "继续完善这篇作品" : "查看成稿进度",
       description: getNovelLeadSummary(primaryNovel),
       reason: task?.status === "succeeded"
         ? "作品已完整生成，可以直接阅读、编辑、修改或导出。"
@@ -153,7 +153,7 @@ export function buildHomeNextAction(primaryNovel: HomeNovelItem | null): HomeNex
     return {
       kind: "novel",
       eyebrow: "推荐下一步",
-      title: `恢复《${primaryNovel.title}》的章节执行`,
+      title: "恢复章节创作",
       description: getNovelLeadSummary(primaryNovel),
       reason: "章节批次停在可恢复节点，先恢复执行能最快回到正文生产。",
       tone: "danger",
@@ -163,7 +163,7 @@ export function buildHomeNextAction(primaryNovel: HomeNovelItem | null): HomeNex
     return {
       kind: "novel",
       eyebrow: "推荐下一步",
-      title: `确认《${primaryNovel.title}》的书级方向`,
+      title: "确认整本故事方向",
       description: getNovelLeadSummary(primaryNovel),
       reason: "确认方向后，系统才能继续准备世界观、角色和章节执行计划。",
       tone: "warning",
@@ -173,7 +173,7 @@ export function buildHomeNextAction(primaryNovel: HomeNovelItem | null): HomeNex
     return {
       kind: "novel",
       eyebrow: "推荐下一步",
-      title: `继续《${primaryNovel.title}》的自动导演`,
+      title: "继续准备整本小说",
       description: getNovelLeadSummary(primaryNovel),
       reason: "当前阶段等待确认，继续后会推进到下一段可执行准备。",
       tone: "warning",
@@ -182,8 +182,8 @@ export function buildHomeNextAction(primaryNovel: HomeNovelItem | null): HomeNex
   if (task?.status === "running" || task?.status === "queued") {
     return {
       kind: "novel",
-      eyebrow: "系统推进中",
-      title: `关注《${primaryNovel.title}》的后台进度`,
+      eyebrow: "AI 创作中",
+      title: "查看创作进度",
       description: getNovelLeadSummary(primaryNovel),
       reason: "自动导演或章节执行仍在后台处理，可以查看进度和最近阶段。",
       tone: "info",
@@ -193,7 +193,7 @@ export function buildHomeNextAction(primaryNovel: HomeNovelItem | null): HomeNex
     return {
       kind: "novel",
       eyebrow: "推荐下一步",
-      title: `进入《${primaryNovel.title}》的章节执行`,
+      title: "开始创作章节",
       description: getNovelLeadSummary(primaryNovel),
       reason: "规划资产已经能支撑章节生产，可以进入正文生成和审阅。",
       tone: "success",
@@ -203,7 +203,7 @@ export function buildHomeNextAction(primaryNovel: HomeNovelItem | null): HomeNex
     return {
       kind: "novel",
       eyebrow: "需要处理",
-      title: `查看《${primaryNovel.title}》的推进状态`,
+      title: "处理创作中断",
       description: getNovelLeadSummary(primaryNovel),
       reason: "任务存在暂停或失败记录，先查看详情再决定恢复、重试或调整。",
       tone: "danger",
@@ -212,7 +212,7 @@ export function buildHomeNextAction(primaryNovel: HomeNovelItem | null): HomeNex
   return {
     kind: "novel",
     eyebrow: "推荐下一步",
-    title: `继续编辑《${primaryNovel.title}》`,
+    title: "继续完善小说",
     description: getNovelLeadSummary(primaryNovel),
     reason: "没有更高优先级的阻塞项，可以回到项目主页继续完善资料或章节。",
     tone: "neutral",
@@ -234,36 +234,36 @@ export function buildHomeMetrics(input: {
       ? getHomeNovelTask(novel)?.status === "succeeded"
       : canEnterChapterExecution(getHomeNovelTask(novel))
   )).length;
-  const failedTaskCount = input.taskOverview?.failedCount ?? 0;
+  const totalChapterCount = input.novels.reduce((sum, novel) => sum + novel._count.chapters, 0);
 
   return [
     {
       id: "running",
-      title: "推进中",
+      title: "正在创作",
       value: liveWorkflowCount,
-      hint: "最近项目中后台处理的自动导演或章节执行。",
+      hint: "AI 正在推进的小说或章节。",
       tone: "info",
     },
     {
       id: "attention",
-      title: "待处理",
+      title: "等待你确认",
       value: actionRequiredCount,
-      hint: "等待确认、暂停或失败后需要决策的项目。",
+      hint: "确认后即可继续创作的项目。",
       tone: actionRequiredCount > 0 ? "warning" : "success",
     },
     {
       id: "chapter-ready",
-      title: "可写章节",
+      title: "可以开始写",
       value: readyForExecutionCount,
-      hint: "规划准备完成，可以进入章节执行的项目。",
+      hint: "故事准备充分，可以进入正文。",
       tone: readyForExecutionCount > 0 ? "success" : "neutral",
     },
     {
-      id: "failed",
-      title: "失败任务",
-      value: failedTaskCount,
-      hint: "来自任务中心的失败任务，需要集中处理。",
-      tone: failedTaskCount > 0 ? "danger" : "success",
+      id: "chapters",
+      title: "已沉淀章节",
+      value: totalChapterCount,
+      hint: "所有作品中持续积累的章节。",
+      tone: totalChapterCount > 0 ? "info" : "neutral",
     },
   ];
 }
