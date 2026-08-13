@@ -52,23 +52,23 @@
 }
 
 :root[data-theme="night"] {
-  --background: 222 47% 8%;
-  --foreground: 210 40% 96%;
-  --card: 222 42% 12%;
-  --card-foreground: 210 40% 96%;
-  --popover: 222 42% 12%;
-  --popover-foreground: 210 40% 96%;
-  --primary: 166 70% 42%;
-  --primary-foreground: 222 47% 8%;
-  --secondary: 218 32% 19%;
-  --secondary-foreground: 210 40% 96%;
-  --muted: 218 32% 17%;
-  --muted-foreground: 215 20% 70%;
-  --accent: 196 43% 20%;
-  --accent-foreground: 186 80% 88%;
-  --border: 217 28% 25%;
-  --input: 217 28% 25%;
-  --ring: 166 70% 42%;
+  --background: 198 28% 96%;
+  --foreground: 222 47% 10%;
+  --card: 200 32% 99%;
+  --card-foreground: 222 47% 10%;
+  --popover: 200 32% 99%;
+  --popover-foreground: 222 47% 10%;
+  --primary: 166 70% 34%;
+  --primary-foreground: 0 0% 100%;
+  --secondary: 196 25% 88%;
+  --secondary-foreground: 222 38% 16%;
+  --muted: 198 24% 91%;
+  --muted-foreground: 215 24% 40%;
+  --accent: 182 35% 86%;
+  --accent-foreground: 190 55% 20%;
+  --border: 200 22% 80%;
+  --input: 200 22% 80%;
+  --ring: 166 70% 34%;
 }
 
 :root.dark[data-theme="paper"] {
@@ -119,6 +119,23 @@
 }
 
 .dark[data-theme="night"] {
+  --background: 222 47% 8%;
+  --foreground: 210 40% 96%;
+  --card: 222 42% 12%;
+  --card-foreground: 210 40% 96%;
+  --popover: 222 42% 12%;
+  --popover-foreground: 210 40% 96%;
+  --primary: 166 70% 42%;
+  --primary-foreground: 222 47% 8%;
+  --secondary: 218 32% 19%;
+  --secondary-foreground: 210 40% 96%;
+  --muted: 218 32% 17%;
+  --muted-foreground: 215 20% 70%;
+  --accent: 196 43% 20%;
+  --accent-foreground: 186 80% 88%;
+  --border: 217 28% 25%;
+  --input: 217 28% 25%;
+  --ring: 166 70% 42%;
   --success: 155 70% 48%;
   --warning: 42 92% 58%;
   --info: 190 80% 58%;
