@@ -404,10 +404,19 @@ body {
     gap: 0.5rem;
   }
 
-  .mobile-route-home .home-status-summary-grid > .rounded-xl,
+  .mobile-route-home .home-status-summary-grid > .home-status-metric-card,
   .mobile-route-tasks .task-status-summary-grid > .rounded-xl {
     border-radius: 0.75rem;
     box-shadow: none;
+  }
+
+  .mobile-route-home .home-status-metric-card {
+    min-height: 4.75rem;
+    padding: 0.5rem;
+  }
+
+  .mobile-route-home .home-status-metric-card > span {
+    display: none;
   }
 
   .mobile-route-home .home-status-summary-grid .p-6,

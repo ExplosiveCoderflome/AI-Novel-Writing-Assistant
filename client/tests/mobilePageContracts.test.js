@@ -274,7 +274,7 @@ test("mobile home status metrics stay compact in a single four-column row", () =
   );
   assert.match(
     css,
-    /mobile-route-home \.home-status-summary-grid > \.rounded-xl[\s\S]+box-shadow: none;/,
+    /mobile-route-home \.home-status-summary-grid > \.home-status-metric-card[\s\S]+box-shadow: none;/,
     "home status cards should read as compact status partitions instead of heavy mobile cards",
   );
 });
