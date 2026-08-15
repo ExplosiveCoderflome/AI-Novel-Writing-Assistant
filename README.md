@@ -150,6 +150,7 @@
 ### 2026-08-15
 
 - 书架作品卡片移除简介文本，封面、标题、创作进度和继续操作更集中。
+- 未生成小说封面时会使用统一的缺省封面，书架与首页不再显示文字占位块。
 
 完整历史更新见 [docs/releases/release-notes.md](./docs/releases/release-notes.md)。
 
