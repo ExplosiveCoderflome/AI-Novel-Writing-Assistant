@@ -130,6 +130,7 @@ export interface SimpleCreationShelfProjection {
     currentAction: string;
     status: "queued" | "running" | "paused" | "failed" | "completed";
     canRetry: boolean;
+    recoveryAction?: "replan_and_continue" | "continue";
     safetyMessage?: string | null;
     riskPolicy?: DirectorRiskPolicy | null;
     latestRiskAssessment?: DirectorRiskHistoryItem | null;

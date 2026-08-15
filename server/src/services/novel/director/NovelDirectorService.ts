@@ -214,6 +214,7 @@ export class NovelDirectorService {
     candidateRuntime: this.candidateRuntime,
     autoExecutionRuntime: this.autoExecutionRuntime,
     pipelineRuntime: this.directorPipelineRuntime,
+    replanNovel: (novelId, input) => this.novelService.replanNovel(novelId, input),
     continueCandidateStageTask: (taskId, payload) => this.continueCandidateStageTask(taskId, payload),
     resolveAssetFirstRecovery: (payload) => this.resolveAssetFirstRecovery(payload),
     runDirectorPipeline: (payload) => this.runDirectorPipeline(payload),

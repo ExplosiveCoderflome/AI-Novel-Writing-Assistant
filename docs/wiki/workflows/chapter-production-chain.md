@@ -94,6 +94,7 @@
 - 有可用正文的非阻塞质量债，在持久化状态上应完成降级定稿（`generationState=approved`、`chapterStatus=completed`），并保留质量债风险标记用于后续回收；阅读书架把历史遗留的同类记录投影为“已保存 · 待优化”，不能显示成“审校修复中”。只有结构化 `replan_required` 才显示为“等待重规划”。
 - `urgentPayoffs`、`overduePayoffs`、`ledgerSummary.urgentCount / overdueCount` 和 `nextAction=advance_payoff` 都是章节职责或质量债信号。它们可以进入写作上下文、接收闸门和后续质量回收，但不能单独触发全局重规划，否则系统会把“本章应该推进 payoff”误判成“整本计划已经失配”。
 - `replanRecommendation` 必须携带动作语义：`continue_with_warning` 表示只记录提示并继续；`local_patch_plan` 表示局部计划或修复问题，不停止后续章节；`stop_for_replan` 才表示需要暂停批量流水线进入整窗重规划。调用方不得只看 `recommended=true` 就停止章节执行。
+- 明确进入 `replan_required` 后，恢复动作只改写章节计划窗口，不重写已保存正文。重规划完成后，章节执行范围必须依据真实正文事实重新定位到第一个未生成章节；不得沿用旧失败任务的单章范围反复推进，也不得把“继续”实现成每章跳过一次相同的计划失配。
 - 逾期 payoff 无论逾期距离、是否落在当前窗口、是否被当前章目标引用，都只能输出 `continue_with_warning`。只有结构化 `nextAction=replan`、人工强制或章节验收确认 `plan_misalignment` 才能输出 `stop_for_replan`；高/严重审计问题输出 `local_patch_plan`，不得停止剩余章节。
 - 无明确目标窗口的 overdue payoff 只能作为账本风险跟进，不能用 `lastTouchedChapterOrder` 或 `firstSeenChapterOrder` 推导逾期距离，也不能锚定旧章节触发 `stop_for_replan`。伏笔账本同步若发现 AI 输出了无 `targetStartChapterOrder`、`targetEndChapterOrder`、`payoffChapterOrder`、`payoffChapterId` 的 overdue，应降级为 `pending_payoff` 并保留 `payoff_missing_progress` 风险信号。
 - 章节创作合同中的 `mustAdvance` 只能保存剧情推进项。`acceptance_gate_unavailable`、`missing_must_hit`、`mode_fit/acceptance_gate_unavailable` 等系统审计标签只能进入审计、修复或诊断通道，不得写入任务单“必须推进”或 sceneCards 的 `mustAdvance`。
