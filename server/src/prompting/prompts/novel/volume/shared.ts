@@ -68,6 +68,7 @@ export interface VolumeChapterListPromptInput {
   nextAvailableChapterOrder: number;
   previousBeatChapterSummary?: string | null;
   preservedBeatChapterSummary?: string | null;
+  reservedChapterTitles?: string[];
   retryReason?: string | null;
 }
 
@@ -363,6 +364,9 @@ function describeConflictStep(
 export function buildConflictLevelCurveContext(
   volume: VolumePlan,
   targetChapterId?: string,
+  options: {
+    includeChapterTitles?: boolean;
+  } = {},
 ): string {
   const sortedChapters = volume.chapters
     .slice()
@@ -377,7 +381,7 @@ export function buildConflictLevelCurveContext(
     const isTarget = targetChapterId ? chapter.id === targetChapterId : false;
     const isUserAnchored = chapter.conflictLevelSource === "user" && typeof chapter.conflictLevel === "number";
     return [
-      `${isTarget ? "target " : ""}chapter ${chapter.chapterOrder}: ${chapter.title}`,
+      `${isTarget ? "target " : ""}chapter ${chapter.chapterOrder}${options.includeChapterTitles === false ? "" : `: ${chapter.title}`}`,
       `conflictLevel=${formatConflictLevel(chapter.conflictLevel)}`,
       `source=${chapter.conflictLevelSource ?? "ai"}`,
       `fromPrevious=${describeConflictStep(previous?.conflictLevel, chapter.conflictLevel)}`,

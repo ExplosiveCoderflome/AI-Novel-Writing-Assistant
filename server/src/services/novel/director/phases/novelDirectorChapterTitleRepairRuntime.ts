@@ -1,5 +1,5 @@
 import type { DirectorConfirmRequest } from "@ai-novel/shared/types/novelDirector";
-import { isChapterTitleDiversityIssue } from "../../volume/chapterTitleDiversity";
+import { getChapterTitleDiversityIssue, isChapterTitleDiversityIssue } from "../../volume/chapterTitleDiversity";
 import type { NovelVolumeService } from "../../volume/NovelVolumeService";
 import type { NovelWorkflowService } from "../../workflow/NovelWorkflowService";
 import {
@@ -87,12 +87,6 @@ export class NovelDirectorChapterTitleRepairRuntime {
     }
 
     const notice = seedPayload.taskNotice;
-    const taskHasTitleWarning = notice?.code === "CHAPTER_TITLE_DIVERSITY"
-      || isChapterTitleDiversityIssue(row.lastError);
-    if (!taskHasTitleWarning) {
-      throw new Error("当前任务没有可直接 AI 修复的章节标题提醒。");
-    }
-
     const requestedVolumeId = input?.volumeId?.trim() || null;
     const resumeTarget = mergeResumeTargets(
       parseResumeTarget(row.resumeTargetJson),
@@ -102,14 +96,18 @@ export class NovelDirectorChapterTitleRepairRuntime {
       || notice?.action?.volumeId?.trim()
       || resumeTarget?.volumeId?.trim()
       || null;
-    if (!targetVolumeId) {
-      throw new Error("当前任务缺少待修复的目标卷，无法继续 AI 修复章节标题。");
-    }
-
     const workspace = await this.deps.volumeService.getVolumes(novelId);
-    const targetVolume = workspace.volumes.find((volume) => volume.id === targetVolumeId);
+    const targetVolume = targetVolumeId
+      ? workspace.volumes.find((volume) => volume.id === targetVolumeId)
+      : workspace.volumes.find((volume) => getChapterTitleDiversityIssue(volume.chapters.map((chapter) => chapter.title)));
     if (!targetVolume) {
-      throw new Error("当前任务指向的目标卷不存在，无法继续 AI 修复章节标题。");
+      throw new Error("当前任务没有可直接 AI 修复的重复章节标题。");
+    }
+    const taskHasTitleWarning = notice?.code === "CHAPTER_TITLE_DIVERSITY"
+      || isChapterTitleDiversityIssue(row.lastError)
+      || Boolean(getChapterTitleDiversityIssue(targetVolume.chapters.map((chapter) => chapter.title)));
+    if (!taskHasTitleWarning) {
+      throw new Error("当前任务没有可直接 AI 修复的章节标题提醒。");
     }
 
     const boundLlm = getDirectorLlmOptionsFromSeedPayload(seedPayload);

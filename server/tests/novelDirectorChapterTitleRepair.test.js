@@ -61,7 +61,18 @@ test("repairDirectorChapterTitles clears warning notice after titles are diversi
     readiness: {},
     strategyPlan: null,
     critiqueReport: null,
-    beatSheets: [],
+    beatSheets: [{
+      volumeId: "volume-1",
+      volumeSortOrder: 1,
+      status: "generated",
+      beats: [{
+        key: "open_hook",
+        label: "开卷抓手",
+        summary: "建立开篇危机。",
+        chapterSpanHint: "1-4章",
+        mustDeliver: ["开篇压力"],
+      }],
+    }],
     rebalanceDecisions: [],
     volumes: [
       createVolume("volume-1", 1, [

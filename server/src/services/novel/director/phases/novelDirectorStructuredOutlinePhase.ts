@@ -1,7 +1,6 @@
 import type { VolumePlanDocument } from "@ai-novel/shared/types/novel";
 import type {
   DirectorConfirmRequest,
-  DirectorTaskNotice,
 } from "@ai-novel/shared/types/novelDirector";
 import {
   isDirectorAutoExecutionRunMode,
@@ -164,21 +163,6 @@ async function persistStructuredOutlineVolumeSnapshot(input: {
       volumeId: input.volumeId,
     },
   });
-}
-
-function buildChapterTitleNotice(input: {
-  volume: VolumePlanDocument["volumes"][number];
-  issue: string;
-}): DirectorTaskNotice {
-  return {
-    code: "CHAPTER_TITLE_DIVERSITY",
-    summary: input.issue,
-    action: {
-      type: "open_structured_outline",
-      label: "快速修复章节标题",
-      volumeId: input.volume.id,
-    },
-  };
 }
 
 export async function runDirectorStructuredOutlinePhase(input: {
@@ -349,6 +333,13 @@ export async function runDirectorStructuredOutlinePhase(input: {
           },
         }),
       });
+      const preparedVolume = workspace.volumes.find((item) => item.id === targetVolume.id);
+      const titleDiversityIssue = preparedVolume
+        ? getChapterTitleDiversityIssue(preparedVolume.chapters.map((chapter) => chapter.title))
+        : null;
+      if (titleDiversityIssue) {
+        throw new Error(titleDiversityIssue);
+      }
       workspace = await persistStructuredOutlineVolumeSnapshot({
         taskId,
         novelId,
@@ -358,26 +349,12 @@ export async function runDirectorStructuredOutlinePhase(input: {
         volumeId: targetVolume.id,
         dependencies,
       });
-      const preparedVolume = workspace.volumes.find((item) => item.id === targetVolume.id);
-      const titleDiversityIssue = preparedVolume
-        ? getChapterTitleDiversityIssue(preparedVolume.chapters.map((chapter) => chapter.title))
-        : null;
       await dependencies.workflowService.markTaskRunning(taskId, {
         stage: "structured_outline",
         itemKey: "chapter_list",
-        itemLabel: titleDiversityIssue
-          ? `第 ${targetVolume.sortOrder} 卷章节列表已生成，但标题结构仍需分散`
-          : `第 ${targetVolume.sortOrder} 卷章节列表已生成`,
+        itemLabel: `第 ${targetVolume.sortOrder} 卷章节列表已生成`,
         progress: DIRECTOR_PROGRESS.chapterList,
         volumeId: targetVolume.id,
-        seedPayload: {
-          taskNotice: titleDiversityIssue
-            ? buildChapterTitleNotice({
-              volume: preparedVolume ?? targetVolume,
-              issue: titleDiversityIssue,
-            })
-            : null,
-        },
       });
       continue;
     }
