@@ -110,10 +110,6 @@ export function NovelShelfCard(props: {
             </div>
           </div>
 
-          <p className="mt-3 line-clamp-2 min-h-10 text-sm leading-5 text-muted-foreground">
-            {novel.description || "还没有简介，打开作品继续完善。"}
-          </p>
-
           <div className="mt-4 space-y-2">
             <div className="flex items-center justify-between text-xs text-muted-foreground">
               <span>{progress > 0 ? `创作进度 ${progress}%` : "尚未开始正文"}</span>
