@@ -76,6 +76,7 @@ export function HomeNextActionPanel(props: {
   const task = getHomeNovelTask(novel);
   const workflowBadge = getWorkflowBadge(task);
   const journey = buildHomeJourney(task);
+  const hasGeneratedCover = Boolean(novel.primaryCover?.url);
   const coverUrl = novel.primaryCover?.url
     ? resolveImageAssetUrl(novel.primaryCover.url)
     : defaultNovelCoverUrl;
@@ -149,7 +150,13 @@ export function HomeNextActionPanel(props: {
           <aside className="flex h-full flex-col rounded-2xl border border-border/65 bg-background/80 p-4 shadow-[0_18px_45px_-38px_rgba(15,23,42,0.5)] backdrop-blur-sm">
             <div className="flex gap-4">
               <div className="relative aspect-[2/3] w-24 shrink-0 overflow-hidden rounded-xl bg-[linear-gradient(155deg,hsl(var(--primary)),hsl(var(--info)))] shadow-md xl:w-28">
-                <img src={coverUrl} alt={`《${novel.title}》封面`} className="h-full w-full object-cover" />
+                <img src={coverUrl} alt={hasGeneratedCover ? `《${novel.title}》封面` : ""} className="h-full w-full object-cover" />
+                {!hasGeneratedCover ? (
+                  <div className="absolute inset-0 flex flex-col justify-between bg-black/45 p-4 text-white">
+                    <BookOpenText className="h-5 w-5 opacity-80" aria-hidden="true" />
+                    <div className="line-clamp-4 text-base font-semibold leading-6 drop-shadow">{novel.title}</div>
+                  </div>
+                ) : null}
               </div>
               <div className="min-w-0 flex-1">
                 <p className="line-clamp-3 text-sm leading-6 text-muted-foreground">{props.action.description}</p>
