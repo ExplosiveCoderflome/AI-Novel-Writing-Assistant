@@ -514,13 +514,13 @@ export default function NovelWorkspaceRail(props: NovelWorkspaceRailProps) {
                 "relative flex w-full items-center rounded-xl text-left transition-colors",
                 collapsed ? "justify-center px-2 py-3" : "gap-3 px-3 py-3",
                 step.isWorkflowCurrent && step.isSelected
-                  ? "bg-sky-50 text-sky-950 shadow-sm ring-1 ring-sky-100"
+                  ? "bg-sky-500/15 text-foreground shadow-sm ring-1 ring-sky-500/25"
                   : step.isWorkflowCurrent
-                  ? "bg-sky-50 text-sky-900"
+                  ? "bg-sky-500/10 text-foreground"
                   : step.isSelected
                     ? "bg-slate-950 text-white shadow-sm"
                     : step.isDone
-                      ? "bg-emerald-50/35 text-foreground"
+                      ? "bg-emerald-500/10 text-foreground"
                       : "text-muted-foreground hover:bg-background/75 hover:text-foreground",
               )}
             >
@@ -535,7 +535,7 @@ export default function NovelWorkspaceRail(props: NovelWorkspaceRailProps) {
                     : step.isSelected
                     ? "bg-white/15 text-white"
                     : step.isDone
-                      ? "bg-emerald-500/15 text-emerald-700"
+                      ? "bg-emerald-500/15 text-emerald-700 dark:text-emerald-300"
                       : "bg-background text-muted-foreground",
                 )}
               >
@@ -548,11 +548,11 @@ export default function NovelWorkspaceRail(props: NovelWorkspaceRailProps) {
                     className={cn(
                       "shrink-0 text-[11px] font-medium",
                       step.isWorkflowCurrent
-                        ? "text-sky-700"
+                        ? "text-sky-700 dark:text-sky-300"
                         : step.isSelected
                         ? "text-white/80"
                         : step.isDone
-                          ? "text-emerald-700"
+                          ? "text-emerald-700 dark:text-emerald-300"
                           : "text-muted-foreground",
                     )}
                   >
