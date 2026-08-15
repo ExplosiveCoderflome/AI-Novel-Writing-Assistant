@@ -52,16 +52,6 @@ export class NovelDirectorChapterTitleRepairRuntime {
       novelId: string | null,
       extra?: Record<string, unknown>,
     ) => Record<string, unknown>;
-    assertHighMemoryStartAllowed: (input: {
-      taskId: string;
-      novelId: string;
-      stage: "structured_outline";
-      itemKey: "beat_sheet" | "chapter_list" | "chapter_detail_bundle" | "chapter_sync";
-      volumeId?: string | null;
-      chapterId?: string | null;
-      scope?: string | null;
-      batchAlreadyStartedCount?: number;
-    }) => Promise<void>;
     scheduleBackgroundRun: (taskId: string, runner: () => Promise<void>) => void;
   }) {}
 
@@ -125,14 +115,6 @@ export class NovelDirectorChapterTitleRepairRuntime {
       taskId,
       stage: "structured",
       volumeId: targetVolume.id,
-    });
-    await this.deps.assertHighMemoryStartAllowed({
-      taskId,
-      novelId,
-      stage: "structured_outline",
-      itemKey: "chapter_list",
-      volumeId: targetVolume.id,
-      scope: `volume:${targetVolume.id}`,
     });
     await this.deps.workflowService.bootstrapTask({
       workflowTaskId: taskId,
