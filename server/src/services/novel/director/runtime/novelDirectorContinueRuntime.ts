@@ -332,12 +332,23 @@ export class NovelDirectorContinueRuntime {
     const approveAutoExecutionGate = approveCurrentGate || requestedAutoExecutionContinue;
 
     if (assetFirstRecovery?.type === "auto_execution") {
-      const resumedChapterId = (
+      const checkpointChapterId = (
         parseResumeTargetLike(row.resumeTargetJson)?.chapterId
         ?? parseResumeTargetLike(seedPayload.resumeTarget)?.chapterId
         ?? seedPayload.autoExecution?.nextChapterId
         ?? null
       );
+      const firstUnwrittenChapter = requestedReplanRecovery
+        ? await prisma.chapter.findFirst({
+          where: {
+            novelId,
+            OR: [{ content: null }, { content: "" }],
+          },
+          orderBy: { order: "asc" },
+          select: { id: true },
+        })
+        : null;
+      const resumedChapterId = firstUnwrittenChapter?.id ?? checkpointChapterId;
       await this.deps.workflowService.markTaskRunning(taskId, {
         stage: assetFirstRecovery.resumeCheckpointType === "replan_required" ? "quality_repair" : "chapter_execution",
         itemKey: assetFirstRecovery.resumeCheckpointType === "replan_required" ? "quality_repair" : "chapter_execution",
@@ -364,7 +375,7 @@ export class NovelDirectorContinueRuntime {
       this.deps.scheduleBackgroundRun(taskId, async () => {
         if (requestedReplanRecovery) {
           const existingRun = await prisma.replanRun.findFirst({
-            where: { novelId, chapterId: resumedChapterId ?? undefined },
+            where: { novelId, chapterId: checkpointChapterId ?? undefined },
             orderBy: { createdAt: "desc" },
             select: { id: true },
           });
