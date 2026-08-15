@@ -45,9 +45,11 @@ export function resolveDirectorContinueMode(task: Pick<
   if (task?.pendingManualRecovery) {
     return "resume";
   }
+  if (task?.checkpointType === "replan_required") {
+    return "auto_execute_range";
+  }
   if (
-    task?.checkpointType === "replan_required"
-    || task?.currentItemKey === "quality_repair"
+    task?.currentItemKey === "quality_repair"
     || task?.currentStage?.includes("质量")
   ) {
     return "skip_quality_repair";
