@@ -38,6 +38,7 @@ import type { NovelDirectorRuntimeOrchestrator } from "./novelDirectorRuntimeOrc
 import type { DirectorRuntimeService } from "./DirectorRuntimeService";
 import { buildDefaultDirectorPolicy } from "./directorRuntimeDefaults";
 import type { DirectorRiskPolicy } from "@ai-novel/shared/types/directorRisk";
+import { prisma } from "../../../../db/prisma";
 
 export type DirectorAssetFirstRecovery =
   | {
@@ -362,15 +363,22 @@ export class NovelDirectorContinueRuntime {
       });
       this.deps.scheduleBackgroundRun(taskId, async () => {
         if (requestedReplanRecovery) {
-          await this.deps.replanNovel(novelId, {
-            chapterId: resumedChapterId ?? undefined,
-            triggerType: "director_replan_recovery",
-            windowSize: 3,
-            reason: row.lastError?.trim() || "当前章节与相邻章节的计划需要重新对齐。",
-            provider: effectiveDirectorInput.provider,
-            model: effectiveDirectorInput.model,
-            temperature: effectiveDirectorInput.temperature,
+          const existingRun = await prisma.replanRun.findFirst({
+            where: { novelId, chapterId: resumedChapterId ?? undefined },
+            orderBy: { createdAt: "desc" },
+            select: { id: true },
           });
+          if (!existingRun) {
+            await this.deps.replanNovel(novelId, {
+              chapterId: resumedChapterId ?? undefined,
+              triggerType: "director_replan_recovery",
+              windowSize: 3,
+              reason: row.lastError?.trim() || "当前章节与相邻章节的计划需要重新对齐。",
+              provider: effectiveDirectorInput.provider,
+              model: effectiveDirectorInput.model,
+              temperature: effectiveDirectorInput.temperature,
+            });
+          }
         }
         const shouldResumeApprovedExecutionNode = (
           row.status === "waiting_approval"

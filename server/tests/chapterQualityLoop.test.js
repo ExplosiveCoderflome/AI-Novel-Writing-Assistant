@@ -76,6 +76,7 @@ test("buildChapterQualityLoopAssessment routes rolling window failures to replan
       replanRecommendation: {
         recommended: true,
         action: "stop_for_replan",
+        scope: "global_book",
         reason: "连续三章推进偏离主线。",
         blockingIssueIds: ["issue-1"],
         blockingLedgerKeys: [],

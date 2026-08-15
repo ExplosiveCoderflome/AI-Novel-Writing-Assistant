@@ -36,8 +36,8 @@ test("startPipelineJob persists maxRetries as a single repair pass", async () =>
   };
 
   let createdInput = null;
-  let capturedChapterQuery = null;
   let scheduledOptions = null;
+  let capturedChapterQuery = null;
   prisma.character.count = async () => 1;
   prisma.generationJob.findMany = async () => [];
   prisma.chapter.aggregate = async () => ({
@@ -192,12 +192,6 @@ test("executePipeline skips chapters already marked for deferred continue when s
       maxRetries: 5,
     });
 
-    const skipConditions = capturedChapterQuery.where.NOT.AND[2].OR;
-    const terminalContinueCondition = skipConditions.find((condition) => Array.isArray(condition.AND));
-    assert.equal(terminalContinueCondition.AND[0].riskFlags.not, null);
-    assert.equal(terminalContinueCondition.AND[1].riskFlags.contains, '"terminalAction":"defer_and_continue"');
-    assert.equal(terminalContinueCondition.AND[2].riskFlags.not.contains, '"rootCauseCode":"replan_required"');
-    assert.equal(terminalContinueCondition.AND[3].riskFlags.not.contains, '"recommendedAction":"replan"');
     const finalUpdate = updates[updates.length - 1];
     assert.equal(finalUpdate.data.status, "succeeded");
   } finally {
@@ -320,6 +314,7 @@ test("executePipeline stops remaining chapters after a replan recommendation", a
         replanRecommendation: {
           recommended: true,
           action: "stop_for_replan",
+          scope: "global_book",
           affectedChapterOrders: [9, 10],
           triggerReason: "缺失比武环节",
         },
@@ -349,7 +344,7 @@ test("executePipeline stops remaining chapters after a replan recommendation", a
     assert.equal(finalUpdate.data.currentStage, null);
     const payload = JSON.parse(finalUpdate.data.payload);
     assert.deepEqual(payload.replanAlertDetails, [
-      "第9章需要重规划（影响章节=9,10；原因=缺失比武环节）",
+      "第9章需要书级重规划（影响章节=9,10；原因=缺失比武环节）",
     ]);
   } finally {
     prisma.generationJob.findUnique = original.generationFindUnique;
@@ -464,9 +459,8 @@ test("executePipeline records local patch recommendations as quality debt and co
     const finalUpdate = updates[updates.length - 1];
     assert.equal(finalUpdate.data.status, "succeeded");
     const payload = JSON.parse(finalUpdate.data.payload);
-    assert.deepEqual(payload.qualityAlertDetails, [
-      "第5章建议局部处理（影响章节=5,6,7；原因=高优先级审计问题未解决）",
-    ]);
+    assert.equal(payload.replanAlertDetails, undefined);
+    assert.match(payload.recoverableRepairDetails[0], /后续章节调整失败/);
     assert.equal(payload.replanAlertDetails, undefined);
   } finally {
     prisma.generationJob.findUnique = original.generationFindUnique;

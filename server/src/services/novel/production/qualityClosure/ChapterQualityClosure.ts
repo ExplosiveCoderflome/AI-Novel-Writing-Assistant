@@ -5,6 +5,7 @@ import { chapterQualityLoopService } from "../../quality/ChapterQualityLoopServi
 import type { ChapterRuntimeCoordinator } from "../../runtime/ChapterRuntimeCoordinator";
 import type { DirectorIssueTaskContext } from "../../director/issues";
 import { reportPipelineIssue } from "../issueGovernance/PipelineIssueGovernance";
+import type { ReplanResult } from "@ai-novel/shared/types/novel";
 
 type ChapterPipelineResult = Awaited<ReturnType<ChapterRuntimeCoordinator["runPipelineChapter"]>>;
 
@@ -20,11 +21,18 @@ export async function applyChapterQualityClosure(input: {
   qualityAlertDetails: string[];
   replanAlertDetails: string[];
   recoverableRepairDetails: string[];
+  runLocalReplan: (input: {
+    chapterId: string;
+    triggerType: string;
+    sourceIssueIds: string[];
+    windowSize: number;
+    reason: string;
+  }) => Promise<ReplanResult>;
 }): Promise<{ shouldStopAfterCurrentChapter: boolean }> {
   const { chapter, chapterResult, runtimePayload } = input;
   const final = { score: chapterResult.score, issues: chapterResult.issues };
   const replanRecommendation = chapterResult.runtimePackage?.replanRecommendation;
-  const qualityDebtTerminalAction = chapterResult.pass || replanRecommendation?.action === "stop_for_replan"
+  const qualityDebtTerminalAction = chapterResult.pass || replanRecommendation?.scope === "global_book"
     ? null
     : "defer_and_continue" as const;
 
@@ -134,7 +142,42 @@ export async function applyChapterQualityClosure(input: {
   const impactedOrders = replanRecommendation.affectedChapterOrders?.length
     ? `影响章节=${replanRecommendation.affectedChapterOrders.join(",")}`
     : `锚点章节=${replanRecommendation.anchorChapterOrder ?? chapter.order}`;
-  const detail = `第${chapter.order}章${replanRecommendation.action === "stop_for_replan" ? "需要重规划" : "建议局部处理"}（${impactedOrders}；原因=${replanRecommendation.triggerReason ?? replanRecommendation.reason}）`;
+  const detail = `第${chapter.order}章${replanRecommendation.scope === "global_book" ? "需要书级重规划" : "正在调整后续章节安排"}（${impactedOrders}；原因=${replanRecommendation.triggerReason ?? replanRecommendation.reason}）`;
+  if (replanRecommendation.scope !== "global_book") {
+    try {
+      const result = await input.runLocalReplan({
+        chapterId: chapter.id,
+        triggerType: "chapter_quality_local_replan",
+        sourceIssueIds: replanRecommendation.blockingIssueIds,
+        windowSize: Math.max(1, replanRecommendation.affectedChapterOrders?.length ?? 3),
+        reason: replanRecommendation.triggerReason ?? replanRecommendation.reason,
+      });
+      const plannedOrders = result.affectedChapterOrders.join(",") || "后续未完成章节";
+      const completedDetail = `第${chapter.order}章已调整后续章节安排（已刷新=${plannedOrders}）。`;
+      if (!input.qualityAlertDetails.includes(completedDetail)) input.qualityAlertDetails.push(completedDetail);
+      return { shouldStopAfterCurrentChapter: false };
+    } catch (error) {
+      const failureDetail = `第${chapter.order}章后续章节调整失败，已保留正文并继续：${error instanceof Error ? error.message : String(error)}`;
+      if (!input.recoverableRepairDetails.includes(failureDetail)) input.recoverableRepairDetails.push(failureDetail);
+      await reportPipelineIssue({
+        governance: input.governance,
+        workflowTaskId: input.workflowTaskId,
+        novelId: input.novelId,
+        jobId: input.jobId,
+        issueCode: "quality.local_replan_failed",
+        stage: "chapter_review",
+        summary: failureDetail,
+        evidence: replanRecommendation.reason,
+        chapterId: chapter.id,
+        chapterOrder: chapter.order,
+        hasUsableOutput: true,
+        provider: runtimePayload.provider,
+        model: runtimePayload.model,
+        temperature: runtimePayload.temperature,
+      });
+      return { shouldStopAfterCurrentChapter: false };
+    }
+  }
   if (replanRecommendation.action !== "stop_for_replan") {
     if (!input.qualityAlertDetails.includes(detail)) input.qualityAlertDetails.push(detail);
     return { shouldStopAfterCurrentChapter: false };
