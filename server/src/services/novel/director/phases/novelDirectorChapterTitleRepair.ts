@@ -1,6 +1,7 @@
 import type { DirectorConfirmRequest } from "@ai-novel/shared/types/novelDirector";
 import { buildNovelEditResumeTarget } from "../../workflow/novelWorkflow.shared";
 import { getChapterTitleDiversityIssue } from "../../volume/chapterTitleDiversity";
+import { resolveVolumeChapterBeatKey } from "../../volume/volumeGenerationHelpers";
 import type { NovelVolumeService } from "../../volume/NovelVolumeService";
 import type { NovelWorkflowService } from "../../workflow/NovelWorkflowService";
 import { buildDirectorSessionState } from "../runtime/novelDirectorHelpers";
@@ -25,6 +26,23 @@ function buildRepairStatusLabel(input: {
 function shouldRefreshBeatSheetForRepair(lastError: string | null | undefined): boolean {
   const normalized = lastError?.trim() ?? "";
   return normalized.includes("当前卷节奏板的章节跨度异常");
+}
+
+function resolveRepairBeatKeys(input: {
+  volume: Awaited<ReturnType<NovelVolumeService["getVolumes"]>>["volumes"][number];
+  beatSheet: Awaited<ReturnType<NovelVolumeService["getVolumes"]>>["beatSheets"][number];
+}): string[] {
+  const seenTitles = new Set<string>();
+  const repairBeatKeys = new Set<string>();
+  for (const chapter of input.volume.chapters.slice().sort((left, right) => left.chapterOrder - right.chapterOrder)) {
+    const title = chapter.title.trim();
+    const beatKey = resolveVolumeChapterBeatKey({ chapter, volume: input.volume, beatSheet: input.beatSheet });
+    if (seenTitles.has(title) && beatKey) {
+      repairBeatKeys.add(beatKey);
+    }
+    seenTitles.add(title);
+  }
+  return repairBeatKeys.size > 0 ? [...repairBeatKeys] : input.beatSheet.beats.map((beat) => beat.key);
 }
 
 async function loadWorkflowTaskForTitleRepair(
@@ -97,7 +115,11 @@ export async function repairDirectorChapterTitles(input: {
     throw new Error("当前卷缺少可用节奏板，无法安全重写章节标题。");
   }
 
-  for (const beat of targetBeatSheet.beats) {
+  const repairBeatKeys = resolveRepairBeatKeys({
+    volume: targetVolume,
+    beatSheet: targetBeatSheet,
+  });
+  for (const beat of targetBeatSheet.beats.filter((item) => repairBeatKeys.includes(item.key))) {
     workingWorkspace = await input.volumeService.generateVolumes(input.novelId, {
       provider: input.request.provider,
       model: input.request.model,
