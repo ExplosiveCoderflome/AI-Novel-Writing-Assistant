@@ -283,7 +283,7 @@ export default function SimpleNovelShelfPage() {
               </div>
             </aside>
 
-            <main className="min-w-0 bg-[#f7f5f0] lg:min-h-0 lg:overflow-y-auto">
+            <main className="min-w-0 bg-background lg:min-h-0 lg:overflow-y-auto">
               {selectedChapter?.content ? (
                 <>
                   <div className="border-b border-border/80 bg-background px-5 py-5 sm:px-8 lg:sticky lg:top-0 lg:z-10">
@@ -310,7 +310,7 @@ export default function SimpleNovelShelfPage() {
                       </div>
                     ) : null}
                   </div>
-                  <article className="mx-auto max-w-3xl px-5 py-8 pb-20 text-[16px] leading-8 text-slate-800 sm:px-10 sm:py-10 sm:pb-24 lg:px-14">
+                  <article className="mx-auto max-w-3xl px-5 py-8 pb-20 text-[16px] leading-8 text-foreground sm:px-10 sm:py-10 sm:pb-24 lg:px-14">
                     <div className="whitespace-pre-wrap">{selectedChapter.content}</div>
                   </article>
                 </>
