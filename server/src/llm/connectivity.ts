@@ -12,6 +12,7 @@ import {
   resolveModel,
   toStructuredOutputStrategy,
   upsertModelRouteConfig,
+  type ResolvedModel,
 } from "./modelRouter";
 import { invokeStructuredLlmDetailed, summarizeStructuredOutputFailure } from "./structuredInvoke";
 import {
@@ -329,17 +330,22 @@ async function testConnection(input: {
   });
 }
 
-async function testModelRoutes(taskTypes: readonly ModelRouteTaskType[] = MODEL_ROUTE_TASK_TYPES): Promise<{
+export interface ModelRoutesResult {
   testedAt: string;
   statuses: ModelRouteConnectivityStatus[];
-}> {
-  const resolvedRoutes = await Promise.all(taskTypes.map(async (taskType) => ({
-    taskType,
-    ...(await resolveModel(taskType)),
-  })));
+}
 
+export interface ModelRouteProbeInput extends ResolvedModel {
+  taskType: ModelRouteTaskType;
+}
+
+/**
+ * 探针执行体：对已解析的生效路由发送普通对话 + 结构化输出两类探针请求。
+ * 逻辑与旧 testModelRoutes 主体一致，仅做编排层解耦，供 checkController 调用。
+ */
+export async function runModelRoutesProbe(routes: readonly ModelRouteProbeInput[]): Promise<ModelRoutesResult> {
   const dedupedChecks = new Map<string, Promise<LLMConnectivityStatus>>();
-  for (const route of resolvedRoutes) {
+  for (const route of routes) {
     const key = [
       route.provider,
       route.model,
@@ -357,7 +363,7 @@ async function testModelRoutes(taskTypes: readonly ModelRouteTaskType[] = MODEL_
     }
   }
 
-  const statuses = await Promise.all(resolvedRoutes.map(async (route) => {
+  const statuses = await Promise.all(routes.map(async (route) => {
     const key = [
       route.provider,
       route.model,
@@ -404,7 +410,20 @@ async function testModelRoutes(taskTypes: readonly ModelRouteTaskType[] = MODEL_
   };
 }
 
+/**
+ * 兼容薄封装：解析生效路由后交给探针执行体。
+ * 新代码应优先通过 checkController.triggerModelRoutesCheck 触发统一检查。
+ */
+export async function testModelRoutes(taskTypes: readonly ModelRouteTaskType[] = MODEL_ROUTE_TASK_TYPES): Promise<ModelRoutesResult> {
+  const resolvedRoutes = await Promise.all(taskTypes.map(async (taskType) => ({
+    taskType,
+    ...(await resolveModel(taskType)),
+  })));
+  return runModelRoutesProbe(resolvedRoutes);
+}
+
 export const llmConnectivityService = {
   testConnection,
   testModelRoutes,
+  runModelRoutesProbe,
 };

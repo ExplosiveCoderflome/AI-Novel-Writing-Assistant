@@ -3,6 +3,7 @@ import type { ApiResponse } from "@ai-novel/shared/types/api";
 import { z } from "zod";
 import { prisma } from "../db/prisma";
 import { llmConnectivityService } from "../llm/connectivity";
+import { getModelRoutesCheckStatus, triggerModelRoutesCheck } from "../llm/checkController";
 import { getStructuredFallbackSettings, saveStructuredFallbackSettings } from "../llm/structuredFallbackSettings";
 import { getProviderModels } from "../llm/modelCatalog";
 import { listModelRouteConfigs, MODEL_ROUTE_TASK_TYPES, upsertModelRouteConfig } from "../llm/modelRouter";
@@ -106,13 +107,27 @@ router.get("/model-routes", async (_req, res, next) => {
   }
 });
 
-router.post("/model-routes/connectivity", async (_req, res, next) => {
+router.post("/model-routes/connectivity", async (req, res, next) => {
   try {
-    const data = await llmConnectivityService.testModelRoutes();
+    const force = req.body?.force === true;
+    const data = await triggerModelRoutesCheck({ force });
     res.status(200).json({
       success: true,
       data,
-      message: "模型路由连通性检测完成。",
+      message: data.status === "running" ? "模型路由连通性检测已启动。" : "模型路由连通性检测完成。",
+    } satisfies ApiResponse<typeof data>);
+  } catch (error) {
+    next(error);
+  }
+});
+
+router.get("/model-routes/connectivity/status", async (_req, res, next) => {
+  try {
+    const data = getModelRoutesCheckStatus();
+    res.status(200).json({
+      success: true,
+      data,
+      message: "模型路由连通性检测状态已获取。",
     } satisfies ApiResponse<typeof data>);
   } catch (error) {
     next(error);
