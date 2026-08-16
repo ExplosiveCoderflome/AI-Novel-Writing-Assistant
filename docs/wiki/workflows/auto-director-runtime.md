@@ -84,8 +84,12 @@ Web API 只接收命令和返回轻量投影；Worker 负责执行重型生产�
 - 自动导演不得在 director 内部补写时间线提交逻辑。stable/degraded timeline、`ChapterTimeAnchor`、hook 承接、checkpoint metadata 都属于统一章节 runtime，不属于导演专属恢复逻辑。
 - 自动导演驱动章节生产时，章节 pipeline 的 LLM 用量必须写入导演用量遥测，并带上 `chapterId`。每章累计 token 超过硬预算时，运行时应打开 `usage_anomaly` 熔断并暂停后续自动执行，防止任务重启、质量循环或上下文膨胀继续放大消耗。
 - 自动导演投影必须把 `terminalAction=defer_and_continue` 且非重规划的质量结果视为“已记录质量债务”，不能升级成 `action_required`、`error` 或“出错需处理”。这类质量债务只影响后续优化提示，不阻塞继续执行。
-- 自动导演执行面只能把明确的 `stop_for_replan` / `replan_required` 接入重规划检查点。章节审核返回 `local_patch_plan`、`continue_with_warning`、`patchable_obligation_gap` 或修复后仍有可记录义务缺口时，应登记为质量债务或局部修复建议并继续剩余章节，不能因为 `recommended=true` 就写入 `replanAlertDetails`。
+- 重规划决策必须携带作用域。`local_window` 是默认作用域：自动导演生成并保存 `ReplanRun`，只刷新当前章之后没有正文的章节计划和执行合同，然后从第一个未完成章节继续；已有正文、人工保护内容和已确认章节只能作为上下文，绝不能被局部重规划覆盖。`global_book` 才是整书结构不可恢复的显式判断，可进入 `replan_required` 检查点等待处理。
+- 章节质量闭环是生产链中唯一的重规划升级入口。章节审核返回 `local_patch_plan`、`continue_with_warning`、`patchable_obligation_gap` 或修复后仍有可记录义务缺口时，应登记为质量债务或局部修复建议并继续剩余章节，不能因为 `recommended=true` 就写入 `replanAlertDetails`。局部重规划调用失败而当前章已有可用正文时，也只记录失败原因和质量债务；无可用正文、运行时安全风险或数据完整性风险才允许停止。
 - `replan_required` 即使出现在全书自动成书或 AI 主驾自动执行中，也仍是阻塞检查点。运行时应停止在实际触发章节，并把摘要写成“已执行至第 N 章，后续需重规划”，不能把目标范围直接显示为已完成。
+- `replan_required` 的默认恢复动作是“重规划后继续”，不是跳过当前质量修复。恢复链必须先检查检查点锚点是否已有成功的 `ReplanRun`；没有时调用统一 `replanNovel`，成功后才允许消费旧质量提示并从第一个没有正文的章节继续。只有用户或结构化策略明确选择 `skip_quality_repair` 时，运行时才能跳过重规划。
+- 简易书架、专业工作台、任务抽屉、AI 驾驶舱和小说列表必须消费同一个结构化恢复动作。任何界面看到 `replan_required` 时，默认主操作都应发送 `auto_execute_range` 并显示“重规划后继续”；“打开质量修复”可以作为查看入口，但不能在某种创作模式下把默认动作改回 `skip_quality_repair`。
+- 重规划调用失败时不得静默降级为跳过修复，也不得提前清除 `replan_required`。任务应保留原检查点并展示真实错误，已有正文、章节事实和人工内容均保持不变，供用户再次重规划或转入专业模式处理。
 - `auto_execute_range` 是用户对当前章节执行范围的显式继续授权。恢复链路即使先回到结构化大纲或执行合同同步，也必须把该授权传入后续 Pipeline 的 `approveAutoExecutionScope`，并在结构化同步后主动进入章节执行节点；不能只依赖自动审批偏好，否则命令会成功结束但章节执行节点仍停在审批门。
 - 用户确认新书方向后，自动导演先投影为“准备开篇”。项目建立后可提前选择简易创作进入书架，但正文必须等待开篇路线和执行合同可用；未提前选择时，准备完成后投影为“等待选择生产方式”。选择专业创作则进入完整工作台且不自动生成正文。用户从简易自动创作切换到专业工作台时必须在章节边界生效：当前章允许安全落库，后续自动章节停止，已有正文和人工内容保持不变。
 - 新书自动导演创建的恢复入口是独立页面 `/novels/auto-director?taskId=<workflowTaskId>`。`taskId` 是前端 URL 的主参数；旧的 `/novels/create?mode=director&workflowTaskId=<id>` 只作为兼容输入，进入后应规范化到新页面。任务中心、恢复入口、候选确认链接和服务端 `sourceRoute` 都应指向新页面，保证刷新、桌面重启或崩溃恢复后回到同一个候选/进度现场。

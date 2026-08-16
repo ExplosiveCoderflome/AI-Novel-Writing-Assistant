@@ -269,7 +269,7 @@ export function buildVolumeChapterListContextBlocks(input: VolumeChapterListProm
       group: "conflict_level_curve",
       priority: 96,
       required: true,
-      content: `Conflict level anchors and curve:\n${buildConflictLevelCurveContext(input.targetVolume)}`,
+      content: `Conflict level anchors and curve:\n${buildConflictLevelCurveContext(input.targetVolume, undefined, { includeChapterTitles: false })}`,
     }),
     guidanceBlock(input.guidance),
   ].filter((block): block is PromptContextBlock => Boolean(block));

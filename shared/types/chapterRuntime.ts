@@ -620,6 +620,7 @@ export const chapterRuntimePackageSchema = z.object({
   replanRecommendation: z.object({
     recommended: z.boolean(),
     action: z.enum(["continue_with_warning", "local_patch_plan", "stop_for_replan"]).optional(),
+    scope: z.enum(["local_window", "global_book"]).optional(),
     reason: z.string(),
     blockingIssueIds: z.array(z.string()),
     blockingLedgerKeys: z.array(z.string()).default([]),

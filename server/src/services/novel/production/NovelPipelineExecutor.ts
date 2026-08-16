@@ -1,4 +1,3 @@
-import type { ReviewIssue } from "@ai-novel/shared/types/novel";
 import type { Prisma } from "@prisma/client";
 import { prisma } from "../../../db/prisma";
 import { novelEventBus } from "../../../events";
@@ -13,12 +12,11 @@ import {
   logPipelineError,
   logPipelineInfo,
   logPipelineWarn,
-  normalizeScore,
   type PipelinePayload,
   type PipelineRunOptions,
 } from "../novelCoreShared";
-import { createQualityReport } from "../novelCoreReviewService";
-import { chapterQualityLoopService } from "../quality/ChapterQualityLoopService";
+import { plannerService } from "../../planner/PlannerService";
+import { applyChapterQualityClosure } from "./qualityClosure/ChapterQualityClosure";
 import {
   directorIssueService,
   loadDirectorIssueTaskContext,
@@ -353,7 +351,6 @@ export class NovelPipelineExecutor {
           const chapter = chaptersToProcess[chapterIndex];
           await this.ensurePipelineNotCancelled(jobId);
 
-          let final = { score: normalizeScore({}), issues: [] as ReviewIssue[] };
           let shouldStopAfterCurrentChapter = false;
           const currentItemLabel = buildPipelineCurrentItemLabel({
             completedCount: completed,
@@ -507,7 +504,6 @@ export class NovelPipelineExecutor {
           }
 
           totalRetryCount += chapterResult.retryCountUsed;
-          final = { score: chapterResult.score, issues: chapterResult.issues };
           if (runtimePayload.autoReview && !chapterResult.reviewExecuted) {
             await reportPipelineIssue({
               governance: issueGovernance,
@@ -525,119 +521,26 @@ export class NovelPipelineExecutor {
               temperature: runtimePayload.temperature,
             });
           }
-          const replanRecommendation = chapterResult.runtimePackage?.replanRecommendation;
-          const qualityDebtTerminalAction = chapterResult.pass || replanRecommendation?.action === "stop_for_replan"
-            ? null
-            : "defer_and_continue" as const;
-          if (chapterResult.recoverableRepairFailure) {
-            recoverableRepairDetails.push(
-              `第${chapter.order}章需要后续修复：${chapterResult.recoverableRepairFailure.message}`,
-            );
-            logPipelineWarn("章节局部修复未安全应用，已记录并继续后续章节", {
-              jobId,
-              order: chapter.order,
-              reason: chapterResult.recoverableRepairFailure.message,
-              failureTypes: chapterResult.recoverableRepairFailure.failureTypes,
-            });
-            await reportPipelineIssue({
-              governance: issueGovernance,
-              workflowTaskId: runtimePayload.workflowTaskId,
-              novelId,
-              jobId,
-              issueCode: "quality.local_repair_failed",
-              stage: "chapter_repair",
-              summary: chapterResult.recoverableRepairFailure.message,
-              evidence: chapterResult.recoverableRepairFailure.failureTypes.join(", "),
-              chapterId: chapter.id,
-              chapterOrder: chapter.order,
-              hasUsableOutput: true,
+          const closure = await applyChapterQualityClosure({
+            governance: issueGovernance,
+            workflowTaskId: runtimePayload.workflowTaskId,
+            novelId,
+            jobId,
+            chapter: { id: chapter.id, order: chapter.order },
+            chapterResult,
+            qualityThreshold,
+            runtimePayload,
+            qualityAlertDetails,
+            replanAlertDetails,
+            recoverableRepairDetails,
+            runLocalReplan: (replan) => plannerService.replan(novelId, {
+              ...replan,
               provider: runtimePayload.provider,
               model: runtimePayload.model,
               temperature: runtimePayload.temperature,
-            });
-          }
-          if (chapterResult.reviewExecuted) {
-            await createQualityReport(novelId, chapter.id, final.score, final.issues);
-            await chapterQualityLoopService.recordAssessment({
-              novelId,
-              chapterId: chapter.id,
-              chapterOrder: chapter.order,
-              score: final.score,
-              issues: final.issues,
-              runtimePackage: chapterResult.runtimePackage,
-              source: chapterResult.retryCountUsed > 0 ? "repair_recheck" : "pipeline_review",
-              terminalAction: qualityDebtTerminalAction,
-              taskId: runtimePayload.workflowTaskId,
-              qualityDebtAttribution: chapterResult.qualityDebtAttribution ?? null,
-            }).catch((error) => {
-              logPipelineError("记录章节质量闭环状态失败", {
-                jobId,
-                novelId,
-                chapterId: chapter.id,
-                error: error instanceof Error ? error.message : String(error),
-              });
-            });
-          }
-
-          if (chapterResult.reviewExecuted && !chapterResult.pass) {
-            qualityAlertDetails.push(
-              `第${chapter.order}章（coherence=${final.score.coherence}, repetition=${final.score.repetition}, engagement=${final.score.engagement}）`,
-            );
-            logPipelineWarn("章节最终未达标", {
-              jobId,
-              order: chapter.order,
-              score: final.score,
-            });
-            await reportPipelineIssue({
-              governance: issueGovernance,
-              workflowTaskId: runtimePayload.workflowTaskId,
-              novelId,
-              jobId,
-              issueCode: "quality.chapter_below_threshold",
-              stage: "chapter_review",
-              summary: `第${chapter.order}章质量分未达到 ${qualityThreshold} 分。`,
-              chapterId: chapter.id,
-              chapterOrder: chapter.order,
-              qualityScores: {
-                coherence: final.score.coherence,
-                repetition: final.score.repetition,
-                engagement: final.score.engagement,
-              },
-              hasUsableOutput: true,
-              provider: runtimePayload.provider,
-              model: runtimePayload.model,
-              temperature: runtimePayload.temperature,
-            });
-          }
-
-          if (replanRecommendation?.recommended) {
-            const impactedOrders = replanRecommendation.affectedChapterOrders?.length
-              ? `影响章节=${replanRecommendation.affectedChapterOrders.join(",")}`
-              : `锚点章节=${replanRecommendation.anchorChapterOrder ?? chapter.order}`;
-            const detail = `第${chapter.order}章${replanRecommendation.action === "stop_for_replan" ? "需要重规划" : "建议局部处理"}（${impactedOrders}；原因=${replanRecommendation.triggerReason ?? replanRecommendation.reason}）`;
-            if (replanRecommendation.action === "stop_for_replan") {
-              await reportPipelineIssue({
-                governance: issueGovernance,
-                workflowTaskId: runtimePayload.workflowTaskId,
-                novelId,
-                jobId,
-                issueCode: "quality.replan_required",
-                stage: "chapter_review",
-                summary: detail,
-                evidence: replanRecommendation.reason,
-                chapterId: chapter.id,
-                chapterOrder: chapter.order,
-                hasUsableOutput: true,
-                provider: runtimePayload.provider,
-                model: runtimePayload.model,
-                temperature: runtimePayload.temperature,
-              });
-              replanAlertDetails.push(detail);
-              shouldStopAfterCurrentChapter = true;
-            } else if (!qualityAlertDetails.includes(detail)) {
-              qualityAlertDetails.push(detail);
-            }
-          }
+            }),
+          });
+          shouldStopAfterCurrentChapter = closure.shouldStopAfterCurrentChapter;
 
           const handedOffToProfessional = await consumeProfessionalHandoffAtChapterBoundary(
             runtimePayload.workflowTaskId,

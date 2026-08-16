@@ -130,6 +130,7 @@ export interface SimpleCreationShelfProjection {
     currentAction: string;
     status: "queued" | "running" | "paused" | "failed" | "completed";
     canRetry: boolean;
+    recoveryAction?: "replan_and_continue" | "continue";
     safetyMessage?: string | null;
     riskPolicy?: DirectorRiskPolicy | null;
     latestRiskAssessment?: DirectorRiskHistoryItem | null;
@@ -1073,6 +1074,7 @@ export interface VolumeSyncPreview {
 export interface ReplanRecommendation {
   recommended: boolean;
   action?: "continue_with_warning" | "local_patch_plan" | "stop_for_replan";
+  scope?: "local_window" | "global_book";
   reason: string;
   blockingIssueIds: string[];
   blockingLedgerKeys?: string[];

@@ -269,6 +269,32 @@ test("book automation projection exposes production experience handoff as the pr
   }
 });
 
+test("book automation projection exposes replan-and-continue for professional recovery surfaces", async () => {
+  for (const status of ["waiting_approval", "failed"]) {
+    const harness = createHarness({
+      latestTask: {
+        status,
+        checkpointType: "replan_required",
+        checkpointSummary: "当前章节与相邻章节安排需要调整。",
+        lastError: status === "failed" ? "当前章节与相邻章节安排需要调整。" : null,
+      },
+      commands: [],
+      events: [],
+      steps: [],
+      approvals: [],
+      runtimeProjection: null,
+    });
+    try {
+      const projection = await harness.service.getProjection("novel-1");
+      assert.equal(projection.primaryAction.type, "auto_execute_range");
+      assert.equal(projection.primaryAction.label, "重规划后继续");
+      assert.equal(projection.primaryAction.commandPayload.continuationMode, "auto_execute_range");
+    } finally {
+      harness.restore();
+    }
+  }
+});
+
 test("book automation projection prefers runtime chapter label over generic task label", async () => {
   const harness = createHarness({
     latestTask: {

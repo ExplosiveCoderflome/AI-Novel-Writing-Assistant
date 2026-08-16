@@ -119,7 +119,9 @@ export default function SimpleNovelShelfPage() {
       return continueNovelWorkflow(directorTaskId, { continuationMode: "auto_execute_range" });
     },
     onSuccess: async () => {
-      toast.success("AI 正在整理后续内容并继续创作。");
+      toast.success(shelf?.progress.recoveryAction === "replan_and_continue"
+        ? "AI 正在保留已有正文、重规划后续章节并继续创作。"
+        : "AI 正在整理后续内容并继续创作。");
       await queryClient.invalidateQueries({ queryKey: ["novels", id, "simple-shelf"] });
     },
     onError: (error) => toast.error(error instanceof Error ? error.message : "恢复失败，请重试。"),
@@ -197,7 +199,8 @@ export default function SimpleNovelShelfPage() {
             ) : null}
             {shelf.progress.canRetry ? (
               <Button size="sm" onClick={() => retryMutation.mutate()} disabled={retryMutation.isPending}>
-                {retryMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />} 按 AI 建议继续
+                {retryMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
+                {shelf.progress.recoveryAction === "replan_and_continue" ? "重规划后继续" : "继续创作"}
               </Button>
             ) : null}
             <div className="flex-1" />
