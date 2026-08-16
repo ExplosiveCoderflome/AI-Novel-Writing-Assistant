@@ -61,19 +61,19 @@ function stateBadgeVariant(state: DirectorBookAutomationDisplayState): "default"
 
 function stateClassName(state: DirectorBookAutomationDisplayState): string {
   if (state === "processing") {
-    return "border-sky-200 bg-sky-50/70";
+    return "border-sky-500/25 bg-sky-500/10";
   }
   if (state === "needs_confirmation") {
-    return "border-amber-200 bg-amber-50/70";
+    return "border-amber-500/25 bg-amber-500/10";
   }
   if (state === "paused") {
-    return "border-indigo-200 bg-indigo-50/60";
+    return "border-indigo-500/25 bg-indigo-500/10";
   }
   if (state === "needs_attention") {
     return "border-destructive/30 bg-destructive/5";
   }
   if (state === "completed") {
-    return "border-emerald-200 bg-emerald-50/60";
+    return "border-emerald-500/25 bg-emerald-500/10";
   }
   return "border-border/70 bg-muted/20";
 }
@@ -99,38 +99,38 @@ function stateIcon(state: DirectorBookAutomationDisplayState) {
 
 function stateAccentClassName(state: DirectorBookAutomationDisplayState): string {
   if (state === "processing") {
-    return "text-sky-700";
+    return "text-sky-700 dark:text-sky-300";
   }
   if (state === "needs_confirmation") {
-    return "text-amber-700";
+    return "text-amber-700 dark:text-amber-300";
   }
   if (state === "paused") {
-    return "text-indigo-700";
+    return "text-indigo-700 dark:text-indigo-300";
   }
   if (state === "needs_attention") {
     return "text-destructive";
   }
   if (state === "completed") {
-    return "text-emerald-700";
+    return "text-emerald-700 dark:text-emerald-300";
   }
   return "text-muted-foreground";
 }
 
 function stateSoftSurfaceClassName(state: DirectorBookAutomationDisplayState): string {
   if (state === "processing") {
-    return "bg-sky-50/60";
+    return "bg-sky-500/10";
   }
   if (state === "needs_confirmation") {
-    return "bg-amber-50/70";
+    return "bg-amber-500/10";
   }
   if (state === "paused") {
-    return "bg-indigo-50/60";
+    return "bg-indigo-500/10";
   }
   if (state === "needs_attention") {
     return "bg-destructive/5";
   }
   if (state === "completed") {
-    return "bg-emerald-50/60";
+    return "bg-emerald-500/10";
   }
   return "bg-muted/20";
 }

@@ -201,7 +201,6 @@ export class NovelDirectorService {
     workflowService: this.workflowService,
     volumeService: this.volumeService,
     buildDirectorSeedPayload: (directorInput, novelId, extra) => buildDirectorWorkflowSeedPayload(directorInput, novelId, extra),
-    assertHighMemoryStartAllowed: (payload) => this.assertHighMemoryDirectorStartAllowed(payload),
     scheduleBackgroundRun: (taskId, runner) => this.scheduleBackgroundRun(taskId, runner),
   });
   private readonly continueRuntime = new NovelDirectorContinueRuntime({
@@ -214,6 +213,7 @@ export class NovelDirectorService {
     candidateRuntime: this.candidateRuntime,
     autoExecutionRuntime: this.autoExecutionRuntime,
     pipelineRuntime: this.directorPipelineRuntime,
+    replanNovel: (novelId, input) => this.novelService.replanNovel(novelId, input),
     continueCandidateStageTask: (taskId, payload) => this.continueCandidateStageTask(taskId, payload),
     resolveAssetFirstRecovery: (payload) => this.resolveAssetFirstRecovery(payload),
     runDirectorPipeline: (payload) => this.runDirectorPipeline(payload),

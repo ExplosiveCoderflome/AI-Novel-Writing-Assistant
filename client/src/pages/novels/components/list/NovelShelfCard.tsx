@@ -1,6 +1,7 @@
 import { BookOpen, Clock3, Download, ImagePlus, Trash2 } from "lucide-react";
 import { Link } from "react-router-dom";
 import type { ImageTaskStatus } from "@ai-novel/shared/types/image";
+import defaultNovelCoverUrl from "@/assets/default-novel-cover.webp";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { resolveImageAssetUrl } from "@/api/images";
@@ -67,27 +68,29 @@ export function NovelShelfCard(props: {
   const coverStatus = novel.coverGeneration?.status && novel.coverGeneration.status !== "succeeded"
     ? novel.coverGeneration.status
     : null;
-  const hasCover = Boolean(novel.primaryCover?.url);
+  const hasGeneratedCover = Boolean(novel.primaryCover?.url);
+  const coverUrl = novel.primaryCover?.url
+    ? resolveImageAssetUrl(novel.primaryCover.url)
+    : defaultNovelCoverUrl;
 
   return (
     <Card className="group overflow-hidden rounded-lg border-border/70 bg-background transition hover:border-primary/35 hover:shadow-sm">
       <CardContent className="flex h-full flex-col p-3">
         <Link to={getPreviewHref(novel)} className="block" aria-label={`预览《${novel.title}》`}>
           <div className="relative aspect-[2/3] overflow-hidden rounded-md bg-muted/50">
-            {hasCover ? (
-              <img
-                src={resolveImageAssetUrl(novel.primaryCover!.url)}
-                alt={`${novel.title}封面`}
-                className="h-full w-full object-cover transition duration-200 group-hover:scale-[1.02]"
-                loading="lazy"
-              />
-            ) : (
-              <div className="flex h-full flex-col items-center justify-center bg-muted/70 px-5 text-center text-foreground">
-                <div className="text-xs tracking-[0.18em] text-muted-foreground">MY NOVEL</div>
-                <div className="mt-4 line-clamp-4 text-lg font-semibold leading-7">{novel.title}</div>
-                <div className="mt-5 text-xs text-muted-foreground">{getFormLabel(novel)}</div>
+            <img
+              src={coverUrl}
+              alt={hasGeneratedCover ? `${novel.title}封面` : ""}
+              className="h-full w-full object-cover transition duration-200 group-hover:scale-[1.02]"
+              loading="lazy"
+            />
+            {!hasGeneratedCover ? (
+              <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/45 px-5 text-center text-white">
+                <div className="text-xs tracking-[0.18em] text-white/75">MY NOVEL</div>
+                <div className="mt-4 line-clamp-4 text-lg font-semibold leading-7 drop-shadow">{novel.title}</div>
+                <div className="mt-5 text-xs text-white/75">{getFormLabel(novel)}</div>
               </div>
-            )}
+            ) : null}
             {coverStatus ? (
               <span className="absolute left-2 top-2 rounded bg-black/65 px-2 py-1 text-[11px] text-white">
                 {coverStatusLabel(coverStatus)}
@@ -109,10 +112,6 @@ export function NovelShelfCard(props: {
               </div>
             </div>
           </div>
-
-          <p className="mt-3 line-clamp-2 min-h-10 text-sm leading-5 text-muted-foreground">
-            {novel.description || "还没有简介，打开作品继续完善。"}
-          </p>
 
           <div className="mt-4 space-y-2">
             <div className="flex items-center justify-between text-xs text-muted-foreground">
@@ -173,19 +172,21 @@ export function NovelContinueCard(props: {
   const { novel } = props;
   const action = getPrimaryAction(novel);
   const progress = getProgress(novel);
-  const coverUrl = novel.primaryCover?.url ? resolveImageAssetUrl(novel.primaryCover.url) : null;
+  const hasGeneratedCover = Boolean(novel.primaryCover?.url);
+  const coverUrl = novel.primaryCover?.url
+    ? resolveImageAssetUrl(novel.primaryCover.url)
+    : defaultNovelCoverUrl;
 
   return (
     <Card className="rounded-lg border-border/70 bg-background">
       <CardContent className="flex min-h-[132px] items-center gap-3 p-3">
-        <Link to={getPreviewHref(novel)} className="h-[108px] w-[72px] shrink-0 overflow-hidden rounded bg-muted" aria-label={`预览《${novel.title}》`}>
-          {coverUrl ? (
-            <img src={coverUrl} alt={`${novel.title}封面`} className="h-full w-full object-cover" loading="lazy" />
-          ) : (
-            <div className="flex h-full items-center justify-center bg-muted/70 px-2 text-center text-[11px] font-medium leading-4 text-foreground">
-              {novel.title}
+        <Link to={getPreviewHref(novel)} className="relative h-[108px] w-[72px] shrink-0 overflow-hidden rounded bg-muted" aria-label={`预览《${novel.title}》`}>
+          <img src={coverUrl} alt={hasGeneratedCover ? `${novel.title}封面` : ""} className="h-full w-full object-cover" loading="lazy" />
+          {!hasGeneratedCover ? (
+            <div className="absolute inset-0 flex items-center justify-center bg-black/45 px-2 text-center text-[11px] font-medium leading-4 text-white">
+              <span className="line-clamp-4 drop-shadow">{novel.title}</span>
             </div>
-          )}
+          ) : null}
         </Link>
         <div className="min-w-0 flex-1">
           <Link to={action.href} className="line-clamp-1 text-sm font-semibold hover:text-primary">{novel.title}</Link>

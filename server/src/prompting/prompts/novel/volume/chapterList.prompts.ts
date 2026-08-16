@@ -6,8 +6,10 @@ import { type VolumeChapterListPromptInput } from "./shared";
 import { buildVolumeChapterListContextBlocks } from "./contextBlocks";
 import { NOVEL_PROMPT_BUDGETS } from "../promptBudgetProfiles";
 import {
+  getChapterTitleCollisionIssue,
   getChapterTitleDiversityIssue,
   isBlockingChapterTitleQualityIssue,
+  isChapterTitleDuplicateIssue,
   isChapterTitleDiversityIssue,
 } from "../../../../services/novel/volume/chapterTitleDiversity";
 
@@ -60,12 +62,14 @@ function resolvePromptConfig(
       targetBeatKey?: string;
       targetBeatLabel?: string | null;
       isBookFinale?: boolean;
+      reservedChapterTitles?: string[];
       },
 ): {
   targetChapterCount: number;
   targetBeatKey: string;
   targetBeatLabel: string;
   isBookFinale: boolean;
+  reservedChapterTitles: string[];
 } {
   if (typeof input === "number") {
     return {
@@ -73,6 +77,7 @@ function resolvePromptConfig(
       targetBeatKey: "target_beat",
       targetBeatLabel: "目标节奏段",
       isBookFinale: false,
+      reservedChapterTitles: [],
     };
   }
 
@@ -81,6 +86,7 @@ function resolvePromptConfig(
     targetBeatKey: input.targetBeatKey?.trim() || "target_beat",
     targetBeatLabel: input.targetBeatLabel?.trim() || "目标节奏段",
     isBookFinale: input.isBookFinale === true,
+    reservedChapterTitles: input.reservedChapterTitles ?? [],
   };
 }
 
@@ -272,17 +278,18 @@ export function createVolumeChapterListPrompt(
         targetBeatKey?: string;
         targetBeatLabel?: string | null;
         isBookFinale?: boolean;
+        reservedChapterTitles?: string[];
       },
 ): PromptAsset<
   VolumeChapterListPromptInput,
   ReturnType<typeof createVolumeChapterBeatBlockSchema>["_output"]
 > {
-  const { targetChapterCount, targetBeatKey, targetBeatLabel, isBookFinale = false } =
+  const { targetChapterCount, targetBeatKey, targetBeatLabel, isBookFinale = false, reservedChapterTitles } =
     resolvePromptConfig(input);
 
   return {
     id: "novel.volume.chapter_list",
-    version: "v8",
+    version: "v9",
     taskType: "planner",
     mode: "structured",
     language: "zh",
@@ -499,6 +506,15 @@ export function createVolumeChapterListPrompt(
         throw new Error(titleDiversityIssue);
       }
 
+      const titleCollisionIssue = getChapterTitleCollisionIssue(
+        reservedChapterTitles,
+        output.chapters.map((chapter) => chapter.title),
+      );
+
+      if (titleCollisionIssue) {
+        throw new Error(titleCollisionIssue);
+      }
+
       const chapterFunctionQualityIssue = getChapterFunctionQualityIssue(
         output.chapters,
       );
@@ -511,7 +527,7 @@ export function createVolumeChapterListPrompt(
     },
 
     postValidateFailureRecovery: ({ rawOutput, validationError }) => {
-      if (isBlockingChapterTitleQualityIssue(validationError)) {
+      if (isBlockingChapterTitleQualityIssue(validationError) || isChapterTitleDuplicateIssue(validationError)) {
         throw new Error(validationError);
       }
 

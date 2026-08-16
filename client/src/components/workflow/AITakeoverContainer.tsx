@@ -47,16 +47,16 @@ function modeLabel(mode: AITakeoverMode): string {
 function shellClass(mode: AITakeoverMode): string {
   switch (mode) {
     case "loading":
-      return "border-slate-200/80 bg-gradient-to-br from-background via-background to-slate-50/70";
+      return "border-border bg-gradient-to-br from-background via-background to-muted/35";
     case "failed":
       return "border-destructive/20 bg-gradient-to-br from-background via-background to-destructive/5";
     case "action_required":
-      return "border-orange-200/70 bg-gradient-to-br from-background via-background to-orange-50/70";
+      return "border-orange-500/25 bg-gradient-to-br from-background via-background to-orange-500/10";
     case "waiting":
-      return "border-amber-200/70 bg-gradient-to-br from-background via-background to-amber-50/70";
+      return "border-amber-500/25 bg-gradient-to-br from-background via-background to-amber-500/10";
     case "running":
     default:
-      return "border-sky-200/70 bg-gradient-to-br from-background via-background to-sky-50/65";
+      return "border-sky-500/25 bg-gradient-to-br from-background via-background to-sky-500/10";
   }
 }
 

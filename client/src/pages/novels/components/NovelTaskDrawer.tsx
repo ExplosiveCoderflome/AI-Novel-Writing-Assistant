@@ -302,6 +302,7 @@ export default function NovelTaskDrawer({
   const primaryActionLabel = (
     (primaryAction?.type === "continue" || primaryAction?.type === "auto_execute_range")
     && projection?.displayState === "needs_confirmation"
+    && projection.latestTask?.checkpointType !== "replan_required"
   )
     ? "确认并继续"
     : primaryAction?.label;

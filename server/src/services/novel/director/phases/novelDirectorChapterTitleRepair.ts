@@ -1,6 +1,7 @@
 import type { DirectorConfirmRequest } from "@ai-novel/shared/types/novelDirector";
 import { buildNovelEditResumeTarget } from "../../workflow/novelWorkflow.shared";
 import { getChapterTitleDiversityIssue } from "../../volume/chapterTitleDiversity";
+import { resolveVolumeChapterBeatKey } from "../../volume/volumeGenerationHelpers";
 import type { NovelVolumeService } from "../../volume/NovelVolumeService";
 import type { NovelWorkflowService } from "../../workflow/NovelWorkflowService";
 import { buildDirectorSessionState } from "../runtime/novelDirectorHelpers";
@@ -25,6 +26,23 @@ function buildRepairStatusLabel(input: {
 function shouldRefreshBeatSheetForRepair(lastError: string | null | undefined): boolean {
   const normalized = lastError?.trim() ?? "";
   return normalized.includes("当前卷节奏板的章节跨度异常");
+}
+
+function resolveRepairBeatKeys(input: {
+  volume: Awaited<ReturnType<NovelVolumeService["getVolumes"]>>["volumes"][number];
+  beatSheet: Awaited<ReturnType<NovelVolumeService["getVolumes"]>>["beatSheets"][number];
+}): string[] {
+  const seenTitles = new Set<string>();
+  const repairBeatKeys = new Set<string>();
+  for (const chapter of input.volume.chapters.slice().sort((left, right) => left.chapterOrder - right.chapterOrder)) {
+    const title = chapter.title.trim();
+    const beatKey = resolveVolumeChapterBeatKey({ chapter, volume: input.volume, beatSheet: input.beatSheet });
+    if (seenTitles.has(title) && beatKey) {
+      repairBeatKeys.add(beatKey);
+    }
+    seenTitles.add(title);
+  }
+  return repairBeatKeys.size > 0 ? [...repairBeatKeys] : input.beatSheet.beats.map((beat) => beat.key);
 }
 
 async function loadWorkflowTaskForTitleRepair(
@@ -68,7 +86,10 @@ export async function repairDirectorChapterTitles(input: {
   });
   const currentTask = await loadWorkflowTaskForTitleRepair(input.workflowService, input.taskId);
   let workingWorkspace = currentWorkspace;
-  if (shouldRefreshBeatSheetForRepair(currentTask?.lastError)) {
+  const hasTargetBeatSheet = workingWorkspace.beatSheets.some((sheet) => (
+    sheet.volumeId === targetVolume.id && sheet.beats.length > 0
+  ));
+  if (shouldRefreshBeatSheetForRepair(currentTask?.lastError) || !hasTargetBeatSheet) {
     workingWorkspace = await input.volumeService.generateVolumes(input.novelId, {
       provider: input.request.provider,
       model: input.request.model,
@@ -87,27 +108,45 @@ export async function repairDirectorChapterTitles(input: {
     });
   }
 
-  const repairedWorkspace = await input.volumeService.generateVolumes(input.novelId, {
-    provider: input.request.provider,
-    model: input.request.model,
-    temperature: input.request.temperature,
-    scope: "chapter_list",
-    targetVolumeId: targetVolume.id,
-    draftWorkspace: workingWorkspace,
-    onPhaseStart: async (event) => {
-      await input.workflowService.markTaskRunning(input.taskId, {
-        stage: "structured_outline",
-        itemKey: "chapter_list",
-        itemLabel: buildRepairStatusLabel({
-          volumeOrder: targetVolume.sortOrder,
-          phase: event.phase,
-          label: event.label,
-        }),
-        progress: DIRECTOR_PROGRESS.chapterList,
-      });
-    },
+  const targetBeatSheet = workingWorkspace.beatSheets.find((sheet) => (
+    sheet.volumeId === targetVolume.id && sheet.beats.length > 0
+  ));
+  if (!targetBeatSheet) {
+    throw new Error("当前卷缺少可用节奏板，无法安全重写章节标题。");
+  }
+
+  const repairBeatKeys = resolveRepairBeatKeys({
+    volume: targetVolume,
+    beatSheet: targetBeatSheet,
   });
-  const persistedWorkspace = await input.volumeService.updateVolumes(input.novelId, repairedWorkspace);
+  for (const beat of targetBeatSheet.beats.filter((item) => repairBeatKeys.includes(item.key))) {
+    workingWorkspace = await input.volumeService.generateVolumes(input.novelId, {
+      provider: input.request.provider,
+      model: input.request.model,
+      temperature: input.request.temperature,
+      scope: "chapter_list",
+      generationMode: "single_beat",
+      targetBeatKey: beat.key,
+      targetVolumeId: targetVolume.id,
+      draftWorkspace: workingWorkspace,
+      onPhaseStart: async (event) => {
+        await input.workflowService.markTaskRunning(input.taskId, {
+          stage: "structured_outline",
+          itemKey: "chapter_list",
+          itemLabel: buildRepairStatusLabel({
+            volumeOrder: targetVolume.sortOrder,
+            phase: event.phase,
+            label: event.label,
+          }),
+          progress: DIRECTOR_PROGRESS.chapterList,
+        });
+      },
+    });
+  }
+  const persistedWorkspace = await input.volumeService.updateVolumes(input.novelId, {
+    ...workingWorkspace,
+    syncToChapterExecution: true,
+  });
   const repairedVolume = persistedWorkspace.volumes.find((volume) => volume.id === targetVolume.id);
   if (!repairedVolume) {
     throw new Error("AI 已返回新的章节标题结果，但保存后的当前卷丢失，无法完成修复。");

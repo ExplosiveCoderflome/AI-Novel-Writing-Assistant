@@ -651,6 +651,7 @@ export class PlannerService {
     forceRecommended?: boolean;
     reason?: string | null;
     triggerType?: string | null;
+    scope?: "local_window" | "global_book";
   }) {
     return buildReplanDecision({
       auditReports: input.auditReports ?? [],
@@ -665,6 +666,7 @@ export class PlannerService {
       forceRecommended: input.forceRecommended,
       reason: input.reason,
       triggerType: input.triggerType,
+      scope: input.scope,
     });
   }
 

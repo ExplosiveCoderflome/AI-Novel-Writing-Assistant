@@ -91,7 +91,7 @@ import { canCancelDirectorTask, getCandidateSelectionLink } from "@/lib/novelWor
 import { syncAutoDirectorTaskCache } from "@/lib/taskQueryCache";
 import {
   buildContinueAutoExecutionActionLabel,
-  buildSkipQualityRepairActionLabel,
+  buildReplanAndContinueActionLabel,
   buildTakeoverDescription,
   buildTakeoverTitle,
   formatTakeoverCheckpoint,
@@ -1594,12 +1594,12 @@ export default function NovelEdit() {
         onClick: () => openChapterExecution(task),
         variant: "default",
       });
-    } else if (mode === "action_required" && task.checkpointType === "replan_required") {
+    } else if ((mode === "action_required" || mode === "failed") && task.checkpointType === "replan_required") {
       actions.push({
-        label: buildSkipQualityRepairActionLabel(autoExecutionScopeLabel, continueAutoExecutionMutation.isPending),
+        label: buildReplanAndContinueActionLabel(continueAutoExecutionMutation.isPending),
         onClick: () => continueAutoExecutionMutation.mutate({
           directorTaskId: task.id,
-          continuationMode: "skip_quality_repair",
+          continuationMode: "auto_execute_range",
         }),
         variant: "default",
         disabled: continueAutoExecutionMutation.isPending,
@@ -1838,6 +1838,24 @@ export default function NovelEdit() {
           variant: "outline",
         });
       }
+    } else if (
+      task.checkpointType === "replan_required"
+      && (task.status === "waiting_approval" || task.status === "failed" || task.status === "cancelled")
+    ) {
+      actions.push({
+        label: buildReplanAndContinueActionLabel(continueAutoExecutionMutation.isPending),
+        onClick: () => continueAutoExecutionMutation.mutate({
+          directorTaskId: task.id,
+          continuationMode: "auto_execute_range",
+        }),
+        variant: "default",
+        disabled: continueAutoExecutionMutation.isPending,
+      });
+      actions.push({
+        label: "打开质量修复",
+        onClick: () => openQualityRepair(task),
+        variant: "outline",
+      });
     } else if (task.pendingManualRecovery) {
       actions.push({
         label: continueAutoDirectorMutation.isPending ? "继续中..." : "继续自动导演",
@@ -1866,22 +1884,6 @@ export default function NovelEdit() {
         label: "去确认书级方向",
         onClick: () => openCandidateSelection(task.id),
         variant: "default",
-      });
-    } else if (task.status === "waiting_approval" && task.checkpointType === "replan_required") {
-      const autoExecutionScopeLabel = resolveAutoExecutionScopeLabel(task);
-      actions.push({
-        label: buildSkipQualityRepairActionLabel(autoExecutionScopeLabel, continueAutoExecutionMutation.isPending),
-        onClick: () => continueAutoExecutionMutation.mutate({
-          directorTaskId: task.id,
-          continuationMode: "skip_quality_repair",
-        }),
-        variant: "default",
-        disabled: continueAutoExecutionMutation.isPending,
-      });
-      actions.push({
-        label: "打开质量修复",
-        onClick: () => openQualityRepair(task),
-        variant: "outline",
       });
     } else if (
       task.status === "waiting_approval"

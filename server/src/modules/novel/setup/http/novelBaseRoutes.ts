@@ -404,6 +404,7 @@ export function registerNovelBaseRoutes(input: RegisterNovelBaseRoutesInput): vo
           currentAction: task?.currentItemLabel ?? (progressStatus === "completed" ? "整本书已完成" : "等待 AI 开始处理"),
           status: progressStatus,
           canRetry: progressStatus === "failed" || progressStatus === "paused",
+          recoveryAction: task?.checkpointType === "replan_required" ? "replan_and_continue" : "continue",
           safetyMessage: task?.lastError ?? null,
           riskPolicy,
           latestRiskAssessment: riskHistory[0] ?? null,
