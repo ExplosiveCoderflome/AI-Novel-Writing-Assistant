@@ -1,4 +1,3 @@
-import i18next from "i18next";
 import type { TaskOverviewSummary } from "@ai-novel/shared/types/task";
 import type { NovelListResponse } from "@/api/novel/shared";
 import {
@@ -10,10 +9,14 @@ import {
   isWorkflowRunningInBackground,
   requiresCandidateSelection,
 } from "@/lib/novelWorkflowTaskUi";
+import { featureFlags } from "@/config/featureFlags";
 
 export const HOME_NOVEL_FETCH_LIMIT = 12;
 export const HOME_RECENT_LIMIT = 6;
 export const DIRECTOR_CREATE_LINK = "/novels/auto-director";
+export const SHORT_STORY_CREATE_LINK = featureFlags.creationStudioEnabled
+  ? "/create?form=short_story"
+  : null;
 export const MANUAL_CREATE_LINK = "/novels/create";
 
 export type HomeNovelItem = NovelListResponse["items"][number];
@@ -53,19 +56,25 @@ export interface HomeNextAction {
   tone: HomeTone;
 }
 
+export function getHomeNovelTask(novel: HomeNovelItem) {
+  return novel.narrativeForm === "short_story"
+    ? novel.latestCreationStudioTask ?? null
+    : novel.latestAutoDirectorTask ?? null;
+}
+
 export function formatHomeDate(value: string | undefined): string {
   if (!value) {
-    return i18next.t("common.none");
+    return "暂无";
   }
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) {
-    return i18next.t("common.none");
+    return "暂无";
   }
   return date.toLocaleString();
 }
 
 export function getNovelPriorityScore(novel: HomeNovelItem): number {
-  const task = novel.latestAutoDirectorTask ?? null;
+  const task = getHomeNovelTask(novel);
   if (canContinueChapterBatchAutoExecution(task)) {
     return 0;
   }
@@ -88,7 +97,7 @@ export function getNovelPriorityScore(novel: HomeNovelItem): number {
 }
 
 export function getNovelLeadSummary(novel: HomeNovelItem): string {
-  const workflowDescription = getWorkflowDescription(novel.latestAutoDirectorTask ?? null);
+  const workflowDescription = getWorkflowDescription(getHomeNovelTask(novel));
   if (workflowDescription) {
     return workflowDescription;
   }
@@ -96,9 +105,9 @@ export function getNovelLeadSummary(novel: HomeNovelItem): string {
     return novel.description.trim();
   }
   if (novel.world?.name) {
-    return i18next.t("home.homeViewModel.5kd5ry", { val1: novel.world.name });
+    return `当前项目绑定世界观「${novel.world.name}」，可以继续创作。`;
   }
-  return i18next.t("dict.gen_93364b21");
+  return "当前项目暂无简介，可以进入编辑页继续推进。";
 }
 
 export function selectPrimaryNovel(novels: HomeNovelItem[]): HomeNovelItem | null {
@@ -119,81 +128,93 @@ export function buildHomeNextAction(primaryNovel: HomeNovelItem | null): HomeNex
   if (!primaryNovel) {
     return {
       kind: "starter",
-      eyebrow: i18next.t("dict.gen_de6465aa"),
-      title: i18next.t("dict.gen_9c3aa028"),
-      description: i18next.t("dict.gen_059a2612"),
-      reason: i18next.t("dict.gen_eace0878"),
+      eyebrow: "开始第一本小说",
+      title: "选择适合你的第一种创作方式",
+      description: "想完成长篇，可以交给自动导演准备整本结构；想更快看到完整作品，可以直接从短篇开始。",
+      reason: "两种方式都只需要先说出一个模糊想法，AI 会继续帮你整理创作方向。",
       tone: "info",
     };
   }
 
-  const task = primaryNovel.latestAutoDirectorTask ?? null;
+  const task = getHomeNovelTask(primaryNovel);
+  if (primaryNovel.narrativeForm === "short_story") {
+    return {
+      kind: "novel",
+      eyebrow: task?.status === "succeeded" ? "完整作品" : "创作进行中",
+      title: task?.status === "succeeded" ? "继续完善这篇作品" : "查看成稿进度",
+      description: getNovelLeadSummary(primaryNovel),
+      reason: task?.status === "succeeded"
+        ? "作品已完整生成，可以直接阅读、编辑、修改或导出。"
+        : "短篇正在后台写成一篇连续作品，打开后即可查看实时进度。",
+      tone: task?.status === "succeeded" ? "success" : "info",
+    };
+  }
   if (canContinueChapterBatchAutoExecution(task)) {
     return {
       kind: "novel",
-      eyebrow: i18next.t("dict.gen_9ff48c30"),
-      title: i18next.t("home.homeViewModel.e6nfe7", { val1: primaryNovel.title }),
+      eyebrow: "推荐下一步",
+      title: "恢复章节创作",
       description: getNovelLeadSummary(primaryNovel),
-      reason: i18next.t("dict.gen_036b9ab0"),
+      reason: "章节批次停在可恢复节点，先恢复执行能最快回到正文生产。",
       tone: "danger",
     };
   }
   if (requiresCandidateSelection(task)) {
     return {
       kind: "novel",
-      eyebrow: i18next.t("dict.gen_9ff48c30"),
-      title: i18next.t("home.homeViewModel.q2wtqu", { val1: primaryNovel.title }),
+      eyebrow: "推荐下一步",
+      title: "确认整本故事方向",
       description: getNovelLeadSummary(primaryNovel),
-      reason: i18next.t("dict.gen_c2813e84"),
+      reason: "确认方向后，系统才能继续准备世界观、角色和章节执行计划。",
       tone: "warning",
     };
   }
   if (canContinueDirector(task)) {
     return {
       kind: "novel",
-      eyebrow: i18next.t("dict.gen_9ff48c30"),
-      title: i18next.t("home.homeViewModel.y0gzur", { val1: primaryNovel.title }),
+      eyebrow: "推荐下一步",
+      title: "继续准备整本小说",
       description: getNovelLeadSummary(primaryNovel),
-      reason: i18next.t("dict.gen_7aa3fedb"),
+      reason: "当前阶段等待确认，继续后会推进到下一段可执行准备。",
       tone: "warning",
     };
   }
   if (task?.status === "running" || task?.status === "queued") {
     return {
       kind: "novel",
-      eyebrow: i18next.t("dict.gen_daf87615"),
-      title: i18next.t("home.homeViewModel.n4foq3", { val1: primaryNovel.title }),
+      eyebrow: "AI 创作中",
+      title: "查看创作进度",
       description: getNovelLeadSummary(primaryNovel),
-      reason: i18next.t("dict.gen_e3f5c26f"),
+      reason: "自动导演或章节执行仍在后台处理，可以查看进度和最近阶段。",
       tone: "info",
     };
   }
   if (canEnterChapterExecution(task)) {
     return {
       kind: "novel",
-      eyebrow: i18next.t("dict.gen_9ff48c30"),
-      title: i18next.t("home.homeViewModel.z2cuz4", { val1: primaryNovel.title }),
+      eyebrow: "推荐下一步",
+      title: "开始创作章节",
       description: getNovelLeadSummary(primaryNovel),
-      reason: i18next.t("dict.gen_c69fb4b4"),
+      reason: "规划资产已经能支撑章节生产，可以进入正文生成和审阅。",
       tone: "success",
     };
   }
   if (task?.status === "failed" || task?.status === "cancelled") {
     return {
       kind: "novel",
-      eyebrow: i18next.t("onboarding.needsAction"),
-      title: i18next.t("home.homeViewModel.tb2nez", { val1: primaryNovel.title }),
+      eyebrow: "需要处理",
+      title: "处理创作中断",
       description: getNovelLeadSummary(primaryNovel),
-      reason: i18next.t("dict.gen_9c5e9796"),
+      reason: "任务存在暂停或失败记录，先查看详情再决定恢复、重试或调整。",
       tone: "danger",
     };
   }
   return {
     kind: "novel",
-    eyebrow: i18next.t("dict.gen_9ff48c30"),
-    title: i18next.t("home.homeViewModel.ob2k5q", { val1: primaryNovel.title }),
+    eyebrow: "推荐下一步",
+    title: "继续完善小说",
     description: getNovelLeadSummary(primaryNovel),
-    reason: i18next.t("dict.gen_083bfa9b"),
+    reason: "没有更高优先级的阻塞项，可以回到项目主页继续完善资料或章节。",
     tone: "neutral",
   };
 }
@@ -203,44 +224,46 @@ export function buildHomeMetrics(input: {
   taskOverview?: TaskOverviewSummary | null;
 }): HomeMetric[] {
   const liveWorkflowCount = input.novels.filter((novel) => (
-    isWorkflowRunningInBackground(novel.latestAutoDirectorTask ?? null)
+    isWorkflowRunningInBackground(getHomeNovelTask(novel))
   )).length;
   const actionRequiredCount = input.novels.filter((novel) => (
-    isWorkflowActionRequired(novel.latestAutoDirectorTask ?? null)
+    isWorkflowActionRequired(getHomeNovelTask(novel))
   )).length;
   const readyForExecutionCount = input.novels.filter((novel) => (
-    canEnterChapterExecution(novel.latestAutoDirectorTask ?? null)
+    novel.narrativeForm === "short_story"
+      ? getHomeNovelTask(novel)?.status === "succeeded"
+      : canEnterChapterExecution(getHomeNovelTask(novel))
   )).length;
-  const failedTaskCount = input.taskOverview?.failedCount ?? 0;
+  const totalChapterCount = input.novels.reduce((sum, novel) => sum + novel._count.chapters, 0);
 
   return [
     {
       id: "running",
-      title: i18next.t("dict.gen_007edf50"),
+      title: "正在创作",
       value: liveWorkflowCount,
-      hint: i18next.t("dict.gen_bba3e2f7"),
+      hint: "AI 正在推进的小说或章节。",
       tone: "info",
     },
     {
       id: "attention",
-      title: i18next.t("autoDirector.secPending"),
+      title: "等待你确认",
       value: actionRequiredCount,
-      hint: i18next.t("dict.gen_95c7ebda"),
+      hint: "确认后即可继续创作的项目。",
       tone: actionRequiredCount > 0 ? "warning" : "success",
     },
     {
       id: "chapter-ready",
-      title: i18next.t("dict.gen_7d7acbea"),
+      title: "可以开始写",
       value: readyForExecutionCount,
-      hint: i18next.t("dict.gen_c7ea8ff7"),
+      hint: "故事准备充分，可以进入正文。",
       tone: readyForExecutionCount > 0 ? "success" : "neutral",
     },
     {
-      id: "failed",
-      title: i18next.t("dict.gen_a8a1f41f"),
-      value: failedTaskCount,
-      hint: i18next.t("dict.gen_ef51266d"),
-      tone: failedTaskCount > 0 ? "danger" : "success",
+      id: "chapters",
+      title: "已沉淀章节",
+      value: totalChapterCount,
+      hint: "所有作品中持续积累的章节。",
+      tone: totalChapterCount > 0 ? "info" : "neutral",
     },
   ];
 }
@@ -250,10 +273,12 @@ export function buildHomeAttentionItems(input: {
   taskOverview?: TaskOverviewSummary | null;
 }): HomeAttentionItem[] {
   const actionRequiredCount = input.novels.filter((novel) => (
-    isWorkflowActionRequired(novel.latestAutoDirectorTask ?? null)
+    isWorkflowActionRequired(getHomeNovelTask(novel))
   )).length;
   const readyForExecutionCount = input.novels.filter((novel) => (
-    canEnterChapterExecution(novel.latestAutoDirectorTask ?? null)
+    novel.narrativeForm === "short_story"
+      ? getHomeNovelTask(novel)?.status === "succeeded"
+      : canEnterChapterExecution(getHomeNovelTask(novel))
   )).length;
   const runningCount = input.taskOverview?.runningCount ?? 0;
   const waitingApprovalCount = input.taskOverview?.waitingApprovalCount ?? 0;
@@ -264,39 +289,39 @@ export function buildHomeAttentionItems(input: {
   if (failedTaskCount > 0 || recoveryCandidateCount > 0) {
     items.push({
       id: "task-recovery",
-      title: failedTaskCount > 0 ? i18next.t("home.homeViewModel.xdqbqu", { val1: failedTaskCount }) : i18next.t("home.homeViewModel.iwmnqe", { val1: recoveryCandidateCount }),
-      description: i18next.t("dict.gen_6b7dbd6f"),
+      title: failedTaskCount > 0 ? `${failedTaskCount} 个后台任务失败` : `${recoveryCandidateCount} 个任务可恢复`,
+      description: "先处理失败或可恢复任务，可以避免后续生成继续卡在同一位置。",
       tone: failedTaskCount > 0 ? "danger" : "warning",
       to: "/tasks",
-      actionLabel: i18next.t("dict.gen_9dd8c364"),
+      actionLabel: "查看任务中心",
     });
   }
   if (actionRequiredCount > 0 || waitingApprovalCount > 0) {
     items.push({
       id: "workflow-action-required",
-      title: i18next.t("home.homeViewModel.ajzsil", { val1: Math.max(actionRequiredCount, waitingApprovalCount) }),
-      description: i18next.t("dict.gen_3f382d26"),
+      title: `${Math.max(actionRequiredCount, waitingApprovalCount)} 个创作流程等待处理`,
+      description: "这些项目可能在等待方向确认、阶段继续或失败后的恢复决策。",
       tone: "warning",
       to: "/auto-director/follow-ups",
-      actionLabel: i18next.t("dict.gen_cb22c7c1"),
+      actionLabel: "查看跟进事项",
     });
   }
   if (readyForExecutionCount > 0) {
     items.push({
       id: "chapter-ready",
-      title: i18next.t("home.homeViewModel.pzq6cv", { val1: readyForExecutionCount }),
-      description: i18next.t("dict.gen_4b9e5601"),
+      title: `${readyForExecutionCount} 个项目可进入章节执行`,
+      description: "这些项目的规划资产已经能支撑正文生产，可以继续推进章节。",
       tone: "success",
     });
   }
   if (runningCount > 0) {
     items.push({
       id: "running-tasks",
-      title: i18next.t("home.homeViewModel.ivskwl", { val1: runningCount }),
-      description: i18next.t("dict.gen_758ac9f9"),
+      title: `${runningCount} 个任务处理中`,
+      description: "后台任务仍在推进，可以稍后回到首页查看结果。",
       tone: "info",
       to: "/tasks",
-      actionLabel: i18next.t("dict.gen_9600c918"),
+      actionLabel: "查看进度",
     });
   }
 
@@ -318,32 +343,32 @@ export function buildHomeAssetHealthItems(novels: HomeNovelItem[]): HomeAssetHea
   return [
     {
       id: "world",
-      title: i18next.t("dict.gen_ccd81d16"),
+      title: "世界观覆盖",
       value: totalNovels > 0 ? `${worldBoundCount}/${totalNovels}` : "0",
       description: totalNovels > 0
-        ? i18next.t("dict.gen_1d29dac7")
-        : i18next.t("dict.gen_42f59f8a"),
+        ? "绑定世界观的项目更容易在后续章节中保持规则一致。"
+        : "创建小说后，这里会显示世界观资产状态。",
       tone: totalNovels === 0 ? "neutral" : worldBoundCount === totalNovels ? "success" : "warning",
     },
     {
       id: "characters",
-      title: i18next.t("dict.gen_88afed0d"),
+      title: "角色资产",
       value: String(totalCharacters),
-      description: i18next.t("dict.gen_33399576"),
+      description: "角色数量用于判断项目是否具备连续生成的基本资产。",
       tone: totalCharacters > 0 ? "success" : "warning",
     },
     {
       id: "chapters",
-      title: i18next.t("dict.gen_6ee26458"),
+      title: "章节沉淀",
       value: String(totalChapters),
-      description: i18next.t("dict.gen_7d8e24a2"),
+      description: "章节越多，摘要、事实和角色时间线越需要稳定回灌。",
       tone: totalChapters > 0 ? "info" : "neutral",
     },
     {
       id: "readiness",
-      title: i18next.t("dict.gen_31032ccf"),
+      title: "资源准备度",
       value: averageResourceScore == null ? "--" : `${averageResourceScore}`,
-      description: i18next.t("dict.gen_ccc59df1"),
+      description: "来自项目资料准备度的平均信号，用于辅助判断开写基础。",
       tone: averageResourceScore == null
         ? "neutral"
         : averageResourceScore >= 80

@@ -1,4 +1,3 @@
-import i18next from "i18next";
 import type { DirectorCommandAcceptedResponse } from "@ai-novel/shared/types/directorRuntime";
 import type { DirectorContinuationMode } from "@ai-novel/shared/types/novelDirector";
 import type { UnifiedTaskDetail } from "@ai-novel/shared/types/task";
@@ -15,7 +14,7 @@ export function resolveWorkflowContinuationFeedback(
 } {
   const requestedScopeLabel = options?.scopeLabel?.trim();
   const taskScopeLabel = task && "executionScopeLabel" in task ? task.executionScopeLabel?.trim() : undefined;
-  const scopeLabel = requestedScopeLabel || taskScopeLabel || i18next.t("dict.gen_d7432bb5");
+  const scopeLabel = requestedScopeLabel || taskScopeLabel || "当前章节范围";
 
   if (task && "kind" in task && task.status === "failed") {
     return {
@@ -24,18 +23,18 @@ export function resolveWorkflowContinuationFeedback(
         || task.blockingReason?.trim()
         || task.lastError?.trim()
         || (options?.mode === "auto_execute_range"
-          ? i18next.t("lib.novelWorkflowContinuation.3mlaph", { val1: scopeLabel })
-          : i18next.t("toasts.failedAutoDirector")),
+          ? `继续自动执行${scopeLabel}失败。`
+          : "继续自动导演失败。"),
     };
   }
 
   return {
     tone: "success",
     message: options?.mode === "skip_quality_repair"
-      ? i18next.t("lib.novelWorkflowContinuation.h7o82v", { val1: scopeLabel })
+      ? `已跳过本次质量建议，自动导演会继续执行${scopeLabel}。`
       : options?.mode === "auto_execute_range"
-        ? i18next.t("lib.novelWorkflowContinuation.hqyzqh", { val1: scopeLabel })
-        : i18next.t("dict.gen_8c4efb64"),
+          ? `已继续自动执行${scopeLabel}。`
+          : "自动导演已继续推进。",
   };
 }
 
@@ -46,10 +45,12 @@ export function resolveDirectorContinueMode(task: Pick<
   if (task?.pendingManualRecovery) {
     return "resume";
   }
+  if (task?.checkpointType === "replan_required") {
+    return "auto_execute_range";
+  }
   if (
-    task?.checkpointType === "replan_required"
-    || task?.currentItemKey === "quality_repair"
-    || task?.currentStage?.includes(i18next.t("dict.gen_3a7170b9"))
+    task?.currentItemKey === "quality_repair"
+    || task?.currentStage?.includes("质量")
   ) {
     return "skip_quality_repair";
   }

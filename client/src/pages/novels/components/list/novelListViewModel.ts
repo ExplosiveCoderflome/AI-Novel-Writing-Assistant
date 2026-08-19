@@ -1,4 +1,3 @@
-import i18next from "i18next";
 import type {
   NovelAutoDirectorTaskSummary,
   ProjectProgressStatus,
@@ -12,6 +11,7 @@ import {
   isWorkflowRunningInBackground,
   requiresCandidateSelection,
 } from "@/lib/novelWorkflowTaskUi";
+import { featureFlags } from "@/config/featureFlags";
 
 export type NovelListItem = NovelListResponse["items"][number];
 export type StatusFilter = "all" | "draft" | "published";
@@ -19,6 +19,10 @@ export type WritingModeFilter = "all" | "original" | "continuation";
 export type NovelListTone = "neutral" | "info" | "success" | "warning" | "danger";
 
 export const DIRECTOR_CREATE_LINK = "/novels/auto-director";
+export const SHORT_STORY_CREATE_LINK = featureFlags.creationStudioEnabled
+  ? "/create?form=short_story"
+  : null;
+export const PRIMARY_CREATE_LABEL = "AI 自动导演开书";
 export const MANUAL_CREATE_LINK = "/novels/create";
 export const NOVEL_LIST_PAGE_SIZE = 24;
 
@@ -40,6 +44,25 @@ export interface WorkflowDisplay {
   running: boolean;
 }
 
+export function getNovelWorkflowTask(novel: NovelListItem): NovelAutoDirectorTaskSummary | null {
+  return novel.narrativeForm === "short_story"
+    ? novel.latestCreationStudioTask ?? null
+    : novel.latestAutoDirectorTask ?? null;
+}
+
+export function getNovelWorkspaceHref(novel: NovelListItem): string {
+  if (novel.narrativeForm === "short_story") {
+    return `/novels/${novel.id}/story`;
+  }
+  if (novel.creationExperience === "simple") {
+    return `/novels/${novel.id}/simple`;
+  }
+  const task = novel.latestAutoDirectorTask;
+  return task?.id
+    ? `/novels/${novel.id}/edit?directorTaskId=${encodeURIComponent(task.id)}`
+    : `/novels/${novel.id}/edit`;
+}
+
 export function filterNovelList(input: {
   novels: NovelListItem[];
   status: StatusFilter;
@@ -58,18 +81,18 @@ export function filterNovelList(input: {
 
 export function formatProgressStatus(status?: ProjectProgressStatus | null): string {
   if (status === "completed") {
-    return i18next.t("tasks.filterStatusSucceeded");
+    return "已完成";
   }
   if (status === "in_progress") {
-    return i18next.t("tasks.levelRunning");
+    return "进行中";
   }
   if (status === "rework") {
-    return i18next.t("dict.gen_87ebc735");
+    return "待返工";
   }
   if (status === "blocked") {
-    return i18next.t("dict.gen_644fe1bd");
+    return "受阻";
   }
-  return i18next.t("dict.gen_dd4e55c3");
+  return "未开始";
 }
 
 export function formatTokenCount(value?: number | null): string {
@@ -81,21 +104,25 @@ export function formatTokenCount(value?: number | null): string {
 
 export function buildNovelListSummary(novels: NovelListItem[]): NovelListSummaryItem[] {
   const running = novels.filter((novel) => {
-    const task = novel.latestAutoDirectorTask;
+    const task = getNovelWorkflowTask(novel);
     return task?.status === "queued" || task?.status === "running";
   }).length;
-  const waiting = novels.filter((novel) => novel.latestAutoDirectorTask?.status === "waiting_approval").length;
-  const ready = novels.filter((novel) => canEnterChapterExecution(novel.latestAutoDirectorTask ?? null)).length;
+  const waiting = novels.filter((novel) => getNovelWorkflowTask(novel)?.status === "waiting_approval").length;
+  const ready = novels.filter((novel) => (
+    novel.narrativeForm === "short_story"
+      ? getNovelWorkflowTask(novel)?.status === "succeeded"
+      : canEnterChapterExecution(getNovelWorkflowTask(novel))
+  )).length;
   const issue = novels.filter((novel) => {
-    const status = novel.latestAutoDirectorTask?.status;
+    const status = getNovelWorkflowTask(novel)?.status;
     return status === "failed" || status === "cancelled";
   }).length;
 
   return [
-    { id: "running", label: i18next.t("dict.gen_007edf50"), value: running, tone: running > 0 ? "info" : "neutral" },
-    { id: "waiting", label: i18next.t("dict.gen_2a2772fa"), value: waiting, tone: waiting > 0 ? "warning" : "neutral" },
-    { id: "ready", label: i18next.t("dict.gen_7d7acbea"), value: ready, tone: ready > 0 ? "success" : "neutral" },
-    { id: "issue", label: i18next.t("dict.gen_0df14edc"), value: issue, tone: issue > 0 ? "danger" : "neutral" },
+    { id: "running", label: "推进中", value: running, tone: running > 0 ? "info" : "neutral" },
+    { id: "waiting", label: "待确认", value: waiting, tone: waiting > 0 ? "warning" : "neutral" },
+    { id: "ready", label: "可继续", value: ready, tone: ready > 0 ? "success" : "neutral" },
+    { id: "issue", label: "暂停/失败", value: issue, tone: issue > 0 ? "danger" : "neutral" },
   ];
 }
 
@@ -119,15 +146,30 @@ export function getWorkflowTone(task?: NovelAutoDirectorTaskSummary | null): Nov
 }
 
 export function buildWorkflowDisplay(novel: NovelListItem): WorkflowDisplay {
-  const task = novel.latestAutoDirectorTask ?? null;
+  const task = getNovelWorkflowTask(novel);
+  if (novel.narrativeForm === "short_story") {
+    return {
+      tone: task?.status === "failed" ? "danger" : task?.status === "succeeded" ? "success" : "info",
+      label: task?.status === "succeeded" ? "完整短篇" : "短篇创作中",
+      description: task?.checkpointSummary?.trim()
+        || task?.currentItemLabel?.trim()
+        || novel.description?.trim()
+        || "AI 正在把已确认的方向写成一篇连续作品。",
+      progress: Math.round((task?.progress ?? 0) * 100),
+      currentStage: "连续作品",
+      currentAction: task?.currentItemLabel?.trim() || "",
+      lastHealthyStage: "",
+      running: task?.status === "queued" || task?.status === "running",
+    };
+  }
   const description = getWorkflowDescription(task);
   if (!task) {
     return {
       tone: "neutral",
-      label: i18next.t("dict.gen_cdbb5133"),
-      description: novel.description?.trim() || i18next.t("dict.gen_476d9bdf"),
+      label: "资料项目",
+      description: novel.description?.trim() || "没有自动导演任务，可以进入项目继续完善资料或章节。",
       progress: 0,
-      currentStage: i18next.t("dict.gen_945c0411"),
+      currentStage: "未进入自动导演",
       currentAction: "",
       lastHealthyStage: "",
       running: false,
@@ -136,10 +178,10 @@ export function buildWorkflowDisplay(novel: NovelListItem): WorkflowDisplay {
   const currentAction = task.currentItemLabel?.trim() || "";
   return {
     tone: getWorkflowTone(task),
-    label: task.displayStatus?.trim() || task.resumeAction?.trim() || task.nextActionLabel?.trim() || i18next.t("autoDirector.context"),
-    description: description || i18next.t("dict.gen_8766510d"),
+    label: task.displayStatus?.trim() || task.resumeAction?.trim() || task.nextActionLabel?.trim() || "自动导演",
+    description: description || "系统保留推进状态，可以继续查看或恢复。",
     progress: Math.round(task.progress * 100),
-    currentStage: task.currentStage ?? i18next.t("autoDirector.context"),
+    currentStage: task.currentStage ?? "自动导演",
     currentAction,
     lastHealthyStage: task.lastHealthyStage ?? "",
     running: isWorkflowRunningInBackground(task),
@@ -147,23 +189,26 @@ export function buildWorkflowDisplay(novel: NovelListItem): WorkflowDisplay {
 }
 
 export function getPrimaryActionLabel(novel: NovelListItem): string {
-  const task = novel.latestAutoDirectorTask ?? null;
+  if (novel.narrativeForm === "short_story") {
+    return "打开作品";
+  }
+  const task = getNovelWorkflowTask(novel);
   if (canContinueChapterBatchAutoExecution(task)) {
-    return task?.resumeAction ?? `继续自动执行${task?.executionScopeLabel ?? i18next.t("dict.gen_d7432bb5")}`;
+    return task?.resumeAction ?? `继续自动执行${task?.executionScopeLabel ?? "当前章节范围"}`;
   }
   if (canContinueDirector(task)) {
-    return task?.resumeAction ?? i18next.t("dict.gen_1f32f18b");
+    return task?.resumeAction ?? "继续导演";
   }
   if (requiresCandidateSelection(task)) {
-    return task?.resumeAction ?? i18next.t("dict.gen_e92496b4");
+    return task?.resumeAction ?? "继续确认方向";
   }
   if (canEnterChapterExecution(task)) {
-    return i18next.t("dict.gen_98b5f8b5");
+    return "进入章节执行";
   }
   if (task) {
-    return i18next.t("dict.gen_ffc75805");
+    return "查看推进状态";
   }
-  return i18next.t("dict.gen_699b4b33");
+  return "编辑小说";
 }
 
 export function getProjectAssetRows(novel: NovelListItem): Array<{
@@ -171,16 +216,24 @@ export function getProjectAssetRows(novel: NovelListItem): Array<{
   value: string;
   tone?: NovelListTone;
 }> {
+  if (novel.narrativeForm === "short_story") {
+    return [
+      { label: "形式", value: "短篇" },
+      { label: "目标", value: `${(novel.targetWordCount ?? 0).toLocaleString()} 字` },
+      { label: "正文", value: getNovelWorkflowTask(novel)?.status === "succeeded" ? "已完成" : "生成中", tone: "info" },
+      { label: "来源", value: novel.derivedFromNovelId ? "派生作品" : "原创" },
+    ];
+  }
   return [
-    { label: i18next.t("dict.gen_9290b644"), value: String(novel._count.chapters) },
-    { label: i18next.t("dict.gen_464f3d4e"), value: String(novel._count.characters) },
+    { label: "章节", value: String(novel._count.chapters) },
+    { label: "角色", value: String(novel._count.characters) },
     {
-      label: i18next.t("dict.gen_cfb83c02"),
-      value: novel.world?.name ?? i18next.t("dict.gen_906ad18b"),
+      label: "世界观",
+      value: novel.world?.name ?? "未绑定",
       tone: novel.world?.name ? "neutral" : "warning",
     },
     {
-      label: i18next.t("dict.gen_eee83a92"),
+      label: "资源",
       value: `${novel.resourceReadyScore ?? 0}/100`,
       tone: (novel.resourceReadyScore ?? 0) >= 60 ? "success" : "warning",
     },

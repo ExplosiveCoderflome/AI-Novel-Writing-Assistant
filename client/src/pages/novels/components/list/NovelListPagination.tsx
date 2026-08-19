@@ -1,5 +1,3 @@
-import i18next from "i18next";
-const t = (key: string, options?: any) => i18next.t(key, options) as string;
 import { Button } from "@/components/ui/button";
 
 export function NovelListPagination(props: {
@@ -12,24 +10,30 @@ export function NovelListPagination(props: {
     return null;
   }
   return (
-    <nav className="flex flex-wrap items-center justify-end gap-2" aria-label={i18next.t("dict.gen_5ecc53d5")}>
+    <nav className="flex flex-wrap items-center justify-end gap-2" aria-label="小说列表分页">
       <Button
         type="button"
         variant="outline"
         disabled={props.page <= 1 || props.isFetching}
         onClick={() => props.onPageChange(Math.max(1, props.page - 1))}
-      >{i18next.t("autoDirectorFollowUps.autoDirectorFollowUpList.btlof")}</Button>
+      >
+        上一页
+      </Button>
       <div
         className="flex h-9 min-w-28 items-center justify-center px-3 text-sm text-muted-foreground"
         aria-live="polite"
-      >{i18next.t("novels.novelListPagination.obw")}<span className="mx-1 font-medium tabular-nums text-foreground">{props.page}</span> /{" "}
-        <span className="mx-1 font-medium tabular-nums text-foreground">{props.totalPages}</span>{i18next.t("novels.novelListPagination.u45")}</div>
+      >
+        第 <span className="mx-1 font-medium tabular-nums text-foreground">{props.page}</span> /{" "}
+        <span className="mx-1 font-medium tabular-nums text-foreground">{props.totalPages}</span> 页
+      </div>
       <Button
         type="button"
         variant="outline"
         disabled={props.page >= props.totalPages || props.isFetching}
         onClick={() => props.onPageChange(Math.min(props.totalPages, props.page + 1))}
-      >{i18next.t("autoDirectorFollowUps.autoDirectorFollowUpList.btmf4")}</Button>
+      >
+        下一页
+      </Button>
     </nav>
   );
 }

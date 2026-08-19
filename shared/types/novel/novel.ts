@@ -3,6 +3,8 @@ import type { BookContract } from "./novelWorkflow";
 import type { NovelWorkflowCheckpoint } from "./novelWorkflow";
 import type { NovelStoryMode } from "../common/storyMode";
 import type { TaskStatus, TaskTokenUsageSummary } from "../common/task";
+import type { NarrativeForm } from "../creationStudio";
+import type { WritingPlatform } from "../writingPlatform";
 export type {
   BaseCharacter,
   Character,
@@ -231,6 +233,11 @@ export interface Novel {
   language: string;
   projectMode?: ProjectMode | null;
   creationExperience: CreationExperience;
+  narrativeForm: NarrativeForm;
+  targetWordCount?: number | null;
+  derivedFromNovelId?: string | null;
+  writingPlatform?: WritingPlatform | null;
+  writingPlatformProfileVersion?: number | null;
   narrativePov?: NarrativePov | null;
   pacePreference?: PacePreference | null;
   styleTone?: string | null;
