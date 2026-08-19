@@ -7,8 +7,8 @@ import {
   getModelRoutes,
   getRagSettings,
   getStyleEngineRuntimeSettings,
-  testModelRouteConnectivity,
 } from "@/api/settings";
+import { useModelRouteCheck } from "@/hooks/useModelRouteCheck";
 import { queryKeys } from "@/api/queryKeys";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -26,23 +26,18 @@ const entries = [
 export default function SettingsOverviewPage() {
   const providersQuery = useQuery({ queryKey: queryKeys.settings.apiKeys, queryFn: getAPIKeySettings });
   const routesQuery = useQuery({ queryKey: queryKeys.settings.modelRoutes, queryFn: getModelRoutes });
-  const connectivityQuery = useQuery({
-    queryKey: queryKeys.settings.modelRouteConnectivity,
-    queryFn: testModelRouteConnectivity,
-    enabled: routesQuery.isSuccess,
-    refetchOnWindowFocus: false,
-  });
+  const { status: connectivityCheck, isChecking } = useModelRouteCheck();
   const ragQuery = useQuery({ queryKey: queryKeys.settings.rag, queryFn: getRagSettings });
   const styleQuery = useQuery({ queryKey: queryKeys.settings.styleEngineRuntime, queryFn: getStyleEngineRuntimeSettings });
   const items = useMemo(() => buildSettingsReadinessItems({
     providers: providersQuery.data?.data ?? [],
     modelRoutes: routesQuery.data?.data,
-    modelRouteConnectivity: connectivityQuery.data?.data,
+    modelRouteConnectivity: connectivityCheck?.result ?? null,
     ragSettings: ragQuery.data?.data,
     styleSettings: styleQuery.data?.data,
-    isModelRoutesChecking: connectivityQuery.isPending || connectivityQuery.isFetching,
+    isModelRoutesChecking: isChecking,
     isStyleSettingsLoaded: styleQuery.isSuccess,
-  }), [connectivityQuery.data?.data, connectivityQuery.isFetching, connectivityQuery.isPending, providersQuery.data?.data, ragQuery.data?.data, routesQuery.data?.data, styleQuery.data?.data, styleQuery.isSuccess]);
+  }), [connectivityCheck?.result, isChecking, providersQuery.data?.data, ragQuery.data?.data, routesQuery.data?.data, styleQuery.data?.data, styleQuery.isSuccess]);
   const configuredProvider = providersQuery.data?.data?.find((item) => item.isConfigured && item.isActive);
   const routeCount = routesQuery.data?.data?.routes.filter((route) => route.provider && route.model).length ?? 0;
   const rag = ragQuery.data?.data;

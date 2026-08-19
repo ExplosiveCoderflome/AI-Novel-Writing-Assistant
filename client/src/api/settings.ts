@@ -169,6 +169,18 @@ export interface ModelRouteConnectivityResponse {
   statuses: ModelRouteConnectivityStatus[];
 }
 
+export type ModelRouteConnectivityCheckStatus = "idle" | "running" | "done";
+
+export interface ModelRouteConnectivityCheckResponse {
+  status: ModelRouteConnectivityCheckStatus;
+  taskId: string | null;
+  startedAt: string | null;
+  completedAt: string | null;
+  fingerprint: string | null;
+  result: ModelRouteConnectivityResponse | null;
+  cached?: boolean;
+}
+
 export interface StructuredFallbackSettings {
   enabled: boolean;
   provider: LLMProvider;
@@ -418,8 +430,18 @@ export async function getModelRoutes() {
   return data;
 }
 
-export async function testModelRouteConnectivity() {
-  const { data } = await apiClient.post<ApiResponse<ModelRouteConnectivityResponse>>("/llm/model-routes/connectivity");
+export async function testModelRouteConnectivity(force = false) {
+  const { data } = await apiClient.post<ApiResponse<ModelRouteConnectivityCheckResponse>>(
+    "/llm/model-routes/connectivity",
+    { force },
+  );
+  return data;
+}
+
+export async function getModelRouteConnectivityStatus() {
+  const { data } = await apiClient.get<ApiResponse<ModelRouteConnectivityCheckResponse>>(
+    "/llm/model-routes/connectivity/status",
+  );
   return data;
 }
 

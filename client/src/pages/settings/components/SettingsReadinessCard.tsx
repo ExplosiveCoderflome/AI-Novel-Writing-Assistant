@@ -16,7 +16,7 @@ export type SettingsReadinessItem = {
   key: "model" | "routes" | "rag" | "style";
   title: string;
   description: string;
-  state: "ready" | "warning" | "optional" | "checking";
+  state: "ready" | "warning" | "optional" | "checking" | "idle";
 };
 
 function getReadinessIcon(state: SettingsReadinessItem["state"]) {
@@ -26,7 +26,7 @@ function getReadinessIcon(state: SettingsReadinessItem["state"]) {
   if (state === "checking") {
     return <Loader2 className="h-4 w-4 animate-spin text-amber-600" />;
   }
-  if (state === "optional") {
+  if (state === "optional" || state === "idle") {
     return <CircleDashed className="h-4 w-4 text-sky-600" />;
   }
   return <CircleAlert className="h-4 w-4 text-amber-600" />;
@@ -40,6 +40,8 @@ function getReadinessBadge(state: SettingsReadinessItem["state"]) {
       return "检查中";
     case "optional":
       return "可选增强";
+    case "idle":
+      return "未检测";
     case "warning":
       return "需要处理";
   }
@@ -88,12 +90,24 @@ export function buildSettingsReadinessItems(input: {
     {
       key: "routes",
       title: "模型路由",
-      state: isModelRoutesChecking ? "checking" : hasRoutes && failedRouteCount === 0 ? "ready" : "warning",
+      state: isModelRoutesChecking
+        ? "checking"
+        : !hasRoutes
+          ? "warning"
+          : modelRouteConnectivity == null
+            ? "idle"
+            : failedRouteCount === 0
+              ? "ready"
+              : "warning",
       description: isModelRoutesChecking
         ? "正在检查开书、拆章、正文生成和审核任务的模型兼容性。"
-        : hasRoutes && failedRouteCount === 0
-          ? "创作任务已有可用路由，后续流程会按任务选择模型。"
-          : "部分创作任务还需要补齐或修复模型路由。",
+        : !hasRoutes
+          ? "尚未配置任何任务路由，进入模型与厂商页面可补齐。"
+          : modelRouteConnectivity == null
+            ? "尚未检测模型兼容性，进入模型与厂商页面可执行检测。"
+            : failedRouteCount === 0
+              ? "创作任务已有可用路由，后续流程会按任务选择模型。"
+              : "部分创作任务还需要补齐或修复模型路由。",
     },
     {
       key: "rag",
