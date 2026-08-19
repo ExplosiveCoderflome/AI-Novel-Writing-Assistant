@@ -1,4 +1,3 @@
-import i18next from "i18next";
 import { useEffect, useState } from "react";
 import { APP_RUNTIME } from "./constants";
 
@@ -57,8 +56,8 @@ export interface DesktopDataImportResult {
 const DEFAULT_BOOTSTRAP_SNAPSHOT: DesktopBootstrapSnapshot = {
   state: "launching",
   stage: "launching",
-  title: i18next.t("dict.gen_a1c11778"),
-  detail: i18next.t("dict.gen_7377ff62"),
+  title: "正在启动桌面工作区",
+  detail: "正在准备桌面本地运行时。",
   logDir: "",
   logFile: "",
   updatedAt: "",
@@ -67,7 +66,7 @@ const DEFAULT_BOOTSTRAP_SNAPSHOT: DesktopBootstrapSnapshot = {
 
 const DEFAULT_UPDATER_SNAPSHOT: DesktopUpdaterSnapshot = {
   status: "disabled",
-  message: i18next.t("lib.desktop.hoxxek"),
+  message: "当前运行环境无法使用桌面版更新。",
   currentVersion: "0.0.0",
   availableVersion: null,
   progressPercent: null,
@@ -111,6 +110,10 @@ export async function openDesktopLogsDirectory(): Promise<void> {
 
 export async function copyDesktopLogPath(): Promise<string | undefined> {
   return getDesktopBridge()?.copyLogPath?.();
+}
+
+export async function bundleDesktopLogs(): Promise<string | null> {
+  return getDesktopBridge()?.bundleLogs?.() ?? null;
 }
 
 export async function restartDesktopApp(): Promise<void> {

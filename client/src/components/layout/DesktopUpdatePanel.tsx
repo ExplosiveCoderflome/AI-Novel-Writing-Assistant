@@ -1,4 +1,3 @@
-import i18next from "i18next";
 import { useState } from "react";
 import { Download, RefreshCw, RotateCw } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
@@ -6,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { toast } from "@/components/ui/toast";
 import {
   checkForDesktopUpdates,
+  bundleDesktopLogs,
   quitAndInstallDesktopUpdate,
   type DesktopUpdaterSnapshot,
 } from "@/lib/desktop";
@@ -25,11 +25,11 @@ interface DesktopUpdatePanelProps {
 
 function formatCheckedAt(value: string | null): string {
   if (!value) {
-    return i18next.t("layout.desktopUpdatePanel.c1ti0l");
+    return "尚未检查";
   }
   const parsed = new Date(value);
   if (Number.isNaN(parsed.getTime())) {
-    return i18next.t("layout.desktopUpdatePanel.dl9cc6");
+    return "最近检查";
   }
   return parsed.toLocaleString("zh-CN", { hour12: false });
 }
@@ -55,6 +55,15 @@ export default function DesktopUpdatePanel({ updater, showEnvironment = true }: 
     }
   };
 
+  const exportLogs = async () => {
+    try {
+      const filePath = await bundleDesktopLogs();
+      if (filePath) toast.success("日志包已保存，可以发送给开发者。");
+    } catch {
+      toast.error("日志包保存失败，请稍后重试。");
+    }
+  };
+
   return (
     <div className="space-y-4">
       {showEnvironment ? (
@@ -66,15 +75,15 @@ export default function DesktopUpdatePanel({ updater, showEnvironment = true }: 
 
       <div className="grid gap-3 sm:grid-cols-3">
         <div className="rounded-xl border bg-muted/25 p-3">
-          <div className="text-xs text-muted-foreground">{i18next.t("dict.gen_bfedfa19")}</div>
+          <div className="text-xs text-muted-foreground">本机版本</div>
           <div className="mt-1 font-semibold">{formatDesktopVersion(updater.currentVersion)}</div>
         </div>
         <div className="rounded-xl border bg-muted/25 p-3">
-          <div className="text-xs text-muted-foreground">{i18next.t("layout.desktopUpdatePanel.dex6pz")}</div>
+          <div className="text-xs text-muted-foreground">更新状态</div>
           <div className="mt-1 font-semibold">{getDesktopUpdaterStatusLabel(updater.status)}</div>
         </div>
         <div className="rounded-xl border bg-muted/25 p-3">
-          <div className="text-xs text-muted-foreground">{i18next.t("dict.gen_29afa32e")}</div>
+          <div className="text-xs text-muted-foreground">可用版本</div>
           <div className="mt-1 font-semibold">
             {updater.availableVersion ? formatDesktopVersion(updater.availableVersion) : "—"}
           </div>
@@ -86,7 +95,7 @@ export default function DesktopUpdatePanel({ updater, showEnvironment = true }: 
         {typeof updater.progressPercent === "number" ? (
           <div className="mt-3 space-y-1.5">
             <div className="flex items-center justify-between text-xs text-muted-foreground">
-              <span>{i18next.t("layout.desktopUpdatePanel.ag2ohp")}</span>
+              <span>下载进度</span>
               <span>{Math.round(updater.progressPercent)}%</span>
             </div>
             <div className="h-2 overflow-hidden rounded-full bg-muted">
@@ -101,6 +110,9 @@ export default function DesktopUpdatePanel({ updater, showEnvironment = true }: 
       </div>
 
       <div className="flex flex-wrap gap-2">
+        <Button type="button" variant="ghost" onClick={() => void exportLogs()}>
+          下载近期日志包
+        </Button>
         {showCheckButton ? (
           <Button
             type="button"
@@ -118,11 +130,15 @@ export default function DesktopUpdatePanel({ updater, showEnvironment = true }: 
         ) : null}
         {showDownloadButton ? (
           <Button type="button" disabled={isBusy} onClick={() => void runAction("check")}>
-            <Download className="h-4 w-4" aria-hidden="true" />{i18next.t("layout.desktopBootstrapShell.afvrf2")}</Button>
+            <Download className="h-4 w-4" aria-hidden="true" />
+            下载更新
+          </Button>
         ) : null}
         {showInstallButton ? (
           <Button type="button" disabled={isBusy || !updater.canInstall} onClick={() => void runAction("install")}>
-            <RotateCw className="h-4 w-4" aria-hidden="true" />{i18next.t("layout.desktopUpdatePanel.kmbgf2")}</Button>
+            <RotateCw className="h-4 w-4" aria-hidden="true" />
+            保存工作并重启安装
+          </Button>
         ) : null}
       </div>
     </div>

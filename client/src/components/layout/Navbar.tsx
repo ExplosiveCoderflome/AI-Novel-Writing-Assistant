@@ -5,6 +5,7 @@ import LLMSelector from "@/components/common/LLMSelector";
 import ImageModelSelector from "@/components/common/ImageModelSelector";
 import { useCreationSetup } from "@/components/onboarding/CreationSetupContext";
 import AppVersionBadge from "@/components/layout/AppVersionBadge";
+import DesktopReleaseNotesDialog from "@/components/layout/DesktopReleaseNotesDialog";
 import DesktopBrandMark from "@/components/layout/DesktopBrandMark";
 import LiveExecutionDialog from "@/components/liveExecution/LiveExecutionDialog";
 import ProjectGithubLink from "@/components/layout/ProjectGithubLink";
@@ -38,6 +39,7 @@ export default function Navbar(props: NavbarProps) {
           <div className="flex min-w-0 items-center gap-1.5">
             <span className="min-w-0 truncate text-sm font-semibold">{t("navbar.title", "AI 小说创作工作台")}</span>
             <AppVersionBadge />
+            <DesktopReleaseNotesDialog />
             <ProjectGithubLink />
           </div>
           <span className="hidden truncate text-[11px] text-muted-foreground sm:block">AI Novel Production Engine</span>
