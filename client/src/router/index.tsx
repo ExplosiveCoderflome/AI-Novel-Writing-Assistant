@@ -29,9 +29,13 @@ const StoryModeManagementPage = lazy(() => import("@/pages/storyModes/StoryModeM
 const TitleStudioPage = lazy(() => import("@/pages/titles/TitleStudioPage"));
 const PromptWorkbenchPage = lazy(() => import("@/pages/promptWorkbench/PromptWorkbenchPage"));
 const AntiAiRulesPage = lazy(() => import("@/pages/antiAiRules/AntiAiRulesPage"));
-const ModelRoutesPage = lazy(() => import("@/pages/settings/ModelRoutesPage"));
+const SettingsOverviewPage = lazy(() => import("@/pages/settings/views/SettingsOverviewPage"));
+const ModelsSettingsPage = lazy(() => import("@/pages/settings/views/ModelsSettingsPage"));
+const DirectorSettingsPage = lazy(() => import("@/pages/settings/views/DirectorSettingsPage"));
+const KnowledgeSettingsPage = lazy(() => import("@/pages/settings/views/KnowledgeSettingsPage"));
+const MaintenanceSettingsPage = lazy(() => import("@/pages/settings/views/MaintenanceSettingsPage"));
+const AppearanceSettingsPage = lazy(() => import("@/pages/settings/views/AppearanceSettingsPage"));
 const ModelEvaluationPage = lazy(() => import("@/pages/settings/ModelEvaluationPage"));
-const SettingsPage = lazy(() => import("@/pages/settings/SettingsPage"));
 const WorldList = lazy(() => import("@/pages/worlds/WorldList"));
 const WorldGenerator = lazy(() => import("@/pages/worlds/WorldGenerator"));
 const WorldWorkspace = lazy(() => import("@/pages/worlds/WorldWorkspace"));
@@ -75,9 +79,14 @@ const routes: RouteObject[] = [
       { path: "titles", element: <TitleStudioPage /> },
       { path: "prompt-workbench", element: <PromptWorkbenchPage /> },
       { path: "anti-ai-rules", element: <AntiAiRulesPage /> },
-      { path: "settings/model-routes", element: <ModelRoutesPage /> },
+      { path: "settings/model-routes", element: <Navigate to="/settings/models" replace /> },
+      { path: "settings/models", element: <ModelsSettingsPage /> },
+      { path: "settings/director", element: <DirectorSettingsPage /> },
+      { path: "settings/knowledge", element: <KnowledgeSettingsPage /> },
+      { path: "settings/maintenance", element: <MaintenanceSettingsPage /> },
+      { path: "settings/appearance", element: <AppearanceSettingsPage /> },
       { path: "settings/model-evaluation", element: <ModelEvaluationPage /> },
-      { path: "settings", element: <SettingsPage /> },
+      { path: "settings", element: <SettingsOverviewPage /> },
       { path: "worlds", element: <WorldList /> },
       {
         path: "worlds/generator",

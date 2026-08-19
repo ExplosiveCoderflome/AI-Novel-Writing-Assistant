@@ -1,4 +1,3 @@
-import { useTranslation } from "react-i18next";
 import i18next from "i18next";
 import { Input } from "@/components/ui/input";
 
@@ -16,7 +15,6 @@ export default function ProviderRequestLimitFields({
   requestIntervalMs,
   onChange,
 }: ProviderRequestLimitFieldsProps) {
-  const { t } = useTranslation();
   return (
     <div className="grid gap-3 rounded-md border bg-muted/20 p-3 sm:grid-cols-2">
       <div className="space-y-1">
@@ -60,7 +58,7 @@ export function ProviderRequestLimitSummary({
 }) {
   return (
     <div className="mb-2 break-words text-xs text-muted-foreground [overflow-wrap:anywhere]">
-      请求限制：并发 {concurrencyLimit || i18next.t("dict.unlimited")} · 间隔 {requestIntervalMs ? `${requestIntervalMs}ms` : i18next.t("dict.unlimited")}
+      请求限制：并发 {concurrencyLimit || "不限制"} · 间隔 {requestIntervalMs ? `${requestIntervalMs}ms` : "不限制"}
     </div>
   );
 }

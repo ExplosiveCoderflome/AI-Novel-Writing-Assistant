@@ -1102,8 +1102,8 @@ export default function StockStudioPage() {
                 <div>
                   <span className="text-slate-400">输出策略指令共 ({actionsList.length} 项): </span>
                   {actionsList.length > 0
-                    ? actionsList.map((a) => `${a.action === "BUY" ? i18next.t("stock.buyAction", { defaultValue: "加仓" }) : a.action === "TRIM" ? i18next.t("stock.trimAction", { defaultValue: "减仓" }) : i18next.t("stock.holdAction", { defaultValue: "观望" })}${a.symbol}`).join(" | ")
-                    : i18next.t("stock.noActions", { defaultValue: "暂无推荐指令" })}
+                    ? actionsList.map((a) => `${a.action === "BUY" ? i18next.t("stock.buyAction", { defaultValue: i18next.t("stock.stockStudioPage.ehir") }) : a.action === "TRIM" ? i18next.t("stock.trimAction", { defaultValue: i18next.t("stock.actionTrim") }) : i18next.t("stock.holdAction", { defaultValue: i18next.t("stock.stockStudioPage.nzx5") })}${a.symbol}`).join(" | ")
+                    : i18next.t("stock.noActions", { defaultValue: i18next.t("stock.stockStudioPage.k8xpml") })}
                 </div>
               </div>
             </div>

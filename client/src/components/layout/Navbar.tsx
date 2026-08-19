@@ -9,6 +9,7 @@ import DesktopBrandMark from "@/components/layout/DesktopBrandMark";
 import LiveExecutionDialog from "@/components/liveExecution/LiveExecutionDialog";
 import ProjectGithubLink from "@/components/layout/ProjectGithubLink";
 import LanguageSwitcher from "@/components/layout/LanguageSwitcher";
+import ThemeToggle from "@/components/theme/ThemeToggle";
 import { Button } from "@/components/ui/button";
 import {
   AUTO_DIRECTOR_MOBILE_CLASSES,
@@ -55,6 +56,7 @@ export default function Navbar(props: NavbarProps) {
           </Button>
         ) : null}
         <LiveExecutionDialog />
+        <ThemeToggle />
         <LanguageSwitcher />
         <Button
           type="button"

@@ -226,7 +226,7 @@ function compactList(items: string[] | undefined): string {
 export function buildTaskSheetFromStructuredChapter(chapter: StructuredChapter): string {
   const lines: string[] = [];
   const targetText = chapter.purpose || chapter.summary || i18next.t("dict.gen_cd67f351");
-  lines.push(i18next.t("novels.structuredOutline.purposeTarget", { targetText, defaultValue: `章节目标：${targetText}` }));
+  lines.push(i18next.t("novels.structuredOutline.purposeTarget", { targetText, defaultValue: i18next.t("novels.structuredOutline.utils.1wl6xd", { val1: (targetText) }) }));
   if (chapter.keyEvents && chapter.keyEvents.length > 0) {
     lines.push(i18next.t("novels.structuredOutline.utils.rgsjqc", { val1: compactList(chapter.keyEvents) }));
   }

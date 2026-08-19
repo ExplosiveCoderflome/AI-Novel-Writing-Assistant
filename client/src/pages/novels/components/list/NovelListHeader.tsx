@@ -1,3 +1,4 @@
+import i18next from "i18next";
 import { Link } from "react-router-dom";
 import { BookOpenText, LayoutDashboard, Library, RotateCcw, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -27,13 +28,11 @@ export function NovelListHeader(props: {
           <div>
             <div className="flex flex-wrap items-center gap-3">
               <h1 className="text-3xl font-semibold tracking-normal">{props.view === "shelf" ? "我的书架" : "小说工作台"}</h1>
-              <div className="inline-flex rounded-md bg-muted/50 p-1" role="tablist" aria-label="小说列表视图">
+              <div className="inline-flex rounded-md bg-muted/50 p-1" role="tablist" aria-label={i18next.t("novels.novelListHeader.3lncuq")}>
                 <Button type="button" size="sm" variant={props.view === "shelf" ? "default" : "ghost"} onClick={() => props.onViewChange("shelf")} role="tab" aria-selected={props.view === "shelf"}>
-                  <Library className="mr-1.5 h-4 w-4" aria-hidden="true" />书架
-                </Button>
+                  <Library className="mr-1.5 h-4 w-4" aria-hidden="true" />{i18next.t("novels.novelListHeader.dwk0")}</Button>
                 <Button type="button" size="sm" variant={props.view === "workbench" ? "default" : "ghost"} onClick={() => props.onViewChange("workbench")} role="tab" aria-selected={props.view === "workbench"}>
-                  <LayoutDashboard className="mr-1.5 h-4 w-4" aria-hidden="true" />工作台
-                </Button>
+                  <LayoutDashboard className="mr-1.5 h-4 w-4" aria-hidden="true" />{i18next.t("comic.comicProjectPage.e529l")}</Button>
               </div>
             </div>
             <p className="mt-2 max-w-2xl text-sm leading-6 text-muted-foreground">
@@ -52,21 +51,19 @@ export function NovelListHeader(props: {
           {SHORT_STORY_CREATE_LINK ? (
             <Button asChild variant="secondary">
               <Link to={SHORT_STORY_CREATE_LINK}>
-                <BookOpenText className="mr-2 h-4 w-4" aria-hidden="true" />
-                创作短篇
-              </Link>
+                <BookOpenText className="mr-2 h-4 w-4" aria-hidden="true" />{i18next.t("novels.novelListEmptyState.ap0onv")}</Link>
             </Button>
           ) : null}
           <Button asChild variant="outline">
-            <Link to={MANUAL_CREATE_LINK}>手动创建小说</Link>
+            <Link to={MANUAL_CREATE_LINK}>{i18next.t("home.manualCreateNovel")}</Link>
           </Button>
         </div>
       </div>
 
       {props.view === "workbench" ? (
         <div className="flex flex-wrap items-center gap-x-5 gap-y-2 border-y border-border/60 py-3 text-sm">
-          <HeaderMetric label="当前" value={`第 ${props.page} / ${props.totalPages} 页`} />
-          <HeaderMetric label="总数" value={`${props.totalNovels} 本`} />
+          <HeaderMetric label={i18next.t("novels.pageLabel")} value={i18next.t("novels.novelListHeader.z8lbbn", { val1: (props.page), val2: (props.totalPages) })} />
+          <HeaderMetric label={i18next.t("novels.totalLabel")} value={i18next.t("novels.novelListHeader.izedks", { val1: (props.totalNovels) })} />
           {props.summary.map((item) => (
             <HeaderMetric
               key={item.id}

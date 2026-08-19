@@ -1,5 +1,4 @@
 import i18next from "i18next";
-import { useTranslation } from "react-i18next";
 import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { ChevronDown } from "lucide-react";
@@ -29,7 +28,6 @@ function clampMinutes(value: number, min: number, max: number): number {
 }
 
 export default function StyleEngineRuntimeSettingsCard() {
-  const { t } = useTranslation();
   const queryClient = useQueryClient();
   const [timeoutMinutes, setTimeoutMinutes] = useState("10");
   const [feedback, setFeedback] = useState("");

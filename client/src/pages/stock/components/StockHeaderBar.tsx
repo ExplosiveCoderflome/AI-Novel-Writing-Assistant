@@ -26,7 +26,7 @@ export function StockHeaderBar({
               <TrendingUp className="w-6 h-6" />
             </div>
             <h1 className="text-2xl font-bold bg-gradient-to-r from-indigo-400 via-sky-300 to-purple-400 bg-clip-text text-transparent">
-              {i18next.t("stock.title", { defaultValue: "美股 AI 智能投研与每日调仓工作台" })}
+              {i18next.t("stock.title", { defaultValue: i18next.t("stock.title") })}
             </h1>
           </div>
           <p className="text-slate-400 text-sm pl-11">

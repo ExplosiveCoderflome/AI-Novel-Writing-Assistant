@@ -1,3 +1,4 @@
+import i18next from "i18next";
 import { useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Loader2, RotateCcw, Sparkles } from "lucide-react";
@@ -78,14 +79,14 @@ function DesktopNovelEditView(props: NovelEditViewProps) {
   const resetChaptersMutation = useMutation({
     mutationFn: () => devResetNovelChapters(id),
     onSuccess: async (result) => {
-      toast.success(`已重置 ${result.resetCount} 个章节正文，可重新生成。`);
+      toast.success(i18next.t("novels.novelEditView.88a1ge", { val1: (result.resetCount) }));
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: queryKeys.novels.detail(id) }),
         queryClient.invalidateQueries({ queryKey: queryKeys.novels.chapters(id) }),
       ]);
     },
     onError: (error) => {
-      toast.error(error instanceof Error ? error.message : "章节重置失败，请重试。");
+      toast.error(error instanceof Error ? error.message : i18next.t("dict.gen_f65a5818"));
     },
   });
 
@@ -108,24 +109,24 @@ function DesktopNovelEditView(props: NovelEditViewProps) {
   const pendingResourceProposalCount = taskDrawer?.resourceProposals?.length ?? 0;
   const taskAttentionLabel = (() => {
     if (pendingResourceProposalCount > 0) {
-      return `${pendingResourceProposalCount} 条资源`;
+      return i18next.t("novels.novelEditView.byfxtv", { val1: (pendingResourceProposalCount) });
     }
     if (!taskDrawer?.task) {
       return null;
     }
     if (taskDrawer.task.pendingManualRecovery) {
-      return "待恢复";
+      return i18next.t("dict.gen_b0e31037");
     }
     if (taskDrawer.task.status === "failed") {
-      return "异常";
+      return i18next.t("dict.gen_c195df63");
     }
     if (taskDrawer.task.status === "waiting_approval") {
-      return "待审核";
+      return i18next.t("dict.gen_5cb42476");
     }
     if (taskDrawer.task.status === "running" || taskDrawer.task.status === "queued") {
-      return "进行中";
+      return i18next.t("tasks.levelRunning");
     }
-    return "最近任务";
+    return i18next.t("dict.gen_cad670fb");
   })();
 
   const normalizedActiveTab = normalizeNovelWorkspaceTab(activeTab);
@@ -202,7 +203,7 @@ function DesktopNovelEditView(props: NovelEditViewProps) {
           )}
           title={currentStepLabel}
           description={showWorkflowRecommendation && workflowStepLabel
-            ? `流程推荐：建议切换到「${workflowStepLabel}」继续推进。`
+            ? i18next.t("novels.novelEditView.4i4lpd", { val1: (workflowStepLabel) })
             : "按当前步骤整理这本书的生产资产，需要时可以交给 AI 自动导演接管。"}
           actions={(
             <>
@@ -223,14 +224,12 @@ function DesktopNovelEditView(props: NovelEditViewProps) {
 
             <Dialog open={isExportDialogOpen} onOpenChange={setIsExportDialogOpen}>
               <DialogTrigger asChild>
-                <Button variant="outline">导出</Button>
+                <Button variant="outline">{i18next.t("dict.gen_55405ea6")}</Button>
               </DialogTrigger>
               <DialogContent className="max-w-2xl">
                 <DialogHeader>
-                  <DialogTitle>导出项目内容</DialogTitle>
-                  <DialogDescription>
-                    当前步骤会按你正在查看的工作台导出；整本书会把项目设定、故事规划、角色、卷规划、拆章、章节和质量修复资产一起导出。
-                  </DialogDescription>
+                  <DialogTitle>{i18next.t("dict.gen_379ad801")}</DialogTitle>
+                  <DialogDescription>{i18next.t("novels.novelEditView.x0o4re")}</DialogDescription>
                 </DialogHeader>
                 <div className="grid gap-4 md:grid-cols-2">
                   <Card>
@@ -256,7 +255,7 @@ function DesktopNovelEditView(props: NovelEditViewProps) {
                   </Card>
                   <Card>
                     <CardHeader>
-                      <CardTitle className="text-base">整本书</CardTitle>
+                      <CardTitle className="text-base">{i18next.t("dict.gen_82e75116")}</CardTitle>
                     </CardHeader>
                     <CardContent className="flex flex-wrap gap-2">
                       <Button
@@ -283,19 +282,17 @@ function DesktopNovelEditView(props: NovelEditViewProps) {
 
             <Dialog open={isProjectToolsOpen} onOpenChange={setIsProjectToolsOpen}>
               <DialogTrigger asChild>
-                <Button variant="outline">项目工具</Button>
+                <Button variant="outline">{i18next.t("dict.gen_81904c4a")}</Button>
               </DialogTrigger>
               <DialogContent className="max-h-[90vh] w-[calc(100vw-2rem)] max-w-4xl overflow-auto">
                 <DialogHeader>
-                  <DialogTitle>项目工具</DialogTitle>
-                  <DialogDescription>
-                    这里收纳次级信息。首屏只保留当前步骤和恢复接管入口，避免主工作区被项目辅助信息挤满。
-                  </DialogDescription>
+                  <DialogTitle>{i18next.t("dict.gen_81904c4a")}</DialogTitle>
+                  <DialogDescription>{i18next.t("novels.novelEditView.h5f8y4")}</DialogDescription>
                 </DialogHeader>
                 <div className="grid gap-3 md:grid-cols-2">
                   <Card>
                     <CardHeader>
-                      <CardTitle>章节进度</CardTitle>
+                      <CardTitle>{i18next.t("dict.gen_9c8e364e")}</CardTitle>
                     </CardHeader>
                     <CardContent>
                       <p>{generatedChapters} / {Math.max(totalChapters, 1)} 已生成</p>
@@ -303,7 +300,7 @@ function DesktopNovelEditView(props: NovelEditViewProps) {
                   </Card>
                   <Card>
                     <CardHeader>
-                      <CardTitle>待修复章节</CardTitle>
+                      <CardTitle>{i18next.t("dict.gen_f28a56a3")}</CardTitle>
                     </CardHeader>
                     <CardContent>
                       <p>{pendingRepairs}</p>
@@ -311,7 +308,7 @@ function DesktopNovelEditView(props: NovelEditViewProps) {
                   </Card>
                   <Card>
                     <CardHeader>
-                      <CardTitle>当前模型</CardTitle>
+                      <CardTitle>{i18next.t("dict.gen_e18ae875")}</CardTitle>
                     </CardHeader>
                     <CardContent>
                       <p>{currentModel}</p>
@@ -319,14 +316,14 @@ function DesktopNovelEditView(props: NovelEditViewProps) {
                   </Card>
                   <Card>
                     <CardHeader>
-                      <CardTitle>最近任务</CardTitle>
+                      <CardTitle>{i18next.t("dict.gen_cad670fb")}</CardTitle>
                     </CardHeader>
                     <CardContent>
                       <p>{pipelineTab.pipelineJob?.status ?? "idle"}</p>
                     </CardContent>
                   </Card>
                 </div>
-                <KnowledgeBindingPanel targetType="novel" targetId={id} title="参考知识" />
+                <KnowledgeBindingPanel targetType="novel" targetId={id} title={i18next.t("dict.gen_bd73ad86")} />
 
                 {/* 开发工具区 —— 仅在 DEV 环境可见 */}
                 {import.meta.env.DEV ? (
@@ -335,23 +332,21 @@ function DesktopNovelEditView(props: NovelEditViewProps) {
                       <CardTitle className="text-sm text-yellow-700 dark:text-yellow-400">🛠 开发工具</CardTitle>
                     </CardHeader>
                     <CardContent className="space-y-2">
-                      <p className="text-xs text-muted-foreground">
-                        重置后，所有章节正文、事实账本、摘要和质量报告将被清空，章节状态回到"未规划"。规划层数据（人物、大纲、卷规划）保留不变。
-                      </p>
+                      <p className="text-xs text-muted-foreground">{i18next.t("novels.novelEditView.t6eg8g")}</p>
                       <Button
                         variant="outline"
                         size="sm"
                         className="border-yellow-500/60 text-yellow-700 hover:bg-yellow-100 dark:text-yellow-400 dark:hover:bg-yellow-900/30"
                         disabled={resetChaptersMutation.isPending}
                         onClick={() => {
-                          if (window.confirm(`确认重置本小说所有 ${totalChapters} 个章节的正文？此操作不可撤销（但快照数据保留）。`)) {
+                          if (window.confirm(i18next.t("novels.novelEditView.ykty5q", { val1: (totalChapters) }))) {
                             resetChaptersMutation.mutate();
                           }
                         }}
                       >
                         {resetChaptersMutation.isPending
-                          ? <><Loader2 className="animate-spin" />重置中…</>
-                          : <><RotateCcw />重置所有章节正文</>}
+                          ? <><Loader2 className="animate-spin" />{i18next.t("dict.gen_9c56ac70")}</>
+                          : <><RotateCcw />{i18next.t("dict.gen_deecbd2b")}</>}
                       </Button>
                     </CardContent>
                   </Card>

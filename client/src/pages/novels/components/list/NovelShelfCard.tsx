@@ -1,3 +1,4 @@
+import i18next from "i18next";
 import { BookOpen, Clock3, Download, ImagePlus, Trash2 } from "lucide-react";
 import { Link } from "react-router-dom";
 import type { ImageTaskStatus } from "@ai-novel/shared/types/image";
@@ -9,12 +10,12 @@ import { getNovelWorkspaceHref, type NovelListItem } from "./novelListViewModel"
 
 function formatDate(value: string): string {
   const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return "最近编辑";
+  if (Number.isNaN(date.getTime())) return i18next.t("novels.novelListFilterBar.dldcy4");
   return new Intl.DateTimeFormat("zh-CN", { month: "numeric", day: "numeric" }).format(date);
 }
 
 function getFormLabel(novel: NovelListItem): string {
-  if (novel.narrativeForm === "short_story") return "短篇";
+  if (novel.narrativeForm === "short_story") return i18next.t("novels.novelListFilterBar.l2t6");
   return novel.writingMode === "continuation" ? "长篇续写" : "长篇原创";
 }
 
@@ -36,10 +37,10 @@ function getPrimaryAction(novel: NovelListItem): { label: string; href: string }
   const task = novel.latestAutoDirectorTask;
   const workspaceHref = getNovelWorkspaceHref(novel);
   if (task?.status === "failed" || task?.status === "cancelled") {
-    return { label: "恢复创作", href: workspaceHref };
+    return { label: i18next.t("novels.novelShelfCard.cj2x1o"), href: workspaceHref };
   }
   if (task?.status === "waiting_approval") {
-    return { label: "继续处理", href: workspaceHref };
+    return { label: i18next.t("dict.gen_a53fb331"), href: workspaceHref };
   }
   return { label: task ? "继续创作" : "编辑作品", href: workspaceHref };
 }
@@ -51,9 +52,9 @@ function getPreviewHref(novel: NovelListItem): string {
 }
 
 function coverStatusLabel(status?: ImageTaskStatus | null): string {
-  if (status === "queued" || status === "running") return "封面生成中";
-  if (status === "failed" || status === "cancelled") return "重新生成封面";
-  return "生成封面";
+  if (status === "queued" || status === "running") return i18next.t("novels.novelShelfCard.o5tzyz");
+  if (status === "failed" || status === "cancelled") return i18next.t("novels.novelShelfCard.rovugb");
+  return i18next.t("novels.novelShelfCard.f6mfwy");
 }
 
 export function NovelShelfCard(props: {
@@ -76,11 +77,11 @@ export function NovelShelfCard(props: {
   return (
     <Card className="group overflow-hidden rounded-lg border-border/70 bg-background transition hover:border-primary/35 hover:shadow-sm">
       <CardContent className="flex h-full flex-col p-3">
-        <Link to={getPreviewHref(novel)} className="block" aria-label={`预览《${novel.title}》`}>
+        <Link to={getPreviewHref(novel)} className="block" aria-label={i18next.t("novels.novelShelfCard.nbi6uj", { val1: (novel.title) })}>
           <div className="relative aspect-[2/3] overflow-hidden rounded-md bg-muted/50">
             <img
               src={coverUrl}
-              alt={hasGeneratedCover ? `${novel.title}封面` : ""}
+              alt={hasGeneratedCover ? i18next.t("novels.novelShelfCard.izu9pt", { val1: (novel.title) }) : ""}
               className="h-full w-full object-cover transition duration-200 group-hover:scale-[1.02]"
               loading="lazy"
             />
@@ -115,7 +116,7 @@ export function NovelShelfCard(props: {
 
           <div className="mt-4 space-y-2">
             <div className="flex items-center justify-between text-xs text-muted-foreground">
-              <span>{progress > 0 ? `创作进度 ${progress}%` : "尚未开始正文"}</span>
+              <span>{progress > 0 ? i18next.t("novels.novelShelfCard.66kfhd", { val1: (progress) }) : "尚未开始正文"}</span>
               <span className="inline-flex items-center gap-1"><Clock3 className="h-3.5 w-3.5" aria-hidden="true" />{formatDate(novel.updatedAt)}</span>
             </div>
             <div className="h-1.5 overflow-hidden rounded-full bg-muted">
@@ -141,8 +142,8 @@ export function NovelShelfCard(props: {
               type="button"
               size="sm"
               variant="ghost"
-              title="导出作品"
-              aria-label="导出作品"
+              title={i18next.t("novels.novelShelfCard.by276r")}
+              aria-label={i18next.t("novels.novelShelfCard.by276r")}
               onClick={() => props.onDownload({ novelId: novel.id, novelTitle: novel.title })}
             >
               <Download className="h-4 w-4" aria-hidden="true" />
@@ -152,8 +153,8 @@ export function NovelShelfCard(props: {
               size="sm"
               variant="ghost"
               className="text-muted-foreground hover:text-destructive"
-              title="删除作品"
-              aria-label="删除作品"
+              title={i18next.t("novels.novelShelfCard.azbb55")}
+              aria-label={i18next.t("novels.novelShelfCard.azbb55")}
               onClick={() => props.onDelete(novel.id, novel.title)}
             >
               <Trash2 className="h-4 w-4" aria-hidden="true" />
@@ -180,8 +181,8 @@ export function NovelContinueCard(props: {
   return (
     <Card className="rounded-lg border-border/70 bg-background">
       <CardContent className="flex min-h-[132px] items-center gap-3 p-3">
-        <Link to={getPreviewHref(novel)} className="relative h-[108px] w-[72px] shrink-0 overflow-hidden rounded bg-muted" aria-label={`预览《${novel.title}》`}>
-          <img src={coverUrl} alt={hasGeneratedCover ? `${novel.title}封面` : ""} className="h-full w-full object-cover" loading="lazy" />
+        <Link to={getPreviewHref(novel)} className="relative h-[108px] w-[72px] shrink-0 overflow-hidden rounded bg-muted" aria-label={i18next.t("novels.novelShelfCard.nbi6uj", { val1: (novel.title) })}>
+          <img src={coverUrl} alt={hasGeneratedCover ? i18next.t("novels.novelShelfCard.izu9pt", { val1: (novel.title) }) : ""} className="h-full w-full object-cover" loading="lazy" />
           {!hasGeneratedCover ? (
             <div className="absolute inset-0 flex items-center justify-center bg-black/45 px-2 text-center text-[11px] font-medium leading-4 text-white">
               <span className="line-clamp-4 drop-shadow">{novel.title}</span>
@@ -198,7 +199,7 @@ export function NovelContinueCard(props: {
             <Button asChild size="sm" className="h-8 flex-1 px-2 text-xs">
               <Link to={action.href}>{action.label}</Link>
             </Button>
-            <Button type="button" size="sm" variant="outline" className="h-8 w-8 p-0" title="管理封面" aria-label="管理封面" onClick={() => props.onManageCover(novel.id)}>
+            <Button type="button" size="sm" variant="outline" className="h-8 w-8 p-0" title={i18next.t("novels.novelShelfCard.g2sxja")} aria-label={i18next.t("novels.novelShelfCard.g2sxja")} onClick={() => props.onManageCover(novel.id)}>
               <ImagePlus className="h-4 w-4" aria-hidden="true" />
             </Button>
           </div>

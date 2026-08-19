@@ -538,7 +538,7 @@ function getEdgeTone(edge?: RelationshipGraphEdge) {
 }
 
 function getRelationNames(edge: RelationshipGraphEdge): string {
-  const unknownLabel = i18next.t("common.unknownCharacter", { defaultValue: "未知角色" });
+  const unknownLabel = i18next.t("common.unknownCharacter", { defaultValue: i18next.t("novels.characterRelationshipGraphPanel.dinsij") });
   if (edge.sourceName || edge.targetName) {
     return `${edge.sourceName || unknownLabel} -> ${edge.targetName || unknownLabel}`;
   }

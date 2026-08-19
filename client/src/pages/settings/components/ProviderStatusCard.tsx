@@ -1,5 +1,4 @@
 import i18next from "i18next";
-import { useTranslation } from "react-i18next";
 import { useState } from "react";
 import { ChevronDown } from "lucide-react";
 import type { LLMProvider } from "@ai-novel/shared/types/llm";
@@ -36,7 +35,7 @@ function getBalanceSummary(input: {
     return i18next.t("settings.providerStatusCard.v4h4o");
   }
   if (balance?.status === "available") {
-    return i18next.t("settings.providerStatusCard.uk34a4", { val1: formatBalanceAmount(balance.availableBalance, balance.currency) });
+    return i18next.t("settings.providerStatusCard.uk34a4", { val1: (formatBalanceAmount(balance.availableBalance, balance.currency)) });
   }
   return balance?.error ?? balance?.message ?? (provider.isConfigured ? "当前暂未获取余额信息。" : "请先配置 API Key。");
 }
@@ -246,7 +245,7 @@ export default function ProviderStatusCard(props: {
                 className="text-xs font-medium text-primary transition-opacity hover:opacity-80"
                 onClick={() => setModelsOpen((prev) => !prev)}
               >
-                {modelsOpen ? "收起模型列表" : i18next.t("settings.providerStatusCard.1i4m9z", { val1: provider.models.length })}
+                {modelsOpen ? "收起模型列表" : i18next.t("settings.providerStatusCard.1i4m9z", { val1: (provider.models.length) })}
               </button>
             ) : null}
           </div>

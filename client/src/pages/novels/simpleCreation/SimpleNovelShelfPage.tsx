@@ -1,3 +1,4 @@
+import i18next from "i18next";
 import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
@@ -31,14 +32,14 @@ import OnboardingTip from "@/components/onboarding/OnboardingTip";
 import SimpleCreationIssueGovernancePanel from "./SimpleCreationIssueGovernancePanel";
 
 const STATUS_LABELS: Record<SimpleCreationShelfChapterStatus, string> = {
-  waiting_planning: "等待规划",
-  waiting_writing: "等待写作",
-  generating: "生成中",
-  reviewing: "审校修复中",
+  waiting_planning: i18next.t("novels.simpleNovelShelfPage.fyg10q"),
+  waiting_writing: i18next.t("novels.simpleNovelShelfPage.fy6gjj"),
+  generating: i18next.t("dict.gen_1ae3a984"),
+  reviewing: i18next.t("novels.simpleNovelShelfPage.gkzvke"),
   quality_debt: "已保存 · 待优化",
-  replan_required: "等待重规划",
-  completed: "已完成",
-  error: "异常",
+  replan_required: i18next.t("dict.gen_930a7919"),
+  completed: i18next.t("tasks.filterStatusSucceeded"),
+  error: i18next.t("dict.gen_c195df63"),
 };
 
 function saveBlob(blob: Blob, fileName: string): void {
@@ -56,11 +57,11 @@ function formatUpdatedAt(value: string): string {
   const date = new Date(value);
   return Number.isNaN(date.getTime())
     ? "更新时间未知"
-    : `更新于 ${date.toLocaleDateString(undefined, { month: "short", day: "numeric" })}`;
+    : i18next.t("novels.simpleNovelShelfPage.i5hn0e", { val1: (date.toLocaleDateString(undefined, { month: "short", day: "numeric" })) });
 }
 
 function formatWordCount(value: number): string {
-  return `${Math.max(0, Math.round(value)).toLocaleString()} 字`;
+  return i18next.t("novels.chapterEditorSidebar.izeb8n", { val1: (Math.max(0, Math.round(value)).toLocaleString()) });
 }
 
 export default function SimpleNovelShelfPage() {
@@ -105,14 +106,14 @@ export default function SimpleNovelShelfPage() {
   const exportMutation = useMutation({
     mutationFn: () => downloadNovelExport(id, "txt", "chapter", shelf?.novel.title),
     onSuccess: ({ blob, fileName }) => saveBlob(blob, fileName),
-    onError: () => toast.error("导出失败，请稍后重试。"),
+    onError: () => toast.error(i18next.t("novels.simpleNovelShelfPage.s4nlto")),
   });
 
   const retryMutation = useMutation({
     mutationFn: async () => {
       const directorTaskId = shelf?.progress.directorTaskId;
       if (!directorTaskId) {
-        throw new Error("没有找到可恢复的 AI 任务。");
+        throw new Error(i18next.t("novels.simpleNovelShelfPage.75wrsw"));
       }
       // 书架已投影出本书最近的自动导演任务。重规划检查点会将任务标记为
       // failed，因此不能再用“仅运行中任务”的查询覆盖这个恢复锚点。
@@ -124,7 +125,7 @@ export default function SimpleNovelShelfPage() {
         : "AI 正在整理后续内容并继续创作。");
       await queryClient.invalidateQueries({ queryKey: ["novels", id, "simple-shelf"] });
     },
-    onError: (error) => toast.error(error instanceof Error ? error.message : "恢复失败，请重试。"),
+    onError: (error) => toast.error(error instanceof Error ? error.message : i18next.t("novels.simpleNovelShelfPage.l1wr3k")),
   });
 
   const switchExperienceMutation = useMutation({
@@ -133,11 +134,11 @@ export default function SimpleNovelShelfPage() {
       await queryClient.invalidateQueries({ queryKey: ["novels", id] });
       navigate(`/novels/${id}/edit`, { replace: true });
     },
-    onError: (error) => toast.error(error instanceof Error ? error.message : "切换模式失败，请重试。"),
+    onError: (error) => toast.error(error instanceof Error ? error.message : i18next.t("novels.novelEdit.oethda")),
   });
 
   if (shelfQuery.isPending || !shelf) {
-    return <div className="flex min-h-[60vh] items-center justify-center text-muted-foreground"><Loader2 className="mr-2 h-5 w-5 animate-spin" /> 正在打开章节书架</div>;
+    return <div className="flex min-h-[60vh] items-center justify-center text-muted-foreground"><Loader2 className="mr-2 h-5 w-5 animate-spin" />{i18next.t("novels.simpleNovelShelfPage.2i8ox0")}</div>;
   }
 
   const savedDraftCount = readableChapters.length;
@@ -152,7 +153,7 @@ export default function SimpleNovelShelfPage() {
             <div className="flex flex-col gap-5 xl:flex-row xl:items-start xl:justify-between">
               <div className="min-w-0">
                 <Button variant="ghost" size="sm" asChild className="-ml-2 px-2 text-muted-foreground hover:bg-background hover:text-foreground">
-                  <Link to="/novels"><ArrowLeft className="h-4 w-4" /> 返回小说列表</Link>
+                  <Link to="/novels"><ArrowLeft className="h-4 w-4" />{i18next.t("dict.gen_9c469174")}</Link>
                 </Button>
                 <div className="mt-4 flex items-start gap-3">
                   <span className="hidden h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-primary/10 sm:flex">
@@ -161,16 +162,16 @@ export default function SimpleNovelShelfPage() {
                   <div className="min-w-0">
                     <div className="flex flex-wrap items-center gap-2">
                       <h1 className="truncate text-2xl font-semibold tracking-tight text-foreground sm:text-3xl">{shelf.novel.title}</h1>
-                      <Badge variant="outline">简易模式 · 只读</Badge>
+                      <Badge variant="outline">{i18next.t("novels.simpleNovelShelfPage.dgrxzb")}</Badge>
                     </div>
-                    <p className="mt-2 max-w-2xl text-sm leading-6 text-muted-foreground">这里是这本书的阅读台。AI 会在后台继续规划、写作和审校，你可以随时查看已经保存的正文。</p>
+                    <p className="mt-2 max-w-2xl text-sm leading-6 text-muted-foreground">{i18next.t("novels.simpleNovelShelfPage.94wnt4")}</p>
                   </div>
                 </div>
               </div>
 
               <div className="w-full rounded-2xl border border-border/80 bg-background/80 p-4 shadow-sm xl:max-w-sm">
                 <div className="flex items-center justify-between gap-3 text-sm text-foreground">
-                  <span className="text-muted-foreground">全书生产进度</span>
+                  <span className="text-muted-foreground">{i18next.t("novels.simpleNovelShelfPage.vf7d01")}</span>
                   <span className="font-semibold">{shelf.progress.percent}%</span>
                 </div>
                 <div className="mt-3 h-2 overflow-hidden rounded-full bg-muted">
@@ -185,16 +186,16 @@ export default function SimpleNovelShelfPage() {
           </div>
 
           <div className="grid grid-cols-2 divide-x border-t border-border sm:grid-cols-4">
-            <div className="p-4 sm:px-6"><div className="text-xs text-muted-foreground">稳定成稿</div><div className="mt-1 text-xl font-semibold text-foreground">{stableChapterCount}<span className="ml-1 text-sm font-normal text-muted-foreground">/ {totalChapterCount || "—"} 章</span></div></div>
-            <div className="p-4 sm:px-6"><div className="text-xs text-muted-foreground">已保存正文</div><div className="mt-1 text-xl font-semibold text-foreground">{savedDraftCount}<span className="ml-1 text-sm font-normal text-muted-foreground">章可阅读</span></div></div>
-            <div className="p-4 sm:px-6"><div className="text-xs text-muted-foreground">当前任务</div><div className="mt-1 truncate text-sm font-medium text-foreground">{shelf.progress.status === "paused" ? "已暂停，等待恢复" : shelf.progress.currentAction}</div></div>
-            <div className="p-4 sm:px-6"><div className="text-xs text-muted-foreground">待跟进质量项</div><div className="mt-1 text-xl font-semibold text-foreground">{shelf.materials.openQualityDebtCount}<span className="ml-1 text-sm font-normal text-muted-foreground">条</span></div></div>
+            <div className="p-4 sm:px-6"><div className="text-xs text-muted-foreground">{i18next.t("novels.simpleNovelShelfPage.fsrbqu")}</div><div className="mt-1 text-xl font-semibold text-foreground">{stableChapterCount}<span className="ml-1 text-sm font-normal text-muted-foreground">/ {totalChapterCount || "—"} 章</span></div></div>
+            <div className="p-4 sm:px-6"><div className="text-xs text-muted-foreground">{i18next.t("dict.gen_f0a9f772")}</div><div className="mt-1 text-xl font-semibold text-foreground">{savedDraftCount}<span className="ml-1 text-sm font-normal text-muted-foreground">{i18next.t("novels.simpleNovelShelfPage.fuyajp")}</span></div></div>
+            <div className="p-4 sm:px-6"><div className="text-xs text-muted-foreground">{i18next.t("dict.gen_5081b5c6")}</div><div className="mt-1 truncate text-sm font-medium text-foreground">{shelf.progress.status === "paused" ? "已暂停，等待恢复" : shelf.progress.currentAction}</div></div>
+            <div className="p-4 sm:px-6"><div className="text-xs text-muted-foreground">{i18next.t("novels.simpleNovelShelfPage.50rkdt")}</div><div className="mt-1 text-xl font-semibold text-foreground">{shelf.materials.openQualityDebtCount}<span className="ml-1 text-sm font-normal text-muted-foreground">{i18next.t("novels.novelTaskDrawer.kf5")}</span></div></div>
           </div>
 
           <div className="flex flex-wrap items-center gap-2 border-t border-border bg-muted/20 px-5 py-3 sm:px-7">
             {shelf.progress.directorTaskId ? (
               <Button variant="outline" size="sm" asChild>
-                <Link to={`/novels/auto-director?taskId=${encodeURIComponent(shelf.progress.directorTaskId)}`}>查看 AI 导演进度</Link>
+                <Link to={`/novels/auto-director?taskId=${encodeURIComponent(shelf.progress.directorTaskId)}`}>{i18next.t("novels.simpleNovelShelfPage.nn07kx")}</Link>
               </Button>
             ) : null}
             {shelf.progress.canRetry ? (
@@ -204,8 +205,8 @@ export default function SimpleNovelShelfPage() {
               </Button>
             ) : null}
             <div className="flex-1" />
-            <Button variant="outline" size="sm" onClick={() => exportMutation.mutate()} disabled={exportMutation.isPending}><Download className="h-4 w-4" /> 导出已完成章节</Button>
-            <Button variant="ghost" size="sm" onClick={() => switchExperienceMutation.mutate()} disabled={switchExperienceMutation.isPending}><Settings2 className="h-4 w-4" /> 专业模式</Button>
+            <Button variant="outline" size="sm" onClick={() => exportMutation.mutate()} disabled={exportMutation.isPending}><Download className="h-4 w-4" />{i18next.t("novels.simpleNovelShelfPage.9xrrh6")}</Button>
+            <Button variant="ghost" size="sm" onClick={() => switchExperienceMutation.mutate()} disabled={switchExperienceMutation.isPending}><Settings2 className="h-4 w-4" />{i18next.t("novels.simpleNovelShelfPage.a6gl9x")}</Button>
           </div>
           {shelf.progress.safetyMessage ? (
             <div className="flex items-start gap-3 border-t border-amber-200 bg-amber-50 px-5 py-3 text-sm leading-6 text-amber-950 sm:px-7">
@@ -217,8 +218,8 @@ export default function SimpleNovelShelfPage() {
 
         <OnboardingTip
           storageKey="simple-creation-shelf"
-          title="阅读已保存正文"
-          description="已经保存的正文会及时出现在书架；审校或修复中的章节仍可能更新，完成后会成为稳定成稿。"
+          title={i18next.t("novels.simpleNovelShelfPage.8iottn")}
+          description={i18next.t("novels.simpleNovelShelfPage.vgboi")}
           next="选择左侧章节即可阅读当前版本。"
         />
 
@@ -232,14 +233,13 @@ export default function SimpleNovelShelfPage() {
           <div className="flex shrink-0 flex-col gap-2 border-b border-border px-5 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-6">
             <div className="flex items-center gap-3">
               <span className="inline-flex h-9 w-9 items-center justify-center rounded-xl bg-primary/10 text-primary"><FileText className="h-4 w-4" /></span>
-              <div><div className="font-semibold text-foreground">正文阅读台</div><div className="text-xs text-muted-foreground">选择章节后在右侧阅读当前保存版本</div></div>
+              <div><div className="font-semibold text-foreground">{i18next.t("novels.simpleNovelShelfPage.74mvx2")}</div><div className="text-xs text-muted-foreground">{i18next.t("novels.simpleNovelShelfPage.b4sywv")}</div></div>
             </div>
             <div className="flex items-center gap-3">
               <div className="text-xs text-muted-foreground">{savedDraftCount} 章有正文 · {stableChapterCount} 章已稳定</div>
               <Button variant="outline" size="sm" asChild>
                 <Link to={`/novels/${id}/preview${selectedChapter ? `?chapterId=${encodeURIComponent(selectedChapter.id)}` : ""}`}>
-                  <Eye className="h-4 w-4" /> 进入预览模式
-                </Link>
+                  <Eye className="h-4 w-4" />{i18next.t("novels.simpleNovelShelfPage.gyenr0")}</Link>
               </Button>
             </div>
           </div>
@@ -247,7 +247,7 @@ export default function SimpleNovelShelfPage() {
           <div className="grid min-h-0 flex-1 lg:grid-cols-[300px_minmax(0,1fr)]">
             <aside className="min-h-0 border-b border-border bg-muted/20 p-3 lg:overflow-y-auto lg:border-b-0 lg:border-r">
               <div className="flex items-center justify-between px-2 py-2">
-                <div className="text-sm font-semibold text-foreground">章节目录</div>
+                <div className="text-sm font-semibold text-foreground">{i18next.t("novels.novelPreview.g1mceh")}</div>
                 <Badge variant="secondary">{shelf.chapters.length} 章</Badge>
               </div>
               <div className="space-y-2 pr-1">
@@ -273,7 +273,7 @@ export default function SimpleNovelShelfPage() {
                             <Badge className={`shrink-0 ${chapter.status === "quality_debt" ? "border-amber-200 bg-amber-50 text-amber-800" : ""}`} variant={chapter.status === "completed" ? "outline" : chapter.status === "replan_required" || chapter.status === "error" ? "destructive" : "secondary"}>{STATUS_LABELS[chapter.status]}</Badge>
                           </span>
                           <span className="mt-1 flex items-center gap-2 text-xs text-muted-foreground">
-                            {readable ? chapter.status === "quality_debt" ? <><AlertTriangle className="h-3 w-3 text-amber-600" /> {formatWordCount(chapter.wordCount)}</> : <><CheckCircle2 className="h-3 w-3 text-emerald-600" /> {formatWordCount(chapter.wordCount)}</> : <><Clock3 className="h-3 w-3" /> 等待正文</>}
+                            {readable ? chapter.status === "quality_debt" ? <><AlertTriangle className="h-3 w-3 text-amber-600" /> {formatWordCount(chapter.wordCount)}</> : <><CheckCircle2 className="h-3 w-3 text-emerald-600" /> {formatWordCount(chapter.wordCount)}</> : <><Clock3 className="h-3 w-3" />{i18next.t("novels.simpleNovelShelfPage.fyayu8")}</>}
                           </span>
                         </span>
                       </div>
@@ -281,9 +281,7 @@ export default function SimpleNovelShelfPage() {
                   );
                 })}
               </div>
-              <div className="mt-3 rounded-xl border border-border/70 bg-background px-3 py-2 text-xs leading-5 text-muted-foreground">
-                普通质量问题会作为待跟进事项记录，不会打断全书生产。
-              </div>
+              <div className="mt-3 rounded-xl border border-border/70 bg-background px-3 py-2 text-xs leading-5 text-muted-foreground">{i18next.t("novels.simpleNovelShelfPage.86fvoe")}</div>
             </aside>
 
             <main className="min-w-0 bg-background lg:min-h-0 lg:overflow-y-auto">
@@ -299,17 +297,17 @@ export default function SimpleNovelShelfPage() {
                     {selectedChapter.status === "quality_debt" ? (
                       <div className="mt-3 flex items-start gap-2 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs leading-5 text-amber-900">
                         <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0 text-amber-600" />
-                        <span>正文已安全保存。本章有待回收的局部质量项，但不会阻断后续创作。</span>
+                        <span>{i18next.t("novels.simpleNovelShelfPage.1pgxoh")}</span>
                       </div>
                     ) : selectedChapter.status === "replan_required" ? (
                       <div className="mt-3 flex items-start gap-2 rounded-xl border border-destructive/20 bg-destructive/5 px-3 py-2 text-xs leading-5 text-destructive">
                         <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
-                        <span>本章与相邻章节的安排需要 AI 先重规划，正文会被保留。</span>
+                        <span>{i18next.t("novels.simpleNovelShelfPage.msyxy9")}</span>
                       </div>
                     ) : selectedChapter.status !== "completed" ? (
                       <div className="mt-3 flex items-start gap-2 rounded-xl border border-sky-200 bg-sky-50 px-3 py-2 text-xs leading-5 text-sky-900">
                         <Sparkles className="mt-0.5 h-3.5 w-3.5 shrink-0 text-sky-600" />
-                        <span>当前显示的是已保存版本，AI 完成审校或修复后可能会更新。</span>
+                        <span>{i18next.t("novels.simpleNovelShelfPage.38zxmb")}</span>
                       </div>
                     ) : null}
                   </div>
@@ -321,8 +319,8 @@ export default function SimpleNovelShelfPage() {
                 <div className="flex min-h-full items-center justify-center px-6 py-20 text-center">
                   <div className="max-w-md">
                     <span className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-background text-muted-foreground shadow-sm"><BookOpen className="h-7 w-7" /></span>
-                    <div className="mt-5 text-lg font-semibold text-foreground">选择一个有正文的章节</div>
-                    <p className="mt-2 text-sm leading-6 text-muted-foreground">章节完成写作后会出现在左侧目录。审校中的章节也可以提前阅读当前保存版本。</p>
+                    <div className="mt-5 text-lg font-semibold text-foreground">{i18next.t("novels.simpleNovelShelfPage.sd43fn")}</div>
+                    <p className="mt-2 text-sm leading-6 text-muted-foreground">{i18next.t("novels.simpleNovelShelfPage.my8du1")}</p>
                   </div>
                 </div>
               )}

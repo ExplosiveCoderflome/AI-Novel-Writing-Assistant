@@ -1,4 +1,3 @@
-import { useTranslation } from "react-i18next";
 import i18next from "i18next";
 import type { Dispatch, SetStateAction } from "react";
 import type { APIKeyStatus } from "@/api/settings";
@@ -65,17 +64,23 @@ export default function ProviderConfigDialog({
   deleteDisabled,
   deleteLabel,
 }: ProviderConfigDialogProps) {
-  const { t } = useTranslation();
-  const primaryModelLabel = isCreatingCustomProvider ? i18next.t("dict.gen_4a007d89") : isCustomDialog ? i18next.t("dict.gen_b11de232") : i18next.t("dict.gen_920fe38e");
+  const primaryModelLabel = isCreatingCustomProvider ? "默认模型（可选）" : isCustomDialog ? "默认模型" : "模型名称";
   const canSelectListedModels = selectableModels.length > 0;
   const imageModelOptions = editingConfig?.imageModels ?? [];
   const canSelectImageModels = imageModelOptions.length > 0;
+  const modelGuidance = editingConfig?.provider === "deepseek"
+    ? "推荐使用 DeepSeek V4 Flash，兼顾中文长篇质量与响应速度；也可以选择其他可用模型。"
+    : isCreatingCustomProvider
+      ? "获取模型列表后会自动填入第一个可用模型；接口不返回列表时，可以手动填写。"
+      : editingConfig?.kind === "custom" && !canSelectListedModels
+        ? "可点击厂商卡片的“刷新模型”获取列表，也可以手动填写默认模型。"
+        : "如果列表里没有目标模型，可以手动输入。";
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <AppDialogContent
         className="max-w-lg"
-        title={isCreatingCustomProvider ? i18next.t("dict.gen_86fc689e") : isCustomDialog ? i18next.t("dict.gen_c45a36b0") : i18next.t("dict.gen_1efc6243")}
+        title={isCreatingCustomProvider ? "新增自定义厂商" : isCustomDialog ? "编辑自定义厂商" : "配置模型厂商"}
         footer={(
           <>
             <Button className="w-full sm:w-auto" onClick={onSubmit} disabled={submitDisabled}>
@@ -124,7 +129,7 @@ export default function ProviderConfigDialog({
           <Input
             type="password"
             value={form.key}
-            placeholder={editingConfig?.isConfigured ? i18next.t("dict.gen_3cca094e") : i18next.t("dict.gen_0d3afff6")}
+            placeholder={editingConfig?.isConfigured ? "留空则沿用保存的 API Key" : "输入 API Key"}
             onChange={(event) => {
               setForm((prev) => ({ ...prev, key: event.target.value }));
               if (isCreatingCustomProvider) {
@@ -134,7 +139,7 @@ export default function ProviderConfigDialog({
           />
 
           <div className="space-y-1">
-            <div className="text-xs text-muted-foreground">{i18next.t("dict.apiAddress")}</div>
+            <div className="text-xs text-muted-foreground">API 地址</div>
             <Input
               value={form.baseURL}
               placeholder={editingConfig?.defaultBaseURL ?? "https://api.example.com/v1"}
@@ -151,8 +156,8 @@ export default function ProviderConfigDialog({
             />
             <div className="text-xs text-muted-foreground">
               {isCreatingCustomProvider
-                ? i18next.t("dict.gen_708d0597")
-                : i18next.t("dict.gen_51a13d4e")}
+                ? "填写 OpenAI 兼容 API 地址，通常以 /v1 结尾；本地 Ollama 常见地址是 http://127.0.0.1:11434/v1。"
+                : "留空会使用默认地址；本地 Ollama 常见地址是 http://127.0.0.1:11434/v1。"}
             </div>
           </div>
 
@@ -165,7 +170,7 @@ export default function ProviderConfigDialog({
                 onClick={onPreviewModels}
                 disabled={isPreviewingModels || !form.baseURL.trim()}
               >
-                {isPreviewingModels ? i18next.t("dict.gen_4a8d5ce9") : i18next.t("dict.gen_4162141a")}
+                {isPreviewingModels ? "获取中..." : "获取模型列表"}
               </Button>
               {previewModelsResult ? (
                 <div className="break-words text-xs text-muted-foreground [overflow-wrap:anywhere]">
@@ -183,21 +188,15 @@ export default function ProviderConfigDialog({
                 onValueChange={(value) => setForm((prev) => ({ ...prev, model: value }))}
                 options={selectableModels.map((model) => ({ value: model }))}
                 placeholder={i18next.t("dict.gen_f2d3731b")}
-                searchPlaceholder={i18next.t("dict.gen_8288a2e8")}
-                emptyText={i18next.t("dict.gen_039e58de")}
+                searchPlaceholder="搜索模型"
+                emptyText="没有可用模型"
               />
             </div>
           ) : null}
 
           <div className="space-y-1">
             <div className="text-xs text-muted-foreground">{primaryModelLabel}</div>
-            <div className="text-xs text-muted-foreground">
-              {isCreatingCustomProvider
-                ? i18next.t("dict.gen_12876110")
-                : editingConfig?.kind === "custom" && !canSelectListedModels
-                  ? i18next.t("dict.gen_c13f114c")
-                  : i18next.t("dict.gen_877547cd")}
-            </div>
+            <div className="text-xs text-muted-foreground">{modelGuidance}</div>
           </div>
           <Input
             value={form.model}
@@ -217,14 +216,14 @@ export default function ProviderConfigDialog({
                   onValueChange={(value) => setForm((prev) => ({ ...prev, imageModel: value }))}
                   options={imageModelOptions.map((model) => ({ value: model }))}
                   placeholder={i18next.t("dict.gen_5a7af023")}
-                  searchPlaceholder={i18next.t("dict.gen_53f93fc3")}
-                  emptyText={i18next.t("dict.gen_3c12a8fc")}
+                  searchPlaceholder="搜索图像模型"
+                  emptyText="没有可用的图像模型"
                 />
               </div>
             ) : null}
             <Input
               value={form.imageModel}
-              placeholder={editingConfig?.defaultImageModel ?? i18next.t("dict.gen_6155a156")}
+              placeholder={editingConfig?.defaultImageModel ?? "输入图像模型名"}
               onChange={(event) => setForm((prev) => ({ ...prev, imageModel: event.target.value }))}
             />
             <div className="text-xs text-muted-foreground">{i18next.t("settings.providerConfigDialog.jxw2la")}</div>

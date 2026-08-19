@@ -1,5 +1,4 @@
 import i18next from "i18next";
-const t = (key: string, options?: any) => i18next.t(key, options) as string;
 import type { ReactNode } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -49,16 +48,16 @@ function modeLabel(mode: AITakeoverMode): string {
 function shellClass(mode: AITakeoverMode): string {
   switch (mode) {
     case "loading":
-      return "border-slate-200/80 bg-gradient-to-br from-background via-background to-slate-50/70";
+      return "border-border bg-gradient-to-br from-background via-background to-muted/35";
     case "failed":
       return "border-destructive/20 bg-gradient-to-br from-background via-background to-destructive/5";
     case "action_required":
-      return "border-orange-200/70 bg-gradient-to-br from-background via-background to-orange-50/70";
+      return "border-orange-500/25 bg-gradient-to-br from-background via-background to-orange-500/10";
     case "waiting":
-      return "border-amber-200/70 bg-gradient-to-br from-background via-background to-amber-50/70";
+      return "border-amber-500/25 bg-gradient-to-br from-background via-background to-amber-500/10";
     case "running":
     default:
-      return "border-sky-200/70 bg-gradient-to-br from-background via-background to-sky-50/65";
+      return "border-sky-500/25 bg-gradient-to-br from-background via-background to-sky-500/10";
   }
 }
 
@@ -142,7 +141,6 @@ export default function AITakeoverContainer({
           <div className="flex flex-wrap items-center gap-2">
             <div className="text-lg font-semibold tracking-tight text-foreground">{title}</div>
             <Badge variant={badgeVariant(mode)}>{modeLabel(mode)}</Badge>
-            {taskId ? <Badge variant="outline">{i18next.t("dict.task")}</Badge> : null}
           </div>
           <div className="max-w-3xl text-sm leading-6 text-muted-foreground">{description}</div>
         </div>
@@ -152,7 +150,6 @@ export default function AITakeoverContainer({
               <Button
                 key={action.label}
                 type="button"
-                size="sm"
                 variant={action.variant ?? (mode === "running" ? "outline" : "default")}
                 disabled={action.disabled}
                 onClick={action.onClick}
@@ -199,7 +196,7 @@ export default function AITakeoverContainer({
             </div>
           ) : null}
           {checkpointLabel ? (
-            <div className="mt-2 text-xs text-muted-foreground">{i18next.t("workflow.aITakeoverContainer.95r615")}{checkpointLabel}</div>
+            <div className="mt-2 text-xs text-muted-foreground">最近检查点：{checkpointLabel}</div>
           ) : null}
           {taskId ? (
             <div className="mt-2 text-[11px] text-muted-foreground/70">运行编号 {taskId.slice(0, 8)}</div>

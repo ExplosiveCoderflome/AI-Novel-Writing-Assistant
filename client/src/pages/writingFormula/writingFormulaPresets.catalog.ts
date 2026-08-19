@@ -12,18 +12,18 @@ export interface WritingFormulaPresetOption {
 export const WRITING_FORMULA_PRESETS: WritingFormulaPresetOption[] = [
   {
     key: "imitate",
-    label: i18next.t("dict.gen_439fbac9", { defaultValue: "复刻精仿" }),
-    description: i18next.t("dict.gen_5d8f63ab", { defaultValue: "高度还原原文本的语言习惯与角色语气" }),
+    label: i18next.t("dict.gen_439fbac9", { defaultValue: i18next.t("writingFormula.writingFormulaPresets.catalog.bkzozz") }),
+    description: i18next.t("dict.gen_5d8f63ab", { defaultValue: i18next.t("writingFormula.writingFormulaPresets.catalog.tykppe") }),
   },
   {
     key: "balanced",
-    label: i18next.t("dict.gen_d0e40880", { defaultValue: "平衡适配" }),
+    label: i18next.t("dict.gen_d0e40880", { defaultValue: i18next.t("writingFormula.writingFormulaPresets.catalog.chjas9") }),
     description: i18next.t("dict.gen_4b9a12c8", { defaultValue: "提炼核心文风特征，兼顾不同故事题材" }),
     recommended: true,
   },
   {
     key: "transfer",
-    label: i18next.t("dict.gen_74f9d6c7", { defaultValue: "跨界迁移" }),
+    label: i18next.t("dict.gen_74f9d6c7", { defaultValue: i18next.t("writingFormula.writingFormulaPresets.catalog.ie7xz2") }),
     description: i18next.t("dict.gen_e2a149b0", { defaultValue: "只保留底层节奏与情绪抓手，用于全新题材" }),
   },
 ];

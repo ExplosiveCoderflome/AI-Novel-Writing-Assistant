@@ -1,4 +1,3 @@
-import { useTranslation } from "react-i18next";
 import i18next from "i18next";
 import { useMemo } from "react";
 import { Link } from "react-router-dom";
@@ -13,7 +12,6 @@ import { AUTO_DIRECTOR_MOBILE_CLASSES } from "@/mobile/autoDirector";
 export default function SettingsNavigationCards(props: {
   mode?: "all" | "routes" | "knowledge";
 }) {
-  const { t } = useTranslation();
   const { mode = "all" } = props;
   const ragSettingsQuery = useQuery({
     queryKey: queryKeys.settings.rag,
@@ -47,47 +45,32 @@ export default function SettingsNavigationCards(props: {
           <div className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
             <span>{i18next.t("dict.gen_79126156")}</span>
             <Badge variant={ragProvider?.isConfigured ? "default" : "outline"}>
-              {ragProvider?.isConfigured ? i18next.t("dict.apiKeyAvailable") : i18next.t("dict.gen_2a94549c")}
+              {ragProvider?.isConfigured ? "API Key 可用" : "缺少 API Key"}
             </Badge>
             <Badge variant={ragProvider?.isActive ? "default" : "outline"}>
-              {ragProvider?.isActive ? i18next.t("dict.gen_c16e2ef8") : i18next.t("dict.gen_4637765b")}
+              {ragProvider?.isActive ? "启用中" : "未启用"}
             </Badge>
           </div>
           <Button asChild className={AUTO_DIRECTOR_MOBILE_CLASSES.fullWidthAction}>
-            <Link to="/knowledge?tab=settings">{i18next.t("dict.gen_d0c54e51")}</Link>
+            <Link to="/settings/knowledge">{i18next.t("settings.settingsNavigationCards.fyl4qj")}</Link>
           </Button>
         </CardContent>
         </Card>
       ) : null}
 
       {mode === "all" || mode === "routes" ? (
-        <>
-          <Card className="min-w-0 overflow-hidden">
-            <CardHeader>
-              <CardTitle>{i18next.t("sidebar.modelRoutes")}</CardTitle>
-              <CardDescription className={AUTO_DIRECTOR_MOBILE_CLASSES.wrapText}>{i18next.t("settings.settingsNavigationCards.l940rz")}</CardDescription>
-            </CardHeader>
-            <CardContent className={AUTO_DIRECTOR_MOBILE_CLASSES.settingsEntryActionRow}>
-              <div className={`min-w-0 text-sm text-muted-foreground ${AUTO_DIRECTOR_MOBILE_CLASSES.wrapText}`}>{i18next.t("settings.settingsNavigationCards.rpjje9")}</div>
-              <Button asChild className={AUTO_DIRECTOR_MOBILE_CLASSES.fullWidthAction}>
-                <Link to="/settings/model-routes">{i18next.t("dict.gen_4da087c6")}</Link>
-              </Button>
-            </CardContent>
-          </Card>
-
-          <Card className="min-w-0 overflow-hidden border-indigo-500/30 bg-slate-900/40">
-            <CardHeader>
-              <CardTitle className="text-indigo-300">{i18next.t("settings.settingsNavigationCards.cei9ce")}</CardTitle>
-              <CardDescription className={AUTO_DIRECTOR_MOBILE_CLASSES.wrapText}>{i18next.t("settings.settingsNavigationCards.mb5x5v")}</CardDescription>
-            </CardHeader>
-            <CardContent className={AUTO_DIRECTOR_MOBILE_CLASSES.settingsEntryActionRow}>
-              <div className={`min-w-0 text-sm text-muted-foreground ${AUTO_DIRECTOR_MOBILE_CLASSES.wrapText}`}>{i18next.t("settings.settingsNavigationCards.298o23")}</div>
-              <Button asChild className={`${AUTO_DIRECTOR_MOBILE_CLASSES.fullWidthAction} bg-indigo-600 hover:bg-indigo-500`}>
-                <Link to="/settings/model-evaluation">{i18next.t("settings.settingsNavigationCards.wu3ll7")}</Link>
-              </Button>
-            </CardContent>
-          </Card>
-        </>
+        <Card className="min-w-0 overflow-hidden">
+        <CardHeader>
+          <CardTitle>{i18next.t("sidebar.modelRoutes")}</CardTitle>
+          <CardDescription className={AUTO_DIRECTOR_MOBILE_CLASSES.wrapText}>{i18next.t("settings.settingsNavigationCards.l940rz")}</CardDescription>
+        </CardHeader>
+        <CardContent className={AUTO_DIRECTOR_MOBILE_CLASSES.settingsEntryActionRow}>
+          <div className={`min-w-0 text-sm text-muted-foreground ${AUTO_DIRECTOR_MOBILE_CLASSES.wrapText}`}>{i18next.t("settings.settingsNavigationCards.rpjje9")}</div>
+          <Button asChild className={AUTO_DIRECTOR_MOBILE_CLASSES.fullWidthAction}>
+            <Link to="/settings/models">{i18next.t("settings.settingsNavigationCards.hck99e")}</Link>
+          </Button>
+        </CardContent>
+        </Card>
       ) : null}
     </>
   );

@@ -76,7 +76,7 @@ function formatEvent(event: RuntimeEvent): string {
   }
   const actionText = toApprovalActionLabel(event.action);
   const noteText = event.note ? ` (${event.note})` : "";
-  return i18next.t("chat.approvalResult", { actionText, noteText, defaultValue: `审批结果: ${actionText}${noteText}` });
+  return i18next.t("chat.approvalResult", { actionText, noteText, defaultValue: i18next.t("chat.chatPage.lyimnc", { val1: (actionText), val2: (noteText) }) });
 }
 
 function safePreview(json: string | null | undefined): string {

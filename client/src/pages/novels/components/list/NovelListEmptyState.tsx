@@ -1,3 +1,4 @@
+import i18next from "i18next";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import {
@@ -26,11 +27,11 @@ export function NovelListEmptyState(props: {
         </Button>
         {SHORT_STORY_CREATE_LINK ? (
           <Button asChild variant="secondary">
-            <Link to={SHORT_STORY_CREATE_LINK}>创作短篇</Link>
+            <Link to={SHORT_STORY_CREATE_LINK}>{i18next.t("novels.novelListEmptyState.ap0onv")}</Link>
           </Button>
         ) : null}
         <Button asChild variant="outline">
-          <Link to={MANUAL_CREATE_LINK}>手动创建小说</Link>
+          <Link to={MANUAL_CREATE_LINK}>{i18next.t("home.manualCreateNovel")}</Link>
         </Button>
       </div>
     </section>

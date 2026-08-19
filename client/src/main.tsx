@@ -8,6 +8,7 @@ import ServerStartupGate from "./components/layout/ServerStartupGate";
 import { APP_RUNTIME } from "./lib/constants";
 import AppRouter from "./router";
 import { Toaster } from "./components/ui/toast";
+import { ThemeProvider } from "./components/theme/ThemeProvider";
 import "./i18n";
 import "./index.css";
 
@@ -24,15 +25,17 @@ const AppRouterProvider = APP_RUNTIME === "desktop" ? HashRouter : BrowserRouter
 
 ReactDOM.createRoot(document.getElementById("root")!).render(
   <React.StrictMode>
-    <QueryClientProvider client={queryClient}>
-      <AppRouterProvider>
-        <DesktopBootstrapBoundary>
-          <ServerStartupGate>
-            <AppRouter />
-          </ServerStartupGate>
-        </DesktopBootstrapBoundary>
-        <Toaster />
-      </AppRouterProvider>
-    </QueryClientProvider>
+    <ThemeProvider>
+      <QueryClientProvider client={queryClient}>
+        <AppRouterProvider>
+          <DesktopBootstrapBoundary>
+            <ServerStartupGate>
+              <AppRouter />
+            </ServerStartupGate>
+          </DesktopBootstrapBoundary>
+          <Toaster />
+        </AppRouterProvider>
+      </QueryClientProvider>
+    </ThemeProvider>
   </React.StrictMode>,
 );

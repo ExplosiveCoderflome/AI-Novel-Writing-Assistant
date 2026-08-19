@@ -1,3 +1,4 @@
+import i18next from "i18next";
 import { Activity, BookOpenCheck, CheckCircle2, Clock3 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { HomeMetric, HomeTone } from "../homeViewModel";
@@ -12,7 +13,7 @@ const metricIcons: Record<string, typeof Activity> = {
 
 export function HomeStatusStrip(props: { metrics: HomeMetric[]; pending?: boolean }) {
   return (
-    <section className="home-status-summary-grid grid gap-3 sm:grid-cols-2 xl:grid-cols-4" aria-label="创作状态摘要">
+    <section className="home-status-summary-grid grid gap-3 sm:grid-cols-2 xl:grid-cols-4" aria-label={i18next.t("dict.gen_a493e1cf")}>
       {props.metrics.map((metric) => {
         const Icon = metricIcons[metric.id] ?? Activity;
         return (

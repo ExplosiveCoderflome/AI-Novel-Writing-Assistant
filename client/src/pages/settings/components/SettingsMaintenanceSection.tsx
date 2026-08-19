@@ -1,4 +1,3 @@
-import { useTranslation } from "react-i18next";
 import i18next from "i18next";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import DesktopLegacyDataImportCard from "@/components/layout/DesktopLegacyDataImportCard";
@@ -7,13 +6,12 @@ import { APP_RUNTIME } from "@/lib/constants";
 import { AUTO_DIRECTOR_MOBILE_CLASSES } from "@/mobile/autoDirector";
 
 export default function SettingsMaintenanceSection() {
-  const { t } = useTranslation();
   if (APP_RUNTIME !== "desktop") {
     return (
       <Card className="min-w-0 overflow-hidden">
         <CardHeader>
           <CardTitle>{i18next.t("dict.gen_e58e3369")}</CardTitle>
-          <CardDescription className={AUTO_DIRECTOR_MOBILE_CLASSES.wrapText}>{i18next.t("settings.settingsMaintenanceSection.z3woxp")}</CardDescription>
+          <CardDescription className={AUTO_DIRECTOR_MOBILE_CLASSES.wrapText}>{i18next.t("settings.settingsMaintenanceSection.yrmyvb")}</CardDescription>
         </CardHeader>
       </Card>
     );

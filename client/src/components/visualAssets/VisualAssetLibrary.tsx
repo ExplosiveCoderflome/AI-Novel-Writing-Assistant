@@ -187,7 +187,7 @@ export function VisualAssetLibrary({
       <div className="flex min-h-0 flex-1">
         <div className="min-w-0 flex-1 overflow-y-auto">
           <div className="flex items-center justify-between gap-3 px-5 py-3 text-sm text-muted-foreground">
-            <span>{typeof total === "number" ? i18next.t("visualAssets.visualAssetLibrary.ijkrc7", { val1: total }) : "正在准备素材"}</span>
+            <span>{typeof total === "number" ? i18next.t("visualAssets.visualAssetLibrary.ijkrc7", { val1: (total) }) : "正在准备素材"}</span>
             {hasActiveFilters ? (
               <Button type="button" variant="ghost" size="sm" className="h-8 px-2" onClick={clearFilters}>
                 <X className="h-3.5 w-3.5" aria-hidden="true" />{i18next.t("visualAssets.visualAssetLibrary.ei6tl9")}</Button>
@@ -261,7 +261,7 @@ export function VisualAssetLibrary({
 
 function FilterGroup({ label, icon, children }: { label: string; icon?: React.ReactNode; children: React.ReactNode }) {
   return (
-    <div className="flex max-w-full items-center gap-1 overflow-x-auto rounded-md border bg-muted/[0.18] p-1" aria-label={i18next.t("visualAssets.visualAssetLibrary.izzk8u", { val1: label })}>
+    <div className="flex max-w-full items-center gap-1 overflow-x-auto rounded-md border bg-muted/[0.18] p-1" aria-label={i18next.t("visualAssets.visualAssetLibrary.izzk8u", { val1: (label) })}>
       <span className="inline-flex shrink-0 items-center gap-1 px-2 text-xs text-muted-foreground">{icon}{label}</span>
       {children}
     </div>
@@ -283,10 +283,10 @@ function FilterButton({ active, children, onClick }: { active: boolean; children
 
 function VisualAssetGridLoading() {
   return (
-    <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5" aria-label={i18next.t("visualAssets.visualAssetLibrary.4519fv")}>
+    <div className="columns-2 gap-3 sm:columns-3 xl:columns-4 2xl:columns-5" aria-label={i18next.t("visualAssets.visualAssetLibrary.4519fv")}>
       {Array.from({ length: 10 }, (_, index) => (
-        <div key={index} className="overflow-hidden rounded-md border">
-          <div className="aspect-[4/3] animate-pulse bg-muted" />
+        <div key={index} className="mb-3 break-inside-avoid overflow-hidden rounded-md border">
+          <div className="h-40 animate-pulse bg-muted" />
           <div className="space-y-2 p-3"><div className="h-4 w-3/4 animate-pulse rounded bg-muted" /><div className="h-3 w-1/2 animate-pulse rounded bg-muted" /></div>
         </div>
       ))}

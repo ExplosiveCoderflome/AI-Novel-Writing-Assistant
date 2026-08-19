@@ -1,4 +1,3 @@
-import { useTranslation } from "react-i18next";
 import type { ReactNode } from "react";
 import { ChevronDown } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -7,9 +6,9 @@ type ShellTone = "neutral" | "info" | "success" | "warning" | "danger";
 
 const toneSurfaceClass: Record<ShellTone, string> = {
   neutral: "bg-muted/20",
-  info: "bg-sky-50/70 text-sky-950",
-  success: "bg-emerald-50/70 text-emerald-950",
-  warning: "bg-amber-50/75 text-amber-950",
+  info: "bg-sky-500/10 text-foreground",
+  success: "bg-emerald-500/10 text-foreground",
+  warning: "bg-amber-500/10 text-foreground",
   danger: "bg-destructive/5 text-destructive",
 };
 
@@ -31,7 +30,6 @@ export function StepHero(props: {
   className?: string;
   children?: ReactNode;
 }) {
-  const { t } = useTranslation();
   return (
     <section className={cn("rounded-2xl px-5 py-4", toneSurfaceClass[props.tone ?? "neutral"], props.className)}>
       <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">

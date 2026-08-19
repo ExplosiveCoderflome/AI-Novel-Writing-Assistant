@@ -1,4 +1,3 @@
-import { useTranslation } from "react-i18next";
 import i18next from "i18next";
 import type { ReactNode } from "react";
 import { Badge } from "@/components/ui/badge";
@@ -19,7 +18,6 @@ export default function SettingsSectionGroup(props: {
   status: SettingsSectionStatus;
   children: ReactNode;
 }) {
-  const { t } = useTranslation();
   const { title, description, status, children } = props;
 
   return (

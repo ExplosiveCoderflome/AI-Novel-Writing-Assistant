@@ -1,5 +1,4 @@
 import i18next from "i18next";
-import { useTranslation } from "react-i18next";
 import { Link } from "react-router-dom";
 import { ArrowRight, CheckCircle2, CircleAlert, CircleDashed, Loader2 } from "lucide-react";
 import type {
@@ -84,7 +83,7 @@ export function buildSettingsReadinessItems(input: {
       title: i18next.t("settings.settingsReadinessCard.dyzk7i"),
       state: runnableProviders.length > 0 ? "ready" : "warning",
       description: runnableProviders.length > 0
-        ? i18next.t("settings.settingsReadinessCard.coub6o", { val1: runnableProviders[0].name })
+        ? i18next.t("settings.settingsReadinessCard.coub6o", { val1: (runnableProviders[0].name) })
         : "先配置一个可用模型，就可以开始开书和生成章节。",
     },
     {
@@ -119,7 +118,6 @@ export function buildSettingsReadinessItems(input: {
 export default function SettingsReadinessCard(props: {
   items: SettingsReadinessItem[];
 }) {
-  const { t } = useTranslation();
   const { items } = props;
   const modelItem = items.find((item) => item.key === "model");
   const routesItem = items.find((item) => item.key === "routes");
@@ -128,9 +126,9 @@ export default function SettingsReadinessCard(props: {
   const blockingCount = items.filter((item) => item.key !== "rag" && item.state === "warning").length;
   const canStart = hasModel && hasHealthyRoutes && blockingCount === 0;
   const primaryAction = !hasModel
-    ? { label: i18next.t("settings.settingsReadinessCard.b55tn3"), to: "#settings-provider-section" }
+    ? { label: i18next.t("settings.settingsReadinessCard.b55tn3"), to: "/settings/models" }
     : !hasHealthyRoutes
-      ? { label: i18next.t("settings.settingsReadinessCard.o22hin"), to: "/settings/model-routes" }
+      ? { label: i18next.t("settings.settingsReadinessCard.o22hin"), to: "/settings/models" }
       : { label: i18next.t("settings.settingsReadinessCard.ekcgpb"), to: "/novels/create" };
 
   return (

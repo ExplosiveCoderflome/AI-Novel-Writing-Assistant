@@ -1,3 +1,4 @@
+import i18next from "i18next";
 import type { NovelAutoDirectorTaskSummary } from "@ai-novel/shared/types/novel";
 import {
   resolveWorkflowDisplayStage,
@@ -15,12 +16,12 @@ const HOME_JOURNEY_GROUPS: readonly {
   label: string;
   stages: readonly WorkflowStepCatalogDisplayStage[];
 }[] = [
-  { id: "setup", label: "项目设定", stages: ["project_setup"] },
-  { id: "story", label: "故事规划", stages: ["story_planning"] },
-  { id: "world-cast", label: "世界与角色", stages: ["world_setup", "character_setup"] },
-  { id: "structure", label: "卷与章节", stages: ["volume_strategy", "structured_outline"] },
-  { id: "writing", label: "正文创作", stages: ["chapter_execution"] },
-  { id: "quality", label: "质量完善", stages: ["quality_repair"] },
+  { id: "setup", label: i18next.t("home.projectSetup"), stages: ["project_setup"] },
+  { id: "story", label: i18next.t("dict.gen_6a01070b"), stages: ["story_planning"] },
+  { id: "world-cast", label: i18next.t("home.homeJourney.ypjnt4"), stages: ["world_setup", "character_setup"] },
+  { id: "structure", label: i18next.t("home.homeJourney.av0jtl"), stages: ["volume_strategy", "structured_outline"] },
+  { id: "writing", label: i18next.t("home.homeJourney.dyvfhh"), stages: ["chapter_execution"] },
+  { id: "quality", label: i18next.t("home.homeJourney.ieqlwf"), stages: ["quality_repair"] },
 ] as const;
 
 export function buildHomeJourney(task: NovelAutoDirectorTaskSummary | null): {

@@ -7,6 +7,23 @@
     <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png" />
     <link rel="apple-touch-icon" sizes="128x128" href="/apple-touch-icon.png" />
     <title>AI 小说创作工作台 | AI Novel Production Engine</title>
+    <script>
+      (() => {
+        try {
+          const preference = JSON.parse(localStorage.getItem("ai-novel.theme.preference") || "null") || {};
+          const mode = preference.mode === "dark" || preference.mode === "light" || preference.mode === "system" ? preference.mode : "system";
+          const resolvedMode = mode === "system" ? (window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light") : mode;
+          const palette = ["ink", "paper", "night"].includes(preference.palette) ? preference.palette : "ink";
+          const density = ["comfortable", "compact"].includes(preference.density) ? preference.density : "comfortable";
+          document.documentElement.classList.toggle("dark", resolvedMode === "dark");
+          document.documentElement.dataset.theme = palette;
+          document.documentElement.dataset.density = density;
+          document.documentElement.style.colorScheme = resolvedMode;
+        } catch {
+          // 启动阶段使用默认浅色主题，React 挂载后会继续校正偏好。
+        }
+      })();
+    </script>
     <style>
       :root {
         color: #0f172a;
@@ -17,6 +34,11 @@
       body {
         margin: 0;
         background: #ffffff;
+      }
+
+      html.dark body {
+        color: #f8fafc;
+        background: #0f172a;
       }
 
       .app-startup-shell {

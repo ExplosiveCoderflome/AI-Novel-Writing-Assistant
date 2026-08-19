@@ -1,6 +1,4 @@
-import { useTranslation } from "react-i18next";
 import i18next from "i18next";
-const t = (key: string, options?: any) => i18next.t(key, options) as string;
 import { useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
@@ -306,12 +304,12 @@ export default function NovelWorkspaceRail(props: NovelWorkspaceRailProps) {
           : stepReadiness[step.key]
       );
       const statusLabel = isWorkflowCurrent
-        ? isSelected ? i18next.t("onboarding.currentStep") : i18next.t("dict.gen_32c2b521")
+        ? isSelected ? "当前步骤" : "流程中"
         : isSelected
-          ? i18next.t("dict.gen_082d10d0")
+          ? "查看中"
           : isDone
-            ? i18next.t("tasks.filterStatusSucceeded")
-            : i18next.t("dict.gen_c1d8599d");
+            ? "已完成"
+            : "待推进";
 
       return {
         ...step,
@@ -325,13 +323,13 @@ export default function NovelWorkspaceRail(props: NovelWorkspaceRailProps) {
 
   const completedStepCount = stepStates.filter((item) => item.isDone).length;
   const workflowProgressCount = workflowIndex >= 0 ? workflowIndex + 1 : completedStepCount;
-  const novelTitle = novelDetail?.title?.trim() || i18next.t("dict.gen_d018fb48");
+  const novelTitle = novelDetail?.title?.trim() || "小说创作工作台";
   const runtimeActionSummary = runtimeProjection?.nextActionLabel
-    ? i18next.t("layout.novelWorkspaceRail.u959pi", { val1: runtimeProjection.nextActionLabel })
+    ? i18next.t("layout.novelWorkspaceRail.u959pi", { val1: (runtimeProjection.nextActionLabel) })
     : null;
   const runtimeSummary = dashboardView?.currentAction?.trim()
     || (dashboardView?.requiresUserAction
-      ? `需要处理：${dashboardView.userActionReason ?? i18next.t("dict.gen_719cf084")}`
+      ? i18next.t("layout.novelWorkspaceRail.ughjvr", { val1: (dashboardView.userActionReason ?? "请先查看当前停留点") })
       : null)
     || runtimeSnapshot?.displayState.currentAction?.trim()
       || runtimeProjection?.headline
@@ -343,11 +341,11 @@ export default function NovelWorkspaceRail(props: NovelWorkspaceRailProps) {
   const cockpitSummary = activeTask
     ? runtimeSummary
       || (activeTask.status === "failed"
-      ? activeTask.lastError || i18next.t("dict.gen_3fff0abf")
+      ? activeTask.lastError || "后台任务已中断，可打开执行详情查看原因。"
       : activeTask.status === "waiting_approval"
-        ? i18next.t("layout.novelWorkspaceRail.64fodo", { val1: getNovelWorkspaceTabLabel(workflowCurrentTab ?? activeTab) })
-      : activeTask.currentItemLabel || i18next.t("layout.novelWorkspaceRail.x935c0", { val1: getNovelWorkspaceTabLabel(workflowCurrentTab ?? activeTab) }))
-    : i18next.t("dict.gen_3461732b");
+        ? i18next.t("layout.novelWorkspaceRail.64fodo", { val1: (getNovelWorkspaceTabLabel(workflowCurrentTab ?? activeTab)) })
+      : activeTask.currentItemLabel || i18next.t("layout.novelWorkspaceRail.x935c0", { val1: (getNovelWorkspaceTabLabel(workflowCurrentTab ?? activeTab)) }))
+    : "当前没有后台导演任务，可以直接继续手动创作。";
   const cockpitProjection = useMemo(() => {
     if (!visibleBookAutomationProjection || !runtimeSummary?.trim()) {
       return visibleBookAutomationProjection;
@@ -464,8 +462,8 @@ export default function NovelWorkspaceRail(props: NovelWorkspaceRailProps) {
               size="icon"
               className="h-8 w-8 shrink-0 text-muted-foreground"
               onClick={onToggle}
-              aria-label={collapsed ? i18next.t("dict.gen_74f8ea9b") : i18next.t("dict.gen_b7ae016b")}
-              title={collapsed ? i18next.t("dict.gen_74f8ea9b") : i18next.t("dict.gen_b7ae016b")}
+              aria-label={collapsed ? "展开创作导航" : "收起创作导航"}
+              title={collapsed ? "展开创作导航" : "收起创作导航"}
             >
               {collapsed ? <ChevronRight className="h-4 w-4" /> : <ChevronLeft className="h-4 w-4" />}
             </Button>
@@ -495,7 +493,7 @@ export default function NovelWorkspaceRail(props: NovelWorkspaceRailProps) {
         {!collapsed ? (
           <div className="rounded-2xl bg-background/75 px-3 py-2 text-xs text-muted-foreground">
             <div className="flex items-center justify-between gap-2">
-              <span>{i18next.t("layout.novelWorkspaceRail.gm92o")}{getNovelWorkspaceTabLabel(workflowCurrentTab ?? activeTab)}</span>
+              <span>流程：{getNovelWorkspaceTabLabel(workflowCurrentTab ?? activeTab)}</span>
               <span>{workflowProgressCount}/{NOVEL_WORKSPACE_FLOW_STEPS.length}</span>
             </div>
           </div>
@@ -513,13 +511,13 @@ export default function NovelWorkspaceRail(props: NovelWorkspaceRailProps) {
                 "relative flex w-full items-center rounded-xl text-left transition-colors",
                 collapsed ? "justify-center px-2 py-3" : "gap-3 px-3 py-3",
                 step.isWorkflowCurrent && step.isSelected
-                  ? "bg-sky-50 text-sky-950 shadow-sm ring-1 ring-sky-100"
+                  ? "bg-sky-500/15 text-foreground shadow-sm ring-1 ring-sky-500/25"
                   : step.isWorkflowCurrent
-                  ? "bg-sky-50 text-sky-900"
+                  ? "bg-sky-500/10 text-foreground"
                   : step.isSelected
                     ? "bg-slate-950 text-white shadow-sm"
                     : step.isDone
-                      ? "bg-emerald-50/35 text-foreground"
+                      ? "bg-emerald-500/10 text-foreground"
                       : "text-muted-foreground hover:bg-background/75 hover:text-foreground",
               )}
             >
@@ -534,7 +532,7 @@ export default function NovelWorkspaceRail(props: NovelWorkspaceRailProps) {
                     : step.isSelected
                     ? "bg-white/15 text-white"
                     : step.isDone
-                      ? "bg-emerald-500/15 text-emerald-700"
+                      ? "bg-emerald-500/15 text-emerald-700 dark:text-emerald-300"
                       : "bg-background text-muted-foreground",
                 )}
               >
@@ -547,11 +545,11 @@ export default function NovelWorkspaceRail(props: NovelWorkspaceRailProps) {
                     className={cn(
                       "shrink-0 text-[11px] font-medium",
                       step.isWorkflowCurrent
-                        ? "text-sky-700"
+                        ? "text-sky-700 dark:text-sky-300"
                         : step.isSelected
                         ? "text-white/80"
                         : step.isDone
-                          ? "text-emerald-700"
+                          ? "text-emerald-700 dark:text-emerald-300"
                           : "text-muted-foreground",
                     )}
                   >
@@ -596,7 +594,7 @@ export default function NovelWorkspaceRail(props: NovelWorkspaceRailProps) {
                 variant="outline"
                 className="h-9 w-9"
                 onClick={openProgressDialog}
-                title={i18next.t("layout.novelWorkspaceRail.lndi3l", { val1: formatTaskStatus(activeTask?.status) })}
+                title={i18next.t("layout.novelWorkspaceRail.lndi3l", { val1: (formatTaskStatus(activeTask?.status)) })}
                 aria-label={i18next.t("dict.gen_efbfb3ff")}
               >
                 <ListTodo className="h-4 w-4" />
@@ -623,7 +621,7 @@ export default function NovelWorkspaceRail(props: NovelWorkspaceRailProps) {
       <Dialog open={progressDialogOpen} onOpenChange={setProgressDialogOpen}>
         <DialogContent className="max-h-[88vh] overflow-hidden p-0 sm:max-w-5xl">
           <DialogHeader className="border-b px-5 py-4 text-left">
-            <DialogTitle>{i18next.t("dict.aiAutoDirectorProgress")}</DialogTitle>
+            <DialogTitle>AI 自动导演进度</DialogTitle>
             <DialogDescription>{i18next.t("layout.novelWorkspaceRail.m4mdi")}</DialogDescription>
           </DialogHeader>
           <div className="max-h-[calc(88vh-6.5rem)] overflow-y-auto p-4 sm:p-6">
@@ -636,7 +634,10 @@ export default function NovelWorkspaceRail(props: NovelWorkspaceRailProps) {
               onBackgroundContinue={() => setProgressDialogOpen(false)}
               onConfirmAndContinue={() => continueDirectorMutation.mutate()}
               isConfirmingAndContinuing={continueDirectorMutation.isPending}
-              onOpenTaskCenter={openTaskCenter}
+              onOpenTaskCenter={() => {
+                setProgressDialogOpen(false);
+                navigate("/tasks");
+              }}
             />
           </div>
         </DialogContent>
