@@ -329,6 +329,12 @@ model Novel {
   language          String      @default("zh")
   projectMode       ProjectMode?
   creationExperience CreationExperience @default(professional)
+  writingPlatform    String?
+  writingPlatformProfileVersion Int?
+  writingPlatformSnapshotJson String?
+  directorIssuePolicyOverridesJson String?
+  directorRiskNoticeThreshold Int?
+  directorRiskPauseThreshold Int?
   narrativePov      NarrativePov?
   pacePreference    PacePreference?
   styleTone         String?
@@ -430,9 +436,34 @@ model Novel {
   @@index([secondaryStoryModeId])
   @@index([worldId])
   @@index([writingMode])
+  @@index([writingPlatform])
   @@index([sourceNovelId])
   @@index([sourceKnowledgeDocumentId])
   @@index([continuationBookAnalysisId])
+}
+
+model WritingPlatformProfileOverride {
+  id              String   @id @default(cuid())
+  platform        String   @unique
+  activeVersionId String?
+  versions        WritingPlatformProfileVersion[]
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([activeVersionId])
+}
+
+model WritingPlatformProfileVersion {
+  id          String   @id @default(cuid())
+  overrideId  String
+  versionNo   Int
+  profileJson String
+  notes       String?
+  override    WritingPlatformProfileOverride @relation(fields: [overrideId], references: [id], onDelete: Cascade)
+  createdAt   DateTime @default(now())
+
+  @@unique([overrideId, versionNo])
+  @@index([overrideId, createdAt])
 }
 
 model PromptAddendum {
