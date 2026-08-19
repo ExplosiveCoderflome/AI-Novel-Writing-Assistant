@@ -54,7 +54,6 @@ export interface DirectorPhaseDependencies {
       optionId: string,
       options?: {
         overrideQualityGate?: boolean;
-        postApplyMode?: "sync" | "background" | "deferred";
         visibleProfileGeneration?: {
           provider?: DirectorConfirmRequest["provider"];
           model?: string;

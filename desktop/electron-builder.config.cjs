@@ -11,8 +11,8 @@ function firstNonEmpty(...values) {
 
 const releaseChannel = firstNonEmpty(process.env.AI_NOVEL_RELEASE_CHANNEL, "beta").toLowerCase();
 const isBetaRelease = releaseChannel === "beta";
-const githubOwner = firstNonEmpty(process.env.AI_NOVEL_GITHUB_OWNER, "ExplosiveCoderflome");
-const githubRepo = firstNonEmpty(process.env.AI_NOVEL_GITHUB_REPO, "AI-Novel-Writing-Assistant");
+const githubOwner = firstNonEmpty(process.env.AI_NOVEL_GITHUB_OWNER, "winnerineast");
+const githubRepo = firstNonEmpty(process.env.AI_NOVEL_GITHUB_REPO, "GeneralAgent");
 const windowsSigningLink = firstNonEmpty(
   process.env.CSC_LINK,
   process.env.WIN_CSC_LINK,

@@ -1,0 +1,4 @@
+[
+  {"startMs": 3500, "endMs": 9000, "text": "我们以为，远方是一个地点。", "kind": "narration", "emphasis": ["远方"]},
+  {"startMs": 15100, "endMs": 22000, "text": "后来才明白，它是看待生活的另一种尺度。", "kind": "quote", "emphasis": ["另一种尺度"]}
+]

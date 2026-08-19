@@ -3,6 +3,7 @@ import type {
   DirectorBookAutomationProjection,
 } from "@ai-novel/shared/types/directorRuntime";
 import { LayoutDashboard } from "lucide-react";
+import { useTranslation } from "react-i18next";
 import AICockpit from "./AICockpit";
 import { Button } from "@/components/ui/button";
 
@@ -25,6 +26,7 @@ export default function DirectorBookAutomationCard({
   onOpenTaskCenter,
   onSwitchToProjectNav,
 }: DirectorBookAutomationCardProps) {
+  const { t } = useTranslation();
   const effectiveProjection = projection?.status === "cancelled" ? null : projection;
   const handleAction = (_projection: DirectorBookAutomationProjection, action: DirectorBookAutomationAction) => {
     if (action.type === "open_details") {
@@ -49,7 +51,7 @@ export default function DirectorBookAutomationCard({
       {onSwitchToProjectNav ? (
         <Button type="button" size="sm" variant="ghost" className="w-full" onClick={onSwitchToProjectNav}>
           <LayoutDashboard className="h-4 w-4" />
-          项目导航
+          {t("navbar.projectNav", "项目导航")}
         </Button>
       ) : null}
     </div>

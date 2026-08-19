@@ -1,0 +1,8 @@
+[
+  {"startMs": 10800, "endMs": 14200, "text": "海上的信号，一盏接一盏熄灭。", "segmentId": "silence", "kind": "narration", "emphasis": ["熄灭"]},
+  {"startMs": 14600, "endMs": 18300, "text": "只有北岬灯塔还守着夜。", "segmentId": "silence", "kind": "narration", "emphasis": ["还守着夜"]},
+  {"startMs": 19400, "endMs": 22600, "text": "守灯人知道，未必还有船会回来。", "segmentId": "signal", "kind": "narration", "emphasis": []},
+  {"startMs": 23000, "endMs": 25700, "text": "可他仍在每个整点，点亮透镜。", "segmentId": "signal", "kind": "narration", "emphasis": ["仍在"]},
+  {"startMs": 26100, "endMs": 29200, "text": "直到雾里，传来三次微弱的闪光。", "segmentId": "signal", "kind": "narration", "emphasis": ["三次"]},
+  {"startMs": 29400, "endMs": 30900, "text": "“我看见你了。”", "segmentId": "signal", "kind": "dialogue", "emphasis": ["看见"]}
+]

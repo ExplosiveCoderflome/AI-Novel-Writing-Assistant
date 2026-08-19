@@ -220,11 +220,18 @@ export type ModelRouteTaskType =
   | "state_resolution"
   | "summary"
   | "fact_extraction"
-  | "chat";
+  | "chat"
+  | "image_gen"
+  | "video_gen"
+  | "embedding"
+  | "asr"
+  | "tts"
+  | "ocr";
 
 export interface Novel {
   id: string;
   title: string;
+  language?: string | null;
   description?: string | null;
   targetAudience?: string | null;
   bookSellingPoint?: string | null;
@@ -376,6 +383,7 @@ export interface ChapterEditorDiagnosticCard {
   anchorRange?: Pick<ChapterEditorTargetRange, "from" | "to"> | null;
   paragraphLabel?: string | null;
   severity: "low" | "medium" | "high" | "critical";
+  sourceIssueId?: string | null;
   sourceTags: string[];
 }
 
@@ -459,6 +467,38 @@ export interface ChapterEditorRewritePreviewResponse {
   targetRange: ChapterEditorTargetRange;
   candidates: ChapterEditorCandidate[];
   activeCandidateId: string | null;
+}
+
+export interface ChapterEditorContinuePreviewRequest {
+  textBefore: string;
+  textAfter?: string;
+  customInstruction?: string;
+  provider?: import("./llm").LLMProvider;
+  model?: string;
+  temperature?: number;
+}
+
+export interface ChapterEditorContinuePreviewResponse {
+  sessionId: string;
+  candidates: ChapterEditorCandidate[];
+  activeCandidateId: string | null;
+  macroAlignmentNote?: string | null;
+}
+
+export interface ChapterEditorIssueFixPreviewRequest {
+  selectedText: string;
+  beforeParagraphs: string[];
+  afterParagraphs: string[];
+  provider?: import("./llm").LLMProvider;
+  model?: string;
+  temperature?: number;
+}
+
+export interface ChapterEditorIssueFixPreviewResponse {
+  sessionId: string;
+  candidates: ChapterEditorCandidate[];
+  activeCandidateId: string | null;
+  macroAlignmentNote?: string | null;
 }
 
 export interface NovelGenre {

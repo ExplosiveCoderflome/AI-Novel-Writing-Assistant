@@ -68,6 +68,8 @@ export interface NovelApplicationServices {
   analyzeStorylineImpact: NovelApplicationMethod;
   previewChapterRewrite: NovelApplicationMethod;
   previewChapterAiRevision: NovelApplicationMethod;
+  previewChapterContinue: NovelApplicationMethod;
+  previewChapterIssueFix: NovelApplicationMethod;
   getChapterEditorWorkspace: NovelApplicationMethod;
   getNovelState: NovelApplicationMethod;
   getLatestStateSnapshot: NovelApplicationMethod;
@@ -96,7 +98,6 @@ export interface NovelApplicationServices {
   listCharacterCastOptions: NovelApplicationMethod;
   generateCharacterCastOptions: NovelApplicationMethod;
   applyCharacterCastOption: NovelApplicationMethod;
-  runDeferredCharacterEnhancements: NovelApplicationMethod;
   generateSupplementalCharacters: NovelApplicationMethod;
   applySupplementalCharacter: NovelApplicationMethod;
   deleteCharacterCastOption: NovelApplicationMethod;
@@ -186,6 +187,8 @@ export const novelApplicationServiceMethodNames = [
   "analyzeStorylineImpact",
   "previewChapterRewrite",
   "previewChapterAiRevision",
+  "previewChapterContinue",
+  "previewChapterIssueFix",
   "getChapterEditorWorkspace",
   "getNovelState",
   "getLatestStateSnapshot",
@@ -214,7 +217,6 @@ export const novelApplicationServiceMethodNames = [
   "listCharacterCastOptions",
   "generateCharacterCastOptions",
   "applyCharacterCastOption",
-  "runDeferredCharacterEnhancements",
   "generateSupplementalCharacters",
   "applySupplementalCharacter",
   "deleteCharacterCastOption",

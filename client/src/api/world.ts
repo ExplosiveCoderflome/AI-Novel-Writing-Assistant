@@ -1,3 +1,4 @@
+import i18next from "i18next";
 import type { ApiResponse } from "@ai-novel/shared/types/api";
 import type { LLMProvider } from "@ai-novel/shared/types/llm";
 import type {
@@ -27,7 +28,6 @@ import type {
 import { apiClient } from "./client";
 
 const WORLD_GENERATE_ALL_TIMEOUT_MS = 3 * 60 * 1000;
-const WORLD_SKELETON_GENERATE_TIMEOUT_MS = 130 * 1000;
 
 function normalizeSuggestedAxioms(raw: unknown): string[] {
   if (!Array.isArray(raw)) {
@@ -52,7 +52,7 @@ function normalizeSuggestedAxioms(raw: unknown): string[] {
         .find((value) => typeof value === "string") as string | undefined;
 
       if (title && description && effect) {
-        return `${title}（${description}，影响：${effect}）`.trim();
+        return i18next.t("api.world.snc2s", { val1: title, val2: description, val3: effect }).trim();
       }
       if (title && description) {
         return `${title}：${description}`.trim();
@@ -233,7 +233,6 @@ export async function generateWorldSkeleton(payload: {
   const { data } = await apiClient.post<ApiResponse<WorldSkeletonGenerationPayload>>(
     "/worlds/skeleton/generate",
     payload,
-    { timeout: WORLD_SKELETON_GENERATE_TIMEOUT_MS },
   );
   return data;
 }

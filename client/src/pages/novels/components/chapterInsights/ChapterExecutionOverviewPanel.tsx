@@ -1,3 +1,5 @@
+import i18next from "i18next";
+const t = (key: string, options?: any) => i18next.t(key, options) as string;
 import { Link } from "react-router-dom";
 import type { ChapterRuntimePackage } from "@ai-novel/shared/types/chapterRuntime";
 import type { Chapter, StoryPlan } from "@ai-novel/shared/types/novel";
@@ -58,15 +60,13 @@ export default function ChapterExecutionOverviewPanel(props: ChapterExecutionOve
 
   if (!selectedChapter) {
     return (
-      <section className="rounded-2xl border border-dashed border-border/70 bg-background p-4 text-sm leading-6 text-muted-foreground">
-        选中章节后，这里显示本章状态、目标、字数、质量和待处理问题。
-      </section>
+      <section className="rounded-2xl border border-dashed border-border/70 bg-background p-4 text-sm leading-6 text-muted-foreground">{i18next.t("novels.chapterExecutionOverviewPanel.8kyeuf")}</section>
     );
   }
 
-  const chapterLabel = `第${selectedChapter.order}章`;
-  const chapterTitle = selectedChapter.title || "未命名章节";
-  const chapterObjective = chapterPlan?.objective ?? selectedChapter.expectation ?? "这一章还没有明确目标，建议先补章节计划。";
+  const chapterLabel = i18next.t("tensionCurve.tensionCurveChapterDetailSidebar.xrxssk", { val1: selectedChapter.order });
+  const chapterTitle = selectedChapter.title || i18next.t("dict.gen_db55d102");
+  const chapterObjective = chapterPlan?.objective ?? selectedChapter.expectation ?? i18next.t("dict.gen_6fc3748d");
   const runtimePackage = chapterRuntimePackage?.chapterId === selectedChapter.id ? chapterRuntimePackage : null;
   const lengthControl = runtimePackage?.lengthControl ?? null;
   const qualityOverall = chapterQualityReport?.overall ?? selectedChapter.qualityScore ?? null;
@@ -76,7 +76,7 @@ export default function ChapterExecutionOverviewPanel(props: ChapterExecutionOve
   const currentWordCount = runtimePackage?.draft.wordCount ?? selectedChapter.content?.trim().length ?? 0;
   const targetWordCount = selectedChapter.targetWordCount ?? null;
   const issueCount = openAuditIssues.length || reviewResult?.issues?.length || 0;
-  const updatedAt = selectedChapter.updatedAt ? new Date(selectedChapter.updatedAt).toLocaleString("zh-CN") : "暂无";
+  const updatedAt = selectedChapter.updatedAt ? new Date(selectedChapter.updatedAt).toLocaleString("zh-CN") : i18next.t("common.none");
 
   return (
     <section className="space-y-3 rounded-2xl border border-border/70 bg-background/95 p-4">
@@ -89,12 +89,12 @@ export default function ChapterExecutionOverviewPanel(props: ChapterExecutionOve
             </Badge>
             {generationLabel ? <Badge variant="outline">{generationLabel}</Badge> : null}
             {typeof qualityOverall === "number" ? (
-              <Badge variant={getQualityBadgeVariant(qualityOverall)}>质量 {qualityOverall}</Badge>
+              <Badge variant={getQualityBadgeVariant(qualityOverall)}>{i18next.t("dict.gen_41ed49a3")}</Badge>
             ) : null}
           </div>
 
           <div className="space-y-2">
-            <div className="text-xs font-medium text-muted-foreground">章节概览</div>
+            <div className="text-xs font-medium text-muted-foreground">{i18next.t("dict.gen_563dff61")}</div>
             <div className="text-base font-semibold text-foreground">{chapterTitle}</div>
             <p className="line-clamp-6 text-sm leading-6 text-muted-foreground">
               {chapterObjective}
@@ -103,28 +103,28 @@ export default function ChapterExecutionOverviewPanel(props: ChapterExecutionOve
         </div>
 
         <Button asChild size="sm" variant="outline" className="w-full justify-center">
-          <Link to={`/novels/${selectedChapter.novelId}/chapters/${selectedChapter.id}`}>打开章节编辑器</Link>
+          <Link to={`/novels/${selectedChapter.novelId}/chapters/${selectedChapter.id}`}>{i18next.t("dict.gen_a90ec8b1")}</Link>
         </Button>
       </div>
 
       <div className="space-y-2">
-        <OverviewStat label="当前字数" value={String(currentWordCount)} hint="主面板正在显示的正文长度。" />
-        <OverviewStat label="章节目标" value={targetWordCount ? `${targetWordCount} 字` : "未设定"} hint="用于判断当前篇幅是否足够。" />
-        <OverviewStat label="待处理问题" value={String(issueCount)} hint="问题越少，越适合继续推进。" />
-        <OverviewStat label="最近更新" value={updatedAt} hint="用于判断这一章是否需要重新检查。" />
+        <OverviewStat label={i18next.t("dict.gen_ff9c965e")} value={String(currentWordCount)} hint={i18next.t("dict.panelDisplayLength")} />
+        <OverviewStat label={i18next.t("dict.gen_85f9e2b5")} value={targetWordCount ? i18next.t("novels.chapterEditorSidebar.izeb8n", { val1: targetWordCount }) : i18next.t("dict.gen_b25ee1ff")} hint={i18next.t("dict.gen_6a869271")} />
+        <OverviewStat label={i18next.t("dict.gen_0dfc9235")} value={String(issueCount)} hint={i18next.t("dict.gen_8527538c")} />
+        <OverviewStat label={i18next.t("dict.gen_06dc9b38")} value={updatedAt} hint={i18next.t("dict.gen_bec6b1bc")} />
       </div>
 
       {lengthControl ? (
         <div className="space-y-2">
           <OverviewStat
-            label="预算区间"
+            label={i18next.t("dict.gen_58e59c31")}
             value={`${lengthControl.softMinWordCount}-${lengthControl.softMaxWordCount}`}
-            hint={`硬上限 ${lengthControl.hardMaxWordCount} 字`}
+            hint={i18next.t("novels.chapterExecutionOverviewPanel.9tohbf", { val1: lengthControl.hardMaxWordCount })}
           />
           <OverviewStat
-            label="控字模式"
-            value={lengthControl.wordControlMode === "prompt_only" ? "自然优先" : lengthControl.wordControlMode === "balanced" ? "标准控字" : "混合控字"}
-            hint={`偏差 ${Math.round(lengthControl.variance * 100)}%`}
+            label={i18next.t("dict.gen_cfebad7b")}
+            value={lengthControl.wordControlMode === "prompt_only" ? i18next.t("dict.gen_e25414a2") : lengthControl.wordControlMode === "balanced" ? i18next.t("dict.gen_332305cd") : i18next.t("dict.gen_d15aa8f4")}
+            hint={i18next.t("novels.chapterExecutionOverviewPanel.9fipw4", { val1: Math.round(lengthControl.variance * 100) })}
           />
         </div>
       ) : null}

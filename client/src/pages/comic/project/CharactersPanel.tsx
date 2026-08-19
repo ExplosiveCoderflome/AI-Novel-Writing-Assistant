@@ -1,3 +1,5 @@
+import i18next from "i18next";
+const t = (key: string, options?: any) => i18next.t(key, options) as string;
 import { useEffect, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
@@ -104,10 +106,10 @@ function CharacterStatusBadges({
   return (
     <div className="flex flex-wrap items-center gap-2">
       <Badge variant={sheetData.status === "done" ? "default" : "secondary"} className="text-[11px]">
-        三视图{sheetData.status === "done" ? ` v${sheetData.version ?? 1}` : "待生成"}
+        三视图{sheetData.status === "done" ? ` v${sheetData.version ?? 1}` : i18next.t("dict.gen_418dde27")}
       </Badge>
       <Badge variant={expressionData.status === "done" ? "default" : "secondary"} className="text-[11px]">
-        表情稿{expressionData.status === "done" ? ` v${expressionData.version ?? 1}` : "待生成"}
+        表情稿{expressionData.status === "done" ? ` v${expressionData.version ?? 1}` : i18next.t("dict.gen_418dde27")}
       </Badge>
     </div>
   );
@@ -125,8 +127,8 @@ function CharacterList({
   return (
     <aside className="overflow-hidden rounded-lg border bg-background">
       <div className="border-b px-3 py-3">
-        <p className="text-sm font-semibold">角色列表</p>
-        <p className="mt-0.5 text-xs text-muted-foreground">{characters.length} 个角色</p>
+        <p className="text-sm font-semibold">{i18next.t("dict.gen_f53b5122")}</p>
+        <p className="mt-0.5 text-xs text-muted-foreground">{i18next.t("dict.characterTotal")}</p>
       </div>
       <div className="max-h-[720px] overflow-y-auto p-2">
         <div className="space-y-1">
@@ -157,8 +159,8 @@ function CharacterList({
                     <User className="h-4 w-4" />
                     {hasSheet && (
                       <img
-                        src={characterSheetImageUrl(character.id)}
-                        alt={`${character.name} 头像`}
+                        src={characterSheetImageUrl(character.id, sheetData?.generatedAt || sheetData?.version)}
+                        alt={i18next.t("comic.charactersPanel.k8fbij", { val1: character.name })}
                         className="absolute inset-0 h-full w-full object-cover object-left"
                         loading="lazy"
                         onError={(event) => {
@@ -180,9 +182,9 @@ function CharacterList({
                       </p>
                     )}
                     <div className="mt-2 flex items-center gap-2 text-[10px] text-muted-foreground">
-                      <span className={hasSheet ? "text-primary" : ""}>三视图</span>
+                      <span className={hasSheet ? "text-primary" : ""}>{i18next.t("dict.threeViews")}</span>
                       <span className="text-border">/</span>
-                      <span className={expressionData.status === "done" ? "text-primary" : ""}>表情稿</span>
+                      <span className={expressionData.status === "done" ? "text-primary" : ""}>{i18next.t("dict.gen_1a07c5a4")}</span>
                     </div>
                   </div>
                 </div>
@@ -200,10 +202,10 @@ function CharacterList({
 // 古风/韩漫语境里"鹅蛋脸/桃花眼"等描述男女通用，必须显式声明性别，否则模型偏向韩漫美男。
 
 const GENDER_LABELS: Record<ComicCharacterGender, string> = {
-  unknown: "未指定",
-  male: "男",
-  female: "女",
-  other: "中性",
+  unknown: i18next.t("dict.gen_7598f152"),
+  male: i18next.t("dict.gen_36a4908a"),
+  female: i18next.t("dict.gen_87c835a6"),
+  other: i18next.t("dict.gen_62731aaf"),
 };
 
 const GENDER_BADGE_STYLE: Record<ComicCharacterGender, string> = {
@@ -221,7 +223,7 @@ function GenderSelector({ character }: { character: ComicCharacter }) {
     mutationFn: (g: ComicCharacterGender) => updateCharacterGender(character.id, g),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["comic", "project"] });
-      toast.success("性别已更新，下次生图生效");
+      toast.success(i18next.t("dict.gen_76290214"));
     },
     onError: (e) => toast.error(String(e)),
   });
@@ -232,7 +234,7 @@ function GenderSelector({ character }: { character: ComicCharacter }) {
         className={`rounded border px-1.5 py-0.5 text-[11px] leading-tight ${GENDER_BADGE_STYLE[current]} disabled:opacity-50`}
         value={current}
         disabled={mut.isPending}
-        title="角色性别（GENDER LOCK）：避免生图把女画成男或反之"
+        title={i18next.t("dict.gen_3c8b2dd2")}
         onChange={(e) => mut.mutate(e.target.value as ComicCharacterGender)}
       >
         {(Object.keys(GENDER_LABELS) as ComicCharacterGender[]).map((g) => (
@@ -247,15 +249,15 @@ function GenderSelector({ character }: { character: ComicCharacter }) {
 // 一次编辑，所有生图（三视图/表情稿/资产/格子图）后续生成都会读新版
 
 const FACE_PRESETS: Array<{ key: string; label: string; snippet: string }> = [
-  { key: "round", label: "圆脸", snippet: "脸型圆润饱满，下巴线条柔和不尖锐，round soft face, gentle rounded jawline" },
-  { key: "square", label: "方脸", snippet: "脸型方正，下颌角清晰，square face shape, defined jawline angle" },
-  { key: "oval", label: "鹅蛋脸", snippet: "脸型为标准鹅蛋脸，oval face shape, balanced proportions" },
-  { key: "long", label: "长脸", snippet: "脸型偏长，long face shape, vertically elongated" },
-  { key: "young", label: "童颜", snippet: "面部线条柔和带婴儿肥，年龄感偏小，youthful baby face, soft cheeks" },
-  { key: "mature", label: "成熟", snippet: "面部骨骼明显，气质成熟，mature defined bone structure, adult features" },
-  { key: "sharp", label: "棱角分明", snippet: "颧骨与下颌线条分明，sharp cheekbones, well-defined jawline" },
-  { key: "wide_eyes", label: "眼距偏宽", snippet: "双眼间距偏宽，wide-set eyes" },
-  { key: "narrow_eyes", label: "丹凤眼", snippet: "眼型为细长丹凤眼，narrow phoenix eyes, upturned outer corners" },
+  { key: "round", label: i18next.t("dict.gen_68deccb8"), snippet: i18next.t("dict.gen_2086a7e4") },
+  { key: "square", label: i18next.t("dict.gen_d9c90f41"), snippet: i18next.t("dict.gen_2bc63412") },
+  { key: "oval", label: i18next.t("dict.gen_cfa353ec"), snippet: i18next.t("dict.gen_ea9cf394") },
+  { key: "long", label: i18next.t("dict.gen_ec65bf4c"), snippet: i18next.t("dict.gen_745e85da") },
+  { key: "young", label: i18next.t("dict.gen_874f01aa"), snippet: i18next.t("dict.gen_ef01bdfe") },
+  { key: "mature", label: i18next.t("dict.gen_e050f80d"), snippet: i18next.t("dict.gen_d2dceb22") },
+  { key: "sharp", label: i18next.t("dict.gen_5699356c"), snippet: i18next.t("dict.gen_4f3de01e") },
+  { key: "wide_eyes", label: i18next.t("dict.gen_eb7e9eb1"), snippet: i18next.t("dict.gen_2d8a242b") },
+  { key: "narrow_eyes", label: i18next.t("dict.gen_aa093d4f"), snippet: i18next.t("dict.gen_cbfa55c7") },
 ];
 
 function getFaceShapeOverride(character: ComicCharacter): string {
@@ -296,7 +298,7 @@ function VisualAnchorEditor({ character }: { character: ComicCharacter }) {
       }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["comic", "project"] });
-      toast.success("外貌锚点已保存，下次生图生效");
+      toast.success(i18next.t("dict.gen_114c60f4"));
       setEditing(false);
     },
     onError: (e) => toast.error(String(e)),
@@ -319,7 +321,7 @@ function VisualAnchorEditor({ character }: { character: ComicCharacter }) {
     if (suggestion.faceShapeOverride !== undefined) setOverride(suggestion.faceShapeOverride);
     setSuggestion(null);
     setShowAIBox(false);
-    toast.success("已采用 AI 建议，请检查后保存");
+    toast.success(i18next.t("dict.gen_69c96cad"));
   };
 
   const setPresetAsOverride = (snippet: string) => {
@@ -342,20 +344,16 @@ function VisualAnchorEditor({ character }: { character: ComicCharacter }) {
   return (
     <div className="border-b px-4 py-3">
       <div className="flex items-center justify-between gap-2">
-        <p className="text-sm font-medium">外貌锚点</p>
+        <p className="text-sm font-medium">{i18next.t("dict.gen_9eca9787")}</p>
         {!editing && (
           <button
             type="button"
             className="text-[11px] text-muted-foreground underline-offset-2 hover:text-foreground hover:underline"
             onClick={() => setEditing(true)}
-          >
-            编辑
-          </button>
+          >{i18next.t("common.edit")}</button>
         )}
       </div>
-      <p className="mt-1 text-[11px] text-muted-foreground">
-        所有生图的源头：三视图、表情稿、资产、格子图都读这里。改一次，后续生成全部跟上。
-      </p>
+      <p className="mt-1 text-[11px] text-muted-foreground">{i18next.t("comic.charactersPanel.kb2dcn")}</p>
 
       {editing ? (
         <>
@@ -371,7 +369,7 @@ function VisualAnchorEditor({ character }: { character: ComicCharacter }) {
                 className="text-[10px] text-muted-foreground underline-offset-2 hover:text-foreground hover:underline"
                 onClick={() => { setShowAIBox((v) => !v); setSuggestion(null); }}
               >
-                {showAIBox ? "收起" : "展开"}
+                {showAIBox ? i18next.t("dict.gen_def9e98b") : i18next.t("dict.gen_e2edde5a")}
               </button>
             </div>
             {showAIBox && (
@@ -382,7 +380,7 @@ function VisualAnchorEditor({ character }: { character: ComicCharacter }) {
                 <input
                   type="text"
                   className="mt-1.5 w-full rounded border bg-background px-2 py-1 text-xs"
-                  placeholder="（可选）告诉 AI 怎么改，比如：脸更圆、年龄感更小、像古风少年"
+                  placeholder={i18next.t("dict.gen_542e1cd9")}
                   value={aiInstruction}
                   onChange={(e) => setAiInstruction(e.target.value)}
                   disabled={rewriteMut.isPending}
@@ -396,29 +394,29 @@ function VisualAnchorEditor({ character }: { character: ComicCharacter }) {
                     onClick={() => rewriteMut.mutate()}
                   >
                     {rewriteMut.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Sparkles className="h-3.5 w-3.5" />}
-                    {rewriteMut.isPending ? "生成中..." : "让 AI 优化"}
+                    {rewriteMut.isPending ? i18next.t("dict.gen_4d020ba3") : i18next.t("dict.gen_16ad0ef9")}
                   </Button>
                 </div>
                 {suggestion && (
                   <div className="mt-2 space-y-2 rounded border bg-background p-2 text-xs">
-                    <p className="text-[10px] font-semibold text-muted-foreground">AI 建议（待采用）</p>
+                    <p className="text-[10px] font-semibold text-muted-foreground">{i18next.t("dict.gen_4a1392c7")}</p>
                     <div>
-                      <p className="text-[10px] text-muted-foreground">修改说明</p>
+                      <p className="text-[10px] text-muted-foreground">{i18next.t("dict.gen_7f49ef18")}</p>
                       <p className="mt-0.5 leading-relaxed">{suggestion.rationale}</p>
                     </div>
                     <div>
-                      <p className="text-[10px] text-muted-foreground">新的主外貌</p>
+                      <p className="text-[10px] text-muted-foreground">{i18next.t("dict.gen_b7729804")}</p>
                       <p className="mt-0.5 whitespace-pre-wrap rounded bg-muted/50 p-1.5 leading-relaxed">{suggestion.appearance}</p>
                     </div>
                     {suggestion.faceShapeOverride && (
                       <div>
-                        <p className="text-[10px] text-amber-700 dark:text-amber-300">新的脸型强覆盖</p>
+                        <p className="text-[10px] text-amber-700 dark:text-amber-300">{i18next.t("dict.gen_00dc428e")}</p>
                         <p className="mt-0.5 whitespace-pre-wrap rounded bg-amber-50/60 p-1.5 leading-relaxed dark:bg-amber-900/20">{suggestion.faceShapeOverride}</p>
                       </div>
                     )}
                     <div className="flex gap-2 pt-1">
-                      <Button type="button" size="sm" onClick={adoptSuggestion}>采用</Button>
-                      <Button type="button" size="sm" variant="outline" onClick={() => setSuggestion(null)}>丢弃</Button>
+                      <Button type="button" size="sm" onClick={adoptSuggestion}>{i18next.t("dict.gen_7b4eb56b")}</Button>
+                      <Button type="button" size="sm" variant="outline" onClick={() => setSuggestion(null)}>{i18next.t("comic.charactersPanel.dt7l")}</Button>
                     </div>
                   </div>
                 )}
@@ -426,40 +424,36 @@ function VisualAnchorEditor({ character }: { character: ComicCharacter }) {
             )}
           </div>
 
-          <p className="mt-3 mb-1 text-[10px] font-semibold text-muted-foreground">主外貌描述</p>
+          <p className="mt-3 mb-1 text-[10px] font-semibold text-muted-foreground">{i18next.t("dict.gen_3768e796")}</p>
           <textarea
             className="w-full resize-y rounded-md border bg-background px-2.5 py-1.5 text-xs leading-relaxed"
             style={{ minHeight: 100 }}
             value={text}
             onChange={(e) => setText(e.target.value)}
-            placeholder="描述角色外貌：五官、肤色、发型、年龄、体格、标志特征..."
+            placeholder={i18next.t("dict.gen_7bdded81")}
           />
 
           <div className="mt-3 rounded-md border border-amber-300/50 bg-amber-50/40 px-2.5 py-2 dark:border-amber-700/50 dark:bg-amber-900/10">
             <div className="flex items-center justify-between">
-              <p className="text-[10px] font-semibold text-amber-700 dark:text-amber-300">脸型强覆盖（FINAL OVERRIDE）</p>
+              <p className="text-[10px] font-semibold text-amber-700 dark:text-amber-300">{i18next.t("dict.gen_d1c89bcd")}</p>
               {override && (
                 <button
                   type="button"
                   className="text-[10px] text-muted-foreground hover:text-destructive"
                   onClick={() => setOverride("")}
-                >
-                  清除
-                </button>
+                >{i18next.t("comic.charactersPanel.jjen")}</button>
               )}
             </div>
-            <p className="mt-0.5 text-[10px] leading-relaxed text-muted-foreground">
-              当主外貌里有「锐利如刀刻」「三角眼」等与你期望脸型矛盾的词时，把脸型描述填到这里——生图 prompt 会以最高优先级压制冲突词，无需删原描述。
-            </p>
+            <p className="mt-0.5 text-[10px] leading-relaxed text-muted-foreground">{i18next.t("comic.charactersPanel.m4uoii")}</p>
             <textarea
               className="mt-1.5 w-full resize-y rounded border bg-background px-2 py-1 text-xs leading-relaxed"
               style={{ minHeight: 48 }}
               value={override}
               onChange={(e) => setOverride(e.target.value)}
-              placeholder="留空 = 不启用。例如：脸型圆润饱满，下巴柔和不尖锐"
+              placeholder={i18next.t("dict.gen_82fbc951")}
             />
             <div className="mt-1.5">
-              <p className="mb-1 text-[10px] text-muted-foreground">骨相速记（点击设为覆盖；已有覆盖时追加）：</p>
+              <p className="mb-1 text-[10px] text-muted-foreground">{i18next.t("dict.gen_b04c8ef5")}</p>
               <div className="flex flex-wrap gap-1">
                 {FACE_PRESETS.map((p) => (
                   <button
@@ -492,19 +486,17 @@ function VisualAnchorEditor({ character }: { character: ComicCharacter }) {
               variant="outline"
               disabled={saveMut.isPending}
               onClick={() => { setText(initial); setOverride(initialOverride); setEditing(false); }}
-            >
-              取消
-            </Button>
+            >{i18next.t("common.cancel")}</Button>
           </div>
         </>
       ) : (
         <>
           <p className="mt-2 whitespace-pre-wrap rounded-md bg-muted/50 px-3 py-2 text-xs leading-relaxed text-muted-foreground">
-            {initial || "该角色还没有外貌锚点。"}
+            {initial || i18next.t("dict.gen_34e77039")}
           </p>
           {initialOverride && (
             <div className="mt-1.5 rounded-md border border-amber-300/50 bg-amber-50/40 px-2.5 py-1.5 text-[11px] text-amber-800 dark:border-amber-700/50 dark:bg-amber-900/10 dark:text-amber-300">
-              <span className="font-semibold">脸型强覆盖：</span>{initialOverride}
+              <span className="font-semibold">{i18next.t("dict.gen_6f58b542")}</span>{initialOverride}
             </div>
           )}
         </>
@@ -541,7 +533,7 @@ function CharacterDetail({
       generate: (overrides) => generateCharacterSheet(character.id, provider || undefined, options, overrides),
       onSuccess: () => {
         queryClient.invalidateQueries({ queryKey: ["comic", "project"] });
-        toast.success(`${character.name} 设计稿生成完成`);
+        toast.success(i18next.t("comic.charactersPanel.5glpwf", { val1: character.name }));
         setShowSheetTuning(false);
       },
     });
@@ -553,7 +545,7 @@ function CharacterDetail({
       generate: (overrides) => generateCharacterExpressionSheet(character.id, provider || undefined, overrides),
       onSuccess: () => {
         queryClient.invalidateQueries({ queryKey: ["comic", "project"] });
-        toast.success(`${character.name} 表情稿生成完成`);
+        toast.success(i18next.t("comic.charactersPanel.mkc7c7", { val1: character.name }));
       },
     });
   };
@@ -592,8 +584,8 @@ function CharacterDetail({
           <div className="border-b px-4 py-3">
             <div className="flex items-center justify-between gap-3">
               <div>
-                <p className="text-sm font-medium">三视图主设计稿</p>
-                <p className="mt-0.5 text-xs text-muted-foreground">正面、侧面、背面和面部特写用于锁定角色外观。</p>
+                <p className="text-sm font-medium">{i18next.t("dict.threeViewMainDesign")}</p>
+                <p className="mt-0.5 text-xs text-muted-foreground">{i18next.t("dict.gen_3789c071")}</p>
               </div>
               {hasSheet && (
                 <Button
@@ -603,9 +595,7 @@ function CharacterDetail({
                   disabled={isGenerating || showSheetTuning}
                   onClick={openSheetTuning}
                 >
-                  <Wand2 className="h-4 w-4" />
-                  调整三视图
-                </Button>
+                  <Wand2 className="h-4 w-4" />{i18next.t("comic.charactersPanel.7o7mi8")}</Button>
               )}
             </div>
           </div>
@@ -613,26 +603,24 @@ function CharacterDetail({
           <div className="flex min-h-[360px] items-center justify-center bg-muted/30 p-4">
             {hasSheet ? (
               <img
-                src={characterSheetImageUrl(character.id)}
-                alt={`${character.name} 设计稿`}
+                src={characterSheetImageUrl(character.id, sheetData?.generatedAt || sheetData?.version)}
+                alt={i18next.t("comic.charactersPanel.bt4et0", { val1: character.name })}
                 className="max-h-[520px] w-full rounded-md object-contain"
               />
             ) : isGenerating ? (
               <div className="flex flex-col items-center gap-2 text-muted-foreground">
                 <Loader2 className="h-8 w-8 animate-spin" />
-                <span className="text-sm">三视图生成中</span>
+                <span className="text-sm">{i18next.t("dict.threeViewGenerating")}</span>
               </div>
             ) : (
               <div className="flex flex-col items-center gap-3 text-muted-foreground">
                 <ImageIcon className="h-10 w-10 opacity-40" />
                 <div className="text-center">
-                  <p className="text-sm font-medium text-foreground">还没有三视图</p>
-                  <p className="mt-1 text-xs">先生成主设计稿，再继续制作表情稿和格子图参考。</p>
+                  <p className="text-sm font-medium text-foreground">{i18next.t("dict.gen_450e09a5")}</p>
+                  <p className="mt-1 text-xs">{i18next.t("dict.gen_64805be5")}</p>
                 </div>
                 <Button type="button" size="sm" disabled={isGenerating} onClick={() => startSheetGeneration(undefined)}>
-                  <Sparkles className="h-4 w-4" />
-                  生成三视图
-                </Button>
+                  <Sparkles className="h-4 w-4" />{i18next.t("comic.charactersPanel.qkk69c")}</Button>
               </div>
             )}
           </div>
@@ -644,8 +632,8 @@ function CharacterDetail({
           <div className="border-t px-4 py-3">
             <div className="mb-2 flex items-center justify-between gap-3">
               <div>
-                <p className="text-sm font-medium">表情设计稿</p>
-                <p className="mt-0.5 text-xs text-muted-foreground">常用表情会在分格生成时作为情绪参考。</p>
+                <p className="text-sm font-medium">{i18next.t("dict.gen_21b676f8")}</p>
+                <p className="mt-0.5 text-xs text-muted-foreground">{i18next.t("dict.gen_3ec60418")}</p>
               </div>
               <Button
                 type="button"
@@ -656,19 +644,13 @@ function CharacterDetail({
               >
                 {isExpressionGenerating ? (
                   <>
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                    生成中
-                  </>
+                    <Loader2 className="h-4 w-4 animate-spin" />{i18next.t("dict.gen_1ae3a984")}</>
                 ) : expressionData.status === "done" ? (
                   <>
-                    <RefreshCw className="h-4 w-4" />
-                    更新表情稿
-                  </>
+                    <RefreshCw className="h-4 w-4" />{i18next.t("comic.charactersPanel.a8wcai")}</>
                 ) : (
                   <>
-                    <Smile className="h-4 w-4" />
-                    生成表情稿
-                  </>
+                    <Smile className="h-4 w-4" />{i18next.t("comic.charactersPanel.qc75yn")}</>
                 )}
               </Button>
             </div>
@@ -676,7 +658,7 @@ function CharacterDetail({
               <div className="overflow-hidden rounded-md border bg-muted">
                 <img
                   src={characterExpressionImageUrl(character.id)}
-                  alt={`${character.name} 表情稿`}
+                  alt={i18next.t("comic.charactersPanel.bttai6", { val1: character.name })}
                   className="max-h-56 w-full object-contain"
                   loading="lazy"
                 />
@@ -684,8 +666,8 @@ function CharacterDetail({
             ) : (
               <div className="flex min-h-24 items-center justify-center rounded-md border border-dashed bg-muted/30 px-3 py-4 text-center text-xs text-muted-foreground">
                 {expressionData.status === "error"
-                  ? expressionData.error ?? "表情稿生成失败"
-                  : "生成三视图后，可继续生成 6 个核心表情。"}
+                  ? expressionData.error ?? i18next.t("dict.gen_0a46bee3")
+                  : i18next.t("dict.gen_a4259bf8")}
               </div>
             )}
           </div>
@@ -696,7 +678,7 @@ function CharacterDetail({
 
 
           <div className="border-b px-4 py-3">
-            <p className="text-sm font-medium">三视图提示词</p>
+            <p className="text-sm font-medium">{i18next.t("dict.threeViewPrompt")}</p>
             <div className="mt-2 max-h-48 overflow-y-auto rounded-md border bg-muted/20 px-3 py-2 text-xs leading-relaxed text-muted-foreground">
               {sheetData.prompt || recommendedSheetPrompt}
             </div>
@@ -705,8 +687,8 @@ function CharacterDetail({
           <div className="px-4 py-3">
             <div className="flex items-center justify-between gap-3">
               <div>
-                <p className="text-sm font-medium">三视图微调</p>
-                <p className="mt-0.5 text-xs text-muted-foreground">编辑提示词后重新生成，成功后替换当前主设计稿。</p>
+                <p className="text-sm font-medium">{i18next.t("dict.threeViewFineTune")}</p>
+                <p className="mt-0.5 text-xs text-muted-foreground">{i18next.t("dict.gen_58907622")}</p>
               </div>
             </div>
 
@@ -715,7 +697,7 @@ function CharacterDetail({
                 <div className="mt-3 space-y-3">
                   <div className="rounded-md border bg-muted/30 px-3 py-2">
                     <div className="flex items-center justify-between gap-3">
-                      <p className="text-xs font-medium">可编辑提示词</p>
+                      <p className="text-xs font-medium">{i18next.t("dict.gen_400b62a3")}</p>
                       <Button
                         type="button"
                         size="sm"
@@ -723,23 +705,19 @@ function CharacterDetail({
                         className="h-7 px-2 text-xs"
                         disabled={isGenerating}
                         onClick={() => setDraftPrompt(recommendedSheetPrompt)}
-                      >
-                        恢复推荐提示词
-                      </Button>
+                      >{i18next.t("comic.charactersPanel.j980kw")}</Button>
                     </div>
-                    <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
-                      常规微调只改风格、服装细节或姿态；角色脸型、发型和标志特征会随外貌锚点一起锁定。
-                    </p>
+                    <p className="mt-1 text-xs leading-relaxed text-muted-foreground">{i18next.t("comic.charactersPanel.xr4dri")}</p>
                   </div>
                   <textarea
                     className="min-h-[180px] w-full resize-y rounded-md border bg-background px-3 py-2 text-xs leading-relaxed"
                     value={draftPrompt}
-                    placeholder="输入本次三视图生成提示词"
+                    placeholder={i18next.t("dict.gen_ce6994b2")}
                     disabled={isGenerating}
                     onChange={(event) => setDraftPrompt(event.target.value)}
                   />
                   {!sheetData.prompt && (
-                    <p className="text-xs text-muted-foreground">已填入推荐提示词，可直接微调后生成。</p>
+                    <p className="text-xs text-muted-foreground">{i18next.t("dict.gen_26712cb6")}</p>
                   )}
                   <div className="space-y-2 rounded-md border bg-background px-3 py-2">
                     <label className="flex items-start gap-2 text-xs text-muted-foreground">
@@ -750,7 +728,7 @@ function CharacterDetail({
                         disabled={isGenerating}
                         onChange={(event) => setUseCurrentImageAsReference(event.target.checked)}
                       />
-                      <span>使用这张三视图作为参考图</span>
+                      <span>{i18next.t("dict.use3ViewAsReference")}</span>
                     </label>
                     <label className="flex items-start gap-2 text-xs text-muted-foreground">
                       <input
@@ -760,19 +738,19 @@ function CharacterDetail({
                         disabled={isGenerating}
                         onChange={(event) => setLockAppearance(event.target.checked)}
                       />
-                      <span>锁定角色样貌</span>
+                      <span>{i18next.t("dict.gen_1b8944a1")}</span>
                     </label>
                     {lockAppearance && (
                       <div className="space-y-1">
                         <textarea
                           className="min-h-16 w-full resize-y rounded-md border bg-muted/20 px-2 py-1.5 text-xs leading-relaxed"
                           value={appearanceOverride}
-                          placeholder="补充用于锁定角色相貌的关键词，例如发型、眼睛、体型、服装和标志特征"
+                          placeholder={i18next.t("dict.gen_af66a1b2")}
                           disabled={isGenerating}
                           onChange={(event) => setAppearanceOverride(event.target.value)}
                         />
                         {!appearanceOverride.trim() && (
-                          <p className="text-[11px] text-muted-foreground">填写样貌关键词后，生成时会优先保持这些特征。</p>
+                          <p className="text-[11px] text-muted-foreground">{i18next.t("dict.gen_39a0a9e2")}</p>
                         )}
                       </div>
                     )}
@@ -793,14 +771,10 @@ function CharacterDetail({
                     >
                       {isGenerating ? (
                         <>
-                          <Loader2 className="h-4 w-4 animate-spin" />
-                          生成中
-                        </>
+                          <Loader2 className="h-4 w-4 animate-spin" />{i18next.t("dict.gen_1ae3a984")}</>
                       ) : (
                         <>
-                          <Sparkles className="h-4 w-4" />
-                          生成微调图
-                        </>
+                          <Sparkles className="h-4 w-4" />{i18next.t("comic.charactersPanel.qhyr54")}</>
                       )}
                     </Button>
                     <Button
@@ -809,9 +783,7 @@ function CharacterDetail({
                       variant="outline"
                       disabled={isGenerating}
                       onClick={() => setShowSheetTuning(false)}
-                    >
-                      取消
-                    </Button>
+                    >{i18next.t("common.cancel")}</Button>
                   </div>
                 </div>
               ) : (
@@ -822,14 +794,10 @@ function CharacterDetail({
                   disabled={isGenerating}
                   onClick={openSheetTuning}
                 >
-                  <Wand2 className="h-4 w-4" />
-                  打开提示词微调
-                </Button>
+                  <Wand2 className="h-4 w-4" />{i18next.t("comic.charactersPanel.868yrv")}</Button>
               )
             ) : (
-              <div className="mt-3 rounded-md border border-dashed bg-muted/30 px-3 py-4 text-xs leading-relaxed text-muted-foreground">
-                先生成三视图，系统会保存本次提示词，并允许基于当前图继续微调。
-              </div>
+              <div className="mt-3 rounded-md border border-dashed bg-muted/30 px-3 py-4 text-xs leading-relaxed text-muted-foreground">{i18next.t("comic.charactersPanel.ujjvo9")}</div>
             )}
           </div>
         </aside>
@@ -844,12 +812,12 @@ function CharacterDetail({
 // ─── Asset Section ────────────────────────────────────────────────────────────
 
 const ASSET_TYPE_LABELS: Record<CharacterAssetType, string> = {
-  costume: "服装",
-  weapon: "武器",
-  item: "道具",
-  vehicle: "载具",
-  ability: "技能",
-  other: "其他",
+  costume: i18next.t("dict.gen_d2fe24af"),
+  weapon: i18next.t("dict.gen_44a3d9a4"),
+  item: i18next.t("dict.gen_de24bfb7"),
+  vehicle: i18next.t("dict.gen_bdad24c8"),
+  ability: i18next.t("dict.gen_699143b1"),
+  other: i18next.t("dict.gen_0d98c747"),
 };
 
 const ASSET_TYPE_ORDER: CharacterAssetType[] = ["costume", "weapon", "item", "vehicle", "ability", "other"];
@@ -871,10 +839,10 @@ const STATUS_DOT_STYLE: Record<string, string> = {
 };
 
 const STATUS_DOT_TITLE: Record<string, string> = {
-  idle: "未生成",
-  generating: "生成中",
-  done: "已就绪",
-  error: "生成失败",
+  idle: i18next.t("dict.gen_da3b420e"),
+  generating: i18next.t("dict.gen_1ae3a984"),
+  done: i18next.t("dict.gen_c30ecc7a"),
+  error: i18next.t("dict.gen_7f7de8a2"),
 };
 
 function parseAssetImageData(raw: string | null): AssetImageData {
@@ -933,7 +901,7 @@ function AssetCard({
         onUpload={(file) => uploadMut.mutate(file)}
         onDelete={() => deleteMut.mutate()}
         busy={uploadMut.isPending || deleteMut.isPending}
-        confirmDeleteText={`删除资产「${asset.name}」？此操作不可撤销。`}
+        confirmDeleteText={i18next.t("comic.charactersPanel.v7seqg", { val1: asset.name })}
       />
     </>
   );
@@ -1008,7 +976,7 @@ function AssetAddRow({
   });
 
   const accent = ASSET_TYPE_ACCENT[type];
-  const placeholderName = type === "costume" ? "战斗套装" : type === "weapon" ? "月光剑" : type === "vehicle" ? "踏雪马" : type === "ability" ? "破云剑诀" : "宗门腰牌";
+  const placeholderName = type === "costume" ? i18next.t("dict.gen_9ddd138a") : type === "weapon" ? i18next.t("dict.gen_36572ff5") : type === "vehicle" ? i18next.t("dict.gen_dcdc4e84") : type === "ability" ? i18next.t("dict.gen_2a498f87") : i18next.t("dict.gen_8f4ae2ef");
 
   return (
     <div className="mb-3 rounded-lg border-2 border-dashed border-primary/30 bg-background px-3 py-2.5">
@@ -1018,21 +986,19 @@ function AssetAddRow({
           <p className="text-[11px] font-semibold text-foreground">
             新增{ASSET_TYPE_LABELS[type]}
           </p>
-          <span className="text-[10px] text-muted-foreground">回车提交 · Esc 关闭 · 可连续添加</span>
+          <span className="text-[10px] text-muted-foreground">{i18next.t("dict.gen_22fa09d2")}</span>
         </div>
         <button
           type="button"
           className="text-[11px] text-muted-foreground hover:text-foreground"
           onClick={onClose}
-        >
-          完成
-        </button>
+        >{i18next.t("comic.charactersPanel.g3yc")}</button>
       </div>
       <div className="flex gap-2">
         <input
           ref={inputRef}
           className="flex-1 rounded-md border bg-background px-2.5 py-1.5 text-xs outline-none focus:border-primary focus:ring-1 focus:ring-primary/20"
-          placeholder={`${ASSET_TYPE_LABELS[type]}名称（如：${placeholderName}）`}
+          placeholder={i18next.t("comic.charactersPanel.1ozd6z", { val1: ASSET_TYPE_LABELS[type], val2: placeholderName })}
           value={name}
           disabled={createMut.isPending}
           onChange={(e) => setName(e.target.value)}
@@ -1043,7 +1009,7 @@ function AssetAddRow({
         />
         <input
           className="flex-[1.2] rounded-md border bg-background px-2.5 py-1.5 text-xs outline-none focus:border-primary focus:ring-1 focus:ring-primary/20"
-          placeholder="外观描述（可选，注入生图提示词）"
+          placeholder={i18next.t("dict.gen_e180c5b1")}
           value={desc}
           disabled={createMut.isPending}
           onChange={(e) => setDesc(e.target.value)}
@@ -1058,7 +1024,7 @@ function AssetAddRow({
           className="rounded-md bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground transition-opacity hover:opacity-90 disabled:opacity-40"
           onClick={() => createMut.mutate()}
         >
-          {createMut.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : "添加"}
+          {createMut.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : i18next.t("dict.gen_b58c7549")}
         </button>
       </div>
     </div>
@@ -1094,17 +1060,17 @@ function AssetSection({
     <div className="border-t bg-muted/10 px-4 py-4">
       {/* 标题 */}
       <div className="mb-2.5 flex items-baseline gap-2">
-        <p className="text-sm font-semibold">角色资产库</p>
+        <p className="text-sm font-semibold">{i18next.t("dict.gen_fb3d6e79")}</p>
         <span className="text-[11px] text-muted-foreground">
           {assets.length > 0
-            ? `${assets.length} 个资产 · 已按类型分组`
-            : "服装、武器、道具一旦录入，生格子图会自动注入到参考图，提升一致性"}
+            ? i18next.t("comic.charactersPanel.bngmmn", { val1: assets.length })
+            : i18next.t("dict.gen_1cce0929")}
         </span>
       </div>
 
       {/* 类型快捷条 = 主入口 */}
       <div className="mb-3 flex flex-wrap items-center gap-1.5">
-        <span className="text-[10px] text-muted-foreground">添加：</span>
+        <span className="text-[10px] text-muted-foreground">{i18next.t("dict.gen_a7e83b27")}</span>
         {ASSET_TYPE_ORDER.map((t) => (
           <AssetTypeChip
             key={t}
@@ -1128,9 +1094,7 @@ function AssetSection({
 
       {isLoading && (
         <div className="flex items-center justify-center gap-2 py-6 text-xs text-muted-foreground">
-          <Loader2 className="h-3.5 w-3.5 animate-spin" />
-          加载中...
-        </div>
+          <Loader2 className="h-3.5 w-3.5 animate-spin" />{i18next.t("dict.gen_26b5bd49")}</div>
       )}
 
       {isEmpty && !activeAddType && (
@@ -1138,11 +1102,8 @@ function AssetSection({
           <div className="mx-auto mb-2 flex h-10 w-10 items-center justify-center rounded-full bg-muted text-muted-foreground">
             <Plus className="h-5 w-5" />
           </div>
-          <p className="text-xs font-semibold text-foreground">还没有资产</p>
-          <p className="mt-1 text-[11px] leading-relaxed text-muted-foreground">
-            点击上方任意彩色标签即可快速添加。<br />
-            生格子图时会自动把对应资产合成到参考图，锁定服装 / 武器 / 道具外形。
-          </p>
+          <p className="text-xs font-semibold text-foreground">{i18next.t("dict.gen_25e2a7b4")}</p>
+          <p className="mt-1 text-[11px] leading-relaxed text-muted-foreground">{i18next.t("comic.charactersPanel.5o82t4")}<br />{i18next.t("comic.charactersPanel.bg9q9l")}</p>
         </div>
       )}
 
@@ -1183,9 +1144,9 @@ const FACT_CATEGORY_BADGE: Record<
   string,
   { label: string; className: string }
 > = {
-  completed: { label: "已发生", className: "border-sky-200 bg-sky-50 text-sky-700 dark:border-sky-700 dark:bg-sky-900/20 dark:text-sky-300" },
-  revealed: { label: "首次登场", className: "border-violet-200 bg-violet-50 text-violet-700 dark:border-violet-700 dark:bg-violet-900/20 dark:text-violet-300" },
-  state_changed: { label: "状态变化", className: "border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-700 dark:bg-amber-900/20 dark:text-amber-300" },
+  completed: { label: i18next.t("dict.gen_f2665b95"), className: "border-sky-200 bg-sky-50 text-sky-700 dark:border-sky-700 dark:bg-sky-900/20 dark:text-sky-300" },
+  revealed: { label: i18next.t("dict.gen_b5c554fa"), className: "border-violet-200 bg-violet-50 text-violet-700 dark:border-violet-700 dark:bg-violet-900/20 dark:text-violet-300" },
+  state_changed: { label: i18next.t("dict.gen_74949e87"), className: "border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-700 dark:bg-amber-900/20 dark:text-amber-300" },
 };
 
 function FactsSection({ projectId }: { projectId: string }) {
@@ -1215,25 +1176,21 @@ function FactsSection({ projectId }: { projectId: string }) {
     <div className="border-t px-4 py-4">
       <div className="mb-3 flex items-center gap-2">
         <BookMarked className="h-4 w-4 text-muted-foreground" />
-        <p className="text-sm font-medium">跨话事实库</p>
+        <p className="text-sm font-medium">{i18next.t("dict.gen_04df517b")}</p>
         <span className="rounded border bg-muted px-1.5 py-0.5 text-[11px] text-muted-foreground">{facts.length}</span>
       </div>
-      <p className="mb-3 text-xs text-muted-foreground">
-        生成分格脚本后系统自动提取，用于保证跨话剧情与角色状态一致性。可手动删除不准确的条目。
-      </p>
+      <p className="mb-3 text-xs text-muted-foreground">{i18next.t("comic.charactersPanel.z1bxla")}</p>
 
-      {isLoading && <div className="text-xs text-muted-foreground">加载中...</div>}
+      {isLoading && <div className="text-xs text-muted-foreground">{i18next.t("dict.gen_26b5bd49")}</div>}
 
       {!isLoading && facts.length === 0 && (
-        <div className="rounded-md border border-dashed bg-muted/30 px-3 py-4 text-center text-xs text-muted-foreground">
-          尚无事实条目。生成至少一话的分格脚本后会自动提取。
-        </div>
+        <div className="rounded-md border border-dashed bg-muted/30 px-3 py-4 text-center text-xs text-muted-foreground">{i18next.t("comic.charactersPanel.mmanbm")}</div>
       )}
 
       <div className="space-y-3">
         {sortedOrders.map((order) => (
           <div key={order}>
-            <div className="mb-1.5 text-[11px] font-semibold text-muted-foreground">第 {order} 话</div>
+            <div className="mb-1.5 text-[11px] font-semibold text-muted-foreground">{i18next.t("dict.gen_09af46b4")}</div>
             <div className="space-y-1">
               {grouped[order].map((fact) => {
                 const badge = FACT_CATEGORY_BADGE[fact.category] ?? {
@@ -1251,7 +1208,7 @@ function FactsSection({ projectId }: { projectId: string }) {
                     <span className="flex-1 leading-relaxed text-muted-foreground">{fact.text}</span>
                     <button
                       type="button"
-                      title="删除此条目"
+                      title={i18next.t("dict.gen_0e160c63")}
                       disabled={deleteMut.isPending}
                       className="ml-1 mt-0.5 shrink-0 rounded p-0.5 text-muted-foreground/40 hover:bg-destructive/10 hover:text-destructive"
                       onClick={() => deleteMut.mutate(fact.id)}
@@ -1282,8 +1239,8 @@ export function CharactersPanel({
     return (
       <div className="space-y-2 py-12 text-center text-sm text-muted-foreground">
         <Users className="mx-auto h-10 w-10 opacity-30" />
-        <p>暂无角色。</p>
-        <p className="text-xs">导入内容源后，角色会自动提取到这里。</p>
+        <p>{i18next.t("dict.gen_95a8b408")}</p>
+        <p className="text-xs">{i18next.t("dict.gen_9e1d11b8")}</p>
       </div>
     );
   }

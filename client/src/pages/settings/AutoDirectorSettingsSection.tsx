@@ -1,3 +1,4 @@
+import i18next from "i18next";
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
@@ -63,7 +64,7 @@ export default function AutoDirectorSettingsSection(props: {
       await queryClient.invalidateQueries({ queryKey: queryKeys.settings.autoDirectorChannels });
     },
     onError: (error) => {
-      onActionResult(error instanceof Error ? error.message : "保存导演跟进通道配置失败。");
+      onActionResult(error instanceof Error ? error.message : i18next.t("dict.saveDirectorFollowUpChannelConfigFailed"));
     },
   });
 
@@ -77,7 +78,7 @@ export default function AutoDirectorSettingsSection(props: {
       await queryClient.invalidateQueries({ queryKey: queryKeys.settings.autoDirectorApprovalPreferences });
     },
     onError: (error) => {
-      onActionResult(error instanceof Error ? error.message : "保存审批授权偏好失败。");
+      onActionResult(error instanceof Error ? error.message : i18next.t("dict.saveApprovalAuthorizationPreferenceFailed"));
     },
   });
 
@@ -88,7 +89,7 @@ export default function AutoDirectorSettingsSection(props: {
       await queryClient.invalidateQueries({ queryKey: queryKeys.settings.pendingReviewAutoPromotion });
     },
     onError: (error) => {
-      onActionResult(error instanceof Error ? error.message : "保存待确认状态自动放行设置失败。");
+      onActionResult(error instanceof Error ? error.message : i18next.t("dict.gen_3cbc83c7"));
     },
   });
   const saveIssuePolicyMutation = useMutation({
@@ -98,7 +99,7 @@ export default function AutoDirectorSettingsSection(props: {
       await queryClient.invalidateQueries({ queryKey: queryKeys.settings.autoDirectorIssuePolicy });
     },
     onError: (error) => {
-      onActionResult(error instanceof Error ? error.message : "保存问题处理规则失败。");
+      onActionResult(error instanceof Error ? error.message : i18next.t("settings.autoDirectorSettingsSection.c4rk8e"));
     },
   });
 
@@ -141,7 +142,7 @@ export default function AutoDirectorSettingsSection(props: {
 
       {collapseAdvanced ? (
         <details className="rounded-md border bg-muted/20 p-4">
-          <summary className="cursor-pointer text-sm font-medium">高级控制</summary>
+          <summary className="cursor-pointer text-sm font-medium">{i18next.t("settings.autoDirectorSettingsSection.k24cji")}</summary>
           <div className="mt-4 space-y-4">
             <AdvancedControls />
           </div>

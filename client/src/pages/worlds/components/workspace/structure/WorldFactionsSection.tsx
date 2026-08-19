@@ -1,3 +1,5 @@
+import i18next from "i18next";
+const t = (key: string, options?: any) => i18next.t(key, options) as string;
 import type { Dispatch, SetStateAction } from "react";
 import type { WorldFaction, WorldForce, WorldStructuredData } from "@ai-novel/shared/types/world";
 import { Button } from "@/components/ui/button";
@@ -25,7 +27,7 @@ export default function WorldFactionsSection(props: {
   return (
     <div className="rounded-md border p-3 space-y-3">
       <div className="flex items-center justify-between">
-        <div className="font-medium">阵营与势力</div>
+        <div className="font-medium">{i18next.t("dict.gen_e87fe613")}</div>
         <div className="flex gap-2">
           <Button
             size="sm"
@@ -51,9 +53,7 @@ export default function WorldFactionsSection(props: {
                   : prev,
               )
             }
-          >
-            新增阵营
-          </Button>
+          >{i18next.t("worlds.worldFactionsSection.d7fmda")}</Button>
           <Button
             size="sm"
             variant="outline"
@@ -81,35 +81,31 @@ export default function WorldFactionsSection(props: {
                   : prev,
               )
             }
-          >
-            新增势力
-          </Button>
+          >{i18next.t("worlds.worldFactionsSection.d73vhm")}</Button>
         </div>
       </div>
       <div className="rounded-md border border-dashed p-3 text-xs text-muted-foreground space-y-1">
-        <div>阵营 = 抽象立场、路线或世界站队；势力 = 具体组织、圈层、网络或机构。</div>
-        <div>像“社会压力机制”“行业运作规则”“人际网络法则”这类世界级默认规则，应优先写到“规则中心”，不要塞进阵营卡。</div>
+        <div>{i18next.t("dict.gen_952bc134")}</div>
+        <div>{i18next.t("dict.gen_e25af270")}</div>
         <div>
           当前阵营 ID：{
             draftStructure.factions.length > 0
-              ? draftStructure.factions.map((item) => `${item.id}（${item.name || "未命名"}）`).join("、")
-              : "暂无"
+              ? draftStructure.factions.map((item) => `${item.id}（${item.name || i18next.t("dict.gen_7f0425a8")}）`).join("、")
+              : i18next.t("common.none")
           }
         </div>
         <div>
           当前势力 ID：{
             draftStructure.forces.length > 0
-              ? draftStructure.forces.map((item) => `${item.id}（${item.name || "未命名"}）`).join("、")
-              : "暂无"
+              ? draftStructure.forces.map((item) => `${item.id}（${item.name || i18next.t("dict.gen_7f0425a8")}）`).join("、")
+              : i18next.t("common.none")
           }
         </div>
       </div>
       <div className="space-y-3">
         {draftStructure.factions.map((faction, index) => (
           <div key={faction.id || index} className="rounded-md border p-3 space-y-2">
-            <div className="text-xs text-muted-foreground">
-              阵营卡描述的是抽象站队，不是具体公司、部门或人脉网络。
-            </div>
+            <div className="text-xs text-muted-foreground">{i18next.t("worlds.worldFactionsSection.p9ytxg")}</div>
             <Input
               value={faction.name}
               onChange={(event) =>
@@ -125,7 +121,7 @@ export default function WorldFactionsSection(props: {
                     : prev,
                 )
               }
-              placeholder="阵营名称，例如：体制内求稳派 / 市场逐利派 / 关系网络实用派"
+              placeholder={i18next.t("dict.gen_e0be4457")}
             />
             <Input
               value={faction.position}
@@ -142,7 +138,7 @@ export default function WorldFactionsSection(props: {
                     : prev,
                 )
               }
-              placeholder="立场 / 世界站队"
+              placeholder={i18next.t("dict.gen_14c7f185")}
             />
             <textarea
               className="min-h-[80px] w-full rounded-md border bg-background p-2 text-sm"
@@ -160,7 +156,7 @@ export default function WorldFactionsSection(props: {
                     : prev,
                 )
               }
-              placeholder="阵营理念 / 信条 / 主张"
+              placeholder={i18next.t("dict.gen_135b5e9c")}
             />
             <div className="grid gap-2 md:grid-cols-2">
               <Input
@@ -178,7 +174,7 @@ export default function WorldFactionsSection(props: {
                       : prev,
                   )
                 }
-                placeholder="长期目标，使用顿号或逗号分隔"
+                placeholder={i18next.t("dict.gen_aa014c30")}
               />
               <Input
                 value={faction.methods.join("、")}
@@ -195,7 +191,7 @@ export default function WorldFactionsSection(props: {
                       : prev,
                   )
                 }
-                placeholder="常用手段，使用顿号或逗号分隔"
+                placeholder={i18next.t("dict.gen_579a5778")}
               />
             </div>
             <Input
@@ -213,7 +209,7 @@ export default function WorldFactionsSection(props: {
                     : prev,
                 )
               }
-              placeholder="代表势力 ID，使用顿号或逗号分隔"
+              placeholder={i18next.t("dict.representativePowerIDCommaOrPeriodSeparated")}
             />
             {faction.representativeForceIds.length > 0 ? (
               <div className="text-xs text-muted-foreground">
@@ -224,9 +220,7 @@ export default function WorldFactionsSection(props: {
         ))}
         {draftStructure.forces.map((force, index) => (
           <div key={force.id || index} className="rounded-md border p-3 space-y-2">
-            <div className="text-xs text-muted-foreground">
-              势力卡描述的是能施压、能占据地点、能参与关系网络的具体组织或圈层。
-            </div>
+            <div className="text-xs text-muted-foreground">{i18next.t("worlds.worldFactionsSection.e124r1")}</div>
             <div className="grid gap-2 md:grid-cols-3">
               <Input
                 value={force.name}
@@ -243,7 +237,7 @@ export default function WorldFactionsSection(props: {
                       : prev,
                   )
                 }
-                placeholder="势力名称，例如：广告公司管理层 / 房屋中介链 / 地方商业圈人脉网"
+                placeholder={i18next.t("dict.gen_6efbdb31")}
               />
               <Input
                 value={force.type}
@@ -260,7 +254,7 @@ export default function WorldFactionsSection(props: {
                       : prev,
                   )
                 }
-                placeholder="势力类型，例如：公司 / 部门 / 中介网络 / 商业圈层"
+                placeholder={i18next.t("dict.gen_92794258")}
               />
               <Input
                 value={force.factionId ?? ""}
@@ -277,7 +271,7 @@ export default function WorldFactionsSection(props: {
                       : prev,
                   )
                 }
-                placeholder="所属阵营 ID（可空）"
+                placeholder={i18next.t("dict.gen_4e7dbc51")}
               />
             </div>
             {force.factionId ? (
@@ -301,7 +295,7 @@ export default function WorldFactionsSection(props: {
                     : prev,
                 )
               }
-              placeholder="势力概述 / 对外身份 / 在世界中的作用"
+              placeholder={i18next.t("dict.gen_0a9c554c")}
             />
             <div className="grid gap-2 md:grid-cols-2">
               <Input
@@ -319,7 +313,7 @@ export default function WorldFactionsSection(props: {
                       : prev,
                   )
                 }
-                placeholder="权力基础 / 资源来源 / 控制抓手"
+                placeholder={i18next.t("dict.gen_e6b04ed6")}
               />
               <Input
                 value={force.currentObjective}
@@ -336,7 +330,7 @@ export default function WorldFactionsSection(props: {
                       : prev,
                   )
                 }
-                placeholder="当前目标 / 眼下想推进什么"
+                placeholder={i18next.t("dict.gen_7c7eddf5")}
               />
             </div>
             <div className="grid gap-2 md:grid-cols-2">
@@ -355,7 +349,7 @@ export default function WorldFactionsSection(props: {
                       : prev,
                   )
                 }
-                placeholder="领导者 / 关键人物（可空）"
+                placeholder={i18next.t("dict.gen_de392f35")}
               />
               <Input
                 value={force.pressure}
@@ -372,7 +366,7 @@ export default function WorldFactionsSection(props: {
                       : prev,
                   )
                 }
-                placeholder="施压方式 / 高压来源 / 它如何逼迫角色"
+                placeholder={i18next.t("dict.gen_eb1c0ced")}
               />
             </div>
             <div className="grid gap-2 md:grid-cols-1">
@@ -391,7 +385,7 @@ export default function WorldFactionsSection(props: {
                       : prev,
                   )
                 }
-                placeholder="叙事角色，例如：压迫源 / 诱导者 / 守门人 / 缓冲带"
+                placeholder={i18next.t("dict.gen_08f0ced5")}
               />
             </div>
           </div>

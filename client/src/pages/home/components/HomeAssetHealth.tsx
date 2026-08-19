@@ -1,3 +1,4 @@
+import i18next from "i18next";
 import { Boxes, Globe2, ScrollText, Users } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
@@ -9,7 +10,7 @@ const iconById: Record<string, typeof Boxes> = { world: Globe2, characters: User
 export function HomeAssetHealth(props: { items: HomeAssetHealthItem[]; showStarterActions?: boolean }) {
   return (
     <Card className="home-asset-health border-border/80 shadow-none">
-      <CardHeader className="pb-3"><CardTitle className="text-base tracking-normal">创作资产概览</CardTitle></CardHeader>
+      <CardHeader className="pb-3"><CardTitle className="text-base tracking-normal">{i18next.t("home.homeAssetHealth.j38ks6")}</CardTitle></CardHeader>
       <CardContent>
         <div className="space-y-1">
           {props.items.map((item) => {

@@ -1,3 +1,5 @@
+import { useTranslation } from "react-i18next";
+import i18next from "i18next";
 import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type { Character, CharacterCastOption, CharacterCastRole, CharacterGender } from "@ai-novel/shared/types/novel";
@@ -28,33 +30,33 @@ interface CharacterCastOptionsSectionProps {
 }
 
 const CAST_ROLE_LABELS: Record<CharacterCastRole, string> = {
-  protagonist: "主角",
-  antagonist: "主对手",
-  ally: "同盟",
-  foil: "镜像角色",
-  mentor: "导师",
-  love_interest: "情感牵引",
-  pressure_source: "压力源",
-  catalyst: "催化者",
+  protagonist: i18next.t("dict.mainCharacter"),
+  antagonist: i18next.t("dict.mainEnemy"),
+  ally: i18next.t("dict.gen_9669fc43"),
+  foil: i18next.t("dict.gen_d7fc88ac"),
+  mentor: i18next.t("dict.gen_d62518be"),
+  love_interest: i18next.t("dict.gen_65c52a7e"),
+  pressure_source: i18next.t("dict.gen_7aa91c6c"),
+  catalyst: i18next.t("dict.gen_f57197c6"),
 };
 
 const CHARACTER_GENDER_LABELS: Record<CharacterGender, string> = {
-  male: "男",
-  female: "女",
-  other: "其他",
-  unknown: "未知",
+  male: i18next.t("dict.gen_36a4908a"),
+  female: i18next.t("dict.gen_87c835a6"),
+  other: i18next.t("dict.gen_0d98c747"),
+  unknown: i18next.t("dict.gen_1622dc9b"),
 };
 
 function getCastRoleLabel(castRole?: CharacterCastRole | null): string {
   if (!castRole) {
-    return "未分类";
+    return i18next.t("dict.gen_ecf7ebb5");
   }
   return CAST_ROLE_LABELS[castRole] ?? castRole;
 }
 
 function getCharacterGenderLabel(gender?: CharacterGender | null): string {
   if (!gender) {
-    return "未知";
+    return i18next.t("dict.gen_1622dc9b");
   }
   return CHARACTER_GENDER_LABELS[gender] ?? gender;
 }
@@ -79,13 +81,14 @@ function buildCharacterCastApplyConfirmMessage(option: CharacterCastOption, warn
     .map((warning, index) => `${index + 1}. ${warning}`)
     .join("\n");
   return [
-    `阵容「${option.title}」和当前故事设定还有不完全匹配的地方。`,
+    i18next.t("novels.characterCastOptionsSection.2nl6du", { val1: option.title }),
     warningText,
-    "仍然应用到角色资产工作台吗？应用后可以继续在角色资产里调整。",
+    i18next.t("dict.stillApplyToAssetWorkshop"),
   ].filter((line) => line.trim().length > 0).join("\n\n");
 }
 
 export default function CharacterCastOptionsSection(props: CharacterCastOptionsSectionProps) {
+  const { t } = useTranslation();
   const { novelId, characters, selectedCharacter, onSelectedCharacterChange, llmProvider, llmModel } = props;
   const queryClient = useQueryClient();
   const [storyInput, setStoryInput] = useState("");
@@ -149,8 +152,8 @@ export default function CharacterCastOptionsSection(props: CharacterCastOptionsS
   function handleDeleteOption(option: CharacterCastOption) {
     const confirmed = window.confirm(
       option.status === "applied"
-        ? `确认删除方案「${option.title}」？这只会删除方案记录，不会回滚已同步的角色与关系。`
-        : `确认删除方案「${option.title}」？`,
+        ? i18next.t("novels.characterCastOptionsSection.9zsyzi", { val1: option.title })
+        : i18next.t("novels.characterCastOptionsSection.ei7dr9", { val1: option.title }),
     );
     if (!confirmed) {
       return;
@@ -161,8 +164,8 @@ export default function CharacterCastOptionsSection(props: CharacterCastOptionsS
   function handleRejectAll() {
     const confirmed = window.confirm(
       appliedOption
-        ? "确认清空当前所有阵容方案记录？已同步的角色与关系不会自动回滚。"
-        : `确认清空当前 ${castOptions.length} 套阵容方案？`,
+        ? i18next.t("dict.gen_a3322cb5")
+        : i18next.t("novels.characterCastOptionsSection.pszstm", { val1: castOptions.length }),
     );
     if (!confirmed) {
       return;
@@ -195,12 +198,12 @@ export default function CharacterCastOptionsSection(props: CharacterCastOptionsS
           : undefined,
       }),
     onSuccess: async (response) => {
-      setStatusMessage(response.message ?? "角色阵容方案已生成。");
+      setStatusMessage(response.message ?? i18next.t("dict.gen_9c59d01a"));
       setIsPlannerExpanded(true);
       await refreshCastOptions();
     },
     onError: (error) => {
-      setStatusMessage(error instanceof Error ? error.message : "角色阵容方案生成失败。");
+      setStatusMessage(error instanceof Error ? error.message : i18next.t("dict.gen_9d18891f"));
     },
   });
 
@@ -220,17 +223,17 @@ export default function CharacterCastOptionsSection(props: CharacterCastOptionsS
       }
       const createdCount = response.data?.createdCount ?? 0;
       const updatedCount = response.data?.updatedCount ?? 0;
-      const backgroundHint = "外显资料和角色动态会在后台补齐，稍后刷新角色资产即可查看。";
+      const backgroundHint = i18next.t("dict.gen_e12b44f1");
       setStatusMessage(
         response.data?.qualityOverrideApplied
-          ? `已按你的确认应用这套阵容，同步 ${createdCount} 个新角色，更新 ${updatedCount} 个既有角色。${backgroundHint}`
-          : `${response.message ?? `已同步 ${createdCount} 个新角色，更新 ${updatedCount} 个既有角色。`}${backgroundHint}`,
+          ? i18next.t("novels.characterCastOptionsSection.r9svbu", { val1: createdCount, val2: updatedCount, val3: backgroundHint })
+          : `${response.message ?? i18next.t("novels.characterCastOptionsSection.ue1vyf", { val1: createdCount, val2: updatedCount })}${backgroundHint}`,
       );
       setIsPlannerExpanded(false);
       await refreshAppliedCharacterWorkspace();
     },
     onError: (error) => {
-      setStatusMessage(error instanceof Error ? error.message : "角色阵容方案应用失败。");
+      setStatusMessage(error instanceof Error ? error.message : i18next.t("dict.gen_b1c5d2c4"));
     },
   });
 
@@ -251,14 +254,14 @@ export default function CharacterCastOptionsSection(props: CharacterCastOptionsS
     mutationFn: (optionId: string) => deleteCharacterCastOption(novelId, optionId),
     onSuccess: async (response) => {
       if (response.data?.deletedAppliedOption) {
-        setStatusMessage("方案记录已删除；角色库和关系网中的对应数据会保留。");
+        setStatusMessage(i18next.t("dict.gen_e0c743d7"));
       } else {
-        setStatusMessage("这套阵容方案已删除。");
+        setStatusMessage(i18next.t("dict.gen_815a0232"));
       }
       await refreshCastOptions();
     },
     onError: (error) => {
-      setStatusMessage(error instanceof Error ? error.message : "删除阵容方案失败。");
+      setStatusMessage(error instanceof Error ? error.message : i18next.t("dict.gen_cec28e2d"));
     },
   });
 
@@ -268,17 +271,17 @@ export default function CharacterCastOptionsSection(props: CharacterCastOptionsS
       const deletedCount = response.data?.deletedCount ?? 0;
       const deletedAppliedCount = response.data?.deletedAppliedCount ?? 0;
       if (deletedCount === 0) {
-        setStatusMessage("没有可清空的阵容方案。");
+        setStatusMessage(i18next.t("dict.gen_82c3bdac"));
       } else if (deletedAppliedCount > 0) {
-        setStatusMessage(`已清空 ${deletedCount} 套阵容方案记录；已同步的角色与关系不会自动回滚。`);
+        setStatusMessage(i18next.t("novels.characterCastOptionsSection.acf3zz", { val1: deletedCount }));
       } else {
-        setStatusMessage(`已清空 ${deletedCount} 套阵容方案。`);
+        setStatusMessage(i18next.t("novels.characterCastOptionsSection.c3vy0f", { val1: deletedCount }));
       }
       setIsPlannerExpanded(true);
       await refreshCastOptions();
     },
     onError: (error) => {
-      setStatusMessage(error instanceof Error ? error.message : "清空阵容方案失败。");
+      setStatusMessage(error instanceof Error ? error.message : i18next.t("dict.gen_2330d8fd"));
     },
   });
   const isWorking =
@@ -293,15 +296,13 @@ export default function CharacterCastOptionsSection(props: CharacterCastOptionsS
         <CardHeader className="gap-3">
           <div className="flex flex-col gap-2 lg:flex-row lg:items-end lg:justify-between">
             <div className="space-y-1">
-              <CardTitle>AI 角色阵容方案</CardTitle>
-              <div className="text-sm text-muted-foreground">
-                更适合前期搭建角色系统，或在故事方向大改后重新规划阵容。
-              </div>
+              <CardTitle>{i18next.t("dict.aiCharacterLineupPlan")}</CardTitle>
+              <div className="text-sm text-muted-foreground">{i18next.t("novels.characterCastOptionsSection.fy4sy8")}</div>
             </div>
             <div className="flex flex-wrap gap-2">
-              <Badge variant="outline">{castOptions.length} 套候选方案</Badge>
-              <Badge variant="outline">{relations.length} 条角色关系</Badge>
-              {appliedOption ? <Badge variant="secondary">已应用方案</Badge> : null}
+              <Badge variant="outline">{i18next.t("dict.castOptionCount")}</Badge>
+              <Badge variant="outline">{i18next.t("dict.relationshipCount")}</Badge>
+              {appliedOption ? <Badge variant="secondary">{i18next.t("dict.gen_331e0006")}</Badge> : null}
             </div>
           </div>
         </CardHeader>
@@ -311,23 +312,19 @@ export default function CharacterCastOptionsSection(props: CharacterCastOptionsS
               <div className="space-y-2">
                 <div className="flex flex-wrap items-center gap-2">
                   <div className="font-medium">{appliedOption.title}</div>
-                  <Badge variant="secondary">当前生效</Badge>
+                  <Badge variant="secondary">{i18next.t("dict.gen_4298a6d6")}</Badge>
                 </div>
                 <div className="text-sm text-muted-foreground">{appliedOption.summary}</div>
                 <div className="flex flex-wrap gap-2 text-xs text-muted-foreground">
-                  <span>{appliedOption.members.length} 个核心角色</span>
-                  <span>{appliedOption.relations.length} 条关键关系</span>
-                  {appliedOption.recommendedReason ? <span>推荐：{appliedOption.recommendedReason}</span> : null}
+                  <span>{i18next.t("dict.coreCharactersCount")}</span>
+                  <span>{i18next.t("dict.keyRelationsCount")}</span>
+                  {appliedOption.recommendedReason ? <span>{i18next.t("dict.gen_c44fe03f")}</span> : null}
                 </div>
                 {statusMessage ? <div className="text-xs text-muted-foreground">{statusMessage}</div> : null}
               </div>
               <div className="flex flex-wrap gap-2">
-                <Button variant="outline" onClick={() => setIsPlannerExpanded(true)}>
-                  查看其余方案
-                </Button>
-                <Button variant="secondary" onClick={() => setIsPlannerExpanded(true)}>
-                  重新规划阵容
-                </Button>
+                <Button variant="outline" onClick={() => setIsPlannerExpanded(true)}>{i18next.t("novels.characterCastOptionsSection.mxxgo")}</Button>
+                <Button variant="secondary" onClick={() => setIsPlannerExpanded(true)}>{i18next.t("novels.characterCastOptionsSection.p57zwr")}</Button>
               </div>
             </div>
           ) : (
@@ -335,14 +332,12 @@ export default function CharacterCastOptionsSection(props: CharacterCastOptionsS
               <div className="grid gap-4 xl:grid-cols-[minmax(280px,0.72fr)_minmax(0,1.28fr)]">
                 <div className="space-y-3 rounded-2xl border border-border/70 bg-muted/20 p-4">
                   <div className="space-y-1">
-                    <div className="text-sm font-medium">生成指令</div>
-                    <div className="text-xs text-muted-foreground">
-                      可补充主角欲望、对手压力、关系张力，或你想重点强化的人物方向。
-                    </div>
+                    <div className="text-sm font-medium">{i18next.t("dict.gen_eba49f80")}</div>
+                    <div className="text-xs text-muted-foreground">{i18next.t("novels.characterCastOptionsSection.m7uf4k")}</div>
                   </div>
                   <textarea
                     className="min-h-[140px] w-full rounded-xl border bg-background p-3 text-sm"
-                    placeholder="例如：主角必须在家族责任与个人自由之间二选一；反派不要是纯恶，而是带有保护欲和控制欲。"
+                    placeholder={i18next.t("dict.exampleMainChooseFamilyOrFreedomEvilNotPureControl")}
                     value={storyInput}
                     onChange={(event) => setStoryInput(event.target.value)}
                   />
@@ -352,42 +347,34 @@ export default function CharacterCastOptionsSection(props: CharacterCastOptionsS
                         type="checkbox"
                         checked={useWorldContext}
                         onChange={(event) => setUseWorldContext(event.target.checked)}
-                      />
-                      基于本书世界生成
-                    </label>
+                      />{i18next.t("novels.characterCastOptionsSection.1lzcq3")}</label>
                     {useWorldContext ? (
                       <label className="flex items-center gap-2 text-xs text-muted-foreground">
                         <input
                           type="checkbox"
                           checked={forceWorldCompliance}
                           onChange={(event) => setForceWorldCompliance(event.target.checked)}
-                        />
-                        检查世界规则合规
-                      </label>
+                        />{i18next.t("novels.characterCastOptionsSection.kvjkbw")}</label>
                     ) : null}
                   </div>
                   {useWorldContext ? (
                     <div className="grid gap-2 rounded-xl border border-border/70 bg-background/80 p-3 text-xs text-muted-foreground">
                       {worldSliceQuery.isLoading ? (
-                        <div>正在读取本书世界使用范围...</div>
+                        <div>{i18next.t("dict.gen_1eb86022")}</div>
                       ) : !hasUsableWorld ? (
-                        <div>
-                          本书世界还没有准备好。本轮会优先根据书级信息和你的生成指令设计角色。
-                        </div>
+                        <div>{i18next.t("novels.characterCastOptionsSection.gyldav")}</div>
                       ) : !hasWorldSlice ? (
-                        <div>
-                          本书世界存在，但使用范围还未整理。建议先到基础信息页整理本书使用范围，或继续让 AI 按世界手册保守生成。
-                        </div>
+                        <div>{i18next.t("novels.characterCastOptionsSection.w709yu")}</div>
                       ) : null}
                       <label className="space-y-1">
-                        <span className="font-medium text-foreground">势力倾向</span>
+                        <span className="font-medium text-foreground">{i18next.t("dict.gen_368e1d5d")}</span>
                         <SelectControl
                           className="w-full rounded-md border bg-background p-2 text-sm"
                           value={preferredWorldFaction}
                           onChange={(event) => setPreferredWorldFaction(event.target.value)}
                           disabled={!hasWorldSlice || activeWorldForces.length === 0}
                         >
-                          <option value="">由 AI 判断</option>
+                          <option value="">{i18next.t("dict.gen_03b5582c")}</option>
                           {activeWorldForces.map((force) => (
                             <option key={force.id} value={force.name}>{force.name}</option>
                           ))}
@@ -395,29 +382,25 @@ export default function CharacterCastOptionsSection(props: CharacterCastOptionsS
                       </label>
                       <div>
                         {hasWorldSlice
-                          ? "角色会优先贴合本书世界的势力、地点、身份边界和禁止搭配。"
-                          : "本书世界使用范围整理后，可进一步指定势力倾向。"}
+                          ? i18next.t("dict.gen_da93cd04")
+                          : i18next.t("dict.gen_349b40cf")}
                       </div>
                     </div>
                   ) : null}
                   <div className="flex flex-wrap gap-2">
                     <AiButton onClick={() => generateMutation.mutate()} disabled={isWorking}>
-                      {generateMutation.isPending ? "生成中..." : "生成 3 套阵容"}
+                      {generateMutation.isPending ? i18next.t("dict.gen_4d020ba3") : i18next.t("dict.gen_75886390")}
                     </AiButton>
                     {castOptions.length > 0 ? (
                       <Button variant="outline" onClick={handleRejectAll} disabled={isWorking}>
-                        {clearMutation.isPending ? "清空中..." : "都不喜欢"}
+                        {clearMutation.isPending ? i18next.t("dict.gen_67b24f4b") : i18next.t("dict.gen_2b60475a")}
                       </Button>
                     ) : null}
                     {appliedOption ? (
-                      <Button variant="outline" onClick={() => setIsPlannerExpanded(false)} disabled={isWorking}>
-                        收起方案区
-                      </Button>
+                      <Button variant="outline" onClick={() => setIsPlannerExpanded(false)} disabled={isWorking}>{i18next.t("novels.characterCastOptionsSection.c6kb3q")}</Button>
                     ) : null}
                   </div>
-                  <div className="rounded-xl border border-dashed p-3 text-xs text-muted-foreground">
-                    应用某套阵容后，会同步创建/更新角色，并刷新角色资产工作台。
-                  </div>
+                  <div className="rounded-xl border border-dashed p-3 text-xs text-muted-foreground">{i18next.t("novels.characterCastOptionsSection.66dyuz")}</div>
                   {statusMessage ? (
                     <div className="rounded-xl border border-border/70 bg-background/80 p-3 text-xs text-muted-foreground">
                       {statusMessage}
@@ -426,9 +409,7 @@ export default function CharacterCastOptionsSection(props: CharacterCastOptionsS
                 </div>
 
                 {castOptionsQuery.isLoading ? (
-                  <div className="flex min-h-[260px] items-center justify-center rounded-2xl border border-dashed text-sm text-muted-foreground">
-                    正在加载阵容方案...
-                  </div>
+                  <div className="flex min-h-[260px] items-center justify-center rounded-2xl border border-dashed text-sm text-muted-foreground">{i18next.t("novels.characterCastOptionsSection.wd5dmv")}</div>
                 ) : castOptions.length > 0 ? (
                   <div className="grid gap-3 2xl:grid-cols-2">
                     {castOptions.map((option) => {
@@ -446,9 +427,9 @@ export default function CharacterCastOptionsSection(props: CharacterCastOptionsS
                             <div className="space-y-1">
                               <div className="flex flex-wrap items-center gap-2">
                                 <div className="font-medium">{option.title}</div>
-                                {option.status === "applied" ? <Badge variant="secondary">已应用</Badge> : null}
-                                {option.recommendedReason ? <Badge variant="outline">推荐</Badge> : null}
-                                {requiresQualityConfirmation ? <Badge variant="outline">需确认</Badge> : null}
+                                {option.status === "applied" ? <Badge variant="secondary">{i18next.t("dict.gen_1463e88d")}</Badge> : null}
+                                {option.recommendedReason ? <Badge variant="outline">{i18next.t("dict.gen_3f981012")}</Badge> : null}
+                                {requiresQualityConfirmation ? <Badge variant="outline">{i18next.t("dict.gen_bf45ca6e")}</Badge> : null}
                               </div>
                               <div className="text-xs leading-5 text-muted-foreground">{option.summary}</div>
                             </div>
@@ -460,12 +441,12 @@ export default function CharacterCastOptionsSection(props: CharacterCastOptionsS
                                 variant={option.status === "applied" ? "outline" : "default"}
                               >
                                 {isApplyingThisOption
-                                  ? "应用中..."
+                                  ? i18next.t("dict.gen_e596edd9")
                                   : option.status === "applied"
-                                    ? "重新应用"
+                                    ? i18next.t("dict.gen_118d4b70")
                                     : requiresQualityConfirmation
-                                      ? "确认后应用"
-                                      : "应用这套阵容"}
+                                      ? i18next.t("dict.gen_6bef564c")
+                                      : i18next.t("dict.gen_a52ee018")}
                               </Button>
                               <Button
                                 size="sm"
@@ -474,16 +455,14 @@ export default function CharacterCastOptionsSection(props: CharacterCastOptionsS
                                 onClick={() => handleDeleteOption(option)}
                                 disabled={isWorking}
                               >
-                                {deleteMutation.isPending && deleteMutation.variables === option.id ? "删除中..." : "删除"}
+                                {deleteMutation.isPending && deleteMutation.variables === option.id ? i18next.t("dict.gen_09f2fb82") : i18next.t("dict.gen_2f4aaddd")}
                               </Button>
                             </div>
                           </div>
                           {requiresQualityConfirmation ? (
                             <div className="mt-3 rounded-xl border border-amber-300/70 bg-amber-50/70 p-3 text-xs text-amber-900">
-                              <div className="font-medium">这套阵容需要你确认后再应用</div>
-                              <div className="mt-1">
-                                系统发现它和当前故事设定还有不完全匹配的地方。你可以先应用，再到角色资产里调整。
-                              </div>
+                              <div className="font-medium">{i18next.t("dict.gen_f3e41c8b")}</div>
+                              <div className="mt-1">{i18next.t("novels.characterCastOptionsSection.hs1ad4")}</div>
                               <ul className="mt-2 list-disc space-y-1 pl-4">
                                 {qualityWarnings.slice(0, 3).map((warning) => (
                                   <li key={warning}>{warning}</li>
@@ -497,7 +476,7 @@ export default function CharacterCastOptionsSection(props: CharacterCastOptionsS
                             </div>
                           ) : null}
                           {option.whyItWorks ? (
-                            <div className="mt-2 text-xs text-muted-foreground">成立原因：{option.whyItWorks}</div>
+                            <div className="mt-2 text-xs text-muted-foreground">{i18next.t("dict.gen_d291d983")}</div>
                           ) : null}
                           <div className="mt-3 grid gap-2 sm:grid-cols-2">
                             {option.members.map((member) => (
@@ -508,14 +487,14 @@ export default function CharacterCastOptionsSection(props: CharacterCastOptionsS
                                   <Badge variant="secondary">{getCharacterGenderLabel(member.gender)}</Badge>
                                 </div>
                                 <div className="mt-1 text-xs text-muted-foreground">{member.role}</div>
-                                <div className="mt-2 text-xs text-muted-foreground">作用：{member.storyFunction}</div>
+                                <div className="mt-2 text-xs text-muted-foreground">{i18next.t("dict.functionMemberStoryFunction")}</div>
                                 {member.relationToProtagonist ? (
                                   <div className="text-xs text-muted-foreground">
                                     与主角关系：{member.relationToProtagonist}
                                   </div>
                                 ) : null}
                                 {member.outerGoal ? (
-                                  <div className="text-xs text-muted-foreground">外在目标：{member.outerGoal}</div>
+                                  <div className="text-xs text-muted-foreground">{i18next.t("dict.gen_f967d503")}</div>
                                 ) : null}
                               </div>
                             ))}
@@ -525,9 +504,7 @@ export default function CharacterCastOptionsSection(props: CharacterCastOptionsS
                     })}
                   </div>
                 ) : (
-                  <div className="flex min-h-[260px] items-center justify-center rounded-2xl border border-dashed px-6 text-center text-sm text-muted-foreground">
-                    还没有阵容方案。先输入一点人物方向，再点击“生成 3 套阵容”。
-                  </div>
+                  <div className="flex min-h-[260px] items-center justify-center rounded-2xl border border-dashed px-6 text-center text-sm text-muted-foreground">{i18next.t("novels.characterCastOptionsSection.aoxqz2")}</div>
                 )}
               </div>
             </>
@@ -537,26 +514,26 @@ export default function CharacterCastOptionsSection(props: CharacterCastOptionsS
 
       <Card>
         <CardHeader>
-          <CardTitle>角色关系网</CardTitle>
+          <CardTitle>{i18next.t("dict.gen_6606fcbf")}</CardTitle>
         </CardHeader>
         <CardContent className="space-y-3 text-sm">
           {selectedCharacter ? (
             <div className="text-xs text-muted-foreground">
-              当前聚焦：{selectedCharacter.name}（{selectedCharacter.role || "未定义"}）
+              当前聚焦：{selectedCharacter.name}（{selectedCharacter.role || i18next.t("dict.gen_cebc6bbb")}）
             </div>
           ) : (
-            <div className="text-xs text-muted-foreground">未选中角色时，默认展示最近的关系条目。</div>
+            <div className="text-xs text-muted-foreground">{i18next.t("dict.gen_17397de3")}</div>
           )}
           {relationsQuery.isLoading ? (
-            <div className="text-muted-foreground">正在加载关系网络...</div>
+            <div className="text-muted-foreground">{i18next.t("dict.gen_1f00d3fa")}</div>
           ) : filteredRelations.length > 0 ? (
             <div className="grid gap-2 lg:grid-cols-2">
               {filteredRelations.map((relation) => {
                 const selectedIsSource = selectedCharacter ? relation.sourceCharacterId === selectedCharacter.id : false;
                 const counterpartId = selectedIsSource ? relation.targetCharacterId : relation.sourceCharacterId;
                 const counterpartName = selectedIsSource
-                  ? relation.targetCharacterName || characterNameById.get(counterpartId) || "未命名角色"
-                  : relation.sourceCharacterName || characterNameById.get(counterpartId) || "未命名角色";
+                  ? relation.targetCharacterName || characterNameById.get(counterpartId) || i18next.t("dict.gen_f9157038")
+                  : relation.sourceCharacterName || characterNameById.get(counterpartId) || i18next.t("dict.gen_f9157038");
                 return (
                   <button
                     key={relation.id}
@@ -573,22 +550,20 @@ export default function CharacterCastOptionsSection(props: CharacterCastOptionsS
                       <Badge variant="outline">{relation.surfaceRelation}</Badge>
                     </div>
                     {relation.hiddenTension ? (
-                      <div className="mt-2 text-xs text-muted-foreground">隐藏张力：{relation.hiddenTension}</div>
+                      <div className="mt-2 text-xs text-muted-foreground">{i18next.t("dict.gen_517ccc87")}</div>
                     ) : null}
                     {relation.conflictSource ? (
-                      <div className="text-xs text-muted-foreground">冲突来源：{relation.conflictSource}</div>
+                      <div className="text-xs text-muted-foreground">{i18next.t("dict.gen_5e01ec63")}</div>
                     ) : null}
                     {relation.nextTurnPoint ? (
-                      <div className="text-xs text-muted-foreground">下一反转点：{relation.nextTurnPoint}</div>
+                      <div className="text-xs text-muted-foreground">{i18next.t("dict.nextReversalPoint")}</div>
                     ) : null}
                   </button>
                 );
               })}
             </div>
           ) : (
-            <div className="rounded-xl border border-dashed p-4 text-muted-foreground">
-              还没有角色关系。应用一套角色阵容后会在这里出现。
-            </div>
+            <div className="rounded-xl border border-dashed p-4 text-muted-foreground">{i18next.t("novels.characterCastOptionsSection.tqnbne")}</div>
           )}
         </CardContent>
       </Card>

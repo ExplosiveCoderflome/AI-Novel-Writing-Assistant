@@ -1,3 +1,6 @@
+import { useTranslation } from "react-i18next";
+import i18next from "i18next";
+const t = (key: string, options?: any) => i18next.t(key, options) as string;
 import { useEffect, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { getNovelChapters } from "@/api/novel/chapters";
@@ -17,11 +20,11 @@ import { usePromptCatalog } from "./hooks/usePromptCatalog";
 import { usePromptDraftSlots } from "./hooks/usePromptDraftSlots";
 import { usePromptPreview } from "./hooks/usePromptPreview";
 import { usePromptTemplateEditor } from "./hooks/usePromptTemplateEditor";
-import { WritingPlatformProfileManager } from "./components/WritingPlatformProfileManager";
 
 type PromptEditMode = "slots" | "advanced";
 
 export default function PromptWorkbenchPage() {
+  const { t, i18n } = useTranslation();
   const [keyword, setKeyword] = useState("");
   const [selectedKey, setSelectedKey] = useState<string | null>(null);
   const [entrypoint, setEntrypoint] = useState("manual_test");
@@ -29,7 +32,6 @@ export default function PromptWorkbenchPage() {
   const [immersiveMode, setImmersiveMode] = useState(false);
   const [selectedChapterId, setSelectedChapterId] = useState("");
   const [editMode, setEditMode] = useState<PromptEditMode>("slots");
-  const [platformManagerOpen, setPlatformManagerOpen] = useState(false);
   const globalLlmProvider = useLLMStore((state) => state.provider);
   const globalLlmModel = useLLMStore((state) => state.model);
   const globalLlmTemperature = useLLMStore((state) => state.temperature);
@@ -66,7 +68,7 @@ export default function PromptWorkbenchPage() {
     () => chapters.find((chapter) => chapter.id === selectedChapterId) ?? null,
     [chapters, selectedChapterId],
   );
-  const advancedTemplateSupported = Boolean(selectedPrompt?.capabilities.supportsAdvancedTemplate);
+  const advancedTemplateSupported = selectedPrompt?.id === "novel.chapter.writer";
   const advancedTemplateEnabled = Boolean(
     advancedTemplateSupported
     && slotState.scope === "novel"
@@ -207,7 +209,6 @@ export default function PromptWorkbenchPage() {
             isFetching={catalog.query.isFetching}
             onSelect={handleSelectPrompt}
             onRefresh={() => void catalog.refetch()}
-            onManagePlatforms={() => setPlatformManagerOpen(true)}
           />
         </div>
       ) : null}
@@ -237,28 +238,22 @@ export default function PromptWorkbenchPage() {
               <div className="space-y-4">
                 <div className="flex flex-col gap-3 rounded-md border border-[#d7e4e0] bg-white/80 p-3 lg:flex-row lg:items-center lg:justify-between">
                   <div>
-                    <div className="text-sm font-semibold text-[#25443f]">编辑模式</div>
-                    <div className="text-xs text-muted-foreground">
-                      安全槽位适合稳定调整，高级模板适合本书正文写作自定义。
-                    </div>
+                    <div className="text-sm font-semibold text-[#25443f]">{i18next.t("dict.gen_ce0e89aa")}</div>
+                    <div className="text-xs text-muted-foreground">{i18next.t("promptWorkbench.promptWorkbenchPage.vuskpo")}</div>
                   </div>
                   <Tabs value={activeEditMode} onValueChange={(value) => setEditMode(value as PromptEditMode)}>
                     <TabsList className="h-10">
-                      <TabsTrigger value="slots" className="px-4">安全槽位</TabsTrigger>
+                      <TabsTrigger value="slots" className="px-4">{i18next.t("dict.gen_ed5d26aa")}</TabsTrigger>
                       <TabsTrigger
                         value="advanced"
                         className="px-4"
                         disabled={!advancedTemplateSupported}
-                      >
-                        高级模板
-                      </TabsTrigger>
+                      >{i18next.t("promptWorkbench.promptWorkbenchPage.k25kel")}</TabsTrigger>
                     </TabsList>
                   </Tabs>
                 </div>
                 {slotState.isNovelScopeDisabled ? (
-                  <div className="rounded-md bg-muted/[0.35] px-4 py-3 text-sm text-muted-foreground">
-                    选择小说后可设置本书独立的槽位覆盖；未选择小说时仅能查看继承值和生成通用预览。
-                  </div>
+                  <div className="rounded-md bg-muted/[0.35] px-4 py-3 text-sm text-muted-foreground">{i18next.t("promptWorkbench.promptWorkbenchPage.ixfe4s")}</div>
                 ) : null}
                 {isAdvancedMode ? (
                   <AdvancedPromptTemplateEditor
@@ -323,8 +318,8 @@ export default function PromptWorkbenchPage() {
                 onTestLlmChange={setTestLlm}
                 resetDisabled={effectiveResetDisabled}
                 officialVersionDisabled={effectiveOfficialDisabled}
-                officialVersionLabel={isAdvancedMode ? "恢复官方模板" : "官方版本"}
-                saveLabel={isAdvancedMode ? "保存为新版本" : "保存覆盖"}
+                officialVersionLabel={isAdvancedMode ? i18next.t("dict.gen_36018f02") : i18next.t("dict.gen_0bda51e1")}
+                saveLabel={isAdvancedMode ? i18next.t("dict.gen_fd528847") : i18next.t("dict.saveOverlay")}
                 onGeneratePreview={previewState.generatePreview}
                 onRunTest={handleRunTest}
                 onOpenOfficialVersion={
@@ -343,13 +338,10 @@ export default function PromptWorkbenchPage() {
           />
         ) : (
           <div className="flex h-full items-center justify-center p-8">
-            <div className="rounded-md border border-dashed bg-background/80 p-6 text-sm text-muted-foreground">
-              请选择一个提示词。
-            </div>
+            <div className="rounded-md border border-dashed bg-background/80 p-6 text-sm text-muted-foreground">{i18next.t("dict.gen_6eebc166")}</div>
           </div>
         )}
       </main>
-      <WritingPlatformProfileManager open={platformManagerOpen} onOpenChange={setPlatformManagerOpen} />
     </div>
   );
 }

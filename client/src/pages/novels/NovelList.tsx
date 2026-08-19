@@ -1,3 +1,4 @@
+import i18next from "i18next";
 import { useEffect, useMemo, useState } from "react";
 import type { DirectorContinuationMode } from "@ai-novel/shared/types/novelDirector";
 import type {
@@ -127,10 +128,10 @@ export default function NovelList() {
     mutationFn: (id: string) => deleteNovel(id),
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: queryKeys.novels.all });
-      toast.success("小说已删除。");
+      toast.success(i18next.t("dict.gen_fc09ee9d"));
     },
     onError: (error) => {
-      toast.error(error instanceof Error ? error.message : "删除小说失败。");
+      toast.error(error instanceof Error ? error.message : i18next.t("dict.gen_8ece8c38"));
     },
   });
 
@@ -143,10 +144,10 @@ export default function NovelList() {
     ),
     onSuccess: ({ blob, fileName }) => {
       createDownload(blob, fileName);
-      toast.success("导出已开始。");
+      toast.success(i18next.t("dict.gen_70576156"));
     },
     onError: (error) => {
-      toast.error(error instanceof Error ? error.message : "导出小说失败。");
+      toast.error(error instanceof Error ? error.message : i18next.t("dict.gen_45b8252a"));
     },
   });
 
@@ -202,7 +203,7 @@ export default function NovelList() {
   }, [page, totalPages]);
 
   const handleDelete = (novelId: string, title: string) => {
-    const confirmed = window.confirm(`确认删除《${title}》吗？该操作会直接删除当前小说。`);
+    const confirmed = window.confirm(i18next.t("novels.novelList.qz2u0b", { val1: (title) }));
     if (!confirmed) {
       return;
     }
@@ -314,11 +315,11 @@ export default function NovelList() {
       ) : novelListQuery.isError ? (
         <Card>
           <CardHeader>
-            <CardTitle>加载小说列表失败</CardTitle>
-            <CardDescription>当前无法读取项目列表，可以重试一次。</CardDescription>
+            <CardTitle>{i18next.t("dict.gen_d7f76120")}</CardTitle>
+            <CardDescription>{i18next.t("dict.gen_6ad34b4c")}</CardDescription>
           </CardHeader>
           <CardContent>
-            <Button onClick={() => void novelListQuery.refetch()}>重新加载</Button>
+            <Button onClick={() => void novelListQuery.refetch()}>{i18next.t("common.retry")}</Button>
           </CardContent>
         </Card>
       ) : novels.length === 0 ? (
@@ -329,7 +330,7 @@ export default function NovelList() {
             <div className="space-y-7">
               {continueNovels.length > 0 ? (
                 <section className="space-y-3">
-                  <h2 className="text-lg font-semibold">继续创作</h2>
+                  <h2 className="text-lg font-semibold">{i18next.t("onboarding.quickSetupDialog.gj7f9j")}</h2>
                   <div className="grid w-full grid-cols-[repeat(auto-fit,minmax(280px,1fr))] gap-3">
                     {continueNovels.map((novel) => (
                       <NovelContinueCard key={`continue-${novel.id}`} novel={novel} onManageCover={setCoverNovelId} />
@@ -338,7 +339,7 @@ export default function NovelList() {
                 </section>
               ) : null}
               <section className="space-y-3">
-                <h2 className="text-lg font-semibold">我的作品</h2>
+                <h2 className="text-lg font-semibold">{i18next.t("novels.novelList.cv11vc")}</h2>
                 <div className="grid w-full grid-cols-[repeat(auto-fit,minmax(210px,1fr))] gap-4">
                   {novels.filter((novel) => !continueNovels.some((item) => item.id === novel.id)).map((novel) => (
                     <NovelShelfCard key={novel.id} novel={novel} onManageCover={setCoverNovelId} onDownload={downloadNovelMutation.mutate} onDelete={handleDelete} />
@@ -404,29 +405,25 @@ export default function NovelList() {
       >
         <AppDialogContent
           className="max-w-2xl"
-          title="AI 驾驶舱"
+          title={i18next.t("dict.aiCockpit")}
           description={
             selectedCockpitNovel?.title
-              ? `查看《${selectedCockpitNovel.title}》的 AI 推进状态和下一步动作。`
+              ? i18next.t("novels.novelList.i39q8p", { val1: (selectedCockpitNovel.title) })
               : "查看这本书的 AI 推进状态和下一步动作。"
           }
         >
           {cockpitProjectionQuery.isPending ? (
-            <div className="rounded-lg border p-3 text-sm text-muted-foreground">
-              读取这本书的 AI 状态...
-            </div>
+            <div className="rounded-lg border p-3 text-sm text-muted-foreground">{i18next.t("novels.novelList.qc8pb5")}</div>
           ) : cockpitProjectionQuery.isError ? (
             <div className="rounded-lg border p-3">
-              <div className="text-sm text-muted-foreground">无法读取这本书的 AI 状态，请稍后重试。</div>
+              <div className="text-sm text-muted-foreground">{i18next.t("dict.gen_59ae355e")}</div>
               <Button
                 type="button"
                 size="sm"
                 variant="outline"
                 className="mt-3"
                 onClick={() => void cockpitProjectionQuery.refetch()}
-              >
-                重新读取
-              </Button>
+              >{i18next.t("autoDirectorFollowUps.autoDirectorFollowUpCenterPage.itle66")}</Button>
             </div>
           ) : cockpitProjection ? (
             <AICockpit

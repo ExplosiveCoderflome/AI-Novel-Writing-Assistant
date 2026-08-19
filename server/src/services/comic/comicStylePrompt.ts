@@ -46,30 +46,19 @@ export function resolveComicStyleKeywordsEn(stylePresetRaw: string | null | unde
 }
 
 // ─── 性别强约束 ───────────────────────────────────────────────────────────────
-// 漫画里"鹅蛋脸、桃花眼、媚意、傲娇"等描述在古风/韩漫语境对男女都通用，
-// 模型默认会偏向"美男"。所有生图链路（三视图/表情稿/资产/格子图）必须显式声明性别。
 
-/** 把 ComicCharacter.gender 转成强约束 prompt 片段；unknown/缺省时返回空串（不注入） */
+/** 把 ComicCharacter.gender 转成精炼、高优先级的英文 prompt 标定 */
 export function buildGenderLockPrompt(
   gender: string | null | undefined,
-  characterName?: string,
+  _characterName?: string,
 ): string {
   switch (gender) {
     case "male":
-      return [
-        `*** GENDER LOCK ***: ${characterName ?? "this character"} is MALE`,
-        "render with masculine anatomy: male facial bone structure, male shoulder/torso proportions, Adam's apple, masculine hairline; NOT feminine",
-        "中文：本角色为男性，画面性别必须正确，不要画成女性",
-      ].join(", ");
+      return "1male, masculine facial features, male body proportions";
     case "female":
-      return [
-        `*** GENDER LOCK ***: ${characterName ?? "this character"} is FEMALE`,
-        "render with feminine anatomy: female facial bone structure, female body proportions, feminine hairline; NOT masculine",
-        "中文：本角色为女性，画面性别必须正确，不要画成男性或中性美少年",
-      ].join(", ");
+      return "1female, feminine facial features, female body proportions";
     case "other":
-      // 中性/非二元：不强约束某一性别，但提示不要随机偏向
-      return `*** GENDER NOTE ***: ${characterName ?? "this character"} has androgynous / non-binary presentation, respect the appearance description above; do not force masculine or feminine defaults`;
+      return "androgynous presentation";
     case "unknown":
     case null:
     case undefined:

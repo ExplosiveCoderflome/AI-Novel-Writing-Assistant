@@ -1,3 +1,5 @@
+import i18next from "i18next";
+import { useTranslation } from "react-i18next";
 import { useState } from "react";
 import { ChevronDown } from "lucide-react";
 import type { DirectorAutoApprovalPreferenceSettings } from "@ai-novel/shared/types/autoDirectorApproval";
@@ -30,10 +32,8 @@ export function AutoDirectorApprovalPreferenceCard(props: {
     <Card className="min-w-0 overflow-hidden">
       <CardHeader className="flex-row items-start justify-between gap-3 space-y-0">
         <div className="min-w-0 space-y-1.5">
-          <CardTitle>审批授权偏好</CardTitle>
-          <CardDescription className={AUTO_DIRECTOR_MOBILE_CLASSES.wrapText}>
-            自动导演按范围执行时，会先带入这里的默认授权。未授权的审批点仍会停下等待你确认。
-          </CardDescription>
+          <CardTitle>{i18next.t("settings.autoDirectorApprovalPreferenceCard.2pydxb")}</CardTitle>
+          <CardDescription className={AUTO_DIRECTOR_MOBILE_CLASSES.wrapText}>{i18next.t("settings.autoDirectorApprovalPreferenceCard.7465dc")}</CardDescription>
         </div>
         <Button
           type="button"

@@ -38,6 +38,7 @@ export const chapterEditorWorkspaceDiagnosticCardSchema = z.object({
   paragraphEnd: z.number().int().min(1).nullable().optional(),
   severity: workspaceDiagnosticSeveritySchema,
   sourceTags: z.array(z.string().trim().min(1).max(24)).max(4).default([]),
+  sourceIssueId: z.string().trim().nullable().optional(),
 });
 
 export const chapterEditorWorkspaceRecommendedTaskSchema = z.object({

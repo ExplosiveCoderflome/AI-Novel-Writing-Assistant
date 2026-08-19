@@ -1,7 +1,7 @@
 import type { LLMProvider } from "@ai-novel/shared/types/llm";
 import type { ImageSceneType } from "@ai-novel/shared/types/image";
 
-export const IMAGE_SIZES = ["512x512", "768x768", "1024x1024", "1024x1536", "1536x1024"] as const;
+export const IMAGE_SIZES = ["512x512", "768x512", "1024x512", "768x768", "1024x1024", "1024x1536", "1536x1024"] as const;
 export const IMAGE_PROMPT_MODES = ["character_chain", "novel_cover_chain", "direct"] as const;
 export const IMAGE_PROMPT_OUTPUT_LANGUAGES = ["zh", "en"] as const;
 export const IMAGE_OUTPUT_FORMATS = ["png", "jpeg", "webp"] as const;

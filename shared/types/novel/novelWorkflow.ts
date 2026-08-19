@@ -1,0 +1,83 @@
+export type NovelWorkflowLane = "manual_create" | "auto_director";
+
+export type NovelWorkflowStage =
+  | "project_setup"
+  | "auto_director"
+  | "story_macro"
+  | "world_setup"
+  | "character_setup"
+  | "volume_strategy"
+  | "structured_outline"
+  | "chapter_execution"
+  | "quality_repair";
+
+export type NovelWorkflowCheckpoint =
+  | "candidate_selection_required"
+  | "book_contract_ready"
+  | "character_setup_required"
+  | "volume_strategy_ready"
+  | "production_experience_required"
+  | "chapter_batch_ready"
+  | "step_review_required"
+  | "replan_required"
+  | "workflow_completed";
+
+export type NovelWorkflowMilestoneType =
+  | NovelWorkflowCheckpoint
+  | "rewrite_snapshot_created";
+
+export interface NovelWorkflowMilestone {
+  checkpointType: NovelWorkflowMilestoneType;
+  summary: string;
+  createdAt: string;
+}
+
+export interface NovelWorkflowResumeTarget {
+  route: "/novels/create" | "/novels/:id/edit" | "/novels/:id/simple";
+  novelId?: string | null;
+  taskId?: string | null;
+  lane?: NovelWorkflowLane | null;
+  stage?: "basic" | "story_macro" | "world" | "character" | "outline" | "structured" | "chapter" | "pipeline";
+  chapterId?: string | null;
+  volumeId?: string | null;
+  mode?: "director" | null;
+}
+
+export type NovelProductionExperience = "simple" | "professional";
+
+export interface NovelProductionExperienceSelectionResponse {
+  experience: NovelProductionExperience;
+  workflowTaskId: string;
+  novelId: string;
+  targetRoute: `/novels/${string}/simple` | `/novels/${string}/edit`;
+  backgroundStarted: boolean;
+  commandId?: string | null;
+}
+
+export interface BookContract {
+  id: string;
+  novelId: string;
+  readingPromise: string;
+  protagonistFantasy: string;
+  coreSellingPoint: string;
+  chapter3Payoff: string;
+  chapter10Payoff: string;
+  chapter30Payoff: string;
+  escalationLadder: string;
+  relationshipMainline: string;
+  absoluteRedLines: string[];
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface BookContractDraft {
+  readingPromise: string;
+  protagonistFantasy: string;
+  coreSellingPoint: string;
+  chapter3Payoff: string;
+  chapter10Payoff: string;
+  chapter30Payoff: string;
+  escalationLadder: string;
+  relationshipMainline: string;
+  absoluteRedLines: string[];
+}

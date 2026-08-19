@@ -99,6 +99,14 @@
 
 这个机制纯粹是溯源用的元数据，不影响生图行为本身。雪碧图（每角色现场合成的临时 PNG）不持久化，元数据记录的是它的**组成素材**（哪个角色三视图 + 哪几个资产），不是雪碧图本身——这样省盘、且素材本身已经在角色/资产 tab 可见，溯源体验更轻量。
 
+## World Settings Synchronization (WorldNotes)
+
+在小说改编漫画工作流中，维持原小说的世界观设定（势力定位、法则铁律、重要地理等）对分分镜与生成图片至关重要。
+
+1. **源数据提取与格式化**：`NovelSourceAdapter` 会查询小说关联的 `NovelWorld` 数据，并将 `structuredDataJson` 字段中的世界背景、核心设定、氛围基调、世界法则、主要阵营和重要地理地标格式化为清晰的 markdown 文本，写入 `SourceBundle.worldNotes` 字段。
+2. **提示词链路传递**：当生成漫画分格脚本时，`ComicPanelScriptService` 会在 `generatePanelScript` 方法中提取内容源的 `worldNotes`，并将其作为 `worldNotes` 参数传给 `comicPanelScriptPrompt` 大模型模版。
+3. **大模型约束渲染**：在分格大模型提示词模版中，世界设定会作为独立段落 `## 世界观与背景设定（请严格遵守其地理、法则、阵营等规则）` 注入到 HumanMessage 中。这在分镜和动作设计层面就先消除了场景与设定漂移，保证生成的画面描述与小说设定完全一致。
+
 ## Failure Modes
 
 - 如果把最终 provider prompt 当成可编辑主字段，用户可能无意删除角色锚点和表情参考，导致角色崩坏。

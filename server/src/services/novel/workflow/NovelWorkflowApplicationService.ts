@@ -99,7 +99,9 @@ export class NovelWorkflowApplicationService {
       where: { id: taskId },
       data: {
         novelId,
-        title: novelTitle ?? existing.title,
+        title: existing.lane === "auto_director"
+          ? (novelTitle ? `《${novelTitle}》自动导演` : existing.title)
+          : (novelTitle ? `《${novelTitle}》流程任务` : existing.title),
         progress: Math.max(existing.progress, defaultProgressForStage(stage)),
         currentStage: stageLabel(stage),
         currentItemKey: existing.lane === "auto_director"

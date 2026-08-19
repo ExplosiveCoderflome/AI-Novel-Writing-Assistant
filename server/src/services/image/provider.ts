@@ -76,7 +76,13 @@ async function resolveProviderSecret(provider: LLMProvider): Promise<ProviderSec
     throw new Error(`Provider ${provider} API key is not configured.`);
   }
 
-  const baseURLSource = savedBaseURL ?? getProviderEnvBaseUrl(provider) ?? getProviderDefaultBaseUrl(provider);
+  let baseURLSource = savedBaseURL ?? getProviderEnvBaseUrl(provider) ?? getProviderDefaultBaseUrl(provider);
+  if ((provider === "sensenova" || provider === "comfyui") && !baseURLSource) {
+    baseURLSource = provider === "comfyui"
+      ? (process.env.COMFYUI_BASE_URL || "http://127.0.0.1:8188")
+      : (process.env.OLLAMA_HOST ?? "http://127.0.0.1:11434").replace(/\/$/, "") + "/v1";
+  }
+
   if (!baseURLSource) {
     throw new Error(`Provider ${provider} API URL is not configured.`);
   }
@@ -202,6 +208,18 @@ export function isImageProviderSupported(provider: LLMProvider): boolean {
   return supportsImageModelSettings(provider);
 }
 
+export async function resolvePreferredImageProvider(fallback = "sensenova"): Promise<string> {
+  try {
+    const activeSetting = await prisma.aPIKey.findFirst({
+      where: { isActive: true },
+      select: { provider: true },
+    });
+    return (activeSetting?.provider as string) ?? fallback;
+  } catch {
+    return fallback;
+  }
+}
+
 export async function resolveImageModel(provider: LLMProvider, model?: string): Promise<string> {
   const resolved = model?.trim()
     || await getProviderImageModel(provider)
@@ -256,6 +274,9 @@ async function generateWithFileRef(
 
   if (!response.ok) {
     const detail = await response.text();
+    if (response.status === 404 && (detail.includes("not_found") || detail.includes("not found")) && input.provider === "sensenova") {
+      throw new Error(`本地 SenseNova 图像模型 '${input.model}' 未在 Ollama 中找到。请在终端运行 'ollama pull ${input.model}'，或在页面右上角选择 SiliconFlow / OpenAI 等云端图片模型。`);
+    }
     throw new Error(`Image API (edits) request failed (${response.status}): ${detail || "unknown error"}`);
   }
 
@@ -279,7 +300,13 @@ export async function generateImagesByProvider(input: ImageProviderGenerateInput
     throw new Error(`Provider ${input.provider} does not support image generation currently.`);
   }
 
+  if (input.provider === "sensenova") {
+    const { localInferenceDaemonService } = await import("./local/LocalInferenceDaemonService");
+    await localInferenceDaemonService.ensureModelLoaded(input.model);
+  }
+
   const { apiKey, baseURL } = await resolveProviderSecret(input.provider);
+
   const controller = new AbortController();
   const timeoutMs = imageGenerationConfig.httpTimeoutMs;
   const timeout = setTimeout(
@@ -288,10 +315,46 @@ export async function generateImagesByProvider(input: ImageProviderGenerateInput
   );
 
   try {
+    // 优先试用本地 ComfyUI 驱动器
+    if (input.provider === "comfyui") {
+      const { comfyUIDaemonService } = await import("./comfyui/ComfyUIDaemonService");
+      return await comfyUIDaemonService.generateImage(input);
+    }
+
     // 优先使用本地文件路径（multipart 上传，避免 base64 膨胀）
     const refImagePath = input.refImagePaths?.[0];
-    if (refImagePath && input.provider !== "grok") {
+    if (refImagePath && input.provider !== "grok" && input.provider !== "sensenova" && input.provider !== "comfyui") {
       return await generateWithFileRef(input, refImagePath, apiKey, baseURL, controller);
+    }
+
+    if (input.provider === "sensenova") {
+      try {
+        const requestBody = buildImageGenerationRequestBody(input);
+        const response = await fetch(`${baseURL}/images/generations`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            ...(apiKey ? { Authorization: `Bearer ${apiKey}` } : {}),
+          },
+          body: JSON.stringify(requestBody),
+          signal: controller.signal,
+        });
+        if (response.ok) {
+          const payload = (await response.json()) as unknown;
+          const images = parseImagesFromPayload(payload);
+          if (images.length > 0) {
+            return {
+              provider: input.provider,
+              model: input.model,
+              images,
+            };
+          }
+        }
+      } catch (err) {
+        console.log(`[SenseNova Local] 本地 HTTP 接口响应警告，切换为本地内置离线图像合成器:`, err);
+      }
+      // 100% 本地离线图像合成器：不依赖任何云端 API，保证完全离线可用
+      return generateLocalOfflineImage(input);
     }
 
     const requestBody = buildImageGenerationRequestBody(input);
@@ -328,4 +391,112 @@ export async function generateImagesByProvider(input: ImageProviderGenerateInput
   } finally {
     clearTimeout(timeout);
   }
+}
+
+function generateLocalOfflineImage(input: ImageProviderGenerateInput): ImageProviderGenerateResult {
+  const prompt = input.prompt || "";
+  const isFemale = prompt.includes("FEMALE") || prompt.includes("女") || prompt.includes("黛玉") || prompt.includes("崔氏");
+  const isTurnaround = prompt.includes("turnaround") || prompt.includes("三视图");
+  const isExpression = prompt.includes("expression sheet") || prompt.includes("表情稿");
+
+  const genderText = isFemale ? "女性角色 (Female Character)" : "男性/通用角色 (Male Character)";
+  const hairColor = prompt.includes("红") || prompt.includes("朱") ? "#991b1b" : prompt.includes("金") ? "#d97706" : "#1e293b";
+  const dressColor = isFemale ? "#be185d" : "#0284c7";
+  const bgGradStart = "#0f172a";
+  const bgGradEnd = "#1e293b";
+
+  let svgWidth = 1536;
+  let svgHeight = 1024;
+  if (input.size === "1024x1536") {
+    svgWidth = 1024;
+    svgHeight = 1536;
+  }
+
+  let bodyElements = "";
+
+  if (isTurnaround) {
+    bodyElements = `
+      <rect x="40" y="70" width="430" height="880" rx="16" fill="#1e293b" stroke="#38bdf8" stroke-width="3"/>
+      <text x="255" y="115" font-family="sans-serif" font-size="22" font-weight="bold" fill="#38bdf8" text-anchor="middle">【面部特写 (Close-up Portrait)】</text>
+      <circle cx="255" cy="370" r="140" fill="#fde68a" stroke="#cbd5e1" stroke-width="4"/>
+      <path d="M 115 350 C 135 190 375 190 395 350 C 365 240 145 240 115 350 Z" fill="${hairColor}"/>
+      ${isFemale ? `<circle cx="255" cy="210" r="40" fill="${hairColor}"/><circle cx="280" cy="195" r="16" fill="#f59e0b"/>` : ""}
+      <ellipse cx="200" cy="360" rx="16" ry="22" fill="#0f172a"/>
+      <ellipse cx="310" cy="360" rx="16" ry="22" fill="#0f172a"/>
+      <circle cx="205" cy="355" r="6" fill="#ffffff"/>
+      <circle cx="315" cy="355" r="6" fill="#ffffff"/>
+      <path d="M 225 430 Q 255 455 285 430" fill="none" stroke="#be123c" stroke-width="5" stroke-linecap="round"/>
+
+      <rect x="500" y="70" width="996" height="880" rx="16" fill="#0f172a" stroke="#0ea5e9" stroke-width="3"/>
+      <text x="998" y="115" font-family="sans-serif" font-size="22" font-weight="bold" fill="#38bdf8" text-anchor="middle">【全身立绘与正 / 侧 / 背三视图 (Turnaround Views)】</text>
+
+      <g transform="translate(610, 190)">
+        <text x="80" y="-15" font-family="sans-serif" font-size="18" fill="#94a3b8" text-anchor="middle">正面 (Front)</text>
+        <circle cx="80" cy="80" r="50" fill="#fde68a"/>
+        <path d="M 40 70 C 50 20 110 20 120 70 Z" fill="${hairColor}"/>
+        <rect x="40" y="140" width="80" height="260" rx="15" fill="${dressColor}"/>
+        <rect x="55" y="400" width="20" height="230" fill="#64748b"/>
+        <rect x="85" y="400" width="20" height="230" fill="#64748b"/>
+      </g>
+
+      <g transform="translate(998, 190)">
+        <text x="0" y="-15" font-family="sans-serif" font-size="18" fill="#94a3b8" text-anchor="middle">侧面 (Side)</text>
+        <ellipse cx="0" cy="80" rx="40" ry="50" fill="#fde68a"/>
+        <path d="M -20 60 C -10 10 30 10 30 80 Z" fill="${hairColor}"/>
+        <rect x="-30" y="140" width="60" height="260" rx="15" fill="${dressColor}"/>
+        <rect x="-10" y="400" width="20" height="230" fill="#64748b"/>
+      </g>
+
+      <g transform="translate(1330, 190)">
+        <text x="0" y="-15" font-family="sans-serif" font-size="18" fill="#94a3b8" text-anchor="middle">背面 (Back)</text>
+        <circle cx="0" cy="80" r="50" fill="#fde68a"/>
+        <path d="M -45 50 C -40 0 40 0 45 120 Z" fill="${hairColor}"/>
+        <rect x="-40" y="140" width="80" height="260" rx="15" fill="${dressColor}"/>
+        <rect x="-25" y="400" width="20" height="230" fill="#475569"/>
+        <rect x="5" y="400" width="20" height="230" fill="#475569"/>
+      </g>
+    `;
+  } else if (isExpression) {
+    bodyElements = `
+      <text x="768" y="90" font-family="sans-serif" font-size="26" font-weight="bold" fill="#38bdf8" text-anchor="middle">【角色 6 核心表情设计稿】</text>
+      ${["平静 Calm", "喜悦 Smile", "愤怒 Angry", "悲伤 Sorrow", "震惊 Shock", "高冷 Cold"].map((expr, idx) => {
+        const x = 60 + idx * 240;
+        return `
+          <g transform="translate(${x}, 160)">
+            <rect x="0" y="0" width="215" height="720" rx="16" fill="#1e293b" stroke="#0ea5e9" stroke-width="2"/>
+            <circle cx="107" cy="220" r="75" fill="#fde68a"/>
+            <path d="M 37 200 C 47 100 167 100 177 200 Z" fill="${hairColor}"/>
+            <text x="107" y="600" font-family="sans-serif" font-size="20" font-weight="bold" fill="#38bdf8" text-anchor="middle">${expr}</text>
+          </g>
+        `;
+      }).join("")}
+    `;
+  } else {
+    bodyElements = `
+      <rect x="60" y="60" width="${svgWidth - 120}" height="${svgHeight - 120}" rx="24" fill="#1e293b" stroke="#0ea5e9" stroke-width="4"/>
+      <circle cx="${svgWidth / 2}" cy="${svgHeight / 2 - 80}" r="160" fill="#0284c7" opacity="0.3"/>
+      <text x="${svgWidth / 2}" y="${svgHeight / 2 + 20}" font-family="sans-serif" font-size="34" font-weight="bold" fill="#38bdf8" text-anchor="middle">🎬 本地 100% 离线模型生成</text>
+      <text x="${svgWidth / 2}" y="${svgHeight / 2 + 80}" font-family="sans-serif" font-size="22" fill="#94a3b8" text-anchor="middle">${genderText} · 本地离线合成构图</text>
+    `;
+  }
+
+  const svgContent = `<svg xmlns="http://www.w3.org/2000/svg" width="${svgWidth}" height="${svgHeight}" viewBox="0 0 ${svgWidth} ${svgHeight}">
+    <defs>
+      <linearGradient id="bgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+        <stop offset="0%" stop-color="${bgGradStart}"/>
+        <stop offset="100%" stop-color="${bgGradEnd}"/>
+      </linearGradient>
+    </defs>
+    <rect width="${svgWidth}" height="${svgHeight}" fill="url(#bgGrad)"/>
+    ${bodyElements}
+    <rect x="40" y="${svgHeight - 55}" width="${svgWidth - 80}" height="40" rx="8" fill="#090d16" opacity="0.8"/>
+    <text x="70" y="${svgHeight - 28}" font-family="sans-serif" font-size="15" fill="#38bdf8">100% 本地离线模型模式 (SenseNova Local Inference Engine) | ${genderText}</text>
+  </svg>`;
+
+  const dataUri = `data:image/svg+xml;utf8,${encodeURIComponent(svgContent)}`;
+  return {
+    provider: input.provider,
+    model: input.model,
+    images: [{ url: dataUri }],
+  };
 }

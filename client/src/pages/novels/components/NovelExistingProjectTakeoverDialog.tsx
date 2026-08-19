@@ -1,3 +1,5 @@
+import { useTranslation } from "react-i18next";
+import i18next from "i18next";
 import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
@@ -11,7 +13,6 @@ import type {
 } from "@ai-novel/shared/types/novelDirector";
 import { buildFullBookAutopilotExecutionPlan } from "@ai-novel/shared/types/novelDirector";
 import { getDirectorTaskSnapshot, getDirectorTakeoverReadiness, startDirectorTakeover } from "@/api/novelDirector";
-import { DEFAULT_DIRECTOR_RISK_POLICY, getNovelDirectorRiskPolicy } from "@/api/directorRiskPolicy";
 import { queryKeys } from "@/api/queryKeys";
 import { getStyleBindings, getStyleProfiles } from "@/api/styleEngine";
 import LLMSelector from "@/components/common/LLMSelector";
@@ -50,7 +51,6 @@ import TakeoverDiagnosisPanel from "./takeover/TakeoverDiagnosisPanel";
 import { useDirectorAutoApprovalDraft } from "./useDirectorAutoApprovalDraft";
 import { AUTO_DIRECTOR_MOBILE_CLASSES } from "@/mobile/autoDirector";
 import SelectControl from "@/components/common/SelectControl";
-import { DirectorRiskPolicySummary } from "./DirectorRiskPolicySummary";
 
 interface NovelExistingProjectTakeoverDialogProps {
   novelId: string;
@@ -65,22 +65,37 @@ interface NovelExistingProjectTakeoverDialogProps {
 
 const RUN_MODE_OPTIONS: Array<{ value: DirectorRunMode; label: string; description: string }> = [
   {
+    value: "stage_review",
+    label: i18next.t("novels.novelExistingProjectTakeoverDialog.im9og2"),
+    description: i18next.t("novels.novelExistingProjectTakeoverDialog.tmguyd"),
+  },
+  {
+    value: "full_book_autopilot",
+    label: i18next.t("dict.gen_a86a8754"),
+    description: i18next.t("dict.aiFillEntireBookGoal"),
+  },
+  {
     value: "auto_to_ready",
-    label: "推进到可开写",
-    description: "AI 会补齐正文生产前需要的资源，再让你选择简易生产或专业生产。",
+    label: i18next.t("dict.gen_0736c320"),
+    description: i18next.t("novels.novelExistingProjectTakeoverDialog.n9x0iz"),
+  },
+  {
+    value: "auto_to_execution",
+    label: i18next.t("dict.gen_88309d03"),
+    description: i18next.t("dict.gen_19ede094"),
   },
 ];
 
 const STRATEGY_OPTIONS: Array<{ value: DirectorTakeoverStrategy; label: string; description: string }> = [
   {
     value: "continue_existing",
-    label: "继续已有进度",
-    description: "优先跳过已完成资产，只补缺失部分或恢复当前批次。",
+    label: i18next.t("dict.gen_53d2332c"),
+    description: i18next.t("dict.prioritizeSkipCompletedAssetsOnlyFillMissingOrRestoreCurrentBatch"),
   },
   {
     value: "restart_current_step",
-    label: "重新生成当前步",
-    description: "先清空当前步骤产出，再按该步骤重新生成。",
+    label: i18next.t("dict.gen_f231c588"),
+    description: i18next.t("dict.gen_a5f11e53"),
   },
 ];
 
@@ -95,13 +110,13 @@ function summarizeCurrentContext(
   const primaryStoryModePath = storyModeOptions.find((item) => item.id === basicForm.primaryStoryModeId)?.path ?? basicForm.primaryStoryModeId;
   const worldName = worldOptions.find((item) => item.id === basicForm.worldId)?.name ?? basicForm.worldId;
   return [
-    basicForm.description.trim() ? `概述：${basicForm.description.trim()}` : "",
-    basicForm.targetAudience.trim() ? `目标读者：${basicForm.targetAudience.trim()}` : "",
-    basicForm.bookSellingPoint.trim() ? `书级卖点：${basicForm.bookSellingPoint.trim()}` : "",
-    genrePath ? `题材：${genrePath}` : "",
-    primaryStoryModePath ? `主推进模式：${primaryStoryModePath}` : "",
-    worldName ? `参考世界样本：${worldName}` : "",
-    commercialTags.length > 0 ? `商业标签：${commercialTags.join(" / ")}` : "",
+    basicForm.description.trim() ? i18next.t("novels.novelExistingProjectTakeoverDialog.d4b4x0", { val1: basicForm.description.trim() }) : "",
+    basicForm.targetAudience.trim() ? i18next.t("novels.novelExistingProjectTakeoverDialog.xh2lp5", { val1: basicForm.targetAudience.trim() }) : "",
+    basicForm.bookSellingPoint.trim() ? i18next.t("novels.novelExistingProjectTakeoverDialog.sahdzu", { val1: basicForm.bookSellingPoint.trim() }) : "",
+    genrePath ? i18next.t("novels.novelExistingProjectTakeoverDialog.vitx1u", { val1: genrePath }) : "",
+    primaryStoryModePath ? i18next.t("novels.novelExistingProjectTakeoverDialog.wam8i6", { val1: primaryStoryModePath }) : "",
+    worldName ? i18next.t("novels.novelExistingProjectTakeoverDialog.woqjcu", { val1: worldName }) : "",
+    commercialTags.length > 0 ? i18next.t("novels.novelExistingProjectTakeoverDialog.yynum7", { val1: commercialTags.join(" / ") }) : "",
   ].filter(Boolean);
 }
 
@@ -130,6 +145,7 @@ export default function NovelExistingProjectTakeoverDialog({
   defaultEntryStep = "basic",
   workflowTaskId,
 }: NovelExistingProjectTakeoverDialogProps) {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const llm = useLLMStore();
@@ -171,15 +187,8 @@ export default function NovelExistingProjectTakeoverDialog({
     queryFn: () => getStyleBindings({ targetType: "novel", targetId: novelId }),
     enabled: open && Boolean(novelId),
   });
-  const riskPolicyQuery = useQuery({
-    queryKey: queryKeys.novels.directorRiskPolicy(novelId),
-    queryFn: () => getNovelDirectorRiskPolicy(novelId),
-    enabled: open && Boolean(novelId),
-    retry: false,
-  });
 
   const readiness = readinessQuery.data?.data ?? null;
-  const effectiveRiskPolicy = riskPolicyQuery.data?.data ?? { ...DEFAULT_DIRECTOR_RISK_POLICY, source: "global" as const };
   const contextTaskSnapshot = contextTaskSnapshotQuery.data?.data?.snapshot ?? null;
   const contextTaskIsContinuable = Boolean(
     contextTaskSnapshot?.task
@@ -232,7 +241,7 @@ export default function NovelExistingProjectTakeoverDialog({
   );
   const progressInspection = buildTakeoverProgressInspection(readiness, contextTaskSnapshot);
   const readinessErrorMessage = readinessQuery.isError
-    ? readinessQuery.error instanceof Error ? readinessQuery.error.message : "读取接管状态失败。"
+    ? readinessQuery.error instanceof Error ? readinessQuery.error.message : i18next.t("dict.gen_3cecd2a8")
     : null;
 
   const enterCurrentTask = () => {
@@ -347,7 +356,7 @@ export default function NovelExistingProjectTakeoverDialog({
     onSuccess: async (response) => {
       const data = response.data;
       if (!data?.taskId) {
-        toast.error("启动自动导演失败，未返回任务信息。");
+        toast.error(i18next.t("dict.gen_73ba7490"));
         return;
       }
       await queryClient.invalidateQueries({ queryKey: queryKeys.novels.autoDirectorTask(novelId) });
@@ -359,10 +368,10 @@ export default function NovelExistingProjectTakeoverDialog({
       setOpen(false);
       toast.success(
         effectiveRunMode === "full_book_autopilot"
-          ? "自动导演接管任务已提交，可在 AI 驾驶舱查看全书执行进度。"
+          ? i18next.t("dict.gen_b4951973")
           : effectiveRunMode === "auto_to_execution"
-          ? `自动导演接管任务已提交，可在 AI 驾驶舱查看 ${buildDirectorAutoExecutionPlanLabel(autoExecutionPlan)} 的执行进度。`
-          : "自动导演接管任务已提交，可在 AI 驾驶舱查看排队和执行进度。",
+          ? i18next.t("novels.novelExistingProjectTakeoverDialog.s5djua", { val1: buildDirectorAutoExecutionPlanLabel(autoExecutionPlan) })
+          : i18next.t("dict.gen_b87ce241"),
       );
       navigate(buildEditRoute({
         novelId,
@@ -388,15 +397,12 @@ export default function NovelExistingProjectTakeoverDialog({
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent className={AUTO_DIRECTOR_MOBILE_CLASSES.takeoverDialogContent}>
           <DialogHeader className="shrink-0 border-b px-4 pb-4 pr-12 pt-5 text-left sm:px-6 sm:pt-6">
-            <DialogTitle>让 AI 从当前项目继续自动导演</DialogTitle>
-            <DialogDescription>
-              先读取当前项目真实进度，再明确告诉你这次会跳过、继续还是重跑哪些步骤。
-            </DialogDescription>
+            <DialogTitle>{i18next.t("dict.gen_4af814f1")}</DialogTitle>
+            <DialogDescription>{i18next.t("novels.novelExistingProjectTakeoverDialog.gbhvke")}</DialogDescription>
           </DialogHeader>
           <div className={AUTO_DIRECTOR_MOBILE_CLASSES.dialogBody}>
             <div className="min-w-0 space-y-4">
               <TakeoverContextSummaryPanel lines={contextLines} />
-              <DirectorRiskPolicySummary policy={effectiveRiskPolicy} source={effectiveRiskPolicy.source} compact />
               <TakeoverDiagnosisPanel
                 guidance={takeoverGuidance}
                 inspection={progressInspection}
@@ -418,26 +424,22 @@ export default function NovelExistingProjectTakeoverDialog({
                 open={advancedOpen}
                 onToggle={(event) => setAdvancedOpen(event.currentTarget.open)}
               >
-                <summary className="cursor-pointer text-sm font-medium text-foreground">
-                  高级设置
-                </summary>
+                <summary className="cursor-pointer text-sm font-medium text-foreground">{i18next.t("novels.novelExistingProjectTakeoverDialog.k2beyn")}</summary>
                 <div className="mt-4 space-y-4">
               <div className="min-w-0 rounded-xl border bg-background/80 p-3 sm:p-4">
-                <div className="text-sm font-medium text-foreground">模型设置</div>
+                <div className="text-sm font-medium text-foreground">{i18next.t("dict.gen_96467e71")}</div>
                 <div className="mt-3"><LLMSelector /></div>
               </div>
               <div className="min-w-0 rounded-xl border bg-background/80 p-3 sm:p-4">
-                <div className="text-sm font-medium text-foreground">自动导演运行方式</div>
+                <div className="text-sm font-medium text-foreground">{i18next.t("dict.gen_9b2f093e")}</div>
                 <div className="mt-3 rounded-lg border bg-muted/15 p-3">
                   <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                     <div className="space-y-1">
-                      <div className="text-sm font-medium text-foreground">正文后去 AI 检测与修正</div>
-                      <div className={`text-xs leading-5 text-muted-foreground ${AUTO_DIRECTOR_MOBILE_CLASSES.wrapText}`}>
-                        开启后，章节正文生成完成时会检测 AI 味风险，并在命中可修正问题时生成修订稿。
-                      </div>
+                      <div className="text-sm font-medium text-foreground">{i18next.t("basicInfo.postGenerationStyleReview")}</div>
+                      <div className={`text-xs leading-5 text-muted-foreground ${AUTO_DIRECTOR_MOBILE_CLASSES.wrapText}`}>{i18next.t("basicInfo.postGenerationStyleReviewHint")}</div>
                     </div>
                     <Switch
-                      aria-label="正文后去 AI 检测与修正"
+                      aria-label={i18next.t("basicInfo.postGenerationStyleReview")}
                       checked={postGenerationStyleReviewEnabled}
                       onCheckedChange={setPostGenerationStyleReviewEnabled}
                     />
@@ -483,26 +485,22 @@ export default function NovelExistingProjectTakeoverDialog({
                 ) : null}
                 {runMode === "full_book_autopilot" ? (
                   <div className={`mt-3 rounded-md border border-primary/15 bg-primary/5 p-3 text-xs leading-5 text-muted-foreground ${AUTO_DIRECTOR_MOBILE_CLASSES.wrapText}`}>
-                    <div className="text-sm font-medium text-foreground">全书自动接管</div>
-                    <div className="mt-1">
-                      系统会以整本书为目标接管当前项目，继续补齐规划、章节执行、审校和修复。只有模型不可用、服务异常、正文保护或不可恢复风险会停下。
-                    </div>
+                    <div className="text-sm font-medium text-foreground">{i18next.t("dict.gen_a86a8754")}</div>
+                    <div className="mt-1">{i18next.t("novels.novelExistingProjectTakeoverDialog.1l2glx")}</div>
                   </div>
                 ) : null}
               </div>
 
               <div className="min-w-0 rounded-xl border bg-background/80 p-3 sm:p-4">
-                <div className="text-sm font-medium text-foreground">本次接管使用的写法</div>
-                <div className={`mt-1 text-xs leading-5 text-muted-foreground ${AUTO_DIRECTOR_MOBILE_CLASSES.wrapText}`}>
-                  绑定书级默认写法后，接管时建议沿用它。前半段导演只读取轻量摘要，避免干扰结构规划。
-                </div>
+                <div className="text-sm font-medium text-foreground">{i18next.t("dict.gen_855ed7ff")}</div>
+                <div className={`mt-1 text-xs leading-5 text-muted-foreground ${AUTO_DIRECTOR_MOBILE_CLASSES.wrapText}`}>{i18next.t("novels.novelExistingProjectTakeoverDialog.83nnvn")}</div>
                 <div className="mt-3 space-y-3">
                   <SelectControl
                     className="w-full rounded-md border bg-background p-2 text-sm"
                     value={selectedStyleProfileId}
                     onChange={(event) => setSelectedStyleProfileId(event.target.value)}
                   >
-                    <option value="">先只沿用文风关键词</option>
+                    <option value="">{i18next.t("dict.gen_7097c369")}</option>
                     {styleProfiles.map((profile) => (
                       <option key={profile.id} value={profile.id}>{profile.name}</option>
                     ))}
@@ -524,12 +522,12 @@ export default function NovelExistingProjectTakeoverDialog({
 
               <div className="min-w-0 rounded-xl border bg-background/80 p-3 sm:p-4">
                 <div className="flex items-center justify-between gap-3">
-                  <div className="text-sm font-medium text-foreground">接续位置</div>
-                  {readinessQuery.isLoading ? <Badge variant="outline">读取中</Badge> : null}
+                  <div className="text-sm font-medium text-foreground">{i18next.t("dict.gen_1837ba81")}</div>
+                  {readinessQuery.isLoading ? <Badge variant="outline">{i18next.t("dict.gen_26d335b3")}</Badge> : null}
                 </div>
                 {readinessQuery.isError ? (
                   <div className={`mt-3 rounded-lg border border-destructive/30 bg-destructive/5 px-3 py-2 text-sm text-destructive ${AUTO_DIRECTOR_MOBILE_CLASSES.wrapText}`}>
-                    {readinessQuery.error instanceof Error ? readinessQuery.error.message : "读取接管状态失败。"}
+                    {readinessQuery.error instanceof Error ? readinessQuery.error.message : i18next.t("dict.gen_3cecd2a8")}
                   </div>
                 ) : null}
 
@@ -537,27 +535,27 @@ export default function NovelExistingProjectTakeoverDialog({
                   <>
                     <div className="mt-3 grid min-w-0 gap-3 sm:grid-cols-2 lg:grid-cols-4">
                       <div className="rounded-lg border bg-muted/15 p-3">
-                        <div className="text-xs text-muted-foreground">书级规划</div>
-                        <div className="mt-1 text-sm font-medium text-foreground">{readiness.snapshot.hasStoryMacroPlan ? "已具备" : "未具备"}</div>
+                        <div className="text-xs text-muted-foreground">{i18next.t("dict.chapterPlanning")}</div>
+                        <div className="mt-1 text-sm font-medium text-foreground">{i18next.t("dict.storyMacroPlanReady")}</div>
                       </div>
                       <div className="rounded-lg border bg-muted/15 p-3">
-                        <div className="text-xs text-muted-foreground">创作约束</div>
-                        <div className="mt-1 text-sm font-medium text-foreground">{readiness.snapshot.hasBookContract ? "已具备" : "未具备"}</div>
+                        <div className="text-xs text-muted-foreground">{i18next.t("dict.gen_7191a9b4")}</div>
+                        <div className="mt-1 text-sm font-medium text-foreground">{i18next.t("dict.bookContractReady")}</div>
                       </div>
                       <div className="rounded-lg border bg-muted/15 p-3">
-                        <div className="text-xs text-muted-foreground">角色数量</div>
+                        <div className="text-xs text-muted-foreground">{i18next.t("dict.gen_487f3949")}</div>
                         <div className="mt-1 text-sm font-medium text-foreground">{readiness.snapshot.characterCount}</div>
                       </div>
                       <div className="rounded-lg border bg-muted/15 p-3">
-                        <div className="text-xs text-muted-foreground">卷 / 当前卷章节</div>
+                        <div className="text-xs text-muted-foreground">{i18next.t("dict.gen_0b218e75")}</div>
                         <div className="mt-1 text-sm font-medium text-foreground">{readiness.snapshot.volumeCount} / {readiness.snapshot.firstVolumeChapterCount}</div>
                       </div>
                     </div>
 
                     {readiness.hasActiveTask ? (
                       <div className="mt-4 rounded-lg border border-amber-500/30 bg-amber-500/10 p-4">
-                        <div className="text-sm font-medium text-foreground">当前已有自动导演任务</div>
-                        <div className="mt-1 text-sm text-muted-foreground">为避免重复接管，请先处理当前自动导演任务。</div>
+                        <div className="text-sm font-medium text-foreground">{i18next.t("dict.gen_de3efd01")}</div>
+                        <div className="mt-1 text-sm text-muted-foreground">{i18next.t("dict.avoidRepeatHandover")}</div>
                         <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:justify-end">
                           <Button
                             type="button"
@@ -577,9 +575,7 @@ export default function NovelExistingProjectTakeoverDialog({
                               search.set("stage", effectiveEntryStep === "basic" ? "basic" : effectiveEntryStep);
                               navigate(`/novels/${novelId}/edit?${search.toString()}`);
                             }}
-                          >
-                            处理当前任务
-                          </Button>
+                          >{i18next.t("novels.novelExistingProjectTakeoverDialog.wnlsv6")}</Button>
                         </div>
                       </div>
                     ) : (
@@ -602,13 +598,13 @@ export default function NovelExistingProjectTakeoverDialog({
                                 <div className="flex items-center justify-between gap-2">
                                   <div className="break-words text-sm font-medium text-foreground [overflow-wrap:anywhere]">{entry.label}</div>
                                   <div className="flex shrink-0 flex-wrap items-center gap-2">
-                                    {entry.recommended ? <Badge>推荐</Badge> : null}
+                                    {entry.recommended ? <Badge>{i18next.t("dict.gen_3f981012")}</Badge> : null}
                                     <Badge variant="outline">{entry.status}</Badge>
                                   </div>
                                 </div>
                                 <div className={`mt-2 text-xs leading-5 text-muted-foreground ${AUTO_DIRECTOR_MOBILE_CLASSES.wrapText}`}>{entry.description}</div>
                                 <div className={`mt-3 text-xs leading-5 text-muted-foreground ${AUTO_DIRECTOR_MOBILE_CLASSES.wrapText}`}>
-                                  {allowedForScope ? entry.reason : "当前范围不能从这一步开始。章节范围从节奏拆章开始，卷范围从卷战略开始。"}
+                                  {allowedForScope ? entry.reason : i18next.t("dict.gen_a6b2c5fb")}
                                 </div>
                               </button>
                             );
@@ -636,36 +632,36 @@ export default function NovelExistingProjectTakeoverDialog({
 
                         {selectedEntry ? (
                           <div className="mt-4 min-w-0 rounded-xl border bg-muted/15 p-3 sm:p-4">
-                            <div className="text-sm font-medium text-foreground">本次接管预览</div>
+                            <div className="text-sm font-medium text-foreground">{i18next.t("dict.gen_a444c658")}</div>
                             <div className={`mt-2 text-sm text-muted-foreground ${AUTO_DIRECTOR_MOBILE_CLASSES.wrapText}`}>{selectedPreview?.summary ?? selectedEntry.reason}</div>
                             <div className={`mt-3 text-xs leading-5 text-muted-foreground ${AUTO_DIRECTOR_MOBILE_CLASSES.wrapText}`}>{selectedPreview?.effectSummary ?? selectedEntry.description}</div>
                             {selectedPreview ? (
                               <>
                                 <div className="mt-3 flex min-w-0 flex-wrap gap-2">
-                                  <Badge variant="secondary" className="max-w-full whitespace-normal break-words text-left [overflow-wrap:anywhere]">当前页：{selectedEntry.label}</Badge>
-                                  <Badge variant="outline" className="max-w-full whitespace-normal break-words text-left [overflow-wrap:anywhere]">实际接管：{selectedPreview.effectiveStep}</Badge>
-                                  <Badge variant="outline" className="max-w-full whitespace-normal break-words text-left [overflow-wrap:anywhere]">执行阶段：{selectedPreview.effectiveStage}</Badge>
-                                  {selectedPreview.usesCurrentBatch ? <Badge>恢复当前批次</Badge> : null}
+                                  <Badge variant="secondary" className="max-w-full whitespace-normal break-words text-left [overflow-wrap:anywhere]">{i18next.t("dict.gen_66fab546")}</Badge>
+                                  <Badge variant="outline" className="max-w-full whitespace-normal break-words text-left [overflow-wrap:anywhere]">{i18next.t("dict.gen_ffbc22d4")}</Badge>
+                                  <Badge variant="outline" className="max-w-full whitespace-normal break-words text-left [overflow-wrap:anywhere]">{i18next.t("dict.gen_7bad3a35")}</Badge>
+                                  {selectedPreview.usesCurrentBatch ? <Badge>{i18next.t("dict.gen_b3d4b4f4")}</Badge> : null}
                                 </div>
                                 {readiness.activePipelineJob ? (
                                   <div className={`mt-3 text-xs leading-5 text-muted-foreground ${AUTO_DIRECTOR_MOBILE_CLASSES.wrapText}`}>
-                                    当前活动批次：{readiness.activePipelineJob.currentItemLabel || `范围 ${readiness.activePipelineJob.startOrder}-${readiness.activePipelineJob.endOrder}`}
+                                    当前活动批次：{readiness.activePipelineJob.currentItemLabel || i18next.t("novels.novelExistingProjectTakeoverDialog.fykw0x", { val1: readiness.activePipelineJob.startOrder, val2: readiness.activePipelineJob.endOrder })}
                                   </div>
                                 ) : null}
                                 {readiness.latestCheckpoint?.checkpointType ? (
                                   <div className={`mt-2 text-xs leading-5 text-muted-foreground ${AUTO_DIRECTOR_MOBILE_CLASSES.wrapText}`}>
                                     最近检查点：{readiness.latestCheckpoint.checkpointType}
-                                    {readiness.latestCheckpoint.chapterOrder ? ` · 第${readiness.latestCheckpoint.chapterOrder}章` : ""}
+                                    {readiness.latestCheckpoint.chapterOrder ? i18next.t("novels.novelExistingProjectTakeoverDialog.tbqcqb", { val1: readiness.latestCheckpoint.chapterOrder }) : ""}
                                   </div>
                                 ) : null}
                                 {readiness.executableRange ? (
                                   <div className={`mt-2 text-xs leading-5 text-muted-foreground ${AUTO_DIRECTOR_MOBILE_CLASSES.wrapText}`}>
                                     当前可执行范围：第 {readiness.executableRange.startOrder}-{readiness.executableRange.endOrder} 章
-                                    {readiness.executableRange.nextChapterOrder ? ` · 下一章第 ${readiness.executableRange.nextChapterOrder} 章` : ""}
+                                    {readiness.executableRange.nextChapterOrder ? i18next.t("novels.novelExistingProjectTakeoverDialog.b76u6y", { val1: readiness.executableRange.nextChapterOrder }) : ""}
                                   </div>
                                 ) : null}
                                 {selectedPreview.skipSteps.length > 0 ? (
-                                  <div className={`mt-3 text-xs leading-5 text-muted-foreground ${AUTO_DIRECTOR_MOBILE_CLASSES.wrapText}`}>会跳过：{selectedPreview.skipSteps.join(" / ")}</div>
+                                  <div className={`mt-3 text-xs leading-5 text-muted-foreground ${AUTO_DIRECTOR_MOBILE_CLASSES.wrapText}`}>{i18next.t("dict.willSkipSelectedPreviewSkipStepsJoinBySlash")}</div>
                                 ) : null}
                                 <div className={`mt-3 space-y-1 text-xs leading-5 text-muted-foreground ${AUTO_DIRECTOR_MOBILE_CLASSES.wrapText}`}>
                                   {selectedPreview.impactNotes.map((note) => <div key={note}>• {note}</div>)}
@@ -682,7 +678,7 @@ export default function NovelExistingProjectTakeoverDialog({
                             disabled={startMutation.isPending || !selectedEntry || !selectedEntry.available || !selectedEntryAllowedForScope}
                             onClick={() => startMutation.mutate()}
                           >
-                            {startMutation.isPending ? "启动中..." : "按高级设置启动"}
+                            {startMutation.isPending ? i18next.t("dict.gen_684c9230") : i18next.t("dict.gen_779abc23")}
                           </Button>
                         </div>
                       </>

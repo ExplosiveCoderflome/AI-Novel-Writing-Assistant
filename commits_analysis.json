@@ -1,0 +1,1036 @@
+[
+  {
+    "hash": "0d6f4180",
+    "date": "2026-08-10",
+    "msg": "feat(director): import issue governance workflow",
+    "body": "",
+    "files": [
+      "README.md",
+      "client/src/api/directorRiskPolicy.ts",
+      "client/src/api/novel/shared.ts",
+      "client/src/api/novelDirector.ts",
+      "client/src/api/queryKeys.ts",
+      "client/src/api/settings.ts",
+      "client/src/api/storyMode.ts",
+      "client/src/components/autoDirector/DirectorRuntimeProjectionCard.tsx",
+      "client/src/pages/novels/NovelList.tsx",
+      "client/src/pages/novels/autoDirector/AutoDirectorCreatePage.tsx",
+      "client/src/pages/novels/autoDirector/StageBasicSetup.tsx",
+      "client/src/pages/novels/components/BasicInfoTab.tsx",
+      "client/src/pages/novels/components/DirectorRiskPolicySummary.tsx",
+      "client/src/pages/novels/components/NovelAutoDirectorProgressPanel.tsx",
+      "client/src/pages/novels/components/NovelDirectorIssuePolicyCard.tsx",
+      "client/src/pages/novels/components/NovelDirectorRiskPolicyCard.tsx",
+      "client/src/pages/novels/components/NovelExistingProjectTakeoverDialog.tsx",
+      "client/src/pages/novels/components/PipelineTab.tsx",
+      "client/src/pages/novels/components/list/NovelShelfCard.tsx",
+      "client/src/pages/novels/components/list/novelListViewModel.ts",
+      "client/src/pages/novels/simpleCreation/SimpleCreationIssueGovernancePanel.tsx",
+      "client/src/pages/novels/simpleCreation/SimpleCreationMaterialsPanel.tsx",
+      "client/src/pages/novels/simpleCreation/SimpleNovelShelfPage.tsx",
+      "client/src/pages/settings/AutoDirectorIssuePolicyCard.tsx",
+      "client/src/pages/settings/AutoDirectorRiskPolicyCard.tsx",
+      "client/src/pages/settings/AutoDirectorSettingsSection.tsx",
+      "client/src/pages/storyModes/StoryModeManagementPage.tsx",
+      "client/src/pages/storyModes/components/StoryModeCreateDialog.tsx",
+      "client/src/pages/storyModes/components/StoryModeExpansionDialog.tsx",
+      "client/src/pages/storyModes/components/StoryModeProfileFields.tsx",
+      "client/tests/assetLibraryDesignContracts.test.js",
+      "client/tests/directorRiskPolicyContracts.test.js",
+      "client/tests/simpleCreationIssueGovernanceContracts.test.js",
+      "docs/releases/release-notes.md",
+      "docs/wiki/workflows/auto-director-runtime.md",
+      "server/src/modules/novel/http/novelRouteRegistration.ts",
+      "server/src/modules/novel/setup/http/novelBaseRoutes.ts",
+      "server/src/prisma/migrations.sqlite/20260807110000_auto_director_risk_policy/migration.sql",
+      "server/src/prisma/migrations.sqlite/20260810120000_director_issue_governance/migration.sql",
+      "server/src/prisma/migrations/20260807110000_auto_director_risk_policy/migration.sql",
+      "server/src/prisma/migrations/20260810120000_director_issue_governance/migration.sql",
+      "server/src/prisma/schema.prisma",
+      "server/src/prisma/schema.sqlite.prisma",
+      "server/src/prompting/prompts/director/directorRiskAssessment.prompts.ts",
+      "server/src/prompting/prompts/novel/chapterLayeredContext.ts",
+      "server/src/prompting/prompts/novel/chapterLayeredContextShared.ts",
+      "server/src/prompting/prompts/novel/completion/compactBook.prompts.ts",
+      "server/src/prompting/prompts/novel/planningContextBlocks.ts",
+      "server/src/prompting/prompts/novel/volume/chapterList.prompts.ts",
+      "server/src/prompting/prompts/novel/volume/shared.ts",
+      "server/src/prompting/prompts/storyMode/storyMode.promptSchemas.ts",
+      "server/src/prompting/prompts/storyMode/storyMode.prompts.ts",
+      "server/src/prompting/registry/promptAssetLoaderEntries.ts",
+      "server/src/routes/settingsAutoDirector.ts",
+      "server/src/routes/storyMode.ts",
+      "server/src/services/novel/director/NovelDirectorService.ts",
+      "server/src/services/novel/director/automation/novelDirectorAutoExecution.ts",
+      "server/src/services/novel/director/automation/novelDirectorAutoExecutionCheckpointRuntime.ts",
+      "server/src/services/novel/director/automation/novelDirectorAutoExecutionCircuitBreakerRuntime.ts",
+      "server/src/services/novel/director/automation/novelDirectorAutoExecutionRuntime.ts",
+      "server/src/services/novel/director/automation/novelDirectorAutoExecutionScopeRuntime.ts",
+      "server/src/services/novel/director/commands/DirectorCommandService.ts",
+      "server/src/services/novel/director/http/novelDirectorRiskPolicy.ts",
+      "server/src/services/novel/director/issues/DirectorIssuePolicyService.ts",
+      "server/src/services/novel/director/issues/DirectorIssueService.ts",
+      "server/src/services/novel/director/issues/DirectorIssueTaskContext.ts",
+      "server/src/services/novel/director/issues/directorIssuePolicyRoutes.ts",
+      "server/src/services/novel/director/issues/index.ts",
+      "server/src/services/novel/director/projections/novelDirectorRuntimeProjection.ts",
+      "server/src/services/novel/director/risk/DirectorRiskAssessmentService.ts",
+      "server/src/services/novel/director/runtime/DirectorEventProjectionService.ts",
+      "server/src/services/novel/director/runtime/novelDirectorConfirmRuntime.ts",
+      "server/src/services/novel/director/runtime/novelDirectorContinueRuntime.ts",
+      "server/src/services/novel/director/runtime/novelDirectorHelpers.ts",
+      "server/src/services/novel/director/settings/DirectorRiskPolicyOverrideService.ts",
+      "server/src/services/novel/novelCoreCrudService.ts",
+      "server/src/services/novel/planning/ChapterRouteWindowService.ts",
+      "server/src/services/novel/production/NovelPipelineExecutor.ts",
+      "server/src/services/novel/quality/ChapterQualityLoopService.ts",
+      "server/src/services/novel/runtime/GenerationContextAssembler.ts",
+      "server/src/services/novel/runtime/chapterRuntimeSchema.ts",
+      "server/src/services/novel/volume/volumeChapterListGeneration.ts",
+      "server/src/services/novel/volume/volumeGenerationOrchestrator.ts",
+      "server/src/services/novel/volume/volumeModels.ts",
+      "server/src/services/payoff/payoffLedgerShared.ts",
+      "server/src/services/planner/plannerContextHelpers.ts",
+      "server/src/services/settings/DirectorRiskPolicySettingsService.ts",
+      "server/src/services/storyMode/storyModeGenerate.ts",
+      "server/src/services/task/RecoveryTaskService.ts",
+      "server/src/services/task/autoDirectorFollowUps/AutoDirectorFollowUpNotificationService.ts",
+      "server/src/services/task/novelWorkflowTaskSummary.ts",
+      "server/tests/chapterQualityLoop.test.js",
+      "server/tests/directorCompletionProfile.test.js",
+      "server/tests/directorEventProjection.test.js",
+      "server/tests/directorIssueGovernance.test.js",
+      "server/tests/directorRiskContracts.test.js",
+      "server/tests/directorRiskPolicyOverrideService.test.js",
+      "server/tests/directorRiskPolicyRoutes.test.js",
+      "server/tests/directorRiskPolicySettingsService.test.js",
+      "server/tests/novelDirectorRiskPolicyRoutes.test.js",
+      "server/tests/prompting.test.js",
+      "shared/index.ts",
+      "shared/types/chapterCreativeContract.ts",
+      "shared/types/chapterQualityLoop.ts",
+      "shared/types/chapterRuntime.ts",
+      "shared/types/directorCompletion.ts",
+      "shared/types/directorIssue.ts",
+      "shared/types/directorRisk.ts",
+      "shared/types/directorRuntime.ts",
+      "shared/types/novel.ts",
+      "shared/types/novelDirector.ts"
+    ]
+  },
+  {
+    "hash": "601fb041",
+    "date": "2026-08-10",
+    "msg": "merge: import clean 20260810 engineering snapshot",
+    "body": "",
+    "files": []
+  },
+  {
+    "hash": "28f85766",
+    "date": "2026-08-10",
+    "msg": "fix(director): close issue governance loop",
+    "body": "",
+    "files": [
+      "README.md",
+      "client/src/api/directorRiskPolicy.ts",
+      "client/src/pages/novels/components/BasicInfoTab.tsx",
+      "client/src/pages/novels/components/NovelDirectorIssuePolicyCard.tsx",
+      "client/src/pages/novels/components/NovelDirectorRiskPolicyCard.tsx",
+      "client/src/pages/settings/AutoDirectorIssuePolicyCard.tsx",
+      "client/src/pages/settings/AutoDirectorRiskPolicyCard.tsx",
+      "client/tests/directorRiskPolicyContracts.test.js",
+      "docs/releases/release-notes.md",
+      "docs/wiki/workflows/auto-director-runtime.md",
+      "server/src/services/novel/director/NovelDirectorService.ts",
+      "server/src/services/novel/director/README.md",
+      "server/src/services/novel/director/automation/novelDirectorAutoExecutionCircuitBreakerRuntime.ts",
+      "server/src/services/novel/director/automation/novelDirectorAutoExecutionRuntime.ts",
+      "server/src/services/novel/director/automation/novelDirectorAutoExecutionRuntimePorts.ts",
+      "server/src/services/novel/director/commands/DirectorCommandService.ts",
+      "server/src/services/novel/director/commands/leases/DirectorCommandLeaseService.ts",
+      "server/src/services/novel/director/http/novelDirectorRiskPolicy.ts",
+      "server/src/services/novel/director/issues/DirectorIssuePolicyService.ts",
+      "server/src/services/novel/director/issues/DirectorIssueService.ts",
+      "server/src/services/novel/director/issues/index.ts",
+      "server/src/services/novel/director/recovery/DirectorTakeoverReadService.ts",
+      "server/src/services/novel/director/settings/DirectorRiskPolicyOverrideService.ts",
+      "server/src/services/novel/director/workflowStepRuntime/DirectorStepCalibrationService.ts",
+      "server/src/services/novel/production/NovelPipelineExecutor.ts",
+      "server/src/services/novel/production/README.md",
+      "server/src/services/novel/production/handoff/ProfessionalProductionHandoff.ts",
+      "server/src/services/novel/production/issueGovernance/PipelineIssueGovernance.ts",
+      "server/src/services/novel/production/qualityClosure/ChapterQualityClosure.ts",
+      "server/src/services/settings/DirectorRiskPolicySettingsService.ts",
+      "server/tests/directorIssueGovernance.test.js",
+      "server/tests/directorRiskPolicyOverrideService.test.js",
+      "server/tests/directorRiskPolicyRoutes.test.js",
+      "server/tests/directorRiskPolicySettingsService.test.js",
+      "server/tests/directorRunCommandService.test.js",
+      "server/tests/novelDirectorAutoExecutionRuntime.test.js",
+      "shared/types/directorIssue.ts",
+      "shared/types/directorRuntime.ts"
+    ]
+  },
+  {
+    "hash": "bb0b8285",
+    "date": "2026-08-10",
+    "msg": "fix(simple-creation): continue remaining chapters in shelf",
+    "body": "",
+    "files": [
+      "README.md",
+      "client/src/api/novelWorkflow.ts",
+      "client/src/pages/novels/simpleCreation/SimpleNovelShelfPage.tsx",
+      "client/tests/simpleCreationIssueGovernanceContracts.test.js",
+      "docs/releases/release-notes.md",
+      "docs/wiki/product/simple-creation-mode.md",
+      "server/src/modules/novel/setup/http/novelBaseRoutes.ts",
+      "server/src/services/novel/director/commands/SimpleCreationProductionService.ts",
+      "server/src/services/novel/director/http/novelWorkflows.ts",
+      "server/tests/simpleCreationMode.test.js",
+      "shared/types/novel.ts"
+    ]
+  },
+  {
+    "hash": "2c22a865",
+    "date": "2026-08-11",
+    "msg": "fix(simple-creation): reuse shared director continuation",
+    "body": "",
+    "files": [
+      "README.md",
+      "client/src/api/novelWorkflow.ts",
+      "client/src/lib/novelWorkflowContinuation.ts",
+      "client/src/pages/novels/simpleCreation/SimpleNovelShelfPage.tsx",
+      "client/tests/simpleCreationIssueGovernanceContracts.test.js",
+      "docs/releases/release-notes.md",
+      "docs/wiki/product/simple-creation-mode.md",
+      "server/src/modules/novel/setup/application/simpleCreationShelfProgress.ts",
+      "server/src/modules/novel/setup/http/novelBaseRoutes.ts",
+      "server/src/services/novel/director/commands/SimpleCreationProductionService.ts",
+      "server/src/services/novel/director/http/novelDirector.ts",
+      "server/src/services/novel/director/http/novelWorkflows.ts",
+      "server/src/services/novel/director/runtime/novelDirectorContinueRuntime.ts",
+      "server/tests/novelWorkflowContinue.test.js",
+      "server/tests/simpleCreationMode.test.js",
+      "shared/types/directorRuntime.ts",
+      "shared/types/novelDirector.ts"
+    ]
+  },
+  {
+    "hash": "906886c7",
+    "date": "2026-08-11",
+    "msg": "merge: integrate director governance and simple continuation",
+    "body": "",
+    "files": []
+  },
+  {
+    "hash": "16da8383",
+    "date": "2026-08-11",
+    "msg": "Update README.md",
+    "body": "",
+    "files": [
+      "README.md"
+    ]
+  },
+  {
+    "hash": "154cdfda",
+    "date": "2026-08-11",
+    "msg": "Update README.md",
+    "body": "",
+    "files": [
+      "README.md"
+    ]
+  },
+  {
+    "hash": "84ad7c58",
+    "date": "2026-08-11",
+    "msg": "feat: merge auto-director risk governance updates",
+    "body": "",
+    "files": [
+      "AGENTS.md",
+      "README.md",
+      "client/src/api/directorRiskPolicy.ts",
+      "client/src/api/novelDirector.ts",
+      "client/src/api/settings.ts",
+      "client/src/lib/novelWorkflowContinuation.ts",
+      "client/src/pages/novels/components/BasicInfoTab.tsx",
+      "client/src/pages/novels/components/NovelDirectorIssuePolicyCard.tsx",
+      "client/src/pages/novels/components/NovelDirectorRiskPolicyCard.tsx",
+      "client/src/pages/novels/simpleCreation/SimpleNovelShelfPage.tsx",
+      "client/src/pages/settings/AutoDirectorIssuePolicyCard.tsx",
+      "client/src/pages/settings/AutoDirectorRiskPolicyCard.tsx",
+      "client/tests/directorRiskPolicyContracts.test.js",
+      "client/tests/simpleCreationIssueGovernanceContracts.test.js",
+      "docs/releases/release-notes.md",
+      "docs/wiki/architecture/module-boundaries.md",
+      "docs/wiki/product/beginner-first-novel-completion.md",
+      "docs/wiki/prompts/prompt-registry-and-structured-output.md",
+      "docs/wiki/workflows/auto-director-runtime.md",
+      "docs/wiki/workflows/chapter-production-chain.md",
+      "docs/wiki/workflows/lazy-chapter-planning.md",
+      "server/src/modules/novel/http/novelRouteRegistration.ts",
+      "server/src/modules/novel/setup/http/novelBaseRoutes.ts",
+      "server/src/prompting/prompts/director/directorIssueAssessment.prompts.ts",
+      "server/src/prompting/prompts/director/directorRiskAssessment.prompts.ts",
+      "server/src/prompting/registry/promptAssetLoaderEntries.ts",
+      "server/src/routes/settingsAutoDirector.ts",
+      "server/src/services/novel/director/NovelDirectorService.ts",
+      "server/src/services/novel/director/automation/novelDirectorAutoExecutionCircuitBreakerRuntime.ts",
+      "server/src/services/novel/director/automation/novelDirectorAutoExecutionRuntime.ts",
+      "server/src/services/novel/director/commands/DirectorCommandService.ts",
+      "server/src/services/novel/director/commands/leases/DirectorCommandLeaseService.ts",
+      "server/src/services/novel/director/http/novelDirector.ts",
+      "server/src/services/novel/director/http/novelDirectorRiskPolicy.ts",
+      "server/src/services/novel/director/http/novelWorkflows.ts",
+      "server/src/services/novel/director/issues/DirectorIssuePolicyService.ts",
+      "server/src/services/novel/director/issues/DirectorIssueService.ts",
+      "server/src/services/novel/director/issues/directorIssuePolicyRoutes.ts",
+      "server/src/services/novel/director/issues/index.ts",
+      "server/src/services/novel/director/phases/novelDirectorStructuredOutlinePhase.ts",
+      "server/src/services/novel/director/risk/DirectorRiskAssessmentService.ts",
+      "server/src/services/novel/director/runtime/novelDirectorConfirmRuntime.ts",
+      "server/src/services/novel/director/runtime/novelDirectorContinueRuntime.ts",
+      "server/src/services/novel/director/settings/DirectorRiskPolicyOverrideService.ts",
+      "server/src/services/novel/production/NovelPipelineExecutor.ts",
+      "server/src/services/novel/production/issueGovernance/PipelineIssueGovernance.ts",
+      "server/src/services/settings/DirectorRiskPolicySettingsService.ts",
+      "server/tests/directorIssueGovernance.test.js",
+      "server/tests/directorRiskContracts.test.js",
+      "server/tests/directorRiskPolicyOverrideService.test.js",
+      "server/tests/directorRiskPolicyRoutes.test.js",
+      "server/tests/directorRiskPolicySettingsService.test.js",
+      "server/tests/novelDirectorConfirmDedup.test.js",
+      "server/tests/novelDirectorRiskPolicyRoutes.test.js",
+      "server/tests/simpleCreationMode.test.js",
+      "shared/types/directorIssue.ts",
+      "shared/types/directorRuntime.ts",
+      "shared/types/novel.ts",
+      "shared/types/novelDirector.ts"
+    ]
+  },
+  {
+    "hash": "3fa9bee5",
+    "date": "2026-08-11",
+    "msg": "fix: streamline auto-director workspace navigation",
+    "body": "",
+    "files": [
+      "README.md",
+      "client/src/components/layout/NovelWorkspaceRail.tsx",
+      "client/src/pages/novels/autoDirector/AutoDirectorCreatePage.tsx",
+      "client/src/pages/novels/autoDirector/StageCandidates.tsx",
+      "client/src/pages/novels/autoDirector/useAutoDirectorCreateController.ts",
+      "client/src/pages/novels/components/NovelAutoDirectorProgressPanel.tsx",
+      "client/src/pages/novels/components/NovelDirectorPreparationJourney.tsx",
+      "client/src/pages/novels/components/list/novelListViewModel.ts",
+      "client/src/pages/novels/simpleCreation/SimpleNovelShelfPage.tsx",
+      "client/tests/autoDirectorWorkspaceUxContracts.test.js",
+      "docs/releases/release-notes.md",
+      "docs/wiki/product/beginner-first-novel-completion.md"
+    ]
+  },
+  {
+    "hash": "32055464",
+    "date": "2026-08-11",
+    "msg": "feat: allow early simple creation entry",
+    "body": "",
+    "files": [
+      "README.md",
+      "client/src/pages/novels/autoDirector/AutoDirectorCreatePage.tsx",
+      "client/tests/autoDirectorWorkspaceUxContracts.test.js",
+      "docs/releases/release-notes.md",
+      "docs/wiki/workflows/auto-director-runtime.md",
+      "server/src/services/novel/director/commands/DirectorProductionExperienceService.ts",
+      "server/src/services/novel/director/novelDirectorPipelineRuntime.ts",
+      "server/src/services/novel/director/phases/novelDirectorStructuredOutlinePhase.ts",
+      "server/tests/simpleCreationMode.test.js"
+    ]
+  },
+  {
+    "hash": "a1db3be9",
+    "date": "2026-08-11",
+    "msg": "chore(release): prepare desktop v0.4.10",
+    "body": "",
+    "files": [
+      "README.md",
+      "desktop/package.json",
+      "docs/releases/release-notes.md"
+    ]
+  },
+  {
+    "hash": "4426fb6e",
+    "date": "2026-08-11",
+    "msg": "merge: integrate simple creation and risk governance",
+    "body": "",
+    "files": []
+  },
+  {
+    "hash": "2458bad1",
+    "date": "2026-08-11",
+    "msg": "merge: promote beta v0.4.10 release candidate",
+    "body": "",
+    "files": [
+      "README.md",
+      "docs/releases/release-notes.md"
+    ]
+  },
+  {
+    "hash": "960ecc09",
+    "date": "2026-08-12",
+    "msg": "fix(database): migrate novel fact ledger (#123 #128)",
+    "body": "",
+    "files": [
+      "README.md",
+      "docs/releases/release-notes.md",
+      "docs/wiki/workflows/novel-fact-ledger.md",
+      "server/src/prisma/migrations.sqlite/20260812120000_novel_fact_ledger/migration.sql",
+      "server/src/prisma/migrations/20260812120000_novel_fact_ledger/migration.sql",
+      "server/tests/runtimeMigrations.test.js"
+    ]
+  },
+  {
+    "hash": "4a812c25",
+    "date": "2026-08-12",
+    "msg": "fix(director): resume replan checkpoints once (#116)",
+    "body": "",
+    "files": [
+      "README.md",
+      "docs/releases/release-notes.md",
+      "server/src/services/novel/director/runtime/novelDirectorContinueRuntime.ts",
+      "server/tests/novelDirectorRetry.test.js"
+    ]
+  },
+  {
+    "hash": "98b3d9ab",
+    "date": "2026-08-12",
+    "msg": "fix(knowledge): avoid idle index queues (#125)",
+    "body": "",
+    "files": [
+      "README.md",
+      "docs/releases/release-notes.md",
+      "docs/wiki/rag/knowledge-and-context-assembly.md",
+      "server/src/services/knowledge/KnowledgeService.ts",
+      "server/tests/knowledgeServiceStatus.test.js"
+    ]
+  },
+  {
+    "hash": "6bd58e87",
+    "date": "2026-08-12",
+    "msg": "fix(world): bound structured generation output (#64 #117)",
+    "body": "",
+    "files": [
+      "README.md",
+      "client/src/api/world.ts",
+      "docs/releases/release-notes.md",
+      "docs/wiki/product/world-skeleton-generation.md",
+      "server/src/modules/setup/world/http/worldGenerationRoutes.ts",
+      "server/src/prompting/prompts/world/world.prompts.ts",
+      "server/src/prompting/prompts/world/worldDraft.prompts.ts",
+      "server/src/prompting/registry/promptAssetLoaderEntries.ts",
+      "server/src/services/world/worldSkeletonGeneration.ts",
+      "server/tests/prompting.test.js"
+    ]
+  },
+  {
+    "hash": "3e098ae7",
+    "date": "2026-08-12",
+    "msg": "fix(world): respect selected model route (#66)",
+    "body": "",
+    "files": [
+      "README.md",
+      "client/src/pages/novels/hooks/useNovelWorldSlice.ts",
+      "docs/releases/release-notes.md",
+      "docs/wiki/architecture/world-context-gateway.md",
+      "server/src/services/novel/worldContext/NovelWorldInstanceService.ts",
+      "server/tests/novelWorldModelSelection.test.js"
+    ]
+  },
+  {
+    "hash": "820e5d1a",
+    "date": "2026-08-12",
+    "msg": "feat(preview): add focused reading downloads",
+    "body": "",
+    "files": [
+      "README.md",
+      "client/src/pages/novels/NovelPreview.tsx",
+      "client/tests/novelPreviewContracts.test.js",
+      "docs/releases/release-notes.md"
+    ]
+  },
+  {
+    "hash": "ab1b8390",
+    "date": "2026-08-12",
+    "msg": "docs: record issue recovery contracts",
+    "body": "",
+    "files": [
+      "docs/issue-fix-record.md",
+      "docs/wiki/workflows/auto-director-runtime.md"
+    ]
+  },
+  {
+    "hash": "171e2259",
+    "date": "2026-08-12",
+    "msg": "merge: integrate issue fixes 2026-08-12",
+    "body": "",
+    "files": []
+  },
+  {
+    "hash": "5745a6bf",
+    "date": "2026-08-12",
+    "msg": "feat(creation): switch between simple and professional modes",
+    "body": "",
+    "files": [
+      "client/src/api/novel/core.ts",
+      "client/src/pages/novels/NovelEdit.tsx",
+      "client/src/pages/novels/autoDirector/AutoDirectorCreatePage.tsx",
+      "client/src/pages/novels/components/NovelAutoDirectorProgressPanel.tsx",
+      "client/src/pages/novels/components/NovelDirectorPreparationJourney.tsx",
+      "client/src/pages/novels/components/NovelEditView.tsx",
+      "client/src/pages/novels/components/NovelEditView.types.ts",
+      "client/src/pages/novels/simpleCreation/SimpleNovelShelfPage.tsx",
+      "client/tests/autoDirectorWorkspaceUxContracts.test.js",
+      "client/tests/simpleCreationIssueGovernanceContracts.test.js",
+      "server/src/modules/novel/http/simpleCreationWriteGuard.ts",
+      "server/src/modules/novel/setup/http/novelBaseRoutes.ts",
+      "server/tests/simpleCreationMode.test.js"
+    ]
+  },
+  {
+    "hash": "a8fbf45d",
+    "date": "2026-08-12",
+    "msg": "feat(settings): reorganize daily configuration pages",
+    "body": "",
+    "files": [
+      "client/src/components/layout/Sidebar.tsx",
+      "client/src/components/layout/mobile/mobileSiteNavigation.ts",
+      "client/src/pages/settings/AutoDirectorChannelSettingsCard.tsx",
+      "client/src/pages/settings/AutoDirectorSettingsSection.tsx",
+      "client/src/pages/settings/SettingsPage.tsx",
+      "client/src/pages/settings/components/ProviderSettingsSection.tsx",
+      "client/src/pages/settings/components/SettingsMaintenanceSection.tsx",
+      "client/src/pages/settings/components/SettingsNavigationCards.tsx",
+      "client/src/pages/settings/components/SettingsReadinessCard.tsx",
+      "client/src/pages/settings/components/SettingsShell.tsx",
+      "client/src/pages/settings/views/DirectorSettingsPage.tsx",
+      "client/src/pages/settings/views/KnowledgeSettingsPage.tsx",
+      "client/src/pages/settings/views/MaintenanceSettingsPage.tsx",
+      "client/src/pages/settings/views/ModelsSettingsPage.tsx",
+      "client/src/pages/settings/views/SettingsOverviewPage.tsx",
+      "client/src/router/index.tsx",
+      "client/tests/mobileSiteNavigation.test.js",
+      "client/tests/settingsNavigationContracts.test.js"
+    ]
+  },
+  {
+    "hash": "ce1230b8",
+    "date": "2026-08-12",
+    "msg": "chore(release): prepare v0.4.11",
+    "body": "",
+    "files": [
+      "README.md",
+      "desktop/package.json",
+      "docs/releases/release-notes.md"
+    ]
+  },
+  {
+    "hash": "9e4a41a1",
+    "date": "2026-08-13",
+    "msg": "feat: focus creative hub on diagnostics",
+    "body": "",
+    "files": [
+      "README.md",
+      "client/src/components/layout/Sidebar.tsx",
+      "client/src/components/layout/mobile/mobileSiteNavigation.ts",
+      "client/src/pages/creativeHub/CreativeHubPage.tsx",
+      "client/src/pages/creativeHub/README.md",
+      "client/src/pages/creativeHub/components/CreativeHubSidebar.tsx",
+      "client/src/pages/creativeHub/creativeHubDesignContracts.test.mjs",
+      "client/src/pages/creativeHub/presentation/creativeHubWorkspaceViewModel.ts",
+      "client/src/pages/novels/components/cover/novelCoverDraft.test.mjs",
+      "docs/releases/release-notes.md",
+      "docs/wiki/architecture/module-boundaries.md",
+      "docs/wiki/prompts/prompt-registry-and-structured-output.md",
+      "server/src/creativeHub/CreativeHubInterruptLangGraph.ts",
+      "server/src/creativeHub/CreativeHubLangGraph.ts",
+      "server/src/creativeHub/creativeHubToolPolicy.ts",
+      "server/src/prompting/prompts/image/image.prompts.ts",
+      "server/src/services/image/ImageGenerationService.ts",
+      "server/tests/creativeHubToolPolicy.test.js",
+      "server/tests/novelCoverPromptSupport.test.js",
+      "shared/imagePrompt.ts"
+    ]
+  },
+  {
+    "hash": "aa1a6c8f",
+    "date": "2026-08-13",
+    "msg": "feat(home): redesign creative continuation hero",
+    "body": "",
+    "files": [
+      "README.md",
+      "client/src/index.css",
+      "client/src/pages/home/components/HomeNextActionPanel.tsx",
+      "client/src/pages/home/components/HomeStatusStrip.tsx",
+      "client/src/pages/home/homeDesignContracts.test.mjs",
+      "client/src/pages/home/homeJourney.test.mjs",
+      "client/src/pages/home/homeJourney.ts",
+      "client/src/pages/home/homeViewModel.ts",
+      "client/tests/mobilePageContracts.test.js",
+      "docs/releases/release-notes.md",
+      "docs/wiki/product/beginner-first-novel-completion.md"
+    ]
+  },
+  {
+    "hash": "77a3309c",
+    "date": "2026-08-13",
+    "msg": "docs: sync v2 product screenshots",
+    "body": "",
+    "files": [
+      "README.md",
+      "docs/public/modules/anti-ai-rules.md",
+      "docs/public/modules/book-analysis.md",
+      "docs/public/modules/genre-base-library.md",
+      "docs/public/modules/home.md",
+      "docs/public/modules/novels.md",
+      "docs/public/modules/progression-mode-library.md",
+      "docs/public/modules/style-engine.md",
+      "docs/public/modules/title-workshop.md",
+      "docs/public/modules/world-sample-library.md",
+      "docs/releases/release-notes.md",
+      "\"images/v2/\\345\\276\\256\\344\\277\\241\\346\\210\\252\\345\\233\\276_20260813215131.png\"",
+      "\"images/v2/\\345\\276\\256\\344\\277\\241\\346\\210\\252\\345\\233\\276_20260813220038.png\"",
+      "\"images/v2/\\345\\276\\256\\344\\277\\241\\346\\210\\252\\345\\233\\276_20260813220055.png\"",
+      "\"images/v2/\\345\\276\\256\\344\\277\\241\\346\\210\\252\\345\\233\\276_20260813220110.png\"",
+      "\"images/v2/\\345\\276\\256\\344\\277\\241\\346\\210\\252\\345\\233\\276_20260813220114.png\"",
+      "\"images/v2/\\345\\276\\256\\344\\277\\241\\346\\210\\252\\345\\233\\276_20260813220147.png\"",
+      "\"images/v2/\\345\\276\\256\\344\\277\\241\\346\\210\\252\\345\\233\\276_20260813220219.png\"",
+      "\"images/v2/\\345\\276\\256\\344\\277\\241\\346\\210\\252\\345\\233\\276_20260813220255.png\"",
+      "\"images/v2/\\345\\276\\256\\344\\277\\241\\346\\210\\252\\345\\233\\276_20260813220303.png\"",
+      "\"images/v2/\\345\\276\\256\\344\\277\\241\\346\\210\\252\\345\\233\\276_20260813220310.png\"",
+      "\"images/v2/\\345\\276\\256\\344\\277\\241\\346\\210\\252\\345\\233\\276_20260813220328.png\"",
+      "site/public/sitemap.xml",
+      "site/src/docsAssets.ts"
+    ]
+  },
+  {
+    "hash": "c733a96f",
+    "date": "2026-08-13",
+    "msg": "feat(settings): recommend DeepSeek V4 Flash",
+    "body": "",
+    "files": [
+      "README.md",
+      "client/src/components/onboarding/QuickSetupDialog.tsx",
+      "client/src/pages/settings/components/ProviderConfigDialog.tsx",
+      "docs/public/installation.md",
+      "docs/public/modules/model-routing.md",
+      "docs/public/playbook/first-novel-walkthrough.md",
+      "docs/releases/release-notes.md",
+      "docs/wiki/architecture/model-selection.md",
+      "server/src/llm/providers.ts",
+      "server/tests/routes.test.js"
+    ]
+  },
+  {
+    "hash": "b1abdd14",
+    "date": "2026-08-13",
+    "msg": "feat: 收缩创作中枢为只读诊断入口",
+    "body": "",
+    "files": [
+      "README.md",
+      "client/src/pages/creativeHub/components/CreativeHubConversation.tsx",
+      "client/src/pages/creativeHub/components/CreativeHubSidebar.tsx",
+      "client/src/pages/creativeHub/components/CreativeHubToolResultCard.tsx",
+      "client/src/pages/creativeHub/components/CreativeHubTurnSummaryCard.tsx",
+      "client/src/pages/creativeHub/presentation/creativeHubWorkspaceViewModel.ts",
+      "docs/public/flow/auto-director-pipeline.md",
+      "docs/public/introduction.md",
+      "docs/public/modules/creative-hub.md",
+      "docs/public/modules/home.md",
+      "docs/public/modules/novels.md",
+      "docs/public/modules/task-center.md",
+      "docs/releases/release-notes.md",
+      "docs/wiki/architecture/module-boundaries.md",
+      "docs/wiki/workflows/creative-hub-boundary.md",
+      "server/src/agents/orchestrator.ts",
+      "server/src/agents/planner/intentPromptSupport.ts",
+      "server/src/agents/runtime/answerComposer.ts",
+      "server/src/agents/tools/directorRuntimeTools.ts",
+      "server/src/agents/types.ts",
+      "server/src/creativeHub/CreativeHubLangGraph.ts",
+      "server/src/creativeHub/creativeHubToolPolicy.ts",
+      "server/src/creativeHub/creativeHubTurnSummary.ts",
+      "server/tests/creativeHubToolPolicy.test.js"
+    ]
+  },
+  {
+    "hash": "d8b03e2a",
+    "date": "2026-08-13",
+    "msg": "feat: 增加全局主题系统",
+    "body": "",
+    "files": [
+      "README.md",
+      "client/index.html",
+      "client/src/components/layout/Navbar.tsx",
+      "client/src/components/theme/ThemeProvider.tsx",
+      "client/src/components/theme/ThemeToggle.tsx",
+      "client/src/index.css",
+      "client/src/main.tsx",
+      "client/src/pages/settings/components/SettingsShell.tsx",
+      "client/src/pages/settings/views/AppearanceSettingsPage.tsx",
+      "client/src/router/index.tsx",
+      "docs/releases/release-notes.md",
+      "docs/wiki/product/beginner-first-novel-completion.md"
+    ]
+  },
+  {
+    "hash": "46717272",
+    "date": "2026-08-13",
+    "msg": "fix: 避免主题初始化闪烁",
+    "body": "",
+    "files": [
+      "client/index.html"
+    ]
+  },
+  {
+    "hash": "0f5a9a92",
+    "date": "2026-08-13",
+    "msg": "fix: 修复首页主题颜色继承",
+    "body": "",
+    "files": [
+      "README.md",
+      "client/src/pages/home/components/HomeAttentionQueue.tsx",
+      "client/src/pages/home/components/HomeRecentNovels.tsx",
+      "client/src/pages/home/components/homeTone.ts",
+      "docs/releases/release-notes.md"
+    ]
+  },
+  {
+    "hash": "81f20d14",
+    "date": "2026-08-13",
+    "msg": "feat: 视觉资源库改为瀑布流",
+    "body": "",
+    "files": [
+      "README.md",
+      "client/src/components/visualAssets/VisualAssetGrid.tsx",
+      "client/src/components/visualAssets/VisualAssetLibrary.tsx",
+      "docs/releases/release-notes.md"
+    ]
+  },
+  {
+    "hash": "de75edec",
+    "date": "2026-08-13",
+    "msg": "merge: integrate creative hub theme and visual asset updates",
+    "body": "",
+    "files": []
+  },
+  {
+    "hash": "40dc4c5f",
+    "date": "2026-08-13",
+    "msg": "fix: 修复夜航主题模式切换",
+    "body": "",
+    "files": [
+      "README.md",
+      "client/index.html",
+      "client/src/index.css",
+      "docs/releases/release-notes.md"
+    ]
+  },
+  {
+    "hash": "8a6bb0b8",
+    "date": "2026-08-13",
+    "msg": "fix: 让小说预览继承主题",
+    "body": "",
+    "files": [
+      "README.md",
+      "client/src/components/layout/AppLayout.tsx",
+      "client/src/pages/novels/NovelPreview.tsx",
+      "docs/releases/release-notes.md"
+    ]
+  },
+  {
+    "hash": "dd229dec",
+    "date": "2026-08-13",
+    "msg": "feat: 完善桌面更新提示与版本说明",
+    "body": "",
+    "files": [
+      "README.md",
+      "client/src/components/layout/AppVersionBadge.tsx",
+      "client/src/components/layout/DesktopReleaseNotesDialog.tsx",
+      "client/src/components/layout/Navbar.tsx",
+      "client/src/components/layout/desktopReleaseNotes.ts",
+      "client/tests/desktopUpdateContracts.test.mjs",
+      "docs/releases/release-notes.md"
+    ]
+  },
+  {
+    "hash": "46f2c71d",
+    "date": "2026-08-13",
+    "msg": "feat: 优化桌面客户端启动页",
+    "body": "",
+    "files": [
+      "README.md",
+      "client/src/components/layout/DesktopBootstrapShell.tsx",
+      "docs/releases/release-notes.md"
+    ]
+  },
+  {
+    "hash": "7f7496bf",
+    "date": "2026-08-13",
+    "msg": "feat: 增加近期日志包下载",
+    "body": "",
+    "files": [
+      "README.md",
+      "client/src/components/layout/DesktopBootstrapShell.tsx",
+      "client/src/components/layout/DesktopUpdatePanel.tsx",
+      "client/src/lib/desktop.ts",
+      "client/src/vite-env.d.ts",
+      "desktop/src/main.ts",
+      "desktop/src/preload.ts",
+      "desktop/src/runtime/logBundle.ts",
+      "docs/releases/release-notes.md"
+    ]
+  },
+  {
+    "hash": "2ff0cfc1",
+    "date": "2026-08-13",
+    "msg": "chore(release): prepare desktop v0.4.12",
+    "body": "",
+    "files": [
+      "README.md",
+      "desktop/package.json",
+      "docs/releases/release-notes.md"
+    ]
+  },
+  {
+    "hash": "4f09244b",
+    "date": "2026-08-13",
+    "msg": "merge: desktop startup polish and log bundle",
+    "body": "",
+    "files": []
+  },
+  {
+    "hash": "3763cd11",
+    "date": "2026-08-13",
+    "msg": "merge: promote beta release candidate to main",
+    "body": "",
+    "files": []
+  },
+  {
+    "hash": "7e79bd7a",
+    "date": "2026-08-15",
+    "msg": "style: 精简书架作品卡片",
+    "body": "",
+    "files": [
+      "README.md",
+      "client/src/pages/novels/components/list/NovelShelfCard.tsx",
+      "docs/releases/release-notes.md"
+    ]
+  },
+  {
+    "hash": "d6658c5c",
+    "date": "2026-08-15",
+    "msg": "feat: 增加小说缺省封面",
+    "body": "",
+    "files": [
+      "README.md",
+      "client/src/assets/default-novel-cover.webp",
+      "client/src/pages/home/components/HomeNextActionPanel.tsx",
+      "client/src/pages/novels/components/list/NovelShelfCard.tsx",
+      "docs/releases/release-notes.md"
+    ]
+  },
+  {
+    "hash": "85166249",
+    "date": "2026-08-15",
+    "msg": "fix: 保留缺省封面的小说标题",
+    "body": "",
+    "files": [
+      "README.md",
+      "client/src/pages/home/components/HomeNextActionPanel.tsx",
+      "client/src/pages/novels/components/list/NovelShelfCard.tsx",
+      "docs/releases/release-notes.md"
+    ]
+  },
+  {
+    "hash": "9c4586b9",
+    "date": "2026-08-15",
+    "msg": "fix: 让简易模式正文跟随主题",
+    "body": "",
+    "files": [
+      "README.md",
+      "client/src/pages/novels/simpleCreation/SimpleNovelShelfPage.tsx",
+      "docs/releases/release-notes.md"
+    ]
+  },
+  {
+    "hash": "514d56c2",
+    "date": "2026-08-15",
+    "msg": "fix: 统一专业工作台主题状态样式",
+    "body": "",
+    "files": [
+      "README.md",
+      "client/src/components/autoDirector/AICockpit.tsx",
+      "client/src/components/layout/NovelWorkspaceRail.tsx",
+      "client/src/components/workflow/AITakeoverContainer.tsx",
+      "client/src/pages/novels/components/workspaceShell.tsx",
+      "docs/releases/release-notes.md",
+      "docs/wiki/product/beginner-first-novel-completion.md"
+    ]
+  },
+  {
+    "hash": "be03e765",
+    "date": "2026-08-15",
+    "msg": "fix: 重规划后恢复简易创作",
+    "body": "",
+    "files": [
+      "README.md",
+      "client/src/pages/novels/simpleCreation/SimpleNovelShelfPage.tsx",
+      "docs/releases/release-notes.md",
+      "docs/wiki/workflows/auto-director-runtime.md",
+      "docs/wiki/workflows/chapter-production-chain.md",
+      "server/src/modules/novel/setup/http/novelBaseRoutes.ts",
+      "server/src/services/novel/director/NovelDirectorService.ts",
+      "server/src/services/novel/director/runtime/novelDirectorContinueRuntime.ts",
+      "server/tests/novelDirectorRetry.test.js",
+      "shared/types/novel.ts"
+    ]
+  },
+  {
+    "hash": "13001478",
+    "date": "2026-08-15",
+    "msg": "fix: 统一专业模式重规划恢复",
+    "body": "",
+    "files": [
+      "README.md",
+      "client/src/lib/novelWorkflowContinuation.test.mjs",
+      "client/src/lib/novelWorkflowContinuation.ts",
+      "client/src/pages/novels/NovelEdit.tsx",
+      "client/src/pages/novels/components/NovelTaskDrawer.tsx",
+      "client/src/pages/novels/novelEditTakeover.shared.ts",
+      "docs/releases/release-notes.md",
+      "docs/wiki/workflows/auto-director-runtime.md",
+      "server/src/services/novel/director/projections/DirectorBookAutomationProjectionModel.ts",
+      "server/tests/directorBookAutomationProjection.test.js"
+    ]
+  },
+  {
+    "hash": "6fa5a06e",
+    "date": "2026-08-15",
+    "msg": "fix: prevent duplicate titles across chapter beats",
+    "body": "",
+    "files": [
+      "README.md",
+      "docs/releases/release-notes.md",
+      "docs/wiki/workflows/volume-planning.md",
+      "server/src/prompting/prompts/novel/volume/chapterList.prompts.ts",
+      "server/src/prompting/prompts/novel/volume/contextBlocks.ts",
+      "server/src/prompting/prompts/novel/volume/shared.ts",
+      "server/src/prompting/registry/promptAssetLoaderEntries.ts",
+      "server/src/services/novel/director/phases/novelDirectorChapterTitleRepair.ts",
+      "server/src/services/novel/director/phases/novelDirectorChapterTitleRepairRuntime.ts",
+      "server/src/services/novel/director/phases/novelDirectorStructuredOutlinePhase.ts",
+      "server/src/services/novel/volume/chapterTitleDiversity.ts",
+      "server/src/services/novel/volume/volumeChapterListGeneration.ts",
+      "server/tests/novelDirectorChapterTitleRepair.test.js",
+      "server/tests/prompting.test.js",
+      "server/tests/volumeChapterListChunking.test.js",
+      "server/tests/volumeChapterTitleDiversity.test.js"
+    ]
+  },
+  {
+    "hash": "3ac14ac0",
+    "date": "2026-08-15",
+    "msg": "fix: allow queued chapter title repairs to run",
+    "body": "",
+    "files": [
+      "docs/wiki/workflows/volume-planning.md",
+      "server/src/services/novel/director/phases/novelDirectorChapterTitleRepairRuntime.ts"
+    ]
+  },
+  {
+    "hash": "73962444",
+    "date": "2026-08-15",
+    "msg": "fix: avoid self-conflicting title repair reservations",
+    "body": "",
+    "files": [
+      "server/src/services/novel/director/NovelDirectorService.ts",
+      "server/src/services/novel/director/phases/novelDirectorChapterTitleRepairRuntime.ts"
+    ]
+  },
+  {
+    "hash": "d587a216",
+    "date": "2026-08-15",
+    "msg": "fix: target duplicate chapter title beats",
+    "body": "",
+    "files": [
+      "server/src/services/novel/director/phases/novelDirectorChapterTitleRepair.ts"
+    ]
+  },
+  {
+    "hash": "a79e73c9",
+    "date": "2026-08-15",
+    "msg": "fix: continue after local chapter replan",
+    "body": "",
+    "files": [
+      "README.md",
+      "docs/releases/release-notes.md",
+      "docs/wiki/workflows/auto-director-runtime.md",
+      "docs/wiki/workflows/chapter-production-chain.md",
+      "server/src/services/novel/director/runtime/novelDirectorContinueRuntime.ts",
+      "server/src/services/novel/production/NovelPipelineExecutor.ts",
+      "server/src/services/novel/production/qualityClosure/ChapterQualityClosure.ts",
+      "server/src/services/planner/PlannerService.ts",
+      "server/src/services/planner/replan/PlannerReplanService.ts",
+      "server/src/services/planner/replanDecision.ts",
+      "server/tests/chapterQualityLoop.test.js",
+      "server/tests/novelPipelineState.test.js",
+      "server/tests/novelServiceBoundary.test.js",
+      "server/tests/replanDecision.test.js",
+      "shared/types/chapterQualityLoop.ts",
+      "shared/types/chapterRuntime.ts",
+      "shared/types/directorIssue.ts",
+      "shared/types/novel.ts"
+    ]
+  },
+  {
+    "hash": "424966f0",
+    "date": "2026-08-15",
+    "msg": "fix: resume replans from first unwritten chapter",
+    "body": "",
+    "files": [
+      "server/src/services/novel/director/runtime/novelDirectorContinueRuntime.ts"
+    ]
+  },
+  {
+    "hash": "29436f5c",
+    "date": "2026-08-16",
+    "msg": "docs: publish 2026-08-16 update",
+    "body": "",
+    "files": [
+      "README.md",
+      "docs/releases/release-notes.md"
+    ]
+  },
+  {
+    "hash": "93558a6d",
+    "date": "2026-08-16",
+    "msg": "merge: automatic director replan recovery",
+    "body": "",
+    "files": []
+  },
+  {
+    "hash": "b8b75b69",
+    "date": "2026-08-16",
+    "msg": "release: 2026-08-16 automatic director recovery",
+    "body": "",
+    "files": []
+  },
+  {
+    "hash": "308ca1b3",
+    "date": "2026-08-16",
+    "msg": "chore(release): prepare desktop v0.4.13",
+    "body": "",
+    "files": [
+      "README.md",
+      "desktop/package.json",
+      "docs/releases/release-notes.md"
+    ]
+  }
+]

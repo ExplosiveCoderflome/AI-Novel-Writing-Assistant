@@ -1,4 +1,6 @@
+import i18next from "i18next";
 import type { CreativeHubThread } from "@ai-novel/shared/types/creativeHub";
+import { useTranslation } from "react-i18next";
 import { RefreshCw } from "lucide-react";
 import { WorkspaceStateNotice } from "@/components/workspace";
 import { Badge } from "@/components/ui/badge";
@@ -23,10 +25,10 @@ interface CreativeHubThreadListProps {
 }
 
 function toStatusLabel(status: CreativeHubThread["status"]): string {
-  if (status === "busy") return "执行中";
-  if (status === "interrupted") return "待确认";
-  if (status === "error") return "异常";
-  return "空闲";
+  if (status === "busy") return i18next.t("creativeHub.statusBusy");
+  if (status === "interrupted") return i18next.t("dict.gen_2a2772fa");
+  if (status === "error") return i18next.t("dict.gen_c195df63");
+  return i18next.t("dict.gen_87bb5bbc");
 }
 
 function toStatusVariant(
@@ -53,6 +55,7 @@ export default function CreativeHubThreadList({
   onArchive,
   onDelete,
 }: CreativeHubThreadListProps) {
+  const { t } = useTranslation();
   return (
     <Card
       className="flex h-full min-h-0 flex-col rounded-lg shadow-none"
@@ -60,7 +63,7 @@ export default function CreativeHubThreadList({
     >
       <CardHeader className="pb-3">
         <div className="flex items-center justify-between gap-2">
-          <CardTitle className="text-base">创作线程</CardTitle>
+          <CardTitle className="text-base">{i18next.t("creativeHub.creativeHubThreadList.ap1u31")}</CardTitle>
           <Badge variant="outline">{threads.length}</Badge>
         </div>
       </CardHeader>
@@ -69,12 +72,12 @@ export default function CreativeHubThreadList({
           {actionPending ? "正在创建..." : "新建线程"}
         </Button>
         {loading ? (
-          <WorkspaceStateNotice compact loading tone="info" title="正在加载线程" description="请稍候。" />
+          <WorkspaceStateNotice compact loading tone="info" title={i18next.t("creativeHub.creativeHubThreadList.e9c9ym")} description={i18next.t("creativeHub.creativeHubThreadList.i5sfi7")} />
         ) : errorMessage ? (
           <WorkspaceStateNotice
             compact
             tone="danger"
-            title="线程列表加载失败"
+            title={i18next.t("creativeHub.creativeHubThreadList.4xicum")}
             description={errorMessage}
             action={onRetry ? (
               <Button type="button" size="sm" variant="outline" disabled={retryPending} onClick={onRetry}>
@@ -131,17 +134,13 @@ export default function CreativeHubThreadList({
                       className="h-7 px-2 text-xs text-destructive hover:text-destructive"
                       onClick={() => onDelete(thread.id)}
                       disabled={pending || actionDisabled}
-                    >
-                      删除
-                    </Button>
+                    >{i18next.t("dict.gen_2f4aaddd")}</Button>
                   </div>
                 </div>
               );
             })}
             {threads.length === 0 ? (
-              <div className="rounded-md border border-dashed border-border p-4 text-sm text-muted-foreground">
-                创建线程后，可以围绕同一小说持续保留创作目标和执行记录。
-              </div>
+              <div className="rounded-md border border-dashed border-border p-4 text-sm text-muted-foreground">{i18next.t("creativeHub.creativeHubThreadList.d41fev")}</div>
             ) : null}
           </div>
         )}

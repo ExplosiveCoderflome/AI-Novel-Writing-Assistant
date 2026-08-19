@@ -1,3 +1,4 @@
+import i18next from "i18next";
 import type {
   VisualAssetKind,
   VisualAssetOrigin,
@@ -6,36 +7,36 @@ import type {
 } from "@ai-novel/shared/types/visualAsset";
 
 const KIND_LABELS: Record<VisualAssetKind, string> = {
-  character: "角色形象",
-  cover: "小说封面",
-  illustration: "插图",
-  comic_character_sheet: "漫画角色设定",
-  comic_character_asset: "漫画角色素材",
-  comic_scene: "漫画场景",
-  comic_panel: "漫画分镜",
-  drama_character_sheet: "短剧角色设定",
-  drama_shot_keyframe: "短剧镜头关键帧",
+  character: i18next.t("characters.characterCard.hxd927"),
+  cover: i18next.t("visualAssets.visualAssetLibrary.labels.c6yk1y"),
+  illustration: i18next.t("visualAssets.visualAssetLibrary.labels.hgfg"),
+  comic_character_sheet: i18next.t("visualAssets.visualAssetLibrary.labels.su1mgc"),
+  comic_character_asset: i18next.t("visualAssets.visualAssetLibrary.labels.stz79c"),
+  comic_scene: i18next.t("visualAssets.visualAssetLibrary.labels.eidbl1"),
+  comic_panel: i18next.t("visualAssets.visualAssetLibrary.labels.eicozq"),
+  drama_character_sheet: i18next.t("visualAssets.visualAssetLibrary.labels.us7yc6"),
+  drama_shot_keyframe: i18next.t("visualAssets.visualAssetLibrary.labels.g0kau"),
 };
 
 const SOURCE_LABELS: Record<VisualAssetSourceDomain, string> = {
-  image_asset: "图片创作",
-  comic: "漫画创作",
-  drama: "短剧创作",
+  image_asset: i18next.t("visualAssets.visualAssetLibrary.labels.bg4x9m"),
+  comic: i18next.t("visualAssets.visualAssetLibrary.labels.eicbo1"),
+  drama: i18next.t("visualAssets.visualAssetLibrary.labels.fh08xn"),
 };
 
 const ORIGIN_LABELS: Record<VisualAssetOrigin, string> = {
   generated: "AI 生成",
-  uploaded: "已上传",
-  imported: "已导入",
-  unknown: "来源待确认",
+  uploaded: i18next.t("dict.gen_ba7f57c5"),
+  imported: i18next.t("visualAssets.visualAssetLibrary.labels.e7gpn"),
+  unknown: i18next.t("visualAssets.visualAssetLibrary.labels.7kcc4w"),
 };
 
 const SCOPE_LABELS: Record<VisualAssetScopeKind, string> = {
-  global: "全部作品",
-  novel: "小说",
-  book_analysis: "拆书分析",
-  comic_project: "漫画项目",
-  drama_project: "短剧项目",
+  global: i18next.t("visualAssets.visualAssetLibrary.labels.av8wh1"),
+  novel: i18next.t("dict.gen_1fb52965"),
+  book_analysis: i18next.t("tasks.filterKindBookAnalysis"),
+  comic_project: i18next.t("visualAssets.visualAssetLibrary.labels.eioidh"),
+  drama_project: i18next.t("dict.gen_10f4511a"),
 };
 
 export function getVisualAssetKindLabel(kind: VisualAssetKind) {
@@ -57,7 +58,7 @@ export function getVisualAssetScopeLabel(kind: VisualAssetScopeKind) {
 export function formatVisualAssetDate(createdAt: string) {
   const date = new Date(createdAt);
   if (Number.isNaN(date.getTime())) {
-    return "日期未记录";
+    return i18next.t("visualAssets.visualAssetLibrary.labels.ec2dor");
   }
   return new Intl.DateTimeFormat("zh-CN", { month: "short", day: "numeric", year: "numeric" }).format(date);
 }

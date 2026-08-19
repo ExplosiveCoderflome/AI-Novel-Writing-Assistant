@@ -15,9 +15,7 @@ import {
   type DirectorRefinementRequest,
 } from "@ai-novel/shared/types/novelDirector";
 import type { TitleFactorySuggestion } from "@ai-novel/shared/types/title";
-import type { NovelCreateResourceRecommendation } from "@ai-novel/shared/types/novelResourceRecommendation";
 import { runStructuredPrompt } from "../../../../prompting/core/promptRunner";
-import { novelCreateResourceRecommendationService } from "../../NovelCreateResourceRecommendationService";
 import {
   buildDirectorCandidateContextBlocks,
   directorCandidatePatchPrompt,
@@ -31,7 +29,6 @@ import {
   buildWorkflowSeedPayload,
   enhanceCandidateTitles,
   normalizeCandidate,
-  selectDistinctCandidateTitle,
   type CandidateGenerationContext,
 } from "../runtime/novelDirectorHelpers";
 import { DIRECTOR_PROGRESS } from "../projections/novelDirectorProgress";
@@ -178,10 +175,7 @@ export class NovelDirectorCandidateStageService {
     });
   }
 
-  private async generateBatch(context: CandidateGenerationContext & {
-    workflowTaskId?: string;
-    productionFoundation?: NovelCreateResourceRecommendation;
-  }): Promise<{ batch: DirectorCandidateBatch }> {
+  private async generateBatch(context: CandidateGenerationContext & { workflowTaskId?: string }): Promise<{ batch: DirectorCandidateBatch }> {
     await this.markCandidateProgress(
       context.workflowTaskId,
       "candidate_direction_batch",
@@ -217,12 +211,7 @@ export class NovelDirectorCandidateStageService {
       },
     });
 
-    const productionFoundation = context.productionFoundation
-      ?? context.batches.at(-1)?.candidates[0]?.productionFoundation;
-    const normalizedCandidates = parsed.output.candidates.map((candidate, index) => ({
-      ...normalizeCandidate(candidate, index),
-      productionFoundation,
-    }));
+    const normalizedCandidates = parsed.output.candidates.map((candidate, index) => normalizeCandidate(candidate, index));
 
     await this.markCandidateProgress(
       context.workflowTaskId,
@@ -230,26 +219,9 @@ export class NovelDirectorCandidateStageService {
       "正在为每套方案补强书名组",
       DIRECTOR_PROGRESS.candidateTitlePack,
     );
-    const independentlyEnrichedCandidates = await Promise.all(
+    const enrichedCandidates = await Promise.all(
       normalizedCandidates.map((candidate) => enhanceCandidateTitles(candidate, context)),
     );
-    const enrichedCandidates: DirectorCandidate[] = [];
-    const selectedTitles: string[] = [];
-    for (let index = 0; index < independentlyEnrichedCandidates.length; index += 1) {
-      const enrichedCandidate = independentlyEnrichedCandidates[index];
-      let distinctCandidate = selectDistinctCandidateTitle(enrichedCandidate, selectedTitles);
-      if (!distinctCandidate) {
-        const regeneratedCandidate = await enhanceCandidateTitles(normalizedCandidates[index], context, {
-          excludedTitles: selectedTitles,
-        });
-        distinctCandidate = selectDistinctCandidateTitle(regeneratedCandidate, selectedTitles);
-      }
-      if (!distinctCandidate) {
-        throw new Error(`第 ${index + 1} 套方案未能生成与其他方案区分开的书名，请重试。`);
-      }
-      enrichedCandidates.push(distinctCandidate);
-      selectedTitles.push(distinctCandidate.workingTitle);
-    }
 
     const round = (context.batches.at(-1)?.round ?? 0) + 1;
     return {
@@ -267,41 +239,12 @@ export class NovelDirectorCandidateStageService {
   }
 
   async generateCandidates(input: DirectorCandidatesRequest): Promise<DirectorCandidatesResponse> {
-    const foundation = await novelCreateResourceRecommendationService.resolveRequired({
-      title: input.title,
-      description: input.description || input.idea,
-      targetAudience: input.targetAudience,
-      bookSellingPoint: input.bookSellingPoint,
-      competingFeel: input.competingFeel,
-      first30ChapterPromise: input.first30ChapterPromise,
-      commercialTags: input.commercialTags,
-      genreId: input.genreId,
-      primaryStoryModeId: input.primaryStoryModeId,
-      secondaryStoryModeId: input.secondaryStoryModeId,
-      writingMode: input.writingMode,
-      projectMode: input.projectMode,
-      narrativePov: input.narrativePov,
-      pacePreference: input.pacePreference,
-      styleTone: input.styleTone,
-      emotionIntensity: input.emotionIntensity,
-      aiFreedom: input.aiFreedom,
-      provider: input.provider,
-      model: input.model,
-      temperature: input.temperature,
-    });
-    const resolvedInput: DirectorCandidatesRequest = {
-      ...input,
-      genreId: foundation.genreId,
-      primaryStoryModeId: foundation.primaryStoryModeId,
-      secondaryStoryModeId: foundation.secondaryStoryModeId,
-      productionFoundationPrompt: foundation.promptBlock,
-    };
-    if (resolvedInput.workflowTaskId?.trim()) {
+    if (input.workflowTaskId?.trim()) {
       await this.workflowService.bootstrapTask({
-        workflowTaskId: resolvedInput.workflowTaskId,
+        workflowTaskId: input.workflowTaskId,
         lane: "auto_director",
-        title: resolvedInput.title ?? null,
-        seedPayload: buildWorkflowSeedPayload(resolvedInput, {
+        title: input.title ?? null,
+        seedPayload: buildWorkflowSeedPayload(input, {
           batches: [],
           candidateStage: {
             mode: "generate",
@@ -324,26 +267,24 @@ export class NovelDirectorCandidateStageService {
     );
 
     const result = await this.generateBatch({
-      idea: resolvedInput.idea,
+      idea: input.idea,
       count: 2,
       batches: [],
       presets: [],
-      request: resolvedInput,
-      options: resolvedInput,
-      workflowTaskId: resolvedInput.workflowTaskId,
-      productionFoundation: foundation.recommendation,
+      request: input,
+      options: input,
+      workflowTaskId: input.workflowTaskId,
     });
-    if (!resolvedInput.workflowTaskId?.trim()) {
+    if (!input.workflowTaskId?.trim()) {
       return result;
     }
 
     const workflowTask = await this.workflowService.bootstrapTask({
-      workflowTaskId: resolvedInput.workflowTaskId,
+      workflowTaskId: input.workflowTaskId,
       lane: "auto_director",
-      title: resolvedInput.title ?? null,
-      seedPayload: buildWorkflowSeedPayload(resolvedInput, {
+      title: input.title ?? null,
+      seedPayload: buildWorkflowSeedPayload(input, {
         batches: [result.batch],
-        productionFoundation: foundation.recommendation,
         candidateStage: {
           mode: "generate",
         },
@@ -351,9 +292,8 @@ export class NovelDirectorCandidateStageService {
     });
     await this.workflowService.recordCandidateSelectionRequired(workflowTask.id, {
       summary: `${result.batch.roundLabel} 已生成 ${result.batch.candidates.length} 套书级方向，并完成每套书名组。`,
-      seedPayload: buildWorkflowSeedPayload(resolvedInput, {
+      seedPayload: buildWorkflowSeedPayload(input, {
         batches: [result.batch],
-        productionFoundation: foundation.recommendation,
         candidateStage: {
           mode: "generate",
         },
@@ -512,7 +452,6 @@ export class NovelDirectorCandidateStageService {
     const enrichedCandidate = await enhanceCandidateTitles({
       ...normalizeCandidate(parsed.output, 0),
       id: targetCandidate.id,
-      productionFoundation: targetCandidate.productionFoundation,
     }, {
       idea: input.idea,
       count: 1,

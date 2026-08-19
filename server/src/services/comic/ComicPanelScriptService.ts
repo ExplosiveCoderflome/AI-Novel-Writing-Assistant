@@ -41,6 +41,10 @@ export class ComicPanelScriptService {
     }
 
     const project = episode.project;
+    const bundle = project.sourceBundle
+      ? (JSON.parse(project.sourceBundle.bundleJson) as Record<string, any>)
+      : null;
+    const worldNotes = bundle?.worldNotes;
 
     // Tier-2 快照：novel_import 时按需加载章节原文（导入即快照）
     let sourceText = episode.sourceText ?? "";
@@ -50,9 +54,6 @@ export class ComicPanelScriptService {
           const adapter = adaptationSourceRegistry.resolve("novel_import");
           if (adapter.loadChapterText) {
             // 从 bundle 中找话对应的章节范围（由分话大纲 LLM 输出写入 bundle 时记录）
-            const bundle = project.sourceBundle
-              ? (JSON.parse(project.sourceBundle.bundleJson) as Record<string, unknown>)
-              : null;
             const epBundles = (bundle?.episodes as Array<{
               order: number;
               sourceChapterStart?: number;
@@ -136,6 +137,7 @@ export class ComicPanelScriptService {
         densityMode,
         scriptPromptInstruction: input.scriptPromptInstruction,
         targetPanelCount,
+        worldNotes: worldNotes || undefined,
       },
       options: { temperature: 0.55, provider },
     });

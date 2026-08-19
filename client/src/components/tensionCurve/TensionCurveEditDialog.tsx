@@ -1,3 +1,5 @@
+import i18next from "i18next";
+const t = (key: string, options?: any) => i18next.t(key, options) as string;
 import { useMemo, useState } from "react";
 import { AppDialogContent, Dialog } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -123,22 +125,16 @@ export function TensionCurveEditDialog(props: TensionCurveEditDialogProps) {
                   {referenceTemplate.label}参考
                 </span>
               ) : null}
-              {userAnchorCount > 0 ? <span>{userAnchorCount} 个手动固定点</span> : <span>暂无手动固定点</span>}
+              {userAnchorCount > 0 ? <span>{i18next.t("dict.gen_26e6c369")}</span> : <span>{i18next.t("dict.gen_f193d3a1")}</span>}
             </div>
             <div className="flex flex-wrap items-center justify-end gap-2">
               {userAnchorCount > 0 ? (
-                <Button type="button" size="sm" variant="outline" onClick={() => releaseScope("all")}>
-                  整卷交还 AI
-                </Button>
+                <Button type="button" size="sm" variant="outline" onClick={() => releaseScope("all")}>{i18next.t("tensionCurve.tensionCurveEditDialog.d5otjj")}</Button>
               ) : null}
               {selectedViewportKey !== "all" && selectedUserAnchorCount > 0 ? (
-                <Button type="button" size="sm" variant="outline" onClick={() => releaseScope("selected")}>
-                  当前节奏段交还 AI
-                </Button>
+                <Button type="button" size="sm" variant="outline" onClick={() => releaseScope("selected")}>{i18next.t("tensionCurve.tensionCurveEditDialog.d4j4yi")}</Button>
               ) : null}
-              <Button type="button" size="sm" variant="secondary" onClick={() => onOpenChange(false)}>
-                完成编辑
-              </Button>
+              <Button type="button" size="sm" variant="secondary" onClick={() => onOpenChange(false)}>{i18next.t("tensionCurve.tensionCurveEditDialog.byny2n")}</Button>
             </div>
           </>
         )}
@@ -154,16 +150,14 @@ export function TensionCurveEditDialog(props: TensionCurveEditDialogProps) {
         <div className="grid min-h-0 gap-4 xl:grid-cols-[minmax(0,1fr)_320px]">
           <div className="min-w-0 space-y-3">
             <div className="flex flex-col gap-3 rounded-xl border border-border/70 bg-background p-3 lg:flex-row lg:items-center lg:justify-between">
-              <div className="text-sm text-muted-foreground">
-                拖动章节节点会固定该章强度；点选节点可在右侧查看章节摘要。
-              </div>
+              <div className="text-sm text-muted-foreground">{i18next.t("tensionCurve.tensionCurveEditDialog.yq50w8")}</div>
               {primaryPointCount > 1 ? (
                 <div className="flex items-center gap-2 rounded-md border border-border/70 px-2 py-1">
-                  <span className="text-xs text-muted-foreground">参考线</span>
+                  <span className="text-xs text-muted-foreground">{i18next.t("dict.gen_78e6e8fc")}</span>
                   <Switch
                     checked={showReferenceCurve}
                     onCheckedChange={setShowReferenceCurve}
-                    aria-label="显示紧张度参考线"
+                    aria-label={i18next.t("dict.gen_fbd9193d")}
                     className="h-5 w-9"
                   />
                   {showReferenceCurve ? (
@@ -199,7 +193,7 @@ export function TensionCurveEditDialog(props: TensionCurveEditDialogProps) {
             />
 
             {canvasWidth > 900 ? (
-              <div className="text-xs text-muted-foreground">拖动画布或滚轮可横向浏览更多章节；拖动点时按住 Shift 可按 1 点精度调整。</div>
+              <div className="text-xs text-muted-foreground">{i18next.t("dict.gen_7848117c")}</div>
             ) : null}
 
             <CompactLegend />

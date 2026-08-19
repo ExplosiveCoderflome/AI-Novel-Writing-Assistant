@@ -1,3 +1,4 @@
+import i18next from "i18next";
 import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
 
 export type ThemeMode = "light" | "dark" | "system";
@@ -84,7 +85,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
 
 export function useTheme(): ThemeContextValue {
   const value = useContext(ThemeContext);
-  if (!value) throw new Error("useTheme 必须在 ThemeProvider 内使用。");
+  if (!value) throw new Error(i18next.t("theme.themeProvider.1m8dom"));
   return value;
 }
 

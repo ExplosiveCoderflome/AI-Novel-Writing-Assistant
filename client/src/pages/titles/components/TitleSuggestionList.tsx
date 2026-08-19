@@ -1,3 +1,4 @@
+import i18next from "i18next";
 import type { TitleFactorySuggestion } from "@ai-novel/shared/types/title";
 import { BookmarkPlus, Check, Copy, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -33,7 +34,7 @@ export default function TitleSuggestionList({
           <div className="mx-auto flex h-11 w-11 items-center justify-center rounded-full bg-primary/[0.08] text-primary">
             <Sparkles className="h-5 w-5" aria-hidden="true" />
           </div>
-          <div className="mt-4 text-sm font-medium text-foreground">等待第一批标题灵感</div>
+          <div className="mt-4 text-sm font-medium text-foreground">{i18next.t("titles.titleSuggestionList.89bqv8")}</div>
           <div className="mx-auto mt-1 max-w-md text-sm leading-6 text-muted-foreground">{emptyMessage}</div>
         </div>
       );
@@ -65,9 +66,7 @@ export default function TitleSuggestionList({
             ) : null}
             {showSecondaryCopy ? (
               <Button type="button" variant="ghost" size="sm" className="gap-1.5 rounded-full" onClick={() => onCopy?.(suggestion)}>
-                <Copy className="h-3.5 w-3.5" />
-                复制
-              </Button>
+                <Copy className="h-3.5 w-3.5" />{i18next.t("titles.titleLibraryPanel.fljd")}</Button>
             ) : null}
             {onSave ? (
               <Button
@@ -80,14 +79,10 @@ export default function TitleSuggestionList({
               >
                 {savingTitle === suggestion.title ? (
                   <>
-                    <Check className="h-3.5 w-3.5" />
-                    保存中
-                  </>
+                    <Check className="h-3.5 w-3.5" />{i18next.t("dict.savingInProgress")}</>
                 ) : (
                   <>
-                    <BookmarkPlus className="h-3.5 w-3.5" />
-                    入库
-                  </>
+                    <BookmarkPlus className="h-3.5 w-3.5" />{i18next.t("titles.titleSuggestionList.ed3i")}</>
                 )}
               </Button>
             ) : null}
@@ -130,7 +125,7 @@ export default function TitleSuggestionList({
           >
             <div className="grid gap-3 lg:grid-cols-[64px_minmax(0,1fr)_auto] lg:items-start">
               <div className="text-xs leading-5 text-muted-foreground">
-                <div className="font-medium text-foreground">预估</div>
+                <div className="font-medium text-foreground">{i18next.t("dict.gen_4584c097")}</div>
                 <div className="text-lg font-semibold tabular-nums text-foreground">{suggestion.clickRate}</div>
               </div>
 

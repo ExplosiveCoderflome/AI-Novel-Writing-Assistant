@@ -1,3 +1,5 @@
+import { useTranslation } from "react-i18next";
+import i18next from "i18next";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import type { GenreTreeDraft } from "@/api/genre";
@@ -12,12 +14,12 @@ interface GenreTreeEditorProps {
 
 function getLevelLabel(depth: number): string {
   if (depth === 0) {
-    return "主类型";
+    return i18next.t("dict.mainType");
   }
   if (depth === 1) {
-    return "子类型";
+    return i18next.t("dict.gen_2a89ece2");
   }
-  return "下级类型";
+  return i18next.t("dict.subType");
 }
 
 export default function GenreTreeEditor({
@@ -26,6 +28,7 @@ export default function GenreTreeEditor({
   depth = 0,
   maxDepth = 2,
 }: GenreTreeEditorProps) {
+  const { t } = useTranslation();
   const canAddChild = depth < maxDepth;
 
   const updateChild = (index: number, nextChild: GenreTreeDraft) => {
@@ -55,33 +58,33 @@ export default function GenreTreeEditor({
         <div>
           <div className="text-sm font-semibold text-foreground">{getLevelLabel(depth)}</div>
           <div className="text-xs text-muted-foreground">
-            {depth === 0 ? "这是最终会创建进系统里的根节点。" : "这里会作为上一级类型的子节点保存。"}
+            {depth === 0 ? i18next.t("dict.gen_64dc879a") : i18next.t("dict.gen_4bd10a36")}
           </div>
         </div>
         {canAddChild ? (
           <Button type="button" variant="outline" size="sm" onClick={addChild}>
-            新增{depth === 0 ? "子类型" : "下级类型"}
+            新增{depth === 0 ? i18next.t("dict.gen_2a89ece2") : i18next.t("dict.subType")}
           </Button>
         ) : null}
       </div>
 
       <div className="grid gap-3 md:grid-cols-2">
         <label className="space-y-2 text-sm">
-          <span className="font-medium text-foreground">名称</span>
+          <span className="font-medium text-foreground">{i18next.t("dict.gen_d7ec2d3f")}</span>
           <Input
             value={value.name}
-            placeholder={depth === 0 ? "例如：都市异能" : "例如：超凡职场"}
+            placeholder={depth === 0 ? i18next.t("dict.gen_例如都市异能_wk8i") : i18next.t("dict.exampleSupernaturalWorkplace")}
             onChange={(event) => onChange({ ...value, name: event.target.value })}
           />
         </label>
 
         <label className="space-y-2 text-sm md:col-span-2">
-          <span className="font-medium text-foreground">描述</span>
+          <span className="font-medium text-foreground">{i18next.t("dict.gen_3bdd08ad")}</span>
           <textarea
             rows={3}
             className="min-h-[96px] w-full rounded-md border bg-background px-3 py-2 text-sm outline-none transition focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
             value={value.description ?? ""}
-            placeholder="描述这个类型的题材核心、爽点、常见主线或读者期待。"
+            placeholder={i18next.t("dict.gen_20e1df31")}
             onChange={(event) => onChange({ ...value, description: event.target.value })}
           />
         </label>
@@ -98,9 +101,7 @@ export default function GenreTreeEditor({
                   size="sm"
                   className="text-destructive hover:text-destructive"
                   onClick={() => removeChild(index)}
-                >
-                  删除当前节点
-                </Button>
+                >{i18next.t("genres.genreTreeEditor.sw46zv")}</Button>
               </div>
               <GenreTreeEditor
                 value={child}

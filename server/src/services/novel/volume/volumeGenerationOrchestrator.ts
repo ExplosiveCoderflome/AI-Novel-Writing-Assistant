@@ -61,7 +61,6 @@ import {
   MAX_VOLUME_COUNT,
   buildVolumeCountGuidance,
 } from "@ai-novel/shared/types/volumePlanning";
-import { buildDirectorCompletionProfile } from "@ai-novel/shared/types/directorCompletion";
 
 type StoryMacroPlanResult = Awaited<ReturnType<StoryMacroPlanService["getPlan"]>> | null;
 
@@ -161,7 +160,6 @@ async function loadGenerationContext(params: {
 
   const novel: VolumeGenerationNovel = {
     ...rawNovel,
-    completionProfile: buildDirectorCompletionProfile(rawNovel.estimatedChapterCount ?? 80),
     storyModePromptBlock: buildStoryModePromptBlock({
       primary: rawNovel.primaryStoryMode ? normalizeStoryModeOutput(rawNovel.primaryStoryMode) : null,
       secondary: rawNovel.secondaryStoryMode ? normalizeStoryModeOutput(rawNovel.secondaryStoryMode) : null,
@@ -224,7 +222,6 @@ async function generateStrategy(params: {
       provider: options.provider,
       model: options.model,
       temperature: options.temperature ?? 0.3,
-      maxTokens: 1_800,
       novelId: document.novelId,
       taskId: options.taskId,
       stage: "volume_strategy",
@@ -341,7 +338,6 @@ async function generateSkeleton(params: {
       provider: options.provider,
       model: options.model,
       temperature: options.temperature ?? 0.35,
-      maxTokens: Math.min(6_000, 800 + targetVolumeCount * 520),
       novelId: document.novelId,
       taskId: options.taskId,
       stage: "volume_strategy",

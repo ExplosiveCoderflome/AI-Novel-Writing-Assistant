@@ -1,3 +1,5 @@
+import i18next from "i18next";
+const t = (key: string, options?: any) => i18next.t(key, options) as string;
 import { GitBranch } from "lucide-react";
 import type { Dispatch, SetStateAction } from "react";
 import type { WorldStructuredData } from "@ai-novel/shared/types/world";
@@ -18,20 +20,20 @@ export default function WorldHandbookTensionSection(props: {
     <section className="rounded-md border p-4">
       <SectionHeader
         icon={GitBranch}
-        title="关键张力"
-        description="把世界设定压缩成能持续推动剧情的问题，避免世界只是背景资料。"
+        title={i18next.t("dict.gen_b7cadb8f")}
+        description={i18next.t("dict.gen_341fa0a6")}
       />
       <div className="mt-4 grid gap-3 lg:grid-cols-2">
-        <HandbookField title="世界核心冲突" hint="资源、秩序、力量体系或阵营目标之间的长期矛盾。">
+        <HandbookField title={i18next.t("dict.worldCoreConflict")} hint={i18next.t("dict.gen_ef6e11f7")}>
           <HandbookTextarea
             value={draftStructure.profile.coreConflict}
             onChange={(value) =>
               setDraftStructure((prev) => (prev ? { ...prev, profile: { ...prev.profile, coreConflict: value } } : prev))
             }
-            placeholder="例如：资源枯竭、秩序崩塌、两套力量体系互相排斥。"
+            placeholder={i18next.t("dict.exampleResourcesDepletedOrderCollapsedTwoForceSystemsCompete")}
           />
         </HandbookField>
-        <HandbookField title="共同后果" hint="一行一条，写出世界规则带来的长期代价。">
+        <HandbookField title={i18next.t("dict.gen_8ef6f2f5")} hint={i18next.t("dict.oneLinePolicy")}>
           <HandbookTextarea
             value={listToText(draftStructure.rules.sharedConsequences)}
             onChange={(value) =>
@@ -39,30 +41,22 @@ export default function WorldHandbookTensionSection(props: {
                 prev ? { ...prev, rules: { ...prev.rules, sharedConsequences: textToList(value) } } : prev,
               )
             }
-            placeholder="力量越强越接近异化&#10;城市越繁荣越依赖危险资源"
+            placeholder={i18next.t("dict.gen_c46e3820")}
           />
         </HandbookField>
-        <HandbookField title="禁忌组合" hint="一行一条，明确哪些角色背景、力量用法或剧情解法不能出现。">
+        <HandbookField title={i18next.t("dict.gen_9d4a3def")} hint={i18next.t("dict.oneLineRestrictions")}>
           <HandbookTextarea
             value={listToText(draftStructure.rules.taboo)}
             onChange={(value) =>
               setDraftStructure((prev) => (prev ? { ...prev, rules: { ...prev.rules, taboo: textToList(value) } } : prev))
             }
-            placeholder="凡人不能无代价操控星核&#10;朝廷密探不能公开加入异魔阵营"
+            placeholder={i18next.t("dict.gen_b1303b9e")}
           />
         </HandbookField>
-        <div className="rounded-md border border-dashed p-3 text-sm leading-6 text-muted-foreground">
-          需要细调势力关系、地点控制权、导入结构数据时，再进入高级字段维护。普通作者只需要维护本页的手册内容。
-          <div className="mt-3 flex flex-wrap gap-2">
-            <Button type="button" variant="outline" size="sm" onClick={onOpenDeepening}>
-              问答补齐
-            </Button>
-            <Button type="button" variant="outline" size="sm" onClick={onOpenLayers}>
-              分层草稿
-            </Button>
-            <Button type="button" variant="ghost" size="sm" onClick={onOpenAdvanced}>
-              高级字段维护
-            </Button>
+        <div className="rounded-md border border-dashed p-3 text-sm leading-6 text-muted-foreground">{i18next.t("worlds.worldHandbookTensionSection.f6kf15")}<div className="mt-3 flex flex-wrap gap-2">
+            <Button type="button" variant="outline" size="sm" onClick={onOpenDeepening}>{i18next.t("worlds.worldHandbookTensionSection.jfi88h")}</Button>
+            <Button type="button" variant="outline" size="sm" onClick={onOpenLayers}>{i18next.t("dict.gen_89b03150")}</Button>
+            <Button type="button" variant="ghost" size="sm" onClick={onOpenAdvanced}>{i18next.t("dict.gen_6d58393f")}</Button>
           </div>
         </div>
       </div>

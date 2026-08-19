@@ -70,7 +70,6 @@ export type AgentToolName =
 export type AgentContextMode = "global" | "novel";
 export type AgentInteractionMode = "co_create" | "review" | "query" | "plan" | "execute";
 export type AgentAssistantResponse = "ask_followup" | "offer_options" | "explain" | "execute";
-export type PlannerProfile = "full" | "creative_hub_readonly";
 
 export type AgentIntentName =
   | "social_opening"
@@ -104,8 +103,6 @@ export type AgentIntentName =
   | "inspect_world"
   | "search_knowledge"
   | "ideate_novel_setup"
-  | "workflow_handoff"
-  | "out_of_scope"
   | "general_chat"
   | "unknown";
 
@@ -220,7 +217,6 @@ export interface ToolExecutionContext {
   temperature?: number;
   maxTokens?: number;
   dryRun?: boolean;
-  plannerProfile?: PlannerProfile;
 }
 
 export interface ToolCall {
@@ -254,7 +250,6 @@ export interface PlannerInput {
   currentRunStatus?: AgentRun["status"];
   currentStep?: string;
   currentRunId?: string;
-  profile?: PlannerProfile;
 }
 
 export interface PlannerResult {

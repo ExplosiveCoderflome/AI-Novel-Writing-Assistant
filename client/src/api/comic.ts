@@ -237,16 +237,19 @@ export interface GenerateCharacterSheetOptions {
   appearanceOverride?: string;
 }
 
-export function characterSheetImageUrl(charId: string): string {
-  return `/api/comic/character-images/${charId}/sheet`;
+export function characterSheetImageUrl(charId: string, versionOrTimestamp?: string | number): string {
+  const base = `/api/comic/character-images/${charId}/sheet`;
+  return versionOrTimestamp ? `${base}?v=${encodeURIComponent(versionOrTimestamp)}` : base;
 }
 
-export function characterExpressionImageUrl(charId: string): string {
-  return `/api/comic/character-images/${charId}/expressions`;
+export function characterExpressionImageUrl(charId: string, versionOrTimestamp?: string | number): string {
+  const base = `/api/comic/character-images/${charId}/expressions`;
+  return versionOrTimestamp ? `${base}?v=${encodeURIComponent(versionOrTimestamp)}` : base;
 }
 
-export function characterFaceImageUrl(charId: string): string {
-  return `/api/comic/character-images/${charId}/face`;
+export function characterFaceImageUrl(charId: string, versionOrTimestamp?: string | number): string {
+  const base = `/api/comic/character-images/${charId}/face`;
+  return versionOrTimestamp ? `${base}?v=${encodeURIComponent(versionOrTimestamp)}` : base;
 }
 
 export async function generateCharacterSheet(
@@ -387,6 +390,20 @@ export async function generatePanelImage(
   );
   return res.data.data!;
 }
+
+export async function editPanelImage(payload: {
+  assetId?: string;
+  imageBase64?: string;
+  prompt: string;
+  negativePrompt?: string;
+  provider?: string;
+  model?: string;
+  size?: string;
+}): Promise<any> {
+  const res = await apiClient.post<ApiResponse<any>>("/images/edit", payload);
+  return res.data;
+}
+
 
 export function panelImageUrl(panelId: string): string {
   return `/api/comic/panel-images/${panelId}/panel`;

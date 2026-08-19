@@ -9,8 +9,13 @@ import type {
   ChapterEditorRewritePreviewRequest,
   ChapterEditorRewritePreviewResponse,
   ChapterEditorTargetRange,
+  ChapterEditorContinuePreviewRequest,
+  ChapterEditorContinuePreviewResponse,
+  ChapterEditorIssueFixPreviewRequest,
+  ChapterEditorIssueFixPreviewResponse,
 } from "@ai-novel/shared/types/novel";
 import { runStructuredPrompt } from "../../../prompting/core/promptRunner";
+import { prisma } from "../../../db/prisma";
 import {
   chapterEditorRewriteCandidatesPrompt,
   type ChapterEditorRewriteCandidatesPromptInput,
@@ -19,6 +24,12 @@ import {
   chapterEditorUserIntentPrompt,
   type ChapterEditorUserIntentPromptInput,
 } from "../../../prompting/prompts/novel/chapterEditor/userIntent.prompts";
+import {
+  chapterEditorContinuePreviewPrompt,
+} from "../../../prompting/prompts/novel/chapterEditor/continuePreview.prompts";
+import {
+  chapterEditorIssueFixPreviewPrompt,
+} from "../../../prompting/prompts/novel/chapterEditor/issueFixPreview.prompts";
 import { buildChapterEditorDiffChunks } from "./chapterEditorDiff";
 import { ChapterEditorWorkspaceService } from "./ChapterEditorWorkspaceService";
 import {
@@ -217,6 +228,113 @@ export class NovelChapterEditorService {
       targetRange: response.targetRange,
       candidates: response.candidates,
       activeCandidateId: response.activeCandidateId,
+    };
+  }
+
+  async previewContinue(
+    novelId: string,
+    chapterId: string,
+    input: ChapterEditorContinuePreviewRequest,
+  ): Promise<ChapterEditorContinuePreviewResponse> {
+    const context = await this.workspaceService.loadContext(novelId, chapterId);
+
+    const result = await this.promptRunner({
+      asset: chapterEditorContinuePreviewPrompt,
+      promptInput: {
+        textBefore: input.textBefore,
+        textAfter: input.textAfter || null,
+        customInstruction: input.customInstruction || null,
+        goalSummary: context.chapterPlan?.objective?.trim() || context.chapter.expectation?.trim() || null,
+        chapterSummary: context.chapterSummary,
+        styleSummary: context.styleSummary || null,
+        characterStateSummary: buildCharacterStateSummary(context.latestStateSnapshot),
+        worldConstraintSummary: context.macroContext.worldConstraintSummary,
+        macroContextSummary: buildMacroContextSummary(context.macroContext),
+      },
+      options: {
+        provider: input.provider ?? "deepseek",
+        model: input.model,
+        temperature: input.temperature ?? 0.5,
+      },
+    });
+
+    const candidates = dedupeCandidates(
+      result.output.candidates.slice(0, 3).map((candidate, index) => ({
+        id: randomUUID(),
+        label: candidate.label?.trim() || `续写 ${index + 1}`,
+        content: candidate.content.trim(),
+        summary: candidate.summary?.trim() || null,
+        rationale: candidate.rationale?.trim() || null,
+        riskNotes: candidate.riskNotes?.filter((item) => item.trim().length > 0) ?? [],
+        semanticTags: candidate.semanticTags?.filter((tag) => tag.trim().length > 0) ?? [],
+        diffChunks: [],
+      })),
+    );
+
+    return {
+      sessionId: randomUUID(),
+      candidates,
+      activeCandidateId: candidates[0]?.id ?? null,
+      macroAlignmentNote: result.output.macroAlignmentNote?.trim() || null,
+    };
+  }
+
+  async previewIssueFix(
+    novelId: string,
+    chapterId: string,
+    issueId: string,
+    input: ChapterEditorIssueFixPreviewRequest,
+  ): Promise<ChapterEditorIssueFixPreviewResponse> {
+    const issue = await prisma.auditIssue.findFirst({
+      where: { id: issueId },
+    });
+    if (!issue) {
+      throw new Error("审校问题不存在。");
+    }
+
+    const context = await this.workspaceService.loadContext(novelId, chapterId);
+
+    const result = await this.promptRunner({
+      asset: chapterEditorIssueFixPreviewPrompt,
+      promptInput: {
+        issueDescription: issue.description,
+        issueEvidence: issue.evidence,
+        issueFixSuggestion: issue.fixSuggestion,
+        selectedText: input.selectedText,
+        beforeParagraphs: input.beforeParagraphs,
+        afterParagraphs: input.afterParagraphs,
+        goalSummary: context.chapterPlan?.objective?.trim() || context.chapter.expectation?.trim() || null,
+        chapterSummary: context.chapterSummary,
+        styleSummary: context.styleSummary || null,
+        characterStateSummary: buildCharacterStateSummary(context.latestStateSnapshot),
+        worldConstraintSummary: context.macroContext.worldConstraintSummary,
+        macroContextSummary: buildMacroContextSummary(context.macroContext),
+      },
+      options: {
+        provider: input.provider ?? "deepseek",
+        model: input.model,
+        temperature: input.temperature ?? 0.3,
+      },
+    });
+
+    const candidates = dedupeCandidates(
+      result.output.candidates.slice(0, 3).map((candidate, index) => ({
+        id: randomUUID(),
+        label: candidate.label?.trim() || `修复 ${index + 1}`,
+        content: candidate.content.trim(),
+        summary: candidate.summary?.trim() || null,
+        rationale: candidate.rationale?.trim() || null,
+        riskNotes: candidate.riskNotes?.filter((item) => item.trim().length > 0) ?? [],
+        semanticTags: candidate.semanticTags?.filter((tag) => tag.trim().length > 0) ?? [],
+        diffChunks: buildChapterEditorDiffChunks(input.selectedText, candidate.content.trim()),
+      })),
+    );
+
+    return {
+      sessionId: randomUUID(),
+      candidates,
+      activeCandidateId: candidates[0]?.id ?? null,
+      macroAlignmentNote: result.output.macroAlignmentNote?.trim() || null,
     };
   }
 

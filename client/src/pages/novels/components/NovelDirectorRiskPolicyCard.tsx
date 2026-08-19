@@ -1,3 +1,4 @@
+import i18next from "i18next";
 import { useEffect, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
@@ -38,9 +39,9 @@ export function NovelDirectorRiskPolicyCard({ novelId }: { novelId: string }) {
         setDraft(response.data.override ?? response.data);
       }
       await queryClient.invalidateQueries({ queryKey: queryKeys.novels.directorRiskPolicy(novelId) });
-      toast.success("本书自动导演风险规则已保存。");
+      toast.success(i18next.t("novels.novelDirectorRiskPolicyCard.1kjm8l"));
     },
-    onError: (error) => toast.error(error instanceof Error ? error.message : "保存本书风险规则失败。"),
+    onError: (error) => toast.error(error instanceof Error ? error.message : i18next.t("novels.novelDirectorRiskPolicyCard.90w88n")),
   });
   const setPolicy = (noticeRaw: number, pauseRaw: number) => setDraft(() => {
     const noticeThreshold = Math.max(2, Math.min(7, Math.round(noticeRaw) || 5));
@@ -51,23 +52,23 @@ export function NovelDirectorRiskPolicyCard({ novelId }: { novelId: string }) {
   return (
     <Card className="min-w-0">
       <CardHeader>
-        <CardTitle>本书自动导演风险规则</CardTitle>
-        <CardDescription>默认沿用系统规则；需要时可只为这本书调整提醒和保护性暂停分数。</CardDescription>
+        <CardTitle>{i18next.t("novels.novelDirectorRiskPolicyCard.l5dkg0")}</CardTitle>
+        <CardDescription>{i18next.t("novels.novelDirectorRiskPolicyCard.n8knnf")}</CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
         <div className="flex items-center justify-between gap-3 rounded-md border bg-muted/15 p-3">
-          <div><div className="text-sm font-medium">为本书单独设置</div><div className="mt-1 text-xs text-muted-foreground">关闭后会使用系统的自动导演风险规则。</div></div>
+          <div><div className="text-sm font-medium">{i18next.t("novels.novelDirectorRiskPolicyCard.o6dbj9")}</div><div className="mt-1 text-xs text-muted-foreground">{i18next.t("novels.novelDirectorRiskPolicyCard.dyhxhx")}</div></div>
           <Switch checked={usesOverride} disabled={policyQuery.isLoading || unavailable || saveMutation.isPending}
-            aria-label="为本书单独设置自动导演风险规则" onCheckedChange={(checked) => {
+            aria-label={i18next.t("novels.novelDirectorRiskPolicyCard.vhpqu7")} onCheckedChange={(checked) => {
               setUsesOverride(checked);
               if (!checked) saveMutation.mutate(null);
             }} />
         </div>
         {usesOverride ? <div className="grid gap-3 md:grid-cols-2">
-          <label className="space-y-2"><span className="text-sm font-medium">提醒分数</span><Input type="number" min={2} max={7} value={draft.noticeThreshold} onChange={(event) => setPolicy(Number(event.target.value), draft.pauseThreshold)} /></label>
-          <label className="space-y-2"><span className="text-sm font-medium">保护性暂停分数</span><Input type="number" min={draft.noticeThreshold + 1} max={8} value={draft.pauseThreshold} onChange={(event) => setPolicy(draft.noticeThreshold, Number(event.target.value))} /><span className="block text-xs leading-5 text-muted-foreground">需高于提醒分数，最高为 8 分。</span></label>
+          <label className="space-y-2"><span className="text-sm font-medium">{i18next.t("novels.novelDirectorRiskPolicyCard.d6xobw")}</span><Input type="number" min={2} max={7} value={draft.noticeThreshold} onChange={(event) => setPolicy(Number(event.target.value), draft.pauseThreshold)} /></label>
+          <label className="space-y-2"><span className="text-sm font-medium">{i18next.t("novels.novelDirectorRiskPolicyCard.y8n3j0")}</span><Input type="number" min={draft.noticeThreshold + 1} max={8} value={draft.pauseThreshold} onChange={(event) => setPolicy(draft.noticeThreshold, Number(event.target.value))} /><span className="block text-xs leading-5 text-muted-foreground">{i18next.t("novels.novelDirectorRiskPolicyCard.84u66k")}</span></label>
         </div> : null}
-        {unavailable ? <div className="rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-900">本书风险规则服务准备中，当前使用系统默认分数。</div> : null}
+        {unavailable ? <div className="rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-900">{i18next.t("novels.novelDirectorRiskPolicyCard.ppqc2h")}</div> : null}
         {usesOverride ? <div className="flex justify-end"><Button type="button" disabled={saveMutation.isPending || unavailable} onClick={() => saveMutation.mutate(draft)}>{saveMutation.isPending ? "保存中..." : "保存本书规则"}</Button></div> : null}
       </CardContent>
     </Card>

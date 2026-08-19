@@ -97,7 +97,6 @@ export function useNovelWorldSlice({
         queryClient.invalidateQueries({ queryKey: queryKeys.novels.novelWorld(novelId) }),
         queryClient.invalidateQueries({ queryKey: queryKeys.novels.worldSlice(novelId) }),
         queryClient.invalidateQueries({ queryKey: queryKeys.novels.detail(novelId) }),
-        queryClient.invalidateQueries({ queryKey: queryKeys.novels.all }),
       ]);
     },
   });
@@ -116,7 +115,6 @@ export function useNovelWorldSlice({
         queryClient.invalidateQueries({ queryKey: queryKeys.novels.novelWorld(novelId) }),
         queryClient.invalidateQueries({ queryKey: queryKeys.novels.worldSlice(novelId) }),
         queryClient.invalidateQueries({ queryKey: queryKeys.novels.detail(novelId) }),
-        queryClient.invalidateQueries({ queryKey: queryKeys.novels.all }),
         queryClient.invalidateQueries({ queryKey: queryKeys.worlds.all }),
       ]);
     },
@@ -130,7 +128,6 @@ export function useNovelWorldSlice({
         queryClient.invalidateQueries({ queryKey: queryKeys.novels.novelWorld(novelId) }),
         queryClient.invalidateQueries({ queryKey: queryKeys.novels.worldSlice(novelId) }),
         queryClient.invalidateQueries({ queryKey: queryKeys.novels.detail(novelId) }),
-        queryClient.invalidateQueries({ queryKey: queryKeys.novels.all }),
         queryClient.invalidateQueries({ queryKey: queryKeys.worlds.all }),
       ]);
     },
@@ -144,7 +141,6 @@ export function useNovelWorldSlice({
         queryClient.invalidateQueries({ queryKey: queryKeys.novels.novelWorld(novelId) }),
         queryClient.invalidateQueries({ queryKey: queryKeys.novels.novelWorldSyncDiff(novelId) }),
         queryClient.invalidateQueries({ queryKey: queryKeys.novels.detail(novelId) }),
-        queryClient.invalidateQueries({ queryKey: queryKeys.novels.all }),
         queryClient.invalidateQueries({ queryKey: queryKeys.worlds.all }),
       ]);
     },
@@ -165,7 +161,6 @@ export function useNovelWorldSlice({
         queryClient.invalidateQueries({ queryKey: queryKeys.novels.novelWorldSyncDiff(novelId) }),
         queryClient.invalidateQueries({ queryKey: queryKeys.novels.worldSlice(novelId) }),
         queryClient.invalidateQueries({ queryKey: queryKeys.novels.detail(novelId) }),
-        queryClient.invalidateQueries({ queryKey: queryKeys.novels.all }),
         queryClient.invalidateQueries({ queryKey: queryKeys.worlds.all }),
       ]);
     },

@@ -1,4 +1,6 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
+import { useTranslation } from "react-i18next";
+import i18next from "i18next";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import type { CreativeHubProductionStatus } from "@ai-novel/shared/types/creativeHub";
 import { RefreshCw } from "lucide-react";
@@ -36,9 +38,9 @@ function ProductionField(props: {
 }
 
 function fromNarrativePov(value: "first_person" | "third_person" | "mixed" | null | undefined): string {
-  if (value === "first_person") return "第一人称";
-  if (value === "third_person") return "第三人称";
-  if (value === "mixed") return "混合视角";
+  if (value === "first_person") return i18next.t("dict.gen_f69e8c5f");
+  if (value === "third_person") return i18next.t("dict.gen_5eff3cab");
+  if (value === "mixed") return i18next.t("dict.gen_73b444ba");
   return "";
 }
 
@@ -50,9 +52,9 @@ function toNarrativePov(value: string): "first_person" | "third_person" | "mixed
 }
 
 function fromPacePreference(value: "slow" | "balanced" | "fast" | null | undefined): string {
-  if (value === "slow") return "慢节奏";
-  if (value === "balanced") return "均衡节奏";
-  if (value === "fast") return "快节奏";
+  if (value === "slow") return i18next.t("dict.gen_7209da38");
+  if (value === "balanced") return i18next.t("creativeHub.novelProductionStarterCard.bkwd53");
+  if (value === "fast") return i18next.t("dict.gen_de82b2fd");
   return "";
 }
 
@@ -64,10 +66,10 @@ function toPacePreference(value: string): "slow" | "balanced" | "fast" | null {
 }
 
 function fromProjectMode(value: "ai_led" | "co_pilot" | "draft_mode" | "auto_pipeline" | null | undefined): string {
-  if (value === "ai_led") return "AI 主导";
-  if (value === "co_pilot") return "人机协作";
-  if (value === "draft_mode") return "草稿优先";
-  if (value === "auto_pipeline") return "自动流水线";
+  if (value === "ai_led") return i18next.t("creativeHub.novelProductionStarterCard.11fpjt");
+  if (value === "co_pilot") return i18next.t("creativeHub.novelProductionStarterCard.aczqnh");
+  if (value === "draft_mode") return i18next.t("creativeHub.novelProductionStarterCard.h2eo5i");
+  if (value === "auto_pipeline") return i18next.t("creativeHub.novelProductionStarterCard.lmnhou");
   return "";
 }
 
@@ -80,9 +82,9 @@ function toProjectMode(value: string): "ai_led" | "co_pilot" | "draft_mode" | "a
 }
 
 function fromLevel(value: "low" | "medium" | "high" | null | undefined): string {
-  if (value === "low") return "低";
-  if (value === "medium") return "中";
-  if (value === "high") return "高";
+  if (value === "low") return i18next.t("dict.low");
+  if (value === "medium") return i18next.t("dict.mid");
+  if (value === "high") return i18next.t("dict.gen_4296d7d2");
   return "";
 }
 
@@ -120,70 +122,70 @@ function buildProductionPrompt(input: {
   const worldType = input.worldType.trim();
   const targetChapterCount = Math.max(1, Math.min(200, Math.floor(input.targetChapterCount || 20)));
   if (input.currentNovelId) {
-    const segments = [`继续生成当前小说。目标章节数：${targetChapterCount}。`];
+    const segments = [i18next.t("creativeHub.novelProductionStarterCard.xudvvj", { val1: targetChapterCount })];
     if (description) {
-      segments.push(`补充设定：${description}。`);
+      segments.push(i18next.t("creativeHub.novelProductionStarterCard.8pa3n0", { val1: description }));
     }
     if (genre) {
-      segments.push(`题材偏好：${genre}。`);
+      segments.push(i18next.t("creativeHub.novelProductionStarterCard.m8s0u6", { val1: genre }));
     }
     if (styleTone) {
-      segments.push(`风格基调：${styleTone}。`);
+      segments.push(i18next.t("creativeHub.novelProductionStarterCard.uy7h2n", { val1: styleTone }));
     }
     if (narrativePov) {
-      segments.push(`叙事视角：${narrativePov}。`);
+      segments.push(i18next.t("creativeHub.novelProductionStarterCard.z32jqi", { val1: narrativePov }));
     }
     if (pacePreference) {
-      segments.push(`推进节奏：${pacePreference}。`);
+      segments.push(i18next.t("creativeHub.novelProductionStarterCard.2hh4zs", { val1: pacePreference }));
     }
     if (projectMode) {
-      segments.push(`协作模式：${projectMode}。`);
+      segments.push(i18next.t("creativeHub.novelProductionStarterCard.4ow7hv", { val1: projectMode }));
     }
     if (emotionIntensity) {
-      segments.push(`情绪强度：${emotionIntensity}。`);
+      segments.push(i18next.t("creativeHub.novelProductionStarterCard.b6n8k7", { val1: emotionIntensity }));
     }
     if (aiFreedom) {
-      segments.push(`AI 自由度：${aiFreedom}。`);
+      segments.push(i18next.t("creativeHub.novelProductionStarterCard.xwtqyp", { val1: aiFreedom }));
     }
     if (defaultChapterLength) {
-      segments.push(`默认章长：约 ${defaultChapterLength} 字。`);
+      segments.push(i18next.t("creativeHub.novelProductionStarterCard.galdn6", { val1: defaultChapterLength }));
     }
     if (worldType) {
-      segments.push(`世界观类型偏好：${worldType}。`);
+      segments.push(i18next.t("creativeHub.novelProductionStarterCard.62eyrm", { val1: worldType }));
     }
     return segments.join("");
   }
   const title = input.title.trim();
-  const segments = [`创建一本${targetChapterCount}章小说《${title}》，并开始整本生成。`];
+  const segments = [i18next.t("creativeHub.novelProductionStarterCard.p7xtau", { val1: targetChapterCount, val2: title })];
   if (description) {
-    segments.push(`简介：${description}。`);
+    segments.push(i18next.t("creativeHub.novelProductionStarterCard.8bjbsz", { val1: description }));
   }
   if (genre) {
-    segments.push(`题材：${genre}。`);
+    segments.push(i18next.t("creativeHub.novelProductionStarterCard.h7t1lc", { val1: genre }));
   }
   if (styleTone) {
-    segments.push(`风格基调：${styleTone}。`);
+    segments.push(i18next.t("creativeHub.novelProductionStarterCard.uy7h2n", { val1: styleTone }));
   }
   if (narrativePov) {
-    segments.push(`叙事视角：${narrativePov}。`);
+    segments.push(i18next.t("creativeHub.novelProductionStarterCard.z32jqi", { val1: narrativePov }));
   }
   if (pacePreference) {
-    segments.push(`推进节奏：${pacePreference}。`);
+    segments.push(i18next.t("creativeHub.novelProductionStarterCard.2hh4zs", { val1: pacePreference }));
   }
   if (projectMode) {
-    segments.push(`协作模式：${projectMode}。`);
+    segments.push(i18next.t("creativeHub.novelProductionStarterCard.4ow7hv", { val1: projectMode }));
   }
   if (emotionIntensity) {
-    segments.push(`情绪强度：${emotionIntensity}。`);
+    segments.push(i18next.t("creativeHub.novelProductionStarterCard.b6n8k7", { val1: emotionIntensity }));
   }
   if (aiFreedom) {
-    segments.push(`AI 自由度：${aiFreedom}。`);
+    segments.push(i18next.t("creativeHub.novelProductionStarterCard.xwtqyp", { val1: aiFreedom }));
   }
   if (defaultChapterLength) {
-    segments.push(`默认章长：约 ${defaultChapterLength} 字。`);
+    segments.push(i18next.t("creativeHub.novelProductionStarterCard.galdn6", { val1: defaultChapterLength }));
   }
   if (worldType) {
-    segments.push(`世界观类型：${worldType}。`);
+    segments.push(i18next.t("creativeHub.novelProductionStarterCard.nxp910", { val1: worldType }));
   }
   return segments.join("");
 }
@@ -196,6 +198,7 @@ export default function NovelProductionStarterCard({
   onSubmit,
   onQuickAction,
 }: NovelProductionStarterCardProps) {
+  const { t } = useTranslation();
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [targetChapterCount, setTargetChapterCount] = useState(20);
@@ -294,7 +297,7 @@ export default function NovelProductionStarterCard({
       }));
     },
     onError: (error) => {
-      toast.error(error instanceof Error ? error.message : "整本生产启动失败。");
+      toast.error(error instanceof Error ? error.message : i18next.t("creativeHub.novelProductionStarterCard.iso3x1"));
     },
   });
   const formDisabled = actionDisabled
@@ -317,31 +320,29 @@ export default function NovelProductionStarterCard({
 
   return (
     <div className="space-y-3" aria-busy={novelDetailQuery.isFetching || submitMutation.isPending}>
-      <div className="text-xs font-medium text-muted-foreground">整本生产</div>
+      <div className="text-xs font-medium text-muted-foreground">{i18next.t("dict.gen_080bb6bb")}</div>
       <div className="space-y-3">
         <div className="rounded-md border border-info/25 bg-info/5 px-3 py-2 text-xs text-muted-foreground">
           {isContinueMode
-            ? `当前将继续生产《${resolvedTitle || "当前小说"}》。`
+            ? i18next.t("creativeHub.novelProductionStarterCard.wut6hj", { val1: resolvedTitle || "当前小说" })
             : "当前处于全局模式，可直接创建新书并启动整本生产。"}
         </div>
-        <div className="rounded-md border border-dashed border-border bg-background px-3 py-2 text-xs leading-5 text-muted-foreground">
-          建议先确认：题材、风格、视角、节奏、章长、AI 自由度。条件越完整，整本生产偏差越小。
-        </div>
+        <div className="rounded-md border border-dashed border-border bg-background px-3 py-2 text-xs leading-5 text-muted-foreground">{i18next.t("creativeHub.novelProductionStarterCard.749p3x")}</div>
 
         {novelDetailQuery.isFetching ? (
           <WorkspaceStateNotice
             compact
             loading
             tone="info"
-            title="正在读取小说设置"
-            description="读取完成前不会提交整本生产，避免用空设置覆盖当前小说。"
+            title={i18next.t("creativeHub.novelProductionStarterCard.vz5lat")}
+            description={i18next.t("creativeHub.novelProductionStarterCard.5uspyy")}
           />
         ) : detailErrorMessage ? (
           <WorkspaceStateNotice
             compact
             tone="danger"
-            title="小说设置读取失败"
-            description={`${detailErrorMessage} 请重新读取后再启动整本生产。`}
+            title={i18next.t("creativeHub.novelProductionStarterCard.brg3d0")}
+            description={i18next.t("creativeHub.novelProductionStarterCard.fz7zxh", { val1: detailErrorMessage })}
             action={(
               <Button
                 type="button"
@@ -360,13 +361,13 @@ export default function NovelProductionStarterCard({
         {!isContinueMode ? (
           <ProductionField
             htmlFor="creative-hub-production-title"
-            label="小说标题"
+            label={i18next.t("basicInfo.novelTitle")}
             hint="创建新小说时必填。"
           >
             <input
               id="creative-hub-production-title"
               className={fieldClassName}
-              placeholder="例如：长夜巡灯人"
+              placeholder={i18next.t("creativeHub.novelProductionStarterCard.zet2fo")}
               value={title}
               disabled={formDisabled}
               required
@@ -375,11 +376,11 @@ export default function NovelProductionStarterCard({
           </ProductionField>
         ) : null}
 
-        <ProductionField htmlFor="creative-hub-production-description" label="简介与核心设定">
+        <ProductionField htmlFor="creative-hub-production-description" label={i18next.t("creativeHub.novelProductionStarterCard.rokqy")}>
           <textarea
             id="creative-hub-production-description"
             className={`${fieldClassName} min-h-[88px] resize-y`}
-            placeholder="概括主角处境、核心冲突和这本书最想兑现的体验"
+            placeholder={i18next.t("creativeHub.novelProductionStarterCard.5vhr9z")}
             value={description}
             disabled={formDisabled}
             onChange={(event) => setDescription(event.target.value)}
@@ -387,21 +388,21 @@ export default function NovelProductionStarterCard({
         </ProductionField>
 
         <div className="grid gap-2 sm:grid-cols-2">
-          <ProductionField htmlFor="creative-hub-production-genre" label="题材类型">
+          <ProductionField htmlFor="creative-hub-production-genre" label={i18next.t("creativeHub.novelProductionStarterCard.jolqnc")}>
             <input
               id="creative-hub-production-genre"
               className={fieldClassName}
-              placeholder="例如：东方玄幻"
+              placeholder={i18next.t("creativeHub.novelProductionStarterCard.ljr4p5")}
               value={genre}
               disabled={formDisabled}
               onChange={(event) => setGenre(event.target.value)}
             />
           </ProductionField>
-          <ProductionField htmlFor="creative-hub-production-style" label="风格基调">
+          <ProductionField htmlFor="creative-hub-production-style" label={i18next.t("creativeHub.novelProductionStarterCard.jpj5rr")}>
             <input
               id="creative-hub-production-style"
               className={fieldClassName}
-              placeholder="例如：轻快热血"
+              placeholder={i18next.t("creativeHub.novelProductionStarterCard.dbs8pm")}
               value={styleTone}
               disabled={formDisabled}
               onChange={(event) => setStyleTone(event.target.value)}
@@ -410,7 +411,7 @@ export default function NovelProductionStarterCard({
         </div>
 
         <div className="grid gap-2 sm:grid-cols-2">
-          <ProductionField htmlFor="creative-hub-production-pov" label="叙事视角">
+          <ProductionField htmlFor="creative-hub-production-pov" label={i18next.t("basicInfo.narrativePov")}>
             <SelectControl
               id="creative-hub-production-pov"
               className={fieldClassName}
@@ -418,13 +419,13 @@ export default function NovelProductionStarterCard({
               disabled={formDisabled}
               onChange={(event) => setNarrativePov(event.target.value)}
             >
-              <option value="">交给 AI 判断</option>
-              <option value="第一人称">第一人称</option>
-              <option value="第三人称">第三人称</option>
-              <option value="混合视角">混合视角</option>
+              <option value="">{i18next.t("creativeHub.novelProductionStarterCard.wknu3u")}</option>
+              <option value="第一人称">{i18next.t("dict.gen_f69e8c5f")}</option>
+              <option value="第三人称">{i18next.t("dict.gen_5eff3cab")}</option>
+              <option value="混合视角">{i18next.t("dict.gen_73b444ba")}</option>
             </SelectControl>
           </ProductionField>
-          <ProductionField htmlFor="creative-hub-production-pace" label="推进节奏">
+          <ProductionField htmlFor="creative-hub-production-pace" label={i18next.t("creativeHub.novelProductionStarterCard.d679ts")}>
             <SelectControl
               id="creative-hub-production-pace"
               className={fieldClassName}
@@ -432,16 +433,16 @@ export default function NovelProductionStarterCard({
               disabled={formDisabled}
               onChange={(event) => setPacePreference(event.target.value)}
             >
-              <option value="">交给 AI 判断</option>
-              <option value="慢节奏">慢节奏</option>
-              <option value="均衡节奏">均衡节奏</option>
-              <option value="快节奏">快节奏</option>
+              <option value="">{i18next.t("creativeHub.novelProductionStarterCard.wknu3u")}</option>
+              <option value="慢节奏">{i18next.t("dict.gen_7209da38")}</option>
+              <option value="均衡节奏">{i18next.t("creativeHub.novelProductionStarterCard.bkwd53")}</option>
+              <option value="快节奏">{i18next.t("dict.gen_de82b2fd")}</option>
             </SelectControl>
           </ProductionField>
         </div>
 
         <div className="grid gap-2 sm:grid-cols-3">
-          <ProductionField htmlFor="creative-hub-production-mode" label="协作模式">
+          <ProductionField htmlFor="creative-hub-production-mode" label={i18next.t("creativeHub.novelProductionStarterCard.aueugr")}>
             <SelectControl
               id="creative-hub-production-mode"
               className={fieldClassName}
@@ -449,14 +450,14 @@ export default function NovelProductionStarterCard({
               disabled={formDisabled}
               onChange={(event) => setProjectMode(event.target.value)}
             >
-              <option value="">使用小说默认值</option>
+              <option value="">{i18next.t("creativeHub.novelProductionStarterCard.x05tr2")}</option>
               <option value="AI 主导">AI 主导</option>
-              <option value="人机协作">人机协作</option>
-              <option value="草稿优先">草稿优先</option>
-              <option value="自动流水线">自动流水线</option>
+              <option value="人机协作">{i18next.t("creativeHub.novelProductionStarterCard.aczqnh")}</option>
+              <option value="草稿优先">{i18next.t("creativeHub.novelProductionStarterCard.h2eo5i")}</option>
+              <option value="自动流水线">{i18next.t("creativeHub.novelProductionStarterCard.lmnhou")}</option>
             </SelectControl>
           </ProductionField>
-          <ProductionField htmlFor="creative-hub-production-emotion" label="情绪强度">
+          <ProductionField htmlFor="creative-hub-production-emotion" label={i18next.t("creativeHub.novelProductionStarterCard.cqg3ld")}>
             <SelectControl
               id="creative-hub-production-emotion"
               className={fieldClassName}
@@ -464,13 +465,13 @@ export default function NovelProductionStarterCard({
               disabled={formDisabled}
               onChange={(event) => setEmotionIntensity(event.target.value)}
             >
-              <option value="">使用小说默认值</option>
-              <option value="低">低</option>
-              <option value="中">中</option>
-              <option value="高">高</option>
+              <option value="">{i18next.t("creativeHub.novelProductionStarterCard.x05tr2")}</option>
+              <option value="低">{i18next.t("dict.low")}</option>
+              <option value="中">{i18next.t("dict.mid")}</option>
+              <option value="高">{i18next.t("dict.gen_4296d7d2")}</option>
             </SelectControl>
           </ProductionField>
-          <ProductionField htmlFor="creative-hub-production-freedom" label="AI 自由度">
+          <ProductionField htmlFor="creative-hub-production-freedom" label={i18next.t("basicInfo.aiFreedom")}>
             <SelectControl
               id="creative-hub-production-freedom"
               className={fieldClassName}
@@ -478,16 +479,16 @@ export default function NovelProductionStarterCard({
               disabled={formDisabled}
               onChange={(event) => setAiFreedom(event.target.value)}
             >
-              <option value="">使用小说默认值</option>
-              <option value="低">低</option>
-              <option value="中">中</option>
-              <option value="高">高</option>
+              <option value="">{i18next.t("creativeHub.novelProductionStarterCard.x05tr2")}</option>
+              <option value="低">{i18next.t("dict.low")}</option>
+              <option value="中">{i18next.t("dict.mid")}</option>
+              <option value="高">{i18next.t("dict.gen_4296d7d2")}</option>
             </SelectControl>
           </ProductionField>
         </div>
 
         <div className="grid gap-2 sm:grid-cols-3">
-          <ProductionField htmlFor="creative-hub-production-chapters" label="目标章节数">
+          <ProductionField htmlFor="creative-hub-production-chapters" label={i18next.t("creativeHub.novelProductionStarterCard.ikd4dn")}>
             <input
               id="creative-hub-production-chapters"
               className={fieldClassName}
@@ -499,7 +500,7 @@ export default function NovelProductionStarterCard({
               onChange={(event) => setTargetChapterCount(Number(event.target.value || 20))}
             />
           </ProductionField>
-          <ProductionField htmlFor="creative-hub-production-length" label="默认章长（字）">
+          <ProductionField htmlFor="creative-hub-production-length" label={i18next.t("creativeHub.novelProductionStarterCard.4bldu7")}>
             <input
               id="creative-hub-production-length"
               className={fieldClassName}
@@ -511,11 +512,11 @@ export default function NovelProductionStarterCard({
               onChange={(event) => setDefaultChapterLength(Number(event.target.value || 2500))}
             />
           </ProductionField>
-          <ProductionField htmlFor="creative-hub-production-world" label="世界观类型（可选）">
+          <ProductionField htmlFor="creative-hub-production-world" label={i18next.t("creativeHub.novelProductionStarterCard.nuc5dv")}>
             <input
               id="creative-hub-production-world"
               className={fieldClassName}
-              placeholder="例如：末日废土"
+              placeholder={i18next.t("creativeHub.novelProductionStarterCard.ie1omb")}
               value={worldType}
               disabled={formDisabled}
               onChange={(event) => setWorldType(event.target.value)}
@@ -535,25 +536,19 @@ export default function NovelProductionStarterCard({
             variant="outline"
             disabled={formDisabled}
             onClick={() => onQuickAction?.("整本生成到哪一步了")}
-          >
-            查看进度
-          </Button>
+          >{i18next.t("dict.gen_9600c918")}</Button>
           <Button
             type="button"
             variant="outline"
             disabled={formDisabled}
             onClick={() => onQuickAction?.("为什么整本生成没有启动")}
-          >
-            查看阻塞
-          </Button>
+          >{i18next.t("creativeHub.creativeHubToolResultCard.dlwl3d")}</Button>
           <Button
             type="button"
             variant="outline"
             disabled={formDisabled}
             onClick={() => onQuickAction?.("基于当前小说信息，为生产前的题材、风格、视角、节奏、章长和 AI 自由度各给出 3 个备选答案。")}
-          >
-            生成备选
-          </Button>
+          >{i18next.t("creativeHub.novelProductionStarterCard.f6lw8j")}</Button>
         </div>
       </div>
     </div>

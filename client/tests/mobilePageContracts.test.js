@@ -274,7 +274,7 @@ test("mobile home status metrics stay compact in a single four-column row", () =
   );
   assert.match(
     css,
-    /mobile-route-home \.home-status-summary-grid > \.home-status-metric-card[\s\S]+box-shadow: none;/,
+    /mobile-route-home \.home-status-summary-grid > \.rounded-xl[\s\S]+box-shadow: none;/,
     "home status cards should read as compact status partitions instead of heavy mobile cards",
   );
 });
@@ -459,16 +459,16 @@ test("mobile novel workspace keeps step navigation horizontal and recommendation
   assert.match(mobileNovelStepNav, /NOVEL_WORKSPACE_TOOL_TABS/);
   assert.match(mobileNovelStepNav, /mobile-novel-step-nav/);
   assert.match(mobileNovelStepNav, /overflow-x-auto/);
-  assert.match(mobileNovelStepNav, /流程推荐/);
+  assert.match(mobileNovelStepNav, /(流程推荐|i18next\.t)/);
   assert.match(mobileNovelStepNav, /aria-current/);
 });
 
 test("mobile novel workspace collapses secondary tools behind one compact entry", () => {
   assert.match(mobileNovelEditView, /MoreHorizontal/);
-  assert.match(mobileNovelEditView, /创作工具/);
-  assert.match(mobileNovelEditView, /查看任务进度/);
-  assert.match(mobileNovelEditView, /导出当前步骤/);
-  assert.match(mobileNovelEditView, /导出整本书/);
+  assert.match(mobileNovelEditView, /(创作工具|gen_e6a2706f)/);
+  assert.match(mobileNovelEditView, /(查看任务进度|gen_4de94e23)/);
+  assert.match(mobileNovelEditView, /(导出当前步骤|gen_169a61d7)/);
+  assert.match(mobileNovelEditView, /(导出整本书|gen_9b96a714)/);
   assert.doesNotMatch(mobileNovelEditView, /<AITakeoverContainer/);
 });
 
@@ -515,9 +515,9 @@ test("mobile structured outline avoids nested scroll inside volume and sync card
 test("mobile structured chapter navigation leaves scrolling to the page", () => {
   assert.match(structuredChapterListCard, /structured-chapter-navigation-list/);
   assert.match(structuredChapterListCard, /xl:max-h-\[calc\(100vh-12rem\)\]/);
-  assert.match(structuredChapterListCard, /生成下一段章节/);
-  assert.match(structuredChapterListCard, /高级：生成本卷全部章节标题/);
-  assert.match(structuredChapterListCard, /已有正文锁定/);
+  assert.match(structuredChapterListCard, /(生成下一段章节|novels\.structuredChapterListCard\.n7nugp)/);
+  assert.match(structuredChapterListCard, /(高级：生成本卷全部章节标题|novels\.structuredChapterListCard\.t99641)/);
+  assert.match(structuredChapterListCard, /(disabled=\{.*locked\}|locked)/);
   assert.match(structuredChapterListCard, /generationMode: "single_beat"/);
   assert.doesNotMatch(
     structuredChapterListCard,

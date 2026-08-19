@@ -1,3 +1,4 @@
+import i18next from "i18next";
 import type { StyleBinding } from "@ai-novel/shared/types/styleEngine";
 import { BookOpenText, FlaskConical, Link2, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -56,9 +57,9 @@ export default function WritingFormulaWorkbenchPanel(props: WritingFormulaWorkbe
   } = props;
 
   const bindingTargetLabel: Record<StyleBinding["targetType"], string> = {
-    novel: "整本书",
-    chapter: "章节",
-    task: "本次任务",
+    novel: i18next.t("dict.gen_82e75116"),
+    chapter: i18next.t("dict.gen_9290b644"),
+    task: i18next.t("dict.gen_e71d8d2f"),
   };
 
   return (
@@ -69,44 +70,42 @@ export default function WritingFormulaWorkbenchPanel(props: WritingFormulaWorkbe
             <FlaskConical className="size-5" />
           </div>
           <div>
-            <CardTitle>把写法放进故事里验证</CardTitle>
-            <div className="mt-1 text-sm text-slate-500">先试读感，再决定让它在哪个创作环节生效。</div>
+            <CardTitle>{i18next.t("writingFormula.writingFormulaWorkbenchPanel.o5d9x4")}</CardTitle>
+            <div className="mt-1 text-sm text-slate-500">{i18next.t("writingFormula.writingFormulaWorkbenchPanel.9uw6cw")}</div>
           </div>
         </div>
       </CardHeader>
       <CardContent className="space-y-6 pt-6">
         <div className="flex gap-3 rounded-2xl border border-sky-100 bg-sky-50/70 px-4 py-3 text-sm leading-7 text-slate-700">
           <Sparkles className="mt-1 size-4 shrink-0 text-sky-700" />
-          <span>这里负责绑定与试写。想修正已有正文时，请从“去 AI 味”进入，避免把写法设定和正文处理混在一起。</span>
+          <span>{i18next.t("writingFormula.writingFormulaWorkbenchPanel.if2d8l")}</span>
         </div>
 
         <div className="space-y-5 rounded-3xl border border-slate-200 bg-[linear-gradient(135deg,rgba(248,250,252,0.96),rgba(255,255,255,0.96))] p-4 md:p-5">
           <div className="flex gap-3">
             <div className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-white text-slate-800 shadow-sm ring-1 ring-slate-200"><Link2 className="size-4" /></div>
             <div className="space-y-1">
-              <div className="text-base font-semibold text-slate-950">绑定到目标</div>
-            <div className="text-sm leading-6 text-slate-500">
-              绑定后，这套写法会在对应小说、章节或任务里参与生成。优先级越高，影响越靠前；权重越高，参与程度越强。
-            </div>
+              <div className="text-base font-semibold text-slate-950">{i18next.t("dict.gen_b3a2c9bd")}</div>
+            <div className="text-sm leading-6 text-slate-500">{i18next.t("writingFormula.writingFormulaWorkbenchPanel.bugz9d")}</div>
             </div>
           </div>
 
           <div className="grid gap-3 md:grid-cols-2">
             <label className="space-y-2">
-              <div className="text-sm font-medium text-slate-900">绑定层级</div>
+              <div className="text-sm font-medium text-slate-900">{i18next.t("dict.gen_400e9d30")}</div>
               <SelectControl
                 className="w-full rounded-md border p-2 text-sm"
                 value={bindingForm.targetType}
                 onChange={(event) => onBindingFormChange({ targetType: event.target.value as StyleBinding["targetType"] })}
               >
-                <option value="novel">整本书</option>
-                <option value="chapter">章节</option>
-                <option value="task">本次任务</option>
+                <option value="novel">{i18next.t("dict.gen_82e75116")}</option>
+                <option value="chapter">{i18next.t("dict.gen_9290b644")}</option>
+                <option value="task">{i18next.t("dict.gen_e71d8d2f")}</option>
               </SelectControl>
             </label>
 
             <label className="space-y-2">
-              <div className="text-sm font-medium text-slate-900">所属小说</div>
+              <div className="text-sm font-medium text-slate-900">{i18next.t("dict.gen_fedbdfeb")}</div>
               <SelectControl
                 className="w-full rounded-md border p-2 text-sm"
                 value={bindingForm.novelId}
@@ -118,13 +117,13 @@ export default function WritingFormulaWorkbenchPanel(props: WritingFormulaWorkbe
 
             {bindingForm.targetType === "chapter" ? (
               <label className="space-y-2">
-                <div className="text-sm font-medium text-slate-900">选择章节</div>
+                <div className="text-sm font-medium text-slate-900">{i18next.t("dict.gen_0ca66ea7")}</div>
                 <SelectControl
                   className="w-full rounded-md border p-2 text-sm"
                   value={bindingForm.chapterId}
                   onChange={(event) => onBindingFormChange({ chapterId: event.target.value })}
                 >
-                  <option value="">选择章节</option>
+                  <option value="">{i18next.t("dict.gen_0ca66ea7")}</option>
                   {chapterOptions.map((chapter) => (
                     <option key={chapter.id} value={chapter.id}>
                       {chapter.order}. {chapter.title}
@@ -136,10 +135,10 @@ export default function WritingFormulaWorkbenchPanel(props: WritingFormulaWorkbe
 
             {bindingForm.targetType === "task" ? (
               <label className="space-y-2">
-                <div className="text-sm font-medium text-slate-900">任务标识</div>
+                <div className="text-sm font-medium text-slate-900">{i18next.t("dict.taskId")}</div>
                 <input
                   className="w-full rounded-md border p-2 text-sm"
-                  placeholder="例如：chapter-draft-001"
+                  placeholder={i18next.t("dict.exampleChapterDraft001")}
                   value={bindingForm.taskTargetId}
                   onChange={(event) => onBindingFormChange({ taskTargetId: event.target.value })}
                 />
@@ -147,7 +146,7 @@ export default function WritingFormulaWorkbenchPanel(props: WritingFormulaWorkbe
             ) : null}
 
             <label className="space-y-2">
-              <div className="text-sm font-medium text-slate-900">优先级</div>
+              <div className="text-sm font-medium text-slate-900">{i18next.t("dict.priorityLevel")}</div>
               <input
                 className="w-full rounded-md border p-2 text-sm"
                 type="number"
@@ -159,7 +158,7 @@ export default function WritingFormulaWorkbenchPanel(props: WritingFormulaWorkbe
             </label>
 
             <label className="space-y-2">
-              <div className="text-sm font-medium text-slate-900">权重</div>
+              <div className="text-sm font-medium text-slate-900">{i18next.t("dict.gen_4aac5591")}</div>
               <input
                 className="w-full rounded-md border p-2 text-sm"
                 type="number"
@@ -173,9 +172,7 @@ export default function WritingFormulaWorkbenchPanel(props: WritingFormulaWorkbe
           </div>
 
           <Button onClick={onCreateBinding} disabled={createBindingPending || !selectedProfileId}>
-            <Link2 className="size-4" />
-            创建绑定
-          </Button>
+            <Link2 className="size-4" />{i18next.t("writingFormula.writingFormulaWorkbenchPanel.arc12g")}</Button>
 
           <div className="space-y-2">
             {bindings.length > 0 ? (
@@ -185,13 +182,11 @@ export default function WritingFormulaWorkbenchPanel(props: WritingFormulaWorkbe
                     <div className="font-medium text-slate-900">{bindingTargetLabel[binding.targetType]}</div>
                     <div className="mt-1 truncate text-xs text-slate-500">目标 {binding.targetId} · 优先级 {binding.priority} · 影响 {binding.weight}</div>
                   </div>
-                  <Button size="sm" variant="ghost" onClick={() => onDeleteBinding(binding.id)}>删除</Button>
+                  <Button size="sm" variant="ghost" onClick={() => onDeleteBinding(binding.id)}>{i18next.t("dict.gen_2f4aaddd")}</Button>
                 </div>
               ))
             ) : (
-              <div className="rounded-xl border border-dashed px-3 py-3 text-sm leading-6 text-slate-500">
-                这套写法还没有绑定到任何目标。先绑定到小说或章节，后面的生成链路才会自动带上它。
-              </div>
+              <div className="rounded-xl border border-dashed px-3 py-3 text-sm leading-6 text-slate-500">{i18next.t("writingFormula.writingFormulaWorkbenchPanel.n1q7ra")}</div>
             )}
           </div>
         </div>
@@ -200,41 +195,39 @@ export default function WritingFormulaWorkbenchPanel(props: WritingFormulaWorkbe
           <div className="flex gap-3">
             <div className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-amber-50 text-amber-800 ring-1 ring-amber-100"><BookOpenText className="size-4" /></div>
             <div className="space-y-1">
-              <div className="text-base font-semibold text-slate-950">先试写一段</div>
-            <div className="text-sm leading-6 text-slate-500">
-              不确定这套写法到底有没有落地成功时，先生成一段或改写一段，是最直观的验证方式。
-            </div>
+              <div className="text-base font-semibold text-slate-950">{i18next.t("dict.gen_e07b94bf")}</div>
+            <div className="text-sm leading-6 text-slate-500">{i18next.t("writingFormula.writingFormulaWorkbenchPanel.esoi5s")}</div>
             </div>
           </div>
 
           <label className="space-y-2">
-            <div className="text-sm font-medium text-slate-900">试写方式</div>
+            <div className="text-sm font-medium text-slate-900">{i18next.t("dict.gen_4c1b6aa3")}</div>
             <SelectControl
               className="w-full rounded-md border p-2 text-sm"
               value={testWriteForm.mode}
               onChange={(event) => onTestWriteFormChange({ mode: event.target.value as "generate" | "rewrite" })}
             >
-              <option value="generate">生成正文</option>
-              <option value="rewrite">改写文本</option>
+              <option value="generate">{i18next.t("dict.gen_df396e50")}</option>
+              <option value="rewrite">{i18next.t("dict.gen_9492bce4")}</option>
             </SelectControl>
           </label>
 
           {testWriteForm.mode === "generate" ? (
             <label className="space-y-2">
-              <div className="text-sm font-medium text-slate-900">试写主题</div>
+              <div className="text-sm font-medium text-slate-900">{i18next.t("dict.gen_845b9dd6")}</div>
               <input
                 className="w-full rounded-md border p-2 text-sm"
-                placeholder="例如：主角第一次公开翻盘"
+                placeholder={i18next.t("dict.exampleMainFirstPublicFlip")}
                 value={testWriteForm.topic}
                 onChange={(event) => onTestWriteFormChange({ topic: event.target.value })}
               />
             </label>
           ) : (
             <label className="space-y-2">
-              <div className="text-sm font-medium text-slate-900">待改写文本</div>
+              <div className="text-sm font-medium text-slate-900">{i18next.t("dict.gen_e678a74f")}</div>
               <textarea
                 className="min-h-[140px] w-full rounded-md border p-2 text-sm"
-                placeholder="粘贴你想用这套写法改写的正文"
+                placeholder={i18next.t("dict.gen_a75a22c6")}
                 value={testWriteForm.sourceText}
                 onChange={(event) => onTestWriteFormChange({ sourceText: event.target.value })}
               />
@@ -251,9 +244,7 @@ export default function WritingFormulaWorkbenchPanel(props: WritingFormulaWorkbe
               {testWriteOutput}
             </pre>
           ) : (
-            <div className="rounded-xl border border-dashed px-3 py-3 text-sm leading-6 text-slate-500">
-              这里会显示试写结果。你可以用它判断这套写法的推进感、对白质感和整体语气是否已经到位。
-            </div>
+            <div className="rounded-xl border border-dashed px-3 py-3 text-sm leading-6 text-slate-500">{i18next.t("writingFormula.writingFormulaWorkbenchPanel.ew32nl")}</div>
           )}
         </div>
       </CardContent>

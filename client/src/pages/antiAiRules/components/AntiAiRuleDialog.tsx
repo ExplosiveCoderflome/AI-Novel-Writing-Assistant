@@ -1,3 +1,5 @@
+import { useTranslation } from "react-i18next";
+import i18next from "i18next";
 import { FormEvent } from "react";
 import type { AntiAiRule } from "@ai-novel/shared/types/styleEngine";
 import { Sparkles } from "lucide-react";
@@ -23,17 +25,18 @@ interface AntiAiRuleDialogProps {
 }
 
 export default function AntiAiRuleDialog(props: AntiAiRuleDialogProps) {
+  const { t } = useTranslation();
   return (
     <Dialog open={props.open} onOpenChange={props.onOpenChange}>
       <AppDialogContent
         className="max-w-4xl"
-        title={props.editingRule ? "编辑反 AI 规则" : "新建反 AI 规则"}
-        description="规则可以进入全局默认，也可以只作为写法资产的可选约束。"
+        title={props.editingRule ? i18next.t("dict.gen_31e25b48") : i18next.t("dict.gen_be1f2431")}
+        description={i18next.t("dict.gen_8258f53a")}
         footer={(
           <>
-            <Button type="button" variant="outline" onClick={() => props.onOpenChange(false)}>取消</Button>
+            <Button type="button" variant="outline" onClick={() => props.onOpenChange(false)}>{i18next.t("common.cancel")}</Button>
             <Button type="submit" form="anti-ai-rule-form" disabled={props.isSaving}>
-              {props.isSaving ? "保存中..." : "保存规则"}
+              {props.isSaving ? i18next.t("common.saving") : i18next.t("dict.saveRules")}
             </Button>
           </>
         )}
@@ -48,8 +51,8 @@ export default function AntiAiRuleDialog(props: AntiAiRuleDialogProps) {
                 </div>
                 <div className="text-sm leading-6 text-muted-foreground">
                   {props.editingRule
-                    ? "描述要调整的方向，AI 会基于表单内容优化规则。"
-                    : "描述想压制或鼓励的表达，AI 会生成一条可编辑规则草稿。"}
+                    ? i18next.t("dict.gen_961eb478")
+                    : i18next.t("dict.gen_c9f1f2c9")}
                 </div>
               </div>
               <Button
@@ -59,96 +62,96 @@ export default function AntiAiRuleDialog(props: AntiAiRuleDialogProps) {
                 onClick={props.onGenerateDraft}
               >
                 <Sparkles className="h-4 w-4" />
-                {props.isAiDrafting ? "生成中..." : props.editingRule ? "AI 优化草稿" : "AI 生成草稿"}
+                {props.isAiDrafting ? i18next.t("dict.gen_4d020ba3") : props.editingRule ? i18next.t("dict.aiOptimizationDraft") : i18next.t("dict.aiGenerateDraft")}
               </Button>
             </div>
             <textarea
               className="mt-3 min-h-[84px] w-full rounded-md border bg-background p-3 text-sm"
               value={props.aiInstruction}
               placeholder={props.editingRule
-                ? "例如：把这条规则改得更适合压制总结腔，但不要误伤正常心理描写。"
-                : "例如：减少正文里空泛总结、解释人物心理、像模型在复盘剧情的表达。"}
+                ? i18next.t("dict.exampleAdjustRuleToSuppressSummarizingVibeButNotMisleadPsychologicalDescription")
+                : i18next.t("dict.exampleReduceBlankVagueSummarizeExplainCharacterPsychologyModelReview")}
               onChange={(event) => props.onAiInstructionChange(event.target.value)}
             />
           </div>
 
           <div className="grid gap-3 md:grid-cols-2">
             <label className="space-y-1.5 text-sm">
-              <span className="font-medium">规则标识</span>
+              <span className="font-medium">{i18next.t("dict.gen_f855c922")}</span>
               <Input
                 value={props.form.key}
-                placeholder="例如 direct_psychology_explain"
+                placeholder={i18next.t("dict.exampleDirectPsychologyExplain")}
                 onChange={(event) => props.onFormChange({ key: event.target.value })}
               />
             </label>
             <label className="space-y-1.5 text-sm">
-              <span className="font-medium">规则名称</span>
+              <span className="font-medium">{i18next.t("dict.gen_87080256")}</span>
               <Input
                 value={props.form.name}
-                placeholder="例如 避免直白心理解释"
+                placeholder={i18next.t("dict.exampleAvoidDirectPsyInterpretation")}
                 onChange={(event) => props.onFormChange({ name: event.target.value })}
               />
             </label>
             <label className="space-y-1.5 text-sm">
-              <span className="font-medium">规则类型</span>
+              <span className="font-medium">{i18next.t("dict.gen_36582565")}</span>
               <Select value={props.form.type} onValueChange={(value) => props.onFormChange({ type: value as AntiAiRule["type"] })}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="forbidden">禁用</SelectItem>
-                  <SelectItem value="risk">风险</SelectItem>
-                  <SelectItem value="encourage">鼓励</SelectItem>
+                  <SelectItem value="forbidden">{i18next.t("dict.gen_710ad08b")}</SelectItem>
+                  <SelectItem value="risk">{i18next.t("dict.gen_57846ffb")}</SelectItem>
+                  <SelectItem value="encourage">{i18next.t("dict.gen_cc092436")}</SelectItem>
                 </SelectContent>
               </Select>
             </label>
             <label className="space-y-1.5 text-sm">
-              <span className="font-medium">严重度</span>
+              <span className="font-medium">{i18next.t("dict.severityLevel")}</span>
               <Select value={props.form.severity} onValueChange={(value) => props.onFormChange({ severity: value as AntiAiRule["severity"] })}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="low">低</SelectItem>
-                  <SelectItem value="medium">中</SelectItem>
-                  <SelectItem value="high">高</SelectItem>
+                  <SelectItem value="low">{i18next.t("dict.low")}</SelectItem>
+                  <SelectItem value="medium">{i18next.t("dict.mid")}</SelectItem>
+                  <SelectItem value="high">{i18next.t("dict.gen_4296d7d2")}</SelectItem>
                 </SelectContent>
               </Select>
             </label>
           </div>
 
           <label className="space-y-1.5 text-sm">
-            <span className="font-medium">说明</span>
+            <span className="font-medium">{i18next.t("dict.gen_f411d0f1")}</span>
             <textarea
               className="min-h-[76px] w-full rounded-md border bg-background p-3 text-sm"
               value={props.form.description}
-              placeholder="说明这条规则要压制或鼓励哪类表达。"
+              placeholder={i18next.t("dict.gen_b7cebb44")}
               onChange={(event) => props.onFormChange({ description: event.target.value })}
             />
           </label>
 
           <label className="space-y-1.5 text-sm">
-            <span className="font-medium">检测关键词</span>
+            <span className="font-medium">{i18next.t("dict.gen_dc741ace")}</span>
             <textarea
               className="min-h-[80px] w-full rounded-md border bg-background p-3 text-sm"
               value={props.form.detectPatternsText}
-              placeholder="每行一个关键词，也可以用逗号分隔。"
+              placeholder={i18next.t("dict.gen_700aeab4")}
               onChange={(event) => props.onFormChange({ detectPatternsText: event.target.value })}
             />
           </label>
 
           <div className="grid gap-3 md:grid-cols-2">
             <label className="space-y-1.5 text-sm">
-              <span className="font-medium">生成指令</span>
+              <span className="font-medium">{i18next.t("dict.gen_eba49f80")}</span>
               <textarea
                 className="min-h-[120px] w-full rounded-md border bg-background p-3 text-sm"
                 value={props.form.promptInstruction}
-                placeholder="写进正文生成约束的具体表达要求。"
+                placeholder={i18next.t("dict.gen_2362168e")}
                 onChange={(event) => props.onFormChange({ promptInstruction: event.target.value })}
               />
             </label>
             <label className="space-y-1.5 text-sm">
-              <span className="font-medium">修正建议</span>
+              <span className="font-medium">{i18next.t("dict.gen_fbbf1096")}</span>
               <textarea
                 className="min-h-[120px] w-full rounded-md border bg-background p-3 text-sm"
                 value={props.form.rewriteSuggestion}
-                placeholder="检测命中后给用户或改写链路的调整建议。"
+                placeholder={i18next.t("dict.gen_66880d7e")}
                 onChange={(event) => props.onFormChange({ rewriteSuggestion: event.target.value })}
               />
             </label>
@@ -156,17 +159,17 @@ export default function AntiAiRuleDialog(props: AntiAiRuleDialogProps) {
 
           <div className="grid gap-3 md:grid-cols-3">
             <AntiAiToggleLine
-              label="启用规则"
+              label={i18next.t("dict.gen_fd2ea09f")}
               checked={props.form.enabled}
               onCheckedChange={(checked) => props.onFormChange({ enabled: checked })}
             />
             <AntiAiToggleLine
-              label="进入全局默认"
+              label={i18next.t("dict.gen_6b8fb610")}
               checked={props.form.globalBaselineEnabled}
               onCheckedChange={(checked) => props.onFormChange({ globalBaselineEnabled: checked })}
             />
             <AntiAiToggleLine
-              label="允许自动改写"
+              label={i18next.t("dict.gen_906a7d88")}
               checked={props.form.autoRewrite}
               onCheckedChange={(checked) => props.onFormChange({ autoRewrite: checked })}
             />

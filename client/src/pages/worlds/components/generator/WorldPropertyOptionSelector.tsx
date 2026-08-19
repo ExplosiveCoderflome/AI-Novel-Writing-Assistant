@@ -1,3 +1,5 @@
+import i18next from "i18next";
+const t = (key: string, options?: any) => i18next.t(key, options) as string;
 import type { WorldPropertyOption } from "@ai-novel/shared/types/worldWizard";
 
 interface WorldPropertyOptionSelectorProps {
@@ -11,12 +13,12 @@ interface WorldPropertyOptionSelectorProps {
 }
 
 const WORLD_LAYER_LABELS: Record<WorldPropertyOption["targetLayer"], string> = {
-  foundation: "基础层",
-  power: "力量层",
-  society: "社会层",
-  culture: "文化层",
-  history: "历史层",
-  conflict: "冲突层",
+  foundation: i18next.t("dict.gen_34772a39"),
+  power: i18next.t("dict.gen_4d95a92c"),
+  society: i18next.t("dict.gen_a34badd4"),
+  culture: i18next.t("dict.gen_bd51806b"),
+  history: i18next.t("dict.gen_fdde939d"),
+  conflict: i18next.t("dict.gen_41c8c763"),
 };
 
 export default function WorldPropertyOptionSelector({
@@ -30,9 +32,7 @@ export default function WorldPropertyOptionSelector({
 }: WorldPropertyOptionSelectorProps) {
   if (options.length === 0) {
     return (
-      <div className="rounded-md border border-dashed p-4 text-sm text-muted-foreground">
-        当前还没有拿到可用的关键方向。通常说明上一步分析失败了，可以返回第 1 步重新生成。
-      </div>
+      <div className="rounded-md border border-dashed p-4 text-sm text-muted-foreground">{i18next.t("worlds.worldPropertyOptionSelector.esbfsk")}</div>
     );
   }
 
@@ -56,7 +56,7 @@ export default function WorldPropertyOptionSelector({
                     {WORLD_LAYER_LABELS[option.targetLayer]}
                   </span>
                   <span className="rounded-full bg-secondary px-2 py-0.5 text-xs text-secondary-foreground">
-                    {option.source === "library" ? "素材库" : "系统建议"}
+                    {option.source === "library" ? i18next.t("dict.gen_5e0fcc8f") : i18next.t("dict.gen_9894629c")}
                   </span>
                 </div>
                 <div className="text-muted-foreground">{option.description}</div>
@@ -72,7 +72,7 @@ export default function WorldPropertyOptionSelector({
               <div className="space-y-3">
                 {option.choices && option.choices.length > 0 ? (
                   <div className="space-y-2 rounded-md border border-dashed p-3">
-                    <div className="text-xs font-medium text-muted-foreground">先选一个方向</div>
+                    <div className="text-xs font-medium text-muted-foreground">{i18next.t("dict.gen_4f19a083")}</div>
                     <div className="space-y-2">
                       {option.choices.map((choice) => {
                         const selected = selectedChoiceIds[option.id] === choice.id;
@@ -98,7 +98,7 @@ export default function WorldPropertyOptionSelector({
 
                 <textarea
                   className="min-h-[88px] w-full rounded-md border p-2 text-sm"
-                  placeholder="可选：补充你的偏好，比如希望保留什么、放大什么、限制什么。"
+                  placeholder={i18next.t("dict.gen_fbf14bef")}
                   value={details[option.id] ?? ""}
                   onChange={(event) => onDetailChange(option.id, event.target.value)}
                 />

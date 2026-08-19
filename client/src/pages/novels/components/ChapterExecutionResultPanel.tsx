@@ -1,3 +1,5 @@
+import { useTranslation } from "react-i18next";
+import i18next from "i18next";
 import type {
   Chapter,
   StoryPlan,
@@ -41,6 +43,7 @@ function WorkspaceNotice(props: { title: string; description: string }) {
 }
 
 export default function ChapterExecutionResultPanel(props: ChapterExecutionResultPanelProps) {
+  const { t } = useTranslation();
   const {
     selectedChapter,
     onOpenReferencePanel,
@@ -60,15 +63,13 @@ export default function ChapterExecutionResultPanel(props: ChapterExecutionResul
 
   if (!selectedChapter) {
     return (
-      <div className="rounded-xl border border-dashed p-8 text-sm leading-7 text-muted-foreground">
-        先从左侧选中一个章节，这里会变成当前章节的主写作区，集中展示正文、任务单、质量反馈和修复记录。
-      </div>
+      <div className="rounded-xl border border-dashed p-8 text-sm leading-7 text-muted-foreground">{i18next.t("novels.chapterExecutionResultPanel.oikvt1")}</div>
     );
   }
 
-  const chapterLabel = `第${selectedChapter.order}章`;
-  const chapterTitle = selectedChapter.title || "未命名章节";
-  const chapterObjective = chapterPlan?.objective ?? selectedChapter.expectation ?? "这一章还没有明确目标，建议先补章节计划。";
+  const chapterLabel = i18next.t("tensionCurve.tensionCurveChapterDetailSidebar.xrxssk", { val1: selectedChapter.order });
+  const chapterTitle = selectedChapter.title || i18next.t("dict.gen_db55d102");
+  const chapterObjective = chapterPlan?.objective ?? selectedChapter.expectation ?? i18next.t("dict.gen_6fc3748d");
   const savedChapterContent = selectedChapter.content?.trim() ?? "";
   const hasSavedChapterContent = hasText(savedChapterContent);
 
@@ -78,10 +79,10 @@ export default function ChapterExecutionResultPanel(props: ChapterExecutionResul
   const hasVisibleLiveWritingOutput = hasText(visibleLiveWritingOutput);
   const useLiveWritingPanel = isSelectedChapterStreaming || (!hasSavedChapterContent && hasVisibleLiveWritingOutput);
   const contentPanelTitle = isSelectedChapterFinalizing
-    ? "章节收尾中"
+    ? i18next.t("dict.gen_02490291")
     : useLiveWritingPanel
-      ? "实时写作稿"
-      : "已保存正文";
+      ? i18next.t("dict.gen_27a6eeeb")
+      : i18next.t("dict.gen_f0a9f772");
   const contentPanelContent = useLiveWritingPanel
     ? visibleLiveWritingOutput
     : hasSavedChapterContent
@@ -137,8 +138,8 @@ export default function ChapterExecutionResultPanel(props: ChapterExecutionResul
         <CardContent className="flex h-full min-h-0 flex-col gap-5 pt-5">
           {writingInOtherChapter ? (
             <WorkspaceNotice
-              title="还有其他章节正在后台写作"
-              description={`${streamingChapterLabel ?? "另一章"} 仍在生成中。切到这一章后不会再把那一章的流式正文带过来，返回对应章节即可继续查看实时输出。`}
+              title={i18next.t("dict.gen_f7c795f9")}
+              description={`${streamingChapterLabel ?? i18next.t("dict.gen_08e4466c")} 仍在生成中。切到这一章后不会再把那一章的流式正文带过来，返回对应章节即可继续查看实时输出。`}
             />
           ) : null}
 
@@ -148,36 +149,34 @@ export default function ChapterExecutionResultPanel(props: ChapterExecutionResul
                 <div className="flex flex-wrap items-center gap-2">
                   <Badge variant={isSelectedChapterStreaming ? "default" : "secondary"}>
                     {isSelectedChapterFinalizing
-                      ? "收尾处理中"
+                      ? i18next.t("dict.gen_d1df529f")
                       : isSelectedChapterStreaming
-                        ? "实时写作中"
-                        : "已保存版本"}
+                        ? i18next.t("dict.gen_8e29dec6")
+                        : i18next.t("dict.gen_e5b868d7")}
                   </Badge>
                   <Badge variant="outline">{chapterLabel}</Badge>
-                  <Badge variant="outline">当前展示 {contentPanelWordCount} 字</Badge>
+                  <Badge variant="outline">{i18next.t("novels.chapterExecutionResultPanel.mb5dow", { contentPanelWordCount })}</Badge>
                 </div>
                 <div>
                   <div className="text-base font-semibold text-foreground">{chapterTitle}</div>
                   <div className="mt-1 text-xs leading-6 text-muted-foreground">
                     {contentPanelTitle}。{isSelectedChapterFinalizing
-                      ? (chapterRunStatus?.message ?? "正文可读，系统正在保存草稿并回灌章节资产。")
+                      ? (chapterRunStatus?.message ?? i18next.t("dict.gen_75007248"))
                       : isSelectedChapterStreaming
-                        ? "AI 正在持续输出这一章的正文，先在这里观察节奏和手感，不满意时可以随时停止。"
+                        ? i18next.t("dict.aiOutputtingChapterContentObservingRhythm")
                         : chapterObjective}
                   </div>
                 </div>
               </div>
               <div className="flex flex-wrap items-center gap-2">
-                <span className="text-xs text-muted-foreground">字数 {contentPanelWordCount}</span>
+                <span className="text-xs text-muted-foreground">{i18next.t("novels.chapterExecutionResultPanel.hgikkz", { contentPanelWordCount })}</span>
                 {needsAuditPrompt ? (
                   <Button size="sm" onClick={onRunFullAudit} disabled={isRunningFullAudit}>
-                    {isRunningFullAudit ? "审校中..." : "去审校"}
+                    {isRunningFullAudit ? i18next.t("dict.gen_a9e55039") : i18next.t("dict.gen_604bd4b3")}
                   </Button>
                 ) : null}
                 {needsConfirmationPrompt ? (
-                  <Button size="sm" variant="outline" onClick={openQualityPanel}>
-                    查看建议
-                  </Button>
+                  <Button size="sm" variant="outline" onClick={openQualityPanel}>{i18next.t("dict.gen_73c8823d")}</Button>
                 ) : null}
                 {(needsConfirmationPrompt || needsRepairPrompt) ? (
                   <Button
@@ -186,13 +185,11 @@ export default function ChapterExecutionResultPanel(props: ChapterExecutionResul
                     onClick={runAutoRepairFromWorkspace}
                     disabled={isSelectedChapterRepairStreaming}
                   >
-                    {isSelectedChapterRepairStreaming ? "修复中..." : "一键修复"}
+                    {isSelectedChapterRepairStreaming ? i18next.t("dict.gen_70ae8ad6") : i18next.t("dict.fixButton")}
                   </Button>
                 ) : null}
                 {isSelectedChapterStreaming && !isSelectedChapterFinalizing ? (
-                  <Button size="sm" variant="secondary" onClick={onAbortStream}>
-                    停止生成
-                  </Button>
+                  <Button size="sm" variant="secondary" onClick={onAbortStream}>{i18next.t("common.streamOutput.al6evr")}</Button>
                 ) : null}
               </div>
             </div>
@@ -203,9 +200,7 @@ export default function ChapterExecutionResultPanel(props: ChapterExecutionResul
                   <MarkdownViewer content={contentPanelContent} />
                 </article>
               ) : (
-                <div className="mx-auto max-w-3xl rounded-3xl border border-dashed bg-muted/15 p-8 text-sm leading-7 text-muted-foreground">
-                  当前章节还没有正文。建议先补章节计划或任务单，然后从右侧直接执行“写本章”。
-                </div>
+                <div className="mx-auto max-w-3xl rounded-3xl border border-dashed bg-muted/15 p-8 text-sm leading-7 text-muted-foreground">{i18next.t("novels.chapterExecutionResultPanel.a06qbl")}</div>
               )}
             </div>
           </div>

@@ -277,8 +277,6 @@ export const worldSkeletonGenerationPrompt: PromptAsset<
   contextPolicy: {
     maxTokensBudget: 0,
   },
-  // 世界骨架包含多组互相引用的数据。对不完整 JSON 重复发送同一份大请求，
-  // 只会延长等待时间，且无法保证第二次不再被模型输出上限截断。
   repairPolicy: {
     maxAttempts: 0,
   },

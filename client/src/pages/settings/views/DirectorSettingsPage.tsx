@@ -1,3 +1,4 @@
+import i18next from "i18next";
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { getDirectorRiskPolicy, saveDirectorRiskPolicy } from "@/api/directorRiskPolicy";
@@ -17,13 +18,13 @@ export default function DirectorSettingsPage() {
       setMessage(response.message ?? "风险规则已保存。");
       await queryClient.invalidateQueries({ queryKey: queryKeys.settings.autoDirectorRiskPolicy });
     },
-    onError: (error) => setMessage(error instanceof Error ? error.message : "风险规则保存失败。"),
+    onError: (error) => setMessage(error instanceof Error ? error.message : i18next.t("settings.directorSettingsPage.a9vy7x")),
   });
   return (
-    <SettingsShell title="自动导演" description="设置问题处理、自动确认和创作提醒；每本书开始后会按当时设置保留自己的执行规则。">
+    <SettingsShell title={i18next.t("autoDirector.context")} description={i18next.t("settings.directorSettingsPage.8037ug")}>
       <AutoDirectorSettingsSection onActionResult={setMessage} collapseAdvanced />
       <details className="rounded-md border bg-muted/20 p-4">
-        <summary className="cursor-pointer text-sm font-medium">风险阈值</summary>
+        <summary className="cursor-pointer text-sm font-medium">{i18next.t("settings.directorSettingsPage.jwkvdb")}</summary>
         <div className="mt-4">
           <AutoDirectorRiskPolicyCard
             policy={riskPolicyQuery.data?.data}

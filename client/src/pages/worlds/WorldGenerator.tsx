@@ -1,3 +1,5 @@
+import { useTranslation } from "react-i18next";
+import i18next from "i18next";
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
@@ -44,6 +46,7 @@ import {
 } from "./components/generator/worldGeneratorShared";
 import { useWorldGeneratorDerivedState } from "./components/generator/useWorldGeneratorDerivedState";
 export default function WorldGenerator() {
+  const { t } = useTranslation();
   const llm = useLLMStore();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
@@ -129,7 +132,7 @@ export default function WorldGenerator() {
         const defaultPropertySelection = buildDefaultPropertySelectionState(nextPropertyOptions);
 
         if (!nextConcept) {
-          throw new Error("世界分析结果缺少概念卡。");
+          throw new Error(i18next.t("dict.analysisMissingConceptCard"));
         }
 
         setConcept(nextConcept);
@@ -145,7 +148,7 @@ export default function WorldGenerator() {
         setSkeleton(null);
         setStep(2);
       } catch (error) {
-        const message = error instanceof Error ? error.message : "世界分析结果解析失败。";
+        const message = error instanceof Error ? error.message : i18next.t("dict.analysisParseFailed");
         toast.error(message);
       }
     },
@@ -230,10 +233,10 @@ export default function WorldGenerator() {
       const response = await generateWorldSkeleton({
         idea: [
           inspirationText.trim(),
-          concept?.summary ? `概念卡：${concept.summary}` : "",
-        ].filter(Boolean).join("\n\n") || "生成一个可用于小说创作的世界样本。",
-        worldType: selectedGenre?.path || concept?.worldType || matchedTemplateWorldType || selectedTemplate?.worldType || "自定义",
-        template: selectedTemplate?.name ?? "自定义",
+          concept?.summary ? i18next.t("worlds.worldGenerator.9fwrgk", { val1: concept.summary }) : "",
+        ].filter(Boolean).join("\n\n") || i18next.t("dict.gen_d441546d"),
+        worldType: selectedGenre?.path || concept?.worldType || matchedTemplateWorldType || selectedTemplate?.worldType || i18next.t("dict.gen_f1d4ff50"),
+        template: selectedTemplate?.name ?? i18next.t("dict.gen_f1d4ff50"),
         referenceContext: buildReferenceContext(),
         blueprint: buildGenerationBlueprint(),
         options: {
@@ -253,13 +256,13 @@ export default function WorldGenerator() {
   const finalizeMutation = useMutation({
     mutationFn: async () => {
       if (!skeleton) {
-        throw new Error("请先生成世界骨架。");
+        throw new Error(i18next.t("dict.gen_fe79fc55"));
       }
       const blueprint = buildGenerationBlueprint();
       return createWorld({
-        name: worldName.trim() || skeleton.concept.name || "未命名世界",
+        name: worldName.trim() || skeleton.concept.name || i18next.t("dict.gen_a2a1fdc0"),
         description: skeleton.structuredData.profile.summary || skeleton.concept.oneSentence,
-        worldType: selectedGenre?.path || concept?.worldType || matchedTemplateWorldType || selectedTemplate?.worldType || "自定义",
+        worldType: selectedGenre?.path || concept?.worldType || matchedTemplateWorldType || selectedTemplate?.worldType || i18next.t("dict.gen_f1d4ff50"),
         templateKey: selectedTemplate?.key ?? "custom",
         selectedDimensions: JSON.stringify(selectedDimensions),
         selectedElements: serializeWorldGenerationBlueprint(blueprint),
@@ -290,7 +293,7 @@ export default function WorldGenerator() {
     <div className="space-y-4">
       <Card>
         <CardHeader className="flex flex-row items-center justify-between">
-          <CardTitle>创建世界样本</CardTitle>
+          <CardTitle>{i18next.t("dict.gen_85d21f84")}</CardTitle>
           <LLMSelector />
         </CardHeader>
         <CardContent className="space-y-4">
@@ -329,8 +332,8 @@ export default function WorldGenerator() {
               analyzeStreaming={analyzeStream.isStreaming}
               analyzeButtonLabel={
                 analyzeStream.isStreaming
-                  ? (analyzeStream.latestRun?.message ?? "分析中...")
-                  : (isReferenceMode ? "提取原作锚点与架空方向" : "生成概念卡与属性选项")
+                  ? (analyzeStream.latestRun?.message ?? i18next.t("dict.gen_ee0b2c88"))
+                  : (isReferenceMode ? i18next.t("dict.gen_eaa44d22") : i18next.t("dict.gen_f2cedb5b"))
               }
               analyzeProgressMessage={analyzeStream.latestRun?.message}
               inspirationSourceMeta={inspirationSourceMeta}

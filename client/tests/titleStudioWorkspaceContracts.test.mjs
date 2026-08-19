@@ -26,7 +26,7 @@ test("title suggestions use gallery cards in the studio without changing embedde
   assert.match(suggestions, /layout\?: "list" \| "grid"/);
   assert.match(suggestions, /layout = "list"/);
   assert.match(suggestions, /md:grid-cols-2/);
-  assert.match(suggestions, /等待第一批标题灵感/);
+  assert.match(suggestions, /(等待第一批标题灵感|titles\.titleSuggestionList\.89bqv8)/);
   assert.match(library, /grid gap-3 md:grid-cols-2/);
   assert.match(library, /markUsedMutation\.mutate/);
   assert.match(library, /deleteMutation\.mutate/);

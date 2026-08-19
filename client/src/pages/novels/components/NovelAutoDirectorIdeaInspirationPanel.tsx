@@ -1,3 +1,5 @@
+import { useTranslation } from "react-i18next";
+import i18next from "i18next";
 import type { DirectorIdeaInspiration } from "@ai-novel/shared/types/novelDirector";
 import { motion, useReducedMotion } from "framer-motion";
 import { Check, RefreshCw } from "lucide-react";
@@ -17,17 +19,16 @@ export default function NovelAutoDirectorIdeaInspirationPanel({
   onGenerate,
   onUseIdea,
 }: NovelAutoDirectorIdeaInspirationPanelProps) {
+  const { t } = useTranslation();
   const reducedMotion = useReducedMotion();
 
   return (
     <div className="mt-5 w-full">
       <div className="flex items-center justify-between gap-3">
-        <div className="text-xs text-muted-foreground">
-          这些只是临时灵感，使用后仍可继续改。
-        </div>
+        <div className="text-xs text-muted-foreground">{i18next.t("novels.novelAutoDirectorIdeaInspirationPanel.vrmkf7")}</div>
         <Button type="button" size="sm" variant="ghost" onClick={onGenerate} disabled={isGenerating}>
           <RefreshCw className="h-4 w-4" />
-          {isGenerating ? "生成中..." : ideas.length > 0 ? "换一组" : "生成灵感"}
+          {isGenerating ? i18next.t("dict.gen_4d020ba3") : ideas.length > 0 ? i18next.t("dict.gen_ab0c9ba8") : i18next.t("dict.gen_b1307309")}
         </Button>
       </div>
       {ideas.length > 0 ? (
@@ -53,9 +54,7 @@ export default function NovelAutoDirectorIdeaInspirationPanel({
                 ) : null}
               </div>
               <span className="mt-0.5 inline-flex shrink-0 items-center gap-1 rounded-md px-2 py-1 text-xs text-primary opacity-0 transition group-hover:opacity-100 group-focus-visible:opacity-100">
-                <Check className="h-4 w-4" />
-                使用
-              </span>
+                <Check className="h-4 w-4" />{i18next.t("novels.novelAutoDirectorIdeaInspirationPanel.e5xl")}</span>
             </motion.button>
           ))}
         </div>

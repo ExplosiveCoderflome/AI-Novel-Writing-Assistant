@@ -1,3 +1,5 @@
+import i18next from "i18next";
+import { useTranslation } from "react-i18next";
 import { useMemo, useState } from "react";
 import { ArrowRight, BookOpen, Map, Network, Workflow } from "lucide-react";
 import type {
@@ -47,43 +49,43 @@ interface NovelWorldManagerCardProps {
 function labelSourceType(sourceType: string | null | undefined): string {
   switch (sourceType) {
     case "imported":
-      return "来自世界库";
+      return i18next.t("dict.gen_d6c97812");
     case "generated":
-      return "根据本书生成";
+      return i18next.t("dict.gen_b7ab0cfd");
     case "manual":
-      return "自定义世界";
+      return i18next.t("dict.gen_c1c6046e");
     default:
-      return "未设置";
+      return i18next.t("dict.gen_fe2d26a2");
   }
 }
 
 function labelSyncDirection(direction: string | null | undefined): string {
   switch (direction) {
     case "push":
-      return "只推送到世界库";
+      return i18next.t("dict.gen_3c11209d");
     case "pull":
-      return "只从世界库拉取";
+      return i18next.t("dict.gen_697b6277");
     case "bidirectional":
-      return "可双向同步";
+      return i18next.t("dict.gen_cc89795c");
     default:
-      return "不同步";
+      return i18next.t("dict.gen_db709d59");
   }
 }
 
 function sectionLabel(section: string): string {
   switch (section) {
     case "profile":
-      return "世界概要";
+      return i18next.t("dict.worldOverview");
     case "rules":
-      return "核心规则";
+      return i18next.t("dict.gen_0a431a82");
     case "factions":
-      return "阵营";
+      return i18next.t("dict.gen_42988d4b");
     case "forces":
-      return "势力";
+      return i18next.t("dict.gen_dcfe557b");
     case "locations":
-      return "地点";
+      return i18next.t("dict.gen_fc1a7d3c");
     case "relations":
-      return "关系网络";
+      return i18next.t("dict.gen_bb016fed");
     default:
       return section;
   }
@@ -148,6 +150,7 @@ function GenerationChain() {
 }
 
 export default function NovelWorldManagerCard(props: NovelWorldManagerCardProps) {
+  const { t } = useTranslation();
   const [selectedSyncSections, setSelectedSyncSections] = useState<NovelWorldSyncInput["sections"]>([]);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [dialogTab, setDialogTab] = useState<NovelWorldDialogTab>("overview");
@@ -198,8 +201,8 @@ export default function NovelWorldManagerCard(props: NovelWorldManagerCardProps)
     ?? novelWorld?.coverSummary
     ?? (novelWorld ? "这本书的世界正在整理中。" : "先创建一份属于这本书的世界副本，后续角色、大纲和章节都会读取这里的设定边界。");
   const themeLine = inlineText([
-    handbook?.identity ? `身份：${handbook.identity}` : null,
-    handbook?.tone ? `气质：${handbook.tone}` : null,
+    handbook?.identity ? i18next.t("novels.characterAssetSidebar.xmhrko", { val1: handbook.identity }) : null,
+    handbook?.tone ? i18next.t("novels.novelWorldHandbookDialog.6qjh9y", { val1: handbook.tone }) : null,
     ...(handbook?.themes.slice(0, 4) ?? []),
   ]);
 
@@ -214,7 +217,7 @@ export default function NovelWorldManagerCard(props: NovelWorldManagerCardProps)
         <div className="grid gap-5 p-5 xl:grid-cols-[minmax(0,1.25fr)_420px]">
           <div className="min-w-0">
             <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
-              {props.isLoading ? <span>读取中</span> : null}
+              {props.isLoading ? <span>{i18next.t("dict.gen_26d335b3")}</span> : null}
               <span>{novelWorld ? labelSourceType(novelWorld.sourceType) : "未设置来源"}</span>
               <span>{writingStatus}</span>
               <span>{syncStatus}</span>
@@ -223,28 +226,22 @@ export default function NovelWorldManagerCard(props: NovelWorldManagerCardProps)
             </div>
             <div className="mt-3 flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
               <div className="min-w-0">
-                <div className="text-sm text-muted-foreground">本书世界</div>
+                <div className="text-sm text-muted-foreground">{i18next.t("novels.novelWorldManagerCard.dcc10w")}</div>
                 <h2 className="mt-1 truncate text-3xl font-semibold tracking-normal text-foreground">{activeWorldName}</h2>
               </div>
               <div className="flex shrink-0 flex-wrap gap-2">
                 {novelWorld ? (
                   <>
-                    <Button type="button" onClick={() => openDialog("overview")}>
-                      打开完整世界手册
-                    </Button>
-                    <Button type="button" variant="outline" onClick={() => openDialog("usage")}>
-                      整理使用范围
-                    </Button>
+                    <Button type="button" onClick={() => openDialog("overview")}>{i18next.t("novels.novelWorldManagerCard.iv726k")}</Button>
+                    <Button type="button" variant="outline" onClick={() => openDialog("usage")}>{i18next.t("novels.novelWorldManagerCard.obxe1g")}</Button>
                   </>
                 ) : (
                   <Button asChild>
-                    <a href="#novel-world-source">选择或生成本书世界</a>
+                    <a href="#novel-world-source">{i18next.t("novels.novelWorldManagerCard.tvqtbd")}</a>
                   </Button>
                 )}
                 {hasSyncDiff ? (
-                  <Button type="button" variant="outline" onClick={() => openDialog("sync")}>
-                    处理同步差异
-                  </Button>
+                  <Button type="button" variant="outline" onClick={() => openDialog("sync")}>{i18next.t("novels.novelWorldManagerCard.vc5b73")}</Button>
                 ) : null}
               </div>
             </div>
@@ -257,25 +254,25 @@ export default function NovelWorldManagerCard(props: NovelWorldManagerCardProps)
             <div className="mt-6 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
               <WorldSignal
                 icon={BookOpen}
-                label="核心规则"
+                label={i18next.t("dict.gen_0a431a82")}
                 count={handbook?.coreRules.length ?? 0}
                 sample={handbook?.coreRules[0]?.name ?? "等待补齐规则"}
               />
               <WorldSignal
                 icon={Network}
-                label="主要势力"
+                label={i18next.t("dict.majorForce")}
                 count={forces.length}
                 sample={forces[0]?.name ?? "等待补齐势力"}
               />
               <WorldSignal
                 icon={Map}
-                label="故事舞台"
+                label={i18next.t("dict.gen_bf876a86")}
                 count={handbook?.locations.length ?? 0}
                 sample={handbook?.locations[0]?.name ?? "等待补齐地点"}
               />
               <WorldSignal
                 icon={Workflow}
-                label="关键张力"
+                label={i18next.t("dict.gen_b7cadb8f")}
                 count={handbook?.tensions.length ?? 0}
                 sample={handbook?.tensions[0] ?? "等待补齐张力"}
               />
@@ -283,7 +280,7 @@ export default function NovelWorldManagerCard(props: NovelWorldManagerCardProps)
 
             <div className="mt-6 flex flex-col gap-3 rounded-xl bg-background/70 px-4 py-3 lg:flex-row lg:items-center lg:justify-between">
               <div>
-                <div className="text-sm font-medium text-foreground">生成链会读取这份世界</div>
+                <div className="text-sm font-medium text-foreground">{i18next.t("novels.novelWorldManagerCard.1h0zoi")}</div>
                 <div className="mt-1 text-xs leading-5 text-muted-foreground">
                   {novelWorld?.hasStorySlice
                     ? "角色、大纲和章节会优先继承本书使用范围里的规则、势力和地点。"
@@ -296,7 +293,7 @@ export default function NovelWorldManagerCard(props: NovelWorldManagerCardProps)
 
           <aside className="space-y-4 rounded-2xl bg-background/65 p-4 shadow-sm ring-1 ring-border/30">
             <div>
-              <div className="text-sm font-medium text-foreground">世界约束条</div>
+              <div className="text-sm font-medium text-foreground">{i18next.t("novels.novelWorldManagerCard.yilfou")}</div>
               <div className="mt-1 text-sm leading-6 text-muted-foreground">
                 {firstText([
                   props.usageView?.slice?.coreWorldFrame,
@@ -307,10 +304,10 @@ export default function NovelWorldManagerCard(props: NovelWorldManagerCardProps)
             </div>
             <div className="grid gap-3 text-sm">
               {[
-                { label: "规则", value: props.usageView?.slice?.appliedRules.length ?? handbook?.coreRules.length ?? 0 },
-                { label: "势力", value: props.usageView?.slice?.activeForces.length ?? forces.length },
-                { label: "地点", value: props.usageView?.slice?.activeLocations.length ?? handbook?.locations.length ?? 0 },
-                { label: "压力", value: props.usageView?.slice?.pressureSources.length ?? handbook?.tensions.length ?? 0 },
+                { label: i18next.t("dict.gen_b0fae043"), value: props.usageView?.slice?.appliedRules.length ?? handbook?.coreRules.length ?? 0 },
+                { label: i18next.t("dict.gen_dcfe557b"), value: props.usageView?.slice?.activeForces.length ?? forces.length },
+                { label: i18next.t("dict.gen_fc1a7d3c"), value: props.usageView?.slice?.activeLocations.length ?? handbook?.locations.length ?? 0 },
+                { label: i18next.t("novels.novelWorldManagerCard.enw0"), value: props.usageView?.slice?.pressureSources.length ?? handbook?.tensions.length ?? 0 },
               ].map((item) => (
                 <div key={item.label} className="flex items-center justify-between border-t border-border/45 pt-2">
                   <span className="text-muted-foreground">{item.label}</span>
@@ -330,8 +327,8 @@ export default function NovelWorldManagerCard(props: NovelWorldManagerCardProps)
         />
       ) : (
         <DetailDisclosure
-          title="选择或生成本书世界"
-          description="从世界库导入、根据本书生成，或先创建一个自定义世界骨架。"
+          title={i18next.t("novels.novelWorldManagerCard.tvqtbd")}
+          description={i18next.t("dict.gen_81ee3c6c")}
           meta="待选择"
           defaultOpen
         >

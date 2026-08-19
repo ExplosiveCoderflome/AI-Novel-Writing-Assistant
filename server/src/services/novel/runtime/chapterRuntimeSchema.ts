@@ -14,7 +14,6 @@ const chapterRuntimeControlPolicySchema = z.object({
 });
 
 export const chapterRuntimeRequestSchema = z.object({
-  workflowTaskId: z.string().trim().optional(),
   provider: llmProviderSchema.optional(),
   model: z.string().trim().optional(),
   temperature: z.number().min(0).max(2).optional(),

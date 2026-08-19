@@ -1,3 +1,4 @@
+import i18next from "i18next";
 import { Input } from "@/components/ui/input";
 
 interface ProviderRequestLimitFieldsProps {
@@ -17,7 +18,7 @@ export default function ProviderRequestLimitFields({
   return (
     <div className="grid gap-3 rounded-md border bg-muted/20 p-3 sm:grid-cols-2">
       <div className="space-y-1">
-        <div className="text-xs text-muted-foreground">同模型并发上限</div>
+        <div className="text-xs text-muted-foreground">{i18next.t("dict.gen_06d67b60")}</div>
         <Input
           type="number"
           min={0}
@@ -31,7 +32,7 @@ export default function ProviderRequestLimitFields({
         </div>
       </div>
       <div className="space-y-1">
-        <div className="text-xs text-muted-foreground">同模型请求间隔（毫秒）</div>
+        <div className="text-xs text-muted-foreground">{i18next.t("dict.gen_16f55bcd")}</div>
         <Input
           type="number"
           min={0}

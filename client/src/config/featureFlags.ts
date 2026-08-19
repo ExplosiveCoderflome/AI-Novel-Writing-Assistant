@@ -11,3 +11,4 @@ export const featureFlags = {
   worldWizardEnabled: isEnabled(import.meta.env.VITE_WORLD_WIZARD_ENABLED, true),
   worldVisEnabled: isEnabled(import.meta.env.VITE_WORLD_VIS_ENABLED, true),
 };
+

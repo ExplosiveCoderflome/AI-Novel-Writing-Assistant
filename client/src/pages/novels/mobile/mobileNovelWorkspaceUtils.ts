@@ -1,3 +1,4 @@
+import i18next from "i18next";
 import type { NovelWorkspaceTab } from "../novelWorkspaceNavigation";
 import type { NovelEditViewProps } from "../components/NovelEditView.types";
 
@@ -14,10 +15,10 @@ export function getMobileNovelWorkspaceStatusText(input: {
   workflowLabel: string;
 }): string {
   if (input.activeLabel === input.workflowLabel) {
-    return `当前步骤：${input.activeLabel}`;
+    return i18next.t("novels.mobileNovelWorkspaceUtils.wv29u7", { val1: input.activeLabel });
   }
 
-  return `当前步骤：${input.activeLabel} · 流程推荐：${input.workflowLabel}`;
+  return i18next.t("novels.mobileNovelWorkspaceUtils.fnwg67", { val1: input.activeLabel, val2: input.workflowLabel });
 }
 
 export function getMobileNovelSaveState(
@@ -28,16 +29,16 @@ export function getMobileNovelSaveState(
     case "basic":
       return {
         visible: true,
-        label: "保存基本信息",
-        savingLabel: "保存中...",
+        label: i18next.t("dict.saveBasicInfo"),
+        savingLabel: i18next.t("common.saving"),
         isSaving: props.basicTab.isSaving,
         onSave: props.basicTab.onSave,
       };
     case "story_macro":
       return {
         visible: true,
-        label: "保存故事规划",
-        savingLabel: "保存中...",
+        label: i18next.t("dict.saveStoryPlanning"),
+        savingLabel: i18next.t("common.saving"),
         isSaving: props.storyMacroTab.isSaving,
         onSave: props.storyMacroTab.onSaveEdits,
       };
@@ -52,24 +53,24 @@ export function getMobileNovelSaveState(
     case "character":
       return {
         visible: true,
-        label: "保存角色",
-        savingLabel: "保存中...",
+        label: i18next.t("dict.gen_保存角色_02kg"),
+        savingLabel: i18next.t("common.saving"),
         isSaving: props.characterTab.isSavingCharacter,
         onSave: props.characterTab.onSaveCharacter,
       };
     case "outline":
       return {
         visible: true,
-        label: "保存卷工作区",
-        savingLabel: "保存中...",
+        label: i18next.t("dict.saveVolumeWorkspace"),
+        savingLabel: i18next.t("common.saving"),
         isSaving: props.outlineTab.isSaving,
         onSave: props.outlineTab.onSave,
       };
     case "structured":
       return {
         visible: true,
-        label: "保存拆章",
-        savingLabel: "保存中...",
+        label: i18next.t("dict.saveSplitChapters"),
+        savingLabel: i18next.t("common.saving"),
         isSaving: props.structuredTab.isSaving,
         onSave: props.structuredTab.onSave,
       };

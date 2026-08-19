@@ -1,3 +1,4 @@
+import i18next from "i18next";
 import type {
   StyleDetectionReport,
   StyleExtractionDraft,
@@ -80,22 +81,22 @@ export function getStyleProfileOriginLabel(
   profile: Pick<StyleProfile, "sourceRefId" | "sourceType">,
 ): string {
   if (isStarterStyleProfile(profile)) {
-    return "预置";
+    return i18next.t("dict.gen_5c888f73");
   }
   if (profile.sourceRefId?.startsWith(AI_STYLE_BRIEF_SOURCE_PREFIX)) {
-    return "AI生成";
+    return i18next.t("writingFormula.writingFormulaV2.shared.1rgu1");
   }
   if (profile.sourceType === "from_text") {
-    return "文本提取";
+    return i18next.t("writingFormula.writingFormulaV2.shared.d8lcnf");
   }
   if (profile.sourceType === "from_book_analysis") {
-    return "拆书生成";
+    return i18next.t("dict.gen_4fa1017a");
   }
   if (profile.sourceType === "from_knowledge_document") {
-    return "知识库原文";
+    return i18next.t("dict.gen_51a7e4d2");
   }
   if (profile.sourceType === "from_current_work") {
-    return "当前作品";
+    return i18next.t("onboarding.currentWork");
   }
-  return "手动创建";
+  return i18next.t("dict.gen_4364e2f1");
 }

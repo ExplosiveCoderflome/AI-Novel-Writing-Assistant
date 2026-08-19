@@ -22,7 +22,7 @@ export interface BookAnalysisCharacterImagePreview {
 export interface BookAnalysisCharacterImageOverrides {
   promptOverride?: string;
   providerOverride?: string;
-  sizeOverride?: "512x512" | "768x768" | "1024x1024" | "1024x1536" | "1536x1024";
+  sizeOverride?: import("../../image/types").ImageSize;
   negativePromptOverride?: string;
   excludedReferenceImageUrls?: string[];
 }

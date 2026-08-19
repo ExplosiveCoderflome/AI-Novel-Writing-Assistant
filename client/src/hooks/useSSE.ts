@@ -1,3 +1,4 @@
+import i18next from "i18next";
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { SSEFrame } from "@ai-novel/shared/types/api";
 import type { ChapterRuntimePackage } from "@ai-novel/shared/types/chapterRuntime";
@@ -116,7 +117,7 @@ export function useSSE(options?: UseSSEOptions) {
         });
 
         if (!response.ok || !response.body) {
-          throw new Error(`请求失败，状态码 ${response.status}`);
+          throw new Error(i18next.t("hooks.useSSE.lfqyc9", { val1: response.status }));
         }
 
         const reader = response.body.getReader();
@@ -150,7 +151,7 @@ export function useSSE(options?: UseSSEOptions) {
         }
       } catch (streamError) {
         if ((streamError as Error).name !== "AbortError") {
-          setError(streamError instanceof Error ? streamError.message : "流式请求失败。");
+          setError(streamError instanceof Error ? streamError.message : i18next.t("dict.gen_19c02c2c"));
           setIsStreaming(false);
         }
       } finally {

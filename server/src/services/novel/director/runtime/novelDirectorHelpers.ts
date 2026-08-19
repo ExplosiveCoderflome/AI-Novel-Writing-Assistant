@@ -16,7 +16,6 @@ import type {
   DirectorTaskNotice,
 } from "@ai-novel/shared/types/novelDirector";
 import type { DirectorRuntimeSnapshot } from "@ai-novel/shared/types/directorRuntime";
-import type { DirectorIssuePolicy } from "@ai-novel/shared/types/directorIssue";
 import {
   DIRECTOR_CORRECTION_PRESETS,
   DIRECTOR_MAX_TARGET_CHAPTER_COUNT,
@@ -35,9 +34,10 @@ import type { TitleFactorySuggestion } from "@ai-novel/shared/types/title";
 import { titleGenerationService } from "../../../title/TitleGenerationService";
 import { isNearDuplicateTitle } from "../../../title/titleGeneration.shared";
 import type { NovelWorkflowResumeTarget } from "@ai-novel/shared/types/novelWorkflow";
-import type { DirectorBookContractParsed } from "./novelDirectorSchemas";
-import type { DirectorCompletionProfile } from "@ai-novel/shared/types/directorCompletion";
-import { buildDirectorCompletionProfile } from "@ai-novel/shared/types/directorCompletion";
+import type {
+  DirectorBookContractParsed,
+  DirectorCandidateResponse,
+} from "./novelDirectorSchemas";
 
 export type LLMOptions = Pick<DirectorCandidatesRequest, "provider" | "model" | "temperature">;
 
@@ -57,17 +57,11 @@ export interface DirectorCandidateStageState {
 
 export interface DirectorWorkflowSeedPayload extends Record<string, unknown> {
   productionExperience?: "simple" | "professional";
-  pendingProductionExperience?: "professional";
-  startupPreparation?: DirectorConfirmRequest["startupPreparation"];
-  completionProfile?: DirectorCompletionProfile;
   novelId?: string | null;
   provider?: DirectorLLMOptions["provider"] | null;
   model?: string | null;
   temperature?: number | null;
   runMode?: DirectorRunMode;
-  issueGovernanceVersion?: 1;
-  issuePolicy?: DirectorIssuePolicy;
-  issuePolicySource?: "global" | "novel";
   autoExecutionPlan?: DirectorAutoExecutionPlan;
   autoApproval?: DirectorAutoApprovalConfig | null;
   batches?: DirectorCandidateBatch[];
@@ -236,7 +230,7 @@ function resolveDirectorReviewScope(phase: DirectorSessionState["phase"]): Direc
 }
 
 export function normalizeCandidate(
-  candidate: Omit<DirectorCandidate, "id"> & { id?: string },
+  candidate: DirectorCandidateResponse["candidates"][number],
   index: number,
 ): DirectorCandidate {
   return {
@@ -252,8 +246,6 @@ export function normalizeCandidate(
     hookStrategy: candidate.hookStrategy.trim(),
     progressionLoop: candidate.progressionLoop.trim(),
     whyItFits: candidate.whyItFits.trim(),
-    recommendedWritingPlatform: candidate.recommendedWritingPlatform,
-    writingPlatformReason: candidate.writingPlatformReason?.trim(),
     toneKeywords: Array.from(
       new Set(candidate.toneKeywords.map((item) => item.trim()).filter(Boolean)),
     ).slice(0, 4),
@@ -264,21 +256,19 @@ export function normalizeCandidate(
 export async function enhanceCandidateTitles(
   candidate: DirectorCandidate,
   context: CandidateGenerationContext,
-  options: { excludedTitles?: string[] } = {},
 ): Promise<DirectorCandidate> {
-  const excludedTitles = options.excludedTitles ?? [];
-  const fallbackOptions = mergeTitleOptions([], candidate, excludedTitles);
+  const fallbackOptions = [buildFallbackTitleOption(candidate)];
 
   try {
     const response = await titleGenerationService.generateTitleIdeas({
       mode: "brief",
-      brief: buildCandidateTitleBrief(candidate, context, excludedTitles),
+      brief: buildCandidateTitleBrief(candidate, context),
       genreId: context.request.genreId ?? null,
       count: 4,
       provider: context.options.provider,
       model: context.options.model,
     });
-    const mergedOptions = mergeTitleOptions(response.titles, candidate, excludedTitles);
+    const mergedOptions = mergeTitleOptions(response.titles, candidate);
     const primaryTitle = mergedOptions[0]?.title?.trim();
     return {
       ...candidate,
@@ -296,7 +286,6 @@ export async function enhanceCandidateTitles(
 function buildCandidateTitleBrief(
   candidate: DirectorCandidate,
   context: CandidateGenerationContext,
-  excludedTitles: string[] = [],
 ): string {
   const lines = [
     `故事灵感：${context.idea.trim()}`,
@@ -310,10 +299,8 @@ function buildCandidateTitleBrief(
     candidate.toneKeywords.length > 0 ? `气质关键词：${candidate.toneKeywords.join("、")}` : "",
     context.request.title?.trim() ? `用户当前草拟标题：${context.request.title.trim()}` : "",
     `当前方案原始命名：${candidate.workingTitle}`,
-    excludedTitles.length > 0 ? `其他方案已占用书名：${excludedTitles.join("、")}` : "",
     "请生成更适合中文网文封面展示和点击测试的书名，突出卖点、反差、异常规则、主角优势或追更钩子。",
     "不要写成策划案标题、世界观概念短语、流水线土味套壳名，也不要为了文艺感牺牲点击感。",
-    excludedTitles.length > 0 ? "不得复用或近似改写其他方案已占用的书名。" : "",
   ].filter(Boolean);
   return lines.join("\n");
 }
@@ -321,64 +308,20 @@ function buildCandidateTitleBrief(
 function mergeTitleOptions(
   generatedTitles: TitleFactorySuggestion[],
   candidate: DirectorCandidate,
-  excludedTitles: string[] = [],
 ): TitleFactorySuggestion[] {
   const merged: TitleFactorySuggestion[] = [];
   for (const option of generatedTitles) {
-    const conflictsWithExcluded = excludedTitles.some((title) => isNearDuplicateTitle(title, option.title));
-    if (!conflictsWithExcluded && !merged.some((existing) => isNearDuplicateTitle(existing.title, option.title))) {
+    if (!merged.some((existing) => isNearDuplicateTitle(existing.title, option.title))) {
       merged.push(option);
     }
   }
 
   const originalOption = buildFallbackTitleOption(candidate);
-  const originalConflictsWithExcluded = excludedTitles.some((title) => (
-    isNearDuplicateTitle(title, originalOption.title)
-  ));
-  if (
-    !originalConflictsWithExcluded
-    && !merged.some((existing) => isNearDuplicateTitle(existing.title, originalOption.title))
-  ) {
+  if (!merged.some((existing) => isNearDuplicateTitle(existing.title, originalOption.title))) {
     merged.push(originalOption);
   }
 
   return merged.slice(0, 4);
-}
-
-export function selectDistinctCandidateTitle(
-  candidate: DirectorCandidate,
-  excludedTitles: string[],
-): DirectorCandidate | null {
-  const availableOptions: TitleFactorySuggestion[] = [];
-  for (const option of candidate.titleOptions ?? []) {
-    const conflictsWithExcluded = excludedTitles.some((title) => isNearDuplicateTitle(title, option.title));
-    if (
-      !conflictsWithExcluded
-      && !availableOptions.some((existing) => isNearDuplicateTitle(existing.title, option.title))
-    ) {
-      availableOptions.push(option);
-    }
-  }
-
-  const currentTitleAvailable = !excludedTitles.some((title) => (
-    isNearDuplicateTitle(title, candidate.workingTitle)
-  ));
-  const selectedOption = currentTitleAvailable
-    ? availableOptions.find((option) => isNearDuplicateTitle(option.title, candidate.workingTitle))
-      ?? buildFallbackTitleOption(candidate)
-    : availableOptions[0];
-  if (!selectedOption) {
-    return null;
-  }
-
-  return {
-    ...candidate,
-    workingTitle: selectedOption.title.trim(),
-    titleOptions: [
-      selectedOption,
-      ...availableOptions.filter((option) => !isNearDuplicateTitle(option.title, selectedOption.title)),
-    ].slice(0, 4),
-  };
 }
 
 function buildFallbackTitleOption(candidate: DirectorCandidate): TitleFactorySuggestion {
@@ -405,9 +348,8 @@ export function toBookSpec(
     endingDirection: candidate.endingDirection.trim(),
     hookStrategy: candidate.hookStrategy.trim(),
     progressionLoop: candidate.progressionLoop.trim(),
-    targetChapterCount: normalizeDirectorTargetChapterCount(overrideTargetChapterCount ?? candidate.targetChapterCount),
-    completionProfile: buildDirectorCompletionProfile(
-      normalizeDirectorTargetChapterCount(overrideTargetChapterCount ?? candidate.targetChapterCount),
+    targetChapterCount: normalizeDirectorTargetChapterCount(
+      overrideTargetChapterCount ?? candidate.targetChapterCount,
     ),
   };
 }
@@ -479,8 +421,6 @@ export function buildWorkflowSeedPayload(
     idea: string;
     autoExecutionPlan?: DirectorAutoExecutionPlan;
     autoApproval?: DirectorAutoApprovalConfig;
-    completionProfile?: DirectorCompletionProfile;
-    riskPolicy?: import("@ai-novel/shared/types/directorRisk").DirectorRiskPolicy;
   },
   extra?: Record<string, unknown>,
 ): Record<string, unknown> {
@@ -500,7 +440,6 @@ export function buildWorkflowSeedPayload(
     writingMode: input.writingMode ?? "original",
     projectMode: input.projectMode ?? "co_pilot",
     readerChannelPreference: input.readerChannelPreference ?? "ai_judge",
-    writingPlatformPreference: input.writingPlatformPreference ?? "ai_recommend",
     narrativePov: input.narrativePov ?? "third_person",
     pacePreference: input.pacePreference ?? "balanced",
     styleTone: input.styleTone?.trim() || "",
@@ -521,8 +460,6 @@ export function buildWorkflowSeedPayload(
   const autoApproval = Object.prototype.hasOwnProperty.call(input, "autoApproval")
     ? normalizeDirectorAutoApprovalConfig(input.autoApproval)
     : null;
-  const completionProfile = input.completionProfile
-    ?? buildDirectorCompletionProfile(basicForm.estimatedChapterCount ?? 80);
   return {
     title: basicForm.title || null,
     description: basicForm.description || null,
@@ -539,7 +476,6 @@ export function buildWorkflowSeedPayload(
     writingMode: basicForm.writingMode,
     projectMode: basicForm.projectMode,
     readerChannelPreference: basicForm.readerChannelPreference,
-    writingPlatformPreference: basicForm.writingPlatformPreference,
     narrativePov: basicForm.narrativePov,
     pacePreference: basicForm.pacePreference,
     styleTone: basicForm.styleTone || null,
@@ -552,20 +488,9 @@ export function buildWorkflowSeedPayload(
     model: input.model?.trim() || null,
     temperature: typeof input.temperature === "number" ? input.temperature : null,
     runMode: input.runMode ?? "auto_to_ready",
-    ...("issueGovernanceVersion" in input && input.issueGovernanceVersion === 1
-      ? { issueGovernanceVersion: input.issueGovernanceVersion }
-      : {}),
-    ...("issuePolicy" in input && input.issuePolicy
-      ? { issuePolicy: input.issuePolicy }
-      : {}),
-    ...("issuePolicySource" in input && (input.issuePolicySource === "global" || input.issuePolicySource === "novel")
-      ? { issuePolicySource: input.issuePolicySource }
-      : {}),
     ...(input.autoExecutionPlan ? { autoExecutionPlan: input.autoExecutionPlan } : {}),
     ...(autoApproval ? { autoApproval } : {}),
     estimatedChapterCount: basicForm.estimatedChapterCount,
-    completionProfile,
-    riskPolicy: input.riskPolicy ?? null,
     idea: input.idea.trim(),
     basicForm,
     ...extra,

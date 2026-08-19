@@ -44,7 +44,7 @@ test("successful analyses without sections expose the ghost-result recovery", ()
   });
   assert.equal(result.action, "rebuild");
   assert.equal(result.tone, "danger");
-  assert.match(result.title, /没有可展示/);
+  assert.match(result.title, /(没有可展示|bookAnalysis\.bookAnalysisWorkspaceViewModel\.oya78w)/);
 });
 
 test("partial and failed analyses preserve readable sections", () => {

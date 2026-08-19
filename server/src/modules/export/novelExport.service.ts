@@ -39,11 +39,6 @@ export class NovelExportService {
       select: {
         title: true,
         description: true,
-        narrativeForm: true,
-        shortStorySegments: {
-          select: { order: true, content: true },
-          orderBy: { order: "asc" },
-        },
         chapters: {
           select: {
             order: true,
@@ -61,16 +56,7 @@ export class NovelExportService {
       throw new AppError("小说不存在。", 404);
     }
 
-    return {
-      title: novel.title,
-      description: novel.description,
-      narrativeForm: novel.narrativeForm,
-      shortStoryContent: novel.shortStorySegments
-        .map((segment) => segment.content.trim())
-        .filter(Boolean)
-        .join("\n\n"),
-      chapters: novel.chapters,
-    };
+    return novel;
   }
 
   private async buildExportBundle(novelId: string): Promise<NovelExportBundle> {
@@ -241,9 +227,7 @@ export class NovelExportService {
 
   async exportAsKnowledgeDocument(novelId: string) {
     const novel = await this.getTxtNovelRecord(novelId);
-    const hasChapterContent = novel.narrativeForm === "short_story"
-      ? Boolean(novel.shortStoryContent?.trim())
-      : novel.chapters.some((chapter) => (chapter.content ?? "").trim().length > 0);
+    const hasChapterContent = novel.chapters.some((chapter) => (chapter.content ?? "").trim().length > 0);
     if (!hasChapterContent) {
       throw new AppError("当前小说还没有可诊断的章节正文。", 400);
     }

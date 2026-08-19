@@ -25,8 +25,8 @@ import type {
   DirectorTakeoverRequest,
   DirectorStepCalibrationRequest,
 } from "@ai-novel/shared/types/novelDirector";
-import { apiClient } from "./client";
 import type { DirectorIssuePolicy, DirectorIssuePolicyOverride } from "@ai-novel/shared/types/directorIssue";
+import { apiClient } from "./client";
 
 export interface NovelDirectorIssuePolicyResponse {
   effectivePolicy: DirectorIssuePolicy;

@@ -456,6 +456,14 @@ export class DefaultNovelApplicationServices {
     return this.chapterEditorService.previewAiRevision(...args);
   }
 
+  previewChapterContinue(...args: Parameters<NovelChapterEditorService["previewContinue"]>) {
+    return this.chapterEditorService.previewContinue(...args);
+  }
+
+  previewChapterIssueFix(...args: Parameters<NovelChapterEditorService["previewIssueFix"]>) {
+    return this.chapterEditorService.previewIssueFix(...args);
+  }
+
   getChapterEditorWorkspace(...args: Parameters<ChapterEditorWorkspaceService["getWorkspace"]>) {
     return this.chapterEditorWorkspaceService.getWorkspace(...args);
   }
@@ -595,10 +603,6 @@ export class DefaultNovelApplicationServices {
 
   applyCharacterCastOption(...args: Parameters<CharacterPreparationService["applyCharacterCastOption"]>) {
     return this.characterPreparationService.applyCharacterCastOption(...args);
-  }
-
-  runDeferredCharacterEnhancements(...args: Parameters<CharacterPreparationService["runDeferredEnhancements"]>) {
-    return this.characterPreparationService.runDeferredEnhancements(...args);
   }
 
   generateSupplementalCharacters(...args: Parameters<CharacterPreparationService["generateSupplementalCharacters"]>) {

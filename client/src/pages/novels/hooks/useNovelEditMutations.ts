@@ -1,3 +1,4 @@
+import i18next from "i18next";
 import { useMutation, type QueryClient } from "@tanstack/react-query";
 import type { Chapter, PipelineRepairMode, PipelineRunMode, VolumePlanDocument } from "@ai-novel/shared/types/novel";
 import type { LLMProvider } from "@ai-novel/shared/types/llm";
@@ -12,8 +13,6 @@ import {
   updateNovel,
   syncNovelVolumeChapters,
   updateNovelVolumes,
-  recommendNovelWritingPlatform,
-  updateNovelWritingPlatform,
 } from "@/api/novel";
 import { queryKeys } from "@/api/queryKeys";
 import { buildNovelUpdatePayload, type NovelBasicFormState } from "../novelBasicInfo.shared";
@@ -99,20 +98,12 @@ export function useNovelEditMutations({
   invalidateNovelDetail,
 }: UseNovelEditMutationsArgs) {
   const saveBasicMutation = useMutation({
-    mutationFn: async () => {
-      const updated = await updateNovel(id, buildNovelUpdatePayload(basicForm));
-      const platform = basicForm.writingPlatformPreference === "ai_recommend"
-        ? (await recommendNovelWritingPlatform(id)).data?.platform
-        : basicForm.writingPlatformPreference;
-      if (!platform) throw new Error("AI 未返回可用的平台建议，请重试。");
-      await updateNovelWritingPlatform(id, platform);
-      return updated;
-    },
+    mutationFn: () => updateNovel(id, buildNovelUpdatePayload(basicForm)),
     onSuccess: async () => {
       await syncNovelWorkflowStageSilently({
         novelId: id,
         stage: "project_setup",
-        itemLabel: "项目设定已保存",
+        itemLabel: i18next.t("dict.gen_d7149fb5"),
         status: "waiting_approval",
       });
       await invalidateNovelDetail();
@@ -128,9 +119,9 @@ export function useNovelEditMutations({
       await syncNovelWorkflowStageSilently({
         novelId: id,
         stage: "volume_strategy",
-        itemLabel: "卷战略 / 卷骨架已保存",
+        itemLabel: i18next.t("dict.gen_78b07fdd"),
         checkpointType: "volume_strategy_ready",
-        checkpointSummary: "当前卷战略与卷骨架已保存到工作区。",
+        checkpointSummary: i18next.t("dict.gen_48933871"),
         status: "waiting_approval",
       });
       await invalidateNovelDetail();
@@ -143,11 +134,11 @@ export function useNovelEditMutations({
       syncToChapterExecution: true,
     }),
     onSuccess: async () => {
-      setStructuredMessage("节奏拆章已保存，章节执行区会直接使用同一批章节。");
+      setStructuredMessage(i18next.t("dict.gen_f5b07847"));
       await syncNovelWorkflowStageSilently({
         novelId: id,
         stage: "structured_outline",
-        itemLabel: "节奏 / 拆章已保存",
+        itemLabel: i18next.t("dict.gen_f9c338a6"),
         status: "waiting_approval",
       });
       await invalidateNovelDetail();
@@ -199,20 +190,20 @@ export function useNovelEditMutations({
     onSuccess: async (response) => {
       const preview = response.data;
       setStructuredMessage(
-        `连接修复完成：新增 ${preview?.createCount ?? 0}，更新 ${preview?.updateCount ?? 0}，删除 ${preview?.deleteCount ?? 0}。`,
+        i18next.t("novels.useNovelEditMutations.4aioez", { val1: preview?.createCount ?? 0, val2: preview?.updateCount ?? 0, val3: preview?.deleteCount ?? 0 }),
       );
       await syncNovelWorkflowStageSilently({
         novelId: id,
         stage: "structured_outline",
-        itemLabel: "卷级拆章已连接到章节执行",
+        itemLabel: i18next.t("dict.gen_8dadfb98"),
         checkpointType: "chapter_batch_ready",
-        checkpointSummary: "章节列表、任务单和执行入口已准备好，可继续进入章节执行。",
+        checkpointSummary: i18next.t("dict.gen_e16212bd"),
         status: "waiting_approval",
       });
       await invalidateNovelDetail();
     },
     onError: (error) => {
-      const message = error instanceof Error ? error.message : "章节同步失败。";
+      const message = error instanceof Error ? error.message : i18next.t("dict.gen_27dd03ed");
       setStructuredMessage(message);
     },
   });
@@ -231,7 +222,7 @@ export function useNovelEditMutations({
       await syncNovelWorkflowStageSilently({
         novelId: id,
         stage: "chapter_execution",
-        itemLabel: "已创建新的章节执行项",
+        itemLabel: i18next.t("dict.gen_32dc10e9"),
         chapterId: response.data?.id,
         status: "waiting_approval",
       });
@@ -251,7 +242,7 @@ export function useNovelEditMutations({
       await invalidateNovelDetail();
     },
     onError: (error) => {
-      setPipelineMessage(error instanceof Error ? error.message : "移除章节失败，请稍后重试。");
+      setPipelineMessage(error instanceof Error ? error.message : i18next.t("novels.useNovelEditMutations.ge0rhr"));
     },
   });
 
@@ -279,7 +270,7 @@ export function useNovelEditMutations({
       await syncNovelWorkflowStageSilently({
         novelId: id,
         stage: "quality_repair",
-        itemLabel: "章节流水线运行中",
+        itemLabel: i18next.t("dict.gen_1f45424b"),
         status: "running",
       });
       await queryClient.invalidateQueries({ queryKey: queryKeys.novels.pipelineJob(id, response.data?.id ?? "none") });
@@ -299,7 +290,7 @@ export function useNovelEditMutations({
       await syncNovelWorkflowStageSilently({
         novelId: id,
         stage: "quality_repair",
-        itemLabel: "章节审校已完成",
+        itemLabel: i18next.t("dict.gen_38470cc3"),
         status: "waiting_approval",
       });
       await queryClient.invalidateQueries({ queryKey: queryKeys.novels.qualityReport(id) });
@@ -319,7 +310,7 @@ export function useNovelEditMutations({
       await syncNovelWorkflowStageSilently({
         novelId: id,
         stage: "chapter_execution",
-        itemLabel: "章节钩子已生成",
+        itemLabel: i18next.t("dict.gen_a65b6536"),
         chapterId: selectedChapterId || undefined,
         status: "waiting_approval",
       });

@@ -1,3 +1,4 @@
+import i18next from "i18next";
 import type { KeyboardEvent, MouseEvent } from "react";
 import { Download, Eye, Gauge, Trash2 } from "lucide-react";
 import { Link } from "react-router-dom";
@@ -121,7 +122,7 @@ export function NovelProjectCard(props: {
           </div>
           <div className="mt-2 h-10 overflow-hidden opacity-0 transition-opacity duration-200 group-hover:opacity-100 group-focus-within:opacity-100">
             <p className="line-clamp-2 text-xs leading-5 text-muted-foreground">
-              {workflow.description}{workflow.lastHealthyStage ? ` 最近完成：${workflow.lastHealthyStage}` : ""}
+              {workflow.description}{workflow.lastHealthyStage ? i18next.t("novels.novelProjectCard.lplxuz", { val1: (workflow.lastHealthyStage) }) : ""}
             </p>
           </div>
         </div>
@@ -166,8 +167,8 @@ export function NovelProjectCard(props: {
                   stopCardClick(event);
                   props.onOpenCockpit(props.novel.id);
                 }}
-                title="打开 AI 驾驶舱"
-                aria-label="打开 AI 驾驶舱"
+                title={i18next.t("novels.novelProjectCard.739dzg")}
+                aria-label={i18next.t("novels.novelProjectCard.739dzg")}
               >
                 <Gauge className="h-4 w-4" aria-hidden="true" />
               </Button>
@@ -175,14 +176,14 @@ export function NovelProjectCard(props: {
           </div>
           <div className="flex items-center gap-1 opacity-70 transition group-hover:opacity-100 focus-within:opacity-100">
             {task && props.novel.narrativeForm !== "short_story" ? (
-              <Button asChild size="sm" variant="ghost" className="h-8 w-8 px-0" title="查看执行详情" aria-label="查看执行详情">
+              <Button asChild size="sm" variant="ghost" className="h-8 w-8 px-0" title={i18next.t("home.viewExecutionDetails")} aria-label={i18next.t("home.viewExecutionDetails")}>
                 <Link to={`/novels/${props.novel.id}/edit?directorTaskId=${task.id}&taskPanel=1`} onClick={stopCardClick}>
                   <Gauge className="h-4 w-4" aria-hidden="true" />
                 </Link>
               </Button>
             ) : null}
             {props.novel.narrativeForm !== "short_story" ? (
-              <Button asChild size="sm" variant="ghost" className="h-8 w-8 px-0" title="阅读预览" aria-label="阅读预览">
+              <Button asChild size="sm" variant="ghost" className="h-8 w-8 px-0" title={i18next.t("novels.novelProjectCard.jifcgq")} aria-label={i18next.t("novels.novelProjectCard.jifcgq")}>
                 <Link to={`/novels/${props.novel.id}/preview`} onClick={stopCardClick}>
                   <Eye className="h-4 w-4" aria-hidden="true" />
                 </Link>
@@ -237,9 +238,7 @@ function renderPrimaryAction(input: {
   if (input.novel.narrativeForm === "short_story") {
     return (
       <Button asChild size="sm">
-        <Link to={`/novels/${input.novel.id}/story`} onClick={input.onStopCardClick}>
-          打开作品
-        </Link>
+        <Link to={`/novels/${input.novel.id}/story`} onClick={input.onStopCardClick}>{i18next.t("novels.novelListViewModel.csr73m")}</Link>
       </Button>
     );
   }

@@ -1,3 +1,4 @@
+import i18next from "i18next";
 import { useMemo, useState } from "react";
 import type { LLMProvider } from "@ai-novel/shared/types/llm";
 import type { APIKeyStatus, ProviderBalanceStatus } from "@/api/settings";
@@ -70,20 +71,16 @@ export default function ProviderSettingsSection(props: {
     <Card id="settings-provider-section" className="min-w-0 scroll-mt-20 overflow-hidden">
       <CardHeader className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div className="min-w-0 space-y-1">
-          <CardTitle>模型厂商</CardTitle>
-          <CardDescription className={AUTO_DIRECTOR_MOBILE_CLASSES.wrapText}>
-            先保证至少一个文本模型可用；余额明细、请求限制和模型列表可以在高级详情里检查。
-          </CardDescription>
+          <CardTitle>{i18next.t("dict.gen_b51bd70b")}</CardTitle>
+          <CardDescription className={AUTO_DIRECTOR_MOBILE_CLASSES.wrapText}>{i18next.t("settings.providerSettingsSection.w9cae9")}</CardDescription>
         </div>
         <div className="flex flex-wrap gap-2">
           {defaultShowConfiguredOnly && hiddenProviderCount > 0 ? (
             <Button variant="outline" onClick={() => setShowAllProviders((current) => !current)}>
-              {showAllProviders ? "收起其他厂商" : `管理全部厂商 (${hiddenProviderCount})`}
+              {showAllProviders ? "收起其他厂商" : i18next.t("settings.providerSettingsSection.fxqv5k", { val1: (hiddenProviderCount) })}
             </Button>
           ) : null}
-          <Button className={AUTO_DIRECTOR_MOBILE_CLASSES.fullWidthAction} onClick={onCreateCustomProvider}>
-            新增自定义厂商
-          </Button>
+          <Button className={AUTO_DIRECTOR_MOBILE_CLASSES.fullWidthAction} onClick={onCreateCustomProvider}>{i18next.t("dict.gen_86fc689e")}</Button>
         </div>
       </CardHeader>
       <CardContent className="grid min-w-0 gap-3 md:grid-cols-2">
@@ -100,9 +97,7 @@ export default function ProviderSettingsSection(props: {
           />
         ))}
         {!visibleViewModels.length ? (
-          <div className="rounded-md border border-dashed p-4 text-sm text-muted-foreground md:col-span-2">
-            还没有启用的模型厂商。展开全部厂商或新增自定义厂商后完成配置。
-          </div>
+          <div className="rounded-md border border-dashed p-4 text-sm text-muted-foreground md:col-span-2">{i18next.t("settings.providerSettingsSection.xc6pwg")}</div>
         ) : null}
       </CardContent>
     </Card>

@@ -1,10 +1,12 @@
 import { useQuery } from "@tanstack/react-query";
+import { useTranslation } from "react-i18next";
 import { ArrowRight, CheckCircle2, Compass } from "lucide-react";
 import { Link } from "react-router-dom";
 import { getFirstNovelOnboarding } from "@/api/onboarding";
 import { queryKeys } from "@/api/queryKeys";
 
 export default function FirstNovelJourneyStrip() {
+  const { t } = useTranslation();
   const query = useQuery({
     queryKey: queryKeys.onboarding.firstNovel,
     queryFn: getFirstNovelOnboarding,
@@ -26,14 +28,21 @@ export default function FirstNovelJourneyStrip() {
         </span>
         <div className="min-w-0">
           <div className="flex flex-wrap items-center gap-2">
-            <span className="text-sm font-semibold">第一本书向导</span>
-            <span className="text-xs text-muted-foreground">{journey.completedCount}/{journey.totalCount} 步完成</span>
+            <span className="text-sm font-semibold">{t("onboarding.guide", "第一本书向导")}</span>
+            <span className="text-xs text-muted-foreground">
+              {t("onboarding.completedProgress", "{{completed}}/{{total}} 完成", {
+                completed: journey.completedCount,
+                total: journey.totalCount,
+              })}
+            </span>
           </div>
-          <p className="mt-1 truncate text-xs text-muted-foreground">{journey.headline}</p>
+          <p className="mt-1 truncate text-xs text-muted-foreground">
+            {t(`onboarding.headlines.${journey.currentMilestone}`, journey.headline)}
+          </p>
         </div>
       </div>
       <div className="flex items-center gap-3">
-        <div className="flex gap-1" aria-label={`已完成 ${journey.completedCount} 个步骤`}>
+        <div className="flex gap-1" aria-label={t("onboarding.completedProgress", "{{completed}}/{{total}} 完成", { completed: journey.completedCount, total: journey.totalCount })}>
           {journey.milestones.map((milestone) => (
             <span
               key={milestone.key}

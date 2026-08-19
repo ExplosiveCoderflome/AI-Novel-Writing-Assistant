@@ -10,7 +10,6 @@ export type PreviewNovelRow = {
   emotionIntensity?: string | null;
   styleTone?: string | null;
   estimatedChapterCount?: number | null;
-  writingPlatformSnapshotJson?: string | null;
   characters?: PreviewCharacterRow[];
 };
 

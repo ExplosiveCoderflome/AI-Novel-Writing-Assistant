@@ -1,3 +1,5 @@
+import i18next from "i18next";
+import { useTranslation } from "react-i18next";
 import type { MouseEvent } from "react";
 import { useMemo } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -23,7 +25,6 @@ import {
   buildHomeNextAction,
   HOME_NOVEL_FETCH_LIMIT,
   HOME_RECENT_LIMIT,
-  getHomeNovelTask,
   selectPrimaryNovel,
   type HomeNovelItem,
 } from "./home/homeViewModel";
@@ -36,6 +37,7 @@ import CreationSetupNotice from "@/components/onboarding/CreationSetupNotice";
 import FirstNovelJourneyStrip from "@/components/onboarding/FirstNovelJourneyStrip";
 
 export default function Home() {
+  const { t, i18n } = useTranslation();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
 
@@ -79,8 +81,8 @@ export default function Home() {
         error instanceof Error
           ? error.message
           : input.mode === "auto_execute_range"
-            ? "继续自动执行当前章节范围失败。"
-            : "继续自动导演失败。",
+            ? i18next.t("toasts.failedAutoExecute", "继续自动执行当前章节范围失败。")
+            : i18next.t("toasts.failedAutoDirector", "继续自动导演失败。"),
       );
     },
   });
@@ -90,18 +92,18 @@ export default function Home() {
   const taskOverview = taskQuery.data?.data ?? null;
   const primaryNovel = useMemo(() => selectPrimaryNovel(allNovels), [allNovels]);
   const recentNovels = useMemo(() => allNovels.slice(0, HOME_RECENT_LIMIT), [allNovels]);
-  const nextAction = useMemo(() => buildHomeNextAction(primaryNovel), [primaryNovel]);
+  const nextAction = useMemo(() => buildHomeNextAction(primaryNovel), [primaryNovel, i18n.language]);
   const metrics = useMemo(
     () => buildHomeMetrics({ novels: allNovels, taskOverview }),
-    [allNovels, taskOverview],
+    [allNovels, taskOverview, i18n.language],
   );
   const attentionItems = useMemo(
     () => buildHomeAttentionItems({ novels: allNovels, taskOverview }),
-    [allNovels, taskOverview],
+    [allNovels, taskOverview, i18n.language],
   );
   const assetHealthItems = useMemo(
     () => buildHomeAssetHealthItems(allNovels),
-    [allNovels],
+    [allNovels, i18n.language],
   );
 
   const stopCardClick = (event: MouseEvent<HTMLElement>) => {
@@ -109,10 +111,7 @@ export default function Home() {
   };
 
   const openNovelEditor = (novelId: string) => {
-    const novel = allNovels.find((item) => item.id === novelId);
-    navigate(novel?.narrativeForm === "short_story"
-      ? `/novels/${novelId}/story`
-      : `/novels/${novelId}/edit`);
+    navigate(`/novels/${novelId}/edit`);
   };
 
   const renderNovelPrimaryAction = (
@@ -123,7 +122,7 @@ export default function Home() {
     },
   ) => {
     const { size = "sm", stopPropagation = false } = options ?? {};
-    const task = getHomeNovelTask(novel);
+    const task = novel.latestAutoDirectorTask ?? null;
     const isWorkflowPending = continueWorkflowMutation.isPending
       && continueWorkflowMutation.variables?.taskId === task?.id;
 
@@ -132,19 +131,6 @@ export default function Home() {
         stopCardClick(event);
       }
     };
-
-    if (novel.narrativeForm === "short_story") {
-      return (
-        <Button asChild size={size}>
-          <Link
-            to={`/novels/${novel.id}/story`}
-            onClick={stopPropagation ? stopCardClick : undefined}
-          >
-            打开作品
-          </Link>
-        </Button>
-      );
-    }
 
     if (canContinueChapterBatchAutoExecution(task)) {
       return (
@@ -162,7 +148,7 @@ export default function Home() {
           }}
           disabled={isWorkflowPending}
         >
-          {isWorkflowPending ? "继续执行中..." : (task?.resumeAction ?? `继续自动执行${task?.executionScopeLabel ?? "当前章节范围"}`)}
+          {isWorkflowPending ? i18next.t("dict.gen_eddf5894") : (task?.resumeAction ?? `继续自动执行${task?.executionScopeLabel ?? i18next.t("dict.gen_d7432bb5")}`)}
         </Button>
       );
     }
@@ -182,7 +168,7 @@ export default function Home() {
           }}
           disabled={isWorkflowPending}
         >
-          {isWorkflowPending ? "继续中..." : (task?.resumeAction ?? "继续导演")}
+          {isWorkflowPending ? i18next.t("dict.gen_95ee3e92") : (task?.resumeAction ?? i18next.t("dict.gen_1f32f18b"))}
         </Button>
       );
     }
@@ -194,7 +180,7 @@ export default function Home() {
             to={getCandidateSelectionLink(task!.id)}
             onClick={stopPropagation ? stopCardClick : undefined}
           >
-            {task!.resumeAction ?? "继续确认书级方向"}
+            {task!.resumeAction ?? i18next.t("dict.gen_4763a24b")}
           </Link>
         </Button>
       );
@@ -206,9 +192,7 @@ export default function Home() {
           <Link
             to={`/novels/${novel.id}/edit`}
             onClick={stopPropagation ? stopCardClick : undefined}
-          >
-            进入章节执行
-          </Link>
+          >{i18next.t("dict.gen_98b5f8b5")}</Link>
         </Button>
       );
     }
@@ -219,9 +203,7 @@ export default function Home() {
           <Link
             to={`/novels/${novel.id}/edit?directorTaskId=${task.id}`}
             onClick={stopPropagation ? stopCardClick : undefined}
-          >
-            查看推进状态
-          </Link>
+          >{i18next.t("dict.gen_ffc75805")}</Link>
         </Button>
       );
     }
@@ -231,9 +213,7 @@ export default function Home() {
         <Link
           to={`/novels/${novel.id}/edit`}
           onClick={stopPropagation ? stopCardClick : undefined}
-        >
-          编辑小说
-        </Link>
+        >{i18next.t("dict.gen_699b4b33")}</Link>
       </Button>
     );
   };

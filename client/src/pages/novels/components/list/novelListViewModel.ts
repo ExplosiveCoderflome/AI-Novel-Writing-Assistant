@@ -1,3 +1,4 @@
+import i18next from "i18next";
 import type {
   NovelAutoDirectorTaskSummary,
   ProjectProgressStatus,
@@ -81,18 +82,18 @@ export function filterNovelList(input: {
 
 export function formatProgressStatus(status?: ProjectProgressStatus | null): string {
   if (status === "completed") {
-    return "已完成";
+    return i18next.t("tasks.filterStatusSucceeded");
   }
   if (status === "in_progress") {
-    return "进行中";
+    return i18next.t("tasks.levelRunning");
   }
   if (status === "rework") {
-    return "待返工";
+    return i18next.t("dict.gen_87ebc735");
   }
   if (status === "blocked") {
-    return "受阻";
+    return i18next.t("dict.gen_644fe1bd");
   }
-  return "未开始";
+  return i18next.t("dict.gen_dd4e55c3");
 }
 
 export function formatTokenCount(value?: number | null): string {
@@ -119,10 +120,10 @@ export function buildNovelListSummary(novels: NovelListItem[]): NovelListSummary
   }).length;
 
   return [
-    { id: "running", label: "推进中", value: running, tone: running > 0 ? "info" : "neutral" },
-    { id: "waiting", label: "待确认", value: waiting, tone: waiting > 0 ? "warning" : "neutral" },
-    { id: "ready", label: "可继续", value: ready, tone: ready > 0 ? "success" : "neutral" },
-    { id: "issue", label: "暂停/失败", value: issue, tone: issue > 0 ? "danger" : "neutral" },
+    { id: "running", label: i18next.t("dict.gen_007edf50"), value: running, tone: running > 0 ? "info" : "neutral" },
+    { id: "waiting", label: i18next.t("dict.gen_2a2772fa"), value: waiting, tone: waiting > 0 ? "warning" : "neutral" },
+    { id: "ready", label: i18next.t("dict.gen_4281b2b4"), value: ready, tone: ready > 0 ? "success" : "neutral" },
+    { id: "issue", label: i18next.t("dict.gen_0df14edc"), value: issue, tone: issue > 0 ? "danger" : "neutral" },
   ];
 }
 
@@ -156,7 +157,7 @@ export function buildWorkflowDisplay(novel: NovelListItem): WorkflowDisplay {
         || novel.description?.trim()
         || "AI 正在把已确认的方向写成一篇连续作品。",
       progress: Math.round((task?.progress ?? 0) * 100),
-      currentStage: "连续作品",
+      currentStage: i18next.t("novels.novelListViewModel.io83jo"),
       currentAction: task?.currentItemLabel?.trim() || "",
       lastHealthyStage: "",
       running: task?.status === "queued" || task?.status === "running",
@@ -166,10 +167,10 @@ export function buildWorkflowDisplay(novel: NovelListItem): WorkflowDisplay {
   if (!task) {
     return {
       tone: "neutral",
-      label: "资料项目",
+      label: i18next.t("dict.gen_cdbb5133"),
       description: novel.description?.trim() || "没有自动导演任务，可以进入项目继续完善资料或章节。",
       progress: 0,
-      currentStage: "未进入自动导演",
+      currentStage: i18next.t("dict.gen_945c0411"),
       currentAction: "",
       lastHealthyStage: "",
       running: false,
@@ -190,11 +191,11 @@ export function buildWorkflowDisplay(novel: NovelListItem): WorkflowDisplay {
 
 export function getPrimaryActionLabel(novel: NovelListItem): string {
   if (novel.narrativeForm === "short_story") {
-    return "打开作品";
+    return i18next.t("novels.novelListViewModel.csr73m");
   }
   const task = getNovelWorkflowTask(novel);
   if (canContinueChapterBatchAutoExecution(task)) {
-    return task?.resumeAction ?? `继续自动执行${task?.executionScopeLabel ?? "当前章节范围"}`;
+    return task?.resumeAction ?? i18next.t("novels.novelEditTakeover.shared.lpivmv", { val1: (task?.executionScopeLabel ?? "当前章节范围") });
   }
   if (canContinueDirector(task)) {
     return task?.resumeAction ?? "继续导演";
@@ -203,12 +204,12 @@ export function getPrimaryActionLabel(novel: NovelListItem): string {
     return task?.resumeAction ?? "继续确认方向";
   }
   if (canEnterChapterExecution(task)) {
-    return "进入章节执行";
+    return i18next.t("dict.gen_98b5f8b5");
   }
   if (task) {
-    return "查看推进状态";
+    return i18next.t("dict.gen_ffc75805");
   }
-  return "编辑小说";
+  return i18next.t("dict.gen_699b4b33");
 }
 
 export function getProjectAssetRows(novel: NovelListItem): Array<{
@@ -218,22 +219,22 @@ export function getProjectAssetRows(novel: NovelListItem): Array<{
 }> {
   if (novel.narrativeForm === "short_story") {
     return [
-      { label: "形式", value: "短篇" },
-      { label: "目标", value: `${(novel.targetWordCount ?? 0).toLocaleString()} 字` },
-      { label: "正文", value: getNovelWorkflowTask(novel)?.status === "succeeded" ? "已完成" : "生成中", tone: "info" },
-      { label: "来源", value: novel.derivedFromNovelId ? "派生作品" : "原创" },
+      { label: i18next.t("novels.novelListFilterBar.gqul"), value: i18next.t("novels.novelListFilterBar.l2t6") },
+      { label: i18next.t("dict.gen_73e82552"), value: i18next.t("novels.chapterEditorSidebar.izeb8n", { val1: ((novel.targetWordCount ?? 0).toLocaleString()) }) },
+      { label: i18next.t("dict.gen_58378f0d"), value: getNovelWorkflowTask(novel)?.status === "succeeded" ? "已完成" : "生成中", tone: "info" },
+      { label: i18next.t("dict.gen_26ca20b1"), value: novel.derivedFromNovelId ? "派生作品" : "原创" },
     ];
   }
   return [
-    { label: "章节", value: String(novel._count.chapters) },
-    { label: "角色", value: String(novel._count.characters) },
+    { label: i18next.t("dict.gen_9290b644"), value: String(novel._count.chapters) },
+    { label: i18next.t("dict.gen_464f3d4e"), value: String(novel._count.characters) },
     {
-      label: "世界观",
+      label: i18next.t("dict.gen_cfb83c02"),
       value: novel.world?.name ?? "未绑定",
       tone: novel.world?.name ? "neutral" : "warning",
     },
     {
-      label: "资源",
+      label: i18next.t("dict.gen_eee83a92"),
       value: `${novel.resourceReadyScore ?? 0}/100`,
       tone: (novel.resourceReadyScore ?? 0) >= 60 ? "success" : "warning",
     },

@@ -1,3 +1,4 @@
+import i18next from "i18next";
 import type { ApiResponse, CreativeHubStreamFrame } from "@ai-novel/shared/types/api";
 import type {
   CreativeHubMessage,
@@ -12,7 +13,7 @@ import { apiClient } from "./client";
 function ensureThreadId(threadId: string): string {
   const normalized = threadId.trim();
   if (!normalized) {
-    throw new Error("创作中枢线程不存在，请先创建线程。");
+    throw new Error(i18next.t("dict.gen_15eb128e"));
   }
   return normalized;
 }
@@ -110,7 +111,7 @@ export async function* streamCreativeHubRun(
   });
 
   if (!response.ok || !response.body) {
-    throw new Error(`创作中枢请求失败，状态码 ${response.status}`);
+    throw new Error(i18next.t("api.creativeHub.phhbzl", { val1: response.status }));
   }
 
   const reader = response.body.getReader();

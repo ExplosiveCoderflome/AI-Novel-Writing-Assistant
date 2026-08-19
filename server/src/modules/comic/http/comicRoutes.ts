@@ -9,6 +9,7 @@ import { ComicPanelScriptService } from "../../../services/comic/ComicPanelScrip
 import { comicPanelImageService } from "../../../services/comic/ComicPanelImageService";
 import { comicBubbleLayoutService } from "../../../services/comic/ComicBubbleLayoutService";
 import { comicExportService } from "../../../services/comic/ComicExportService";
+import { comicMotionService } from "../../../services/comic/ComicMotionService";
 import { comicCharacterImageService } from "../../../services/comic/ComicCharacterImageService";
 import { comicBatchOrchestrator } from "../../../services/comic/ComicBatchOrchestrator";
 import { comicFactService } from "../../../services/comic/ComicFactService";
@@ -525,7 +526,7 @@ router.get("/character-images/:charId/sheet", validate({ params: charIdParams })
       return;
     }
     res.setHeader("Content-Type", file.mimeType);
-    res.setHeader("Cache-Control", "public, max-age=86400");
+    res.setHeader("Cache-Control", "no-cache, must-revalidate");
     res.send(await import("fs/promises").then((fs) => fs.readFile(file.filePath)));
   } catch (err) { next(err); }
 });
@@ -539,7 +540,7 @@ router.get("/character-images/:charId/expressions", validate({ params: charIdPar
       return;
     }
     res.setHeader("Content-Type", file.mimeType);
-    res.setHeader("Cache-Control", "public, max-age=86400");
+    res.setHeader("Cache-Control", "no-cache, must-revalidate");
     res.send(await import("fs/promises").then((fs) => fs.readFile(file.filePath)));
   } catch (err) { next(err); }
 });
@@ -553,7 +554,7 @@ router.get("/character-images/:charId/face", validate({ params: charIdParams }),
       return;
     }
     res.setHeader("Content-Type", file.mimeType);
-    res.setHeader("Cache-Control", "public, max-age=86400");
+    res.setHeader("Cache-Control", "no-cache, must-revalidate");
     res.send(await import("fs/promises").then((fs) => fs.readFile(file.filePath)));
   } catch (err) { next(err); }
 });
@@ -568,7 +569,7 @@ router.get("/character-images/:charId/sheet/v:version", validate({ params: charS
       return;
     }
     res.setHeader("Content-Type", file.mimeType);
-    res.setHeader("Cache-Control", "public, max-age=86400");
+    res.setHeader("Cache-Control", "no-cache, must-revalidate");
     res.send(await import("fs/promises").then((fs) => fs.readFile(file.filePath)));
   } catch (err) { next(err); }
 });
@@ -633,7 +634,7 @@ router.get("/panel-images/:panelId/panel", validate({ params: panelIdParams }), 
     }
     const mimeMap: Record<string, string> = { png: "image/png", jpg: "image/jpeg", webp: "image/webp" };
     res.setHeader("Content-Type", mimeMap[file.ext] ?? "image/png");
-    res.setHeader("Cache-Control", "public, max-age=86400");
+    res.setHeader("Cache-Control", "no-cache, must-revalidate");
     res.send(file.buffer);
   } catch (err) { next(err); }
 });
@@ -672,7 +673,7 @@ router.get("/panel-images/:panelId/lettered", validate({ params: panelIdParams }
       return;
     }
     res.setHeader("Content-Type", "image/png");
-    res.setHeader("Cache-Control", "public, max-age=86400");
+    res.setHeader("Cache-Control", "no-cache, must-revalidate");
     res.send(buf);
   } catch (err) { next(err); }
 });
@@ -743,6 +744,30 @@ router.get(
       res.setHeader("Content-Type", mimeMap[file.ext] ?? "application/octet-stream");
       res.setHeader("Content-Disposition", `attachment; filename="${filename}"`);
       res.send(file.buffer);
+    } catch (err) { next(err); }
+  },
+);
+
+router.post(
+  "/episodes/:episodeId/motion/script",
+  validate({ params: episodeIdParams }),
+  async (req, res, next) => {
+    try {
+      const { episodeId } = req.params as z.infer<typeof episodeIdParams>;
+      await comicMotionService.generateEpisodeMotionScript(episodeId, true);
+      res.json({ success: true, message: "Comic episode motion script generated." });
+    } catch (err) { next(err); }
+  },
+);
+
+router.post(
+  "/episodes/:episodeId/motion/synthesize",
+  validate({ params: episodeIdParams }),
+  async (req, res, next) => {
+    try {
+      const { episodeId } = req.params as z.infer<typeof episodeIdParams>;
+      const data = await comicMotionService.synthesizeEpisodeVideo(episodeId);
+      res.json({ success: true, data } satisfies ApiResponse<typeof data>);
     } catch (err) { next(err); }
   },
 );
@@ -948,7 +973,7 @@ router.get("/character-assets/:assetId/image", validate({ params: assetIdParams 
     const { assetId } = req.params as z.infer<typeof assetIdParams>;
     const { filePath, mimeType } = await comicCharacterAssetService.serveAssetImage(assetId);
     res.setHeader("Content-Type", mimeType);
-    res.setHeader("Cache-Control", "public, max-age=86400");
+    res.setHeader("Cache-Control", "no-cache, must-revalidate");
     const { createReadStream } = await import("fs");
     createReadStream(filePath).pipe(res);
   } catch (err) { next(err); }
@@ -1062,7 +1087,7 @@ router.get("/scenes/:sceneId/image", validate({ params: sceneIdParams }), async 
     const { sceneId } = req.params as z.infer<typeof sceneIdParams>;
     const { filePath, mimeType } = await comicSceneService.serveSceneImage(sceneId);
     res.setHeader("Content-Type", mimeType);
-    res.setHeader("Cache-Control", "public, max-age=86400");
+    res.setHeader("Cache-Control", "no-cache, must-revalidate");
     const { createReadStream } = await import("fs");
     createReadStream(filePath).pipe(res);
   } catch (err) { next(err); }

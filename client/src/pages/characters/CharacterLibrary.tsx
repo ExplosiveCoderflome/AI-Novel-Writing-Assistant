@@ -1,4 +1,6 @@
+import i18next from "i18next";
 import { useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { useMutation, useQueries, useQuery, useQueryClient } from "@tanstack/react-query";
 import type { ImageAsset } from "@ai-novel/shared/types/image";
 import type { BaseCharacter } from "@ai-novel/shared/types/novel";
@@ -24,6 +26,7 @@ import { CharacterImageDialog } from "./components/CharacterImageDialog";
 type EditableBaseCharacter = Omit<BaseCharacter, "id" | "createdAt" | "updatedAt">;
 
 export default function CharacterLibrary() {
+  const { t, i18n } = useTranslation();
   const queryClient = useQueryClient();
   const [imageDialogOpen, setImageDialogOpen] = useState(false);
   const [selectedImageCharacter, setSelectedImageCharacter] = useState<BaseCharacter | null>(null);
@@ -153,7 +156,7 @@ export default function CharacterLibrary() {
   };
 
   const handleDeleteCharacter = (character: BaseCharacter) => {
-    const confirmed = window.confirm(`确认删除角色「${character.name}」？此操作不可恢复。`);
+    const confirmed = window.confirm(i18next.t("characters.characterLibrary.mi8kfe", { val1: character.name }));
     if (!confirmed) {
       return;
     }
@@ -165,11 +168,11 @@ export default function CharacterLibrary() {
       <AssetLibraryHeader
         icon={UsersRound}
         context="跨小说复用资产"
-        title="基础角色库"
-        description="把常用角色原型、核心动机和形象资料沉淀为可复用资产。创建小说或完善人物时，可以让 AI 直接读取这些角色基础。"
+        title={i18next.t("sidebar.baseCharacters")}
+        description={i18next.t("characters.characterLibrary.6dywbi")}
         actions={(
           <>
-            <OpenInCreativeHubButton bindings={{}} label="带着角色库继续创作" />
+            <OpenInCreativeHubButton bindings={{}} label={i18next.t("characters.characterLibrary.tjo2sg")} />
             <CharacterCreateDialog />
           </>
         )}
@@ -179,7 +182,7 @@ export default function CharacterLibrary() {
         items={[
           {
             key: "characters",
-            label: "可复用角色",
+            label: i18next.t("characters.characterLibrary.f8yn5i"),
             value: characterListQuery.isPending || characterListQuery.isError ? "—" : characters.length,
             detail: characterListQuery.isPending
               ? "正在读取角色资产"
@@ -195,16 +198,16 @@ export default function CharacterLibrary() {
           },
           {
             key: "categories",
-            label: "角色类型",
+            label: i18next.t("characters.characterLibrary.hxhwsw"),
             value: characterListQuery.isPending || characterListQuery.isError ? "—" : categoryCount,
             detail: "按主角、配角等角色定位整理",
             icon: UsersRound,
           },
           {
             key: "images",
-            label: "已有形象资料",
+            label: i18next.t("characters.characterLibrary.bef0h7"),
             value: characterListQuery.isPending || characterListQuery.isError ? "—" : characterWithImageCount,
-            detail: "至少保存一张角色形象图",
+            detail: i18next.t("characters.characterLibrary.p285eu"),
             icon: ImageIcon,
             tone: characterListQuery.isPending || characterListQuery.isError
               ? "neutral"
@@ -212,7 +215,7 @@ export default function CharacterLibrary() {
           },
           {
             key: "incomplete",
-            label: "待补核心资料",
+            label: i18next.t("characters.characterLibrary.lkrie8"),
             value: characterListQuery.isPending || characterListQuery.isError ? "—" : incompleteCharacterCount,
             detail: "缺少性格、背景或成长轨迹",
             icon: CircleAlert,
@@ -243,7 +246,7 @@ export default function CharacterLibrary() {
             : characters.length === 0
               ? "从一个主角开始即可。先写清目标、弱点和成长方向，AI 会更容易生成有推动力的人物。"
               : incompleteCharacterCount > 0
-                ? `有 ${incompleteCharacterCount} 个角色缺少核心资料。补齐后，章节规划和人物对话会获得更稳定的依据。`
+                ? i18next.t("characters.characterLibrary.rwrih2", { val1: incompleteCharacterCount })
                 : "你可以带着整个角色库进入创作中枢，或为单个角色继续完善形象和对话。"}
         tone={characterListQuery.isError
           ? "danger"
@@ -253,9 +256,7 @@ export default function CharacterLibrary() {
               ? "warning"
               : "success"}
         action={characterListQuery.isError ? (
-          <Button type="button" size="sm" variant="outline" onClick={() => void characterListQuery.refetch()}>
-            重新加载
-          </Button>
+          <Button type="button" size="sm" variant="outline" onClick={() => void characterListQuery.refetch()}>{i18next.t("common.retry")}</Button>
         ) : undefined}
       />
 
@@ -303,27 +304,25 @@ export default function CharacterLibrary() {
       ) : null}
 
       <AssetLibrarySection
-        title="角色资产"
-        description="先维护能影响剧情选择的核心信息；形象图和扩展资料可以在需要时继续补充。"
+        title={i18next.t("dict.gen_88afed0d")}
+        description={i18next.t("characters.characterLibrary.iq0ve6")}
       >
         <div className="space-y-3">
           {characterListQuery.isLoading ? (
             <AssetLibraryEmptyState
               icon={UsersRound}
-              title="正在整理角色资产"
-              description="角色列表与形象资料加载完成后会显示在这里。"
+              title={i18next.t("characters.characterLibrary.vd2hmu")}
+              description={i18next.t("characters.characterLibrary.pxbein")}
             />
           ) : null}
 
           {characterListQuery.isError ? (
             <AssetLibraryEmptyState
               icon={CircleAlert}
-              title="角色库暂时无法加载"
-              description="现有角色不会受到影响。可以重新加载列表后继续。"
+              title={i18next.t("characters.characterLibrary.yt9qyh")}
+              description={i18next.t("characters.characterLibrary.k1xmbo")}
               action={(
-                <Button type="button" variant="outline" onClick={() => void characterListQuery.refetch()}>
-                  重新加载
-                </Button>
+                <Button type="button" variant="outline" onClick={() => void characterListQuery.refetch()}>{i18next.t("common.retry")}</Button>
               )}
             />
           ) : null}
@@ -348,7 +347,7 @@ export default function CharacterLibrary() {
                   extraActions={(
                     <OpenInCreativeHubButton
                       bindings={{ baseCharacterId: character.id }}
-                      label="带着角色继续"
+                      label={i18next.t("dict.gen_fd38c170")}
                     />
                   )}
                 />
@@ -356,8 +355,8 @@ export default function CharacterLibrary() {
               {characters.length === 0 ? (
                 <AssetLibraryEmptyState
                   icon={UsersRound}
-                  title="还没有基础角色"
-                  description="使用页面右上角的“创建角色”，先建立一个目标明确、弱点清晰的主角。"
+                  title={i18next.t("characters.characterLibrary.vf993a")}
+                  description={i18next.t("characters.characterLibrary.i1qmve")}
                 />
               ) : null}
             </>

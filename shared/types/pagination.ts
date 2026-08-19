@@ -1,2 +1,1 @@
-export const NOVEL_LIST_PAGE_LIMIT_MAX = 100;
-export const NOVEL_LIST_PAGE_LIMIT_DEFAULT = 10;
+export * from "./common/pagination.js";

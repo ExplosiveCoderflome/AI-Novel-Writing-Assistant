@@ -1,3 +1,4 @@
+import i18next from "i18next";
 import { useEffect, useMemo, useState } from "react";
 import type { Chapter, ChapterStatus } from "@ai-novel/shared/types/novel";
 import { useMutation, useQuery } from "@tanstack/react-query";
@@ -23,13 +24,13 @@ function formatCount(value: number): string {
 
 function formatChapterStatus(status?: ChapterStatus | null): string {
   switch (status) {
-    case "completed": return "正文完成";
-    case "pending_review": return "待审校";
-    case "needs_repair": return "待修复";
-    case "generating": return "生成中";
-    case "pending_generation": return "待生成";
-    case "unplanned": return "未规划";
-    default: return "未标记";
+    case "completed": return i18next.t("dict.gen_84af95a7");
+    case "pending_review": return i18next.t("dict.gen_420b5a47");
+    case "needs_repair": return i18next.t("dict.gen_a7a05e79");
+    case "generating": return i18next.t("dict.gen_1ae3a984");
+    case "pending_generation": return i18next.t("dict.gen_418dde27");
+    case "unplanned": return i18next.t("dict.gen_16fe50f9");
+    default: return i18next.t("dict.gen_120e6f23");
   }
 }
 
@@ -64,7 +65,7 @@ function downloadBlob(blob: Blob, fileName: string): void {
 }
 
 function safeFileNamePart(value: string): string {
-  return value.replace(/[\\/:*?"<>|]/g, "-").trim() || "小说";
+  return value.replace(/[\\/:*?"<>|]/g, "-").trim() || "novel";
 }
 
 export default function NovelPreview() {
@@ -101,9 +102,9 @@ export default function NovelPreview() {
     mutationFn: () => downloadNovelExport(id, "txt", "full", novel?.title),
     onSuccess: ({ blob, fileName }) => {
       downloadBlob(blob, fileName);
-      toast.success("整本正文下载已开始。");
+      toast.success(i18next.t("novels.novelPreview.3n2e4t"));
     },
-    onError: (error) => toast.error(error instanceof Error ? error.message : "整本正文下载失败。"),
+    onError: (error) => toast.error(error instanceof Error ? error.message : i18next.t("novels.novelPreview.918jds")),
   });
 
   useEffect(() => {
@@ -127,43 +128,44 @@ export default function NovelPreview() {
   };
 
   const handleCopy = async () => {
-    if (!activeContent) return toast.error("当前章节还没有正文。");
+    if (!activeContent) return toast.error(i18next.t("novels.novelPreview.tn10py"));
     try {
       await copyText(activeContent);
       setCopied(true);
-      toast.success("正文已复制。");
+      toast.success(i18next.t("novels.novelPreview.mapwr"));
       window.setTimeout(() => setCopied(false), 1600);
     } catch {
-      toast.error("复制失败，请手动选择正文复制。");
+      toast.error(i18next.t("novels.novelPreview.g3fewg"));
     }
   };
 
   const handleDownloadChapter = () => {
-    if (!activeChapter || !activeContent) return toast.error("当前章节还没有正文。");
-    const title = safeFileNamePart(novel?.title ?? "小说");
+    if (!activeChapter || !activeContent) return toast.error(i18next.t("novels.novelPreview.tn10py"));
+    const title = safeFileNamePart(novel?.title ?? "novel");
     const chapterTitle = activeChapter.title?.trim() ? safeFileNamePart(activeChapter.title) : "";
+    const chapterHeading = `Chapter ${activeChapter.order}`;
     downloadBlob(
-      new Blob(["\uFEFF", `第 ${activeChapter.order} 章${chapterTitle ? ` ${chapterTitle}` : ""}\n\n${activeContent}`], { type: "text/plain;charset=utf-8" }),
-      `${title}-第${activeChapter.order}章${chapterTitle ? `-${chapterTitle}` : ""}.txt`,
+      new Blob(["\uFEFF", `${chapterHeading}${chapterTitle ? ` ${chapterTitle}` : ""}\n\n${activeContent}`], { type: "text/plain;charset=utf-8" }),
+      `${title}-ch${activeChapter.order}${chapterTitle ? `-${chapterTitle}` : ""}.txt`,
     );
-    toast.success("本章正文下载已开始。");
+    toast.success(i18next.t("novels.novelPreview.ae7dgv"));
   };
 
   if (!id) {
-    return <div className="flex min-h-full items-center justify-center"><Button asChild><Link to="/novels">返回小说列表</Link></Button></div>;
+    return <div className="flex min-h-full items-center justify-center"><Button asChild><Link to="/novels">{i18next.t("dict.gen_9c469174")}</Link></Button></div>;
   }
 
   const isLoading = novelQuery.isPending || chaptersQuery.isPending;
   const isError = novelQuery.isError || chaptersQuery.isError;
 
   if (isLoading) {
-    return <div className="flex min-h-full items-center justify-center text-sm text-muted-foreground">正在打开作品...</div>;
+    return <div className="flex min-h-full items-center justify-center text-sm text-muted-foreground">{i18next.t("novels.novelPreview.ribn0p")}</div>;
   }
   if (isError) {
     return (
       <div className="flex min-h-full flex-col items-center justify-center gap-4 text-center">
-        <p className="text-sm text-muted-foreground">当前无法打开这本作品。</p>
-        <Button onClick={() => { void novelQuery.refetch(); void chaptersQuery.refetch(); }}>重新加载</Button>
+        <p className="text-sm text-muted-foreground">{i18next.t("novels.novelPreview.dovj8y")}</p>
+        <Button onClick={() => { void novelQuery.refetch(); void chaptersQuery.refetch(); }}>{i18next.t("common.retry")}</Button>
       </div>
     );
   }
@@ -171,8 +173,8 @@ export default function NovelPreview() {
     return (
       <div className="flex min-h-full flex-col items-center justify-center gap-4 text-center">
         <BookOpen className="h-8 w-8 text-muted-foreground" aria-hidden="true" />
-        <p className="text-sm text-muted-foreground">这本作品还没有可阅读的章节。</p>
-        <Button asChild><Link to={`/novels/${id}/edit`}>进入工作区</Link></Button>
+        <p className="text-sm text-muted-foreground">{i18next.t("novels.novelPreview.s74uu1")}</p>
+        <Button asChild><Link to={`/novels/${id}/edit`}>{i18next.t("novels.novelPreview.4vsrtl")}</Link></Button>
       </div>
     );
   }
@@ -183,26 +185,26 @@ export default function NovelPreview() {
         <div className={cn("mx-auto flex h-16 max-w-5xl items-center justify-between gap-4 px-5 transition-[padding]", showChapters && "lg:pl-[22.5rem]")}>
           <div className="flex items-center gap-1">
             {!showChapters ? (
-              <Button type="button" variant="ghost" size="sm" className="-ml-2 text-muted-foreground hover:text-foreground" onClick={() => setShowChapters(true)} title="打开目录" aria-label="打开目录">
+              <Button type="button" variant="ghost" size="sm" className="-ml-2 text-muted-foreground hover:text-foreground" onClick={() => setShowChapters(true)} title={i18next.t("novels.novelPreview.csxzhw")} aria-label={i18next.t("novels.novelPreview.csxzhw")}>
                 <List className="h-4 w-4" />
               </Button>
             ) : null}
             <Button asChild variant="ghost" size="sm" className="text-muted-foreground hover:text-foreground">
-              <Link to="/novels" aria-label="返回书架"><ArrowLeft className="h-4 w-4" /></Link>
+              <Link to="/novels" aria-label={i18next.t("novels.novelPreview.ii6fbu")}><ArrowLeft className="h-4 w-4" /></Link>
             </Button>
           </div>
           <div className="min-w-0 flex-1 text-center">
             <div className="truncate text-sm font-medium">{novel?.title ?? "小说预览"}</div>
-            <div className="mt-0.5 text-xs text-muted-foreground">{activeChapter ? `第 ${activeChapter.order} 章` : "阅读"}</div>
+            <div className="mt-0.5 text-xs text-muted-foreground">{activeChapter ? i18next.t("autoDirector.directorRuntimeProjectionCard.vms598", { val1: (activeChapter.order) }) : "阅读"}</div>
           </div>
           <div className="flex items-center gap-1">
-            <Button type="button" variant="ghost" size="sm" className="text-muted-foreground hover:text-foreground" onClick={handleDownloadChapter} disabled={!activeContent} title="下载本章" aria-label="下载本章">
-              <Download className="h-4 w-4" /><span className="ml-1.5 hidden xl:inline">本章</span>
+            <Button type="button" variant="ghost" size="sm" className="text-muted-foreground hover:text-foreground" onClick={handleDownloadChapter} disabled={!activeContent} title={i18next.t("novels.novelPreview.afvwxy")} aria-label={i18next.t("novels.novelPreview.afvwxy")}>
+              <Download className="h-4 w-4" /><span className="ml-1.5 hidden xl:inline">{i18next.t("dict.gen_071a68fb")}</span>
             </Button>
-            <Button type="button" variant="ghost" size="sm" className="text-muted-foreground hover:text-foreground" onClick={() => downloadFullMutation.mutate()} disabled={downloadFullMutation.isPending || generatedChapters.length === 0} title="下载整本" aria-label="下载整本">
-              <BookOpen className="h-4 w-4" /><span className="ml-1.5 hidden xl:inline">整本</span>
+            <Button type="button" variant="ghost" size="sm" className="text-muted-foreground hover:text-foreground" onClick={() => downloadFullMutation.mutate()} disabled={downloadFullMutation.isPending || generatedChapters.length === 0} title={i18next.t("novels.novelPreview.afviiy")} aria-label={i18next.t("novels.novelPreview.afviiy")}>
+              <BookOpen className="h-4 w-4" /><span className="ml-1.5 hidden xl:inline">{i18next.t("novels.novelPreview.htmg")}</span>
             </Button>
-            <Button asChild variant="ghost" size="sm" className="text-muted-foreground hover:text-foreground" title="打开工作区" aria-label="打开工作区">
+            <Button asChild variant="ghost" size="sm" className="text-muted-foreground hover:text-foreground" title={i18next.t("novels.novelPreview.td5162")} aria-label={i18next.t("novels.novelPreview.td5162")}>
               <Link to={`/novels/${id}/edit`}><Settings2 className="h-4 w-4" /></Link>
             </Button>
           </div>
@@ -228,7 +230,7 @@ export default function NovelPreview() {
             </Button>
             {activeChapter ? (
                 <Button asChild variant="ghost" size="sm" className="text-muted-foreground">
-                <Link to={`/novels/${id}/chapters/${activeChapter.id}`}><Edit3 className="mr-1.5 h-4 w-4" />编辑本章</Link>
+                <Link to={`/novels/${id}/chapters/${activeChapter.id}`}><Edit3 className="mr-1.5 h-4 w-4" />{i18next.t("dict.gen_21a7b9c5")}</Link>
               </Button>
             ) : null}
           </footer>
@@ -237,11 +239,11 @@ export default function NovelPreview() {
 
       {showChapters ? (
         <>
-          <button type="button" aria-label="关闭目录" className="fixed inset-0 z-30 bg-foreground/20 lg:hidden" onClick={() => setShowChapters(false)} />
+          <button type="button" aria-label={i18next.t("novels.novelPreview.awd6kh")} className="fixed inset-0 z-30 bg-foreground/20 lg:hidden" onClick={() => setShowChapters(false)} />
           <aside className="fixed inset-y-0 left-0 z-40 flex w-[min(360px,88vw)] flex-col border-r border-border bg-background shadow-xl lg:shadow-none">
             <div className="flex items-center justify-between border-b border-border/70 px-5 py-4">
-              <div><div className="font-medium">目录</div><div className="mt-1 text-xs text-muted-foreground">{generatedChapters.length}/{chapters.length} 章 · {formatCount(totalWordCount)} 字</div></div>
-              <Button type="button" variant="ghost" size="sm" onClick={() => setShowChapters(false)} title="关闭目录" aria-label="关闭目录"><X className="h-4 w-4" /></Button>
+              <div><div className="font-medium">{i18next.t("novels.novelPreview.kr3b")}</div><div className="mt-1 text-xs text-muted-foreground">{generatedChapters.length}/{chapters.length} 章 · {formatCount(totalWordCount)} 字</div></div>
+              <Button type="button" variant="ghost" size="sm" onClick={() => setShowChapters(false)} title={i18next.t("novels.novelPreview.awd6kh")} aria-label={i18next.t("novels.novelPreview.awd6kh")}><X className="h-4 w-4" /></Button>
             </div>
             <nav className="min-h-0 flex-1 space-y-1 overflow-y-auto p-3">
               {chapters.map((chapter) => {

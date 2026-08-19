@@ -1,3 +1,5 @@
+import { useTranslation } from "react-i18next";
+import i18next from "i18next";
 import { useMemo, useState } from "react";
 import { GitBranch, History, RotateCcw, Save, ShieldCheck } from "lucide-react";
 import type {
@@ -28,7 +30,7 @@ function formatDiagnosticKeys(
   keys: string[],
   kind: Extract<PromptTemplateTokenKind, "context" | "input" | "slot">,
 ) {
-  return keys.map((key) => labelTemplateToken({ kind, key })).join("、") || "无";
+  return keys.map((key) => labelTemplateToken({ kind, key })).join("、") || i18next.t("dict.gen_d81bb206");
 }
 
 function VersionRow(props: {
@@ -44,7 +46,7 @@ function VersionRow(props: {
       <div className="min-w-0">
         <div className="flex flex-wrap items-center gap-2">
           <span className="font-semibold text-[#25443f]">v{props.version.versionNo}</span>
-          {active ? <Badge className="bg-[#0f766e] text-white hover:bg-[#0f766e]">启用中</Badge> : null}
+          {active ? <Badge className="bg-[#0f766e] text-white hover:bg-[#0f766e]">{i18next.t("dict.gen_c16e2ef8")}</Badge> : null}
           <span className="font-mono text-[11px] text-muted-foreground">{props.version.compiledHash}</span>
         </div>
         <div className="mt-1 text-xs text-muted-foreground">{formatDate(props.version.createdAt)}</div>
@@ -53,9 +55,7 @@ function VersionRow(props: {
         ) : null}
       </div>
       <div className="flex flex-wrap gap-2">
-        <Button type="button" variant="outline" size="sm" onClick={() => props.onLoad(props.version)}>
-          查看
-        </Button>
+        <Button type="button" variant="outline" size="sm" onClick={() => props.onLoad(props.version)}>{i18next.t("autoDirector.aICockpit.ibpi")}</Button>
         <Button
           type="button"
           variant="outline"
@@ -63,9 +63,7 @@ function VersionRow(props: {
           onClick={() => props.onActivate(props.version.id)}
           disabled={props.disabled || active}
           className="border-[#b8d9d0] text-[#0f5f59]"
-        >
-          回滚
-        </Button>
+        >{i18next.t("promptWorkbench.advancedPromptTemplateEditor.fdto")}</Button>
       </div>
     </div>
   );
@@ -79,6 +77,7 @@ export function AdvancedPromptTemplateEditor(props: {
   testRunError?: string | null;
   disabled?: boolean;
 }) {
+  const { t } = useTranslation();
   const {
     disabled,
     preview,
@@ -92,7 +91,7 @@ export function AdvancedPromptTemplateEditor(props: {
   const tokenItems = templateState.references?.items ?? [];
   const templateDiagnostics = preview?.diagnostics.template?.diagnostics;
   const view = templateState.view;
-  const modeLabel = view?.mode === "custom" ? "本书自定义" : "官方模板";
+  const modeLabel = view?.mode === "custom" ? i18next.t("dict.gen_d328cfb5") : i18next.t("dict.gen_9ca25cc5");
   const isBusy = templateState.saveMutation.isPending
     || templateState.restoreMutation.isPending
     || templateState.activateMutation.isPending;
@@ -107,9 +106,7 @@ export function AdvancedPromptTemplateEditor(props: {
 
   if (!templateState.enabled) {
     return (
-      <div className="rounded-md border border-dashed border-[#cbdad6] bg-white/75 p-5 text-sm text-muted-foreground">
-        选择正文写作提示词、本书范围和具体小说后可编辑高级模板。
-      </div>
+      <div className="rounded-md border border-dashed border-[#cbdad6] bg-white/75 p-5 text-sm text-muted-foreground">{i18next.t("promptWorkbench.advancedPromptTemplateEditor.wcqvus")}</div>
     );
   }
 
@@ -134,9 +131,7 @@ export function AdvancedPromptTemplateEditor(props: {
                 {view?.basePromptVersion ?? "v5"}
               </span>
             </div>
-            <p className="mt-2 text-sm text-muted-foreground">
-              高级模板会影响本书正文生成；必需上下文缺失时生成会停止。
-            </p>
+            <p className="mt-2 text-sm text-muted-foreground">{i18next.t("promptWorkbench.advancedPromptTemplateEditor.tv05t6")}</p>
           </div>
           <div className="flex flex-wrap gap-2">
             <Button
@@ -146,25 +141,21 @@ export function AdvancedPromptTemplateEditor(props: {
               disabled={disabled || isBusy || view?.mode !== "custom"}
               className="border-[#b8d9d0] text-[#0f5f59]"
             >
-              <ShieldCheck className="mr-2 h-4 w-4" />
-              恢复官方模板
-            </Button>
+              <ShieldCheck className="mr-2 h-4 w-4" />{i18next.t("dict.gen_36018f02")}</Button>
             <Button
               type="button"
               onClick={() => templateState.saveMutation.mutate()}
               disabled={disabled || isBusy || !templateState.isDirty}
               className="bg-[#0f766e] text-white hover:bg-[#0b5f59]"
             >
-              <Save className="mr-2 h-4 w-4" />
-              保存为新版本
-            </Button>
+              <Save className="mr-2 h-4 w-4" />{i18next.t("dict.gen_fd528847")}</Button>
           </div>
         </div>
       </div>
 
       <VisualTemplateEditor
         role="system"
-        label="System 模板"
+        label={i18next.t("dict.gen_31f0b930")}
         value={templateState.systemContent}
         disabled={disabled || isBusy}
         textareaRef={templateState.systemRef}
@@ -182,7 +173,7 @@ export function AdvancedPromptTemplateEditor(props: {
 
       <VisualTemplateEditor
         role="human"
-        label="Human 模板"
+        label={i18next.t("dict.gen_87e01c13")}
         value={templateState.humanContent}
         disabled={disabled || isBusy}
         textareaRef={templateState.humanRef}
@@ -199,14 +190,12 @@ export function AdvancedPromptTemplateEditor(props: {
       />
 
       <div className="rounded-md border border-[#d7e4e0] bg-white p-4">
-        <label className="text-sm font-semibold text-[#25443f]" htmlFor="prompt-template-notes">
-          版本说明
-        </label>
+        <label className="text-sm font-semibold text-[#25443f]" htmlFor="prompt-template-notes">{i18next.t("promptWorkbench.advancedPromptTemplateEditor.eup27y")}</label>
         <Input
           id="prompt-template-notes"
           value={templateState.notes}
           onChange={(event) => templateState.setNotes(event.target.value)}
-          placeholder="说明本次模板调整目标"
+          placeholder={i18next.t("dict.gen_dc7b50a7")}
           className="mt-2 border-[#cbdad6]"
           disabled={disabled || isBusy}
         />
@@ -215,14 +204,12 @@ export function AdvancedPromptTemplateEditor(props: {
       {templateDiagnostics ? (
         <div className="rounded-md border border-[#c8d8f0] bg-[#f5f8ff] p-4">
           <div className="mb-2 flex items-center gap-2 text-sm font-semibold text-[#344d7a]">
-            <GitBranch className="h-4 w-4" />
-            预览注入结果
-          </div>
+            <GitBranch className="h-4 w-4" />{i18next.t("promptWorkbench.advancedPromptTemplateEditor.2u1ooa")}</div>
           <div className="grid gap-2 text-sm text-[#52606d] md:grid-cols-2">
-            <div>显式上下文：{formatDiagnosticKeys(templateDiagnostics.referencedContextGroups, "context")}</div>
-            <div>保底追加：{formatDiagnosticKeys(templateDiagnostics.fallbackRequiredGroups, "context")}</div>
-            <div>运行变量：{formatDiagnosticKeys(templateDiagnostics.referencedInputFields, "input")}</div>
-            <div>槽位引用：{formatDiagnosticKeys(templateDiagnostics.referencedSlotKeys, "slot")}</div>
+            <div>{i18next.t("dict.gen_ee92a103")}</div>
+            <div>{i18next.t("dict.gen_d181d9be")}</div>
+            <div>{i18next.t("dict.gen_885594d5")}</div>
+            <div>{i18next.t("dict.gen_3b9d0252")}</div>
           </div>
         </div>
       ) : null}
@@ -235,9 +222,7 @@ export function AdvancedPromptTemplateEditor(props: {
 
       {previewMessages.length > 0 ? (
         <div className="rounded-md border border-[#d7e4e0] bg-white">
-          <div className="border-b border-[#e1ebe8] px-4 py-3 text-sm font-semibold text-[#25443f]">
-            最终 Messages
-          </div>
+          <div className="border-b border-[#e1ebe8] px-4 py-3 text-sm font-semibold text-[#25443f]">{i18next.t("promptWorkbench.advancedPromptTemplateEditor.w52oqs")}</div>
           <div className="space-y-3 p-4">
             {previewMessages.map((message, index) => (
               <div key={`${message.role}:${index}`} className="rounded-md bg-[#f7faf9] p-3">
@@ -253,9 +238,7 @@ export function AdvancedPromptTemplateEditor(props: {
 
       <div className="rounded-md border border-[#d7e4e0] bg-[#fbfdfb] p-4">
         <div className="mb-3 flex items-center gap-2 text-sm font-semibold text-[#25443f]">
-          <History className="h-4 w-4" />
-          版本历史
-        </div>
+          <History className="h-4 w-4" />{i18next.t("home.versionHistory")}</div>
         {view?.versions.length ? (
           <div className="space-y-2">
             {view.versions.map((version) => (
@@ -270,9 +253,7 @@ export function AdvancedPromptTemplateEditor(props: {
             ))}
           </div>
         ) : (
-          <div className="rounded-md border border-dashed border-[#cbdad6] bg-white/75 p-4 text-sm text-muted-foreground">
-            保存自定义模板后会生成版本历史。
-          </div>
+          <div className="rounded-md border border-dashed border-[#cbdad6] bg-white/75 p-4 text-sm text-muted-foreground">{i18next.t("promptWorkbench.advancedPromptTemplateEditor.7pqbtz")}</div>
         )}
       </div>
 
@@ -284,9 +265,7 @@ export function AdvancedPromptTemplateEditor(props: {
           disabled={!templateState.isDirty || isBusy}
           className="text-[#52606d] hover:bg-[#eef4ff] hover:text-[#344d7a]"
         >
-          <RotateCcw className="mr-2 h-4 w-4" />
-          放弃未保存修改
-        </Button>
+          <RotateCcw className="mr-2 h-4 w-4" />{i18next.t("promptWorkbench.advancedPromptTemplateEditor.s9wt79")}</Button>
       </div>
     </div>
   );

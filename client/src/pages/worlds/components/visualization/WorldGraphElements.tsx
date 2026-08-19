@@ -1,3 +1,4 @@
+import i18next from "i18next";
 import {
   BaseEdge,
   EdgeLabelRenderer,
@@ -47,11 +48,11 @@ export type WorldFlowEdge = Edge<WorldGraphEdgeData, "worldEdge">;
 
 const HANDLE_POSITIONS = [Position.Top, Position.Right, Position.Bottom, Position.Left];
 const NODE_TYPE_LABELS: Record<string, string> = {
-  state: "政权",
-  faction: "阵营",
-  race: "种族",
-  organization: "组织",
-  other: "其他势力",
+  state: i18next.t("worlds.worldGraphElements.hsdg"),
+  faction: i18next.t("dict.gen_42988d4b"),
+  race: i18next.t("dict.gen_003ad50b"),
+  organization: i18next.t("worlds.worldGraphElements.m9ab"),
+  other: i18next.t("worlds.worldGraphElements.alu0nw"),
 };
 
 function handleName(position: Position) {
@@ -65,10 +66,10 @@ export function WorldGraphNode(props: NodeProps<WorldFlowNode>) {
     ? graphNode.terrain || graphNode.regionType || "关键地点"
     : NODE_TYPE_LABELS[graphNode.type ?? "other"] ?? graphNode.type ?? "世界势力";
   const detailItems = [
-    `类型：${metaText}`,
+    i18next.t("worlds.worldGraphElements.jfaqqi", { val1: metaText }),
     graphNode.summary,
-    graphNode.storyRelevance ? `故事作用：${graphNode.storyRelevance}` : "",
-    graphNode.risk ? `风险：${graphNode.risk}` : "",
+    graphNode.storyRelevance ? i18next.t("novels.characterPanel.utils.wvdzh4", { val1: graphNode.storyRelevance }) : "",
+    graphNode.risk ? i18next.t("worlds.worldGraphElements.djdjrj", { val1: graphNode.risk }) : "",
   ].filter(Boolean);
 
   return (
@@ -185,7 +186,7 @@ export function WorldGraphEdge(props: EdgeProps<WorldFlowEdge>) {
                 event.stopPropagation();
                 data.onSelect(props.id);
               }}
-              aria-label={`${data.sourceLabel}与${data.targetLabel}：${data.graphEdge.relation}`}
+              aria-label={i18next.t("worlds.worldGraphElements.biq3tp", { val1: data.sourceLabel, val2: data.targetLabel, val3: data.graphEdge.relation })}
             >
               {data.shortLabel}
             </button>
@@ -217,7 +218,7 @@ export function WorldGraphEdge(props: EdgeProps<WorldFlowEdge>) {
                   ) : null}
                 </div>
               ) : null}
-              {data.detailPinned ? <div className="mt-2 text-[10px] text-muted-foreground">点击画布空白处收起</div> : null}
+              {data.detailPinned ? <div className="mt-2 text-[10px] text-muted-foreground">{i18next.t("worlds.worldGraphElements.1enlyg")}</div> : null}
             </div>
           ) : null}
         </div>

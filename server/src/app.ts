@@ -1,6 +1,10 @@
 import "dotenv/config";
+
+process.env.IS_MAIN_API = "true";
+
 import type { Server } from "node:http";
 import os from "node:os";
+import path from "node:path";
 import cors from "cors";
 import express from "express";
 import helmet from "helmet";
@@ -23,20 +27,22 @@ import creativeHubRouter from "./routes/creativeHub";
 import genreRouter from "./routes/genre";
 import healthRouter from "./routes/health";
 import imagesRouter from "./routes/images";
+import { localInferenceDaemonService } from "./services/image/local/LocalInferenceDaemonService";
 import knowledgeRouter from "./routes/knowledge";
 import llmRouter from "./routes/llm";
 import llmLiveRouter from "./platform/llm/live/http/llmLiveRoutes";
 import novelRouter from "./modules/novel/http/novel";
-import creationStudioRouter from "./modules/novel/creation-studio/http/creationStudioRoutes";
-import { shortStoryProductionService } from "./modules/novel/short-story/application/ShortStoryProductionService";
 import dramaRouter from "./modules/drama/http/dramaRoutes";
 import comicRouter from "./modules/comic/http/comicRoutes";
+import videoRouter from "./modules/video/http/videoRoutes";
 import novelDirectorRouter from "./services/novel/director/http/novelDirector";
 import novelExportRouter from "./modules/export/http/novelExport";
 import novelWorkflowsRouter from "./services/novel/director/http/novelWorkflows";
+import { evalRouter } from "./eval/http/evalRoutes";
 import promptWorkbenchRouter from "./routes/promptWorkbench";
 import ragRouter from "./routes/rag";
 import settingsAutoDirectorRouter from "./routes/settingsAutoDirector";
+import { creatorProfileRouter } from "./routes/creatorProfileRoutes";
 import settingsRouter from "./routes/settings";
 import styleEngineRouter from "./routes/styleEngine";
 import styleEngineExtractionRouter from "./routes/styleEngineExtraction";
@@ -84,6 +90,10 @@ function parseEnvFlag(value: string | undefined, defaultValue: boolean): boolean
 
 export function createApp() {
   getSharedNovelServices();
+  // 在后台异步拉起本地推理守护进程，不阻塞 HTTP 服务启动
+  localInferenceDaemonService.ensureDaemonStarted().catch((err) => {
+    console.warn("[LocalInferenceDaemon] 启动初始化警告:", err.message);
+  });
   const app = express();
   const jsonBodyLimit = process.env.API_JSON_LIMIT ?? "20mb";
   const corsOriginEnv = process.env.CORS_ORIGIN;
@@ -122,6 +132,7 @@ export function createApp() {
     return `${method} ${url} ${status} ${responseTime} ms - ${contentLength}${errorSuffix}`;
   }));
   app.use(express.json({ limit: jsonBodyLimit }));
+  app.use(express.static(path.join(__dirname, "../public")));
 
   app.use("/api/health", healthRouter);
   app.use("/api/agent-catalog", agentCatalogRouter);
@@ -136,12 +147,13 @@ export function createApp() {
   app.use("/api", styleEngineRouter);
   app.use("/api", styleEngineExtractionRouter);
   app.use("/api/novels", novelRouter);
-  app.use("/api/creation-studio", creationStudioRouter);
   app.use("/api/novels/director", novelDirectorRouter);
   app.use("/api/novel-workflows", novelWorkflowsRouter);
   app.use("/api/novels", novelExportRouter);
   app.use("/api/drama", dramaRouter);
   app.use("/api/comic", comicRouter);
+  app.use("/api/eval", evalRouter);
+  app.use("/api/video", videoRouter);
   app.use("/api/worlds", worldRouter);
   app.use("/api/rag", ragRouter);
   app.use("/api/base-characters", characterRouter);
@@ -157,6 +169,7 @@ export function createApp() {
   app.use("/api/settings/auto-director", settingsAutoDirectorRouter);
   app.use("/api/auto-director/channel-callbacks", autoDirectorChannelCallbacksRouter);
   app.use("/api/settings", settingsRouter);
+  app.use("/api/creator/profile", creatorProfileRouter);
   app.use("/api", onboardingRoutes);
   app.use("/api/astrology", astrologyRouter);
 
@@ -260,14 +273,18 @@ function initializeBackgroundServices(): BackgroundServicesHandle {
   ragServices.ragWorker.start();
   ragServices.ragRetrievalTraceRetention.start();
   novelSideEffectWorker.start();
-  const directorWorker = new DirectorWorker();
-  void directorWorker.start().catch((error) => {
-    console.error("[director.worker] unexpected stop", error);
-  });
+  
+  let directorWorker: DirectorWorker | null = null;
+  const disableInlineWorker = parseEnvFlag(process.env.DISABLE_INLINE_WORKER, false);
+  if (!disableInlineWorker) {
+    directorWorker = new DirectorWorker();
+    void directorWorker.start().catch((error) => {
+      console.error("[director.worker] unexpected stop", error);
+    });
+  } else {
+    console.log("[server] inline director worker is disabled (DISABLE_INLINE_WORKER=true).");
+  }
   const recoveryInitialization = recoveryTaskService.initializePendingRecoveries();
-  void shortStoryProductionService.recoverPending().catch((error) => {
-    console.warn("[short-story] failed to resume pending production.", error);
-  });
 
   void loadProviderApiKeys().catch((error) => {
     console.warn("数据库中的模型密钥加载失败，已回退到环境变量。", error);
@@ -296,7 +313,9 @@ function initializeBackgroundServices(): BackgroundServicesHandle {
 
   return {
     stop: async () => {
-      directorWorker.stop();
+      if (directorWorker) {
+        directorWorker.stop();
+      }
       novelSideEffectWorker.stop();
       ragServices.ragWorker.stop();
       ragServices.ragRetrievalTraceRetention.stop();

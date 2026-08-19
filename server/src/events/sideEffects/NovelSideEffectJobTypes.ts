@@ -2,7 +2,6 @@ export const NOVEL_SIDE_EFFECT_PAYLOAD_VERSION = 1;
 
 export const NOVEL_SIDE_EFFECT_JOB_TYPES = [
   "character.volumeRebuild",
-  "character.postDraftEnrichment",
   "novel.pipelineSnapshot",
   "payoff.bookContractSync",
 ] as const;
@@ -14,10 +13,6 @@ export type NovelSideEffectJobStatus = "pending" | "running" | "succeeded" | "fa
 export interface CharacterVolumeRebuildPayload {
   novelId: string;
   sourceType: "volume_projection";
-}
-
-export interface CharacterPostDraftEnrichmentPayload {
-  novelId: string;
 }
 
 export interface PipelineSnapshotPayload {
@@ -32,7 +27,6 @@ export interface BookContractPayoffSyncPayload {
 
 export type NovelSideEffectPayload =
   | CharacterVolumeRebuildPayload
-  | CharacterPostDraftEnrichmentPayload
   | PipelineSnapshotPayload
   | BookContractPayoffSyncPayload;
 

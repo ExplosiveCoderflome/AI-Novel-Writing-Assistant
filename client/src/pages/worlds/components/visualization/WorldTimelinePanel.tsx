@@ -1,3 +1,4 @@
+import i18next from "i18next";
 import { useState } from "react";
 import { ChevronRight, Clock3, Milestone } from "lucide-react";
 import FullscreenView from "@/components/common/FullscreenView";
@@ -18,7 +19,7 @@ function TimelineEventCard({ item, index }: { item: TimelineItem; index: number 
       <div className="flex items-center justify-between gap-3">
         <div className="inline-flex min-w-0 items-center gap-1.5 rounded-full bg-primary/8 px-2.5 py-1 text-xs font-semibold text-primary">
           <Clock3 className="h-3.5 w-3.5 shrink-0" />
-          <span className="truncate">{item.year || `阶段 ${index + 1}`}</span>
+          <span className="truncate">{item.year || i18next.t("worlds.worldTimelinePanel.z2zxm9", { val1: index + 1 })}</span>
         </div>
         <span className="shrink-0 text-[10px] tabular-nums text-muted-foreground">事件 {index + 1}</span>
       </div>
@@ -33,8 +34,8 @@ export default function WorldTimelinePanel({ items }: WorldTimelinePanelProps) {
 
   return (
     <FullscreenView
-      title={`世界时间线 · ${items.length} 个关键阶段`}
-      description="沿时间顺序阅读关键事件，观察世界局势、势力目标与冲突如何向前推进。"
+      title={i18next.t("worlds.worldTimelinePanel.ohum6q", { val1: items.length })}
+      description={i18next.t("worlds.worldTimelinePanel.hc29p3")}
       fullscreen={isFullscreen}
       onFullscreenChange={setIsFullscreen}
       toggleLabel="全屏查看时间线"
@@ -45,9 +46,7 @@ export default function WorldTimelinePanel({ items }: WorldTimelinePanelProps) {
       fullscreenBodyClassName="overflow-auto"
     >
       {items.length === 0 ? (
-        <div className="grid min-h-64 place-items-center px-6 text-center text-sm text-muted-foreground">
-          暂无匹配的世界事件
-        </div>
+        <div className="grid min-h-64 place-items-center px-6 text-center text-sm text-muted-foreground">{i18next.t("worlds.worldTimelinePanel.nhc9mb")}</div>
       ) : (
         <>
           <div
@@ -56,7 +55,7 @@ export default function WorldTimelinePanel({ items }: WorldTimelinePanelProps) {
               isFullscreen && "h-full min-h-[520px]",
             )}
             tabIndex={0}
-            aria-label="横向世界时间线，可左右滚动"
+            aria-label={i18next.t("worlds.worldTimelinePanel.6ep8zm")}
           >
             <div className="relative" style={{ minWidth: `${trackWidth}px` }}>
               <div className="pointer-events-none absolute inset-x-8 top-1/2 h-px -translate-y-1/2 bg-border" aria-hidden="true">
@@ -87,7 +86,7 @@ export default function WorldTimelinePanel({ items }: WorldTimelinePanelProps) {
                       </div>
                       <div
                         className="absolute left-1/2 top-1/2 z-10 flex h-9 w-9 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border-4 border-background bg-primary text-xs font-semibold text-primary-foreground shadow-sm"
-                        aria-label={`第 ${index + 1} 个事件`}
+                        aria-label={i18next.t("worlds.worldTimelinePanel.1wp7g9", { val1: index + 1 })}
                       >
                         {index + 1}
                       </div>
@@ -99,7 +98,7 @@ export default function WorldTimelinePanel({ items }: WorldTimelinePanelProps) {
           </div>
 
           <div className="px-5 py-5 md:hidden">
-            <ol className="relative ml-4 border-l border-border pl-7" aria-label="世界时间线">
+            <ol className="relative ml-4 border-l border-border pl-7" aria-label={i18next.t("dict.worldTimeline")}>
               {items.map((item, index) => (
                 <li key={`${item.year}-${item.event}-${index}`} className="relative pb-5 last:pb-0">
                   <div className="absolute -left-[43px] top-4 flex h-8 w-8 items-center justify-center rounded-full border-4 border-background bg-primary text-[11px] font-semibold text-primary-foreground">

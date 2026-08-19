@@ -1,6 +1,7 @@
 import type { VolumePlanDocument } from "@ai-novel/shared/types/novel";
 import type {
   DirectorConfirmRequest,
+  DirectorTaskNotice,
 } from "@ai-novel/shared/types/novelDirector";
 import {
   isDirectorAutoExecutionRunMode,
@@ -8,7 +9,7 @@ import {
 } from "@ai-novel/shared/types/novelDirector";
 import type { VolumeGenerationPhaseEvent } from "../../volume/volumeModels";
 import { getChapterTitleDiversityIssue } from "../../volume/chapterTitleDiversity";
-import { buildNovelEditResumeTarget, parseSeedPayload } from "../../workflow/novelWorkflow.shared";
+import { buildNovelEditResumeTarget } from "../../workflow/novelWorkflow.shared";
 import { logMemoryUsage } from "../../../../runtime/memoryTelemetry";
 import {
   buildDirectorSessionState,
@@ -39,18 +40,6 @@ import { resetDirectorDownstreamChapterState } from "../recovery/novelDirectorDo
 
 function buildChapterOrderRangeLabel(startOrder: number, endOrder: number): string {
   return startOrder === endOrder ? `第 ${startOrder} 章` : `第 ${startOrder}-${endOrder} 章`;
-}
-
-function buildFastStartPlanningGuidance(request: DirectorConfirmRequest): string | undefined {
-  const preparation = request.startupPreparation;
-  if (!preparation || preparation.strategy !== "fast_start") {
-    return undefined;
-  }
-  return [
-    "本次采用快速开篇：首个可执行节奏段只规划开篇路线，不提前锁死远期章节。",
-    `首批路线必须覆盖 ${preparation.routeWindow.min}-${preparation.routeWindow.target} 章，优先形成可立即进入正文的因果链。`,
-    `正文前只需要完整细化未来 ${preparation.routeWindow.detailAhead} 章，其余章节保留为简略路线。`,
-  ].join("\n");
 }
 
 function findMissingSelectedChapterOrders(
@@ -165,6 +154,21 @@ async function persistStructuredOutlineVolumeSnapshot(input: {
   });
 }
 
+function buildChapterTitleNotice(input: {
+  volume: VolumePlanDocument["volumes"][number];
+  issue: string;
+}): DirectorTaskNotice {
+  return {
+    code: "CHAPTER_TITLE_DIVERSITY",
+    summary: input.issue,
+    action: {
+      type: "open_structured_outline",
+      label: "快速修复章节标题",
+      volumeId: input.volume.id,
+    },
+  };
+}
+
 export async function runDirectorStructuredOutlinePhase(input: {
   taskId: string;
   novelId: string;
@@ -195,7 +199,6 @@ export async function runDirectorStructuredOutlinePhase(input: {
       ? request.autoExecutionPlan
       : undefined,
   );
-  const fastStartGuidance = buildFastStartPlanningGuidance(request);
   const sortedVolumes = baseWorkspace.volumes
     .slice()
     .sort((left, right) => left.sortOrder - right.sortOrder);
@@ -263,7 +266,6 @@ export async function runDirectorStructuredOutlinePhase(input: {
           model: request.model,
           temperature: request.temperature,
           scope: "beat_sheet",
-          guidance: fastStartGuidance,
           targetVolumeId: targetVolume.id,
           draftWorkspace: workspace,
           taskId,
@@ -312,7 +314,6 @@ export async function runDirectorStructuredOutlinePhase(input: {
           model: request.model,
           temperature: request.temperature,
           scope: "chapter_list",
-          guidance: fastStartGuidance,
           targetVolumeId: targetVolume.id,
           generationMode: "single_beat",
           targetBeatKey,
@@ -333,13 +334,6 @@ export async function runDirectorStructuredOutlinePhase(input: {
           },
         }),
       });
-      const preparedVolume = workspace.volumes.find((item) => item.id === targetVolume.id);
-      const titleDiversityIssue = preparedVolume
-        ? getChapterTitleDiversityIssue(preparedVolume.chapters.map((chapter) => chapter.title))
-        : null;
-      if (titleDiversityIssue) {
-        throw new Error(titleDiversityIssue);
-      }
       workspace = await persistStructuredOutlineVolumeSnapshot({
         taskId,
         novelId,
@@ -349,12 +343,26 @@ export async function runDirectorStructuredOutlinePhase(input: {
         volumeId: targetVolume.id,
         dependencies,
       });
+      const preparedVolume = workspace.volumes.find((item) => item.id === targetVolume.id);
+      const titleDiversityIssue = preparedVolume
+        ? getChapterTitleDiversityIssue(preparedVolume.chapters.map((chapter) => chapter.title))
+        : null;
       await dependencies.workflowService.markTaskRunning(taskId, {
         stage: "structured_outline",
         itemKey: "chapter_list",
-        itemLabel: `第 ${targetVolume.sortOrder} 卷章节列表已生成`,
+        itemLabel: titleDiversityIssue
+          ? `第 ${targetVolume.sortOrder} 卷章节列表已生成，但标题结构仍需分散`
+          : `第 ${targetVolume.sortOrder} 卷章节列表已生成`,
         progress: DIRECTOR_PROGRESS.chapterList,
         volumeId: targetVolume.id,
+        seedPayload: {
+          taskNotice: titleDiversityIssue
+            ? buildChapterTitleNotice({
+              volume: preparedVolume ?? targetVolume,
+              issue: titleDiversityIssue,
+            })
+            : null,
+        },
       });
       continue;
     }
@@ -497,6 +505,14 @@ export async function runDirectorStructuredOutlinePhase(input: {
     emitEvent: false,
     syncPayoffLedger: false,
   });
+  await dependencies.characterDynamicsService.rebuildDynamics(novelId, {
+    sourceType: "rebuild_projection",
+  }).catch((error) => {
+    console.warn(
+      `[director.structured_outline] event=character_dynamics_rebuild_failed taskId=${taskId} novelId=${novelId} error=${JSON.stringify(error instanceof Error ? error.message : String(error))}`,
+    );
+  });
+
   const syncCursor = resolveStructuredOutlineRecoveryCursor({
     workspace: persistedOutlineWorkspace,
     plan: detailPlan,
@@ -588,22 +604,10 @@ export async function runDirectorStructuredOutlinePhase(input: {
     volumeChapterListComplete: syncCursor.volumeChapterListComplete,
   });
 
-  const [currentTask, currentNovel] = await Promise.all([
-    dependencies.workflowService.getTaskByIdWithoutHealing?.(taskId),
-    dependencies.novelContextService.getNovelById(novelId).catch(() => null),
-  ]);
-  const currentSeed = parseSeedPayload<{ productionExperience?: unknown }>(currentTask?.seedPayloadJson);
-  const selectedProductionExperience = currentSeed?.productionExperience === "simple"
-    || currentSeed?.productionExperience === "professional"
-    ? currentSeed.productionExperience
-    : (currentNovel as { creationExperience?: unknown } | null)?.creationExperience === "simple"
-      ? "simple"
-      : null;
-  const continueSimpleProduction = selectedProductionExperience === "simple";
   const pausedSession = buildDirectorSessionState({
     runMode: request.runMode,
     phase: "chapter_execution",
-    isBackgroundRunning: continueSimpleProduction,
+    isBackgroundRunning: false,
   });
   const chapterResumeTarget = buildNovelEditResumeTarget({
     novelId,
@@ -614,13 +618,9 @@ export async function runDirectorStructuredOutlinePhase(input: {
   });
   await dependencies.workflowService.recordCheckpoint(taskId, {
     stage: "chapter_execution",
-    checkpointType: continueSimpleProduction ? "chapter_batch_ready" : "production_experience_required",
-    checkpointSummary: continueSimpleProduction
-      ? `《${request.candidate.workingTitle.trim() || request.title?.trim() || "当前项目"}》的开篇路线已准备好，AI 将开始生成正文。`
-      : `《${request.candidate.workingTitle.trim() || request.title?.trim() || "当前项目"}》已完成前期准备，请选择正文生产方式。`,
-    itemLabel: continueSimpleProduction
-      ? `${autoExecutionScopeLabel}开篇路线已就绪，正在开始第 1 章`
-      : `${autoExecutionScopeLabel}已可开写，等待选择生产方式`,
+    checkpointType: "production_experience_required",
+    checkpointSummary: `《${request.candidate.workingTitle.trim() || request.title?.trim() || "当前项目"}》已完成前期准备，请选择正文生产方式。`,
+    itemLabel: `${autoExecutionScopeLabel}已可开写，等待选择生产方式`,
     volumeId: selectedChapters[0]?.volumeId ?? firstVolume.id,
     chapterId: selectedChapters[0]?.id ?? null,
     progress: DIRECTOR_PROGRESS.chapterBatchReady,
@@ -628,8 +628,6 @@ export async function runDirectorStructuredOutlinePhase(input: {
       directorSession: pausedSession,
       resumeTarget: chapterResumeTarget,
       autoExecution: autoExecutionState,
-      startupPreparation: request.startupPreparation,
-      ...(continueSimpleProduction ? { productionExperience: "simple" } : {}),
     }),
   });
   logMemoryUsage({
@@ -638,7 +636,7 @@ export async function runDirectorStructuredOutlinePhase(input: {
     taskId,
     novelId,
     stage: "structured_outline",
-    itemKey: continueSimpleProduction ? "chapter_batch_ready" : "production_experience_required",
+    itemKey: "production_experience_required",
     scope: autoExecutionScopeLabel,
     entrypoint: "auto_director",
     volumeCount: persistedOutlineWorkspace.volumes.length,

@@ -1,3 +1,5 @@
+import i18next from "i18next";
+import { useTranslation } from "react-i18next";
 import { useState } from "react";
 import { ChevronDown, ChevronRight, Pencil, Plus, Trash2 } from "lucide-react";
 import type { GenreTreeNode } from "@/api/genre";
@@ -21,6 +23,7 @@ export default function GenreTreeItem({
   onDelete,
   deletingId,
 }: GenreTreeItemProps) {
+  const { t } = useTranslation();
   const [expanded, setExpanded] = useState(true);
   const hasChildren = node.children.length > 0;
   const boundNovelCount = countGenreNovelBindingsInSubtree(node);
@@ -35,7 +38,7 @@ export default function GenreTreeItem({
               type="button"
               className="mt-0.5 inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-md border border-transparent text-muted-foreground transition-colors hover:border-border hover:bg-muted/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
               onClick={() => setExpanded((value) => !value)}
-              aria-label={expanded ? `折叠「${node.name}」` : `展开「${node.name}」`}
+              aria-label={expanded ? i18next.t("genres.genreTreeItem.ubcqs9", { val1: node.name }) : i18next.t("genres.genreTreeItem.m5iuqs", { val1: node.name })}
               aria-expanded={expanded}
             >
               {expanded ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
@@ -49,7 +52,7 @@ export default function GenreTreeItem({
               <div className="flex flex-wrap items-center gap-2">
                 <div className="text-sm font-semibold text-foreground">{node.name}</div>
                 <span className="rounded-md border border-border/70 bg-muted/30 px-2 py-0.5 text-[11px] text-muted-foreground">
-                  {node.novelCount > 0 ? `用于 ${node.novelCount} 本小说` : "未关联小说"}
+                  {node.novelCount > 0 ? i18next.t("genres.genreTreeItem.cbwupx", { val1: node.novelCount }) : "未关联小说"}
                 </span>
                 {node.childCount > 0 ? (
                   <span className="rounded-md border border-border/70 bg-muted/30 px-2 py-0.5 text-[11px] text-muted-foreground">
@@ -64,13 +67,9 @@ export default function GenreTreeItem({
 
             <div className="flex shrink-0 flex-wrap gap-1 border-t border-border/60 pt-2 lg:justify-end lg:border-t-0 lg:pt-0">
               <Button type="button" variant="ghost" size="sm" onClick={() => onCreateChild(node.id)}>
-                <Plus className="h-4 w-4" aria-hidden="true" />
-                新增子类
-              </Button>
+                <Plus className="h-4 w-4" aria-hidden="true" />{i18next.t("genres.genreTreeItem.d75k7t")}</Button>
               <Button type="button" variant="ghost" size="sm" onClick={() => onEdit(node.id)}>
-                <Pencil className="h-4 w-4" aria-hidden="true" />
-                编辑
-              </Button>
+                <Pencil className="h-4 w-4" aria-hidden="true" />{i18next.t("common.edit")}</Button>
               <Button
                 type="button"
                 variant="ghost"

@@ -44,7 +44,7 @@ export class NovelSourceAdapter implements SourceContentPort {
       throw new Error(`未找到源小说：${novelId}`);
     }
 
-    const [chapters, characters, factRows] = await Promise.all([
+    const [chapters, characters, factRows, novelWorld] = await Promise.all([
       prisma.chapter.findMany({
         where: { novelId },
         orderBy: { order: "asc" },
@@ -69,6 +69,10 @@ export class NovelSourceAdapter implements SourceContentPort {
         where: { novelId },
         orderBy: { chapterOrder: "asc" },
         select: { text: true, category: true },
+      }),
+      prisma.novelWorld.findUnique({
+        where: { novelId },
+        select: { structuredDataJson: true },
       }),
     ]);
 
@@ -107,6 +111,7 @@ export class NovelSourceAdapter implements SourceContentPort {
       beats,
       characters: bundleCharacters,
       hardFacts,
+      worldNotes: formatWorldNotes(novelWorld?.structuredDataJson),
     };
   }
 
@@ -123,6 +128,46 @@ export class NovelSourceAdapter implements SourceContentPort {
     return chapters
       .map((ch) => `【第${ch.order}章 ${ch.title}】\n${ch.content ?? ""}`)
       .join("\n\n");
+  }
+}
+
+function formatWorldNotes(structuredDataJson: string | null | undefined): string | undefined {
+  if (!structuredDataJson?.trim()) return undefined;
+  try {
+    const data = JSON.parse(structuredDataJson);
+    const sections: string[] = [];
+
+    if (data.profile) {
+      if (data.profile.summary) sections.push(`世界背景：${data.profile.summary}`);
+      if (data.profile.identity) sections.push(`核心设定：${data.profile.identity}`);
+      if (data.profile.tone) sections.push(`氛围基调：${data.profile.tone}`);
+    }
+
+    if (data.rules && Array.isArray(data.rules.axioms)) {
+      const rules = data.rules.axioms
+        .map((r: any) => `- ${r.name || "未命名规则"}：${r.summary || r.enforcement || ""}`)
+        .filter((r: string) => r.trim().length > 0)
+        .join("\n");
+      if (rules) sections.push(`世界法则/铁律：\n${rules}`);
+    }
+
+    if (Array.isArray(data.factions)) {
+      const factions = data.factions
+        .map((f: any) => `- ${f.name}（立场：${f.doctrine || "未设定"}，势力定位：${f.position || "未设定"}）`)
+        .join("\n");
+      if (factions) sections.push(`主要势力与阵营：\n${factions}`);
+    }
+
+    if (Array.isArray(data.locations)) {
+      const locations = data.locations
+        .map((l: any) => `- ${l.name}：${l.summary || ""}（叙事功能：${l.narrativeFunction || "未设定"}）`)
+        .join("\n");
+      if (locations) sections.push(`重要场景地点设定：\n${locations}`);
+    }
+
+    return sections.length > 0 ? sections.join("\n\n") : undefined;
+  } catch {
+    return undefined;
   }
 }
 

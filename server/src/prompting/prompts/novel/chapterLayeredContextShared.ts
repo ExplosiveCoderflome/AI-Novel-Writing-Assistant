@@ -69,10 +69,7 @@ export function renderBookContractText(contract: BookContractContext): string {
     `题材：${displayPromptValue(contract.genre)}`,
     `目标读者：${displayPromptValue(contract.targetAudience)}`,
     `核心卖点：${displayPromptValue(contract.sellingPoint)}`,
-    `${contract.promiseScope === "whole_book" ? "全书核心承诺" : "前 30 章承诺"}：${displayPromptValue(contract.first30ChapterPromise)}`,
-    contract.completionMode === "compact_book"
-      ? `紧凑全书合同：目标 ${contract.targetChapterCount ?? "未定"} 章，结局最迟第 ${contract.endingRequiredBy ?? "目标"} 章完成；终章不得开启必须续写的新主线。`
-      : "",
+    `前 30 章承诺：${displayPromptValue(contract.first30ChapterPromise)}`,
     contract.readingPromise ? `阅读承诺：${displayPromptValue(contract.readingPromise)}` : "",
     contract.protagonistFantasy ? `主角幻想：${displayPromptValue(contract.protagonistFantasy)}` : "",
     contract.coreSellingPoint ? `合同核心卖点：${displayPromptValue(contract.coreSellingPoint)}` : "",
@@ -357,10 +354,8 @@ export function buildParticipantText(writeContext: ChapterWriteContext): string 
         character.appearance || character.physique
           ? `外观：${compactText([character.appearance, character.physique].filter(Boolean).join("；"))}`
           : "",
-        character.attireStyle ? `常见穿着：${compactText(character.attireStyle)}` : "",
         character.signatureDetail ? `标志细节：${compactText(character.signatureDetail)}` : "",
         character.voiceTexture ? `声音：${compactText(character.voiceTexture)}` : "",
-        character.presenceImpression ? `登场印象：${compactText(character.presenceImpression)}` : "",
       ], 3).join(" | ");
       const parts = takeUnique([
         character.role,

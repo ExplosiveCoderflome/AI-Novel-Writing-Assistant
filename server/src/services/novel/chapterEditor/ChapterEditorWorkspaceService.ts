@@ -156,6 +156,7 @@ function mapDiagnosticCard(
     paragraphEnd?: number | null;
     severity: ChapterEditorDiagnosticCard["severity"];
     sourceTags: string[];
+    sourceIssueId?: string | null;
   },
   paragraphs: ChapterEditorParagraph[],
 ): ChapterEditorDiagnosticCard {
@@ -172,6 +173,7 @@ function mapDiagnosticCard(
     paragraphLabel: start && end ? (start === end ? `P${start}` : `P${start}-P${end}`) : null,
     severity: card.severity,
     sourceTags: card.sourceTags,
+    sourceIssueId: card.sourceIssueId || null,
   };
 }
 
@@ -331,6 +333,7 @@ export class ChapterEditorWorkspaceService {
             text: trimPromptText(paragraph.text),
           })),
           openIssues: context.openAuditIssues.slice(0, 8).map((issue) => ({
+            id: issue.id,
             severity: issue.severity,
             auditType: issue.auditType,
             code: issue.code,

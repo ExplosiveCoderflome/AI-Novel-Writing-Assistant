@@ -1,3 +1,4 @@
+import i18next from "i18next";
 import { useMemo, useState } from "react";
 import type {
   BookAnalysisCharacter,
@@ -174,12 +175,12 @@ export default function BookAnalysisCharacterPanel(props: BookAnalysisCharacterP
   const freshCandidateCount = candidateCharacters.filter((character) => character.status === "candidate").length;
   const batchButtonTitle = (() => {
     if (failedCandidateCount > 0 && freshCandidateCount > 0) {
-      return `为 ${freshCandidateCount} 个新候选生成档案，并重试 ${failedCandidateCount} 个失败角色`;
+      return i18next.t("bookAnalysis.bookAnalysisCharacterPanel.o4suih", { val1: freshCandidateCount, val2: failedCandidateCount });
     }
     if (failedCandidateCount > 0) {
-      return `重试 ${failedCandidateCount} 个失败的角色`;
+      return i18next.t("bookAnalysis.bookAnalysisCharacterPanel.1540iq", { val1: failedCandidateCount });
     }
-    return `为 ${freshCandidateCount} 个候选生成深度档案`;
+    return i18next.t("bookAnalysis.bookAnalysisCharacterPanel.bqb7kr", { val1: freshCandidateCount });
   })();
   const operationPending = pending.generate || pending.identify || pending.generateProfile || pending.generateAll;
   const identifyDisabled = disabled || pending.identify;
@@ -231,8 +232,8 @@ export default function BookAnalysisCharacterPanel(props: BookAnalysisCharacterP
       <CardHeader className="px-0 pb-5 pt-0">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
-            <CardTitle className="text-xl">角色档案</CardTitle>
-            <p className="mt-1 text-sm text-muted-foreground">阅读人物动机、成长变化与关键场景，按需继续深挖。</p>
+            <CardTitle className="text-xl">{i18next.t("dict.gen_90154762")}</CardTitle>
+            <p className="mt-1 text-sm text-muted-foreground">{i18next.t("bookAnalysis.bookAnalysisCharacterPanel.bhbm4l")}</p>
           </div>
           <div className="flex flex-wrap gap-2">
             <Badge variant="secondary" className="border-0 bg-muted/70 font-normal">{generatedCharacters.length} 份档案</Badge>
@@ -257,13 +258,11 @@ export default function BookAnalysisCharacterPanel(props: BookAnalysisCharacterP
           <summary className="flex cursor-pointer list-none items-center justify-between gap-4 px-5 py-4 marker:hidden">
             <div>
               <div className="flex items-center gap-2 text-sm font-medium">
-                <Sparkles className="h-4 w-4 text-primary" aria-hidden="true" />
-                生成与添加角色
-              </div>
-              <p className="mt-1 text-xs leading-5 text-muted-foreground">识别原文人物、选择档案深度，或手动补充角色。</p>
+                <Sparkles className="h-4 w-4 text-primary" aria-hidden="true" />{i18next.t("bookAnalysis.bookAnalysisCharacterPanel.wulnya")}</div>
+              <p className="mt-1 text-xs leading-5 text-muted-foreground">{i18next.t("bookAnalysis.bookAnalysisCharacterPanel.pvg53w")}</p>
             </div>
-            <span className="shrink-0 text-xs text-muted-foreground group-open:hidden">展开</span>
-            <span className="hidden shrink-0 text-xs text-muted-foreground group-open:inline">收起</span>
+            <span className="shrink-0 text-xs text-muted-foreground group-open:hidden">{i18next.t("dict.gen_e2edde5a")}</span>
+            <span className="hidden shrink-0 text-xs text-muted-foreground group-open:inline">{i18next.t("dict.gen_def9e98b")}</span>
           </summary>
           <div className="grid gap-4 border-t border-border/35 p-4 lg:grid-cols-[minmax(0,1fr)_280px]">
           <div className="space-y-4 rounded-xl bg-muted/25 p-4">
@@ -278,7 +277,7 @@ export default function BookAnalysisCharacterPanel(props: BookAnalysisCharacterP
                   disabled={generateAllDisabled}
                   title={batchButtonTitle}
                 >
-                  {pending.generateAll ? "生成中..." : `全部生成 (${pendingCandidateCount})`}
+                  {pending.generateAll ? "生成中..." : i18next.t("bookAnalysis.bookAnalysisCharacterPanel.rokwsg", { val1: pendingCandidateCount })}
                 </Button>
               ) : null}
               <SelectControl
@@ -287,14 +286,14 @@ export default function BookAnalysisCharacterPanel(props: BookAnalysisCharacterP
                 onChange={(event) => setGenerationDepth(event.target.value as BookAnalysisCharacterGenerationDepth)}
                 disabled={disabled || operationPending}
               >
-                <option value="brief">简要</option>
-                <option value="standard">标准</option>
-                <option value="deep">深入</option>
-                <option value="exhaustive">完整</option>
+                <option value="brief">{i18next.t("dict.gen_2b53097b")}</option>
+                <option value="standard">{i18next.t("dict.gen_544fac40")}</option>
+                <option value="deep">{i18next.t("dict.gen_618d64f8")}</option>
+                <option value="exhaustive">{i18next.t("dict.gen_63c59813")}</option>
               </SelectControl>
             </div>
             <div>
-              <div className="mb-2 text-xs font-medium text-muted-foreground">档案包含内容</div>
+              <div className="mb-2 text-xs font-medium text-muted-foreground">{i18next.t("bookAnalysis.bookAnalysisCharacterPanel.1ikmhr")}</div>
               <div className="flex flex-wrap gap-1.5">
               {DEFAULT_DIMENSIONS.map((dimension) => (
                 <Button
@@ -316,29 +315,27 @@ export default function BookAnalysisCharacterPanel(props: BookAnalysisCharacterP
           </div>
 
           <div className="space-y-2 rounded-xl bg-muted/25 p-4">
-            <div className="pb-1 text-xs font-medium text-muted-foreground">手动补充角色</div>
+            <div className="pb-1 text-xs font-medium text-muted-foreground">{i18next.t("bookAnalysis.bookAnalysisCharacterPanel.xl6wrn")}</div>
             <Input
               value={manualName}
               onChange={(event) => setManualName(event.target.value)}
-              placeholder="角色名"
+              placeholder={i18next.t("dict.gen_577c73c2")}
               disabled={disabled || pending.create}
             />
             <Input
               value={manualRole}
               onChange={(event) => setManualRole(event.target.value)}
-              placeholder="角色定位"
+              placeholder={i18next.t("dict.gen_22cffcec")}
               disabled={disabled || pending.create}
             />
             <textarea
               className="min-h-[72px] w-full rounded-md border bg-background px-3 py-2 text-sm"
               value={manualPersonality}
               onChange={(event) => setManualPersonality(event.target.value)}
-              placeholder="性格或关键表现"
+              placeholder={i18next.t("dict.gen_339e6277")}
               disabled={disabled || pending.create}
             />
-            <Button size="sm" variant="outline" onClick={() => void handleCreate()} disabled={createDisabled}>
-              手动添加
-            </Button>
+            <Button size="sm" variant="outline" onClick={() => void handleCreate()} disabled={createDisabled}>{i18next.t("bookAnalysis.bookAnalysisCharacterPanel.cqy742")}</Button>
           </div>
           </div>
         </details>
@@ -354,26 +351,24 @@ export default function BookAnalysisCharacterPanel(props: BookAnalysisCharacterP
             <div className="space-y-1">
               <div className="font-medium">
                 {batchSummary.failed + batchSummary.pending === 0
-                  ? `本次批量已生成 ${batchSummary.generated} / ${batchSummary.total} 个角色档案`
-                  : `本次批量已生成 ${batchSummary.generated} 个，未完成 ${batchSummary.failed + batchSummary.pending} 个`}
+                  ? i18next.t("bookAnalysis.bookAnalysisCharacterPanel.5d52wp", { val1: batchSummary.generated, val2: batchSummary.total })
+                  : i18next.t("bookAnalysis.bookAnalysisCharacterPanel.7523xl", { val1: batchSummary.generated, val2: batchSummary.failed + batchSummary.pending })}
               </div>
               {batchSummary.failed + batchSummary.pending > 0 ? (
                 <div className="text-xs">
-                  {batchSummary.failed > 0 ? `失败 ${batchSummary.failed} 个` : ""}
+                  {batchSummary.failed > 0 ? i18next.t("bookAnalysis.bookAnalysisCharacterPanel.2swxxi", { val1: batchSummary.failed }) : ""}
                   {batchSummary.failed > 0 && batchSummary.pending > 0 ? "，" : ""}
-                  {batchSummary.pending > 0 ? `因预算用尽未跑 ${batchSummary.pending} 个` : ""}
+                  {batchSummary.pending > 0 ? i18next.t("bookAnalysis.bookAnalysisCharacterPanel.kjitzf", { val1: batchSummary.pending }) : ""}
                   。可调整预算或扩容后再点「全部生成」继续。
                 </div>
               ) : null}
             </div>
-            <Button size="sm" variant="ghost" onClick={onDismissBatchSummary}>
-              知道了
-            </Button>
+            <Button size="sm" variant="ghost" onClick={onDismissBatchSummary}>{i18next.t("bookAnalysis.bookAnalysisCharacterPanel.i96ig")}</Button>
           </div>
         ) : null}
 
         {isLoading ? (
-          <div className="text-sm text-muted-foreground">正在读取角色档案。</div>
+          <div className="text-sm text-muted-foreground">{i18next.t("dict.gen_ec184058")}</div>
         ) : null}
 
         {!isLoading && candidateCharacters.length > 0 ? (
@@ -384,7 +379,7 @@ export default function BookAnalysisCharacterPanel(props: BookAnalysisCharacterP
               onClick={() => setCandidateExpanded((current) => !current)}
             >
               <div>
-                <div className="text-sm font-medium">待生成角色</div>
+                <div className="text-sm font-medium">{i18next.t("dict.gen_cc06e06c")}</div>
                 <div className="mt-1 text-xs text-muted-foreground">
                   {candidateCharacters.length} 个候选，可按需生成深度档案。
                 </div>
@@ -437,12 +432,8 @@ export default function BookAnalysisCharacterPanel(props: BookAnalysisCharacterP
                       disabled={pending.update}
                     />
                     <div className="flex flex-wrap gap-2">
-                      <Button size="sm" onClick={() => void saveEdit(character.id)} disabled={pending.update}>
-                        保存
-                      </Button>
-                      <Button size="sm" variant="outline" onClick={cancelEdit} disabled={pending.update}>
-                        取消
-                      </Button>
+                      <Button size="sm" onClick={() => void saveEdit(character.id)} disabled={pending.update}>{i18next.t("common.save")}</Button>
+                      <Button size="sm" variant="outline" onClick={cancelEdit} disabled={pending.update}>{i18next.t("common.cancel")}</Button>
                     </div>
                   </div>
                 ) : (
@@ -472,13 +463,9 @@ export default function BookAnalysisCharacterPanel(props: BookAnalysisCharacterP
                           disabled={disabled || availableChapterAnchors(character).length === 0}
                           title={availableChapterAnchors(character).length === 0 ? "该角色缺少带章节号的原文证据，暂时无法开始证据访谈。" : undefined}
                         >
-                          <MessageCircle className="mr-1.5 h-3.5 w-3.5" aria-hidden="true" />
-                          基于原文访谈
-                        </Button>
+                          <MessageCircle className="mr-1.5 h-3.5 w-3.5" aria-hidden="true" />{i18next.t("bookAnalysis.bookAnalysisCharacterPanel.s3516j")}</Button>
                         <Button size="sm" variant="ghost" className="rounded-full px-2.5" onClick={() => startEdit(character)} disabled={disabled}>
-                          <Pencil className="mr-1 h-3.5 w-3.5" aria-hidden="true" />
-                          编辑
-                        </Button>
+                          <Pencil className="mr-1 h-3.5 w-3.5" aria-hidden="true" />{i18next.t("common.edit")}</Button>
                         <Button
                           size="sm"
                           variant="ghost"
@@ -486,9 +473,7 @@ export default function BookAnalysisCharacterPanel(props: BookAnalysisCharacterP
                           onClick={() => void onDelete(character.id)}
                           disabled={disabled || pending.delete}
                         >
-                          <Trash2 className="mr-1 h-3.5 w-3.5" aria-hidden="true" />
-                          删除
-                        </Button>
+                          <Trash2 className="mr-1 h-3.5 w-3.5" aria-hidden="true" />{i18next.t("dict.gen_2f4aaddd")}</Button>
                       </div>
                     </div>
                     <div className="grid gap-x-8 md:grid-cols-2">
@@ -506,7 +491,7 @@ export default function BookAnalysisCharacterPanel(props: BookAnalysisCharacterP
                       <div className="mt-5 grid gap-6 border-t border-border/35 pt-4 md:grid-cols-2">
                         {character.arcs.length > 0 ? (
                           <section>
-                            <div className="mb-3 font-medium">成长轨迹</div>
+                            <div className="mb-3 font-medium">{i18next.t("dict.gen_4578b906")}</div>
                             <div className="space-y-3 border-l border-primary/20 pl-4">
                               {character.arcs.map((arc) => (
                                 <div key={arc.id} className="relative">
@@ -522,7 +507,7 @@ export default function BookAnalysisCharacterPanel(props: BookAnalysisCharacterP
                         ) : null}
                         {character.scenes.length > 0 ? (
                           <section>
-                            <div className="mb-3 font-medium">关键场景</div>
+                            <div className="mb-3 font-medium">{i18next.t("bookAnalysis.bookAnalysisCharacterPanel.aw3w7k")}</div>
                             <div className="flex flex-wrap gap-2">
                               {character.scenes.map((scene) => (
                                 <div key={scene.id} className="rounded-xl bg-muted/45 px-3 py-2">
@@ -539,9 +524,9 @@ export default function BookAnalysisCharacterPanel(props: BookAnalysisCharacterP
                     ) : null}
                     <details className="group mt-5 border-t border-border/35 pt-4">
                       <summary className="flex cursor-pointer list-none items-center justify-between marker:hidden">
-                        <span className="font-medium">形象与视觉资料</span>
-                        <span className="text-xs text-muted-foreground group-open:hidden">展开</span>
-                        <span className="hidden text-xs text-muted-foreground group-open:inline">收起</span>
+                        <span className="font-medium">{i18next.t("bookAnalysis.bookAnalysisCharacterPanel.fbrcah")}</span>
+                        <span className="text-xs text-muted-foreground group-open:hidden">{i18next.t("dict.gen_e2edde5a")}</span>
+                        <span className="hidden text-xs text-muted-foreground group-open:inline">{i18next.t("dict.gen_def9e98b")}</span>
                       </summary>
                       <BookAnalysisCharacterAppearancePanel
                         analysisId={analysisId}
@@ -562,7 +547,7 @@ export default function BookAnalysisCharacterPanel(props: BookAnalysisCharacterP
         </div>
 
         {!isLoading && characters.length === 0 ? (
-          <div className="text-sm text-muted-foreground">可先识别角色候选，再选择需要深挖的角色生成档案。</div>
+          <div className="text-sm text-muted-foreground">{i18next.t("dict.gen_b90ce47e")}</div>
         ) : null}
       </CardContent>
     </Card>

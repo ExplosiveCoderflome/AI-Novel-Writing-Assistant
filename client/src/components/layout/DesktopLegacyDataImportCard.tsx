@@ -1,3 +1,4 @@
+import i18next from "i18next";
 import { useEffect, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -55,7 +56,7 @@ export default function DesktopLegacyDataImportCard({
       })
       .catch((error) => {
         if (!cancelled) {
-          toast.error(error instanceof Error ? error.message : "旧数据探测失败。");
+          toast.error(error instanceof Error ? error.message : i18next.t("layout.desktopLegacyDataImportCard.6sdelc"));
         }
       })
       .finally(() => {
@@ -90,7 +91,7 @@ export default function DesktopLegacyDataImportCard({
         toast("正在准备导入旧数据，应用会自动重启一次。");
       }
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "导入旧数据失败。");
+      toast.error(error instanceof Error ? error.message : i18next.t("layout.desktopLegacyDataImportCard.ncju7i"));
     } finally {
       setIsImporting(false);
     }
@@ -102,7 +103,7 @@ export default function DesktopLegacyDataImportCard({
         <div className="flex flex-wrap items-center gap-2">
           <CardTitle>{title}</CardTitle>
           <Badge variant="outline">Desktop</Badge>
-          {snapshot?.currentDatabaseLikelyFresh ? <Badge variant="outline">当前桌面库看起来是空的</Badge> : null}
+          {snapshot?.currentDatabaseLikelyFresh ? <Badge variant="outline">{i18next.t("layout.desktopLegacyDataImportCard.u54465")}</Badge> : null}
         </div>
         <CardDescription>{description}</CardDescription>
       </CardHeader>
@@ -118,9 +119,7 @@ export default function DesktopLegacyDataImportCard({
           导入前会自动备份当前桌面数据库到：{snapshot?.backupDirectory ?? "-"}
         </div>
 
-        <div className="text-xs text-muted-foreground">
-          导入前请先关闭旧的 web/开发版进程，避免同一份 SQLite 文件还在被写入。
-        </div>
+        <div className="text-xs text-muted-foreground">{i18next.t("layout.desktopLegacyDataImportCard.ti8l2d")}</div>
 
         <div className="flex flex-wrap gap-3">
           {hasSuggestedSource ? (

@@ -97,7 +97,6 @@ const projectContextSchema = z.object({
   writingMode: z.enum(["original", "continuation"]).optional(),
   projectMode: z.enum(["ai_led", "co_pilot", "draft_mode", "auto_pipeline"]).optional(),
   readerChannelPreference: z.enum(["ai_judge", "male_oriented", "female_oriented", "general"]).optional(),
-  writingPlatformPreference: z.enum(["ai_recommend", "fanqie_free", "qidian_male", "jinjiang_female"]).optional(),
   narrativePov: z.enum(["first_person", "third_person", "mixed"]).optional(),
   pacePreference: z.enum(["slow", "balanced", "fast"]).optional(),
   styleTone: z.string().trim().optional(),
@@ -134,11 +133,8 @@ const candidatesSchema = projectContextSchema.extend({
 const ideaInspirationsSchema = projectContextSchema.extend({
   currentIdea: z.string().trim().max(1000).optional(),
   genreLabel: z.string().trim().max(120).optional(),
-  genreDescription: z.string().trim().max(1000).optional(),
   primaryStoryModeLabel: z.string().trim().max(120).optional(),
-  primaryStoryModeDescription: z.string().trim().max(1000).optional(),
   secondaryStoryModeLabel: z.string().trim().max(120).optional(),
-  secondaryStoryModeDescription: z.string().trim().max(1000).optional(),
   worldName: z.string().trim().max(120).optional(),
 }).merge(llmOptionsSchema);
 
@@ -488,6 +484,71 @@ router.get("/manual-edit-impact/:novelId", validate({ params: takeoverParamsSche
     });
     const data: DirectorManualEditImpactResponse = { impact };
     res.status(200).json(accepted(data, "Director manual edit impact loaded."));
+  } catch (error) {
+    next(error);
+  }
+});
+
+router.post("/operators/crossover", async (req, res, next) => {
+  try {
+    const { novelId, chapterId, parentA, parentB, strategy } = req.body;
+    const result = await novelDirectorService.executeEvolutionaryOperator({
+      operatorType: "crossover",
+      novelId: novelId || "default_novel",
+      chapterId,
+      primaryCandidate: parentA,
+      secondaryCandidate: parentB,
+      crossoverStrategy: strategy,
+    });
+    res.status(200).json({ success: true, data: result });
+  } catch (error) {
+    next(error);
+  }
+});
+
+router.post("/operators/improve", async (req, res, next) => {
+  try {
+    const { novelId, chapterId, candidate, auditDiagnostics } = req.body;
+    const result = await novelDirectorService.executeEvolutionaryOperator({
+      operatorType: "improve",
+      novelId: novelId || "default_novel",
+      chapterId,
+      primaryCandidate: candidate,
+      auditDiagnostics,
+    });
+    res.status(200).json({ success: true, data: result });
+  } catch (error) {
+    next(error);
+  }
+});
+
+router.post("/operators/debug", async (req, res, next) => {
+  try {
+    const { novelId, chapterId, candidate, auditDiagnostics } = req.body;
+    const result = await novelDirectorService.executeEvolutionaryOperator({
+      operatorType: "debug",
+      novelId: novelId || "default_novel",
+      chapterId,
+      primaryCandidate: candidate,
+      auditDiagnostics,
+    });
+    res.status(200).json({ success: true, data: result });
+  } catch (error) {
+    next(error);
+  }
+});
+
+router.post("/operators/draft", async (req, res, next) => {
+  try {
+    const { novelId, chapterId, contextBlock, primaryCandidate } = req.body;
+    const result = await novelDirectorService.executeEvolutionaryOperator({
+      operatorType: "draft",
+      novelId: novelId || "default_novel",
+      chapterId,
+      primaryCandidate,
+      contextBlock,
+    });
+    res.status(200).json({ success: true, data: result });
   } catch (error) {
     next(error);
   }

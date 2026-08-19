@@ -1,3 +1,5 @@
+import i18next from "i18next";
+import { useTranslation } from "react-i18next";
 import type { BasicTabProps } from "./NovelEditView.types";
 import NovelBasicInfoForm from "./NovelBasicInfoForm";
 import NovelStyleRecommendationCard from "./NovelStyleRecommendationCard";
@@ -6,19 +8,19 @@ import NovelCreateTitleQuickFill from "./titleWorkshop/NovelCreateTitleQuickFill
 import DirectorTakeoverEntryPanel from "./DirectorTakeoverEntryPanel";
 import { NovelCoverCard } from "./cover/NovelCoverCard";
 import { DetailDisclosure, SectionBlock } from "./workspaceShell";
-import { NovelDirectorRiskPolicyCard } from "./NovelDirectorRiskPolicyCard";
 
 export default function BasicInfoTab(props: BasicTabProps) {
+  const { t } = useTranslation();
   return (
     <div className="space-y-5">
       <DirectorTakeoverEntryPanel
-        title="让 AI 从当前项目继续接管"
-        description="如果基础信息较完整，可以直接从选定步骤开始自动接管，并选择继续已有进度或重跑当前步。"
+        title={i18next.t("dict.gen_1c2bfa8e")}
+        description={i18next.t("dict.gen_48ee08a7")}
         entry={props.directorTakeoverEntry}
       />
       <SectionBlock
-        title="书级定位"
-        description="先确认这本书面向谁、靠什么吸引读者、前期必须兑现什么，再让后续世界、角色和章节围绕同一组承诺展开。"
+        title={i18next.t("novels.basicInfoTab.aez1dg")}
+        description={i18next.t("novels.basicInfoTab.voon0u")}
       >
         <NovelBasicInfoForm
           basicForm={props.basicForm}
@@ -62,19 +64,11 @@ export default function BasicInfoTab(props: BasicTabProps) {
       </SectionBlock>
 
       <DetailDisclosure
-        title="写法建议"
-        description="确认本书的叙述口味、表达密度和风格参考，帮助后续章节保持统一。"
+        title={i18next.t("dict.gen_b59a7318")}
+        description={i18next.t("dict.gen_734fe645")}
         meta="写法参考"
       >
         <NovelStyleRecommendationCard novelId={props.novelId} />
-      </DetailDisclosure>
-
-      <DetailDisclosure
-        title="自动导演风险规则"
-        description="设置本书在何时提醒你、何时在安全节点后暂停；默认沿用系统规则。"
-        meta="可选"
-      >
-        <NovelDirectorRiskPolicyCard novelId={props.novelId} />
       </DetailDisclosure>
     </div>
   );

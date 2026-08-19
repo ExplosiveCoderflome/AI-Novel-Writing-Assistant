@@ -9,7 +9,6 @@ import {
   buildDirectorAutoExecutionPausedSummary,
   buildDirectorAutoExecutionScopeLabelFromState,
   buildDirectorAutoExecutionDeferredQualityState,
-  buildDirectorAutoExecutionStageLabel,
   buildDirectorAutoExecutionPipelineOptions,
   resolveDirectorAutoExecutionRepairMode,
   resolveDirectorAutoExecutionWorkflowState,
@@ -39,7 +38,6 @@ import {
 import { prepareRequestedAutoExecution as prepareRequestedAutoExecutionState, resolveAutoExecutionRuntimeRangeAndState, shouldStopAutoExecution } from "./novelDirectorAutoExecutionRuntimePreparation";
 import type { NovelDirectorAutoExecutionRuntimeDeps, PipelineJobSnapshot } from "./novelDirectorAutoExecutionRuntimePorts";
 import { directorAutomationLedgerEventService } from "../runtime/DirectorAutomationLedgerEventService";
-import { prisma } from "../../../../db/prisma";
 import {
   buildDirectorQualityLoopBudgetWindow,
   buildDirectorQualityLoopIssueSignature,
@@ -184,7 +182,7 @@ export class NovelDirectorAutoExecutionRuntime {
         await this.deps.workflowService.markTaskRunning(input.taskId, {
           stage: "chapter_execution",
           itemKey: "chapter_execution",
-          itemLabel: buildDirectorAutoExecutionStageLabel(autoExecution),
+          itemLabel: `正在自动执行${buildDirectorAutoExecutionScopeLabelFromState(autoExecution, range.totalChapterCount)}`,
           progress: 0.93,
           clearCheckpoint: shouldClearAutoExecutionCheckpoint(input.resumeCheckpointType),
         });
@@ -362,9 +360,7 @@ export class NovelDirectorAutoExecutionRuntime {
             novelId: input.novelId,
             request: input.request,
             range,
-            // The risk decision is part of the checkpoint snapshot so every
-            // recovery surface reads the same explanation immediately.
-            autoExecution: noticeAction.checkpointState,
+            autoExecution,
             pipelineJobId,
             pipelineStatus: job.status,
             checkpointType: noticeAction.checkpointType,
@@ -386,16 +382,6 @@ export class NovelDirectorAutoExecutionRuntime {
         if (job.status === "succeeded") {
           const completedPipelineJobId = pipelineJobId;
           pipelineJobId = "";
-          const handoffTask = await prisma.novelWorkflowTask.findUnique({
-            where: { id: input.taskId },
-            select: { currentItemKey: true, checkpointType: true },
-          }).catch(() => null);
-          if (
-            handoffTask?.currentItemKey === "professional_production_handoff"
-            && handoffTask.checkpointType === "workflow_completed"
-          ) {
-            return;
-          }
           if ((autoExecution.remainingChapterCount ?? 0) > 0) {
             if (this.deps.autoConfirmPendingCandidates) {
               await this.deps.autoConfirmPendingCandidates(input.novelId).catch(() => null);

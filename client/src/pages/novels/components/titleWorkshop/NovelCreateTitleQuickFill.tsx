@@ -1,3 +1,5 @@
+import i18next from "i18next";
+const t = (key: string, options?: any) => i18next.t(key, options) as string;
 import { useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type { TitleFactorySuggestion, TitleLibraryEntry } from "@ai-novel/shared/types/title";
@@ -55,14 +57,14 @@ function resolveOptionLabel<T extends string>(
 
 function buildGenerationBrief(basicForm: NovelBasicFormState): string {
   const lines = [
-    basicForm.description.trim() ? `作品概述：${basicForm.description.trim()}` : "",
-    basicForm.title.trim() ? `当前草拟标题：${basicForm.title.trim()}` : "",
-    `创作模式：${resolveOptionLabel(WRITING_MODE_OPTIONS, basicForm.writingMode) ?? basicForm.writingMode}`,
-    `叙事视角：${resolveOptionLabel(POV_OPTIONS, basicForm.narrativePov) ?? basicForm.narrativePov}`,
-    `节奏偏好：${resolveOptionLabel(PACE_OPTIONS, basicForm.pacePreference) ?? basicForm.pacePreference}`,
-    `情绪浓度：${resolveOptionLabel(EMOTION_OPTIONS, basicForm.emotionIntensity) ?? basicForm.emotionIntensity}`,
-    `AI 自由度：${resolveOptionLabel(AI_FREEDOM_OPTIONS, basicForm.aiFreedom) ?? basicForm.aiFreedom}`,
-    basicForm.styleTone.trim() ? `文风关键词：${basicForm.styleTone.trim()}` : "",
+    basicForm.description.trim() ? i18next.t("novels.novelCreateTitleQuickFill.3vumhj", { val1: basicForm.description.trim() }) : "",
+    basicForm.title.trim() ? i18next.t("novels.novelCreateTitleQuickFill.kxuf6x", { val1: basicForm.title.trim() }) : "",
+    i18next.t("novels.novelCreateTitleQuickFill.xmv9dx", { val1: resolveOptionLabel(WRITING_MODE_OPTIONS, basicForm.writingMode) ?? basicForm.writingMode }),
+    i18next.t("novels.novelCreateTitleQuickFill.ux2yac", { val1: resolveOptionLabel(POV_OPTIONS, basicForm.narrativePov) ?? basicForm.narrativePov }),
+    i18next.t("novels.novelCreateTitleQuickFill.qwvlxr", { val1: resolveOptionLabel(PACE_OPTIONS, basicForm.pacePreference) ?? basicForm.pacePreference }),
+    i18next.t("novels.novelCreateTitleQuickFill.xntxbi", { val1: resolveOptionLabel(EMOTION_OPTIONS, basicForm.emotionIntensity) ?? basicForm.emotionIntensity }),
+    i18next.t("novels.novelCreateTitleQuickFill.o3zb4z", { val1: resolveOptionLabel(AI_FREEDOM_OPTIONS, basicForm.aiFreedom) ?? basicForm.aiFreedom }),
+    basicForm.styleTone.trim() ? i18next.t("novels.novelAutoDirectorProgressPanel.ju1bdt", { val1: basicForm.styleTone.trim() }) : "",
   ].filter(Boolean);
   return lines.join("\n");
 }
@@ -72,9 +74,9 @@ function renderLibraryDescription(entry: TitleLibraryEntry): string {
     return truncateText(entry.description, 100);
   }
   if (entry.keywords?.trim()) {
-    return `关键词：${truncateText(entry.keywords, 80)}`;
+    return i18next.t("novels.novelCreateTitleQuickFill.re1gmw", { val1: truncateText(entry.keywords, 80) });
   }
-  return "标题库候选，可直接写入当前创建表单。";
+  return i18next.t("dict.gen_cbd40d13");
 }
 
 function joinKeywords(...values: Array<string | null | undefined>): string | null {
@@ -102,7 +104,7 @@ export default function NovelCreateTitleQuickFill({
 
   const autoBrief = useMemo(() => buildGenerationBrief(basicForm), [basicForm]);
   const resolvedBrief = useMemo(
-    () => [autoBrief, manualBrief.trim() ? `额外补充：${manualBrief.trim()}` : ""].filter(Boolean).join("\n"),
+    () => [autoBrief, manualBrief.trim() ? i18next.t("novels.novelCreateTitleQuickFill.c79ukx", { val1: manualBrief.trim() }) : ""].filter(Boolean).join("\n"),
     [autoBrief, manualBrief],
   );
   const generationMode = referenceTitle.trim() ? "adapt" : "brief";
@@ -132,7 +134,7 @@ export default function NovelCreateTitleQuickFill({
   const generateMutation = useMutation({
     mutationFn: async () => {
       if (!hasGenerationContext) {
-        throw new Error("请先填写一句标题简报，或补一个参考标题后再生成。");
+        throw new Error(i18next.t("dict.gen_a69a4fbf"));
       }
       const response = await generateTitleIdeas({
         mode: generationMode,
@@ -150,7 +152,7 @@ export default function NovelCreateTitleQuickFill({
     onSuccess: (rows) => {
       const next = sortSuggestions(rows);
       setSuggestions(next);
-      toast.success(`已生成 ${next.length} 个标题候选。`);
+      toast.success(i18next.t("novels.novelCreateTitleQuickFill.kt8gei", { val1: next.length }));
     },
   });
 
@@ -164,36 +166,32 @@ export default function NovelCreateTitleQuickFill({
     }),
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: queryKeys.titles.all });
-      toast.success("标题已加入标题库。");
+      toast.success(i18next.t("dict.gen_fccedc6f"));
     },
   });
 
   const handleApplyTitle = (title: string, source: "generated" | "library") => {
     onApplyTitle(title);
     setOpen(false);
-    toast.success(source === "generated" ? "标题候选已写入创建表单。" : "标题库标题已写入创建表单。");
+    toast.success(source === "generated" ? i18next.t("dict.gen_1a9606d9") : i18next.t("dict.gen_9550f1e7"));
   };
 
   const handleCopySuggestion = async (suggestion: TitleFactorySuggestion) => {
     await navigator.clipboard.writeText(suggestion.title);
-    toast.success("标题已复制到剪贴板。");
+    toast.success(i18next.t("dict.gen_3257008e"));
   };
 
   return (
     <>
       <div className="flex items-center justify-end">
-        <AiButton type="button" variant="outline" size="sm" onClick={() => setOpen(true)}>
-          标题快速选填
-        </AiButton>
+        <AiButton type="button" variant="outline" size="sm" onClick={() => setOpen(true)}>{i18next.t("dict.gen_335c8ef6")}</AiButton>
       </div>
 
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent className="max-h-[85vh] max-w-5xl overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>标题快速选填</DialogTitle>
-            <DialogDescription>
-              不做绑定关系，只是帮你更快把标题写进创建表单。可以直接生成候选，也可以从标题库挑一个回填。
-            </DialogDescription>
+            <DialogTitle>{i18next.t("dict.gen_335c8ef6")}</DialogTitle>
+            <DialogDescription>{i18next.t("novels.novelCreateTitleQuickFill.isstt8")}</DialogDescription>
           </DialogHeader>
 
           <Tabs
@@ -202,15 +200,13 @@ export default function NovelCreateTitleQuickFill({
             className="space-y-4"
           >
             <TabsList className="grid w-full grid-cols-2">
-              <TabsTrigger value="generate">快速生成</TabsTrigger>
-              <TabsTrigger value="library">标题库选择</TabsTrigger>
+              <TabsTrigger value="generate">{i18next.t("dict.gen_e6e71acf")}</TabsTrigger>
+              <TabsTrigger value="library">{i18next.t("dict.gen_625136b4")}</TabsTrigger>
             </TabsList>
 
             <TabsContent value="generate" className="space-y-4">
               <div className="space-y-4">
-                <div className="text-xs leading-6 text-muted-foreground">
-                  会优先读取当前创建页里已经填写的简介、题材、文风、节奏和叙事视角。你也可以在下面临时补充一句简报，不用先回到表单里填写。
-                </div>
+                <div className="text-xs leading-6 text-muted-foreground">{i18next.t("novels.novelCreateTitleQuickFill.ndgaie")}</div>
                 <div>
                   <LLMSelector />
                 </div>
@@ -220,19 +216,15 @@ export default function NovelCreateTitleQuickFill({
                     <label
                       htmlFor="novel-create-title-quick-brief"
                       className="text-sm font-medium text-foreground"
-                    >
-                      补充标题简报
-                    </label>
+                    >{i18next.t("novels.novelCreateTitleQuickFill.thaw2e")}</label>
                     <textarea
                       id="novel-create-title-quick-brief"
                       className="min-h-[132px] w-full rounded-md border bg-background px-3 py-2 text-sm outline-none transition focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
                       value={manualBrief}
                       onChange={(event) => setManualBrief(event.target.value)}
-                      placeholder="例如：末世废土里，一个被流放的维修师意外掌握古代机甲核心，想要标题更有硬核设定感和命运感。"
+                      placeholder={i18next.t("dict.examplePostApocalypticDustSomeoneImprisonedRepairmanUnexpectedControlAncientMechCoreWantTitleWithHardCoreSettingAndDestinyFeel")}
                     />
-                    <div className="text-xs leading-6 text-muted-foreground">
-                      这里只影响这一次生成，不会自动回写到小说创建表单。
-                    </div>
+                    <div className="text-xs leading-6 text-muted-foreground">{i18next.t("novels.novelCreateTitleQuickFill.3b4cxx")}</div>
                   </div>
 
                   <div className="space-y-3">
@@ -240,34 +232,32 @@ export default function NovelCreateTitleQuickFill({
                       <label
                         htmlFor="novel-create-title-reference"
                         className="text-sm font-medium text-foreground"
-                      >
-                        参考标题
-                      </label>
+                      >{i18next.t("novels.novelCreateTitleQuickFill.b3krzm")}</label>
                       <Input
                         id="novel-create-title-reference"
                         value={referenceTitle}
                         onChange={(event) => setReferenceTitle(event.target.value)}
-                        placeholder="可选，填了会按参考改编式生成"
+                        placeholder={i18next.t("dict.gen_a60012d2")}
                       />
                     </div>
                     <div className="text-xs leading-6 text-muted-foreground">
                       {referenceTitle.trim()
-                        ? "当前会参考你输入的标题节奏和命名结构，再结合这本小说的信息重新产出候选。"
-                        : "留空时会按简报直接生成。如果你心里已经有一个风格方向，可以在这里填参考标题。"}
+                        ? i18next.t("dict.gen_0bd4b906")
+                        : i18next.t("dict.gen_ec923432")}
                     </div>
                   </div>
                 </div>
 
                 <div className="border-l border-border/60 pl-3">
-                  <div className="text-xs font-medium text-foreground">当前已自动读取的创建页信息</div>
+                  <div className="text-xs font-medium text-foreground">{i18next.t("dict.gen_f40855d0")}</div>
                   <div className="mt-2 whitespace-pre-wrap text-xs leading-6 text-muted-foreground">
-                    {autoBrief || "创建页里暂时还没有足够的信息。你可以直接在上面的“补充标题简报”里写一句题材、卖点或冲突再生成。"}
+                    {autoBrief || i18next.t("dict.gen_fe38a034")}
                   </div>
                 </div>
 
                 <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
                   <label className="space-y-2 text-sm">
-                    <span className="font-medium text-foreground">生成数量</span>
+                    <span className="font-medium text-foreground">{i18next.t("dict.gen_e99dfdf4")}</span>
                     <Input
                       type="number"
                       min={3}
@@ -283,55 +273,49 @@ export default function NovelCreateTitleQuickFill({
                     onClick={() => generateMutation.mutate()}
                     disabled={generateMutation.isPending || !hasGenerationContext}
                   >
-                    {generateMutation.isPending ? "生成中..." : "生成标题候选"}
+                    {generateMutation.isPending ? i18next.t("dict.gen_4d020ba3") : i18next.t("dict.gen_65b0c5a6")}
                   </AiButton>
                 </div>
 
                 {!hasGenerationContext ? (
-                  <div className="mt-3 rounded-md border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs text-amber-800">
-                    至少先补一句标题简报，或填写一个参考标题；如果创建页里已经有简介、类型或文风，也会自动参与生成。
-                  </div>
+                  <div className="mt-3 rounded-md border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs text-amber-800">{i18next.t("novels.novelCreateTitleQuickFill.4psxdq")}</div>
                 ) : null}
               </div>
 
               <TitleSuggestionList
                 suggestions={suggestions}
                 selectedTitle={basicForm.title}
-                primaryActionLabel="填入标题"
+                primaryActionLabel={i18next.t("dict.gen_9dc08cbe")}
                 onPrimaryAction={(suggestion) => handleApplyTitle(suggestion.title, "generated")}
                 onCopy={handleCopySuggestion}
                 onSave={(suggestion) => saveMutation.mutate(suggestion)}
                 savingTitle={saveMutation.isPending ? saveMutation.variables?.title ?? "" : ""}
-                emptyMessage="可以直接在上面的补充标题简报里写一句题材或卖点，再点一次生成，结果会直接作为创建页的标题候选。"
+                emptyMessage={i18next.t("dict.gen_c7c6298e")}
               />
             </TabsContent>
 
             <TabsContent value="library" className="space-y-4">
               <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
                 <div className="space-y-1">
-                  <div className="text-sm font-medium text-foreground">从标题库快速选用</div>
+                  <div className="text-sm font-medium text-foreground">{i18next.t("dict.quicklySelectFromTitleLibrary")}</div>
                   <div className="text-xs leading-6 text-muted-foreground">
                     默认按点击率排序
-                    {basicForm.genreId ? "，并按当前题材基底过滤" : ""}
+                    {basicForm.genreId ? i18next.t("dict.gen_263398ad") : ""}
                     。
                   </div>
                 </div>
                 <Input
                   value={search}
                   onChange={(event) => setSearch(event.target.value)}
-                  placeholder="搜索标题关键词"
+                  placeholder={i18next.t("dict.gen_c4ac92cf")}
                   className="md:max-w-xs"
                 />
               </div>
 
               {libraryQuery.isLoading ? (
-                <div className="py-8 text-center text-sm text-muted-foreground">
-                  标题库加载中...
-                </div>
+                <div className="py-8 text-center text-sm text-muted-foreground">{i18next.t("novels.novelCreateTitleQuickFill.cjt2kg")}</div>
               ) : (libraryQuery.data?.data?.items ?? []).length === 0 ? (
-                <div className="py-8 text-center text-sm text-muted-foreground">
-                  当前条件下还没有可用标题。可以切到“快速生成”先产出一批候选。
-                </div>
+                <div className="py-8 text-center text-sm text-muted-foreground">{i18next.t("novels.novelCreateTitleQuickFill.e4ww7h")}</div>
               ) : (
                 <div className="divide-y divide-border/60">
                   {(libraryQuery.data?.data?.items ?? []).map((entry) => {
@@ -352,10 +336,10 @@ export default function NovelCreateTitleQuickFill({
                                 </Badge>
                               ) : null}
                               {typeof entry.usedCount === "number" ? (
-                                <Badge variant="secondary">已用 {entry.usedCount}</Badge>
+                                <Badge variant="secondary">{i18next.t("dict.gen_4531167e")}</Badge>
                               ) : null}
                               {entry.genre?.name ? <Badge variant="outline">{entry.genre.name}</Badge> : null}
-                              {isSelected ? <Badge variant="outline">当前选中</Badge> : null}
+                              {isSelected ? <Badge variant="outline">{i18next.t("dict.gen_bf94700b")}</Badge> : null}
                             </div>
                             <div className="text-lg font-semibold text-foreground">{entry.title}</div>
                             <div className="text-sm leading-6 text-muted-foreground">
@@ -364,9 +348,7 @@ export default function NovelCreateTitleQuickFill({
                           </div>
 
                           <div className="flex flex-wrap items-center gap-2">
-                            <Button type="button" size="sm" onClick={() => handleApplyTitle(entry.title, "library")}>
-                              填入标题
-                            </Button>
+                            <Button type="button" size="sm" onClick={() => handleApplyTitle(entry.title, "library")}>{i18next.t("dict.gen_9dc08cbe")}</Button>
                           </div>
                         </div>
                       </div>

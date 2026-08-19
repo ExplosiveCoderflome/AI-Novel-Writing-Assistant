@@ -1,3 +1,5 @@
+import { useTranslation } from "react-i18next";
+import i18next from "i18next";
 import { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -45,6 +47,7 @@ function RouteStatusDot({ state }: { state: ConnectivityState }) {
 }
 
 export default function ModelRoutesPage() {
+  const { t, i18n } = useTranslation();
   const queryClient = useQueryClient();
   const [actionResult, setActionResult] = useState("");
   const [routeDrafts, setRouteDrafts] = useState<Record<string, RouteDraft>>({});
@@ -77,7 +80,7 @@ export default function ModelRoutesPage() {
   const saveModelRouteMutation = useMutation({
     mutationFn: (payload: RouteSavePayload) => saveModelRoute(payload),
     onSuccess: async () => {
-      setActionResult("保存完成，这个任务会使用新路由。");
+      setActionResult(i18next.t("dict.savedSuccessfullyTaskWillUseNewRoute"));
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: queryKeys.settings.modelRoutes }),
         queryClient.invalidateQueries({ queryKey: queryKeys.settings.modelRouteConnectivity }),
@@ -91,7 +94,7 @@ export default function ModelRoutesPage() {
       return payloads.length;
     },
     onSuccess: async (count) => {
-      setActionResult(`保存完成，${count} 个任务会使用新路由。`);
+      setActionResult(i18next.t("settings.modelRoutesPage.sttp5y", { val1: count }));
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: queryKeys.settings.modelRoutes }),
         queryClient.invalidateQueries({ queryKey: queryKeys.settings.modelRouteConnectivity }),
@@ -102,7 +105,7 @@ export default function ModelRoutesPage() {
   const saveStructuredFallbackMutation = useMutation({
     mutationFn: (payload: Partial<StructuredFallbackSettings>) => saveStructuredFallbackConfig(payload),
     onSuccess: async () => {
-      setActionResult("结构化备用模型保存完成。");
+      setActionResult(i18next.t("dict.gen_55fad8cd"));
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: queryKeys.settings.structuredFallback }),
         queryClient.invalidateQueries({ queryKey: queryKeys.settings.modelRouteConnectivity }),
@@ -136,8 +139,8 @@ export default function ModelRoutesPage() {
       ?? providerConfigs[0],
     [providerConfigs],
   );
-  const defaultProvider = preferredProviderConfig?.provider ?? "deepseek";
-  const defaultModel = getPreferredModel(preferredProviderConfig);
+  const defaultProvider = preferredProviderConfig?.provider ?? providerConfigs[0]?.provider ?? "";
+  const defaultModel = getPreferredModel(preferredProviderConfig) ?? "";
   const dirtyTaskTypes = useMemo(
     () => taskTypes.filter((taskType) => {
       const draft = routeDrafts[taskType];
@@ -166,7 +169,7 @@ export default function ModelRoutesPage() {
     }
     const route = routeMap.get(taskType);
     return {
-      provider: route?.provider ?? "deepseek",
+      provider: route?.provider ?? defaultProvider,
       model: route?.model ?? "",
       temperature: route?.temperature != null ? String(route.temperature) : "0.7",
       maxTokens: route?.maxTokens != null ? String(route.maxTokens) : "",
@@ -210,7 +213,7 @@ export default function ModelRoutesPage() {
 
   function applyBulkDraftToRoutes(targetTaskTypes: ModelRouteTaskType[]) {
     if (targetTaskTypes.length === 0) {
-      setActionResult("没有需要套用的任务。");
+      setActionResult(i18next.t("dict.gen_ea553185"));
       return;
     }
     const draft = getBulkDraft();
@@ -221,7 +224,7 @@ export default function ModelRoutesPage() {
       });
       return next;
     });
-    setActionResult(`模型设置填入 ${targetTaskTypes.length} 个任务，保存后生效。`);
+    setActionResult(i18next.t("settings.modelRoutesPage.t0knmi", { val1: targetTaskTypes.length }));
   }
 
   function getStructuredFallbackDraft(): StructuredFallbackDraft {
@@ -230,8 +233,8 @@ export default function ModelRoutesPage() {
     }
     return {
       enabled: structuredFallback?.enabled ?? false,
-      provider: structuredFallback?.provider ?? "deepseek",
-      model: structuredFallback?.model ?? "deepseek-chat",
+      provider: structuredFallback?.provider ?? defaultProvider,
+      model: structuredFallback?.model ?? defaultModel,
       temperature: structuredFallback != null ? String(structuredFallback.temperature) : "0.2",
       maxTokens: structuredFallback?.maxTokens != null ? String(structuredFallback.maxTokens) : "",
       requestProtocol: "auto",
@@ -254,14 +257,12 @@ export default function ModelRoutesPage() {
     <div className="space-y-4">
       <Card>
         <CardHeader>
-          <CardTitle>模型路由管理</CardTitle>
-          <CardDescription>
-            为不同创作任务指定合适模型，并检查 JSON 输出是否稳定。
-          </CardDescription>
+          <CardTitle>{i18next.t("dict.gen_15ee8ec2")}</CardTitle>
+          <CardDescription>{i18next.t("settings.modelRoutesPage.upqzmn")}</CardDescription>
         </CardHeader>
         <CardContent className="flex flex-wrap items-center justify-between gap-3">
           <div className="space-y-2 text-sm text-muted-foreground">
-            <div>检测会覆盖普通对话和结构化输出；表单修改需要保存后参与检测。</div>
+            <div>{i18next.t("dict.gen_de22e5ab")}</div>
             <div className="flex flex-wrap items-center gap-3 text-xs">
               <span className="inline-flex items-center gap-2">
                 <RouteStatusDot
@@ -274,13 +275,13 @@ export default function ModelRoutesPage() {
                         : "idle"}
                 />
                 {modelRouteConnectivityQuery.isPending || modelRouteConnectivityQuery.isFetching
-                  ? "正在检测生效路由..."
+                  ? i18next.t("dict.gen_2da2f9e0")
                   : connectivitySummary.total > 0
-                    ? `检测结果：${connectivitySummary.total} 条路由，健康 ${connectivitySummary.healthy}，异常 ${connectivitySummary.failed}`
-                    : "尚未执行模型兼容性检测"}
+                    ? i18next.t("settings.modelRoutesPage.8f25zw", { val1: connectivitySummary.total, val2: connectivitySummary.healthy, val3: connectivitySummary.failed })
+                    : i18next.t("dict.gen_5a8affb1")}
               </span>
               {connectivitySummary.testedAt ? (
-                <span>检测时间：{new Date(connectivitySummary.testedAt).toLocaleString()}</span>
+                <span>{t("dict.gen_6b499cdc", { time: new Date(connectivitySummary.testedAt).toLocaleString() })}</span>
               ) : null}
             </div>
           </div>
@@ -291,13 +292,11 @@ export default function ModelRoutesPage() {
               disabled={modelRouteConnectivityQuery.isFetching || !modelRoutesQuery.isSuccess}
             >
               <RefreshCw className={`h-4 w-4 ${modelRouteConnectivityQuery.isFetching ? "animate-spin" : ""}`} />
-              {modelRouteConnectivityQuery.isFetching ? "检测中..." : "重新检测"}
+              {modelRouteConnectivityQuery.isFetching ? i18next.t("dict.gen_84561cc4") : i18next.t("dict.gen_f515f8fb")}
             </Button>
             <Button asChild variant="outline">
               <Link to="/settings">
-                <ArrowLeft className="h-4 w-4" />
-                返回系统设置
-              </Link>
+                <ArrowLeft className="h-4 w-4" />{i18next.t("settings.modelRoutesPage.viygxq")}</Link>
             </Button>
           </div>
         </CardContent>
@@ -306,12 +305,8 @@ export default function ModelRoutesPage() {
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
-            <CopyCheck className="h-5 w-5" />
-            快速套用模型
-          </CardTitle>
-          <CardDescription>
-            先选一套模型，再填入多个任务；统一保存后，后续创作会按新路由执行。
-          </CardDescription>
+            <CopyCheck className="h-5 w-5" />{i18next.t("settings.modelRoutesPage.fwag6p")}</CardTitle>
+          <CardDescription>{i18next.t("settings.modelRoutesPage.3klz44")}</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           <ModelRouteFields
@@ -320,9 +315,9 @@ export default function ModelRoutesPage() {
             providerOptions={providerOptions}
             onPatch={patchBulkDraft}
             temperaturePlaceholder="0.7"
-            maxTokensPlaceholder="留空则使用系统默认"
-            modelEmptyText="这个服务商没有可选模型"
-            manualModelPlaceholder="也可以手动输入模型名"
+            maxTokensPlaceholder={i18next.t("dict.gen_042f9716")}
+            modelEmptyText={i18next.t("dict.gen_ea8f2c1b")}
+            manualModelPlaceholder={i18next.t("dict.canManualInputModelName")}
             showProtocolFields={false}
           />
 
@@ -338,9 +333,7 @@ export default function ModelRoutesPage() {
                 onClick={() => applyBulkDraftToRoutes(taskTypes)}
                 disabled={!routeBulkDraft.provider.trim() || !routeBulkDraft.model.trim() || taskTypes.length === 0}
               >
-                <CopyCheck className="h-4 w-4" />
-                套用到全部任务
-              </Button>
+                <CopyCheck className="h-4 w-4" />{i18next.t("settings.modelRoutesPage.rcguhn")}</Button>
               <Button
                 type="button"
                 size="sm"
@@ -348,9 +341,7 @@ export default function ModelRoutesPage() {
                 onClick={() => applyBulkDraftToRoutes(failedTaskTypes)}
                 disabled={!routeBulkDraft.provider.trim() || !routeBulkDraft.model.trim() || failedTaskTypes.length === 0}
               >
-                <CopyCheck className="h-4 w-4" />
-                套用到异常任务
-              </Button>
+                <CopyCheck className="h-4 w-4" />{i18next.t("settings.modelRoutesPage.pu4s11")}</Button>
               <Button
                 type="button"
                 size="sm"
@@ -358,9 +349,7 @@ export default function ModelRoutesPage() {
                 onClick={() => applyBulkDraftToRoutes(emptyRouteTaskTypes)}
                 disabled={!routeBulkDraft.provider.trim() || !routeBulkDraft.model.trim() || emptyRouteTaskTypes.length === 0}
               >
-                <CopyCheck className="h-4 w-4" />
-                补齐空白任务
-              </Button>
+                <CopyCheck className="h-4 w-4" />{i18next.t("settings.modelRoutesPage.icflv0")}</Button>
               <Button
                 type="button"
                 size="sm"
@@ -370,7 +359,7 @@ export default function ModelRoutesPage() {
                 disabled={isSavingRoutes || dirtyTaskTypes.length === 0}
               >
                 <Save className="h-4 w-4" />
-                {saveAllModelRoutesMutation.isPending ? "保存中..." : `保存全部修改${dirtyTaskTypes.length > 0 ? ` (${dirtyTaskTypes.length})` : ""}`}
+                {saveAllModelRoutesMutation.isPending ? i18next.t("common.saving") : `保存全部修改${dirtyTaskTypes.length > 0 ? ` (${dirtyTaskTypes.length})` : ""}`}
               </Button>
             </div>
           </div>
@@ -379,18 +368,14 @@ export default function ModelRoutesPage() {
 
       <Card>
         <CardHeader>
-          <CardTitle>结构化备用模型</CardTitle>
-          <CardDescription>
-            主模型能对话但 JSON 不稳时，可在所有结构化任务上统一启用备用模型。
-          </CardDescription>
+          <CardTitle>{i18next.t("dict.gen_ec6a737a")}</CardTitle>
+          <CardDescription>{i18next.t("settings.modelRoutesPage.ieul42")}</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="flex items-center justify-between rounded-md border p-3">
             <div>
-              <div className="font-medium">启用全局结构化回退</div>
-              <div className="text-sm text-muted-foreground">
-                主模型的结构化策略全部失败后，才会切到这套备用模型。
-              </div>
+              <div className="font-medium">{i18next.t("dict.gen_08b94dfa")}</div>
+              <div className="text-sm text-muted-foreground">{i18next.t("settings.modelRoutesPage.xb7g4c")}</div>
             </div>
             <Switch
               checked={fallbackDraft.enabled}
@@ -404,9 +389,9 @@ export default function ModelRoutesPage() {
             providerOptions={providerOptions}
             onPatch={patchStructuredFallbackDraft}
             temperaturePlaceholder="0.2"
-            maxTokensPlaceholder="留空则使用系统默认"
-            modelEmptyText="这个服务商没有可选模型"
-            manualModelPlaceholder="也可以手动输入模型名"
+            maxTokensPlaceholder={i18next.t("dict.gen_042f9716")}
+            modelEmptyText={i18next.t("dict.gen_ea8f2c1b")}
+            manualModelPlaceholder={i18next.t("dict.canManualInputModelName")}
           />
 
           <div className="flex items-center justify-end gap-2">
@@ -421,99 +406,126 @@ export default function ModelRoutesPage() {
               })}
               disabled={saveStructuredFallbackMutation.isPending || !fallbackDraft.provider.trim() || !fallbackDraft.model.trim()}
             >
-              {saveStructuredFallbackMutation.isPending ? "保存中..." : "保存备用模型"}
+              {saveStructuredFallbackMutation.isPending ? i18next.t("common.saving") : i18next.t("dict.saveBackupModel")}
             </Button>
           </div>
         </CardContent>
       </Card>
 
-      {taskTypes.map((taskType) => {
-        const draft = getRouteDraft(taskType);
-        const label = MODEL_ROUTE_LABELS[taskType];
-        const providerName = getProviderDisplayName(providerConfigs, draft.provider);
-        const connectivity = connectivityMap.get(taskType);
-        const connectivityState = resolveConnectivityState(
-          connectivity,
-          modelRouteConnectivityQuery.isPending || modelRouteConnectivityQuery.isFetching,
-        );
-        const isDirty = dirtyTaskTypeSet.has(taskType);
-        const hasUnsavedRouteDiff = connectivity != null
-          && (
-            draft.provider !== connectivity.provider
-            || (draft.model.trim().length > 0 && draft.model !== connectivity.model)
-            || (draft.requestProtocol !== "auto" && draft.requestProtocol !== connectivity.requestProtocol)
-            || (
-              draft.structuredResponseFormat !== "auto"
-              && draft.structuredResponseFormat !== connectivity.structured?.strategy
-            )
+      {(() => {
+        const textTaskTypes: ModelRouteTaskType[] = [
+          "planner", "writer", "review", "light_review", "critical_review",
+          "repair", "replan", "state_resolution", "summary", "fact_extraction", "chat"
+        ];
+        const multimodalTaskTypes: ModelRouteTaskType[] = [
+          "image_gen", "video_gen", "embedding", "asr", "tts", "ocr"
+        ];
+
+        const renderTaskCard = (taskType: ModelRouteTaskType) => {
+          const draft = getRouteDraft(taskType);
+          const label = MODEL_ROUTE_LABELS[taskType] ?? { title: taskType, description: "" };
+          const providerName = getProviderDisplayName(providerConfigs, draft.provider);
+          const connectivity = connectivityMap.get(taskType);
+          const connectivityState = resolveConnectivityState(
+            connectivity,
+            modelRouteConnectivityQuery.isPending || modelRouteConnectivityQuery.isFetching,
           );
+          const isDirty = dirtyTaskTypeSet.has(taskType);
+          const hasUnsavedRouteDiff = connectivity != null
+            && (
+              draft.provider !== connectivity.provider
+              || (draft.model.trim().length > 0 && draft.model !== connectivity.model)
+              || (draft.requestProtocol !== "auto" && draft.requestProtocol !== connectivity.requestProtocol)
+              || (
+                draft.structuredResponseFormat !== "auto"
+                && draft.structuredResponseFormat !== connectivity.structured?.strategy
+              )
+            );
+
+          return (
+            <Card key={taskType}>
+              <CardHeader>
+                <CardTitle className="flex flex-wrap items-center gap-2">
+                  <span>{label.title}</span>
+                  <span className="inline-flex items-center gap-2 rounded-full border px-2 py-0.5 text-xs font-normal text-muted-foreground">
+                    <RouteStatusDot state={connectivityState} />
+                    {connectivityState === "healthy"
+                      ? i18next.t("dict.gen_2fbb4e75")
+                      : connectivityState === "failed"
+                        ? i18next.t("dict.gen_fce7b9c6")
+                        : connectivityState === "checking"
+                          ? i18next.t("dict.gen_d4c366cb")
+                          : i18next.t("dict.gen_5c6585e0")}
+                  </span>
+                  {isDirty ? <Badge variant="secondary">{i18next.t("dict.gen_29953c6f")}</Badge> : null}
+                </CardTitle>
+                <CardDescription>
+                  {label.description}
+                  <span className="ml-2 text-xs text-muted-foreground">标识：{taskType}</span>
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                <ModelRouteFields
+                  draft={draft}
+                  providerConfigs={providerConfigs}
+                  providerOptions={providerOptions}
+                  onPatch={(patch) => patchDraft(taskType, patch)}
+                  temperaturePlaceholder="0.7"
+                  maxTokensPlaceholder={i18next.t("dict.gen_042f9716")}
+                  modelEmptyText={i18next.t("dict.gen_ea8f2c1b")}
+                  manualModelPlaceholder={i18next.t("dict.canManualInputModelName")}
+                />
+
+                <div className="flex items-center justify-between gap-3">
+                  <div className="space-y-1 text-xs text-muted-foreground">
+                    <div>{isDirty ? i18next.t("dict.gen_a61d59f8") : i18next.t("settings.modelRoutesPage.sw8ek9", { val1: providerName })}</div>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <RouteStatusDot state={connectivityState} />
+                      <span>{formatConnectivityStatus(connectivity)}</span>
+                    </div>
+                    {connectivity?.structured ? (
+                      <div>
+                        请求协议：{connectivity.structured.requestProtocol ?? connectivity.requestProtocol ?? i18next.t("dict.gen_d81bb206")}，
+                        结构化策略：{connectivity.structured.strategy ?? i18next.t("dict.gen_d81bb206")}，
+                        {connectivity.structured.reasoningForcedOff ? i18next.t("dict.willCloseThinking") : i18next.t("dict.preserveThinking")}，
+                        {connectivity.structured.fallbackAvailable ? i18next.t("dict.gen_758d06ab") : i18next.t("dict.gen_88d8832f")}
+                      </div>
+                    ) : null}
+                    {hasUnsavedRouteDiff ? (
+                      <div>{i18next.t("dict.gen_227039ae")}</div>
+                    ) : null}
+                  </div>
+                  <Button
+                    size="sm"
+                    onClick={() => saveModelRouteMutation.mutate(buildRouteSavePayload(taskType, draft))}
+                    disabled={isSavingRoutes || !draft.provider.trim() || !draft.model.trim()}
+                  >
+                    <Save className="h-4 w-4" />{i18next.t("settings.modelRoutesPage.agp2m5")}</Button>
+                </div>
+              </CardContent>
+            </Card>
+          );
+        };
 
         return (
-          <Card key={taskType}>
-            <CardHeader>
-              <CardTitle className="flex flex-wrap items-center gap-2">
-                <span>{label.title}</span>
-                <span className="inline-flex items-center gap-2 rounded-full border px-2 py-0.5 text-xs font-normal text-muted-foreground">
-                  <RouteStatusDot state={connectivityState} />
-                  {connectivityState === "healthy"
-                    ? "兼容性正常"
-                    : connectivityState === "failed"
-                      ? "存在异常"
-                      : connectivityState === "checking"
-                        ? "检测中"
-                        : "未检测"}
-                </span>
-                {isDirty ? <Badge variant="secondary">待保存</Badge> : null}
-              </CardTitle>
-              <CardDescription>
-                {label.description}
-                <span className="ml-2 text-xs">标识：{taskType}</span>
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              <ModelRouteFields
-                draft={draft}
-                providerConfigs={providerConfigs}
-                providerOptions={providerOptions}
-                onPatch={(patch) => patchDraft(taskType, patch)}
-                temperaturePlaceholder="0.7"
-                maxTokensPlaceholder="留空则使用系统默认"
-                modelEmptyText="这个服务商没有可选模型"
-                manualModelPlaceholder="也可以手动输入模型名"
-              />
-
-              <div className="flex items-center justify-between gap-3">
-                <div className="space-y-1 text-xs text-muted-foreground">
-                  <div>{isDirty ? "表单改动保存后生效。" : `任务使用：${providerName}。`}</div>
-                  <div className="flex flex-wrap items-center gap-2">
-                    <RouteStatusDot state={connectivityState} />
-                    <span>{formatConnectivityStatus(connectivity)}</span>
-                  </div>
-                  {connectivity?.structured ? (
-                    <div>
-                      请求协议：{connectivity.structured.requestProtocol ?? connectivity.requestProtocol ?? "无"}，
-                      结构化策略：{connectivity.structured.strategy ?? "无"}，
-                      {connectivity.structured.reasoningForcedOff ? "会关闭 thinking" : "保留 thinking"}，
-                      {connectivity.structured.fallbackAvailable ? "备用模型可用" : "备用模型未启用"}
-                    </div>
-                  ) : null}
-                  {hasUnsavedRouteDiff ? (
-                    <div>检测结果来自生效路由；保存后会自动重新检测。</div>
-                  ) : null}
-                </div>
-                <Button
-                  size="sm"
-                  onClick={() => saveModelRouteMutation.mutate(buildRouteSavePayload(taskType, draft))}
-                  disabled={isSavingRoutes || !draft.provider.trim() || !draft.model.trim()}
-                >
-                  <Save className="h-4 w-4" />
-                  保存路由
-                </Button>
+          <>
+            <div className="space-y-4">
+              <div className="flex items-center gap-2 border-b pb-2 text-lg font-semibold text-foreground">
+                <span>📝 文本大模型创作路由节点 ({textTaskTypes.length})</span>
               </div>
-            </CardContent>
-          </Card>
+              {textTaskTypes.map(renderTaskCard)}
+            </div>
+
+            <div className="mt-8 space-y-4">
+              <div className="flex items-center gap-2 border-b pb-2 text-lg font-semibold text-foreground">
+                <span>🎨 多模态与多媒体模型路由节点 ({multimodalTaskTypes.length})</span>
+                <Badge variant="outline" className="border-purple-500/50 text-purple-600 dark:text-purple-400">{i18next.t("settings.modelRoutesPage.ag9zgi")}</Badge>
+              </div>
+              {multimodalTaskTypes.map(renderTaskCard)}
+            </div>
+          </>
         );
-      })}
+      })()}
 
       {actionResult ? <div className="text-sm text-muted-foreground">{actionResult}</div> : null}
     </div>

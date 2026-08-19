@@ -1,3 +1,5 @@
+import { useTranslation } from "react-i18next";
+import i18next from "i18next";
 import { useMemo } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
@@ -14,6 +16,7 @@ function PageStateCard(props: { message: string }) {
 }
 
 export default function NovelChapterEdit() {
+  const { t } = useTranslation();
   const { id = "", chapterId = "" } = useParams();
   const navigate = useNavigate();
 
@@ -37,7 +40,7 @@ export default function NovelChapterEdit() {
   if (novelDetailQuery.isLoading && !detail) {
     return (
       <div className="flex h-full min-h-0 flex-col gap-4">
-        <PageStateCard message="正在加载章节编辑器..." />
+        <PageStateCard message={i18next.t("dict.gen_22a1ab24")} />
       </div>
     );
   }
@@ -45,7 +48,7 @@ export default function NovelChapterEdit() {
   if (novelDetailQuery.isError) {
     return (
       <div className="flex h-full min-h-0 flex-col gap-4">
-        <PageStateCard message="章节数据加载失败，请刷新后重试。" />
+        <PageStateCard message={i18next.t("dict.gen_085aa7e4")} />
       </div>
     );
   }
@@ -53,7 +56,7 @@ export default function NovelChapterEdit() {
   if (!chapter) {
     return (
       <div className="flex h-full min-h-0 flex-col gap-4">
-        <PageStateCard message="没有找到对应章节，可能已被删除或当前链接不完整。" />
+        <PageStateCard message={i18next.t("dict.gen_116434ee")} />
       </div>
     );
   }
@@ -71,7 +74,6 @@ export default function NovelChapterEdit() {
             ? "error"
             : "ready"}
         onBack={() => navigate(`/novels/${id}/edit`)}
-        onOpenVersionHistory={() => navigate(`/novels/${id}/edit`)}
       />
     </div>
   );

@@ -1,3 +1,4 @@
+import i18next from "i18next";
 import {
   BookOpen,
   Castle,
@@ -155,13 +156,11 @@ export default function WorldOverviewTab(props: WorldOverviewTabProps) {
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div>
             <h2 className="text-xl font-semibold tracking-tight">{featureFlags.worldVisEnabled ? "阅读世界与图谱" : "阅读世界手册"}</h2>
-            <p className="mt-1 text-sm leading-6 text-muted-foreground">从读者视角理解世界承诺、规则边界、主要势力与故事舞台。</p>
+            <p className="mt-1 text-sm leading-6 text-muted-foreground">{i18next.t("worlds.worldOverviewTab.cg8eeg")}</p>
           </div>
           <div className="flex flex-wrap gap-2">
             <Button type="button" size="sm" variant="secondary" className="rounded-full" onClick={onOpenStructure}>
-              <Pencil className="mr-2 h-4 w-4" aria-hidden="true" />
-              编修手册
-            </Button>
+              <Pencil className="mr-2 h-4 w-4" aria-hidden="true" />{i18next.t("worlds.worldOverviewTab.gd8e2h")}</Button>
             <Button type="button" size="sm" variant="ghost" className="rounded-full" onClick={onOpenLayers}>
               <WandSparkles className="mr-2 h-4 w-4" aria-hidden="true" />
               AI 构建
@@ -173,7 +172,7 @@ export default function WorldOverviewTab(props: WorldOverviewTabProps) {
             <div className="grid gap-4 lg:grid-cols-[1.4fr_0.8fr]">
               <div className="rounded-3xl bg-muted/20 p-5 sm:p-6">
                 <div className="flex flex-wrap items-center gap-2">
-                  <Badge variant="secondary" className="border-0 bg-primary/[0.07] font-normal text-primary">世界样本</Badge>
+                  <Badge variant="secondary" className="border-0 bg-primary/[0.07] font-normal text-primary">{i18next.t("dict.worldSample")}</Badge>
                   {profile?.tone ? <Badge variant="secondary" className="border-0 bg-muted/60 font-normal">{profile.tone}</Badge> : null}
                   {profile?.themes?.slice(0, 4).map((theme) => (
                     <Badge key={theme} variant="secondary" className="border-0 bg-muted/60 font-normal">
@@ -193,32 +192,32 @@ export default function WorldOverviewTab(props: WorldOverviewTabProps) {
               </div>
 
               <div className="rounded-3xl border border-border/35 bg-card/70 p-5">
-                <div className="text-sm font-medium">作为世界样本可提供</div>
+                <div className="text-sm font-medium">{i18next.t("dict.worldSampleProvidable")}</div>
                 <div className="mt-3 space-y-2 text-sm leading-6 text-muted-foreground">
-                  <div>角色身份边界、势力归属与禁忌组合。</div>
-                  <div>开局地点、升级路径与冲突来源。</div>
-                  <div>写作时需要持续遵守的规则。</div>
+                  <div>{i18next.t("dict.gen_65f41c26")}</div>
+                  <div>{i18next.t("dict.gen_58a218ff")}</div>
+                  <div>{i18next.t("dict.gen_205239e3")}</div>
                 </div>
               </div>
             </div>
 
             <div className="flex flex-wrap gap-x-7 gap-y-2 px-1 text-sm text-muted-foreground">
-              <span><strong className="font-semibold tabular-nums text-foreground">{structure?.rules.axioms.length ?? 0}</strong> 条核心规则</span>
-              <span><strong className="font-semibold tabular-nums text-foreground">{(structure?.forces.length ?? 0) + (structure?.factions.length ?? 0)}</strong> 个势力与阵营</span>
-              <span><strong className="font-semibold tabular-nums text-foreground">{structure?.locations.length ?? 0}</strong> 个故事地点</span>
-              <span><strong className="font-semibold tabular-nums text-foreground">{(structure?.relations.forceRelations.length ?? 0) + (structure?.relations.locationControls.length ?? 0)}</strong> 条关系线索</span>
+              <span><strong className="font-semibold tabular-nums text-foreground">{structure?.rules.axioms.length ?? 0}</strong>{i18next.t("worlds.worldOverviewTab.8f8kfz")}</span>
+              <span><strong className="font-semibold tabular-nums text-foreground">{(structure?.forces.length ?? 0) + (structure?.factions.length ?? 0)}</strong>{i18next.t("worlds.worldOverviewTab.68kgs8")}</span>
+              <span><strong className="font-semibold tabular-nums text-foreground">{structure?.locations.length ?? 0}</strong>{i18next.t("worlds.worldOverviewTab.ylm9zt")}</span>
+              <span><strong className="font-semibold tabular-nums text-foreground">{(structure?.relations.forceRelations.length ?? 0) + (structure?.relations.locationControls.length ?? 0)}</strong>{i18next.t("worlds.worldOverviewTab.b6e3g4")}</span>
             </div>
 
             <div className="grid gap-3 lg:grid-cols-2">
-              <HandbookBlock icon={Sparkles} title="力量与规则" items={coreRules} accent="primary" />
-              <HandbookBlock icon={Castle} title="主要势力" items={majorForces} />
-              <HandbookBlock icon={MapPinned} title="故事舞台" items={storyLocations} />
-              <HandbookBlock icon={GitBranch} title="关键张力" items={tensions} />
+              <HandbookBlock icon={Sparkles} title={i18next.t("dict.gen_3da452ba")} items={coreRules} accent="primary" />
+              <HandbookBlock icon={Castle} title={i18next.t("dict.majorForce")} items={majorForces} />
+              <HandbookBlock icon={MapPinned} title={i18next.t("dict.gen_bf876a86")} items={storyLocations} />
+              <HandbookBlock icon={GitBranch} title={i18next.t("dict.gen_b7cadb8f")} items={tensions} />
             </div>
 
             <HandbookBlock
               icon={ShieldAlert}
-              title="本书使用时应优先遵守"
+              title={i18next.t("dict.gen_dd94b30a")}
               items={[
                 compactText(structure?.rules.summary, "核心规则会约束角色身份、冲突来源和世界一致性。", 150),
                 ...listText(structure?.rules.taboo ?? [], "没有记录禁忌组合。需要强约束时，在手册编修中补充。", 2),
@@ -229,40 +228,36 @@ export default function WorldOverviewTab(props: WorldOverviewTabProps) {
           <div className="space-y-4">
             <div className="grid gap-4 lg:grid-cols-[1.35fr_0.85fr]">
               <div className="rounded-3xl bg-muted/20 p-5">
-                <Badge variant="secondary" className="border-0 bg-primary/[0.07] font-normal text-primary">世界手册待成型</Badge>
+                <Badge variant="secondary" className="border-0 bg-primary/[0.07] font-normal text-primary">{i18next.t("dict.worldManualPending")}</Badge>
                 <div className="mt-3 text-lg font-semibold leading-7">
                   {compactText(summary, "先让 AI 或手册编修整理世界骨架，再把它作为可复用世界样本。", 160)}
                 </div>
-                <div className="mt-2 text-sm leading-6 text-muted-foreground">
-                  世界手册会把零散设定整理成规则、势力、地点和剧情压力，方便作者理解，也方便本书使用。
-                </div>
+                <div className="mt-2 text-sm leading-6 text-muted-foreground">{i18next.t("worlds.worldOverviewTab.u5u6eg")}</div>
               </div>
 
               <div className="rounded-3xl border border-border/35 bg-card/70 p-5">
-                <div className="text-sm font-medium">建议下一步</div>
+                <div className="text-sm font-medium">{i18next.t("dict.gen_fdf768b1")}</div>
                 <div className="mt-3 flex flex-wrap gap-2">
                   <Button type="button" size="sm" onClick={onOpenLayers}>
                     <WandSparkles className="mr-2 h-4 w-4" aria-hidden="true" />
                     AI 构建世界
                   </Button>
                   <Button type="button" size="sm" variant="outline" onClick={onOpenStructure}>
-                    <Pencil className="mr-2 h-4 w-4" aria-hidden="true" />
-                    编修手册
-                  </Button>
+                    <Pencil className="mr-2 h-4 w-4" aria-hidden="true" />{i18next.t("worlds.worldOverviewTab.gd8e2h")}</Button>
                 </div>
               </div>
             </div>
 
             <div className="grid gap-3 lg:grid-cols-2">
-              <EmptyHandbookBlock icon={Sparkles} title="力量与规则" description="记录世界不能随意打破的底层规则、代价和禁忌组合。" />
-              <EmptyHandbookBlock icon={Castle} title="主要势力" description="整理会推动剧情的组织、阵营、利益集团和压力来源。" />
-              <EmptyHandbookBlock icon={MapPinned} title="故事舞台" description="标出开局、升级、冲突爆发和转折发生的关键地点。" />
-              <EmptyHandbookBlock icon={GitBranch} title="关键张力" description="沉淀能反复制造冲突的资源矛盾、阵营冲突和规则代价。" />
+              <EmptyHandbookBlock icon={Sparkles} title={i18next.t("dict.gen_3da452ba")} description={i18next.t("dict.gen_31fc6a72")} />
+              <EmptyHandbookBlock icon={Castle} title={i18next.t("dict.majorForce")} description={i18next.t("dict.gen_1d0fedb4")} />
+              <EmptyHandbookBlock icon={MapPinned} title={i18next.t("dict.gen_bf876a86")} description={i18next.t("dict.gen_3add34f1")} />
+              <EmptyHandbookBlock icon={GitBranch} title={i18next.t("dict.gen_b7cadb8f")} description={i18next.t("dict.gen_711803e2")} />
             </div>
 
             {sections.length > 0 ? (
               <div className="rounded-3xl border border-border/35 p-4">
-                <div className="mb-2 text-sm font-medium">已有设定片段</div>
+                <div className="mb-2 text-sm font-medium">{i18next.t("dict.gen_a3ee60d1")}</div>
                 <div className="grid gap-3 lg:grid-cols-2">
                   {sections.map((section) => (
                     <div key={section.key} className="rounded-2xl bg-muted/20 p-4 text-sm">
@@ -282,38 +277,34 @@ export default function WorldOverviewTab(props: WorldOverviewTabProps) {
             <div className="flex flex-col gap-2 lg:flex-row lg:items-start lg:justify-between">
               <div>
                 <div className="flex items-center gap-2 text-sm font-medium text-foreground">
-                  <Map className="h-4 w-4 text-primary" aria-hidden="true" />
-                  世界资产入口
-                </div>
-                <div className="mt-1 text-sm leading-6 text-muted-foreground">
-                  地图和图谱是世界手册的可视化资产，不参与自动同步覆盖，也不替代世界手册的规则来源。
-                </div>
+                  <Map className="h-4 w-4 text-primary" aria-hidden="true" />{i18next.t("worlds.worldOverviewTab.2t3y6h")}</div>
+                <div className="mt-1 text-sm leading-6 text-muted-foreground">{i18next.t("worlds.worldOverviewTab.ora1hw")}</div>
               </div>
-              <Badge variant="secondary" className="border-0 bg-muted/60 font-normal">预留入口</Badge>
+              <Badge variant="secondary" className="border-0 bg-muted/60 font-normal">{i18next.t("dict.gen_6a6b9478")}</Badge>
             </div>
             <div className="mt-3 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
               <WorldAssetPreviewBlock
                 icon={MapPinned}
-                title="世界地图"
-                description="承载区域、地点连通、故事发生地和冲突热度。"
+                title={i18next.t("dict.worldMap")}
+                description={i18next.t("dict.gen_64bf02d8")}
                 status={(structure?.locations.length ?? 0) > 0 ? "可整理" : "待补地点"}
               />
               <WorldAssetPreviewBlock
                 icon={Network}
-                title="势力图谱"
-                description="承载势力节点、盟友敌对、控制关系和力量对比。"
+                title={i18next.t("dict.gen_de942453")}
+                description={i18next.t("dict.gen_8283f155")}
                 status={(structure?.forces.length ?? 0) + (structure?.factions.length ?? 0) > 0 ? "可整理" : "待补势力"}
               />
               <WorldAssetPreviewBlock
                 icon={Clock3}
-                title="世界时间线"
-                description="承载历史事件、局势变化和小说推进中的世界进展。"
+                title={i18next.t("dict.worldTimeline")}
+                description={i18next.t("dict.gen_7cbdcaee")}
                 status={profile?.coreConflict ? "可整理" : "待补张力"}
               />
               <WorldAssetPreviewBlock
                 icon={Workflow}
-                title="力量体系树"
-                description="承载等级、资源、代价、禁忌和突破边界。"
+                title={i18next.t("dict.gen_3e265312")}
+                description={i18next.t("dict.gen_1a6b348d")}
                 status={(structure?.rules.axioms.length ?? 0) > 0 ? "可整理" : "待补规则"}
               />
             </div>

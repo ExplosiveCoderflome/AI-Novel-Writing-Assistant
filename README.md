@@ -1,8 +1,11 @@
-# AI 小说创作工作台 / AI Novel Production Engine
-一个面向长篇小说创作的 AI Native 开源项目。
+# Daydream Engine (白日做梦引擎) / AI Novel Production Engine
+A multi-modal, agentic simulation sandbox designed to materialize human imagination and narrative worlds (AI 小说创作工作台).
 
-当前开发主线：
-`Creative Hub + 自动导演开书 + 本书世界上下文 + 整本生产主链 + 写法引擎`
+
+Languages: [English](README.md) | [简体中文](README_zh.md)
+
+Currently active development path:
+`Creative Hub + Auto-Director Initialization + Lore Sandbox Context + End-to-End Production Chain + Style Engine`
 
 ![Monorepo](https://img.shields.io/badge/Monorepo-pnpm%20workspace-3C873A)
 ![Frontend](https://img.shields.io/badge/Frontend-React%20%2B%20Vite-61DAFB)
@@ -13,29 +16,222 @@
 ![Database](https://img.shields.io/badge/Database-SQLite%20%2B%20Prisma-111827)
 ![Vector DB](https://img.shields.io/badge/RAG-Qdrant-E63946)
 
+---
 
-## ✨ 项目简介
+## 🌌 Project Vision & Roadmap: The Daydream Continuum
 
-这是一个**面向长篇小说完成度的 AI 生产系统**，不是普通的"你写一句、AI 补一句"聊天壳子。
+Daydream Engine is not just a standard "you write one sentence, AI completes the next" editor shell. It is a multi-modal sandbox designed to compile raw inspiration into rich interactive worlds. Creative storytelling and generation are structured as a compilation process across multiple stages:
 
-它的核心做法是：
+```mermaid
+flowchart LR
+    A["Raw Inspiration"] --> B["1. Novel Production"]
+    B --> C["2. Novel-to-Comic Conversion"]
+    C --> D["3. Storyboard Scripting"]
+    D --> E["4. Short Drama Synthesis"]
+    E --> F["5. Full Cinematic Film"]
+    F --> G["6. Virtual World Sandbox (Westworld)"]
+    
+    style B fill:#bfdbfe,stroke:#2563eb,stroke-width:2px
+    style G fill:#fbcfe8,stroke:#db2777,stroke-width:2px
+```
 
-- 👉 用一句灵感启动整本书的规划，AI 自动给出方向 / 世界 / 角色 / 卷战略 / 章节任务
-- 👉 把章节生成、审核、修复、状态回灌串成可暂停可恢复的生产链
-- 👉 把拆书、知识库、写法引擎、角色资源账本、世界手册都做成可召回的长期资产
-- 👉 提供漫画、短剧等衍生工坊围绕已完成的小说内容做视觉与剧本延展
-- 👉 配套公开介绍站、生产链深度文档和按阶段的恢复手册
+1. **Novel Production (First Step - Currently Most Fully Realized)**
+   Translates raw ideas and single-sentence prompts into structured, multi-chapter books. Includes automated story structuring, dynamic characters, facts/continuity books, and recursive AI self-editing and quality loops.
+2. **Novel to Comic / Manga**
+   Extracts visual panels, scenes, character model sheets, and stylistic direction from written novel chapters to compile text into graphic narratives with high visual consistency.
+3. **Comic to Storyboard Script**
+   Deconstructs comic/graphic sequences and beats into script formats, including camera angles, dialogue audio scripts, stage directions, and actor prompt definitions.
+4. **Storyboard to Short Drama / Video (VellumReel Integration)**
+   Utilizes text-to-speech (TTS), audio filters, background effects, and generative video systems to stitch storyboard scenes into 9:16 vertical short-form web dramas.
+5. **Even Movie / Film**
+   Expands pipelines to full cinematic video generation, scaling local models and workflows to generate long-form film content.
+6. **Ultimate Goal: World Sandbox (Virtual Westworld)**
+   Elevates stories, characters, lore, and laws into an interactive simulation sandbox (similar to a virtual *Westworld*). In this sandbox, AI agents (characters, factions) live, interact, make decisions, and autonomously generate infinite narratives, events, and chronicles.
 
-适合**完全不懂写作的新手**走完一本长篇，也适合研究 AI Native 应用、Agent Workflow、LangGraph 编排和长链路任务的开发者参考。
+This system is built both for **complete beginners** who want to generate their first full-length novel, and for **developers** researching AI Native applications, Agent Workflows, LangGraph orchestration, and complex long-running stateful pipelines.
 
-## Windows 桌面版
+---
 
-如果你只是想直接下载安装并开始使用，优先从桌面版入口进入：
+## Windows Desktop Version
 
-- 下载入口：[GitHub Releases](https://github.com/ExplosiveCoderflome/AI-Novel-Writing-Assistant/releases)
-- 最新版本页：[Latest Release](https://github.com/ExplosiveCoderflome/AI-Novel-Writing-Assistant/releases/latest)
-- 建议优先下载 `Setup.exe` 安装版；如果你不想安装，或者想放在 U 盘 / 临时目录里直接运行，再选择 `portable` 版本
-- 公开介绍站：[GitHub Pages 介绍站](https://explosivecoderflome.github.io/AI-Novel-Writing-Assistant/) 提供功能预览、模块文档和使用指南
+If you wish to run the pre-built desktop application directly:
+- Download page: [GitHub Releases](https://github.com/winnerineast/GeneralAgent/releases)
+- Latest Release: [Latest Release Page](https://github.com/winnerineast/GeneralAgent/releases/latest)
+- It is recommended to download the `Setup.exe` installer. Alternatively, you can use the `portable` version if you want to run it from a USB drive or temporary directory.
+- Public Site: The [GitHub Pages Site](https://winnerineast.github.io/GeneralAgent/) provides live previews, module documentation, and user guides.
+
+## Local Editing via Codex: Ani Book Skill
+
+If you prefer to write and manage your novel workspace in a local terminal using Codex, check out [Ani Book Skill](https://github.com/ExplosiveCoderflome/ani-book-skill). It manages book-framing, engine runs, chapter steps, and consistency checks directly via local files and steps.
+
+- Use this workspace repository if you want the visual dashboard, model router control, and interactive workbenches.
+- Head to [Ani Book Skill](https://github.com/ExplosiveCoderflome/ani-book-skill) if you prefer Codex terminal-based text creation.
+
+---
+
+## 🛠️ What Has Been Done (Core Capabilities)
+
+### 1. AI Auto-Director & 4 Execution Modes
+- Generates structural proposals, project settings, character sheets, and volume guides from a single-sentence prompt.
+- Refines proposals, updates title groups, and performs local modifications instead of forcing complete reruns.
+- Four execution modes: **Prepare to Write** (beginner friendly), **Auto-Generation (Full Book)**, **Scoped Execution** (entire book, first N chapters, or specific volumes), and **Post-Generation Detection & Correction** (feedback loop).
+- Smart checkpoints: Pauses upon quota exhaustion, model failures, or recursive editing failures, enabling complete recovery.
+- Automatically promotes pending character proposals after batch runs, reconstructing the character ledger to eliminate consistency drift.
+
+### 2. Creative Hub & Agent Runtime
+- A unified creative conversational canvas hosting dialogue, prompt editing, scheduling, tool execution, task progress cards, and round summaries.
+- Orchestrated using LangGraph, featuring a Planner, Tool Registry, Runtime, approval steps, and interruption recovery.
+- Employs browser notification events to alert users when a background task hits a checkpoint.
+
+### 3. End-to-End Production & Chapter Execution
+- Converges single-chapter execution and batch pipeline execution onto the same runtime flow.
+- Pre-filters context to inject only characters relevant to the current chapter, preventing context pollution.
+- Chapter execution covers generation, AI audit, problem repair, debt logging, character/lore state propagation, and next-chapter setup.
+- Out-of-memory issues are prevented via a dynamic LLM rate-limiter that purges old rate-limit instances upon provider changes.
+
+### 4. Book Analysis & Character Visual Evolution
+- Deconstructs books into character profiles with 4 depth tiers: Concise, Standard, Deep, and Complete. Deep/Complete tiers query source fragments to build evidence maps.
+- **Character Visual Evolution**: Incrementally scans character appearances at 25%, 50%, 75%, and 100% chapter thresholds. Generates stage-specific illustrations based on appearance changes while maintaining facial consistency.
+- Provides split-pane readers, source evidence backtracing, token budget guards, and manuscript diagnosis.
+
+### 5. Style Engine & Anti-AI Rules
+- Converts writing styles from prompts into reusable, editable assets.
+- Extracts style metrics and prose patterns from existing texts to compile customized constraint rules.
+- Integrates Anti-AI rules to mitigate typical LLM tropes (e.g., overly formal, generic summaries, clichéd transitions).
+
+### 6. World, Character, & Knowledge Base Integration (RAG)
+- Manages faction charts, geography maps, and world mechanics, injecting them directly into the context window.
+- Syncs deconstructed books and external documents via vector databases (Qdrant).
+- RAG pipelines use parallel indexing, deduplication hash keys, and retrieval traces to debug vector search relevance.
+
+### 7. GA-Argus Persistent Agentic Runtime & PAI Architecture
+- **Working Contract ($K_t$) & Verified Pivoting**: Decouples standing intent ($\iota$) from operational objectives ($o_t, c_t, v_t$). When plot obstacles or audit rejections occur, the runtime executes evidence-backed Verified Pivots without goal drift or full-book resets.
+- **Falsified Route Ledger (Dead Branches)**: Automatically persists rejected plot routes in SQLite DB and extracts structured `negativePromptConstraint` context blocks, achieving **0% dead-branch repetition**.
+- **Four-Role State Machine ($M, P, E, R$)**: Strictly bounds Manager (Stage/Contract Admission), Planner (Task Decomposition), Engineer (Draft/Patch Execution), and Reviewer (4-Stage Audit).
+- **Daniel Miessler PAI Integration**: TELOS-driven creator intent, physical isolation of user assets (`protectedUserContent`), Hot/Warm/Cold Three-Tier Memory budget allocation, and Anti-Hallucination guards.
+- **Fixed-Model Runtime Self-Evolution**: Mature writing waves use **21% fewer input tokens** and achieve a **75% Reviewer rescue rate**.
+
+### 8. Virtual World Sandbox Simulation (Westworld Sandbox)
+- Implements a complete lock-step turn-based simulation sandbox representing physical and ecological laws of the novel's world (detailed in [world-sandbox-simulation.md](./docs/design/world-sandbox-simulation.md)).
+- **Earth Physics & Ecology**: Tracks dynamic temperatures (latitude & season modeling, altitude lapse rate, diurnal hour-angle shifts) and predator-prey dynamics using Lotka-Volterra equations.
+- **Character Cognitive Agents**: Features memory decay modeling (Ebbinghaus forgetting curve) and spatial rumor diffusion/distortion across adjacent locations.
+- **Behavior Trees & LLM Scheduler**: Employs LOD 2 Behavior Trees tracking hunger, energy, and sanity for background characters, while scheduling LOD 1 protagonist decisions using the Sandbox LLM Scheduler.
+- **Dramatic Tension & Consistency Audit**: Tracks local and global tension, registers encounters, and audits narrative consistency (such as geography flash-teleportation or deceased characters speaking in drafts) using a virtual camera narrative engine.
+
+### 9. Multi-Modal Adaptation Workbenches
+- **Comic Workbench**: Generates panels and sheets. Employs user verification prompts prior to generating images to save credits. Automatically ports book profiles (factions, landmarks, character visuals) into the comic generator.
+- **VellumReel Video & Short Drama Pipeline**: Integrated engine mapping storyboard scripts into 9:16 vertical short dramas.
+  - **Completely Offline Rendering**: Built-in 6 high-definition hand-drawn ink landscape illustrations for offline fallbacks.
+  - **Local High-Fidelity TTS**: Native FastAPI speech server powered by Kokoro-ONNX v1.0 and `misaki[zh]`, enabling offline Chinese/English narration.
+  - **Voice Mapping & Prompt Cleaning**: Automatically maps gender attributes (`am_*`/`bm_*` to male voice `zm_yunjian`, `af_*`/`bf_*` to female voice `zf_xiaoxiao`). Cleans character names and stage directions (e.g., `(sighs)`) from the voiceover texts using regex filters.
+
+### 10. PAI Core Infrastructure Architecture (Insights #1 - #8)
+Fully implemented Daniel Miessler's Personal AI Infrastructure (PAI) architecture principles tailored for long-form narrative synthesis:
+- **Insight #1 (Determinism-First Architecture)**: Pure-code lexical JSON repair (`tryFixSyntacticJson`) & coercion across 250+ LLM invocation points, avoiding unnecessary LLM retries and saving latency/tokens.
+- **Insight #2 (User/System Separation & Asset Protection)**: Non-destructive setting management (`UserSettingProtectionService`) and project backup packaging gateway (`UserAssetBackupGateway`). Maintain single canonical prompt templates.
+- **Insight #3 (Three-Tier Memory Architecture)**: Deterministic 15% Hot / 35% Cold / 50% Warm memory budget allocation with dynamic 70%/30% reallocation when Warm memory is absent (e.g. Chapter 1), locking world axioms and character rules to prevent setting drift in long novels.
+- **Insight #4 (Pipeline Hooks System & Proactive Director)**: Asynchronous event bus (`PipelineHookRegistry`) with error isolation, auto-clearing video error states (`errorMessage: null`) and normalizing asset paths upon render completion.
+- **Insight #5 (TELOS Creator Profile System)**: 10-dimensional creator profile & 4 built-in aesthetic presets (修仙, 悬疑古风, 赛博朋克, 都市爽文) with beginner-first low-cognitive-load onboarding (presets, Q&A wizard modal, implicit feedback learning).
+- **Insight #6 (Security & Permission Guard)**: `SafetyGuardService` with 4 risk tiers (LOW, MEDIUM, HIGH, CRITICAL). Enforces explicit double-confirmation tokens and automatic pre-deletion project snapshot verification before destructive operations.
+- **Insight #7 (CLI-First Automation Engine & UNIX Philosophy)**: Standalone CLI automation gateway (`CLIAutomationService` & `cliRunner.ts`) for headless health auditing, asset exports, and RAG index rebuilding via `pnpm --filter server run:cli`.
+- **Insight #8 (Specs-First & Anti-Hallucination Guard)**: Quantitative knowledge confidence evaluation (`evaluateKnowledgeConfidence`). Automatically appends `ALLOW "I DON'T KNOW"` prompt instructions when context is missing, preventing AI hallucinations.
+
+### 12. OpenRSI Evolutionary Operator Engine & Crossover Recombination
+Integrated Frontis OpenRSI Recursive Self-Improvement (RSI) principles to build standardized atomic program/text evolution operators under [server/src/services/novel/director/operators/](./server/src/services/novel/director/operators/):
+- **`Draft` Operator**: Generates initial chapter candidates based on outline context, 3-tier memory, and creator profile (TELOS).
+- **`Improve` Operator**: Applies non-destructive prose & pacing enhancements guided by `AuditService` diagnostics while preserving parent text highlights.
+- **`Debug` Operator**: Executes surgical patches for critical constraint violations (setting breaches, character voice OOC, timeline errors).
+- **`Crossover` Operator (Core Innovation)**: Deconstructs Parent A (e.g. action pacing / climax payoff) & Parent B (e.g. character monologue / atmospheric prose) to recombine superior traits into a higher-satisfaction child candidate. Full mutation lineage is logged via `MutationTraceNode`.
+- **Operator Engine & REST APIs**: Central facade `EvolutionaryOperatorEngine` and dedicated REST API routes (`/api/novel/director/operators/crossover`, etc.) serving both Creative Hub and Auto-Director.
+
+### 13. Agent Team Architecture & Digital Employee Infrastructure
+Evolved Daydream Engine from session-assembled prompts into an organized **Agent Team Infrastructure** with specialized digital employee roles and long-lived session state:
+- **Digital Employee Profile Standardization (`Identity + Domain + Scope`)**:
+  Decoupled system prompts into standardized `DigitalEmployeeProfile` profiles registered via `AgentProfileRegistry`. Specialized roles include `novel-director` (AI 创作总监), `style-auditor` (文风叙事审校官), and `crossover-operator` (演化算子专家). Each role defines explicit capabilities, tools, RAG collections, and 4-tier risk scopes (`LOW`, `MEDIUM`, `HIGH`, `CRITICAL`).
+- **Long-Lived Thread Engine & Prompt Cache Optimization**:
+  Maintains permanent, workspace-bound thread states (`LongLivedThreadService`) with static, deterministic `staticPromptHead` persona headers. Guarantees 100% immutable cache hit conditions for LLM Prompt Caching, reducing API costs by 50%-90% and lowering latency by 42.5%.
+- **Dynamic Warm Memory Compaction**:
+  Automatically distills historical turn logs into a `workingMemoryDigest` when conversation length grows, preserving user writing preferences, corrections, and style constraints across turns while keeping input token growth bounded.
+- **Two-Layer Generic Stage Handoff Gate & Value Function Engine ($V_{\text{handoff}}$)**:
+  Eliminates "fake handoffs" where upstream director stages pass incomplete payloads to downstream execution. Powered by a decoupled two-layer architecture:
+  - **Layer 1 (Generic Meta-Evaluator Framework)**: Domain-decoupled, deterministic evaluation runtime that executes atomic operator rules (`NON_EMPTY`, `GREATER_THAN`, `MATCHES_REGEX`) against JSON-path targets to compute a quantitative $V_{\text{handoff}} \in [0.0, 1.0]$ score.
+  - **Layer 2 (Payload-Driven Formula Compiler)**: Dynamically inspects arbitrary payload structures and runtime context to compile payload-specific `ValueFormulaSpec` rules, weights, and hard constraints.
+  - **Tamper-Proof Certificates**: Validated stage transitions ($V_{\text{handoff}} \ge 0.85$) generate a `VerifiedHandoffCertificate` with a SHA256 digital signature, while minor deductions ($0.60 \le V_{\text{handoff}} < 0.85$) trigger targeted `AUTO_REPAIR`.
+- **Quota-Aware Unattended Auto-Wake Scheduler (Module 2, Default: Unattended)**:
+  Eliminates manual task intervention upon API 429 rate limits or quota exhaustion. Designed for beginner users:
+  - **Default Unattended Mode (`enabled: true`)**: Automatically captures rate-limit errors, transitions task into `QUOTA_COOLING`, calculates exponential backoff + jitter, and uses a background Heartbeat Worker to auto-resume execution once the provider recovers.
+  - **Opt-out Manual Recovery**: Expert users can explicitly toggle `enabled: false` to return to classic manual checkpoint recovery.
+- **Durable Agent Executable Todos Kanban Engine (Module 3)**:
+  Replaces volatile in-memory pipeline state with a durable, atomic task Kanban backed by SQLite (`AgentExecutableTodo`). Guarantees 100% crash resilience and zero-loss resuming across long-running (80+ chapter) novel generations:
+  - **Atomic Task Claiming (`claimNextTodo`)**: Multi-agent race prevention with database-level transaction locking.
+  - **Evidence-Backed Completions (`completeTodo`)**: Links Module 1 `VerifiedHandoffCertificate` directly into task completion records.
+  - **Deadlock Self-Healing (`recoverStaleClaimedTodos`)**: Automatically resets stale, crashed worker claims back to `PENDING` after configurable timeouts.
+- **OpenRSI Evolutionary Operator Evidence Trace Logger (Module 4)**:
+  Provides 100% auditability, AI explainability, and quality guardrails for evolutionary text operations (`Draft`, `Improve`, `Debug`, `Crossover`):
+  - **AI Lineage Tree (`getChapterMutationLineage`)**: Records exact parent/child text hashes (`parentHashes`), score deltas (`scoreDelta`), and recombination rationales for clear user visualization.
+  - **Anti-Degradation Rollback Guard (`shouldRollbackMutation`)**: Automatically detects negative score deltas ($scoreDelta < 0$) and triggers rollbacks to pre-mutation states to guarantee prose quality strictly increases.
+  - **Elite Vector RAG Feedback Loop (`getEliteMutationNodes`)**: Filters high-gain mutation nodes ($scoreDelta \ge +0.15$) for index insertion into Qdrant, keeping vector context pristine.
+- **Empirical Automated Benchmarking**:
+  Includes [real-empirical-agent-test.js](./scripts/real-empirical-agent-test.js), [stageHandoffTwoLayer.test.js](./server/tests/stageHandoffTwoLayer.test.js), [autoWakeScheduler.test.js](./server/tests/autoWakeScheduler.test.js), [agentKanbanTodo.test.js](./server/tests/agentKanbanTodo.test.js), and [evidenceTraceLogger.test.js](./server/tests/evidenceTraceLogger.test.js) for verifying prompt head exact-matching, two-layer handoff gates, auto-wake heartbeat recovery, durable Kanban claiming, and mutation trace logging.
+
+### 14. Internationalization (i18n) Support
+- Fully integrated with `i18next` and `react-i18next` on the client. UI elements, logs, page labels, and settings routes support complete localization between English and Chinese. User language selections are persisted locally.
+
+---
+
+## 🔮 What Is To Be Done (Future Vision)
+
+As the project scales from a novel-writing engine to a full **Daydream Engine**, our future development tasks focus on evolving our **Agent Team Infrastructure** and **Loop Engineering State Kernel** across the following multi-modal milestones:
+
+### 🎭 Stage 1: Seamless Adaptations (Novel ➔ Comic ➔ Short Video)
+- **Cross-Modal Handoff Gates**: Extend the **Module 1 Two-Layer Stage Handoff Gate** to verify cross-modal assets (novel chapters $\rightarrow$ storyboard cues $\rightarrow$ visual panel assets) before video rendering.
+- **Multi-Modal Durable Kanban**: Expand **Module 3 Durable Executable Todos** to track long-running image generation, voice synthesis (TTS), and video stitching tasks with crash-proof resuming.
+- **Persistent Visual Style Sheets**: Build a persistent Visual Style Sheet system ensuring character face, hair, costume, and color scheme consistency across both images and synthetic video.
+
+### 🎬 Stage 2: Storyboard Scripts ➔ Full Cinematic Video
+- **Video Rendering Evidence Logs**: Extend **Module 4 Evidence Trace Logger** to record audio/video rendering parameters, aesthetic score deltas, and automatic video re-rendering rollbacks.
+- **Cinematic Pipeline Expansion**: Expand local rendering pipelines (VellumReel) to support wider aspect ratios (16:9, 2.39:1) and multi-track audio/SFX timeline editing.
+
+### 🗺️ Stage 3: Visual Westworld Console & Faction Battles
+- **Long-Lived Agent Team Sandbox**: Combine **Digital Employee Profiles** and **Long-Lived Threads** to support tens of autonomous agents interacting continuously in the Simulated World Sandbox.
+- **Visual Westworld Console**: Build a web-based visual interface mapping out geographic grids, faction boundaries, and live character locations for lock-step chronology simulation.
+
+---
+
+## 🚀 Technical Running Guide
+
+### System Requirements
+
+- **Node.js**: `^20.19.0 || ^22.12.0 || >=24.0.0` (LTS `20.19.x` is highly recommended)
+- **pnpm**: `>= 10.6.0` (declared `pnpm@10.6.0` is recommended)
+- **LLM API Keys**: At least one valid provider API Key (OpenAI, DeepSeek, SiliconFlow, xAI, etc.). Can be configured post-launch in the settings UI.
+- **Qdrant**: Optional. Required for Knowledge Base / RAG indexations.
+- **VellumReel Video Pipeline Requirements**:
+  - Python `^3.10`
+  - System FFmpeg installed and in your environment path (for video stitching and subtitles).
+  - ONNX runtime dependencies (local FastAPI TTS server will download Kokoro model weights automatically on its first run).
+
+### 1. Install Dependencies
+```bash
+pnpm install
+```
+
+### 2. Configure Environment Variables
+Copy `.env.example` to `.env` and fill in your LLM Provider configurations:
+```bash
+cp .env.example .env
+```
+
+### 3. Run Database Migrations
+```bash
+pnpm db:migrate
+```
+
+### 4. Start Development Mode
+```bash
+pnpm dev
+```
+Open `http://localhost:5173` in your browser.
 
 ## 用 Codex 持续创作长篇：Ani Book Skill
 
@@ -125,7 +321,6 @@
 - RAG 并发数、限速等运行时参数从 .env 迁到设置面板，改完即生效无需重启
 - Monorepo 拆分（pnpm workspace），桌面版 / 介绍站 / 服务端 / 客户端独立可构建
 
-
 ## 典型使用路径
 
 1. 在小说创建页输入一句灵感，先让 AI 自动导演给出整本方向候选。
@@ -147,13 +342,32 @@
 
 ## 最新更新
 
-### 2026-08-16
-
-- 自动导演发现局部章节计划失配时，会自动调整后续未生成章节的安排并继续创作，已保存正文和手动内容保持不变。
-- 从重规划检查点恢复时，会直接定位到首个未生成章节，避免再次处理已经完成的正文。
-- Windows 桌面版更新至 `0.4.13`，包含本次自动导演连续创作与重规划恢复改进。
-
 完整历史更新见 [docs/releases/release-notes.md](./docs/releases/release-notes.md)。
+
+### 2026-08-09
+
+<<<<<<< HEAD
+- 从已有项目接管自动导演时，选择“推进至第 N 章”会按所选范围继续准备、生成和审校，不会回退到已完成的旧章节；接管任务会保留本次选择的推进方式与自动审批设置，进度展示对应实际提交的章节范围。
+- 顶栏提供模型设置入口；首次缺少可用模型时自动打开快捷配置，之后也可以随时更换厂商、密钥、地址和默认模型。
+- 第一次完成模型检测后，可直接用一句灵感开始第一本小说，并查看“说想法、选择方向、阅读首章”的创作路径。
+- 世界图谱迁移至 React Flow 画布，支持节点拖拽布局、视口缩放和平移；世界时间线采用可视重构轨道展示。
+=======
+- 拆书工作台使用更轻盈的阅读报告式视觉，分析目录、结果工具、分类页签与正文区域层级更清楚。
+- 结构化结论和原文证据通过留白与柔和分区呈现，减少重复边框与状态标签对阅读的干扰。
+- 打开可阅读结果后会直接进入分析列表、结果工具和正文；新建、生成或恢复任务时仍会提供必要引导。
+- 历史拆书结果可以从分析列表可靠切换；搜索筛选、原文对照、重新生成、保存、发布知识库和创作中枢引用等功能保持可用。
+- 角色档案会优先呈现人物动机、成长轨迹与关键场景，生成设置和形象资料按需展开；参考图与章节形象采用更直观的缩略图和时间线展示。
+- 运行记录采用更聚焦的任务收件箱布局，优先展示进度、当前动作和异常原因；模型、Token、心跳和执行步骤可按需展开。
+- 标题工坊将三种取名方式整理为连续生成流程，候选标题和标题库使用双列方案卡，方便比较、复制、采用和收藏。
+- 知识资料库采用轻量资料书架，优先展示资料、可用状态和继续创作入口；索引、召回、启停与归档维护可按需展开。
+- 资料检索异常时会直接指向连接设置；同步失败原因保持可见，任务编号、集合命名与性能参数收进按需展开的详情。
+- 世界样本库采用设定画廊式布局，世界概念、核心张力和资产规模优先展示，规则、势力、地点、冲突线索与维护信息按需展开。
+- 世界详情使用统一的作者工作台，手册阅读与整理优先；AI 分层、补齐设定、一致性检查和资料版本管理按清晰步骤展开。
+- 势力与地理图谱会自动铺开过度集中的节点，并分别避让名称和关系标签，缩放、拖动、筛选与重置更容易使用。
+- 势力图谱和地理地图支持完整视口展示；地理路线文字会避让地点与名称，减少中心区域的信息堆叠。
+>>>>>>> 6721e833 (fix(ui): refine world map fullscreen layout)
+
+> 查看完整更新历史：[docs/releases/release-notes.md](./docs/releases/release-notes.md)
 
 ## 功能预览
 ### 功能概览中的95%以上编写都是AI完成
@@ -171,12 +385,6 @@
 统一承载对话、规划、工具执行和创作推进的创作中枢。
 
 ![创作中枢](./images/创作中枢.png)
-
-### 首页创作续写台
-
-首页会围绕当前小说、真实进度和推荐下一步组织续写入口，让第一次使用也能快速找到现在该做什么。
-
-![首页创作续写台](./images/v2/微信截图_20260813215131.png)
 
 ### 自动导演模式
 
@@ -242,15 +450,13 @@
 
 从这里进入开书、管理、编辑和整本生产。
 
-![小说列表](./images/v2/微信截图_20260813220328.png)
+![小说列表](./images/小说列表.png)
 
 ### 拆书分析
 
 拆书分析已经不只是生成一篇读后感：可选快速 / 标准 / 完整三档拆书，覆盖题材定位、剧情结构、人物系统、世界设定和写法技法；角色档案支持简要 / 标准 / 深入 / 完整四档深度，还能按 25% / 50% / 75% / 100% 覆盖率对角色做形象演变的增量扫描，生成跨章节一致的参考图。拆书结论可以直接发布到知识库、一键转成写法资产，或把角色升格进基础角色库，让“拆一本书”变成后续创作能反复调用的长期资产，而不是看完就忘的一次性笔记。
 
-![拆书分析](./images/v2/微信截图_20260813220038.png)
-
-拆书结果页会把作品结构、人物和创作经验整理成可复用的分析资产。
+![拆书分析](./images/拆书.png)
 
 ### 知识库
 
@@ -262,8 +468,7 @@
 
 世界观不再只是描述文本，而是能生成世界骨架、维护世界手册，并绑定为每本小说自己的本书世界上下文。
 
-![世界样本库](./images/v2/微信截图_20260813220219.png)
-![世界手册与可视化](./images/v2/微信截图_20260813220255.png)
+![世界观](./images/世界观.png)
 
 ### 角色库
 
@@ -275,26 +480,26 @@
 
 集中维护题材与类型资产，让故事规划、角色准备和正文生成共享同一套题材语言。
 
-![题材基底库](./images/v2/微信截图_20260813220110.png)
+![类型管理](./images/类型管理.jpeg)
 
 ### 流派管理
 
 把推进模式、兑现方式和冲突边界收成可复用的流派模式资产，让整本书更容易保持读者预期。
 
-![推进模式库](./images/v2/微信截图_20260813220114.png)
+![流派管理](./images/流派管理.jpeg)
 
 ### 标题工坊
 
 批量生成、筛选和微调书名与标题方向，降低新手在开书命名阶段的试错成本。
 
-![标题工坊](./images/v2/微信截图_20260813220147.png)
+![标题工坊](./images/标题工坊.jpeg)
 
 ### 写法引擎与反 AI 规则
 
 统一管理写法资产、风格约束和反 AI 规则，让正文更像作品本身，而不是模板式补全文本。
 
-![写法引擎](./images/v2/微信截图_20260813220303.png)
-![反 AI 规则](./images/v2/微信截图_20260813220310.png)
+![写法引擎与反 AI 规则](./images/写法引擎与反AI规则.jpeg)
+![配置写法引擎的效果](./images/ScreenShot_2026-04-22_154855_026.png)
 
 ### 任务中心
 
@@ -321,64 +526,48 @@
 - 如果你要完整体验知识库 / RAG，再额外准备可用的 Qdrant
 
 ### 1. 安装依赖
+>>>>>>> upstream/main
 
 ```bash
 pnpm install
 ```
 
-默认的 `pnpm install` 现在只准备 Web / Server 开发所需依赖，不会在首次安装时强制下载 Electron 桌面运行时。
+*Note: The default `pnpm install` only installs packages for Web and Server development. It will not download the Electron runtime.*
 
-- 如果你只是运行现有 Web / Server 开发流，到这里就够了
-- 如果你要启动桌面端开发壳，首次运行 `pnpm dev:desktop` 时会自动补拉 Electron 运行时
-- 如果你想提前完成这一步，也可以手动执行：
+- If you only run Web/Server flows, this is sufficient.
+- If you want to run the desktop wrapper, it will automatically download Electron when running `pnpm dev:desktop` for the first time.
+- You can manually pre-fetch the Electron runtime via:
+  ```bash
+  pnpm run prepare:desktop-runtime
+  ```
 
-```bash
-pnpm run prepare:desktop-runtime
-```
+#### Troubleshooting Windows Prisma Installation:
+If `pnpm install` hangs on `prisma preinstall` on Windows, check:
+1. **Node version**: Prisma 7 requires Node `^20.19.0 || ^22.12.0 || >=24.0.0`.
+2. **Script-shell setting**: If your npm/pnpm script-shell is set to an interactive shell (e.g., `cmd.exe /k`), Prisma pre-install scripts may hang. Check using:
+   ```bash
+   node -v
+   pnpm config get script-shell
+   npm config get script-shell
+   ```
+   If it returns a value with `/k`, delete it and restart your terminal:
+   ```bash
+   npm config delete script-shell
+   pnpm config delete script-shell
+   ```
+   Then run `pnpm install` again.
 
-桌面端运行时首次下载需要可访问 Electron 分发源的网络环境；如果你所在网络无法访问 GitHub Releases，建议先配置代理或镜像后再执行桌面端命令。
+---
 
-如果你在 Windows 上执行 `pnpm install` 时卡在 `prisma preinstall`，通常先检查这两类问题：
+### 2. Configure Environment Variables
 
-1. Node 版本过低
-   Prisma 7 目前要求 Node `^20.19.0 || ^22.12.0 || >=24.0.0`。如果你还在 `20.0 ~ 20.18`，建议先升级到 `20.19.x LTS` 再安装。
-2. `script-shell` 被配置成了交互式 shell
-   如果全局 `npm/pnpm script-shell` 被设成了 `cmd.exe /k` 之类会保留提示符的形式，Prisma 的 lifecycle script 可能不会自动退出，看起来就像安装“卡死”在：
-   `node_modules/.../prisma>`
+The project structure separates frontend and backend, with configurations loaded as workspace packages:
+- The backend runs in the `server/` workspace and loads `server/.env`.
+- The frontend runs in the `client/` workspace and loads `client/.env` or `client/.env.local`.
+- The root `.env.example` serves as an overview reference.
 
-可以先运行下面几条命令自查：
-
-```bash
-node -v
-pnpm config get script-shell
-npm config get script-shell
-```
-
-如果 `script-shell` 返回的是带 `/k` 的 `cmd.exe`，建议删除这项配置后重新打开终端：
-
-```bash
-npm config delete script-shell
-pnpm config delete script-shell
-```
-
-然后重新执行：
-
-```bash
-pnpm install
-```
-
-### 2. 配置环境变量
-
-这个仓库通过 pnpm workspace 分别启动前后端，所以环境变量也是按子包读取的：
-
-- 服务端运行在 `server/` 工作目录，默认读取 `server/.env`
-- 前端运行在 `client/` 工作目录，默认读取 `client/.env` / `client/.env.local`
-- 根目录 `.env.example` 目前更适合当“总览参考”，不是 `pnpm dev` 默认读取的主入口
-
-#### 2.1 服务端环境变量
-
-先复制服务端示例文件：
-
+#### 2.1 Backend Environment Variables
+Duplicate the backend example file:
 ```bash
 # macOS / Linux
 cp server/.env.example server/.env
@@ -386,48 +575,16 @@ cp server/.env.example server/.env
 # Windows PowerShell
 Copy-Item server/.env.example server/.env
 ```
+Key configurations inside `server/.env`:
+- `DATABASE_URL`: Defaults to local SQLite (`file:../prisma/dev.db`), ready to use.
+- `RAG_ENABLED`: Set to `false` if you are not using Qdrant/RAG yet.
+- `QDRANT_URL` / `QDRANT_API_KEY`: Only required when RAG is enabled.
+- API keys (e.g., `OPENAI_API_KEY`, `DEEPSEEK_API_KEY`) can be left blank here and configured in the web UI.
 
-最少建议先确认这些项目：
-
-- `DATABASE_URL`
-  默认就是本地 SQLite，可直接使用
-- `RAG_ENABLED`
-  如果你暂时不接知识库，建议先设为 `false`
-- `QDRANT_URL`、`QDRANT_API_KEY`
-  只有要启用 Qdrant / RAG 时才需要
-
-注意：
-
-- `OPENAI_API_KEY`、`DEEPSEEK_API_KEY`、`SILICONFLOW_API_KEY` 这类变量可以先留空
-- 项目启动后，也可以在页面中配置模型供应商和默认模型
-
-#### 2.2 前端环境变量
-
-大多数本地开发场景，其实不需要单独创建前端 env。
-
-因为前端开发模式下默认会把 API 指到：
-
-```text
-http(s)://当前页面 hostname:3000/api
-```
-
-这也包括“同一台机器启动服务，然后用局域网 IP 在别的设备上访问”的场景。
-例如页面开在 `http://192.168.0.37:5173`，前端默认会自动把 API 指到：
-
-```text
-http://192.168.0.37:3000/api
-```
-
-只有在这些场景下，才建议创建 `client/.env`：
-
-- 前端和后端不在同一台机器
-- 你想把前端显式指向别的 API 地址
-- 你需要固定 `VITE_API_BASE_URL`
-
-如果你已经复制了 `client/.env.example`，又发现浏览器请求都跑到了 `http://localhost:3000/api`，通常就是因为你把 API 显式固定死了。对同机 / 局域网访问，建议直接删除或注释掉 `VITE_API_BASE_URL`。
-
-示例：
-
+#### 2.2 Frontend Environment Variables
+By default, the Vite dev server maps requests to:
+`http(s)://[current_hostname]:3000/api`
+Therefore, you do not need to configure frontend environment variables for local/LAN environments. Only copy `client/.env` if the frontend and backend are hosted on separate systems or if you want to lock the API base URL.
 ```bash
 # macOS / Linux
 cp client/.env.example client/.env
@@ -435,223 +592,202 @@ cp client/.env.example client/.env
 # Windows PowerShell
 Copy-Item client/.env.example client/.env
 ```
+Comment out or remove `VITE_API_BASE_URL` for local/LAN automatic mapping.
 
-内容通常只需要：
+#### 2.3 Setting Models via UI
+Instead of hardcoding models in `.env`, you can manage configurations in the UI:
+- `/settings`: Configure API Keys, test connectivity.
+- `/settings/model-routes`: Direct specific tasks (planning, writing, auditing) to specific models.
+- `/knowledge?tab=settings`: Manage Embedding providers, collections, and reconstruction schedules.
 
-```env
-# 同机 / 局域网访问时，通常不需要这一行
-# VITE_API_BASE_URL=http://localhost:3000/api
-```
+---
 
-#### 2.3 模型供应商并不一定要写死在 env
+### 3. Starting the Development Environment
 
-当前项目已经支持在页面里配置模型相关设置：
-
-- `/settings`
-  配置供应商 API Key、默认模型、连通性测试
-- `/settings/model-routes`
-  给不同任务分配不同 provider / model
-- `/knowledge?tab=settings`
-  配置 Embedding provider、Embedding model、集合命名和自动重建策略
-
-所以环境变量里的 `OPENAI_MODEL`、`DEEPSEEK_MODEL`、`EMBEDDING_MODEL` 等，更适合当作：
-
-- 启动默认值
-- 数据库里还没保存设置时的回退值
-
-### 3. 启动开发环境
-
+#### Option A: One-Click Startup (All Services)
 ```bash
 pnpm dev
 ```
+Runs the shared package compiler, Express server, and Vite client concurrently.
 
-如果你已经复制好了 `server/.env` 和 `client/.env`，默认就是直接运行这一条。
-不需要在首次启动前手动再执行 `prisma generate`、`prisma db push` 或 `pnpm db:migrate`。
+#### Option B: Step-by-Step Startup (Recommended for macOS Debugging)
+Open three separate terminal tabs/windows:
+1. **Terminal 1: Shared Package Compiler**
+   ```bash
+   pnpm dev:shared
+   ```
+2. **Terminal 2: Backend Server**
+   ```bash
+   pnpm dev:server
+   ```
+   (Starts on `http://localhost:3000`. Generates Prisma clients and pushes DB migrations on startup).
+3. **Terminal 3: Frontend Client**
+   ```bash
+   pnpm dev:client
+   ```
+   (Starts on `http://localhost:5173`).
 
-默认情况下：
+#### Option C: Background Service Manager Script (macOS Utility)
+A utility helper script is available at [scripts/manage.sh](./scripts/manage.sh):
+- **Start all services in background**: `./scripts/manage.sh start`
+- **Stop all background services**: `./scripts/manage.sh stop`
+- **Check service status**: `./scripts/manage.sh status`
+- **Restart all services**: `./scripts/manage.sh restart`
 
-- 前端：`http://localhost:5173`
-- 后端：`http://localhost:3000`
-- API：`http://localhost:3000/api`
-
-首次启动服务端时，会自动执行 Prisma generate 和 `db push`。
-只有在你自己修改了 Prisma schema，或者要处理正式迁移流程时，才需要手动使用 Prisma / 数据库相关命令。
-
-建议第一次启动后先做这几步：
-
-1. 打开 `http://localhost:5173/settings`，至少配置一组可用的模型供应商 API Key
-2. 打开 `http://localhost:5173/settings/model-routes`，检查各任务实际使用的模型路由
-3. 如果要启用知识库，打开 `http://localhost:5173/knowledge?tab=settings`，保存 Embedding / Collection 设置
-
-### 4. 如果你使用 Qdrant Cloud
-
-如果你只是先体验主流程，其实可以先跳过 Qdrant，直接在 `server/.env` 里设：
-
-```env
-RAG_ENABLED=false
+#### Option D: Local Offline TTS Server (For VellumReel Video Voiceovers)
+To compile audio narrations offline (will install ONNX/Kokoro packages on first run):
+```bash
+python scripts/start-local-tts.py
 ```
 
-如果你要启用 Qdrant Cloud，可以按下面的最小流程来：
+#### Default Server URLs:
+- Frontend Client: `http://localhost:5173`
+- Backend API Server: `http://localhost:3000`
+- API Endpoint: `http://localhost:3000/api`
+- Local Speech API Server: `http://localhost:8000`
 
-1. 到 [Qdrant Cloud](https://cloud.qdrant.io/) 注册账号。
-2. 在 `Clusters` 页面创建一个集群。
-   测试阶段用 Free cluster 就够了。
-3. 集群创建完成后，到集群详情页复制 Cluster URL。
-4. 在集群详情页的 `API Keys` 中创建并复制一个 Database API Key。
-   这个 key 创建后通常只展示一次，建议立即保存。
-5. 把它们写入 `server/.env`：
+---
 
-```env
-QDRANT_URL=https://your-cluster.region.cloud.qdrant.io:6333
-QDRANT_API_KEY=your_database_api_key
-```
+### 4. SenseNova Local Multimodal Image Model Setup (Optional)
 
-6. 启动项目后，再去 `知识库 -> 向量设置` 页面选择 Embedding provider / model，并保存集合设置。
+The system supports offline multi-modal image adjustments and text bubble generation using `SenseNova-U1-8B-MoT-Infographic-V3` running on local Ollama.
 
-对这个项目来说，`QDRANT_URL` 建议直接填 REST 地址，也就是带 `:6333` 的地址。
+#### 4.1 Install Ollama & Pull Model
+1. Install [Ollama](https://ollama.com/).
+2. Pull the SenseNova model manually, or the server will fetch it on its first call:
+   ```bash
+   ollama pull sensenova-u1:8b-v3
+   ```
 
-如果你想手动验证连通性，可以用：
+#### 4.2 Hardware Self-Diagnosis & Tiers
+The server running backend tasks diagnoses your system memory/VRAM on startup and assigns a performance tier:
+- **Tier 1 (High GPU Acceleration)**: VRAM $\ge$ 15GB or Mac Unified Memory $\ge$ 32GB. Generates images using BF16/FP16 models (approx. 8 seconds).
+- **Tier 2 (Medium GPU Acceleration)**: VRAM 6GB–14GB or Mac Unified Memory 16GB–24GB. Uses INT8/INT4 GGUF models (approx. 30 seconds).
+- **Tier 3 (CPU Pure Local)**: No GPU acceleration. Uses CPU execution (approx. 1.5 - 3 minutes).
 
+Ollama serve is launched automatically if the server fails to connect to port `11434` on startup.
+
+#### 4.3 Running SenseNova Tests
+- **Run local inference tests**:
+  ```bash
+  pnpm --filter @ai-novel/server test
+  # Or run the SenseNova test script directly:
+  node --test server/tests/sensenovaLocalInference.test.js
+  ```
+- **Run E2E API simulation integrations**:
+  While the servers (`pnpm dev`) are running, execute this script to simulate image modifications, local SenseNova API calls, and video rendering:
+  ```bash
+  node server/scripts/test-e2e-api-simulation.js
+  ```
+
+---
+
+### 5. Qdrant Cloud Setup (Optional)
+
+To enable RAG, set `RAG_ENABLED=true` in `server/.env` and follow these steps:
+1. Register on [Qdrant Cloud](https://cloud.qdrant.io/).
+2. Create a Cluster (the free tier is sufficient).
+3. Copy the Cluster URL and API key from the Dashboard.
+4. Add them to `server/.env`:
+   ```env
+   QDRANT_URL=https://your-cluster.region.cloud.qdrant.io:6333
+   QDRANT_API_KEY=your_database_api_key
+   ```
+5. Configure Embedding models in the web application UI (`Knowledge -> Vector Settings`).
+
+Verify connectivity via curl:
 ```bash
 curl -X GET "https://your-cluster.region.cloud.qdrant.io:6333" \
   --header "api-key: your_database_api_key"
 ```
 
-你也可以把集群地址后面拼上 `:6333/dashboard` 打开 Qdrant Web UI。
+---
 
-Qdrant 官方文档：
+## 🏗️ Technical Stack & Architecture
 
-- [Create a Cluster](https://qdrant.tech/documentation/cloud/create-cluster/)
-- [Database Authentication in Qdrant Managed Cloud](https://qdrant.tech/documentation/cloud/authentication/)
-- [Cloud Quickstart](https://qdrant.tech/documentation/cloud/quickstart-cloud/)
+### Tech Stack
 
-### 5. 可选初始化
-
-下面这些都不是首次启动 `pnpm dev` 的前置步骤：
-
-```bash
-pnpm db:seed
-pnpm db:studio
-```
-
-## 常用命令
-
-```bash
-pnpm dev
-pnpm build
-pnpm typecheck
-pnpm lint
-# 仅在你开发/调整 Prisma schema 时再手动使用
-pnpm db:migrate
-pnpm db:seed
-pnpm db:studio
-pnpm --filter @ai-novel/server test
-pnpm --filter @ai-novel/server test:routes
-pnpm --filter @ai-novel/server test:book-analysis
-```
-
-## 技术栈与架构
-
-### 技术栈
-
-| 层级 | 技术 |
+| Layer | Technologies |
 | --- | --- |
-| 前端 | React 19、Vite、React Router、TanStack Query、Plate |
-| 后端 | Express 5、Prisma、Zod |
-| AI 编排 | LangChain、LangGraph |
-| 数据库 | SQLite |
-| RAG | Qdrant |
-| 工程形态 | pnpm workspace Monorepo |
+| **Frontend** | React 19 + Vite + React Router + TanStack Query + Plate Editor |
+| **Backend** | Express 5 + Prisma 7 + Zod |
+| **Orchestration** | LangChain + LangGraph |
+| **Database** | SQLite (Primary) + Qdrant (RAG Vector Database) |
+| **Workspace** | pnpm workspace Monorepo (pnpm@10.6.0) |
+| **Desktop Shell** | Electron (electron-builder packaging) |
+| **Node Version** | `^20.19.0 \|\| ^22.12.0 \|\| >=24.0.0` |
 
-### Monorepo 结构
+### Monorepo Structure
 
 ```text
-client/   React + Vite 前端
-server/   Express + Prisma + Agent Runtime + Creative Hub
-shared/   前后端共享类型与协议
-images/   README 与产品预览截图
-scripts/  启动和辅助脚本
-docs/     设计文档、阶段检查点、模块计划与历史归档
+GeneralAgent/
+├── client/          # React + Vite Frontend (@ai-novel/client)
+├── server/          # Express + Prisma + Agent Runtime (@ai-novel/server)
+├── shared/          # Shared types & contracts (@ai-novel/shared)
+├── desktop/         # Electron desktop shell (@ai-novel/desktop)
+├── docs/            # Design wikis, release notes, and archives
+├── images/          # Assets, screenshots, and visual graphs
+├── scripts/         # Dev and build management scripts
+├── infra/           # Infrastructure configurations (Docker, etc.)
+└── .github/         # CI/CD Workflows
 ```
 
-更细的文档分区说明可以看 [docs/README.md](./docs/README.md)。
+*For file-by-file counts, file sizes, and audits, review [docs/sourcegraph/project-source-audit.md](./docs/sourcegraph/project-source-audit.md).*
 
-### 当前系统关注点
+---
 
-- `Creative Hub` 负责统一创作中枢与 Agent 运行时体验
-- `Novel Setup / Director` 负责从一句灵感走到整本可写
-- `Novel Production` 负责整本生成主链
-- `Style Engine` 负责写法资产、特征提取、绑定和反 AI 协同
-- `Knowledge / Book Analysis / World` 负责长期上下文沉淀与回灌
+### Core Architecture Pillars
 
-## 当前路线图
+To maintain narrative coherence across multi-volume books, the engine relies on five architectural pillars:
 
-当前最重要的不是继续堆零散功能，而是提高“小白把整本书写完”的成功率。
+| Pillar | Mechanism |
+| :--- | :--- |
+| **Physical Memory** | Periodically serializes active plots and story summaries into `docs/story_board.json` and `docs/story_ledger.md` to prevent context drift and survive crash recoveries. |
+| **Branch isolation (Worktree)** | Separates draft buffers inside `ChapterDraft` databases. Isolates concurrent editing sessions via a `WorktreeManager` prior to a transactional `mergeAndCommit` merge. |
+| **Debate Auditing** | Utilizes an `EditorAgent` checking text against Zod-compiled schemas, returning structural edits or blocking flawed text generation. |
+| **Self-Checking Heartbeat** | Employs an active background diagnostician reviewing overall narrative discrepancies, printing pending warnings to `docs/STORY_TASKS.md`. |
+| **Cockpit Console** | A dashboard showing active agent status, model health ratings, warning flags, and live debate logs. |
 
-### P0
+---
 
-- 稳定自动导演连续执行，减少误停链、重复审校和异常 Token 消耗
-- 让本书世界、角色、伏笔、时间线和章节任务稳定进入后续写作上下文
-- 降低新手从一句灵感到可连续写章之间的判断成本和修复成本
+## 🎨 Visual Previews
 
-### P1
+### Creative Hub
+Unified creation dashboard hosting dialogue, planning, and task runtime steps.
+![Creative Hub](./images/创作中枢.png)
 
-- 提高整本一致性、节奏稳定性、人物成长质量和世界状态继承质量
-- 让写法资产、世界约束、章节重规划、审阅反馈和质量债形成闭环
-- 让系统更擅长“持续掌控整本书”，而不只是“生成某一章”
+### Prompt Editor
+Interactive prompting screen where system prompts, variables, and slots are tested.
+![Prompt Editor](./images/ScreenShot_2026-07-08_140153_328.png)
 
-### P2
+### Auto-Director Modes
+Direction creation sheets with custom framing, title candidates, and scope parameters.
+![Director Create](./images/导演模式-创建.png)
+![Director Output](./images/导演模式-创建中.png)
 
-- 继续强化多阶段 Agent 协同和运行时可观察性
-- 完善更自动化的生产调度、恢复策略、回合记忆和整本质量控制
+### Volume Strategy & Beat Sheets
+Visualized layout mapping volume structures and target chapter outlines.
+![Volume Outline](./images/write/卷战略.png)
+![Chapter Breakdown](./images/write/节奏拆章.png)
 
-## 交流反馈
+### Comic Workshop & Video Adaptations
+Multi-modal workshops drawing assets from the written book and rendering vertical video voiceovers.
+![Comic Workshop](./images/漫画工坊.png)
+![Video Workshop](./images/视频工坊.png)
 
-如果你想反馈问题、交流使用体验，或者讨论自动导演、整本生产主链、写法引擎等方向，可以扫码加入 QQ 群。
+---
 
-![QQ 群二维码](./images/群2.png)
+## 🗺️ Roadmap
+- **P0**: Core stability, context memory optimization, checkpoint recovery, and consistency checks.
+- **P1**: Streamlining adaptation compiler pipelines (Novels $\rightarrow$ Comics $\rightarrow$ Storyboards $\rightarrow$ Videos).
+- **P2**: Introduction of the World Sandbox framework: Faction grids, autonomous character simulations, and live chronicle logging.
 
-## 支持项目
+## 💬 Community
+For feedback, bug reports, and discussions regarding LLM routing, auto-directors, and multi-modal synthesis, join our Q-Group:
 
-如果这个项目对你有帮助，欢迎通过支付宝扫码支持持续开发与维护。
-
-<p align="center">
-  <img src="./images/c838dd8eb412d6fde536b2a43f53e95.jpg" alt="支付宝捐赠二维码" width="320" />
-</p>
-
-## 贡献方式
-
-如果你想参与这个项目，最有价值的贡献方向包括：
-
-- 提升整本生产稳定性
-- 改善新手开书体验和自动导演成功率
-- 强化写法引擎、知识库回灌和世界观一致性链路
-- 补充测试、错误回放和运行时可观察性
-
-欢迎直接提 Issue 或 Pull Request。
-提交 Pull Request 即表示你确认自己有权提交该内容，并已阅读且同意 [CLA.md](./CLA.md)；如果包含第三方代码、素材、AI 生成内容或其他受许可证约束的内容，请在 PR 中明确说明来源和许可证。详见 [CONTRIBUTING.md](./CONTRIBUTING.md)。
-
-## 致谢
-
-感谢提交修复 Pull Request 的贡献者 [@ystyleb](https://github.com/ystyleb)。
-
-
-## 说明
-
-- 这是一个持续快速迭代中的 AI Native 创作系统，功能边界仍在演化。
-- README 优先描述当前最值得体验、最能代表方向的能力，而不是列出全部历史实现细节。
-- 如果你更关心阶段目标、优先级和后续优化计划，请直接查看 [TASK.md](./TASK.md)。
+![QQ Group](./images/群2.png)
 
 ## License
-
-本项目采用双许可证授权模式：
-
-- 默认情况下，本项目基于 GNU Affero General Public License v3.0 (AGPLv3) 授权，详见 [LICENSE](./LICENSE)；归属与附加说明见 [NOTICE](./NOTICE)。
-- 服务型商用：将本项目（或其修改版本）作为后端以 SaaS、托管或其他形式向第三方提供服务，须通过作者获取商业授权许可。
-- 请遵守开源协议条款，并在适用场景下取得相应授权。
-
-贡献说明：新贡献默认按 [CLA.md](./CLA.md) 提交，可随项目按 AGPL-3.0-only 分发，并可纳入项目维护者另行提供的商业授权；详见 [CONTRIBUTING.md](./CONTRIBUTING.md)。
-
-## 友情链接
-
-- [LINUX DO](https://linux.do/)
+The project is dual-licensed:
+- Default: **GNU Affero General Public License v3.0 (AGPLv3)**. Check [LICENSE](./LICENSE) and [NOTICE](./NOTICE) for details.
+- SaaS/Commercial Hosting: Accessing or hosting modified versions of this engine to third parties as a service requires a commercial license from the authors. Refer to [CONTRIBUTING.md](./CONTRIBUTING.md) and [CLA.md](./CLA.md) for contribution terms.

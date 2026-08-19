@@ -24,7 +24,8 @@ export function toText(content: unknown): string {
 }
 
 export function cleanJsonText(source: string): string {
-  return source.replace(/```json|```/gi, "").trim();
+  const noThink = source.replace(/<think>[\s\S]*?<\/think>/gi, "").trim();
+  return noThink.replace(/```json|```/gi, "").trim();
 }
 
 export function extractJSONValue(source: string): string {

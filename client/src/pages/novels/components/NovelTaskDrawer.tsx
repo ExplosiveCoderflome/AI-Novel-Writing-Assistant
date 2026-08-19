@@ -1,3 +1,5 @@
+import { useTranslation } from "react-i18next";
+import i18next from "i18next";
 ﻿import type {
   NovelWorkflowMilestone,
   NovelWorkflowMilestoneType,
@@ -26,26 +28,26 @@ type DrawerTask = NonNullable<NovelTaskDrawerState["task"]>;
 
 function formatStatus(status: TaskStatus): string {
   if (status === "queued") {
-    return "排队中";
+    return i18next.t("tasks.filterStatusQueued");
   }
   if (status === "running") {
-    return "运行中";
+    return i18next.t("tasks.filterStatusRunning");
   }
   if (status === "waiting_approval") {
-    return "等待审核";
+    return i18next.t("dict.gen_f6324c78");
   }
   if (status === "succeeded") {
-    return "已完成";
+    return i18next.t("tasks.filterStatusSucceeded");
   }
   if (status === "failed") {
-    return "失败";
+    return i18next.t("tasks.filterStatusFailed");
   }
-  return "已取消";
+  return i18next.t("tasks.filterStatusCancelled");
 }
 
 function formatTaskStatus(task: DrawerTask): string {
   if (task.pendingManualRecovery) {
-    return "待恢复";
+    return i18next.t("dict.gen_b0e31037");
   }
   return formatStatus(task.status);
 }
@@ -71,44 +73,44 @@ function toTaskStatusVariant(task: DrawerTask): "default" | "outline" | "seconda
 }
 
 function formatCheckpoint(checkpoint: NovelWorkflowMilestoneType | null | undefined, scopeLabel?: string | null): string {
-  const resolvedScopeLabel = scopeLabel?.trim() || "前 10 章";
+  const resolvedScopeLabel = scopeLabel?.trim() || i18next.t("dict.gen_dd4d6c1f");
   if (checkpoint === "rewrite_snapshot_created") {
-    return "重写前备份已创建";
+    return i18next.t("dict.gen_40c91bfe");
   }
   if (checkpoint === "candidate_selection_required") {
-    return "等待确认书级方向";
+    return i18next.t("dict.gen_dbc67929");
   }
   if (checkpoint === "book_contract_ready") {
-    return "Book Contract 已就绪";
+    return i18next.t("dict.gen_BookContra_ppep");
   }
   if (checkpoint === "character_setup_required") {
-    return "角色准备待审核";
+    return i18next.t("dict.gen_67358797");
   }
   if (checkpoint === "volume_strategy_ready") {
-    return "卷战略 / 卷骨架待审核";
+    return i18next.t("dict.gen_2282ccfa");
   }
   if (checkpoint === "production_experience_required") {
-    return "已可开写，等待选择生产方式";
+    return i18next.t("novels.novelAutoDirectorProgressPanel.hallyo");
   }
   if (checkpoint === "chapter_batch_ready") {
-    return `${resolvedScopeLabel}自动执行已暂停`;
+    return i18next.t("lib.novelWorkflowTaskUi.mr8bw9", { val1: resolvedScopeLabel });
   }
   if (checkpoint === "step_review_required") {
-    return "当前步骤待检查";
+    return i18next.t("novels.novelAutoDirectorProgressPanel.fotvdd");
   }
   if (checkpoint === "workflow_completed") {
-    return "主流程完成";
+    return i18next.t("dict.mainProcessComplete");
   }
-  return "暂无";
+  return i18next.t("common.none");
 }
 
 function formatDate(value: string | null | undefined): string {
   if (!value) {
-    return "暂无";
+    return i18next.t("common.none");
   }
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) {
-    return "暂无";
+    return i18next.t("common.none");
   }
   return date.toLocaleString();
 }
@@ -119,32 +121,32 @@ function formatTokenCount(value: number | null | undefined): string {
 
 function formatStepStatus(status: "idle" | "running" | "succeeded" | "failed" | "cancelled"): string {
   if (status === "running") {
-    return "进行中";
+    return i18next.t("tasks.levelRunning");
   }
   if (status === "succeeded") {
-    return "已完成";
+    return i18next.t("tasks.filterStatusSucceeded");
   }
   if (status === "failed") {
-    return "失败";
+    return i18next.t("tasks.filterStatusFailed");
   }
   if (status === "cancelled") {
-    return "已取消";
+    return i18next.t("tasks.filterStatusCancelled");
   }
-  return "待处理";
+  return i18next.t("autoDirector.secPending");
 }
 
 function formatRiskLevel(riskLevel: CharacterResourceProposalSummary["riskLevel"]): string {
   if (riskLevel === "high") {
-    return "高风险";
+    return i18next.t("dict.gen_4433e710");
   }
   if (riskLevel === "medium") {
-    return "需判断";
+    return i18next.t("dict.gen_90ed1236");
   }
-  return "低风险";
+  return i18next.t("dict.lowRisk");
 }
 
 function formatProposalSource(proposal: CharacterResourceProposalSummary): string {
-  return proposal.sourceType === "chapter_background_sync" ? "自动同步发现" : "手动复查发现";
+  return proposal.sourceType === "chapter_background_sync" ? i18next.t("dict.gen_fe203861") : i18next.t("dict.gen_0e7c9c97");
 }
 
 function followUpActionVariant(action: AutoDirectorAction): "default" | "outline" {
@@ -153,12 +155,12 @@ function followUpActionVariant(action: AutoDirectorAction): "default" | "outline
 
 function formatFollowUpPriority(priority: "P0" | "P1" | "P2"): string {
   if (priority === "P0") {
-    return "P0 立即处理";
+    return i18next.t("dict.p0ProcessImmediately");
   }
   if (priority === "P1") {
-    return "P1 尽快处理";
+    return i18next.t("dict.p1ProcessSoon");
   }
-  return "P2 稍后处理";
+  return i18next.t("dict.gen_P2稍后处理_z628");
 }
 
 function readProposalPayloadText(
@@ -185,7 +187,7 @@ function ResourceProposalCard(props: {
     confirmingProposalId = "",
     rejectingProposalId = "",
   } = props;
-  const resourceName = readProposalPayloadText(proposal, "resourceName") || "关键资源";
+  const resourceName = readProposalPayloadText(proposal, "resourceName") || i18next.t("dict.gen_4360c49d");
   const holderName = readProposalPayloadText(proposal, "holderCharacterName");
   const narrativeImpact = readProposalPayloadText(proposal, "narrativeImpact");
   const isConfirming = confirmingProposalId === proposal.id;
@@ -197,7 +199,7 @@ function ResourceProposalCard(props: {
         <div className="min-w-0 flex-1">
           <div className="text-sm font-medium text-foreground">{resourceName}</div>
           <div className="mt-1 text-xs leading-5 text-muted-foreground">
-            {holderName ? `${holderName}相关资源` : "资源归属需要确认"}
+            {holderName ? i18next.t("novels.novelTaskDrawer.2xyw8n", { val1: holderName }) : i18next.t("dict.gen_80b3004c")}
           </div>
         </div>
         <Badge variant={proposal.riskLevel === "high" ? "destructive" : "secondary"}>
@@ -211,20 +213,18 @@ function ResourceProposalCard(props: {
         </div>
       ) : null}
       {proposal.evidence[0] ? (
-        <div className="text-xs leading-5 text-muted-foreground">证据：{proposal.evidence[0]}</div>
+        <div className="text-xs leading-5 text-muted-foreground">{i18next.t("novels.novelTaskDrawer.kz8bx")}{proposal.evidence[0]}</div>
       ) : null}
       {proposal.validationNotes[0] ? (
-        <div className="text-xs leading-5 text-muted-foreground">判断原因：{proposal.validationNotes[0]}</div>
+        <div className="text-xs leading-5 text-muted-foreground">{i18next.t("novels.novelTaskDrawer.kt5b4g")}{proposal.validationNotes[0]}</div>
       ) : null}
       <div className="flex flex-wrap items-center gap-2">
         <Badge variant="outline">{formatProposalSource(proposal)}</Badge>
-        {proposal.chapterId ? <Badge variant="outline">来源章节</Badge> : null}
+        {proposal.chapterId ? <Badge variant="outline">{i18next.t("dict.gen_ca1e1b10")}</Badge> : null}
       </div>
       <div className="flex flex-wrap gap-2">
         {proposal.chapterId ? (
-          <Button type="button" size="sm" variant="outline" onClick={() => onOpenSource?.(proposal)}>
-            查看来源
-          </Button>
+          <Button type="button" size="sm" variant="outline" onClick={() => onOpenSource?.(proposal)}>{i18next.t("novels.novelTaskDrawer.dloqoh")}</Button>
         ) : null}
         <Button
           type="button"
@@ -232,7 +232,7 @@ function ResourceProposalCard(props: {
           onClick={() => onConfirm?.(proposal.id)}
           disabled={isConfirming || !onConfirm}
         >
-          {isConfirming ? "确认中..." : "确认并用于后续写作"}
+          {isConfirming ? i18next.t("dict.gen_1fb26ee2") : i18next.t("dict.gen_eee6f46f")}
         </Button>
         <Button
           type="button"
@@ -241,7 +241,7 @@ function ResourceProposalCard(props: {
           onClick={() => onReject?.(proposal.id)}
           disabled={isRejecting || !onReject}
         >
-          {isRejecting ? "处理中..." : "忽略这条变化"}
+          {isRejecting ? i18next.t("dict.gen_2fb90b05") : i18next.t("dict.gen_19c691f8")}
         </Button>
       </div>
     </div>
@@ -279,6 +279,7 @@ export default function NovelTaskDrawer({
   capabilities,
   onOpenFullTaskCenter,
 }: NovelTaskDrawerState) {
+  const { t } = useTranslation();
   const milestones = Array.isArray(task?.meta.milestones)
     ? task.meta.milestones as NovelWorkflowMilestone[]
     : [];
@@ -302,9 +303,8 @@ export default function NovelTaskDrawer({
   const primaryActionLabel = (
     (primaryAction?.type === "continue" || primaryAction?.type === "auto_execute_range")
     && projection?.displayState === "needs_confirmation"
-    && projection.latestTask?.checkpointType !== "replan_required"
   )
-    ? "确认并继续"
+    ? i18next.t("dict.gen_eca060fa")
     : primaryAction?.label;
   const runProjectedAction = (action: DirectorBookAutomationAction) => {
     const matchedAction = actions.find((item) => {
@@ -312,19 +312,19 @@ export default function NovelTaskDrawer({
         return true;
       }
       if (action.type === "continue") {
-        return item.label.includes("继续");
+        return item.label.includes(i18next.t("dict.gen_27ca568b"));
       }
       if (action.type === "auto_execute_range") {
-        return item.label.includes("自动执行");
+        return item.label.includes(i18next.t("dict.gen_df39e421"));
       }
       if (action.type === "confirm_candidate") {
-        return item.label.includes("书级方向");
+        return item.label.includes(i18next.t("dict.chapterDirection"));
       }
       if (action.type === "open_quality_repair") {
-        return item.label.includes("质量修复");
+        return item.label.includes(i18next.t("home.qualityRepair"));
       }
       if (action.type === "open_chapter") {
-        return item.label.includes("章节执行");
+        return item.label.includes(i18next.t("home.chapterExecution"));
       }
       return false;
     });
@@ -346,10 +346,8 @@ export default function NovelTaskDrawer({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="left-auto right-0 top-0 flex h-dvh max-h-dvh w-full max-w-[520px] translate-x-0 translate-y-0 flex-col gap-0 rounded-none border-y-0 border-r-0 border-l bg-background p-0 sm:max-w-[520px]">
         <DialogHeader className="border-b border-border/70 px-5 py-4">
-          <DialogTitle>执行详情</DialogTitle>
-          <DialogDescription>
-            查看本书 AI 推进记录、快捷处理动作和排查信息。
-          </DialogDescription>
+          <DialogTitle>{i18next.t("dict.gen_2eceed7d")}</DialogTitle>
+          <DialogDescription>{i18next.t("novels.novelTaskDrawer.vukaq0")}</DialogDescription>
         </DialogHeader>
 
         <div className="flex-1 space-y-5 overflow-y-auto px-5 py-5">
@@ -357,8 +355,8 @@ export default function NovelTaskDrawer({
             <AICockpit
               projection={projection}
               mode="focusedNovel"
-              fallbackSummary={dashboardView?.currentAction || displayState?.currentAction || task?.blockingReason || task?.currentItemLabel || "当前没有需要处理的 AI 推进动作。"}
-              fallbackStatusLabel={dashboardView?.statusLabel ?? (task ? formatTaskStatus(task) : "未开启")}
+              fallbackSummary={dashboardView?.currentAction || displayState?.currentAction || task?.blockingReason || task?.currentItemLabel || i18next.t("dict.gen_f867f208")}
+              fallbackStatusLabel={dashboardView?.statusLabel ?? (task ? formatTaskStatus(task) : i18next.t("dict.gen_ea4a363d"))}
               showDetailsAction={false}
               onAction={(_projection, action) => handleProjectionAction(action)}
             />
@@ -368,12 +366,10 @@ export default function NovelTaskDrawer({
             <section className="space-y-3 rounded-2xl border border-amber-300/60 bg-amber-50/40 p-4 dark:border-amber-700/50 dark:bg-amber-950/15">
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <div>
-                  <div className="text-sm font-medium text-foreground">资源变更待确认</div>
-                  <div className="mt-1 text-xs leading-5 text-muted-foreground">
-                    这些判断会影响后续章节能使用哪些关键资源。
-                  </div>
+                  <div className="text-sm font-medium text-foreground">{i18next.t("dict.gen_4346160b")}</div>
+                  <div className="mt-1 text-xs leading-5 text-muted-foreground">{i18next.t("novels.novelTaskDrawer.a2iucw")}</div>
                 </div>
-                <Badge variant="secondary">{resourceProposals.length} 条</Badge>
+                 <Badge variant="secondary">{resourceProposals.length} {i18next.t("novels.novelTaskDrawer.kf5")}</Badge>
               </div>
               <div className="space-y-2">
                 {resourceProposals.slice(0, 4).map((proposal) => (
@@ -402,23 +398,23 @@ export default function NovelTaskDrawer({
                 <div className="flex flex-wrap items-center gap-2">
                   <div className="text-base font-semibold text-foreground">{task.title}</div>
                   <Badge variant={toTaskStatusVariant(task)}>{formatTaskStatus(task)}</Badge>
-                  <Badge variant="outline">进度 {progressPercent}%</Badge>
+                  <Badge variant="outline">{i18next.t("dict.gen_c7bff79d")} {progressPercent}%</Badge>
                 </div>
                 <div className="grid gap-3 sm:grid-cols-2">
                   <div className="rounded-xl border bg-background/80 p-3">
-                    <div className="text-xs text-muted-foreground">当前阶段</div>
+                    <div className="text-xs text-muted-foreground">{i18next.t("dict.gen_ea328dc7")}</div>
                     <div className="mt-1 text-sm font-medium text-foreground">{dashboardView?.stageLabel ?? displayState?.stageLabel ?? task.currentStage ?? "暂无"}</div>
                   </div>
                   <div className="rounded-xl border bg-background/80 p-3">
-                    <div className="text-xs text-muted-foreground">当前动作</div>
+                    <div className="text-xs text-muted-foreground">{i18next.t("dict.gen_b5e4737c")}</div>
                     <div className="mt-1 text-sm font-medium text-foreground">{dashboardView?.currentAction ?? displayState?.currentAction ?? task.currentItemLabel ?? "暂无"}</div>
                   </div>
                   <div className="rounded-xl border bg-background/80 p-3">
-                    <div className="text-xs text-muted-foreground">最近检查点</div>
+                    <div className="text-xs text-muted-foreground">{i18next.t("dict.gen_067d1583")}</div>
                     <div className="mt-1 text-sm font-medium text-foreground">{displayState?.checkpointLabel ?? formatCheckpoint(task.checkpointType, task.executionScopeLabel)}</div>
                   </div>
                   <div className="rounded-xl border bg-background/80 p-3">
-                    <div className="text-xs text-muted-foreground">最近心跳</div>
+                    <div className="text-xs text-muted-foreground">{i18next.t("dict.gen_9a36d2f3")}</div>
                     <div className="mt-1 text-sm font-medium text-foreground">{formatDate(task.heartbeatAt)}</div>
                   </div>
                 </div>
@@ -432,10 +428,10 @@ export default function NovelTaskDrawer({
                 ) : null}
                 {task.lastError ? (
                   <div className="rounded-xl border border-destructive/30 bg-destructive/5 p-3 text-sm text-destructive">
-                    <div className="font-medium">最近错误</div>
+                    <div className="font-medium">{i18next.t("dict.gen_a2b83df0")}</div>
                     <div className="mt-1">{task.lastError}</div>
                     {task.recoveryHint ? (
-                      <div className="mt-2 text-xs text-destructive/80">恢复建议：{task.recoveryHint}</div>
+                      <div className="mt-2 text-xs text-destructive/80">{i18next.t("novels.novelTaskDrawer.xc5pln")}{task.recoveryHint}</div>
                     ) : null}
                   </div>
                 ) : null}
@@ -444,19 +440,19 @@ export default function NovelTaskDrawer({
               {canShowFollowUp && followUp ? (
                 <section className="space-y-3 rounded-2xl border border-primary/20 bg-primary/5 p-4">
                   <div className="flex flex-wrap items-center gap-2">
-                    <div className="text-sm font-medium text-foreground">当前需要处理的动作</div>
+                    <div className="text-sm font-medium text-foreground">{i18next.t("dict.gen_0cc8fa93")}</div>
                     <Badge variant="outline">{followUp.reasonLabel}</Badge>
                     <Badge variant={followUp.priority === "P0" ? "destructive" : "secondary"}>
                       {formatFollowUpPriority(followUp.priority)}
                     </Badge>
                   </div>
                   <div className="text-sm leading-6 text-muted-foreground">{followUp.followUpSummary}</div>
-                  {followUp.blockingReason ? (
-                    <div className="text-sm text-muted-foreground">阻止动作的原因：{followUp.blockingReason}</div>
-                  ) : null}
-                  {followUp.currentModel ? (
-                    <div className="text-sm text-muted-foreground">当前任务模型：{followUp.currentModel}</div>
-                  ) : null}
+                   {followUp.blockingReason ? (
+                     <div className="text-sm text-muted-foreground">{i18next.t("novels.novelTaskDrawer.ns9gw")}{followUp.blockingReason}</div>
+                   ) : null}
+                   {followUp.currentModel ? (
+                     <div className="text-sm text-muted-foreground">{i18next.t("novels.novelTaskDrawer.xf2vio")}{followUp.currentModel}</div>
+                   ) : null}
                   {runtimeHardBlocked && runtimeBlockedReason ? (
                     <div className="rounded-xl border border-destructive/30 bg-destructive/5 p-3 text-sm text-destructive">
                       {runtimeBlockedReason}
@@ -481,26 +477,25 @@ export default function NovelTaskDrawer({
 
               {canShowRuntimePolicy && task ? (
                 <section className="space-y-3">
-                  <div className="text-sm font-medium text-foreground">推进方式</div>
+                  <div className="text-sm font-medium text-foreground">{i18next.t("dict.gen_8cc5c30b")}</div>
                   <TaskCenterRuntimePolicyCard taskId={task.id} snapshot={runtimeSnapshot} />
                 </section>
               ) : null}
 
               {canShowManualImpact && task ? (
                 <section className="space-y-3">
-                  <div className="text-sm font-medium text-foreground">风险与改动影响</div>
+                  <div className="text-sm font-medium text-foreground">{i18next.t("dict.gen_deafa76f")}</div>
                   <TaskCenterManualEditImpactCard task={task} />
                 </section>
               ) : null}
 
               {canShowRetryWithOverrideModel && overrideModel && onOverrideModelChange ? (
                 <section className="space-y-3 rounded-2xl border border-border/70 bg-muted/15 p-4">
-                  <div className="text-sm font-medium text-foreground">使用其他模型重试</div>
+                  <div className="text-sm font-medium text-foreground">{i18next.t("dict.gen_使用其他模型重试_rnjo")}</div>
                   <LLMSelector
                     value={overrideModel}
                     onChange={onOverrideModelChange}
                     compact
-                    showParameters
                     showBadge={false}
                     showHelperText={false}
                   />
@@ -511,7 +506,7 @@ export default function NovelTaskDrawer({
                       onClick={onRetryWithOverrideModel}
                       disabled={retryWithOverrideModelPending || !canRetryWithOverrideModel}
                     >
-                      {retryWithOverrideModelPending ? "重试中…" : "使用所选模型重试"}
+                      {retryWithOverrideModelPending ? i18next.t("dict.gen_a66c5c6d") : i18next.t("dict.retrySelectedModel")}
                     </Button>
                     {onRetryWithTaskModel ? (
                       <Button
@@ -521,7 +516,7 @@ export default function NovelTaskDrawer({
                         onClick={onRetryWithTaskModel}
                         disabled={retryWithTaskModelPending}
                       >
-                        {retryWithTaskModelPending ? "重试中…" : "用原模型重试"}
+                        {retryWithTaskModelPending ? i18next.t("dict.gen_a66c5c6d") : i18next.t("dict.gen_96fb9361")}
                       </Button>
                     ) : null}
                   </div>
@@ -529,7 +524,7 @@ export default function NovelTaskDrawer({
               ) : null}
 
               <section className="space-y-3">
-                <div className="text-sm font-medium text-foreground">快捷动作</div>
+                <div className="text-sm font-medium text-foreground">{i18next.t("dict.gen_ee2fff7a")}</div>
                 {actions.length > 0 ? (
                   <div className="flex flex-wrap gap-2">
                     {actions.map((action) => (
@@ -546,23 +541,21 @@ export default function NovelTaskDrawer({
                     ))}
                   </div>
                 ) : (
-                  <div className="rounded-xl border border-dashed px-4 py-5 text-sm text-muted-foreground">
-                    当前没有可直接执行的快捷动作。
-                  </div>
+                  <div className="rounded-xl border border-dashed px-4 py-5 text-sm text-muted-foreground">{i18next.t("novels.novelTaskDrawer.9s57a9")}</div>
                 )}
               </section>
 
               <section className="space-y-3">
-                <div className="text-sm font-medium text-foreground">模型信息</div>
+                <div className="text-sm font-medium text-foreground">{i18next.t("dict.gen_c4d4c376")}</div>
                 <div className="grid gap-3 sm:grid-cols-2">
                   <div className="rounded-xl border bg-background/80 p-3">
-                    <div className="text-xs text-muted-foreground">任务绑定模型</div>
+                    <div className="text-xs text-muted-foreground">{i18next.t("dict.taskBindingModel")}</div>
                     <div className="mt-1 text-sm font-medium text-foreground">
-                      {task.provider ?? "暂无"} / {task.model ?? "暂无"}
+                      {task.provider ?? i18next.t("common.none")} / {task.model ?? i18next.t("common.none")}
                     </div>
                   </div>
                   <div className="rounded-xl border bg-background/80 p-3">
-                    <div className="text-xs text-muted-foreground">当前界面模型</div>
+                    <div className="text-xs text-muted-foreground">{i18next.t("dict.gen_bfd5823d")}</div>
                     <div className="mt-1 text-sm font-medium text-foreground">
                       {currentUiModel.provider} / {currentUiModel.model}
                     </div>
@@ -574,23 +567,23 @@ export default function NovelTaskDrawer({
               </section>
 
               <section className="space-y-3">
-                <div className="text-sm font-medium text-foreground">Token 统计</div>
+                <div className="text-sm font-medium text-foreground">{i18next.t("dict.tokenStatistics")}</div>
                 {tokenUsage ? (
                   <div className="grid gap-3 sm:grid-cols-2">
                     <div className="rounded-xl border bg-background/80 p-3">
-                      <div className="text-xs text-muted-foreground">累计调用次数</div>
+                      <div className="text-xs text-muted-foreground">{i18next.t("dict.gen_2398ac4d")}</div>
                       <div className="mt-1 text-sm font-medium text-foreground">{formatTokenCount(tokenUsage.llmCallCount)}</div>
                     </div>
                     <div className="rounded-xl border bg-background/80 p-3">
-                      <div className="text-xs text-muted-foreground">累计总 Tokens</div>
+                      <div className="text-xs text-muted-foreground">{i18next.t("dict.gen_461f619e")}</div>
                       <div className="mt-1 text-sm font-medium text-foreground">{formatTokenCount(tokenUsage.totalTokens)}</div>
                     </div>
                     <div className="rounded-xl border bg-background/80 p-3">
-                      <div className="text-xs text-muted-foreground">输入 Tokens</div>
+                      <div className="text-xs text-muted-foreground">{i18next.t("dict.gen_5986a637")}</div>
                       <div className="mt-1 text-sm font-medium text-foreground">{formatTokenCount(tokenUsage.promptTokens)}</div>
                     </div>
                     <div className="rounded-xl border bg-background/80 p-3">
-                      <div className="text-xs text-muted-foreground">输出 Tokens</div>
+                      <div className="text-xs text-muted-foreground">{i18next.t("dict.gen_171cf50a")}</div>
                       <div className="mt-1 text-sm font-medium text-foreground">{formatTokenCount(tokenUsage.completionTokens)}</div>
                       <div className="mt-1 text-xs text-muted-foreground">
                         最近记录：{formatDate(tokenUsage.lastRecordedAt)}
@@ -598,14 +591,12 @@ export default function NovelTaskDrawer({
                     </div>
                   </div>
                 ) : (
-                  <div className="rounded-xl border border-dashed px-4 py-5 text-sm text-muted-foreground">
-                    当前任务还没有累计到可展示的 token 用量；一旦模型开始返回 usage，这里会自动刷新。
-                  </div>
+                  <div className="rounded-xl border border-dashed px-4 py-5 text-sm text-muted-foreground">{i18next.t("novels.novelTaskDrawer.ikub73")}</div>
                 )}
               </section>
 
               <section className="space-y-3">
-                <div className="text-sm font-medium text-foreground">步骤状态</div>
+                <div className="text-sm font-medium text-foreground">{i18next.t("dict.gen_d96a7b07")}</div>
                 <div className="space-y-2">
                   {(displayState?.steps ?? task.steps).map((step) => (
                     <div key={step.key} className="flex items-center justify-between rounded-xl border bg-background/80 px-3 py-2">
@@ -625,7 +616,7 @@ export default function NovelTaskDrawer({
               </section>
 
               <section className="space-y-3">
-                <div className="text-sm font-medium text-foreground">里程碑历史</div>
+                <div className="text-sm font-medium text-foreground">{i18next.t("dict.gen_8e910f68")}</div>
                 {milestones.length > 0 ? (
                   <div className="space-y-2">
                     {milestones
@@ -635,38 +626,32 @@ export default function NovelTaskDrawer({
                         <div key={`${milestone.checkpointType}:${milestone.createdAt}`} className="rounded-xl border bg-background/80 p-3">
                           <div className="font-medium text-foreground">{formatCheckpoint(milestone.checkpointType)}</div>
                           <div className="mt-1 text-sm text-muted-foreground">{milestone.summary}</div>
-                          <div className="mt-2 text-xs text-muted-foreground">记录时间：{formatDate(milestone.createdAt)}</div>
+                           <div className="mt-2 text-xs text-muted-foreground">{i18next.t("novels.novelTaskDrawer.9m1ynd")}{formatDate(milestone.createdAt)}</div>
                         </div>
                       ))}
                   </div>
                 ) : (
-                  <div className="rounded-xl border border-dashed px-4 py-5 text-sm text-muted-foreground">
-                    当前还没有可显示的里程碑记录。
-                  </div>
+                  <div className="rounded-xl border border-dashed px-4 py-5 text-sm text-muted-foreground">{i18next.t("novels.novelTaskDrawer.amlcwa")}</div>
                 )}
               </section>
             </>
           ) : (
-            <section className="rounded-2xl border border-dashed px-5 py-8 text-sm text-muted-foreground">
-              当前小说还没有可见的自动导演任务。你可以继续手动创作，或在后台任务中心查看其他任务。
-            </section>
+            <section className="rounded-2xl border border-dashed px-5 py-8 text-sm text-muted-foreground">{i18next.t("novels.novelTaskDrawer.7cnytb")}</section>
           )}
         </div>
 
         <div className="space-y-2 border-t border-border/70 px-5 py-4">
           {primaryAction ? (
             <Button type="button" className="w-full" onClick={() => handleProjectionAction(primaryAction)}>
-              {primaryActionLabel || "继续处理"}
+              {primaryActionLabel || i18next.t("dict.gen_a53fb331")}
             </Button>
           ) : null}
           {task?.sourceRoute ? (
             <Button asChild type="button" variant="outline" className="w-full">
-              <Link to={task.sourceRoute}>打开来源页面</Link>
+              <Link to={task.sourceRoute}>{i18next.t("dict.gen_492476d9")}</Link>
             </Button>
           ) : null}
-          <Button type="button" variant={primaryAction ? "ghost" : "outline"} className="w-full" onClick={onOpenFullTaskCenter}>
-            打开后台任务中心
-          </Button>
+          <Button type="button" variant={primaryAction ? "ghost" : "outline"} className="w-full" onClick={onOpenFullTaskCenter}>{i18next.t("novels.novelTaskDrawer.ydcqc5")}</Button>
         </div>
       </DialogContent>
     </Dialog>

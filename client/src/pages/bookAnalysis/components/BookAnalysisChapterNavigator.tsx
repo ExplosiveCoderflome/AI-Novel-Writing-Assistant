@@ -1,3 +1,5 @@
+import i18next from "i18next";
+const t = (key: string, options?: any) => i18next.t(key, options) as string;
 import type { DocumentChapter } from "@ai-novel/shared/types/knowledge";
 import { Button } from "@/components/ui/button";
 
@@ -26,18 +28,14 @@ export default function BookAnalysisChapterNavigator({
             variant="outline"
             disabled={!canGoPrev}
             onClick={() => onSelectChapter(chapters[currentPosition - 1].chapterIndex)}
-          >
-            上一章
-          </Button>
+          >{i18next.t("bookAnalysis.bookAnalysisChapterNavigator.btfu2")}</Button>
           <Button
             type="button"
             size="sm"
             variant="outline"
             disabled={!canGoNext}
             onClick={() => onSelectChapter(chapters[currentPosition + 1].chapterIndex)}
-          >
-            下一章
-          </Button>
+          >{i18next.t("bookAnalysis.bookAnalysisChapterNavigator.btgkr")}</Button>
         </div>
       </div>
 
@@ -58,7 +56,7 @@ export default function BookAnalysisChapterNavigator({
                 title={chapter.title}
               >
                 <div className="font-medium">{chapter.chapterIndex + 1}. {chapter.title}</div>
-                <div className="mt-0.5 text-[11px] text-muted-foreground">{chapter.charCount} 字</div>
+                <div className="mt-0.5 text-[11px] text-muted-foreground">{i18next.t("dict.gen_821cf47a")}</div>
               </button>
             );
           })}

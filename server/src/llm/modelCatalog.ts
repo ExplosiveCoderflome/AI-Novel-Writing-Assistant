@@ -5,6 +5,7 @@ import {
   PROVIDERS,
   resolveProviderBaseUrl,
 } from "./providers";
+import { benchmarkOllamaModels, measureHardwareSpec } from "../platform/llm/benchmark/hardwareBenchmark";
 
 interface ModelCacheItem {
   models: string[];
@@ -128,7 +129,7 @@ function buildHeaders(provider: LLMProvider, apiKey?: string): Record<string, st
   return headers;
 }
 
-async function fetchOllamaModels(baseURL: string): Promise<string[]> {
+export async function fetchOllamaModels(baseURL: string): Promise<string[]> {
   const nativeBaseURL = baseURL.endsWith("/v1") ? baseURL.slice(0, -3) : baseURL;
 
   try {
@@ -159,6 +160,14 @@ async function fetchOllamaModels(baseURL: string): Promise<string[]> {
   return models;
 }
 
+export function selectBestInstalledOllamaModel(installedModels: string[]): string | null {
+  if (!installedModels || installedModels.length === 0) {
+    return null;
+  }
+  const result = benchmarkOllamaModels(installedModels);
+  return result.selectedModel;
+}
+
 async function fetchProviderModels(
   provider: LLMProvider,
   apiKey?: string,
@@ -177,7 +186,11 @@ async function fetchProviderModels(
     headers: buildHeaders(provider, apiKey),
   });
 
-  const models = parseModelIds(payload);
+  let models = parseModelIds(payload);
+  if (provider === "sensenova") {
+    const filtered = models.filter((m) => m.toLowerCase().includes("sensenova"));
+    models = filtered.length > 0 ? filtered : ["sensenova-u1:8b-v3"];
+  }
   if (models.length === 0) {
     throw new Error("模型列表为空。");
   }

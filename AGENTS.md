@@ -55,12 +55,19 @@
 - If a workflow belongs in another module, explain the correct user entry point directly, for example "从小说基础信息设置书级默认写法", rather than "书级默认写法已经迁回小说页".
 - Before finishing UI work, review newly added copy and rewrite any sentence that sounds like it is talking to the developer or describing the modification process.
 
+## Internationalization (i18n) Governance Rules
+
+- All user-facing display texts (JSX text, user-facing attributes like placeholder/title/description, toast messages, and dialog titles) must be configured through i18n translation resources.
+- Do not write hardcoded Chinese strings directly in JSX or TS code, and do not use machine-generated pseudo keys like `gen_*`.
+- React components must use `useTranslation()` Hook and semantic key paths (e.g. `t('common.actions.save')`, `t('onboarding.quickSetup.title')`).
+- New feature code must be validated with `pnpm i18n:check` before merging, or auto-extracted using `pnpm i18n:scan`.
+
 ## Architecture Rules
 
 - If a single source file becomes too long, it must be split into functional modules.
-- Preferred threshold: keep a single source file around 1,200 lines.
-- Floating range: 1,000-1,300 lines is acceptable when module cohesion is still clear and the file is not becoming hard to maintain.
-- Hard threshold: when a source file exceeds 1,300 lines, refactoring and modularization are mandatory before continuing feature expansion.
+- Preferred threshold: keep a single source file around 600 lines.
+- Floating range: 500-700 lines is acceptable when module cohesion is still clear and the file is not becoming hard to maintain.
+- Hard threshold: when a source file exceeds 700 lines, refactoring and modularization are mandatory before continuing feature expansion.
 - Long-file splitting must improve module boundaries, not merely reduce line count.
 - Before splitting a long file, list its responsibilities and separate business rules, application orchestration, persistence/external adapters, and HTTP/API mapping.
 - Do not split an oversized file by adding loose same-level files such as generic `helper`, `utils`, `shared`, or `runtime` files without clear module ownership.

@@ -1,3 +1,4 @@
+import i18next from "i18next";
 import { CircleAlert, CircleCheck, Clock3, Database, Trash2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -28,23 +29,23 @@ interface KnowledgeOpsTabProps {
 const FINISHED_RAG_JOB_STATUSES = new Set<RagJobSummary["status"]>(["succeeded", "failed", "cancelled"]);
 
 const OWNER_LABELS: Record<string, string> = {
-  novel: "小说资料",
-  chapter: "章节正文",
-  world: "本书世界",
-  world_library_item: "世界样本",
-  character: "角色资料",
-  character_timeline: "角色经历",
-  bible: "创作设定",
-  chapter_summary: "章节摘要",
-  consistency_fact: "连续性资料",
-  knowledge_document: "知识资料",
-  chat_message: "创作对话",
+  novel: i18next.t("knowledge.knowledgeOpsTab.c76nve"),
+  chapter: i18next.t("dict.gen_a90e9b2a"),
+  world: i18next.t("novels.novelWorldManagerCard.dcc10w"),
+  world_library_item: i18next.t("dict.worldSample"),
+  character: i18next.t("knowledge.knowledgeOpsTab.hxkud1"),
+  character_timeline: i18next.t("knowledge.knowledgeOpsTab.hxia9j"),
+  bible: i18next.t("knowledge.knowledgeOpsTab.ap3vnh"),
+  chapter_summary: i18next.t("novels.structuredChapterDetailCard.g1jex7"),
+  consistency_fact: i18next.t("knowledge.knowledgeOpsTab.aotc0d"),
+  knowledge_document: i18next.t("knowledge.knowledgeOpsTab.fpjuae"),
+  chat_message: i18next.t("knowledge.knowledgeOpsTab.aow0o5"),
 };
 
 const JOB_TYPE_LABELS: Record<string, string> = {
-  upsert: "更新检索内容",
-  rebuild: "重新建立索引",
-  delete: "移除检索内容",
+  upsert: i18next.t("knowledge.knowledgeOpsTab.xly7zm"),
+  rebuild: i18next.t("knowledge.knowledgeOpsTab.udnwu1"),
+  delete: i18next.t("knowledge.knowledgeOpsTab.qs7ugx"),
 };
 
 function canDeleteRagJob(job: RagJobSummary): boolean {
@@ -81,7 +82,7 @@ export default function KnowledgeOpsTab({
   return (
     <div className="space-y-6">
       <section
-        aria-label="资料检索可用状态"
+        aria-label={i18next.t("knowledge.knowledgeOpsTab.a5fezp")}
         className={`rounded-3xl px-5 py-5 sm:px-6 ${healthOk ? "bg-success/[0.065]" : "bg-destructive/[0.055]"}`}
       >
         <div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
@@ -101,36 +102,34 @@ export default function KnowledgeOpsTab({
             </div>
           </div>
           {!healthOk ? (
-            <Button type="button" size="sm" className="w-full rounded-full sm:w-auto" onClick={onOpenSettings}>
-              检查检索设置
-            </Button>
+            <Button type="button" size="sm" className="w-full rounded-full sm:w-auto" onClick={onOpenSettings}>{i18next.t("knowledge.knowledgeOpsTab.o2tzpl")}</Button>
           ) : null}
         </div>
 
         <div className="mt-5 flex flex-wrap gap-x-6 gap-y-2 border-t border-foreground/[0.06] pt-4 text-sm">
-          <span><strong className="tabular-nums">{visibleDocumentsCount}</strong> 份资料</span>
-          <span className="text-muted-foreground"><strong className="font-semibold tabular-nums text-foreground">{enabledCount}</strong> 份已启用</span>
+          <span><strong className="tabular-nums">{visibleDocumentsCount}</strong>{i18next.t("knowledge.knowledgeOpsTab.c9382")}</span>
+          <span className="text-muted-foreground"><strong className="font-semibold tabular-nums text-foreground">{enabledCount}</strong>{i18next.t("knowledge.knowledgeOpsTab.actxri")}</span>
           {disabledCount > 0 ? (
-            <span className="text-muted-foreground"><strong className="font-semibold tabular-nums text-foreground">{disabledCount}</strong> 份已停用</span>
+            <span className="text-muted-foreground"><strong className="font-semibold tabular-nums text-foreground">{disabledCount}</strong>{i18next.t("knowledge.knowledgeOpsTab.actach")}</span>
           ) : null}
-          <span className="text-muted-foreground"><strong className="font-semibold tabular-nums text-foreground">{activeJobCount}</strong> 个同步中</span>
+          <span className="text-muted-foreground"><strong className="font-semibold tabular-nums text-foreground">{activeJobCount}</strong>{i18next.t("knowledge.knowledgeOpsTab.a7qqyy")}</span>
           {failedJobs.length > 0 ? (
-            <span className="text-destructive"><strong className="font-semibold tabular-nums">{failedJobs.length}</strong> 个任务失败</span>
+            <span className="text-destructive"><strong className="font-semibold tabular-nums">{failedJobs.length}</strong>{i18next.t("knowledge.knowledgeOpsTab.vt0wck")}</span>
           ) : null}
         </div>
 
         <details className="group mt-4 text-xs text-muted-foreground">
-          <summary className="cursor-pointer list-none marker:hidden">查看连接详情</summary>
+          <summary className="cursor-pointer list-none marker:hidden">{i18next.t("knowledge.knowledgeOpsTab.7bkm5o")}</summary>
           <div className="mt-3 grid gap-3 rounded-2xl bg-background/55 p-4 sm:grid-cols-2">
             <div>
-              <div className="font-medium text-foreground">向量模型</div>
+              <div className="font-medium text-foreground">{i18next.t("dict.gen_e19716c1")}</div>
               <div className="mt-1 break-words">
                 {ragHealth?.embedding.provider ?? "-"} · {ragHealth?.embedding.model ?? "-"} · {ragHealth?.embedding.ok ? "可用" : "不可用"}
               </div>
               {ragHealth?.embedding.detail ? <div className="mt-1 break-words">{ragHealth.embedding.detail}</div> : null}
             </div>
             <div>
-              <div className="font-medium text-foreground">资料库连接</div>
+              <div className="font-medium text-foreground">{i18next.t("knowledge.knowledgeOpsTab.2olq57")}</div>
               <div className="mt-1">{ragHealth?.qdrant.ok ? "连接正常" : "连接失败"}</div>
               {ragHealth?.qdrant.detail ? <div className="mt-1 break-words">{ragHealth.qdrant.detail}</div> : null}
             </div>
@@ -142,8 +141,8 @@ export default function KnowledgeOpsTab({
       <section aria-labelledby="knowledge-jobs-title">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
           <div>
-            <h2 id="knowledge-jobs-title" className="text-xl font-semibold tracking-tight">资料同步记录</h2>
-            <p className="mt-1 text-sm leading-6 text-muted-foreground">查看资料进入检索库的进度；失败原因会直接显示，运行细节按需展开。</p>
+            <h2 id="knowledge-jobs-title" className="text-xl font-semibold tracking-tight">{i18next.t("knowledge.knowledgeOpsTab.dmj9m5")}</h2>
+            <p className="mt-1 text-sm leading-6 text-muted-foreground">{i18next.t("knowledge.knowledgeOpsTab.r6fto6")}</p>
           </div>
           <Button
             type="button"
@@ -154,7 +153,7 @@ export default function KnowledgeOpsTab({
             disabled={isClearingJobs || finishedJobCount === 0}
           >
             <Trash2 className="h-4 w-4" />
-            {isClearingJobs ? "清理中..." : `清理记录 ${finishedJobCount}`}
+            {isClearingJobs ? "清理中..." : i18next.t("knowledge.knowledgeOpsTab.eszdhm", { val1: finishedJobCount })}
           </Button>
         </div>
 
@@ -165,8 +164,8 @@ export default function KnowledgeOpsTab({
         {jobs.length === 0 ? (
           <div className="mt-5 flex min-h-44 flex-col items-center justify-center rounded-3xl bg-muted/20 px-6 text-center">
             <Database className="h-6 w-6 text-muted-foreground/60" />
-            <div className="mt-3 font-medium">还没有资料同步记录</div>
-            <div className="mt-1 text-sm text-muted-foreground">上传资料或重建索引后，可以在这里查看进度。</div>
+            <div className="mt-3 font-medium">{i18next.t("knowledge.knowledgeOpsTab.3ap631")}</div>
+            <div className="mt-1 text-sm text-muted-foreground">{i18next.t("knowledge.knowledgeOpsTab.l2gfed")}</div>
           </div>
         ) : (
           <div className="mt-5 grid gap-3 xl:grid-cols-2">
@@ -215,7 +214,7 @@ export default function KnowledgeOpsTab({
 
                   <div className="mt-3 flex items-center justify-between gap-3 border-t border-border/30 pt-3">
                     <details className="group min-w-0 text-xs text-muted-foreground">
-                      <summary className="cursor-pointer list-none marker:hidden">任务详情</summary>
+                      <summary className="cursor-pointer list-none marker:hidden">{i18next.t("dict.taskIdDetails")}</summary>
                       <div className="mt-2 space-y-1 break-all">
                         <div>{formatRagJobMeta(job)}</div>
                         <div>{job.ownerType}:{job.ownerId}</div>
@@ -229,7 +228,7 @@ export default function KnowledgeOpsTab({
                         className="h-8 shrink-0 rounded-full px-2 text-muted-foreground"
                         onClick={() => onDeleteJob(job.id)}
                         disabled={deletingJobId === job.id}
-                        aria-label="删除任务记录"
+                        aria-label={i18next.t("dict.gen_64b1d61a")}
                       >
                         <Trash2 className="h-4 w-4" />
                         {deletingJobId === job.id ? "删除中..." : "删除"}

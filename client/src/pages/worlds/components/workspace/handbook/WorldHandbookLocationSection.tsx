@@ -1,3 +1,5 @@
+import i18next from "i18next";
+const t = (key: string, options?: any) => i18next.t(key, options) as string;
 import { MapPinned, Plus } from "lucide-react";
 import type { Dispatch, SetStateAction } from "react";
 import type { WorldLocation, WorldStructuredData } from "@ai-novel/shared/types/world";
@@ -40,8 +42,8 @@ export default function WorldHandbookLocationSection(props: {
     <section className="rounded-md border p-4">
       <SectionHeader
         icon={MapPinned}
-        title="故事舞台"
-        description="把世界转换成可落地的地点：开局在哪里、哪里适合升级、哪里适合冲突爆发。"
+        title={i18next.t("dict.gen_bf876a86")}
+        description={i18next.t("dict.gen_5eab593a")}
         count={draftStructure.locations.length}
       />
       <div className="mt-4 grid gap-3 lg:grid-cols-2">
@@ -58,12 +60,10 @@ export default function WorldHandbookLocationSection(props: {
                     prev ? { ...prev, locations: removeItem(prev.locations, index) } : prev,
                   )
                 }
-              >
-                移除
-              </Button>
+              >{i18next.t("worlds.worldHandbookForceSection.lknd")}</Button>
             </div>
             <div className="mt-3 grid gap-3">
-              <HandbookField title="地点名称" hint="后续地图、势力控制区和章节发生地会围绕这些地点展开。">
+              <HandbookField title={i18next.t("dict.gen_6608b1e8")} hint={i18next.t("dict.gen_4c64c523")}>
                 <Input
                   value={location.name}
                   onChange={(event) =>
@@ -71,10 +71,10 @@ export default function WorldHandbookLocationSection(props: {
                       prev ? { ...prev, locations: updateItem(prev.locations, index, { name: event.target.value }) } : prev,
                     )
                   }
-                  placeholder="北境冰原、星墟城、黑潮港"
+                  placeholder={i18next.t("dict.gen_bf68522b")}
                 />
               </HandbookField>
-              <HandbookField title="环境特征" hint="让地点有可被读者记住的空间感，而不是只作为名称出现。">
+              <HandbookField title={i18next.t("dict.gen_8a9c3f14")} hint={i18next.t("dict.gen_62ed5e07")}>
                 <Input
                   value={location.terrain}
                   onChange={(event) =>
@@ -84,10 +84,10 @@ export default function WorldHandbookLocationSection(props: {
                         : prev,
                     )
                   }
-                  placeholder="雪原边境、浮空都市、地下矿脉、海上要塞"
+                  placeholder={i18next.t("dict.gen_03d029f6")}
                 />
               </HandbookField>
-              <HandbookField title="读者第一印象" hint="写清这个地点的画面、秩序、危险或奇观。">
+              <HandbookField title={i18next.t("dict.gen_051e077a")} hint={i18next.t("dict.gen_4bb9a973")}>
                 <HandbookTextarea
                   value={location.summary}
                   onChange={(value) =>
@@ -95,11 +95,11 @@ export default function WorldHandbookLocationSection(props: {
                       prev ? { ...prev, locations: updateItem(prev.locations, index, { summary: value }) } : prev,
                     )
                   }
-                  placeholder="这个地点给读者的第一印象是什么？"
+                  placeholder={i18next.t("dict.gen_a9cad450")}
                   minRows={3}
                 />
               </HandbookField>
-              <HandbookField title="适合承担的剧情功能" hint="帮助章节规划判断这里适合开局、试炼、转折还是决战。">
+              <HandbookField title={i18next.t("dict.gen_b4406c09")} hint={i18next.t("dict.gen_8187b5cf")}>
                 <Input
                   value={location.narrativeFunction}
                   onChange={(event) =>
@@ -112,10 +112,10 @@ export default function WorldHandbookLocationSection(props: {
                         : prev,
                     )
                   }
-                  placeholder="开局、试炼、转折、决战、揭露真相"
+                  placeholder={i18next.t("dict.gen_a28adf5e")}
                 />
               </HandbookField>
-              <HandbookField title="进入这里的风险" hint="风险会变成角色行动的阻力和章节冲突。">
+              <HandbookField title={i18next.t("dict.gen_fd11c0b0")} hint={i18next.t("dict.gen_ed9089b3")}>
                 <Input
                   value={location.risk}
                   onChange={(event) =>
@@ -123,7 +123,7 @@ export default function WorldHandbookLocationSection(props: {
                       prev ? { ...prev, locations: updateItem(prev.locations, index, { risk: event.target.value }) } : prev,
                     )
                   }
-                  placeholder="被追捕、资源耗尽、身份暴露、规则失效"
+                  placeholder={i18next.t("dict.gen_21edf84f")}
                 />
               </HandbookField>
             </div>
@@ -131,9 +131,7 @@ export default function WorldHandbookLocationSection(props: {
         ))}
       </div>
       <Button type="button" className="mt-3" variant="outline" onClick={addLocation}>
-        <Plus className="mr-2 h-4 w-4" aria-hidden="true" />
-        增加故事地点
-      </Button>
+        <Plus className="mr-2 h-4 w-4" aria-hidden="true" />{i18next.t("worlds.worldHandbookLocationSection.3fevrj")}</Button>
     </section>
   );
 }

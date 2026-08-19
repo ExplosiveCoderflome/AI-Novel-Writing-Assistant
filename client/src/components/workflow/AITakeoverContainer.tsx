@@ -1,3 +1,4 @@
+import i18next from "i18next";
 import type { ReactNode } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -31,16 +32,16 @@ export interface AITakeoverContainerProps {
 function modeLabel(mode: AITakeoverMode): string {
   switch (mode) {
     case "loading":
-      return "加载中";
+      return i18next.t("dict.gen_f013ea9d");
     case "running":
-      return "AI 接管中";
+      return i18next.t("dict.aiTakingOver");
     case "waiting":
-      return "等待确认";
+      return i18next.t("creativeHub.statusInterrupted");
     case "action_required":
-      return "待处理";
+      return i18next.t("autoDirector.secPending");
     case "failed":
     default:
-      return "执行异常";
+      return i18next.t("dict.gen_b0d5b6f8");
   }
 }
 
@@ -94,13 +95,13 @@ function progressTone(mode: AITakeoverMode): WorkflowProgressTone {
 function progressStatusLabel(mode: AITakeoverMode): string | null {
   switch (mode) {
     case "running":
-      return "实时推进中";
+      return i18next.t("dict.gen_19f6e835");
     case "waiting":
-      return "等待你确认";
+      return i18next.t("dict.gen_afa80d33");
     case "action_required":
-      return "需要你处理";
+      return i18next.t("dict.gen_a98cfacb");
     case "failed":
-      return "已中断";
+      return i18next.t("dict.gen_e13531d7");
     default:
       return null;
   }
@@ -170,7 +171,7 @@ export default function AITakeoverContainer({
                   <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-primary" />
                 </span>
               ) : null}
-              <span className="font-medium text-foreground">流程进度</span>
+              <span className="font-medium text-foreground">{i18next.t("dict.gen_10e501cd")}</span>
               {progressStatusLabel(mode) ? (
                 <span className="rounded-full bg-background/80 px-2 py-0.5 text-[11px] text-muted-foreground">
                   {progressStatusLabel(mode)}

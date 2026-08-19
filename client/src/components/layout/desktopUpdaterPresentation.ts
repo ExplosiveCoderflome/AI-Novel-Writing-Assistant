@@ -1,3 +1,4 @@
+import i18next from "i18next";
 import type { DesktopUpdaterSnapshot } from "@/lib/desktop";
 
 export function formatDesktopVersion(version: string): string {
@@ -11,21 +12,21 @@ export function formatDesktopVersion(version: string): string {
 export function getDesktopUpdaterStatusLabel(status: DesktopUpdaterSnapshot["status"]): string {
   switch (status) {
     case "disabled":
-      return "暂不可用";
+      return i18next.t("layout.desktopUpdaterPresentation.d9an1g");
     case "idle":
-      return "等待检查";
+      return i18next.t("dict.gen_c52ee445");
     case "checking":
-      return "正在检查";
+      return i18next.t("layout.desktopUpdaterPresentation.dwvmyy");
     case "update-available":
-      return "发现新版本";
+      return i18next.t("layout.desktopUpdaterPresentation.cew3bf");
     case "downloading":
-      return "正在下载";
+      return i18next.t("layout.desktopUpdaterPresentation.dwrb93");
     case "downloaded":
-      return "等待重启安装";
+      return i18next.t("layout.desktopUpdaterPresentation.757pom");
     case "not-available":
-      return "版本较新";
+      return i18next.t("layout.desktopUpdaterPresentation.eupnxt");
     case "error":
-      return "检查失败";
+      return i18next.t("dict.gen_74bb5c74");
     default:
       return status;
   }
@@ -34,44 +35,44 @@ export function getDesktopUpdaterStatusLabel(status: DesktopUpdaterSnapshot["sta
 export function getDesktopUpdaterHint(updater: DesktopUpdaterSnapshot): string {
   if (!updater.isSupported) {
     if (updater.isPortable) {
-      return "便携版需要下载新版安装包后手动替换，现有创作数据不会受到影响。";
+      return i18next.t("layout.desktopUpdaterPresentation.uefrxj");
     }
     if (!updater.isPackaged) {
-      return "开发环境不会下载安装包，正式安装版可在这里检查和安装更新。";
+      return i18next.t("layout.desktopUpdaterPresentation.3uk6u0");
     }
-    return "此安装包暂时无法连接版本更新服务。";
+    return i18next.t("layout.desktopUpdaterPresentation.drgkpz");
   }
 
   switch (updater.status) {
     case "idle":
-      return "可随时检查桌面版更新。发现新版本后，由你确认下载和重启安装。";
+      return i18next.t("layout.desktopUpdaterPresentation.50z40j");
     case "checking":
-      return "正在连接版本更新服务，请稍候。";
+      return i18next.t("layout.desktopUpdaterPresentation.yl4h85");
     case "update-available":
-      return `${formatDesktopVersion(updater.availableVersion ?? "新版本")} 可用，下载期间可以继续使用应用。`;
+      return i18next.t("layout.desktopUpdaterPresentation.gebzkx", { val1: formatDesktopVersion(updater.availableVersion ?? "新版本") });
     case "downloading":
-      return "更新包正在后台下载，请保持应用打开。";
+      return i18next.t("layout.desktopUpdaterPresentation.lxenzk");
     case "downloaded":
-      return "更新包准备完成。重启应用后会自动安装，未保存的输入请先保存。";
+      return i18next.t("layout.desktopUpdaterPresentation.9qdxux");
     case "not-available":
-      return "当前安装包符合此更新通道的最新版本。";
+      return i18next.t("layout.desktopUpdaterPresentation.gak1xq");
     case "error":
-      return "未能完成版本检查，请确认网络连接后重试。";
+      return i18next.t("layout.desktopUpdaterPresentation.9tny4h");
     default:
-      return "可在这里查看桌面版版本状态。";
+      return i18next.t("layout.desktopUpdaterPresentation.qobpfx");
   }
 }
 
 export function getDesktopInstallModeLabel(updater: DesktopUpdaterSnapshot): string {
   if (updater.isPortable) {
-    return "便携版";
+    return i18next.t("layout.desktopUpdaterPresentation.c66a5");
   }
   if (!updater.isPackaged) {
-    return "开发环境";
+    return i18next.t("layout.desktopUpdaterPresentation.cc71hh");
   }
-  return "安装版";
+  return i18next.t("layout.desktopUpdaterPresentation.e2jxo");
 }
 
 export function getDesktopChannelLabel(channel: string): string {
-  return channel === "beta" ? "测试通道" : channel === "latest" ? "稳定通道" : `${channel} 通道`;
+  return channel === "beta" ? "测试通道" : channel === "latest" ? "稳定通道" : i18next.t("layout.desktopUpdaterPresentation.k8p089", { val1: channel });
 }

@@ -55,7 +55,7 @@ interface CharacterPrepOptions {
 interface CharacterCastApplyOptions {
   overrideQualityGate?: boolean;
   visibleProfileGeneration?: CharacterVisibleProfileGenerateOptions;
-  postApplyMode?: "sync" | "background" | "deferred";
+  postApplyMode?: "sync" | "background";
 }
 
 function toOptionalText(value: string | null | undefined): string | null {
@@ -390,33 +390,6 @@ export class CharacterPreparationService {
         error,
       });
     }
-  }
-
-  async runDeferredEnhancements(
-    novelId: string,
-    visibleProfileGeneration?: CharacterVisibleProfileGenerateOptions,
-  ): Promise<void> {
-    const [appliedOption, characters] = await Promise.all([
-      prisma.characterCastOption.findFirst({
-        where: { novelId, status: "applied" },
-        orderBy: { updatedAt: "desc" },
-        select: { id: true },
-      }),
-      prisma.character.findMany({
-        where: { novelId },
-        orderBy: { createdAt: "asc" },
-        select: { id: true },
-      }),
-    ]);
-    if (!appliedOption || characters.length === 0) {
-      return;
-    }
-    await this.runPostApplyEnhancements({
-      novelId,
-      optionId: appliedOption.id,
-      characterIds: characters.map((character) => character.id),
-      visibleProfileGeneration,
-    });
   }
 
   private async normalizeCharacterCastOptions(
@@ -801,9 +774,7 @@ export class CharacterPreparationService {
       characterIds: uniqueCharacterIds,
       visibleProfileGeneration: options.visibleProfileGeneration,
     };
-    if (options.postApplyMode === "deferred") {
-      // 快速开篇把增强资料延后到首章正文完成后，由持久化副作用任务补齐。
-    } else if (options.postApplyMode === "background") {
+    if (options.postApplyMode === "background") {
       void this.runPostApplyEnhancements(postApplyInput).catch((error) => {
         console.warn("[character-cast-apply] 阵容应用后台补齐任务失败", {
           novelId,

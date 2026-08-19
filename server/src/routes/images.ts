@@ -299,4 +299,137 @@ router.post("/assets/:assetId/set-primary", validate({ params: assetParamsSchema
   }
 });
 
+const editSchema = z.object({
+  assetId: z.string().trim().optional(),
+  imageBase64: z.string().trim().optional(),
+  prompt: z.string().trim().min(1),
+  negativePrompt: z.string().trim().optional(),
+  provider: llmProviderSchema.default("sensenova"),
+  model: z.string().trim().optional(),
+  size: z.enum(IMAGE_SIZES).default("1024x1024"),
+});
+
+router.get("/diagnostics", async (req, res, next) => {
+  try {
+    const { systemDiagnosticService } = await import("../services/image/local/SystemDiagnosticService");
+    const data = await systemDiagnosticService.runDiagnostic();
+    res.status(200).json({
+      success: true,
+      data,
+      message: "System hardware diagnostics completed.",
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
+router.post("/edit", validate({ body: editSchema }), async (req, res, next) => {
+  try {
+    const body = req.body as z.infer<typeof editSchema>;
+    let localImagePath = "";
+    let isTempFile = false;
+
+    if (body.assetId) {
+      const assetFile = await imageGenerationService.getAssetFile(body.assetId).catch(() => null);
+      if (assetFile?.localPath) {
+        localImagePath = assetFile.localPath;
+      } else {
+        // Fallback: 检查是否为漫画格子的 ID
+        const path = await import("path");
+        const fs = await import("fs/promises");
+        const { resolveGeneratedImagesRoot } = await import("../runtime/appPaths");
+        const dir = path.join(resolveGeneratedImagesRoot(), "comic-panels", body.assetId);
+        try {
+          const entries = await fs.readdir(dir);
+          const panelFile = entries.find((f) => /^panel\.(png|jpg|webp)$/i.test(f));
+          if (panelFile) {
+            localImagePath = path.join(dir, panelFile);
+          }
+        } catch {
+          // ignore
+        }
+      }
+    }
+
+    if (!localImagePath && body.imageBase64) {
+      const fs = await import("fs/promises");
+      const path = await import("path");
+      const crypto = await import("crypto");
+      const { resolveGeneratedImagesRoot } = await import("../runtime/appPaths");
+
+      const base64Data = body.imageBase64.replace(/^data:image\/\w+;base64,/, "");
+      const buffer = Buffer.from(base64Data, "base64");
+      
+      const tempDir = path.join(resolveGeneratedImagesRoot(), "temp");
+      await fs.mkdir(tempDir, { recursive: true });
+      
+      localImagePath = path.join(tempDir, `edit_${crypto.randomUUID()}.png`);
+      await fs.writeFile(localImagePath, buffer);
+      isTempFile = true;
+    }
+
+    if (!localImagePath) {
+      return res.status(400).json({ success: false, error: "Must provide either assetId or imageBase64." });
+    }
+
+    const { generateImagesByProvider, resolveImageModel } = await import("../services/image/provider");
+    const resolvedModel = await resolveImageModel(body.provider, body.model);
+
+    const result = await generateImagesByProvider({
+      sceneType: "chapter_illustration",
+      provider: body.provider,
+      model: resolvedModel,
+      prompt: body.prompt,
+      negativePrompt: body.negativePrompt,
+      size: body.size,
+      count: 1,
+      refImagePaths: [localImagePath],
+    });
+
+    const imageUrl = result.images?.[0]?.url;
+    if (imageUrl) {
+      // 下载生成的图片并覆写回对应的位置
+      const { saveImageToDisk } = await import("../services/image/runtime/utils");
+      await saveImageToDisk(imageUrl, localImagePath);
+
+      // 如果是漫画格子，同步更新数据库状态
+      if (body.assetId) {
+        const { prisma } = await import("../db/prisma");
+        const panel = await prisma.comicPanel.findUnique({ where: { id: body.assetId } });
+        if (panel) {
+          const oldState = JSON.parse(panel.imageData || "{}");
+          const nextVersion = (oldState.version ?? 0) + 1;
+          const newState = {
+            ...oldState,
+            status: "done",
+            version: nextVersion,
+            url: `/api/comic/panel-images/${body.assetId}/panel`,
+            prompt: body.prompt,
+            provider: body.provider,
+            generatedAt: new Date().toISOString(),
+          };
+          await prisma.comicPanel.update({
+            where: { id: body.assetId },
+            data: { imageData: JSON.stringify(newState) },
+          });
+        }
+      }
+    }
+
+    if (isTempFile && localImagePath) {
+      const fs = await import("fs/promises");
+      await fs.rm(localImagePath, { force: true }).catch(() => {});
+    }
+
+    res.status(200).json({
+      success: true,
+      data: result,
+      message: "Image edited successfully.",
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
 export default router;
+

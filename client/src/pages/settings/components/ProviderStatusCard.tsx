@@ -1,3 +1,4 @@
+import i18next from "i18next";
 import { useState } from "react";
 import { ChevronDown } from "lucide-react";
 import type { LLMProvider } from "@ai-novel/shared/types/llm";
@@ -28,13 +29,13 @@ function getBalanceSummary(input: {
 }) {
   const { provider, balance, isBalanceLoading } = input;
   if (provider.kind === "custom") {
-    return "自定义厂商暂不接入余额查询。";
+    return i18next.t("settings.providerStatusCard.pcnbaf");
   }
   if (isBalanceLoading) {
-    return "正在查询余额...";
+    return i18next.t("settings.providerStatusCard.v4h4o");
   }
   if (balance?.status === "available") {
-    return `余额 ${formatBalanceAmount(balance.availableBalance, balance.currency)}`;
+    return i18next.t("settings.providerStatusCard.uk34a4", { val1: (formatBalanceAmount(balance.availableBalance, balance.currency)) });
   }
   return balance?.error ?? balance?.message ?? (provider.isConfigured ? "当前暂未获取余额信息。" : "请先配置 API Key。");
 }
@@ -79,7 +80,7 @@ export default function ProviderStatusCard(props: {
         <div className="min-w-0 space-y-1">
           <div className="flex min-w-0 flex-wrap items-center gap-2">
             <div className={`font-medium ${AUTO_DIRECTOR_MOBILE_CLASSES.wrapText}`}>{provider.name}</div>
-            {provider.kind === "custom" ? <Badge variant="outline">自定义</Badge> : null}
+            {provider.kind === "custom" ? <Badge variant="outline">{i18next.t("dict.gen_f1d4ff50")}</Badge> : null}
           </div>
           <div className={`text-xs text-muted-foreground ${AUTO_DIRECTOR_MOBILE_CLASSES.wrapText}`}>
             {canUseProvider ? "可用于创作任务。" : "完成配置后可用于创作任务。"}
@@ -95,13 +96,13 @@ export default function ProviderStatusCard(props: {
 
       <div className="mb-3 grid min-w-0 gap-2 text-sm md:grid-cols-2">
         <div className="min-w-0 rounded-md border bg-background/70 p-2">
-          <div className="text-xs text-muted-foreground">文本模型</div>
+          <div className="text-xs text-muted-foreground">{i18next.t("onboarding.quickSetupDialog.d8mg27")}</div>
           <div className={`mt-1 font-medium ${AUTO_DIRECTOR_MOBILE_CLASSES.wrapText}`}>
             {provider.currentModel || "-"}
           </div>
         </div>
         <div className="min-w-0 rounded-md border bg-background/70 p-2">
-          <div className="text-xs text-muted-foreground">图像模型</div>
+          <div className="text-xs text-muted-foreground">{i18next.t("settings.providerStatusCard.bbckpn")}</div>
           <div className={`mt-1 font-medium ${AUTO_DIRECTOR_MOBILE_CLASSES.wrapText}`}>
             {imageModelLabel}
           </div>
@@ -167,7 +168,7 @@ export default function ProviderStatusCard(props: {
           aria-expanded={advancedOpen}
           onClick={() => setAdvancedOpen((prev) => !prev)}
         >
-          <span>高级详情</span>
+          <span>{i18next.t("settings.providerStatusCard.k2b9v2")}</span>
           <ChevronDown className={cn("h-4 w-4 transition-transform duration-200", advancedOpen ? "rotate-180" : "")} />
         </button>
       </div>
@@ -183,7 +184,7 @@ export default function ProviderStatusCard(props: {
           />
           <div className="flex flex-col gap-3 rounded-md border bg-background/60 px-3 py-2 sm:flex-row sm:items-center sm:justify-between">
             <div className="min-w-0 space-y-1">
-              <div className="text-xs font-medium text-muted-foreground">思考功能</div>
+              <div className="text-xs font-medium text-muted-foreground">{i18next.t("settings.providerStatusCard.cnknr8")}</div>
               <div className={`text-xs text-muted-foreground ${AUTO_DIRECTOR_MOBILE_CLASSES.wrapText}`}>
                 {provider.reasoningEnabled
                   ? "当前会返回并展示模型思考内容。"
@@ -202,15 +203,13 @@ export default function ProviderStatusCard(props: {
 
           <div className="rounded-md border border-dashed bg-background/60 p-3">
             <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
-              <div className="text-xs font-medium text-muted-foreground">余额明细</div>
+              <div className="text-xs font-medium text-muted-foreground">{i18next.t("settings.providerStatusCard.an54nw")}</div>
               {balance?.status === "available" ? (
                 <Badge variant="outline">最近刷新 {formatBalanceTime(balance.fetchedAt)}</Badge>
               ) : null}
             </div>
             {provider.kind === "custom" ? (
-              <div className={`text-sm text-muted-foreground ${AUTO_DIRECTOR_MOBILE_CLASSES.wrapText}`}>
-                自定义 OpenAI 兼容厂商暂不接入余额查询。
-              </div>
+              <div className={`text-sm text-muted-foreground ${AUTO_DIRECTOR_MOBILE_CLASSES.wrapText}`}>{i18next.t("settings.providerStatusCard.qmqbjm")}</div>
             ) : balance?.status === "available" ? (
               <div className="grid gap-2 text-xs text-muted-foreground sm:grid-cols-2">
                 {balance.cashBalance !== null ? <div>现金余额：{formatBalanceAmount(balance.cashBalance, balance.currency)}</div> : null}
@@ -246,7 +245,7 @@ export default function ProviderStatusCard(props: {
                 className="text-xs font-medium text-primary transition-opacity hover:opacity-80"
                 onClick={() => setModelsOpen((prev) => !prev)}
               >
-                {modelsOpen ? "收起模型列表" : `展开全部 ${provider.models.length} 个模型`}
+                {modelsOpen ? "收起模型列表" : i18next.t("settings.providerStatusCard.1i4m9z", { val1: (provider.models.length) })}
               </button>
             ) : null}
           </div>

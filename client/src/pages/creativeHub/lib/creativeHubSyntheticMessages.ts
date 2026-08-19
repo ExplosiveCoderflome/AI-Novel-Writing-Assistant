@@ -1,3 +1,4 @@
+import i18next from "i18next";
 import type { FailureDiagnostic } from "@ai-novel/shared/types/agent";
 import type { CreativeHubInterrupt, CreativeHubTurnSummary } from "@ai-novel/shared/types/creativeHub";
 import type { CreativeHubStreamFrame } from "@ai-novel/shared/types/api";
@@ -14,19 +15,19 @@ function compactArgs(record: Record<string, string | boolean | null | undefined>
 function toStatusLabel(status: string): string {
   switch (status) {
     case "running":
-      return "运行中";
+      return i18next.t("tasks.filterStatusRunning");
     case "queued":
-      return "排队中";
+      return i18next.t("tasks.filterStatusQueued");
     case "waiting_approval":
-      return "等待审批";
+      return i18next.t("dict.gen_3ced7e48");
     case "succeeded":
-      return "已完成";
+      return i18next.t("tasks.filterStatusSucceeded");
     case "failed":
-      return "失败";
+      return i18next.t("tasks.filterStatusFailed");
     case "cancelled":
-      return "已取消";
+      return i18next.t("tasks.filterStatusCancelled");
     case "interrupted":
-      return "待确认";
+      return i18next.t("dict.gen_2a2772fa");
     default:
       return status;
   }
@@ -173,9 +174,9 @@ function buildDebugTraceEntry(
       runId,
       entry: {
         id: `run_status_${sequence}`,
-        kind: "运行状态",
-        title: "运行状态",
-        summary: frame.data.message || `当前状态：${toStatusLabel(frame.data.status)}`,
+        kind: i18next.t("dict.gen_e4b51d5c"),
+        title: i18next.t("dict.gen_e4b51d5c"),
+        summary: frame.data.message || `${i18next.t("creativeHub.currentStatus", "当前状态：")}${toStatusLabel(frame.data.status)}`,
         meta: [toStatusLabel(frame.data.status), `Run ${runId.slice(0, 8)}`],
         tone: frame.data.status === "failed" || frame.data.status === "cancelled"
           ? "destructive"
@@ -195,9 +196,9 @@ function buildDebugTraceEntry(
       runId,
       entry: {
         id: `tool_call_${sequence}`,
-        kind: "工具调用",
+        kind: i18next.t("dict.gen_850b4e4d"),
         title: frame.data.toolName,
-        summary: frame.data.inputSummary || "正在准备工具输入。",
+        summary: frame.data.inputSummary || i18next.t("dict.gen_3bf9d00a"),
         meta: [
           `Run ${runId.slice(0, 8)}`,
           frame.data.stepId ? `Step ${frame.data.stepId.slice(0, 8)}` : "",
@@ -215,11 +216,11 @@ function buildDebugTraceEntry(
       runId,
       entry: {
         id: `tool_result_${sequence}`,
-        kind: frame.data.success ? "工具完成" : "工具失败",
+        kind: frame.data.success ? i18next.t("dict.gen_ee256eb7") : i18next.t("dict.gen_85044a6f"),
         title: frame.data.toolName,
-        summary: frame.data.outputSummary || "工具返回了空结果。",
+        summary: frame.data.outputSummary || i18next.t("dict.gen_1a535b67"),
         meta: [
-          frame.data.success ? "成功" : "失败",
+          frame.data.success ? i18next.t("dict.gen_330363df") : i18next.t("tasks.filterStatusFailed"),
           `Run ${runId.slice(0, 8)}`,
         ],
         tone: frame.data.success ? "default" : "destructive",
@@ -236,9 +237,9 @@ function buildDebugTraceEntry(
       runId,
       entry: {
         id: `approval_${sequence}`,
-        kind: "审批结果",
-        title: frame.data.action === "approved" ? "审批通过" : "审批拒绝",
-        summary: frame.data.note?.trim() || "当前审批动作已记录。",
+        kind: i18next.t("dict.gen_9d52b787"),
+        title: frame.data.action === "approved" ? i18next.t("dict.gen_ec5de211") : i18next.t("dict.gen_cb281e93"),
+        summary: frame.data.note?.trim() || i18next.t("dict.gen_fb68e9b8"),
         meta: [
           `Approval ${frame.data.approvalId.slice(0, 8)}`,
         ],
@@ -256,8 +257,8 @@ function buildDebugTraceEntry(
       runId,
       entry: {
         id: `error_${sequence}`,
-        kind: "运行异常",
-        title: "运行异常",
+        kind: i18next.t("creativeHub.statusError"),
+        title: i18next.t("creativeHub.statusError"),
         summary: frame.data.message,
         meta: [`Run ${runId.slice(0, 8)}`],
         tone: "destructive",
@@ -274,8 +275,8 @@ function buildDebugTraceEntry(
       runId,
       entry: {
         id: `reasoning_${sequence}`,
-        kind: "推理更新",
-        title: "推理更新",
+        kind: i18next.t("dict.gen_cef4670b"),
+        title: i18next.t("dict.gen_cef4670b"),
         summary: frame.data.reasoning,
         meta: [`Run ${runId.slice(0, 8)}`],
       },
@@ -292,11 +293,11 @@ function buildDebugTraceEntry(
       runId,
       entry: {
         id: `planner_${sequence}`,
-        kind: "意图识别",
-        title: "意图识别",
-        summary: `来源：${getPlannerSourceDisplayLabel(planner.source)}；意图：${getIntentDisplayLabel(planner.intent)}`,
+        kind: i18next.t("dict.gen_e3a26af0"),
+        title: i18next.t("dict.gen_e3a26af0"),
+        summary: `${i18next.t("creativeHub.plannerSource", "来源：")}${getPlannerSourceDisplayLabel(planner.source)}${i18next.t("creativeHub.plannerIntent", "；意图：")}${getIntentDisplayLabel(planner.intent)}`,
         meta: [
-          "confidence" in planner ? `置信度 ${String(planner.confidence ?? "-")}` : "",
+          "confidence" in planner ? `${i18next.t("creativeHub.confidence", "置信度")} ${String(planner.confidence ?? "-")}` : "",
           `Run ${runId.slice(0, 8)}`,
         ].filter(Boolean),
       },
@@ -315,8 +316,8 @@ function buildDebugTraceEntry(
       entry: {
         id: `checkpoint_${sequence}`,
         kind: "Checkpoint",
-        title: "检查点已写回",
-        summary: `Checkpoint ${frame.data.checkpointId.slice(0, 8)} 已写回线程历史。`,
+        title: i18next.t("dict.gen_b07b635c"),
+        summary: `${i18next.t("creativeHub.checkpointWritten", "Checkpoint {{id}} 已写回线程历史。", { id: frame.data.checkpointId.slice(0, 8) })}`,
         meta: [`Run ${runId.slice(0, 8)}`],
       },
     };

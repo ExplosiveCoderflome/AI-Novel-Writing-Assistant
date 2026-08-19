@@ -129,9 +129,10 @@ export const qualityDebtChapterAttributionSchema = z.object({
   planMisaligned: z.boolean(),
   lengthVsContentDrift: z.boolean(),
   missingObligationKinds: z.array(z.string()),
-  /** 推断的主要根因标签 */
   primaryRootCause: z.enum(["A", "B", "D", "E", "unknown"]),
 });
+
+export type QualityDebtChapterAttribution = z.infer<typeof qualityDebtChapterAttributionSchema>;
 
 export const analyzeQualityDebtAttributionOutputSchema = z.object({
   novelId: z.string(),

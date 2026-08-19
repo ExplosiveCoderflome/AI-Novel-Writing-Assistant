@@ -1,3 +1,4 @@
+import i18next from "i18next";
 import { useEffect, useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import type {
@@ -42,14 +43,14 @@ export function useAnalysisPublishing(input: {
       }
       setLastPublishResult(published);
       setPublishFeedback(
-        `发布完成：文档 ${published.knowledgeDocumentId}，版本 v${published.knowledgeDocumentVersionNumber}，绑定 ${published.bindingCount} 项`,
+        i18next.t("bookAnalysis.useAnalysisPublishing.8ltwql", { val1: published.knowledgeDocumentId, val2: published.knowledgeDocumentVersionNumber, val3: published.bindingCount }),
       );
       await queryClient.invalidateQueries({ queryKey: queryKeys.knowledge.documents("book-analysis-source") });
       await queryClient.invalidateQueries({ queryKey: queryKeys.novelsKnowledge.bindings(payload.novelId) });
       await refreshAnalysisData(payload.id);
     },
     onError: (error) => {
-      const message = error instanceof Error ? error.message : "发布失败。";
+      const message = error instanceof Error ? error.message : i18next.t("dict.gen_923c283d");
       setLastPublishResult(null);
       setPublishFeedback(message);
     },
@@ -63,7 +64,7 @@ export function useAnalysisPublishing(input: {
       temperature: llmConfig.temperature,
     }),
     onMutate: () => {
-      setStyleProfileFeedback("正在根据拆书里的“文风与技法”生成写法资产，完成后会自动跳转到写法引擎。");
+      setStyleProfileFeedback(i18next.t("dict.gen_0f58ca85"));
     },
     onSuccess: async (response) => {
       const createdProfile = response.data;
@@ -71,12 +72,12 @@ export function useAnalysisPublishing(input: {
         return;
       }
       setStyleProfileFeedback("");
-      toast.success("已从拆书生成写法，正在打开写法引擎。");
+      toast.success(i18next.t("dict.gen_440f5cc3"));
       await queryClient.invalidateQueries({ queryKey: queryKeys.styleEngine.profiles });
       navigate(`/style-engine?profileId=${createdProfile.id}&source=book-analysis`);
     },
     onError: (error) => {
-      const message = error instanceof Error ? error.message : "从拆书生成写法失败。";
+      const message = error instanceof Error ? error.message : i18next.t("dict.gen_从拆书生成写法失败_qtlc");
       setStyleProfileFeedback(message);
     },
   });
@@ -103,7 +104,7 @@ export function useAnalysisPublishing(input: {
     }
     await createStyleProfileMutation.mutateAsync({
       bookAnalysisId: selectedAnalysis.id,
-      name: `${selectedAnalysis.title}-写法资产`,
+      name: i18next.t("bookAnalysis.useAnalysisPublishing.i6ib7o", { val1: selectedAnalysis.title }),
     });
   };
 

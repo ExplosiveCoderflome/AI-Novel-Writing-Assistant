@@ -29,4 +29,5 @@ export interface AgentToolDefinition<
   inputSchema: z.ZodType<TInput>;
   outputSchema: z.ZodType<TOutput>;
   execute: (context: ToolExecutionContext, input: TInput) => Promise<TOutput>;
+  sandbox?: boolean;
 }

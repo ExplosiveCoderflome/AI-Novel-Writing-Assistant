@@ -1,3 +1,4 @@
+import i18next from "i18next";
 import type { Dispatch, SetStateAction } from "react";
 import type { APIKeyStatus } from "@/api/settings";
 import SearchableSelect from "@/components/common/SearchableSelect";
@@ -91,9 +92,7 @@ export default function ProviderConfigDialog({
               className="w-full sm:w-auto"
               onClick={onTest}
               disabled={testDisabled}
-            >
-              测试连接
-            </Button>
+            >{i18next.t("settings.providerConfigDialog.edfmk1")}</Button>
 
             {editingConfig?.kind === "custom" ? (
               <Button
@@ -112,10 +111,10 @@ export default function ProviderConfigDialog({
         <div className="space-y-3">
           {isCustomDialog ? (
             <div className="space-y-1">
-              <div className="text-xs text-muted-foreground">厂商名称</div>
+              <div className="text-xs text-muted-foreground">{i18next.t("dict.gen_99b8ee4c")}</div>
               <Input
                 value={form.displayName}
-                placeholder="例如：我的模型网关"
+                placeholder={i18next.t("dict.exampleMyModelGateway")}
                 onChange={(event) => setForm((prev) => ({ ...prev, displayName: event.target.value }))}
               />
             </div>
@@ -183,12 +182,12 @@ export default function ProviderConfigDialog({
 
           {canSelectListedModels ? (
             <div className="space-y-1">
-              <div className="text-xs text-muted-foreground">可用模型</div>
+              <div className="text-xs text-muted-foreground">{i18next.t("dict.gen_13388721")}</div>
               <SearchableSelect
                 value={form.model}
                 onValueChange={(value) => setForm((prev) => ({ ...prev, model: value }))}
                 options={selectableModels.map((model) => ({ value: model }))}
-                placeholder="选择模型"
+                placeholder={i18next.t("dict.gen_f2d3731b")}
                 searchPlaceholder="搜索模型"
                 emptyText="没有可用模型"
               />
@@ -201,16 +200,14 @@ export default function ProviderConfigDialog({
           </div>
           <Input
             value={form.model}
-            placeholder="也可以直接手动输入模型名"
+            placeholder={i18next.t("dict.directManualInputModelName")}
             onChange={(event) => setForm((prev) => ({ ...prev, model: event.target.value }))}
           />
 
           <div className="space-y-3 rounded-md border bg-muted/20 p-3">
             <div className="space-y-1">
-              <div className="text-xs text-muted-foreground">图像模型（可选）</div>
-              <div className="text-xs text-muted-foreground">
-                填写后，角色形象图生成可以选择这个厂商；留空则只用于文本模型。
-              </div>
+              <div className="text-xs text-muted-foreground">{i18next.t("dict.gen_c5948a6a")}</div>
+              <div className="text-xs text-muted-foreground">{i18next.t("settings.providerConfigDialog.18qlsf")}</div>
             </div>
             {canSelectImageModels ? (
               <div className="space-y-1">
@@ -218,7 +215,7 @@ export default function ProviderConfigDialog({
                   value={form.imageModel}
                   onValueChange={(value) => setForm((prev) => ({ ...prev, imageModel: value }))}
                   options={imageModelOptions.map((model) => ({ value: model }))}
-                  placeholder="选择图像模型"
+                  placeholder={i18next.t("dict.gen_5a7af023")}
                   searchPlaceholder="搜索图像模型"
                   emptyText="没有可用的图像模型"
                 />
@@ -229,9 +226,7 @@ export default function ProviderConfigDialog({
               placeholder={editingConfig?.defaultImageModel ?? "输入图像模型名"}
               onChange={(event) => setForm((prev) => ({ ...prev, imageModel: event.target.value }))}
             />
-            <div className="text-xs text-muted-foreground">
-              图片生成会调用这个厂商的 OpenAI 兼容图像接口。
-            </div>
+            <div className="text-xs text-muted-foreground">{i18next.t("settings.providerConfigDialog.jxw2la")}</div>
           </div>
 
           <ProviderRequestLimitFields

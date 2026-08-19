@@ -1,3 +1,5 @@
+import { useTranslation } from "react-i18next";
+import i18next from "i18next";
 import { useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type { ApiResponse } from "@ai-novel/shared/types/api";
@@ -7,16 +9,28 @@ import {
   createCustomProvider,
   deleteCustomProvider,
   getAPIKeySettings,
+  getModelRoutes,
   getProviderBalances,
+  getRagSettings,
+  getStyleEngineRuntimeSettings,
   previewCustomProviderModels,
   refreshProviderBalance,
   refreshProviderModelList,
   saveAPIKeySetting,
   testLLMConnection,
+  testModelRouteConnectivity,
 } from "@/api/settings";
 import { queryKeys } from "@/api/queryKeys";
+import AutoDirectorSettingsSection from "./AutoDirectorSettingsSection";
 import ProviderConfigDialog, { type ProviderFormState } from "./components/ProviderConfigDialog";
 import ProviderSettingsSection from "./components/ProviderSettingsSection";
+import SettingsMaintenanceSection from "./components/SettingsMaintenanceSection";
+import SettingsNavigationCards from "./components/SettingsNavigationCards";
+import SettingsReadinessCard, { buildSettingsReadinessItems } from "./components/SettingsReadinessCard";
+import LocalDiagnosticsCard from "./components/LocalDiagnosticsCard";
+import ComfyUIDiagnosticsCard from "./components/ComfyUIDiagnosticsCard";
+import SettingsSectionGroup from "./components/SettingsSectionGroup";
+import StyleEngineRuntimeSettingsCard from "./components/StyleEngineRuntimeSettingsCard";
 import SettingsActionResult from "./SettingsActionResult";
 import { AUTO_DIRECTOR_MOBILE_CLASSES } from "@/mobile/autoDirector";
 
@@ -26,18 +40,19 @@ function formatConnectionTestResult(response: Awaited<ReturnType<typeof testLLMC
   const structured = response.data?.structured;
   const plainText = plain
     ? plain.ok
-      ? `普通连通正常${plain.latency != null ? ` (${plain.latency}ms)` : ""}`
-      : `普通连通失败${plain.error ? `：${plain.error}` : ""}`
-    : "普通连通未检测";
+      ? i18next.t("settings.plainSuccess", { latencyText: plain.latency != null ? ` (${plain.latency}ms)` : "", defaultValue: `普通连通正常${plain.latency != null ? ` (${plain.latency}ms)` : ""}` })
+      : i18next.t("settings.plainFailed", { errorText: plain.error ? `：${plain.error}` : "", defaultValue: `普通连通失败${plain.error ? `：${plain.error}` : ""}` })
+    : i18next.t("dict.gen_51f4fc6d");
   const structuredText = structured
     ? structured.ok
-      ? `结构化正常${structured.strategy ? `，策略 ${structured.strategy}` : ""}${structured.reasoningForcedOff ? "，已强制关闭 thinking" : ""}`
-      : `结构化失败${structured.errorCategory ? `，分类 ${structured.errorCategory}` : ""}${structured.error ? `：${structured.error}` : ""}`
-    : "结构化未检测";
-  return `连接成功，总耗时 ${latency}ms · ${plainText} · ${structuredText}`;
+      ? i18next.t("settings.structuredSuccess", { strategyText: structured.strategy ? i18next.t("settings.settingsPage.caj0a3", { val1: (structured.strategy) }) : "", reasoningText: structured.reasoningForcedOff ? i18next.t("dict.gen_5171d6ff") : "", defaultValue: `结构化正常${structured.strategy ? `，策略 ${structured.strategy}` : ""}${structured.reasoningForcedOff ? i18next.t("dict.gen_5171d6ff") : ""}` })
+      : i18next.t("settings.structuredFailed", { categoryText: structured.errorCategory ? i18next.t("settings.settingsPage.nb02xd", { val1: (structured.errorCategory) }) : "", errorText: structured.error ? `：${structured.error}` : "", defaultValue: `结构化失败${structured.errorCategory ? `，分类 ${structured.errorCategory}` : ""}${structured.error ? `：${structured.error}` : ""}` })
+    : i18next.t("dict.gen_333d0bf3");
+  return i18next.t("settings.settingsPage.81u0s3", { val1: latency, val2: plainText, val3: structuredText });
 }
 
 export default function SettingsPage() {
+  const { t, i18n } = useTranslation();
   const queryClient = useQueryClient();
   const [editingProvider, setEditingProvider] = useState("");
   const [isCreatingCustomProvider, setIsCreatingCustomProvider] = useState(false);
@@ -66,6 +81,28 @@ export default function SettingsPage() {
     queryFn: getProviderBalances,
   });
 
+  const ragSettingsQuery = useQuery({
+    queryKey: queryKeys.settings.rag,
+    queryFn: getRagSettings,
+  });
+
+  const styleEngineRuntimeQuery = useQuery({
+    queryKey: queryKeys.settings.styleEngineRuntime,
+    queryFn: getStyleEngineRuntimeSettings,
+  });
+
+  const modelRoutesQuery = useQuery({
+    queryKey: queryKeys.settings.modelRoutes,
+    queryFn: getModelRoutes,
+  });
+
+  const modelRouteConnectivityQuery = useQuery({
+    queryKey: queryKeys.settings.modelRouteConnectivity,
+    queryFn: testModelRouteConnectivity,
+    enabled: modelRoutesQuery.isSuccess,
+    refetchOnWindowFocus: false,
+  });
+
   const providerConfigs = useMemo(() => apiKeySettingsQuery.data?.data ?? [], [apiKeySettingsQuery.data?.data]);
   const editingConfig = useMemo(
     () => providerConfigs.find((item) => item.provider === editingProvider),
@@ -75,6 +112,28 @@ export default function SettingsPage() {
   const isCustomDialog = isCreatingCustomProvider || editingConfig?.kind === "custom";
   const modelOptions = editingConfig?.models ?? [];
   const selectableModels = isCreatingCustomProvider ? previewModels : modelOptions;
+  const readinessItems = useMemo(
+    () => buildSettingsReadinessItems({
+      providers: providerConfigs,
+      ragSettings: ragSettingsQuery.data?.data,
+      styleSettings: styleEngineRuntimeQuery.data?.data,
+      modelRoutes: modelRoutesQuery.data?.data,
+      modelRouteConnectivity: modelRouteConnectivityQuery.data?.data,
+      isModelRoutesChecking: modelRouteConnectivityQuery.isPending || modelRouteConnectivityQuery.isFetching,
+      isStyleSettingsLoaded: styleEngineRuntimeQuery.isSuccess,
+    }),
+    [
+      providerConfigs,
+      ragSettingsQuery.data?.data,
+      styleEngineRuntimeQuery.data?.data,
+      styleEngineRuntimeQuery.isSuccess,
+      modelRoutesQuery.data?.data,
+      modelRouteConnectivityQuery.data?.data,
+      modelRouteConnectivityQuery.isPending,
+      modelRouteConnectivityQuery.isFetching,
+    ],
+  );
+
   const resetDialogState = () => {
     setEditingProvider("");
     setIsCreatingCustomProvider(false);
@@ -96,7 +155,10 @@ export default function SettingsPage() {
     await Promise.all([
       queryClient.invalidateQueries({ queryKey: queryKeys.settings.apiKeys }),
       queryClient.invalidateQueries({ queryKey: queryKeys.settings.apiKeyBalances }),
+      queryClient.invalidateQueries({ queryKey: queryKeys.settings.rag }),
       queryClient.invalidateQueries({ queryKey: queryKeys.llm.providers }),
+      queryClient.invalidateQueries({ queryKey: queryKeys.settings.modelRoutes }),
+      queryClient.invalidateQueries({ queryKey: queryKeys.settings.modelRouteConnectivity }),
     ]);
   };
 
@@ -121,7 +183,10 @@ export default function SettingsPage() {
   const invalidateProviderAuxiliaryQueries = async () => {
     await Promise.all([
       queryClient.invalidateQueries({ queryKey: queryKeys.settings.apiKeyBalances }),
+      queryClient.invalidateQueries({ queryKey: queryKeys.settings.rag }),
       queryClient.invalidateQueries({ queryKey: queryKeys.llm.providers }),
+      queryClient.invalidateQueries({ queryKey: queryKeys.settings.modelRoutes }),
+      queryClient.invalidateQueries({ queryKey: queryKeys.settings.modelRouteConnectivity }),
     ]);
   };
 
@@ -147,11 +212,11 @@ export default function SettingsPage() {
       }),
     onSuccess: async (response) => {
       resetDialogState();
-      setActionResult(response.message ?? "保存成功。");
+      setActionResult(response.message ?? i18next.t("dict.savedSuccessfully"));
       await invalidateProviderQueries();
     },
     onError: (error) => {
-      setActionResult(error instanceof Error ? error.message : "保存失败。");
+      setActionResult(error instanceof Error ? error.message : i18next.t("dict.saveFailedDot"));
     },
   });
 
@@ -167,11 +232,11 @@ export default function SettingsPage() {
     }) => createCustomProvider(payload),
     onSuccess: async (response) => {
       resetDialogState();
-      setActionResult(response.message ?? "自定义厂商创建成功。");
+      setActionResult(response.message ?? i18next.t("dict.gen_05a3234b"));
       await invalidateProviderQueries();
     },
     onError: (error) => {
-      setActionResult(error instanceof Error ? error.message : "创建自定义厂商失败。");
+      setActionResult(error instanceof Error ? error.message : i18next.t("dict.gen_3439e49e"));
     },
   });
 
@@ -180,7 +245,7 @@ export default function SettingsPage() {
     onSuccess: (response) => {
       const models = response.data?.models ?? [];
       setPreviewModels(models);
-      setPreviewModelsResult(response.message ?? `已获取 ${models.length} 个模型。`);
+      setPreviewModelsResult(response.message ?? i18next.t("settings.settingsPage.57dfbj", { val1: models.length }));
       setForm((prev) => ({
         ...prev,
         model: prev.model.trim() || models[0] || "",
@@ -188,7 +253,7 @@ export default function SettingsPage() {
     },
     onError: (error) => {
       setPreviewModels([]);
-      setPreviewModelsResult(error instanceof Error ? error.message : "获取模型列表失败。");
+      setPreviewModelsResult(error instanceof Error ? error.message : i18next.t("dict.gen_e8d27ed9"));
     },
   });
 
@@ -196,11 +261,11 @@ export default function SettingsPage() {
     mutationFn: (provider: LLMProvider) => deleteCustomProvider(provider),
     onSuccess: async (response) => {
       resetDialogState();
-      setActionResult(response.message ?? "自定义厂商已删除。");
+      setActionResult(response.message ?? i18next.t("dict.gen_219a1545"));
       await invalidateProviderQueries();
     },
     onError: (error) => {
-      setActionResult(error instanceof Error ? error.message : "删除自定义厂商失败。");
+      setActionResult(error instanceof Error ? error.message : i18next.t("dict.gen_b6324516"));
     },
   });
 
@@ -216,11 +281,11 @@ export default function SettingsPage() {
       if (response.data) {
         updateProviderModelsInCache(response.data.provider, response.data.models, response.data.currentModel);
       }
-      setActionResult(`${providerName} 模型列表已刷新（${count} 个）。`);
+      setActionResult(i18next.t("settings.settingsPage.rwiiec", { val1: providerName, val2: count }));
       await invalidateProviderAuxiliaryQueries();
     },
     onError: (error) => {
-      setActionResult(error instanceof Error ? error.message : "刷新模型列表失败。");
+      setActionResult(error instanceof Error ? error.message : i18next.t("dict.gen_bea8afd0"));
     },
   });
 
@@ -231,11 +296,11 @@ export default function SettingsPage() {
       }),
     onSuccess: async (_response, variables) => {
       const providerName = providerConfigs.find((item) => item.provider === variables.provider)?.name ?? variables.provider;
-      setActionResult(`${providerName} 思考功能已${variables.reasoningEnabled ? "开启" : "关闭"}。`);
+      setActionResult(`${providerName} 思考功能已${variables.reasoningEnabled ? i18next.t("dict.gen_cc42dd31") : i18next.t("dict.gen_b15d9127")}。`);
       await invalidateProviderQueries();
     },
     onError: (error) => {
-      setActionResult(error instanceof Error ? error.message : "更新思考开关失败。");
+      setActionResult(error instanceof Error ? error.message : i18next.t("dict.gen_62e3db16"));
     },
   });
 
@@ -243,11 +308,11 @@ export default function SettingsPage() {
     mutationFn: (provider: LLMProvider) => refreshProviderBalance(provider),
     onSuccess: async (response, provider) => {
       const providerName = providerConfigs.find((item) => item.provider === provider)?.name ?? provider;
-      setActionResult(response.message ?? `${providerName} 余额已刷新。`);
+      setActionResult(response.message ?? i18next.t("settings.settingsPage.cb0a39", { val1: providerName }));
       await queryClient.invalidateQueries({ queryKey: queryKeys.settings.apiKeyBalances });
     },
     onError: (error) => {
-      setActionResult(error instanceof Error ? error.message : "刷新余额失败。");
+      setActionResult(error instanceof Error ? error.message : i18next.t("dict.gen_5089f09b"));
     },
   });
 
@@ -353,7 +418,7 @@ export default function SettingsPage() {
         onError: (error) => {
           setProviderTestResults((prev) => ({
             ...prev,
-            [provider.provider]: error instanceof Error ? error.message : "连接测试失败。",
+            [provider.provider]: error instanceof Error ? error.message : i18next.t("dict.gen_b32cc465"),
           }));
         },
       },
@@ -374,7 +439,7 @@ export default function SettingsPage() {
           setDialogTestResult(formatConnectionTestResult(response));
         },
         onError: (error) => {
-          setDialogTestResult(error instanceof Error ? error.message : "连接测试失败。");
+          setDialogTestResult(error instanceof Error ? error.message : i18next.t("dict.gen_b32cc465"));
         },
       },
     );
@@ -384,7 +449,7 @@ export default function SettingsPage() {
     if (!editingProvider || !editingConfig) {
       return;
     }
-    if (!window.confirm(`确认删除自定义厂商 ${editingConfig.name} 吗？`)) {
+    if (!window.confirm(i18next.t("settings.settingsPage.avsn51", { val1: editingConfig.name }))) {
       return;
     }
     deleteCustomProviderMutation.mutate(editingProvider);
@@ -397,11 +462,18 @@ export default function SettingsPage() {
     || (isCustomDialog && !form.displayName.trim())
     || (isCreatingCustomProvider && !form.baseURL.trim())
     || (!isCustomDialog && editingConfig?.requiresApiKey !== false && !form.key.trim() && !editingConfig?.isConfigured);
-  const providerSubmitLabel = isSavingProvider ? "保存中..." : isCreatingCustomProvider ? "创建厂商" : "保存";
+  const providerSubmitLabel = isSavingProvider ? i18next.t("common.saving") : isCreatingCustomProvider ? i18next.t("dict.gen_46bd767f") : i18next.t("common.save");
 
   return (
     <div className={AUTO_DIRECTOR_MOBILE_CLASSES.settingsPageRoot}>
-      <div className="space-y-4">
+      <SettingsSectionGroup
+        title={i18next.t("dict.gen_e7c25780")}
+        description={i18next.t("dict.gen_12a5e0ea")}
+        status="required"
+      >
+        <SettingsReadinessCard items={readinessItems} />
+        <ComfyUIDiagnosticsCard />
+        <LocalDiagnosticsCard />
         <ProviderSettingsSection
           providers={providerConfigs}
           balances={providerBalancesQuery.data?.data ?? []}
@@ -429,9 +501,34 @@ export default function SettingsPage() {
               reasoningEnabled,
             });
           }}
-          defaultShowConfiguredOnly
         />
-      </div>
+        <SettingsNavigationCards mode="routes" />
+      </SettingsSectionGroup>
+
+      <SettingsSectionGroup
+        title={i18next.t("dict.gen_124a0559")}
+        description={i18next.t("dict.gen_c1d19ef6")}
+        status="enhancement"
+      >
+        <SettingsNavigationCards mode="knowledge" />
+        <StyleEngineRuntimeSettingsCard />
+      </SettingsSectionGroup>
+
+      <SettingsSectionGroup
+        title={i18next.t("dict.gen_c72f1d50")}
+        description={i18next.t("dict.gen_a645b343")}
+        status="advanced"
+      >
+        <AutoDirectorSettingsSection onActionResult={setActionResult} />
+      </SettingsSectionGroup>
+
+      <SettingsSectionGroup
+        title={i18next.t("dict.gen_e58e3369")}
+        description={i18next.t("dict.gen_3b700660")}
+        status="maintenance"
+      >
+        <SettingsMaintenanceSection />
+      </SettingsSectionGroup>
 
       <SettingsActionResult message={actionResult} />
 
@@ -460,7 +557,7 @@ export default function SettingsPage() {
         testResult={dialogTestResult}
         onDeleteCustomProvider={handleDeleteCustomProvider}
         deleteDisabled={deleteCustomProviderMutation.isPending}
-        deleteLabel={deleteCustomProviderMutation.isPending ? "删除中..." : "删除"}
+        deleteLabel={deleteCustomProviderMutation.isPending ? i18next.t("dict.gen_09f2fb82") : i18next.t("dict.gen_2f4aaddd")}
       />
     </div>
   );

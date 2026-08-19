@@ -1,41 +1,44 @@
+import i18next from "i18next";
 import type { BookAnalysisDetail, BookAnalysisSection, BookAnalysisStatus } from "@ai-novel/shared/types/bookAnalysis";
 import type { SectionDraft } from "./bookAnalysis.types";
 
-export function formatStatus(status: BookAnalysisStatus | BookAnalysisSection["status"]): string {
+export function formatStatus(status: BookAnalysisStatus | BookAnalysisSection["status"], t?: (key: string, defaultValue?: string) => string): string {
+  const tr = t ?? ((k: string, v?: string) => i18next.t(k, { defaultValue: v }) as string);
   switch (status) {
     case "draft":
-      return "草稿";
+      return tr("bookAnalysis.status.draft", "草稿");
     case "queued":
-      return "排队中";
+      return tr("bookAnalysis.status.queued", "排队中");
     case "running":
-      return "运行中";
+      return tr("bookAnalysis.status.running", "运行中");
     case "succeeded":
-      return "成功";
+      return tr("bookAnalysis.status.succeeded", "成功");
     case "failed":
-      return "失败";
+      return tr("bookAnalysis.status.failed", "失败");
     case "cancelled":
-      return "已取消";
+      return tr("bookAnalysis.status.cancelled", "已取消");
     case "archived":
-      return "已归档";
+      return tr("bookAnalysis.status.archived", "已归档");
     case "idle":
-      return "待处理";
+      return tr("bookAnalysis.status.idle", "待处理");
     default:
       return status;
   }
 }
 
-export function formatStage(stage?: string | null): string {
+export function formatStage(stage?: string | null, t?: (key: string, defaultValue?: string) => string): string {
+  const tr = t ?? ((k: string, v?: string) => i18next.t(k, { defaultValue: v }) as string);
   switch (stage) {
     case "loading_cache":
-      return "查找可复用结果";
+      return tr("bookAnalysis.stage.loading_cache", "查找可复用结果");
     case "preparing_notes":
-      return "准备分析资料";
+      return tr("bookAnalysis.stage.preparing_notes", "准备分析资料");
     case "generating_overview":
-      return "生成总览";
+      return tr("bookAnalysis.stage.generating_overview", "生成总览");
     case "generating_sections":
-      return "生成拆书小节";
+      return tr("bookAnalysis.stage.generating_sections", "生成拆书小节");
     default:
-      return stage?.trim() || "暂无";
+      return stage?.trim() || tr("common.none", "暂无");
   }
 }
 
@@ -47,7 +50,7 @@ export function isBookAnalysisBudgetExceeded(lastError?: string | null): boolean
 
 export function formatDate(value?: string | null): string {
   if (!value) {
-    return "暂无";
+    return i18next.t("common.none");
   }
   return new Date(value).toLocaleString();
 }

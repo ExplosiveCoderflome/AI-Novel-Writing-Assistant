@@ -1,5 +1,7 @@
+import i18next from "i18next";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useNavigate } from "react-router-dom";
 import { buildStyleIntentSummary } from "@ai-novel/shared/types/styleEngine";
 import type { UnifiedTaskDetail } from "@ai-novel/shared/types/task";
 import {
@@ -49,22 +51,10 @@ import {
   toggleDirectorCorrectionPreset,
 } from "../components/directorCandidateSelectionHandlers";
 import { useNovelAutoDirectorCandidateMutations } from "../components/useNovelAutoDirectorCandidateMutations";
-import { hasCreationFoundationChanged } from "./creationFoundationPickerState";
 
 interface UseAutoDirectorCreateControllerInput {
   basicForm: NovelBasicFormState;
-  genreOptions: Array<{
-    id: string;
-    path: string;
-    label: string;
-    description?: string | null;
-  }>;
-  storyModeOptions: Array<{
-    id: string;
-    path: string;
-    label: string;
-    description?: string | null;
-  }>;
+  genreOptions: Array<{ id: string; path: string; label: string }>;
   worldOptions: Array<{ id: string; name: string }>;
   workflowTaskId?: string;
   restoredTask?: UnifiedTaskDetail | null;
@@ -89,13 +79,13 @@ export function useAutoDirectorCreateController(input: UseAutoDirectorCreateCont
   const {
     basicForm,
     genreOptions,
-    storyModeOptions,
     worldOptions,
     workflowTaskId: workflowTaskIdProp,
     restoredTask,
     onWorkflowTaskChange,
     onBasicFormChange,
   } = input;
+  const navigate = useNavigate();
   const llm = useLLMStore();
   const queryClient = useQueryClient();
   const [idea, setIdea] = useState("");
@@ -115,7 +105,6 @@ export function useAutoDirectorCreateController(input: UseAutoDirectorCreateCont
   const [ideaInspirations, setIdeaInspirations] = useState<DirectorIdeaInspiration[]>([]);
   const [candidatePatchFeedbacks, setCandidatePatchFeedbacks] = useState<Record<string, string>>({});
   const [titlePatchFeedbacks, setTitlePatchFeedbacks] = useState<Record<string, string>>({});
-  const [isUpdatingFoundation, setIsUpdatingFoundation] = useState(false);
   const confirmSubmitLockedRef = useRef(false);
   const autoApprovalDraft = useDirectorAutoApprovalDraft(true);
   const { applySnapshot: applyAutoApprovalSnapshot } = autoApprovalDraft;
@@ -209,12 +198,6 @@ export function useAutoDirectorCreateController(input: UseAutoDirectorCreateCont
   const ideaInspirationMutation = useMutation({
     mutationFn: async () => {
       const genre = genreOptions.find((item) => item.id === directorBasicForm.genreId);
-      const primaryStoryMode = storyModeOptions.find(
-        (item) => item.id === directorBasicForm.primaryStoryModeId,
-      );
-      const secondaryStoryMode = storyModeOptions.find(
-        (item) => item.id === directorBasicForm.secondaryStoryModeId,
-      );
       const world = worldOptions.find((item) => item.id === directorBasicForm.worldId);
       return generateDirectorIdeaInspirations({
         ...buildAutoDirectorRequestPayload(directorBasicForm, idea || directorBasicForm.description, llm, runMode, undefined, {
@@ -223,11 +206,6 @@ export function useAutoDirectorCreateController(input: UseAutoDirectorCreateCont
         }),
         currentIdea: idea.trim() || undefined,
         genreLabel: genre?.path || genre?.label,
-        genreDescription: genre?.description || undefined,
-        primaryStoryModeLabel: primaryStoryMode?.path || primaryStoryMode?.label,
-        primaryStoryModeDescription: primaryStoryMode?.description || undefined,
-        secondaryStoryModeLabel: secondaryStoryMode?.path || secondaryStoryMode?.label,
-        secondaryStoryModeDescription: secondaryStoryMode?.description || undefined,
         worldName: world?.name,
       });
     },
@@ -235,7 +213,7 @@ export function useAutoDirectorCreateController(input: UseAutoDirectorCreateCont
       setIdeaInspirations(response.data?.ideas ?? []);
     },
     onError: (error) => {
-      toast.error(error instanceof Error ? error.message : "生成起始想法失败，请稍后重试。");
+      toast.error(error instanceof Error ? error.message : i18next.t("dict.gen_116e1049"));
     },
   });
 
@@ -313,7 +291,7 @@ export function useAutoDirectorCreateController(input: UseAutoDirectorCreateCont
   const ensureWorkflowTask = async () => {
     const nextIdea = requestIdea;
     if (!nextIdea) {
-      throw new Error("请先补充起始想法，再继续生成或确认书级方向。");
+      throw new Error(i18next.t("dict.gen_eaaf6955"));
     }
     if (workflowTaskId) {
       return workflowTaskId;
@@ -359,7 +337,7 @@ export function useAutoDirectorCreateController(input: UseAutoDirectorCreateCont
 
   const buildCandidateRequestPayload = (currentWorkflowTaskId: string) => {
     if (!requestIdea) {
-      throw new Error("请先补充起始想法，再继续生成或确认书级方向。");
+      throw new Error(i18next.t("dict.gen_eaaf6955"));
     }
     return buildAutoDirectorRequestPayload(
       directorBasicForm,
@@ -400,7 +378,7 @@ export function useAutoDirectorCreateController(input: UseAutoDirectorCreateCont
     mutationFn: async (payload: { candidate: DirectorCandidate; workflowTaskId?: string }) => {
       const currentWorkflowTaskId = payload.workflowTaskId || await ensureWorkflowTask();
       if (!requestIdea) {
-        throw new Error("请先补充起始想法，再继续生成或确认书级方向。");
+        throw new Error(i18next.t("dict.gen_eaaf6955"));
       }
       const autoExecutionPlan = buildAutoExecutionPlanForRunMode();
       const response = await confirmDirectorCandidate({
@@ -424,8 +402,8 @@ export function useAutoDirectorCreateController(input: UseAutoDirectorCreateCont
     onSuccess: async ({ command, workflowTaskId: nextWorkflowTaskId }) => {
       if (!command) {
         setDialogMode("execution_failed");
-        setExecutionError("确认方案失败，未返回导演命令。");
-        toast.error("确认方案失败，未返回导演命令。");
+        setExecutionError(i18next.t("dict.gen_14b51883"));
+        toast.error(i18next.t("dict.gen_14b51883"));
         return;
       }
       if (nextWorkflowTaskId) {
@@ -441,11 +419,11 @@ export function useAutoDirectorCreateController(input: UseAutoDirectorCreateCont
           queryKey: queryKeys.tasks.detail("novel_workflow", nextWorkflowTaskId),
         });
       }
-      toast.success("系统收到书级方向，会创建小说项目并继续推进规划。");
+      toast.success(i18next.t("dict.gen_3ad0382f"));
     },
     onError: async (error, payload) => {
       setDialogMode("execution_failed");
-      setExecutionError(error instanceof Error ? error.message : "导演任务执行失败。");
+      setExecutionError(error instanceof Error ? error.message : i18next.t("dict.gen_3e6ed560"));
       setExecutionRequested(false);
       if (payload.workflowTaskId) {
         await queryClient.invalidateQueries({
@@ -462,7 +440,7 @@ export function useAutoDirectorCreateController(input: UseAutoDirectorCreateCont
     mutationFn: async () => {
       const taskId = directorTask?.id || workflowTaskId;
       if (!taskId) {
-        throw new Error("当前没有可继续的自动导演任务。");
+        throw new Error(i18next.t("dict.gen_8b4231ef"));
       }
       return continueNovelWorkflow(taskId, { continuationMode: "resume" });
     },
@@ -491,10 +469,10 @@ export function useAutoDirectorCreateController(input: UseAutoDirectorCreateCont
       await Promise.allSettled(invalidations);
       setDialogMode("execution_progress");
       setExecutionError("");
-      toast.success("已确认，AI 会继续推进。");
+      toast.success(i18next.t("dict.gen_64cd9396"));
     },
     onError: (error) => {
-      toast.error(error instanceof Error ? error.message : "继续自动导演失败。");
+      toast.error(error instanceof Error ? error.message : i18next.t("toasts.failedAutoDirector"));
     },
   });
 
@@ -507,72 +485,6 @@ export function useAutoDirectorCreateController(input: UseAutoDirectorCreateCont
   };
 
   const canGenerate = idea.trim().length > 0 && !generateMutation.isPending;
-
-  const updateProductionFoundation = async (patch: Partial<{
-    genreId: string;
-    primaryStoryModeId: string;
-  }>): Promise<boolean> => {
-    if (!hasCreationFoundationChanged(directorBasicForm, patch)) {
-      return true;
-    }
-
-    const shouldInvalidateCandidates = batches.length > 0;
-    if (
-      shouldInvalidateCandidates
-      && !window.confirm("修改故事类型或推进方式后，旧方向需要重新适配并重新生成。确认修改吗？")
-    ) {
-      return false;
-    }
-
-    const nextPatch: Partial<NovelBasicFormState> = {
-      ...patch,
-      secondaryStoryModeId: "",
-    };
-    const nextForm = patchNovelBasicForm(directorBasicForm, nextPatch);
-
-    setIsUpdatingFoundation(true);
-    try {
-      if (shouldInvalidateCandidates && workflowTaskId) {
-        await bootstrapNovelWorkflow({
-          workflowTaskId,
-          lane: "auto_director",
-          title: nextForm.title.trim() || undefined,
-          seedPayload: {
-            basicForm: nextForm,
-            genreId: nextForm.genreId || null,
-            primaryStoryModeId: nextForm.primaryStoryModeId || null,
-            secondaryStoryModeId: null,
-            productionFoundation: null,
-            batches: [],
-            candidateStage: null,
-          },
-        });
-        await queryClient.invalidateQueries({
-          queryKey: queryKeys.tasks.detail("novel_workflow", workflowTaskId),
-        });
-      }
-
-      onBasicFormChange(nextPatch);
-      if (shouldInvalidateCandidates) {
-        setBatches([]);
-        setFeedback("");
-        setSelectedPresets([]);
-        setCandidatePatchFeedbacks({});
-        setTitlePatchFeedbacks({});
-        setCandidateDialogOpen(false);
-        setDialogMode("candidate_selection");
-        setExecutionRequested(false);
-        setExecutionError("");
-        toast.success("创作偏好已更新，请按新选择重新生成方向。");
-      }
-      return true;
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : "更新创作偏好失败，请稍后重试。");
-      return false;
-    } finally {
-      setIsUpdatingFoundation(false);
-    }
-  };
 
   const handleConfirmCandidate = async (candidate: DirectorCandidate) => {
     if (confirmSubmitLockedRef.current || confirmMutation.isPending) {
@@ -597,12 +509,21 @@ export function useAutoDirectorCreateController(input: UseAutoDirectorCreateCont
       });
     } catch (error) {
       confirmSubmitLockedRef.current = false;
-      const message = error instanceof Error ? error.message : "创建导演主任务失败。";
+      const message = error instanceof Error ? error.message : i18next.t("dict.gen_48bf4f93");
       setDialogMode("candidate_selection");
       setExecutionRequested(false);
       setExecutionError(message);
       toast.error(message);
     }
+  };
+
+  const handleBackgroundContinue = () => {
+    toast.success(i18next.t("dict.gen_b83767c2"));
+    navigate("/");
+  };
+
+  const handleOpenTaskCenter = () => {
+    navigate(workflowTaskId ? `/tasks?kind=novel_workflow&id=${workflowTaskId}` : "/tasks");
   };
 
   return {
@@ -640,8 +561,6 @@ export function useAutoDirectorCreateController(input: UseAutoDirectorCreateCont
     setCandidatePatchFeedbacks,
     titlePatchFeedbacks,
     setTitlePatchFeedbacks,
-    isUpdatingFoundation,
-    updateProductionFoundation,
     canGenerate,
     generateMutation,
     patchCandidateMutation,
@@ -651,5 +570,7 @@ export function useAutoDirectorCreateController(input: UseAutoDirectorCreateCont
     onBasicFormChange,
     applyCandidateTitleOption,
     handleConfirmCandidate,
+    handleBackgroundContinue,
+    handleOpenTaskCenter,
   };
 }

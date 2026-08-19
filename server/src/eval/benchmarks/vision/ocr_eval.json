@@ -1,0 +1,13 @@
+[
+  {
+    "id": "ocr_eval_01",
+    "capability": "ocr",
+    "category": "document_layout",
+    "title": "手写大纲与 Markdown 表格提取测试",
+    "description": "测试 OCR 识别模型提取草稿图片中文本及表格结构的能力。",
+    "promptText": "请提取图片中的全部文本与大纲结构",
+    "expectedOutput": "| 章节 | 核心冲突 | 进阶境界 |\n| 第1章 | 家族废柴退婚 | 炼气三层 |",
+    "metadataJson": "{\"imageAssetPath\":\"server/src/eval/benchmarks/vision/assets/sample_outline.png\"}",
+    "isBuiltin": true
+  }
+]

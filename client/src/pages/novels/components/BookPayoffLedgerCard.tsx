@@ -1,3 +1,5 @@
+import i18next from "i18next";
+import { useTranslation } from "react-i18next";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
@@ -16,17 +18,17 @@ interface BookPayoffLedgerCardProps {
 function payoffStatusLabel(status: string): string {
   switch (status) {
     case "setup":
-      return "已埋设";
+      return i18next.t("novels.bookPayoffLedgerCard.e72kl");
     case "hinted":
-      return "已提示";
+      return i18next.t("novels.bookPayoffLedgerCard.e90ik");
     case "pending_payoff":
-      return "待回收";
+      return i18next.t("novels.bookPayoffLedgerCard.ef04d");
     case "paid_off":
-      return "已回收";
+      return i18next.t("novels.bookPayoffLedgerCard.e6pai");
     case "failed":
-      return "已失效";
+      return i18next.t("novels.bookPayoffLedgerCard.e73jd");
     case "overdue":
-      return "已逾期";
+      return i18next.t("novels.bookPayoffLedgerCard.egh03");
     default:
       return status || "未知";
   }
@@ -61,25 +63,25 @@ function formatWindow(item: PayoffLedgerItem): string {
     typeof item.targetStartChapterOrder === "number"
     && typeof item.targetEndChapterOrder === "number"
   ) {
-    return `第 ${item.targetStartChapterOrder}-${item.targetEndChapterOrder} 章`;
+    return i18next.t("novels.bookPayoffLedgerCard.mv5rga", { val1: item.targetStartChapterOrder, val2: item.targetEndChapterOrder });
   }
   if (typeof item.targetEndChapterOrder === "number") {
-    return `最晚第 ${item.targetEndChapterOrder} 章`;
+    return i18next.t("novels.bookPayoffLedgerCard.avv58i", { val1: item.targetEndChapterOrder });
   }
   if (typeof item.targetStartChapterOrder === "number") {
-    return `从第 ${item.targetStartChapterOrder} 章开始`;
+    return i18next.t("novels.bookPayoffLedgerCard.dg7q7x", { val1: item.targetStartChapterOrder });
   }
-  return "未限定";
+  return i18next.t("novels.bookPayoffLedgerCard.fu1v8");
 }
 
 function scopeLabel(scopeType: PayoffLedgerItem["scopeType"]): string {
   if (scopeType === "book") {
-    return "全书";
+    return i18next.t("dict.gen_3df555d4");
   }
   if (scopeType === "volume") {
-    return "卷级";
+    return i18next.t("novels.bookPayoffLedgerCard.ew40");
   }
-  return "章节";
+  return i18next.t("dict.gen_9290b644");
 }
 
 function sourceSummary(item: PayoffLedgerItem): string {
@@ -91,6 +93,7 @@ function sourceSummary(item: PayoffLedgerItem): string {
 }
 
 export default function BookPayoffLedgerCard(props: BookPayoffLedgerCardProps) {
+  const { t } = useTranslation();
   const { latestStateSnapshot, payoffLedger } = props;
   const ledgerItems = payoffLedger?.items ?? [];
   const ledgerSummary = payoffLedger?.summary;
@@ -109,8 +112,8 @@ export default function BookPayoffLedgerCard(props: BookPayoffLedgerCardProps) {
         <details className="group">
           <summary className="cursor-pointer list-none p-5">
             <CollapsibleSummary
-              title="全书 Canonical 伏笔账本"
-              description="这块是整本书级别的 canonical 伏笔账本，不跟随当前卷切换。默认收起，需要检查整条伏笔链或整体回收压力时再展开。"
+              title={i18next.t("novels.bookPayoffLedgerCard.kn3m3d")}
+              description={i18next.t("novels.bookPayoffLedgerCard.4zk6c9")}
               collapsedLabel="展开全书账本"
               expandedLabel="收起全书账本"
               meta={(
@@ -134,9 +137,7 @@ export default function BookPayoffLedgerCard(props: BookPayoffLedgerCardProps) {
                 <div className="font-medium text-foreground">Canonical 伏笔账本</div>
                 <Badge variant="outline">{ledgerItems.length}</Badge>
               </div>
-              <div className="mt-1 text-xs text-muted-foreground">
-                后续规划、写作、审查和修复优先消费这里的 canonical 结果，不再只盯某一处原始字段。
-              </div>
+              <div className="mt-1 text-xs text-muted-foreground">{i18next.t("novels.bookPayoffLedgerCard.hux4st")}</div>
               <div className="mt-3 space-y-2 text-sm">
                 {hasCanonicalLedgerContent ? (
                   ledgerItems.map((item) => (
@@ -160,7 +161,7 @@ export default function BookPayoffLedgerCard(props: BookPayoffLedgerCardProps) {
                         <div>
                           最近触碰：
                           {typeof item.lastTouchedChapterOrder === "number"
-                            ? `第 ${item.lastTouchedChapterOrder} 章`
+                            ? i18next.t("autoDirector.directorRuntimeProjectionCard.vms598", { val1: item.lastTouchedChapterOrder })
                             : "暂无"}
                         </div>
                         <div>来源摘要：{sourceSummary(item)}</div>
@@ -177,21 +178,17 @@ export default function BookPayoffLedgerCard(props: BookPayoffLedgerCardProps) {
                     </div>
                   ))
                 ) : (
-                  <div className="rounded-lg border border-dashed border-border/70 bg-background p-3 text-xs text-muted-foreground">
-                    当前还没有可用的 canonical 伏笔账本。首次进入老项目时，系统会懒同步这份账本；如果现在仍为空，说明相关规划或状态材料还不够。
-                  </div>
+                  <div className="rounded-lg border border-dashed border-border/70 bg-background p-3 text-xs text-muted-foreground">{i18next.t("novels.bookPayoffLedgerCard.2qll7d")}</div>
                 )}
               </div>
             </div>
 
             <div className="rounded-xl border border-border/70 bg-muted/20 p-4">
               <div className="flex items-center justify-between gap-2">
-                <div className="font-medium text-foreground">全书最新状态快照</div>
+                <div className="font-medium text-foreground">{i18next.t("novels.bookPayoffLedgerCard.h931at")}</div>
                 <Badge variant="outline">{snapshotForeshadows.length}</Badge>
               </div>
-              <div className="mt-1 text-xs text-muted-foreground">
-                这里显示的是全书最新状态，不只限当前卷，用来辅助判断整体回收压力。
-              </div>
+              <div className="mt-1 text-xs text-muted-foreground">{i18next.t("novels.bookPayoffLedgerCard.gavhnc")}</div>
               {latestStateSnapshot?.summary ? (
                 <div className="mt-3 rounded-lg border border-border/70 bg-background p-3 text-xs text-muted-foreground">
                   {latestStateSnapshot.summary}
@@ -201,7 +198,7 @@ export default function BookPayoffLedgerCard(props: BookPayoffLedgerCardProps) {
                 {hasSnapshotContent ? (
                   <>
                     <div className="space-y-2">
-                      <div className="text-xs font-medium text-muted-foreground">待跟进</div>
+                      <div className="text-xs font-medium text-muted-foreground">{i18next.t("novels.bookPayoffLedgerCard.eolcx")}</div>
                       {pendingForeshadows.length > 0 ? (
                         pendingForeshadows.slice(0, 5).map((item) => (
                           <div
@@ -220,21 +217,19 @@ export default function BookPayoffLedgerCard(props: BookPayoffLedgerCardProps) {
                           </div>
                         ))
                       ) : (
-                        <div className="rounded-lg border border-dashed border-border/70 bg-background p-3 text-xs text-muted-foreground">
-                          当前没有待跟进的伏笔状态。
-                        </div>
+                        <div className="rounded-lg border border-dashed border-border/70 bg-background p-3 text-xs text-muted-foreground">{i18next.t("novels.bookPayoffLedgerCard.2tec25")}</div>
                       )}
                     </div>
 
                     <div className="grid gap-2 sm:grid-cols-2">
                       <div className="rounded-lg border border-border/70 bg-background p-3">
-                        <div className="text-xs text-muted-foreground">已回收</div>
+                        <div className="text-xs text-muted-foreground">{i18next.t("novels.bookPayoffLedgerCard.e6pai")}</div>
                         <div className="mt-1 text-lg font-semibold text-foreground">
                           {paidOffForeshadows.length}
                         </div>
                       </div>
                       <div className="rounded-lg border border-border/70 bg-background p-3">
-                        <div className="text-xs text-muted-foreground">已失效</div>
+                        <div className="text-xs text-muted-foreground">{i18next.t("novels.bookPayoffLedgerCard.e73jd")}</div>
                         <div className="mt-1 text-lg font-semibold text-foreground">
                           {failedForeshadows.length}
                         </div>
@@ -242,9 +237,7 @@ export default function BookPayoffLedgerCard(props: BookPayoffLedgerCardProps) {
                     </div>
                   </>
                 ) : (
-                  <div className="rounded-lg border border-dashed border-border/70 bg-background p-3 text-xs text-muted-foreground">
-                    还没有可用的伏笔状态快照。先执行章节生成或审计后，这里的状态会逐步充实。
-                  </div>
+                  <div className="rounded-lg border border-dashed border-border/70 bg-background p-3 text-xs text-muted-foreground">{i18next.t("novels.bookPayoffLedgerCard.y722x")}</div>
                 )}
               </div>
             </div>

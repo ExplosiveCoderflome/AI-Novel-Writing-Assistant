@@ -39,3 +39,36 @@ server/prisma-diff-migrations-to-schema.sql
 .spec-workflow/
 .codex-backups/
 .cursor/
+server/test-run.db
+server/dev.db.backup
+红楼梦.txt
+server/dev-backup-world-sandbox.db
+scratch/
+.cache/
+server/public/assets/projects/
+hongloumeng.txt
+server/dev.db.backup_e2e_clean
+server/dev.db.task_backup
+backups/
+server/scripts/clean-and-create-fresh-db.js
+server/scripts/reset-and-seed-db.js
+
+# Local service PID and scan temp outputs
+.services.pid
+.qdrant-initialized
+storage/
+chinese_scan_results.json
+raw_chinese_strings.json
+
+# Test & Diagnostic Scripts with sensitive local outputs
+server/scripts/*.cjs
+server/scripts/test*.cjs
+server/scripts/diagnose*.cjs
+
+# Credentials & Environment
+*.env
+*.env.local
+!.env.example
+
+# graft's local graph cache — regenerable, not committed (run `graft build`).
+graft/

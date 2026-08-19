@@ -1,10 +1,12 @@
+import { useTranslation } from "react-i18next";
+import i18next from "i18next";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type { ApiResponse } from "@ai-novel/shared/types/api";
 import type { CreativeHubResourceBinding, CreativeHubThread } from "@ai-novel/shared/types/creativeHub";
 import type { LangChainMessage } from "@assistant-ui/react-langgraph";
 import { useSearchParams } from "react-router-dom";
-import { ExternalLink, MessagesSquare, RefreshCw } from "lucide-react";
+import { MessagesSquare, RefreshCw } from "lucide-react";
 import {
   createCreativeHubThread,
   deleteCreativeHubThread,
@@ -39,10 +41,11 @@ import {
 import { resolveCreativeHubWorkspacePresentation } from "./presentation/creativeHubWorkspaceViewModel";
 
 const RUNTIME_DETAILS_COLLAPSED_STORAGE_KEY = "creative-hub.runtime-details-collapsed";
-const DEFAULT_THREAD_TITLE = "\u65b0\u5bf9\u8bdd";
+const DEFAULT_THREAD_TITLE = i18next.t("creativeHub.defaultThreadTitle", "新对话");
 const pendingAutoCreateThreadKeys = new Set<string>();
 
 export default function CreativeHubPage() {
+  const { t, i18n } = useTranslation();
   const llm = useLLMStore();
   const queryClient = useQueryClient();
   const [searchParams, setSearchParams] = useSearchParams();
@@ -150,7 +153,7 @@ export default function CreativeHubPage() {
       }
     },
     onError: (error) => {
-      toast.error(error instanceof Error ? error.message : "创作线程创建失败，请重试。");
+      toast.error(error instanceof Error ? error.message : t("creativeHub.errThreadCreateRetry", "创作线程创建失败，请重试。"));
     },
   });
 
@@ -339,7 +342,7 @@ export default function CreativeHubPage() {
       await updateCreativeHubThread(threadId, { archived });
       await queryClient.invalidateQueries({ queryKey: queryKeys.creativeHub.threads });
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "线程归档操作失败，请重试。");
+      toast.error(error instanceof Error ? error.message : t("creativeHub.errThreadArchiveRetry", "线程归档操作失败，请重试。"));
     } finally {
       threadActionInFlightRef.current = false;
       setThreadActionPendingId("");
@@ -371,7 +374,7 @@ export default function CreativeHubPage() {
         }, { replace: true });
       }
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "小说工作区切换失败，请重试。");
+      toast.error(error instanceof Error ? error.message : t("creativeHub.errWorkspaceSwitchRetry", "小说工作区切换失败，请重试。"));
     } finally {
       bindingInFlightRef.current = false;
       setBindingPending(false);
@@ -400,7 +403,7 @@ export default function CreativeHubPage() {
       }
       await queryClient.invalidateQueries({ queryKey: queryKeys.creativeHub.threads });
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "创作线程删除失败，请重试。");
+      toast.error(error instanceof Error ? error.message : t("creativeHub.errThreadDeleteRetry", "创作线程删除失败，请重试。"));
     } finally {
       threadActionInFlightRef.current = false;
       setThreadActionPendingId("");
@@ -429,7 +432,7 @@ export default function CreativeHubPage() {
         runtimeState.setInterrupt(undefined);
       }
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "待确认操作提交失败，请重试。");
+      toast.error(error instanceof Error ? error.message : t("creativeHub.errInterruptSubmitRetry", "待确认操作提交失败，请重试。"));
     } finally {
       approvalInFlightRef.current = false;
       setApprovalPending(false);
@@ -447,6 +450,14 @@ export default function CreativeHubPage() {
     }
     await runtimeState.sendPrompt(prompt);
   }, [activeThreadId, runtimeState]);
+
+  const handleCreateNovelQuickAction = useCallback(async (title: string) => {
+    const normalized = title.trim();
+    if (!normalized) {
+      return;
+    }
+    await handleQuickAction(i18next.t("creativeHub.creativeHubPage.ykb0bl", { val1: normalized }));
+  }, [handleQuickAction]);
 
   const focusWorkspaceArea = (id: "creative-hub-activity" | "creative-hub-context") => {
     document.getElementById(id)?.scrollIntoView({ behavior: "smooth", block: "start" });
@@ -533,7 +544,7 @@ export default function CreativeHubPage() {
       await queryClient.invalidateQueries({ queryKey: queryKeys.creativeHub.history(activeThreadId) });
     }).catch((error: unknown) => {
       if (activeThreadIdRef.current === activeThreadId) {
-        toast.error(error instanceof Error ? error.message : "世界观绑定同步失败，请重新加载当前线程后重试。");
+        toast.error(error instanceof Error ? error.message : t("creativeHub.errWorldBindRetry", "世界观绑定同步失败，请重新加载当前线程后重试。"));
       }
     });
   }, [activeThreadId, productionStatus?.worldId, queryClient, rawThreadBindings]);
@@ -542,17 +553,17 @@ export default function CreativeHubPage() {
     <div className="space-y-4">
       <WorkspaceHeader
         icon={MessagesSquare}
-        context="当前小说与创作线程"
-        title="创作中枢"
-        description="绑定一本小说后，可查询创作状态、诊断阻塞，并获得可操作的下一步建议。"
+        context={t("creativeHub.context", "当前小说与创作线程")}
+        title={t("creativeHub.title", "创作中枢")}
+        description={t("creativeHub.description", "围绕当前小说整理创作目标、查看 AI 执行记录，并从真实任务状态继续推进整本作品。")}
         meta={(
           <>
-            <span>小说：{workspacePresentation.objectTitle}</span>
-            <span>阶段：{workspacePresentation.stageLabel}</span>
-            <span>线程：{currentThread?.title ?? "正在准备"}</span>
-            <span>状态：{workspacePresentation.threadStatusLabel}</span>
+            <span>{t("creativeHub.metaNovel", "小说：{{title}}", { title: workspacePresentation.objectTitle })}</span>
+            <span>{t("creativeHub.metaStage", "阶段：{{stage}}", { stage: workspacePresentation.stageLabel })}</span>
+            <span>{t("creativeHub.metaThread", "线程：{{title}}", { title: currentThread?.title ?? t("creativeHub.preparing", "正在准备") })}</span>
+            <span>{t("creativeHub.metaStatus", "状态：{{status}}", { status: workspacePresentation.threadStatusLabel })}</span>
             {currentBindings.knowledgeDocumentIds?.length ? (
-              <span>已绑定知识资料：{currentBindings.knowledgeDocumentIds.length} 份</span>
+              <span>{t("creativeHub.metaKnowledge", "已绑定知识资料：{{count}} 份", { count: currentBindings.knowledgeDocumentIds.length })}</span>
             ) : null}
           </>
         )}
@@ -563,30 +574,10 @@ export default function CreativeHubPage() {
             disabled={threadNavigationDisabled}
             onClick={() => void requestThreadCreation({ title: DEFAULT_THREAD_TITLE, resourceBindings: {} })}
           >
-            {createThreadMutation.isPending ? "正在创建..." : "新建创作线程"}
+            {createThreadMutation.isPending ? t("creativeHub.creatingThread", "正在创建...") : t("creativeHub.newThread", "新建创作线程")}
           </Button>
         )}
       />
-
-      <section className="rounded-lg border border-info/30 bg-info/5 p-4" aria-label="独立 Agent 项目提示">
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-          <div>
-            <h2 className="text-sm font-semibold text-foreground">需要完整 Agent 驱动创作？</h2>
-            <p className="mt-1 max-w-3xl text-sm leading-6 text-muted-foreground">
-              创作中枢用于查询小说状态、诊断问题和获得下一步建议。完整的 Agent 工作流、工具调用、暂停恢复与本地小说工件，可使用独立项目。
-            </p>
-            <p className="mt-2 break-all font-mono text-xs text-foreground">git clone https://github.com/ExplosiveCoderflome/ani-book-agent.git</p>
-            <p className="mt-1 text-xs text-muted-foreground">进入 ani-book-agent 目录，依次运行 pnpm install 和 pnpm dev；默认工作台地址为 http://127.0.0.1:5175。</p>
-            <p className="mt-1 text-xs text-muted-foreground">独立项目使用自己的小说工作区和运行记录，不会直接修改这里的小说。</p>
-          </div>
-          <Button asChild size="sm" variant="outline" className="shrink-0">
-            <a href="https://github.com/ExplosiveCoderflome/ani-book-agent" target="_blank" rel="noreferrer">
-              查看 Agent 仓库
-              <ExternalLink className="ml-1.5 h-3.5 w-3.5" aria-hidden="true" />
-            </a>
-          </Button>
-        </div>
-      </section>
 
       {threadsQuery.isLoading
         || createThreadMutation.isPending && !activeThreadId
@@ -594,8 +585,8 @@ export default function CreativeHubPage() {
         <WorkspaceStateNotice
           loading
           tone="info"
-          title="正在准备当前创作现场"
-          description="系统正在读取线程和小说状态，完成后会给出唯一推荐下一步。"
+          title={t("creativeHub.titlePreparing", "正在准备当前创作现场")}
+          description={t("creativeHub.descPreparing", "系统正在读取线程、小说绑定和最近执行记录，完成后会给出唯一推荐下一步。")}
         />
       ) : (
         <WorkspaceNextAction
@@ -614,7 +605,7 @@ export default function CreativeHubPage() {
               {workspacePresentation.recommendation.action.startsWith("retry_") ? (
                 <RefreshCw className="mr-1.5 h-3.5 w-3.5" aria-hidden="true" />
               ) : null}
-              {recommendationPending ? "正在重试..." : workspacePresentation.recommendation.actionLabel}
+              {recommendationPending ? t("creativeHub.retrying", "正在重试...") : workspacePresentation.recommendation.actionLabel}
             </Button>
           )}
         />
@@ -658,7 +649,7 @@ export default function CreativeHubPage() {
             defaultRuntimeDetailsCollapsed={defaultRuntimeDetailsCollapsed}
             actionDisabled={workspaceActionDisabled}
             novelsLoading={novelsQuery.isLoading}
-            novelsErrorMessage={novelsQuery.error instanceof Error ? novelsQuery.error.message : novelsQuery.error ? "小说列表加载失败。" : ""}
+            novelsErrorMessage={novelsQuery.error instanceof Error ? novelsQuery.error.message : novelsQuery.error ? t("creativeHub.errNovelListLoad", "小说列表加载失败。") : ""}
             novelsRetrying={novelsQuery.isFetching}
             onToggleRuntimeDetailsDefault={() => {
               setDefaultRuntimeDetailsCollapsed((value) => !value);
@@ -666,6 +657,8 @@ export default function CreativeHubPage() {
             onRetryNovels={() => void novelsQuery.refetch()}
             onNovelChange={(novelId) => handleBindingsChange({ novelId: novelId || null })}
             onQuickAction={(prompt) => void handleQuickAction(prompt)}
+            onCreateNovel={handleCreateNovelQuickAction}
+            onStartProduction={handleQuickAction}
           />
         </div>
 
@@ -674,7 +667,7 @@ export default function CreativeHubPage() {
             threads={threads}
             activeThreadId={activeThreadId}
             loading={threadsQuery.isLoading}
-            errorMessage={threadsQuery.error instanceof Error ? threadsQuery.error.message : threadsQuery.error ? "创作线程加载失败。" : ""}
+            errorMessage={threadsQuery.error instanceof Error ? threadsQuery.error.message : threadsQuery.error ? t("creativeHub.errThreadListLoad", "创作线程加载失败。") : ""}
             retryPending={threadsQuery.isFetching}
             actionPending={createThreadMutation.isPending}
             actionDisabled={threadNavigationDisabled}

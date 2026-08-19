@@ -3,7 +3,6 @@ import type {
   DirectorConfirmRequest,
   DirectorQualityRepairRisk,
 } from "@ai-novel/shared/types/novelDirector";
-import { DEFAULT_DIRECTOR_RISK_POLICY } from "@ai-novel/shared/types/directorRisk";
 import { isDirectorAutoExecutionRunMode, isFullBookAutopilotRunMode } from "@ai-novel/shared/types/novelDirector";
 import type { PipelineJobStatus } from "@ai-novel/shared/types/novel";
 import type { NovelWorkflowCheckpoint } from "@ai-novel/shared/types/novelWorkflow";
@@ -21,7 +20,6 @@ import {
 import { buildDirectorSessionState } from "../runtime/novelDirectorHelpers";
 import { PIPELINE_REPLAN_NOTICE_CODE, parsePipelinePayload } from "../../pipelineJobState";
 import { buildDirectorQualityRepairRisk } from "../phases/novelDirectorQualityRepairRisk";
-import { directorRiskAssessmentService } from "../risk/DirectorRiskAssessmentService";
 
 export type AutoExecutionResumeStage = "chapter" | "pipeline";
 
@@ -247,39 +245,11 @@ export async function resolveQualityRepairNoticeAction(
     remainingChapterCount: input.autoExecution.remainingChapterCount ?? 0,
     totalChapterCount: input.range.totalChapterCount,
   });
-  const riskDecision = await directorRiskAssessmentService.assessQualityRepair({
-    taskId: input.taskId,
-    novelId: input.novelId,
-    policy: input.request.riskPolicy ?? input.autoExecution.riskPolicy ?? DEFAULT_DIRECTOR_RISK_POLICY,
-    qualityRepairRisk,
-    failureSummary: input.noticeSummary,
-    issueFingerprint: [
-      "quality_repair",
-      input.noticeCode ?? qualityRepairRisk.riskLevel,
-      input.autoExecution.nextChapterId ?? input.autoExecution.nextChapterOrder ?? "book",
-    ].join(":"),
-    affectedChapterOrders: input.autoExecution.nextChapterOrder == null ? [] : [input.autoExecution.nextChapterOrder],
-    failureDetails: {
-      noticeCode: input.noticeCode ?? null,
-      payload: parsePipelinePayload(input.payload),
-    },
-    taskContext: {
-      runMode: input.request.runMode,
-      remainingChapterCount: input.autoExecution.remainingChapterCount ?? 0,
-    },
-    auditReports: [],
-    existingQualityDebt: input.autoExecution.qualityDebtSummaries ?? [],
-    provider: input.request.provider,
-    model: input.request.model,
-    temperature: input.request.temperature,
-  });
   const checkpointState = {
     ...input.autoExecution,
     pipelineJobId: input.pipelineJobId,
     pipelineStatus: input.pipelineStatus,
     qualityRepairRisk,
-    riskPolicy: input.request.riskPolicy ?? input.autoExecution.riskPolicy ?? DEFAULT_DIRECTOR_RISK_POLICY,
-    latestRiskAssessment: riskDecision?.assessment ?? input.autoExecution.latestRiskAssessment ?? null,
   };
   const remainingChapterCount = checkpointState.remainingChapterCount ?? 0;
   const isAiDriverExecution = isDirectorAutoExecutionRunMode(input.request.runMode);
@@ -320,7 +290,7 @@ export async function resolveQualityRepairNoticeAction(
     });
   }
 
-  if (!riskDecision?.shouldPause && (canContinueAfterExplicitApproval || canAutoContinueByPolicy)) {
+  if (canContinueAfterExplicitApproval || canAutoContinueByPolicy) {
     return {
       action: "auto_continue",
       checkpointType,
@@ -329,10 +299,6 @@ export async function resolveQualityRepairNoticeAction(
     };
   }
 
-  // `auto_execute_range` is an explicit instruction to keep the automated
-  // production lane moving. A usable draft is retained as quality debt even
-  // when the review classifier escalates it to a replan notice; otherwise a
-  // simple-creation recovery would immediately re-enter the same checkpoint.
   if (canSkipCurrentQualityRepair) {
     return {
       action: "auto_continue",
@@ -347,7 +313,7 @@ export async function resolveQualityRepairNoticeAction(
     };
   }
 
-  if (!riskDecision?.shouldPause && shouldNotifyAndContinueAiDriverQualityNotice) {
+  if (shouldNotifyAndContinueAiDriverQualityNotice) {
     return {
       action: "auto_continue",
       checkpointType,

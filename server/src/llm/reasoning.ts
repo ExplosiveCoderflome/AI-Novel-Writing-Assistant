@@ -92,9 +92,7 @@ export function isDeepSeekThinkingModeProvider(
   model?: string,
 ): boolean {
   const normalizedModel = normalizeOptionalText(model)?.toLowerCase();
-  const supportsThinkingToggle = normalizedModel === "deepseek-v4-pro"
-    || normalizedModel === "deepseek-v4-flash"
-    || normalizedModel === "deepseek-reasoner";
+  const supportsThinkingToggle = normalizedModel === "deepseek-v4-pro" || normalizedModel === "deepseek-reasoner";
   if (!supportsThinkingToggle) {
     return false;
   }

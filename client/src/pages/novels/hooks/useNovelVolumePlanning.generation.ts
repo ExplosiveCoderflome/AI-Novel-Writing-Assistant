@@ -1,3 +1,4 @@
+import i18next from "i18next";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import type { Dispatch, SetStateAction } from "react";
 import type { ApiResponse } from "@ai-novel/shared/types/api";
@@ -215,12 +216,12 @@ export function useVolumeGenerationMutation({
       });
       let nextDocument = generatedResponse.data;
       if (!nextDocument) {
-        throw new Error("AI 没有返回卷工作区结果。");
+        throw new Error(i18next.t("dict.aiNoVolumeWorkspaceResult"));
       }
       if (isSlimVolumeGenerationResponse(nextDocument)) {
         const latestWorkspaceResponse = await getNovelVolumeWorkspace(novelId);
         if (!latestWorkspaceResponse.data) {
-          throw new Error("AI 已完成生成，但需要重新读取卷工作区后才能保存，请刷新卷规划后继续。");
+          throw new Error(i18next.t("dict.aiSaveRequiresRefresh"));
         }
         nextDocument = latestWorkspaceResponse.data;
         if (!autoSyncedToChapterExecution) {
@@ -245,7 +246,7 @@ export function useVolumeGenerationMutation({
           autoSyncedToChapterExecution,
         };
       } catch (error) {
-        const message = error instanceof Error ? error.message : "AI 生成已完成，但保存当前卷工作区失败。";
+        const message = error instanceof Error ? error.message : i18next.t("dict.aiGenerationCompleteButSaveFailed");
         throw new VolumeGenerationAutoSaveError(message, nextDocument);
       }
     },
@@ -267,33 +268,33 @@ export function useVolumeGenerationMutation({
           ? "volume_strategy"
           : "structured_outline",
         itemLabel: payload.scope === "strategy"
-          ? "卷战略建议已更新"
+          ? i18next.t("dict.gen_22ecdf44")
           : payload.scope === "strategy_critique"
-            ? "卷战略审稿已更新"
+            ? i18next.t("dict.gen_4e66337b")
             : payload.scope === "skeleton" || payload.scope === "book"
-              ? "卷骨架已更新"
+              ? i18next.t("dict.gen_6c498f8a")
               : payload.scope === "beat_sheet"
-                ? "当前卷节奏板已更新"
+                ? i18next.t("dict.gen_c57b77d8")
                 : payload.scope === "chapter_list" || payload.scope === "volume"
                   ? payload.generationMode === "single_beat"
-                    ? "当前卷节奏段章节已更新并连接到章节执行"
-                    : "当前卷章节列表已生成并连接到章节执行"
+                    ? i18next.t("dict.gen_2421abfc")
+                    : i18next.t("dict.gen_8fb55ccc")
                   : payload.scope === "rebalance"
-                    ? "相邻卷再平衡建议已更新"
+                    ? i18next.t("dict.gen_803a5a2a")
                     : result.autoSyncedToChapterExecution
-                      ? "章节细化已更新并连接到章节执行"
-                      : "章节细化已更新",
+                      ? i18next.t("dict.gen_54c5d179")
+                      : i18next.t("dict.gen_edca674c"),
         checkpointType: payload.scope === "skeleton" || payload.scope === "book"
           ? "volume_strategy_ready"
           : payload.scope === "chapter_list" || payload.scope === "volume"
             ? "chapter_batch_ready"
             : null,
         checkpointSummary: payload.scope === "skeleton" || payload.scope === "book"
-          ? "卷战略与卷骨架已刷新，可以继续进入节奏拆章。"
+          ? i18next.t("dict.gen_20337507")
           : payload.scope === "chapter_list" || payload.scope === "volume"
             ? payload.generationMode === "single_beat"
-              ? "当前卷节奏段章节已刷新，可继续细化或直接进入章节执行。"
-              : "当前卷章节列表已准备完成，可继续细化或直接进入章节执行。"
+              ? i18next.t("dict.gen_765c9e3b")
+              : i18next.t("dict.gen_4ad6e890")
             : undefined,
         volumeId: payload.targetVolumeId,
         chapterId: payload.targetChapterId,
@@ -305,24 +306,24 @@ export function useVolumeGenerationMutation({
       }
 
       if (payload.scope === "strategy") {
-        const message = "卷战略建议已生成并自动保存。下一步请先审查，再确认卷骨架。";
+        const message = i18next.t("dict.gen_d012c75f");
         setVolumeGenerationMessage(message);
         setStructuredMessage(message);
         return;
       }
       if (payload.scope === "strategy_critique") {
-        const message = "卷战略审稿已完成，问题和建议已写入右侧审稿区。";
+        const message = i18next.t("dict.gen_3a885de1");
         setVolumeGenerationMessage(message);
         return;
       }
       if (payload.scope === "skeleton" || payload.scope === "book") {
-        const message = "卷骨架已生成并自动保存。系统已清空旧节奏板，下一步请为当前卷生成节奏板。";
+        const message = i18next.t("dict.gen_837686d2");
         setVolumeGenerationMessage(message);
         setStructuredMessage(message);
         return;
       }
       if (payload.scope === "beat_sheet") {
-        setStructuredMessage("当前卷节奏板已更新并自动保存。下一步可以继续拆当前卷章节列表。");
+        setStructuredMessage(i18next.t("dict.gen_292bc169"));
         return;
       }
       if (payload.scope === "chapter_list" || payload.scope === "volume") {
@@ -336,15 +337,15 @@ export function useVolumeGenerationMutation({
         return;
       }
       if (payload.scope === "rebalance") {
-        setStructuredMessage("相邻卷再平衡建议已更新。");
+        setStructuredMessage(i18next.t("dict.gen_7a722e52"));
         return;
       }
 
       const label = detailModeLabel(payload.detailMode ?? "purpose");
       setStructuredMessage(
         result.autoSyncedToChapterExecution
-          ? `${label}已完成 AI 修正并自动保存，章节执行区也已自动同步最新内容。`
-          : `${label}已完成 AI 修正并自动保存。`,
+          ? i18next.t("novels.useNovelVolumePlanning.generation.c1x3dd", { val1: label })
+          : i18next.t("novels.useNovelVolumePlanning.generation.3swvvq", { val1: label }),
       );
     },
     onError: async (error, payload, context) => {
@@ -355,7 +356,7 @@ export function useVolumeGenerationMutation({
         ? error.message
         : error instanceof Error
           ? error.message
-          : "卷级方案生成失败。";
+          : i18next.t("dict.gen_465d7237");
       const shouldTryRecoverPersistedWorkspace = !(error instanceof VolumeGenerationAutoSaveError)
         && shouldRequestSlimVolumeGenerationResponse(payload.scope);
       let recoveredMessage: string | null = null;
@@ -369,8 +370,8 @@ export function useVolumeGenerationMutation({
             if (persistedWorkspaceSnapshotAfter !== context?.persistedWorkspaceSnapshotBefore) {
               hydratePersistedWorkspace(latestWorkspace);
               recoveredMessage = payload.scope === "chapter_list" || payload.scope === "volume"
-                ? "已恢复到最近自动保存进度，可继续从未完成节奏段推进。"
-                : "已恢复到最近自动保存进度，可继续当前卷生成。";
+                ? i18next.t("dict.gen_cc100f9b")
+                : i18next.t("dict.gen_c1c7b6f6");
             }
           }
         } catch {

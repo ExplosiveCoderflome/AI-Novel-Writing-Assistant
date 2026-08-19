@@ -1,5 +1,6 @@
-import { HumanMessage, type BaseMessage, type BaseMessageChunk } from "@langchain/core/messages";
+import { HumanMessage, SystemMessage, type BaseMessage, type BaseMessageChunk } from "@langchain/core/messages";
 import type { LLMProvider } from "@ai-novel/shared/types/llm";
+import { prisma } from "../../db/prisma";
 import { getLLM, getResolvedLLMClientOptionsFromInstance } from "../../llm/factory";
 import {
   invokeStructuredLlmDetailed,
@@ -22,7 +23,7 @@ import { beginLlmLiveSession } from "../../platform/llm/live/llmLiveSession";
 import { hasRegisteredPromptAsset } from "../registry";
 import { CUSTOM_SLOT_CONTEXT_GROUP } from "../slots/slotResolution";
 import { promptSlotOverrideService } from "../slots/PromptSlotOverrideService";
-import { resolveAdvancedPromptMessages } from "../templates/templateRuntime";
+import { resolveAdvancedTextPromptMessages } from "../templates/templateRuntime";
 import { selectContextBlocks } from "./contextSelection";
 import {
   recordPromptQualityEvent,
@@ -261,12 +262,51 @@ function buildSemanticRetryMessages<I, O, R>(input: {
   }) ?? buildDefaultSemanticRetryMessages(input);
 }
 
+export async function resolveNovelLanguage(novelId?: string): Promise<string> {
+  if (!novelId) {
+    return "zh";
+  }
+  try {
+    const novel = await prisma.novel.findUnique({
+      where: { id: novelId },
+      select: { language: true },
+    });
+    return novel?.language || "zh";
+  } catch (error) {
+    console.error(`[prompt.runner] Failed to resolve novel language for ${novelId}:`, error);
+    return "zh";
+  }
+}
+
+export function applyTargetLanguageToMessages(messages: BaseMessage[], targetLanguage: string): BaseMessage[] {
+  if (!targetLanguage || targetLanguage === "zh") {
+    return messages;
+  }
+  
+  const instruction = targetLanguage === "en"
+    ? "\n\nCRITICAL LANGUAGE CONSTRAINT:\nAll generated story content, including character names, character profiles, outline beats, scene descriptions, summaries, dialogues, and chapter text, MUST be written in English. Do not write or reply in Chinese."
+    : `\n\nCRITICAL LANGUAGE CONSTRAINT:\nAll generated story content MUST be written in ${targetLanguage}. Do not write or reply in Chinese.`;
+
+  const firstSystemMessage = messages.find((msg) => msg instanceof SystemMessage);
+  if (firstSystemMessage) {
+    if (typeof firstSystemMessage.content === "string") {
+      firstSystemMessage.content = firstSystemMessage.content + instruction;
+    } else if (Array.isArray(firstSystemMessage.content)) {
+      firstSystemMessage.content.push({ type: "text", text: instruction } as any);
+    }
+  } else {
+    messages.unshift(new SystemMessage(instruction));
+  }
+  return messages;
+}
+
 export function preparePromptExecution<I, O, R = O>(input: {
   asset: PromptAsset<I, O, R>;
   promptInput: I;
   contextBlocks?: Parameters<typeof selectContextBlocks>[0];
   options?: PromptExecutionOptions;
   resolvedSlots?: import("../slots/slotTypes").ResolvedSlots;
+  language?: string;
 }): {
   messages: ReturnType<PromptAsset<I, O, R>["render"]>;
   context: PromptRenderContext;
@@ -278,7 +318,10 @@ export function preparePromptExecution<I, O, R = O>(input: {
     input.contextBlocks ?? [],
     input.resolvedSlots,
   );
-  const renderedMessages = input.asset.render(input.promptInput, context);
+  let renderedMessages = input.asset.render(input.promptInput, context);
+  if (input.language) {
+    renderedMessages = applyTargetLanguageToMessages(renderedMessages, input.language) as typeof renderedMessages;
+  }
   return {
     messages: appendStructuredOutputHintMessages({
       asset: input.asset,
@@ -723,25 +766,12 @@ export async function runStructuredPrompt<I, O, R = O>(input: {
     contextBlocks: input.contextBlocks,
     options: input.options,
   });
+  const language = await resolveNovelLanguage(input.options?.novelId);
   const prepared = preparePromptExecution({
     ...input,
     contextBlocks: overlays.blocks,
     resolvedSlots: overlays.resolvedSlots,
-  });
-  const resolvedTemplateMessages = await resolveAdvancedPromptMessages({
-    asset: input.asset,
-    promptInput: input.promptInput,
-    context: prepared.context,
-    officialMessages: prepared.messages,
-    novelId: input.options?.novelId,
-  });
-  const messages = resolvedTemplateMessages === prepared.messages
-    ? prepared.messages
-    : appendStructuredOutputHintMessages({
-    asset: input.asset,
-    promptInput: input.promptInput,
-    context: prepared.context,
-    messages: resolvedTemplateMessages,
+    language,
   });
   logPromptEvent({
     event: "started",
@@ -751,7 +781,7 @@ export async function runStructuredPrompt<I, O, R = O>(input: {
     model: input.options?.model,
   });
   const startedAt = Date.now();
-  const renderedPromptChars = estimateRenderedPromptChars(messages);
+  const renderedPromptChars = estimateRenderedPromptChars(prepared.messages);
   try {
     const result = await promptRunnerStructuredInvoker<R>({
       label: `${input.asset.id}@${input.asset.version}`,
@@ -762,10 +792,11 @@ export async function runStructuredPrompt<I, O, R = O>(input: {
       timeoutMs: input.options?.timeoutMs,
       signal: input.options?.signal,
       taskType: input.asset.taskType,
-      messages,
+      messages: prepared.messages,
       schema: outputSchema,
       maxRepairAttempts: resolveStructuredRepairAttempts(input.asset as PromptAsset<unknown, unknown, unknown>),
       promptMeta: prepared.invocation,
+      onStreamChunk: input.options?.onStreamChunk,
     });
     logMemoryUsage({
       event: "structured_invoke_done",
@@ -788,7 +819,7 @@ export async function runStructuredPrompt<I, O, R = O>(input: {
       asset: input.asset,
       promptInput: input.promptInput,
       context: prepared.context,
-      baseMessages: messages,
+      baseMessages: prepared.messages,
       outputSchema,
       initialResult: result,
       options: input.options,
@@ -852,13 +883,15 @@ export async function runTextPrompt<I>(input: {
     contextBlocks: input.contextBlocks,
     options: input.options,
   });
+  const language = await resolveNovelLanguage(input.options?.novelId);
   const prepared = preparePromptExecution({
     ...input,
     contextBlocks: overlays.blocks,
     resolvedSlots: overlays.resolvedSlots,
+    language,
   });
   const startedAt = Date.now();
-  const messages = await resolveAdvancedPromptMessages({
+  const messages = await resolveAdvancedTextPromptMessages({
     asset: input.asset,
     promptInput: input.promptInput,
     context: prepared.context,
@@ -872,6 +905,9 @@ export async function runTextPrompt<I>(input: {
     promptMeta: prepared.invocation,
     provider: input.options?.provider,
     model: input.options?.model,
+    promptPreview: Array.isArray(messages)
+      ? messages.map((m: any) => `[${String(m.role || "user").toUpperCase()}]: ${typeof m.content === "string" ? m.content : JSON.stringify(m.content)}`).join("\n\n").slice(0, 4000)
+      : String(messages).slice(0, 4000),
   });
   try {
     const llm = await promptRunnerLLMFactory(input.options?.provider, {
@@ -951,13 +987,15 @@ export async function streamTextPrompt<I>(input: {
     contextBlocks: input.contextBlocks,
     options: input.options,
   });
+  const language = await resolveNovelLanguage(input.options?.novelId);
   const prepared = preparePromptExecution({
     ...input,
     contextBlocks: overlays.blocks,
     resolvedSlots: overlays.resolvedSlots,
+    language,
   });
   const startedAt = Date.now();
-  const messages = await resolveAdvancedPromptMessages({
+  const messages = await resolveAdvancedTextPromptMessages({
     asset: input.asset,
     promptInput: input.promptInput,
     context: prepared.context,
@@ -971,6 +1009,9 @@ export async function streamTextPrompt<I>(input: {
     promptMeta: prepared.invocation,
     provider: input.options?.provider,
     model: input.options?.model,
+    promptPreview: Array.isArray(messages)
+      ? messages.map((m: any) => `[${String(m.role || "user").toUpperCase()}]: ${typeof m.content === "string" ? m.content : JSON.stringify(m.content)}`).join("\n\n").slice(0, 4000)
+      : String(messages).slice(0, 4000),
   });
   let captured: ReturnType<typeof captureStreamOutput>;
   try {
@@ -1080,6 +1121,9 @@ export async function streamStructuredPrompt<I, O, R = O>(input: {
     promptMeta: prepared.invocation,
     provider: input.options?.provider,
     model: input.options?.model,
+    promptPreview: Array.isArray(prepared.messages)
+      ? prepared.messages.map((m: any) => `[${String(m.role || "user").toUpperCase()}]: ${typeof m.content === "string" ? m.content : JSON.stringify(m.content)}`).join("\n\n").slice(0, 4000)
+      : String(prepared.messages).slice(0, 4000),
   });
   let captured: ReturnType<typeof captureStreamOutput>;
   let strategy!: ReturnType<typeof selectStructuredOutputStrategy>;

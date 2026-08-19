@@ -117,23 +117,21 @@ function extractVisualAnchorDesc(visualAnchor: string): string {
 
 // 中文形态关键词映射（与前端 COMIC_FORMATS.value 对应）
 const FORMAT_ZH_KEYWORDS: Record<string, string> = {
-  webtoon:         "竖版条漫单格，韩漫竖屏格子，手机阅读条漫画格",
-  "4koma":         "四格漫画，竖版四格，起承转合四格排版",
-  single_page:     "单页漫画，日漫分格页面，大小格混排单页",
-  cinematic:       "电影分镜画格，横版宽幅，电影感构图",
-  chat_comic:      "聊天漫画格，对话气泡式版式，轻松日常漫画",
-  chibi_comic:     "Q版萌漫，SD人物，可爱夸张比例漫画格",
-  ink_comic:       "水墨国风漫画格，毛笔线条，古典意境留白",
-  drama_screenshot:"竖版短剧截图风，字幕条，剧情画面感",
+  webtoon: "竖版条漫单格",
+  four_koma: "四格漫画单格",
+  page: "传统页漫单格",
+  chibi_comic: "Q版萌漫单格",
+  ink_comic: "水墨国风单格",
+  drama_screenshot: "短剧截图风单格",
 };
 
 const STYLE_ZH_KEYWORDS: Record<string, string> = {
-  webtoon_color:   "彩色韩漫风格，干净线条，鲜艳配色",
-  bl_manga:        "彩色少女漫风格，柔和色调，精致五官",
-  shounen_bw:      "黑白少年漫风格，粗犷线条，动感构图",
-  ink_traditional: "水墨国风，传统毛笔笔触，淡彩晕染",
-  chibi:           "Q版萌漫风格，圆润可爱，夸张表情",
-  realistic:       "写实漫画风格，细腻光影，真实感",
+  webtoon_color:   "彩色韩漫风格，干净线条",
+  bl_manga:        "彩色少女漫风格，柔和色调",
+  shounen_bw:      "黑白少年漫风格，粗犷线条",
+  ink_traditional: "水墨国风，淡彩晕染",
+  chibi:           "Q版萌漫风格，圆润可爱",
+  realistic:       "写实漫画风格，细腻光影",
 };
 
 // 九宫格方向 → 图像模型理解的位置描述
@@ -177,12 +175,11 @@ function buildDialoguePrompt(dialogues: DialogueEntry[]): string {
   const lines = dialogues.map((d, i) => {
     const bubbleDesc = BUBBLE_TYPE_ZH[d.bubbleType ?? "round"] ?? "圆形对话气泡";
     const placement = d.anchorHint ? `位于${ANCHOR_HINT_ZH[d.anchorHint] ?? d.anchorHint}` : "";
-    // 说话人只用于决定气泡尾巴指向，不进气泡文字
-    const speakerHint = d.speaker ? `（气泡尾巴指向${d.speaker}）` : "";
+    const speakerHint = d.speaker ? `（指向${d.speaker}）` : "";
     const cleanText = stripSpeakerPrefix(d.text, d.speaker);
-    return `${i + 1}.${bubbleDesc}${placement ? "，" + placement : ""}${speakerHint}，气泡内文字仅为「${cleanText}」`;
+    return `${i + 1}.${bubbleDesc}${placement ? "，" + placement : ""}${speakerHint}，台词：「${cleanText}」`;
   });
-  return `对白气泡（气泡内只渲染台词正文，绝对不要出现"说"、"道"、说话人姓名、冒号、引号或任何旁白前缀，文字必须清晰可读且不遮挡角色脸部）：${lines.join("；")}`;
+  return `对白气泡：${lines.join("；")}`;
 }
 
 const CROWD_DIVERSITY_PROMPT = [
@@ -205,41 +202,39 @@ function buildPanelPrompt(
   presetData: StylePresetData,
   characterDescs: string[] = [],
   sceneDesc = "",
-  hasSceneRefImage = false,
+  _hasSceneRefImage = false,
 ): string {
-  // 1. 形态声明（中英双语，模型优先锚定风格）
-  const formatEn = presetData.promptKeywords ?? "webtoon vertical strip panel, single frame, tall aspect ratio";
-  const formatZh = FORMAT_ZH_KEYWORDS[presetData.format ?? "webtoon"] ?? FORMAT_ZH_KEYWORDS.webtoon;
+  const parts: string[] = [];
 
-  // 2. 画风声明
-  const styleEn = presetData.style ?? "webtoon style, vibrant colors, clean lines";
-  const styleZh = STYLE_ZH_KEYWORDS[presetData.style ?? ""] ?? "彩色韩漫风格，干净线条，鲜艳配色";
+  // 1. 漫画形态与画风标定（精简词汇，不占用 SD/CLIP 77Token 关键预算）
+  const formatEn = presetData.promptKeywords ?? "webtoon vertical strip panel, single frame";
+  const formatZh = FORMAT_ZH_KEYWORDS[presetData.format ?? "webtoon"] ?? "竖版条漫单格";
+  const styleEn = presetData.style ?? "webtoon style, clean lines";
+  const styleZh = STYLE_ZH_KEYWORDS[presetData.style ?? ""] ?? "彩色韩漫风格";
 
-  // 3. 角色外貌锚定（有设计稿时作为次要文字补充，没有时是主要一致性保障）
-  //    角色描述里已携带【男性】/【女性】/【中性气质】标签，模型据此画对性别
-  const charPart = characterDescs.length > 0
-    ? `角色外貌设定（请严格按方括号性别标签画对性别，男性不要画成女性，女性不要画成男性）：${characterDescs.join("；")}`
-    : "";
+  parts.push(`${formatZh}, ${formatEn}, ${styleZh}, ${styleEn}`);
 
-  // 4. 对话/气泡
-  const dialoguePart = buildDialoguePrompt(dialogues);
-
-  // 顺序：形态 → 画风 → 角色外貌 → 场景锚定 → 对白气泡 → 场景内容 → 质量词
-  // 对白在画面内容之前，确保图像模型赋予更高权重
-  const parts = [
-    `${formatZh}，${formatEn}`,
-    `${styleZh}，${styleEn}`,
-  ];
-  if (charPart) parts.push(charPart);
-  if (sceneDesc) parts.push(sceneDesc);
-  // 场景参考图防机位僵死：只锁定空间身份，镜头按本格自由运镜
-  if (hasSceneRefImage) {
-    parts.push("场景参考图仅用于锁定色调、布局与材质身份，镜头角度、景别与构图必须严格按本格画面内容自由运镜，不要照搬参考图的机位");
+  // 2. 场景环境视觉锚点
+  if (sceneDesc) {
+    parts.push(sceneDesc);
   }
-  parts.push(CROWD_DIVERSITY_PROMPT);
-  if (dialoguePart) parts.push(dialoguePart);
+
+  // 3. 角色外貌设定
+  if (characterDescs.length > 0) {
+    parts.push(`角色外貌设定：${characterDescs.join("；")}`);
+  }
+
+  // 4. 画面核心主体与动作镜头（核心视觉，优先响应）
   parts.push(`画面内容：${visualPrompt}`);
-  parts.push("high quality manga panel, professional illustration");
+
+  // 5. 对白气泡标记（如有）
+  const dialoguePart = buildDialoguePrompt(dialogues);
+  if (dialoguePart) {
+    parts.push(dialoguePart);
+  }
+
+  // 6. 质量词
+  parts.push("masterpiece, high quality manga panel, professional illustration");
   return parts.join(". ");
 }
 
@@ -397,15 +392,12 @@ export class ComicPanelImageService {
       const scene = project.scenes.find((s) => s.name === panel.sceneRef);
       if (scene) {
         const bible = safeJsonParse<SceneBible>(scene.bible, {});
-        const bibleParts: string[] = [];
-        if (bible.palette) bibleParts.push(`色调${bible.palette}`);
-        if (bible.keyElements) bibleParts.push(`标志元素${bible.keyElements}`);
-        if (bible.materials) bibleParts.push(`材质${bible.materials}`);
-        if (bible.ambiance) bibleParts.push(`氛围${bible.ambiance}`);
-        if (bible.layout) bibleParts.push(`空间${bible.layout}`);
-        if (bibleParts.length > 0) {
-          sceneDesc = `场景设定【${scene.name}】：${bibleParts.join("，")}`;
-        }
+        const keyParts: string[] = [];
+        if (bible.palette) keyParts.push(`色调:${bible.palette}`);
+        if (bible.keyElements) keyParts.push(`元素:${bible.keyElements}`);
+        if (bible.ambiance) keyParts.push(`氛围:${bible.ambiance}`);
+        const conciseDesc = keyParts.slice(0, 2).join("，");
+        sceneDesc = conciseDesc ? `场景【${scene.name}】（${conciseDesc}）` : `场景【${scene.name}】`;
         // L1：设定图作为参考图（仅当已生成）
         const sceneSheet = safeJsonParse<{ status?: string }>(scene.sheetData, {});
         if (sceneSheet.status === "done") {

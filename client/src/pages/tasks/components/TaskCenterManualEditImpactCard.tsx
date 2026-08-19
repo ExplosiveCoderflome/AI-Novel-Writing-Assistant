@@ -1,3 +1,4 @@
+import i18next from "i18next";
 import { useEffect } from "react";
 import { useMutation } from "@tanstack/react-query";
 import type { DirectorManualEditImpact, DirectorManualEditImpactLevel } from "@ai-novel/shared/types/directorRuntime";
@@ -13,15 +14,15 @@ interface TaskCenterManualEditImpactCardProps {
 
 function formatImpactLevel(level: DirectorManualEditImpactLevel): string {
   if (level === "none") {
-    return "没有发现影响";
+    return i18next.t("tasks.taskCenterManualEditImpactCard.dum81v");
   }
   if (level === "low") {
-    return "轻微影响";
+    return i18next.t("tasks.taskCenterManualEditImpactCard.ihyuz3");
   }
   if (level === "medium") {
-    return "中等影响";
+    return i18next.t("tasks.taskCenterManualEditImpactCard.adhkjc");
   }
-  return "高影响";
+  return i18next.t("tasks.taskCenterManualEditImpactCard.n56qc");
 }
 
 function impactVariant(level: DirectorManualEditImpactLevel): "default" | "outline" | "secondary" | "destructive" {
@@ -45,12 +46,12 @@ function renderImpactResult(impact: DirectorManualEditImpact) {
         <Badge variant={impact.safeToContinue ? "default" : "secondary"}>
           {impact.safeToContinue ? "可以继续推进" : "建议先处理影响"}
         </Badge>
-        {impact.requiresApproval ? <Badge variant="outline">需要确认</Badge> : null}
+        {impact.requiresApproval ? <Badge variant="outline">{i18next.t("dict.gen_ec4f36de")}</Badge> : null}
       </div>
       <div className="text-sm leading-6 text-muted-foreground">{impact.summary}</div>
       {impact.changedChapters.length > 0 ? (
         <div className="space-y-2">
-          <div className="text-xs font-medium text-muted-foreground">受影响章节</div>
+          <div className="text-xs font-medium text-muted-foreground">{i18next.t("tasks.taskCenterManualEditImpactCard.exy8az")}</div>
           {impact.changedChapters.slice(0, 4).map((chapter) => (
             <div key={chapter.chapterId} className="rounded-md border bg-background px-3 py-2 text-xs">
               第 {chapter.order} 章：{chapter.title}
@@ -60,7 +61,7 @@ function renderImpactResult(impact: DirectorManualEditImpact) {
       ) : null}
       {impact.minimalRepairPath.length > 0 ? (
         <div className="space-y-2">
-          <div className="text-xs font-medium text-muted-foreground">推荐处理路径</div>
+          <div className="text-xs font-medium text-muted-foreground">{i18next.t("tasks.taskCenterManualEditImpactCard.vxvdi7")}</div>
           {impact.minimalRepairPath.map((step, index) => (
             <div key={`${step.action}:${index}`} className="rounded-md border bg-muted/20 px-3 py-2 text-xs leading-5">
               <div className="font-medium text-foreground">{step.label}</div>
@@ -90,7 +91,7 @@ export default function TaskCenterManualEditImpactCard({
       ai: true,
     }),
     onError: (error) => {
-      toast.error(error instanceof Error ? error.message : "检查章节改动影响失败");
+      toast.error(error instanceof Error ? error.message : i18next.t("tasks.taskCenterManualEditImpactCard.otvr4q"));
     },
   });
 
@@ -107,10 +108,8 @@ export default function TaskCenterManualEditImpactCard({
     <div className="rounded-md border bg-muted/20 p-3">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <div className="font-medium">章节改动影响</div>
-          <div className="mt-1 text-sm leading-6 text-muted-foreground">
-            检查当前正文和导演运行记录的差异，给出最小复查或修复路径。
-          </div>
+          <div className="font-medium">{i18next.t("tasks.taskCenterManualEditImpactCard.3a8l4d")}</div>
+          <div className="mt-1 text-sm leading-6 text-muted-foreground">{i18next.t("tasks.taskCenterManualEditImpactCard.q8petm")}</div>
         </div>
         <Button
           size="sm"

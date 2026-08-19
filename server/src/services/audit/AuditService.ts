@@ -340,6 +340,20 @@ export class AuditService {
       } catch {
         storyModeContext = "";
       }
+      if (!content || !content.trim()) {
+        return {
+          issues: [
+            {
+              type: "substance_gap",
+              severity: "fatal",
+              description: "章节正文为空，无法进行实质性内容审查。",
+              suggestion: "请生成或撰写有效正文后再进行章节审查。",
+            },
+          ],
+          overallEvaluation: "FAIL",
+          summary: "章节正文为空。",
+        } as any;
+      }
       const contextBlocks = await resolveAuditChapterContextBlocks({
         asset: auditChapterPrompt,
         novelId,

@@ -68,10 +68,14 @@ function buildLabelBuffer(label: string, width: number): Buffer {
 
 /** 将图片缩放到目标高度，返回 sharp 实例和宽度 */
 async function resizeToHeight(filePath: string, height: number): Promise<{ buf: Buffer; width: number }> {
-  const resized = sharp(filePath).resize({ height, withoutEnlargement: false });
-  const meta = await resized.metadata();
-  const width = meta.width ?? height; // fallback
-  const buf = await resized.png().toBuffer();
+  const meta = await sharp(filePath).metadata();
+  const originalWidth = meta.width || 1;
+  const originalHeight = meta.height || 1;
+  const width = Math.round(height * (originalWidth / originalHeight)) || 1;
+  const buf = await sharp(filePath)
+    .resize({ width, height })
+    .png()
+    .toBuffer();
   return { buf, width };
 }
 

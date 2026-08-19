@@ -1,3 +1,4 @@
+import i18next from "i18next";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type { ApiResponse } from "@ai-novel/shared/types/api";
@@ -294,7 +295,7 @@ export default function KnowledgePage() {
       await queryClient.invalidateQueries({ queryKey: ragJobsQueryKey });
     },
     onError: (error) => {
-      setRagJobsActionMessage(error instanceof Error ? error.message : "清理任务失败。");
+      setRagJobsActionMessage(error instanceof Error ? error.message : i18next.t("dict.gen_e1f338dd"));
     },
   });
 
@@ -305,7 +306,7 @@ export default function KnowledgePage() {
       await queryClient.invalidateQueries({ queryKey: ragJobsQueryKey });
     },
     onError: (error) => {
-      setRagJobsActionMessage(error instanceof Error ? error.message : "删除任务失败。");
+      setRagJobsActionMessage(error instanceof Error ? error.message : i18next.t("dict.gen_0cd5921e"));
     },
   });
 
@@ -352,17 +353,17 @@ export default function KnowledgePage() {
   const failedJobs = (ragJobsQuery.data?.data ?? []).filter((item) => item.status === "failed").slice(0, 5);
   const selectedDocument = detailQuery.data?.data;
   const ragHealthNotice = ragHealthQuery.isError
-    ? (ragHealthQuery.error instanceof Error ? ragHealthQuery.error.message : "加载 RAG 健康状态失败。")
+    ? (ragHealthQuery.error instanceof Error ? ragHealthQuery.error.message : i18next.t("dict.gen_9a6a1f05"))
     : (ragHealthQuery.data?.message && ragHealthQuery.data.message !== "RAG health check passed."
       ? (ragHealthQuery.data.message === "RAG health check failed."
         ? "资料检索连接检查未通过。"
         : ragHealthQuery.data.message)
       : undefined);
   const recallErrorMessage = recallTestMutation.isError
-    ? (recallTestMutation.error instanceof Error ? recallTestMutation.error.message : "召回测试失败。")
+    ? (recallTestMutation.error instanceof Error ? recallTestMutation.error.message : i18next.t("dict.gen_25978068"))
     : null;
   const documentListErrorMessage = documentsQuery.isError
-    ? (documentsQuery.error instanceof Error ? documentsQuery.error.message : "知识资料加载失败。")
+    ? (documentsQuery.error instanceof Error ? documentsQuery.error.message : i18next.t("knowledge.knowledgePage.5zwe8r"))
     : undefined;
   const hasDocumentFilters = Boolean(keyword.trim() || status);
 
@@ -390,11 +391,11 @@ export default function KnowledgePage() {
 
   const handleUpload = async (file: File) => {
     if (!isTxtFile(file)) {
-      throw new Error("仅支持 .txt 文件。");
+      throw new Error(i18next.t("dict.onlySupportTxtFiles"));
     }
     const content = await readTextFile(file);
     if (!content) {
-      throw new Error("文件内容为空，或编码格式暂不支持。");
+      throw new Error(i18next.t("dict.gen_dd1d03b9"));
     }
     await createKnowledgeDocument({
       title: uploadTitle.trim() || undefined,
@@ -408,11 +409,11 @@ export default function KnowledgePage() {
       return;
     }
     if (!isTxtFile(file)) {
-      throw new Error("仅支持 .txt 文件。");
+      throw new Error(i18next.t("dict.onlySupportTxtFiles"));
     }
     const content = await readTextFile(file);
     if (!content) {
-      throw new Error("文件内容为空，或编码格式暂不支持。");
+      throw new Error(i18next.t("dict.gen_dd1d03b9"));
     }
     await createKnowledgeDocumentVersion(selectedDocumentId, {
       fileName: file.name,
@@ -488,14 +489,14 @@ export default function KnowledgePage() {
   };
 
   const handleClearFinishedRagJobs = () => {
-    if (!window.confirm("清理已结束任务记录？排队中和执行中的任务会保留。")) {
+    if (!window.confirm(i18next.t("dict.gen_2d775f38"))) {
       return;
     }
     clearFinishedRagJobsMutation.mutate();
   };
 
   const handleDeleteRagJob = (jobId: string) => {
-    if (!window.confirm("删除这条任务记录？排队中和执行中的任务不能删除。")) {
+    if (!window.confirm(i18next.t("dict.gen_35c42d6b"))) {
       return;
     }
     deleteRagJobMutation.mutate(jobId);
@@ -530,9 +531,9 @@ export default function KnowledgePage() {
         className="space-y-4"
       >
         <TabsList className="h-11 w-full justify-start gap-1 overflow-x-auto rounded-full bg-muted/30 p-1">
-          <TabsTrigger value="documents" className="rounded-full px-5">创作资料</TabsTrigger>
-          <TabsTrigger value="ops" className="rounded-full px-5">索引与任务</TabsTrigger>
-          <TabsTrigger value="settings" className="rounded-full px-5">检索设置</TabsTrigger>
+          <TabsTrigger value="documents" className="rounded-full px-5">{i18next.t("knowledge.knowledgeDocumentsTab.ap46ye")}</TabsTrigger>
+          <TabsTrigger value="ops" className="rounded-full px-5">{i18next.t("knowledge.knowledgePage.4dcqkh")}</TabsTrigger>
+          <TabsTrigger value="settings" className="rounded-full px-5">{i18next.t("dict.gen_acb3166d")}</TabsTrigger>
         </TabsList>
 
         <TabsContent value="documents">

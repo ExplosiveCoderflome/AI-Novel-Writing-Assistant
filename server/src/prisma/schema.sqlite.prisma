@@ -204,12 +204,6 @@ enum AgentRunStatus {
 enum NovelWorkflowLane {
   manual_create
   auto_director
-  creation_studio
-}
-
-enum NarrativeForm {
-  short_story
-  long_novel
 }
 
 enum NovelWorkflowTaskStatus {
@@ -332,11 +326,9 @@ model Novel {
   commercialTagsJson String?
   status            String      @default("draft")
   writingMode       String      @default("original")
+  language          String      @default("zh")
   projectMode       ProjectMode?
   creationExperience CreationExperience @default(professional)
-  narrativeForm     NarrativeForm @default(long_novel)
-  targetWordCount   Int?
-  derivedFromNovelId String?
   writingPlatform    String?
   writingPlatformProfileVersion Int?
   writingPlatformSnapshotJson String?
@@ -374,8 +366,6 @@ model Novel {
   world             World?      @relation(fields: [worldId], references: [id], onDelete: SetNull)
   sourceNovel       Novel?      @relation("NovelContinuation", fields: [sourceNovelId], references: [id], onDelete: SetNull)
   continuationNovels Novel[]    @relation("NovelContinuation")
-  derivedFromNovel  Novel?      @relation("NovelDerivation", fields: [derivedFromNovelId], references: [id], onDelete: SetNull)
-  derivedNovels     Novel[]     @relation("NovelDerivation")
   sourceKnowledgeDocument KnowledgeDocument? @relation("NovelKnowledgeContinuation", fields: [sourceKnowledgeDocumentId], references: [id], onDelete: SetNull)
   continuationBookAnalysis BookAnalysis? @relation("NovelContinuationBookAnalysis", fields: [continuationBookAnalysisId], references: [id], onDelete: SetNull)
   chapters          Chapter[]
@@ -433,10 +423,11 @@ model Novel {
   sideEffectJobs     NovelSideEffectJob[]
   novelWorld         NovelWorld?
   factEntries        NovelFactEntry[]
-  intentVersions     NovelIntentVersion[]
-  shortStoryPlan     ShortStoryPlan?
-  shortStorySegments ShortStorySegment[]
-  creationStudioConfirmations CreationStudioConfirmation[]
+  videoProjects      VideoProject[]
+  sandboxBranches    SandboxBranch[]
+  sandboxSnapshots   SandboxSnapshot[]
+  sandboxChronologies SandboxChronology[]
+  customRelationBonds CharacterRelationBond[]
   createdAt          DateTime    @default(now())
   updatedAt         DateTime    @updatedAt
 
@@ -445,99 +436,34 @@ model Novel {
   @@index([secondaryStoryModeId])
   @@index([worldId])
   @@index([writingMode])
-  @@index([sourceNovelId])
-  @@index([derivedFromNovelId])
-  @@index([narrativeForm])
   @@index([writingPlatform])
+  @@index([sourceNovelId])
   @@index([sourceKnowledgeDocumentId])
   @@index([continuationBookAnalysisId])
 }
 
-model NovelIntentVersion {
-  id                    String   @id @default(cuid())
-  novelId               String?
-  workflowTaskId        String
-  previousVersionId     String?
-  version               Int
-  status                String   @default("proposed")
-  source                String   @default("initial")
-  originalExpression    String
-  structuredIntentJson  String
-  impactScopeJson       String?
-  schemaVersion         Int      @default(1)
-  novel                 Novel?   @relation(fields: [novelId], references: [id], onDelete: Cascade)
-  workflowTask          NovelWorkflowTask @relation(fields: [workflowTaskId], references: [id], onDelete: Cascade)
-  previousVersion       NovelIntentVersion? @relation("NovelIntentVersionHistory", fields: [previousVersionId], references: [id], onDelete: SetNull)
-  nextVersions          NovelIntentVersion[] @relation("NovelIntentVersionHistory")
-  shortStoryPlans       ShortStoryPlan[]
-  createdAt             DateTime @default(now())
-  updatedAt             DateTime @updatedAt
+model WritingPlatformProfileOverride {
+  id              String   @id @default(cuid())
+  platform        String   @unique
+  activeVersionId String?
+  versions        WritingPlatformProfileVersion[]
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
 
-  @@unique([workflowTaskId, version])
-  @@index([novelId, status, version])
-  @@index([previousVersionId])
+  @@index([activeVersionId])
 }
 
-model CreationStudioConfirmation {
-  id                String   @id @default(cuid())
-  workflowTaskId    String   @unique
-  idempotencyKey    String
-  narrativeForm     NarrativeForm
-  novelId           String?
-  productionTaskId  String?
-  status            String   @default("claimed")
-  workflowTask      NovelWorkflowTask @relation(fields: [workflowTaskId], references: [id], onDelete: Cascade)
-  novel             Novel?   @relation(fields: [novelId], references: [id], onDelete: SetNull)
-  createdAt         DateTime @default(now())
-  updatedAt         DateTime @updatedAt
+model WritingPlatformProfileVersion {
+  id          String   @id @default(cuid())
+  overrideId  String
+  versionNo   Int
+  profileJson String
+  notes       String?
+  override    WritingPlatformProfileOverride @relation(fields: [overrideId], references: [id], onDelete: Cascade)
+  createdAt   DateTime @default(now())
 
-  @@unique([workflowTaskId, idempotencyKey])
-  @@index([novelId])
-  @@index([productionTaskId])
-}
-
-model ShortStoryPlan {
-  id                String   @id @default(cuid())
-  novelId           String   @unique
-  intentVersionId   String
-  status            String   @default("planning")
-  targetWordCount   Int
-  endingPromise     String
-  structureJson     String
-  qualityDebtJson   String?
-  auditResultJson   String?
-  schemaVersion     Int      @default(1)
-  novel             Novel    @relation(fields: [novelId], references: [id], onDelete: Cascade)
-  intentVersion     NovelIntentVersion @relation(fields: [intentVersionId], references: [id], onDelete: Restrict)
-  segments          ShortStorySegment[]
-  createdAt         DateTime @default(now())
-  updatedAt         DateTime @updatedAt
-
-  @@index([intentVersionId])
-  @@index([status, updatedAt])
-}
-
-model ShortStorySegment {
-  id                String   @id @default(cuid())
-  planId            String
-  novelId           String
-  order             Int
-  targetWordCount   Int
-  content           String   @default("")
-  status            String   @default("pending")
-  version           Int      @default(1)
-  qualityResultJson String?
-  humanSnapshotJson String?
-  userEditedAt      DateTime?
-  generatedAt       DateTime?
-  plan              ShortStoryPlan @relation(fields: [planId], references: [id], onDelete: Cascade)
-  novel             Novel    @relation(fields: [novelId], references: [id], onDelete: Cascade)
-  createdAt         DateTime @default(now())
-  updatedAt         DateTime @updatedAt
-
-  @@unique([planId, order])
-  @@index([novelId, order])
-  @@index([status, updatedAt])
+  @@unique([overrideId, versionNo])
+  @@index([overrideId, createdAt])
 }
 
 model PromptAddendum {
@@ -602,30 +528,6 @@ model PromptTemplateVersion {
   notes           String?
   override        PromptTemplateOverride @relation(fields: [overrideId], references: [id], onDelete: Cascade)
   createdAt       DateTime               @default(now())
-
-  @@unique([overrideId, versionNo])
-  @@index([overrideId, createdAt])
-}
-
-model WritingPlatformProfileOverride {
-  id              String   @id @default(cuid())
-  platform        String   @unique
-  activeVersionId String?
-  versions        WritingPlatformProfileVersion[]
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
-
-  @@index([activeVersionId])
-}
-
-model WritingPlatformProfileVersion {
-  id          String   @id @default(cuid())
-  overrideId  String
-  versionNo   Int
-  profileJson String
-  notes       String?
-  override    WritingPlatformProfileOverride @relation(fields: [overrideId], references: [id], onDelete: Cascade)
-  createdAt   DateTime @default(now())
 
   @@unique([overrideId, versionNo])
   @@index([overrideId, createdAt])
@@ -801,6 +703,9 @@ model Character {
   fromResourceEvents CharacterResourceEvent[] @relation("CharacterResourceEventFromHolder")
   toResourceEvents CharacterResourceEvent[] @relation("CharacterResourceEventToHolder")
   syncProposals   CharacterSyncProposal[]
+  customPropertiesJson String? @default("{}")
+  outgoingRelationBonds CharacterRelationBond[] @relation("CharacterRelationBondSource")
+  incomingRelationBonds CharacterRelationBond[] @relation("CharacterRelationBondTarget")
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 
@@ -1513,6 +1418,10 @@ model World {
   libraryItems       WorldPropertyLibrary[]
   novelWorlds        NovelWorld[]
   assets             WorldAsset[]
+  locations          Location[]
+  customPropertySchemas WorldCustomPropertySchema[]
+  customRelationSchemas WorldCustomRelationSchema[]
+  customConflictSchemas WorldCustomConflictSchema[]
   createdAt          DateTime              @default(now())
   updatedAt          DateTime              @updatedAt
 }
@@ -2219,8 +2128,6 @@ model NovelWorkflowTask {
   directorEvents     DirectorEvent[]
   directorArtifacts  DirectorArtifact[]
   directorLlmUsageRecords DirectorLlmUsageRecord[]
-  intentVersions     NovelIntentVersion[]
-  creationStudioConfirmation CreationStudioConfirmation?
   createdAt          DateTime                @default(now())
   updatedAt          DateTime                @updatedAt
 
@@ -3969,3 +3876,292 @@ model ComicBatchJob {
   @@index([episodeId, status])
   @@index([type, status])
 }
+
+model VideoProject {
+  id             String   @id @default(cuid())
+  title          String
+  novelId        String?
+  chapterIdsJson String?
+  sourceType     String   @default("chapter_adaptation")
+  pipeline       String?
+  status         String   @default("draft")
+  scriptJson     String?
+  renderTaskId   String?
+  resultUrl      String?
+  costEstimate   Float?
+  actualCost     Float?
+  errorMessage   String?
+  configJson     String?
+  novel          Novel?   @relation(fields: [novelId], references: [id], onDelete: SetNull)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@index([novelId, status])
+  @@index([status, updatedAt])
+}
+
+// -------------------------------------------------------------
+// World Sandbox Simulator Models
+// -------------------------------------------------------------
+
+model Location {
+  id                  String              @id @default(cuid())
+  worldId             String
+  name                String
+  latitude            Float
+  longitude           Float
+  elevation           Float
+  biomeType           String
+  terrainType         String
+  hasRiver            Boolean             @default(false)
+  soilMoistureBase    Float               @default(0.3)
+  world               World               @relation(fields: [worldId], references: [id], onDelete: Cascade)
+  sandboxChronologies SandboxChronology[]
+
+  @@index([worldId])
+}
+
+model WorldCustomPropertySchema {
+  id            String   @id @default(cuid())
+  worldId       String
+  targetType    String
+  propertyName  String
+  propertyLabel String
+  dataType      String
+  typeMetadata  String?
+  description   String?
+  defaultValue  String?
+  aiGuidance    String?
+  world         World    @relation(fields: [worldId], references: [id], onDelete: Cascade)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@unique([worldId, targetType, propertyName])
+  @@index([worldId])
+}
+
+model WorldCustomRelationSchema {
+  id              String   @id @default(cuid())
+  worldId         String
+  bondType        String
+  bondLabel       String
+  description     String?
+  defaultLeverage Float    @default(1.0)
+  aiGuidance      String?
+  world           World    @relation(fields: [worldId], references: [id], onDelete: Cascade)
+  createdAt       DateTime @default(now())
+
+  @@unique([worldId, bondType])
+  @@index([worldId])
+}
+
+model WorldCustomConflictSchema {
+  id              String   @id @default(cuid())
+  worldId         String
+  conflictType    String
+  conflictLabel   String
+  arbitrationRule String
+  climaxCriteria  String
+  world           World    @relation(fields: [worldId], references: [id], onDelete: Cascade)
+  createdAt       DateTime @default(now())
+
+  @@unique([worldId, conflictType])
+  @@index([worldId])
+}
+
+model SandboxBranch {
+  id              String             @id @default(cuid())
+  novelId         String
+  name            String
+  parentBranchId  String?
+  parentForkTick  Int?
+  isMain          Boolean            @default(false)
+  novel           Novel              @relation(fields: [novelId], references: [id], onDelete: Cascade)
+  snapshots       SandboxSnapshot[]
+  chronologies    SandboxChronology[]
+  createdAt       DateTime           @default(now())
+
+  @@index([novelId])
+  @@index([parentBranchId])
+}
+
+model SandboxSnapshot {
+  id                  String             @id @default(cuid())
+  novelId             String
+  branchId            String
+  tickIndex           Int
+  timeLabel           String?
+  stateJson           String
+  ecologicalStateJson String?
+  branch              SandboxBranch      @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  novel               Novel              @relation(fields: [novelId], references: [id], onDelete: Cascade)
+  createdAt           DateTime           @default(now())
+
+  @@unique([branchId, tickIndex])
+  @@index([novelId, branchId])
+}
+
+model SandboxChronology {
+  id                String             @id @default(cuid())
+  novelId           String
+  branchId          String
+  tickIndex         Int
+  locationId        String
+  title             String
+  summary           String
+  observableDetails String
+  hiddenTruth       String?
+  branch            SandboxBranch      @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  novel             Novel              @relation(fields: [novelId], references: [id], onDelete: Cascade)
+  location          Location           @relation(fields: [locationId], references: [id], onDelete: Cascade)
+  createdAt         DateTime           @default(now())
+
+  @@index([novelId, branchId, tickIndex])
+  @@index([novelId, locationId])
+}
+
+model CharacterRelationBond {
+  id                String    @id @default(cuid())
+  novelId           String
+  sourceCharacterId String
+  targetCharacterId String
+  bondType          String
+  description       String
+  leverageWeight    Float     @default(1.0)
+  expiryTick        Int?
+  novel             Novel     @relation(fields: [novelId], references: [id], onDelete: Cascade)
+  sourceCharacter   Character @relation("CharacterRelationBondSource", fields: [sourceCharacterId], references: [id], onDelete: Cascade)
+  targetCharacter   Character @relation("CharacterRelationBondTarget", fields: [targetCharacterId], references: [id], onDelete: Cascade)
+  createdAt         DateTime  @default(now())
+
+  @@index([novelId])
+  @@index([sourceCharacterId])
+  @@index([targetCharacterId])
+}
+
+model StylePatch {
+  id                String   @id @default(cuid())
+  novelId           String
+  ruleKey           String
+  promptInstruction String
+  enabled           Boolean  @default(true)
+  violationCount    Int      @default(1)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  @@unique([novelId, ruleKey])
+  @@index([novelId])
+}
+
+model AgentExecutableTodo {
+  id              String   @id @default(uuid())
+  novelId         String
+  directorTaskId  String
+  agentRole       String
+  title           String
+  stageId         String
+  chapterIndex    Int?
+  orderIndex      Int
+  status          String   // "PENDING", "CLAIMED", "COMPLETED", "FAILED"
+  claimedByWorker String?
+  claimedAtMs     BigInt?
+  evidencePayload String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([novelId, status])
+  @@index([directorTaskId, orderIndex])
+}
+
+// GA-Argus: Director Working Contract Ledger (Kt)
+model DirectorWorkingContract {
+  id                    String   @id @default(uuid())
+  novelId               String
+  version               Int      @default(1)
+  standingIntentJson    String   // JSON encoded StandingIntent (\iota)
+  operationalObjective  String   // JSON encoded OperationalObjective (o_t)
+  constraintsJson       String   // JSON encoded ContractConstraints (c_t)
+  verificationCriteria  String   // JSON encoded VerificationCriteria (v_t)
+  isActive              Boolean  @default(true)
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+
+  @@index([novelId, isActive])
+}
+
+// GA-Argus: Falsified Route Ledger (Dead Branches / Rejected Paths)
+model DirectorFalsifiedRoute {
+  id                        String   @id @default(uuid())
+  novelId                   String
+  volumeOrder               Int?
+  chapterOrder              Int?
+  failedPlanSummary         String
+  rejectionReason           String
+  rootCauseCode             String
+  evidenceArtifactId        String?
+  negativePromptConstraint  String
+  createdAt                 DateTime @default(now())
+
+  @@index([novelId])
+}
+
+// GA-Argus: Persistent Runtime State (Ht: Memory, Skills, Dynamic Verifiers)
+model DirectorRuntimeState {
+  id                  String   @id @default(uuid())
+  novelId             String   @unique
+  verifiedSkillsJson  String   @default("[]") // Accumulated writing skills
+  customVerifiersJson String   @default("[]") // Project-specific quality verifiers
+  totalPivotsCount    Int      @default(0)
+  totalBlockedCount   Int      @default(0)
+  updatedAt           DateTime @updatedAt
+}
+
+// 多模态模型评估任务表
+model ModelEvalTask {
+  id                String            @id @default(uuid())
+  name              String
+  targetCapability  String            // text-gen, embedding, sparse, image-gen, video-gen, tts, asr, ocr
+  modelConfigsJson  String            // JSON [{ provider, model, baseURL }]
+  status            String            // PENDING, RUNNING, COMPLETED, FAILED
+  progressPercent   Float             @default(0.0)
+  overallScoresJson String?           // 各模型综合得分 JSON
+  createdAt         DateTime          @default(now())
+  updatedAt         DateTime          @updatedAt
+  results           ModelEvalResult[]
+}
+
+// 评估结果明细表
+model ModelEvalResult {
+  id            String        @id @default(uuid())
+  taskId        String
+  task          ModelEvalTask @relation(fields: [taskId], references: id, onDelete: Cascade)
+  provider      String
+  model         String
+  testCaseId    String
+  testCategory  String        // e.g. "json_schema", "cot_reasoning", "prompt_adherence"
+  metricsJson   String        // e.g. { ttftMs, tps, isJsonValid, judgeScore, clipScore, cer }
+  outputPayload String        // 生成的文本 / 图像 URL / 音频 URL
+  rawLogs       String?
+  createdAt     DateTime      @default(now())
+
+  @@index([taskId])
+}
+
+// 模型评估基准测试集表
+model ModelEvalBenchmarkDataset {
+  id             String   @id @default(uuid())
+  capability     String   // text-gen, embedding, sparse, image-gen, video-gen, tts, asr, ocr
+  category       String?  // e.g. "json_schema", "cot_reasoning", "entity_match"
+  title          String
+  description    String?
+  promptText     String
+  expectedOutput String?  // 期望输出或标准参考 (Ground Truth)
+  metadataJson   String?  // 扩展属性 JSON
+  isBuiltin      Boolean  @default(false)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@index([capability])
+}
+
+

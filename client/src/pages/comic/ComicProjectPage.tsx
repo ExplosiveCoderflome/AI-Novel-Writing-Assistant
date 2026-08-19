@@ -1,4 +1,7 @@
-import { useState } from "react";
+import i18next from "i18next";
+import { resolveImageProviderOptions, getStoredImageProvider } from "@/lib/imageModelRegistry";
+const t = (key: string, options?: any) => i18next.t(key, options) as string;
+import { useState, useMemo } from "react";
 import { useParams } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
@@ -23,7 +26,7 @@ import {
   type ComicEpisode,
   type ComicProject,
 } from "@/api/comic";
-import { ComicImageGenerationNotice } from "@/pages/comic/ComicImageGenerationNotice";
+
 import { COMIC_FORMATS } from "@/pages/comic/ComicWorkspacePage";
 import { CharactersPanel } from "@/pages/comic/project/CharactersPanel";
 import { ScenesPanel } from "@/pages/comic/project/ScenesPanel";
@@ -35,6 +38,7 @@ import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "@/components/ui/toast";
 import SelectControl from "@/components/common/SelectControl";
+import LLMSelector from "@/components/common/LLMSelector";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -52,7 +56,7 @@ function ExportPanel({ projectId, episodes }: { projectId: string; episodes: Com
       if (artifact?.url) {
         window.open(artifact.url, "_blank");
       }
-      toast.success("导出完成");
+      toast.success(i18next.t("dict.gen_446e67b3"));
     },
     onError: (e) => toast.error(String(e)),
   });
@@ -61,7 +65,7 @@ function ExportPanel({ projectId, episodes }: { projectId: string; episodes: Com
     <div className="space-y-4">
       <div className="flex flex-wrap gap-2 items-end">
         <div className="space-y-1">
-          <label className="text-sm font-medium">选择话数</label>
+          <label className="text-sm font-medium">{i18next.t("dict.gen_9c475757")}</label>
           <SelectControl
             className="rounded-md border bg-background px-3 py-2 text-sm"
             value={selectedEpId}
@@ -80,12 +84,10 @@ function ExportPanel({ projectId, episodes }: { projectId: string; episodes: Com
           onClick={() => exportMut.mutate(selectedEpId)}
         >
           <Download className="h-4 w-4" />
-          {exportMut.isPending ? "导出中…" : "导出长图"}
+          {exportMut.isPending ? i18next.t("dict.gen_86f99e94") : i18next.t("dict.gen_533dd8ac")}
         </Button>
       </div>
-      <p className="text-xs text-muted-foreground">
-        导出前请确保所有格子已生成图像。图像内文字由模型直接渲染。
-      </p>
+      <p className="text-xs text-muted-foreground">{i18next.t("comic.comicProjectPage.albwdl")}</p>
     </div>
   );
 }
@@ -93,12 +95,12 @@ function ExportPanel({ projectId, episodes }: { projectId: string; episodes: Com
 // ─── Style options ─────────────────────────────────────────────────────────────
 
 const STYLE_OPTIONS = [
-  { value: "webtoon_color", label: "彩色韩漫", desc: "鲜艳配色，干净线条" },
-  { value: "bl_manga", label: "彩色少女漫", desc: "柔和色调，精致五官" },
-  { value: "shounen_bw", label: "黑白少年漫", desc: "粗犷线条，动感构图" },
-  { value: "ink_traditional", label: "水墨国风", desc: "毛笔笔触，淡彩晕染" },
-  { value: "chibi", label: "Q版萌漫", desc: "圆润可爱，夸张表情" },
-  { value: "realistic", label: "写实风格", desc: "细腻光影，真实感" },
+  { value: "webtoon_color", label: i18next.t("dict.gen_b8cc9e43"), desc: i18next.t("dict.gen_90cb877d") },
+  { value: "bl_manga", label: i18next.t("dict.gen_3cd93268"), desc: i18next.t("dict.gen_c936bee0") },
+  { value: "shounen_bw", label: i18next.t("dict.gen_4a12b411"), desc: i18next.t("dict.gen_fa800819") },
+  { value: "ink_traditional", label: i18next.t("dict.gen_452631b4"), desc: i18next.t("dict.gen_a96b4e38") },
+  { value: "chibi", label: i18next.t("dict.gen_Q版萌漫_amz0"), desc: i18next.t("dict.gen_06de46d6") },
+  { value: "realistic", label: i18next.t("dict.gen_11eaab19"), desc: i18next.t("dict.gen_e1f28055") },
 ];
 
 // ─── Page ─────────────────────────────────────────────────────────────────────
@@ -129,19 +131,19 @@ export default function ComicProjectPage() {
     enabled: Boolean(id),
   });
 
-  const { data: providerOptions = [] } = useQuery({
+  const { data: apiKeysRes } = useQuery({
     queryKey: ["settings", "api-keys"],
     queryFn: getAPIKeySettings,
-    select: (res) =>
-      (res.data ?? [])
-        .filter((p) => p.supportsImageGeneration && p.isConfigured)
-        .map((p) => ({ value: p.provider, label: p.displayName ?? p.name })),
   });
-  // 缓存的 provider 仍存在于可用列表才用，否则回退到第一个（避免引用已失效的 provider 配置）
-  const resolvedProvider =
-    (selectedProvider && providerOptions.some((p) => p.value === selectedProvider))
-      ? selectedProvider
-      : providerOptions[0]?.value || "";
+
+  const providerOptions = useMemo(() => {
+    return resolveImageProviderOptions(apiKeysRes?.data ?? [], selectedProvider);
+  }, [apiKeysRes?.data, selectedProvider]);
+
+  // 缓存的 provider 仍存在于可用列表才用，默认优先使用 comfyui
+  const resolvedProvider = (selectedProvider && providerOptions.some((p) => p.value === selectedProvider))
+    ? selectedProvider
+    : getStoredImageProvider();
 
   const presetMut = useMutation({
     mutationFn: (payload: Parameters<typeof updateComicPreset>[1]) => updateComicPreset(id!, payload),
@@ -149,7 +151,7 @@ export default function ComicProjectPage() {
       queryClient.invalidateQueries({ queryKey: ["comic", "project", id] });
       setShowFormatPicker(false);
       setShowStylePicker(false);
-      toast.success("设置已更新，新图片将使用新设置生成");
+      toast.success(i18next.t("dict.gen_de563886"));
     },
     onError: (e) => toast.error(String(e)),
   });
@@ -162,17 +164,17 @@ export default function ComicProjectPage() {
     );
   }
   if (!project) {
-    return <div className="p-8 text-center text-muted-foreground">漫画项目不存在。</div>;
+    return <div className="p-8 text-center text-muted-foreground">{i18next.t("dict.gen_3e8c67c3")}</div>;
   }
 
   const preset = safeJsonParseProject(project.stylePreset);
   const formatDef = COMIC_FORMATS.find((f) => f.value === preset.format) ?? COMIC_FORMATS[0];
   const styleDef = STYLE_OPTIONS.find((s) => s.value === preset.style);
   const statusLabel: Record<string, string> = {
-    draft: "草稿", outlined: "大纲已生成", scripted: "脚本已生成", completed: "已完成",
+    draft: i18next.t("common.draft"), outlined: i18next.t("dict.gen_05dab7aa"), scripted: i18next.t("dict.gen_1361ca2d"), completed: i18next.t("tasks.filterStatusSucceeded"),
   };
   const sourceLabel: Record<string, string> = {
-    novel_import: "小说改编", original: "原创", text_import: "文本导入", comic_import: "漫画改编",
+    novel_import: i18next.t("dict.gen_a07eb9b4"), original: i18next.t("common.original"), text_import: i18next.t("dict.gen_8ffd512f"), comic_import: i18next.t("dict.gen_c12f11f5"),
   };
 
   return (
@@ -181,13 +183,9 @@ export default function ComicProjectPage() {
       <div className="flex items-center gap-2">
         <Button asChild type="button" variant="ghost" size="sm" className="-ml-2">
           <a href="/comic">
-            <ChevronLeft className="h-4 w-4" />
-            工作台
-          </a>
+            <ChevronLeft className="h-4 w-4" />{i18next.t("comic.comicProjectPage.e529l")}</a>
         </Button>
       </div>
-
-      <ComicImageGenerationNotice />
 
       {/* 项目信息头部 */}
       <div className="rounded-xl border bg-card p-5 space-y-4">
@@ -214,7 +212,7 @@ export default function ComicProjectPage() {
                 {formatDef.layoutSvg}
               </div>
               <div className="text-left">
-                <p className="text-xs text-muted-foreground">漫画形态</p>
+                <p className="text-xs text-muted-foreground">{i18next.t("dict.gen_66c8471a")}</p>
                 <p className="text-sm font-semibold">{formatDef.label}</p>
                 <p className="text-[10px] text-muted-foreground leading-tight max-w-[100px]">{formatDef.desc}</p>
               </div>
@@ -223,7 +221,7 @@ export default function ComicProjectPage() {
 
             {showFormatPicker && (
               <div className="absolute right-0 top-full mt-2 z-50 w-[480px] rounded-xl border bg-popover shadow-xl p-4">
-                <p className="text-xs font-medium text-muted-foreground mb-3">选择漫画形态（影响图片比例与风格关键词）</p>
+                <p className="text-xs font-medium text-muted-foreground mb-3">{i18next.t("dict.gen_feb74a28")}</p>
                 <div className="grid grid-cols-4 gap-2">
                   {COMIC_FORMATS.map((fmt) => (
                     <button
@@ -248,9 +246,7 @@ export default function ComicProjectPage() {
                   type="button"
                   onClick={() => setShowFormatPicker(false)}
                   className="mt-3 w-full rounded-md py-1.5 text-xs text-muted-foreground hover:bg-muted transition-colors"
-                >
-                  取消
-                </button>
+                >{i18next.t("common.cancel")}</button>
               </div>
             )}
           </div>
@@ -261,14 +257,14 @@ export default function ComicProjectPage() {
           <div className="flex items-center gap-2.5 rounded-lg border bg-background px-3 py-2.5">
             <Hash className="h-4 w-4 text-muted-foreground flex-shrink-0" />
             <div>
-              <p className="text-[11px] text-muted-foreground">话数</p>
+              <p className="text-[11px] text-muted-foreground">{i18next.t("dict.gen_189b6c06")}</p>
               <p className="text-lg font-bold leading-tight">{episodes.length}</p>
             </div>
           </div>
           <div className="flex items-center gap-2.5 rounded-lg border bg-background px-3 py-2.5">
             <Film className="h-4 w-4 text-muted-foreground flex-shrink-0" />
             <div>
-              <p className="text-[11px] text-muted-foreground">总格数</p>
+              <p className="text-[11px] text-muted-foreground">{i18next.t("dict.gen_adfec444")}</p>
               <p className="text-lg font-bold leading-tight">
                 {episodes.reduce((s, e) => s + (e._count?.panels ?? 0), 0)}
               </p>
@@ -277,7 +273,7 @@ export default function ComicProjectPage() {
           <div className="flex items-center gap-2.5 rounded-lg border bg-background px-3 py-2.5">
             <Users className="h-4 w-4 text-muted-foreground flex-shrink-0" />
             <div>
-              <p className="text-[11px] text-muted-foreground">角色</p>
+              <p className="text-[11px] text-muted-foreground">{i18next.t("dict.gen_464f3d4e")}</p>
               <p className="text-lg font-bold leading-tight">{project._count?.characters ?? project.characters.length}</p>
             </div>
           </div>
@@ -291,9 +287,9 @@ export default function ComicProjectPage() {
             >
               <Palette className="h-4 w-4 text-muted-foreground flex-shrink-0" />
               <div className="flex-1 text-left min-w-0">
-                <p className="text-[11px] text-muted-foreground">画风</p>
+                <p className="text-[11px] text-muted-foreground">{i18next.t("dict.gen_aa1262ed")}</p>
                 <p className="text-sm font-semibold leading-tight truncate">
-                  {styleDef?.label ?? preset.style ?? "默认"}
+                  {styleDef?.label ?? preset.style ?? i18next.t("dict.gen_18c63459")}
                 </p>
               </div>
               <ChevronDown className="h-3.5 w-3.5 text-muted-foreground/60 flex-shrink-0" />
@@ -301,7 +297,7 @@ export default function ComicProjectPage() {
 
             {showStylePicker && (
               <div className="absolute right-0 top-full mt-2 z-50 w-64 rounded-xl border bg-popover shadow-xl p-3">
-                <p className="text-xs font-medium text-muted-foreground mb-2">选择画风</p>
+                <p className="text-xs font-medium text-muted-foreground mb-2">{i18next.t("dict.gen_3c4b38d0")}</p>
                 <div className="space-y-1">
                   {STYLE_OPTIONS.map((opt) => (
                     <button
@@ -323,9 +319,7 @@ export default function ComicProjectPage() {
                   type="button"
                   onClick={() => setShowStylePicker(false)}
                   className="mt-2 w-full rounded-md py-1.5 text-xs text-muted-foreground hover:bg-muted transition-colors"
-                >
-                  取消
-                </button>
+                >{i18next.t("common.cancel")}</button>
               </div>
             )}
           </div>
@@ -339,38 +333,19 @@ export default function ComicProjectPage() {
           </span>
           {project.sourceBundle && (
             <span className="inline-flex items-center gap-1 rounded-full border bg-green-500/10 px-2.5 py-0.5 text-xs text-green-600 dark:text-green-400">
-              <BookText className="h-3 w-3" />
-              内容源已导入
-            </span>
+              <BookText className="h-3 w-3" />{i18next.t("dict.gen_cf395763")}</span>
           )}
           {preset.format && (
             <span className="inline-flex items-center gap-1 rounded-full border bg-muted/50 px-2.5 py-0.5 text-xs text-muted-foreground">
               {formatDef.tag}
             </span>
           )}
-          {/* 图片模型全局选择器 */}
-          <div className="ml-auto flex items-center gap-2">
-            <span className="text-xs text-muted-foreground whitespace-nowrap">图片模型</span>
-            {providerOptions.length === 0 ? (
-              <span className="text-xs text-destructive">暂无可用图片服务</span>
-            ) : (
-              <SelectControl
-                className="rounded-md border bg-background px-2.5 py-1 text-xs"
-                value={resolvedProvider}
-                onChange={(e) => handleProviderChange(e.target.value)}
-              >
-                {providerOptions.map((opt) => (
-                  <option key={opt.value} value={opt.value}>{opt.label}</option>
-                ))}
-              </SelectControl>
-            )}
-          </div>
         </div>
       </div>
 
       <Tabs defaultValue="outline">
         <TabsList className="w-full justify-start gap-1">
-          <TabsTrigger value="outline">分话大纲</TabsTrigger>
+          <TabsTrigger value="outline">{i18next.t("dict.gen_34c8f296")}</TabsTrigger>
           <TabsTrigger value="characters">
             角色
             {project.characters.length > 0 && (
@@ -379,9 +354,9 @@ export default function ComicProjectPage() {
               </span>
             )}
           </TabsTrigger>
-          <TabsTrigger value="scenes">场景</TabsTrigger>
-          <TabsTrigger value="panels">格子图</TabsTrigger>
-          <TabsTrigger value="export">导出</TabsTrigger>
+          <TabsTrigger value="scenes">{i18next.t("dict.gen_c931653c")}</TabsTrigger>
+          <TabsTrigger value="panels">{i18next.t("dict.gen_b9857430")}</TabsTrigger>
+          <TabsTrigger value="export">{i18next.t("dict.gen_55405ea6")}</TabsTrigger>
         </TabsList>
 
         <TabsContent value="outline" className="mt-4">
@@ -404,9 +379,7 @@ export default function ComicProjectPage() {
           {episodes.length > 0 ? (
             <ExportPanel projectId={id!} episodes={episodes} />
           ) : (
-            <div className="py-12 text-center text-sm text-muted-foreground">
-              请先生成分话大纲。
-            </div>
+            <div className="py-12 text-center text-sm text-muted-foreground">{i18next.t("comic.comicProjectPage.t312f2")}</div>
           )}
         </TabsContent>
       </Tabs>

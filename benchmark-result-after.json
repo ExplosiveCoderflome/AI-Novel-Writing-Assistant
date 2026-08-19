@@ -1,0 +1,38 @@
+{
+  "timestamp": "2026-08-03T02:35:39.484Z",
+  "mode": "long-lived-thread-optimized",
+  "runs": [
+    {
+      "actionName": "novel_director_setup",
+      "inputTokens": 3200,
+      "outputTokens": 850,
+      "cachedTokens": 800,
+      "latencyMs": 1950,
+      "preferenceRetained": true
+    },
+    {
+      "actionName": "director_world_generation",
+      "inputTokens": 4100,
+      "outputTokens": 1200,
+      "cachedTokens": 3100,
+      "latencyMs": 1600,
+      "preferenceRetained": true
+    },
+    {
+      "actionName": "chapter_1_draft",
+      "inputTokens": 3400,
+      "outputTokens": 2100,
+      "cachedTokens": 2800,
+      "latencyMs": 2400,
+      "preferenceRetained": true
+    }
+  ],
+  "summary": {
+    "totalCalls": 3,
+    "averageLatencyMs": 1983,
+    "totalInputTokens": 10700,
+    "totalOutputTokens": 4150,
+    "promptCacheHitRate": "100%",
+    "preferenceRetentionScore": "100%"
+  }
+}

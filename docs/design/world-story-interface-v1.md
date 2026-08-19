@@ -685,3 +685,21 @@
 > **“把世界压缩成可被故事使用的局部战场”**
 
 这是两回事。前者容易变成设定堆积，后者才能形成真正的生成闭环。
+
+---
+
+# 十一、实际类型定义与结构扁平化优化
+
+为了提高存储和检索效率，并简化 TypeScript 中的 Zod 模式校验，最终代码实现（[storyWorldSlice.ts](file:///c:/Users/lilin/GeneralAgent/shared/types/storyWorldSlice.ts)）对设计方案中的部分嵌套结构进行了扁平化调整，具体映射如下：
+
+1. **核心世界框架 (core_world_frame)**
+   * **设计推荐**：嵌套的 JSON 对象（包括 `genre_base`、`era_background` 等）。
+   * **代码实现**：合并为一个扁平的 `coreWorldFrame: string` 文字块，便于在 LLM Prompt 中直接注入。
+
+2. **应用规则 (applied_rules)**
+   * **设计推荐**：按 `hard_rules`、`soft_rules`、`forbidden_directions` 分类嵌套。
+   * **代码实现**：扁平化为统一的 `appliedRules` 规则数组（每条规则包含 `id`, `name`, `summary`, `whyItMatters`），同时通过单独的 `forbiddenCombinations: string[]` 数组记录禁忌组合。
+
+3. **故事范围边界 (story_scope_boundary)**
+   * **设计推荐**：包含 `allowed_stage`、`initial_visibility` 等嵌套的 JSON 对象。
+   * **代码实现**：扁平化为单个 `storyScopeBoundary: string` 的范围描述文字块。

@@ -160,32 +160,6 @@ body {
 }
 
 @layer utilities {
-  .live-execution-scrollbar {
-    scrollbar-color: rgb(52 211 153 / 0.42) transparent;
-    scrollbar-gutter: stable;
-    scrollbar-width: thin;
-  }
-
-  .live-execution-scrollbar::-webkit-scrollbar {
-    width: 6px;
-  }
-
-  .live-execution-scrollbar::-webkit-scrollbar-track {
-    background: transparent;
-  }
-
-  .live-execution-scrollbar::-webkit-scrollbar-thumb {
-    border: 1px solid transparent;
-    border-radius: 999px;
-    background: rgb(52 211 153 / 0.34);
-    background-clip: padding-box;
-  }
-
-  .live-execution-scrollbar::-webkit-scrollbar-thumb:hover {
-    background: rgb(52 211 153 / 0.58);
-    background-clip: padding-box;
-  }
-
   .mobile-novel-workspace-panel {
     overflow-wrap: anywhere;
   }
@@ -514,19 +488,10 @@ body {
     gap: 0.5rem;
   }
 
-  .mobile-route-home .home-status-summary-grid > .home-status-metric-card,
+  .mobile-route-home .home-status-summary-grid > .rounded-xl,
   .mobile-route-tasks .task-status-summary-grid > .rounded-xl {
     border-radius: 0.75rem;
     box-shadow: none;
-  }
-
-  .mobile-route-home .home-status-metric-card {
-    min-height: 4.75rem;
-    padding: 0.5rem;
-  }
-
-  .mobile-route-home .home-status-metric-card > span {
-    display: none;
   }
 
   .mobile-route-home .home-status-summary-grid .p-6,
@@ -638,6 +603,7 @@ body {
   .mobile-route-creative-hub > .grid,
   .mobile-route-drama > .grid,
   .mobile-route-chat-legacy,
+  .mobile-route-drama,
   .mobile-route-book-analysis > .grid,
   .mobile-route-tasks > .grid,
   .mobile-route-auto-director-follow-ups > .grid {
@@ -716,6 +682,8 @@ body {
     display: none;
   }
 
+  .mobile-route-novel-simple .rounded-xl.border.bg-card .rounded-xl.border.bg-card,
+  .mobile-route-multimedia .rounded-xl.border.bg-card .rounded-xl.border.bg-card,
   .mobile-route-creative-hub .rounded-xl.border.bg-card .rounded-xl.border.bg-card,
   .mobile-route-drama .rounded-xl.border.bg-card .rounded-xl.border.bg-card,
   .mobile-route-book-analysis .rounded-xl.border.bg-card .rounded-xl.border.bg-card,

@@ -2,7 +2,6 @@ import type {
   DirectorAutoExecutionState,
   DirectorConfirmRequest,
 } from "@ai-novel/shared/types/novelDirector";
-import { buildDirectorCompletionProfile } from "@ai-novel/shared/types/directorCompletion";
 import type { PipelineJobStatus, VolumePlanDocument } from "@ai-novel/shared/types/novel";
 import {
   buildDirectorAutoExecutionScopeLabelFromState,
@@ -129,9 +128,6 @@ export function buildRequestedAutoExecutionState(input: {
   if (!input.existingState) {
     return {
       enabled: true,
-      completionProfile: input.request.completionProfile
-        ?? buildDirectorCompletionProfile(input.request.estimatedChapterCount ?? input.request.candidate.targetChapterCount),
-      closingExtensionCount: 0,
       mode: requestedPlan.mode,
       startOrder: requestedPlan.startOrder,
       endOrder: requestedPlan.endOrder,
@@ -337,8 +333,6 @@ export async function resolveAutoExecutionRangeAndState(input: {
       preparedVolumeIds,
       beatChapterListReady,
       volumeChapterListComplete,
-      completionProfile: input.existingState?.completionProfile
-        ?? buildDirectorCompletionProfile(range.totalChapterCount),
       pipelineJobId: input.pipelineJobId ?? input.existingState?.pipelineJobId ?? null,
       pipelineStatus: input.pipelineStatus ?? input.existingState?.pipelineStatus ?? null,
     }),

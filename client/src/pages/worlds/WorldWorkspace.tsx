@@ -1,3 +1,4 @@
+import i18next from "i18next";
 import { useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -273,11 +274,11 @@ export default function WorldWorkspace() {
     mutationFn: (worldId: string) => deleteWorld(worldId),
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: queryKeys.worlds.all });
-      toast.success("世界样本已删除。");
+      toast.success(i18next.t("dict.worldSampleDeleted"));
       navigate("/worlds", { replace: true });
     },
     onError: (error) => {
-      toast.error(error instanceof Error ? error.message : "删除世界样本失败。");
+      toast.error(error instanceof Error ? error.message : i18next.t("dict.gen_99bf2197"));
     },
   });
 
@@ -294,7 +295,7 @@ export default function WorldWorkspace() {
     if (!id || !world) {
       return;
     }
-    const confirmed = window.confirm(`确认删除世界样本「${world.name}」？此操作不可恢复。`);
+    const confirmed = window.confirm(i18next.t("worlds.worldList.b8pr91", { val1: world.name }));
     if (!confirmed) {
       return;
     }
@@ -311,7 +312,7 @@ export default function WorldWorkspace() {
             size="icon"
             className="mt-0.5 shrink-0 rounded-full"
             onClick={() => navigate("/worlds")}
-            aria-label="返回世界样本库"
+            aria-label={i18next.t("worlds.worldWorkspace.b9tx7i")}
           >
             <ArrowLeft className="h-4 w-4" />
           </Button>
@@ -319,14 +320,14 @@ export default function WorldWorkspace() {
             <Globe2 className="h-5 w-5" aria-hidden="true" />
           </div>
           <div className="min-w-0">
-            <div className="text-xs text-muted-foreground">世界样本 · 世界手册</div>
+            <div className="text-xs text-muted-foreground">{i18next.t("worlds.worldWorkspace.ocgk2z")}</div>
             <h1 className="mt-1 truncate text-2xl font-semibold tracking-tight">{world?.name ?? "正在读取世界样本"}</h1>
             {world?.version ? <div className="mt-1 text-xs text-muted-foreground">版本 v{world.version}</div> : null}
           </div>
         </div>
         <div className="flex flex-wrap items-start justify-end gap-2">
           <details className="group rounded-2xl bg-muted/25 px-4 py-2">
-            <summary className="cursor-pointer list-none text-sm font-medium marker:hidden">创作模型</summary>
+            <summary className="cursor-pointer list-none text-sm font-medium marker:hidden">{i18next.t("worlds.worldWorkspace.aoy50r")}</summary>
             <div className="mt-3 w-[420px] max-w-[70vw]">
               <LLMSelector />
             </div>
@@ -356,12 +357,12 @@ export default function WorldWorkspace() {
         className="space-y-5"
       >
         <TabsList className="h-11 w-full justify-start gap-1 overflow-x-auto rounded-full bg-muted/30 p-1">
-          <TabsTrigger value="structure" className="rounded-full px-5">手册整理</TabsTrigger>
-          <TabsTrigger value="overview" className="rounded-full px-5">阅读与图谱</TabsTrigger>
+          <TabsTrigger value="structure" className="rounded-full px-5">{i18next.t("worlds.worldWorkspace.cqr2wj")}</TabsTrigger>
+          <TabsTrigger value="overview" className="rounded-full px-5">{i18next.t("worlds.worldWorkspace.ypx9ed")}</TabsTrigger>
           <TabsTrigger value="layers" className="rounded-full px-5">AI 分层</TabsTrigger>
-          <TabsTrigger value="deepening" className="rounded-full px-5">补齐设定</TabsTrigger>
-          <TabsTrigger value="consistency" className="rounded-full px-5">一致性</TabsTrigger>
-          <TabsTrigger value="assets" className="rounded-full px-5">资料与版本</TabsTrigger>
+          <TabsTrigger value="deepening" className="rounded-full px-5">{i18next.t("worlds.worldWorkspace.hvbomf")}</TabsTrigger>
+          <TabsTrigger value="consistency" className="rounded-full px-5">{i18next.t("dict.consistency")}</TabsTrigger>
+          <TabsTrigger value="assets" className="rounded-full px-5">{i18next.t("dict.gen_e63dc6c9")}</TabsTrigger>
         </TabsList>
 
         <TabsContent value="overview">
@@ -414,14 +415,10 @@ export default function WorldWorkspace() {
             <>
               <Card className="rounded-3xl border-border/35 shadow-none">
                 <CardHeader className="flex flex-row items-center justify-between gap-3">
-                  <CardTitle className="text-lg">高级字段维护</CardTitle>
-                  <Button variant="ghost" size="sm" className="rounded-full" onClick={() => setAdvancedStructureOpen(false)}>
-                    返回整理手册
-                  </Button>
+                  <CardTitle className="text-lg">{i18next.t("dict.gen_6d58393f")}</CardTitle>
+                  <Button variant="ghost" size="sm" className="rounded-full" onClick={() => setAdvancedStructureOpen(false)}>{i18next.t("worlds.worldWorkspace.sic4vx")}</Button>
                 </CardHeader>
-                <CardContent className="text-sm text-muted-foreground">
-                  这里用于处理势力关系、地点控制权、结构导入等细节。普通整理优先回到世界手册。
-                </CardContent>
+                <CardContent className="text-sm text-muted-foreground">{i18next.t("worlds.worldWorkspace.dssi9w")}</CardContent>
               </Card>
               {id ? (
                 <WorldAxiomsCard

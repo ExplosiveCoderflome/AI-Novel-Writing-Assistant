@@ -1,3 +1,5 @@
+import i18next from "i18next";
+const t = (key: string, options?: any) => i18next.t(key, options) as string;
 import { useState } from "react";
 import type { KnowledgeDocumentDetail, KnowledgeRecallTestResult } from "@ai-novel/shared/types/knowledge";
 import { Badge } from "@/components/ui/badge";
@@ -18,7 +20,7 @@ function VersionContentPreview({ content }: { content: string }) {
 
   const handleExpand = () => {
     if (!expanded && isLarge) {
-      if (!window.confirm(`文档共 ${content.length.toLocaleString()} 字符，展开全文可能导致页面卡顿，确认继续？`)) {
+      if (!window.confirm(i18next.t("knowledge.knowledgeDocumentDetailDialog.upa5ey", { val1: content.length.toLocaleString() }))) {
         return;
       }
     }
@@ -38,8 +40,8 @@ function VersionContentPreview({ content }: { content: string }) {
           onClick={handleExpand}
         >
           {expanded
-            ? `收起（共 ${content.length.toLocaleString()} 字符）`
-            : `仅显示前 ${PREVIEW_CHAR_LIMIT.toLocaleString()} 字符，点击展开全文（共 ${content.length.toLocaleString()} 字符）`}
+            ? i18next.t("knowledge.knowledgeDocumentDetailDialog.80uef4", { val1: content.length.toLocaleString() })
+            : i18next.t("knowledge.knowledgeDocumentDetailDialog.kx8b3p", { val1: PREVIEW_CHAR_LIMIT.toLocaleString(), val2: content.length.toLocaleString() })}
         </button>
       ) : null}
     </div>
@@ -91,13 +93,13 @@ export default function KnowledgeDocumentDetailDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <AppDialogContent
         className="max-w-4xl"
-        title={document?.title ?? "知识文档详情"}
+        title={document?.title ?? i18next.t("dict.gen_043ec94a")}
         bodyClassName="min-w-0 space-y-4"
       >
           <div className="flex flex-wrap gap-2">
             {isArchived ? (
               <Button variant="outline" onClick={onRestoreDocument} disabled={restorePending}>
-                {restorePending ? "恢复中..." : "恢复启用"}
+                {restorePending ? i18next.t("dict.gen_3baa9427") : i18next.t("dict.gen_06dab430")}
               </Button>
             ) : (
               <input
@@ -116,17 +118,15 @@ export default function KnowledgeDocumentDetailDialog({
               />
             )}
             {selectedDocumentId && !isArchived ? (
-              <Button variant="outline" onClick={onReindex}>
-                手动重建索引
-              </Button>
+              <Button variant="outline" onClick={onReindex}>{i18next.t("knowledge.knowledgeDocumentDetailDialog.wcjf2b")}</Button>
             ) : null}
           </div>
 
           {document ? (
             <>
               <div className="flex flex-wrap items-center gap-2 text-sm">
-                <Badge variant="outline">文档状态：{formatStatus(document.status)}</Badge>
-                <Badge variant="outline">索引状态：{formatStatus(isArchived ? "idle" : (document.latestIndexStatus ?? "-"))}</Badge>
+                <Badge variant="outline">{i18next.t("dict.gen_acf22c2d")}</Badge>
+                <Badge variant="outline">{i18next.t("dict.gen_ac20cfba")}</Badge>
               </div>
               {document.latestIndexStatus === "failed" && document.latestIndexError ? (
                 <div className="rounded-md border border-destructive/40 bg-destructive/5 p-3 text-sm text-destructive">
@@ -136,48 +136,42 @@ export default function KnowledgeDocumentDetailDialog({
 
               <Card>
                 <CardHeader>
-                  <CardTitle>召回测试</CardTitle>
+                  <CardTitle>{i18next.t("dict.gen_2ed53cd2")}</CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-3">
                   {isArchived ? (
-                    <div className="text-sm text-muted-foreground">
-                      恢复启用并完成索引后，可以测试召回效果。
-                    </div>
+                    <div className="text-sm text-muted-foreground">{i18next.t("knowledge.knowledgeDocumentDetailDialog.17f0cr")}</div>
                   ) : document.latestIndexStatus === "succeeded" ? (
                     <>
                       <div className="flex min-w-0 flex-col gap-2 md:flex-row">
                         <Input
                           value={recallQuery}
                           onChange={(event) => onRecallQueryChange(event.target.value)}
-                          placeholder="输入一句问题或片段，测试当前激活版本的召回效果"
+                          placeholder={i18next.t("dict.gen_f3d5ff52")}
                         />
                         <Button
                           onClick={onRecallTest}
                           disabled={recallPending || !selectedDocumentId || !recallQuery.trim()}
                         >
-                          {recallPending ? "测试中..." : "开始测试"}
+                          {recallPending ? i18next.t("dict.gen_6c501b52") : i18next.t("dict.gen_3df85acb")}
                         </Button>
                       </div>
-                      <div className="text-xs text-muted-foreground">
-                        仅针对当前激活且已建立索引的版本执行召回测试。
-                      </div>
+                      <div className="text-xs text-muted-foreground">{i18next.t("knowledge.knowledgeDocumentDetailDialog.bwq9ja")}</div>
                       {recallErrorMessage ? (
                         <div className="text-sm text-destructive">{recallErrorMessage}</div>
                       ) : null}
                       {recallResult ? (
                         <div className="min-w-0 space-y-2 overflow-hidden">
                           {recallResult.hits.length === 0 ? (
-                            <div className="rounded-md border border-dashed p-3 text-sm text-muted-foreground">
-                              当前查询没有召回到任何分块内容。
-                            </div>
+                            <div className="rounded-md border border-dashed p-3 text-sm text-muted-foreground">{i18next.t("knowledge.knowledgeDocumentDetailDialog.boc1q4")}</div>
                           ) : (
                             recallResult.hits.map((hit, index) => (
                               <div key={hit.id} className="min-w-0 max-w-full overflow-hidden rounded-md border p-3">
                                 <div className="flex flex-wrap items-center justify-between gap-2">
                                   <div className="min-w-0 break-all font-medium">
-                                    命中 {index + 1} | {hit.source === "reranked" ? "重排" : hit.source === "vector" ? "向量" : "关键词"} | 分块 #{hit.chunkOrder + 1}
+                                    命中 {index + 1} | {hit.source === "reranked" ? i18next.t("dict.gen_6ace83bd") : hit.source === "vector" ? i18next.t("dict.gen_97005534") : i18next.t("dict.gen_9699a50e")} | 分块 #{hit.chunkOrder + 1}
                                   </div>
-                                  <Badge variant="outline">得分 {hit.score.toFixed(4)}</Badge>
+                                  <Badge variant="outline">{i18next.t("dict.gen_a4c9b484")}</Badge>
                                 </div>
                                 {hit.title ? (
                                   <div className="mt-1 break-all text-xs text-muted-foreground">{hit.title}</div>
@@ -197,9 +191,7 @@ export default function KnowledgeDocumentDetailDialog({
                       ) : null}
                     </>
                   ) : (
-                    <div className="text-sm text-muted-foreground">
-                      当前激活版本索引成功后，才可以执行召回测试。
-                    </div>
+                    <div className="text-sm text-muted-foreground">{i18next.t("knowledge.knowledgeDocumentDetailDialog.uw46if")}</div>
                   )}
                 </CardContent>
               </Card>
@@ -208,8 +200,8 @@ export default function KnowledgeDocumentDetailDialog({
                 {document.versions.map((version) => (
                   <div key={version.id} className="min-w-0 max-w-full overflow-hidden rounded-md border p-3">
                     <div className="flex flex-wrap items-center justify-between gap-2">
-                      <div className="font-medium">版本 v{version.versionNumber}</div>
-                      {version.isActive ? <Badge>当前激活</Badge> : null}
+                      <div className="font-medium">{i18next.t("dict.gen_ac17cf8f")}</div>
+                      {version.isActive ? <Badge>{i18next.t("dict.gen_6fceed52")}</Badge> : null}
                     </div>
                     <div className="mt-1 text-xs text-muted-foreground">
                       字符数 {version.charCount} | {new Date(version.createdAt).toLocaleString()}
@@ -221,9 +213,7 @@ export default function KnowledgeDocumentDetailDialog({
                           variant="outline"
                           onClick={() => onActivateVersion(version.id)}
                           disabled={activateVersionPending}
-                        >
-                          切换为激活版本
-                        </Button>
+                        >{i18next.t("knowledge.knowledgeDocumentDetailDialog.ku0s5a")}</Button>
                       </div>
                     ) : null}
                     <VersionContentPreview content={version.content} />
@@ -232,9 +222,7 @@ export default function KnowledgeDocumentDetailDialog({
               </div>
             </>
           ) : (
-            <div className="rounded-md border border-dashed p-4 text-sm text-muted-foreground">
-              正在加载文档详情...
-            </div>
+            <div className="rounded-md border border-dashed p-4 text-sm text-muted-foreground">{i18next.t("knowledge.knowledgeDocumentDetailDialog.8h7xv5")}</div>
           )}
       </AppDialogContent>
     </Dialog>

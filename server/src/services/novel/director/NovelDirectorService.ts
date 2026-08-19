@@ -63,6 +63,8 @@ import {
 import { cancelContinueExistingReplacedRuns } from "./runtime/novelDirectorTakeoverContinue";
 import { StyleBindingService } from "../../styleEngine/StyleBindingService";
 import { StyleProfileService } from "../../styleEngine/StyleProfileService";
+import { directorRiskPolicyOverrideService } from "./settings/DirectorRiskPolicyOverrideService";
+import { directorRiskPolicySettingsService } from "../../settings/DirectorRiskPolicySettingsService";
 import {
   assertHighMemoryDirectorStartAllowed,
   releaseHighMemoryDirectorReservations,
@@ -91,21 +93,19 @@ import { NovelDirectorContinueRuntime } from "./runtime/novelDirectorContinueRun
 import { prisma } from "../../../db/prisma";
 import { loadPersistentDirectorRuntimeProjection } from "./projections/novelDirectorRuntimeProjection";
 import { qualityDebtSettingsService } from "../../settings/QualityDebtSettingsService";
-import { directorRiskPolicySettingsService } from "../../settings/DirectorRiskPolicySettingsService";
-import { directorRiskPolicyOverrideService } from "./settings/DirectorRiskPolicyOverrideService";
 import { pendingReviewAutoPromotionService } from "../state/PendingReviewAutoPromotionService";
 import { parseSeedPayload } from "../workflow/novelWorkflow.shared";
 import { getDirectorInputFromSeedPayload } from "./runtime/novelDirectorHelpers";
 import {
   directorWorkflowStepModuleRegistry,
 } from "./workflowStepRuntime/directorWorkflowStepModules";
+import { evolutionaryOperatorEngine } from "./operators/EvolutionaryOperatorEngine";
+import type { OperatorInput, OperatorResult } from "./operators/operatorTypes";
 import {
   inspectWorkflowStepFacts,
   isExecutableWorkflowStepModule,
 } from "./workflowStepRuntime/WorkflowStepModule";
 import type { DirectorWorkflowSeedPayload } from "./runtime/novelDirectorHelpers";
-import { DIRECTOR_ISSUE_GOVERNANCE_VERSION } from "@ai-novel/shared/types/directorIssue";
-import { directorIssuePolicyService } from "./issues";
 
 function isWorkflowTaskCancelledError(error: unknown): boolean {
   const message = error instanceof Error ? error.message : String(error);
@@ -195,7 +195,6 @@ export class NovelDirectorService {
     ensurePrimaryNovelStyleBinding: (novelId, styleProfileId) => this.ensurePrimaryNovelStyleBinding(novelId, styleProfileId),
     withWorkflowTaskUsage: (workflowTaskId, runner) => this.withWorkflowTaskUsage(workflowTaskId, runner),
     scheduleBackgroundRun: (taskId, runner) => this.scheduleBackgroundRun(taskId, runner),
-    resolveRiskPolicy: (novelId) => this.resolveDirectorRiskPolicy(novelId),
   });
   private readonly chapterTitleRepairRuntime = new NovelDirectorChapterTitleRepairRuntime({
     workflowService: this.workflowService,
@@ -686,7 +685,6 @@ export class NovelDirectorService {
       bookContract: takeoverState.bookContract,
       runMode: input.runMode,
     });
-    const { effectivePolicy: issuePolicy, source: issuePolicySource } = await directorIssuePolicyService.getNovelPolicy(input.novelId);
     const directorInput = applyDirectorRunModeContract(await this.enrichDirectorStyleContext({
       ...takeoverDirectorInput,
       styleProfileId: input.styleProfileId ?? takeoverDirectorInput.styleProfileId,
@@ -696,10 +694,6 @@ export class NovelDirectorService {
       provider: input.provider ?? takeoverDirectorInput.provider,
       model: input.model?.trim() || takeoverDirectorInput.model,
       temperature: typeof input.temperature === "number" ? input.temperature : takeoverDirectorInput.temperature,
-      issueGovernanceVersion: DIRECTOR_ISSUE_GOVERNANCE_VERSION,
-      issuePolicy,
-      issuePolicySource,
-      riskPolicy: await this.resolveDirectorRiskPolicy(input.novelId),
     }));
     const isFullBookAutopilot = isFullBookAutopilotRunMode(directorInput.runMode);
     if (typeof input.postGenerationStyleReviewEnabled === "boolean") {
@@ -837,13 +831,10 @@ export class NovelDirectorService {
   }
 
   async confirmCandidate(input: DirectorConfirmRequest): Promise<DirectorConfirmApiResponse> {
-    const issuePolicy = await directorIssuePolicyService.getGlobalPolicy();
-    return this.confirmRuntime.confirmCandidate({
-      ...input,
-      issueGovernanceVersion: DIRECTOR_ISSUE_GOVERNANCE_VERSION,
-      issuePolicy,
-      issuePolicySource: "global",
-    });
+    return this.confirmRuntime.confirmCandidate(input);
   }
 
+  async executeEvolutionaryOperator<T = any>(input: OperatorInput<T>): Promise<OperatorResult<T>> {
+    return evolutionaryOperatorEngine.executeOperator<T>(input);
+  }
 }

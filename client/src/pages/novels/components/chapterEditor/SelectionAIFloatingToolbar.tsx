@@ -1,3 +1,5 @@
+import i18next from "i18next";
+const t = (key: string, options?: any) => i18next.t(key, options) as string;
 import { useEffect, useState } from "react";
 import type { ChapterEditorOperation } from "@ai-novel/shared/types/novel";
 import { Button } from "@/components/ui/button";
@@ -8,7 +10,7 @@ interface SelectionAIFloatingToolbarProps {
   visible: boolean;
   position: SelectionToolbarPosition | null;
   disabled?: boolean;
-  onRunOperation: (operation: ChapterEditorOperation, customInstruction?: string) => void;
+  onRunOperation: (operation: ChapterEditorOperation | "continue", customInstruction?: string) => void;
 }
 
 const SECONDARY_OPERATIONS: ChapterEditorOperation[] = ["expand", "compress", "emotion", "conflict"];
@@ -43,6 +45,15 @@ export default function SelectionAIFloatingToolbar(props: SelectionAIFloatingToo
         >
           AI 优化这段
         </Button>
+        <Button
+          size="sm"
+          variant="secondary"
+          disabled={disabled}
+          onMouseDown={(event) => event.preventDefault()}
+          onClick={() => onRunOperation("continue")}
+        >
+          AI 续写之后
+        </Button>
         {SECONDARY_OPERATIONS.map((operation) => (
           <Button
             key={operation}
@@ -61,16 +72,14 @@ export default function SelectionAIFloatingToolbar(props: SelectionAIFloatingToo
           disabled={disabled}
           onMouseDown={(event) => event.preventDefault()}
           onClick={() => setIsCustomOpen((current) => !current)}
-        >
-          告诉 AI 怎么改
-        </Button>
+        >{i18next.t("dict.gen_96b8f15f")}</Button>
       </div>
 
       {isCustomOpen ? (
         <div className="mt-2 space-y-2 rounded-xl border border-border/70 bg-muted/20 p-2">
           <textarea
             className="min-h-[96px] w-full resize-none rounded-xl border border-border bg-background px-3 py-2 text-sm outline-none"
-            placeholder="例如：让这段更压抑一点，保留原信息，但把节奏压得更紧。"
+            placeholder={i18next.t("dict.exampleMakeThisPartMorePressuringKeepOriginalInfoButMakeRhythmTighter")}
             value={customInstruction}
             onChange={(event) => setCustomInstruction(event.target.value)}
           />
@@ -83,17 +92,13 @@ export default function SelectionAIFloatingToolbar(props: SelectionAIFloatingToo
                 setIsCustomOpen(false);
                 setCustomInstruction("");
               }}
-            >
-              取消
-            </Button>
+            >{i18next.t("common.cancel")}</Button>
             <Button
               size="sm"
               disabled={disabled || customInstruction.trim().length === 0}
               onMouseDown={(event) => event.preventDefault()}
               onClick={() => onRunOperation("custom", customInstruction.trim())}
-            >
-              提交指令
-            </Button>
+            >{i18next.t("novels.selectionAIFloatingToolbar.cx7ixd")}</Button>
           </div>
         </div>
       ) : null}

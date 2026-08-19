@@ -1,3 +1,5 @@
+import i18next from "i18next";
+const t = (key: string, options?: any) => i18next.t(key, options) as string;
 import type { Dispatch, SetStateAction } from "react";
 import type {
   WorldBindingSupport,
@@ -25,7 +27,7 @@ export default function WorldRelationsSection(props: {
     <>
       <div className="rounded-md border p-3 space-y-3">
         <div className="flex items-center justify-between">
-          <div className="font-medium">关系网络</div>
+          <div className="font-medium">{i18next.t("dict.gen_bb016fed")}</div>
           <div className="flex gap-2">
             <Button
               size="sm"
@@ -53,9 +55,7 @@ export default function WorldRelationsSection(props: {
                     : prev,
                 )
               }
-            >
-              新增势力关系
-            </Button>
+            >{i18next.t("worlds.worldRelationsSection.vsbp0u")}</Button>
             <Button
               size="sm"
               variant="outline"
@@ -81,16 +81,14 @@ export default function WorldRelationsSection(props: {
                     : prev,
                 )
               }
-            >
-              新增地点控制
-            </Button>
+            >{i18next.t("worlds.worldRelationsSection.v3o0uy")}</Button>
           </div>
         </div>
         {draftStructure.relations.forceRelations.map((relation, index) => (
           <div key={relation.id || index} className="rounded-md border p-3 space-y-2">
             <div className="text-xs text-muted-foreground">
-              {forceNameById.get(relation.sourceForceId) || relation.sourceForceId || "源势力"} {"->"}{" "}
-              {forceNameById.get(relation.targetForceId) || relation.targetForceId || "目标势力"}
+              {forceNameById.get(relation.sourceForceId) || relation.sourceForceId || i18next.t("dict.gen_a4d80bf3")} {"->"}{" "}
+              {forceNameById.get(relation.targetForceId) || relation.targetForceId || i18next.t("dict.gen_e9107399")}
             </div>
             <div className="grid gap-2 md:grid-cols-2">
               <Input
@@ -111,7 +109,7 @@ export default function WorldRelationsSection(props: {
                       : prev,
                   )
                 }
-                placeholder="源势力 ID"
+                placeholder={i18next.t("dict.gen_d7eeb58b")}
               />
               <Input
                 value={relation.targetForceId}
@@ -131,7 +129,7 @@ export default function WorldRelationsSection(props: {
                       : prev,
                   )
                 }
-                placeholder="目标势力 ID"
+                placeholder={i18next.t("dict.gen_e416d85f")}
               />
             </div>
             <div className="grid gap-2 md:grid-cols-2">
@@ -153,7 +151,7 @@ export default function WorldRelationsSection(props: {
                       : prev,
                   )
                 }
-                placeholder="关系类型"
+                placeholder={i18next.t("dict.gen_ed4fdfbc")}
               />
               <Input
                 value={relation.tension}
@@ -173,7 +171,7 @@ export default function WorldRelationsSection(props: {
                       : prev,
                   )
                 }
-                placeholder="张力 / 压力"
+                placeholder={i18next.t("dict.gen_7262d296")}
               />
             </div>
             <textarea
@@ -195,15 +193,15 @@ export default function WorldRelationsSection(props: {
                     : prev,
                 )
               }
-              placeholder="关系说明"
+              placeholder={i18next.t("dict.gen_3449d171")}
             />
           </div>
         ))}
         {draftStructure.relations.locationControls.map((relation, index) => (
           <div key={relation.id || index} className="rounded-md border p-3 space-y-2">
             <div className="text-xs text-muted-foreground">
-              {(forceNameById.get(relation.forceId) || relation.forceId || "势力")} 控制{" "}
-              {(locationNameById.get(relation.locationId) || relation.locationId || "地点")}
+              {(forceNameById.get(relation.forceId) || relation.forceId || i18next.t("dict.gen_dcfe557b"))} 控制{" "}
+              {(locationNameById.get(relation.locationId) || relation.locationId || i18next.t("dict.gen_fc1a7d3c"))}
             </div>
             <div className="grid gap-2 md:grid-cols-2">
               <Input
@@ -225,7 +223,7 @@ export default function WorldRelationsSection(props: {
                       : prev,
                   )
                 }
-                placeholder="势力 ID"
+                placeholder={i18next.t("dict.gen_792e0e0d")}
               />
               <Input
                 value={relation.locationId}
@@ -246,7 +244,7 @@ export default function WorldRelationsSection(props: {
                       : prev,
                   )
                 }
-                placeholder="地点 ID"
+                placeholder={i18next.t("dict.gen_da2ee48f")}
               />
             </div>
             <Input
@@ -268,7 +266,7 @@ export default function WorldRelationsSection(props: {
                     : prev,
                 )
               }
-              placeholder="控制关系"
+              placeholder={i18next.t("dict.gen_7bf6c4ee")}
             />
             <textarea
               className="min-h-[70px] w-full rounded-md border bg-background p-2 text-sm"
@@ -290,38 +288,38 @@ export default function WorldRelationsSection(props: {
                     : prev,
                 )
               }
-              placeholder="说明"
+              placeholder={i18next.t("dict.gen_f411d0f1")}
             />
           </div>
         ))}
       </div>
 
       <div className="rounded-md border p-3 space-y-2">
-        <div className="font-medium">小说使用建议</div>
-        <div className="text-xs text-muted-foreground">这里只读展示世界样本进入小说后的可用方向。</div>
+        <div className="font-medium">{i18next.t("dict.gen_5cdbaa25")}</div>
+        <div className="text-xs text-muted-foreground">{i18next.t("dict.gen_31d9207b")}</div>
         <div className="grid gap-3 md:grid-cols-2">
           <div className="rounded-md border p-3 text-sm">
-            <div className="font-medium">推荐进入点</div>
+            <div className="font-medium">{i18next.t("dict.gen_eba66266")}</div>
             <div className="mt-2 whitespace-pre-wrap">
-              {draftBindingSupport.recommendedEntryPoints.join("\n") || "暂无"}
+              {draftBindingSupport.recommendedEntryPoints.join("\n") || i18next.t("common.none")}
             </div>
           </div>
           <div className="rounded-md border p-3 text-sm">
-            <div className="font-medium">高压势力</div>
+            <div className="font-medium">{i18next.t("dict.gen_64b79357")}</div>
             <div className="mt-2 whitespace-pre-wrap">
-              {draftBindingSupport.highPressureForces.join("\n") || "暂无"}
+              {draftBindingSupport.highPressureForces.join("\n") || i18next.t("common.none")}
             </div>
           </div>
           <div className="rounded-md border p-3 text-sm">
-            <div className="font-medium">可兼容冲突</div>
+            <div className="font-medium">{i18next.t("dict.gen_fb706d36")}</div>
             <div className="mt-2 whitespace-pre-wrap">
-              {draftBindingSupport.compatibleConflicts.join("\n") || "暂无"}
+              {draftBindingSupport.compatibleConflicts.join("\n") || i18next.t("common.none")}
             </div>
           </div>
           <div className="rounded-md border p-3 text-sm">
-            <div className="font-medium">禁止组合</div>
+            <div className="font-medium">{i18next.t("dict.gen_8deb5ccd")}</div>
             <div className="mt-2 whitespace-pre-wrap">
-              {draftBindingSupport.forbiddenCombinations.join("\n") || "暂无"}
+              {draftBindingSupport.forbiddenCombinations.join("\n") || i18next.t("common.none")}
             </div>
           </div>
         </div>

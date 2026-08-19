@@ -1,3 +1,6 @@
+import i18next from "i18next";
+import { clampScore, clampWordCount } from "@ai-novel/shared";
+
 export interface StructuredChapter {
   order: number;
   title: string;
@@ -222,27 +225,28 @@ function compactList(items: string[] | undefined): string {
 
 export function buildTaskSheetFromStructuredChapter(chapter: StructuredChapter): string {
   const lines: string[] = [];
-  lines.push(`章节目标：${chapter.purpose || chapter.summary || "推动主线"}`);
+  const targetText = chapter.purpose || chapter.summary || i18next.t("dict.gen_cd67f351");
+  lines.push(i18next.t("novels.structuredOutline.purposeTarget", { targetText, defaultValue: i18next.t("novels.structuredOutline.utils.1wl6xd", { val1: (targetText) }) }));
   if (chapter.keyEvents && chapter.keyEvents.length > 0) {
-    lines.push(`关键事件：${compactList(chapter.keyEvents)}`);
+    lines.push(i18next.t("novels.structuredOutline.utils.rgsjqc", { val1: compactList(chapter.keyEvents) }));
   }
   if (chapter.involvedRoles && chapter.involvedRoles.length > 0) {
-    lines.push(`涉及角色：${compactList(chapter.involvedRoles)}`);
+    lines.push(i18next.t("novels.structuredOutline.utils.4iystl", { val1: compactList(chapter.involvedRoles) }));
   }
   if (typeof chapter.conflictLevel === "number") {
-    lines.push(`冲突等级：${chapter.conflictLevel}`);
+    lines.push(i18next.t("novels.structuredOutline.utils.2vuot9", { val1: chapter.conflictLevel }));
   }
   if (typeof chapter.revealLevel === "number") {
-    lines.push(`揭露等级：${chapter.revealLevel}`);
+    lines.push(i18next.t("novels.structuredOutline.utils.1y9wmx", { val1: chapter.revealLevel }));
   }
   if (chapter.pacing?.trim()) {
-    lines.push(`节奏：${chapter.pacing.trim()}`);
+    lines.push(i18next.t("novels.structuredOutline.utils.1p5ntp", { val1: chapter.pacing.trim() }));
   }
   if (chapter.foreshadow?.trim()) {
-    lines.push(`伏笔：${chapter.foreshadow.trim()}`);
+    lines.push(i18next.t("novels.structuredOutline.utils.26ndad", { val1: chapter.foreshadow.trim() }));
   }
   if (chapter.mustAvoid?.trim()) {
-    lines.push(`禁止事项：${chapter.mustAvoid.trim()}`);
+    lines.push(i18next.t("novels.structuredOutline.utils.j4v8kb", { val1: chapter.mustAvoid.trim() }));
   }
   return lines.join("\n");
 }
@@ -260,10 +264,10 @@ export function applyStructuredChapterBatch(
     chapters: (volume.chapters ?? []).map((chapter) => {
       const nextChapter: StructuredChapter = { ...chapter };
       if (typeof patch.conflictLevel === "number") {
-        nextChapter.conflictLevel = Math.max(0, Math.min(100, Math.round(patch.conflictLevel)));
+        nextChapter.conflictLevel = clampScore(patch.conflictLevel);
       }
       if (typeof patch.targetWordCount === "number") {
-        nextChapter.targetWordCount = Math.max(200, Math.round(patch.targetWordCount));
+        nextChapter.targetWordCount = clampWordCount(patch.targetWordCount);
       }
       if (patch.generateTaskSheet) {
         nextChapter.taskSheet = buildTaskSheetFromStructuredChapter(nextChapter);

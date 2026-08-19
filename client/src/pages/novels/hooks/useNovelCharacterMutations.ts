@@ -1,3 +1,4 @@
+import i18next from "i18next";
 import { useMutation, useQuery, type QueryClient } from "@tanstack/react-query";
 import type { LLMProvider } from "@ai-novel/shared/types/llm";
 import {
@@ -121,7 +122,7 @@ export function useNovelCharacterMutations(input: UseNovelCharacterMutationsInpu
         endOrder: pipelineForm.endOrder,
       }),
     onSuccess: async (response) => {
-      setCharacterMessage(response.message ?? `角色时间线同步完成，本次新增 ${response.data?.syncedCount ?? 0} 条。`);
+      setCharacterMessage(response.message ?? i18next.t("novels.useNovelCharacterMutations.hm5mv2", { val1: response.data?.syncedCount ?? 0 }));
       await invalidateCharacterViews(queryClient, id, selectedCharacterId || "none");
     },
   });
@@ -133,7 +134,7 @@ export function useNovelCharacterMutations(input: UseNovelCharacterMutationsInpu
         endOrder: pipelineForm.endOrder,
       }),
     onSuccess: async (response) => {
-      setCharacterMessage(response.message ?? `全角色时间线同步完成，共新增 ${response.data?.syncedCount ?? 0} 条事件。`);
+      setCharacterMessage(response.message ?? i18next.t("novels.useNovelCharacterMutations.jd2ytr", { val1: response.data?.syncedCount ?? 0 }));
       await invalidateCharacterViews(queryClient, id, selectedCharacterId || "none");
     },
   });
@@ -146,7 +147,7 @@ export function useNovelCharacterMutations(input: UseNovelCharacterMutationsInpu
         temperature: 0.4,
       }),
     onSuccess: async () => {
-      setCharacterMessage("角色信息已按时间线完成演进更新。");
+      setCharacterMessage(i18next.t("dict.gen_8854c069"));
       await invalidateCharacterViews(queryClient, id, selectedCharacterId || "none");
     },
   });
@@ -161,10 +162,10 @@ export function useNovelCharacterMutations(input: UseNovelCharacterMutationsInpu
       }),
     onSuccess: (response) => {
       const count = Object.keys(response.data?.fields ?? {}).length;
-      setCharacterMessage(count > 0 ? `已生成 ${count} 项外显资料建议，请确认后写入。` : "当前角色没有可补写的外显资料。");
+      setCharacterMessage(count > 0 ? i18next.t("novels.useNovelCharacterMutations.5ertsw", { val1: count }) : i18next.t("dict.gen_7adea5b7"));
     },
     onError: (error) => {
-      setCharacterMessage(error instanceof Error ? error.message : "外显资料生成失败。");
+      setCharacterMessage(error instanceof Error ? error.message : i18next.t("dict.gen_5465a1ee"));
     },
   });
 
@@ -178,11 +179,11 @@ export function useNovelCharacterMutations(input: UseNovelCharacterMutationsInpu
     },
     onSuccess: async (response) => {
       const count = response.data?.appliedFields.length ?? 0;
-      setCharacterMessage(count > 0 ? `已写入 ${count} 项外显资料。` : "没有新的外显资料需要写入。");
+      setCharacterMessage(count > 0 ? i18next.t("novels.useNovelCharacterMutations.ah1lty", { val1: count }) : i18next.t("dict.gen_1df73f4d"));
       await invalidateCharacterViews(queryClient, id, selectedCharacterId || "none");
     },
     onError: (error) => {
-      setCharacterMessage(error instanceof Error ? error.message : "外显资料写入失败。");
+      setCharacterMessage(error instanceof Error ? error.message : i18next.t("dict.gen_0589d2f6"));
     },
   });
 
@@ -196,10 +197,10 @@ export function useNovelCharacterMutations(input: UseNovelCharacterMutationsInpu
       }),
     onSuccess: (response) => {
       const count = response.data?.results.filter((item) => item.hasApplicableChanges).length ?? 0;
-      setCharacterMessage(count > 0 ? `已生成 ${count} 个角色的外显资料建议，请确认后写入。` : "当前角色资料暂时没有需要补写的外显内容。");
+      setCharacterMessage(count > 0 ? i18next.t("novels.useNovelCharacterMutations.ceyxjt", { val1: count }) : i18next.t("dict.gen_29423d7e"));
     },
     onError: (error) => {
-      setCharacterMessage(error instanceof Error ? error.message : "批量外显资料生成失败。");
+      setCharacterMessage(error instanceof Error ? error.message : i18next.t("dict.gen_43843e60"));
     },
   });
 
@@ -216,11 +217,11 @@ export function useNovelCharacterMutations(input: UseNovelCharacterMutationsInpu
     },
     onSuccess: async (response) => {
       const count = response.data?.results.reduce((sum, item) => sum + item.appliedFields.length, 0) ?? 0;
-      setCharacterMessage(count > 0 ? `已批量写入 ${count} 项外显资料。` : "没有新的外显资料需要批量写入。");
+      setCharacterMessage(count > 0 ? i18next.t("novels.useNovelCharacterMutations.i2spm8", { val1: count }) : i18next.t("dict.gen_0aedf9d4"));
       await invalidateCharacterViews(queryClient, id, selectedCharacterId || "none");
     },
     onError: (error) => {
-      setCharacterMessage(error instanceof Error ? error.message : "批量外显资料写入失败。");
+      setCharacterMessage(error instanceof Error ? error.message : i18next.t("dict.gen_36d36323"));
     },
   });
 
@@ -237,10 +238,10 @@ export function useNovelCharacterMutations(input: UseNovelCharacterMutationsInpu
       const issueText = (response.data?.issues ?? [])
         .map((item) => `${item.severity.toUpperCase()}: ${item.message}`)
         .join(" | ");
-      setCharacterMessage(`世界规则检查(${status}) ${warningText} ${issueText}`.trim());
+      setCharacterMessage(i18next.t("novels.useNovelCharacterMutations.x760gu", { val1: status, val2: warningText, val3: issueText }).trim());
     },
     onError: (error) => {
-      setCharacterMessage(error instanceof Error ? error.message : "世界规则检查失败。");
+      setCharacterMessage(error instanceof Error ? error.message : i18next.t("dict.worldRuleCheckFailed"));
     },
   });
 
@@ -263,7 +264,7 @@ export function useNovelCharacterMutations(input: UseNovelCharacterMutationsInpu
         currentGoal: characterForm.currentGoal,
       }),
     onSuccess: async () => {
-      setCharacterMessage("角色信息已保存。");
+      setCharacterMessage(i18next.t("dict.gen_7144414b"));
       await invalidateCharacterViews(queryClient, id, selectedCharacterId || "none");
     },
   });
@@ -271,7 +272,7 @@ export function useNovelCharacterMutations(input: UseNovelCharacterMutationsInpu
   const importBaseCharacterMutation = useMutation({
     mutationFn: async () => {
       if (!selectedBaseCharacter) {
-        throw new Error("请先选择要导入的基础角色。");
+        throw new Error(i18next.t("dict.gen_d0bda959"));
       }
       return createNovelCharacter(id, {
         name: selectedBaseCharacter.name,
@@ -283,21 +284,21 @@ export function useNovelCharacterMutations(input: UseNovelCharacterMutationsInpu
       });
     },
     onSuccess: async (response) => {
-      setCharacterMessage(response.message ?? "基础角色已导入到当前小说。");
+      setCharacterMessage(response.message ?? i18next.t("dict.gen_5ad831a8"));
       if (response.data?.id) {
         setSelectedCharacterId(response.data.id);
       }
       await invalidateCharacterViews(queryClient, id, response.data?.id ?? selectedCharacterId ?? "none");
     },
     onError: (error) => {
-      setCharacterMessage(error instanceof Error ? error.message : "导入基础角色失败。");
+      setCharacterMessage(error instanceof Error ? error.message : i18next.t("dict.gen_9a51c3e4"));
     },
   });
 
   const quickCreateCharacterMutation = useMutation({
     mutationFn: async (payload?: QuickCharacterCreatePayload) => {
       const nextName = payload?.name?.trim() || quickCharacterForm.name.trim();
-      const nextRole = payload?.role?.trim() || quickCharacterForm.role.trim() || "主角";
+      const nextRole = payload?.role?.trim() || quickCharacterForm.role.trim() || i18next.t("dict.mainCharacter");
       const generatedProfile = payload ? buildCharacterProfileFromWizard(payload) : {};
       return createNovelCharacter(id, {
         name: nextName,
@@ -308,7 +309,7 @@ export function useNovelCharacterMutations(input: UseNovelCharacterMutationsInpu
       });
     },
     onSuccess: async (response) => {
-      setCharacterMessage(response.message ?? "角色创建成功。");
+      setCharacterMessage(response.message ?? i18next.t("dict.gen_88869184"));
       setQuickCharacterForm((prev) => ({ ...prev, name: "" }));
       if (response.data?.id) {
         setSelectedCharacterId(response.data.id);
@@ -316,14 +317,14 @@ export function useNovelCharacterMutations(input: UseNovelCharacterMutationsInpu
       await invalidateCharacterViews(queryClient, id, response.data?.id ?? selectedCharacterId ?? "none");
     },
     onError: (error) => {
-      setCharacterMessage(error instanceof Error ? error.message : "角色创建失败。");
+      setCharacterMessage(error instanceof Error ? error.message : i18next.t("dict.gen_84f0819f"));
     },
   });
 
   const deleteCharacterMutation = useMutation({
     mutationFn: (characterId: string) => deleteNovelCharacter(id, characterId),
     onSuccess: async (_response, deletedCharacterId) => {
-      setCharacterMessage("角色已删除。");
+      setCharacterMessage(i18next.t("dict.gen_98b00c5e"));
       if (selectedCharacterId === deletedCharacterId) {
         const fallback = characters.find((item) => item.id !== deletedCharacterId);
         setSelectedCharacterId(fallback?.id ?? "");
@@ -331,7 +332,7 @@ export function useNovelCharacterMutations(input: UseNovelCharacterMutationsInpu
       await invalidateCharacterViews(queryClient, id, deletedCharacterId);
     },
     onError: (error) => {
-      setCharacterMessage(error instanceof Error ? error.message : "删除角色失败。");
+      setCharacterMessage(error instanceof Error ? error.message : i18next.t("dict.gen_556815c0"));
     },
   });
 
@@ -344,7 +345,7 @@ export function useNovelCharacterMutations(input: UseNovelCharacterMutationsInpu
         temperature: payload.temperature ?? 0.55,
       }),
     onError: (error) => {
-      setCharacterMessage(error instanceof Error ? error.message : "补充角色生成失败。");
+      setCharacterMessage(error instanceof Error ? error.message : i18next.t("dict.gen_c7b0928b"));
     },
   });
 
@@ -355,7 +356,7 @@ export function useNovelCharacterMutations(input: UseNovelCharacterMutationsInpu
       const relationCount = response.data?.relationCount ?? 0;
       setCharacterMessage(
         response.message
-        ?? `补充角色已创建${relationCount > 0 ? `，并同步 ${relationCount} 条结构化关系` : ""}。`,
+        ?? i18next.t("novels.supplementalCharCreated", { count: relationCount, relText: relationCount > 0 ? i18next.t("novels.useNovelCharacterMutations.304sf5", { val1: (relationCount) }) : "", defaultValue: `补充角色已创建${relationCount > 0 ? `，并同步 ${relationCount} 条结构化关系` : ""}。` }),
       );
       if (createdCharacterId) {
         setSelectedCharacterId(createdCharacterId);
@@ -363,7 +364,7 @@ export function useNovelCharacterMutations(input: UseNovelCharacterMutationsInpu
       await invalidateCharacterViews(queryClient, id, createdCharacterId || selectedCharacterId || "none");
     },
     onError: (error) => {
-      setCharacterMessage(error instanceof Error ? error.message : "应用补充角色失败。");
+      setCharacterMessage(error instanceof Error ? error.message : i18next.t("dict.gen_e113be50"));
     },
   });
 

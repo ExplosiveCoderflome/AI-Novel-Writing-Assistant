@@ -6,14 +6,9 @@ import type {
   NovelWorkflowResumeTarget,
   NovelWorkflowStage,
 } from "@ai-novel/shared/types/novelWorkflow";
-import { getNovelWorkflowLaneDescriptor } from "@ai-novel/shared/types/novelWorkflow";
 
 export const NOVEL_WORKFLOW_STAGE_LABELS: Record<NovelWorkflowStage, string> = {
   project_setup: "项目设定",
-  creation_intent: "理解创作想法",
-  short_story_plan: "规划短篇",
-  short_story_draft: "生成完整作品",
-  short_story_review: "全篇审校",
   auto_director: "AI 自动导演",
   story_macro: "故事宏观规划",
   world_setup: "世界观准备",
@@ -26,10 +21,6 @@ export const NOVEL_WORKFLOW_STAGE_LABELS: Record<NovelWorkflowStage, string> = {
 
 export const NOVEL_WORKFLOW_STAGE_PROGRESS: Record<NovelWorkflowStage, number> = {
   project_setup: 0.08,
-  creation_intent: 0.08,
-  short_story_plan: 0.2,
-  short_story_draft: 0.35,
-  short_story_review: 0.9,
   auto_director: 0.15,
   story_macro: 0.26,
   world_setup: 0.34,
@@ -42,10 +33,6 @@ export const NOVEL_WORKFLOW_STAGE_PROGRESS: Record<NovelWorkflowStage, number> =
 
 export const NOVEL_WORKFLOW_STAGE_STEPS = [
   { key: "project_setup", label: "项目设定" },
-  { key: "creation_intent", label: "理解创作想法" },
-  { key: "short_story_plan", label: "规划短篇" },
-  { key: "short_story_draft", label: "生成完整作品" },
-  { key: "short_story_review", label: "全篇审校" },
   { key: "auto_director", label: "自动导演" },
   { key: "story_macro", label: "故事宏观规划" },
   { key: "world_setup", label: "世界观准备" },
@@ -61,23 +48,6 @@ export function buildNovelCreateResumeTarget(taskId: string, mode: "director" | 
     route: "/novels/create",
     taskId,
     mode,
-  };
-}
-
-export function buildCreationStudioResumeTarget(taskId: string): NovelWorkflowResumeTarget {
-  return {
-    route: "/create",
-    taskId,
-    lane: "creation_studio",
-  };
-}
-
-export function buildShortStoryResumeTarget(novelId: string, taskId?: string | null): NovelWorkflowResumeTarget {
-  return {
-    route: "/novels/:id/story",
-    novelId,
-    taskId: taskId ?? null,
-    lane: "creation_studio",
   };
 }
 
@@ -104,9 +74,6 @@ export function resumeTargetToRoute(target: NovelWorkflowResumeTarget | null | u
   if (!target) {
     return "/tasks";
   }
-  if (target.route === "/create") {
-    return target.taskId ? `/create?taskId=${encodeURIComponent(target.taskId)}` : "/create";
-  }
   if (target.route === "/novels/create") {
     if (target.mode === "director") {
       const searchParams = new URLSearchParams();
@@ -129,10 +96,6 @@ export function resumeTargetToRoute(target: NovelWorkflowResumeTarget | null | u
 
   if (!target.novelId) {
     return "/tasks";
-  }
-
-  if (target.route === "/novels/:id/story") {
-    return `/novels/${target.novelId}/story`;
   }
 
   const searchParams = new URLSearchParams();
@@ -237,9 +200,13 @@ export function defaultWorkflowTitle(input: {
   title?: string | null;
   novelTitle?: string | null;
 }): string {
-  const novelTitle = input.novelTitle?.trim() || input.title?.trim();
-  if (novelTitle) {
-    return novelTitle;
+  const title = input.title?.trim();
+  if (title) {
+    return title;
   }
-  return getNovelWorkflowLaneDescriptor(input.lane).defaultTitle;
+  const novelTitle = input.novelTitle?.trim();
+  if (novelTitle) {
+    return input.lane === "auto_director" ? `《${novelTitle}》自动导演` : `《${novelTitle}》流程任务`;
+  }
+  return input.lane === "auto_director" ? "AI 自动导演小说" : "小说流程任务";
 }

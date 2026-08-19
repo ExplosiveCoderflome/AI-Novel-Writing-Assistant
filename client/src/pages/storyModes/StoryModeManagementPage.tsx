@@ -1,13 +1,14 @@
+import i18next from "i18next";
+import { useTranslation } from "react-i18next";
 import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import type { NovelStoryMode, StoryModeProfile } from "@ai-novel/shared/types/storyMode";
+import type { StoryModeProfile } from "@ai-novel/shared/types/storyMode";
 import {
   createStoryModeChildren,
   createStoryModeTree,
   deleteStoryMode,
   flattenStoryModeTreeOptions,
   generateStoryModeChild,
-  generateStoryModeExpansion,
   generateStoryModeTree,
   getStoryModeTree,
   updateStoryMode,
@@ -15,6 +16,7 @@ import {
   type StoryModeTreeNode,
 } from "@/api/storyMode";
 import { queryKeys } from "@/api/queryKeys";
+import LLMSelector from "@/components/common/LLMSelector";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import {
@@ -29,10 +31,8 @@ import { Input } from "@/components/ui/input";
 import { toast } from "@/components/ui/toast";
 import { useLLMStore } from "@/store/llmStore";
 import StoryModeProfileFields from "./components/StoryModeProfileFields";
-import StoryModeTreeBrowser from "./components/StoryModeTreeBrowser";
+import StoryModeTreeCard from "./components/StoryModeTreeCard";
 import SelectControl from "@/components/common/SelectControl";
-import StoryModeCreateDialog from "./components/StoryModeCreateDialog";
-import StoryModeExpansionDialog from "./components/StoryModeExpansionDialog";
 
 type StoryModeProfileDraft = StoryModeProfile;
 
@@ -126,6 +126,7 @@ function toDialogState(node?: StoryModeTreeNode | null): StoryModeDialogState {
 }
 
 export default function StoryModeManagementPage() {
+  const { t, i18n } = useTranslation();
   const llm = useLLMStore();
   const queryClient = useQueryClient();
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
@@ -138,12 +139,6 @@ export default function StoryModeManagementPage() {
   const [activeGeneratedChildIndex, setActiveGeneratedChildIndex] = useState<number | null>(null);
   const [createDraft, setCreateDraft] = useState<StoryModeTreeDraft>(createEmptyDraft());
   const [editState, setEditState] = useState<StoryModeDialogState>(toDialogState());
-  const [expansionDialogOpen, setExpansionDialogOpen] = useState(false);
-  const [expansionParentId, setExpansionParentId] = useState("");
-  const [expansionPrompt, setExpansionPrompt] = useState("");
-  const [expansionCount, setExpansionCount] = useState(3);
-  const [expansionCandidates, setExpansionCandidates] = useState<StoryModeTreeDraft[]>([]);
-  const [selectedExpansionIndexes, setSelectedExpansionIndexes] = useState<number[]>([]);
 
   const storyModeTreeQuery = useQuery({
     queryKey: queryKeys.storyModes.all,
@@ -161,7 +156,6 @@ export default function StoryModeManagementPage() {
     () => flattenStoryModeTreeOptions(storyModeTree).filter((item) => item.level === 0),
     [storyModeTree],
   );
-  const rootOptions = parentOptions;
   const blockedParentIds = useMemo(
     () => editingStoryMode ? new Set([editingStoryMode.id, ...collectDescendantIds(editingStoryMode)]) : new Set<string>(),
     [editingStoryMode],
@@ -204,7 +198,7 @@ export default function StoryModeManagementPage() {
     }),
     onSuccess: async () => {
       await invalidate();
-      toast.success("推进模式已创建。");
+      toast.success(i18next.t("dict.gen_8d7aca29"));
       setCreateDialogOpen(false);
     },
   });
@@ -212,7 +206,7 @@ export default function StoryModeManagementPage() {
   const createSelectedChildrenMutation = useMutation({
     mutationFn: async () => {
       if (!defaultParentId) {
-        throw new Error("父级推进模式不存在。");
+        throw new Error(i18next.t("dict.gen_9ef42486"));
       }
 
       const drafts = selectedGeneratedChildIndexes
@@ -225,7 +219,7 @@ export default function StoryModeManagementPage() {
         }));
 
       if (drafts.length === 0) {
-        throw new Error("请至少选择一个子类候选。");
+        throw new Error(i18next.t("dict.gen_6621eb56"));
       }
 
       return createStoryModeChildren({
@@ -236,7 +230,7 @@ export default function StoryModeManagementPage() {
     onSuccess: async (response) => {
       await invalidate();
       const savedCount = response.data?.length ?? selectedGeneratedChildIndexes.length;
-      toast.success(`已批量创建 ${savedCount} 个推进模式子类。`);
+      toast.success(i18next.t("storyModes.storyModeManagementPage.p9qu59", { val1: savedCount }));
       setCreateDialogOpen(false);
     },
   });
@@ -244,7 +238,7 @@ export default function StoryModeManagementPage() {
   const updateMutation = useMutation({
     mutationFn: () => {
       if (!editingStoryMode) {
-        throw new Error("推进模式不存在。");
+        throw new Error(i18next.t("dict.gen_644dbb98"));
       }
       return updateStoryMode(editingStoryMode.id, {
         name: editState.name.trim(),
@@ -255,7 +249,7 @@ export default function StoryModeManagementPage() {
     },
     onSuccess: async () => {
       await invalidate();
-      toast.success("推进模式已更新。");
+      toast.success(i18next.t("dict.gen_04e95495"));
       setEditingStoryModeId("");
     },
   });
@@ -264,58 +258,7 @@ export default function StoryModeManagementPage() {
     mutationFn: (id: string) => deleteStoryMode(id),
     onSuccess: async () => {
       await invalidate();
-      toast.success("推进模式已删除。");
-    },
-  });
-
-  const expansionMutation = useMutation({
-    mutationFn: async () => {
-      const response = await generateStoryModeExpansion({
-        ...(expansionParentId ? { parentId: expansionParentId } : {}),
-        prompt: expansionPrompt.trim() || undefined,
-        count: expansionCount,
-        provider: llm.provider,
-        model: llm.model,
-        temperature: llm.temperature,
-        maxTokens: llm.maxTokens,
-      });
-      return response.data ?? [];
-    },
-    onSuccess: (drafts) => {
-      setExpansionCandidates(drafts.map(cloneDraft));
-      setSelectedExpansionIndexes(drafts.map((_draft, index) => index));
-      toast.success(`AI 已推荐 ${drafts.length} 个新的推进方向。`);
-    },
-  });
-
-  const saveExpansionMutation = useMutation({
-    mutationFn: async () => {
-      const drafts = selectedExpansionIndexes
-        .map((index) => expansionCandidates[index])
-        .filter((draft): draft is StoryModeTreeDraft => Boolean(draft))
-        .map((draft) => ({ ...cloneDraft(draft), children: [], profile: normalizeProfileInput(draft.profile) }));
-      if (drafts.length === 0) throw new Error("请至少选择一个推进模式方向。");
-      if (expansionParentId) {
-        return createStoryModeChildren({ parentId: expansionParentId, drafts });
-      }
-      const created: NovelStoryMode[] = [];
-      for (const draft of drafts) {
-        const response = await createStoryModeTree({
-          name: draft.name,
-          description: draft.description,
-          template: draft.template,
-          profile: draft.profile,
-          parentId: null,
-          children: [],
-        });
-        if (response.data) created.push(response.data);
-      }
-      return { success: true, data: created, message: "推进模式根节点创建成功。" };
-    },
-    onSuccess: async (response) => {
-      await invalidate();
-      toast.success(`已加入 ${response.data?.length ?? selectedExpansionIndexes.length} 个新的推进模式。`);
-      setExpansionDialogOpen(false);
+      toast.success(i18next.t("dict.gen_65474663"));
     },
   });
 
@@ -362,7 +305,7 @@ export default function StoryModeManagementPage() {
         setSelectedGeneratedChildIndexes(candidates.map((_item, index) => index));
         setActiveGeneratedChildIndex(0);
         setCreateDraft(cloneDraft(candidates[0]));
-        toast.success(`AI 已生成 ${candidates.length} 个推进模式子类草稿。`);
+        toast.success(i18next.t("storyModes.storyModeManagementPage.7xu64v", { val1: candidates.length }));
         return;
       }
       setSelectedGeneratedChildIndexes([]);
@@ -372,7 +315,7 @@ export default function StoryModeManagementPage() {
       }
       setGeneratedChildCandidates([]);
       setCreateDraft(cloneDraft(result.draft));
-      toast.success("AI 推进模式树草稿已生成。");
+      toast.success(i18next.t("dict.aiProgressTreeGenerated"));
     },
   });
 
@@ -414,8 +357,8 @@ export default function StoryModeManagementPage() {
   const handleDelete = (node: StoryModeTreeNode) => {
     const descendantCount = collectDescendantIds(node).length;
     const message = descendantCount > 0
-      ? `确认删除推进模式「${node.name}」吗？这会同时删除其下 ${descendantCount} 个子类，此操作不可恢复。`
-      : `确认删除推进模式「${node.name}」吗？此操作不可恢复。`;
+      ? i18next.t("storyModes.storyModeManagementPage.zfqqlc", { val1: node.name, val2: descendantCount })
+      : i18next.t("storyModes.storyModeManagementPage.kbsss6", { val1: node.name });
     const confirmed = window.confirm(message);
     if (!confirmed) {
       return;
@@ -425,9 +368,9 @@ export default function StoryModeManagementPage() {
 
   const selectedParentLabel = useMemo(() => {
     if (!defaultParentId) {
-      return "作为根推进模式创建";
+      return i18next.t("dict.rootPropulsionModeCreation");
     }
-    return parentOptions.find((item) => item.id === defaultParentId)?.path ?? "作为根推进模式创建";
+    return parentOptions.find((item) => item.id === defaultParentId)?.path ?? i18next.t("dict.rootPropulsionModeCreation");
   }, [defaultParentId, parentOptions]);
 
   const editParentOptions = useMemo(
@@ -437,79 +380,198 @@ export default function StoryModeManagementPage() {
 
   return (
     <div className="space-y-4">
-      <StoryModeCreateDialog
-        open={createDialogOpen}
-        onOpenChange={setCreateDialogOpen}
-        isCreatingChild={isCreatingChild}
-        selectedParentLabel={selectedParentLabel}
-        generationPrompt={generationPrompt}
-        onGenerationPromptChange={setGenerationPrompt}
-        childDerivationCount={childDerivationCount}
-        onChildDerivationCountChange={setChildDerivationCount}
-        draft={createDraft}
-        onDraftChange={updateCreateDraft}
-        generatedChildCandidates={generatedChildCandidates}
-        selectedGeneratedChildIndexes={selectedGeneratedChildIndexes}
-        activeGeneratedChildIndex={activeGeneratedChildIndex}
-        onApplyGeneratedChild={handleApplyGeneratedChild}
-        onToggleGeneratedChildSelection={handleToggleGeneratedChildSelection}
-        onGenerate={() => generateMutation.mutate()}
-        onReset={() => {
-          setActiveGeneratedChildIndex(null);
-          setCreateDraft(createEmptyDraft());
-        }}
-        isGenerating={generateMutation.isPending}
-        onSaveCurrent={() => createMutation.mutate()}
-        isSavingCurrent={createMutation.isPending}
-        onSaveSelectedChildren={() => createSelectedChildrenMutation.mutate()}
-        isSavingSelectedChildren={createSelectedChildrenMutation.isPending}
-      />
+      <Dialog open={createDialogOpen} onOpenChange={setCreateDialogOpen}>
+        <DialogContent className="max-h-[90vh] max-w-5xl overflow-auto">
+          <DialogHeader>
+            <DialogTitle>{i18next.t("dict.creationMode")}</DialogTitle>
+            <DialogDescription>
+              {isCreatingChild
+                ? i18next.t("dict.gen_beeeb5b0")
+                : i18next.t("dict.gen_9a4eea29")}
+            </DialogDescription>
+          </DialogHeader>
 
-      <StoryModeExpansionDialog
-        open={expansionDialogOpen}
-        onOpenChange={(open) => {
-          setExpansionDialogOpen(open);
-          if (!open) {
-            setExpansionCandidates([]);
-            setSelectedExpansionIndexes([]);
-          }
-        }}
-        rootOptions={rootOptions}
-        parentId={expansionParentId}
-        onParentIdChange={(id) => { setExpansionParentId(id); setExpansionCandidates([]); setSelectedExpansionIndexes([]); }}
-        prompt={expansionPrompt}
-        onPromptChange={setExpansionPrompt}
-        count={expansionCount}
-        onCountChange={setExpansionCount}
-        candidates={expansionCandidates}
-        selectedIndexes={selectedExpansionIndexes}
-        onToggle={(index) => setSelectedExpansionIndexes((prev) => prev.includes(index) ? prev.filter((item) => item !== index) : [...prev, index].sort((a, b) => a - b))}
-        onGenerate={() => expansionMutation.mutate()}
-        onSave={() => saveExpansionMutation.mutate()}
-        isGenerating={expansionMutation.isPending}
-        isSaving={saveExpansionMutation.isPending}
-      />
+          <div className="space-y-4">
+            <div className="rounded-xl border border-primary/20 bg-primary/5 p-4">
+              <div className="text-sm font-semibold text-foreground">{i18next.t("dict.gen_daf26d34")}</div>
+              <div className="mt-1 text-sm text-muted-foreground">{selectedParentLabel}</div>
+            </div>
+
+            <div className="space-y-3 rounded-xl border border-primary/20 bg-primary/5 p-4">
+              <div className="space-y-1">
+                <div className="text-sm font-semibold text-foreground">{i18next.t("dict.aiGenerationType")}</div>
+                <div className="text-xs leading-5 text-muted-foreground">
+                  {isCreatingChild
+                    ? i18next.t("dict.aiGenerateChildNodesDraft")
+                    : i18next.t("dict.aiOutputEditableProgressTreeDraft")}
+                </div>
+              </div>
+              <LLMSelector />
+              {isCreatingChild ? (
+                <label className="space-y-2 text-sm">
+                  <span className="font-medium text-foreground">{i18next.t("dict.gen_9a25063e")}</span>
+                  <SelectControl
+                    className="w-full rounded-md border bg-background p-2 text-sm"
+                    value={childDerivationCount}
+                    onChange={(event) => setChildDerivationCount(Number(event.target.value))}
+                  >
+                    <option value={1}>{i18next.t("dict.oneItem")}</option>
+                    <option value={2}>{i18next.t("dict.twoItems")}</option>
+                    <option value={3}>{i18next.t("dict.threeItems")}</option>
+                    <option value={4}>{i18next.t("dict.fourItems")}</option>
+                    <option value={5}>{i18next.t("dict.fiveItems")}</option>
+                  </SelectControl>
+                </label>
+              ) : null}
+              <textarea
+                rows={4}
+                className="w-full rounded-md border bg-background px-3 py-2 text-sm outline-none transition focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
+                value={generationPrompt}
+                onChange={(event) => setGenerationPrompt(event.target.value)}
+                placeholder={isCreatingChild
+                  ? i18next.t("dict.gen_d7889c80")
+                  : i18next.t("dict.gen_37ab65d0")}
+              />
+              <div className="flex gap-2">
+                <Button
+                  type="button"
+                  onClick={() => generateMutation.mutate()}
+                  disabled={(!generationPrompt.trim() && !isCreatingChild) || generateMutation.isPending}
+                >
+                  {generateMutation.isPending
+                    ? i18next.t("dict.gen_4d020ba3")
+                    : isCreatingChild ? i18next.t("dict.gen_662a529b") : i18next.t("dict.gen_7bb760ad")}
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => {
+                    setActiveGeneratedChildIndex(null);
+                    setCreateDraft(createEmptyDraft());
+                  }}
+                >{i18next.t("genres.genreCreateDialog.ixbv2v")}</Button>
+              </div>
+              {isCreatingChild && generatedChildCandidates.length > 0 ? (
+                <div className="space-y-2 rounded-lg border border-border/70 bg-background/60 p-3">
+                  <div className="flex items-center justify-between gap-3">
+                    <div className="text-sm font-medium text-foreground">{i18next.t("dict.gen_a9f8bcbb")}</div>
+                    <div className="text-xs text-muted-foreground">
+                      已选 {selectedGeneratedChildIndexes.length} / {generatedChildCandidates.length}
+                    </div>
+                  </div>
+                  <div className="text-xs leading-5 text-muted-foreground">{i18next.t("storyModes.storyModeManagementPage.8rx8gd")}</div>
+                  <div className="grid gap-2">
+                    {generatedChildCandidates.map((candidate, index) => (
+                      <div
+                        key={`${candidate.name}-${index}`}
+                        className={`rounded-lg border bg-background px-3 py-3 transition ${
+                          activeGeneratedChildIndex === index
+                            ? "border-primary/60 bg-primary/5"
+                            : "border-border/70"
+                        }`}
+                      >
+                        <div className="flex items-start gap-3">
+                          <input
+                            type="checkbox"
+                            className="mt-1 h-4 w-4 rounded border-border"
+                            checked={selectedGeneratedChildIndexes.includes(index)}
+                            onChange={() => handleToggleGeneratedChildSelection(index)}
+                          />
+                          <button
+                            type="button"
+                            className="min-w-0 flex-1 text-left"
+                            onClick={() => handleApplyGeneratedChild(candidate, index)}
+                          >
+                            <div className="flex items-center justify-between gap-3">
+                              <div className="text-sm font-medium text-foreground">{candidate.name}</div>
+                              <span className="text-xs text-muted-foreground">
+                                {activeGeneratedChildIndex === index ? i18next.t("dict.gen_b625a745") : i18next.t("storyModes.storyModeManagementPage.u25cjk", { val1: index + 1 })}
+                              </span>
+                            </div>
+                            <div className="mt-1 text-sm text-muted-foreground">
+                              {candidate.description?.trim() || candidate.profile.coreDrive}
+                            </div>
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ) : null}
+            </div>
+
+            <label className="space-y-2 text-sm">
+              <span className="font-medium text-foreground">{i18next.t("dict.gen_d7ec2d3f")}</span>
+              <Input value={createDraft.name} onChange={(event) => updateCreateDraft((prev) => ({ ...prev, name: event.target.value }))} />
+            </label>
+            <label className="space-y-2 text-sm">
+              <span className="font-medium text-foreground">{i18next.t("dict.gen_3bdd08ad")}</span>
+              <textarea
+                rows={3}
+                className="w-full rounded-md border bg-background px-3 py-2 text-sm outline-none transition focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
+                value={createDraft.description ?? ""}
+                onChange={(event) => updateCreateDraft((prev) => ({ ...prev, description: event.target.value }))}
+              />
+            </label>
+            <label className="space-y-2 text-sm">
+              <span className="font-medium text-foreground">{i18next.t("dict.manualTemplateAddition")}</span>
+              <textarea
+                rows={3}
+                className="w-full rounded-md border bg-background px-3 py-2 text-sm outline-none transition focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
+                value={createDraft.template ?? ""}
+                onChange={(event) => updateCreateDraft((prev) => ({ ...prev, template: event.target.value }))}
+              />
+            </label>
+
+            <StoryModeProfileFields
+              value={createDraft.profile}
+              onChange={(profile) => updateCreateDraft((prev) => ({ ...prev, profile }))}
+            />
+          </div>
+
+          <DialogFooter className="gap-2">
+            <Button type="button" variant="outline" onClick={() => setCreateDialogOpen(false)}>{i18next.t("common.cancel")}</Button>
+            {isCreatingChild && generatedChildCandidates.length > 0 ? (
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => createSelectedChildrenMutation.mutate()}
+                disabled={createSelectedChildrenMutation.isPending || selectedGeneratedChildIndexes.length === 0}
+              >
+                {createSelectedChildrenMutation.isPending
+                  ? i18next.t("dict.gen_c7b65d86")
+                  : i18next.t("storyModes.storyModeManagementPage.apdqsx", { val1: selectedGeneratedChildIndexes.length })}
+              </Button>
+            ) : null}
+            <Button
+              type="button"
+              onClick={() => createMutation.mutate()}
+              disabled={createMutation.isPending || createSelectedChildrenMutation.isPending || !createDraft.name.trim()}
+            >
+              {createMutation.isPending ? i18next.t("common.saving") : isCreatingChild ? i18next.t("dict.saveCurrentSubclass") : i18next.t("dict.saveProgressionMode")}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <Dialog open={Boolean(editingStoryMode)} onOpenChange={(open) => { if (!open) setEditingStoryModeId(""); }}>
         <DialogContent className="max-h-[90vh] max-w-4xl overflow-auto">
           <DialogHeader>
-            <DialogTitle>编辑推进模式</DialogTitle>
-            <DialogDescription>
-              可以修改名称、描述、模板和 profile。两级树限制仍会保留。
-            </DialogDescription>
+            <DialogTitle>{i18next.t("dict.gen_4695e35c")}</DialogTitle>
+            <DialogDescription>{i18next.t("storyModes.storyModeManagementPage.xugn65")}</DialogDescription>
           </DialogHeader>
 
           {editingStoryMode ? (
             <div className="space-y-4">
               <div className="rounded-lg border bg-muted/20 p-3 text-sm text-muted-foreground">
-                当前父级：{editingStoryMode.parentId ? (editParentOptions.find((item) => item.id === editingStoryMode.parentId)?.path ?? "未找到") : "根节点"}
+                当前父级：{editingStoryMode.parentId ? (editParentOptions.find((item) => item.id === editingStoryMode.parentId)?.path ?? i18next.t("dict.gen_c465be75")) : i18next.t("dict.gen_f01dea24")}
               </div>
               <label className="space-y-2 text-sm">
-                <span className="font-medium text-foreground">名称</span>
+                <span className="font-medium text-foreground">{i18next.t("dict.gen_d7ec2d3f")}</span>
                 <Input value={editState.name} onChange={(event) => setEditState((prev) => ({ ...prev, name: event.target.value }))} />
               </label>
               <label className="space-y-2 text-sm">
-                <span className="font-medium text-foreground">描述</span>
+                <span className="font-medium text-foreground">{i18next.t("dict.gen_3bdd08ad")}</span>
                 <textarea
                   rows={3}
                   className="w-full rounded-md border bg-background px-3 py-2 text-sm outline-none transition focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
@@ -518,7 +580,7 @@ export default function StoryModeManagementPage() {
                 />
               </label>
               <label className="space-y-2 text-sm">
-                <span className="font-medium text-foreground">人工模板补充</span>
+                <span className="font-medium text-foreground">{i18next.t("dict.manualTemplateAddition")}</span>
                 <textarea
                   rows={3}
                   className="w-full rounded-md border bg-background px-3 py-2 text-sm outline-none transition focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
@@ -534,11 +596,9 @@ export default function StoryModeManagementPage() {
           ) : null}
 
           <DialogFooter className="gap-2">
-            <Button type="button" variant="outline" onClick={() => setEditingStoryModeId("")}>
-              取消
-            </Button>
+            <Button type="button" variant="outline" onClick={() => setEditingStoryModeId("")}>{i18next.t("common.cancel")}</Button>
             <Button type="button" onClick={() => updateMutation.mutate()} disabled={updateMutation.isPending || !editState.name.trim()}>
-              {updateMutation.isPending ? "保存中..." : "保存修改"}
+              {updateMutation.isPending ? i18next.t("common.saving") : i18next.t("dict.saveChanges")}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -547,56 +607,39 @@ export default function StoryModeManagementPage() {
       <Card>
         <CardHeader className="flex flex-row items-start justify-between gap-4">
           <div className="space-y-1">
-            <CardTitle>推进模式库</CardTitle>
-            <CardDescription>
-              这里维护作品的推进模式，例如系统流、无敌流、种田流、治愈日常。它回答的是“这本书靠什么持续推进和兑现”，会作为后续规划和生成的硬约束输入。
-            </CardDescription>
+            <CardTitle>{i18next.t("sidebar.storyModes")}</CardTitle>
+            <CardDescription>{i18next.t("storyModes.storyModeManagementPage.sqyaum")}</CardDescription>
           </div>
           <div className="flex flex-col items-end gap-2">
-            <div className="text-sm text-muted-foreground">当前推进模式数：{totalStoryModes}</div>
-            <div className="flex gap-2">
-              {storyModeTree.length > 0 ? (
-                <Button type="button" variant="outline" onClick={() => {
-                  setExpansionParentId(rootOptions[0]?.id ?? "");
-                  setExpansionCandidates([]);
-                  setSelectedExpansionIndexes([]);
-                  setExpansionDialogOpen(true);
-                }}>
-                  扩展推进模式
-                </Button>
-              ) : null}
-              <Button type="button" onClick={handleCreateRoot}>新建推进模式树</Button>
-            </div>
+            <div className="text-sm text-muted-foreground">{i18next.t("dict.gen_f1e23e80")}</div>
+            <Button type="button" onClick={handleCreateRoot}>{i18next.t("storyModes.storyModeManagementPage.1fdbc6")}</Button>
           </div>
         </CardHeader>
         <CardContent className="space-y-4">
           {storyModeTreeQuery.isLoading ? (
-            <div className="text-sm text-muted-foreground">正在加载推进模式树...</div>
+            <div className="text-sm text-muted-foreground">{i18next.t("dict.gen_c5300fd1")}</div>
           ) : null}
 
           {!storyModeTreeQuery.isLoading && storyModeTree.length === 0 ? (
             <div className="rounded-xl border border-dashed p-6 text-center">
-              <div className="text-sm font-medium text-foreground">还没有任何推进模式</div>
-              <div className="mt-1 text-sm text-muted-foreground">
-                可以先手动建一个根推进模式，也可以直接让 AI 生成一份结构化草稿。
-              </div>
+              <div className="text-sm font-medium text-foreground">{i18next.t("dict.gen_3e114c69")}</div>
+              <div className="mt-1 text-sm text-muted-foreground">{i18next.t("storyModes.storyModeManagementPage.t96zwp")}</div>
               <div className="mt-4">
-                <Button type="button" onClick={handleCreateRoot}>
-                  开始创建
-                </Button>
+                <Button type="button" onClick={handleCreateRoot}>{i18next.t("storyModes.storyModeManagementPage.ccwvnu")}</Button>
               </div>
             </div>
           ) : null}
 
-          {!storyModeTreeQuery.isLoading && storyModeTree.length > 0 ? (
-            <StoryModeTreeBrowser
-              nodes={storyModeTree}
+          {storyModeTree.map((node) => (
+            <StoryModeTreeCard
+              key={node.id}
+              node={node}
               onCreateChild={handleCreateChild}
               onEdit={setEditingStoryModeId}
               onDelete={handleDelete}
               deletingId={deleteMutation.isPending ? deleteMutation.variables : undefined}
             />
-          ) : null}
+          ))}
         </CardContent>
       </Card>
     </div>

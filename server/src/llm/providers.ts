@@ -21,8 +21,8 @@ export const PROVIDERS: Record<BuiltinLLMProvider, ProviderConfig> = {
   deepseek: {
     name: "DeepSeek",
     baseURL: "https://api.deepseek.com/v1",
-    defaultModel: "deepseek-v4-flash",
-    models: ["deepseek-v4-flash", "deepseek-v4-pro", "deepseek-chat", "deepseek-coder", "deepseek-reasoner"],
+    defaultModel: "deepseek-chat",
+    models: ["deepseek-chat", "deepseek-coder", "deepseek-reasoner"],
     envKey: "DEEPSEEK_API_KEY",
     envBaseURLKey: "DEEPSEEK_BASE_URL",
     envModelKey: "DEEPSEEK_MODEL",
@@ -133,11 +133,31 @@ export const PROVIDERS: Record<BuiltinLLMProvider, ProviderConfig> = {
   ollama: {
     name: "Ollama",
     baseURL: "http://127.0.0.1:11434/v1",
-    defaultModel: "llama3.2",
-    models: ["llama3.2", "qwen3:8b", "deepseek-r1:8b", "gpt-oss:20b"],
+    defaultModel: "gemma4:12b",
+    models: ["gemma4:12b", "qwen3.6:27b", "sensenova-u1:8b-v3", "muse-glimmer-30b"],
     envKey: "OLLAMA_API_KEY",
     envBaseURLKey: "OLLAMA_BASE_URL",
     envModelKey: "OLLAMA_MODEL",
+    requiresApiKey: false,
+  },
+  sensenova: {
+    name: "SenseNova",
+    baseURL: "http://127.0.0.1:11434/v1",
+    defaultModel: "sensenova-u1:8b-v3",
+    models: ["sensenova-u1:8b-v3"],
+    envKey: "SENSENOVA_API_KEY",
+    envBaseURLKey: "SENSENOVA_BASE_URL",
+    envModelKey: "SENSENOVA_MODEL",
+    requiresApiKey: false,
+  },
+  comfyui: {
+    name: "ComfyUI (本地)",
+    baseURL: "http://127.0.0.1:8188",
+    defaultModel: "MiniMax-H3",
+    models: ["MiniMax-H3", "FLUX.1-schnell", "SDXL", "v1-5-pruned"],
+    envKey: "COMFYUI_API_KEY",
+    envBaseURLKey: "COMFYUI_BASE_URL",
+    envModelKey: "COMFYUI_MODEL",
     requiresApiKey: false,
   },
 };
@@ -200,16 +220,18 @@ export function resolveProviderBaseUrl(
   const normalizedCustom = typeof customBaseURL === "string" && customBaseURL.trim()
     ? normalizeBaseURL(customBaseURL.trim())
     : undefined;
+  let res: string | undefined;
   if (normalizedCustom) {
-    return normalizedCustom;
+    res = normalizedCustom;
+  } else if (isBuiltInProvider(provider)) {
+    res = getProviderEnvBaseUrl(provider) ?? getProviderDefaultBaseUrl(provider);
+  } else if (typeof fallbackBaseURL === "string" && fallbackBaseURL.trim()) {
+    res = normalizeBaseURL(fallbackBaseURL.trim());
   }
-  if (isBuiltInProvider(provider)) {
-    return getProviderEnvBaseUrl(provider) ?? getProviderDefaultBaseUrl(provider);
+  if (provider === "ollama" && res && !res.endsWith("/v1")) {
+    res = `${res.replace(/\/+$/, "")}/v1`;
   }
-  if (typeof fallbackBaseURL === "string" && fallbackBaseURL.trim()) {
-    return normalizeBaseURL(fallbackBaseURL.trim());
-  }
-  return undefined;
+  return res;
 }
 
 export function providerRequiresApiKey(provider: LLMProvider): boolean {

@@ -1,3 +1,5 @@
+import { useTranslation } from "react-i18next";
+import i18next from "i18next";
 import { cn } from "@/lib/utils";
 import type {
   ChapterExecutionFlowStage,
@@ -32,6 +34,7 @@ function dotClassName(status: ChapterExecutionFlowStageStatus, isCurrent: boolea
 }
 
 export default function ChapterExecutionStatusFlow(props: ChapterExecutionStatusFlowProps) {
+  const { t } = useTranslation();
   const { stages, currentStageKey, currentStageNote } = props;
 
   return (
@@ -56,7 +59,7 @@ export default function ChapterExecutionStatusFlow(props: ChapterExecutionStatus
       <div className="text-xs leading-6 text-muted-foreground">
         <span className="font-medium text-foreground">
           当前阶段：
-          {stages.find((stage) => stage.key === currentStageKey)?.label ?? "未开始"}
+          {stages.find((stage) => stage.key === currentStageKey)?.label ?? i18next.t("dict.gen_dd4e55c3")}
         </span>
         <span className="ml-2">{currentStageNote}</span>
       </div>

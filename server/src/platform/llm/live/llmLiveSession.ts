@@ -7,6 +7,7 @@ export function beginLlmLiveSession(input: {
   promptMeta?: PromptInvocationMeta;
   provider?: string | null;
   model?: string | null;
+  promptPreview?: string | null;
 }): LlmLiveSession {
   const meta = input.promptMeta;
   return llmLiveBroker.begin({
@@ -22,5 +23,6 @@ export function beginLlmLiveSession(input: {
     itemKey: meta?.itemKey ?? null,
     provider: input.provider ?? null,
     model: input.model ?? null,
+    promptPreview: input.promptPreview ?? null,
   });
 }

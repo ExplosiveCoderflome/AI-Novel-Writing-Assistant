@@ -23,12 +23,10 @@ import { registerNovelVolumeRoutes } from "../planning/http/novelVolumeRoutes";
 import { registerNovelWorldSliceRoutes } from "../setup/http/novelWorldSliceRoutes";
 import novelChapterSummaryRouter from "../production/http/novelChapterSummary";
 import novelDecisionsRouter from "../state/http/novelDecisions";
-import type { NovelHttpServices } from "./novelHttpServices";
-import { guardSimpleCreationUserWrites } from "./simpleCreationWriteGuard";
-import { registerShortStoryRoutes } from "../short-story/http/shortStoryRoutes";
-import { registerWritingPlatformRoutes } from "../writing-platform/http/writingPlatformRoutes";
 import { registerDirectorIssuePolicyRoutes } from "../../../services/novel/director/issues/directorIssuePolicyRoutes";
 import { registerNovelDirectorRiskPolicyRoutes } from "../../../services/novel/director/http/novelDirectorRiskPolicy";
+import type { NovelHttpServices } from "./novelHttpServices";
+import { guardSimpleCreationUserWrites } from "./simpleCreationWriteGuard";
 import {
   aiRevisionPreviewSchema,
   arcPlanParamsSchema,
@@ -40,9 +38,11 @@ import {
   characterParamsSchema,
   characterSchema,
   characterTimelineSyncSchema,
+  continuePreviewSchema,
   draftOptimizeSchema,
   hookGenerateSchema,
   idParamsSchema,
+  issueFixPreviewSchema,
   llmGenerateSchema,
   outlineGenerateSchema,
   pipelineJobParamsSchema,
@@ -85,15 +85,13 @@ export function registerNovelHttpRoutes(router: Router, services: NovelHttpServi
 
   router.use("/:id", guardSimpleCreationUserWrites);
 
+  registerDirectorIssuePolicyRoutes(router);
+  registerNovelDirectorRiskPolicyRoutes(router);
+
   registerNovelBaseRoutes({
     router,
     novelService,
   });
-
-  registerShortStoryRoutes(router);
-  registerWritingPlatformRoutes(router);
-  registerDirectorIssuePolicyRoutes(router);
-  registerNovelDirectorRiskPolicyRoutes(router);
 
   registerNovelFramingRoutes({
     router,
@@ -115,6 +113,8 @@ export function registerNovelHttpRoutes(router: Router, services: NovelHttpServi
     chapterParamsSchema,
     rewritePreviewSchema,
     aiRevisionPreviewSchema,
+    continuePreviewSchema,
+    issueFixPreviewSchema,
     forwardBusinessError,
   });
 

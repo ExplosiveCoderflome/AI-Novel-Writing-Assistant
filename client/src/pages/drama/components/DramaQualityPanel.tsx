@@ -1,3 +1,5 @@
+import i18next from "i18next";
+const t = (key: string, options?: any) => i18next.t(key, options) as string;
 import { AlertTriangle, CheckCircle2, RefreshCw, Search, ShieldCheck } from "lucide-react";
 import type { DramaEpisode, DramaProjectDetail } from "@/api/drama";
 import { Badge } from "@/components/ui/badge";
@@ -50,22 +52,22 @@ function safeJson<T>(input: string | null | undefined, fallback: T): T {
 
 function statusLabel(status?: QualityStatus): string {
   const labels: Record<QualityStatus, string> = {
-    approved: "已通过",
-    repairable: "建议修复",
-    continue_with_warning: "可继续",
-    blocked: "需处理",
+    approved: i18next.t("dict.gen_ecfa64c1"),
+    repairable: i18next.t("dict.gen_c94222f6"),
+    continue_with_warning: i18next.t("dict.gen_4281b2b4"),
+    blocked: i18next.t("dict.gen_2d25e6f9"),
   };
-  return status ? labels[status] : "未检查";
+  return status ? labels[status] : i18next.t("dict.gen_0b27f9ed");
 }
 
 function severityLabel(severity?: QualityFlag["severity"]): string {
   const labels: Record<NonNullable<QualityFlag["severity"]>, string> = {
-    low: "轻微",
-    medium: "中等",
-    high: "重要",
-    critical: "严重",
+    low: i18next.t("dict.gen_b3bd3d43"),
+    medium: i18next.t("dict.mediumLevel"),
+    high: i18next.t("dict.gen_fc7e3846"),
+    critical: i18next.t("dict.critical"),
   };
-  return severity ? labels[severity] : "提示";
+  return severity ? labels[severity] : i18next.t("dict.gen_02d9819d");
 }
 
 function qualityVariant(status?: QualityStatus): "default" | "secondary" | "destructive" | "outline" {
@@ -77,11 +79,11 @@ function qualityVariant(status?: QualityStatus): "default" | "secondary" | "dest
 
 function complianceLabel(level?: ComplianceLevel): string {
   const labels: Record<ComplianceLevel, string> = {
-    pass: "合规通过",
-    warn: "合规提醒",
-    block: "合规需修复",
+    pass: i18next.t("dict.gen_95af35ac"),
+    warn: i18next.t("dict.gen_30f50518"),
+    block: i18next.t("dict.gen_accf2138"),
   };
-  return level ? labels[level] : "未预检";
+  return level ? labels[level] : i18next.t("dict.gen_80a28338");
 }
 
 function complianceVariant(level?: ComplianceLevel): "default" | "secondary" | "destructive" | "outline" {
@@ -141,9 +143,7 @@ export function DramaQualityPanel(props: {
 
   if ((props.project.episodes?.length ?? 0) === 0) {
     return (
-      <div className="rounded-md border border-dashed p-6 text-sm text-muted-foreground">
-        还没有分集大纲。生成分集和台本后，这里会汇总每集质量检查结果。
-      </div>
+      <div className="rounded-md border border-dashed p-6 text-sm text-muted-foreground">{i18next.t("drama.dramaQualityPanel.8zbbwn")}</div>
     );
   }
 
@@ -151,48 +151,44 @@ export function DramaQualityPanel(props: {
     <div className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <div className="text-sm font-medium">质量与合规</div>
-          <div className="text-xs text-muted-foreground">先检查台本质量，再确认平台合规风险。</div>
+          <div className="text-sm font-medium">{i18next.t("dict.gen_09ed848d")}</div>
+          <div className="text-xs text-muted-foreground">{i18next.t("dict.gen_83450b9a")}</div>
         </div>
         <Button type="button" variant="outline" disabled={props.busy || scriptedCount === 0} onClick={props.onComplianceAll}>
-          <ShieldCheck className="h-4 w-4" />
-          检查全部台本合规
-        </Button>
+          <ShieldCheck className="h-4 w-4" />{i18next.t("drama.dramaQualityPanel.rd00rh")}</Button>
       </div>
 
       <div className="grid gap-3 md:grid-cols-6">
         <div className="rounded-md border p-3 text-sm">
-          <div className="text-xs text-muted-foreground">已检查</div>
+          <div className="text-xs text-muted-foreground">{i18next.t("dict.gen_2f9815ee")}</div>
           <div className="mt-1 text-lg font-semibold">{summary.checked.length}</div>
         </div>
         <div className="rounded-md border p-3 text-sm">
-          <div className="text-xs text-muted-foreground">建议修复</div>
+          <div className="text-xs text-muted-foreground">{i18next.t("dict.gen_c94222f6")}</div>
           <div className="mt-1 text-lg font-semibold">{summary.needsRepair.length}</div>
         </div>
         <div className="rounded-md border p-3 text-sm">
-          <div className="text-xs text-muted-foreground">可继续</div>
+          <div className="text-xs text-muted-foreground">{i18next.t("dict.gen_4281b2b4")}</div>
           <div className="mt-1 text-lg font-semibold">{summary.warning.length}</div>
         </div>
         <div className="rounded-md border p-3 text-sm">
-          <div className="text-xs text-muted-foreground">已通过</div>
+          <div className="text-xs text-muted-foreground">{i18next.t("dict.gen_ecfa64c1")}</div>
           <div className="mt-1 text-lg font-semibold">{summary.approved.length}</div>
         </div>
         <div className="rounded-md border p-3 text-sm">
-          <div className="text-xs text-muted-foreground">合规风险</div>
+          <div className="text-xs text-muted-foreground">{i18next.t("dict.gen_45d8d117")}</div>
           <div className="mt-1 text-lg font-semibold">{summary.complianceRisk.length}</div>
         </div>
         <div className="rounded-md border p-3 text-sm">
-          <div className="text-xs text-muted-foreground">平均分</div>
-          <div className="mt-1 text-lg font-semibold">{summary.average ?? "待检查"}</div>
+          <div className="text-xs text-muted-foreground">{i18next.t("dict.gen_3569877e")}</div>
+          <div className="mt-1 text-lg font-semibold">{i18next.t("dict.gen_summaryave_7a58")}</div>
         </div>
       </div>
 
       {problemItems.length === 0 && uncheckedItems.length === 0 ? (
         <Card className="rounded-lg">
           <CardContent className="flex items-center gap-2 pt-6 text-sm text-muted-foreground">
-            <CheckCircle2 className="h-4 w-4 text-emerald-600" />
-            当前没有待处理的质量问题。
-          </CardContent>
+            <CheckCircle2 className="h-4 w-4 text-emerald-600" />{i18next.t("drama.dramaQualityPanel.sfff0u")}</CardContent>
         </Card>
       ) : null}
 
@@ -203,7 +199,7 @@ export function DramaQualityPanel(props: {
               <CardHeader className="gap-3 lg:flex-row lg:items-start lg:justify-between">
                 <div className="space-y-2">
                   <div className="flex flex-wrap items-center gap-2">
-                    <CardTitle className="text-base">第 {item.episode.order} 集：{item.episode.title}</CardTitle>
+                    <CardTitle className="text-base">{i18next.t("dict.gen_5e9e7814")}</CardTitle>
                     <Badge variant={qualityVariant(item.quality?.status)}>{statusLabel(item.quality?.status)}</Badge>
                     {item.quality?.compliance ? (
                       <Badge variant={complianceVariant(item.quality.compliance.level)}>
@@ -211,16 +207,14 @@ export function DramaQualityPanel(props: {
                       </Badge>
                     ) : null}
                     {item.quality?.score?.overall != null ? (
-                      <Badge variant="outline">综合 {item.quality.score.overall}</Badge>
+                      <Badge variant="outline">{i18next.t("dict.gen_b6d2bd0c")}</Badge>
                     ) : null}
                   </div>
-                  <CardDescription>{item.quality?.repairPlan?.instruction || "查看问题后决定是否修复。"}</CardDescription>
+                  <CardDescription>{i18next.t("dict.repairInstruction")}</CardDescription>
                 </div>
                 <div className="flex flex-wrap gap-2">
                   <Button type="button" size="sm" variant="outline" onClick={() => openEpisode(item.episode.order)}>
-                    <Search className="h-4 w-4" />
-                    查看台本
-                  </Button>
+                    <Search className="h-4 w-4" />{i18next.t("drama.dramaQualityPanel.dlle2q")}</Button>
                   <Button
                     type="button"
                     size="sm"
@@ -228,18 +222,14 @@ export function DramaQualityPanel(props: {
                     disabled={props.busy || !item.episode.content?.trim()}
                     onClick={() => props.onReview(item.episode.order)}
                   >
-                    <CheckCircle2 className="h-4 w-4" />
-                    重新检查
-                  </Button>
+                    <CheckCircle2 className="h-4 w-4" />{i18next.t("dict.gen_a1ad5204")}</Button>
                   <Button
                     type="button"
                     size="sm"
                     disabled={props.busy || !item.episode.content?.trim()}
                     onClick={() => props.onRepair(item.episode.order)}
                   >
-                    <RefreshCw className="h-4 w-4" />
-                    修复
-                  </Button>
+                    <RefreshCw className="h-4 w-4" />{i18next.t("dict.gen_f82661e8")}</Button>
                 </div>
               </CardHeader>
               <CardContent className="space-y-2">
@@ -249,16 +239,14 @@ export function DramaQualityPanel(props: {
                       <Badge variant={flag.severity === "critical" ? "destructive" : "outline"}>
                         {severityLabel(flag.severity)}
                       </Badge>
-                      <span className="font-medium">{flag.code || "质量提示"}</span>
+                      <span className="font-medium">{i18next.t("dict.qualityHint")}</span>
                     </div>
                     <p className="mt-2 text-muted-foreground">{flag.evidence}</p>
                     <p className="mt-1">{flag.suggestion}</p>
                   </div>
                 )) : (
                   <div className="rounded-md border p-3 text-sm text-muted-foreground">
-                    <AlertTriangle className="mr-2 inline h-4 w-4" />
-                    这集需要处理，但没有结构化问题明细。
-                  </div>
+                    <AlertTriangle className="mr-2 inline h-4 w-4" />{i18next.t("drama.dramaQualityPanel.2ketv")}</div>
                 )}
               </CardContent>
             </Card>
@@ -269,13 +257,13 @@ export function DramaQualityPanel(props: {
       {uncheckedItems.length > 0 ? (
         <Card className="rounded-lg">
           <CardHeader>
-            <CardTitle className="text-base">待检查台本</CardTitle>
-            <CardDescription>这些集已有台本，还没有质量检查结果。</CardDescription>
+            <CardTitle className="text-base">{i18next.t("dict.gen_f043ee3a")}</CardTitle>
+            <CardDescription>{i18next.t("dict.gen_784f002a")}</CardDescription>
           </CardHeader>
           <CardContent className="grid gap-2 md:grid-cols-2">
             {uncheckedItems.map((item) => (
               <div key={item.episode.id} className="flex items-center justify-between gap-2 rounded-md border p-3 text-sm">
-                <span>第 {item.episode.order} 集：{item.episode.title}</span>
+                <span>{i18next.t("dict.gen_5e9e7814")}</span>
                 <Button
                   type="button"
                   size="sm"
@@ -283,9 +271,7 @@ export function DramaQualityPanel(props: {
                   disabled={props.busy}
                   onClick={() => props.onReview(item.episode.order)}
                 >
-                  <CheckCircle2 className="h-4 w-4" />
-                  检查
-                </Button>
+                  <CheckCircle2 className="h-4 w-4" />{i18next.t("drama.dramaQualityPanel.idyd")}</Button>
               </div>
             ))}
           </CardContent>

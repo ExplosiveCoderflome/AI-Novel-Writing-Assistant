@@ -1,3 +1,4 @@
+import i18next from "i18next";
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { ShieldAlert, SlidersHorizontal } from "lucide-react";
@@ -17,10 +18,10 @@ import {
 import NovelDirectorIssuePolicyCard from "../components/NovelDirectorIssuePolicyCard";
 
 const ACTION_LABELS: Record<DirectorIssueAction, string> = {
-  auto_retry: "自动重试",
-  continue_with_warning: "提醒后继续",
-  pause_for_manual: "暂停处理",
-  fail_task: "结束任务",
+  auto_retry: i18next.t("novels.novelDirectorIssuePolicyCard.gqpgkm"),
+  continue_with_warning: i18next.t("novels.novelDirectorIssuePolicyCard.h78n0u"),
+  pause_for_manual: i18next.t("novels.novelDirectorIssuePolicyCard.d9no64"),
+  fail_task: i18next.t("novels.novelDirectorIssuePolicyCard.gfdxpu"),
 };
 
 export default function SimpleCreationIssueGovernancePanel(props: {
@@ -54,7 +55,7 @@ export default function SimpleCreationIssueGovernancePanel(props: {
           </span>
           <div>
             <div className="font-medium text-foreground">AI 问题处理</div>
-            <div className="mt-1 text-xs leading-5 text-muted-foreground">查看本书采用的提醒、暂停规则，以及 AI 最近处理过的问题。</div>
+            <div className="mt-1 text-xs leading-5 text-muted-foreground">{i18next.t("novels.simpleCreationIssueGovernancePanel.cs3cc6")}</div>
           </div>
         </div>
         <Badge variant="outline">{issues.length} 条记录</Badge>
@@ -65,13 +66,12 @@ export default function SimpleCreationIssueGovernancePanel(props: {
           <div className="flex flex-wrap gap-2 text-xs text-muted-foreground">
             <Badge variant="secondary">提醒分数：{policy?.effectivePolicy.noticeThreshold ?? "—"}/8</Badge>
             <Badge variant="secondary">暂停分数：{policy?.effectivePolicy.pauseThreshold ?? "—"}/8</Badge>
-            <span className="self-center">{policy?.source === "novel" ? `本书覆盖 ${overrideCount} 项` : "继承全局规则"}</span>
+            <span className="self-center">{policy?.source === "novel" ? i18next.t("novels.simpleCreationIssueGovernancePanel.w79xr3", { val1: (overrideCount) }) : "继承全局规则"}</span>
           </div>
           <div className="flex flex-wrap gap-2">
             <Button size="sm" variant="outline" onClick={() => setManagementOpen(true)}>
-              <SlidersHorizontal className="h-4 w-4" /> 问题管理
-            </Button>
-            <Button asChild size="sm" variant="outline"><Link to="/settings">全局规则</Link></Button>
+              <SlidersHorizontal className="h-4 w-4" />{i18next.t("novels.simpleCreationIssueGovernancePanel.jjq4xb")}</Button>
+            <Button asChild size="sm" variant="outline"><Link to="/settings">{i18next.t("novels.simpleCreationIssueGovernancePanel.ant60d")}</Link></Button>
           </div>
         </div>
 
@@ -84,7 +84,7 @@ export default function SimpleCreationIssueGovernancePanel(props: {
                   <Badge variant="outline">风险分 {occurrence.riskScore ?? "待评估"}</Badge>
                 </div>
                 <div className="mt-1 text-xs leading-5 text-muted-foreground">
-                  {occurrence.chapterOrder ? `第 ${occurrence.chapterOrder} 章 · ` : ""}{occurrence.issueCode}
+                  {occurrence.chapterOrder ? i18next.t("characterConversation.characterConversationWorkbench.22v75n", { val1: (occurrence.chapterOrder) }) : ""}{occurrence.issueCode}
                   {decision ? ` · ${ACTION_LABELS[decision.action]}` : ""}
                 </div>
               </div>
@@ -100,8 +100,8 @@ export default function SimpleCreationIssueGovernancePanel(props: {
       <Dialog open={managementOpen} onOpenChange={setManagementOpen}>
         <DialogContent className="max-h-[85vh] max-w-3xl overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>本书问题管理</DialogTitle>
-            <DialogDescription>只保存这本书与全局规则不同的处理偏好，安全锁定项不能自动放行。</DialogDescription>
+            <DialogTitle>{i18next.t("novels.simpleCreationIssueGovernancePanel.p4b1sn")}</DialogTitle>
+            <DialogDescription>{i18next.t("novels.simpleCreationIssueGovernancePanel.14waax")}</DialogDescription>
           </DialogHeader>
           <NovelDirectorIssuePolicyCard novelId={props.novelId} />
         </DialogContent>

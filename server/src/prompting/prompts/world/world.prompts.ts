@@ -1145,9 +1145,6 @@ export const novelThemeWorldGenerationPrompt: PromptAsset<
       "3. 世界设定必须能约束后续生成：力量有代价，秩序有执行者，冲突有来源，地点有叙事功能。",
       "4. 不要写主角个人剧情，不要替小说生成完整大纲，不要把单次事件当成世界规则。",
       "5. 允许根据小说信息做合理补全；如果信息不足，要生成稳妥、低风险、可继续扩展的本书舞台。",
-      input.openingOnly
-        ? "6. 当前只准备开篇切片：仅生成前 3-5 章会直接读取的规则、势力和地点，不扩写远期百科。"
-        : "6. 当前生成可持续扩展的本书世界基础。",
       "",
       "内容数量要求：",
       "1. rules.axioms 生成 2-3 条硬规则。",
@@ -1181,7 +1178,6 @@ export const novelThemeWorldGenerationPrompt: PromptAsset<
       `主类型：${input.genreName || "未选择"}`,
       `主故事模式：${input.primaryStoryModeName || "未选择"}`,
       `副故事模式：${input.secondaryStoryModeName || "未选择"}`,
-      `准备范围：${input.openingOnly ? "开篇 3-5 章世界切片" : "本书世界基础"}`,
       input.storyMacroContext?.trim() ? `故事宏观规划：\n${input.storyMacroContext.trim()}` : "",
       input.bookContractContext?.trim() ? `书级创作约定：\n${input.bookContractContext.trim()}` : "",
     ].join("\n")),

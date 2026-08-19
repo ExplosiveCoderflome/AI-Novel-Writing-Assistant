@@ -1,3 +1,4 @@
+import i18next from "i18next";
 ﻿import type {
   AutoDirectorAction,
 } from "@ai-novel/shared/types/autoDirectorFollowUp";
@@ -54,9 +55,9 @@ export function getTaskNoticeSeverity(task: TaskQueuePresentationInput): TaskQue
 }
 
 export function getTaskNoticeTitle(task: TaskQueuePresentationInput): string {
-  if (isTaskReplanRequired(task)) return "需要重规划";
-  if (isTaskQueueQualityReminder(task)) return "质量提醒";
-  return "任务提醒";
+  if (isTaskReplanRequired(task)) return i18next.t("tasks.levelReplanRequired");
+  if (isTaskQueueQualityReminder(task)) return i18next.t("tasks.summaryQuality");
+  return i18next.t("tasks.taskCenterUtils.ab7sy0");
 }
 
 export function getTaskListPriority(task: TaskQueuePresentationInput): number {
@@ -98,14 +99,14 @@ export function getTaskQueueTone(task: TaskQueuePresentationInput): WorkspaceTon
 
 export function getTaskQueueLevelLabel(task: TaskQueuePresentationInput): string {
   const tone = getTaskQueueTone(task);
-  if (isTaskReplanRequired(task)) return "需要重规划";
-  if (task.pendingManualRecovery) return "需要恢复";
-  if (tone === "danger") return task.status === "failed" ? "任务失败" : "阻塞";
-  if (tone === "warning" && isTaskQueueQualityReminder(task)) return "质量提醒";
-  if (tone === "warning") return "待操作";
-  if (tone === "info") return task.status === "waiting_approval" ? "待操作" : "进行中";
-  if (tone === "success") return "已完成";
-  return "普通任务";
+  if (isTaskReplanRequired(task)) return i18next.t("tasks.levelReplanRequired", "需要重规划");
+  if (task.pendingManualRecovery) return i18next.t("tasks.levelRecoveryRequired", "需要恢复");
+  if (tone === "danger") return task.status === "failed" ? i18next.t("tasks.levelFailed", "任务失败") : i18next.t("tasks.levelBlocking", "阻塞");
+  if (tone === "warning" && isTaskQueueQualityReminder(task)) return i18next.t("tasks.levelQuality", "质量提醒");
+  if (tone === "warning") return i18next.t("tasks.levelPendingAction", "待操作");
+  if (tone === "info") return task.status === "waiting_approval" ? i18next.t("tasks.levelPendingAction", "待操作") : i18next.t("tasks.levelRunning", "进行中");
+  if (tone === "success") return i18next.t("tasks.levelCompleted", "已完成");
+  return i18next.t("tasks.levelNormal", "普通任务");
 }
 
 export function getTaskQueueSeverity(task: TaskQueuePresentationInput): TaskQueueSeverity {
@@ -124,11 +125,11 @@ export function getTimestamp(value: string | null | undefined): number {
 
 export function formatDate(value: string | null | undefined): string {
   if (!value) {
-    return "暂无";
+    return i18next.t("common.none");
   }
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) {
-    return "暂无";
+    return i18next.t("common.none");
   }
   return date.toLocaleString();
 }
@@ -139,103 +140,103 @@ export function formatTokenCount(value: number | null | undefined): string {
 
 export function formatKind(kind: TaskKind): string {
   if (kind === "book_analysis") {
-    return "拆书分析";
+    return i18next.t("tasks.filterKindBookAnalysis");
   }
   if (kind === "novel_workflow") {
-    return "小说创作";
+    return i18next.t("tasks.filterKindNovelWorkflow");
   }
   if (kind === "novel_pipeline") {
-    return "小说流水线";
+    return i18next.t("tasks.filterKindNovelPipeline");
   }
   if (kind === "knowledge_document") {
-    return "知识库索引";
+    return i18next.t("tasks.filterKindKnowledgeDocument");
   }
   if (kind === "style_extraction") {
-    return "写法提取";
+    return i18next.t("tasks.filterKindStyleExtraction");
   }
   if (kind === "agent_run") {
-    return "Agent 运行";
+    return i18next.t("tasks.filterKindAgentRun");
   }
-  return "图片生成";
+  return i18next.t("tasks.filterKindImageGeneration");
 }
 
 export function formatCheckpoint(checkpoint: NovelWorkflowMilestoneType | null | undefined, scopeLabel?: string | null): string {
-  const resolvedScopeLabel = scopeLabel?.trim() || "前 10 章";
+  const resolvedScopeLabel = scopeLabel?.trim() || i18next.t("dict.gen_dd4d6c1f");
   if (checkpoint === "rewrite_snapshot_created") {
-    return "重写前备份已创建";
+    return i18next.t("dict.gen_40c91bfe");
   }
   if (checkpoint === "candidate_selection_required") {
-    return "等待确认书级方向";
+    return i18next.t("dict.gen_dbc67929");
   }
   if (checkpoint === "book_contract_ready") {
-    return "Book Contract 已就绪";
+    return i18next.t("dict.gen_BookContra_ppep");
   }
   if (checkpoint === "character_setup_required") {
-    return "角色准备待审核";
+    return i18next.t("dict.gen_67358797");
   }
   if (checkpoint === "volume_strategy_ready") {
-    return "卷战略已就绪";
+    return i18next.t("dict.gen_c3eafe6f");
   }
   if (checkpoint === "chapter_batch_ready") {
-    return `${resolvedScopeLabel}自动执行已暂停`;
+    return i18next.t("lib.novelWorkflowTaskUi.mr8bw9", { val1: resolvedScopeLabel });
   }
   if (checkpoint === "step_review_required") {
-    return "当前步骤待检查";
+    return i18next.t("novels.novelAutoDirectorProgressPanel.fotvdd");
   }
   if (checkpoint === "replan_required") {
-    return "需要重规划";
+    return i18next.t("tasks.levelReplanRequired");
   }
   if (checkpoint === "workflow_completed") {
-    return "主流程完成";
+    return i18next.t("dict.mainProcessComplete");
   }
-  return "暂无";
+  return i18next.t("common.none");
 }
 
 export function formatResumeTarget(target: NovelWorkflowResumeTarget | null | undefined): string {
   if (!target) {
-    return "暂无";
+    return i18next.t("common.none");
   }
   if (target.route === "/novels/create") {
-    return target.mode === "director" ? "创建页 / AI 自动导演" : "创建页";
+    return target.mode === "director" ? i18next.t("dict.gen_c25b9441") : i18next.t("dict.gen_7792a178");
   }
   if (target.stage === "story_macro") {
-    return "小说编辑页 / 故事宏观规划";
+    return i18next.t("dict.gen_da67aefa");
   }
   if (target.stage === "character") {
-    return "小说编辑页 / 角色准备";
+    return i18next.t("dict.gen_fe7246de");
   }
   if (target.stage === "outline") {
-    return "小说编辑页 / 卷战略";
+    return i18next.t("dict.gen_b36113e5");
   }
   if (target.stage === "structured") {
-    return "小说编辑页 / 节奏拆章";
+    return i18next.t("dict.gen_d5891c2e");
   }
   if (target.stage === "chapter") {
-    return "小说编辑页 / 章节执行";
+    return i18next.t("dict.gen_ce7f7916");
   }
   if (target.stage === "pipeline") {
-    return "小说编辑页 / 质量修复";
+    return i18next.t("dict.gen_c5a96912");
   }
-  return "小说编辑页 / 项目设定";
+  return i18next.t("dict.gen_99336744");
 }
 
 export function formatStatus(status: TaskStatus): string {
   if (status === "queued") {
-    return "排队中";
+    return i18next.t("tasks.filterStatusQueued");
   }
   if (status === "running") {
-    return "运行中";
+    return i18next.t("tasks.filterStatusRunning");
   }
   if (status === "waiting_approval") {
-    return "等待审批";
+    return i18next.t("dict.gen_3ced7e48");
   }
   if (status === "succeeded") {
-    return "已完成";
+    return i18next.t("tasks.filterStatusSucceeded");
   }
   if (status === "failed") {
-    return "失败";
+    return i18next.t("tasks.filterStatusFailed");
   }
-  return "已取消";
+  return i18next.t("tasks.filterStatusCancelled");
 }
 
 export function toStatusVariant(status: TaskStatus): "default" | "outline" | "secondary" | "destructive" {
@@ -275,12 +276,12 @@ export function createIdempotencyKey(taskId: string, actionCode: string): string
 
 export function formatFollowUpPriority(priority: "P0" | "P1" | "P2"): string {
   if (priority === "P0") {
-    return "P0 立即处理";
+    return i18next.t("dict.p0ProcessImmediately");
   }
   if (priority === "P1") {
-    return "P1 尽快处理";
+    return i18next.t("dict.p1ProcessSoon");
   }
-  return "P2 可稍后处理";
+  return i18next.t("dict.p2ProcessLater");
 }
 
 export function followUpActionVariant(action: AutoDirectorAction): "default" | "outline" {

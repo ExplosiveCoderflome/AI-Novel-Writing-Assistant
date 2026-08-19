@@ -1,3 +1,5 @@
+import i18next from "i18next";
+const t = (key: string, options?: any) => i18next.t(key, options) as string;
 import { useEffect, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
@@ -56,11 +58,11 @@ function parseImageData(
 }
 
 const REF_KIND_LABEL: Record<string, string> = {
-  character_sheet: "三视图",
-  character_expression: "表情稿",
-  character_face: "面部裁剪",
-  asset: "资产",
-  scene: "场景",
+  character_sheet: i18next.t("dict.threeViews"),
+  character_expression: i18next.t("dict.gen_1a07c5a4"),
+  character_face: i18next.t("dict.gen_0a071b57"),
+  asset: i18next.t("sidebar.groupAssets"),
+  scene: i18next.t("dict.gen_c931653c"),
 };
 
 const REF_KIND_COLOR: Record<string, string> = {
@@ -72,13 +74,13 @@ const REF_KIND_COLOR: Record<string, string> = {
 };
 
 const DENSITY_BADGE: Record<string, { label: string; className: string }> = {
-  low: { label: "低密度", className: "border-emerald-200 bg-emerald-50 text-emerald-700" },
-  medium: { label: "中密度", className: "border-sky-200 bg-sky-50 text-sky-700" },
-  high: { label: "高密度", className: "border-amber-200 bg-amber-50 text-amber-700" },
+  low: { label: i18next.t("dict.lowDensity"), className: "border-emerald-200 bg-emerald-50 text-emerald-700" },
+  medium: { label: i18next.t("dict.mediumDensity"), className: "border-sky-200 bg-sky-50 text-sky-700" },
+  high: { label: i18next.t("dict.gen_f7dcc0ac"), className: "border-amber-200 bg-amber-50 text-amber-700" },
 };
 
 function densityBadge(value: string | null | undefined): { label: string; className: string } {
-  return DENSITY_BADGE[value ?? ""] ?? { label: "未标注", className: "border-border bg-muted text-muted-foreground" };
+  return DENSITY_BADGE[value ?? ""] ?? { label: i18next.t("dict.gen_cb456b11"), className: "border-border bg-muted text-muted-foreground" };
 }
 
 function parseLayoutData(raw: string | null | undefined): {
@@ -105,10 +107,12 @@ function BatchBar({
   episodeId,
   provider,
   onComplete,
+  onTick,
 }: {
   episodeId: string;
   provider: string;
   onComplete: () => void;
+  onTick?: (jobStatus: string) => void;
 }) {
   const [jobId, setJobId] = useState<string | null>(null);
   const [job, setJob] = useState<ComicBatchJob | null>(null);
@@ -127,6 +131,7 @@ function BatchBar({
       try {
         const updated = await getBatchJob(jobId);
         setJob(updated);
+        onTick?.(updated.status);
         if (updated.status !== "running") {
           clearInterval(pollRef.current!);
           pollRef.current = null;
@@ -139,7 +144,7 @@ function BatchBar({
     return () => {
       if (pollRef.current) clearInterval(pollRef.current);
     };
-  }, [jobId, onComplete]);
+  }, [jobId, onComplete, onTick]);
 
   const startMut = useMutation({
     mutationFn: () =>
@@ -175,7 +180,7 @@ function BatchBar({
           onClick={() => startMut.mutate()}
         >
           {isRunning ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Play className="h-3.5 w-3.5" />}
-          {isRunning ? "批量生成中..." : `批量生成 ${pendingCount > 0 ? `(${pendingCount}格)` : ""}`}
+          {isRunning ? i18next.t("dict.gen_f68f4817") : `批量生成 ${pendingCount > 0 ? `(${pendingCount}格)` : ""}`}
         </Button>
 
         {hasFailures && (
@@ -194,15 +199,17 @@ function BatchBar({
         {estimate && pendingCount > 0 && (
           <span className="flex items-center gap-1 text-xs text-muted-foreground">
             <CircleDollarSign className="h-3.5 w-3.5" />
-            约 {estimate.estimatedCentsCost} ¢
+            {estimate.estimatedCentsCost === 0
+              ? "免费 (本地模型)"
+              : i18next.t("comic.panelsGridPanel.s3z1ym", { val1: estimate.estimatedCentsCost })}
           </span>
         )}
 
         {job?.status === "completed" && (
-          <span className="text-xs font-medium text-green-600 dark:text-green-400">全部完成</span>
+          <span className="text-xs font-medium text-green-600 dark:text-green-400">{i18next.t("dict.gen_7eda596a")}</span>
         )}
         {job?.status === "partial" && !hasFailures && (
-          <span className="text-xs font-medium text-amber-600 dark:text-amber-400">部分完成</span>
+          <span className="text-xs font-medium text-amber-600 dark:text-amber-400">{i18next.t("dict.gen_963e0afb")}</span>
         )}
       </div>
 
@@ -226,7 +233,7 @@ function BatchBar({
             <span>
               {progress.done} / {progress.total} 完成
               {progress.failed > 0 && (
-                <span className="ml-1.5 text-destructive">{progress.failed} 失败</span>
+                <span className="ml-1.5 text-destructive">({progress.failed} 格失败)</span>
               )}
             </span>
             <span>
@@ -278,14 +285,12 @@ function StripView({
                 <>
                   <img
                     src={panelImageUrl(panel.id)}
-                    alt={`第 ${panel.order} 格`}
+                    alt={i18next.t("comic.panelsGridPanel.vms8xs", { val1: panel.order })}
                     className="w-full object-cover"
                     loading={idx < 3 ? "eager" : "lazy"}
                   />
                   {imageStale && (
-                    <span className="absolute left-2 top-2 rounded border border-amber-200 bg-amber-50 px-2 py-0.5 text-[10px] font-medium text-amber-700">
-                      待重抽
-                    </span>
+                    <span className="absolute left-2 top-2 rounded border border-amber-200 bg-amber-50 px-2 py-0.5 text-[10px] font-medium text-amber-700">{i18next.t("comic.panelsGridPanel.ep0id")}</span>
                   )}
                   {dialogues.length > 0 && (
                     <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent p-3">
@@ -322,9 +327,7 @@ function StripView({
                     disabled={busy}
                     onClick={() => onGenerate(panel.id)}
                   >
-                    <Sparkles className="h-3 w-3" />
-                    生图
-                  </Button>
+                    <Sparkles className="h-3 w-3" />{i18next.t("comic.panelsGridPanel.kedb")}</Button>
                 ) : (
                   <Button
                     type="button"
@@ -334,9 +337,7 @@ function StripView({
                     disabled={busy}
                     onClick={() => onGenerate(panel.id)}
                   >
-                    <RefreshCw className="h-3 w-3" />
-                    重抽
-                  </Button>
+                    <RefreshCw className="h-3 w-3" />{i18next.t("comic.panelsGridPanel.pcb4")}</Button>
                 )}
                 <Button
                   type="button"
@@ -359,12 +360,14 @@ function StripView({
 function PanelDetailDialog({
   panel,
   busy,
+  provider,
   onClose,
   onGenerate,
   onSaved,
 }: {
   panel: ComicPanel;
   busy: boolean;
+  provider: string;
   onClose: () => void;
   onGenerate: (panelId: string) => void;
   onSaved: (panel: ComicPanel) => void;
@@ -376,6 +379,95 @@ function PanelDetailDialog({
   const layoutData = parseLayoutData(panel.layoutData);
   const imageStale = isPanelImageStale(panel, imageData);
 
+  // 局部微调状态与 Canvas 坐标选择
+  const [isEditingImage, setIsEditingImage] = useState(false);
+  const [editPrompt, setEditPrompt] = useState("");
+  const [isSubmittingEdit, setIsSubmittingEdit] = useState(false);
+  const [box, setBox] = useState<{ x: number; y: number; w: number; h: number } | null>(null);
+  const [startPos, setStartPos] = useState<{ x: number; y: number } | null>(null);
+  const imgRef = useRef<HTMLImageElement>(null);
+
+  const handleMouseDown = (e: React.MouseEvent) => {
+    if (!isEditingImage || !imgRef.current) return;
+    const rect = imgRef.current.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
+    setStartPos({ x, y });
+    setBox({ x, y, w: 0, h: 0 });
+  };
+
+  const handleMouseMove = (e: React.MouseEvent) => {
+    if (!isEditingImage || !startPos || !imgRef.current) return;
+    const rect = imgRef.current.getBoundingClientRect();
+    const currentX = Math.max(0, Math.min(e.clientX - rect.left, rect.width));
+    const currentY = Math.max(0, Math.min(e.clientY - rect.top, rect.height));
+
+    const x = Math.min(startPos.x, currentX);
+    const y = Math.min(startPos.y, currentY);
+    const w = Math.abs(startPos.x - currentX);
+    const h = Math.abs(startPos.y - currentY);
+
+    setBox({ x, y, w, h });
+  };
+
+  const handleMouseUp = () => {
+    setStartPos(null);
+  };
+
+  const submitEdit = async () => {
+    if (!editPrompt.trim() || !imgRef.current) return;
+    setIsSubmittingEdit(true);
+    try {
+      const img = imgRef.current;
+      const canvas = document.createElement("canvas");
+      canvas.width = img.naturalWidth;
+      canvas.height = img.naturalHeight;
+      const ctx = canvas.getContext("2d");
+      if (!ctx) throw new Error("Could not get canvas context");
+
+      // 绘制原图
+      ctx.drawImage(img, 0, 0);
+
+      // 如果有选择红框，在画布上叠加绘制红色线框
+      if (box && box.w > 2 && box.h > 2) {
+        const displayW = img.clientWidth;
+        const displayH = img.clientHeight;
+        const scaleX = img.naturalWidth / displayW;
+        const scaleY = img.naturalHeight / displayH;
+
+        const rx = box.x * scaleX;
+        const ry = box.y * scaleY;
+        const rw = box.w * scaleX;
+        const rh = box.h * scaleY;
+
+        ctx.strokeStyle = "red";
+        ctx.lineWidth = Math.max(3, Math.round(img.naturalWidth / 200));
+        ctx.strokeRect(rx, ry, rw, rh);
+      }
+
+      const base64Data = canvas.toDataURL("image/png");
+
+      const { editPanelImage } = await import("@/api/comic");
+      await editPanelImage({
+        assetId: panel.id,
+        imageBase64: base64Data,
+        prompt: editPrompt,
+        provider: provider || "sensenova",
+      });
+
+      toast.success(i18next.t("comic.panelsGridPanel.exhb02"));
+      setIsEditingImage(false);
+      setBox(null);
+      setEditPrompt("");
+      // 触发外部保存状态，以拉取最新图片
+      onSaved({ ...panel });
+    } catch (err) {
+      toast.error(i18next.t("comic.panelsGridPanel.5kd8f", { val1: err instanceof Error ? err.message : String(err) }));
+    } finally {
+      setIsSubmittingEdit(false);
+    }
+  };
+
   useEffect(() => {
     setDraftVisualPrompt(panel.visualPrompt);
     setIsEditing(false);
@@ -386,7 +478,7 @@ function PanelDetailDialog({
     onSuccess: (updatedPanel) => {
       onSaved(updatedPanel);
       setIsEditing(false);
-      toast.success("画面脚本已保存");
+      toast.success(i18next.t("dict.gen_c4a143ac"));
     },
     onError: (e) => toast.error(String(e)),
   });
@@ -406,24 +498,39 @@ function PanelDetailDialog({
   return (
     <Dialog open onOpenChange={(open) => { if (!open) onClose(); }}>
       <AppDialogContent
-        title={`第 ${panel.order} 格 · ${panel.panelType}`}
-        description="检查并调整这一格的画面描述；重新生图会使用保存后的内容。"
+        title={i18next.t("comic.panelsGridPanel.5yn0d6", { val1: panel.order, val2: panel.panelType })}
+        description={i18next.t("dict.gen_2a07f258")}
         className="max-w-4xl"
         bodyClassName="p-0"
       >
         <div className="flex flex-col gap-0 lg:flex-row">
-          <div className="border-b bg-muted/30 p-4 lg:w-56 lg:border-b-0 lg:border-r">
+          <div className={`border-b bg-muted/30 p-4 lg:border-b-0 lg:border-r transition-all duration-300 ${isEditingImage ? "lg:w-[450px]" : "lg:w-56"}`}>
             {imageData.status === "done" ? (
-              <div className="relative">
+              <div
+                className={`relative select-none ${isEditingImage ? "cursor-crosshair border border-primary border-dashed rounded-md overflow-hidden" : ""}`}
+                onMouseDown={handleMouseDown}
+                onMouseMove={handleMouseMove}
+                onMouseUp={handleMouseUp}
+              >
                 <img
+                  ref={imgRef}
                   src={panelImageUrl(panel.id)}
-                  alt={`第 ${panel.order} 格`}
-                  className="mx-auto max-h-72 w-full rounded-md object-contain lg:max-h-none"
+                  alt={i18next.t("comic.panelsGridPanel.vms8xs", { val1: panel.order })}
+                  className="mx-auto max-h-72 w-full rounded-md object-contain lg:max-h-none pointer-events-none"
                 />
-                {imageStale && (
-                  <span className="absolute left-2 top-2 rounded border border-amber-200 bg-amber-50 px-2 py-0.5 text-[11px] font-medium text-amber-700">
-                    待重抽
-                  </span>
+                {box && (
+                  <div
+                    className="absolute border-2 border-red-500 bg-red-500/25 pointer-events-none animate-pulse"
+                    style={{
+                      left: box.x,
+                      top: box.y,
+                      width: box.w,
+                      height: box.h,
+                    }}
+                  />
+                )}
+                {imageStale && !isEditingImage && (
+                  <span className="absolute left-2 top-2 rounded border border-amber-200 bg-amber-50 px-2 py-0.5 text-[11px] font-medium text-amber-700">{i18next.t("comic.panelsGridPanel.ep0id")}</span>
                 )}
               </div>
             ) : (
@@ -435,7 +542,7 @@ function PanelDetailDialog({
               type="button"
               size="sm"
               className="mt-3 w-full"
-              disabled={busy || savePromptMut.isPending}
+              disabled={busy || savePromptMut.isPending || isEditingImage}
               onClick={() => {
                 onGenerate(panel.id);
                 onClose();
@@ -443,27 +550,67 @@ function PanelDetailDialog({
             >
               {imageData.status === "done" ? (
                 <>
-                  <RefreshCw className="h-3 w-3" />
-                  重抽
-                </>
+                  <RefreshCw className="h-3 w-3" />{i18next.t("comic.panelsGridPanel.pcb4")}</>
               ) : (
                 <>
-                  <Sparkles className="h-3 w-3" />
-                  生图
-                </>
+                  <Sparkles className="h-3 w-3" />{i18next.t("comic.panelsGridPanel.kedb")}</>
               )}
             </Button>
-            {imageStale && (
-              <p className="mt-2 rounded border border-amber-200 bg-amber-50 px-2 py-1.5 text-xs leading-relaxed text-amber-800">
-                画面脚本已在上次生图后修改，重抽后图片才会使用新的脚本。
-              </p>
+            {imageStale && !isEditingImage && (
+              <p className="mt-2 rounded border border-amber-200 bg-amber-50 px-2 py-1.5 text-xs leading-relaxed text-amber-800">{i18next.t("comic.panelsGridPanel.pda53d")}</p>
+            )}
+            {imageData.status === "done" && (
+              <div className="mt-2 space-y-2">
+                {!isEditingImage ? (
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    className="w-full text-xs"
+                    onClick={() => setIsEditingImage(true)}
+                  >{i18next.t("comic.panelsGridPanel.mr31mx")}</Button>
+                ) : (
+                  <div className="rounded border bg-background p-2.5 space-y-2 text-xs">
+                    <div className="font-semibold text-muted-foreground">{i18next.t("comic.panelsGridPanel.81e9ha")}</div>
+                    <textarea
+                      placeholder={i18next.t("comic.panelsGridPanel.d2792y")}
+                      value={editPrompt}
+                      onChange={(e) => setEditPrompt(e.target.value)}
+                      rows={3}
+                      className="w-full resize-none rounded border p-1.5 focus:outline-none focus:ring-1 focus:ring-primary text-xs"
+                    />
+                    <div className="flex gap-1.5">
+                      <Button
+                        type="button"
+                        size="sm"
+                        className="flex-1 text-[11px] h-7"
+                        disabled={isSubmittingEdit || !editPrompt.trim()}
+                        onClick={submitEdit}
+                      >
+                        {isSubmittingEdit ? "正在提交..." : "确认修改"}
+                      </Button>
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="ghost"
+                        className="text-[11px] h-7"
+                        onClick={() => {
+                          setIsEditingImage(false);
+                          setBox(null);
+                          setEditPrompt("");
+                        }}
+                      >{i18next.t("common.cancel")}</Button>
+                    </div>
+                  </div>
+                )}
+              </div>
             )}
           </div>
 
           <div className="min-w-0 flex-1 space-y-4 p-4">
             <div>
               <div className="mb-1 flex flex-wrap items-center gap-2">
-                <span className="text-xs font-semibold text-muted-foreground">动作描述</span>
+                <span className="text-xs font-semibold text-muted-foreground">{i18next.t("dict.gen_bb47cf4a")}</span>
                 <span className={`rounded border px-2 py-0.5 text-[11px] ${density.className}`}>{density.label}</span>
               </div>
               <div className="rounded bg-muted px-2 py-1.5 text-sm">{panel.action}</div>
@@ -471,16 +618,18 @@ function PanelDetailDialog({
 
             {panel.focus && (
               <div>
-                <div className="mb-1 text-xs font-semibold text-muted-foreground">主视觉焦点</div>
+                <div className="mb-1 text-xs font-semibold text-muted-foreground">{i18next.t("dict.mainVisualFocus")}</div>
                 <div className="rounded bg-muted/60 px-2 py-1.5 text-sm">{panel.focus}</div>
               </div>
             )}
 
             {layoutData.layout && (
               <div>
-                <div className="mb-1 text-xs font-semibold text-muted-foreground">版式结构</div>
+                <div className="mb-1 text-xs font-semibold text-muted-foreground">{i18next.t("dict.gen_f573af34")}</div>
                 <div className="rounded border bg-muted/40 px-2 py-2 text-xs leading-relaxed text-muted-foreground">
-                  <div className="font-medium text-foreground">{layoutData.layout === "four_koma" ? "四格起承转合" : layoutData.layout}</div>
+                  <div className="font-medium text-foreground">
+                    版式：{layoutData.layout === "four_koma" ? "四格起承转合" : layoutData.layout}
+                  </div>
                   {layoutData.subPanels?.length ? (
                     <div className="mt-1 space-y-1">
                       {layoutData.subPanels.map((subPanel) => (
@@ -496,7 +645,7 @@ function PanelDetailDialog({
 
             <div>
               <div className="mb-1 flex items-center justify-between gap-2">
-                <span className="text-xs font-semibold text-muted-foreground">画面脚本</span>
+                <span className="text-xs font-semibold text-muted-foreground">{i18next.t("dict.gen_909b8275")}</span>
                 <Button
                   type="button"
                   size="sm"
@@ -509,7 +658,7 @@ function PanelDetailDialog({
                   }}
                 >
                   <Pencil className="h-3 w-3" />
-                  {isEditing ? "取消编辑" : "编辑"}
+                  {isEditing ? i18next.t("dict.gen_cbb46593") : i18next.t("common.edit")}
                 </Button>
               </div>
               <textarea
@@ -524,7 +673,7 @@ function PanelDetailDialog({
                 ].join(" ")}
               />
               <div className="mt-1 flex flex-wrap items-center justify-between gap-2 text-[11px] text-muted-foreground">
-                <span>保存后，下一次生图会使用这段画面脚本。</span>
+                <span>{i18next.t("dict.savedThenNextImageGenerationWillUseThisSceneScript")}</span>
                 <span>{draftVisualPrompt.length}/400</span>
               </div>
               {isEditing && (
@@ -545,9 +694,7 @@ function PanelDetailDialog({
                     disabled={!canSave || busy || savePromptMut.isPending}
                     onClick={saveAndGenerate}
                   >
-                    <Sparkles className="h-3.5 w-3.5" />
-                    保存并生图
-                  </Button>
+                    <Sparkles className="h-3.5 w-3.5" />{i18next.t("comic.panelsGridPanel.uywvnq")}</Button>
                 </div>
               )}
             </div>
@@ -555,9 +702,7 @@ function PanelDetailDialog({
             {imageData.referenceImages && imageData.referenceImages.length > 0 && (
               <div>
                 <div className="mb-1.5 flex items-center gap-1 text-xs font-semibold text-muted-foreground">
-                  <ImageIcon className="h-3 w-3" />
-                  本次生图使用的参考素材
-                  <span className="rounded border bg-muted px-1 py-px text-[10px] font-normal text-muted-foreground">
+                  <ImageIcon className="h-3 w-3" />{i18next.t("comic.panelsGridPanel.qjbyaw")}<span className="rounded border bg-muted px-1 py-px text-[10px] font-normal text-muted-foreground">
                     {imageData.referenceImages.length}
                   </span>
                 </div>
@@ -571,7 +716,7 @@ function PanelDetailDialog({
                         href={ref.url}
                         target="_blank"
                         rel="noreferrer"
-                        title={`${kindLabel} · ${ref.label}（点击查看大图）`}
+                        title={i18next.t("image.imageGenerationConfirmDialog.cry1qs", { val1: kindLabel, val2: ref.label })}
                         className="group block overflow-hidden rounded border bg-background transition-colors hover:border-primary"
                       >
                         <div className="aspect-square bg-muted/30">
@@ -593,17 +738,13 @@ function PanelDetailDialog({
                     );
                   })}
                 </div>
-                <p className="mt-1.5 text-[10px] text-muted-foreground">
-                  这些素材会被合成为雪碧图后传给图像模型，用于锁定角色外形、服装、道具与场景。
-                </p>
+                <p className="mt-1.5 text-[10px] text-muted-foreground">{i18next.t("comic.panelsGridPanel.q9o3f2")}</p>
               </div>
             )}
 
             <div>
               <div className="mb-1 flex items-center gap-1 text-xs font-semibold text-muted-foreground">
-                <FileText className="h-3 w-3" />
-                上次发送给图像模型的 Prompt
-              </div>
+                <FileText className="h-3 w-3" />{i18next.t("comic.panelsGridPanel.84j7f1")}</div>
               {imageData.prompt ? (
                 <>
                   <textarea
@@ -614,14 +755,12 @@ function PanelDetailDialog({
                   />
                   {imageData.provider && (
                     <div className="mt-1 text-[11px] text-muted-foreground">
-                      模型：{imageData.provider}{imageData.generatedAt ? ` · 生成于 ${new Date(imageData.generatedAt).toLocaleString("zh-CN")}` : ""}
+                      模型：{imageData.provider}{imageData.generatedAt ? i18next.t("comic.panelsGridPanel.edgf8k", { val1: new Date(imageData.generatedAt).toLocaleString("zh-CN") }) : ""}
                     </div>
                   )}
                 </>
               ) : (
-                <div className="rounded bg-muted/50 px-2 py-2 text-xs text-muted-foreground">
-                  生图后可在这里查看模型实际收到的完整 prompt。
-                </div>
+                <div className="rounded bg-muted/50 px-2 py-2 text-xs text-muted-foreground">{i18next.t("comic.panelsGridPanel.svuj4y")}</div>
               )}
             </div>
           </div>
@@ -700,7 +839,7 @@ export function PanelsGridPanel({ projectId, provider }: { projectId: string; pr
           <div className="ml-auto flex rounded-md border bg-background p-0.5">
             <button
               type="button"
-              title="格子视图"
+              title={i18next.t("dict.gen_8fe0d275")}
               className={`rounded p-1.5 transition-colors ${viewMode === "grid" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-muted"}`}
               onClick={() => setViewMode("grid")}
             >
@@ -708,7 +847,7 @@ export function PanelsGridPanel({ projectId, provider }: { projectId: string; pr
             </button>
             <button
               type="button"
-              title="条带视图（阅读流）"
+              title={i18next.t("dict.gen_afd428f9")}
               className={`rounded p-1.5 transition-colors ${viewMode === "strip" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-muted"}`}
               onClick={() => setViewMode("strip")}
             >
@@ -722,6 +861,9 @@ export function PanelsGridPanel({ projectId, provider }: { projectId: string; pr
         <BatchBar
           episodeId={activeEpisode.id}
           provider={provider}
+          onTick={() => {
+            queryClient.invalidateQueries({ queryKey: ["comic", "panels", activeEpisode.id] });
+          }}
           onComplete={() => {
             queryClient.invalidateQueries({ queryKey: ["comic", "panels", activeEpisode.id] });
             void refetchPanels();
@@ -729,17 +871,16 @@ export function PanelsGridPanel({ projectId, provider }: { projectId: string; pr
         />
       )}
 
-      {panelsLoading && <div className="py-8 text-center text-sm text-muted-foreground">加载中...</div>}
+      {panelsLoading && <div className="py-8 text-center text-sm text-muted-foreground">{i18next.t("dict.gen_26b5bd49")}</div>}
       {!panelsLoading && panels.length === 0 && activeEpisode && (
-        <div className="py-8 text-center text-sm text-muted-foreground">
-          该话尚无格子脚本，请先在「分话大纲」中生成分格脚本。
-        </div>
+        <div className="py-8 text-center text-sm text-muted-foreground">{i18next.t("comic.panelsGridPanel.z8fxqi")}</div>
       )}
 
       {selectedPanel && (
         <PanelDetailDialog
           panel={selectedPanel}
           busy={busyPanelId === selectedPanel.id}
+          provider={provider}
           onClose={() => setSelectedPanel(null)}
           onGenerate={startPanelGeneration}
           onSaved={(panel) => {
@@ -777,15 +918,13 @@ export function PanelsGridPanel({ projectId, provider }: { projectId: string; pr
                 {imageData.status === "done" ? (
                   <div className="relative">
                     <img
-                      src={panelImageUrl(panel.id)}
-                      alt={`第 ${panel.order} 格`}
+                      src={`${panelImageUrl(panel.id)}?t=${imageData.generatedAt || panel.updatedAt || ""}`}
+                      alt={i18next.t("comic.panelsGridPanel.vms8xs", { val1: panel.order })}
                       className="aspect-[2/3] w-full object-cover"
                       loading="lazy"
                     />
                     {imageStale && (
-                      <span className="absolute left-2 top-2 rounded border border-amber-200 bg-amber-50 px-2 py-0.5 text-[10px] font-medium text-amber-700">
-                        待重抽
-                      </span>
+                      <span className="absolute left-2 top-2 rounded border border-amber-200 bg-amber-50 px-2 py-0.5 text-[10px] font-medium text-amber-700">{i18next.t("comic.panelsGridPanel.ep0id")}</span>
                     )}
                   </div>
                 ) : (
@@ -819,9 +958,7 @@ export function PanelsGridPanel({ projectId, provider }: { projectId: string; pr
                         startPanelGeneration(panel.id);
                       }}
                     >
-                      <Sparkles className="h-3 w-3" />
-                      生图
-                    </Button>
+                      <Sparkles className="h-3 w-3" />{i18next.t("comic.panelsGridPanel.kedb")}</Button>
                   )}
                   {imageData.status === "done" && (
                     <Button
@@ -835,9 +972,7 @@ export function PanelsGridPanel({ projectId, provider }: { projectId: string; pr
                         startPanelGeneration(panel.id);
                       }}
                     >
-                      <RefreshCw className="h-3 w-3" />
-                      重抽
-                    </Button>
+                      <RefreshCw className="h-3 w-3" />{i18next.t("comic.panelsGridPanel.pcb4")}</Button>
                   )}
                   <Button
                     type="button"
@@ -849,9 +984,7 @@ export function PanelsGridPanel({ projectId, provider }: { projectId: string; pr
                       setSelectedPanel(panel);
                     }}
                   >
-                    <FileText className="h-3 w-3" />
-                    提示词
-                  </Button>
+                    <FileText className="h-3 w-3" />{i18next.t("comic.panelsGridPanel.f7p2b")}</Button>
                 </div>
               </div>
             );

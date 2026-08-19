@@ -1,13 +1,12 @@
 import { createHash } from "node:crypto";
 import { ragConfig } from "../../config/rag";
-import { runStructuredPrompt } from "../../prompting/core/promptRunner";
 import { ragContextualChunkPrompt } from "../../prompting/prompts/rag/contextualChunk.prompts";
 import type { RagChunkCandidate, RagSourceDocument } from "./types";
 import { estimateTokenCount, normalizeRagText, runWithConcurrency } from "./utils";
 
 const CONTEXT_PREFIX_MAX_CHARS = 260;
 
-type ContextualPromptRunner = typeof runStructuredPrompt;
+type ContextualPromptRunner = (options: any) => Promise<any>;
 
 export interface RagContextualChunkDocument {
   ownerType: RagSourceDocument["ownerType"];
@@ -68,8 +67,13 @@ export function buildSearchText(chunkText: string, contextPrefix?: string): stri
   return `${prefix}\n\n${chunkText}`.trim();
 }
 
+function getDefaultPromptRunner(options: any) {
+  const { runStructuredPrompt } = require("../../prompting/core/promptRunner");
+  return runStructuredPrompt(options);
+}
+
 export class RagContextualChunkService {
-  constructor(private readonly promptRunner: ContextualPromptRunner = runStructuredPrompt) {}
+  constructor(private readonly promptRunner: ContextualPromptRunner = getDefaultPromptRunner) {}
 
   async buildContextPrefix(input: RagContextualChunkInput): Promise<{
     contextPrefix?: string;

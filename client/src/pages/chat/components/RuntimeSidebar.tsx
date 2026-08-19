@@ -1,3 +1,5 @@
+import i18next from "i18next";
+const t = (key: string, options?: any) => i18next.t(key, options) as string;
 import { useEffect, useState } from "react";
 import type { AgentStep } from "@ai-novel/shared/types/agent";
 import KnowledgeDocumentPicker from "@/components/knowledge/KnowledgeDocumentPicker";
@@ -129,7 +131,7 @@ export default function RuntimeSidebar({
   return (
     <Card className="sticky top-4 flex h-[calc(100vh-8rem)] flex-col border-slate-200 shadow-sm">
       <CardHeader className="border-b border-slate-200 pb-3">
-        <CardTitle className="text-base">运行面板</CardTitle>
+        <CardTitle className="text-base">{i18next.t("dict.gen_935d16e3")}</CardTitle>
       </CardHeader>
 
       <CardContent className="flex-1 space-y-3 overflow-y-auto p-3 text-sm">
@@ -150,41 +152,39 @@ export default function RuntimeSidebar({
               activeTab === "trace" ? "bg-white text-slate-900 shadow-sm" : "text-slate-500"
             }`}
             onClick={() => setActiveTab("trace")}
-          >
-            轨迹
-          </button>
+          >{i18next.t("chat.runtimeSidebar.p6kx")}</button>
         </div>
 
         {activeTab === "console" ? (
           <div className="space-y-3">
             <div className="rounded-xl border border-slate-200 bg-white p-3">
-              <div className="mb-2 text-xs font-medium tracking-wide text-slate-500">会话上下文</div>
+              <div className="mb-2 text-xs font-medium tracking-wide text-slate-500">{i18next.t("dict.sessionContext")}</div>
               <div className="grid gap-2">
                 <div className="grid gap-1">
-                  <label className="text-[11px] text-slate-500">对话模式</label>
+                  <label className="text-[11px] text-slate-500">{i18next.t("dict.gen_64af497f")}</label>
                   <SelectControl
                     className="w-full rounded-lg border border-slate-300 bg-white p-2"
                     value={chatMode}
                     onChange={(event) => onChatModeChange(event.target.value as ChatMode)}
                   >
-                    <option value="standard">标准模式</option>
-                    <option value="agent">智能代理</option>
+                    <option value="standard">{i18next.t("dict.gen_701a85d4")}</option>
+                    <option value="agent">{i18next.t("dict.gen_f5982ed1")}</option>
                   </SelectControl>
                 </div>
                 <div className="grid gap-1">
-                  <label className="text-[11px] text-slate-500">上下文模式</label>
+                  <label className="text-[11px] text-slate-500">{i18next.t("dict.contextMode")}</label>
                   <SelectControl
                     className="w-full rounded-lg border border-slate-300 bg-white p-2"
                     value={contextMode}
                     onChange={(event) => onContextModeChange(event.target.value as ContextMode)}
                   >
-                    <option value="global">全局</option>
-                    <option value="novel">小说</option>
+                    <option value="global">{i18next.t("dict.gen_2be75b10")}</option>
+                    <option value="novel">{i18next.t("dict.gen_1fb52965")}</option>
                   </SelectControl>
                 </div>
                 {runHistoryIds.length > 0 ? (
                   <div className="grid gap-1">
-                    <label className="text-[11px] text-slate-500">会话运行</label>
+                    <label className="text-[11px] text-slate-500">{i18next.t("dict.sessionRunning")}</label>
                     <SelectControl
                       className="w-full rounded-lg border border-slate-300 bg-white p-2"
                       value={currentRunId}
@@ -200,13 +200,13 @@ export default function RuntimeSidebar({
                 ) : null}
                 {contextMode === "novel" ? (
                   <div className="grid gap-1">
-                    <label className="text-[11px] text-slate-500">小说</label>
+                    <label className="text-[11px] text-slate-500">{i18next.t("dict.gen_1fb52965")}</label>
                     <SelectControl
                       className="w-full rounded-lg border border-slate-300 bg-white p-2"
                       value={novelId}
                       onChange={(event) => onNovelChange(event.target.value)}
                     >
-                      <option value="">请选择小说</option>
+                      <option value="">{i18next.t("dict.gen_bb9d9811")}</option>
                       {novels.map((novel) => (
                         <option key={novel.id} value={novel.id}>
                           {novel.title}
@@ -220,7 +220,7 @@ export default function RuntimeSidebar({
 
             <div className="rounded-xl border border-slate-200 bg-white p-3">
               <div className="mb-2 flex items-center justify-between">
-                <div className="text-xs font-medium tracking-wide text-slate-500">审批</div>
+                <div className="text-xs font-medium tracking-wide text-slate-500">{i18next.t("dict.gen_0273ba5c")}</div>
                 {approvalCards.length > 0 ? (
                   <div className="rounded-full bg-amber-50 px-2 py-0.5 text-[11px] font-medium text-amber-700 ring-1 ring-amber-200">
                     {approvalCards.length} 项待处理
@@ -232,7 +232,7 @@ export default function RuntimeSidebar({
                 <div className="space-y-3">
                   {approvalCards.map((item, index) => (
                     <div key={item.approvalId} className="rounded-xl border border-amber-200 bg-amber-50/60 p-3">
-                      <div className="text-sm font-semibold text-slate-900">审批项 {index + 1}</div>
+                      <div className="text-sm font-semibold text-slate-900">{i18next.t("dict.gen_81ebf25a")}</div>
                       <div className="mt-1 text-xs text-slate-500">{item.targetType}:{item.targetId}</div>
                       <div className="mt-2 rounded-lg bg-white p-2 text-sm text-slate-800">{item.summary}</div>
                     </div>
@@ -241,28 +241,20 @@ export default function RuntimeSidebar({
                     className="min-h-[88px] w-full rounded-lg border border-slate-300 bg-slate-50 p-2"
                     value={approvalNote}
                     onChange={(event) => onApprovalNoteChange(event.target.value)}
-                    placeholder="审批备注（可选）"
+                    placeholder={i18next.t("dict.gen_cd98d717")}
                   />
                   <div className="flex gap-2">
-                    <Button size="sm" className="flex-1" onClick={() => onSubmitApproval("approve")} disabled={isStreaming}>
-                      同意并继续
-                    </Button>
-                    <Button size="sm" variant="destructive" className="flex-1" onClick={() => onSubmitApproval("reject")} disabled={isStreaming}>
-                      拒绝
-                    </Button>
+                    <Button size="sm" className="flex-1" onClick={() => onSubmitApproval("approve")} disabled={isStreaming}>{i18next.t("chat.runtimeSidebar.dw16kn")}</Button>
+                    <Button size="sm" variant="destructive" className="flex-1" onClick={() => onSubmitApproval("reject")} disabled={isStreaming}>{i18next.t("chat.runtimeSidebar.hi6j")}</Button>
                   </div>
                 </div>
               ) : (
-                <div className="rounded-xl border border-slate-200 bg-slate-50 p-3 text-sm text-slate-600">
-                  当前没有待处理审批。
-                </div>
+                <div className="rounded-xl border border-slate-200 bg-slate-50 p-3 text-sm text-slate-600">{i18next.t("chat.runtimeSidebar.74z2gr")}</div>
               )}
 
               {approvalHistory.length > 0 ? (
                 <details className="mt-3 rounded-xl border border-slate-200 bg-slate-50 p-2">
-                  <summary className="cursor-pointer px-1 py-1 text-xs font-medium text-slate-700">
-                    审批历史
-                  </summary>
+                  <summary className="cursor-pointer px-1 py-1 text-xs font-medium text-slate-700">{i18next.t("chat.runtimeSidebar.byvs4k")}</summary>
                   <div className="mt-2 space-y-2">
                     {approvalHistory.map((item) => (
                       <div key={item.id} className="rounded-lg border border-slate-200 bg-white px-2 py-2 text-xs">
@@ -276,25 +268,23 @@ export default function RuntimeSidebar({
             </div>
 
             <details className="rounded-xl border border-slate-200 bg-white">
-              <summary className="cursor-pointer px-3 py-2 text-xs font-medium text-slate-700">
-                运行配置
-              </summary>
+              <summary className="cursor-pointer px-3 py-2 text-xs font-medium text-slate-700">{i18next.t("chat.runtimeSidebar.ipo0u5")}</summary>
               <div className="space-y-3 border-t border-slate-200 p-3">
                 <div>
-                  <div className="mb-2 text-xs font-medium tracking-wide text-slate-500">模型</div>
+                  <div className="mb-2 text-xs font-medium tracking-wide text-slate-500">{i18next.t("dict.gen_8000f187")}</div>
                   <div className="space-y-2">
                     <div className="rounded-lg bg-slate-50 px-2 py-1.5 text-xs">
-                      <span className="text-slate-500">提供方: </span>
+                      <span className="text-slate-500">{i18next.t("dict.gen_a127eb50")}</span>
                       <span className="font-medium text-slate-800">{provider}</span>
                     </div>
                     <div className="rounded-lg bg-slate-50 px-2 py-1.5 text-xs">
-                      <span className="text-slate-500">模型: </span>
+                      <span className="text-slate-500">{i18next.t("dict.gen_c1fef619")}</span>
                       <span className="font-medium text-slate-800">{model}</span>
                     </div>
                   </div>
                   <div className="mt-3 space-y-2">
                     <div className="grid gap-1">
-                      <label className="text-[11px] text-slate-500">温度</label>
+                      <label className="text-[11px] text-slate-500">{i18next.t("dict.gen_c9bf0b88")}</label>
                       <input
                         type="number"
                         min={0}
@@ -306,7 +296,7 @@ export default function RuntimeSidebar({
                       />
                     </div>
                     <div className="grid gap-1">
-                      <label className="text-[11px] text-slate-500">最大 Token</label>
+                      <label className="text-[11px] text-slate-500">{i18next.t("dict.gen_fe2528ff")}</label>
                       <input
                         type="number"
                         min={128}
@@ -327,12 +317,12 @@ export default function RuntimeSidebar({
                 </div>
 
                 <div>
-                  <div className="mb-2 text-xs font-medium tracking-wide text-slate-500">系统提示词</div>
+                  <div className="mb-2 text-xs font-medium tracking-wide text-slate-500">{i18next.t("dict.gen_cbdb6bc9")}</div>
                   <textarea
                     className="min-h-[110px] w-full rounded-lg border border-slate-300 p-2"
                     value={systemPrompt}
                     onChange={(event) => onSystemPromptChange(event.target.value)}
-                    placeholder="覆盖默认系统提示词。"
+                    placeholder={i18next.t("dict.gen_69090181")}
                   />
                 </div>
 
@@ -342,16 +332,14 @@ export default function RuntimeSidebar({
                       type="checkbox"
                       checked={enableRag}
                       onChange={(event) => onEnableRagChange(event.target.checked)}
-                    />
-                    启用知识检索（RAG）
-                  </label>
+                    />{i18next.t("chat.runtimeSidebar.4iuo9v")}</label>
                   <KnowledgeDocumentPicker
                     selectedIds={knowledgeDocumentIds}
                     onChange={onKnowledgeDocumentIdsChange}
-                    title="知识文档"
+                    title={i18next.t("dict.gen_a597ef78")}
                     description={enableRag
-                      ? "留空将自动解析，也可手动选择文档限制检索范围。"
-                      : "RAG 当前已禁用，请先在上方启用后再使用文档检索。"}
+                      ? i18next.t("dict.gen_b9f2158a")
+                      : i18next.t("dict.gen_RAG当前已禁用请先_qn49")}
                     allowAuto
                     queryStatus="enabled"
                   />
@@ -363,10 +351,8 @@ export default function RuntimeSidebar({
           <div className="space-y-3">
             {replayableSteps.length > 0 ? (
               <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
-                <div className="text-xs font-medium text-slate-600">重放控制</div>
-                <div className="mt-1 text-[11px] text-slate-500">
-                  仅显示后续仍有工具调用的步骤。
-                </div>
+                <div className="text-xs font-medium text-slate-600">{i18next.t("dict.gen_1d4f1226")}</div>
+                <div className="mt-1 text-[11px] text-slate-500">{i18next.t("chat.runtimeSidebar.p2y2tq")}</div>
                 <div className="mt-2 flex flex-col gap-2">
                   <SelectControl
                     className="w-full rounded-lg border border-slate-300 bg-white p-2 text-xs"
@@ -380,19 +366,13 @@ export default function RuntimeSidebar({
                     ))}
                   </SelectControl>
                   <div className="flex gap-2">
-                    <Button size="sm" variant="secondary" className="flex-1" onClick={() => onReplay("continue")} disabled={isStreaming}>
-                      从这里继续
-                    </Button>
-                    <Button size="sm" variant="secondary" className="flex-1" onClick={() => onReplay("dry_run")} disabled={isStreaming}>
-                      干运行
-                    </Button>
+                    <Button size="sm" variant="secondary" className="flex-1" onClick={() => onReplay("continue")} disabled={isStreaming}>{i18next.t("chat.runtimeSidebar.s9y515")}</Button>
+                    <Button size="sm" variant="secondary" className="flex-1" onClick={() => onReplay("dry_run")} disabled={isStreaming}>{i18next.t("chat.runtimeSidebar.ej7u6")}</Button>
                   </div>
                 </div>
               </div>
             ) : persistedSteps.length > 0 ? (
-              <div className="rounded-xl border border-slate-200 bg-slate-50 p-3 text-xs text-slate-500">
-                当前所选运行没有可继续重放的步骤。
-              </div>
+              <div className="rounded-xl border border-slate-200 bg-slate-50 p-3 text-xs text-slate-500">{i18next.t("chat.runtimeSidebar.9m802q")}</div>
             ) : null}
 
             <div className="space-y-2">
@@ -417,27 +397,25 @@ export default function RuntimeSidebar({
                     </summary>
                     <div className="mt-2 space-y-2">
                       <div>
-                        <div className="mb-1 text-[11px] font-medium text-slate-500">输入</div>
+                        <div className="mb-1 text-[11px] font-medium text-slate-500">{i18next.t("dict.gen_e47d59b1")}</div>
                         <pre className="overflow-auto whitespace-pre-wrap rounded-lg bg-white p-2">{safePreview(item.step.inputJson)}</pre>
                       </div>
                       <div>
-                        <div className="mb-1 text-[11px] font-medium text-slate-500">输出</div>
+                        <div className="mb-1 text-[11px] font-medium text-slate-500">{i18next.t("dict.gen_8ba7c3a7")}</div>
                         <pre className="overflow-auto whitespace-pre-wrap rounded-lg bg-white p-2">{safePreview(item.step.outputJson)}</pre>
                       </div>
-                      {item.step.error ? <div className="text-red-600">错误: {item.step.error}</div> : null}
+                      {item.step.error ? <div className="text-red-600">{i18next.t("dict.gen_57328816")}</div> : null}
                     </div>
                   </details>
                 ) : (
                   <div key={item.key} className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-xs">
-                    <div className="mb-1 text-[11px] text-slate-400">事件 {index + 1}</div>
+                    <div className="mb-1 text-[11px] text-slate-400">{i18next.t("dict.eventNumber")}</div>
                     <div className="text-slate-700">{item.text}</div>
                   </div>
                 )
               ))}
               {!hasLiveEvents && persistedSteps.length === 0 ? (
-                <div className="rounded-xl border border-slate-200 bg-slate-50 p-3 text-xs text-slate-500">
-                  暂无运行事件。
-                </div>
+                <div className="rounded-xl border border-slate-200 bg-slate-50 p-3 text-xs text-slate-500">{i18next.t("chat.runtimeSidebar.sbbeir")}</div>
               ) : null}
             </div>
           </div>

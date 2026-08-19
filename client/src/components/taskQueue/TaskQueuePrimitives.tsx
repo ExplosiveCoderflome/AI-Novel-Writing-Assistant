@@ -1,3 +1,4 @@
+import i18next from "i18next";
 import type { ReactNode } from "react";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
@@ -17,7 +18,7 @@ export interface TaskQueueMetricItem {
 
 export function TaskQueueMetricGrid(props: { items: TaskQueueMetricItem[]; className?: string }) {
   return (
-    <section aria-label="任务状态摘要" className={cn("grid gap-3 sm:grid-cols-2 xl:grid-cols-4", props.className)}>
+    <section aria-label={i18next.t("taskQueue.taskQueuePrimitives.x7k8ee")} className={cn("grid gap-3 sm:grid-cols-2 xl:grid-cols-4", props.className)}>
       {props.items.map((item) => {
         const tone = item.tone ?? "neutral";
         return (

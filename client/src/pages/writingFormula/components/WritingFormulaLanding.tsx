@@ -1,3 +1,4 @@
+import i18next from "i18next";
 import type { KeyboardEvent, ReactNode } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -143,9 +144,7 @@ export default function WritingFormulaLanding(props: WritingFormulaLandingProps)
                 event.stopPropagation();
                 onEditProfile(profile.id);
               }}
-            >
-              编辑设定
-            </Button>
+            >{i18next.t("writingFormula.writingFormulaLanding.gmr1uf")}</Button>
             <Button
               type="button"
               size="sm"
@@ -154,9 +153,7 @@ export default function WritingFormulaLanding(props: WritingFormulaLandingProps)
                 event.stopPropagation();
                 onOpenWorkbench(profile.id);
               }}
-            >
-              应用与测试
-            </Button>
+            >{i18next.t("writingFormula.writingFormulaLanding.tr3x0k")}</Button>
             <Button
               type="button"
               size="sm"
@@ -165,9 +162,7 @@ export default function WritingFormulaLanding(props: WritingFormulaLandingProps)
                 event.stopPropagation();
                 onUseProfileForClean(profile.id);
               }}
-            >
-              去 AI 味
-            </Button>
+            >{i18next.t("dict.gen_b589a6aa")}</Button>
             <Button
               type="button"
               size="sm"
@@ -187,8 +182,8 @@ export default function WritingFormulaLanding(props: WritingFormulaLandingProps)
           <div className="mt-5 space-y-4 rounded-2xl border border-slate-200/70 bg-slate-50/55 p-4 md:p-5">
             <div className="grid gap-4 xl:grid-cols-[minmax(0,1.15fr)_minmax(0,1fr)_280px]">
               <DetailPanel
-                title="读感与定位"
-                description="这一列帮助你快速判断这套写法想写成什么感觉，适合先拿来做哪类项目。"
+                title={i18next.t("dict.gen_c9d154f7")}
+                description={i18next.t("dict.gen_6a72ae84")}
               >
                 <div className="rounded-2xl border border-slate-200 bg-white/85 p-4 text-sm leading-7 text-slate-700">
                   {profile.description}
@@ -204,7 +199,7 @@ export default function WritingFormulaLanding(props: WritingFormulaLandingProps)
                 ) : null}
                 {profile.sourceContentPreview ? (
                   <div className="rounded-2xl border border-slate-200 bg-[linear-gradient(135deg,rgba(241,245,249,0.9),rgba(255,255,255,0.98))] px-4 py-4 text-sm leading-7 text-slate-700">
-                    <div className="mb-2 text-xs font-semibold tracking-[0.12em] text-slate-500">原文样本片段</div>
+                    <div className="mb-2 text-xs font-semibold tracking-[0.12em] text-slate-500">{i18next.t("dict.gen_6388f0b7")}</div>
                     <div>{profile.sourceContentPreview}</div>
                   </div>
                 ) : null}
@@ -212,20 +207,20 @@ export default function WritingFormulaLanding(props: WritingFormulaLandingProps)
 
               <div className="space-y-4">
                 <DetailPanel
-                  title="规则摘要"
-                  description="这里把这套写法真正控制读感的四层规则读出来，方便你在列表里先看懂。"
+                  title={i18next.t("dict.gen_353310ad")}
+                  description={i18next.t("dict.gen_f36606c3")}
                 >
                   <div className="grid gap-3 md:grid-cols-2">
-                    <SummaryCard title="剧情推进" summary={profile.narrativeSummary} />
-                    <SummaryCard title="人物表达" summary={profile.characterSummary} />
-                    <SummaryCard title="语言质感" summary={profile.languageSummary} />
-                    <SummaryCard title="节奏控制" summary={profile.rhythmSummary} />
+                    <SummaryCard title={i18next.t("dict.gen_95553c6d")} summary={profile.narrativeSummary} />
+                    <SummaryCard title={i18next.t("dict.characterExpression")} summary={profile.characterSummary} />
+                    <SummaryCard title={i18next.t("dict.gen_98416f13")} summary={profile.languageSummary} />
+                    <SummaryCard title={i18next.t("dict.gen_b01be94f")} summary={profile.rhythmSummary} />
                   </div>
                 </DetailPanel>
 
                 <DetailPanel
-                  title="反 AI 约束"
-                  description="这部分决定系统在检测和修正文稿时会优先盯住哪些风险。"
+                  title={i18next.t("dict.gen_fbe42516")}
+                  description={i18next.t("dict.gen_f4c90180")}
                 >
                   {profile.antiAiFocus.length > 0 || profile.antiAiRuleNames.length > 0 || profile.extractionAntiAiRecommendationCount > 0 ? (
                     <div className="space-y-3">
@@ -254,51 +249,49 @@ export default function WritingFormulaLanding(props: WritingFormulaLandingProps)
                       ) : null}
                     </div>
                   ) : (
-                    <div className="rounded-xl border border-dashed px-3 py-3 text-sm leading-6 text-slate-500">
-                      这套写法还没有绑定明确的反 AI 约束，所以“去 AI 味”时可读性会偏弱。
-                    </div>
+                    <div className="rounded-xl border border-dashed px-3 py-3 text-sm leading-6 text-slate-500">{i18next.t("writingFormula.writingFormulaLanding.shc9mc")}</div>
                   )}
                 </DetailPanel>
               </div>
 
               <div className="space-y-4">
                 <DetailPanel
-                  title="资产概览"
-                  description="这一列主要帮你判断这套写法现在成熟到什么程度。"
+                  title={i18next.t("dict.gen_089761a5")}
+                  description={i18next.t("dict.gen_da7bd02d")}
                 >
                   <div className="space-y-2">
-                    <DetailStatRow label="来源" value={profile.sourceTypeLabel} />
-                    <DetailStatRow label="最近更新" value={profile.updatedAtLabel} />
-                    <DetailStatRow label="启用特征" value={`${profile.extractedFeatureCount} 项`} />
-                    <DetailStatRow label="高风险指纹" value={`${profile.highRiskFeatureCount} 项`} />
+                    <DetailStatRow label={i18next.t("dict.gen_26ca20b1")} value={profile.sourceTypeLabel} />
+                    <DetailStatRow label={i18next.t("dict.gen_06dc9b38")} value={profile.updatedAtLabel} />
+                    <DetailStatRow label={i18next.t("dict.gen_a02411b4")} value={i18next.t("novels.novelExistingProjectTakeoverViewModel.izenbd", { val1: profile.extractedFeatureCount })} />
+                    <DetailStatRow label={i18next.t("dict.gen_3ea1f5f1")} value={i18next.t("novels.novelExistingProjectTakeoverViewModel.izenbd", { val1: profile.highRiskFeatureCount })} />
                     <DetailStatRow
-                      label="当前预设"
+                      label={i18next.t("dict.gen_f2069f25")}
                       value={profile.selectedPresetLabel || "未锁定"}
                     />
                     <DetailStatRow
-                      label="可选预设"
+                      label={i18next.t("dict.gen_711cbc03")}
                       value={profile.presetLabels.length > 0 ? profile.presetLabels.join(" / ") : "暂无"}
                     />
-                    <DetailStatRow label="已绑定目标" value={`${profile.bindingCount} 个`} />
+                    <DetailStatRow label={i18next.t("dict.gen_34700230")} value={i18next.t("novels.novelWorldUsageCard.ize8my", { val1: profile.bindingCount })} />
                     <DetailStatRow
-                      label="最近小说"
+                      label={i18next.t("dict.gen_365ed2d7")}
                       value={profile.recentNovelTitle || "还没有绑定到小说"}
                     />
                     <DetailStatRow
-                      label="适用题材"
+                      label={i18next.t("dict.gen_2fdc5592")}
                       value={profile.applicableGenres.length > 0 ? profile.applicableGenres.join(" / ") : "未填写"}
                     />
                   </div>
                 </DetailPanel>
 
                 <DetailPanel
-                  title="下一步"
-                  description="三个按钮现在各自只负责一件事，不会再跳到同一块内容里。"
+                  title={i18next.t("dict.nextStep")}
+                  description={i18next.t("dict.buttonFunctionality")}
                 >
                   <div className="space-y-2 text-sm leading-6 text-slate-700">
-                    <div>编辑设定：维护这套写法本身的说明、规则和反 AI 约束。</div>
-                    <div>应用与测试：绑定到小说或章节，并做试写验证。</div>
-                    <div>去 AI 味：只处理正文检测和修正，不改写法字段。</div>
+                    <div>{i18next.t("dict.gen_8c45fe26")}</div>
+                    <div>{i18next.t("dict.gen_8999142e")}</div>
+                    <div>{i18next.t("dict.gen_f240c133")}</div>
                   </div>
                 </DetailPanel>
               </div>
@@ -315,38 +308,24 @@ export default function WritingFormulaLanding(props: WritingFormulaLandingProps)
         <CardContent className="space-y-6 p-5 md:p-7">
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div className="space-y-2">
-              <Badge variant="outline" className="border-slate-200 bg-slate-50 text-slate-700">
-                我的写法资产
-              </Badge>
+              <Badge variant="outline" className="border-slate-200 bg-slate-50 text-slate-700">{i18next.t("writingFormula.writingFormulaLanding.1buogi")}</Badge>
               <div className="space-y-2">
-                <h1 className="text-3xl font-semibold tracking-tight text-slate-950">
-                  先选一套写法，再决定要编辑、应用还是去 AI 味。
-                </h1>
-                <p className="max-w-3xl text-sm leading-7 text-slate-600">
-                  首页负责看清你已有的写法资产。展开后会直接展示这套写法的读感定位、规则摘要、反 AI 约束和当前成熟度。
-                </p>
+                <h1 className="text-3xl font-semibold tracking-tight text-slate-950">{i18next.t("writingFormula.writingFormulaLanding.7abhjq")}</h1>
+                <p className="max-w-3xl text-sm leading-7 text-slate-600">{i18next.t("writingFormula.writingFormulaLanding.4tr2z4")}</p>
               </div>
             </div>
 
-            <Button type="button" onClick={onOpenCreate}>
-              新建一套写法
-            </Button>
+            <Button type="button" onClick={onOpenCreate}>{i18next.t("writingFormula.writingFormulaBookStyleFlow.7hr003")}</Button>
           </div>
 
-          <div className="rounded-2xl border border-sky-100 bg-sky-50/55 px-4 py-3 text-sm leading-7 text-slate-700">
-            书级默认写法请从小说基础信息进入，由小说来选择要使用的写法资产，再带入后续导演和正文流程。
-          </div>
+          <div className="rounded-2xl border border-sky-100 bg-sky-50/55 px-4 py-3 text-sm leading-7 text-slate-700">{i18next.t("writingFormula.writingFormulaLanding.bqupu8")}</div>
 
           {profileItems.length === 0 ? (
             <div className="rounded-3xl border border-dashed border-slate-300 bg-slate-50/80 p-6">
-              <div className="text-lg font-semibold text-slate-950">当前还没有写法资产</div>
-              <div className="mt-2 text-sm leading-7 text-slate-600">
-                先创建第一套写法，后面再回来慢慢补规则、做试写和绑定目标。
-              </div>
+              <div className="text-lg font-semibold text-slate-950">{i18next.t("dict.gen_efab47b0")}</div>
+              <div className="mt-2 text-sm leading-7 text-slate-600">{i18next.t("writingFormula.writingFormulaLanding.s6hecf")}</div>
               <div className="mt-4 flex flex-wrap gap-2">
-                <Button type="button" onClick={onOpenCreate}>
-                  去创建第一套写法
-                </Button>
+                <Button type="button" onClick={onOpenCreate}>{i18next.t("writingFormula.writingFormulaLanding.ep1fz9")}</Button>
               </div>
             </div>
           ) : (
@@ -355,10 +334,8 @@ export default function WritingFormulaLanding(props: WritingFormulaLandingProps)
                 <section className="space-y-3">
                   <div className="flex items-center justify-between gap-3">
                     <div>
-                      <div className="text-sm font-semibold text-slate-950">你自己创建的写法</div>
-                      <div className="text-xs leading-6 text-slate-500">
-                        这些是你沉淀下来的可复用资产，应该优先在这里挑。
-                      </div>
+                      <div className="text-sm font-semibold text-slate-950">{i18next.t("dict.yourselfCreatedWritingStyle")}</div>
+                      <div className="text-xs leading-6 text-slate-500">{i18next.t("writingFormula.writingFormulaLanding.5dmwgk")}</div>
                     </div>
                     <Badge variant="secondary" className="bg-slate-100 text-slate-700">
                       {customProfiles.length} 套
@@ -374,10 +351,8 @@ export default function WritingFormulaLanding(props: WritingFormulaLandingProps)
                 <section className="space-y-3">
                   <div className="flex items-center justify-between gap-3">
                     <div>
-                      <div className="text-sm font-semibold text-slate-950">可直接改的起步写法</div>
-                      <div className="text-xs leading-6 text-slate-500">
-                        这些预置资产适合先借一套骨架，再按当前项目改成自己的写法。
-                      </div>
+                      <div className="text-sm font-semibold text-slate-950">{i18next.t("dict.gen_f6e53247")}</div>
+                      <div className="text-xs leading-6 text-slate-500">{i18next.t("writingFormula.writingFormulaLanding.vf4lzu")}</div>
                     </div>
                     <Badge variant="secondary" className="bg-slate-100 text-slate-700">
                       {starterProfiles.length} 套

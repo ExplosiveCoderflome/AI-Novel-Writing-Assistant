@@ -63,6 +63,7 @@ export interface StructuredInvokeInput<T> {
   maxRepairAttempts?: number;
   promptMeta?: PromptInvocationMeta;
   disableFallbackModel?: boolean;
+  onStreamChunk?: (delta: string, accumulatedText: string) => void;
 }
 
 interface StructuredAttemptTarget {
@@ -127,11 +128,13 @@ async function resolveAttemptTarget(input: {
       && input.structuredStrategy == null,
   );
   const route = shouldResolveRoutePreference ? await resolveModel(input.taskType!) : null;
-  const resolved = await resolveLLMClientOptions(input.provider, {
-    fallbackProvider: "deepseek",
+  const targetProvider = input.provider ?? route?.provider;
+  const targetModel = input.model ?? route?.model;
+  const resolved = await resolveLLMClientOptions(targetProvider, {
+    fallbackProvider: targetProvider ?? "deepseek",
     apiKey: input.apiKey,
     baseURL: input.baseURL,
-    model: input.model,
+    model: targetModel,
     temperature: input.temperature,
     maxTokens: input.maxTokens,
     taskType: input.taskType ?? "planner",
@@ -212,12 +215,17 @@ async function invokeStructuredAttempt<T>(input: {
     reasoningForcedOff: resolved.reasoningForcedOff,
   });
   const startedAt = Date.now();
+  const promptPreview = Array.isArray(messages)
+    ? messages.map((m: any) => `[${String(m.role || "user").toUpperCase()}]: ${toText(m.content)}`).join("\n\n")
+    : String(messages);
+
   const liveSession = beginLlmLiveSession({
     label: input.baseInput.label,
     mode: "structured",
     promptMeta: input.baseInput.promptMeta,
     provider: resolved.provider,
     model: resolved.model,
+    promptPreview: promptPreview.slice(0, 4000),
   });
   try {
     liveSession.phase("streaming", "模型正在返回结构化结果");
@@ -236,6 +244,13 @@ async function invokeStructuredAttempt<T>(input: {
           const content = toText(chunk.content);
           rawContent += content;
           liveSession.delta(content);
+          if (input.baseInput.onStreamChunk) {
+            try {
+              input.baseInput.onStreamChunk(content, rawContent);
+            } catch (e) {
+              // ignore callback error
+            }
+          }
           tokenUsage = mergeStreamTokenUsage(tokenUsage, extractLlmTokenUsage(chunk));
         }
         return { rawContent, tokenUsage };

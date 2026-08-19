@@ -1,3 +1,4 @@
+import i18next from "i18next";
 import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type { DirectorContinuationMode } from "@ai-novel/shared/types/novelDirector";
@@ -229,7 +230,7 @@ export default function TaskCenterPage() {
       }
       toast.success(
         variables.llmOverride
-          ? `已切换到 ${variables.llmOverride.provider ?? "当前提供商"} / ${variables.llmOverride.model ?? "当前模型"} 并重试任务`
+          ? i18next.t("tasks.taskCenterPage.4wz6o7", { val1: variables.llmOverride.provider ?? "当前提供商", val2: variables.llmOverride.model ?? "当前模型" })
           : "任务已重新入队",
       );
     },
@@ -239,7 +240,7 @@ export default function TaskCenterPage() {
     mutationFn: (payload: { kind: TaskKind; id: string }) => cancelTask(payload.kind, payload.id),
     onSuccess: async () => {
       await invalidateTaskQueries();
-      toast.success("任务取消请求已提交");
+      toast.success(i18next.t("dict.cancelRequestSubmitted"));
     },
   });
 
@@ -289,7 +290,7 @@ export default function TaskCenterPage() {
         return next;
       });
       await invalidateTaskQueries();
-      toast.success("任务已归档并从任务中心隐藏");
+      toast.success(i18next.t("dict.taskArchivedAndHiddenFromTaskCenter"));
     },
   });
 
@@ -386,7 +387,7 @@ export default function TaskCenterPage() {
   if (selectedTask && !isAutoDirectorTask && needsCandidateSelection) {
     detailActions.push({
       key: "candidate-selection",
-      title: "确认书级方向",
+      title: i18next.t("tasks.taskCenterPage.o0uj3j"),
       label: selectedTask.resumeAction ?? "继续确认书级方向",
       consequence: "打开候选确认页；只有确认后，后续小说生产才会继续。",
       tone: "warning",
@@ -397,8 +398,8 @@ export default function TaskCenterPage() {
   if (selectedTask && !isAutoDirectorTask && canResumeFront10AutoExecution) {
     detailActions.push({
       key: "continue-range",
-      title: "继续当前章节范围",
-      label: selectedTask.resumeAction ?? `继续自动执行${selectedTask.executionScopeLabel ?? "当前章节范围"}`,
+      title: i18next.t("tasks.taskCenterPage.jh74mr"),
+      label: selectedTask.resumeAction ?? i18next.t("novels.novelEditTakeover.shared.lpivmv", { val1: selectedTask.executionScopeLabel ?? "当前章节范围" }),
       consequence: selectedTask.status === "failed" || selectedTask.status === "cancelled"
         ? "任务会从可恢复位置重新入队，并继续当前章节范围。"
         : "系统会提交继续执行命令，并从当前检查点推进该章节范围。",
@@ -441,8 +442,8 @@ export default function TaskCenterPage() {
   if (selectedTask && (selectedTask.status === "failed" || selectedTask.status === "cancelled") && !isAutoDirectorTask) {
     detailActions.push({
       key: "retry",
-      title: "重新执行任务",
-      label: "重试",
+      title: i18next.t("tasks.taskCenterPage.twcn02"),
+      label: i18next.t("dict.gen_132c5cdc"),
       consequence: "任务会按现有任务配置重新入队；已保存的来源内容不会由重试按钮删除。",
       tone: "danger",
       variant: "default",
@@ -456,8 +457,8 @@ export default function TaskCenterPage() {
   )) {
     detailActions.push({
       key: "cancel",
-      title: "停止后续执行",
-      label: "取消任务",
+      title: i18next.t("tasks.taskCenterPage.dvnzmy"),
+      label: i18next.t("dict.gen_d926e2f5"),
       consequence: "系统会请求停止后续步骤；已保存的产物仍保留在来源页面。",
       tone: "warning",
       disabled: cancelMutation.isPending,
@@ -467,8 +468,8 @@ export default function TaskCenterPage() {
   if (selectedTask && ARCHIVABLE_STATUSES.has(selectedTask.status)) {
     detailActions.push({
       key: "archive",
-      title: "从任务中心收起记录",
-      label: "归档",
+      title: i18next.t("tasks.taskCenterPage.z3nvu8"),
+      label: i18next.t("dict.gen_2f51c18f"),
       consequence: "只隐藏任务中心记录，不删除小说正文、规划或其他生成资产。",
       disabled: archiveMutation.isPending,
       onClick: () => archiveMutation.mutate({ kind: selectedTask.kind, id: selectedTask.id }),
@@ -533,8 +534,8 @@ export default function TaskCenterPage() {
       <WorkspaceHeader
         icon={ListChecks}
         context="执行历史与恢复"
-        title="运行记录"
-        description="查看创作、拆书、知识索引和图片任务，优先处理需要你介入的记录。实时生成过程可从顶部“AI 实况”查看。"
+        title={i18next.t("sidebar.tasks")}
+        description={i18next.t("tasks.taskCenterPage.hkfs3o")}
         actions={(
           <Button
             type="button"
@@ -542,9 +543,7 @@ export default function TaskCenterPage() {
             onClick={() => void Promise.all([overviewQuery.refetch(), recoveryCandidatesQuery.refetch(), listQuery.refetch()])}
             disabled={overviewQuery.isFetching || recoveryCandidatesQuery.isFetching || listQuery.isFetching}
           >
-            <RefreshCw className={overviewQuery.isFetching || recoveryCandidatesQuery.isFetching || listQuery.isFetching ? "h-4 w-4 animate-spin" : "h-4 w-4"} aria-hidden="true" />
-            刷新记录
-          </Button>
+            <RefreshCw className={overviewQuery.isFetching || recoveryCandidatesQuery.isFetching || listQuery.isFetching ? "h-4 w-4 animate-spin" : "h-4 w-4"} aria-hidden="true" />{i18next.t("tasks.refresh")}</Button>
         )}
       />
 
@@ -556,7 +555,7 @@ export default function TaskCenterPage() {
         description={overviewQuery.isLoading
           ? "正在汇总执行、等待操作、失败和可恢复任务，请稍候。"
           : overviewErrorMessage
-            ? `${overviewErrorMessage} 当前不会据此判断是否存在阻塞任务。`
+            ? i18next.t("tasks.taskCenterPage.8z723g", { val1: overviewErrorMessage })
             : hasMustHandleTask
               ? recoveryCandidatesQuery.isLoading && !recommendedBlockingTask && failedTaskCount === 0
                 ? "正在定位可恢复任务；读取完成后会提供对应入口。"
@@ -580,9 +579,7 @@ export default function TaskCenterPage() {
                 : "只重新读取恢复候选，不会自动执行恢复。"
             : undefined}
         action={overviewErrorMessage ? (
-          <Button type="button" size="sm" variant="outline" onClick={() => void overviewQuery.refetch()}>
-            重新读取
-          </Button>
+          <Button type="button" size="sm" variant="outline" onClick={() => void overviewQuery.refetch()}>{i18next.t("autoDirectorFollowUps.autoDirectorFollowUpCenterPage.itle66")}</Button>
         ) : !overviewQuery.isLoading && hasRecommendedAction ? (
           <Button
             type="button"

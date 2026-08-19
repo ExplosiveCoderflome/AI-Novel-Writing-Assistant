@@ -11,6 +11,10 @@ import type {
   ChapterEditorRewritePreviewRequest,
   ChapterEditorRewritePreviewResponse,
   ChapterStatus,
+  ChapterEditorContinuePreviewRequest,
+  ChapterEditorContinuePreviewResponse,
+  ChapterEditorIssueFixPreviewRequest,
+  ChapterEditorIssueFixPreviewResponse,
 } from "@ai-novel/shared/types/novel";
 import { apiClient } from "../client";
 
@@ -134,6 +138,31 @@ export async function generateChapterExecutionContract(
 ) {
   const { data } = await apiClient.post<ApiResponse<Chapter>>(
     `/novels/${novelId}/chapters/${chapterId}/execution-contract`,
+    payload,
+  );
+  return data;
+}
+
+export async function previewChapterContinue(
+  novelId: string,
+  chapterId: string,
+  payload: ChapterEditorContinuePreviewRequest,
+) {
+  const { data } = await apiClient.post<ApiResponse<ChapterEditorContinuePreviewResponse>>(
+    `/novels/${novelId}/chapters/${chapterId}/editor/continue-preview`,
+    payload,
+  );
+  return data;
+}
+
+export async function previewChapterIssueFix(
+  novelId: string,
+  chapterId: string,
+  issueId: string,
+  payload: ChapterEditorIssueFixPreviewRequest,
+) {
+  const { data } = await apiClient.post<ApiResponse<ChapterEditorIssueFixPreviewResponse>>(
+    `/novels/${novelId}/chapters/${chapterId}/editor/issues/${issueId}/fix-preview`,
     payload,
   );
   return data;

@@ -2,7 +2,7 @@ import type { BaseMessage } from "@langchain/core/messages";
 import type { PromptAsset, PromptRenderContext } from "../core/promptTypes";
 import { compilePromptTemplate, hasBlockingPromptTemplateDiagnostics } from "./templateCompiler";
 import { promptTemplateOverrideService } from "./PromptTemplateOverrideService";
-import { getRequiredTemplateContextGroups, supportsAdvancedPromptTemplate } from "./templateTypes";
+import { ADVANCED_TEMPLATE_PROMPT_ID, WRITER_REQUIRED_CONTEXT_GROUPS } from "./templateTypes";
 
 function getAllowedTemplateContextGroups(asset: PromptAsset<unknown, unknown, unknown>): string[] {
   return [
@@ -15,14 +15,14 @@ function getAllowedTemplateContextGroups(asset: PromptAsset<unknown, unknown, un
   ];
 }
 
-export async function resolveAdvancedPromptMessages<I, O, R = O>(input: {
-  asset: PromptAsset<I, O, R>;
+export async function resolveAdvancedTextPromptMessages<I>(input: {
+  asset: PromptAsset<I, string, string>;
   promptInput: I;
   context: PromptRenderContext;
   officialMessages: BaseMessage[];
   novelId?: string;
 }): Promise<BaseMessage[]> {
-  if (!supportsAdvancedPromptTemplate(input.asset.id) || !input.novelId) {
+  if (input.asset.id !== ADVANCED_TEMPLATE_PROMPT_ID || !input.novelId) {
     return input.officialMessages;
   }
   const activeTemplate = await promptTemplateOverrideService.getActiveCustomTemplate({
@@ -39,7 +39,7 @@ export async function resolveAdvancedPromptMessages<I, O, R = O>(input: {
     slotDefs: input.asset.slots ?? [],
     slots: input.context.slots,
     allowedContextGroups: getAllowedTemplateContextGroups(input.asset as PromptAsset<unknown, unknown, unknown>),
-    requiredContextGroups: getRequiredTemplateContextGroups(input.asset.id),
+    requiredContextGroups: [...WRITER_REQUIRED_CONTEXT_GROUPS],
   });
   if (hasBlockingPromptTemplateDiagnostics(compiled.diagnostics)) {
     const details = [

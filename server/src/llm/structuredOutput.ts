@@ -2,7 +2,6 @@ import { toJSONSchema, type ZodType } from "zod";
 import type { LLMProvider } from "@ai-novel/shared/types/llm";
 import type { ModelRouteRequestProtocol } from "@ai-novel/shared/types/novel";
 import { isBuiltInProvider } from "./providers";
-import { isDeepSeekThinkingModeProvider } from "./reasoning";
 
 export type StructuredExecutionMode = "plain" | "structured";
 export type StructuredOutputStrategy = "json_schema" | "json_object" | "prompt_json";
@@ -187,17 +186,10 @@ export function resolveStructuredOutputProfile(input: {
     });
   }
   if (input.provider === "deepseek" || DEEPSEEK_HOST_PATTERN.test(host) || model.startsWith("deepseek-")) {
-    const supportsReasoningToggle = isDeepSeekThinkingModeProvider(
-      input.provider,
-      input.baseURL,
-      input.model,
-    );
     return buildProfile({
       family: "deepseek",
       nativeJsonObject: true,
       preferredStructuredStrategy: "json_object",
-      requiresNonThinkingForStructured: supportsReasoningToggle,
-      supportsReasoningToggle,
     });
   }
   if (input.provider === "grok" || GROK_HOST_PATTERN.test(host) || model.startsWith("grok-")) {
@@ -234,40 +226,18 @@ export function resolveStructuredOutputProfile(input: {
       safeStructuredMaxTokens: 8192,
     });
   }
+  if (input.provider === "ollama") {
+    return buildProfile({
+      family: qwenFamily ? "ollama_qwen" : "ollama",
+      preferredStructuredStrategy: "prompt_json",
+      safeStructuredMaxTokens: 16384,
+    });
+  }
   if (qwenFamily) {
     return buildProfile({
       family: "custom_openai_compatible_qwen",
       preferredStructuredStrategy: "prompt_json",
-      safeStructuredMaxTokens: 8192,
-    });
-  }
-  if (input.provider === "openai" || OPENAI_HOST_PATTERN.test(host)) {
-    return buildProfile({
-      family: "openai",
-      nativeJsonSchema: true,
-      nativeJsonObject: true,
-      preferredStructuredStrategy: "json_schema",
-    });
-  }
-  if (input.provider === "anthropic") {
-    return buildProfile({
-      family: "anthropic",
-      preferredStructuredStrategy: "prompt_json",
-      safeStructuredMaxTokens: 8192,
-    });
-  }
-  if (input.provider === "siliconflow") {
-    return buildProfile({
-      family: "siliconflow",
-      preferredStructuredStrategy: "prompt_json",
-      safeStructuredMaxTokens: 8192,
-    });
-  }
-  if (input.provider === "ollama") {
-    return buildProfile({
-      family: "ollama",
-      preferredStructuredStrategy: "prompt_json",
-      safeStructuredMaxTokens: 8192,
+      safeStructuredMaxTokens: 16384,
     });
   }
   if (customProvider) {

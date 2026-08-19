@@ -28,7 +28,11 @@ export class LlmLiveBroker {
     this.pruneCompletedSessions();
     const now = new Date();
     const interactionId = input.interactionId ?? randomUUID();
-    const context: LlmLiveContext = { ...input, interactionId };
+    const context: LlmLiveContext = {
+      ...input,
+      promptPreview: input.promptPreview ?? null,
+      interactionId,
+    };
     const snapshot: LlmLiveSessionSnapshot = {
       context,
       seq: this.nextSequence(),
@@ -66,7 +70,7 @@ export class LlmLiveBroker {
     return () => this.listeners.delete(wrapped);
   }
 
-  getSnapshots(filter: LlmLiveSubscriptionFilter): LlmLiveSessionSnapshot[] {
+  getSnapshots(filter: LlmLiveSubscriptionFilter = {}): LlmLiveSessionSnapshot[] {
     this.pruneCompletedSessions();
     return [...this.sessions.values()]
       .map((entry) => entry.snapshot)
@@ -74,10 +78,10 @@ export class LlmLiveBroker {
         (!filter.interactionId || snapshot.context.interactionId === filter.interactionId)
         && (!filter.taskId || snapshot.context.taskId === filter.taskId)
       ))
-      .sort((left, right) => left.updatedAt.localeCompare(right.updatedAt));
+      .sort((left, right) => right.startedAt.localeCompare(left.startedAt) || right.updatedAt.localeCompare(left.updatedAt));
   }
 
-  updatePhase(interactionId: string, phase: LlmLivePhase, message: string): void {
+  updatePhase(interactionId: string, phase: LlmLivePhase, message: string, errorMessage?: string | null): void {
     const record = this.sessions.get(interactionId);
     if (!record) {
       return;
@@ -89,6 +93,7 @@ export class LlmLiveBroker {
       seq,
       phase,
       phaseMessage: message,
+      errorMessage: errorMessage ?? record.snapshot.errorMessage ?? null,
       updatedAt: now,
       completedAt: phase === "completed" || phase === "failed" || phase === "cancelled" ? now : null,
     };
@@ -99,6 +104,7 @@ export class LlmLiveBroker {
       interactionId,
       phase,
       message,
+      errorMessage,
     });
   }
 
@@ -163,12 +169,12 @@ export class LlmLiveBroker {
     });
   }
 
-  fail(interactionId: string, message: string): void {
+  fail(interactionId: string, message: string, errorMessage?: string | null): void {
     const record = this.sessions.get(interactionId);
     if (!record) {
       return;
     }
-    this.updatePhase(interactionId, "failed", message);
+    this.updatePhase(interactionId, "failed", message, errorMessage);
     const snapshot = this.sessions.get(interactionId)?.snapshot;
     if (!snapshot) {
       return;
@@ -180,6 +186,7 @@ export class LlmLiveBroker {
       snapshot: {
         ...snapshot,
         seq,
+        errorMessage: errorMessage || message,
         updatedAt: failedAt,
         completedAt: failedAt,
       },
@@ -190,7 +197,36 @@ export class LlmLiveBroker {
       at: failedAt,
       interactionId,
       message,
+      errorMessage: errorMessage || message,
     });
+  }
+
+  ingestRemoteEvent(event: LlmLiveEvent, snapshot?: LlmLiveSessionSnapshot | null): void {
+    const interactionId = event.type === "session_started"
+      ? event.context.interactionId
+      : event.interactionId;
+    if (snapshot) {
+      this.sessions.set(interactionId, {
+        snapshot,
+        startedAtMs: Date.parse(snapshot.startedAt) || Date.now(),
+      });
+    } else if (event.type === "session_started") {
+      this.sessions.set(interactionId, {
+        snapshot: {
+          context: event.context,
+          seq: event.seq,
+          phase: "requesting",
+          phaseMessage: "正在连接模型",
+          preview: "",
+          totalChars: 0,
+          startedAt: event.at,
+          updatedAt: event.at,
+          completedAt: null,
+        },
+        startedAtMs: Date.parse(event.at) || Date.now(),
+      });
+    }
+    this.publishLocal(event);
   }
 
   private matches(event: LlmLiveEvent, filter: LlmLiveSubscriptionFilter): boolean {
@@ -208,8 +244,36 @@ export class LlmLiveBroker {
   }
 
   private publish(event: LlmLiveEvent): void {
+    this.publishLocal(event);
+    this.forwardToMainApi(event);
+  }
+
+  private publishLocal(event: LlmLiveEvent): void {
     for (const listener of this.listeners) {
       listener(event);
+    }
+  }
+
+  private forwardToMainApi(event: LlmLiveEvent): void {
+    if (process.env.IS_MAIN_API === "true") {
+      return;
+    }
+    const port = process.env.PORT || "3000";
+    const targetUrl = `http://127.0.0.1:${port}/api/llm-live/internal/event`;
+    const interactionId = event.type === "session_started" ? event.context.interactionId : event.interactionId;
+    const record = this.sessions.get(interactionId);
+    const snapshot = record?.snapshot ?? null;
+
+    try {
+      fetch(targetUrl, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ event, snapshot }),
+      }).catch(() => {
+        // Silently ignore if API process is restarting
+      });
+    } catch {
+      // Ignore network dispatch errors
     }
   }
 
@@ -250,8 +314,9 @@ export class LlmLiveSession {
   }
 
   fail(error: unknown): void {
-    const message = error instanceof Error ? error.message : "模型调用失败";
-    this.broker.fail(this.interactionId, message);
+    const message = error instanceof Error ? error.message : typeof error === "string" ? error : "模型调用失败";
+    const details = error instanceof Error && error.stack ? error.stack : message;
+    this.broker.fail(this.interactionId, message, details);
   }
 }
 

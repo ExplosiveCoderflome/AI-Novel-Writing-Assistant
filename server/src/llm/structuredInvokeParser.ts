@@ -52,9 +52,18 @@ export interface StructuredInvokeRawParseInput<T> {
   reasoningForcedOff?: boolean;
 }
 
-function tryFixTruncatedJson(raw: string): string {
-  const text = raw.trim();
+function tryFixSyntacticJson(raw: string): string {
+  let text = raw.replace(/<think>[\s\S]*?<\/think>/gi, "").trim();
   if (!text) return text;
+
+  // 1. Strip Markdown Code Blocks if present
+  text = text.replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/i, "").trim();
+
+  // 2. Normalize smart/curly quotes
+  text = text.replace(/[“”]/g, '"').replace(/[‘’]/g, "'");
+
+  // 3. Fix trailing commas before closing braces/brackets
+  text = text.replace(/,\s*([}\]])/g, "$1");
 
   const count = (re: RegExp) => (text.match(re) ?? []).length;
   const openBraces = count(/{/g);
@@ -72,13 +81,56 @@ function tryFixTruncatedJson(raw: string): string {
   return fixed;
 }
 
+function tryFixTruncatedJson(raw: string): string {
+  return tryFixSyntacticJson(raw);
+}
+
+function applyDeterministicCoercion(value: unknown): unknown {
+  if (value === null || value === undefined) {
+    return value;
+  }
+  if (typeof value === "string") {
+    const trimmed = value.trim();
+    if (trimmed === "true") return true;
+    if (trimmed === "false") return false;
+    if (/^-?\d+(\.\d+)?$/.test(trimmed) && trimmed.length < 16) {
+      const num = Number(trimmed);
+      if (!isNaN(num)) return num;
+    }
+    return value;
+  }
+  if (Array.isArray(value)) {
+    return value.map(applyDeterministicCoercion);
+  }
+  if (typeof value === "object") {
+    const result: Record<string, unknown> = {};
+    for (const [key, val] of Object.entries(value as Record<string, unknown>)) {
+      result[key] = applyDeterministicCoercion(val);
+    }
+    return result;
+  }
+  return value;
+}
+
+function tryCoerceStructuredData<T>(
+  parsed: unknown,
+  schema: ZodType<T>,
+): { data: T } | null {
+  const coerced = applyDeterministicCoercion(parsed);
+  const result = schema.safeParse(coerced);
+  if (result.success) {
+    return { data: result.data };
+  }
+  return null;
+}
+
 function tryParseStructuredJsonValue(source: string): { parsed: unknown } | { error: string } {
   try {
     return {
       parsed: JSON.parse(extractJSONValue(source)) as unknown,
     };
   } catch (error) {
-    const fixed = tryFixTruncatedJson(source);
+    const fixed = tryFixSyntacticJson(source);
     if (fixed === source) {
       return {
         error: [
@@ -368,9 +420,13 @@ export async function parseStructuredLlmRawContentDetailed<T>(
     fallbackAvailable: input.fallbackAvailable,
     fallbackUsed: input.fallbackUsed,
   });
-  if (!input.rawContent.trim()) {
+  if (!input.rawContent || !input.rawContent.trim()) {
+    const modelName = input.model || "未知模型";
+    const emptyMsg = input.provider === "ollama"
+      ? `Ollama 模型 [${modelName}] 未成功返回内容（响应为空）。请确认该模型已在 Ollama 本地成功拉取 ('ollama pull ${modelName}')，且已在顶部模型设置中正确选择。`
+      : `模型 [${modelName}] 响应为空，请检查 LLM 服务配置与网络连通性。`;
     throw buildStructuredError({
-      message: `[${input.label}] 模型没有返回可用内容，无法执行结构校验或 JSON 修复。`,
+      message: `[${input.label}] ${emptyMsg}`,
       category: "transport_error",
       strategy: input.strategy,
       profile: input.profile,
@@ -379,6 +435,7 @@ export async function parseStructuredLlmRawContentDetailed<T>(
       fallbackUsed: input.fallbackUsed,
     });
   }
+
   const initialParse = tryParseStructuredJsonValue(input.rawContent);
   const parseErrorMessage = "error" in initialParse ? initialParse.error : "";
   const parsed = "parsed" in initialParse ? initialParse.parsed : null;
@@ -462,6 +519,27 @@ export async function parseStructuredLlmRawContentDetailed<T>(
     });
     return {
       data: normalizedInitial.data,
+      repairUsed: false,
+      repairAttempts: 0,
+      diagnostics,
+      tokenUsage: input.tokenUsage ?? null,
+    };
+  }
+
+  const coercedInitial = tryCoerceStructuredData(parsed, runtimeSchema);
+  if (coercedInitial) {
+    logStructuredInvokeEvent({
+      event: "coerced_deterministic",
+      label: input.label,
+      provider: input.provider,
+      model: input.model,
+      taskType: input.taskType,
+      strategy: input.strategy,
+      fallbackUsed: input.fallbackUsed,
+      reasoningForcedOff: input.reasoningForcedOff,
+    });
+    return {
+      data: coercedInitial.data,
       repairUsed: false,
       repairAttempts: 0,
       diagnostics,

@@ -1,3 +1,5 @@
+import { useTranslation } from "react-i18next";
+import i18next from "i18next";
 import { useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -18,6 +20,7 @@ import {
 import DirectorTakeoverEntryPanel from "./DirectorTakeoverEntryPanel";
 
 export default function ChapterManagementTab(props: ChapterTabViewProps) {
+  const { t } = useTranslation();
   const {
     novelId,
     worldInjectionSummary,
@@ -126,11 +129,11 @@ export default function ChapterManagementTab(props: ChapterTabViewProps) {
 
   const queueFilters = useMemo(
     () => ([
-      { key: "all", label: "全部" },
-      { key: "setup", label: "待准备" },
-      { key: "draft", label: "待写作" },
-      { key: "review", label: "待修整" },
-      { key: "completed", label: "已完成" },
+      { key: "all", label: i18next.t("autoDirector.secAll") },
+      { key: "setup", label: i18next.t("dict.gen_5a562457") },
+      { key: "draft", label: i18next.t("dict.gen_9c3c4a2c") },
+      { key: "review", label: i18next.t("dict.gen_285214d7") },
+      { key: "completed", label: i18next.t("tasks.filterStatusSucceeded") },
     ] as const).map((item) => ({
       ...item,
       count: chapters.filter((chapter) => chapterMatchesQueueFilter(chapter, item.key)).length,
@@ -141,21 +144,19 @@ export default function ChapterManagementTab(props: ChapterTabViewProps) {
   return (
     <div className="space-y-4">
       <DirectorTakeoverEntryPanel
-        title="从章节执行接管"
-        description="AI 会先判断当前是否有活动批次、检查点或可执行章节范围，再决定恢复当前批次还是按你的选择新开批次。"
+        title={i18next.t("dict.takeoverFromChapterExecution")}
+        description={i18next.t("dict.aiCheckCurrentActiveBatchOrRange")}
         entry={directorTakeoverEntry}
       />
       <Card className="overflow-visible border-0 bg-transparent shadow-none">
       <CardHeader className="gap-3 rounded-2xl bg-muted/20 px-5 py-4">
         <div className="flex flex-col gap-3 xl:flex-row xl:items-start xl:justify-between">
           <div className="space-y-1">
-            <CardTitle>章节执行</CardTitle>
-            <div className="text-sm leading-6 text-muted-foreground">
-              把这里收成真正的主工作台：左侧只管切章，中间完整承接正文，右侧专心放 AI 动作和策略。
-            </div>
+            <CardTitle>{i18next.t("home.chapterExecution")}</CardTitle>
+            <div className="text-sm leading-6 text-muted-foreground">{i18next.t("novels.chapterManagementTab.4g2p4y")}</div>
           </div>
           <Button onClick={onCreateChapter} disabled={isCreatingChapter}>
-            {isCreatingChapter ? "创建中..." : "新建章节"}
+            {isCreatingChapter ? i18next.t("dict.gen_b26107b6") : i18next.t("dict.gen_fa0e627a")}
           </Button>
         </div>
       </CardHeader>
@@ -171,8 +172,8 @@ export default function ChapterManagementTab(props: ChapterTabViewProps) {
 
         {!hasCharacters ? (
           <div className="flex flex-col gap-3 rounded-2xl bg-amber-50 p-4 text-sm text-amber-900 md:flex-row md:items-center md:justify-between">
-            <span>请先添加至少 1 个角色，再生成章节内容。这样 AI 更容易识别出场者、关系变化和情节承接。</span>
-            <Button size="sm" variant="outline" onClick={onGoToCharacterTab}>去角色管理</Button>
+            <span>{i18next.t("dict.gen_91e51489")}</span>
+            <Button size="sm" variant="outline" onClick={onGoToCharacterTab}>{i18next.t("dict.gen_ef2c69b9")}</Button>
           </div>
         ) : null}
 
@@ -228,9 +229,9 @@ export default function ChapterManagementTab(props: ChapterTabViewProps) {
               className="flex h-full min-h-0 flex-col"
             >
               <TabsList className="grid h-auto w-full shrink-0 grid-cols-3 rounded-xl bg-muted/50 p-1.5">
-                <TabsTrigger value="insights" className="rounded-lg px-3 py-2 text-sm">动态栏</TabsTrigger>
-                <TabsTrigger value="reference" className="rounded-lg px-3 py-2 text-sm">资料诊断</TabsTrigger>
-                <TabsTrigger value="agent" className="rounded-lg px-3 py-2 text-sm">AI 执行台</TabsTrigger>
+                <TabsTrigger value="insights" className="rounded-lg px-3 py-2 text-sm">{i18next.t("dict.gen_528e1003")}</TabsTrigger>
+                <TabsTrigger value="reference" className="rounded-lg px-3 py-2 text-sm">{i18next.t("dict.gen_826a79d9")}</TabsTrigger>
+                <TabsTrigger value="agent" className="rounded-lg px-3 py-2 text-sm">{i18next.t("dict.aiExecutionDesk")}</TabsTrigger>
               </TabsList>
               <TabsContent value="insights" className="mt-3 min-h-0 flex-1">
                 <ChapterExecutionInsightsSidebar

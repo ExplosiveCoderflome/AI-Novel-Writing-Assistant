@@ -18,6 +18,10 @@
       "types": "./dist/utils/*.d.ts",
       "default": "./dist/utils/*.js"
     },
+    "./types/directorRuntime": {
+      "types": "./dist/types/directorRuntime.d.ts",
+      "default": "./dist/types/directorRuntime.js"
+    },
     "./types/*": {
       "types": "./dist/types/*.d.ts",
       "default": "./dist/types/*.js"

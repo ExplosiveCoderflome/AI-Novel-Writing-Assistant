@@ -548,3 +548,21 @@ export const aiRevisionPreviewSchema = z.object({
 });
 
 export const chapterExecutionContractSchema = chapterRuntimeRequestSchema;
+
+export const continuePreviewSchema = z.object({
+  textBefore: z.string().min(1),
+  textAfter: z.string().optional(),
+  customInstruction: z.string().trim().max(800).optional(),
+  provider: llmProviderSchema.optional(),
+  model: z.string().trim().max(120).optional(),
+  temperature: z.number().min(0).max(2).optional(),
+});
+
+export const issueFixPreviewSchema = z.object({
+  selectedText: z.string().min(1),
+  beforeParagraphs: z.array(z.string()).max(3),
+  afterParagraphs: z.array(z.string()).max(2),
+  provider: llmProviderSchema.optional(),
+  model: z.string().trim().max(120).optional(),
+  temperature: z.number().min(0).max(2).optional(),
+});

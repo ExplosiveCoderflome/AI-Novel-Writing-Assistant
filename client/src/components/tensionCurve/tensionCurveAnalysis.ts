@@ -1,3 +1,4 @@
+import i18next from "i18next";
 import type { TensionCurvePoint } from "./tensionCurveTypes";
 
 export interface TensionCurveShapeHint {
@@ -15,12 +16,12 @@ export interface TensionCurveReferenceTemplate {
 export const tensionCurveReferenceTemplates: TensionCurveReferenceTemplate[] = [
   {
     key: "escalation",
-    label: "升级流",
+    label: i18next.t("dict.gen_26d9a49a"),
     values: [22, 30, 42, 38, 56, 66, 62, 82, 72],
   },
   {
     key: "suspense",
-    label: "悬疑流",
+    label: i18next.t("dict.gen_f67ca759"),
     values: [35, 46, 40, 58, 52, 68, 64, 78, 88],
   },
 ];
@@ -61,8 +62,8 @@ export function analyzeTensionCurveShape(points: TensionCurvePoint[]): TensionCu
       if (index - flatStartIndex >= 2) {
         hints.push({
           key: `flat-${values[flatStartIndex].id}-${values[index].id}`,
-          label: "节奏平坝",
-          detail: `第${values[flatStartIndex].chapterOrder}-${values[index].chapterOrder}章冲突强度变化很小，可以检查这里是否需要更清晰的推进或回报。`,
+          label: i18next.t("dict.gen_adab029b"),
+          detail: i18next.t("tensionCurve.tensionCurveAnalysis.r1bwmp", { val1: values[flatStartIndex].chapterOrder, val2: values[index].chapterOrder }),
         });
         break;
       }
@@ -77,8 +78,8 @@ export function analyzeTensionCurveShape(points: TensionCurvePoint[]): TensionCu
   if (peak && finalPeak && finalPeak.value < peak.value - 8) {
     hints.push({
       key: "late-peak-missing",
-      label: "卷末峰值偏弱",
-      detail: `当前最高点在第${peak.chapterOrder}章，卷末四分之一没有形成更强峰值，可以检查高潮承诺是否足够集中。`,
+      label: i18next.t("dict.gen_6dfc576d"),
+      detail: i18next.t("tensionCurve.tensionCurveAnalysis.ugjpib", { val1: peak.chapterOrder }),
     });
   }
 
@@ -100,8 +101,8 @@ export function analyzeTensionCurveShape(points: TensionCurvePoint[]): TensionCu
     if (max - min <= 5) {
       hints.push({
         key: `beat-flat-${group[0].beatKey}`,
-        label: "节拍内起伏不足",
-        detail: `第${group[0].chapterOrder}-${group[group.length - 1].chapterOrder}章在同一节拍内接近持平，可以检查是否需要转折点。`,
+        label: i18next.t("dict.gen_92d121bd"),
+        detail: i18next.t("tensionCurve.tensionCurveAnalysis.tuvlve", { val1: group[0].chapterOrder, val2: group[group.length - 1].chapterOrder }),
       });
       break;
     }

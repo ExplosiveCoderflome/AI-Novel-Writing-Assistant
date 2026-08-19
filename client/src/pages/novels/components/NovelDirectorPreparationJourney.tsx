@@ -1,4 +1,6 @@
-import { Check, Circle } from "lucide-react";
+import i18next from "i18next";
+import { useTranslation } from "react-i18next";
+import { Check, Circle, Sparkles } from "lucide-react";
 import { cn } from "@/lib/utils";
 import OnboardingTip from "@/components/onboarding/OnboardingTip";
 
@@ -12,11 +14,6 @@ interface DirectorPreparationStep {
 interface NovelDirectorPreparationJourneyProps {
   steps: ReadonlyArray<DirectorPreparationStep>;
   statuses: ReadonlyArray<DirectorPreparationStepStatus>;
-  onboardingStorageKey: string;
-  chapterProgress?: {
-    completed: number;
-    total: number;
-  } | null;
 }
 
 function stepTone(status: DirectorPreparationStepStatus): string {
@@ -42,39 +39,34 @@ function connectorTone(
 }
 
 function statusLabel(status: DirectorPreparationStepStatus): string {
-  if (status === "completed") return "准备完成";
-  if (status === "running") return "AI 正在处理";
-  if (status === "failed") return "需要处理";
-  return "等待推进";
+  if (status === "completed") return i18next.t("novels.novelDirectorPreparationJourney.aosf5x");
+  if (status === "running") return i18next.t("dict.aiProcessing");
+  if (status === "failed") return i18next.t("onboarding.needsAction");
+  return i18next.t("novels.novelDirectorPreparationJourney.fy9vv3");
 }
 
 export default function NovelDirectorPreparationJourney({
   steps,
   statuses,
-  onboardingStorageKey,
-  chapterProgress = null,
 }: NovelDirectorPreparationJourneyProps) {
+  const { t } = useTranslation();
   return (
     <div className="space-y-4">
       <OnboardingTip
-        storageKey={onboardingStorageKey}
-        title="这段准备不需要逐项审核"
-        description="AI 会把已完成的故事方向转成角色、卷战略、节奏和章节执行资源；页面上的成果可以随时展开查看。"
-        next="已完成的资源可以随时查看；AI 会继续补齐后续内容。"
+        storageKey="director-preparation"
+        title={i18next.t("novels.novelDirectorPreparationJourney.bueis1")}
+        description={i18next.t("novels.novelDirectorPreparationJourney.26x50u")}
+        next="所有开写资源准备好后，再选择简易创作或专业创作。"
       />
       <section className="rounded-2xl border border-border/70 bg-background px-4 py-5 shadow-[0_18px_45px_-38px_hsl(var(--foreground)/0.45)] sm:px-6">
         <div className="flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
           <div>
-            <div className="text-sm font-semibold text-foreground">创作资源准备</div>
+            <div className="text-sm font-semibold text-foreground">{i18next.t("novels.novelDirectorPreparationJourney.qximz9")}</div>
             <div className="mt-1 text-xs leading-5 text-muted-foreground">
-              AI 正在依次完成整本书的方向、角色和卷章资源，已完成的成果可以直接查看。
+              AI 正在依次完成整本书的方向、角色和卷章资源。
             </div>
           </div>
-          <div className="text-xs text-muted-foreground">
-            {chapterProgress
-              ? `正文已生成 ${chapterProgress.completed}/${chapterProgress.total} 章`
-              : "创作任务会继续在后台推进"}
-          </div>
+          <div className="text-xs text-muted-foreground">{i18next.t("novels.novelDirectorPreparationJourney.2jjoog")}</div>
         </div>
 
         <ol className={cn(
@@ -119,6 +111,23 @@ export default function NovelDirectorPreparationJourney({
         </ol>
       </section>
 
+      <section className="overflow-hidden rounded-2xl border border-primary/15 bg-gradient-to-r from-primary/[0.07] via-background to-background">
+        <div className="flex flex-col gap-4 px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex min-w-0 items-start gap-3">
+            <span className="mt-0.5 inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-primary text-primary-foreground shadow-sm">
+              <Sparkles className="h-4 w-4" />
+            </span>
+            <div className="min-w-0">
+              <div className="text-sm font-semibold text-foreground">{i18next.t("novels.novelDirectorPreparationJourney.2rievg")}</div>
+              <div className="mt-1 text-xs leading-5 text-muted-foreground">{i18next.t("novels.novelDirectorPreparationJourney.kh9gsp")}</div>
+            </div>
+          </div>
+          <div className="flex shrink-0 flex-wrap gap-2 text-xs">
+            <span className="rounded-full bg-primary px-3 py-1.5 font-medium text-primary-foreground">{i18next.t("novels.novelDirectorPreparationJourney.l79qyg")}</span>
+            <span className="rounded-full border border-border bg-background px-3 py-1.5 font-medium text-foreground">{i18next.t("novels.novelDirectorPreparationJourney.gd39ui")}</span>
+          </div>
+        </div>
+      </section>
     </div>
   );
 }

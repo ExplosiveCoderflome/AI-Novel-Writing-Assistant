@@ -46,7 +46,7 @@ export interface LetterPanelResult {
 // ─── Constants ────────────────────────────────────────────────────────────────
 
 const COMIC_LETTERED_DIR = "comic-panels-lettered";
-const CJK_FONT_STACK = `"Microsoft YaHei", "PingFang SC", "Noto Sans CJK SC", "Source Han Sans CN", sans-serif`;
+const CJK_FONT_STACK = `'Microsoft YaHei', 'PingFang SC', 'Noto Sans CJK SC', 'Source Han Sans CN', sans-serif`;
 const DEFAULT_FONT_SIZE = 24;
 const BUBBLE_PADDING = 16;
 const LINE_HEIGHT_RATIO = 1.45;
@@ -134,29 +134,30 @@ function buildBubbleSvg(
       const rx = bw / 2;
       const ry = bh / 2;
       bgShape = `<ellipse cx="${bw / 2}" cy="${bh / 2}" rx="${rx}" ry="${ry}"
-        fill="white" fill-opacity="${opacity}" stroke="#333" stroke-width="1.5"/>`;
+        fill="white" fill-opacity="${opacity}" stroke="#1f293d" stroke-width="2"/>
+        <path d="M ${bw * 0.4} ${bh - 2} L ${bw * 0.3} ${bh + 14} L ${bw * 0.5} ${bh - 2} Z" fill="white" stroke="#1f293d" stroke-width="2"/>`;
       break;
     }
     case "spike": {
-      // 尖角气泡：矩形 + 外圆角 + 锯齿描边
-      bgShape = `<rect x="2" y="2" width="${bw - 4}" height="${bh - 4}" rx="4" ry="4"
-        fill="white" fill-opacity="${opacity}" stroke="#e53e3e" stroke-width="2" stroke-dasharray="6 2"/>`;
+      // 修仙战爆/必杀气泡：锯齿热血爆框 + 暗红渐变 + 气泡尾巴
+      bgShape = `
+        <polygon points="10,15 ${bw * 0.25},0 ${bw * 0.5},10 ${bw * 0.8},0 ${bw - 10},15 ${bw},${bh * 0.4} ${bw - 10},${bh - 10} ${bw * 0.65},${bh} ${bw * 0.5},${bh + 15} ${bw * 0.4},${bh} ${bw * 0.15},${bh - 10} 0,${bh * 0.6}"
+          fill="#ff2244" fill-opacity="${opacity}" stroke="#ffffff" stroke-width="2.5"/>`;
       break;
     }
     case "cloud": {
-      // 思维云泡：多个圆形叠加近似
       const r = Math.min(bw, bh) * 0.35;
       bgShape = `
-        <circle cx="${bw * 0.3}" cy="${bh * 0.45}" r="${r * 0.85}" fill="white" fill-opacity="${opacity}" stroke="#333" stroke-width="1"/>
-        <circle cx="${bw * 0.55}" cy="${bh * 0.38}" r="${r * 0.9}" fill="white" fill-opacity="${opacity}" stroke="#333" stroke-width="1"/>
-        <circle cx="${bw * 0.72}" cy="${bh * 0.48}" r="${r * 0.82}" fill="white" fill-opacity="${opacity}" stroke="#333" stroke-width="1"/>
+        <circle cx="${bw * 0.3}" cy="${bh * 0.45}" r="${r * 0.85}" fill="white" fill-opacity="${opacity}" stroke="#333" stroke-width="1.5"/>
+        <circle cx="${bw * 0.55}" cy="${bh * 0.38}" r="${r * 0.9}" fill="white" fill-opacity="${opacity}" stroke="#333" stroke-width="1.5"/>
+        <circle cx="${bw * 0.72}" cy="${bh * 0.48}" r="${r * 0.82}" fill="white" fill-opacity="${opacity}" stroke="#333" stroke-width="1.5"/>
         <ellipse cx="${bw / 2}" cy="${bh * 0.62}" rx="${bw * 0.42}" ry="${bh * 0.3}"
-          fill="white" fill-opacity="${opacity}" stroke="#333" stroke-width="1"/>`;
+          fill="white" fill-opacity="${opacity}" stroke="#333" stroke-width="1.5"/>`;
       break;
     }
     case "caption": {
       bgShape = `<rect x="0" y="0" width="${bw}" height="${bh}"
-        fill="#1a1a1a" fill-opacity="0.78" rx="3" ry="3"/>`;
+        fill="#0d1320" fill-opacity="0.88" stroke="#ffbb44" stroke-width="1.5" rx="4" ry="4"/>`;
       break;
     }
     default: {
@@ -165,11 +166,13 @@ function buildBubbleSvg(
     }
   }
 
-  const textFill = dialogue.bubbleType === "caption" ? "#f5f0e8" : "#1a1a1a";
+  const textFill = dialogue.bubbleType === "spike" ? "#ffffff" : dialogue.bubbleType === "caption" ? "#ffbb44" : "#1a1a1a";
+  const textWeight = dialogue.bubbleType === "spike" ? "font-weight=\"bold\"" : "";
   const textElemsAdj = lines.map((line, i) =>
     `<text x="${bw / 2}" y="${textY0 + i * lineHeightPx - 4}"
       font-family="${CJK_FONT_STACK}"
       font-size="${fontSize}"
+      ${textWeight}
       text-anchor="middle"
       fill="${textFill}">${escapeXml(line)}</text>`
   ).join("\n");
@@ -278,7 +281,22 @@ export class ComicBubbleLayoutService {
       data: { letteredData: JSON.stringify(letteredData) },
     });
 
-    return { buffer: outBuffer, ext: "png", width: imgWidth, height: imgHeight };
+    return {
+      buffer: outBuffer,
+      ext: "png",
+      width: imgWidth,
+      height: imgHeight,
+    };
+  }
+
+  /**
+   * 将 SVG 矢量画面渲染为高清晰度 PNG 图片 Buffer
+   */
+  async renderSvgToPngBuffer(svgString: string, width = 900, height = 1350): Promise<Buffer> {
+    return sharp(Buffer.from(svgString))
+      .resize(width, height)
+      .png({ quality: 90 })
+      .toBuffer();
   }
 
   /** 读取已排版图文件（供 HTTP 路由流式响应） */

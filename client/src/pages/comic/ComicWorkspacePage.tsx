@@ -1,5 +1,7 @@
-import { useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import i18next from "i18next";
+const t = (key: string, options?: any) => i18next.t(key, options) as string;
+import { useState, useEffect } from "react";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   ArrowRight,
@@ -18,7 +20,7 @@ import {
   type ComicSourceType,
   type CreateComicProjectPayload,
 } from "@/api/comic";
-import { ComicImageGenerationNotice } from "@/pages/comic/ComicImageGenerationNotice";
+
 import { getNovelList } from "@/api/novel/core";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -30,19 +32,19 @@ import SelectControl from "@/components/common/SelectControl";
 // ─── Constants ────────────────────────────────────────────────────────────────
 
 const SOURCE_LABELS: Record<ComicSourceType, string> = {
-  novel_import: "导入小说",
-  original: "原创灵感",
-  text_import: "文本导入",
-  comic_import: "漫画改编",
+  novel_import: i18next.t("dict.gen_d093e95b"),
+  original: i18next.t("dict.gen_de6d7781"),
+  text_import: i18next.t("dict.gen_8ffd512f"),
+  comic_import: i18next.t("dict.gen_c12f11f5"),
 };
 
 const STYLE_PRESETS = [
-  { value: "webtoon_color", label: "彩色韩漫" },
-  { value: "bl_manga", label: "彩色少女漫" },
-  { value: "shounen_bw", label: "黑白少年漫" },
-  { value: "ink_traditional", label: "水墨国风" },
-  { value: "chibi", label: "Q 版萌漫" },
-  { value: "realistic", label: "写实风格" },
+  { value: "webtoon_color", label: i18next.t("dict.gen_b8cc9e43") },
+  { value: "bl_manga", label: i18next.t("dict.gen_3cd93268") },
+  { value: "shounen_bw", label: i18next.t("dict.gen_4a12b411") },
+  { value: "ink_traditional", label: i18next.t("dict.gen_452631b4") },
+  { value: "chibi", label: i18next.t("dict.cuteComicStyle") },
+  { value: "realistic", label: i18next.t("dict.gen_11eaab19") },
 ];
 
 export interface ComicFormatDef {
@@ -58,9 +60,9 @@ export interface ComicFormatDef {
 export const COMIC_FORMATS: ComicFormatDef[] = [
   {
     value: "webtoon",
-    label: "条漫",
-    desc: "竖向长格，逐格下滑阅读，韩漫/手机主流形态",
-    tag: "最流行",
+    label: i18next.t("dict.gen_3467bf28"),
+    desc: i18next.t("dict.gen_188a633d"),
+    tag: i18next.t("dict.gen_c062d322"),
     imageSize: "1024x1536",
     promptKeywords: "webtoon vertical strip panel, tall single frame, mobile scroll comic",
     layoutSvg: (
@@ -75,9 +77,9 @@ export const COMIC_FORMATS: ComicFormatDef[] = [
   },
   {
     value: "4koma",
-    label: "四格漫",
-    desc: "四格竖排一页，起承转合，适合日常喜剧",
-    tag: "经典",
+    label: i18next.t("dict.gen_a1369c09"),
+    desc: i18next.t("dict.gen_2c25aa15"),
+    tag: i18next.t("dict.gen_e7c37575"),
     imageSize: "1024x1536",
     promptKeywords: "4-koma manga layout, four equal vertical panels in one image, sequential comic strip",
     layoutSvg: (
@@ -85,18 +87,18 @@ export const COMIC_FORMATS: ComicFormatDef[] = [
         {[0, 1, 2, 3].map((i) => (
           <rect key={i} x="8" y={4 + i * 21} width="44" height="18" rx="1.5" fill="currentColor" opacity={0.18 - i * 0.02} stroke="currentColor" strokeWidth="1.5" />
         ))}
-        <text x="30" y="15" textAnchor="middle" fontSize="5" fill="currentColor" opacity="0.4">起</text>
-        <text x="30" y="36" textAnchor="middle" fontSize="5" fill="currentColor" opacity="0.4">承</text>
-        <text x="30" y="57" textAnchor="middle" fontSize="5" fill="currentColor" opacity="0.4">转</text>
-        <text x="30" y="78" textAnchor="middle" fontSize="5" fill="currentColor" opacity="0.4">合</text>
+        <text x="30" y="15" textAnchor="middle" fontSize="5" fill="currentColor" opacity="0.4">{i18next.t("dict.gen_308fdfa0")}</text>
+        <text x="30" y="36" textAnchor="middle" fontSize="5" fill="currentColor" opacity="0.4">{i18next.t("dict.gen_9407ae4d")}</text>
+        <text x="30" y="57" textAnchor="middle" fontSize="5" fill="currentColor" opacity="0.4">{i18next.t("dict.gen_1c421318")}</text>
+        <text x="30" y="78" textAnchor="middle" fontSize="5" fill="currentColor" opacity="0.4">{i18next.t("dict.gen_c5ef4ac4")}</text>
       </svg>
     ),
   },
   {
     value: "single_page",
-    label: "单页漫",
-    desc: "一页多格，格子大小自由，传统日漫页面",
-    tag: "传统",
+    label: i18next.t("dict.gen_852692e9"),
+    desc: i18next.t("dict.pageLayout"),
+    tag: i18next.t("dict.traditional"),
     imageSize: "1024x1536",
     promptKeywords: "single page manga layout, multiple panels varied sizes, dynamic panel composition, Japanese manga page",
     layoutSvg: (
@@ -111,9 +113,9 @@ export const COMIC_FORMATS: ComicFormatDef[] = [
   },
   {
     value: "cinematic",
-    label: "电影分镜",
-    desc: "宽幅横画面，电影感构图，史诗动作场面",
-    tag: "大气",
+    label: i18next.t("dict.gen_6073cdf8"),
+    desc: i18next.t("dict.gen_2a36800c"),
+    tag: i18next.t("dict.gen_62029e91"),
     imageSize: "1536x1024",
     promptKeywords: "cinematic widescreen panel, film storyboard style, letterbox 16:9 format, movie scene composition",
     layoutSvg: (
@@ -128,9 +130,9 @@ export const COMIC_FORMATS: ComicFormatDef[] = [
   },
   {
     value: "chat_comic",
-    label: "聊天漫",
-    desc: "对话气泡主导，轻量日常，社交媒体友好",
-    tag: "轻快",
+    label: i18next.t("dict.gen_9d020707"),
+    desc: i18next.t("dict.gen_dc5a6d5f"),
+    tag: i18next.t("dict.gen_2247d342"),
     imageSize: "1024x1536",
     promptKeywords: "chat comic style, messenger conversation bubbles, LINE webtoon chat format, casual slice of life",
     layoutSvg: (
@@ -149,9 +151,9 @@ export const COMIC_FORMATS: ComicFormatDef[] = [
   },
   {
     value: "chibi_comic",
-    label: "Q版萌漫",
-    desc: "圆润可爱的 Q 版人物，萌系轻松风",
-    tag: "萌系",
+    label: i18next.t("dict.gen_Q版萌漫_amz0"),
+    desc: i18next.t("dict.gen_e3f26d8f"),
+    tag: i18next.t("dict.gen_69097442"),
     imageSize: "1024x1024",
     promptKeywords: "chibi SD manga style, cute super-deformed proportions, kawaii comic panel, round adorable characters",
     layoutSvg: (
@@ -169,9 +171,9 @@ export const COMIC_FORMATS: ComicFormatDef[] = [
   },
   {
     value: "ink_comic",
-    label: "水墨国风",
-    desc: "传统水墨笔触，古风意境，留白美学",
-    tag: "国风",
+    label: i18next.t("dict.gen_452631b4"),
+    desc: i18next.t("dict.traditionalBrushStrokeCalligraphyMoodWhitescopicAesthetic"),
+    tag: i18next.t("dict.gen_8daead55"),
     imageSize: "1024x1536",
     promptKeywords: "Chinese ink wash painting comic, traditional brush style, xieyi brushwork, classical Chinese aesthetic, negative space",
     layoutSvg: (
@@ -187,9 +189,9 @@ export const COMIC_FORMATS: ComicFormatDef[] = [
   },
   {
     value: "drama_screenshot",
-    label: "短剧截图漫",
-    desc: "竖版视频帧风格，字幕条 + 场景感",
-    tag: "新兴",
+    label: i18next.t("dict.gen_5c88c5f2"),
+    desc: i18next.t("dict.gen_1f8c7ce2"),
+    tag: i18next.t("dict.gen_3a27b995"),
     imageSize: "1024x1536",
     promptKeywords: "vertical short drama screenshot style, subtitle bar at bottom, TV drama still frame, cinematic vertical video",
     layoutSvg: (
@@ -206,10 +208,10 @@ export const COMIC_FORMATS: ComicFormatDef[] = [
 ];
 
 const WIZARD_STEPS = [
-  { key: "source", label: "来源" },
-  { key: "content", label: "内容" },
-  { key: "format", label: "形态" },
-  { key: "style", label: "画风" },
+  { key: "source", label: i18next.t("dict.gen_26ca20b1") },
+  { key: "content", label: i18next.t("dict.gen_2d711b09") },
+  { key: "format", label: i18next.t("dict.gen_9652b89c") },
+  { key: "style", label: i18next.t("dict.gen_aa1262ed") },
 ] as const;
 
 function statusBadgeVariant(status: string): "default" | "secondary" | "outline" | "destructive" {
@@ -219,7 +221,7 @@ function statusBadgeVariant(status: string): "default" | "secondary" | "outline"
 }
 function statusLabel(s: string) {
   const m: Record<string, string> = {
-    draft: "草稿", outlined: "大纲已生成", scripted: "脚本已生成", completed: "已完成",
+    draft: i18next.t("common.draft"), outlined: i18next.t("dict.gen_05dab7aa"), scripted: i18next.t("dict.gen_1361ca2d"), completed: i18next.t("tasks.filterStatusSucceeded"),
   };
   return m[s] ?? s;
 }
@@ -247,15 +249,13 @@ function ProjectCard({
           </div>
           <CardDescription>
             {project._count?.episodes ?? 0} 话 · {project._count?.characters ?? 0} 角色
-            {project.sourceBundle ? " · 已导入内容源" : ""}
+            {project.sourceBundle ? i18next.t("dict.importedContentSource") : ""}
           </CardDescription>
         </div>
       </CardHeader>
       <CardContent className="flex flex-wrap gap-2">
         <Button asChild type="button" size="sm">
-          <Link to={`/comic/projects/${project.id}`}>
-            打开工作台
-            <ArrowRight className="h-4 w-4" />
+          <Link to={`/comic/projects/${project.id}`}>{i18next.t("comic.comicWorkspacePage.td5110")}<ArrowRight className="h-4 w-4" />
           </Link>
         </Button>
         {!project.sourceBundle && project.sourceType === "novel_import" && (
@@ -266,9 +266,7 @@ function ProjectCard({
             disabled={busy}
             onClick={() => onImport(project)}
           >
-            <Layers3 className="h-4 w-4" />
-            导入内容源
-          </Button>
+            <Layers3 className="h-4 w-4" />{i18next.t("dict.gen_f7d48bd5")}</Button>
         )}
       </CardContent>
     </Card>
@@ -277,12 +275,21 @@ function ProjectCard({
 
 // ─── Wizard ───────────────────────────────────────────────────────────────────
 
-function CreateWizard({ onCreated }: { onCreated: (id: string) => void }) {
-  const [step, setStep] = useState(0);
+interface CreateWizardProps {
+  onCreated: (id: string) => void;
+  defaultValues?: {
+    title?: string;
+    sourceType?: ComicSourceType;
+    sourceRef?: string;
+  };
+}
+
+function CreateWizard({ onCreated, defaultValues }: CreateWizardProps) {
+  const [step, setStep] = useState(defaultValues?.sourceType ? 1 : 0);
   const [form, setForm] = useState({
-    title: "",
-    sourceType: "original" as ComicSourceType,
-    sourceRef: "",
+    title: defaultValues?.title ?? "",
+    sourceType: defaultValues?.sourceType ?? ("original" as ComicSourceType),
+    sourceRef: defaultValues?.sourceRef ?? "",
     inspiration: "",
     rawText: "",
     format: "webtoon",
@@ -298,7 +305,7 @@ function CreateWizard({ onCreated }: { onCreated: (id: string) => void }) {
   const createMut = useMutation({
     mutationFn: (payload: CreateComicProjectPayload) => createComicProject(payload),
     onSuccess: (proj) => {
-      toast.success("漫画项目已创建");
+      toast.success(i18next.t("dict.gen_49fbf911"));
       onCreated(proj.id);
     },
   });
@@ -330,7 +337,7 @@ function CreateWizard({ onCreated }: { onCreated: (id: string) => void }) {
   return (
     <Card className="max-w-xl">
       <CardHeader>
-        <CardTitle className="text-base">新建漫画项目</CardTitle>
+        <CardTitle className="text-base">{i18next.t("dict.gen_3e21ebbc")}</CardTitle>
         <div className="flex gap-2 pt-1">
           {WIZARD_STEPS.map((s, i) => (
             <span
@@ -346,15 +353,15 @@ function CreateWizard({ onCreated }: { onCreated: (id: string) => void }) {
         {step === 0 && (
           <>
             <div className="space-y-1">
-              <label className="text-sm font-medium">项目标题</label>
+              <label className="text-sm font-medium">{i18next.t("dict.gen_cac8e6ef")}</label>
               <Input
-                placeholder="漫画标题"
+                placeholder={i18next.t("dict.gen_82ea5545")}
                 value={form.title}
                 onChange={(e) => setForm((f) => ({ ...f, title: e.target.value }))}
               />
             </div>
             <div className="space-y-1">
-              <label className="text-sm font-medium">内容来源</label>
+              <label className="text-sm font-medium">{i18next.t("dict.gen_e78b1d7a")}</label>
               <div className="flex flex-wrap gap-2">
                 {(Object.keys(SOURCE_LABELS) as ComicSourceType[]).filter(t => t !== "comic_import").map((t) => (
                   <button
@@ -375,25 +382,25 @@ function CreateWizard({ onCreated }: { onCreated: (id: string) => void }) {
           <>
             {form.sourceType === "novel_import" && (
               <div className="space-y-1">
-                <label className="text-sm font-medium">选择小说</label>
+                <label className="text-sm font-medium">{i18next.t("creativeHub.actionSelectNovel")}</label>
                 <SelectControl
                   className="w-full rounded-md border bg-background px-3 py-2 text-sm"
                   value={form.sourceRef}
                   onChange={(e: React.ChangeEvent<HTMLSelectElement>) => setForm((f) => ({ ...f, sourceRef: e.target.value }))}
                 >
-                  <option value="">—— 选择小说 ——</option>
+                  <option value="">{i18next.t("dict.selectNovel")}</option>
                   {novels?.data?.items?.map((n) => (
-                    <option key={n.id} value={n.id}>{n.title ?? "未命名"}</option>
+                    <option key={n.id} value={n.id}>{n.title || "未命名"}</option>
                   ))}
                 </SelectControl>
               </div>
             )}
             {form.sourceType === "original" && (
               <div className="space-y-1">
-                <label className="text-sm font-medium">故事灵感</label>
+                <label className="text-sm font-medium">{i18next.t("dict.gen_12e65d03")}</label>
                 <textarea
                   className="w-full rounded-md border bg-background px-3 py-2 text-sm resize-y min-h-[120px]"
-                  placeholder="简短描述故事的核心设定、主角和大方向（200-800 字）…"
+                  placeholder={i18next.t("dict.gen_89608257")}
                   rows={6}
                   value={form.inspiration}
                   onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setForm((f) => ({ ...f, inspiration: e.target.value }))}
@@ -402,10 +409,10 @@ function CreateWizard({ onCreated }: { onCreated: (id: string) => void }) {
             )}
             {form.sourceType === "text_import" && (
               <div className="space-y-1">
-                <label className="text-sm font-medium">粘贴原文</label>
+                <label className="text-sm font-medium">{i18next.t("dict.gen_f45ae383")}</label>
                 <textarea
                   className="w-full rounded-md border bg-background px-3 py-2 text-sm resize-y min-h-[160px]"
-                  placeholder="粘贴完整小说原文（最多 20 万字）…"
+                  placeholder={i18next.t("dict.gen_7ddca43b")}
                   rows={8}
                   value={form.rawText}
                   onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setForm((f) => ({ ...f, rawText: e.target.value }))}
@@ -418,8 +425,8 @@ function CreateWizard({ onCreated }: { onCreated: (id: string) => void }) {
         {step === 2 && (
           <div className="space-y-3">
             <div>
-              <label className="text-sm font-medium">漫画形态</label>
-              <p className="text-xs text-muted-foreground mt-0.5">选择漫画的版式风格，影响构图和阅读方式</p>
+              <label className="text-sm font-medium">{i18next.t("dict.gen_66c8471a")}</label>
+              <p className="text-xs text-muted-foreground mt-0.5">{i18next.t("dict.gen_01f6a08c")}</p>
             </div>
             <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
               {COMIC_FORMATS.map((fmt) => {
@@ -450,7 +457,7 @@ function CreateWizard({ onCreated }: { onCreated: (id: string) => void }) {
 
         {step === 3 && (
           <div className="space-y-2">
-            <label className="text-sm font-medium">画风预设</label>
+            <label className="text-sm font-medium">{i18next.t("dict.gen_e9e7f721")}</label>
             <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
               {STYLE_PRESETS.map((p) => (
                 <button
@@ -473,18 +480,14 @@ function CreateWizard({ onCreated }: { onCreated: (id: string) => void }) {
             size="sm"
             disabled={step === 0}
             onClick={() => setStep((s) => s - 1)}
-          >
-            上一步
-          </Button>
+          >{i18next.t("comic.comicWorkspacePage.btcrz")}</Button>
           {step < WIZARD_STEPS.length - 1 ? (
             <Button
               type="button"
               size="sm"
               disabled={!canNext()}
               onClick={() => setStep((s) => s + 1)}
-            >
-              下一步
-            </Button>
+            >{i18next.t("dict.nextStep")}</Button>
           ) : (
             <Button
               type="button"
@@ -492,7 +495,7 @@ function CreateWizard({ onCreated }: { onCreated: (id: string) => void }) {
               disabled={createMut.isPending || !canNext()}
               onClick={handleSubmit}
             >
-              {createMut.isPending ? "创建中…" : "创建项目"}
+              {createMut.isPending ? i18next.t("dict.gen_d156b373") : i18next.t("dict.gen_39da6755")}
             </Button>
           )}
         </div>
@@ -506,8 +509,32 @@ function CreateWizard({ onCreated }: { onCreated: (id: string) => void }) {
 export default function ComicWorkspacePage() {
   const queryClient = useQueryClient();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const [showWizard, setShowWizard] = useState(false);
   const [busyId, setBusyId] = useState("");
+
+  const querySourceType = searchParams.get("sourceType") as ComicSourceType | null;
+  const querySourceRef = searchParams.get("sourceRef");
+  const queryNovelTitle = searchParams.get("novelTitle");
+
+  const [defaultWizardValues, setDefaultWizardValues] = useState<{
+    title?: string;
+    sourceType?: ComicSourceType;
+    sourceRef?: string;
+  } | undefined>(undefined);
+
+  // Automatically trigger wizard if routed with parameters
+  useEffect(() => {
+    if (querySourceType === "novel_import" && querySourceRef) {
+      const decodedTitle = queryNovelTitle ? decodeURIComponent(queryNovelTitle) : "";
+      setDefaultWizardValues({
+        title: decodedTitle ? i18next.t("comic.comicWorkspacePage.shl124", { val1: decodedTitle }) : "漫画改编项目",
+        sourceType: "novel_import",
+        sourceRef: querySourceRef,
+      });
+      setShowWizard(true);
+    }
+  }, [querySourceType, querySourceRef, queryNovelTitle]);
 
   const { data: projects = [], isLoading } = useQuery({
     queryKey: ["comic", "projects"],
@@ -519,7 +546,7 @@ export default function ComicWorkspacePage() {
     onMutate: (id) => setBusyId(id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["comic", "projects"] });
-      toast.success("内容源导入完成");
+      toast.success(i18next.t("dict.gen_1358c5c5"));
     },
     onSettled: () => setBusyId(""),
   });
@@ -529,23 +556,16 @@ export default function ComicWorkspacePage() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="flex items-center gap-2 text-2xl font-semibold">
-            <SquareStack className="h-6 w-6 text-primary" />
-            漫画改编工作台
-          </h1>
-          <p className="mt-1 text-sm text-muted-foreground">
-            将小说或原创故事一键生成条漫分格脚本与图像
-          </p>
+            <SquareStack className="h-6 w-6 text-primary" />{i18next.t("comic.comicWorkspacePage.v6b74k")}</h1>
+          <p className="mt-1 text-sm text-muted-foreground">{i18next.t("comic.comicWorkspacePage.wosfnj")}</p>
         </div>
         <Button type="button" onClick={() => setShowWizard((v) => !v)}>
-          <Plus className="h-4 w-4" />
-          新建项目
-        </Button>
+          <Plus className="h-4 w-4" />{i18next.t("comic.comicWorkspacePage.d8dgtb")}</Button>
       </div>
-
-      <ComicImageGenerationNotice />
 
       {showWizard && (
         <CreateWizard
+          defaultValues={defaultWizardValues}
           onCreated={(id) => {
             setShowWizard(false);
             queryClient.invalidateQueries({ queryKey: ["comic", "projects"] });
@@ -555,18 +575,16 @@ export default function ComicWorkspacePage() {
       )}
 
       {isLoading && (
-        <div className="py-12 text-center text-muted-foreground text-sm">加载中…</div>
+        <div className="py-12 text-center text-muted-foreground text-sm">{i18next.t("dict.gen_fb4ca1cf")}</div>
       )}
 
       {!isLoading && projects.length === 0 && !showWizard && (
         <Card className="py-16 text-center">
           <CardContent className="flex flex-col items-center gap-4">
             <FilePen className="h-10 w-10 text-muted-foreground/40" />
-            <p className="text-muted-foreground">还没有漫画项目，点击「新建项目」开始</p>
+            <p className="text-muted-foreground">{i18next.t("dict.gen_f38af214")}</p>
             <Button type="button" onClick={() => setShowWizard(true)}>
-              <Plus className="h-4 w-4" />
-              新建项目
-            </Button>
+              <Plus className="h-4 w-4" />{i18next.t("comic.comicWorkspacePage.d8dgtb")}</Button>
           </CardContent>
         </Card>
       )}

@@ -7,6 +7,7 @@ import { VectorStoreService } from "./VectorStoreService";
 import { RagContextualChunkService, type RagContextualChunkDocument } from "./RagContextualChunkService";
 import { resolveEmbeddingChunkTokenBudget } from "./embeddingModelLimits";
 import type { RagChunkCandidate, RagJobStatus, RagJobType, RagOwnerType, RagSourceDocument } from "./types";
+import { ragSourceCollector } from "./RagSourceCollector";
 import { buildChunkId, computeChunkHash, estimateTokenCount, normalizeRagText, splitRagChunks } from "./utils";
 import {
   encodeFacetKeys,
@@ -251,285 +252,7 @@ export class RagIndexService {
     tenantId: string,
     payload?: RagJobPayloadRecord,
   ): Promise<RagSourceDocument[]> {
-    switch (ownerType) {
-      case "novel": {
-        const novel = await prisma.novel.findUnique({
-          where: { id: ownerId },
-          include: { world: true },
-        });
-        if (!novel) {
-          return [];
-        }
-        const content = buildJoinedText(
-          novel.title,
-          novel.description ?? undefined,
-          novel.outline ?? undefined,
-          novel.structuredOutline ?? undefined,
-          novel.world?.description ?? undefined,
-        );
-        return content
-          ? [{
-            ownerType,
-            ownerId,
-            tenantId,
-            novelId: novel.id,
-            worldId: novel.worldId ?? undefined,
-            title: novel.title,
-            content,
-            metadata: {
-              status: novel.status,
-              updatedAt: novel.updatedAt.toISOString(),
-            },
-          }]
-          : [];
-      }
-      case "chapter": {
-        const chapter = await prisma.chapter.findUnique({ where: { id: ownerId } });
-        if (!chapter) {
-          return [];
-        }
-        const content = buildJoinedText(chapter.title, chapter.content ?? undefined);
-        return content
-          ? [{
-            ownerType,
-            ownerId,
-            tenantId,
-            novelId: chapter.novelId,
-            title: chapter.title,
-            content,
-            metadata: {
-              order: chapter.order,
-              chapterOrder: chapter.order,
-              state: chapter.generationState,
-              updatedAt: chapter.updatedAt.toISOString(),
-            },
-          }]
-          : [];
-      }
-      case "world": {
-        const world = await prisma.world.findUnique({ where: { id: ownerId } });
-        if (!world) {
-          return [];
-        }
-        const content = buildJoinedText(
-          world.name,
-          world.description ?? undefined,
-          world.background ?? undefined,
-          world.geography ?? undefined,
-          world.magicSystem ?? undefined,
-          world.politics ?? undefined,
-          world.cultures ?? undefined,
-          world.races ?? undefined,
-          world.religions ?? undefined,
-          world.technology ?? undefined,
-          world.history ?? undefined,
-          world.economy ?? undefined,
-          world.factions ?? undefined,
-          world.conflicts ?? undefined,
-          world.overviewSummary ?? undefined,
-        );
-        return content
-          ? [{
-            ownerType,
-            ownerId,
-            tenantId,
-            worldId: world.id,
-            title: world.name,
-            content,
-            metadata: {
-              worldType: world.worldType,
-              status: world.status,
-              version: world.version,
-              updatedAt: world.updatedAt.toISOString(),
-            },
-          }]
-          : [];
-      }
-      case "character": {
-        const character = await prisma.character.findUnique({ where: { id: ownerId } });
-        if (!character) {
-          return [];
-        }
-        const content = buildJoinedText(
-          character.name,
-          character.role,
-          character.personality ?? undefined,
-          character.background ?? undefined,
-          character.development ?? undefined,
-          character.currentState ?? undefined,
-          character.currentGoal ?? undefined,
-        );
-        return content
-          ? [{
-            ownerType,
-            ownerId,
-            tenantId,
-            novelId: character.novelId,
-            title: character.name,
-            content,
-            metadata: {
-              role: character.role,
-              updatedAt: character.updatedAt.toISOString(),
-            },
-          }]
-          : [];
-      }
-      case "bible": {
-        const bible = await prisma.novelBible.findUnique({ where: { novelId: ownerId } });
-        if (!bible) {
-          return [];
-        }
-        const content = buildJoinedText(
-          bible.mainPromise ?? undefined,
-          bible.coreSetting ?? undefined,
-          bible.forbiddenRules ?? undefined,
-          bible.characterArcs ?? undefined,
-          bible.worldRules ?? undefined,
-          bible.rawContent ?? undefined,
-        );
-        return content
-          ? [{
-            ownerType,
-            ownerId,
-            tenantId,
-            novelId: bible.novelId,
-            title: `bible-${bible.novelId}`,
-            content,
-            metadata: {
-              updatedAt: bible.updatedAt.toISOString(),
-            },
-          }]
-          : [];
-      }
-      case "chapter_summary": {
-        const summary = await prisma.chapterSummary.findUnique({ where: { chapterId: ownerId } });
-        if (!summary) {
-          return [];
-        }
-        const content = buildJoinedText(
-          summary.summary,
-          summary.keyEvents ?? undefined,
-          summary.characterStates ?? undefined,
-          summary.hook ?? undefined,
-        );
-        return content
-          ? [{
-            ownerType,
-            ownerId,
-            tenantId,
-            novelId: summary.novelId,
-            title: `chapter-summary-${summary.chapterId}`,
-            content,
-            metadata: {
-              chapterId: summary.chapterId,
-              updatedAt: summary.updatedAt.toISOString(),
-            },
-          }]
-          : [];
-      }
-      case "consistency_fact": {
-        const fact = await prisma.consistencyFact.findUnique({ where: { id: ownerId } });
-        if (!fact) {
-          return [];
-        }
-        const content = normalizeRagText(fact.content);
-        return content
-          ? [{
-            ownerType,
-            ownerId,
-            tenantId,
-            novelId: fact.novelId,
-            title: `fact-${fact.category}`,
-            content,
-            metadata: {
-              category: fact.category,
-              source: fact.source,
-              chapterId: fact.chapterId,
-              updatedAt: fact.updatedAt.toISOString(),
-            },
-          }]
-          : [];
-      }
-      case "character_timeline": {
-        const timeline = await prisma.characterTimeline.findUnique({ where: { id: ownerId } });
-        if (!timeline) {
-          return [];
-        }
-        const content = buildJoinedText(timeline.title, timeline.content);
-        return content
-          ? [{
-            ownerType,
-            ownerId,
-            tenantId,
-            novelId: timeline.novelId,
-            title: timeline.title,
-            content,
-            metadata: {
-              source: timeline.source,
-              characterId: timeline.characterId,
-              chapterId: timeline.chapterId,
-              chapterOrder: timeline.chapterOrder,
-              updatedAt: timeline.updatedAt.toISOString(),
-            },
-          }]
-          : [];
-      }
-      case "world_library_item": {
-        const item = await prisma.worldPropertyLibrary.findUnique({ where: { id: ownerId } });
-        if (!item) {
-          return [];
-        }
-        const content = buildJoinedText(item.name, item.description ?? undefined);
-        return content
-          ? [{
-            ownerType,
-            ownerId,
-            tenantId,
-            worldId: item.sourceWorldId ?? undefined,
-            title: item.name,
-            content,
-            metadata: {
-              category: item.category,
-              worldType: item.worldType,
-              usageCount: item.usageCount,
-              updatedAt: item.updatedAt.toISOString(),
-            },
-          }]
-          : [];
-      }
-      case "knowledge_document": {
-        const document = await prisma.knowledgeDocument.findUnique({
-          where: { id: ownerId },
-          include: { activeVersion: true },
-        });
-        if (!document?.activeVersion || document.status === "archived") {
-          return [];
-        }
-        const content = normalizeRagText(document.activeVersion.content);
-        return content
-          ? [{
-            ownerType,
-            ownerId,
-            tenantId,
-            title: document.title,
-            content,
-            preChunks: this.normalizePreChunks(payload?.preChunks),
-            metadata: {
-              fileName: document.fileName,
-              kind: document.kind,
-              sourceAnalysisId: document.sourceAnalysisId,
-              status: document.status,
-              activeVersionId: document.activeVersionId,
-              activeVersionNumber: document.activeVersionNumber,
-              updatedAt: document.updatedAt.toISOString(),
-            },
-          }]
-          : [];
-      }
-      case "chat_message":
-      default:
-        return [];
-    }
+    return ragSourceCollector.loadSourceDocuments(ownerType, ownerId, tenantId, payload);
   }
 
   private buildChunkCandidates(
@@ -750,23 +473,32 @@ export class RagIndexService {
     });
     const splitTexts = candidates.map((item) => item.searchText ?? item.chunkText);
     await this.assertJobNotCancelled(jobId);
-    const embedding = await this.embedTextsInBatches(splitTexts, async ({ processed, total }) => {
-      await this.updateJobProgress(jobId, {
-        stage: "embedding",
-        label: "生成向量",
-        detail: `已生成 ${processed}/${total} 个向量（${ragConfig.embeddingConcurrency} 并发）。`,
-        current: processed,
-        total,
-        documents: docs.length,
-        chunks: total,
-        percent: 0.15 + (total > 0 ? (processed / total) * 0.5 : 0),
+    let embedding: { vectors: number[][]; provider: string; model: string } | null = null;
+    try {
+      embedding = await this.embedTextsInBatches(splitTexts, async ({ processed, total }) => {
+        await this.updateJobProgress(jobId, {
+          stage: "embedding",
+          label: "生成向量",
+          detail: `已生成 ${processed}/${total} 个向量（${ragConfig.embeddingConcurrency} 并发）。`,
+          current: processed,
+          total,
+          documents: docs.length,
+          chunks: total,
+          percent: 0.15 + (total > 0 ? (processed / total) * 0.5 : 0),
+        });
       });
-    });
-    await this.assertJobNotCancelled(jobId);
-    for (const candidate of candidates) {
-      candidate.embedProvider = embedding.provider;
-      candidate.embedModel = embedding.model;
+    } catch (embedError) {
+      console.warn("[RAG] Embedding failed, continuing with SQLite-only indexing.", embedError);
     }
+    await this.assertJobNotCancelled(jobId);
+
+    const embedProvider = embedding?.provider ?? embeddingSettings.embeddingProvider;
+    const embedModel = embedding?.model ?? embeddingSettings.embeddingModel;
+    for (const candidate of candidates) {
+      candidate.embedProvider = embedProvider;
+      candidate.embedModel = embedModel;
+    }
+
     if (candidates.length === 0) {
       await this.updateJobProgress(jobId, {
         stage: "deleting_existing",
@@ -787,25 +519,8 @@ export class RagIndexService {
       });
       return { chunks: 0 };
     }
-    if (embedding.vectors.length !== candidates.length) {
-      throw new Error("RAG embedding 数量与 chunk 数量不一致。");
-    }
 
-    const vectorSize = embedding.vectors[0]?.length ?? 0;
-    await this.updateJobProgress(jobId, {
-      stage: "ensuring_collection",
-      label: "校验集合",
-      detail: `正在校验向量集合，目标维度 ${vectorSize}。`,
-      current: candidates.length,
-      total: candidates.length,
-      documents: docs.length,
-      chunks: candidates.length,
-      percent: 0.7,
-    });
-    await this.assertJobNotCancelled(jobId);
-    await this.vectorStoreService.ensureCollection(vectorSize);
-
-    // 读取旧 chunk id，但先不删除 — 保持旧数据可检索直到新数据写入完成
+    // 读取旧 chunk id，但先不删除 — 保持旧 data 可检索直到新数据写入完成
     const oldChunks = await prisma.knowledgeChunk.findMany({
       where: { tenantId, ownerType, ownerId },
       select: { id: true },
@@ -813,52 +528,67 @@ export class RagIndexService {
     const oldIds = oldChunks.map((item) => item.id);
     await this.assertJobNotCancelled(jobId);
 
-    await this.updateJobProgress(jobId, {
-      stage: "upserting_vectors",
-      label: "写入向量库",
-      detail: `正在向 Qdrant 写入 ${candidates.length} 个分块（${ragConfig.qdrantUpsertConcurrency} 并发）。`,
-      current: candidates.length,
-      total: candidates.length,
-      documents: docs.length,
-      chunks: candidates.length,
-      percent: 0.8,
-    });
-    await this.assertJobNotCancelled(jobId);
+    let qdrantSuccess = false;
+    if (embedding && embedding.vectors.length === candidates.length) {
+      const vectorSize = embedding.vectors[0]?.length ?? 0;
+      if (vectorSize > 0) {
+        try {
+          await this.updateJobProgress(jobId, {
+            stage: "ensuring_collection",
+            label: "校验集合",
+            detail: `正在校验向量集合，目标维度 ${vectorSize}。`,
+            current: candidates.length,
+            total: candidates.length,
+            documents: docs.length,
+            chunks: candidates.length,
+            percent: 0.7,
+          });
+          await this.assertJobNotCancelled(jobId);
+          await this.vectorStoreService.ensureCollection(vectorSize);
 
-    // Phase 3.1: 先写新分块到 Qdrant + DB，成功后再删旧分块，消除可见性空窗
-    const newPoints = candidates.map((item, index) => ({
-      id: item.id,
-      vector: embedding.vectors[index],
-      payload: {
-        tenantId: item.tenantId,
-        ownerType: item.ownerType,
-        ownerId: item.ownerId,
-        novelId: item.novelId,
-        worldId: item.worldId,
-        title: item.title,
-        chunkText: item.chunkText,
-        contextPrefix: item.contextPrefix,
-        contextVersion: item.contextVersion,
-        contextSourceHash: item.contextSourceHash,
-        searchText: item.searchText,
-        chunkHash: item.chunkHash,
-        chunkOrder: item.chunkOrder,
-        metadataJson: item.metadataJson,
-        facetKeys: item.facetKeys,
-        chapterAnchor: item.chapterAnchor,
-        ...(item.facets ?? {}),
-      },
-    }));
+          await this.updateJobProgress(jobId, {
+            stage: "upserting_vectors",
+            label: "写入向量库",
+            detail: `正在向 Qdrant 写入 ${candidates.length} 个分块（${ragConfig.qdrantUpsertConcurrency} 并发）。`,
+            current: candidates.length,
+            total: candidates.length,
+            documents: docs.length,
+            chunks: candidates.length,
+            percent: 0.8,
+          });
+          await this.assertJobNotCancelled(jobId);
 
-    // 1. Qdrant 写入新分块
-    try {
-      await this.vectorStoreService.upsertPoints(newPoints);
-    } catch (error) {
-      // 新分块写入失败，旧分块仍在，直接抛出
-      throw error;
+          const newPoints = candidates.map((item, index) => ({
+            id: item.id,
+            vector: embedding!.vectors[index],
+            payload: {
+              tenantId: item.tenantId,
+              ownerType: item.ownerType,
+              ownerId: item.ownerId,
+              novelId: item.novelId,
+              worldId: item.worldId,
+              title: item.title,
+              chunkText: item.chunkText,
+              contextPrefix: item.contextPrefix,
+              contextVersion: item.contextVersion,
+              contextSourceHash: item.contextSourceHash,
+              searchText: item.searchText,
+              chunkHash: item.chunkHash,
+              chunkOrder: item.chunkOrder,
+              metadataJson: item.metadataJson,
+              facetKeys: item.facetKeys,
+              chapterAnchor: item.chapterAnchor,
+              ...(item.facets ?? {}),
+            },
+          }));
+
+          await this.vectorStoreService.upsertPoints(newPoints);
+          qdrantSuccess = true;
+        } catch (qdrantError) {
+          console.warn("[RAG] Qdrant storage failed, continuing with SQLite-only indexing:", qdrantError);
+        }
+      }
     }
-
-    // 2. DB 写入新分块元数据
     try {
       await this.updateJobProgress(jobId, {
         stage: "writing_metadata",
@@ -894,8 +624,9 @@ export class RagIndexService {
         })),
       });
     } catch (error) {
-      // DB 写入失败，回滚：删除刚写的新 Qdrant 分块
-      await this.vectorStoreService.deletePoints(candidates.map((item) => item.id)).catch(() => {});
+      if (qdrantSuccess) {
+        await this.vectorStoreService.deletePoints(candidates.map((item) => item.id)).catch(() => {});
+      }
       throw error;
     }
 

@@ -1,3 +1,5 @@
+import i18next from "i18next";
+import { useTranslation } from "react-i18next";
 import type { Character } from "@ai-novel/shared/types/novel";
 import type { ReactNode } from "react";
 import { Activity, BookOpen, Crown, Target } from "lucide-react";
@@ -10,6 +12,7 @@ interface CharacterFocusSummaryProps {
 }
 
 export default function CharacterFocusSummary(props: CharacterFocusSummaryProps) {
+  const { t } = useTranslation();
   const { selectedCharacter, lastAppearanceChapter } = props;
   const isProtagonist = isProtagonistCharacter(selectedCharacter);
   const primaryLine = isProtagonist
@@ -31,9 +34,7 @@ export default function CharacterFocusSummary(props: CharacterFocusSummaryProps)
                 <h2 className="truncate text-xl font-semibold tracking-normal">{selectedCharacter.name}</h2>
                 {isProtagonist ? (
                   <Badge className="gap-1 bg-emerald-600 text-white hover:bg-emerald-600">
-                    <Crown className="h-3 w-3" />
-                    主角
-                  </Badge>
+                    <Crown className="h-3 w-3" />{i18next.t("dict.mainCharacter")}</Badge>
                 ) : (
                   <Badge variant="outline">{getCastRoleLabel(selectedCharacter.castRole)}</Badge>
                 )}
@@ -43,22 +44,22 @@ export default function CharacterFocusSummary(props: CharacterFocusSummaryProps)
                 {isProtagonist ? "当前目标" : "关系锚点"}：<span className="font-medium text-foreground">{primaryLine}</span>
               </div>
               <div className="flex flex-wrap gap-2 text-xs text-muted-foreground">
-                <SignalPill icon={<BookOpen className="h-3.5 w-3.5" />} label="身份" value={selectedCharacter.role || "未定义"} />
-                <SignalPill icon={<Activity className="h-3.5 w-3.5" />} label="状态" value={selectedCharacter.currentState || "待补全"} />
-                <SignalPill icon={<Target className="h-3.5 w-3.5" />} label="最近出场" value={lastAppearanceChapter ? `第${lastAppearanceChapter}章` : "暂无"} />
+                <SignalPill icon={<BookOpen className="h-3.5 w-3.5" />} label={i18next.t("novels.characterFocusSummary.op82")} value={selectedCharacter.role || "未定义"} />
+                <SignalPill icon={<Activity className="h-3.5 w-3.5" />} label={i18next.t("dict.gen_3fea7ca7")} value={selectedCharacter.currentState || "待补全"} />
+                <SignalPill icon={<Target className="h-3.5 w-3.5" />} label={i18next.t("novels.characterFocusSummary.dl5dld")} value={lastAppearanceChapter ? i18next.t("tensionCurve.tensionCurveChapterDetailSidebar.xrxssk", { val1: lastAppearanceChapter }) : "暂无"} />
               </div>
             </div>
           </div>
         </div>
 
         <div className="border-t border-border/60 bg-muted/15 p-5 lg:border-l lg:border-t-0">
-          <div className="text-xs font-medium text-muted-foreground">故事作用</div>
+          <div className="text-xs font-medium text-muted-foreground">{i18next.t("novels.characterFocusSummary.d3q1ma")}</div>
           <div className="mt-2 line-clamp-3 text-sm leading-6">
             {selectedCharacter.storyFunction || "待补全"}
           </div>
           <div className="mt-4 grid grid-cols-2 gap-2 text-xs">
-            <MiniMetric label="当前目标" value={selectedCharacter.currentGoal || "待补全"} />
-            <MiniMetric label="出场状态" value={selectedCharacter.currentState || "待补全"} />
+            <MiniMetric label={i18next.t("dict.gen_deb979f8")} value={selectedCharacter.currentGoal || "待补全"} />
+            <MiniMetric label={i18next.t("novels.characterFocusSummary.apk22z")} value={selectedCharacter.currentState || "待补全"} />
           </div>
         </div>
       </div>

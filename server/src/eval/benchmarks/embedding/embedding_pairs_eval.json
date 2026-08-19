@@ -1,0 +1,24 @@
+[
+  {
+    "id": "embedding_pair_01",
+    "capability": "embedding",
+    "category": "semantic_similarity",
+    "title": "角色打斗同义表达相似度测试",
+    "description": "测试模型对同义改写句子的余弦相似度计算能力（期待得分 > 0.8）。",
+    "promptText": "楚阳拔出腰间寒冰长剑，剑指苍穹",
+    "expectedOutput": "白衣少年拔剑而立，冷冽剑锋指向天际",
+    "metadataJson": "{\"pairType\":\"positive\",\"minSimilarity\":0.8}",
+    "isBuiltin": true
+  },
+  {
+    "id": "embedding_pair_02",
+    "capability": "embedding",
+    "category": "semantic_distinction",
+    "title": "硬负例反转表达区分度测试",
+    "description": "测试模型对包含相同关键词但动作逻辑相反句子的区分能力（期待相似度 < 0.4）。",
+    "promptText": "楚阳在九重天阙彻底击败了魔尊林天",
+    "expectedOutput": "魔尊林天在九重天阙彻底击败了楚阳",
+    "metadataJson": "{\"pairType\":\"hard_negative\",\"maxSimilarity\":0.4}",
+    "isBuiltin": true
+  }
+]

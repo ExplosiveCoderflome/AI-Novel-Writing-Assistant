@@ -1,3 +1,5 @@
+import i18next from "i18next";
+const t = (key: string, options?: any) => i18next.t(key, options) as string;
 import { useMemo } from "react";
 import type { Dispatch, SetStateAction } from "react";
 import { Castle, Plus } from "lucide-react";
@@ -14,7 +16,7 @@ export default function WorldHandbookForceSection(props: {
   const { draftStructure, setDraftStructure } = props;
   const forceSummary = useMemo(() => {
     const forceNames = draftStructure.forces.map((force) => force.name).filter(Boolean).slice(0, 4);
-    return forceNames.length > 0 ? forceNames.join(" / ") : "补充主要势力后，角色身份、阵营冲突和章节压力会更稳定。";
+    return forceNames.length > 0 ? forceNames.join(" / ") : i18next.t("dict.gen_55512ee4");
   }, [draftStructure.forces]);
 
   const addForce = () => {
@@ -46,8 +48,8 @@ export default function WorldHandbookForceSection(props: {
     <section className="rounded-md border p-4">
       <SectionHeader
         icon={Castle}
-        title="主要势力"
-        description={`让作者先看懂谁在争夺资源、谁会制造阻力、角色可能从哪里来。${forceSummary}`}
+        title={i18next.t("dict.majorForce")}
+        description={i18next.t("worlds.worldHandbookForceSection.lrdof", { val1: forceSummary })}
         count={draftStructure.forces.length}
       />
       <div className="mt-4 grid gap-3 lg:grid-cols-2">
@@ -62,12 +64,10 @@ export default function WorldHandbookForceSection(props: {
                 onClick={() =>
                   setDraftStructure((prev) => (prev ? { ...prev, forces: removeItem(prev.forces, index) } : prev))
                 }
-              >
-                移除
-              </Button>
+              >{i18next.t("worlds.worldHandbookForceSection.lknd")}</Button>
             </div>
             <div className="mt-3 grid gap-3">
-              <HandbookField title="势力名称" hint="角色可能出身、投靠、背叛或对抗的组织。">
+              <HandbookField title={i18next.t("dict.gen_e548e9c0")} hint={i18next.t("dict.gen_ee03f569")}>
                 <Input
                   value={force.name}
                   onChange={(event) =>
@@ -75,10 +75,10 @@ export default function WorldHandbookForceSection(props: {
                       prev ? { ...prev, forces: updateItem(prev.forces, index, { name: event.target.value }) } : prev,
                     )
                   }
-                  placeholder="星皇朝廷、天机阁、异魔联盟"
+                  placeholder={i18next.t("dict.gen_695b5835")}
                 />
               </HandbookField>
-              <HandbookField title="势力类型" hint="帮助 AI 判断它的行动方式和组织质感。">
+              <HandbookField title={i18next.t("dict.gen_f81810c7")} hint={i18next.t("dict.gen_c5bf3f2c")}>
                 <Input
                   value={force.type}
                   onChange={(event) =>
@@ -86,10 +86,10 @@ export default function WorldHandbookForceSection(props: {
                       prev ? { ...prev, forces: updateItem(prev.forces, index, { type: event.target.value }) } : prev,
                     )
                   }
-                  placeholder="王朝、宗门、公司、地下组织..."
+                  placeholder={i18next.t("dict.gen_bc47188f")}
                 />
               </HandbookField>
-              <HandbookField title="它在世界里代表什么" hint="写清它的立场、资源和读者应当记住的特征。">
+              <HandbookField title={i18next.t("dict.gen_de605aaa")} hint={i18next.t("dict.gen_400e88de")}>
                 <HandbookTextarea
                   value={force.summary}
                   onChange={(value) =>
@@ -97,11 +97,11 @@ export default function WorldHandbookForceSection(props: {
                       prev ? { ...prev, forces: updateItem(prev.forces, index, { summary: value }) } : prev,
                     )
                   }
-                  placeholder="这个势力在世界中代表什么？"
+                  placeholder={i18next.t("dict.gen_d8420eef")}
                   minRows={3}
                 />
               </HandbookField>
-              <HandbookField title="当前目标" hint="目标会转化为章节事件和角色冲突。">
+              <HandbookField title={i18next.t("dict.gen_deb979f8")} hint={i18next.t("dict.gen_92320747")}>
                 <Input
                   value={force.currentObjective}
                   onChange={(event) =>
@@ -111,10 +111,10 @@ export default function WorldHandbookForceSection(props: {
                         : prev,
                     )
                   }
-                  placeholder="争夺矿脉、封锁真相、寻找失落继承人"
+                  placeholder={i18next.t("dict.claimMineralsBlockTruthSeekLostHeir")}
                 />
               </HandbookField>
-              <HandbookField title="给故事带来的压力" hint="主角或其他势力会因此被迫选择、逃亡、交易或开战。">
+              <HandbookField title={i18next.t("dict.gen_e2f7b24d")} hint={i18next.t("dict.forcedChoiceConsequences")}>
                 <Input
                   value={force.pressure}
                   onChange={(event) =>
@@ -122,7 +122,7 @@ export default function WorldHandbookForceSection(props: {
                       prev ? { ...prev, forces: updateItem(prev.forces, index, { pressure: event.target.value }) } : prev,
                     )
                   }
-                  placeholder="追捕主角、控制资源、制造战争、引发信任危机"
+                  placeholder={i18next.t("dict.gen_0d057321")}
                 />
               </HandbookField>
             </div>
@@ -130,9 +130,7 @@ export default function WorldHandbookForceSection(props: {
         ))}
       </div>
       <Button type="button" className="mt-3" variant="outline" onClick={addForce}>
-        <Plus className="mr-2 h-4 w-4" aria-hidden="true" />
-        增加主要势力
-      </Button>
+        <Plus className="mr-2 h-4 w-4" aria-hidden="true" />{i18next.t("worlds.worldHandbookForceSection.63ex5o")}</Button>
     </section>
   );
 }
