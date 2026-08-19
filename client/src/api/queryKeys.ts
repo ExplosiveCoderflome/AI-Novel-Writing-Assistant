@@ -38,6 +38,8 @@ export const queryKeys = {
     novelWorldSyncDiff: (id: string) => ["novels", "novel-world", id, "sync-diff"] as const,
     worldSlice: (id: string) => ["novels", "world-slice", id] as const,
     snapshots: (id: string) => ["novels", "snapshots", id] as const,
+    directorRiskPolicy: (id: string) => ["novels", "director-risk-policy", id] as const,
+    directorIssuePolicy: (id: string) => ["novels", "director-issue-policy", id] as const,
   },
   worlds: {
     all: ["worlds"] as const,
@@ -117,6 +119,8 @@ export const queryKeys = {
     autoDirectorFollowUpDetail: (directorTaskId: string) => ["tasks", "auto-director-follow-up", directorTaskId] as const,
     directorTaskSnapshot: (directorTaskId: string) => ["tasks", "director-task-snapshot", directorTaskId] as const,
     directorRuntime: (directorTaskId: string) => ["tasks", "director-runtime", directorTaskId] as const,
+    directorIssuePolicy: (novelId?: string) => ["tasks", "director-issue-policy", novelId ?? "global"] as const,
+    directorRiskPolicy: (novelId?: string) => ["tasks", "director-risk-policy", novelId ?? "global"] as const,
   },
   autoDirectorFollowUps: {
     overview: ["auto-director-follow-ups", "overview"] as const,

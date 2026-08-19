@@ -63,6 +63,8 @@ import {
 import { cancelContinueExistingReplacedRuns } from "./runtime/novelDirectorTakeoverContinue";
 import { StyleBindingService } from "../../styleEngine/StyleBindingService";
 import { StyleProfileService } from "../../styleEngine/StyleProfileService";
+import { directorRiskPolicyOverrideService } from "./settings/DirectorRiskPolicyOverrideService";
+import { directorRiskPolicySettingsService } from "../../settings/DirectorRiskPolicySettingsService";
 import {
   assertHighMemoryDirectorStartAllowed,
   releaseHighMemoryDirectorReservations,
@@ -198,7 +200,6 @@ export class NovelDirectorService {
     workflowService: this.workflowService,
     volumeService: this.volumeService,
     buildDirectorSeedPayload: (directorInput, novelId, extra) => buildDirectorWorkflowSeedPayload(directorInput, novelId, extra),
-    assertHighMemoryStartAllowed: (payload) => this.assertHighMemoryDirectorStartAllowed(payload),
     scheduleBackgroundRun: (taskId, runner) => this.scheduleBackgroundRun(taskId, runner),
   });
   private readonly continueRuntime = new NovelDirectorContinueRuntime({
@@ -211,16 +212,23 @@ export class NovelDirectorService {
     candidateRuntime: this.candidateRuntime,
     autoExecutionRuntime: this.autoExecutionRuntime,
     pipelineRuntime: this.directorPipelineRuntime,
+    replanNovel: (novelId, input) => this.novelService.replanNovel(novelId, input),
     continueCandidateStageTask: (taskId, payload) => this.continueCandidateStageTask(taskId, payload),
     resolveAssetFirstRecovery: (payload) => this.resolveAssetFirstRecovery(payload),
     runDirectorPipeline: (payload) => this.runDirectorPipeline(payload),
     buildDirectorSeedPayload: (directorInput, novelId, extra) => buildDirectorWorkflowSeedPayload(directorInput, novelId, extra),
+    resolveRiskPolicy: (novelId) => this.resolveDirectorRiskPolicy(novelId),
     getDirectorAssetSnapshot: (novelId) => this.getDirectorAssetSnapshot(novelId),
     assertHighMemoryStartAllowed: (payload) => this.assertHighMemoryDirectorStartAllowed(payload),
     scheduleBackgroundRun: (taskId, runner) => this.scheduleBackgroundRun(taskId, runner),
   });
 
   constructor(_options?: Record<string, never>) {}
+
+  private async resolveDirectorRiskPolicy(novelId: string) {
+    const override = await directorRiskPolicyOverrideService.getOverride(novelId);
+    return override ?? directorRiskPolicySettingsService.getRiskPolicy();
+  }
 
   private async autoPromotePendingReviewProposals(input: {
     novelId: string;

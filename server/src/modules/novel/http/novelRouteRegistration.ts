@@ -23,6 +23,8 @@ import { registerNovelVolumeRoutes } from "../planning/http/novelVolumeRoutes";
 import { registerNovelWorldSliceRoutes } from "../setup/http/novelWorldSliceRoutes";
 import novelChapterSummaryRouter from "../production/http/novelChapterSummary";
 import novelDecisionsRouter from "../state/http/novelDecisions";
+import { registerDirectorIssuePolicyRoutes } from "../../../services/novel/director/issues/directorIssuePolicyRoutes";
+import { registerNovelDirectorRiskPolicyRoutes } from "../../../services/novel/director/http/novelDirectorRiskPolicy";
 import type { NovelHttpServices } from "./novelHttpServices";
 import { guardSimpleCreationUserWrites } from "./simpleCreationWriteGuard";
 import {
@@ -82,6 +84,9 @@ export function registerNovelHttpRoutes(router: Router, services: NovelHttpServi
   const { novelService, novelDraftOptimizeService } = services;
 
   router.use("/:id", guardSimpleCreationUserWrites);
+
+  registerDirectorIssuePolicyRoutes(router);
+  registerNovelDirectorRiskPolicyRoutes(router);
 
   registerNovelBaseRoutes({
     router,

@@ -61,7 +61,7 @@ export class PlannerReplanService {
       prisma.chapter.findMany({
         where: { novelId },
         orderBy: { order: "asc" },
-        select: { id: true, order: true },
+        select: { id: true, order: true, content: true, generationState: true, chapterStatus: true },
       }),
       prisma.auditReport.findMany({
         where: { novelId, chapterId: targetChapter.id },
@@ -152,7 +152,10 @@ export class PlannerReplanService {
       temperature: input.temperature,
     });
     const affectedChapterOrderSet = new Set(replanDecision.affectedChapterOrders);
-    const affectedChapters = allChapters.filter((item) => affectedChapterOrderSet.has(item.order));
+    // Replanning may read completed chapters as context, but must never replace their plans or prose.
+    const affectedChapters = allChapters.filter((item) => (
+      affectedChapterOrderSet.has(item.order) && !(item.content ?? "").trim()
+    ));
     if (affectedChapters.length === 0) {
       throw new Error("当前小说没有可重规划的章节。");
     }

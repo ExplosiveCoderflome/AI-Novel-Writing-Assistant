@@ -25,7 +25,32 @@ import type {
   DirectorTakeoverRequest,
   DirectorStepCalibrationRequest,
 } from "@ai-novel/shared/types/novelDirector";
+import type { DirectorIssuePolicy, DirectorIssuePolicyOverride } from "@ai-novel/shared/types/directorIssue";
 import { apiClient } from "./client";
+
+export interface NovelDirectorIssuePolicyResponse {
+  effectivePolicy: DirectorIssuePolicy;
+  override: DirectorIssuePolicyOverride | null;
+  source: "global" | "novel";
+}
+
+export async function getNovelDirectorIssuePolicy(novelId: string) {
+  const { data } = await apiClient.get<ApiResponse<NovelDirectorIssuePolicyResponse>>(
+    `/novels/${novelId}/auto-director/issue-policy`,
+  );
+  return data;
+}
+
+export async function saveNovelDirectorIssuePolicy(
+  novelId: string,
+  override: DirectorIssuePolicyOverride | null,
+) {
+  const { data } = await apiClient.put<ApiResponse<NovelDirectorIssuePolicyResponse>>(
+    `/novels/${novelId}/auto-director/issue-policy`,
+    { override },
+  );
+  return data;
+}
 
 export async function getDirectorTaskSnapshot(directorTaskId: string) {
   const { data } = await apiClient.get<ApiResponse<DirectorTaskSnapshotResponse>>(`/novels/director/tasks/${directorTaskId}`);

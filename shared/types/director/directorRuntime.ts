@@ -303,7 +303,9 @@ export type DirectorEventType =
   | "pending_review_auto_promotion"
   | "circuit_breaker_opened"
   | "circuit_breaker_reset"
-  | "continue_with_risk";
+  | "continue_with_risk"
+  | "issue_detected"
+  | "issue_action_applied";
 
 export interface DirectorEvent {
   eventId: string;

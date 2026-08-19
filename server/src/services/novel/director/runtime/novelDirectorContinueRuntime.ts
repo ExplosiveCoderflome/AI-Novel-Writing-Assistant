@@ -32,10 +32,13 @@ import {
 import { getDirectorExecutionNodeAdapter } from "../phases/novelDirectorExecutionNodeAdapters";
 import type { NovelDirectorCandidateRuntime } from "./novelDirectorCandidateRuntime";
 import type { NovelDirectorAutoExecutionRuntime } from "../automation/novelDirectorAutoExecutionRuntime";
+import type { NovelDirectorAutoExecutionRuntimeDeps } from "../automation/novelDirectorAutoExecutionRuntimePorts";
 import type { DirectorPipelineRunInput, NovelDirectorPipelineRuntime } from "../novelDirectorPipelineRuntime";
 import type { NovelDirectorRuntimeOrchestrator } from "./novelDirectorRuntimeOrchestrator";
 import type { DirectorRuntimeService } from "./DirectorRuntimeService";
 import { buildDefaultDirectorPolicy } from "./directorRuntimeDefaults";
+import type { DirectorRiskPolicy } from "@ai-novel/shared/types/directorRisk";
+import { prisma } from "../../../../db/prisma";
 
 export type DirectorAssetFirstRecovery =
   | {
@@ -139,6 +142,7 @@ export class NovelDirectorContinueRuntime {
     candidateRuntime: NovelDirectorCandidateRuntime;
     autoExecutionRuntime: Pick<NovelDirectorAutoExecutionRuntime, "runFromReady">;
     pipelineRuntime: NovelDirectorPipelineRuntime;
+    replanNovel: NonNullable<NovelDirectorAutoExecutionRuntimeDeps["replanNovel"]>;
     continueCandidateStageTask?: (
       taskId: string,
       input: Parameters<NovelDirectorCandidateRuntime["continueTask"]>[1],
@@ -153,6 +157,7 @@ export class NovelDirectorContinueRuntime {
       novelId: string | null,
       extra?: Record<string, unknown>,
     ) => Record<string, unknown>;
+    resolveRiskPolicy: (novelId: string) => Promise<DirectorRiskPolicy>;
     getDirectorAssetSnapshot: (novelId: string) => Promise<{
       characterCount: number;
       chapterCount: number;
@@ -240,7 +245,6 @@ export class NovelDirectorContinueRuntime {
     forceResume?: boolean;
     acceptManualChanges?: boolean;
   }): Promise<void> {
-    const continuationMode = normalizeDirectorContinuationMode(input?.continuationMode);
     const row = await this.deps.workflowService.getTaskById(taskId);
     if (!row) {
       throw new Error("自动导演任务不存在。");
@@ -249,6 +253,7 @@ export class NovelDirectorContinueRuntime {
       await this.deps.workflowService.continueTask(taskId);
       return;
     }
+    const continuationMode = normalizeDirectorContinuationMode(input?.continuationMode);
     if (row.status === "running" && !row.pendingManualRecovery && input?.forceResume !== true) {
       return;
     }
@@ -292,7 +297,9 @@ export class NovelDirectorContinueRuntime {
       throw new Error("自动导演任务缺少恢复所需上下文。");
     }
 
-    const requestedSkipQualityRepair = shouldSkipCurrentQualityRepair({
+    const requestedReplanRecovery = row.checkpointType === "replan_required"
+      && continuationMode !== "skip_quality_repair";
+    const requestedSkipQualityRepair = !requestedReplanRecovery && shouldSkipCurrentQualityRepair({
       continuationMode,
       checkpointType: row.checkpointType,
       currentItemKey: row.currentItemKey,
@@ -307,6 +314,7 @@ export class NovelDirectorContinueRuntime {
     const effectiveDirectorInput = applyDirectorRunModeContract({
       ...directorInput,
       runMode,
+      riskPolicy: directorInput.riskPolicy ?? await this.deps.resolveRiskPolicy(novelId),
       ...(input?.acceptManualChanges ? { stepCalibrationInstruction: null } : {}),
     });
     const assetFirstRecovery = await this.resolveAssetFirstRecovery({
@@ -324,12 +332,23 @@ export class NovelDirectorContinueRuntime {
     const approveAutoExecutionGate = approveCurrentGate || requestedAutoExecutionContinue;
 
     if (assetFirstRecovery?.type === "auto_execution") {
-      const resumedChapterId = (
+      const checkpointChapterId = (
         parseResumeTargetLike(row.resumeTargetJson)?.chapterId
         ?? parseResumeTargetLike(seedPayload.resumeTarget)?.chapterId
         ?? seedPayload.autoExecution?.nextChapterId
         ?? null
       );
+      const firstUnwrittenChapter = requestedReplanRecovery
+        ? await prisma.chapter.findFirst({
+          where: {
+            novelId,
+            OR: [{ content: null }, { content: "" }],
+          },
+          orderBy: { order: "asc" },
+          select: { id: true },
+        })
+        : null;
+      const resumedChapterId = firstUnwrittenChapter?.id ?? checkpointChapterId;
       await this.deps.workflowService.markTaskRunning(taskId, {
         stage: assetFirstRecovery.resumeCheckpointType === "replan_required" ? "quality_repair" : "chapter_execution",
         itemKey: assetFirstRecovery.resumeCheckpointType === "replan_required" ? "quality_repair" : "chapter_execution",
@@ -337,8 +356,7 @@ export class NovelDirectorContinueRuntime {
           ? "正在根据当前内容恢复质量修复"
           : "正在根据当前内容恢复章节执行",
         progress: assetFirstRecovery.resumeCheckpointType === "replan_required" ? 0.975 : 0.93,
-        clearCheckpoint: assetFirstRecovery.resumeCheckpointType === "chapter_batch_ready"
-          || assetFirstRecovery.resumeCheckpointType === "replan_required",
+        clearCheckpoint: assetFirstRecovery.resumeCheckpointType === "chapter_batch_ready",
         seedPayload: this.deps.buildDirectorSeedPayload(effectiveDirectorInput, novelId, {
           directorSession: buildDirectorSessionState({
             runMode: effectiveDirectorInput.runMode,
@@ -355,6 +373,24 @@ export class NovelDirectorContinueRuntime {
         }),
       });
       this.deps.scheduleBackgroundRun(taskId, async () => {
+        if (requestedReplanRecovery) {
+          const existingRun = await prisma.replanRun.findFirst({
+            where: { novelId, chapterId: checkpointChapterId ?? undefined },
+            orderBy: { createdAt: "desc" },
+            select: { id: true },
+          });
+          if (!existingRun) {
+            await this.deps.replanNovel(novelId, {
+              chapterId: resumedChapterId ?? undefined,
+              triggerType: "director_replan_recovery",
+              windowSize: 3,
+              reason: row.lastError?.trim() || "当前章节与相邻章节的计划需要重新对齐。",
+              provider: effectiveDirectorInput.provider,
+              model: effectiveDirectorInput.model,
+              temperature: effectiveDirectorInput.temperature,
+            });
+          }
+        }
         const shouldResumeApprovedExecutionNode = (
           row.status === "waiting_approval"
           && assetFirstRecovery.resumeCheckpointType === "chapter_batch_ready"
@@ -384,7 +420,7 @@ export class NovelDirectorContinueRuntime {
           previousFailureMessage: row.lastError ?? null,
           allowSkipReviewBlockedChapter: canSkipReviewBlockedChapter,
           approveAutoExecutionScope: requestedAutoExecutionContinue || isFullBookAutopilot,
-          skipCurrentQualityRepair: requestedSkipQualityRepair,
+          skipCurrentQualityRepair: requestedSkipQualityRepair || requestedReplanRecovery,
         });
       });
       return;

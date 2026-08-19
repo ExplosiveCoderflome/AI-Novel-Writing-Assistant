@@ -7,3 +7,5 @@ export * from "./directorWorkflowStepCatalog";
 export * from "./directorWorkflowStepCatalogData";
 export * from "./stateProposalResolution";
 export * from "./replanWindowDecision";
+export * from "../directorRisk";
+export * from "../directorIssue";
