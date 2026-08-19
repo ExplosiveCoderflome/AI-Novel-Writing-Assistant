@@ -605,9 +605,5 @@ export const promptAssetLoaderEntries: PromptAssetLoaderEntry[] = [
     key: "comic.factExtraction@v1",
     load: () => require("../prompts/comic/comic.prompts").comicFactExtractionPrompt as UnknownPromptAsset,
   },
-  {
-    key: "stock.allocation.strategy@v1",
-    load: () => require("../prompts/stock/stock.prompts").stockAllocationPrompt as UnknownPromptAsset,
-  },
 ];
 

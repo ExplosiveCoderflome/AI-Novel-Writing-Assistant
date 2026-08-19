@@ -22,7 +22,6 @@ import {
   ShieldCheck,
   SquarePen,
   Tags,
-  TrendingUp,
   UsersRound,
   WandSparkles,
   Video,
@@ -69,7 +68,6 @@ export default function Sidebar({ collapsed, onToggle }: SidebarProps) {
       title: t("sidebar.groupCreative", "创作与扩展"),
       items: [
         { to: "/", label: t("sidebar.home", "首页"), icon: House },
-        { to: "/stock", label: t("sidebar.stock", "美股投研与调仓"), icon: TrendingUp },
         { to: "/help", label: t("sidebar.help", "创作向导"), icon: CircleHelp },
         { to: "/novels", label: t("sidebar.novels", "小说列表"), icon: BookOpenText },
         { to: "/multimedia", label: t("sidebar.multimedia", "多媒体改编"), icon: Film },

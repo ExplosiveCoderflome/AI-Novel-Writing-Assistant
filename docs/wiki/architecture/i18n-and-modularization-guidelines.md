@@ -35,9 +35,8 @@
 
 ### 3.1 文件长度指标
 - 单文件推荐长度 **~600 行**，硬上限 **700 行**。
-- 当页面（如 [`NovelEdit.tsx`](file:///c:/Users/lilin/GeneralAgent/client/src/pages/novels/NovelEdit.tsx)、[`StockStudioPage.tsx`](file:///c:/Users/lilin/GeneralAgent/client/src/pages/stock/StockStudioPage.tsx)）膨胀时，须将纯数据类型、通用工具函数及 UI 视图抽离至 dedicated 子文件：
+- 当页面（如 [`NovelEdit.tsx`](file:///c:/Users/lilin/GeneralAgent/client/src/pages/novels/NovelEdit.tsx)）膨胀时，须将纯数据类型、通用工具函数及 UI 视图抽离至 dedicated 子文件：
   - 辅助解析与存储逻辑：[`novelEditHelpers.ts`](file:///c:/Users/lilin/GeneralAgent/client/src/pages/novels/novelEditHelpers.ts)
-  - 领域数据类型：[`stockStudio.types.ts`](file:///c:/Users/lilin/GeneralAgent/client/src/pages/stock/stockStudio.types.ts)
   - HTTP 路由校验 Schema：[`sandboxSchemas.ts`](file:///c:/Users/lilin/GeneralAgent/server/src/modules/setup/world/http/sandboxSchemas.ts)、[`comicSchemas.ts`](file:///c:/Users/lilin/GeneralAgent/server/src/modules/comic/http/comicSchemas.ts)
 
 ---

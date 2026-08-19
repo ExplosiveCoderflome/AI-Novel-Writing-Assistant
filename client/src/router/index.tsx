@@ -42,7 +42,6 @@ const WorldWorkspace = lazy(() => import("@/pages/worlds/WorldWorkspace"));
 const WritingFormulaPage = lazy(() => import("@/pages/writingFormula/WritingFormulaPage"));
 const CharacterLibrary = lazy(() => import("@/pages/characters/CharacterLibrary"));
 const MultimediaHub = lazy(() => import("@/pages/multimedia/MultimediaHub"));
-const StockStudioPage = lazy(() => import("@/pages/stock/StockStudioPage"));
 
 const routes: RouteObject[] = [
   {
@@ -50,7 +49,6 @@ const routes: RouteObject[] = [
     element: <AppLayout />,
     children: [
       { index: true, element: <Home /> },
-      { path: "stock", element: <StockStudioPage /> },
       { path: "help", element: <HelpPage /> },
       { path: "novels", element: <NovelList /> },
       { path: "novels/create", element: <NovelCreate /> },

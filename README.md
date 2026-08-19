@@ -125,19 +125,7 @@ If you prefer to write and manage your novel workspace in a local terminal using
   - **Local High-Fidelity TTS**: Native FastAPI speech server powered by Kokoro-ONNX v1.0 and `misaki[zh]`, enabling offline Chinese/English narration.
   - **Voice Mapping & Prompt Cleaning**: Automatically maps gender attributes (`am_*`/`bm_*` to male voice `zm_yunjian`, `af_*`/`bf_*` to female voice `zf_xiaoxiao`). Cleans character names and stage directions (e.g., `(sighs)`) from the voiceover texts using regex filters.
 
-### 10. US Stock Investment Research Agent & MooMoo OpenD Direct Strategy Engine
-- **MooMoo OpenD Direct TCP Connection**: Direct 44-byte binary native header socket protocol communication with OpenD (`127.0.0.1:11111`) handling 64-bit `uint64` account IDs via dedicated Python SDK bridge (`moomoo-api`).
-- **3 Core Guidance Blueprint**:
-  - **Guide 1 (Existing Position Adjustments)**: Dynamic concentration risk diagnostics (>30% risk alert) & profit-taking/stop-loss guidance.
-  - **Guide 2 (New Position Discovery)**: Idle cash & budget allocation prioritizing MooMoo watchlist targets.
-  - **Guide 3 (Retrospective & Execution Audit Loop)**: Compares historical recommendations against actual portfolio changes to distill long-term trading discipline.
-- **Prisma DB-Persisted 2D Interactive Knowledge Graph & Multi-Source Fusion**:
-  - **Multi-Source Data Fusion Engine**: Fuses OpenD real-time bid/ask quotes, web news catalysts, portfolio positions/cash metrics, and manual human insights.
-  - **Strict Semantic Triples $(E_1 \rightarrow R \rightarrow E_2)$**: Classifies entities (`ROOT_STOCK`, `SUPPLIER`, `CLIENT`, `COMPETITOR`, `MACRO`, `CONCEPT`) and directional relation edges with SVG topology network & interactive side-drawer.
-  - **Prisma DB Persistence (`StockKnowledgeGraphStore`) & API (`/api/stock/knowledge-graph/update`)**: Saves each stock's dedicated graph and manual edits (`✏️ 人工修改图谱`) permanently in DB across server restarts and daily refreshes.
-- **Deterministic Guardrails Layer**: 100% mathematical formula calculations for buying power limits and real quote overrides to eliminate AI hallucinations.
-
-### 11. PAI Core Infrastructure Architecture (Insights #1 - #8)
+### 10. PAI Core Infrastructure Architecture (Insights #1 - #8)
 Fully implemented Daniel Miessler's Personal AI Infrastructure (PAI) architecture principles tailored for long-form narrative synthesis:
 - **Insight #1 (Determinism-First Architecture)**: Pure-code lexical JSON repair (`tryFixSyntacticJson`) & coercion across 250+ LLM invocation points, avoiding unnecessary LLM retries and saving latency/tokens.
 - **Insight #2 (User/System Separation & Asset Protection)**: Non-destructive setting management (`UserSettingProtectionService`) and project backup packaging gateway (`UserAssetBackupGateway`). Maintain single canonical prompt templates.
@@ -317,12 +305,6 @@ Open `http://localhost:5173` in your browser.
 
 - **漫画工作台**：场景一致性、角色视觉资产、视觉锚点控制；分镜与角色面板支持图像生成确认弹窗，避免误触消耗额度
 - **短剧改编生产管线 v3**：从小说内容衍生短剧剧本和镜头
-
-### 8. US Stock Investment & Daily Rebalancing Agent (MooMoo Integration)
-
-- **Safety-First Advisory Blueprint**: Analyzes portfolio positions, cash balances, and new budget allocations every day before stock market open. Outputs trade recommendations and risk concentration alerts (**Advisory Only, No Auto-Trading**).
-- **Auto-Daemon Management**: Built-in `OpenDaemonManager` automatically verifies local port `127.0.0.1:11111` upon system startup or API call, silently launching the local `moomoo_OpenD` gateway process when unpowered.
-- **Dual-View Analysis Report**: Toggle between "Institutional Research View" and "Gamified Narrative Breakdown" (explaining stock rallies, breakthroughs, and risk management with zero cognitive load).
 - 衍生工坊不在主链跑通前打开——它们消费的是小说已生成的章节、角色和场景
 
 ### 8. 公开介绍站与文档体系
@@ -338,27 +320,6 @@ Open `http://localhost:5173` in your browser.
 - 默认 SQLite 即可跑通主链；需要 RAG 检索时再接入 Qdrant
 - RAG 并发数、限速等运行时参数从 .env 迁到设置面板，改完即生效无需重启
 - Monorepo 拆分（pnpm workspace），桌面版 / 介绍站 / 服务端 / 客户端独立可构建
-
-### 10. SearXNG Local Docker Search Engine (Optional)
-
-The Stock Agent integrates with a locally hosted **SearXNG** Docker container (`http://127.0.0.1:8080`) for real-time stock news retrieval and market intelligence extraction.
-
-```bash
-# Run SearXNG container locally (Mapped to port 8088)
-docker run -d \
-  --name searxng \
-  -p 8088:8080 \
-  -v $(pwd)/scratch/searxng/settings.yml:/etc/searxng/settings.yml:ro \
-  searxng/searxng:latest
-
-# Environment Variable (Optional, defaults to http://127.0.0.1:8088)
-# SEARXNG_URL=http://127.0.0.1:8088
-
-# Verify real connection test
-node server/scripts/runSearXNGTest.cjs
-```
-- **Fallback Protection**: If SearXNG Docker is not running, the Stock Agent automatically falls back to static quote context without throwing any runtime errors.
-
 
 ## 典型使用路径
 
