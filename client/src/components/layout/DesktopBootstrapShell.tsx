@@ -1,3 +1,4 @@
+import i18next from "i18next";
 import { useEffect, useRef, useState } from "react";
 import { Download, RefreshCw, RotateCw } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
@@ -24,15 +25,15 @@ interface DesktopBootstrapShellProps {
 function resolveStateLabel(snapshot: DesktopBootstrapSnapshot): string {
   switch (snapshot.state) {
     case "launching":
-      return "准备中";
+      return i18next.t("dict.gen_f76540a9");
     case "starting-server":
-      return "启动本地引擎";
+      return i18next.t("dict.gen_0aeaea86");
     case "loading-ui":
-      return "加载工作区";
+      return i18next.t("dict.gen_3a961806");
     case "ready":
-      return "已就绪";
+      return i18next.t("dict.gen_c30ecc7a");
     case "error":
-      return "启动受阻";
+      return i18next.t("dict.gen_ddea5406");
     default:
       return snapshot.state;
   }
@@ -41,21 +42,21 @@ function resolveStateLabel(snapshot: DesktopBootstrapSnapshot): string {
 function resolveStageLabel(snapshot: DesktopBootstrapSnapshot): string {
   switch (snapshot.stage) {
     case "launching":
-      return "准备启动";
+      return i18next.t("dict.gen_86e1e425");
     case "app-ready":
-      return "应用已就绪";
+      return i18next.t("dict.gen_fd76a07b");
     case "splash-shown":
-      return "启动页已显示";
+      return i18next.t("dict.gen_cb016cfd");
     case "server-starting":
-      return "本地服务启动中";
+      return i18next.t("dict.gen_9e1f9b87");
     case "server-healthy":
-      return "本地服务已就绪";
+      return i18next.t("dict.gen_9abfe65c");
     case "renderer-ready":
-      return "界面已准备";
+      return i18next.t("dict.gen_ba8db5ff");
     case "main-window-shown":
-      return "主窗口已显示";
+      return i18next.t("dict.mainWindowShown");
     case "error":
-      return "启动失败";
+      return i18next.t("dict.gen_efb08e91");
     default:
       return snapshot.stage;
   }
@@ -64,15 +65,15 @@ function resolveStageLabel(snapshot: DesktopBootstrapSnapshot): string {
 function resolveProgressHint(snapshot: DesktopBootstrapSnapshot): string {
   switch (snapshot.state) {
     case "launching":
-      return "正在准备桌面运行时和启动资源。";
+      return i18next.t("dict.gen_7232fb05");
     case "starting-server":
-      return "桌面版需要先拉起本地服务，随后才会进入主工作区。";
+      return i18next.t("dict.gen_7089b3c7");
     case "loading-ui":
-      return "本地服务已经可用，正在切入主工作台。";
+      return i18next.t("dict.gen_1ee6b8c8");
     case "ready":
-      return "启动链路已经完成。";
+      return i18next.t("dict.gen_ec85a3d4");
     case "error":
-      return "启动过程中遇到问题，建议先查看日志再重试。";
+      return i18next.t("dict.gen_87c2722f");
     default:
       return snapshot.detail;
   }
@@ -81,21 +82,21 @@ function resolveProgressHint(snapshot: DesktopBootstrapSnapshot): string {
 function resolveUpdaterStatusLabel(status: DesktopUpdaterSnapshot["status"]): string {
   switch (status) {
     case "disabled":
-      return "不可用";
+      return i18next.t("dict.unavailable");
     case "idle":
-      return "待检查";
+      return i18next.t("dict.gen_e556fdff");
     case "checking":
-      return "检查中";
+      return i18next.t("dict.gen_69ac5a39");
     case "update-available":
-      return "发现更新";
+      return i18next.t("dict.gen_5351384d");
     case "downloading":
-      return "下载中";
+      return i18next.t("dict.downloading");
     case "downloaded":
-      return "待安装";
+      return i18next.t("dict.gen_72482be2");
     case "not-available":
-      return "无需更新";
+      return i18next.t("dict.gen_6b498bfe");
     case "error":
-      return "检查失败";
+      return i18next.t("dict.gen_74bb5c74");
     default:
       return status;
   }
@@ -104,11 +105,11 @@ function resolveUpdaterStatusLabel(status: DesktopUpdaterSnapshot["status"]): st
 function resolveUpdaterHint(updater: DesktopUpdaterSnapshot, bootstrapState: DesktopBootstrapSnapshot["state"]): string {
   if (!updater.isSupported) {
     if (updater.isPortable) {
-      return "便携版需要下载新版安装包后手动替换。";
+      return i18next.t("dict.portableVersionRequiresDownloadNewInstallPackageManualReplacement");
     }
 
     if (!updater.isPackaged) {
-      return "开发运行不会连接发布更新通道，打包安装版会自动检查桌面版本。";
+      return i18next.t("dict.gen_d025a051");
     }
 
     return updater.message;
@@ -120,15 +121,15 @@ function resolveUpdaterHint(updater: DesktopUpdaterSnapshot, bootstrapState: Des
         ? "启动受阻时会同步检查桌面版本，方便先安装可用修复。"
         : "进入工作区前会检查桌面版本，有可用版本时会在这里提示。";
     case "checking":
-      return "版本检查中，有可用版本时会提示下载。";
+      return i18next.t("dict.gen_1f92214e");
     case "update-available":
-      return `桌面版 ${updater.availableVersion ?? "新版本"} 可用，建议先下载更新包。`;
+      return i18next.t("layout.desktopBootstrapShell.fohcoi", { val1: (updater.availableVersion ?? "新版本") });
     case "downloading":
-      return "更新包下载中，请保持应用打开。";
+      return i18next.t("dict.gen_4afc4dfb");
     case "downloaded":
-      return "更新包已下载，重启应用后完成安装。";
+      return i18next.t("dict.gen_faf996b1");
     case "not-available":
-      return "本机安装版本与发布通道保持同步。";
+      return i18next.t("dict.gen_1f0f97e4");
     case "error":
       return updater.message || "版本检查失败，可以稍后重试。";
     default:
@@ -205,7 +206,7 @@ function DesktopBootstrapUpdatePanel({ snapshot }: { snapshot: DesktopBootstrapS
       )}
     >
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <div className="text-xs font-medium uppercase tracking-[0.2em] text-muted-foreground">版本检查</div>
+        <div className="text-xs font-medium uppercase tracking-[0.2em] text-muted-foreground">{i18next.t("dict.gen_beed7a8c")}</div>
         <Badge
           variant="outline"
           className={cn(
@@ -219,22 +220,22 @@ function DesktopBootstrapUpdatePanel({ snapshot }: { snapshot: DesktopBootstrapS
 
       <div className="mt-3 grid gap-2 text-sm text-muted-foreground">
         <div className="flex items-center justify-between gap-3">
-          <span>本机版本</span>
+          <span>{i18next.t("dict.gen_bfedfa19")}</span>
           <span className="font-medium text-foreground">{updater.currentVersion}</span>
         </div>
         <div className="flex items-center justify-between gap-3">
-          <span>可用版本</span>
+          <span>{i18next.t("dict.gen_29afa32e")}</span>
           <span className="font-medium text-foreground">{updater.availableVersion ?? "-"}</span>
         </div>
         <div className="flex items-center justify-between gap-3 text-muted-foreground">
-          <span>检查时间</span>
+          <span>{i18next.t("dict.gen_e2aaac6d")}</span>
           <span className="font-medium text-foreground">{formatSnapshotTime(updater.lastCheckedAt ?? "")}</span>
         </div>
       </div>
 
       <div className="mt-3 rounded-xl border border-border/60 bg-muted/35 px-4 py-3 text-sm leading-6 text-muted-foreground">
         {resolveUpdaterHint(updater, snapshot.state)}
-        {typeof updater.progressPercent === "number" ? ` 下载进度 ${Math.round(updater.progressPercent)}%。` : ""}
+        {typeof updater.progressPercent === "number" ? i18next.t("layout.desktopBootstrapShell.fczak0", { val1: (Math.round(updater.progressPercent)) }) : ""}
       </div>
 
       <div className="mt-4 flex flex-wrap gap-3">
@@ -259,9 +260,7 @@ function DesktopBootstrapUpdatePanel({ snapshot }: { snapshot: DesktopBootstrapS
             disabled={isBusy || isCheckingOrDownloading}
             onClick={() => void runUpdaterAction("check")}
           >
-            <Download className="h-4 w-4" aria-hidden="true" />
-            下载更新
-          </Button>
+            <Download className="h-4 w-4" aria-hidden="true" />{i18next.t("layout.desktopBootstrapShell.afvrf2")}</Button>
         ) : null}
         {showInstallButton ? (
           <Button
@@ -271,9 +270,7 @@ function DesktopBootstrapUpdatePanel({ snapshot }: { snapshot: DesktopBootstrapS
             disabled={isBusy || !updater.canInstall}
             onClick={() => void runUpdaterAction("install")}
           >
-            <RotateCw className="h-4 w-4" aria-hidden="true" />
-            重启安装
-          </Button>
+            <RotateCw className="h-4 w-4" aria-hidden="true" />{i18next.t("layout.desktopBootstrapShell.iqt59a")}</Button>
         ) : null}
       </div>
     </div>
@@ -312,34 +309,34 @@ export default function DesktopBootstrapShell({ snapshot, overlay = false }: Des
             </div>
 
             <div className="mt-12 space-y-3">
-              <div className="flex items-center justify-between text-xs text-muted-foreground"><span>正在连接你的创作空间</span><span>{resolveStageLabel(snapshot)}</span></div>
+              <div className="flex items-center justify-between text-xs text-muted-foreground"><span>{i18next.t("layout.desktopBootstrapShell.ksn591")}</span><span>{resolveStageLabel(snapshot)}</span></div>
               <div className="h-1.5 w-full overflow-hidden rounded-full bg-muted">
                 {snapshot.state === "error" ? <span className="block h-full w-full rounded-full bg-destructive" /> : <span className="block h-full w-1/2 animate-[desktop-shell-progress_1.4s_ease-in-out_infinite] rounded-full bg-[linear-gradient(90deg,hsl(var(--info)),hsl(var(--primary)))]" />}
               </div>
-              <p className="text-xs leading-5 text-muted-foreground">启动页只在准备本地服务时短暂出现，工作区就绪后会自动进入。</p>
+              <p className="text-xs leading-5 text-muted-foreground">{i18next.t("layout.desktopBootstrapShell.hjbnps")}</p>
             </div>
           </section>
 
           <section className="space-y-4 bg-muted/20 px-7 py-8 sm:px-8 sm:py-10">
             <div className="rounded-2xl border border-border/60 bg-background/55 p-5">
-              <div className="text-xs font-medium uppercase tracking-[0.2em] text-muted-foreground">启动状态</div>
+              <div className="text-xs font-medium uppercase tracking-[0.2em] text-muted-foreground">{i18next.t("layout.desktopBootstrapShell.aywq3o")}</div>
               <div className="mt-4 space-y-3 text-sm">
-                <div className="flex items-center justify-between gap-3"><span className="text-muted-foreground">当前阶段</span><span className="font-medium">{resolveStateLabel(snapshot)}</span></div>
+                <div className="flex items-center justify-between gap-3"><span className="text-muted-foreground">{i18next.t("dict.gen_ea328dc7")}</span><span className="font-medium">{resolveStateLabel(snapshot)}</span></div>
                 <div className="rounded-xl border border-border/60 bg-muted/35 px-3.5 py-3 text-sm leading-6 text-muted-foreground">{resolveProgressHint(snapshot)}</div>
-                <div className="flex items-center justify-between gap-3 text-xs text-muted-foreground"><span>最近更新</span><span>{formatSnapshotTime(snapshot.updatedAt)}</span></div>
+                <div className="flex items-center justify-between gap-3 text-xs text-muted-foreground"><span>{i18next.t("dict.gen_06dc9b38")}</span><span>{formatSnapshotTime(snapshot.updatedAt)}</span></div>
               </div>
             </div>
 
             <DesktopBootstrapUpdatePanel snapshot={snapshot} />
 
             <details className="group rounded-2xl border border-border/60 bg-background/45 p-5">
-              <summary className="cursor-pointer list-none text-xs font-medium uppercase tracking-[0.2em] text-muted-foreground">日志与排查 <span className="float-right transition-transform group-open:rotate-180">⌄</span></summary>
-              <div className="mt-4 text-sm leading-6 text-muted-foreground">如果启动卡住或本地服务提前退出，可以打开日志目录定位问题。</div>
+              <summary className="cursor-pointer list-none text-xs font-medium uppercase tracking-[0.2em] text-muted-foreground">{i18next.t("dict.gen_3c3bac28")}<span className="float-right transition-transform group-open:rotate-180">⌄</span></summary>
+              <div className="mt-4 text-sm leading-6 text-muted-foreground">{i18next.t("layout.desktopBootstrapShell.p8nds1")}</div>
               <div className="mt-4 flex flex-wrap gap-2">
-                <Button variant="secondary" size="sm" onClick={() => void bundleDesktopLogs()}>下载近期日志包</Button>
-                <Button variant="outline" size="sm" onClick={() => void openDesktopLogsDirectory()}>打开日志目录</Button>
-                <Button variant="outline" size="sm" onClick={() => void copyDesktopLogPath()}>复制日志路径</Button>
-                {snapshot.state === "error" && snapshot.canRetry ? <Button size="sm" onClick={() => void restartDesktopApp()}>重新启动</Button> : null}
+                <Button variant="secondary" size="sm" onClick={() => void bundleDesktopLogs()}>{i18next.t("layout.desktopBootstrapShell.qzy31v")}</Button>
+                <Button variant="outline" size="sm" onClick={() => void openDesktopLogsDirectory()}>{i18next.t("layout.desktopBootstrapShell.e61why")}</Button>
+                <Button variant="outline" size="sm" onClick={() => void copyDesktopLogPath()}>{i18next.t("layout.desktopBootstrapShell.nd6hps")}</Button>
+                {snapshot.state === "error" && snapshot.canRetry ? <Button size="sm" onClick={() => void restartDesktopApp()}>{i18next.t("layout.desktopBootstrapShell.itbw9o")}</Button> : null}
               </div>
             </details>
           </section>

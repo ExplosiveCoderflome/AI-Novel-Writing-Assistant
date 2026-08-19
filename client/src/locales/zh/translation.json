@@ -13397,7 +13397,13 @@
       "e61why": "打开日志目录",
       "nd6hps": "复制日志路径",
       "itbw9o": "重新启动",
-      "fczak0": "下载进度 {{val1}}%。"
+      "fczak0": "下载进度 {{val1}}%。",
+      "ksn591": "正在连接你的创作空间",
+      "hjbnps": "启动页只在准备本地服务时短暂出现，工作区就绪后会自动进入。",
+      "aywq3o": "启动状态",
+      "p8nds1": "如果启动卡住或本地服务提前退出，可以打开日志目录定位问题。",
+      "qzy31v": "下载近期日志包",
+      "fohcoi": "桌面版 {{val1}} 可用，建议先下载更新包。"
     },
     "desktopLegacyDataImportCard": {
       "u54465": "当前桌面库看起来是空的",
@@ -13418,7 +13424,9 @@
       "ag2ohp": "下载进度",
       "kmbgf2": "保存工作并重启安装",
       "c1ti0l": "尚未检查",
-      "dl9cc6": "最近检查"
+      "dl9cc6": "最近检查",
+      "u255b": "日志包已保存，可以发送给开发者。",
+      "b0vqng": "日志包保存失败，请稍后重试。"
     },
     "mobileSiteNavigation": {
       "dkisat": "极简开书"
@@ -13475,6 +13483,13 @@
     },
     "taskRecoveryContext": {
       "nkixai": "已开始恢复 {{val1}} 个任务。"
+    },
+    "desktopReleaseNotes": {
+      "a1oscz": "本次更新介绍",
+      "lh947c": "这次更新让创作工作台更容易保持清晰、稳定和贴合个人使用习惯。"
+    },
+    "desktopReleaseNotesDialog": {
+      "m2u3hq": "} 已准备完成。"
     }
   },
   "liveExecution": {

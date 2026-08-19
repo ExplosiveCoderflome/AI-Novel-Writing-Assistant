@@ -1,3 +1,4 @@
+import i18next from "i18next";
 import { useEffect, useState } from "react";
 import { APP_RUNTIME } from "./constants";
 
@@ -56,7 +57,7 @@ export interface DesktopDataImportResult {
 const DEFAULT_BOOTSTRAP_SNAPSHOT: DesktopBootstrapSnapshot = {
   state: "launching",
   stage: "launching",
-  title: "正在启动桌面工作区",
+  title: i18next.t("dict.gen_a1c11778"),
   detail: "正在准备桌面本地运行时。",
   logDir: "",
   logFile: "",
@@ -66,7 +67,7 @@ const DEFAULT_BOOTSTRAP_SNAPSHOT: DesktopBootstrapSnapshot = {
 
 const DEFAULT_UPDATER_SNAPSHOT: DesktopUpdaterSnapshot = {
   status: "disabled",
-  message: "当前运行环境无法使用桌面版更新。",
+  message: i18next.t("lib.desktop.hoxxek"),
   currentVersion: "0.0.0",
   availableVersion: null,
   progressPercent: null,
