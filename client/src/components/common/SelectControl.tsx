@@ -8,7 +8,7 @@ import {
 } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
 
-const EMPTY_VALUE = "__select_control_empty__";
+const OPTION_VALUE_PREFIX = "__select_control_option__";
 
 type SelectChangeHandler = React.ChangeEventHandler<HTMLSelectElement>;
 
@@ -35,7 +35,7 @@ function normalizeValue(value: SelectControlProps["value"]): string | undefined 
   }
   const rawValue = Array.isArray(value) ? value[0] : value;
   const stringValue = String(rawValue ?? "");
-  return stringValue === "" ? EMPTY_VALUE : stringValue;
+  return stringValue;
 }
 
 function optionValue(value: unknown, fallback: React.ReactNode): string {
@@ -74,11 +74,31 @@ function collectOptions(children: React.ReactNode): ParsedOption[] {
   return options;
 }
 
-function emitNativeLikeChange(onChange: SelectChangeHandler | undefined, value: string) {
+function optionItemValue(index: number): string {
+  return `${OPTION_VALUE_PREFIX}${index}`;
+}
+
+function findOptionItemValue(options: ParsedOption[], value: string | undefined): string | undefined {
+  if (value === undefined) {
+    return undefined;
+  }
+  const index = options.findIndex((option) => option.value === value);
+  return index === -1 ? undefined : optionItemValue(index);
+}
+
+function emitNativeLikeChange(
+  onChange: SelectChangeHandler | undefined,
+  options: ParsedOption[],
+  itemValue: string,
+) {
   if (!onChange) {
     return;
   }
-  const nativeValue = value === EMPTY_VALUE ? "" : value;
+  const index = Number(itemValue.slice(OPTION_VALUE_PREFIX.length));
+  const nativeValue = options[index]?.value;
+  if (nativeValue === undefined) {
+    return;
+  }
   onChange({
     target: { value: nativeValue },
     currentTarget: { value: nativeValue },
@@ -102,14 +122,14 @@ export default function SelectControl({
   ...props
 }: SelectControlProps) {
   const options = React.useMemo(() => collectOptions(children), [children]);
-  const normalizedValue = normalizeValue(value);
-  const normalizedDefaultValue = normalizeValue(defaultValue);
+  const normalizedValue = findOptionItemValue(options, normalizeValue(value));
+  const normalizedDefaultValue = findOptionItemValue(options, normalizeValue(defaultValue));
 
   return (
     <Select
       value={normalizedValue}
       defaultValue={normalizedDefaultValue}
-      onValueChange={(nextValue) => emitNativeLikeChange(onChange, nextValue)}
+      onValueChange={(nextValue) => emitNativeLikeChange(onChange, options, nextValue)}
       disabled={disabled}
       name={name}
       required={required}
@@ -123,7 +143,7 @@ export default function SelectControl({
       </SelectTrigger>
       <SelectContent className={contentClassName}>
         {options.map((option, index) => {
-          const itemValue = option.value === "" ? EMPTY_VALUE : option.value;
+          const itemValue = optionItemValue(index);
           return (
             <SelectItem
               key={`${itemValue}-${index}`}
