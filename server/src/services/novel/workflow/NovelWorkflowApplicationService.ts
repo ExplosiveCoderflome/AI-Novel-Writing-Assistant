@@ -297,14 +297,24 @@ export class NovelWorkflowApplicationService {
       return existing;
     }
     const stage = patch?.stage ?? "auto_director";
-    const resumeTarget = parseResumeTarget(existing.resumeTargetJson) ?? this.workflow.buildResumeTarget({
-      taskId,
-      novelId: existing.novelId,
-      lane: existing.lane,
-      stage,
-      chapterId: patch?.chapterId,
-      volumeId: patch?.volumeId,
-    });
+    const existingResumeTarget = parseResumeTarget(existing.resumeTargetJson);
+    const resumeTarget = patch?.stage
+      ? this.workflow.buildResumeTarget({
+        taskId,
+        novelId: existing.novelId,
+        lane: existing.lane,
+        stage: patch.stage,
+        chapterId: patch.chapterId ?? existingResumeTarget?.chapterId ?? null,
+        volumeId: patch.volumeId ?? existingResumeTarget?.volumeId ?? null,
+      })
+      : existingResumeTarget ?? this.workflow.buildResumeTarget({
+        taskId,
+        novelId: existing.novelId,
+        lane: existing.lane,
+        stage,
+        chapterId: patch?.chapterId,
+        volumeId: patch?.volumeId,
+      });
     return this.workflow.updateWorkflowTaskWithNotifications({
       before: existing,
       data: {

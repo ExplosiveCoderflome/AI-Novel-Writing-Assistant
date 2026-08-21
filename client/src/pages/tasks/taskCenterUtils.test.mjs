@@ -7,6 +7,8 @@ import {
   getTaskNoticeTitle,
   getTaskQueueLevelLabel,
   getTaskQueueTone,
+  isChapterExecutionContractFailure,
+  isChapterExecutionContractReviewFailure,
   isTaskMustHandle,
 } from "./taskCenterUtils.ts";
 
@@ -25,6 +27,26 @@ test("task queue uses structured failure state as blocker", () => {
   const task = { ...baseTask, status: "failed", failureCode: "NOVEL_WORKFLOW_FAILED" };
   assert.equal(getTaskQueueTone(task), "danger");
   assert.equal(getTaskQueueLevelLabel(task), "任务失败");
+});
+
+test("chapter execution contract failure keeps a direct repair task blocking", () => {
+  const task = { ...baseTask, status: "failed", failureCode: "CHAPTER_EXECUTION_CONTRACT_INCOMPLETE" };
+  assert.equal(isChapterExecutionContractFailure(task), true);
+  assert.equal(isChapterExecutionContractReviewFailure(task), true);
+  assert.equal(getTaskQueueTone(task), "danger");
+  assert.equal(isTaskMustHandle(task), true);
+});
+
+test("legacy chapter sync failure remains actionable without parsing its error text", () => {
+  const task = {
+    ...baseTask,
+    status: "failed",
+    failureCode: "CHAPTER_EXECUTION_CONTRACT_REVIEW_REQUIRED",
+    lastError: "任意历史错误文本",
+  };
+  assert.equal(isChapterExecutionContractReviewFailure(task), true);
+  assert.equal(getTaskQueueTone(task), "danger");
+  assert.equal(isTaskMustHandle(task), true);
 });
 
 test("task queue keeps a completed task notice as quality reminder", () => {

@@ -1999,6 +1999,11 @@ export default function NovelEdit() {
     if (!id || activeTab !== "structured" || !activeStructuredOutlineChapterId) {
       return;
     }
+    // A task recovery URL carries the exact chapter that needs repair. Do not
+    // let the latest director snapshot replace an explicit user target.
+    if (selectedChapterId && selectedChapterId !== activeStructuredOutlineChapterId) {
+      return;
+    }
     const targetVolume = normalizedVolumeDraft.find((volume) => (
       volume.chapters.some((chapter) => (
         chapter.id === activeStructuredOutlineChapterId
@@ -2021,7 +2026,7 @@ export default function NovelEdit() {
       selectedChapterId: activeStructuredOutlineChapterId,
       selectedBeatKey: "all",
     });
-  }, [activeStructuredOutlineChapterId, activeTab, id, normalizedVolumeDraft]);
+  }, [activeStructuredOutlineChapterId, activeTab, id, normalizedVolumeDraft, selectedChapterId]);
 
   useEffect(() => {
     if (!id) {
