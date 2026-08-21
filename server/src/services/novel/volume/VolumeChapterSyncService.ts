@@ -24,6 +24,7 @@ import {
   persistActiveVolumeWorkspace,
   runVolumeWorkspaceTransaction,
 } from "./volumeWorkspacePersistence";
+import { ChapterExecutionContractQualityGateError } from "./ChapterExecutionContractQualityGateError";
 
 export interface VolumeChapterSyncServiceDeps {
   ensureVolumeWorkspace: (novelId: string) => Promise<VolumePlanDocument>;
@@ -219,7 +220,13 @@ export class VolumeChapterSyncService {
           sceneCards: chapter.sceneCards,
         });
         if (!result.canEnterExecution) {
-          throw new Error(`第 ${chapter.chapterOrder} 章执行合同未通过质量门禁，不能连接到章节执行区。${formatChapterTaskSheetQualityFailure(result)}`);
+          throw new ChapterExecutionContractQualityGateError({
+            novelId: document.novelId,
+            volumeId: volume.id,
+            chapterId: chapter.id,
+            chapterOrder: chapter.chapterOrder,
+            message: `第 ${chapter.chapterOrder} 章执行合同未通过质量门禁，不能连接到章节执行区。${formatChapterTaskSheetQualityFailure(result)}`,
+          });
         }
       }
     }

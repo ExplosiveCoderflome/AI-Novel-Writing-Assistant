@@ -204,7 +204,7 @@ export default function StructuredChapterDetailCard(props: StructuredChapterDeta
                 onClick={() => onGenerateChapterDetailBundle(selectedVolume.id, selectedChapter.id)}
                 disabled={isGeneratingChapterDetail || locked}
               >
-                {currentBundleRunning ? "当前章细化中..." : "细化当前章"}
+                {currentBundleRunning ? "正在补齐本章..." : "AI 补齐本章任务单"}
               </AiButton>
             ) : null}
             <Button size="sm" variant="outline" onClick={onToggleAdvanced}>

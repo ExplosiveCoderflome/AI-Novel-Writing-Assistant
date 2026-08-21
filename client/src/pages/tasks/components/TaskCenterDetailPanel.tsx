@@ -126,7 +126,9 @@ export default function TaskCenterDetailPanel(props: TaskCenterDetailPanelProps)
                 compact
                 tone="info"
                 title="导演任务操作入口"
-                description="继续、恢复、切换模型和推进策略请回到小说页面的执行详情处理；任务中心保留状态、取消、归档和来源入口。"
+                description={props.failureAction
+                  ? "按上方建议先处理当前章节；完成后可在小说页面继续推进。"
+                  : "可打开小说页面查看当前阶段和下一步操作。"}
               />
             ) : null}
 
