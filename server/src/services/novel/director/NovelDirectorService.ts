@@ -39,6 +39,7 @@ import { getSharedNovelServices } from "../application/sharedNovelServices";
 import { novelFramingSuggestionService } from "../NovelFramingSuggestionService";
 import { StoryMacroPlanService } from "../storyMacro/StoryMacroPlanService";
 import { NovelVolumeService } from "../volume/NovelVolumeService";
+import { isChapterExecutionContractQualityGateError } from "../volume/ChapterExecutionContractQualityGateError";
 import { NovelWorkflowService } from "../workflow/NovelWorkflowService";
 import { NovelDirectorCandidateStageService } from "./phases/novelDirectorCandidateStage";
 import { resolveDirectorBookFraming } from "./runtime/novelDirectorFraming";
@@ -273,6 +274,16 @@ export class NovelDirectorService {
       );
     } catch (error) {
       if (isWorkflowTaskCancelledError(error) || isDirectorRuntimeGateError(error)) {
+        return;
+      }
+      if (isChapterExecutionContractQualityGateError(error)) {
+        await this.workflowService.markTaskFailed(taskId, error.message, {
+          stage: "structured_outline",
+          itemKey: "chapter_execution_contract_repair",
+          itemLabel: `第 ${error.chapterOrder} 章执行合同待补齐`,
+          chapterId: error.chapterId,
+          volumeId: error.volumeId,
+        });
         return;
       }
       const message = error instanceof Error ? error.message : "自动导演后台任务执行失败。";

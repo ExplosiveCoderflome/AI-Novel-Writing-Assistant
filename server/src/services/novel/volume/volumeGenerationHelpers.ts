@@ -120,6 +120,38 @@ export function getTargetChapter(targetVolume: VolumePlan, targetChapterId?: str
   return targetChapter;
 }
 
+const DEFAULT_CHAPTER_TARGET_WORD_COUNT = 2500;
+
+/**
+ * Chapter detail generation needs a concrete budget before scene cards can be
+ * normalized. Older chapter lists may not have one yet, so inherit the
+ * nearest explicit chapter budget in the same volume and keep the normal
+ * execution default as the final safety value.
+ */
+export function resolveChapterTargetWordCount(
+  volume: VolumePlan,
+  chapter: VolumePlan["chapters"][number],
+): number {
+  if (typeof chapter.targetWordCount === "number" && chapter.targetWordCount > 0) {
+    return Math.round(chapter.targetWordCount);
+  }
+
+  const nearestBudget = volume.chapters
+    .filter((candidate) => (
+      candidate.id !== chapter.id
+      && typeof candidate.targetWordCount === "number"
+      && candidate.targetWordCount > 0
+    ))
+    .sort((left, right) => (
+      Math.abs(left.chapterOrder - chapter.chapterOrder) - Math.abs(right.chapterOrder - chapter.chapterOrder)
+      || left.chapterOrder - right.chapterOrder
+    ))[0]?.targetWordCount;
+
+  return typeof nearestBudget === "number" && nearestBudget > 0
+    ? Math.round(nearestBudget)
+    : DEFAULT_CHAPTER_TARGET_WORD_COUNT;
+}
+
 export function getBeatSheet(document: VolumePlanDocument, volumeId: string): VolumeBeatSheet | null {
   return document.beatSheets.find((sheet) => sheet.volumeId === volumeId && sheet.beats.length > 0) ?? null;
 }

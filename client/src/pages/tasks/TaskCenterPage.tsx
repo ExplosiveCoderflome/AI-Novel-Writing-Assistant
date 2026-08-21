@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type { DirectorContinuationMode } from "@ai-novel/shared/types/novelDirector";
 import type { TaskKind, TaskStatus, UnifiedTaskStep } from "@ai-novel/shared/types/task";
@@ -40,6 +40,8 @@ import {
   getTaskNoticeTitle,
   getTaskQueueSeverity,
   getTaskQueueTone,
+  isChapterExecutionContractFailure,
+  isChapterExecutionContractReviewFailure,
   isTaskFailureQualityReminder,
   isTaskMustHandle,
   isTaskReplanRequired,
@@ -69,6 +71,7 @@ export default function TaskCenterPage() {
   const [keyword, setKeyword] = useState("");
   const [onlyAnomaly, setOnlyAnomaly] = useState(false);
   const [sortMode, setSortMode] = useState<TaskSortMode>("updated_desc");
+  const taskRecordsRef = useRef<HTMLDivElement | null>(null);
 
   const selectedKind = (searchParams.get("kind") as TaskKind | null) ?? null;
   const selectedId = searchParams.get("id");
@@ -331,6 +334,13 @@ export default function TaskCenterPage() {
   );
   const chapterTitleRepairMutation = useDirectorChapterTitleRepair();
   const selectedTaskFailureRepairRoute = selectedTaskChapterTitleWarning?.route ?? null;
+  const selectedTaskChapterContractRepairRoute = selectedTask
+    && isChapterExecutionContractReviewFailure(selectedTask)
+    ? selectedTask.sourceRoute
+    : null;
+  const selectedTaskHasExactChapterContractTarget = Boolean(
+    selectedTask && isChapterExecutionContractFailure(selectedTask),
+  );
   const selectedTaskHasChapterTitleFailure = Boolean(
     selectedTask
     && isChapterTitleDiversitySummary(
@@ -488,19 +498,37 @@ export default function TaskCenterPage() {
         },
       }
     : null;
-  const failureAction = selectedTask && (selectedTaskChapterTitleWarning || selectedTaskFailureRepairRoute)
+  const failureAction = selectedTask && (
+    selectedTaskChapterTitleWarning
+    || selectedTaskFailureRepairRoute
+    || selectedTaskChapterContractRepairRoute
+  )
     ? {
-        label: selectedTaskChapterTitleWarning?.label ?? "快速修复章节标题",
+        label: selectedTaskChapterTitleWarning?.label
+          ?? (selectedTaskChapterContractRepairRoute
+            ? (selectedTaskHasExactChapterContractTarget ? "打开章节并 AI 补齐" : "前往章节规划")
+            : "快速修复章节标题"),
         disabled: chapterTitleRepairMutation.isPending,
         onClick: () => {
           if (selectedTaskChapterTitleWarning) {
             chapterTitleRepairMutation.startRepair(selectedTask);
             return;
           }
-          if (selectedTaskFailureRepairRoute) navigate(selectedTaskFailureRepairRoute);
+          if (selectedTaskFailureRepairRoute) {
+            navigate(selectedTaskFailureRepairRoute);
+            return;
+          }
+          if (selectedTaskChapterContractRepairRoute) navigate(selectedTaskChapterContractRepairRoute);
         },
       }
     : null;
+
+  const focusTaskRecords = () => {
+    window.requestAnimationFrame(() => {
+      taskRecordsRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+      taskRecordsRef.current?.focus({ preventScroll: true });
+    });
+  };
 
   const listErrorMessage = listQuery.error instanceof Error ? listQuery.error.message : listQuery.isError ? "任务列表读取失败，请重试。" : null;
   const overviewErrorMessage = overviewQuery.error instanceof Error
@@ -527,6 +555,36 @@ export default function TaskCenterPage() {
     && !shouldOpenFailedFilter
     && !recoveryCandidatesQuery.isLoading;
   const hasRecommendedAction = Boolean(recommendedTask || shouldOpenFailedFilter || shouldRetryRecoveryLookup);
+  const recommendedTaskNeedsChapterContractRepair = Boolean(
+    recommendedTask && isChapterExecutionContractReviewFailure(recommendedTask),
+  );
+  const focusRecommendedTask = () => {
+    if (!recommendedTask) {
+      setKind("");
+      setKeyword("");
+      if (shouldOpenFailedFilter) {
+        setStatus("failed");
+        setOnlyAnomaly(false);
+      } else if (shouldRetryRecoveryLookup) {
+        void recoveryCandidatesQuery.refetch();
+      }
+      return;
+    }
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev);
+      next.set("kind", recommendedTask.kind);
+      next.set("id", recommendedTask.id);
+      return next;
+    });
+    focusTaskRecords();
+  };
+  const openRecommendedTaskRepair = () => {
+    if (recommendedTaskNeedsChapterContractRepair && recommendedTask) {
+      navigate(recommendedTask.sourceRoute);
+      return;
+    }
+    focusRecommendedTask();
+  };
 
   return (
     <div className="space-y-5">
@@ -552,7 +610,7 @@ export default function TaskCenterPage() {
         className="rounded-2xl border-transparent px-5 py-3 shadow-none"
         icon={overviewErrorMessage ? RefreshCw : hasMustHandleTask ? ShieldAlert : Activity}
         tone={overviewQuery.isLoading ? "info" : overviewErrorMessage ? "danger" : hasMustHandleTask ? "danger" : waitingActionCount > 0 ? "info" : qualityReminderCount > 0 ? "warning" : runningCount + queuedCount > 0 ? "info" : allRows.length > 0 ? "success" : "neutral"}
-        title={overviewQuery.isLoading ? "正在读取全局任务状态" : overviewErrorMessage ? "重新读取任务概览" : hasMustHandleTask ? "先查看必须处理的任务" : waitingActionCount > 0 ? "完成等待中的操作" : qualityReminderCount > 0 ? "查看质量提醒" : runningCount + queuedCount > 0 ? "关注正在推进的任务" : allRows.length > 0 ? "当前没有阻塞任务" : "任务会在执行后汇总到这里"}
+        title={overviewQuery.isLoading ? "正在读取全局任务状态" : overviewErrorMessage ? "重新读取任务概览" : recommendedTaskNeedsChapterContractRepair ? "当前章节需要先补齐执行合同" : hasMustHandleTask ? "先查看必须处理的任务" : waitingActionCount > 0 ? "完成等待中的操作" : qualityReminderCount > 0 ? "查看质量提醒" : runningCount + queuedCount > 0 ? "关注正在推进的任务" : allRows.length > 0 ? "当前没有阻塞任务" : "任务会在执行后汇总到这里"}
         description={overviewQuery.isLoading
           ? "正在汇总执行、等待操作、失败和可恢复任务，请稍候。"
           : overviewErrorMessage
@@ -560,6 +618,8 @@ export default function TaskCenterPage() {
             : hasMustHandleTask
               ? recoveryCandidatesQuery.isLoading && !recommendedBlockingTask && failedTaskCount === 0
                 ? "正在定位可恢复任务；读取完成后会提供对应入口。"
+              : recommendedTaskNeedsChapterContractRepair
+                ? "章节执行合同缺少正文生成所需字段。打开章节处理页后，选中提示中的章节，点击“AI 补齐本章任务单”；补齐章节目标、独占事件、结束态、下章入口态、冲突/揭露强度、目标字数和禁止事项后，再回到章节执行继续生成。"
                 : "阻塞状态可能影响对应来源流程；先查看原因和恢复位置，再决定恢复、重试或重规划。"
               : waitingActionCount > 0
                 ? "候选确认、章节批次继续等节点需要你的操作，但不代表任务发生故障。"
@@ -574,7 +634,9 @@ export default function TaskCenterPage() {
           ? "只重新读取任务概览，不会恢复、重试或取消任务。"
           : !overviewQuery.isLoading && hasRecommendedAction
             ? recommendedTask
-              ? "只定位到推荐任务，不会自动继续、重试或取消。"
+              ? recommendedTaskNeedsChapterContractRepair
+                ? "只打开章节处理页，不会自动生成、重试或修改内容。"
+                : "只定位到推荐任务，不会自动继续、重试或取消。"
               : shouldOpenFailedFilter
                 ? "只筛选失败任务，不会自动恢复、重试或取消任务。"
                 : "只重新读取恢复候选，不会自动执行恢复。"
@@ -584,32 +646,27 @@ export default function TaskCenterPage() {
             重新读取
           </Button>
         ) : !overviewQuery.isLoading && hasRecommendedAction ? (
-          <Button
-            type="button"
-            size="sm"
-            variant={hasMustHandleTask ? "destructive" : "outline"}
-            onClick={() => {
-              if (!recommendedTask) {
-                setKind("");
-                setKeyword("");
-                if (shouldOpenFailedFilter) {
-                  setStatus("failed");
-                  setOnlyAnomaly(false);
-                } else if (shouldRetryRecoveryLookup) {
-                  void recoveryCandidatesQuery.refetch();
-                }
-                return;
-              }
-              setSearchParams((prev) => {
-                const next = new URLSearchParams(prev);
-                next.set("kind", recommendedTask.kind);
-                next.set("id", recommendedTask.id);
-                return next;
-              });
-            }}
-          >
-            {shouldRetryRecoveryLookup ? "重新读取恢复任务" : hasMustHandleTask ? "查看需处理任务" : "查看推荐任务"}
-          </Button>
+          <div className="flex flex-wrap justify-end gap-2">
+            <Button
+              type="button"
+              size="sm"
+              variant={hasMustHandleTask ? "destructive" : "outline"}
+              onClick={openRecommendedTaskRepair}
+            >
+              {shouldRetryRecoveryLookup
+                ? "重新读取恢复任务"
+                : recommendedTaskNeedsChapterContractRepair
+                  ? "打开章节处理页"
+                  : hasMustHandleTask
+                    ? "查看需处理任务"
+                    : "查看推荐任务"}
+            </Button>
+            {recommendedTaskNeedsChapterContractRepair ? (
+              <Button type="button" size="sm" variant="outline" onClick={focusRecommendedTask}>
+                查看任务详情
+              </Button>
+            ) : null}
+          </div>
         ) : undefined}
       />
 
@@ -633,7 +690,11 @@ export default function TaskCenterPage() {
         onSortModeChange={setSortMode}
       />
 
-      <div className="grid items-start gap-5 xl:grid-cols-[minmax(0,1.25fr)_minmax(380px,0.75fr)]">
+      <div
+        ref={taskRecordsRef}
+        tabIndex={-1}
+        className="grid items-start gap-5 outline-none xl:grid-cols-[minmax(0,1.25fr)_minmax(380px,0.75fr)]"
+      >
         <TaskCenterListPanel
           tasks={visibleRows}
           selectedKind={selectedKind}
