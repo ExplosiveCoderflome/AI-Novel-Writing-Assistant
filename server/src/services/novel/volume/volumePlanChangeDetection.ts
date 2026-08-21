@@ -10,6 +10,7 @@ import type {
   VolumeSyncPreview,
   VolumeSyncPreviewItem,
 } from "@ai-novel/shared/types/novel";
+import { parseChapterScenePlan } from "@ai-novel/shared/types/chapterLengthControl";
 
 export interface ExistingChapterRecord {
   id: string;
@@ -39,10 +40,13 @@ export interface VolumeSyncPlan {
   creates: Array<{
     volumeTitle: string;
     chapter: VolumeChapterPlan;
+    deferExecutionContract: boolean;
   }>;
   updates: Array<{
     chapterId: string;
     chapter: VolumeChapterPlan;
+    deferExecutionContract: boolean;
+    preserveExistingExecutionContract: boolean;
     clearContent: boolean;
     preserveWorkflowState: boolean;
     existingGenerationState?: Chapter["generationState"] | null;
@@ -54,6 +58,67 @@ export interface VolumeSyncPlan {
     title: string;
     hasContent: boolean;
   }>;
+}
+
+function hasCompleteExecutionContract(existing: ExistingChapterRecord): boolean {
+  return Boolean(
+    typeof existing.conflictLevel === "number"
+    && typeof existing.revealLevel === "number"
+    && typeof existing.targetWordCount === "number"
+    && existing.mustAvoid?.trim()
+    && existing.taskSheet?.trim()
+    && parseChapterScenePlan(existing.sceneCards, {
+      targetWordCount: existing.targetWordCount ?? undefined,
+    }),
+  );
+}
+
+function canPreserveExistingExecutionContract(
+  existing: ExistingChapterRecord,
+  chapter: VolumeChapterPlan,
+  previousChapter: VolumeChapterPlan | undefined,
+): boolean {
+  const desiredExpectation = chapter.purpose?.trim() || chapter.summary;
+  if (
+    !previousChapter
+    || !hasUnchangedExecutionContractPlanning(previousChapter, chapter)
+    || !compareText(existing.title, chapter.title)
+    || !compareText(existing.expectation, desiredExpectation)
+    || chapter.taskSheet?.trim()
+    || chapter.sceneCards?.trim()
+  ) {
+    return false;
+  }
+  if (typeof chapter.targetWordCount === "number" && !compareNumber(existing.targetWordCount, chapter.targetWordCount)) {
+    return false;
+  }
+  if (typeof chapter.conflictLevel === "number" && !compareNumber(existing.conflictLevel, chapter.conflictLevel)) {
+    return false;
+  }
+  if (typeof chapter.revealLevel === "number" && !compareNumber(existing.revealLevel, chapter.revealLevel)) {
+    return false;
+  }
+  if (chapter.mustAvoid?.trim() && !compareText(existing.mustAvoid, chapter.mustAvoid)) {
+    return false;
+  }
+  return true;
+}
+
+function hasUnchangedExecutionContractPlanning(
+  previous: VolumeChapterPlan,
+  current: VolumeChapterPlan,
+): boolean {
+  return compareText(previous.title, current.title)
+    && compareText(previous.summary, current.summary)
+    && compareText(previous.purpose, current.purpose)
+    && compareText(previous.exclusiveEvent, current.exclusiveEvent)
+    && compareText(previous.endingState, current.endingState)
+    && compareText(previous.nextChapterEntryState, current.nextChapterEntryState)
+    && compareNumber(previous.targetWordCount, current.targetWordCount)
+    && compareNumber(previous.conflictLevel, current.conflictLevel)
+    && compareNumber(previous.revealLevel, current.revealLevel)
+    && compareText(previous.mustAvoid, current.mustAvoid)
+    && compareStringArray(previous.payoffRefs, current.payoffRefs);
 }
 
 function compareText(a: string | null | undefined, b: string | null | undefined): boolean {
@@ -242,9 +307,17 @@ export function buildTaskSheetFromVolumeChapter(chapter: VolumeChapterPlan): str
 export function buildVolumeSyncPlan(
   volumes: VolumePlan[],
   existingChapters: ExistingChapterRecord[],
-  options: { preserveContent: boolean; applyDeletes: boolean },
+  options: {
+    preserveContent: boolean;
+    applyDeletes: boolean;
+    deferredExecutionContractChapterIds?: ReadonlySet<string>;
+    previousVolumes?: VolumePlan[];
+  },
 ): VolumeSyncPlan {
   const flattened = flattenVolumeChapters(volumes);
+  const previousChapterById = new Map(
+    flattenVolumeChapters(options.previousVolumes ?? []).map(({ chapter }) => [chapter.id, chapter] as const),
+  );
   const existingById = new Map(existingChapters.map((chapter) => [chapter.id, chapter]));
   const existingByOrder = new Map(existingChapters.map((chapter) => [chapter.order, chapter]));
   const existingByTitle = new Map(existingChapters.map((chapter) => [normalizeLookupTitle(chapter.title), chapter]));
@@ -287,7 +360,11 @@ export function buildVolumeSyncPlan(
 
     if (!existing) {
       createCount += 1;
-      creates.push({ volumeTitle: volume.title, chapter });
+      creates.push({
+        volumeTitle: volume.title,
+        chapter,
+        deferExecutionContract: options.deferredExecutionContractChapterIds?.has(chapter.id) ?? false,
+      });
       items.push({
         action: "create",
         volumeTitle: volume.title,
@@ -310,6 +387,20 @@ export function buildVolumeSyncPlan(
 
     if (changedFields.length === 0) {
       keepCount += 1;
+      if (options.deferredExecutionContractChapterIds?.has(chapter.id)) {
+        const preserveExistingExecutionContract = hasCompleteExecutionContract(existing)
+          && canPreserveExistingExecutionContract(existing, chapter, previousChapterById.get(chapter.id));
+        updates.push({
+          chapterId: existing.id,
+          chapter,
+          deferExecutionContract: !preserveExistingExecutionContract,
+          preserveExistingExecutionContract,
+          clearContent: false,
+          preserveWorkflowState: hasContent && options.preserveContent,
+          existingGenerationState: existing.generationState ?? null,
+          existingChapterStatus: existing.chapterStatus ?? null,
+        });
+      }
       items.push({
         action: "keep",
         volumeTitle: volume.title,
@@ -333,9 +424,15 @@ export function buildVolumeSyncPlan(
         clearContentCount += 1;
       }
     }
+    const preserveExistingExecutionContract = (options.deferredExecutionContractChapterIds?.has(chapter.id) ?? false)
+      && hasCompleteExecutionContract(existing)
+      && canPreserveExistingExecutionContract(existing, chapter, previousChapterById.get(chapter.id));
     updates.push({
       chapterId: existing.id,
       chapter,
+      deferExecutionContract: (options.deferredExecutionContractChapterIds?.has(chapter.id) ?? false)
+        && !preserveExistingExecutionContract,
+      preserveExistingExecutionContract,
       clearContent: hasContent && !options.preserveContent,
       preserveWorkflowState: hasContent && options.preserveContent,
       existingGenerationState: existing.generationState ?? null,

@@ -122,6 +122,8 @@ export function useNovelEditChapterRuntime({
     onSuccess: async (response) => {
       setReviewResult(response.data ?? null);
       setChapterOperationMessage("完整审校已完成。");
+      await invalidateNovelDetail();
+      await queryClient.invalidateQueries({ queryKey: queryKeys.novels.chapterPlan(novelId, selectedChapterId) });
       await queryClient.invalidateQueries({ queryKey: queryKeys.novels.chapterAuditReports(novelId, selectedChapterId) });
       await queryClient.invalidateQueries({ queryKey: queryKeys.novels.qualityReport(novelId) });
     },

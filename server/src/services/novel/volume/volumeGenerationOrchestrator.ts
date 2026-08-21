@@ -44,6 +44,7 @@ import {
   mergeSkeleton,
   mergeStrategyPlan,
   normalizeScope,
+  resolveChapterTargetWordCount,
 } from "./volumeGenerationHelpers";
 import type {
   VolumeGenerateOptions,
@@ -487,6 +488,18 @@ async function generateChapterDetail(params: {
   const { document, novel, workspace, storyMacroPlan, options } = params;
   const targetVolume = getTargetVolume(document, options.targetVolumeId);
   const targetChapter = getTargetChapter(targetVolume, options.targetChapterId);
+  const resolvedTargetWordCount = resolveChapterTargetWordCount(targetVolume, targetChapter);
+  const resolvedTargetVolume = {
+    ...targetVolume,
+    chapters: targetVolume.chapters.map((chapter) => chapter.id === targetChapter.id
+      ? { ...chapter, targetWordCount: resolvedTargetWordCount }
+      : chapter),
+  };
+  const resolvedDocument = {
+    ...document,
+    volumes: document.volumes.map((volume) => volume.id === targetVolume.id ? resolvedTargetVolume : volume),
+  };
+  const resolvedTargetChapter = getTargetChapter(resolvedTargetVolume, options.targetChapterId);
   const detailMode = options.detailMode;
   if (!detailMode) {
     throw new Error("生成章节细化时必须指定 detailMode。");
@@ -497,9 +510,9 @@ async function generateChapterDetail(params: {
     workspace,
     storyMacroPlan,
     strategyPlan: document.strategyPlan,
-    targetVolume,
-    targetBeatSheet: getBeatSheet(document, targetVolume.id),
-    targetChapter,
+    targetVolume: resolvedTargetVolume,
+    targetBeatSheet: getBeatSheet(resolvedDocument, resolvedTargetVolume.id),
+    targetChapter: resolvedTargetChapter,
     guidance: options.guidance,
     detailMode,
   };
@@ -507,7 +520,7 @@ async function generateChapterDetail(params: {
     novelId: document.novelId,
     scope: "chapter_detail",
     phase: "prompt",
-    label: `正在细化第 ${targetVolume.sortOrder} 卷第 ${targetChapter.chapterOrder} 章 ${formatChapterDetailModeLabel(detailMode)}`,
+    label: `正在细化第 ${resolvedTargetVolume.sortOrder} 卷第 ${resolvedTargetChapter.chapterOrder} 章 ${formatChapterDetailModeLabel(detailMode)}`,
     options,
   });
   const generated = detailMode === "purpose"
@@ -522,8 +535,8 @@ async function generateChapterDetail(params: {
         taskId: options.taskId,
         entrypoint: options.entrypoint,
         novelId: document.novelId,
-        volumeId: targetVolume.id,
-        chapterId: targetChapter.id,
+        volumeId: resolvedTargetVolume.id,
+        chapterId: resolvedTargetChapter.id,
         stage: "chapter_detail_purpose",
         itemKey: "chapter_detail_bundle",
         scope: "chapter_detail",
@@ -543,8 +556,8 @@ async function generateChapterDetail(params: {
           taskId: options.taskId,
           entrypoint: options.entrypoint,
           novelId: document.novelId,
-          volumeId: targetVolume.id,
-          chapterId: targetChapter.id,
+        volumeId: resolvedTargetVolume.id,
+        chapterId: resolvedTargetChapter.id,
           stage: "chapter_detail_boundary",
           itemKey: "chapter_detail_bundle",
           scope: "chapter_detail",
@@ -563,9 +576,9 @@ async function generateChapterDetail(params: {
       };
 
   return mergeChapterDetail({
-    document,
-    targetVolumeId: targetVolume.id,
-    targetChapterId: targetChapter.id,
+    document: resolvedDocument,
+    targetVolumeId: resolvedTargetVolume.id,
+    targetChapterId: resolvedTargetChapter.id,
     detailMode,
     generatedDetail: generated.output as Record<string, unknown>,
   });

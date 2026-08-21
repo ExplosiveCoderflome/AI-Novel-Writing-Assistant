@@ -4,6 +4,7 @@ const {
   buildTaskSheetFromVolumeChapter,
   buildVolumeSyncPlan,
 } = require("../dist/services/novel/volume/volumePlanUtils.js");
+const { VolumeChapterSyncService } = require("../dist/services/novel/volume/VolumeChapterSyncService.js");
 
 function createVolume(chapters) {
   return [{
@@ -297,4 +298,258 @@ test("buildTaskSheetFromVolumeChapter backfills stable chapter task sheets from 
   assert.match(taskSheet, /冲突等级：85/);
   assert.match(taskSheet, /目标字数：3600/);
   assert.match(taskSheet, /兑现关联：伏笔A、伏笔B/);
+});
+
+test("deferred contract chapters without existing execution artifacts are marked for repair", () => {
+  const volumes = createVolume([{
+    id: "volume-chapter-missing-contract",
+    volumeId: "volume-1",
+    chapterOrder: 1,
+    title: "第1章",
+    summary: "待补齐合同",
+    purpose: "建立冲突",
+    conflictLevel: null,
+    revealLevel: null,
+    targetWordCount: null,
+    mustAvoid: null,
+    taskSheet: null,
+    sceneCards: null,
+    payoffRefs: [],
+    createdAt: new Date(0).toISOString(),
+    updatedAt: new Date(0).toISOString(),
+  }]);
+  const plan = buildVolumeSyncPlan(volumes, [{
+    id: "chapter-1",
+    order: 1,
+    title: "第1章",
+    content: "",
+    generationState: "planned",
+    chapterStatus: "unplanned",
+    expectation: "旧摘要",
+    targetWordCount: null,
+    conflictLevel: null,
+    revealLevel: null,
+    mustAvoid: null,
+    taskSheet: null,
+  }], {
+    preserveContent: true,
+    applyDeletes: false,
+    deferredExecutionContractChapterIds: new Set(["volume-chapter-missing-contract"]),
+  });
+
+  assert.equal(plan.updates[0].deferExecutionContract, true);
+});
+
+test("defer sync without a chapter range records completely missing execution contracts", () => {
+  const service = new VolumeChapterSyncService({});
+  const deferredChapterIds = service.assertSyncableChapterExecutionContracts({
+    novelId: "novel-1",
+    volumes: createVolume([{
+      id: "volume-chapter-missing-without-range",
+      volumeId: "volume-1",
+      chapterOrder: 1,
+      title: "第1章",
+      summary: "待补齐合同",
+      purpose: "建立冲突",
+      conflictLevel: null,
+      revealLevel: null,
+      targetWordCount: null,
+      mustAvoid: null,
+      taskSheet: null,
+      sceneCards: null,
+      payoffRefs: [],
+      createdAt: new Date(0).toISOString(),
+      updatedAt: new Date(0).toISOString(),
+    }]),
+  }, undefined, "defer_and_continue");
+
+  assert.deepEqual([...deferredChapterIds], ["volume-chapter-missing-without-range"]);
+});
+
+test("buildVolumeSyncPlan marks deferred execution-contract chapters without changing preview actions", () => {
+  const volumes = createVolume([{
+    id: "volume-chapter-deferred",
+    volumeId: "volume-1",
+    chapterOrder: 1,
+    title: "待修复章节",
+    summary: "局部质量债务",
+    purpose: "推进主线",
+    conflictLevel: null,
+    revealLevel: null,
+    targetWordCount: null,
+    mustAvoid: null,
+    taskSheet: "不完整任务单",
+    payoffRefs: [],
+    createdAt: new Date(0).toISOString(),
+    updatedAt: new Date(0).toISOString(),
+  }]);
+
+  const plan = buildVolumeSyncPlan(volumes, [], {
+    preserveContent: true,
+    applyDeletes: false,
+    deferredExecutionContractChapterIds: new Set(["volume-chapter-deferred"]),
+  });
+
+  assert.equal(plan.preview.createCount, 1);
+  assert.equal(plan.creates[0].deferExecutionContract, true);
+});
+
+test("buildVolumeSyncPlan schedules an unchanged deferred chapter for quality-debt marking", () => {
+  const chapter = {
+    id: "volume-chapter-unchanged-deferred",
+    volumeId: "volume-1",
+    chapterOrder: 1,
+    title: "待修复章节",
+    summary: "局部质量债务",
+    purpose: "推进主线",
+    conflictLevel: null,
+    revealLevel: null,
+    targetWordCount: null,
+    mustAvoid: null,
+    taskSheet: "不完整任务单",
+    payoffRefs: [],
+    createdAt: new Date(0).toISOString(),
+    updatedAt: new Date(0).toISOString(),
+  };
+  const plan = buildVolumeSyncPlan(createVolume([chapter]), [{
+    id: "chapter-1",
+    order: 1,
+    title: chapter.title,
+    content: "已有正文",
+    generationState: "approved",
+    chapterStatus: "completed",
+    expectation: chapter.summary,
+    targetWordCount: chapter.targetWordCount,
+    conflictLevel: chapter.conflictLevel,
+    revealLevel: chapter.revealLevel,
+    mustAvoid: chapter.mustAvoid,
+    taskSheet: chapter.taskSheet,
+  }], {
+    preserveContent: true,
+    applyDeletes: false,
+    deferredExecutionContractChapterIds: new Set([chapter.id]),
+  });
+
+  assert.equal(plan.preview.items[0].action, "keep");
+  assert.equal(plan.updates[0].deferExecutionContract, true);
+  assert.equal(plan.updates[0].preserveWorkflowState, true);
+});
+
+test("buildVolumeSyncPlan preserves a complete database execution contract when volume data is deferred", () => {
+  const databaseScenePlan = JSON.stringify({
+    targetWordCount: 3000,
+    lengthBudget: {
+      targetWordCount: 3000,
+      softMinWordCount: 2550,
+      softMaxWordCount: 3450,
+      hardMaxWordCount: 3750,
+    },
+    scenes: [1, 2, 3].map((index) => ({
+      key: `scene-${index}`,
+      title: `场景${index}`,
+      purpose: "推进冲突",
+      entryState: "进入场景",
+      exitState: "离开场景",
+      targetWordCount: 1000,
+    })),
+  });
+  const chapter = {
+    id: "volume-chapter-complete-db-contract",
+    volumeId: "volume-1",
+    chapterOrder: 1,
+    title: "第一章",
+    summary: "卷纲暂缺执行合同",
+    purpose: "保留数据库合同",
+    exclusiveEvent: "主角截获一封密信",
+    endingState: "密信被锁进暗格",
+    nextChapterEntryState: "追兵已经逼近",
+    conflictLevel: null,
+    revealLevel: null,
+    targetWordCount: null,
+    mustAvoid: null,
+    taskSheet: null,
+    sceneCards: null,
+    payoffRefs: [],
+    createdAt: new Date(0).toISOString(),
+    updatedAt: new Date(0).toISOString(),
+  };
+  const plan = buildVolumeSyncPlan(createVolume([chapter]), [{
+    id: "chapter-1",
+    order: 1,
+    title: chapter.title,
+    content: "",
+    generationState: "planned",
+    chapterStatus: "unplanned",
+    expectation: chapter.purpose,
+    targetWordCount: 3000,
+    conflictLevel: 70,
+    revealLevel: 20,
+    mustAvoid: "不要提前揭示真相",
+    taskSheet: "数据库任务单",
+    sceneCards: databaseScenePlan,
+  }], {
+    preserveContent: true,
+    applyDeletes: false,
+    deferredExecutionContractChapterIds: new Set([chapter.id]),
+    previousVolumes: createVolume([chapter]),
+  });
+
+  assert.equal(plan.updates[0].deferExecutionContract, false);
+  assert.equal(plan.updates[0].preserveExistingExecutionContract, true);
+});
+
+test("buildVolumeSyncPlan does not mix a changed chapter identity with an old execution contract", () => {
+  const chapter = {
+    id: "volume-chapter-changed-identity",
+    volumeId: "volume-1",
+    chapterOrder: 1,
+    title: "新标题",
+    summary: "新的章节目标",
+    purpose: "新的章节目标",
+    conflictLevel: null,
+    revealLevel: null,
+    targetWordCount: null,
+    mustAvoid: null,
+    taskSheet: null,
+    sceneCards: null,
+    payoffRefs: [],
+    createdAt: new Date(0).toISOString(),
+    updatedAt: new Date(0).toISOString(),
+  };
+  const plan = buildVolumeSyncPlan(createVolume([chapter]), [{
+    id: "chapter-1",
+    order: 1,
+    title: "旧标题",
+    content: "",
+    expectation: "旧章节目标",
+    targetWordCount: 3000,
+    conflictLevel: 70,
+    revealLevel: 20,
+    mustAvoid: "不要提前揭示真相",
+    taskSheet: "数据库任务单",
+    sceneCards: JSON.stringify({
+      targetWordCount: 3000,
+      lengthBudget: {
+        targetWordCount: 3000,
+        softMinWordCount: 2550,
+        softMaxWordCount: 3450,
+        hardMaxWordCount: 3750,
+      },
+      scenes: [1, 2, 3].map((index) => ({
+        key: `scene-${index}`,
+        title: `场景${index}`,
+        purpose: "推进冲突",
+        entryState: "进入场景",
+        exitState: "离开场景",
+        targetWordCount: 1000,
+      })),
+    }),
+  }], {
+    preserveContent: true,
+    applyDeletes: false,
+    deferredExecutionContractChapterIds: new Set([chapter.id]),
+  });
+
+  assert.equal(plan.updates[0].preserveExistingExecutionContract, false);
+  assert.equal(plan.updates[0].deferExecutionContract, true);
 });

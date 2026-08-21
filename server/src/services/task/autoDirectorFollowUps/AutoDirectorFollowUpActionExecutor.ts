@@ -28,6 +28,14 @@ import {
 type WorkflowTaskRow = NonNullable<Awaited<ReturnType<NovelWorkflowService["getTaskByIdWithoutHealing"]>>>;
 
 const EXECUTED_ACTION_CACHE = new Map<string, AutoDirectorActionExecutionResult>();
+const ACTION_EXECUTION_LOCKS = new Map<string, Promise<AutoDirectorActionExecutionResult>>();
+const ACTION_PROCESSING_RESULT_CODE = "processing";
+const ACTION_PROCESSING_STALE_MS = 5 * 60 * 1000;
+
+type ActionLogClaimResult =
+  | { status: "claimed" }
+  | { status: "processing" }
+  | { status: "completed"; resultCode: string; failureReason: string | null };
 
 const BATCH_ALLOWED_ACTIONS = new Set<AutoDirectorMutationActionCode>([
   "continue_auto_execution",
@@ -63,6 +71,13 @@ function isDbUnavailableError(error: unknown): boolean {
   const code = "code" in error ? (error as { code?: string }).code : undefined;
   const message = "message" in error ? String((error as { message?: unknown }).message ?? "") : "";
   return code === "P1001" || /can't reach database server/i.test(message);
+}
+
+function isUniqueConstraintError(error: unknown): boolean {
+  return typeof error === "object"
+    && error !== null
+    && "code" in error
+    && (error as { code?: string }).code === "P2002";
 }
 
 function getExecutionScopeLabel(seedPayloadJson: string | null | undefined): string | null {
@@ -188,6 +203,23 @@ export class AutoDirectorFollowUpActionExecutor {
   readonly validationService = new AutoDirectorValidationService();
 
   async execute(input: AutoDirectorActionRequest): Promise<AutoDirectorActionExecutionResult> {
+    const lockKey = buildExecutedCacheKey(input);
+    const existingLock = ACTION_EXECUTION_LOCKS.get(lockKey);
+    if (existingLock) {
+      return existingLock;
+    }
+    const operation = this.executeUnlocked(input);
+    ACTION_EXECUTION_LOCKS.set(lockKey, operation);
+    try {
+      return await operation;
+    } finally {
+      if (ACTION_EXECUTION_LOCKS.get(lockKey) === operation) {
+        ACTION_EXECUTION_LOCKS.delete(lockKey);
+      }
+    }
+  }
+
+  private async executeUnlocked(input: AutoDirectorActionRequest): Promise<AutoDirectorActionExecutionResult> {
     const executedCacheKey = buildExecutedCacheKey(input);
     const cached = EXECUTED_ACTION_CACHE.get(executedCacheKey);
     if (cached) {
@@ -204,6 +236,17 @@ export class AutoDirectorFollowUpActionExecutor {
         message: "执行成功",
       });
       return result;
+    }
+    if (
+      input.actionCode === "pause_auto_execution"
+      && logged
+      && logged.resultCode === ACTION_PROCESSING_RESULT_CODE
+      && logged.executedAt >= new Date(Date.now() - ACTION_PROCESSING_STALE_MS)
+    ) {
+      return {
+        ...buildAlreadyProcessedResult(input, await this.safeGetTaskDetail(input.taskId)),
+        message: "暂停请求仍在处理中，请刷新任务状态。",
+      };
     }
 
     const healed = await this.workflowService.healAutoDirectorTaskState(input.taskId);
@@ -293,6 +336,28 @@ export class AutoDirectorFollowUpActionExecutor {
       await this.recordActionLog(input, result);
       return result;
     }
+    if (input.actionCode === "pause_auto_execution") {
+      const claim = await this.claimActionLog(input);
+      if (claim.status === "processing") {
+        return {
+          ...buildAlreadyProcessedResult(input, await this.safeGetTaskDetail(input.taskId)),
+          message: "暂停请求仍在处理中，请刷新任务状态。",
+        };
+      }
+      if (claim.status === "completed") {
+        if (claim.resultCode === "failed") {
+          // A failed attempt is retryable. claimActionLog() only returns this
+          // branch when the failed row could not be reclaimed, so surface the
+          // persisted failure instead of falsely reporting success.
+          return buildFailedResult(
+            input,
+            claim.failureReason || "上次暂停执行失败",
+            await this.safeGetTaskDetail(input.taskId),
+          );
+        }
+        return buildAlreadyProcessedResult(input, await this.safeGetTaskDetail(input.taskId));
+      }
+    }
 
     try {
       const task = await this.executeMutationAction(row, input);
@@ -301,7 +366,9 @@ export class AutoDirectorFollowUpActionExecutor {
         taskId: input.taskId,
         actionCode: input.actionCode,
         code: "executed",
-        message: "执行成功",
+        message: input.actionCode === "pause_auto_execution"
+          ? "自动执行已暂停，已保存进度可从最近检查点恢复。"
+          : "执行成功",
         task,
       };
       EXECUTED_ACTION_CACHE.set(executedCacheKey, result);
@@ -520,6 +587,9 @@ export class AutoDirectorFollowUpActionExecutor {
     row: WorkflowTaskRow,
     input: AutoDirectorActionRequest,
   ): Promise<AutoDirectorActionExecutionResult["task"]> {
+    if (input.actionCode === "pause_auto_execution") {
+      return this.workflowTaskAdapter.cancel(input.taskId);
+    }
     const batchAlreadyStartedCount = typeof input.metadata?.highMemoryStartedCount === "number" && input.metadata.highMemoryStartedCount > 0
       ? input.metadata.highMemoryStartedCount
       : undefined;
@@ -601,6 +671,91 @@ export class AutoDirectorFollowUpActionExecutor {
     }
   }
 
+  private async claimActionLog(input: AutoDirectorActionRequest): Promise<ActionLogClaimResult> {
+    try {
+      await prisma.autoDirectorFollowUpActionLog.create({
+        data: {
+          taskId: input.taskId,
+          actionCode: input.actionCode,
+          sourceChannel: input.source,
+          sourceUser: input.operatorId?.trim() || null,
+          idempotencyKey: input.idempotencyKey,
+          resultCode: ACTION_PROCESSING_RESULT_CODE,
+          failureReason: null,
+          metadataJson: input.metadata ? JSON.stringify(input.metadata) : null,
+          executedAt: new Date(),
+        },
+      });
+      return { status: "claimed" };
+    } catch (error) {
+      if (isUniqueConstraintError(error)) {
+        const existing = await this.findLoggedExecution(input.idempotencyKey);
+        if (!existing) {
+          // A schema-less/degraded database can report a uniqueness error
+          // without allowing the follow-up row to be read. Keep the action
+          // safe and report it as processing rather than issuing a duplicate
+          // cancel command.
+          return { status: "processing" };
+        }
+        if (existing.resultCode === ACTION_PROCESSING_RESULT_CODE) {
+          const staleBefore = new Date(Date.now() - ACTION_PROCESSING_STALE_MS);
+          if (existing.executedAt < staleBefore) {
+            const reclaimed = await prisma.autoDirectorFollowUpActionLog.updateMany({
+              where: {
+                idempotencyKey: input.idempotencyKey,
+                resultCode: ACTION_PROCESSING_RESULT_CODE,
+                executedAt: { lt: staleBefore },
+              },
+              data: {
+                taskId: input.taskId,
+                actionCode: input.actionCode,
+                sourceChannel: input.source,
+                sourceUser: input.operatorId?.trim() || null,
+                metadataJson: input.metadata ? JSON.stringify(input.metadata) : null,
+                executedAt: new Date(),
+              },
+            });
+            if (reclaimed.count === 1) {
+              return { status: "claimed" };
+            }
+          }
+          return { status: "processing" };
+        }
+        if (existing.resultCode === "failed") {
+          const reclaimed = await prisma.autoDirectorFollowUpActionLog.updateMany({
+            where: {
+              idempotencyKey: input.idempotencyKey,
+              resultCode: "failed",
+            },
+            data: {
+              taskId: input.taskId,
+              actionCode: input.actionCode,
+              sourceChannel: input.source,
+              sourceUser: input.operatorId?.trim() || null,
+              resultCode: ACTION_PROCESSING_RESULT_CODE,
+              failureReason: null,
+              metadataJson: input.metadata ? JSON.stringify(input.metadata) : null,
+              executedAt: new Date(),
+            },
+          });
+          if (reclaimed.count === 1) {
+            return { status: "claimed" };
+          }
+          return { status: "processing" };
+        }
+        return {
+          status: "completed",
+          resultCode: existing.resultCode,
+          failureReason: existing.failureReason ?? null,
+        };
+      }
+      if (isMissingTableError(error) || isDbUnavailableError(error)) {
+        return { status: "claimed" };
+      }
+      throw error;
+    }
+  }
+
   private async recordActionLog(
     input: AutoDirectorActionRequest,
     result: AutoDirectorActionExecutionResult,
@@ -612,6 +767,17 @@ export class AutoDirectorFollowUpActionExecutor {
         },
       });
       if (existing) {
+        if (existing.resultCode === ACTION_PROCESSING_RESULT_CODE) {
+          await prisma.autoDirectorFollowUpActionLog.update({
+            where: { idempotencyKey: input.idempotencyKey },
+            data: {
+              resultCode: result.code,
+              failureReason: result.code === "failed" ? result.message : null,
+              metadataJson: input.metadata ? JSON.stringify(input.metadata) : null,
+              executedAt: new Date(),
+            },
+          });
+        }
         return;
       }
       await prisma.autoDirectorFollowUpActionLog.create({
@@ -628,6 +794,9 @@ export class AutoDirectorFollowUpActionExecutor {
         },
       });
     } catch (error) {
+      if (isUniqueConstraintError(error)) {
+        return;
+      }
       if (isMissingTableError(error) || isDbUnavailableError(error)) {
         return;
       }
