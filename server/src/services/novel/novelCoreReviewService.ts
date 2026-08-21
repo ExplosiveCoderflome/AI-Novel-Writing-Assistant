@@ -188,10 +188,36 @@ export class NovelCoreReviewService {
     options: ReviewOptions = {},
   ) {
     const contextPackage = await this.assembleAuditContextPackage(novelId, chapterId, options, "audit");
-    return auditService.auditChapter(novelId, chapterId, scope, {
+    const review = await auditService.auditChapter(novelId, chapterId, scope, {
       ...options,
       contextPackage,
     });
+    const chapter = await prisma.chapter.findFirst({
+      where: { id: chapterId, novelId },
+      select: { order: true },
+    });
+    if (chapter) {
+      await prisma.chapter.update({
+        where: { id: chapterId },
+        data: chapterStatePairAfterManualQualityReview(isPass(review.score)),
+      });
+      await createQualityReport(novelId, chapterId, review.score, review.issues);
+      await chapterQualityLoopService.recordAssessment({
+        novelId,
+        chapterId,
+        chapterOrder: chapter.order,
+        score: review.score,
+        issues: review.issues,
+        source: "manual_review",
+      }).catch((error) => {
+        logPipelineError("Failed to record chapter quality loop assessment.", {
+          novelId,
+          chapterId,
+          error: error instanceof Error ? error.message : String(error),
+        });
+      });
+    }
+    return review;
   }
 
   async listChapterAuditReports(novelId: string, chapterId: string) {

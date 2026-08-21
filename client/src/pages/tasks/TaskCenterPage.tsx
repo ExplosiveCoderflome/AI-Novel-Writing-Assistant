@@ -619,7 +619,7 @@ export default function TaskCenterPage() {
               ? recoveryCandidatesQuery.isLoading && !recommendedBlockingTask && failedTaskCount === 0
                 ? "正在定位可恢复任务；读取完成后会提供对应入口。"
               : recommendedTaskNeedsChapterContractRepair
-                ? "章节执行合同缺少正文生成所需字段。打开章节处理页后，选中提示中的章节，点击“AI 补齐本章任务单”；补齐章节目标、独占事件、结束态、下章入口态、冲突/揭露强度、目标字数和禁止事项后，再回到章节执行继续生成。"
+                ? "系统会先自动补齐章节目标、边界和写作约束并继续生成；若自动修复仍未完成，可打开章节处理页查看当前章节并手动补齐。"
                 : "阻塞状态可能影响对应来源流程；先查看原因和恢复位置，再决定恢复、重试或重规划。"
               : waitingActionCount > 0
                 ? "候选确认、章节批次继续等节点需要你的操作，但不代表任务发生故障。"

@@ -42,6 +42,7 @@ export interface VolumeChapterSyncOptions {
   emitEvent?: boolean;
   syncPayoffLedger?: boolean;
   volumeUpdateReason?: VolumeUpdateReason;
+  qualityGateMode?: "strict" | "defer_and_continue";
 }
 
 export class VolumeChapterSyncService {
@@ -73,7 +74,11 @@ export class VolumeChapterSyncService {
   ): Promise<VolumeSyncPreview> {
     const workspace = await this.deps.ensureVolumeWorkspace(novelId);
     const mergedDocument = mergeVolumeWorkspaceInput(novelId, workspace, { volumes: input.volumes });
-    this.assertSyncableChapterExecutionContracts(mergedDocument, input.executionContractChapterRange);
+    const deferredExecutionContractChapterIds = this.assertSyncableChapterExecutionContracts(
+      mergedDocument,
+      input.executionContractChapterRange,
+      options.qualityGateMode,
+    );
     const shouldSyncPayoffLedger = hasPayoffLedgerRelevantPlanChanges(workspace.volumes, mergedDocument.volumes);
     const existingChapters = await prisma.chapter.findMany({
       where: { novelId },
@@ -100,6 +105,7 @@ export class VolumeChapterSyncService {
       {
         preserveContent: input.preserveContent !== false,
         applyDeletes: input.applyDeletes === true,
+        deferredExecutionContractChapterIds,
       },
     );
 
@@ -118,8 +124,9 @@ export class VolumeChapterSyncService {
             conflictLevel: item.chapter.conflictLevel ?? null,
             revealLevel: item.chapter.revealLevel ?? null,
             mustAvoid: item.chapter.mustAvoid ?? null,
-            taskSheet: item.chapter.taskSheet?.trim() || null,
-            sceneCards: item.chapter.sceneCards ?? null,
+            taskSheet: item.deferExecutionContract ? null : item.chapter.taskSheet?.trim() || null,
+            sceneCards: item.deferExecutionContract ? null : item.chapter.sceneCards ?? null,
+            chapterStatus: item.deferExecutionContract ? "needs_repair" : "unplanned",
           },
         });
         item.chapter.chapterId = created.id;
@@ -133,16 +140,31 @@ export class VolumeChapterSyncService {
             title: item.chapter.title,
             order: item.chapter.chapterOrder,
             expectation: item.chapter.purpose?.trim() || item.chapter.summary,
-            targetWordCount: item.chapter.targetWordCount ?? null,
-            conflictLevel: item.chapter.conflictLevel ?? null,
-            revealLevel: item.chapter.revealLevel ?? null,
-            mustAvoid: item.chapter.mustAvoid ?? null,
-            taskSheet: item.chapter.taskSheet?.trim() || null,
-            sceneCards: item.chapter.sceneCards ?? null,
-            ...(!item.preserveWorkflowState
+            ...(item.preserveExistingExecutionContract
+              ? {}
+              : {
+                targetWordCount: item.chapter.targetWordCount ?? null,
+                conflictLevel: item.chapter.conflictLevel ?? null,
+                revealLevel: item.chapter.revealLevel ?? null,
+                mustAvoid: item.chapter.mustAvoid ?? null,
+              }),
+            ...(item.preserveExistingExecutionContract
+              ? {}
+              : item.deferExecutionContract
+              ? {
+                // 不让旧执行产物绕过待修复状态继续进入正文链路。
+                taskSheet: null,
+                sceneCards: null,
+                chapterStatus: "needs_repair" as const,
+              }
+              : {
+                taskSheet: item.chapter.taskSheet?.trim() || null,
+                sceneCards: item.chapter.sceneCards ?? null,
+              }),
+            ...(!item.preserveWorkflowState && !item.preserveExistingExecutionContract
               ? {
                 generationState: "planned",
-                chapterStatus: "unplanned",
+                ...(item.deferExecutionContract ? {} : { chapterStatus: "unplanned" as const }),
               }
               : {}),
             ...(item.clearContent ? { content: "" } : {}),
@@ -187,7 +209,9 @@ export class VolumeChapterSyncService {
   private assertSyncableChapterExecutionContracts(
     document: VolumePlanDocument,
     chapterRange?: VolumeSyncInput["executionContractChapterRange"],
-  ): void {
+    qualityGateMode: VolumeChapterSyncOptions["qualityGateMode"] = "strict",
+  ): Set<string> {
+    const deferredChapterIds = new Set<string>();
     for (const volume of document.volumes) {
       for (const chapter of volume.chapters) {
         if (
@@ -198,6 +222,9 @@ export class VolumeChapterSyncService {
         }
         const hasExecutionArtifact = Boolean(chapter.taskSheet?.trim() || chapter.sceneCards?.trim());
         if (!hasExecutionArtifact) {
+          if (qualityGateMode === "defer_and_continue" && chapterRange) {
+            deferredChapterIds.add(chapter.id);
+          }
           continue;
         }
         const result = assessChapterExecutionContractShape({
@@ -220,15 +247,21 @@ export class VolumeChapterSyncService {
           sceneCards: chapter.sceneCards,
         });
         if (!result.canEnterExecution) {
-          throw new ChapterExecutionContractQualityGateError({
+          const error = new ChapterExecutionContractQualityGateError({
             novelId: document.novelId,
             volumeId: volume.id,
             chapterId: chapter.id,
             chapterOrder: chapter.chapterOrder,
             message: `第 ${chapter.chapterOrder} 章执行合同未通过质量门禁，不能连接到章节执行区。${formatChapterTaskSheetQualityFailure(result)}`,
           });
+          if (qualityGateMode === "defer_and_continue") {
+            deferredChapterIds.add(chapter.id);
+            continue;
+          }
+          throw error;
         }
       }
     }
+    return deferredChapterIds;
   }
 }

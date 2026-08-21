@@ -92,3 +92,25 @@ test("follow-up resolver exposes retry metadata for failed tasks", () => {
   assert.deepEqual(result.batchActionCodes, ["retry_with_task_model"]);
   assert.equal(result.supportsBatch, true);
 });
+
+test("follow-up resolver exposes pause and resume state controls for automatic progress", () => {
+  const running = resolveAutoDirectorFollowUpReason({
+    status: "running",
+    checkpointType: "chapter_batch_ready",
+  });
+
+  assert.ok(running);
+  assert.equal(running.reason, "auto_progress_running");
+  assert.deepEqual(actionCodes(running), ["pause_auto_execution", "open_detail"]);
+  assert.equal(running.availableActions[0].requiresConfirm, true);
+
+  const cancelled = resolveAutoDirectorFollowUpReason({
+    status: "cancelled",
+    checkpointType: "chapter_batch_ready",
+  });
+
+  assert.ok(cancelled);
+  assert.equal(cancelled.reason, "runtime_cancelled");
+  assert.equal(cancelled.availableActions[0].code, "retry_with_task_model");
+  assert.match(cancelled.availableActions[0].label, /恢复|继续/);
+});

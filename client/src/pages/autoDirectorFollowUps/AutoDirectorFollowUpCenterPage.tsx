@@ -50,6 +50,11 @@ const TASK_STATUSES: readonly TaskStatus[] = [
   "failed",
   "cancelled",
 ];
+const LIVE_EXECUTION_REFETCH_INTERVAL_MS = 4000;
+
+function isLiveExecutionStatus(status: TaskStatus | null | undefined): boolean {
+  return status === "queued" || status === "running";
+}
 
 function buildListParamsKey(input: {
   section: AutoDirectorFollowUpSection | "";
@@ -144,7 +149,7 @@ export default function AutoDirectorFollowUpCenterPage() {
     queryFn: getAutoDirectorFollowUpOverview,
     refetchInterval: (query) => {
       const totalCount = query.state.data?.data?.totalCount ?? 0;
-      return totalCount > 0 ? 4000 : false;
+      return totalCount > 0 ? LIVE_EXECUTION_REFETCH_INTERVAL_MS : false;
     },
   });
 
@@ -161,7 +166,11 @@ export default function AutoDirectorFollowUpCenterPage() {
     }),
     refetchInterval: (query) => {
       const items = query.state.data?.data?.items ?? [];
-      return items.some((item) => item.status === "failed" || item.status === "waiting_approval") ? 4000 : false;
+      return items.some((item) => (
+        isLiveExecutionStatus(item.status)
+        || item.status === "failed"
+        || item.status === "waiting_approval"
+      )) ? LIVE_EXECUTION_REFETCH_INTERVAL_MS : false;
     },
   });
 
@@ -172,6 +181,11 @@ export default function AutoDirectorFollowUpCenterPage() {
     queryFn: () => getAutoDirectorFollowUpDetail(selectedDirectorTaskId),
     enabled: Boolean(selectedDirectorTaskId),
     retry: false,
+    refetchInterval: (query) => (
+      isLiveExecutionStatus(query.state.data?.data?.task?.status)
+        ? LIVE_EXECUTION_REFETCH_INTERVAL_MS
+        : false
+    ),
   });
 
   useEffect(() => {

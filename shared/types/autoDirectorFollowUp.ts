@@ -28,6 +28,7 @@ export type AutoDirectorFollowUpPriority = "P0" | "P1" | "P2";
 export type AutoDirectorActionRiskLevel = "low" | "medium" | "high";
 
 export type AutoDirectorMutationActionCode =
+  | "pause_auto_execution"
   | "continue_auto_execution"
   | "continue_generic"
   | "auto_backfill_structured_outline"
