@@ -287,6 +287,11 @@ test("manual review and manual audit pass assembled chapter review context into 
         chapterStatus: "completed",
       },
     });
+    assert.ok(chapterUpdateCalls.some((call) => (
+      call.where?.id === "chapter-1"
+      && call.data?.generationState === "reviewed"
+      && call.data?.chapterStatus === "completed"
+    )));
   } finally {
     prisma.chapter.findFirst = originalChapterFindFirst;
     prisma.chapter.update = originalChapterUpdate;

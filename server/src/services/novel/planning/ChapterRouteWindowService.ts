@@ -112,6 +112,7 @@ export class ChapterRouteWindowService {
       }, {
         emitEvent: false,
         syncPayoffLedger: false,
+        qualityGateMode: "defer_and_continue",
       });
       extended = true;
       availableRouteCount = await this.countAvailableRoute(novelId, fromChapterOrder);

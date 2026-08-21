@@ -134,6 +134,9 @@ export function getFollowUpActionConsequence(action: AutoDirectorAction): string
   if (action.code === "continue_auto_execution") {
     return "向当前导演任务提交继续命令，并从现有检查点推进自动执行范围。";
   }
+  if (action.code === "pause_auto_execution") {
+    return "停止后续自动步骤并保留当前进度；之后可从最近检查点恢复。";
+  }
   if (action.code === "continue_generic") {
     return "向当前导演任务提交恢复命令，并从可恢复位置继续。";
   }

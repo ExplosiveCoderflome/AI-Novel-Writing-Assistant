@@ -162,6 +162,203 @@ test("auto director follow-up action executor continues auto execution and dedup
   prisma.autoDirectorFollowUpActionLog.create = originals.actionLogCreate;
 });
 
+test("auto director follow-up executor serializes concurrent requests with the same idempotency key", async () => {
+  const executor = new AutoDirectorFollowUpActionExecutor();
+  let invocationCount = 0;
+  executor.executeUnlocked = async () => {
+    invocationCount += 1;
+    await new Promise((resolve) => setTimeout(resolve, 10));
+    return {
+      directorTaskId: "task_lock",
+      taskId: "task_lock",
+      actionCode: "pause_auto_execution",
+      code: "executed",
+      message: "自动执行已暂停",
+      task: null,
+    };
+  };
+
+  const input = {
+    taskId: "task_lock",
+    actionCode: "pause_auto_execution",
+    source: "web",
+    operatorId: "anonymous",
+    idempotencyKey: "same-pause-key",
+  };
+  const [first, second] = await Promise.all([
+    executor.execute(input),
+    executor.execute(input),
+  ]);
+
+  assert.equal(invocationCount, 1);
+  assert.equal(first.code, "executed");
+  assert.equal(second.code, "executed");
+});
+
+test("auto director follow-up pause action cancels the running task and finalizes its idempotency record", async () => {
+  const executor = new AutoDirectorFollowUpActionExecutor();
+  const originals = {
+    actionLogFindUnique: prisma.autoDirectorFollowUpActionLog.findUnique,
+    actionLogCreate: prisma.autoDirectorFollowUpActionLog.create,
+    actionLogUpdate: prisma.autoDirectorFollowUpActionLog.update,
+  };
+  const actionLogs = new Map();
+  let cancelCount = 0;
+  prisma.autoDirectorFollowUpActionLog.findUnique = async ({ where }) => actionLogs.get(where.idempotencyKey) ?? null;
+  prisma.autoDirectorFollowUpActionLog.create = async ({ data }) => {
+    if (actionLogs.has(data.idempotencyKey)) {
+      const error = new Error("duplicate");
+      error.code = "P2002";
+      throw error;
+    }
+    const row = { id: data.idempotencyKey, ...data };
+    actionLogs.set(data.idempotencyKey, row);
+    return row;
+  };
+  prisma.autoDirectorFollowUpActionLog.update = async ({ where, data }) => {
+    const row = { ...(actionLogs.get(where.idempotencyKey) ?? {}), ...data };
+    actionLogs.set(where.idempotencyKey, row);
+    return row;
+  };
+  executor.workflowService.healAutoDirectorTaskState = async () => false;
+  executor.workflowService.getTaskByIdWithoutHealing = async () => buildWorkflowRow({
+    id: "task_pause",
+    status: "running",
+    checkpointType: null,
+  });
+  executor.workflowTaskAdapter.cancel = async (taskId) => {
+    cancelCount += 1;
+    return buildTaskDetail(taskId, { status: "cancelled" });
+  };
+  executor.workflowTaskAdapter.detail = async (taskId) => buildTaskDetail(taskId, { status: "cancelled" });
+
+  try {
+    const result = await executor.execute({
+      taskId: "task_pause",
+      actionCode: "pause_auto_execution",
+      source: "web",
+      operatorId: "anonymous",
+      idempotencyKey: "pause-task-pause",
+    });
+
+    assert.equal(result.code, "executed");
+    assert.equal(cancelCount, 1);
+    assert.match(result.message, /已暂停/);
+    assert.equal(actionLogs.get("pause-task-pause").resultCode, "executed");
+  } finally {
+    prisma.autoDirectorFollowUpActionLog.findUnique = originals.actionLogFindUnique;
+    prisma.autoDirectorFollowUpActionLog.create = originals.actionLogCreate;
+    prisma.autoDirectorFollowUpActionLog.update = originals.actionLogUpdate;
+  }
+});
+
+test("auto director follow-up pause reports a fresh processing lease instead of cancelling twice", async () => {
+  const executor = new AutoDirectorFollowUpActionExecutor();
+  const originalFindUnique = prisma.autoDirectorFollowUpActionLog.findUnique;
+  const actionKey = "pause-processing-key";
+  let cancelCount = 0;
+  prisma.autoDirectorFollowUpActionLog.findUnique = async () => ({
+    idempotencyKey: actionKey,
+    taskId: "task_processing",
+    actionCode: "pause_auto_execution",
+    sourceChannel: "web",
+    sourceUser: "anonymous",
+    resultCode: "processing",
+    failureReason: null,
+    metadataJson: null,
+    executedAt: new Date(),
+  });
+  executor.workflowTaskAdapter.detail = async (taskId) => buildTaskDetail(taskId, { status: "running" });
+  executor.workflowTaskAdapter.cancel = async () => {
+    cancelCount += 1;
+    return buildTaskDetail("task_processing", { status: "cancelled" });
+  };
+
+  try {
+    const result = await executor.execute({
+      taskId: "task_processing",
+      actionCode: "pause_auto_execution",
+      source: "web",
+      operatorId: "anonymous",
+      idempotencyKey: actionKey,
+    });
+
+    assert.equal(result.code, "already_processed");
+    assert.match(result.message, /处理中/);
+    assert.equal(cancelCount, 0);
+  } finally {
+    prisma.autoDirectorFollowUpActionLog.findUnique = originalFindUnique;
+  }
+});
+
+test("auto director follow-up pause can retry a persisted failed attempt", async () => {
+  const executor = new AutoDirectorFollowUpActionExecutor();
+  const originals = {
+    findUnique: prisma.autoDirectorFollowUpActionLog.findUnique,
+    create: prisma.autoDirectorFollowUpActionLog.create,
+    update: prisma.autoDirectorFollowUpActionLog.update,
+    updateMany: prisma.autoDirectorFollowUpActionLog.updateMany,
+  };
+  const actionKey = "pause-failed-retry-key";
+  const actionLog = {
+    idempotencyKey: actionKey,
+    taskId: "task_failed_retry",
+    actionCode: "pause_auto_execution",
+    sourceChannel: "web",
+    sourceUser: "anonymous",
+    resultCode: "failed",
+    failureReason: "上次取消失败",
+    metadataJson: null,
+    executedAt: new Date(),
+  };
+  let cancelCount = 0;
+  prisma.autoDirectorFollowUpActionLog.findUnique = async () => actionLog;
+  prisma.autoDirectorFollowUpActionLog.create = async () => {
+    const error = new Error("duplicate");
+    error.code = "P2002";
+    throw error;
+  };
+  prisma.autoDirectorFollowUpActionLog.updateMany = async () => {
+    actionLog.resultCode = "processing";
+    actionLog.failureReason = null;
+    return { count: 1 };
+  };
+  prisma.autoDirectorFollowUpActionLog.update = async ({ data }) => {
+    Object.assign(actionLog, data);
+    return actionLog;
+  };
+  executor.workflowService.healAutoDirectorTaskState = async () => false;
+  executor.workflowService.getTaskByIdWithoutHealing = async () => buildWorkflowRow({
+    id: "task_failed_retry",
+    status: "running",
+    checkpointType: null,
+  });
+  executor.workflowTaskAdapter.cancel = async (taskId) => {
+    cancelCount += 1;
+    return buildTaskDetail(taskId, { status: "cancelled" });
+  };
+  executor.workflowTaskAdapter.detail = async (taskId) => buildTaskDetail(taskId, { status: "cancelled" });
+
+  try {
+    const result = await executor.execute({
+      taskId: "task_failed_retry",
+      actionCode: "pause_auto_execution",
+      source: "web",
+      operatorId: "anonymous",
+      idempotencyKey: actionKey,
+    });
+
+    assert.equal(result.code, "executed");
+    assert.equal(cancelCount, 1);
+    assert.equal(actionLog.resultCode, "executed");
+  } finally {
+    prisma.autoDirectorFollowUpActionLog.findUnique = originals.findUnique;
+    prisma.autoDirectorFollowUpActionLog.create = originals.create;
+    prisma.autoDirectorFollowUpActionLog.update = originals.update;
+    prisma.autoDirectorFollowUpActionLog.updateMany = originals.updateMany;
+  }
+});
+
 test("auto director follow-up action executor sends skip_quality_repair for quality-repair checkpoints", async () => {
   const executor = new AutoDirectorFollowUpActionExecutor();
   const calls = [];

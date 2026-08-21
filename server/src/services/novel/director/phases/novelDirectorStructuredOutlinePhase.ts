@@ -36,6 +36,7 @@ import {
 import { runDirectorTrackedStep } from "../projections/directorProgressTracker";
 import type { DirectorPhaseCallbacks, DirectorPhaseDependencies } from "./novelDirectorPhaseTypes";
 import { resetDirectorDownstreamChapterState } from "../recovery/novelDirectorDownstreamReset";
+import { isChapterExecutionContractQualityGateError } from "../../volume/ChapterExecutionContractQualityGateError";
 
 function buildChapterOrderRangeLabel(startOrder: number, endOrder: number): string {
   return startOrder === endOrder ? `第 ${startOrder} 章` : `第 ${startOrder}-${endOrder} 章`;
@@ -69,32 +70,79 @@ function findMissingSelectedChapterOrders(
 
 async function syncPreparedChapterExecutionContext(input: {
   novelId: string;
+  taskId?: string;
+  provider?: DirectorConfirmRequest["provider"];
+  model?: string;
+  temperature?: number;
   workspace: VolumePlanDocument;
   targetVolumeId: string;
   targetChapterId: string;
   dependencies: DirectorPhaseDependencies;
-}): Promise<void> {
+}): Promise<VolumePlanDocument> {
   const targetVolume = input.workspace.volumes.find((volume) => volume.id === input.targetVolumeId);
   const targetChapter = targetVolume?.chapters.find((chapter) => chapter.id === input.targetChapterId);
   if (!targetChapter) {
-    return;
+    return input.workspace;
   }
-  if (!targetChapter.taskSheet?.trim() && !targetChapter.sceneCards?.trim()) {
-    return;
+  const chapterRange = {
+    startOrder: targetChapter.chapterOrder,
+    endOrder: targetChapter.chapterOrder,
+  };
+  let latestWorkspace = input.workspace;
+  let resolvedTargetChapter = targetChapter;
+
+  // 旧卷纲可能尚未保存 chapterId；先建立正式章节连接，再走同一条 AI 修复链路。
+  if (!resolvedTargetChapter.chapterId) {
+    await input.dependencies.volumeService.syncVolumeChaptersWithOptions(input.novelId, {
+      volumes: latestWorkspace.volumes,
+      preserveContent: true,
+      applyDeletes: false,
+      executionContractChapterRange: chapterRange,
+    }, {
+      emitEvent: false,
+      syncPayoffLedger: false,
+      qualityGateMode: "defer_and_continue",
+    });
+    latestWorkspace = await input.dependencies.volumeService.getVolumes(input.novelId);
+    resolvedTargetChapter = latestWorkspace.volumes
+      .find((volume) => volume.id === input.targetVolumeId)
+      ?.chapters.find((chapter) => chapter.id === input.targetChapterId)
+      ?? resolvedTargetChapter;
   }
 
+  // 自动导演优先让同一套 AI 合同生成器补齐缺失字段；失败时再降级为章节质量债务，不能阻断全书。
+  if (resolvedTargetChapter.chapterId) {
+    await input.dependencies.volumeService.ensureChapterExecutionContract(
+      input.novelId,
+      resolvedTargetChapter.chapterId,
+      {
+        provider: input.provider,
+        model: input.model,
+        temperature: input.temperature,
+        chapterTaskSheetQualityMode: "full_book_autopilot",
+        entrypoint: "auto_director_contract_repair",
+        taskId: input.taskId,
+      },
+    ).catch((error) => {
+      if (!isChapterExecutionContractQualityGateError(error)) {
+        throw error;
+      }
+      return null;
+    });
+  }
+  latestWorkspace = await input.dependencies.volumeService.getVolumes(input.novelId);
+
   await input.dependencies.volumeService.syncVolumeChaptersWithOptions(input.novelId, {
-    volumes: input.workspace.volumes,
+    volumes: latestWorkspace.volumes,
     preserveContent: true,
     applyDeletes: false,
-    executionContractChapterRange: {
-      startOrder: targetChapter.chapterOrder,
-      endOrder: targetChapter.chapterOrder,
-    },
+    executionContractChapterRange: chapterRange,
   }, {
     emitEvent: false,
     syncPayoffLedger: false,
+    qualityGateMode: "defer_and_continue",
   });
+  return latestWorkspace;
 }
 
 function buildStructuredOutlinePhaseUpdate(event: VolumeGenerationPhaseEvent): {
@@ -424,13 +472,17 @@ export async function runDirectorStructuredOutlinePhase(input: {
           chapterId: recoveryCursor.chapterId,
         },
       });
-      await syncPreparedChapterExecutionContext({
+      workspace = await syncPreparedChapterExecutionContext({
         novelId,
         workspace,
         targetVolumeId,
-        targetChapterId,
-        dependencies,
-      });
+      targetChapterId,
+      dependencies,
+      taskId,
+      provider: request.provider,
+      model: request.model,
+      temperature: request.temperature,
+    });
       continue;
     }
 
@@ -496,6 +548,7 @@ export async function runDirectorStructuredOutlinePhase(input: {
   }, {
     emitEvent: false,
     syncPayoffLedger: false,
+    qualityGateMode: "defer_and_continue",
   });
   const syncCursor = resolveStructuredOutlineRecoveryCursor({
     workspace: persistedOutlineWorkspace,

@@ -355,9 +355,9 @@ function mapSummary(row: {
     ? (isSkippableReviewBlockedFailure
       ? buildSkippableAutoExecutionReviewFailureSummary(autoExecution)
       : hasChapterExecutionContractFailure
-        ? "当前章节缺少正文生成前的执行信息。打开对应章节后，点击“AI 补齐本章任务单”，系统会补全章节目标、边界和写作约束。"
+        ? "当前章节缺少正文生成前的执行信息。系统会先自动补全章节目标、边界和写作约束；若仍未完成，可打开对应章节查看并手动补齐。"
       : needsLegacyChapterExecutionContractReview
-        ? "章节规划还没有完成同步。打开章节规划后，选择提示中列出的章节，点击“AI 补齐本章任务单”。"
+        ? "章节规划还没有完成同步。系统会先自动补齐并同步；若仍未完成，可打开章节规划查看当前章节并手动补齐。"
       : normalizeFailureSummary(lastError, "Novel workflow stopped without a recorded error."))
     : null;
   const recoveryHint = isSkippableReviewBlockedFailure

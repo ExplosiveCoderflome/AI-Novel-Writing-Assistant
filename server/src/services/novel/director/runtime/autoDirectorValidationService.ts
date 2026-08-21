@@ -410,6 +410,9 @@ export function validateAutoDirectorAction(input: AutoDirectorActionValidationIn
   if (input.actionCode === "continue_auto_execution" && input.task.checkpointType !== "chapter_batch_ready") {
     blockingReasons.push("当前检查点不能直接继续章节执行，请先查看任务详情。");
   }
+  if (input.actionCode === "pause_auto_execution" && input.task.status !== "queued" && input.task.status !== "running") {
+    blockingReasons.push("当前任务已经不在自动执行中，请先重新校验任务状态。");
+  }
   if ((input.actionCode === "retry_with_task_model" || input.actionCode === "retry_with_route_model") && input.task.status !== "failed" && input.task.status !== "cancelled") {
     blockingReasons.push("当前任务没有失败或取消，不需要重试。");
   }
