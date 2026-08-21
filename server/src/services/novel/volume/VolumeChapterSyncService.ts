@@ -106,6 +106,7 @@ export class VolumeChapterSyncService {
         preserveContent: input.preserveContent !== false,
         applyDeletes: input.applyDeletes === true,
         deferredExecutionContractChapterIds,
+        previousVolumes: workspace.volumes,
       },
     );
 
@@ -222,7 +223,7 @@ export class VolumeChapterSyncService {
         }
         const hasExecutionArtifact = Boolean(chapter.taskSheet?.trim() || chapter.sceneCards?.trim());
         if (!hasExecutionArtifact) {
-          if (qualityGateMode === "defer_and_continue" && chapterRange) {
+          if (qualityGateMode === "defer_and_continue") {
             deferredChapterIds.add(chapter.id);
           }
           continue;

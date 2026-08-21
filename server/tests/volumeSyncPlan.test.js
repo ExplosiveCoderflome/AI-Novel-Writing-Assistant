@@ -4,6 +4,7 @@ const {
   buildTaskSheetFromVolumeChapter,
   buildVolumeSyncPlan,
 } = require("../dist/services/novel/volume/volumePlanUtils.js");
+const { VolumeChapterSyncService } = require("../dist/services/novel/volume/VolumeChapterSyncService.js");
 
 function createVolume(chapters) {
   return [{
@@ -339,6 +340,32 @@ test("deferred contract chapters without existing execution artifacts are marked
   assert.equal(plan.updates[0].deferExecutionContract, true);
 });
 
+test("defer sync without a chapter range records completely missing execution contracts", () => {
+  const service = new VolumeChapterSyncService({});
+  const deferredChapterIds = service.assertSyncableChapterExecutionContracts({
+    novelId: "novel-1",
+    volumes: createVolume([{
+      id: "volume-chapter-missing-without-range",
+      volumeId: "volume-1",
+      chapterOrder: 1,
+      title: "第1章",
+      summary: "待补齐合同",
+      purpose: "建立冲突",
+      conflictLevel: null,
+      revealLevel: null,
+      targetWordCount: null,
+      mustAvoid: null,
+      taskSheet: null,
+      sceneCards: null,
+      payoffRefs: [],
+      createdAt: new Date(0).toISOString(),
+      updatedAt: new Date(0).toISOString(),
+    }]),
+  }, undefined, "defer_and_continue");
+
+  assert.deepEqual([...deferredChapterIds], ["volume-chapter-missing-without-range"]);
+});
+
 test("buildVolumeSyncPlan marks deferred execution-contract chapters without changing preview actions", () => {
   const volumes = createVolume([{
     id: "volume-chapter-deferred",
@@ -433,6 +460,9 @@ test("buildVolumeSyncPlan preserves a complete database execution contract when 
     title: "第一章",
     summary: "卷纲暂缺执行合同",
     purpose: "保留数据库合同",
+    exclusiveEvent: "主角截获一封密信",
+    endingState: "密信被锁进暗格",
+    nextChapterEntryState: "追兵已经逼近",
     conflictLevel: null,
     revealLevel: null,
     targetWordCount: null,
@@ -461,6 +491,7 @@ test("buildVolumeSyncPlan preserves a complete database execution contract when 
     preserveContent: true,
     applyDeletes: false,
     deferredExecutionContractChapterIds: new Set([chapter.id]),
+    previousVolumes: createVolume([chapter]),
   });
 
   assert.equal(plan.updates[0].deferExecutionContract, false);
