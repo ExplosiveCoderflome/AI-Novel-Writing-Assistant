@@ -169,6 +169,12 @@ export function resolveAutoDirectorFollowUpReason(
       reason: "auto_progress_running",
       priority: "P2",
       availableActions: [
+        mutationAction({
+          code: "pause_auto_execution",
+          label: "暂停自动执行",
+          riskLevel: "low",
+          requiresConfirm: true,
+        }),
         navigationAction({
           code: "open_detail",
           label: "查看推进详情",

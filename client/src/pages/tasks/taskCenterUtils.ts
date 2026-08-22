@@ -29,6 +29,17 @@ type TaskQueuePresentationInput = Pick<
 const PIPELINE_QUALITY_REVIEW_CODE = "PIPELINE_QUALITY_REVIEW";
 const PIPELINE_REPLAN_REQUIRED_CODE = "PIPELINE_REPLAN_REQUIRED";
 const CHAPTER_TITLE_DIVERSITY_CODE = "CHAPTER_TITLE_DIVERSITY";
+export const CHAPTER_EXECUTION_CONTRACT_INCOMPLETE_FAILURE_CODE = "CHAPTER_EXECUTION_CONTRACT_INCOMPLETE";
+export const CHAPTER_EXECUTION_CONTRACT_REVIEW_FAILURE_CODE = "CHAPTER_EXECUTION_CONTRACT_REVIEW_REQUIRED";
+
+export function isChapterExecutionContractFailure(task: TaskQueuePresentationInput): boolean {
+  return task.failureCode === CHAPTER_EXECUTION_CONTRACT_INCOMPLETE_FAILURE_CODE;
+}
+
+export function isChapterExecutionContractReviewFailure(task: TaskQueuePresentationInput): boolean {
+  return isChapterExecutionContractFailure(task)
+    || task.failureCode === CHAPTER_EXECUTION_CONTRACT_REVIEW_FAILURE_CODE;
+}
 
 export function isTaskReplanRequired(task: TaskQueuePresentationInput): boolean {
   return task.checkpointType === "replan_required"

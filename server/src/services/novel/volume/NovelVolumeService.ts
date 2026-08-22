@@ -642,6 +642,7 @@ export class NovelVolumeService {
       emitEvent?: boolean;
       syncPayoffLedger?: boolean;
       volumeUpdateReason?: VolumeUpdateReason;
+      qualityGateMode?: "strict" | "defer_and_continue";
     } = {},
   ): Promise<VolumeSyncPreview> {
     return new VolumeChapterSyncService({

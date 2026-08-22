@@ -16,6 +16,7 @@ import {
   runVolumeWorkspaceTransaction,
 } from "./volumeWorkspacePersistence";
 import { serializeVolumeWorkspaceDocument } from "./volumeWorkspaceDocument";
+import { ChapterExecutionContractQualityGateError } from "./ChapterExecutionContractQualityGateError";
 
 export interface ChapterExecutionContractServiceDeps {
   storyMacroPlanService: Pick<StoryMacroPlanService, "getPlan">;
@@ -81,29 +82,84 @@ export class ChapterExecutionContractService {
       throw new Error("章节不存在。");
     }
 
-    const existingScenePlan = parseChapterScenePlan(chapter.sceneCards, {
+    const databaseScenePlan = parseChapterScenePlan(chapter.sceneCards, {
       targetWordCount: chapter.targetWordCount ?? undefined,
     });
-    if (
+    const hasCompleteDatabaseContract = Boolean(
       typeof chapter.conflictLevel === "number"
       && typeof chapter.revealLevel === "number"
       && typeof chapter.targetWordCount === "number"
       && chapter.mustAvoid?.trim()
       && chapter.taskSheet?.trim()
-      && existingScenePlan
-    ) {
+      && databaseScenePlan,
+    );
+
+    let workspace: VolumePlanDocument;
+    let matched: { volumeId: string; volumeChapterId: string };
+    try {
+      workspace = await this.deps.ensureVolumeWorkspace(novelId);
+      matched = this.deps.findVolumeChapterMatch(workspace, {
+        order: chapter.order,
+        title: chapter.title,
+      });
+    } catch (error) {
+      if (hasCompleteDatabaseContract) {
+        const styleContract = await this.resolveStyleContract(novelId, chapterId, options.taskStyleProfileId);
+        return { ...chapter, styleContract };
+      }
+      throw error;
+    }
+
+    if (hasCompleteDatabaseContract) {
+      const styleContract = await this.resolveStyleContract(novelId, chapterId, options.taskStyleProfileId);
+      return { ...chapter, styleContract };
+    }
+
+    const existingVolume = workspace.volumes.find((volume) => volume.id === matched.volumeId);
+    const existingVolumeChapter = existingVolume?.chapters.find((item) => item.id === matched.volumeChapterId);
+    const existingScenePlan = parseChapterScenePlan(existingVolumeChapter?.sceneCards, {
+      targetWordCount: existingVolumeChapter?.targetWordCount ?? undefined,
+    });
+    const existingQuality = existingVolumeChapter
+      ? assessChapterExecutionContractShape({
+        novelId,
+        volumeId: matched.volumeId,
+        chapterId,
+        chapterOrder: chapter.order,
+        title: chapter.title,
+        summary: existingVolumeChapter.summary,
+        purpose: existingVolumeChapter.purpose,
+        exclusiveEvent: existingVolumeChapter.exclusiveEvent,
+        endingState: existingVolumeChapter.endingState,
+        nextChapterEntryState: existingVolumeChapter.nextChapterEntryState,
+        conflictLevel: existingVolumeChapter.conflictLevel,
+        revealLevel: existingVolumeChapter.revealLevel,
+        targetWordCount: existingVolumeChapter.targetWordCount,
+        mustAvoid: existingVolumeChapter.mustAvoid,
+        payoffRefs: existingVolumeChapter.payoffRefs,
+        taskSheet: existingVolumeChapter.taskSheet,
+        sceneCards: existingVolumeChapter.sceneCards,
+      })
+      : null;
+    if (existingQuality?.canEnterExecution && existingScenePlan) {
+      const syncedChapter = await prisma.chapter.update({
+        where: { id: chapterId },
+        data: {
+          targetWordCount: existingVolumeChapter?.targetWordCount ?? null,
+          conflictLevel: existingVolumeChapter?.conflictLevel ?? null,
+          revealLevel: existingVolumeChapter?.revealLevel ?? null,
+          mustAvoid: existingVolumeChapter?.mustAvoid ?? null,
+          taskSheet: existingVolumeChapter?.taskSheet?.trim() || null,
+          sceneCards: existingVolumeChapter?.sceneCards ?? null,
+        },
+      });
       const styleContract = await this.resolveStyleContract(novelId, chapterId, options.taskStyleProfileId);
       return {
-        ...chapter,
+        ...syncedChapter,
         styleContract,
       };
     }
 
-    const workspace = await this.deps.ensureVolumeWorkspace(novelId);
-    const matched = this.deps.findVolumeChapterMatch(workspace, {
-      order: chapter.order,
-      title: chapter.title,
-    });
     const generatedDocument = await generateVolumePlanDocument({
       novelId,
       workspace,
@@ -122,14 +178,26 @@ export class ChapterExecutionContractService {
     const targetVolume = generatedDocument.volumes.find((volume) => volume.id === matched.volumeId);
     const targetChapter = targetVolume?.chapters.find((item) => item.id === matched.volumeChapterId);
     if (!targetChapter?.taskSheet?.trim() || !targetChapter.sceneCards?.trim()) {
-      throw new Error("AI 未返回完整的章节执行合同。");
+      throw new ChapterExecutionContractQualityGateError({
+        novelId,
+        volumeId: matched.volumeId,
+        chapterId,
+        chapterOrder: chapter.order,
+        message: "AI 未返回完整的章节执行合同。",
+      });
     }
     const taskSheet = targetChapter.taskSheet.trim();
     const scenePlan = parseChapterScenePlan(targetChapter.sceneCards, {
       targetWordCount: targetChapter.targetWordCount ?? chapter.targetWordCount ?? undefined,
     });
     if (!scenePlan) {
-      throw new Error("章节执行合同中的场景预算无效。");
+      throw new ChapterExecutionContractQualityGateError({
+        novelId,
+        volumeId: matched.volumeId,
+        chapterId,
+        chapterOrder: chapter.order,
+        message: "章节执行合同中的场景预算无效。",
+      });
     }
     const finalQuality = assessChapterExecutionContractShape({
       novelId,
@@ -151,7 +219,13 @@ export class ChapterExecutionContractService {
       sceneCards: serializeChapterScenePlan(scenePlan),
     });
     if (!finalQuality.canEnterExecution) {
-      throw new Error(formatChapterTaskSheetQualityFailure(finalQuality));
+      throw new ChapterExecutionContractQualityGateError({
+        novelId,
+        volumeId: matched.volumeId,
+        chapterId,
+        chapterOrder: chapter.order,
+        message: formatChapterTaskSheetQualityFailure(finalQuality),
+      });
     }
 
     const styleContract = await this.resolveStyleContract(novelId, chapterId, options.taskStyleProfileId);

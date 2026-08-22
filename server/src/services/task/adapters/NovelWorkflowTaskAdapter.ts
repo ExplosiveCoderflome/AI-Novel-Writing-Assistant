@@ -25,6 +25,7 @@ import {
 } from "../../novel/director/runtime/novelDirectorHelpers";
 import { isAutoDirectorRecoveryInProgress } from "../../novel/workflow/novelWorkflowRecoveryHeuristics";
 import {
+  buildNovelEditResumeTarget,
   buildNovelCreateResumeTarget,
   parseMilestones,
   parseSeedPayload,
@@ -45,6 +46,9 @@ import {
 import { buildNovelWorkflowDetailSteps } from "../novelWorkflowDetailSteps";
 import { buildWorkflowExplainability } from "../novelWorkflowExplainability";
 import { buildNovelWorkflowNextActionLabel } from "../novelWorkflowTaskSummary";
+
+const CHAPTER_EXECUTION_CONTRACT_INCOMPLETE_FAILURE_CODE = "CHAPTER_EXECUTION_CONTRACT_INCOMPLETE";
+const CHAPTER_EXECUTION_CONTRACT_REVIEW_FAILURE_CODE = "CHAPTER_EXECUTION_CONTRACT_REVIEW_REQUIRED";
 
 function buildOwnerLabel(row: {
   novel?: { title: string } | null;
@@ -285,6 +289,13 @@ function mapSummary(row: {
   const isSkippableReviewBlockedFailure = status === "failed"
     && checkpointType === "chapter_batch_ready"
     && isSkippableAutoExecutionReviewFailure(row.lastError);
+  const hasChapterExecutionContractFailure = status === "failed"
+    && row.currentItemKey === "chapter_execution_contract_repair";
+  // Older task records were created before the failing chapter could be stored
+  // on the task. Keep their stable workflow-step signal actionable without
+  // attempting to infer a chapter from the human-readable error message.
+  const needsLegacyChapterExecutionContractReview = status === "failed"
+    && (row.currentItemKey === "chapter_sync" || row.currentItemKey === "chapter_detail_bundle");
   const lastError = (isRecoveryInProgress || isSkippableReviewBlockedFailure) ? null : row.lastError;
   const resumeTarget = normalizeWorkflowResumeTargetForCandidateSelection({
     id: row.id,
@@ -293,7 +304,18 @@ function mapSummary(row: {
     resumeTargetJson: row.resumeTargetJson,
     seedPayloadJson: row.seedPayloadJson,
   });
-  const sourceRoute = resumeTargetToRoute(resumeTarget);
+  const chapterContractReviewRoute = (hasChapterExecutionContractFailure || needsLegacyChapterExecutionContractReview)
+    && row.novelId
+    ? resumeTargetToRoute(buildNovelEditResumeTarget({
+      novelId: row.novelId,
+      taskId: row.id,
+      lane: "auto_director",
+      stage: "structured",
+      chapterId: resumeTarget?.chapterId ?? null,
+      volumeId: resumeTarget?.volumeId ?? null,
+    }))
+    : null;
+  const sourceRoute = chapterContractReviewRoute ?? resumeTargetToRoute(resumeTarget);
   const ownerLabel = buildOwnerLabel(row);
   const linkedPipelineJobId = parseLinkedPipelineJobId(row.seedPayloadJson);
   const taskNotice = parseTaskNotice(row.seedPayloadJson);
@@ -332,6 +354,10 @@ function mapSummary(row: {
   const failureSummary = status === "failed"
     ? (isSkippableReviewBlockedFailure
       ? buildSkippableAutoExecutionReviewFailureSummary(autoExecution)
+      : hasChapterExecutionContractFailure
+        ? "当前章节缺少正文生成前的执行信息。系统会先自动补全章节目标、边界和写作约束；若仍未完成，可打开对应章节查看并手动补齐。"
+      : needsLegacyChapterExecutionContractReview
+        ? "章节规划还没有完成同步。系统会先自动补齐并同步；若仍未完成，可打开章节规划查看当前章节并手动补齐。"
       : normalizeFailureSummary(lastError, "Novel workflow stopped without a recorded error."))
     : null;
   const recoveryHint = isSkippableReviewBlockedFailure
@@ -374,7 +400,13 @@ function mapSummary(row: {
     ),
     noticeCode: taskNotice?.code ?? null,
     noticeSummary: taskNotice?.summary ?? null,
-    failureCode: status === "failed" && !isSkippableReviewBlockedFailure ? "NOVEL_WORKFLOW_FAILED" : null,
+    failureCode: status === "failed" && !isSkippableReviewBlockedFailure
+      ? (hasChapterExecutionContractFailure
+        ? CHAPTER_EXECUTION_CONTRACT_INCOMPLETE_FAILURE_CODE
+        : needsLegacyChapterExecutionContractReview
+          ? CHAPTER_EXECUTION_CONTRACT_REVIEW_FAILURE_CODE
+        : "NOVEL_WORKFLOW_FAILED")
+      : null,
     failureSummary,
     recoveryHint,
     tokenUsage: toTaskTokenUsageSummary({

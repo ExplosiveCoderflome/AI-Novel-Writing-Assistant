@@ -171,6 +171,9 @@ These areas have the highest priority for wiki accumulation:
 ## Verification Reuse Rules
 
 - Prefer targeted verification that matches the actual change scope.
+- Use CodeGraph as the first architectural lookup for non-trivial source changes. Before editing a cross-module workflow, runtime contract, prompt path, task recovery path, or other high-fanout area, run `rtk codegraph explore "<intent or module>"` and, when a concrete symbol is being changed, `rtk codegraph impact <symbol>`. Use the result to identify direct callers, downstream flows, and likely regression scope before implementation.
+- After each coherent source-code change slice, run `rtk codegraph sync .`, then `rtk codegraph affected <changed-source-files...>` to identify candidate regression tests. Treat CodeGraph output as an impact hypothesis: run the selected tests and retain the existing diff, caller, contract, and runtime verification requirements rather than treating a low-impact result as proof of safety.
+- The `.codegraph/` index is local and gitignored. Do not stage, commit, or use generated CodeGraph metadata to replace this project's architecture, release-note, wiki, or verification records.
 - For UI-facing project modifications, do not run browser, screenshot, Playwright, visual, or manual interaction verification by default; the user will perform UI acceptance testing. Use code-level checks such as typecheck or focused tests when they fit the change, and clearly state that UI verification is left to the user.
 - If a recent build, typecheck, packaging check, or test run already covers the same code paths after the relevant files last changed, do not repeat the same expensive verification by default.
 - Before reusing recent verification, confirm the evidence is recent, tied to the same branch or commit range, and not invalidated by subsequent changes.

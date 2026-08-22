@@ -312,6 +312,7 @@ export class DirectorCoreStepModuleRuntime {
       {
         emitEvent: false,
         syncPayoffLedger: true,
+        qualityGateMode: "defer_and_continue",
       },
     );
   }
