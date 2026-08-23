@@ -9,6 +9,7 @@ const readClientFile = (relativePath) => readFileSync(join(clientRoot, relativeP
 
 const workbenchPage = readClientFile("src/pages/promptWorkbench/PromptWorkbenchPage.tsx");
 const editorShell = readClientFile("src/pages/promptWorkbench/components/PromptEditorShell.tsx");
+const catalogSidebar = readClientFile("src/pages/promptWorkbench/components/PromptCatalogSidebar.tsx");
 const runBar = readClientFile("src/pages/promptWorkbench/components/PromptRunBar.tsx");
 const themeStyles = readClientFile("src/index.css");
 const chapterPage = readClientFile("src/pages/novels/NovelChapterEdit.tsx");
@@ -34,4 +35,10 @@ test("提示词工作台在深色主题下将旧的浅色面板映射为语义�
   assert.match(runBar, /bg-primary text-primary-foreground/);
   assert.match(themeStyles, /\.dark \.prompt-workbench-theme \[class\*="bg-white"\]/);
   assert.match(themeStyles, /\.dark \.prompt-workbench-theme \[class\*="text-\[#254"\]/);
+});
+
+test("提示词目录的状态标签使用语义色，避免深色主题下白字失去背景", () => {
+  assert.match(catalogSidebar, /bg-success px-1\.5 py-0\.5 text-\[11px\] font-medium leading-4 text-success-foreground/);
+  assert.match(catalogSidebar, /bg-success\/15 text-success/);
+  assert.doesNotMatch(catalogSidebar, /bg-\[#0f766e\].*text-white/);
 });
