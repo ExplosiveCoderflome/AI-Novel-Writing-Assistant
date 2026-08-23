@@ -11,6 +11,8 @@ import { Input } from "@/components/ui/input";
 export interface KnowledgeEmbeddingSettingsFormState {
   embeddingProvider: EmbeddingProvider;
   embeddingModel: string;
+  embeddingApiKey: string;
+  embeddingBaseURL: string;
   collectionVersion: number;
   collectionMode: "auto" | "manual";
   collectionName: string;
@@ -191,6 +193,29 @@ export default function KnowledgeEmbeddingSettingsCard({
                 </div>
               ) : null}
             </div>
+          </div>
+
+          <div className="grid gap-4 md:grid-cols-2">
+            <div className="space-y-2">
+              <div className="text-sm font-medium">向量服务 API Key</div>
+              <Input
+                type="password"
+                value={form.embeddingApiKey}
+                onChange={(event) => setForm((prev) => ({ ...prev, embeddingApiKey: event.target.value }))}
+                placeholder={currentProvider?.isConfigured ? "留空则保留已保存的 Key" : "请输入向量服务 API Key"}
+              />
+            </div>
+            <div className="space-y-2">
+              <div className="text-sm font-medium">向量服务 API 地址</div>
+              <Input
+                value={form.embeddingBaseURL}
+                onChange={(event) => setForm((prev) => ({ ...prev, embeddingBaseURL: event.target.value }))}
+                placeholder="留空则使用该服务商的默认地址"
+              />
+            </div>
+          </div>
+          <div className="text-xs leading-5 text-muted-foreground">
+            这里的连接只用于资料理解，不会改动创作模型、默认模型或任务路由。
           </div>
 
         </section>

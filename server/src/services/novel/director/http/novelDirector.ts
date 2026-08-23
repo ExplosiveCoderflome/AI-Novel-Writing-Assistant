@@ -18,6 +18,11 @@ import {
   DIRECTOR_TAKEOVER_ENTRY_STEPS,
   DIRECTOR_TAKEOVER_START_PHASES,
   DIRECTOR_TAKEOVER_STRATEGIES,
+  DIRECTOR_IDEA_CONSTELLATION_CATEGORIES,
+  type DirectorIdeaConstellationComposeRequest,
+  type DirectorIdeaConstellationComposeResponse,
+  type DirectorIdeaConstellationOptionsRequest,
+  type DirectorIdeaConstellationOptionsResponse,
   type DirectorIdeaInspirationRequest,
   type DirectorIdeaInspirationsResponse,
   type DirectorCandidatePatchRequest,
@@ -40,6 +45,7 @@ import { DirectorCommandService } from "../commands/DirectorCommandService";
 import { DirectorTaskSnapshotService } from "../projections/DirectorTaskSnapshotService";
 import { NovelDirectorService } from "../NovelDirectorService";
 import { novelDirectorIdeaInspirationService } from "../NovelDirectorIdeaInspirationService";
+import { novelDirectorIdeaConstellationService } from "../idea/NovelDirectorIdeaConstellationService";
 import { directorPersistedCandidateSchema } from "../runtime/novelDirectorSchemas";
 
 const router = Router();
@@ -131,7 +137,7 @@ const candidatesSchema = projectContextSchema.extend({
   workflowTaskId: z.string().trim().optional(),
 }).merge(llmOptionsSchema);
 
-const ideaInspirationsSchema = projectContextSchema.extend({
+const ideaContextRequestSchema = projectContextSchema.extend({
   currentIdea: z.string().trim().max(1000).optional(),
   genreLabel: z.string().trim().max(120).optional(),
   genreDescription: z.string().trim().max(1000).optional(),
@@ -141,6 +147,26 @@ const ideaInspirationsSchema = projectContextSchema.extend({
   secondaryStoryModeDescription: z.string().trim().max(1000).optional(),
   worldName: z.string().trim().max(120).optional(),
 }).merge(llmOptionsSchema);
+
+const ideaConstellationSelectionSchema = z.object({
+  id: z.string().trim().min(1).max(48),
+  category: z.enum(DIRECTOR_IDEA_CONSTELLATION_CATEGORIES),
+  label: z.string().trim().min(2).max(12),
+  hint: z.string().trim().min(4).max(48),
+}).strict();
+
+const ideaConstellationComposeSchema = ideaContextRequestSchema.extend({
+  selectedOptions: z.array(ideaConstellationSelectionSchema).min(1).max(6),
+}).superRefine((input, context) => {
+  const categories = new Set(input.selectedOptions.map((option) => option.category));
+  if (categories.size !== input.selectedOptions.length) {
+    context.addIssue({
+      code: "custom",
+      path: ["selectedOptions"],
+      message: "每种故事星图维度最多选择一项。",
+    });
+  }
+});
 
 const candidateBatchSchema = z.object({
   id: z.string().trim().min(1),
@@ -315,12 +341,34 @@ router.post("/tasks", validate({ body: createTaskSchema }), async (req, res, nex
   }
 });
 
-router.post("/idea-inspirations", validate({ body: ideaInspirationsSchema }), async (req, res, next) => {
+router.post("/idea-inspirations", validate({ body: ideaContextRequestSchema }), async (req, res, next) => {
   try {
     const data = await novelDirectorIdeaInspirationService.generate(
       req.body as DirectorIdeaInspirationRequest,
     ) as DirectorIdeaInspirationsResponse;
     res.status(200).json(accepted(data, "Director idea inspirations generated."));
+  } catch (error) {
+    next(error);
+  }
+});
+
+router.post("/idea-constellation/options", validate({ body: ideaContextRequestSchema }), async (req, res, next) => {
+  try {
+    const data = await novelDirectorIdeaConstellationService.generateOptions(
+      req.body as DirectorIdeaConstellationOptionsRequest,
+    ) as DirectorIdeaConstellationOptionsResponse;
+    res.status(200).json(accepted(data, "Director idea constellation options generated."));
+  } catch (error) {
+    next(error);
+  }
+});
+
+router.post("/idea-constellation/compose", validate({ body: ideaConstellationComposeSchema }), async (req, res, next) => {
+  try {
+    const data = await novelDirectorIdeaConstellationService.compose(
+      req.body as DirectorIdeaConstellationComposeRequest,
+    ) as DirectorIdeaConstellationComposeResponse;
+    res.status(200).json(accepted(data, "Director idea constellation composed."));
   } catch (error) {
     next(error);
   }

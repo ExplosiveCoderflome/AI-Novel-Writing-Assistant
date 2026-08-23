@@ -219,6 +219,9 @@ export async function getRagSettings() {
 export async function saveRagSettings(payload: {
   embeddingProvider: EmbeddingProvider;
   embeddingModel: string;
+  /** Credentials here configure only the selected embedding connection. */
+  embeddingApiKey?: string;
+  embeddingBaseURL?: string;
   collectionMode: "auto" | "manual";
   collectionName: string;
   collectionTag: string;

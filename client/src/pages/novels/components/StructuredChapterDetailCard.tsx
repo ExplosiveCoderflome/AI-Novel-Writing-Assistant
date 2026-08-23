@@ -50,8 +50,10 @@ interface StructuredChapterDetailCardProps {
   isGeneratingChapterDetailBundle: boolean;
   generatingChapterDetailMode: "purpose" | "boundary" | "task_sheet" | "";
   generatingChapterDetailChapterId: string;
+  chapterDetailFailure: StructuredTabViewProps["chapterDetailFailure"];
   onGenerateChapterDetail: StructuredTabViewProps["onGenerateChapterDetail"];
   onGenerateChapterDetailBundle: StructuredTabViewProps["onGenerateChapterDetailBundle"];
+  onRetryFailedChapterDetail: StructuredTabViewProps["onRetryFailedChapterDetail"];
   onChapterFieldChange: StructuredTabViewProps["onChapterFieldChange"];
   onChapterNumberChange: StructuredTabViewProps["onChapterNumberChange"];
   onChapterPayoffRefsChange: StructuredTabViewProps["onChapterPayoffRefsChange"];
@@ -73,8 +75,10 @@ export default function StructuredChapterDetailCard(props: StructuredChapterDeta
     isGeneratingChapterDetailBundle,
     generatingChapterDetailMode,
     generatingChapterDetailChapterId,
+    chapterDetailFailure,
     onGenerateChapterDetail,
     onGenerateChapterDetailBundle,
+    onRetryFailedChapterDetail,
     onChapterFieldChange,
     onChapterNumberChange,
     onChapterPayoffRefsChange,
@@ -214,6 +218,19 @@ export default function StructuredChapterDetailCard(props: StructuredChapterDeta
         </div>
       </CardHeader>
       <CardContent className="space-y-4">
+        {chapterDetailFailure ? (
+          <div className="flex flex-col gap-3 rounded-xl border border-destructive/40 bg-destructive/5 p-3 text-sm sm:flex-row sm:items-center sm:justify-between">
+            <div className="space-y-1">
+              <div className="font-medium">第{chapterDetailFailure.chapterOrder}章的{chapterDetailFailure.mode === "purpose" ? "章节目标" : chapterDetailFailure.mode === "boundary" ? "执行边界" : "任务单"}未完成</div>
+              <div className="text-xs text-muted-foreground">已完成的内容已保留，未完成部分会从这里继续。</div>
+            </div>
+            {onRetryFailedChapterDetail ? (
+              <AiButton size="sm" onClick={onRetryFailedChapterDetail} disabled={isGeneratingChapterDetail || locked}>
+                从失败处继续
+              </AiButton>
+            ) : null}
+          </div>
+        ) : null}
         {selectedVolume && selectedChapter ? (
           <>
             <div className="rounded-xl border border-border/70 bg-muted/20 p-4">
