@@ -125,15 +125,15 @@ export class MarketRadarService {
 
   async recoverInterruptedRuns(): Promise<void> {
     await prisma.marketScanRun.updateMany({
-      where: { status: { in: ["queued", "running"] } },
-      data: { status: "interrupted", lastError: "应用已重启，请重新扫榜。", finishedAt: new Date() },
+      where: { status: { in: ["queued", "running", "analyzing"] } },
+      data: { status: "interrupted", lastError: "任务因应用重启而中断，请重新扫榜或分析。", finishedAt: new Date() },
     });
   }
 
   async startScan(platforms?: MarketRadarPlatform[]): Promise<MarketScanRun> {
     const requestedPlatforms = normalizePlatforms(platforms);
     const recent = await prisma.marketScanRun.findFirst({
-      where: { createdAt: { gte: new Date(Date.now() - REFRESH_GUARD_MS) }, status: { in: ["queued", "running", "succeeded", "partial"] } },
+      where: { createdAt: { gte: new Date(Date.now() - REFRESH_GUARD_MS) }, status: { in: ["queued", "running", "ready", "analyzing", "succeeded", "partial"] } },
       orderBy: { createdAt: "desc" },
       include: { snapshots: { include: { items: true } }, report: true },
     });
@@ -144,8 +144,8 @@ export class MarketRadarService {
     const run = await prisma.marketScanRun.create({
       data: { requestedPlatformsJson: JSON.stringify(requestedPlatforms) },
     });
-    setImmediate(() => void this.executeScan(run.id).catch(async (error) => {
-      const message = error instanceof Error ? error.message : "市场分析失败";
+    setImmediate(() => void this.collectRankings(run.id).catch(async (error) => {
+      const message = error instanceof Error ? error.message : "扫榜失败";
       console.error("[market-radar] scan failed", error);
       await prisma.marketScanRun.updateMany({
         where: { id: run.id, status: { in: ["queued", "running"] } },
@@ -153,6 +153,39 @@ export class MarketRadarService {
       });
     }));
     return this.getScan(run.id) as Promise<MarketScanRun>;
+  }
+
+  async startAnalysis(runId: string): Promise<MarketScanRun> {
+    const run = await prisma.marketScanRun.findUnique({
+      where: { id: runId },
+      include: { snapshots: { include: { items: true } }, report: true },
+    });
+    if (!run) throw new Error("扫榜任务不存在。");
+    if (run.report) return this.getScan(runId) as Promise<MarketScanRun>;
+    if (run.status === "queued" || run.status === "running") throw new Error("榜单仍在采集中，请稍后再分析。");
+    const successful = run.snapshots.filter((snapshot) => snapshot.status === "succeeded" && snapshot.items.length > 0);
+    if (successful.length === 0) throw new Error("没有可供AI分析的榜单数据。");
+
+    const claimed = await prisma.marketScanRun.updateMany({
+      where: { id: runId, status: { in: ["ready", "partial", "interrupted"] } },
+      data: { status: "analyzing", progress: 0.65, lastError: null, finishedAt: null },
+    });
+    if (claimed.count > 0) {
+      setImmediate(() => void this.analyzeRankings(runId).catch(async (error) => {
+        const snapshots = await prisma.marketRankingSnapshot.findMany({ where: { runId }, include: { items: true } });
+        const hasFailures = snapshots.some((snapshot) => snapshot.status === "failed");
+        await prisma.marketScanRun.update({
+          where: { id: runId },
+          data: {
+            status: hasFailures ? "partial" : "ready",
+            progress: 0.6,
+            lastError: error instanceof Error ? `AI分析失败：${error.message}` : "AI分析失败，请重试。",
+            finishedAt: new Date(),
+          },
+        });
+      }));
+    }
+    return this.getScan(runId) as Promise<MarketScanRun>;
   }
 
   async getLatest(): Promise<MarketTrendReport | null> {
@@ -176,6 +209,7 @@ export class MarketRadarService {
       progress: run.progress,
       requestedPlatforms: parseJson<MarketRadarPlatform[]>(run.requestedPlatformsJson, []),
       platformStatuses: buildPlatformStatuses(run.snapshots),
+      rankingItems: run.snapshots.flatMap((snapshot) => snapshot.items.map((item) => toRankingItem({ ...item, snapshot }))),
       report,
       lastError: run.lastError,
       createdAt: run.createdAt.toISOString(),
@@ -230,7 +264,7 @@ export class MarketRadarService {
     return brief?.promptBlock.trim() ?? "";
   }
 
-  private async executeScan(runId: string): Promise<void> {
+  private async collectRankings(runId: string): Promise<void> {
     const run = await prisma.marketScanRun.update({
       where: { id: runId },
       data: { status: "running", startedAt: new Date(), progress: 0.05, lastError: null },
@@ -277,6 +311,17 @@ export class MarketRadarService {
       return;
     }
 
+    const hasFailures = snapshots.some((snapshot) => snapshot.status === "failed");
+    await prisma.marketScanRun.update({
+      where: { id: runId },
+      data: { status: hasFailures ? "partial" : "ready", progress: 0.6, finishedAt: new Date() },
+    });
+  }
+
+  private async analyzeRankings(runId: string): Promise<void> {
+    const snapshots = await prisma.marketRankingSnapshot.findMany({ where: { runId }, include: { items: true } });
+    const successful = snapshots.filter((snapshot) => snapshot.status === "succeeded" && snapshot.items.length > 0);
+    const requested = [...new Set(snapshots.map((snapshot) => snapshot.platform as MarketRadarPlatform))];
     const allRows = successful.flatMap((snapshot) => snapshot.items.map((item) => ({ ...item, snapshot })));
     const allItems = allRows.map(toRankingItem);
     const platformDigests = await Promise.all(requested.map(async (platform) => {

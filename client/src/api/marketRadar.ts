@@ -4,18 +4,12 @@ import type {
   MarketRadarListSource,
   MarketRadarPlatform,
   MarketScanRun,
-  MarketTrendReport,
 } from "@ai-novel/shared/types/marketRadar";
 import type { ApiResponse } from "@ai-novel/shared/types/api";
 import { apiClient } from "./client";
 
 export async function getMarketRadarSources() {
   const { data } = await apiClient.get<ApiResponse<MarketRadarListSource[]>>("/market-radar/sources");
-  return data;
-}
-
-export async function getLatestMarketRadarReport() {
-  const { data } = await apiClient.get<ApiResponse<MarketTrendReport | null>>("/market-radar/latest");
   return data;
 }
 
@@ -26,6 +20,11 @@ export async function startMarketRadarScan(platforms: MarketRadarPlatform[]) {
 
 export async function getMarketRadarScan(id: string) {
   const { data } = await apiClient.get<ApiResponse<MarketScanRun>>(`/market-radar/scans/${id}`);
+  return data;
+}
+
+export async function startMarketRadarAnalysis(id: string) {
+  const { data } = await apiClient.post<ApiResponse<MarketScanRun>>(`/market-radar/scans/${id}/analysis`);
   return data;
 }
 

@@ -4,7 +4,7 @@ export type MarketRadarPlatform = typeof MARKET_RADAR_PLATFORMS[number];
 export const MARKET_INFLUENCE_MODES = ["follow_hot", "differentiate", "light"] as const;
 export type MarketInfluenceMode = typeof MARKET_INFLUENCE_MODES[number];
 
-export type MarketScanStatus = "queued" | "running" | "succeeded" | "partial" | "failed" | "interrupted";
+export type MarketScanStatus = "queued" | "running" | "ready" | "analyzing" | "succeeded" | "partial" | "failed" | "interrupted";
 export type MarketTrendDirection = "current" | "rising" | "stable" | "falling";
 
 export interface MarketRadarListSource {
@@ -67,6 +67,7 @@ export interface MarketScanRun {
   progress: number;
   requestedPlatforms: MarketRadarPlatform[];
   platformStatuses: MarketPlatformStatus[];
+  rankingItems: MarketRankingItem[];
   report?: MarketTrendReport | null;
   lastError?: string | null;
   createdAt: string;
