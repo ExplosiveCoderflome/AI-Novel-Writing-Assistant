@@ -17,6 +17,7 @@ import {
 } from "../../../prompting/prompts/marketRadar/marketRadar.prompts";
 import {
   collectMarketSource,
+  hasPrivateUseCharacters,
   MARKET_RADAR_SOURCES,
 } from "../infrastructure/marketRadarSources";
 
@@ -102,9 +103,11 @@ function formatRankingItems(items: MarketRankingItem[]): string {
     const key = `${item.title}::${item.author ?? ""}`;
     groups.set(key, [...(groups.get(key) ?? []), item]);
   }
-  return [...groups.values()].map((appearances) => {
+  const isPrimary = (appearances: MarketRankingItem[]) => appearances.some((item) => item.listKey === "new_book" || item.listKey === "new_author");
+  return [...groups.values()].sort((left, right) => Number(isPrimary(right)) - Number(isPrimary(left))).map((appearances) => {
     const item = appearances.sort((left, right) => left.rank - right.rank)[0];
     return [
+    `证据层级=${isPrimary(appearances) ? "主要（新书榜或新晋作者榜）" : "辅助（成熟榜单，仅用于验证持续需求）"}`,
     `证据ID=${appearances.map((appearance) => appearance.id).join(",")}`,
     `上榜记录=${appearances.map((appearance) => `${appearance.listKey}第${appearance.rank}名`).join("、")}`,
     `书名=${item.title}`,
@@ -137,7 +140,10 @@ export class MarketRadarService {
       orderBy: { createdAt: "desc" },
       include: { snapshots: { include: { items: true } }, report: true },
     });
-    if (recent && samePlatforms(recent.requestedPlatformsJson, requestedPlatforms)) {
+    const hasObfuscatedFanqieData = recent?.snapshots.some((snapshot) => snapshot.platform === "fanqie"
+      && snapshot.items.some((item) => hasPrivateUseCharacters(item.title) || hasPrivateUseCharacters(item.author)));
+    const hasLegacyCompletedProgress = recent && ["ready", "partial", "succeeded"].includes(recent.status) && recent.progress < 1;
+    if (recent && samePlatforms(recent.requestedPlatformsJson, requestedPlatforms) && !hasObfuscatedFanqieData && !hasLegacyCompletedProgress) {
       return this.getScan(recent.id) as Promise<MarketScanRun>;
     }
 
@@ -168,7 +174,7 @@ export class MarketRadarService {
 
     const claimed = await prisma.marketScanRun.updateMany({
       where: { id: runId, status: { in: ["ready", "partial", "interrupted"] } },
-      data: { status: "analyzing", progress: 0.65, lastError: null, finishedAt: null },
+      data: { status: "analyzing", progress: 0.05, lastError: null, finishedAt: null },
     });
     if (claimed.count > 0) {
       setImmediate(() => void this.analyzeRankings(runId).catch(async (error) => {
@@ -178,7 +184,7 @@ export class MarketRadarService {
           where: { id: runId },
           data: {
             status: hasFailures ? "partial" : "ready",
-            progress: 0.6,
+            progress: 1,
             lastError: error instanceof Error ? `AI分析失败：${error.message}` : "AI分析失败，请重试。",
             finishedAt: new Date(),
           },
@@ -271,7 +277,7 @@ export class MarketRadarService {
     });
     const requested = parseJson<MarketRadarPlatform[]>(run.requestedPlatformsJson, []);
     const sources = MARKET_RADAR_SOURCES.filter((source) => requested.includes(source.platform));
-    await Promise.all(sources.map(async (source, index) => {
+    await Promise.all(sources.map(async (source) => {
       try {
         const items = await collectMarketSource(source);
         await prisma.marketRankingSnapshot.create({
@@ -300,7 +306,7 @@ export class MarketRadarService {
           },
         });
       } finally {
-        await prisma.marketScanRun.update({ where: { id: runId }, data: { progress: 0.1 + ((index + 1) / sources.length) * 0.45 } });
+        await prisma.marketScanRun.update({ where: { id: runId }, data: { progress: { increment: 0.9 / sources.length } } });
       }
     }));
 
@@ -314,7 +320,7 @@ export class MarketRadarService {
     const hasFailures = snapshots.some((snapshot) => snapshot.status === "failed");
     await prisma.marketScanRun.update({
       where: { id: runId },
-      data: { status: hasFailures ? "partial" : "ready", progress: 0.6, finishedAt: new Date() },
+      data: { status: hasFailures ? "partial" : "ready", progress: 1, finishedAt: new Date() },
     });
   }
 

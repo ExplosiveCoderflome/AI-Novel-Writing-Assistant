@@ -20,6 +20,7 @@ export const MARKET_RADAR_SOURCES: MarketRadarListSource[] = [
   { platform: "qidian", platformLabel: "起点中文网", listKey: "new_book", listLabel: "新书榜", channel: "male", sourceUrl: "https://m.qidian.com/rank/" },
   { platform: "jinjiang", platformLabel: "晋江文学城", listKey: "monthly", listLabel: "月度榜", channel: "female", sourceUrl: "https://m.jjwxc.net/rank/naturalmore/5" },
   { platform: "jinjiang", platformLabel: "晋江文学城", listKey: "quarterly", listLabel: "季度榜", channel: "female", sourceUrl: "https://m.jjwxc.net/rank/naturalmore/6" },
+  { platform: "jinjiang", platformLabel: "晋江文学城", listKey: "new_author", listLabel: "新晋作者榜", channel: "female", sourceUrl: "https://m.jjwxc.net/rank/naturalmore/29" },
 ];
 
 const NAMED_ENTITIES: Record<string, string> = {
@@ -51,6 +52,10 @@ function extractTags(synopsis: string): string[] {
     .map((tag) => tag.trim()).filter(Boolean).slice(0, 12);
 }
 
+export function hasPrivateUseCharacters(value: string | null | undefined): boolean {
+  return /[\uE000-\uF8FF]/u.test(value ?? "");
+}
+
 export function parseFanqieRanking(html: string, source: MarketRadarListSource): CollectedRankingItem[] {
   const blocks = html.match(/<div class="rank-book-item">[\s\S]*?(?=<div class="rank-book-item">|<\/main>|<footer|<\/body>)/g) ?? [];
   return blocks.slice(0, 30).flatMap((block, index) => {
@@ -69,6 +74,20 @@ export function parseFanqieRanking(html: string, source: MarketRadarListSource):
       sourceUrl: absoluteUrl(source.sourceUrl, titleMatch[1]),
     }];
   });
+}
+
+export function parseFanqieDetail(html: string, item: CollectedRankingItem): CollectedRankingItem {
+  const title = plainText(html.match(/<h1[^>]*>([\s\S]*?)<\/h1>/)?.[1]);
+  const author = plainText(html.match(/author-name-text[^>]*>([\s\S]*?)<\/a>/)?.[1]);
+  const synopsis = plainText(html.match(/<div class="page-abstract-content"[^>]*>\s*<p[^>]*>([\s\S]*?)<\/p>/)?.[1]);
+  if (!title || hasPrivateUseCharacters(title)) throw new Error("作品详情页未提供可读书名");
+  return {
+    ...item,
+    title,
+    author: author && !hasPrivateUseCharacters(author) ? author : undefined,
+    synopsis: synopsis && !hasPrivateUseCharacters(synopsis) ? synopsis.slice(0, 800) : undefined,
+    tags: synopsis && !hasPrivateUseCharacters(synopsis) ? extractTags(synopsis) : [],
+  };
 }
 
 export function parseQidianRanking(html: string, source: MarketRadarListSource): CollectedRankingItem[] {
@@ -113,6 +132,20 @@ async function fetchHtml(url: string): Promise<string> {
   return new TextDecoder(charset).decode(bytes);
 }
 
+async function hydrateFanqieItems(items: CollectedRankingItem[]): Promise<CollectedRankingItem[]> {
+  const hydrated: CollectedRankingItem[] = [];
+  for (let offset = 0; offset < items.length; offset += 4) {
+    const batch = await Promise.all(items.slice(offset, offset + 4).map(async (item) => {
+      const containsObfuscatedText = [item.title, item.author, item.synopsis].some(hasPrivateUseCharacters);
+      if (!containsObfuscatedText) return item;
+      try { return parseFanqieDetail(await fetchHtml(item.sourceUrl), item); }
+      catch { return null; }
+    }));
+    hydrated.push(...batch.filter((item): item is CollectedRankingItem => item !== null));
+  }
+  return hydrated;
+}
+
 export async function collectMarketSource(source: MarketRadarListSource): Promise<CollectedRankingItem[]> {
   const html = await fetchHtml(source.sourceUrl);
   const parsers: Record<MarketRadarPlatform, (value: string, item: MarketRadarListSource) => CollectedRankingItem[]> = {
@@ -120,7 +153,8 @@ export async function collectMarketSource(source: MarketRadarListSource): Promis
     qidian: parseQidianRanking,
     jinjiang: parseJinjiangRanking,
   };
-  const items = parsers[source.platform](html, source);
+  const parsed = parsers[source.platform](html, source);
+  const items = source.platform === "fanqie" ? await hydrateFanqieItems(parsed) : parsed;
   if (items.length === 0) throw new Error("榜单页面结构可能已变化，未识别到公开作品元数据");
   return items;
 }

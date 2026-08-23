@@ -125,7 +125,10 @@ export default function MarketRadarPage() {
       const key = `${item.platform}:${item.listKey}`;
       groups.set(key, [...(groups.get(key) ?? []), item]);
     }
-    return [...groups.entries()].map(([key, items]) => ({ key, items: items.sort((left, right) => left.rank - right.rank) }));
+    const isPrimaryList = (key: string) => key.endsWith(":new_book") || key.endsWith(":new_author");
+    return [...groups.entries()]
+      .sort(([left], [right]) => Number(isPrimaryList(right)) - Number(isPrimaryList(left)))
+      .map(([key, items]) => ({ key, items: items.sort((left, right) => left.rank - right.rank) }));
   }, [activeRun?.rankingItems]);
   const sourceLabels = useMemo(() => new Map((sourcesQuery.data?.data ?? []).map((source) => [`${source.platform}:${source.listKey}`, source.listLabel])), [sourcesQuery.data]);
 
