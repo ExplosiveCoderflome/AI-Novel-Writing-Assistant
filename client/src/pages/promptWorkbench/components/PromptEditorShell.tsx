@@ -190,8 +190,8 @@ export function PromptEditorShell(props: PromptEditorShellProps) {
                 className={cn(
                   "h-10 gap-2 border-[#b8d9d0]",
                   immersive
-                    ? "bg-white text-[#0f5f59] hover:bg-[#eef8f5]"
-                    : "bg-[#0f766e] text-white hover:bg-[#0b5f59]",
+                    ? "border-success/40 bg-card text-success hover:bg-success/10"
+                    : "border-success bg-success text-success-foreground hover:bg-success/90",
                 )}
                 title={immersive ? "退出沉浸编辑" : "进入沉浸编辑"}
               >

@@ -184,8 +184,12 @@
 .dark .prompt-workbench-theme [class*="bg-[#e8"],
 .dark .prompt-workbench-theme [class*="bg-[#ea"],
 .dark .prompt-workbench-theme [class*="bg-[#ee"],
+.dark .prompt-workbench-theme [class*="bg-[#ee"] {
+  background-color: hsl(var(--success) / 0.14);
+}
+
 .dark .prompt-workbench-theme [class*="bg-[#ed"] {
-  background-color: hsl(var(--primary) / 0.14);
+  background-color: hsl(var(--muted));
 }
 
 .dark .prompt-workbench-theme [class*="bg-[#f4f7ff"],
@@ -199,9 +203,12 @@
 }
 
 .dark .prompt-workbench-theme [class*="bg-[#0f"],
-.dark .prompt-workbench-theme [class*="bg-[#62"],
+.dark .prompt-workbench-theme [class*="bg-[#62"] {
+  background-color: hsl(var(--success));
+}
+
 .dark .prompt-workbench-theme [class*="bg-[#173"] {
-  background-color: hsl(var(--primary));
+  background-color: hsl(var(--info));
 }
 
 .dark .prompt-workbench-theme [class*="text-[#254"],
@@ -217,11 +224,14 @@
 }
 
 .dark .prompt-workbench-theme [class*="text-[#0f"],
-.dark .prompt-workbench-theme [class*="text-[#315"],
+.dark .prompt-workbench-theme [class*="text-[#315"] {
+  color: hsl(var(--success));
+}
+
 .dark .prompt-workbench-theme [class*="text-[#344"],
 .dark .prompt-workbench-theme [class*="text-[#385"],
 .dark .prompt-workbench-theme [class*="text-[#3b"] {
-  color: hsl(var(--primary));
+  color: hsl(var(--info));
 }
 
 .dark .prompt-workbench-theme [class*="text-[#7a"],
