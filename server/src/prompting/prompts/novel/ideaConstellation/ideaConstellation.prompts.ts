@@ -20,7 +20,7 @@ export const directorIdeaConstellationOptionsPrompt: PromptAsset<
   z.infer<typeof directorIdeaConstellationOptionsSchema>
 > = {
   id: "novel.director.idea_constellation_options",
-  version: "v2",
+  version: "v3",
   taskType: "planner",
   mode: "structured",
   language: "zh",
@@ -41,7 +41,7 @@ export const directorIdeaConstellationOptionsPrompt: PromptAsset<
     new SystemMessage([
       "你是面向中文网文新手的开书素材设计师。你的任务是根据当前题材、推进方式和用户想法，生成能直接拼成开书构想的具体网文素材，不是抽象主题词或编剧命题。",
       "必须严格输出七类、每类五项，共 35 项：protagonist 主角开局身份与困境、setting 题材舞台与利益规则、advantage 金手指或核心优势、opening_crisis 第一章爆点、core_goal 前期目标与阶段回报、story_variable 核心对手或主要阻力、relationship 能持续推进的关键关系。",
-      "每项 label 必须具体、短小、适合点击选择；hint 说明它会怎样落到开局行动、连续升级或读者回报。",
+      "每项 label 必须具体、适合点击选择，控制在2到48个字符；需要表达完整设定时可以使用短句，不要为了凑短而丢失关键机制。hint 说明它会怎样落到开局行动、连续升级或读者回报。",
       "同一类别的五项必须有明显差异，不能只是同义改写；35 个 label 不能重复。",
       "relevance 表示它与当前开书上下文的匹配程度，每类至少一项 high，其余合理分配 medium 或 low。",
       "如果上下文已经给出题材或推进模式，它们是固定创作基础，所有选项必须兼容；缺失信息才允许补足。",
