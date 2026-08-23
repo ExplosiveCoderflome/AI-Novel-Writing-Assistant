@@ -10,6 +10,7 @@ const readClientFile = (relativePath) => readFileSync(join(clientRoot, relativeP
 const workbenchPage = readClientFile("src/pages/promptWorkbench/PromptWorkbenchPage.tsx");
 const editorShell = readClientFile("src/pages/promptWorkbench/components/PromptEditorShell.tsx");
 const runBar = readClientFile("src/pages/promptWorkbench/components/PromptRunBar.tsx");
+const themeStyles = readClientFile("src/index.css");
 const chapterPage = readClientFile("src/pages/novels/NovelChapterEdit.tsx");
 const writingFormulaPage = readClientFile("src/pages/writingFormula/WritingFormulaPage.tsx");
 
@@ -24,4 +25,13 @@ test("正文效果实验室从章节与写法引擎直达本书高级模板试�
 test("提示词页隐藏治理摘要，并只在高级模板显示上下文引用", () => {
   assert.doesNotMatch(editorShell, /可编辑槽位|锁定边界/);
   assert.match(workbenchPage, /contextPanel=\{isAdvancedMode/);
+});
+
+test("提示词工作台在深色主题下将旧的浅色面板映射为语义色", () => {
+  assert.match(workbenchPage, /prompt-workbench-theme/);
+  assert.match(workbenchPage, /bg-background text-foreground/);
+  assert.match(runBar, /bg-card\/95/);
+  assert.match(runBar, /bg-primary text-primary-foreground/);
+  assert.match(themeStyles, /\.dark \.prompt-workbench-theme \[class\*="bg-white"\]/);
+  assert.match(themeStyles, /\.dark \.prompt-workbench-theme \[class\*="text-\[#254"\]/);
 });

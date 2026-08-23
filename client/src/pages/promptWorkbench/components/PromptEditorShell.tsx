@@ -61,14 +61,14 @@ export function PromptEditorShell(props: PromptEditorShellProps) {
   return (
     <section
       className={cn(
-        "flex h-full min-h-0 flex-col bg-[#f7f9fb]",
-        immersive && "bg-[#f3f7f5]",
+        "flex h-full min-h-0 flex-col bg-background",
+        immersive && "bg-background",
       )}
     >
       <header
         className={cn(
-          "shrink-0 border-b border-[#dbe5e2] bg-[#fbfcff] px-5 py-4",
-          immersive && "border-[#cbdcd5] bg-[#f6faf8] px-6 py-3",
+          "shrink-0 border-b border-border bg-card px-5 py-4",
+          immersive && "border-border bg-card px-6 py-3",
         )}
       >
         <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
@@ -78,12 +78,12 @@ export function PromptEditorShell(props: PromptEditorShellProps) {
                 {heading || prompt.description || prompt.id}
               </h2>
               {!simplified ? (
-                <span className="rounded-md bg-[#173c4f] px-2 py-0.5 text-xs font-semibold text-white">
+                <span className="rounded-md bg-primary px-2 py-0.5 text-xs font-semibold text-primary-foreground">
                   {prompt.version}
                 </span>
               ) : null}
               {immersive ? (
-                <span className="rounded-md border border-[#b8d9d0] bg-[#eaf7f2] px-2 py-0.5 text-xs font-medium text-[#0f766e]">
+                <span className="rounded-md border border-primary/40 bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary">
                   沉浸编辑
                 </span>
               ) : null}

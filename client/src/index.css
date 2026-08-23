@@ -162,6 +162,73 @@
   color: hsl(var(--warning));
 }
 
+/* Prompt Workbench predates the shared theme tokens and carries a dense set of
+   light-only surface colors. Keep its existing information hierarchy while
+   mapping those legacy colors to the active theme in dark mode. */
+.dark .prompt-workbench-theme [class*="border-[#"] {
+  border-color: hsl(var(--border));
+}
+
+.dark .prompt-workbench-theme [class*="bg-white"],
+.dark .prompt-workbench-theme [class*="bg-[#f2"],
+.dark .prompt-workbench-theme [class*="bg-[#f3"],
+.dark .prompt-workbench-theme [class*="bg-[#f5"],
+.dark .prompt-workbench-theme [class*="bg-[#f6"],
+.dark .prompt-workbench-theme [class*="bg-[#f7"],
+.dark .prompt-workbench-theme [class*="bg-[#f8"],
+.dark .prompt-workbench-theme [class*="bg-[#fb"] {
+  background-color: hsl(var(--card));
+}
+
+.dark .prompt-workbench-theme [class*="bg-[#e7"],
+.dark .prompt-workbench-theme [class*="bg-[#e8"],
+.dark .prompt-workbench-theme [class*="bg-[#ea"],
+.dark .prompt-workbench-theme [class*="bg-[#ee"],
+.dark .prompt-workbench-theme [class*="bg-[#ed"] {
+  background-color: hsl(var(--primary) / 0.14);
+}
+
+.dark .prompt-workbench-theme [class*="bg-[#f4f7ff"],
+.dark .prompt-workbench-theme [class*="bg-[#eef3"],
+.dark .prompt-workbench-theme [class*="bg-[#eef4"] {
+  background-color: hsl(var(--info) / 0.14);
+}
+
+.dark .prompt-workbench-theme [class*="bg-[#fff"] {
+  background-color: hsl(var(--warning) / 0.14);
+}
+
+.dark .prompt-workbench-theme [class*="bg-[#0f"],
+.dark .prompt-workbench-theme [class*="bg-[#62"],
+.dark .prompt-workbench-theme [class*="bg-[#173"] {
+  background-color: hsl(var(--primary));
+}
+
+.dark .prompt-workbench-theme [class*="text-[#254"],
+.dark .prompt-workbench-theme [class*="text-[#1f"] {
+  color: hsl(var(--foreground));
+}
+
+.dark .prompt-workbench-theme [class*="text-[#526"],
+.dark .prompt-workbench-theme [class*="text-[#647"],
+.dark .prompt-workbench-theme [class*="text-[#6f"],
+.dark .prompt-workbench-theme [class*="text-[#5f"] {
+  color: hsl(var(--muted-foreground));
+}
+
+.dark .prompt-workbench-theme [class*="text-[#0f"],
+.dark .prompt-workbench-theme [class*="text-[#315"],
+.dark .prompt-workbench-theme [class*="text-[#344"],
+.dark .prompt-workbench-theme [class*="text-[#385"],
+.dark .prompt-workbench-theme [class*="text-[#3b"] {
+  color: hsl(var(--primary));
+}
+
+.dark .prompt-workbench-theme [class*="text-[#7a"],
+.dark .prompt-workbench-theme [class*="text-[#775"] {
+  color: hsl(var(--warning));
+}
+
 .dark[data-theme="night"] {
   --background: 222 47% 8%;
   --foreground: 210 40% 96%;
