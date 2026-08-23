@@ -48,3 +48,8 @@ test("旧的青绿色操作在深色主题下保持成功色对比", () => {
   assert.match(themeStyles, /background-color: hsl\(var\(--success\)\);/);
   assert.match(themeStyles, /color: hsl\(var\(--success\)\);/);
 });
+
+test("暖纸深色主题为提示词工作台使用中性深色画布", () => {
+  assert.match(themeStyles, /:root\.dark\[data-theme="paper"\] \.prompt-workbench-theme/);
+  assert.match(themeStyles, /--background: 222\.2 47\.4% 11\.2%;/);
+});
