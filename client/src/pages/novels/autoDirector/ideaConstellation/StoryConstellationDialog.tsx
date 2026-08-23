@@ -276,7 +276,7 @@ export default function StoryConstellationDialog({
                       animate={{ opacity: 1, scale: selectedOption ? 1.06 : 1 }}
                       transition={{ duration: reducedMotion ? 0 : 0.2, delay: reducedMotion ? 0 : index * 0.018 }}
                       className={cn(
-                        "group whitespace-nowrap rounded-full border border-transparent bg-background/25 px-3 py-2 text-foreground backdrop-blur-sm transition-colors hover:border-border/55 hover:bg-background/75 hover:shadow-[0_10px_35px_rgba(15,23,42,0.10)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50",
+                        "group max-w-[300px] whitespace-normal rounded-full border border-transparent bg-background/25 px-3 py-2 text-left leading-snug text-foreground backdrop-blur-sm transition-colors hover:border-border/55 hover:bg-background/75 hover:shadow-[0_10px_35px_rgba(15,23,42,0.10)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50",
                         RELEVANCE_CLASSES[option.relevance],
                         selectedOption && "border-primary/30 bg-primary text-primary-foreground shadow-[0_12px_40px_hsl(var(--primary)/0.22)]",
                       )}

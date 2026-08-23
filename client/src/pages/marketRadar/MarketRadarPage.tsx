@@ -117,7 +117,7 @@ export default function MarketRadarPage() {
   }, []);
 
   const evidenceById = useMemo(() => new Map((report?.evidenceItems ?? []).map((item) => [item.id, item])), [report]);
-  const scanning = scanMutation.isPending || activeRun?.status === "queued" || activeRun?.status === "running";
+  const scanning = (!activeRun && scanMutation.isPending) || activeRun?.status === "queued" || activeRun?.status === "running";
   const analyzing = analysisMutation.isPending || activeRun?.status === "analyzing";
   const rankingGroups = useMemo(() => {
     const groups = new Map<string, NonNullable<typeof activeRun>["rankingItems"]>();
@@ -125,7 +125,10 @@ export default function MarketRadarPage() {
       const key = `${item.platform}:${item.listKey}`;
       groups.set(key, [...(groups.get(key) ?? []), item]);
     }
-    return [...groups.entries()].map(([key, items]) => ({ key, items: items.sort((left, right) => left.rank - right.rank) }));
+    const isPrimaryList = (key: string) => key.endsWith(":new_book") || key.endsWith(":new_author");
+    return [...groups.entries()]
+      .sort(([left], [right]) => Number(isPrimaryList(right)) - Number(isPrimaryList(left)))
+      .map(([key, items]) => ({ key, items: items.sort((left, right) => left.rank - right.rank) }));
   }, [activeRun?.rankingItems]);
   const sourceLabels = useMemo(() => new Map((sourcesQuery.data?.data ?? []).map((source) => [`${source.platform}:${source.listKey}`, source.listLabel])), [sourcesQuery.data]);
 
@@ -154,7 +157,7 @@ export default function MarketRadarPage() {
           {Object.entries(PLATFORM_LABELS).map(([key, label]) => (
             <button key={key} type="button" onClick={() => togglePlatform(key as MarketRadarPlatform)} className={cn("rounded-full border px-3 py-1.5 text-sm transition", platforms.includes(key as MarketRadarPlatform) ? "border-primary bg-primary/10 text-primary" : "border-border text-muted-foreground")}>{label}</button>
           ))}
-          <Button onClick={() => scanMutation.mutate()} disabled={scanning || sourcesQuery.isPending} variant="outline">
+          <Button onClick={() => scanMutation.mutate()} disabled={scanMutation.isPending || scanning || sourcesQuery.isPending} variant="outline">
             {scanning ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
             {scanning ? `正在获取榜单 ${Math.round((activeRun?.progress ?? 0) * 100)}%` : "重新扫榜"}
           </Button>

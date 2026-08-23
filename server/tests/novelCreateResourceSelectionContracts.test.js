@@ -73,7 +73,9 @@ test("idea constellation generates seven concrete web-novel material categories 
 
   assert.match(shared, /"advantage"/);
   assert.match(schema, /options: z\.array\(directorIdeaConstellationOptionSchema\)\.length\(35\)/);
+  assert.match(schema, /label: z\.string\(\)\.trim\(\)\.min\(2\)\.max\(48\)/);
   assert.match(schema, /count !== 5/);
+  assert.match(route, /label: z\.string\(\)\.trim\(\)\.min\(2\)\.max\(48\)/);
   assert.match(route, /selectedOptions: z\.array\(ideaConstellationSelectionSchema\)\.min\(1\)\.max\(7\)/);
   assert.match(route, /categories\.size !== input\.selectedOptions\.length/);
   assert.match(prompt, /advantage 金手指或核心优势/);
@@ -81,7 +83,7 @@ test("idea constellation generates seven concrete web-novel material categories 
   assert.match(service, /buildDirectorIdeaContextSummary/);
   assert.match(service, /CONSTELLATION_OPTIONS_MAX_TOKENS = 5_000/);
   assert.match(service, /CONSTELLATION_RETRY_TEMPERATURE/);
-  assert.match(loaders, /novel\.director\.idea_constellation_options@v2/);
+  assert.match(loaders, /novel\.director\.idea_constellation_options@v3/);
   assert.match(loaders, /novel\.director\.idea_constellation_compose@v2/);
   assert.match(controller, /generateDirectorIdeaConstellationOptions\(buildIdeaContextPayload\(\)\)/);
   assert.doesNotMatch(controller, /buildStaticIdeaConstellationOptions/);

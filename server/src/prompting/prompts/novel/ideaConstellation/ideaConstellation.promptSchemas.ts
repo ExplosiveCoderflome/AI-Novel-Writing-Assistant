@@ -4,7 +4,7 @@ import { DIRECTOR_IDEA_CONSTELLATION_CATEGORIES } from "@ai-novel/shared/types/n
 export const directorIdeaConstellationOptionSchema = z.object({
   id: z.string().trim().min(1).max(48),
   category: z.enum(DIRECTOR_IDEA_CONSTELLATION_CATEGORIES),
-  label: z.string().trim().min(2).max(16),
+  label: z.string().trim().min(2).max(48),
   hint: z.string().trim().min(4).max(64),
   relevance: z.enum(["high", "medium", "low"]),
 }).strict();

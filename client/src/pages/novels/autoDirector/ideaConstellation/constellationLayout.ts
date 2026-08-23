@@ -36,13 +36,18 @@ function createRandom(seed: number): () => number {
   };
 }
 
-function estimateItemSize(item: ConstellationLayoutItem): { width: number; height: number } {
+export function estimateConstellationItemSize(item: ConstellationLayoutItem): { width: number; height: number } {
   const characterCount = Array.from(item.label).length;
   if (item.kind === "foundation") {
     return { width: Math.min(210, Math.max(92, characterCount * 18 + 20)), height: 52 };
   }
   const fontSize = item.emphasis === "high" ? 18 : item.emphasis === "low" ? 12 : 14;
-  return { width: Math.min(190, Math.max(72, characterCount * fontSize + 34)), height: 42 };
+  const naturalWidth = Math.max(72, characterCount * fontSize + 50);
+  const lineCount = Math.ceil(naturalWidth / 300);
+  return {
+    width: Math.min(300, naturalWidth),
+    height: Math.max(42, 16 + (lineCount * Math.ceil(fontSize * 1.35))),
+  };
 }
 
 function overlaps(left: PlacedRect, right: PlacedRect, gap: number): boolean {
@@ -72,12 +77,15 @@ export function buildConstellationLayout(
   const placed: PlacedRect[] = [];
   const result: Record<string, ConstellationLayoutPoint> = {};
   const orderedItems = [...items].sort((left, right) => {
-    if (left.kind !== right.kind) return left.kind === "foundation" ? -1 : 1;
+    const leftSize = estimateConstellationItemSize(left);
+    const rightSize = estimateConstellationItemSize(right);
+    const areaDifference = (rightSize.width * rightSize.height) - (leftSize.width * leftSize.height);
+    if (areaDifference !== 0) return areaDifference;
     return hashText(left.id) - hashText(right.id);
   });
 
   for (const item of orderedItems) {
-    const itemSize = estimateItemSize(item);
+    const itemSize = estimateConstellationItemSize(item);
     const halfWidth = itemSize.width / 2;
     const halfHeight = itemSize.height / 2;
     const paddingX = 22 + halfWidth;
@@ -100,6 +108,16 @@ export function buildConstellationLayout(
       if (placed.some((current) => overlaps(current, next, item.kind === "foundation" ? 16 : 10))) continue;
       candidate = next;
       break;
+    }
+
+    for (let top = paddingY; !candidate && top <= height - paddingY; top += 8) {
+      for (let left = paddingX; left <= width - paddingX; left += 8) {
+        const next: PlacedRect = { left, top, rotate: 0, ...itemSize };
+        if (intersectsCore(next, width, height)) continue;
+        if (placed.some((current) => overlaps(current, next, item.kind === "foundation" ? 16 : 10))) continue;
+        candidate = next;
+        break;
+      }
     }
 
     if (!candidate) {

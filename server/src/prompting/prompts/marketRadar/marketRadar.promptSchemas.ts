@@ -8,7 +8,7 @@ export const marketSignalSchema = z.object({
   id: z.string().trim().min(1).max(48),
   kind: marketSignalKindSchema,
   label: z.string().trim().min(2).max(24),
-  summary: z.string().trim().min(12).max(180),
+  summary: z.string().trim().min(12).max(120),
   direction: z.enum(["current", "rising", "stable", "falling"]),
   heat: z.number().int().min(0).max(100),
   crowding: z.number().int().min(0).max(100),
@@ -17,13 +17,13 @@ export const marketSignalSchema = z.object({
 });
 
 export const marketPlatformDigestSchema = z.object({
-  platformSummary: z.string().trim().min(20).max(500),
-  signals: z.array(marketSignalSchema).min(5).max(18),
+  platformSummary: z.string().trim().min(20).max(320),
+  signals: z.array(marketSignalSchema).min(5).max(10),
 });
 
 export const marketTrendReportSchema = z.object({
-  summary: z.string().trim().min(30).max(800),
-  signals: z.array(marketSignalSchema).min(8).max(28),
+  summary: z.string().trim().min(30).max(500),
+  signals: z.array(marketSignalSchema).min(8).max(12),
 });
 
 export const marketCreativeBriefSchema = z.object({
