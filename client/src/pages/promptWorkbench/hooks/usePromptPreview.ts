@@ -1,4 +1,4 @@
-import { useCallback, useEffect } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useMutation } from "@tanstack/react-query";
 import {
   previewPrompt,
@@ -6,8 +6,10 @@ import {
   type PromptCatalogItem,
   type PromptPreviewPayload,
   type PromptTestRunPayload,
+  type PromptTestRunResult,
   type PromptTemplateJson,
 } from "@/api/promptWorkbench";
+import { useSSE } from "@/hooks/useSSE";
 import type { PromptSlotDrafts } from "../promptWorkbenchTypes";
 
 interface PreviewNovel {
@@ -321,6 +323,44 @@ export function usePromptPreview(input: UsePromptPreviewInput) {
     slotOverrides,
     templateDraft,
   } = input;
+  const [streamedTestRun, setStreamedTestRun] = useState<PromptTestRunResult | null>(null);
+  const streamedTestRunRef = useRef<{
+    prompt: PromptCatalogItem;
+    llm?: PromptTestRunPayload["llm"];
+    startedAt: number;
+  } | null>(null);
+  const testRunStream = useSSE({
+    onDone: (outputText) => {
+      const current = streamedTestRunRef.current;
+      if (!current) {
+        return;
+      }
+      setStreamedTestRun({
+        prompt: current.prompt,
+        outputType: "text",
+        output: outputText,
+        outputText,
+        messages: [],
+        context: {
+          blocks: [],
+          selectedBlockIds: [],
+          droppedBlockIds: [],
+          summarizedBlockIds: [],
+          estimatedInputTokens: 0,
+        },
+        meta: {
+          provider: current.llm?.provider,
+          model: current.llm?.model,
+          latencyMs: Date.now() - current.startedAt,
+        },
+        diagnostics: {
+          missingRequiredGroups: [],
+          resolverErrors: [],
+          notes: [],
+        },
+      });
+    },
+  });
 
   const buildPayload = useCallback((): PromptPreviewPayload => {
     if (!prompt) {
@@ -375,6 +415,7 @@ export function usePromptPreview(input: UsePromptPreviewInput) {
   useEffect(() => {
     previewMutation.reset();
     testRunMutation.reset();
+    setStreamedTestRun(null);
   }, [prompt?.key]);
 
   const generatePreview = useCallback(() => {
@@ -382,15 +423,29 @@ export function usePromptPreview(input: UsePromptPreviewInput) {
   }, [previewMutation]);
 
   const generateTestRun = useCallback((llm?: PromptTestRunPayload["llm"]) => {
+    if (prompt?.outputType === "text") {
+      testRunMutation.reset();
+      setStreamedTestRun(null);
+      streamedTestRunRef.current = { prompt, llm, startedAt: Date.now() };
+      void testRunStream.start("/prompt-workbench/test-run/stream", {
+        ...buildPayload(),
+        ...(llm ? { llm } : {}),
+      });
+      return;
+    }
     testRunMutation.mutate(llm);
-  }, [testRunMutation]);
+  }, [buildPayload, prompt, testRunMutation, testRunStream]);
 
   return {
     generatePreview,
     generateTestRun,
     preview: previewMutation.data?.data ?? null,
     previewMutation,
-    testRun: testRunMutation.data?.data ?? null,
+    testRun: streamedTestRun ?? testRunMutation.data?.data ?? null,
+    testRunStreamOutput: testRunStream.isStreaming ? testRunStream.content : "",
+    isTestRunPending: testRunStream.isStreaming || testRunMutation.isPending,
+    testRunError: testRunStream.error
+      ?? (testRunMutation.error instanceof Error ? testRunMutation.error.message : null),
     testRunMutation,
     resetPreview: previewMutation.reset,
   };

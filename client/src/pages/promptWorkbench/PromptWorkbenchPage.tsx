@@ -101,9 +101,7 @@ export default function PromptWorkbenchPage() {
     templateDraft: activeEditMode === "advanced" && advancedTemplateEnabled ? templateState.draftTemplate : undefined,
   });
   const preview = previewState.preview;
-  const testRunError = previewState.testRunMutation.error instanceof Error
-    ? previewState.testRunMutation.error.message
-    : null;
+  const testRunError = previewState.testRunError;
 
   useEffect(() => {
     setSelectedContextBlockId(null);
@@ -303,8 +301,9 @@ export default function PromptWorkbenchPage() {
                     templateState={templateState}
                     preview={preview}
                     testRun={previewState.testRun}
-                    testRunPending={previewState.testRunMutation.isPending}
+                    testRunPending={previewState.isTestRunPending}
                     testRunError={testRunError}
+                    testRunStreamOutput={previewState.testRunStreamOutput}
                     disabled={!advancedTemplateEnabled}
                     showTestResult={!writingLab}
                   />
@@ -314,8 +313,9 @@ export default function PromptWorkbenchPage() {
                     immersive={immersiveMode}
                     preview={preview}
                     testRun={previewState.testRun}
-                    testRunPending={previewState.testRunMutation.isPending}
+                    testRunPending={previewState.isTestRunPending}
                     testRunError={testRunError}
+                    testRunStreamOutput={previewState.testRunStreamOutput}
                     sections={slotState.sections}
                     reconcile={slotState.reconcile}
                     reconcileMap={slotState.reconcileMap}
@@ -342,8 +342,9 @@ export default function PromptWorkbenchPage() {
                   <div className="max-h-[56%] shrink-0 overflow-y-auto border-b border-border p-3">
                     <PromptTestRunResultPanel
                       result={previewState.testRun}
-                      isPending={previewState.testRunMutation.isPending}
+                      isPending={previewState.isTestRunPending}
                       error={testRunError}
+                      streamOutput={previewState.testRunStreamOutput}
                     />
                   </div>
                 ) : null}
@@ -364,13 +365,13 @@ export default function PromptWorkbenchPage() {
                 estimatedTokens={preview?.context.estimatedInputTokens ?? null}
                 dirtyCount={effectiveDirtyCount}
                 isPreviewPending={previewState.previewMutation.isPending}
-                isTestRunPending={previewState.testRunMutation.isPending}
+                isTestRunPending={previewState.isTestRunPending}
                 isSavePending={effectiveSavePending}
                 isSaveSuccess={effectiveSaveSuccess}
                 saveError={effectiveSaveError}
                 saveDisabled={effectiveSaveDisabled}
                 previewDisabled={!selectedPrompt || previewState.previewMutation.isPending}
-                testRunDisabled={!selectedPrompt || previewState.testRunMutation.isPending}
+                testRunDisabled={!selectedPrompt || previewState.isTestRunPending}
                 testLlm={testLlm}
                 onTestLlmChange={setTestLlm}
                 resetDisabled={effectiveResetDisabled}

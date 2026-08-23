@@ -77,6 +77,7 @@ export function AdvancedPromptTemplateEditor(props: {
   testRun?: PromptTestRunResult | null;
   testRunPending?: boolean;
   testRunError?: string | null;
+  testRunStreamOutput?: string;
   disabled?: boolean;
   showTestResult?: boolean;
 }) {
@@ -87,6 +88,7 @@ export function AdvancedPromptTemplateEditor(props: {
     testRun = null,
     testRunError = null,
     testRunPending = false,
+    testRunStreamOutput = "",
     showTestResult = true,
   } = props;
   const [tokenMenuRole, setTokenMenuRole] = useState<TemplateRole | null>(null);
@@ -234,6 +236,7 @@ export function AdvancedPromptTemplateEditor(props: {
           result={testRun}
           isPending={testRunPending}
           error={testRunError}
+          streamOutput={testRunStreamOutput}
         />
       ) : null}
 

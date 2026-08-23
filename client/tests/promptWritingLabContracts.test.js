@@ -11,9 +11,13 @@ const workbenchPage = readClientFile("src/pages/promptWorkbench/PromptWorkbenchP
 const editorShell = readClientFile("src/pages/promptWorkbench/components/PromptEditorShell.tsx");
 const catalogSidebar = readClientFile("src/pages/promptWorkbench/components/PromptCatalogSidebar.tsx");
 const runBar = readClientFile("src/pages/promptWorkbench/components/PromptRunBar.tsx");
+const previewHook = readClientFile("src/pages/promptWorkbench/hooks/usePromptPreview.ts");
+const previewPanel = readClientFile("src/pages/promptWorkbench/components/PromptPreviewPanel.tsx");
 const themeStyles = readClientFile("src/index.css");
 const chapterPage = readClientFile("src/pages/novels/NovelChapterEdit.tsx");
 const writingFormulaPage = readClientFile("src/pages/writingFormula/WritingFormulaPage.tsx");
+const promptWorkbenchRoute = readFileSync(resolve(clientRoot, "../server/src/routes/promptWorkbench.ts"), "utf8");
+const promptWorkbenchService = readFileSync(resolve(clientRoot, "../server/src/prompting/PromptWorkbenchService.ts"), "utf8");
 
 test("正文效果实验室从章节与写法引擎直达本书高级模板试写", () => {
   assert.match(chapterPage, /experience=writing&novelId=/);
@@ -57,4 +61,12 @@ test("暖纸深色主题为提示词工作台使用中性深色画布", () => {
 test("沉浸模式正文容器使用主题卡片色，不使用暖色硬编码", () => {
   assert.match(editorShell, /immersive && "bg-card px-8 py-7 pb-32"/);
   assert.doesNotMatch(editorShell, /bg-\[#fffdf8\]/);
+});
+
+test("文本类测试产出通过 SSE 持续显示，结构化测试保留校验后展示", () => {
+  assert.match(promptWorkbenchRoute, /\/test-run\/stream/);
+  assert.match(promptWorkbenchService, /async testRunTextStream/);
+  assert.match(previewHook, /prompt\?\.outputType === "text"/);
+  assert.match(previewHook, /\/prompt-workbench\/test-run\/stream/);
+  assert.match(previewPanel, /正在持续显示模型返回内容/);
 });

@@ -16,12 +16,18 @@ export function PromptTestRunResultPanel(props: {
   result: PromptTestRunResult | null;
   isPending?: boolean;
   error?: string | null;
+  streamOutput?: string;
 }) {
-  const { error, isPending, result } = props;
+  const { error, isPending, result, streamOutput = "" } = props;
   if (isPending) {
     return (
       <div className="rounded-md border border-amber-200 bg-amber-50/75 p-4 text-sm text-amber-900">
-        正在使用当前草稿调用模型，完成后会显示测试产出。
+        <div>{streamOutput ? "正在持续显示模型返回内容。" : "正在使用当前草稿调用模型，等待首段内容返回。"}</div>
+        {streamOutput ? (
+          <pre className="mt-3 max-h-[420px] overflow-auto whitespace-pre-wrap rounded-md bg-slate-950 p-3 text-xs leading-relaxed text-slate-100">
+            {streamOutput}
+          </pre>
+        ) : null}
       </div>
     );
   }
@@ -79,12 +85,13 @@ export function PromptPreviewPanel(props: {
   testRun?: PromptTestRunResult | null;
   testRunPending?: boolean;
   testRunError?: string | null;
+  testRunStreamOutput?: string;
 }) {
-  const { preview, testRun = null, testRunError = null, testRunPending = false } = props;
+  const { preview, testRun = null, testRunError = null, testRunPending = false, testRunStreamOutput = "" } = props;
   if (!preview) {
     return (
       <div className="space-y-3">
-        <PromptTestRunResultPanel result={testRun} isPending={testRunPending} error={testRunError} />
+        <PromptTestRunResultPanel result={testRun} isPending={testRunPending} error={testRunError} streamOutput={testRunStreamOutput} />
         <div className="rounded-md border border-dashed border-[#cbdad6] bg-white/70 p-5 text-sm text-muted-foreground">
           点击底部“生成预览”后，可查看最终 messages、上下文选择和诊断结果。
         </div>
@@ -98,7 +105,7 @@ export function PromptPreviewPanel(props: {
 
   return (
     <div className="space-y-4">
-      <PromptTestRunResultPanel result={testRun} isPending={testRunPending} error={testRunError} />
+      <PromptTestRunResultPanel result={testRun} isPending={testRunPending} error={testRunError} streamOutput={testRunStreamOutput} />
 
       <div className="grid overflow-hidden rounded-md border border-[#d8e2de] bg-white md:grid-cols-4 md:divide-x md:divide-[#d8e2de]">
         <div className="bg-[#f8fbfa] p-3">
