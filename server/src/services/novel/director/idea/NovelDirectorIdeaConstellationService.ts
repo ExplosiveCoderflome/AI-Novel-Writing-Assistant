@@ -14,7 +14,7 @@ import {
   shouldRetryDirectorIdeaWithOriginalContext,
 } from "./ideaContext";
 
-const CONSTELLATION_OPTIONS_MAX_TOKENS = 3_200;
+const CONSTELLATION_OPTIONS_MAX_TOKENS = 5_000;
 const CONSTELLATION_COMPOSE_MAX_TOKENS = 800;
 const CONSTELLATION_RETRY_TEMPERATURE = 0.25;
 

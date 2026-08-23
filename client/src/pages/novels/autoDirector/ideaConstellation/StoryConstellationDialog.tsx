@@ -38,6 +38,7 @@ interface StoryConstellationDialogProps {
 const CATEGORY_ACCENTS = {
   protagonist: "bg-sky-400",
   setting: "bg-emerald-400",
+  advantage: "bg-cyan-400",
   opening_crisis: "bg-rose-400",
   core_goal: "bg-amber-400",
   story_variable: "bg-violet-400",
@@ -74,7 +75,7 @@ export default function StoryConstellationDialog({
   const [layoutSize, setLayoutSize] = useState({ width: 0, height: 0 });
   const desktopFieldRef = useRef<HTMLDivElement | null>(null);
   const orderedOptions = useMemo(() => orderIdeaConstellationOptions(options), [options]);
-  const plotOptions = useMemo(() => orderedOptions.slice(0, 18), [orderedOptions]);
+  const plotOptions = orderedOptions;
   const visibleGenreOptions = useMemo(
     () => selectRotatingFoundationOptions(genreOptions, foundationPage, selectedGenreId, 8),
     [foundationPage, genreOptions, selectedGenreId],
@@ -180,8 +181,8 @@ export default function StoryConstellationDialog({
   };
 
   const statusText = selected.length === 0
-    ? "可以只调整故事类型与推进方式，也可以再选剧情元素。"
-    : `已选 ${selected.length}/6 个剧情维度，确认后 AI 会整理并回填。`;
+    ? "可以只调整故事类型与推进方式，也可以选择具体开书素材。"
+    : `已选 ${selected.length}/7 类开书素材，确认后 AI 会整理并回填。`;
 
   const footer = (
     <div className="mx-auto flex w-full max-w-5xl flex-col gap-3 rounded-2xl border border-border/60 bg-background/80 px-4 py-3 shadow-[0_18px_70px_rgba(15,23,42,0.12)] backdrop-blur-xl sm:flex-row sm:items-center sm:justify-between sm:rounded-full sm:px-5">
@@ -205,7 +206,7 @@ export default function StoryConstellationDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <AppDialogContent
         title="故事星图"
-        description="选择创作方向与故事张力，确认后会回到开书页继续修改。"
+        description="选择主角、金手指、首章爆点和推进素材，确认后会回到开书页继续修改。"
         className="left-0 top-0 h-dvh max-h-none w-screen max-w-none translate-x-0 translate-y-0 rounded-none border-0 bg-background/95 shadow-none backdrop-blur-2xl"
         headerClassName="border-0 bg-transparent px-6 pb-2 pt-5 pr-16 sm:px-8 sm:pt-6 lg:px-10"
         bodyClassName="relative overflow-hidden p-0"
@@ -214,7 +215,7 @@ export default function StoryConstellationDialog({
       >
         <div className="absolute left-6 top-3 z-20 hidden items-center gap-2 text-xs text-muted-foreground sm:flex lg:left-10">
           <Sparkles className="h-3.5 w-3.5" aria-hidden="true" />
-          类型和推进方式可直接切换；剧情维度每类最多选择一个。
+          类型和推进方式可直接切换；每类开书素材最多选择一个。
         </div>
         <Button
           type="button"
@@ -350,10 +351,10 @@ export default function StoryConstellationDialog({
                       ))}
                     </div>
                   ) : (
-                    <div className="mt-4 text-sm leading-7 text-muted-foreground">可以只调整创作方向<br />或选择一个以上剧情元素</div>
+                    <div className="mt-4 text-sm leading-7 text-muted-foreground">可以只调整创作方向<br />或选择具体的开书素材</div>
                   )}
                   <div className="mx-auto mt-5 line-clamp-3 max-w-[260px] text-xs leading-5 text-muted-foreground" aria-live="polite">
-                    {activeHint || "把鼠标移到词语上，可以查看它会带来什么故事张力。"}
+                    {activeHint || "把鼠标移到词语上，可以查看它会怎样落到开局和连载推进。"}
                   </div>
                 </div>
               </div>
@@ -409,7 +410,7 @@ export default function StoryConstellationDialog({
                   </section>
                 ))}
                 <div className="rounded-xl bg-muted/30 px-4 py-3 text-xs leading-5 text-muted-foreground" aria-live="polite">
-                  {activeHint || "点击一个故事碎片，可以查看并组合它带来的故事方向。"}
+                  {activeHint || "点击一项具体素材，可以查看并组合它带来的开书方向。"}
                 </div>
               </div>
             </div>

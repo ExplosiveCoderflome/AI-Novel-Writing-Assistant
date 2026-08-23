@@ -673,6 +673,7 @@ export interface DirectorIdeaInspirationsResponse {
 export const DIRECTOR_IDEA_CONSTELLATION_CATEGORIES = [
   "protagonist",
   "setting",
+  "advantage",
   "opening_crisis",
   "core_goal",
   "story_variable",

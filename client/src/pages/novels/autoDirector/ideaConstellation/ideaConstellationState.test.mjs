@@ -2,10 +2,10 @@ import test from "node:test";
 import assert from "node:assert/strict";
 
 import {
+  orderIdeaConstellationOptions,
   selectRotatingFoundationOptions,
   toggleIdeaConstellationSelection,
 } from "./ideaConstellationState.ts";
-import { buildStaticIdeaConstellationOptions } from "./staticIdeaConstellation.ts";
 
 const option = (id, category, label) => ({
   id,
@@ -33,27 +33,23 @@ test("story constellation replaces the previous option in the same category", ()
   assert.deepEqual(next.map((item) => item.id), ["setting-1", "protagonist-2"]);
 });
 
-test("static story constellation returns six categories with four unique options each", () => {
-  const options = buildStaticIdeaConstellationOptions();
-  const categoryCounts = Object.groupBy(options, (item) => item.category);
+test("story constellation interleaves five visible options from all seven web-novel categories", () => {
+  const categories = [
+    "protagonist",
+    "setting",
+    "advantage",
+    "opening_crisis",
+    "core_goal",
+    "story_variable",
+    "relationship",
+  ];
+  const options = categories.flatMap((category) => (
+    Array.from({ length: 5 }, (_, index) => option(`${category}-${index + 1}`, category, `${category}${index + 1}`))
+  ));
+  const ordered = orderIdeaConstellationOptions(options);
 
-  assert.equal(options.length, 24);
-  assert.equal(new Set(options.map((item) => item.id)).size, 24);
-  assert.deepEqual(
-    Object.values(categoryCounts).map((items) => items?.length),
-    [4, 4, 4, 4, 4, 4],
-  );
-  const allCuratedOptions = [options, buildStaticIdeaConstellationOptions(1)].flat();
-  assert.equal(allCuratedOptions.every((item) => item.label.length >= 2 && item.label.length <= 12), true);
-  assert.equal(allCuratedOptions.every((item) => item.hint.length >= 4 && item.hint.length <= 48), true);
-});
-
-test("static story constellation rotates to a different curated pack", () => {
-  const first = buildStaticIdeaConstellationOptions(0).map((item) => item.id);
-  const second = buildStaticIdeaConstellationOptions(1).map((item) => item.id);
-
-  assert.notDeepEqual(second, first);
-  assert.deepEqual(buildStaticIdeaConstellationOptions(2).map((item) => item.id), first);
+  assert.equal(ordered.length, 35);
+  assert.deepEqual(ordered.slice(0, 7).map((item) => item.category), categories);
 });
 
 test("foundation options rotate while keeping the current selection visible", () => {

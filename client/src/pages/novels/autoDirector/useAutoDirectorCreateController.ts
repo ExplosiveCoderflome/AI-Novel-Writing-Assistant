@@ -11,6 +11,7 @@ import {
   type DirectorCandidateBatch,
   type DirectorAutoExecutionPlan,
   type DirectorCorrectionPreset,
+  type DirectorIdeaConstellationOption,
   type DirectorIdeaConstellationSelection,
   type DirectorIdeaInspiration,
   type DirectorRunMode,
@@ -21,6 +22,7 @@ import {
   composeDirectorIdeaConstellation,
   confirmDirectorCandidate,
   generateDirectorIdeaInspirations,
+  generateDirectorIdeaConstellationOptions,
 } from "@/api/novelDirector";
 import { queryKeys } from "@/api/queryKeys";
 import { getStyleProfiles } from "@/api/styleEngine";
@@ -32,7 +34,6 @@ import {
   patchNovelBasicForm,
   type NovelBasicFormState,
 } from "../novelBasicInfo.shared";
-import { buildStaticIdeaConstellationOptions } from "./ideaConstellation/staticIdeaConstellation";
 import {
   buildDirectorAutoExecutionPlanFromDraft,
   createDefaultDirectorAutoExecutionDraftState,
@@ -119,7 +120,7 @@ export function useAutoDirectorCreateController(input: UseAutoDirectorCreateCont
   const [autoExecutionDraft, setAutoExecutionDraft] = useState(() => createDefaultDirectorAutoExecutionDraftState());
   const [selectedStyleProfileId, setSelectedStyleProfileId] = useState("");
   const [ideaInspirations, setIdeaInspirations] = useState<DirectorIdeaInspiration[]>([]);
-  const [ideaConstellationPackIndex, setIdeaConstellationPackIndex] = useState(0);
+  const [ideaConstellationOptions, setIdeaConstellationOptions] = useState<DirectorIdeaConstellationOption[]>([]);
   const [candidatePatchFeedbacks, setCandidatePatchFeedbacks] = useState<Record<string, string>>({});
   const [titlePatchFeedbacks, setTitlePatchFeedbacks] = useState<Record<string, string>>({});
   const [isUpdatingFoundation, setIsUpdatingFoundation] = useState(false);
@@ -248,10 +249,15 @@ export function useAutoDirectorCreateController(input: UseAutoDirectorCreateCont
     },
   });
 
-  const ideaConstellationOptions = useMemo(
-    () => buildStaticIdeaConstellationOptions(ideaConstellationPackIndex),
-    [ideaConstellationPackIndex],
-  );
+  const ideaConstellationOptionsMutation = useMutation({
+    mutationFn: () => generateDirectorIdeaConstellationOptions(buildIdeaContextPayload()),
+    onSuccess: (response) => {
+      setIdeaConstellationOptions(response.data?.options ?? []);
+    },
+    onError: (error) => {
+      toast.error(error instanceof Error ? error.message : "生成开书素材失败，请稍后重试。");
+    },
+  });
 
   const ideaConstellationComposeMutation = useMutation({
     mutationFn: (selectedOptions: DirectorIdeaConstellationSelection[]) => composeDirectorIdeaConstellation({
@@ -637,8 +643,8 @@ export function useAutoDirectorCreateController(input: UseAutoDirectorCreateCont
     isGeneratingIdeaInspirations: ideaInspirationMutation.isPending,
     generateIdeaInspirations: () => ideaInspirationMutation.mutate(),
     ideaConstellationOptions,
-    isGeneratingIdeaConstellationOptions: false,
-    generateIdeaConstellationOptions: () => setIdeaConstellationPackIndex((current) => current + 1),
+    isGeneratingIdeaConstellationOptions: ideaConstellationOptionsMutation.isPending,
+    generateIdeaConstellationOptions: () => ideaConstellationOptionsMutation.mutate(),
     isComposingIdeaConstellation: ideaConstellationComposeMutation.isPending,
     composeIdeaConstellation: async (selectedOptions: DirectorIdeaConstellationSelection[]) => {
       const response = await ideaConstellationComposeMutation.mutateAsync(selectedOptions);

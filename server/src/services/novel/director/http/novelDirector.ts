@@ -151,12 +151,12 @@ const ideaContextRequestSchema = projectContextSchema.extend({
 const ideaConstellationSelectionSchema = z.object({
   id: z.string().trim().min(1).max(48),
   category: z.enum(DIRECTOR_IDEA_CONSTELLATION_CATEGORIES),
-  label: z.string().trim().min(2).max(12),
-  hint: z.string().trim().min(4).max(48),
+  label: z.string().trim().min(2).max(16),
+  hint: z.string().trim().min(4).max(64),
 }).strict();
 
 const ideaConstellationComposeSchema = ideaContextRequestSchema.extend({
-  selectedOptions: z.array(ideaConstellationSelectionSchema).min(1).max(6),
+  selectedOptions: z.array(ideaConstellationSelectionSchema).min(1).max(7),
 }).superRefine((input, context) => {
   const categories = new Set(input.selectedOptions.map((option) => option.category));
   if (categories.size !== input.selectedOptions.length) {

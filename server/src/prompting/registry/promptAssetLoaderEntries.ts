@@ -486,11 +486,11 @@ export const promptAssetLoaderEntries: PromptAssetLoaderEntry[] = [
     load: () => require("../prompts/novel/ideaInspiration.prompts").directorIdeaInspirationPrompt as UnknownPromptAsset,
   },
   {
-    key: "novel.director.idea_constellation_options@v1",
+    key: "novel.director.idea_constellation_options@v2",
     load: () => require("../prompts/novel/ideaConstellation/ideaConstellation.prompts").directorIdeaConstellationOptionsPrompt as UnknownPromptAsset,
   },
   {
-    key: "novel.director.idea_constellation_compose@v1",
+    key: "novel.director.idea_constellation_compose@v2",
     load: () => require("../prompts/novel/ideaConstellation/ideaConstellation.prompts").directorIdeaConstellationComposePrompt as UnknownPromptAsset,
   },
   {
