@@ -474,11 +474,11 @@ export const promptAssetLoaderEntries: PromptAssetLoaderEntry[] = [
     load: () => require("../prompts/novel/resourceRecommendation.prompts").novelCreateResourceRecommendationPrompt as UnknownPromptAsset,
   },
   {
-    key: "market_radar.platform_digest@v1",
+    key: "market_radar.platform_digest@v3",
     load: () => require("../prompts/marketRadar/marketRadar.prompts").marketPlatformDigestPrompt as UnknownPromptAsset,
   },
   {
-    key: "market_radar.cross_platform_synthesis@v1",
+    key: "market_radar.cross_platform_synthesis@v3",
     load: () => require("../prompts/marketRadar/marketRadar.prompts").marketTrendSynthesisPrompt as UnknownPromptAsset,
   },
   {

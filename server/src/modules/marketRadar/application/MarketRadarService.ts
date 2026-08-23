@@ -121,6 +121,17 @@ function formatRankingItems(items: MarketRankingItem[]): string {
   }).join("\n");
 }
 
+export function selectMarketAnalysisSnapshots<T extends { platform: string; listKey: string }>(snapshots: T[]): T[] {
+  const newBookPlatforms = new Set(snapshots
+    .filter((snapshot) => snapshot.listKey === "new_book" || snapshot.listKey === "new_author")
+    .map((snapshot) => snapshot.platform));
+  return snapshots.filter((snapshot) => (
+    !newBookPlatforms.has(snapshot.platform)
+    || snapshot.listKey === "new_book"
+    || snapshot.listKey === "new_author"
+  ));
+}
+
 export class MarketRadarService {
   listSources() {
     return MARKET_RADAR_SOURCES;
@@ -327,8 +338,9 @@ export class MarketRadarService {
   private async analyzeRankings(runId: string): Promise<void> {
     const snapshots = await prisma.marketRankingSnapshot.findMany({ where: { runId }, include: { items: true } });
     const successful = snapshots.filter((snapshot) => snapshot.status === "succeeded" && snapshot.items.length > 0);
+    const analysisSnapshots = selectMarketAnalysisSnapshots(successful);
     const requested = [...new Set(snapshots.map((snapshot) => snapshot.platform as MarketRadarPlatform))];
-    const allRows = successful.flatMap((snapshot) => snapshot.items.map((item) => ({ ...item, snapshot })));
+    const allRows = analysisSnapshots.flatMap((snapshot) => snapshot.items.map((item) => ({ ...item, snapshot })));
     const allItems = allRows.map(toRankingItem);
     const platformDigests = await Promise.all(requested.map(async (platform) => {
       const items = allItems.filter((item) => item.platform === platform);
@@ -342,7 +354,7 @@ export class MarketRadarService {
     }));
     await prisma.marketScanRun.update({ where: { id: runId }, data: { progress: 0.75 } });
 
-    const history = await this.buildHistorySummary(successful);
+    const history = await this.buildHistorySummary(analysisSnapshots);
     const synthesis = await runStructuredPrompt({
       asset: marketTrendSynthesisPrompt,
       promptInput: {

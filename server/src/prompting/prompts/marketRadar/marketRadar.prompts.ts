@@ -30,13 +30,14 @@ const analystSystem = [
   "语义分类、套路归纳和机会判断必须由你完成；不能只按标题关键词机械计数。",
   "所有结论都必须引用输入中存在的 evidenceItemIds。不得捏造作品、人名、数据或证据ID。",
   "重点分析：热门题材组合、主角身份、金手指机制、开篇危机、关系卖点、标题句式、拥挤套路和差异化机会。",
-  "以新书榜和新晋作者榜作为判断当前开书机会的主要证据；阅读榜、畅销榜、月票榜、月度榜和季度榜只用于验证读者需求能否持续，不能压过新书信号。",
+  "输入有新书榜或新晋作者榜时只分析这些新书证据；成熟榜单只会在没有可用新书榜时作为回退数据。",
+  "kind 只能使用 genre、protagonist、advantage、opening、relationship、title_pattern、opportunity、crowding；不得创造近义枚举值。",
   "榜单高频不等于适合照搬。机会建议必须说明读者满足点，同时避开直接复制具体作品。",
 ].join("\n");
 
 export const marketPlatformDigestPrompt: PromptAsset<PlatformDigestInput, z.infer<typeof marketPlatformDigestSchema>> = {
   id: "market_radar.platform_digest",
-  version: "v2",
+  version: "v3",
   taskType: "planner",
   mode: "structured",
   language: "zh",
@@ -49,8 +50,7 @@ export const marketPlatformDigestPrompt: PromptAsset<PlatformDigestInput, z.infe
     new HumanMessage([
       `平台：${input.platformLabel}`,
       "请归纳这个平台当前榜单的市场信号。首次横截面分析的 direction 一律使用 current。",
-      "优先从标记为“主要”的新书或新晋证据形成结论，再用辅助榜单判断该满足点是否具有持续性。不要因为辅助榜单作品更多就改变主次关系。",
-      "每类只保留有多条证据或商业意义明确的信号，id 使用简短稳定的英文短横线格式。",
+      "每类只保留有多条证据或商业意义明确的信号，总计输出5到10项；id 使用简短稳定的英文短横线格式。",
       "",
       input.rankingText,
     ].join("\n")),
@@ -66,7 +66,7 @@ export const marketPlatformDigestPrompt: PromptAsset<PlatformDigestInput, z.infe
 
 export const marketTrendSynthesisPrompt: PromptAsset<TrendReportInput, z.infer<typeof marketTrendReportSchema>> = {
   id: "market_radar.cross_platform_synthesis",
-  version: "v2",
+  version: "v3",
   taskType: "planner",
   mode: "structured",
   language: "zh",
@@ -78,11 +78,11 @@ export const marketTrendSynthesisPrompt: PromptAsset<TrendReportInput, z.infer<t
     new SystemMessage(analystSystem),
     new HumanMessage([
       "请综合各平台归纳结果，保留平台差异，不要把男频、女频和免费阅读市场混成一个结论。",
-      "跨平台机会必须以各平台的新书 / 新晋信号为主，成熟榜单只能提供持续需求佐证。",
+      "输入是各平台已经压缩的新书信号；只做跨平台合并、取舍和差异判断，不要逐条复制平台结果。",
       input.hasComparableHistory
         ? "可根据历史比较判断 rising、stable、falling；证据不足时仍使用 current。"
         : "没有可比较历史，所有信号 direction 必须使用 current，禁止声称升温或退潮。",
-      "recommended=true 应优先给一项差异化机会和最多三项支撑信号。高度拥挤的套路通常不应推荐。",
+      "总计输出8到12项。recommended=true 应优先给一项差异化机会和最多三项支撑信号；高度拥挤的套路通常不应推荐。",
       "",
       "平台归纳：",
       input.platformDigestsText,
