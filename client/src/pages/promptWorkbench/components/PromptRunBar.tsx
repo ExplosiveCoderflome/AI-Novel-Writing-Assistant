@@ -30,6 +30,7 @@ interface PromptRunBarProps {
   onOpenOfficialVersion: () => void;
   onSave: () => void;
   onReset: () => void;
+  writingLab?: boolean;
 }
 
 export function PromptRunBar(props: PromptRunBarProps) {
@@ -57,6 +58,7 @@ export function PromptRunBar(props: PromptRunBarProps) {
     testLlm,
     onTestLlmChange,
     testRunDisabled,
+    writingLab = false,
   } = props;
   const maxBudget = prompt?.contextPolicy.maxTokensBudget ?? null;
   const [testDialogOpen, setTestDialogOpen] = useState(false);
@@ -70,17 +72,17 @@ export function PromptRunBar(props: PromptRunBarProps) {
     <div className="shrink-0 border-t border-[#d8e2de] bg-[#fbfdfb]/95 px-5 py-3 backdrop-blur">
       <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
         <div className="flex flex-wrap items-center gap-x-3 gap-y-2 text-sm">
-          <div className="rounded-md bg-[#f2f8f6] px-3 py-2">
+          {!writingLab ? <div className="rounded-md bg-[#f2f8f6] px-3 py-2">
             <span className="text-xs text-muted-foreground">上下文估算</span>
             <div className="font-semibold text-[#25443f]">
               {estimatedTokens ?? "--"}
               {maxBudget ? <span className="ml-1 text-xs font-normal text-muted-foreground">/ {maxBudget}</span> : null}
             </div>
-          </div>
-          <div className="rounded-md bg-[#f4f7ff] px-3 py-2">
+          </div> : null}
+          {!writingLab ? <div className="rounded-md bg-[#f4f7ff] px-3 py-2">
             <span className="text-xs text-muted-foreground">测试模型</span>
             <div className="font-semibold text-[#344d7a]">可选覆盖</div>
-          </div>
+          </div> : null}
           <div className="rounded-md bg-[#fff7e8] px-3 py-2">
             <span className="text-xs text-muted-foreground">保存状态</span>
             <div className={cn(
@@ -104,7 +106,7 @@ export function PromptRunBar(props: PromptRunBarProps) {
             <ShieldCheck className="mr-2 h-4 w-4" />
             {officialVersionLabel}
           </Button>
-          <Button
+          {!writingLab ? <Button
             type="button"
             variant="outline"
             onClick={onGeneratePreview}
@@ -113,7 +115,7 @@ export function PromptRunBar(props: PromptRunBarProps) {
           >
             <Eye className="mr-2 h-4 w-4" />
             {isPreviewPending ? "预览中..." : "生成预览"}
-          </Button>
+          </Button> : null}
           <Button
             type="button"
             variant="outline"
@@ -122,7 +124,7 @@ export function PromptRunBar(props: PromptRunBarProps) {
             className="border-[#c9b46a] bg-white text-[#7a5620] hover:bg-[#fff7e8] hover:text-[#7a5620]"
           >
             <FlaskConical className="mr-2 h-4 w-4" />
-            {isTestRunPending ? "测试中..." : "测试产出"}
+            {isTestRunPending ? "试写中..." : writingLab ? "试写效果" : "测试产出"}
           </Button>
           <Button
             type="button"
@@ -147,8 +149,10 @@ export function PromptRunBar(props: PromptRunBarProps) {
       </div>
       <Dialog open={testDialogOpen} onOpenChange={setTestDialogOpen}>
         <AppDialogContent
-          title="测试产出"
-          description="选择本次测试使用的模型参数，系统会用当前未保存草稿生成一次结果。"
+          title={writingLab ? "试写效果" : "测试产出"}
+          description={writingLab
+            ? "使用当前小说、章节和未保存模板试写一次，不会改动章节正文。"
+            : "选择本次测试使用的模型参数，系统会用当前未保存草稿生成一次结果。"}
           className="max-w-2xl"
           bodyClassName="bg-[#fbfdfb]"
           footer={(
@@ -163,7 +167,7 @@ export function PromptRunBar(props: PromptRunBarProps) {
                 className="bg-[#0f766e] text-white hover:bg-[#0b5f59]"
               >
                 <FlaskConical className="mr-2 h-4 w-4" />
-                {isTestRunPending ? "测试中..." : "开始测试"}
+                {isTestRunPending ? "试写中..." : writingLab ? "开始试写" : "开始测试"}
               </Button>
             </>
           )}
@@ -178,7 +182,9 @@ export function PromptRunBar(props: PromptRunBarProps) {
               />
             </div>
             <div className="rounded-md bg-[#fff7e8] px-3 py-2 text-xs leading-relaxed text-[#7a5620]">
-              测试产出会调用真实模型并消耗额度；结果只用于调试，不会保存为章节正文。
+              {writingLab
+                ? "试写会调用真实模型并消耗额度，结果仅用于比较模板效果，不会保存为章节正文。"
+                : "测试产出会调用真实模型并消耗额度；结果只用于调试，不会保存为章节正文。"}
             </div>
           </div>
         </AppDialogContent>
