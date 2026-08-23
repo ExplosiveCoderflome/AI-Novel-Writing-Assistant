@@ -167,7 +167,7 @@ test("prompt registry exposes versioned planning assets", () => {
     "novel.volume.strategy@v2",
     "novel.volume.strategy.critique@v1",
     "novel.volume.skeleton@v3",
-    "title.generation@v1",
+    "title.generation@v2",
     "audit.chapter.full@v2",
     "bookAnalysis.source.note@v1",
     "character.base.skeleton@v1",
@@ -1077,6 +1077,7 @@ test("title prompt render includes retry reason for regeneration attempts", () =
   const messages = titleGenerationPrompt.render({
     context: {
       mode: "brief",
+      selectionMode: "pool",
       count: 8,
       brief: "赛博修仙，主角靠因果算法登仙",
       referenceTitle: "",
