@@ -86,6 +86,7 @@ const autoApprovalSchema = z.object({
 }).optional();
 
 const projectContextSchema = z.object({
+  marketBriefId: z.string().trim().optional(),
   title: z.string().trim().optional(),
   description: z.string().trim().optional(),
   targetAudience: z.string().trim().optional(),

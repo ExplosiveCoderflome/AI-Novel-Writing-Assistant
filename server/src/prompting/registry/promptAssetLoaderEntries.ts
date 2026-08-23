@@ -474,6 +474,18 @@ export const promptAssetLoaderEntries: PromptAssetLoaderEntry[] = [
     load: () => require("../prompts/novel/resourceRecommendation.prompts").novelCreateResourceRecommendationPrompt as UnknownPromptAsset,
   },
   {
+    key: "market_radar.platform_digest@v1",
+    load: () => require("../prompts/marketRadar/marketRadar.prompts").marketPlatformDigestPrompt as UnknownPromptAsset,
+  },
+  {
+    key: "market_radar.cross_platform_synthesis@v1",
+    load: () => require("../prompts/marketRadar/marketRadar.prompts").marketTrendSynthesisPrompt as UnknownPromptAsset,
+  },
+  {
+    key: "market_radar.creative_brief@v1",
+    load: () => require("../prompts/marketRadar/marketRadar.prompts").marketCreativeBriefPrompt as UnknownPromptAsset,
+  },
+  {
     key: "novel.compact_book.structure@v1",
     load: () => require("../prompts/novel/completion/compactBook.prompts").compactBookStructurePrompt as UnknownPromptAsset,
   },

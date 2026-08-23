@@ -26,7 +26,7 @@ function readerChannelPreferenceLabel(value: DirectorIdeaContextRequest["readerC
   }
 }
 
-export function buildDirectorIdeaContextSummary(input: DirectorIdeaContextRequest): string {
+export function buildDirectorIdeaContextSummary(input: DirectorIdeaContextRequest, marketBriefPrompt = ""): string {
   const framing = buildBookFramingSummary({
     targetAudience: input.targetAudience,
     bookSellingPoint: input.bookSellingPoint,
@@ -45,6 +45,7 @@ export function buildDirectorIdeaContextSummary(input: DirectorIdeaContextReques
     line("副推进模式", input.secondaryStoryModeLabel ?? input.secondaryStoryModeId),
     line("副推进说明", input.secondaryStoryModeDescription),
     line("世界观", input.worldName ?? input.worldId),
+    marketBriefPrompt.trim() ? `开书市场简报：\n${marketBriefPrompt.trim()}` : "",
     line("读者频道倾向", readerChannelPreferenceLabel(input.readerChannelPreference)),
     input.narrativePov ? `叙事视角：${input.narrativePov}` : "",
     input.pacePreference ? `节奏偏好：${input.pacePreference}` : "",

@@ -318,6 +318,7 @@ function buildCandidateTitleBrief(
     context.request.readerChannelPreference === "female_oriented" ? "读者频道：女频向" : "",
     context.request.readerChannelPreference === "general" ? "读者频道：泛读者" : "",
     context.request.targetAudience?.trim() ? `目标读者：${context.request.targetAudience.trim()}` : "",
+    context.request.marketBriefPrompt?.trim() ? `开书市场简报：\n${context.request.marketBriefPrompt.trim()}` : "",
     candidate.toneKeywords.length > 0 ? `气质关键词：${candidate.toneKeywords.join("、")}` : "",
     context.request.title?.trim() ? `用户当前草拟标题：${context.request.title.trim()}` : "",
     `当前方案原始命名：${candidate.workingTitle}`,
