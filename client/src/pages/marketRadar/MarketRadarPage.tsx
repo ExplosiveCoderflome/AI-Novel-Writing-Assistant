@@ -167,6 +167,9 @@ export default function MarketRadarPage() {
       {activeRun?.status === "failed" ? (
         <Card className="border-destructive/40"><CardContent className="p-4 text-sm text-destructive">本次扫榜未完成：{activeRun.lastError || "没有取得可分析的公开榜单数据。"}</CardContent></Card>
       ) : null}
+      {activeRun?.lastError && activeRun.status !== "failed" ? (
+        <Card className="border-amber-300 bg-amber-50/60 dark:bg-amber-950/15"><CardContent className="p-4 text-sm text-amber-800 dark:text-amber-200">{activeRun.lastError}</CardContent></Card>
+      ) : null}
 
       {rankingGroups.length === 0 ? (
         <Card className="border-dashed"><CardContent className="flex min-h-72 flex-col items-center justify-center gap-3 text-center">{scanning ? <Loader2 className="h-10 w-10 animate-spin text-primary" /> : <Radar className="h-10 w-10 text-muted-foreground" />}<div className="font-medium">{scanning ? "正在获取公开榜单" : "还没有可展示的榜单数据"}</div><p className="max-w-lg text-sm text-muted-foreground">进入页面会自动扫榜。榜单获取完成后，你可以先查看原始排名，再决定是否让 AI 分析。</p></CardContent></Card>
@@ -182,7 +185,7 @@ export default function MarketRadarPage() {
           </Card>)}
         </div>
         <Card className="border-primary/30">
-          <CardContent className="flex flex-col gap-4 p-5 sm:flex-row sm:items-center sm:justify-between"><div><div className="font-medium">榜单数据已准备</div><p className="mt-1 text-sm text-muted-foreground">点击后，AI才会归纳题材、金手指、开局爆点和差异化机会。</p></div><Button onClick={() => { setShowAnalysis(true); analysisMutation.mutate(); }} disabled={analyzing}>{analyzing ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}{analyzing ? `AI分析中 ${Math.round((activeRun?.progress ?? 0) * 100)}%` : activeRun?.report ? "查看AI分析" : "开始AI分析"}</Button></CardContent>
+          <CardContent className="flex flex-col gap-4 p-5 sm:flex-row sm:items-center sm:justify-between"><div><div className="font-medium">{scanning ? "榜单仍在获取" : "榜单数据已准备"}</div><p className="mt-1 text-sm text-muted-foreground">{scanning ? "完整榜单准备好后即可开始分析。" : "点击后，AI才会归纳题材、金手指、开局爆点和差异化机会。"}</p></div><Button onClick={() => { setShowAnalysis(true); analysisMutation.mutate(); }} disabled={scanning || analyzing}>{analyzing ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}{scanning ? "等待榜单获取完成" : analyzing ? `AI分析中 ${Math.round((activeRun?.progress ?? 0) * 100)}%` : activeRun?.report ? "查看AI分析" : "开始AI分析"}</Button></CardContent>
         </Card>
       </>}
 
