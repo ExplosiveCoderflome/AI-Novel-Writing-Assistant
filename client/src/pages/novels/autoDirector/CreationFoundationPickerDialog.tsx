@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { Check, Loader2, RotateCcw, Search } from "lucide-react";
 import AssetTreeNavigator from "@/components/assetLibrary/AssetTreeNavigator";
 import { Button } from "@/components/ui/button";
@@ -25,6 +25,7 @@ interface CreationFoundationPickerDialogProps<Node extends CreationFoundationTre
   applying: boolean;
   onRetry: () => void;
   onApply: (nodeId: string) => Promise<boolean>;
+  renderDetails?: (node: Node) => ReactNode;
 }
 
 export default function CreationFoundationPickerDialog<Node extends CreationFoundationTreeNode>({
@@ -42,6 +43,7 @@ export default function CreationFoundationPickerDialog<Node extends CreationFoun
   applying,
   onRetry,
   onApply,
+  renderDetails,
 }: CreationFoundationPickerDialogProps<Node>) {
   const [search, setSearch] = useState("");
   const [draftId, setDraftId] = useState(selectedId);
@@ -75,7 +77,7 @@ export default function CreationFoundationPickerDialog<Node extends CreationFoun
       <AppDialogContent
         title={title}
         description={description}
-        className="max-w-4xl"
+        className="max-w-6xl"
         bodyClassName="p-0"
         footer={(
           <div className="flex w-full flex-col-reverse gap-2 sm:flex-row sm:items-center sm:justify-between">
@@ -119,7 +121,7 @@ export default function CreationFoundationPickerDialog<Node extends CreationFoun
             {emptyLabel}
           </div>
         ) : (
-          <div className="grid min-h-[430px] lg:grid-cols-[320px_minmax(0,1fr)]">
+          <div className="grid min-h-[430px] lg:h-[min(600px,calc(100dvh-14rem))] lg:grid-cols-[336px_minmax(0,1fr)]">
             <div className="border-b border-border/70 lg:border-b-0 lg:border-r">
               <div className="border-b border-border/70 p-3">
                 <div className="relative">
@@ -147,23 +149,25 @@ export default function CreationFoundationPickerDialog<Node extends CreationFoun
               )}
             </div>
 
-            <div className="flex min-h-72 flex-col justify-center px-6 py-8 sm:px-10">
+            <div className="px-6 py-8 sm:px-8 lg:min-h-0 lg:overflow-y-auto">
               {selectedNode ? (
-                <>
-                  <div className="text-xs font-medium tracking-[0.16em] text-muted-foreground">当前选择</div>
-                  <div className="mt-3 text-2xl font-semibold text-foreground">{selectedNode.name}</div>
-                  <p className="mt-4 max-w-xl text-sm leading-7 text-muted-foreground">
-                    {selectedNode.description?.trim() || "这个方向会作为 AI 整理整本书方案时的创作依据。"}
-                  </p>
-                </>
+                renderDetails ? renderDetails(selectedNode) : (
+                  <div className="flex min-h-full flex-col justify-center">
+                    <div className="text-xs font-medium tracking-[0.16em] text-muted-foreground">当前选择</div>
+                    <div className="mt-3 text-2xl font-semibold text-foreground">{selectedNode.name}</div>
+                    <p className="mt-4 max-w-xl text-sm leading-7 text-muted-foreground">
+                      {selectedNode.description?.trim() || "这个方向会作为 AI 整理整本书方案时的创作依据。"}
+                    </p>
+                  </div>
+                )
               ) : (
-                <>
+                <div className="flex min-h-full flex-col justify-center">
                   <div className="text-xs font-medium tracking-[0.16em] text-muted-foreground">保持轻松</div>
                   <div className="mt-3 text-2xl font-semibold text-foreground">{autoLabel}</div>
                   <p className="mt-4 max-w-xl text-sm leading-7 text-muted-foreground">
                     AI 会结合你的起始想法、目标平台和阅读感，自动选择更适合写完整本书的方向。
                   </p>
-                </>
+                </div>
               )}
             </div>
           </div>

@@ -204,6 +204,22 @@ export default function SettingsPage() {
     },
   });
 
+  const removeProviderMutation = useMutation({
+    mutationFn: async (provider: APIKeyStatus) => {
+      if (provider.kind === "custom") {
+        return deleteCustomProvider(provider.provider);
+      }
+      return saveAPIKeySetting(provider.provider, { isActive: false });
+    },
+    onSuccess: async (response, provider) => {
+      setActionResult(response.message ?? (provider.kind === "builtin" ? "厂商已从列表移除。" : "自定义厂商已删除。"));
+      await invalidateProviderQueries();
+    },
+    onError: (error) => {
+      setActionResult(error instanceof Error ? error.message : "移除厂商失败。");
+    },
+  });
+
   const testMutation = useMutation({
     mutationFn: testLLMConnection,
   });
@@ -390,6 +406,14 @@ export default function SettingsPage() {
     deleteCustomProviderMutation.mutate(editingProvider);
   };
 
+  const handleRemoveProvider = (provider: APIKeyStatus) => {
+    const label = provider.kind === "builtin" ? "从列表移除" : "删除";
+    if (!window.confirm(`确认${label} ${provider.name} 吗？`)) {
+      return;
+    }
+    removeProviderMutation.mutate(provider);
+  };
+
   const isSavingProvider = saveMutation.isPending || createCustomProviderMutation.isPending;
   const providerSubmitDisabled = isSavingProvider
     || previewCustomProviderModelsMutation.isPending
@@ -412,6 +436,7 @@ export default function SettingsPage() {
           refreshingBalanceProvider={refreshBalanceMutation.variables}
           reasoningProvider={toggleReasoningMutation.variables?.provider}
           onCreateCustomProvider={openCreateCustomDialog}
+          onRemoveProvider={handleRemoveProvider}
           onOpenConfig={openBuiltInDialog}
           onTest={handleProviderCardTest}
           onRefreshModels={(provider) => {
@@ -429,7 +454,7 @@ export default function SettingsPage() {
               reasoningEnabled,
             });
           }}
-          defaultShowConfiguredOnly
+          removingProvider={removeProviderMutation.variables?.provider}
         />
       </div>
 

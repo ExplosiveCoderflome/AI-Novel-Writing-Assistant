@@ -616,6 +616,7 @@ export default function NovelEdit() {
     isGeneratingChapterDetailBundle,
     generatingChapterDetailMode,
     generatingChapterDetailChapterId,
+    chapterDetailFailure,
     startStrategyGeneration,
     startStrategyCritique,
     startSkeletonGeneration,
@@ -623,6 +624,7 @@ export default function NovelEdit() {
     startChapterListGeneration,
     startChapterDetailGeneration,
     startChapterDetailBundleGeneration,
+    retryFailedChapterDetail,
     handleVolumeFieldChange,
     handleOpenPayoffsChange,
     handleAddVolume,
@@ -1691,9 +1693,10 @@ export default function NovelEdit() {
       || task.status === "cancelled"
     ) {
       actions.push({
-        label: "收起此提醒",
-        onClick: dismissTakeover,
+        label: archiveCompletedAutoDirectorMutation.isPending ? "移除中..." : "从任务列表移除",
+        onClick: () => archiveCompletedAutoDirectorMutation.mutate(task.id),
         variant: "secondary",
+        disabled: archiveCompletedAutoDirectorMutation.isPending,
       });
     } else if (canArchiveCompletedAutoDirectorTask(task)) {
       actions.push({
@@ -2540,8 +2543,10 @@ export default function NovelEdit() {
     isGeneratingChapterDetailBundle,
     generatingChapterDetailMode,
     generatingChapterDetailChapterId,
+    chapterDetailFailure,
     onGenerateChapterDetail: startChapterDetailGeneration,
     onGenerateChapterDetailBundle: startChapterDetailBundleGeneration,
+    onRetryFailedChapterDetail: retryFailedChapterDetail,
     syncPreview: volumeSyncPreview,
     syncOptions: volumeSyncOptions,
     onSyncOptionsChange: (patch) => setVolumeSyncOptions((prev) => ({ ...prev, ...patch })),

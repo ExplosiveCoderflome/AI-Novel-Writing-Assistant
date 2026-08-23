@@ -647,7 +647,7 @@ export interface DirectorCandidatesRequest extends DirectorProjectContextInput, 
   workflowTaskId?: string;
 }
 
-export interface DirectorIdeaInspirationRequest extends DirectorProjectContextInput, DirectorLLMOptions {
+export interface DirectorIdeaContextRequest extends DirectorProjectContextInput, DirectorLLMOptions {
   currentIdea?: string;
   genreLabel?: string;
   genreDescription?: string;
@@ -658,6 +658,8 @@ export interface DirectorIdeaInspirationRequest extends DirectorProjectContextIn
   worldName?: string;
 }
 
+export interface DirectorIdeaInspirationRequest extends DirectorIdeaContextRequest {}
+
 export interface DirectorIdeaInspiration {
   angle: string;
   text: string;
@@ -666,6 +668,47 @@ export interface DirectorIdeaInspiration {
 
 export interface DirectorIdeaInspirationsResponse {
   ideas: DirectorIdeaInspiration[];
+}
+
+export const DIRECTOR_IDEA_CONSTELLATION_CATEGORIES = [
+  "protagonist",
+  "setting",
+  "opening_crisis",
+  "core_goal",
+  "story_variable",
+  "relationship",
+] as const;
+
+export type DirectorIdeaConstellationCategory = typeof DIRECTOR_IDEA_CONSTELLATION_CATEGORIES[number];
+export type DirectorIdeaConstellationRelevance = "high" | "medium" | "low";
+
+export interface DirectorIdeaConstellationOption {
+  id: string;
+  category: DirectorIdeaConstellationCategory;
+  label: string;
+  hint: string;
+  relevance: DirectorIdeaConstellationRelevance;
+}
+
+export interface DirectorIdeaConstellationOptionsRequest extends DirectorIdeaContextRequest {}
+
+export interface DirectorIdeaConstellationOptionsResponse {
+  options: DirectorIdeaConstellationOption[];
+}
+
+export interface DirectorIdeaConstellationSelection {
+  id: string;
+  category: DirectorIdeaConstellationCategory;
+  label: string;
+  hint: string;
+}
+
+export interface DirectorIdeaConstellationComposeRequest extends DirectorIdeaContextRequest {
+  selectedOptions: DirectorIdeaConstellationSelection[];
+}
+
+export interface DirectorIdeaConstellationComposeResponse {
+  idea: string;
 }
 
 export interface DirectorRefinementRequest extends DirectorProjectContextInput, DirectorLLMOptions {

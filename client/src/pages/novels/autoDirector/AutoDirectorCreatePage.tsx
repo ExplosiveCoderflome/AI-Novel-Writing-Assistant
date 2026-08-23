@@ -250,6 +250,11 @@ export default function AutoDirectorCreatePage() {
           ideaInspirations={controller.ideaInspirations}
           isGeneratingIdeaInspirations={controller.isGeneratingIdeaInspirations}
           onGenerateIdeaInspirations={controller.generateIdeaInspirations}
+          ideaConstellationOptions={controller.ideaConstellationOptions}
+          isGeneratingIdeaConstellationOptions={controller.isGeneratingIdeaConstellationOptions}
+          isComposingIdeaConstellation={controller.isComposingIdeaConstellation}
+          onGenerateIdeaConstellationOptions={controller.generateIdeaConstellationOptions}
+          onComposeIdeaConstellation={controller.composeIdeaConstellation}
           onContinue={() => {
             markStageCompleted("idea");
             setActiveStage("basic");

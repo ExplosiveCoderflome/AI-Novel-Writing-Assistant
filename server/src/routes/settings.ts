@@ -2,6 +2,7 @@ import { Router } from "express";
 import type { ApiResponse } from "@ai-novel/shared/types/api";
 import type { BuiltinLLMProvider, LLMProvider } from "@ai-novel/shared/types/llm";
 import { z } from "zod";
+import { prisma } from "../db/prisma";
 import { setProviderSecretCache } from "../llm/factory";
 import { evictSharedLimiters } from "../llm/requestLimiter";
 import { refreshProviderModels } from "../llm/modelCatalog";
@@ -28,6 +29,7 @@ import {
   saveProviderImageModel,
 } from "../services/settings/ProviderImageSettingsService";
 import { getRagEmbeddingModelOptions } from "../services/settings/RagEmbeddingModelService";
+import { getLLMSelectionSettings } from "../services/settings/LLMSelectionSettingsService";
 import {
   getRagEmbeddingProviders,
   getRagEmbeddingSettings,
@@ -73,6 +75,8 @@ const ragEmbeddingProviderSchema = z.object({
 const ragSettingsSchema = z.object({
   embeddingProvider: z.string().trim().min(1).max(120),
   embeddingModel: z.string().trim().min(1),
+  embeddingApiKey: z.string().trim().min(1).optional(),
+  embeddingBaseURL: z.string().trim().url("向量服务 API 地址格式不正确。").optional(),
   collectionMode: z.enum(["auto", "manual"]),
   collectionName: z.string().trim().min(1),
   collectionTag: z.string().trim().min(1),
@@ -334,6 +338,26 @@ router.put(
   async (req, res, next) => {
     try {
       const body = req.body as z.infer<typeof ragSettingsSchema>;
+      if (body.embeddingApiKey || body.embeddingBaseURL) {
+        const existing = await secretStore.getProvider(body.embeddingProvider);
+        const record = await secretStore.upsertProvider(body.embeddingProvider, {
+          key: body.embeddingApiKey ?? existing?.key ?? null,
+          baseURL: body.embeddingBaseURL
+            ?? existing?.baseURL
+            ?? (isBuiltInProvider(body.embeddingProvider) ? PROVIDERS[body.embeddingProvider].baseURL : null),
+          isActive: true,
+        });
+        setProviderSecretCache(body.embeddingProvider, record.isActive ? {
+          displayName: record.displayName ?? undefined,
+          key: record.key ?? undefined,
+          model: record.model ?? undefined,
+          baseURL: record.baseURL ?? undefined,
+          reasoningEnabled: record.reasoningEnabled ?? true,
+          concurrencyLimit: record.concurrencyLimit ?? 0,
+          requestIntervalMs: record.requestIntervalMs ?? 0,
+        } : null);
+        evictSharedLimiters(body.embeddingProvider);
+      }
       const [embeddingResult, runtimeResult] = await Promise.all([
         saveRagEmbeddingSettings({
           embeddingProvider: body.embeddingProvider,
@@ -497,6 +521,24 @@ router.put(
       const nextConcurrencyLimit = body.concurrencyLimit ?? normalizeProviderLimit(existingRecord?.concurrencyLimit);
       const nextRequestIntervalMs = body.requestIntervalMs ?? normalizeProviderLimit(existingRecord?.requestIntervalMs);
       const requiresApiKey = providerRequiresApiKey(provider);
+
+      if (body.isActive === false) {
+        const [routeInUse, selection, ragSettings, ragRuntimeSettings] = await Promise.all([
+          prisma.modelRouteConfig.findFirst({ where: { provider }, select: { taskType: true } }),
+          getLLMSelectionSettings(),
+          getRagEmbeddingSettings(),
+          getRagRuntimeSettings(),
+        ]);
+        if (routeInUse) {
+          throw new AppError(`模型路由 ${routeInUse.taskType} 正在使用这个厂商，请先改用其他厂商。`, 400);
+        }
+        if (selection?.provider === provider) {
+          throw new AppError("顶部默认模型正在使用这个厂商，请先切换默认模型。", 400);
+        }
+        if (ragRuntimeSettings.enabled && ragSettings.embeddingProvider === provider) {
+          throw new AppError("知识库正在使用这个向量服务，请先切换向量服务或暂停资料检索。", 400);
+        }
+      }
 
       if (requiresApiKey && !effectiveKey) {
         throw new AppError("请先填写 API Key。", 400);

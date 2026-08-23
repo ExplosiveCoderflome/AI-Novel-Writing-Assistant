@@ -263,6 +263,13 @@ export interface StructuredTabViewProps extends Omit<
   isGeneratingChapterDetailBundle: boolean;
   generatingChapterDetailMode: "purpose" | "boundary" | "task_sheet" | "";
   generatingChapterDetailChapterId: string;
+  chapterDetailFailure?: {
+    chapterId: string;
+    chapterOrder: number;
+    chapterTitle: string;
+    mode: "purpose" | "boundary" | "task_sheet";
+    message: string;
+  } | null;
   onGenerateChapterDetail: (
     volumeId: string,
     chapterId: string,
@@ -272,6 +279,7 @@ export interface StructuredTabViewProps extends Omit<
     volumeId: string,
     request: ChapterDetailBundleRequest,
   ) => void;
+  onRetryFailedChapterDetail?: () => void;
   syncPreview: VolumeSyncPreview;
   syncOptions: StructuredSyncOptions;
   onSyncOptionsChange: (patch: Partial<StructuredSyncOptions>) => void;

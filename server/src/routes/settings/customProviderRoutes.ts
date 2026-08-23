@@ -13,6 +13,9 @@ import {
   getImageModelOptions,
   saveProviderImageModel,
 } from "../../services/settings/ProviderImageSettingsService";
+import { getLLMSelectionSettings } from "../../services/settings/LLMSelectionSettingsService";
+import { getRagEmbeddingSettings } from "../../services/settings/RagSettingsService";
+import { getRagRuntimeSettings } from "../../services/settings/RagRuntimeSettingsService";
 import { secretStore } from "../../services/settings/secretStore";
 
 const MAX_PROVIDER_CONCURRENCY_LIMIT = 100;
@@ -225,12 +228,20 @@ export function registerCustomProviderRoutes(router: Router): void {
         if (!existing) {
           throw new AppError("没有找到这个自定义厂商。", 404);
         }
-        const routeInUse = await prisma.modelRouteConfig.findFirst({
-          where: { provider },
-          select: { taskType: true },
-        });
+        const [routeInUse, selection, ragSettings, ragRuntimeSettings] = await Promise.all([
+          prisma.modelRouteConfig.findFirst({ where: { provider }, select: { taskType: true } }),
+          getLLMSelectionSettings(),
+          getRagEmbeddingSettings(),
+          getRagRuntimeSettings(),
+        ]);
         if (routeInUse) {
           throw new AppError(`请先把模型路由 ${routeInUse.taskType} 改到其他厂商，再删除这个厂商。`, 400);
+        }
+        if (selection?.provider === provider) {
+          throw new AppError("顶部默认模型正在使用这个厂商，请先切换默认模型。", 400);
+        }
+        if (ragRuntimeSettings.enabled && ragSettings.embeddingProvider === provider) {
+          throw new AppError("知识库正在使用这个向量服务，请先切换向量服务或暂停资料检索。", 400);
         }
         await secretStore.deleteProvider(provider);
         await saveProviderImageModel(provider, null);

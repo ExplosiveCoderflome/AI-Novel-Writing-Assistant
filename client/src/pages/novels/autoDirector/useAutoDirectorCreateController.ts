@@ -11,12 +11,17 @@ import {
   type DirectorCandidateBatch,
   type DirectorAutoExecutionPlan,
   type DirectorCorrectionPreset,
+  type DirectorIdeaConstellationSelection,
   type DirectorIdeaInspiration,
   type DirectorRunMode,
   type DirectorWorldSetupMode,
 } from "@ai-novel/shared/types/novelDirector";
 import { bootstrapNovelWorkflow, continueNovelWorkflow } from "@/api/novelWorkflow";
-import { confirmDirectorCandidate, generateDirectorIdeaInspirations } from "@/api/novelDirector";
+import {
+  composeDirectorIdeaConstellation,
+  confirmDirectorCandidate,
+  generateDirectorIdeaInspirations,
+} from "@/api/novelDirector";
 import { queryKeys } from "@/api/queryKeys";
 import { getStyleProfiles } from "@/api/styleEngine";
 import { getTaskDetail } from "@/api/tasks";
@@ -27,6 +32,7 @@ import {
   patchNovelBasicForm,
   type NovelBasicFormState,
 } from "../novelBasicInfo.shared";
+import { buildStaticIdeaConstellationOptions } from "./ideaConstellation/staticIdeaConstellation";
 import {
   buildDirectorAutoExecutionPlanFromDraft,
   createDefaultDirectorAutoExecutionDraftState,
@@ -113,6 +119,7 @@ export function useAutoDirectorCreateController(input: UseAutoDirectorCreateCont
   const [autoExecutionDraft, setAutoExecutionDraft] = useState(() => createDefaultDirectorAutoExecutionDraftState());
   const [selectedStyleProfileId, setSelectedStyleProfileId] = useState("");
   const [ideaInspirations, setIdeaInspirations] = useState<DirectorIdeaInspiration[]>([]);
+  const [ideaConstellationPackIndex, setIdeaConstellationPackIndex] = useState(0);
   const [candidatePatchFeedbacks, setCandidatePatchFeedbacks] = useState<Record<string, string>>({});
   const [titlePatchFeedbacks, setTitlePatchFeedbacks] = useState<Record<string, string>>({});
   const [isUpdatingFoundation, setIsUpdatingFoundation] = useState(false);
@@ -206,36 +213,53 @@ export function useAutoDirectorCreateController(input: UseAutoDirectorCreateCont
     [directorBasicForm.styleTone, selectedStyleProfile],
   );
 
+  const buildIdeaContextPayload = () => {
+    const genre = genreOptions.find((item) => item.id === directorBasicForm.genreId);
+    const primaryStoryMode = storyModeOptions.find(
+      (item) => item.id === directorBasicForm.primaryStoryModeId,
+    );
+    const secondaryStoryMode = storyModeOptions.find(
+      (item) => item.id === directorBasicForm.secondaryStoryModeId,
+    );
+    const world = worldOptions.find((item) => item.id === directorBasicForm.worldId);
+    return {
+      ...buildAutoDirectorRequestPayload(directorBasicForm, idea || directorBasicForm.description, llm, runMode, undefined, {
+        styleProfileId: selectedStyleProfileId,
+        worldSetupMode,
+      }),
+      currentIdea: idea.trim() || undefined,
+      genreLabel: genre?.path || genre?.label,
+      genreDescription: genre?.description || undefined,
+      primaryStoryModeLabel: primaryStoryMode?.path || primaryStoryMode?.label,
+      primaryStoryModeDescription: primaryStoryMode?.description || undefined,
+      secondaryStoryModeLabel: secondaryStoryMode?.path || secondaryStoryMode?.label,
+      secondaryStoryModeDescription: secondaryStoryMode?.description || undefined,
+      worldName: world?.name,
+    };
+  };
+
   const ideaInspirationMutation = useMutation({
-    mutationFn: async () => {
-      const genre = genreOptions.find((item) => item.id === directorBasicForm.genreId);
-      const primaryStoryMode = storyModeOptions.find(
-        (item) => item.id === directorBasicForm.primaryStoryModeId,
-      );
-      const secondaryStoryMode = storyModeOptions.find(
-        (item) => item.id === directorBasicForm.secondaryStoryModeId,
-      );
-      const world = worldOptions.find((item) => item.id === directorBasicForm.worldId);
-      return generateDirectorIdeaInspirations({
-        ...buildAutoDirectorRequestPayload(directorBasicForm, idea || directorBasicForm.description, llm, runMode, undefined, {
-          styleProfileId: selectedStyleProfileId,
-          worldSetupMode,
-        }),
-        currentIdea: idea.trim() || undefined,
-        genreLabel: genre?.path || genre?.label,
-        genreDescription: genre?.description || undefined,
-        primaryStoryModeLabel: primaryStoryMode?.path || primaryStoryMode?.label,
-        primaryStoryModeDescription: primaryStoryMode?.description || undefined,
-        secondaryStoryModeLabel: secondaryStoryMode?.path || secondaryStoryMode?.label,
-        secondaryStoryModeDescription: secondaryStoryMode?.description || undefined,
-        worldName: world?.name,
-      });
-    },
+    mutationFn: () => generateDirectorIdeaInspirations(buildIdeaContextPayload()),
     onSuccess: (response) => {
       setIdeaInspirations(response.data?.ideas ?? []);
     },
     onError: (error) => {
       toast.error(error instanceof Error ? error.message : "生成起始想法失败，请稍后重试。");
+    },
+  });
+
+  const ideaConstellationOptions = useMemo(
+    () => buildStaticIdeaConstellationOptions(ideaConstellationPackIndex),
+    [ideaConstellationPackIndex],
+  );
+
+  const ideaConstellationComposeMutation = useMutation({
+    mutationFn: (selectedOptions: DirectorIdeaConstellationSelection[]) => composeDirectorIdeaConstellation({
+      ...buildIdeaContextPayload(),
+      selectedOptions,
+    }),
+    onError: (error) => {
+      toast.error(error instanceof Error ? error.message : "整理故事想法失败，请稍后重试。");
     },
   });
 
@@ -612,6 +636,14 @@ export function useAutoDirectorCreateController(input: UseAutoDirectorCreateCont
     ideaInspirations,
     isGeneratingIdeaInspirations: ideaInspirationMutation.isPending,
     generateIdeaInspirations: () => ideaInspirationMutation.mutate(),
+    ideaConstellationOptions,
+    isGeneratingIdeaConstellationOptions: false,
+    generateIdeaConstellationOptions: () => setIdeaConstellationPackIndex((current) => current + 1),
+    isComposingIdeaConstellation: ideaConstellationComposeMutation.isPending,
+    composeIdeaConstellation: async (selectedOptions: DirectorIdeaConstellationSelection[]) => {
+      const response = await ideaConstellationComposeMutation.mutateAsync(selectedOptions);
+      return response.data?.idea ?? "";
+    },
     runMode,
     runModeOptions: RUN_MODE_OPTIONS,
     setRunMode,

@@ -37,6 +37,7 @@ const storyModeCreateDialog = readClientFile("src/pages/storyModes/components/St
 const storyModeExpansionDialog = readClientFile("src/pages/storyModes/components/StoryModeExpansionDialog.tsx");
 const storyModeProfileFields = readClientFile("src/pages/storyModes/components/StoryModeProfileFields.tsx");
 const storyModeTreeBrowser = readClientFile("src/pages/storyModes/components/StoryModeTreeBrowser.tsx");
+const storyModeProfileDetails = readClientFile("src/components/storyModes/StoryModeProfileDetails.tsx");
 const assetTreeNavigator = readClientFile("src/components/assetLibrary/AssetTreeNavigator.tsx");
 const characterPage = readClientFile("src/pages/characters/CharacterLibrary.tsx");
 const writingFormulaLanding = readClientFile("src/pages/writingFormula/components/WritingFormulaLanding.tsx");
@@ -191,10 +192,11 @@ test("story mode library reuses the tree navigator and keeps mode contracts in t
   assert.match(storyModePage, /StoryModeTreeBrowser/);
   assert.match(storyModeTreeBrowser, /AssetTreeNavigator/);
   assert.match(storyModeTreeBrowser, /推进模式目录/);
-  assert.match(storyModeTreeBrowser, /核心驱动/);
-  assert.match(storyModeTreeBrowser, /读者回报/);
-  assert.match(storyModeTreeBrowser, /推进单元/);
-  assert.match(storyModeTreeBrowser, /冲突上限/);
+  assert.match(storyModeTreeBrowser, /StoryModeProfileDetails/);
+  assert.match(storyModeProfileDetails, /核心驱动/);
+  assert.match(storyModeProfileDetails, /读者回报/);
+  assert.match(storyModeProfileDetails, /推进单元/);
+  assert.match(storyModeProfileDetails, /冲突上限/);
   assert.doesNotMatch(storyModeTreeBrowser, /shadow-(?:sm|md|lg|xl|2xl)/);
 });
 

@@ -118,6 +118,50 @@
   --info: 199 80% 58%;
 }
 
+/* Writing Formula V2 has older slate utility colors. Keep that surface readable
+   until its individual panels are gradually converged on shared tokens. */
+.dark .writing-formula-theme [class*="border-slate-"],
+.dark .writing-formula-theme [class*="border-sky-"],
+.dark .writing-formula-theme [class*="border-amber-"] {
+  border-color: hsl(var(--border));
+}
+
+.dark .writing-formula-theme [class*="bg-white"],
+.dark .writing-formula-theme [class*="bg-slate-50"],
+.dark .writing-formula-theme [class*="bg-slate-100"] {
+  background-color: hsl(var(--card));
+}
+
+.dark .writing-formula-theme [class*="bg-sky-50"] {
+  background-color: hsl(var(--primary) / 0.12);
+}
+
+.dark .writing-formula-theme [class*="bg-amber-50"] {
+  background-color: hsl(var(--warning) / 0.14);
+}
+
+.dark .writing-formula-theme [class*="bg-[linear-gradient"] {
+  background-color: hsl(var(--card));
+  background-image: none;
+}
+
+.dark .writing-formula-theme [class*="text-slate-9"],
+.dark .writing-formula-theme [class*="text-slate-8"] {
+  color: hsl(var(--foreground));
+}
+
+.dark .writing-formula-theme [class*="text-slate-7"],
+.dark .writing-formula-theme [class*="text-slate-6"],
+.dark .writing-formula-theme [class*="text-slate-5"],
+.dark .writing-formula-theme [class*="text-slate-3"],
+.dark .writing-formula-theme [class*="text-slate-2"] {
+  color: hsl(var(--muted-foreground));
+}
+
+.dark .writing-formula-theme [class*="text-amber-"] {
+  color: hsl(var(--warning));
+}
+
 .dark[data-theme="night"] {
   --background: 222 47% 8%;
   --foreground: 210 40% 96%;

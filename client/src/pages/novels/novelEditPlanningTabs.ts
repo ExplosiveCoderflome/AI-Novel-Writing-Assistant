@@ -137,8 +137,10 @@ interface BuildNovelEditPlanningTabsInput {
   isGeneratingChapterDetailBundle: boolean;
   generatingChapterDetailMode: StructuredTabViewProps["generatingChapterDetailMode"];
   generatingChapterDetailChapterId: string;
+  chapterDetailFailure: StructuredTabViewProps["chapterDetailFailure"];
   onGenerateChapterDetail: StructuredTabViewProps["onGenerateChapterDetail"];
   onGenerateChapterDetailBundle: StructuredTabViewProps["onGenerateChapterDetailBundle"];
+  onRetryFailedChapterDetail: StructuredTabViewProps["onRetryFailedChapterDetail"];
   syncPreview: VolumeSyncPreview;
   syncOptions: VolumeSyncOptions;
   onSyncOptionsChange: (patch: Partial<VolumeSyncOptions>) => void;
@@ -275,8 +277,10 @@ export function buildNovelEditPlanningTabs(input: BuildNovelEditPlanningTabsInpu
     isGeneratingChapterDetailBundle: input.isGeneratingChapterDetailBundle,
     generatingChapterDetailMode: input.generatingChapterDetailMode,
     generatingChapterDetailChapterId: input.generatingChapterDetailChapterId,
+    chapterDetailFailure: input.chapterDetailFailure,
     onGenerateChapterDetail: input.onGenerateChapterDetail,
     onGenerateChapterDetailBundle: input.onGenerateChapterDetailBundle,
+    onRetryFailedChapterDetail: input.onRetryFailedChapterDetail,
     syncPreview: input.syncPreview,
     syncOptions: input.syncOptions,
     onSyncOptionsChange: input.onSyncOptionsChange,
