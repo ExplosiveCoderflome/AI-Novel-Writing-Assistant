@@ -44,6 +44,14 @@ router.get("/scans/:id", validate({ params: idParamsSchema }), async (req, res, 
   } catch (error) { next(error); }
 });
 
+router.post("/scans/:id/analysis", validate({ params: idParamsSchema }), async (req, res, next) => {
+  try {
+    const { id } = req.params as z.infer<typeof idParamsSchema>;
+    const run = await marketRadarService.startAnalysis(id);
+    res.status(run.report ? 200 : 202).json(ok(run, run.report ? "AI分析已完成。" : "AI分析已开始。"));
+  } catch (error) { next(error); }
+});
+
 router.post("/briefs", validate({ body: briefSchema }), async (req, res, next) => {
   try { res.status(201).json(ok(await marketRadarService.createBrief(req.body as CreateMarketCreativeBriefRequest))); }
   catch (error) { next(error); }

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type {
   MarketInfluenceMode,
@@ -10,9 +10,9 @@ import { ArrowRight, ExternalLink, Loader2, Radar, RefreshCw, Sparkles } from "l
 import { useNavigate } from "react-router-dom";
 import {
   createMarketCreativeBrief,
-  getLatestMarketRadarReport,
   getMarketRadarScan,
   getMarketRadarSources,
+  startMarketRadarAnalysis,
   startMarketRadarScan,
 } from "@/api/marketRadar";
 import { queryKeys } from "@/api/queryKeys";
@@ -58,32 +58,28 @@ export default function MarketRadarPage() {
   const queryClient = useQueryClient();
   const [platforms, setPlatforms] = useState<MarketRadarPlatform[]>(["fanqie", "qidian", "jinjiang"]);
   const [activeRunId, setActiveRunId] = useState("");
+  const [showAnalysis, setShowAnalysis] = useState(false);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [influenceMode, setInfluenceMode] = useState<MarketInfluenceMode>("differentiate");
+  const initialScanStarted = useRef(false);
 
   const sourcesQuery = useQuery({ queryKey: queryKeys.marketRadar.sources, queryFn: getMarketRadarSources });
-  const latestQuery = useQuery({ queryKey: queryKeys.marketRadar.latest, queryFn: getLatestMarketRadarReport });
   const scanQuery = useQuery({
     queryKey: queryKeys.marketRadar.scan(activeRunId || "none"),
     queryFn: () => getMarketRadarScan(activeRunId),
     enabled: Boolean(activeRunId),
     refetchInterval: (query) => {
       const status = query.state.data?.data?.status;
-      return status === "queued" || status === "running" ? 1500 : false;
+      return status === "queued" || status === "running" || status === "analyzing" ? 1500 : false;
     },
   });
   const activeRun = scanQuery.data?.data ?? null;
-  const report = activeRun?.report ?? latestQuery.data?.data ?? null;
+  const report = showAnalysis ? activeRun?.report ?? null : null;
 
   useEffect(() => {
     if (!report) return;
     setSelectedIds((current) => current.length > 0 ? current : recommendedSignalIds(report));
   }, [report?.id]);
-
-  useEffect(() => {
-    if (!activeRun || (activeRun.status !== "succeeded" && activeRun.status !== "partial")) return;
-    void queryClient.invalidateQueries({ queryKey: queryKeys.marketRadar.latest });
-  }, [activeRun?.status, queryClient]);
 
   const scanMutation = useMutation({
     mutationFn: () => startMarketRadarScan(platforms),
@@ -91,9 +87,20 @@ export default function MarketRadarPage() {
       const run = response.data;
       if (!run) return;
       setActiveRunId(run.id);
-      if (run.report) setSelectedIds(recommendedSignalIds(run.report));
+      setShowAnalysis(false);
+      setSelectedIds([]);
     },
     onError: (error) => toast.error(error instanceof Error ? error.message : "扫榜失败，请稍后重试。"),
+  });
+  const analysisMutation = useMutation({
+    mutationFn: () => startMarketRadarAnalysis(activeRun!.id),
+    onSuccess: (response) => {
+      const run = response.data;
+      if (!run) return;
+      queryClient.setQueryData(queryKeys.marketRadar.scan(run.id), response);
+      if (run.report) setSelectedIds(recommendedSignalIds(run.report));
+    },
+    onError: (error) => toast.error(error instanceof Error ? error.message : "AI分析失败，请稍后重试。"),
   });
   const briefMutation = useMutation({
     mutationFn: () => createMarketCreativeBrief({ reportId: report!.id, signalIds: selectedIds, influenceMode }),
@@ -103,8 +110,24 @@ export default function MarketRadarPage() {
     onError: (error) => toast.error(error instanceof Error ? error.message : "生成市场创作简报失败。"),
   });
 
+  useEffect(() => {
+    if (initialScanStarted.current) return;
+    initialScanStarted.current = true;
+    scanMutation.mutate();
+  }, []);
+
   const evidenceById = useMemo(() => new Map((report?.evidenceItems ?? []).map((item) => [item.id, item])), [report]);
   const scanning = scanMutation.isPending || activeRun?.status === "queued" || activeRun?.status === "running";
+  const analyzing = analysisMutation.isPending || activeRun?.status === "analyzing";
+  const rankingGroups = useMemo(() => {
+    const groups = new Map<string, NonNullable<typeof activeRun>["rankingItems"]>();
+    for (const item of activeRun?.rankingItems ?? []) {
+      const key = `${item.platform}:${item.listKey}`;
+      groups.set(key, [...(groups.get(key) ?? []), item]);
+    }
+    return [...groups.entries()].map(([key, items]) => ({ key, items: items.sort((left, right) => left.rank - right.rank) }));
+  }, [activeRun?.rankingItems]);
+  const sourceLabels = useMemo(() => new Map((sourcesQuery.data?.data ?? []).map((source) => [`${source.platform}:${source.listKey}`, source.listLabel])), [sourcesQuery.data]);
 
   const togglePlatform = (platform: MarketRadarPlatform) => {
     setPlatforms((current) => current.includes(platform)
@@ -131,23 +154,39 @@ export default function MarketRadarPage() {
           {Object.entries(PLATFORM_LABELS).map(([key, label]) => (
             <button key={key} type="button" onClick={() => togglePlatform(key as MarketRadarPlatform)} className={cn("rounded-full border px-3 py-1.5 text-sm transition", platforms.includes(key as MarketRadarPlatform) ? "border-primary bg-primary/10 text-primary" : "border-border text-muted-foreground")}>{label}</button>
           ))}
-          <Button onClick={() => scanMutation.mutate()} disabled={scanning || sourcesQuery.isPending}>
+          <Button onClick={() => scanMutation.mutate()} disabled={scanning || sourcesQuery.isPending} variant="outline">
             {scanning ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
-            {scanning ? `正在扫榜 ${Math.round((activeRun?.progress ?? 0) * 100)}%` : report ? "重新扫榜" : "立即扫榜"}
+            {scanning ? `正在获取榜单 ${Math.round((activeRun?.progress ?? 0) * 100)}%` : "重新扫榜"}
           </Button>
         </div>
       </div>
 
       {activeRun?.platformStatuses.some((item) => item.status !== "succeeded") ? (
-        <Card className="border-amber-300 bg-amber-50/60 dark:bg-amber-950/15"><CardContent className="p-4 text-sm text-amber-800 dark:text-amber-200">部分榜单暂时无法读取，报告会使用成功数据继续分析：{activeRun.platformStatuses.filter((item) => item.status !== "succeeded").map((item) => `${PLATFORM_LABELS[item.platform]}：${item.error || "读取失败"}`).join("；")}</CardContent></Card>
+        <Card className="border-amber-300 bg-amber-50/60 dark:bg-amber-950/15"><CardContent className="p-4 text-sm text-amber-800 dark:text-amber-200">部分榜单暂时无法读取，仍可查看并分析已成功获取的数据：{activeRun.platformStatuses.filter((item) => item.status !== "succeeded").map((item) => `${PLATFORM_LABELS[item.platform]}：${item.error || "读取失败"}`).join("；")}</CardContent></Card>
       ) : null}
       {activeRun?.status === "failed" ? (
-        <Card className="border-destructive/40"><CardContent className="p-4 text-sm text-destructive">本次扫榜未完成：{activeRun.lastError || "没有取得可分析的公开榜单数据。"} 最近一次成功报告仍保留在下方。</CardContent></Card>
+        <Card className="border-destructive/40"><CardContent className="p-4 text-sm text-destructive">本次扫榜未完成：{activeRun.lastError || "没有取得可分析的公开榜单数据。"}</CardContent></Card>
       ) : null}
 
-      {!report ? (
-        <Card className="border-dashed"><CardContent className="flex min-h-72 flex-col items-center justify-center gap-3 text-center"><Radar className="h-10 w-10 text-muted-foreground" /><div className="font-medium">还没有市场快照</div><p className="max-w-lg text-sm text-muted-foreground">点击“立即扫榜”，AI 会把三个平台的公开排行榜整理成可直接用于开书的市场机会。</p></CardContent></Card>
-      ) : (
+      {rankingGroups.length === 0 ? (
+        <Card className="border-dashed"><CardContent className="flex min-h-72 flex-col items-center justify-center gap-3 text-center">{scanning ? <Loader2 className="h-10 w-10 animate-spin text-primary" /> : <Radar className="h-10 w-10 text-muted-foreground" />}<div className="font-medium">{scanning ? "正在获取公开榜单" : "还没有可展示的榜单数据"}</div><p className="max-w-lg text-sm text-muted-foreground">进入页面会自动扫榜。榜单获取完成后，你可以先查看原始排名，再决定是否让 AI 分析。</p></CardContent></Card>
+      ) : <>
+        <Card>
+          <CardHeader><CardTitle className="text-xl">本次榜单数据</CardTitle><CardDescription>先核对公开排名、书名、作者和分类；这一步不调用AI。</CardDescription></CardHeader>
+          <CardContent><div className="flex flex-wrap gap-2">{activeRun?.platformStatuses.map((status) => <Badge key={status.platform} variant={status.status === "failed" ? "destructive" : "outline"}>{PLATFORM_LABELS[status.platform]} · {status.itemCount}项</Badge>)}</div></CardContent>
+        </Card>
+        <div className="grid items-start gap-4 lg:grid-cols-2">
+          {rankingGroups.map(({ key, items }) => <Card key={key}>
+            <CardHeader className="pb-3"><CardTitle className="text-base">{PLATFORM_LABELS[items[0].platform]} · {sourceLabels.get(key) ?? items[0].listKey}</CardTitle><CardDescription>共 {items.length} 条公开上榜记录</CardDescription></CardHeader>
+            <CardContent><div className="max-h-96 space-y-1 overflow-y-auto pr-1">{items.map((item) => <a key={item.id} href={item.sourceUrl} target="_blank" rel="noreferrer" className="grid grid-cols-[2.5rem_minmax(0,1fr)_auto] items-center gap-2 rounded-md px-2 py-2 text-sm hover:bg-muted"><span className="font-mono text-muted-foreground">#{item.rank}</span><span className="min-w-0"><span className="block truncate font-medium">{item.title}</span><span className="block truncate text-xs text-muted-foreground">{item.author || "作者未公开"}{item.category ? ` · ${item.category}` : ""}</span></span><ExternalLink className="h-3.5 w-3.5 text-muted-foreground" /></a>)}</div></CardContent>
+          </Card>)}
+        </div>
+        <Card className="border-primary/30">
+          <CardContent className="flex flex-col gap-4 p-5 sm:flex-row sm:items-center sm:justify-between"><div><div className="font-medium">榜单数据已准备</div><p className="mt-1 text-sm text-muted-foreground">点击后，AI才会归纳题材、金手指、开局爆点和差异化机会。</p></div><Button onClick={() => { setShowAnalysis(true); analysisMutation.mutate(); }} disabled={analyzing}>{analyzing ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}{analyzing ? `AI分析中 ${Math.round((activeRun?.progress ?? 0) * 100)}%` : activeRun?.report ? "查看AI分析" : "开始AI分析"}</Button></CardContent>
+        </Card>
+      </>}
+
+      {report ? (
         <>
           <Card>
             <CardHeader><CardTitle className="text-xl">本期判断</CardTitle><CardDescription>采集于 {new Date(report.createdAt).toLocaleString()}，结论均可回看公开榜单证据。</CardDescription></CardHeader>
@@ -178,7 +217,7 @@ export default function MarketRadarPage() {
             </CardContent>
           </Card>
         </>
-      )}
+      ) : null}
     </div>
   );
 }
