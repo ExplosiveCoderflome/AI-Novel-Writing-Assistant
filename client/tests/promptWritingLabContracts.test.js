@@ -42,3 +42,9 @@ test("提示词目录的状态标签使用语义色，避免深色主题下白�
   assert.match(catalogSidebar, /bg-success\/15 text-success/);
   assert.doesNotMatch(catalogSidebar, /bg-\[#0f766e\].*text-white/);
 });
+
+test("旧的青绿色操作在深色主题下保持成功色对比", () => {
+  assert.match(editorShell, /bg-success text-success-foreground/);
+  assert.match(themeStyles, /background-color: hsl\(var\(--success\)\);/);
+  assert.match(themeStyles, /color: hsl\(var\(--success\)\);/);
+});
