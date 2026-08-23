@@ -13,8 +13,9 @@ import {
   buildDirectorIdeaContextSummary,
   shouldRetryDirectorIdeaWithOriginalContext,
 } from "./ideaContext";
+import { marketRadarService } from "../../../../modules/marketRadar/application/MarketRadarService";
 
-const CONSTELLATION_OPTIONS_MAX_TOKENS = 3_200;
+const CONSTELLATION_OPTIONS_MAX_TOKENS = 5_000;
 const CONSTELLATION_COMPOSE_MAX_TOKENS = 800;
 const CONSTELLATION_RETRY_TEMPERATURE = 0.25;
 
@@ -27,9 +28,10 @@ function composeTemperature(input: DirectorIdeaConstellationComposeRequest): num
 }
 
 async function runOptionsPrompt(input: DirectorIdeaConstellationOptionsRequest, temperature: number) {
+  const marketBriefPrompt = await marketRadarService.getBriefPromptBlock(input.marketBriefId);
   return runStructuredPrompt({
     asset: directorIdeaConstellationOptionsPrompt,
-    promptInput: { contextSummary: buildDirectorIdeaContextSummary(input) },
+    promptInput: { contextSummary: buildDirectorIdeaContextSummary(input, marketBriefPrompt) },
     options: {
       provider: input.provider,
       model: input.model,
@@ -40,10 +42,11 @@ async function runOptionsPrompt(input: DirectorIdeaConstellationOptionsRequest, 
 }
 
 async function runComposePrompt(input: DirectorIdeaConstellationComposeRequest, temperature: number) {
+  const marketBriefPrompt = await marketRadarService.getBriefPromptBlock(input.marketBriefId);
   return runStructuredPrompt({
     asset: directorIdeaConstellationComposePrompt,
     promptInput: {
-      contextSummary: buildDirectorIdeaContextSummary(input),
+      contextSummary: buildDirectorIdeaContextSummary(input, marketBriefPrompt),
       selectedSummary: input.selectedOptions
         .map((option) => `${option.category}：${option.label}（${option.hint}）`)
         .join("\n"),

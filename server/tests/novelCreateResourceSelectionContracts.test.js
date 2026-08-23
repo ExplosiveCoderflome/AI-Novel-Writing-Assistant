@@ -61,23 +61,30 @@ test("idea inspirations bound creative sampling and retry with the original cont
   assert.match(loaders, /novel\.director\.idea_inspiration@v3/);
 });
 
-test("idea constellation keeps AI generation inside a strict six-dimension contract", () => {
+test("idea constellation generates seven concrete web-novel material categories through AI", () => {
   const shared = read("../shared/types/novelDirector.ts");
   const service = read("src/services/novel/director/idea/NovelDirectorIdeaConstellationService.ts");
   const prompt = read("src/prompting/prompts/novel/ideaConstellation/ideaConstellation.prompts.ts");
   const schema = read("src/prompting/prompts/novel/ideaConstellation/ideaConstellation.promptSchemas.ts");
   const route = read("src/services/novel/director/http/novelDirector.ts");
   const loaders = read("src/prompting/registry/promptAssetLoaderEntries.ts");
+  const controller = read("../client/src/pages/novels/autoDirector/useAutoDirectorCreateController.ts");
+  const dialog = read("../client/src/pages/novels/autoDirector/ideaConstellation/StoryConstellationDialog.tsx");
 
-  assert.match(shared, /DIRECTOR_IDEA_CONSTELLATION_CATEGORIES/);
-  assert.match(schema, /options: z\.array\(directorIdeaConstellationOptionSchema\)\.length\(24\)/);
-  assert.match(schema, /count !== 4/);
-  assert.match(route, /selectedOptions: z\.array\(ideaConstellationSelectionSchema\)\.min\(1\)\.max\(6\)/);
+  assert.match(shared, /"advantage"/);
+  assert.match(schema, /options: z\.array\(directorIdeaConstellationOptionSchema\)\.length\(35\)/);
+  assert.match(schema, /count !== 5/);
+  assert.match(route, /selectedOptions: z\.array\(ideaConstellationSelectionSchema\)\.min\(1\)\.max\(7\)/);
   assert.match(route, /categories\.size !== input\.selectedOptions\.length/);
-  assert.match(prompt, /novel\.director\.idea_constellation_options/);
-  assert.match(prompt, /novel\.director\.idea_constellation_compose/);
+  assert.match(prompt, /advantage 金手指或核心优势/);
+  assert.match(prompt, /严禁输出“所有人活在谎言里/);
   assert.match(service, /buildDirectorIdeaContextSummary/);
+  assert.match(service, /CONSTELLATION_OPTIONS_MAX_TOKENS = 5_000/);
   assert.match(service, /CONSTELLATION_RETRY_TEMPERATURE/);
-  assert.match(loaders, /novel\.director\.idea_constellation_options@v1/);
-  assert.match(loaders, /novel\.director\.idea_constellation_compose@v1/);
+  assert.match(loaders, /novel\.director\.idea_constellation_options@v2/);
+  assert.match(loaders, /novel\.director\.idea_constellation_compose@v2/);
+  assert.match(controller, /generateDirectorIdeaConstellationOptions\(buildIdeaContextPayload\(\)\)/);
+  assert.doesNotMatch(controller, /buildStaticIdeaConstellationOptions/);
+  assert.match(dialog, /const plotOptions = orderedOptions/);
+  assert.match(dialog, /selected\.length}\/7 类开书素材/);
 });

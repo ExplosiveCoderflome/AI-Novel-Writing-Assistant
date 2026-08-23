@@ -13,6 +13,7 @@ import {
   LayoutDashboard,
   ListTodo,
   MonitorPlay,
+  Radar,
   SquareStack,
   ScanSearch,
   Settings2,
@@ -53,6 +54,7 @@ const navGroups: NavGroup[] = [
     items: [
       { to: "/", label: "首页", icon: House },
       { to: "/help", label: "创作向导", icon: CircleHelp },
+      { to: "/market-radar", label: "热门题材雷达", icon: Radar },
       { to: "/novels", label: "小说列表", icon: BookOpenText },
       { to: "/drama", label: "短剧工作台", icon: MonitorPlay, disabled: true },
       { to: "/comic", label: "漫画工作台", icon: SquareStack },

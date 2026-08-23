@@ -35,6 +35,7 @@ import {
   type CandidateGenerationContext,
 } from "../runtime/novelDirectorHelpers";
 import { DIRECTOR_PROGRESS } from "../projections/novelDirectorProgress";
+import { marketRadarService } from "../../../../modules/marketRadar/application/MarketRadarService";
 
 type WorkflowDependency = Pick<NovelWorkflowService, "bootstrapTask" | "markTaskRunning" | "recordCandidateSelectionRequired">;
 
@@ -267,7 +268,9 @@ export class NovelDirectorCandidateStageService {
   }
 
   async generateCandidates(input: DirectorCandidatesRequest): Promise<DirectorCandidatesResponse> {
+    const marketBriefPrompt = await marketRadarService.getBriefPromptBlock(input.marketBriefId);
     const foundation = await novelCreateResourceRecommendationService.resolveRequired({
+      marketBriefPrompt,
       title: input.title,
       description: input.description || input.idea,
       targetAudience: input.targetAudience,
@@ -291,6 +294,7 @@ export class NovelDirectorCandidateStageService {
     });
     const resolvedInput: DirectorCandidatesRequest = {
       ...input,
+      marketBriefPrompt,
       genreId: foundation.genreId,
       primaryStoryModeId: foundation.primaryStoryModeId,
       secondaryStoryModeId: foundation.secondaryStoryModeId,

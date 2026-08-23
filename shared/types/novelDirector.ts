@@ -603,6 +603,9 @@ export interface DirectorTakeoverResponse {
 }
 
 export interface DirectorProjectContextInput {
+  marketBriefId?: string;
+  /** 服务端根据 marketBriefId 解析，不接受客户端直接注入。 */
+  marketBriefPrompt?: string;
   title?: string;
   description?: string;
   targetAudience?: string;
@@ -673,6 +676,7 @@ export interface DirectorIdeaInspirationsResponse {
 export const DIRECTOR_IDEA_CONSTELLATION_CATEGORIES = [
   "protagonist",
   "setting",
+  "advantage",
   "opening_crisis",
   "core_goal",
   "story_variable",

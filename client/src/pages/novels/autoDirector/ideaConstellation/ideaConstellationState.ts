@@ -6,12 +6,13 @@ import {
 } from "@ai-novel/shared/types/novelDirector";
 
 export const IDEA_CONSTELLATION_CATEGORY_LABELS: Record<DirectorIdeaConstellationCategory, string> = {
-  protagonist: "人物底色",
-  setting: "世界压力",
-  opening_crisis: "开局钩子",
-  core_goal: "长线欲望",
-  story_variable: "关键变量",
-  relationship: "关系张力",
+  protagonist: "主角开局",
+  setting: "题材舞台",
+  advantage: "金手指 / 优势",
+  opening_crisis: "首章爆点",
+  core_goal: "前期目标",
+  story_variable: "核心阻力",
+  relationship: "关键关系",
 };
 
 export interface FoundationConstellationOption {
@@ -27,7 +28,7 @@ export function orderIdeaConstellationOptions(
     category,
     options.filter((option) => option.category === category).sort((left, right) => left.id.localeCompare(right.id)),
   ]));
-  return Array.from({ length: 4 }, (_, optionIndex) => (
+  return Array.from({ length: 5 }, (_, optionIndex) => (
     DIRECTOR_IDEA_CONSTELLATION_CATEGORIES.map((category) => byCategory.get(category)?.[optionIndex])
   )).flat().filter((option): option is DirectorIdeaConstellationOption => Boolean(option));
 }
