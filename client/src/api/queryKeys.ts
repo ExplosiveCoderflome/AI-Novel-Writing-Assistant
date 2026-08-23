@@ -63,6 +63,12 @@ export const queryKeys = {
     detail: (id: string) => ["book-analysis", "detail", id] as const,
     characters: (id: string) => ["book-analysis", "characters", id] as const,
   },
+  marketRadar: {
+    sources: ["market-radar", "sources"] as const,
+    latest: ["market-radar", "latest"] as const,
+    scan: (id: string) => ["market-radar", "scan", id] as const,
+    brief: (id: string) => ["market-radar", "brief", id] as const,
+  },
   writingFormula: {
     all: ["writing-formula"] as const,
     detail: (id: string) => ["writing-formula", "detail", id] as const,

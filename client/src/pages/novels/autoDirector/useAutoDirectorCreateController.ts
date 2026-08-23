@@ -59,6 +59,7 @@ import { useNovelAutoDirectorCandidateMutations } from "../components/useNovelAu
 import { hasCreationFoundationChanged } from "./creationFoundationPickerState";
 
 interface UseAutoDirectorCreateControllerInput {
+  marketBriefId?: string;
   basicForm: NovelBasicFormState;
   genreOptions: Array<{
     id: string;
@@ -102,6 +103,7 @@ export function useAutoDirectorCreateController(input: UseAutoDirectorCreateCont
     restoredTask,
     onWorkflowTaskChange,
     onBasicFormChange,
+    marketBriefId,
   } = input;
   const llm = useLLMStore();
   const queryClient = useQueryClient();
@@ -227,6 +229,7 @@ export function useAutoDirectorCreateController(input: UseAutoDirectorCreateCont
       ...buildAutoDirectorRequestPayload(directorBasicForm, idea || directorBasicForm.description, llm, runMode, undefined, {
         styleProfileId: selectedStyleProfileId,
         worldSetupMode,
+        marketBriefId,
       }),
       currentIdea: idea.trim() || undefined,
       genreLabel: genre?.path || genre?.label,
@@ -365,6 +368,7 @@ export function useAutoDirectorCreateController(input: UseAutoDirectorCreateCont
         },
         styleProfileId: selectedStyleProfileId || null,
         styleIntentSummary: selectedStyleSummary ?? null,
+        marketBriefId: marketBriefId || null,
       },
     });
     const taskId = response.data?.id ?? "";
@@ -397,7 +401,7 @@ export function useAutoDirectorCreateController(input: UseAutoDirectorCreateCont
       llm,
       runMode,
       currentWorkflowTaskId,
-      { styleProfileId: selectedStyleProfileId, worldSetupMode },
+      { styleProfileId: selectedStyleProfileId, worldSetupMode, marketBriefId },
     );
   };
 
@@ -437,6 +441,7 @@ export function useAutoDirectorCreateController(input: UseAutoDirectorCreateCont
         ...buildAutoDirectorRequestPayload(directorBasicForm, requestIdea, llm, runMode, currentWorkflowTaskId, {
           styleProfileId: selectedStyleProfileId,
           worldSetupMode,
+          marketBriefId,
         }),
         batchId: latestBatch?.id,
         round: latestBatch?.round,

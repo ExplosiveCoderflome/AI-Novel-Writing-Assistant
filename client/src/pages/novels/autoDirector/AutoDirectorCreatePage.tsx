@@ -9,6 +9,7 @@ import { bootstrapNovelWorkflow, selectNovelProductionExperience } from "@/api/n
 import { setNovelCreationExperience } from "@/api/novel";
 import { queryKeys } from "@/api/queryKeys";
 import { getWorldList } from "@/api/world";
+import { getMarketCreativeBrief } from "@/api/marketRadar";
 import { Button } from "@/components/ui/button";
 import { toast } from "@/components/ui/toast";
 import {
@@ -35,12 +36,13 @@ import { extractDirectorTaskSeedPayloadFromMeta } from "@ai-novel/shared/types/n
 
 const STAGE_ORDER: AutoDirectorCreateStageKey[] = ["idea", "basic", "world_style", "model_run", "candidates"];
 
-function buildAutoDirectorCreateLink(taskId?: string): string {
-  if (!taskId) {
+function buildAutoDirectorCreateLink(taskId?: string, marketBriefId?: string): string {
+  if (!taskId && !marketBriefId) {
     return "/novels/auto-director";
   }
   const searchParams = new URLSearchParams();
-  searchParams.set("taskId", taskId);
+  if (taskId) searchParams.set("taskId", taskId);
+  if (marketBriefId) searchParams.set("marketBriefId", marketBriefId);
   return `/novels/auto-director?${searchParams.toString()}`;
 }
 
@@ -56,6 +58,7 @@ export default function AutoDirectorCreatePage() {
   const taskIdFromQuery = searchParams.get("taskId")?.trim() ?? "";
   const legacyTaskIdFromQuery = searchParams.get("workflowTaskId")?.trim() ?? "";
   const normalizedTaskId = taskIdFromQuery || legacyTaskIdFromQuery;
+  const marketBriefId = searchParams.get("marketBriefId")?.trim() ?? "";
   const hasLegacyParams = Boolean(legacyTaskIdFromQuery || searchParams.get("mode"));
   const [basicForm, setBasicForm] = useState(() => createDefaultNovelBasicFormState());
   const [restoredWorkflowTask, setRestoredWorkflowTask] = useState<UnifiedTaskDetail | null>(null);
@@ -75,6 +78,11 @@ export default function AutoDirectorCreatePage() {
     queryKey: queryKeys.storyModes.all,
     queryFn: getStoryModeTree,
   });
+  const marketBriefQuery = useQuery({
+    queryKey: queryKeys.marketRadar.brief(marketBriefId || "none"),
+    queryFn: () => getMarketCreativeBrief(marketBriefId),
+    enabled: Boolean(marketBriefId),
+  });
   const genreTree = genreTreeQuery.data?.data ?? [];
   const storyModeTree = storyModeTreeQuery.data?.data ?? [];
   const genreOptions = flattenGenreTreeOptions(genreTree);
@@ -85,11 +93,11 @@ export default function AutoDirectorCreatePage() {
     if (!hasLegacyParams) {
       return;
     }
-    navigate(buildAutoDirectorCreateLink(normalizedTaskId), { replace: true });
-  }, [hasLegacyParams, navigate, normalizedTaskId]);
+    navigate(buildAutoDirectorCreateLink(normalizedTaskId, marketBriefId), { replace: true });
+  }, [hasLegacyParams, marketBriefId, navigate, normalizedTaskId]);
 
   const replaceTaskId = (taskId: string) => {
-    navigate(buildAutoDirectorCreateLink(taskId), { replace: true });
+    navigate(buildAutoDirectorCreateLink(taskId, marketBriefId), { replace: true });
   };
 
   const restoreWorkflowMutation = useMutation({
@@ -132,6 +140,7 @@ export default function AutoDirectorCreatePage() {
   }, [hasLegacyParams, normalizedTaskId]);
 
   const controller = useAutoDirectorCreateController({
+    marketBriefId,
     basicForm,
     genreOptions,
     storyModeOptions,
@@ -405,6 +414,23 @@ export default function AutoDirectorCreatePage() {
       {restoreWorkflowMutation.isPending && normalizedTaskId ? (
         <div className="rounded-lg bg-muted/20 px-4 py-3 text-sm text-muted-foreground">
           正在恢复自动导演现场。
+        </div>
+      ) : null}
+
+      {marketBriefId ? (
+        <div className="flex flex-col gap-3 rounded-xl border border-primary/25 bg-primary/5 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <div className="text-sm font-medium text-foreground">已带入热门题材雷达</div>
+            <div className="mt-1 text-xs leading-5 text-muted-foreground">
+              {marketBriefQuery.data?.data?.summary || (marketBriefQuery.isPending ? "正在读取市场创作简报。" : "市场简报暂时无法读取，仍可继续按你的想法开书。")}
+            </div>
+          </div>
+          <Button type="button" variant="outline" size="sm" asChild><Link to="/market-radar">返回调整</Link></Button>
+        </div>
+      ) : activeStage === "idea" ? (
+        <div className="flex items-center justify-between gap-3 rounded-xl border border-dashed px-4 py-3 text-sm">
+          <span className="text-muted-foreground">想先参考近期热门题材、金手指和开局模式？</span>
+          <Button type="button" variant="outline" size="sm" asChild><Link to="/market-radar">先看热门题材雷达</Link></Button>
         </div>
       ) : null}
 

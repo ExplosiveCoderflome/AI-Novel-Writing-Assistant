@@ -230,12 +230,6 @@ export class MarketRadarService {
     return brief?.promptBlock.trim() ?? "";
   }
 
-  async getFreshLatest(): Promise<MarketTrendReport | null> {
-    const latest = await this.getLatest();
-    if (!latest || Date.now() - new Date(latest.createdAt).getTime() > FRESH_REPORT_MS) return null;
-    return latest;
-  }
-
   private async executeScan(runId: string): Promise<void> {
     const run = await prisma.marketScanRun.update({
       where: { id: runId },
@@ -312,7 +306,16 @@ export class MarketRadarService {
       data: { runId, summary: synthesis.output.summary, structuredDataJson: JSON.stringify(synthesis.output) },
     });
     const hasFailures = snapshots.some((snapshot) => snapshot.status === "failed");
-    await prisma.marketScanRun.update({ where: { id: runId }, data: { status: hasFailures ? "partial" : "succeeded", progress: 1, finishedAt: new Date() } });
+    await prisma.marketScanRun.update({
+      where: { id: runId },
+      data: {
+        status: hasFailures ? "partial" : "succeeded",
+        progress: 1,
+        provider: synthesis.meta.provider,
+        model: synthesis.meta.model,
+        finishedAt: new Date(),
+      },
+    });
   }
 
   private async buildHistorySummary(currentSnapshots: Array<{ platform: string; listKey: string; capturedAt: Date; items: Array<{ title: string; author: string | null; rank: number }> }>): Promise<{ text: string; hasComparableHistory: boolean }> {
@@ -339,9 +342,14 @@ export class MarketRadarService {
   }): MarketTrendReport {
     const structured = parseJson<{ signals: MarketTrendReport["signals"] }>(report.structuredDataJson, { signals: [] });
     const evidenceItems = report.run.snapshots.flatMap((snapshot) => snapshot.items.map((item) => toRankingItem({ ...item, snapshot })));
+    const platformStatuses = buildPlatformStatuses(report.run.snapshots).map((status) => (
+      Date.now() - report.createdAt.getTime() > FRESH_REPORT_MS && status.status === "succeeded"
+        ? { ...status, status: "stale" as const }
+        : status
+    ));
     return {
       id: report.id, scanRunId: report.runId, summary: report.summary, signals: structured.signals,
-      platformStatuses: buildPlatformStatuses(report.run.snapshots), evidenceItems, createdAt: report.createdAt.toISOString(),
+      platformStatuses, evidenceItems, createdAt: report.createdAt.toISOString(),
     };
   }
 
