@@ -1,5 +1,6 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
+import { useSearchParams } from "react-router-dom";
 import { getNovelChapters } from "@/api/novel/chapters";
 import { queryKeys } from "@/api/queryKeys";
 import type { PromptCatalogItem } from "@/api/promptWorkbench";
@@ -13,6 +14,7 @@ import { PromptCatalogSidebar } from "./components/PromptCatalogSidebar";
 import { ContextInjectionPanel } from "./components/ContextInjectionPanel";
 import { PromptEditorShell } from "./components/PromptEditorShell";
 import { PromptRunBar } from "./components/PromptRunBar";
+import { PromptTestRunResultPanel } from "./components/PromptPreviewPanel";
 import { usePromptCatalog } from "./hooks/usePromptCatalog";
 import { usePromptDraftSlots } from "./hooks/usePromptDraftSlots";
 import { usePromptPreview } from "./hooks/usePromptPreview";
@@ -22,13 +24,18 @@ import { WritingPlatformProfileManager } from "./components/WritingPlatformProfi
 type PromptEditMode = "slots" | "advanced";
 
 export default function PromptWorkbenchPage() {
-  const [keyword, setKeyword] = useState("");
+  const [searchParams] = useSearchParams();
+  const writingLab = searchParams.get("experience") === "writing";
+  const requestedNovelId = searchParams.get("novelId")?.trim() ?? "";
+  const requestedChapterId = searchParams.get("chapterId")?.trim() ?? "";
+  const writingLabSetupRef = useRef(false);
+  const [keyword, setKeyword] = useState(() => writingLab ? "novel.chapter.writer" : "");
   const [selectedKey, setSelectedKey] = useState<string | null>(null);
   const [entrypoint, setEntrypoint] = useState("manual_test");
   const [selectedContextBlockId, setSelectedContextBlockId] = useState<string | null>(null);
   const [immersiveMode, setImmersiveMode] = useState(false);
   const [selectedChapterId, setSelectedChapterId] = useState("");
-  const [editMode, setEditMode] = useState<PromptEditMode>("slots");
+  const [editMode, setEditMode] = useState<PromptEditMode>(() => writingLab ? "advanced" : "slots");
   const [platformManagerOpen, setPlatformManagerOpen] = useState(false);
   const globalLlmProvider = useLLMStore((state) => state.provider);
   const globalLlmModel = useLLMStore((state) => state.model);
@@ -47,8 +54,11 @@ export default function PromptWorkbenchPage() {
     if (prompts.length === 0) {
       return null;
     }
+    if (writingLab) {
+      return prompts.find((item) => item.id === "novel.chapter.writer") ?? prompts[0] ?? null;
+    }
     return prompts.find((item) => item.key === selectedKey) ?? prompts[0] ?? null;
-  }, [prompts, selectedKey]);
+  }, [prompts, selectedKey, writingLab]);
 
   const slotState = usePromptDraftSlots(selectedPrompt);
   const activeNovel = useMemo(
@@ -102,6 +112,32 @@ export default function PromptWorkbenchPage() {
   useEffect(() => {
     setSelectedChapterId("");
   }, [slotState.activeNovelId]);
+
+  useEffect(() => {
+    if (!writingLab || writingLabSetupRef.current) {
+      return;
+    }
+    if (slotState.scope !== "novel") {
+      slotState.setScope("novel");
+      return;
+    }
+    if (requestedNovelId && slotState.selectedNovelId !== requestedNovelId) {
+      slotState.setSelectedNovelId(requestedNovelId);
+      return;
+    }
+    if (requestedChapterId) {
+      setSelectedChapterId(requestedChapterId);
+    }
+    writingLabSetupRef.current = true;
+  }, [
+    requestedChapterId,
+    requestedNovelId,
+    slotState.scope,
+    slotState.selectedNovelId,
+    slotState.setScope,
+    slotState.setSelectedNovelId,
+    writingLab,
+  ]);
 
   useEffect(() => {
     if (slotState.scope !== "novel" || !slotState.activeNovelId || chapters.length === 0) {
@@ -196,7 +232,7 @@ export default function PromptWorkbenchPage() {
         immersiveMode && "fixed inset-0 z-50 h-screen bg-[#f3f7f5]",
       )}
     >
-      {!immersiveMode ? (
+      {!immersiveMode && !writingLab ? (
         <div className="flex h-full min-h-0 w-[360px] min-w-[300px] max-w-[420px] shrink-0 overflow-hidden">
           <PromptCatalogSidebar
             keyword={keyword}
@@ -216,6 +252,8 @@ export default function PromptWorkbenchPage() {
         {selectedPrompt ? (
           <PromptEditorShell
             prompt={selectedPrompt}
+            simplified={writingLab}
+            heading={writingLab ? "正文效果实验室" : undefined}
             immersive={immersiveMode}
             onImmersiveChange={setImmersiveMode}
             entrypoint={entrypoint}
@@ -268,6 +306,7 @@ export default function PromptWorkbenchPage() {
                     testRunPending={previewState.testRunMutation.isPending}
                     testRunError={testRunError}
                     disabled={!advancedTemplateEnabled}
+                    showTestResult={!writingLab}
                   />
                 ) : (
                   <PromptBodyEditor
@@ -297,15 +336,28 @@ export default function PromptWorkbenchPage() {
                 )}
               </div>
             }
-            contextPanel={
-              <ContextInjectionPanel
-                preview={preview}
-                selectedBlockId={selectedContextBlockId}
-                onSelectBlock={setSelectedContextBlockId}
-                referenceCatalog={isAdvancedMode ? templateState.references : null}
-                onInsertToken={isAdvancedMode ? templateState.insertToken : undefined}
-              />
-            }
+            contextPanel={isAdvancedMode ? (
+              <div className="flex h-full min-h-0 flex-col">
+                {writingLab && (previewState.testRun || previewState.testRunMutation.isPending || testRunError) ? (
+                  <div className="max-h-[56%] shrink-0 overflow-y-auto border-b border-[#cbdcd5] p-3">
+                    <PromptTestRunResultPanel
+                      result={previewState.testRun}
+                      isPending={previewState.testRunMutation.isPending}
+                      error={testRunError}
+                    />
+                  </div>
+                ) : null}
+                <div className="min-h-0 flex-1">
+                  <ContextInjectionPanel
+                    preview={preview}
+                    selectedBlockId={selectedContextBlockId}
+                    onSelectBlock={setSelectedContextBlockId}
+                    referenceCatalog={templateState.references}
+                    onInsertToken={templateState.insertToken}
+                  />
+                </div>
+              </div>
+            ) : undefined}
             runBar={
               <PromptRunBar
                 prompt={selectedPrompt}
@@ -338,6 +390,7 @@ export default function PromptWorkbenchPage() {
                     : slotState.saveDrafts
                 }
                 onReset={isAdvancedMode ? templateState.resetDraft : slotState.resetDrafts}
+                writingLab={writingLab}
               />
             }
           />
