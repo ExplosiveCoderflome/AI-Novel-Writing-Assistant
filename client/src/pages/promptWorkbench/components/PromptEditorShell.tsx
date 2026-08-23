@@ -209,14 +209,14 @@ export function PromptEditorShell(props: PromptEditorShellProps) {
           orientation="horizontal"
           className={cn(
             "h-full min-h-0",
-            immersive && "overflow-hidden rounded-lg border border-[#cbdcd5] bg-white shadow-[0_18px_60px_rgba(15,55,48,0.14)]",
+            immersive && "overflow-hidden rounded-lg border border-border bg-card shadow-[0_18px_60px_hsl(var(--foreground)/0.14)]",
           )}
         >
           <Panel defaultSize={immersive ? 74 : 66} minSize={immersive ? 58 : 48}>
             <div
               className={cn(
                 "h-full min-h-0 overflow-y-auto px-5 py-5 pb-28",
-                immersive && "bg-[#fffdf8] px-8 py-7 pb-32",
+                immersive && "bg-card px-8 py-7 pb-32",
               )}
             >
               {bodyPanel}
@@ -229,7 +229,7 @@ export function PromptEditorShell(props: PromptEditorShellProps) {
             </div>
           </Panel>
         </Group> : (
-          <div className={cn("h-full min-h-0 overflow-y-auto px-5 py-5 pb-28", immersive && "bg-[#fffdf8] px-8 py-7 pb-32")}>
+          <div className={cn("h-full min-h-0 overflow-y-auto px-5 py-5 pb-28", immersive && "bg-card px-8 py-7 pb-32")}>
             {bodyPanel}
           </div>
         )}

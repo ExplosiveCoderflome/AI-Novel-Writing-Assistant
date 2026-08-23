@@ -53,3 +53,8 @@ test("暖纸深色主题为提示词工作台使用中性深色画布", () => {
   assert.match(themeStyles, /:root\.dark\[data-theme="paper"\] \.prompt-workbench-theme/);
   assert.match(themeStyles, /--background: 222\.2 47\.4% 11\.2%;/);
 });
+
+test("沉浸模式正文容器使用主题卡片色，不使用暖色硬编码", () => {
+  assert.match(editorShell, /immersive && "bg-card px-8 py-7 pb-32"/);
+  assert.doesNotMatch(editorShell, /bg-\[#fffdf8\]/);
+});
