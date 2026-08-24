@@ -278,9 +278,9 @@ export default function MarketRadarPage() {
           </CardContent>
         </Card>
         <div className="grid items-start gap-4 md:grid-cols-2 2xl:grid-cols-3">
-          {rankingGroups.map(({ key, items }) => <Card key={key}>
+          {rankingGroups.map(({ key, items }) => <Card key={key} className="flex h-[34rem] flex-col">
             <CardHeader className="pb-3"><CardTitle className="text-base">{PLATFORM_LABELS[items[0].platform]} · {sourceLabels.get(key) ?? items[0].listKey}</CardTitle><CardDescription>本次识别 {items.length} 条公开上榜记录（最多 30 条）</CardDescription></CardHeader>
-            <CardContent><div className="space-y-1">{items.map((item) => {
+            <CardContent className="min-h-0 flex-1 overflow-y-auto"><div className="space-y-1">{items.map((item) => {
               const selected = selectedAnalysisItemIds.includes(item.id);
               return <div key={item.id} className={cn("grid grid-cols-[1.5rem_2.5rem_minmax(0,1fr)_1.75rem] items-center gap-2 rounded-md px-2 py-2 text-sm transition", selected ? "bg-primary/10" : "hover:bg-muted")}>
                 <button type="button" aria-pressed={selected} aria-label={`${selected ? "取消选择" : "选择"}${item.title}`} disabled={Boolean(activeRun?.report) || analyzing} onClick={() => toggleAnalysisItem(item.id)} className={cn("flex h-4 w-4 items-center justify-center rounded border focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 disabled:cursor-not-allowed disabled:opacity-70", selected ? "border-primary bg-primary text-primary-foreground" : "border-border")}>
