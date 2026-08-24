@@ -100,6 +100,7 @@ export class DirectorIssueService {
     const assessedCode = input.issueCode === "runtime.unclassified"
       ? assessment?.issueCode ?? input.issueCode
       : input.issueCode;
+    const maxAttempts = input.policy.maxAutomaticRetries;
     const occurrence = directorIssueOccurrenceSchema.parse({
       schemaVersion: 1,
       issueCode: assessedCode,
@@ -112,7 +113,7 @@ export class DirectorIssueService {
       riskScore: forcedScore ?? assessment?.riskScore ?? null,
       qualityScores: input.qualityScores,
       attempt: input.attempt ?? 0,
-      maxAttempts: input.maxAttempts ?? 0,
+      maxAttempts,
       hasUsableOutput: input.hasUsableOutput ?? false,
       runMode: input.runMode,
       fingerprint: input.fingerprint,

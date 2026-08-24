@@ -18,11 +18,9 @@ import {
 import { plannerService } from "../../planner/PlannerService";
 import { applyChapterQualityClosure } from "./qualityClosure/ChapterQualityClosure";
 import {
-  directorIssueService,
   loadDirectorIssueTaskContext,
-  type DirectorIssueTaskContext,
 } from "../director/issues";
-import type { DirectorIssueCode } from "@ai-novel/shared/types/directorIssue";
+import { reportPipelineIssue } from "./issueGovernance/PipelineIssueGovernance";
 import {
   buildPipelineCurrentItemLabel,
   buildPipelineStageProgress,
@@ -35,62 +33,11 @@ const PIPELINE_HEARTBEAT_INTERVAL_MS = 15000;
 const TERMINAL_CONTINUE_QUALITY_LOOP_RISK_FLAG_FRAGMENT = '"terminalAction":"defer_and_continue"';
 
 function clampPipelineMaxRetries(value: number | null | undefined): number {
-  return Math.max(0, Math.min(value ?? 2, 2));
+  return Math.max(0, Math.min(value ?? 1, 1));
 }
 
 function buildEmptyChapterDetail(chapter: { order: number; title: string }): string {
   return `第${chapter.order}章「${chapter.title}」正文生成失败：模型连续未返回可保存正文，已暂停继续。`;
-}
-
-async function reportPipelineIssue(input: {
-  governance: DirectorIssueTaskContext | null;
-  workflowTaskId?: string;
-  novelId: string;
-  jobId: string;
-  issueCode: DirectorIssueCode;
-  stage: string;
-  summary: string;
-  evidence?: string;
-  chapterId?: string;
-  chapterOrder?: number;
-  qualityScores?: Record<string, number>;
-  attempt?: number;
-  maxAttempts?: number;
-  hasUsableOutput?: boolean;
-  provider?: PipelinePayload["provider"];
-  model?: string;
-  temperature?: number;
-}): Promise<void> {
-  if (!input.governance || !input.workflowTaskId) return;
-  await directorIssueService.reportIssue({
-    issueGovernanceVersion: input.governance.issueGovernanceVersion,
-    taskId: input.workflowTaskId,
-    novelId: input.novelId,
-    issueCode: input.issueCode,
-    stage: input.stage,
-    summary: input.summary,
-    evidence: input.evidence,
-    affectedScope: input.chapterId ? `chapter:${input.chapterId}` : `pipeline:${input.jobId}`,
-    chapterId: input.chapterId,
-    chapterOrder: input.chapterOrder,
-    qualityScores: input.qualityScores,
-    attempt: input.attempt,
-    maxAttempts: input.maxAttempts,
-    hasUsableOutput: input.hasUsableOutput,
-    runMode: input.governance.runMode,
-    fingerprint: [input.jobId, input.issueCode, input.chapterId ?? "book", input.attempt ?? 0].join(":"),
-    policy: input.governance.policy,
-    policySource: input.governance.policySource,
-    provider: input.provider,
-    model: input.model,
-    temperature: input.temperature,
-  }).catch((error) => {
-    logPipelineWarn("自动导演问题记录失败", {
-      jobId: input.jobId,
-      issueCode: input.issueCode,
-      error: error instanceof Error ? error.message : String(error),
-    });
-  });
 }
 
 function buildSkipCompletedChapterWhere(): Prisma.ChapterWhereInput {
@@ -398,7 +345,9 @@ export class NovelPipelineExecutor {
           heartbeatTimer.unref?.();
 
           let chapterResult: Awaited<ReturnType<ChapterRuntimeCoordinator["runPipelineChapter"]>> | null = null;
-          const chapterExecutionRetryLimit = isAutopilotMode ? 2 : 0;
+          const chapterExecutionRetryLimit = isAutopilotMode
+            ? issueGovernance?.policy.maxAutomaticRetries ?? 1
+            : 0;
           try {
             for (let executionAttempt = 0; executionAttempt <= chapterExecutionRetryLimit; executionAttempt += 1) {
               try {
@@ -425,6 +374,7 @@ export class NovelPipelineExecutor {
                     await applyChapterStage(stage);
                   },
                   onEmptyContent: async (event) => {
+                    const willRetry = event.willRetry || executionAttempt < chapterExecutionRetryLimit;
                     const detail = buildEmptyChapterDetail(chapter);
                     const meta = {
                       jobId,
@@ -436,7 +386,7 @@ export class NovelPipelineExecutor {
                       model: runtimePayload.model,
                       runMode: runtimePayload.runMode,
                       emptyAttempt: event.attempt,
-                      willRetry: event.willRetry,
+                      willRetry,
                       contentLength: event.contentLength,
                       rawContentLength: event.rawContentLength,
                       source: event.error.details.source,
@@ -459,7 +409,7 @@ export class NovelPipelineExecutor {
                       model: runtimePayload.model,
                       temperature: runtimePayload.temperature,
                     });
-                    if (event.willRetry) {
+                    if (willRetry) {
                       logPipelineWarn("章节生成未返回正文，正在重试当前章", meta);
                       return;
                     }
@@ -504,23 +454,6 @@ export class NovelPipelineExecutor {
           }
 
           totalRetryCount += chapterResult.retryCountUsed;
-          if (runtimePayload.autoReview && !chapterResult.reviewExecuted) {
-            await reportPipelineIssue({
-              governance: issueGovernance,
-              workflowTaskId: runtimePayload.workflowTaskId,
-              novelId,
-              jobId,
-              issueCode: "quality.acceptance_unavailable",
-              stage: "chapter_review",
-              summary: `第${chapter.order}章接收检查未能执行，正文已保留并等待后续复查。`,
-              chapterId: chapter.id,
-              chapterOrder: chapter.order,
-              hasUsableOutput: true,
-              provider: runtimePayload.provider,
-              model: runtimePayload.model,
-              temperature: runtimePayload.temperature,
-            });
-          }
           const closure = await applyChapterQualityClosure({
             governance: issueGovernance,
             workflowTaskId: runtimePayload.workflowTaskId,
@@ -656,7 +589,7 @@ export class NovelPipelineExecutor {
             retryCount: totalRetryCount,
           });
           if (shouldStopAfterCurrentChapter) {
-            logPipelineWarn("章节触发重规划，已停止后续章节流水线", {
+            logPipelineWarn("章节需要人工处理，已暂停后续章节流水线", {
               jobId,
               order: chapter.order,
               remaining: Math.max(0, totalCount - completed),

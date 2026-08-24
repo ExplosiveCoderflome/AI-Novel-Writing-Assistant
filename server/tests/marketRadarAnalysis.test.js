@@ -2,6 +2,7 @@ const test = require("node:test");
 const assert = require("node:assert/strict");
 
 const {
+  selectMarketAnalysisItems,
   selectMarketAnalysisSnapshots,
 } = require("../dist/modules/marketRadar/application/MarketRadarService.js");
 const {
@@ -20,6 +21,25 @@ test("market radar analyzes only new-book lists when a platform has one", () => 
     snapshots[0],
     snapshots[2],
   ]);
+});
+
+test("market radar honors the lists explicitly selected for AI analysis", () => {
+  const snapshots = [
+    { platform: "fanqie", listKey: "new_book" },
+    { platform: "fanqie", listKey: "reading" },
+    { platform: "qidian", listKey: "hotsales" },
+  ];
+
+  assert.deepEqual(selectMarketAnalysisSnapshots(snapshots, [
+    { platform: "fanqie", listKey: "reading" },
+    { platform: "qidian", listKey: "hotsales" },
+  ]), [snapshots[1], snapshots[2]]);
+});
+
+test("market radar limits AI evidence to explicitly selected books", () => {
+  const items = [{ id: "book-1" }, { id: "book-2" }, { id: "book-3" }];
+  assert.deepEqual(selectMarketAnalysisItems(items, ["book-1", "book-3"]), [items[0], items[2]]);
+  assert.deepEqual(selectMarketAnalysisItems(items), items);
 });
 
 test("market radar schemas reject oversized signal lists", () => {

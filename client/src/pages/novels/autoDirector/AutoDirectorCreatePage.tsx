@@ -361,27 +361,35 @@ export default function AutoDirectorCreatePage() {
               从一个起始想法开始，AI 会持续准备创作资源；项目建立后即可打开查看已完成成果。
             </div>
           </div>
-          <div className="flex flex-wrap gap-2">
-            {createdNovelId && productionExperience !== "simple" ? (
-              <Button
-                type="button"
-                variant="default"
-                disabled={enterSimpleMutation.isPending}
-                onClick={() => enterSimpleMutation.mutate()}
-              >
-                {enterSimpleMutation.isPending ? "正在进入…" : "简易模式"}
-              </Button>
+          <div className="flex flex-wrap items-end gap-3 sm:justify-end">
+            {createdNovelId ? (
+              <div className="space-y-1.5">
+                <div className="text-xs font-medium text-muted-foreground">进入创作</div>
+                <div className="flex items-center gap-1 rounded-lg bg-muted/55 p-1" role="group" aria-label="选择创作模式">
+                  {productionExperience !== "simple" ? (
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="default"
+                      disabled={enterSimpleMutation.isPending}
+                      onClick={() => enterSimpleMutation.mutate()}
+                    >
+                      {enterSimpleMutation.isPending ? "正在进入…" : "简易模式"}
+                    </Button>
+                  ) : null}
+                  {productionExperience === "simple" ? (
+                    <Button type="button" size="sm" variant="secondary" disabled={enterProfessionalMutation.isPending} onClick={() => enterProfessionalMutation.mutate()}>
+                      {enterProfessionalMutation.isPending ? "正在进入…" : "专业模式"}
+                    </Button>
+                  ) : (
+                    <Button type="button" size="sm" variant="secondary" asChild>
+                      <Link to={createdNovelRoute}>专业模式</Link>
+                    </Button>
+                  )}
+                </div>
+              </div>
             ) : null}
-            {createdNovelId && productionExperience === "simple" ? (
-              <Button type="button" variant="outline" disabled={enterProfessionalMutation.isPending} onClick={() => enterProfessionalMutation.mutate()}>
-                {enterProfessionalMutation.isPending ? "正在进入…" : "专业模式"}
-              </Button>
-            ) : createdNovelId ? (
-              <Button type="button" variant="outline" asChild>
-                <Link to={createdNovelRoute}>专业模式</Link>
-              </Button>
-            ) : null}
-            <Button type="button" variant="outline" asChild>
+            <Button type="button" size="sm" variant="ghost" asChild>
               <Link to="/novels/create">手动创建</Link>
             </Button>
           </div>
