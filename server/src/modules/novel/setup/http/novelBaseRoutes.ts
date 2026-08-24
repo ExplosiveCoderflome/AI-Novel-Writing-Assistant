@@ -550,9 +550,9 @@ export function registerNovelBaseRoutes(input: RegisterNovelBaseRoutesInput): vo
         res.status(200).json({
           success: true,
           data,
-          message: experience === "simple"
-            ? "已切换到简易模式，可在章节书架阅读进度与成稿。"
-            : "已切换到专业模式，可使用完整编辑工作台。",
+        message: experience === "simple"
+            ? "已切换到简易模式，将优先展示章节进度与成稿。"
+            : "已切换到专业模式，将展示完整创作工作台。",
         } satisfies ApiResponse<typeof data>);
       } catch (error) {
         next(error);
