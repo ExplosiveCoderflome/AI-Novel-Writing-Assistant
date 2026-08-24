@@ -206,7 +206,9 @@ export default function MarketRadarPage() {
 
   return (
     <div className="w-full min-w-0 space-y-6 py-6">
-      <div className="flex flex-wrap items-center justify-end gap-2 border-b border-border/35 pb-4">
+      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border/35 pb-4">
+        <h1 className="text-lg font-semibold tracking-tight">热门题材雷达</h1>
+        <div className="flex flex-wrap items-center justify-end gap-2">
           {Object.entries(PLATFORM_LABELS).map(([key, label]) => (
             <button key={key} type="button" onClick={() => togglePlatform(key as MarketRadarPlatform)} className={cn("rounded-full border px-3 py-1.5 text-sm transition", platforms.includes(key as MarketRadarPlatform) ? "border-primary bg-primary/10 text-primary" : "border-border text-muted-foreground")}>{label}</button>
           ))}
@@ -214,6 +216,7 @@ export default function MarketRadarPage() {
             {scanning ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
             {scanning ? `正在获取榜单 ${Math.round((activeRun?.progress ?? 0) * 100)}%` : "重新扫榜"}
           </Button>
+        </div>
       </div>
 
       {activeRun?.platformStatuses.some((item) => item.status !== "succeeded") ? (
