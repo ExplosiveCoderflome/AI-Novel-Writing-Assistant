@@ -206,13 +206,7 @@ export default function MarketRadarPage() {
 
   return (
     <div className="w-full min-w-0 space-y-6 py-6">
-      <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
-        <div>
-          <div className="mb-2 flex items-center gap-2 text-sm font-medium text-primary"><Radar className="h-4 w-4" />热门题材雷达</div>
-          <h1 className="text-3xl font-semibold tracking-tight">先看市场，再让 AI 第一次就选对方向</h1>
-          <p className="mt-3 max-w-3xl text-sm leading-6 text-muted-foreground">分析公开榜单里的题材、金手指、开局和标题模式，只提炼读者需求，不抓取小说正文，也不会照搬具体作品。</p>
-        </div>
-        <div className="flex flex-wrap items-center gap-2">
+      <div className="flex flex-wrap items-center justify-end gap-2 border-b border-border/35 pb-4">
           {Object.entries(PLATFORM_LABELS).map(([key, label]) => (
             <button key={key} type="button" onClick={() => togglePlatform(key as MarketRadarPlatform)} className={cn("rounded-full border px-3 py-1.5 text-sm transition", platforms.includes(key as MarketRadarPlatform) ? "border-primary bg-primary/10 text-primary" : "border-border text-muted-foreground")}>{label}</button>
           ))}
@@ -220,7 +214,6 @@ export default function MarketRadarPage() {
             {scanning ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
             {scanning ? `正在获取榜单 ${Math.round((activeRun?.progress ?? 0) * 100)}%` : "重新扫榜"}
           </Button>
-        </div>
       </div>
 
       {activeRun?.platformStatuses.some((item) => item.status !== "succeeded") ? (
@@ -236,15 +229,8 @@ export default function MarketRadarPage() {
       {rankingGroups.length === 0 ? (
         <Card className="border-dashed"><CardContent className="flex min-h-72 flex-col items-center justify-center gap-3 text-center">{scanning ? <Loader2 className="h-10 w-10 animate-spin text-primary" /> : <Radar className="h-10 w-10 text-muted-foreground" />}<div className="font-medium">{scanning ? "正在获取公开榜单" : "还没有可展示的榜单数据"}</div><p className="max-w-lg text-sm text-muted-foreground">进入页面会自动扫榜。榜单获取完成后，你可以先查看原始排名，再决定是否让 AI 分析。</p></CardContent></Card>
       ) : <>
-        <Card>
-          <CardHeader><CardTitle className="text-xl">本次榜单数据</CardTitle><CardDescription>展示各榜单公开页面中本次成功识别的记录，每榜最多 30 条，不代表平台全部分页数据；这一步不调用 AI。</CardDescription></CardHeader>
-          <CardContent><div className="flex flex-wrap gap-2">{activeRun?.platformStatuses.map((status) => <Badge key={status.platform} variant={status.status === "failed" ? "destructive" : "outline"}>{PLATFORM_LABELS[status.platform]} · {status.itemCount}项</Badge>)}</div></CardContent>
-        </Card>
         <section className="flex flex-col gap-4 border-b border-border/50 pb-5 lg:flex-row lg:items-end lg:justify-between">
-          <div>
-            <h2 className="text-xl font-semibold">选择 AI 分析的作品</h2>
-            <p className="mt-1 text-sm text-muted-foreground">{activeRun?.report ? "本次报告使用以下作品；如需更换范围，请重新扫榜。" : "默认选中新书榜和新晋作者榜，可在各榜单右上角全选，也可以逐本调整。"}</p>
-          </div>
+          <p className="text-sm text-muted-foreground">{activeRun?.report ? "本次报告使用当前勾选的作品；如需更换范围，请重新扫榜。" : `已选 ${selectedAnalysisItemIds.length} 本作品，可在各榜单右上角全选或逐本调整。`}</p>
           <div className="flex justify-end">
             <Button onClick={openOrStartAnalysis} disabled={scanning || analyzing || selectedAnalysisItemIds.length === 0} className="shrink-0">
               {analyzing ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
