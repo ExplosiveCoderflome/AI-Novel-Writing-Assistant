@@ -240,33 +240,33 @@ export default function MarketRadarPage() {
           <CardHeader><CardTitle className="text-xl">本次榜单数据</CardTitle><CardDescription>展示各榜单公开页面中本次成功识别的记录，每榜最多 30 条，不代表平台全部分页数据；这一步不调用 AI。</CardDescription></CardHeader>
           <CardContent><div className="flex flex-wrap gap-2">{activeRun?.platformStatuses.map((status) => <Badge key={status.platform} variant={status.status === "failed" ? "destructive" : "outline"}>{PLATFORM_LABELS[status.platform]} · {status.itemCount}项</Badge>)}</div></CardContent>
         </Card>
-        <Card className="border-primary/30">
-          <CardHeader className="pb-3">
-            <CardTitle className="text-xl">选择 AI 分析的作品</CardTitle>
-            <CardDescription>{activeRun?.report ? "本次报告使用以下作品；如需更换范围，请重新扫榜。" : "默认选中新书榜和新晋作者榜，可在各榜单右上角全选，也可以逐本调整。"}</CardDescription>
-          </CardHeader>
-          <CardContent className="flex justify-end">
+        <section className="flex flex-col gap-4 border-b border-border/50 pb-5 lg:flex-row lg:items-end lg:justify-between">
+          <div>
+            <h2 className="text-xl font-semibold">选择 AI 分析的作品</h2>
+            <p className="mt-1 text-sm text-muted-foreground">{activeRun?.report ? "本次报告使用以下作品；如需更换范围，请重新扫榜。" : "默认选中新书榜和新晋作者榜，可在各榜单右上角全选，也可以逐本调整。"}</p>
+          </div>
+          <div className="flex justify-end">
             <Button onClick={openOrStartAnalysis} disabled={scanning || analyzing || selectedAnalysisItemIds.length === 0} className="shrink-0">
               {analyzing ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
               {scanning ? "等待榜单获取完成" : analyzing ? `AI 分析中 ${Math.round((activeRun?.progress ?? 0) * 100)}%` : activeRun?.report ? "查看 AI 分析" : `开始 AI 分析（${selectedAnalysisItemIds.length} 本）`}
             </Button>
-          </CardContent>
-        </Card>
-        <div className="grid items-start gap-4 md:grid-cols-2 2xl:grid-cols-3">
+          </div>
+        </section>
+        <div className="grid items-start gap-x-6 gap-y-8 md:grid-cols-2 2xl:grid-cols-3">
           {rankingGroups.map(({ key, items }) => {
             const itemIds = items.map((item) => item.id);
             const selectedCount = itemIds.filter((id) => selectedAnalysisItemIds.includes(id)).length;
             const allSelected = selectedCount === itemIds.length;
             return <Card key={key} className="flex h-[34rem] flex-col">
-            <CardHeader className="flex-row items-start justify-between gap-3 pb-3">
+            <CardHeader className="flex-row items-start justify-between gap-3 border-b border-border/40 px-4 pb-4 pt-4">
               <div><CardTitle className="text-base">{PLATFORM_LABELS[items[0].platform]} · {sourceLabels.get(key) ?? items[0].listKey}</CardTitle><CardDescription className="mt-1">本次识别 {items.length} 条公开上榜记录（最多 30 条）</CardDescription></div>
               <Button type="button" variant="ghost" size="sm" aria-pressed={allSelected} disabled={Boolean(activeRun?.report) || scanning || analyzing} onClick={() => toggleAnalysisList(itemIds)} className="shrink-0">
                 {allSelected ? "取消全选" : "全选"}{selectedCount > 0 && !allSelected ? ` ${selectedCount}/${items.length}` : ""}
               </Button>
             </CardHeader>
-            <CardContent className="min-h-0 flex-1 overflow-y-auto"><div className="space-y-1">{items.map((item) => {
+            <CardContent className="min-h-0 flex-1 overflow-y-auto px-4 pb-4 pt-2"><div className="divide-y divide-border/35">{items.map((item) => {
               const selected = selectedAnalysisItemIds.includes(item.id);
-              return <div key={item.id} className={cn("grid grid-cols-[1.5rem_2.5rem_minmax(0,1fr)_1.75rem] items-center gap-2 rounded-md px-2 py-2 text-sm transition", selected ? "bg-primary/10" : "hover:bg-muted")}>
+              return <div key={item.id} className="grid grid-cols-[1.5rem_2.5rem_minmax(0,1fr)_1.75rem] items-center gap-2 px-2 py-2.5 text-sm transition-colors hover:bg-muted/45">
                 <button type="button" aria-pressed={selected} aria-label={`${selected ? "取消选择" : "选择"}${item.title}`} disabled={Boolean(activeRun?.report) || analyzing} onClick={() => toggleAnalysisItem(item.id)} className={cn("flex h-4 w-4 items-center justify-center rounded border focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 disabled:cursor-not-allowed disabled:opacity-70", selected ? "border-primary bg-primary text-primary-foreground" : "border-border")}>
                   {selected ? <Check className="h-3 w-3" /> : null}
                 </button>
