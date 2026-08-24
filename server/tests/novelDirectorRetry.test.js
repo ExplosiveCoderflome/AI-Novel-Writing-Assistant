@@ -1002,7 +1002,6 @@ test("continueTask replans the affected window before continuing from a replan c
   const originalContinueCandidateStageTask = service.continueCandidateStageTask;
   const originalGetTaskById = service.workflowService.getTaskById;
   const originalResolveAssetFirstRecovery = service.resolveAssetFirstRecovery;
-  const originalResolveDirectorRiskPolicy = service.resolveDirectorRiskPolicy;
   const originalMarkTaskRunning = service.workflowService.markTaskRunning;
   const originalScheduleBackgroundRun = service.scheduleBackgroundRun;
   const originalRunFromReady = service.autoExecutionRuntime.runFromReady;
@@ -1018,7 +1017,6 @@ test("continueTask replans the affected window before continuing from a replan c
     type: "auto_execution",
     resumeCheckpointType: "replan_required",
   });
-  service.resolveDirectorRiskPolicy = async () => null;
   service.workflowService.getTaskById = async () => ({
     id: "task_quality_repair_skip_normalized",
     lane: "auto_director",
@@ -1101,7 +1099,6 @@ test("continueTask replans the affected window before continuing from a replan c
     service.continueCandidateStageTask = originalContinueCandidateStageTask;
     service.workflowService.getTaskById = originalGetTaskById;
     service.resolveAssetFirstRecovery = originalResolveAssetFirstRecovery;
-    service.resolveDirectorRiskPolicy = originalResolveDirectorRiskPolicy;
     service.workflowService.markTaskRunning = originalMarkTaskRunning;
     service.scheduleBackgroundRun = originalScheduleBackgroundRun;
     service.autoExecutionRuntime.runFromReady = originalRunFromReady;
@@ -1115,7 +1112,6 @@ test("continueTask keeps the replan checkpoint when window replanning fails", as
   const originalContinueCandidateStageTask = service.continueCandidateStageTask;
   const originalGetTaskById = service.workflowService.getTaskById;
   const originalResolveAssetFirstRecovery = service.resolveAssetFirstRecovery;
-  const originalResolveDirectorRiskPolicy = service.resolveDirectorRiskPolicy;
   const originalMarkTaskRunning = service.workflowService.markTaskRunning;
   const originalScheduleBackgroundRun = service.scheduleBackgroundRun;
   const originalRunFromReady = service.autoExecutionRuntime.runFromReady;
@@ -1128,7 +1124,6 @@ test("continueTask keeps the replan checkpoint when window replanning fails", as
     type: "auto_execution",
     resumeCheckpointType: "replan_required",
   });
-  service.resolveDirectorRiskPolicy = async () => null;
   service.workflowService.getTaskById = async () => ({
     id: "task_replan_failure",
     lane: "auto_director",
@@ -1175,7 +1170,6 @@ test("continueTask keeps the replan checkpoint when window replanning fails", as
     service.continueCandidateStageTask = originalContinueCandidateStageTask;
     service.workflowService.getTaskById = originalGetTaskById;
     service.resolveAssetFirstRecovery = originalResolveAssetFirstRecovery;
-    service.resolveDirectorRiskPolicy = originalResolveDirectorRiskPolicy;
     service.workflowService.markTaskRunning = originalMarkTaskRunning;
     service.scheduleBackgroundRun = originalScheduleBackgroundRun;
     service.autoExecutionRuntime.runFromReady = originalRunFromReady;

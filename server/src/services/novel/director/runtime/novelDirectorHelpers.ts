@@ -492,7 +492,6 @@ export function buildWorkflowSeedPayload(
     autoExecutionPlan?: DirectorAutoExecutionPlan;
     autoApproval?: DirectorAutoApprovalConfig;
     completionProfile?: DirectorCompletionProfile;
-    riskPolicy?: import("@ai-novel/shared/types/directorRisk").DirectorRiskPolicy;
   },
   extra?: Record<string, unknown>,
 ): Record<string, unknown> {
@@ -577,7 +576,6 @@ export function buildWorkflowSeedPayload(
     ...(autoApproval ? { autoApproval } : {}),
     estimatedChapterCount: basicForm.estimatedChapterCount,
     completionProfile,
-    riskPolicy: input.riskPolicy ?? null,
     idea: input.idea.trim(),
     basicForm,
     ...extra,
