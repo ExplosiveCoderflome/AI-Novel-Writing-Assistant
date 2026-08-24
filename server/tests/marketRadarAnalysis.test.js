@@ -22,6 +22,19 @@ test("market radar analyzes only new-book lists when a platform has one", () => 
   ]);
 });
 
+test("market radar honors the lists explicitly selected for AI analysis", () => {
+  const snapshots = [
+    { platform: "fanqie", listKey: "new_book" },
+    { platform: "fanqie", listKey: "reading" },
+    { platform: "qidian", listKey: "hotsales" },
+  ];
+
+  assert.deepEqual(selectMarketAnalysisSnapshots(snapshots, [
+    { platform: "fanqie", listKey: "reading" },
+    { platform: "qidian", listKey: "hotsales" },
+  ]), [snapshots[1], snapshots[2]]);
+});
+
 test("market radar schemas reject oversized signal lists", () => {
   const signal = {
     id: "signal",

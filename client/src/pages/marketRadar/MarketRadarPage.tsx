@@ -2,11 +2,12 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type {
   MarketInfluenceMode,
+  MarketRadarAnalysisListSelection,
   MarketRadarPlatform,
   MarketRadarSignal,
   MarketTrendReport,
 } from "@ai-novel/shared/types/marketRadar";
-import { ArrowRight, ExternalLink, Loader2, Radar, RefreshCw, Sparkles } from "lucide-react";
+import { ArrowRight, Check, ExternalLink, Loader2, Radar, RefreshCw, Sparkles } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import {
   createMarketCreativeBrief,
@@ -53,15 +54,26 @@ function recommendedSignalIds(report: MarketTrendReport): string[] {
     .filter(Boolean).slice(0, 4).map((signal) => signal!.id);
 }
 
+function marketSourceKey(value: { platform: string; listKey: string }): string {
+  return `${value.platform}:${value.listKey}`;
+}
+
+function parseMarketSourceKey(value: string): MarketRadarAnalysisListSelection {
+  const [platform, listKey] = value.split(":", 2);
+  return { platform: platform as MarketRadarPlatform, listKey };
+}
+
 export default function MarketRadarPage() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [platforms, setPlatforms] = useState<MarketRadarPlatform[]>(["fanqie", "qidian", "jinjiang"]);
   const [activeRunId, setActiveRunId] = useState("");
   const [showAnalysis, setShowAnalysis] = useState(false);
+  const [selectedAnalysisListKeys, setSelectedAnalysisListKeys] = useState<string[]>([]);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [influenceMode, setInfluenceMode] = useState<MarketInfluenceMode>("differentiate");
   const initialScanStarted = useRef(false);
+  const analysisResultRef = useRef<HTMLDivElement | null>(null);
 
   const sourcesQuery = useQuery({ queryKey: queryKeys.marketRadar.sources, queryFn: getMarketRadarSources });
   const scanQuery = useQuery({
@@ -81,6 +93,10 @@ export default function MarketRadarPage() {
     setSelectedIds((current) => current.length > 0 ? current : recommendedSignalIds(report));
   }, [report?.id]);
 
+  useEffect(() => {
+    if (report) analysisResultRef.current?.scrollIntoView({ block: "start" });
+  }, [report?.id]);
+
   const scanMutation = useMutation({
     mutationFn: () => startMarketRadarScan(platforms),
     onSuccess: (response) => {
@@ -88,12 +104,15 @@ export default function MarketRadarPage() {
       if (!run) return;
       setActiveRunId(run.id);
       setShowAnalysis(false);
+      setSelectedAnalysisListKeys([]);
       setSelectedIds([]);
     },
     onError: (error) => toast.error(error instanceof Error ? error.message : "扫榜失败，请稍后重试。"),
   });
   const analysisMutation = useMutation({
-    mutationFn: () => startMarketRadarAnalysis(activeRun!.id),
+    mutationFn: () => startMarketRadarAnalysis(activeRun!.id, {
+      selectedLists: selectedAnalysisListKeys.map(parseMarketSourceKey),
+    }),
     onSuccess: (response) => {
       const run = response.data;
       if (!run) return;
@@ -128,9 +147,31 @@ export default function MarketRadarPage() {
     const isPrimaryList = (key: string) => key.endsWith(":new_book") || key.endsWith(":new_author");
     return [...groups.entries()]
       .sort(([left], [right]) => Number(isPrimaryList(right)) - Number(isPrimaryList(left)))
-      .map(([key, items]) => ({ key, items: items.sort((left, right) => left.rank - right.rank) }));
+      .map(([key, items]) => ({
+        key,
+        platform: items[0].platform,
+        listKey: items[0].listKey,
+        items: items.sort((left, right) => left.rank - right.rank),
+      }));
   }, [activeRun?.rankingItems]);
   const sourceLabels = useMemo(() => new Map((sourcesQuery.data?.data ?? []).map((source) => [`${source.platform}:${source.listKey}`, source.listLabel])), [sourcesQuery.data]);
+  const rankingGroupSignature = rankingGroups.map((group) => group.key).join("|");
+
+  useEffect(() => {
+    if (scanning || rankingGroups.length === 0) return;
+    const availableKeys = new Set(rankingGroups.map((group) => group.key));
+    const reportKeys = activeRun?.report?.analyzedLists?.map(marketSourceKey).filter((key) => availableKeys.has(key)) ?? [];
+    const primaryPlatforms = new Set(rankingGroups
+      .filter((group) => group.listKey === "new_book" || group.listKey === "new_author")
+      .map((group) => group.platform));
+    const recommendedKeys = rankingGroups
+      .filter((group) => !primaryPlatforms.has(group.platform) || group.listKey === "new_book" || group.listKey === "new_author")
+      .map((group) => group.key);
+    setSelectedAnalysisListKeys((current) => {
+      const availableCurrent = current.filter((key) => availableKeys.has(key));
+      return availableCurrent.length > 0 ? availableCurrent : reportKeys.length > 0 ? reportKeys : recommendedKeys;
+    });
+  }, [activeRun?.id, activeRun?.report?.id, rankingGroupSignature, scanning]);
 
   const togglePlatform = (platform: MarketRadarPlatform) => {
     setPlatforms((current) => current.includes(platform)
@@ -143,6 +184,20 @@ export default function MarketRadarPage() {
       if (current.length >= 5) { toast.error("最多选择5项市场信号。"); return current; }
       return [...current, id];
     });
+  };
+  const toggleAnalysisList = (key: string) => {
+    setSelectedAnalysisListKeys((current) => {
+      if (!current.includes(key)) return [...current, key];
+      if (current.length === 1) {
+        toast.error("至少保留一个榜单用于分析。");
+        return current;
+      }
+      return current.filter((item) => item !== key);
+    });
+  };
+  const openOrStartAnalysis = () => {
+    setShowAnalysis(true);
+    if (!activeRun?.report) analysisMutation.mutate();
   };
 
   return (
@@ -178,22 +233,54 @@ export default function MarketRadarPage() {
         <Card className="border-dashed"><CardContent className="flex min-h-72 flex-col items-center justify-center gap-3 text-center">{scanning ? <Loader2 className="h-10 w-10 animate-spin text-primary" /> : <Radar className="h-10 w-10 text-muted-foreground" />}<div className="font-medium">{scanning ? "正在获取公开榜单" : "还没有可展示的榜单数据"}</div><p className="max-w-lg text-sm text-muted-foreground">进入页面会自动扫榜。榜单获取完成后，你可以先查看原始排名，再决定是否让 AI 分析。</p></CardContent></Card>
       ) : <>
         <Card>
-          <CardHeader><CardTitle className="text-xl">本次榜单数据</CardTitle><CardDescription>先核对公开排名、书名、作者和分类；这一步不调用AI。</CardDescription></CardHeader>
+          <CardHeader><CardTitle className="text-xl">本次榜单数据</CardTitle><CardDescription>展示各榜单公开页面中本次成功识别的记录，每榜最多 30 条，不代表平台全部分页数据；这一步不调用 AI。</CardDescription></CardHeader>
           <CardContent><div className="flex flex-wrap gap-2">{activeRun?.platformStatuses.map((status) => <Badge key={status.platform} variant={status.status === "failed" ? "destructive" : "outline"}>{PLATFORM_LABELS[status.platform]} · {status.itemCount}项</Badge>)}</div></CardContent>
+        </Card>
+        <Card className="border-primary/30">
+          <CardHeader className="pb-3">
+            <CardTitle className="text-xl">选择 AI 分析的榜单</CardTitle>
+            <CardDescription>{activeRun?.report ? "本次报告已按以下榜单生成；如需更换范围，请重新扫榜。" : "默认优先选择新书榜和新晋作者榜，你也可以加入成熟榜单作对照。"}</CardDescription>
+          </CardHeader>
+          <CardContent className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+            <div className="flex flex-wrap gap-2">
+              {rankingGroups.map(({ key, items }) => {
+                const selected = selectedAnalysisListKeys.includes(key);
+                return (
+                  <button
+                    key={key}
+                    type="button"
+                    aria-pressed={selected}
+                    disabled={Boolean(activeRun?.report) || scanning || analyzing}
+                    onClick={() => toggleAnalysisList(key)}
+                    className={cn(
+                      "inline-flex items-center gap-2 rounded-full border px-3 py-2 text-sm transition disabled:cursor-not-allowed disabled:opacity-70",
+                      selected ? "border-primary bg-primary/10 text-primary" : "border-border text-muted-foreground hover:border-primary/40",
+                    )}
+                  >
+                    <span className={cn("flex h-4 w-4 items-center justify-center rounded border", selected ? "border-primary bg-primary text-primary-foreground" : "border-border")}>
+                      {selected ? <Check className="h-3 w-3" /> : null}
+                    </span>
+                    {PLATFORM_LABELS[items[0].platform]} · {sourceLabels.get(key) ?? items[0].listKey} · {items.length}条
+                  </button>
+                );
+              })}
+            </div>
+            <Button onClick={openOrStartAnalysis} disabled={scanning || analyzing || selectedAnalysisListKeys.length === 0} className="shrink-0">
+              {analyzing ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
+              {scanning ? "等待榜单获取完成" : analyzing ? `AI 分析中 ${Math.round((activeRun?.progress ?? 0) * 100)}%` : activeRun?.report ? "查看 AI 分析" : "开始 AI 分析"}
+            </Button>
+          </CardContent>
         </Card>
         <div className="grid items-start gap-4 lg:grid-cols-2">
           {rankingGroups.map(({ key, items }) => <Card key={key}>
-            <CardHeader className="pb-3"><CardTitle className="text-base">{PLATFORM_LABELS[items[0].platform]} · {sourceLabels.get(key) ?? items[0].listKey}</CardTitle><CardDescription>共 {items.length} 条公开上榜记录</CardDescription></CardHeader>
+            <CardHeader className="pb-3"><CardTitle className="text-base">{PLATFORM_LABELS[items[0].platform]} · {sourceLabels.get(key) ?? items[0].listKey}</CardTitle><CardDescription>本次识别 {items.length} 条公开上榜记录（最多 30 条）</CardDescription></CardHeader>
             <CardContent><div className="max-h-96 space-y-1 overflow-y-auto pr-1">{items.map((item) => <a key={item.id} href={item.sourceUrl} target="_blank" rel="noreferrer" className="grid grid-cols-[2.5rem_minmax(0,1fr)_auto] items-center gap-2 rounded-md px-2 py-2 text-sm hover:bg-muted"><span className="font-mono text-muted-foreground">#{item.rank}</span><span className="min-w-0"><span className="block truncate font-medium">{item.title}</span><span className="block truncate text-xs text-muted-foreground">{item.author || "作者未公开"}{item.category ? ` · ${item.category}` : ""}</span></span><ExternalLink className="h-3.5 w-3.5 text-muted-foreground" /></a>)}</div></CardContent>
           </Card>)}
         </div>
-        <Card className="border-primary/30">
-          <CardContent className="flex flex-col gap-4 p-5 sm:flex-row sm:items-center sm:justify-between"><div><div className="font-medium">{scanning ? "榜单仍在获取" : "榜单数据已准备"}</div><p className="mt-1 text-sm text-muted-foreground">{scanning ? "完整榜单准备好后即可开始分析。" : "点击后，AI才会归纳题材、金手指、开局爆点和差异化机会。"}</p></div><Button onClick={() => { setShowAnalysis(true); analysisMutation.mutate(); }} disabled={scanning || analyzing}>{analyzing ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}{scanning ? "等待榜单获取完成" : analyzing ? `AI分析中 ${Math.round((activeRun?.progress ?? 0) * 100)}%` : activeRun?.report ? "查看AI分析" : "开始AI分析"}</Button></CardContent>
-        </Card>
       </>}
 
       {report ? (
-        <>
+        <div ref={analysisResultRef} className="space-y-6 scroll-mt-6">
           <Card>
             <CardHeader><CardTitle className="text-xl">本期判断</CardTitle><CardDescription>采集于 {new Date(report.createdAt).toLocaleString()}，结论均可回看公开榜单证据。</CardDescription></CardHeader>
             <CardContent><p className="leading-7">{report.summary}</p><div className="mt-4 flex flex-wrap gap-2">{report.platformStatuses.map((status) => <Badge key={status.platform} variant={status.status === "failed" ? "destructive" : "outline"}>{PLATFORM_LABELS[status.platform]} · {status.itemCount}项{status.status === "stale" ? " · 建议刷新" : ""}</Badge>)}</div></CardContent>
@@ -222,7 +309,7 @@ export default function MarketRadarPage() {
               </div>
             </CardContent>
           </Card>
-        </>
+        </div>
       ) : null}
     </div>
   );

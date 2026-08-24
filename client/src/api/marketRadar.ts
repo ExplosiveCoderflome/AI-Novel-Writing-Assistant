@@ -4,6 +4,7 @@ import type {
   MarketRadarListSource,
   MarketRadarPlatform,
   MarketScanRun,
+  StartMarketRadarAnalysisRequest,
 } from "@ai-novel/shared/types/marketRadar";
 import type { ApiResponse } from "@ai-novel/shared/types/api";
 import { apiClient } from "./client";
@@ -23,8 +24,8 @@ export async function getMarketRadarScan(id: string) {
   return data;
 }
 
-export async function startMarketRadarAnalysis(id: string) {
-  const { data } = await apiClient.post<ApiResponse<MarketScanRun>>(`/market-radar/scans/${id}/analysis`);
+export async function startMarketRadarAnalysis(id: string, payload: StartMarketRadarAnalysisRequest) {
+  const { data } = await apiClient.post<ApiResponse<MarketScanRun>>(`/market-radar/scans/${id}/analysis`, payload);
   return data;
 }
 

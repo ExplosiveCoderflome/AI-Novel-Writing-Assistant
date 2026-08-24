@@ -5,6 +5,7 @@ import {
   MARKET_INFLUENCE_MODES,
   MARKET_RADAR_PLATFORMS,
   type CreateMarketCreativeBriefRequest,
+  type StartMarketRadarAnalysisRequest,
 } from "@ai-novel/shared/types/marketRadar";
 import { validate } from "../../../middleware/validate";
 import { marketRadarService } from "../application/MarketRadarService";
@@ -12,6 +13,12 @@ import { marketRadarService } from "../application/MarketRadarService";
 const router = Router();
 const idParamsSchema = z.object({ id: z.string().trim().min(1) });
 const scanSchema = z.object({ platforms: z.array(z.enum(MARKET_RADAR_PLATFORMS)).min(1).max(3).optional() });
+const analysisSchema = z.object({
+  selectedLists: z.array(z.object({
+    platform: z.enum(MARKET_RADAR_PLATFORMS),
+    listKey: z.string().trim().min(1).max(64),
+  }).strict()).min(1).max(8).optional(),
+}).strict();
 const briefSchema = z.object({
   reportId: z.string().trim().min(1),
   signalIds: z.array(z.string().trim().min(1)).min(1).max(5),
@@ -44,10 +51,10 @@ router.get("/scans/:id", validate({ params: idParamsSchema }), async (req, res, 
   } catch (error) { next(error); }
 });
 
-router.post("/scans/:id/analysis", validate({ params: idParamsSchema }), async (req, res, next) => {
+router.post("/scans/:id/analysis", validate({ params: idParamsSchema, body: analysisSchema }), async (req, res, next) => {
   try {
     const { id } = req.params as z.infer<typeof idParamsSchema>;
-    const run = await marketRadarService.startAnalysis(id);
+    const run = await marketRadarService.startAnalysis(id, req.body as StartMarketRadarAnalysisRequest);
     res.status(run.report ? 200 : 202).json(ok(run, run.report ? "AI分析已完成。" : "AI分析已开始。"));
   } catch (error) { next(error); }
 });

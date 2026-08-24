@@ -56,6 +56,7 @@ export interface MarketTrendReport {
   scanRunId: string;
   summary: string;
   signals: MarketRadarSignal[];
+  analyzedLists?: MarketRadarAnalysisListSelection[];
   platformStatuses: MarketPlatformStatus[];
   evidenceItems: MarketRankingItem[];
   createdAt: string;
@@ -87,6 +88,15 @@ export interface MarketCreativeBrief {
 
 export interface CreateMarketScanRequest {
   platforms?: MarketRadarPlatform[];
+}
+
+export interface MarketRadarAnalysisListSelection {
+  platform: MarketRadarPlatform;
+  listKey: string;
+}
+
+export interface StartMarketRadarAnalysisRequest {
+  selectedLists?: MarketRadarAnalysisListSelection[];
 }
 
 export interface CreateMarketCreativeBriefRequest {
