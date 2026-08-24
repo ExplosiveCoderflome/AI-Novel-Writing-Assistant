@@ -18,6 +18,7 @@ const analysisSchema = z.object({
     platform: z.enum(MARKET_RADAR_PLATFORMS),
     listKey: z.string().trim().min(1).max(64),
   }).strict()).min(1).max(8).optional(),
+  selectedItemIds: z.array(z.string().trim().min(1).max(64)).min(1).max(240).optional(),
 }).strict();
 const briefSchema = z.object({
   reportId: z.string().trim().min(1),

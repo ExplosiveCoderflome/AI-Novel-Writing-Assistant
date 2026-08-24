@@ -144,6 +144,12 @@ export function selectMarketAnalysisSnapshots<T extends { platform: string; list
   ));
 }
 
+export function selectMarketAnalysisItems<T extends { id: string }>(items: T[], selectedItemIds?: string[]): T[] {
+  if (!selectedItemIds?.length) return items;
+  const selectedIds = new Set(selectedItemIds);
+  return items.filter((item) => selectedIds.has(item.id));
+}
+
 export class MarketRadarService {
   listSources() {
     return MARKET_RADAR_SOURCES;
@@ -186,7 +192,7 @@ export class MarketRadarService {
 
   async startAnalysis(
     runId: string,
-    input: { selectedLists?: MarketRadarAnalysisListSelection[] } = {},
+    input: { selectedLists?: MarketRadarAnalysisListSelection[]; selectedItemIds?: string[] } = {},
   ): Promise<MarketScanRun> {
     const run = await prisma.marketScanRun.findUnique({
       where: { id: runId },
@@ -197,12 +203,20 @@ export class MarketRadarService {
     if (run.status === "queued" || run.status === "running") throw new Error("榜单仍在采集中，请稍后再分析。");
     const successful = run.snapshots.filter((snapshot) => snapshot.status === "succeeded" && snapshot.items.length > 0);
     if (successful.length === 0) throw new Error("没有可供AI分析的榜单数据。");
-    const requestedSelections = input.selectedLists?.length
-      ? input.selectedLists
-      : selectMarketAnalysisSnapshots(successful).map((snapshot) => ({
+    const requestedItemIds = [...new Set(input.selectedItemIds ?? [])];
+    const availableItemIds = new Set(successful.flatMap((snapshot) => snapshot.items.map((item) => item.id)));
+    if (requestedItemIds.some((id) => !availableItemIds.has(id))) throw new Error("选择中包含不属于本次榜单的作品，请重新选择。");
+    const requestedSelections = requestedItemIds.length > 0
+      ? successful.filter((snapshot) => snapshot.items.some((item) => requestedItemIds.includes(item.id))).map((snapshot) => ({
         platform: snapshot.platform as MarketRadarPlatform,
         listKey: snapshot.listKey,
-      }));
+      }))
+      : input.selectedLists?.length
+        ? input.selectedLists
+        : selectMarketAnalysisSnapshots(successful).map((snapshot) => ({
+          platform: snapshot.platform as MarketRadarPlatform,
+          listKey: snapshot.listKey,
+        }));
     const uniqueSelections = [...new Map(requestedSelections.map((selection) => [marketSourceKey(selection), selection])).values()];
     const selectedSnapshots = selectMarketAnalysisSnapshots(successful, uniqueSelections);
     if (selectedSnapshots.length !== uniqueSelections.length) throw new Error("选择中包含未成功获取的榜单，请重新选择。");
@@ -212,7 +226,7 @@ export class MarketRadarService {
       data: { status: "analyzing", progress: 0.05, lastError: null, finishedAt: null },
     });
     if (claimed.count > 0) {
-      setImmediate(() => void this.analyzeRankings(runId, uniqueSelections).catch(async (error) => {
+      setImmediate(() => void this.analyzeRankings(runId, uniqueSelections, requestedItemIds).catch(async (error) => {
         const snapshots = await prisma.marketRankingSnapshot.findMany({ where: { runId }, include: { items: true } });
         const hasFailures = snapshots.some((snapshot) => snapshot.status === "failed");
         await prisma.marketScanRun.update({
@@ -359,10 +373,16 @@ export class MarketRadarService {
     });
   }
 
-  private async analyzeRankings(runId: string, selectedLists: MarketRadarAnalysisListSelection[]): Promise<void> {
+  private async analyzeRankings(
+    runId: string,
+    selectedLists: MarketRadarAnalysisListSelection[],
+    selectedItemIds?: string[],
+  ): Promise<void> {
     const snapshots = await prisma.marketRankingSnapshot.findMany({ where: { runId }, include: { items: true } });
     const successful = snapshots.filter((snapshot) => snapshot.status === "succeeded" && snapshot.items.length > 0);
-    const analysisSnapshots = selectMarketAnalysisSnapshots(successful, selectedLists);
+    const analysisSnapshots = selectMarketAnalysisSnapshots(successful, selectedLists)
+      .map((snapshot) => ({ ...snapshot, items: selectMarketAnalysisItems(snapshot.items, selectedItemIds) }))
+      .filter((snapshot) => snapshot.items.length > 0);
     const requested = [...new Set(snapshots.map((snapshot) => snapshot.platform as MarketRadarPlatform))];
     const allRows = analysisSnapshots.flatMap((snapshot) => snapshot.items.map((item) => ({ ...item, snapshot })));
     const allItems = allRows.map(toRankingItem);
@@ -393,7 +413,7 @@ export class MarketRadarService {
       data: {
         runId,
         summary: synthesis.output.summary,
-        structuredDataJson: JSON.stringify({ ...synthesis.output, analyzedLists: selectedLists }),
+        structuredDataJson: JSON.stringify({ ...synthesis.output, analyzedLists: selectedLists, analyzedItemIds: selectedItemIds }),
       },
     });
     const hasFailures = snapshots.some((snapshot) => snapshot.status === "failed");
@@ -434,6 +454,7 @@ export class MarketRadarService {
     const structured = parseJson<{
       signals: MarketTrendReport["signals"];
       analyzedLists?: MarketRadarAnalysisListSelection[];
+      analyzedItemIds?: string[];
     }>(report.structuredDataJson, { signals: [] });
     const evidenceItems = report.run.snapshots.flatMap((snapshot) => snapshot.items.map((item) => toRankingItem({ ...item, snapshot })));
     const successfulSnapshots = report.run.snapshots.filter((snapshot) => snapshot.status === "succeeded" && snapshot.items.length > 0);
@@ -449,7 +470,8 @@ export class MarketRadarService {
         : status
     ));
     return {
-      id: report.id, scanRunId: report.runId, summary: report.summary, signals: structured.signals, analyzedLists,
+      id: report.id, scanRunId: report.runId, summary: report.summary, signals: structured.signals,
+      analyzedLists, analyzedItemIds: structured.analyzedItemIds,
       platformStatuses, evidenceItems, createdAt: report.createdAt.toISOString(),
     };
   }

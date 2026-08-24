@@ -57,6 +57,7 @@ export interface MarketTrendReport {
   summary: string;
   signals: MarketRadarSignal[];
   analyzedLists?: MarketRadarAnalysisListSelection[];
+  analyzedItemIds?: string[];
   platformStatuses: MarketPlatformStatus[];
   evidenceItems: MarketRankingItem[];
   createdAt: string;
@@ -97,6 +98,7 @@ export interface MarketRadarAnalysisListSelection {
 
 export interface StartMarketRadarAnalysisRequest {
   selectedLists?: MarketRadarAnalysisListSelection[];
+  selectedItemIds?: string[];
 }
 
 export interface CreateMarketCreativeBriefRequest {
