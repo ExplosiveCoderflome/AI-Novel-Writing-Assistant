@@ -229,7 +229,7 @@ function DesktopNovelEditView(props: NovelEditViewProps) {
                 <DialogHeader>
                   <DialogTitle>导出项目内容</DialogTitle>
                   <DialogDescription>
-                    当前步骤会按你正在查看的工作台导出；整本书会把项目设定、故事规划、角色、卷规划、拆章、章节和质量修复资产一起导出。
+                    当前步骤会按你正在查看的工作台导出；整本书可导出项目资产，或下载只含正文的 TXT 文件。
                   </DialogDescription>
                 </DialogHeader>
                 <div className="grid gap-4 md:grid-cols-2">
@@ -259,6 +259,12 @@ function DesktopNovelEditView(props: NovelEditViewProps) {
                       <CardTitle className="text-base">整本书</CardTitle>
                     </CardHeader>
                     <CardContent className="flex flex-wrap gap-2">
+                      <Button
+                        onClick={() => exportControls.onExportFull("txt")}
+                        disabled={exportControls.isExportingFullTxt}
+                      >
+                        {exportControls.isExportingFullTxt ? "导出中..." : "TXT 正文"}
+                      </Button>
                       <Button
                         variant="outline"
                         onClick={() => exportControls.onExportFull("markdown")}
