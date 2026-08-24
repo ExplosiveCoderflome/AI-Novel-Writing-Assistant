@@ -171,6 +171,7 @@ export function NovelShelfCard(props: {
 export function NovelContinueCard(props: {
   novel: NovelListItem;
   onManageCover: (novelId: string) => void;
+  onDelete: (novelId: string, title: string) => void;
 }) {
   const { novel } = props;
   const action = getPrimaryAction(novel);
@@ -203,6 +204,9 @@ export function NovelContinueCard(props: {
             </Button>
             <Button type="button" size="sm" variant="ghost" className="h-8 w-8 p-0 text-muted-foreground" title="管理封面" aria-label="管理封面" onClick={() => props.onManageCover(novel.id)}>
               <ImagePlus className="h-4 w-4" aria-hidden="true" />
+            </Button>
+            <Button type="button" size="sm" variant="ghost" className="h-8 w-8 p-0 text-muted-foreground hover:text-destructive" title="删除作品" aria-label="删除作品" onClick={() => props.onDelete(novel.id, novel.title)}>
+              <Trash2 className="h-4 w-4" aria-hidden="true" />
             </Button>
           </div>
         </div>

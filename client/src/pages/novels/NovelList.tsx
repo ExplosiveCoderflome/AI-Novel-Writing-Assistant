@@ -332,7 +332,7 @@ export default function NovelList() {
                   <h2 className="text-lg font-semibold">继续创作</h2>
                   <div className="grid w-full grid-cols-[repeat(auto-fit,minmax(300px,1fr))] gap-4">
                     {continueNovels.map((novel) => (
-                      <NovelContinueCard key={`continue-${novel.id}`} novel={novel} onManageCover={setCoverNovelId} />
+                      <NovelContinueCard key={`continue-${novel.id}`} novel={novel} onManageCover={setCoverNovelId} onDelete={handleDelete} />
                     ))}
                   </div>
                 </section>
