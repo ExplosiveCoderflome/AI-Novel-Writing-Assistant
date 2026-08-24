@@ -43,7 +43,7 @@ import type {
 } from "@ai-novel/shared/types/storyMacro";
 import type { BookAnalysisSectionKey } from "@ai-novel/shared/types/bookAnalysis";
 import type { LLMProvider } from "@ai-novel/shared/types/llm";
-import type { NovelExportDownloadFormat } from "@ai-novel/shared/types/novelExport";
+import type { NovelExportDownloadFormat, NovelExportFormat } from "@ai-novel/shared/types/novelExport";
 import type { ChapterRuntimePackage } from "@ai-novel/shared/types/chapterRuntime";
 import type {
   CharacterResourceContext,
@@ -650,8 +650,9 @@ export interface NovelEditViewProps {
     isExportingCurrentJson: boolean;
     isExportingFullMarkdown: boolean;
     isExportingFullJson: boolean;
+    isExportingFullTxt: boolean;
     onExportCurrent: (format: NovelExportDownloadFormat) => void;
-    onExportFull: (format: NovelExportDownloadFormat) => void;
+    onExportFull: (format: NovelExportFormat) => void;
   };
   basicTab: BasicTabProps;
   worldTab: BasicTabProps;

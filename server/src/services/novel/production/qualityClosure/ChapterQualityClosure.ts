@@ -9,6 +9,10 @@ import type { ReplanResult } from "@ai-novel/shared/types/novel";
 
 type ChapterPipelineResult = Awaited<ReturnType<ChapterRuntimeCoordinator["runPipelineChapter"]>>;
 
+function requiresManualStop(result: Awaited<ReturnType<typeof reportPipelineIssue>>): boolean {
+  return result?.decision.action === "pause_for_manual" || result?.decision.action === "fail_task";
+}
+
 export async function applyChapterQualityClosure(input: {
   governance: DirectorIssueTaskContext | null;
   workflowTaskId?: string;
@@ -35,9 +39,10 @@ export async function applyChapterQualityClosure(input: {
   const qualityDebtTerminalAction = chapterResult.pass || replanRecommendation?.scope === "global_book"
     ? null
     : "defer_and_continue" as const;
+  let shouldStopAfterCurrentChapter = false;
 
   if (runtimePayload.autoReview && !chapterResult.reviewExecuted) {
-    await reportPipelineIssue({
+    const result = await reportPipelineIssue({
       governance: input.governance,
       workflowTaskId: input.workflowTaskId,
       novelId: input.novelId,
@@ -52,6 +57,7 @@ export async function applyChapterQualityClosure(input: {
       model: runtimePayload.model,
       temperature: runtimePayload.temperature,
     });
+    shouldStopAfterCurrentChapter ||= requiresManualStop(result);
   }
 
   if (chapterResult.recoverableRepairFailure) {
@@ -64,7 +70,7 @@ export async function applyChapterQualityClosure(input: {
       reason: chapterResult.recoverableRepairFailure.message,
       failureTypes: chapterResult.recoverableRepairFailure.failureTypes,
     });
-    await reportPipelineIssue({
+    const result = await reportPipelineIssue({
       governance: input.governance,
       workflowTaskId: input.workflowTaskId,
       novelId: input.novelId,
@@ -80,6 +86,7 @@ export async function applyChapterQualityClosure(input: {
       model: runtimePayload.model,
       temperature: runtimePayload.temperature,
     });
+    shouldStopAfterCurrentChapter ||= requiresManualStop(result);
   }
 
   if (chapterResult.reviewExecuted) {
@@ -114,7 +121,7 @@ export async function applyChapterQualityClosure(input: {
       order: chapter.order,
       score: final.score,
     });
-    await reportPipelineIssue({
+    const result = await reportPipelineIssue({
       governance: input.governance,
       workflowTaskId: input.workflowTaskId,
       novelId: input.novelId,
@@ -134,6 +141,11 @@ export async function applyChapterQualityClosure(input: {
       model: runtimePayload.model,
       temperature: runtimePayload.temperature,
     });
+    shouldStopAfterCurrentChapter ||= requiresManualStop(result);
+  }
+
+  if (shouldStopAfterCurrentChapter) {
+    return { shouldStopAfterCurrentChapter: true };
   }
 
   if (!replanRecommendation?.recommended) {
@@ -159,7 +171,7 @@ export async function applyChapterQualityClosure(input: {
     } catch (error) {
       const failureDetail = `第${chapter.order}章后续章节调整失败，已保留正文并继续：${error instanceof Error ? error.message : String(error)}`;
       if (!input.recoverableRepairDetails.includes(failureDetail)) input.recoverableRepairDetails.push(failureDetail);
-      await reportPipelineIssue({
+      const result = await reportPipelineIssue({
         governance: input.governance,
         workflowTaskId: input.workflowTaskId,
         novelId: input.novelId,
@@ -175,7 +187,7 @@ export async function applyChapterQualityClosure(input: {
         model: runtimePayload.model,
         temperature: runtimePayload.temperature,
       });
-      return { shouldStopAfterCurrentChapter: false };
+      return { shouldStopAfterCurrentChapter: requiresManualStop(result) };
     }
   }
   if (replanRecommendation.action !== "stop_for_replan") {

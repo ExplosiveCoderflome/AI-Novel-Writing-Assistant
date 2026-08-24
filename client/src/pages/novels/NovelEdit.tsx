@@ -6,7 +6,7 @@ import type { DirectorContinuationMode, DirectorLockScope, DirectorSessionState,
 import { extractDirectorTaskSeedPayloadFromMeta } from "@ai-novel/shared/types/novelDirector";
 import type { AutoDirectorAction, AutoDirectorMutationActionCode } from "@ai-novel/shared/types/autoDirectorFollowUp";
 import type { DirectorBookAutomationAction, DirectorDashboardMode, DirectorTaskSnapshot } from "@ai-novel/shared/types/directorRuntime";
-import type { NovelExportDownloadFormat, NovelExportScope } from "@ai-novel/shared/types/novelExport";
+import type { NovelExportDownloadFormat, NovelExportFormat, NovelExportScope } from "@ai-novel/shared/types/novelExport";
 import type {
   Chapter,
   PipelineRepairMode,
@@ -527,7 +527,7 @@ export default function NovelEdit() {
   });
   const exportNovelMutation = useMutation({
     mutationFn: async (input: {
-      format: NovelExportDownloadFormat;
+      format: NovelExportFormat;
       scope: NovelExportScope;
       novelTitle: string;
     }) => {
@@ -2752,6 +2752,9 @@ export default function NovelEdit() {
   const isExportingFullJson = exportNovelMutation.isPending
     && exportVariables?.scope === "full"
     && exportVariables?.format === "json";
+  const isExportingFullTxt = exportNovelMutation.isPending
+    && exportVariables?.scope === "full"
+    && exportVariables?.format === "txt";
 
   if (displayAutoDirectorTask?.checkpointType === "production_experience_required") {
     return (
@@ -2775,6 +2778,7 @@ export default function NovelEdit() {
         isExportingCurrentJson,
         isExportingFullMarkdown,
         isExportingFullJson,
+        isExportingFullTxt,
         onExportCurrent: (format) => {
           if (!currentExportScope) {
             return;

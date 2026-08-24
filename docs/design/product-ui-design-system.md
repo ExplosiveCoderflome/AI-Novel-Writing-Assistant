@@ -124,7 +124,7 @@
 
 ### Color
 
-优先使用 Tailwind/shadcn CSS 变量，不在页面中随意写一次性颜色。
+优先使用 Tailwind 和项目语义 CSS 变量，不在页面中随意写一次性颜色。
 
 语义颜色建议：
 
@@ -154,20 +154,27 @@
 - 同一页面内卡片内边距、标题间距、按钮间距应统一。
 - 不用嵌套卡片堆层级；需要分组时优先使用分区、列表、表格或 tabs。
 
+### Low-border Hierarchy
+
+- 普通内容分组默认无可见边框、无阴影，优先使用标题层级、留白、对齐、浅底色和分隔线建立关系。
+- 边框只用于传达必要边界：表单控件、选中或聚焦状态、警告与错误、表格或列表分隔、拖放区域，以及弹窗、菜单等浮层。
+- 同一页面不得连续堆叠等视觉重量的矩形容器；已有外层区域时，内部内容使用无边框行、分区或弱背景。
+- 判断标准不是“是否使用了 Card 组件”，而是去掉边框后是否仍能正确理解层级和完成操作；若可以，必须去掉。
+
 ### Radius and Shadow
 
 - 默认圆角保持克制，卡片建议 8px 左右。
 - 不使用大面积圆角胶囊卡片承载复杂文本。
-- 阴影只用于浮层、弹窗、菜单和需要明确层级的区域。
-- 常规内容区主要靠边框、背景和间距区分。
+- 阴影只用于浮层、弹窗和菜单等临时层级。
+- 常规内容区主要靠背景、间距、排版和必要分隔线区分。
 
 ## Component Construction Rules
 
-当前客户端使用 shadcn/ui 风格、Tailwind CSS 和 CSS 变量。
+当前客户端使用项目自有 UI primitives、Tailwind CSS 和 CSS 变量。现有 `components/ui/` 文件作为兼容层由项目直接维护，不再以 shadcn/ui 的默认样式或生成器作为设计来源。
 
 ### Component Ownership
 
-- `client/src/components/ui/` 只放基础 UI primitive 或 shadcn 组件。
+- `client/src/components/ui/` 只放项目自有基础 UI primitive；禁止在这里放业务组件。
 - 业务组合组件放到明确模块目录，例如 `components/autoDirector/`、`components/creativeHub/`、`pages/novels/components/`。
 - 知识、题材、角色、世界和规则等跨模块资产库共用的页面结构归属 `components/assetLibrary/`；该目录只组合页头、状态、推荐动作、分区和空态，不读取 API 或持有业务状态。
 - 不把业务逻辑写进 `components/ui/`。
@@ -180,12 +187,12 @@
 - 组件 props 使用领域语义，例如 `status`、`nextAction`、`riskLevel`，不要只传一堆视觉 class。
 - class 合并统一使用项目 `cn()` 工具。
 
-### shadcn/ui Usage
+### Project-owned Primitive Usage
 
-- 新增通用控件优先使用 shadcn/ui 组件或 Radix 行为基础。
-- 安装新 shadcn 组件后，应检查是否符合当前主题 token 和圆角规则。
-- 不直接改第三方包；shadcn 组件进入仓库后由项目维护。
-- 复杂业务卡片应包装基础组件，而不是直接在页面里堆大量 `div`。
+- 新增通用控件优先组合现有项目 primitive；确需复杂交互行为时可以使用 Radix 等无样式行为基础，但视觉必须由项目 token 和规则定义。
+- 禁止安装新的 shadcn/ui 组件或运行其生成器。现有兼容组件可以渐进重构，不要求为改名进行无收益的大规模迁移。
+- 基础组件的默认外观必须克制；普通 Surface/Card 默认无可见边框和阴影，语义边框由调用方显式声明。
+- 不直接修改第三方包；复杂业务区域应包装项目基础组件，而不是在页面里堆大量无归属的 `div`。
 
 ### Icons
 
