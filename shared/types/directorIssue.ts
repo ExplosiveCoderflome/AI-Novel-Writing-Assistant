@@ -89,12 +89,14 @@ export const DIRECTOR_ISSUE_CATALOG_BY_CODE = Object.fromEntries(
 export const DEFAULT_DIRECTOR_ISSUE_POLICY = {
   noticeThreshold: 5,
   pauseThreshold: 8,
+  maxAutomaticRetries: 1,
   issueActions: {},
 } satisfies DirectorIssuePolicy;
 
 export const directorIssuePolicySchema = z.object({
   noticeThreshold: z.number().int().min(2).max(7).default(5),
   pauseThreshold: z.number().int().min(3).max(8).default(8),
+  maxAutomaticRetries: z.number().int().min(0).max(1).default(1),
   issueActions: z.partialRecord(directorIssueCodeSchema, directorIssueActionSchema).default({}),
 }).superRefine((policy, context) => {
   if (policy.pauseThreshold <= policy.noticeThreshold) {
@@ -113,6 +115,7 @@ export type DirectorIssuePolicy = z.infer<typeof directorIssuePolicySchema>;
 export const directorIssuePolicyOverrideSchema = z.object({
   noticeThreshold: z.number().int().min(2).max(7).optional(),
   pauseThreshold: z.number().int().min(3).max(8).optional(),
+  maxAutomaticRetries: z.number().int().min(0).max(1).optional(),
   issueActions: z.partialRecord(directorIssueCodeSchema, directorIssueActionSchema).optional(),
 }).superRefine((override, context) => {
   if (
@@ -131,6 +134,60 @@ export const directorIssuePolicyOverrideSchema = z.object({
 });
 
 export type DirectorIssuePolicyOverride = z.infer<typeof directorIssuePolicyOverrideSchema>;
+
+export const DIRECTOR_ISSUE_POLICY_PRESETS = [
+  {
+    id: "finish_full_book",
+    name: "优先完成整本书",
+    description: "局部问题处理一次后保留正文并继续，统一留到后续优化。",
+    policy: {
+      noticeThreshold: 5,
+      pauseThreshold: 8,
+      maxAutomaticRetries: 1,
+      issueActions: {
+        "quality.chapter_below_threshold": "continue_with_warning",
+        "quality.acceptance_unavailable": "continue_with_warning",
+        "quality.obligation_gap": "continue_with_warning",
+        "quality.local_repair_failed": "continue_with_warning",
+        "quality.local_replan_failed": "continue_with_warning",
+        "quality.loop_exhausted": "continue_with_warning",
+        "quality.replan_loop": "continue_with_warning",
+      },
+    },
+  },
+  {
+    id: "quality_first",
+    name: "质量优先",
+    description: "局部问题处理一次后仍未解决时暂停，等待你确认下一步。",
+    policy: {
+      noticeThreshold: 5,
+      pauseThreshold: 6,
+      maxAutomaticRetries: 1,
+      issueActions: {
+        "quality.chapter_below_threshold": "pause_for_manual",
+        "quality.acceptance_unavailable": "pause_for_manual",
+        "quality.obligation_gap": "pause_for_manual",
+        "quality.local_repair_failed": "pause_for_manual",
+        "quality.local_replan_failed": "pause_for_manual",
+        "quality.loop_exhausted": "pause_for_manual",
+        "quality.replan_loop": "pause_for_manual",
+      },
+    },
+  },
+] as const satisfies ReadonlyArray<{
+  id: string;
+  name: string;
+  description: string;
+  policy: DirectorIssuePolicy;
+}>;
+
+export type DirectorIssuePolicyPreset = (typeof DIRECTOR_ISSUE_POLICY_PRESETS)[number];
+
+export function findDirectorIssuePolicyPreset(policy: DirectorIssuePolicy): DirectorIssuePolicyPreset | null {
+  return DIRECTOR_ISSUE_POLICY_PRESETS.find((preset) => (
+    JSON.stringify(preset.policy) === JSON.stringify(policy)
+  )) ?? null;
+}
 
 export const directorIssueAssessmentSchema = z.object({
   issueCode: directorIssueCodeSchema,
@@ -182,6 +239,7 @@ export function mergeDirectorIssuePolicy(
   return directorIssuePolicySchema.parse({
     noticeThreshold: override?.noticeThreshold ?? base.noticeThreshold,
     pauseThreshold: override?.pauseThreshold ?? base.pauseThreshold,
+    maxAutomaticRetries: override?.maxAutomaticRetries ?? base.maxAutomaticRetries,
     issueActions: { ...base.issueActions, ...(override?.issueActions ?? {}) },
   });
 }
@@ -220,20 +278,10 @@ export function resolveDirectorIssueDecision(input: {
     }
   }
 
-  const fullBookWithUsableOutput = input.occurrence.runMode === "full_book_autopilot"
-    && input.occurrence.hasUsableOutput;
-  if (fullBookWithUsableOutput && (
-    entry.category === "quality"
-    && input.occurrence.issueCode !== "quality.replan_required"
-  )) {
-    action = action === "auto_retry" ? action : "continue_with_warning";
-    locked = true;
-    reason = "全书自动成书保留可用正文，将局部问题记录为质量债后继续。";
-  }
-
-  if (action === "auto_retry" && input.occurrence.attempt >= input.occurrence.maxAttempts) {
+  const maxAttempts = input.policy.maxAutomaticRetries ?? DEFAULT_DIRECTOR_ISSUE_POLICY.maxAutomaticRetries;
+  if (action === "auto_retry" && input.occurrence.attempt >= maxAttempts) {
     action = entry.exhaustedAction;
-    reason = `自动重试已达到 ${input.occurrence.maxAttempts} 次上限。`;
+    reason = `自动重试已达到 ${maxAttempts} 次上限。`;
   }
 
   if (action === "continue_with_warning" && !input.occurrence.hasUsableOutput) {

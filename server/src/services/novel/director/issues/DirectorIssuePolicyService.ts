@@ -36,6 +36,9 @@ function compactOverride(
     ...(input.pauseThreshold !== undefined && input.pauseThreshold !== globalPolicy.pauseThreshold
       ? { pauseThreshold: input.pauseThreshold }
       : {}),
+    ...(input.maxAutomaticRetries !== undefined && input.maxAutomaticRetries !== globalPolicy.maxAutomaticRetries
+      ? { maxAutomaticRetries: input.maxAutomaticRetries }
+      : {}),
     ...(Object.keys(issueActions).length > 0 ? { issueActions } : {}),
   };
   return Object.keys(compacted).length > 0 ? compacted : null;

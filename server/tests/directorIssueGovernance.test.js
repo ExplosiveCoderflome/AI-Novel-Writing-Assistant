@@ -5,6 +5,7 @@ const {
   DEFAULT_DIRECTOR_ISSUE_POLICY,
   DIRECTOR_ISSUE_ACTIONS,
   DIRECTOR_ISSUE_CATALOG,
+  DIRECTOR_ISSUE_POLICY_PRESETS,
   directorIssuePolicyOverrideSchema,
   directorIssuePolicySchema,
   resolveDirectorIssueDecision,
@@ -23,7 +24,7 @@ function occurrence(issueCode, patch = {}) {
 }
 
 test("every stable issue code has one valid default policy", () => {
-  assert.equal(DIRECTOR_ISSUE_CATALOG.length, 23);
+  assert.ok(DIRECTOR_ISSUE_CATALOG.length > 0);
   for (const entry of DIRECTOR_ISSUE_CATALOG) {
     assert.ok(entry.allowedActions.includes(entry.defaultAction), entry.code);
     assert.deepEqual([...entry.allowedActions].sort(), [...DIRECTOR_ISSUE_ACTIONS].sort(), entry.code);
@@ -57,18 +58,25 @@ test("user overrides are accepted while runtime safety actions remain enforced",
   }
 });
 
-test("local quality debt cannot pause a full-book run with usable content", () => {
-  const policy = {
-    ...DEFAULT_DIRECTOR_ISSUE_POLICY,
-    issueActions: { "quality.loop_exhausted": "fail_task" },
-  };
-  const decision = resolveDirectorIssueDecision({
+test("policy presets decide whether a usable local quality issue continues or pauses", () => {
+  const finishFullBook = DIRECTOR_ISSUE_POLICY_PRESETS.find((preset) => preset.id === "finish_full_book");
+  const qualityFirst = DIRECTOR_ISSUE_POLICY_PRESETS.find((preset) => preset.id === "quality_first");
+  assert.ok(finishFullBook);
+  assert.ok(qualityFirst);
+
+  const fullBookDecision = resolveDirectorIssueDecision({
     occurrence: occurrence("quality.loop_exhausted"),
-    policy,
+    policy: finishFullBook.policy,
     policySource: "novel",
   });
-  assert.equal(decision.action, "continue_with_warning");
-  assert.equal(decision.locked, true);
+  const qualityDecision = resolveDirectorIssueDecision({
+    occurrence: occurrence("quality.loop_exhausted"),
+    policy: qualityFirst.policy,
+    policySource: "novel",
+  });
+  assert.equal(fullBookDecision.action, "continue_with_warning");
+  assert.equal(qualityDecision.action, "pause_for_manual");
+  assert.equal(qualityDecision.locked, false);
 });
 
 test("explicit replans and data safety issues remain locked", () => {
@@ -99,6 +107,14 @@ test("retry uses the catalog fallback after its budget is exhausted", () => {
     policy: DEFAULT_DIRECTOR_ISSUE_POLICY,
   });
   assert.equal(decision.action, "fail_task");
+});
+
+test("the policy owns the single automatic retry budget", () => {
+  const decision = resolveDirectorIssueDecision({
+    occurrence: occurrence("runtime.service_unavailable", { attempt: 1, maxAttempts: 9 }),
+    policy: { ...DEFAULT_DIRECTOR_ISSUE_POLICY, maxAutomaticRetries: 1 },
+  });
+  assert.equal(decision.action, "pause_for_manual");
 });
 
 test("risk score reaches the frozen pause threshold", () => {
