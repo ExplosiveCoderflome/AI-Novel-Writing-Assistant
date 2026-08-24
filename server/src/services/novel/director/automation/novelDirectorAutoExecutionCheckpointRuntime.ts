@@ -3,7 +3,6 @@ import type {
   DirectorConfirmRequest,
   DirectorQualityRepairRisk,
 } from "@ai-novel/shared/types/novelDirector";
-import { DEFAULT_DIRECTOR_RISK_POLICY } from "@ai-novel/shared/types/directorRisk";
 import { isDirectorAutoExecutionRunMode, isFullBookAutopilotRunMode } from "@ai-novel/shared/types/novelDirector";
 import type { PipelineJobStatus } from "@ai-novel/shared/types/novel";
 import type { NovelWorkflowCheckpoint } from "@ai-novel/shared/types/novelWorkflow";
@@ -250,7 +249,6 @@ export async function resolveQualityRepairNoticeAction(
   const riskDecision = await directorRiskAssessmentService.assessQualityRepair({
     taskId: input.taskId,
     novelId: input.novelId,
-    policy: input.request.riskPolicy ?? input.autoExecution.riskPolicy ?? DEFAULT_DIRECTOR_RISK_POLICY,
     qualityRepairRisk,
     failureSummary: input.noticeSummary,
     issueFingerprint: [
@@ -278,7 +276,6 @@ export async function resolveQualityRepairNoticeAction(
     pipelineJobId: input.pipelineJobId,
     pipelineStatus: input.pipelineStatus,
     qualityRepairRisk,
-    riskPolicy: input.request.riskPolicy ?? input.autoExecution.riskPolicy ?? DEFAULT_DIRECTOR_RISK_POLICY,
     latestRiskAssessment: riskDecision?.assessment ?? input.autoExecution.latestRiskAssessment ?? null,
   };
   const remainingChapterCount = checkpointState.remainingChapterCount ?? 0;

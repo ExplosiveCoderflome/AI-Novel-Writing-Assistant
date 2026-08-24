@@ -2,13 +2,10 @@ const test = require("node:test");
 const assert = require("node:assert/strict");
 
 const {
-  DEFAULT_DIRECTOR_RISK_POLICY,
   aiDirectorRiskAssessmentSchema,
   directorRiskAssessmentSchema,
-  directorRiskPolicySchema,
   isDirectorRiskScore,
   parsePersistedDirectorRiskAssessment,
-  parsePersistedDirectorRiskPolicy,
 } = require("../../shared/dist/types/directorRisk.js");
 const {
   directorRiskAssessmentPrompt,
@@ -19,21 +16,6 @@ const {
 const {
   resolveDirectorRiskDecision,
 } = require("../dist/services/novel/director/risk/DirectorRiskAssessmentService.js");
-
-test("director risk policy applies the 5/8 defaults and rejects invalid threshold order", () => {
-  assert.deepEqual(directorRiskPolicySchema.parse({}), DEFAULT_DIRECTOR_RISK_POLICY);
-  assert.deepEqual(directorRiskPolicySchema.parse({ noticeThreshold: 6, pauseThreshold: 7 }), {
-    noticeThreshold: 6,
-    pauseThreshold: 7,
-  });
-  assert.equal(directorRiskPolicySchema.safeParse({ noticeThreshold: 8, pauseThreshold: 8 }).success, false);
-  assert.equal(directorRiskPolicySchema.safeParse({ noticeThreshold: 1, pauseThreshold: 8 }).success, false);
-  assert.equal(directorRiskPolicySchema.safeParse({ noticeThreshold: 5, pauseThreshold: 9 }).success, false);
-  assert.deepEqual(
-    parsePersistedDirectorRiskPolicy({ noticeThreshold: 6, pauseThreshold: 7 }),
-    { noticeThreshold: 6, pauseThreshold: 7 },
-  );
-});
 
 test("director risk assessment schema preserves scored AI evidence and runtime handling", () => {
   const aiAssessment = aiDirectorRiskAssessmentSchema.parse({
@@ -97,7 +79,6 @@ test("forced stops use the capped 8-point score and local quality debt never pau
   };
   const local = resolveDirectorRiskDecision({
     assessment,
-    policy: DEFAULT_DIRECTOR_RISK_POLICY,
     localOnly: true,
   });
   assert.equal(local.shouldNotify, true);
@@ -105,7 +86,6 @@ test("forced stops use the capped 8-point score and local quality debt never pau
 
   const forced = resolveDirectorRiskDecision({
     assessment: { ...assessment, score: 1 },
-    policy: DEFAULT_DIRECTOR_RISK_POLICY,
     forcePause: true,
   });
   assert.equal(forced.score, 8);

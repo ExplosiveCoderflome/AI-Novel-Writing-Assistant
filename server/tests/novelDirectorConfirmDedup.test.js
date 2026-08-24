@@ -266,7 +266,6 @@ test("confirm runtime creates the novel through the standard runtime node", asyn
     scheduleBackgroundRun: (_taskId, runner) => {
       backgroundRuns.push(runner);
     },
-    resolveRiskPolicy: async () => ({ noticeThreshold: 5, pauseThreshold: 8 }),
   });
   const originalNovelUpdate = prisma.novel.update;
   prisma.novel.update = async ({ where, data }) => {

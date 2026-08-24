@@ -14,7 +14,6 @@ import { ChapterExecutionProgressInspector } from "../runtime/ChapterExecutionPr
 import type { DirectorWorkflowSeedPayload } from "../runtime/novelDirectorHelpers";
 import {
   parsePersistedDirectorRiskAssessment,
-  parsePersistedDirectorRiskPolicy,
   type DirectorRiskHistoryItem,
 } from "@ai-novel/shared/types/directorRisk";
 
@@ -572,9 +571,6 @@ export async function loadPersistentDirectorRuntimeProjection(
   const riskHistory = parseRiskHistory(riskEventRows);
   const taskSeedPayload = parseJsonOrNull<DirectorWorkflowSeedPayload>(taskRow?.seedPayloadJson);
   const startupPreparation = taskSeedPayload?.startupPreparation ?? null;
-  const riskPolicy = parsePersistedDirectorRiskPolicy(taskSeedPayload?.autoExecution?.riskPolicy
-    ?? taskSeedPayload?.directorInput?.riskPolicy
-    ?? null);
   const latestRiskAssessment = parsePersistedDirectorRiskAssessment(taskSeedPayload?.autoExecution?.latestRiskAssessment)
     ?? riskHistory[0]
     ?? null;
@@ -593,7 +589,6 @@ export async function loadPersistentDirectorRuntimeProjection(
     return {
       ...buildRuntimeOnlyProjection(taskId, runtime),
       startupPreparation,
-      riskPolicy,
       latestRiskAssessment,
       riskHistory,
       riskHistoryTotal: riskHistory.length,
@@ -659,7 +654,6 @@ export async function loadPersistentDirectorRuntimeProjection(
   return {
     ...overlayRuntimeInstance(overlayActiveCommand(projection, commandToOverlay), runtimeToOverlay),
     startupPreparation,
-    riskPolicy,
     latestRiskAssessment,
     riskHistory,
     riskHistoryTotal: riskHistory.length,

@@ -10,7 +10,6 @@ import {
 } from "@ai-novel/shared/types/directorIssue";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
 
 const ACTION_LABELS: Record<DirectorIssueAction, string> = {
   auto_retry: "自动重试",
@@ -43,9 +42,7 @@ export function AutoDirectorIssuePolicyCard(props: {
 
   const current = draft ?? policy;
   const hasChanges = Boolean(policy && current && (
-    current.noticeThreshold !== policy.noticeThreshold
-    || current.pauseThreshold !== policy.pauseThreshold
-    || current.maxAutomaticRetries !== policy.maxAutomaticRetries
+    current.maxAutomaticRetries !== policy.maxAutomaticRetries
     || JSON.stringify(current.issueActions) !== JSON.stringify(policy.issueActions)
   ));
   const entries = useMemo(() => DIRECTOR_ISSUE_CATALOG.filter((entry) => {
@@ -84,15 +81,7 @@ export function AutoDirectorIssuePolicyCard(props: {
           })}
         </div>
 
-        <div className="grid gap-3 sm:grid-cols-3">
-          <label className="space-y-2 text-sm">
-            <span className="font-medium">提醒分数</span>
-            <Input type="number" min={2} max={7} value={current.noticeThreshold} onChange={(event) => setDraft({ ...current, noticeThreshold: Number(event.target.value) })} />
-          </label>
-          <label className="space-y-2 text-sm">
-            <span className="font-medium">暂停分数</span>
-            <Input type="number" min={3} max={8} value={current.pauseThreshold} onChange={(event) => setDraft({ ...current, pauseThreshold: Number(event.target.value) })} />
-          </label>
+        <div className="max-w-sm">
           <label className="space-y-2 text-sm">
             <span className="font-medium">自动重试</span>
             <select className="h-10 w-full rounded-md border bg-background px-3 text-sm" value={current.maxAutomaticRetries} onChange={(event) => setDraft({ ...current, maxAutomaticRetries: Number(event.target.value) })}>
@@ -144,7 +133,7 @@ export function AutoDirectorIssuePolicyCard(props: {
           })}
         </div>
 
-        <Button disabled={isSaving || current.pauseThreshold <= current.noticeThreshold} onClick={() => onSave(current)}>
+        <Button disabled={isSaving} onClick={() => onSave(current)}>
           {isSaving ? "保存中…" : "保存问题处理规则"}
         </Button>
       </CardContent>
