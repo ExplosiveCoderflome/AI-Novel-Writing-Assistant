@@ -78,6 +78,7 @@ Web API 只接收命令和返回轻量投影；Worker 负责执行重型生产�
 - 前端必须区分完整驾驶舱快照和轻量运行投影。完整快照包含 `displayState.steps`、近期事件、事实体检和里程碑，适合进度弹窗；轻量投影只表达当前运行摘要，适合导航栏和任务中心高频轮询。两者不能共用 React Query key，否则轮询会用轻量响应覆盖完整快照，导致弹窗步骤视图退化。
 - 自动导演 UI 主状态必须由 `DirectorDashboardView` 统一裁决。`DirectorRuntimeProjection`、事实体检、章节进度和工作区摘要都是材料层；它们可以提供诊断、风险和最近事件，但不能在前端各自决定主 badge、主进度、主按钮或是否等待确认。
 - `DirectorDashboardView` 必须携带 `sourceTrace` 和 `progressSource`，让调试者能看到主状态和主进度来自 task、worker、checkpoint、chapter facts 还是 runtime projection。当前端需要显示驾驶舱、进度弹窗、任务中心、任务抽屉或小说页接管提示时，应优先读取这个最终展示模型。书级自动化投影可以继续暴露旧字段做兼容，但这些字段应由 `DirectorDashboardView` 派生，而不是重新裁决主状态。
+- 当任务事实已经是 `failed` 或 `cancelled`，前端必须优先展示终态和失败摘要；任何遗留的运行中 Dashboard 快照只能作为历史诊断，不能继续显示“实时推进”或覆盖恢复入口。失败摘要优先使用任务错误，其次使用检查点摘要，确保用户看到实际卡住的章节或合同问题。
 - 工作流提醒、章节标题提醒、缺资源风险和 stale artifact 只能作为诊断或辅助操作展示；当 `DirectorDashboardView.mode` 是 `running` 或 `queued` 时，这些提醒不得把主容器、主 badge 或主按钮改成等待确认。
 - 浏览器桌面提醒只消费“导演跟进”投影中的可处理分组：`needs_validation`、`exception`、`pending`。`auto_progress` 和 `replaced` 仍可显示在跟进中心，但不触发系统级通知。提醒开关属于当前浏览器本地偏好，并且必须受浏览器通知权限约束；前端不得为了弹窗重新推断 task status 或绕过跟进投影。
 - 服务重启后不静默续跑长任务，应从真实产物断点判断可恢复范围，再由用户或策略确认继续。
