@@ -5,7 +5,7 @@ import { useMutation, useQuery } from "@tanstack/react-query";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { flattenGenreTreeOptions, getGenreTree } from "@/api/genre";
 import { flattenStoryModeTreeOptions, getStoryModeTree } from "@/api/storyMode";
-import { bootstrapNovelWorkflow, selectNovelProductionExperience } from "@/api/novelWorkflow";
+import { bootstrapNovelWorkflow } from "@/api/novelWorkflow";
 import { setNovelCreationExperience } from "@/api/novel";
 import { queryKeys } from "@/api/queryKeys";
 import { getWorldList } from "@/api/world";
@@ -32,7 +32,6 @@ import {
   summarizeWorldStyleStage,
 } from "./directorCreateStages";
 import { useAutoDirectorCreateController } from "./useAutoDirectorCreateController";
-import { extractDirectorTaskSeedPayloadFromMeta } from "@ai-novel/shared/types/novelDirector";
 
 const STAGE_ORDER: AutoDirectorCreateStageKey[] = ["idea", "basic", "world_style", "model_run", "candidates"];
 
@@ -151,23 +150,9 @@ export default function AutoDirectorCreatePage() {
     onBasicFormChange: (patch) => setBasicForm((prev) => patchNovelBasicForm(prev, patch)),
   });
   const createdNovelId = controller.directorTask?.resumeTarget?.novelId?.trim() ?? "";
-  const productionExperience = controller.directorTask
-    ? (extractDirectorTaskSeedPayloadFromMeta(controller.directorTask.meta) as {
-      productionExperience?: "simple" | "professional";
-    } | null)?.productionExperience
-    : null;
-  const createdNovelRoute = productionExperience === "simple"
-    ? `/novels/${createdNovelId}/simple`
-    : `/novels/${createdNovelId}/edit`;
   const enterSimpleMutation = useMutation({
-    mutationFn: () => selectNovelProductionExperience(controller.directorTask!.id, "simple"),
-    onSuccess: (response) => {
-      if (!response.data) {
-        toast.error("没有找到简易创作入口。");
-        return;
-      }
-      navigate(response.data.targetRoute, { replace: true });
-    },
+    mutationFn: () => setNovelCreationExperience(createdNovelId, "simple"),
+    onSuccess: () => navigate(`/novels/${createdNovelId}/simple`, { replace: true }),
     onError: (error) => toast.error(error instanceof Error ? error.message : "进入简易模式失败，请重试。"),
   });
   const enterProfessionalMutation = useMutation({
@@ -364,28 +349,26 @@ export default function AutoDirectorCreatePage() {
           <div className="flex flex-wrap items-end gap-3 sm:justify-end">
             {createdNovelId ? (
               <div className="space-y-1.5">
-                <div className="text-xs font-medium text-muted-foreground">进入创作</div>
+                <div className="text-xs font-medium text-muted-foreground">选择创作界面</div>
                 <div className="flex items-center gap-1 rounded-lg bg-muted/55 p-1" role="group" aria-label="选择创作模式">
-                  {productionExperience !== "simple" ? (
-                    <Button
-                      type="button"
-                      size="sm"
-                      variant="default"
-                      disabled={enterSimpleMutation.isPending}
-                      onClick={() => enterSimpleMutation.mutate()}
-                    >
-                      {enterSimpleMutation.isPending ? "正在进入…" : "简易模式"}
-                    </Button>
-                  ) : null}
-                  {productionExperience === "simple" ? (
-                    <Button type="button" size="sm" variant="secondary" disabled={enterProfessionalMutation.isPending} onClick={() => enterProfessionalMutation.mutate()}>
-                      {enterProfessionalMutation.isPending ? "正在进入…" : "专业模式"}
-                    </Button>
-                  ) : (
-                    <Button type="button" size="sm" variant="secondary" asChild>
-                      <Link to={createdNovelRoute}>专业模式</Link>
-                    </Button>
-                  )}
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="secondary"
+                    disabled={enterSimpleMutation.isPending}
+                    onClick={() => enterSimpleMutation.mutate()}
+                  >
+                    {enterSimpleMutation.isPending ? "正在打开…" : "简易模式"}
+                  </Button>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="secondary"
+                    disabled={enterProfessionalMutation.isPending}
+                    onClick={() => enterProfessionalMutation.mutate()}
+                  >
+                    {enterProfessionalMutation.isPending ? "正在打开…" : "专业模式"}
+                  </Button>
                 </div>
               </div>
             ) : null}
