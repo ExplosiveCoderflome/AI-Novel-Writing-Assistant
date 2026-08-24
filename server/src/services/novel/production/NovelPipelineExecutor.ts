@@ -63,58 +63,6 @@ function buildSkipCompletedChapterWhere(): Prisma.ChapterWhereInput {
   };
 }
 
-async function consumeProfessionalHandoffAtChapterBoundary(
-  workflowTaskId: string | null | undefined,
-  novelId: string,
-): Promise<boolean> {
-  if (!workflowTaskId) return false;
-  const task = await prisma.novelWorkflowTask.findUnique({
-    where: { id: workflowTaskId },
-    select: { seedPayloadJson: true },
-  });
-  if (!task?.seedPayloadJson) return false;
-  let seed: Record<string, unknown>;
-  try {
-    seed = JSON.parse(task.seedPayloadJson) as Record<string, unknown>;
-  } catch {
-    return false;
-  }
-  if (seed.pendingProductionExperience !== "professional") return false;
-  const directorInput = seed.directorInput && typeof seed.directorInput === "object"
-    ? { ...(seed.directorInput as Record<string, unknown>), runMode: "auto_to_ready", autoExecutionPlan: undefined }
-    : seed.directorInput;
-  const nextSeed = {
-    ...seed,
-    productionExperience: "professional",
-    pendingProductionExperience: undefined,
-    runMode: "auto_to_ready",
-    autoExecutionPlan: undefined,
-    directorInput,
-  };
-  await prisma.$transaction([
-    prisma.novel.update({
-      where: { id: novelId },
-      data: { creationExperience: "professional" },
-    }),
-    prisma.novelWorkflowTask.update({
-      where: { id: workflowTaskId },
-      data: {
-        seedPayloadJson: JSON.stringify(nextSeed),
-        status: "succeeded",
-        progress: 1,
-        currentStage: "chapter_execution",
-        currentItemKey: "professional_production_handoff",
-        currentItemLabel: "已暂停并交接精细创作",
-        checkpointType: "workflow_completed",
-        checkpointSummary: "当前章节已安全保存，后续自动章节已停止。",
-        pendingManualRecovery: false,
-        finishedAt: new Date(),
-      },
-    }),
-  ]);
-  return true;
-}
-
 export class NovelPipelineExecutor {
   constructor(private readonly chapterRuntimeCoordinator = new ChapterRuntimeCoordinator()) {}
 
@@ -474,18 +422,6 @@ export class NovelPipelineExecutor {
             }),
           });
           shouldStopAfterCurrentChapter = closure.shouldStopAfterCurrentChapter;
-
-          const handedOffToProfessional = await consumeProfessionalHandoffAtChapterBoundary(
-            runtimePayload.workflowTaskId,
-            novelId,
-          );
-          if (handedOffToProfessional) {
-            shouldStopAfterCurrentChapter = true;
-            logPipelineInfo("当前章节已安全保存，自动创作已交接到专业工作台", {
-              jobId,
-              order: chapter.order,
-            });
-          }
 
           // Phase 3：N+1 章 JIT 预取
           // 当前章 finalize 完成后（factLedger 已写入），后台触发下一章的 task sheet 生成。

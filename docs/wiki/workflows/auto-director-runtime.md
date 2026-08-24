@@ -222,11 +222,13 @@ Web API 只接收命令和返回轻量投影；Worker 负责执行重型生产�
 - `server/src/services/novel/director/settings/DirectorRiskPolicyOverrideService.ts`
 - `client/src/components/autoDirector/DirectorRuntimeProjectionCard.tsx`
 
-## 生产方式恢复入口
+## 创作界面与生产合同
 
-小说持久化的 `creationExperience` 是工作区路由事实：`simple` 回到 `/novels/:id/simple`，`professional` 进入 `/novels/:id/edit`。任务 Seed 的 `productionExperience` 用于导演运行与恢复，不得抢先覆盖页面路由；提前选择简易创作时，两者必须在同一事务中写入，避免页面跳转抖动。
+`creationExperience` 只表示工作区的显示偏好：`simple` 打开 `/novels/:id/simple` 阅读书架，`professional` 打开 `/novels/:id/edit` 完整工作台。它不能成为小说、章节、角色、规划、导出、删除或其他写操作的权限边界。
 
-只有用户明确执行“转为专业创作”后，才允许把已选择的简易创作改为 `professional`。任务字段与小说字段暂时不一致时，工作区路由以小说字段为准，运行恢复以任务 Seed 为准，并通过恢复流程完成状态对齐。
+自动导演在前期准备完成后允许用户选择界面，两种选择都写入相同的 `full_book_autopilot`、全书执行计划和自动审批配置。`productionExperience` 仅保存当次选择以便返回对应界面；不得把专业界面降级为 `auto_to_ready`，也不得在简易界面切换到专业界面时等当前章节结束后停止自动生产。
+
+界面可随时切换，切换只更新显示偏好并跳转路由，不创建第二条任务、不改写任务进度、不取消运行中的章节任务。旧任务中的历史模式字段按原数据兼容读取，但新的运行逻辑不得再根据界面偏好提前启动、暂停或改变全书生产范围。
 
 ## 简易创作的自动续写
 

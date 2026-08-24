@@ -57,7 +57,6 @@ export interface DirectorCandidateStageState {
 
 export interface DirectorWorkflowSeedPayload extends Record<string, unknown> {
   productionExperience?: "simple" | "professional";
-  pendingProductionExperience?: "professional";
   startupPreparation?: DirectorConfirmRequest["startupPreparation"];
   completionProfile?: DirectorCompletionProfile;
   novelId?: string | null;

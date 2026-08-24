@@ -161,9 +161,9 @@ export default function SimpleNovelShelfPage() {
                   <div className="min-w-0">
                     <div className="flex flex-wrap items-center gap-2">
                       <h1 className="truncate text-2xl font-semibold tracking-tight text-foreground sm:text-3xl">{shelf.novel.title}</h1>
-                      <Badge variant="outline">简易模式 · 只读</Badge>
+                      <Badge variant="outline">简易模式 · 阅读书架</Badge>
                     </div>
-                    <p className="mt-2 max-w-2xl text-sm leading-6 text-muted-foreground">这里是这本书的阅读台。AI 会在后台继续规划、写作和审校，你可以随时查看已经保存的正文。</p>
+                    <p className="mt-2 max-w-2xl text-sm leading-6 text-muted-foreground">这里优先展示这本书的正文和进度。AI 会在后台继续规划、写作和审校；需要查看完整资料时可随时切换工作台。</p>
                   </div>
                 </div>
               </div>
