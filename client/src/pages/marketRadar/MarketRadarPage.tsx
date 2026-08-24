@@ -243,34 +243,9 @@ export default function MarketRadarPage() {
         <Card className="border-primary/30">
           <CardHeader className="pb-3">
             <CardTitle className="text-xl">选择 AI 分析的作品</CardTitle>
-            <CardDescription>{activeRun?.report ? "本次报告使用以下作品；如需更换范围，请重新扫榜。" : "默认选中新书榜和新晋作者榜，可整榜切换，也可以在下方逐本调整。"}</CardDescription>
+            <CardDescription>{activeRun?.report ? "本次报告使用以下作品；如需更换范围，请重新扫榜。" : "默认选中新书榜和新晋作者榜，可在各榜单右上角全选，也可以逐本调整。"}</CardDescription>
           </CardHeader>
-          <CardContent className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
-            <div className="flex flex-wrap gap-2">
-              {rankingGroups.map(({ key, items }) => {
-                const itemIds = items.map((item) => item.id);
-                const selectedCount = itemIds.filter((id) => selectedAnalysisItemIds.includes(id)).length;
-                const selected = selectedCount === itemIds.length;
-                return (
-                  <button
-                    key={key}
-                    type="button"
-                    aria-pressed={selected}
-                    disabled={Boolean(activeRun?.report) || scanning || analyzing}
-                    onClick={() => toggleAnalysisList(itemIds)}
-                    className={cn(
-                      "inline-flex items-center gap-2 rounded-full border px-3 py-2 text-sm transition disabled:cursor-not-allowed disabled:opacity-70",
-                      selectedCount > 0 ? "border-primary bg-primary/10 text-primary" : "border-border text-muted-foreground hover:border-primary/40",
-                    )}
-                  >
-                    <span className={cn("flex h-4 w-4 items-center justify-center rounded border", selectedCount > 0 ? "border-primary bg-primary text-primary-foreground" : "border-border")}>
-                      {selectedCount > 0 ? <Check className={cn("h-3 w-3", !selected && "opacity-60")} /> : null}
-                    </span>
-                    {PLATFORM_LABELS[items[0].platform]} · {sourceLabels.get(key) ?? items[0].listKey} · {selectedCount}/{items.length}本
-                  </button>
-                );
-              })}
-            </div>
+          <CardContent className="flex justify-end">
             <Button onClick={openOrStartAnalysis} disabled={scanning || analyzing || selectedAnalysisItemIds.length === 0} className="shrink-0">
               {analyzing ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
               {scanning ? "等待榜单获取完成" : analyzing ? `AI 分析中 ${Math.round((activeRun?.progress ?? 0) * 100)}%` : activeRun?.report ? "查看 AI 分析" : `开始 AI 分析（${selectedAnalysisItemIds.length} 本）`}
@@ -278,8 +253,17 @@ export default function MarketRadarPage() {
           </CardContent>
         </Card>
         <div className="grid items-start gap-4 md:grid-cols-2 2xl:grid-cols-3">
-          {rankingGroups.map(({ key, items }) => <Card key={key} className="flex h-[34rem] flex-col">
-            <CardHeader className="pb-3"><CardTitle className="text-base">{PLATFORM_LABELS[items[0].platform]} · {sourceLabels.get(key) ?? items[0].listKey}</CardTitle><CardDescription>本次识别 {items.length} 条公开上榜记录（最多 30 条）</CardDescription></CardHeader>
+          {rankingGroups.map(({ key, items }) => {
+            const itemIds = items.map((item) => item.id);
+            const selectedCount = itemIds.filter((id) => selectedAnalysisItemIds.includes(id)).length;
+            const allSelected = selectedCount === itemIds.length;
+            return <Card key={key} className="flex h-[34rem] flex-col">
+            <CardHeader className="flex-row items-start justify-between gap-3 pb-3">
+              <div><CardTitle className="text-base">{PLATFORM_LABELS[items[0].platform]} · {sourceLabels.get(key) ?? items[0].listKey}</CardTitle><CardDescription className="mt-1">本次识别 {items.length} 条公开上榜记录（最多 30 条）</CardDescription></div>
+              <Button type="button" variant="ghost" size="sm" aria-pressed={allSelected} disabled={Boolean(activeRun?.report) || scanning || analyzing} onClick={() => toggleAnalysisList(itemIds)} className="shrink-0">
+                {allSelected ? "取消全选" : "全选"}{selectedCount > 0 && !allSelected ? ` ${selectedCount}/${items.length}` : ""}
+              </Button>
+            </CardHeader>
             <CardContent className="min-h-0 flex-1 overflow-y-auto"><div className="space-y-1">{items.map((item) => {
               const selected = selectedAnalysisItemIds.includes(item.id);
               return <div key={item.id} className={cn("grid grid-cols-[1.5rem_2.5rem_minmax(0,1fr)_1.75rem] items-center gap-2 rounded-md px-2 py-2 text-sm transition", selected ? "bg-primary/10" : "hover:bg-muted")}>
@@ -294,7 +278,7 @@ export default function MarketRadarPage() {
                 <a href={item.sourceUrl} target="_blank" rel="noreferrer" aria-label={`查看${item.title}的公开来源`} className="flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50"><ExternalLink className="h-3.5 w-3.5" /></a>
               </div>;
             })}</div></CardContent>
-          </Card>)}
+          </Card>})}
         </div>
       </>}
 
