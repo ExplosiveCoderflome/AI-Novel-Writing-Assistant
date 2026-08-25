@@ -1,4 +1,5 @@
 import type { BaseMessageChunk } from "@langchain/core/messages";
+import type { GenerationContextPackage } from "@ai-novel/shared/types/chapterRuntime";
 import type { QualityScore, ReviewIssue } from "@ai-novel/shared/types/novel";
 import type { StreamDoneHelpers } from "../../../../llm/streaming";
 import { prisma } from "../../../../db/prisma";
@@ -6,6 +7,7 @@ import { streamTextPrompt } from "../../../../prompting/core/promptRunner";
 import { withChapterRepairContext } from "../../../../prompting/prompts/novel/chapterLayeredContext";
 import { auditService } from "../../../audit/AuditService";
 import { ChapterPatchRepairFailedError } from "../../chapterPatchRepairService";
+import { mergeChapterPatchForGenerationStateBump } from "../../chapterLifecycleState";
 import {
   isPass,
   logPipelineError,
@@ -13,6 +15,7 @@ import {
   type ReviewOptions,
 } from "../../novelCoreShared";
 import type { ChapterArtifactSyncService } from "../ChapterArtifactSyncService";
+import type { ChapterContentFinalizationService } from "../ChapterContentFinalizationService";
 import type { GenerationContextAssembler } from "../GenerationContextAssembler";
 import {
   ChapterContextAssemblyError,
@@ -31,6 +34,7 @@ interface RepairReviewResult {
 export interface ChapterRepairStreamRuntimeDeps {
   assembler?: Pick<GenerationContextAssembler, "assemble">;
   artifactSyncService: Pick<ChapterArtifactSyncService, "syncChapterArtifacts">;
+  contentFinalizationService: Pick<ChapterContentFinalizationService, "finalizeChapterContent">;
   reviewChapterAfterRepair: (
     novelId: string,
     chapterId: string,
@@ -107,6 +111,7 @@ export class ChapterRepairStreamRuntime {
             chapterId,
             options,
             content: prepared.content.trim() || fullContent,
+            contextPackage: assembledContextPackage,
             helpers,
           });
         },
@@ -123,6 +128,7 @@ export class ChapterRepairStreamRuntime {
           chapterId,
           options,
           content: completed.output.trim() || fullContent,
+          contextPackage: assembledContextPackage,
           helpers,
         });
       },
@@ -166,6 +172,7 @@ export class ChapterRepairStreamRuntime {
     chapterId: string;
     options: RepairOptions;
     content: string;
+    contextPackage: GenerationContextPackage;
     helpers: StreamDoneHelpers;
   }): Promise<void> {
     const runId = `chapter-repair:${input.chapterId}`;
@@ -186,6 +193,22 @@ export class ChapterRepairStreamRuntime {
       where: { id: input.chapterId },
       data: { content: repairedContent, generationState: "repaired" },
     });
+    const finalized = await this.deps.contentFinalizationService.finalizeChapterContent({
+      novelId: input.novelId,
+      chapterId: input.chapterId,
+      request: {
+        provider: input.options.provider,
+        model: input.options.model,
+        temperature: input.options.temperature,
+      },
+      contextPackage: input.contextPackage,
+      content: repairedContent,
+      runId: null,
+      startMs: null,
+      deferArtifactBackgroundSync: true,
+      scheduleDeferredArtifactBackgroundSync: false,
+    });
+    const pass = !finalized.needsRepair && isPass(finalized.runtimePackage.audit.score);
     await this.deps.artifactSyncService.syncChapterArtifacts(
       input.novelId,
       input.chapterId,
@@ -194,21 +217,16 @@ export class ChapterRepairStreamRuntime {
         scheduleBackgroundSync: true,
         awaitArtifactDelta: true,
         skipLegacySummaryAndFacts: true,
+        contentProvenance: pass ? "confirmed" : "debt",
         provider: input.options.provider,
         model: input.options.model,
       },
     );
 
-    const review = await this.deps.reviewChapterAfterRepair(input.novelId, input.chapterId, {
-      provider: input.options.provider,
-      model: input.options.model,
-      temperature: input.options.temperature,
-      content: repairedContent,
-    });
-    if (isPass(review.score)) {
+    if (pass) {
       await prisma.chapter.update({
         where: { id: input.chapterId },
-        data: { generationState: "approved" },
+        data: mergeChapterPatchForGenerationStateBump({}, "approved"),
       });
       if (input.options.auditIssueIds?.length) {
         const resolveAuditIssues = this.deps.resolveAuditIssues
@@ -222,7 +240,7 @@ export class ChapterRepairStreamRuntime {
       runId,
       status: "succeeded",
       phase: "completed",
-      message: isPass(review.score)
+      message: pass
         ? "章节修复已完成，本章已达到可继续推进状态。"
         : "修复稿已保存，但仍有问题待继续处理。",
     });

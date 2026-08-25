@@ -47,6 +47,7 @@ export interface FinalizeChapterContentResult {
   finalContent: string;
   runtimePackage: ChapterRuntimePackage;
   styleReview: StyleReviewResult;
+  needsRepair: boolean;
 }
 
 export class ChapterContentFinalizationService {
@@ -169,6 +170,7 @@ export class ChapterContentFinalizationService {
       finalContent,
       runtimePackage,
       styleReview,
+      needsRepair,
     };
   }
 

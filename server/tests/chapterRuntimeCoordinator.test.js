@@ -728,7 +728,7 @@ test("createRepairStream escalates patch schema failures to a single heavy repai
 
   const chapterUpdates = [];
   const syncCalls = [];
-  const reviewCalls = [];
+  const acceptanceCalls = [];
   const resolvedIssues = [];
   const frames = [];
 
@@ -765,19 +765,40 @@ test("createRepairStream escalates patch schema failures to a single heavy repai
           syncCalls.push(args);
         },
       },
-      reviewChapterAfterRepair: async (_novelId, _chapterId, options) => {
-        reviewCalls.push(options.content);
-        return {
-          score: {
+      acceptanceAssessmentService: {
+        assess: async (input) => {
+          acceptanceCalls.push(input.content);
+          const score = {
             coherence: 92,
             repetition: 93,
             pacing: 91,
             voice: 90,
             engagement: 94,
             overall: 92,
-          },
-          issues: [],
-        };
+          };
+          return {
+            assessment: {
+              status: "accepted",
+              score,
+              blockingIssues: [],
+              repairDirectives: [],
+              missingObligations: [],
+              repairability: "none",
+              decisionReason: "修复稿通过统一接收检查。",
+              riskTags: [],
+              assetSyncRecommendation: {
+                priority: "normal",
+                reason: "ok",
+                requiresFullPayoffReconcile: false,
+              },
+              continuePolicy: "continue",
+              summary: "accepted",
+            },
+            score,
+            issues: [],
+            auditReports: [],
+          };
+        },
       },
       resolveAuditIssues: async (_novelId, issueIds) => {
         resolvedIssues.push(issueIds);
@@ -810,13 +831,16 @@ test("createRepairStream escalates patch schema failures to a single heavy repai
     });
 
     assert.equal(streamedContent, "全文修复片段");
-    assert.deepEqual(reviewCalls, ["全文修复后的正文"]);
+    assert.deepEqual(acceptanceCalls, ["全文修复后的正文"]);
     assert.equal(syncCalls.length, 1);
     assert.equal(syncCalls[0][2], "全文修复后的正文");
     assert.equal(syncCalls[0][3].awaitArtifactDelta, true);
     assert.equal(syncCalls[0][3].skipLegacySummaryAndFacts, true);
+    assert.equal(syncCalls[0][3].contentProvenance, "confirmed");
     assert.deepEqual(resolvedIssues, [["issue-1"]]);
-    assert.deepEqual(chapterUpdates.map((item) => item.generationState), ["repaired", "approved"]);
+    assert.deepEqual(chapterUpdates.map((item) => item.generationState).filter(Boolean), ["repaired", "approved"]);
+    assert.equal(chapterUpdates.some((item) => item.chapterStatus === "pending_review"), true);
+    assert.equal(chapterUpdates.at(-1)?.chapterStatus, "completed");
     assert.equal(frames.at(-1)?.status, "succeeded");
     assert.equal(frames.at(-1)?.phase, "completed");
   } finally {

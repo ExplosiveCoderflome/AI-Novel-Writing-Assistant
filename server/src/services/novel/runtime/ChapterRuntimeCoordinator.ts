@@ -97,6 +97,7 @@ export class ChapterRuntimeCoordinator {
     this.repairStreamRuntime = new ChapterRepairStreamRuntime({
       assembler,
       artifactSyncService,
+      contentFinalizationService: this.contentFinalizationService,
       reviewChapterAfterRepair,
       resolveAuditIssues: deps.resolveAuditIssues,
     });

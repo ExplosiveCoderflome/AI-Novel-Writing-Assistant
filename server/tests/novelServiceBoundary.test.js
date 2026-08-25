@@ -165,6 +165,20 @@ test("runtime preflight policy does not own chapter retry or quality actions", (
   }
 });
 
+test("manual chapter repair reuses the unified content finalization boundary", () => {
+  const repairSource = readSource(
+    "services",
+    "novel",
+    "runtime",
+    "repair",
+    "ChapterRepairStreamRuntime.ts",
+  );
+
+  assert.equal(repairSource.includes("contentFinalizationService.finalizeChapterContent"), true);
+  assert.equal(repairSource.includes("contentProvenance: pass ? \"confirmed\" : \"debt\""), true);
+  assert.equal(repairSource.includes('mergeChapterPatchForGenerationStateBump({}, "approved")'), true);
+});
+
 test("RAG keeps its dedicated persisted index queue", () => {
   const schema = readSource("prisma", "schema.prisma");
   const ragService = readSource("services", "rag", "RagIndexService.ts");

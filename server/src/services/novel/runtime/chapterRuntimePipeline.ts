@@ -290,8 +290,6 @@ export async function runPipelineChapterWithRuntime(
     }
 
     await hooks.onStageChange?.("repairing");
-    retryCountUsed += 1;
-    await hooks.onRetryConsumed?.("quality_repair");
     const repairResult = await repairDraftContent({
       novelTitle: assembled.novel.title,
       chapterTitle: assembled.chapter.title,
@@ -312,6 +310,8 @@ export async function runPipelineChapterWithRuntime(
       await deps.markChapterNeedsRepair(chapterId);
       break;
     }
+    retryCountUsed += 1;
+    await hooks.onRetryConsumed?.("quality_repair");
     repairEscalatedFromPatch = repairResult.escalatedFromPatch;
     content = repairResult.content;
     await deps.saveDraftAndArtifacts(novelId, chapterId, content, "repaired", {
