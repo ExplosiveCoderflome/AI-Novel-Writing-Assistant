@@ -33,9 +33,6 @@ function compactOverride(
     ...(input.maxAutomaticRetries !== undefined && input.maxAutomaticRetries !== globalPolicy.maxAutomaticRetries
       ? { maxAutomaticRetries: input.maxAutomaticRetries }
       : {}),
-    ...(input.maxAutomaticRetries !== undefined && input.maxAutomaticRetries !== globalPolicy.maxAutomaticRetries
-      ? { maxAutomaticRetries: input.maxAutomaticRetries }
-      : {}),
     ...(Object.keys(issueActions).length > 0 ? { issueActions } : {}),
   };
   return Object.keys(compacted).length > 0 ? compacted : null;

@@ -28,7 +28,7 @@ Web API 只接收命令和返回轻量投影；Worker 负责执行重型生产�
 
 ### 统一问题治理与停止边界
 
-自动导演的新任务使用一条统一问题链路：生产阶段报告稳定问题码，治理服务结合任务启动时冻结的全局/本书问题动作，写入 `issue_detected`、执行既有处理入口，再写入 `issue_action_applied`。结构化 AI 风险评估只补充严重程度、证据和建议，不改变控制流。完整问题记录保存在 `DirectorEvent.metadata`，不另建问题表；相同 fingerprint 必须幂等。旧任务没有 `issueGovernanceVersion: 1` 时继续使用原运行逻辑。
+自动导演的新任务使用一条统一问题链路：生产阶段报告稳定问题码，治理服务结合任务启动时冻结的全局/本书问题动作，写入 `issue_detected`、执行既有处理入口，再写入 `issue_action_applied`。已带稳定问题码的事件直接使用调用方提供的结构化事实，不再重复调用 AI；只有 `runtime.unclassified` 才调用结构化 AI 补全问题分类。AI 评估不得改变控制流。完整问题记录保存在 `DirectorEvent.metadata`，不另建问题表；相同 fingerprint 必须幂等。旧任务没有 `issueGovernanceVersion: 1` 时继续使用原运行逻辑。
 
 策略优先级固定为：不可突破的安全规则 > 本书覆盖 > 全局设置 > 内置默认。运行中的任务只读取 seed 中的有效策略快照，避免规则修改后改变已经开始的生产链。全局规则保存完整策略，本书只保存与全局不同的覆盖项。
 

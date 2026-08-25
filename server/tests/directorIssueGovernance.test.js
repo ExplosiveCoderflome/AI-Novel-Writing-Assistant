@@ -10,6 +10,7 @@ const {
   directorIssuePolicySchema,
   resolveDirectorIssueDecision,
 } = require("../../shared/dist/types/directorIssue.js");
+const promptRunner = require("../dist/prompting/core/promptRunner.js");
 const { directorIssueService } = require("../dist/services/novel/director/issues/DirectorIssueService.js");
 const { directorAutomationLedgerEventService } = require("../dist/services/novel/director/runtime/DirectorAutomationLedgerEventService.js");
 
@@ -137,6 +138,54 @@ test("explicit task policy is not overridden by a risk score", () => {
   });
   assert.equal(decision.action, "auto_retry");
   assert.equal(decision.policySource, "novel");
+});
+
+test("AI classification runs only for unclassified runtime issues", async () => {
+  const originalRunStructuredPrompt = promptRunner.runStructuredPrompt;
+  const originalRecordEvent = directorAutomationLedgerEventService.recordEvent;
+  const promptCalls = [];
+  promptRunner.runStructuredPrompt = async (input) => {
+    promptCalls.push(input);
+    return {
+      output: {
+        issueCode: "runtime.service_unavailable",
+        riskScore: 4,
+        summary: "创作服务暂时不可用。",
+        evidence: "连接请求失败。",
+        suggestedAction: "auto_retry",
+        canPause: false,
+      },
+    };
+  };
+  directorAutomationLedgerEventService.recordEvent = async () => undefined;
+  const base = {
+    issueGovernanceVersion: 1,
+    taskId: "task-ai-classification-boundary",
+    novelId: "novel-ai-classification-boundary",
+    stage: "chapter_execution",
+    summary: "章节运行出现问题。",
+    policy: DEFAULT_DIRECTOR_ISSUE_POLICY,
+    hasUsableOutput: false,
+  };
+  try {
+    await directorIssueService.reportIssue({
+      ...base,
+      issueCode: "generation.runtime_failed",
+      fingerprint: "known-runtime-failure",
+    });
+    assert.equal(promptCalls.length, 0);
+
+    const result = await directorIssueService.reportIssue({
+      ...base,
+      issueCode: "runtime.unclassified",
+      fingerprint: "unclassified-runtime-failure",
+    });
+    assert.equal(promptCalls.length, 1);
+    assert.equal(result.occurrence.issueCode, "runtime.service_unavailable");
+  } finally {
+    promptRunner.runStructuredPrompt = originalRunStructuredPrompt;
+    directorAutomationLedgerEventService.recordEvent = originalRecordEvent;
+  }
 });
 
 test("issue action is recorded only after a real action handler completes", async () => {

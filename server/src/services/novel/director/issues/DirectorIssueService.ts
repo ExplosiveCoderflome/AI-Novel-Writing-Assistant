@@ -36,7 +36,6 @@ export interface ReportDirectorIssueInput {
   chapterOrder?: number;
   qualityScores?: Record<string, number>;
   attempt?: number;
-  maxAttempts?: number;
   hasUsableOutput?: boolean;
   runMode?: string;
   fingerprint: string;
@@ -67,7 +66,7 @@ export class DirectorIssueService {
     }
 
     const forcedScore = FORCED_SCORE_CODES.has(input.issueCode) ? 8 : null;
-    const assessment = forcedScore === null
+    const assessment = input.issueCode === "runtime.unclassified"
       ? await runStructuredPrompt({
           asset: directorIssueAssessmentPrompt,
           promptInput: {
@@ -79,7 +78,7 @@ export class DirectorIssueService {
             affectedScope: input.affectedScope ?? "",
             hasUsableOutput: input.hasUsableOutput ?? false,
             attempt: input.attempt ?? 0,
-            maxAttempts: input.maxAttempts ?? 0,
+            maxAttempts: input.policy.maxAutomaticRetries,
             detailsJson: JSON.stringify(input.details ?? {}),
           },
           options: {
