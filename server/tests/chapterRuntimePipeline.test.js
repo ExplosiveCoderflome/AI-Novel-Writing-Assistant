@@ -415,22 +415,26 @@ test("runPipelineChapterWithRuntime escalates patch failures to heavy repair and
   const finalSyncs = [];
   let needsRepairMarked = false;
   let reviewCount = 0;
+  let patchPlanCalls = 0;
 
-  promptRunner.runStructuredPrompt = async () => ({
-    output: {
-      strategy: "patch_first",
-      summary: "补足承接。",
-      patches: [{
-        id: "patch-missing",
-        targetExcerpt: "模型认为存在但正文里没有的片段。",
-        replacement: "替换后的片段。",
-        reason: "目标片段不存在。",
-        issueIds: [],
-      }],
-      requiresFullRewrite: false,
-      escalationReason: null,
-    },
-  });
+  promptRunner.runStructuredPrompt = async () => {
+    patchPlanCalls += 1;
+    return {
+      output: {
+        strategy: "patch_first",
+        summary: "补足承接。",
+        patches: [{
+          id: "patch-missing",
+          targetExcerpt: "模型认为存在但正文里没有的片段。",
+          replacement: "替换后的片段。",
+          reason: "目标片段不存在。",
+          issueIds: [],
+        }],
+        requiresFullRewrite: false,
+        escalationReason: null,
+      },
+    };
+  };
   promptRunner.setPromptRunnerLLMFactoryForTests(async () => (
     createTextStreamLLM("rewritten chapter after safe full repair")
   ));
@@ -496,6 +500,7 @@ test("runPipelineChapterWithRuntime escalates patch failures to heavy repair and
     assert.equal(result.recoverableRepairFailure, null);
     assert.equal(needsRepairMarked, false);
     assert.equal(finalSyncs.length, 1);
+    assert.equal(patchPlanCalls, 1);
     assert.deepEqual(savedDrafts, [{
       content: "生成后的正文需要承接。",
       generationState: "drafted",

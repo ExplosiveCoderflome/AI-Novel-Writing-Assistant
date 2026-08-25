@@ -848,6 +848,8 @@ test("createRepairStream escalates patch schema failures to a single heavy repai
   const acceptanceCalls = [];
   const resolvedIssues = [];
   const frames = [];
+  let patchPlanCalls = 0;
+  let heavyRepairCalls = 0;
 
   prisma.novel.findUnique = async () => ({ id: "novel-1", title: "测试小说" });
   prisma.chapter.findFirst = async () => ({
@@ -861,16 +863,20 @@ test("createRepairStream escalates patch schema failures to a single heavy repai
     return { id: "chapter-1", ...data };
   };
   promptRunner.runStructuredPrompt = async () => {
+    patchPlanCalls += 1;
     throw new Error("[{\"origin\":\"string\",\"code\":\"too_small\",\"minimum\":6,\"inclusive\":true,\"path\":[\"patches\",0,\"targetExcerpt\"],\"message\":\"Too small: expected string to have >=6 characters\"}]");
   };
-  promptRunner.streamTextPrompt = async () => ({
-    stream: {
-      async *[Symbol.asyncIterator]() {
-        yield { content: "全文修复片段" };
+  promptRunner.streamTextPrompt = async () => {
+    heavyRepairCalls += 1;
+    return {
+      stream: {
+        async *[Symbol.asyncIterator]() {
+          yield { content: "全文修复片段" };
+        },
       },
-    },
-    complete: Promise.resolve({ output: "全文修复后的正文" }),
-  });
+      complete: Promise.resolve({ output: "全文修复后的正文" }),
+    };
+  };
 
   try {
     const coordinator = new ChapterRuntimeCoordinator({
@@ -957,6 +963,8 @@ test("createRepairStream escalates patch schema failures to a single heavy repai
     assert.equal(chapterUpdates.at(-1)?.chapterStatus, "completed");
     assert.equal(frames.at(-1)?.status, "succeeded");
     assert.equal(frames.at(-1)?.phase, "completed");
+    assert.equal(patchPlanCalls, 1);
+    assert.equal(heavyRepairCalls, 1);
   } finally {
     prisma.novel.findUnique = originalNovelFindUnique;
     prisma.chapter.findFirst = originalChapterFindFirst;
