@@ -15,6 +15,7 @@ export interface PipelineRuntimeHooks {
   onCheckCancelled?: () => Promise<void>;
   onStageChange?: (stage: "generating_chapters" | "reviewing" | "repairing") => Promise<void>;
   onEmptyContent?: (event: PipelineEmptyContentEvent) => Promise<void>;
+  onRetryConsumed?: (kind: "quality_repair") => Promise<void>;
 }
 
 export interface PipelineEmptyContentEvent {
@@ -309,9 +310,10 @@ export async function runPipelineChapterWithRuntime(
       await deps.markChapterNeedsRepair(chapterId);
       break;
     }
+    retryCountUsed += 1;
+    await hooks.onRetryConsumed?.("quality_repair");
     repairEscalatedFromPatch = repairResult.escalatedFromPatch;
     content = repairResult.content;
-    retryCountUsed += 1;
     await deps.saveDraftAndArtifacts(novelId, chapterId, content, "repaired", {
       scheduleBackgroundSync: false,
       artifactSyncMode,

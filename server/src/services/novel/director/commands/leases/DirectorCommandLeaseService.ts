@@ -120,7 +120,6 @@ export class DirectorCommandLeaseService {
         summary: autoRecoverable ? STALE_COMMAND_AUTO_RECOVERY_MESSAGE : STALE_COMMAND_MANUAL_RECOVERY_MESSAGE,
         evidence: `command=${command.commandType}; attempt=${command.attempt}`,
         attempt: command.attempt,
-        maxAttempts: autoRecoverable ? command.attempt + 1 : command.attempt,
         hasUsableOutput: false,
         runMode: governance.runMode,
         fingerprint: ["worker_stale", command.id, command.attempt].join(":"),

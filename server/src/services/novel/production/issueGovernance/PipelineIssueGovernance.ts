@@ -20,7 +20,6 @@ export async function reportPipelineIssue(input: {
   chapterOrder?: number;
   qualityScores?: Record<string, number>;
   attempt?: number;
-  maxAttempts?: number;
   hasUsableOutput?: boolean;
   provider?: PipelinePayload["provider"];
   model?: string;
@@ -42,7 +41,6 @@ export async function reportPipelineIssue(input: {
       chapterOrder: input.chapterOrder,
       qualityScores: input.qualityScores,
       attempt: input.attempt,
-      maxAttempts: input.maxAttempts,
       hasUsableOutput: input.hasUsableOutput,
       runMode: input.governance.runMode,
       fingerprint: [input.jobId, input.issueCode, input.chapterId ?? "book", input.attempt ?? 0].join(":"),

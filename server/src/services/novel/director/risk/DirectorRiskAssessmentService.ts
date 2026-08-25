@@ -8,7 +8,6 @@ import type {
   DirectorRiskAssessment,
   DirectorRiskCategory,
 } from "@ai-novel/shared/types/directorRisk";
-import type { DirectorQualityRepairRisk } from "@ai-novel/shared/types/novelDirector";
 import { runStructuredPrompt } from "../../../../prompting/core/promptRunner";
 import { directorRiskAssessmentPrompt } from "../../../../prompting/prompts/director/directorRiskAssessment.prompts";
 import { directorAutomationLedgerEventService } from "../runtime/DirectorAutomationLedgerEventService";
@@ -206,29 +205,6 @@ export class DirectorRiskAssessmentService {
     return { assessment, shouldNotify, shouldPause };
   }
 
-  async assessQualityRepair(input: Omit<DirectorRiskAssessmentInput,
-    "failureStage" | "failureType" | "category" | "forcePause" | "localOnly"> & {
-      qualityRepairRisk: DirectorQualityRepairRisk;
-    }): Promise<DirectorRiskDecision | null> {
-    const risk = input.qualityRepairRisk;
-    return this.assess({
-      ...input,
-      failureStage: "quality_repair",
-      failureType: risk.noticeCode ?? risk.riskLevel,
-      category: risk.riskLevel === "replan" ? "replan" : "chapter_repair",
-      forcePause: risk.riskLevel === "replan",
-      // A large-scope repair is still chapter-level quality work. It can be
-      // surfaced at high risk but cannot pause the whole-book director.
-      localOnly: risk.riskLevel !== "replan",
-      failureDetails: {
-        ...(input.failureDetails ?? {}),
-        qualityRepairRisk: risk,
-      },
-      replanDecision: risk.riskLevel === "replan"
-        ? { decision: "replan_required", reason: risk.reason }
-        : input.replanDecision,
-    });
-  }
 }
 
 export const directorRiskAssessmentService = new DirectorRiskAssessmentService();

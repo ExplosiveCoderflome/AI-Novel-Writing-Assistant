@@ -199,7 +199,6 @@ export async function stopAutoExecutionForCircuitBreaker(
     chapterId: input.circuitBreaker.chapterId ?? undefined,
     chapterOrder: input.circuitBreaker.chapterOrder ?? undefined,
     attempt: failureCount,
-    maxAttempts: failureCount,
     hasUsableOutput: issueCode.startsWith("quality."),
     runMode: input.request.runMode,
     fingerprint: [

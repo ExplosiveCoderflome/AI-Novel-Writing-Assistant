@@ -651,6 +651,7 @@ test("continueTask resumes auto execution in the background instead of blocking 
   try {
     await service.continueTask("task_auto_execution_resume", {
       continuationMode: "auto_execute_range",
+      forceResume: true,
     });
     assert.equal(runningCalls.length, 1);
     assert.equal(runningCalls[0].taskId, "task_auto_execution_resume");
@@ -667,6 +668,7 @@ test("continueTask resumes auto execution in the background instead of blocking 
     assert.equal(runtimeCalls[0].novelId, "novel_auto_execution_resume");
     assert.equal(runtimeCalls[0].resumeCheckpointType, "chapter_batch_ready");
     assert.equal(runtimeCalls[0].allowSkipReviewBlockedChapter, true);
+    assert.equal(runtimeCalls[0].resumePendingManualRecovery, true);
   } finally {
     service.continueCandidateStageTask = originalContinueCandidateStageTask;
     service.workflowService.getTaskById = originalGetTaskById;
