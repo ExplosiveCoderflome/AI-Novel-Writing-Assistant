@@ -340,8 +340,9 @@ test("executePipeline stops remaining chapters after a replan recommendation", a
 
     assert.deepEqual(processedChapters, ["chapter-9"]);
     const finalUpdate = updates[updates.length - 1];
-    assert.equal(finalUpdate.data.status, "succeeded");
-    assert.equal(finalUpdate.data.currentStage, null);
+    assert.equal(finalUpdate.data.status, "queued");
+    assert.equal(finalUpdate.data.pendingManualRecovery, true);
+    assert.equal(finalUpdate.data.currentStage, "queued");
     const payload = JSON.parse(finalUpdate.data.payload);
     assert.deepEqual(payload.replanAlertDetails, [
       "第9章需要书级重规划（影响章节=9,10；原因=缺失比武环节）",

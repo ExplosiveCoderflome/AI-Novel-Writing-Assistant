@@ -116,6 +116,8 @@ test("production closure owns quality stops and persists manual recovery", () =>
   assert.equal(pipelineSource.includes('applyChapterQualityClosure'), true);
   assert.equal(pipelineSource.includes('pendingManualRecovery: true'), true);
   assert.equal(pipelineSource.indexOf('pendingManualRecovery: true') < pipelineSource.indexOf('const finalStatus: "succeeded"'), true);
+  assert.equal(pipelineSource.includes('chapterRetryCountUsed < chapterRetryBudget'), true);
+  assert.equal(pipelineSource.includes('maxRetries: Math.max(0, chapterRetryBudget - chapterRetryCountUsed)'), true);
 });
 
 test("RAG keeps its dedicated persisted index queue", () => {

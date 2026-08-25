@@ -1149,6 +1149,7 @@ test("runPipelineChapterWithRuntime defaults to a single repair pass before stop
   const finalSyncs = [];
   const generationStates = [];
   const finalizationCalls = [];
+  const consumedRetries = [];
   let reviewCount = 0;
 
   promptRunner.runStructuredPrompt = async () => ({
@@ -1222,6 +1223,9 @@ test("runPipelineChapterWithRuntime defaults to a single repair pass before stop
         async onStageChange(stage) {
           stages.push(stage);
         },
+        async onRetryConsumed(kind) {
+          consumedRetries.push(kind);
+        },
       },
     );
 
@@ -1229,6 +1233,7 @@ test("runPipelineChapterWithRuntime defaults to a single repair pass before stop
     assert.deepEqual(finalizeInputs, ["生成后的正文", "修后正文补足承接。"]);
     assert.equal(reviewCount, 2);
     assert.equal(result.retryCountUsed, 1);
+    assert.deepEqual(consumedRetries, ["quality_repair"]);
     assert.equal(result.pass, false);
     assert.deepEqual(generationStates, ["reviewed", "reviewed"]);
     assert.deepEqual(savedDrafts, [

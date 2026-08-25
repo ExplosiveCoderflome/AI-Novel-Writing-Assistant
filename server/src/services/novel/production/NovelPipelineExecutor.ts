@@ -294,36 +294,40 @@ export class NovelPipelineExecutor {
           heartbeatTimer.unref?.();
 
           let chapterResult: Awaited<ReturnType<ChapterRuntimeCoordinator["runPipelineChapter"]>> | null = null;
-          const chapterExecutionRetryLimit = isAutopilotMode
-            ? issueGovernance?.policy.maxAutomaticRetries ?? 1
-            : 0;
+          const chapterRetryBudget = isAutopilotMode
+            ? Math.min(maxRetries, issueGovernance?.policy.maxAutomaticRetries ?? maxRetries)
+            : maxRetries;
+          let chapterRetryCountUsed = 0;
           try {
-            for (let executionAttempt = 0; executionAttempt <= chapterExecutionRetryLimit; executionAttempt += 1) {
+            while (true) {
               try {
-              chapterResult = await this.chapterRuntimeCoordinator.runPipelineChapter(
-                novelId,
-                chapter.id,
-                {
-                  provider: runtimePayload.provider,
-                  model: runtimePayload.model,
-                  temperature: runtimePayload.temperature,
-                  workflowTaskId: runtimePayload.workflowTaskId,
-                  taskStyleProfileId: runtimePayload.taskStyleProfileId,
-                  controlPolicy: runtimePayload.controlPolicy,
-                  maxRetries,
-                  autoReview: runtimePayload.autoReview,
-                  autoRepair: runtimePayload.autoRepair,
-                  qualityThreshold,
-                  repairMode: runtimePayload.repairMode,
-                  artifactSyncMode: runtimePayload.artifactSyncMode,
-                },
-                {
+                chapterResult = await this.chapterRuntimeCoordinator.runPipelineChapter(
+                  novelId,
+                  chapter.id,
+                  {
+                    provider: runtimePayload.provider,
+                    model: runtimePayload.model,
+                    temperature: runtimePayload.temperature,
+                    workflowTaskId: runtimePayload.workflowTaskId,
+                    taskStyleProfileId: runtimePayload.taskStyleProfileId,
+                    controlPolicy: runtimePayload.controlPolicy,
+                    maxRetries: Math.max(0, chapterRetryBudget - chapterRetryCountUsed),
+                    autoReview: runtimePayload.autoReview,
+                    autoRepair: runtimePayload.autoRepair,
+                    qualityThreshold,
+                    repairMode: runtimePayload.repairMode,
+                    artifactSyncMode: runtimePayload.artifactSyncMode,
+                  },
+                  {
                   onCheckCancelled: () => this.ensurePipelineNotCancelled(jobId),
                   onStageChange: async (stage) => {
                     await applyChapterStage(stage);
                   },
+                  onRetryConsumed: async () => {
+                    chapterRetryCountUsed += 1;
+                  },
                   onEmptyContent: async (event) => {
-                    const willRetry = event.willRetry || executionAttempt < chapterExecutionRetryLimit;
+                    const willRetry = event.willRetry || (isAutopilotMode && chapterRetryCountUsed < chapterRetryBudget);
                     const detail = buildEmptyChapterDetail(chapter);
                     const meta = {
                       jobId,
@@ -366,18 +370,19 @@ export class NovelPipelineExecutor {
                     }
                     logPipelineError("章节生成连续未返回正文，准备自动重试当前章", meta);
                   },
-                },
-              );
+                  },
+                );
                 break;
               } catch (error) {
                 if (error instanceof Error && error.message === "PIPELINE_CANCELLED") {
                   throw error;
                 }
-                const canRetry = executionAttempt < chapterExecutionRetryLimit;
+                const canRetry = isAutopilotMode && chapterRetryCountUsed < chapterRetryBudget;
                 if (!canRetry) {
                   throw error;
                 }
-                const retryLabel = `第${chapter.order}章遇到临时问题，AI 正在自动修复并重试（${executionAttempt + 1}/${chapterExecutionRetryLimit}）`;
+                chapterRetryCountUsed += 1;
+                const retryLabel = `第${chapter.order}章遇到临时问题，AI 正在自动修复并重试（${chapterRetryCountUsed}/${chapterRetryBudget}）`;
                 await this.updateJobSafe(jobId, {
                   heartbeatAt: new Date(),
                   currentStage: "generating_chapters",
@@ -389,7 +394,7 @@ export class NovelPipelineExecutor {
                   novelId,
                   chapterId: chapter.id,
                   chapterOrder: chapter.order,
-                  retry: executionAttempt + 1,
+                  retry: chapterRetryCountUsed,
                   error: error instanceof Error ? error.message : String(error),
                 });
               }
@@ -401,7 +406,7 @@ export class NovelPipelineExecutor {
             throw new Error(`第${chapter.order}章在自动重试后仍未生成可用结果。`);
           }
 
-          totalRetryCount += chapterResult.retryCountUsed;
+          totalRetryCount += Math.max(chapterRetryCountUsed, chapterResult.retryCountUsed);
           const closure = await applyChapterQualityClosure({
             governance: issueGovernance,
             workflowTaskId: runtimePayload.workflowTaskId,
