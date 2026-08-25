@@ -119,6 +119,7 @@ export interface VolumeSyncInput {
   volumes: unknown;
   preserveContent?: boolean;
   applyDeletes?: boolean;
+  allowIncompleteExecutionContracts?: boolean;
   executionContractChapterRange?: {
     startOrder: number;
     endOrder: number;

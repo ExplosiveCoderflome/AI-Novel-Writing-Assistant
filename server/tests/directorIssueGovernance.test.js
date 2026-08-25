@@ -10,6 +10,8 @@ const {
   directorIssuePolicySchema,
   resolveDirectorIssueDecision,
 } = require("../../shared/dist/types/directorIssue.js");
+const { directorIssueService } = require("../dist/services/novel/director/issues/DirectorIssueService.js");
+const { directorAutomationLedgerEventService } = require("../dist/services/novel/director/runtime/DirectorAutomationLedgerEventService.js");
 
 function occurrence(issueCode, patch = {}) {
   return {
@@ -31,8 +33,6 @@ test("every stable issue code has one valid default policy", () => {
     assert.notEqual(entry.exhaustedAction, "auto_retry", entry.code);
     for (const action of DIRECTOR_ISSUE_ACTIONS) {
       assert.equal(directorIssuePolicySchema.safeParse({
-        noticeThreshold: 5,
-        pauseThreshold: 8,
         issueActions: { [entry.code]: action },
       }).success, true, `${entry.code}:${action}:global`);
       assert.equal(directorIssuePolicyOverrideSchema.safeParse({
@@ -58,7 +58,7 @@ test("user overrides are accepted while runtime safety actions remain enforced",
   }
 });
 
-test("policy presets decide whether a usable local quality issue continues or pauses", () => {
+test("full-book autopilot never lets a preset stop on usable local quality output", () => {
   const finishFullBook = DIRECTOR_ISSUE_POLICY_PRESETS.find((preset) => preset.id === "finish_full_book");
   const qualityFirst = DIRECTOR_ISSUE_POLICY_PRESETS.find((preset) => preset.id === "quality_first");
   assert.ok(finishFullBook);
@@ -75,8 +75,17 @@ test("policy presets decide whether a usable local quality issue continues or pa
     policySource: "novel",
   });
   assert.equal(fullBookDecision.action, "continue_with_warning");
-  assert.equal(qualityDecision.action, "pause_for_manual");
-  assert.equal(qualityDecision.locked, false);
+  assert.equal(qualityDecision.action, "continue_with_warning");
+  assert.equal(qualityDecision.locked, true);
+  assert.equal(qualityDecision.policySource, "safety");
+
+  const manualQualityDecision = resolveDirectorIssueDecision({
+    occurrence: occurrence("quality.loop_exhausted", { runMode: "stage_review" }),
+    policy: qualityFirst.policy,
+    policySource: "novel",
+  });
+  assert.equal(manualQualityDecision.action, "pause_for_manual");
+  assert.equal(manualQualityDecision.locked, false);
 });
 
 test("explicit replans and data safety issues remain locked", () => {
@@ -117,16 +126,7 @@ test("the policy owns the single automatic retry budget", () => {
   assert.equal(decision.action, "pause_for_manual");
 });
 
-test("risk score reaches the frozen pause threshold", () => {
-  const decision = resolveDirectorIssueDecision({
-    occurrence: occurrence("runtime.service_unavailable", { riskScore: 8 }),
-    policy: DEFAULT_DIRECTOR_ISSUE_POLICY,
-  });
-  assert.equal(decision.action, "pause_for_manual");
-  assert.match(decision.reason, /暂停阈值/);
-});
-
-test("explicit task policy remains ahead of score thresholds", () => {
+test("explicit task policy is not overridden by a risk score", () => {
   const decision = resolveDirectorIssueDecision({
     occurrence: occurrence("runtime.service_unavailable", { riskScore: 8 }),
     policy: {
@@ -137,4 +137,33 @@ test("explicit task policy remains ahead of score thresholds", () => {
   });
   assert.equal(decision.action, "auto_retry");
   assert.equal(decision.policySource, "novel");
+});
+
+test("issue action is recorded only after a real action handler completes", async () => {
+  const originalRecordEvent = directorAutomationLedgerEventService.recordEvent;
+  const events = [];
+  directorAutomationLedgerEventService.recordEvent = async (event) => events.push(event);
+  const base = {
+    issueGovernanceVersion: 1,
+    taskId: "task-action-boundary",
+    novelId: "novel-action-boundary",
+    issueCode: "quality.replan_required",
+    stage: "quality_repair",
+    summary: "后续章节必须重规划。",
+    fingerprint: "replan:chapter-2",
+    policy: DEFAULT_DIRECTOR_ISSUE_POLICY,
+  };
+  try {
+    await directorIssueService.reportIssue(base);
+    assert.deepEqual(events.map((event) => event.type), ["issue_detected"]);
+
+    await directorIssueService.reportIssue({
+      ...base,
+      fingerprint: "replan:chapter-3",
+      applyAction: async () => undefined,
+    });
+    assert.deepEqual(events.slice(-2).map((event) => event.type), ["issue_detected", "issue_action_applied"]);
+  } finally {
+    directorAutomationLedgerEventService.recordEvent = originalRecordEvent;
+  }
 });

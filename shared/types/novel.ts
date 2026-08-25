@@ -5,7 +5,7 @@ import type { NovelStoryMode } from "./storyMode";
 import type { TaskStatus, TaskTokenUsageSummary } from "./task";
 import type { NarrativeForm } from "./creationStudio";
 import type { WritingPlatform } from "./writingPlatform";
-import type { DirectorRiskHistoryItem, DirectorRiskPolicy } from "./directorRisk";
+import type { DirectorRiskHistoryItem } from "./directorRisk";
 export type {
   BaseCharacter,
   Character,
@@ -132,7 +132,6 @@ export interface SimpleCreationShelfProjection {
     canRetry: boolean;
     recoveryAction?: "replan_and_continue" | "continue";
     safetyMessage?: string | null;
-    riskPolicy?: DirectorRiskPolicy | null;
     latestRiskAssessment?: DirectorRiskHistoryItem | null;
     riskHistory?: DirectorRiskHistoryItem[];
   };

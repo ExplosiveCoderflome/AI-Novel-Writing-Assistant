@@ -604,7 +604,6 @@ export interface DirectorRuntimeProjection {
   /** Scored issues recorded for this task, newest first. */
   riskHistory?: import("./directorRisk").DirectorRiskHistoryItem[];
   riskHistoryTotal?: number;
-  riskPolicy?: import("./directorRisk").DirectorRiskPolicy | null;
   rootCauseCode?: "none" | "draft_generation_failed" | "draft_obligation_unmet" | "draft_repair_exhausted" | "replan_required" | null;
   blockingObligations?: Array<{
     kind: "must_hit_now" | "must_preserve" | "payoff_touch" | "character_appearance" | "goal_change" | "forbidden_crossing";

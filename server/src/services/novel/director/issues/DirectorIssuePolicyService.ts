@@ -30,11 +30,8 @@ function compactOverride(
     }),
   ) as Partial<Record<DirectorIssueCode, DirectorIssuePolicy["issueActions"][DirectorIssueCode]>>;
   const compacted: DirectorIssuePolicyOverride = {
-    ...(input.noticeThreshold !== undefined && input.noticeThreshold !== globalPolicy.noticeThreshold
-      ? { noticeThreshold: input.noticeThreshold }
-      : {}),
-    ...(input.pauseThreshold !== undefined && input.pauseThreshold !== globalPolicy.pauseThreshold
-      ? { pauseThreshold: input.pauseThreshold }
+    ...(input.maxAutomaticRetries !== undefined && input.maxAutomaticRetries !== globalPolicy.maxAutomaticRetries
+      ? { maxAutomaticRetries: input.maxAutomaticRetries }
       : {}),
     ...(input.maxAutomaticRetries !== undefined && input.maxAutomaticRetries !== globalPolicy.maxAutomaticRetries
       ? { maxAutomaticRetries: input.maxAutomaticRetries }

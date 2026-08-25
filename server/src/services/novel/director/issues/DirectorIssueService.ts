@@ -135,25 +135,26 @@ export class DirectorIssueService {
       nodeKey: input.stage,
       summary: `${catalog.label}：${occurrence.summary}`,
       affectedScope: occurrence.affectedScope ?? null,
-      severity: occurrence.riskScore === 8 ? "high" : occurrence.riskScore && occurrence.riskScore >= input.policy.noticeThreshold ? "medium" : "low",
+      severity: severityFor(decision.action),
       metadata: { schemaVersion: 1, occurrence },
       occurredAt: occurrence.occurredAt,
     });
 
-    await input.applyAction?.(decision);
-
-    await directorAutomationLedgerEventService.recordEvent({
-      type: "issue_action_applied",
-      idempotencyKey: `${input.taskId}:${input.fingerprint}:${decision.action}`,
-      taskId: input.taskId,
-      runId: input.runId,
-      novelId: input.novelId,
-      nodeKey: input.stage,
-      summary: `${catalog.label}已执行：${decision.action}`,
-      affectedScope: occurrence.affectedScope ?? null,
-      severity: severityFor(decision.action),
-      metadata: { schemaVersion: 1, occurrence, decision },
-    });
+    if (input.applyAction) {
+      await input.applyAction(decision);
+      await directorAutomationLedgerEventService.recordEvent({
+        type: "issue_action_applied",
+        idempotencyKey: `${input.taskId}:${input.fingerprint}:${decision.action}`,
+        taskId: input.taskId,
+        runId: input.runId,
+        novelId: input.novelId,
+        nodeKey: input.stage,
+        summary: `${catalog.label}已执行：${decision.action}`,
+        affectedScope: occurrence.affectedScope ?? null,
+        severity: severityFor(decision.action),
+        metadata: { schemaVersion: 1, occurrence, decision },
+      });
+    }
 
     return { occurrence, decision };
   }

@@ -91,8 +91,6 @@ import { NovelDirectorContinueRuntime } from "./runtime/novelDirectorContinueRun
 import { prisma } from "../../../db/prisma";
 import { loadPersistentDirectorRuntimeProjection } from "./projections/novelDirectorRuntimeProjection";
 import { qualityDebtSettingsService } from "../../settings/QualityDebtSettingsService";
-import { directorRiskPolicySettingsService } from "../../settings/DirectorRiskPolicySettingsService";
-import { directorRiskPolicyOverrideService } from "./settings/DirectorRiskPolicyOverrideService";
 import { pendingReviewAutoPromotionService } from "../state/PendingReviewAutoPromotionService";
 import { parseSeedPayload } from "../workflow/novelWorkflow.shared";
 import { getDirectorInputFromSeedPayload } from "./runtime/novelDirectorHelpers";
@@ -195,7 +193,6 @@ export class NovelDirectorService {
     ensurePrimaryNovelStyleBinding: (novelId, styleProfileId) => this.ensurePrimaryNovelStyleBinding(novelId, styleProfileId),
     withWorkflowTaskUsage: (workflowTaskId, runner) => this.withWorkflowTaskUsage(workflowTaskId, runner),
     scheduleBackgroundRun: (taskId, runner) => this.scheduleBackgroundRun(taskId, runner),
-    resolveRiskPolicy: (novelId) => this.resolveDirectorRiskPolicy(novelId),
   });
   private readonly chapterTitleRepairRuntime = new NovelDirectorChapterTitleRepairRuntime({
     workflowService: this.workflowService,
@@ -218,18 +215,12 @@ export class NovelDirectorService {
     resolveAssetFirstRecovery: (payload) => this.resolveAssetFirstRecovery(payload),
     runDirectorPipeline: (payload) => this.runDirectorPipeline(payload),
     buildDirectorSeedPayload: (directorInput, novelId, extra) => buildDirectorWorkflowSeedPayload(directorInput, novelId, extra),
-    resolveRiskPolicy: (novelId) => this.resolveDirectorRiskPolicy(novelId),
     getDirectorAssetSnapshot: (novelId) => this.getDirectorAssetSnapshot(novelId),
     assertHighMemoryStartAllowed: (payload) => this.assertHighMemoryDirectorStartAllowed(payload),
     scheduleBackgroundRun: (taskId, runner) => this.scheduleBackgroundRun(taskId, runner),
   });
 
   constructor(_options?: Record<string, never>) {}
-
-  private async resolveDirectorRiskPolicy(novelId: string) {
-    const override = await directorRiskPolicyOverrideService.getOverride(novelId);
-    return override ?? directorRiskPolicySettingsService.getRiskPolicy();
-  }
 
   private async autoPromotePendingReviewProposals(input: {
     novelId: string;
@@ -699,7 +690,6 @@ export class NovelDirectorService {
       issueGovernanceVersion: DIRECTOR_ISSUE_GOVERNANCE_VERSION,
       issuePolicy,
       issuePolicySource,
-      riskPolicy: await this.resolveDirectorRiskPolicy(input.novelId),
     }));
     const isFullBookAutopilot = isFullBookAutopilotRunMode(directorInput.runMode);
     if (typeof input.postGenerationStyleReviewEnabled === "boolean") {

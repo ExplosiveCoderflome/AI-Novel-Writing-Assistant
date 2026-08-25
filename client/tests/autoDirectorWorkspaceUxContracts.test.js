@@ -30,6 +30,14 @@ test("preparation journey only reports viewable resources instead of decorative 
 test("created projects offer both switchable creation modes", () => {
   assert.match(createPage, /简易模式/);
   assert.match(createPage, /专业模式/);
-  assert.match(createPage, /selectNovelProductionExperience\(controller\.directorTask!\.id, "simple"\)/);
+  assert.match(createPage, /setNovelCreationExperience\(createdNovelId, "simple"\)/);
   assert.match(createPage, /setNovelCreationExperience\(createdNovelId, "professional"\)/);
+  assert.doesNotMatch(createPage, /selectNovelProductionExperience/);
+});
+
+test("a failed director task cannot be shown as a running dashboard", () => {
+  assert.match(progressPanel, /const taskHasTerminalFailure = task\?\.status === "failed" \|\| task\?\.status === "cancelled"/);
+  assert.match(progressPanel, /const dashboardViewForDisplay = taskHasTerminalFailure \? null : dashboardView/);
+  assert.match(progressPanel, /const displayStateForDisplay = taskHasTerminalFailure \? null : displayState/);
+  assert.match(progressPanel, /task\?\.checkpointSummary\?\.trim\(\)/);
 });

@@ -42,8 +42,7 @@ export default function SimpleCreationIssueGovernancePanel(props: {
   const policy = policyQuery.data?.data;
   const issues = taskQuery.data?.data?.snapshot?.projection?.recentIssues?.slice(0, 6) ?? [];
   const overrideCount = Object.keys(policy?.override?.issueActions ?? {}).length
-    + (policy?.override?.noticeThreshold !== undefined ? 1 : 0)
-    + (policy?.override?.pauseThreshold !== undefined ? 1 : 0);
+    + (policy?.override?.maxAutomaticRetries !== undefined ? 1 : 0);
 
   return (
     <details open className="overflow-hidden rounded-2xl border border-border bg-background">
@@ -54,7 +53,7 @@ export default function SimpleCreationIssueGovernancePanel(props: {
           </span>
           <div>
             <div className="font-medium text-foreground">AI 问题处理</div>
-            <div className="mt-1 text-xs leading-5 text-muted-foreground">查看本书采用的提醒、暂停规则，以及 AI 最近处理过的问题。</div>
+            <div className="mt-1 text-xs leading-5 text-muted-foreground">查看本书的问题处理动作，以及 AI 最近处理过的问题。</div>
           </div>
         </div>
         <Badge variant="outline">{issues.length} 条记录</Badge>
@@ -63,8 +62,6 @@ export default function SimpleCreationIssueGovernancePanel(props: {
       <div className="space-y-4 border-t border-border/60 px-5 py-4">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="flex flex-wrap gap-2 text-xs text-muted-foreground">
-            <Badge variant="secondary">提醒分数：{policy?.effectivePolicy.noticeThreshold ?? "—"}/8</Badge>
-            <Badge variant="secondary">暂停分数：{policy?.effectivePolicy.pauseThreshold ?? "—"}/8</Badge>
             <span className="self-center">{policy?.source === "novel" ? `本书覆盖 ${overrideCount} 项` : "继承全局规则"}</span>
           </div>
           <div className="flex flex-wrap gap-2">
@@ -92,7 +89,7 @@ export default function SimpleCreationIssueGovernancePanel(props: {
           </div>
         ) : (
           <div className="rounded-xl bg-muted/30 p-3 text-sm leading-6 text-muted-foreground">
-            AI 暂未记录需要提醒或暂停的问题。普通章节质量项仍会由 AI 在后台继续处理。
+            AI 暂未记录需要关注的问题。普通章节质量项仍会由 AI 在后台继续处理。
           </div>
         )}
       </div>

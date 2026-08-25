@@ -49,8 +49,6 @@ export default function NovelDirectorIssuePolicyCard({ novelId }: { novelId: str
   const overrideActions = draft.issueActions ?? {};
   const savedActions = response.override?.issueActions ?? {};
   const hasChanges = JSON.stringify(overrideActions) !== JSON.stringify(savedActions)
-    || draft.noticeThreshold !== response.override?.noticeThreshold
-    || draft.pauseThreshold !== response.override?.pauseThreshold
     || draft.maxAutomaticRetries !== response.override?.maxAutomaticRetries;
 
   const setAction = (code: DirectorIssueCode, value: string) => {
@@ -74,8 +72,6 @@ export default function NovelDirectorIssuePolicyCard({ novelId }: { novelId: str
               type="button"
               className="rounded-xl border border-border p-4 text-left transition-colors hover:bg-muted/40"
               onClick={() => setDraft({
-                noticeThreshold: preset.policy.noticeThreshold,
-                pauseThreshold: preset.policy.pauseThreshold,
                 maxAutomaticRetries: preset.policy.maxAutomaticRetries,
                 issueActions: { ...preset.policy.issueActions },
               })}

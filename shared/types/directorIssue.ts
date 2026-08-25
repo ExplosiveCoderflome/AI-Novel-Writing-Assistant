@@ -87,21 +87,14 @@ export const DIRECTOR_ISSUE_CATALOG_BY_CODE = Object.fromEntries(
 ) as Record<DirectorIssueCode, DirectorIssueCatalogEntry>;
 
 export const DEFAULT_DIRECTOR_ISSUE_POLICY = {
-  noticeThreshold: 5,
-  pauseThreshold: 8,
   maxAutomaticRetries: 1,
   issueActions: {},
 } satisfies DirectorIssuePolicy;
 
 export const directorIssuePolicySchema = z.object({
-  noticeThreshold: z.number().int().min(2).max(7).default(5),
-  pauseThreshold: z.number().int().min(3).max(8).default(8),
   maxAutomaticRetries: z.number().int().min(0).max(1).default(1),
   issueActions: z.partialRecord(directorIssueCodeSchema, directorIssueActionSchema).default({}),
 }).superRefine((policy, context) => {
-  if (policy.pauseThreshold <= policy.noticeThreshold) {
-    context.addIssue({ code: "custom", path: ["pauseThreshold"], message: "暂停阈值必须高于提醒阈值。" });
-  }
   for (const [code, action] of Object.entries(policy.issueActions)) {
     const entry = DIRECTOR_ISSUE_CATALOG_BY_CODE[code as DirectorIssueCode];
     if (entry && action && !entry.allowedActions.includes(action)) {
@@ -113,18 +106,9 @@ export const directorIssuePolicySchema = z.object({
 export type DirectorIssuePolicy = z.infer<typeof directorIssuePolicySchema>;
 
 export const directorIssuePolicyOverrideSchema = z.object({
-  noticeThreshold: z.number().int().min(2).max(7).optional(),
-  pauseThreshold: z.number().int().min(3).max(8).optional(),
   maxAutomaticRetries: z.number().int().min(0).max(1).optional(),
   issueActions: z.partialRecord(directorIssueCodeSchema, directorIssueActionSchema).optional(),
 }).superRefine((override, context) => {
-  if (
-    override.noticeThreshold !== undefined
-    && override.pauseThreshold !== undefined
-    && override.pauseThreshold <= override.noticeThreshold
-  ) {
-    context.addIssue({ code: "custom", path: ["pauseThreshold"], message: "暂停阈值必须高于提醒阈值。" });
-  }
   for (const [code, action] of Object.entries(override.issueActions ?? {})) {
     const entry = DIRECTOR_ISSUE_CATALOG_BY_CODE[code as DirectorIssueCode];
     if (entry && action && !entry.allowedActions.includes(action)) {
@@ -141,8 +125,6 @@ export const DIRECTOR_ISSUE_POLICY_PRESETS = [
     name: "优先完成整本书",
     description: "局部问题处理一次后保留正文并继续，统一留到后续优化。",
     policy: {
-      noticeThreshold: 5,
-      pauseThreshold: 8,
       maxAutomaticRetries: 1,
       issueActions: {
         "quality.chapter_below_threshold": "continue_with_warning",
@@ -160,8 +142,6 @@ export const DIRECTOR_ISSUE_POLICY_PRESETS = [
     name: "质量优先",
     description: "局部问题处理一次后仍未解决时暂停，等待你确认下一步。",
     policy: {
-      noticeThreshold: 5,
-      pauseThreshold: 6,
       maxAutomaticRetries: 1,
       issueActions: {
         "quality.chapter_below_threshold": "pause_for_manual",
@@ -237,8 +217,6 @@ export function mergeDirectorIssuePolicy(
   override?: DirectorIssuePolicyOverride | null,
 ): DirectorIssuePolicy {
   return directorIssuePolicySchema.parse({
-    noticeThreshold: override?.noticeThreshold ?? base.noticeThreshold,
-    pauseThreshold: override?.pauseThreshold ?? base.pauseThreshold,
     maxAutomaticRetries: override?.maxAutomaticRetries ?? base.maxAutomaticRetries,
     issueActions: { ...base.issueActions, ...(override?.issueActions ?? {}) },
   });
@@ -261,23 +239,6 @@ export function resolveDirectorIssueDecision(input: {
     reason = entry.lockedReason ?? "安全保护规则优先于用户偏好。";
   }
 
-  if (!locked && !configured && typeof input.occurrence.riskScore === "number") {
-    if (
-      input.occurrence.riskScore >= input.policy.pauseThreshold
-      && entry.allowedActions.includes("pause_for_manual")
-    ) {
-      action = "pause_for_manual";
-      reason = `风险分 ${input.occurrence.riskScore} 达到暂停阈值 ${input.policy.pauseThreshold}。`;
-    } else if (
-      input.occurrence.riskScore >= input.policy.noticeThreshold
-      && entry.allowedActions.includes("continue_with_warning")
-      && action !== "auto_retry"
-    ) {
-      action = "continue_with_warning";
-      reason = `风险分 ${input.occurrence.riskScore} 达到提醒阈值 ${input.policy.noticeThreshold}。`;
-    }
-  }
-
   const maxAttempts = input.policy.maxAutomaticRetries ?? DEFAULT_DIRECTOR_ISSUE_POLICY.maxAutomaticRetries;
   if (action === "auto_retry" && input.occurrence.attempt >= maxAttempts) {
     action = entry.exhaustedAction;
@@ -288,6 +249,18 @@ export function resolveDirectorIssueDecision(input: {
     action = entry.exhaustedAction === "continue_with_warning" ? "pause_for_manual" : entry.exhaustedAction;
     locked = true;
     reason = "当前没有可用正文或已保存产物，不能仅记录警告后继续。";
+  }
+
+  if (
+    input.occurrence.runMode === "full_book_autopilot"
+    && entry.category === "quality"
+    && input.occurrence.issueCode !== "quality.replan_required"
+    && input.occurrence.hasUsableOutput
+    && (action === "pause_for_manual" || action === "fail_task")
+  ) {
+    action = "continue_with_warning";
+    locked = true;
+    reason = entry.lockedReason ?? "整本自动导演会把局部质量问题记录为质量债并继续。";
   }
 
   return {

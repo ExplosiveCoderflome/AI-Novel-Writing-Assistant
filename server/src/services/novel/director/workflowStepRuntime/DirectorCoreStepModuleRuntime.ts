@@ -308,6 +308,8 @@ export class DirectorCoreStepModuleRuntime {
         volumes: workspace.volumes,
         preserveContent: true,
         applyDeletes: false,
+        // The chapter runtime refines incomplete planning artifacts through the existing JIT contract generator.
+        allowIncompleteExecutionContracts: true,
       },
       {
         emitEvent: false,

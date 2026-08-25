@@ -410,7 +410,6 @@ export function buildDirectorAutoExecutionState(input: {
     .slice(-40);
   return {
     enabled: true,
-    riskPolicy: (input.plan as DirectorAutoExecutionState | null | undefined)?.riskPolicy,
     latestRiskAssessment: (input.plan as DirectorAutoExecutionState | null | undefined)?.latestRiskAssessment ?? null,
     completionProfile: input.completionProfile
       ?? (input.plan as DirectorAutoExecutionState | null | undefined)?.completionProfile,
