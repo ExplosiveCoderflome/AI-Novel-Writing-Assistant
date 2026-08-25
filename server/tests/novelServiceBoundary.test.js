@@ -176,9 +176,31 @@ test("manual chapter repair reuses the unified content finalization boundary", (
 
   assert.equal(repairSource.includes("contentFinalizationService.finalizeChapterContent"), true);
   assert.equal(repairSource.includes("contentProvenance: pass ? \"confirmed\" : \"debt\""), true);
-  assert.equal(repairSource.includes('mergeChapterPatchForGenerationStateBump({}, "approved")'), true);
+  assert.equal(repairSource.includes('lifecycleService.markGenerationState(input.chapterId, "approved")'), true);
   assert.equal(repairSource.includes("auditService.auditChapter"), true);
   assert.equal(repairSource.includes("reviewChapterAfterRepair"), false);
+});
+
+test("chapter runtime keeps lifecycle persistence behind one service", () => {
+  const lifecycleSource = readSource(
+    "services",
+    "novel",
+    "runtime",
+    "lifecycle",
+    "ChapterLifecycleService.ts",
+  );
+  const runtimeWriters = [
+    readSource("services", "novel", "runtime", "ChapterArtifactSyncService.ts"),
+    readSource("services", "novel", "runtime", "ChapterContentFinalizationService.ts"),
+    readSource("services", "novel", "runtime", "ChapterPipelineRuntimeAdapter.ts"),
+    readSource("services", "novel", "runtime", "ChapterStreamGenerationOrchestrator.ts"),
+    readSource("services", "novel", "runtime", "repair", "ChapterRepairStreamRuntime.ts"),
+  ];
+
+  assert.equal(lifecycleSource.includes("prisma.chapter.update"), true);
+  for (const source of runtimeWriters) {
+    assert.equal(source.includes("prisma.chapter.update"), false);
+  }
 });
 
 test("RAG keeps its dedicated persisted index queue", () => {

@@ -7,7 +7,6 @@ import { streamTextPrompt } from "../../../../prompting/core/promptRunner";
 import { withChapterRepairContext } from "../../../../prompting/prompts/novel/chapterLayeredContext";
 import { auditService } from "../../../audit/AuditService";
 import { ChapterPatchRepairFailedError } from "../../chapterPatchRepairService";
-import { mergeChapterPatchForGenerationStateBump } from "../../chapterLifecycleState";
 import {
   isPass,
   logPipelineError,
@@ -16,6 +15,7 @@ import {
 import type { ChapterArtifactSyncService } from "../ChapterArtifactSyncService";
 import type { ChapterContentFinalizationService } from "../ChapterContentFinalizationService";
 import type { GenerationContextAssembler } from "../GenerationContextAssembler";
+import type { ChapterLifecycleService } from "../lifecycle";
 import {
   ChapterContextAssemblyError,
   assembleChapterAuditContextPackage,
@@ -30,6 +30,7 @@ export interface ChapterRepairStreamRuntimeDeps {
   auditService: Pick<typeof auditService, "auditChapter">;
   artifactSyncService: Pick<ChapterArtifactSyncService, "syncChapterArtifacts">;
   contentFinalizationService: Pick<ChapterContentFinalizationService, "finalizeChapterContent">;
+  lifecycleService: Pick<ChapterLifecycleService, "saveWorkingContent" | "markGenerationState">;
   resolveAuditIssues?: (novelId: string, issueIds: string[]) => Promise<unknown>;
 }
 
@@ -193,9 +194,11 @@ export class ChapterRepairStreamRuntime {
       throw new ChapterPatchRepairFailedError("修复结果为空，未保存章节正文。");
     }
 
-    await prisma.chapter.update({
-      where: { id: input.chapterId },
-      data: { content: repairedContent, generationState: "repaired" },
+    await this.deps.lifecycleService.saveWorkingContent({
+      novelId: input.novelId,
+      chapterId: input.chapterId,
+      content: repairedContent,
+      generationState: "repaired",
     });
     const finalized = await this.deps.contentFinalizationService.finalizeChapterContent({
       novelId: input.novelId,
@@ -228,10 +231,7 @@ export class ChapterRepairStreamRuntime {
     );
 
     if (pass) {
-      await prisma.chapter.update({
-        where: { id: input.chapterId },
-        data: mergeChapterPatchForGenerationStateBump({}, "approved"),
-      });
+      await this.deps.lifecycleService.markGenerationState(input.chapterId, "approved");
       if (input.options.auditIssueIds?.length) {
         const resolveAuditIssues = this.deps.resolveAuditIssues
           ?? ((novelId: string, issueIds: string[]) => auditService.resolveIssues(novelId, issueIds));

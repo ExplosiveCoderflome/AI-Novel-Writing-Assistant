@@ -28,6 +28,7 @@
 ## 当前规则
 
 - 高优先级硬约束：控制入口可以不同，但正文生成与正文修复的业务执行链必须唯一；批量执行、自动导演、手动单章生成、手动单章修复不得各自维护独立实现。
+- 章节生产链的正文工作版本和双状态字段只能由 `ChapterLifecycleService` 落库。writer、repair、pipeline adapter、接收闸门和资产同步不得直接更新 `Chapter.content`、`generationState` 或 `chapterStatus`；规划创建、用户显式编辑、版本恢复和下游重置按各自模块边界处理。
 - 章节唯一执行链定义如下：
   - 控制入口统一经 `novelProductionOrchestrator`。
   - 手动单章生成、批量执行与自动导演的章节生产统一落到 `ChapterExecutionStageRunner`。

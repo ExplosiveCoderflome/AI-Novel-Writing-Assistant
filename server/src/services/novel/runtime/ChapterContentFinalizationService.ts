@@ -1,6 +1,5 @@
 import { createHash } from "node:crypto";
 import type { ChapterRuntimePackage, GenerationContextPackage } from "@ai-novel/shared/types/chapterRuntime";
-import { prisma } from "../../../db/prisma";
 import { novelEventBus } from "../../../events";
 import { openConflictService } from "../../state/OpenConflictService";
 import { directorAutomationLedgerEventService } from "../director/runtime/DirectorAutomationLedgerEventService";
@@ -19,6 +18,7 @@ import {
   buildProseQualityAuditReport,
   detectProseQuality,
 } from "./proseQuality/ProseQualityDetector";
+import type { ChapterLifecycleService } from "./lifecycle";
 
 export interface ChapterContentFinalizationAgentRuntime {
   finishChapterGenRun: (runId: string, summary: string, durationMs: number) => Promise<void>;
@@ -30,6 +30,7 @@ export interface ChapterContentFinalizationServiceDeps {
   plannerService: ChapterRuntimePlannerPort;
   agentRuntime: ChapterContentFinalizationAgentRuntime;
   timelineFinalizer: Pick<ChapterTimelineFinalizationService, "finalizeCurrentContent">;
+  lifecycleService: Pick<ChapterLifecycleService, "markChapterStatus">;
 }
 
 export interface FinalizeChapterContentInput {
@@ -58,6 +59,7 @@ export class ChapterContentFinalizationService {
   private readonly plannerService: ChapterRuntimePlannerPort;
   private readonly agentRuntime: ChapterContentFinalizationAgentRuntime;
   private readonly timelineFinalizer: Pick<ChapterTimelineFinalizationService, "finalizeCurrentContent">;
+  private readonly lifecycleService: Pick<ChapterLifecycleService, "markChapterStatus">;
 
   constructor(deps: ChapterContentFinalizationServiceDeps) {
     this.qualityGateService = deps.qualityGateService;
@@ -65,6 +67,7 @@ export class ChapterContentFinalizationService {
     this.plannerService = deps.plannerService;
     this.agentRuntime = deps.agentRuntime;
     this.timelineFinalizer = deps.timelineFinalizer;
+    this.lifecycleService = deps.lifecycleService;
   }
 
   async finalizeChapterContent(input: FinalizeChapterContentInput): Promise<FinalizeChapterContentResult> {
@@ -211,10 +214,7 @@ export class ChapterContentFinalizationService {
     chapterId: string,
     chapterStatus: "pending_generation" | "generating" | "pending_review" | "needs_repair",
   ): Promise<void> {
-    await prisma.chapter.update({
-      where: { id: chapterId },
-      data: { chapterStatus },
-    });
+    await this.lifecycleService.markChapterStatus(chapterId, chapterStatus);
   }
 
   /**

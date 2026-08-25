@@ -25,6 +25,10 @@ import {
   type ChapterTimelineFinalizationService,
 } from "./ChapterTimelineFinalizationService";
 import {
+  chapterLifecycleService,
+  type ChapterLifecycleService,
+} from "./lifecycle";
+import {
   defaultChapterRuntimeAgent,
   type ChapterRuntimeAgentPort,
 } from "./ChapterRuntimeDefaultDeps";
@@ -47,6 +51,10 @@ interface ChapterRuntimeCoordinatorDeps {
   validateRequest?: (input: ChapterRuntimeRequestInput) => ChapterRuntimeRequestInput;
   resolveAuditIssues?: (novelId: string, issueIds: string[]) => Promise<unknown>;
   timelineFinalizer?: Pick<ChapterTimelineFinalizationService, "finalizeCurrentContent">;
+  lifecycleService?: Pick<
+    ChapterLifecycleService,
+    "saveWorkingContent" | "markChapterStatus" | "markGenerationState"
+  >;
 }
 
 export class ChapterRuntimeCoordinator {
@@ -57,7 +65,8 @@ export class ChapterRuntimeCoordinator {
   private readonly pipelineAdapter: ChapterPipelineRuntimeAdapter;
 
   constructor(deps: ChapterRuntimeCoordinatorDeps = {}) {
-    const artifactSyncService = deps.artifactSyncService ?? new ChapterArtifactSyncService();
+    const lifecycleService = deps.lifecycleService ?? chapterLifecycleService;
+    const artifactSyncService = deps.artifactSyncService ?? new ChapterArtifactSyncService(lifecycleService);
     const agentRuntime = this.getAgentRuntime(deps.agentRuntime);
     const assembler = deps.assembler ?? new GenerationContextAssembler();
     const chapterWritingGraph = deps.chapterWritingGraph ?? this.createDefaultChapterWritingGraph(artifactSyncService);
@@ -77,6 +86,7 @@ export class ChapterRuntimeCoordinator {
       plannerService: plannerRuntime,
       agentRuntime,
       timelineFinalizer: deps.timelineFinalizer ?? chapterTimelineFinalizationService,
+      lifecycleService,
     });
     this.streamOrchestrator = new ChapterStreamGenerationOrchestrator({
       assembler,
@@ -91,6 +101,7 @@ export class ChapterRuntimeCoordinator {
       streamOrchestrator: this.streamOrchestrator,
       artifactSyncService,
       contentFinalizationService: this.contentFinalizationService,
+      lifecycleService,
       ensureNovelCharacters,
     });
     this.repairStreamRuntime = new ChapterRepairStreamRuntime({
@@ -98,6 +109,7 @@ export class ChapterRuntimeCoordinator {
       auditService: chapterAuditService,
       artifactSyncService,
       contentFinalizationService: this.contentFinalizationService,
+      lifecycleService,
       resolveAuditIssues: deps.resolveAuditIssues,
     });
   }
