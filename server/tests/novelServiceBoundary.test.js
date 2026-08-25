@@ -177,6 +177,8 @@ test("manual chapter repair reuses the unified content finalization boundary", (
   assert.equal(repairSource.includes("contentFinalizationService.finalizeChapterContent"), true);
   assert.equal(repairSource.includes("contentProvenance: pass ? \"confirmed\" : \"debt\""), true);
   assert.equal(repairSource.includes('mergeChapterPatchForGenerationStateBump({}, "approved")'), true);
+  assert.equal(repairSource.includes("auditService.auditChapter"), true);
+  assert.equal(repairSource.includes("reviewChapterAfterRepair"), false);
 });
 
 test("RAG keeps its dedicated persisted index queue", () => {

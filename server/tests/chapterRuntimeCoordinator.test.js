@@ -718,6 +718,95 @@ test("finalizeChapterContent writes only acceptance-covered mustHitNow facts bef
   }
 });
 
+test("createRepairStream discovers fallback issues through read-only audit", async () => {
+  const originalNovelFindUnique = prisma.novel.findUnique;
+  const originalChapterFindFirst = prisma.chapter.findFirst;
+  const originalBibleFindUnique = prisma.novelBible.findUnique;
+  const originalRunStructuredPrompt = promptRunner.runStructuredPrompt;
+  const auditCalls = [];
+
+  prisma.novel.findUnique = async () => ({ id: "novel-1", title: "测试小说" });
+  prisma.chapter.findFirst = async () => ({
+    id: "chapter-1",
+    title: "第1章",
+    content: "旧正文里有一段需要修复的内容。",
+  });
+  prisma.novelBible.findUnique = async () => ({ rawContent: "作品圣经" });
+  promptRunner.runStructuredPrompt = async () => ({
+    output: {
+      strategy: "patch_first",
+      summary: "修复承接问题。",
+      patches: [{
+        id: "patch-1",
+        targetExcerpt: "一段需要修复的内容",
+        replacement: "一段完成修复并顺利承接的内容",
+        reason: "补足承接。",
+        issueIds: [],
+      }],
+      requiresFullRewrite: false,
+      escalationReason: null,
+    },
+  });
+
+  try {
+    const assembledChapter = createRepairAssembledChapter();
+    const contextPackage = assembledChapter.contextPackage;
+    const coordinator = new ChapterRuntimeCoordinator({
+      assembler: {
+        assemble: async () => assembledChapter,
+      },
+      auditService: {
+        auditChapter: async (...args) => {
+          auditCalls.push(args);
+          return {
+            score: {
+              coherence: 70,
+              repetition: 90,
+              pacing: 75,
+              voice: 85,
+              engagement: 80,
+              overall: 78,
+            },
+            issues: [{
+              severity: "high",
+              category: "coherence",
+              evidence: "前后承接不足。",
+              fixSuggestion: "补足承接。",
+            }],
+            auditReports: [],
+          };
+        },
+      },
+      artifactSyncService: {
+        async syncChapterArtifacts() {},
+      },
+      timelineFinalizer: {
+        finalizeCurrentContent: async () => undefined,
+        ensurePreviousChapterFinalized: async () => null,
+      },
+    });
+
+    const streamResult = await coordinator.createRepairStream("novel-1", "chapter-1", {
+      repairMode: "light_repair",
+    });
+    let streamedContent = "";
+    for await (const chunk of streamResult.stream) {
+      streamedContent += chunk.content ?? "";
+    }
+
+    assert.equal(auditCalls.length, 1);
+    assert.deepEqual(auditCalls[0].slice(0, 3), ["novel-1", "chapter-1", "full"]);
+    assert.equal(auditCalls[0][3].content, "旧正文里有一段需要修复的内容。");
+    assert.deepEqual(auditCalls[0][3].contextPackage, contextPackage);
+    assert.equal(streamedContent, "旧正文里有一段完成修复并顺利承接的内容。");
+  } finally {
+    prisma.novel.findUnique = originalNovelFindUnique;
+    prisma.chapter.findFirst = originalChapterFindFirst;
+    prisma.novelBible.findUnique = originalBibleFindUnique;
+    promptRunner.runStructuredPrompt = originalRunStructuredPrompt;
+  }
+});
+
 test("createRepairStream escalates patch schema failures to a single heavy repair stream", async () => {
   const originalNovelFindUnique = prisma.novel.findUnique;
   const originalChapterFindFirst = prisma.chapter.findFirst;

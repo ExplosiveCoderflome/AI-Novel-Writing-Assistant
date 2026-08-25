@@ -1,6 +1,6 @@
 import type { BaseMessageChunk } from "@langchain/core/messages";
 import type { GenerationContextPackage } from "@ai-novel/shared/types/chapterRuntime";
-import type { QualityScore, ReviewIssue } from "@ai-novel/shared/types/novel";
+import type { ReviewIssue } from "@ai-novel/shared/types/novel";
 import type { StreamDoneHelpers } from "../../../../llm/streaming";
 import { prisma } from "../../../../db/prisma";
 import { streamTextPrompt } from "../../../../prompting/core/promptRunner";
@@ -12,7 +12,6 @@ import {
   isPass,
   logPipelineError,
   type RepairOptions,
-  type ReviewOptions,
 } from "../../novelCoreShared";
 import type { ChapterArtifactSyncService } from "../ChapterArtifactSyncService";
 import type { ChapterContentFinalizationService } from "../ChapterContentFinalizationService";
@@ -26,20 +25,11 @@ import {
   prepareChapterRepairExecution,
 } from "./chapterRepairRuntime";
 
-interface RepairReviewResult {
-  score: QualityScore;
-  issues: ReviewIssue[];
-}
-
 export interface ChapterRepairStreamRuntimeDeps {
   assembler?: Pick<GenerationContextAssembler, "assemble">;
+  auditService: Pick<typeof auditService, "auditChapter">;
   artifactSyncService: Pick<ChapterArtifactSyncService, "syncChapterArtifacts">;
   contentFinalizationService: Pick<ChapterContentFinalizationService, "finalizeChapterContent">;
-  reviewChapterAfterRepair: (
-    novelId: string,
-    chapterId: string,
-    options: ReviewOptions,
-  ) => Promise<RepairReviewResult>;
   resolveAuditIssues?: (novelId: string, issueIds: string[]) => Promise<unknown>;
 }
 
@@ -63,7 +53,6 @@ export class ChapterRepairStreamRuntime {
       throw new Error("小说或章节不存在");
     }
 
-    const issues = await this.resolveRepairIssues(novelId, chapterId, options);
     const assembledContextPackage = await assembleChapterAuditContextPackage({
       assembler: this.deps.assembler,
       novelId,
@@ -71,6 +60,13 @@ export class ChapterRepairStreamRuntime {
       options,
       operation: "repair",
     });
+    const issues = await this.resolveRepairIssues(
+      novelId,
+      chapterId,
+      chapter.content ?? "",
+      options,
+      assembledContextPackage,
+    );
     const repairContextPackage = withChapterRepairContext(assembledContextPackage, issues);
     if (!repairContextPackage.chapterRepairContext) {
       const error = new Error("chapterRepairContext missing after successful context assembly");
@@ -138,7 +134,9 @@ export class ChapterRepairStreamRuntime {
   private async resolveRepairIssues(
     novelId: string,
     chapterId: string,
+    content: string,
     options: RepairOptions,
+    contextPackage: GenerationContextPackage,
   ): Promise<ReviewIssue[]> {
     if (Array.isArray(options.reviewIssues)) {
       return options.reviewIssues;
@@ -163,8 +161,14 @@ export class ChapterRepairStreamRuntime {
       }));
     }
 
-    const fallbackReview = await this.deps.reviewChapterAfterRepair(novelId, chapterId, options);
-    return fallbackReview.issues;
+    const fallbackAudit = await this.deps.auditService.auditChapter(novelId, chapterId, "full", {
+      provider: options.provider,
+      model: options.model,
+      temperature: options.temperature,
+      content,
+      contextPackage,
+    });
+    return fallbackAudit.issues;
   }
 
   private async finalizeRepairResult(input: {

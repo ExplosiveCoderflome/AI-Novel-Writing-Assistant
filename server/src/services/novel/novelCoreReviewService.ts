@@ -54,7 +54,6 @@ export async function createQualityReport(
 export class NovelCoreReviewService {
   private readonly generationContextAssembler = new GenerationContextAssembler();
   private readonly chapterRuntimeCoordinator = new ChapterRuntimeCoordinator({
-    reviewChapterAfterRepair: (novelId, chapterId, options) => this.reviewChapter(novelId, chapterId, options),
     resolveAuditIssues: (novelId, issueIds) => this.resolveAuditIssues(novelId, issueIds),
   });
 

@@ -76,7 +76,7 @@ Web API 只接收命令和返回轻量投影；Worker 负责执行重型生产�
 - StepModule 应声明输入、输出、产物、进度检查和恢复策略；Pipeline 只编排，不直接知道具体业务表和 Prompt 细节。
 - StepModule 的只读事实检查必须能用 `novelId` 独立运行。`taskId`、run、command、artifacts 和 projection hints 属于自动导演扩展上下文，不能成为 `inspectReadiness`、`inspectCompletion`、`inspectProgress` 的必需条件；没有导演任务时应返回基于小说事实的最小状态。
 - 手动章节生成和手动章节修复也应先进入 StepModule，再由步骤内部委托统一章节 runtime。路由可以保留 SSE 协议和用户入口差异，但不能再直接绕过 `chapter.draft.write` 或 `chapter.draft.repair` 形成第二套执行路径。
-- 手动修复和自动修复必须共用 `ChapterContentFinalizationService` 完成最终接收判断、章节生命周期更新、可信事实写入和 `chapter:finalized` 事件。修复通过后正文以 `confirmed` 进入同步并把章节置为 `completed`；仍需处理时保留可用正文，以 `debt` 同步并维持 `needs_repair`。旧修复审查只可用于修复前发现问题，不能再作为修复后的最终裁决出口。
+- 手动修复和自动修复必须共用 `ChapterContentFinalizationService` 完成最终接收判断、章节生命周期更新、可信事实写入和 `chapter:finalized` 事件。修复通过后正文以 `confirmed` 进入同步并把章节置为 `completed`；仍需处理时保留可用正文，以 `debt` 同步并维持 `needs_repair`。修复请求没有携带明确问题时，只能用同一上下文执行只读章节审核来发现问题；不得调用会修改生命周期、写质量记录或触发重规划的手动审校命令。旧审校也不能作为修复后的最终裁决出口。
 - StepModule 核心运行时的依赖必须通过显式依赖包或默认装配函数进入，不允许在构造函数中用动态 `require()` 临时拉取服务。默认装配可以继续使用现有服务实例，但依赖关系必须在模块边界可读、可替换、可测试。
 - 自动导演顺序调度应发生在编排器 / StepModule 层；章节批量执行器 `NovelDirectorAutoExecutionRuntime.runFromReady()` 当前仍是 `chapter.draft.write` 的执行实现之一，不能直接反调同一个步骤，否则会形成递归执行。后续若要把章节批量执行也拆成纯步骤调度，必须先把“启动/恢复 pipeline job”抽成低层端口，再让调度器只遍历步骤计划。
 - Projection 面向 UI，只返回阶段、阻塞原因、下一步、可恢复范围等轻量状态，不返回完整大对象。
