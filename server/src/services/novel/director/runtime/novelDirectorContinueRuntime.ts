@@ -418,6 +418,7 @@ export class NovelDirectorContinueRuntime {
           allowSkipReviewBlockedChapter: canSkipReviewBlockedChapter,
           approveAutoExecutionScope: requestedAutoExecutionContinue || isFullBookAutopilot,
           skipCurrentQualityRepair: requestedSkipQualityRepair || requestedReplanRecovery,
+          resumePendingManualRecovery: input?.forceResume === true,
         });
       });
       return;

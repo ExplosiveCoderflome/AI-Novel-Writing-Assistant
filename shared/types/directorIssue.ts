@@ -251,18 +251,6 @@ export function resolveDirectorIssueDecision(input: {
     reason = "当前没有可用正文或已保存产物，不能仅记录警告后继续。";
   }
 
-  if (
-    input.occurrence.runMode === "full_book_autopilot"
-    && entry.category === "quality"
-    && input.occurrence.issueCode !== "quality.replan_required"
-    && input.occurrence.hasUsableOutput
-    && (action === "pause_for_manual" || action === "fail_task")
-  ) {
-    action = "continue_with_warning";
-    locked = true;
-    reason = entry.lockedReason ?? "整本自动导演会把局部质量问题记录为质量债并继续。";
-  }
-
   return {
     issueCode: input.occurrence.issueCode,
     action,

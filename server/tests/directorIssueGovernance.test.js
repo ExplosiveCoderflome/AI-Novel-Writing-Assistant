@@ -58,7 +58,7 @@ test("user overrides are accepted while runtime safety actions remain enforced",
   }
 });
 
-test("full-book autopilot never lets a preset stop on usable local quality output", () => {
+test("issue policy presets remain authoritative in full-book autopilot", () => {
   const finishFullBook = DIRECTOR_ISSUE_POLICY_PRESETS.find((preset) => preset.id === "finish_full_book");
   const qualityFirst = DIRECTOR_ISSUE_POLICY_PRESETS.find((preset) => preset.id === "quality_first");
   assert.ok(finishFullBook);
@@ -75,9 +75,9 @@ test("full-book autopilot never lets a preset stop on usable local quality outpu
     policySource: "novel",
   });
   assert.equal(fullBookDecision.action, "continue_with_warning");
-  assert.equal(qualityDecision.action, "continue_with_warning");
-  assert.equal(qualityDecision.locked, true);
-  assert.equal(qualityDecision.policySource, "safety");
+  assert.equal(qualityDecision.action, "pause_for_manual");
+  assert.equal(qualityDecision.locked, false);
+  assert.equal(qualityDecision.policySource, "novel");
 
   const manualQualityDecision = resolveDirectorIssueDecision({
     occurrence: occurrence("quality.loop_exhausted", { runMode: "stage_review" }),

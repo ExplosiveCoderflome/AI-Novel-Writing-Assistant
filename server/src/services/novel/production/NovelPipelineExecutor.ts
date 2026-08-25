@@ -224,6 +224,7 @@ export class NovelPipelineExecutor {
         );
         let completed = storedCompleted;
         const chaptersToProcess = chapters.slice(remainingStartIndex);
+        let pendingManualRecovery = false;
 
         // Phase 3：JIT 预取服务（N+1 章执行预取）
         const prefetchVolumeService = new NovelVolumeService();
@@ -525,6 +526,7 @@ export class NovelPipelineExecutor {
             retryCount: totalRetryCount,
           });
           if (shouldStopAfterCurrentChapter) {
+            pendingManualRecovery = true;
             logPipelineWarn("章节需要人工处理，已暂停后续章节流水线", {
               jobId,
               order: chapter.order,
@@ -532,6 +534,27 @@ export class NovelPipelineExecutor {
             });
             break;
           }
+        }
+
+        if (pendingManualRecovery) {
+          await this.updateJobSafe(jobId, {
+            status: "queued",
+            pendingManualRecovery: true,
+            error: "章节需要人工确认，后续生成已暂停。",
+            heartbeatAt: null,
+            currentStage: "queued",
+            currentItemKey: null,
+            currentItemLabel: null,
+            cancelRequestedAt: null,
+            finishedAt: null,
+            payload: this.stringifyPipelinePayload({
+              ...runtimePayload,
+              qualityAlertDetails,
+              replanAlertDetails,
+              recoverableRepairDetails,
+            }),
+          });
+          return;
         }
 
         const finalStatus: "succeeded" = "succeeded";

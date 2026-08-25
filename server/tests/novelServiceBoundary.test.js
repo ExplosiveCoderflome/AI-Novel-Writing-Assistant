@@ -106,7 +106,7 @@ test("event handlers do not import heavy side-effect executors directly", () => 
   assert.equal(/from\s+["'].*sharedNovelServices/.test(source), false);
 });
 
-test("only explicit global-book replan decisions may stop the production chain", () => {
+test("production closure owns quality stops and persists manual recovery", () => {
   const plannerSource = readSource("services", "planner", "PlannerService.ts");
   const reviewSource = readSource("services", "novel", "novelCoreReviewService.ts");
   const pipelineSource = readSource("services", "novel", "production", "NovelPipelineExecutor.ts");
@@ -114,6 +114,8 @@ test("only explicit global-book replan decisions may stop the production chain",
   assert.equal(plannerSource.includes('scope: input.scope'), true);
   assert.equal(reviewSource.includes('replanRecommendation.action === "stop_for_replan"'), true);
   assert.equal(pipelineSource.includes('applyChapterQualityClosure'), true);
+  assert.equal(pipelineSource.includes('pendingManualRecovery: true'), true);
+  assert.equal(pipelineSource.indexOf('pendingManualRecovery: true') < pipelineSource.indexOf('const finalStatus: "succeeded"'), true);
 });
 
 test("RAG keeps its dedicated persisted index queue", () => {
