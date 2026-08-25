@@ -21,6 +21,10 @@ import { ChapterContentFinalizationService } from "./ChapterContentFinalizationS
 import { ChapterStreamGenerationOrchestrator } from "./ChapterStreamGenerationOrchestrator";
 import { ChapterPipelineRuntimeAdapter } from "./ChapterPipelineRuntimeAdapter";
 import {
+  chapterTimelineFinalizationService,
+  type ChapterTimelineFinalizationService,
+} from "./ChapterTimelineFinalizationService";
+import {
   defaultChapterRuntimeAgent,
   type ChapterRuntimeAgentPort,
 } from "./ChapterRuntimeDefaultDeps";
@@ -42,6 +46,7 @@ interface ChapterRuntimeCoordinatorDeps {
   ) => Promise<unknown>;
   validateRequest?: (input: ChapterRuntimeRequestInput) => ChapterRuntimeRequestInput;
   resolveAuditIssues?: (novelId: string, issueIds: string[]) => Promise<unknown>;
+  timelineFinalizer?: Pick<ChapterTimelineFinalizationService, "finalizeCurrentContent">;
 }
 
 export class ChapterRuntimeCoordinator {
@@ -71,6 +76,7 @@ export class ChapterRuntimeCoordinator {
       artifactSyncService,
       plannerService: plannerRuntime,
       agentRuntime,
+      timelineFinalizer: deps.timelineFinalizer ?? chapterTimelineFinalizationService,
     });
     this.streamOrchestrator = new ChapterStreamGenerationOrchestrator({
       assembler,
