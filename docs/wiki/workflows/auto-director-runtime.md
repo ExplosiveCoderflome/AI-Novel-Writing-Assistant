@@ -217,6 +217,7 @@ Web API 只接收命令和返回轻量投影；Worker 负责执行重型生产�
 - 全局和本书规则界面允许每个稳定问题码选择四种动作，并在用户产生未保存修改后显示风险提示。策略可保存用户偏好，但 `generation.output_unusable`、`quality.replan_required`、`runtime.token_budget_exceeded`、`runtime.protected_content`、`runtime.data_integrity` 与 `runtime.persistence_failed` 必须由目录中的 `enforcedAction` 执行安全兜底；此时实际决策的 `policySource` 为 `safety`，不能把偏好伪装成已自动放行。
 - `replan_required`、`stop_for_replan`、无可用正文、运行时安全、数据完整性和受保护正文冲突通过问题目录中的安全动作进入可恢复暂停；其风险分可固定记为 8 分用于说明，但暂停不依赖评分模型或任何阈值。
 - `local_patch_plan`、`continue_with_warning`、`defer_and_continue`、局部修复残留和普通质量债无论分数多高，都只能记录质量债或局部修复提醒；它们的 `canPause` 必须为 false，不能把全书任务路由到 `replan_required`。
+- 章节流水线完成问题分类和动作治理后，自动导演检查点只消费该结构化结果，不得再调用风险评分模型重新决定继续或暂停。`qualityRepairRisk` 仅负责把影响范围和提示投影给用户；历史 `latestRiskAssessment` 可以保留展示，但不能在检查点重算。
 
 ### Related Modules
 

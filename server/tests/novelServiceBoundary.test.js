@@ -120,6 +120,27 @@ test("production closure owns quality stops and persists manual recovery", () =>
   assert.equal(pipelineSource.includes('maxRetries: Math.max(0, chapterRetryBudget - chapterRetryCountUsed)'), true);
 });
 
+test("auto director checkpoints consume governed quality actions without a second risk assessment", () => {
+  const checkpointSource = readSource(
+    "services",
+    "novel",
+    "director",
+    "automation",
+    "novelDirectorAutoExecutionCheckpointRuntime.ts",
+  );
+  const riskServiceSource = readSource(
+    "services",
+    "novel",
+    "director",
+    "risk",
+    "DirectorRiskAssessmentService.ts",
+  );
+
+  assert.equal(checkpointSource.includes("directorRiskAssessmentService"), false);
+  assert.equal(checkpointSource.includes("assessQualityRepair"), false);
+  assert.equal(riskServiceSource.includes("assessQualityRepair"), false);
+});
+
 test("RAG keeps its dedicated persisted index queue", () => {
   const schema = readSource("prisma", "schema.prisma");
   const ragService = readSource("services", "rag", "RagIndexService.ts");

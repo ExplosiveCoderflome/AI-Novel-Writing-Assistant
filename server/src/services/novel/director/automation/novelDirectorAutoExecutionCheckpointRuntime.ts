@@ -20,7 +20,6 @@ import {
 import { buildDirectorSessionState } from "../runtime/novelDirectorHelpers";
 import { PIPELINE_REPLAN_NOTICE_CODE, parsePipelinePayload } from "../../pipelineJobState";
 import { buildDirectorQualityRepairRisk } from "../phases/novelDirectorQualityRepairRisk";
-import { directorRiskAssessmentService } from "../risk/DirectorRiskAssessmentService";
 
 export type AutoExecutionResumeStage = "chapter" | "pipeline";
 
@@ -246,37 +245,12 @@ export async function resolveQualityRepairNoticeAction(
     remainingChapterCount: input.autoExecution.remainingChapterCount ?? 0,
     totalChapterCount: input.range.totalChapterCount,
   });
-  const riskDecision = await directorRiskAssessmentService.assessQualityRepair({
-    taskId: input.taskId,
-    novelId: input.novelId,
-    qualityRepairRisk,
-    failureSummary: input.noticeSummary,
-    issueFingerprint: [
-      "quality_repair",
-      input.noticeCode ?? qualityRepairRisk.riskLevel,
-      input.autoExecution.nextChapterId ?? input.autoExecution.nextChapterOrder ?? "book",
-    ].join(":"),
-    affectedChapterOrders: input.autoExecution.nextChapterOrder == null ? [] : [input.autoExecution.nextChapterOrder],
-    failureDetails: {
-      noticeCode: input.noticeCode ?? null,
-      payload: parsePipelinePayload(input.payload),
-    },
-    taskContext: {
-      runMode: input.request.runMode,
-      remainingChapterCount: input.autoExecution.remainingChapterCount ?? 0,
-    },
-    auditReports: [],
-    existingQualityDebt: input.autoExecution.qualityDebtSummaries ?? [],
-    provider: input.request.provider,
-    model: input.request.model,
-    temperature: input.request.temperature,
-  });
   const checkpointState = {
     ...input.autoExecution,
     pipelineJobId: input.pipelineJobId,
     pipelineStatus: input.pipelineStatus,
     qualityRepairRisk,
-    latestRiskAssessment: riskDecision?.assessment ?? input.autoExecution.latestRiskAssessment ?? null,
+    latestRiskAssessment: input.autoExecution.latestRiskAssessment ?? null,
   };
   const remainingChapterCount = checkpointState.remainingChapterCount ?? 0;
   const isAiDriverExecution = isDirectorAutoExecutionRunMode(input.request.runMode);
@@ -317,7 +291,7 @@ export async function resolveQualityRepairNoticeAction(
     });
   }
 
-  if (!riskDecision?.shouldPause && (canContinueAfterExplicitApproval || canAutoContinueByPolicy)) {
+  if (canContinueAfterExplicitApproval || canAutoContinueByPolicy) {
     return {
       action: "auto_continue",
       checkpointType,
@@ -340,15 +314,6 @@ export async function resolveQualityRepairNoticeAction(
         source: "review_skip",
         chapter: input.qualityIssueChapter ?? null,
       }),
-      qualityRepairRisk,
-    };
-  }
-
-  if (!riskDecision?.shouldPause && shouldNotifyAndContinueAiDriverQualityNotice) {
-    return {
-      action: "auto_continue",
-      checkpointType,
-      checkpointState,
       qualityRepairRisk,
     };
   }
