@@ -1,7 +1,8 @@
 # 当前阶段开发任务：正文生产与问题治理收束
 
 更新时间：2026-08-25
-当前分支：`codex/merge-issue-governance-snapshot`
+开发来源分支：`codex/merge-issue-governance-snapshot`
+集成目标：`beta`
 对比基线：`origin/beta@2e89b07a`
 阶段状态：快照已完成集成验证（剩余人工审核入口与真实恢复回归）
 
