@@ -327,6 +327,7 @@ export class DirectorCoreStepModuleRuntime {
     resumeCheckpointType?: "chapter_batch_ready" | "chapter_batch_ready" | "replan_required" | null;
     previousFailureMessage?: string | null;
     allowSkipReviewBlockedChapter?: boolean;
+    resumePendingManualRecovery?: boolean;
   }): Promise<void> {
     await this.autoExecutionRuntime.runFromReady({
       taskId: input.taskId,
@@ -337,6 +338,7 @@ export class DirectorCoreStepModuleRuntime {
       resumeCheckpointType: input.resumeCheckpointType,
       previousFailureMessage: input.previousFailureMessage,
       allowSkipReviewBlockedChapter: input.allowSkipReviewBlockedChapter,
+      resumePendingManualRecovery: input.resumePendingManualRecovery,
     });
   }
 

@@ -1,7 +1,6 @@
 import type { BaseMessageChunk } from "@langchain/core/messages";
 import type { StreamDoneHelpers, StreamDonePayload, WritableSSEFrame } from "../../../llm/streaming";
 import type { ChapterRuntimePackage, GenerationContextPackage } from "@ai-novel/shared/types/chapterRuntime";
-import { prisma } from "../../../db/prisma";
 import { ChapterWritingGraph } from "../chapterWritingGraph";
 import { toText } from "../novelP0Utils";
 import { GenerationContextAssembler } from "./GenerationContextAssembler";

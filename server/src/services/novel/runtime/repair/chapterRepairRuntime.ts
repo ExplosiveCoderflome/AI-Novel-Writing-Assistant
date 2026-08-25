@@ -240,42 +240,6 @@ export async function prepareChapterRepairExecution(
         throw error;
       }
 
-      // Root B 宽松锚点重试：patch 锚点失配时，用 continuity_only 模式再试一次，
-      // 给 LLM 更宽泛的定位空间，避免直接升级 heavy_repair。
-      const looseAnchorMode: PatchRepairMode = "continuity_only";
-      const looseAnchorHint = "宽松锚点重试（anchor-loose retry）：不要求精确匹配原文，以段落语义为锚，优先修连续性问题。";
-      try {
-        const retried = await patchRepairService.repair({
-          novelId: input.novelId,
-          chapterId: input.chapterId,
-          novelTitle: input.novelTitle,
-          chapterTitle: input.chapterTitle,
-          content: input.content,
-          issues,
-          runtimePackage: input.runtimePackage,
-          repairContext: input.repairContext,
-          provider: input.options.provider,
-          model: input.options.model,
-          temperature: input.options.temperature,
-          repairMode: looseAnchorMode,
-          modeHint: looseAnchorHint,
-        });
-        return {
-          kind: "patched",
-          content: retried.content,
-          issues,
-          finalRepairMode: looseAnchorMode,
-          modeHint: looseAnchorHint,
-          escalatedFromPatch: false,
-          patchFailure: null,
-        };
-      } catch (retryError) {
-        if (!(retryError instanceof ChapterPatchRepairFailedError)) {
-          throw retryError;
-        }
-        // 宽松锚点重试仍失败 → 升级 heavy_repair
-      }
-
       activeRepairMode = "heavy_repair";
       modeHint = getRepairModeHint(activeRepairMode, issueCodes);
       return {

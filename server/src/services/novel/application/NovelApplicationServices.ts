@@ -58,7 +58,6 @@ export class DefaultNovelApplicationServices {
   private readonly chapterEditorService = new NovelChapterEditorService();
   private readonly chapterRuntimeCoordinator = new ChapterRuntimeCoordinator();
   private readonly qualityRepairCoordinator = new ChapterRuntimeCoordinator({
-    reviewChapterAfterRepair: (novelId, chapterId, options) => this.core.reviewChapter(novelId, chapterId, options),
     resolveAuditIssues: (novelId, issueIds) => this.core.resolveAuditIssues(novelId, issueIds),
   });
 

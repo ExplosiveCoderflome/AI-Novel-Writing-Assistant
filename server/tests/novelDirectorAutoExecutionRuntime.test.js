@@ -591,15 +591,13 @@ test("runFromReady treats explicit range continuation as approval for quality-al
   );
 });
 
-test("runFromReady resumes a pending manual-recovery pipeline job before waiting on it", async () => {
+test("runFromReady keeps a pending manual-recovery pipeline job paused", async () => {
   const calls = [];
-  let pipelineCompleted = false;
-  let jobReadCount = 0;
   const runtime = new NovelDirectorAutoExecutionRuntime({
     novelContextService: {
       async listChapters() {
         return [
-          withExecutionDetail({ id: "chapter-1", order: 1, generationState: pipelineCompleted ? "approved" : "draft" }),
+          withExecutionDetail({ id: "chapter-1", order: 1, generationState: "draft" }),
         ];
       },
     },
@@ -614,42 +612,15 @@ test("runFromReady resumes a pending manual-recovery pipeline job before waiting
       },
       async getPipelineJobById(jobId) {
         calls.push(["getPipelineJobById", jobId]);
-        jobReadCount += 1;
-        if (jobReadCount === 1) {
-          return {
-            id: "job-paused",
-            status: "queued",
-            progress: 0.65,
-            pendingManualRecovery: true,
-            currentStage: "queued",
-            currentItemLabel: null,
-            error: "服务重启后任务已暂停，等待手动恢复。",
-          };
-        }
-        if (jobReadCount === 2) {
-          return {
-            id: "job-paused",
-            status: "running",
-            progress: 0.66,
-            pendingManualRecovery: false,
-            currentStage: "reviewing",
-            currentItemLabel: "第1章 · 批次 1/1",
-            error: null,
-          };
-        }
-        pipelineCompleted = true;
         return {
           id: "job-paused",
-          status: "succeeded",
-          progress: 1,
-          pendingManualRecovery: false,
-          currentStage: null,
+          status: "queued",
+          progress: 0.65,
+          pendingManualRecovery: true,
+          currentStage: "queued",
           currentItemLabel: null,
-          error: null,
+          error: "章节需要人工确认，后续生成已暂停。",
         };
-      },
-      async resumePipelineJob(jobId) {
-        calls.push(["resumePipelineJob", jobId]);
       },
       async cancelPipelineJob() {
         calls.push(["cancelPipelineJob"]);
@@ -695,12 +666,11 @@ test("runFromReady resumes a pending manual-recovery pipeline job before waiting
 
   assert.deepEqual(calls, [
     ["getPipelineJobById", "job-paused"],
-    ["resumePipelineJob", "job-paused"],
-    ["getPipelineJobById", "job-paused"],
     ["bootstrapTask", "job-paused", "running"],
     ["findActivePipelineJobForRange", "novel-1", 1, 1, "job-paused"],
     ["getPipelineJobById", "job-paused"],
-    ["recordCheckpoint", "task-auto-exec", "job-paused", "succeeded"],
+    ["markTaskFailed"],
+    ["bootstrapTask", "job-paused", "queued"],
   ]);
 });
 
