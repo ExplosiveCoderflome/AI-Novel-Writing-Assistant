@@ -3,7 +3,6 @@ import type {
   DirectorPolicyDecision,
   DirectorPolicyMode,
   DirectorRuntimePolicySnapshot,
-  DirectorQualityGateResult,
 } from "@ai-novel/shared/types/directorRuntime";
 import { buildDefaultDirectorPolicy } from "./directorRuntimeDefaults";
 
@@ -23,7 +22,6 @@ export interface DirectorPolicyRequest {
   isExpensiveReview?: boolean;
   mayRecomputeDownstream?: boolean;
   isLargeScopeAutoRun?: boolean;
-  qualityGateResult?: DirectorQualityGateResult | null;
 }
 
 const DOWNSTREAM_RECOMPUTE_WRITE_TYPES = new Set([
@@ -66,8 +64,6 @@ function buildDecision(input: {
   mayOverwriteUserContent: boolean;
   affectedArtifacts: string[];
   riskTags?: DirectorPolicyRiskTag[];
-  autoRetryBudget?: number;
-  onQualityFailure: DirectorPolicyDecision["onQualityFailure"];
 }): DirectorPolicyDecision {
   return {
     canRun: input.canRun,
@@ -77,8 +73,6 @@ function buildDecision(input: {
     mayOverwriteUserContent: input.mayOverwriteUserContent,
     affectedArtifacts: input.affectedArtifacts,
     riskTags: uniqueTags(input.riskTags ?? []),
-    autoRetryBudget: input.autoRetryBudget ?? 0,
-    onQualityFailure: input.onQualityFailure,
   };
 }
 
@@ -112,20 +106,6 @@ export class DirectorPolicyEngine {
         reason: "工作区分析不会写入小说内容，可以直接执行。",
         mayOverwriteUserContent: false,
         affectedArtifacts,
-        onQualityFailure: "continue_with_risk",
-      });
-    }
-
-    if (input.qualityGateResult?.status === "blocked_scope") {
-      return buildDecision({
-        canRun: false,
-        requiresApproval: true,
-        gateType: "blocked_scope",
-        reason: input.qualityGateResult.reason,
-        mayOverwriteUserContent: mayTouchUserContent,
-        affectedArtifacts,
-        riskTags: ["quality_blocked_scope"],
-        onQualityFailure: "block_scope",
       });
     }
 
@@ -138,7 +118,6 @@ export class DirectorPolicyEngine {
         mayOverwriteUserContent: true,
         affectedArtifacts,
         riskTags: ["protected_user_content"],
-        onQualityFailure: "pause_for_manual",
       });
     }
 
@@ -151,7 +130,6 @@ export class DirectorPolicyEngine {
         mayOverwriteUserContent: mayTouchUserContent,
         affectedArtifacts,
         riskTags: ["suggest_only"],
-        onQualityFailure: "pause_for_manual",
       });
     }
 
@@ -164,7 +142,6 @@ export class DirectorPolicyEngine {
         mayOverwriteUserContent: mayTouchUserContent,
         affectedArtifacts,
         riskTags: ["expensive_review"],
-        onQualityFailure: "pause_for_manual",
       });
     }
 
@@ -177,7 +154,6 @@ export class DirectorPolicyEngine {
         mayOverwriteUserContent: mayTouchUserContent,
         affectedArtifacts,
         riskTags: ["default_approval"],
-        onQualityFailure: "pause_for_manual",
       });
     }
 
@@ -190,7 +166,6 @@ export class DirectorPolicyEngine {
         mayOverwriteUserContent: mayTouchUserContent,
         affectedArtifacts,
         riskTags: ["downstream_recompute"],
-        onQualityFailure: "pause_for_manual",
       });
     }
 
@@ -203,47 +178,6 @@ export class DirectorPolicyEngine {
         mayOverwriteUserContent: mayTouchUserContent,
         affectedArtifacts,
         riskTags: ["large_scope_auto_run"],
-        onQualityFailure: "pause_for_manual",
-      });
-    }
-
-    if (input.qualityGateResult?.status === "repairable") {
-      return buildDecision({
-        canRun: true,
-        requiresApproval: false,
-        gateType: "none",
-        reason: "质量问题可自动修复一次。",
-        mayOverwriteUserContent: mayTouchUserContent,
-        affectedArtifacts,
-        riskTags: ["quality_repair"],
-        autoRetryBudget: 1,
-        onQualityFailure: "repair_once",
-      });
-    }
-
-    if (input.qualityGateResult?.status === "needs_manual_repair") {
-      return buildDecision({
-        canRun: false,
-        requiresApproval: true,
-        gateType: "approval",
-        reason: "质量问题需要人工修复或确认后继续。",
-        mayOverwriteUserContent: mayTouchUserContent,
-        affectedArtifacts,
-        riskTags: ["quality_manual_repair"],
-        onQualityFailure: "pause_for_manual",
-      });
-    }
-
-    if (input.qualityGateResult?.status === "continue_with_risk") {
-      return buildDecision({
-        canRun: policy.mode === "auto_safe_scope",
-        requiresApproval: policy.mode !== "auto_safe_scope",
-        gateType: policy.mode === "auto_safe_scope" ? "none" : "approval",
-        reason: "该问题不会破坏后续推进，但会记录风险供后续处理。",
-        mayOverwriteUserContent: mayTouchUserContent,
-        affectedArtifacts,
-        riskTags: ["continue_with_risk"],
-        onQualityFailure: "continue_with_risk",
       });
     }
 
@@ -254,9 +188,6 @@ export class DirectorPolicyEngine {
       reason: "当前策略允许执行该动作。",
       mayOverwriteUserContent: mayTouchUserContent,
       affectedArtifacts,
-      autoRetryBudget: input.action === "repair" ? 1 : 0,
-      onQualityFailure: input.action === "repair" ? "repair_once" : "continue_with_risk",
-      riskTags: input.action === "repair" ? ["quality_repair"] : [],
     });
   }
 }

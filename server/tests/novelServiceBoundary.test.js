@@ -141,6 +141,30 @@ test("auto director checkpoints consume governed quality actions without a secon
   assert.equal(riskServiceSource.includes("assessQualityRepair"), false);
 });
 
+test("runtime preflight policy does not own chapter retry or quality actions", () => {
+  const policySource = readSource(
+    "services",
+    "novel",
+    "director",
+    "runtime",
+    "DirectorPolicyEngine.ts",
+  );
+  const sharedContract = fs.readFileSync(
+    path.join(repoRoot, "..", "shared", "types", "directorRuntime.ts"),
+    "utf8",
+  );
+
+  for (const removedContract of [
+    "qualityGateResult",
+    "autoRetryBudget",
+    "onQualityFailure",
+    "maxAutoRepairAttempts",
+  ]) {
+    assert.equal(policySource.includes(removedContract), false);
+    assert.equal(sharedContract.includes(removedContract), false);
+  }
+});
+
 test("RAG keeps its dedicated persisted index queue", () => {
   const schema = readSource("prisma", "schema.prisma");
   const ragService = readSource("services", "rag", "RagIndexService.ts");
