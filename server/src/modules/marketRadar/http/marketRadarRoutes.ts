@@ -71,7 +71,7 @@ router.post("/reports/:id/foundation-sync", validate({ params: idParamsSchema, b
   try {
     const { id } = req.params as z.infer<typeof idParamsSchema>;
     const { target } = req.body as z.infer<typeof foundationSyncSchema>;
-    res.json(ok(await marketRadarService.syncReportFoundation(id, target), "创作基础已加入资源库。"));
+    res.json(ok(await marketRadarService.syncReportFoundation(id, target), "资源库处理完成。"));
   } catch (error) { next(error); }
 });
 
