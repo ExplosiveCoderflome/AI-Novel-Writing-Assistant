@@ -56,6 +56,7 @@ interface StageIdeaProps {
 function sourceLabel(source: NovelResourceRecommendationSource | undefined): string | null {
   if (source === "user_selected") return "你的选择";
   if (source === "ai_recommended") return "AI 匹配";
+  if (source === "market_recommended") return "雷达推荐";
   return null;
 }
 

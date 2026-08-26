@@ -1,4 +1,4 @@
-export type NovelResourceRecommendationSource = "user_selected" | "ai_recommended";
+export type NovelResourceRecommendationSource = "user_selected" | "ai_recommended" | "market_recommended";
 
 export interface NovelResourceRecommendationOption {
   id: string;
