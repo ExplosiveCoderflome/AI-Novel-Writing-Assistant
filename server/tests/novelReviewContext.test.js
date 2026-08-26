@@ -233,12 +233,14 @@ test("manual review and manual audit pass assembled chapter review context into 
   const originalChapterFindFirst = prisma.chapter.findFirst;
   const originalChapterUpdate = prisma.chapter.update;
   const originalQualityReportCreate = prisma.qualityReport.create;
-  const originalShouldTriggerReplanFromAudit = plannerService.shouldTriggerReplanFromAudit;
+  const originalBuildReplanRecommendation = plannerService.buildReplanRecommendation;
+  const originalReplan = plannerService.replan;
   const originalAuditChapter = auditService.auditChapter;
   const originalAssemble = GenerationContextAssembler.prototype.assemble;
 
   const auditCalls = [];
   const chapterUpdateCalls = [];
+  let replanCallCount = 0;
   prisma.chapter.findFirst = async () => ({
     id: "chapter-1",
     title: "第1章",
@@ -250,7 +252,17 @@ test("manual review and manual audit pass assembled chapter review context into 
     return null;
   };
   prisma.qualityReport.create = async () => null;
-  plannerService.shouldTriggerReplanFromAudit = () => false;
+  plannerService.buildReplanRecommendation = () => ({
+    recommended: true,
+    action: "stop_for_replan",
+    scope: "global_book",
+    reason: "需要重新安排后续章节窗口。",
+    blockingIssueIds: ["issue-review-replan"],
+  });
+  plannerService.replan = async () => {
+    replanCallCount += 1;
+    return null;
+  };
   GenerationContextAssembler.prototype.assemble = async () => ({
     novel: { id: "novel-1", title: "测试小说" },
     chapter: { id: "chapter-1", title: "第1章", order: 1, content: "章节正文", expectation: "推进冲突" },
@@ -274,24 +286,26 @@ test("manual review and manual audit pass assembled chapter review context into 
 
   try {
     const service = new NovelCoreReviewService();
-    await service.reviewChapter("novel-1", "chapter-1", {});
+    const reviewResult = await service.reviewChapter("novel-1", "chapter-1", {});
     await service.auditChapter("novel-1", "chapter-1", "plot", {});
     assert.deepEqual(auditCalls, [
       ["full", "shared-review-context"],
       ["plot", "shared-review-context"],
     ]);
-    assert.deepEqual(chapterUpdateCalls[0], {
-      where: { id: "chapter-1" },
-      data: {
-        generationState: "reviewed",
-        chapterStatus: "completed",
-      },
-    });
+    assert.equal(chapterUpdateCalls.length, 1);
+    assert.equal(chapterUpdateCalls[0].where.id, "chapter-1");
+    assert.equal(chapterUpdateCalls[0].data.generationState, "reviewed");
+    assert.equal(chapterUpdateCalls[0].data.chapterStatus, "needs_repair");
+    assert.equal(JSON.parse(chapterUpdateCalls[0].data.riskFlags).qualityLoop.recommendedAction, "replan");
+    assert.equal(reviewResult.replanRecommendation.action, "stop_for_replan");
+    assert.equal(reviewResult.qualityAssessment.recommendedAction, "replan");
+    assert.equal(replanCallCount, 0);
   } finally {
     prisma.chapter.findFirst = originalChapterFindFirst;
     prisma.chapter.update = originalChapterUpdate;
     prisma.qualityReport.create = originalQualityReportCreate;
-    plannerService.shouldTriggerReplanFromAudit = originalShouldTriggerReplanFromAudit;
+    plannerService.buildReplanRecommendation = originalBuildReplanRecommendation;
+    plannerService.replan = originalReplan;
     auditService.auditChapter = originalAuditChapter;
     GenerationContextAssembler.prototype.assemble = originalAssemble;
   }

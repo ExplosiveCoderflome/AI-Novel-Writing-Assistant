@@ -1,4 +1,5 @@
 import type { ApiResponse } from "@ai-novel/shared/types/api";
+import type { ChapterQualityLoopAssessment } from "@ai-novel/shared/types/chapterQualityLoop";
 import type { LLMProvider } from "@ai-novel/shared/types/llm";
 import type {
   AuditIssue,
@@ -29,6 +30,8 @@ export async function reviewNovelChapter(
       score: QualityScore;
       issues: ReviewIssue[];
       auditReports?: AuditReport[];
+      qualityAssessment: ChapterQualityLoopAssessment;
+      replanRecommendation: ReplanRecommendation;
     }>
   >(`/novels/${id}/chapters/${chapterId}/review`, payload ?? {});
   return data;

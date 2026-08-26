@@ -1,3 +1,4 @@
+import type { Prisma } from "@prisma/client";
 import { prisma } from "../../../../db/prisma";
 import { withSqliteRetry } from "../../../../db/sqliteRetry";
 import {
@@ -50,6 +51,19 @@ export class ChapterLifecycleService {
         data: mergeChapterPatchForGenerationStateBump({}, generationState),
       }),
       { label: "chapterLifecycle.markGenerationState" },
+    );
+  }
+
+  async applyQualityAssessmentState(input: {
+    chapterId: string;
+    data: Pick<Prisma.ChapterUpdateInput, "riskFlags" | "repairHistory" | "chapterStatus" | "generationState">;
+  }): Promise<void> {
+    await withSqliteRetry(
+      () => prisma.chapter.update({
+        where: { id: input.chapterId },
+        data: input.data,
+      }),
+      { label: "chapterLifecycle.applyQualityAssessmentState" },
     );
   }
 }
