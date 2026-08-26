@@ -7,7 +7,7 @@ import type {
   MarketTrendReport,
 } from "@ai-novel/shared/types/marketRadar";
 import { ArrowRight, Check, ExternalLink, Loader2, Radar, RefreshCw, Sparkles } from "lucide-react";
-import { useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import {
   createMarketCreativeBrief,
   getMarketRadarScan,
@@ -278,12 +278,22 @@ export default function MarketRadarPage() {
             <CardContent>
               <p className="leading-7">{report.summary}</p>
               {report.productionFoundation ? (
-                <div className="mt-4 flex flex-wrap gap-x-5 gap-y-2 text-sm">
-                  <span><span className="text-muted-foreground">题材基底：</span>{report.productionFoundation.genre.path}</span>
-                  <span><span className="text-muted-foreground">主要推进：</span>{report.productionFoundation.primaryStoryMode.path}</span>
-                  {report.productionFoundation.secondaryStoryMode ? (
-                    <span><span className="text-muted-foreground">辅助推进：</span>{report.productionFoundation.secondaryStoryMode.path}</span>
-                  ) : null}
+                <div className="mt-4 rounded-lg bg-muted/45 px-4 py-3">
+                  <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                    <div className="text-sm">
+                      <div><span className="text-muted-foreground">题材基底：</span>{report.productionFoundation.genre.path}</div>
+                      <div className="mt-1"><span className="text-muted-foreground">推进模式：</span>{report.productionFoundation.primaryStoryMode.path}{report.productionFoundation.secondaryStoryMode ? ` + ${report.productionFoundation.secondaryStoryMode.path}` : ""}</div>
+                    </div>
+                    <div className="flex flex-wrap gap-2">
+                      <Button type="button" variant="outline" size="sm" asChild>
+                        <Link to="/genres"><Check className="h-3.5 w-3.5" />题材基底库 · 已同步</Link>
+                      </Button>
+                      <Button type="button" variant="outline" size="sm" asChild>
+                        <Link to="/story-modes"><Check className="h-3.5 w-3.5" />推进模式库 · 已同步</Link>
+                      </Button>
+                    </div>
+                  </div>
+                  <p className="mt-2 text-xs leading-5 text-muted-foreground">创作基础同步到统一资源库；下方市场信号用于选择本次开书偏好。</p>
                 </div>
               ) : null}
               <div className="mt-4 flex flex-wrap gap-2">{report.platformStatuses.map((status) => <Badge key={status.platform} variant={status.status === "failed" ? "destructive" : "outline"}>{PLATFORM_LABELS[status.platform]} · {status.itemCount}项{status.status === "stale" ? " · 建议刷新" : ""}</Badge>)}</div>
