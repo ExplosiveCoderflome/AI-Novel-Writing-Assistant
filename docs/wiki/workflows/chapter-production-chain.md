@@ -95,6 +95,8 @@
 - 有可用正文的非阻塞质量债，在持久化状态上应完成降级定稿（`generationState=approved`、`chapterStatus=completed`），并保留质量债风险标记用于后续回收；阅读书架把历史遗留的同类记录投影为“已保存 · 待优化”，不能显示成“审校修复中”。只有结构化 `replan_required` 才显示为“等待重规划”。
 - `urgentPayoffs`、`overduePayoffs`、`ledgerSummary.urgentCount / overdueCount` 和 `nextAction=advance_payoff` 都是章节职责或质量债信号。它们可以进入写作上下文、接收闸门和后续质量回收，但不能单独触发全局重规划，否则系统会把“本章应该推进 payoff”误判成“整本计划已经失配”。
 - `replanRecommendation` 必须携带动作与作用域：`continue_with_warning` 表示只记录提示并继续；`local_patch_plan + local_window` 表示自动重规划当前章之后的未完成窗口并继续；`stop_for_replan + global_book` 才表示需要暂停批量流水线。调用方不得只看 `recommended=true` 或旧的动作名称就停止章节执行。
+- 人工章节审校只负责返回结构化 `qualityAssessment` 与 `replanRecommendation`，并把评估写成可恢复的章节状态。它不得在审校请求内直接调用规划器改写章节窗口；用户显式点击重规划时才进入书级重规划入口，自动生产则只允许 `ChapterQualityClosure` 消费明确的 `stop_for_replan + global_book` 并暂停。
+- 人工审校若得到明确重规划结论，应保留当前正文，把 `recommendedAction=replan` 写入 `riskFlags.qualityLoop`，并落到 `generationState=reviewed + chapterStatus=needs_repair`。这组字段是等待人工确认的章节检查点，不代表正文丢失或整本任务已经失败。
 - 明确进入 `replan_required` 后，恢复动作只改写章节计划窗口，不重写已保存正文。重规划完成后，章节执行范围必须依据真实正文事实重新定位到第一个未生成章节；不得沿用旧失败任务的单章范围反复推进，也不得把“继续”实现成每章跳过一次相同的计划失配。
 - 逾期 payoff 无论逾期距离、是否落在当前窗口、是否被当前章目标引用，都只能输出 `continue_with_warning`。只有结构化 `nextAction=replan`、人工强制或章节验收确认 `plan_misalignment` 才能输出 `stop_for_replan`；高/严重审计问题输出 `local_patch_plan`，不得停止剩余章节。
 - 无明确目标窗口的 overdue payoff 只能作为账本风险跟进，不能用 `lastTouchedChapterOrder` 或 `firstSeenChapterOrder` 推导逾期距离，也不能锚定旧章节触发 `stop_for_replan`。伏笔账本同步若发现 AI 输出了无 `targetStartChapterOrder`、`targetEndChapterOrder`、`payoffChapterOrder`、`payoffChapterId` 的 overdue，应降级为 `pending_payoff` 并保留 `payoff_missing_progress` 风险信号。

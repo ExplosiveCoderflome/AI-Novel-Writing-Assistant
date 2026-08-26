@@ -1,5 +1,5 @@
 import type { ChapterRuntimePackage } from "./chapterRuntime.js";
-import type { QualityScore, ReviewIssue } from "./novel.js";
+import type { QualityScore, ReplanRecommendation, ReviewIssue } from "./novel.js";
 import type {
   ChapterExecutionMissingObligation,
   ChapterFailureClassification,
@@ -141,6 +141,7 @@ export interface ChapterQualityLoopAssessmentInput {
   score: QualityScore;
   issues: ReviewIssue[];
   runtimePackage?: ChapterRuntimePackage | null;
+  replanRecommendation?: ReplanRecommendation | null;
   evaluatedAt?: string | Date;
   previousRepairHistory?: string | null;
 }
@@ -366,7 +367,9 @@ function buildProseQualitySignal(input: ChapterQualityLoopAssessmentInput): Chap
 }
 
 function buildRollingWindowSignal(input: ChapterQualityLoopAssessmentInput): ChapterQualityLoopSignal {
-  const replanRecommendation = input.runtimePackage?.replanRecommendation ?? null;
+  const replanRecommendation = input.runtimePackage?.replanRecommendation
+    ?? input.replanRecommendation
+    ?? null;
   if (replanRecommendation?.recommended && replanRecommendation.scope === "global_book") {
     return {
       artifactType: "rolling_window_review",
