@@ -27,18 +27,12 @@ export function buildProductionExperienceSeed(
   if (!directorInput) {
     throw new AppError("自动导演任务缺少继续生产所需的上下文。", 409);
   }
-  const nextInput = experience === "simple"
-    ? applyDirectorRunModeContract({
-      ...directorInput,
-      runMode: "full_book_autopilot" as const,
-      autoExecutionPlan: buildFullBookAutopilotExecutionPlan(),
-      autoApproval: buildFullDirectorAutoApprovalConfig(),
-    })
-    : applyDirectorRunModeContract({
-      ...directorInput,
-      runMode: "auto_to_ready" as const,
-      autoExecutionPlan: undefined,
-    });
+  const nextInput = applyDirectorRunModeContract({
+    ...directorInput,
+    runMode: "full_book_autopilot" as const,
+    autoExecutionPlan: buildFullBookAutopilotExecutionPlan(),
+    autoApproval: buildFullDirectorAutoApprovalConfig(),
+  });
   return {
     ...seed,
     productionExperience: experience,
@@ -66,80 +60,30 @@ export class DirectorProductionExperienceService {
 
     const seed = parseSeedPayload<DirectorWorkflowSeedPayload>(task.seedPayloadJson) ?? {};
     const selected = parseSelectedExperience(seed);
-    if (selected === "simple" && experience === "professional") {
-      const activeJob = await prisma.generationJob.findFirst({
-        where: {
-          novelId: task.novelId,
-          status: { in: ["queued", "running"] },
-        },
-        select: { id: true },
-      });
-      const nextSeed: DirectorWorkflowSeedPayload = activeJob
-        ? { ...seed, pendingProductionExperience: "professional" }
-        : { ...buildProductionExperienceSeed(seed, "professional"), pendingProductionExperience: undefined };
+    if (selected && selected !== experience) {
+      const nextSeed = buildProductionExperienceSeed(seed, experience);
       await prisma.$transaction([
         prisma.novelWorkflowTask.update({
           where: { id: task.id },
-          data: activeJob
-            ? {
-              seedPayloadJson: JSON.stringify(nextSeed),
-              currentItemLabel: "将在当前章节完成后交接到专业创作",
-            }
-            : {
-              seedPayloadJson: JSON.stringify(nextSeed),
-              status: "succeeded",
-              progress: 1,
-              currentStage: "chapter_execution",
-              currentItemKey: "professional_production_handoff",
-              currentItemLabel: "已交接到专业创作工作台",
-              checkpointType: "workflow_completed",
-              checkpointSummary: "自动创作已在安全章节边界停止，后续由专业工作台接管。",
-              pendingManualRecovery: false,
-              finishedAt: new Date(),
-            },
+          data: { seedPayloadJson: JSON.stringify(nextSeed) },
         }),
-        ...(activeJob
-          ? []
-          : [prisma.novel.update({
-            where: { id: task.novelId },
-            data: { creationExperience: "professional" },
-          })]),
+        prisma.novel.update({
+          where: { id: task.novelId },
+          data: { creationExperience: experience },
+        }),
       ]);
       return {
         experience,
         workflowTaskId: task.id,
         novelId: task.novelId,
-        targetRoute: `/novels/${task.novelId}/edit`,
-        backgroundStarted: Boolean(activeJob),
+        targetRoute: experience === "simple" ? `/novels/${task.novelId}/simple` : `/novels/${task.novelId}/edit`,
+        backgroundStarted: task.status === "queued" || task.status === "running",
       };
-    }
-    if (selected && selected !== experience) {
-      throw new AppError("这次生产方式已确认，不能重复改选。", 409);
     }
 
     if (!selected) {
       if (task.checkpointType !== "production_experience_required") {
-        if (experience !== "simple") {
-          throw new AppError("自动导演还没有完成正文生产前的准备。", 409);
-        }
-        const nextSeed = buildProductionExperienceSeed(seed, experience);
-        await prisma.$transaction([
-          prisma.novelWorkflowTask.update({
-            where: { id: task.id },
-            data: { seedPayloadJson: JSON.stringify(nextSeed) },
-          }),
-          prisma.novel.update({
-            where: { id: task.novelId },
-            data: { creationExperience: "simple" },
-          }),
-        ]);
-        return {
-          experience,
-          workflowTaskId: task.id,
-          novelId: task.novelId,
-          targetRoute: `/novels/${task.novelId}/simple`,
-          backgroundStarted: task.status === "queued" || task.status === "running",
-        };
+        throw new AppError("自动导演还没有完成正文生产前的准备。", 409);
       }
       const nextSeed = buildProductionExperienceSeed(seed, experience);
 
@@ -149,29 +93,16 @@ export class DirectorProductionExperienceService {
             id: task.id,
             checkpointType: "production_experience_required",
           },
-          data: experience === "simple"
-            ? {
-              seedPayloadJson: JSON.stringify(nextSeed),
-              status: "waiting_approval",
-              currentStage: "chapter_execution",
-              currentItemKey: "chapter_batch_ready",
-              currentItemLabel: "已选择简易创作，准备开始全书生产",
-              checkpointType: "chapter_batch_ready",
-              checkpointSummary: "章节执行资源已准备完成，AI 将开始全书生产。",
-              pendingManualRecovery: false,
-            }
-            : {
-              seedPayloadJson: JSON.stringify(nextSeed),
-              status: "succeeded",
-              progress: 1,
-              currentStage: "chapter_execution",
-              currentItemKey: "professional_production_handoff",
-              currentItemLabel: "已交接到专业创作工作台",
-              checkpointType: "workflow_completed",
-              checkpointSummary: "自动导演已完成前期准备，后续章节生产由专业工作台接管。",
-              pendingManualRecovery: false,
-              finishedAt: new Date(),
-            },
+          data: {
+            seedPayloadJson: JSON.stringify(nextSeed),
+            status: "waiting_approval",
+            currentStage: "chapter_execution",
+            currentItemKey: "chapter_batch_ready",
+            currentItemLabel: "已选择创作界面，准备开始全书生产",
+            checkpointType: "chapter_batch_ready",
+            checkpointSummary: "章节执行资源已准备完成，AI 将开始全书生产。",
+            pendingManualRecovery: false,
+          },
         });
         if (updated.count === 0) {
           return false;
@@ -188,16 +119,6 @@ export class DirectorProductionExperienceService {
       }
     }
 
-    if (experience === "professional") {
-      return {
-        experience,
-        workflowTaskId: task.id,
-        novelId: task.novelId,
-        targetRoute: `/novels/${task.novelId}/edit`,
-        backgroundStarted: false,
-      };
-    }
-
     const shouldEnqueue = !selected || (
       task.status === "waiting_approval"
       && task.checkpointType === "chapter_batch_ready"
@@ -212,7 +133,7 @@ export class DirectorProductionExperienceService {
       experience,
       workflowTaskId: task.id,
       novelId: task.novelId,
-      targetRoute: `/novels/${task.novelId}/simple`,
+      targetRoute: experience === "simple" ? `/novels/${task.novelId}/simple` : `/novels/${task.novelId}/edit`,
       backgroundStarted: true,
       commandId: command?.commandId,
     };

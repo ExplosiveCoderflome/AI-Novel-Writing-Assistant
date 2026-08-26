@@ -1,14 +1,21 @@
-import { useEffect, useRef, useState } from "react";
-import type { DirectorIdeaInspiration } from "@ai-novel/shared/types/novelDirector";
+import { useEffect, useMemo, useRef, useState } from "react";
+import type {
+  DirectorIdeaConstellationOption,
+  DirectorIdeaConstellationSelection,
+  DirectorIdeaInspiration,
+} from "@ai-novel/shared/types/novelDirector";
 import type { NovelResourceRecommendationSource } from "@ai-novel/shared/types/novelResourceRecommendation";
 import { motion, useReducedMotion } from "framer-motion";
 import { ArrowRight, Layers3, Route, Sparkles, X } from "lucide-react";
-import type { GenreTreeNode } from "@/api/genre";
-import type { StoryModeTreeNode } from "@/api/storyMode";
+import { flattenGenreTreeOptions, type GenreTreeNode } from "@/api/genre";
+import { flattenStoryModeTreeOptions, type StoryModeTreeNode } from "@/api/storyMode";
 import { Button } from "@/components/ui/button";
 import NovelAutoDirectorIdeaInspirationPanel from "../components/NovelAutoDirectorIdeaInspirationPanel";
 import OnboardingTip from "@/components/onboarding/OnboardingTip";
+import StoryModeProfileDetails from "@/components/storyModes/StoryModeProfileDetails";
 import CreationFoundationPickerDialog from "./CreationFoundationPickerDialog";
+import StoryConstellationDialog from "./ideaConstellation/StoryConstellationDialog";
+import type { FoundationConstellationOption } from "./ideaConstellation/ideaConstellationState";
 
 interface StageIdeaProps {
   idea: string;
@@ -16,6 +23,11 @@ interface StageIdeaProps {
   ideaInspirations: DirectorIdeaInspiration[];
   isGeneratingIdeaInspirations: boolean;
   onGenerateIdeaInspirations: () => void;
+  ideaConstellationOptions: DirectorIdeaConstellationOption[];
+  isGeneratingIdeaConstellationOptions: boolean;
+  isComposingIdeaConstellation: boolean;
+  onGenerateIdeaConstellationOptions: () => void;
+  onComposeIdeaConstellation: (selected: DirectorIdeaConstellationSelection[]) => Promise<string>;
   onContinue: () => void;
   onQuickGenerate: () => void;
   canContinue: boolean;
@@ -44,7 +56,26 @@ interface StageIdeaProps {
 function sourceLabel(source: NovelResourceRecommendationSource | undefined): string | null {
   if (source === "user_selected") return "你的选择";
   if (source === "ai_recommended") return "AI 匹配";
+  if (source === "market_recommended") return "雷达推荐";
   return null;
+}
+
+function buildFoundationCloudOptions(
+  options: Array<{ id: string; name: string; level: number; description?: string | null }>,
+  selectedId: string,
+  fallbackHint: string,
+): FoundationConstellationOption[] {
+  const nestedOptions = options.filter((option) => option.level > 0);
+  const preferred = nestedOptions.length >= 3 ? nestedOptions : options;
+  const selected = options.find((option) => option.id === selectedId);
+  const available = selected && !preferred.some((option) => option.id === selected.id)
+    ? [...preferred, selected]
+    : preferred;
+  return available.map((option) => ({
+    id: option.id,
+    label: option.name,
+    hint: option.description?.trim() || fallbackHint,
+  }));
 }
 
 export default function StageIdea({
@@ -53,6 +84,11 @@ export default function StageIdea({
   ideaInspirations,
   isGeneratingIdeaInspirations,
   onGenerateIdeaInspirations,
+  ideaConstellationOptions,
+  isGeneratingIdeaConstellationOptions,
+  isComposingIdeaConstellation,
+  onGenerateIdeaConstellationOptions,
+  onComposeIdeaConstellation,
   onContinue,
   onQuickGenerate,
   canContinue,
@@ -76,10 +112,27 @@ export default function StageIdea({
 }: StageIdeaProps) {
   const reducedMotion = useReducedMotion();
   const [showInspirations, setShowInspirations] = useState(false);
+  const [constellationDialogOpen, setConstellationDialogOpen] = useState(false);
   const [genreDialogOpen, setGenreDialogOpen] = useState(false);
   const [storyModeDialogOpen, setStoryModeDialogOpen] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
   const typingTimersRef = useRef<number[]>([]);
+  const constellationGenreOptions = useMemo(
+    () => buildFoundationCloudOptions(
+      flattenGenreTreeOptions(genreTree),
+      selectedGenreId,
+      "这个故事类型会约束世界、人物和主要冲突。",
+    ),
+    [genreTree, selectedGenreId],
+  );
+  const constellationStoryModeOptions = useMemo(
+    () => buildFoundationCloudOptions(
+      flattenStoryModeTreeOptions(storyModeTree),
+      selectedStoryModeId,
+      "这种推进方式会决定故事持续制造期待的方法。",
+    ),
+    [selectedStoryModeId, storyModeTree],
+  );
 
   useEffect(() => () => {
     typingTimersRef.current.forEach((timer) => window.clearTimeout(timer));
@@ -94,13 +147,7 @@ export default function StageIdea({
     textarea.style.height = `${Math.max(180, textarea.scrollHeight)}px`;
   }, [idea]);
 
-  const useIdeaInspiration = (text: string) => {
-    if (idea.trim()) {
-      const confirmed = window.confirm("上方起始想法已有内容。确认使用这条灵感并覆盖原内容吗？");
-      if (!confirmed) {
-        return;
-      }
-    }
+  const fillIdea = (text: string) => {
     typingTimersRef.current.forEach((timer) => window.clearTimeout(timer));
     typingTimersRef.current = [];
     setShowInspirations(false);
@@ -116,6 +163,26 @@ export default function StageIdea({
         onIdeaChange(text.slice(0, end));
       }, step * 18);
       typingTimersRef.current.push(timer);
+    }
+  };
+
+  const useIdeaInspiration = (text: string) => {
+    if (idea.trim()) {
+      const confirmed = window.confirm("上方起始想法已有内容。确认使用这条灵感并覆盖原内容吗？");
+      if (!confirmed) return;
+    }
+    fillIdea(text);
+  };
+
+  const useConstellationIdea = (text: string) => {
+    fillIdea(text);
+    window.requestAnimationFrame(() => textareaRef.current?.focus());
+  };
+
+  const handleOpenConstellation = () => {
+    setConstellationDialogOpen(true);
+    if (ideaConstellationOptions.length === 0 && !isGeneratingIdeaConstellationOptions) {
+      onGenerateIdeaConstellationOptions();
     }
   };
 
@@ -229,16 +296,27 @@ export default function StageIdea({
             </div>
           ) : null}
         </div>
-        <div className="flex flex-col gap-2 pt-3 sm:flex-row sm:items-center sm:justify-between">
-          <button
-            type="button"
-            className="inline-flex items-center gap-1.5 text-sm text-muted-foreground transition hover:text-foreground"
-            onClick={handleShowInspirations}
-            disabled={isGeneratingIdeaInspirations}
-          >
-            <Sparkles className="h-4 w-4" />
-            {isGeneratingIdeaInspirations ? "正在准备几个开头..." : "没有想法？看几个开头"}
-          </button>
+        <div className="flex flex-col gap-3 pt-3 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex flex-wrap items-center gap-2">
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              onClick={handleOpenConstellation}
+              disabled={isGenerating || isComposingIdeaConstellation}
+            >
+              <Sparkles className="h-4 w-4" />
+              打开故事星图
+            </Button>
+            <button
+              type="button"
+              className="text-sm text-muted-foreground transition hover:text-foreground disabled:opacity-50"
+              onClick={handleShowInspirations}
+              disabled={isGeneratingIdeaInspirations}
+            >
+              {isGeneratingIdeaInspirations ? "正在准备几个想法..." : "直接给我几个想法"}
+            </button>
+          </div>
           <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
             <button
               type="button"
@@ -272,6 +350,24 @@ export default function StageIdea({
         </motion.div>
       ) : null}
 
+      <StoryConstellationDialog
+        open={constellationDialogOpen}
+        onOpenChange={setConstellationDialogOpen}
+        options={ideaConstellationOptions}
+        genreOptions={constellationGenreOptions}
+        storyModeOptions={constellationStoryModeOptions}
+        selectedGenreId={selectedGenreId}
+        selectedStoryModeId={selectedStoryModeId}
+        isUpdatingFoundation={isUpdatingFoundation}
+        isGenerating={isGeneratingIdeaConstellationOptions}
+        isComposing={isComposingIdeaConstellation}
+        onGenerate={onGenerateIdeaConstellationOptions}
+        onSelectGenre={(genreId) => onFoundationChange({ genreId })}
+        onSelectStoryMode={(primaryStoryModeId) => onFoundationChange({ primaryStoryModeId })}
+        onCompose={onComposeIdeaConstellation}
+        onUseIdea={useConstellationIdea}
+      />
+
       <CreationFoundationPickerDialog
         open={genreDialogOpen}
         onOpenChange={setGenreDialogOpen}
@@ -304,6 +400,7 @@ export default function StageIdea({
         applying={isUpdatingFoundation}
         onRetry={onRetryStoryModes}
         onApply={(primaryStoryModeId) => onFoundationChange({ primaryStoryModeId })}
+        renderDetails={(node) => <StoryModeProfileDetails node={node} eyebrow="当前选择" />}
       />
     </section>
   );

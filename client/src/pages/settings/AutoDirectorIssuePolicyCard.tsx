@@ -2,13 +2,14 @@ import { useEffect, useMemo, useState } from "react";
 import {
   DIRECTOR_ISSUE_ACTIONS,
   DIRECTOR_ISSUE_CATALOG,
+  DIRECTOR_ISSUE_POLICY_PRESETS,
+  findDirectorIssuePolicyPreset,
   type DirectorIssueAction,
   type DirectorIssueCategory,
   type DirectorIssuePolicy,
 } from "@ai-novel/shared/types/directorIssue";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
 
 const ACTION_LABELS: Record<DirectorIssueAction, string> = {
   auto_retry: "自动重试",
@@ -41,8 +42,7 @@ export function AutoDirectorIssuePolicyCard(props: {
 
   const current = draft ?? policy;
   const hasChanges = Boolean(policy && current && (
-    current.noticeThreshold !== policy.noticeThreshold
-    || current.pauseThreshold !== policy.pauseThreshold
+    current.maxAutomaticRetries !== policy.maxAutomaticRetries
     || JSON.stringify(current.issueActions) !== JSON.stringify(policy.issueActions)
   ));
   const entries = useMemo(() => DIRECTOR_ISSUE_CATALOG.filter((entry) => {
@@ -61,17 +61,33 @@ export function AutoDirectorIssuePolicyCard(props: {
     <Card>
       <CardHeader>
         <CardTitle>问题处理规则</CardTitle>
-        <CardDescription>每个问题码都可以选择处理偏好。保存后会用于后续任务；涉及内容、数据或重规划的安全保护仍可能覆盖你的选择。</CardDescription>
+        <CardDescription>选择一套处理方案，或按问题逐项调整。安全保护触发时，系统仍会优先保护作品。</CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
-        <div className="grid gap-3 sm:grid-cols-2">
+        <div className="grid gap-3 md:grid-cols-2">
+          {DIRECTOR_ISSUE_POLICY_PRESETS.map((preset) => {
+            const selected = findDirectorIssuePolicyPreset(current)?.id === preset.id;
+            return (
+              <button
+                key={preset.id}
+                type="button"
+                className={`rounded-xl border p-4 text-left transition-colors ${selected ? "border-primary bg-primary/5" : "border-border hover:bg-muted/40"}`}
+                onClick={() => setDraft({ ...preset.policy, issueActions: { ...preset.policy.issueActions } })}
+              >
+                <div className="text-sm font-semibold">{preset.name}</div>
+                <div className="mt-1 text-xs leading-5 text-muted-foreground">{preset.description}</div>
+              </button>
+            );
+          })}
+        </div>
+
+        <div className="max-w-sm">
           <label className="space-y-2 text-sm">
-            <span className="font-medium">提醒分数</span>
-            <Input type="number" min={2} max={7} value={current.noticeThreshold} onChange={(event) => setDraft({ ...current, noticeThreshold: Number(event.target.value) })} />
-          </label>
-          <label className="space-y-2 text-sm">
-            <span className="font-medium">暂停分数</span>
-            <Input type="number" min={3} max={8} value={current.pauseThreshold} onChange={(event) => setDraft({ ...current, pauseThreshold: Number(event.target.value) })} />
+            <span className="font-medium">自动重试</span>
+            <select className="h-10 w-full rounded-md border bg-background px-3 text-sm" value={current.maxAutomaticRetries} onChange={(event) => setDraft({ ...current, maxAutomaticRetries: Number(event.target.value) })}>
+              <option value={0}>不自动重试</option>
+              <option value={1}>最多 1 次</option>
+            </select>
           </label>
         </div>
 
@@ -117,7 +133,7 @@ export function AutoDirectorIssuePolicyCard(props: {
           })}
         </div>
 
-        <Button disabled={isSaving || current.pauseThreshold <= current.noticeThreshold} onClick={() => onSave(current)}>
+        <Button disabled={isSaving} onClick={() => onSave(current)}>
           {isSaving ? "保存中…" : "保存问题处理规则"}
         </Button>
       </CardContent>

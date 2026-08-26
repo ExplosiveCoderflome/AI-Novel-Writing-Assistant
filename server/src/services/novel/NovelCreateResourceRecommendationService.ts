@@ -17,6 +17,7 @@ import { buildStoryModePromptBlock } from "../storyMode/storyModeProfile";
 import { buildBookFramingSummary } from "./bookFraming";
 
 interface RecommendNovelCreateResourcesInput {
+  marketBriefPrompt?: string;
   title?: string;
   description?: string;
   targetAudience?: string;
@@ -166,6 +167,7 @@ function buildUserIntentSummary(
 
   return [
     input.title?.trim() ? `标题：${input.title.trim()}` : "",
+    input.marketBriefPrompt?.trim() ? `开书市场简报：\n${input.marketBriefPrompt.trim()}` : "",
     input.description?.trim() ? `一句话概述：${truncateText(input.description, 260)}` : "",
     input.writingMode ? `创作模式：${input.writingMode}` : "",
     input.projectMode ? `项目模式：${input.projectMode}` : "",

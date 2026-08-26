@@ -47,12 +47,14 @@ export function buildAutoDirectorRequestPayload(
   options?: {
     styleProfileId?: string;
     worldSetupMode?: DirectorWorldSetupMode;
+    marketBriefId?: string;
   },
 ) {
   const commercialTags = normalizeCommercialTags(basicForm.commercialTagsText);
   return {
     idea: idea.trim(),
     workflowTaskId: workflowTaskId || undefined,
+    marketBriefId: options?.marketBriefId?.trim() || undefined,
     title: basicForm.title.trim() || undefined,
     description: basicForm.description.trim() || undefined,
     targetAudience: basicForm.targetAudience.trim() || undefined,

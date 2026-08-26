@@ -32,7 +32,6 @@ test("director runtime policy keeps suggest-only runs from writing", () => {
   assert.equal(decision.requiresApproval, true);
   assert.equal(decision.gateType, "approval");
   assert.deepEqual(decision.riskTags, ["suggest_only"]);
-  assert.equal(decision.autoRetryBudget, 0);
 });
 
 test("director runtime policy protects user-edited artifacts from overwrite", () => {
@@ -88,24 +87,17 @@ test("director runtime policy also protects artifacts explicitly marked as user 
   assert.deepEqual(decision.riskTags, ["protected_user_content"]);
 });
 
-test("director runtime policy allows one automatic repair attempt", () => {
+test("director runtime policy treats repair as a write preflight without owning retry policy", () => {
   const engine = new DirectorPolicyEngine();
   const decision = engine.decide({
     action: "repair",
     mode: "run_until_gate",
-    qualityGateResult: {
-      status: "repairable",
-      repairPlanId: "repair-1",
-      autoRetryAllowed: true,
-    },
   });
 
   assert.equal(decision.canRun, true);
   assert.equal(decision.requiresApproval, false);
   assert.equal(decision.gateType, "none");
-  assert.equal(decision.autoRetryBudget, 1);
-  assert.equal(decision.onQualityFailure, "repair_once");
-  assert.deepEqual(decision.riskTags, ["quality_repair"]);
+  assert.deepEqual(decision.riskTags, []);
 });
 
 test("director runtime policy gates default-approval nodes outside safe auto scope", () => {
@@ -143,7 +135,6 @@ test("director runtime policy allows approved auto execution review scope", () =
     policy: {
       mode: "auto_safe_scope",
       mayOverwriteUserContent: false,
-      maxAutoRepairAttempts: 1,
       allowExpensiveReview: true,
       modelTier: "balanced",
       updatedAt: "2026-04-29T00:00:00.000Z",
@@ -193,23 +184,4 @@ test("director runtime policy gates large-scope chapter automation outside safe 
   assert.equal(decision.requiresApproval, true);
   assert.equal(decision.gateType, "approval");
   assert.deepEqual(decision.riskTags, ["large_scope_auto_run"]);
-});
-
-test("director runtime policy blocks only the affected quality scope", () => {
-  const engine = new DirectorPolicyEngine();
-  const decision = engine.decide({
-    action: "run_node",
-    mode: "auto_safe_scope",
-    qualityGateResult: {
-      status: "blocked_scope",
-      blockedScope: "chapter:chapter-1",
-      reason: "chapter blocked",
-    },
-  });
-
-  assert.equal(decision.canRun, false);
-  assert.equal(decision.requiresApproval, true);
-  assert.equal(decision.gateType, "blocked_scope");
-  assert.deepEqual(decision.riskTags, ["quality_blocked_scope"]);
-  assert.equal(decision.onQualityFailure, "block_scope");
 });

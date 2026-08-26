@@ -17,7 +17,6 @@ function buildRun() {
     policyJson: JSON.stringify({
       mode: "run_until_gate",
       mayOverwriteUserContent: false,
-      maxAutoRepairAttempts: 1,
       allowExpensiveReview: false,
       modelTier: "balanced",
       updatedAt: "2026-05-02T00:00:00.000Z",

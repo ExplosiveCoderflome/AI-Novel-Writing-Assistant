@@ -70,7 +70,7 @@ test("circuit-breaker governance continues, pauses, or fails the real workflow s
         retryExhaustedAction: "pause_for_manual",
       },
     };
-    await input.applyAction(result);
+    await input.applyAction(result.decision);
     return result;
   };
 
@@ -113,7 +113,7 @@ test("circuit-breaker governance continues, pauses, or fails the real workflow s
     request: buildRequest({
       runMode: "full_book_autopilot",
       issueGovernanceVersion: 1,
-      issuePolicy: { noticeThreshold: 5, pauseThreshold: 8, issueActions: {} },
+      issuePolicy: { maxAutomaticRetries: 1, issueActions: {} },
       issuePolicySource: "novel",
     }),
     range: { firstChapterId: "chapter-1", startOrder: 1, endOrder: 3, totalChapterCount: 3 },
@@ -130,20 +130,19 @@ test("circuit-breaker governance continues, pauses, or fails the real workflow s
   try {
     const continued = buildHarness();
     selectedAction = "continue_with_warning";
-    const continuedState = await stopAutoExecutionForCircuitBreaker(continued.deps, baseInput);
-    assert.equal(continuedState.circuitBreaker.status, "closed");
+    await stopAutoExecutionForCircuitBreaker(continued.deps, baseInput);
     assert.equal(continued.task.status, "running");
     assert.deepEqual(continued.calls, [["bootstrapTask", "closed"]]);
 
     const paused = buildHarness();
     selectedAction = "pause_for_manual";
-    assert.equal(await stopAutoExecutionForCircuitBreaker(paused.deps, baseInput), null);
+    await stopAutoExecutionForCircuitBreaker(paused.deps, baseInput);
     assert.deepEqual(paused.task, { status: "queued", pendingManualRecovery: true });
     assert.ok(paused.calls.some((call) => call[0] === "requeueTaskForRecovery"));
 
     const failed = buildHarness();
     selectedAction = "fail_task";
-    assert.equal(await stopAutoExecutionForCircuitBreaker(failed.deps, baseInput), null);
+    await stopAutoExecutionForCircuitBreaker(failed.deps, baseInput);
     assert.deepEqual(failed.task, { status: "failed", pendingManualRecovery: false });
     assert.ok(!failed.calls.some((call) => call[0] === "requeueTaskForRecovery"));
 
@@ -592,15 +591,13 @@ test("runFromReady treats explicit range continuation as approval for quality-al
   );
 });
 
-test("runFromReady resumes a pending manual-recovery pipeline job before waiting on it", async () => {
+test("runFromReady keeps a pending manual-recovery pipeline job paused", async () => {
   const calls = [];
-  let pipelineCompleted = false;
-  let jobReadCount = 0;
   const runtime = new NovelDirectorAutoExecutionRuntime({
     novelContextService: {
       async listChapters() {
         return [
-          withExecutionDetail({ id: "chapter-1", order: 1, generationState: pipelineCompleted ? "approved" : "draft" }),
+          withExecutionDetail({ id: "chapter-1", order: 1, generationState: "draft" }),
         ];
       },
     },
@@ -615,42 +612,15 @@ test("runFromReady resumes a pending manual-recovery pipeline job before waiting
       },
       async getPipelineJobById(jobId) {
         calls.push(["getPipelineJobById", jobId]);
-        jobReadCount += 1;
-        if (jobReadCount === 1) {
-          return {
-            id: "job-paused",
-            status: "queued",
-            progress: 0.65,
-            pendingManualRecovery: true,
-            currentStage: "queued",
-            currentItemLabel: null,
-            error: "服务重启后任务已暂停，等待手动恢复。",
-          };
-        }
-        if (jobReadCount === 2) {
-          return {
-            id: "job-paused",
-            status: "running",
-            progress: 0.66,
-            pendingManualRecovery: false,
-            currentStage: "reviewing",
-            currentItemLabel: "第1章 · 批次 1/1",
-            error: null,
-          };
-        }
-        pipelineCompleted = true;
         return {
           id: "job-paused",
-          status: "succeeded",
-          progress: 1,
-          pendingManualRecovery: false,
-          currentStage: null,
+          status: "queued",
+          progress: 0.65,
+          pendingManualRecovery: true,
+          currentStage: "queued",
           currentItemLabel: null,
-          error: null,
+          error: "章节需要人工确认，后续生成已暂停。",
         };
-      },
-      async resumePipelineJob(jobId) {
-        calls.push(["resumePipelineJob", jobId]);
       },
       async cancelPipelineJob() {
         calls.push(["cancelPipelineJob"]);
@@ -696,12 +666,11 @@ test("runFromReady resumes a pending manual-recovery pipeline job before waiting
 
   assert.deepEqual(calls, [
     ["getPipelineJobById", "job-paused"],
-    ["resumePipelineJob", "job-paused"],
-    ["getPipelineJobById", "job-paused"],
     ["bootstrapTask", "job-paused", "running"],
     ["findActivePipelineJobForRange", "novel-1", 1, 1, "job-paused"],
     ["getPipelineJobById", "job-paused"],
-    ["recordCheckpoint", "task-auto-exec", "job-paused", "succeeded"],
+    ["markTaskFailed"],
+    ["bootstrapTask", "job-paused", "queued"],
   ]);
 });
 

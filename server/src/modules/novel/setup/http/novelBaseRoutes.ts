@@ -7,11 +7,7 @@ import {
 import { NOVEL_LIST_PAGE_LIMIT_DEFAULT, NOVEL_LIST_PAGE_LIMIT_MAX } from "@ai-novel/shared/types/pagination";
 import { z } from "zod";
 import type { SimpleCreationShelfProjection } from "@ai-novel/shared/types/novel";
-import {
-  DEFAULT_DIRECTOR_RISK_POLICY,
-  parsePersistedDirectorRiskAssessment,
-  parsePersistedDirectorRiskPolicy,
-} from "@ai-novel/shared/types/directorRisk";
+import { parsePersistedDirectorRiskAssessment } from "@ai-novel/shared/types/directorRisk";
 import { prisma } from "../../../../db/prisma";
 import { llmProviderSchema } from "../../../../llm/providerSchema";
 import { validate } from "../../../../middleware/validate";
@@ -359,14 +355,6 @@ export function registerNovelBaseRoutes(input: RegisterNovelBaseRoutesInput): vo
       const autoExecutionRecord = autoExecution && typeof autoExecution === "object" && !Array.isArray(autoExecution)
         ? autoExecution as Record<string, unknown>
         : null;
-      const directorInput = seedPayload?.directorInput;
-      const directorInputRecord = directorInput && typeof directorInput === "object" && !Array.isArray(directorInput)
-        ? directorInput as Record<string, unknown>
-        : null;
-      const riskPolicy = parsePersistedDirectorRiskPolicy(
-        autoExecutionRecord?.riskPolicy ?? directorInputRecord?.riskPolicy,
-      )
-        ?? DEFAULT_DIRECTOR_RISK_POLICY;
       const riskHistory = task?.directorEvents.flatMap((event) => {
         const metadata = parseJsonRecord(event.metadataJson);
         const assessment = parsePersistedDirectorRiskAssessment(metadata?.riskAssessment);
@@ -406,7 +394,6 @@ export function registerNovelBaseRoutes(input: RegisterNovelBaseRoutesInput): vo
           canRetry: progressStatus === "failed" || progressStatus === "paused",
           recoveryAction: task?.checkpointType === "replan_required" ? "replan_and_continue" : "continue",
           safetyMessage: task?.lastError ?? null,
-          riskPolicy,
           latestRiskAssessment: riskHistory[0] ?? null,
           riskHistory,
         },
@@ -550,9 +537,9 @@ export function registerNovelBaseRoutes(input: RegisterNovelBaseRoutesInput): vo
         res.status(200).json({
           success: true,
           data,
-          message: experience === "simple"
-            ? "已切换到简易模式，可在章节书架阅读进度与成稿。"
-            : "已切换到专业模式，可使用完整编辑工作台。",
+        message: experience === "simple"
+            ? "已切换到简易模式，将优先展示章节进度与成稿。"
+            : "已切换到专业模式，将展示完整创作工作台。",
         } satisfies ApiResponse<typeof data>);
       } catch (error) {
         next(error);

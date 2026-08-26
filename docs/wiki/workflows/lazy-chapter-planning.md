@@ -118,6 +118,8 @@ if (request.controlPolicy?.advanceMode === "full_book_autopilot") {
 
 原因：`chapter_sync` 步骤（结构化大纲阶段末尾）通过 `syncVolumeChaptersWithOptions` 将所有章节写入执行区 DB（即使没有 task sheet），`syncedChapterCount` 随即等于 `plannedChapterCount`，门控自然通过。
 
+同步边界必须允许 `full_book_autopilot` 把只有标题、摘要或部分执行字段的章节先写入正式章节区。部分 `taskSheet` 或 `sceneCards` 不能被误判为“完整合同已生成”并在同步阶段阻断任务；当前章进入正文执行前，`ChapterPlanJITService` 会调用统一的执行合同生成器补齐字段、通过质量校验并保存。非 JIT 的手动同步与普通执行路径仍保留完整合同门禁。
+
 ---
 
 ## 自动执行范围预检

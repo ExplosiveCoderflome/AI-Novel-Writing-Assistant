@@ -37,7 +37,6 @@ import type { DirectorPipelineRunInput, NovelDirectorPipelineRuntime } from "../
 import type { NovelDirectorRuntimeOrchestrator } from "./novelDirectorRuntimeOrchestrator";
 import type { DirectorRuntimeService } from "./DirectorRuntimeService";
 import { buildDefaultDirectorPolicy } from "./directorRuntimeDefaults";
-import type { DirectorRiskPolicy } from "@ai-novel/shared/types/directorRisk";
 import { prisma } from "../../../../db/prisma";
 
 export type DirectorAssetFirstRecovery =
@@ -157,7 +156,6 @@ export class NovelDirectorContinueRuntime {
       novelId: string | null,
       extra?: Record<string, unknown>,
     ) => Record<string, unknown>;
-    resolveRiskPolicy: (novelId: string) => Promise<DirectorRiskPolicy>;
     getDirectorAssetSnapshot: (novelId: string) => Promise<{
       characterCount: number;
       chapterCount: number;
@@ -314,7 +312,6 @@ export class NovelDirectorContinueRuntime {
     const effectiveDirectorInput = applyDirectorRunModeContract({
       ...directorInput,
       runMode,
-      riskPolicy: directorInput.riskPolicy ?? await this.deps.resolveRiskPolicy(novelId),
       ...(input?.acceptManualChanges ? { stepCalibrationInstruction: null } : {}),
     });
     const assetFirstRecovery = await this.resolveAssetFirstRecovery({
@@ -421,6 +418,7 @@ export class NovelDirectorContinueRuntime {
           allowSkipReviewBlockedChapter: canSkipReviewBlockedChapter,
           approveAutoExecutionScope: requestedAutoExecutionContinue || isFullBookAutopilot,
           skipCurrentQualityRepair: requestedSkipQualityRepair || requestedReplanRecovery,
+          resumePendingManualRecovery: input?.forceResume === true,
         });
       });
       return;

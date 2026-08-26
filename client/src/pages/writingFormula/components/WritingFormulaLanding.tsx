@@ -11,6 +11,7 @@ interface WritingFormulaLandingProps {
   onOpenWorkbench: (profileId: string) => void;
   onUseProfileForClean: (profileId: string) => void;
   onDeleteProfile: (profileId: string) => void;
+  onOpenPromptLab: () => void;
   deletePending: boolean;
   profileItems: LandingProfileItem[];
   selectedProfileId: string;
@@ -34,11 +35,11 @@ function handleSelectableKeyDown(event: KeyboardEvent<HTMLDivElement>, onSelect:
 
 function DetailPanel(props: { title: string; description?: string; children: ReactNode }) {
   return (
-    <div className="space-y-3 rounded-2xl border border-slate-200/80 bg-white/70 p-4 shadow-[0_1px_0_rgba(15,23,42,0.02)]">
+    <div className="space-y-3 rounded-2xl border bg-card/80 p-4 shadow-sm">
       <div className="space-y-1">
-        <div className="text-xs font-semibold tracking-[0.12em] text-slate-500">{props.title}</div>
+        <div className="text-xs font-semibold tracking-[0.12em] text-muted-foreground">{props.title}</div>
         {props.description ? (
-          <div className="text-xs leading-6 text-slate-500">{props.description}</div>
+          <div className="text-xs leading-6 text-muted-foreground">{props.description}</div>
         ) : null}
       </div>
       {props.children}
@@ -49,17 +50,17 @@ function DetailPanel(props: { title: string; description?: string; children: Rea
 function DetailStatRow(props: { label: string; value: string }) {
   return (
     <div className="flex items-start justify-between gap-3 text-sm leading-6">
-      <div className="text-slate-500">{props.label}</div>
-      <div className="text-right text-slate-800">{props.value}</div>
+      <div className="text-muted-foreground">{props.label}</div>
+      <div className="text-right text-foreground">{props.value}</div>
     </div>
   );
 }
 
 function SummaryCard(props: { title: string; summary: string }) {
   return (
-    <div className="rounded-2xl border border-slate-200/80 bg-[linear-gradient(135deg,rgba(248,250,252,0.95),rgba(255,255,255,0.92))] p-3.5">
-      <div className="text-sm font-medium text-slate-900">{props.title}</div>
-      <div className="mt-2 text-sm leading-6 text-slate-600">{props.summary}</div>
+    <div className="rounded-2xl border bg-muted/25 p-3.5">
+      <div className="text-sm font-medium text-foreground">{props.title}</div>
+      <div className="mt-2 text-sm leading-6 text-muted-foreground">{props.summary}</div>
     </div>
   );
 }
@@ -72,6 +73,7 @@ export default function WritingFormulaLanding(props: WritingFormulaLandingProps)
     onOpenWorkbench,
     onUseProfileForClean,
     onDeleteProfile,
+    onOpenPromptLab,
     deletePending,
     profileItems,
     selectedProfileId,
@@ -82,12 +84,8 @@ export default function WritingFormulaLanding(props: WritingFormulaLandingProps)
 
   const renderProfileCard = (profile: LandingProfileItem) => {
     const isSelected = profile.id === selectedProfileId;
-    const selectedStyle = profile.isStarter
-      ? "border-sky-300 bg-sky-50/55 shadow-[0_6px_18px_rgba(14,165,233,0.07)]"
-      : "border-slate-400 bg-[linear-gradient(135deg,rgba(248,250,252,0.98),rgba(255,255,255,0.96))] shadow-[0_6px_18px_rgba(15,23,42,0.045)]";
-    const idleStyle = profile.isStarter
-      ? "border-slate-200 bg-white hover:border-sky-300 hover:bg-sky-50/30"
-      : "border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50/70";
+    const selectedStyle = "border-primary/60 bg-primary/[0.045] shadow-sm";
+    const idleStyle = "border-border bg-card hover:border-primary/35 hover:bg-muted/25";
     const badgeClassName = profile.isStarter
       ? "h-6 border-sky-200 bg-white text-sky-700"
       : "h-6";
@@ -104,30 +102,30 @@ export default function WritingFormulaLanding(props: WritingFormulaLandingProps)
         <div className="flex flex-col gap-3 xl:flex-row xl:items-start xl:justify-between">
           <div className="min-w-0 flex-1 space-y-2">
             <div className="flex flex-wrap items-center gap-2">
-              <div className="text-base font-semibold text-slate-950">{profile.name}</div>
+              <div className="text-base font-semibold text-foreground">{profile.name}</div>
               <Badge variant={profile.isStarter ? "outline" : (isSelected ? "default" : "secondary")} className={badgeClassName}>
                 {profile.originLabel}
               </Badge>
               {profile.category ? (
-                <Badge variant="outline" className="h-6 border-slate-200 text-slate-600">
+                <Badge variant="outline" className="h-6">
                   {profile.category}
                 </Badge>
               ) : null}
-              <Badge variant="outline" className="h-6 border-slate-200 text-slate-600">
+              <Badge variant="outline" className="h-6">
                 {profile.sourceTypeLabel}
               </Badge>
             </div>
-            <div className="max-w-3xl text-sm leading-6 text-slate-600">
+            <div className="max-w-3xl text-sm leading-6 text-muted-foreground">
               {truncateText(profile.summaryLine, 120) || "暂无写法摘要。"}
             </div>
             <div className="flex flex-wrap gap-2">
               {profile.tags.slice(0, 4).map((tag) => (
-                <Badge key={`${profile.id}-${tag}`} variant="outline" className="h-6 border-slate-200 text-slate-600">
+                <Badge key={`${profile.id}-${tag}`} variant="outline" className="h-6">
                   {tag}
                 </Badge>
               ))}
               {profile.recentNovelTitle ? (
-                <Badge variant="secondary" className="h-6 bg-amber-50 text-amber-800">
+              <Badge variant="secondary" className="h-6">
                   最近绑定：{profile.recentNovelTitle}
                 </Badge>
               ) : null}
@@ -184,7 +182,7 @@ export default function WritingFormulaLanding(props: WritingFormulaLandingProps)
         </div>
 
         {isSelected ? (
-          <div className="mt-5 space-y-4 rounded-2xl border border-slate-200/70 bg-slate-50/55 p-4 md:p-5">
+          <div className="mt-5 space-y-4 rounded-2xl border bg-muted/25 p-4 md:p-5">
             <div className="grid gap-4 xl:grid-cols-[minmax(0,1.15fr)_minmax(0,1fr)_280px]">
               <DetailPanel
                 title="读感与定位"
@@ -311,36 +309,41 @@ export default function WritingFormulaLanding(props: WritingFormulaLandingProps)
 
   return (
     <div className="space-y-6">
-      <Card className="overflow-hidden border-slate-200/80 bg-white/90 shadow-[0_14px_42px_rgba(15,23,42,0.045)]">
+      <Card className="overflow-hidden border-primary/10 bg-card shadow-sm">
         <CardContent className="space-y-6 p-5 md:p-7">
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div className="space-y-2">
-              <Badge variant="outline" className="border-slate-200 bg-slate-50 text-slate-700">
+              <Badge variant="outline" className="border-primary/20 bg-primary/5 text-primary">
                 我的写法资产
               </Badge>
               <div className="space-y-2">
-                <h1 className="text-3xl font-semibold tracking-tight text-slate-950">
+                <h1 className="text-3xl font-semibold tracking-tight text-foreground">
                   先选一套写法，再决定要编辑、应用还是去 AI 味。
                 </h1>
-                <p className="max-w-3xl text-sm leading-7 text-slate-600">
+                <p className="max-w-3xl text-sm leading-7 text-muted-foreground">
                   首页负责看清你已有的写法资产。展开后会直接展示这套写法的读感定位、规则摘要、反 AI 约束和当前成熟度。
                 </p>
               </div>
             </div>
 
-            <Button type="button" onClick={onOpenCreate}>
-              新建一套写法
-            </Button>
+            <div className="flex flex-wrap gap-2">
+              <Button type="button" variant="outline" onClick={onOpenPromptLab}>
+                正文效果实验室
+              </Button>
+              <Button type="button" onClick={onOpenCreate}>
+                新建一套写法
+              </Button>
+            </div>
           </div>
 
-          <div className="rounded-2xl border border-sky-100 bg-sky-50/55 px-4 py-3 text-sm leading-7 text-slate-700">
+          <div className="rounded-2xl border border-primary/15 bg-primary/[0.045] px-4 py-3 text-sm leading-7 text-muted-foreground">
             书级默认写法请从小说基础信息进入，由小说来选择要使用的写法资产，再带入后续导演和正文流程。
           </div>
 
           {profileItems.length === 0 ? (
-            <div className="rounded-3xl border border-dashed border-slate-300 bg-slate-50/80 p-6">
-              <div className="text-lg font-semibold text-slate-950">当前还没有写法资产</div>
-              <div className="mt-2 text-sm leading-7 text-slate-600">
+            <div className="rounded-3xl border border-dashed bg-muted/20 p-6">
+              <div className="text-lg font-semibold text-foreground">当前还没有写法资产</div>
+              <div className="mt-2 text-sm leading-7 text-muted-foreground">
                 先创建第一套写法，后面再回来慢慢补规则、做试写和绑定目标。
               </div>
               <div className="mt-4 flex flex-wrap gap-2">

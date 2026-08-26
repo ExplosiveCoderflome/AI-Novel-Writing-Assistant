@@ -8,6 +8,7 @@ import { ChapterRouteWindowService } from "../planning/ChapterRouteWindowService
 import { NovelVolumeService } from "../volume/NovelVolumeService";
 import { ChapterRuntimeCoordinator } from "../runtime/ChapterRuntimeCoordinator";
 import { isChapterEmptyContentError } from "../runtime/chapterEmptyContentError";
+import { ChapterContentPersistenceError } from "../runtime/lifecycle";
 import {
   logPipelineError,
   logPipelineInfo,
@@ -18,11 +19,9 @@ import {
 import { plannerService } from "../../planner/PlannerService";
 import { applyChapterQualityClosure } from "./qualityClosure/ChapterQualityClosure";
 import {
-  directorIssueService,
   loadDirectorIssueTaskContext,
-  type DirectorIssueTaskContext,
 } from "../director/issues";
-import type { DirectorIssueCode } from "@ai-novel/shared/types/directorIssue";
+import { reportPipelineIssue } from "./issueGovernance/PipelineIssueGovernance";
 import {
   buildPipelineCurrentItemLabel,
   buildPipelineStageProgress,
@@ -35,62 +34,11 @@ const PIPELINE_HEARTBEAT_INTERVAL_MS = 15000;
 const TERMINAL_CONTINUE_QUALITY_LOOP_RISK_FLAG_FRAGMENT = '"terminalAction":"defer_and_continue"';
 
 function clampPipelineMaxRetries(value: number | null | undefined): number {
-  return Math.max(0, Math.min(value ?? 2, 2));
+  return Math.max(0, Math.min(value ?? 1, 1));
 }
 
 function buildEmptyChapterDetail(chapter: { order: number; title: string }): string {
   return `第${chapter.order}章「${chapter.title}」正文生成失败：模型连续未返回可保存正文，已暂停继续。`;
-}
-
-async function reportPipelineIssue(input: {
-  governance: DirectorIssueTaskContext | null;
-  workflowTaskId?: string;
-  novelId: string;
-  jobId: string;
-  issueCode: DirectorIssueCode;
-  stage: string;
-  summary: string;
-  evidence?: string;
-  chapterId?: string;
-  chapterOrder?: number;
-  qualityScores?: Record<string, number>;
-  attempt?: number;
-  maxAttempts?: number;
-  hasUsableOutput?: boolean;
-  provider?: PipelinePayload["provider"];
-  model?: string;
-  temperature?: number;
-}): Promise<void> {
-  if (!input.governance || !input.workflowTaskId) return;
-  await directorIssueService.reportIssue({
-    issueGovernanceVersion: input.governance.issueGovernanceVersion,
-    taskId: input.workflowTaskId,
-    novelId: input.novelId,
-    issueCode: input.issueCode,
-    stage: input.stage,
-    summary: input.summary,
-    evidence: input.evidence,
-    affectedScope: input.chapterId ? `chapter:${input.chapterId}` : `pipeline:${input.jobId}`,
-    chapterId: input.chapterId,
-    chapterOrder: input.chapterOrder,
-    qualityScores: input.qualityScores,
-    attempt: input.attempt,
-    maxAttempts: input.maxAttempts,
-    hasUsableOutput: input.hasUsableOutput,
-    runMode: input.governance.runMode,
-    fingerprint: [input.jobId, input.issueCode, input.chapterId ?? "book", input.attempt ?? 0].join(":"),
-    policy: input.governance.policy,
-    policySource: input.governance.policySource,
-    provider: input.provider,
-    model: input.model,
-    temperature: input.temperature,
-  }).catch((error) => {
-    logPipelineWarn("自动导演问题记录失败", {
-      jobId: input.jobId,
-      issueCode: input.issueCode,
-      error: error instanceof Error ? error.message : String(error),
-    });
-  });
 }
 
 function buildSkipCompletedChapterWhere(): Prisma.ChapterWhereInput {
@@ -114,58 +62,6 @@ function buildSkipCompletedChapterWhere(): Prisma.ChapterWhereInput {
       ],
     },
   };
-}
-
-async function consumeProfessionalHandoffAtChapterBoundary(
-  workflowTaskId: string | null | undefined,
-  novelId: string,
-): Promise<boolean> {
-  if (!workflowTaskId) return false;
-  const task = await prisma.novelWorkflowTask.findUnique({
-    where: { id: workflowTaskId },
-    select: { seedPayloadJson: true },
-  });
-  if (!task?.seedPayloadJson) return false;
-  let seed: Record<string, unknown>;
-  try {
-    seed = JSON.parse(task.seedPayloadJson) as Record<string, unknown>;
-  } catch {
-    return false;
-  }
-  if (seed.pendingProductionExperience !== "professional") return false;
-  const directorInput = seed.directorInput && typeof seed.directorInput === "object"
-    ? { ...(seed.directorInput as Record<string, unknown>), runMode: "auto_to_ready", autoExecutionPlan: undefined }
-    : seed.directorInput;
-  const nextSeed = {
-    ...seed,
-    productionExperience: "professional",
-    pendingProductionExperience: undefined,
-    runMode: "auto_to_ready",
-    autoExecutionPlan: undefined,
-    directorInput,
-  };
-  await prisma.$transaction([
-    prisma.novel.update({
-      where: { id: novelId },
-      data: { creationExperience: "professional" },
-    }),
-    prisma.novelWorkflowTask.update({
-      where: { id: workflowTaskId },
-      data: {
-        seedPayloadJson: JSON.stringify(nextSeed),
-        status: "succeeded",
-        progress: 1,
-        currentStage: "chapter_execution",
-        currentItemKey: "professional_production_handoff",
-        currentItemLabel: "已暂停并交接精细创作",
-        checkpointType: "workflow_completed",
-        checkpointSummary: "当前章节已安全保存，后续自动章节已停止。",
-        pendingManualRecovery: false,
-        finishedAt: new Date(),
-      },
-    }),
-  ]);
-  return true;
 }
 
 export class NovelPipelineExecutor {
@@ -329,6 +225,7 @@ export class NovelPipelineExecutor {
         );
         let completed = storedCompleted;
         const chaptersToProcess = chapters.slice(remainingStartIndex);
+        let pendingManualRecovery = false;
 
         // Phase 3：JIT 预取服务（N+1 章执行预取）
         const prefetchVolumeService = new NovelVolumeService();
@@ -398,33 +295,40 @@ export class NovelPipelineExecutor {
           heartbeatTimer.unref?.();
 
           let chapterResult: Awaited<ReturnType<ChapterRuntimeCoordinator["runPipelineChapter"]>> | null = null;
-          const chapterExecutionRetryLimit = isAutopilotMode ? 2 : 0;
+          const chapterRetryBudget = isAutopilotMode
+            ? Math.min(maxRetries, issueGovernance?.policy.maxAutomaticRetries ?? maxRetries)
+            : maxRetries;
+          let chapterRetryCountUsed = 0;
           try {
-            for (let executionAttempt = 0; executionAttempt <= chapterExecutionRetryLimit; executionAttempt += 1) {
+            while (true) {
               try {
-              chapterResult = await this.chapterRuntimeCoordinator.runPipelineChapter(
-                novelId,
-                chapter.id,
-                {
-                  provider: runtimePayload.provider,
-                  model: runtimePayload.model,
-                  temperature: runtimePayload.temperature,
-                  workflowTaskId: runtimePayload.workflowTaskId,
-                  taskStyleProfileId: runtimePayload.taskStyleProfileId,
-                  controlPolicy: runtimePayload.controlPolicy,
-                  maxRetries,
-                  autoReview: runtimePayload.autoReview,
-                  autoRepair: runtimePayload.autoRepair,
-                  qualityThreshold,
-                  repairMode: runtimePayload.repairMode,
-                  artifactSyncMode: runtimePayload.artifactSyncMode,
-                },
-                {
+                chapterResult = await this.chapterRuntimeCoordinator.runPipelineChapter(
+                  novelId,
+                  chapter.id,
+                  {
+                    provider: runtimePayload.provider,
+                    model: runtimePayload.model,
+                    temperature: runtimePayload.temperature,
+                    workflowTaskId: runtimePayload.workflowTaskId,
+                    taskStyleProfileId: runtimePayload.taskStyleProfileId,
+                    controlPolicy: runtimePayload.controlPolicy,
+                    maxRetries: Math.max(0, chapterRetryBudget - chapterRetryCountUsed),
+                    autoReview: runtimePayload.autoReview,
+                    autoRepair: runtimePayload.autoRepair,
+                    qualityThreshold,
+                    repairMode: runtimePayload.repairMode,
+                    artifactSyncMode: runtimePayload.artifactSyncMode,
+                  },
+                  {
                   onCheckCancelled: () => this.ensurePipelineNotCancelled(jobId),
                   onStageChange: async (stage) => {
                     await applyChapterStage(stage);
                   },
+                  onRetryConsumed: async () => {
+                    chapterRetryCountUsed += 1;
+                  },
                   onEmptyContent: async (event) => {
+                    const willRetry = event.willRetry || (isAutopilotMode && chapterRetryCountUsed < chapterRetryBudget);
                     const detail = buildEmptyChapterDetail(chapter);
                     const meta = {
                       jobId,
@@ -436,7 +340,7 @@ export class NovelPipelineExecutor {
                       model: runtimePayload.model,
                       runMode: runtimePayload.runMode,
                       emptyAttempt: event.attempt,
-                      willRetry: event.willRetry,
+                      willRetry,
                       contentLength: event.contentLength,
                       rawContentLength: event.rawContentLength,
                       source: event.error.details.source,
@@ -453,13 +357,12 @@ export class NovelPipelineExecutor {
                       chapterId: chapter.id,
                       chapterOrder: chapter.order,
                       attempt: event.attempt,
-                      maxAttempts: maxRetries + 1,
                       hasUsableOutput: false,
                       provider: runtimePayload.provider,
                       model: runtimePayload.model,
                       temperature: runtimePayload.temperature,
                     });
-                    if (event.willRetry) {
+                    if (willRetry) {
                       logPipelineWarn("章节生成未返回正文，正在重试当前章", meta);
                       return;
                     }
@@ -468,18 +371,38 @@ export class NovelPipelineExecutor {
                     }
                     logPipelineError("章节生成连续未返回正文，准备自动重试当前章", meta);
                   },
-                },
-              );
+                  },
+                );
                 break;
               } catch (error) {
                 if (error instanceof Error && error.message === "PIPELINE_CANCELLED") {
                   throw error;
                 }
-                const canRetry = executionAttempt < chapterExecutionRetryLimit;
+                if (error instanceof ChapterContentPersistenceError) {
+                  await reportPipelineIssue({
+                    governance: issueGovernance,
+                    workflowTaskId: runtimePayload.workflowTaskId,
+                    novelId,
+                    jobId,
+                    issueCode: "runtime.persistence_failed",
+                    stage: "chapter_persistence",
+                    summary: `第${chapter.order}章正文无法确认已保存，已停止自动重试。`,
+                    evidence: error.message,
+                    chapterId: chapter.id,
+                    chapterOrder: chapter.order,
+                    hasUsableOutput: false,
+                    provider: runtimePayload.provider,
+                    model: runtimePayload.model,
+                    temperature: runtimePayload.temperature,
+                  });
+                  throw error;
+                }
+                const canRetry = isAutopilotMode && chapterRetryCountUsed < chapterRetryBudget;
                 if (!canRetry) {
                   throw error;
                 }
-                const retryLabel = `第${chapter.order}章遇到临时问题，AI 正在自动修复并重试（${executionAttempt + 1}/${chapterExecutionRetryLimit}）`;
+                chapterRetryCountUsed += 1;
+                const retryLabel = `第${chapter.order}章遇到临时问题，AI 正在自动修复并重试（${chapterRetryCountUsed}/${chapterRetryBudget}）`;
                 await this.updateJobSafe(jobId, {
                   heartbeatAt: new Date(),
                   currentStage: "generating_chapters",
@@ -491,7 +414,7 @@ export class NovelPipelineExecutor {
                   novelId,
                   chapterId: chapter.id,
                   chapterOrder: chapter.order,
-                  retry: executionAttempt + 1,
+                  retry: chapterRetryCountUsed,
                   error: error instanceof Error ? error.message : String(error),
                 });
               }
@@ -503,24 +426,7 @@ export class NovelPipelineExecutor {
             throw new Error(`第${chapter.order}章在自动重试后仍未生成可用结果。`);
           }
 
-          totalRetryCount += chapterResult.retryCountUsed;
-          if (runtimePayload.autoReview && !chapterResult.reviewExecuted) {
-            await reportPipelineIssue({
-              governance: issueGovernance,
-              workflowTaskId: runtimePayload.workflowTaskId,
-              novelId,
-              jobId,
-              issueCode: "quality.acceptance_unavailable",
-              stage: "chapter_review",
-              summary: `第${chapter.order}章接收检查未能执行，正文已保留并等待后续复查。`,
-              chapterId: chapter.id,
-              chapterOrder: chapter.order,
-              hasUsableOutput: true,
-              provider: runtimePayload.provider,
-              model: runtimePayload.model,
-              temperature: runtimePayload.temperature,
-            });
-          }
+          totalRetryCount += Math.max(chapterRetryCountUsed, chapterResult.retryCountUsed);
           const closure = await applyChapterQualityClosure({
             governance: issueGovernance,
             workflowTaskId: runtimePayload.workflowTaskId,
@@ -541,18 +447,6 @@ export class NovelPipelineExecutor {
             }),
           });
           shouldStopAfterCurrentChapter = closure.shouldStopAfterCurrentChapter;
-
-          const handedOffToProfessional = await consumeProfessionalHandoffAtChapterBoundary(
-            runtimePayload.workflowTaskId,
-            novelId,
-          );
-          if (handedOffToProfessional) {
-            shouldStopAfterCurrentChapter = true;
-            logPipelineInfo("当前章节已安全保存，自动创作已交接到专业工作台", {
-              jobId,
-              order: chapter.order,
-            });
-          }
 
           // Phase 3：N+1 章 JIT 预取
           // 当前章 finalize 完成后（factLedger 已写入），后台触发下一章的 task sheet 生成。
@@ -588,7 +482,6 @@ export class NovelPipelineExecutor {
                   chapterId: chapter.id,
                   chapterOrder: chapter.order,
                   attempt: maxRetries,
-                  maxAttempts: maxRetries,
                   hasUsableOutput: true,
                   provider: runtimePayload.provider,
                   model: runtimePayload.model,
@@ -656,13 +549,35 @@ export class NovelPipelineExecutor {
             retryCount: totalRetryCount,
           });
           if (shouldStopAfterCurrentChapter) {
-            logPipelineWarn("章节触发重规划，已停止后续章节流水线", {
+            pendingManualRecovery = true;
+            logPipelineWarn("章节需要人工处理，已暂停后续章节流水线", {
               jobId,
               order: chapter.order,
               remaining: Math.max(0, totalCount - completed),
             });
             break;
           }
+        }
+
+        if (pendingManualRecovery) {
+          await this.updateJobSafe(jobId, {
+            status: "queued",
+            pendingManualRecovery: true,
+            error: "章节需要人工确认，后续生成已暂停。",
+            heartbeatAt: null,
+            currentStage: "queued",
+            currentItemKey: null,
+            currentItemLabel: null,
+            cancelRequestedAt: null,
+            finishedAt: null,
+            payload: this.stringifyPipelinePayload({
+              ...runtimePayload,
+              qualityAlertDetails,
+              replanAlertDetails,
+              recoverableRepairDetails,
+            }),
+          });
+          return;
         }
 
         const finalStatus: "succeeded" = "succeeded";
@@ -740,7 +655,7 @@ export class NovelPipelineExecutor {
           contentLength: error.details.trimmedLength,
           rawContentLength: error.details.rawLength,
         });
-      } else {
+      } else if (!(error instanceof ChapterContentPersistenceError)) {
         await reportPipelineIssue({
           governance: issueGovernance,
           workflowTaskId: runtimePayload.workflowTaskId,
@@ -751,7 +666,6 @@ export class NovelPipelineExecutor {
           summary: message,
           evidence: error instanceof Error ? error.stack : undefined,
           attempt: maxRetries,
-          maxAttempts: maxRetries,
           hasUsableOutput: false,
           provider: runtimePayload.provider,
           model: runtimePayload.model,

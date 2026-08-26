@@ -341,8 +341,6 @@ model Novel {
   writingPlatformProfileVersion Int?
   writingPlatformSnapshotJson String?
   directorIssuePolicyOverridesJson String?
-  directorRiskNoticeThreshold Int?
-  directorRiskPauseThreshold Int?
   narrativePov      NarrativePov?
   pacePreference    PacePreference?
   styleTone         String?
@@ -3968,4 +3966,84 @@ model ComicBatchJob {
   @@index([projectId, createdAt])
   @@index([episodeId, status])
   @@index([type, status])
+}
+
+model MarketScanRun {
+  id                 String                  @id @default(cuid())
+  status             String                  @default("queued")
+  progress           Float                   @default(0)
+  requestedPlatformsJson String
+  provider           String?
+  model              String?
+  lastError          String?
+  startedAt          DateTime?
+  finishedAt         DateTime?
+  createdAt          DateTime                @default(now())
+  updatedAt          DateTime                @updatedAt
+  snapshots          MarketRankingSnapshot[]
+  report             MarketTrendReport?
+
+  @@index([status, createdAt])
+  @@index([createdAt])
+}
+
+model MarketRankingSnapshot {
+  id           String              @id @default(cuid())
+  runId        String
+  platform     String
+  listKey      String
+  listLabel    String
+  channel      String
+  sourceUrl    String
+  status       String              @default("succeeded")
+  error        String?
+  capturedAt   DateTime            @default(now())
+  run          MarketScanRun       @relation(fields: [runId], references: [id], onDelete: Cascade)
+  items        MarketRankingItem[]
+
+  @@index([runId, platform])
+  @@index([platform, listKey, capturedAt])
+}
+
+model MarketRankingItem {
+  id           String                @id @default(cuid())
+  snapshotId   String
+  rank         Int
+  title        String
+  author       String?
+  category     String?
+  tagsJson     String?
+  synopsis     String?
+  heatLabel    String?
+  serialStatus String?
+  sourceUrl    String
+  snapshot     MarketRankingSnapshot @relation(fields: [snapshotId], references: [id], onDelete: Cascade)
+
+  @@index([snapshotId, rank])
+  @@index([title, author])
+}
+
+model MarketTrendReport {
+  id                 String                @id @default(cuid())
+  runId              String                @unique
+  summary            String
+  structuredDataJson String
+  createdAt          DateTime              @default(now())
+  run                MarketScanRun         @relation(fields: [runId], references: [id], onDelete: Cascade)
+  briefs             MarketCreativeBrief[]
+
+  @@index([createdAt])
+}
+
+model MarketCreativeBrief {
+  id                  String            @id @default(cuid())
+  reportId            String
+  influenceMode       String
+  selectedSignalsJson String
+  summary             String
+  promptBlock         String
+  createdAt           DateTime          @default(now())
+  report              MarketTrendReport @relation(fields: [reportId], references: [id], onDelete: Cascade)
+
+  @@index([reportId, createdAt])
 }

@@ -191,7 +191,14 @@ export default function MobileNovelEditView(props: NovelEditViewProps) {
 
                 <div className="rounded-xl border border-border/70 p-3">
                   <div className="text-sm font-medium">导出整本书</div>
-                  <div className="mt-3 grid grid-cols-2 gap-2">
+                  <div className="mt-3 grid grid-cols-3 gap-2">
+                    <Button
+                      type="button"
+                      onClick={() => exportControls.onExportFull("txt")}
+                      disabled={exportControls.isExportingFullTxt}
+                    >
+                      {exportControls.isExportingFullTxt ? "导出中..." : "TXT 正文"}
+                    </Button>
                     <Button
                       type="button"
                       variant="outline"

@@ -668,8 +668,6 @@ test("director command stale recovery applies the task policy instead of only re
     seedPayloadJson: JSON.stringify({
       issueGovernanceVersion: 1,
       issuePolicy: {
-        noticeThreshold: 5,
-        pauseThreshold: 8,
         issueActions: { "runtime.worker_stale": "fail_task" },
       },
       issuePolicySource: "novel",
@@ -682,26 +680,15 @@ test("director command stale recovery applies the task policy instead of only re
   directorIssueService.reportIssue = async (input) => {
     reportedPolicy = input.policy;
     await input.applyAction({
-      occurrence: {
-        schemaVersion: 1,
-        issueCode: input.issueCode,
-        stage: input.stage,
-        summary: input.summary,
-        attempt: input.attempt,
-        maxAttempts: input.maxAttempts,
-        hasUsableOutput: false,
-        fingerprint: input.fingerprint,
-        occurredAt: new Date().toISOString(),
-      },
-      decision: {
-        issueCode: input.issueCode,
-        action: "fail_task",
-        reason: "本书规则要求结束任务",
-        locked: false,
-        policySource: "novel",
-        retryExhaustedAction: "pause_for_manual",
-      },
+      issueCode: input.issueCode,
+      action: "fail_task",
+      reason: "本书规则要求结束任务",
+      locked: false,
+      policySource: "novel",
+      retryExhaustedAction: "pause_for_manual",
     });
+    assert.equal(harness.commands[0].status, "failed");
+    assert.equal(harness.task.status, "failed");
   };
   try {
     await harness.service.enqueueContinueCommand("task-1");

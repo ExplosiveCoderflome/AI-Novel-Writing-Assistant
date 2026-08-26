@@ -77,7 +77,9 @@ export function AdvancedPromptTemplateEditor(props: {
   testRun?: PromptTestRunResult | null;
   testRunPending?: boolean;
   testRunError?: string | null;
+  testRunStreamOutput?: string;
   disabled?: boolean;
+  showTestResult?: boolean;
 }) {
   const {
     disabled,
@@ -86,6 +88,8 @@ export function AdvancedPromptTemplateEditor(props: {
     testRun = null,
     testRunError = null,
     testRunPending = false,
+    testRunStreamOutput = "",
+    showTestResult = true,
   } = props;
   const [tokenMenuRole, setTokenMenuRole] = useState<TemplateRole | null>(null);
   const [tokenQuery, setTokenQuery] = useState("");
@@ -227,11 +231,14 @@ export function AdvancedPromptTemplateEditor(props: {
         </div>
       ) : null}
 
-      <PromptTestRunResultPanel
-        result={testRun}
-        isPending={testRunPending}
-        error={testRunError}
-      />
+      {showTestResult ? (
+        <PromptTestRunResultPanel
+          result={testRun}
+          isPending={testRunPending}
+          error={testRunError}
+          streamOutput={testRunStreamOutput}
+        />
+      ) : null}
 
       {previewMessages.length > 0 ? (
         <div className="rounded-md border border-[#d7e4e0] bg-white">

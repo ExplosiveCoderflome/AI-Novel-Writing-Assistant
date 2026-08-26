@@ -492,6 +492,7 @@ test("director core step runtime uses explicit dependency assembly", () => {
   assert.equal(source.includes("require("), false);
   assert.match(source, /interface DirectorCoreStepModuleRuntimeDeps/);
   assert.match(source, /buildDefaultDirectorCoreStepModuleRuntimeDeps/);
+  assert.match(source, /allowIncompleteExecutionContracts:\s*true/);
 });
 
 test("chapter draft validation trusts fresh draft facts over stale failed task status", async (t) => {

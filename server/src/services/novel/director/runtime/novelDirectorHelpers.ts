@@ -57,7 +57,6 @@ export interface DirectorCandidateStageState {
 
 export interface DirectorWorkflowSeedPayload extends Record<string, unknown> {
   productionExperience?: "simple" | "professional";
-  pendingProductionExperience?: "professional";
   startupPreparation?: DirectorConfirmRequest["startupPreparation"];
   completionProfile?: DirectorCompletionProfile;
   novelId?: string | null;
@@ -272,6 +271,7 @@ export async function enhanceCandidateTitles(
   try {
     const response = await titleGenerationService.generateTitleIdeas({
       mode: "brief",
+      selectionMode: "primary",
       brief: buildCandidateTitleBrief(candidate, context, excludedTitles),
       genreId: context.request.genreId ?? null,
       count: 4,
@@ -307,11 +307,23 @@ function buildCandidateTitleBrief(
     `开篇钩子：${candidate.hookStrategy}`,
     `推进循环：${candidate.progressionLoop}`,
     `结局方向：${candidate.endingDirection}`,
+    `推荐发布平台：${candidate.recommendedWritingPlatform === "qidian_male"
+      ? "起点男频"
+      : candidate.recommendedWritingPlatform === "jinjiang_female"
+        ? "晋江女频"
+        : "番茄免费网文"}`,
+    candidate.writingPlatformReason?.trim() ? `平台判断理由：${candidate.writingPlatformReason.trim()}` : "",
+    context.request.readerChannelPreference === "male_oriented" ? "读者频道：男频向" : "",
+    context.request.readerChannelPreference === "female_oriented" ? "读者频道：女频向" : "",
+    context.request.readerChannelPreference === "general" ? "读者频道：泛读者" : "",
+    context.request.targetAudience?.trim() ? `目标读者：${context.request.targetAudience.trim()}` : "",
+    context.request.marketBriefPrompt?.trim() ? `开书市场简报：\n${context.request.marketBriefPrompt.trim()}` : "",
     candidate.toneKeywords.length > 0 ? `气质关键词：${candidate.toneKeywords.join("、")}` : "",
     context.request.title?.trim() ? `用户当前草拟标题：${context.request.title.trim()}` : "",
     `当前方案原始命名：${candidate.workingTitle}`,
     excludedTitles.length > 0 ? `其他方案已占用书名：${excludedTitles.join("、")}` : "",
-    "请生成更适合中文网文封面展示和点击测试的书名，突出卖点、反差、异常规则、主角优势或追更钩子。",
+    "请先确定一个最适合当前平台、读者与故事方向的主书名，再给出三个不同角度的备选。",
+    "主书名必须保留这套故事独有的具体资产，不能只剩抽象情绪、泛化反差或一句悬念文案。",
     "不要写成策划案标题、世界观概念短语、流水线土味套壳名，也不要为了文艺感牺牲点击感。",
     excludedTitles.length > 0 ? "不得复用或近似改写其他方案已占用的书名。" : "",
   ].filter(Boolean);
@@ -480,7 +492,6 @@ export function buildWorkflowSeedPayload(
     autoExecutionPlan?: DirectorAutoExecutionPlan;
     autoApproval?: DirectorAutoApprovalConfig;
     completionProfile?: DirectorCompletionProfile;
-    riskPolicy?: import("@ai-novel/shared/types/directorRisk").DirectorRiskPolicy;
   },
   extra?: Record<string, unknown>,
 ): Record<string, unknown> {
@@ -565,7 +576,6 @@ export function buildWorkflowSeedPayload(
     ...(autoApproval ? { autoApproval } : {}),
     estimatedChapterCount: basicForm.estimatedChapterCount,
     completionProfile,
-    riskPolicy: input.riskPolicy ?? null,
     idea: input.idea.trim(),
     basicForm,
     ...extra,

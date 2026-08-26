@@ -15,6 +15,7 @@ export interface PipelineRuntimeHooks {
   onCheckCancelled?: () => Promise<void>;
   onStageChange?: (stage: "generating_chapters" | "reviewing" | "repairing") => Promise<void>;
   onEmptyContent?: (event: PipelineEmptyContentEvent) => Promise<void>;
+  onRetryConsumed?: (kind: "quality_repair") => Promise<void>;
 }
 
 export interface PipelineEmptyContentEvent {
@@ -145,7 +146,9 @@ interface RunPipelineChapterDeps {
 }
 
 const QUALITY_THRESHOLD = { coherence: 80, repetition: 75, engagement: 75 };
-const EMPTY_CONTENT_GENERATION_RETRY_LIMIT = 1;
+// Pipeline execution owns the single automatic retry budget. Keeping the
+// writer attempt at zero avoids stacking a hidden empty-content retry on top.
+const EMPTY_CONTENT_GENERATION_RETRY_LIMIT = 0;
 const NON_PATCHABLE_REVIEW_ISSUE_CODES = new Set(["acceptance_gate_unavailable"]);
 
 const AUDIT_CATEGORY_MAP: Record<"continuity" | "character" | "plot" | "mode_fit", ReviewIssue["category"]> = {
@@ -307,9 +310,10 @@ export async function runPipelineChapterWithRuntime(
       await deps.markChapterNeedsRepair(chapterId);
       break;
     }
+    retryCountUsed += 1;
+    await hooks.onRetryConsumed?.("quality_repair");
     repairEscalatedFromPatch = repairResult.escalatedFromPatch;
     content = repairResult.content;
-    retryCountUsed += 1;
     await deps.saveDraftAndArtifacts(novelId, chapterId, content, "repaired", {
       scheduleBackgroundSync: false,
       artifactSyncMode,

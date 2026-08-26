@@ -1,4 +1,4 @@
-import type { BaseMessage } from "@langchain/core/messages";
+import type { BaseMessage, BaseMessageChunk } from "@langchain/core/messages";
 import type { LLMProvider } from "@ai-novel/shared/types/llm";
 import { prisma } from "../db/prisma";
 import { getLLM, getResolvedLLMClientOptionsFromInstance } from "../llm/factory";
@@ -752,6 +752,26 @@ export class PromptWorkbenchService {
         template: rendered.templateDiagnosticPayload,
       },
     };
+  }
+
+  async testRunTextStream(input: PromptTestRunInput): Promise<{
+    stream: AsyncIterable<BaseMessageChunk>;
+  }> {
+    const rendered = await this.renderPreviewPrompt(input);
+    if (rendered.asset.mode !== "text") {
+      throw new Error("结构化测试需要在结果校验完成后统一显示，请使用普通测试产出。");
+    }
+    const llmOptions = input.llm ?? {};
+    const llm = await getLLM(llmOptions.provider, {
+      fallbackProvider: "deepseek",
+      model: llmOptions.model,
+      temperature: llmOptions.temperature,
+      maxTokens: llmOptions.maxTokens,
+      timeoutMs: llmOptions.timeoutMs,
+      taskType: rendered.asset.taskType,
+    });
+    const stream = await llm.stream(rendered.previewMessages);
+    return { stream: stream as AsyncIterable<BaseMessageChunk> };
   }
 
   async contextReferences(input: PromptContextReferencesInput): Promise<PromptTemplateReferenceCatalog> {

@@ -27,6 +27,7 @@ import {
   buildChapterDetailBatchConfirmationMessage,
   resolveChapterDetailBatch,
   runChapterDetailBatchGeneration,
+  type ChapterDetailBatchFailure,
 } from "./useNovelVolumePlanning.chapterDetail";
 import {
   startBeatSheetGenerationAction,
@@ -171,6 +172,7 @@ export function useNovelVolumePlanning({
   const [isGeneratingChapterDetailBundle, setIsGeneratingChapterDetailBundle] = useState(false);
   const [bundleGeneratingChapterId, setBundleGeneratingChapterId] = useState("");
   const [bundleGeneratingMode, setBundleGeneratingMode] = useState<ChapterDetailMode | "">("");
+  const [chapterDetailFailure, setChapterDetailFailure] = useState<ChapterDetailBatchFailure | null>(null);
 
   const generateMutation = useVolumeGenerationMutation({
     novelId,
@@ -291,6 +293,32 @@ export function useNovelVolumePlanning({
     });
   };
 
+  const runChapterDetailBundleGeneration = (
+    targetVolumeId: string,
+    label: string,
+    targets: ChapterDetailBatchFailure["targets"],
+  ) => {
+    void runChapterDetailBatchGeneration({
+      initialDraft: normalizedVolumeDraft,
+      label,
+      targetVolumeId,
+      targets,
+      setIsGenerating: setIsGeneratingChapterDetailBundle,
+      setCurrentChapterId: setBundleGeneratingChapterId,
+      setCurrentMode: setBundleGeneratingMode,
+      setFailure: setChapterDetailFailure,
+      setStructuredMessage,
+      generateChapterDetail: (payload) => generateMutation.mutateAsync({
+        scope: "chapter_detail",
+        targetVolumeId: payload.targetVolumeId,
+        targetChapterId: payload.targetChapterId,
+        detailMode: payload.detailMode,
+        draftVolumesOverride: payload.draftVolumesOverride,
+        suppressSuccessMessage: payload.suppressSuccessMessage,
+      }),
+    });
+  };
+
   const startChapterDetailBundleGeneration = (
     volumeId: string,
     request: ChapterDetailBundleRequest,
@@ -317,24 +345,18 @@ export function useNovelVolumePlanning({
       return;
     }
 
-    void runChapterDetailBatchGeneration({
-      initialDraft: normalizedVolumeDraft,
-      label: batch.label,
-      targetVolumeId: volumeId,
-      targets: batch.targets,
-      setIsGenerating: setIsGeneratingChapterDetailBundle,
-      setCurrentChapterId: setBundleGeneratingChapterId,
-      setCurrentMode: setBundleGeneratingMode,
-      setStructuredMessage,
-      generateChapterDetail: (payload) => generateMutation.mutateAsync({
-        scope: "chapter_detail",
-        targetVolumeId: payload.targetVolumeId,
-        targetChapterId: payload.targetChapterId,
-        detailMode: payload.detailMode,
-        draftVolumesOverride: payload.draftVolumesOverride,
-        suppressSuccessMessage: payload.suppressSuccessMessage,
-      }),
-    });
+    runChapterDetailBundleGeneration(volumeId, batch.label, batch.targets);
+  };
+
+  const retryFailedChapterDetail = () => {
+    if (!chapterDetailFailure) {
+      return;
+    }
+    runChapterDetailBundleGeneration(
+      chapterDetailFailure.targetVolumeId,
+      `从第${chapterDetailFailure.chapterOrder}章继续`,
+      chapterDetailFailure.targets,
+    );
   };
 
   const handleVolumeFieldChange = (
@@ -496,6 +518,7 @@ export function useNovelVolumePlanning({
     isGeneratingChapterDetailBundle,
     generatingChapterDetailMode,
     generatingChapterDetailChapterId,
+    chapterDetailFailure,
     startStrategyGeneration,
     startStrategyCritique,
     startSkeletonGeneration,
@@ -503,6 +526,7 @@ export function useNovelVolumePlanning({
     startChapterListGeneration,
     startChapterDetailGeneration,
     startChapterDetailBundleGeneration,
+    retryFailedChapterDetail,
     handleVolumeFieldChange,
     handleOpenPayoffsChange,
     handleAddVolume,

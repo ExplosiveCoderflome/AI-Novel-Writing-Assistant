@@ -106,14 +106,109 @@ test("event handlers do not import heavy side-effect executors directly", () => 
   assert.equal(/from\s+["'].*sharedNovelServices/.test(source), false);
 });
 
-test("only explicit global-book replan decisions may stop the production chain", () => {
+test("production closure owns quality stops and persists manual recovery", () => {
   const plannerSource = readSource("services", "planner", "PlannerService.ts");
   const reviewSource = readSource("services", "novel", "novelCoreReviewService.ts");
+  const manualReviewSource = reviewSource.slice(
+    reviewSource.indexOf("async reviewChapter("),
+    reviewSource.indexOf("async createRepairStream("),
+  );
+  const qualityLoopSource = readSource("services", "novel", "quality", "ChapterQualityLoopService.ts");
   const pipelineSource = readSource("services", "novel", "production", "NovelPipelineExecutor.ts");
 
   assert.equal(plannerSource.includes('scope: input.scope'), true);
-  assert.equal(reviewSource.includes('replanRecommendation.action === "stop_for_replan"'), true);
+  assert.equal(manualReviewSource.includes("plannerService.replan("), false);
+  assert.equal(manualReviewSource.includes("qualityAssessment"), true);
+  assert.equal(qualityLoopSource.includes("chapterLifecycleService.applyQualityAssessmentState"), true);
+  assert.equal(qualityLoopSource.includes("prisma.chapter.update"), false);
   assert.equal(pipelineSource.includes('applyChapterQualityClosure'), true);
+  assert.equal(pipelineSource.includes('pendingManualRecovery: true'), true);
+  assert.equal(pipelineSource.indexOf('pendingManualRecovery: true') < pipelineSource.indexOf('const finalStatus: "succeeded"'), true);
+  assert.equal(pipelineSource.includes('chapterRetryCountUsed < chapterRetryBudget'), true);
+  assert.equal(pipelineSource.includes('maxRetries: Math.max(0, chapterRetryBudget - chapterRetryCountUsed)'), true);
+});
+
+test("auto director checkpoints consume governed quality actions without a second risk assessment", () => {
+  const checkpointSource = readSource(
+    "services",
+    "novel",
+    "director",
+    "automation",
+    "novelDirectorAutoExecutionCheckpointRuntime.ts",
+  );
+  const riskServiceSource = readSource(
+    "services",
+    "novel",
+    "director",
+    "risk",
+    "DirectorRiskAssessmentService.ts",
+  );
+
+  assert.equal(checkpointSource.includes("directorRiskAssessmentService"), false);
+  assert.equal(checkpointSource.includes("assessQualityRepair"), false);
+  assert.equal(riskServiceSource.includes("assessQualityRepair"), false);
+});
+
+test("runtime preflight policy does not own chapter retry or quality actions", () => {
+  const policySource = readSource(
+    "services",
+    "novel",
+    "director",
+    "runtime",
+    "DirectorPolicyEngine.ts",
+  );
+  const sharedContract = fs.readFileSync(
+    path.join(repoRoot, "..", "shared", "types", "directorRuntime.ts"),
+    "utf8",
+  );
+
+  for (const removedContract of [
+    "qualityGateResult",
+    "autoRetryBudget",
+    "onQualityFailure",
+    "maxAutoRepairAttempts",
+  ]) {
+    assert.equal(policySource.includes(removedContract), false);
+    assert.equal(sharedContract.includes(removedContract), false);
+  }
+});
+
+test("manual chapter repair reuses the unified content finalization boundary", () => {
+  const repairSource = readSource(
+    "services",
+    "novel",
+    "runtime",
+    "repair",
+    "ChapterRepairStreamRuntime.ts",
+  );
+
+  assert.equal(repairSource.includes("contentFinalizationService.finalizeChapterContent"), true);
+  assert.equal(repairSource.includes("contentProvenance: pass ? \"confirmed\" : \"debt\""), true);
+  assert.equal(repairSource.includes('lifecycleService.markGenerationState(input.chapterId, "approved")'), true);
+  assert.equal(repairSource.includes("auditService.auditChapter"), true);
+  assert.equal(repairSource.includes("reviewChapterAfterRepair"), false);
+});
+
+test("chapter runtime keeps lifecycle persistence behind one service", () => {
+  const lifecycleSource = readSource(
+    "services",
+    "novel",
+    "runtime",
+    "lifecycle",
+    "ChapterLifecycleService.ts",
+  );
+  const runtimeWriters = [
+    readSource("services", "novel", "runtime", "ChapterArtifactSyncService.ts"),
+    readSource("services", "novel", "runtime", "ChapterContentFinalizationService.ts"),
+    readSource("services", "novel", "runtime", "ChapterPipelineRuntimeAdapter.ts"),
+    readSource("services", "novel", "runtime", "ChapterStreamGenerationOrchestrator.ts"),
+    readSource("services", "novel", "runtime", "repair", "ChapterRepairStreamRuntime.ts"),
+  ];
+
+  assert.equal(lifecycleSource.includes("prisma.chapter.update"), true);
+  for (const source of runtimeWriters) {
+    assert.equal(source.includes("prisma.chapter.update"), false);
+  }
 });
 
 test("RAG keeps its dedicated persisted index queue", () => {

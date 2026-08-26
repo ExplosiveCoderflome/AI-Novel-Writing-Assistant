@@ -10,7 +10,6 @@ export function buildDefaultDirectorPolicy(
   return {
     mode,
     mayOverwriteUserContent: false,
-    maxAutoRepairAttempts: 1,
     allowExpensiveReview: false,
     modelTier: "balanced",
     updatedAt: new Date().toISOString(),

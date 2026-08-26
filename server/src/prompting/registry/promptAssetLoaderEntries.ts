@@ -302,7 +302,7 @@ export const promptAssetLoaderEntries: PromptAssetLoaderEntry[] = [
     load: () => require("../prompts/character/characterConversation.prompts").characterConversationTurnPrompt as UnknownPromptAsset,
   },
   {
-    key: "title.generation@v1",
+    key: "title.generation@v2",
     load: () => require("../prompts/helper/titleGeneration.prompt").titleGenerationPrompt as UnknownPromptAsset,
   },
   {
@@ -474,6 +474,18 @@ export const promptAssetLoaderEntries: PromptAssetLoaderEntry[] = [
     load: () => require("../prompts/novel/resourceRecommendation.prompts").novelCreateResourceRecommendationPrompt as UnknownPromptAsset,
   },
   {
+    key: "market_radar.platform_digest@v3",
+    load: () => require("../prompts/marketRadar/marketRadar.prompts").marketPlatformDigestPrompt as UnknownPromptAsset,
+  },
+  {
+    key: "market_radar.cross_platform_synthesis@v4",
+    load: () => require("../prompts/marketRadar/marketRadar.prompts").marketTrendSynthesisPrompt as UnknownPromptAsset,
+  },
+  {
+    key: "market_radar.creative_brief@v1",
+    load: () => require("../prompts/marketRadar/marketRadar.prompts").marketCreativeBriefPrompt as UnknownPromptAsset,
+  },
+  {
     key: "novel.compact_book.structure@v1",
     load: () => require("../prompts/novel/completion/compactBook.prompts").compactBookStructurePrompt as UnknownPromptAsset,
   },
@@ -484,6 +496,14 @@ export const promptAssetLoaderEntries: PromptAssetLoaderEntry[] = [
   {
     key: "novel.director.idea_inspiration@v3",
     load: () => require("../prompts/novel/ideaInspiration.prompts").directorIdeaInspirationPrompt as UnknownPromptAsset,
+  },
+  {
+    key: "novel.director.idea_constellation_options@v3",
+    load: () => require("../prompts/novel/ideaConstellation/ideaConstellation.prompts").directorIdeaConstellationOptionsPrompt as UnknownPromptAsset,
+  },
+  {
+    key: "novel.director.idea_constellation_compose@v2",
+    load: () => require("../prompts/novel/ideaConstellation/ideaConstellation.prompts").directorIdeaConstellationComposePrompt as UnknownPromptAsset,
   },
   {
     key: "novel.payoff_ledger.sync@v6",

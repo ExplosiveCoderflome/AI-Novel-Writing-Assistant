@@ -36,7 +36,7 @@ import {
   type DirectorCommandPayload,
 } from "./DirectorCommandServiceHelpers";
 import { taskDispatcher } from "../../../../workers/TaskDispatcher";
-import { directorIssueService, loadDirectorIssueTaskContext } from "../issues";
+import { DirectorCommandLeaseService } from "./leases/DirectorCommandLeaseService";
 
 const ACTIVE_COMMAND_STATUSES: DirectorRunCommandStatus[] = ["queued", "leased", "running"];
 const EXECUTION_COMMAND_TYPES: DirectorRunCommandType[] = [
@@ -60,37 +60,7 @@ const EXECUTION_COMMAND_TYPES: DirectorRunCommandType[] = [
 
 export type DirectorRunCommandRow = Awaited<ReturnType<DirectorCommandService["getCommandById"]>>;
 
-const DEFAULT_STALE_AUTO_RECOVERY_MAX_ATTEMPTS = 2;
-const STALE_COMMAND_AUTO_RECOVERY_MESSAGE = "后台执行中断，系统已自动从最近进度继续。";
-const STALE_COMMAND_MANUAL_RECOVERY_MESSAGE = "后台执行中断，任务已暂停。点击恢复后会从最近进度继续。";
-const STALE_COMMAND_INTERNAL_MESSAGE = "Director Worker 租约过期，任务等待恢复。";
 const CANCELLED_COMMAND_MESSAGE = "自动导演任务已取消。";
-
-function isAutoRecoverableStaleCommand(command: {
-  commandType: string;
-  attempt: number;
-  payloadJson?: string | null;
-}): boolean {
-  const defaultMaxAttempts = resolveNumberEnv(
-    "DIRECTOR_WORKER_STALE_AUTO_RECOVERY_MAX_ATTEMPTS",
-    DEFAULT_STALE_AUTO_RECOVERY_MAX_ATTEMPTS,
-  );
-  const payload = parsePayload(command.payloadJson ?? null);
-  const payloadRunMode = payload.confirmRequest?.runMode ?? payload.takeoverRequest?.runMode ?? null;
-  const isFullBookAutopilot = payloadRunMode === "full_book_autopilot";
-  const maxAttempts = isFullBookAutopilot
-    ? resolveNumberEnv(
-      "DIRECTOR_WORKER_FULL_BOOK_STALE_AUTO_RECOVERY_MAX_ATTEMPTS",
-      Math.max(defaultMaxAttempts, 5),
-    )
-    : defaultMaxAttempts;
-  return command.attempt < maxAttempts
-    && (
-      isFullBookAutopilot
-      || command.commandType === "continue"
-      || command.commandType === "resume_from_checkpoint"
-    );
-}
 
 export class DirectorCommandService {
   constructor(private readonly workflowService = new NovelWorkflowService()) {}
@@ -513,123 +483,7 @@ export class DirectorCommandService {
   async recoverStaleLeases(now = new Date(), options: {
     taskId?: string;
   } = {}): Promise<number> {
-    const staleCommands = await prisma.directorRunCommand.findMany({
-      where: {
-        ...(options.taskId ? { taskId: options.taskId } : {}),
-        status: { in: ["leased", "running"] },
-        leaseExpiresAt: { lt: now },
-      },
-      select: {
-        id: true,
-        taskId: true,
-        commandType: true,
-        attempt: true,
-        payloadJson: true,
-      },
-    });
-    if (staleCommands.length === 0) {
-      return 0;
-    }
-    const autoRecoverableCommands = staleCommands.filter(isAutoRecoverableStaleCommand);
-    const manualRecoveryCommands = staleCommands.filter((command) => !isAutoRecoverableStaleCommand(command));
-
-    if (autoRecoverableCommands.length > 0) {
-      const autoRecoverableIds = autoRecoverableCommands.map((command) => command.id);
-      await prisma.directorRunCommand.updateMany({
-        where: { id: { in: autoRecoverableIds } },
-        data: {
-          status: "queued",
-          leaseOwner: null,
-          leaseExpiresAt: null,
-          runAfter: now,
-          startedAt: null,
-          finishedAt: null,
-          errorMessage: STALE_COMMAND_AUTO_RECOVERY_MESSAGE,
-        },
-      });
-      const autoRecoverableTaskIds = Array.from(new Set(autoRecoverableCommands.map((command) => command.taskId)));
-      await prisma.novelWorkflowTask.updateMany({
-        where: { id: { in: autoRecoverableTaskIds } },
-        data: {
-          status: "queued",
-          pendingManualRecovery: false,
-          lastError: null,
-          heartbeatAt: now,
-          finishedAt: null,
-        },
-      }).catch(() => null);
-      taskDispatcher.notify();
-      for (const command of autoRecoverableCommands) {
-        const governance = await loadDirectorIssueTaskContext(command.taskId);
-        if (!governance?.novelId) continue;
-        await directorIssueService.reportIssue({
-          issueGovernanceVersion: governance.issueGovernanceVersion,
-          taskId: command.taskId,
-          novelId: governance.novelId,
-          issueCode: "runtime.worker_stale",
-          stage: "director_worker",
-          summary: STALE_COMMAND_AUTO_RECOVERY_MESSAGE,
-          evidence: `command=${command.commandType}; attempt=${command.attempt}`,
-          attempt: command.attempt,
-          maxAttempts: command.attempt + 1,
-          hasUsableOutput: false,
-          runMode: governance.runMode,
-          fingerprint: ["worker_stale", command.id, command.attempt].join(":"),
-          policy: governance.policy,
-          policySource: governance.policySource,
-        }).catch(() => null);
-      }
-    }
-
-    if (manualRecoveryCommands.length === 0) {
-      return staleCommands.length;
-    }
-    const manualRecoveryIds = manualRecoveryCommands.map((command) => command.id);
-    await prisma.directorRunCommand.updateMany({
-      where: { id: { in: manualRecoveryIds } },
-      data: {
-        status: "stale",
-        finishedAt: now,
-        errorMessage: STALE_COMMAND_INTERNAL_MESSAGE,
-      },
-    });
-    const manualRecoveryTaskIds = Array.from(new Set(manualRecoveryCommands.map((command) => command.taskId)));
-    for (const taskId of manualRecoveryTaskIds) {
-      await prisma.directorStepRun.updateMany({
-        where: {
-          taskId,
-          status: "running",
-        },
-        data: {
-          status: "failed",
-          finishedAt: now,
-          error: STALE_COMMAND_INTERNAL_MESSAGE,
-        },
-      }).catch(() => null);
-      await this.workflowService.requeueTaskForRecovery(taskId, STALE_COMMAND_MANUAL_RECOVERY_MESSAGE)
-        .catch(() => null);
-      const governance = await loadDirectorIssueTaskContext(taskId);
-      if (governance?.novelId) {
-        const command = manualRecoveryCommands.find((item) => item.taskId === taskId);
-        await directorIssueService.reportIssue({
-          issueGovernanceVersion: governance.issueGovernanceVersion,
-          taskId,
-          novelId: governance.novelId,
-          issueCode: "runtime.worker_stale",
-          stage: "director_worker",
-          summary: STALE_COMMAND_MANUAL_RECOVERY_MESSAGE,
-          evidence: command ? `command=${command.commandType}; attempt=${command.attempt}` : undefined,
-          attempt: command?.attempt ?? 1,
-          maxAttempts: command?.attempt ?? 1,
-          hasUsableOutput: false,
-          runMode: governance.runMode,
-          fingerprint: ["worker_stale", command?.id ?? taskId, command?.attempt ?? 1].join(":"),
-          policy: governance.policy,
-          policySource: governance.policySource,
-        }).catch(() => null);
-      }
-    }
-    return staleCommands.length;
+    return new DirectorCommandLeaseService(this.workflowService).recoverStaleLeases(now, options);
   }
 
   async leaseNextCommand(input: {

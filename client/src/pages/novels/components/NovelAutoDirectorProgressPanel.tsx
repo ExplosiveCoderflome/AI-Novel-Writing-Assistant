@@ -229,7 +229,7 @@ function resolveDirectorStepStatuses(
   mode: DirectorExecutionViewMode,
   steps: ReadonlyArray<DirectorStepDefinition>,
 ): DirectorStepVisualStatus[] {
-  if (task?.checkpointType === "chapter_batch_ready" || task?.status === "succeeded") {
+  if (task?.status === "succeeded") {
     return steps.map(() => "completed");
   }
 
@@ -304,15 +304,18 @@ export default function NovelAutoDirectorProgressPanel({
   const dashboardView = snapshot?.dashboardView ?? null;
   const displayState = snapshot?.displayState ?? null;
   const runtimeProjection = snapshot?.projection ?? null;
+  const taskHasTerminalFailure = task?.status === "failed" || task?.status === "cancelled";
+  const dashboardViewForDisplay = taskHasTerminalFailure ? null : dashboardView;
+  const displayStateForDisplay = taskHasTerminalFailure ? null : displayState;
   const staleActionProjection = Boolean(
-    dashboardView?.mode === "running"
+    dashboardViewForDisplay?.mode === "running"
     && (
       runtimeProjection?.requiresUserAction
       || runtimeProjection?.status === "blocked"
       || runtimeProjection?.status === "waiting_approval"
     ),
   );
-  const runtimeProjectionForDisplay = dashboardView?.mode === "recovering" || staleActionProjection ? null : runtimeProjection;
+  const runtimeProjectionForDisplay = dashboardViewForDisplay?.mode === "recovering" || staleActionProjection ? null : runtimeProjection;
   const chapterFacts = snapshot?.factSummary?.chapterExecutionFacts
     ?? runtimeProjectionForDisplay?.factSummary?.chapterExecutionFacts
     ?? null;
@@ -327,7 +330,7 @@ export default function NovelAutoDirectorProgressPanel({
     : null;
   const onboardingNovelId = task?.resumeTarget?.novelId?.trim() || runtimeTaskId;
   const historyEvents = snapshot?.recentEvents ?? [];
-  const displayProgress = dashboardView?.progressPercent ?? displayState?.progressPercent ?? task?.progress ?? null;
+  const displayProgress = dashboardViewForDisplay?.progressPercent ?? displayStateForDisplay?.progressPercent ?? task?.progress ?? null;
   const fallbackChapterTitleWarning = !taskChapterTitleWarning && isChapterTitleDiversitySummary(fallbackError)
     ? {
       summary: fallbackError?.trim() ?? "",
@@ -336,20 +339,20 @@ export default function NovelAutoDirectorProgressPanel({
     }
     : null;
   const rawChapterTitleWarning = taskChapterTitleWarning ?? fallbackChapterTitleWarning;
-  const chapterTitleWarning = dashboardView?.mode === "running" || dashboardView?.mode === "queued"
+  const chapterTitleWarning = dashboardViewForDisplay?.mode === "running" || dashboardViewForDisplay?.mode === "queued"
     ? null
     : rawChapterTitleWarning;
-  const visualMode: DirectorExecutionViewMode = mode === "execution_failed" && !chapterTitleWarning && dashboardView?.mode !== "running"
+  const visualMode: DirectorExecutionViewMode = mode === "execution_failed" && !chapterTitleWarning
     ? "execution_failed"
     : "execution_progress";
-  const currentAction = dashboardView?.currentAction
-    || displayState?.currentAction
+  const currentAction = dashboardViewForDisplay?.currentAction
+    || displayStateForDisplay?.currentAction
     || runtimeProjectionForDisplay?.currentLabel?.trim()
     || task?.currentItemLabel?.trim()
     || (visualMode === "execution_failed"
       ? "导演任务执行中断"
       : (chapterTitleWarning ? "章节列表已生成，等待修复标题结构" : "正在准备导演任务"));
-  const activityTags = extractWorkflowActivityTags(displayState?.currentFactStepLabel || task?.currentItemLabel);
+  const activityTags = extractWorkflowActivityTags(displayStateForDisplay?.currentFactStepLabel || task?.currentItemLabel);
   const workflowTitle = task?.title?.trim() || "";
   const hintedTitle = titleHint?.trim() || "";
   const taskTitle = (
@@ -361,14 +364,17 @@ export default function NovelAutoDirectorProgressPanel({
     ? task.meta.milestones as NovelWorkflowMilestone[]
     : [];
   const candidateSetupFlow = isCandidateSetupFlow(task);
-  const displaySteps = dashboardView?.steps ?? displayState?.steps ?? [];
+  const displaySteps = dashboardViewForDisplay?.steps ?? displayStateForDisplay?.steps ?? [];
   const stepDefinitions = candidateSetupFlow
     ? DIRECTOR_CANDIDATE_SETUP_STEPS
     : displaySteps.map((step) => ({ key: step.key, label: step.label }));
   const steps = candidateSetupFlow
     ? resolveDirectorStepStatuses(task, visualMode, stepDefinitions)
     : displaySteps.map((step) => mapDisplayStepStatus(step.status));
-  const failureMessage = task?.lastError?.trim() || fallbackError?.trim() || "导演任务执行失败，但没有记录明确错误。";
+  const failureMessage = task?.lastError?.trim()
+    || task?.checkpointSummary?.trim()
+    || fallbackError?.trim()
+    || "导演任务执行失败，但没有记录明确错误。";
   const isHighMemoryConflict = /高内存卷规划生成正在处理同一范围|高内存.*同一范围|已有自动导演任务正在处理同一范围/.test(failureMessage);
   const tokenUsage = task?.tokenUsage ?? null;
   const styleSeed = resolveDirectorStyleSeed(task);
@@ -378,7 +384,7 @@ export default function NovelAutoDirectorProgressPanel({
       ? "loading"
       : chapterTitleWarning
         ? "waiting"
-        : mapDashboardModeToContainerMode(dashboardView?.mode ?? null);
+        : mapDashboardModeToContainerMode(dashboardViewForDisplay?.mode ?? null);
   const description = candidateSetupFlow
     ? (
       visualMode === "execution_failed"
@@ -386,8 +392,8 @@ export default function NovelAutoDirectorProgressPanel({
         : "系统会先整理项目设定、对齐书级 framing，再生成两套书级方案和对应标题组。"
     )
     : (
-      dashboardView?.description
-      || displayState?.description
+      dashboardViewForDisplay?.description
+      || displayStateForDisplay?.description
       || (visualMode === "execution_failed"
         ? "任务已停在最近一步，可以从当前进度恢复。"
         : chapterTitleWarning
@@ -416,10 +422,10 @@ export default function NovelAutoDirectorProgressPanel({
     }
     return null;
   };
-  const dashboardActions = dashboardView
+  const dashboardActions = dashboardViewForDisplay
     ? [
-      dashboardView.primaryAction,
-      ...dashboardView.secondaryActions,
+      dashboardViewForDisplay.primaryAction,
+      ...dashboardViewForDisplay.secondaryActions,
     ].filter((item): item is DirectorDashboardAction => Boolean(item))
       .map(resolveDashboardAction)
       .filter((item): item is NonNullable<ReturnType<typeof resolveDashboardAction>> => Boolean(item))
@@ -432,7 +438,7 @@ export default function NovelAutoDirectorProgressPanel({
         mode={containerMode}
         title={visualMode === "execution_failed"
           ? (candidateSetupFlow ? "\u5019\u9009\u65b9\u6848\u751f\u6210\u5931\u8d25" : "\u5bfc\u6f14\u6267\u884c\u5931\u8d25")
-          : dashboardView?.mode === "recovering"
+          : dashboardViewForDisplay?.mode === "recovering"
             ? `\u300a${taskTitle}\u300b\u7b49\u5f85\u6062\u590d`
             : candidateSetupFlow
               ? "\u6b63\u5728\u751f\u6210\u5bfc\u6f14\u5019\u9009\u65b9\u6848"
@@ -440,7 +446,7 @@ export default function NovelAutoDirectorProgressPanel({
         description={description}
         progress={displayProgress}
         currentAction={currentAction}
-        checkpointLabel={displayState?.checkpointLabel || formatCheckpoint(task?.checkpointType, task)}
+        checkpointLabel={displayStateForDisplay?.checkpointLabel || formatCheckpoint(task?.checkpointType, task)}
         taskId={task?.id || taskId}
         actions={actions}
       >

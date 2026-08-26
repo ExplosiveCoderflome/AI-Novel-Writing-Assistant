@@ -118,6 +118,126 @@
   --info: 199 80% 58%;
 }
 
+/* Writing Formula V2 has older slate utility colors. Keep that surface readable
+   until its individual panels are gradually converged on shared tokens. */
+.dark .writing-formula-theme [class*="border-slate-"],
+.dark .writing-formula-theme [class*="border-sky-"],
+.dark .writing-formula-theme [class*="border-amber-"] {
+  border-color: hsl(var(--border));
+}
+
+.dark .writing-formula-theme [class*="bg-white"],
+.dark .writing-formula-theme [class*="bg-slate-50"],
+.dark .writing-formula-theme [class*="bg-slate-100"] {
+  background-color: hsl(var(--card));
+}
+
+.dark .writing-formula-theme [class*="bg-sky-50"] {
+  background-color: hsl(var(--primary) / 0.12);
+}
+
+.dark .writing-formula-theme [class*="bg-amber-50"] {
+  background-color: hsl(var(--warning) / 0.14);
+}
+
+.dark .writing-formula-theme [class*="bg-[linear-gradient"] {
+  background-color: hsl(var(--card));
+  background-image: none;
+}
+
+.dark .writing-formula-theme [class*="text-slate-9"],
+.dark .writing-formula-theme [class*="text-slate-8"] {
+  color: hsl(var(--foreground));
+}
+
+.dark .writing-formula-theme [class*="text-slate-7"],
+.dark .writing-formula-theme [class*="text-slate-6"],
+.dark .writing-formula-theme [class*="text-slate-5"],
+.dark .writing-formula-theme [class*="text-slate-3"],
+.dark .writing-formula-theme [class*="text-slate-2"] {
+  color: hsl(var(--muted-foreground));
+}
+
+.dark .writing-formula-theme [class*="text-amber-"] {
+  color: hsl(var(--warning));
+}
+
+/* Prompt Workbench predates the shared theme tokens and carries a dense set of
+   light-only surface colors. Keep its existing information hierarchy while
+   mapping those legacy colors to the active theme in dark mode. */
+.dark .prompt-workbench-theme [class*="border-[#"] {
+  border-color: hsl(var(--border));
+}
+
+.dark .prompt-workbench-theme [class*="bg-white"],
+.dark .prompt-workbench-theme [class*="bg-[#f2"],
+.dark .prompt-workbench-theme [class*="bg-[#f3"],
+.dark .prompt-workbench-theme [class*="bg-[#f5"],
+.dark .prompt-workbench-theme [class*="bg-[#f6"],
+.dark .prompt-workbench-theme [class*="bg-[#f7"],
+.dark .prompt-workbench-theme [class*="bg-[#f8"],
+.dark .prompt-workbench-theme [class*="bg-[#fb"] {
+  background-color: hsl(var(--card));
+}
+
+.dark .prompt-workbench-theme [class*="bg-[#e7"],
+.dark .prompt-workbench-theme [class*="bg-[#e8"],
+.dark .prompt-workbench-theme [class*="bg-[#ea"],
+.dark .prompt-workbench-theme [class*="bg-[#ee"] {
+  background-color: hsl(var(--success) / 0.14);
+}
+
+.dark .prompt-workbench-theme [class*="bg-[#ed"] {
+  background-color: hsl(var(--muted));
+}
+
+.dark .prompt-workbench-theme [class*="bg-[#f4f7ff"],
+.dark .prompt-workbench-theme [class*="bg-[#eef3"],
+.dark .prompt-workbench-theme [class*="bg-[#eef4"] {
+  background-color: hsl(var(--info) / 0.14);
+}
+
+.dark .prompt-workbench-theme [class*="bg-[#fff"] {
+  background-color: hsl(var(--warning) / 0.14);
+}
+
+.dark .prompt-workbench-theme [class*="bg-[#0f"],
+.dark .prompt-workbench-theme [class*="bg-[#62"] {
+  background-color: hsl(var(--success));
+}
+
+.dark .prompt-workbench-theme [class*="bg-[#173"] {
+  background-color: hsl(var(--info));
+}
+
+.dark .prompt-workbench-theme [class*="text-[#254"],
+.dark .prompt-workbench-theme [class*="text-[#1f"] {
+  color: hsl(var(--foreground));
+}
+
+.dark .prompt-workbench-theme [class*="text-[#526"],
+.dark .prompt-workbench-theme [class*="text-[#647"],
+.dark .prompt-workbench-theme [class*="text-[#6f"],
+.dark .prompt-workbench-theme [class*="text-[#5f"] {
+  color: hsl(var(--muted-foreground));
+}
+
+.dark .prompt-workbench-theme [class*="text-[#0f"],
+.dark .prompt-workbench-theme [class*="text-[#315"] {
+  color: hsl(var(--success));
+}
+
+.dark .prompt-workbench-theme [class*="text-[#344"],
+.dark .prompt-workbench-theme [class*="text-[#385"],
+.dark .prompt-workbench-theme [class*="text-[#3b"] {
+  color: hsl(var(--info));
+}
+
+.dark .prompt-workbench-theme [class*="text-[#7a"],
+.dark .prompt-workbench-theme [class*="text-[#775"] {
+  color: hsl(var(--warning));
+}
+
 .dark[data-theme="night"] {
   --background: 222 47% 8%;
   --foreground: 210 40% 96%;
@@ -139,6 +259,20 @@
   --success: 155 70% 48%;
   --warning: 42 92% 58%;
   --info: 190 80% 58%;
+}
+
+/* Dense editing tools need a neutral canvas even when the surrounding app
+   uses the warmer Paper palette. The page keeps Paper's text and status colors. */
+:root.dark[data-theme="paper"] .prompt-workbench-theme {
+  --background: 222.2 47.4% 11.2%;
+  --card: 222.2 47.4% 13.5%;
+  --popover: 222.2 47.4% 13.5%;
+  --secondary: 217.2 32.6% 20%;
+  --muted: 217.2 32.6% 20%;
+  --accent: 217.2 32.6% 23%;
+  --border: 217.2 32.6% 26%;
+  --input: 217.2 32.6% 26%;
+  --ring: 212.7 26.8% 83.9%;
 }
 
 * {

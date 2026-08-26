@@ -1,5 +1,6 @@
 import type { BaseMessageChunk } from "@langchain/core/messages";
-import type { QualityScore, ReviewIssue } from "@ai-novel/shared/types/novel";
+import type { GenerationContextPackage } from "@ai-novel/shared/types/chapterRuntime";
+import type { ReviewIssue } from "@ai-novel/shared/types/novel";
 import type { StreamDoneHelpers } from "../../../../llm/streaming";
 import { prisma } from "../../../../db/prisma";
 import { streamTextPrompt } from "../../../../prompting/core/promptRunner";
@@ -10,10 +11,11 @@ import {
   isPass,
   logPipelineError,
   type RepairOptions,
-  type ReviewOptions,
 } from "../../novelCoreShared";
 import type { ChapterArtifactSyncService } from "../ChapterArtifactSyncService";
+import type { ChapterContentFinalizationService } from "../ChapterContentFinalizationService";
 import type { GenerationContextAssembler } from "../GenerationContextAssembler";
+import type { ChapterLifecycleService } from "../lifecycle";
 import {
   ChapterContextAssemblyError,
   assembleChapterAuditContextPackage,
@@ -23,19 +25,12 @@ import {
   prepareChapterRepairExecution,
 } from "./chapterRepairRuntime";
 
-interface RepairReviewResult {
-  score: QualityScore;
-  issues: ReviewIssue[];
-}
-
 export interface ChapterRepairStreamRuntimeDeps {
   assembler?: Pick<GenerationContextAssembler, "assemble">;
+  auditService: Pick<typeof auditService, "auditChapter">;
   artifactSyncService: Pick<ChapterArtifactSyncService, "syncChapterArtifacts">;
-  reviewChapterAfterRepair: (
-    novelId: string,
-    chapterId: string,
-    options: ReviewOptions,
-  ) => Promise<RepairReviewResult>;
+  contentFinalizationService: Pick<ChapterContentFinalizationService, "finalizeChapterContent">;
+  lifecycleService: Pick<ChapterLifecycleService, "saveWorkingContent" | "markGenerationState">;
   resolveAuditIssues?: (novelId: string, issueIds: string[]) => Promise<unknown>;
 }
 
@@ -59,7 +54,6 @@ export class ChapterRepairStreamRuntime {
       throw new Error("小说或章节不存在");
     }
 
-    const issues = await this.resolveRepairIssues(novelId, chapterId, options);
     const assembledContextPackage = await assembleChapterAuditContextPackage({
       assembler: this.deps.assembler,
       novelId,
@@ -67,6 +61,13 @@ export class ChapterRepairStreamRuntime {
       options,
       operation: "repair",
     });
+    const issues = await this.resolveRepairIssues(
+      novelId,
+      chapterId,
+      chapter.content ?? "",
+      options,
+      assembledContextPackage,
+    );
     const repairContextPackage = withChapterRepairContext(assembledContextPackage, issues);
     if (!repairContextPackage.chapterRepairContext) {
       const error = new Error("chapterRepairContext missing after successful context assembly");
@@ -107,6 +108,7 @@ export class ChapterRepairStreamRuntime {
             chapterId,
             options,
             content: prepared.content.trim() || fullContent,
+            contextPackage: assembledContextPackage,
             helpers,
           });
         },
@@ -123,6 +125,7 @@ export class ChapterRepairStreamRuntime {
           chapterId,
           options,
           content: completed.output.trim() || fullContent,
+          contextPackage: assembledContextPackage,
           helpers,
         });
       },
@@ -132,7 +135,9 @@ export class ChapterRepairStreamRuntime {
   private async resolveRepairIssues(
     novelId: string,
     chapterId: string,
+    content: string,
     options: RepairOptions,
+    contextPackage: GenerationContextPackage,
   ): Promise<ReviewIssue[]> {
     if (Array.isArray(options.reviewIssues)) {
       return options.reviewIssues;
@@ -157,8 +162,14 @@ export class ChapterRepairStreamRuntime {
       }));
     }
 
-    const fallbackReview = await this.deps.reviewChapterAfterRepair(novelId, chapterId, options);
-    return fallbackReview.issues;
+    const fallbackAudit = await this.deps.auditService.auditChapter(novelId, chapterId, "full", {
+      provider: options.provider,
+      model: options.model,
+      temperature: options.temperature,
+      content,
+      contextPackage,
+    });
+    return fallbackAudit.issues;
   }
 
   private async finalizeRepairResult(input: {
@@ -166,6 +177,7 @@ export class ChapterRepairStreamRuntime {
     chapterId: string;
     options: RepairOptions;
     content: string;
+    contextPackage: GenerationContextPackage;
     helpers: StreamDoneHelpers;
   }): Promise<void> {
     const runId = `chapter-repair:${input.chapterId}`;
@@ -182,10 +194,28 @@ export class ChapterRepairStreamRuntime {
       throw new ChapterPatchRepairFailedError("修复结果为空，未保存章节正文。");
     }
 
-    await prisma.chapter.update({
-      where: { id: input.chapterId },
-      data: { content: repairedContent, generationState: "repaired" },
+    await this.deps.lifecycleService.saveWorkingContent({
+      novelId: input.novelId,
+      chapterId: input.chapterId,
+      content: repairedContent,
+      generationState: "repaired",
     });
+    const finalized = await this.deps.contentFinalizationService.finalizeChapterContent({
+      novelId: input.novelId,
+      chapterId: input.chapterId,
+      request: {
+        provider: input.options.provider,
+        model: input.options.model,
+        temperature: input.options.temperature,
+      },
+      contextPackage: input.contextPackage,
+      content: repairedContent,
+      runId: null,
+      startMs: null,
+      deferArtifactBackgroundSync: true,
+      scheduleDeferredArtifactBackgroundSync: false,
+    });
+    const pass = !finalized.needsRepair && isPass(finalized.runtimePackage.audit.score);
     await this.deps.artifactSyncService.syncChapterArtifacts(
       input.novelId,
       input.chapterId,
@@ -194,22 +224,14 @@ export class ChapterRepairStreamRuntime {
         scheduleBackgroundSync: true,
         awaitArtifactDelta: true,
         skipLegacySummaryAndFacts: true,
+        contentProvenance: pass ? "confirmed" : "debt",
         provider: input.options.provider,
         model: input.options.model,
       },
     );
 
-    const review = await this.deps.reviewChapterAfterRepair(input.novelId, input.chapterId, {
-      provider: input.options.provider,
-      model: input.options.model,
-      temperature: input.options.temperature,
-      content: repairedContent,
-    });
-    if (isPass(review.score)) {
-      await prisma.chapter.update({
-        where: { id: input.chapterId },
-        data: { generationState: "approved" },
-      });
+    if (pass) {
+      await this.deps.lifecycleService.markGenerationState(input.chapterId, "approved");
       if (input.options.auditIssueIds?.length) {
         const resolveAuditIssues = this.deps.resolveAuditIssues
           ?? ((novelId: string, issueIds: string[]) => auditService.resolveIssues(novelId, issueIds));
@@ -222,7 +244,7 @@ export class ChapterRepairStreamRuntime {
       runId,
       status: "succeeded",
       phase: "completed",
-      message: isPass(review.score)
+      message: pass
         ? "章节修复已完成，本章已达到可继续推进状态。"
         : "修复稿已保存，但仍有问题待继续处理。",
     });

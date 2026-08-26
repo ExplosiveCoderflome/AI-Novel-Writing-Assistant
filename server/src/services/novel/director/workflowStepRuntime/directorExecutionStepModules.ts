@@ -60,6 +60,7 @@ type ChapterDraftStepInput =
     resumeCheckpointType?: "chapter_batch_ready" | "replan_required" | null;
     previousFailureMessage?: string | null;
     allowSkipReviewBlockedChapter?: boolean;
+    resumePendingManualRecovery?: boolean;
   }
   | {
     mode: "manual";
@@ -223,6 +224,7 @@ function createChapterDraftExecutableModule(
             : "chapter_batch_ready",
           previousFailureMessage: state.task.lastError ?? null,
           allowSkipReviewBlockedChapter: requestedAutoExecutionContinue && isDirectorAutoExecutionRunMode(directorRequest.runMode),
+          resumePendingManualRecovery: requestedAutoExecutionContinue,
         };
       },
       validateOutput: async (_output, context) => {

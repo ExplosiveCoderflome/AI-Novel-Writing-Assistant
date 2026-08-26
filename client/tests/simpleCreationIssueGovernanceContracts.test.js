@@ -14,6 +14,10 @@ const globalPolicySource = fs.readFileSync(
   new URL("../src/pages/settings/AutoDirectorIssuePolicyCard.tsx", import.meta.url),
   "utf8",
 );
+const issuePolicySource = fs.readFileSync(
+  new URL("../../shared/types/directorIssue.ts", import.meta.url),
+  "utf8",
+);
 const novelPolicySource = fs.readFileSync(
   new URL("../src/pages/novels/components/NovelDirectorIssuePolicyCard.tsx", import.meta.url),
   "utf8",
@@ -52,4 +56,14 @@ test("all issue actions remain editable and changed rules show a safety warning"
     assert.match(source, /role="status"/);
     assert.match(source, /安全保护/);
   }
+});
+
+test("issue management exposes the two production presets with a single retry ceiling", () => {
+  for (const source of [globalPolicySource, novelPolicySource]) {
+    assert.match(source, /DIRECTOR_ISSUE_POLICY_PRESETS/);
+    assert.match(source, /maxAutomaticRetries/);
+    assert.match(source, /最多 1 次/);
+  }
+  assert.match(issuePolicySource, /优先完成整本书/);
+  assert.match(issuePolicySource, /质量优先/);
 });

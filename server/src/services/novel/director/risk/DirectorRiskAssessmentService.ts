@@ -7,9 +7,7 @@ import type {
   DirectorRiskAction,
   DirectorRiskAssessment,
   DirectorRiskCategory,
-  DirectorRiskPolicy,
 } from "@ai-novel/shared/types/directorRisk";
-import type { DirectorQualityRepairRisk } from "@ai-novel/shared/types/novelDirector";
 import { runStructuredPrompt } from "../../../../prompting/core/promptRunner";
 import { directorRiskAssessmentPrompt } from "../../../../prompting/prompts/director/directorRiskAssessment.prompts";
 import { directorAutomationLedgerEventService } from "../runtime/DirectorAutomationLedgerEventService";
@@ -18,7 +16,6 @@ import { AutoDirectorFollowUpNotificationService } from "../../../task/autoDirec
 export interface DirectorRiskAssessmentInput {
   taskId: string;
   novelId: string;
-  policy: DirectorRiskPolicy;
   failureStage: string;
   failureType: string;
   failureSummary: string;
@@ -53,7 +50,6 @@ export interface DirectorRiskDecision {
  */
 export function resolveDirectorRiskDecision(input: {
   assessment: AiDirectorRiskAssessment;
-  policy: DirectorRiskPolicy;
   forcePause?: boolean;
   localOnly?: boolean;
 }): Pick<DirectorRiskDecision, "shouldNotify" | "shouldPause"> & {
@@ -69,8 +65,8 @@ export function resolveDirectorRiskDecision(input: {
   return {
     score,
     canPause,
-    shouldNotify: score >= input.policy.noticeThreshold,
-    shouldPause: forcePause || (canPause && score >= input.policy.pauseThreshold),
+    shouldNotify: true,
+    shouldPause: forcePause,
   };
 }
 
@@ -162,7 +158,6 @@ export class DirectorRiskAssessmentService {
 
     const decision = resolveDirectorRiskDecision({
       assessment: aiAssessment,
-      policy: input.policy,
       forcePause: input.forcePause,
       localOnly,
     });
@@ -204,37 +199,12 @@ export class DirectorRiskAssessmentService {
         novelId: input.novelId,
         assessment,
         pauseRequested: shouldPause,
-        notificationBand: shouldPause
-          ? `pause-${input.policy.pauseThreshold}-8`
-          : `notice-${input.policy.noticeThreshold}-${input.policy.pauseThreshold - 1}`,
+        notificationBand: shouldPause ? "forced-pause" : "assessment",
       }).catch(() => null);
     }
     return { assessment, shouldNotify, shouldPause };
   }
 
-  async assessQualityRepair(input: Omit<DirectorRiskAssessmentInput,
-    "failureStage" | "failureType" | "category" | "forcePause" | "localOnly"> & {
-      qualityRepairRisk: DirectorQualityRepairRisk;
-    }): Promise<DirectorRiskDecision | null> {
-    const risk = input.qualityRepairRisk;
-    return this.assess({
-      ...input,
-      failureStage: "quality_repair",
-      failureType: risk.noticeCode ?? risk.riskLevel,
-      category: risk.riskLevel === "replan" ? "replan" : "chapter_repair",
-      forcePause: risk.riskLevel === "replan",
-      // A large-scope repair is still chapter-level quality work. It can be
-      // surfaced at high risk but cannot pause the whole-book director.
-      localOnly: risk.riskLevel !== "replan",
-      failureDetails: {
-        ...(input.failureDetails ?? {}),
-        qualityRepairRisk: risk,
-      },
-      replanDecision: risk.riskLevel === "replan"
-        ? { decision: "replan_required", reason: risk.reason }
-        : input.replanDecision,
-    });
-  }
 }
 
 export const directorRiskAssessmentService = new DirectorRiskAssessmentService();

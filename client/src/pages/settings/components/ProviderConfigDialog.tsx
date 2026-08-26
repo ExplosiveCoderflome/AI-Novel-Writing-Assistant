@@ -1,4 +1,5 @@
 import type { Dispatch, SetStateAction } from "react";
+import { Bot, Image, KeyRound, Link2, SlidersHorizontal } from "lucide-react";
 import type { APIKeyStatus } from "@/api/settings";
 import SearchableSelect from "@/components/common/SearchableSelect";
 import { Button } from "@/components/ui/button";
@@ -109,7 +110,7 @@ export default function ProviderConfigDialog({
         )}
         footerClassName="gap-2"
       >
-        <div className="space-y-3">
+        <div className="space-y-5">
           {isCustomDialog ? (
             <div className="space-y-1">
               <div className="text-xs text-muted-foreground">厂商名称</div>
@@ -127,20 +128,23 @@ export default function ProviderConfigDialog({
             </div>
           ) : null}
 
-          <Input
-            type="password"
-            value={form.key}
-            placeholder={editingConfig?.isConfigured ? "留空则沿用保存的 API Key" : "输入 API Key"}
-            onChange={(event) => {
-              setForm((prev) => ({ ...prev, key: event.target.value }));
-              if (isCreatingCustomProvider) {
-                onClearPreviewModels();
-              }
-            }}
-          />
+          <div className="space-y-1.5">
+            <div className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground"><KeyRound className="h-3.5 w-3.5" /> API Key</div>
+            <Input
+              type="password"
+              value={form.key}
+              placeholder={editingConfig?.isConfigured ? "留空则沿用保存的 API Key" : "输入 API Key"}
+              onChange={(event) => {
+                setForm((prev) => ({ ...prev, key: event.target.value }));
+                if (isCreatingCustomProvider) {
+                  onClearPreviewModels();
+                }
+              }}
+            />
+          </div>
 
           <div className="space-y-1">
-            <div className="text-xs text-muted-foreground">API 地址</div>
+            <div className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground"><Link2 className="h-3.5 w-3.5" /> API 地址</div>
             <Input
               value={form.baseURL}
               placeholder={editingConfig?.defaultBaseURL ?? "https://api.example.com/v1"}
@@ -196,7 +200,7 @@ export default function ProviderConfigDialog({
           ) : null}
 
           <div className="space-y-1">
-            <div className="text-xs text-muted-foreground">{primaryModelLabel}</div>
+            <div className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground"><Bot className="h-3.5 w-3.5" /> {primaryModelLabel}</div>
             <div className="text-xs text-muted-foreground">{modelGuidance}</div>
           </div>
           <Input
@@ -205,9 +209,9 @@ export default function ProviderConfigDialog({
             onChange={(event) => setForm((prev) => ({ ...prev, model: event.target.value }))}
           />
 
-          <div className="space-y-3 rounded-md border bg-muted/20 p-3">
+          <div className="space-y-3 rounded-xl border bg-muted/20 p-4">
             <div className="space-y-1">
-              <div className="text-xs text-muted-foreground">图像模型（可选）</div>
+              <div className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground"><Image className="h-3.5 w-3.5" /> 图像模型（可选）</div>
               <div className="text-xs text-muted-foreground">
                 填写后，角色形象图生成可以选择这个厂商；留空则只用于文本模型。
               </div>
@@ -234,11 +238,14 @@ export default function ProviderConfigDialog({
             </div>
           </div>
 
-          <ProviderRequestLimitFields
-            concurrencyLimit={form.concurrencyLimit}
-            requestIntervalMs={form.requestIntervalMs}
-            onChange={(value) => setForm((prev) => ({ ...prev, ...value }))}
-          />
+          <div className="rounded-xl border border-dashed bg-muted/10 p-4">
+            <div className="mb-3 flex items-center gap-1.5 text-xs font-medium text-muted-foreground"><SlidersHorizontal className="h-3.5 w-3.5" /> 请求限制</div>
+            <ProviderRequestLimitFields
+              concurrencyLimit={form.concurrencyLimit}
+              requestIntervalMs={form.requestIntervalMs}
+              onChange={(value) => setForm((prev) => ({ ...prev, ...value }))}
+            />
+          </div>
 
           {testResult ? <div className="break-words text-sm text-muted-foreground [overflow-wrap:anywhere]">{testResult}</div> : null}
         </div>

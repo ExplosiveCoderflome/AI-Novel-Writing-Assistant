@@ -308,6 +308,8 @@ export class DirectorCoreStepModuleRuntime {
         volumes: workspace.volumes,
         preserveContent: true,
         applyDeletes: false,
+        // The chapter runtime refines incomplete planning artifacts through the existing JIT contract generator.
+        allowIncompleteExecutionContracts: true,
       },
       {
         emitEvent: false,
@@ -325,6 +327,7 @@ export class DirectorCoreStepModuleRuntime {
     resumeCheckpointType?: "chapter_batch_ready" | "chapter_batch_ready" | "replan_required" | null;
     previousFailureMessage?: string | null;
     allowSkipReviewBlockedChapter?: boolean;
+    resumePendingManualRecovery?: boolean;
   }): Promise<void> {
     await this.autoExecutionRuntime.runFromReady({
       taskId: input.taskId,
@@ -335,6 +338,7 @@ export class DirectorCoreStepModuleRuntime {
       resumeCheckpointType: input.resumeCheckpointType,
       previousFailureMessage: input.previousFailureMessage,
       allowSkipReviewBlockedChapter: input.allowSkipReviewBlockedChapter,
+      resumePendingManualRecovery: input.resumePendingManualRecovery,
     });
   }
 

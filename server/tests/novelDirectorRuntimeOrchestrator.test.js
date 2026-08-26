@@ -457,7 +457,6 @@ test.skip("approved auto execution scope carries a safe policy through chapter r
       policy: {
         mode: "run_until_gate",
         mayOverwriteUserContent: false,
-        maxAutoRepairAttempts: 1,
         allowExpensiveReview: false,
         modelTier: "balanced",
         updatedAt: "2026-04-29T00:00:00.000Z",

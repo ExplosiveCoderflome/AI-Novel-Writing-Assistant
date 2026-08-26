@@ -12,6 +12,9 @@ Phase 5 后，`ChapterRuntimeCoordinator` 只保留稳定门面和 3 个公开�
 - `ChapterStreamGenerationOrchestrator` 拥有手动生成流、空稿重试、SSE 状态和运行前事实门禁。
 - `ChapterQualityGateService` 拥有 acceptance 与 timeline 双门禁、cache key 和门禁 trace。
 - `ChapterContentFinalizationService` 拥有终稿定稿、runtime package 组装、章节状态推进、timeline finalization 和延迟资产同步。
+- `ChapterContentFinalizationService` 必须先完成当前正文版本的 timeline finalization，再推进章节状态或发出 `chapter:finalized`。正文通过接收闸门时提交 `stable`；正文可用但仍有局部质量债时提交 `degraded`，后续修复稿以新的 content hash 再升级为 `stable`。
+- Timeline 抽取不参与正文接收裁决。`acceptance` 先给出正文质量结论，timeline finalization 再对最终正文做幂等提交；抽取或稳定提交失败时由 Timeline 服务内部降级，只有检查点本身无法落盘这类数据完整性问题才阻止章节状态继续推进。
+- `runtime/lifecycle/ChapterLifecycleService` 是章节生产链中 `content`、`generationState` 和 `chapterStatus` 的唯一持久化写入口。生成、审校、修复和资产服务只决定业务状态并委托它落库，不得各自直接更新 Chapter 生命周期字段。
 - `ChapterPipelineRuntimeAdapter` 只负责把 pipeline hooks 适配到统一章节 runtime，不复制 writer、门禁或定稿逻辑。
 - `chapterRuntimePackageBuilders.ts` 只放无 IO 构建函数，不允许引入 Prisma、route、director 或服务单例。
 - `shared/types/chapterRuntime.ts` 是共享运行时合同的稳定门面；样式、动态角色、Payoff 和质量结果 Schema 分别归属 `shared/types/chapterRuntime/` 下的领域文件，外部仍从原门面路径导入。
@@ -23,6 +26,8 @@ Phase 5 后，`ChapterRuntimeCoordinator` 只保留稳定门面和 3 个公开�
 - route、director 或旧 service 直接 import `ChapterQualityGateService` / `ChapterContentFinalizationService`，说明外部开始深链到 runtime 内部。
 - runtime package builder 引入数据库或服务单例，说明纯函数构建层重新混入 IO。
 - pipeline adapter 复制生成或定稿逻辑，说明批量执行路径重新分叉。
+- 章节状态已进入 `pending_review`、`needs_repair` 或完成事件已发出，但当前 content hash 没有 `timeline_finalization/stable|degraded` 成功检查点，说明终态边界被绕过。
+- Runtime 内除 `ChapterLifecycleService` 外再次出现 `prisma.chapter.update` 生命周期写入，说明状态所有权重新分叉。
 - coordinator 重新增长到 700 行以上，说明门面再次吸收了内部职责。
 - 服务端或客户端开始深层导入 `shared/types/chapterRuntime/*`，说明兼容门面被绕开，未来 Schema 重组会扩散到业务模块。
 
@@ -33,6 +38,8 @@ Phase 5 后，`ChapterRuntimeCoordinator` 只保留稳定门面和 3 个公开�
 - `server/src/services/novel/runtime/ChapterQualityGateService.ts`
 - `server/src/services/novel/runtime/ChapterContentFinalizationService.ts`
 - `server/src/services/novel/runtime/ChapterPipelineRuntimeAdapter.ts`
+- `server/src/services/novel/runtime/lifecycle/ChapterLifecycleService.ts`
+- `server/src/services/novel/runtime/lifecycle/README.md`
 - `server/src/services/novel/runtime/chapterRuntimePackageBuilders.ts`
 - `shared/types/chapterRuntime.ts`
 - `shared/types/chapterRuntime/README.md`

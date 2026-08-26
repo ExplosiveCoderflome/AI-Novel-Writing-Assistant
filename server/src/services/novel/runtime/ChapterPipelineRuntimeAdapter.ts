@@ -1,5 +1,3 @@
-import { prisma } from "../../../db/prisma";
-import { mergeChapterPatchForGenerationStateBump } from "../chapterLifecycleState";
 import { ChapterArtifactSyncService } from "./ChapterArtifactSyncService";
 import {
   runPipelineChapterWithRuntime,
@@ -12,6 +10,7 @@ import {
 } from "./chapterEmptyContentError";
 import type { ChapterContentFinalizationService } from "./ChapterContentFinalizationService";
 import type { ChapterStreamGenerationOrchestrator } from "./ChapterStreamGenerationOrchestrator";
+import type { ChapterLifecycleService } from "./lifecycle";
 
 export interface ChapterPipelineRuntimeAdapterDeps {
   streamOrchestrator: Pick<
@@ -20,6 +19,7 @@ export interface ChapterPipelineRuntimeAdapterDeps {
   >;
   artifactSyncService: Pick<ChapterArtifactSyncService, "saveDraftAndArtifacts" | "syncChapterArtifacts">;
   contentFinalizationService: Pick<ChapterContentFinalizationService, "finalizeChapterContent">;
+  lifecycleService: Pick<ChapterLifecycleService, "markGenerationState">;
   ensureNovelCharacters: (novelId: string, actionName: string, minCount?: number) => Promise<void>;
 }
 
@@ -101,9 +101,6 @@ export class ChapterPipelineRuntimeAdapter {
     chapterId: string,
     generationState: "reviewed" | "approved",
   ): Promise<void> {
-    await prisma.chapter.update({
-      where: { id: chapterId },
-      data: mergeChapterPatchForGenerationStateBump({}, generationState),
-    });
+    await this.deps.lifecycleService.markGenerationState(chapterId, generationState);
   }
 }

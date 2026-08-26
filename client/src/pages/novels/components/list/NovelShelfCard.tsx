@@ -74,14 +74,14 @@ export function NovelShelfCard(props: {
     : defaultNovelCoverUrl;
 
   return (
-    <Card className="group overflow-hidden rounded-lg border-border/70 bg-background transition hover:border-primary/35 hover:shadow-sm">
-      <CardContent className="flex h-full flex-col p-3">
+    <Card className="group overflow-hidden rounded-2xl border-border/60 bg-card/70 shadow-none transition-all duration-200 hover:-translate-y-0.5 hover:border-primary/30 hover:shadow-lg hover:shadow-black/10">
+      <CardContent className="flex h-full flex-col p-2.5">
         <Link to={getPreviewHref(novel)} className="block" aria-label={`预览《${novel.title}》`}>
-          <div className="relative aspect-[2/3] overflow-hidden rounded-md bg-muted/50">
+          <div className="relative aspect-[2/3] overflow-hidden rounded-xl bg-muted/50 ring-1 ring-border/60">
             <img
               src={coverUrl}
               alt={hasGeneratedCover ? `${novel.title}封面` : ""}
-              className="h-full w-full object-cover transition duration-200 group-hover:scale-[1.02]"
+              className="h-full w-full object-cover transition duration-300 group-hover:scale-[1.025]"
               loading="lazy"
             />
             {!hasGeneratedCover ? (
@@ -99,38 +99,40 @@ export function NovelShelfCard(props: {
           </div>
         </Link>
 
-        <div className="flex min-h-0 flex-1 flex-col pt-3">
+        <div className="flex min-h-0 flex-1 flex-col px-1 pb-1 pt-3">
           <div className="flex items-start justify-between gap-2">
             <div className="min-w-0">
-              <Link to={action.href} className="line-clamp-1 text-base font-semibold hover:text-primary">
+              <Link to={action.href} className="line-clamp-1 text-[15px] font-semibold leading-6 tracking-tight hover:text-primary">
                 {novel.title}
               </Link>
-              <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted-foreground">
+              <div className="mt-0.5 flex flex-wrap items-center gap-x-1.5 text-[11px] text-muted-foreground">
                 <span>{getFormLabel(novel)}</span>
-                {novel.writingPlatform ? <span>{novel.writingPlatform}</span> : null}
+                {novel.writingPlatform ? <><span aria-hidden="true">·</span><span>{novel.writingPlatform}</span></> : null}
+                <span aria-hidden="true">·</span>
                 <span>{novel.status === "published" ? "已发布" : "草稿"}</span>
               </div>
             </div>
           </div>
 
-          <div className="mt-4 space-y-2">
-            <div className="flex items-center justify-between text-xs text-muted-foreground">
+          <div className="mt-3 space-y-1.5">
+            <div className="flex items-center justify-between text-[11px] text-muted-foreground">
               <span>{progress > 0 ? `创作进度 ${progress}%` : "尚未开始正文"}</span>
               <span className="inline-flex items-center gap-1"><Clock3 className="h-3.5 w-3.5" aria-hidden="true" />{formatDate(novel.updatedAt)}</span>
             </div>
-            <div className="h-1.5 overflow-hidden rounded-full bg-muted">
+            <div className="h-1 overflow-hidden rounded-full bg-muted">
               <div className="h-full rounded-full bg-primary transition-all" style={{ width: `${progress}%` }} />
             </div>
           </div>
 
-          <div className="mt-auto flex flex-wrap items-center gap-2 pt-4">
-            <Button asChild size="sm" className="flex-1">
+          <div className="mt-auto flex items-center gap-1 pt-3">
+            <Button asChild size="sm" variant="secondary" className="h-8 flex-1 px-2 text-xs">
               <Link to={action.href}><BookOpen className="mr-1.5 h-4 w-4" aria-hidden="true" />{action.label}</Link>
             </Button>
             <Button
               type="button"
               size="sm"
-              variant="outline"
+              variant="ghost"
+              className="h-8 w-8 p-0 text-muted-foreground"
               title={coverStatusLabel(coverStatus)}
               aria-label={coverStatusLabel(coverStatus)}
               onClick={() => props.onManageCover(novel.id)}
@@ -141,6 +143,7 @@ export function NovelShelfCard(props: {
               type="button"
               size="sm"
               variant="ghost"
+              className="h-8 w-8 p-0 text-muted-foreground"
               title="导出作品"
               aria-label="导出作品"
               onClick={() => props.onDownload({ novelId: novel.id, novelTitle: novel.title })}
@@ -151,7 +154,7 @@ export function NovelShelfCard(props: {
               type="button"
               size="sm"
               variant="ghost"
-              className="text-muted-foreground hover:text-destructive"
+              className="h-8 w-8 p-0 text-muted-foreground hover:text-destructive"
               title="删除作品"
               aria-label="删除作品"
               onClick={() => props.onDelete(novel.id, novel.title)}
@@ -168,6 +171,7 @@ export function NovelShelfCard(props: {
 export function NovelContinueCard(props: {
   novel: NovelListItem;
   onManageCover: (novelId: string) => void;
+  onDelete: (novelId: string, title: string) => void;
 }) {
   const { novel } = props;
   const action = getPrimaryAction(novel);
@@ -178,28 +182,31 @@ export function NovelContinueCard(props: {
     : defaultNovelCoverUrl;
 
   return (
-    <Card className="rounded-lg border-border/70 bg-background">
-      <CardContent className="flex min-h-[132px] items-center gap-3 p-3">
-        <Link to={getPreviewHref(novel)} className="relative h-[108px] w-[72px] shrink-0 overflow-hidden rounded bg-muted" aria-label={`预览《${novel.title}》`}>
-          <img src={coverUrl} alt={hasGeneratedCover ? `${novel.title}封面` : ""} className="h-full w-full object-cover" loading="lazy" />
+    <Card className="group rounded-2xl border-border/60 bg-card/70 shadow-none transition-all duration-200 hover:border-primary/30 hover:shadow-md hover:shadow-black/10">
+      <CardContent className="flex min-h-[140px] items-center gap-4 p-3">
+        <Link to={getPreviewHref(novel)} className="relative h-[116px] w-[78px] shrink-0 overflow-hidden rounded-lg bg-muted ring-1 ring-border/60" aria-label={`预览《${novel.title}》`}>
+          <img src={coverUrl} alt={hasGeneratedCover ? `${novel.title}封面` : ""} className="h-full w-full object-cover transition duration-300 group-hover:scale-[1.025]" loading="lazy" />
           {!hasGeneratedCover ? (
             <div className="absolute inset-0 flex items-center justify-center bg-black/45 px-2 text-center text-[11px] font-medium leading-4 text-white">
               <span className="line-clamp-4 drop-shadow">{novel.title}</span>
             </div>
           ) : null}
         </Link>
-        <div className="min-w-0 flex-1">
-          <Link to={action.href} className="line-clamp-1 text-sm font-semibold hover:text-primary">{novel.title}</Link>
-          <div className="mt-1 text-xs text-muted-foreground">{getFormLabel(novel)} · {progress}%</div>
-          <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-muted">
+        <div className="min-w-0 flex-1 py-1">
+          <Link to={action.href} className="line-clamp-2 text-[15px] font-semibold leading-6 tracking-tight hover:text-primary">{novel.title}</Link>
+          <div className="mt-1 text-[11px] text-muted-foreground">{getFormLabel(novel)} · 创作进度 {progress}%</div>
+          <div className="mt-3 h-1 overflow-hidden rounded-full bg-muted">
             <div className="h-full rounded-full bg-primary" style={{ width: `${progress}%` }} />
           </div>
-          <div className="mt-3 flex items-center gap-2">
-            <Button asChild size="sm" className="h-8 flex-1 px-2 text-xs">
-              <Link to={action.href}>{action.label}</Link>
+          <div className="mt-4 flex items-center gap-1">
+            <Button asChild size="sm" variant="secondary" className="h-8 flex-1 px-2 text-xs">
+              <Link to={action.href}><BookOpen className="mr-1.5 h-3.5 w-3.5" aria-hidden="true" />{action.label}</Link>
             </Button>
-            <Button type="button" size="sm" variant="outline" className="h-8 w-8 p-0" title="管理封面" aria-label="管理封面" onClick={() => props.onManageCover(novel.id)}>
+            <Button type="button" size="sm" variant="ghost" className="h-8 w-8 p-0 text-muted-foreground" title="管理封面" aria-label="管理封面" onClick={() => props.onManageCover(novel.id)}>
               <ImagePlus className="h-4 w-4" aria-hidden="true" />
+            </Button>
+            <Button type="button" size="sm" variant="ghost" className="h-8 w-8 p-0 text-muted-foreground hover:text-destructive" title="删除作品" aria-label="删除作品" onClick={() => props.onDelete(novel.id, novel.title)}>
+              <Trash2 className="h-4 w-4" aria-hidden="true" />
             </Button>
           </div>
         </div>

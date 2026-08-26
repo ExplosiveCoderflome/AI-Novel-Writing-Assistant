@@ -68,6 +68,7 @@ export function formatProjectContext(input: DirectorProjectContextInput): string
     input.productionFoundationPrompt?.trim()
       ? `production foundation contract:\n${input.productionFoundationPrompt.trim()}`
       : "",
+    input.marketBriefPrompt?.trim() ? `market creative brief:\n${input.marketBriefPrompt.trim()}` : "",
     input.worldId?.trim() ? `world id: ${input.worldId.trim()}` : "",
     input.writingMode ? `writing mode: ${input.writingMode}` : "",
     input.projectMode ? `project mode: ${input.projectMode}` : "",

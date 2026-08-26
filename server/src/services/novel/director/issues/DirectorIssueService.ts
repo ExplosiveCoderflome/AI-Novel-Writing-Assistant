@@ -36,7 +36,6 @@ export interface ReportDirectorIssueInput {
   chapterOrder?: number;
   qualityScores?: Record<string, number>;
   attempt?: number;
-  maxAttempts?: number;
   hasUsableOutput?: boolean;
   runMode?: string;
   fingerprint: string;
@@ -67,7 +66,7 @@ export class DirectorIssueService {
     }
 
     const forcedScore = FORCED_SCORE_CODES.has(input.issueCode) ? 8 : null;
-    const assessment = forcedScore === null
+    const assessment = input.issueCode === "runtime.unclassified"
       ? await runStructuredPrompt({
           asset: directorIssueAssessmentPrompt,
           promptInput: {
@@ -79,7 +78,7 @@ export class DirectorIssueService {
             affectedScope: input.affectedScope ?? "",
             hasUsableOutput: input.hasUsableOutput ?? false,
             attempt: input.attempt ?? 0,
-            maxAttempts: input.maxAttempts ?? 0,
+            maxAttempts: input.policy.maxAutomaticRetries,
             detailsJson: JSON.stringify(input.details ?? {}),
           },
           options: {
@@ -100,6 +99,7 @@ export class DirectorIssueService {
     const assessedCode = input.issueCode === "runtime.unclassified"
       ? assessment?.issueCode ?? input.issueCode
       : input.issueCode;
+    const maxAttempts = input.policy.maxAutomaticRetries;
     const occurrence = directorIssueOccurrenceSchema.parse({
       schemaVersion: 1,
       issueCode: assessedCode,
@@ -112,7 +112,7 @@ export class DirectorIssueService {
       riskScore: forcedScore ?? assessment?.riskScore ?? null,
       qualityScores: input.qualityScores,
       attempt: input.attempt ?? 0,
-      maxAttempts: input.maxAttempts ?? 0,
+      maxAttempts,
       hasUsableOutput: input.hasUsableOutput ?? false,
       runMode: input.runMode,
       fingerprint: input.fingerprint,
@@ -134,25 +134,26 @@ export class DirectorIssueService {
       nodeKey: input.stage,
       summary: `${catalog.label}：${occurrence.summary}`,
       affectedScope: occurrence.affectedScope ?? null,
-      severity: occurrence.riskScore === 8 ? "high" : occurrence.riskScore && occurrence.riskScore >= input.policy.noticeThreshold ? "medium" : "low",
+      severity: severityFor(decision.action),
       metadata: { schemaVersion: 1, occurrence },
       occurredAt: occurrence.occurredAt,
     });
 
-    await input.applyAction?.(decision);
-
-    await directorAutomationLedgerEventService.recordEvent({
-      type: "issue_action_applied",
-      idempotencyKey: `${input.taskId}:${input.fingerprint}:${decision.action}`,
-      taskId: input.taskId,
-      runId: input.runId,
-      novelId: input.novelId,
-      nodeKey: input.stage,
-      summary: `${catalog.label}已执行：${decision.action}`,
-      affectedScope: occurrence.affectedScope ?? null,
-      severity: severityFor(decision.action),
-      metadata: { schemaVersion: 1, occurrence, decision },
-    });
+    if (input.applyAction) {
+      await input.applyAction(decision);
+      await directorAutomationLedgerEventService.recordEvent({
+        type: "issue_action_applied",
+        idempotencyKey: `${input.taskId}:${input.fingerprint}:${decision.action}`,
+        taskId: input.taskId,
+        runId: input.runId,
+        novelId: input.novelId,
+        nodeKey: input.stage,
+        summary: `${catalog.label}已执行：${decision.action}`,
+        affectedScope: occurrence.affectedScope ?? null,
+        severity: severityFor(decision.action),
+        metadata: { schemaVersion: 1, occurrence, decision },
+      });
+    }
 
     return { occurrence, decision };
   }

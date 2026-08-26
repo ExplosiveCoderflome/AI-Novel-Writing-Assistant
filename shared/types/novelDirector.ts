@@ -22,7 +22,7 @@ import type { DirectorCompletionProfile } from "./directorCompletion";
 import type { StyleIntentSummary } from "./styleEngine";
 import type { DirectorAutoApprovalConfig } from "./autoDirectorApproval";
 import type { DirectorIssuePolicy } from "./directorIssue";
-import type { DirectorRiskPolicy, DirectorRiskAssessment } from "./directorRisk";
+import type { DirectorRiskAssessment } from "./directorRisk";
 
 export const DIRECTOR_CORRECTION_PRESETS = [
   {
@@ -268,8 +268,6 @@ export function normalizeDirectorContinuationMode(
 
 export interface DirectorAutoExecutionState extends DirectorAutoExecutionPlan {
   enabled: boolean;
-  /** Frozen at task start so later settings changes cannot alter a running run. */
-  riskPolicy?: DirectorRiskPolicy;
   latestRiskAssessment?: DirectorRiskAssessment | null;
   completionProfile?: import("./directorCompletion").DirectorCompletionProfile;
   closingExtensionCount?: number;
@@ -603,6 +601,9 @@ export interface DirectorTakeoverResponse {
 }
 
 export interface DirectorProjectContextInput {
+  marketBriefId?: string;
+  /** 服务端根据 marketBriefId 解析，不接受客户端直接注入。 */
+  marketBriefPrompt?: string;
   title?: string;
   description?: string;
   targetAudience?: string;
@@ -647,7 +648,7 @@ export interface DirectorCandidatesRequest extends DirectorProjectContextInput, 
   workflowTaskId?: string;
 }
 
-export interface DirectorIdeaInspirationRequest extends DirectorProjectContextInput, DirectorLLMOptions {
+export interface DirectorIdeaContextRequest extends DirectorProjectContextInput, DirectorLLMOptions {
   currentIdea?: string;
   genreLabel?: string;
   genreDescription?: string;
@@ -658,6 +659,8 @@ export interface DirectorIdeaInspirationRequest extends DirectorProjectContextIn
   worldName?: string;
 }
 
+export interface DirectorIdeaInspirationRequest extends DirectorIdeaContextRequest {}
+
 export interface DirectorIdeaInspiration {
   angle: string;
   text: string;
@@ -666,6 +669,48 @@ export interface DirectorIdeaInspiration {
 
 export interface DirectorIdeaInspirationsResponse {
   ideas: DirectorIdeaInspiration[];
+}
+
+export const DIRECTOR_IDEA_CONSTELLATION_CATEGORIES = [
+  "protagonist",
+  "setting",
+  "advantage",
+  "opening_crisis",
+  "core_goal",
+  "story_variable",
+  "relationship",
+] as const;
+
+export type DirectorIdeaConstellationCategory = typeof DIRECTOR_IDEA_CONSTELLATION_CATEGORIES[number];
+export type DirectorIdeaConstellationRelevance = "high" | "medium" | "low";
+
+export interface DirectorIdeaConstellationOption {
+  id: string;
+  category: DirectorIdeaConstellationCategory;
+  label: string;
+  hint: string;
+  relevance: DirectorIdeaConstellationRelevance;
+}
+
+export interface DirectorIdeaConstellationOptionsRequest extends DirectorIdeaContextRequest {}
+
+export interface DirectorIdeaConstellationOptionsResponse {
+  options: DirectorIdeaConstellationOption[];
+}
+
+export interface DirectorIdeaConstellationSelection {
+  id: string;
+  category: DirectorIdeaConstellationCategory;
+  label: string;
+  hint: string;
+}
+
+export interface DirectorIdeaConstellationComposeRequest extends DirectorIdeaContextRequest {
+  selectedOptions: DirectorIdeaConstellationSelection[];
+}
+
+export interface DirectorIdeaConstellationComposeResponse {
+  idea: string;
 }
 
 export interface DirectorRefinementRequest extends DirectorProjectContextInput, DirectorLLMOptions {
@@ -709,8 +754,6 @@ export interface DirectorConfirmRequest extends DirectorProjectContextInput, Dir
   issuePolicy?: DirectorIssuePolicy;
   issuePolicySource?: "global" | "novel";
   completionProfile?: DirectorCompletionProfile;
-  /** Resolved once for this task; global/novel defaults are not re-read mid-run. */
-  riskPolicy?: DirectorRiskPolicy;
 }
 
 export interface DirectorPlanScene {

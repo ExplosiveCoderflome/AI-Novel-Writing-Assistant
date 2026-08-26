@@ -340,26 +340,12 @@ export interface DirectorPolicyDecision {
     | "expensive_review"
     | "downstream_recompute"
     | "large_scope_auto_run"
-    | "quality_repair"
-    | "quality_manual_repair"
-    | "quality_blocked_scope"
-    | "continue_with_risk"
   >;
-  autoRetryBudget: number;
-  onQualityFailure: "repair_once" | "pause_for_manual" | "continue_with_risk" | "block_scope";
 }
-
-export type DirectorQualityGateResult =
-  | { status: "passed" }
-  | { status: "repairable"; repairPlanId: string; autoRetryAllowed: true; affectedScope?: string | null }
-  | { status: "needs_manual_repair"; issueIds: string[]; affectedScope: string }
-  | { status: "continue_with_risk"; riskIds: string[]; affectedScope: string }
-  | { status: "blocked_scope"; blockedScope: string; reason: string };
 
 export interface DirectorRuntimePolicySnapshot {
   mode: DirectorPolicyMode;
   mayOverwriteUserContent: boolean;
-  maxAutoRepairAttempts: 1;
   allowExpensiveReview: boolean;
   modelTier: "cheap_fast" | "balanced" | "high_quality";
   updatedAt: string;
@@ -604,7 +590,6 @@ export interface DirectorRuntimeProjection {
   /** Scored issues recorded for this task, newest first. */
   riskHistory?: import("./directorRisk").DirectorRiskHistoryItem[];
   riskHistoryTotal?: number;
-  riskPolicy?: import("./directorRisk").DirectorRiskPolicy | null;
   rootCauseCode?: "none" | "draft_generation_failed" | "draft_obligation_unmet" | "draft_repair_exhausted" | "replan_required" | null;
   blockingObligations?: Array<{
     kind: "must_hit_now" | "must_preserve" | "payoff_touch" | "character_appearance" | "goal_change" | "forbidden_crossing";

@@ -18,6 +18,10 @@ import type {
   DirectorCandidateTitleRefineRequest,
   DirectorCandidatesRequest,
   DirectorConfirmRequest,
+  DirectorIdeaConstellationComposeRequest,
+  DirectorIdeaConstellationComposeResponse,
+  DirectorIdeaConstellationOptionsRequest,
+  DirectorIdeaConstellationOptionsResponse,
   DirectorIdeaInspirationRequest,
   DirectorIdeaInspirationsResponse,
   DirectorRefinementRequest,
@@ -84,6 +88,26 @@ export async function generateDirectorIdeaInspirations(
 ): Promise<ApiResponse<DirectorIdeaInspirationsResponse>> {
   const { data } = await apiClient.post<ApiResponse<DirectorIdeaInspirationsResponse>>(
     "/novels/director/idea-inspirations",
+    payload,
+  );
+  return data;
+}
+
+export async function generateDirectorIdeaConstellationOptions(
+  payload: DirectorIdeaConstellationOptionsRequest,
+): Promise<ApiResponse<DirectorIdeaConstellationOptionsResponse>> {
+  const { data } = await apiClient.post<ApiResponse<DirectorIdeaConstellationOptionsResponse>>(
+    "/novels/director/idea-constellation/options",
+    payload,
+  );
+  return data;
+}
+
+export async function composeDirectorIdeaConstellation(
+  payload: DirectorIdeaConstellationComposeRequest,
+): Promise<ApiResponse<DirectorIdeaConstellationComposeResponse>> {
+  const { data } = await apiClient.post<ApiResponse<DirectorIdeaConstellationComposeResponse>>(
+    "/novels/director/idea-constellation/compose",
     payload,
   );
   return data;

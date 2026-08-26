@@ -11,7 +11,6 @@ import { payoffLedgerSyncService } from "../payoff/PayoffLedgerSyncService";
 import { plannerService } from "../planner/PlannerService";
 import { stateService } from "../state/StateService";
 import {
-  isPass,
   LLMGenerateOptions,
   logPipelineError,
   normalizeScore,
@@ -21,7 +20,6 @@ import {
 } from "./novelCoreShared";
 import { GenerationContextAssembler } from "./runtime/GenerationContextAssembler";
 import { chapterQualityLoopService } from "./quality/ChapterQualityLoopService";
-import { chapterStatePairAfterManualQualityReview } from "./chapterLifecycleState";
 import { directorAutomationLedgerEventService } from "./director/runtime/DirectorAutomationLedgerEventService";
 import { ChapterRuntimeCoordinator } from "./runtime/ChapterRuntimeCoordinator";
 import {
@@ -54,7 +52,6 @@ export async function createQualityReport(
 export class NovelCoreReviewService {
   private readonly generationContextAssembler = new GenerationContextAssembler();
   private readonly chapterRuntimeCoordinator = new ChapterRuntimeCoordinator({
-    reviewChapterAfterRepair: (novelId, chapterId, options) => this.reviewChapter(novelId, chapterId, options),
     resolveAuditIssues: (novelId, issueIds) => this.resolveAuditIssues(novelId, issueIds),
   });
 
@@ -76,48 +73,23 @@ export class NovelCoreReviewService {
       chapterId,
     );
 
-    const chapterStatePatch = chapterStatePairAfterManualQualityReview(isPass(review.score));
-    await prisma.chapter.update({
-      where: { id: chapterId },
-      data: chapterStatePatch,
+    const replanRecommendation = plannerService.buildReplanRecommendation({
+      auditReports: review.auditReports ?? [],
+      ledgerSummary: review.contextPackage?.ledgerSummary ?? null,
+      contextPackage: review.contextPackage ?? null,
     });
-    await createQualityReport(novelId, chapterId, review.score, review.issues);
-    await chapterQualityLoopService.recordAssessment({
+    const qualityAssessment = await chapterQualityLoopService.recordAssessment({
       novelId,
       chapterId,
       chapterOrder: chapter.order,
       score: review.score,
       issues: review.issues,
       source: options.content ? "repair_recheck" : "manual_review",
-    }).catch((error) => {
-      logPipelineError("Failed to record chapter quality loop assessment.", {
-        novelId,
-        chapterId,
-        error: error instanceof Error ? error.message : String(error),
-      });
+      replanRecommendation,
     });
-    const replanRecommendation = plannerService.buildReplanRecommendation({
-      auditReports: review.auditReports ?? [],
-      ledgerSummary: review.contextPackage?.ledgerSummary ?? null,
-      contextPackage: review.contextPackage ?? null,
-    });
-    if (
-      (review.auditReports?.length ?? 0) > 0
-      && replanRecommendation.recommended
-      && replanRecommendation.action === "stop_for_replan"
-    ) {
-      await plannerService.replan(novelId, {
-        chapterId,
-        triggerType: "audit_failure",
-        reason: replanRecommendation.triggerReason || replanRecommendation.reason,
-        sourceIssueIds: replanRecommendation.blockingIssueIds,
-        provider: options.provider,
-        model: options.model,
-        temperature: options.temperature,
-      }).catch(() => null);
-    }
+    await createQualityReport(novelId, chapterId, review.score, review.issues);
 
-    return review;
+    return { ...review, qualityAssessment, replanRecommendation };
   }
 
   async createRepairStream(novelId: string, chapterId: string, options: RepairOptions = {}) {
