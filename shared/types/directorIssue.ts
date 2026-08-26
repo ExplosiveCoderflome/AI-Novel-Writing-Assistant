@@ -140,7 +140,7 @@ export const DIRECTOR_ISSUE_POLICY_PRESETS = [
   {
     id: "quality_first",
     name: "质量优先",
-    description: "局部问题处理一次后仍未解决时暂停，等待你确认下一步。",
+    description: "分阶段创作时，局部问题处理一次后仍未解决会暂停；整本自动创作会记录质量债并继续。",
     policy: {
       maxAutomaticRetries: 1,
       issueActions: {

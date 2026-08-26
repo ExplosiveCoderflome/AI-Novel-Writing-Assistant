@@ -291,7 +291,7 @@ export async function resolveQualityRepairNoticeAction(
     });
   }
 
-  if (canContinueAfterExplicitApproval || canAutoContinueByPolicy) {
+  if (canContinueAfterExplicitApproval || canAutoContinueByPolicy || shouldNotifyAndContinueAiDriverQualityNotice) {
     return {
       action: "auto_continue",
       checkpointType,
