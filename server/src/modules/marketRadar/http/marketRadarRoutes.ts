@@ -3,6 +3,7 @@ import { z } from "zod";
 import type { ApiResponse } from "@ai-novel/shared/types/api";
 import {
   MARKET_INFLUENCE_MODES,
+  MARKET_FOUNDATION_SYNC_TARGETS,
   MARKET_RADAR_PLATFORMS,
   type CreateMarketCreativeBriefRequest,
   type StartMarketRadarAnalysisRequest,
@@ -25,6 +26,7 @@ const briefSchema = z.object({
   signalIds: z.array(z.string().trim().min(1)).min(1).max(5),
   influenceMode: z.enum(MARKET_INFLUENCE_MODES),
 });
+const foundationSyncSchema = z.object({ target: z.enum(MARKET_FOUNDATION_SYNC_TARGETS) }).strict();
 
 function ok<T>(data: T, message?: string): ApiResponse<T> {
   return { success: true, data, message };
@@ -63,6 +65,14 @@ router.post("/scans/:id/analysis", validate({ params: idParamsSchema, body: anal
 router.post("/briefs", validate({ body: briefSchema }), async (req, res, next) => {
   try { res.status(201).json(ok(await marketRadarService.createBrief(req.body as CreateMarketCreativeBriefRequest))); }
   catch (error) { next(error); }
+});
+
+router.post("/reports/:id/foundation-sync", validate({ params: idParamsSchema, body: foundationSyncSchema }), async (req, res, next) => {
+  try {
+    const { id } = req.params as z.infer<typeof idParamsSchema>;
+    const { target } = req.body as z.infer<typeof foundationSyncSchema>;
+    res.json(ok(await marketRadarService.syncReportFoundation(id, target), "创作基础已加入资源库。"));
+  } catch (error) { next(error); }
 });
 
 router.get("/briefs/:id", validate({ params: idParamsSchema }), async (req, res, next) => {

@@ -1,3 +1,8 @@
+import type {
+  NovelCreateResourceRecommendation,
+  NovelResourceRecommendationOption,
+} from "./novelResourceRecommendation.js";
+
 export const MARKET_RADAR_PLATFORMS = ["fanqie", "qidian", "jinjiang"] as const;
 export type MarketRadarPlatform = typeof MARKET_RADAR_PLATFORMS[number];
 
@@ -51,6 +56,29 @@ export interface MarketPlatformStatus {
   error?: string | null;
 }
 
+export const MARKET_FOUNDATION_SYNC_TARGETS = ["genre", "story_modes"] as const;
+export type MarketFoundationSyncTarget = typeof MARKET_FOUNDATION_SYNC_TARGETS[number];
+
+export interface MarketFoundationCandidate {
+  existingId: string | null;
+  name: string;
+  reason: string;
+}
+
+export interface MarketProductionFoundationCandidate {
+  genre: MarketFoundationCandidate;
+  primaryStoryMode: MarketFoundationCandidate;
+  secondaryStoryMode?: MarketFoundationCandidate | null;
+}
+
+export interface MarketProductionFoundationSyncState {
+  genre?: NovelResourceRecommendationOption | null;
+  storyModes?: {
+    primaryStoryMode: NovelResourceRecommendationOption;
+    secondaryStoryMode?: NovelResourceRecommendationOption | null;
+  } | null;
+}
+
 export interface MarketTrendReport {
   id: string;
   scanRunId: string;
@@ -60,7 +88,8 @@ export interface MarketTrendReport {
   analyzedItemIds?: string[];
   platformStatuses: MarketPlatformStatus[];
   evidenceItems: MarketRankingItem[];
-  productionFoundation?: NovelCreateResourceRecommendation | null;
+  productionFoundationCandidate?: MarketProductionFoundationCandidate | null;
+  productionFoundationSync?: MarketProductionFoundationSyncState | null;
   createdAt: string;
 }
 
@@ -108,4 +137,7 @@ export interface CreateMarketCreativeBriefRequest {
   signalIds: string[];
   influenceMode: MarketInfluenceMode;
 }
-import type { NovelCreateResourceRecommendation } from "./novelResourceRecommendation.js";
+
+export interface SyncMarketProductionFoundationRequest {
+  target: MarketFoundationSyncTarget;
+}

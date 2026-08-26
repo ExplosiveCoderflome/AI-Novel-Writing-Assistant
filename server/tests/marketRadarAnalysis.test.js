@@ -4,6 +4,7 @@ const assert = require("node:assert/strict");
 const {
   findMarketFoundationAsset,
   parseStoredMarketBriefSelection,
+  toMarketFoundationCandidate,
   selectMarketAnalysisItems,
   selectMarketAnalysisSnapshots,
 } = require("../dist/modules/marketRadar/application/MarketRadarService.js");
@@ -110,5 +111,25 @@ test("market briefs read both legacy signal arrays and unified foundation payloa
   assert.deepEqual(parseStoredMarketBriefSelection(JSON.stringify({ signals, productionFoundation: foundation })), {
     signals,
     productionFoundation: foundation,
+  });
+});
+
+test("legacy automatic foundation references become manual candidates without a synced state", () => {
+  const candidate = toMarketFoundationCandidate({
+    signals: [],
+    productionFoundation: {
+      summary: "推荐方向",
+      genre: { id: "genre-existing", name: "西方魔幻", path: "奇幻 / 西方魔幻", reason: "题材证据", source: "market_recommended" },
+      primaryStoryMode: { id: "mode-existing", name: "升级成长", path: "成长冒险 / 升级成长", reason: "推进证据", source: "market_recommended" },
+      secondaryStoryMode: null,
+      caution: null,
+      recommendedAt: "2026-08-26T00:00:00.000Z",
+    },
+  });
+
+  assert.deepEqual(candidate, {
+    genre: { existingId: "genre-existing", name: "西方魔幻", reason: "题材证据" },
+    primaryStoryMode: { existingId: "mode-existing", name: "升级成长", reason: "推进证据" },
+    secondaryStoryMode: null,
   });
 });
