@@ -9,6 +9,10 @@ import type {
   MarketTrendReport,
 } from "@ai-novel/shared/types/marketRadar";
 import { MARKET_RADAR_PLATFORMS } from "@ai-novel/shared/types/marketRadar";
+import type {
+  NovelCreateResourceRecommendation,
+  NovelResourceRecommendationOption,
+} from "@ai-novel/shared/types/novelResourceRecommendation";
 import { prisma } from "../../../db/prisma";
 import { runStructuredPrompt } from "../../../prompting/core/promptRunner";
 import {
@@ -16,6 +20,11 @@ import {
   marketPlatformDigestPrompt,
   marketTrendSynthesisPrompt,
 } from "../../../prompting/prompts/marketRadar/marketRadar.prompts";
+import type { MarketProductionFoundationDraft } from "../../../prompting/prompts/marketRadar/marketRadar.promptSchemas";
+import { ensureSystemResourceStarterData } from "../../../services/bootstrap/SystemResourceBootstrapService";
+import { GenreService, type GenreTreeNode } from "../../../services/genre/GenreService";
+import { novelCreateResourceRecommendationService } from "../../../services/novel/NovelCreateResourceRecommendationService";
+import { StoryModeService, type StoryModeTreeNode } from "../../../services/storyMode/StoryModeService";
 import {
   collectMarketSource,
   hasPrivateUseCharacters,
@@ -24,6 +33,23 @@ import {
 
 const REFRESH_GUARD_MS = 30 * 60 * 1000;
 const FRESH_REPORT_MS = 24 * 60 * 60 * 1000;
+
+interface MarketFoundationCatalogOption {
+  id: string;
+  name: string;
+  path: string;
+  description?: string | null;
+  template?: string | null;
+}
+
+interface MarketStoryModeCatalogOption extends MarketFoundationCatalogOption {
+  profile: StoryModeTreeNode["profile"];
+}
+
+interface StoredMarketBriefSelection {
+  signals: MarketTrendReport["signals"];
+  productionFoundation?: NovelCreateResourceRecommendation | null;
+}
 
 function parseJson<T>(value: string | null | undefined, fallback: T): T {
   if (!value) return fallback;
@@ -126,6 +152,93 @@ function marketSourceKey(value: { platform: string; listKey: string }): string {
   return `${value.platform}:${value.listKey}`;
 }
 
+function normalizeAssetName(value: string): string {
+  return value.trim().toLocaleLowerCase("zh-CN");
+}
+
+function flattenGenreCatalog(nodes: GenreTreeNode[], path: string[] = []): MarketFoundationCatalogOption[] {
+  return nodes.flatMap((node) => {
+    const nextPath = [...path, node.name];
+    return [{
+      id: node.id,
+      name: node.name,
+      path: nextPath.join(" / "),
+      description: node.description,
+      template: node.template,
+    }, ...flattenGenreCatalog(node.children, nextPath)];
+  });
+}
+
+function flattenStoryModeCatalog(nodes: StoryModeTreeNode[], path: string[] = []): MarketStoryModeCatalogOption[] {
+  return nodes.flatMap((node) => {
+    const nextPath = [...path, node.name];
+    return [{
+      id: node.id,
+      name: node.name,
+      path: nextPath.join(" / "),
+      description: node.description,
+      template: node.template,
+      profile: node.profile,
+    }, ...flattenStoryModeCatalog(node.children, nextPath)];
+  });
+}
+
+function formatFoundationCatalog(options: MarketFoundationCatalogOption[]): string {
+  return options.map((option) => [
+    `ID=${option.id}`,
+    `路径=${option.path}`,
+    option.description ? `说明=${option.description}` : "",
+  ].filter(Boolean).join(" | ")).join("\n");
+}
+
+function formatStoryModeCatalog(options: MarketStoryModeCatalogOption[]): string {
+  return options.map((option) => [
+    `ID=${option.id}`,
+    `路径=${option.path}`,
+    option.description ? `说明=${option.description}` : "",
+    `核心驱动=${option.profile.coreDrive}`,
+    `读者奖励=${option.profile.readerReward}`,
+  ].filter(Boolean).join(" | ")).join("\n");
+}
+
+export function findMarketFoundationAsset<T extends { id: string; name: string }>(
+  options: T[],
+  draft: { existingId: string | null; name: string },
+): T | null {
+  if (draft.existingId) {
+    return options.find((option) => option.id === draft.existingId) ?? null;
+  }
+  const nameKey = normalizeAssetName(draft.name);
+  return options.find((option) => normalizeAssetName(option.name) === nameKey) ?? null;
+}
+
+export function parseStoredMarketBriefSelection(value: string): StoredMarketBriefSelection {
+  const parsed = parseJson<MarketTrendReport["signals"] | StoredMarketBriefSelection>(value, []);
+  return Array.isArray(parsed)
+    ? { signals: parsed }
+    : {
+      signals: Array.isArray(parsed.signals) ? parsed.signals : [],
+      productionFoundation: parsed.productionFoundation ?? null,
+    };
+}
+
+function markMarketRecommended(
+  recommendation: NovelCreateResourceRecommendation,
+): NovelCreateResourceRecommendation {
+  const markOption = (option: NovelResourceRecommendationOption): NovelResourceRecommendationOption => ({
+    ...option,
+    source: "market_recommended",
+  });
+  return {
+    ...recommendation,
+    genre: markOption(recommendation.genre),
+    primaryStoryMode: markOption(recommendation.primaryStoryMode),
+    secondaryStoryMode: recommendation.secondaryStoryMode
+      ? markOption(recommendation.secondaryStoryMode)
+      : null,
+  };
+}
+
 export function selectMarketAnalysisSnapshots<T extends { platform: string; listKey: string }>(
   snapshots: T[],
   selectedLists?: MarketRadarAnalysisListSelection[],
@@ -151,6 +264,10 @@ export function selectMarketAnalysisItems<T extends { id: string }>(items: T[], 
 }
 
 export class MarketRadarService {
+  private readonly genreService = new GenreService();
+
+  private readonly storyModeService = new StoryModeService();
+
   listSources() {
     return MARKET_RADAR_SOURCES;
   }
@@ -296,11 +413,15 @@ export class MarketRadarService {
       },
       options: { temperature: 0.25, maxTokens: 1_600, stage: "market_radar", itemKey: "creative_brief", entrypoint: "market_radar" },
     });
+    const foundation = await novelCreateResourceRecommendationService.resolveRequired({
+      marketBriefPrompt: result.output.promptBlock,
+    });
+    const productionFoundation = markMarketRecommended(foundation.recommendation);
     const row = await prisma.marketCreativeBrief.create({
       data: {
         reportId: report.id,
         influenceMode: input.influenceMode,
-        selectedSignalsJson: JSON.stringify(selectedSignals),
+        selectedSignalsJson: JSON.stringify({ signals: selectedSignals, productionFoundation }),
         summary: result.output.summary,
         promptBlock: result.output.promptBlock,
       },
@@ -398,22 +519,42 @@ export class MarketRadarService {
     }));
     await prisma.marketScanRun.update({ where: { id: runId }, data: { progress: 0.75 } });
 
-    const history = await this.buildHistorySummary(analysisSnapshots);
+    await ensureSystemResourceStarterData();
+    const [genreTree, storyModeTree, history] = await Promise.all([
+      this.genreService.listGenreTree(),
+      this.storyModeService.listStoryModeTree(),
+      this.buildHistorySummary(analysisSnapshots),
+    ]);
+    const genreCatalog = flattenGenreCatalog(genreTree);
+    const storyModeCatalog = flattenStoryModeCatalog(storyModeTree);
     const synthesis = await runStructuredPrompt({
       asset: marketTrendSynthesisPrompt,
       promptInput: {
         platformDigestsText: platformDigests.filter(Boolean).map((digest) => `${platformLabel(digest!.platform)}\n${digest!.platformSummary}\n${JSON.stringify(digest!.signals)}`).join("\n\n"),
         historyText: history.text,
+        genreCatalogText: formatFoundationCatalog(genreCatalog),
+        storyModeCatalogText: formatStoryModeCatalog(storyModeCatalog),
+        allowedGenreIds: genreCatalog.map((item) => item.id),
+        allowedStoryModeIds: storyModeCatalog.map((item) => item.id),
         evidenceItemIds: allItems.map((item) => item.id),
         hasComparableHistory: history.hasComparableHistory,
       },
-      options: { temperature: 0.2, maxTokens: 4_000, taskId: runId, stage: "market_radar", itemKey: "cross_platform_synthesis", entrypoint: "market_radar" },
+      options: { temperature: 0.2, maxTokens: 6_000, taskId: runId, stage: "market_radar", itemKey: "cross_platform_synthesis", entrypoint: "market_radar" },
     });
+    const productionFoundation = await this.syncProductionFoundation(
+      synthesis.output.productionFoundation,
+      { genres: genreCatalog, storyModes: storyModeCatalog },
+    );
     await prisma.marketTrendReport.create({
       data: {
         runId,
         summary: synthesis.output.summary,
-        structuredDataJson: JSON.stringify({ ...synthesis.output, analyzedLists: selectedLists, analyzedItemIds: selectedItemIds }),
+        structuredDataJson: JSON.stringify({
+          ...synthesis.output,
+          productionFoundation,
+          analyzedLists: selectedLists,
+          analyzedItemIds: selectedItemIds,
+        }),
       },
     });
     const hasFailures = snapshots.some((snapshot) => snapshot.status === "failed");
@@ -447,12 +588,93 @@ export class MarketRadarService {
     return { text: lines.join("\n"), hasComparableHistory: lines.length > 0 };
   }
 
+  private async syncProductionFoundation(
+    draft: MarketProductionFoundationDraft,
+    catalog: {
+      genres: MarketFoundationCatalogOption[];
+      storyModes: MarketStoryModeCatalogOption[];
+    },
+  ): Promise<NovelCreateResourceRecommendation> {
+    const genreMatch = findMarketFoundationAsset(catalog.genres, draft.genre);
+    if (draft.genre.existingId && !genreMatch) {
+      throw new Error("AI 推荐的题材基底在同步前失效，请重新分析。");
+    }
+    let genre = genreMatch;
+    if (!genre) {
+      const created = await this.genreService.createGenreTree({
+        name: draft.genre.name,
+        description: draft.genre.description,
+        template: draft.genre.template,
+      });
+      genre = { ...created, path: created.name };
+    }
+
+    const resolveStoryMode = async (
+      modeDraft: MarketProductionFoundationDraft["primaryStoryMode"],
+    ): Promise<MarketStoryModeCatalogOption> => {
+      const matched = findMarketFoundationAsset(catalog.storyModes, modeDraft);
+      if (modeDraft.existingId && !matched) {
+        throw new Error("AI 推荐的推进模式在同步前失效，请重新分析。");
+      }
+      if (matched) {
+        return matched;
+      }
+      const created = await this.storyModeService.createStoryModeTree({
+        name: modeDraft.name,
+        description: modeDraft.description,
+        template: modeDraft.template,
+        profile: modeDraft.profile,
+      });
+      const option = { ...created, path: created.name };
+      catalog.storyModes.push(option);
+      return option;
+    };
+
+    const primaryStoryMode = await resolveStoryMode(draft.primaryStoryMode);
+    const secondaryStoryMode = draft.secondaryStoryMode
+      ? await resolveStoryMode(draft.secondaryStoryMode)
+      : null;
+    if (secondaryStoryMode?.id === primaryStoryMode.id) {
+      throw new Error("AI 推荐的主推进模式与辅助推进模式重复，请重新分析。");
+    }
+
+    return {
+      summary: `推荐以“${genre.path}”作为题材基底，并以“${primaryStoryMode.path}”作为主要推进方式。`,
+      genre: {
+        id: genre.id,
+        name: genre.name,
+        path: genre.path,
+        reason: draft.genre.reason,
+        source: "market_recommended",
+      },
+      primaryStoryMode: {
+        id: primaryStoryMode.id,
+        name: primaryStoryMode.name,
+        path: primaryStoryMode.path,
+        reason: draft.primaryStoryMode.reason,
+        source: "market_recommended",
+      },
+      secondaryStoryMode: secondaryStoryMode && draft.secondaryStoryMode
+        ? {
+          id: secondaryStoryMode.id,
+          name: secondaryStoryMode.name,
+          path: secondaryStoryMode.path,
+          reason: draft.secondaryStoryMode.reason,
+          source: "market_recommended",
+        }
+        : null,
+      caution: null,
+      recommendedAt: new Date().toISOString(),
+    };
+  }
+
   private serializeReport(report: {
     id: string; runId: string; summary: string; structuredDataJson: string; createdAt: Date;
     run: { snapshots: Array<{ platform: string; listKey: string; status: string; error: string | null; capturedAt: Date; items: any[] }> };
   }): MarketTrendReport {
     const structured = parseJson<{
       signals: MarketTrendReport["signals"];
+      productionFoundation?: NovelCreateResourceRecommendation | null;
       analyzedLists?: MarketRadarAnalysisListSelection[];
       analyzedItemIds?: string[];
     }>(report.structuredDataJson, { signals: [] });
@@ -472,14 +694,17 @@ export class MarketRadarService {
     return {
       id: report.id, scanRunId: report.runId, summary: report.summary, signals: structured.signals,
       analyzedLists, analyzedItemIds: structured.analyzedItemIds,
+      productionFoundation: structured.productionFoundation ?? null,
       platformStatuses, evidenceItems, createdAt: report.createdAt.toISOString(),
     };
   }
 
   private serializeBrief(row: { id: string; reportId: string; influenceMode: string; selectedSignalsJson: string; summary: string; promptBlock: string; createdAt: Date }): MarketCreativeBrief {
+    const selection = parseStoredMarketBriefSelection(row.selectedSignalsJson);
     return {
       id: row.id, reportId: row.reportId, influenceMode: row.influenceMode as MarketCreativeBrief["influenceMode"],
-      selectedSignals: parseJson(row.selectedSignalsJson, []), summary: row.summary, promptBlock: row.promptBlock,
+      selectedSignals: selection.signals, summary: row.summary, promptBlock: row.promptBlock,
+      productionFoundation: selection.productionFoundation ?? null,
       createdAt: row.createdAt.toISOString(),
     };
   }

@@ -50,3 +50,14 @@ export function hasCreationFoundationChanged(
       && next.primaryStoryModeId !== current.primaryStoryModeId
     );
 }
+
+export function fillMissingCreationFoundation(
+  current: { genreId: string; primaryStoryModeId: string; secondaryStoryModeId: string },
+  recommended: { genreId: string; primaryStoryModeId: string; secondaryStoryModeId?: string | null },
+) {
+  return {
+    genreId: current.genreId || recommended.genreId,
+    primaryStoryModeId: current.primaryStoryModeId || recommended.primaryStoryModeId,
+    secondaryStoryModeId: current.secondaryStoryModeId || recommended.secondaryStoryModeId || "",
+  };
+}

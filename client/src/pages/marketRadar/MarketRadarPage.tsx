@@ -275,7 +275,19 @@ export default function MarketRadarPage() {
         <div ref={analysisResultRef} className="space-y-6 scroll-mt-6">
           <Card>
             <CardHeader><CardTitle className="text-xl">本期判断</CardTitle><CardDescription>采集于 {new Date(report.createdAt).toLocaleString()}，结论均可回看公开榜单证据。</CardDescription></CardHeader>
-            <CardContent><p className="leading-7">{report.summary}</p><div className="mt-4 flex flex-wrap gap-2">{report.platformStatuses.map((status) => <Badge key={status.platform} variant={status.status === "failed" ? "destructive" : "outline"}>{PLATFORM_LABELS[status.platform]} · {status.itemCount}项{status.status === "stale" ? " · 建议刷新" : ""}</Badge>)}</div></CardContent>
+            <CardContent>
+              <p className="leading-7">{report.summary}</p>
+              {report.productionFoundation ? (
+                <div className="mt-4 flex flex-wrap gap-x-5 gap-y-2 text-sm">
+                  <span><span className="text-muted-foreground">题材基底：</span>{report.productionFoundation.genre.path}</span>
+                  <span><span className="text-muted-foreground">主要推进：</span>{report.productionFoundation.primaryStoryMode.path}</span>
+                  {report.productionFoundation.secondaryStoryMode ? (
+                    <span><span className="text-muted-foreground">辅助推进：</span>{report.productionFoundation.secondaryStoryMode.path}</span>
+                  ) : null}
+                </div>
+              ) : null}
+              <div className="mt-4 flex flex-wrap gap-2">{report.platformStatuses.map((status) => <Badge key={status.platform} variant={status.status === "failed" ? "destructive" : "outline"}>{PLATFORM_LABELS[status.platform]} · {status.itemCount}项{status.status === "stale" ? " · 建议刷新" : ""}</Badge>)}</div>
+            </CardContent>
           </Card>
 
           <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">

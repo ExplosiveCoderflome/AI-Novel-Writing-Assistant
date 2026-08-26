@@ -72,9 +72,10 @@ function formatToneKeywords(candidate: DirectorCandidate): string {
   return candidate.toneKeywords.filter(Boolean).slice(0, 4).join(" · ");
 }
 
-function foundationSourceLabel(source: "user_selected" | "ai_recommended" | undefined): string {
+function foundationSourceLabel(source: "user_selected" | "ai_recommended" | "market_recommended" | undefined): string {
   if (source === "user_selected") return "你的选择";
   if (source === "ai_recommended") return "AI 补充";
+  if (source === "market_recommended") return "雷达推荐";
   return "创作基础";
 }
 

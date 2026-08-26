@@ -60,6 +60,7 @@ export interface MarketTrendReport {
   analyzedItemIds?: string[];
   platformStatuses: MarketPlatformStatus[];
   evidenceItems: MarketRankingItem[];
+  productionFoundation?: NovelCreateResourceRecommendation | null;
   createdAt: string;
 }
 
@@ -84,6 +85,7 @@ export interface MarketCreativeBrief {
   selectedSignals: MarketRadarSignal[];
   summary: string;
   promptBlock: string;
+  productionFoundation?: NovelCreateResourceRecommendation | null;
   createdAt: string;
 }
 
@@ -106,3 +108,4 @@ export interface CreateMarketCreativeBriefRequest {
   signalIds: string[];
   influenceMode: MarketInfluenceMode;
 }
+import type { NovelCreateResourceRecommendation } from "./novelResourceRecommendation.js";
