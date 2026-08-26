@@ -11,6 +11,7 @@ interface StoryModeTreeBrowserProps {
   onEdit: (storyModeId: string) => void;
   onDelete: (node: StoryModeTreeNode) => void;
   deletingId?: string;
+  initialSelectedId?: string;
 }
 
 function findNode(nodes: StoryModeTreeNode[], targetId: string): StoryModeTreeNode | null {
@@ -42,14 +43,19 @@ export default function StoryModeTreeBrowser({
   onEdit,
   onDelete,
   deletingId,
+  initialSelectedId,
 }: StoryModeTreeBrowserProps) {
-  const [selectedId, setSelectedId] = useState(nodes[0]?.id ?? "");
+  const [selectedId, setSelectedId] = useState(initialSelectedId || nodes[0]?.id || "");
   const selectedNode = useMemo(() => findNode(nodes, selectedId), [nodes, selectedId]);
   const selectedPath = useMemo(() => findPath(nodes, selectedId), [nodes, selectedId]);
 
   useEffect(() => {
+    if (initialSelectedId && findNode(nodes, initialSelectedId)) {
+      setSelectedId(initialSelectedId);
+      return;
+    }
     if (!selectedNode && nodes[0]) setSelectedId(nodes[0].id);
-  }, [nodes, selectedNode]);
+  }, [initialSelectedId, nodes, selectedNode]);
 
   if (!selectedNode) return null;
 

@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useSearchParams } from "react-router-dom";
 import type { NovelStoryMode, StoryModeProfile } from "@ai-novel/shared/types/storyMode";
 import {
   createStoryModeChildren,
@@ -126,6 +127,7 @@ function toDialogState(node?: StoryModeTreeNode | null): StoryModeDialogState {
 }
 
 export default function StoryModeManagementPage() {
+  const [searchParams] = useSearchParams();
   const llm = useLLMStore();
   const queryClient = useQueryClient();
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
@@ -591,6 +593,7 @@ export default function StoryModeManagementPage() {
           {!storyModeTreeQuery.isLoading && storyModeTree.length > 0 ? (
             <StoryModeTreeBrowser
               nodes={storyModeTree}
+              initialSelectedId={searchParams.get("selectedId") ?? ""}
               onCreateChild={handleCreateChild}
               onEdit={setEditingStoryModeId}
               onDelete={handleDelete}

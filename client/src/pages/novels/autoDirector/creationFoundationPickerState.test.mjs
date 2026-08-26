@@ -3,6 +3,7 @@ import test from "node:test";
 
 import {
   filterCreationFoundationTree,
+  fillMissingCreationFoundation,
   findCreationFoundationNode,
   hasCreationFoundationChanged,
 } from "./creationFoundationPickerState.ts";
@@ -26,6 +27,22 @@ const tree = [
 test("filterCreationFoundationTree keeps the ancestor path of a matching child", () => {
   assert.deepEqual(filterCreationFoundationTree(tree, "技术冲突"), tree);
   assert.deepEqual(filterCreationFoundationTree(tree, "不存在"), []);
+});
+
+test("fillMissingCreationFoundation applies radar recommendations without replacing user choices", () => {
+  assert.deepEqual(fillMissingCreationFoundation({
+    genreId: "",
+    primaryStoryModeId: "mode-user",
+    secondaryStoryModeId: "",
+  }, {
+    genreId: "genre-radar",
+    primaryStoryModeId: "mode-radar",
+    secondaryStoryModeId: "mode-secondary",
+  }), {
+    genreId: "genre-radar",
+    primaryStoryModeId: "mode-user",
+    secondaryStoryModeId: "mode-secondary",
+  });
 });
 
 test("findCreationFoundationNode resolves a nested resource", () => {

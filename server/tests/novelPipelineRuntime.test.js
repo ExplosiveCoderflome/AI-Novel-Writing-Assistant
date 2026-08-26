@@ -29,6 +29,9 @@ test("resumePendingPipelineJobs resumes queued and running pipeline jobs after r
     async markPipelineJobFailed(jobId, message) {
       calls.push(["failed", jobId, message]);
     },
+    async markPipelineJobPendingManualRecovery(jobId, message) {
+      calls.push(["pending", jobId, message]);
+    },
   });
 
   await runtimeService.resumePendingPipelineJobs();
@@ -60,6 +63,9 @@ test("resumePendingPipelineJobs settles pending cancellations before resuming wo
     async markPipelineJobFailed(jobId, message) {
       calls.push(["failed", jobId, message]);
     },
+    async markPipelineJobPendingManualRecovery(jobId, message) {
+      calls.push(["pending", jobId, message]);
+    },
   });
 
   await runtimeService.resumePendingPipelineJobs();
@@ -70,7 +76,7 @@ test("resumePendingPipelineJobs settles pending cancellations before resuming wo
   ]);
 });
 
-test("recoverStalePipelineJobs marks failed when resume throws", async () => {
+test("recoverStalePipelineJobs preserves a manual recovery checkpoint when resume throws", async () => {
   const calls = [];
   const runtimeService = new NovelPipelineRuntimeService({
     async listPendingCancellationPipelineJobs() {
@@ -89,14 +95,17 @@ test("recoverStalePipelineJobs marks failed when resume throws", async () => {
       throw new Error("缺少章节上下文");
     },
     async markPipelineJobFailed(jobId, message) {
-      calls.push([jobId, message]);
+      calls.push(["failed", jobId, message]);
+    },
+    async markPipelineJobPendingManualRecovery(jobId, message) {
+      calls.push(["pending", jobId, message]);
     },
   });
 
   await runtimeService.recoverStalePipelineJobs(new Date("2026-04-03T00:00:00+08:00"), 60_000);
 
   assert.deepEqual(calls, [
-    ["job-stale", "章节流水线任务心跳超时，正在尝试恢复。 恢复失败：缺少章节上下文"],
+    ["pending", "job-stale", "章节流水线任务心跳超时，正在尝试恢复。 恢复失败：缺少章节上下文"],
   ]);
 });
 

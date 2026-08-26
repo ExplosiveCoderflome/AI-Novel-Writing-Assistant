@@ -109,10 +109,18 @@ test("event handlers do not import heavy side-effect executors directly", () => 
 test("production closure owns quality stops and persists manual recovery", () => {
   const plannerSource = readSource("services", "planner", "PlannerService.ts");
   const reviewSource = readSource("services", "novel", "novelCoreReviewService.ts");
+  const manualReviewSource = reviewSource.slice(
+    reviewSource.indexOf("async reviewChapter("),
+    reviewSource.indexOf("async createRepairStream("),
+  );
+  const qualityLoopSource = readSource("services", "novel", "quality", "ChapterQualityLoopService.ts");
   const pipelineSource = readSource("services", "novel", "production", "NovelPipelineExecutor.ts");
 
   assert.equal(plannerSource.includes('scope: input.scope'), true);
-  assert.equal(reviewSource.includes('replanRecommendation.action === "stop_for_replan"'), true);
+  assert.equal(manualReviewSource.includes("plannerService.replan("), false);
+  assert.equal(manualReviewSource.includes("qualityAssessment"), true);
+  assert.equal(qualityLoopSource.includes("chapterLifecycleService.applyQualityAssessmentState"), true);
+  assert.equal(qualityLoopSource.includes("prisma.chapter.update"), false);
   assert.equal(pipelineSource.includes('applyChapterQualityClosure'), true);
   assert.equal(pipelineSource.includes('pendingManualRecovery: true'), true);
   assert.equal(pipelineSource.indexOf('pendingManualRecovery: true') < pipelineSource.indexOf('const finalStatus: "succeeded"'), true);
