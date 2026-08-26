@@ -8,6 +8,16 @@ import {
 } from "../../chapterLifecycleState";
 import { assertChapterContentNotEmpty } from "../chapterEmptyContentError";
 
+export class ChapterContentPersistenceError extends Error {
+  constructor(
+    readonly chapterId: string,
+    message: string,
+  ) {
+    super(message);
+    this.name = "ChapterContentPersistenceError";
+  }
+}
+
 export class ChapterLifecycleService {
   async saveWorkingContent(input: {
     novelId: string;
@@ -20,17 +30,22 @@ export class ChapterLifecycleService {
       chapterId: input.chapterId,
       source: "chapter_lifecycle_save",
     });
-    await withSqliteRetry(
-      () => prisma.chapter.update({
-        where: { id: input.chapterId },
-        data: {
-          content,
-          generationState: input.generationState,
-          chapterStatus: "generating",
-        },
-      }),
-      { label: "chapterLifecycle.saveWorkingContent" },
-    );
+    try {
+      await withSqliteRetry(
+        () => prisma.chapter.update({
+          where: { id: input.chapterId },
+          data: {
+            content,
+            generationState: input.generationState,
+            chapterStatus: "generating",
+          },
+        }),
+        { label: "chapterLifecycle.saveWorkingContent" },
+      );
+    } catch (error) {
+      const detail = error instanceof Error ? error.message : String(error);
+      throw new ChapterContentPersistenceError(input.chapterId, `正文保存失败：${detail}`);
+    }
     return content;
   }
 

@@ -86,7 +86,10 @@ export class NovelPipelineRuntimeService {
         await this.pipelineService.resumePipelineJob(row.id);
       } catch (error) {
         const message = error instanceof Error ? error.message : "章节流水线任务恢复失败。";
-        await this.pipelineService.markPipelineJobFailed(row.id, `${recoveryMessage} 恢复失败：${message}`);
+        await this.pipelineService.markPipelineJobPendingManualRecovery(
+          row.id,
+          `${recoveryMessage} 恢复失败：${message}`,
+        );
       }
     }
   }

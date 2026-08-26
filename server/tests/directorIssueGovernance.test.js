@@ -13,6 +13,9 @@ const {
 const promptRunner = require("../dist/prompting/core/promptRunner.js");
 const { directorIssueService } = require("../dist/services/novel/director/issues/DirectorIssueService.js");
 const { directorAutomationLedgerEventService } = require("../dist/services/novel/director/runtime/DirectorAutomationLedgerEventService.js");
+const {
+  applyChapterQualityClosure,
+} = require("../dist/services/novel/production/qualityClosure/ChapterQualityClosure.js");
 
 function occurrence(issueCode, patch = {}) {
   return {
@@ -125,6 +128,105 @@ test("the policy owns the single automatic retry budget", () => {
     policy: { ...DEFAULT_DIRECTOR_ISSUE_POLICY, maxAutomaticRetries: 1 },
   });
   assert.equal(decision.action, "pause_for_manual");
+});
+
+test("both presets keep the automatic repair budget below two attempts", () => {
+  for (const preset of DIRECTOR_ISSUE_POLICY_PRESETS) {
+    assert.equal(preset.policy.maxAutomaticRetries, 1, preset.id);
+  }
+});
+
+test("recovery matrix keeps transient failures recoverable and locks safety boundaries", () => {
+  const cases = [
+    ["runtime.worker_stale", 0, "auto_retry", false],
+    ["runtime.worker_stale", 1, "pause_for_manual", false],
+    ["runtime.model_unavailable", 0, "auto_retry", false],
+    ["runtime.model_unavailable", 1, "pause_for_manual", false],
+    ["runtime.persistence_failed", 0, "fail_task", true],
+    ["quality.replan_required", 0, "pause_for_manual", true],
+  ];
+
+  for (const [issueCode, attempt, expectedAction, expectedLocked] of cases) {
+    const decision = resolveDirectorIssueDecision({
+      occurrence: occurrence(issueCode, { attempt }),
+      policy: DEFAULT_DIRECTOR_ISSUE_POLICY,
+    });
+    assert.equal(decision.action, expectedAction, issueCode);
+    assert.equal(decision.locked, expectedLocked, issueCode);
+  }
+});
+
+test("quality closure follows the selected preset after one failed repair", async () => {
+  const originalRecordEvent = directorAutomationLedgerEventService.recordEvent;
+  directorAutomationLedgerEventService.recordEvent = async () => undefined;
+  const finishFullBook = DIRECTOR_ISSUE_POLICY_PRESETS.find((preset) => preset.id === "finish_full_book");
+  const qualityFirst = DIRECTOR_ISSUE_POLICY_PRESETS.find((preset) => preset.id === "quality_first");
+  assert.ok(finishFullBook);
+  assert.ok(qualityFirst);
+
+  const runClosure = (preset, runMode) => applyChapterQualityClosure({
+    governance: {
+      novelId: "novel-preset",
+      issueGovernanceVersion: 1,
+      policy: preset.policy,
+      runMode,
+      policySource: "novel",
+    },
+    workflowTaskId: `task-${preset.id}-${runMode}`,
+    novelId: "novel-preset",
+    jobId: `job-${preset.id}-${runMode}`,
+    chapter: { id: "chapter-1", order: 1 },
+    chapterResult: {
+      retryCountUsed: 1,
+      score: {
+        coherence: 70,
+        repetition: 80,
+        pacing: 75,
+        voice: 78,
+        engagement: 72,
+        overall: 74,
+      },
+      issues: [],
+      pass: false,
+      reviewExecuted: false,
+      runtimePackage: null,
+      recoverableRepairFailure: {
+        message: "一次自动修复后仍有局部问题。",
+        failureTypes: ["local_patch_failed"],
+      },
+    },
+    qualityThreshold: 75,
+    runtimePayload: {
+      provider: "deepseek",
+      model: "deepseek-chat",
+      temperature: 0.7,
+      runMode: "fast",
+      autoReview: true,
+      autoRepair: true,
+      skipCompleted: true,
+      qualityThreshold: 75,
+      repairMode: "light_repair",
+    },
+    qualityAlertDetails: [],
+    replanAlertDetails: [],
+    recoverableRepairDetails: [],
+    runLocalReplan: async () => {
+      throw new Error("local replan must not run for a repair failure");
+    },
+  });
+
+  try {
+    const completionFirst = await runClosure(finishFullBook, "full_book_autopilot");
+    assert.equal(completionFirst.shouldStopAfterCurrentChapter, false);
+
+    const qualityFirstAutopilot = await runClosure(qualityFirst, "full_book_autopilot");
+    assert.equal(qualityFirstAutopilot.shouldStopAfterCurrentChapter, true);
+
+    const qualityFirstStaged = await runClosure(qualityFirst, "stage_review");
+    assert.equal(qualityFirstStaged.shouldStopAfterCurrentChapter, true);
+  } finally {
+    directorAutomationLedgerEventService.recordEvent = originalRecordEvent;
+  }
 });
 
 test("explicit task policy is not overridden by a risk score", () => {
