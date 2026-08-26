@@ -10,6 +10,9 @@ const {
   ChapterTaskSheetQualityGateService,
 } = require("../dist/services/novel/volume/ChapterTaskSheetQualityGateService.js");
 const {
+  canReuseChapterExecutionContract,
+} = require("../dist/services/novel/volume/chapterDetail/chapterExecutionContractGeneration.js");
+const {
   chapterTaskSheetQualityPrompt,
 } = require("../dist/prompting/prompts/novel/volume/chapterTaskSheetQuality.prompts.js");
 const {
@@ -85,6 +88,30 @@ function buildCandidate(overrides = {}) {
     ...overrides,
   };
 }
+
+test("incomplete persisted contracts are regenerated instead of reused", () => {
+  const complete = buildCandidate();
+  const chapter = {
+    ...complete,
+    id: complete.chapterId,
+  };
+
+  assert.equal(canReuseChapterExecutionContract({
+    novelId: complete.novelId,
+    volumeId: complete.volumeId,
+    chapter,
+  }), true);
+
+  assert.equal(canReuseChapterExecutionContract({
+    novelId: complete.novelId,
+    volumeId: complete.volumeId,
+    chapter: {
+      ...chapter,
+      purpose: null,
+      targetWordCount: null,
+    },
+  }), false);
+});
 
 test("chapter execution contract shape gate blocks invalid task sheet artifacts", () => {
   const result = assessChapterExecutionContractShape(buildCandidate({
