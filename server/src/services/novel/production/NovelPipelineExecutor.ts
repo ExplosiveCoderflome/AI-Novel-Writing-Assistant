@@ -8,6 +8,7 @@ import { ChapterRouteWindowService } from "../planning/ChapterRouteWindowService
 import { NovelVolumeService } from "../volume/NovelVolumeService";
 import { ChapterRuntimeCoordinator } from "../runtime/ChapterRuntimeCoordinator";
 import { isChapterEmptyContentError } from "../runtime/chapterEmptyContentError";
+import { ChapterContentPersistenceError } from "../runtime/lifecycle";
 import {
   logPipelineError,
   logPipelineInfo,
@@ -377,6 +378,25 @@ export class NovelPipelineExecutor {
                 if (error instanceof Error && error.message === "PIPELINE_CANCELLED") {
                   throw error;
                 }
+                if (error instanceof ChapterContentPersistenceError) {
+                  await reportPipelineIssue({
+                    governance: issueGovernance,
+                    workflowTaskId: runtimePayload.workflowTaskId,
+                    novelId,
+                    jobId,
+                    issueCode: "runtime.persistence_failed",
+                    stage: "chapter_persistence",
+                    summary: `第${chapter.order}章正文无法确认已保存，已停止自动重试。`,
+                    evidence: error.message,
+                    chapterId: chapter.id,
+                    chapterOrder: chapter.order,
+                    hasUsableOutput: false,
+                    provider: runtimePayload.provider,
+                    model: runtimePayload.model,
+                    temperature: runtimePayload.temperature,
+                  });
+                  throw error;
+                }
                 const canRetry = isAutopilotMode && chapterRetryCountUsed < chapterRetryBudget;
                 if (!canRetry) {
                   throw error;
@@ -635,7 +655,7 @@ export class NovelPipelineExecutor {
           contentLength: error.details.trimmedLength,
           rawContentLength: error.details.rawLength,
         });
-      } else {
+      } else if (!(error instanceof ChapterContentPersistenceError)) {
         await reportPipelineIssue({
           governance: issueGovernance,
           workflowTaskId: runtimePayload.workflowTaskId,

@@ -127,6 +127,32 @@ test("the policy owns the single automatic retry budget", () => {
   assert.equal(decision.action, "pause_for_manual");
 });
 
+test("both presets keep the automatic repair budget below two attempts", () => {
+  for (const preset of DIRECTOR_ISSUE_POLICY_PRESETS) {
+    assert.equal(preset.policy.maxAutomaticRetries, 1, preset.id);
+  }
+});
+
+test("recovery matrix keeps transient failures recoverable and locks safety boundaries", () => {
+  const cases = [
+    ["runtime.worker_stale", 0, "auto_retry", false],
+    ["runtime.worker_stale", 1, "pause_for_manual", false],
+    ["runtime.model_unavailable", 0, "auto_retry", false],
+    ["runtime.model_unavailable", 1, "pause_for_manual", false],
+    ["runtime.persistence_failed", 0, "fail_task", true],
+    ["quality.replan_required", 0, "pause_for_manual", true],
+  ];
+
+  for (const [issueCode, attempt, expectedAction, expectedLocked] of cases) {
+    const decision = resolveDirectorIssueDecision({
+      occurrence: occurrence(issueCode, { attempt }),
+      policy: DEFAULT_DIRECTOR_ISSUE_POLICY,
+    });
+    assert.equal(decision.action, expectedAction, issueCode);
+    assert.equal(decision.locked, expectedLocked, issueCode);
+  }
+});
+
 test("explicit task policy is not overridden by a risk score", () => {
   const decision = resolveDirectorIssueDecision({
     occurrence: occurrence("runtime.service_unavailable", { riskScore: 8 }),

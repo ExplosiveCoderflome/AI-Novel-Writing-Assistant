@@ -109,6 +109,30 @@ test("buildChapterQualityLoopAssessment routes rolling window failures to replan
   assert.equal(assessment.blockingObligations[0].kind, "goal_change");
 });
 
+test("buildChapterQualityLoopAssessment accepts a manual review replan decision without a runtime package", () => {
+  const assessment = buildChapterQualityLoopAssessment({
+    chapterId: "chapter-manual-replan",
+    chapterOrder: 8,
+    score: score(),
+    issues: [],
+    replanRecommendation: {
+      recommended: true,
+      action: "stop_for_replan",
+      scope: "global_book",
+      reason: "后续章节窗口需要重新安排。",
+      blockingIssueIds: ["issue-manual-replan"],
+    },
+    evaluatedAt: "2026-04-30T00:00:00.000Z",
+  });
+
+  assert.equal(assessment.overallStatus, "invalid");
+  assert.equal(assessment.recommendedAction, "replan");
+  assert.deepEqual(
+    assessment.signals.find((signal) => signal.artifactType === "rolling_window_review").issueCodes,
+    ["issue-manual-replan"],
+  );
+});
+
 test("buildChapterQualityLoopAssessment keeps local replan suggestions as patch repair", () => {
   const assessment = buildChapterQualityLoopAssessment({
     chapterId: "chapter-local-plan",
@@ -321,6 +345,32 @@ test("buildChapterQualityLoopChapterUpdate marks exhausted auto repair as deferr
   assert.equal(riskFlags.qualityLoop.terminalAction, "defer_and_continue");
   assert.equal(riskFlags.qualityLoop.source, "repair_recheck");
   assert.match(update.repairHistory, /terminal=defer_and_continue/);
+});
+
+test("buildChapterQualityLoopChapterUpdate keeps a blocked manual review at a recoverable reviewed state", () => {
+  const assessment = buildChapterQualityLoopAssessment({
+    chapterId: "chapter-manual-blocked",
+    chapterOrder: 9,
+    score: score({ overall: 68, engagement: 66 }),
+    issues: [{
+      severity: "high",
+      category: "pacing",
+      evidence: "本章没有形成有效推进。",
+      fixSuggestion: "补足本章结果。",
+    }],
+    evaluatedAt: "2026-04-30T00:00:00.000Z",
+  });
+
+  const update = buildChapterQualityLoopChapterUpdate({
+    content: "这是一段已保存的正文。",
+    riskFlags: null,
+    repairHistory: null,
+    chapterStatus: "generating",
+    generationState: "drafted",
+  }, assessment, "manual_review");
+
+  assert.equal(update.chapterStatus, "needs_repair");
+  assert.equal(update.generationState, "reviewed");
 });
 
 test("quality loop projection classifies deferred patch repair as non-blocking debt", () => {
