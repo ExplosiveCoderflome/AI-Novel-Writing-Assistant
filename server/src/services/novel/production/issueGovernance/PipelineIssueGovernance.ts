@@ -57,6 +57,6 @@ export async function reportPipelineIssue(input: {
       issueCode: input.issueCode,
       error: error instanceof Error ? error.message : String(error),
     });
-    return null;
+    throw error;
   }
 }

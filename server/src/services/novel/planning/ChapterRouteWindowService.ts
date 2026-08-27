@@ -109,6 +109,7 @@ export class ChapterRouteWindowService {
         volumes: workspace.volumes,
         preserveContent: true,
         applyDeletes: false,
+        allowIncompleteExecutionContracts: true,
       }, {
         emitEvent: false,
         syncPayoffLedger: false,

@@ -224,6 +224,20 @@ test("quality closure follows the selected preset after one failed repair", asyn
 
     const qualityFirstStaged = await runClosure(qualityFirst, "stage_review");
     assert.equal(qualityFirstStaged.shouldStopAfterCurrentChapter, true);
+
+    const retryConfiguredAtExhaustedBoundary = await runClosure({
+      ...finishFullBook,
+      id: "retry_exhausted",
+      policy: {
+        ...finishFullBook.policy,
+        issueActions: {
+          ...finishFullBook.policy.issueActions,
+          "quality.acceptance_unavailable": "auto_retry",
+          "quality.local_repair_failed": "auto_retry",
+        },
+      },
+    }, "full_book_autopilot");
+    assert.equal(retryConfiguredAtExhaustedBoundary.shouldStopAfterCurrentChapter, false);
   } finally {
     directorAutomationLedgerEventService.recordEvent = originalRecordEvent;
   }
@@ -314,6 +328,33 @@ test("issue action is recorded only after a real action handler completes", asyn
       applyAction: async () => undefined,
     });
     assert.deepEqual(events.slice(-2).map((event) => event.type), ["issue_detected", "issue_action_applied"]);
+  } finally {
+    directorAutomationLedgerEventService.recordEvent = originalRecordEvent;
+  }
+});
+
+test("a failed issue action stays unhandled and propagates to the runtime", async () => {
+  const originalRecordEvent = directorAutomationLedgerEventService.recordEvent;
+  const events = [];
+  directorAutomationLedgerEventService.recordEvent = async (event) => events.push(event);
+  try {
+    await assert.rejects(
+      directorIssueService.reportIssue({
+        issueGovernanceVersion: 1,
+        taskId: "task-action-failed",
+        novelId: "novel-action-failed",
+        issueCode: "runtime.persistence_failed",
+        stage: "chapter_persistence",
+        summary: "正文保存状态无法确认。",
+        fingerprint: "persistence:chapter-1",
+        policy: DEFAULT_DIRECTOR_ISSUE_POLICY,
+        applyAction: async () => {
+          throw new Error("task state write failed");
+        },
+      }),
+      /task state write failed/,
+    );
+    assert.deepEqual(events.map((event) => event.type), ["issue_detected"]);
   } finally {
     directorAutomationLedgerEventService.recordEvent = originalRecordEvent;
   }
