@@ -23,7 +23,11 @@ import StageIdea from "./StageIdea";
 import StageModelRun from "./StageModelRun";
 import StageSummaryCard from "./StageSummaryCard";
 import StageWorldStyle from "./StageWorldStyle";
-import { fillMissingCreationFoundation } from "./creationFoundationPickerState";
+import {
+  fillMissingCreationFoundation,
+  fillMissingMarketCreativeFraming,
+  resolveMarketOpeningIdea,
+} from "./creationFoundationPickerState";
 import {
   AUTO_DIRECTOR_CREATE_STAGES,
   type AutoDirectorCreateStageKey,
@@ -65,7 +69,8 @@ export default function AutoDirectorCreatePage() {
   const [activeStage, setActiveStage] = useState<AutoDirectorCreateStageKey>("idea");
   const [completedStages, setCompletedStages] = useState<Set<AutoDirectorCreateStageKey>>(() => new Set());
   const restoreHandledRef = useRef<string | null>(null);
-  const marketFoundationAppliedRef = useRef<string | null>(null);
+  const marketBriefFormAppliedRef = useRef<string | null>(null);
+  const marketBriefIdeaAppliedRef = useRef<string | null>(null);
 
   const worldListQuery = useQuery({
     queryKey: queryKeys.worlds.all,
@@ -91,17 +96,20 @@ export default function AutoDirectorCreatePage() {
   const worldOptions = worldListQuery.data?.data ?? [];
 
   useEffect(() => {
-    const foundation = marketBriefQuery.data?.data?.productionFoundation;
-    if (!marketBriefId || !foundation || marketFoundationAppliedRef.current === marketBriefId) {
+    const brief = marketBriefQuery.data?.data;
+    if (!marketBriefId || !brief || marketBriefFormAppliedRef.current === marketBriefId) {
       return;
     }
-    marketFoundationAppliedRef.current = marketBriefId;
-    setBasicForm((current) => patchNovelBasicForm(current, fillMissingCreationFoundation(current, {
-      genreId: foundation.genre.id,
-      primaryStoryModeId: foundation.primaryStoryMode.id,
-      secondaryStoryModeId: foundation.secondaryStoryMode?.id,
-    })));
-  }, [marketBriefId, marketBriefQuery.data?.data?.productionFoundation]);
+    marketBriefFormAppliedRef.current = marketBriefId;
+    setBasicForm((current) => patchNovelBasicForm(current, {
+      ...(brief.productionFoundation ? fillMissingCreationFoundation(current, {
+        genreId: brief.productionFoundation.genre.id,
+        primaryStoryModeId: brief.productionFoundation.primaryStoryMode.id,
+        secondaryStoryModeId: brief.productionFoundation.secondaryStoryMode?.id,
+      }) : {}),
+      ...fillMissingMarketCreativeFraming(current, brief.creativeSeed),
+    }));
+  }, [marketBriefId, marketBriefQuery.data?.data]);
 
   useEffect(() => {
     if (!hasLegacyParams) {
@@ -164,6 +172,14 @@ export default function AutoDirectorCreatePage() {
     onWorkflowTaskChange: replaceTaskId,
     onBasicFormChange: (patch) => setBasicForm((prev) => patchNovelBasicForm(prev, patch)),
   });
+  useEffect(() => {
+    const seed = marketBriefQuery.data?.data?.creativeSeed;
+    if (!marketBriefId || !seed || marketBriefIdeaAppliedRef.current === marketBriefId) {
+      return;
+    }
+    marketBriefIdeaAppliedRef.current = marketBriefId;
+    controller.setIdea(resolveMarketOpeningIdea(controller.idea, seed));
+  }, [controller.idea, controller.setIdea, marketBriefId, marketBriefQuery.data?.data?.creativeSeed]);
   const createdNovelId = controller.directorTask?.resumeTarget?.novelId?.trim() ?? "";
   const enterSimpleMutation = useMutation({
     mutationFn: () => setNovelCreationExperience(createdNovelId, "simple"),
@@ -423,6 +439,25 @@ export default function AutoDirectorCreatePage() {
             <div className="mt-1 text-xs leading-5 text-muted-foreground">
               {marketBriefQuery.data?.data?.summary || (marketBriefQuery.isPending ? "正在读取市场创作简报。" : "市场简报暂时无法读取，仍可继续按你的想法开书。")}
             </div>
+            {marketBriefQuery.data?.data?.selectedSignals.length ? (
+              <div className="mt-2 flex flex-wrap gap-1.5">
+                {marketBriefQuery.data.data.selectedSignals.map((signal) => (
+                  <span key={signal.id} className="rounded-full bg-background/80 px-2 py-1 text-xs text-foreground">
+                    {signal.label}
+                  </span>
+                ))}
+              </div>
+            ) : null}
+            {marketBriefQuery.data?.data?.creativeSeed ? (
+              <div className="mt-2 space-y-1 text-xs leading-5 text-foreground">
+                <div><span className="font-medium">金手指 / 核心优势：</span>{marketBriefQuery.data.data.creativeSeed.coreAdvantage}</div>
+                <div><span className="font-medium">开书思路：</span>{marketBriefQuery.data.data.creativeSeed.openingIdea}</div>
+              </div>
+            ) : marketBriefQuery.data?.data ? (
+              <div className="mt-2 text-xs leading-5 text-amber-700 dark:text-amber-300">
+                这份简报缺少完整开书思路，请返回雷达重新确认信号。
+              </div>
+            ) : null}
             {marketProductionFoundation ? (
               <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs text-foreground">
                 <span>题材基底：{marketProductionFoundation.genre.path}</span>

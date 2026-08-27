@@ -107,6 +107,13 @@ export interface MarketScanRun {
   finishedAt?: string | null;
 }
 
+export interface MarketCreativeSeed {
+  openingIdea: string;
+  coreAdvantage: string;
+  bookSellingPoint: string;
+  first30ChapterPromise: string;
+}
+
 export interface MarketCreativeBrief {
   id: string;
   reportId: string;
@@ -114,6 +121,7 @@ export interface MarketCreativeBrief {
   selectedSignals: MarketRadarSignal[];
   summary: string;
   promptBlock: string;
+  creativeSeed?: MarketCreativeSeed | null;
   productionFoundation?: NovelCreateResourceRecommendation | null;
   createdAt: string;
 }

@@ -60,7 +60,15 @@ export const marketTrendReportSchema = z.object({
   productionFoundation: marketProductionFoundationDraftSchema,
 });
 
+export const marketCreativeSeedSchema = z.object({
+  openingIdea: z.string().trim().min(40).max(320),
+  coreAdvantage: z.string().trim().min(20).max(240),
+  bookSellingPoint: z.string().trim().min(20).max(240),
+  first30ChapterPromise: z.string().trim().min(30).max(320),
+});
+
 export const marketCreativeBriefSchema = z.object({
   summary: z.string().trim().min(30).max(400),
   promptBlock: z.string().trim().min(100).max(1800),
+  creativeSeed: marketCreativeSeedSchema,
 });
