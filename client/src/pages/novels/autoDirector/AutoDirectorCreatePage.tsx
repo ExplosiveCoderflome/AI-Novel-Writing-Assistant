@@ -433,43 +433,91 @@ export default function AutoDirectorCreatePage() {
       ) : null}
 
       {marketBriefId ? (
-        <div className="flex flex-col gap-3 rounded-xl border border-primary/25 bg-primary/5 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
-          <div>
-            <div className="text-sm font-medium text-foreground">雷达推荐方向</div>
-            <div className="mt-1 text-xs leading-5 text-muted-foreground">
-              {marketBriefQuery.data?.data?.summary || (marketBriefQuery.isPending ? "正在读取市场创作简报。" : "市场简报暂时无法读取，仍可继续按你的想法开书。")}
-            </div>
-            {marketBriefQuery.data?.data?.selectedSignals.length ? (
-              <div className="mt-2 flex flex-wrap gap-1.5">
-                {marketBriefQuery.data.data.selectedSignals.map((signal) => (
-                  <span key={signal.id} className="rounded-full bg-background/80 px-2 py-1 text-xs text-foreground">
-                    {signal.label}
+        <section className="border-y border-border/60 py-4">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+            <div className="min-w-0">
+              <div className="flex items-center gap-2 text-sm font-semibold text-foreground">
+                <span className="h-2 w-2 rounded-full bg-primary" aria-hidden="true" />
+                雷达开书参考
+                {marketBriefQuery.data?.data?.selectedSignals.length ? (
+                  <span className="font-normal text-muted-foreground">
+                    {marketBriefQuery.data.data.selectedSignals.length} 项信号
                   </span>
-                ))}
-              </div>
-            ) : null}
-            {marketBriefQuery.data?.data?.creativeSeed ? (
-              <div className="mt-2 space-y-1 text-xs leading-5 text-foreground">
-                <div><span className="font-medium">金手指 / 核心优势：</span>{marketBriefQuery.data.data.creativeSeed.coreAdvantage}</div>
-                <div><span className="font-medium">开书思路：</span>{marketBriefQuery.data.data.creativeSeed.openingIdea}</div>
-              </div>
-            ) : marketBriefQuery.data?.data ? (
-              <div className="mt-2 text-xs leading-5 text-amber-700 dark:text-amber-300">
-                这份简报缺少完整开书思路，请返回雷达重新确认信号。
-              </div>
-            ) : null}
-            {marketProductionFoundation ? (
-              <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs text-foreground">
-                <span>题材基底：{marketProductionFoundation.genre.path}</span>
-                <span>主要推进：{marketProductionFoundation.primaryStoryMode.path}</span>
-                {marketProductionFoundation.secondaryStoryMode ? (
-                  <span>辅助推进：{marketProductionFoundation.secondaryStoryMode.path}</span>
                 ) : null}
               </div>
-            ) : null}
+              <p className="mt-1 max-w-4xl text-sm leading-6 text-muted-foreground">
+                {marketBriefQuery.data?.data?.summary || (marketBriefQuery.isPending ? "正在读取市场创作简报。" : "市场简报暂时无法读取，仍可继续按你的想法开书。")}
+              </p>
+            </div>
+            <Button type="button" variant="ghost" size="sm" className="shrink-0" asChild>
+              <Link to="/market-radar">调整雷达信号</Link>
+            </Button>
           </div>
-          <Button type="button" variant="outline" size="sm" asChild><Link to="/market-radar">返回调整</Link></Button>
-        </div>
+
+          {marketBriefQuery.data?.data?.selectedSignals.length ? (
+            <div className="mt-3 flex flex-wrap gap-2">
+              {marketBriefQuery.data.data.selectedSignals.map((signal) => (
+                <span key={signal.id} className="rounded-full bg-muted/70 px-2.5 py-1 text-xs text-foreground">
+                  {signal.label}
+                </span>
+              ))}
+            </div>
+          ) : null}
+
+          {marketBriefQuery.data?.data?.creativeSeed ? (
+            <div className="mt-4 grid gap-4 border-t border-border/50 pt-4 lg:grid-cols-[minmax(0,0.9fr)_minmax(0,1.35fr)]">
+              <div className="min-w-0">
+                <div className="text-xs font-medium text-muted-foreground">金手指 / 核心优势</div>
+                <p className="mt-1 line-clamp-2 text-sm leading-6 text-foreground">
+                  {marketBriefQuery.data.data.creativeSeed.coreAdvantage}
+                </p>
+              </div>
+              <div className="min-w-0">
+                <div className="text-xs font-medium text-muted-foreground">开书思路</div>
+                <p className="mt-1 line-clamp-2 text-sm leading-6 text-foreground">
+                  {marketBriefQuery.data.data.creativeSeed.openingIdea}
+                </p>
+              </div>
+              <details className="lg:col-span-2">
+                <summary className="w-fit cursor-pointer list-none text-xs font-medium text-muted-foreground hover:text-foreground [&::-webkit-details-marker]:hidden">
+                  查看完整雷达设定
+                </summary>
+                <div className="mt-3 grid gap-4 text-sm leading-6 sm:grid-cols-2">
+                  <div>
+                    <div className="text-xs text-muted-foreground">完整核心优势</div>
+                    <p className="mt-1 text-foreground">{marketBriefQuery.data.data.creativeSeed.coreAdvantage}</p>
+                  </div>
+                  <div>
+                    <div className="text-xs text-muted-foreground">完整开书思路</div>
+                    <p className="mt-1 text-foreground">{marketBriefQuery.data.data.creativeSeed.openingIdea}</p>
+                  </div>
+                  <div>
+                    <div className="text-xs text-muted-foreground">核心卖点</div>
+                    <p className="mt-1 text-foreground">{marketBriefQuery.data.data.creativeSeed.bookSellingPoint}</p>
+                  </div>
+                  <div>
+                    <div className="text-xs text-muted-foreground">前 30 章承诺</div>
+                    <p className="mt-1 text-foreground">{marketBriefQuery.data.data.creativeSeed.first30ChapterPromise}</p>
+                  </div>
+                </div>
+              </details>
+            </div>
+          ) : marketBriefQuery.data?.data ? (
+            <div className="mt-3 text-sm leading-6 text-amber-700 dark:text-amber-300">
+              这份简报缺少完整开书思路，请返回雷达重新确认信号。
+            </div>
+          ) : null}
+
+          {marketProductionFoundation ? (
+            <div className="mt-3 flex flex-wrap gap-x-5 gap-y-1 text-xs text-muted-foreground">
+              <span><span className="text-foreground">题材基底</span> {marketProductionFoundation.genre.path}</span>
+              <span><span className="text-foreground">主要推进</span> {marketProductionFoundation.primaryStoryMode.path}</span>
+              {marketProductionFoundation.secondaryStoryMode ? (
+                <span><span className="text-foreground">辅助推进</span> {marketProductionFoundation.secondaryStoryMode.path}</span>
+              ) : null}
+            </div>
+          ) : null}
+        </section>
       ) : activeStage === "idea" ? (
         <div className="flex items-center justify-between gap-3 rounded-xl border border-dashed px-4 py-3 text-sm">
           <span className="text-muted-foreground">想先参考近期热门题材、金手指和开局模式？</span>
