@@ -2,18 +2,20 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type {
   MarketInfluenceMode,
+  MarketFoundationSyncTarget,
   MarketRadarPlatform,
   MarketRadarSignal,
   MarketTrendReport,
 } from "@ai-novel/shared/types/marketRadar";
 import { ArrowRight, Check, ExternalLink, Loader2, Radar, RefreshCw, Sparkles } from "lucide-react";
-import { useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import {
   createMarketCreativeBrief,
   getMarketRadarScan,
   getMarketRadarSources,
   startMarketRadarAnalysis,
   startMarketRadarScan,
+  syncMarketProductionFoundation,
 } from "@/api/marketRadar";
 import { queryKeys } from "@/api/queryKeys";
 import { Badge } from "@/components/ui/badge";
@@ -22,6 +24,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "@/components/ui/toast";
 import { cn } from "@/lib/utils";
+import { resolveMarketFoundationLibraryState } from "./marketFoundationLibraryState";
 
 const PLATFORM_LABELS: Record<MarketRadarPlatform, string> = {
   fanqie: "番茄小说",
@@ -122,6 +125,17 @@ export default function MarketRadarPage() {
     },
     onError: (error) => toast.error(error instanceof Error ? error.message : "生成市场创作简报失败。"),
   });
+  const foundationSyncMutation = useMutation({
+    mutationFn: (target: MarketFoundationSyncTarget) => syncMarketProductionFoundation(report!.id, { target }),
+    onSuccess: async (_response, target) => {
+      await queryClient.invalidateQueries({
+        queryKey: target === "genre" ? queryKeys.genres.all : queryKeys.storyModes.all,
+      });
+      await scanQuery.refetch();
+      toast.success(target === "genre" ? "题材基底已加入资源库。" : "推进模式已加入资源库。");
+    },
+    onError: (error) => toast.error(error instanceof Error ? error.message : "加入资源库失败，请稍后重试。"),
+  });
 
   useEffect(() => {
     if (initialScanStarted.current) return;
@@ -132,6 +146,13 @@ export default function MarketRadarPage() {
   const evidenceById = useMemo(() => new Map((report?.evidenceItems ?? []).map((item) => [item.id, item])), [report]);
   const scanning = (!activeRun && scanMutation.isPending) || activeRun?.status === "queued" || activeRun?.status === "running";
   const analyzing = analysisMutation.isPending || activeRun?.status === "analyzing";
+  const foundationCandidate = report?.productionFoundationCandidate ?? null;
+  const {
+    genreId: genreLibraryId,
+    primaryStoryModeId: primaryStoryModeLibraryId,
+    secondaryStoryModeId: secondaryStoryModeLibraryId,
+    storyModesNeedSync,
+  } = resolveMarketFoundationLibraryState(foundationCandidate, report?.productionFoundationSync);
   const rankingGroups = useMemo(() => {
     const groups = new Map<string, NonNullable<typeof activeRun>["rankingItems"]>();
     for (const item of activeRun?.rankingItems ?? []) {
@@ -275,7 +296,46 @@ export default function MarketRadarPage() {
         <div ref={analysisResultRef} className="space-y-6 scroll-mt-6">
           <Card>
             <CardHeader><CardTitle className="text-xl">本期判断</CardTitle><CardDescription>采集于 {new Date(report.createdAt).toLocaleString()}，结论均可回看公开榜单证据。</CardDescription></CardHeader>
-            <CardContent><p className="leading-7">{report.summary}</p><div className="mt-4 flex flex-wrap gap-2">{report.platformStatuses.map((status) => <Badge key={status.platform} variant={status.status === "failed" ? "destructive" : "outline"}>{PLATFORM_LABELS[status.platform]} · {status.itemCount}项{status.status === "stale" ? " · 建议刷新" : ""}</Badge>)}</div></CardContent>
+            <CardContent>
+              <p className="leading-7">{report.summary}</p>
+              {foundationCandidate ? (
+                <div className="mt-4 rounded-lg bg-muted/45 px-4 py-3">
+                  <div className="space-y-2 text-sm">
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <span><span className="text-muted-foreground">题材基底：</span>{report.productionFoundationSync?.genre?.path ?? foundationCandidate.genre.name}</span>
+                      {genreLibraryId ? (
+                        <Button type="button" variant="ghost" size="sm" asChild>
+                          <Link to={`/genres?selectedId=${encodeURIComponent(genreLibraryId)}`}><Check className="h-3.5 w-3.5" />库中已有 · 查看</Link>
+                        </Button>
+                      ) : (
+                        <Button type="button" variant="outline" size="sm" disabled={foundationSyncMutation.isPending} onClick={() => foundationSyncMutation.mutate("genre")}>
+                          {foundationSyncMutation.isPending && foundationSyncMutation.variables === "genre" ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Sparkles className="h-3.5 w-3.5" />}加入题材基底库
+                        </Button>
+                      )}
+                    </div>
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <span><span className="text-muted-foreground">主要推进：</span>{report.productionFoundationSync?.storyModes?.primaryStoryMode.path ?? foundationCandidate.primaryStoryMode.name}</span>
+                      {primaryStoryModeLibraryId ? <Button type="button" variant="ghost" size="sm" asChild><Link to={`/story-modes?selectedId=${encodeURIComponent(primaryStoryModeLibraryId)}`}><Check className="h-3.5 w-3.5" />库中已有 · 查看</Link></Button> : null}
+                    </div>
+                    {foundationCandidate.secondaryStoryMode ? (
+                      <div className="flex flex-wrap items-center justify-between gap-2">
+                        <span><span className="text-muted-foreground">辅助推进：</span>{report.productionFoundationSync?.storyModes?.secondaryStoryMode?.path ?? foundationCandidate.secondaryStoryMode.name}</span>
+                        {secondaryStoryModeLibraryId ? <Button type="button" variant="ghost" size="sm" asChild><Link to={`/story-modes?selectedId=${encodeURIComponent(secondaryStoryModeLibraryId)}`}><Check className="h-3.5 w-3.5" />库中已有 · 查看</Link></Button> : null}
+                      </div>
+                    ) : null}
+                    {storyModesNeedSync ? (
+                      <div className="flex justify-end">
+                        <Button type="button" variant="outline" size="sm" disabled={foundationSyncMutation.isPending} onClick={() => foundationSyncMutation.mutate("story_modes")}>
+                          {foundationSyncMutation.isPending && foundationSyncMutation.variables === "story_modes" ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Sparkles className="h-3.5 w-3.5" />}加入推进模式库
+                        </Button>
+                      </div>
+                    ) : null}
+                  </div>
+                  <p className="mt-2 text-xs leading-5 text-muted-foreground">库中已有的方向直接复用；只有缺失的方向需要手动加入。下方市场信号用于选择本次开书偏好。</p>
+                </div>
+              ) : null}
+              <div className="mt-4 flex flex-wrap gap-2">{report.platformStatuses.map((status) => <Badge key={status.platform} variant={status.status === "failed" ? "destructive" : "outline"}>{PLATFORM_LABELS[status.platform]} · {status.itemCount}项{status.status === "stale" ? " · 建议刷新" : ""}</Badge>)}</div>
+            </CardContent>
           </Card>
 
           <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">

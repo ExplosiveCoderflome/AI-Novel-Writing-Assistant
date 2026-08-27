@@ -16,6 +16,10 @@ interface PlatformDigestInput {
 interface TrendReportInput {
   platformDigestsText: string;
   historyText: string;
+  genreCatalogText: string;
+  storyModeCatalogText: string;
+  allowedGenreIds: string[];
+  allowedStoryModeIds: string[];
   evidenceItemIds: string[];
   hasComparableHistory: boolean;
 }
@@ -66,7 +70,7 @@ export const marketPlatformDigestPrompt: PromptAsset<PlatformDigestInput, z.infe
 
 export const marketTrendSynthesisPrompt: PromptAsset<TrendReportInput, z.infer<typeof marketTrendReportSchema>> = {
   id: "market_radar.cross_platform_synthesis",
-  version: "v3",
+  version: "v4",
   taskType: "planner",
   mode: "structured",
   language: "zh",
@@ -83,11 +87,21 @@ export const marketTrendSynthesisPrompt: PromptAsset<TrendReportInput, z.infer<t
         ? "可根据历史比较判断 rising、stable、falling；证据不足时仍使用 current。"
         : "没有可比较历史，所有信号 direction 必须使用 current，禁止声称升温或退潮。",
       "总计输出8到12项。recommended=true 应优先给一项差异化机会和最多三项支撑信号；高度拥挤的套路通常不应推荐。",
+      "同时输出 productionFoundation，把市场结论收束成一个题材基底、一个主要推进模式和可选的辅助推进模式。",
+      "题材基底回答‘这是什么书’，推进模式回答‘这本书靠什么持续推进和兑现’，两者不能混用。",
+      "如果资源库中已有语义等价项，必须填写对应 existingId 并沿用它的名称；只有确实缺少合适资产时 existingId 才能为 null，并输出可直接进入资源库的完整说明、模板和推进模式 profile。",
+      "资源名称必须稳定、可复用，不能包含日期、热度、榜单或‘当前热门’等短期字样。",
       "",
       "平台归纳：",
       input.platformDigestsText,
       "",
       `历史比较：${input.historyText || "无"}`,
+      "",
+      "现有题材基底库：",
+      input.genreCatalogText || "空",
+      "",
+      "现有推进模式库：",
+      input.storyModeCatalogText || "空",
     ].join("\n")),
   ],
   postValidate: (output, input) => {
@@ -97,6 +111,26 @@ export const marketTrendSynthesisPrompt: PromptAsset<TrendReportInput, z.infer<t
     }
     if (output.signals.some((signal) => signal.evidenceItemIds.some((id) => !allowed.has(id)))) {
       throw new Error("跨平台分析引用了不存在的证据。");
+    }
+    const foundationAssets = [
+      output.productionFoundation.genre,
+      output.productionFoundation.primaryStoryMode,
+      output.productionFoundation.secondaryStoryMode,
+    ].filter(Boolean);
+    if (foundationAssets.some((asset) => asset!.evidenceItemIds.some((id) => !allowed.has(id)))) {
+      throw new Error("生产底座推荐引用了不存在的证据。");
+    }
+    if (
+      output.productionFoundation.genre.existingId
+      && !input.allowedGenreIds.includes(output.productionFoundation.genre.existingId)
+    ) {
+      throw new Error("生产底座引用了不存在的题材基底。");
+    }
+    if ([
+      output.productionFoundation.primaryStoryMode.existingId,
+      output.productionFoundation.secondaryStoryMode?.existingId,
+    ].some((id) => id && !input.allowedStoryModeIds.includes(id))) {
+      throw new Error("生产底座引用了不存在的推进模式。");
     }
     return output;
   },

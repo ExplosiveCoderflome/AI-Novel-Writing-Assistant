@@ -23,6 +23,7 @@ import StageIdea from "./StageIdea";
 import StageModelRun from "./StageModelRun";
 import StageSummaryCard from "./StageSummaryCard";
 import StageWorldStyle from "./StageWorldStyle";
+import { fillMissingCreationFoundation } from "./creationFoundationPickerState";
 import {
   AUTO_DIRECTOR_CREATE_STAGES,
   type AutoDirectorCreateStageKey,
@@ -64,6 +65,7 @@ export default function AutoDirectorCreatePage() {
   const [activeStage, setActiveStage] = useState<AutoDirectorCreateStageKey>("idea");
   const [completedStages, setCompletedStages] = useState<Set<AutoDirectorCreateStageKey>>(() => new Set());
   const restoreHandledRef = useRef<string | null>(null);
+  const marketFoundationAppliedRef = useRef<string | null>(null);
 
   const worldListQuery = useQuery({
     queryKey: queryKeys.worlds.all,
@@ -87,6 +89,19 @@ export default function AutoDirectorCreatePage() {
   const genreOptions = flattenGenreTreeOptions(genreTree);
   const storyModeOptions = flattenStoryModeTreeOptions(storyModeTree);
   const worldOptions = worldListQuery.data?.data ?? [];
+
+  useEffect(() => {
+    const foundation = marketBriefQuery.data?.data?.productionFoundation;
+    if (!marketBriefId || !foundation || marketFoundationAppliedRef.current === marketBriefId) {
+      return;
+    }
+    marketFoundationAppliedRef.current = marketBriefId;
+    setBasicForm((current) => patchNovelBasicForm(current, fillMissingCreationFoundation(current, {
+      genreId: foundation.genre.id,
+      primaryStoryModeId: foundation.primaryStoryMode.id,
+      secondaryStoryModeId: foundation.secondaryStoryMode?.id,
+    })));
+  }, [marketBriefId, marketBriefQuery.data?.data?.productionFoundation]);
 
   useEffect(() => {
     if (!hasLegacyParams) {
@@ -169,6 +184,7 @@ export default function AutoDirectorCreatePage() {
   }, [controller.batches.length, controller.hasActiveDirectorTask]);
 
   const latestProductionFoundation = controller.batches.at(-1)?.candidates[0]?.productionFoundation ?? null;
+  const marketProductionFoundation = marketBriefQuery.data?.data?.productionFoundation ?? null;
   const selectedGenre = genreOptions.find((option) => option.id === controller.directorBasicForm.genreId) ?? null;
   const selectedStoryMode = storyModeOptions.find(
     (option) => option.id === controller.directorBasicForm.primaryStoryModeId,
@@ -177,9 +193,13 @@ export default function AutoDirectorCreatePage() {
   const latestPrimaryStoryModeFoundation = latestProductionFoundation?.primaryStoryMode;
   const selectedGenreSource = latestGenreFoundation?.id === selectedGenre?.id
     ? latestGenreFoundation?.source
+    : marketProductionFoundation?.genre.id === selectedGenre?.id
+      ? marketProductionFoundation?.genre.source
     : selectedGenre ? "user_selected" as const : undefined;
   const selectedStoryModeSource = latestPrimaryStoryModeFoundation?.id === selectedStoryMode?.id
     ? latestPrimaryStoryModeFoundation?.source
+    : marketProductionFoundation?.primaryStoryMode.id === selectedStoryMode?.id
+      ? marketProductionFoundation?.primaryStoryMode.source
     : selectedStoryMode ? "user_selected" as const : undefined;
 
   const summaries = useMemo(() => ({
@@ -399,10 +419,19 @@ export default function AutoDirectorCreatePage() {
       {marketBriefId ? (
         <div className="flex flex-col gap-3 rounded-xl border border-primary/25 bg-primary/5 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <div className="text-sm font-medium text-foreground">已带入热门题材雷达</div>
+            <div className="text-sm font-medium text-foreground">雷达推荐方向</div>
             <div className="mt-1 text-xs leading-5 text-muted-foreground">
               {marketBriefQuery.data?.data?.summary || (marketBriefQuery.isPending ? "正在读取市场创作简报。" : "市场简报暂时无法读取，仍可继续按你的想法开书。")}
             </div>
+            {marketProductionFoundation ? (
+              <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs text-foreground">
+                <span>题材基底：{marketProductionFoundation.genre.path}</span>
+                <span>主要推进：{marketProductionFoundation.primaryStoryMode.path}</span>
+                {marketProductionFoundation.secondaryStoryMode ? (
+                  <span>辅助推进：{marketProductionFoundation.secondaryStoryMode.path}</span>
+                ) : null}
+              </div>
+            ) : null}
           </div>
           <Button type="button" variant="outline" size="sm" asChild><Link to="/market-radar">返回调整</Link></Button>
         </div>

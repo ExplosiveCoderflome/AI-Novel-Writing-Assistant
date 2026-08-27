@@ -90,6 +90,7 @@ const productionFoundationOptionSchema = z.object({
   name: nonEmptyString,
   path: nonEmptyString,
   reason: nonEmptyString,
+  source: z.enum(["user_selected", "ai_recommended", "market_recommended"]).optional(),
 });
 
 const productionFoundationSchema = z.object({
