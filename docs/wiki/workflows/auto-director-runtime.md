@@ -161,6 +161,7 @@ Web API 只接收命令和返回轻量投影；Worker 负责执行重型生产�
 - 单章 token 异常飙升：检查 `DirectorLlmUsageRecord.metadataJson.chapterId` 是否完整、`usage_anomaly` 熔断是否记录了触发章节，以及是否存在重复门禁、重复章节合同或 timeline 上下文膨胀。
 - 章节范围任务停在 `chapter.state.commit facts are not complete yet`：先比较任务范围内和整本书的 `draftedChapterCount / committedChapterCount`。如果范围内已齐但整本书仍有旧章节缺 `StoryStateSnapshot` 或 `CanonicalStateVersion`，说明事实门控没有按 `autoExecution` / `autoExecutionPlan` 裁剪章节进度，应修 StepModule 的 scoped progress，而不是补写无关章节来绕过。如果范围内只差已经 `defer_and_continue` 的质量债章节，应检查质量债分类是否仍被 `blockingObligations` 抢先判成 blocking，以及 `chapter_state_committed` 进度是否接受降级继续状态。
 - 执行详情仍只显示 `chapter.draft.write 未满足其完成标准`：检查章节 runtime package 是否已经写入 `failureClassification`，以及 `quality_loop_assessed` 事件是否把 `rootCauseCode` 和 `blockingObligations` 投影到前端。
+- 当章节批次已写入 `pendingManualRecovery` 时，章节步骤的“未全部完成”属于合法暂停，不是步骤失败。步骤适配器必须保留最新批次错误和恢复位置，不能再抛出通用完成标准错误覆盖书级任务；恢复只能由显式用户命令清除该状态。
 - 执行详情显示 `character.cast.prepare 未满足其完成标准`：先检查任务是否已有 `character_setup_required` 检查点和 `CharacterCastOption` 候选。如果候选存在，应修复 acceptable pause 或任务投影，而不是要求重新生成整条主链；如果候选不存在，再检查角色生成 Prompt、结构化输出和持久化路径。
 - UI 显示失败但任务已重新排队：检查 projection 是否仍把旧 task status 当事实源。
 - 小说实际存在失败导演任务但 AI 驾驶舱显示空闲：先检查当前 URL 是否只有 `workspaceTaskId` 而没有 `directorTaskId`，再查 `book-automation` 投影是否已经返回 `projection.status=failed` 和 `latestTask.id`。如果投影有失败任务但侧栏仍隐藏，说明前端把未钉住的失败投影当成历史终态过滤了；正确行为是显示失败投影，并让“查看失败原因”跳转到带 `directorTaskId` 的任务详情。

@@ -16,6 +16,9 @@ const { directorAutomationLedgerEventService } = require("../dist/services/novel
 const {
   applyChapterQualityClosure,
 } = require("../dist/services/novel/production/qualityClosure/ChapterQualityClosure.js");
+const {
+  resolvePipelineRuntimeIssueCode,
+} = require("../dist/services/novel/production/issueGovernance/PipelineIssueGovernance.js");
 
 function occurrence(issueCode, patch = {}) {
   return {
@@ -28,6 +31,11 @@ function occurrence(issueCode, patch = {}) {
     ...patch,
   };
 }
+
+test("provider payment-required errors are classified without another LLM call", () => {
+  assert.equal(resolvePipelineRuntimeIssueCode({ status: 402 }), "runtime.model_unavailable");
+  assert.equal(resolvePipelineRuntimeIssueCode(new Error("402 Insufficient Balance")), "runtime.unclassified");
+});
 
 test("every stable issue code has one valid default policy", () => {
   assert.ok(DIRECTOR_ISSUE_CATALOG.length > 0);

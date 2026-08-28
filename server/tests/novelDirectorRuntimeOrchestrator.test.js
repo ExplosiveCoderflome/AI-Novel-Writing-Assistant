@@ -74,6 +74,7 @@ function buildOrchestrator(artifacts = [artifact], options = {}) {
       },
     },
     workflowService: {
+      getTaskById: async () => options.task ?? { pendingManualRecovery: false },
       markTaskRunning: async () => undefined,
       markTaskWaitingApproval: async () => undefined,
     },
@@ -382,6 +383,38 @@ test("chapter execution waits for delayed state commit facts before projection v
     "character_governance_state",
     "continuity_state",
   ]);
+});
+
+test("chapter execution stops projection steps while manual recovery is pending", async () => {
+  const entryModule = buildNoopModule({
+    id: "chapter.draft.write",
+    nodeKey: "chapter_execution_node",
+    label: "执行章节生成批次",
+    stage: "chapter_execution",
+    writes: ["chapter_draft"],
+    mayModifyUserContent: true,
+  });
+  const originalGet = directorWorkflowStepModuleRegistry.get.bind(directorWorkflowStepModuleRegistry);
+  directorWorkflowStepModuleRegistry.get = (id) => (
+    id === "chapter.draft.write" ? entryModule : originalGet(id)
+  );
+  const { orchestrator, runtimeCalls, getPipelineRuns } = buildOrchestrator([], {
+    task: { pendingManualRecovery: true },
+  });
+
+  try {
+    await orchestrator.runChapterExecutionNode({
+      taskId: "task-pending-manual-recovery",
+      novelId: "novel-1",
+      request: {},
+      resumeCheckpointType: "chapter_batch_ready",
+    });
+  } finally {
+    directorWorkflowStepModuleRegistry.get = originalGet;
+  }
+
+  assert.equal(getPipelineRuns(), 1);
+  assert.deepEqual(runtimeCalls.map((call) => call.nodeKey), ["chapter_execution_node"]);
 });
 
 test.skip("chapter execution records the standard node sequence without rerunning the pipeline", { skip: "Runtime orchestrator node sequencing is covered by newer module tests until this legacy fixture is rebuilt." }, async () => {

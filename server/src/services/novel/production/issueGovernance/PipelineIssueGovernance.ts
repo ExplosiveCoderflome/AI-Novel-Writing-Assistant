@@ -7,6 +7,13 @@ import {
   type DirectorIssueTaskContext,
 } from "../../director/issues";
 
+export function resolvePipelineRuntimeIssueCode(error: unknown): DirectorIssueCode {
+  if (error && typeof error === "object" && "status" in error && error.status === 402) {
+    return "runtime.model_unavailable";
+  }
+  return "runtime.unclassified";
+}
+
 export async function reportPipelineIssue(input: {
   governance: DirectorIssueTaskContext | null;
   workflowTaskId?: string;

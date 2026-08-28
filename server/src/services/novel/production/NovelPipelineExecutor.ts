@@ -22,7 +22,10 @@ import { applyChapterQualityClosure } from "./qualityClosure/ChapterQualityClosu
 import {
   loadDirectorIssueTaskContext,
 } from "../director/issues";
-import { reportPipelineIssue } from "./issueGovernance/PipelineIssueGovernance";
+import {
+  reportPipelineIssue,
+  resolvePipelineRuntimeIssueCode,
+} from "./issueGovernance/PipelineIssueGovernance";
 import {
   buildPipelineCurrentItemLabel,
   buildPipelineStageProgress,
@@ -474,7 +477,7 @@ export class NovelPipelineExecutor {
                     ? "runtime.persistence_failed"
                     : isChapterEmptyContentError(error)
                       ? "generation.empty_content"
-                      : "runtime.unclassified",
+                      : resolvePipelineRuntimeIssueCode(error),
                   stage: error instanceof ChapterContentPersistenceError
                     ? "chapter_persistence"
                     : "chapter_generation",
@@ -776,7 +779,7 @@ export class NovelPipelineExecutor {
             ? "runtime.persistence_failed"
             : isChapterEmptyContentError(error)
               ? "generation.empty_content"
-              : "runtime.unclassified",
+              : resolvePipelineRuntimeIssueCode(error),
         stage: error instanceof PipelineIssueFailure
           ? error.stage
           : error instanceof ChapterContentPersistenceError

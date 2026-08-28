@@ -238,6 +238,17 @@ function createChapterDraftExecutableModule(
           : null;
         const observedState = freshState ?? state;
         const progress = await inspectFreshScopedProgress({ novelId, state: observedState, request });
+        if (observedState.task.pendingManualRecovery) {
+          return {
+            valid: true,
+            evidence: {
+              pendingManualRecovery: true,
+              draftedChapterCount: progress?.draftedChapterCount ?? 0,
+              totalChapters: progress?.totalChapters ?? 0,
+              lastError: observedState.task.lastError ?? null,
+            },
+          };
+        }
         const hasObservedDraft = Boolean(
           progress
           && progress.totalChapters > 0
@@ -390,6 +401,16 @@ function createChapterDraftExecutableModule(
           && progress.totalChapters > 0
           && progress.draftedChapterCount >= progress.totalChapters,
         );
+      },
+      acceptablePauseCriteria: async (_output, context) => {
+        const directorTaskId = getWorkflowStepDirectorTaskId(context);
+        const freshState = directorTaskId
+          ? await getDirectorCoreStateReader().readByTaskId(directorTaskId).catch(() => null)
+          : null;
+        const { state } = freshState
+          ? { state: freshState }
+          : await loadDirectorModuleState(context);
+        return state.task.pendingManualRecovery === true;
       },
     },
   );

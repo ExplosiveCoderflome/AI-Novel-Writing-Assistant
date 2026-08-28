@@ -540,6 +540,47 @@ test("book automation projection keeps queued retry workflow ahead of old failed
   }
 });
 
+test("book automation projection keeps pending manual recovery ahead of old chapter step failure", async () => {
+  const harness = createHarness({
+    commands: [],
+    latestTask: {
+      status: "queued",
+      pendingManualRecovery: true,
+      currentStage: "质量修复",
+      currentItemKey: "quality_repair",
+      currentItemLabel: "全书自动执行已暂停",
+      checkpointType: "chapter_batch_ready",
+      checkpointSummary: "402 Insufficient Balance",
+      lastError: "402 Insufficient Balance",
+    },
+    runtimeProjection: {
+      runId: "run-1",
+      novelId: "novel-1",
+      status: "failed",
+      headline: "处理失败：执行章节生成批次",
+      detail: "chapter.draft.write did not satisfy its completion criteria.",
+      requiresUserAction: true,
+      blockedReason: "chapter.draft.write did not satisfy its completion criteria.",
+      nextActionLabel: "继续章节生成",
+      policyMode: "run_until_gate",
+      updatedAt: "2026-04-30T09:00:03.000Z",
+      recentEvents: [],
+    },
+  });
+  try {
+    const projection = await harness.service.getProjection("novel-1");
+
+    assert.equal(projection.status, "waiting_recovery");
+    assert.equal(projection.dashboardView.mode, "recovering");
+    assert.equal(projection.displayState, "paused");
+    assert.equal(projection.requiresUserAction, true);
+    assert.equal(projection.blockedReason, "402 Insufficient Balance");
+    assert.equal(projection.primaryAction.label, "从进度点继续");
+  } finally {
+    harness.restore();
+  }
+});
+
 test("book automation projection keeps waiting gates ahead of old stale commands", async () => {
   const harness = createHarness({
     runtimeProjection: null,

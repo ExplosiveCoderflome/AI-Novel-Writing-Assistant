@@ -546,6 +546,56 @@ test("chapter draft validation trusts fresh draft facts over stale failed task s
   assert.equal(validation.evidence.totalChapters, 1);
 });
 
+test("chapter draft treats pending manual recovery as an acceptable pause", async (t) => {
+  const originalFindMany = prisma.chapter.findMany;
+  const chapters = [
+    buildProgressChapter(1, { drafted: true }),
+    buildProgressChapter(2, { drafted: false }),
+  ];
+  prisma.chapter.findMany = async () => chapters.map(buildChapterRowFromProgressChapter);
+  t.after(() => {
+    prisma.chapter.findMany = originalFindMany;
+  });
+
+  const module = getDirectorExecutionStepModule("chapter_execution");
+  const state = buildDirectorStateHint({
+    autoExecution: {
+      enabled: true,
+      mode: "chapter_range",
+      startOrder: 1,
+      endOrder: 2,
+      totalChapterCount: 2,
+      completedChapterCount: 1,
+      remainingChapterCount: 1,
+      autoReview: true,
+      autoRepair: true,
+    },
+  }, buildChapterProgressSummary(chapters));
+  state.task.status = "queued";
+  state.task.currentStage = "quality_repair";
+  state.task.currentItemKey = "quality_repair";
+  state.task.checkpointType = "chapter_batch_ready";
+  state.task.lastError = "402 Insufficient Balance";
+  state.task.pendingManualRecovery = true;
+  const context = {
+    taskId: state.task.id,
+    novelId: "novel-pending-manual-recovery",
+    projectionHints: {
+      directorCanonicalState: state,
+    },
+  };
+
+  const validation = await module.validateOutput(undefined, context);
+  const complete = await module.completeCriteria(undefined, context);
+  const acceptablePause = await module.acceptablePauseCriteria(undefined, context);
+
+  assert.equal(validation.valid, true);
+  assert.equal(validation.evidence.pendingManualRecovery, true);
+  assert.equal(validation.evidence.lastError, "402 Insufficient Balance");
+  assert.equal(complete, false);
+  assert.equal(acceptablePause, true);
+});
+
 test("chapter quality review closes when auto review is disabled by the execution plan", async (t) => {
   const originalFindMany = prisma.chapter.findMany;
   const module = getDirectorExecutionStepModule("chapter_quality_review");
