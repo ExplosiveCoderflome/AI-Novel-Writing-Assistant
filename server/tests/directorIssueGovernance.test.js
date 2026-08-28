@@ -141,6 +141,11 @@ test("the policy owns the single automatic retry budget", () => {
 test("both presets keep the automatic repair budget below two attempts", () => {
   for (const preset of DIRECTOR_ISSUE_POLICY_PRESETS) {
     assert.equal(preset.policy.maxAutomaticRetries, 1, preset.id);
+    assert.deepEqual(
+      Object.keys(preset.policy.issueActions).sort(),
+      DIRECTOR_ISSUE_CATALOG.map((entry) => entry.code).sort(),
+      `${preset.id} should explicitly configure every issue`,
+    );
   }
 });
 
