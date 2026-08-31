@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import type { UnifiedTaskDetail } from "@ai-novel/shared/types/task";
-import { useMutation, useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { flattenGenreTreeOptions, getGenreTree } from "@/api/genre";
 import { flattenStoryModeTreeOptions, getStoryModeTree } from "@/api/storyMode";
@@ -10,8 +10,10 @@ import { setNovelCreationExperience } from "@/api/novel";
 import { queryKeys } from "@/api/queryKeys";
 import { getWorldList } from "@/api/world";
 import { getMarketCreativeBrief } from "@/api/marketRadar";
+import { createStyleProfileFromBookAnalysis, getStyleProfiles } from "@/api/styleEngine";
 import { Button } from "@/components/ui/button";
 import { toast } from "@/components/ui/toast";
+import { useLLMStore } from "@/store/llmStore";
 import ReferenceNovelStartDialog from "../components/ReferenceNovelStartDialog";
 import {
   createDefaultNovelBasicFormState,
@@ -76,6 +78,8 @@ export default function AutoDirectorCreatePage() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const reducedMotion = useReducedMotion();
+  const queryClient = useQueryClient();
+  const llm = useLLMStore();
   const taskIdFromQuery = searchParams.get("taskId")?.trim() ?? "";
   const legacyTaskIdFromQuery = searchParams.get("workflowTaskId")?.trim() ?? "";
   const normalizedTaskId = taskIdFromQuery || legacyTaskIdFromQuery;
@@ -115,6 +119,39 @@ export default function AutoDirectorCreatePage() {
     queryFn: () => getMarketCreativeBrief(marketBriefId),
     enabled: Boolean(marketBriefId),
   });
+  const referenceStyleProfileQuery = useQuery({
+    queryKey: [
+      "reference-novel-style-profile",
+      referenceBookAnalysisId || "none",
+      llm.provider,
+      llm.model,
+    ],
+    queryFn: async () => {
+      const profileList = await getStyleProfiles();
+      const existingProfile = (profileList.data ?? []).find((profile) => (
+        profile.sourceType === "from_book_analysis"
+        && profile.sourceRefId === referenceBookAnalysisId
+        && profile.status === "active"
+      ));
+      if (existingProfile) {
+        return existingProfile;
+      }
+      const created = await createStyleProfileFromBookAnalysis({
+        bookAnalysisId: referenceBookAnalysisId,
+        name: `${referenceTitle || "参考小说"}参考写法`,
+        provider: llm.provider || undefined,
+        model: llm.model || undefined,
+        temperature: llm.temperature,
+      });
+      if (!created.data) {
+        throw new Error("参考写法准备失败。");
+      }
+      return created.data;
+    },
+    enabled: Boolean(referenceMode && referenceBookAnalysisId && !initialStyleProfileId),
+    retry: false,
+  });
+  const resolvedInitialStyleProfileId = initialStyleProfileId || referenceStyleProfileQuery.data?.id || "";
   const genreTree = genreTreeQuery.data?.data ?? [];
   const storyModeTree = storyModeTreeQuery.data?.data ?? [];
   const genreOptions = flattenGenreTreeOptions(genreTree);
@@ -146,6 +183,13 @@ export default function AutoDirectorCreatePage() {
   }, [referenceBookAnalysisId, referenceDocumentId, referenceMode, referenceTitle]);
 
   useEffect(() => {
+    if (!referenceStyleProfileQuery.data?.id) {
+      return;
+    }
+    void queryClient.invalidateQueries({ queryKey: queryKeys.styleEngine.profiles });
+  }, [queryClient, referenceStyleProfileQuery.data?.id]);
+
+  useEffect(() => {
     const brief = marketBriefQuery.data?.data;
     if (!marketBriefId || !brief || marketBriefFormAppliedRef.current === marketBriefId) {
       return;
@@ -169,7 +213,11 @@ export default function AutoDirectorCreatePage() {
   }, [hasLegacyParams, marketBriefId, navigate, normalizedTaskId]);
 
   const replaceTaskId = (taskId: string) => {
-    navigate(buildAutoDirectorCreateLink(taskId, marketBriefId), { replace: true });
+    const nextSearchParams = new URLSearchParams(searchParams);
+    nextSearchParams.delete("workflowTaskId");
+    nextSearchParams.delete("mode");
+    nextSearchParams.set("taskId", taskId);
+    navigate(`/novels/auto-director?${nextSearchParams.toString()}`, { replace: true });
   };
 
   const restoreWorkflowMutation = useMutation({
@@ -213,7 +261,7 @@ export default function AutoDirectorCreatePage() {
 
   const controller = useAutoDirectorCreateController({
     marketBriefId,
-    initialStyleProfileId,
+    initialStyleProfileId: resolvedInitialStyleProfileId,
     basicForm,
     genreOptions,
     storyModeOptions,
@@ -434,8 +482,17 @@ export default function AutoDirectorCreatePage() {
           </div>
           <div className="mt-1 text-xs leading-5 text-muted-foreground">
             {referenceMode === "continuation"
-              ? "角色、世界、时间线和未完线索会作为续写约束，拆书写法也会自动带入。"
-              : "只参考结构、节奏和写法；新书会使用全新的角色、世界与剧情。"}
+              ? "拆书结论会持续用于方向、大纲、角色和卷章规划；原作事实会作为续写约束。"
+              : "拆书结论会持续用于方向、大纲和卷章规划；只继承结构与节奏，不带入原作事实。"}
+          </div>
+          <div className="mt-2 text-xs leading-5 text-muted-foreground">
+            {referenceStyleProfileQuery.isFetching
+              ? "参考写法正在后台准备，不影响继续设置。"
+              : referenceStyleProfileQuery.isError
+                ? "拆书结论已带入；参考写法暂未完成，可继续开书并稍后补充。"
+                : resolvedInitialStyleProfileId
+                  ? "参考写法会随项目进入后续正文生成。"
+                  : "拆书结论已带入，可以继续设置。"}
           </div>
         </div>
       ) : null}

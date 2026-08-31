@@ -5,11 +5,8 @@ import { BookOpen, Check, GitBranch, Loader2 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { listBookAnalyses } from "@/api/bookAnalysis";
 import { queryKeys } from "@/api/queryKeys";
-import { createStyleProfileFromBookAnalysis, getStyleProfiles } from "@/api/styleEngine";
 import { Button } from "@/components/ui/button";
 import { AppDialogContent, Dialog } from "@/components/ui/dialog";
-import { toast } from "@/components/ui/toast";
-import { useLLMStore } from "@/store/llmStore";
 
 export type ReferenceNovelCreateMode = "continuation" | "adaptation";
 
@@ -25,9 +22,7 @@ export default function ReferenceNovelStartDialog({
   onOpenChange,
 }: ReferenceNovelStartDialogProps) {
   const navigate = useNavigate();
-  const llm = useLLMStore();
   const [selectedAnalysisId, setSelectedAnalysisId] = useState(fixedAnalysis?.id ?? "");
-  const [pending, setPending] = useState(false);
   const analysesQuery = useQuery({
     queryKey: queryKeys.bookAnalysis.list("reference-novel-start-succeeded"),
     queryFn: () => listBookAnalyses({ status: "succeeded" }),
@@ -45,45 +40,18 @@ export default function ReferenceNovelStartDialog({
     }
   }, [analyses, open, selectedAnalysisId]);
 
-  const startCreation = async (mode: ReferenceNovelCreateMode) => {
+  const startCreation = (mode: ReferenceNovelCreateMode) => {
     if (!selectedAnalysis) {
       return;
     }
-    setPending(true);
-    try {
-      const profileList = await getStyleProfiles();
-      let styleProfile = (profileList.data ?? []).find((profile) => (
-        profile.sourceType === "from_book_analysis"
-        && profile.sourceRefId === selectedAnalysis.id
-        && profile.status === "active"
-      ));
-      if (!styleProfile) {
-        const created = await createStyleProfileFromBookAnalysis({
-          bookAnalysisId: selectedAnalysis.id,
-          name: `${selectedAnalysis.documentTitle}参考写法`,
-          provider: llm.provider || undefined,
-          model: llm.model || undefined,
-          temperature: llm.temperature,
-        });
-        styleProfile = created.data;
-      }
-      if (!styleProfile) {
-        throw new Error("写法资产准备失败，请重试。");
-      }
-      const params = new URLSearchParams({
-        referenceMode: mode,
-        bookAnalysisId: selectedAnalysis.id,
-        sourceDocumentId: selectedAnalysis.documentId,
-        referenceTitle: selectedAnalysis.documentTitle,
-        styleProfileId: styleProfile.id,
-      });
-      onOpenChange(false);
-      navigate(`/novels/auto-director?${params.toString()}`);
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : "准备参考创作失败，请重试。");
-    } finally {
-      setPending(false);
-    }
+    const params = new URLSearchParams({
+      referenceMode: mode,
+      bookAnalysisId: selectedAnalysis.id,
+      sourceDocumentId: selectedAnalysis.documentId,
+      referenceTitle: selectedAnalysis.documentTitle,
+    });
+    onOpenChange(false);
+    navigate(`/novels/auto-director?${params.toString()}`);
   };
 
   return (
@@ -142,8 +110,8 @@ export default function ReferenceNovelStartDialog({
             <button
               type="button"
               className="rounded-xl bg-muted/55 p-5 text-left transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
-              disabled={pending || !selectedAnalysis}
-              onClick={() => void startCreation("continuation")}
+              disabled={!selectedAnalysis}
+              onClick={() => startCreation("continuation")}
             >
               <BookOpen className="h-5 w-5" aria-hidden="true" />
               <div className="mt-4 font-semibold text-foreground">续写原作</div>
@@ -152,8 +120,8 @@ export default function ReferenceNovelStartDialog({
             <button
               type="button"
               className="rounded-xl bg-muted/55 p-5 text-left transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
-              disabled={pending || !selectedAnalysis}
-              onClick={() => void startCreation("adaptation")}
+              disabled={!selectedAnalysis}
+              onClick={() => startCreation("adaptation")}
             >
               <GitBranch className="h-5 w-5" aria-hidden="true" />
               <div className="mt-4 font-semibold text-foreground">参考创作新书</div>
@@ -161,7 +129,6 @@ export default function ReferenceNovelStartDialog({
             </button>
           </div>
         </section>
-        {pending ? <p className="mt-4 text-sm text-muted-foreground">正在准备拆书上下文和写法…</p> : null}
       </AppDialogContent>
     </Dialog>
   );
