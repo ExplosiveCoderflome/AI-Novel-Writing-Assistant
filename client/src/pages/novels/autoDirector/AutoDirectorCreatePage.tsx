@@ -1,4 +1,12 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import {
+  Component,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ErrorInfo,
+  type ReactNode,
+} from "react";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import type { UnifiedTaskDetail } from "@ai-novel/shared/types/task";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -39,6 +47,12 @@ import {
   summarizeModelRunStage,
   summarizeWorldStyleStage,
 } from "./directorCreateStages";
+import {
+  buildAutoDirectorCreateDraftScope,
+  clearAutoDirectorCreateDraft,
+  loadAutoDirectorCreateDraft,
+  saveAutoDirectorCreateDraft,
+} from "./draft/autoDirectorCreateDraft";
 import { useAutoDirectorCreateController } from "./useAutoDirectorCreateController";
 
 const STAGE_ORDER: AutoDirectorCreateStageKey[] = ["idea", "basic", "world_style", "model_run", "candidates"];
@@ -74,7 +88,15 @@ function completedThrough(stage: AutoDirectorCreateStageKey): Set<AutoDirectorCr
   return new Set(STAGE_ORDER.slice(0, Math.max(0, index + 1)));
 }
 
-export default function AutoDirectorCreatePage() {
+function getDraftStorage(): Storage | null {
+  try {
+    return typeof window === "undefined" ? null : window.localStorage;
+  } catch {
+    return null;
+  }
+}
+
+function AutoDirectorCreatePage() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const reducedMotion = useReducedMotion();
@@ -92,11 +114,37 @@ export default function AutoDirectorCreatePage() {
   const referenceTitle = searchParams.get("referenceTitle")?.trim() ?? "";
   const initialStyleProfileId = searchParams.get("styleProfileId")?.trim() ?? "";
   const hasLegacyParams = Boolean(legacyTaskIdFromQuery || searchParams.get("mode"));
-  const [basicForm, setBasicForm] = useState(() => createDefaultNovelBasicFormState());
+  const draftScopeKey = useMemo(() => buildAutoDirectorCreateDraftScope({
+    marketBriefId,
+    referenceMode,
+    referenceBookAnalysisId,
+    referenceDocumentId,
+    initialStyleProfileId,
+  }), [
+    initialStyleProfileId,
+    marketBriefId,
+    referenceBookAnalysisId,
+    referenceDocumentId,
+    referenceMode,
+  ]);
+  const initialDraft = useMemo(() => {
+    const storage = getDraftStorage();
+    return !normalizedTaskId && storage
+      ? loadAutoDirectorCreateDraft(storage, draftScopeKey)
+      : null;
+  }, [draftScopeKey, normalizedTaskId]);
+  const [basicForm, setBasicForm] = useState(() => patchNovelBasicForm(
+    createDefaultNovelBasicFormState(),
+    initialDraft?.basicForm ?? {},
+  ));
   const [referenceStartOpen, setReferenceStartOpen] = useState(searchParams.get("start") === "reference");
   const [restoredWorkflowTask, setRestoredWorkflowTask] = useState<UnifiedTaskDetail | null>(null);
-  const [activeStage, setActiveStage] = useState<AutoDirectorCreateStageKey>("idea");
-  const [completedStages, setCompletedStages] = useState<Set<AutoDirectorCreateStageKey>>(() => new Set());
+  const [activeStage, setActiveStage] = useState<AutoDirectorCreateStageKey>(
+    initialDraft?.activeStage ?? "idea",
+  );
+  const [completedStages, setCompletedStages] = useState<Set<AutoDirectorCreateStageKey>>(
+    () => new Set(initialDraft?.completedStages ?? []),
+  );
   const restoreHandledRef = useRef<string | null>(null);
   const marketBriefFormAppliedRef = useRef<string | null>(null);
   const marketBriefIdeaAppliedRef = useRef<string | null>(null);
@@ -213,6 +261,10 @@ export default function AutoDirectorCreatePage() {
   }, [hasLegacyParams, marketBriefId, navigate, normalizedTaskId]);
 
   const replaceTaskId = (taskId: string) => {
+    const storage = getDraftStorage();
+    if (storage) {
+      clearAutoDirectorCreateDraft(storage, draftScopeKey);
+    }
     const nextSearchParams = new URLSearchParams(searchParams);
     nextSearchParams.delete("workflowTaskId");
     nextSearchParams.delete("mode");
@@ -266,6 +318,7 @@ export default function AutoDirectorCreatePage() {
     genreOptions,
     storyModeOptions,
     worldOptions,
+    initialDraft,
     workflowTaskId: normalizedTaskId,
     restoredTask: restoredWorkflowTask,
     onWorkflowTaskChange: replaceTaskId,
@@ -279,6 +332,36 @@ export default function AutoDirectorCreatePage() {
     marketBriefIdeaAppliedRef.current = marketBriefId;
     controller.setIdea(resolveMarketOpeningIdea(controller.idea, seed));
   }, [controller.idea, controller.setIdea, marketBriefId, marketBriefQuery.data?.data?.creativeSeed]);
+  useEffect(() => {
+    const storage = getDraftStorage();
+    if (!storage) {
+      return;
+    }
+    if (normalizedTaskId || controller.workflowTaskId) {
+      clearAutoDirectorCreateDraft(storage, draftScopeKey);
+      return;
+    }
+    saveAutoDirectorCreateDraft(storage, draftScopeKey, {
+      idea: controller.idea,
+      basicForm,
+      activeStage,
+      completedStages,
+      runMode: controller.runMode,
+      worldSetupMode: controller.worldSetupMode,
+      selectedStyleProfileId: controller.selectedStyleProfileId,
+    });
+  }, [
+    activeStage,
+    basicForm,
+    completedStages,
+    controller.idea,
+    controller.runMode,
+    controller.selectedStyleProfileId,
+    controller.workflowTaskId,
+    controller.worldSetupMode,
+    draftScopeKey,
+    normalizedTaskId,
+  ]);
   const createdNovelId = controller.directorTask?.resumeTarget?.novelId?.trim() ?? "";
   const enterSimpleMutation = useMutation({
     mutationFn: () => setNovelCreationExperience(createdNovelId, "simple"),
@@ -662,5 +745,52 @@ export default function AutoDirectorCreatePage() {
         </motion.div>
       </AnimatePresence>
     </div>
+  );
+}
+
+interface AutoDirectorCreateErrorBoundaryState {
+  failed: boolean;
+}
+
+class AutoDirectorCreateErrorBoundary extends Component<
+  { children: ReactNode },
+  AutoDirectorCreateErrorBoundaryState
+> {
+  state: AutoDirectorCreateErrorBoundaryState = { failed: false };
+
+  static getDerivedStateFromError(): AutoDirectorCreateErrorBoundaryState {
+    return { failed: true };
+  }
+
+  componentDidCatch(error: Error, info: ErrorInfo) {
+    console.error("Auto-director creation page crashed", error, info);
+  }
+
+  render() {
+    if (!this.state.failed) {
+      return this.props.children;
+    }
+
+    return (
+      <div className="flex min-h-[60vh] items-center justify-center px-4 py-12">
+        <div className="w-full max-w-lg text-center">
+          <h1 className="text-2xl font-semibold text-foreground">创建页遇到问题</h1>
+          <p className="mt-3 text-sm leading-6 text-muted-foreground">
+            重新加载后，系统会尝试恢复保存在本机的开书草稿；已创建的任务和小说不会受影响。
+          </p>
+          <Button type="button" className="mt-6" onClick={() => window.location.reload()}>
+            重新加载创建页
+          </Button>
+        </div>
+      </div>
+    );
+  }
+}
+
+export default function AutoDirectorCreateRoute() {
+  return (
+    <AutoDirectorCreateErrorBoundary>
+      <AutoDirectorCreatePage />
+    </AutoDirectorCreateErrorBoundary>
   );
 }
