@@ -71,6 +71,12 @@ export const docsManifest: SiteDocCategory[] = [
     description: "把深度机制转成日常操作路径和恢复步骤。",
     docs: [
       doc(
+        "vibe-coding-project-doctor",
+        "Vibe Coding 排查修复 Skill",
+        "让编程 Agent 先判断根因、保护数据，再完成最小完整修复和验证。",
+        "docs/public/playbook/vibe-coding-project-doctor.md",
+      ),
+      doc(
         "first-novel-walkthrough",
         "第一本小说实操路径",
         "从空项目到章节批次完成，每一步标注对应阶段和产物位置。",
