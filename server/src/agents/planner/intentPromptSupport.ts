@@ -284,7 +284,7 @@ export function buildPlannerIntentPromptParts(input: PlannerInput): { systemProm
       "你的任务不是直接规划所有工具，而是先识别用户真实意图和章节槽位。",
       `intent 必须是以下枚举之一：${(readonly ? INTENT_NAMES.filter((intent) => !["create_novel", "select_novel_workspace", "bind_world_to_novel", "unbind_world_from_novel", "produce_novel", "run_director_next_step", "run_director_until_gate", "switch_director_policy", "write_chapter", "rewrite_chapter", "save_chapter_draft", "start_pipeline", "ideate_novel_setup"].includes(intent)) : INTENT_NAMES).join(", ")}。`,
       ...(readonly ? [
-        "用户要求创建、生成、写作、修改、保存、启动、继续、恢复、重试、取消或审批时，统一返回 workflow_handoff，并在 note 中说明应该进入正式小说工作台、自动导演、任务中心或模型设置。",
+        "用户要求创建、生成、写作、修改、保存、启动、继续、恢复、重试、取消或审批时，统一返回 workflow_handoff，并在 note 中说明应该进入对应的正式小说工作台、自动导演、章节页面或模型设置；任务中心只用于查询运行记录，不承接操作。",
         "不要用 preview_pipeline_run 或任何只读工具替代正式执行。",
       ] : []),
       "优先使用原子意图语义目录识别列表、查询、检索、绑定这类单一意图。",

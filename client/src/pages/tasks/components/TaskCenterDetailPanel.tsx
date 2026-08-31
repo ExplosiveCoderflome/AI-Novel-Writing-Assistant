@@ -11,26 +11,9 @@ import {
   type TaskQueueSeverity,
 } from "@/components/taskQueue";
 import { Button } from "@/components/ui/button";
-import { WorkspaceStateNotice, type WorkspaceTone } from "@/components/workspace";
+import { WorkspaceStateNotice } from "@/components/workspace";
 import TaskCenterDetailSummary from "./TaskCenterDetailSummary";
 import TaskCenterMilestoneHistory from "./TaskCenterMilestoneHistory";
-
-export interface TaskCenterActionSpec {
-  key: string;
-  title: string;
-  label: string;
-  consequence: string;
-  tone?: WorkspaceTone;
-  variant?: "default" | "outline" | "destructive";
-  disabled?: boolean;
-  onClick: () => void;
-}
-
-interface InlineTaskAction {
-  label: string;
-  disabled?: boolean;
-  onClick: () => void;
-}
 
 interface TaskCenterDetailPanelProps {
   task?: UnifiedTaskDetail | null;
@@ -41,12 +24,9 @@ interface TaskCenterDetailPanelProps {
   currentModelLabel: string;
   dashboardView?: DirectorDashboardView | null;
   runtimeProjection?: DirectorRuntimeProjection | null;
-  noticeAction?: InlineTaskAction | null;
   noticeSeverity: TaskQueueSeverity;
   noticeTitle: string;
-  failureAction?: InlineTaskAction | null;
   failureIsQualityReminder: boolean;
-  actions: TaskCenterActionSpec[];
   steps: UnifiedTaskStep[];
   milestones: NovelWorkflowMilestone[];
 }
@@ -57,7 +37,7 @@ export default function TaskCenterDetailPanel(props: TaskCenterDetailPanelProps)
   return (
     <TaskQueueSection
       title="任务详情"
-      description="查看当前影响和推荐动作，运行参数按需展开。"
+      description="查看当前影响、恢复位置和来源页面，运行参数按需展开。"
       className="overflow-hidden rounded-2xl border-border/40 bg-card/60 shadow-[0_12px_36px_rgba(15,23,42,0.035)]"
     >
       <div className="space-y-4 text-sm">
@@ -73,7 +53,7 @@ export default function TaskCenterDetailPanel(props: TaskCenterDetailPanelProps)
           />
         ) : null}
         {!props.loading && !props.errorMessage && !task ? (
-          <WorkspaceStateNotice title="请选择一个任务" description="从任务列表选择一项后，可查看影响范围、恢复位置和可执行动作。" />
+          <WorkspaceStateNotice title="请选择一个任务" description="从任务列表选择一项后，可查看影响范围、恢复位置和来源入口。" />
         ) : null}
 
         {task ? (
@@ -90,11 +70,6 @@ export default function TaskCenterDetailPanel(props: TaskCenterDetailPanelProps)
                 severity={props.noticeSeverity}
                 title={props.noticeTitle}
                 description={task.noticeSummary ?? "任务已记录一条需要查看的结果提醒。"}
-                action={props.noticeAction ? (
-                  <Button size="sm" variant="outline" disabled={props.noticeAction.disabled} onClick={props.noticeAction.onClick}>
-                    {props.noticeAction.label}
-                  </Button>
-                ) : undefined}
               />
             ) : null}
 
@@ -103,11 +78,6 @@ export default function TaskCenterDetailPanel(props: TaskCenterDetailPanelProps)
                 severity={props.failureIsQualityReminder ? "quality" : "blocking"}
                 title={props.failureIsQualityReminder ? "质量提醒" : "任务阻塞"}
                 description={task.failureSummary ?? "任务记录了需要处理的失败状态。"}
-                action={props.failureAction ? (
-                  <Button size="sm" variant="outline" disabled={props.failureAction.disabled} onClick={props.failureAction.onClick}>
-                    {props.failureAction.label}
-                  </Button>
-                ) : undefined}
               />
             ) : null}
 
@@ -125,45 +95,16 @@ export default function TaskCenterDetailPanel(props: TaskCenterDetailPanelProps)
               <WorkspaceStateNotice
                 compact
                 tone="info"
-                title="导演任务操作入口"
-                description="继续、恢复、切换模型和推进策略请回到小说页面的执行详情处理；任务中心保留状态、取消、归档和来源入口。"
+                title="导演任务来源入口"
+                description="继续、恢复、切换模型和推进策略请回到小说页面处理；运行记录只展示状态、错误、恢复位置和来源入口。"
               />
             ) : null}
 
-            {props.actions.length > 0 ? (
-              <div className="space-y-2">
-                <div className="font-medium">可执行动作</div>
-                {props.actions.map((action) => (
-                  <TaskQueueActionRow
-                    key={action.key}
-                    title={action.title}
-                    consequence={action.consequence}
-                    tone={action.tone}
-                    action={(
-                      <Button
-                        size="sm"
-                        variant={action.variant ?? "outline"}
-                        disabled={action.disabled}
-                        onClick={action.onClick}
-                      >
-                        {action.label}
-                      </Button>
-                    )}
-                  />
-                ))}
-                <TaskQueueActionRow
-                  title="打开来源页面"
-                  consequence="只打开任务来源，不会改变任务状态。"
-                  action={<Button asChild size="sm" variant="outline"><Link to={task.sourceRoute}>打开来源页面</Link></Button>}
-                />
-              </div>
-            ) : (
-              <TaskQueueActionRow
-                title="打开来源页面"
-                consequence="只打开任务来源，不会改变任务状态。"
-                action={<Button asChild size="sm" variant="outline"><Link to={task.sourceRoute}>打开来源页面</Link></Button>}
-              />
-            )}
+            <TaskQueueActionRow
+              title="打开来源页面"
+              consequence="只打开任务来源，不会改变任务状态。继续、恢复或重试请在来源页面完成。"
+              action={<Button asChild size="sm" variant="outline"><Link to={task.sourceRoute}>打开来源页面</Link></Button>}
+            />
 
             <details className="group border-t border-border/35 pt-3">
               <summary className="flex cursor-pointer list-none items-center justify-between text-sm font-medium marker:hidden">

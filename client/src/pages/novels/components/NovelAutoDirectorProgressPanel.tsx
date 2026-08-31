@@ -42,6 +42,7 @@ interface NovelAutoDirectorProgressPanelProps {
   fallbackError?: string | null;
   onConfirmAndContinue?: () => void;
   isConfirmingAndContinuing?: boolean;
+  quickRetryLabel?: string;
 }
 
 type DirectorStepVisualStatus = DirectorPreparationStepStatus;
@@ -286,6 +287,7 @@ export default function NovelAutoDirectorProgressPanel({
   fallbackError,
   onConfirmAndContinue,
   isConfirmingAndContinuing = false,
+  quickRetryLabel,
 }: NovelAutoDirectorProgressPanelProps) {
   const taskChapterTitleWarning = resolveChapterTitleWarning(task);
   const chapterTitleRepairMutation = useDirectorChapterTitleRepair();
@@ -430,7 +432,19 @@ export default function NovelAutoDirectorProgressPanel({
       .map(resolveDashboardAction)
       .filter((item): item is NonNullable<ReturnType<typeof resolveDashboardAction>> => Boolean(item))
     : [];
-  const actions = dashboardActions;
+  const quickRetryAction = quickRetryLabel
+    && onConfirmAndContinue
+    && (visualMode === "execution_failed" || task?.pendingManualRecovery)
+    ? {
+        label: isConfirmingAndContinuing ? "重试中..." : quickRetryLabel,
+        onClick: onConfirmAndContinue,
+        variant: "default" as const,
+        disabled: isConfirmingAndContinuing,
+      }
+    : null;
+  const actions = dashboardActions.length > 0 || !quickRetryAction
+    ? dashboardActions
+    : [quickRetryAction];
 
   return (
     <div className="space-y-4">

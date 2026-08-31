@@ -75,3 +75,13 @@ test("task center reads as an inbox before exposing runtime diagnostics", () => 
   assert.match(detail, /运行信息/);
   assert.match(detailPanel, /执行步骤/);
 });
+
+test("task center stays read only and sends workflow actions back to the source page", () => {
+  const taskPage = read("src/pages/tasks/TaskCenterPage.tsx");
+  const detailPanel = read("src/pages/tasks/components/TaskCenterDetailPanel.tsx");
+
+  assert.doesNotMatch(taskPage, /useMutation|retryTask|continueNovelWorkflow|cancelTask|archiveTask/);
+  assert.doesNotMatch(detailPanel, /可执行动作|noticeAction|failureAction|TaskCenterActionSpec/);
+  assert.match(detailPanel, /打开来源页面/);
+  assert.match(detailPanel, /继续、恢复或重试请在来源页面完成/);
+});
