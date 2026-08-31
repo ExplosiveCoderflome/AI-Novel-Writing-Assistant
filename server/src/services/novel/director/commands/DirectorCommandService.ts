@@ -6,6 +6,8 @@ import type {
   DirectorRunCommandType,
 } from "@ai-novel/shared/types/directorRuntime";
 import type {
+  DirectorCandidate,
+  DirectorCandidateBatch,
   DirectorCandidatePatchRequest,
   DirectorCandidateTitleRefineRequest,
   DirectorCandidatesRequest,
@@ -15,6 +17,7 @@ import type {
   DirectorTakeoverRequest,
   DirectorStepCalibrationRequest,
 } from "@ai-novel/shared/types/novelDirector";
+import { normalizeCommercialTags } from "@ai-novel/shared/types/novelFraming";
 import { prisma } from "../../../../db/prisma";
 import { withSqliteRetry } from "../../../../db/sqliteRetry";
 import { AppError } from "../../../../middleware/errorHandler";
@@ -61,6 +64,121 @@ const EXECUTION_COMMAND_TYPES: DirectorRunCommandType[] = [
 export type DirectorRunCommandRow = Awaited<ReturnType<DirectorCommandService["getCommandById"]>>;
 
 const CANCELLED_COMMAND_MESSAGE = "自动导演任务已取消。";
+const UNICODE_REPLACEMENT_CHARACTER = "\uFFFD";
+
+interface ConfirmTaskSeedPayload extends Record<string, unknown> {
+  idea?: unknown;
+  basicForm?: Record<string, unknown>;
+  batches?: DirectorCandidateBatch[];
+  candidate?: unknown;
+  commercialTags?: unknown;
+  directorInput?: {
+    candidate?: unknown;
+  };
+  styleIntentSummary?: unknown;
+}
+
+function containsUnicodeReplacementCharacter(value: unknown): boolean {
+  if (typeof value === "string") {
+    return value.includes(UNICODE_REPLACEMENT_CHARACTER);
+  }
+  if (Array.isArray(value)) {
+    return value.some(containsUnicodeReplacementCharacter);
+  }
+  if (value && typeof value === "object") {
+    return Object.values(value as Record<string, unknown>).some(containsUnicodeReplacementCharacter);
+  }
+  return false;
+}
+
+function recoverText(value: string | undefined, ...fallbacks: unknown[]): string | undefined {
+  if (!containsUnicodeReplacementCharacter(value)) {
+    return value;
+  }
+  return fallbacks.find((fallback): fallback is string => (
+    typeof fallback === "string" && !containsUnicodeReplacementCharacter(fallback)
+  )) ?? value;
+}
+
+function findAuthoritativeCandidate(
+  seed: ConfirmTaskSeedPayload,
+  input: DirectorConfirmRequest,
+): DirectorCandidate | null {
+  const batches = Array.isArray(seed.batches) ? seed.batches : [];
+  const preferredBatch = input.batchId
+    ? batches.find((batch) => batch.id === input.batchId)
+    : null;
+  const batchCandidate = input.batchId
+    ? preferredBatch?.candidates.find((candidate) => candidate.id === input.candidate.id) ?? null
+    : batches.flatMap((batch) => batch.candidates).find((candidate) => candidate.id === input.candidate.id) ?? null;
+  if (batches.length > 0 && !batchCandidate) {
+    return null;
+  }
+  const previouslyConfirmedCandidate = [seed.candidate, seed.directorInput?.candidate]
+    .find((candidate): candidate is DirectorCandidate => Boolean(
+      candidate
+      && typeof candidate === "object"
+      && !Array.isArray(candidate)
+      && (candidate as { id?: unknown }).id === input.candidate.id
+      && !containsUnicodeReplacementCharacter(candidate),
+    ));
+  return previouslyConfirmedCandidate ?? batchCandidate;
+}
+
+function resolveConfirmRequestFromTaskSeed(
+  input: DirectorConfirmRequest,
+  seedPayloadJson: string | null | undefined,
+): DirectorConfirmRequest {
+  const seed = parseSeedPayload<ConfirmTaskSeedPayload>(seedPayloadJson) ?? {};
+  const basicForm = seed.basicForm ?? {};
+  const batches = Array.isArray(seed.batches) ? seed.batches : [];
+  const authoritativeCandidate = findAuthoritativeCandidate(seed, input);
+  if (batches.length > 0 && !authoritativeCandidate) {
+    throw new AppError("所选书级方向与任务记录不一致，请刷新候选方案后重新确认。", 409);
+  }
+
+  const candidate = authoritativeCandidate
+    ? {
+        ...authoritativeCandidate,
+        workingTitle: recoverText(
+          input.candidate.workingTitle,
+          authoritativeCandidate.workingTitle,
+        ) ?? authoritativeCandidate.workingTitle,
+      }
+    : input.candidate;
+  const commercialTags = containsUnicodeReplacementCharacter(input.commercialTags)
+    ? [seed.commercialTags, basicForm.commercialTagsText]
+        .map((value) => normalizeCommercialTags(value as string | string[] | null | undefined))
+        .find((value) => value.length > 0 && !containsUnicodeReplacementCharacter(value))
+        ?? input.commercialTags
+    : input.commercialTags;
+  const styleIntentSummary = containsUnicodeReplacementCharacter(input.styleIntentSummary)
+    && !containsUnicodeReplacementCharacter(seed.styleIntentSummary)
+    ? seed.styleIntentSummary as DirectorConfirmRequest["styleIntentSummary"]
+    : input.styleIntentSummary;
+  const normalized: DirectorConfirmRequest = {
+    ...input,
+    candidate,
+    idea: recoverText(input.idea, seed.idea, basicForm.description, batches.at(-1)?.idea) ?? input.idea,
+    title: recoverText(input.title, seed.title, basicForm.title),
+    description: recoverText(input.description, seed.description, basicForm.description),
+    targetAudience: recoverText(input.targetAudience, seed.targetAudience, basicForm.targetAudience),
+    bookSellingPoint: recoverText(input.bookSellingPoint, seed.bookSellingPoint, basicForm.bookSellingPoint),
+    competingFeel: recoverText(input.competingFeel, seed.competingFeel, basicForm.competingFeel),
+    first30ChapterPromise: recoverText(
+      input.first30ChapterPromise,
+      seed.first30ChapterPromise,
+      basicForm.first30ChapterPromise,
+    ),
+    commercialTags,
+    styleTone: recoverText(input.styleTone, seed.styleTone, basicForm.styleTone),
+    styleIntentSummary,
+  };
+  if (containsUnicodeReplacementCharacter(normalized)) {
+    throw new AppError("书级方向包含无法还原的异常字符，请刷新候选方案后重新确认。", 400);
+  }
+  return normalized;
+}
 
 export class DirectorCommandService {
   constructor(private readonly workflowService = new NovelWorkflowService()) {}
@@ -139,7 +257,13 @@ export class DirectorCommandService {
   }
 
   async enqueueConfirmCandidateCommand(input: DirectorConfirmRequest): Promise<DirectorCommandAcceptedResponse> {
-    const confirmedInput = applyDirectorRunModeContract(input);
+    const existingTask = input.workflowTaskId?.trim()
+      ? await this.workflowService.getTaskByIdWithoutHealing(input.workflowTaskId.trim())
+      : null;
+    const confirmedInput = applyDirectorRunModeContract(resolveConfirmRequestFromTaskSeed(
+      input,
+      existingTask?.seedPayloadJson,
+    ));
     const runMode = confirmedInput.runMode;
     const task = await this.workflowService.bootstrapTask({
       workflowTaskId: input.workflowTaskId,

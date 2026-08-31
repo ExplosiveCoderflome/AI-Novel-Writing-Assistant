@@ -349,6 +349,70 @@ test("director command service queues candidate confirmation as a serialized com
   }
 });
 
+test("director command service restores corrupted confirmation text from the saved candidate batch", async () => {
+  const authoritativeCandidate = {
+    ...createConfirmRequest().candidate,
+    workingTitle: "资本沉默战",
+    logline: "金融天才在能源设备企业的危机中激活沉默资产。",
+    positioning: "现代商战中的资本与产业博弈。",
+    sellingPoint: "用规则与资本布局完成逆转。",
+  };
+  const harness = createHarness(createTask({
+    novelId: null,
+    status: "waiting_approval",
+    seedPayloadJson: JSON.stringify({
+      idea: "参考现实商战创作一部独立小说。",
+      basicForm: {
+        description: "参考现实商战创作一部独立小说。",
+        targetAudience: "喜欢高密度智斗的读者。",
+        bookSellingPoint: "规则博弈与阶层跃迁。",
+        competingFeel: "冷静克制的商业对弈。",
+        first30ChapterPromise: "前三十章完成第一次完整破局。",
+        commercialTagsText: "现代商战，规则博弈",
+      },
+      candidate: {
+        ...authoritativeCandidate,
+        workingTitle: "资本不眠",
+      },
+      batches: [{
+        id: "batch-1",
+        round: 1,
+        idea: "参考现实商战创作一部独立小说。",
+        candidates: [authoritativeCandidate],
+      }],
+    }),
+  }));
+  try {
+    await harness.service.enqueueConfirmCandidateCommand(createConfirmRequest({
+      batchId: "batch-1",
+      idea: "�ο���ʵ��ս",
+      description: "�ο���ʵ��ս",
+      targetAudience: "ϲ�����ܶ��Ƕ��Ķ���",
+      bookSellingPoint: "�������ײ�ԾǨ",
+      competingFeel: "�侲���Ƶ���ҵ����",
+      first30ChapterPromise: "ǰ��ʮ����ɵ�һ������ƾ�",
+      commercialTags: ["�ִ���ս", "�������"],
+      candidate: {
+        ...authoritativeCandidate,
+        workingTitle: "�ʱ�����",
+        logline: "������������Դ�豸��ҵ��Σ����",
+      },
+    }));
+
+    const payload = JSON.parse(harness.commands[0].payloadJson).confirmRequest;
+    assert.equal(payload.idea, "参考现实商战创作一部独立小说。");
+    assert.equal(payload.description, "参考现实商战创作一部独立小说。");
+    assert.equal(payload.targetAudience, "喜欢高密度智斗的读者。");
+    assert.equal(payload.candidate.workingTitle, "资本不眠");
+    assert.equal(payload.candidate.logline, authoritativeCandidate.logline);
+    assert.deepEqual(payload.commercialTags, ["现代商战", "规则博弈"]);
+    assert.equal(JSON.stringify(payload).includes("�"), false);
+    assert.equal(JSON.stringify(harness.bootstraps[0].seedPayload).includes("�"), false);
+  } finally {
+    harness.restore();
+  }
+});
+
 test("director command service queues candidate generation as a serialized command", async () => {
   const harness = createHarness(createTask({
     novelId: null,
