@@ -1,4 +1,5 @@
 import type { BookAnalysisSectionKey } from "@ai-novel/shared/types/bookAnalysis";
+import type { DirectorIssuePolicy } from "@ai-novel/shared/types/directorIssue";
 import type { LLMProvider } from "@ai-novel/shared/types/llm";
 import type { QualityScore, ReviewIssue } from "@ai-novel/shared/types/novel";
 import { parseCommercialTagsJson } from "@ai-novel/shared/types/novelFraming";
@@ -48,6 +49,8 @@ export interface CreateNovelInput {
   sourceKnowledgeDocumentId?: string | null;
   continuationBookAnalysisId?: string | null;
   continuationBookAnalysisSections?: BookAnalysisSectionKey[] | null;
+  referenceBookAnalysisId?: string | null;
+  referenceBookAnalysisSections?: BookAnalysisSectionKey[] | null;
 }
 
 export interface UpdateNovelInput {
@@ -79,6 +82,8 @@ export interface UpdateNovelInput {
   sourceKnowledgeDocumentId?: string | null;
   continuationBookAnalysisId?: string | null;
   continuationBookAnalysisSections?: BookAnalysisSectionKey[] | null;
+  referenceBookAnalysisId?: string | null;
+  referenceBookAnalysisSections?: BookAnalysisSectionKey[] | null;
   genreId?: string | null;
   primaryStoryModeId?: string | null;
   secondaryStoryModeId?: string | null;
@@ -181,6 +186,8 @@ export interface PipelineRunOptions extends LLMGenerateOptions {
   startOrder: number;
   endOrder: number;
   controlPolicy?: NovelControlPolicy;
+  issueGovernanceVersion?: 1;
+  issuePolicySnapshot?: DirectorIssuePolicy;
   workflowTaskId?: string;
   taskStyleProfileId?: string;
   maxRetries?: number;
@@ -214,6 +221,8 @@ export interface PipelineBackgroundSyncState {
 
 export interface PipelinePayload extends LLMGenerateOptions {
   controlPolicy?: NovelControlPolicy;
+  issueGovernanceVersion?: 1;
+  issuePolicySnapshot?: DirectorIssuePolicy;
   workflowTaskId?: string;
   taskStyleProfileId?: string;
   maxRetries?: number;
@@ -279,6 +288,7 @@ export const DEFAULT_ESTIMATED_CHAPTER_COUNT = 80;
 
 export function normalizeNovelOutput<T extends {
   continuationBookAnalysisSections?: string | null;
+  referenceBookAnalysisSections?: string | null;
   commercialTagsJson?: string | null;
   bookContract?: {
     id: string;
@@ -317,18 +327,21 @@ export function normalizeNovelOutput<T extends {
   } | null;
 }>(
   novel: T,
-): Omit<T, "continuationBookAnalysisSections" | "commercialTagsJson"> & {
+): Omit<T, "continuationBookAnalysisSections" | "referenceBookAnalysisSections" | "commercialTagsJson"> & {
   continuationBookAnalysisSections: BookAnalysisSectionKey[] | null;
+  referenceBookAnalysisSections: BookAnalysisSectionKey[] | null;
   commercialTags: string[];
 } {
   const {
     continuationBookAnalysisSections,
+    referenceBookAnalysisSections,
     commercialTagsJson,
     ...rest
   } = novel;
   return {
     ...rest,
     continuationBookAnalysisSections: parseContinuationBookAnalysisSections(continuationBookAnalysisSections),
+    referenceBookAnalysisSections: parseContinuationBookAnalysisSections(referenceBookAnalysisSections),
     commercialTags: parseCommercialTagsJson(commercialTagsJson),
     ...(rest.bookContract !== undefined
       ? {

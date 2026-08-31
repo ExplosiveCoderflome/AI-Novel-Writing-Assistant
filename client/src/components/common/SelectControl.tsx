@@ -7,8 +7,11 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
-
-const EMPTY_VALUE = "__select_control_empty__";
+import {
+  SELECT_CONTROL_EMPTY_VALUE,
+  deduplicateSelectControlOptions,
+  toSelectControlItemValue,
+} from "./selectControlOptions";
 
 type SelectChangeHandler = React.ChangeEventHandler<HTMLSelectElement>;
 
@@ -35,7 +38,7 @@ function normalizeValue(value: SelectControlProps["value"]): string | undefined 
   }
   const rawValue = Array.isArray(value) ? value[0] : value;
   const stringValue = String(rawValue ?? "");
-  return stringValue === "" ? EMPTY_VALUE : stringValue;
+  return toSelectControlItemValue(stringValue);
 }
 
 function optionValue(value: unknown, fallback: React.ReactNode): string {
@@ -78,7 +81,7 @@ function emitNativeLikeChange(onChange: SelectChangeHandler | undefined, value: 
   if (!onChange) {
     return;
   }
-  const nativeValue = value === EMPTY_VALUE ? "" : value;
+  const nativeValue = value === SELECT_CONTROL_EMPTY_VALUE ? "" : value;
   onChange({
     target: { value: nativeValue },
     currentTarget: { value: nativeValue },
@@ -101,7 +104,10 @@ export default function SelectControl({
   "aria-label": ariaLabel,
   ...props
 }: SelectControlProps) {
-  const options = React.useMemo(() => collectOptions(children), [children]);
+  const options = React.useMemo(
+    () => deduplicateSelectControlOptions(collectOptions(children)),
+    [children],
+  );
   const normalizedValue = normalizeValue(value);
   const normalizedDefaultValue = normalizeValue(defaultValue);
 
@@ -123,7 +129,7 @@ export default function SelectControl({
       </SelectTrigger>
       <SelectContent className={contentClassName}>
         {options.map((option, index) => {
-          const itemValue = option.value === "" ? EMPTY_VALUE : option.value;
+          const itemValue = toSelectControlItemValue(option.value);
           return (
             <SelectItem
               key={`${itemValue}-${index}`}

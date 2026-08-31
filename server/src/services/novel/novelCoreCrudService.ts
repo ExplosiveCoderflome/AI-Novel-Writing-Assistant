@@ -35,6 +35,19 @@ export class NovelCoreCrudService {
     }
   }
 
+  private async validateReferenceBookAnalysis(analysisId: string | null | undefined): Promise<void> {
+    if (!analysisId) {
+      return;
+    }
+    const analysis = await prisma.bookAnalysis.findFirst({
+      where: { id: analysisId, status: "succeeded" },
+      select: { id: true },
+    });
+    if (!analysis) {
+      throw new AppError("参考拆书不存在或尚未完成。", 400);
+    }
+  }
+
   async listNovels({ page, limit, search, status, narrativeForm, writingMode, sort = "updated" }: PaginationInput) {
     const normalizedSearch = search?.trim();
     const orderBy = sort === "created" ? { createdAt: "desc" as const } : { updatedAt: "desc" as const };
@@ -335,6 +348,10 @@ export class NovelCoreCrudService {
     const continuationBookAnalysisSections = serializeContinuationBookAnalysisSections(
       input.continuationBookAnalysisSections,
     );
+    const referenceBookAnalysisId = writingMode === "original" ? (input.referenceBookAnalysisId ?? null) : null;
+    const referenceBookAnalysisSections = serializeContinuationBookAnalysisSections(
+      input.referenceBookAnalysisSections,
+    );
     const commercialTagsJson = serializeCommercialTagsJson(input.commercialTags);
     this.validateStoryModeSelection(input.primaryStoryModeId, input.secondaryStoryModeId);
 
@@ -344,6 +361,7 @@ export class NovelCoreCrudService {
       sourceKnowledgeDocumentId,
       continuationBookAnalysisId: normalizedContinuationBookAnalysisId,
     });
+    await this.validateReferenceBookAnalysis(referenceBookAnalysisId);
 
     const created = await prisma.novel.create({
       data: {
@@ -385,6 +403,8 @@ export class NovelCoreCrudService {
           && normalizedContinuationBookAnalysisId
             ? continuationBookAnalysisSections
             : null,
+        referenceBookAnalysisId,
+        referenceBookAnalysisSections: referenceBookAnalysisId ? referenceBookAnalysisSections : null,
       },
     });
 
@@ -427,6 +447,8 @@ export class NovelCoreCrudService {
         sourceKnowledgeDocumentId: true,
         continuationBookAnalysisId: true,
         continuationBookAnalysisSections: true,
+        referenceBookAnalysisId: true,
+        referenceBookAnalysisSections: true,
         primaryStoryModeId: true,
         secondaryStoryModeId: true,
       },
@@ -446,6 +468,12 @@ export class NovelCoreCrudService {
     const nextContinuationBookAnalysisSections = input.continuationBookAnalysisSections !== undefined
       ? input.continuationBookAnalysisSections
       : parseContinuationBookAnalysisSections(existing.continuationBookAnalysisSections);
+    const nextReferenceBookAnalysisId = input.referenceBookAnalysisId !== undefined
+      ? input.referenceBookAnalysisId
+      : existing.referenceBookAnalysisId;
+    const nextReferenceBookAnalysisSections = input.referenceBookAnalysisSections !== undefined
+      ? input.referenceBookAnalysisSections
+      : parseContinuationBookAnalysisSections(existing.referenceBookAnalysisSections);
     const nextPrimaryStoryModeId = input.primaryStoryModeId !== undefined
       ? input.primaryStoryModeId
       : existing.primaryStoryModeId;
@@ -456,6 +484,9 @@ export class NovelCoreCrudService {
       nextWritingMode === "continuation" && (nextSourceNovelId || nextSourceKnowledgeDocumentId)
         ? nextContinuationBookAnalysisId
         : null;
+    const normalizedNextReferenceBookAnalysisId = nextWritingMode === "original"
+      ? nextReferenceBookAnalysisId
+      : null;
     this.validateStoryModeSelection(nextPrimaryStoryModeId, nextSecondaryStoryModeId);
 
     await this.novelContinuationService.validateWritingModeConfig({
@@ -465,9 +496,11 @@ export class NovelCoreCrudService {
       sourceKnowledgeDocumentId: nextSourceKnowledgeDocumentId,
       continuationBookAnalysisId: normalizedNextContinuationBookAnalysisId,
     });
+    await this.validateReferenceBookAnalysis(normalizedNextReferenceBookAnalysisId);
 
     const {
       continuationBookAnalysisSections: _ignoreSectionPatch,
+      referenceBookAnalysisSections: _ignoreReferenceSectionPatch,
       targetAudience: _ignoreTargetAudience,
       bookSellingPoint: _ignoreBookSellingPoint,
       competingFeel: _ignoreCompetingFeel,
@@ -477,6 +510,7 @@ export class NovelCoreCrudService {
     } = input;
 
     const serializedContinuationSections = serializeContinuationBookAnalysisSections(nextContinuationBookAnalysisSections);
+    const serializedReferenceSections = serializeContinuationBookAnalysisSections(nextReferenceBookAnalysisSections);
     const commercialTagsJson = input.commercialTags !== undefined
       ? serializeCommercialTagsJson(input.commercialTags)
       : undefined;
@@ -503,6 +537,8 @@ export class NovelCoreCrudService {
           && normalizedNextContinuationBookAnalysisId
             ? serializedContinuationSections
             : null,
+        referenceBookAnalysisId: normalizedNextReferenceBookAnalysisId,
+        referenceBookAnalysisSections: normalizedNextReferenceBookAnalysisId ? serializedReferenceSections : null,
         ...(shouldResetWorldSlice
           ? {
             storyWorldSliceJson: null,

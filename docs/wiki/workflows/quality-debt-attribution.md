@@ -9,7 +9,7 @@
 | 代码 | 名称 | 描述 | 关键证据 |
 |------|------|------|----------|
 | **A** | 开环修复 | 修复器收到的是压扁文本，未拿到结构化义务信息，重评同一义务再次失败 | `sameObligationRepeated = true`（首次 = 二次 issue codes 完全一致） |
-| **B** | patch 锚点失配 | `ChapterPatchRepairService` 要求精确锚定原文片段，锚点失配后升级为 heavy_repair，而预算只有 1 次 | `patchAnchorFailed = true` |
+| **B** | patch 锚点失配 | `ChapterPatchRepairService` 要求精确锚定原文片段；锚点失配后保留正文并记录可恢复质量债，不在同一轮自动升级为整章重写 | 历史 `patchAnchorFailed = true` 仅用于兼容旧记录 |
 | **D** | 义务不可达 | 预生成 task sheet 中的义务与实际前文矛盾，章节级修复永远无法满足 | `planMisaligned = true`（`failureClassification.code = draft_obligation_unmet / replan_required`） |
 | **E** | 签名漂移 | 首次失败是 length 类问题，修复后浮出 content 类问题，issueSignature 相同导致预算被耗尽 | `lengthVsContentDrift = true` |
 
@@ -20,24 +20,17 @@ interface QualityDebtAttribution {
   firstFailureIssueCodes: string[];           // 首次验收失败 issue code 列表
   secondFailureIssueCodes: string[];          // 修复后二次失败 issue code 列表
   firstFailureClassificationCode: string | null; // failureClassification.code
-  patchAnchorFailed: boolean;                 // patch 升级为 heavy（根因 B）
+  patchAnchorFailed: boolean;                 // 历史 patch 锚点失配标记，新运行默认 false
   sameObligationRepeated: boolean;            // 同义务重复失败（根因 A）
   planMisaligned: boolean;                    // 义务不可达（根因 D）
   lengthVsContentDrift: boolean;              // 签名漂移（根因 E）
   missingObligationKinds: string[];           // 首次失败缺失的义务种类
-  budgetActionsConsumed?: string[];           // Director 预算操作（外层写入）
-  degradedProposalRouting?: {
-    contentProvenance: "debt";
-    routedToPendingReview: true;
-    proposalTypes: ("character_state_update" | "character_resource_update")[];
-    fields: ("currentState" | "currentGoal" | "characterResource")[];
-  };
 }
 ```
 
 ## 质量债务来源路由规则
 
-章节正文在质量门未通过但仍被保留继续执行时，最终正文的资产同步必须携带 `contentProvenance = "debt"`。该标记不改变章节重试、暂停或继续生成的控制流，只影响后续资产提取出来的状态提案如何入账。
+章节正文在质量门未通过但仍被保留继续执行时，最终正文的资产同步必须携带 `contentProvenance = "debt"`。提案路由只读取这个事实字段，不在质量债归因中重复保存一份固定的 `degradedProposalRouting` 描述。该标记不改变章节重试、暂停或继续生成的控制流，只影响后续资产提取出来的状态提案如何入账。
 
 当前规则：
 

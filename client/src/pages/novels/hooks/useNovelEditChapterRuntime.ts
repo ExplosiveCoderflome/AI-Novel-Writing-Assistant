@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useMutation, type QueryClient } from "@tanstack/react-query";
 import type { ReviewIssue, Chapter, StoryStateSnapshot, StoryPlan } from "@ai-novel/shared/types/novel";
 import type { LLMProvider } from "@ai-novel/shared/types/llm";
-import { auditNovelChapter, generateChapterPlan, replanNovel } from "@/api/novel";
+import { generateChapterPlan, replanNovel, reviewNovelChapter } from "@/api/novel";
 import { queryKeys } from "@/api/queryKeys";
 import type { ChapterExecutionStrategy } from "../chapterExecution.utils";
 import type { ChapterReviewResult } from "../chapterPlanning.shared";
@@ -114,7 +114,7 @@ export function useNovelEditChapterRuntime({
   });
 
   const fullAuditMutation = useMutation({
-    mutationFn: () => auditNovelChapter(novelId, selectedChapterId, "full", {
+    mutationFn: () => reviewNovelChapter(novelId, selectedChapterId, {
       provider: llm.provider,
       model: llm.model,
       temperature: 0.1,
@@ -122,8 +122,13 @@ export function useNovelEditChapterRuntime({
     onSuccess: async (response) => {
       setReviewResult(response.data ?? null);
       setChapterOperationMessage("完整审校已完成。");
-      await queryClient.invalidateQueries({ queryKey: queryKeys.novels.chapterAuditReports(novelId, selectedChapterId) });
-      await queryClient.invalidateQueries({ queryKey: queryKeys.novels.qualityReport(novelId) });
+      await Promise.all([
+        invalidateNovelDetail(),
+        queryClient.invalidateQueries({ queryKey: queryKeys.novels.simpleShelf(novelId) }),
+        queryClient.invalidateQueries({ queryKey: queryKeys.novels.chapterEditorWorkspace(novelId, selectedChapterId) }),
+        queryClient.invalidateQueries({ queryKey: queryKeys.novels.chapterAuditReports(novelId, selectedChapterId) }),
+        queryClient.invalidateQueries({ queryKey: queryKeys.novels.qualityReport(novelId) }),
+      ]);
     },
     onSettled: () => {
       setReviewActionKind(null);

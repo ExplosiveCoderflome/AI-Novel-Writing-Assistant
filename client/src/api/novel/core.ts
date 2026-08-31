@@ -87,6 +87,8 @@ export async function createNovel(payload: {
   sourceKnowledgeDocumentId?: string;
   continuationBookAnalysisId?: string;
   continuationBookAnalysisSections?: BookAnalysisSectionKey[];
+  referenceBookAnalysisId?: string;
+  referenceBookAnalysisSections?: BookAnalysisSectionKey[];
 }) {
   const { data } = await apiClient.post<ApiResponse<Novel>>("/novels", payload);
   return data;
@@ -162,6 +164,8 @@ export async function updateNovel(
     sourceKnowledgeDocumentId: string | null;
     continuationBookAnalysisId: string | null;
     continuationBookAnalysisSections: BookAnalysisSectionKey[] | null;
+    referenceBookAnalysisId: string | null;
+    referenceBookAnalysisSections: BookAnalysisSectionKey[] | null;
     genreId: string | null;
     primaryStoryModeId: string | null;
     secondaryStoryModeId: string | null;

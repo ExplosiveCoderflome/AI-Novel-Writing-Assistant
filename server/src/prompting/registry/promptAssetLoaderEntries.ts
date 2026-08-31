@@ -14,10 +14,6 @@ export const promptAssetLoaderEntries: PromptAssetLoaderEntry[] = [
     load: () => require("../prompts/director/directorIssueAssessment.prompts").directorIssueAssessmentPrompt as UnknownPromptAsset,
   },
   {
-    key: "director.risk.assessment@v1",
-    load: () => require("../prompts/director/directorRiskAssessment.prompts").directorRiskAssessmentPrompt as UnknownPromptAsset,
-  },
-  {
     key: "novel.writing_platform.recommend@v1",
     load: () => require("../prompts/novel/writingPlatformRecommendation.prompts").writingPlatformRecommendationPrompt as UnknownPromptAsset,
   },
@@ -482,7 +478,7 @@ export const promptAssetLoaderEntries: PromptAssetLoaderEntry[] = [
     load: () => require("../prompts/marketRadar/marketRadar.prompts").marketTrendSynthesisPrompt as UnknownPromptAsset,
   },
   {
-    key: "market_radar.creative_brief@v1",
+    key: "market_radar.creative_brief@v2",
     load: () => require("../prompts/marketRadar/marketRadar.prompts").marketCreativeBriefPrompt as UnknownPromptAsset,
   },
   {

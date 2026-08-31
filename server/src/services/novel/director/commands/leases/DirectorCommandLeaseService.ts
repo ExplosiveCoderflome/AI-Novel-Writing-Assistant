@@ -3,39 +3,11 @@ import { prisma } from "../../../../../db/prisma";
 import { taskDispatcher } from "../../../../../workers/TaskDispatcher";
 import { NovelWorkflowService } from "../../../workflow/NovelWorkflowService";
 import { directorIssueService, loadDirectorIssueTaskContext } from "../../issues";
-import { parsePayload, resolveNumberEnv } from "../DirectorCommandServiceHelpers";
 
-const DEFAULT_STALE_AUTO_RECOVERY_MAX_ATTEMPTS = 2;
 const STALE_COMMAND_AUTO_RECOVERY_MESSAGE = "后台执行中断，系统已自动从最近进度继续。";
 const STALE_COMMAND_MANUAL_RECOVERY_MESSAGE = "后台执行中断，任务已暂停。点击恢复后会从最近进度继续。";
 const STALE_COMMAND_INTERNAL_MESSAGE = "Director Worker 租约过期，任务等待恢复。";
 const CANCELLED_COMMAND_MESSAGE = "自动导演任务已取消。";
-
-function isAutoRecoverableStaleCommand(command: {
-  commandType: string;
-  attempt: number;
-  payloadJson?: string | null;
-}): boolean {
-  const defaultMaxAttempts = resolveNumberEnv(
-    "DIRECTOR_WORKER_STALE_AUTO_RECOVERY_MAX_ATTEMPTS",
-    DEFAULT_STALE_AUTO_RECOVERY_MAX_ATTEMPTS,
-  );
-  const payload = parsePayload(command.payloadJson ?? null);
-  const payloadRunMode = payload.confirmRequest?.runMode ?? payload.takeoverRequest?.runMode ?? null;
-  const isFullBookAutopilot = payloadRunMode === "full_book_autopilot";
-  const maxAttempts = isFullBookAutopilot
-    ? resolveNumberEnv(
-      "DIRECTOR_WORKER_FULL_BOOK_STALE_AUTO_RECOVERY_MAX_ATTEMPTS",
-      Math.max(defaultMaxAttempts, 5),
-    )
-    : defaultMaxAttempts;
-  return command.attempt < maxAttempts
-    && (
-      isFullBookAutopilot
-      || command.commandType === "continue"
-      || command.commandType === "resume_from_checkpoint"
-    );
-}
 
 export class DirectorCommandLeaseService {
   constructor(private readonly workflowService: NovelWorkflowService) {}
@@ -52,12 +24,10 @@ export class DirectorCommandLeaseService {
         taskId: true,
         commandType: true,
         attempt: true,
-        payloadJson: true,
       },
     });
     for (const command of staleCommands) {
-      const autoRecoverable = isAutoRecoverableStaleCommand(command);
-      const governance = await loadDirectorIssueTaskContext(command.taskId);
+      const governance = await loadDirectorIssueTaskContext(command.taskId).catch(() => null);
       let actionApplied = false;
       const applyAction = async (action: "auto_retry" | "continue_with_warning" | "pause_for_manual" | "fail_task") => {
         if (action === "auto_retry" || action === "continue_with_warning") {
@@ -108,7 +78,7 @@ export class DirectorCommandLeaseService {
       };
 
       if (!governance?.novelId) {
-        await applyAction(autoRecoverable ? "auto_retry" : "pause_for_manual");
+        await applyAction("pause_for_manual");
         continue;
       }
       await directorIssueService.reportIssue({
@@ -117,9 +87,9 @@ export class DirectorCommandLeaseService {
         novelId: governance.novelId,
         issueCode: "runtime.worker_stale",
         stage: "director_worker",
-        summary: autoRecoverable ? STALE_COMMAND_AUTO_RECOVERY_MESSAGE : STALE_COMMAND_MANUAL_RECOVERY_MESSAGE,
+        summary: STALE_COMMAND_MANUAL_RECOVERY_MESSAGE,
         evidence: `command=${command.commandType}; attempt=${command.attempt}`,
-        attempt: command.attempt,
+        attempt: Math.max(0, command.attempt - 1),
         hasUsableOutput: false,
         runMode: governance.runMode,
         fingerprint: ["worker_stale", command.id, command.attempt].join(":"),
@@ -127,7 +97,7 @@ export class DirectorCommandLeaseService {
         policySource: governance.policySource,
         applyAction: (decision) => applyAction(decision.action),
       }).catch(async () => {
-        if (!actionApplied) await applyAction(autoRecoverable ? "auto_retry" : "pause_for_manual");
+        if (!actionApplied) await applyAction("pause_for_manual");
       });
     }
     return staleCommands.length;
@@ -137,12 +107,20 @@ export class DirectorCommandLeaseService {
     const now = new Date();
     const leaseExpiresAt = new Date(now.getTime() + input.leaseMs);
     const candidate = await prisma.directorRunCommand.findFirst({
-      where: { status: "queued", runAfter: { lte: now } },
+      where: {
+        status: "queued",
+        runAfter: { lte: now },
+        task: { pendingManualRecovery: false },
+      },
       orderBy: [{ runAfter: "asc" }, { createdAt: "asc" }, { id: "asc" }],
     });
     if (!candidate) return null;
     const claimed = await prisma.directorRunCommand.updateMany({
-      where: { id: candidate.id, status: "queued" },
+      where: {
+        id: candidate.id,
+        status: "queued",
+        task: { pendingManualRecovery: false },
+      },
       data: {
         status: "leased",
         leaseOwner: input.workerId,

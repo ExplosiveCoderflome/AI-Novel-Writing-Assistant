@@ -2,12 +2,9 @@ import type {
   DirectorAutoExecutionState,
   DirectorCircuitBreakerReason,
   DirectorCircuitBreakerState,
-  DirectorQualityRepairRisk,
 } from "@ai-novel/shared/types/novelDirector";
 
 export const DIRECTOR_CIRCUIT_BREAKER_THRESHOLDS = {
-  patchFailureOpenAt: 3,
-  replanLoopOpenAt: 3,
   modelFailureOpenAt: 3,
   // A chapter with one normal repair cycle costs ~55-60k tokens (write + accept×2 + patch
   // + timeline + artifact_delta). 80k allows up to two repair cycles before triggering.
@@ -85,98 +82,6 @@ export function openDirectorCircuitBreaker(input: {
     lastUsageRecordId: input.lastUsageRecordId ?? input.previous?.lastUsageRecordId ?? null,
     lastEventAt: now,
     recoveryAction: recoveryActionFor(input.reason),
-  };
-}
-
-function isSameChapter(
-  state: DirectorCircuitBreakerState | null | undefined,
-  chapterId?: string | null,
-  chapterOrder?: number | null,
-): boolean {
-  if (!state) {
-    return false;
-  }
-  if (chapterId && state.chapterId) {
-    return state.chapterId === chapterId;
-  }
-  if (typeof chapterOrder === "number" && typeof state.chapterOrder === "number") {
-    return state.chapterOrder === chapterOrder;
-  }
-  return false;
-}
-
-export function recordPatchFailureSignal(input: {
-  previous?: DirectorCircuitBreakerState | null;
-  chapterId?: string | null;
-  chapterOrder?: number | null;
-  message: string;
-}): DirectorCircuitBreakerState {
-  const previousCount = input.previous?.reason === "auto_repair_exhausted" || isSameChapter(input.previous, input.chapterId, input.chapterOrder)
-    ? input.previous?.patchFailureCount ?? 0
-    : 0;
-  const patchFailureCount = previousCount + 1;
-  if (patchFailureCount >= DIRECTOR_CIRCUIT_BREAKER_THRESHOLDS.patchFailureOpenAt) {
-    return openDirectorCircuitBreaker({
-      reason: "auto_repair_exhausted",
-      message: input.message,
-      previous: input.previous,
-      chapterId: input.chapterId,
-      chapterOrder: input.chapterOrder,
-      nodeKey: "chapter_repair_node",
-      patchFailureCount,
-    });
-  }
-  return {
-    status: "closed",
-    reason: "auto_repair_exhausted",
-    message: input.message,
-    chapterId: input.chapterId ?? null,
-    chapterOrder: input.chapterOrder ?? null,
-    nodeKey: "chapter_repair_node",
-    patchFailureCount,
-    replanLoopCount: input.previous?.replanLoopCount ?? 0,
-    modelFailureCount: input.previous?.modelFailureCount ?? 0,
-    usageAnomalyCount: input.previous?.usageAnomalyCount ?? 0,
-    lastUsageRecordId: input.previous?.lastUsageRecordId ?? null,
-    lastEventAt: new Date().toISOString(),
-  };
-}
-
-export function recordReplanLoopSignal(input: {
-  previous?: DirectorCircuitBreakerState | null;
-  chapterId?: string | null;
-  chapterOrder?: number | null;
-  qualityRepairRisk?: DirectorQualityRepairRisk | null;
-  message: string;
-}): DirectorCircuitBreakerState {
-  const previousCount = input.previous?.reason === "replan_loop" || isSameChapter(input.previous, input.chapterId, input.chapterOrder)
-    ? input.previous?.replanLoopCount ?? 0
-    : 0;
-  const replanLoopCount = previousCount + 1;
-  if (replanLoopCount >= DIRECTOR_CIRCUIT_BREAKER_THRESHOLDS.replanLoopOpenAt) {
-    return openDirectorCircuitBreaker({
-      reason: "replan_loop",
-      message: input.message,
-      previous: input.previous,
-      chapterId: input.chapterId,
-      chapterOrder: input.chapterOrder,
-      nodeKey: "planner.replan",
-      replanLoopCount,
-    });
-  }
-  return {
-    status: "closed",
-    reason: "replan_loop",
-    message: input.message,
-    chapterId: input.chapterId ?? null,
-    chapterOrder: input.chapterOrder ?? null,
-    nodeKey: "planner.replan",
-    patchFailureCount: input.previous?.patchFailureCount ?? 0,
-    replanLoopCount,
-    modelFailureCount: input.previous?.modelFailureCount ?? 0,
-    usageAnomalyCount: input.previous?.usageAnomalyCount ?? 0,
-    lastUsageRecordId: input.previous?.lastUsageRecordId ?? null,
-    lastEventAt: new Date().toISOString(),
   };
 }
 

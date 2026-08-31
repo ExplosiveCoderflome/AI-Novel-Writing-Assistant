@@ -1,6 +1,7 @@
 import type {
   CreateMarketCreativeBriefRequest,
   MarketCreativeBrief,
+  MarketCreativeSeed,
   MarketFoundationSyncTarget,
   MarketPlatformStatus,
   MarketProductionFoundationCandidate,
@@ -51,6 +52,7 @@ interface MarketStoryModeCatalogOption extends MarketFoundationCatalogOption {
 
 interface StoredMarketBriefSelection {
   signals: MarketTrendReport["signals"];
+  creativeSeed?: MarketCreativeSeed | null;
   productionFoundation?: NovelCreateResourceRecommendation | null;
 }
 
@@ -231,8 +233,26 @@ export function parseStoredMarketBriefSelection(value: string): StoredMarketBrie
     ? { signals: parsed }
     : {
       signals: Array.isArray(parsed.signals) ? parsed.signals : [],
+      creativeSeed: parsed.creativeSeed ?? null,
       productionFoundation: parsed.productionFoundation ?? null,
     };
+}
+
+export function buildMarketBriefRuntimePromptBlock(
+  promptBlock: string,
+  creativeSeed: MarketCreativeSeed,
+  selectedSignals: MarketTrendReport["signals"],
+): string {
+  return [
+    promptBlock.trim(),
+    "【用户确认的市场信号】",
+    ...selectedSignals.map((signal) => `- ${signal.kind}｜${signal.label}：${signal.summary}`),
+    "【开书创意种子】",
+    `起始想法：${creativeSeed.openingIdea}`,
+    `金手指 / 核心优势：${creativeSeed.coreAdvantage}`,
+    `核心卖点：${creativeSeed.bookSellingPoint}`,
+    `前30章承诺：${creativeSeed.first30ChapterPromise}`,
+  ].join("\n");
 }
 
 function markMarketRecommended(
@@ -512,22 +532,34 @@ export class MarketRadarService {
         influenceMode: input.influenceMode,
         selectedSignalsText: selectedSignals.map((signal) => `${signal.kind}｜${signal.label}｜${signal.summary}`).join("\n"),
       },
-      options: { temperature: 0.25, maxTokens: 1_600, stage: "market_radar", itemKey: "creative_brief", entrypoint: "market_radar" },
+      options: { temperature: 0.25, maxTokens: 2_800, stage: "market_radar", itemKey: "creative_brief", entrypoint: "market_radar" },
     });
+    const runtimePromptBlock = buildMarketBriefRuntimePromptBlock(
+      result.output.promptBlock,
+      result.output.creativeSeed,
+      selectedSignals,
+    );
     const foundation = await novelCreateResourceRecommendationService.resolveRequired({
-      marketBriefPrompt: result.output.promptBlock,
+      marketBriefPrompt: runtimePromptBlock,
       genreId: report.productionFoundationSync?.genre?.id,
       primaryStoryModeId: report.productionFoundationSync?.storyModes?.primaryStoryMode.id,
       secondaryStoryModeId: report.productionFoundationSync?.storyModes?.secondaryStoryMode?.id,
+      description: result.output.creativeSeed.openingIdea,
+      bookSellingPoint: result.output.creativeSeed.bookSellingPoint,
+      first30ChapterPromise: result.output.creativeSeed.first30ChapterPromise,
     });
     const productionFoundation = markMarketRecommended(foundation.recommendation);
     const row = await prisma.marketCreativeBrief.create({
       data: {
         reportId: report.id,
         influenceMode: input.influenceMode,
-        selectedSignalsJson: JSON.stringify({ signals: selectedSignals, productionFoundation }),
+        selectedSignalsJson: JSON.stringify({
+          signals: selectedSignals,
+          creativeSeed: result.output.creativeSeed,
+          productionFoundation,
+        }),
         summary: result.output.summary,
-        promptBlock: result.output.promptBlock,
+        promptBlock: runtimePromptBlock,
       },
     });
     return this.serializeBrief(row);
@@ -802,6 +834,7 @@ export class MarketRadarService {
     return {
       id: row.id, reportId: row.reportId, influenceMode: row.influenceMode as MarketCreativeBrief["influenceMode"],
       selectedSignals: selection.signals, summary: row.summary, promptBlock: row.promptBlock,
+      creativeSeed: selection.creativeSeed ?? null,
       productionFoundation: selection.productionFoundation ?? null,
       createdAt: row.createdAt.toISOString(),
     };

@@ -10,6 +10,7 @@ import {
   type ChapterEmptyContentError,
 } from "./chapterEmptyContentError";
 import { runChapterRepairText } from "./repair/chapterRepairRuntime";
+import { ChapterPatchRepairFailedError } from "../chapterPatchRepairService";
 
 export interface PipelineRuntimeHooks {
   onCheckCancelled?: () => Promise<void>;
@@ -30,7 +31,6 @@ export interface PipelineRuntimeInput extends ChapterRuntimeRequestInput {
   maxRetries?: number;
   autoReview?: boolean;
   autoRepair?: boolean;
-  auditMode?: "light" | "full" | "repair_only";
   qualityThreshold?: number;
   repairMode?: "detect_only" | "light_repair" | "heavy_repair" | "continuity_only" | "character_only" | "ending_only";
 }
@@ -40,13 +40,17 @@ export interface PipelineRuntimeInput extends ChapterRuntimeRequestInput {
  * 用于 analyze_quality_debt_attribution 工具聚合根因占比。
  */
 export interface QualityDebtAttribution {
+  /** 本章实际发起的自动修复次数；修复返回可恢复失败也计入。 */
+  repairAttemptsUsed: number;
+  /** 本次章节执行允许的自动修复次数，当前合同只允许 0 或 1。 */
+  repairAttemptsAllowed: number;
   /** 首次验收失败的 issue code 列表（来自 runtimePackage.audit.openIssues） */
   firstFailureIssueCodes: string[];
   /** 二次验收失败的 issue code 列表（修复后再次失败时才有值） */
   secondFailureIssueCodes: string[];
   /** 首次失败的 failureClassification.code（判定根因 D） */
   firstFailureClassificationCode: string | null;
-  /** patch 锚点失配，升级到 heavy_repair（判定根因 B） */
+  /** 历史 patch 锚点失配兼容字段；当前运行固定为 false。 */
   patchAnchorFailed: boolean;
   /** 首次与二次的 openIssue codes 完全一致（判定根因 A：义务未传达给修复器） */
   sameObligationRepeated: boolean;
@@ -56,15 +60,6 @@ export interface QualityDebtAttribution {
   lengthVsContentDrift: boolean;
   /** 首次失败缺失的义务种类（来自 obligationCoverage.missing[].kind） */
   missingObligationKinds: string[];
-  /** 已消耗的 Director 预算操作（由外层 Director 写入） */
-  budgetActionsConsumed?: Array<"patch_repair" | "chapter_rewrite" | "window_replan">;
-  /** 章节质量债务导致的提案降级路由，用于后续复核入口聚合。 */
-  degradedProposalRouting?: {
-    contentProvenance: "debt";
-    routedToPendingReview: true;
-    proposalTypes: Array<"character_state_update" | "character_resource_update">;
-    fields: Array<"currentState" | "currentGoal" | "characterResource">;
-  };
 }
 
 export interface PipelineRuntimeResult {
@@ -175,6 +170,7 @@ export async function runPipelineChapterWithRuntime(
     ...requestInput
   } = options;
   const effectiveMaxRetries = Math.max(0, Math.min(maxRetries, 1));
+  const repairAttemptsAllowed = autoRepair && repairMode !== "detect_only" ? effectiveMaxRetries : 0;
   const request = deps.validateRequest(requestInput);
   await deps.ensureNovelCharacters(novelId, "run chapter pipeline");
 
@@ -191,7 +187,6 @@ export async function runPipelineChapterWithRuntime(
   let firstFailureIssueCodes: string[] = [];
   let firstFailureClassificationCode: string | null = null;
   let firstMissingObligationKinds: string[] = [];
-  let repairEscalatedFromPatch = false;
   let secondFailureIssueCodes: string[] = [];
 
   for (let attempt = 0; attempt <= effectiveMaxRetries; attempt += 1) {
@@ -302,17 +297,14 @@ export async function runPipelineChapterWithRuntime(
         temperature: request.temperature,
         repairMode,
       },
-      forceFullRewrite: styleLeakageIssues.length > 0,
     });
+    retryCountUsed += 1;
+    await hooks.onRetryConsumed?.("quality_repair");
     if (repairResult.recoverableFailure) {
       recoverableRepairFailure = repairResult.recoverableFailure;
-      repairEscalatedFromPatch = repairResult.escalatedFromPatch;
       await deps.markChapterNeedsRepair(chapterId);
       break;
     }
-    retryCountUsed += 1;
-    await hooks.onRetryConsumed?.("quality_repair");
-    repairEscalatedFromPatch = repairResult.escalatedFromPatch;
     content = repairResult.content;
     await deps.saveDraftAndArtifacts(novelId, chapterId, content, "repaired", {
       scheduleBackgroundSync: false,
@@ -336,13 +328,14 @@ export async function runPipelineChapterWithRuntime(
   );
 
   // 章节未通过时构建归因对象
-  const qualityDebtAttribution: QualityDebtAttribution | null = (!pass && firstFailureIssueCodes.length > 0)
+  const qualityDebtAttribution: QualityDebtAttribution | null = !pass
     ? buildQualityDebtAttribution({
+        repairAttemptsUsed: retryCountUsed,
+        repairAttemptsAllowed,
         firstFailureIssueCodes,
         secondFailureIssueCodes,
         firstFailureClassificationCode,
         firstMissingObligationKinds,
-        patchAnchorFailed: repairEscalatedFromPatch,
       })
     : null;
 
@@ -496,7 +489,6 @@ async function repairDraftContent(input: {
   content: string;
   issues: ReviewIssue[];
   runtimePackage: ChapterRuntimePackage;
-  forceFullRewrite?: boolean;
   options: {
     provider?: LLMProvider;
     model?: string;
@@ -505,13 +497,11 @@ async function repairDraftContent(input: {
   };
 }): Promise<{
   content: string;
-  escalatedFromPatch: boolean;
   recoverableFailure?: PipelineRecoverableRepairFailure | null;
 }> {
-  if (!input.forceFullRewrite && shouldDeferNonPatchableReviewRisk(input.runtimePackage, input.issues)) {
+  if (shouldDeferNonPatchableReviewRisk(input.runtimePackage, input.issues)) {
     return {
       content: input.content,
-      escalatedFromPatch: false,
       recoverableFailure: {
         chapterId: input.runtimePackage.chapterId,
         message: "章节接收判断暂时不可用，正文已保留，后续需要重新审校或人工复查。",
@@ -521,49 +511,53 @@ async function repairDraftContent(input: {
       },
     };
   }
-  const repaired = await runChapterRepairText({
-    novelId: input.runtimePackage.novelId,
-    chapterId: input.runtimePackage.chapterId,
-    novelTitle: input.novelTitle,
-    chapterTitle: input.chapterTitle,
-    content: input.content,
-    issues: input.issues,
-    runtimePackage: input.runtimePackage,
-    forceFullRewrite: input.forceFullRewrite,
-    options: {
-      provider: input.options.provider,
-      model: input.options.model,
-      temperature: input.options.temperature,
-      repairMode: input.options.repairMode,
-    },
-  });
+  let repaired: Awaited<ReturnType<typeof runChapterRepairText>>;
+  try {
+    repaired = await runChapterRepairText({
+      novelId: input.runtimePackage.novelId,
+      chapterId: input.runtimePackage.chapterId,
+      novelTitle: input.novelTitle,
+      chapterTitle: input.chapterTitle,
+      content: input.content,
+      issues: input.issues,
+      runtimePackage: input.runtimePackage,
+      options: {
+        provider: input.options.provider,
+        model: input.options.model,
+        temperature: input.options.temperature,
+        repairMode: input.options.repairMode,
+      },
+    });
+  } catch (error) {
+    if (!(error instanceof ChapterPatchRepairFailedError)) {
+      throw error;
+    }
+    return {
+      content: input.content,
+      recoverableFailure: {
+        chapterId: input.runtimePackage.chapterId,
+        message: error.message,
+        repairMode: input.options.repairMode ?? "light_repair",
+        failureTypes: error.applyResult?.failures.map((failure) => failure.failureType)
+          ?? [error.plan?.requiresFullRewrite ? "full_rewrite_requested" : "patch_plan_invalid"],
+        occurredAt: new Date().toISOString(),
+      },
+    };
+  }
   return {
     content: repaired.content.trim() || input.content,
-    escalatedFromPatch: repaired.escalatedFromPatch,
     recoverableFailure: null,
   };
 }
 
 function shouldDeferNonPatchableReviewRisk(
   runtimePackage: ChapterRuntimePackage,
-  issues: ReviewIssue[],
+  _issues: ReviewIssue[],
 ): boolean {
   const openIssues = runtimePackage.audit.openIssues ?? [];
-  if (openIssues.length > 0) {
-    return openIssues.every((issue) => typeof issue.code === "string"
+  return openIssues.length > 0
+    && openIssues.every((issue) => typeof issue.code === "string"
       && NON_PATCHABLE_REVIEW_ISSUE_CODES.has(issue.code));
-  }
-  return issues.length > 0 && issues.every(issueLooksLikeNonPatchableReviewRisk);
-}
-
-function issueLooksLikeNonPatchableReviewRisk(issue: ReviewIssue): boolean {
-  const evidence = issue.evidence.toLowerCase();
-  const fixSuggestion = issue.fixSuggestion.toLowerCase();
-  const combined = `${evidence}\n${fixSuggestion}`;
-  return combined.includes("acceptance_gate_unavailable")
-    || combined.includes("接收闸门未返回可用结构化结果")
-    || combined.includes("章节接收判断不可用")
-    || combined.includes("结构化判断缺失");
 }
 
 /** 从 runtimePackage 提取 openIssues 的 code 列表（过滤空值） */
@@ -581,18 +575,20 @@ function isLengthIssueCode(code: string): boolean {
 
 /** 根据收集到的埋点数据构建结构化归因 */
 function buildQualityDebtAttribution(input: {
+  repairAttemptsUsed: number;
+  repairAttemptsAllowed: number;
   firstFailureIssueCodes: string[];
   secondFailureIssueCodes: string[];
   firstFailureClassificationCode: string | null;
   firstMissingObligationKinds: string[];
-  patchAnchorFailed: boolean;
 }): QualityDebtAttribution {
   const {
+    repairAttemptsUsed,
+    repairAttemptsAllowed,
     firstFailureIssueCodes,
     secondFailureIssueCodes,
     firstFailureClassificationCode,
     firstMissingObligationKinds,
-    patchAnchorFailed,
   } = input;
 
   // 根因 A：首次和二次 codes 完全一致（修复未解决义务问题）
@@ -615,20 +611,16 @@ function buildQualityDebtAttribution(input: {
   const lengthVsContentDrift = hasBothFailures && firstHasLengthOnly && secondHasContentIssue;
 
   return {
+    repairAttemptsUsed,
+    repairAttemptsAllowed,
     firstFailureIssueCodes,
     secondFailureIssueCodes,
     firstFailureClassificationCode,
-    patchAnchorFailed,
+    patchAnchorFailed: false,
     sameObligationRepeated,
     planMisaligned,
     lengthVsContentDrift,
     missingObligationKinds: firstMissingObligationKinds,
-    degradedProposalRouting: {
-      contentProvenance: "debt",
-      routedToPendingReview: true,
-      proposalTypes: ["character_state_update", "character_resource_update"],
-      fields: ["currentState", "currentGoal", "characterResource"],
-    },
   };
 }
 

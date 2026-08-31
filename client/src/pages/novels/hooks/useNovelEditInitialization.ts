@@ -137,6 +137,8 @@ export function useNovelEditInitialization({
       sourceKnowledgeDocumentId: detail.sourceKnowledgeDocumentId ?? "",
       continuationBookAnalysisId: detail.continuationBookAnalysisId ?? "",
       continuationBookAnalysisSections: detail.continuationBookAnalysisSections ?? [],
+      referenceBookAnalysisId: detail.referenceBookAnalysisId ?? "",
+      referenceBookAnalysisSections: detail.referenceBookAnalysisSections ?? [],
     });
     if (hydrateVolumeDraftFromDetail) {
       setVolumeDraft(detail.volumes ?? []);

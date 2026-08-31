@@ -231,6 +231,9 @@ export default function StageIdea({
           onChange={(event) => onIdeaChange(event.target.value)}
           placeholder="例如：普通女大学生误入异能组织，一边上学打工，一边调查父亲失踪真相。"
         />
+        <div className="px-1 pb-3 text-left text-xs text-muted-foreground">
+          填写内容会保存在本机，刷新或重新打开后可以继续。
+        </div>
         <div className="border-t border-border/60 pt-3">
           <div className="mb-2 text-xs font-medium text-muted-foreground">创作偏好（可选）</div>
           <div className="flex flex-col gap-2 sm:flex-row">

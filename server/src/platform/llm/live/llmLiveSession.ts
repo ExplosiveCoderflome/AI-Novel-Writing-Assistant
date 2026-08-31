@@ -1,4 +1,5 @@
 import type { PromptInvocationMeta } from "../../../prompting/core/promptTypes";
+import { formatPromptLiveLabel } from "../../../prompting/promptCatalog";
 import { llmLiveBroker, type LlmLiveSession } from "./LlmLiveBroker";
 
 export function beginLlmLiveSession(input: {
@@ -10,7 +11,7 @@ export function beginLlmLiveSession(input: {
 }): LlmLiveSession {
   const meta = input.promptMeta;
   return llmLiveBroker.begin({
-    label: input.label,
+    label: meta ? formatPromptLiveLabel(meta) : input.label,
     mode: input.mode,
     promptId: meta?.promptId ?? null,
     promptVersion: meta?.promptVersion ?? null,

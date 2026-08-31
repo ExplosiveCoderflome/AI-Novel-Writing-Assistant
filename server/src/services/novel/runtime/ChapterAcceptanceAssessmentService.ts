@@ -121,10 +121,6 @@ function isLengthDirective(directive: AcceptanceRepairDirective): boolean {
   return includesAnyMarker(directive.instruction, [...UNDER_LENGTH_MARKERS, ...OVER_LENGTH_MARKERS]);
 }
 
-function isHardMissingObligation(obligation: ChapterExecutionMissingObligation): boolean {
-  return obligation.kind === "must_hit_now" || obligation.kind === "forbidden_crossing";
-}
-
 function shouldDropLengthIssue(input: {
   issue: AcceptanceIssue;
   actualWordCount: number;
@@ -176,27 +172,17 @@ export function normalizeAssessment(
   const score = normalizeScore(reconciled.score ?? ruleScore(content));
   const missingObligations = reconciled.missingObligations ?? [];
   const hasHighRisk = reconciled.blockingIssues.some((issue) => issue.severity === "high" || issue.severity === "critical");
-  const hasHardMissingObligation = missingObligations.some(isHardMissingObligation);
-  const hasSoftOnlyMissingObligations = missingObligations.length > 0 && !hasHardMissingObligation;
   const hasRepairWork = reconciled.blockingIssues.length > 0
     || reconciled.repairDirectives.length > 0
-    || missingObligations.length > 0;
-  let status: ChapterAcceptanceAssessmentOutput["status"] = reconciled.status === "accepted" && hasHighRisk
-    ? "repairable"
-    : reconciled.status;
-  if (status === "accepted" && missingObligations.length > 0) {
-    status = hasHardMissingObligation ? "repairable" : "continue_with_risk";
+    || missingObligations.length > 0
+    || reconciled.repairability === "patchable_obligation_gap"
+    || reconciled.repairability === "rewrite_needed";
+  let status: ChapterAcceptanceAssessmentOutput["status"] = reconciled.status;
+  if (status === "accepted" && (hasHighRisk || hasRepairWork)) {
+    status = "repairable";
   }
-  if (status === "needs_manual_review" && !hasHighRisk) {
-    status = hasRepairWork ? "repairable" : "continue_with_risk";
-  }
-  if (
-    status === "repairable"
-    && hasSoftOnlyMissingObligations
-    && !hasHighRisk
-    && reconciled.repairability === "patchable_obligation_gap"
-  ) {
-    status = "continue_with_risk";
+  if (status === "needs_manual_review" && reconciled !== output && !hasHighRisk && hasRepairWork) {
+    status = "repairable";
   }
   if (status === "repairable" && !hasRepairWork) {
     status = "continue_with_risk";

@@ -59,11 +59,9 @@ export default function StageWorldStyle({
             className={controlClassName}
             value={basicForm.worldId}
             onChange={(event) => onBasicFormChange({ worldId: event.target.value })}
+            disabled={worldOptions.length === 0}
           >
             <option value="">不指定参考世界</option>
-            {worldOptions.length === 0 ? (
-              <option value="" disabled>暂无可选世界样本</option>
-            ) : null}
             {worldOptions.map((world) => (
               <option key={world.id} value={world.id}>{world.name}</option>
             ))}

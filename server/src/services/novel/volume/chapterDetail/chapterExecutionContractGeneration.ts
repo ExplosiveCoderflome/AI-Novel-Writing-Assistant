@@ -3,6 +3,7 @@ import type {
   VolumePlan,
   VolumePlanDocument,
 } from "@ai-novel/shared/types/novel";
+import { assessChapterExecutionContractShape } from "@ai-novel/shared/types/chapterTaskSheetQuality";
 import {
   normalizeChapterScenePlan,
   serializeChapterScenePlan,
@@ -22,6 +23,32 @@ import type {
 } from "../volumeModels";
 
 type StoryMacroPlanResult = Awaited<ReturnType<StoryMacroPlanService["getPlan"]>> | null;
+
+export function canReuseChapterExecutionContract(input: {
+  novelId: string;
+  volumeId: string;
+  chapter: VolumePlan["chapters"][number];
+}): boolean {
+  return assessChapterExecutionContractShape({
+    novelId: input.novelId,
+    volumeId: input.volumeId,
+    chapterId: input.chapter.id,
+    chapterOrder: input.chapter.chapterOrder,
+    title: input.chapter.title,
+    summary: input.chapter.summary,
+    purpose: input.chapter.purpose,
+    exclusiveEvent: input.chapter.exclusiveEvent,
+    endingState: input.chapter.endingState,
+    nextChapterEntryState: input.chapter.nextChapterEntryState,
+    conflictLevel: input.chapter.conflictLevel,
+    revealLevel: input.chapter.revealLevel,
+    targetWordCount: input.chapter.targetWordCount,
+    mustAvoid: input.chapter.mustAvoid,
+    payoffRefs: input.chapter.payoffRefs,
+    taskSheet: input.chapter.taskSheet,
+    sceneCards: input.chapter.sceneCards,
+  }).canEnterExecution;
+}
 
 export async function generateChapterTaskSheetDetail(params: {
   promptInput: {
@@ -52,8 +79,11 @@ export async function generateChapterTaskSheetDetail(params: {
   const existingChapter = params.promptInput.targetChapter;
   if (
     !params.promptInput.guidance?.trim()
-    && existingChapter.taskSheet?.trim()
-    && existingChapter.sceneCards?.trim()
+    && canReuseChapterExecutionContract({
+      novelId: params.promptInput.workspace.novelId,
+      volumeId: params.promptInput.targetVolume.id,
+      chapter: existingChapter,
+    })
   ) {
     const scenePlan = normalizeChapterScenePlan(
       existingChapter.sceneCards,
@@ -69,7 +99,7 @@ export async function generateChapterTaskSheetDetail(params: {
       targetWordCount: existingChapter.targetWordCount ?? 2200,
       mustAvoid: existingChapter.mustAvoid?.trim() || "避免偏离本章任务单和卷节奏。",
       payoffRefs: existingChapter.payoffRefs,
-      taskSheet: existingChapter.taskSheet.trim(),
+      taskSheet: existingChapter.taskSheet?.trim() ?? "",
       sceneCards: serializeChapterScenePlan(scenePlan),
     };
   }

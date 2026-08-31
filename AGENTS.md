@@ -23,11 +23,13 @@
 ## Auto-Director Quality Gate Rules (Highest Priority)
 
 - Chapter audit, acceptance, and quality-loop results must not automatically block the global auto-director or full-book execution chain.
+- This non-blocking behavior is the default for the completion-first issue policy. When the task snapshot explicitly selects a quality-first policy and its unified issue decision is `pause_for_manual`, the pipeline must pause at the saved chapter boundary and wait for explicit recovery instead of overriding the preset.
 - Non-global chapter quality problems, including `local_patch_plan`, `continue_with_warning`, `patchable_obligation_gap`, `draft_obligation_unmet`, recoverable repair failures, and `defer_and_continue` quality debt, must be recorded as chapter-level quality debt or local repair guidance and allow the remaining chapter range to continue.
 - Only an explicit `stop_for_replan`, `replan_required`, `recommendedAction=replan`, unrecoverable generation failure with no usable chapter content, or a runtime safety/data integrity failure may stop the global chain.
 - Do not route local audit issues into `replanAlertDetails`, `PIPELINE_REPLAN_REQUIRED`, or the `replan_required` checkpoint unless the structured AI/runtime decision explicitly says the neighboring chapter plan must stop for replan.
 - If local repair has already been attempted and residual issues remain but the chapter has usable content, prefer degraded finalization plus quality debt over failing the whole auto-director task.
 - UI, task projection, and recovery logic must preserve this distinction: local quality debt is a visible warning and follow-up item, not a failed auto-director workflow.
+- A policy-driven manual pause must use the existing pending-manual-recovery state. Background polling and worker recovery must not clear it; only an explicit user recovery command may resume the pipeline.
 - Book-level auto-director projections with `failed`, `blocked`, or `waiting_recovery` status and a latest task must remain visible in AI cockpit, task drawer, and recovery entrypoints even when the URL does not include `directorTaskId`; `workspaceTaskId` is a manual workspace lane and must never be used as a substitute director task id.
 
 ## Product Context (Highest Priority)
@@ -41,6 +43,15 @@
   - end-to-end completion of a full-length novel, not just isolated writing assistance.
 - Do not assume the primary user can manually repair structure, pacing, character arcs, or chapter planning without substantial AI support.
 - If there is a tradeoff between expert-oriented flexibility and beginner completion rate, prefer the path that better helps a novice user successfully produce a complete novel.
+
+## Task Center Role Rules (Highest Priority)
+
+- The task center is presented to users as “运行记录”. It is a read-only list for task status, progress, errors, recovery location, history, and source-page navigation; it is not a workflow operation surface.
+- Do not place task-mutating actions in the task center, including continue, recover, retry, cancel, replan, repair, approve, or archive actions.
+- Put each workflow action on the source page or workbench where the user can see the relevant creative context, affected scope, saved results, and consequence of the action.
+- The task center may refresh, filter, select, inspect, and open a source page. These read and navigation controls must not change task state.
+- Task projections and recovery candidates must carry a stable source route so a failed or paused record can return the user to the correct actionable page.
+- Product copy and documentation must not instruct users to perform recovery or retry inside the task center. It may tell users to inspect the record there and then return to the source page to act.
 
 ## UI Copy Rules
 

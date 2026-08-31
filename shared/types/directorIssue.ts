@@ -119,6 +119,15 @@ export const directorIssuePolicyOverrideSchema = z.object({
 
 export type DirectorIssuePolicyOverride = z.infer<typeof directorIssuePolicyOverrideSchema>;
 
+function buildPresetIssueActions(
+  overrides: Partial<Record<DirectorIssueCode, DirectorIssueAction>>,
+): Record<DirectorIssueCode, DirectorIssueAction> {
+  return Object.fromEntries(DIRECTOR_ISSUE_CATALOG.map((entry) => [
+    entry.code,
+    overrides[entry.code] ?? entry.defaultAction,
+  ])) as Record<DirectorIssueCode, DirectorIssueAction>;
+}
+
 export const DIRECTOR_ISSUE_POLICY_PRESETS = [
   {
     id: "finish_full_book",
@@ -126,7 +135,7 @@ export const DIRECTOR_ISSUE_POLICY_PRESETS = [
     description: "局部问题处理一次后保留正文并继续，统一留到后续优化。",
     policy: {
       maxAutomaticRetries: 1,
-      issueActions: {
+      issueActions: buildPresetIssueActions({
         "quality.chapter_below_threshold": "continue_with_warning",
         "quality.acceptance_unavailable": "continue_with_warning",
         "quality.obligation_gap": "continue_with_warning",
@@ -134,16 +143,16 @@ export const DIRECTOR_ISSUE_POLICY_PRESETS = [
         "quality.local_replan_failed": "continue_with_warning",
         "quality.loop_exhausted": "continue_with_warning",
         "quality.replan_loop": "continue_with_warning",
-      },
+      }),
     },
   },
   {
     id: "quality_first",
     name: "质量优先",
-    description: "分阶段创作时，局部问题处理一次后仍未解决会暂停；整本自动创作会记录质量债并继续。",
+    description: "局部问题处理一次后仍未解决会暂停，等待你确认后再继续。",
     policy: {
       maxAutomaticRetries: 1,
-      issueActions: {
+      issueActions: buildPresetIssueActions({
         "quality.chapter_below_threshold": "pause_for_manual",
         "quality.acceptance_unavailable": "pause_for_manual",
         "quality.obligation_gap": "pause_for_manual",
@@ -151,7 +160,7 @@ export const DIRECTOR_ISSUE_POLICY_PRESETS = [
         "quality.local_replan_failed": "pause_for_manual",
         "quality.loop_exhausted": "pause_for_manual",
         "quality.replan_loop": "pause_for_manual",
-      },
+      }),
     },
   },
 ] as const satisfies ReadonlyArray<{
@@ -249,18 +258,6 @@ export function resolveDirectorIssueDecision(input: {
     action = entry.exhaustedAction === "continue_with_warning" ? "pause_for_manual" : entry.exhaustedAction;
     locked = true;
     reason = "当前没有可用正文或已保存产物，不能仅记录警告后继续。";
-  }
-
-  if (
-    input.occurrence.runMode === "full_book_autopilot"
-    && entry.category === "quality"
-    && input.occurrence.issueCode !== "quality.replan_required"
-    && input.occurrence.hasUsableOutput
-    && (action === "pause_for_manual" || action === "fail_task")
-  ) {
-    action = "continue_with_warning";
-    locked = true;
-    reason = entry.lockedReason ?? "整本自动导演会把局部质量问题记录为质量债并继续。";
   }
 
   return {

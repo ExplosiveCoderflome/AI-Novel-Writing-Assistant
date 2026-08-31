@@ -40,6 +40,7 @@ export default function StageCandidates({
           fallbackError={controller.executionError}
           onConfirmAndContinue={() => controller.continueMutation.mutate()}
           isConfirmingAndContinuing={controller.continueMutation.isPending}
+          quickRetryLabel="快速重试"
         />
       </section>
     );

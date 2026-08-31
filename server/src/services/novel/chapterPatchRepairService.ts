@@ -25,6 +25,7 @@ export interface ChapterPatchRepairInput {
   chapterTitle: string;
   content: string;
   issues: ReviewIssue[];
+  issuesJson?: string;
   modeHint?: string;
   repairContext?: ChapterRepairContext | null;
   runtimePackage?: ChapterRuntimePackage | null;
@@ -75,7 +76,7 @@ export class ChapterPatchRepairService {
           novelTitle: input.novelTitle,
           chapterTitle: input.chapterTitle,
           chapterContent: input.content,
-          issuesJson: JSON.stringify(input.issues, null, 2),
+          issuesJson: input.issuesJson ?? JSON.stringify(input.issues, null, 2),
           modeHint: input.modeHint,
         },
         contextBlocks,

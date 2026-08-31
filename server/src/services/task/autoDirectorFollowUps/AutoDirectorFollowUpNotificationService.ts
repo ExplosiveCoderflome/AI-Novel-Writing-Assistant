@@ -20,7 +20,6 @@ import {
 } from "./autoDirectorFollowUpEventBuilder";
 import { resolveAutoDirectorFollowUpReason } from "./autoDirectorFollowUpReasonResolver";
 import { extractBlockedAutoDirectorValidationResult } from "./autoDirectorFollowUpValidationResult";
-import type { DirectorRiskAssessment } from "@ai-novel/shared/types/directorRisk";
 
 function isMissingTableError(error: unknown): boolean {
   return typeof error === "object"
@@ -202,65 +201,6 @@ export class AutoDirectorFollowUpNotificationService {
       channelSettings,
       cardTitle: copy.cardTitle,
       reasonLabel: copy.reasonLabel,
-      availableActions: [],
-    });
-  }
-
-  /** Sends one externally configured follow-up when a scored issue crosses a policy threshold. */
-  async notifyRiskAssessment(input: {
-    taskId: string;
-    novelId: string;
-    assessment: DirectorRiskAssessment;
-    pauseRequested: boolean;
-    notificationBand: string;
-  }): Promise<void> {
-    const task = await prisma.novelWorkflowTask.findUnique({
-      where: { id: input.taskId },
-      select: { novel: { select: { title: true } } },
-    }).catch(() => null);
-    const occurredAt = new Date(input.assessment.assessedAt);
-    const snapshot: AutoDirectorEventWorkflowSnapshot = {
-      id: input.taskId,
-      novelId: input.novelId,
-      status: input.pauseRequested ? "waiting_approval" : "running",
-      currentStage: "quality_repair",
-      checkpointType: input.pauseRequested ? "chapter_batch_ready" : null,
-      checkpointSummary: input.assessment.recommendationReason,
-      currentItemLabel: input.assessment.evidenceSummary,
-      pendingManualRecovery: input.pauseRequested,
-      updatedAt: Number.isNaN(occurredAt.getTime()) ? new Date() : occurredAt,
-      novel: { title: task?.novel?.title ?? null },
-    };
-    const event = {
-      ...buildAutoDirectorEvent({
-        eventType: "auto_director.exception",
-        after: {
-          ...deriveAutoDirectorFollowUpState(snapshot)!,
-          reason: input.pauseRequested ? "manual_recovery_required" : "auto_progress_running",
-          reasonLabel: input.pauseRequested ? "自动导演将在安全节点暂停" : "自动导演风险提醒",
-        },
-        occurredAt: snapshot.updatedAt,
-      }),
-      eventId: [input.taskId, input.assessment.issueFingerprint ?? input.assessment.category, input.notificationBand, input.assessment.action].join(":"),
-    };
-    const channelSettings = await getAutoDirectorChannelSettings();
-    const title = input.pauseRequested
-      ? `风险 ${input.assessment.score}/8：将在安全节点暂停`
-      : `风险 ${input.assessment.score}/8：已记录提醒`;
-    await this.notifyDingTalk({
-      event,
-      after: snapshot,
-      channelSettings,
-      cardTitle: title,
-      reasonLabel: input.assessment.recommendationReason,
-      availableActions: [],
-    });
-    await this.notifyWeCom({
-      event,
-      after: snapshot,
-      channelSettings,
-      cardTitle: title,
-      reasonLabel: input.assessment.recommendationReason,
       availableActions: [],
     });
   }

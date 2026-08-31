@@ -86,6 +86,11 @@ export class NovelCoreReviewService {
       issues: review.issues,
       source: options.content ? "repair_recheck" : "manual_review",
       replanRecommendation,
+      terminalAction: replanRecommendation.recommended
+        && replanRecommendation.action === "stop_for_replan"
+        && replanRecommendation.scope === "global_book"
+        ? null
+        : "defer_and_continue",
     });
     await createQualityReport(novelId, chapterId, review.score, review.issues);
 

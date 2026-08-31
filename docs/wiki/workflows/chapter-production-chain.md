@@ -39,10 +39,13 @@
 - writer 仍然整章一次性生成，不按场景多轮拼接正文；但 `sceneCards` 顶层保存的 `ReaderExperienceContract` 会进入默认正文、验收和修复上下文，场景卡本身继续作为规划、诊断和局部修复辅助资产。
 - 正文生成前只做最低可写性检查：章节存在、人物可用、上下文包可组装、任务目标可解释。
 - 生成后用一次结构化接收闸门判断是否可继续、是否需要局部修文、是否需要人工确认。
+- 接收闸门负责输出结构化事实、问题证据、缺失义务和修复可行性；流水线是否继续、暂停或结束，必须由任务启动时冻结的问题策略决定。AI 返回的 `continuePolicy` 只能作为兼容期诊断信号，不能越过用户策略直接改变全书任务状态。
+- 每个新建章节流水线任务都必须在 `GenerationJob.payload` 中保存 `issueGovernanceVersion + issuePolicySnapshot`。自动导演优先冻结工作流任务策略，手动流水线冻结小说当前生效策略；恢复和重试必须继续使用该快照，运行中修改全局或小说策略不能改变已启动任务。
+- 问题动作必须保持终态语义：`pause_for_manual` 保存为 `pendingManualRecovery` 并等待用户恢复，`fail_task` 结束任务且不得伪装成可恢复暂停，`continue_with_warning` 只记录质量债，`auto_retry` 只有在预算和安全重试入口都存在时才允许执行。
 - 接收闸门通过后、构建运行包前，会对最终正文执行一次确定性正文自然度/退化检测。该检测只做本地文本规则检查，覆盖 AI 自述、占位符、工程词泄漏、截断、复读、破折号/省略号、否定翻转句、碎句和长段落等风险；它不调用 LLM，也不改变正文。
 - 正文自然度/退化检测输出统一进入 `mode_fit` 审计报告，issue code 使用 `prose_*` 前缀。`high/critical` 视为本章阻塞审计问题并复用现有 patch repair / heavy repair 链路；`medium/low` 只作为提示和后续局部优化依据，不触发全章重写。
 - `prose_*` 问题默认属于本章局部质量问题。自动修复耗尽后，如果正文仍可读，应登记 `defer_and_continue` 质量债并继续剩余章节；不得仅因为单章正文自然度问题写入 `replanAlertDetails`、`PIPELINE_REPLAN_REQUIRED` 或全局自动导演重规划。
-- 正文接收裁决只等待 `acceptance`。Timeline 不属于 writer required context，也不参与“正文是否可接收”的质量判断；接收结论确定后，统一终态入口必须为当前 content hash 写入 `stable` 或 `degraded` timeline finalization checkpoint，才能释放章节状态。未启用 Timeline 时不得生成“缺少 timeline context”的正文质量告警，而应提交最小降级锚点。
+- 正文接收裁决只等待唯一的 `acceptance` gate。Timeline 不属于 writer required context，也不参与“正文是否可接收”的质量判断；接收服务不得再维护并行的 timeline gate、timeline cache 或伪造通过结果。接收结论确定后，唯一的 `ChapterTimelineFinalizationService` 必须为当前 content hash 写入 `stable` 或 `degraded` checkpoint，才能释放章节状态。未启用 Timeline 时不得生成“缺少 timeline context”的正文质量告警，而应提交最小降级锚点。
 - `acceptance` 门禁必须按同章、同正文 content hash、同模型请求写入持久化幂等缓存。任务取消、失败或 worker 重启后，如果正文未变化，应优先复用成功结果，不能重新触发相同接收评估。
 - 门禁缓存只能保存可复用的成功结果。`acceptance_gate_unavailable` 等临时系统失败不得写成长期成功缓存；这类结果应保留为当前运行风险，允许后续重试。
 - 任何会调用 LLM 的后置抽取或资产回灌，都必须在调用模型前抢占持久化 checkpoint，并把状态标记为 `running`。如果同章、同正文 content hash、同 artifactType 和 syncMode 已有 `running` 或 `succeeded` checkpoint，后续入口必须跳过本次 LLM 调用；失败时把 `running` 标记为 `failed`，允许后续重试。仅依赖服务实例内存锁不能满足任务重启、并发后台入口或上一章兜底补跑场景。
@@ -55,6 +58,7 @@
 - writer prompt 必须包含原始 `chapter.taskSheet`、`reader_experience` 和上一章实际正文尾段。任务单负责执行职责，读者体验合同负责本章回报、主动性、转折、净变化和钩子责任，上一章尾段负责约束开场承接；三者不能被旧摘要挤掉。
 - 续写模式下，writer prompt 必须包含 `continuation_constraints` required context。该块只提炼前作承接约束，例如来源、角色当前状态、终局摘要、关键事实和未完线索；它不能携带大段原文，也不能替代结构规划阶段的参考注入。
 - 续写小说绑定已成功的拆书分析时，章节续写上下文优先消费结构化小节，尤其是 `character_system`、`timeline` 和 `plot_structure`。只有没有可用拆书分析或分析读取失败时，才退回站内小说 / 知识库原文的有限摘要切片。
+- 参考创作新书的拆书内容只服务候选方向和规划阶段，不进入 `continuation_constraints` 或章节事实上下文。章节写作只能消费由规划链生成的新书世界、角色和剧情事实，并通过绑定的写法资产继承表达技法；不得把参考原作的专名、人物关系或具体事件当作新书正史。
 - 规划期参考注入必须内部兜底。`buildReferenceForStage` 读取小说绑定、拆书分析或知识库内容失败时，只记录 warning 并返回空参考文本，不能让开书、规划、卷章拆分或角色规划调用方因为参考资料异常而中断主链路。
 - heavy repair 不能传空 RAG/连续性上下文。修复上下文至少要压缩注入最近章节摘要、上一章尾段、关键 open conflicts、角色硬事实和资源事实，避免修复后引入新的连续性矛盾。
 - 角色硬事实属于生成前必需约束。writer 必须收到 `character_hard_facts` required context，用于约束角色身份、阵营、立场、境界/战力、当前位置、可出场状态和禁止误写项。
@@ -81,15 +85,18 @@
 - 章节义务上下文的结构化提醒不能挤掉高风险资源和逾期伏笔。审阅与修复上下文应保留资源不可用、资源需确认、urgent/overdue payoff 等关键信号，防止 AI 修文在缺少约束的情况下继续使用失效道具或忽略必须兑现的压力。
 - 章节审校和修文上下文必须同时保留 `chapter_boundary` 与 `structure_obligations`。`chapter_boundary` 负责本章进入状态、结束状态、下一章入口、禁止越界和受保护揭露；`structure_obligations` 负责本章必须推进、必须保留、角色出场、目标变化、伏笔兑现和资源风险。审校 prompt 如果缺少这两类上下文，会无法判断“正文是否越界”或“任务是否兑现”，应修 Context Broker / fallback blocks，而不是降低审校标准。
 - 接收闸门必须把未兑现义务输出为结构化 `missingObligations`，并给出 `repairability`：局部漏写用 `patchable_obligation_gap`，需要整章调整用 `rewrite_needed`，章节职责与邻章安排失配才用 `plan_misalignment`。
-- `missingObligations` 需要区分硬阻断与质量债务。`must_hit_now` 和 `forbidden_crossing` 缺口会阻断当前章并进入修复；只影响后续跟进的 payoff、角色露面或目标变化缺口，应优先记录为 `continue_with_risk`，让章节链继续推进，避免把可跟进问题放大成重复 patch。
-- 自动修文默认最多一次；失败后记录待修状态或 repair ticket，不进入无限重试。
-- 局部 patch repair 是轻修优先策略，不是章节任务的唯一修复路径。补丁计划 Schema 校验失败、targetExcerpt 不唯一、targetExcerpt 太短、目标片段缺失或补丁无效时，应转为可恢复的局部修复失败，由上层质量链路升级到整章轻修或记录待修状态，不能直接让自动导演任务以原始 Zod 错误失败。
+- `missingObligations` 需要结合 `repairability` 判断：明确标为 `patchable_obligation_gap` 的缺口必须保留为可修复事实，不能因义务种类较软而被确定性代码改判为 `continue_with_risk`；确实可以后续承接的缺口应由接收闸门直接输出 `continue_with_risk + repairability=none`。
+- 自动修文默认最多一次；失败后保留可用正文，并按统一问题策略形成质量债或人工恢复入口，不进入无限重试。只有真实章节修复问题才能创建修复工单，通用模型或运行时失败不得伪装成修复失败。
+- 局部 patch repair 是轻修模式的唯一正文改写动作。补丁计划 Schema 校验失败、`targetExcerpt` 不唯一或太短、目标片段缺失、补丁无效、模型建议全文重写时，应保留原正文并转为结构化 `quality.local_repair_failed`；任务策略再决定继续、暂停或结束，不能把技术失败直接升级为整章重写。
 - `acceptance_gate_unavailable` 或“章节接收判断不可用”属于审校系统风险，不代表正文中存在可替换片段。若当前待处理问题只包含这类风险，批量章节生产应保留当前正文并记录复查债务，等待重新审校或人工复查；不得调用局部 patch prompt，也不得为了系统风险改写正文。
-- 所有会改正文的修复入口统一遵循同一条修复规则：先尝试 patch repair；patch repair 因 Schema、定位、命中歧义或补丁无效失败时，只允许自动升级一次 `heavy_repair`，不得在两者之间再发起“宽松锚点”等第二轮 patch LLM；成功后统一走保存正文、资产同步、复审与状态更新；失败后手动修复返回真实失败，批量执行与自动导演记录质量债务或 recoverable failure 后继续后续章节。
+- 所有会改正文的修复入口必须遵守任务选定的修复模式：`light_repair / continuity_only / character_only / ending_only` 只允许局部 patch；`heavy_repair` 才允许整章重写。轻修失败不得自动切换模式，整章重写必须来自任务启动时的明确选择或后续人工恢复命令。
+- patch repair 必须同时收到结构化审计问题、`missingObligations` 和 `blockingIssueCodes`，不能只依赖压扁后的自然语言建议猜测缺口。
 - patch repair 的 `targetExcerpt` 必须是正文中唯一可定位的原文片段；`replacement` 表示替换后的内容。删除重复片段时允许 `replacement` 为空字符串，但仍必须满足唯一定位和产生正文变化。
 - 已有正文进入复审或质量修复时，不应先把同一份正文重新保存为 `drafted/generating`。正文未变化时只做审校、必要修复和最终资产同步，避免 UI 更新时间、RAG 队列和章节状态被无意义刷新。
 - 章节执行队列允许移除尚未开始的手动空白章节：它必须仍为 `planned/unplanned`，且没有正文、目标、任务单、场景卡、修复记录或风险标记。删除入口与服务端必须使用同一规则；任何已进入规划、写作、审校或修复链路的章节都不得从此入口删除，以保护已生成内容和下游事实。
-- 自动导演的质量循环预算必须真正影响下一轮修复方式：同一失败签名已经尝试过局部修复后，下一轮章节管线要切到 `heavy_repair`，不能继续硬编码 `light_repair`。
+- 当前执行链不再生产或消费导演层、章节层质量循环预算。修复是否执行以及失败后继续、暂停或结束，统一读取任务问题策略、章节真实修复次数和结构化质量结论；历史 `qualityLoopLedger` 与 `repairHistory` 仅用于旧任务只读投影和诊断。任务快照选择轻修时不得升级动作类型，只有快照明确选择 `heavy_repair` 时才执行整章重写。
+- 质量评估不得通过相同问题签名出现次数，把局部修复依次升级为整章重写、窗口重规划或人工门禁。重复出现的局部问题仍是当前章节质量债；是否暂停由问题策略决定，是否重规划只读取本轮结构化 `stop_for_replan` / `replan_required` 结论。
+- 修复问题数量、影响章节占比和 `large_scope` 等统计标签只能用于诊断展示，不能构成独立停机阈值。只有结构化 `stop_for_replan` / `replan_required`、问题策略明确暂停、无可用正文，或模型、用量、运行安全与数据完整性边界可以停止整本执行。
 - 章节执行失败语义必须区分：正文未生成是 `draft_generation_failed`；正文已生成但未兑现本章义务是 `draft_obligation_unmet`；自动修复后仍有阻塞问题是 `draft_repair_exhausted`；需要调整邻章计划是 `replan_required`。UI 和任务详情应展示真实根因，不再把这些情况统一压成 `chapter.draft.write 未满足其完成标准。`
 - 质量闭环投影必须区分阻塞错误和非阻塞质量债务。`terminalAction=defer_and_continue` 且不是 `replan_required` / `recommendedAction=replan` / `blockingObligations` 的章节，只能作为“已记录质量债务”弱提示，不得驱动主状态进入“出错需处理”或生成 repair ticket；`local_patch_plan` / `continue_with_warning` 只能进入质量债务或局部修复建议通道，不得写入 `replanAlertDetails` 或 `PIPELINE_REPLAN_REQUIRED`；`replan_required` 即使同时带有 `defer_and_continue`，也仍是阻塞重规划。
 - 有可用正文的非阻塞质量债，在持久化状态上应完成降级定稿（`generationState=approved`、`chapterStatus=completed`），并保留质量债风险标记用于后续回收；阅读书架把历史遗留的同类记录投影为“已保存 · 待优化”，不能显示成“审校修复中”。只有结构化 `replan_required` 才显示为“等待重规划”。
@@ -97,6 +104,10 @@
 - `replanRecommendation` 必须携带动作与作用域：`continue_with_warning` 表示只记录提示并继续；`local_patch_plan + local_window` 表示自动重规划当前章之后的未完成窗口并继续；`stop_for_replan + global_book` 才表示需要暂停批量流水线。调用方不得只看 `recommended=true` 或旧的动作名称就停止章节执行。
 - 人工章节审校只负责返回结构化 `qualityAssessment` 与 `replanRecommendation`，并把评估写成可恢复的章节状态。它不得在审校请求内直接调用规划器改写章节窗口；用户显式点击重规划时才进入书级重规划入口，自动生产则只允许 `ChapterQualityClosure` 消费明确的 `stop_for_replan + global_book` 并暂停。
 - 人工审校若得到明确重规划结论，应保留当前正文，把 `recommendedAction=replan` 写入 `riskFlags.qualityLoop`，并落到 `generationState=reviewed + chapterStatus=needs_repair`。这组字段是等待人工确认的章节检查点，不代表正文丢失或整本任务已经失败。
+- 章节待优化项的唯一持久化来源是 `Chapter.riskFlags.qualityLoop`。`QualityReport` / `AuditReport` 是历史审校记录，不能用报告数量推断当前仍有多少质量债；简易模式、专业模式和章节编辑器必须共用 `readChapterQualityDebtDetails` 解析同一份状态。
+- 质量债归因必须分别记录 `repairAttemptsUsed` 与 `repairAttemptsAllowed`。只要自动修复请求真实发起，即使返回可恢复失败也计入已用次数；旧记录缺少该字段时保持“次数未记录”，不得从修复日志或预算层猜测为 0。
+- 简易模式和专业模式可以采用不同信息密度，但必须进入同一章节编辑与重新审校能力。修改或保存正文只更新工作版本，不能清除待优化项；只有重新审校得到 `recommendedAction=continue`，才以新的 `qualityLoop` 结果关闭质量债。
+- 人工重新审校仍有局部问题时，应保存为 `terminalAction=defer_and_continue` 并保留可用正文；只有结构化 `stop_for_replan + global_book` 才能写成阻断重规划。这样手动处理和自动导演遵守同一质量边界。
 - 明确进入 `replan_required` 后，恢复动作只改写章节计划窗口，不重写已保存正文。重规划完成后，章节执行范围必须依据真实正文事实重新定位到第一个未生成章节；不得沿用旧失败任务的单章范围反复推进，也不得把“继续”实现成每章跳过一次相同的计划失配。
 - 逾期 payoff 无论逾期距离、是否落在当前窗口、是否被当前章目标引用，都只能输出 `continue_with_warning`。只有结构化 `nextAction=replan`、人工强制或章节验收确认 `plan_misalignment` 才能输出 `stop_for_replan`；高/严重审计问题输出 `local_patch_plan`，不得停止剩余章节。
 - 无明确目标窗口的 overdue payoff 只能作为账本风险跟进，不能用 `lastTouchedChapterOrder` 或 `firstSeenChapterOrder` 推导逾期距离，也不能锚定旧章节触发 `stop_for_replan`。伏笔账本同步若发现 AI 输出了无 `targetStartChapterOrder`、`targetEndChapterOrder`、`payoffChapterOrder`、`payoffChapterId` 的 overdue，应降级为 `pending_payoff` 并保留 `payoff_missing_progress` 风险信号。
@@ -128,13 +139,13 @@
 - 生成后默认串联 AI 味检测、轻审校、状态抽取、角色资源抽取、伏笔同步等多次 LLM 调用。
 - 长度略超目标就直接失败或截断正文。
 - 给手动单章修复、批量执行、自动导演或 Creative Hub 分别新增独立的 writer、patch repair 或 full rewrite 实现。
-- 把 patch repair 的原始技术错误直接暴露成新的流程分支，例如 `targetExcerpt too_small` 直接终止手动修复，而不是交给统一质量链升级一次全文修复。
+- 把 patch repair 的原始技术错误直接暴露给用户，或在 `targetExcerpt too_small` 等技术失败后无授权地改写整章。
 
 ## 失败模式
 
 - 一章生成耗时异常：检查是否又把多个 LLM 后处理塞回热路径。
 - 同一章重复同步账本或重复 timeline / artifact delta 抽取：检查 content hash checkpoint 是否在 LLM 调用前完成 `running` 抢占，而不是只在调用成功后写 `succeeded`。
-- 修复循环：检查自动修文次数是否被限制，失败是否落到可继续生产的终态，并确认自动导演质量预算是否已经从局部修复升级到整章修复或重规划。
+- 修复循环：检查自动修文次数是否被限制、失败是否落到可继续生产或等待人工的终态，并确认恢复时仍使用原任务策略快照，而不是因读取了新的默认配置再次改变修复模式。
 - 正文出现 AI 自述、占位符、工程词或明显截断：优先检查 runtime package 的 `audit.openIssues` 是否包含 `prose_*` code。若只有 `prose_*` 且没有 `replan_required`、邻章计划失配或不可用正文，应走本章修复或质量债，不应暂停整本自动导演。
 - `chapter.draft.write 未满足其完成标准` 高频出现：先查 runtime package 的 `failureClassification` 和 `obligationCoverage`。如果 root cause 是 `draft_obligation_unmet`，应优先检查接收闸门输出的缺失义务和 patch repair；如果是 `replan_required`，检查是否存在单章职责过载或邻章分工失配。
 - 章节反复要求重规划：检查 `rolling_window_review` 的原因是否只来自生成前的紧急 payoff 或 `advance_payoff`。如果审计分数可通过、正文和 artifact delta 已经体现推进，但 runtime package 仍推荐重规划，说明重规划推荐读取了写前状态而不是写后失败证据。
@@ -182,6 +193,6 @@
 
 自动导演与手动审校的完成标准不同：自动导演首先保证章节连续产出。正文已保存时，审校未通过、自然度检测或伏笔推进不足应进入一次自动修复；修复仍有普通质量债时，以 `defer_and_continue` 记录并继续下一章。质量闭环的终端动作优先于单次推荐动作，不能同时记录“继续生产”和“全局重规划”两个互相冲突的状态。
 
-运行时异常由当前章节自动重试，默认最多两轮。每次重试复用同一章的事实、写作合同和任务游标；如果章节合同缺失或结构不完整，先由 JIT 规划重新补齐，再重新执行正文。只有连续重试后仍没有可用正文，或触发明确 `replan_required`、数据安全错误时，才暂停并生成可恢复检查点。
+运行时异常由当前章节使用问题策略冻结的唯一预算自动重试，最多 1 次。每次重试复用同一章的事实、写作合同和任务游标；如果章节合同缺失或结构不完整，先由 JIT 规划重新补齐，再重新执行正文。只有重试耗尽后仍没有可用正文，或触发明确 `replan_required`、数据安全错误时，才暂停并生成可恢复检查点。
 
 回报窗口尚未结束时，账本只能提供当前章的推进提示；不得将 `overdue` 或内部风险代码注入 `mustAdvance`。这样可以避免第一章因尚未兑现远期回报而提前中断整本自动创作。

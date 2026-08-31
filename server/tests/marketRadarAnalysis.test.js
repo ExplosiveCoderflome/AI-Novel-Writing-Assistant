@@ -2,6 +2,7 @@ const test = require("node:test");
 const assert = require("node:assert/strict");
 
 const {
+  buildMarketBriefRuntimePromptBlock,
   findMarketFoundationAsset,
   parseStoredMarketBriefSelection,
   toMarketFoundationCandidate,
@@ -9,6 +10,7 @@ const {
   selectMarketAnalysisSnapshots,
 } = require("../dist/modules/marketRadar/application/MarketRadarService.js");
 const {
+  marketCreativeBriefSchema,
   marketPlatformDigestSchema,
   marketTrendReportSchema,
 } = require("../dist/prompting/prompts/marketRadar/marketRadar.promptSchemas.js");
@@ -96,6 +98,42 @@ test("market radar schemas reject oversized signal lists", () => {
   }).success, false);
 });
 
+test("market creative brief requires an actionable opening seed", () => {
+  const valid = {
+    summary: "市场信号被整理成一套可直接进入开书流程的创作约束与差异化方向。",
+    promptBlock: "根据用户选择的市场信号创作原创故事。主角、核心优势、开局危机和阶段目标必须互相支撑，并保持题材与推进方式一致。禁止复用榜单作品的专有设定、人名或书名。题材只负责约束故事舞台，推进模式负责持续制造读者回报，金手指必须具备边界与成长空间。",
+    creativeSeed: {
+      openingIdea: "失业工程师醒来后能看见魔法契约的隐藏代价，并在处刑前夺下第一座工坊，用工业方法对抗垄断魔法的贵族。",
+      coreAdvantage: "能识别并改写契约代价，但每次改写都会留下可追踪的魔力印记。",
+      bookSellingPoint: "用工程思维拆解魔法规则，在领地经营中持续兑现技术反差与阶层反击。",
+      first30ChapterPromise: "主角建成第一条魔法生产线，救下首批追随者，并迫使王都公开封锁他的领地。",
+    },
+  };
+
+  assert.equal(marketCreativeBriefSchema.safeParse(valid).success, true);
+  assert.equal(marketCreativeBriefSchema.safeParse({
+    ...valid,
+    creativeSeed: { ...valid.creativeSeed, coreAdvantage: "很强" },
+  }).success, false);
+});
+
+test("market brief runtime context keeps every selected signal and creative seed", () => {
+  const block = buildMarketBriefRuntimePromptBlock("原创约束。", {
+    openingIdea: "工程师在处刑前夺下第一座工坊。",
+    coreAdvantage: "能看见契约隐藏代价。",
+    bookSellingPoint: "工程思维改造魔法产业。",
+    first30ChapterPromise: "建成生产线并对抗王都封锁。",
+  }, [
+    { kind: "advantage", label: "契约代价", summary: "能力存在清晰边界与成长路径。" },
+    { kind: "opening", label: "处刑夺厂", summary: "第一章直接进入生死危机。" },
+  ]);
+
+  assert.match(block, /advantage｜契约代价/);
+  assert.match(block, /opening｜处刑夺厂/);
+  assert.match(block, /金手指 \/ 核心优势：能看见契约隐藏代价/);
+  assert.match(block, /前30章承诺：建成生产线并对抗王都封锁/);
+});
+
 test("market foundation assets reuse explicit ids or normalized names", () => {
   const options = [{ id: "genre-1", name: "都市异能" }];
   assert.equal(findMarketFoundationAsset(options, { existingId: "genre-1", name: "其他名称" })?.id, "genre-1");
@@ -110,6 +148,19 @@ test("market briefs read both legacy signal arrays and unified foundation payloa
   const foundation = { summary: "统一生产底座" };
   assert.deepEqual(parseStoredMarketBriefSelection(JSON.stringify({ signals, productionFoundation: foundation })), {
     signals,
+    creativeSeed: null,
+    productionFoundation: foundation,
+  });
+
+  const creativeSeed = {
+    openingIdea: "开书思路",
+    coreAdvantage: "核心优势",
+    bookSellingPoint: "核心卖点",
+    first30ChapterPromise: "前30章承诺",
+  };
+  assert.deepEqual(parseStoredMarketBriefSelection(JSON.stringify({ signals, creativeSeed, productionFoundation: foundation })), {
+    signals,
+    creativeSeed,
     productionFoundation: foundation,
   });
 });

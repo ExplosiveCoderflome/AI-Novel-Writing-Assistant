@@ -4,6 +4,7 @@ import assert from "node:assert/strict";
 import {
   shouldOpenAutomaticSetupPrompt,
   shouldOpenSetupPromptForRoute,
+  shouldInitializeProviderSelection,
   shouldShowFirstNovelHandoff,
 } from "./creationSetupState.ts";
 
@@ -64,4 +65,19 @@ test("shows the first novel handoff only after automatic configuration succeeds"
     configurationSucceeded: false,
     forceConfiguration: false,
   }), false);
+});
+
+test("does not replace an explicit custom provider choice with the default provider", () => {
+  assert.equal(shouldInitializeProviderSelection({
+    open: true,
+    statusAvailable: true,
+    providerKind: "custom",
+    provider: "",
+  }), false);
+  assert.equal(shouldInitializeProviderSelection({
+    open: true,
+    statusAvailable: true,
+    providerKind: "builtin",
+    provider: "",
+  }), true);
 });

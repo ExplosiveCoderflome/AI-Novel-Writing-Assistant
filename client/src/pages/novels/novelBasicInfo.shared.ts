@@ -36,6 +36,8 @@ export interface NovelBasicFormState {
   sourceKnowledgeDocumentId: string;
   continuationBookAnalysisId: string;
   continuationBookAnalysisSections: BookAnalysisSectionKey[];
+  referenceBookAnalysisId: string;
+  referenceBookAnalysisSections: BookAnalysisSectionKey[];
 }
 
 export interface BasicInfoOption<T extends string> {
@@ -276,6 +278,8 @@ export function createDefaultNovelBasicFormState(): NovelBasicFormState {
     sourceKnowledgeDocumentId: "",
     continuationBookAnalysisId: "",
     continuationBookAnalysisSections: [],
+    referenceBookAnalysisId: "",
+    referenceBookAnalysisSections: [],
   };
 }
 
@@ -296,14 +300,19 @@ export function patchNovelBasicForm(
     next.sourceKnowledgeDocumentId = "";
     next.continuationBookAnalysisId = "";
     next.continuationBookAnalysisSections = [];
-  } else if (next.continuationSourceType === "novel") {
-    next.sourceKnowledgeDocumentId = "";
-  } else if (next.continuationSourceType === "knowledge_document") {
-    next.sourceNovelId = "";
+  } else {
+    next.referenceBookAnalysisId = "";
+    next.referenceBookAnalysisSections = [];
+    if (next.continuationSourceType === "novel") {
+      next.sourceKnowledgeDocumentId = "";
+    } else if (next.continuationSourceType === "knowledge_document") {
+      next.sourceNovelId = "";
+    }
   }
   if (
     patch.continuationSourceType !== undefined
     && patch.continuationSourceType !== previous.continuationSourceType
+    && patch.continuationBookAnalysisId === undefined
   ) {
     next.continuationBookAnalysisId = "";
     next.continuationBookAnalysisSections = [];
@@ -312,6 +321,7 @@ export function patchNovelBasicForm(
     next.continuationSourceType === "novel"
     && patch.sourceNovelId !== undefined
     && patch.sourceNovelId !== previous.sourceNovelId
+    && patch.continuationBookAnalysisId === undefined
   ) {
     next.continuationBookAnalysisId = "";
     next.continuationBookAnalysisSections = [];
@@ -320,6 +330,7 @@ export function patchNovelBasicForm(
     next.continuationSourceType === "knowledge_document"
     && patch.sourceKnowledgeDocumentId !== undefined
     && patch.sourceKnowledgeDocumentId !== previous.sourceKnowledgeDocumentId
+    && patch.continuationBookAnalysisId === undefined
   ) {
     next.continuationBookAnalysisId = "";
     next.continuationBookAnalysisSections = [];
@@ -380,6 +391,12 @@ export function buildNovelCreatePayload(basicForm: NovelBasicFormState) {
         && basicForm.continuationBookAnalysisId
         ? (basicForm.continuationBookAnalysisSections.length > 0 ? basicForm.continuationBookAnalysisSections : undefined)
         : undefined,
+    referenceBookAnalysisId:
+      basicForm.writingMode === "original" ? (basicForm.referenceBookAnalysisId || undefined) : undefined,
+    referenceBookAnalysisSections:
+      basicForm.writingMode === "original" && basicForm.referenceBookAnalysisId
+        ? (basicForm.referenceBookAnalysisSections.length > 0 ? basicForm.referenceBookAnalysisSections : undefined)
+        : undefined,
   };
 }
 
@@ -433,6 +450,12 @@ export function buildNovelUpdatePayload(basicForm: NovelBasicFormState) {
         )
         && basicForm.continuationBookAnalysisId
         ? (basicForm.continuationBookAnalysisSections.length > 0 ? basicForm.continuationBookAnalysisSections : null)
+        : null,
+    referenceBookAnalysisId:
+      basicForm.writingMode === "original" ? (basicForm.referenceBookAnalysisId || null) : null,
+    referenceBookAnalysisSections:
+      basicForm.writingMode === "original" && basicForm.referenceBookAnalysisId
+        ? (basicForm.referenceBookAnalysisSections.length > 0 ? basicForm.referenceBookAnalysisSections : null)
         : null,
   };
 }

@@ -5,7 +5,6 @@ import { runTextPrompt } from "../../../../prompting/core/promptRunner";
 import { buildChapterRepairContextBlocks } from "../../../../prompting/prompts/novel/chapterLayeredContext";
 import { chapterRepairPrompt } from "../../../../prompting/prompts/novel/review.prompts";
 import {
-  ChapterPatchRepairFailedError,
   ChapterPatchRepairService,
   type PatchRepairMode,
 } from "../../chapterPatchRepairService";
@@ -27,7 +26,6 @@ export interface PrepareChapterRepairExecutionInput {
   runtimePackage?: ChapterRuntimePackage | null;
   repairContext?: ChapterRepairContext | null;
   bibleContent?: string | null;
-  forceFullRewrite?: boolean;
   options: ChapterRepairExecutionOptions;
 }
 
@@ -61,24 +59,18 @@ export type PreparedChapterRepairExecution =
       issues: ReviewIssue[];
       finalRepairMode: PatchRepairMode;
       modeHint: string;
-      escalatedFromPatch: false;
-      patchFailure: null;
     }
   | {
       kind: "heavy_repair";
       issues: ReviewIssue[];
       finalRepairMode: "heavy_repair";
       modeHint: string;
-      escalatedFromPatch: boolean;
-      patchFailure: ChapterPatchRepairFailedError | null;
       prompt: ChapterHeavyRepairPromptRequest;
     };
 
 export interface ExecutedChapterRepair {
   content: string;
   finalRepairMode: PatchRepairMode;
-  escalatedFromPatch: boolean;
-  patchFailure: ChapterPatchRepairFailedError | null;
 }
 
 function normalizeRepairIssues(issues: ReviewIssue[]): ReviewIssue[] {
@@ -197,84 +189,34 @@ export async function prepareChapterRepairExecution(
 ): Promise<PreparedChapterRepairExecution> {
   const issues = normalizeRepairIssues(input.issues);
   const issueCodes = resolveIssueCodes(input.runtimePackage);
-  let activeRepairMode = input.options.repairMode ?? "light_repair";
-  let modeHint = getRepairModeHint(activeRepairMode, issueCodes);
+  const activeRepairMode = input.options.repairMode ?? "light_repair";
+  const modeHint = getRepairModeHint(activeRepairMode, issueCodes);
 
-  if (input.forceFullRewrite && activeRepairMode !== "heavy_repair") {
-    activeRepairMode = "heavy_repair";
-    modeHint = getRepairModeHint(activeRepairMode, issueCodes);
-  }
-
-  if (!input.forceFullRewrite && activeRepairMode !== "heavy_repair") {
+  if (activeRepairMode !== "heavy_repair") {
     const patchRepairService = new ChapterPatchRepairService();
-    try {
-      const patched = await patchRepairService.repair({
-        novelId: input.novelId,
-        chapterId: input.chapterId,
-        novelTitle: input.novelTitle,
-        chapterTitle: input.chapterTitle,
-        content: input.content,
-        issues,
-        runtimePackage: input.runtimePackage,
-        repairContext: input.repairContext,
-        provider: input.options.provider,
-        model: input.options.model,
-        temperature: input.options.temperature,
-        repairMode: activeRepairMode,
-        modeHint,
-      });
-      return {
-        kind: "patched",
-        content: patched.content,
-        issues,
-        finalRepairMode: activeRepairMode,
-        modeHint,
-        escalatedFromPatch: false,
-        patchFailure: null,
-      };
-    } catch (error) {
-      if (!(error instanceof ChapterPatchRepairFailedError)) {
-        throw error;
-      }
-      if (activeRepairMode === "detect_only") {
-        throw error;
-      }
-
-      activeRepairMode = "heavy_repair";
-      modeHint = getRepairModeHint(activeRepairMode, issueCodes);
-      return {
-        kind: "heavy_repair",
-        issues,
-        finalRepairMode: activeRepairMode,
-        modeHint,
-        escalatedFromPatch: true,
-        patchFailure: error,
-        prompt: {
-          promptInput: {
-            novelTitle: input.novelTitle,
-            bibleContent: resolveBibleContent(input),
-            chapterTitle: input.chapterTitle,
-            chapterContent: input.content,
-            issuesJson: buildRepairIssuesPayload(issues, input.runtimePackage),
-            ragContext: buildRepairRagContext(input),
-            modeHint,
-          },
-          contextBlocks: resolveRepairContext(input)
-            ? buildChapterRepairContextBlocks(resolveRepairContext(input) as ChapterRepairContext)
-            : undefined,
-          options: {
-            provider: input.options.provider,
-            model: input.options.model,
-            temperature: Math.min(input.options.temperature ?? 0.55, 0.65),
-            novelId: input.novelId,
-            chapterId: input.chapterId,
-            stage: "chapter_repair",
-            triggerReason: activeRepairMode,
-          },
-          fallbackContent: input.content,
-        },
-      };
-    }
+    const patched = await patchRepairService.repair({
+      novelId: input.novelId,
+      chapterId: input.chapterId,
+      novelTitle: input.novelTitle,
+      chapterTitle: input.chapterTitle,
+      content: input.content,
+      issues,
+      issuesJson: buildRepairIssuesPayload(issues, input.runtimePackage),
+      runtimePackage: input.runtimePackage,
+      repairContext: input.repairContext,
+      provider: input.options.provider,
+      model: input.options.model,
+      temperature: input.options.temperature,
+      repairMode: activeRepairMode,
+      modeHint,
+    });
+    return {
+      kind: "patched",
+      content: patched.content,
+      issues,
+      finalRepairMode: activeRepairMode,
+      modeHint,
+    };
   }
 
   return {
@@ -282,8 +224,6 @@ export async function prepareChapterRepairExecution(
     issues,
     finalRepairMode: "heavy_repair",
     modeHint,
-    escalatedFromPatch: false,
-    patchFailure: null,
     prompt: {
       promptInput: {
         novelTitle: input.novelTitle,
@@ -335,8 +275,6 @@ export async function runChapterRepairText(
     return {
       content: prepared.content,
       finalRepairMode: prepared.finalRepairMode,
-      escalatedFromPatch: false,
-      patchFailure: null,
     };
   }
 
@@ -344,8 +282,6 @@ export async function runChapterRepairText(
   return {
     content: repaired.output.trim() || prepared.prompt.fallbackContent,
     finalRepairMode: prepared.finalRepairMode,
-    escalatedFromPatch: prepared.escalatedFromPatch,
-    patchFailure: prepared.patchFailure,
   };
 }
 

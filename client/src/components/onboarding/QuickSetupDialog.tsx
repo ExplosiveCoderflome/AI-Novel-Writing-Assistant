@@ -28,7 +28,10 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 import { useLLMStore } from "@/store/llmStore";
-import { shouldShowFirstNovelHandoff } from "./creationSetupState";
+import {
+  shouldInitializeProviderSelection,
+  shouldShowFirstNovelHandoff,
+} from "./creationSetupState";
 
 interface QuickSetupDialogProps {
   open: boolean;
@@ -100,9 +103,15 @@ export default function QuickSetupDialog(props: QuickSetupDialogProps) {
     : selectedProvider?.models ?? [];
 
   useEffect(() => {
-    if (!props.open || form.provider || !props.status) {
+    if (!shouldInitializeProviderSelection({
+      open: props.open,
+      statusAvailable: Boolean(props.status),
+      providerKind: form.providerKind,
+      provider: form.provider,
+    })) {
       return;
     }
+    if (!props.status) return;
     const preferred = props.status.providers.find(
       (provider) => provider.id === props.status?.selectedProvider,
     ) ?? props.status.providers.find((provider) => provider.id === "deepseek")
@@ -116,7 +125,7 @@ export default function QuickSetupDialog(props: QuickSetupDialogProps) {
       baseURL: preferred.currentBaseURL || preferred.defaultBaseURL,
       model: preferred.currentModel || preferred.defaultModel,
     });
-  }, [form.provider, props.open, props.status]);
+  }, [form.provider, form.providerKind, props.open, props.status]);
 
   const completeMutation = useMutation({
     mutationFn: (payload: CompleteQuickSetupRequest) => completeQuickSetup(payload),
@@ -352,8 +361,8 @@ export default function QuickSetupDialog(props: QuickSetupDialogProps) {
                 )}
                 onClick={() => chooseCustom(true)}
               >
-                <div className="flex items-center gap-2 font-semibold"><ServerCog className="h-4 w-4" /> 配置自定义兼容接口 <ArrowRight className="h-4 w-4" /></div>
-                <div className="mt-2 text-xs leading-5 text-muted-foreground">填写厂商名称、接口地址和模型，适合中转服务、本地网关或 OpenAI 兼容地址。</div>
+                <div className="flex items-center gap-2 font-semibold"><ServerCog className="h-4 w-4" /> 添加第三方厂商 <ArrowRight className="h-4 w-4" /></div>
+                <div className="mt-2 text-xs leading-5 text-muted-foreground">新增一份独立的厂商配置，适合中转服务、本地网关或 OpenAI 兼容接口。</div>
               </button>
             </div>
             {showAllProviderChoices ? (
@@ -365,8 +374,11 @@ export default function QuickSetupDialog(props: QuickSetupDialogProps) {
         ) : step === 2 ? (
           <div className="space-y-5">
             <div>
-              <h3 className="font-semibold">连接 {form.providerKind === "custom" ? form.customProviderName || "自定义厂商" : selectedProvider?.name}</h3>
+              <h3 className="font-semibold">{form.providerKind === "custom" ? "添加第三方厂商" : `连接 ${selectedProvider?.name ?? "模型厂商"}`}</h3>
               <p className="mt-1 text-sm text-muted-foreground">API Key 只会保存到本机或服务端密钥存储，不会显示在完成结果中。</p>
+              {form.providerKind === "custom" ? (
+                <p className="mt-1 text-xs text-muted-foreground">厂商名称、API 地址和模型将保存为独立配置，不会覆盖已有内置厂商。</p>
+              ) : null}
             </div>
             {form.providerKind === "custom" ? (
               <label className="block space-y-1.5">

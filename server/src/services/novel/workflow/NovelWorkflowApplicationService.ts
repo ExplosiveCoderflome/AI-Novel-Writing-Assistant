@@ -421,7 +421,11 @@ export class NovelWorkflowApplicationService {
     });
   }
 
-  async requeueTaskForRecovery(taskId: string, message: string) {
+  async requeueTaskForRecovery(
+    taskId: string,
+    message: string,
+    patch?: Partial<SyncWorkflowStageInput>,
+  ) {
     const existing = await this.workflow.getTaskById(taskId);
     if (!existing) {
       throw new AppError("Task not found.", 404);
@@ -435,6 +439,11 @@ export class NovelWorkflowApplicationService {
         cancelRequestedAt: null,
         heartbeatAt: null,
         lastError: message.trim(),
+        currentStage: patch?.stage ? stageLabel(patch.stage) : existing.currentStage,
+        currentItemKey: patch?.itemKey ?? existing.currentItemKey,
+        currentItemLabel: patch?.itemLabel ?? existing.currentItemLabel,
+        checkpointType: patch?.checkpointType ?? existing.checkpointType,
+        checkpointSummary: patch?.checkpointSummary ?? existing.checkpointSummary,
       },
     });
   }

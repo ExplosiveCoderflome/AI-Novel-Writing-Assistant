@@ -1,8 +1,8 @@
 import { useEffect } from "react";
 
-const DEFAULT_TITLE = "AI 小说创作工作台 · 从一句灵感到一整本小说";
+const DEFAULT_TITLE = "AI 小说创作工作台 · 从灵感、趋势或参考作品到整本小说";
 const DEFAULT_DESCRIPTION =
-  "AI 小说创作工作台是面向长篇小说的 AI Native 开源生产系统：自动导演、世界观、角色、拆章、章节执行和质量修复串成一条可暂停可恢复的长篇生产链，帮助新手把想法推进到完整成书。";
+  "从灵感、公开榜单或参考作品开书，让自动导演准备世界、角色和卷章任务，再选择简易创作持续推进或进入专业工作台接管；失败可从已保存进度恢复。";
 const CANONICAL_BASE = "https://explosivecoderflome.github.io/AI-Novel-Writing-Assistant/";
 
 function ensureMeta(selector: string, attribute: "name" | "property", key: string) {

@@ -1,4 +1,3 @@
-import crypto from "node:crypto";
 import type {
   DirectorCommandAcceptedResponse,
   DirectorRuntimePolicyUpdateRequest,
@@ -6,6 +5,8 @@ import type {
   DirectorRunCommandType,
 } from "@ai-novel/shared/types/directorRuntime";
 import type {
+  DirectorCandidate,
+  DirectorCandidateBatch,
   DirectorCandidatePatchRequest,
   DirectorCandidateTitleRefineRequest,
   DirectorCandidatesRequest,
@@ -15,6 +16,7 @@ import type {
   DirectorTakeoverRequest,
   DirectorStepCalibrationRequest,
 } from "@ai-novel/shared/types/novelDirector";
+import { normalizeCommercialTags } from "@ai-novel/shared/types/novelFraming";
 import { prisma } from "../../../../db/prisma";
 import { withSqliteRetry } from "../../../../db/sqliteRetry";
 import { AppError } from "../../../../middleware/errorHandler";
@@ -60,7 +62,121 @@ const EXECUTION_COMMAND_TYPES: DirectorRunCommandType[] = [
 
 export type DirectorRunCommandRow = Awaited<ReturnType<DirectorCommandService["getCommandById"]>>;
 
-const CANCELLED_COMMAND_MESSAGE = "自动导演任务已取消。";
+const UNICODE_REPLACEMENT_CHARACTER = "\uFFFD";
+
+interface ConfirmTaskSeedPayload extends Record<string, unknown> {
+  idea?: unknown;
+  basicForm?: Record<string, unknown>;
+  batches?: DirectorCandidateBatch[];
+  candidate?: unknown;
+  commercialTags?: unknown;
+  directorInput?: {
+    candidate?: unknown;
+  };
+  styleIntentSummary?: unknown;
+}
+
+function containsUnicodeReplacementCharacter(value: unknown): boolean {
+  if (typeof value === "string") {
+    return value.includes(UNICODE_REPLACEMENT_CHARACTER);
+  }
+  if (Array.isArray(value)) {
+    return value.some(containsUnicodeReplacementCharacter);
+  }
+  if (value && typeof value === "object") {
+    return Object.values(value as Record<string, unknown>).some(containsUnicodeReplacementCharacter);
+  }
+  return false;
+}
+
+function recoverText(value: string | undefined, ...fallbacks: unknown[]): string | undefined {
+  if (!containsUnicodeReplacementCharacter(value)) {
+    return value;
+  }
+  return fallbacks.find((fallback): fallback is string => (
+    typeof fallback === "string" && !containsUnicodeReplacementCharacter(fallback)
+  )) ?? value;
+}
+
+function findAuthoritativeCandidate(
+  seed: ConfirmTaskSeedPayload,
+  input: DirectorConfirmRequest,
+): DirectorCandidate | null {
+  const batches = Array.isArray(seed.batches) ? seed.batches : [];
+  const preferredBatch = input.batchId
+    ? batches.find((batch) => batch.id === input.batchId)
+    : null;
+  const batchCandidate = input.batchId
+    ? preferredBatch?.candidates.find((candidate) => candidate.id === input.candidate.id) ?? null
+    : batches.flatMap((batch) => batch.candidates).find((candidate) => candidate.id === input.candidate.id) ?? null;
+  if (batches.length > 0 && !batchCandidate) {
+    return null;
+  }
+  const previouslyConfirmedCandidate = [seed.candidate, seed.directorInput?.candidate]
+    .find((candidate): candidate is DirectorCandidate => Boolean(
+      candidate
+      && typeof candidate === "object"
+      && !Array.isArray(candidate)
+      && (candidate as { id?: unknown }).id === input.candidate.id
+      && !containsUnicodeReplacementCharacter(candidate),
+    ));
+  return previouslyConfirmedCandidate ?? batchCandidate;
+}
+
+function resolveConfirmRequestFromTaskSeed(
+  input: DirectorConfirmRequest,
+  seedPayloadJson: string | null | undefined,
+): DirectorConfirmRequest {
+  const seed = parseSeedPayload<ConfirmTaskSeedPayload>(seedPayloadJson) ?? {};
+  const basicForm = seed.basicForm ?? {};
+  const batches = Array.isArray(seed.batches) ? seed.batches : [];
+  const authoritativeCandidate = findAuthoritativeCandidate(seed, input);
+  if (batches.length > 0 && !authoritativeCandidate) {
+    throw new AppError("所选书级方向与任务记录不一致，请刷新候选方案后重新确认。", 409);
+  }
+
+  const candidate = authoritativeCandidate
+    ? {
+        ...authoritativeCandidate,
+        workingTitle: recoverText(
+          input.candidate.workingTitle,
+          authoritativeCandidate.workingTitle,
+        ) ?? authoritativeCandidate.workingTitle,
+      }
+    : input.candidate;
+  const commercialTags = containsUnicodeReplacementCharacter(input.commercialTags)
+    ? [seed.commercialTags, basicForm.commercialTagsText]
+        .map((value) => normalizeCommercialTags(value as string | string[] | null | undefined))
+        .find((value) => value.length > 0 && !containsUnicodeReplacementCharacter(value))
+        ?? input.commercialTags
+    : input.commercialTags;
+  const styleIntentSummary = containsUnicodeReplacementCharacter(input.styleIntentSummary)
+    && !containsUnicodeReplacementCharacter(seed.styleIntentSummary)
+    ? seed.styleIntentSummary as DirectorConfirmRequest["styleIntentSummary"]
+    : input.styleIntentSummary;
+  const normalized: DirectorConfirmRequest = {
+    ...input,
+    candidate,
+    idea: recoverText(input.idea, seed.idea, basicForm.description, batches.at(-1)?.idea) ?? input.idea,
+    title: recoverText(input.title, seed.title, basicForm.title),
+    description: recoverText(input.description, seed.description, basicForm.description),
+    targetAudience: recoverText(input.targetAudience, seed.targetAudience, basicForm.targetAudience),
+    bookSellingPoint: recoverText(input.bookSellingPoint, seed.bookSellingPoint, basicForm.bookSellingPoint),
+    competingFeel: recoverText(input.competingFeel, seed.competingFeel, basicForm.competingFeel),
+    first30ChapterPromise: recoverText(
+      input.first30ChapterPromise,
+      seed.first30ChapterPromise,
+      basicForm.first30ChapterPromise,
+    ),
+    commercialTags,
+    styleTone: recoverText(input.styleTone, seed.styleTone, basicForm.styleTone),
+    styleIntentSummary,
+  };
+  if (containsUnicodeReplacementCharacter(normalized)) {
+    throw new AppError("书级方向包含无法还原的异常字符，请刷新候选方案后重新确认。", 400);
+  }
+  return normalized;
+}
 
 export class DirectorCommandService {
   constructor(private readonly workflowService = new NovelWorkflowService()) {}
@@ -139,7 +255,13 @@ export class DirectorCommandService {
   }
 
   async enqueueConfirmCandidateCommand(input: DirectorConfirmRequest): Promise<DirectorCommandAcceptedResponse> {
-    const confirmedInput = applyDirectorRunModeContract(input);
+    const existingTask = input.workflowTaskId?.trim()
+      ? await this.workflowService.getTaskByIdWithoutHealing(input.workflowTaskId.trim())
+      : null;
+    const confirmedInput = applyDirectorRunModeContract(resolveConfirmRequestFromTaskSeed(
+      input,
+      existingTask?.seedPayloadJson,
+    ));
     const runMode = confirmedInput.runMode;
     const task = await this.workflowService.bootstrapTask({
       workflowTaskId: input.workflowTaskId,
@@ -342,7 +464,7 @@ export class DirectorCommandService {
         errorMessage: "用户请求取消自动导演任务。",
       },
     });
-    await this.closeCancelledTaskRuntimeState(taskId, new Date());
+    await new DirectorCommandLeaseService(this.workflowService).closeCancelledTaskRuntimeState(taskId, new Date());
     const now = new Date();
     const command = await withSqliteRetry(() => prisma.directorRunCommand.create({
       data: {
@@ -490,187 +612,27 @@ export class DirectorCommandService {
     workerId: string;
     leaseMs: number;
   }) {
-    const now = new Date();
-    const leaseExpiresAt = new Date(now.getTime() + input.leaseMs);
-    const candidate = await prisma.directorRunCommand.findFirst({
-      where: {
-        status: "queued",
-        runAfter: { lte: now },
-      },
-      orderBy: [{ runAfter: "asc" }, { createdAt: "asc" }, { id: "asc" }],
-    });
-    if (!candidate) {
-      return null;
-    }
-    const claimed = await prisma.directorRunCommand.updateMany({
-      where: {
-        id: candidate.id,
-        status: "queued",
-      },
-      data: {
-        status: "leased",
-        leaseOwner: input.workerId,
-        leaseExpiresAt,
-        attempt: { increment: 1 },
-      },
-    });
-    if (claimed.count !== 1) {
-      return null;
-    }
-    return this.getCommandById(candidate.id);
+    return new DirectorCommandLeaseService(this.workflowService).leaseNextCommand(input);
   }
 
   async markCommandRunning(commandId: string, workerId: string, leaseMs: number) {
-    const now = new Date();
-    await prisma.directorRunCommand.updateMany({
-      where: {
-        id: commandId,
-        leaseOwner: workerId,
-        status: { in: ["leased", "running"] },
-      },
-      data: {
-        status: "running",
-        startedAt: now,
-        leaseExpiresAt: new Date(now.getTime() + leaseMs),
-      },
-    });
+    return new DirectorCommandLeaseService(this.workflowService).markCommandRunning(commandId, workerId, leaseMs);
   }
 
   async renewLease(commandId: string, workerId: string, leaseMs: number): Promise<boolean> {
-    const updated = await prisma.directorRunCommand.updateMany({
-      where: {
-        id: commandId,
-        leaseOwner: workerId,
-        status: { in: ["leased", "running"] },
-      },
-      data: {
-        leaseExpiresAt: new Date(Date.now() + leaseMs),
-      },
-    });
-    return updated.count === 1;
+    return new DirectorCommandLeaseService(this.workflowService).renewLease(commandId, workerId, leaseMs);
   }
 
   async markCommandSucceeded(commandId: string, workerId: string): Promise<void> {
-    await prisma.directorRunCommand.updateMany({
-      where: {
-        id: commandId,
-        leaseOwner: workerId,
-        status: { in: ["leased", "running"] },
-      },
-      data: {
-        status: "succeeded",
-        leaseExpiresAt: null,
-        finishedAt: new Date(),
-        errorMessage: null,
-      },
-    });
+    return new DirectorCommandLeaseService(this.workflowService).markCommandSucceeded(commandId, workerId);
   }
 
   async markCommandCancelled(commandId: string, workerId: string): Promise<void> {
-    const finishedAt = new Date();
-    const updated = await prisma.directorRunCommand.updateMany({
-      where: {
-        id: commandId,
-        leaseOwner: workerId,
-        status: { in: ["leased", "running"] },
-      },
-      data: {
-        status: "cancelled",
-        leaseExpiresAt: null,
-        finishedAt,
-        errorMessage: CANCELLED_COMMAND_MESSAGE,
-      },
-    });
-    if (updated.count !== 1) {
-      return;
-    }
-    const command = await this.getCommandById(commandId);
-    if (command) {
-      await this.closeCancelledTaskRuntimeState(command.taskId, finishedAt);
-    }
+    return new DirectorCommandLeaseService(this.workflowService).markCommandCancelled(commandId, workerId);
   }
 
   async markCommandFailed(commandId: string, workerId: string, error: unknown): Promise<void> {
-    const message = error instanceof Error ? error.message : String(error);
-    const failedAt = new Date();
-    const updated = await prisma.directorRunCommand.updateMany({
-      where: {
-        id: commandId,
-        leaseOwner: workerId,
-        status: { in: ["leased", "running"] },
-      },
-      data: {
-        status: "failed",
-        leaseExpiresAt: null,
-        finishedAt: failedAt,
-        errorMessage: message,
-      },
-    });
-    if (updated.count !== 1) {
-      return;
-    }
-    const command = await this.getCommandById(commandId);
-    if (!command) {
-      return;
-    }
-    await prisma.directorStepRun.updateMany({
-      where: {
-        taskId: command.taskId,
-        status: "running",
-      },
-      data: {
-        status: "failed",
-        finishedAt: failedAt,
-        error: message,
-      },
-    }).catch(() => null);
-    await this.workflowService.requeueTaskForRecovery(command.taskId, message)
-      .catch(() => null);
-  }
-
-  private async closeCancelledTaskRuntimeState(taskId: string, now: Date): Promise<void> {
-    await prisma.directorStepRun.updateMany({
-      where: {
-        taskId,
-        status: "running",
-      },
-      data: {
-        status: "failed",
-        finishedAt: now,
-        error: CANCELLED_COMMAND_MESSAGE,
-      },
-    }).catch(() => null);
-    await prisma.generationJob.updateMany({
-      where: {
-        status: { in: ["queued", "running"] },
-        payload: { contains: taskId },
-      },
-      data: {
-        status: "cancelled",
-        cancelRequestedAt: now,
-        finishedAt: now,
-        error: CANCELLED_COMMAND_MESSAGE,
-      },
-    }).catch(() => null);
-    const run = await prisma.directorRun.findUnique({
-      where: { taskId },
-      select: { id: true, novelId: true },
-    }).catch(() => null);
-    if (!run) {
-      return;
-    }
-    await prisma.directorEvent.create({
-      data: {
-        id: `${taskId}:run_cancelled:${crypto.randomUUID()}`,
-        runId: run.id,
-        taskId,
-        novelId: run.novelId,
-        type: "run_cancelled",
-        summary: "自动导演已停止，后台运行状态已收束。",
-        severity: "low",
-        occurredAt: now,
-      },
-    }).catch(() => null);
+    return new DirectorCommandLeaseService(this.workflowService).markCommandFailed(commandId, workerId, error);
   }
 
   parseCommandPayload(command: NonNullable<DirectorRunCommandRow>): DirectorCommandPayload {

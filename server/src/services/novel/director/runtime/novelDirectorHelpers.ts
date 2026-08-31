@@ -528,6 +528,8 @@ export function buildWorkflowSeedPayload(
     sourceKnowledgeDocumentId: input.sourceKnowledgeDocumentId ?? "",
     continuationBookAnalysisId: input.continuationBookAnalysisId ?? "",
     continuationBookAnalysisSections: input.continuationBookAnalysisSections ?? [],
+    referenceBookAnalysisId: input.referenceBookAnalysisId ?? "",
+    referenceBookAnalysisSections: input.referenceBookAnalysisSections ?? [],
   };
   const autoApproval = Object.prototype.hasOwnProperty.call(input, "autoApproval")
     ? normalizeDirectorAutoApprovalConfig(input.autoApproval)
