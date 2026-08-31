@@ -523,13 +523,6 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return Boolean(value && typeof value === "object" && !Array.isArray(value));
 }
 
-function isQualityBudgetNextAction(value: unknown): value is DirectorQualityLoopBudgetNextAction {
-  return value === "auto_patch_repair"
-    || value === "auto_rewrite_chapter"
-    || value === "auto_replan_window"
-    || value === "defer_and_continue";
-}
-
 function readFiniteNumber(value: unknown): number | null {
   return typeof value === "number" && Number.isFinite(value) ? value : null;
 }
@@ -612,8 +605,8 @@ function buildQualityDebtSummary(
 function formatQualityBudgetNextAction(action: DirectorQualityLoopBudgetNextAction): string {
   const labels: Record<DirectorQualityLoopBudgetNextAction, string> = {
     auto_patch_repair: "先尝试局部修复",
-    auto_rewrite_chapter: "改用整章重写",
-    auto_replan_window: "重规划受影响章节",
+    auto_rewrite_chapter: "登记为质量待回收并等待明确处理",
+    auto_replan_window: "按明确的重规划结论处理",
     defer_and_continue: "登记为质量待回收并继续后续章节",
   };
   return labels[action];
@@ -631,16 +624,10 @@ function buildQualityBudgetSummary(
       return {
         event,
         entry,
-        nextAction: isQualityBudgetNextAction(event.metadata?.qualityBudgetNextAction)
-          ? event.metadata.qualityBudgetNextAction
-          : resolveDirectorQualityLoopBudgetNextAction(entry),
+        nextAction: resolveDirectorQualityLoopBudgetNextAction(entry),
       };
     })
-    .filter((item): item is {
-      event: DirectorEvent;
-      entry: DirectorQualityLoopBudgetEntry;
-      nextAction: DirectorQualityLoopBudgetNextAction;
-    } => Boolean(item))
+    .filter((item): item is NonNullable<typeof item> => item !== null)
     .sort((left, right) => timestampOf(right.event.occurredAt) - timestampOf(left.event.occurredAt));
   const latest = budgetEvents[0];
   if (!latest) {
@@ -648,6 +635,7 @@ function buildQualityBudgetSummary(
   }
   const { entry, nextAction } = latest;
   const nextActionLabel = formatQualityBudgetNextAction(nextAction);
+  const automaticRepairUsed = Math.min(1, entry.patchRepairCount + entry.chapterRewriteCount);
   const currentChapterOrder = entry.lastChapterOrder
     ?? readFiniteNumber(latest.event.metadata?.chapterOrder)
     ?? (entry.affectedChapterWindow.chapterOrders ?? [])[0]
@@ -664,7 +652,7 @@ function buildQualityBudgetSummary(
     deferredCount: entry.deferredCount,
     nextAction,
     nextActionLabel,
-    explanation: `质量预算：局部修复 ${entry.patchRepairCount}/1，整章重写 ${entry.chapterRewriteCount}/1，窗口重规划 ${entry.windowReplanCount}/1；同类问题下一步会${nextActionLabel}。`,
+    explanation: `自动处理：本章修复 ${automaticRepairUsed}/1，窗口重规划 ${Math.min(1, entry.windowReplanCount)}/1；同类问题下一步会${nextActionLabel}。`,
   };
 }
 

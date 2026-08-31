@@ -119,3 +119,34 @@ test("quality loop budget keeps different issue signatures independent", () => {
   assert.equal(differentEntry, null);
 });
 
+test("quality loop budget defers after one patch repair without hidden rewrite escalation", () => {
+  const state = buildState();
+  const affectedChapterWindow = buildDirectorQualityLoopBudgetWindow({
+    autoExecution: state,
+    chapterId: "chapter-6",
+    chapterOrder: 6,
+  });
+  const issueSignature = buildDirectorQualityLoopIssueSignature({
+    noticeCode: "PIPELINE_QUALITY_REVIEW",
+    riskLevel: "medium",
+    repairMode: "light_repair",
+    reason: "第 6 章局部承接不足",
+  });
+
+  assert.equal(resolveDirectorQualityLoopBudgetNextAction(null), "auto_patch_repair");
+  const result = recordDirectorQualityLoopBudgetAttempt({
+    state,
+    novelId: "novel-1",
+    taskId: "task-1",
+    issueSignature,
+    affectedChapterWindow,
+    action: "patch_repair",
+    reason: "第 6 章局部承接不足",
+    chapterId: "chapter-6",
+    chapterOrder: 6,
+  });
+
+  assert.equal(result.entry.patchRepairCount, 1);
+  assert.equal(result.nextAction, "defer_and_continue");
+});
+

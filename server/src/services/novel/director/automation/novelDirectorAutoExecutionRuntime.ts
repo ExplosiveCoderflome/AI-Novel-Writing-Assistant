@@ -11,7 +11,6 @@ import {
   buildDirectorAutoExecutionDeferredQualityState,
   buildDirectorAutoExecutionStageLabel,
   buildDirectorAutoExecutionPipelineOptions,
-  resolveDirectorAutoExecutionRepairMode,
   resolveDirectorAutoExecutionWorkflowState,
   type DirectorAutoExecutionChapterRef,
   type DirectorAutoExecutionRange,
@@ -209,7 +208,6 @@ export class NovelDirectorAutoExecutionRuntime {
               autoReview: autoExecution.autoReview,
               autoRepair: autoExecution.autoRepair,
               artifactSyncMode: autoExecution.artifactSyncMode,
-              repairMode: resolveDirectorAutoExecutionRepairMode(autoExecution),
             }),
           );
           pipelineJobId = job.id;
@@ -554,13 +552,9 @@ export class NovelDirectorAutoExecutionRuntime {
             affectedChapterWindow,
           });
           const plannedBudgetAction = resolveDirectorQualityLoopBudgetNextAction(existingBudgetEntry);
-          const budgetAttemptAction = plannedBudgetAction === "auto_rewrite_chapter"
-            ? "chapter_rewrite"
-            : plannedBudgetAction === "auto_replan_window"
-              ? "window_replan"
-              : plannedBudgetAction === "defer_and_continue"
-                ? "defer_and_continue"
-                : "patch_repair";
+          const budgetAttemptAction = plannedBudgetAction === "defer_and_continue"
+            ? "defer_and_continue"
+            : "patch_repair";
           const budgetResult = recordDirectorQualityLoopBudgetAttempt({
             state: autoExecution,
             novelId: input.novelId,

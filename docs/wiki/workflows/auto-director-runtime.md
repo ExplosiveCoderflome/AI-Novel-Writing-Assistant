@@ -249,8 +249,9 @@ Worker 租约过期与章节运行共用问题治理的自动重试预算。第�
 
 ### Current Rule
 
-- 每个需要说明的异常使用 `DirectorRiskAssessment` 记录 1–8 分、类别、影响范围、证据和建议。8 分是最高风险分；评分不拥有暂停权限，也不覆盖问题动作。
+- 新任务把 1–8 分说明记录在 `DirectorIssueOccurrence.riskScore`；历史任务的 `DirectorRiskAssessment` 只作兼容读取和展示。8 分是最高风险分；评分不拥有暂停权限，也不覆盖问题动作。
 - 全局和本书只保存问题码动作与自动重试次数。不存在独立风险阈值、书级阈值覆盖或任务 `riskPolicy` 快照。
+- 自动导演每章最多发起一次自动修复。轻修失败后保留原正文并进入质量债或统一问题治理；质量预算不得把后续恢复静默升级为整章重写，`heavy_repair` 只能来自明确选择的修复任务。
 - 需要关注的问题写入自动导演账本、运行时投影与通知渠道。外部通知按 `任务 + 问题指纹 + 动作` 去重，避免同一问题在重试时反复打扰用户。
 - 全局和本书规则界面允许每个稳定问题码选择四种动作，并在用户产生未保存修改后显示风险提示。策略可保存用户偏好，但 `generation.output_unusable`、`quality.replan_required`、`runtime.token_budget_exceeded`、`runtime.protected_content`、`runtime.data_integrity` 与 `runtime.persistence_failed` 必须由目录中的 `enforcedAction` 执行安全兜底；此时实际决策的 `policySource` 为 `safety`，不能把偏好伪装成已自动放行。
 - `replan_required`、`stop_for_replan`、无可用正文、运行时安全、数据完整性和受保护正文冲突通过问题目录中的安全动作进入可恢复暂停；其风险分可固定记为 8 分用于说明，但暂停不依赖评分模型或任何阈值。
@@ -261,7 +262,8 @@ Worker 租约过期与章节运行共用问题治理的自动重试预算。第�
 ### Related Modules
 
 - `shared/types/directorRisk.ts`
-- `server/src/services/novel/director/risk/DirectorRiskAssessmentService.ts`
+- `server/src/prompting/prompts/director/directorIssueAssessment.prompts.ts`
+- `server/src/services/novel/director/projections/novelDirectorRuntimeProjection.ts`
 - `server/src/services/novel/director/automation/novelDirectorAutoExecutionCheckpointRuntime.ts`
 - `shared/types/directorIssue.ts`
 - `server/src/services/novel/director/issues/DirectorIssueService.ts`

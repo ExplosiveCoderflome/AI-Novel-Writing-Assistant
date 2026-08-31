@@ -485,7 +485,7 @@ export const bookAnalysisToolDefinitions: Partial<
       const recommendationMap: Record<string, string> = {
         D: "根因 D（义务不可达）占主导 → 优先实施阶段一懒规划，JIT task sheet 生成可直接解决。",
         A: "根因 A（开环修复）占主导 → 优先修复修复闭环（1.D 子项），让修复器拿到结构化义务。",
-        B: "根因 B（patch 锚点失配）占主导 → 考虑将 patchRepair 预算提到 2，并允许宽松锚点重试。",
+        B: "根因 B（patch 锚点失配）占主导 → 保留原正文并记录质量债；后续重修必须由用户明确选择，不能自动升级修复模式。",
         E: "根因 E（签名漂移）占主导 → 拆分 length/content issueSignature 分别计预算。",
         unknown: "暂无足够归因数据，建议运行更多章节后再分析。",
       };

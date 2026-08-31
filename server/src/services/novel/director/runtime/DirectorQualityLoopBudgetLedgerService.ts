@@ -4,13 +4,15 @@ import type {
   DirectorQualityLoopBudgetAttemptAction,
   DirectorQualityLoopBudgetEntry,
   DirectorQualityLoopBudgetLedger,
-  DirectorQualityLoopBudgetNextAction,
   DirectorQualityLoopBudgetWindow,
 } from "@ai-novel/shared/types/novelDirector";
 
+type ResolvedDirectorQualityLoopBudgetAction = "auto_patch_repair" | "defer_and_continue";
+
 export const DIRECTOR_QUALITY_LOOP_BUDGET_LIMITS = {
-  /** patch 预算提升到 2：首次锚点失配后允许一次宽松锚点重试（Root B）*/
-  patchRepair: 2,
+  patchRepair: 1,
+  // Historical ledgers may still contain these counters. They remain readable,
+  // but no longer form an automatic patch -> rewrite -> replan escalation chain.
   chapterRewrite: 1,
   windowReplan: 1,
 } as const;
@@ -129,18 +131,14 @@ export function buildDirectorQualityLoopBudgetSignatureKey(input: {
 
 export function resolveDirectorQualityLoopBudgetNextAction(
   entry: DirectorQualityLoopBudgetEntry | null | undefined,
-): DirectorQualityLoopBudgetNextAction {
-  if ((entry?.deferredCount ?? 0) > 0) {
+): ResolvedDirectorQualityLoopBudgetAction {
+  if (
+    (entry?.deferredCount ?? 0) > 0
+    || (entry?.windowReplanCount ?? 0) >= DIRECTOR_QUALITY_LOOP_BUDGET_LIMITS.windowReplan
+    || (entry?.chapterRewriteCount ?? 0) >= DIRECTOR_QUALITY_LOOP_BUDGET_LIMITS.chapterRewrite
+    || (entry?.patchRepairCount ?? 0) >= DIRECTOR_QUALITY_LOOP_BUDGET_LIMITS.patchRepair
+  ) {
     return "defer_and_continue";
-  }
-  if ((entry?.windowReplanCount ?? 0) >= DIRECTOR_QUALITY_LOOP_BUDGET_LIMITS.windowReplan) {
-    return "defer_and_continue";
-  }
-  if ((entry?.chapterRewriteCount ?? 0) >= DIRECTOR_QUALITY_LOOP_BUDGET_LIMITS.chapterRewrite) {
-    return "auto_replan_window";
-  }
-  if ((entry?.patchRepairCount ?? 0) >= DIRECTOR_QUALITY_LOOP_BUDGET_LIMITS.patchRepair) {
-    return "auto_rewrite_chapter";
   }
   return "auto_patch_repair";
 }
@@ -208,7 +206,7 @@ export function recordDirectorQualityLoopBudgetAttempt(input: {
 }): {
   state: DirectorAutoExecutionState;
   entry: DirectorQualityLoopBudgetEntry;
-  nextAction: DirectorQualityLoopBudgetNextAction;
+  nextAction: ResolvedDirectorQualityLoopBudgetAction;
 } {
   const updatedAt = input.occurredAt instanceof Date
     ? input.occurredAt.toISOString()
