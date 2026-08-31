@@ -12,7 +12,7 @@ import type { DirectorAutoExecutionChapterRef } from "./novelDirectorAutoExecuti
 
 export type AutomationLedgerEventPort = Pick<
   typeof directorAutomationLedgerEventService,
-  "recordEvent" | "recordRepairTicketCreated" | "recordCircuitBreakerOpened"
+  "recordEvent" | "recordCircuitBreakerOpened"
 >;
 
 export interface NovelDirectorAutoExecutionWorkflowPort {

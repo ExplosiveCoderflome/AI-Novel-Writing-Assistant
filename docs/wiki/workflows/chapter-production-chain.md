@@ -86,7 +86,7 @@
 - 章节审校和修文上下文必须同时保留 `chapter_boundary` 与 `structure_obligations`。`chapter_boundary` 负责本章进入状态、结束状态、下一章入口、禁止越界和受保护揭露；`structure_obligations` 负责本章必须推进、必须保留、角色出场、目标变化、伏笔兑现和资源风险。审校 prompt 如果缺少这两类上下文，会无法判断“正文是否越界”或“任务是否兑现”，应修 Context Broker / fallback blocks，而不是降低审校标准。
 - 接收闸门必须把未兑现义务输出为结构化 `missingObligations`，并给出 `repairability`：局部漏写用 `patchable_obligation_gap`，需要整章调整用 `rewrite_needed`，章节职责与邻章安排失配才用 `plan_misalignment`。
 - `missingObligations` 需要结合 `repairability` 判断：明确标为 `patchable_obligation_gap` 的缺口必须保留为可修复事实，不能因义务种类较软而被确定性代码改判为 `continue_with_risk`；确实可以后续承接的缺口应由接收闸门直接输出 `continue_with_risk + repairability=none`。
-- 自动修文默认最多一次；失败后记录待修状态或 repair ticket，不进入无限重试。
+- 自动修文默认最多一次；失败后保留可用正文，并按统一问题策略形成质量债或人工恢复入口，不进入无限重试。只有真实章节修复问题才能创建修复工单，通用模型或运行时失败不得伪装成修复失败。
 - 局部 patch repair 是轻修模式的唯一正文改写动作。补丁计划 Schema 校验失败、`targetExcerpt` 不唯一或太短、目标片段缺失、补丁无效、模型建议全文重写时，应保留原正文并转为结构化 `quality.local_repair_failed`；任务策略再决定继续、暂停或结束，不能把技术失败直接升级为整章重写。
 - `acceptance_gate_unavailable` 或“章节接收判断不可用”属于审校系统风险，不代表正文中存在可替换片段。若当前待处理问题只包含这类风险，批量章节生产应保留当前正文并记录复查债务，等待重新审校或人工复查；不得调用局部 patch prompt，也不得为了系统风险改写正文。
 - 所有会改正文的修复入口必须遵守任务选定的修复模式：`light_repair / continuity_only / character_only / ending_only` 只允许局部 patch；`heavy_repair` 才允许整章重写。轻修失败不得自动切换模式，整章重写必须来自任务启动时的明确选择或后续人工恢复命令。
@@ -94,7 +94,8 @@
 - patch repair 的 `targetExcerpt` 必须是正文中唯一可定位的原文片段；`replacement` 表示替换后的内容。删除重复片段时允许 `replacement` 为空字符串，但仍必须满足唯一定位和产生正文变化。
 - 已有正文进入复审或质量修复时，不应先把同一份正文重新保存为 `drafted/generating`。正文未变化时只做审校、必要修复和最终资产同步，避免 UI 更新时间、RAG 队列和章节状态被无意义刷新。
 - 章节执行队列允许移除尚未开始的手动空白章节：它必须仍为 `planned/unplanned`，且没有正文、目标、任务单、场景卡、修复记录或风险标记。删除入口与服务端必须使用同一规则；任何已进入规划、写作、审校或修复链路的章节都不得从此入口删除，以保护已生成内容和下游事实。
-- 自动导演的质量循环预算只决定是否还允许执行一次动作，不能擅自改变动作类型。任务快照选择轻修时，预算耗尽后应形成质量债或人工暂停；只有快照明确选择 `heavy_repair` 时才执行整章重写。
+- 当前执行链不再生产或消费导演层质量循环预算。修复是否执行以及失败后继续、暂停或结束，统一读取任务问题策略、章节真实修复次数和结构化质量结论；历史 `qualityLoopLedger` 仅用于旧任务只读投影。任务快照选择轻修时不得升级动作类型，只有快照明确选择 `heavy_repair` 时才执行整章重写。
+- 修复问题数量、影响章节占比和 `large_scope` 等统计标签只能用于诊断展示，不能构成独立停机阈值。只有结构化 `stop_for_replan` / `replan_required`、问题策略明确暂停、无可用正文，或模型、用量、运行安全与数据完整性边界可以停止整本执行。
 - 章节执行失败语义必须区分：正文未生成是 `draft_generation_failed`；正文已生成但未兑现本章义务是 `draft_obligation_unmet`；自动修复后仍有阻塞问题是 `draft_repair_exhausted`；需要调整邻章计划是 `replan_required`。UI 和任务详情应展示真实根因，不再把这些情况统一压成 `chapter.draft.write 未满足其完成标准。`
 - 质量闭环投影必须区分阻塞错误和非阻塞质量债务。`terminalAction=defer_and_continue` 且不是 `replan_required` / `recommendedAction=replan` / `blockingObligations` 的章节，只能作为“已记录质量债务”弱提示，不得驱动主状态进入“出错需处理”或生成 repair ticket；`local_patch_plan` / `continue_with_warning` 只能进入质量债务或局部修复建议通道，不得写入 `replanAlertDetails` 或 `PIPELINE_REPLAN_REQUIRED`；`replan_required` 即使同时带有 `defer_and_continue`，也仍是阻塞重规划。
 - 有可用正文的非阻塞质量债，在持久化状态上应完成降级定稿（`generationState=approved`、`chapterStatus=completed`），并保留质量债风险标记用于后续回收；阅读书架把历史遗留的同类记录投影为“已保存 · 待优化”，不能显示成“审校修复中”。只有结构化 `replan_required` 才显示为“等待重规划”。

@@ -240,10 +240,8 @@ export async function resolveQualityRepairNoticeAction(
     : "chapter_batch_ready";
   const qualityRepairRisk = buildDirectorQualityRepairRisk({
     noticeCode: input.noticeCode,
-    noticeSummary: input.noticeSummary,
     payload: input.payload,
     remainingChapterCount: input.autoExecution.remainingChapterCount ?? 0,
-    totalChapterCount: input.range.totalChapterCount,
   });
   const checkpointState = {
     ...input.autoExecution,

@@ -14,12 +14,6 @@ const issueTaskContext = require("../dist/services/novel/director/issues/Directo
 const {
   buildDirectorAutoExecutionState,
 } = require("../dist/services/novel/director/automation/novelDirectorAutoExecution.js");
-const {
-  buildDirectorQualityLoopBudgetWindow,
-  buildDirectorQualityLoopIssueSignature,
-  recordDirectorQualityLoopBudgetAttempt,
-} = require("../dist/services/novel/director/runtime/DirectorQualityLoopBudgetLedgerService.js");
-
 function buildRequest(overrides = {}) {
   return {
     idea: "一个普通人被卷入命运迷局",
@@ -1679,9 +1673,6 @@ test("runFromReady keeps repeated full-book replan loops as replan checkpoints",
       async recordEvent(input) {
         calls.push(["recordEvent", input.type, input.summary]);
       },
-      async recordRepairTicketCreated(input) {
-        calls.push(["recordRepairTicketCreated", input.summary]);
-      },
       async recordCircuitBreakerOpened(input) {
         calls.push(["recordCircuitBreakerOpened", input.state?.reason]);
       },
@@ -2640,7 +2631,7 @@ test("prepareRequestedAutoExecution allows full-book autopilot JIT chapters with
   assert.equal(resolved.autoExecution.nextChapterOrder, 1);
 });
 
-test("runFromReady keeps persisted replan budget failures blocking after worker recovery", async () => {
+test("runFromReady keeps explicit replan notices blocking after worker recovery", async () => {
   const calls = [];
   const completedOrders = new Set();
   const jobOrderById = new Map();
@@ -2658,27 +2649,6 @@ test("runFromReady keeps persisted replan budget failures blocking after worker 
     remainingChapterIds: ["chapter-6", "chapter-7"],
     remainingChapterOrders: [6, 7],
   };
-  const seededBudget = recordDirectorQualityLoopBudgetAttempt({
-    state: seedState,
-    novelId: "novel-1",
-    taskId: "task-auto-exec",
-    issueSignature: buildDirectorQualityLoopIssueSignature({
-      noticeCode: "PIPELINE_REPLAN_REQUIRED",
-      riskLevel: "replan",
-      repairMode: "heavy_repair",
-      reason: "State-driven replan is required before continuing: 第 6 章关系状态冲突",
-    }),
-    affectedChapterWindow: buildDirectorQualityLoopBudgetWindow({
-      autoExecution: seedState,
-      chapterId: "chapter-6",
-      chapterOrder: 6,
-    }),
-    action: "window_replan",
-    reason: "第 6 章关系状态冲突",
-    chapterId: "chapter-6",
-    chapterOrder: 6,
-    occurredAt: "2026-05-02T00:00:00.000Z",
-  }).state;
   const runtime = new NovelDirectorAutoExecutionRuntime({
     novelContextService: {
       async listChapters() {
@@ -2782,9 +2752,6 @@ test("runFromReady keeps persisted replan budget failures blocking after worker 
       async recordEvent(input) {
         calls.push(["recordEvent", input.type, input.metadata?.decision ?? null]);
       },
-      async recordRepairTicketCreated(input) {
-        calls.push(["recordRepairTicketCreated", input.summary]);
-      },
       async recordCircuitBreakerOpened(input) {
         calls.push(["recordCircuitBreakerOpened", input.state?.reason]);
       },
@@ -2795,7 +2762,7 @@ test("runFromReady keeps persisted replan budget failures blocking after worker 
     taskId: "task-auto-exec",
     novelId: "novel-1",
     request: buildRequest({ runMode: "full_book_autopilot" }),
-    existingState: seededBudget,
+    existingState: seedState,
   });
 
   assert.deepEqual(calls.filter((call) => call[0] === "startPipelineJob").map((call) => call.slice(1)), [

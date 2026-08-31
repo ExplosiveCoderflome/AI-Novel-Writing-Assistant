@@ -20,7 +20,6 @@ import {
   isDirectorCircuitBreakerOpen,
   recordChapterUsageBudgetExceededSignal,
   recordModelFailureSignal,
-  recordPatchFailureSignal,
   recordUsageAnomalySignal,
   withCircuitBreakerState,
 } from "../runtime/DirectorCircuitBreakerService";
@@ -265,14 +264,6 @@ export function buildFailureCircuitBreaker(input: {
 }): DirectorCircuitBreakerState {
   if (input.jobStatus === "cancelled") {
     return buildClosedDirectorCircuitBreakerState(input.autoExecution.circuitBreaker);
-  }
-  if (input.autoExecution.autoRepair) {
-    return recordPatchFailureSignal({
-      previous: input.autoExecution.circuitBreaker,
-      chapterId: input.autoExecution.nextChapterId,
-      chapterOrder: input.autoExecution.nextChapterOrder,
-      message: input.message,
-    });
   }
   return recordModelFailureSignal({
     previous: input.autoExecution.circuitBreaker,
