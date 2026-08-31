@@ -6,6 +6,7 @@ const {
   classifyChapterQualityLoopRiskFlags,
   hasChapterQualityLoopReplanRequiredRiskFlags,
   hasContinuableChapterQualityLoopRiskFlags,
+  readChapterQualityDebtDetails,
 } = require("../../shared/dist/types/chapterQualityLoop.js");
 const {
   buildChapterQualityLoopChapterUpdate,
@@ -404,6 +405,74 @@ test("quality loop projection classifies deferred prose risk as non-blocking deb
 
   assert.equal(classifyChapterQualityLoopRiskFlags(riskFlags), "non_blocking_quality_debt");
   assert.equal(hasContinuableChapterQualityLoopRiskFlags(riskFlags), true);
+});
+
+test("quality debt details read source, current repair attempts, reason and unresolved issue codes", () => {
+  const details = readChapterQualityDebtDetails(JSON.stringify({
+    qualityLoop: {
+      terminalAction: "defer_and_continue",
+      source: "repair_recheck",
+      evaluatedAt: "2026-08-31T10:00:00.000Z",
+      overallStatus: "risk",
+      recommendedAction: "patch_repair",
+      qualityDebtAttribution: {
+        repairAttemptsUsed: 0,
+        repairAttemptsAllowed: 0,
+        firstFailureIssueCodes: ["old_issue"],
+        secondFailureIssueCodes: ["current_issue"],
+      },
+      signals: [{
+        artifactType: "prose_quality",
+        status: "risk",
+        reason: "章节结尾缺少有效推进。",
+        issueCodes: ["current_issue", "signal_issue"],
+      }],
+    },
+  }));
+
+  assert.deepEqual(details, {
+    source: "repair_recheck",
+    evaluatedAt: "2026-08-31T10:00:00.000Z",
+    repairAttemptsUsed: 0,
+    repairAttemptsAllowed: 0,
+    reason: "章节结尾缺少有效推进。",
+    issueCodes: ["current_issue", "signal_issue"],
+  });
+});
+
+test("quality debt details keep unknown historical repair attempts explicit", () => {
+  const details = readChapterQualityDebtDetails(JSON.stringify({
+    qualityLoop: {
+      terminalAction: "defer_and_continue",
+      overallStatus: "invalid",
+      recommendedAction: "patch_repair",
+    },
+  }));
+
+  assert.equal(details?.repairAttemptsUsed, null);
+  assert.equal(details?.repairAttemptsAllowed, 1);
+  assert.equal(details?.source, null);
+  assert.equal(readChapterQualityDebtDetails("{}"), null);
+});
+
+test("quality debt details exclude cleared reviews and explicit replanning", () => {
+  const cleared = JSON.stringify({
+    qualityLoop: {
+      source: "repair_recheck",
+      overallStatus: "valid",
+      recommendedAction: "continue",
+    },
+  });
+  const replan = JSON.stringify({
+    qualityLoop: {
+      terminalAction: "defer_and_continue",
+      rootCauseCode: "replan_required",
+      recommendedAction: "replan",
+    },
+  });
+
+  assert.equal(readChapterQualityDebtDetails(cleared), null);
+  assert.equal(readChapterQualityDebtDetails(replan), null);
 });
 
 test("quality loop projection treats deferred local obligation gaps as non-blocking debt", () => {

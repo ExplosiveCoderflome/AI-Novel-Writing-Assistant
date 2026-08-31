@@ -16,6 +16,7 @@ import {
   Sparkles,
 } from "lucide-react";
 import { Link, useNavigate, useParams } from "react-router-dom";
+import type { ChapterQualityDebtDetails, ChapterQualityDebtSource } from "@ai-novel/shared/types/chapterQualityLoop";
 import type { SimpleCreationShelfChapterStatus } from "@ai-novel/shared/types/novel";
 import {
   downloadNovelExport,
@@ -23,6 +24,7 @@ import {
   setNovelCreationExperience,
 } from "@/api/novel";
 import { continueNovelWorkflow } from "@/api/novelWorkflow";
+import { queryKeys } from "@/api/queryKeys";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "@/components/ui/toast";
@@ -40,6 +42,34 @@ const STATUS_LABELS: Record<SimpleCreationShelfChapterStatus, string> = {
   completed: "已完成",
   error: "异常",
 };
+
+const QUALITY_DEBT_SOURCE_LABELS: Record<ChapterQualityDebtSource, string> = {
+  manual_review: "手动审校",
+  pipeline_review: "AI 正文审校",
+  repair_recheck: "AI 修复后复查",
+};
+
+function formatQualityDebtSource(source: ChapterQualityDebtSource | null): string {
+  return source ? QUALITY_DEBT_SOURCE_LABELS[source] : "历史质量记录";
+}
+
+function formatQualityDebtAttempts(details: ChapterQualityDebtDetails): string {
+  if (details.repairAttemptsUsed === null) {
+    return `次数未记录 · 当前最多 ${details.repairAttemptsAllowed} 次`;
+  }
+  if (details.repairAttemptsAllowed === 0) {
+    return `${details.repairAttemptsUsed} 次 · 本次未启用自动修复`;
+  }
+  return `${details.repairAttemptsUsed}/${details.repairAttemptsAllowed} 次`;
+}
+
+function formatQualityDebtTime(value: string | null): string {
+  if (!value) return "时间未记录";
+  const date = new Date(value);
+  return Number.isNaN(date.getTime())
+    ? "时间未记录"
+    : date.toLocaleString(undefined, { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" });
+}
 
 function saveBlob(blob: Blob, fileName: string): void {
   const url = URL.createObjectURL(blob);
@@ -70,7 +100,7 @@ export default function SimpleNovelShelfPage() {
   const [selectedChapterId, setSelectedChapterId] = useState("");
 
   const shelfQuery = useQuery({
-    queryKey: ["novels", id, "simple-shelf"],
+    queryKey: queryKeys.novels.simpleShelf(id),
     queryFn: () => getSimpleCreationShelf(id),
     enabled: Boolean(id),
     refetchInterval: (query) => {
@@ -122,7 +152,7 @@ export default function SimpleNovelShelfPage() {
       toast.success(shelf?.progress.recoveryAction === "replan_and_continue"
         ? "AI 正在保留已有正文、重规划后续章节并继续创作。"
         : "AI 正在整理后续内容并继续创作。");
-      await queryClient.invalidateQueries({ queryKey: ["novels", id, "simple-shelf"] });
+      await queryClient.invalidateQueries({ queryKey: queryKeys.novels.simpleShelf(id) });
     },
     onError: (error) => toast.error(error instanceof Error ? error.message : "恢复失败，请重试。"),
   });
@@ -297,9 +327,26 @@ export default function SimpleNovelShelfPage() {
                     </div>
                     <h2 className="mt-2 text-2xl font-semibold tracking-tight text-foreground">{selectedChapter.title}</h2>
                     {selectedChapter.status === "quality_debt" ? (
-                      <div className="mt-3 flex items-start gap-2 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs leading-5 text-amber-900">
-                        <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0 text-amber-600" />
-                        <span>正文已安全保存。本章有待回收的局部质量项，但不会阻断后续创作。</span>
+                      <div className="mt-3 rounded-xl bg-amber-50 px-3 py-3 text-xs leading-5 text-amber-950">
+                        <div className="flex items-start gap-2">
+                          <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0 text-amber-600" />
+                          <div className="min-w-0 flex-1">
+                            <div className="font-medium">正文已保存，局部问题不会阻断后续创作</div>
+                            {selectedChapter.qualityDebt ? (
+                              <>
+                                <div className="mt-1 text-amber-900/80">{selectedChapter.qualityDebt.reason}</div>
+                                <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-amber-900/70">
+                                  <span>来源：{formatQualityDebtSource(selectedChapter.qualityDebt.source)}</span>
+                                  <span>自动修复：{formatQualityDebtAttempts(selectedChapter.qualityDebt)}</span>
+                                  <span>{formatQualityDebtTime(selectedChapter.qualityDebt.evaluatedAt)}</span>
+                                </div>
+                                <Button asChild size="sm" variant="outline" className="mt-3 bg-background text-foreground">
+                                  <Link to={`/novels/${id}/chapters/${encodeURIComponent(selectedChapter.id)}`}>修改并重新审校</Link>
+                                </Button>
+                              </>
+                            ) : null}
+                          </div>
+                        </div>
                       </div>
                     ) : selectedChapter.status === "replan_required" ? (
                       <div className="mt-3 flex items-start gap-2 rounded-xl border border-destructive/20 bg-destructive/5 px-3 py-2 text-xs leading-5 text-destructive">

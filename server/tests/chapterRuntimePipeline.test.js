@@ -288,6 +288,9 @@ test("runPipelineChapterWithRuntime does not approve when timeline check fails",
   assert.deepEqual(generationStates, ["reviewed"]);
   assert.equal(result.pass, false);
   assert.equal(result.runtimePackage.timelineCheck.status, "failed");
+  assert.deepEqual(result.qualityDebtAttribution.firstFailureIssueCodes, []);
+  assert.equal(result.qualityDebtAttribution.repairAttemptsUsed, 0);
+  assert.equal(result.qualityDebtAttribution.repairAttemptsAllowed, 0);
 });
 
 test("runPipelineChapterWithRuntime passes confirmed provenance for approved final artifact sync", async () => {
@@ -406,6 +409,8 @@ test("runPipelineChapterWithRuntime passes debt provenance for retained failed c
     proposalTypes: ["character_state_update", "character_resource_update"],
     fields: ["currentState", "currentGoal", "characterResource"],
   });
+  assert.equal(result.qualityDebtAttribution.repairAttemptsUsed, 0);
+  assert.equal(result.qualityDebtAttribution.repairAttemptsAllowed, 0);
 });
 
 test("runPipelineChapterWithRuntime keeps the draft when a light patch cannot be applied", async () => {
@@ -500,7 +505,9 @@ test("runPipelineChapterWithRuntime keeps the draft when a light patch cannot be
     assert.deepEqual(stages, ["generating_chapters", "reviewing", "repairing"]);
     assert.equal(reviewCount, 1);
     assert.equal(result.pass, false);
-    assert.equal(result.retryCountUsed, 0);
+    assert.equal(result.retryCountUsed, 1);
+    assert.equal(result.qualityDebtAttribution.repairAttemptsUsed, 1);
+    assert.equal(result.qualityDebtAttribution.repairAttemptsAllowed, 1);
     assert.match(result.recoverableRepairFailure.message, /目标片段不存在/);
     assert.equal(needsRepairMarked, true);
     assert.equal(finalSyncs.length, 1);
@@ -696,7 +703,9 @@ test("runPipelineChapterWithRuntime does not rewrite the chapter when a patch ta
 
     assert.equal(reviewCount, 1);
     assert.equal(result.pass, false);
-    assert.equal(result.retryCountUsed, 0);
+    assert.equal(result.retryCountUsed, 1);
+    assert.equal(result.qualityDebtAttribution.repairAttemptsUsed, 1);
+    assert.equal(result.qualityDebtAttribution.repairAttemptsAllowed, 1);
     assert.match(result.recoverableRepairFailure.message, /局部补丁计划不可安全应用/);
     assert.equal(heavyRewriteCalls, 0);
     assert.deepEqual(savedDrafts, [{
@@ -780,7 +789,9 @@ test("runPipelineChapterWithRuntime defers acceptance gate unavailable risk with
     assert.deepEqual(stages, ["generating_chapters", "reviewing", "repairing"]);
     assert.equal(reviewCount, 1);
     assert.equal(result.pass, false);
-    assert.equal(result.retryCountUsed, 0);
+    assert.equal(result.retryCountUsed, 1);
+    assert.equal(result.qualityDebtAttribution.repairAttemptsUsed, 1);
+    assert.equal(result.qualityDebtAttribution.repairAttemptsAllowed, 1);
     assert.equal(result.recoverableRepairFailure.message, "章节接收判断暂时不可用，正文已保留，后续需要重新审校或人工复查。");
     assert.deepEqual(result.recoverableRepairFailure.failureTypes, ["review_gate_unavailable"]);
     assert.deepEqual(needsRepairMarked, ["chapter-1"]);

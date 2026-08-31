@@ -17,6 +17,16 @@ export type ChapterQualityLoopSignalStatus = "valid" | "risk" | "invalid" | "mis
 export type ChapterQualityLoopAction = "continue" | "patch_repair" | "replan" | "manual_gate";
 export type ChapterQualityLoopBudgetAction = "patch_repair" | "rewrite_chapter" | "replan_window" | "hard_stop";
 export type ChapterQualityLoopRiskClassification = "none" | "blocking" | "non_blocking_quality_debt";
+export type ChapterQualityDebtSource = "manual_review" | "pipeline_review" | "repair_recheck";
+
+export interface ChapterQualityDebtDetails {
+  source: ChapterQualityDebtSource | null;
+  evaluatedAt: string | null;
+  repairAttemptsUsed: number | null;
+  repairAttemptsAllowed: 0 | 1;
+  reason: string;
+  issueCodes: string[];
+}
 
 export interface ChapterQualityLoopBudget {
   signature: string;
@@ -108,6 +118,72 @@ export function classifyChapterQualityLoopRiskFlags(
   riskFlags: string | null | undefined,
 ): ChapterQualityLoopRiskClassification {
   return classifyChapterQualityLoopRisk(parseRiskFlagsObject(riskFlags)?.qualityLoop);
+}
+
+function readQualityDebtSource(value: unknown): ChapterQualityDebtSource | null {
+  return value === "manual_review" || value === "pipeline_review" || value === "repair_recheck"
+    ? value
+    : null;
+}
+
+function readStringList(value: unknown): string[] {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+  return value.flatMap((item) => typeof item === "string" && item.trim() ? [item.trim()] : []);
+}
+
+/**
+ * 从章节唯一持久化来源 riskFlags.qualityLoop 读取仍待回收的质量债。
+ * 历史记录没有归因字段时保留 null，避免用修复日志猜测次数。
+ */
+export function readChapterQualityDebtDetails(
+  riskFlags: string | null | undefined,
+): ChapterQualityDebtDetails | null {
+  const qualityLoop = parseRiskFlagsObject(riskFlags)?.qualityLoop;
+  if (!isRecord(qualityLoop) || classifyChapterQualityLoopRisk(qualityLoop) !== "non_blocking_quality_debt") {
+    return null;
+  }
+
+  const attribution = isRecord(qualityLoop.qualityDebtAttribution)
+    ? qualityLoop.qualityDebtAttribution
+    : null;
+  const repairAttemptsUsed = typeof attribution?.repairAttemptsUsed === "number"
+    && Number.isFinite(attribution.repairAttemptsUsed)
+    && attribution.repairAttemptsUsed >= 0
+    ? Math.trunc(attribution.repairAttemptsUsed)
+    : null;
+  const repairAttemptsAllowed = typeof attribution?.repairAttemptsAllowed === "number"
+    && Number.isFinite(attribution.repairAttemptsAllowed)
+    && attribution.repairAttemptsAllowed >= 0
+    ? Math.min(1, Math.trunc(attribution.repairAttemptsAllowed)) as 0 | 1
+    : 1;
+  const signals = Array.isArray(qualityLoop.signals)
+    ? qualityLoop.signals.filter(isRecord)
+    : [];
+  const failedSignals = signals.filter((signal) => signal.status !== "valid");
+  const secondFailureCodes = readStringList(attribution?.secondFailureIssueCodes);
+  const firstFailureCodes = readStringList(attribution?.firstFailureIssueCodes);
+  const signalIssueCodes = failedSignals.flatMap((signal) => readStringList(signal.issueCodes));
+  const issueCodes = Array.from(new Set([
+    ...(secondFailureCodes.length > 0 ? secondFailureCodes : firstFailureCodes),
+    ...signalIssueCodes,
+  ]));
+  const signalReason = failedSignals
+    .map((signal) => typeof signal.reason === "string" ? signal.reason.trim() : "")
+    .find(Boolean);
+  const pauseReason = typeof qualityLoop.pauseReason === "string" ? qualityLoop.pauseReason.trim() : "";
+
+  return {
+    source: readQualityDebtSource(qualityLoop.source),
+    evaluatedAt: typeof qualityLoop.evaluatedAt === "string" && qualityLoop.evaluatedAt.trim()
+      ? qualityLoop.evaluatedAt.trim()
+      : null,
+    repairAttemptsUsed,
+    repairAttemptsAllowed,
+    reason: signalReason || pauseReason || "本章保留了需要进一步优化的局部质量项。",
+    issueCodes,
+  };
 }
 
 export function hasContinuableChapterQualityLoopRiskFlags(riskFlags: string | null | undefined): boolean {

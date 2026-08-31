@@ -162,9 +162,12 @@ export class ChapterQualityLoopService {
       replanRecommendation: input.replanRecommendation,
       previousRepairHistory: chapter.repairHistory,
     });
+    const terminalAction = assessment.recommendedAction === "continue"
+      ? null
+      : input.terminalAction ?? null;
     await chapterLifecycleService.applyQualityAssessmentState({
       chapterId: input.chapterId,
-      data: buildChapterQualityLoopChapterUpdate(chapter, assessment, input.source, input.terminalAction ?? null, input.qualityDebtAttribution),
+      data: buildChapterQualityLoopChapterUpdate(chapter, assessment, input.source, terminalAction, input.qualityDebtAttribution),
     });
     await directorAutomationLedgerEventService.recordQualityLoopAssessment({
       taskId: input.taskId,

@@ -41,6 +41,10 @@ export interface PipelineRuntimeInput extends ChapterRuntimeRequestInput {
  * 用于 analyze_quality_debt_attribution 工具聚合根因占比。
  */
 export interface QualityDebtAttribution {
+  /** 本章实际发起的自动修复次数；修复返回可恢复失败也计入。 */
+  repairAttemptsUsed: number;
+  /** 本次章节执行允许的自动修复次数，当前合同只允许 0 或 1。 */
+  repairAttemptsAllowed: number;
   /** 首次验收失败的 issue code 列表（来自 runtimePackage.audit.openIssues） */
   firstFailureIssueCodes: string[];
   /** 二次验收失败的 issue code 列表（修复后再次失败时才有值） */
@@ -176,6 +180,7 @@ export async function runPipelineChapterWithRuntime(
     ...requestInput
   } = options;
   const effectiveMaxRetries = Math.max(0, Math.min(maxRetries, 1));
+  const repairAttemptsAllowed = autoRepair && repairMode !== "detect_only" ? effectiveMaxRetries : 0;
   const request = deps.validateRequest(requestInput);
   await deps.ensureNovelCharacters(novelId, "run chapter pipeline");
 
@@ -304,14 +309,14 @@ export async function runPipelineChapterWithRuntime(
         repairMode,
       },
     });
+    retryCountUsed += 1;
+    await hooks.onRetryConsumed?.("quality_repair");
     if (repairResult.recoverableFailure) {
       recoverableRepairFailure = repairResult.recoverableFailure;
       repairEscalatedFromPatch = repairResult.escalatedFromPatch;
       await deps.markChapterNeedsRepair(chapterId);
       break;
     }
-    retryCountUsed += 1;
-    await hooks.onRetryConsumed?.("quality_repair");
     repairEscalatedFromPatch = repairResult.escalatedFromPatch;
     content = repairResult.content;
     await deps.saveDraftAndArtifacts(novelId, chapterId, content, "repaired", {
@@ -336,8 +341,10 @@ export async function runPipelineChapterWithRuntime(
   );
 
   // 章节未通过时构建归因对象
-  const qualityDebtAttribution: QualityDebtAttribution | null = (!pass && firstFailureIssueCodes.length > 0)
+  const qualityDebtAttribution: QualityDebtAttribution | null = !pass
     ? buildQualityDebtAttribution({
+        repairAttemptsUsed: retryCountUsed,
+        repairAttemptsAllowed,
         firstFailureIssueCodes,
         secondFailureIssueCodes,
         firstFailureClassificationCode,
@@ -588,6 +595,8 @@ function isLengthIssueCode(code: string): boolean {
 
 /** 根据收集到的埋点数据构建结构化归因 */
 function buildQualityDebtAttribution(input: {
+  repairAttemptsUsed: number;
+  repairAttemptsAllowed: number;
   firstFailureIssueCodes: string[];
   secondFailureIssueCodes: string[];
   firstFailureClassificationCode: string | null;
@@ -595,6 +604,8 @@ function buildQualityDebtAttribution(input: {
   patchAnchorFailed: boolean;
 }): QualityDebtAttribution {
   const {
+    repairAttemptsUsed,
+    repairAttemptsAllowed,
     firstFailureIssueCodes,
     secondFailureIssueCodes,
     firstFailureClassificationCode,
@@ -622,6 +633,8 @@ function buildQualityDebtAttribution(input: {
   const lengthVsContentDrift = hasBothFailures && firstHasLengthOnly && secondHasContentIssue;
 
   return {
+    repairAttemptsUsed,
+    repairAttemptsAllowed,
     firstFailureIssueCodes,
     secondFailureIssueCodes,
     firstFailureClassificationCode,
