@@ -31,7 +31,6 @@ export interface PipelineRuntimeInput extends ChapterRuntimeRequestInput {
   maxRetries?: number;
   autoReview?: boolean;
   autoRepair?: boolean;
-  auditMode?: "light" | "full" | "repair_only";
   qualityThreshold?: number;
   repairMode?: "detect_only" | "light_repair" | "heavy_repair" | "continuity_only" | "character_only" | "ending_only";
 }
@@ -51,7 +50,7 @@ export interface QualityDebtAttribution {
   secondFailureIssueCodes: string[];
   /** 首次失败的 failureClassification.code（判定根因 D） */
   firstFailureClassificationCode: string | null;
-  /** patch 锚点失配，升级到 heavy_repair（判定根因 B） */
+  /** 历史 patch 锚点失配兼容字段；当前运行固定为 false。 */
   patchAnchorFailed: boolean;
   /** 首次与二次的 openIssue codes 完全一致（判定根因 A：义务未传达给修复器） */
   sameObligationRepeated: boolean;
@@ -61,15 +60,6 @@ export interface QualityDebtAttribution {
   lengthVsContentDrift: boolean;
   /** 首次失败缺失的义务种类（来自 obligationCoverage.missing[].kind） */
   missingObligationKinds: string[];
-  /** 已消耗的 Director 预算操作（由外层 Director 写入） */
-  budgetActionsConsumed?: Array<"patch_repair" | "chapter_rewrite" | "window_replan">;
-  /** 章节质量债务导致的提案降级路由，用于后续复核入口聚合。 */
-  degradedProposalRouting?: {
-    contentProvenance: "debt";
-    routedToPendingReview: true;
-    proposalTypes: Array<"character_state_update" | "character_resource_update">;
-    fields: Array<"currentState" | "currentGoal" | "characterResource">;
-  };
 }
 
 export interface PipelineRuntimeResult {
@@ -197,7 +187,6 @@ export async function runPipelineChapterWithRuntime(
   let firstFailureIssueCodes: string[] = [];
   let firstFailureClassificationCode: string | null = null;
   let firstMissingObligationKinds: string[] = [];
-  let repairEscalatedFromPatch = false;
   let secondFailureIssueCodes: string[] = [];
 
   for (let attempt = 0; attempt <= effectiveMaxRetries; attempt += 1) {
@@ -313,11 +302,9 @@ export async function runPipelineChapterWithRuntime(
     await hooks.onRetryConsumed?.("quality_repair");
     if (repairResult.recoverableFailure) {
       recoverableRepairFailure = repairResult.recoverableFailure;
-      repairEscalatedFromPatch = repairResult.escalatedFromPatch;
       await deps.markChapterNeedsRepair(chapterId);
       break;
     }
-    repairEscalatedFromPatch = repairResult.escalatedFromPatch;
     content = repairResult.content;
     await deps.saveDraftAndArtifacts(novelId, chapterId, content, "repaired", {
       scheduleBackgroundSync: false,
@@ -349,7 +336,6 @@ export async function runPipelineChapterWithRuntime(
         secondFailureIssueCodes,
         firstFailureClassificationCode,
         firstMissingObligationKinds,
-        patchAnchorFailed: repairEscalatedFromPatch,
       })
     : null;
 
@@ -503,7 +489,6 @@ async function repairDraftContent(input: {
   content: string;
   issues: ReviewIssue[];
   runtimePackage: ChapterRuntimePackage;
-  forceFullRewrite?: boolean;
   options: {
     provider?: LLMProvider;
     model?: string;
@@ -512,13 +497,11 @@ async function repairDraftContent(input: {
   };
 }): Promise<{
   content: string;
-  escalatedFromPatch: boolean;
   recoverableFailure?: PipelineRecoverableRepairFailure | null;
 }> {
-  if (!input.forceFullRewrite && shouldDeferNonPatchableReviewRisk(input.runtimePackage, input.issues)) {
+  if (shouldDeferNonPatchableReviewRisk(input.runtimePackage, input.issues)) {
     return {
       content: input.content,
-      escalatedFromPatch: false,
       recoverableFailure: {
         chapterId: input.runtimePackage.chapterId,
         message: "章节接收判断暂时不可用，正文已保留，后续需要重新审校或人工复查。",
@@ -538,7 +521,6 @@ async function repairDraftContent(input: {
       content: input.content,
       issues: input.issues,
       runtimePackage: input.runtimePackage,
-      forceFullRewrite: input.forceFullRewrite,
       options: {
         provider: input.options.provider,
         model: input.options.model,
@@ -552,7 +534,6 @@ async function repairDraftContent(input: {
     }
     return {
       content: input.content,
-      escalatedFromPatch: false,
       recoverableFailure: {
         chapterId: input.runtimePackage.chapterId,
         message: error.message,
@@ -565,7 +546,6 @@ async function repairDraftContent(input: {
   }
   return {
     content: repaired.content.trim() || input.content,
-    escalatedFromPatch: repaired.escalatedFromPatch,
     recoverableFailure: null,
   };
 }
@@ -601,7 +581,6 @@ function buildQualityDebtAttribution(input: {
   secondFailureIssueCodes: string[];
   firstFailureClassificationCode: string | null;
   firstMissingObligationKinds: string[];
-  patchAnchorFailed: boolean;
 }): QualityDebtAttribution {
   const {
     repairAttemptsUsed,
@@ -610,7 +589,6 @@ function buildQualityDebtAttribution(input: {
     secondFailureIssueCodes,
     firstFailureClassificationCode,
     firstMissingObligationKinds,
-    patchAnchorFailed,
   } = input;
 
   // 根因 A：首次和二次 codes 完全一致（修复未解决义务问题）
@@ -638,17 +616,11 @@ function buildQualityDebtAttribution(input: {
     firstFailureIssueCodes,
     secondFailureIssueCodes,
     firstFailureClassificationCode,
-    patchAnchorFailed,
+    patchAnchorFailed: false,
     sameObligationRepeated,
     planMisaligned,
     lengthVsContentDrift,
     missingObligationKinds: firstMissingObligationKinds,
-    degradedProposalRouting: {
-      contentProvenance: "debt",
-      routedToPendingReview: true,
-      proposalTypes: ["character_state_update", "character_resource_update"],
-      fields: ["currentState", "currentGoal", "characterResource"],
-    },
   };
 }
 

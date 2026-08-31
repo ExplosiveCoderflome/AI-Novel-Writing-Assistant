@@ -25,18 +25,12 @@ interface QualityDebtAttribution {
   planMisaligned: boolean;                    // 义务不可达（根因 D）
   lengthVsContentDrift: boolean;              // 签名漂移（根因 E）
   missingObligationKinds: string[];           // 首次失败缺失的义务种类
-  degradedProposalRouting?: {
-    contentProvenance: "debt";
-    routedToPendingReview: true;
-    proposalTypes: ("character_state_update" | "character_resource_update")[];
-    fields: ("currentState" | "currentGoal" | "characterResource")[];
-  };
 }
 ```
 
 ## 质量债务来源路由规则
 
-章节正文在质量门未通过但仍被保留继续执行时，最终正文的资产同步必须携带 `contentProvenance = "debt"`。该标记不改变章节重试、暂停或继续生成的控制流，只影响后续资产提取出来的状态提案如何入账。
+章节正文在质量门未通过但仍被保留继续执行时，最终正文的资产同步必须携带 `contentProvenance = "debt"`。提案路由只读取这个事实字段，不在质量债归因中重复保存一份固定的 `degradedProposalRouting` 描述。该标记不改变章节重试、暂停或继续生成的控制流，只影响后续资产提取出来的状态提案如何入账。
 
 当前规则：
 

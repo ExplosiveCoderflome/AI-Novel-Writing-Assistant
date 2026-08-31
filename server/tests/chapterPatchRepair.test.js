@@ -205,7 +205,6 @@ test("runChapterRepairText performs a full rewrite only when heavy repair is exp
 
     assert.equal(result.content, "用户明确选择后的整章重写稿。");
     assert.equal(result.finalRepairMode, "heavy_repair");
-    assert.equal(result.escalatedFromPatch, false);
     assert.equal(patchCalls, 0);
   } finally {
     promptRunner.runStructuredPrompt = originalRunStructuredPrompt;

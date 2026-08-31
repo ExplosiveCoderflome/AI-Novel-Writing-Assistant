@@ -403,12 +403,6 @@ test("runPipelineChapterWithRuntime passes debt provenance for retained failed c
       contentProvenance: "debt",
     },
   }]);
-  assert.deepEqual(result.qualityDebtAttribution.degradedProposalRouting, {
-    contentProvenance: "debt",
-    routedToPendingReview: true,
-    proposalTypes: ["character_state_update", "character_resource_update"],
-    fields: ["currentState", "currentGoal", "characterResource"],
-  });
   assert.equal(result.qualityDebtAttribution.repairAttemptsUsed, 0);
   assert.equal(result.qualityDebtAttribution.repairAttemptsAllowed, 0);
 });

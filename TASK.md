@@ -106,6 +106,13 @@
 - [x] 将旧“补丁失败自动升级整章重写”测试改为验证不升级，固定最多一次局部修复边界。
 - [x] 服务端构建通过；章节运行与熔断定向回归 16 项全部通过。
 
+### I. 执行链清理 Phase 2
+
+- [x] 删除 `forceFullRewrite` 隐式升级参数、`escalatedFromPatch` / `patchFailure` 恒假结果和原样重新抛出的异常分支。
+- [x] 删除流水线未消费的 `auditMode`、从未写入的 `budgetActionsConsumed` 和固定描述 `degradedProposalRouting`。
+- [x] 保留显式 `heavy_repair` 用户选择；轻修失败仍保留正文并返回可恢复质量债。
+- [x] 服务端构建通过；章节补丁、修复流和流水线定向回归 39 项全部通过。
+
 ## 已完成验证
 
 - [x] 共享契约与服务端构建通过，客户端类型检查通过。
@@ -148,8 +155,9 @@
 
 ### P1.1：继续收缩当前执行链
 
-- [ ] 删除修复运行时恒为 `false/null` 的整章升级归因和无效 `forceFullRewrite` 传递；历史 `patchAnchorFailed` 只读兼容。
-- [ ] 删除不参与运行的 `auditMode`、`budgetActionsConsumed` 等字段，停止继续生产旧质量预算动作。
+- [x] 删除修复运行时恒为 `false/null` 的整章升级归因和无效 `forceFullRewrite` 传递；历史 `patchAnchorFailed` 只读兼容。
+- [x] 删除不参与流水线运行的 `auditMode`、`budgetActionsConsumed` 和固定提案路由描述。
+- [ ] 停止当前运行继续生产旧 `chapter_rewrite/window_replan` 质量预算动作；历史 ledger 只读兼容。
 - [ ] 将手动修复后的审校、质量债关闭和缓存刷新汇入唯一章节质量闭环。
 - [ ] 退出当前风险阈值与失败即 patch failure 的重复控制，只保留模型、用量、数据完整性和显式问题策略边界。
 
