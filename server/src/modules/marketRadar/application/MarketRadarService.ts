@@ -541,6 +541,9 @@ export class MarketRadarService {
     );
     const foundation = await novelCreateResourceRecommendationService.resolveRequired({
       marketBriefPrompt: runtimePromptBlock,
+      genreId: report.productionFoundationSync?.genre?.id,
+      primaryStoryModeId: report.productionFoundationSync?.storyModes?.primaryStoryMode.id,
+      secondaryStoryModeId: report.productionFoundationSync?.storyModes?.secondaryStoryMode?.id,
       description: result.output.creativeSeed.openingIdea,
       bookSellingPoint: result.output.creativeSeed.bookSellingPoint,
       first30ChapterPromise: result.output.creativeSeed.first30ChapterPromise,
