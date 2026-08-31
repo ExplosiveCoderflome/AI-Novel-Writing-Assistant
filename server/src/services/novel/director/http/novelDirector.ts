@@ -131,6 +131,17 @@ const projectContextSchema = z.object({
     "style_technique",
     "market_highlights",
   ])).min(1).max(8).optional(),
+  referenceBookAnalysisId: z.string().trim().optional(),
+  referenceBookAnalysisSections: z.array(z.enum([
+    "overview",
+    "plot_structure",
+    "timeline",
+    "character_system",
+    "worldbuilding",
+    "themes",
+    "style_technique",
+    "market_highlights",
+  ])).min(1).max(8).optional(),
 });
 
 const candidatesSchema = projectContextSchema.extend({

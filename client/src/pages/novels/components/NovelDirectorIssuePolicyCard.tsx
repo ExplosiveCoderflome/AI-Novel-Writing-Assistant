@@ -48,6 +48,9 @@ export default function NovelDirectorIssuePolicyCard({ novelId }: { novelId: str
   if (!response || draft === null) return null;
   const overrideActions = draft.issueActions ?? {};
   const savedActions = response.override?.issueActions ?? {};
+  const hasCompleteActionMap = CONFIGURABLE_ISSUES.every(
+    (entry) => overrideActions[entry.code] !== undefined,
+  );
   const hasChanges = JSON.stringify(overrideActions) !== JSON.stringify(savedActions)
     || draft.maxAutomaticRetries !== response.override?.maxAutomaticRetries;
 
@@ -96,7 +99,7 @@ export default function NovelDirectorIssuePolicyCard({ novelId }: { novelId: str
               {entry.lockedReason ? <div className="mt-1 text-xs text-amber-700">安全提示：{entry.lockedReason}{entry.enforcedAction ? ` 当前触发时仍会${ACTION_LABELS[entry.enforcedAction]}。` : ""}</div> : null}
             </div>
             <select className="h-9 rounded-md border bg-background px-3 text-sm" value={overrideActions[entry.code] ?? ""} onChange={(event) => setAction(entry.code, event.target.value)}>
-              <option value="">继承全局</option>
+              {!hasCompleteActionMap ? <option value="">继承全局</option> : null}
               {DIRECTOR_ISSUE_ACTIONS.map((value) => <option key={value} value={value}>{ACTION_LABELS[value]}</option>)}
             </select>
           </div>

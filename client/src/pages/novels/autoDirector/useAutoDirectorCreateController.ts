@@ -60,6 +60,7 @@ import { hasCreationFoundationChanged } from "./creationFoundationPickerState";
 
 interface UseAutoDirectorCreateControllerInput {
   marketBriefId?: string;
+  initialStyleProfileId?: string;
   basicForm: NovelBasicFormState;
   genreOptions: Array<{
     id: string;
@@ -104,6 +105,7 @@ export function useAutoDirectorCreateController(input: UseAutoDirectorCreateCont
     onWorkflowTaskChange,
     onBasicFormChange,
     marketBriefId,
+    initialStyleProfileId,
   } = input;
   const llm = useLLMStore();
   const queryClient = useQueryClient();
@@ -120,7 +122,7 @@ export function useAutoDirectorCreateController(input: UseAutoDirectorCreateCont
   const [runMode, setRunMode] = useState<DirectorRunMode>(DEFAULT_VISIBLE_RUN_MODE);
   const [worldSetupMode, setWorldSetupMode] = useState<DirectorWorldSetupMode>("auto_generate");
   const [autoExecutionDraft, setAutoExecutionDraft] = useState(() => createDefaultDirectorAutoExecutionDraftState());
-  const [selectedStyleProfileId, setSelectedStyleProfileId] = useState("");
+  const [selectedStyleProfileId, setSelectedStyleProfileId] = useState(initialStyleProfileId ?? "");
   const [ideaInspirations, setIdeaInspirations] = useState<DirectorIdeaInspiration[]>([]);
   const [ideaConstellationOptions, setIdeaConstellationOptions] = useState<DirectorIdeaConstellationOption[]>([]);
   const [candidatePatchFeedbacks, setCandidatePatchFeedbacks] = useState<Record<string, string>>({});
@@ -136,6 +138,12 @@ export function useAutoDirectorCreateController(input: UseAutoDirectorCreateCont
     }
     setWorkflowTaskId(workflowTaskIdProp);
   }, [workflowTaskId, workflowTaskIdProp]);
+
+  useEffect(() => {
+    if (initialStyleProfileId) {
+      setSelectedStyleProfileId((current) => current || initialStyleProfileId);
+    }
+  }, [initialStyleProfileId]);
 
   useEffect(() => {
     if (!restoredTask) {
@@ -173,7 +181,6 @@ export function useAutoDirectorCreateController(input: UseAutoDirectorCreateCont
 
   const directorBasicForm = useMemo(
     () => patchNovelBasicForm(basicForm, {
-      writingMode: "original",
       projectMode: "ai_led",
     }),
     [basicForm],

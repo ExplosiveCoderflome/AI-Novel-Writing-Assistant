@@ -63,7 +63,7 @@ export class NovelDirectorAutoExecutionRuntime {
     request: DirectorConfirmRequest;
     existingPipelineJobId?: string | null;
     existingState?: DirectorAutoExecutionState | null;
-    resumeCheckpointType?: "chapter_batch_ready" | "chapter_batch_ready" | "replan_required" | null;
+    resumeCheckpointType?: "chapter_batch_ready" | "replan_required" | null;
     resumeStage?: AutoExecutionResumeStage;
     previousFailureMessage?: string | null;
     allowSkipReviewBlockedChapter?: boolean;
@@ -270,7 +270,7 @@ export class NovelDirectorAutoExecutionRuntime {
             pipelineStatus: job.status,
             allowLazyChapterPlanning,
           }));
-          await this.deps.workflowService.markTaskFailed(input.taskId, failureMessage, {
+          await this.deps.workflowService.requeueTaskForRecovery(input.taskId, failureMessage, {
             stage: "quality_repair",
             itemKey: "quality_repair",
             itemLabel: buildDirectorAutoExecutionPausedLabel(autoExecution),

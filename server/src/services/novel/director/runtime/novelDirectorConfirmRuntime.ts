@@ -256,6 +256,8 @@ export class NovelDirectorConfirmRuntime {
               sourceKnowledgeDocumentId: resolvedInput.sourceKnowledgeDocumentId ?? undefined,
               continuationBookAnalysisId: resolvedInput.continuationBookAnalysisId ?? undefined,
               continuationBookAnalysisSections: resolvedInput.continuationBookAnalysisSections ?? undefined,
+              referenceBookAnalysisId: resolvedInput.referenceBookAnalysisId ?? undefined,
+              referenceBookAnalysisSections: resolvedInput.referenceBookAnalysisSections ?? undefined,
             });
             await this.deps.workflowService.attachNovelToTask(workflowTask.id, novel.id, "project_setup");
             return novel;

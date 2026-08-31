@@ -46,6 +46,8 @@ export type NovelListItem = Pick<
   | "sourceKnowledgeDocumentId"
   | "continuationBookAnalysisId"
   | "continuationBookAnalysisSections"
+  | "referenceBookAnalysisId"
+  | "referenceBookAnalysisSections"
   | "genreId"
   | "primaryStoryModeId"
   | "secondaryStoryModeId"

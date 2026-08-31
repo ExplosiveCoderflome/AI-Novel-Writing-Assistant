@@ -143,13 +143,19 @@ export const docsManifest: SiteDocCategory[] = [
   {
     id: "main-chain",
     title: "创作主链",
-    description: "围绕开书、推进、恢复和任务状态完成一本小说。",
+    description: "从灵感、市场或参考作品开书，并持续推进到正文与恢复。",
     docs: [
       doc(
         "module-onboarding",
         "新手上路",
         "第一次使用时按步骤跑通配置、开书和第一章。",
         "docs/public/modules/onboarding.md",
+      ),
+      doc(
+        "module-market-radar",
+        "热门题材雷达",
+        "查看公开榜单、筛选市场信号，并把选择直接交给自动导演开书。",
+        "docs/public/modules/market-radar.md",
       ),
       doc(
         "module-novels",
@@ -165,8 +171,8 @@ export const docsManifest: SiteDocCategory[] = [
       ),
       doc(
         "module-task-center",
-        "任务中心",
-        "查看后台任务进度、失败原因和重试策略。",
+        "运行记录与任务恢复",
+        "查看后台任务进度、真实失败原因和安全恢复入口。",
         "docs/public/modules/task-center.md",
       ),
     ],

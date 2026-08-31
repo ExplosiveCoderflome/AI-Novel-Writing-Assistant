@@ -128,6 +128,28 @@ test("production closure owns quality stops and persists manual recovery", () =>
   assert.equal(pipelineSource.includes('maxRetries: Math.max(0, chapterRetryBudget - chapterRetryCountUsed)'), true);
 });
 
+test("chapter production has one governed failure and recovery boundary", () => {
+  const routeWindowSource = readSource(
+    "services", "novel", "planning", "ChapterRouteWindowService.ts",
+  );
+  const pipelineSource = readSource(
+    "services", "novel", "production", "NovelPipelineExecutor.ts",
+  );
+  const issueGovernanceSource = readSource(
+    "services", "novel", "production", "issueGovernance", "PipelineIssueGovernance.ts",
+  );
+  const workflowStoreSource = readSource(
+    "services", "novel", "workflow", "NovelWorkflowStoreService.ts",
+  );
+
+  assert.equal(routeWindowSource.includes("allowIncompleteExecutionContracts: true"), true);
+  assert.equal(pipelineSource.includes('issueCode: "generation.runtime_failed"'), false);
+  assert.equal(issueGovernanceSource.includes('"runtime.unclassified"'), true);
+  assert.equal(pipelineSource.includes("applyAction: async (decision)"), true);
+  assert.equal(workflowStoreSource.includes("directorStepRun.updateMany"), true);
+  assert.equal(workflowStoreSource.includes('status: "running"'), true);
+});
+
 test("auto director checkpoints consume governed quality actions without a second risk assessment", () => {
   const checkpointSource = readSource(
     "services",

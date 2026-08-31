@@ -23,11 +23,13 @@
 ## Auto-Director Quality Gate Rules (Highest Priority)
 
 - Chapter audit, acceptance, and quality-loop results must not automatically block the global auto-director or full-book execution chain.
+- This non-blocking behavior is the default for the completion-first issue policy. When the task snapshot explicitly selects a quality-first policy and its unified issue decision is `pause_for_manual`, the pipeline must pause at the saved chapter boundary and wait for explicit recovery instead of overriding the preset.
 - Non-global chapter quality problems, including `local_patch_plan`, `continue_with_warning`, `patchable_obligation_gap`, `draft_obligation_unmet`, recoverable repair failures, and `defer_and_continue` quality debt, must be recorded as chapter-level quality debt or local repair guidance and allow the remaining chapter range to continue.
 - Only an explicit `stop_for_replan`, `replan_required`, `recommendedAction=replan`, unrecoverable generation failure with no usable chapter content, or a runtime safety/data integrity failure may stop the global chain.
 - Do not route local audit issues into `replanAlertDetails`, `PIPELINE_REPLAN_REQUIRED`, or the `replan_required` checkpoint unless the structured AI/runtime decision explicitly says the neighboring chapter plan must stop for replan.
 - If local repair has already been attempted and residual issues remain but the chapter has usable content, prefer degraded finalization plus quality debt over failing the whole auto-director task.
 - UI, task projection, and recovery logic must preserve this distinction: local quality debt is a visible warning and follow-up item, not a failed auto-director workflow.
+- A policy-driven manual pause must use the existing pending-manual-recovery state. Background polling and worker recovery must not clear it; only an explicit user recovery command may resume the pipeline.
 - Book-level auto-director projections with `failed`, `blocked`, or `waiting_recovery` status and a latest task must remain visible in AI cockpit, task drawer, and recovery entrypoints even when the URL does not include `directorTaskId`; `workspaceTaskId` is a manual workspace lane and must never be used as a substitute director task id.
 
 ## Product Context (Highest Priority)

@@ -61,3 +61,21 @@ export function fillMissingCreationFoundation(
     secondaryStoryModeId: current.secondaryStoryModeId || recommended.secondaryStoryModeId || "",
   };
 }
+
+export function fillMissingMarketCreativeFraming(
+  current: { bookSellingPoint: string; first30ChapterPromise: string },
+  seed: MarketCreativeSeed | null | undefined,
+) {
+  return {
+    bookSellingPoint: current.bookSellingPoint || seed?.bookSellingPoint || "",
+    first30ChapterPromise: current.first30ChapterPromise || seed?.first30ChapterPromise || "",
+  };
+}
+
+export function resolveMarketOpeningIdea(
+  currentIdea: string,
+  seed: MarketCreativeSeed | null | undefined,
+): string {
+  return currentIdea.trim() || seed?.openingIdea.trim() || "";
+}
+import type { MarketCreativeSeed } from "@ai-novel/shared/types/marketRadar";

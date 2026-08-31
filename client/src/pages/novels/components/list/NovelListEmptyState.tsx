@@ -4,6 +4,8 @@ import {
   DIRECTOR_CREATE_LINK,
   MANUAL_CREATE_LINK,
   PRIMARY_CREATE_LABEL,
+  REFERENCE_CREATE_LABEL,
+  REFERENCE_CREATE_LINK,
   SHORT_STORY_CREATE_LINK,
 } from "./novelListViewModel";
 
@@ -24,8 +26,11 @@ export function NovelListEmptyState(props: {
         <Button asChild>
           <Link to={DIRECTOR_CREATE_LINK}>{PRIMARY_CREATE_LABEL}</Link>
         </Button>
+        <Button asChild variant="secondary">
+          <Link to={REFERENCE_CREATE_LINK}>{REFERENCE_CREATE_LABEL}</Link>
+        </Button>
         {SHORT_STORY_CREATE_LINK ? (
-          <Button asChild variant="secondary">
+          <Button asChild variant="outline">
             <Link to={SHORT_STORY_CREATE_LINK}>创作短篇</Link>
           </Button>
         ) : null}

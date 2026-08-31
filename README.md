@@ -13,6 +13,9 @@
 ![Database](https://img.shields.io/badge/Database-SQLite%20%2B%20Prisma-111827)
 ![Vector DB](https://img.shields.io/badge/RAG-Qdrant-E63946)
 
+<a href="https://trendshift.io/repositories/26664?utm_source=repository-badge&amp;utm_medium=badge&amp;utm_campaign=badge-repository-26664" target="_blank" rel="noopener noreferrer">
+  <img src="https://trendshift.io/api/badge/repositories/26664" alt="ExplosiveCoderflome/AI-Novel-Writing-Assistant | Trendshift" width="250" height="55" />
+</a>
 
 ## ✨ 项目简介
 
@@ -115,7 +118,7 @@
 
 - GitHub Pages **公开介绍站**（端口 4173）展示主链、产品截图、文档入口与下载链接
 - 文档站提供本地全文搜索、面包屑、文内目录、上 / 下一篇导航、tip / warn / checkpoint 提示块、GFM 表格
-- 33 篇公开文档：项目介绍、安装与准备、常见问题、故障排查、第一本小说实操路径、按阶段恢复手册、端到端生产链、自动导演阶段全景、章节执行链、知识与 RAG 召回链 + 模块说明
+- 34 篇公开文档：项目介绍、安装与准备、常见问题、故障排查、第一本小说实操路径、热门题材雷达、按阶段恢复手册、端到端生产链、自动导演阶段全景、章节执行链、知识与 RAG 召回链 + 模块说明
 - 模块文档配套真实产品截图；自动导演阶段名用中文表达，技术别名对照表保留在自动导演阶段全景文末供开发者查阅
 
 ### 9. 模型路由与本地运行
@@ -147,9 +150,14 @@
 
 ## 最新更新
 
-### 2026-08-27
+### 2026-08-31
 
-- 自动导演继续创作时会先检查下一章的执行合同是否完整；如果旧规划只有任务单或场景卡、缺少章节目标和边界信息，系统会重新补齐合同后再写正文，不会反复复用残缺规划并停止整本创作。
+- 本书世界的完整生成上下文默认收起，卷战略和章节规划页面只保留简短状态提示，需要核对时再展开查看。
+- 从小说列表或自动导演可直接选择“照着一本书写”，再决定续写原作或参考创作新书；选择后会立即进入开书设置，拆书结论持续参与后续规划，参考写法在后台准备且不会阻塞开书。
+- 章节任务会记住启动时的问题处理规则，恢复和重试不会因运行途中修改设置而改变处理方式。
+- 自动轻修失败时会保留原正文并按所选规则继续或暂停，只有明确选择自动重修才会改写整章。
+- 公开文档站补齐热门题材雷达、参考开书、问题处理、章节恢复、模型配置与正文效果实验室说明，并为关键流程加入真实界面截图和开书流程图。
+- 自动导演确认书级方向时会保留已选候选与书名，并在创建小说前拦住异常编码文本，避免项目设定和后续规划出现乱码。
 
 完整历史更新见 [docs/releases/release-notes.md](./docs/releases/release-notes.md)。
 

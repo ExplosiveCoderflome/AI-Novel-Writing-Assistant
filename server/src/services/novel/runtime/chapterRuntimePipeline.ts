@@ -10,6 +10,7 @@ import {
   type ChapterEmptyContentError,
 } from "./chapterEmptyContentError";
 import { runChapterRepairText } from "./repair/chapterRepairRuntime";
+import { ChapterPatchRepairFailedError } from "../chapterPatchRepairService";
 
 export interface PipelineRuntimeHooks {
   onCheckCancelled?: () => Promise<void>;
@@ -302,7 +303,6 @@ export async function runPipelineChapterWithRuntime(
         temperature: request.temperature,
         repairMode,
       },
-      forceFullRewrite: styleLeakageIssues.length > 0,
     });
     if (repairResult.recoverableFailure) {
       recoverableRepairFailure = repairResult.recoverableFailure;
@@ -521,22 +521,41 @@ async function repairDraftContent(input: {
       },
     };
   }
-  const repaired = await runChapterRepairText({
-    novelId: input.runtimePackage.novelId,
-    chapterId: input.runtimePackage.chapterId,
-    novelTitle: input.novelTitle,
-    chapterTitle: input.chapterTitle,
-    content: input.content,
-    issues: input.issues,
-    runtimePackage: input.runtimePackage,
-    forceFullRewrite: input.forceFullRewrite,
-    options: {
-      provider: input.options.provider,
-      model: input.options.model,
-      temperature: input.options.temperature,
-      repairMode: input.options.repairMode,
-    },
-  });
+  let repaired: Awaited<ReturnType<typeof runChapterRepairText>>;
+  try {
+    repaired = await runChapterRepairText({
+      novelId: input.runtimePackage.novelId,
+      chapterId: input.runtimePackage.chapterId,
+      novelTitle: input.novelTitle,
+      chapterTitle: input.chapterTitle,
+      content: input.content,
+      issues: input.issues,
+      runtimePackage: input.runtimePackage,
+      forceFullRewrite: input.forceFullRewrite,
+      options: {
+        provider: input.options.provider,
+        model: input.options.model,
+        temperature: input.options.temperature,
+        repairMode: input.options.repairMode,
+      },
+    });
+  } catch (error) {
+    if (!(error instanceof ChapterPatchRepairFailedError)) {
+      throw error;
+    }
+    return {
+      content: input.content,
+      escalatedFromPatch: false,
+      recoverableFailure: {
+        chapterId: input.runtimePackage.chapterId,
+        message: error.message,
+        repairMode: input.options.repairMode ?? "light_repair",
+        failureTypes: error.applyResult?.failures.map((failure) => failure.failureType)
+          ?? [error.plan?.requiresFullRewrite ? "full_rewrite_requested" : "patch_plan_invalid"],
+        occurredAt: new Date().toISOString(),
+      },
+    };
+  }
   return {
     content: repaired.content.trim() || input.content,
     escalatedFromPatch: repaired.escalatedFromPatch,
@@ -546,24 +565,12 @@ async function repairDraftContent(input: {
 
 function shouldDeferNonPatchableReviewRisk(
   runtimePackage: ChapterRuntimePackage,
-  issues: ReviewIssue[],
+  _issues: ReviewIssue[],
 ): boolean {
   const openIssues = runtimePackage.audit.openIssues ?? [];
-  if (openIssues.length > 0) {
-    return openIssues.every((issue) => typeof issue.code === "string"
+  return openIssues.length > 0
+    && openIssues.every((issue) => typeof issue.code === "string"
       && NON_PATCHABLE_REVIEW_ISSUE_CODES.has(issue.code));
-  }
-  return issues.length > 0 && issues.every(issueLooksLikeNonPatchableReviewRisk);
-}
-
-function issueLooksLikeNonPatchableReviewRisk(issue: ReviewIssue): boolean {
-  const evidence = issue.evidence.toLowerCase();
-  const fixSuggestion = issue.fixSuggestion.toLowerCase();
-  const combined = `${evidence}\n${fixSuggestion}`;
-  return combined.includes("acceptance_gate_unavailable")
-    || combined.includes("接收闸门未返回可用结构化结果")
-    || combined.includes("章节接收判断不可用")
-    || combined.includes("结构化判断缺失");
 }
 
 /** 从 runtimePackage 提取 openIssues 的 code 列表（过滤空值） */

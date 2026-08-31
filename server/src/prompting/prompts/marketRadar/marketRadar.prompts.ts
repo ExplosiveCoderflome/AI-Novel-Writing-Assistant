@@ -138,7 +138,7 @@ export const marketTrendSynthesisPrompt: PromptAsset<TrendReportInput, z.infer<t
 
 export const marketCreativeBriefPrompt: PromptAsset<CreativeBriefInput, z.infer<typeof marketCreativeBriefSchema>> = {
   id: "market_radar.creative_brief",
-  version: "v1",
+  version: "v2",
   taskType: "planner",
   mode: "structured",
   language: "zh",
@@ -151,6 +151,11 @@ export const marketCreativeBriefPrompt: PromptAsset<CreativeBriefInput, z.infer<
       "你是自动导演的开书市场简报编辑。把用户选择的市场信号整理成第一次创意生成可执行的约束。",
       "严禁复用榜单作品的人名、专有设定、简介句子和完整书名；只能提炼读者需求、爽点机制和结构机会。",
       "promptBlock 必须能直接指导题材推荐、金手指、首章爆点、整书方向和网文书名。",
+      "creativeSeed.openingIdea 必须是一段可直接开书的中文起始想法，写清主角身份、金手指或核心优势、开局发生的具体事件和近期目标，不输出标题、大纲、Markdown 或过程说明。",
+      "creativeSeed.coreAdvantage 必须说明主角能做什么，并至少包含触发条件、使用边界、成长方向或代价中的一项；现实题材可使用专业能力、信息差、身份资源或稀缺关系。",
+      "creativeSeed.bookSellingPoint 要说明读者持续追读的核心满足点，不能只复述题材名称。",
+      "creativeSeed.first30ChapterPromise 要写清前30章必须兑现的阶段结果、关系变化或能力成长。",
+      "用户选中的 advantage、opening、protagonist、relationship 信号必须分别进入对应创作内容；若某类未选择，再结合其余信号补齐，不得用题材和推进模式代替具体设定。",
       "不要要求后续质量复审补救，目标是提高第一次生成质量。",
     ].join("\n")),
     new HumanMessage([

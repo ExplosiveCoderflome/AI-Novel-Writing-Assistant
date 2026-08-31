@@ -639,6 +639,8 @@ export interface DirectorProjectContextInput {
   sourceKnowledgeDocumentId?: string;
   continuationBookAnalysisId?: string;
   continuationBookAnalysisSections?: BookAnalysisSectionKey[];
+  referenceBookAnalysisId?: string;
+  referenceBookAnalysisSections?: BookAnalysisSectionKey[];
 }
 
 export type DirectorWorldSetupMode = NonNullable<DirectorProjectContextInput["worldSetupMode"]>;

@@ -1,0 +1,77 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="760" viewBox="0 0 1600 760" role="img" aria-labelledby="title desc">
+  <title id="title">热门题材雷达开书流程</title>
+  <desc id="desc">从公开榜单、作品选择、AI 市场信号到自动导演开书的五步流程。</desc>
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#f8fafc"/>
+      <stop offset="1" stop-color="#eef6f3"/>
+    </linearGradient>
+    <marker id="arrow" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto">
+      <path d="M0,0 L10,5 L0,10 Z" fill="#64748b"/>
+    </marker>
+  </defs>
+  <rect width="1600" height="760" rx="36" fill="url(#bg)"/>
+  <text x="90" y="92" fill="#0f172a" font-family="Microsoft YaHei, sans-serif" font-size="36" font-weight="700">从公开榜单到可执行的新书方向</text>
+  <text x="90" y="138" fill="#64748b" font-family="Microsoft YaHei, sans-serif" font-size="20">每一步都保留选择权：先看原始数据，再决定分析范围，最后交给自动导演。</text>
+  <g font-family="Microsoft YaHei, sans-serif">
+    <g transform="translate(70 220)">
+      <rect width="260" height="330" rx="24" fill="#ffffff"/>
+      <circle cx="42" cy="45" r="22" fill="#dbeafe"/>
+      <text x="42" y="52" text-anchor="middle" fill="#1d4ed8" font-size="18" font-weight="700">1</text>
+      <text x="30" y="102" fill="#0f172a" font-size="25" font-weight="700">获取公开榜单</text>
+      <text x="30" y="148" fill="#475569" font-size="18">番茄小说</text>
+      <text x="30" y="182" fill="#475569" font-size="18">起点中文网</text>
+      <text x="30" y="216" fill="#475569" font-size="18">晋江文学城</text>
+      <text x="30" y="278" fill="#64748b" font-size="16">先查看排名、作者、</text>
+      <text x="30" y="304" fill="#64748b" font-size="16">分类和公开来源。</text>
+    </g>
+    <path d="M345 385 H385" stroke="#64748b" stroke-width="3" marker-end="url(#arrow)"/>
+    <g transform="translate(400 220)">
+      <rect width="260" height="330" rx="24" fill="#ffffff"/>
+      <circle cx="42" cy="45" r="22" fill="#ede9fe"/>
+      <text x="42" y="52" text-anchor="middle" fill="#6d28d9" font-size="18" font-weight="700">2</text>
+      <text x="30" y="102" fill="#0f172a" font-size="25" font-weight="700">选择分析范围</text>
+      <text x="30" y="150" fill="#475569" font-size="18">按榜单全选</text>
+      <text x="30" y="184" fill="#475569" font-size="18">或逐本勾选</text>
+      <text x="30" y="246" fill="#64748b" font-size="16">优先观察新书榜，</text>
+      <text x="30" y="272" fill="#64748b" font-size="16">成熟榜单用于对照。</text>
+    </g>
+    <path d="M675 385 H715" stroke="#64748b" stroke-width="3" marker-end="url(#arrow)"/>
+    <g transform="translate(730 220)">
+      <rect width="260" height="330" rx="24" fill="#ffffff"/>
+      <circle cx="42" cy="45" r="22" fill="#dcfce7"/>
+      <text x="42" y="52" text-anchor="middle" fill="#15803d" font-size="18" font-weight="700">3</text>
+      <text x="30" y="102" fill="#0f172a" font-size="25" font-weight="700">提炼市场信号</text>
+      <text x="30" y="150" fill="#475569" font-size="18">题材与主角</text>
+      <text x="30" y="184" fill="#475569" font-size="18">优势与开局</text>
+      <text x="30" y="218" fill="#475569" font-size="18">关系与差异化</text>
+      <text x="30" y="278" fill="#64748b" font-size="16">每条信号保留热度、</text>
+      <text x="30" y="304" fill="#64748b" font-size="16">拥挤度和榜单证据。</text>
+    </g>
+    <path d="M1005 385 H1045" stroke="#64748b" stroke-width="3" marker-end="url(#arrow)"/>
+    <g transform="translate(1060 220)">
+      <rect width="220" height="330" rx="24" fill="#ffffff"/>
+      <circle cx="42" cy="45" r="22" fill="#ffedd5"/>
+      <text x="42" y="52" text-anchor="middle" fill="#c2410c" font-size="18" font-weight="700">4</text>
+      <text x="30" y="102" fill="#0f172a" font-size="25" font-weight="700">确定影响方式</text>
+      <text x="30" y="150" fill="#475569" font-size="18">跟随热门</text>
+      <text x="30" y="184" fill="#475569" font-size="18">热门中求差异</text>
+      <text x="30" y="218" fill="#475569" font-size="18">弱化市场</text>
+      <text x="30" y="278" fill="#64748b" font-size="16">最多保留 5 项</text>
+      <text x="30" y="304" fill="#64748b" font-size="16">彼此一致的信号。</text>
+    </g>
+    <path d="M1295 385 H1335" stroke="#64748b" stroke-width="3" marker-end="url(#arrow)"/>
+    <g transform="translate(1350 220)">
+      <rect width="180" height="330" rx="24" fill="#0f172a"/>
+      <circle cx="42" cy="45" r="22" fill="#334155"/>
+      <text x="42" y="52" text-anchor="middle" fill="#ffffff" font-size="18" font-weight="700">5</text>
+      <text x="24" y="108" fill="#ffffff" font-size="24" font-weight="700">进入自动导演</text>
+      <text x="24" y="162" fill="#cbd5e1" font-size="17">起始想法</text>
+      <text x="24" y="196" fill="#cbd5e1" font-size="17">核心卖点</text>
+      <text x="24" y="230" fill="#cbd5e1" font-size="17">前 30 章承诺</text>
+      <text x="24" y="264" fill="#cbd5e1" font-size="17">题材与推进方式</text>
+    </g>
+  </g>
+  <rect x="90" y="625" width="1420" height="72" rx="18" fill="#e2e8f0" opacity="0.75"/>
+  <text x="800" y="670" text-anchor="middle" fill="#334155" font-family="Microsoft YaHei, sans-serif" font-size="20">市场信号只负责提供开书依据；角色、世界和剧情仍由新书方向重新生成。</text>
+</svg>

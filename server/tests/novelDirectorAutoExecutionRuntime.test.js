@@ -642,6 +642,9 @@ test("runFromReady keeps a pending manual-recovery pipeline job paused", async (
       async markTaskFailed() {
         calls.push(["markTaskFailed"]);
       },
+      async requeueTaskForRecovery(_taskId, _message, patch) {
+        calls.push(["requeueTaskForRecovery", patch.checkpointType]);
+      },
     },
     buildDirectorSeedPayload(_request, _novelId, extra) {
       return extra ?? {};
@@ -669,7 +672,7 @@ test("runFromReady keeps a pending manual-recovery pipeline job paused", async (
     ["bootstrapTask", "job-paused", "running"],
     ["findActivePipelineJobForRange", "novel-1", 1, 1, "job-paused"],
     ["getPipelineJobById", "job-paused"],
-    ["markTaskFailed"],
+    ["requeueTaskForRecovery", "chapter_batch_ready"],
     ["bootstrapTask", "job-paused", "queued"],
   ]);
 });

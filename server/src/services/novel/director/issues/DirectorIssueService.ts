@@ -24,7 +24,7 @@ const FORCED_SCORE_CODES = new Set<DirectorIssueCode>([
 
 export interface ReportDirectorIssueInput {
   issueGovernanceVersion?: number | null;
-  taskId: string;
+  taskId?: string;
   runId?: string | null;
   novelId: string;
   issueCode: DirectorIssueCode;
@@ -125,34 +125,38 @@ export class DirectorIssueService {
     });
     const catalog = DIRECTOR_ISSUE_CATALOG_BY_CODE[occurrence.issueCode];
 
-    await directorAutomationLedgerEventService.recordEvent({
-      type: "issue_detected",
-      idempotencyKey: `${input.taskId}:${input.fingerprint}`,
-      taskId: input.taskId,
-      runId: input.runId,
-      novelId: input.novelId,
-      nodeKey: input.stage,
-      summary: `${catalog.label}：${occurrence.summary}`,
-      affectedScope: occurrence.affectedScope ?? null,
-      severity: severityFor(decision.action),
-      metadata: { schemaVersion: 1, occurrence },
-      occurredAt: occurrence.occurredAt,
-    });
-
-    if (input.applyAction) {
-      await input.applyAction(decision);
+    if (input.taskId) {
       await directorAutomationLedgerEventService.recordEvent({
-        type: "issue_action_applied",
-        idempotencyKey: `${input.taskId}:${input.fingerprint}:${decision.action}`,
+        type: "issue_detected",
+        idempotencyKey: `${input.taskId}:${input.fingerprint}`,
         taskId: input.taskId,
         runId: input.runId,
         novelId: input.novelId,
         nodeKey: input.stage,
-        summary: `${catalog.label}已执行：${decision.action}`,
+        summary: `${catalog.label}：${occurrence.summary}`,
         affectedScope: occurrence.affectedScope ?? null,
         severity: severityFor(decision.action),
-        metadata: { schemaVersion: 1, occurrence, decision },
+        metadata: { schemaVersion: 1, occurrence },
+        occurredAt: occurrence.occurredAt,
       });
+    }
+
+    if (input.applyAction) {
+      await input.applyAction(decision);
+      if (input.taskId) {
+        await directorAutomationLedgerEventService.recordEvent({
+          type: "issue_action_applied",
+          idempotencyKey: `${input.taskId}:${input.fingerprint}:${decision.action}`,
+          taskId: input.taskId,
+          runId: input.runId,
+          novelId: input.novelId,
+          nodeKey: input.stage,
+          summary: `${catalog.label}已执行：${decision.action}`,
+          affectedScope: occurrence.affectedScope ?? null,
+          severity: severityFor(decision.action),
+          metadata: { schemaVersion: 1, occurrence, decision },
+        });
+      }
     }
 
     return { occurrence, decision };
