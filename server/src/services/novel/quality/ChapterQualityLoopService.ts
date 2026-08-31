@@ -79,9 +79,6 @@ function appendRepairHistory(
     `[quality_loop ${assessment.evaluatedAt}]`,
     `status=${assessment.overallStatus}`,
     `action=${assessment.recommendedAction}`,
-    assessment.budget?.signature ? `signature=${assessment.budget.signature}` : "",
-    assessment.budget ? `attempt=${assessment.budget.attempt}/${assessment.budget.maxAttempts}` : "",
-    assessment.budget?.nextAction ? `budget=${assessment.budget.nextAction}` : "",
     terminalAction ? `terminal=${terminalAction}` : "",
     assessment.signals
       .filter((signal) => signal.status !== "valid")
@@ -160,7 +157,6 @@ export class ChapterQualityLoopService {
       issues: input.issues,
       runtimePackage: input.runtimePackage,
       replanRecommendation: input.replanRecommendation,
-      previousRepairHistory: chapter.repairHistory,
     });
     const terminalAction = assessment.recommendedAction === "continue"
       ? null

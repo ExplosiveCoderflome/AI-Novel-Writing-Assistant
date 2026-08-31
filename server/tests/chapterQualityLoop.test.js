@@ -99,9 +99,8 @@ test("buildChapterQualityLoopAssessment routes rolling window failures to replan
 
   assert.equal(assessment.overallStatus, "invalid");
   assert.equal(assessment.recommendedAction, "replan");
-  assert.equal(assessment.patchFirstRequired, true);
+  assert.equal(assessment.patchFirstRequired, false);
   assert.equal(assessment.recheckRequired, true);
-  assert.equal(assessment.budget.nextAction, "patch_repair");
   assert.equal(
     assessment.signals.find((signal) => signal.artifactType === "rolling_window_review").status,
     "invalid",
@@ -186,7 +185,6 @@ test("buildChapterQualityLoopAssessment treats low repetition control as a repai
 
   assert.equal(assessment.overallStatus, "invalid");
   assert.equal(assessment.recommendedAction, "patch_repair");
-  assert.equal(assessment.budget.nextAction, "patch_repair");
 });
 
 test("buildChapterQualityLoopAssessment includes prose quality risk as local patch repair input", () => {
@@ -263,33 +261,23 @@ test("buildChapterQualityLoopAssessment keeps advisory prose findings non-blocki
   assert.equal(assessment.recommendedAction, "continue");
 });
 
-test("buildChapterQualityLoopAssessment escalates repeated quality signatures by budget", () => {
-  const first = buildChapterQualityLoopAssessment({
-    chapterId: "chapter-budget",
+test("buildChapterQualityLoopAssessment never escalates a local finding from repair history", () => {
+  const assessment = buildChapterQualityLoopAssessment({
+    chapterId: "chapter-history",
     chapterOrder: 6,
     score: score({ repetition: 60 }),
     issues: [],
-    evaluatedAt: "2026-04-30T00:00:00.000Z",
-  });
-  const history = [
-    `[quality_loop 2026-04-30T00:00:00.000Z] status=${first.overallStatus} action=${first.recommendedAction} signature=${first.budget.signature} attempt=1/3 budget=${first.budget.nextAction}`,
-    `[quality_loop 2026-04-30T00:01:00.000Z] status=${first.overallStatus} action=${first.recommendedAction} signature=${first.budget.signature} attempt=2/3 budget=rewrite_chapter`,
-    `[quality_loop 2026-04-30T00:02:00.000Z] status=${first.overallStatus} action=${first.recommendedAction} signature=${first.budget.signature} attempt=3/3 budget=replan_window`,
-  ].join("\n");
-
-  const exhausted = buildChapterQualityLoopAssessment({
-    chapterId: "chapter-budget",
-    chapterOrder: 6,
-    score: score({ repetition: 60 }),
-    issues: [],
-    previousRepairHistory: history,
+    previousRepairHistory: [
+      "[quality_loop old] action=patch_repair budget=rewrite_chapter",
+      "[quality_loop old] action=patch_repair budget=replan_window",
+      "[quality_loop old] action=patch_repair budget=hard_stop",
+    ].join("\n"),
     evaluatedAt: "2026-04-30T00:03:00.000Z",
   });
 
-  assert.equal(exhausted.recommendedAction, "manual_gate");
-  assert.equal(exhausted.budget.attempt, 4);
-  assert.equal(exhausted.budget.nextAction, "hard_stop");
-  assert.equal(exhausted.budget.exhausted, true);
+  assert.equal(assessment.recommendedAction, "patch_repair");
+  assert.equal(assessment.patchFirstRequired, true);
+  assert.equal(assessment.budget, undefined);
 });
 
 test("buildChapterQualityLoopChapterUpdate clears stale repair state after a valid repair recheck", () => {
