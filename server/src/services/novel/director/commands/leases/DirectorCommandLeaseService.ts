@@ -107,12 +107,20 @@ export class DirectorCommandLeaseService {
     const now = new Date();
     const leaseExpiresAt = new Date(now.getTime() + input.leaseMs);
     const candidate = await prisma.directorRunCommand.findFirst({
-      where: { status: "queued", runAfter: { lte: now } },
+      where: {
+        status: "queued",
+        runAfter: { lte: now },
+        task: { pendingManualRecovery: false },
+      },
       orderBy: [{ runAfter: "asc" }, { createdAt: "asc" }, { id: "asc" }],
     });
     if (!candidate) return null;
     const claimed = await prisma.directorRunCommand.updateMany({
-      where: { id: candidate.id, status: "queued" },
+      where: {
+        id: candidate.id,
+        status: "queued",
+        task: { pendingManualRecovery: false },
+      },
       data: {
         status: "leased",
         leaseOwner: input.workerId,
