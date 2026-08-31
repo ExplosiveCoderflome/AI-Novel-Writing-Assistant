@@ -10,6 +10,7 @@ const {
 const {
   directorIssueService,
 } = require("../dist/services/novel/director/issues/DirectorIssueService.js");
+const issueTaskContext = require("../dist/services/novel/director/issues/DirectorIssueTaskContext.js");
 const {
   buildDirectorAutoExecutionState,
 } = require("../dist/services/novel/director/automation/novelDirectorAutoExecution.js");
@@ -148,6 +149,70 @@ test("circuit-breaker governance continues, pauses, or fails the real workflow s
 
     assert.deepEqual(reports.map((report) => report.hasUsableOutput), [true, true, true]);
   } finally {
+    directorIssueService.reportIssue = originalReportIssue;
+  }
+});
+
+test("legacy circuit breakers load compatible governance instead of using the old stop path", async () => {
+  const originalLoadTaskContext = issueTaskContext.loadDirectorIssueTaskContext;
+  const originalReportIssue = directorIssueService.reportIssue;
+  const reports = [];
+  issueTaskContext.loadDirectorIssueTaskContext = async () => ({
+    novelId: "novel-legacy",
+    issueGovernanceVersion: 1,
+    policy: {
+      maxAutomaticRetries: 1,
+      issueActions: { "quality.local_repair_failed": "continue_with_warning" },
+    },
+    policySource: "novel",
+  });
+  directorIssueService.reportIssue = async (input) => {
+    reports.push(input);
+    await input.applyAction({
+      issueCode: input.issueCode,
+      action: "continue_with_warning",
+      reason: "兼容读取本书规则",
+      locked: false,
+      policySource: input.policySource,
+      retryExhaustedAction: "continue_with_warning",
+    });
+  };
+  const calls = [];
+  const deps = {
+    workflowService: {
+      async bootstrapTask() { calls.push("continued"); },
+      async recordCheckpoint() {},
+      async markTaskFailed() { calls.push("failed"); },
+      async requeueTaskForRecovery() { calls.push("paused"); },
+    },
+    buildDirectorSeedPayload(_request, _novelId, extra) { return extra; },
+    automationLedgerEventService: {
+      async recordCircuitBreakerOpened() {},
+      async recordEvent() {},
+    },
+  };
+  try {
+    await stopAutoExecutionForCircuitBreaker(deps, {
+      taskId: "task-legacy",
+      novelId: "novel-legacy",
+      request: buildRequest({ runMode: "full_book_autopilot" }),
+      range: { firstChapterId: "chapter-1", startOrder: 1, endOrder: 3, totalChapterCount: 3 },
+      autoExecution: { enabled: true, nextChapterId: "chapter-2", nextChapterOrder: 2, remainingChapterCount: 2 },
+      circuitBreaker: {
+        status: "open",
+        reason: "auto_repair_exhausted",
+        message: "旧任务局部修复已耗尽。",
+        chapterId: "chapter-1",
+        chapterOrder: 1,
+        patchFailureCount: 1,
+      },
+    });
+    assert.equal(reports.length, 1);
+    assert.equal(reports[0].policySource, "novel");
+    assert.equal(reports[0].policy.issueActions["quality.local_repair_failed"], "continue_with_warning");
+    assert.deepEqual(calls, ["continued"]);
+  } finally {
+    issueTaskContext.loadDirectorIssueTaskContext = originalLoadTaskContext;
     directorIssueService.reportIssue = originalReportIssue;
   }
 });

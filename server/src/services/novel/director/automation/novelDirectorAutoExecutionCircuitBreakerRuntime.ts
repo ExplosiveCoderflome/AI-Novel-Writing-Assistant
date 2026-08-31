@@ -36,7 +36,12 @@ import {
 import { directorAutomationLedgerEventService } from "../runtime/DirectorAutomationLedgerEventService";
 import { directorUsageTelemetryQueryService } from "../runtime/DirectorUsageTelemetryQueryService";
 import { directorIssueService } from "../issues";
-import type { DirectorIssueAction, DirectorIssueCode } from "@ai-novel/shared/types/directorIssue";
+import { loadDirectorIssueTaskContext } from "../issues/DirectorIssueTaskContext";
+import {
+  directorIssuePolicySchema,
+  type DirectorIssueAction,
+  type DirectorIssueCode,
+} from "@ai-novel/shared/types/directorIssue";
 
 type AutomationLedgerEventPort = Pick<
   typeof directorAutomationLedgerEventService,
@@ -171,8 +176,17 @@ export async function stopAutoExecutionForCircuitBreaker(
   deps: CircuitBreakerWorkflowPort,
   input: Parameters<typeof applyCircuitBreakerStop>[1],
 ): Promise<void> {
-  const issuePolicy = input.request.issuePolicy;
-  if (input.request.issueGovernanceVersion !== 1 || !issuePolicy) {
+  const requestPolicy = input.request.issueGovernanceVersion === 1
+    ? directorIssuePolicySchema.safeParse(input.request.issuePolicy)
+    : null;
+  const governance = requestPolicy?.success
+    ? {
+      issueGovernanceVersion: 1 as const,
+      policy: requestPolicy.data,
+      policySource: input.request.issuePolicySource ?? "task_snapshot" as const,
+    }
+    : await loadDirectorIssueTaskContext(input.taskId).catch(() => null);
+  if (!governance) {
     await applyCircuitBreakerStop(deps, input);
     return;
   }
@@ -186,7 +200,7 @@ export async function stopAutoExecutionForCircuitBreaker(
   );
   const issueCode = issueCodeForCircuitBreaker(input.circuitBreaker.reason);
   await directorIssueService.reportIssue({
-    issueGovernanceVersion: input.request.issueGovernanceVersion,
+    issueGovernanceVersion: governance.issueGovernanceVersion,
     taskId: input.taskId,
     novelId: input.novelId,
     issueCode,
@@ -207,8 +221,8 @@ export async function stopAutoExecutionForCircuitBreaker(
       input.circuitBreaker.chapterId ?? "book",
       failureCount,
     ].join(":"),
-    policy: issuePolicy,
-    policySource: input.request.issuePolicySource ?? "task_snapshot",
+    policy: governance.policy,
+    policySource: governance.policySource,
     provider: input.request.provider,
     model: input.request.model,
     temperature: input.request.temperature,
