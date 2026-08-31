@@ -13,6 +13,9 @@
 ![Database](https://img.shields.io/badge/Database-SQLite%20%2B%20Prisma-111827)
 ![Vector DB](https://img.shields.io/badge/RAG-Qdrant-E63946)
 
+<a href="https://trendshift.io/repositories/26664?utm_source=repository-badge&amp;utm_medium=badge&amp;utm_campaign=badge-repository-26664" target="_blank" rel="noopener noreferrer">
+  <img src="https://trendshift.io/api/badge/repositories/26664" alt="ExplosiveCoderflome/AI-Novel-Writing-Assistant | Trendshift" width="250" height="55" />
+</a>
 
 ## ✨ 项目简介
 
