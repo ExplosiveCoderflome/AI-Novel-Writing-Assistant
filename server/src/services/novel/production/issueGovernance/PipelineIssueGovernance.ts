@@ -33,7 +33,7 @@ export async function reportPipelineIssue(input: {
   temperature?: number;
   applyAction?: (decision: DirectorIssueDecision) => Promise<void>;
 }): Promise<ReportDirectorIssueResult | null> {
-  if (!input.governance || !input.workflowTaskId) return null;
+  if (!input.governance) return null;
   try {
     return await directorIssueService.reportIssue({
       issueGovernanceVersion: input.governance.issueGovernanceVersion,
@@ -59,7 +59,7 @@ export async function reportPipelineIssue(input: {
       applyAction: input.applyAction,
     });
   } catch (error) {
-    logPipelineWarn("自动导演问题治理失败", {
+    logPipelineWarn("章节流水线问题治理失败", {
       jobId: input.jobId,
       issueCode: input.issueCode,
       error: error instanceof Error ? error.message : String(error),

@@ -17,6 +17,7 @@ const {
   applyChapterQualityClosure,
 } = require("../dist/services/novel/production/qualityClosure/ChapterQualityClosure.js");
 const {
+  reportPipelineIssue,
   resolvePipelineRuntimeIssueCode,
 } = require("../dist/services/novel/production/issueGovernance/PipelineIssueGovernance.js");
 
@@ -231,9 +232,11 @@ test("quality closure follows the selected preset after one failed repair", asyn
   try {
     const completionFirst = await runClosure(finishFullBook, "full_book_autopilot");
     assert.equal(completionFirst.shouldStopAfterCurrentChapter, false);
+    assert.equal(completionFirst.stopAction, null);
 
     const qualityFirstAutopilot = await runClosure(qualityFirst, "full_book_autopilot");
     assert.equal(qualityFirstAutopilot.shouldStopAfterCurrentChapter, true);
+    assert.equal(qualityFirstAutopilot.stopAction, "pause_for_manual");
 
     const qualityFirstStaged = await runClosure(qualityFirst, "stage_review");
     assert.equal(qualityFirstStaged.shouldStopAfterCurrentChapter, true);
@@ -251,6 +254,21 @@ test("quality closure follows the selected preset after one failed repair", asyn
       },
     }, "full_book_autopilot");
     assert.equal(retryConfiguredAtExhaustedBoundary.shouldStopAfterCurrentChapter, false);
+
+    const failConfigured = await runClosure({
+      ...finishFullBook,
+      id: "fail_after_repair",
+      policy: {
+        ...finishFullBook.policy,
+        issueActions: {
+          ...finishFullBook.policy.issueActions,
+          "quality.acceptance_unavailable": "fail_task",
+          "quality.local_repair_failed": "fail_task",
+        },
+      },
+    }, "stage_review");
+    assert.equal(failConfigured.shouldStopAfterCurrentChapter, true);
+    assert.equal(failConfigured.stopAction, "fail_task");
   } finally {
     directorAutomationLedgerEventService.recordEvent = originalRecordEvent;
   }
@@ -341,6 +359,48 @@ test("issue action is recorded only after a real action handler completes", asyn
       applyAction: async () => undefined,
     });
     assert.deepEqual(events.slice(-2).map((event) => event.type), ["issue_detected", "issue_action_applied"]);
+  } finally {
+    directorAutomationLedgerEventService.recordEvent = originalRecordEvent;
+  }
+});
+
+test("manual chapter pipelines apply the snapshotted issue policy without a director task", async () => {
+  const originalRecordEvent = directorAutomationLedgerEventService.recordEvent;
+  const ledgerEvents = [];
+  let appliedDecision = null;
+  directorAutomationLedgerEventService.recordEvent = async (event) => ledgerEvents.push(event);
+
+  try {
+    const result = await reportPipelineIssue({
+      governance: {
+        novelId: "novel-manual",
+        issueGovernanceVersion: 1,
+        policy: {
+          ...DEFAULT_DIRECTOR_ISSUE_POLICY,
+          issueActions: {
+            "quality.local_repair_failed": "pause_for_manual",
+          },
+        },
+        runMode: "fast",
+        policySource: "task_snapshot",
+      },
+      novelId: "novel-manual",
+      jobId: "job-manual",
+      issueCode: "quality.local_repair_failed",
+      stage: "chapter_repair",
+      summary: "局部补丁无法安全应用。",
+      chapterId: "chapter-1",
+      chapterOrder: 1,
+      attempt: 0,
+      hasUsableOutput: true,
+      applyAction: async (decision) => {
+        appliedDecision = decision;
+      },
+    });
+
+    assert.equal(result.decision.action, "pause_for_manual");
+    assert.equal(appliedDecision.action, "pause_for_manual");
+    assert.equal(ledgerEvents.length, 0);
   } finally {
     directorAutomationLedgerEventService.recordEvent = originalRecordEvent;
   }

@@ -1,4 +1,5 @@
 import type { Prisma } from "@prisma/client";
+import { DIRECTOR_ISSUE_GOVERNANCE_VERSION, directorIssuePolicySchema } from "@ai-novel/shared/types/directorIssue";
 import { prisma } from "../../db/prisma";
 import {
   logPipelineInfo,
@@ -11,6 +12,7 @@ import { ChapterRuntimeCoordinator } from "./runtime/ChapterRuntimeCoordinator";
 import { selectPrimaryPipelineJob } from "./pipelineJobDedup";
 import { buildPipelineCurrentItemLabel, buildPipelineStageProgress, decoratePipelineJob as decoratePipelineJobRow, isPipelineActiveStage, parsePipelinePayload as parsePipelineJobPayload, stringifyPipelinePayload as stringifyPipelineJobPayload, type DecoratedPipelineJob, type PipelineActiveStage, type PipelineJobLike } from "./pipelineJobState";
 import { NovelPipelineExecutor } from "./production/NovelPipelineExecutor";
+import { directorIssuePolicyService, loadDirectorIssueTaskContext } from "./director/issues";
 
 export { buildPipelineCurrentItemLabel, buildPipelineStageProgress } from "./pipelineJobState";
 
@@ -62,6 +64,20 @@ export class NovelCorePipelineService {
 
   private buildRangeKey(novelId: string, startOrder: number, endOrder: number): string {
     return `${novelId}:${startOrder}:${endOrder}`;
+  }
+
+  private async resolveIssuePolicySnapshot(novelId: string, options: PipelineRunOptions) {
+    if (options.issueGovernanceVersion === DIRECTOR_ISSUE_GOVERNANCE_VERSION) {
+      const explicit = directorIssuePolicySchema.safeParse(options.issuePolicySnapshot);
+      if (explicit.success) {
+        return explicit.data;
+      }
+    }
+    const taskContext = await loadDirectorIssueTaskContext(options.workflowTaskId);
+    if (taskContext) {
+      return taskContext.policy;
+    }
+    return (await directorIssuePolicyService.getNovelPolicy(novelId)).effectivePolicy;
   }
 
   private async waitForStartLock(key: string): Promise<void> {
@@ -289,6 +305,8 @@ export class NovelCorePipelineService {
         startOrder: job.startOrder,
         endOrder: job.endOrder,
         controlPolicy: payload.controlPolicy,
+        issueGovernanceVersion: payload.issueGovernanceVersion,
+        issuePolicySnapshot: payload.issuePolicySnapshot,
         workflowTaskId: payload.workflowTaskId,
         taskStyleProfileId: payload.taskStyleProfileId,
         maxRetries: clampPipelineMaxRetries(job.maxRetries),
@@ -309,7 +327,13 @@ export class NovelCorePipelineService {
     const rangeKey = this.buildRangeKey(novelId, options.startOrder, options.endOrder);
     return this.withStartLock(rangeKey, async () => {
       const maxRetries = clampPipelineMaxRetries(options.maxRetries);
-      const runtimeOptions: PipelineRunOptions = { ...options, maxRetries };
+      const issuePolicySnapshot = await this.resolveIssuePolicySnapshot(novelId, options);
+      const runtimeOptions: PipelineRunOptions = {
+        ...options,
+        maxRetries,
+        issueGovernanceVersion: DIRECTOR_ISSUE_GOVERNANCE_VERSION,
+        issuePolicySnapshot,
+      };
       await ensureNovelCharacters(novelId, "启动批量章节流水");
 
       const existingActiveJob = await this.reconcileActivePipelineJobsForRange({
@@ -385,6 +409,8 @@ export class NovelCorePipelineService {
             model: options.model ?? "",
             temperature: options.temperature ?? 0.8,
             controlPolicy: options.controlPolicy,
+            issueGovernanceVersion: DIRECTOR_ISSUE_GOVERNANCE_VERSION,
+            issuePolicySnapshot,
             workflowTaskId: options.workflowTaskId?.trim() || undefined,
             taskStyleProfileId: options.taskStyleProfileId?.trim() || undefined,
             maxRetries,
@@ -440,6 +466,8 @@ export class NovelCorePipelineService {
       endOrder: job.endOrder,
       workflowTaskId: payload.workflowTaskId,
       taskStyleProfileId: payload.taskStyleProfileId,
+      issueGovernanceVersion: payload.issueGovernanceVersion,
+      issuePolicySnapshot: payload.issuePolicySnapshot,
       maxRetries: clampPipelineMaxRetries(job.maxRetries),
       runMode: job.runMode ?? payload.runMode,
       autoReview: job.autoReview ?? payload.autoReview,

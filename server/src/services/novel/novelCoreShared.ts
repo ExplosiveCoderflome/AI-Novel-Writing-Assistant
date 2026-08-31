@@ -1,4 +1,5 @@
 import type { BookAnalysisSectionKey } from "@ai-novel/shared/types/bookAnalysis";
+import type { DirectorIssuePolicy } from "@ai-novel/shared/types/directorIssue";
 import type { LLMProvider } from "@ai-novel/shared/types/llm";
 import type { QualityScore, ReviewIssue } from "@ai-novel/shared/types/novel";
 import { parseCommercialTagsJson } from "@ai-novel/shared/types/novelFraming";
@@ -185,6 +186,8 @@ export interface PipelineRunOptions extends LLMGenerateOptions {
   startOrder: number;
   endOrder: number;
   controlPolicy?: NovelControlPolicy;
+  issueGovernanceVersion?: 1;
+  issuePolicySnapshot?: DirectorIssuePolicy;
   workflowTaskId?: string;
   taskStyleProfileId?: string;
   maxRetries?: number;
@@ -218,6 +221,8 @@ export interface PipelineBackgroundSyncState {
 
 export interface PipelinePayload extends LLMGenerateOptions {
   controlPolicy?: NovelControlPolicy;
+  issueGovernanceVersion?: 1;
+  issuePolicySnapshot?: DirectorIssuePolicy;
   workflowTaskId?: string;
   taskStyleProfileId?: string;
   maxRetries?: number;

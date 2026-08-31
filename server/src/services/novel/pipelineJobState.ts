@@ -6,6 +6,7 @@ import type {
   PipelinePayload,
 } from "./novelCoreShared";
 import type { NovelControlPolicy } from "@ai-novel/shared/types/canonicalState";
+import { directorIssuePolicySchema } from "@ai-novel/shared/types/directorIssue";
 
 const PIPELINE_ACTIVE_STAGES = ["queued", "generating_chapters", "reviewing", "repairing", "finalizing"] as const;
 const PIPELINE_STAGE_PROGRESS = {
@@ -151,6 +152,11 @@ function normalizeControlPolicy(value: unknown): NovelControlPolicy | undefined 
   };
 }
 
+function normalizeIssuePolicy(value: unknown): PipelinePayload["issuePolicySnapshot"] | undefined {
+  const parsed = directorIssuePolicySchema.safeParse(value);
+  return parsed.success ? parsed.data : undefined;
+}
+
 export function buildPipelineBackgroundActivityLabels(
   backgroundSync: PipelineBackgroundSyncState | null | undefined,
 ): string[] {
@@ -243,6 +249,8 @@ export function parsePipelinePayload(payload: string | null | undefined): Pipeli
           : undefined,
       artifactSyncMode: normalizeArtifactSyncMode(parsed.artifactSyncMode),
       controlPolicy: normalizeControlPolicy(parsed.controlPolicy),
+      issueGovernanceVersion: parsed.issueGovernanceVersion === 1 ? 1 : undefined,
+      issuePolicySnapshot: normalizeIssuePolicy(parsed.issuePolicySnapshot),
       qualityAlertDetails: normalizeStringList(parsed.qualityAlertDetails ?? parsed.failedDetails),
       replanAlertDetails: normalizeStringList(parsed.replanAlertDetails),
       recoverableRepairDetails: normalizeStringList(parsed.recoverableRepairDetails),
@@ -273,6 +281,12 @@ export function stringifyPipelinePayload(input: PipelinePayload): string {
     repairMode: input.repairMode ?? "light_repair",
     artifactSyncMode: input.artifactSyncMode ?? "adaptive",
     ...(input.controlPolicy ? { controlPolicy: normalizeControlPolicy(input.controlPolicy) ?? input.controlPolicy } : {}),
+    ...(input.issueGovernanceVersion === 1 && input.issuePolicySnapshot
+      ? {
+        issueGovernanceVersion: 1,
+        issuePolicySnapshot: normalizeIssuePolicy(input.issuePolicySnapshot) ?? input.issuePolicySnapshot,
+      }
+      : {}),
     ...(qualityAlertDetails.length > 0 ? { qualityAlertDetails } : {}),
     ...(replanAlertDetails.length > 0 ? { replanAlertDetails } : {}),
     ...(recoverableRepairDetails.length > 0 ? { recoverableRepairDetails } : {}),

@@ -1,5 +1,9 @@
 import type { Prisma } from "@prisma/client";
-import type { DirectorIssueAction, DirectorIssueCode } from "@ai-novel/shared/types/directorIssue";
+import {
+  DIRECTOR_ISSUE_GOVERNANCE_VERSION,
+  type DirectorIssueAction,
+  type DirectorIssueCode,
+} from "@ai-novel/shared/types/directorIssue";
 import { prisma } from "../../../db/prisma";
 import { novelEventBus } from "../../../events";
 import { runWithLlmUsageTracking } from "../../../llm/usageTracking";
@@ -163,6 +167,8 @@ export class NovelPipelineExecutor {
       model: persistedPayload.model ?? options.model ?? "",
       temperature: persistedPayload.temperature ?? options.temperature ?? 0.8,
       controlPolicy: persistedPayload.controlPolicy ?? options.controlPolicy,
+      issueGovernanceVersion: persistedPayload.issueGovernanceVersion ?? options.issueGovernanceVersion,
+      issuePolicySnapshot: persistedPayload.issuePolicySnapshot ?? options.issuePolicySnapshot,
       workflowTaskId: persistedPayload.workflowTaskId ?? options.workflowTaskId,
       taskStyleProfileId: persistedPayload.taskStyleProfileId ?? options.taskStyleProfileId,
       maxRetries: clampPipelineMaxRetries(persistedPayload.maxRetries ?? options.maxRetries),
@@ -186,9 +192,19 @@ export class NovelPipelineExecutor {
       }).catch(() => null)
       : null;
     const shouldRecordDirectorTelemetry = directorTelemetryTask?.lane === "auto_director";
-    const issueGovernance = shouldRecordDirectorTelemetry
-      ? await loadDirectorIssueTaskContext(runtimePayload.workflowTaskId)
+    const snapshottedIssueGovernance = runtimePayload.issueGovernanceVersion === DIRECTOR_ISSUE_GOVERNANCE_VERSION
+      && runtimePayload.issuePolicySnapshot
+      ? {
+        novelId,
+        issueGovernanceVersion: DIRECTOR_ISSUE_GOVERNANCE_VERSION,
+        policy: runtimePayload.issuePolicySnapshot,
+        runMode: runtimePayload.controlPolicy?.advanceMode ?? runtimePayload.runMode,
+        policySource: "task_snapshot" as const,
+      }
       : null;
+    const issueGovernance = snapshottedIssueGovernance ?? (shouldRecordDirectorTelemetry
+      ? await loadDirectorIssueTaskContext(runtimePayload.workflowTaskId)
+      : null);
     let totalRetryCount = Math.max(existingJob?.retryCount ?? 0, 0);
     const qualityAlertDetails = [...(persistedPayload.qualityAlertDetails ?? [])];
     const replanAlertDetails = [...(persistedPayload.replanAlertDetails ?? [])];
@@ -356,6 +372,7 @@ export class NovelPipelineExecutor {
           await this.ensurePipelineNotCancelled(jobId);
 
           let shouldStopAfterCurrentChapter = false;
+          let chapterStopAction: "pause_for_manual" | "fail_task" | null = null;
           const currentItemLabel = buildPipelineCurrentItemLabel({
             completedCount: completed,
             totalCount,
@@ -566,6 +583,7 @@ export class NovelPipelineExecutor {
             }),
           });
           shouldStopAfterCurrentChapter = closure.shouldStopAfterCurrentChapter;
+          chapterStopAction = closure.stopAction;
 
           // Phase 3：同步补齐下一段章节路线；正文执行合同仍由下一章 JIT 独立生成。
           if (!shouldStopAfterCurrentChapter && isAutopilotMode && chapter.order < autopilotTargetEndOrder) {
@@ -649,6 +667,27 @@ export class NovelPipelineExecutor {
             progress: Number((completed / totalCount).toFixed(4)),
             retryCount: totalRetryCount,
           });
+          if (chapterStopAction === "fail_task") {
+            const failureMessage = `第${chapter.order}章质量问题已按任务规则结束本次流水线。`;
+            await this.updateJobRequired(jobId, {
+              status: "failed",
+              pendingManualRecovery: false,
+              error: failureMessage,
+              heartbeatAt: null,
+              currentStage: null,
+              currentItemKey: chapter.id,
+              currentItemLabel: currentItemLabel,
+              cancelRequestedAt: null,
+              finishedAt: new Date(),
+              payload: this.stringifyPipelinePayload({
+                ...runtimePayload,
+                qualityAlertDetails,
+                replanAlertDetails,
+                recoverableRepairDetails,
+              }),
+            });
+            throw new PipelineIssueAppliedError(failureMessage, "fail_task");
+          }
           if (shouldStopAfterCurrentChapter) {
             pendingManualRecovery = true;
             logPipelineWarn("章节需要人工处理，已暂停后续章节流水线", {

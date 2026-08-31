@@ -215,6 +215,7 @@ export async function prepareChapterRepairExecution(
         chapterTitle: input.chapterTitle,
         content: input.content,
         issues,
+        issuesJson: buildRepairIssuesPayload(issues, input.runtimePackage),
         runtimePackage: input.runtimePackage,
         repairContext: input.repairContext,
         provider: input.options.provider,
@@ -236,44 +237,7 @@ export async function prepareChapterRepairExecution(
       if (!(error instanceof ChapterPatchRepairFailedError)) {
         throw error;
       }
-      if (activeRepairMode === "detect_only") {
-        throw error;
-      }
-
-      activeRepairMode = "heavy_repair";
-      modeHint = getRepairModeHint(activeRepairMode, issueCodes);
-      return {
-        kind: "heavy_repair",
-        issues,
-        finalRepairMode: activeRepairMode,
-        modeHint,
-        escalatedFromPatch: true,
-        patchFailure: error,
-        prompt: {
-          promptInput: {
-            novelTitle: input.novelTitle,
-            bibleContent: resolveBibleContent(input),
-            chapterTitle: input.chapterTitle,
-            chapterContent: input.content,
-            issuesJson: buildRepairIssuesPayload(issues, input.runtimePackage),
-            ragContext: buildRepairRagContext(input),
-            modeHint,
-          },
-          contextBlocks: resolveRepairContext(input)
-            ? buildChapterRepairContextBlocks(resolveRepairContext(input) as ChapterRepairContext)
-            : undefined,
-          options: {
-            provider: input.options.provider,
-            model: input.options.model,
-            temperature: Math.min(input.options.temperature ?? 0.55, 0.65),
-            novelId: input.novelId,
-            chapterId: input.chapterId,
-            stage: "chapter_repair",
-            triggerReason: activeRepairMode,
-          },
-          fallbackContent: input.content,
-        },
-      };
+      throw error;
     }
   }
 
