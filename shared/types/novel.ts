@@ -255,6 +255,8 @@ export interface Novel {
   sourceKnowledgeDocumentId?: string | null;
   continuationBookAnalysisId?: string | null;
   continuationBookAnalysisSections?: BookAnalysisSectionKey[] | null;
+  referenceBookAnalysisId?: string | null;
+  referenceBookAnalysisSections?: BookAnalysisSectionKey[] | null;
   outline?: string | null;
   structuredOutline?: string | null;
   volumes?: VolumePlan[];

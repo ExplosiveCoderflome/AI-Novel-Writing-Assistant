@@ -90,6 +90,10 @@ export function buildAutoDirectorRequestPayload(
     continuationBookAnalysisSections: basicForm.continuationBookAnalysisSections.length > 0
       ? basicForm.continuationBookAnalysisSections
       : undefined,
+    referenceBookAnalysisId: basicForm.referenceBookAnalysisId || undefined,
+    referenceBookAnalysisSections: basicForm.referenceBookAnalysisSections.length > 0
+      ? basicForm.referenceBookAnalysisSections
+      : undefined,
     provider: llm.provider,
     model: llm.model,
     temperature: llm.temperature,

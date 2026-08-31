@@ -39,6 +39,22 @@ import {
 import { useAutoDirectorCreateController } from "./useAutoDirectorCreateController";
 
 const STAGE_ORDER: AutoDirectorCreateStageKey[] = ["idea", "basic", "world_style", "model_run", "candidates"];
+const ALL_BOOK_ANALYSIS_SECTIONS = [
+  "overview",
+  "plot_structure",
+  "timeline",
+  "character_system",
+  "worldbuilding",
+  "themes",
+  "style_technique",
+  "market_highlights",
+] as const;
+const TRANSFERABLE_BOOK_ANALYSIS_SECTIONS = [
+  "plot_structure",
+  "themes",
+  "style_technique",
+  "market_highlights",
+] as const;
 
 function buildAutoDirectorCreateLink(taskId?: string, marketBriefId?: string): string {
   if (!taskId && !marketBriefId) {
@@ -63,6 +79,13 @@ export default function AutoDirectorCreatePage() {
   const legacyTaskIdFromQuery = searchParams.get("workflowTaskId")?.trim() ?? "";
   const normalizedTaskId = taskIdFromQuery || legacyTaskIdFromQuery;
   const marketBriefId = searchParams.get("marketBriefId")?.trim() ?? "";
+  const referenceMode = searchParams.get("referenceMode") === "continuation" ? "continuation"
+    : searchParams.get("referenceMode") === "adaptation" ? "adaptation"
+      : "";
+  const referenceBookAnalysisId = searchParams.get("bookAnalysisId")?.trim() ?? "";
+  const referenceDocumentId = searchParams.get("sourceDocumentId")?.trim() ?? "";
+  const referenceTitle = searchParams.get("referenceTitle")?.trim() ?? "";
+  const initialStyleProfileId = searchParams.get("styleProfileId")?.trim() ?? "";
   const hasLegacyParams = Boolean(legacyTaskIdFromQuery || searchParams.get("mode"));
   const [basicForm, setBasicForm] = useState(() => createDefaultNovelBasicFormState());
   const [restoredWorkflowTask, setRestoredWorkflowTask] = useState<UnifiedTaskDetail | null>(null);
@@ -71,6 +94,7 @@ export default function AutoDirectorCreatePage() {
   const restoreHandledRef = useRef<string | null>(null);
   const marketBriefFormAppliedRef = useRef<string | null>(null);
   const marketBriefIdeaAppliedRef = useRef<string | null>(null);
+  const referenceAppliedRef = useRef<string | null>(null);
 
   const worldListQuery = useQuery({
     queryKey: queryKeys.worlds.all,
@@ -94,6 +118,30 @@ export default function AutoDirectorCreatePage() {
   const genreOptions = flattenGenreTreeOptions(genreTree);
   const storyModeOptions = flattenStoryModeTreeOptions(storyModeTree);
   const worldOptions = worldListQuery.data?.data ?? [];
+
+  useEffect(() => {
+    const referenceKey = `${referenceMode}:${referenceBookAnalysisId}:${referenceDocumentId}`;
+    if (!referenceMode || !referenceBookAnalysisId || referenceAppliedRef.current === referenceKey) {
+      return;
+    }
+    referenceAppliedRef.current = referenceKey;
+    const sourceLabel = referenceTitle ? `《${referenceTitle}》` : "这份拆书";
+    setBasicForm((current) => patchNovelBasicForm(current, referenceMode === "continuation"
+      ? {
+        writingMode: "continuation",
+        continuationSourceType: "knowledge_document",
+        sourceKnowledgeDocumentId: referenceDocumentId,
+        continuationBookAnalysisId: referenceBookAnalysisId,
+        continuationBookAnalysisSections: [...ALL_BOOK_ANALYSIS_SECTIONS],
+        description: current.description || `基于${sourceLabel}现有角色、世界规则、终局状态和未完线索，继续创作后续故事。`,
+      }
+      : {
+        writingMode: "original",
+        referenceBookAnalysisId,
+        referenceBookAnalysisSections: [...TRANSFERABLE_BOOK_ANALYSIS_SECTIONS],
+        description: current.description || `参考${sourceLabel}的结构机制、节奏和写法，创作一部拥有全新角色、世界和剧情的独立小说。`,
+      }));
+  }, [referenceBookAnalysisId, referenceDocumentId, referenceMode, referenceTitle]);
 
   useEffect(() => {
     const brief = marketBriefQuery.data?.data;
@@ -163,6 +211,7 @@ export default function AutoDirectorCreatePage() {
 
   const controller = useAutoDirectorCreateController({
     marketBriefId,
+    initialStyleProfileId,
     basicForm,
     genreOptions,
     storyModeOptions,
@@ -374,6 +423,19 @@ export default function AutoDirectorCreatePage() {
 
   return (
     <div className="mx-auto max-w-6xl space-y-4 px-3 py-4 sm:px-4 lg:px-0">
+      {referenceMode ? (
+        <div className="rounded-xl bg-muted/45 px-4 py-3 text-sm">
+          <div className="font-medium text-foreground">
+            {referenceMode === "continuation" ? "续写原作" : "参考创作新书"}
+            {referenceTitle ? ` · ${referenceTitle}` : ""}
+          </div>
+          <div className="mt-1 text-xs leading-5 text-muted-foreground">
+            {referenceMode === "continuation"
+              ? "角色、世界、时间线和未完线索会作为续写约束，拆书写法也会自动带入。"
+              : "只参考结构、节奏和写法；新书会使用全新的角色、世界与剧情。"}
+          </div>
+        </div>
+      ) : null}
       {showSummaryBar ? (
         <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
           <div>

@@ -269,6 +269,14 @@ export class NovelDirectorCandidateStageService {
 
   async generateCandidates(input: DirectorCandidatesRequest): Promise<DirectorCandidatesResponse> {
     const marketBriefPrompt = await marketRadarService.getBriefPromptBlock(input.marketBriefId);
+    const { novelReferenceService } = await import("../../NovelReferenceService");
+    const referenceAnalysisPrompt = await novelReferenceService.buildReferenceFromAnalysisId(
+      input.writingMode === "continuation" ? input.continuationBookAnalysisId : input.referenceBookAnalysisId,
+      "outline",
+      input.writingMode === "continuation"
+        ? input.continuationBookAnalysisSections
+        : input.referenceBookAnalysisSections,
+    );
     const foundation = await novelCreateResourceRecommendationService.resolveRequired({
       marketBriefPrompt,
       title: input.title,
@@ -298,7 +306,14 @@ export class NovelDirectorCandidateStageService {
       genreId: foundation.genreId,
       primaryStoryModeId: foundation.primaryStoryModeId,
       secondaryStoryModeId: foundation.secondaryStoryModeId,
-      productionFoundationPrompt: foundation.promptBlock,
+      productionFoundationPrompt: [
+        foundation.promptBlock,
+        referenceAnalysisPrompt
+          ? input.writingMode === "continuation"
+            ? `续写来源约束：保留原作既有事实、角色关系、世界规则和未完线索。\n${referenceAnalysisPrompt}`
+            : `结构参考：只借鉴结构机制、节奏和写法，禁止沿用原作专名、角色、世界事实和具体剧情。\n${referenceAnalysisPrompt}`
+          : "",
+      ].filter(Boolean).join("\n\n"),
     };
     if (resolvedInput.workflowTaskId?.trim()) {
       await this.workflowService.bootstrapTask({

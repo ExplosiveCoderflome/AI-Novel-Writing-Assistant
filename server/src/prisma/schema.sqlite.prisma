@@ -357,6 +357,8 @@ model Novel {
   sourceKnowledgeDocumentId String?
   continuationBookAnalysisId String?
   continuationBookAnalysisSections String?
+  referenceBookAnalysisId String?
+  referenceBookAnalysisSections String?
   outline           String?
   structuredOutline String?
   storyWorldSliceJson String?
@@ -376,6 +378,7 @@ model Novel {
   derivedNovels     Novel[]     @relation("NovelDerivation")
   sourceKnowledgeDocument KnowledgeDocument? @relation("NovelKnowledgeContinuation", fields: [sourceKnowledgeDocumentId], references: [id], onDelete: SetNull)
   continuationBookAnalysis BookAnalysis? @relation("NovelContinuationBookAnalysis", fields: [continuationBookAnalysisId], references: [id], onDelete: SetNull)
+  referenceBookAnalysis BookAnalysis? @relation("NovelReferenceBookAnalysis", fields: [referenceBookAnalysisId], references: [id], onDelete: SetNull)
   chapters          Chapter[]
   characters        Character[]
   characterLibraryLinks CharacterLibraryLink[]
@@ -449,6 +452,7 @@ model Novel {
   @@index([writingPlatform])
   @@index([sourceKnowledgeDocumentId])
   @@index([continuationBookAnalysisId])
+  @@index([referenceBookAnalysisId])
 }
 
 model NovelIntentVersion {
@@ -3120,6 +3124,7 @@ model BookAnalysis {
   documentVersion             KnowledgeDocumentVersion @relation(fields: [documentVersionId], references: [id], onDelete: NoAction)
   publishedDocument           KnowledgeDocument?  @relation("BookAnalysisPublishedDocument", fields: [publishedDocumentId], references: [id], onDelete: SetNull)
   continuationNovels          Novel[]             @relation("NovelContinuationBookAnalysis")
+  referenceNovels             Novel[]             @relation("NovelReferenceBookAnalysis")
   sections                    BookAnalysisSection[]
   characters                  BookAnalysisCharacter[]
   createdAt                   DateTime           @default(now())

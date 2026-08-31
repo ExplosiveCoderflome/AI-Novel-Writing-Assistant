@@ -48,6 +48,8 @@ export interface CreateNovelInput {
   sourceKnowledgeDocumentId?: string | null;
   continuationBookAnalysisId?: string | null;
   continuationBookAnalysisSections?: BookAnalysisSectionKey[] | null;
+  referenceBookAnalysisId?: string | null;
+  referenceBookAnalysisSections?: BookAnalysisSectionKey[] | null;
 }
 
 export interface UpdateNovelInput {
@@ -79,6 +81,8 @@ export interface UpdateNovelInput {
   sourceKnowledgeDocumentId?: string | null;
   continuationBookAnalysisId?: string | null;
   continuationBookAnalysisSections?: BookAnalysisSectionKey[] | null;
+  referenceBookAnalysisId?: string | null;
+  referenceBookAnalysisSections?: BookAnalysisSectionKey[] | null;
   genreId?: string | null;
   primaryStoryModeId?: string | null;
   secondaryStoryModeId?: string | null;
@@ -279,6 +283,7 @@ export const DEFAULT_ESTIMATED_CHAPTER_COUNT = 80;
 
 export function normalizeNovelOutput<T extends {
   continuationBookAnalysisSections?: string | null;
+  referenceBookAnalysisSections?: string | null;
   commercialTagsJson?: string | null;
   bookContract?: {
     id: string;
@@ -317,18 +322,21 @@ export function normalizeNovelOutput<T extends {
   } | null;
 }>(
   novel: T,
-): Omit<T, "continuationBookAnalysisSections" | "commercialTagsJson"> & {
+): Omit<T, "continuationBookAnalysisSections" | "referenceBookAnalysisSections" | "commercialTagsJson"> & {
   continuationBookAnalysisSections: BookAnalysisSectionKey[] | null;
+  referenceBookAnalysisSections: BookAnalysisSectionKey[] | null;
   commercialTags: string[];
 } {
   const {
     continuationBookAnalysisSections,
+    referenceBookAnalysisSections,
     commercialTagsJson,
     ...rest
   } = novel;
   return {
     ...rest,
     continuationBookAnalysisSections: parseContinuationBookAnalysisSections(continuationBookAnalysisSections),
+    referenceBookAnalysisSections: parseContinuationBookAnalysisSections(referenceBookAnalysisSections),
     commercialTags: parseCommercialTagsJson(commercialTagsJson),
     ...(rest.bookContract !== undefined
       ? {
