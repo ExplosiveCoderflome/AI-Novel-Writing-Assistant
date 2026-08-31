@@ -119,19 +119,13 @@ export default function NovelBasicInfoForm(props: NovelBasicInfoFormProps) {
 
   return (
     <div className="space-y-4">
-      <SectionBlock
-        title="作品定位"
-        description="先写清楚这本书要兑现的读者承诺，再补创作模式、题材和推进方式；这些会直接影响后续主线规划、卷章推进和正文生成。"
-        surface="none"
-        className="space-y-5"
-      >
+      <section className="space-y-5">
         <BookPositioningStudio
           basicForm={basicForm}
           onFormChange={onFormChange}
           titleQuickFill={titleQuickFill}
           framingQuickFill={framingQuickFill}
           projectQuickStart={projectQuickStart}
-          coverSection={coverSection}
         />
 
         <div className="space-y-2">
@@ -279,7 +273,9 @@ export default function NovelBasicInfoForm(props: NovelBasicInfoFormProps) {
             ) : null}
           </div>
         ) : null}
-      </SectionBlock>
+
+        {coverSection}
+      </section>
 
       <details className="group border-t border-border/60 pt-4">
         <summary className="cursor-pointer list-none">
