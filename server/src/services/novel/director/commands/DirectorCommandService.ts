@@ -1,4 +1,3 @@
-import crypto from "node:crypto";
 import type {
   DirectorCommandAcceptedResponse,
   DirectorRuntimePolicyUpdateRequest,
@@ -63,7 +62,6 @@ const EXECUTION_COMMAND_TYPES: DirectorRunCommandType[] = [
 
 export type DirectorRunCommandRow = Awaited<ReturnType<DirectorCommandService["getCommandById"]>>;
 
-const CANCELLED_COMMAND_MESSAGE = "自动导演任务已取消。";
 const UNICODE_REPLACEMENT_CHARACTER = "\uFFFD";
 
 interface ConfirmTaskSeedPayload extends Record<string, unknown> {
@@ -466,7 +464,7 @@ export class DirectorCommandService {
         errorMessage: "用户请求取消自动导演任务。",
       },
     });
-    await this.closeCancelledTaskRuntimeState(taskId, new Date());
+    await new DirectorCommandLeaseService(this.workflowService).closeCancelledTaskRuntimeState(taskId, new Date());
     const now = new Date();
     const command = await withSqliteRetry(() => prisma.directorRunCommand.create({
       data: {
@@ -614,187 +612,27 @@ export class DirectorCommandService {
     workerId: string;
     leaseMs: number;
   }) {
-    const now = new Date();
-    const leaseExpiresAt = new Date(now.getTime() + input.leaseMs);
-    const candidate = await prisma.directorRunCommand.findFirst({
-      where: {
-        status: "queued",
-        runAfter: { lte: now },
-      },
-      orderBy: [{ runAfter: "asc" }, { createdAt: "asc" }, { id: "asc" }],
-    });
-    if (!candidate) {
-      return null;
-    }
-    const claimed = await prisma.directorRunCommand.updateMany({
-      where: {
-        id: candidate.id,
-        status: "queued",
-      },
-      data: {
-        status: "leased",
-        leaseOwner: input.workerId,
-        leaseExpiresAt,
-        attempt: { increment: 1 },
-      },
-    });
-    if (claimed.count !== 1) {
-      return null;
-    }
-    return this.getCommandById(candidate.id);
+    return new DirectorCommandLeaseService(this.workflowService).leaseNextCommand(input);
   }
 
   async markCommandRunning(commandId: string, workerId: string, leaseMs: number) {
-    const now = new Date();
-    await prisma.directorRunCommand.updateMany({
-      where: {
-        id: commandId,
-        leaseOwner: workerId,
-        status: { in: ["leased", "running"] },
-      },
-      data: {
-        status: "running",
-        startedAt: now,
-        leaseExpiresAt: new Date(now.getTime() + leaseMs),
-      },
-    });
+    return new DirectorCommandLeaseService(this.workflowService).markCommandRunning(commandId, workerId, leaseMs);
   }
 
   async renewLease(commandId: string, workerId: string, leaseMs: number): Promise<boolean> {
-    const updated = await prisma.directorRunCommand.updateMany({
-      where: {
-        id: commandId,
-        leaseOwner: workerId,
-        status: { in: ["leased", "running"] },
-      },
-      data: {
-        leaseExpiresAt: new Date(Date.now() + leaseMs),
-      },
-    });
-    return updated.count === 1;
+    return new DirectorCommandLeaseService(this.workflowService).renewLease(commandId, workerId, leaseMs);
   }
 
   async markCommandSucceeded(commandId: string, workerId: string): Promise<void> {
-    await prisma.directorRunCommand.updateMany({
-      where: {
-        id: commandId,
-        leaseOwner: workerId,
-        status: { in: ["leased", "running"] },
-      },
-      data: {
-        status: "succeeded",
-        leaseExpiresAt: null,
-        finishedAt: new Date(),
-        errorMessage: null,
-      },
-    });
+    return new DirectorCommandLeaseService(this.workflowService).markCommandSucceeded(commandId, workerId);
   }
 
   async markCommandCancelled(commandId: string, workerId: string): Promise<void> {
-    const finishedAt = new Date();
-    const updated = await prisma.directorRunCommand.updateMany({
-      where: {
-        id: commandId,
-        leaseOwner: workerId,
-        status: { in: ["leased", "running"] },
-      },
-      data: {
-        status: "cancelled",
-        leaseExpiresAt: null,
-        finishedAt,
-        errorMessage: CANCELLED_COMMAND_MESSAGE,
-      },
-    });
-    if (updated.count !== 1) {
-      return;
-    }
-    const command = await this.getCommandById(commandId);
-    if (command) {
-      await this.closeCancelledTaskRuntimeState(command.taskId, finishedAt);
-    }
+    return new DirectorCommandLeaseService(this.workflowService).markCommandCancelled(commandId, workerId);
   }
 
   async markCommandFailed(commandId: string, workerId: string, error: unknown): Promise<void> {
-    const message = error instanceof Error ? error.message : String(error);
-    const failedAt = new Date();
-    const updated = await prisma.directorRunCommand.updateMany({
-      where: {
-        id: commandId,
-        leaseOwner: workerId,
-        status: { in: ["leased", "running"] },
-      },
-      data: {
-        status: "failed",
-        leaseExpiresAt: null,
-        finishedAt: failedAt,
-        errorMessage: message,
-      },
-    });
-    if (updated.count !== 1) {
-      return;
-    }
-    const command = await this.getCommandById(commandId);
-    if (!command) {
-      return;
-    }
-    await prisma.directorStepRun.updateMany({
-      where: {
-        taskId: command.taskId,
-        status: "running",
-      },
-      data: {
-        status: "failed",
-        finishedAt: failedAt,
-        error: message,
-      },
-    }).catch(() => null);
-    await this.workflowService.requeueTaskForRecovery(command.taskId, message)
-      .catch(() => null);
-  }
-
-  private async closeCancelledTaskRuntimeState(taskId: string, now: Date): Promise<void> {
-    await prisma.directorStepRun.updateMany({
-      where: {
-        taskId,
-        status: "running",
-      },
-      data: {
-        status: "failed",
-        finishedAt: now,
-        error: CANCELLED_COMMAND_MESSAGE,
-      },
-    }).catch(() => null);
-    await prisma.generationJob.updateMany({
-      where: {
-        status: { in: ["queued", "running"] },
-        payload: { contains: taskId },
-      },
-      data: {
-        status: "cancelled",
-        cancelRequestedAt: now,
-        finishedAt: now,
-        error: CANCELLED_COMMAND_MESSAGE,
-      },
-    }).catch(() => null);
-    const run = await prisma.directorRun.findUnique({
-      where: { taskId },
-      select: { id: true, novelId: true },
-    }).catch(() => null);
-    if (!run) {
-      return;
-    }
-    await prisma.directorEvent.create({
-      data: {
-        id: `${taskId}:run_cancelled:${crypto.randomUUID()}`,
-        runId: run.id,
-        taskId,
-        novelId: run.novelId,
-        type: "run_cancelled",
-        summary: "自动导演已停止，后台运行状态已收束。",
-        severity: "low",
-        occurredAt: now,
-      },
-    }).catch(() => null);
+    return new DirectorCommandLeaseService(this.workflowService).markCommandFailed(commandId, workerId, error);
   }
 
   parseCommandPayload(command: NonNullable<DirectorRunCommandRow>): DirectorCommandPayload {

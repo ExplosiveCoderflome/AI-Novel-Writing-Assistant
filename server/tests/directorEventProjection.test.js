@@ -259,9 +259,9 @@ test("director event projection exposes quality budget summary", () => {
     chapterRewriteUsed: 1,
     windowReplanUsed: 0,
     deferredCount: 0,
-    nextAction: "auto_replan_window",
-    nextActionLabel: "重规划受影响章节",
-    explanation: "质量预算：局部修复 1/1，整章重写 1/1，窗口重规划 0/1；同类问题下一步会重规划受影响章节。",
+    nextAction: "defer_and_continue",
+    nextActionLabel: "登记为质量待回收并继续后续章节",
+    explanation: "自动处理：本章修复 1/1，窗口重规划 0/1；同类问题下一步会登记为质量待回收并继续后续章节。",
   });
 });
 

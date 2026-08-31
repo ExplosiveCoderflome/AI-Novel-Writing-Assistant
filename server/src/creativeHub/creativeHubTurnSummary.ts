@@ -196,7 +196,7 @@ function buildNextSuggestion(
       return "从当前备选里挑出最接近的一版，再继续细化主角、冲突和故事承诺。";
     case "workflow_handoff":
     case "out_of_scope":
-      return "打开正式小说工作台、自动导演或任务中心完成后续操作。";
+      return "打开对应的小说工作台、自动导演或章节页面完成后续操作；运行记录只用于查询状态。";
     default:
       return "查看当前状态、失败原因或下一步建议。";
   }

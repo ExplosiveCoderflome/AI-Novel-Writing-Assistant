@@ -78,7 +78,6 @@ export class ChapterRuntimeCoordinator {
 
     this.qualityGateService = new ChapterQualityGateService({
       acceptanceAssessmentService,
-      agentRuntime,
     });
     this.contentFinalizationService = new ChapterContentFinalizationService({
       qualityGateService: this.qualityGateService,

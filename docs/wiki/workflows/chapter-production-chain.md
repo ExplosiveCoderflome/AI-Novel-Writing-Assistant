@@ -45,7 +45,7 @@
 - 接收闸门通过后、构建运行包前，会对最终正文执行一次确定性正文自然度/退化检测。该检测只做本地文本规则检查，覆盖 AI 自述、占位符、工程词泄漏、截断、复读、破折号/省略号、否定翻转句、碎句和长段落等风险；它不调用 LLM，也不改变正文。
 - 正文自然度/退化检测输出统一进入 `mode_fit` 审计报告，issue code 使用 `prose_*` 前缀。`high/critical` 视为本章阻塞审计问题并复用现有 patch repair / heavy repair 链路；`medium/low` 只作为提示和后续局部优化依据，不触发全章重写。
 - `prose_*` 问题默认属于本章局部质量问题。自动修复耗尽后，如果正文仍可读，应登记 `defer_and_continue` 质量债并继续剩余章节；不得仅因为单章正文自然度问题写入 `replanAlertDetails`、`PIPELINE_REPLAN_REQUIRED` 或全局自动导演重规划。
-- 正文接收裁决只等待 `acceptance`。Timeline 不属于 writer required context，也不参与“正文是否可接收”的质量判断；接收结论确定后，统一终态入口必须为当前 content hash 写入 `stable` 或 `degraded` timeline finalization checkpoint，才能释放章节状态。未启用 Timeline 时不得生成“缺少 timeline context”的正文质量告警，而应提交最小降级锚点。
+- 正文接收裁决只等待唯一的 `acceptance` gate。Timeline 不属于 writer required context，也不参与“正文是否可接收”的质量判断；接收服务不得再维护并行的 timeline gate、timeline cache 或伪造通过结果。接收结论确定后，唯一的 `ChapterTimelineFinalizationService` 必须为当前 content hash 写入 `stable` 或 `degraded` checkpoint，才能释放章节状态。未启用 Timeline 时不得生成“缺少 timeline context”的正文质量告警，而应提交最小降级锚点。
 - `acceptance` 门禁必须按同章、同正文 content hash、同模型请求写入持久化幂等缓存。任务取消、失败或 worker 重启后，如果正文未变化，应优先复用成功结果，不能重新触发相同接收评估。
 - 门禁缓存只能保存可复用的成功结果。`acceptance_gate_unavailable` 等临时系统失败不得写成长期成功缓存；这类结果应保留为当前运行风险，允许后续重试。
 - 任何会调用 LLM 的后置抽取或资产回灌，都必须在调用模型前抢占持久化 checkpoint，并把状态标记为 `running`。如果同章、同正文 content hash、同 artifactType 和 syncMode 已有 `running` 或 `succeeded` checkpoint，后续入口必须跳过本次 LLM 调用；失败时把 `running` 标记为 `failed`，允许后续重试。仅依赖服务实例内存锁不能满足任务重启、并发后台入口或上一章兜底补跑场景。
@@ -86,7 +86,7 @@
 - 章节审校和修文上下文必须同时保留 `chapter_boundary` 与 `structure_obligations`。`chapter_boundary` 负责本章进入状态、结束状态、下一章入口、禁止越界和受保护揭露；`structure_obligations` 负责本章必须推进、必须保留、角色出场、目标变化、伏笔兑现和资源风险。审校 prompt 如果缺少这两类上下文，会无法判断“正文是否越界”或“任务是否兑现”，应修 Context Broker / fallback blocks，而不是降低审校标准。
 - 接收闸门必须把未兑现义务输出为结构化 `missingObligations`，并给出 `repairability`：局部漏写用 `patchable_obligation_gap`，需要整章调整用 `rewrite_needed`，章节职责与邻章安排失配才用 `plan_misalignment`。
 - `missingObligations` 需要结合 `repairability` 判断：明确标为 `patchable_obligation_gap` 的缺口必须保留为可修复事实，不能因义务种类较软而被确定性代码改判为 `continue_with_risk`；确实可以后续承接的缺口应由接收闸门直接输出 `continue_with_risk + repairability=none`。
-- 自动修文默认最多一次；失败后记录待修状态或 repair ticket，不进入无限重试。
+- 自动修文默认最多一次；失败后保留可用正文，并按统一问题策略形成质量债或人工恢复入口，不进入无限重试。只有真实章节修复问题才能创建修复工单，通用模型或运行时失败不得伪装成修复失败。
 - 局部 patch repair 是轻修模式的唯一正文改写动作。补丁计划 Schema 校验失败、`targetExcerpt` 不唯一或太短、目标片段缺失、补丁无效、模型建议全文重写时，应保留原正文并转为结构化 `quality.local_repair_failed`；任务策略再决定继续、暂停或结束，不能把技术失败直接升级为整章重写。
 - `acceptance_gate_unavailable` 或“章节接收判断不可用”属于审校系统风险，不代表正文中存在可替换片段。若当前待处理问题只包含这类风险，批量章节生产应保留当前正文并记录复查债务，等待重新审校或人工复查；不得调用局部 patch prompt，也不得为了系统风险改写正文。
 - 所有会改正文的修复入口必须遵守任务选定的修复模式：`light_repair / continuity_only / character_only / ending_only` 只允许局部 patch；`heavy_repair` 才允许整章重写。轻修失败不得自动切换模式，整章重写必须来自任务启动时的明确选择或后续人工恢复命令。
@@ -94,7 +94,9 @@
 - patch repair 的 `targetExcerpt` 必须是正文中唯一可定位的原文片段；`replacement` 表示替换后的内容。删除重复片段时允许 `replacement` 为空字符串，但仍必须满足唯一定位和产生正文变化。
 - 已有正文进入复审或质量修复时，不应先把同一份正文重新保存为 `drafted/generating`。正文未变化时只做审校、必要修复和最终资产同步，避免 UI 更新时间、RAG 队列和章节状态被无意义刷新。
 - 章节执行队列允许移除尚未开始的手动空白章节：它必须仍为 `planned/unplanned`，且没有正文、目标、任务单、场景卡、修复记录或风险标记。删除入口与服务端必须使用同一规则；任何已进入规划、写作、审校或修复链路的章节都不得从此入口删除，以保护已生成内容和下游事实。
-- 自动导演的质量循环预算只决定是否还允许执行一次动作，不能擅自改变动作类型。任务快照选择轻修时，预算耗尽后应形成质量债或人工暂停；只有快照明确选择 `heavy_repair` 时才执行整章重写。
+- 当前执行链不再生产或消费导演层、章节层质量循环预算。修复是否执行以及失败后继续、暂停或结束，统一读取任务问题策略、章节真实修复次数和结构化质量结论；历史 `qualityLoopLedger` 与 `repairHistory` 仅用于旧任务只读投影和诊断。任务快照选择轻修时不得升级动作类型，只有快照明确选择 `heavy_repair` 时才执行整章重写。
+- 质量评估不得通过相同问题签名出现次数，把局部修复依次升级为整章重写、窗口重规划或人工门禁。重复出现的局部问题仍是当前章节质量债；是否暂停由问题策略决定，是否重规划只读取本轮结构化 `stop_for_replan` / `replan_required` 结论。
+- 修复问题数量、影响章节占比和 `large_scope` 等统计标签只能用于诊断展示，不能构成独立停机阈值。只有结构化 `stop_for_replan` / `replan_required`、问题策略明确暂停、无可用正文，或模型、用量、运行安全与数据完整性边界可以停止整本执行。
 - 章节执行失败语义必须区分：正文未生成是 `draft_generation_failed`；正文已生成但未兑现本章义务是 `draft_obligation_unmet`；自动修复后仍有阻塞问题是 `draft_repair_exhausted`；需要调整邻章计划是 `replan_required`。UI 和任务详情应展示真实根因，不再把这些情况统一压成 `chapter.draft.write 未满足其完成标准。`
 - 质量闭环投影必须区分阻塞错误和非阻塞质量债务。`terminalAction=defer_and_continue` 且不是 `replan_required` / `recommendedAction=replan` / `blockingObligations` 的章节，只能作为“已记录质量债务”弱提示，不得驱动主状态进入“出错需处理”或生成 repair ticket；`local_patch_plan` / `continue_with_warning` 只能进入质量债务或局部修复建议通道，不得写入 `replanAlertDetails` 或 `PIPELINE_REPLAN_REQUIRED`；`replan_required` 即使同时带有 `defer_and_continue`，也仍是阻塞重规划。
 - 有可用正文的非阻塞质量债，在持久化状态上应完成降级定稿（`generationState=approved`、`chapterStatus=completed`），并保留质量债风险标记用于后续回收；阅读书架把历史遗留的同类记录投影为“已保存 · 待优化”，不能显示成“审校修复中”。只有结构化 `replan_required` 才显示为“等待重规划”。
@@ -102,6 +104,10 @@
 - `replanRecommendation` 必须携带动作与作用域：`continue_with_warning` 表示只记录提示并继续；`local_patch_plan + local_window` 表示自动重规划当前章之后的未完成窗口并继续；`stop_for_replan + global_book` 才表示需要暂停批量流水线。调用方不得只看 `recommended=true` 或旧的动作名称就停止章节执行。
 - 人工章节审校只负责返回结构化 `qualityAssessment` 与 `replanRecommendation`，并把评估写成可恢复的章节状态。它不得在审校请求内直接调用规划器改写章节窗口；用户显式点击重规划时才进入书级重规划入口，自动生产则只允许 `ChapterQualityClosure` 消费明确的 `stop_for_replan + global_book` 并暂停。
 - 人工审校若得到明确重规划结论，应保留当前正文，把 `recommendedAction=replan` 写入 `riskFlags.qualityLoop`，并落到 `generationState=reviewed + chapterStatus=needs_repair`。这组字段是等待人工确认的章节检查点，不代表正文丢失或整本任务已经失败。
+- 章节待优化项的唯一持久化来源是 `Chapter.riskFlags.qualityLoop`。`QualityReport` / `AuditReport` 是历史审校记录，不能用报告数量推断当前仍有多少质量债；简易模式、专业模式和章节编辑器必须共用 `readChapterQualityDebtDetails` 解析同一份状态。
+- 质量债归因必须分别记录 `repairAttemptsUsed` 与 `repairAttemptsAllowed`。只要自动修复请求真实发起，即使返回可恢复失败也计入已用次数；旧记录缺少该字段时保持“次数未记录”，不得从修复日志或预算层猜测为 0。
+- 简易模式和专业模式可以采用不同信息密度，但必须进入同一章节编辑与重新审校能力。修改或保存正文只更新工作版本，不能清除待优化项；只有重新审校得到 `recommendedAction=continue`，才以新的 `qualityLoop` 结果关闭质量债。
+- 人工重新审校仍有局部问题时，应保存为 `terminalAction=defer_and_continue` 并保留可用正文；只有结构化 `stop_for_replan + global_book` 才能写成阻断重规划。这样手动处理和自动导演遵守同一质量边界。
 - 明确进入 `replan_required` 后，恢复动作只改写章节计划窗口，不重写已保存正文。重规划完成后，章节执行范围必须依据真实正文事实重新定位到第一个未生成章节；不得沿用旧失败任务的单章范围反复推进，也不得把“继续”实现成每章跳过一次相同的计划失配。
 - 逾期 payoff 无论逾期距离、是否落在当前窗口、是否被当前章目标引用，都只能输出 `continue_with_warning`。只有结构化 `nextAction=replan`、人工强制或章节验收确认 `plan_misalignment` 才能输出 `stop_for_replan`；高/严重审计问题输出 `local_patch_plan`，不得停止剩余章节。
 - 无明确目标窗口的 overdue payoff 只能作为账本风险跟进，不能用 `lastTouchedChapterOrder` 或 `firstSeenChapterOrder` 推导逾期距离，也不能锚定旧章节触发 `stop_for_replan`。伏笔账本同步若发现 AI 输出了无 `targetStartChapterOrder`、`targetEndChapterOrder`、`payoffChapterOrder`、`payoffChapterId` 的 overdue，应降级为 `pending_payoff` 并保留 `payoff_missing_progress` 风险信号。

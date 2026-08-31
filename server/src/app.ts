@@ -266,11 +266,15 @@ function initializeBackgroundServices(): BackgroundServicesHandle {
   ragServices.ragWorker.start();
   ragServices.ragRetrievalTraceRetention.start();
   novelSideEffectWorker.start();
-  const directorWorker = new DirectorWorker();
-  void directorWorker.start().catch((error) => {
-    console.error("[director.worker] unexpected stop", error);
-  });
   const recoveryInitialization = recoveryTaskService.initializePendingRecoveries();
+  const directorWorker = new DirectorWorker();
+  void recoveryInitialization.then(() => {
+    void directorWorker.start().catch((error) => {
+      console.error("[director.worker] unexpected stop", error);
+    });
+  }).catch((error) => {
+    console.error("[director.worker] recovery initialization failed; worker was not started", error);
+  });
   void shortStoryProductionService.recoverPending().catch((error) => {
     console.warn("[short-story] failed to resume pending production.", error);
   });

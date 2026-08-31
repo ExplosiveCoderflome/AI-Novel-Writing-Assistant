@@ -69,7 +69,7 @@ export interface BuildRuntimePackageInput {
   activeOpenConflicts: OpenConflictRuntimeRow[];
   styleReview: StyleReviewResult;
   acceptance: ChapterAcceptanceAssessmentOutput;
-  timelineCheck: TimelineCheckResult;
+  timelineCheck?: TimelineCheckResult;
   runId: string | null;
   plannerService: ChapterRuntimePlannerPort;
 }
@@ -366,11 +366,13 @@ export function buildRuntimePackage(input: BuildRuntimePackageInput): ChapterRun
       updatedAt: new Date().toISOString(),
     })))
     .concat(boundaryLeakageIssues);
-  openIssues.push(...timelineIssuesToRuntimeIssues({
-    novelId: input.novelId,
-    chapterId: input.chapterId,
-    issues: input.timelineCheck.issues,
-  }));
+  if (input.timelineCheck) {
+    openIssues.push(...timelineIssuesToRuntimeIssues({
+      novelId: input.novelId,
+      chapterId: input.chapterId,
+      issues: input.timelineCheck.issues,
+    }));
+  }
 
   const blockingIssueIds = openIssues
     .filter((issue) => issue.severity === "high" || issue.severity === "critical")
@@ -496,7 +498,7 @@ export function buildRuntimePackage(input: BuildRuntimePackageInput): ChapterRun
       autoRewritten: input.styleReview.autoRewritten,
       originalContent: input.styleReview.originalContent,
     },
-    timelineCheck: input.timelineCheck,
+    ...(input.timelineCheck ? { timelineCheck: input.timelineCheck } : {}),
     meta: {
       provider: input.request.provider,
       model: input.request.model,

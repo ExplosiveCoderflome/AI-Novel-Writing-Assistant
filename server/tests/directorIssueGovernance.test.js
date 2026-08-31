@@ -11,7 +11,10 @@ const {
   resolveDirectorIssueDecision,
 } = require("../../shared/dist/types/directorIssue.js");
 const promptRunner = require("../dist/prompting/core/promptRunner.js");
+const { prisma } = require("../dist/db/prisma.js");
 const { directorIssueService } = require("../dist/services/novel/director/issues/DirectorIssueService.js");
+const { directorIssuePolicyService } = require("../dist/services/novel/director/issues/DirectorIssuePolicyService.js");
+const { loadDirectorIssueTaskContext } = require("../dist/services/novel/director/issues/DirectorIssueTaskContext.js");
 const { directorAutomationLedgerEventService } = require("../dist/services/novel/director/runtime/DirectorAutomationLedgerEventService.js");
 const {
   applyChapterQualityClosure,
@@ -137,6 +140,71 @@ test("the policy owns the single automatic retry budget", () => {
     policy: { ...DEFAULT_DIRECTOR_ISSUE_POLICY, maxAutomaticRetries: 1 },
   });
   assert.equal(decision.action, "pause_for_manual");
+});
+
+test("legacy director tasks reconcile to the current policy while valid snapshots stay immutable", async () => {
+  const originalTaskFindUnique = prisma.novelWorkflowTask.findUnique;
+  const originalGetNovelPolicy = directorIssuePolicyService.getNovelPolicy;
+  const originalGetGlobalPolicy = directorIssuePolicyService.getGlobalPolicy;
+  const calls = [];
+  const snapshotPolicy = {
+    ...DEFAULT_DIRECTOR_ISSUE_POLICY,
+    issueActions: { "runtime.worker_stale": "pause_for_manual" },
+  };
+  const currentNovelPolicy = {
+    ...DEFAULT_DIRECTOR_ISSUE_POLICY,
+    issueActions: { "runtime.worker_stale": "auto_retry" },
+  };
+  prisma.novelWorkflowTask.findUnique = async ({ where }) => where.id === "missing"
+    ? null
+    : ({
+      novelId: where.id === "legacy-orphan" ? null : "novel-1",
+      seedPayloadJson: where.id === "snapshotted"
+        ? JSON.stringify({
+          issueGovernanceVersion: 1,
+          issuePolicy: snapshotPolicy,
+          issuePolicySource: "novel",
+          runMode: "full_book_autopilot",
+        })
+        : where.id === "legacy-malformed"
+          ? "{"
+          : JSON.stringify({ runMode: "stage_review" }),
+    });
+  directorIssuePolicyService.getNovelPolicy = async (novelId) => {
+    calls.push(["novel", novelId]);
+    return { effectivePolicy: currentNovelPolicy, override: null, source: "novel" };
+  };
+  directorIssuePolicyService.getGlobalPolicy = async () => {
+    calls.push(["global"]);
+    return DEFAULT_DIRECTOR_ISSUE_POLICY;
+  };
+
+  try {
+    const snapshotted = await loadDirectorIssueTaskContext("snapshotted");
+    assert.deepEqual(snapshotted.policy, snapshotPolicy);
+    assert.equal(snapshotted.policySource, "novel");
+    assert.equal(snapshotted.runMode, "full_book_autopilot");
+    assert.deepEqual(calls, []);
+
+    const legacy = await loadDirectorIssueTaskContext("legacy");
+    assert.deepEqual(legacy.policy, currentNovelPolicy);
+    assert.equal(legacy.policySource, "novel");
+    assert.equal(legacy.runMode, "stage_review");
+
+    const orphan = await loadDirectorIssueTaskContext("legacy-orphan");
+    assert.deepEqual(orphan.policy, DEFAULT_DIRECTOR_ISSUE_POLICY);
+    assert.equal(orphan.policySource, "global");
+
+    const malformed = await loadDirectorIssueTaskContext("legacy-malformed");
+    assert.deepEqual(malformed.policy, currentNovelPolicy);
+    assert.equal(malformed.runMode, undefined);
+    assert.equal(await loadDirectorIssueTaskContext("missing"), null);
+    assert.deepEqual(calls, [["novel", "novel-1"], ["global"], ["novel", "novel-1"]]);
+  } finally {
+    prisma.novelWorkflowTask.findUnique = originalTaskFindUnique;
+    directorIssuePolicyService.getNovelPolicy = originalGetNovelPolicy;
+    directorIssuePolicyService.getGlobalPolicy = originalGetGlobalPolicy;
+  }
 });
 
 test("both presets keep the automatic repair budget below two attempts", () => {

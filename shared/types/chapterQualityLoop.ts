@@ -15,16 +15,16 @@ export const CHAPTER_QUALITY_LOOP_ARTIFACT_TYPES = [
 export type ChapterQualityLoopArtifactType = typeof CHAPTER_QUALITY_LOOP_ARTIFACT_TYPES[number];
 export type ChapterQualityLoopSignalStatus = "valid" | "risk" | "invalid" | "missing";
 export type ChapterQualityLoopAction = "continue" | "patch_repair" | "replan" | "manual_gate";
-export type ChapterQualityLoopBudgetAction = "patch_repair" | "rewrite_chapter" | "replan_window" | "hard_stop";
 export type ChapterQualityLoopRiskClassification = "none" | "blocking" | "non_blocking_quality_debt";
+export type ChapterQualityDebtSource = "manual_review" | "pipeline_review" | "repair_recheck";
 
-export interface ChapterQualityLoopBudget {
-  signature: string;
-  attempt: number;
-  maxAttempts: number;
-  nextAction: ChapterQualityLoopBudgetAction;
-  exhausted: boolean;
+export interface ChapterQualityDebtDetails {
+  source: ChapterQualityDebtSource | null;
+  evaluatedAt: string | null;
+  repairAttemptsUsed: number | null;
+  repairAttemptsAllowed: 0 | 1;
   reason: string;
+  issueCodes: string[];
 }
 
 export interface ChapterQualityLoopSignal {
@@ -45,7 +45,6 @@ export interface ChapterQualityLoopAssessment {
   pauseReason?: string | null;
   rootCauseCode?: ChapterFailureClassification["code"] | null;
   blockingObligations?: ChapterExecutionMissingObligation[];
-  budget?: ChapterQualityLoopBudget | null;
   signals: ChapterQualityLoopSignal[];
 }
 
@@ -110,6 +109,72 @@ export function classifyChapterQualityLoopRiskFlags(
   return classifyChapterQualityLoopRisk(parseRiskFlagsObject(riskFlags)?.qualityLoop);
 }
 
+function readQualityDebtSource(value: unknown): ChapterQualityDebtSource | null {
+  return value === "manual_review" || value === "pipeline_review" || value === "repair_recheck"
+    ? value
+    : null;
+}
+
+function readStringList(value: unknown): string[] {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+  return value.flatMap((item) => typeof item === "string" && item.trim() ? [item.trim()] : []);
+}
+
+/**
+ * 从章节唯一持久化来源 riskFlags.qualityLoop 读取仍待回收的质量债。
+ * 历史记录没有归因字段时保留 null，避免用修复日志猜测次数。
+ */
+export function readChapterQualityDebtDetails(
+  riskFlags: string | null | undefined,
+): ChapterQualityDebtDetails | null {
+  const qualityLoop = parseRiskFlagsObject(riskFlags)?.qualityLoop;
+  if (!isRecord(qualityLoop) || classifyChapterQualityLoopRisk(qualityLoop) !== "non_blocking_quality_debt") {
+    return null;
+  }
+
+  const attribution = isRecord(qualityLoop.qualityDebtAttribution)
+    ? qualityLoop.qualityDebtAttribution
+    : null;
+  const repairAttemptsUsed = typeof attribution?.repairAttemptsUsed === "number"
+    && Number.isFinite(attribution.repairAttemptsUsed)
+    && attribution.repairAttemptsUsed >= 0
+    ? Math.trunc(attribution.repairAttemptsUsed)
+    : null;
+  const repairAttemptsAllowed = typeof attribution?.repairAttemptsAllowed === "number"
+    && Number.isFinite(attribution.repairAttemptsAllowed)
+    && attribution.repairAttemptsAllowed >= 0
+    ? Math.min(1, Math.trunc(attribution.repairAttemptsAllowed)) as 0 | 1
+    : 1;
+  const signals = Array.isArray(qualityLoop.signals)
+    ? qualityLoop.signals.filter(isRecord)
+    : [];
+  const failedSignals = signals.filter((signal) => signal.status !== "valid");
+  const secondFailureCodes = readStringList(attribution?.secondFailureIssueCodes);
+  const firstFailureCodes = readStringList(attribution?.firstFailureIssueCodes);
+  const signalIssueCodes = failedSignals.flatMap((signal) => readStringList(signal.issueCodes));
+  const issueCodes = Array.from(new Set([
+    ...(secondFailureCodes.length > 0 ? secondFailureCodes : firstFailureCodes),
+    ...signalIssueCodes,
+  ]));
+  const signalReason = failedSignals
+    .map((signal) => typeof signal.reason === "string" ? signal.reason.trim() : "")
+    .find(Boolean);
+  const pauseReason = typeof qualityLoop.pauseReason === "string" ? qualityLoop.pauseReason.trim() : "";
+
+  return {
+    source: readQualityDebtSource(qualityLoop.source),
+    evaluatedAt: typeof qualityLoop.evaluatedAt === "string" && qualityLoop.evaluatedAt.trim()
+      ? qualityLoop.evaluatedAt.trim()
+      : null,
+    repairAttemptsUsed,
+    repairAttemptsAllowed,
+    reason: signalReason || pauseReason || "本章保留了需要进一步优化的局部质量项。",
+    issueCodes,
+  };
+}
+
 export function hasContinuableChapterQualityLoopRiskFlags(riskFlags: string | null | undefined): boolean {
   const parsed = parseRiskFlagsObject(riskFlags);
   const qualityLoop = parsed?.qualityLoop;
@@ -143,7 +208,6 @@ export interface ChapterQualityLoopAssessmentInput {
   runtimePackage?: ChapterRuntimePackage | null;
   replanRecommendation?: ReplanRecommendation | null;
   evaluatedAt?: string | Date;
-  previousRepairHistory?: string | null;
 }
 
 const SEVERITY_RANK: Record<ReviewIssue["severity"], number> = {
@@ -163,84 +227,6 @@ function normalizeEvaluatedAt(value: string | Date | undefined): string {
 function issueCode(issue: ReviewIssue, index: number): string {
   const evidence = issue.evidence.trim().slice(0, 24);
   return `${issue.category}:${issue.severity}:${evidence || index + 1}`;
-}
-
-function stableHash(input: string): string {
-  let hash = 5381;
-  for (let index = 0; index < input.length; index += 1) {
-    hash = ((hash << 5) + hash + input.charCodeAt(index)) >>> 0;
-  }
-  return hash.toString(36);
-}
-
-function normalizeSignaturePart(value: string): string {
-  return value
-    .trim()
-    .toLowerCase()
-    .replace(/\s+/g, " ")
-    .slice(0, 180);
-}
-
-function buildLoopSignature(action: ChapterQualityLoopAction, signals: ChapterQualityLoopSignal[]): string {
-  const failedSignals = signals.filter((signal) => signal.status !== "valid");
-  const signatureSignals = failedSignals.length > 0 ? failedSignals : signals;
-  const signatureSource = [
-    action,
-    ...signatureSignals.map((signal) => [
-      signal.artifactType,
-      signal.status,
-      normalizeSignaturePart(signal.reason),
-      signal.issueCodes.map(normalizeSignaturePart).sort().slice(0, 6).join("|"),
-    ].join(":")),
-  ].join("||");
-  return `ql:${stableHash(signatureSource)}`;
-}
-
-function countPreviousLoopAttempts(previousRepairHistory: string | null | undefined, signature: string): number {
-  if (!previousRepairHistory?.trim()) {
-    return 0;
-  }
-  return previousRepairHistory
-    .split(/\r?\n/)
-    .map((line) => line.trim())
-    .filter((line) => line.includes(`signature=${signature}`))
-    .length;
-}
-
-function resolveBudgetAction(attempt: number): ChapterQualityLoopBudgetAction {
-  if (attempt <= 1) {
-    return "patch_repair";
-  }
-  if (attempt === 2) {
-    return "rewrite_chapter";
-  }
-  if (attempt === 3) {
-    return "replan_window";
-  }
-  return "hard_stop";
-}
-
-function buildLoopBudget(input: {
-  recommendedAction: ChapterQualityLoopAction;
-  signals: ChapterQualityLoopSignal[];
-  previousRepairHistory?: string | null;
-}): ChapterQualityLoopBudget | null {
-  if (input.recommendedAction === "continue") {
-    return null;
-  }
-  const signature = buildLoopSignature(input.recommendedAction, input.signals);
-  const attempt = countPreviousLoopAttempts(input.previousRepairHistory, signature) + 1;
-  const nextAction = resolveBudgetAction(attempt);
-  return {
-    signature,
-    attempt,
-    maxAttempts: 3,
-    nextAction,
-    exhausted: nextAction === "hard_stop",
-    reason: nextAction === "hard_stop"
-      ? "quality loop budget exhausted for the same failure signature"
-      : "quality loop budget selected the next escalation step",
-  };
 }
 
 function maxSeverity(issues: ReviewIssue[]): number {
@@ -420,26 +406,17 @@ export function buildChapterQualityLoopAssessment(
     "valid",
   );
   const recommendedAction = resolveAction(overallStatus, signals);
-  const budget = buildLoopBudget({
-    recommendedAction,
-    signals,
-    previousRepairHistory: input.previousRepairHistory,
-  });
-  const effectiveAction = budget?.nextAction === "hard_stop" ? "manual_gate" : recommendedAction;
   return {
     chapterId: input.chapterId,
     chapterOrder: input.chapterOrder ?? input.runtimePackage?.context.chapter.order ?? null,
     evaluatedAt: normalizeEvaluatedAt(input.evaluatedAt),
     overallStatus,
-    recommendedAction: effectiveAction,
-    patchFirstRequired: budget?.nextAction === "patch_repair" || effectiveAction === "patch_repair",
-    recheckRequired: effectiveAction !== "continue",
-    pauseReason: effectiveAction === "manual_gate"
-      ? "章节质量存在不可自动放行的问题，需要确认修复边界。"
-      : null,
+    recommendedAction,
+    patchFirstRequired: recommendedAction === "patch_repair",
+    recheckRequired: recommendedAction !== "continue",
+    pauseReason: null,
     rootCauseCode: input.runtimePackage?.failureClassification.code ?? null,
     blockingObligations: input.runtimePackage?.failureClassification.blockingObligations ?? [],
-    budget,
     signals,
   };
 }

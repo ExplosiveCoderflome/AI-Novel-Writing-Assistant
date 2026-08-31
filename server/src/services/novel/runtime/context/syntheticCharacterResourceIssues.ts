@@ -45,7 +45,7 @@ export function buildSyntheticCharacterResourceIssues(
     code: "character_resource_pending_proposal",
     description: `${proposal.summary} 仍在待确认状态，确认前不要把这条资源变更写成已发生事实。`,
     evidence: proposal.evidence[0] ?? proposal.summary,
-    fixSuggestion: "先在任务中心确认或忽略这条资源变更；正文生成只应依据已入账资源。",
+    fixSuggestion: "先回到章节页面确认或忽略这条资源变更；正文生成只应依据已入账资源。",
     status: "open" as const,
     createdAt: now,
     updatedAt: now,

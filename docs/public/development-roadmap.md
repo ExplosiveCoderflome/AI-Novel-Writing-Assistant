@@ -41,7 +41,7 @@
 
 运行记录会保留自动导演、拆书、批量生成等长任务的阶段和错误原因。模型余额或配额不足、质量优先规则要求确认时，任务会保留已完成正文与恢复位置；处理模型配置或确认问题后，可以从未完成章节继续。专业创作支持按章节顺序导出整本 TXT 正文，项目资产仍可使用 Markdown 或 JSON 导出。
 
-相关说明：[运行记录与任务恢复](#/docs/module-task-center) · [系统与模型设置](#/docs/module-system-settings)
+相关说明：[运行记录](#/docs/module-task-center) · [系统与模型设置](#/docs/module-system-settings)
 
 ## 当前开发重点
 

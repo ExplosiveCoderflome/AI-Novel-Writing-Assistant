@@ -12,6 +12,12 @@ function createTask(overrides = {}) {
     lane: "auto_director",
     status: "waiting_approval",
     updatedAt: new Date("2026-04-29T12:00:00.000Z"),
+    seedPayloadJson: JSON.stringify({
+      issueGovernanceVersion: 1,
+      issuePolicy: { maxAutomaticRetries: 1, issueActions: {} },
+      issuePolicySource: "global",
+      runMode: "auto_to_execution",
+    }),
     ...overrides,
   };
 }
@@ -94,6 +100,7 @@ function createHarness(task = createTask()) {
   };
   const originalDirectorEvent = {
     create: prisma.directorEvent.create,
+    upsert: prisma.directorEvent.upsert,
   };
   const workflowService = {
     async getTaskById(taskId) {
@@ -280,6 +287,10 @@ function createHarness(task = createTask()) {
   prisma.directorEvent.create = async ({ data }) => {
     directorEvents.push(data);
     return data;
+  };
+  prisma.directorEvent.upsert = async ({ create }) => {
+    directorEvents.push(create);
+    return create;
   };
 
   return {
@@ -772,7 +783,7 @@ test("director command stale recovery applies the task policy instead of only re
   }
 });
 
-test("director command service auto requeues full-book autopilot stale leases before manual recovery", async () => {
+test("director command service applies the single governance retry budget to full-book stale leases", async () => {
   const harness = createHarness(createTask({
     status: "running",
     pendingManualRecovery: false,
@@ -790,12 +801,10 @@ test("director command service auto requeues full-book autopilot stale leases be
     const count = await harness.service.recoverStaleLeases(new Date("2026-04-29T12:01:00.000Z"));
 
     assert.equal(count, 1);
-    assert.equal(harness.commands[0].status, "queued");
-    assert.equal(harness.commands[0].leaseOwner, null);
-    assert.equal(harness.commands[0].leaseExpiresAt, null);
-    assert.equal(harness.requeued.length, 0);
+    assert.equal(harness.commands[0].status, "stale");
+    assert.equal(harness.requeued.length, 1);
     assert.equal(harness.task.status, "queued");
-    assert.equal(harness.task.pendingManualRecovery, false);
+    assert.equal(harness.task.pendingManualRecovery, true);
   } finally {
     harness.restore();
   }

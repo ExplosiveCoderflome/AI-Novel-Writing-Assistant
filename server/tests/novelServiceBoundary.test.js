@@ -150,7 +150,7 @@ test("chapter production has one governed failure and recovery boundary", () => 
   assert.equal(workflowStoreSource.includes('status: "running"'), true);
 });
 
-test("auto director checkpoints consume governed quality actions without a second risk assessment", () => {
+test("auto director checkpoints consume governed quality actions without a second assessment path", () => {
   const checkpointSource = readSource(
     "services",
     "novel",
@@ -158,17 +158,22 @@ test("auto director checkpoints consume governed quality actions without a secon
     "automation",
     "novelDirectorAutoExecutionCheckpointRuntime.ts",
   );
-  const riskServiceSource = readSource(
-    "services",
-    "novel",
-    "director",
-    "risk",
-    "DirectorRiskAssessmentService.ts",
-  );
-
   assert.equal(checkpointSource.includes("directorRiskAssessmentService"), false);
   assert.equal(checkpointSource.includes("assessQualityRepair"), false);
-  assert.equal(riskServiceSource.includes("assessQualityRepair"), false);
+});
+
+test("auto director does not infer a heavier repair mode from historical failures", () => {
+  const executionSource = readSource(
+    "services", "novel", "director", "automation", "novelDirectorAutoExecution.ts",
+  );
+  const runtimeSource = readSource(
+    "services", "novel", "director", "automation", "novelDirectorAutoExecutionRuntime.ts",
+  );
+
+  assert.equal(executionSource.includes("resolveDirectorAutoExecutionRepairMode"), false);
+  assert.equal(runtimeSource.includes("resolveDirectorAutoExecutionRepairMode"), false);
+  assert.equal(runtimeSource.includes("repairMode: resolveDirectorAutoExecutionRepairMode"), false);
+  assert.match(executionSource, /maxRetries:\s*1/);
 });
 
 test("runtime preflight policy does not own chapter retry or quality actions", () => {

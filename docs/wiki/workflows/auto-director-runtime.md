@@ -48,6 +48,8 @@ Web API 只接收命令和返回轻量投影；Worker 负责执行重型生产�
 
 服务重启或租约过期后的自动恢复如果再次失败，也必须写回 `pendingManualRecovery`，保留原任务与检查点供用户恢复，不能直接把可恢复任务终结为失败。恢复查询必须排除已经处于人工恢复状态的任务；重新执行时继续使用 `skipCompleted` 和持久化章节事实，从最早未完成章节开始，不能重写已经完成或已按质量债降级收束的章节。
 
+启动顺序必须先完成 `initializePendingRecoveries`，再启动 Director Worker。命令候选查询和条件占用都必须排除 `pendingManualRecovery=true` 的任务；队列不得自己维护第二套租约 SQL，而应统一委托 `DirectorCommandLeaseService`。这样即使恢复状态在查询与占用之间变化，后台也不能绕过人工恢复入口重新执行旧命令。
+
 前端从同一事件账本投影问题码、阶段、章节、风险分、实际动作与策略来源。章节问题跳转到章节编辑器，书级问题回到小说工作区或恢复入口。问题记录是质量债和恢复定位依据，不应把可继续的局部问题伪装成全书失败。
 
 ### 逐步协作与自动模式兼容
@@ -132,7 +134,7 @@ Web API 只接收命令和返回轻量投影；Worker 负责执行重型生产�
 - 重规划调用失败时不得静默降级为跳过修复，也不得提前清除 `replan_required`。任务应保留原检查点并展示真实错误，已有正文、章节事实和人工内容均保持不变，供用户再次重规划或转入专业模式处理。
 - `auto_execute_range` 是用户对当前章节执行范围的显式继续授权。恢复链路即使先回到结构化大纲或执行合同同步，也必须把该授权传入后续 Pipeline 的 `approveAutoExecutionScope`，并在结构化同步后主动进入章节执行节点；不能只依赖自动审批偏好，否则命令会成功结束但章节执行节点仍停在审批门。
 - 用户确认新书方向后，自动导演先投影为“准备开篇”。项目建立后可提前选择简易创作进入书架，但正文必须等待开篇路线和执行合同可用；未提前选择时，准备完成后投影为“等待选择生产方式”。选择专业创作则进入完整工作台且不自动生成正文。用户从简易自动创作切换到专业工作台时必须在章节边界生效：当前章允许安全落库，后续自动章节停止，已有正文和人工内容保持不变。
-- 新书自动导演创建的恢复入口是独立页面 `/novels/auto-director?taskId=<workflowTaskId>`。`taskId` 是前端 URL 的主参数；旧的 `/novels/create?mode=director&workflowTaskId=<id>` 只作为兼容输入，进入后应规范化到新页面。任务中心、恢复入口、候选确认链接和服务端 `sourceRoute` 都应指向新页面，保证刷新、桌面重启或崩溃恢复后回到同一个候选/进度现场。
+- 新书自动导演创建的恢复入口是独立页面 `/novels/auto-director?taskId=<workflowTaskId>`。`taskId` 是前端 URL 的主参数；旧的 `/novels/create?mode=director&workflowTaskId=<id>` 只作为兼容输入，进入后应规范化到新页面。运行记录的来源链接、恢复提示、候选确认链接和服务端 `sourceRoute` 都应指向新页面，保证刷新、桌面重启或崩溃恢复后回到同一个候选/进度现场；恢复动作只在该来源页面执行。
 - `/novels/create` 只承担手动创建表单和旧链接跳转，不再挂载自动导演弹窗。自动导演候选批次、定向修订、标题重做、候选确认和执行进度都属于独立创建页主区，不能再通过候选弹窗套在创建弹窗里展示。
 - 现有项目接管的默认范围是“全书前置规划接管”，不是章节范围。接管可以选择资产起点，但导演必须先补齐 Story Macro / Book Contract / 角色 / 卷战略 / 拆章，随后停在 `production_experience_required`；接管入口携带的旧章节范围或全书自动参数不得提前启动正文。
 - 现有项目接管的用户入口应优先呈现“系统推荐接续位置 + 资产保护说明 + 一键继续”。阶段选择、重跑当前步、范围执行、自动审批等属于高级控制，默认折叠。只有会覆盖或重建已有资产的动作才需要显式确认；普通 `continue_existing` 不应让用户先理解内部阶段卡片才能启动。
@@ -233,6 +235,10 @@ Web API 只接收命令和返回轻量投影；Worker 负责执行重型生产�
 
 章节运行时异常由当前章节负责自动处理；每章最多使用一次由问题策略快照提供的自动重试机会，且运行异常重试与质量修复共享这次机会。处理不能重写已稳定保存的前文，也不能创建第二条生产链。预算耗尽且仍没有可用正文时，才创建可恢复检查点，并保留章节、阶段和最近游标，避免把内部堆栈直接当成用户操作要求。
 
+任务治理读取必须区分新版快照和历史兼容。带有有效 `issueGovernanceVersion + issuePolicy` 的任务始终使用启动时快照，运行途中修改全局或本书规则不得改变它；旧任务缺少快照时只在恢复读取边界临时解析当前本书规则，本书不存在时使用全局规则，不回写任务 Seed、不批量迁移历史数据。兼容上下文必须标记真实的 `global` 或 `novel` 来源，不能伪装成任务快照。
+
+Worker 租约过期与章节运行共用问题治理的自动重试预算。第一次失去响应可以按 `runtime.worker_stale` 执行一次自动恢复，预算耗尽后停在人工恢复边界；不得再通过环境变量或运行模式维护独立的 2 次、5 次重试阈值。无法关联小说的孤立任务没有安全治理上下文，应直接暂停等待处理。
+
 章节执行合同的复用必须先通过确定性结构门禁，不能只凭 `taskSheet` 和 `sceneCards` 存在就认定合同可用。只要章节目标、独占事件、结束状态、下一章入口、冲突与揭露强度、目标字数或禁止事项任一缺失，就必须保留旧规划作为生成上下文并重新进入执行合同生成与质量反馈循环。最终同步门禁与复用门禁必须使用同一套结构判断，避免旧任务在恢复时反复复用同一份残缺合同。
 
 回报账本的 `overdue` 只有在当前章节已经越过明确的 `targetEndChapterOrder` 后才生效。仍处于承诺窗口内的项目属于待推进或紧急提示，不得让生成决策提前返回 `replan`。账本内部标识（例如 `payoff/payoff_missing_progress`）只能用于诊断和质量记录，不能写入章节的“必须推进”合同。
@@ -245,8 +251,9 @@ Web API 只接收命令和返回轻量投影；Worker 负责执行重型生产�
 
 ### Current Rule
 
-- 每个需要说明的异常使用 `DirectorRiskAssessment` 记录 1–8 分、类别、影响范围、证据和建议。8 分是最高风险分；评分不拥有暂停权限，也不覆盖问题动作。
+- 新任务把 1–8 分说明记录在 `DirectorIssueOccurrence.riskScore`；历史任务的 `DirectorRiskAssessment` 只作兼容读取和展示。8 分是最高风险分；评分不拥有暂停权限，也不覆盖问题动作。
 - 全局和本书只保存问题码动作与自动重试次数。不存在独立风险阈值、书级阈值覆盖或任务 `riskPolicy` 快照。
+- 自动导演每章最多发起一次自动修复。轻修失败后保留原正文并进入质量债或统一问题治理；质量预算不得把后续恢复静默升级为整章重写，`heavy_repair` 只能来自明确选择的修复任务。
 - 需要关注的问题写入自动导演账本、运行时投影与通知渠道。外部通知按 `任务 + 问题指纹 + 动作` 去重，避免同一问题在重试时反复打扰用户。
 - 全局和本书规则界面允许每个稳定问题码选择四种动作，并在用户产生未保存修改后显示风险提示。策略可保存用户偏好，但 `generation.output_unusable`、`quality.replan_required`、`runtime.token_budget_exceeded`、`runtime.protected_content`、`runtime.data_integrity` 与 `runtime.persistence_failed` 必须由目录中的 `enforcedAction` 执行安全兜底；此时实际决策的 `policySource` 为 `safety`，不能把偏好伪装成已自动放行。
 - `replan_required`、`stop_for_replan`、无可用正文、运行时安全、数据完整性和受保护正文冲突通过问题目录中的安全动作进入可恢复暂停；其风险分可固定记为 8 分用于说明，但暂停不依赖评分模型或任何阈值。
@@ -257,7 +264,8 @@ Web API 只接收命令和返回轻量投影；Worker 负责执行重型生产�
 ### Related Modules
 
 - `shared/types/directorRisk.ts`
-- `server/src/services/novel/director/risk/DirectorRiskAssessmentService.ts`
+- `server/src/prompting/prompts/director/directorIssueAssessment.prompts.ts`
+- `server/src/services/novel/director/projections/novelDirectorRuntimeProjection.ts`
 - `server/src/services/novel/director/automation/novelDirectorAutoExecutionCheckpointRuntime.ts`
 - `shared/types/directorIssue.ts`
 - `server/src/services/novel/director/issues/DirectorIssueService.ts`

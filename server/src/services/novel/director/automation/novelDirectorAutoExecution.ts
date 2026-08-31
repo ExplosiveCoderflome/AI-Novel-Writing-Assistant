@@ -11,7 +11,6 @@ import type {
   DirectorAutoExecutionState,
 } from "@ai-novel/shared/types/novelDirector";
 import { parseChapterScenePlan } from "@ai-novel/shared/types/chapterLengthControl";
-import { resolveDirectorQualityLoopBudgetNextAction } from "../runtime/DirectorQualityLoopBudgetLedgerService";
 import {
   buildPipelineBackgroundActivityLabels,
   parsePipelinePayload,
@@ -528,9 +527,8 @@ export function buildDirectorAutoExecutionPipelineOptions(input: {
     startOrder: input.startOrder,
     endOrder: input.endOrder,
     controlPolicy: buildPipelineExecutionControlPolicy("director_start", input.controlAdvanceMode),
-    // Auto-director retries the current chapter before exposing a recoverable
-    // failure. Manual single-chapter runs keep their lighter default.
-    maxRetries: input.controlAdvanceMode === "full_book_autopilot" ? 2 : 1,
+    // Generation failures and quality repair share one automatic attempt.
+    maxRetries: 1,
     runMode: input.runMode ?? "fast",
     autoReview,
     autoRepair: autoReview ? (input.autoRepair ?? true) : false,
@@ -544,53 +542,6 @@ export function buildDirectorAutoExecutionPipelineOptions(input: {
     taskStyleProfileId: input.taskStyleProfileId,
     artifactSyncMode: input.artifactSyncMode ?? "adaptive",
   };
-}
-
-function qualityLoopEntryMatchesCurrentChapter(
-  entry: NonNullable<DirectorAutoExecutionState["qualityLoopLedger"]>["entries"][number],
-  state: DirectorAutoExecutionState,
-): boolean {
-  const chapterId = state.nextChapterId ?? null;
-  const chapterOrder = state.nextChapterOrder ?? null;
-  if (chapterId && entry.lastChapterId === chapterId) {
-    return true;
-  }
-  if (typeof chapterOrder === "number" && entry.lastChapterOrder === chapterOrder) {
-    return true;
-  }
-
-  const window = entry.affectedChapterWindow;
-  if (chapterId && window.chapterIds?.includes(chapterId)) {
-    return true;
-  }
-  if (typeof chapterOrder === "number") {
-    if (window.chapterOrders?.includes(chapterOrder)) {
-      return true;
-    }
-    if (
-      typeof window.startOrder === "number"
-      && typeof window.endOrder === "number"
-      && chapterOrder >= window.startOrder
-      && chapterOrder <= window.endOrder
-    ) {
-      return true;
-    }
-  }
-  return !chapterId && typeof chapterOrder !== "number";
-}
-
-export function resolveDirectorAutoExecutionRepairMode(
-  state: DirectorAutoExecutionState,
-): DirectorAutoExecutionRepairMode {
-  const entries = (state.qualityLoopLedger?.entries ?? [])
-    .filter((entry) => qualityLoopEntryMatchesCurrentChapter(entry, state))
-    .sort((left, right) => right.updatedAt.localeCompare(left.updatedAt));
-  const latestEntry = entries[0];
-  if ((latestEntry?.patchRepairCount ?? 0) > 0 || latestEntry?.lastAction === "patch_repair") {
-    return "heavy_repair";
-  }
-  const nextAction = resolveDirectorQualityLoopBudgetNextAction(latestEntry);
-  return nextAction === "auto_rewrite_chapter" ? "heavy_repair" : "light_repair";
 }
 
 export function resolveDirectorAutoExecutionWorkflowState(

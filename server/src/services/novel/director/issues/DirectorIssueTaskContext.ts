@@ -1,12 +1,14 @@
 import {
+  DIRECTOR_ISSUE_GOVERNANCE_VERSION,
   directorIssuePolicySchema,
   type DirectorIssuePolicy,
 } from "@ai-novel/shared/types/directorIssue";
 import { prisma } from "../../../../db/prisma";
+import { directorIssuePolicyService } from "./DirectorIssuePolicyService";
 
 export interface DirectorIssueTaskContext {
   novelId: string | null;
-  issueGovernanceVersion: number;
+  issueGovernanceVersion: 1;
   policy: DirectorIssuePolicy;
   runMode?: string;
   policySource: "global" | "novel" | "task_snapshot";
@@ -20,21 +22,39 @@ export async function loadDirectorIssueTaskContext(
     where: { id: taskId },
     select: { novelId: true, seedPayloadJson: true },
   });
-  if (!task?.seedPayloadJson) return null;
+  if (!task) return null;
+  let seed: Record<string, unknown> = {};
   try {
-    const seed = JSON.parse(task.seedPayloadJson) as Record<string, unknown>;
+    seed = task.seedPayloadJson
+      ? JSON.parse(task.seedPayloadJson) as Record<string, unknown>
+      : {};
     const policy = directorIssuePolicySchema.safeParse(seed.issuePolicy);
-    if (seed.issueGovernanceVersion !== 1 || !policy.success) return null;
-    return {
-      novelId: task.novelId,
-      issueGovernanceVersion: 1,
-      policy: policy.data,
-      runMode: typeof seed.runMode === "string" ? seed.runMode : undefined,
-      policySource: seed.issuePolicySource === "global" || seed.issuePolicySource === "novel"
-        ? seed.issuePolicySource
-        : "task_snapshot",
-    };
+    if (seed.issueGovernanceVersion === DIRECTOR_ISSUE_GOVERNANCE_VERSION && policy.success) {
+      return {
+        novelId: task.novelId,
+        issueGovernanceVersion: DIRECTOR_ISSUE_GOVERNANCE_VERSION,
+        policy: policy.data,
+        runMode: typeof seed.runMode === "string" ? seed.runMode : undefined,
+        policySource: seed.issuePolicySource === "global" || seed.issuePolicySource === "novel"
+          ? seed.issuePolicySource
+          : "task_snapshot",
+      };
+    }
   } catch {
-    return null;
+    seed = {};
   }
+
+  const fallback = task.novelId
+    ? await directorIssuePolicyService.getNovelPolicy(task.novelId)
+    : {
+      effectivePolicy: await directorIssuePolicyService.getGlobalPolicy(),
+      source: "global" as const,
+    };
+  return {
+    novelId: task.novelId,
+    issueGovernanceVersion: DIRECTOR_ISSUE_GOVERNANCE_VERSION,
+    policy: fallback.effectivePolicy,
+    runMode: typeof seed.runMode === "string" ? seed.runMode : undefined,
+    policySource: fallback.source,
+  };
 }

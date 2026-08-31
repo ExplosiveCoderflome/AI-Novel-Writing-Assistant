@@ -44,6 +44,15 @@
 - Do not assume the primary user can manually repair structure, pacing, character arcs, or chapter planning without substantial AI support.
 - If there is a tradeoff between expert-oriented flexibility and beginner completion rate, prefer the path that better helps a novice user successfully produce a complete novel.
 
+## Task Center Role Rules (Highest Priority)
+
+- The task center is presented to users as “运行记录”. It is a read-only list for task status, progress, errors, recovery location, history, and source-page navigation; it is not a workflow operation surface.
+- Do not place task-mutating actions in the task center, including continue, recover, retry, cancel, replan, repair, approve, or archive actions.
+- Put each workflow action on the source page or workbench where the user can see the relevant creative context, affected scope, saved results, and consequence of the action.
+- The task center may refresh, filter, select, inspect, and open a source page. These read and navigation controls must not change task state.
+- Task projections and recovery candidates must carry a stable source route so a failed or paused record can return the user to the correct actionable page.
+- Product copy and documentation must not instruct users to perform recovery or retry inside the task center. It may tell users to inspect the record there and then return to the source page to act.
+
 ## UI Copy Rules
 
 - All user-facing UI copy must explain the function from the user's perspective: what the user can do, what the system is helping with, or what the next step is.

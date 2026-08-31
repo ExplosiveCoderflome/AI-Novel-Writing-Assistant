@@ -1,11 +1,5 @@
 import type { GenerationContextPackage } from "@ai-novel/shared/types/chapterRuntime";
-import type { TimelineCheckResult, TimelineHookDraft } from "@ai-novel/shared/types/timeline";
 import { prisma } from "../../../db/prisma";
-import {
-  storyTimelineService,
-  timelineCheckerService,
-  timelineExtractorService,
-} from "../../../modules/timeline";
 import {
   ChapterAcceptanceAssessmentService,
   type ChapterAcceptanceAssessmentResult,
@@ -13,18 +7,11 @@ import {
 import type { ChapterRuntimeRequestInput } from "./chapterRuntimeSchema";
 import {
   hashContent,
-  normalizeTimelineGateResult,
   rememberCacheValue,
-  type TimelineGateResult,
 } from "./chapterRuntimePackageBuilders";
-
-export interface ChapterQualityGateAgentRuntime {
-  createChapterGenRun: (novelId: string, chapterId: string, chapterOrder: number) => Promise<string>;
-}
 
 export interface ChapterQualityGateServiceDeps {
   acceptanceAssessmentService?: Pick<ChapterAcceptanceAssessmentService, "assess">;
-  agentRuntime: ChapterQualityGateAgentRuntime;
 }
 
 export interface RunChapterQualityGatesInput {
@@ -35,12 +22,7 @@ export interface RunChapterQualityGatesInput {
   request: ChapterRuntimeRequestInput;
 }
 
-export interface RunChapterQualityGatesResult {
-  acceptance: ChapterAcceptanceAssessmentResult;
-  timelineGate: TimelineGateResult;
-}
-
-type QualityGateCacheKind = "acceptance" | "timeline";
+type QualityGateCacheKind = "acceptance";
 
 interface PersistedQualityGateCachePayload<T> {
   schemaVersion: 1;
@@ -53,45 +35,13 @@ interface PersistedQualityGateCachePayload<T> {
 export class ChapterQualityGateService {
   private readonly acceptanceAssessmentService: Pick<ChapterAcceptanceAssessmentService, "assess">;
   private readonly acceptanceGateCache = new Map<string, Promise<ChapterAcceptanceAssessmentResult> | ChapterAcceptanceAssessmentResult>();
-  private readonly timelineGateCache = new Map<string, Promise<TimelineGateResult> | TimelineGateResult>();
 
   constructor(deps: ChapterQualityGateServiceDeps) {
     this.acceptanceAssessmentService = deps.acceptanceAssessmentService ?? new ChapterAcceptanceAssessmentService();
   }
 
-  async runGates(input: RunChapterQualityGatesInput): Promise<RunChapterQualityGatesResult> {
-    const contentHash = hashContent(input.content);
-    const [acceptance, timelineGate] = await Promise.all([
-      this.traceChapterGate({
-        novelId: input.novelId,
-        chapterId: input.chapterId,
-        chapterOrder: input.contextPackage.chapter.order,
-        stage: "acceptance",
-        blocking: true,
-        contentHash,
-        promptAssetKey: "novel.chapter.acceptance_assessment",
-        run: () => this.runAcceptanceGate(input),
-      }),
-      this.traceChapterGate({
-        novelId: input.novelId,
-        chapterId: input.chapterId,
-        chapterOrder: input.contextPackage.chapter.order,
-        stage: "timeline_extraction_check",
-        blocking: true,
-        contentHash,
-        promptAssetKey: "novel.timeline.extractor",
-        run: () => this.runTimelineGate(input),
-      }),
-    ]);
-
-    return {
-      acceptance,
-      timelineGate,
-    };
-  }
-
   private buildGateCacheKey(input: {
-    gate: "acceptance" | "timeline";
+    gate: QualityGateCacheKind;
     novelId: string;
     chapterId: string;
     chapterOrder: number;
@@ -110,9 +60,9 @@ export class ChapterQualityGateService {
     ].join(":");
   }
 
-  async runAcceptanceGateOnly(input: RunChapterQualityGatesInput): Promise<RunChapterQualityGatesResult> {
+  async runAcceptanceGate(input: RunChapterQualityGatesInput): Promise<ChapterAcceptanceAssessmentResult> {
     const contentHash = hashContent(input.content);
-    const acceptance = await this.traceChapterGate({
+    return this.traceChapterGate({
       novelId: input.novelId,
       chapterId: input.chapterId,
       chapterOrder: input.contextPackage.chapter.order,
@@ -120,12 +70,8 @@ export class ChapterQualityGateService {
       blocking: true,
       contentHash,
       promptAssetKey: "novel.chapter.acceptance_assessment",
-      run: () => this.runAcceptanceGate(input),
+      run: () => this.loadAcceptanceAssessment(input),
     });
-    return {
-      acceptance,
-      timelineGate: this.buildDeferredTimelineGate(input),
-    };
   }
 
   private buildGateRequestKey(input: {
@@ -272,29 +218,7 @@ export class ChapterQualityGateService {
       && !result.assessment.blockingIssues.some((issue) => issue.code === "acceptance_gate_unavailable");
   }
 
-  private isCacheableTimelineResult(result: TimelineGateResult): boolean {
-    return result.extractorSucceeded;
-  }
-
-  private buildDeferredTimelineGate(input: RunChapterQualityGatesInput): TimelineGateResult {
-    return {
-      result: {
-        status: "passed",
-        score: 1,
-        issues: [],
-      },
-      extractedEvents: [],
-      extractedHooks: [],
-      timeAnchor: null,
-      addressedHookIds: [],
-      resolvedHookIds: [],
-      extractorSucceeded: false,
-      extractorError: "timeline_extraction_deferred",
-      timelineContext: input.contextPackage.timelineContext ?? null,
-    };
-  }
-
-  private async runAcceptanceGate(input: RunChapterQualityGatesInput): Promise<ChapterAcceptanceAssessmentResult> {
+  private async loadAcceptanceAssessment(input: RunChapterQualityGatesInput): Promise<ChapterAcceptanceAssessmentResult> {
     const key = this.buildGateCacheKey({
       gate: "acceptance",
       novelId: input.novelId,
@@ -350,155 +274,6 @@ export class ChapterQualityGateService {
       this.acceptanceGateCache.delete(key);
       throw error;
     }
-  }
-
-  private async runTimelineGate(input: RunChapterQualityGatesInput): Promise<TimelineGateResult> {
-    const key = this.buildGateCacheKey({
-      gate: "timeline",
-      novelId: input.novelId,
-      chapterId: input.chapterId,
-      chapterOrder: input.contextPackage.chapter.order,
-      content: input.content,
-      request: input.request,
-    });
-    const cached = this.timelineGateCache.get(key);
-    if (cached) {
-      return normalizeTimelineGateResult(await cached, input.contextPackage.timelineContext ?? null);
-    }
-    const persisted = await this.readPersistentGateCache<TimelineGateResult>({
-      gate: "timeline",
-      novelId: input.novelId,
-      chapterId: input.chapterId,
-      content: input.content,
-      request: input.request,
-    });
-    if (persisted) {
-      const normalized = normalizeTimelineGateResult(persisted, input.contextPackage.timelineContext ?? null);
-      rememberCacheValue(this.timelineGateCache, key, normalized);
-      return normalized;
-    }
-    const checkPromise = this.executeTimelineGate(input)
-      .then((result) => normalizeTimelineGateResult(result, input.contextPackage.timelineContext ?? null));
-    rememberCacheValue(this.timelineGateCache, key, checkPromise);
-    try {
-      const check = await checkPromise;
-      if (this.isCacheableTimelineResult(check)) {
-        await this.writePersistentGateCache({
-          gate: "timeline",
-          novelId: input.novelId,
-          chapterId: input.chapterId,
-          content: input.content,
-          request: input.request,
-          result: check,
-        });
-      }
-      rememberCacheValue(this.timelineGateCache, key, check);
-      return check;
-    } catch (error) {
-      this.timelineGateCache.delete(key);
-      throw error;
-    }
-  }
-
-  private async executeTimelineGate(input: RunChapterQualityGatesInput): Promise<TimelineGateResult> {
-    const timelineContext = input.contextPackage.timelineContext;
-    if (!timelineContext) {
-      return {
-        result: {
-          status: "passed",
-          score: 1,
-          issues: [],
-        },
-        extractedEvents: [],
-        extractedHooks: [],
-        timeAnchor: null,
-        addressedHookIds: [],
-        resolvedHookIds: [],
-        extractorSucceeded: false,
-        extractorError: "timeline_context_not_enabled_for_writer",
-        timelineContext: null,
-      };
-    }
-
-    let result: TimelineCheckResult;
-    let extractedEvents: ReturnType<typeof timelineExtractorService.normalizeEvents> = [];
-    let extractedHooks: TimelineHookDraft[] = [];
-    let timeAnchor: TimelineGateResult["timeAnchor"] = null;
-    let addressedHookIds: string[] = [];
-    let resolvedHookIds: string[] = [];
-    let extractorSucceeded = false;
-    let extractorError: string | null = null;
-    try {
-      const extracted = await timelineExtractorService.extractFromChapter({
-        novelId: input.novelId,
-        chapterId: input.chapterId,
-        chapterIndex: input.contextPackage.chapter.order,
-        novelTitle: input.contextPackage.bookContract?.title ?? input.contextPackage.chapter.title,
-        chapterTitle: input.contextPackage.chapter.title,
-        chapterGoal: input.contextPackage.chapterMission?.objective
-          ?? input.contextPackage.chapter.expectation
-          ?? "推进当前章节任务",
-        chapterContent: input.content,
-        timelineContext,
-        provider: input.request.provider,
-        model: input.request.model,
-        temperature: input.request.temperature,
-      });
-      extractedEvents = timelineExtractorService.normalizeEvents(extracted);
-      extractedHooks = timelineExtractorService.normalizeHooks(extracted);
-      timeAnchor = extracted.timeAnchor ?? null;
-      addressedHookIds = extracted.addressedHookIds ?? [];
-      resolvedHookIds = extracted.resolvedHookIds ?? [];
-      extractorSucceeded = true;
-      result = timelineCheckerService.checkChapter({
-        novelId: input.novelId,
-        chapterId: input.chapterId,
-        chapterIndex: input.contextPackage.chapter.order,
-        extractedEvents,
-        timelineContext,
-        chapterContent: input.content,
-      });
-    } catch (error) {
-      const message = error instanceof Error ? error.message : String(error);
-      extractorError = message;
-      result = {
-        status: "warning",
-        score: 0.82,
-        issues: [{
-          type: "unclear_time_anchor",
-          severity: "warning",
-          message: "时间线抽取或检测未完成，章节需要后续复查。",
-          evidence: message,
-          suggestedFix: "重试时间线检测；若仍失败，人工检查章节承接和未来事件泄漏。",
-          relatedEventIds: [],
-          relatedHookIds: [],
-        }],
-      };
-    }
-
-    await storyTimelineService.saveCheckReport({
-      novelId: input.novelId,
-      chapterId: input.chapterId,
-      chapterIndex: input.contextPackage.chapter.order,
-      result,
-    }).catch((error) => {
-      console.warn("[chapter-runtime] timeline report save skipped", {
-        novelId: input.novelId,
-        chapterId: input.chapterId,
-        error: error instanceof Error ? error.message : String(error),
-      });
-    });
-    return {
-      result,
-      extractedEvents,
-      extractedHooks,
-      timeAnchor,
-      addressedHookIds,
-      resolvedHookIds,
-      extractorSucceeded,
-      extractorError,
-      timelineContext,
-    };
   }
 
   private async traceChapterGate<T>(input: {

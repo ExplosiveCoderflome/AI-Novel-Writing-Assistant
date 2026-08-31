@@ -150,17 +150,16 @@ if (request.controlPolicy?.advanceMode === "full_book_autopilot") {
 
 新增 `buildRepairIssuesPayload(issues, runtimePackage)`：
 - 在 `ReviewIssue[]` 之外，追加 `missingObligations`（kind/summary/evidence）和 `blockingIssueCodes`
-- 两处重写路径（patch 失败升级 + 强制重写）均使用结构化 JSON，修复器可据此定向补写义务
+- 局部补丁与整章重写均使用结构化 JSON，修复器可据此定向补写义务
 
-### 根因B — patchRepair 预算提升 + 宽松锚点重试
+### 根因B — 单次 patchRepair 边界
 
 **文件**：`DirectorQualityLoopBudgetLedgerService.ts`
-- `DIRECTOR_QUALITY_LOOP_BUDGET_LIMITS.patchRepair`: 1 → 2
+- `DIRECTOR_QUALITY_LOOP_BUDGET_LIMITS.patchRepair` 固定为 1，与任务策略的唯一自动处理机会保持一致。
 
-**文件**：`chapterRepairRuntime.ts`（patch 失败 catch 块）
-- 首次 `ChapterPatchRepairFailedError` → 用 `continuity_only` 模式重试一次（宽松锚点）
-- 宽松重试成功 → 返回 patch 结果
-- 宽松重试仍失败 → 升级 `heavy_repair`
+**文件**：`chapterRepairRuntime.ts`
+- 局部补丁只调用一次；`ChapterPatchRepairFailedError` 直接返回运行边界，不再以宽松锚点发起第二次 LLM 补丁。
+- 局部补丁失败后保留原正文，按冻结的问题策略记录质量债或暂停等待人工处理；不得根据历史失败次数把下一次恢复静默改成 `heavy_repair`。
 
 ### 根因E — issueSignature 拆分 length/content 分别计预算
 
@@ -186,7 +185,7 @@ if (request.controlPolicy?.advanceMode === "full_book_autopilot") {
 **文件**：`server/src/services/novel/runtime/GenerationContextAssembler.ts`
 
 1. **稳定层缓存**：将 novel 大查询替换为 `batchContextCache.getNovelRow(novelId)`，每章节省 10+ 并行子查询
-2. **移除 timelineContext**（缺陷5）：删除 `timelineContextService.buildForChapter` 调用，`timelineContext: null`；`ChapterQualityGateService` 对 null 有防御
+2. **移除 timelineContext**（缺陷5）：删除 `timelineContextService.buildForChapter` 调用，`timelineContext: null`；接收闸门不处理 Timeline，最终正文由 `ChapterTimelineFinalizationService` 写入最小降级锚点
 3. **合并双 contextPackage**（缺陷6）：用 `sharedFields` 对象一次性组装共享字段，最终 `contextPackage = { ...sharedFields, ragContext, chapterMission, chapterWriteContext, chapterReviewContext, chapterRepairContext }`；消除 ~30 个字段两遍手抄
 
 ---
@@ -210,8 +209,8 @@ if (request.controlPolicy?.advanceMode === "full_book_autopilot") {
 - `server/src/services/novel/runtime/BatchContextCache.ts`（新建）
 - `server/src/services/novel/director/phases/novelDirectorStructuredOutlinePhase.ts`（改造）
 - `server/src/services/novel/runtime/GenerationContextAssembler.ts`（JIT 接入 + 缓存 + 合并）
-- `server/src/services/novel/runtime/repair/chapterRepairRuntime.ts`（结构化义务 + 宽松锚点重试）
-- `server/src/services/novel/director/runtime/DirectorQualityLoopBudgetLedgerService.ts`（预算提升 + 签名拆分）
+- `server/src/services/novel/runtime/repair/chapterRepairRuntime.ts`（结构化义务 + 单次补丁边界）
+- `server/src/services/novel/director/runtime/DirectorQualityLoopBudgetLedgerService.ts`（单次补丁预算 + 签名拆分）
 - `server/src/services/novel/novelCorePipelineService.ts`（N+1 预取）
 - `server/src/services/novel/fact/NovelFactService.ts`（factLedger 数据源，PR-A 已就绪）
 

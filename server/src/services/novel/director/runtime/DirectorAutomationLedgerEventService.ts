@@ -126,39 +126,6 @@ export class DirectorAutomationLedgerEventService {
     });
   }
 
-  async recordRepairTicketCreated(input: {
-    taskId?: string | null;
-    runId?: string | null;
-    novelId: string;
-    chapterId?: string | null;
-    nodeKey?: string | null;
-    summary: string;
-    failureCount?: number | null;
-    metadata?: Record<string, unknown> | null;
-  }): Promise<void> {
-    await this.recordEvent({
-      type: "repair_ticket_created",
-      idempotencyKey: [
-        input.taskId ?? "book",
-        input.novelId,
-        input.chapterId ?? "unknown",
-        input.failureCount ?? "ticket",
-        input.summary,
-      ].join(":"),
-      taskId: input.taskId,
-      runId: input.runId,
-      novelId: input.novelId,
-      nodeKey: input.nodeKey ?? "chapter_repair_node",
-      summary: input.summary,
-      affectedScope: input.chapterId ? `chapter:${input.chapterId}` : null,
-      severity: (input.failureCount ?? 0) >= 2 ? "high" : "medium",
-      metadata: {
-        failureCount: input.failureCount ?? null,
-        ...(input.metadata ?? {}),
-      },
-    });
-  }
-
   async recordReplanRunCreated(input: {
     taskId?: string | null;
     runId?: string | null;

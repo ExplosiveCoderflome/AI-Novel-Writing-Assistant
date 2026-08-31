@@ -180,7 +180,8 @@ function formatQualityBudgetSummary(summary: DirectorRuntimeProjection["qualityB
   const chapterText = typeof summary.currentChapterOrder === "number"
     ? `第 ${summary.currentChapterOrder} 章`
     : "当前章节";
-  return `${chapterText}质量预算：局部修复 ${summary.patchRepairUsed}/1，整章重写 ${summary.chapterRewriteUsed}/1，窗口重规划 ${summary.windowReplanUsed}/1。${summary.nextActionLabel}`;
+  const automaticRepairUsed = Math.min(1, summary.patchRepairUsed + summary.chapterRewriteUsed);
+  return `${chapterText}自动处理：本章修复 ${automaticRepairUsed}/1，窗口重规划 ${Math.min(1, summary.windowReplanUsed)}/1。${summary.nextActionLabel}`;
 }
 
 function formatRootCauseSummary(projection: DirectorRuntimeProjection): string | null {
