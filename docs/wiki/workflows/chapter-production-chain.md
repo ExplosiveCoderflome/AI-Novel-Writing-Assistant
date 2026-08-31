@@ -45,7 +45,7 @@
 - 接收闸门通过后、构建运行包前，会对最终正文执行一次确定性正文自然度/退化检测。该检测只做本地文本规则检查，覆盖 AI 自述、占位符、工程词泄漏、截断、复读、破折号/省略号、否定翻转句、碎句和长段落等风险；它不调用 LLM，也不改变正文。
 - 正文自然度/退化检测输出统一进入 `mode_fit` 审计报告，issue code 使用 `prose_*` 前缀。`high/critical` 视为本章阻塞审计问题并复用现有 patch repair / heavy repair 链路；`medium/low` 只作为提示和后续局部优化依据，不触发全章重写。
 - `prose_*` 问题默认属于本章局部质量问题。自动修复耗尽后，如果正文仍可读，应登记 `defer_and_continue` 质量债并继续剩余章节；不得仅因为单章正文自然度问题写入 `replanAlertDetails`、`PIPELINE_REPLAN_REQUIRED` 或全局自动导演重规划。
-- 正文接收裁决只等待 `acceptance`。Timeline 不属于 writer required context，也不参与“正文是否可接收”的质量判断；接收结论确定后，统一终态入口必须为当前 content hash 写入 `stable` 或 `degraded` timeline finalization checkpoint，才能释放章节状态。未启用 Timeline 时不得生成“缺少 timeline context”的正文质量告警，而应提交最小降级锚点。
+- 正文接收裁决只等待唯一的 `acceptance` gate。Timeline 不属于 writer required context，也不参与“正文是否可接收”的质量判断；接收服务不得再维护并行的 timeline gate、timeline cache 或伪造通过结果。接收结论确定后，唯一的 `ChapterTimelineFinalizationService` 必须为当前 content hash 写入 `stable` 或 `degraded` checkpoint，才能释放章节状态。未启用 Timeline 时不得生成“缺少 timeline context”的正文质量告警，而应提交最小降级锚点。
 - `acceptance` 门禁必须按同章、同正文 content hash、同模型请求写入持久化幂等缓存。任务取消、失败或 worker 重启后，如果正文未变化，应优先复用成功结果，不能重新触发相同接收评估。
 - 门禁缓存只能保存可复用的成功结果。`acceptance_gate_unavailable` 等临时系统失败不得写成长期成功缓存；这类结果应保留为当前运行风险，允许后续重试。
 - 任何会调用 LLM 的后置抽取或资产回灌，都必须在调用模型前抢占持久化 checkpoint，并把状态标记为 `running`。如果同章、同正文 content hash、同 artifactType 和 syncMode 已有 `running` 或 `succeeded` checkpoint，后续入口必须跳过本次 LLM 调用；失败时把 `running` 标记为 `failed`，允许后续重试。仅依赖服务实例内存锁不能满足任务重启、并发后台入口或上一章兜底补跑场景。

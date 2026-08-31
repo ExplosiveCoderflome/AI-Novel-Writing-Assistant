@@ -5,7 +5,6 @@ import type {
 } from "@ai-novel/shared/types/novelDirector";
 import type { PipelineJobStatus } from "@ai-novel/shared/types/novel";
 import {
-  buildDirectorAutoExecutionDeferredQualityState,
   buildDirectorAutoExecutionPausedLabel,
   buildDirectorAutoExecutionPausedSummary,
   buildDirectorAutoExecutionScopeLabelFromState,
@@ -22,17 +21,9 @@ import {
   recordChapterUsageBudgetExceededSignal,
   recordModelFailureSignal,
   recordPatchFailureSignal,
-  recordReplanLoopSignal,
   recordUsageAnomalySignal,
   withCircuitBreakerState,
 } from "../runtime/DirectorCircuitBreakerService";
-import {
-  buildDirectorQualityLoopBudgetWindow,
-  buildDirectorQualityLoopIssueSignature,
-  findDirectorQualityLoopBudgetEntry,
-  recordDirectorQualityLoopBudgetAttempt,
-  resolveDirectorQualityLoopBudgetNextAction,
-} from "../runtime/DirectorQualityLoopBudgetLedgerService";
 import { directorAutomationLedgerEventService } from "../runtime/DirectorAutomationLedgerEventService";
 import { directorUsageTelemetryQueryService } from "../runtime/DirectorUsageTelemetryQueryService";
 import { directorIssueService } from "../issues";
@@ -95,19 +86,6 @@ async function applyCircuitBreakerDecision(
     return;
   }
   await applyCircuitBreakerStop(deps, input);
-}
-
-interface ReplanNoticeRuntimePort extends CircuitBreakerWorkflowPort {
-  replanNovel?: (novelId: string, input: {
-    chapterId?: string;
-    triggerType?: string;
-    reason: string;
-    sourceIssueIds?: string[];
-    windowSize?: number;
-    provider?: DirectorConfirmRequest["provider"];
-    model?: string;
-    temperature?: number;
-  }) => Promise<unknown>;
 }
 
 async function applyCircuitBreakerStop(
@@ -302,190 +280,6 @@ export function buildFailureCircuitBreaker(input: {
     message: input.message,
     nodeKey: "chapter_execution_node",
   });
-}
-
-export async function runFullBookAutopilotReplanNotice(input: {
-  deps: ReplanNoticeRuntimePort;
-  taskId: string;
-  novelId: string;
-  request: DirectorConfirmRequest;
-  range: DirectorAutoExecutionRange;
-  autoExecution: DirectorAutoExecutionState;
-  checkpointState: DirectorAutoExecutionState;
-  noticeSummary: string;
-}): Promise<
-  | { stopped: true }
-  | {
-    stopped: false;
-    circuitBreaker: DirectorCircuitBreakerState;
-    autoExecution?: DirectorAutoExecutionState;
-    decision?: "auto_replan_window" | "defer_and_continue";
-  }
-> {
-  const affectedChapterWindow = buildDirectorQualityLoopBudgetWindow({
-    autoExecution: input.autoExecution,
-    chapterId: input.autoExecution.nextChapterId,
-    chapterOrder: input.autoExecution.nextChapterOrder,
-  });
-  const issueSignature = buildDirectorQualityLoopIssueSignature({
-    reason: input.noticeSummary,
-    noticeCode: input.checkpointState.qualityRepairRisk?.noticeCode,
-    riskLevel: input.checkpointState.qualityRepairRisk?.riskLevel,
-    repairMode: input.checkpointState.qualityRepairRisk?.repairMode,
-  });
-  const existingBudgetEntry = findDirectorQualityLoopBudgetEntry({
-    state: input.autoExecution,
-    novelId: input.novelId,
-    taskId: input.taskId,
-    issueSignature,
-    affectedChapterWindow,
-  });
-  const nextBudgetAction = resolveDirectorQualityLoopBudgetNextAction(existingBudgetEntry);
-  if (nextBudgetAction === "defer_and_continue") {
-    const budgetResult = recordDirectorQualityLoopBudgetAttempt({
-      state: input.checkpointState,
-      novelId: input.novelId,
-      taskId: input.taskId,
-      issueSignature,
-      affectedChapterWindow,
-      action: "defer_and_continue",
-      reason: input.noticeSummary,
-      chapterId: input.autoExecution.nextChapterId,
-      chapterOrder: input.autoExecution.nextChapterOrder,
-    });
-    const ledgerEventService = input.deps.automationLedgerEventService ?? directorAutomationLedgerEventService;
-    const closedCircuitBreaker = buildClosedDirectorCircuitBreakerState(input.autoExecution.circuitBreaker);
-    const deferredState = buildDirectorAutoExecutionDeferredQualityState({
-      state: withCircuitBreakerState(budgetResult.state, closedCircuitBreaker),
-      reason: input.noticeSummary,
-      source: "replan_loop",
-    });
-    await ledgerEventService.recordEvent({
-      type: "continue_with_risk",
-      idempotencyKey: [
-        input.taskId,
-        input.novelId,
-        budgetResult.entry.signatureKey,
-        budgetResult.entry.deferredCount,
-      ].join(":"),
-      taskId: input.taskId,
-      novelId: input.novelId,
-      nodeKey: "planner.replan",
-      summary: "全书自动成书已暂存重复重规划问题，并继续推进后续章节。",
-      affectedScope: input.autoExecution.nextChapterId
-        ? `chapter:${input.autoExecution.nextChapterId}`
-        : (typeof input.autoExecution.nextChapterOrder === "number" ? `chapter_order:${input.autoExecution.nextChapterOrder}` : null),
-      severity: "medium",
-      metadata: {
-        decision: "defer_and_continue",
-        noticeSummary: input.noticeSummary,
-        chapterOrder: input.autoExecution.nextChapterOrder ?? null,
-        qualityBudgetEntry: budgetResult.entry,
-      },
-    }).catch(() => null);
-    return {
-      stopped: false,
-      circuitBreaker: closedCircuitBreaker,
-      autoExecution: deferredState,
-      decision: "defer_and_continue",
-    };
-  }
-  const budgetResult = recordDirectorQualityLoopBudgetAttempt({
-    state: input.checkpointState,
-    novelId: input.novelId,
-    taskId: input.taskId,
-    issueSignature,
-    affectedChapterWindow,
-    action: "window_replan",
-    reason: input.noticeSummary,
-    chapterId: input.autoExecution.nextChapterId,
-    chapterOrder: input.autoExecution.nextChapterOrder,
-  });
-  const replanCircuitBreaker = recordReplanLoopSignal({
-    previous: budgetResult.state.circuitBreaker,
-    chapterId: input.autoExecution.nextChapterId,
-    chapterOrder: input.autoExecution.nextChapterOrder,
-    message: input.noticeSummary,
-  });
-  if (isDirectorCircuitBreakerOpen(replanCircuitBreaker)) {
-    const ledgerEventService = input.deps.automationLedgerEventService ?? directorAutomationLedgerEventService;
-    const closedCircuitBreaker = buildClosedDirectorCircuitBreakerState(replanCircuitBreaker);
-    const deferredState = buildDirectorAutoExecutionDeferredQualityState({
-      state: withCircuitBreakerState(budgetResult.state, closedCircuitBreaker),
-      reason: input.noticeSummary,
-      source: "replan_loop",
-    });
-    await ledgerEventService.recordEvent({
-      type: "continue_with_risk",
-      idempotencyKey: [
-        input.taskId,
-        input.novelId,
-        deferredState.nextChapterId ?? input.autoExecution.nextChapterId ?? "unknown",
-        deferredState.nextChapterOrder ?? input.autoExecution.nextChapterOrder ?? "unknown",
-        replanCircuitBreaker.replanLoopCount ?? "replan",
-      ].join(":"),
-      taskId: input.taskId,
-      novelId: input.novelId,
-      nodeKey: "planner.replan",
-      summary: "全书自动成书已暂存重复重规划问题，并继续推进后续章节。",
-      affectedScope: input.autoExecution.nextChapterId
-        ? `chapter:${input.autoExecution.nextChapterId}`
-        : (typeof input.autoExecution.nextChapterOrder === "number" ? `chapter_order:${input.autoExecution.nextChapterOrder}` : null),
-      severity: "medium",
-      metadata: {
-        decision: "defer_and_continue",
-        circuitBreaker: replanCircuitBreaker,
-        noticeSummary: input.noticeSummary,
-        chapterOrder: input.autoExecution.nextChapterOrder ?? null,
-        qualityBudgetEntry: budgetResult.entry,
-      },
-    }).catch(() => null);
-    return {
-      stopped: false,
-      circuitBreaker: closedCircuitBreaker,
-      autoExecution: deferredState,
-      decision: "defer_and_continue",
-    };
-  }
-  if (input.deps.replanNovel) {
-    try {
-      await input.deps.replanNovel(input.novelId, {
-        chapterId: input.autoExecution.nextChapterId ?? undefined,
-        triggerType: "audit_failure",
-        reason: input.noticeSummary,
-        provider: input.request.provider,
-        model: input.request.model,
-        temperature: input.request.temperature,
-      });
-    } catch (error) {
-      const message = error instanceof Error ? error.message : String(error);
-      const replanFailureBreaker = recordModelFailureSignal({
-        previous: replanCircuitBreaker,
-        reason: "service_unavailable",
-        message,
-        nodeKey: "planner.replan",
-      });
-      if (isDirectorCircuitBreakerOpen(replanFailureBreaker)) {
-        await stopAutoExecutionForCircuitBreaker(input.deps, {
-          taskId: input.taskId,
-          novelId: input.novelId,
-          request: input.request,
-          range: input.range,
-          autoExecution: withCircuitBreakerState(budgetResult.state, replanFailureBreaker),
-          circuitBreaker: replanFailureBreaker,
-          resumeStage: "pipeline",
-        });
-        return { stopped: true };
-      }
-      throw error;
-    }
-  }
-  return {
-    stopped: false,
-    circuitBreaker: replanCircuitBreaker,
-    autoExecution: withCircuitBreakerState(budgetResult.state, replanCircuitBreaker),
-    decision: "auto_replan_window",
-  };
 }
 
 export { isDirectorCircuitBreakerOpen, withCircuitBreakerState };

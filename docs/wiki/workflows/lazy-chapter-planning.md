@@ -185,7 +185,7 @@ if (request.controlPolicy?.advanceMode === "full_book_autopilot") {
 **文件**：`server/src/services/novel/runtime/GenerationContextAssembler.ts`
 
 1. **稳定层缓存**：将 novel 大查询替换为 `batchContextCache.getNovelRow(novelId)`，每章节省 10+ 并行子查询
-2. **移除 timelineContext**（缺陷5）：删除 `timelineContextService.buildForChapter` 调用，`timelineContext: null`；`ChapterQualityGateService` 对 null 有防御
+2. **移除 timelineContext**（缺陷5）：删除 `timelineContextService.buildForChapter` 调用，`timelineContext: null`；接收闸门不处理 Timeline，最终正文由 `ChapterTimelineFinalizationService` 写入最小降级锚点
 3. **合并双 contextPackage**（缺陷6）：用 `sharedFields` 对象一次性组装共享字段，最终 `contextPackage = { ...sharedFields, ragContext, chapterMission, chapterWriteContext, chapterReviewContext, chapterRepairContext }`；消除 ~30 个字段两遍手抄
 
 ---

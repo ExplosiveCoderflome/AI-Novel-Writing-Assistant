@@ -25,7 +25,7 @@ export interface ChapterContentFinalizationAgentRuntime {
 }
 
 export interface ChapterContentFinalizationServiceDeps {
-  qualityGateService: Pick<ChapterQualityGateService, "runAcceptanceGateOnly">;
+  qualityGateService: Pick<ChapterQualityGateService, "runAcceptanceGate">;
   artifactSyncService: Pick<ChapterArtifactSyncService, "syncChapterArtifacts">;
   plannerService: ChapterRuntimePlannerPort;
   agentRuntime: ChapterContentFinalizationAgentRuntime;
@@ -54,7 +54,7 @@ export interface FinalizeChapterContentResult {
 }
 
 export class ChapterContentFinalizationService {
-  private readonly qualityGateService: Pick<ChapterQualityGateService, "runAcceptanceGateOnly">;
+  private readonly qualityGateService: Pick<ChapterQualityGateService, "runAcceptanceGate">;
   private readonly artifactSyncService: Pick<ChapterArtifactSyncService, "syncChapterArtifacts">;
   private readonly plannerService: ChapterRuntimePlannerPort;
   private readonly agentRuntime: ChapterContentFinalizationAgentRuntime;
@@ -72,14 +72,13 @@ export class ChapterContentFinalizationService {
 
   async finalizeChapterContent(input: FinalizeChapterContentInput): Promise<FinalizeChapterContentResult> {
     const finalContent = input.content;
-    const { acceptance, timelineGate } = await this.qualityGateService.runAcceptanceGateOnly({
+    const acceptance = await this.qualityGateService.runAcceptanceGate({
       novelId: input.novelId,
       chapterId: input.chapterId,
       contextPackage: input.contextPackage,
       content: finalContent,
       request: input.request,
     });
-    const timelineCheck = timelineGate.result;
     const proseQualityReport = detectProseQuality(finalContent);
     const proseQualityAuditReport = buildProseQualityAuditReport({
       novelId: input.novelId,
@@ -115,13 +114,11 @@ export class ChapterContentFinalizationService {
       activeOpenConflicts,
       styleReview,
       acceptance: acceptance.assessment,
-      timelineCheck,
       runId: input.runId,
       plannerService: this.plannerService,
     });
     const needsRepair = acceptance.assessment.status === "repairable"
       || acceptance.assessment.status === "needs_manual_review"
-      || timelineCheck.status === "failed"
       || runtimePackage.audit.hasBlockingIssues;
     const timelineFinalization = await this.timelineFinalizer.finalizeCurrentContent({
       novelId: input.novelId,
