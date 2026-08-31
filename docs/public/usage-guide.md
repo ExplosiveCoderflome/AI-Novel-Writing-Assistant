@@ -12,6 +12,8 @@
 
 也可以先看更轻量的[新手上路](#/docs/module-onboarding)，理解模块入口和最短可用路径。
 
+如果你没有明确灵感，先用[热门题材雷达](#/docs/module-market-radar)选择公开榜单信号；如果你已经完成一本参考作品的拆书，从[拆书](#/docs/module-book-analysis)选择续写原作或参考创作新书。两条路径都会回到自动导演主链。
+
 ### 已经跑通过一本书，想理解机制
 
 读生产链深度文档：
@@ -19,13 +21,14 @@
 - [端到端生产链总览](#/docs/end-to-end-production) —— 三层生产链的输入产物与持久化点
 - [自动导演阶段全景](#/docs/auto-director-pipeline) —— 17 个阶段、4 种运行模式、checkpoint 和 auto-approval
 - [章节执行链](#/docs/chapter-execution) —— 正文、审核、修复、质量债务、状态回灌
+- [热门题材雷达](#/docs/module-market-radar) —— 公开榜单、作品选择、市场信号与开书交接
 - [知识与 RAG 召回链](#/docs/knowledge-and-rag) —— 知识库 / 拆书 / 写法 / 世界资产怎样回到生成
 
 ### 任务卡住、要恢复
 
 不要重新创建项目。先按阶段定位问题：
 
-- [按阶段恢复手册](#/docs/recovery-by-phase) —— 候选 / 角色 / 卷规划 / 拆章 / 正文 各阶段的恢复入口
+- [按阶段恢复手册](#/docs/recovery-by-phase) —— 候选 / 角色 / 卷规划 / 拆章 / 正文 / 人工暂停 各阶段的恢复入口
 - [常见问题](#/docs/faq) —— 模型不通、章节失败、知识库不命中、运行模式选择
 - [故障排查](#/docs/troubleshooting) —— 日志位置、任务状态、数据备份
 

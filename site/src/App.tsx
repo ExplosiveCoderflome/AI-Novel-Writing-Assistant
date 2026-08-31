@@ -25,17 +25,17 @@ const releaseUrl = `${repoUrl}/releases/latest`;
 const docsIntroBannerImage = `${import.meta.env.BASE_URL}assets/docs-intro-banner.png`;
 
 const proofItems = [
-  "自动导演开书",
-  "本书世界与角色资产",
-  "RAG 知识回灌",
-  "章节执行与质量修复",
+  "热门题材与参考开书",
+  "自动导演与问题处理",
+  "知识、世界与写法资产",
+  "章节执行、恢复与导出",
 ];
 
 const productionFlow = [
   {
     marker: "01",
     title: "把灵感定成可写方向",
-    text: "从一句模糊想法开始，AI 先整理题材、卖点、读者感受和整本方向候选，让新手不用先凭空搭完世界和大纲。",
+    text: "可以从一句想法、公开榜单信号或一份拆书结果开始，AI 会整理题材、卖点、读者感受和整本方向候选。",
     image: directorChoiceImage,
   },
   {
@@ -46,8 +46,8 @@ const productionFlow = [
   },
   {
     marker: "03",
-    title: "拆成卷、节奏段和章节任务",
-    text: "长篇会被拆成卷战略、节奏板、章节目标和执行任务单，每一步都能继续推进、回看和调整。",
+    title: "拆成章节并持续完成正文",
+    text: "长篇会被拆成卷战略、节奏板和章节执行合同；正文按章保存，局部问题记录为质量债，真正需要人工处理时停在安全章节边界。",
     image: chapterExecutionImage,
   },
 ];
@@ -60,17 +60,17 @@ const consoleModules = [
   },
   {
     title: "自动导演",
-    text: "从开书方向到章节批次准备，持续给出下一步建议和可恢复节点。",
+    text: "从开书方向到章节批次持续推进，并按本书问题规则完成重试、继续、暂停或重规划。",
     icon: Sparkles,
   },
   {
     title: "知识与写法",
-    text: "拆书、知识库、写法资产进入上下文检索，让后续章节继承同一套创作依据。",
+    text: "拆书可以直接发起续写或参考创作，知识库与写法资产继续进入后续规划和正文。",
     icon: Boxes,
   },
   {
     title: "章节生产",
-    text: "正文写作、审核、修复和状态回灌串成单章执行链。",
+    text: "正文写作、审核、修复、状态回灌和安全恢复串成同一条执行链。",
     icon: PenLine,
   },
 ];
@@ -207,7 +207,7 @@ function HomePage() {
           <p className="eyebrow">AI native novel production workspace</p>
           <h1>从一句灵感，到一整本小说</h1>
           <p className="hero-copy">
-            自动导演、世界观、角色、拆章、章节执行和质量修复串成一条长篇生产链，帮助新手把想法推进到可持续写作。
+            从灵感、热门题材或参考作品出发，自动导演把世界、角色、拆章、正文和质量恢复串成一条可持续推进的长篇生产链。
           </p>
           <div className="hero-actions">
             <a className="button primary" href={releaseUrl}>
@@ -264,7 +264,7 @@ function HomePage() {
           <p className="eyebrow">Production flow</p>
           <h2>让 AI 先组织整本书，再进入正文生产</h2>
           <p>
-            页面不把功能散成按钮清单，而是展示创作者真正会走过的主链：先定方向，再准备资产，最后进入章节执行。
+            先选开书依据，再准备长期资产，最后进入可保存、可暂停、可恢复的章节执行。
           </p>
         </div>
         <div className="flow-list">
