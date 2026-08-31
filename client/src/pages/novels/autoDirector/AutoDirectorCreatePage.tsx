@@ -12,6 +12,7 @@ import { getWorldList } from "@/api/world";
 import { getMarketCreativeBrief } from "@/api/marketRadar";
 import { Button } from "@/components/ui/button";
 import { toast } from "@/components/ui/toast";
+import ReferenceNovelStartDialog from "../components/ReferenceNovelStartDialog";
 import {
   createDefaultNovelBasicFormState,
   patchNovelBasicForm,
@@ -88,6 +89,7 @@ export default function AutoDirectorCreatePage() {
   const initialStyleProfileId = searchParams.get("styleProfileId")?.trim() ?? "";
   const hasLegacyParams = Boolean(legacyTaskIdFromQuery || searchParams.get("mode"));
   const [basicForm, setBasicForm] = useState(() => createDefaultNovelBasicFormState());
+  const [referenceStartOpen, setReferenceStartOpen] = useState(searchParams.get("start") === "reference");
   const [restoredWorkflowTask, setRestoredWorkflowTask] = useState<UnifiedTaskDetail | null>(null);
   const [activeStage, setActiveStage] = useState<AutoDirectorCreateStageKey>("idea");
   const [completedStages, setCompletedStages] = useState<Set<AutoDirectorCreateStageKey>>(() => new Set());
@@ -423,6 +425,7 @@ export default function AutoDirectorCreatePage() {
 
   return (
     <div className="mx-auto max-w-6xl space-y-4 px-3 py-4 sm:px-4 lg:px-0">
+      <ReferenceNovelStartDialog open={referenceStartOpen} onOpenChange={setReferenceStartOpen} />
       {referenceMode ? (
         <div className="rounded-xl bg-muted/45 px-4 py-3 text-sm">
           <div className="font-medium text-foreground">
@@ -581,9 +584,12 @@ export default function AutoDirectorCreatePage() {
           ) : null}
         </section>
       ) : activeStage === "idea" ? (
-        <div className="flex items-center justify-between gap-3 rounded-xl border border-dashed px-4 py-3 text-sm">
-          <span className="text-muted-foreground">想先参考近期热门题材、金手指和开局模式？</span>
-          <Button type="button" variant="outline" size="sm" asChild><Link to="/market-radar">先看热门题材雷达</Link></Button>
+        <div className="flex flex-col gap-3 rounded-xl bg-muted/35 px-4 py-3 text-sm sm:flex-row sm:items-center sm:justify-between">
+          <span className="text-muted-foreground">也可以从一部参考小说或近期热门方向开始。</span>
+          <div className="flex flex-wrap gap-2">
+            <Button type="button" variant="secondary" size="sm" onClick={() => setReferenceStartOpen(true)}>照着一本书写</Button>
+            <Button type="button" variant="outline" size="sm" asChild><Link to="/market-radar">参考热门题材</Link></Button>
+          </div>
         </div>
       ) : null}
 

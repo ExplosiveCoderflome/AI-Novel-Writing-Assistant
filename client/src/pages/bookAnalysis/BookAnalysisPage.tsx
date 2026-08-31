@@ -1,17 +1,12 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { ListChecks, Plus, RefreshCw } from "lucide-react";
-import { useNavigate } from "react-router-dom";
-import { createStyleProfileFromBookAnalysis, getStyleProfiles } from "@/api/styleEngine";
 import {
   WorkspaceHeader,
   WorkspaceNextAction,
   WorkspaceStateNotice,
 } from "@/components/workspace";
 import { Button } from "@/components/ui/button";
-import { toast } from "@/components/ui/toast";
-import BookAnalysisCreateFromReferenceDialog, {
-  type BookAnalysisReferenceCreateMode,
-} from "./components/BookAnalysisCreateFromReferenceDialog";
+import ReferenceNovelStartDialog from "@/pages/novels/components/ReferenceNovelStartDialog";
 import BookAnalysisBudgetAdjustDialog from "./components/BookAnalysisBudgetAdjustDialog";
 import BookAnalysisCharacterPanel from "./components/BookAnalysisCharacterPanel";
 import BookAnalysisCreateDialog from "./components/BookAnalysisCreateDialog";
@@ -27,7 +22,6 @@ import { useBookAnalysisWorkspace } from "./hooks/useBookAnalysisWorkspace";
 import { resolveBookAnalysisNextAction } from "./bookAnalysisWorkspaceViewModel";
 
 export default function BookAnalysisPage() {
-  const navigate = useNavigate();
   const workspace = useBookAnalysisWorkspace();
   const dualPanePreference = useBookAnalysisDualPanePreference();
   const chapterReader = useBookAnalysisChapterReader();
@@ -35,7 +29,6 @@ export default function BookAnalysisPage() {
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [budgetDialogMode, setBudgetDialogMode] = useState<"adjust" | "resume" | null>(null);
   const [referenceCreateOpen, setReferenceCreateOpen] = useState(false);
-  const [referenceCreatePending, setReferenceCreatePending] = useState(false);
   const pendingResultFocusIdRef = useRef("");
 
   const { generatedCharacterCount, candidateCharacterCount } = useMemo(() => {
@@ -78,47 +71,6 @@ export default function BookAnalysisPage() {
       return;
     }
     await workspace.updateBudget(nextBudgetTokens);
-  };
-
-  const handleCreateFromReference = async (mode: BookAnalysisReferenceCreateMode) => {
-    const analysis = workspace.selectedAnalysis;
-    if (!analysis || analysis.status !== "succeeded") {
-      return;
-    }
-    setReferenceCreatePending(true);
-    try {
-      const profileList = await getStyleProfiles();
-      let styleProfile = (profileList.data ?? []).find((profile) => (
-        profile.sourceType === "from_book_analysis"
-        && profile.sourceRefId === analysis.id
-        && profile.status === "active"
-      ));
-      if (!styleProfile) {
-        const created = await createStyleProfileFromBookAnalysis({
-          bookAnalysisId: analysis.id,
-          name: `${analysis.documentTitle}参考写法`,
-          provider: workspace.llmConfig.provider,
-          model: workspace.llmConfig.model,
-          temperature: workspace.llmConfig.temperature,
-        });
-        styleProfile = created.data;
-      }
-      if (!styleProfile) {
-        throw new Error("写法资产准备失败，请重试。");
-      }
-      const params = new URLSearchParams({
-        referenceMode: mode,
-        bookAnalysisId: analysis.id,
-        sourceDocumentId: analysis.documentId,
-        referenceTitle: analysis.documentTitle,
-        styleProfileId: styleProfile.id,
-      });
-      navigate(`/novels/auto-director?${params.toString()}`);
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : "准备参考创作失败，请重试。");
-    } finally {
-      setReferenceCreatePending(false);
-    }
   };
 
   const characterPanelNode = workspace.selectedAnalysis ? (
@@ -221,12 +173,10 @@ export default function BookAnalysisPage() {
             onOpenChange={(open) => setBudgetDialogMode(open ? (budgetDialogMode ?? "adjust") : null)}
             onSubmit={handleBudgetSubmit}
           />
-          <BookAnalysisCreateFromReferenceDialog
+          <ReferenceNovelStartDialog
             open={referenceCreateOpen}
-            documentTitle={workspace.selectedAnalysis.documentTitle}
-            pending={referenceCreatePending}
+            fixedAnalysis={workspace.selectedAnalysis}
             onOpenChange={setReferenceCreateOpen}
-            onChoose={(mode) => void handleCreateFromReference(mode)}
           />
         </>
       ) : null}

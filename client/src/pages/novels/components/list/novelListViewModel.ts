@@ -19,10 +19,12 @@ export type WritingModeFilter = "all" | "original" | "continuation";
 export type NovelListTone = "neutral" | "info" | "success" | "warning" | "danger";
 
 export const DIRECTOR_CREATE_LINK = "/novels/auto-director";
+export const REFERENCE_CREATE_LINK = "/novels/auto-director?start=reference";
 export const SHORT_STORY_CREATE_LINK = featureFlags.creationStudioEnabled
   ? "/create?form=short_story"
   : null;
 export const PRIMARY_CREATE_LABEL = "AI 自动导演开书";
+export const REFERENCE_CREATE_LABEL = "照着一本书写";
 export const MANUAL_CREATE_LINK = "/novels/create";
 export const NOVEL_LIST_PAGE_SIZE = 24;
 
