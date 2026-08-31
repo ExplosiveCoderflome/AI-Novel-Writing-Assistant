@@ -57,6 +57,7 @@ import {
 } from "../components/directorCandidateSelectionHandlers";
 import { useNovelAutoDirectorCandidateMutations } from "../components/useNovelAutoDirectorCandidateMutations";
 import { hasCreationFoundationChanged } from "./creationFoundationPickerState";
+import type { AutoDirectorCreateDraft } from "./draft/autoDirectorCreateDraft";
 
 interface UseAutoDirectorCreateControllerInput {
   marketBriefId?: string;
@@ -75,6 +76,7 @@ interface UseAutoDirectorCreateControllerInput {
     description?: string | null;
   }>;
   worldOptions: Array<{ id: string; name: string }>;
+  initialDraft?: AutoDirectorCreateDraft | null;
   workflowTaskId?: string;
   restoredTask?: UnifiedTaskDetail | null;
   onWorkflowTaskChange?: (workflowTaskId: string) => void;
@@ -100,6 +102,7 @@ export function useAutoDirectorCreateController(input: UseAutoDirectorCreateCont
     genreOptions,
     storyModeOptions,
     worldOptions,
+    initialDraft,
     workflowTaskId: workflowTaskIdProp,
     restoredTask,
     onWorkflowTaskChange,
@@ -109,7 +112,7 @@ export function useAutoDirectorCreateController(input: UseAutoDirectorCreateCont
   } = input;
   const llm = useLLMStore();
   const queryClient = useQueryClient();
-  const [idea, setIdea] = useState("");
+  const [idea, setIdea] = useState(initialDraft?.idea ?? "");
   const [feedback, setFeedback] = useState("");
   const [selectedPresets, setSelectedPresets] = useState<DirectorCorrectionPreset[]>([]);
   const [batches, setBatches] = useState<DirectorCandidateBatch[]>([]);
@@ -119,10 +122,14 @@ export function useAutoDirectorCreateController(input: UseAutoDirectorCreateCont
   const [executionRequested, setExecutionRequested] = useState(false);
   const [pendingTitleHint, setPendingTitleHint] = useState("");
   const [executionError, setExecutionError] = useState("");
-  const [runMode, setRunMode] = useState<DirectorRunMode>(DEFAULT_VISIBLE_RUN_MODE);
-  const [worldSetupMode, setWorldSetupMode] = useState<DirectorWorldSetupMode>("auto_generate");
+  const [runMode, setRunMode] = useState<DirectorRunMode>(initialDraft?.runMode ?? DEFAULT_VISIBLE_RUN_MODE);
+  const [worldSetupMode, setWorldSetupMode] = useState<DirectorWorldSetupMode>(
+    initialDraft?.worldSetupMode ?? "auto_generate",
+  );
   const [autoExecutionDraft, setAutoExecutionDraft] = useState(() => createDefaultDirectorAutoExecutionDraftState());
-  const [selectedStyleProfileId, setSelectedStyleProfileId] = useState(initialStyleProfileId ?? "");
+  const [selectedStyleProfileId, setSelectedStyleProfileId] = useState(
+    initialStyleProfileId || initialDraft?.selectedStyleProfileId || "",
+  );
   const [ideaInspirations, setIdeaInspirations] = useState<DirectorIdeaInspiration[]>([]);
   const [ideaConstellationOptions, setIdeaConstellationOptions] = useState<DirectorIdeaConstellationOption[]>([]);
   const [candidatePatchFeedbacks, setCandidatePatchFeedbacks] = useState<Record<string, string>>({});
