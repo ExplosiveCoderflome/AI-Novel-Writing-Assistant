@@ -94,6 +94,10 @@ export default function Home() {
     [allNovels],
   );
 
+  const stopCardClick = (event: MouseEvent<HTMLElement>) => {
+    event.stopPropagation();
+  };
+
   const renderNovelPrimaryAction = (
     novel: HomeNovelItem,
     options?: {
