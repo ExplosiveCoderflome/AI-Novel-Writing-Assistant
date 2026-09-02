@@ -41,6 +41,14 @@ export interface TakeoverChapterTargetViewModel {
   summary: string;
 }
 
+export interface TakeoverContinuousTargetViewModel {
+  startOrder: number;
+  currentWindowEndOrder: number;
+  targetOrder: number;
+  actionLabel: string;
+  summary: string;
+}
+
 const ENTRY_STEP_USER_LABELS: Record<DirectorTakeoverEntryStep, string> = {
   basic: "项目设定",
   story_macro: "故事宏观规划",
@@ -262,6 +270,24 @@ export function buildTakeoverChapterTarget(
     summary: selected === startOrder
       ? `从第 ${startOrder} 章继续推进。`
       : `从第 ${startOrder} 章开始，连续推进到第 ${selected} 章。`,
+  };
+}
+
+export function buildTakeoverContinuousTarget(
+  readiness: DirectorTakeoverReadinessResponse | null,
+  taskSnapshot?: DirectorTaskSnapshot | null,
+): TakeoverContinuousTargetViewModel | null {
+  const currentWindow = buildTakeoverChapterTarget(readiness, taskSnapshot);
+  const targetOrder = normalizePositiveOrder(readiness?.snapshot.plannedChapterCount ?? null);
+  if (!currentWindow || !targetOrder || targetOrder <= currentWindow.maxOrder) {
+    return null;
+  }
+  return {
+    startOrder: currentWindow.startOrder,
+    currentWindowEndOrder: currentWindow.maxOrder,
+    targetOrder,
+    actionLabel: `持续推进至第 ${targetOrder} 章`,
+    summary: `先推进第 ${currentWindow.startOrder}-${currentWindow.maxOrder} 章；接近范围末尾时，AI 会补后续卷骨架和近期拆章，不会预先生成远期章节任务。`,
   };
 }
 

@@ -89,6 +89,8 @@ export interface VolumeGenerateOptions {
   estimatedChapterCount?: number;
   userPreferredVolumeCount?: number;
   respectExistingVolumeCount?: boolean;
+  /** Used by rolling production to add future volume skeletons without touching completed volumes. */
+  skeletonVolumeCount?: number;
   draftVolumes?: unknown;
   draftWorkspace?: unknown;
   taskId?: string;

@@ -37,6 +37,7 @@ import {
 } from "./directorAutoExecutionPlan.shared";
 import {
   buildTakeoverChapterTarget,
+  buildTakeoverContinuousTarget,
   buildTakeoverProgressInspection,
   buildTakeoverGuidance,
   findTakeoverPreview,
@@ -201,10 +202,20 @@ export default function NovelExistingProjectTakeoverDialog({
     () => buildTakeoverChapterTarget(readiness, contextTaskSnapshot, selectedChapterTargetOrder),
     [contextTaskSnapshot, readiness, selectedChapterTargetOrder],
   );
-  const effectiveRunMode: DirectorRunMode = !advancedOpen && quickChapterTarget ? "auto_to_execution" : runMode;
-  const autoExecutionPlan: DirectorAutoExecutionPlan | undefined = !advancedOpen && quickChapterTarget
-    ? quickChapterTarget.plan
-    : advancedAutoExecutionPlan;
+  const continuousTarget = useMemo(
+    () => buildTakeoverContinuousTarget(readiness, contextTaskSnapshot),
+    [contextTaskSnapshot, readiness],
+  );
+  const effectiveRunMode: DirectorRunMode = !advancedOpen && continuousTarget
+    ? "full_book_autopilot"
+    : !advancedOpen && quickChapterTarget
+      ? "auto_to_execution"
+      : runMode;
+  const autoExecutionPlan: DirectorAutoExecutionPlan | undefined = !advancedOpen && continuousTarget
+    ? buildFullBookAutopilotExecutionPlan()
+    : !advancedOpen && quickChapterTarget
+      ? quickChapterTarget.plan
+      : advancedAutoExecutionPlan;
   const selectedScopeMode = effectiveRunMode === "auto_to_execution" || effectiveRunMode === "full_book_autopilot"
     ? autoExecutionPlan?.mode ?? autoExecutionDraft.mode
     : "book";
@@ -395,6 +406,7 @@ export default function NovelExistingProjectTakeoverDialog({
                 hasTaskSnapshotError={contextTaskSnapshotQuery.isError}
                 hasCurrentTask={Boolean(readiness?.hasActiveTask || contextTaskIsContinuable)}
                 chapterTarget={quickChapterTarget}
+                continuousTarget={continuousTarget}
                 isAdvancedOpen={advancedOpen}
                 isStarting={startMutation.isPending}
                 startDisabled={startDisabled}
