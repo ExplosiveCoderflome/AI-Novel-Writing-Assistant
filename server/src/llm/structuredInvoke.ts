@@ -87,6 +87,16 @@ function buildInvokeMessages<T>(input: StructuredInvokeInput<T>): BaseMessage[] 
   throw new Error(`[${input.label}] missing prompt messages.`);
 }
 
+function formatLivePrompt(messages: BaseMessage[]): string {
+  return messages.map((message, index) => {
+    const role = message._getType?.() ?? `message_${index + 1}`;
+    const content = typeof message.content === "string"
+      ? message.content
+      : JSON.stringify(message.content);
+    return `[${role}]\n${content}`;
+  }).join("\n\n");
+}
+
 function buildStrategySequence<T>(
   profile: StructuredOutputProfile,
   schema: ZodType<T>,
@@ -218,6 +228,7 @@ async function invokeStructuredAttempt<T>(input: {
     promptMeta: input.baseInput.promptMeta,
     provider: resolved.provider,
     model: resolved.model,
+    promptText: formatLivePrompt(messages),
   });
   try {
     liveSession.phase("streaming", "模型正在返回结构化结果");

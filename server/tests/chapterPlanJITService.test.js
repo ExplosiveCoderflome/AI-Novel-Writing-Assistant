@@ -63,6 +63,7 @@ test("JIT reuses the contract synchronized by the route window", async () => {
 test("JIT generates a missing contract once and reads facts only then", async () => {
   let factLoads = 0;
   let generations = 0;
+  let generationOptions = null;
   const service = new ChapterPlanJITService({
     loadChapter: async () => buildChapter({ taskSheet: null, sceneCards: null }),
     ensureRouteWindow: async () => ({ availableRouteCount: 5, extended: false }),
@@ -70,13 +71,28 @@ test("JIT generates a missing contract once and reads facts only then", async ()
       factLoads += 1;
       return [];
     },
-    ensureChapterExecutionContract: async () => {
+    ensureChapterExecutionContract: async (_novelId, _chapterId, options) => {
       generations += 1;
+      generationOptions = options;
     },
   });
 
-  await service.ensureExecutionReady("novel-1", "chapter-1");
+  await service.ensureExecutionReady("novel-1", "chapter-1", {
+    provider: "openai",
+    model: "test-model",
+    temperature: 0.3,
+    taskId: "task-1",
+  });
 
   assert.equal(factLoads, 1);
   assert.equal(generations, 1);
+  assert.deepEqual(generationOptions, {
+    provider: "openai",
+    model: "test-model",
+    temperature: 0.3,
+    taskId: "task-1",
+    guidance: undefined,
+    entrypoint: "jit_planner",
+    chapterTaskSheetQualityMode: "full_book_autopilot",
+  });
 });

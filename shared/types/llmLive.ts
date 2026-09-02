@@ -27,6 +27,7 @@ export interface LlmLiveContext {
   itemKey?: string | null;
   provider?: string | null;
   model?: string | null;
+  promptText?: string | null;
 }
 
 export type LlmLiveEvent =

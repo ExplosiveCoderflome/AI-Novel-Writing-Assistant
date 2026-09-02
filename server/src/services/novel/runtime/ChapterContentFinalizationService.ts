@@ -85,10 +85,13 @@ export class ChapterContentFinalizationService {
       chapterId: input.chapterId,
       report: proseQualityReport,
     });
+    const acceptanceHasProseReport = acceptance.auditReports.some((report) => (
+      report.issues?.some((issue) => issue.code.startsWith("prose_"))
+    ));
     const auditResult = {
       score: acceptance.score,
       issues: acceptance.issues,
-      auditReports: proseQualityAuditReport
+      auditReports: proseQualityAuditReport && !acceptanceHasProseReport
         ? [...acceptance.auditReports, proseQualityAuditReport]
         : acceptance.auditReports,
     };

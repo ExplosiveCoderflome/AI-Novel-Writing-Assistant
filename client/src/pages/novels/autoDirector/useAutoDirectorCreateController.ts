@@ -125,9 +125,7 @@ export function useAutoDirectorCreateController(input: UseAutoDirectorCreateCont
   const [pendingTitleHint, setPendingTitleHint] = useState("");
   const [executionError, setExecutionError] = useState("");
   const [runMode, setRunMode] = useState<DirectorRunMode>(initialDraft?.runMode ?? DEFAULT_VISIBLE_RUN_MODE);
-  const [worldSetupMode, setWorldSetupMode] = useState<DirectorWorldSetupMode>(
-    initialDraft?.worldSetupMode ?? "auto_generate",
-  );
+  const [worldSetupMode, setWorldSetupMode] = useState<DirectorWorldSetupMode>("auto_generate");
   const [autoExecutionDraft, setAutoExecutionDraft] = useState(() => createDefaultDirectorAutoExecutionDraftState());
   const [selectedStyleProfileId, setSelectedStyleProfileId] = useState(
     initialStyleProfileId || initialDraft?.selectedStyleProfileId || "",
@@ -191,11 +189,7 @@ export function useAutoDirectorCreateController(input: UseAutoDirectorCreateCont
     if (typeof seedPayload?.styleProfileId === "string") {
       setSelectedStyleProfileId(seedPayload.styleProfileId);
     }
-    if (seedPayload?.worldSetupMode === "skip") {
-      setWorldSetupMode("skip");
-    } else if (!seedPayload?.worldId) {
-      setWorldSetupMode("auto_generate");
-    }
+    setWorldSetupMode("auto_generate");
   }, [applyAutoApprovalSnapshot, restoredTask, workflowTaskId]);
 
   const directorBasicForm = useMemo(

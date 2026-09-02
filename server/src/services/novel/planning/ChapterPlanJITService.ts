@@ -1,5 +1,6 @@
 import { parseChapterScenePlan } from "@ai-novel/shared/types/chapterLengthControl";
 import type { ChapterTaskSheetQualityMode } from "@ai-novel/shared/types/chapterTaskSheetQuality";
+import type { LLMProvider } from "@ai-novel/shared/types/llm";
 import { prisma } from "../../../db/prisma";
 import { novelFactService } from "../fact/NovelFactService";
 import type { ChapterRouteWindowOptions, ChapterRouteWindowResult } from "./ChapterRouteWindowService";
@@ -22,6 +23,10 @@ export interface ChapterPlanJITDeps {
     novelId: string,
     chapterId: string,
     options: {
+      provider?: LLMProvider;
+      model?: string;
+      temperature?: number;
+      taskId?: string;
       guidance?: string;
       entrypoint?: string;
       chapterTaskSheetQualityMode?: ChapterTaskSheetQualityMode;
@@ -105,6 +110,10 @@ export class ChapterPlanJITService {
     // task sheet 缺失 —— 生成（含 factLedger 上下文）
     const factGuidance = facts.length > 0 ? buildFactLedgerGuidance(facts) : undefined;
     await this.deps.ensureChapterExecutionContract(novelId, chapterId, {
+      provider: routeOptions.provider,
+      model: routeOptions.model,
+      temperature: routeOptions.temperature,
+      taskId: routeOptions.taskId,
       guidance: factGuidance,
       entrypoint: "jit_planner",
       chapterTaskSheetQualityMode: "full_book_autopilot",

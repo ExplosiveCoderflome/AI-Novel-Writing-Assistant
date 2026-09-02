@@ -143,7 +143,6 @@ export default function MarketRadarPage() {
     scanMutation.mutate();
   }, []);
 
-  const evidenceById = useMemo(() => new Map((report?.evidenceItems ?? []).map((item) => [item.id, item])), [report]);
   const scanning = (!activeRun && scanMutation.isPending) || activeRun?.status === "queued" || activeRun?.status === "running";
   const analyzing = analysisMutation.isPending || activeRun?.status === "analyzing";
   const foundationCandidate = report?.productionFoundationCandidate ?? null;
@@ -347,7 +346,6 @@ export default function MarketRadarPage() {
                 <div className="mt-4 text-lg font-semibold">{signal.label}</div><p className="mt-2 text-sm leading-6 text-muted-foreground">{signal.summary}</p>
                 <div className="mt-4 flex gap-3 text-xs text-muted-foreground"><span>热度 {signal.heat}</span><span>拥挤度 {signal.crowding}</span><span>{signal.direction === "current" ? "当前高频" : signal.direction === "rising" ? "正在升温" : signal.direction === "falling" ? "正在降温" : "相对稳定"}</span></div>
                 </button>
-                <details className="mt-4 text-xs text-muted-foreground"><summary className="cursor-pointer">查看 {signal.evidenceItemIds.length} 条榜单证据</summary><div className="mt-2 space-y-1">{signal.evidenceItemIds.map((id) => { const item = evidenceById.get(id); return item ? <a key={id} href={item.sourceUrl} target="_blank" rel="noreferrer" className="flex items-center gap-1 hover:text-primary"><span className="truncate">{PLATFORM_LABELS[item.platform]} · {item.listKey}第{item.rank}名 · {item.title}</span><ExternalLink className="h-3 w-3 shrink-0" /></a> : null; })}</div></details>
               </article>;
             })}
           </div>

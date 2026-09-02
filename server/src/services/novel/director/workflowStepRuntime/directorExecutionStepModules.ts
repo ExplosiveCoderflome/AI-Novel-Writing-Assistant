@@ -629,7 +629,7 @@ export const DIRECTOR_EXECUTION_STEP_MODULES: Record<
     id: DIRECTOR_EXECUTION_STEP_IDS.chapter_execution,
     stage: "chapter_execution",
     adapter: getDirectorExecutionNodeAdapter("chapter_execution"),
-    promptAssets: [{ id: "novel.chapter.writer", version: "v5" }],
+    promptAssets: [{ id: "novel.chapter.writer", version: "v6" }],
   })),
   chapter_quality_review: createFactOnlyExecutionModule({
     descriptor: createWorkflowStepDescriptorFromDirectorAdapter({

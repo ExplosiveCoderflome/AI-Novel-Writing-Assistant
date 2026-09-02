@@ -13,7 +13,6 @@ import { volumeChapterExecutionContractPrompt } from "../../../../prompting/prom
 import { buildVolumeChapterDetailContextBlocks } from "../../../../prompting/prompts/novel/volume/contextBlocks";
 import type { StoryMacroPlanService } from "../../storyMacro/StoryMacroPlanService";
 import {
-  ChapterTaskSheetQualityGateError,
   ChapterTaskSheetQualityGateService,
 } from "../ChapterTaskSheetQualityGateService";
 import type {
@@ -27,9 +26,6 @@ type StoryMacroPlanResult = Awaited<ReturnType<StoryMacroPlanService["getPlan"]>
 export function shouldRetryChapterExecutionContract(error: unknown, attempt: number): boolean {
   if (attempt > 0) {
     return false;
-  }
-  if (error instanceof ChapterTaskSheetQualityGateError) {
-    return true;
   }
   return Boolean(
     error

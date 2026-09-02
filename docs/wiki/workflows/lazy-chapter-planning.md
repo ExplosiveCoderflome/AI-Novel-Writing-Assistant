@@ -63,6 +63,10 @@ chapter_execution 阶段
 | task sheet 与 sceneCards 完整 | 直接复用，不读取事实账本，不重新生成 |
 | task sheet 或 sceneCards 缺失 | 生成一次（含 Fact Ledger guidance，若有） |
 
+同一章在一个服务进程内同时进入 JIT、手动入口或恢复入口时，统一合同服务按 `novelId + chapterId` 合并在途请求；首个调用完成后，结果仍以 `Chapter` 的任务单、场景卡和边界字段为唯一持久化事实。禁止在不同入口各自提前生成合同。
+
+任务单质量检查分为两层：结构完整性（目的、边界、任务单、场景卡）是正文前置条件；全书自动执行中的语义建议只作为后续正文验收与质量债的输入，不重写同一份合同。这样既保留检查，又不会把一条可继续生产的语义建议放大为额外的整份合同调用。
+
 **依赖注入**（通过 `ChapterPlanJITDeps`）：
 - `ensureChapterExecutionContract`：委托给 `NovelVolumeService.ensureChapterExecutionContract`
 

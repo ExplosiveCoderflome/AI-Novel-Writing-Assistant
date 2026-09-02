@@ -44,7 +44,6 @@ export interface MarketRadarSignal {
   direction: MarketTrendDirection;
   heat: number;
   crowding: number;
-  evidenceItemIds: string[];
   recommended: boolean;
 }
 
@@ -87,7 +86,6 @@ export interface MarketTrendReport {
   analyzedLists?: MarketRadarAnalysisListSelection[];
   analyzedItemIds?: string[];
   platformStatuses: MarketPlatformStatus[];
-  evidenceItems: MarketRankingItem[];
   productionFoundationCandidate?: MarketProductionFoundationCandidate | null;
   productionFoundationSync?: MarketProductionFoundationSyncState | null;
   createdAt: string;

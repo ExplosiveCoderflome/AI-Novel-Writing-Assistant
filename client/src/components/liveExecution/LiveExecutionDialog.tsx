@@ -1,6 +1,6 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import * as DialogPrimitive from "@radix-ui/react-dialog";
-import { ChevronDown, ChevronRight, Eraser, GripHorizontal, Maximize2, Minimize2, Radio, X } from "lucide-react";
+import { ChevronDown, ChevronRight, Clipboard, Eraser, Expand, GripHorizontal, Maximize2, Minimize2, Radio, Shrink, X } from "lucide-react";
 import type { LlmLiveSessionSnapshot } from "@ai-novel/shared/types/llmLive";
 import { useLlmLiveFeed } from "@/hooks/useLlmLiveFeed";
 import { Badge } from "@/components/ui/badge";
@@ -41,9 +41,11 @@ interface LiveExecutionDialogProps {
 export default function LiveExecutionDialog(props: LiveExecutionDialogProps) {
   const [open, setOpen] = useState(false);
   const [briefMode, setBriefMode] = useState(false);
+  const [fullScreen, setFullScreen] = useState(false);
   const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
   const [followingLatest, setFollowingLatest] = useState(true);
   const [collapsedSessionIds, setCollapsedSessionIds] = useState<Set<string>>(() => new Set());
+  const [promptSessionIds, setPromptSessionIds] = useState<Set<string>>(() => new Set());
   const logRef = useRef<HTMLDivElement | null>(null);
   const latestSessionRef = useRef<HTMLDivElement | null>(null);
   const dragStartRef = useRef<{ pointerX: number; pointerY: number; offsetX: number; offsetY: number } | null>(null);
@@ -138,10 +140,20 @@ export default function LiveExecutionDialog(props: LiveExecutionDialogProps) {
     });
   };
 
+  const togglePrompt = (interactionId: string) => {
+    setPromptSessionIds((previous) => {
+      const next = new Set(previous);
+      if (next.has(interactionId)) next.delete(interactionId);
+      else next.add(interactionId);
+      return next;
+    });
+  };
+
   const clearFrontendLog = () => {
     clearSessions();
     latestSessionIdRef.current = null;
     setCollapsedSessionIds(new Set());
+    setPromptSessionIds(new Set());
     followLatestRef.current = true;
     setFollowingLatest(true);
   };
@@ -160,13 +172,24 @@ export default function LiveExecutionDialog(props: LiveExecutionDialogProps) {
     setFollowingLatest(true);
   };
 
+  const toggleFullScreen = () => {
+    setFullScreen((current) => !current);
+    setDragOffset({ x: 0, y: 0 });
+    followLatestRef.current = true;
+    setFollowingLatest(true);
+  };
+
   return (
     <>
       <Button
         type="button"
         size="sm"
         variant="outline"
-        className={cn("relative", props.className)}
+        className={cn(
+          "relative transition-[border-color,background-color,box-shadow] duration-300",
+          activeCount > 0 && "border-primary/60 bg-primary/[0.06] shadow-[0_0_0_3px_hsl(var(--primary)/0.12)] animate-[pulse_2s_ease-in-out_infinite]",
+          props.className,
+        )}
         onClick={() => handleOpenChange(true)}
         title="查看 AI 创作实况"
       >
@@ -183,10 +206,13 @@ export default function LiveExecutionDialog(props: LiveExecutionDialogProps) {
         <DialogPrimitive.Portal>
           <DialogPrimitive.Content
             className={cn(
-              "fixed right-4 top-20 z-[70] flex w-[min(42rem,calc(100vw-1.5rem))] flex-col overflow-hidden rounded-xl border border-emerald-400/45 bg-[#080d0c] text-emerald-50 shadow-2xl shadow-emerald-950/40 outline-none transition-[height] duration-200 ease-out",
-              briefMode
+              "fixed z-[70] flex flex-col overflow-hidden border border-emerald-400/45 bg-[#080d0c] text-emerald-50 shadow-2xl shadow-emerald-950/40 outline-none transition-[height,width,top,right,border-radius] duration-200 ease-out",
+              fullScreen
+                ? "inset-0 h-[100dvh] w-full rounded-none"
+                : "right-4 top-20 w-[min(42rem,calc(100vw-1.5rem))] rounded-xl",
+              !fullScreen && briefMode
                 ? "h-[13rem] max-h-[calc(100dvh-6rem)]"
-                : "h-[min(42rem,calc(100dvh-6rem))]",
+                : !fullScreen ? "h-[min(42rem,calc(100dvh-6rem))]" : "",
             )}
             style={{ transform: `translate(${dragOffset.x}px, ${dragOffset.y}px)` }}
             aria-describedby="live-execution-description"
@@ -248,6 +274,20 @@ export default function LiveExecutionDialog(props: LiveExecutionDialogProps) {
               >
                 {briefMode ? <Maximize2 className="h-3.5 w-3.5" /> : <Minimize2 className="h-3.5 w-3.5" />}
                 {briefMode ? "详细" : "简略"}
+              </Button>
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                className="h-8 w-8 shrink-0 text-emerald-100 hover:bg-emerald-400/10 hover:text-emerald-50"
+                onClick={toggleFullScreen}
+                onPointerDown={(event) => event.stopPropagation()}
+                onPointerMove={(event) => event.stopPropagation()}
+                onPointerUp={(event) => event.stopPropagation()}
+                aria-label={fullScreen ? "退出全屏" : "全屏显示"}
+                title={fullScreen ? "退出全屏" : "全屏显示"}
+              >
+                {fullScreen ? <Shrink className="h-4 w-4" /> : <Expand className="h-4 w-4" />}
               </Button>
               {!briefMode ? (
               <Button
@@ -334,6 +374,17 @@ export default function LiveExecutionDialog(props: LiveExecutionDialogProps) {
                         {!collapsed ? (
                           <div className="border-t border-emerald-400/15 px-3 py-2">
                             <div className="mb-2 text-[11px] text-emerald-100/60">{session.phaseMessage}</div>
+                            {session.context.promptText ? (
+                              <div className="mb-2">
+                                <button type="button" className="inline-flex items-center gap-1.5 text-[11px] text-emerald-200/80 hover:text-emerald-50" onClick={() => togglePrompt(interactionId)}>
+                                  <Clipboard className="h-3 w-3" />
+                                  {promptSessionIds.has(interactionId) ? "收起发送 Prompt" : "查看发送 Prompt"}
+                                </button>
+                                {promptSessionIds.has(interactionId) ? (
+                                  <pre className="mt-2 max-h-72 overflow-auto whitespace-pre-wrap break-words rounded border border-emerald-400/20 bg-black/20 p-2 text-[11px] leading-5 text-emerald-100/85">{session.context.promptText}</pre>
+                                ) : null}
+                              </div>
+                            ) : null}
                             <pre className="m-0 whitespace-pre-wrap break-words text-emerald-100">{session.preview || "等待模型开始返回内容…"}</pre>
                           </div>
                         ) : null}
