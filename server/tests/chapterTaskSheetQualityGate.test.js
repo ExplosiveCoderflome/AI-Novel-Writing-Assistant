@@ -11,7 +11,11 @@ const {
 } = require("../dist/services/novel/volume/ChapterTaskSheetQualityGateService.js");
 const {
   canReuseChapterExecutionContract,
+  shouldRetryChapterExecutionContract,
 } = require("../dist/services/novel/volume/chapterDetail/chapterExecutionContractGeneration.js");
+const {
+  ChapterTaskSheetQualityGateError,
+} = require("../dist/services/novel/volume/ChapterTaskSheetQualityGateService.js");
 const {
   chapterTaskSheetQualityPrompt,
 } = require("../dist/prompting/prompts/novel/volume/chapterTaskSheetQuality.prompts.js");
@@ -111,6 +115,25 @@ test("incomplete persisted contracts are regenerated instead of reused", () => {
       targetWordCount: null,
     },
   }), false);
+});
+
+test("chapter execution contract retries only one local semantic correction", () => {
+  const qualityError = new ChapterTaskSheetQualityGateError({
+    status: "repairable",
+    canEnterExecution: false,
+    summary: "合同需要局部修正。",
+    issues: [],
+    repairGuidance: ["修正章节边界。"],
+    confidence: 0.8,
+  });
+  const postValidateError = Object.assign(new Error("章节边界不一致"), {
+    promptQualityFailureKind: "post_validate_failed",
+  });
+
+  assert.equal(shouldRetryChapterExecutionContract(qualityError, 0), true);
+  assert.equal(shouldRetryChapterExecutionContract(qualityError, 1), false);
+  assert.equal(shouldRetryChapterExecutionContract(postValidateError, 0), true);
+  assert.equal(shouldRetryChapterExecutionContract(new Error("terminated"), 0), false);
 });
 
 test("chapter execution contract shape gate blocks invalid task sheet artifacts", () => {

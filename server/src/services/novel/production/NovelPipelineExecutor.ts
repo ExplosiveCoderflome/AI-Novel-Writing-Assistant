@@ -7,10 +7,8 @@ import {
 import { prisma } from "../../../db/prisma";
 import { novelEventBus } from "../../../events";
 import { runWithLlmUsageTracking } from "../../../llm/usageTracking";
-import { ChapterPlanJITService } from "../planning/ChapterPlanJITService";
 import { buildDirectorCompletionProfile } from "@ai-novel/shared/types/directorCompletion";
 import { ChapterRouteWindowService } from "../planning/ChapterRouteWindowService";
-import { NovelVolumeService } from "../volume/NovelVolumeService";
 import { ChapterRuntimeCoordinator } from "../runtime/ChapterRuntimeCoordinator";
 import { isChapterEmptyContentError } from "../runtime/chapterEmptyContentError";
 import { ChapterContentPersistenceError } from "../runtime/lifecycle";
@@ -350,16 +348,7 @@ export class NovelPipelineExecutor {
         const chaptersToProcess = chapters.slice(remainingStartIndex);
         let pendingManualRecovery = false;
 
-        // Phase 3：JIT 预取服务（N+1 章执行预取）
-        const prefetchVolumeService = new NovelVolumeService();
-        const prefetchRouteWindowService = new ChapterRouteWindowService(prefetchVolumeService);
-        const prefetchJITService = new ChapterPlanJITService({
-          ensureChapterExecutionContract: (nId, cId, opts) =>
-            prefetchVolumeService.ensureChapterExecutionContract(nId, cId, opts),
-          ensureRouteWindow: (nId, fromOrder, opts) => (
-            prefetchRouteWindowService.ensureRouteWindow(nId, fromOrder, opts)
-          ),
-        });
+        const routeWindowService = new ChapterRouteWindowService();
         if (isAutopilotMode) {
           await this.updateJobSafe(jobId, {
             endOrder: autopilotTargetEndOrder,
@@ -588,7 +577,7 @@ export class NovelPipelineExecutor {
           // Phase 3：同步补齐下一段章节路线；正文执行合同仍由下一章 JIT 独立生成。
           if (!shouldStopAfterCurrentChapter && isAutopilotMode && chapter.order < autopilotTargetEndOrder) {
             try {
-              await prefetchRouteWindowService.ensureRouteWindow(novelId, chapter.order + 1, {
+              await routeWindowService.ensureRouteWindow(novelId, chapter.order + 1, {
                 min: 3,
                 target: 5,
                 provider: runtimePayload.provider,
@@ -626,25 +615,6 @@ export class NovelPipelineExecutor {
               }
               chaptersToProcess.push(persistedNextChapter);
             }
-          }
-
-          const nextChapter = chaptersToProcess[chapterIndex + 1];
-          if (nextChapter && isAutopilotMode) {
-            void prefetchJITService.ensureExecutionReady(novelId, nextChapter.id, {
-              min: 3,
-              target: 5,
-              provider: runtimePayload.provider,
-              model: runtimePayload.model,
-              temperature: runtimePayload.temperature,
-              completionProfile: buildDirectorCompletionProfile(autopilotTargetEndOrder),
-            }).catch((error) => {
-              logPipelineInfo("N+1 JIT 预取失败（非阻断，下一章将在组装时重试）", {
-                jobId,
-                nextChapterId: nextChapter.id,
-                nextChapterOrder: nextChapter.order,
-                error: error instanceof Error ? error.message : String(error),
-              });
-            });
           }
 
           completed += 1;

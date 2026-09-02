@@ -38,6 +38,14 @@ test("deepseek thinking mode detection is limited to toggle-capable models", () 
   assert.equal(isDeepSeekThinkingModeProvider("custom_gateway", "https://api.deepseek.com/v1", "deepseek-reasoner"), true);
   assert.equal(isDeepSeekThinkingModeProvider("deepseek", undefined, "deepseek-chat"), false);
   assert.equal(isDeepSeekThinkingModeProvider("openai", "https://api.openai.com/v1", "deepseek-v4-pro"), false);
+  assert.equal(
+    isDeepSeekThinkingModeProvider(
+      "custom_ooioo",
+      "https://ooioo.work/v1",
+      "deepseek-v4-flash-0731-fast",
+    ),
+    true,
+  );
 });
 
 test("deepseek v4 flash can disable thinking for structured generation", () => {

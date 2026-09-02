@@ -24,6 +24,20 @@ import type {
 
 type StoryMacroPlanResult = Awaited<ReturnType<StoryMacroPlanService["getPlan"]>> | null;
 
+export function shouldRetryChapterExecutionContract(error: unknown, attempt: number): boolean {
+  if (attempt > 0) {
+    return false;
+  }
+  if (error instanceof ChapterTaskSheetQualityGateError) {
+    return true;
+  }
+  return Boolean(
+    error
+    && typeof error === "object"
+    && (error as { promptQualityFailureKind?: unknown }).promptQualityFailureKind === "post_validate_failed"
+  );
+}
+
 export function canReuseChapterExecutionContract(input: {
   novelId: string;
   volumeId: string;
@@ -108,7 +122,7 @@ export async function generateChapterTaskSheetDetail(params: {
   let qualityFeedback: string | null = null;
   const qualityGate = new ChapterTaskSheetQualityGateService();
 
-  for (let attempt = 0; attempt < 3; attempt += 1) {
+  for (let attempt = 0; attempt < 2; attempt += 1) {
     try {
       const promptInput = qualityFeedback
         ? {
@@ -188,9 +202,10 @@ export async function generateChapterTaskSheetDetail(params: {
       };
     } catch (error) {
       lastError = error instanceof Error ? error : new Error("章节执行合同生成失败。");
-      if (error instanceof ChapterTaskSheetQualityGateError) {
-        qualityFeedback = error.message;
+      if (!shouldRetryChapterExecutionContract(error, attempt)) {
+        throw lastError;
       }
+      qualityFeedback = lastError.message;
     }
   }
 
