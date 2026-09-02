@@ -1,9 +1,13 @@
 import { BookOpen, GitBranch, Settings2, Sparkles } from "lucide-react";
+import { useState } from "react";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import LLMSelector from "@/components/common/LLMSelector";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { AUTO_DIRECTOR_MOBILE_CLASSES } from "@/mobile/autoDirector";
 import type { NovelBasicFormState } from "../novelBasicInfo.shared";
+import { findDirectorIssuePolicyPreset, type DirectorIssuePolicy } from "@ai-novel/shared/types/directorIssue";
+import { AutoDirectorIssuePolicyCard } from "@/pages/settings/AutoDirectorIssuePolicyCard";
 
 interface StageModelRunProps {
   basicForm: NovelBasicFormState;
@@ -12,6 +16,9 @@ interface StageModelRunProps {
   isGenerating: boolean;
   onBack: () => void;
   onGenerate: () => void;
+  issuePolicy?: DirectorIssuePolicy | null;
+  issuePolicyLoading: boolean;
+  onIssuePolicyChange: (policy: DirectorIssuePolicy) => void;
 }
 
 export default function StageModelRun({
@@ -21,7 +28,15 @@ export default function StageModelRun({
   isGenerating,
   onBack,
   onGenerate,
+  issuePolicy,
+  issuePolicyLoading,
+  onIssuePolicyChange,
 }: StageModelRunProps) {
+  const [issuePolicyDialogOpen, setIssuePolicyDialogOpen] = useState(false);
+  const issuePolicySummary = issuePolicy
+    ? findDirectorIssuePolicyPreset(issuePolicy)?.name ?? "已调整本次开书规则"
+    : "使用默认规则";
+
   return (
     <section className="mx-auto w-full max-w-5xl space-y-7 py-4">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
@@ -92,6 +107,38 @@ export default function StageModelRun({
             <LLMSelector showParameters />
           </div>
         </details>
+
+        <section className="flex flex-col gap-3 rounded-2xl border border-border/70 bg-background px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <div className="text-sm font-medium text-foreground">本书问题管理</div>
+            <div className={`mt-1 text-xs leading-5 text-muted-foreground ${AUTO_DIRECTOR_MOBILE_CLASSES.wrapText}`}>
+              {issuePolicyLoading ? "正在读取默认规则。" : `${issuePolicySummary}；不调整也可以直接开书。`}
+            </div>
+          </div>
+          <Button type="button" variant="outline" className="shrink-0" onClick={() => setIssuePolicyDialogOpen(true)}>
+            <Settings2 className="mr-2 h-4 w-4" />
+            本书问题管理
+          </Button>
+        </section>
+
+        <Dialog open={issuePolicyDialogOpen} onOpenChange={setIssuePolicyDialogOpen}>
+          <DialogContent className="max-h-[88vh] max-w-3xl overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle>本书问题管理</DialogTitle>
+              <DialogDescription>开书前确认这本书遇到问题时的处理方式；不调整即可沿用默认规则。</DialogDescription>
+            </DialogHeader>
+            <AutoDirectorIssuePolicyCard
+              policy={issuePolicy}
+              isLoading={issuePolicyLoading}
+              isSaving={false}
+              onSave={(policy) => {
+                onIssuePolicyChange(policy);
+                setIssuePolicyDialogOpen(false);
+              }}
+              saveButtonLabel="应用到本书开书任务"
+            />
+          </DialogContent>
+        </Dialog>
       </div>
 
       <div className="flex flex-col gap-2 pt-2 sm:flex-row sm:justify-between">

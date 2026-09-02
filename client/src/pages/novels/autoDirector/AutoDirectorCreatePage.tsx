@@ -541,6 +541,9 @@ function AutoDirectorCreatePage() {
           isGenerating={controller.generateMutation.isPending}
           onBack={() => setActiveStage("world_style")}
           onGenerate={startGenerate}
+          issuePolicy={controller.issuePolicy}
+          issuePolicyLoading={controller.issuePolicyLoading}
+          onIssuePolicyChange={controller.setIssuePolicy}
         />
       );
     }

@@ -33,6 +33,7 @@ import { runStructuredPrompt } from "../../../../prompting/core/promptRunner";
 import { writingPlatformRecommendationPrompt } from "../../../../prompting/prompts/novel/writingPlatformRecommendation.prompts";
 import { writingPlatformProfileService } from "../../../../modules/novel/writing-platform";
 import { prisma } from "../../../../db/prisma";
+import { directorIssuePolicyService } from "../issues/DirectorIssuePolicyService";
 import { novelCreateResourceRecommendationService } from "../../NovelCreateResourceRecommendationService";
 
 type WorkflowTaskSnapshot = Awaited<ReturnType<NovelWorkflowService["getTaskByIdWithoutHealing"]>>;
@@ -286,6 +287,9 @@ export class NovelDirectorConfirmRuntime {
             writingPlatformSnapshotJson: JSON.stringify(platformSnapshot),
           },
         });
+        if (executionDirectorInput.issueGovernanceVersion === 1 && executionDirectorInput.issuePolicy) {
+          await directorIssuePolicyService.saveNovelOverride(createdNovel.id, executionDirectorInput.issuePolicy);
+        }
         await this.deps.ensurePrimaryNovelStyleBinding(createdNovel.id, resolvedInput.styleProfileId);
         const directorSession = buildDirectorSessionState({
           runMode,
