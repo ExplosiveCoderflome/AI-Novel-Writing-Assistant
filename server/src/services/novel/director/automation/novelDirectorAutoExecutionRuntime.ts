@@ -310,11 +310,13 @@ export class NovelDirectorAutoExecutionRuntime {
           pipelineStatus: job.status,
           allowLazyChapterPlanning,
         }));
-        const usageCircuitBreaker = await resolveUsageCircuitBreaker({
-          taskId: input.taskId,
-          novelId: input.novelId,
-          autoExecution,
-        });
+        const usageCircuitBreaker = job.status === "succeeded" && (autoExecution.remainingChapterCount ?? 0) === 0
+          ? null
+          : await resolveUsageCircuitBreaker({
+            taskId: input.taskId,
+            novelId: input.novelId,
+            autoExecution,
+          });
         if (usageCircuitBreaker) {
           autoExecution = withCircuitBreakerState(autoExecution, usageCircuitBreaker);
           if (isDirectorCircuitBreakerOpen(usageCircuitBreaker)) {

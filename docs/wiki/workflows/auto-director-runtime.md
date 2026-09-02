@@ -125,6 +125,7 @@ Web API 只接收命令和返回轻量投影；Worker 负责执行重型生产�
 - 自动导演的“跳过质量修复并继续”不是绕过时间线。达到修复预算上限或用户选择 `skip_quality_repair` 时，执行面必须先基于当前最佳正文提交 degraded timeline checkpoint，再登记质量债务并推进剩余章节。
 - 自动导演不得在 director 内部补写时间线提交逻辑。stable/degraded timeline、`ChapterTimeAnchor`、hook 承接、checkpoint metadata 都属于统一章节 runtime，不属于导演专属恢复逻辑。
 - 自动导演驱动章节生产时，章节 pipeline 的 LLM 用量必须写入导演用量遥测，并带上 `chapterId`。每章累计 token 超过硬预算时，运行时应打开 `usage_anomaly` 熔断并暂停后续自动执行，防止任务重启、质量循环或上下文膨胀继续放大消耗。
+- 用量熔断只保护尚未执行的工作。若章节批次已经成功且用户选定范围没有剩余章节，任务必须收束为 `workflow_completed`；超额用量保留在诊断记录中，但不得把已完成范围改写为 `pendingManualRecovery`。
 - 自动导演投影必须把 `terminalAction=defer_and_continue` 且非重规划的质量结果视为“已记录质量债务”，不能升级成 `action_required`、`error` 或“出错需处理”。这类质量债务只影响后续优化提示，不阻塞继续执行。
 - 重规划决策必须携带作用域。`local_window` 是默认作用域：自动导演生成并保存 `ReplanRun`，只刷新当前章之后没有正文的章节计划和执行合同，然后从第一个未完成章节继续；已有正文、人工保护内容和已确认章节只能作为上下文，绝不能被局部重规划覆盖。`global_book` 才是整书结构不可恢复的显式判断，可进入 `replan_required` 检查点等待处理。
 - 章节质量闭环是生产链中唯一的重规划升级入口。章节审核返回 `local_patch_plan`、`continue_with_warning`、`patchable_obligation_gap` 或修复后仍有可记录义务缺口时，应登记为质量债务或局部修复建议并继续剩余章节，不能因为 `recommended=true` 就写入 `replanAlertDetails`。局部重规划调用失败而当前章已有可用正文时，也只记录失败原因和质量债务；无可用正文、运行时安全风险或数据完整性风险才允许停止。
