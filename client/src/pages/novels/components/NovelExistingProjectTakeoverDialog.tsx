@@ -203,15 +203,18 @@ export default function NovelExistingProjectTakeoverDialog({
     [contextTaskSnapshot, readiness, selectedChapterTargetOrder],
   );
   const continuousTarget = useMemo(
-    () => buildTakeoverContinuousTarget(readiness, contextTaskSnapshot),
-    [contextTaskSnapshot, readiness],
+    () => buildTakeoverContinuousTarget(readiness, contextTaskSnapshot, selectedChapterTargetOrder),
+    [contextTaskSnapshot, readiness, selectedChapterTargetOrder],
   );
-  const effectiveRunMode: DirectorRunMode = !advancedOpen && continuousTarget
+  const useFullBookAutopilot = !advancedOpen
+    && continuousTarget
+    && continuousTarget.selectedOrder >= continuousTarget.targetOrder;
+  const effectiveRunMode: DirectorRunMode = useFullBookAutopilot
     ? "full_book_autopilot"
     : !advancedOpen && quickChapterTarget
       ? "auto_to_execution"
       : runMode;
-  const autoExecutionPlan: DirectorAutoExecutionPlan | undefined = !advancedOpen && continuousTarget
+  const autoExecutionPlan: DirectorAutoExecutionPlan | undefined = useFullBookAutopilot
     ? buildFullBookAutopilotExecutionPlan()
     : !advancedOpen && quickChapterTarget
       ? quickChapterTarget.plan
@@ -287,10 +290,8 @@ export default function NovelExistingProjectTakeoverDialog({
     if (!open || !quickChapterTarget) {
       return;
     }
-    setSelectedChapterTargetOrder((current) => (
-      current === quickChapterTarget.selectedOrder ? current : quickChapterTarget.selectedOrder
-    ));
-  }, [open, quickChapterTarget]);
+    setSelectedChapterTargetOrder((current) => current ?? continuousTarget?.selectedOrder ?? quickChapterTarget.selectedOrder);
+  }, [continuousTarget?.selectedOrder, open, quickChapterTarget]);
 
   useEffect(() => {
     if (!readiness) {

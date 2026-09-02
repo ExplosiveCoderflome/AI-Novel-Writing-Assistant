@@ -45,6 +45,7 @@ export interface TakeoverContinuousTargetViewModel {
   startOrder: number;
   currentWindowEndOrder: number;
   targetOrder: number;
+  selectedOrder: number;
   actionLabel: string;
   summary: string;
 }
@@ -240,6 +241,8 @@ export function buildTakeoverChapterTarget(
   const totalChapters = maxNormalizedOrder([
     progress?.totalChapters
       ?? null,
+    snapshot?.plannedChapterCount
+      ?? null,
     readiness?.executableRange?.endOrder
       ?? null,
     snapshot?.chapterCount
@@ -276,18 +279,31 @@ export function buildTakeoverChapterTarget(
 export function buildTakeoverContinuousTarget(
   readiness: DirectorTakeoverReadinessResponse | null,
   taskSnapshot?: DirectorTaskSnapshot | null,
+  selectedOrder?: number | null,
 ): TakeoverContinuousTargetViewModel | null {
-  const currentWindow = buildTakeoverChapterTarget(readiness, taskSnapshot);
+  const currentWindow = readiness
+    ? buildTakeoverChapterTarget({
+      ...readiness,
+      snapshot: { ...readiness.snapshot, plannedChapterCount: null },
+    }, taskSnapshot)
+    : null;
   const targetOrder = normalizePositiveOrder(readiness?.snapshot.plannedChapterCount ?? null);
   if (!currentWindow || !targetOrder || targetOrder <= currentWindow.maxOrder) {
     return null;
   }
+  const normalizedSelected = normalizePositiveOrder(selectedOrder ?? null);
+  const resolvedSelected = normalizedSelected
+    ? Math.min(Math.max(normalizedSelected, currentWindow.startOrder), targetOrder)
+    : targetOrder;
   return {
     startOrder: currentWindow.startOrder,
     currentWindowEndOrder: currentWindow.maxOrder,
     targetOrder,
-    actionLabel: `持续推进至第 ${targetOrder} 章`,
-    summary: `先推进第 ${currentWindow.startOrder}-${currentWindow.maxOrder} 章；接近范围末尾时，AI 会补后续卷骨架和近期拆章，不会预先生成远期章节任务。`,
+    selectedOrder: resolvedSelected,
+    actionLabel: resolvedSelected === targetOrder ? `持续推进至第 ${targetOrder} 章` : `推进至第 ${resolvedSelected} 章`,
+    summary: resolvedSelected === targetOrder
+      ? `先推进第 ${currentWindow.startOrder}-${currentWindow.maxOrder} 章；接近范围末尾时，AI 会补后续卷骨架和近期拆章，不会预先生成远期章节任务。`
+      : `本次只推进第 ${currentWindow.startOrder}-${resolvedSelected} 章；之后仍可从当前进度继续，预计章节数为 ${targetOrder} 章。`,
   };
 }
 

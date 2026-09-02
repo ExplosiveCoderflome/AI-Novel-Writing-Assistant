@@ -100,9 +100,18 @@ export default function TakeoverDiagnosisPanel({
           ) : (
             <>
               {!isAdvancedOpen && continuousTarget ? (
-                <div className={`rounded-lg bg-background/70 p-3 text-xs leading-5 text-muted-foreground ${AUTO_DIRECTOR_MOBILE_CLASSES.wrapText}`}>
-                  {continuousTarget.summary}
-                </div>
+                <>
+                  <div className={`rounded-lg bg-background/70 p-3 text-xs leading-5 text-muted-foreground ${AUTO_DIRECTOR_MOBILE_CLASSES.wrapText}`}>
+                    {continuousTarget.summary}
+                  </div>
+                  {chapterTarget ? (
+                    <TakeoverChapterTargetSelector
+                      target={chapterTarget}
+                      disabled={isStarting}
+                      onChange={onChapterTargetChange}
+                    />
+                  ) : null}
+                </>
               ) : !isAdvancedOpen && chapterTarget ? (
                 <TakeoverChapterTargetSelector
                   target={chapterTarget}

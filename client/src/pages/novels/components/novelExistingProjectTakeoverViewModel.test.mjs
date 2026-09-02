@@ -331,6 +331,33 @@ test("takeover uses the full-book target while keeping the current chapter windo
   assert.match(target?.summary ?? "", /不会预先生成远期章节任务/);
 });
 
+test("takeover accepts a smaller target below the full-book estimate", () => {
+  const target = buildTakeoverContinuousTarget(buildReadiness({
+    snapshot: {
+      hasStoryMacroPlan: true,
+      hasBookContract: true,
+      characterCount: 5,
+      chapterCount: 10,
+      plannedChapterCount: 80,
+      volumeCount: 1,
+      firstVolumeChapterCount: 10,
+      generatedChapterCount: 3,
+      approvedChapterCount: 3,
+    },
+    executableRange: {
+      startOrder: 1,
+      endOrder: 10,
+      totalChapterCount: 10,
+      nextChapterOrder: 4,
+    },
+  }), null, 50);
+
+  assert.equal(target?.selectedOrder, 50);
+  assert.equal(target?.targetOrder, 80);
+  assert.equal(target?.actionLabel, "推进至第 50 章");
+  assert.match(target?.summary ?? "", /本次只推进第 4-50 章/);
+});
+
 test("takeover start errors are translated into a recoverable user action", () => {
   const message = formatTakeoverStartError(new Error("章节范围只能从节奏拆章、章节执行或质量修复开始。"));
 
