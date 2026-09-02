@@ -1557,20 +1557,24 @@ test("runStructuredPrompt retries semantically after postValidate failure", asyn
 test("streamTextPrompt buffers streamed output and resolves completion metadata", async () => {
   resetPromptQualityTelemetryForTests();
   const originalContextPolicy = { ...styleRewritePrompt.contextPolicy };
+  let capturedOptions = null;
   styleRewritePrompt.contextPolicy = {
     maxTokensBudget: 8,
     requiredGroups: ["core"],
     dropOrder: ["overflow"],
   };
 
-  setPromptRunnerLLMFactoryForTests(async () => ({
-    stream: async () => ({
-      async *[Symbol.asyncIterator]() {
-        yield { content: "修" };
-        yield { content: "订" };
-      },
-    }),
-  }));
+  setPromptRunnerLLMFactoryForTests(async (_provider, options) => {
+    capturedOptions = options;
+    return {
+      stream: async () => ({
+        async *[Symbol.asyncIterator]() {
+          yield { content: "修" };
+          yield { content: "订" };
+        },
+      }),
+    };
+  });
 
   try {
     const handle = await streamTextPrompt({
@@ -1601,6 +1605,7 @@ test("streamTextPrompt buffers streamed output and resolves completion metadata"
           content: "额外补充：".concat("低优先级。".repeat(20)),
         }),
       ],
+      options: { reasoningEnabled: false, maxTokens: 6000 },
     });
 
     const streamedChunks = [];
@@ -1614,6 +1619,8 @@ test("streamTextPrompt buffers streamed output and resolves completion metadata"
     assert.deepEqual(completed.meta.invocation.droppedContextBlockIds, ["overflow-1"]);
     assert.deepEqual(completed.meta.invocation.summarizedContextBlockIds, ["core-1"]);
     assert.equal(completed.meta.invocation.repairAttempts, 0);
+    assert.equal(capturedOptions.reasoningEnabled, false);
+    assert.equal(capturedOptions.maxTokens, 6000);
     const telemetry = getSinglePromptQualityEntry();
     assert.equal(telemetry.completedCount, 1);
     assert.equal(telemetry.emptyOutputCount, 0);
