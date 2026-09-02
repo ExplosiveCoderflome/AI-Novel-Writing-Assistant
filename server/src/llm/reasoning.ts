@@ -1,5 +1,6 @@
 import type { BaseMessageChunk } from "@langchain/core/messages";
 import type { LLMProvider } from "@ai-novel/shared/types/llm";
+import { isBuiltInProvider } from "./providers";
 
 const THINK_OPEN_TAG = "<think>";
 const THINK_CLOSE_TAG = "</think>";
@@ -92,13 +93,16 @@ export function isDeepSeekThinkingModeProvider(
   model?: string,
 ): boolean {
   const normalizedModel = normalizeOptionalText(model)?.toLowerCase();
-  const supportsThinkingToggle = normalizedModel === "deepseek-v4-pro"
-    || normalizedModel === "deepseek-v4-flash"
+  const supportsThinkingToggle = normalizedModel?.startsWith("deepseek-v4-pro")
+    || normalizedModel?.startsWith("deepseek-v4-flash")
     || normalizedModel === "deepseek-reasoner";
   if (!supportsThinkingToggle) {
     return false;
   }
   if (provider === "deepseek") {
+    return true;
+  }
+  if (!isBuiltInProvider(provider)) {
     return true;
   }
   const normalizedBaseURL = normalizeOptionalText(baseURL);

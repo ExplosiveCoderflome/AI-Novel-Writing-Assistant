@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/button";
 import { AUTO_DIRECTOR_MOBILE_CLASSES } from "@/mobile/autoDirector";
 import type {
   TakeoverChapterTargetViewModel,
+  TakeoverContinuousTargetViewModel,
   TakeoverGuidanceViewModel,
   TakeoverProgressInspectionViewModel,
 } from "../novelExistingProjectTakeoverViewModel";
@@ -18,6 +19,7 @@ interface TakeoverDiagnosisPanelProps {
   hasTaskSnapshotError: boolean;
   hasCurrentTask: boolean;
   chapterTarget: TakeoverChapterTargetViewModel | null;
+  continuousTarget: TakeoverContinuousTargetViewModel | null;
   isAdvancedOpen: boolean;
   isStarting: boolean;
   startDisabled: boolean;
@@ -35,6 +37,7 @@ export default function TakeoverDiagnosisPanel({
   hasTaskSnapshotError,
   hasCurrentTask,
   chapterTarget,
+  continuousTarget,
   isAdvancedOpen,
   isStarting,
   startDisabled,
@@ -42,7 +45,11 @@ export default function TakeoverDiagnosisPanel({
   onChapterTargetChange,
   onStart,
 }: TakeoverDiagnosisPanelProps) {
-  const quickActionLabel = chapterTarget && !isAdvancedOpen ? chapterTarget.actionLabel : guidance.actionLabel;
+  const quickActionLabel = !isAdvancedOpen && continuousTarget
+    ? continuousTarget.actionLabel
+    : chapterTarget && !isAdvancedOpen
+      ? chapterTarget.actionLabel
+      : guidance.actionLabel;
   return (
     <div className="min-w-0 rounded-xl border border-primary/20 bg-primary/5 p-3 sm:p-4">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
@@ -92,7 +99,20 @@ export default function TakeoverDiagnosisPanel({
             </Button>
           ) : (
             <>
-              {!isAdvancedOpen && chapterTarget ? (
+              {!isAdvancedOpen && continuousTarget ? (
+                <>
+                  <div className={`rounded-lg bg-background/70 p-3 text-xs leading-5 text-muted-foreground ${AUTO_DIRECTOR_MOBILE_CLASSES.wrapText}`}>
+                    {continuousTarget.summary}
+                  </div>
+                  {chapterTarget ? (
+                    <TakeoverChapterTargetSelector
+                      target={chapterTarget}
+                      disabled={isStarting}
+                      onChange={onChapterTargetChange}
+                    />
+                  ) : null}
+                </>
+              ) : !isAdvancedOpen && chapterTarget ? (
                 <TakeoverChapterTargetSelector
                   target={chapterTarget}
                   disabled={isStarting}

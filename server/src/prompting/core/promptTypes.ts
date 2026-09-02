@@ -124,6 +124,7 @@ export interface PromptExecutionOptions {
   provider?: LLMProvider;
   model?: string;
   temperature?: number;
+  reasoningEnabled?: boolean;
   maxTokens?: number;
   timeoutMs?: number;
   signal?: AbortSignal;

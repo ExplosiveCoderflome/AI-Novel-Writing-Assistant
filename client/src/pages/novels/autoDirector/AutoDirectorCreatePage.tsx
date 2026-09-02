@@ -517,8 +517,6 @@ function AutoDirectorCreatePage() {
         <StageWorldStyle
           basicForm={controller.directorBasicForm}
           worldOptions={worldOptions}
-          worldSetupMode={controller.worldSetupMode}
-          onWorldSetupModeChange={controller.setWorldSetupMode}
           styleProfileOptions={controller.styleProfiles.map((profile) => ({ id: profile.id, name: profile.name }))}
           selectedStyleProfileId={controller.selectedStyleProfileId}
           selectedStyleSummary={controller.selectedStyleSummary}
@@ -541,6 +539,9 @@ function AutoDirectorCreatePage() {
           isGenerating={controller.generateMutation.isPending}
           onBack={() => setActiveStage("world_style")}
           onGenerate={startGenerate}
+          issuePolicy={controller.issuePolicy}
+          issuePolicyLoading={controller.issuePolicyLoading}
+          onIssuePolicyChange={controller.setIssuePolicy}
         />
       );
     }

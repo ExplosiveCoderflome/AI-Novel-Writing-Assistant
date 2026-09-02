@@ -1,4 +1,3 @@
-import type { DirectorWorldSetupMode } from "@ai-novel/shared/types/novelDirector";
 import type { StyleIntentSummary } from "@ai-novel/shared/types/styleEngine";
 import { Button } from "@/components/ui/button";
 import { AUTO_DIRECTOR_MOBILE_CLASSES } from "@/mobile/autoDirector";
@@ -10,8 +9,6 @@ import SelectControl from "@/components/common/SelectControl";
 interface StageWorldStyleProps {
   basicForm: NovelBasicFormState;
   worldOptions: Array<{ id: string; name: string }>;
-  worldSetupMode: DirectorWorldSetupMode;
-  onWorldSetupModeChange: (value: DirectorWorldSetupMode) => void;
   styleProfileOptions: Array<{ id: string; name: string }>;
   selectedStyleProfileId: string;
   selectedStyleSummary: StyleIntentSummary | null;
@@ -24,8 +21,6 @@ interface StageWorldStyleProps {
 export default function StageWorldStyle({
   basicForm,
   worldOptions,
-  worldSetupMode,
-  onWorldSetupModeChange,
   styleProfileOptions,
   selectedStyleProfileId,
   selectedStyleSummary,
@@ -80,35 +75,8 @@ export default function StageWorldStyle({
               自动导演会参考「{selectedWorld.name}」这个世界样本，并在角色准备前整理可用于本书的世界约束。
             </div>
           ) : (
-            <div className="grid gap-3 sm:grid-cols-2">
-              <button
-                type="button"
-                className={`rounded-lg px-4 py-4 text-left transition ring-1 ${
-                  worldSetupMode === "auto_generate"
-                    ? "bg-foreground text-background ring-foreground shadow-sm"
-                    : "bg-background/60 text-foreground ring-border/25 hover:bg-background"
-                }`}
-                onClick={() => onWorldSetupModeChange("auto_generate")}
-              >
-                <div className="text-sm font-medium">根据宏观规划生成本书世界</div>
-                <div className={`mt-2 text-xs leading-5 ${worldSetupMode === "auto_generate" ? "text-background/70" : "text-muted-foreground"} ${AUTO_DIRECTOR_MOBILE_CLASSES.wrapText}`}>
-                  适合奇幻、玄幻、科幻、悬疑等需要世界规则支撑的项目。
-                </div>
-              </button>
-              <button
-                type="button"
-                className={`rounded-lg px-4 py-4 text-left transition ring-1 ${
-                  worldSetupMode === "skip"
-                    ? "bg-foreground text-background ring-foreground shadow-sm"
-                    : "bg-background/60 text-foreground ring-border/25 hover:bg-background"
-                }`}
-                onClick={() => onWorldSetupModeChange("skip")}
-              >
-                <div className="text-sm font-medium">暂不使用世界观</div>
-                <div className={`mt-2 text-xs leading-5 ${worldSetupMode === "skip" ? "text-background/70" : "text-muted-foreground"} ${AUTO_DIRECTOR_MOBILE_CLASSES.wrapText}`}>
-                  适合现实题材、轻设定项目，角色和章节会主要依据书级规划推进。
-                </div>
-              </button>
+            <div className="rounded-lg bg-muted/45 px-4 py-3 text-sm leading-6 text-foreground">
+              AI 会根据宏观规划自动整理本书世界，并将其用于后续角色、章节和正文生成。
             </div>
           )}
         </div>

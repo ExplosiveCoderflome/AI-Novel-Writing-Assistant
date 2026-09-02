@@ -15,6 +15,7 @@ import {
 } from "../../../prompting/prompts/novel/chapterAcceptance.prompts";
 import { openConflictService } from "../../state/OpenConflictService";
 import { normalizeScore, ruleScore } from "../novelP0Utils";
+import { detectProseQuality } from "./proseQuality/ProseQualityDetector";
 
 export interface ChapterAcceptanceAssessmentInput {
   novelId: string;
@@ -239,7 +240,19 @@ function buildFallbackAssessment(content: string): ChapterAcceptanceAssessmentOu
 export class ChapterAcceptanceAssessmentService {
   async assess(input: ChapterAcceptanceAssessmentInput): Promise<ChapterAcceptanceAssessmentResult> {
     const assessment = await this.invokeAssessment(input).catch(() => buildFallbackAssessment(input.content));
-    const normalized = normalizeAssessment(assessment, input.content, input.targetWordCount);
+    const proseQuality = detectProseQuality(input.content);
+    const proseIssues = proseQuality.findings.slice(0, 5).map((finding) => ({
+      severity: finding.severity,
+      category: "voice" as const,
+      code: finding.code,
+      evidence: `第 ${finding.line} 行：${finding.excerpt}`,
+      fixSuggestion: finding.fixSuggestion,
+    }));
+    const normalized = normalizeAssessment({
+      ...assessment,
+      blockingIssues: [...assessment.blockingIssues, ...proseIssues],
+      riskTags: [...assessment.riskTags, ...proseQuality.findings.map((finding) => finding.code)],
+    }, input.content, input.targetWordCount);
     const score = normalizeScore(normalized.score);
     const issues = normalized.blockingIssues.map((issue) => ({
       severity: issue.severity,
@@ -293,6 +306,7 @@ export class ChapterAcceptanceAssessmentService {
         provider: input.provider,
         model: input.model,
         temperature: Math.min(input.temperature ?? 0.2, 0.35),
+        maxTokens: 1600,
         novelId: input.novelId,
         chapterId: input.chapterId,
         stage: "chapter_acceptance",

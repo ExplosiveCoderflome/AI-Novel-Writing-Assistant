@@ -30,8 +30,9 @@ export function AutoDirectorIssuePolicyCard(props: {
   isLoading: boolean;
   isSaving: boolean;
   onSave: (policy: DirectorIssuePolicy) => void;
+  saveButtonLabel?: string;
 }) {
-  const { policy, isLoading, isSaving, onSave } = props;
+  const { policy, isLoading, isSaving, onSave, saveButtonLabel = "保存问题处理规则" } = props;
   const [draft, setDraft] = useState<DirectorIssuePolicy | null>(null);
   const [category, setCategory] = useState<DirectorIssueCategory | "all">("all");
   const [action, setAction] = useState<DirectorIssueAction | "all">("all");
@@ -134,7 +135,7 @@ export function AutoDirectorIssuePolicyCard(props: {
         </div>
 
         <Button disabled={isSaving} onClick={() => onSave(current)}>
-          {isSaving ? "保存中…" : "保存问题处理规则"}
+          {isSaving ? "保存中…" : saveButtonLabel}
         </Button>
       </CardContent>
     </Card>

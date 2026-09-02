@@ -70,7 +70,17 @@ export class ChapterRouteWindowService {
     while (availableRouteCount < target) {
       const next = this.findNextRouteTarget(workspace);
       if (!next) {
-        break;
+        const expandedWorkspace = await this.extendFutureVolumeSkeleton(
+          novelId,
+          workspace,
+          options,
+        );
+        if (!expandedWorkspace) {
+          break;
+        }
+        workspace = expandedWorkspace;
+        extended = true;
+        continue;
       }
       if (!next.beatKey) {
         workspace = await this.volumeService.generateVolumes(novelId, {
@@ -118,6 +128,54 @@ export class ChapterRouteWindowService {
       availableRouteCount = await this.countAvailableRoute(novelId, fromChapterOrder);
     }
     return { availableRouteCount, extended };
+  }
+
+  private async extendFutureVolumeSkeleton(
+    novelId: string,
+    workspace: VolumePlanDocument,
+    options: ChapterRouteWindowOptions,
+  ): Promise<VolumePlanDocument | null> {
+    const targetChapterCount = options.completionProfile?.targetChapterCount ?? 0;
+    const plannedChapterEnd = Math.max(
+      0,
+      ...workspace.volumes.flatMap((volume) => volume.chapters.map((chapter) => chapter.chapterOrder)),
+    );
+    if (!workspace.strategyPlan || targetChapterCount <= plannedChapterEnd) {
+      return null;
+    }
+
+    const skeletonVolumeCount = Math.max(
+      workspace.volumes.length + 1,
+      workspace.strategyPlan.recommendedVolumeCount,
+    );
+    const generatedSkeleton = await this.volumeService.generateVolumes(novelId, {
+      scope: "skeleton",
+      skeletonVolumeCount,
+      draftWorkspace: workspace,
+      provider: options.provider,
+      model: options.model,
+      temperature: options.temperature,
+      taskId: options.taskId,
+      entrypoint: "jit_route_window",
+      guidance: [
+        "滚动生产需要补齐后续卷骨架。",
+        "已有卷及其章节已经进入生产，必须视为固定事实；只为尚未创建的后续卷安排承接、升级和兑现。",
+        `全书目标约 ${targetChapterCount} 章；当前只补卷级骨架，不拆远期章节。`,
+      ].join("\n"),
+    });
+    const futureVolumes = generatedSkeleton.volumes.slice(workspace.volumes.length);
+    if (futureVolumes.length === 0) {
+      return null;
+    }
+    return this.volumeService.updateVolumesWithOptions(novelId, {
+      volumes: [...workspace.volumes, ...futureVolumes],
+      beatSheets: workspace.beatSheets,
+      rebalanceDecisions: workspace.rebalanceDecisions,
+    }, {
+      emitEvent: false,
+      syncPayoffLedger: false,
+      volumeUpdateReason: "chapter_execution_contract_refined",
+    });
   }
 
   private async countAvailableRoute(novelId: string, fromChapterOrder: number): Promise<number> {

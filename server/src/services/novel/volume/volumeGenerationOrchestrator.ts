@@ -309,7 +309,9 @@ async function generateSkeleton(params: {
     userPreferredVolumeCount: options.userPreferredVolumeCount,
     maxVolumeCount: MAX_VOLUME_COUNT,
   });
-  const targetVolumeCount = document.strategyPlan.recommendedVolumeCount;
+  const targetVolumeCount = Math.max(1, Math.round(
+    options.skeletonVolumeCount ?? document.strategyPlan.recommendedVolumeCount,
+  ));
   await notifyVolumeGenerationPhase({
     novelId: document.novelId,
     scope: "skeleton",

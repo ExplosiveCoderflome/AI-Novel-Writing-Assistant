@@ -37,6 +37,7 @@ import {
 } from "./directorAutoExecutionPlan.shared";
 import {
   buildTakeoverChapterTarget,
+  buildTakeoverContinuousTarget,
   buildTakeoverProgressInspection,
   buildTakeoverGuidance,
   findTakeoverPreview,
@@ -201,10 +202,23 @@ export default function NovelExistingProjectTakeoverDialog({
     () => buildTakeoverChapterTarget(readiness, contextTaskSnapshot, selectedChapterTargetOrder),
     [contextTaskSnapshot, readiness, selectedChapterTargetOrder],
   );
-  const effectiveRunMode: DirectorRunMode = !advancedOpen && quickChapterTarget ? "auto_to_execution" : runMode;
-  const autoExecutionPlan: DirectorAutoExecutionPlan | undefined = !advancedOpen && quickChapterTarget
-    ? quickChapterTarget.plan
-    : advancedAutoExecutionPlan;
+  const continuousTarget = useMemo(
+    () => buildTakeoverContinuousTarget(readiness, contextTaskSnapshot, selectedChapterTargetOrder),
+    [contextTaskSnapshot, readiness, selectedChapterTargetOrder],
+  );
+  const useFullBookAutopilot = !advancedOpen
+    && continuousTarget
+    && continuousTarget.selectedOrder >= continuousTarget.targetOrder;
+  const effectiveRunMode: DirectorRunMode = useFullBookAutopilot
+    ? "full_book_autopilot"
+    : !advancedOpen && quickChapterTarget
+      ? "auto_to_execution"
+      : runMode;
+  const autoExecutionPlan: DirectorAutoExecutionPlan | undefined = useFullBookAutopilot
+    ? buildFullBookAutopilotExecutionPlan()
+    : !advancedOpen && quickChapterTarget
+      ? quickChapterTarget.plan
+      : advancedAutoExecutionPlan;
   const selectedScopeMode = effectiveRunMode === "auto_to_execution" || effectiveRunMode === "full_book_autopilot"
     ? autoExecutionPlan?.mode ?? autoExecutionDraft.mode
     : "book";
@@ -276,10 +290,8 @@ export default function NovelExistingProjectTakeoverDialog({
     if (!open || !quickChapterTarget) {
       return;
     }
-    setSelectedChapterTargetOrder((current) => (
-      current === quickChapterTarget.selectedOrder ? current : quickChapterTarget.selectedOrder
-    ));
-  }, [open, quickChapterTarget]);
+    setSelectedChapterTargetOrder((current) => current ?? continuousTarget?.selectedOrder ?? quickChapterTarget.selectedOrder);
+  }, [continuousTarget?.selectedOrder, open, quickChapterTarget]);
 
   useEffect(() => {
     if (!readiness) {
@@ -395,6 +407,7 @@ export default function NovelExistingProjectTakeoverDialog({
                 hasTaskSnapshotError={contextTaskSnapshotQuery.isError}
                 hasCurrentTask={Boolean(readiness?.hasActiveTask || contextTaskIsContinuable)}
                 chapterTarget={quickChapterTarget}
+                continuousTarget={continuousTarget}
                 isAdvancedOpen={advancedOpen}
                 isStarting={startMutation.isPending}
                 startDisabled={startDisabled}

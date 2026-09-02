@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 
 import {
   buildTakeoverChapterTarget,
+  buildTakeoverContinuousTarget,
   buildTakeoverGuidance,
   buildTakeoverProgressInspection,
   formatTakeoverStartError,
@@ -295,6 +296,66 @@ test("takeover chapter target clamps input to unwritten chapter range", () => {
   assert.equal(target?.selectedOrder, 11);
   assert.equal(target?.plan.startOrder, 11);
   assert.equal(target?.plan.endOrder, 11);
+});
+
+test("takeover uses the full-book target while keeping the current chapter window rolling", () => {
+  const target = buildTakeoverContinuousTarget(buildReadiness({
+    snapshot: {
+      hasStoryMacroPlan: true,
+      hasBookContract: true,
+      characterCount: 5,
+      chapterCount: 10,
+      plannedChapterCount: 80,
+      volumeCount: 1,
+      firstVolumeChapterCount: 10,
+      generatedChapterCount: 3,
+      approvedChapterCount: 3,
+    },
+    executableRange: {
+      startOrder: 1,
+      endOrder: 10,
+      totalChapterCount: 10,
+      nextChapterOrder: 4,
+    },
+  }));
+
+  assert.deepEqual(target && {
+    startOrder: target.startOrder,
+    currentWindowEndOrder: target.currentWindowEndOrder,
+    targetOrder: target.targetOrder,
+  }, {
+    startOrder: 4,
+    currentWindowEndOrder: 10,
+    targetOrder: 80,
+  });
+  assert.match(target?.summary ?? "", /不会预先生成远期章节任务/);
+});
+
+test("takeover accepts a smaller target below the full-book estimate", () => {
+  const target = buildTakeoverContinuousTarget(buildReadiness({
+    snapshot: {
+      hasStoryMacroPlan: true,
+      hasBookContract: true,
+      characterCount: 5,
+      chapterCount: 10,
+      plannedChapterCount: 80,
+      volumeCount: 1,
+      firstVolumeChapterCount: 10,
+      generatedChapterCount: 3,
+      approvedChapterCount: 3,
+    },
+    executableRange: {
+      startOrder: 1,
+      endOrder: 10,
+      totalChapterCount: 10,
+      nextChapterOrder: 4,
+    },
+  }), null, 50);
+
+  assert.equal(target?.selectedOrder, 50);
+  assert.equal(target?.targetOrder, 80);
+  assert.equal(target?.actionLabel, "推进至第 50 章");
+  assert.match(target?.summary ?? "", /本次只推进第 4-50 章/);
 });
 
 test("takeover start errors are translated into a recoverable user action", () => {

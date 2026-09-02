@@ -2,6 +2,7 @@ import { HumanMessage, SystemMessage } from "@langchain/core/messages";
 import type { PromptAsset } from "../../core/promptTypes";
 import { renderSelectedContextBlocks } from "../../core/renderContextBlocks";
 import { NOVEL_PROMPT_BUDGETS } from "./promptBudgetProfiles";
+import { CHAPTER_PROSE_QUALITY_RULES } from "@ai-novel/shared/types/chapterProseContract";
 
 export interface ChapterWriterPromptInput {
   novelTitle: string;
@@ -259,6 +260,7 @@ export const chapterWriterPrompt: PromptAsset<ChapterWriterPromptInput, string, 
         "1. " + tonePreference,
         "2. 优先使用具体动作、对话与可感知细节推进，而不是抽象概述。",
         "3. " + antiAiRules,
+        ...CHAPTER_PROSE_QUALITY_RULES.map((rule, index) => `${index + 1}. ${rule}`),
         "4. 对话应服务推进或冲突，不得成为填充内容。",
         "5. 每一段叙述尽量同时完成两项以上叙事功能（推进情节、揭示人物、制造张力、建构世界），避免仅完成单一功能的过渡性段落。",
         "",

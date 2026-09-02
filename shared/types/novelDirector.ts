@@ -554,6 +554,8 @@ export interface DirectorTakeoverReadinessResponse {
     hasWorldSetupPrepared: boolean;
     characterCount: number;
     chapterCount: number;
+    /** Long-term book target; the currently generated chapter window may be shorter. */
+    plannedChapterCount?: number | null;
     volumeCount: number;
     firstVolumeId?: string | null;
     firstVolumeChapterCount: number;
