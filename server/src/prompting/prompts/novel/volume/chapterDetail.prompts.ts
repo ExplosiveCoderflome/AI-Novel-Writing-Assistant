@@ -365,9 +365,6 @@ export const volumeChapterExecutionContractPrompt: PromptAsset<
   mode: "structured",
   language: "zh",
   contextPolicy: baseContextPolicy,
-  semanticRetryPolicy: {
-    maxAttempts: 2,
-  },
   outputSchema: createChapterExecutionContractSchema(),
   render: (input, context) => [
     new SystemMessage(createExecutionContractSystemPrompt()),

@@ -13,7 +13,6 @@ export const marketSignalSchema = z.object({
   direction: z.enum(["current", "rising", "stable", "falling"]),
   heat: z.number().int().min(0).max(100),
   crowding: z.number().int().min(0).max(100),
-  evidenceItemIds: z.array(z.string().trim().min(1)).min(1).max(12),
   recommended: z.boolean(),
 });
 
@@ -28,7 +27,6 @@ const marketFoundationAssetBaseSchema = z.object({
   description: z.string().trim().min(12).max(240),
   template: z.string().trim().min(12).max(600),
   reason: z.string().trim().min(12).max(240),
-  evidenceItemIds: z.array(z.string().trim().min(1)).min(1).max(12),
 });
 
 export const marketProductionFoundationDraftSchema = z.object({

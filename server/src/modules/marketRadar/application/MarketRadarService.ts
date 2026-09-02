@@ -150,7 +150,6 @@ function formatRankingItems(items: MarketRankingItem[]): string {
     const item = appearances.sort((left, right) => left.rank - right.rank)[0];
     return [
     `证据层级=${isPrimary(appearances) ? "主要（新书榜或新晋作者榜）" : "辅助（成熟榜单，仅用于验证持续需求）"}`,
-    `证据ID=${appearances.map((appearance) => appearance.id).join(",")}`,
     `上榜记录=${appearances.map((appearance) => `${appearance.listKey}第${appearance.rank}名`).join("、")}`,
     `书名=${item.title}`,
     item.author ? `作者=${item.author}` : "",
@@ -648,7 +647,7 @@ export class MarketRadarService {
       if (items.length === 0) return null;
       const result = await runStructuredPrompt({
         asset: marketPlatformDigestPrompt,
-        promptInput: { platformLabel: platformLabel(platform), rankingText: formatRankingItems(items), evidenceItemIds: items.map((item) => item.id) },
+        promptInput: { platformLabel: platformLabel(platform), rankingText: formatRankingItems(items) },
         options: { temperature: 0.2, maxTokens: 3_000, taskId: runId, stage: "market_radar", itemKey: `digest_${platform}`, entrypoint: "market_radar" },
       });
       return { platform, ...result.output };
@@ -672,7 +671,6 @@ export class MarketRadarService {
         storyModeCatalogText: formatStoryModeCatalog(storyModeCatalog),
         allowedGenreIds: genreCatalog.map((item) => item.id),
         allowedStoryModeIds: storyModeCatalog.map((item) => item.id),
-        evidenceItemIds: allItems.map((item) => item.id),
         hasComparableHistory: history.hasComparableHistory,
       },
       options: { temperature: 0.2, maxTokens: 6_000, taskId: runId, stage: "market_radar", itemKey: "cross_platform_synthesis", entrypoint: "market_radar" },
@@ -807,7 +805,6 @@ export class MarketRadarService {
     run: { snapshots: Array<{ platform: string; listKey: string; status: string; error: string | null; capturedAt: Date; items: any[] }> };
   }): MarketTrendReport {
     const structured = parseJson<StoredMarketReportData>(report.structuredDataJson, { signals: [] });
-    const evidenceItems = report.run.snapshots.flatMap((snapshot) => snapshot.items.map((item) => toRankingItem({ ...item, snapshot })));
     const successfulSnapshots = report.run.snapshots.filter((snapshot) => snapshot.status === "succeeded" && snapshot.items.length > 0);
     const analyzedLists = structured.analyzedLists?.length
       ? structured.analyzedLists
@@ -825,7 +822,7 @@ export class MarketRadarService {
       analyzedLists, analyzedItemIds: structured.analyzedItemIds,
       productionFoundationCandidate: toMarketFoundationCandidate(structured),
       productionFoundationSync: structured.productionFoundationSync ?? null,
-      platformStatuses, evidenceItems, createdAt: report.createdAt.toISOString(),
+      platformStatuses, createdAt: report.createdAt.toISOString(),
     };
   }
 

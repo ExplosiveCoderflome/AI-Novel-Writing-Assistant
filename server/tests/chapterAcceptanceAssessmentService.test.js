@@ -4,6 +4,8 @@ const assert = require("node:assert/strict");
 const {
   normalizeAssessment,
 } = require("../dist/services/novel/runtime/ChapterAcceptanceAssessmentService.js");
+const { chapterAcceptanceAssessmentPrompt } = require("../dist/prompting/prompts/novel/chapterAcceptance.prompts.js");
+const { chapterWriterPrompt } = require("../dist/prompting/prompts/novel/chapterWriter.prompts.js");
 
 function createAssessment(overrides = {}) {
   return {
@@ -106,4 +108,23 @@ test("normalizeAssessment routes missing obligations to repairable draft obligat
   assert.equal(normalized.status, "repairable");
   assert.equal(normalized.continuePolicy, "repair_once");
   assert.equal(normalized.missingObligations[0].kind, "payoff_touch");
+});
+
+test("writer and acceptance prompts share the prose quality boundary", () => {
+  const writerText = chapterWriterPrompt.render({
+    novelTitle: "测试书",
+    chapterOrder: 1,
+    chapterTitle: "测试章",
+  }, { slots: null, blocks: [], selectedBlockIds: [], droppedBlockIds: [], summarizedBlockIds: [], estimatedInputTokens: 0 }).map((message) => message.content).join("\n");
+  const acceptanceText = chapterAcceptanceAssessmentPrompt.render({
+    novelTitle: "测试书",
+    chapterOrder: 1,
+    chapterTitle: "测试章",
+    content: "测试正文",
+  }, { slots: null, blocks: [], selectedBlockIds: [], droppedBlockIds: [], summarizedBlockIds: [], estimatedInputTokens: 0 }).map((message) => message.content).join("\n");
+
+  assert.match(writerText, /破折号、省略号或连续连字符/);
+  assert.match(writerText, /否定翻转句/);
+  assert.match(acceptanceText, /必须检查破折号、省略号/);
+  assert.match(acceptanceText, /否定翻转句/);
 });

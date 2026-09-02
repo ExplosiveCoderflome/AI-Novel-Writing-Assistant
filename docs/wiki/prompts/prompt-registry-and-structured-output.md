@@ -36,6 +36,7 @@
 - 章节接收闸门、时间线抽取和章节资产抽取都属于高频后台结构化 prompt，示例必须覆盖非空对象数组。`missingObligations`、`hooks/possibleHooks`、资源变化等字段不能只给空数组示例，否则模型在发现真实问题时容易自造字段或把对象压成字符串。
 - 事实抽取类 prompt 不继承创作温度。时间线、章节资产 delta、接收闸门等用于审校或账本写入的调用应在 service 层钳制低温，避免自动导演高创造温度放大 schema drift。
 - JSON repair 日志应保留 `promptId`、`schemaPaths`、`repairAttempt` 和 `validationError`。诊断 repair 率时先按 `promptId + schemaPath` 聚合，判断是 prompt 示例、枚举合同、上下文污染还是模型路由问题。
+- 原生 JSON 格式是接口能力，不是模型名称能力。只有官方直连接口（或未覆盖的官方默认接口）可以按内置 provider profile 启用 `json_schema` / `json_object`；任何自定义或聚合 OpenAI 兼容地址即使模型名带有 `deepseek`、`glm`、`kimi` 等前缀，也必须先使用 `prompt_json`。模型路由连通性检测会实际验证协议与结构化格式，并把验证成功的格式保存为该路由偏好；禁止仅因新增型号或名称别名而把自定义接口升级为原生格式。
 - JSON repair 必须接收目标 JSON Schema，不能只依赖原始校验错误推测字段结构。尤其在原始文本无法解析、`schemaPaths` 为空时，完整 schema 是修复模型恢复必填字段、嵌套对象和枚举合同的唯一可靠依据。
 - repair 不应无限量回放损坏输出。遇到超长重复、乱码或退化内容时，应保留足够的前缀与尾部用于恢复语义，同时压缩中间异常内容，避免损坏文本继续污染修复上下文。
 - 开书灵感、短方向候选这类“小结构、强创作上下文”的任务，通用 JSON repair 可能只恢复字段结构，却丢失用户已选题材、推进方式和方向差异。此类 PromptAsset 应限制采样温度与输出预算、给出完整非空数组示例；原始输出退化或结构损坏时，优先携带原始业务上下文重新执行已注册 Prompt，而不是让无业务上下文的 repair 补造一组新内容。传输错误仍直接返回，不能用内容重试掩盖模型连接问题。

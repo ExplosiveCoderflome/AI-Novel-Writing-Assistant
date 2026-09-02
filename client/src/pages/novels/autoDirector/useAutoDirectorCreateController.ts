@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { buildStyleIntentSummary } from "@ai-novel/shared/types/styleEngine";
 import type { UnifiedTaskDetail } from "@ai-novel/shared/types/task";
+import type { DirectorIssuePolicy } from "@ai-novel/shared/types/directorIssue";
 import {
   DIRECTOR_RUN_MODES,
   buildFullBookAutopilotExecutionPlan,
@@ -26,6 +27,7 @@ import {
 } from "@/api/novelDirector";
 import { queryKeys } from "@/api/queryKeys";
 import { getStyleProfiles } from "@/api/styleEngine";
+import { getAutoDirectorIssuePolicy } from "@/api/settings";
 import { getTaskDetail } from "@/api/tasks";
 import { toast } from "@/components/ui/toast";
 import { isChapterTitleDiversitySummary } from "@/lib/directorTaskNotice";
@@ -123,9 +125,7 @@ export function useAutoDirectorCreateController(input: UseAutoDirectorCreateCont
   const [pendingTitleHint, setPendingTitleHint] = useState("");
   const [executionError, setExecutionError] = useState("");
   const [runMode, setRunMode] = useState<DirectorRunMode>(initialDraft?.runMode ?? DEFAULT_VISIBLE_RUN_MODE);
-  const [worldSetupMode, setWorldSetupMode] = useState<DirectorWorldSetupMode>(
-    initialDraft?.worldSetupMode ?? "auto_generate",
-  );
+  const [worldSetupMode, setWorldSetupMode] = useState<DirectorWorldSetupMode>("auto_generate");
   const [autoExecutionDraft, setAutoExecutionDraft] = useState(() => createDefaultDirectorAutoExecutionDraftState());
   const [selectedStyleProfileId, setSelectedStyleProfileId] = useState(
     initialStyleProfileId || initialDraft?.selectedStyleProfileId || "",
@@ -135,9 +135,19 @@ export function useAutoDirectorCreateController(input: UseAutoDirectorCreateCont
   const [candidatePatchFeedbacks, setCandidatePatchFeedbacks] = useState<Record<string, string>>({});
   const [titlePatchFeedbacks, setTitlePatchFeedbacks] = useState<Record<string, string>>({});
   const [isUpdatingFoundation, setIsUpdatingFoundation] = useState(false);
+  const issuePolicyQuery = useQuery({
+    queryKey: ["settings", "auto-director-issue-policy"],
+    queryFn: getAutoDirectorIssuePolicy,
+    retry: false,
+  });
+  const [issuePolicy, setIssuePolicy] = useState<DirectorIssuePolicy | null>(null);
   const confirmSubmitLockedRef = useRef(false);
   const autoApprovalDraft = useDirectorAutoApprovalDraft(true);
   const { applySnapshot: applyAutoApprovalSnapshot } = autoApprovalDraft;
+
+  useEffect(() => {
+    if (issuePolicyQuery.data?.data) setIssuePolicy(issuePolicyQuery.data.data);
+  }, [issuePolicyQuery.data?.data]);
 
   useEffect(() => {
     if (!workflowTaskIdProp || workflowTaskIdProp === workflowTaskId) {
@@ -179,11 +189,7 @@ export function useAutoDirectorCreateController(input: UseAutoDirectorCreateCont
     if (typeof seedPayload?.styleProfileId === "string") {
       setSelectedStyleProfileId(seedPayload.styleProfileId);
     }
-    if (seedPayload?.worldSetupMode === "skip") {
-      setWorldSetupMode("skip");
-    } else if (!seedPayload?.worldId) {
-      setWorldSetupMode("auto_generate");
-    }
+    setWorldSetupMode("auto_generate");
   }, [applyAutoApprovalSnapshot, restoredTask, workflowTaskId]);
 
   const directorBasicForm = useMemo(
@@ -383,6 +389,9 @@ export function useAutoDirectorCreateController(input: UseAutoDirectorCreateCont
         styleProfileId: selectedStyleProfileId || null,
         styleIntentSummary: selectedStyleSummary ?? null,
         marketBriefId: marketBriefId || null,
+        issueGovernanceVersion: issuePolicy ? 1 : undefined,
+        issuePolicy: issuePolicy ?? undefined,
+        issuePolicySource: "global",
       },
     });
     const taskId = response.data?.id ?? "";
@@ -464,6 +473,9 @@ export function useAutoDirectorCreateController(input: UseAutoDirectorCreateCont
         autoApproval: {
           ...autoApprovalDraft.buildPayload(runMode),
         },
+        issueGovernanceVersion: issuePolicy ? 1 : undefined,
+        issuePolicy: issuePolicy ?? undefined,
+        issuePolicySource: "novel",
       });
       return {
         command: response.data ?? null,
@@ -698,6 +710,9 @@ export function useAutoDirectorCreateController(input: UseAutoDirectorCreateCont
     titlePatchFeedbacks,
     setTitlePatchFeedbacks,
     isUpdatingFoundation,
+    issuePolicy,
+    issuePolicyLoading: issuePolicyQuery.isLoading,
+    setIssuePolicy,
     updateProductionFoundation,
     canGenerate,
     generateMutation,

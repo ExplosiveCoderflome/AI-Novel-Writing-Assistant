@@ -10,7 +10,6 @@ import {
 interface PlatformDigestInput {
   platformLabel: string;
   rankingText: string;
-  evidenceItemIds: string[];
 }
 
 interface TrendReportInput {
@@ -20,7 +19,6 @@ interface TrendReportInput {
   storyModeCatalogText: string;
   allowedGenreIds: string[];
   allowedStoryModeIds: string[];
-  evidenceItemIds: string[];
   hasComparableHistory: boolean;
 }
 
@@ -32,7 +30,7 @@ interface CreativeBriefInput {
 const analystSystem = [
   "你是中文网络文学市场分析师。只分析输入中的公开榜单元数据，不补写作品正文，不假装知道未提供的信息。",
   "语义分类、套路归纳和机会判断必须由你完成；不能只按标题关键词机械计数。",
-  "所有结论都必须引用输入中存在的 evidenceItemIds。不得捏造作品、人名、数据或证据ID。",
+  "只根据输入中的公开榜单元数据归纳热门题材和市场信号；对输入未提供的信息不要臆测。",
   "重点分析：热门题材组合、主角身份、金手指机制、开篇危机、关系卖点、标题句式、拥挤套路和差异化机会。",
   "输入有新书榜或新晋作者榜时只分析这些新书证据；成熟榜单只会在没有可用新书榜时作为回退数据。",
   "kind 只能使用 genre、protagonist、advantage、opening、relationship、title_pattern、opportunity、crowding；不得创造近义枚举值。",
@@ -59,13 +57,8 @@ export const marketPlatformDigestPrompt: PromptAsset<PlatformDigestInput, z.infe
       input.rankingText,
     ].join("\n")),
   ],
-  postValidate: (output, input) => {
-    const allowed = new Set(input.evidenceItemIds);
-    if (output.signals.some((signal) => signal.evidenceItemIds.some((id) => !allowed.has(id)))) {
-      throw new Error("平台榜单归纳引用了不存在的证据。");
-    }
-    return output;
-  },
+  postValidate: (output) => output,
+  semanticRetryPolicy: { maxAttempts: 1 },
 };
 
 export const marketTrendSynthesisPrompt: PromptAsset<TrendReportInput, z.infer<typeof marketTrendReportSchema>> = {
@@ -105,20 +98,8 @@ export const marketTrendSynthesisPrompt: PromptAsset<TrendReportInput, z.infer<t
     ].join("\n")),
   ],
   postValidate: (output, input) => {
-    const allowed = new Set(input.evidenceItemIds);
     if (!input.hasComparableHistory && output.signals.some((signal) => signal.direction !== "current")) {
       throw new Error("没有历史快照时不能声称趋势变化。");
-    }
-    if (output.signals.some((signal) => signal.evidenceItemIds.some((id) => !allowed.has(id)))) {
-      throw new Error("跨平台分析引用了不存在的证据。");
-    }
-    const foundationAssets = [
-      output.productionFoundation.genre,
-      output.productionFoundation.primaryStoryMode,
-      output.productionFoundation.secondaryStoryMode,
-    ].filter(Boolean);
-    if (foundationAssets.some((asset) => asset!.evidenceItemIds.some((id) => !allowed.has(id)))) {
-      throw new Error("生产底座推荐引用了不存在的证据。");
     }
     if (
       output.productionFoundation.genre.existingId
@@ -134,6 +115,7 @@ export const marketTrendSynthesisPrompt: PromptAsset<TrendReportInput, z.infer<t
     }
     return output;
   },
+  semanticRetryPolicy: { maxAttempts: 1 },
 };
 
 export const marketCreativeBriefPrompt: PromptAsset<CreativeBriefInput, z.infer<typeof marketCreativeBriefSchema>> = {

@@ -3,6 +3,7 @@ import { z } from "zod";
 import type { PromptAsset } from "../../core/promptTypes";
 import { renderSelectedContextBlocks } from "../../core/renderContextBlocks";
 import { NOVEL_PROMPT_BUDGETS } from "./promptBudgetProfiles";
+import { CHAPTER_PROSE_QUALITY_AUDIT_RULES } from "@ai-novel/shared/types/chapterProseContract";
 
 export const chapterAcceptanceIssueCategorySchema = z.enum([
   "continuity",
@@ -344,6 +345,8 @@ export const chapterAcceptanceAssessmentPrompt: PromptAsset<
       "15. status 只能使用 accepted、repairable、needs_manual_review、continue_with_risk；不得输出 acceptable、pass、passed、ok、approved 等别名。",
       "16. reader_experience 是本章读者体验合同。检查 promisedReward 是否在正文中可见、主角是否围绕 protagonistWant 主动行动并遭遇 primaryResistance、keyTurn 与 netChange 是否成立、inheritedHookResponsibilities 是否得到回应，以及 endingHook 是否产生追读力。",
       "17. 普通读者体验缺口应输出可执行的 blockingIssues / repairDirectives，并优先使用 repairable 或 continue_with_risk；不得仅因爽点、钩子或情绪强度不足升级为 needs_manual_review 或全局重规划。",
+      "正文退化检测边界：",
+      ...CHAPTER_PROSE_QUALITY_AUDIT_RULES.map((rule, index) => `${index + 1}. ${rule}`),
     ].join("\n")),
     new HumanMessage([
       `小说：${input.novelTitle}`,

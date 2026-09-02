@@ -36,7 +36,7 @@ function normalizeQualityMode(mode?: ChapterTaskSheetQualityMode): ChapterTaskSh
 }
 
 function ensureFailureResult(result: ChapterTaskSheetQualityGateResult): ChapterTaskSheetQualityGateResult {
-  if (!result.canEnterExecution) {
+  if (!result.canEnterExecution || result.status !== "passed") {
     return result;
   }
   return {

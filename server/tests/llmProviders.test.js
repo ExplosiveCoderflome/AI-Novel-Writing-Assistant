@@ -82,10 +82,10 @@ test("structured output profiles distinguish official, ModelScope Qwen and unkno
     baseURL: "https://aiproxy.example.com/v1",
     executionMode: "structured",
   });
-  assert.equal(glmBehindProxyProfile.family, "glm");
+  assert.equal(glmBehindProxyProfile.family, "default");
   assert.equal(glmBehindProxyProfile.nativeJsonSchema, false);
-  assert.equal(glmBehindProxyProfile.nativeJsonObject, true);
-  assert.equal(selectStructuredOutputStrategy(glmBehindProxyProfile, schema), "json_object");
+  assert.equal(glmBehindProxyProfile.nativeJsonObject, false);
+  assert.equal(selectStructuredOutputStrategy(glmBehindProxyProfile, schema), "prompt_json");
 
   const kimiBehindProxyProfile = resolveStructuredOutputProfile({
     provider: "openai",
@@ -93,10 +93,10 @@ test("structured output profiles distinguish official, ModelScope Qwen and unkno
     baseURL: "https://aiproxy.example.com/v1",
     executionMode: "structured",
   });
-  assert.equal(kimiBehindProxyProfile.family, "kimi");
+  assert.equal(kimiBehindProxyProfile.family, "default");
   assert.equal(kimiBehindProxyProfile.nativeJsonSchema, false);
-  assert.equal(kimiBehindProxyProfile.nativeJsonObject, true);
-  assert.equal(selectStructuredOutputStrategy(kimiBehindProxyProfile, schema), "json_object");
+  assert.equal(kimiBehindProxyProfile.nativeJsonObject, false);
+  assert.equal(selectStructuredOutputStrategy(kimiBehindProxyProfile, schema), "prompt_json");
 
   const minimaxBehindProxyProfile = resolveStructuredOutputProfile({
     provider: "openai",
@@ -104,7 +104,7 @@ test("structured output profiles distinguish official, ModelScope Qwen and unkno
     baseURL: "https://aiproxy.example.com/v1",
     executionMode: "structured",
   });
-  assert.equal(minimaxBehindProxyProfile.family, "minimax");
+  assert.equal(minimaxBehindProxyProfile.family, "default");
   assert.equal(minimaxBehindProxyProfile.nativeJsonSchema, false);
   assert.equal(selectStructuredOutputStrategy(minimaxBehindProxyProfile, schema), "prompt_json");
 
@@ -124,9 +124,10 @@ test("structured output profiles distinguish official, ModelScope Qwen and unkno
     baseURL: "https://aiproxy.example.com/v1",
     executionMode: "structured",
   });
-  assert.equal(deepseekBehindProxyProfile.family, "deepseek");
+  assert.equal(deepseekBehindProxyProfile.family, "default");
   assert.equal(deepseekBehindProxyProfile.nativeJsonSchema, false);
-  assert.equal(selectStructuredOutputStrategy(deepseekBehindProxyProfile, schema), "json_object");
+  assert.equal(deepseekBehindProxyProfile.nativeJsonObject, false);
+  assert.equal(selectStructuredOutputStrategy(deepseekBehindProxyProfile, schema), "prompt_json");
 
   const deepseekFlashProfile = resolveStructuredOutputProfile({
     provider: "deepseek",
@@ -207,6 +208,25 @@ test("structured output profiles distinguish official, ModelScope Qwen and unkno
   assert.equal(customProfile.family, "custom_openai_compatible");
   assert.equal(customProfile.nativeJsonObject, false);
   assert.equal(customProfile.preferredStructuredStrategy, "prompt_json");
+
+  const customDeepSeekProfile = resolveStructuredOutputProfile({
+    provider: "custom_ooioo",
+    model: "deepseek-v4-flash-0731-fast",
+    baseURL: "https://ooioo.work/v1",
+    executionMode: "structured",
+  });
+  assert.equal(customDeepSeekProfile.family, "custom_openai_compatible");
+  assert.equal(customDeepSeekProfile.nativeJsonObject, false);
+  assert.equal(selectStructuredOutputStrategy(customDeepSeekProfile, schema), "prompt_json");
+
+  const directDeepSeekThroughCustomProvider = resolveStructuredOutputProfile({
+    provider: "custom_ooioo",
+    model: "deepseek-v4-flash",
+    baseURL: "https://api.deepseek.com/v1",
+    executionMode: "structured",
+  });
+  assert.equal(directDeepSeekThroughCustomProvider.family, "deepseek");
+  assert.equal(selectStructuredOutputStrategy(directDeepSeekThroughCustomProvider, schema), "json_object");
 });
 
 test("resolveLLMClientOptions applies structured reasoning and token guardrails", async () => {
