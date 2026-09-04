@@ -1,4 +1,4 @@
-import type { LLMProvider } from "@ai-novel/shared/types/llm";
+import type { LLMProvider, ProviderAuthMode } from "@ai-novel/shared/types/llm";
 import {
   isBuiltInProvider,
   providerRequiresApiKey,
@@ -14,6 +14,7 @@ interface ModelCacheItem {
 interface GetProviderModelsOptions {
   apiKey?: string;
   baseURL?: string;
+  authMode?: ProviderAuthMode;
   forceRefresh?: boolean;
   allowAnonymous?: boolean;
   fallbackModel?: string;
@@ -135,7 +136,11 @@ async function fetchJson(url: string, init: RequestInit): Promise<unknown> {
   }
 }
 
-function buildHeaders(provider: LLMProvider, apiKey?: string): Record<string, string> {
+export function buildProviderModelHeaders(
+  provider: LLMProvider,
+  apiKey?: string,
+  authMode: ProviderAuthMode = "bearer",
+): Record<string, string> {
   const headers: Record<string, string> = {
     Accept: "application/json",
   };
@@ -150,8 +155,26 @@ function buildHeaders(provider: LLMProvider, apiKey?: string): Record<string, st
     return headers;
   }
 
+  if (!isBuiltInProvider(provider) && authMode === "none") {
+    return headers;
+  }
+
+  if (!isBuiltInProvider(provider) && authMode === "x-api-key") {
+    headers["x-api-key"] = apiKey;
+    return headers;
+  }
+
   headers.Authorization = `Bearer ${apiKey}`;
   return headers;
+}
+
+export function resolveModelsEndpoint(baseURL: string): string {
+  const endpoint = new URL(baseURL);
+  const normalizedPath = endpoint.pathname.replace(/\/+$/, "");
+  endpoint.pathname = normalizedPath.endsWith("/models")
+    ? normalizedPath
+    : `${normalizedPath}/models`;
+  return endpoint.toString();
 }
 
 async function fetchOllamaModels(baseURL: string): Promise<string[]> {
@@ -172,7 +195,7 @@ async function fetchOllamaModels(baseURL: string): Promise<string[]> {
     // Fall back to the OpenAI-compatible models endpoint.
   }
 
-  const payload = await fetchJson(`${baseURL}/models`, {
+  const payload = await fetchJson(resolveModelsEndpoint(baseURL), {
     method: "GET",
     headers: {
       Accept: "application/json",
@@ -189,6 +212,7 @@ async function fetchProviderModels(
   provider: LLMProvider,
   apiKey?: string,
   customBaseURL?: string,
+  authMode?: ProviderAuthMode,
 ): Promise<string[]> {
   const baseURL = resolveProviderBaseUrl(provider, customBaseURL, customBaseURL);
   if (!baseURL) {
@@ -198,9 +222,9 @@ async function fetchProviderModels(
     return fetchOllamaModels(baseURL);
   }
 
-  const payload = await fetchJson(`${baseURL}/models`, {
+  const payload = await fetchJson(resolveModelsEndpoint(baseURL), {
     method: "GET",
-    headers: buildHeaders(provider, apiKey),
+    headers: buildProviderModelHeaders(provider, apiKey, authMode),
   });
 
   const models = parseModelIds(payload);
@@ -230,7 +254,7 @@ export async function getProviderModels(
   }
 
   try {
-    const models = await fetchProviderModels(provider, normalizedApiKey, options.baseURL);
+    const models = await fetchProviderModels(provider, normalizedApiKey, options.baseURL, options.authMode);
     return models.length > 0 ? setCachedModels(provider, models, options.baseURL) : fallback;
   } catch {
     const cached = getCachedModels(provider, options.baseURL);
@@ -245,7 +269,8 @@ export async function refreshProviderModels(
   provider: LLMProvider,
   apiKey?: string,
   baseURL?: string,
+  authMode?: ProviderAuthMode,
 ): Promise<string[]> {
-  const models = await fetchProviderModels(provider, apiKey?.trim(), baseURL);
+  const models = await fetchProviderModels(provider, apiKey?.trim(), baseURL, authMode);
   return setCachedModels(provider, models, baseURL);
 }

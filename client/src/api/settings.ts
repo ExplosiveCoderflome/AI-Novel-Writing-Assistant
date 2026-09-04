@@ -3,7 +3,7 @@ import type {
   DirectorAutoApprovalPreferenceSettings,
 } from "@ai-novel/shared/types/autoDirectorApproval";
 import type { DirectorIssuePolicy } from "@ai-novel/shared/types/directorIssue";
-import type { LLMProvider, ReasoningEffort } from "@ai-novel/shared/types/llm";
+import type { LLMProvider, ProviderAuthMode, ReasoningEffort } from "@ai-novel/shared/types/llm";
 import type {
   ModelRouteConfig,
   ModelRouteRequestProtocol,
@@ -22,6 +22,7 @@ export interface APIKeyStatus {
   currentModel: string;
   currentImageModel: string | null;
   currentBaseURL: string;
+  currentAuthMode: ProviderAuthMode;
   models: string[];
   imageModels: string[];
   defaultModel: string;
@@ -330,6 +331,7 @@ export async function saveAPIKeySetting(
     model?: string;
     imageModel?: string;
     baseURL?: string;
+    authMode?: ProviderAuthMode;
     isActive?: boolean;
     reasoningEnabled?: boolean;
     reasoningEffort?: ReasoningEffort;
@@ -366,6 +368,7 @@ export async function createCustomProvider(payload: {
   model?: string;
   imageModel?: string;
   baseURL: string;
+  authMode?: ProviderAuthMode;
   isActive?: boolean;
   reasoningEnabled?: boolean;
   reasoningEffort?: ReasoningEffort;
@@ -397,6 +400,7 @@ export async function createCustomProvider(payload: {
 export async function previewCustomProviderModels(payload: {
   key?: string;
   baseURL: string;
+  authMode?: ProviderAuthMode;
 }) {
   const { data } = await apiClient.post<
     ApiResponse<{
@@ -519,6 +523,7 @@ export async function testLLMConnection(payload: {
   apiKey?: string;
   model?: string;
   baseURL?: string;
+  authMode?: ProviderAuthMode;
   probeMode?: "plain" | "structured" | "both";
 }) {
   const { data } = await apiClient.post<

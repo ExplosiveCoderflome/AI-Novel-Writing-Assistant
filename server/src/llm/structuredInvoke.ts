@@ -1,7 +1,7 @@
 import type { ZodType } from "zod";
 import { HumanMessage, SystemMessage } from "@langchain/core/messages";
 import type { BaseMessage } from "@langchain/core/messages";
-import type { LLMProvider } from "@ai-novel/shared/types/llm";
+import type { LLMProvider, ProviderAuthMode } from "@ai-novel/shared/types/llm";
 import type { TaskType } from "./modelRouter";
 import type { ModelRouteRequestProtocol } from "@ai-novel/shared/types/novel";
 import {
@@ -52,6 +52,7 @@ export interface StructuredInvokeInput<T> {
   model?: string;
   apiKey?: string;
   baseURL?: string;
+  authMode?: ProviderAuthMode;
   temperature?: number;
   maxTokens?: number;
   timeoutMs?: number;
@@ -70,6 +71,7 @@ interface StructuredAttemptTarget {
   model: string;
   apiKey?: string;
   baseURL?: string;
+  authMode?: ProviderAuthMode;
   temperature: number;
   maxTokens?: number;
   profile: StructuredOutputProfile;
@@ -124,6 +126,7 @@ async function resolveAttemptTarget(input: {
   model?: string;
   apiKey?: string;
   baseURL?: string;
+  authMode?: ProviderAuthMode;
   temperature?: number;
   maxTokens?: number;
   taskType?: TaskType;
@@ -141,6 +144,7 @@ async function resolveAttemptTarget(input: {
     fallbackProvider: "deepseek",
     apiKey: input.apiKey,
     baseURL: input.baseURL,
+    authMode: input.authMode,
     model: input.model,
     temperature: input.temperature,
     maxTokens: input.maxTokens,
@@ -159,6 +163,7 @@ async function resolveAttemptTarget(input: {
     model: resolved.model,
     apiKey: input.apiKey,
     baseURL: resolved.baseURL,
+    authMode: resolved.authMode,
     temperature: resolved.temperature,
     maxTokens: resolved.maxTokens,
     requestProtocol: resolved.requestProtocol,
@@ -186,6 +191,7 @@ async function invokeStructuredAttempt<T>(input: {
     fallbackProvider: "deepseek",
     apiKey: input.target.apiKey,
     baseURL: input.target.baseURL,
+    authMode: input.target.authMode,
     model: input.target.model,
     temperature: attemptTemperature,
     maxTokens: input.target.maxTokens,
@@ -386,6 +392,7 @@ export async function invokeStructuredLlmDetailed<T>(input: StructuredInvokeInpu
     model: input.model,
     apiKey: input.apiKey,
     baseURL: input.baseURL,
+    authMode: input.authMode,
     temperature: input.temperature ?? 0.3,
     maxTokens: input.maxTokens,
     taskType: input.taskType ?? "planner",

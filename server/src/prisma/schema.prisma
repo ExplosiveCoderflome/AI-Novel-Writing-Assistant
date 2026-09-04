@@ -1796,6 +1796,7 @@ model APIKey {
   key       String?
   model     String?
   baseURL   String?
+  authMode String @default("bearer")
   isActive  Boolean  @default(true)
   reasoningEnabled Boolean @default(true)
   reasoningEffort String?
