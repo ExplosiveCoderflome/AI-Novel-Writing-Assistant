@@ -307,6 +307,10 @@ async function invokeStructuredAttempt<T>(input: {
       fallbackUsed: input.fallbackUsed,
       reasoningForcedOff: resolved.reasoningForcedOff,
     });
+    liveSession.usage(parsed.tokenUsage ? {
+      ...parsed.tokenUsage,
+      reasoningTokens: parsed.tokenUsage.reasoningTokens ?? null,
+    } : null);
     liveSession.complete();
     return parsed;
   } catch (error) {

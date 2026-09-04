@@ -30,6 +30,13 @@ export interface LlmLiveContext {
   promptText?: string | null;
 }
 
+export interface LlmLiveTokenUsage {
+  promptTokens: number;
+  completionTokens: number;
+  reasoningTokens: number | null;
+  totalTokens: number;
+}
+
 export type LlmLiveEvent =
   | {
     type: "session_started";
@@ -62,6 +69,13 @@ export type LlmLiveEvent =
     message: string;
   }
   | {
+    type: "usage_updated";
+    seq: number;
+    at: string;
+    interactionId: string;
+    tokenUsage: LlmLiveTokenUsage;
+  }
+  | {
     type: "session_completed";
     seq: number;
     at: string;
@@ -86,6 +100,8 @@ export interface LlmLiveSessionSnapshot {
   totalChars: number;
   reasoning: string;
   totalReasoningChars: number;
+  firstResponseAt?: string | null;
+  tokenUsage?: LlmLiveTokenUsage | null;
   startedAt: string;
   updatedAt: string;
   completedAt?: string | null;

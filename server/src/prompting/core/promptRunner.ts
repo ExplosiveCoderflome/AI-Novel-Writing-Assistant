@@ -909,6 +909,10 @@ export async function runTextPrompt<I>(input: {
       context: prepared.context,
       rawOutput,
     });
+    liveSession.usage(tokenUsage ? {
+      ...tokenUsage,
+      reasoningTokens: tokenUsage.reasoningTokens ?? null,
+    } : null);
     liveSession.complete();
     return buildPromptRunResult({
       asset: input.asset as PromptAsset<unknown, unknown, unknown>,
@@ -1025,6 +1029,7 @@ export async function streamTextPrompt<I>(input: {
         context: prepared.context,
         rawOutput: content,
       });
+      const tokenUsage = await captured.completedUsage.catch(() => null);
       const result = buildPromptRunResult({
         asset: input.asset as PromptAsset<unknown, unknown, unknown>,
         output,
@@ -1042,8 +1047,12 @@ export async function streamTextPrompt<I>(input: {
           input.options,
         ),
         renderedPromptChars,
-        tokenUsage: await captured.completedUsage.catch(() => null),
+        tokenUsage,
       });
+      liveSession.usage(tokenUsage ? {
+        ...tokenUsage,
+        reasoningTokens: tokenUsage.reasoningTokens ?? null,
+      } : null);
       liveSession.complete();
       return result;
     }).catch((error) => {
@@ -1189,6 +1198,7 @@ export async function streamStructuredPrompt<I, O, R = O>(input: {
         initialResult: parsed,
         options: input.options,
       });
+      const tokenUsage = await captured.completedUsage.catch(() => null);
       const result = buildPromptRunResult({
         asset: input.asset as PromptAsset<unknown, unknown, unknown>,
         output: resolved.output,
@@ -1198,9 +1208,13 @@ export async function streamStructuredPrompt<I, O, R = O>(input: {
         latencyMs: Date.now() - startedAt,
         invocation: resolved.invocation,
         renderedPromptChars,
-        tokenUsage: await captured.completedUsage.catch(() => null),
+        tokenUsage,
         postValidateFailureRecovered: resolved.postValidateFailureRecovered,
       });
+      liveSession.usage(tokenUsage ? {
+        ...tokenUsage,
+        reasoningTokens: tokenUsage.reasoningTokens ?? null,
+      } : null);
       liveSession.complete();
       return result;
     }).catch((error) => {
