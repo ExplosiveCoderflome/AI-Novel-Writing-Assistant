@@ -10,6 +10,7 @@ export const LLM_PROVIDERS = [
   "qwen",
   "gemini",
   "ollama",
+  "atlascloud",
 ] as const;
 
 export type BuiltinLLMProvider = typeof LLM_PROVIDERS[number];
