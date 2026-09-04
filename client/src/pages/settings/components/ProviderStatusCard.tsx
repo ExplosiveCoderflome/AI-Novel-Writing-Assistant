@@ -201,8 +201,8 @@ export default function ProviderStatusCard(props: {
               <div className="text-xs font-medium text-muted-foreground">思考功能</div>
               <div className={`text-xs text-muted-foreground ${AUTO_DIRECTOR_MOBILE_CLASSES.wrapText}`}>
                 {provider.reasoningEnabled
-                  ? "创作请求会启用模型思考；结构化任务会优先保证输出稳定。"
-                  : "当前会隐藏思考内容；MiniMax 会自动清洗正文里的 thinking 内容。"}
+                  ? "创作请求会启用模型思考；厂商返回的思考内容会显示在 AI 实况中。"
+                  : "创作请求会要求关闭思考；厂商仍返回的思考内容会保留在 AI 实况中。"}
               </div>
             </div>
             {provider.supportsReasoningEffort ? (

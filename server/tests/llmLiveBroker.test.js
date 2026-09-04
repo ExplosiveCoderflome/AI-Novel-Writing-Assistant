@@ -16,6 +16,7 @@ test("LLM 实况会话按任务发布片段并保留最新快照", () => {
     taskId: "task-1",
   });
   session.phase("streaming", "模型正在返回内容");
+  session.reasoning("先检查任务");
   session.delta("第一段");
   session.delta("第二段");
   session.complete();
@@ -26,14 +27,16 @@ test("LLM 实况会话按任务发布片段并保留最新快照", () => {
   assert.equal(taskTwoEvents.length, 0);
   assert.deepEqual(
     taskOneEvents.map((event) => event.type),
-    ["session_started", "phase_changed", "output_delta", "output_delta", "phase_changed", "session_completed"],
+    ["session_started", "phase_changed", "reasoning_delta", "output_delta", "output_delta", "phase_changed", "session_completed"],
   );
   assert.deepEqual(
     taskOneEvents.map((event) => event.seq),
-    [1, 2, 3, 4, 5, 6],
+    [1, 2, 3, 4, 5, 6, 7],
   );
   const [snapshot] = broker.getSnapshots({ taskId: "task-1" });
   assert.equal(snapshot.preview, "第一段第二段");
   assert.equal(snapshot.totalChars, 6);
+  assert.equal(snapshot.reasoning, "先检查任务");
+  assert.equal(snapshot.totalReasoningChars, 5);
   assert.equal(snapshot.phase, "completed");
 });

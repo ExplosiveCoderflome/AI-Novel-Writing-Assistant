@@ -36,6 +36,8 @@ export class LlmLiveBroker {
       phaseMessage: "正在连接模型",
       preview: "",
       totalChars: 0,
+      reasoning: "",
+      totalReasoningChars: 0,
       startedAt: now.toISOString(),
       updatedAt: now.toISOString(),
       completedAt: null,
@@ -129,6 +131,35 @@ export class LlmLiveBroker {
       interactionId,
       content,
       totalChars: record.snapshot.totalChars,
+    });
+  }
+
+  appendReasoning(interactionId: string, content: string): void {
+    if (!content) {
+      return;
+    }
+    const record = this.sessions.get(interactionId);
+    if (!record) {
+      return;
+    }
+    const now = new Date().toISOString();
+    const seq = this.nextSequence();
+    record.snapshot = {
+      ...record.snapshot,
+      seq,
+      phase: record.snapshot.phase === "requesting" ? "streaming" : record.snapshot.phase,
+      phaseMessage: record.snapshot.phase === "requesting" ? "模型正在思考" : record.snapshot.phaseMessage,
+      reasoning: record.snapshot.reasoning + content,
+      totalReasoningChars: record.snapshot.totalReasoningChars + content.length,
+      updatedAt: now,
+    };
+    this.publish({
+      type: "reasoning_delta",
+      seq,
+      at: now,
+      interactionId,
+      content,
+      totalReasoningChars: record.snapshot.totalReasoningChars,
     });
   }
 
@@ -239,6 +270,10 @@ export class LlmLiveSession {
 
   delta(content: string): void {
     this.broker.appendDelta(this.interactionId, content);
+  }
+
+  reasoning(content: string): void {
+    this.broker.appendReasoning(this.interactionId, content);
   }
 
   phase(phase: LlmLivePhase, message: string): void {

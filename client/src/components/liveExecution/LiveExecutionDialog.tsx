@@ -341,6 +341,13 @@ export default function LiveExecutionDialog(props: LiveExecutionDialogProps) {
                     <span className="shrink-0 text-emerald-100/55">{phaseLabel(latestSession.phase)}</span>
                   </div>
                   <div className="mb-1 truncate text-[11px] text-emerald-100/45">{latestSession.phaseMessage}</div>
+                  {latestSession.reasoning ? (
+                    <>
+                      <div className="mt-2 text-[11px] font-semibold text-amber-200/80">思考过程</div>
+                      <pre className="m-0 whitespace-pre-wrap break-words text-amber-100/80">{latestSession.reasoning}</pre>
+                      <div className="mt-2 text-[11px] font-semibold text-emerald-200/80">生成内容</div>
+                    </>
+                  ) : null}
                   <pre className="m-0 whitespace-pre-wrap break-words text-emerald-100/90">{latestPreview}</pre>
                 </section>
               ) : orderedSessions.length > 0 ? (
@@ -385,6 +392,15 @@ export default function LiveExecutionDialog(props: LiveExecutionDialogProps) {
                                 ) : null}
                               </div>
                             ) : null}
+                            {session.reasoning ? (
+                              <div className="mb-3 border-l-2 border-amber-300/35 pl-3">
+                                <div className="mb-1 text-[11px] font-semibold text-amber-200/80">
+                                  思考过程 · {session.totalReasoningChars.toLocaleString()} 字符
+                                </div>
+                                <pre className="m-0 whitespace-pre-wrap break-words text-amber-100/80">{session.reasoning}</pre>
+                              </div>
+                            ) : null}
+                            {session.reasoning ? <div className="mb-1 text-[11px] font-semibold text-emerald-200/80">生成内容</div> : null}
                             <pre className="m-0 whitespace-pre-wrap break-words text-emerald-100">{session.preview || "等待模型开始返回内容…"}</pre>
                           </div>
                         ) : null}

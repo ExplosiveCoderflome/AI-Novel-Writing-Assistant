@@ -21,6 +21,8 @@ function updateSession(
       phaseMessage: "正在连接模型",
       preview: "",
       totalChars: 0,
+      reasoning: "",
+      totalReasoningChars: 0,
       startedAt: event.at,
       updatedAt: event.at,
       completedAt: null,
@@ -38,6 +40,17 @@ function updateSession(
       phaseMessage: current.phase === "requesting" ? "模型正在返回内容" : current.phaseMessage,
       preview: preview.length > MAX_PREVIEW_CHARS ? preview.slice(-MAX_PREVIEW_CHARS) : preview,
       totalChars: event.totalChars,
+      updatedAt: event.at,
+    };
+  }
+  if (event.type === "reasoning_delta") {
+    return {
+      ...current,
+      seq: event.seq,
+      phase: current.phase === "requesting" ? "streaming" : current.phase,
+      phaseMessage: current.phase === "requesting" ? "模型正在思考" : current.phaseMessage,
+      reasoning: current.reasoning + event.content,
+      totalReasoningChars: event.totalReasoningChars,
       updatedAt: event.at,
     };
   }

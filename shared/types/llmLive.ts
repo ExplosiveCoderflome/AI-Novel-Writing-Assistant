@@ -46,6 +46,14 @@ export type LlmLiveEvent =
     totalChars: number;
   }
   | {
+    type: "reasoning_delta";
+    seq: number;
+    at: string;
+    interactionId: string;
+    content: string;
+    totalReasoningChars: number;
+  }
+  | {
     type: "phase_changed";
     seq: number;
     at: string;
@@ -76,6 +84,8 @@ export interface LlmLiveSessionSnapshot {
   phaseMessage: string;
   preview: string;
   totalChars: number;
+  reasoning: string;
+  totalReasoningChars: number;
   startedAt: string;
   updatedAt: string;
   completedAt?: string | null;

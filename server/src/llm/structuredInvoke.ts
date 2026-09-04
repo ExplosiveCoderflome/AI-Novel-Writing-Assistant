@@ -35,6 +35,7 @@ import {
 } from "./structuredInvokeParser";
 import { toText } from "../services/novel/novelP0Utils";
 import type { PromptInvocationMeta } from "../prompting/core/promptTypes";
+import { ReasoningStreamCollector } from "./reasoning";
 
 export {
   parseStructuredLlmRawContentDetailed,
@@ -249,12 +250,15 @@ async function invokeStructuredAttempt<T>(input: {
         );
         let rawContent = "";
         let tokenUsage = null;
+        const reasoningCollector = new ReasoningStreamCollector();
         for await (const chunk of stream) {
           const content = toText(chunk.content);
+          liveSession.reasoning(reasoningCollector.push(chunk, content));
           rawContent += content;
           liveSession.delta(content);
           tokenUsage = mergeStreamTokenUsage(tokenUsage, extractLlmTokenUsage(chunk));
         }
+        liveSession.reasoning(reasoningCollector.flush());
         return { rawContent, tokenUsage };
       },
     });
