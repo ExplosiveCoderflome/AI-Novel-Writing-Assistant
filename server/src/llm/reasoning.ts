@@ -318,3 +318,23 @@ export class ThinkTagStreamFilter {
     };
   }
 }
+
+export class ReasoningStreamCollector {
+  private readonly thinkFilter = new ThinkTagStreamFilter();
+
+  private miniMaxReasoningBuffer = "";
+
+  push(chunk: BaseMessageChunk, text: string): string {
+    const rawResponse = (chunk.additional_kwargs as { __raw_response?: unknown } | undefined)
+      ?.__raw_response;
+    const rawReasoning = extractMiniMaxRawStreamData(rawResponse).reasoningBuffer;
+    const normalized = diffAccumulatedText(this.miniMaxReasoningBuffer, rawReasoning);
+    this.miniMaxReasoningBuffer = normalized.nextBuffer;
+    const direct = normalized.delta || extractReasoningTextFromChunk(chunk);
+    return uniqueJoinedText([direct, this.thinkFilter.push(text).reasoning]);
+  }
+
+  flush(): string {
+    return this.thinkFilter.flush().reasoning;
+  }
+}

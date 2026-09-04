@@ -7,7 +7,22 @@ const {
   getModelParameterCompatibility,
   resolveModelTemperature,
 } = require("../dist/llm/capabilities.js");
-const { resolveLLMClientOptions, setProviderSecretCache } = require("../dist/llm/factory.js");
+const {
+  buildOpenAICompatibleDefaultHeaders,
+  resolveLLMClientOptions,
+  setProviderSecretCache,
+} = require("../dist/llm/factory.js");
+
+test("custom provider auth mode replaces the SDK bearer header when requested", () => {
+  assert.equal(buildOpenAICompatibleDefaultHeaders("bearer", "secret"), undefined);
+  assert.deepEqual(buildOpenAICompatibleDefaultHeaders("x-api-key", "secret"), {
+    Authorization: null,
+    "x-api-key": "secret",
+  });
+  assert.deepEqual(buildOpenAICompatibleDefaultHeaders("none", "secret"), {
+    Authorization: null,
+  });
+});
 const {
   classifyStructuredOutputFailure,
   resolveStructuredOutputProfile,

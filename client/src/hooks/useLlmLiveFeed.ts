@@ -5,6 +5,12 @@ import type {
   LlmLiveStreamFrame,
 } from "@ai-novel/shared/types/llmLive";
 import { API_BASE_URL } from "@/lib/constants";
+import {
+  clearLlmLiveCache,
+  llmLiveCacheKey,
+  loadLlmLiveCache,
+  saveLlmLiveCache,
+} from "@/lib/storage/llmLiveCache";
 
 const MAX_PREVIEW_CHARS = 16_000;
 const RECONNECT_DELAY_MS = 2_000;
@@ -21,6 +27,10 @@ function updateSession(
       phaseMessage: "正在连接模型",
       preview: "",
       totalChars: 0,
+      reasoning: "",
+      totalReasoningChars: 0,
+      firstResponseAt: null,
+      tokenUsage: null,
       startedAt: event.at,
       updatedAt: event.at,
       completedAt: null,
@@ -38,6 +48,27 @@ function updateSession(
       phaseMessage: current.phase === "requesting" ? "模型正在返回内容" : current.phaseMessage,
       preview: preview.length > MAX_PREVIEW_CHARS ? preview.slice(-MAX_PREVIEW_CHARS) : preview,
       totalChars: event.totalChars,
+      firstResponseAt: current.firstResponseAt ?? event.at,
+      updatedAt: event.at,
+    };
+  }
+  if (event.type === "reasoning_delta") {
+    return {
+      ...current,
+      seq: event.seq,
+      phase: current.phase === "requesting" ? "streaming" : current.phase,
+      phaseMessage: current.phase === "requesting" ? "模型正在思考" : current.phaseMessage,
+      reasoning: current.reasoning + event.content,
+      totalReasoningChars: event.totalReasoningChars,
+      firstResponseAt: current.firstResponseAt ?? event.at,
+      updatedAt: event.at,
+    };
+  }
+  if (event.type === "usage_updated") {
+    return {
+      ...current,
+      seq: event.seq,
+      tokenUsage: event.tokenUsage,
       updatedAt: event.at,
     };
   }
@@ -83,9 +114,12 @@ export function useLlmLiveFeed(input: {
   const pendingFramesRef = useRef<LlmLiveStreamFrame[]>([]);
   const flushTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const hiddenSessionIdsRef = useRef(new Set<string>());
+  const cacheKey = llmLiveCacheKey(input.taskId);
+  const cacheReadyRef = useRef<string | null>(null);
 
   useEffect(() => {
     const taskId = input.taskId?.trim();
+    cacheReadyRef.current = null;
     if (input.enabled === false) {
       setSessionsById({});
       setConnected(false);
@@ -93,6 +127,21 @@ export function useLlmLiveFeed(input: {
     }
 
     const controller = new AbortController();
+    setSessionsById({});
+    void loadLlmLiveCache(cacheKey).then((cachedSessions) => {
+      if (controller.signal.aborted) {
+        return;
+      }
+      cacheReadyRef.current = cacheKey;
+      setSessionsById((current) => ({
+        ...Object.fromEntries(cachedSessions
+          .filter((session) => !hiddenSessionIdsRef.current.has(session.context.interactionId))
+          .map((session) => [session.context.interactionId, session])),
+        ...current,
+      }));
+    }).catch(() => {
+      cacheReadyRef.current = cacheKey;
+    });
     const flush = () => {
       flushTimerRef.current = null;
       const frames = pendingFramesRef.current.splice(0);
@@ -195,7 +244,17 @@ export function useLlmLiveFeed(input: {
       pendingFramesRef.current = [];
       setConnected(false);
     };
-  }, [input.enabled, input.taskId]);
+  }, [cacheKey, input.enabled, input.taskId]);
+
+  useEffect(() => {
+    if (cacheReadyRef.current !== cacheKey) {
+      return;
+    }
+    const timer = window.setTimeout(() => {
+      void saveLlmLiveCache(cacheKey, Object.values(sessionsById)).catch(() => undefined);
+    }, 750);
+    return () => window.clearTimeout(timer);
+  }, [cacheKey, sessionsById]);
 
   const sessions = useMemo(
     () => Object.values(sessionsById).sort((left, right) => left.startedAt.localeCompare(right.startedAt)),
@@ -203,6 +262,7 @@ export function useLlmLiveFeed(input: {
   );
   const clearSessions = () => {
     pendingFramesRef.current = [];
+    void clearLlmLiveCache(cacheKey).catch(() => undefined);
     setSessionsById((previous) => {
       for (const interactionId of Object.keys(previous)) {
         hiddenSessionIdsRef.current.add(interactionId);

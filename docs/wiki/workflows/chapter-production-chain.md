@@ -116,6 +116,7 @@
 - `autoReview=false` 时仍可保存正文并进入异步资产回灌。自动导演的 `chapter.quality.review` 事实检查应读取执行计划，把本轮不执行自动审校视为可解释的跳过事实；此时不能因为 `AuditReport` / `QualityReport` 数量为 0 而让已完成正文的批次失败。
 - 同一章正文 content hash 未变化时，不重复跑状态快照、角色资源、伏笔账本和角色动态同步。
 - 同一章规划已经有 `taskSheet` 和 `sceneCards`，且没有新的用户 guidance 时，章节执行合同细化应复用已有规划，不重复调用 `novel.volume.chapter_execution_contract`。带 guidance 的重生成仍允许覆盖旧结果。
+- 章节执行合同的结构化结果在本地归一后，如果缺少目标字数或有效场景不足，属于可修正的 AI 输出合同错误：必须把中文校验原因带回现有 Prompt 做一次受控重试。不得把 `Scene count below minimum` 等内部英文校验文字直接暴露给用户，也不得在本地伪造场景来绕过 AI 合同。
 - 规划态冲突强度锚定只属于卷工作区合同：`VolumeChapterPlan.conflictLevelSource = "user"` 且 `conflictLevel` 为数值时，拆章、章节细化和重规划必须把它当作用户固定点；执行态 `Chapter` 仍只接收 `conflictLevel` 数值，不保存锚定来源。解除锚定必须是用户入口发出的明确交还语义：请求携带当前相同 `conflictLevel` 且 `conflictLevelSource = "ai"`，持久层才允许从 `user` 降回 `ai`。AI 生成或重规划传入不同数值时必须保留原用户锚定，不能静默覆盖。
 - 任何数据回填、同步、抽取或索引刷新，都必须等章节进入稳定终态后再执行；章节仍处于修复、重写或回退过程中时，只允许保留正文与必要审校结果，不能提前把这类动作挂回热路径。timeline finalization 是进入下一章前的状态闭合步骤，不属于可随意延后的后台资产回灌。
 - 资产同步模式：
@@ -157,6 +158,7 @@
 - 关闭自动审校后任务停在 `chapter.quality.review facts are not complete yet`：优先检查运行态 seed payload 中的 `autoExecution.autoReview`、`autoExecutionPlan.autoReview` 和 `directorInput.autoExecutionPlan.autoReview` 是否传入事实检查。若这些字段为 `false`，质量审校步骤应输出 `reviewSkipped=true` 并继续后续状态提交。
 - 章节出现未来剧情泄漏：优先检查章节边界、protected secrets、事实账本和 `reader_experience` 是否进入 writer prompt，不要把 Timeline 当成默认写章事实来源。
 - 下一章没有承接旧钩子：检查相邻章细化是否把责任写入 `inheritedHookResponsibilities`，以及 writer / acceptance / repair 是否消费同一个 `reader_experience` block。
+- 页面出现英文场景数量或目标字数错误：检查章节执行合同归一错误是否进入一次受控重试，以及重试耗尽后的错误是否保持中文可解释信息；不要把该错误误归类为正文质量债或全书重规划。
 - 修复后读者回报或钩子责任丢失：检查修复上下文是否保留原合同及已经成立的 `readerValue`，不要通过新增大事件掩盖原问题。
 - 跳过后后续章节脱节：检查事实账本、artifact delta、上一章实际尾段和下一章读者体验合同是否已更新。
 - 章节反复重复相同后置检测：检查同章同内容 hash 是否已经命中 acceptance 门禁缓存及后置资产同步 checkpoint。

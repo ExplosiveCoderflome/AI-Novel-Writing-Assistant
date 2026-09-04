@@ -1,6 +1,13 @@
 import { Router } from "express";
 import type { ApiResponse } from "@ai-novel/shared/types/api";
-import { REASONING_EFFORTS, type BuiltinLLMProvider, type LLMProvider, type ReasoningEffort } from "@ai-novel/shared/types/llm";
+import {
+  PROVIDER_AUTH_MODES,
+  REASONING_EFFORTS,
+  type BuiltinLLMProvider,
+  type LLMProvider,
+  type ProviderAuthMode,
+  type ReasoningEffort,
+} from "@ai-novel/shared/types/llm";
 import { z } from "zod";
 import { prisma } from "../db/prisma";
 import { setProviderSecretCache } from "../llm/factory";
@@ -63,6 +70,7 @@ const upsertApiKeySchema = z.object({
   model: z.string().trim().optional(),
   imageModel: z.string().trim().optional(),
   baseURL: z.union([z.string().trim().url("API URL 格式不正确。"), z.literal("")]).optional(),
+  authMode: z.enum(PROVIDER_AUTH_MODES).optional(),
   isActive: z.boolean().optional(),
   reasoningEnabled: z.boolean().optional(),
   reasoningEffort: z.enum(REASONING_EFFORTS).optional(),
@@ -121,6 +129,7 @@ type APIKeyRecordLike = {
   key: string | null;
   model: string | null;
   baseURL: string | null;
+  authMode: string;
   isActive: boolean;
   reasoningEnabled?: boolean | null;
   reasoningEffort?: string | null;
@@ -137,6 +146,7 @@ type BuiltInProviderStatus = {
   currentModel: string;
   currentImageModel: string | null;
   currentBaseURL: string;
+  currentAuthMode: ProviderAuthMode;
   models: string[];
   imageModels: string[];
   defaultModel: string;
@@ -162,6 +172,7 @@ type CustomProviderStatus = {
   currentModel: string;
   currentImageModel: string | null;
   currentBaseURL: string;
+  currentAuthMode: ProviderAuthMode;
   models: string[];
   imageModels: string[];
   defaultModel: string;
@@ -192,6 +203,10 @@ function normalizeProviderLimit(value: number | null | undefined): number {
     return 0;
   }
   return Math.floor(value);
+}
+
+function normalizeProviderAuthMode(value: unknown): ProviderAuthMode {
+  return value === "x-api-key" || value === "none" ? value : "bearer";
 }
 
 function getFallbackModels(provider: LLMProvider, currentModel?: string): string[] {
@@ -240,6 +255,7 @@ function buildBuiltInProviderStatus(
     currentModel,
     currentImageModel,
     currentBaseURL,
+    currentAuthMode: "bearer",
     models,
     imageModels: Array.from(new Set([...getImageModelOptions(provider), currentImageModel ?? ""].filter(Boolean))),
     defaultModel: PROVIDERS[provider].defaultModel,
@@ -264,6 +280,7 @@ function buildCustomProviderStatus(item: {
   key: string | null;
   model: string | null;
   baseURL: string | null;
+  authMode: string;
   isActive: boolean;
   reasoningEnabled?: boolean | null;
   reasoningEffort?: string | null;
@@ -273,6 +290,7 @@ function buildCustomProviderStatus(item: {
 }, imageModel: string | undefined): CustomProviderStatus {
   const currentModel = normalizeOptionalText(item.model) ?? "";
   const currentBaseURL = normalizeOptionalText(item.baseURL) ?? "";
+  const currentAuthMode = normalizeProviderAuthMode(item.authMode);
   const hiddenModels = parseHiddenModels(item.hiddenModels);
   const models = filterHiddenModels(currentModel ? [currentModel] : [], hiddenModels, currentModel);
   const supportsReasoningEffort = isDeepSeekThinkingModeProvider(item.provider, currentBaseURL, currentModel);
@@ -284,6 +302,7 @@ function buildCustomProviderStatus(item: {
     currentModel,
     currentImageModel: imageModel ?? null,
     currentBaseURL,
+    currentAuthMode,
     models,
     imageModels: imageModel ? [imageModel] : [],
     defaultModel: currentModel,
@@ -541,6 +560,9 @@ router.put(
       const nextBaseURL = body.baseURL !== undefined
         ? normalizeOptionalText(body.baseURL)
         : normalizeOptionalText(existingRecord?.baseURL);
+      const nextAuthMode = isBuiltInProvider(provider)
+        ? "bearer"
+        : normalizeProviderAuthMode(body.authMode ?? existingRecord?.authMode);
       const nextDisplayName = !isBuiltInProvider(provider)
         ? normalizeOptionalText(body.displayName) ?? normalizeOptionalText(existingRecord?.displayName) ?? provider
         : undefined;
@@ -581,6 +603,9 @@ router.put(
       if (!isBuiltInProvider(provider) && !nextBaseURL) {
         throw new AppError("请先填写自定义厂商的 API URL。", 400);
       }
+      if (!isBuiltInProvider(provider) && nextAuthMode === "x-api-key" && !effectiveKey) {
+        throw new AppError("x-api-key 鉴权需要填写 API Key。", 400);
+      }
       if (effectiveCurrentModel && nextHiddenModels.includes(effectiveCurrentModel)) {
         throw new AppError("当前使用的模型不能隐藏，请先切换模型。", 400);
       }
@@ -590,6 +615,7 @@ router.put(
           key: nextKey ?? null,
           model: nextModel ?? null,
           baseURL: nextBaseURL ?? null,
+          authMode: nextAuthMode,
           isActive: body.isActive ?? true,
           reasoningEnabled: nextReasoningEnabled,
           reasoningEffort: nextReasoningEffort,
@@ -602,6 +628,7 @@ router.put(
           key: nextKey ?? null,
           model: nextModel ?? null,
           baseURL: nextBaseURL ?? null,
+          authMode: nextAuthMode,
           isActive: body.isActive ?? existingRecord?.isActive ?? true,
           reasoningEnabled: nextReasoningEnabled,
           reasoningEffort: nextReasoningEffort,
@@ -623,6 +650,7 @@ router.put(
         key: data.key ?? undefined,
         model: data.model ?? undefined,
         baseURL: data.baseURL ?? undefined,
+        authMode: normalizeProviderAuthMode(data.authMode),
         reasoningEnabled: data.reasoningEnabled ?? true,
         reasoningEffort: data.reasoningEffort === "low" || data.reasoningEffort === "max" ? data.reasoningEffort : "high",
         concurrencyLimit: data.concurrencyLimit ?? 0,
@@ -635,7 +663,12 @@ router.put(
       let message = "厂商配置已保存。";
       try {
         models = filterHiddenModels(
-          await refreshProviderModels(provider, effectiveKey, nextBaseURL ?? getProviderEnvBaseUrl(provider)),
+          await refreshProviderModels(
+            provider,
+            effectiveKey,
+            nextBaseURL ?? getProviderEnvBaseUrl(provider),
+            nextAuthMode,
+          ),
           hiddenModels,
           data.model ?? undefined,
         );
@@ -651,6 +684,7 @@ router.put(
           model: data.model,
           imageModel: currentImageModel ?? null,
           baseURL: data.baseURL,
+          authMode: normalizeProviderAuthMode(data.authMode),
           isActive: data.isActive,
           reasoningEnabled: data.reasoningEnabled ?? true,
           reasoningEffort: isDeepSeekThinkingModeProvider(provider, data.baseURL ?? undefined, data.model ?? undefined)
@@ -671,6 +705,7 @@ router.put(
         model: string | null;
         imageModel: string | null;
         baseURL: string | null;
+        authMode: ProviderAuthMode;
         isActive: boolean;
         reasoningEnabled: boolean;
         reasoningEffort: ReasoningEffort | null;
@@ -732,6 +767,7 @@ router.post(
         provider,
         effectiveKey,
         normalizeOptionalText(keyConfig?.baseURL) ?? getProviderEnvBaseUrl(provider),
+        normalizeProviderAuthMode(keyConfig?.authMode),
       ), hiddenModels, currentModel);
       res.status(200).json({
         success: true,

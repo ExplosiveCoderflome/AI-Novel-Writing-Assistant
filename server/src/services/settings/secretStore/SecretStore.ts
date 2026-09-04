@@ -4,6 +4,7 @@ export interface SecretStoreRecord {
   key: string | null;
   model: string | null;
   baseURL: string | null;
+  authMode: string;
   isActive: boolean;
   reasoningEnabled: boolean | null;
   reasoningEffort: string | null;
@@ -19,6 +20,7 @@ export interface SecretStoreWriteInput {
   key?: string | null;
   model?: string | null;
   baseURL?: string | null;
+  authMode?: string;
   isActive?: boolean;
   reasoningEnabled?: boolean;
   reasoningEffort?: string | null;

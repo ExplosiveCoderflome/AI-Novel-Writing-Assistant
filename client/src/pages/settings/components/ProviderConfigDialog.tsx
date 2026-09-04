@@ -1,6 +1,7 @@
 import type { Dispatch, SetStateAction } from "react";
 import { Bot, Image, KeyRound, Link2, SlidersHorizontal } from "lucide-react";
 import type { APIKeyStatus } from "@/api/settings";
+import type { ProviderAuthMode } from "@ai-novel/shared/types/llm";
 import SearchableSelect from "@/components/common/SearchableSelect";
 import { Button } from "@/components/ui/button";
 import { AppDialogContent, Dialog } from "@/components/ui/dialog";
@@ -13,6 +14,7 @@ export interface ProviderFormState {
   model: string;
   imageModel: string;
   baseURL: string;
+  authMode: ProviderAuthMode;
   concurrencyLimit: string;
   requestIntervalMs: string;
 }
@@ -142,6 +144,28 @@ export default function ProviderConfigDialog({
               }}
             />
           </div>
+
+          {isCustomDialog ? (
+            <div className="space-y-1">
+              <div className="text-xs font-medium text-muted-foreground">鉴权方式</div>
+              <SearchableSelect
+                value={form.authMode}
+                onValueChange={(value) => setForm((prev) => ({
+                  ...prev,
+                  authMode: value as ProviderAuthMode,
+                }))}
+                options={[
+                  { value: "bearer", label: "Authorization: Bearer" },
+                  { value: "x-api-key", label: "x-api-key" },
+                  { value: "none", label: "无需鉴权" },
+                ]}
+                placeholder="选择鉴权方式"
+              />
+              <div className="text-xs text-muted-foreground">
+                按第三方接口文档选择；大多数 OpenAI 兼容接口使用 Authorization: Bearer。
+              </div>
+            </div>
+          ) : null}
 
           <div className="space-y-1">
             <div className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground"><Link2 className="h-3.5 w-3.5" /> API 地址</div>

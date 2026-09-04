@@ -1,7 +1,7 @@
 import type { ZodType } from "zod";
 import { HumanMessage, SystemMessage } from "@langchain/core/messages";
 import type { BaseMessage } from "@langchain/core/messages";
-import type { LLMProvider } from "@ai-novel/shared/types/llm";
+import type { LLMProvider, ProviderAuthMode } from "@ai-novel/shared/types/llm";
 import type { TaskType } from "./modelRouter";
 import type { ModelRouteRequestProtocol } from "@ai-novel/shared/types/novel";
 import {
@@ -35,6 +35,7 @@ import {
 } from "./structuredInvokeParser";
 import { toText } from "../services/novel/novelP0Utils";
 import type { PromptInvocationMeta } from "../prompting/core/promptTypes";
+import { ReasoningStreamCollector } from "./reasoning";
 
 export {
   parseStructuredLlmRawContentDetailed,
@@ -52,6 +53,7 @@ export interface StructuredInvokeInput<T> {
   model?: string;
   apiKey?: string;
   baseURL?: string;
+  authMode?: ProviderAuthMode;
   temperature?: number;
   maxTokens?: number;
   timeoutMs?: number;
@@ -70,6 +72,7 @@ interface StructuredAttemptTarget {
   model: string;
   apiKey?: string;
   baseURL?: string;
+  authMode?: ProviderAuthMode;
   temperature: number;
   maxTokens?: number;
   profile: StructuredOutputProfile;
@@ -124,6 +127,7 @@ async function resolveAttemptTarget(input: {
   model?: string;
   apiKey?: string;
   baseURL?: string;
+  authMode?: ProviderAuthMode;
   temperature?: number;
   maxTokens?: number;
   taskType?: TaskType;
@@ -141,6 +145,7 @@ async function resolveAttemptTarget(input: {
     fallbackProvider: "deepseek",
     apiKey: input.apiKey,
     baseURL: input.baseURL,
+    authMode: input.authMode,
     model: input.model,
     temperature: input.temperature,
     maxTokens: input.maxTokens,
@@ -159,6 +164,7 @@ async function resolveAttemptTarget(input: {
     model: resolved.model,
     apiKey: input.apiKey,
     baseURL: resolved.baseURL,
+    authMode: resolved.authMode,
     temperature: resolved.temperature,
     maxTokens: resolved.maxTokens,
     requestProtocol: resolved.requestProtocol,
@@ -186,6 +192,7 @@ async function invokeStructuredAttempt<T>(input: {
     fallbackProvider: "deepseek",
     apiKey: input.target.apiKey,
     baseURL: input.target.baseURL,
+    authMode: input.target.authMode,
     model: input.target.model,
     temperature: attemptTemperature,
     maxTokens: input.target.maxTokens,
@@ -243,12 +250,15 @@ async function invokeStructuredAttempt<T>(input: {
         );
         let rawContent = "";
         let tokenUsage = null;
+        const reasoningCollector = new ReasoningStreamCollector();
         for await (const chunk of stream) {
           const content = toText(chunk.content);
+          liveSession.reasoning(reasoningCollector.push(chunk, content));
           rawContent += content;
           liveSession.delta(content);
           tokenUsage = mergeStreamTokenUsage(tokenUsage, extractLlmTokenUsage(chunk));
         }
+        liveSession.reasoning(reasoningCollector.flush());
         return { rawContent, tokenUsage };
       },
     });
@@ -297,6 +307,10 @@ async function invokeStructuredAttempt<T>(input: {
       fallbackUsed: input.fallbackUsed,
       reasoningForcedOff: resolved.reasoningForcedOff,
     });
+    liveSession.usage(parsed.tokenUsage ? {
+      ...parsed.tokenUsage,
+      reasoningTokens: parsed.tokenUsage.reasoningTokens ?? null,
+    } : null);
     liveSession.complete();
     return parsed;
   } catch (error) {
@@ -386,6 +400,7 @@ export async function invokeStructuredLlmDetailed<T>(input: StructuredInvokeInpu
     model: input.model,
     apiKey: input.apiKey,
     baseURL: input.baseURL,
+    authMode: input.authMode,
     temperature: input.temperature ?? 0.3,
     maxTokens: input.maxTokens,
     taskType: input.taskType ?? "planner",

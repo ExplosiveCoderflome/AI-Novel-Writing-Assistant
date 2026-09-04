@@ -5,6 +5,7 @@ import type {
 } from "@ai-novel/shared/types/novel";
 import { assessChapterExecutionContractShape } from "@ai-novel/shared/types/chapterTaskSheetQuality";
 import {
+  ChapterScenePlanNormalizationError,
   normalizeChapterScenePlan,
   serializeChapterScenePlan,
 } from "@ai-novel/shared/types/chapterLengthControl";
@@ -26,6 +27,9 @@ type StoryMacroPlanResult = Awaited<ReturnType<StoryMacroPlanService["getPlan"]>
 export function shouldRetryChapterExecutionContract(error: unknown, attempt: number): boolean {
   if (attempt > 0) {
     return false;
+  }
+  if (error instanceof ChapterScenePlanNormalizationError) {
+    return true;
   }
   return Boolean(
     error
