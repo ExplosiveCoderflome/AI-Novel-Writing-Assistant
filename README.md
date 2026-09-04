@@ -169,7 +169,7 @@
 - 章节完成审校且有待处理建议时，右侧 AI 执行台也会提供修复入口。
 - 自定义模型厂商可选择 Bearer、x-api-key 或无需鉴权，模型列表、连接测试和正式生成保持一致。
 - 模型地址已包含 `/models` 时不会重复追加路径，避免 Gemini 和第三方网关获取模型失败。
-- Windows 桌面版更新至 0.4.18，包含本次模型控制、续写分卷和规划保存修复。
+- Windows 桌面版更新至 0.4.19，包含章节执行保护、模型路由管理以及 AI 实况耗时与 Token 统计。
 
 完整历史更新见 [docs/releases/release-notes.md](./docs/releases/release-notes.md)。
 
