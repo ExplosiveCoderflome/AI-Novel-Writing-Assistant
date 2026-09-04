@@ -1,10 +1,12 @@
 import type { Router } from "express";
 import type { ApiResponse } from "@ai-novel/shared/types/api";
+import { REASONING_EFFORTS, type ReasoningEffort } from "@ai-novel/shared/types/llm";
 import { z } from "zod";
 import { prisma } from "../../db/prisma";
 import { setProviderSecretCache } from "../../llm/factory";
 import { evictSharedLimiters } from "../../llm/requestLimiter";
 import { refreshProviderModels } from "../../llm/modelCatalog";
+import { isDeepSeekThinkingModeProvider, normalizeReasoningEffort } from "../../llm/reasoning";
 import { llmProviderSchema } from "../../llm/providerSchema";
 import { isBuiltInProvider } from "../../llm/providers";
 import { AppError } from "../../middleware/errorHandler";
@@ -33,6 +35,7 @@ const createCustomProviderSchema = z.object({
   baseURL: z.string().trim().url("API URL 格式不正确。"),
   isActive: z.boolean().optional(),
   reasoningEnabled: z.boolean().optional(),
+  reasoningEffort: z.enum(REASONING_EFFORTS).optional(),
   concurrencyLimit: z.coerce.number().int().min(0).max(MAX_PROVIDER_CONCURRENCY_LIMIT).optional(),
   requestIntervalMs: z.coerce.number().int().min(0).max(MAX_PROVIDER_REQUEST_INTERVAL_MS).optional(),
 });
@@ -50,6 +53,8 @@ type APIKeyRecordLike = {
   baseURL: string | null;
   isActive: boolean;
   reasoningEnabled?: boolean | null;
+  reasoningEffort?: string | null;
+  hiddenModels?: string | null;
   concurrencyLimit?: number | null;
   requestIntervalMs?: number | null;
 };
@@ -161,6 +166,8 @@ export function registerCustomProviderRoutes(router: Router): void {
           baseURL,
           isActive: body.isActive ?? true,
           reasoningEnabled: body.reasoningEnabled ?? true,
+          reasoningEffort: normalizeReasoningEffort(body.reasoningEffort),
+          hiddenModels: "[]",
           concurrencyLimit: body.concurrencyLimit ?? 0,
           requestIntervalMs: body.requestIntervalMs ?? 0,
         }) as APIKeyRecordLike;
@@ -170,6 +177,7 @@ export function registerCustomProviderRoutes(router: Router): void {
           model: data.model ?? undefined,
           baseURL: data.baseURL ?? undefined,
           reasoningEnabled: data.reasoningEnabled ?? true,
+          reasoningEffort: normalizeReasoningEffort(data.reasoningEffort),
           concurrencyLimit: data.concurrencyLimit ?? 0,
           requestIntervalMs: data.requestIntervalMs ?? 0,
         } : null);
@@ -178,6 +186,7 @@ export function registerCustomProviderRoutes(router: Router): void {
           ...getImageModelOptions(provider),
           imageModel ?? "",
         ].filter(Boolean)));
+        const supportsReasoningEffort = isDeepSeekThinkingModeProvider(provider, data.baseURL ?? undefined, data.model ?? undefined);
         res.status(201).json({
           success: true,
           data: {
@@ -188,6 +197,9 @@ export function registerCustomProviderRoutes(router: Router): void {
             baseURL: data.baseURL,
             isActive: data.isActive,
             reasoningEnabled: data.reasoningEnabled ?? true,
+            reasoningEffort: supportsReasoningEffort ? normalizeReasoningEffort(data.reasoningEffort) : null,
+            supportsReasoningEffort,
+            hiddenModels: [],
             concurrencyLimit: normalizeProviderLimit(data.concurrencyLimit),
             requestIntervalMs: normalizeProviderLimit(data.requestIntervalMs),
             models,
@@ -203,6 +215,9 @@ export function registerCustomProviderRoutes(router: Router): void {
           baseURL: string | null;
           isActive: boolean;
           reasoningEnabled: boolean;
+          reasoningEffort: ReasoningEffort | null;
+          supportsReasoningEffort: boolean;
+          hiddenModels: string[];
           concurrencyLimit: number;
           requestIntervalMs: number;
           models: string[];

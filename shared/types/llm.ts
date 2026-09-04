@@ -15,6 +15,9 @@ export const LLM_PROVIDERS = [
 export type BuiltinLLMProvider = typeof LLM_PROVIDERS[number];
 export type LLMProvider = BuiltinLLMProvider | (string & {});
 
+export const REASONING_EFFORTS = ["low", "high", "max"] as const;
+export type ReasoningEffort = typeof REASONING_EFFORTS[number];
+
 export function isBuiltinLLMProvider(provider: string): provider is BuiltinLLMProvider {
   return (LLM_PROVIDERS as readonly string[]).includes(provider);
 }

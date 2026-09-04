@@ -22,7 +22,7 @@ export const PROVIDERS: Record<BuiltinLLMProvider, ProviderConfig> = {
     name: "DeepSeek",
     baseURL: "https://api.deepseek.com/v1",
     defaultModel: "deepseek-v4-flash",
-    models: ["deepseek-v4-flash", "deepseek-v4-pro", "deepseek-chat", "deepseek-coder", "deepseek-reasoner"],
+    models: ["deepseek-v4-flash", "deepseek-v4-pro"],
     envKey: "DEEPSEEK_API_KEY",
     envBaseURLKey: "DEEPSEEK_BASE_URL",
     envModelKey: "DEEPSEEK_MODEL",

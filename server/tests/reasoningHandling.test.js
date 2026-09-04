@@ -19,6 +19,7 @@ test("deepseek v4 pro behavior maps reasoning toggle to thinking mode", () => {
   });
 
   assert.equal(disabled.reasoningEnabled, false);
+  assert.equal(disabled.reasoningEffort, null);
   assert.deepEqual(disabled.modelKwargs, { thinking: { type: "disabled" } });
 
   const enabled = resolveProviderReasoningBehavior({
@@ -26,10 +27,15 @@ test("deepseek v4 pro behavior maps reasoning toggle to thinking mode", () => {
     baseURL: "https://api.deepseek.com/v1",
     model: "deepseek-reasoner",
     reasoningEnabled: true,
+    reasoningEffort: "max",
   });
 
   assert.equal(enabled.reasoningEnabled, true);
-  assert.deepEqual(enabled.modelKwargs, { thinking: { type: "enabled" } });
+  assert.equal(enabled.reasoningEffort, "max");
+  assert.deepEqual(enabled.modelKwargs, {
+    thinking: { type: "enabled" },
+    reasoning_effort: "max",
+  });
 });
 
 test("deepseek thinking mode detection is limited to toggle-capable models", () => {
@@ -57,7 +63,27 @@ test("deepseek v4 flash can disable thinking for structured generation", () => {
   });
 
   assert.equal(disabled.reasoningEnabled, false);
+  assert.equal(disabled.reasoningEffort, null);
   assert.deepEqual(disabled.modelKwargs, { thinking: { type: "disabled" } });
+});
+
+test("deepseek reasoning effort defaults to high and preserves explicit low", () => {
+  const defaultBehavior = resolveProviderReasoningBehavior({
+    provider: "deepseek",
+    baseURL: "https://api.deepseek.com/v1",
+    model: "deepseek-v4-pro",
+    reasoningEnabled: true,
+  });
+  const lowBehavior = resolveProviderReasoningBehavior({
+    provider: "deepseek",
+    baseURL: "https://api.deepseek.com/v1",
+    model: "deepseek-v4-flash",
+    reasoningEnabled: true,
+    reasoningEffort: "low",
+  });
+
+  assert.equal(defaultBehavior.modelKwargs.reasoning_effort, "high");
+  assert.equal(lowBehavior.modelKwargs.reasoning_effort, "low");
 });
 
 test("minimax provider behavior enables reasoning_split and raw response parsing", () => {

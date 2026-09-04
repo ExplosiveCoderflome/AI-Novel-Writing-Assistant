@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type { ApiResponse } from "@ai-novel/shared/types/api";
-import type { LLMProvider } from "@ai-novel/shared/types/llm";
+import type { LLMProvider, ReasoningEffort } from "@ai-novel/shared/types/llm";
 import {
   type APIKeyStatus,
   createCustomProvider,
@@ -240,18 +240,25 @@ export default function SettingsPage() {
     },
   });
 
-  const toggleReasoningMutation = useMutation({
-    mutationFn: (payload: { provider: LLMProvider; reasoningEnabled: boolean }) =>
-      saveAPIKeySetting(payload.provider, {
-        reasoningEnabled: payload.reasoningEnabled,
-      }),
+  const modelControlsMutation = useMutation({
+    mutationFn: (payload: {
+      provider: LLMProvider;
+      reasoningEnabled?: boolean;
+      reasoningEffort?: ReasoningEffort;
+      hiddenModels?: string[];
+      message: string;
+    }) => saveAPIKeySetting(payload.provider, {
+      reasoningEnabled: payload.reasoningEnabled,
+      reasoningEffort: payload.reasoningEffort,
+      hiddenModels: payload.hiddenModels,
+    }),
     onSuccess: async (_response, variables) => {
       const providerName = providerConfigs.find((item) => item.provider === variables.provider)?.name ?? variables.provider;
-      setActionResult(`${providerName} 思考功能已${variables.reasoningEnabled ? "开启" : "关闭"}。`);
+      setActionResult(`${providerName}：${variables.message}`);
       await invalidateProviderQueries();
     },
     onError: (error) => {
-      setActionResult(error instanceof Error ? error.message : "更新思考开关失败。");
+      setActionResult(error instanceof Error ? error.message : "更新模型设置失败。");
     },
   });
 
@@ -434,7 +441,7 @@ export default function SettingsPage() {
           providerTestResults={providerTestResults}
           refreshingModelProvider={refreshModelsMutation.variables}
           refreshingBalanceProvider={refreshBalanceMutation.variables}
-          reasoningProvider={toggleReasoningMutation.variables?.provider}
+          reasoningProvider={modelControlsMutation.variables?.provider}
           onCreateCustomProvider={openCreateCustomDialog}
           onRemoveProvider={handleRemoveProvider}
           onOpenConfig={openBuiltInDialog}
@@ -447,12 +454,19 @@ export default function SettingsPage() {
             setActionResult("");
             refreshBalanceMutation.mutate(provider);
           }}
-          onToggleReasoning={(provider, reasoningEnabled) => {
+          onSetReasoning={(provider, reasoningEnabled, reasoningEffort) => {
             setActionResult("");
-            toggleReasoningMutation.mutate({
+            const effortLabel = reasoningEffort === "low" ? "低" : reasoningEffort === "max" ? "最大" : "高";
+            modelControlsMutation.mutate({
               provider,
               reasoningEnabled,
+              reasoningEffort,
+              message: reasoningEnabled ? `思考深度设为${effortLabel}。` : "思考功能已关闭。",
             });
+          }}
+          onSetHiddenModels={(provider, hiddenModels, message) => {
+            setActionResult("");
+            modelControlsMutation.mutate({ provider, hiddenModels, message });
           }}
           removingProvider={removeProviderMutation.variables?.provider}
         />
