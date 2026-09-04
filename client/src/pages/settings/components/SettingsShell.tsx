@@ -1,11 +1,12 @@
 import type { ReactNode } from "react";
-import { BookOpenCheck, Bot, Database, MonitorCog, Palette, SlidersHorizontal } from "lucide-react";
+import { BookOpenCheck, Bot, Database, MonitorCog, Palette, Route, SlidersHorizontal } from "lucide-react";
 import { NavLink } from "react-router-dom";
 import { cn } from "@/lib/utils";
 
 const items = [
   { to: "/settings", label: "设置总览", icon: SlidersHorizontal, end: true },
   { to: "/settings/models", label: "模型与厂商", icon: Bot },
+  { to: "/settings/model-routes", label: "模型路由管理", icon: Route },
   { to: "/settings/director", label: "自动导演", icon: BookOpenCheck },
   { to: "/settings/knowledge", label: "知识库与写法", icon: Database },
   { to: "/settings/maintenance", label: "桌面与维护", icon: MonitorCog },
