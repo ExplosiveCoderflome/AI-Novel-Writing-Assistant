@@ -2,6 +2,7 @@ const test = require("node:test");
 const assert = require("node:assert/strict");
 const {
   ThinkTagStreamFilter,
+  ReasoningStreamCollector,
   diffAccumulatedText,
   extractMiniMaxRawStreamData,
   extractReasoningTextFromChunk,
@@ -170,4 +171,20 @@ test("extractReasoningTextFromChunk supports generic reasoning payloads", () => 
   });
 
   assert.equal(text, "附加字段思考总结思考内容里的思考");
+});
+
+test("ReasoningStreamCollector keeps provider reasoning even when it arrives outside content", () => {
+  const collector = new ReasoningStreamCollector();
+  const first = collector.push({
+    content: "",
+    additional_kwargs: { reasoning_content: "先分析" },
+  }, "");
+  const second = collector.push({
+    content: "<think>再确认</think>答案",
+    additional_kwargs: {},
+  }, "<think>再确认</think>答案");
+
+  assert.equal(first, "先分析");
+  assert.equal(second, "再确认");
+  assert.equal(collector.flush(), "");
 });

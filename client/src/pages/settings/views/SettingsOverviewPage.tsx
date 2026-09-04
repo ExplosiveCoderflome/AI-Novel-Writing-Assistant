@@ -1,6 +1,6 @@
 import { useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { ArrowRight, BookOpenCheck, Bot, Database, MonitorCog } from "lucide-react";
+import { ArrowRight, BookOpenCheck, Bot, Database, MonitorCog, Route } from "lucide-react";
 import { Link } from "react-router-dom";
 import {
   getAPIKeySettings,
@@ -17,7 +17,8 @@ import { SettingsShell } from "../components/SettingsShell";
 import { APP_RUNTIME } from "@/lib/constants";
 
 const entries = [
-  { to: "/settings/models", title: "模型与厂商", description: "选择创作模型、检查任务路由，并管理连接。", icon: Bot },
+  { to: "/settings/models", title: "模型与厂商", description: "添加模型厂商、选择模型并管理连接。", icon: Bot },
+  { to: "/settings/model-routes", title: "模型路由管理", description: "为不同创作任务选择模型并检查连接状态。", icon: Route },
   { to: "/settings/director", title: "自动导演", description: "安排问题处理、确认偏好与提醒方式。", icon: BookOpenCheck },
   { to: "/settings/knowledge", title: "知识库与写法", description: "让资料和写法偏好参与后续创作。", icon: Database },
   { to: "/settings/maintenance", title: "桌面与维护", description: "查看适用于当前设备的更新和数据维护。", icon: MonitorCog },
@@ -53,7 +54,9 @@ export default function SettingsOverviewPage() {
       <div className="grid gap-4 md:grid-cols-2">
         {entries.map(({ to, title, description, icon: Icon }) => {
           const summary = title === "模型与厂商"
-            ? configuredProvider ? `${configuredProvider.name} · ${configuredProvider.currentModel || "未选择模型"} · ${routeCount} 条任务路由` : "尚未配置可用的文本模型"
+            ? configuredProvider ? `${configuredProvider.name} · ${configuredProvider.currentModel || "未选择模型"}` : "尚未配置可用的文本模型"
+            : title === "模型路由管理"
+              ? `${routeCount} 条任务路由已设置`
             : title === "知识库与写法"
               ? rag?.enabled ? `资料检索已开启 · ${rag.embeddingModel || "未选择向量模型"}` : "可选增强，暂不影响开始创作"
               : title === "桌面与维护"

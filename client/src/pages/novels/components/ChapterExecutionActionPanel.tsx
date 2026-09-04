@@ -268,7 +268,14 @@ export default function ChapterExecutionActionPanel(props: ChapterExecutionActio
   const showQuickAuditAction = Boolean(selectedChapter && primaryAction.label !== "运行完整审校" && primaryAction.label !== "正在运行完整审校...");
   const showQuickRepairAction = Boolean(
     selectedChapter
-      && displayedStatus === "needs_repair"
+      && (
+        displayedStatus === "needs_repair"
+        || (
+          displayedStatus === "pending_review"
+          && (selectedChapter.generationState === "reviewed" || selectedChapter.generationState === "approved")
+          && chapterAuditReports.length > 0
+        )
+      )
       && primaryAction.label !== "自动修复问题"
       && primaryAction.label !== "正在自动修复...",
   );

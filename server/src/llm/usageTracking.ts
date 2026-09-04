@@ -6,6 +6,7 @@ import type { LLMProvider } from "@ai-novel/shared/types/llm";
 export interface LlmTokenUsageSnapshot {
   promptTokens: number;
   completionTokens: number;
+  reasoningTokens?: number;
   totalTokens: number;
 }
 
@@ -65,10 +66,12 @@ function toPositiveInteger(value: unknown): number | null {
 function normalizeSnapshot(input: {
   promptTokens?: unknown;
   completionTokens?: unknown;
+  reasoningTokens?: unknown;
   totalTokens?: unknown;
 }): LlmTokenUsageSnapshot | null {
   const promptTokens = toPositiveInteger(input.promptTokens) ?? 0;
   const completionTokens = toPositiveInteger(input.completionTokens) ?? 0;
+  const reasoningTokens = toPositiveInteger(input.reasoningTokens);
   const totalTokens = toPositiveInteger(input.totalTokens)
     ?? Math.max(promptTokens + completionTokens, 0);
   if (promptTokens <= 0 && completionTokens <= 0 && totalTokens <= 0) {
@@ -77,6 +80,7 @@ function normalizeSnapshot(input: {
   return {
     promptTokens,
     completionTokens,
+    ...(reasoningTokens !== null ? { reasoningTokens } : {}),
     totalTokens: Math.max(totalTokens, promptTokens + completionTokens),
   };
 }
@@ -96,10 +100,16 @@ function extractUsageObject(value: unknown): LlmTokenUsageSnapshot | null {
     output_tokens?: unknown;
     inputTokens?: unknown;
     outputTokens?: unknown;
+    completion_tokens_details?: { reasoning_tokens?: unknown } | null;
+    output_token_details?: { reasoning?: unknown } | null;
+    outputTokenDetails?: { reasoning?: unknown } | null;
   };
   return normalizeSnapshot({
     promptTokens: usage.prompt_tokens ?? usage.promptTokens ?? usage.input_tokens ?? usage.inputTokens,
     completionTokens: usage.completion_tokens ?? usage.completionTokens ?? usage.output_tokens ?? usage.outputTokens,
+    reasoningTokens: usage.completion_tokens_details?.reasoning_tokens
+      ?? usage.output_token_details?.reasoning
+      ?? usage.outputTokenDetails?.reasoning,
     totalTokens: usage.total_tokens ?? usage.totalTokens,
   });
 }
@@ -117,6 +127,9 @@ export function extractLlmTokenUsage(output: unknown): LlmTokenUsageSnapshot | n
       return {
         promptTokens: acc.promptTokens + next.promptTokens,
         completionTokens: acc.completionTokens + next.completionTokens,
+        ...((acc.reasoningTokens !== undefined || next.reasoningTokens !== undefined)
+          ? { reasoningTokens: (acc.reasoningTokens ?? 0) + (next.reasoningTokens ?? 0) }
+          : {}),
         totalTokens: acc.totalTokens + next.totalTokens,
       };
     }, null);
@@ -159,6 +172,9 @@ export function mergeStreamTokenUsage(
   return {
     promptTokens: Math.max(current.promptTokens, next.promptTokens),
     completionTokens: Math.max(current.completionTokens, next.completionTokens),
+    ...((current.reasoningTokens !== undefined || next.reasoningTokens !== undefined)
+      ? { reasoningTokens: Math.max(current.reasoningTokens ?? 0, next.reasoningTokens ?? 0) }
+      : {}),
     totalTokens: Math.max(current.totalTokens, next.totalTokens),
   };
 }
