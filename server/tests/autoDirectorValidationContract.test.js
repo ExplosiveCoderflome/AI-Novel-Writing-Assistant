@@ -230,6 +230,47 @@ test("validateAutoDirectorTakeoverRequest blocks chapter ranges not covered by r
   assert.match(result.blockingReasons.join("\n"), /卷战略|目标范围/);
 });
 
+test("validateAutoDirectorTakeoverRequest lets full-book autopilot extend the rolling route to the selected chapter", () => {
+  const result = validateAutoDirectorTakeoverRequest({
+    source: "takeover",
+    request: {
+      novelId: "novel-1",
+      entryStep: "structured",
+      strategy: "continue_existing",
+      runMode: "full_book_autopilot",
+      autoExecutionPlan: {
+        mode: "chapter_range",
+        startOrder: 4,
+        endOrder: 8,
+      },
+    },
+    assets: {
+      hasProjectSetup: true,
+      hasStoryMacroPlan: true,
+      hasBookContract: true,
+      characterCount: 3,
+      volumeCount: 1,
+      hasVolumeStrategyPlan: true,
+      hasStructuredOutline: true,
+      plannedChapterCount: 30,
+      totalChapterCount: 6,
+      volumeChapterRanges: [
+        { volumeOrder: 1, startOrder: 1, endOrder: 6 },
+      ],
+      structuredOutlineChapterOrders: [1, 2, 3, 4, 5, 6],
+    },
+  });
+
+  assert.equal(result.allowed, true);
+  assert.deepEqual(result.blockingReasons, []);
+  assert.deepEqual(result.affectedScope, {
+    type: "chapter_range",
+    label: "第 4-8 章",
+    startOrder: 4,
+    endOrder: 8,
+  });
+});
+
 test("validateAutoDirectorTakeoverRequest uses planning assets instead of synced chapter rows as chapter limit", () => {
   const result = validateAutoDirectorTakeoverRequest({
     source: "takeover",

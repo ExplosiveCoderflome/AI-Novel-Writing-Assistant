@@ -167,7 +167,9 @@ const volumeRebalanceDecisionSchema = z.object({
 });
 
 export const volumeDocumentSchema = z.object({
-  volumes: z.array(volumeSchema).default([]),
+  // Keep partial workspace updates partial: defaulting an omitted field to []
+  // turns a critique-only save into a destructive volume reset.
+  volumes: z.array(volumeSchema).optional(),
   strategyPlan: volumeStrategyPlanSchema.nullish(),
   critiqueReport: volumeCritiqueReportSchema.nullish(),
   beatSheets: z.array(volumeBeatSheetSchema).optional(),

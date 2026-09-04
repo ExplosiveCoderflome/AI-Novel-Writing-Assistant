@@ -16,6 +16,20 @@ test("volume count guidance derives sane ranges for short, medium, and long proj
   assert.equal(shortProject.recommendedVolumeCount, 1);
   assert.deepEqual(shortProject.hardPlannedVolumeRange, { min: 1, max: 1 });
 
+  const shortBoundaryProject = buildVolumeCountGuidance({ chapterBudget: 29 });
+  assert.deepEqual(shortBoundaryProject.decisionVolumeCountRange, { min: 1, max: 2 });
+
+  const compactBookProject = buildVolumeCountGuidance({ chapterBudget: 30 });
+  assert.deepEqual(compactBookProject.decisionVolumeCountRange, { min: 3, max: 3 });
+  assert.equal(compactBookProject.volumeScaleProfile, "compact");
+  assert.equal(compactBookProject.systemRecommendedVolumeCount, 3);
+  assert.equal(compactBookProject.recommendedVolumeCount, 3);
+  assert.deepEqual(compactBookProject.hardPlannedVolumeRange, { min: 3, max: 3 });
+
+  const compactBookBoundaryProject = buildVolumeCountGuidance({ chapterBudget: 59 });
+  assert.deepEqual(compactBookBoundaryProject.decisionVolumeCountRange, { min: 3, max: 3 });
+  assert.equal(compactBookBoundaryProject.recommendedVolumeCount, 3);
+
   const mediumProject = buildVolumeCountGuidance({ chapterBudget: 60 });
   assert.deepEqual(mediumProject.decisionVolumeCountRange, { min: 3, max: 4 });
   assert.equal(mediumProject.systemRecommendedVolumeCount, 3);
@@ -71,6 +85,13 @@ test("volume count guidance respects preferred and existing counts while clampin
   });
   assert.equal(ignoredExisting.respectedExistingVolumeCount, null);
   assert.equal(ignoredExisting.recommendedVolumeCount, ignoredExisting.systemRecommendedVolumeCount);
+
+  const implicitExisting = buildVolumeCountGuidance({
+    chapterBudget: 32,
+    existingVolumeCount: 1,
+  });
+  assert.equal(implicitExisting.respectedExistingVolumeCount, null);
+  assert.equal(implicitExisting.recommendedVolumeCount, 3);
 });
 
 test("volume count guidance clamps huge budgets to the configured maximum", () => {

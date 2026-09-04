@@ -14,6 +14,9 @@ const issueTaskContext = require("../dist/services/novel/director/issues/Directo
 const {
   buildDirectorAutoExecutionState,
 } = require("../dist/services/novel/director/automation/novelDirectorAutoExecution.js");
+const {
+  resolveAutoExecutionRangeAndState,
+} = require("../dist/services/novel/director/automation/novelDirectorAutoExecutionScopeRuntime.js");
 function buildRequest(overrides = {}) {
   return {
     idea: "一个普通人被卷入命运迷局",
@@ -37,6 +40,36 @@ function buildRequest(overrides = {}) {
     ...overrides,
   };
 }
+
+test("full-book autopilot keeps a bounded target while future chapters are still being planned", async () => {
+  const result = await resolveAutoExecutionRangeAndState({
+    novelId: "novel-1",
+    deps: {
+      listChapters: async () => [4, 5, 6].map((order) => ({
+        id: `chapter-${order}`,
+        order,
+        expectation: "继续当前剧情",
+      })),
+    },
+    existingState: {
+      enabled: true,
+      mode: "chapter_range",
+      startOrder: 4,
+      endOrder: 8,
+      autoReview: true,
+      autoRepair: true,
+    },
+    allowLazyChapterPlanning: true,
+  });
+
+  assert.deepEqual(result.range, {
+    startOrder: 4,
+    endOrder: 8,
+    totalChapterCount: 5,
+    firstChapterId: null,
+  });
+  assert.deepEqual(result.autoExecution.remainingChapterOrders, [4, 5, 6]);
+});
 
 test("circuit-breaker governance continues, pauses, or fails the real workflow state", async () => {
   const originalReportIssue = directorIssueService.reportIssue;
