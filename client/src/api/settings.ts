@@ -3,7 +3,7 @@ import type {
   DirectorAutoApprovalPreferenceSettings,
 } from "@ai-novel/shared/types/autoDirectorApproval";
 import type { DirectorIssuePolicy } from "@ai-novel/shared/types/directorIssue";
-import type { LLMProvider } from "@ai-novel/shared/types/llm";
+import type { LLMProvider, ReasoningEffort } from "@ai-novel/shared/types/llm";
 import type {
   ModelRouteConfig,
   ModelRouteRequestProtocol,
@@ -31,6 +31,9 @@ export interface APIKeyStatus {
   isConfigured: boolean;
   isActive: boolean;
   reasoningEnabled: boolean;
+  reasoningEffort: ReasoningEffort | null;
+  supportsReasoningEffort: boolean;
+  hiddenModels: string[];
   concurrencyLimit: number;
   requestIntervalMs: number;
   supportsImageGeneration: boolean;
@@ -329,6 +332,8 @@ export async function saveAPIKeySetting(
     baseURL?: string;
     isActive?: boolean;
     reasoningEnabled?: boolean;
+    reasoningEffort?: ReasoningEffort;
+    hiddenModels?: string[];
     concurrencyLimit?: number;
     requestIntervalMs?: number;
   },
@@ -342,6 +347,9 @@ export async function saveAPIKeySetting(
       baseURL: string | null;
       isActive: boolean;
       reasoningEnabled: boolean;
+      reasoningEffort: ReasoningEffort | null;
+      supportsReasoningEffort: boolean;
+      hiddenModels: string[];
       concurrencyLimit: number;
       requestIntervalMs: number;
       models: string[];
@@ -360,6 +368,7 @@ export async function createCustomProvider(payload: {
   baseURL: string;
   isActive?: boolean;
   reasoningEnabled?: boolean;
+  reasoningEffort?: ReasoningEffort;
   concurrencyLimit?: number;
   requestIntervalMs?: number;
 }) {
@@ -372,6 +381,9 @@ export async function createCustomProvider(payload: {
       baseURL: string | null;
       isActive: boolean;
       reasoningEnabled: boolean;
+      reasoningEffort: ReasoningEffort | null;
+      supportsReasoningEffort: boolean;
+      hiddenModels: string[];
       concurrencyLimit: number;
       requestIntervalMs: number;
       models: string[];

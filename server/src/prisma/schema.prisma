@@ -1798,6 +1798,8 @@ model APIKey {
   baseURL   String?
   isActive  Boolean  @default(true)
   reasoningEnabled Boolean @default(true)
+  reasoningEffort String?
+  hiddenModels String @default("[]")
   concurrencyLimit Int @default(0)
   requestIntervalMs Int @default(0)
   createdAt DateTime @default(now())

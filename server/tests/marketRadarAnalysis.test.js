@@ -14,6 +14,9 @@ const {
   marketPlatformDigestSchema,
   marketTrendReportSchema,
 } = require("../dist/prompting/prompts/marketRadar/marketRadar.promptSchemas.js");
+const {
+  marketCreativeBriefPrompt,
+} = require("../dist/prompting/prompts/marketRadar/marketRadar.prompts.js");
 
 const storyModeProfile = {
   coreDrive: "持续解决身份与能力带来的阶段目标。",
@@ -115,6 +118,17 @@ test("market creative brief requires an actionable opening seed", () => {
     ...valid,
     creativeSeed: { ...valid.creativeSeed, coreAdvantage: "很强" },
   }).success, false);
+});
+
+test("market creative brief keeps radar-generated seeds free of specific names", () => {
+  const messages = marketCreativeBriefPrompt.render({
+    influenceMode: "follow_hot",
+    selectedSignalsText: "relationship｜契约关系｜高压关系需要持续反转。",
+  });
+
+  assert.equal(marketCreativeBriefPrompt.version, "v3");
+  assert.match(String(messages[0].content), /不得新造或输出任何具体人物姓名/);
+  assert.match(String(messages[0].content), /具体命名留给后续角色与世界规划阶段/);
 });
 
 test("market brief runtime context keeps every selected signal and creative seed", () => {

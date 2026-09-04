@@ -7,6 +7,7 @@ const { creativeHubLangGraph } = require("../dist/creativeHub/CreativeHubLangGra
 const { creativeHubInterruptLangGraph } = require("../dist/creativeHub/CreativeHubInterruptLangGraph.js");
 const { creativeHubService } = require("../dist/creativeHub/CreativeHubService.js");
 const { llmConnectivityService } = require("../dist/llm/connectivity.js");
+const { setProviderSecretCache } = require("../dist/llm/factory.js");
 const structuredFallbackSettings = require("../dist/llm/structuredFallbackSettings.js");
 const {
   DefaultNovelApplicationServices,
@@ -821,6 +822,81 @@ test("PUT /api/settings/api-keys/minimax updates reasoning toggle", async () => 
     assert.equal(payload.data.provider, "minimax");
     assert.equal(payload.data.reasoningEnabled, false);
   } finally {
+    prisma.aPIKey.findUnique = originalFindUnique;
+    prisma.aPIKey.upsert = originalUpsert;
+    global.fetch = originalFetch;
+    await new Promise((resolve, reject) => server.close((error) => error ? reject(error) : resolve()));
+  }
+});
+
+test("PUT /api/settings/api-keys/deepseek persists model controls and validates unsafe values", async () => {
+  const originalFindUnique = prisma.aPIKey.findUnique;
+  const originalUpsert = prisma.aPIKey.upsert;
+  const originalFetch = global.fetch;
+  const httpFetch = originalFetch.bind(global);
+  let stored = {
+    id: "api-key-deepseek-controls",
+    provider: "deepseek",
+    displayName: null,
+    key: "test-deepseek-key",
+    model: "deepseek-v4-flash",
+    baseURL: "https://api.deepseek.com/v1",
+    isActive: true,
+    reasoningEnabled: true,
+    reasoningEffort: null,
+    hiddenModels: "[]",
+    concurrencyLimit: 0,
+    requestIntervalMs: 0,
+    createdAt: new Date(),
+    updatedAt: new Date(),
+  };
+  prisma.aPIKey.findUnique = async () => stored;
+  prisma.aPIKey.upsert = async ({ update }) => {
+    stored = { ...stored, ...update };
+    return stored;
+  };
+  global.fetch = async () => new Response(JSON.stringify({
+    data: [
+      { id: "deepseek-v4-flash" },
+      { id: "legacy-model" },
+      { id: "deepseek-v4-pro" },
+    ],
+  }), { status: 200, headers: { "Content-Type": "application/json" } });
+
+  const app = createApp();
+  const server = http.createServer(app);
+  const port = await listen(server);
+  try {
+    const response = await httpFetch(`http://127.0.0.1:${port}/api/settings/api-keys/deepseek`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        reasoningEffort: "max",
+        hiddenModels: [" legacy-model ", "legacy-model"],
+      }),
+    });
+    assert.equal(response.status, 200);
+    const payload = await response.json();
+    assert.equal(payload.data.reasoningEffort, "max");
+    assert.deepEqual(payload.data.hiddenModels, ["legacy-model"]);
+    assert.equal(payload.data.models.includes("legacy-model"), false);
+    assert.equal(stored.hiddenModels, '["legacy-model"]');
+
+    const invalidEffort = await httpFetch(`http://127.0.0.1:${port}/api/settings/api-keys/deepseek`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ reasoningEffort: "ultra" }),
+    });
+    assert.equal(invalidEffort.status, 400);
+
+    const hideCurrent = await httpFetch(`http://127.0.0.1:${port}/api/settings/api-keys/deepseek`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ hiddenModels: ["deepseek-v4-flash"] }),
+    });
+    assert.equal(hideCurrent.status, 400);
+  } finally {
+    setProviderSecretCache("deepseek", null);
     prisma.aPIKey.findUnique = originalFindUnique;
     prisma.aPIKey.upsert = originalUpsert;
     global.fetch = originalFetch;

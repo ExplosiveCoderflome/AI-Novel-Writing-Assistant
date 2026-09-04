@@ -28,6 +28,32 @@ function uniqueModels(models: string[]): string[] {
   return Array.from(new Set(models.map((item) => item.trim()).filter(Boolean)));
 }
 
+export function parseHiddenModels(value: string | null | undefined): string[] {
+  if (!value) return [];
+  try {
+    const parsed = JSON.parse(value) as unknown;
+    return Array.isArray(parsed)
+      ? uniqueModels(parsed.filter((item): item is string => typeof item === "string")).slice(0, 200)
+      : [];
+  } catch {
+    return [];
+  }
+}
+
+export function serializeHiddenModels(models: string[]): string {
+  return JSON.stringify(uniqueModels(models).slice(0, 200));
+}
+
+export function filterHiddenModels(
+  models: string[],
+  hiddenModels: string[],
+  currentModel?: string,
+): string[] {
+  const hidden = new Set(hiddenModels);
+  const current = currentModel?.trim();
+  return uniqueModels(models).filter((model) => model === current || !hidden.has(model));
+}
+
 function getFallbackModels(provider: LLMProvider, options: GetProviderModelsOptions = {}): string[] {
   const builtInModels = options.includeBuiltInFallback === false
     ? []

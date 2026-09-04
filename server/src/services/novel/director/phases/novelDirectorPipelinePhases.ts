@@ -287,6 +287,7 @@ export async function runDirectorVolumeStrategyPhase(input: {
       model: request.model,
       temperature: request.temperature,
       scope: "strategy",
+      respectExistingVolumeCount: false,
       taskId,
       entrypoint: "auto_director",
       estimatedChapterCount: request.estimatedChapterCount ?? toBookSpec(request.candidate, request.idea, request.estimatedChapterCount).targetChapterCount,

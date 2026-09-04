@@ -478,7 +478,7 @@ export const promptAssetLoaderEntries: PromptAssetLoaderEntry[] = [
     load: () => require("../prompts/marketRadar/marketRadar.prompts").marketTrendSynthesisPrompt as UnknownPromptAsset,
   },
   {
-    key: "market_radar.creative_brief@v2",
+    key: "market_radar.creative_brief@v3",
     load: () => require("../prompts/marketRadar/marketRadar.prompts").marketCreativeBriefPrompt as UnknownPromptAsset,
   },
   {

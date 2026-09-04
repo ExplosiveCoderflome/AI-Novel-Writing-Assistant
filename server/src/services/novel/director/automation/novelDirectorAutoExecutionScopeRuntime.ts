@@ -311,7 +311,7 @@ export async function resolveAutoExecutionRangeAndState(input: {
     throw new Error("当前还没有可自动执行的章节，请先完成目标范围的拆章同步。");
   }
   const missingChapterOrders = findMissingChapterOrders(chapters, range);
-  if (missingChapterOrders.length > 0) {
+  if (missingChapterOrders.length > 0 && !input.allowLazyChapterPlanning) {
     const resolvedScopeLabel = scopeLabel ?? buildDirectorAutoExecutionScopeLabelFromState(input.existingState, range.totalChapterCount);
     throw new Error(
       `${resolvedScopeLabel}对应的章节执行区还缺少第 ${missingChapterOrders.slice(0, 5).join("、")} 章，请先完成目标范围的拆章同步。`,
