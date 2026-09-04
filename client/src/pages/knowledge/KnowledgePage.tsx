@@ -54,6 +54,8 @@ export default function KnowledgePage() {
   const [ragForm, setRagForm] = useState<KnowledgeEmbeddingSettingsFormState>({
     embeddingProvider: "openai",
     embeddingModel: "text-embedding-3-small",
+    embeddingApiKey: "",
+    embeddingBaseURL: "",
     collectionVersion: 1,
     collectionMode: "auto",
     collectionName: "ai_novel_chunks_v1",
@@ -141,6 +143,8 @@ export default function KnowledgePage() {
     setRagForm({
       embeddingProvider: data.embeddingProvider,
       embeddingModel: data.embeddingModel,
+      embeddingApiKey: "",
+      embeddingBaseURL: "",
       collectionVersion: data.collectionVersion,
       collectionMode: data.collectionMode,
       collectionName: data.collectionName,
@@ -204,6 +208,8 @@ export default function KnowledgePage() {
           ...prev,
           embeddingProvider: data.embeddingProvider,
           embeddingModel: data.embeddingModel,
+          embeddingApiKey: "",
+          embeddingBaseURL: "",
           collectionVersion: data.collectionVersion,
           collectionMode: data.collectionMode,
           collectionName: data.collectionName,
@@ -354,7 +360,9 @@ export default function KnowledgePage() {
   const ragHealthNotice = ragHealthQuery.isError
     ? (ragHealthQuery.error instanceof Error ? ragHealthQuery.error.message : "加载 RAG 健康状态失败。")
     : (ragHealthQuery.data?.message && ragHealthQuery.data.message !== "RAG health check passed."
-      ? ragHealthQuery.data.message
+      ? (ragHealthQuery.data.message === "RAG health check failed."
+        ? "资料检索连接检查未通过。"
+        : ragHealthQuery.data.message)
       : undefined);
   const recallErrorMessage = recallTestMutation.isError
     ? (recallTestMutation.error instanceof Error ? recallTestMutation.error.message : "召回测试失败。")
@@ -446,6 +454,8 @@ export default function KnowledgePage() {
     saveRagMutation.mutate({
       embeddingProvider: ragForm.embeddingProvider,
       embeddingModel: ragForm.embeddingModel.trim(),
+      embeddingApiKey: ragForm.embeddingApiKey.trim() || undefined,
+      embeddingBaseURL: ragForm.embeddingBaseURL.trim() || undefined,
       collectionMode: ragForm.collectionMode,
       collectionName: ragForm.collectionName.trim(),
       collectionTag: ragForm.collectionTag.trim(),
@@ -527,10 +537,10 @@ export default function KnowledgePage() {
         onValueChange={(value) => setSearchParams({ tab: value })}
         className="space-y-4"
       >
-        <TabsList className="h-auto w-full justify-start overflow-x-auto">
-          <TabsTrigger value="documents">创作资料</TabsTrigger>
-          <TabsTrigger value="ops">索引与任务</TabsTrigger>
-          <TabsTrigger value="settings">检索设置</TabsTrigger>
+        <TabsList className="h-11 w-full justify-start gap-1 overflow-x-auto rounded-full bg-muted/30 p-1">
+          <TabsTrigger value="documents" className="rounded-full px-5">创作资料</TabsTrigger>
+          <TabsTrigger value="ops" className="rounded-full px-5">索引与任务</TabsTrigger>
+          <TabsTrigger value="settings" className="rounded-full px-5">检索设置</TabsTrigger>
         </TabsList>
 
         <TabsContent value="documents">
@@ -579,6 +589,7 @@ export default function KnowledgePage() {
             deletingJobId={deleteRagJobMutation.isPending ? deleteRagJobMutation.variables : undefined}
             onClearFinishedJobs={handleClearFinishedRagJobs}
             onDeleteJob={handleDeleteRagJob}
+            onOpenSettings={() => setSearchParams({ tab: "settings" })}
           />
         </TabsContent>
 

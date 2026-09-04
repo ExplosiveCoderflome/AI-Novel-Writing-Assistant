@@ -24,6 +24,9 @@ import { registerNovelWorldSliceRoutes } from "../setup/http/novelWorldSliceRout
 import novelChapterSummaryRouter from "../production/http/novelChapterSummary";
 import novelDecisionsRouter from "../state/http/novelDecisions";
 import type { NovelHttpServices } from "./novelHttpServices";
+import { registerShortStoryRoutes } from "../short-story/http/shortStoryRoutes";
+import { registerWritingPlatformRoutes } from "../writing-platform/http/writingPlatformRoutes";
+import { registerDirectorIssuePolicyRoutes } from "../../../services/novel/director/issues/directorIssuePolicyRoutes";
 import {
   aiRevisionPreviewSchema,
   arcPlanParamsSchema,
@@ -82,6 +85,10 @@ export function registerNovelHttpRoutes(router: Router, services: NovelHttpServi
     router,
     novelService,
   });
+
+  registerShortStoryRoutes(router);
+  registerWritingPlatformRoutes(router);
+  registerDirectorIssuePolicyRoutes(router);
 
   registerNovelFramingRoutes({
     router,

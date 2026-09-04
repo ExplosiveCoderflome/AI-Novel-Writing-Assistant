@@ -430,12 +430,42 @@ export function buildPrimaryAction(input: {
     });
   }
 
+  if (
+    input.task?.checkpointType === "replan_required"
+    && ["waiting_approval", "waiting_recovery", "failed", "blocked", "cancelled"].includes(input.status)
+  ) {
+    return action({
+      type: "auto_execute_range",
+      label: "重规划后继续",
+      target: {
+        novelId: input.novelId,
+        taskId,
+        tab: "pipeline",
+        href: buildNovelHref(input.novelId, { tab: "pipeline", taskId }),
+      },
+      commandPayload: { taskId, continuationMode: "auto_execute_range" },
+      emphasis: "primary",
+    });
+  }
+
   if (input.status === "waiting_approval") {
     if (input.task?.checkpointType === "candidate_selection_required") {
       return action({
         type: "confirm_candidate",
         label: "确认书级方向",
         target: { novelId: input.novelId, taskId, href: buildCandidateSelectionHref(taskId) },
+        emphasis: "primary",
+      });
+    }
+    if (input.task?.checkpointType === "production_experience_required") {
+      return action({
+        type: "open_novel",
+        label: "选择正文生产方式",
+        target: {
+          novelId: input.novelId,
+          taskId,
+          href: buildNovelHref(input.novelId, { taskId }),
+        },
         emphasis: "primary",
       });
     }
@@ -450,19 +480,6 @@ export function buildPrimaryAction(input: {
           href: buildNovelHref(input.novelId, { tab: "chapter", taskId }),
         },
         commandPayload: { taskId, continuationMode: "auto_execute_range" },
-        emphasis: "primary",
-      });
-    }
-    if (input.task?.checkpointType === "replan_required") {
-      return action({
-        type: "open_quality_repair",
-        label: "打开质量修复",
-        target: {
-          novelId: input.novelId,
-          taskId,
-          tab: "pipeline",
-          href: buildNovelHref(input.novelId, { tab: "pipeline", taskId }),
-        },
         emphasis: "primary",
       });
     }

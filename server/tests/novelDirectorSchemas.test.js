@@ -2,14 +2,56 @@ const test = require("node:test");
 const assert = require("node:assert/strict");
 const {
   directorCandidateResponseSchema,
+  directorPersistedCandidateSchema,
   directorBookContractSchema,
   normalizeDirectorTitleSuggestionStyle,
 } = require("../dist/services/novel/director/runtime/novelDirectorSchemas.js");
 const {
   normalizeCandidate,
   normalizeBookContract,
+  selectDistinctCandidateTitle,
   toBookSpec,
 } = require("../dist/services/novel/director/runtime/novelDirectorHelpers.js");
+
+test("director persisted candidates preserve the AI-resolved production foundation", () => {
+  const parsed = directorPersistedCandidateSchema.parse({
+    id: "candidate-1",
+    workingTitle: "底座贯穿测试",
+    logline: "主角在失控秩序中逐步夺回主动权。",
+    positioning: "男频成长型网文",
+    sellingPoint: "每轮危机都带来可见成长",
+    coreConflict: "个人成长与旧秩序压制",
+    protagonistPath: "从求生到建立自己的规则",
+    endingDirection: "完成阶段性反制并打开更大舞台",
+    hookStrategy: "危机开篇",
+    progressionLoop: "受压、破局、收益、升级",
+    whyItFits: "适合稳定连载和阶段回报",
+    toneKeywords: ["紧凑", "成长"],
+    targetChapterCount: 120,
+    productionFoundation: {
+      summary: "玄幻升级题材，以阶段任务持续推进。",
+      genre: {
+        id: "genre-1",
+        name: "东方玄幻",
+        path: "玄幻/东方玄幻",
+        reason: "世界规则和能力成长是主要吸引力。",
+      },
+      primaryStoryMode: {
+        id: "mode-1",
+        name: "升级成长",
+        path: "成长/升级",
+        reason: "核心冲突需要连续的能力与地位变化。",
+      },
+      secondaryStoryMode: null,
+      caution: "避免只有数值变化而没有剧情代价。",
+      recommendedAt: "2026-08-05T00:00:00.000Z",
+    },
+  });
+
+  assert.equal(parsed.productionFoundation.genre.id, "genre-1");
+  assert.equal(parsed.productionFoundation.primaryStoryMode.id, "mode-1");
+  assert.equal(parsed.productionFoundation.caution, "避免只有数值变化而没有剧情代价。");
+});
 
 test("normalizeDirectorTitleSuggestionStyle handles common variants", () => {
   assert.equal(normalizeDirectorTitleSuggestionStyle("high-concept"), "high_concept");
@@ -42,6 +84,8 @@ test("directorCandidateResponseSchema accepts normalized titleOptions.style", ()
         hookStrategy: "hook",
         progressionLoop: "loop",
         whyItFits: "fit",
+        recommendedWritingPlatform: "fanqie_free",
+        writingPlatformReason: "适合快节奏移动端追读。",
         toneKeywords: ["a", "b"],
         targetChapterCount: 30,
       },
@@ -57,6 +101,8 @@ test("directorCandidateResponseSchema accepts normalized titleOptions.style", ()
         hookStrategy: "hook",
         progressionLoop: "loop",
         whyItFits: "fit",
+        recommendedWritingPlatform: "jinjiang_female",
+        writingPlatformReason: "人物关系与情绪因果更匹配。",
         toneKeywords: ["c", "d"],
         targetChapterCount: 40,
       },
@@ -80,6 +126,8 @@ test("directorCandidateResponseSchema preserves long novel chapter targets", () 
         hookStrategy: "hook",
         progressionLoop: "loop",
         whyItFits: "fit",
+        recommendedWritingPlatform: "qidian_male",
+        writingPlatformReason: "成长目标和能力升级链清晰。",
         toneKeywords: ["a", "b"],
         targetChapterCount: 430,
       },
@@ -94,6 +142,8 @@ test("directorCandidateResponseSchema preserves long novel chapter targets", () 
         hookStrategy: "hook",
         progressionLoop: "loop",
         whyItFits: "fit",
+        recommendedWritingPlatform: "fanqie_free",
+        writingPlatformReason: "适合持续冲突和阶段回报。",
         toneKeywords: ["c", "d"],
         targetChapterCount: 360,
       },
@@ -122,6 +172,56 @@ test("director helper normalization keeps explicit long-form chapter counts", ()
 
   assert.equal(candidate.targetChapterCount, 430);
   assert.equal(bookSpec.targetChapterCount, 430);
+});
+
+test("director candidate title selection promotes a distinct alternative across one batch", () => {
+  const candidate = normalizeCandidate({
+    workingTitle: "退婚宴上我觉醒了凤魂",
+    titleOptions: [],
+    logline: "logline",
+    positioning: "pos",
+    sellingPoint: "sell",
+    coreConflict: "conflict",
+    protagonistPath: "path",
+    endingDirection: "end",
+    hookStrategy: "hook",
+    progressionLoop: "loop",
+    whyItFits: "fit",
+    toneKeywords: ["a", "b"],
+    targetChapterCount: 80,
+  }, 1);
+  candidate.titleOptions = [
+    { title: "退婚宴上我觉醒了凤魂", clickRate: 92, style: "high_concept" },
+    { title: "被弃庶女，我以凤魂镇九州", clickRate: 90, style: "conflict" },
+  ];
+
+  const resolved = selectDistinctCandidateTitle(candidate, ["退婚宴上我觉醒了凤魂"]);
+
+  assert.equal(resolved?.workingTitle, "被弃庶女，我以凤魂镇九州");
+  assert.equal(resolved?.titleOptions[0]?.title, "被弃庶女，我以凤魂镇九州");
+});
+
+test("director candidate title selection rejects a group with no distinct title", () => {
+  const candidate = normalizeCandidate({
+    workingTitle: "退婚宴上我觉醒了凤魂",
+    titleOptions: [],
+    logline: "logline",
+    positioning: "pos",
+    sellingPoint: "sell",
+    coreConflict: "conflict",
+    protagonistPath: "path",
+    endingDirection: "end",
+    hookStrategy: "hook",
+    progressionLoop: "loop",
+    whyItFits: "fit",
+    toneKeywords: ["a", "b"],
+    targetChapterCount: 80,
+  }, 1);
+  candidate.titleOptions = [
+    { title: "《退婚宴上我觉醒了凤魂》", clickRate: 92, style: "high_concept" },
+  ];
+
+  assert.equal(selectDistinctCandidateTitle(candidate, ["退婚宴上我觉醒了凤魂"]), null);
 });
 
 test("directorBookContractSchema tolerates overflow red lines and normalization trims them to six", () => {

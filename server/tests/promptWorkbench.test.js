@@ -69,6 +69,7 @@ test("prompt workbench catalog exposes registered prompts without override execu
   assert.equal(planner.managementStatus, "missing_slots");
   assert.deepEqual(planner.slots, []);
   assert.ok(planner.description.includes("意图"));
+  assert.equal(planner.shortDescription, "规划意图理解");
   assert.equal(planner.outputType, "structured");
   assert.ok(planner.contextRequirements.some((requirement) => requirement.group === "creative_hub.bindings"));
   assert.equal(planner.mode, "structured");
@@ -83,8 +84,13 @@ test("prompt workbench catalog exposes registered prompts without override execu
   assert.equal(chapterWriter.slotSupported, true);
   assert.equal(chapterWriter.managementStatus, "complete");
   assert.ok(chapterWriter.description.includes("章节正文"));
+  assert.equal(chapterWriter.shortDescription, "章节正文生成");
   assert.ok(chapterWriter.slots.some((slot) => slot.key === "writer.antiAiRules"));
   assert.ok(chapterWriter.lockedFields.includes("contextPolicy"));
+
+  const completeCatalog = service.listCatalog();
+  assert.equal(completeCatalog.some((item) => item.shortDescription === "内部提示词"), false);
+  assert.equal(completeCatalog.every((item) => item.shortDescription.length <= 12), true);
 });
 
 test("prompt workbench catalog lists slot-supported prompts first", () => {

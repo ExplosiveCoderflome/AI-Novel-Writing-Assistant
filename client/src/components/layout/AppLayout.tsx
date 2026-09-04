@@ -1,7 +1,6 @@
 import { Suspense, useEffect, useMemo, useState } from "react";
 import { matchPath, Outlet, useLocation } from "react-router-dom";
 import AppRouteFallback from "./AppRouteFallback";
-import DesktopModelSetupGate from "./DesktopModelSetupGate";
 import LLMSelectionBootstrap from "./LLMSelectionBootstrap";
 import Navbar from "./Navbar";
 import NovelWorkspaceRail from "./NovelWorkspaceRail";
@@ -16,6 +15,7 @@ import {
   AUTO_DIRECTOR_MOBILE_CLASSES,
   shouldUseAutoDirectorMobileFullWidthContent,
 } from "@/mobile/autoDirector";
+import { CreationSetupProvider } from "@/components/onboarding/CreationSetupContext";
 
 const SIDEBAR_COLLAPSED_STORAGE_KEY = "ai-novel.sidebar.collapsed";
 const WORKSPACE_RAIL_COLLAPSED_STORAGE_KEY = "ai-novel.workspace-rail.collapsed";
@@ -27,6 +27,7 @@ export default function AppLayout() {
   const [isWorkspaceRailCollapsed, setIsWorkspaceRailCollapsed] = useState(false);
   const [workspaceNavMode, setWorkspaceNavMode] = useState<"workspace" | "project">("project");
   const isMobileViewport = useIsMobileViewport();
+  const isNovelPreview = Boolean(matchPath("/novels/:id/preview", location.pathname));
 
   const workspaceRoute = useMemo(() => {
     const editMatch = matchPath("/novels/:id/edit", location.pathname);
@@ -73,40 +74,60 @@ export default function AppLayout() {
     setWorkspaceNavMode(isNovelWorkspace ? "workspace" : "project");
   }, [isNovelWorkspace, location.pathname]);
 
+  if (isNovelPreview) {
+    return (
+      <CreationSetupProvider>
+        <TaskRecoveryProvider>
+          <div className="h-[100dvh] overflow-hidden bg-background text-foreground">
+            <AutoDirectorPauseNotificationWatcher />
+            <LLMSelectionBootstrap />
+            <Suspense fallback={<AppRouteFallback />}>
+              <Outlet />
+            </Suspense>
+            <TaskRecoveryDialog />
+          </div>
+        </TaskRecoveryProvider>
+      </CreationSetupProvider>
+    );
+  }
+
   if (useMobileNovelWorkspaceLayout) {
     return (
+      <CreationSetupProvider>
       <TaskRecoveryProvider>
         <div className="min-h-screen bg-background">
           <AutoDirectorPauseNotificationWatcher />
           <LiveExecutionDialog compact className="fixed right-3 top-3 z-50 h-9 w-9 bg-background px-0 shadow-sm" />
           <LLMSelectionBootstrap />
-          <DesktopModelSetupGate />
           <Suspense fallback={<AppRouteFallback />}>
             <Outlet />
           </Suspense>
           <TaskRecoveryDialog />
         </div>
       </TaskRecoveryProvider>
+      </CreationSetupProvider>
     );
   }
 
   if (useMobileSiteLayout) {
     return (
+      <CreationSetupProvider>
       <TaskRecoveryProvider>
         <MobileSiteShell>
           <AutoDirectorPauseNotificationWatcher />
           <LLMSelectionBootstrap />
-          <DesktopModelSetupGate />
           <Suspense fallback={<AppRouteFallback />}>
             <Outlet />
           </Suspense>
           <TaskRecoveryDialog />
         </MobileSiteShell>
       </TaskRecoveryProvider>
+      </CreationSetupProvider>
     );
   }
 
   return (
+    <CreationSetupProvider>
     <TaskRecoveryProvider>
       <div className="h-[100dvh] overflow-hidden bg-background">
         <AutoDirectorPauseNotificationWatcher />
@@ -133,7 +154,6 @@ export default function AppLayout() {
             )}
           </div>
           <main className={useMobileFullWidthContent ? AUTO_DIRECTOR_MOBILE_CLASSES.appMain : DEFAULT_APP_MAIN_CLASS_NAME}>
-            <DesktopModelSetupGate />
             <Suspense fallback={<AppRouteFallback />}>
               <Outlet />
             </Suspense>
@@ -142,5 +162,6 @@ export default function AppLayout() {
         <TaskRecoveryDialog />
       </div>
     </TaskRecoveryProvider>
+    </CreationSetupProvider>
   );
 }

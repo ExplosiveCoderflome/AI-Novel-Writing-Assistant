@@ -66,7 +66,7 @@ const DEFAULT_BOOTSTRAP_SNAPSHOT: DesktopBootstrapSnapshot = {
 
 const DEFAULT_UPDATER_SNAPSHOT: DesktopUpdaterSnapshot = {
   status: "disabled",
-  message: "Updates are not available in this runtime.",
+  message: "当前运行环境无法使用桌面版更新。",
   currentVersion: "0.0.0",
   availableVersion: null,
   progressPercent: null,
@@ -110,6 +110,10 @@ export async function openDesktopLogsDirectory(): Promise<void> {
 
 export async function copyDesktopLogPath(): Promise<string | undefined> {
   return getDesktopBridge()?.copyLogPath?.();
+}
+
+export async function bundleDesktopLogs(): Promise<string | null> {
+  return getDesktopBridge()?.bundleLogs?.() ?? null;
 }
 
 export async function restartDesktopApp(): Promise<void> {

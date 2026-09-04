@@ -26,6 +26,7 @@ export interface NovelThemeWorldGenerationPromptInput {
   secondaryStoryModeName: string;
   storyMacroContext?: string;
   bookContractContext?: string;
+  openingOnly?: boolean;
 }
 
 export interface WorldStructureSectionPromptInput {

@@ -1,9 +1,13 @@
 import { useLocation } from "react-router-dom";
+import { SlidersHorizontal } from "lucide-react";
 import LLMSelector from "@/components/common/LLMSelector";
+import { useCreationSetup } from "@/components/onboarding/CreationSetupContext";
 import AppVersionBadge from "@/components/layout/AppVersionBadge";
 import DesktopBrandMark from "@/components/layout/DesktopBrandMark";
 import LiveExecutionDialog from "@/components/liveExecution/LiveExecutionDialog";
 import ProjectGithubLink from "@/components/layout/ProjectGithubLink";
+import ThemeToggle from "@/components/theme/ThemeToggle";
+import DesktopReleaseNotesDialog from "@/components/layout/DesktopReleaseNotesDialog";
 import { Button } from "@/components/ui/button";
 import {
   AUTO_DIRECTOR_MOBILE_CLASSES,
@@ -17,6 +21,7 @@ interface NavbarProps {
 
 export default function Navbar(props: NavbarProps) {
   const { workspaceNavMode, onWorkspaceNavModeChange } = props;
+  const { openQuickSetup } = useCreationSetup();
   const location = useLocation();
   const isHome = location.pathname === "/";
   const showWorkspaceToggle = Boolean(workspaceNavMode && onWorkspaceNavModeChange);
@@ -30,6 +35,7 @@ export default function Navbar(props: NavbarProps) {
           <div className="flex min-w-0 items-center gap-1.5">
             <span className="min-w-0 truncate text-sm font-semibold">AI 小说创作工作台</span>
             <AppVersionBadge />
+            <DesktopReleaseNotesDialog />
             <ProjectGithubLink />
           </div>
           <span className="hidden truncate text-[11px] text-muted-foreground sm:block">AI Novel Production Engine</span>
@@ -48,8 +54,24 @@ export default function Navbar(props: NavbarProps) {
           </Button>
         ) : null}
         <LiveExecutionDialog />
+        <ThemeToggle />
+        <Button
+          type="button"
+          size="sm"
+          variant="outline"
+          className="gap-1.5"
+          onClick={openQuickSetup}
+        >
+          <SlidersHorizontal className="h-4 w-4" />
+          <span className="hidden lg:inline">模型设置</span>
+        </Button>
         <div className={useMobileAutoDirectorShell ? AUTO_DIRECTOR_MOBILE_CLASSES.navbarModelSelector : undefined}>
-          <LLMSelector compact showBadge={false} showHelperText={false} />
+          <LLMSelector
+            compact
+            showBadge={false}
+            showHelperText={false}
+            showCompactTemperature
+          />
         </div>
       </div>
     </header>

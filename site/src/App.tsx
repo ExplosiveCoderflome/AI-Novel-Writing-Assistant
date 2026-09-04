@@ -16,68 +16,70 @@ import { formatStarCount, useGithubStars } from "./hooks/useGithubStars";
 import { usePageMeta } from "./hooks/usePageMeta";
 import DocsPage from "./DocsPage";
 import { docsPath, isSitePath, parseRoute, sitePath } from "./routing";
-import chapterExecutionImage from "./assets/chapter-execution.png";
-import creativeHubImage from "./assets/creative-hub.png";
-import directorChoiceImage from "./assets/director-choice.png";
+import bookAnalysisImage from "../../images/v2/微信截图_20260813220038.png";
+import bookshelfImage from "../../images/v2/微信截图_20260813220328.png";
+import chapterExecutionImage from "../../images/write/章节执行.png";
+import projectSettingsImage from "../../images/write/项目设定.png";
 
 const repoUrl = "https://github.com/ExplosiveCoderflome/AI-Novel-Writing-Assistant";
 const releaseUrl = `${repoUrl}/releases/latest`;
 const docsIntroBannerImage = `${import.meta.env.BASE_URL}assets/docs-intro-banner.png`;
 
 const proofItems = [
-  "自动导演开书",
-  "本书世界与角色资产",
-  "RAG 知识回灌",
-  "章节执行与质量修复",
+  "灵感、市场、参考书三种起点",
+  "AI 自动准备到可以开始写",
+  "简易 / 专业两种创作方式",
+  "从已保存进度安全恢复",
 ];
 
 const productionFlow = [
   {
     marker: "01",
-    title: "把灵感定成可写方向",
-    text: "从一句模糊想法开始，AI 先整理题材、卖点、读者感受和整本方向候选，让新手不用先凭空搭完世界和大纲。",
-    image: directorChoiceImage,
+    title: "选择最适合你的开书起点",
+    text: "输入一句灵感，从热门题材雷达选择公开榜单信号，或从完成的拆书选择续写原作、参考创作新书。三个入口都会进入同一条自动导演主链。",
+    image: bookAnalysisImage,
   },
   {
     marker: "02",
-    title: "准备世界、角色和长期承诺",
-    text: "系统把舞台规则、势力边界、角色关系和前期承诺沉淀为可继承资产，让后续章节减少对临时提示词的依赖。",
-    image: creativeHubImage,
+    title: "让 AI 先准备到可以开始写",
+    text: "自动导演会依次完成书级定位、故事宏观、世界与角色、卷战略、节奏拆章和章节任务。只有方案选择或真实异常需要你处理时，流程才会停下来说明原因。",
+    image: projectSettingsImage,
   },
   {
     marker: "03",
-    title: "拆成卷、节奏段和章节任务",
-    text: "长篇会被拆成卷战略、节奏板、章节目标和执行任务单，每一步都能继续推进、回看和调整。",
-    image: chapterExecutionImage,
+    title: "选择自动推进，或随时接管",
+    text: "简易创作持续生成、审核和修复整本正文；专业创作提供完整工作台。两种方式共用同一套章节状态，切换不会清空规划、正文或恢复位置。",
+    image: bookshelfImage,
   },
 ];
 
 const consoleModules = [
   {
-    title: "Creative Hub",
-    text: "对话、追问、规划、工具调用和任务状态集中在同一个创作中枢。",
+    title: "开书定盘",
+    text: "灵感、市场信号和参考拆书都会先整理成书级定位、核心卖点与前期承诺。",
     icon: BrainCircuit,
   },
   {
-    title: "自动导演",
-    text: "从开书方向到章节批次准备，持续给出下一步建议和可恢复节点。",
+    title: "AI 驾驶舱",
+    text: "自动导演持续准备世界、角色和卷章任务，只有需要选择方案或处理异常时才请求介入。",
     icon: Sparkles,
   },
   {
-    title: "知识与写法",
-    text: "拆书、知识库、写法资产进入上下文检索，让后续章节继承同一套创作依据。",
+    title: "简易 / 专业创作",
+    text: "想自动完成整本书就进入简易创作，需要细看和调整时切换到专业工作台。",
     icon: Boxes,
   },
   {
-    title: "章节生产",
-    text: "正文写作、审核、修复和状态回灌串成单章执行链。",
+    title: "问题处理与恢复",
+    text: "运行记录保留真实错误和恢复位置；局部质量问题进入待优化，不会无故停止整本创作。",
     icon: PenLine,
   },
 ];
 
 const audience = [
-  "想用 AI 完成长篇小说，而不是只生成片段文案的创作者。",
-  "希望系统给出清晰默认步骤、降低写作结构门槛的新手。",
+  "第一次写长篇，希望 AI 给出明确下一步并自动准备结构的创作者。",
+  "想从市场趋势或参考作品出发，又希望新书保持独立设定的使用者。",
+  "需要在自动推进与人工接管之间切换，并保留正文和恢复位置的创作者。",
   "正在研究 Agent Workflow、LangGraph 编排和 AI Native 产品落地的开发者。",
 ];
 
@@ -204,10 +206,10 @@ function HomePage() {
       >
         <div className="hero-scrim" />
         <div className="hero-content">
-          <p className="eyebrow">AI native novel production workspace</p>
-          <h1>从一句灵感，到一整本小说</h1>
+          <p className="eyebrow">AI 驱动的长篇小说生产工作台</p>
+          <h1>从灵感、趋势或参考作品，到一整本小说</h1>
           <p className="hero-copy">
-            自动导演、世界观、角色、拆章、章节执行和质量修复串成一条长篇生产链，帮助新手把想法推进到可持续写作。
+            你只需要先选开书依据。AI 会准备书级定位、世界、角色和卷章任务；到达可开写状态后，可以让简易创作持续推进，也可以进入专业工作台随时接管。
           </p>
           <div className="hero-actions">
             <a className="button primary" href={releaseUrl}>
@@ -235,17 +237,15 @@ function HomePage() {
             ) : null}
           </div>
           <div className="route-strip" aria-label="核心生产路径">
-            <span>灵感</span>
+            <span>灵感 / 市场 / 参考书</span>
             <ArrowRight size={15} />
-            <span>方向</span>
+            <span>书级方案</span>
             <ArrowRight size={15} />
-            <span>世界 / 角色</span>
+            <span>世界 / 角色 / 卷章</span>
             <ArrowRight size={15} />
-            <span>拆章</span>
+            <span>简易 / 专业创作</span>
             <ArrowRight size={15} />
-            <span>正文</span>
-            <ArrowRight size={15} />
-            <span>修复</span>
+            <span>审核 / 修复 / 恢复</span>
           </div>
         </div>
       </section>
@@ -262,9 +262,9 @@ function HomePage() {
       <section id="flow" className="section editorial-flow">
         <div className="section-kicker">
           <p className="eyebrow">Production flow</p>
-          <h2>让 AI 先组织整本书，再进入正文生产</h2>
+          <h2>先选开书依据，再让 AI 把整本书推到可持续创作</h2>
           <p>
-            页面不把功能散成按钮清单，而是展示创作者真正会走过的主链：先定方向，再准备资产，最后进入章节执行。
+            新手只处理真正影响方向的选择；结构准备、章节生产、问题记录和安全恢复由同一条工作流承接。
           </p>
         </div>
         <div className="flow-list">
@@ -286,16 +286,16 @@ function HomePage() {
       <section id="console" className="console-section">
         <div className="console-heading">
           <p className="eyebrow">Product console</p>
-          <h2>文学创作的温度，配上真实工作流的控制台</h2>
+          <h2>一本书的进度、任务和恢复入口，都在同一套工作流里</h2>
           <p>
-            这个项目不是普通聊天壳子。它把上下文、任务状态、模型路由和章节链路组织在一起，让 AI 更像参与整本生产的系统角色。
+            首页告诉你下一步，书架承接持续创作，完整工作台负责检查和调整；运行记录与导演跟进保留真实错误、暂停原因和恢复位置。
           </p>
         </div>
         <div className="console-layout">
           <div className="console-wall" aria-label="产品界面预览">
-            <img className="console-main" src={creativeHubImage} alt="Creative Hub 界面截图" />
-            <img className="console-float one" src={directorChoiceImage} alt="自动导演方向选择截图" />
-            <img className="console-float two" src={chapterExecutionImage} alt="章节执行界面截图" />
+            <img className="console-main" src={projectSettingsImage} alt="自动导演准备书级定位并持续执行章节" />
+            <img className="console-float one" src={bookshelfImage} alt="小说书架与简易专业创作入口" />
+            <img className="console-float two" src={chapterExecutionImage} alt="章节正文、审核和修复工作台" />
           </div>
           <div className="console-modules">
             {consoleModules.map((module) => {
@@ -329,9 +329,9 @@ function HomePage() {
         </div>
         <aside className="download-panel">
           <p className="panel-label">Windows desktop</p>
-          <h3>先下载桌面版，跑通一条完整创作链</h3>
+          <h3>先连接一个文本模型，跑通第一本测试小说</h3>
           <p>
-            默认 SQLite 可以本地运行；需要知识库检索时再接入 Qdrant。开发者可以从源码继续研究前后端和 Agent 工作流。
+            桌面版默认使用 SQLite 保存本地作品。第一次使用只需完成文本模型连接；需要知识库检索时再配置 Qdrant。
           </p>
           <div className="panel-actions">
             <a className="button primary dark" href={releaseUrl}>
@@ -349,8 +349,8 @@ function HomePage() {
       <section className="docs-teaser section">
         <div>
           <p className="eyebrow">Documentation</p>
-          <h2>查看公开文档与模块说明</h2>
-          <p>文档站集中展示项目介绍、使用方法、侧栏功能模块、公开开发计划和更新日志。</p>
+          <h2>按第一次开书、理解机制或任务恢复进入文档</h2>
+          <p>文档按实操路径、生产链深度和阶段恢复组织，并提供 Vibe Coding 项目排查修复 Skill。</p>
         </div>
         <a className="button primary" href={docsPath()}>
           <FileText size={18} />
@@ -360,7 +360,7 @@ function HomePage() {
 
       <section className="cta-section">
         <p className="eyebrow">Open source</p>
-        <h2>把长篇小说创作做成可以运行、可以恢复、可以继续改进的生产系统。</h2>
+        <h2>让 AI 不只写一章，而是陪你把整本书推进到完成。</h2>
         <div className="cta-actions">
           <a className="button primary" href={releaseUrl}>
             <Download size={18} />

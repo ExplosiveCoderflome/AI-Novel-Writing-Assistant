@@ -201,9 +201,13 @@ export class NovelDirectorCandidateRuntime {
     const continuationBookAnalysisSections = Array.isArray(seedPayload.continuationBookAnalysisSections)
       ? seedPayload.continuationBookAnalysisSections.filter((item): item is string => typeof item === "string" && item.trim().length > 0)
       : undefined;
+    const referenceBookAnalysisSections = Array.isArray(seedPayload.referenceBookAnalysisSections)
+      ? seedPayload.referenceBookAnalysisSections.filter((item): item is string => typeof item === "string" && item.trim().length > 0)
+      : undefined;
     return {
       workflowTaskId: taskId,
       idea,
+      marketBriefId: readText(seedPayload.marketBriefId),
       title: readText(seedPayload.title),
       description: readText(seedPayload.description),
       targetAudience: readText(seedPayload.targetAudience),
@@ -289,6 +293,8 @@ export class NovelDirectorCandidateRuntime {
       sourceKnowledgeDocumentId: readText(seedPayload.sourceKnowledgeDocumentId),
       continuationBookAnalysisId: readText(seedPayload.continuationBookAnalysisId),
       continuationBookAnalysisSections: continuationBookAnalysisSections as DirectorCandidatesRequest["continuationBookAnalysisSections"],
+      referenceBookAnalysisId: readText(seedPayload.referenceBookAnalysisId),
+      referenceBookAnalysisSections: referenceBookAnalysisSections as DirectorCandidatesRequest["referenceBookAnalysisSections"],
       provider: llm?.provider,
       model: llm?.model,
       temperature: llm?.temperature,

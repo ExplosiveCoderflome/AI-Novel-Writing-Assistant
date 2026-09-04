@@ -3,6 +3,7 @@ import type { ApiResponse } from "@ai-novel/shared/types/api";
 import { z } from "zod";
 import { authMiddleware } from "../middleware/auth";
 import { validate } from "../middleware/validate";
+import { streamToSSE } from "../llm/streaming";
 import {
   promptWorkbenchService,
   type PromptCatalogFilter,
@@ -17,10 +18,69 @@ import { promptSlotOverrideService } from "../prompting/slots/PromptSlotOverride
 import { getOfficialPromptSlotLibrary } from "../prompting/slots/officialSlotLibrary";
 import { reconcileSlots, adoptSlots, applyOfficialSlots, keepMineSlots } from "../prompting/slots/slotReconcile";
 import { promptTemplateOverrideService } from "../prompting/templates/PromptTemplateOverrideService";
+import { writingPlatformProfileService } from "../modules/novel/writing-platform";
 
 const router = Router();
 
 router.use(authMiddleware);
+
+const writingPlatformSchema = z.enum(["fanqie_free", "qidian_male", "jinjiang_female", "zhihu_story"]);
+const platformGuidanceSchema = z.object({
+  positioning: z.string().trim().min(1).max(12000),
+  planning: z.string().trim().min(1).max(12000),
+  drafting: z.string().trim().min(1).max(12000),
+  auditing: z.string().trim().min(1).max(12000),
+  repairing: z.string().trim().min(1).max(12000),
+});
+const platformProfileSchema = z.object({
+  platform: writingPlatformSchema,
+  label: z.string().trim().min(1).max(80),
+  summary: z.string().trim().min(1).max(500),
+  supportedNarrativeForms: z.array(z.enum(["short_story", "long_novel"])).min(1).max(2),
+  guidance: z.object({
+    short_story: platformGuidanceSchema.optional(),
+    long_novel: platformGuidanceSchema.optional(),
+  }),
+  officialVersion: z.number().int().min(1),
+});
+const platformParamsSchema = z.object({ platform: writingPlatformSchema });
+const platformVersionParamsSchema = z.object({ platform: writingPlatformSchema, versionId: z.string().trim().min(1) });
+const platformVersionBodySchema = z.object({ profile: platformProfileSchema, notes: z.string().trim().max(2000).optional() });
+
+router.get("/writing-platform-profiles", async (_req, res, next) => {
+  try {
+    const data = await writingPlatformProfileService.list();
+    res.json({ success: true, data } satisfies ApiResponse<typeof data>);
+  } catch (error) { next(error); }
+});
+
+router.get("/writing-platform-profiles/:platform", validate({ params: platformParamsSchema }), async (req, res, next) => {
+  try {
+    const data = await writingPlatformProfileService.get(req.params.platform as z.infer<typeof writingPlatformSchema>);
+    res.json({ success: true, data } satisfies ApiResponse<typeof data>);
+  } catch (error) { next(error); }
+});
+
+router.post("/writing-platform-profiles/:platform/versions", validate({ params: platformParamsSchema, body: platformVersionBodySchema }), async (req, res, next) => {
+  try {
+    const data = await writingPlatformProfileService.save(req.params.platform as z.infer<typeof writingPlatformSchema>, req.body.profile, req.body.notes);
+    res.json({ success: true, data } satisfies ApiResponse<typeof data>);
+  } catch (error) { next(error); }
+});
+
+router.post("/writing-platform-profiles/:platform/versions/:versionId/activate", validate({ params: platformVersionParamsSchema }), async (req, res, next) => {
+  try {
+    const data = await writingPlatformProfileService.activate(req.params.platform as z.infer<typeof writingPlatformSchema>, String(req.params.versionId));
+    res.json({ success: true, data } satisfies ApiResponse<typeof data>);
+  } catch (error) { next(error); }
+});
+
+router.post("/writing-platform-profiles/:platform/restore-official", validate({ params: platformParamsSchema }), async (req, res, next) => {
+  try {
+    const data = await writingPlatformProfileService.restoreOfficial(req.params.platform as z.infer<typeof writingPlatformSchema>);
+    res.json({ success: true, data } satisfies ApiResponse<typeof data>);
+  } catch (error) { next(error); }
+});
 
 const catalogQuerySchema = z.object({
   taskType: z.string().trim().min(1).optional(),
@@ -215,6 +275,15 @@ router.post("/test-run", validate({ body: promptTestRunBodySchema }), async (req
       data,
       message: "Prompt test run completed.",
     } satisfies ApiResponse<typeof data>);
+  } catch (error) {
+    next(error);
+  }
+});
+
+router.post("/test-run/stream", validate({ body: promptTestRunBodySchema }), async (req, res, next) => {
+  try {
+    const { stream } = await promptWorkbenchService.testRunTextStream(req.body as PromptTestRunInput);
+    await streamToSSE(res, stream);
   } catch (error) {
     next(error);
   }

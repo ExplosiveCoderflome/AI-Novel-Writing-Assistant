@@ -1,4 +1,5 @@
 import type { BookAnalysisSectionKey } from "@ai-novel/shared/types/bookAnalysis";
+import type { DirectorIssuePolicy } from "@ai-novel/shared/types/directorIssue";
 import type { LLMProvider } from "@ai-novel/shared/types/llm";
 import type { QualityScore, ReviewIssue } from "@ai-novel/shared/types/novel";
 import { parseCommercialTagsJson } from "@ai-novel/shared/types/novelFraming";
@@ -7,6 +8,11 @@ import { normalizeStoryModeOutput } from "../storyMode/storyModeProfile";
 export interface PaginationInput {
   page: number;
   limit: number;
+  search?: string;
+  status?: "draft" | "published";
+  narrativeForm?: "short_story" | "long_novel";
+  writingMode?: "original" | "continuation";
+  sort?: "updated" | "created" | "progress";
 }
 
 export interface CreateNovelInput {
@@ -23,6 +29,10 @@ export interface CreateNovelInput {
   worldId?: string;
   writingMode?: "original" | "continuation";
   projectMode?: "ai_led" | "co_pilot" | "draft_mode" | "auto_pipeline";
+  creationExperience?: "simple" | "professional";
+  narrativeForm?: "short_story" | "long_novel";
+  targetWordCount?: number | null;
+  derivedFromNovelId?: string | null;
   narrativePov?: "first_person" | "third_person" | "mixed";
   pacePreference?: "slow" | "balanced" | "fast";
   styleTone?: string;
@@ -39,6 +49,8 @@ export interface CreateNovelInput {
   sourceKnowledgeDocumentId?: string | null;
   continuationBookAnalysisId?: string | null;
   continuationBookAnalysisSections?: BookAnalysisSectionKey[] | null;
+  referenceBookAnalysisId?: string | null;
+  referenceBookAnalysisSections?: BookAnalysisSectionKey[] | null;
 }
 
 export interface UpdateNovelInput {
@@ -52,6 +64,8 @@ export interface UpdateNovelInput {
   status?: "draft" | "published";
   writingMode?: "original" | "continuation";
   projectMode?: "ai_led" | "co_pilot" | "draft_mode" | "auto_pipeline" | null;
+  creationExperience?: "professional";
+  targetWordCount?: number | null;
   narrativePov?: "first_person" | "third_person" | "mixed" | null;
   pacePreference?: "slow" | "balanced" | "fast" | null;
   styleTone?: string | null;
@@ -68,6 +82,8 @@ export interface UpdateNovelInput {
   sourceKnowledgeDocumentId?: string | null;
   continuationBookAnalysisId?: string | null;
   continuationBookAnalysisSections?: BookAnalysisSectionKey[] | null;
+  referenceBookAnalysisId?: string | null;
+  referenceBookAnalysisSections?: BookAnalysisSectionKey[] | null;
   genreId?: string | null;
   primaryStoryModeId?: string | null;
   secondaryStoryModeId?: string | null;
@@ -170,6 +186,8 @@ export interface PipelineRunOptions extends LLMGenerateOptions {
   startOrder: number;
   endOrder: number;
   controlPolicy?: NovelControlPolicy;
+  issueGovernanceVersion?: 1;
+  issuePolicySnapshot?: DirectorIssuePolicy;
   workflowTaskId?: string;
   taskStyleProfileId?: string;
   maxRetries?: number;
@@ -203,6 +221,8 @@ export interface PipelineBackgroundSyncState {
 
 export interface PipelinePayload extends LLMGenerateOptions {
   controlPolicy?: NovelControlPolicy;
+  issueGovernanceVersion?: 1;
+  issuePolicySnapshot?: DirectorIssuePolicy;
   workflowTaskId?: string;
   taskStyleProfileId?: string;
   maxRetries?: number;
@@ -268,6 +288,7 @@ export const DEFAULT_ESTIMATED_CHAPTER_COUNT = 80;
 
 export function normalizeNovelOutput<T extends {
   continuationBookAnalysisSections?: string | null;
+  referenceBookAnalysisSections?: string | null;
   commercialTagsJson?: string | null;
   bookContract?: {
     id: string;
@@ -306,18 +327,21 @@ export function normalizeNovelOutput<T extends {
   } | null;
 }>(
   novel: T,
-): Omit<T, "continuationBookAnalysisSections" | "commercialTagsJson"> & {
+): Omit<T, "continuationBookAnalysisSections" | "referenceBookAnalysisSections" | "commercialTagsJson"> & {
   continuationBookAnalysisSections: BookAnalysisSectionKey[] | null;
+  referenceBookAnalysisSections: BookAnalysisSectionKey[] | null;
   commercialTags: string[];
 } {
   const {
     continuationBookAnalysisSections,
+    referenceBookAnalysisSections,
     commercialTagsJson,
     ...rest
   } = novel;
   return {
     ...rest,
     continuationBookAnalysisSections: parseContinuationBookAnalysisSections(continuationBookAnalysisSections),
+    referenceBookAnalysisSections: parseContinuationBookAnalysisSections(referenceBookAnalysisSections),
     commercialTags: parseCommercialTagsJson(commercialTagsJson),
     ...(rest.bookContract !== undefined
       ? {

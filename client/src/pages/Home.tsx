@@ -1,7 +1,7 @@
 import type { MouseEvent } from "react";
 import { useMemo } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Link, useNavigate } from "react-router-dom";
+import { Link } from "react-router-dom";
 import { continueNovelWorkflow } from "@/api/novelWorkflow";
 import { getNovelList } from "@/api/novel";
 import { queryKeys } from "@/api/queryKeys";
@@ -18,22 +18,20 @@ import { toast } from "@/components/ui/toast";
 import { resolveWorkflowContinuationFeedback } from "@/lib/novelWorkflowContinuation";
 import {
   buildHomeAssetHealthItems,
-  buildHomeAttentionItems,
   buildHomeMetrics,
   buildHomeNextAction,
   HOME_NOVEL_FETCH_LIMIT,
-  HOME_RECENT_LIMIT,
+  getHomeNovelTask,
   selectPrimaryNovel,
   type HomeNovelItem,
 } from "./home/homeViewModel";
 import { HomeAssetHealth } from "./home/components/HomeAssetHealth";
-import { HomeAttentionQueue } from "./home/components/HomeAttentionQueue";
 import { HomeNextActionPanel } from "./home/components/HomeNextActionPanel";
-import { HomeRecentNovels } from "./home/components/HomeRecentNovels";
 import { HomeStatusStrip } from "./home/components/HomeStatusStrip";
+import CreationSetupNotice from "@/components/onboarding/CreationSetupNotice";
+import FirstNovelJourneyStrip from "@/components/onboarding/FirstNovelJourneyStrip";
 
 export default function Home() {
-  const navigate = useNavigate();
   const queryClient = useQueryClient();
 
   const taskQuery = useQuery({
@@ -86,14 +84,9 @@ export default function Home() {
   const hasNovels = allNovels.length > 0;
   const taskOverview = taskQuery.data?.data ?? null;
   const primaryNovel = useMemo(() => selectPrimaryNovel(allNovels), [allNovels]);
-  const recentNovels = useMemo(() => allNovels.slice(0, HOME_RECENT_LIMIT), [allNovels]);
   const nextAction = useMemo(() => buildHomeNextAction(primaryNovel), [primaryNovel]);
   const metrics = useMemo(
     () => buildHomeMetrics({ novels: allNovels, taskOverview }),
-    [allNovels, taskOverview],
-  );
-  const attentionItems = useMemo(
-    () => buildHomeAttentionItems({ novels: allNovels, taskOverview }),
     [allNovels, taskOverview],
   );
   const assetHealthItems = useMemo(
@@ -105,10 +98,6 @@ export default function Home() {
     event.stopPropagation();
   };
 
-  const openNovelEditor = (novelId: string) => {
-    navigate(`/novels/${novelId}/edit`);
-  };
-
   const renderNovelPrimaryAction = (
     novel: HomeNovelItem,
     options?: {
@@ -117,7 +106,7 @@ export default function Home() {
     },
   ) => {
     const { size = "sm", stopPropagation = false } = options ?? {};
-    const task = novel.latestAutoDirectorTask ?? null;
+    const task = getHomeNovelTask(novel);
     const isWorkflowPending = continueWorkflowMutation.isPending
       && continueWorkflowMutation.variables?.taskId === task?.id;
 
@@ -126,6 +115,19 @@ export default function Home() {
         stopCardClick(event);
       }
     };
+
+    if (novel.narrativeForm === "short_story") {
+      return (
+        <Button asChild size={size}>
+          <Link
+            to={`/novels/${novel.id}/story`}
+            onClick={stopPropagation ? stopCardClick : undefined}
+          >
+            打开作品
+          </Link>
+        </Button>
+      );
+    }
 
     if (canContinueChapterBatchAutoExecution(task)) {
       return (
@@ -221,6 +223,8 @@ export default function Home() {
 
   return (
     <div className="home-workbench space-y-6">
+      <CreationSetupNotice />
+      <FirstNovelJourneyStrip />
       <HomeNextActionPanel
         action={nextAction}
         primaryNovel={primaryNovel}
@@ -235,24 +239,7 @@ export default function Home() {
         pending={novelQuery.isPending || taskQuery.isPending}
       />
 
-      <div className="home-dashboard-grid grid gap-6 xl:grid-cols-[minmax(0,1fr)_20rem]">
-        <div className="space-y-4">
-          <HomeAttentionQueue items={attentionItems} hasNovels={hasNovels} />
-          <HomeRecentNovels
-            novels={recentNovels}
-            loading={novelQuery.isPending}
-            error={novelQuery.isError}
-            onRetry={() => void novelQuery.refetch()}
-            onOpenNovel={openNovelEditor}
-            onStopCardClick={stopCardClick}
-            renderNovelPrimaryAction={renderNovelPrimaryAction}
-          />
-        </div>
-
-        <div className="space-y-4">
-          <HomeAssetHealth items={assetHealthItems} showStarterActions={hasNovels} />
-        </div>
-      </div>
+      <HomeAssetHealth items={assetHealthItems} showStarterActions={hasNovels} />
     </div>
   );
 }

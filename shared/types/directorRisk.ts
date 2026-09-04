@@ -1,0 +1,122 @@
+import { z } from "zod";
+
+export const DIRECTOR_RISK_SCORE_MIN = 1;
+/**
+ * 8 is the highest user-facing risk score. A protection pause is represented
+ * by `action`, never by inflating a score beyond this scale.
+ */
+export const DIRECTOR_RISK_SCORE_MAX = 8;
+export function isDirectorRiskScore(value: unknown): value is number {
+  return typeof value === "number"
+    && Number.isInteger(value)
+    && value >= DIRECTOR_RISK_SCORE_MIN
+    && value <= DIRECTOR_RISK_SCORE_MAX;
+}
+
+export const directorRiskCategorySchema = z.enum([
+  "planning",
+  "candidate_confirmation",
+  "chapter_generation",
+  "chapter_acceptance",
+  "chapter_repair",
+  "state_proposal",
+  "replan",
+  "model_failure",
+  "worker_failure",
+  "task_recovery",
+  "protected_content",
+  "runtime_safety",
+  "data_integrity",
+  "unknown",
+]);
+
+export type DirectorRiskCategory = z.infer<typeof directorRiskCategorySchema>;
+
+export const directorRiskImpactScopeSchema = z.enum([
+  "current_step",
+  "current_chapter",
+  "chapter_range",
+  "novel",
+  "task",
+  "system",
+]);
+
+export type DirectorRiskImpactScope = z.infer<typeof directorRiskImpactScopeSchema>;
+
+export const directorRiskRecommendationSchema = z.enum([
+  "continue",
+  "record_quality_debt",
+  "retry",
+  "local_repair",
+  "replan",
+  "pause",
+  "stop",
+]);
+
+export type DirectorRiskRecommendation = z.infer<typeof directorRiskRecommendationSchema>;
+
+/**
+ * Structured conclusion produced by the risk-assessment prompt. Runtime safety
+ * rules may override `canPause`, but may never raise a score above 8.
+ */
+export const aiDirectorRiskAssessmentSchema = z.object({
+  score: z.number().int().min(DIRECTOR_RISK_SCORE_MIN).max(DIRECTOR_RISK_SCORE_MAX),
+  category: directorRiskCategorySchema,
+  impactScope: directorRiskImpactScopeSchema,
+  affectedChapterOrders: z.array(z.number().int().positive()).max(20).default([]),
+  evidenceSummary: z.string().trim().min(1).max(2_000),
+  recommendation: directorRiskRecommendationSchema,
+  recommendationReason: z.string().trim().min(1).max(2_000),
+  canPause: z.boolean(),
+});
+
+export type AiDirectorRiskAssessment = z.infer<typeof aiDirectorRiskAssessmentSchema>;
+
+export const directorRiskActionSchema = z.enum([
+  "logged",
+  "notified",
+  "continued",
+  "quality_debt_recorded",
+  "pause_requested",
+  "paused",
+  "forced_pause",
+]);
+
+export type DirectorRiskAction = z.infer<typeof directorRiskActionSchema>;
+
+/**
+ * Persistable risk record. `action` and `assessedAt` capture what the runtime
+ * actually did after applying the frozen policy and non-blocking quality rules.
+ */
+export const directorRiskAssessmentSchema = aiDirectorRiskAssessmentSchema.extend({
+  action: directorRiskActionSchema,
+  assessedAt: z.string().datetime(),
+  issueFingerprint: z.string().trim().min(1).max(256).optional(),
+});
+
+export type DirectorRiskAssessment = z.infer<typeof directorRiskAssessmentSchema>;
+
+/**
+ * Older task events can contain the former forced-pause score of 10. Keep
+ * those events readable while presenting them on the current 1–8 scale.
+ */
+export function parsePersistedDirectorRiskAssessment(input: unknown): DirectorRiskAssessment | null {
+  if (!input || typeof input !== "object" || Array.isArray(input)) {
+    return null;
+  }
+  const candidate = input as Record<string, unknown>;
+  const rawScore = typeof candidate.score === "number" ? candidate.score : null;
+  const normalized = rawScore === null
+    ? candidate
+    : {
+        ...candidate,
+        score: Math.max(DIRECTOR_RISK_SCORE_MIN, Math.min(DIRECTOR_RISK_SCORE_MAX, Math.round(rawScore))),
+      };
+  const parsed = directorRiskAssessmentSchema.safeParse(normalized);
+  return parsed.success ? parsed.data : null;
+}
+
+/** A persisted scored issue as shown in the task-center risk history. */
+export type DirectorRiskHistoryItem = DirectorRiskAssessment & {
+  eventId: string;
+};

@@ -27,8 +27,11 @@ import knowledgeRouter from "./routes/knowledge";
 import llmRouter from "./routes/llm";
 import llmLiveRouter from "./platform/llm/live/http/llmLiveRoutes";
 import novelRouter from "./modules/novel/http/novel";
+import creationStudioRouter from "./modules/novel/creation-studio/http/creationStudioRoutes";
+import { shortStoryProductionService } from "./modules/novel/short-story/application/ShortStoryProductionService";
 import dramaRouter from "./modules/drama/http/dramaRoutes";
 import comicRouter from "./modules/comic/http/comicRoutes";
+import marketRadarRouter from "./modules/marketRadar/http/marketRadarRoutes";
 import novelDirectorRouter from "./services/novel/director/http/novelDirector";
 import novelExportRouter from "./modules/export/http/novelExport";
 import novelWorkflowsRouter from "./services/novel/director/http/novelWorkflows";
@@ -55,7 +58,9 @@ import {
   hasSystemResourceBootstrapChanges,
 } from "./services/bootstrap/SystemResourceBootstrapService";
 import { initializeRagSettingsCompatibility } from "./services/settings/RagCompatibilityBootstrapService";
+import onboardingRoutes from "./modules/setup/onboarding/http/onboardingRoutes";
 import { qualityDebtSettingsService } from "./services/settings/QualityDebtSettingsService";
+import { marketRadarService } from "./modules/marketRadar/application/MarketRadarService";
 import { DirectorWorker } from "./workers/directorWorker";
 import { cleanupLogDirectory, resolveLogRetentionConfig } from "./platform/logging/logRetention";
 import { resolveLogsRoot } from "./runtime/appPaths";
@@ -133,11 +138,13 @@ export function createApp() {
   app.use("/api", styleEngineRouter);
   app.use("/api", styleEngineExtractionRouter);
   app.use("/api/novels", novelRouter);
+  app.use("/api/creation-studio", creationStudioRouter);
   app.use("/api/novels/director", novelDirectorRouter);
   app.use("/api/novel-workflows", novelWorkflowsRouter);
   app.use("/api/novels", novelExportRouter);
   app.use("/api/drama", dramaRouter);
   app.use("/api/comic", comicRouter);
+  app.use("/api/market-radar", marketRadarRouter);
   app.use("/api/worlds", worldRouter);
   app.use("/api/rag", ragRouter);
   app.use("/api/base-characters", characterRouter);
@@ -153,6 +160,7 @@ export function createApp() {
   app.use("/api/settings/auto-director", settingsAutoDirectorRouter);
   app.use("/api/auto-director/channel-callbacks", autoDirectorChannelCallbacksRouter);
   app.use("/api/settings", settingsRouter);
+  app.use("/api", onboardingRoutes);
   app.use("/api/astrology", astrologyRouter);
 
   app.use((_req, res) => {
@@ -252,14 +260,24 @@ function scheduleLogRetentionCleanup(): void {
 }
 
 function initializeBackgroundServices(): BackgroundServicesHandle {
+  void marketRadarService.recoverInterruptedRuns().catch((error) => {
+    console.warn("[market-radar] failed to mark interrupted scans.", error);
+  });
   ragServices.ragWorker.start();
   ragServices.ragRetrievalTraceRetention.start();
   novelSideEffectWorker.start();
-  const directorWorker = new DirectorWorker();
-  void directorWorker.start().catch((error) => {
-    console.error("[director.worker] unexpected stop", error);
-  });
   const recoveryInitialization = recoveryTaskService.initializePendingRecoveries();
+  const directorWorker = new DirectorWorker();
+  void recoveryInitialization.then(() => {
+    void directorWorker.start().catch((error) => {
+      console.error("[director.worker] unexpected stop", error);
+    });
+  }).catch((error) => {
+    console.error("[director.worker] recovery initialization failed; worker was not started", error);
+  });
+  void shortStoryProductionService.recoverPending().catch((error) => {
+    console.warn("[short-story] failed to resume pending production.", error);
+  });
 
   void loadProviderApiKeys().catch((error) => {
     console.warn("数据库中的模型密钥加载失败，已回退到环境变量。", error);

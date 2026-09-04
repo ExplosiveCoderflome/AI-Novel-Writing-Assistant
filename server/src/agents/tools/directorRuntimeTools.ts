@@ -222,7 +222,7 @@ async function analyzeWorkspaceForTool(
   const { novelDirectorService } = await getServices();
   const scope = await resolveDirectorRuntimeScope(context, input);
   const analysis = await novelDirectorService.analyzeRuntimeWorkspace(scope.novelId, {
-    workflowTaskId: scope.taskId,
+    workflowTaskId: context.plannerProfile === "creative_hub_readonly" ? null : scope.taskId,
     includeAiInterpretation: input.includeAiInterpretation === true,
     llm: getLlmOptions(context),
   });
@@ -522,7 +522,7 @@ export const directorRuntimeToolDefinitions: Partial<
       const scope = await resolveDirectorRuntimeScope(context, input);
       const { novelDirectorService } = await getServices();
       const impact = await novelDirectorService.evaluateManualEditImpact(scope.novelId, {
-        workflowTaskId: scope.taskId,
+        workflowTaskId: context.plannerProfile === "creative_hub_readonly" ? null : scope.taskId,
         chapterId: input.chapterId,
         includeAiInterpretation: input.includeAiInterpretation ?? true,
         llm: getLlmOptions(context),

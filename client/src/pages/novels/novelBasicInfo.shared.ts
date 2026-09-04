@@ -1,5 +1,6 @@
 import type { BookAnalysisSectionKey } from "@ai-novel/shared/types/bookAnalysis";
 import { formatCommercialTagsInput, normalizeCommercialTags } from "@ai-novel/shared/types/novelFraming";
+import type { WritingPlatformPreference } from "@ai-novel/shared/types/writingPlatform";
 
 export interface NovelBasicFormState {
   title: string;
@@ -17,6 +18,7 @@ export interface NovelBasicFormState {
   writingMode: "original" | "continuation";
   projectMode: "ai_led" | "co_pilot" | "draft_mode" | "auto_pipeline";
   readerChannelPreference: "ai_judge" | "male_oriented" | "female_oriented" | "general";
+  writingPlatformPreference: WritingPlatformPreference;
   narrativePov: "first_person" | "third_person" | "mixed";
   pacePreference: "slow" | "balanced" | "fast";
   styleTone: string;
@@ -34,6 +36,8 @@ export interface NovelBasicFormState {
   sourceKnowledgeDocumentId: string;
   continuationBookAnalysisId: string;
   continuationBookAnalysisSections: BookAnalysisSectionKey[];
+  referenceBookAnalysisId: string;
+  referenceBookAnalysisSections: BookAnalysisSectionKey[];
 }
 
 export interface BasicInfoOption<T extends string> {
@@ -105,6 +109,13 @@ export const READER_CHANNEL_OPTIONS: BasicInfoOption<NovelBasicFormState["reader
     label: "泛读者 / 不限定",
     summary: "不限定频道倾向，让 AI 优先按故事本身和目标读者描述来规划。",
   },
+];
+
+export const WRITING_PLATFORM_OPTIONS: BasicInfoOption<NovelBasicFormState["writingPlatformPreference"]>[] = [
+  { value: "ai_recommend", label: "AI 推荐", summary: "AI 根据故事体验、受众和长期推进方式推荐平台写法。", recommended: true },
+  { value: "fanqie_free", label: "番茄免费网文", summary: "快速入戏、移动端短段落、高冲突和明确回报。" },
+  { value: "qidian_male", label: "起点男频", summary: "成长目标、资源能力变化、稳定升级和伏笔兑现。" },
+  { value: "jinjiang_female", label: "晋江女频", summary: "人物关系、情绪因果、角色声音和关系状态变化。" },
 ];
 
 export const POV_OPTIONS: BasicInfoOption<NovelBasicFormState["narrativePov"]>[] = [
@@ -249,6 +260,7 @@ export function createDefaultNovelBasicFormState(): NovelBasicFormState {
     writingMode: "original",
     projectMode: "co_pilot",
     readerChannelPreference: "ai_judge",
+    writingPlatformPreference: "ai_recommend",
     narrativePov: "third_person",
     pacePreference: "balanced",
     styleTone: "",
@@ -266,6 +278,8 @@ export function createDefaultNovelBasicFormState(): NovelBasicFormState {
     sourceKnowledgeDocumentId: "",
     continuationBookAnalysisId: "",
     continuationBookAnalysisSections: [],
+    referenceBookAnalysisId: "",
+    referenceBookAnalysisSections: [],
   };
 }
 
@@ -286,14 +300,19 @@ export function patchNovelBasicForm(
     next.sourceKnowledgeDocumentId = "";
     next.continuationBookAnalysisId = "";
     next.continuationBookAnalysisSections = [];
-  } else if (next.continuationSourceType === "novel") {
-    next.sourceKnowledgeDocumentId = "";
-  } else if (next.continuationSourceType === "knowledge_document") {
-    next.sourceNovelId = "";
+  } else {
+    next.referenceBookAnalysisId = "";
+    next.referenceBookAnalysisSections = [];
+    if (next.continuationSourceType === "novel") {
+      next.sourceKnowledgeDocumentId = "";
+    } else if (next.continuationSourceType === "knowledge_document") {
+      next.sourceNovelId = "";
+    }
   }
   if (
     patch.continuationSourceType !== undefined
     && patch.continuationSourceType !== previous.continuationSourceType
+    && patch.continuationBookAnalysisId === undefined
   ) {
     next.continuationBookAnalysisId = "";
     next.continuationBookAnalysisSections = [];
@@ -302,6 +321,7 @@ export function patchNovelBasicForm(
     next.continuationSourceType === "novel"
     && patch.sourceNovelId !== undefined
     && patch.sourceNovelId !== previous.sourceNovelId
+    && patch.continuationBookAnalysisId === undefined
   ) {
     next.continuationBookAnalysisId = "";
     next.continuationBookAnalysisSections = [];
@@ -310,6 +330,7 @@ export function patchNovelBasicForm(
     next.continuationSourceType === "knowledge_document"
     && patch.sourceKnowledgeDocumentId !== undefined
     && patch.sourceKnowledgeDocumentId !== previous.sourceKnowledgeDocumentId
+    && patch.continuationBookAnalysisId === undefined
   ) {
     next.continuationBookAnalysisId = "";
     next.continuationBookAnalysisSections = [];
@@ -370,6 +391,12 @@ export function buildNovelCreatePayload(basicForm: NovelBasicFormState) {
         && basicForm.continuationBookAnalysisId
         ? (basicForm.continuationBookAnalysisSections.length > 0 ? basicForm.continuationBookAnalysisSections : undefined)
         : undefined,
+    referenceBookAnalysisId:
+      basicForm.writingMode === "original" ? (basicForm.referenceBookAnalysisId || undefined) : undefined,
+    referenceBookAnalysisSections:
+      basicForm.writingMode === "original" && basicForm.referenceBookAnalysisId
+        ? (basicForm.referenceBookAnalysisSections.length > 0 ? basicForm.referenceBookAnalysisSections : undefined)
+        : undefined,
   };
 }
 
@@ -423,6 +450,12 @@ export function buildNovelUpdatePayload(basicForm: NovelBasicFormState) {
         )
         && basicForm.continuationBookAnalysisId
         ? (basicForm.continuationBookAnalysisSections.length > 0 ? basicForm.continuationBookAnalysisSections : null)
+        : null,
+    referenceBookAnalysisId:
+      basicForm.writingMode === "original" ? (basicForm.referenceBookAnalysisId || null) : null,
+    referenceBookAnalysisSections:
+      basicForm.writingMode === "original" && basicForm.referenceBookAnalysisId
+        ? (basicForm.referenceBookAnalysisSections.length > 0 ? basicForm.referenceBookAnalysisSections : null)
         : null,
   };
 }

@@ -1,8 +1,10 @@
 import { useMemo } from "react";
-import { useNavigate, useParams } from "react-router-dom";
+import { FlaskConical } from "lucide-react";
+import { Link, useNavigate, useParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { getChapterEditorWorkspace, getNovelDetail } from "@/api/novel";
 import { queryKeys } from "@/api/queryKeys";
+import { Button } from "@/components/ui/button";
 import ChapterEditorShell from "./components/chapterEditor/ChapterEditorShell";
 
 function PageStateCard(props: { message: string }) {
@@ -60,6 +62,14 @@ export default function NovelChapterEdit() {
 
   return (
     <div className="flex h-full min-h-0 flex-col gap-4">
+      <div className="flex shrink-0 justify-end">
+        <Button asChild variant="outline">
+          <Link to={`/prompt-workbench?experience=writing&novelId=${encodeURIComponent(id)}&chapterId=${encodeURIComponent(chapterId)}`}>
+            <FlaskConical className="mr-2 h-4 w-4" />
+            正文效果实验室
+          </Link>
+        </Button>
+      </div>
       <ChapterEditorShell
         key={`${chapter.id}:${chapter.updatedAt}`}
         novelId={id}

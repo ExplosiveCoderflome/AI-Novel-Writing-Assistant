@@ -85,6 +85,7 @@ const {
 const {
   worldDraftGenerationPrompt,
   worldDraftRefineAlternativesPrompt,
+  worldSkeletonGenerationPrompt,
 } = require("../dist/prompting/prompts/world/worldDraft.prompts.js");
 const {
   createVolumeStrategyPrompt,
@@ -94,6 +95,7 @@ const {
 } = require("../dist/prompting/prompts/novel/volume/skeleton.prompts.js");
 const {
   storyModeChildPrompt,
+  storyModeExpansionPrompt,
   storyModeTreePrompt,
 } = require("../dist/prompting/prompts/storyMode/storyMode.prompts.js");
 const {
@@ -118,6 +120,7 @@ const promptKey = (asset) => `${asset.id}@${asset.version}`;
 
 function buildWriterRequiredContextBlocks() {
   return [
+    "writing_platform",
     "book_contract",
     "chapter_mission",
     "reader_experience",
@@ -149,7 +152,7 @@ test("prompt registry exposes versioned planning assets", () => {
     "agent.runtime.setup_guidance@v1",
     "agent.runtime.setup_ideation@v1",
     "planner.chapter.plan@v1",
-    "novel.director.candidates@v1",
+    "novel.director.candidates@v2",
     "novel.director.candidate_patch@v1",
     "novel.director.blueprint@v1",
     "novel.character.castOptions@v2",
@@ -163,8 +166,8 @@ test("prompt registry exposes versioned planning assets", () => {
     "novel.story_macro.decomposition@v1",
     "novel.volume.strategy@v2",
     "novel.volume.strategy.critique@v1",
-    "novel.volume.skeleton@v2",
-    "title.generation@v1",
+    "novel.volume.skeleton@v3",
+    "title.generation@v2",
     "audit.chapter.full@v2",
     "bookAnalysis.source.note@v1",
     "character.base.skeleton@v1",
@@ -178,6 +181,7 @@ test("prompt registry exposes versioned planning assets", () => {
     "novel.characterDynamics.volumeProjection@v3",
     "novel.character_resource.extract_updates@v1",
     "storyMode.child.generate@v1",
+    "storyMode.expansion.recommend@v1",
     "storyMode.tree.generate@v1",
     "storyWorldSlice.generate@v1",
     promptKey(styleDetectionPrompt),
@@ -665,16 +669,16 @@ test("chapter writer prompt does not expose scene contract controls", () => {
 
 test("novel main-chain prompt assets declare explicit non-zero context budgets", () => {
   const expectedBudgets = new Map([
-    ["novel.director.candidates@v1", NOVEL_PROMPT_BUDGETS.directorCandidates],
+    ["novel.director.candidates@v2", NOVEL_PROMPT_BUDGETS.directorCandidates],
     ["novel.director.candidate_patch@v1", NOVEL_PROMPT_BUDGETS.directorCandidatePatch],
     ["novel.director.blueprint@v1", NOVEL_PROMPT_BUDGETS.directorBlueprint],
     ["novel.story_macro.decomposition@v1", NOVEL_PROMPT_BUDGETS.storyMacroDecomposition],
     ["novel.story_macro.field_regeneration@v1", NOVEL_PROMPT_BUDGETS.storyMacroFieldRegeneration],
     ["novel.volume.strategy@v2", NOVEL_PROMPT_BUDGETS.volumeStrategy],
     ["novel.volume.strategy.critique@v1", NOVEL_PROMPT_BUDGETS.volumeStrategyCritique],
-    ["novel.volume.skeleton@v2", NOVEL_PROMPT_BUDGETS.volumeSkeleton],
-    ["novel.volume.beat_sheet@v2", NOVEL_PROMPT_BUDGETS.volumeBeatSheet],
-    ["novel.volume.chapter_list@v7", NOVEL_PROMPT_BUDGETS.volumeChapterList],
+    ["novel.volume.skeleton@v3", NOVEL_PROMPT_BUDGETS.volumeSkeleton],
+    ["novel.volume.beat_sheet@v3", NOVEL_PROMPT_BUDGETS.volumeBeatSheet],
+    ["novel.volume.chapter_list@v9", NOVEL_PROMPT_BUDGETS.volumeChapterList],
     ["novel.volume.chapter_purpose@v1", NOVEL_PROMPT_BUDGETS.volumeChapterDetail],
     ["novel.volume.chapter_boundary@v1", NOVEL_PROMPT_BUDGETS.volumeChapterDetail],
     ["novel.volume.chapter_task_sheet@v3", NOVEL_PROMPT_BUDGETS.volumeChapterDetail],
@@ -1073,6 +1077,7 @@ test("title prompt render includes retry reason for regeneration attempts", () =
   const messages = titleGenerationPrompt.render({
     context: {
       mode: "brief",
+      selectionMode: "pool",
       count: 8,
       brief: "赛博修仙，主角靠因果算法登仙",
       referenceTitle: "",
@@ -1175,6 +1180,57 @@ test("story mode child prompt post validator rejects duplicate sibling names and
       antiSignals: ["脱离经营主线"],
     },
     existingSiblingNames: ["基建种田流"],
+  }));
+});
+
+test("story mode expansion prompt uses the library summary to find distinct additions", () => {
+  const messages = storyModeExpansionPrompt.render({
+    count: 2,
+    parentName: "成长冒险",
+    parentDescription: "以能力和地图拓展推动长期阅读。",
+    parentTemplate: "目标升级，探索新区域，兑现阶段能力。",
+    parentProfile: {
+      coreDrive: "升级与探索",
+      readerReward: "能力成长",
+      progressionUnits: ["挑战", "新区域"],
+      allowedConflictForms: ["资源争夺"],
+      forbiddenConflictForms: ["无代价碾压"],
+      conflictCeiling: "high",
+      resolutionStyle: "能力突破",
+      chapterUnit: "目标和挑战",
+      volumeReward: "新区域解锁",
+      mandatorySignals: ["成长反馈"],
+      antiSignals: ["重复副本"],
+    },
+    existingSiblingNames: ["升级成长"],
+    librarySummary: "根 成长冒险\n- 升级成长：挑战与突破",
+    prompt: "增加更强调探索回报的玩法。",
+  });
+  const rendered = messages.map((message) => String(message.content)).join("\n");
+  assert.match(rendered, /当前推进模式库摘要/);
+  assert.match(rendered, /增长|探索/);
+  assert.throws(() => storyModeExpansionPrompt.postValidate([{
+    name: "升级成长",
+    description: "重复",
+    template: "重复",
+    profile: {
+      coreDrive: "重复", readerReward: "重复", progressionUnits: ["重复"], allowedConflictForms: ["重复"], forbiddenConflictForms: ["重复"], conflictCeiling: "medium", resolutionStyle: "重复", chapterUnit: "重复", volumeReward: "重复", mandatorySignals: ["重复"], antiSignals: ["重复"],
+    },
+    children: [],
+  }, {
+    name: "探索远征",
+    description: "探索不同区域",
+    template: "探索并兑现地图资源",
+    profile: {
+      coreDrive: "探索", readerReward: "发现", progressionUnits: ["区域"], allowedConflictForms: ["未知威胁"], forbiddenConflictForms: ["无意义内耗"], conflictCeiling: "high", resolutionStyle: "发现与突破", chapterUnit: "新区域", volumeReward: "地图推进", mandatorySignals: ["新发现"], antiSignals: ["重复地图"],
+    },
+    children: [],
+  }], {
+    count: 2,
+    parentName: "成长冒险",
+    parentDescription: "", parentTemplate: "", parentProfile: {
+      coreDrive: "升级", readerReward: "成长", progressionUnits: ["挑战"], allowedConflictForms: ["挑战"], forbiddenConflictForms: ["无"], conflictCeiling: "high", resolutionStyle: "突破", chapterUnit: "挑战", volumeReward: "成长", mandatorySignals: ["成长"], antiSignals: ["重复"],
+    }, existingSiblingNames: ["升级成长"], librarySummary: "", prompt: "",
   }));
 });
 
@@ -1283,6 +1339,39 @@ test("world draft generation post validator requires requested dimension coverag
       history: false,
     },
   }));
+});
+
+test("world skeleton prompt keeps large world output within a recoverable one-shot budget", () => {
+  const messages = worldSkeletonGenerationPrompt.render({
+    idea: "灵气复苏后的都市调查故事",
+    worldType: "都市异能",
+    template: "现代都市",
+    referenceContext: null,
+    blueprint: null,
+    options: {
+      preset: "epic",
+      counts: {
+        rules: 6,
+        factionGroups: 4,
+        forces: 7,
+        locations: 9,
+        conflicts: 6,
+        storyEntrySuggestions: 4,
+      },
+    },
+  }, {
+    blocks: [],
+    selectedBlockIds: [],
+    droppedBlockIds: [],
+    summarizedBlockIds: [],
+    estimatedInputTokens: 0,
+  });
+
+  assert.equal(worldSkeletonGenerationPrompt.version, "v2");
+  assert.equal(worldSkeletonGenerationPrompt.repairPolicy.maxAttempts, 0);
+  assert.equal(worldSkeletonGenerationPrompt.semanticRetryPolicy.maxAttempts, 0);
+  assert.match(String(messages[0].content), /输出容量硬约束/);
+  assert.match(String(messages[0].content), /3,200 个汉字以内/);
 });
 
 test("world draft refine alternatives post validator enforces exact alternative count", () => {
@@ -1468,20 +1557,24 @@ test("runStructuredPrompt retries semantically after postValidate failure", asyn
 test("streamTextPrompt buffers streamed output and resolves completion metadata", async () => {
   resetPromptQualityTelemetryForTests();
   const originalContextPolicy = { ...styleRewritePrompt.contextPolicy };
+  let capturedOptions = null;
   styleRewritePrompt.contextPolicy = {
     maxTokensBudget: 8,
     requiredGroups: ["core"],
     dropOrder: ["overflow"],
   };
 
-  setPromptRunnerLLMFactoryForTests(async () => ({
-    stream: async () => ({
-      async *[Symbol.asyncIterator]() {
-        yield { content: "修" };
-        yield { content: "订" };
-      },
-    }),
-  }));
+  setPromptRunnerLLMFactoryForTests(async (_provider, options) => {
+    capturedOptions = options;
+    return {
+      stream: async () => ({
+        async *[Symbol.asyncIterator]() {
+          yield { content: "修" };
+          yield { content: "订" };
+        },
+      }),
+    };
+  });
 
   try {
     const handle = await streamTextPrompt({
@@ -1512,6 +1605,7 @@ test("streamTextPrompt buffers streamed output and resolves completion metadata"
           content: "额外补充：".concat("低优先级。".repeat(20)),
         }),
       ],
+      options: { reasoningEnabled: false, maxTokens: 6000 },
     });
 
     const streamedChunks = [];
@@ -1525,6 +1619,8 @@ test("streamTextPrompt buffers streamed output and resolves completion metadata"
     assert.deepEqual(completed.meta.invocation.droppedContextBlockIds, ["overflow-1"]);
     assert.deepEqual(completed.meta.invocation.summarizedContextBlockIds, ["core-1"]);
     assert.equal(completed.meta.invocation.repairAttempts, 0);
+    assert.equal(capturedOptions.reasoningEnabled, false);
+    assert.equal(capturedOptions.maxTokens, 6000);
     const telemetry = getSinglePromptQualityEntry();
     assert.equal(telemetry.completedCount, 1);
     assert.equal(telemetry.emptyOutputCount, 0);

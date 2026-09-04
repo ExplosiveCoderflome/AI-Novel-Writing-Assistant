@@ -83,7 +83,7 @@ function TimelineNodeList({ nodes }: { nodes: BookAnalysisTimelineNode[] }) {
         <div key={group.phase} className="space-y-1.5">
           <div className="text-[11px] font-medium text-muted-foreground">{group.phase}</div>
           {group.nodes.map((node, index) => (
-            <div key={`${group.phase}-${node.label}-${index}`} className="rounded-md border bg-muted/20 px-2 py-1.5 text-xs">
+            <div key={`${group.phase}-${node.label}-${index}`} className="rounded-lg bg-background/75 px-2.5 py-2 text-xs">
               <div className="leading-5 text-foreground">{node.label}</div>
               {node.timeHint || node.sourceRefs?.length ? (
                 <div className="mt-1 flex flex-wrap gap-1 text-[11px] text-muted-foreground">
@@ -117,7 +117,7 @@ export default function BookAnalysisStructuredSummary({
   }
 
   return (
-    <div className="space-y-3 rounded-md border bg-muted/20 p-3">
+    <div className="space-y-4 rounded-2xl bg-muted/20 p-4 sm:p-5">
       <div className="flex items-center justify-between gap-2">
         <div className="text-sm font-medium">{analysisMode === "diagnosis" ? "诊断结论" : "关键结论"}</div>
         <div className="text-xs text-muted-foreground">
@@ -129,9 +129,9 @@ export default function BookAnalysisStructuredSummary({
           以下字段内容较多，已按上限保留：{warningLabels.join("、")}
         </div>
       ) : null}
-      <div className="grid gap-2 md:grid-cols-2">
+      <div className="grid gap-x-8 gap-y-1 md:grid-cols-2">
         {rows.map((row) => (
-          <div key={row.key} className="rounded-md border bg-background p-3">
+          <div key={row.key} className="border-b border-border/35 py-3 last:border-b-0 md:[&:nth-last-child(-n+2)]:border-b-0">
             <div className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
               <span>{row.label}</span>
               {row.evidence.length > 0 ? (
@@ -158,7 +158,7 @@ export default function BookAnalysisStructuredSummary({
                   return (
                     <span
                       key={`${row.key}-${index}-${value}`}
-                      className="inline-flex items-center gap-1 rounded-md border bg-muted/30 px-2 py-1 text-xs leading-5 text-foreground"
+                      className="inline-flex items-center gap-1 rounded-lg bg-background/80 px-2.5 py-1.5 text-xs leading-5 text-foreground"
                     >
                       <span>{value}</span>
                       {isCurrentChapterValue ? <Badge variant="secondary">本章</Badge> : null}

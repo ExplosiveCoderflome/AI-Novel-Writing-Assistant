@@ -241,6 +241,60 @@ test("book automation projection aggregates task, command, event, approval and a
   }
 });
 
+test("book automation projection exposes production experience handoff as the primary action", async () => {
+  const harness = createHarness({
+    latestTask: {
+      status: "waiting_approval",
+      progress: 90,
+      currentStage: "chapter_execution",
+      currentItemKey: "production_experience_required",
+      currentItemLabel: "项目已可开写，等待选择生产方式",
+      checkpointType: "production_experience_required",
+      checkpointSummary: "前期准备完成，请选择正文生产方式。",
+      seedPayloadJson: JSON.stringify({ runMode: "auto_to_ready" }),
+    },
+    commands: [],
+    events: [],
+    steps: [],
+    approvals: [],
+    runtimeProjection: null,
+  });
+  try {
+    const projection = await harness.service.getProjection("novel-1");
+    assert.equal(projection.status, "waiting_approval");
+    assert.equal(projection.primaryAction.label, "选择正文生产方式");
+    assert.equal(projection.primaryAction.target.href, "/novels/novel-1/edit?directorTaskId=task-1");
+  } finally {
+    harness.restore();
+  }
+});
+
+test("book automation projection exposes replan-and-continue for professional recovery surfaces", async () => {
+  for (const status of ["waiting_approval", "failed"]) {
+    const harness = createHarness({
+      latestTask: {
+        status,
+        checkpointType: "replan_required",
+        checkpointSummary: "当前章节与相邻章节安排需要调整。",
+        lastError: status === "failed" ? "当前章节与相邻章节安排需要调整。" : null,
+      },
+      commands: [],
+      events: [],
+      steps: [],
+      approvals: [],
+      runtimeProjection: null,
+    });
+    try {
+      const projection = await harness.service.getProjection("novel-1");
+      assert.equal(projection.primaryAction.type, "auto_execute_range");
+      assert.equal(projection.primaryAction.label, "重规划后继续");
+      assert.equal(projection.primaryAction.commandPayload.continuationMode, "auto_execute_range");
+    } finally {
+      harness.restore();
+    }
+  }
+});
+
 test("book automation projection prefers runtime chapter label over generic task label", async () => {
   const harness = createHarness({
     latestTask: {
@@ -481,6 +535,47 @@ test("book automation projection keeps queued retry workflow ahead of old failed
     assert.equal(projection.requiresUserAction, false);
     assert.equal(projection.blockedReason, null);
     assert.equal(projection.primaryAction.label, "查看推进状态");
+  } finally {
+    harness.restore();
+  }
+});
+
+test("book automation projection keeps pending manual recovery ahead of old chapter step failure", async () => {
+  const harness = createHarness({
+    commands: [],
+    latestTask: {
+      status: "queued",
+      pendingManualRecovery: true,
+      currentStage: "质量修复",
+      currentItemKey: "quality_repair",
+      currentItemLabel: "全书自动执行已暂停",
+      checkpointType: "chapter_batch_ready",
+      checkpointSummary: "402 Insufficient Balance",
+      lastError: "402 Insufficient Balance",
+    },
+    runtimeProjection: {
+      runId: "run-1",
+      novelId: "novel-1",
+      status: "failed",
+      headline: "处理失败：执行章节生成批次",
+      detail: "chapter.draft.write did not satisfy its completion criteria.",
+      requiresUserAction: true,
+      blockedReason: "chapter.draft.write did not satisfy its completion criteria.",
+      nextActionLabel: "继续章节生成",
+      policyMode: "run_until_gate",
+      updatedAt: "2026-04-30T09:00:03.000Z",
+      recentEvents: [],
+    },
+  });
+  try {
+    const projection = await harness.service.getProjection("novel-1");
+
+    assert.equal(projection.status, "waiting_recovery");
+    assert.equal(projection.dashboardView.mode, "recovering");
+    assert.equal(projection.displayState, "paused");
+    assert.equal(projection.requiresUserAction, true);
+    assert.equal(projection.blockedReason, "402 Insufficient Balance");
+    assert.equal(projection.primaryAction.label, "从进度点继续");
   } finally {
     harness.restore();
   }

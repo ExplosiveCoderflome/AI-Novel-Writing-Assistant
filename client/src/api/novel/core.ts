@@ -5,16 +5,19 @@ import type { LLMProvider } from "@ai-novel/shared/types/llm";
 import type { NovelExportFormat, NovelExportScope } from "@ai-novel/shared/types/novelExport";
 import type { TitleFactorySuggestion } from "@ai-novel/shared/types/title";
 import type { NovelCreateResourceRecommendation } from "@ai-novel/shared/types/novelResourceRecommendation";
+import type { WritingPlatform, WritingPlatformRecommendation } from "@ai-novel/shared/types/writingPlatform";
 import type {
   AIFreedom,
   Chapter,
   ChapterSummary,
+  CreationExperience,
   EmotionIntensity,
   NarrativePov,
   Novel,
   PacePreference,
   ProjectMode,
   ProjectProgressStatus,
+  SimpleCreationShelfProjection,
 } from "@ai-novel/shared/types/novel";
 import { apiClient } from "../client";
 import {
@@ -25,11 +28,24 @@ import {
   normalizeNovelListLimit,
 } from "./shared";
 
-export async function getNovelList(params?: { page?: number; limit?: number }) {
+export async function getNovelList(params?: {
+  page?: number;
+  limit?: number;
+  search?: string;
+  status?: "all" | "draft" | "published";
+  narrativeForm?: "all" | "short_story" | "long_novel";
+  writingMode?: "all" | "original" | "continuation";
+  sort?: "updated" | "created" | "progress";
+}) {
   const { data } = await apiClient.get<ApiResponse<NovelListResponse>>("/novels", {
     params: {
       page: params?.page ?? 1,
       limit: normalizeNovelListLimit(params?.limit),
+      search: params?.search || undefined,
+      status: params?.status && params.status !== "all" ? params.status : undefined,
+      narrativeForm: params?.narrativeForm && params.narrativeForm !== "all" ? params.narrativeForm : undefined,
+      writingMode: params?.writingMode && params.writingMode !== "all" ? params.writingMode : undefined,
+      sort: params?.sort ?? "updated",
     },
   });
   return data;
@@ -54,6 +70,7 @@ export async function createNovel(payload: {
   worldId?: string;
   writingMode?: "original" | "continuation";
   projectMode?: ProjectMode;
+  creationExperience?: CreationExperience;
   narrativePov?: NarrativePov;
   pacePreference?: PacePreference;
   styleTone?: string;
@@ -70,8 +87,22 @@ export async function createNovel(payload: {
   sourceKnowledgeDocumentId?: string;
   continuationBookAnalysisId?: string;
   continuationBookAnalysisSections?: BookAnalysisSectionKey[];
+  referenceBookAnalysisId?: string;
+  referenceBookAnalysisSections?: BookAnalysisSectionKey[];
 }) {
   const { data } = await apiClient.post<ApiResponse<Novel>>("/novels", payload);
+  return data;
+}
+
+export async function setNovelCreationExperience(id: string, experience: CreationExperience) {
+  const { data } = await apiClient.post<ApiResponse<Novel>>(`/novels/${id}/creation-experience/${experience}`);
+  return data;
+}
+
+export const convertNovelToProfessional = (id: string) => setNovelCreationExperience(id, "professional");
+
+export async function getSimpleCreationShelf(id: string) {
+  const { data } = await apiClient.get<ApiResponse<SimpleCreationShelfProjection>>(`/novels/${id}/simple-shelf`);
   return data;
 }
 
@@ -133,6 +164,8 @@ export async function updateNovel(
     sourceKnowledgeDocumentId: string | null;
     continuationBookAnalysisId: string | null;
     continuationBookAnalysisSections: BookAnalysisSectionKey[] | null;
+    referenceBookAnalysisId: string | null;
+    referenceBookAnalysisSections: BookAnalysisSectionKey[] | null;
     genreId: string | null;
     primaryStoryModeId: string | null;
     secondaryStoryModeId: string | null;
@@ -196,5 +229,15 @@ export async function downloadNovelExport(
 
 export async function exportNovelAsKnowledgeDocument(id: string) {
   const { data } = await apiClient.post<ApiResponse<KnowledgeDocumentDetail>>(`/novels/${id}/export-as-document`, {});
+  return data;
+}
+
+export async function recommendNovelWritingPlatform(id: string) {
+  const { data } = await apiClient.post<ApiResponse<WritingPlatformRecommendation>>(`/novels/${id}/writing-platform/recommend`);
+  return data;
+}
+
+export async function updateNovelWritingPlatform(id: string, platform: WritingPlatform) {
+  const { data } = await apiClient.put<ApiResponse<Novel>>(`/novels/${id}/writing-platform`, { platform });
   return data;
 }

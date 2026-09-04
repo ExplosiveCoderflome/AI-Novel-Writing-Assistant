@@ -383,31 +383,31 @@ function normalizeRebalancePayload(raw: unknown): unknown {
 }
 
 const generatedVolumeSkeletonSchema = z.object({
-  title: z.string().trim().min(1),
-  summary: z.string().trim().optional().nullable(),
-  openingHook: z.string().trim().min(1),
-  mainPromise: z.string().trim().min(1),
-  primaryPressureSource: z.string().trim().min(1),
-  coreSellingPoint: z.string().trim().min(1),
-  escalationMode: z.string().trim().min(1),
-  protagonistChange: z.string().trim().min(1),
-  midVolumeRisk: z.string().trim().min(1),
-  climax: z.string().trim().min(1),
-  payoffType: z.string().trim().min(1),
-  nextVolumeHook: z.string().trim().min(1),
-  resetPoint: z.string().trim().optional().nullable(),
-  openPayoffs: z.array(z.string().trim().min(1)).default([]),
+  title: z.string().trim().min(1).max(32),
+  summary: z.string().trim().max(240).optional().nullable(),
+  openingHook: z.string().trim().min(1).max(160),
+  mainPromise: z.string().trim().min(1).max(160),
+  primaryPressureSource: z.string().trim().min(1).max(160),
+  coreSellingPoint: z.string().trim().min(1).max(160),
+  escalationMode: z.string().trim().min(1).max(160),
+  protagonistChange: z.string().trim().min(1).max(160),
+  midVolumeRisk: z.string().trim().min(1).max(160),
+  climax: z.string().trim().min(1).max(160),
+  payoffType: z.string().trim().min(1).max(120),
+  nextVolumeHook: z.string().trim().min(1).max(160),
+  resetPoint: z.string().trim().max(160).optional().nullable(),
+  openPayoffs: z.array(z.string().trim().min(1).max(120)).max(8).default([]),
 });
 
 const generatedChapterListItemSchema = z.object({
-  title: z.string().trim().min(1),
-  summary: z.string().trim().min(1),
+  title: z.string().trim().min(1).max(32),
+  summary: z.string().trim().min(1).max(240),
 });
 
 const generatedChapterBeatBlockItemSchema = z.preprocess((raw) => normalizeChapterListItemPayload(raw), z.object({
-  title: z.string().trim().min(1),
-  summary: z.string().trim().min(1),
-  beatKey: z.string().trim().min(1),
+  title: z.string().trim().min(1).max(32),
+  summary: z.string().trim().min(1).max(240),
+  beatKey: z.string().trim().min(1).max(64),
 }));
 
 const generatedVolumeStrategyVolumeSchema = z.object({
@@ -435,9 +435,9 @@ const generatedVolumeBeatSchema = z.preprocess(normalizeBeatPayload, z.object({
   key: volumeBeatSlotKeySchema,
   label: z.string().trim().min(1),
   title: z.string().trim().min(1).max(16).nullable().optional(),
-  summary: z.string().trim().min(1),
-  chapterSpanHint: z.string().trim().min(1),
-  mustDeliver: z.array(z.string().trim().min(1)).min(1).max(6),
+  summary: z.string().trim().min(1).max(240),
+  chapterSpanHint: z.string().trim().min(1).max(32),
+  mustDeliver: z.array(z.string().trim().min(1).max(160)).min(1).max(6),
 }));
 
 const generatedVolumeCritiqueIssueSchema = z.object({

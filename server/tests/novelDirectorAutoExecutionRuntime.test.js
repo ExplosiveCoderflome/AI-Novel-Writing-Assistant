@@ -5,14 +5,15 @@ const {
   NovelDirectorAutoExecutionRuntime,
 } = require("../dist/services/novel/director/automation/novelDirectorAutoExecutionRuntime.js");
 const {
+  stopAutoExecutionForCircuitBreaker,
+} = require("../dist/services/novel/director/automation/novelDirectorAutoExecutionCircuitBreakerRuntime.js");
+const {
+  directorIssueService,
+} = require("../dist/services/novel/director/issues/DirectorIssueService.js");
+const issueTaskContext = require("../dist/services/novel/director/issues/DirectorIssueTaskContext.js");
+const {
   buildDirectorAutoExecutionState,
 } = require("../dist/services/novel/director/automation/novelDirectorAutoExecution.js");
-const {
-  buildDirectorQualityLoopBudgetWindow,
-  buildDirectorQualityLoopIssueSignature,
-  recordDirectorQualityLoopBudgetAttempt,
-} = require("../dist/services/novel/director/runtime/DirectorQualityLoopBudgetLedgerService.js");
-
 function buildRequest(overrides = {}) {
   return {
     idea: "一个普通人被卷入命运迷局",
@@ -36,6 +37,179 @@ function buildRequest(overrides = {}) {
     ...overrides,
   };
 }
+
+test("circuit-breaker governance continues, pauses, or fails the real workflow state", async () => {
+  const originalReportIssue = directorIssueService.reportIssue;
+  let selectedAction = "continue_with_warning";
+  const reports = [];
+  directorIssueService.reportIssue = async (input) => {
+    reports.push(input);
+    const result = {
+      occurrence: {
+        schemaVersion: 1,
+        issueCode: input.issueCode,
+        stage: input.stage,
+        summary: input.summary,
+        attempt: input.attempt,
+        maxAttempts: input.maxAttempts,
+        hasUsableOutput: input.hasUsableOutput,
+        fingerprint: input.fingerprint,
+        occurredAt: new Date().toISOString(),
+      },
+      decision: {
+        issueCode: input.issueCode,
+        action: selectedAction,
+        reason: "测试治理动作",
+        locked: false,
+        policySource: "task_snapshot",
+        retryExhaustedAction: "pause_for_manual",
+      },
+    };
+    await input.applyAction(result.decision);
+    return result;
+  };
+
+  const buildHarness = () => {
+    const task = { status: "running", pendingManualRecovery: false };
+    const calls = [];
+    return {
+      task,
+      calls,
+      deps: {
+        workflowService: {
+          async bootstrapTask(input) {
+            calls.push(["bootstrapTask", input.seedPayload.autoExecution.circuitBreaker.status]);
+          },
+          async recordCheckpoint() {},
+          async markTaskFailed() {
+            task.status = "failed";
+            task.pendingManualRecovery = false;
+            calls.push(["markTaskFailed"]);
+          },
+          async requeueTaskForRecovery() {
+            task.status = "queued";
+            task.pendingManualRecovery = true;
+            calls.push(["requeueTaskForRecovery"]);
+          },
+        },
+        buildDirectorSeedPayload(_request, _novelId, extra) {
+          return extra;
+        },
+        automationLedgerEventService: {
+          async recordCircuitBreakerOpened() {},
+          async recordEvent() {},
+        },
+      },
+    };
+  };
+  const baseInput = {
+    taskId: "task-circuit",
+    novelId: "novel-1",
+    request: buildRequest({
+      runMode: "full_book_autopilot",
+      issueGovernanceVersion: 1,
+      issuePolicy: { maxAutomaticRetries: 1, issueActions: {} },
+      issuePolicySource: "novel",
+    }),
+    range: { firstChapterId: "chapter-1", startOrder: 1, endOrder: 3, totalChapterCount: 3 },
+    autoExecution: { enabled: true, nextChapterId: "chapter-2", nextChapterOrder: 2, remainingChapterCount: 2 },
+    circuitBreaker: {
+      status: "open",
+      reason: "auto_repair_exhausted",
+      message: "局部修复已耗尽。",
+      chapterId: "chapter-1",
+      chapterOrder: 1,
+      patchFailureCount: 3,
+    },
+  };
+  try {
+    const continued = buildHarness();
+    selectedAction = "continue_with_warning";
+    await stopAutoExecutionForCircuitBreaker(continued.deps, baseInput);
+    assert.equal(continued.task.status, "running");
+    assert.deepEqual(continued.calls, [["bootstrapTask", "closed"]]);
+
+    const paused = buildHarness();
+    selectedAction = "pause_for_manual";
+    await stopAutoExecutionForCircuitBreaker(paused.deps, baseInput);
+    assert.deepEqual(paused.task, { status: "queued", pendingManualRecovery: true });
+    assert.ok(paused.calls.some((call) => call[0] === "requeueTaskForRecovery"));
+
+    const failed = buildHarness();
+    selectedAction = "fail_task";
+    await stopAutoExecutionForCircuitBreaker(failed.deps, baseInput);
+    assert.deepEqual(failed.task, { status: "failed", pendingManualRecovery: false });
+    assert.ok(!failed.calls.some((call) => call[0] === "requeueTaskForRecovery"));
+
+    assert.deepEqual(reports.map((report) => report.hasUsableOutput), [true, true, true]);
+  } finally {
+    directorIssueService.reportIssue = originalReportIssue;
+  }
+});
+
+test("legacy circuit breakers load compatible governance instead of using the old stop path", async () => {
+  const originalLoadTaskContext = issueTaskContext.loadDirectorIssueTaskContext;
+  const originalReportIssue = directorIssueService.reportIssue;
+  const reports = [];
+  issueTaskContext.loadDirectorIssueTaskContext = async () => ({
+    novelId: "novel-legacy",
+    issueGovernanceVersion: 1,
+    policy: {
+      maxAutomaticRetries: 1,
+      issueActions: { "quality.local_repair_failed": "continue_with_warning" },
+    },
+    policySource: "novel",
+  });
+  directorIssueService.reportIssue = async (input) => {
+    reports.push(input);
+    await input.applyAction({
+      issueCode: input.issueCode,
+      action: "continue_with_warning",
+      reason: "兼容读取本书规则",
+      locked: false,
+      policySource: input.policySource,
+      retryExhaustedAction: "continue_with_warning",
+    });
+  };
+  const calls = [];
+  const deps = {
+    workflowService: {
+      async bootstrapTask() { calls.push("continued"); },
+      async recordCheckpoint() {},
+      async markTaskFailed() { calls.push("failed"); },
+      async requeueTaskForRecovery() { calls.push("paused"); },
+    },
+    buildDirectorSeedPayload(_request, _novelId, extra) { return extra; },
+    automationLedgerEventService: {
+      async recordCircuitBreakerOpened() {},
+      async recordEvent() {},
+    },
+  };
+  try {
+    await stopAutoExecutionForCircuitBreaker(deps, {
+      taskId: "task-legacy",
+      novelId: "novel-legacy",
+      request: buildRequest({ runMode: "full_book_autopilot" }),
+      range: { firstChapterId: "chapter-1", startOrder: 1, endOrder: 3, totalChapterCount: 3 },
+      autoExecution: { enabled: true, nextChapterId: "chapter-2", nextChapterOrder: 2, remainingChapterCount: 2 },
+      circuitBreaker: {
+        status: "open",
+        reason: "auto_repair_exhausted",
+        message: "旧任务局部修复已耗尽。",
+        chapterId: "chapter-1",
+        chapterOrder: 1,
+        patchFailureCount: 1,
+      },
+    });
+    assert.equal(reports.length, 1);
+    assert.equal(reports[0].policySource, "novel");
+    assert.equal(reports[0].policy.issueActions["quality.local_repair_failed"], "continue_with_warning");
+    assert.deepEqual(calls, ["continued"]);
+  } finally {
+    issueTaskContext.loadDirectorIssueTaskContext = originalLoadTaskContext;
+    directorIssueService.reportIssue = originalReportIssue;
+  }
+});
 
 function buildSceneCards(order) {
   return JSON.stringify({
@@ -476,15 +650,13 @@ test("runFromReady treats explicit range continuation as approval for quality-al
   );
 });
 
-test("runFromReady resumes a pending manual-recovery pipeline job before waiting on it", async () => {
+test("runFromReady keeps a pending manual-recovery pipeline job paused", async () => {
   const calls = [];
-  let pipelineCompleted = false;
-  let jobReadCount = 0;
   const runtime = new NovelDirectorAutoExecutionRuntime({
     novelContextService: {
       async listChapters() {
         return [
-          withExecutionDetail({ id: "chapter-1", order: 1, generationState: pipelineCompleted ? "approved" : "draft" }),
+          withExecutionDetail({ id: "chapter-1", order: 1, generationState: "draft" }),
         ];
       },
     },
@@ -499,42 +671,15 @@ test("runFromReady resumes a pending manual-recovery pipeline job before waiting
       },
       async getPipelineJobById(jobId) {
         calls.push(["getPipelineJobById", jobId]);
-        jobReadCount += 1;
-        if (jobReadCount === 1) {
-          return {
-            id: "job-paused",
-            status: "queued",
-            progress: 0.65,
-            pendingManualRecovery: true,
-            currentStage: "queued",
-            currentItemLabel: null,
-            error: "服务重启后任务已暂停，等待手动恢复。",
-          };
-        }
-        if (jobReadCount === 2) {
-          return {
-            id: "job-paused",
-            status: "running",
-            progress: 0.66,
-            pendingManualRecovery: false,
-            currentStage: "reviewing",
-            currentItemLabel: "第1章 · 批次 1/1",
-            error: null,
-          };
-        }
-        pipelineCompleted = true;
         return {
           id: "job-paused",
-          status: "succeeded",
-          progress: 1,
-          pendingManualRecovery: false,
-          currentStage: null,
+          status: "queued",
+          progress: 0.65,
+          pendingManualRecovery: true,
+          currentStage: "queued",
           currentItemLabel: null,
-          error: null,
+          error: "章节需要人工确认，后续生成已暂停。",
         };
-      },
-      async resumePipelineJob(jobId) {
-        calls.push(["resumePipelineJob", jobId]);
       },
       async cancelPipelineJob() {
         calls.push(["cancelPipelineJob"]);
@@ -555,6 +700,9 @@ test("runFromReady resumes a pending manual-recovery pipeline job before waiting
       },
       async markTaskFailed() {
         calls.push(["markTaskFailed"]);
+      },
+      async requeueTaskForRecovery(_taskId, _message, patch) {
+        calls.push(["requeueTaskForRecovery", patch.checkpointType]);
       },
     },
     buildDirectorSeedPayload(_request, _novelId, extra) {
@@ -580,12 +728,11 @@ test("runFromReady resumes a pending manual-recovery pipeline job before waiting
 
   assert.deepEqual(calls, [
     ["getPipelineJobById", "job-paused"],
-    ["resumePipelineJob", "job-paused"],
-    ["getPipelineJobById", "job-paused"],
     ["bootstrapTask", "job-paused", "running"],
     ["findActivePipelineJobForRange", "novel-1", 1, 1, "job-paused"],
     ["getPipelineJobById", "job-paused"],
-    ["recordCheckpoint", "task-auto-exec", "job-paused", "succeeded"],
+    ["requeueTaskForRecovery", "chapter_batch_ready"],
+    ["bootstrapTask", "job-paused", "queued"],
   ]);
 });
 
@@ -1525,9 +1672,6 @@ test("runFromReady keeps repeated full-book replan loops as replan checkpoints",
     automationLedgerEventService: {
       async recordEvent(input) {
         calls.push(["recordEvent", input.type, input.summary]);
-      },
-      async recordRepairTicketCreated(input) {
-        calls.push(["recordRepairTicketCreated", input.summary]);
       },
       async recordCircuitBreakerOpened(input) {
         calls.push(["recordCircuitBreakerOpened", input.state?.reason]);
@@ -2487,7 +2631,7 @@ test("prepareRequestedAutoExecution allows full-book autopilot JIT chapters with
   assert.equal(resolved.autoExecution.nextChapterOrder, 1);
 });
 
-test("runFromReady keeps persisted replan budget failures blocking after worker recovery", async () => {
+test("runFromReady keeps explicit replan notices blocking after worker recovery", async () => {
   const calls = [];
   const completedOrders = new Set();
   const jobOrderById = new Map();
@@ -2505,27 +2649,6 @@ test("runFromReady keeps persisted replan budget failures blocking after worker 
     remainingChapterIds: ["chapter-6", "chapter-7"],
     remainingChapterOrders: [6, 7],
   };
-  const seededBudget = recordDirectorQualityLoopBudgetAttempt({
-    state: seedState,
-    novelId: "novel-1",
-    taskId: "task-auto-exec",
-    issueSignature: buildDirectorQualityLoopIssueSignature({
-      noticeCode: "PIPELINE_REPLAN_REQUIRED",
-      riskLevel: "replan",
-      repairMode: "heavy_repair",
-      reason: "State-driven replan is required before continuing: 第 6 章关系状态冲突",
-    }),
-    affectedChapterWindow: buildDirectorQualityLoopBudgetWindow({
-      autoExecution: seedState,
-      chapterId: "chapter-6",
-      chapterOrder: 6,
-    }),
-    action: "window_replan",
-    reason: "第 6 章关系状态冲突",
-    chapterId: "chapter-6",
-    chapterOrder: 6,
-    occurredAt: "2026-05-02T00:00:00.000Z",
-  }).state;
   const runtime = new NovelDirectorAutoExecutionRuntime({
     novelContextService: {
       async listChapters() {
@@ -2629,9 +2752,6 @@ test("runFromReady keeps persisted replan budget failures blocking after worker 
       async recordEvent(input) {
         calls.push(["recordEvent", input.type, input.metadata?.decision ?? null]);
       },
-      async recordRepairTicketCreated(input) {
-        calls.push(["recordRepairTicketCreated", input.summary]);
-      },
       async recordCircuitBreakerOpened(input) {
         calls.push(["recordCircuitBreakerOpened", input.state?.reason]);
       },
@@ -2642,7 +2762,7 @@ test("runFromReady keeps persisted replan budget failures blocking after worker 
     taskId: "task-auto-exec",
     novelId: "novel-1",
     request: buildRequest({ runMode: "full_book_autopilot" }),
-    existingState: seededBudget,
+    existingState: seedState,
   });
 
   assert.deepEqual(calls.filter((call) => call[0] === "startPipelineJob").map((call) => call.slice(1)), [

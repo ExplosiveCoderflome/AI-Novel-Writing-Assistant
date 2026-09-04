@@ -4,6 +4,7 @@ export type TitleGenerationMode = "brief" | "adapt" | "novel";
 
 export interface TitlePromptContext {
   mode: TitleGenerationMode;
+  selectionMode: "pool" | "primary";
   count: number;
   brief: string;
   referenceTitle: string;
@@ -340,6 +341,7 @@ export function collectUniqueSuggestions(
   values: unknown[],
   count: number,
   blockedTitles: string[] = [],
+  options: { preserveOrder?: boolean; enforceFrameDiversity?: boolean } = {},
 ): TitleFactorySuggestion[] {
   const blocked = blockedTitles.map((item) => normalizeTitle(item)).filter(Boolean);
   const suggestions: NormalizedTitleSuggestion[] = [];
@@ -359,7 +361,7 @@ export function collectUniqueSuggestions(
     }
 
     const currentFrameCount = frameCounts.get(normalized.surfaceFrame) ?? 0;
-    if (currentFrameCount >= maxPerFrame) {
+    if (options.enforceFrameDiversity !== false && currentFrameCount >= maxPerFrame) {
       continue;
     }
 
@@ -371,9 +373,11 @@ export function collectUniqueSuggestions(
     }
   }
 
-  return suggestions
-    .sort((left, right) => right.clickRate - left.clickRate)
-    .map(({ surfaceFrame, ...suggestion }) => suggestion);
+  if (!options.preserveOrder) {
+    suggestions.sort((left, right) => right.clickRate - left.clickRate);
+  }
+
+  return suggestions.map(({ surfaceFrame, ...suggestion }) => suggestion);
 }
 
 export function hasEnoughStyleVariety(items: TitleFactorySuggestion[], targetCount: number): boolean {

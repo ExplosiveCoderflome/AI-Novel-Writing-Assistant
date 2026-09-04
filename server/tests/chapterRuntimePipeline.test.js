@@ -9,6 +9,16 @@ const {
   ChapterEmptyContentError,
 } = require("../dist/services/novel/runtime/chapterEmptyContentError.js");
 
+function createTextStreamLLM(content) {
+  return {
+    stream: async () => ({
+      async *[Symbol.asyncIterator]() {
+        yield { content };
+      },
+    }),
+  };
+}
+
 function createRuntimePackage(overallScore, options = {}) {
   return {
     novelId: "novel-1",
@@ -278,6 +288,9 @@ test("runPipelineChapterWithRuntime does not approve when timeline check fails",
   assert.deepEqual(generationStates, ["reviewed"]);
   assert.equal(result.pass, false);
   assert.equal(result.runtimePackage.timelineCheck.status, "failed");
+  assert.deepEqual(result.qualityDebtAttribution.firstFailureIssueCodes, []);
+  assert.equal(result.qualityDebtAttribution.repairAttemptsUsed, 0);
+  assert.equal(result.qualityDebtAttribution.repairAttemptsAllowed, 0);
 });
 
 test("runPipelineChapterWithRuntime passes confirmed provenance for approved final artifact sync", async () => {
@@ -390,41 +403,43 @@ test("runPipelineChapterWithRuntime passes debt provenance for retained failed c
       contentProvenance: "debt",
     },
   }]);
-  assert.deepEqual(result.qualityDebtAttribution.degradedProposalRouting, {
-    contentProvenance: "debt",
-    routedToPendingReview: true,
-    proposalTypes: ["character_state_update", "character_resource_update"],
-    fields: ["currentState", "currentGoal", "characterResource"],
-  });
+  assert.equal(result.qualityDebtAttribution.repairAttemptsUsed, 0);
+  assert.equal(result.qualityDebtAttribution.repairAttemptsAllowed, 0);
 });
 
-test("runPipelineChapterWithRuntime escalates patch failures to heavy repair and rechecks the chapter", async () => {
+test("runPipelineChapterWithRuntime keeps the draft when a light patch cannot be applied", async () => {
   const originalRunStructuredPrompt = promptRunner.runStructuredPrompt;
   const stages = [];
   const savedDrafts = [];
   const finalSyncs = [];
   let needsRepairMarked = false;
   let reviewCount = 0;
+  let patchPlanCalls = 0;
+  let heavyRewriteCalls = 0;
 
-  promptRunner.runStructuredPrompt = async () => ({
-    output: {
-      strategy: "patch_first",
-      summary: "补足承接。",
-      patches: [{
-        id: "patch-missing",
-        targetExcerpt: "模型认为存在但正文里没有的片段。",
-        replacement: "替换后的片段。",
-        reason: "目标片段不存在。",
-        issueIds: [],
-      }],
-      requiresFullRewrite: false,
-      escalationReason: null,
-    },
-  });
+  promptRunner.runStructuredPrompt = async () => {
+    patchPlanCalls += 1;
+    return {
+      output: {
+        strategy: "patch_first",
+        summary: "补足承接。",
+        patches: [{
+          id: "patch-missing",
+          targetExcerpt: "模型认为存在但正文里没有的片段。",
+          replacement: "替换后的片段。",
+          reason: "目标片段不存在。",
+          issueIds: [],
+        }],
+        requiresFullRewrite: false,
+        escalationReason: null,
+      },
+    };
+  };
   promptRunner.setPromptRunnerLLMFactoryForTests(async () => ({
-    invoke: async () => ({
-      content: "rewritten chapter after safe full repair",
-    }),
+    stream: async () => {
+      heavyRewriteCalls += 1;
+      throw new Error("light repair must not escalate to a full rewrite");
+    },
   }));
 
   try {
@@ -481,24 +496,20 @@ test("runPipelineChapterWithRuntime escalates patch failures to heavy repair and
       },
     );
 
-    assert.deepEqual(stages, ["generating_chapters", "reviewing", "repairing", "reviewing"]);
-    assert.equal(reviewCount, 2);
-    assert.equal(result.pass, true);
+    assert.deepEqual(stages, ["generating_chapters", "reviewing", "repairing"]);
+    assert.equal(reviewCount, 1);
+    assert.equal(result.pass, false);
     assert.equal(result.retryCountUsed, 1);
-    assert.equal(result.recoverableRepairFailure, null);
-    assert.equal(needsRepairMarked, false);
+    assert.equal(result.qualityDebtAttribution.repairAttemptsUsed, 1);
+    assert.equal(result.qualityDebtAttribution.repairAttemptsAllowed, 1);
+    assert.match(result.recoverableRepairFailure.message, /目标片段不存在/);
+    assert.equal(needsRepairMarked, true);
     assert.equal(finalSyncs.length, 1);
+    assert.equal(patchPlanCalls, 1);
+    assert.equal(heavyRewriteCalls, 0);
     assert.deepEqual(savedDrafts, [{
       content: "生成后的正文需要承接。",
       generationState: "drafted",
-      options: {
-        scheduleBackgroundSync: false,
-        artifactSyncMode: "adaptive",
-        syncArtifacts: false,
-      },
-    }, {
-      content: "rewritten chapter after safe full repair",
-      generationState: "repaired",
       options: {
         scheduleBackgroundSync: false,
         artifactSyncMode: "adaptive",
@@ -611,10 +622,11 @@ test("runPipelineChapterWithRuntime sends critical prose findings to repair and 
   }
 });
 
-test("runPipelineChapterWithRuntime escalates short patch targets to heavy repair", async () => {
+test("runPipelineChapterWithRuntime does not rewrite the chapter when a patch target is unsafe", async () => {
   const originalRunStructuredPrompt = promptRunner.runStructuredPrompt;
   const savedDrafts = [];
   let reviewCount = 0;
+  let heavyRewriteCalls = 0;
 
   promptRunner.runStructuredPrompt = async () => ({
     output: {
@@ -632,9 +644,10 @@ test("runPipelineChapterWithRuntime escalates short patch targets to heavy repai
     },
   });
   promptRunner.setPromptRunnerLLMFactoryForTests(async () => ({
-    invoke: async () => ({
-      content: "rewritten chapter after short patch target",
-    }),
+    stream: async () => {
+      heavyRewriteCalls += 1;
+      throw new Error("unsafe patch must remain recoverable");
+    },
   }));
 
   try {
@@ -682,16 +695,16 @@ test("runPipelineChapterWithRuntime escalates short patch targets to heavy repai
       },
     );
 
-    assert.equal(reviewCount, 2);
-    assert.equal(result.pass, true);
+    assert.equal(reviewCount, 1);
+    assert.equal(result.pass, false);
     assert.equal(result.retryCountUsed, 1);
-    assert.equal(result.recoverableRepairFailure, null);
+    assert.equal(result.qualityDebtAttribution.repairAttemptsUsed, 1);
+    assert.equal(result.qualityDebtAttribution.repairAttemptsAllowed, 1);
+    assert.match(result.recoverableRepairFailure.message, /局部补丁计划不可安全应用/);
+    assert.equal(heavyRewriteCalls, 0);
     assert.deepEqual(savedDrafts, [{
       content: "生成后的正文需要承接。",
       generationState: "drafted",
-    }, {
-      content: "rewritten chapter after short patch target",
-      generationState: "repaired",
     }]);
   } finally {
     promptRunner.runStructuredPrompt = originalRunStructuredPrompt;
@@ -710,7 +723,7 @@ test("runPipelineChapterWithRuntime defers acceptance gate unavailable risk with
     throw new Error("patch repair should not run for acceptance gate unavailable risk");
   };
   promptRunner.setPromptRunnerLLMFactoryForTests(async () => ({
-    invoke: async () => {
+    stream: async () => {
       throw new Error("heavy repair should not run for acceptance gate unavailable risk");
     },
   }));
@@ -770,7 +783,9 @@ test("runPipelineChapterWithRuntime defers acceptance gate unavailable risk with
     assert.deepEqual(stages, ["generating_chapters", "reviewing", "repairing"]);
     assert.equal(reviewCount, 1);
     assert.equal(result.pass, false);
-    assert.equal(result.retryCountUsed, 0);
+    assert.equal(result.retryCountUsed, 1);
+    assert.equal(result.qualityDebtAttribution.repairAttemptsUsed, 1);
+    assert.equal(result.qualityDebtAttribution.repairAttemptsAllowed, 1);
     assert.equal(result.recoverableRepairFailure.message, "章节接收判断暂时不可用，正文已保留，后续需要重新审校或人工复查。");
     assert.deepEqual(result.recoverableRepairFailure.failureTypes, ["review_gate_unavailable"]);
     assert.deepEqual(needsRepairMarked, ["chapter-1"]);
@@ -784,21 +799,37 @@ test("runPipelineChapterWithRuntime defers acceptance gate unavailable risk with
   }
 });
 
-test("runPipelineChapterWithRuntime forces full rewrite when style source entities leak", async () => {
+test("runPipelineChapterWithRuntime uses the selected light repair for style source leakage", async () => {
   const originalRunStructuredPrompt = promptRunner.runStructuredPrompt;
   const stages = [];
   const savedDrafts = [];
   let patchRepairCalled = false;
+  let heavyRewriteCalls = 0;
   let reviewCount = 0;
 
   promptRunner.runStructuredPrompt = async () => {
     patchRepairCalled = true;
-    throw new Error("patch repair should not run for style source leakage");
+    return {
+      output: {
+        strategy: "patch_first",
+        summary: "移除来源作品实体。",
+        patches: [{
+          id: "patch-style-source",
+          targetExcerpt: "北凉王世子踏进城门，所有人都屏住呼吸。",
+          replacement: "年轻世子踏进城门，所有人都屏住呼吸。",
+          reason: "保留场景节奏，移除来源实体。",
+          issueIds: [],
+        }],
+        requiresFullRewrite: false,
+        escalationReason: null,
+      },
+    };
   };
   promptRunner.setPromptRunnerLLMFactoryForTests(async () => ({
-    invoke: async () => ({
-      content: "clean rewritten chapter with transferable pacing only",
-    }),
+    stream: async () => {
+      heavyRewriteCalls += 1;
+      throw new Error("light repair must not invoke full rewrite");
+    },
   }));
 
   try {
@@ -861,7 +892,8 @@ test("runPipelineChapterWithRuntime forces full rewrite when style source entiti
       },
     );
 
-    assert.equal(patchRepairCalled, false);
+    assert.equal(patchRepairCalled, true);
+    assert.equal(heavyRewriteCalls, 0);
     assert.deepEqual(stages, ["generating_chapters", "reviewing", "repairing", "reviewing"]);
     assert.equal(reviewCount, 2);
     assert.equal(result.pass, true);
@@ -870,7 +902,7 @@ test("runPipelineChapterWithRuntime forces full rewrite when style source entiti
       content: "北凉王世子踏进城门，所有人都屏住呼吸。",
       generationState: "drafted",
     }, {
-      content: "clean rewritten chapter with transferable pacing only",
+      content: "年轻世子踏进城门，所有人都屏住呼吸。",
       generationState: "repaired",
     }]);
   } finally {
@@ -999,82 +1031,10 @@ test("runPipelineChapterWithRuntime does not resave unchanged existing chapter c
   assert.equal(result.pass, true);
 });
 
-test("runPipelineChapterWithRuntime retries once when writer returns empty content", async () => {
+test("runPipelineChapterWithRuntime leaves empty writer retries to the outer execution budget", async () => {
   const stages = [];
   const emptyEvents = [];
   const savedDrafts = [];
-  let generationCount = 0;
-
-  const result = await runPipelineChapterWithRuntime(
-    {
-      validateRequest(input) {
-        return input;
-      },
-      async ensureNovelCharacters() {},
-      async assemble() {
-        return {
-          novel: { id: "novel-1", title: "测试小说" },
-          chapter: {
-            id: "chapter-1",
-            title: "第一章",
-            order: 1,
-            content: null,
-            expectation: null,
-          },
-          contextPackage: {},
-        };
-      },
-      async generateDraftFromWriter() {
-        generationCount += 1;
-        return { content: generationCount === 1 ? "   " : "重试后的正文" };
-      },
-      async saveDraftAndArtifacts(_novelId, _chapterId, content, generationState) {
-        savedDrafts.push({ content, generationState });
-      },
-      async syncFinalChapterArtifacts() {},
-      async finalizeChapterContent({ content }) {
-        return {
-          finalContent: content,
-          runtimePackage: createRuntimePackage(90),
-        };
-      },
-      async markChapterGenerationState() {},
-      async markChapterNeedsRepair() {},
-    },
-    "novel-1",
-    "chapter-1",
-    {
-      autoReview: true,
-      autoRepair: true,
-    },
-    {
-      async onStageChange(stage) {
-        stages.push(stage);
-      },
-      async onEmptyContent(event) {
-        emptyEvents.push({
-          attempt: event.attempt,
-          willRetry: event.willRetry,
-          contentLength: event.contentLength,
-        });
-      },
-    },
-  );
-
-  assert.equal(generationCount, 2);
-  assert.deepEqual(stages, ["generating_chapters", "generating_chapters", "reviewing"]);
-  assert.deepEqual(emptyEvents, [{ attempt: 1, willRetry: true, contentLength: 0 }]);
-  assert.deepEqual(savedDrafts, [{
-    content: "重试后的正文",
-    generationState: "drafted",
-  }]);
-  assert.equal(result.pass, true);
-});
-
-test("runPipelineChapterWithRuntime fails empty writer output without saving or advancing state", async () => {
-  const emptyEvents = [];
-  const savedDrafts = [];
-  const generationStates = [];
   let generationCount = 0;
 
   await assert.rejects(
@@ -1099,7 +1059,7 @@ test("runPipelineChapterWithRuntime fails empty writer output without saving or 
         },
         async generateDraftFromWriter() {
           generationCount += 1;
-          return { content: generationCount === 1 ? "" : "\n\n" };
+          return { content: "   " };
         },
         async saveDraftAndArtifacts(_novelId, _chapterId, content, generationState) {
           savedDrafts.push({ content, generationState });
@@ -1108,9 +1068,7 @@ test("runPipelineChapterWithRuntime fails empty writer output without saving or 
         async finalizeChapterContent() {
           throw new Error("empty drafts should not be reviewed");
         },
-        async markChapterGenerationState(_chapterId, generationState) {
-          generationStates.push(generationState);
-        },
+        async markChapterGenerationState() {},
         async markChapterNeedsRepair() {},
       },
       "novel-1",
@@ -1120,6 +1078,9 @@ test("runPipelineChapterWithRuntime fails empty writer output without saving or 
         autoRepair: true,
       },
       {
+        async onStageChange(stage) {
+          stages.push(stage);
+        },
         async onEmptyContent(event) {
           emptyEvents.push({
             attempt: event.attempt,
@@ -1132,13 +1093,10 @@ test("runPipelineChapterWithRuntime fails empty writer output without saving or 
     ChapterEmptyContentError,
   );
 
-  assert.equal(generationCount, 2);
-  assert.deepEqual(emptyEvents, [
-    { attempt: 1, willRetry: true, contentLength: 0 },
-    { attempt: 2, willRetry: false, contentLength: 0 },
-  ]);
+  assert.equal(generationCount, 1);
+  assert.deepEqual(stages, ["generating_chapters"]);
+  assert.deepEqual(emptyEvents, [{ attempt: 1, willRetry: false, contentLength: 0 }]);
   assert.deepEqual(savedDrafts, []);
-  assert.deepEqual(generationStates, []);
 });
 
 test("runPipelineChapterWithRuntime defaults to a single repair pass before stopping", async () => {
@@ -1149,6 +1107,7 @@ test("runPipelineChapterWithRuntime defaults to a single repair pass before stop
   const finalSyncs = [];
   const generationStates = [];
   const finalizationCalls = [];
+  const consumedRetries = [];
   let reviewCount = 0;
 
   promptRunner.runStructuredPrompt = async () => ({
@@ -1222,6 +1181,9 @@ test("runPipelineChapterWithRuntime defaults to a single repair pass before stop
         async onStageChange(stage) {
           stages.push(stage);
         },
+        async onRetryConsumed(kind) {
+          consumedRetries.push(kind);
+        },
       },
     );
 
@@ -1229,6 +1191,7 @@ test("runPipelineChapterWithRuntime defaults to a single repair pass before stop
     assert.deepEqual(finalizeInputs, ["生成后的正文", "修后正文补足承接。"]);
     assert.equal(reviewCount, 2);
     assert.equal(result.retryCountUsed, 1);
+    assert.deepEqual(consumedRetries, ["quality_repair"]);
     assert.equal(result.pass, false);
     assert.deepEqual(generationStates, ["reviewed", "reviewed"]);
     assert.deepEqual(savedDrafts, [

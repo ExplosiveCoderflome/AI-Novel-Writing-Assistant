@@ -291,6 +291,10 @@ export const bookContractContextSchema = z.object({
   escalationLadder: z.string().default(""),
   relationshipMainline: z.string().default(""),
   activeMilestonePayoffs: z.array(z.string()).default([]),
+  completionMode: z.enum(["compact_book", "serial_book"]).default("serial_book"),
+  promiseScope: z.enum(["whole_book", "first_30_chapters"]).default("first_30_chapters"),
+  targetChapterCount: z.number().int().positive().nullable().default(null),
+  endingRequiredBy: z.number().int().positive().nullable().default(null),
 });
 
 export const macroConstraintContextSchema = z.object({
@@ -465,6 +469,7 @@ export const chapterCharacterHardFactSchema = z.object({
 
 export const chapterWriteContextSchema = z.object({
   bookContract: bookContractContextSchema,
+  productionFoundationPrompt: z.string().default(""),
   macroConstraints: macroConstraintContextSchema.nullable(),
   volumeWindow: volumeWindowContextSchema.nullable(),
   narrativeProgressHint: z.string().nullable().optional(),
@@ -615,6 +620,7 @@ export const chapterRuntimePackageSchema = z.object({
   replanRecommendation: z.object({
     recommended: z.boolean(),
     action: z.enum(["continue_with_warning", "local_patch_plan", "stop_for_replan"]).optional(),
+    scope: z.enum(["local_window", "global_book"]).optional(),
     reason: z.string(),
     blockingIssueIds: z.array(z.string()),
     blockingLedgerKeys: z.array(z.string()).default([]),

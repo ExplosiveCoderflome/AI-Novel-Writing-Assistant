@@ -119,6 +119,7 @@ export function useNovelEditInitialization({
       writingMode: detail.writingMode ?? "original",
       projectMode: detail.projectMode ?? "co_pilot",
       readerChannelPreference: "ai_judge",
+      writingPlatformPreference: detail.writingPlatform ?? "ai_recommend",
       narrativePov: detail.narrativePov ?? "third_person",
       pacePreference: detail.pacePreference ?? "balanced",
       styleTone: detail.styleTone ?? "",
@@ -136,6 +137,8 @@ export function useNovelEditInitialization({
       sourceKnowledgeDocumentId: detail.sourceKnowledgeDocumentId ?? "",
       continuationBookAnalysisId: detail.continuationBookAnalysisId ?? "",
       continuationBookAnalysisSections: detail.continuationBookAnalysisSections ?? [],
+      referenceBookAnalysisId: detail.referenceBookAnalysisId ?? "",
+      referenceBookAnalysisSections: detail.referenceBookAnalysisSections ?? [],
     });
     if (hydrateVolumeDraftFromDetail) {
       setVolumeDraft(detail.volumes ?? []);

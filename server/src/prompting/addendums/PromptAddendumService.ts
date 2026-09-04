@@ -2,6 +2,7 @@ import { prisma } from "../../db/prisma";
 import { createContextBlock } from "../core/contextBudget";
 import type { PromptContextBlock } from "../core/promptTypes";
 import { listRegisteredPromptAssets } from "../registry";
+export { getPromptCatalogShortDescription } from "../promptCatalog";
 
 export type PromptAddendumScope = "global" | "novel";
 

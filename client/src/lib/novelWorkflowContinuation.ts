@@ -33,8 +33,8 @@ export function resolveWorkflowContinuationFeedback(
     message: options?.mode === "skip_quality_repair"
       ? `已跳过本次质量建议，自动导演会继续执行${scopeLabel}。`
       : options?.mode === "auto_execute_range"
-        ? `已继续自动执行${scopeLabel}。`
-        : "自动导演已继续推进。",
+          ? `已继续自动执行${scopeLabel}。`
+          : "自动导演已继续推进。",
   };
 }
 
@@ -45,9 +45,11 @@ export function resolveDirectorContinueMode(task: Pick<
   if (task?.pendingManualRecovery) {
     return "resume";
   }
+  if (task?.checkpointType === "replan_required") {
+    return "auto_execute_range";
+  }
   if (
-    task?.checkpointType === "replan_required"
-    || task?.currentItemKey === "quality_repair"
+    task?.currentItemKey === "quality_repair"
     || task?.currentStage?.includes("质量")
   ) {
     return "skip_quality_repair";

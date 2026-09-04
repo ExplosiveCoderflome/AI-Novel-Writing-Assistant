@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto";
 import type { ChapterRuntimePackage, GenerationContextPackage } from "@ai-novel/shared/types/chapterRuntime";
-import { prisma } from "../../../db/prisma";
+import { novelEventBus } from "../../../events";
 import { openConflictService } from "../../state/OpenConflictService";
 import { directorAutomationLedgerEventService } from "../director/runtime/DirectorAutomationLedgerEventService";
 import { filterAcceptedFactItems, type FactLedgerExcludedItem } from "../fact/factLedgerFilter";
@@ -9,6 +9,7 @@ import { ChapterArtifactSyncService } from "./ChapterArtifactSyncService";
 import type { ChapterRuntimeRequestInput } from "./chapterRuntimeSchema";
 import type { StyleReviewResult } from "./PostGenerationStyleReviewRunner";
 import { ChapterQualityGateService } from "./ChapterQualityGateService";
+import type { ChapterTimelineFinalizationService } from "./ChapterTimelineFinalizationService";
 import {
   buildRuntimePackage,
   type ChapterRuntimePlannerPort,
@@ -17,16 +18,19 @@ import {
   buildProseQualityAuditReport,
   detectProseQuality,
 } from "./proseQuality/ProseQualityDetector";
+import type { ChapterLifecycleService } from "./lifecycle";
 
 export interface ChapterContentFinalizationAgentRuntime {
   finishChapterGenRun: (runId: string, summary: string, durationMs: number) => Promise<void>;
 }
 
 export interface ChapterContentFinalizationServiceDeps {
-  qualityGateService: Pick<ChapterQualityGateService, "runAcceptanceGateOnly">;
+  qualityGateService: Pick<ChapterQualityGateService, "runAcceptanceGate">;
   artifactSyncService: Pick<ChapterArtifactSyncService, "syncChapterArtifacts">;
   plannerService: ChapterRuntimePlannerPort;
   agentRuntime: ChapterContentFinalizationAgentRuntime;
+  timelineFinalizer: Pick<ChapterTimelineFinalizationService, "finalizeCurrentContent">;
+  lifecycleService: Pick<ChapterLifecycleService, "markChapterStatus">;
 }
 
 export interface FinalizeChapterContentInput {
@@ -46,41 +50,48 @@ export interface FinalizeChapterContentResult {
   finalContent: string;
   runtimePackage: ChapterRuntimePackage;
   styleReview: StyleReviewResult;
+  needsRepair: boolean;
 }
 
 export class ChapterContentFinalizationService {
-  private readonly qualityGateService: Pick<ChapterQualityGateService, "runAcceptanceGateOnly">;
+  private readonly qualityGateService: Pick<ChapterQualityGateService, "runAcceptanceGate">;
   private readonly artifactSyncService: Pick<ChapterArtifactSyncService, "syncChapterArtifacts">;
   private readonly plannerService: ChapterRuntimePlannerPort;
   private readonly agentRuntime: ChapterContentFinalizationAgentRuntime;
+  private readonly timelineFinalizer: Pick<ChapterTimelineFinalizationService, "finalizeCurrentContent">;
+  private readonly lifecycleService: Pick<ChapterLifecycleService, "markChapterStatus">;
 
   constructor(deps: ChapterContentFinalizationServiceDeps) {
     this.qualityGateService = deps.qualityGateService;
     this.artifactSyncService = deps.artifactSyncService;
     this.plannerService = deps.plannerService;
     this.agentRuntime = deps.agentRuntime;
+    this.timelineFinalizer = deps.timelineFinalizer;
+    this.lifecycleService = deps.lifecycleService;
   }
 
   async finalizeChapterContent(input: FinalizeChapterContentInput): Promise<FinalizeChapterContentResult> {
     const finalContent = input.content;
-    const { acceptance, timelineGate } = await this.qualityGateService.runAcceptanceGateOnly({
+    const acceptance = await this.qualityGateService.runAcceptanceGate({
       novelId: input.novelId,
       chapterId: input.chapterId,
       contextPackage: input.contextPackage,
       content: finalContent,
       request: input.request,
     });
-    const timelineCheck = timelineGate.result;
     const proseQualityReport = detectProseQuality(finalContent);
     const proseQualityAuditReport = buildProseQualityAuditReport({
       novelId: input.novelId,
       chapterId: input.chapterId,
       report: proseQualityReport,
     });
+    const acceptanceHasProseReport = acceptance.auditReports.some((report) => (
+      report.issues?.some((issue) => issue.code.startsWith("prose_"))
+    ));
     const auditResult = {
       score: acceptance.score,
       issues: acceptance.issues,
-      auditReports: proseQualityAuditReport
+      auditReports: proseQualityAuditReport && !acceptanceHasProseReport
         ? [...acceptance.auditReports, proseQualityAuditReport]
         : acceptance.auditReports,
     };
@@ -106,14 +117,25 @@ export class ChapterContentFinalizationService {
       activeOpenConflicts,
       styleReview,
       acceptance: acceptance.assessment,
-      timelineCheck,
       runId: input.runId,
       plannerService: this.plannerService,
     });
     const needsRepair = acceptance.assessment.status === "repairable"
       || acceptance.assessment.status === "needs_manual_review"
-      || timelineCheck.status === "failed"
       || runtimePackage.audit.hasBlockingIssues;
+    const timelineFinalization = await this.timelineFinalizer.finalizeCurrentContent({
+      novelId: input.novelId,
+      chapterId: input.chapterId,
+      content: finalContent,
+      contextPackage: input.contextPackage,
+      request: input.request,
+      mode: needsRepair ? "degraded" : "stable",
+      sourceStage: "chapter_content_finalization",
+      qualityDebt: needsRepair,
+    });
+    if (!timelineFinalization.checkpointWritten) {
+      throw new Error("Chapter timeline finalization is still running");
+    }
     await this.markChapterStatus(input.chapterId, needsRepair ? "needs_repair" : "pending_review");
     if (!needsRepair) {
       // 保证义务账本在下一章 JIT 上下文组装前完成；失败只告警，不阻断定稿返回。
@@ -153,10 +175,22 @@ export class ChapterContentFinalizationService {
 
     await this.finishTraceRun(input.runId, finalContent.length, input.startMs);
 
+    if (!needsRepair) {
+      void novelEventBus.emit({
+        type: "chapter:finalized",
+        payload: {
+          novelId: input.novelId,
+          chapterId: input.chapterId,
+          chapterOrder: input.contextPackage.chapter.order,
+        },
+      });
+    }
+
     return {
       finalContent,
       runtimePackage,
       styleReview,
+      needsRepair,
     };
   }
 
@@ -180,10 +214,7 @@ export class ChapterContentFinalizationService {
     chapterId: string,
     chapterStatus: "pending_generation" | "generating" | "pending_review" | "needs_repair",
   ): Promise<void> {
-    await prisma.chapter.update({
-      where: { id: chapterId },
-      data: { chapterStatus },
-    });
+    await this.lifecycleService.markChapterStatus(chapterId, chapterStatus);
   }
 
   /**

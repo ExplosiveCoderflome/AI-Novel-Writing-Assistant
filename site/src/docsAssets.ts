@@ -13,6 +13,16 @@ const projectModuleImageModules = import.meta.glob(
   { eager: true, import: "default", query: "?url" },
 );
 
+const projectV2ImageModules = import.meta.glob(
+  "../../images/v2/*.{png,jpg,jpeg,webp,svg,gif}",
+  { eager: true, import: "default", query: "?url" },
+);
+
+const projectWritingImageModules = import.meta.glob(
+  "../../images/write/*.{png,jpg,jpeg,webp,svg,gif}",
+  { eager: true, import: "default", query: "?url" },
+);
+
 function normalizeDocAssetKey(path: string): string {
   return path
     .split("/")
@@ -60,6 +70,8 @@ const { byPath, byBasename } = buildAssetMaps(
   diagramAssetModules as Record<string, string>,
   screenshotAssetModules as Record<string, string>,
   projectModuleImageModules as Record<string, string>,
+  projectV2ImageModules as Record<string, string>,
+  projectWritingImageModules as Record<string, string>,
 );
 
 function safeDecode(value: string): string {

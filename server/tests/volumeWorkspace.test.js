@@ -138,7 +138,7 @@ test("volume workspace v2 roundtrip keeps strategy, beat sheet and rebalance ass
   assert.equal(reparsed.workspaceVersion, "v2");
   assert.equal(reparsed.strategyPlan?.recommendedVolumeCount, 3);
   assert.equal(reparsed.critiqueReport?.overallRisk, "medium");
-  assert.equal(reparsed.beatSheets[0]?.beats[0]?.key, "opening_hook");
+  assert.equal(reparsed.beatSheets[0]?.beats[0]?.key, "open_hook");
   assert.equal(reparsed.rebalanceDecisions[0]?.direction, "push_back");
 });
 
@@ -172,6 +172,43 @@ test("volume workspace document supports an empty cleared outline state", () => 
   assert.deepEqual(document.beatSheets, []);
   assert.equal(document.readiness.canGenerateSkeleton, false);
   assert.equal(document.readiness.canGenerateChapterList, false);
+});
+
+test("appending future volumes keeps existing beats and rebalance decisions", () => {
+  const current = buildVolumeWorkspaceDocument({
+    novelId: "novel-1",
+    volumes: [createBaseVolume()],
+    strategyPlan: createBaseStrategyPlan(2),
+    beatSheets: [{
+      volumeId: "volume-1",
+      volumeSortOrder: 1,
+      status: "generated",
+      beats: [{
+        key: "opening_hook",
+        label: "开卷抓手",
+        summary: "旧节奏仍可用。",
+        chapterSpanHint: "1-2章",
+        mustDeliver: ["旧兑现"],
+      }],
+    }],
+    rebalanceDecisions: [{
+      anchorVolumeId: "volume-1",
+      affectedVolumeId: "volume-1",
+      direction: "hold",
+      severity: "low",
+      summary: "当前卷不调整。",
+      actions: ["hold"],
+    }],
+  });
+  const nextVolume = { ...createBaseVolume(), id: "volume-2", sortOrder: 2, title: "第二卷", chapters: [] };
+
+  const merged = mergeVolumeWorkspaceInput("novel-1", current, {
+    volumes: [...current.volumes, nextVolume],
+  });
+
+  assert.equal(merged.volumes.length, 2);
+  assert.equal(merged.beatSheets[0]?.volumeId, "volume-1");
+  assert.equal(merged.rebalanceDecisions[0]?.summary, "当前卷不调整。");
 });
 
 test("mergeStrategyPlan clears stale skeleton volumes after strategy regeneration", () => {

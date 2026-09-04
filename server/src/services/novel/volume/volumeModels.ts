@@ -1,5 +1,6 @@
 import type { LLMProvider } from "@ai-novel/shared/types/llm";
 import type { ChapterTaskSheetQualityMode } from "@ai-novel/shared/types/chapterTaskSheetQuality";
+import type { DirectorCompletionProfile } from "@ai-novel/shared/types/directorCompletion";
 import type {
   VolumeChapterListGenerationMode,
   VolumeBeatSheet,
@@ -58,6 +59,7 @@ export interface VolumeGenerationNovel {
   first30ChapterPromise: string | null;
   commercialTagsJson: string | null;
   estimatedChapterCount: number | null;
+  completionProfile?: DirectorCompletionProfile;
   narrativePov: string | null;
   pacePreference: string | null;
   emotionIntensity: string | null;
@@ -87,6 +89,8 @@ export interface VolumeGenerateOptions {
   estimatedChapterCount?: number;
   userPreferredVolumeCount?: number;
   respectExistingVolumeCount?: boolean;
+  /** Used by rolling production to add future volume skeletons without touching completed volumes. */
+  skeletonVolumeCount?: number;
   draftVolumes?: unknown;
   draftWorkspace?: unknown;
   taskId?: string;
@@ -117,6 +121,7 @@ export interface VolumeSyncInput {
   volumes: unknown;
   preserveContent?: boolean;
   applyDeletes?: boolean;
+  allowIncompleteExecutionContracts?: boolean;
   executionContractChapterRange?: {
     startOrder: number;
     endOrder: number;

@@ -285,7 +285,9 @@ export function mapSemanticAssessmentToQualityGate(
 
   return {
     status,
-    canEnterExecution: false,
+    // 全书自动执行保留语义审校结果供后续正文验收消费，但不为可写的
+    // 任务单重复生成整份合同；结构缺失仍由 shape gate 阻断。
+    canEnterExecution: mode === "full_book_autopilot",
     issues,
     summary: assessment.summary,
     repairGuidance: assessment.repairGuidance,

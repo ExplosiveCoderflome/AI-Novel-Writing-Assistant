@@ -1,13 +1,11 @@
 import { createHash } from "node:crypto";
 import { chapterWriterPrompt } from "../prompts/novel/chapterWriter.prompts";
+import { shortStorySegmentWritePrompt } from "../prompts/shortStory/shortStory.prompts";
 import type {
   PromptTemplateContextRefs,
   PromptTemplateJson,
 } from "./templateTypes";
-import {
-  ADVANCED_TEMPLATE_PROMPT_ID,
-  WRITER_REQUIRED_CONTEXT_GROUPS,
-} from "./templateTypes";
+import { getRequiredTemplateContextGroups } from "./templateTypes";
 
 const writerSystemTemplate = [
   "你是中文长篇网络小说写作助手。",
@@ -111,18 +109,66 @@ const writerOfficialTemplate: PromptTemplateJson = {
   ],
 };
 
+const shortStoryWriterOfficialTemplate: PromptTemplateJson = {
+  kind: "chat",
+  messages: [
+    {
+      role: "system",
+      content: [
+        "你是中文商业网文短篇正文作者。只写当前内部片段，但读者最终看到的是一篇无片段标题的连续作品。",
+        "{{slot.shortWriter.tone}}",
+        "{{slot.shortWriter.openingPressure}}",
+        "{{slot.shortWriter.paragraphing}}",
+        "{{slot.shortWriter.payoffDensity}}",
+        "{{slot.shortWriter.endingDelivery}}",
+        "{{slot.shortWriter.antiAiRules}}",
+        "严格服从已确认意图、短篇计划、连续性、目标平台和本书写法。",
+        "不要输出标题、序号、Markdown 或创作说明。",
+        "返回严格 JSON，content 为纯正文，continuitySummary 为供下一片段使用的事实与状态摘要。",
+      ].join("\n"),
+    },
+    {
+      role: "human",
+      content: [
+        "【创作意图】\n{{context.creation_intent}}",
+        "【短篇计划】\n{{context.short_story_plan}}",
+        "【前文连续性】\n{{context.short_story_continuity}}",
+        "【目标平台】\n{{context.writing_platform}}",
+        "【本书写法】\n{{context.book_style}}",
+        "【当前任务输入】\n{{input.segment}}",
+        "【额外约束】\n{{slot.shortWriter.customConstraints}}",
+        "只返回包含 content 与 continuitySummary 的 JSON 对象。",
+      ].join("\n\n"),
+    },
+  ],
+};
+
+const officialTemplates: Record<string, {
+  template: PromptTemplateJson;
+  version: string;
+  input: string[];
+  slot: string[];
+}> = {
+  "novel.chapter.writer": {
+    template: writerOfficialTemplate,
+    version: chapterWriterPrompt.version,
+    input: ["chapterOrder", "chapterTitle", "maxWordCount", "minWordCount", "mode", "novelTitle", "targetWordCount"],
+    slot: ["writer.antiAiRules", "writer.antiCliché", "writer.customConstraints", "writer.endingHookPreference", "writer.pov", "writer.tonePreference", "writer.wordCountHint"],
+  },
+  "novel.short_story.segment.write": {
+    template: shortStoryWriterOfficialTemplate,
+    version: shortStorySegmentWritePrompt.version,
+    input: ["segment"],
+    slot: ["shortWriter.tone", "shortWriter.openingPressure", "shortWriter.paragraphing", "shortWriter.payoffDensity", "shortWriter.endingDelivery", "shortWriter.antiAiRules", "shortWriter.customConstraints"],
+  },
+};
+
 export function getOfficialPromptTemplate(promptId: string): PromptTemplateJson | null {
-  if (promptId !== ADVANCED_TEMPLATE_PROMPT_ID) {
-    return null;
-  }
-  return writerOfficialTemplate;
+  return officialTemplates[promptId]?.template ?? null;
 }
 
 export function getOfficialPromptTemplateVersion(promptId: string): string | null {
-  if (promptId !== ADVANCED_TEMPLATE_PROMPT_ID) {
-    return null;
-  }
-  return chapterWriterPrompt.version;
+  return officialTemplates[promptId]?.version ?? null;
 }
 
 export function hashPromptTemplate(template: PromptTemplateJson): string {
@@ -133,28 +179,11 @@ export function hashPromptTemplate(template: PromptTemplateJson): string {
 }
 
 export function getOfficialPromptTemplateContextRefs(promptId: string): PromptTemplateContextRefs | null {
-  if (promptId !== ADVANCED_TEMPLATE_PROMPT_ID) {
-    return null;
-  }
+  const registered = officialTemplates[promptId];
+  if (!registered) return null;
   return {
-    context: [...WRITER_REQUIRED_CONTEXT_GROUPS],
-    input: [
-      "chapterOrder",
-      "chapterTitle",
-      "maxWordCount",
-      "minWordCount",
-      "mode",
-      "novelTitle",
-      "targetWordCount",
-    ],
-    slot: [
-      "writer.antiAiRules",
-      "writer.antiCliché",
-      "writer.customConstraints",
-      "writer.endingHookPreference",
-      "writer.pov",
-      "writer.tonePreference",
-      "writer.wordCountHint",
-    ],
+    context: getRequiredTemplateContextGroups(promptId),
+    input: registered.input,
+    slot: registered.slot,
   };
 }

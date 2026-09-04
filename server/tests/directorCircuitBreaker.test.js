@@ -2,57 +2,26 @@ const assert = require("node:assert/strict");
 const test = require("node:test");
 
 const {
-  isDirectorCircuitBreakerOpen,
-  recordPatchFailureSignal,
-  recordReplanLoopSignal,
   recordUsageAnomalySignal,
 } = require("../dist/services/novel/director/runtime/DirectorCircuitBreakerService.js");
+const {
+  buildFailureCircuitBreaker,
+} = require("../dist/services/novel/director/automation/novelDirectorAutoExecutionCircuitBreakerRuntime.js");
 
-test("director circuit breaker opens after repeated patch failures on the same chapter", () => {
-  let state = null;
-  state = recordPatchFailureSignal({
-    previous: state,
-    chapterId: "chapter-1",
-    chapterOrder: 1,
-    message: "局部补丁未能安全应用。",
+test("pipeline failures remain runtime failures when automatic repair is enabled", () => {
+  const state = buildFailureCircuitBreaker({
+    autoExecution: {
+      autoRepair: true,
+      nextChapterId: "chapter-1",
+      nextChapterOrder: 1,
+      circuitBreaker: null,
+    },
+    jobStatus: "failed",
+    message: "模型服务暂时不可用。",
   });
-  assert.equal(state.status, "closed");
-  assert.equal(state.patchFailureCount, 1);
 
-  state = recordPatchFailureSignal({
-    previous: state,
-    chapterId: "chapter-1",
-    chapterOrder: 1,
-    message: "局部补丁仍未能安全应用。",
-  });
-  assert.equal(state.status, "closed");
-  assert.equal(state.patchFailureCount, 2);
-
-  state = recordPatchFailureSignal({
-    previous: state,
-    chapterId: "chapter-1",
-    chapterOrder: 1,
-    message: "同一章节连续修复失败。",
-  });
-  assert.equal(isDirectorCircuitBreakerOpen(state), true);
-  assert.equal(state.reason, "auto_repair_exhausted");
-  assert.equal(state.recoveryAction, "manual_repair");
-});
-
-test("director circuit breaker opens after repeated replan loops", () => {
-  let state = null;
-  for (let index = 0; index < 3; index += 1) {
-    state = recordReplanLoopSignal({
-      previous: state,
-      chapterId: "chapter-2",
-      chapterOrder: 2,
-      message: "重规划后仍回到同一阻断。",
-    });
-  }
-
-  assert.equal(state.status, "open");
-  assert.equal(state.reason, "replan_loop");
-  assert.equal(state.replanLoopCount, 3);
+  assert.equal(state.reason, "service_unavailable");
+  assert.equal(state.patchFailureCount, 0);
 });
 
 test("usage anomaly ignores the same usage record twice", () => {

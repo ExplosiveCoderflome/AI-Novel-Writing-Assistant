@@ -102,6 +102,8 @@ import {
   isExecutableWorkflowStepModule,
 } from "./workflowStepRuntime/WorkflowStepModule";
 import type { DirectorWorkflowSeedPayload } from "./runtime/novelDirectorHelpers";
+import { DIRECTOR_ISSUE_GOVERNANCE_VERSION } from "@ai-novel/shared/types/directorIssue";
+import { directorIssuePolicyService } from "./issues";
 
 function isWorkflowTaskCancelledError(error: unknown): boolean {
   const message = error instanceof Error ? error.message : String(error);
@@ -196,7 +198,6 @@ export class NovelDirectorService {
     workflowService: this.workflowService,
     volumeService: this.volumeService,
     buildDirectorSeedPayload: (directorInput, novelId, extra) => buildDirectorWorkflowSeedPayload(directorInput, novelId, extra),
-    assertHighMemoryStartAllowed: (payload) => this.assertHighMemoryDirectorStartAllowed(payload),
     scheduleBackgroundRun: (taskId, runner) => this.scheduleBackgroundRun(taskId, runner),
   });
   private readonly continueRuntime = new NovelDirectorContinueRuntime({
@@ -209,6 +210,7 @@ export class NovelDirectorService {
     candidateRuntime: this.candidateRuntime,
     autoExecutionRuntime: this.autoExecutionRuntime,
     pipelineRuntime: this.directorPipelineRuntime,
+    replanNovel: (novelId, input) => this.novelService.replanNovel(novelId, input),
     continueCandidateStageTask: (taskId, payload) => this.continueCandidateStageTask(taskId, payload),
     resolveAssetFirstRecovery: (payload) => this.resolveAssetFirstRecovery(payload),
     runDirectorPipeline: (payload) => this.runDirectorPipeline(payload),
@@ -675,6 +677,7 @@ export class NovelDirectorService {
       bookContract: takeoverState.bookContract,
       runMode: input.runMode,
     });
+    const { effectivePolicy: issuePolicy, source: issuePolicySource } = await directorIssuePolicyService.getNovelPolicy(input.novelId);
     const directorInput = applyDirectorRunModeContract(await this.enrichDirectorStyleContext({
       ...takeoverDirectorInput,
       styleProfileId: input.styleProfileId ?? takeoverDirectorInput.styleProfileId,
@@ -684,6 +687,9 @@ export class NovelDirectorService {
       provider: input.provider ?? takeoverDirectorInput.provider,
       model: input.model?.trim() || takeoverDirectorInput.model,
       temperature: typeof input.temperature === "number" ? input.temperature : takeoverDirectorInput.temperature,
+      issueGovernanceVersion: DIRECTOR_ISSUE_GOVERNANCE_VERSION,
+      issuePolicy,
+      issuePolicySource,
     }));
     const isFullBookAutopilot = isFullBookAutopilotRunMode(directorInput.runMode);
     if (typeof input.postGenerationStyleReviewEnabled === "boolean") {
@@ -821,7 +827,13 @@ export class NovelDirectorService {
   }
 
   async confirmCandidate(input: DirectorConfirmRequest): Promise<DirectorConfirmApiResponse> {
-    return this.confirmRuntime.confirmCandidate(input);
+    const issuePolicy = await directorIssuePolicyService.getGlobalPolicy();
+    return this.confirmRuntime.confirmCandidate({
+      ...input,
+      issueGovernanceVersion: DIRECTOR_ISSUE_GOVERNANCE_VERSION,
+      issuePolicy,
+      issuePolicySource: "global",
+    });
   }
 
 }

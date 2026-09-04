@@ -1,4 +1,6 @@
+import { createHash } from "node:crypto";
 import type { StoryWorldSlice } from "@ai-novel/shared/types/storyWorldSlice";
+import type { WorldBindingSupport, WorldStructuredData } from "@ai-novel/shared/types/world";
 import type { LLMProvider } from "@ai-novel/shared/types/llm";
 import type {
   NovelWorldAssetSummary,
@@ -23,6 +25,54 @@ import { buildNovelWorldHandbook, parseCommercialTags } from "./novelWorldProjec
 import { parseSyncPendingChanges } from "./novelWorldSyncPending";
 import { listNovelWorldSyncRecords } from "./novelWorldSyncRecords";
 import { NovelWorldSyncService } from "./NovelWorldSyncService";
+import { normalizeStoryWorldSlice } from "../storyWorldSlice/storyWorldSlicePersistence";
+
+const NOVEL_THEME_WORLD_GENERATION_TIMEOUT_MS = 120_000;
+const NOVEL_THEME_WORLD_GENERATION_MAX_TOKENS = 4_800;
+
+function buildGeneratedOpeningWorldSlice(input: {
+  novelId: string;
+  worldId: string;
+  worldUpdatedAt: string;
+  storyInput: string;
+  structure: WorldStructuredData;
+  bindingSupport: WorldBindingSupport;
+}): StoryWorldSlice {
+  const storyInputDigest = createHash("sha256").update(input.storyInput).digest("hex");
+  return normalizeStoryWorldSlice({
+    raw: {
+      coreWorldFrame: input.structure.profile.summary || input.structure.profile.identity,
+      appliedRules: input.structure.rules.axioms.slice(0, 4).map((item) => ({
+        id: item.id,
+        whyItMatters: "这是开篇人物行动必须遵守的世界规则。",
+      })),
+      activeForces: input.structure.forces.slice(0, 4).map((item) => ({
+        id: item.id,
+        roleInStory: "这是开篇会直接施加行动压力的势力。",
+        pressure: item.pressure,
+      })),
+      activeLocations: input.structure.locations.slice(0, 4).map((item, index) => ({
+        id: item.id,
+        storyUse: index === 0 ? "开篇主要故事舞台。" : "开篇可进入或产生冲突的地点。",
+        risk: item.risk,
+      })),
+      conflictCandidates: input.bindingSupport.compatibleConflicts.slice(0, 4),
+      pressureSources: input.bindingSupport.highPressureForces.slice(0, 4),
+      recommendedEntryPoints: input.bindingSupport.recommendedEntryPoints.slice(0, 4),
+      forbiddenCombinations: input.bindingSupport.forbiddenCombinations,
+      storyScopeBoundary: "开篇只使用当前切片中的规则、势力和地点；远期世界细节按正文需要再补齐。",
+    },
+    storyId: input.novelId,
+    worldId: input.worldId,
+    sourceWorldUpdatedAt: input.worldUpdatedAt,
+    storyInputDigest,
+    builtFromStructuredData: true,
+    builderMode: "story_macro",
+    structure: input.structure,
+    bindingSupport: input.bindingSupport,
+    overrides: {},
+  });
+}
 
 export interface NovelWorldInstanceRow {
   id: string;
@@ -413,6 +463,7 @@ export class NovelWorldInstanceService {
     temperature?: number;
     storyMacroContext?: string;
     bookContractContext?: string;
+    openingOnly?: boolean;
   }): Promise<NovelWorldInstanceView> {
     const novel = await prisma.novel.findUnique({
       where: { id: input.novelId },
@@ -447,12 +498,15 @@ export class NovelWorldInstanceService {
         secondaryStoryModeName: novel.secondaryStoryMode?.name ?? "",
         storyMacroContext: input.storyMacroContext,
         bookContractContext: input.bookContractContext,
+        openingOnly: input.openingOnly,
       },
       options: {
         novelId: input.novelId,
-        provider: input.provider ?? "deepseek",
+        provider: input.provider,
         model: input.model,
         temperature: input.temperature ?? 0.5,
+        maxTokens: NOVEL_THEME_WORLD_GENERATION_MAX_TOKENS,
+        timeoutMs: NOVEL_THEME_WORLD_GENERATION_TIMEOUT_MS,
         entrypoint: "novel-world-generate",
       },
     });
@@ -498,10 +552,11 @@ export class NovelWorldInstanceService {
     const generationPolicyJson = JSON.stringify({
       promptId: result.meta.invocation.promptId,
       promptVersion: result.meta.invocation.promptVersion,
-      provider: result.meta.provider ?? input.provider ?? "deepseek",
+      provider: result.meta.provider ?? input.provider ?? null,
       model: result.meta.model ?? input.model ?? null,
       temperature: input.temperature ?? 0.5,
       saveToLibrary: true,
+      generationScope: input.openingOnly ? "opening_slice" : "book_world",
     });
     const generatedFromThemeJson = JSON.stringify({
       novelTitle: novel.title,
@@ -539,6 +594,20 @@ export class NovelWorldInstanceService {
       });
       const sourceWorldId = world.id;
       const savedToLibraryAt = new Date();
+      const openingStoryInput = [
+        novel.description ?? "",
+        input.storyMacroContext ?? "",
+        input.bookContractContext ?? "",
+      ].filter(Boolean).join("\n");
+      const openingSlice = buildGeneratedOpeningWorldSlice({
+        novelId: input.novelId,
+        worldId: sourceWorldId,
+        worldUpdatedAt: world.updatedAt.toISOString(),
+        storyInput: openingStoryInput,
+        structure: structuredData,
+        bindingSupport,
+      });
+      const openingSliceJson = JSON.stringify(openingSlice);
       await tx.worldSnapshot.create({
         data: {
           worldId: world.id,
@@ -551,7 +620,7 @@ export class NovelWorldInstanceService {
         where: { id: input.novelId },
         data: {
           worldId: sourceWorldId,
-          storyWorldSliceJson: null,
+          storyWorldSliceJson: openingSliceJson,
           storyWorldSliceOverridesJson: null,
         },
       });
@@ -588,11 +657,11 @@ export class NovelWorldInstanceService {
           ${coverSummary},
           ${structuredDataJson},
           ${bindingContractJson},
-          ${null},
+          ${openingSliceJson},
           ${null},
           ${1},
-          ${null},
-          ${null},
+          ${savedToLibraryAt},
+          ${openingSlice.metadata.storyInputDigest},
           ${true},
           ${"bidirectional"},
           ${1},
@@ -609,10 +678,10 @@ export class NovelWorldInstanceService {
           "coverSummary" = EXCLUDED."coverSummary",
           "structuredDataJson" = EXCLUDED."structuredDataJson",
           "bindingContractJson" = EXCLUDED."bindingContractJson",
-          "storySliceJson" = NULL,
+          "storySliceJson" = EXCLUDED."storySliceJson",
           "storySliceOverridesJson" = NULL,
-          "storySliceBuiltAt" = NULL,
-          "storySliceDigest" = NULL,
+          "storySliceBuiltAt" = EXCLUDED."storySliceBuiltAt",
+          "storySliceDigest" = EXCLUDED."storySliceDigest",
           "syncEnabled" = EXCLUDED."syncEnabled",
           "syncDirection" = EXCLUDED."syncDirection",
           "syncBaseVersion" = EXCLUDED."syncBaseVersion",

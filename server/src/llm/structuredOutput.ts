@@ -2,6 +2,7 @@ import { toJSONSchema, type ZodType } from "zod";
 import type { LLMProvider } from "@ai-novel/shared/types/llm";
 import type { ModelRouteRequestProtocol } from "@ai-novel/shared/types/novel";
 import { isBuiltInProvider } from "./providers";
+import { isDeepSeekThinkingModeProvider } from "./reasoning";
 
 export type StructuredExecutionMode = "plain" | "structured";
 export type StructuredOutputStrategy = "json_schema" | "json_object" | "prompt_json";
@@ -148,11 +149,17 @@ export function resolveStructuredOutputProfile(input: {
   const model = normalizeText(input.model);
   const host = extractHost(input.baseURL);
   const customProvider = !isBuiltInProvider(input.provider);
+  // A provider label or model name does not prove that a custom gateway supports
+  // its upstream vendor's response_format extensions. Trust only the vendor's
+  // direct endpoint (or its default endpoint when no override is supplied).
+  const usesOfficialEndpoint = (providerName: LLMProvider, hostPattern: RegExp) => (
+    hostPattern.test(host) || (input.provider === providerName && !host)
+  );
   const qwenFamily = isQwenFamily(model);
   const qwenMixedThinkingModel = isQwenMixedThinkingModel(model);
   const qwenThinkingOnlyModel = isQwenThinkingOnlyModel(model);
   const qwenNativeStructuredModel = supportsDashScopeQwenNativeStructuredOutput(model);
-  const isDashScopeQwen = input.provider === "qwen" || DASHSCOPE_HOST_PATTERN.test(host);
+  const isDashScopeQwen = usesOfficialEndpoint("qwen", DASHSCOPE_HOST_PATTERN);
   const isModelScopeQwen = MODELSCOPE_HOST_PATTERN.test(host) || provider.includes("modelscope");
 
   if (input.requestProtocol === "anthropic") {
@@ -162,7 +169,7 @@ export function resolveStructuredOutputProfile(input: {
       safeStructuredMaxTokens: 8192,
     });
   }
-  if (input.provider === "gemini" || GEMINI_HOST_PATTERN.test(host)) {
+  if (usesOfficialEndpoint("gemini", GEMINI_HOST_PATTERN)) {
     return buildProfile({
       family: "gemini",
       nativeJsonSchema: true,
@@ -170,14 +177,14 @@ export function resolveStructuredOutputProfile(input: {
       preferredStructuredStrategy: "json_schema",
     });
   }
-  if (input.provider === "glm" || GLM_HOST_PATTERN.test(host) || model.startsWith("glm-")) {
+  if (usesOfficialEndpoint("glm", GLM_HOST_PATTERN)) {
     return buildProfile({
       family: "glm",
       nativeJsonObject: true,
       preferredStructuredStrategy: "json_object",
     });
   }
-  if (input.provider === "kimi" || MOONSHOT_HOST_PATTERN.test(host) || model.startsWith("kimi-")) {
+  if (usesOfficialEndpoint("kimi", MOONSHOT_HOST_PATTERN)) {
     const supportsJsonObject = !model.includes("thinking");
     return buildProfile({
       family: "kimi",
@@ -185,28 +192,35 @@ export function resolveStructuredOutputProfile(input: {
       preferredStructuredStrategy: supportsJsonObject ? "json_object" : "prompt_json",
     });
   }
-  if (input.provider === "deepseek" || DEEPSEEK_HOST_PATTERN.test(host) || model.startsWith("deepseek-")) {
+  if (usesOfficialEndpoint("deepseek", DEEPSEEK_HOST_PATTERN)) {
+    const supportsReasoningToggle = isDeepSeekThinkingModeProvider(
+      input.provider,
+      input.baseURL,
+      input.model,
+    );
     return buildProfile({
       family: "deepseek",
       nativeJsonObject: true,
       preferredStructuredStrategy: "json_object",
+      requiresNonThinkingForStructured: supportsReasoningToggle,
+      supportsReasoningToggle,
     });
   }
-  if (input.provider === "grok" || GROK_HOST_PATTERN.test(host) || model.startsWith("grok-")) {
+  if (usesOfficialEndpoint("grok", GROK_HOST_PATTERN)) {
     return buildProfile({
       family: "grok",
       nativeJsonObject: true,
       preferredStructuredStrategy: "json_object",
     });
   }
-  if (input.provider === "minimax" || MINIMAX_HOST_PATTERN.test(host) || model.startsWith("minimax-m2")) {
+  if (usesOfficialEndpoint("minimax", MINIMAX_HOST_PATTERN)) {
     return buildProfile({
       family: "minimax",
       preferredStructuredStrategy: "prompt_json",
       safeStructuredMaxTokens: 8192,
     });
   }
-  if (isDashScopeQwen || (input.provider === "qwen" && qwenFamily)) {
+  if (isDashScopeQwen) {
     return buildProfile({
       family: "dashscope_qwen",
       nativeJsonObject: qwenNativeStructuredModel,
@@ -233,7 +247,7 @@ export function resolveStructuredOutputProfile(input: {
       safeStructuredMaxTokens: 8192,
     });
   }
-  if (input.provider === "openai" || OPENAI_HOST_PATTERN.test(host)) {
+  if (usesOfficialEndpoint("openai", OPENAI_HOST_PATTERN)) {
     return buildProfile({
       family: "openai",
       nativeJsonSchema: true,

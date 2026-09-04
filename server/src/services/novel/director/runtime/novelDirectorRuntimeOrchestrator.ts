@@ -81,7 +81,7 @@ export class NovelDirectorRuntimeOrchestrator {
 
   constructor(private readonly deps: {
     directorRuntime: DirectorRuntimeService;
-    workflowService: Pick<NovelWorkflowService, "markTaskRunning" | "markTaskWaitingApproval">;
+    workflowService: Pick<NovelWorkflowService, "getTaskById" | "markTaskRunning" | "markTaskWaitingApproval">;
     autoExecutionRuntime: NovelDirectorAutoExecutionRuntime;
     projectionFactWaitTimeoutMs?: number;
     projectionFactWaitIntervalMs?: number;
@@ -441,6 +441,10 @@ export class NovelDirectorRuntimeOrchestrator {
       reuseCompletedStep: false,
       runner: () => this.deps.autoExecutionRuntime.runFromReady(input),
     });
+    const task = await this.deps.workflowService.getTaskById(input.taskId);
+    if (task?.pendingManualRecovery) {
+      return;
+    }
 
     if (projectionAdapters.length === 0) {
       return;

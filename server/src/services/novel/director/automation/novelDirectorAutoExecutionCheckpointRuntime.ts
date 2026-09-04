@@ -240,16 +240,15 @@ export async function resolveQualityRepairNoticeAction(
     : "chapter_batch_ready";
   const qualityRepairRisk = buildDirectorQualityRepairRisk({
     noticeCode: input.noticeCode,
-    noticeSummary: input.noticeSummary,
     payload: input.payload,
     remainingChapterCount: input.autoExecution.remainingChapterCount ?? 0,
-    totalChapterCount: input.range.totalChapterCount,
   });
   const checkpointState = {
     ...input.autoExecution,
     pipelineJobId: input.pipelineJobId,
     pipelineStatus: input.pipelineStatus,
     qualityRepairRisk,
+    latestRiskAssessment: input.autoExecution.latestRiskAssessment ?? null,
   };
   const remainingChapterCount = checkpointState.remainingChapterCount ?? 0;
   const isAiDriverExecution = isDirectorAutoExecutionRunMode(input.request.runMode);
@@ -290,7 +289,7 @@ export async function resolveQualityRepairNoticeAction(
     });
   }
 
-  if (canContinueAfterExplicitApproval || canAutoContinueByPolicy) {
+  if (canContinueAfterExplicitApproval || canAutoContinueByPolicy || shouldNotifyAndContinueAiDriverQualityNotice) {
     return {
       action: "auto_continue",
       checkpointType,
@@ -299,6 +298,10 @@ export async function resolveQualityRepairNoticeAction(
     };
   }
 
+  // `auto_execute_range` is an explicit instruction to keep the automated
+  // production lane moving. A usable draft is retained as quality debt even
+  // when the review classifier escalates it to a replan notice; otherwise a
+  // simple-creation recovery would immediately re-enter the same checkpoint.
   if (canSkipCurrentQualityRepair) {
     return {
       action: "auto_continue",
@@ -309,15 +312,6 @@ export async function resolveQualityRepairNoticeAction(
         source: "review_skip",
         chapter: input.qualityIssueChapter ?? null,
       }),
-      qualityRepairRisk,
-    };
-  }
-
-  if (shouldNotifyAndContinueAiDriverQualityNotice) {
-    return {
-      action: "auto_continue",
-      checkpointType,
-      checkpointState,
       qualityRepairRisk,
     };
   }

@@ -20,10 +20,7 @@ import type { NovelVolumeService } from "../volume/NovelVolumeService";
 import type { NovelWorkflowService } from "../workflow/NovelWorkflowService";
 import { recordAutoDirectorAutoApprovalFromTask } from "../../task/autoDirectorFollowUps/autoDirectorAutoApprovalAudit";
 import { normalizeDirectorMemoryScope } from "./runtime/autoDirectorMemorySafety";
-import {
-  buildWorkflowSeedPayload,
-  normalizeDirectorRunMode,
-} from "./runtime/novelDirectorHelpers";
+import { buildWorkflowSeedPayload, normalizeDirectorRunMode } from "./runtime/novelDirectorHelpers";
 import {
   type DirectorCharacterSetupPhaseResult,
   runDirectorCharacterSetupPhase,
@@ -461,9 +458,21 @@ export class NovelDirectorPipelineRuntime {
         normalizeDirectorAutoApprovalConfig(input.input.autoApproval),
         approvalPointCode as DirectorAutoApprovalPointCode,
       );
+    const isPreparationHandoffGate = runMode === "auto_to_ready"
+      && Boolean(approvalPointCode);
     return {
-      approveCurrentGate: Boolean(input.approveCurrentGate || isFullBookAutopilot || isAuthorizedAutoToExecutionGate),
-      approveAutoExecutionScope: Boolean(input.approveAutoExecutionScope || isFullBookAutopilot || isAuthorizedAutoToExecutionGate),
+      approveCurrentGate: Boolean(
+        input.approveCurrentGate
+        || isFullBookAutopilot
+        || isAuthorizedAutoToExecutionGate
+        || isPreparationHandoffGate
+      ),
+      approveAutoExecutionScope: Boolean(
+        input.approveAutoExecutionScope
+        || isFullBookAutopilot
+        || isAuthorizedAutoToExecutionGate
+        || isPreparationHandoffGate
+      ),
     };
   }
 
@@ -551,6 +560,11 @@ export class NovelDirectorPipelineRuntime {
         model?: string;
         temperature?: number;
         storyInput?: string;
+        novelId?: string;
+        taskId?: string;
+        stage?: string;
+        itemKey?: string;
+        entrypoint?: string;
       }) => {
         const reusableOption = await this.findReusableDirectorCharacterCastOption(targetNovelId);
         if (reusableOption) {

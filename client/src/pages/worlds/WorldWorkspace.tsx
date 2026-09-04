@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { ArrowLeft, Globe2, Trash2 } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -301,23 +302,48 @@ export default function WorldWorkspace() {
   };
 
   return (
-    <div className="space-y-4">
-      <Card>
-        <CardHeader className="flex flex-row items-center justify-between">
-          <CardTitle>世界工作台：{world?.name ?? "加载中..."} {world?.version ? `(v${world.version})` : ""}</CardTitle>
-          <div className="flex flex-wrap items-center justify-end gap-2">
-            <LLMSelector />
-            <Button
-              variant="destructive"
-              size="sm"
-              onClick={handleDelete}
-              disabled={!id || !world || deleteWorldMutation.isPending}
-            >
-              {deleteWorldMutation.isPending ? "删除中..." : "删除世界样本"}
-            </Button>
+    <div className="space-y-6">
+      <header className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+        <div className="flex min-w-0 items-start gap-3">
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            className="mt-0.5 shrink-0 rounded-full"
+            onClick={() => navigate("/worlds")}
+            aria-label="返回世界样本库"
+          >
+            <ArrowLeft className="h-4 w-4" />
+          </Button>
+          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-primary/[0.07] text-primary">
+            <Globe2 className="h-5 w-5" aria-hidden="true" />
           </div>
-        </CardHeader>
-      </Card>
+          <div className="min-w-0">
+            <div className="text-xs text-muted-foreground">世界样本 · 世界手册</div>
+            <h1 className="mt-1 truncate text-2xl font-semibold tracking-tight">{world?.name ?? "正在读取世界样本"}</h1>
+            {world?.version ? <div className="mt-1 text-xs text-muted-foreground">版本 v{world.version}</div> : null}
+          </div>
+        </div>
+        <div className="flex flex-wrap items-start justify-end gap-2">
+          <details className="group rounded-2xl bg-muted/25 px-4 py-2">
+            <summary className="cursor-pointer list-none text-sm font-medium marker:hidden">创作模型</summary>
+            <div className="mt-3 w-[420px] max-w-[70vw]">
+              <LLMSelector />
+            </div>
+          </details>
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            className="rounded-full text-muted-foreground hover:text-destructive"
+            onClick={handleDelete}
+            disabled={!id || !world || deleteWorldMutation.isPending}
+          >
+            <Trash2 className="h-4 w-4" />
+            {deleteWorldMutation.isPending ? "删除中..." : "删除样本"}
+          </Button>
+        </div>
+      </header>
 
       <Tabs
         value={activeTab}
@@ -327,15 +353,15 @@ export default function WorldWorkspace() {
             setAdvancedStructureOpen(false);
           }
         }}
-        className="space-y-4"
+        className="space-y-5"
       >
-        <TabsList className="flex flex-wrap">
-          <TabsTrigger value="structure">整理世界手册</TabsTrigger>
-          <TabsTrigger value="overview">查看手册{featureFlags.worldVisEnabled ? "/可视化" : ""}</TabsTrigger>
-          <TabsTrigger value="layers">分层草稿</TabsTrigger>
-          <TabsTrigger value="deepening">补齐手册</TabsTrigger>
-          <TabsTrigger value="consistency">手册体检</TabsTrigger>
-          <TabsTrigger value="assets">资料与版本</TabsTrigger>
+        <TabsList className="h-11 w-full justify-start gap-1 overflow-x-auto rounded-full bg-muted/30 p-1">
+          <TabsTrigger value="structure" className="rounded-full px-5">手册整理</TabsTrigger>
+          <TabsTrigger value="overview" className="rounded-full px-5">阅读与图谱</TabsTrigger>
+          <TabsTrigger value="layers" className="rounded-full px-5">AI 分层</TabsTrigger>
+          <TabsTrigger value="deepening" className="rounded-full px-5">补齐设定</TabsTrigger>
+          <TabsTrigger value="consistency" className="rounded-full px-5">一致性</TabsTrigger>
+          <TabsTrigger value="assets" className="rounded-full px-5">资料与版本</TabsTrigger>
         </TabsList>
 
         <TabsContent value="overview">
@@ -386,10 +412,10 @@ export default function WorldWorkspace() {
             />
           ) : (
             <>
-              <Card>
+              <Card className="rounded-3xl border-border/35 shadow-none">
                 <CardHeader className="flex flex-row items-center justify-between gap-3">
-                  <CardTitle>高级字段维护</CardTitle>
-                  <Button variant="outline" size="sm" onClick={() => setAdvancedStructureOpen(false)}>
+                  <CardTitle className="text-lg">高级字段维护</CardTitle>
+                  <Button variant="ghost" size="sm" className="rounded-full" onClick={() => setAdvancedStructureOpen(false)}>
                     返回整理手册
                   </Button>
                 </CardHeader>

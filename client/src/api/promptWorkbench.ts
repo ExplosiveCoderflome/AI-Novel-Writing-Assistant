@@ -1,4 +1,5 @@
 import type { ApiResponse } from "@ai-novel/shared/types/api";
+import type { WritingPlatform, WritingPlatformProfileDefinition, WritingPlatformProfileVersionView } from "@ai-novel/shared/types/writingPlatform";
 import { apiClient } from "@/api/client";
 
 export interface PromptContextRequirement {
@@ -78,6 +79,7 @@ export interface PromptCatalogItem {
   mode: string;
   language: string;
   family: string;
+  shortDescription: string;
   description: string;
   outputType: "structured" | "text";
   contextPolicy: {
@@ -90,13 +92,22 @@ export interface PromptCatalogItem {
   slots: PromptSlotDef[];
   slotSupported: boolean;
   lockedFields: string[];
-  managementStatus: "complete" | "missing_context_requirements" | "missing_slots";
+  managementStatus: "complete" | "missing_context_requirements" | "missing_slots" | "missing_advanced_template";
+  management?: {
+    productPrompt: boolean;
+    proseGeneration?: boolean;
+    editModes: Array<"readonly" | "slots" | "advanced_template">;
+    advancedTemplate?: { scope: "novel"; requiredContextGroups: string[] };
+  };
   capabilities: {
     hasOutputSchema: boolean;
     hasPostValidate: boolean;
     hasSemanticRetryPolicy: boolean;
     hasRepairPolicy: boolean;
     hasStructuredOutputHint: boolean;
+    supportsAdvancedTemplate: boolean;
+    isProductPrompt: boolean;
+    isProseGeneration: boolean;
   };
 }
 
@@ -591,5 +602,37 @@ export async function getPromptContextReferences(params: {
     "/prompt-workbench/context-references",
     { params },
   );
+  return data;
+}
+
+export interface WritingPlatformProfileDetail {
+  profile: WritingPlatformProfileDefinition;
+  activeVersion: number;
+  source: "official" | "custom";
+  versions: WritingPlatformProfileVersionView[];
+}
+
+export async function listWritingPlatformProfiles() {
+  const { data } = await apiClient.get<ApiResponse<Array<{ profile: WritingPlatformProfileDefinition; activeVersion: number; source: "official" | "custom" }>>>("/prompt-workbench/writing-platform-profiles");
+  return data;
+}
+
+export async function getWritingPlatformProfile(platform: WritingPlatform) {
+  const { data } = await apiClient.get<ApiResponse<WritingPlatformProfileDetail>>(`/prompt-workbench/writing-platform-profiles/${platform}`);
+  return data;
+}
+
+export async function saveWritingPlatformProfile(platform: WritingPlatform, profile: WritingPlatformProfileDefinition, notes?: string) {
+  const { data } = await apiClient.post<ApiResponse<WritingPlatformProfileDetail>>(`/prompt-workbench/writing-platform-profiles/${platform}/versions`, { profile, notes });
+  return data;
+}
+
+export async function activateWritingPlatformProfileVersion(platform: WritingPlatform, versionId: string) {
+  const { data } = await apiClient.post<ApiResponse<WritingPlatformProfileDetail>>(`/prompt-workbench/writing-platform-profiles/${platform}/versions/${versionId}/activate`);
+  return data;
+}
+
+export async function restoreOfficialWritingPlatformProfile(platform: WritingPlatform) {
+  const { data } = await apiClient.post<ApiResponse<WritingPlatformProfileDetail>>(`/prompt-workbench/writing-platform-profiles/${platform}/restore-official`);
   return data;
 }

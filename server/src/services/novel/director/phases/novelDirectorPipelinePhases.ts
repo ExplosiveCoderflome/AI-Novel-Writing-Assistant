@@ -119,6 +119,11 @@ export async function runDirectorCharacterSetupPhase(input: {
       model: request.model,
       temperature: request.temperature,
       storyInput,
+      novelId,
+      taskId,
+      stage: "character_setup",
+      itemKey: "character_setup",
+      entrypoint: "auto_director",
     }),
   });
   if (reusableOption) {
@@ -178,6 +183,9 @@ export async function runDirectorCharacterSetupPhase(input: {
     callbacks,
     run: async () => {
       await dependencies.characterPreparationService.applyCharacterCastOption(novelId, targetOption.id, {
+        postApplyMode: request.startupPreparation?.backgroundEnrichment === "after_first_draft"
+          ? "deferred"
+          : "sync",
         visibleProfileGeneration: {
           provider: request.provider,
           model: request.model,
@@ -279,6 +287,8 @@ export async function runDirectorVolumeStrategyPhase(input: {
       model: request.model,
       temperature: request.temperature,
       scope: "strategy",
+      taskId,
+      entrypoint: "auto_director",
       estimatedChapterCount: request.estimatedChapterCount ?? toBookSpec(request.candidate, request.idea, request.estimatedChapterCount).targetChapterCount,
       signal,
       onPhaseStart: async (event) => {
@@ -302,6 +312,8 @@ export async function runDirectorVolumeStrategyPhase(input: {
       model: request.model,
       temperature: request.temperature,
       scope: "strategy_critique",
+      taskId,
+      entrypoint: "auto_director",
       estimatedChapterCount: request.estimatedChapterCount ?? toBookSpec(request.candidate, request.idea, request.estimatedChapterCount).targetChapterCount,
       draftWorkspace: workspace,
       signal,
@@ -326,6 +338,8 @@ export async function runDirectorVolumeStrategyPhase(input: {
       model: request.model,
       temperature: request.temperature,
       scope: "skeleton",
+      taskId,
+      entrypoint: "auto_director",
       estimatedChapterCount: request.estimatedChapterCount ?? toBookSpec(request.candidate, request.idea, request.estimatedChapterCount).targetChapterCount,
       draftWorkspace: workspace,
       signal,

@@ -199,7 +199,8 @@ test("buildReplanDecision can recommend a manual window even when state signals 
   });
 
   assert.equal(decision.recommended, true);
-  assert.equal(decision.action, "stop_for_replan");
+  assert.equal(decision.action, "local_patch_plan");
+  assert.equal(decision.scope, "local_window");
   assert.equal(decision.signal, "manual_request");
   assert.deepEqual(decision.affectedChapterOrders, [6, 7]);
   assert.equal(decision.reason, "用户要求重排当前窗口。");
@@ -215,7 +216,8 @@ test("buildReplanDecision stops when acceptance confirms plan misalignment", () 
   });
 
   assert.equal(decision.recommended, true);
-  assert.equal(decision.action, "stop_for_replan");
+  assert.equal(decision.action, "local_patch_plan");
+  assert.equal(decision.scope, "local_window");
   assert.equal(decision.signal, "manual_request");
   assert.deepEqual(decision.affectedChapterOrders, [8, 9, 10]);
   assert.equal(decision.triggerType, "acceptance_plan_misalignment");
@@ -458,8 +460,23 @@ test("buildReplanDecision gives explicit AI replan precedence over overdue payof
 
   assert.equal(decision.signal, "next_action_replan");
   assert.equal(decision.recommended, true);
-  assert.equal(decision.action, "stop_for_replan");
+  assert.equal(decision.action, "local_patch_plan");
+  assert.equal(decision.scope, "local_window");
   assert.deepEqual(decision.affectedChapterOrders, [48, 49, 50]);
+});
+
+test("buildReplanDecision keeps explicit book-level replan as the only stop boundary", () => {
+  const decision = buildReplanDecision({
+    availableChapterOrders: [8, 9, 10],
+    targetChapterOrder: 9,
+    forceRecommended: true,
+    scope: "global_book",
+    reason: "书级结构已不可恢复。",
+  });
+
+  assert.equal(decision.recommended, true);
+  assert.equal(decision.action, "stop_for_replan");
+  assert.equal(decision.scope, "global_book");
 });
 
 test("sanitizeAiReplanWindowDecision filters AI-selected windows to available chapters", () => {

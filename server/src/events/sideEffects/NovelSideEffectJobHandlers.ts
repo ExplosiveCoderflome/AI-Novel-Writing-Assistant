@@ -2,9 +2,11 @@ import type { NovelSideEffectJob } from "@prisma/client";
 import { getSharedNovelServices } from "../../services/novel/application/sharedNovelServices";
 import { characterDynamicsService } from "../../services/novel/dynamics/CharacterDynamicsService";
 import { payoffLedgerSyncService } from "../../services/payoff/PayoffLedgerSyncService";
+import { prisma } from "../../db/prisma";
 import {
   type BookContractPayoffSyncPayload,
   NOVEL_SIDE_EFFECT_PAYLOAD_VERSION,
+  type CharacterPostDraftEnrichmentPayload,
   type CharacterVolumeRebuildPayload,
   type PipelineSnapshotPayload,
 } from "./NovelSideEffectJobTypes";
@@ -43,6 +45,21 @@ export class NovelSideEffectJobHandlers {
         await characterDynamicsService.rebuildDynamics(payload.novelId, {
           sourceType: payload.sourceType,
         });
+        return;
+      }
+      case "character.postDraftEnrichment": {
+        const payload = parsePayload<CharacterPostDraftEnrichmentPayload>(job);
+        const activeProduction = await prisma.generationJob.findFirst({
+          where: {
+            novelId: payload.novelId,
+            status: { in: ["queued", "running"] },
+          },
+          select: { id: true },
+        });
+        if (activeProduction) {
+          throw new Error("正文生产仍在运行，延迟角色增强等待低优先级重试。");
+        }
+        await getSharedNovelServices().runDeferredCharacterEnhancements(payload.novelId);
         return;
       }
       case "novel.pipelineSnapshot": {

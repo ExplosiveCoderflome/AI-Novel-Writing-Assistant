@@ -7,6 +7,7 @@ import { validate } from "../middleware/validate";
 import { StoryModeService } from "../services/storyMode/StoryModeService";
 import {
   generateStoryModeChildDrafts,
+  generateStoryModeExpansionDrafts,
   generateStoryModeTreeDraft,
 } from "../services/storyMode/storyModeGenerate";
 import { storyModeProfileSchema } from "../services/storyMode/storyModeProfile";
@@ -149,6 +150,26 @@ router.post("/generate-child", validate({ body: generateStoryModeChildSchema }),
       success: true,
       data,
       message: "AI 流派模式子类草稿生成成功。",
+    } satisfies ApiResponse<typeof data>);
+  } catch (error) {
+    next(error);
+  }
+});
+
+const generateStoryModeExpansionSchema = generateStoryModeSchema.extend({
+  prompt: z.string().trim().max(4000).optional(),
+  parentId: z.string().trim().min(1).optional(),
+  count: z.number().int().min(2).max(5).optional(),
+});
+
+router.post("/generate-expansion", validate({ body: generateStoryModeExpansionSchema }), async (req, res, next) => {
+  try {
+    const body = req.body as z.infer<typeof generateStoryModeExpansionSchema>;
+    const data = await generateStoryModeExpansionDrafts(body);
+    res.status(200).json({
+      success: true,
+      data,
+      message: "AI 推进模式扩展候选生成成功。",
     } satisfies ApiResponse<typeof data>);
   } catch (error) {
     next(error);

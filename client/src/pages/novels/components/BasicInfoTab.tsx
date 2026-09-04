@@ -67,6 +67,7 @@ export default function BasicInfoTab(props: BasicTabProps) {
       >
         <NovelStyleRecommendationCard novelId={props.novelId} />
       </DetailDisclosure>
+
     </div>
   );
 }

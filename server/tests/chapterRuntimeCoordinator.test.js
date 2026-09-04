@@ -14,6 +14,22 @@ function createEmptyStream() {
   };
 }
 
+function createTimelineFinalizer(calls = []) {
+  return {
+    async finalizeCurrentContent(input) {
+      calls.push(input);
+      return {
+        syncMode: input.mode ?? "stable",
+        contentHash: "test-content-hash",
+        extractorSucceeded: input.mode !== "degraded",
+        eventCount: 0,
+        hookCount: 0,
+        checkpointWritten: true,
+      };
+    },
+  };
+}
+
 function createAssembledChapter() {
   return {
     novel: {
@@ -300,7 +316,8 @@ test("createChapterStream uses lightweight readiness without forcing execution c
   assert.ok(assembleIndex < writerIndex);
 });
 
-test("finalizeChapterContent runs acceptance gate once and defers timeline extraction", async () => {
+test("finalizeChapterContent runs acceptance gate once and finalizes the current timeline", async () => {
+  const timelineFinalizationCalls = [];
   const coordinator = new ChapterRuntimeCoordinator({
     acceptanceAssessmentService: {
       assess: async () => {
@@ -346,17 +363,13 @@ test("finalizeChapterContent runs acceptance gate once and defers timeline extra
         };
       },
     },
-    timelineFinalizer: {
-      finalizeCurrentContent: async () => undefined,
-      ensurePreviousChapterFinalized: async () => null,
-    },
+    timelineFinalizer: createTimelineFinalizer(timelineFinalizationCalls),
   });
   coordinator.contentFinalizationService.markChapterStatus = async () => undefined;
   coordinator.contentFinalizationService.finishTraceRun = async () => undefined;
 
   const gateCalls = [];
   let acceptanceCalls = 0;
-  let timelineCalls = 0;
   const originalListOpenConflicts = openConflictService.listOpenConflicts;
   const originalCheckpointFindUnique = prisma.chapterArtifactSyncCheckpoint.findUnique;
   const originalCheckpointUpsert = prisma.chapterArtifactSyncCheckpoint.upsert;
@@ -364,17 +377,6 @@ test("finalizeChapterContent runs acceptance gate once and defers timeline extra
   prisma.chapterArtifactSyncCheckpoint.findUnique = async () => null;
   prisma.chapterArtifactSyncCheckpoint.upsert = async () => undefined;
   try {
-    coordinator.qualityGateService.executeTimelineGate = async () => {
-      timelineCalls += 1;
-      gateCalls.push(["timeline-start", Date.now()]);
-      await sleep(70);
-      gateCalls.push(["timeline-end", Date.now()]);
-      return {
-        status: "passed",
-        score: 0.98,
-        issues: [],
-      };
-    };
     coordinator.buildRuntimePackage = () => ({
       audit: {
         score: {
@@ -420,7 +422,10 @@ test("finalizeChapterContent runs acceptance gate once and defers timeline extra
     const firstAcceptanceEnd = gateCalls.find((item) => item[0] === "acceptance-end")[1];
 
     assert.equal(acceptanceCalls, 1);
-    assert.equal(timelineCalls, 0);
+    assert.equal(timelineFinalizationCalls.length, 1);
+    assert.equal(timelineFinalizationCalls[0].mode, "stable");
+    assert.equal(timelineFinalizationCalls[0].sourceStage, "chapter_content_finalization");
+    assert.equal(timelineFinalizationCalls[0].qualityDebt, false);
     assert.ok(duration < 160);
 
     await coordinator.contentFinalizationService.finalizeChapterContent({
@@ -437,7 +442,7 @@ test("finalizeChapterContent runs acceptance gate once and defers timeline extra
     });
 
     assert.equal(acceptanceCalls, 1);
-    assert.equal(timelineCalls, 0);
+    assert.equal(timelineFinalizationCalls.length, 2);
     assert.ok(firstAcceptanceEnd >= firstAcceptanceStart);
   } finally {
     openConflictService.listOpenConflicts = originalListOpenConflicts;
@@ -449,6 +454,7 @@ test("finalizeChapterContent runs acceptance gate once and defers timeline extra
 test("finalizeChapterContent syncs accepted artifacts only after chapter reaches a stable review result", async () => {
   let acceptanceMode = "repairable";
   const syncCalls = [];
+  const timelineFinalizationCalls = [];
   const coordinator = new ChapterRuntimeCoordinator({
     acceptanceAssessmentService: {
       assess: async () => ({
@@ -494,6 +500,7 @@ test("finalizeChapterContent syncs accepted artifacts only after chapter reaches
         syncCalls.push(args);
       },
     },
+    timelineFinalizer: createTimelineFinalizer(timelineFinalizationCalls),
   });
   coordinator.contentFinalizationService.markChapterStatus = async () => undefined;
   coordinator.contentFinalizationService.finishTraceRun = async () => undefined;
@@ -548,6 +555,9 @@ test("finalizeChapterContent syncs accepted artifacts only after chapter reaches
       deferArtifactBackgroundSync: true,
     });
     assert.equal(syncCalls.length, 0);
+    assert.equal(timelineFinalizationCalls.length, 1);
+    assert.equal(timelineFinalizationCalls[0].mode, "degraded");
+    assert.equal(timelineFinalizationCalls[0].qualityDebt, true);
 
     acceptanceMode = "accepted";
     await coordinator.contentFinalizationService.finalizeChapterContent({
@@ -580,6 +590,9 @@ test("finalizeChapterContent syncs accepted artifacts only after chapter reaches
     assert.equal(syncCalls[0][2], "正文版本二");
     assert.equal(syncCalls[0][3].awaitArtifactDelta, true);
     assert.equal(syncCalls[0][3].skipLegacySummaryAndFacts, true);
+    assert.equal(timelineFinalizationCalls.length, 2);
+    assert.equal(timelineFinalizationCalls[1].mode, "stable");
+    assert.equal(timelineFinalizationCalls[1].qualityDebt, false);
   } finally {
     openConflictService.listOpenConflicts = originalListOpenConflicts;
     prisma.chapterArtifactSyncCheckpoint.findUnique = originalCheckpointFindUnique;
@@ -592,6 +605,7 @@ test("finalizeChapterContent writes only acceptance-covered mustHitNow facts bef
   const eventCalls = [];
   const createdFacts = [];
   const syncCalls = [];
+  const timelineFinalizationCalls = [];
   const assembled = createRepairAssembledChapter();
   const contextPackage = JSON.parse(JSON.stringify(assembled.contextPackage));
   contextPackage.chapterWriteContext.obligationContract = {
@@ -664,6 +678,7 @@ test("finalizeChapterContent writes only acceptance-covered mustHitNow facts bef
         syncCalls.push(args);
       },
     },
+    timelineFinalizer: createTimelineFinalizer(timelineFinalizationCalls),
   });
 
   const originalChapterUpdate = prisma.chapter.update;
@@ -709,6 +724,8 @@ test("finalizeChapterContent writes only acceptance-covered mustHitNow facts bef
     assert.equal(eventCalls[0].type, "continue_with_risk");
     assert.equal(eventCalls[0].metadata.excludedObligations.length, 1);
     assert.equal(eventCalls[0].metadata.excludedObligations[0].text, "拿到青铜钥匙，并发现钥匙来自失踪师父。");
+    assert.equal(timelineFinalizationCalls.length, 1);
+    assert.equal(timelineFinalizationCalls[0].mode, "stable");
   } finally {
     prisma.chapter.update = originalChapterUpdate;
     prisma.novelFactEntry.findMany = originalFactFindMany;
@@ -718,19 +735,12 @@ test("finalizeChapterContent writes only acceptance-covered mustHitNow facts bef
   }
 });
 
-test("createRepairStream escalates patch schema failures to a single heavy repair stream", async () => {
+test("createRepairStream discovers fallback issues through read-only audit", async () => {
   const originalNovelFindUnique = prisma.novel.findUnique;
   const originalChapterFindFirst = prisma.chapter.findFirst;
   const originalBibleFindUnique = prisma.novelBible.findUnique;
-  const originalChapterUpdate = prisma.chapter.update;
   const originalRunStructuredPrompt = promptRunner.runStructuredPrompt;
-  const originalStreamTextPrompt = promptRunner.streamTextPrompt;
-
-  const chapterUpdates = [];
-  const syncCalls = [];
-  const reviewCalls = [];
-  const resolvedIssues = [];
-  const frames = [];
+  const auditCalls = [];
 
   prisma.novel.findUnique = async () => ({ id: "novel-1", title: "测试小说" });
   prisma.chapter.findFirst = async () => ({
@@ -739,91 +749,137 @@ test("createRepairStream escalates patch schema failures to a single heavy repai
     content: "旧正文里有一段需要修复的内容。",
   });
   prisma.novelBible.findUnique = async () => ({ rawContent: "作品圣经" });
-  prisma.chapter.update = async ({ data }) => {
-    chapterUpdates.push(data);
-    return { id: "chapter-1", ...data };
-  };
+  promptRunner.runStructuredPrompt = async () => ({
+    output: {
+      strategy: "patch_first",
+      summary: "修复承接问题。",
+      patches: [{
+        id: "patch-1",
+        targetExcerpt: "一段需要修复的内容",
+        replacement: "一段完成修复并顺利承接的内容",
+        reason: "补足承接。",
+        issueIds: [],
+      }],
+      requiresFullRewrite: false,
+      escalationReason: null,
+    },
+  });
+
+  try {
+    const assembledChapter = createRepairAssembledChapter();
+    const contextPackage = assembledChapter.contextPackage;
+    const coordinator = new ChapterRuntimeCoordinator({
+      assembler: {
+        assemble: async () => assembledChapter,
+      },
+      auditService: {
+        auditChapter: async (...args) => {
+          auditCalls.push(args);
+          return {
+            score: {
+              coherence: 70,
+              repetition: 90,
+              pacing: 75,
+              voice: 85,
+              engagement: 80,
+              overall: 78,
+            },
+            issues: [{
+              severity: "high",
+              category: "coherence",
+              evidence: "前后承接不足。",
+              fixSuggestion: "补足承接。",
+            }],
+            auditReports: [],
+          };
+        },
+      },
+      artifactSyncService: {
+        async syncChapterArtifacts() {},
+      },
+      timelineFinalizer: createTimelineFinalizer(),
+    });
+
+    const streamResult = await coordinator.createRepairStream("novel-1", "chapter-1", {
+      repairMode: "light_repair",
+    });
+    let streamedContent = "";
+    for await (const chunk of streamResult.stream) {
+      streamedContent += chunk.content ?? "";
+    }
+
+    assert.equal(auditCalls.length, 1);
+    assert.deepEqual(auditCalls[0].slice(0, 3), ["novel-1", "chapter-1", "full"]);
+    assert.equal(auditCalls[0][3].content, "旧正文里有一段需要修复的内容。");
+    assert.deepEqual(auditCalls[0][3].contextPackage, contextPackage);
+    assert.equal(streamedContent, "旧正文里有一段完成修复并顺利承接的内容。");
+  } finally {
+    prisma.novel.findUnique = originalNovelFindUnique;
+    prisma.chapter.findFirst = originalChapterFindFirst;
+    prisma.novelBible.findUnique = originalBibleFindUnique;
+    promptRunner.runStructuredPrompt = originalRunStructuredPrompt;
+  }
+});
+
+test("createRepairStream does not escalate patch schema failures to a heavy repair stream", async () => {
+  const originalNovelFindUnique = prisma.novel.findUnique;
+  const originalChapterFindFirst = prisma.chapter.findFirst;
+  const originalBibleFindUnique = prisma.novelBible.findUnique;
+  const originalRunStructuredPrompt = promptRunner.runStructuredPrompt;
+  const originalStreamTextPrompt = promptRunner.streamTextPrompt;
+
+  let patchPlanCalls = 0;
+  let heavyRepairCalls = 0;
+
+  prisma.novel.findUnique = async () => ({ id: "novel-1", title: "测试小说" });
+  prisma.chapter.findFirst = async () => ({
+    id: "chapter-1",
+    title: "第1章",
+    content: "旧正文里有一段需要修复的内容。",
+  });
+  prisma.novelBible.findUnique = async () => ({ rawContent: "作品圣经" });
   promptRunner.runStructuredPrompt = async () => {
+    patchPlanCalls += 1;
     throw new Error("[{\"origin\":\"string\",\"code\":\"too_small\",\"minimum\":6,\"inclusive\":true,\"path\":[\"patches\",0,\"targetExcerpt\"],\"message\":\"Too small: expected string to have >=6 characters\"}]");
   };
-  promptRunner.streamTextPrompt = async () => ({
-    stream: {
-      async *[Symbol.asyncIterator]() {
-        yield { content: "全文修复片段" };
+  promptRunner.streamTextPrompt = async () => {
+    heavyRepairCalls += 1;
+    return {
+      stream: {
+        async *[Symbol.asyncIterator]() {
+          yield { content: "全文修复片段" };
+        },
       },
-    },
-    complete: Promise.resolve({ output: "全文修复后的正文" }),
-  });
+      complete: Promise.resolve({ output: "全文修复后的正文" }),
+    };
+  };
 
   try {
     const coordinator = new ChapterRuntimeCoordinator({
       assembler: {
         assemble: async () => createRepairAssembledChapter(),
       },
-      artifactSyncService: {
-        async syncChapterArtifacts(...args) {
-          syncCalls.push(args);
-        },
-      },
-      reviewChapterAfterRepair: async (_novelId, _chapterId, options) => {
-        reviewCalls.push(options.content);
-        return {
-          score: {
-            coherence: 92,
-            repetition: 93,
-            pacing: 91,
-            voice: 90,
-            engagement: 94,
-            overall: 92,
-          },
-          issues: [],
-        };
-      },
-      resolveAuditIssues: async (_novelId, issueIds) => {
-        resolvedIssues.push(issueIds);
-      },
-      timelineFinalizer: {
-        finalizeCurrentContent: async () => undefined,
-        ensurePreviousChapterFinalized: async () => null,
-      },
     });
 
-    const streamResult = await coordinator.createRepairStream("novel-1", "chapter-1", {
-      repairMode: "light_repair",
-      auditIssueIds: ["issue-1"],
-      reviewIssues: [{
-        severity: "high",
-        category: "pacing",
-        evidence: "第一次反压没有真正落地。",
-        fixSuggestion: "让主角在本章拿到明确反压结果。",
-      }],
-    });
-
-    let streamedContent = "";
-    for await (const chunk of streamResult.stream) {
-      streamedContent += chunk.content ?? "";
-    }
-    await streamResult.onDone(streamedContent, {
-      writeFrame(frame) {
-        frames.push(frame);
-      },
-    });
-
-    assert.equal(streamedContent, "全文修复片段");
-    assert.deepEqual(reviewCalls, ["全文修复后的正文"]);
-    assert.equal(syncCalls.length, 1);
-    assert.equal(syncCalls[0][2], "全文修复后的正文");
-    assert.equal(syncCalls[0][3].awaitArtifactDelta, true);
-    assert.equal(syncCalls[0][3].skipLegacySummaryAndFacts, true);
-    assert.deepEqual(resolvedIssues, [["issue-1"]]);
-    assert.deepEqual(chapterUpdates.map((item) => item.generationState), ["repaired", "approved"]);
-    assert.equal(frames.at(-1)?.status, "succeeded");
-    assert.equal(frames.at(-1)?.phase, "completed");
+    await assert.rejects(
+      coordinator.createRepairStream("novel-1", "chapter-1", {
+        repairMode: "light_repair",
+        auditIssueIds: ["issue-1"],
+        reviewIssues: [{
+          severity: "high",
+          category: "pacing",
+          evidence: "第一次反压没有真正落地。",
+          fixSuggestion: "让主角在本章拿到明确反压结果。",
+        }],
+      }),
+      (error) => error?.name === "ChapterPatchRepairFailedError",
+    );
+    assert.equal(patchPlanCalls, 1);
+    assert.equal(heavyRepairCalls, 0);
   } finally {
     prisma.novel.findUnique = originalNovelFindUnique;
     prisma.chapter.findFirst = originalChapterFindFirst;
     prisma.novelBible.findUnique = originalBibleFindUnique;
-    prisma.chapter.update = originalChapterUpdate;
     promptRunner.runStructuredPrompt = originalRunStructuredPrompt;
     promptRunner.streamTextPrompt = originalStreamTextPrompt;
   }

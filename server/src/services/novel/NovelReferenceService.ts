@@ -53,6 +53,8 @@ interface ContinuationAnalysisConfig {
   sectionKeys: Set<BookAnalysisSectionKey> | null;
 }
 
+type PrimaryReferenceAnalysisConfig = ContinuationAnalysisConfig;
+
 function clipText(source: string, maxChars: number): string {
   const normalized = source.replace(/\r\n?/g, "\n").trim();
   if (normalized.length <= maxChars) {
@@ -220,6 +222,28 @@ const STAGE_SECTION_MAP: Record<NovelReferenceStage, BookAnalysisSectionKey[]> =
 };
 
 export class NovelReferenceService {
+  async buildReferenceFromAnalysisId(
+    analysisId: string | null | undefined,
+    stage: NovelReferenceStage,
+    sectionKeys?: BookAnalysisSectionKey[] | null,
+  ): Promise<string> {
+    if (!analysisId) {
+      return "";
+    }
+    const analysis = await this.resolveAnalysisById(analysisId);
+    if (!analysis) {
+      return "";
+    }
+    const stageKeys = new Set(STAGE_SECTION_MAP[stage]);
+    const selected = sectionKeys?.length
+      ? new Set(sectionKeys.filter((key) => stageKeys.has(key)))
+      : stageKeys;
+    return clipText(
+      this.buildAnalysisBlock(analysis, selected.size > 0 ? selected : stageKeys, "analysis.reference.input"),
+      MAX_REFERENCE_CHARS_PER_STAGE,
+    );
+  }
+
   private async resolveContinuationAnalysisConfig(novelId: string): Promise<ContinuationAnalysisConfig> {
     const novel = await prisma.novel.findUnique({
       where: { id: novelId },
@@ -240,6 +264,25 @@ export class NovelReferenceService {
       enabled: true,
       analysisId: novel.continuationBookAnalysisId,
       sectionKeys: parseContinuationSectionKeys(novel.continuationBookAnalysisSections),
+    };
+  }
+
+  private async resolvePrimaryReferenceAnalysisConfig(novelId: string): Promise<PrimaryReferenceAnalysisConfig> {
+    const novel = await prisma.novel.findUnique({
+      where: { id: novelId },
+      select: {
+        writingMode: true,
+        referenceBookAnalysisId: true,
+        referenceBookAnalysisSections: true,
+      },
+    });
+    if (!novel || novel.writingMode !== "original" || !novel.referenceBookAnalysisId) {
+      return { enabled: false, analysisId: null, sectionKeys: null };
+    }
+    return {
+      enabled: true,
+      analysisId: novel.referenceBookAnalysisId,
+      sectionKeys: parseContinuationSectionKeys(novel.referenceBookAnalysisSections),
     };
   }
 
@@ -345,8 +388,9 @@ export class NovelReferenceService {
 
   async buildReferenceForStage(novelId: string, stage: NovelReferenceStage): Promise<string> {
     try {
-      const [continuationConfig, analyses, knowledgeContents] = await Promise.all([
+      const [continuationConfig, primaryReferenceConfig, analyses, knowledgeContents] = await Promise.all([
         this.resolveContinuationAnalysisConfig(novelId),
+        this.resolvePrimaryReferenceAnalysisConfig(novelId),
         this.resolveAnalysesForNovel(novelId),
         this.resolveKnowledgeContentsForNovel(novelId),
       ]);
@@ -376,6 +420,21 @@ export class NovelReferenceService {
           const preferredBlock = this.buildAnalysisBlock(preferred, preferredKeySet, "continuation.analysis.primary");
           if (preferredBlock) {
             parts.push(preferredBlock);
+          }
+        }
+      }
+
+      if (primaryReferenceConfig.enabled && primaryReferenceConfig.analysisId) {
+        const primaryReference = await this.resolveAnalysisById(primaryReferenceConfig.analysisId);
+        if (primaryReference) {
+          preferredAnalysisId = primaryReference.id;
+          const selectedKeys = primaryReferenceConfig.sectionKeys
+            ? new Set([...primaryReferenceConfig.sectionKeys].filter((key) => stageSectionKeySet.has(key)))
+            : new Set(stageSectionKeySet);
+          const effectiveKeys = selectedKeys.size > 0 ? selectedKeys : new Set(stageSectionKeySet);
+          const block = this.buildAnalysisBlock(primaryReference, effectiveKeys, "structure.reference.primary");
+          if (block) {
+            parts.push(block);
           }
         }
       }

@@ -3,6 +3,10 @@ import type { BookContract } from "./novelWorkflow";
 import type { NovelWorkflowCheckpoint } from "./novelWorkflow";
 import type { NovelStoryMode } from "./storyMode";
 import type { TaskStatus, TaskTokenUsageSummary } from "./task";
+import type { NarrativeForm } from "./creationStudio";
+import type { WritingPlatform } from "./writingPlatform";
+import type { DirectorRiskHistoryItem } from "./directorRisk";
+import type { ChapterQualityDebtDetails } from "./chapterQualityLoop";
 export type {
   BaseCharacter,
   Character,
@@ -47,6 +51,7 @@ export type {
 export type NovelStatus = "draft" | "published";
 export type NovelWritingMode = "original" | "continuation";
 export type ProjectMode = "ai_led" | "co_pilot" | "draft_mode" | "auto_pipeline";
+export type CreationExperience = "simple" | "professional";
 export type NarrativePov = "first_person" | "third_person" | "mixed";
 export type PacePreference = "slow" | "balanced" | "fast";
 export type EmotionIntensity = "low" | "medium" | "high";
@@ -101,6 +106,80 @@ export type ChapterStatus =
   | "needs_repair"
   | "completed";
 
+export type SimpleCreationShelfChapterStatus =
+  | "waiting_planning"
+  | "waiting_writing"
+  | "generating"
+  | "reviewing"
+  | "quality_debt"
+  | "replan_required"
+  | "completed"
+  | "error";
+
+export interface SimpleCreationShelfProjection {
+  novel: {
+    id: string;
+    title: string;
+    creationExperience: CreationExperience;
+    estimatedChapterCount: number | null;
+  };
+  progress: {
+    directorTaskId: string | null;
+    percent: number;
+    completedChapters: number;
+    totalChapters: number;
+    currentAction: string;
+    status: "queued" | "running" | "paused" | "failed" | "completed";
+    canRetry: boolean;
+    recoveryAction?: "replan_and_continue" | "continue";
+    safetyMessage?: string | null;
+    latestRiskAssessment?: DirectorRiskHistoryItem | null;
+    riskHistory?: DirectorRiskHistoryItem[];
+  };
+  chapters: Array<{
+    id: string;
+    order: number;
+    title: string;
+    status: SimpleCreationShelfChapterStatus;
+    wordCount: number;
+    content: string | null;
+    updatedAt: string;
+    qualityDebt: ChapterQualityDebtDetails | null;
+  }>;
+  materials: {
+    description: string | null;
+    characterCount: number;
+    volumeCount: number;
+    openQualityDebtCount: number;
+    story: {
+      coreSellingPoint: string | null;
+      readingPromise: string | null;
+      first30ChapterPromise: string | null;
+      protagonistFantasy: string | null;
+    };
+    world: {
+      name: string;
+      summary: string | null;
+    } | null;
+    characters: Array<{
+      id: string;
+      name: string;
+      role: string;
+      storyFunction: string | null;
+      currentGoal: string | null;
+      personality: string | null;
+    }>;
+    volumes: Array<{
+      id: string;
+      order: number;
+      title: string;
+      summary: string | null;
+      mainPromise: string | null;
+      chapterCount: number;
+    }>;
+  };
+}
+
 export type PipelineRunMode = "fast" | "polish";
 export type ArtifactSyncMode = "adaptive" | "deferred" | "strict";
 export type PipelineRepairMode =
@@ -114,6 +193,8 @@ export type PipelineRepairMode =
 export interface NovelAutoDirectorTaskSummary {
   id: string;
   status: TaskStatus;
+  /** The production lane selected for this task; used to restore the correct workspace entry. */
+  productionExperience?: "simple" | "professional" | null;
   pendingManualRecovery?: boolean;
   progress: number;
   currentStage?: string | null;
@@ -154,6 +235,12 @@ export interface Novel {
   status: NovelStatus;
   writingMode: NovelWritingMode;
   projectMode?: ProjectMode | null;
+  creationExperience: CreationExperience;
+  narrativeForm: NarrativeForm;
+  targetWordCount?: number | null;
+  derivedFromNovelId?: string | null;
+  writingPlatform?: WritingPlatform | null;
+  writingPlatformProfileVersion?: number | null;
   narrativePov?: NarrativePov | null;
   pacePreference?: PacePreference | null;
   styleTone?: string | null;
@@ -170,6 +257,8 @@ export interface Novel {
   sourceKnowledgeDocumentId?: string | null;
   continuationBookAnalysisId?: string | null;
   continuationBookAnalysisSections?: BookAnalysisSectionKey[] | null;
+  referenceBookAnalysisId?: string | null;
+  referenceBookAnalysisSections?: BookAnalysisSectionKey[] | null;
   outline?: string | null;
   structuredOutline?: string | null;
   volumes?: VolumePlan[];
@@ -988,6 +1077,7 @@ export interface VolumeSyncPreview {
 export interface ReplanRecommendation {
   recommended: boolean;
   action?: "continue_with_warning" | "local_patch_plan" | "stop_for_replan";
+  scope?: "local_window" | "global_book";
   reason: string;
   blockingIssueIds: string[];
   blockingLedgerKeys?: string[];

@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { Loader2, RotateCcw } from "lucide-react";
+import { Loader2, RotateCcw, Sparkles } from "lucide-react";
 import { useIsMobileViewport } from "@/components/layout/mobile/useIsMobileViewport";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -67,6 +67,8 @@ function DesktopNovelEditView(props: NovelEditViewProps) {
     takeover,
     taskDrawer,
     activeStepTakeoverEntry,
+    onSwitchToSimpleMode,
+    isSwitchingToSimpleMode = false,
   } = props;
 
   const [isProjectToolsOpen, setIsProjectToolsOpen] = useState(false);
@@ -204,6 +206,12 @@ function DesktopNovelEditView(props: NovelEditViewProps) {
             : "按当前步骤整理这本书的生产资产，需要时可以交给 AI 自动导演接管。"}
           actions={(
             <>
+            {onSwitchToSimpleMode ? (
+              <Button type="button" variant="outline" onClick={onSwitchToSimpleMode} disabled={isSwitchingToSimpleMode}>
+                {isSwitchingToSimpleMode ? <Loader2 className="animate-spin" /> : <Sparkles />}
+                简易模式
+              </Button>
+            ) : null}
             {!hideTakeoverEntry ? (
               isTakeoverLoading ? (
                 <Button type="button" size="sm" disabled>
@@ -221,7 +229,7 @@ function DesktopNovelEditView(props: NovelEditViewProps) {
                 <DialogHeader>
                   <DialogTitle>导出项目内容</DialogTitle>
                   <DialogDescription>
-                    当前步骤会按你正在查看的工作台导出；整本书会把项目设定、故事规划、角色、卷规划、拆章、章节和质量修复资产一起导出。
+                    当前步骤会按你正在查看的工作台导出；整本书可导出项目资产，或下载只含正文的 TXT 文件。
                   </DialogDescription>
                 </DialogHeader>
                 <div className="grid gap-4 md:grid-cols-2">
@@ -251,6 +259,12 @@ function DesktopNovelEditView(props: NovelEditViewProps) {
                       <CardTitle className="text-base">整本书</CardTitle>
                     </CardHeader>
                     <CardContent className="flex flex-wrap gap-2">
+                      <Button
+                        onClick={() => exportControls.onExportFull("txt")}
+                        disabled={exportControls.isExportingFullTxt}
+                      >
+                        {exportControls.isExportingFullTxt ? "导出中..." : "TXT 正文"}
+                      </Button>
                       <Button
                         variant="outline"
                         onClick={() => exportControls.onExportFull("markdown")}

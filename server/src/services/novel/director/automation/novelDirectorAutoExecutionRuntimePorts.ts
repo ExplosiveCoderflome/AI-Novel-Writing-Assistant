@@ -12,7 +12,7 @@ import type { DirectorAutoExecutionChapterRef } from "./novelDirectorAutoExecuti
 
 export type AutomationLedgerEventPort = Pick<
   typeof directorAutomationLedgerEventService,
-  "recordEvent" | "recordRepairTicketCreated" | "recordCircuitBreakerOpened"
+  "recordEvent" | "recordCircuitBreakerOpened"
 >;
 
 export interface NovelDirectorAutoExecutionWorkflowPort {
@@ -41,6 +41,15 @@ export interface NovelDirectorAutoExecutionWorkflowPort {
     seedPayload?: Record<string, unknown>;
   }): Promise<unknown>;
   markTaskFailed(taskId: string, message: string, patch?: {
+    stage?: "quality_repair";
+    itemKey?: string | null;
+    itemLabel?: string;
+    checkpointType?: "chapter_batch_ready" | "replan_required";
+    checkpointSummary?: string | null;
+    chapterId?: string | null;
+    progress?: number;
+  }): Promise<unknown>;
+  requeueTaskForRecovery(taskId: string, message: string, patch?: {
     stage?: "quality_repair";
     itemKey?: string | null;
     itemLabel?: string;

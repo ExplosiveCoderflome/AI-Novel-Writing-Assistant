@@ -2,6 +2,7 @@ import { HumanMessage, SystemMessage } from "@langchain/core/messages";
 import type { PromptAsset } from "../../core/promptTypes";
 import { renderSelectedContextBlocks } from "../../core/renderContextBlocks";
 import { NOVEL_PROMPT_BUDGETS } from "./promptBudgetProfiles";
+import { CHAPTER_PROSE_QUALITY_RULES } from "@ai-novel/shared/types/chapterProseContract";
 
 export interface ChapterWriterPromptInput {
   novelTitle: string;
@@ -48,6 +49,7 @@ export const chapterWriterPrompt: PromptAsset<ChapterWriterPromptInput, string, 
     ],
   },
   contextRequirements: [
+    { group: "writing_platform", required: true, priority: 105 },
     { group: "book_contract", required: true, priority: 104 },
     { group: "chapter_mission", required: true, priority: 100 },
     { group: "reader_experience", required: true, priority: 100 },
@@ -64,6 +66,29 @@ export const chapterWriterPrompt: PromptAsset<ChapterWriterPromptInput, string, 
     { group: "style_contract", required: true, priority: 74 },
     { group: "continuation_constraints", priority: 72 },
     { group: "rag_context", priority: 60 },
+  ],
+  management: {
+    productPrompt: true,
+    proseGeneration: true,
+    editModes: ["slots", "advanced_template"],
+    advancedTemplate: {
+      scope: "novel",
+      requiredContextGroups: [
+        "writing_platform", "book_contract", "chapter_mission", "reader_experience",
+        "character_hard_facts", "obligation_contract", "volume_window",
+        "participant_subset", "local_state", "style_contract",
+      ],
+    },
+  },
+  editableSlots: [
+    {
+      key: "writer.tonePreference",
+      label: "语气与节奏",
+      description: "调整正文语气、节奏和读感倾向。",
+      riskLevel: "low",
+      maxLength: 600,
+      defaultValue: "使用简体中文，语言自然流畅，适合网文阅读节奏。",
+    },
   ],
   slots: [
     // replace：改写出厂指令
@@ -235,6 +260,7 @@ export const chapterWriterPrompt: PromptAsset<ChapterWriterPromptInput, string, 
         "1. " + tonePreference,
         "2. 优先使用具体动作、对话与可感知细节推进，而不是抽象概述。",
         "3. " + antiAiRules,
+        ...CHAPTER_PROSE_QUALITY_RULES.map((rule, index) => `${index + 1}. ${rule}`),
         "4. 对话应服务推进或冲突，不得成为填充内容。",
         "5. 每一段叙述尽量同时完成两项以上叙事功能（推进情节、揭示人物、制造张力、建构世界），避免仅完成单一功能的过渡性段落。",
         "",

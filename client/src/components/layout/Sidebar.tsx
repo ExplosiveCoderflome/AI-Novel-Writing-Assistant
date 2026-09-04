@@ -13,7 +13,7 @@ import {
   LayoutDashboard,
   ListTodo,
   MonitorPlay,
-  Route,
+  Radar,
   SquareStack,
   ScanSearch,
   Settings2,
@@ -53,14 +53,13 @@ const navGroups: NavGroup[] = [
     title: "创作",
     items: [
       { to: "/", label: "首页", icon: House },
-      { to: "/help", label: "新手上路", icon: CircleHelp },
+      { to: "/help", label: "创作向导", icon: CircleHelp },
+      { to: "/market-radar", label: "热门题材雷达", icon: Radar },
       { to: "/novels", label: "小说列表", icon: BookOpenText },
       { to: "/drama", label: "短剧工作台", icon: MonitorPlay, disabled: true },
       { to: "/comic", label: "漫画工作台", icon: SquareStack },
       { to: "/creative-hub", label: "创作中枢", icon: LayoutDashboard },
       { to: "/book-analysis", label: "拆书", icon: ScanSearch },
-      { to: "/tasks", label: "运行记录", icon: ListTodo },
-      { to: "/auto-director/follow-ups", label: "导演跟进", icon: Workflow },
     ],
   },
   {
@@ -80,8 +79,9 @@ const navGroups: NavGroup[] = [
   {
     title: "系统",
     items: [
+      { to: "/tasks", label: "运行记录", icon: ListTodo },
+      { to: "/auto-director/follow-ups", label: "导演跟进", icon: Workflow },
       { to: "/prompt-workbench", label: "提示词管理", icon: Braces },
-      { to: "/settings/model-routes", label: "模型路由", icon: Route },
       { to: "/settings", label: "系统设置", icon: Settings2 },
     ],
   },

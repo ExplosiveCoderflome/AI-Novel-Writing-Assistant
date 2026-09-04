@@ -39,6 +39,11 @@ export interface DirectorPhaseDependencies {
       model?: string;
       temperature?: number;
       storyInput?: string;
+      novelId?: string;
+      taskId?: string;
+      stage?: string;
+      itemKey?: string;
+      entrypoint?: string;
     }) => Promise<CharacterCastOption>;
     assessCharacterCastOptions: (
       castOptions: CharacterCastOption[],
@@ -49,6 +54,7 @@ export interface DirectorPhaseDependencies {
       optionId: string,
       options?: {
         overrideQualityGate?: boolean;
+        postApplyMode?: "sync" | "background" | "deferred";
         visibleProfileGeneration?: {
           provider?: DirectorConfirmRequest["provider"];
           model?: string;

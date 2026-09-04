@@ -41,6 +41,27 @@ type EnsureChapterExecutionContractOptions = Pick<
   taskStyleProfileId?: string;
 };
 
+const chapterExecutionContractFlights = new Map<string, Promise<unknown>>();
+
+export function runChapterExecutionContractSingleflight<T>(
+  novelId: string,
+  chapterId: string,
+  work: () => Promise<T>,
+): Promise<T> {
+  const key = `${novelId}:${chapterId}`;
+  const active = chapterExecutionContractFlights.get(key);
+  if (active) {
+    return active as Promise<T>;
+  }
+  const pending = work().finally(() => {
+    if (chapterExecutionContractFlights.get(key) === pending) {
+      chapterExecutionContractFlights.delete(key);
+    }
+  });
+  chapterExecutionContractFlights.set(key, pending);
+  return pending;
+}
+
 export class ChapterExecutionContractService {
   constructor(private readonly deps: ChapterExecutionContractServiceDeps) {}
 
@@ -48,6 +69,16 @@ export class ChapterExecutionContractService {
     novelId: string,
     chapterId: string,
     options: EnsureChapterExecutionContractOptions = {},
+  ) {
+    return runChapterExecutionContractSingleflight(novelId, chapterId, () => (
+      this.ensureChapterExecutionContractUnlocked(novelId, chapterId, options)
+    ));
+  }
+
+  private async ensureChapterExecutionContractUnlocked(
+    novelId: string,
+    chapterId: string,
+    options: EnsureChapterExecutionContractOptions,
   ) {
     const chapter = await prisma.chapter.findFirst({
       where: { id: chapterId, novelId },

@@ -1,12 +1,14 @@
+import { useState } from "react";
 import type { NovelBasicFormState } from "../novelBasicInfo.shared";
 import {
   BASIC_INFO_FIELD_HINTS,
-  DEFAULT_ESTIMATED_CHAPTER_COUNT,
   EMOTION_OPTIONS,
   PACE_OPTIONS,
   POV_OPTIONS,
   READER_CHANNEL_OPTIONS,
+  WRITING_PLATFORM_OPTIONS,
 } from "../novelBasicInfo.shared";
+import { parseEstimatedChapterCountInput } from "./estimatedChapterCountInput";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { AUTO_DIRECTOR_MOBILE_CLASSES } from "@/mobile/autoDirector";
@@ -34,6 +36,7 @@ export default function StageBasicSetup({
   onBack,
   onConfirm,
 }: StageBasicSetupProps) {
+  const [estimatedChapterCountDraft, setEstimatedChapterCountDraft] = useState<string | null>(null);
   const hasLargeChapterPlan = basicForm.estimatedChapterCount > 200;
   const controlClassName = "w-full rounded-lg border-0 bg-muted/40 px-3 py-2.5 text-sm outline-none ring-1 ring-transparent transition hover:bg-muted/55 focus:bg-background focus:ring-2 focus:ring-primary/25";
 
@@ -51,7 +54,31 @@ export default function StageBasicSetup({
         </div>
       </div>
 
+      <div className="flex items-start gap-3 border-y border-border/60 py-4">
+        <div className="mt-0.5 h-2 w-2 shrink-0 rounded-full bg-emerald-500" />
+        <div>
+          <div className="text-sm font-medium text-foreground">AI 会自动确定创作底座</div>
+          <div className={`mt-1 text-xs leading-5 text-muted-foreground ${AUTO_DIRECTOR_MOBILE_CLASSES.wrapText}`}>
+            系统会根据起始想法确定题材和主要推进方式，并贯穿方向规划、正文、检查与修复。创建后仍可在作品设置中调整后续写法。
+          </div>
+        </div>
+      </div>
+
       <div className="grid gap-x-8 gap-y-6 md:grid-cols-2">
+        <div className="space-y-2">
+          <FieldLabel htmlFor="director-basic-platform" hint="决定规划、正文、审校和修复采用哪类平台读感。">目标平台</FieldLabel>
+          <SelectControl
+            id="director-basic-platform"
+            className={controlClassName}
+            value={basicForm.writingPlatformPreference}
+            onChange={(event) => onBasicFormChange({ writingPlatformPreference: event.target.value as NovelBasicFormState["writingPlatformPreference"] })}
+          >
+            {WRITING_PLATFORM_OPTIONS.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
+          </SelectControl>
+          <div className={`text-xs text-muted-foreground ${AUTO_DIRECTOR_MOBILE_CLASSES.wrapText}`}>
+            {findOptionSummary(WRITING_PLATFORM_OPTIONS, basicForm.writingPlatformPreference)}
+          </div>
+        </div>
         <div className="space-y-2">
           <FieldLabel htmlFor="director-basic-reader-channel" hint={BASIC_INFO_FIELD_HINTS.readerChannelPreference}>读者频道倾向</FieldLabel>
           <SelectControl
@@ -136,17 +163,25 @@ export default function StageBasicSetup({
             min={1}
             max={2000}
             className={controlClassName}
-            value={basicForm.estimatedChapterCount}
-            onChange={(event) => onBasicFormChange({
-              estimatedChapterCount: Math.max(
-                1,
-                Math.min(2000, Number(event.target.value || 0) || DEFAULT_ESTIMATED_CHAPTER_COUNT),
-              ),
-            })}
+            value={estimatedChapterCountDraft ?? String(basicForm.estimatedChapterCount)}
+            onChange={(event) => {
+              const draft = event.target.value;
+              setEstimatedChapterCountDraft(draft);
+              const estimatedChapterCount = parseEstimatedChapterCountInput(draft);
+              if (estimatedChapterCount !== null) {
+                onBasicFormChange({ estimatedChapterCount });
+              }
+            }}
+            onBlur={() => setEstimatedChapterCountDraft(null)}
           />
           <div className={`text-xs text-muted-foreground ${AUTO_DIRECTOR_MOBILE_CLASSES.wrapText}`}>
             会作为整书结构密度和后续卷章规划的参考，不是硬性上限。
           </div>
+          {basicForm.estimatedChapterCount <= 60 ? (
+            <div className={`rounded-lg bg-sky-50 px-3 py-2 text-xs leading-5 text-sky-900 ${AUTO_DIRECTOR_MOBILE_CLASSES.wrapText}`}>
+              紧凑全书模式：AI 会在有限篇幅内完成完整结局，必要时最多追加 5 章收尾。
+            </div>
+          ) : null}
           {hasLargeChapterPlan ? (
             <div className={`rounded-lg bg-amber-50 px-3 py-2 text-xs leading-5 text-amber-900 ${AUTO_DIRECTOR_MOBILE_CLASSES.wrapText}`}>
               建议先小范围尝试：先查看规划和前期章节方向，确认符合想法后再扩大产出范围。

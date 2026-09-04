@@ -83,3 +83,25 @@ test("pipeline payload preserves full-book autopilot control policy", () => {
     },
   });
 });
+
+test("pipeline payload preserves the issue policy snapshot used for recovery", () => {
+  const payload = stringifyPipelinePayload({
+    issueGovernanceVersion: 1,
+    issuePolicySnapshot: {
+      maxAutomaticRetries: 0,
+      issueActions: {
+        "quality.local_repair_failed": "pause_for_manual",
+      },
+    },
+  });
+
+  const parsed = parsePipelinePayload(payload);
+
+  assert.equal(parsed.issueGovernanceVersion, 1);
+  assert.deepEqual(parsed.issuePolicySnapshot, {
+    maxAutomaticRetries: 0,
+    issueActions: {
+      "quality.local_repair_failed": "pause_for_manual",
+    },
+  });
+});

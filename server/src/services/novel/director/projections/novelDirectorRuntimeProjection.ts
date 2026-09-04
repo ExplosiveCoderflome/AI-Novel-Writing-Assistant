@@ -8,9 +8,14 @@ import type {
 } from "@ai-novel/shared/types/directorRuntime";
 import { prisma } from "../../../../db/prisma";
 import { buildDefaultDirectorPolicy } from "../runtime/directorRuntimeDefaults";
-import { DirectorEventProjectionService } from "../runtime/DirectorEventProjectionService";
+import { DirectorEventProjectionService, parseDirectorIssueEventMetadata } from "../runtime/DirectorEventProjectionService";
 import { directorUsageTelemetryQueryService } from "../runtime/DirectorUsageTelemetryQueryService";
 import { ChapterExecutionProgressInspector } from "../runtime/ChapterExecutionProgressInspector";
+import type { DirectorWorkflowSeedPayload } from "../runtime/novelDirectorHelpers";
+import {
+  parsePersistedDirectorRiskAssessment,
+  type DirectorRiskHistoryItem,
+} from "@ai-novel/shared/types/directorRisk";
 
 function parseJsonOrNull<T>(value: string | null | undefined): T | null {
   if (!value?.trim()) {
@@ -21,6 +26,17 @@ function parseJsonOrNull<T>(value: string | null | undefined): T | null {
   } catch {
     return null;
   }
+}
+
+function parseRiskHistory(rows: Array<{
+  id: string;
+  metadataJson: string | null;
+}>): DirectorRiskHistoryItem[] {
+  return rows.flatMap((row) => {
+    const metadata = parseJsonOrNull<Record<string, unknown>>(row.metadataJson);
+    const parsed = parsePersistedDirectorRiskAssessment(metadata?.riskAssessment);
+    return parsed ? [{ ...parsed, eventId: row.id }] : [];
+  });
 }
 
 function isDirectorRuntimeTableUnavailable(error: unknown): boolean {
@@ -417,7 +433,7 @@ export async function loadPersistentDirectorRuntimeProjection(
   projectionService = new DirectorEventProjectionService(),
 ): Promise<DirectorRuntimeProjection | null> {
   const TERMINAL_TASK_STATUSES = ["succeeded", "cancelled", "failed"];
-  const [run, activeCommand, runtime, taskRow] = await Promise.all([
+  const [run, activeCommand, runtime, taskRow, riskEventRows] = await Promise.all([
     prisma.directorRun.findUnique({
       where: { taskId },
       select: {
@@ -543,9 +559,21 @@ export async function loadPersistentDirectorRuntimeProjection(
     }) as Promise<RuntimeInstanceProjectionRow | null>,
     prisma.novelWorkflowTask.findUnique({
       where: { id: taskId },
-      select: { status: true },
+      select: { status: true, seedPayloadJson: true },
     }).catch(() => null),
+    prisma.directorEvent.findMany({
+      where: { taskId },
+      orderBy: { occurredAt: "desc" },
+      take: 200,
+      select: { id: true, metadataJson: true },
+    }).catch(() => [] as Array<{ id: string; metadataJson: string | null }>),
   ]);
+  const riskHistory = parseRiskHistory(riskEventRows);
+  const taskSeedPayload = parseJsonOrNull<DirectorWorkflowSeedPayload>(taskRow?.seedPayloadJson);
+  const startupPreparation = taskSeedPayload?.startupPreparation ?? null;
+  const latestRiskAssessment = parsePersistedDirectorRiskAssessment(taskSeedPayload?.autoExecution?.latestRiskAssessment)
+    ?? riskHistory[0]
+    ?? null;
 
   const isTaskTerminal = taskRow
     ? TERMINAL_TASK_STATUSES.includes(taskRow.status)
@@ -560,6 +588,10 @@ export async function loadPersistentDirectorRuntimeProjection(
       : null;
     return {
       ...buildRuntimeOnlyProjection(taskId, runtime),
+      startupPreparation,
+      latestRiskAssessment,
+      riskHistory,
+      riskHistoryTotal: riskHistory.length,
       chapterExecutionProgress,
     };
   }
@@ -621,6 +653,10 @@ export async function loadPersistentDirectorRuntimeProjection(
     : null;
   return {
     ...overlayRuntimeInstance(overlayActiveCommand(projection, commandToOverlay), runtimeToOverlay),
+    startupPreparation,
+    latestRiskAssessment,
+    riskHistory,
+    riskHistoryTotal: riskHistory.length,
     chapterExecutionProgress,
     usageSummary: usageTelemetry.summary,
     recentUsage: usageTelemetry.recentUsage,
@@ -651,21 +687,27 @@ export async function loadPersistentDirectorRuntimeEventHistory(
         artifactType: true,
         summary: true,
         severity: true,
+        metadataJson: true,
         occurredAt: true,
       },
     }),
   ]);
 
   return {
-    events: events.map((event) => ({
-      eventId: event.id,
-      type: event.type as DirectorRuntimeProjectionEvent["type"],
-      summary: event.summary,
-      nodeKey: event.nodeKey,
-      artifactType: event.artifactType as DirectorRuntimeProjectionEvent["artifactType"],
-      severity: event.severity as DirectorRuntimeProjectionEvent["severity"],
-      occurredAt: event.occurredAt.toISOString(),
-    })),
+    events: events.map((event) => {
+      const issue = parseDirectorIssueEventMetadata(parseJsonOrNull<Record<string, unknown>>(event.metadataJson));
+      return {
+        eventId: event.id,
+        type: event.type as DirectorRuntimeProjectionEvent["type"],
+        summary: event.summary,
+        nodeKey: event.nodeKey,
+        artifactType: event.artifactType as DirectorRuntimeProjectionEvent["artifactType"],
+        severity: event.severity as DirectorRuntimeProjectionEvent["severity"],
+        occurredAt: event.occurredAt.toISOString(),
+        issue: issue?.occurrence ?? null,
+        issueDecision: issue?.decision ?? null,
+      };
+    }),
     totalCount,
     limit: normalizedLimit,
   };

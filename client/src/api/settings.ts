@@ -2,6 +2,7 @@ import type { ApiResponse } from "@ai-novel/shared/types/api";
 import type {
   DirectorAutoApprovalPreferenceSettings,
 } from "@ai-novel/shared/types/autoDirectorApproval";
+import type { DirectorIssuePolicy } from "@ai-novel/shared/types/directorIssue";
 import type { LLMProvider } from "@ai-novel/shared/types/llm";
 import type {
   ModelRouteConfig,
@@ -218,6 +219,9 @@ export async function getRagSettings() {
 export async function saveRagSettings(payload: {
   embeddingProvider: EmbeddingProvider;
   embeddingModel: string;
+  /** Credentials here configure only the selected embedding connection. */
+  embeddingApiKey?: string;
+  embeddingBaseURL?: string;
   collectionMode: "auto" | "manual";
   collectionName: string;
   collectionTag: string;
@@ -444,6 +448,21 @@ export async function getAutoDirectorChannelSettings() {
 
 export async function saveAutoDirectorChannelSettings(payload: Partial<AutoDirectorChannelSettings>) {
   const { data } = await apiClient.put<ApiResponse<AutoDirectorChannelSettings>>("/settings/auto-director/channels", payload);
+  return data;
+}
+
+export async function getAutoDirectorIssuePolicy() {
+  const { data } = await apiClient.get<ApiResponse<DirectorIssuePolicy>>(
+    "/settings/auto-director/issue-policy",
+  );
+  return data;
+}
+
+export async function saveAutoDirectorIssuePolicy(payload: DirectorIssuePolicy) {
+  const { data } = await apiClient.put<ApiResponse<DirectorIssuePolicy>>(
+    "/settings/auto-director/issue-policy",
+    payload,
+  );
   return data;
 }
 

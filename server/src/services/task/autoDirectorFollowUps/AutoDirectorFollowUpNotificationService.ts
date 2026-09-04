@@ -222,6 +222,9 @@ export class AutoDirectorFollowUpNotificationService {
     if (!this.dingTalkNotifier.isEnabled(channelConfig)) {
       return;
     }
+    if (await this.hasNotificationLog(input.event.eventId, "dingtalk")) {
+      return;
+    }
     if (!this.isEventEnabledForChannel(channelConfig.eventTypes, input.event.eventType)) {
       return;
     }
@@ -283,6 +286,9 @@ export class AutoDirectorFollowUpNotificationService {
   }) {
     const channelConfig = input.channelSettings.wecom;
     if (!this.weComNotifier.isEnabled(channelConfig)) {
+      return;
+    }
+    if (await this.hasNotificationLog(input.event.eventId, "wecom")) {
       return;
     }
     if (!this.isEventEnabledForChannel(channelConfig.eventTypes, input.event.eventType)) {
@@ -367,6 +373,20 @@ export class AutoDirectorFollowUpNotificationService {
     } catch (error) {
       if (isMissingTableError(error) || isDbUnavailableError(error)) {
         return;
+      }
+      throw error;
+    }
+  }
+
+  private async hasNotificationLog(eventId: string, channelType: "dingtalk" | "wecom"): Promise<boolean> {
+    try {
+      return Boolean(await prisma.autoDirectorFollowUpNotificationLog.findFirst({
+        where: { eventId, channelType },
+        select: { id: true },
+      }));
+    } catch (error) {
+      if (isMissingTableError(error) || isDbUnavailableError(error)) {
+        return false;
       }
       throw error;
     }

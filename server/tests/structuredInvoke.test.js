@@ -13,9 +13,9 @@ test("parseStructuredLlmRawContentDetailed recovers when repair output is trunca
   const originalGetLLM = factory.getLLM;
 
   factory.getLLM = async () => ({
-    invoke: async () => ({
-      content: "{\"value\":\"fixed\"",
-    }),
+    stream: async function* () {
+      yield { content: "{\"value\":\"fixed\"" };
+    },
   });
 
   try {
@@ -124,6 +124,38 @@ test("parseStructuredLlmRawContentDetailed accepts markdown fenced JSON without 
   assert.equal(result.repairAttempts, 0);
 });
 
+test("parseStructuredLlmRawContentDetailed rejects empty model output without invoking JSON repair", async () => {
+  const originalGetLLM = factory.getLLM;
+  let repairInvoked = false;
+
+  factory.getLLM = async () => {
+    repairInvoked = true;
+    throw new Error("repair should not run for an empty response");
+  };
+
+  try {
+    await assert.rejects(async () => structuredInvoke.parseStructuredLlmRawContentDetailed({
+      rawContent: "   ",
+      schema: z.object({
+        value: z.string(),
+      }),
+      provider: "deepseek",
+      model: "deepseek-v4-flash",
+      label: "structured.invoke.empty",
+      maxRepairAttempts: 1,
+      strategy: "json_object",
+      profile: resolveStructuredOutputProfile({
+        provider: "deepseek",
+        model: "deepseek-v4-flash",
+        executionMode: "structured",
+      }),
+    }), /STRUCTURED_OUTPUT:transport_error.*没有返回可用内容/i);
+    assert.equal(repairInvoked, false);
+  } finally {
+    factory.getLLM = originalGetLLM;
+  }
+});
+
 test("parseStructuredLlmRawContentDetailed preserves singleton arrays when schema expects a top-level array", async () => {
   const result = await structuredInvoke.parseStructuredLlmRawContentDetailed({
     rawContent: JSON.stringify([{ value: "wrapped" }]),
@@ -190,9 +222,9 @@ test("parseStructuredLlmRawContentDetailed reports schema mismatch when AI repai
   const originalGetLLM = factory.getLLM;
 
   factory.getLLM = async () => ({
-    invoke: async () => ({
-      content: "{\"value\":\"fixed\"}",
-    }),
+    stream: async function* () {
+      yield { content: "{\"value\":\"fixed\"}" };
+    },
   });
 
   try {
@@ -213,6 +245,45 @@ test("parseStructuredLlmRawContentDetailed reports schema mismatch when AI repai
         executionMode: "structured",
       }),
     }), /STRUCTURED_OUTPUT:schema_mismatch/i);
+  } finally {
+    factory.getLLM = originalGetLLM;
+  }
+});
+
+test("JSON repair receives the target schema when the original output cannot be parsed", async () => {
+  const originalGetLLM = factory.getLLM;
+  let capturedMessages = [];
+
+  factory.getLLM = async () => ({
+    stream: async function* (messages) {
+      capturedMessages = messages;
+      yield { content: '{"value":"fixed","requiredField":"restored"}' };
+    },
+  });
+
+  try {
+    const result = await structuredInvoke.parseStructuredLlmRawContentDetailed({
+      rawContent: '{"value":"broken"',
+      schema: z.object({
+        value: z.string(),
+        requiredField: z.string(),
+      }),
+      provider: "deepseek",
+      model: "deepseek-chat",
+      label: "structured.invoke.repair.schema-contract",
+      maxRepairAttempts: 1,
+      strategy: "prompt_json",
+      profile: resolveStructuredOutputProfile({
+        provider: "deepseek",
+        model: "deepseek-chat",
+        executionMode: "structured",
+      }),
+    });
+
+    const repairPrompt = capturedMessages.map((message) => String(message.content)).join("\n");
+    assert.deepEqual(result.data, { value: "fixed", requiredField: "restored" });
+    assert.match(repairPrompt, /目标 JSON Schema/);
+    assert.match(repairPrompt, /requiredField/);
   } finally {
     factory.getLLM = originalGetLLM;
   }
@@ -271,7 +342,7 @@ test("invokeStructuredLlmDetailed degrades to prompt JSON before using fallback 
     };
   };
   factory.createLLMFromResolvedOptions = (resolved) => ({
-    invoke: async () => {
+    stream: async function* () {
       calls.push({
         provider: resolved.provider,
         strategy: resolved.structuredStrategy,
@@ -279,9 +350,7 @@ test("invokeStructuredLlmDetailed degrades to prompt JSON before using fallback 
       if (resolved.provider === "openai" && resolved.structuredStrategy !== "prompt_json") {
         throw new Error("response_format is not supported");
       }
-      return {
-        content: "{\"value\":\"primary-prompt-json\"}",
-      };
+      yield { content: "{\"value\":\"primary-prompt-json\"}" };
     },
   });
   structuredFallbackSettings.getStructuredFallbackSettings = async () => ({
@@ -360,7 +429,7 @@ test("invokeStructuredLlmDetailed switches to the configured fallback model afte
     };
   };
   factory.createLLMFromResolvedOptions = (resolved) => ({
-    invoke: async () => {
+    stream: async function* () {
       calls.push({
         provider: resolved.provider,
         strategy: resolved.structuredStrategy,
@@ -368,9 +437,7 @@ test("invokeStructuredLlmDetailed switches to the configured fallback model afte
       if (resolved.provider === "openai") {
         throw new Error("primary structured output failed");
       }
-      return {
-        content: "{\"value\":\"fallback-ok\"}",
-      };
+      yield { content: "{\"value\":\"fallback-ok\"}" };
     },
   });
   structuredFallbackSettings.getStructuredFallbackSettings = async () => ({
@@ -454,16 +521,16 @@ test("invokeStructuredLlmDetailed preserves explicit Anthropic protocol through 
     };
   };
   factory.createLLMFromResolvedOptions = () => ({
-    invoke: async () => ({
-      content: "not-json",
-    }),
+    stream: async function* () {
+      yield { content: "not-json" };
+    },
   });
   factory.getLLM = async (_provider, options = {}) => {
     repairRequestProtocol = options.requestProtocol ?? null;
     return {
-      invoke: async () => ({
-        content: "{\"value\":\"fixed\"}",
-      }),
+      stream: async function* () {
+        yield { content: "{\"value\":\"fixed\"}" };
+      },
     };
   };
 

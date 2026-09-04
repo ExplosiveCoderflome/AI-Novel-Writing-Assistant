@@ -9,6 +9,9 @@ const {
   ChapterPatchRepairService,
 } = require("../dist/services/novel/chapterPatchRepairService.js");
 const promptRunner = require("../dist/prompting/core/promptRunner.js");
+const {
+  runChapterRepairText,
+} = require("../dist/services/novel/runtime/repair/chapterRepairRuntime.js");
 
 test("applyChapterPatchRepairPlan applies exact single-location patches", () => {
   const result = applyChapterPatchRepairPlan("第一段承接断裂。第二段继续推进。", {
@@ -172,6 +175,41 @@ test("ChapterPatchRepairService does not run local repair in rewrite-only modes"
     }),
     ChapterPatchRepairFailedError,
   );
+});
+
+test("runChapterRepairText performs a full rewrite only when heavy repair is explicit", async () => {
+  const originalRunStructuredPrompt = promptRunner.runStructuredPrompt;
+  let patchCalls = 0;
+  promptRunner.runStructuredPrompt = async () => {
+    patchCalls += 1;
+    throw new Error("heavy repair must skip patch planning");
+  };
+  promptRunner.setPromptRunnerLLMFactoryForTests(async () => ({
+    stream: async () => ({
+      async *[Symbol.asyncIterator]() {
+        yield { content: "用户明确选择后的整章重写稿。" };
+      },
+    }),
+  }));
+
+  try {
+    const result = await runChapterRepairText({
+      novelId: "novel-1",
+      chapterId: "chapter-1",
+      novelTitle: "测试小说",
+      chapterTitle: "第一章",
+      content: "需要整章重写的原稿。",
+      issues: [],
+      options: { repairMode: "heavy_repair" },
+    });
+
+    assert.equal(result.content, "用户明确选择后的整章重写稿。");
+    assert.equal(result.finalRepairMode, "heavy_repair");
+    assert.equal(patchCalls, 0);
+  } finally {
+    promptRunner.runStructuredPrompt = originalRunStructuredPrompt;
+    promptRunner.setPromptRunnerLLMFactoryForTests();
+  }
 });
 
 test("ChapterPatchRepairService reports structured patch schema failures as recoverable", async () => {

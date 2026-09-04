@@ -158,7 +158,7 @@ export function AutoDirectorChannelSettingsCard(props: {
 
           <div className={AUTO_DIRECTOR_MOBILE_CLASSES.channelSettingsActionRow}>
             <Button variant="outline" asChild className={AUTO_DIRECTOR_MOBILE_CLASSES.fullWidthAction}>
-              <Link to="/settings/model-routes">去看模型路由</Link>
+              <Link to="/settings/models">去看模型路由</Link>
             </Button>
             <Button className={AUTO_DIRECTOR_MOBILE_CLASSES.fullWidthAction} onClick={onSave} disabled={isSaving}>
               {isSaving ? "保存中..." : "保存导演跟进通道配置"}

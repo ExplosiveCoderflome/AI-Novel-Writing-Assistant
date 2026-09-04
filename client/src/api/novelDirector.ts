@@ -18,6 +18,10 @@ import type {
   DirectorCandidateTitleRefineRequest,
   DirectorCandidatesRequest,
   DirectorConfirmRequest,
+  DirectorIdeaConstellationComposeRequest,
+  DirectorIdeaConstellationComposeResponse,
+  DirectorIdeaConstellationOptionsRequest,
+  DirectorIdeaConstellationOptionsResponse,
   DirectorIdeaInspirationRequest,
   DirectorIdeaInspirationsResponse,
   DirectorRefinementRequest,
@@ -26,6 +30,31 @@ import type {
   DirectorStepCalibrationRequest,
 } from "@ai-novel/shared/types/novelDirector";
 import { apiClient } from "./client";
+import type { DirectorIssuePolicy, DirectorIssuePolicyOverride } from "@ai-novel/shared/types/directorIssue";
+
+export interface NovelDirectorIssuePolicyResponse {
+  effectivePolicy: DirectorIssuePolicy;
+  override: DirectorIssuePolicyOverride | null;
+  source: "global" | "novel";
+}
+
+export async function getNovelDirectorIssuePolicy(novelId: string) {
+  const { data } = await apiClient.get<ApiResponse<NovelDirectorIssuePolicyResponse>>(
+    `/novels/${novelId}/auto-director/issue-policy`,
+  );
+  return data;
+}
+
+export async function saveNovelDirectorIssuePolicy(
+  novelId: string,
+  override: DirectorIssuePolicyOverride | null,
+) {
+  const { data } = await apiClient.put<ApiResponse<NovelDirectorIssuePolicyResponse>>(
+    `/novels/${novelId}/auto-director/issue-policy`,
+    { override },
+  );
+  return data;
+}
 
 export async function getDirectorTaskSnapshot(directorTaskId: string) {
   const { data } = await apiClient.get<ApiResponse<DirectorTaskSnapshotResponse>>(`/novels/director/tasks/${directorTaskId}`);
@@ -59,6 +88,26 @@ export async function generateDirectorIdeaInspirations(
 ): Promise<ApiResponse<DirectorIdeaInspirationsResponse>> {
   const { data } = await apiClient.post<ApiResponse<DirectorIdeaInspirationsResponse>>(
     "/novels/director/idea-inspirations",
+    payload,
+  );
+  return data;
+}
+
+export async function generateDirectorIdeaConstellationOptions(
+  payload: DirectorIdeaConstellationOptionsRequest,
+): Promise<ApiResponse<DirectorIdeaConstellationOptionsResponse>> {
+  const { data } = await apiClient.post<ApiResponse<DirectorIdeaConstellationOptionsResponse>>(
+    "/novels/director/idea-constellation/options",
+    payload,
+  );
+  return data;
+}
+
+export async function composeDirectorIdeaConstellation(
+  payload: DirectorIdeaConstellationComposeRequest,
+): Promise<ApiResponse<DirectorIdeaConstellationComposeResponse>> {
+  const { data } = await apiClient.post<ApiResponse<DirectorIdeaConstellationComposeResponse>>(
+    "/novels/director/idea-constellation/compose",
     payload,
   );
   return data;

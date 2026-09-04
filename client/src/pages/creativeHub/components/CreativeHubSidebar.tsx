@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useMemo, useState } from "react";
 import type { FailureDiagnostic } from "@ai-novel/shared/types/agent";
 import type {
   CreativeHubInterrupt,
@@ -13,9 +13,8 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { toast } from "@/components/ui/toast";
 import { cn } from "@/lib/utils";
-import CreativeHubNovelSetupCard from "./CreativeHubNovelSetupCard";
-import NovelProductionStarterCard from "./NovelProductionStarterCard";
 import SelectControl from "@/components/common/SelectControl";
+import { Link } from "react-router-dom";
 
 interface CreativeHubSidebarProps {
   thread?: CreativeHubThread;
@@ -42,8 +41,6 @@ interface CreativeHubSidebarProps {
   onRetryNovels?: () => void;
   onNovelChange: (novelId: string) => void | Promise<void>;
   onQuickAction?: (prompt: string) => void;
-  onCreateNovel?: (title: string) => void | Promise<void>;
-  onStartProduction?: (prompt: string) => void | Promise<void>;
 }
 
 function bindingStatusLabel(value: string | null | undefined): string {
@@ -147,8 +144,8 @@ function buildBlockerCardData(input: {
         `当前阶段: ${input.productionStatus.currentStage}`,
       ].filter(Boolean),
       tone: "border-destructive/30 bg-destructive/5 text-foreground",
-      actionLabel: "处理当前阻塞",
-      actionPrompt: input.productionStatus.recoveryHint || "分析当前生产阻塞并继续推进",
+      actionLabel: "查看当前阻塞",
+      actionPrompt: input.productionStatus.recoveryHint || "分析当前生产阻塞和正式处理入口",
     };
   }
 
@@ -161,20 +158,22 @@ function buildBlockerCardData(input: {
         `状态: ${turnStatusLabel(input.latestTurnSummary.status)}`,
       ],
       tone: "border-info/30 bg-info/5 text-foreground",
-      actionLabel: "按建议继续",
-      actionPrompt: input.latestTurnSummary.nextSuggestion,
+      actionLabel: "查看建议",
+      actionPrompt: `解释当前建议和正式入口：${input.latestTurnSummary.nextSuggestion}`,
     };
   }
 
   return {
     title: "当前状态",
-    summary: "当前没有需要立即处理的阻塞项，可以继续推进创作。",
+    summary: "当前没有需要处理的状态问题，可以查看小说进度或执行记录。",
     details: input.latestTurnSummary?.nextSuggestion
       ? [`建议下一步: ${input.latestTurnSummary.nextSuggestion}`]
       : [],
     tone: "border-border bg-muted/20 text-foreground",
-    actionLabel: input.latestTurnSummary?.nextSuggestion ? "按建议继续" : undefined,
-    actionPrompt: input.latestTurnSummary?.nextSuggestion,
+    actionLabel: input.latestTurnSummary?.nextSuggestion ? "查看建议" : undefined,
+    actionPrompt: input.latestTurnSummary?.nextSuggestion
+      ? `解释当前建议和正式入口：${input.latestTurnSummary.nextSuggestion}`
+      : undefined,
   };
 }
 
@@ -207,13 +206,8 @@ export default function CreativeHubSidebar({
   onRetryNovels,
   onNovelChange,
   onQuickAction,
-  onCreateNovel,
-  onStartProduction,
 }: CreativeHubSidebarProps) {
-  const [novelTitleDraft, setNovelTitleDraft] = useState("");
   const [isBindingNovel, setIsBindingNovel] = useState(false);
-  const [isCreatingNovel, setIsCreatingNovel] = useState(false);
-  const creatingNovelInFlightRef = useRef(false);
   const selectedNovel = novels.find((item) => item.id === bindings.novelId);
   const currentNovelTitle = selectedNovel?.title
     ?? productionStatus?.title
@@ -231,16 +225,12 @@ export default function CreativeHubSidebar({
   const completedAssets = productionStatus?.assetStages.filter((item) => item.status === "completed").length ?? 0;
   const latestRunId = latestTurnSummary?.runId ?? thread?.latestRunId ?? null;
   const blockerActionPrompt = blocker.actionPrompt ?? "";
-  const resourceActionDisabled = actionDisabled || isBindingNovel || isCreatingNovel;
-
-  useEffect(() => {
-    setNovelTitleDraft("");
-  }, [thread?.id]);
+  const resourceActionDisabled = actionDisabled || isBindingNovel;
 
   return (
     <Card
       className="flex h-full min-h-0 flex-col rounded-lg shadow-none"
-      aria-busy={isBindingNovel || isCreatingNovel || novelsRetrying}
+      aria-busy={isBindingNovel || novelsRetrying}
     >
       <CardHeader className="pb-4">
         <CardTitle className="text-base">当前小说与状态</CardTitle>
@@ -297,57 +287,10 @@ export default function CreativeHubSidebar({
                   ) : null}
                 </div>
               ) : null}
-              {!bindings.novelId ? (
-                <div className="mt-2 space-y-2 rounded-md border border-dashed border-border bg-background p-2">
-                  <label htmlFor="creative-hub-new-novel" className="text-xs font-medium text-muted-foreground">新小说标题</label>
-                  <input
-                    id="creative-hub-new-novel"
-                    className="w-full rounded-md border border-input bg-muted/20 px-2 py-2 text-base text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-60 md:text-sm"
-                    value={novelTitleDraft}
-                    disabled={resourceActionDisabled}
-                    onChange={(event) => setNovelTitleDraft(event.target.value)}
-                    placeholder="输入新小说标题"
-                  />
-                  <div className="flex flex-wrap gap-2">
-                    <Button
-                      type="button"
-                      size="sm"
-                      variant="outline"
-                      disabled={resourceActionDisabled}
-                      onClick={() => onQuickAction?.("列出当前可用的小说工作区")}
-                    >
-                      查看小说
-                    </Button>
-                    <Button
-                      type="button"
-                      size="sm"
-                      disabled={resourceActionDisabled || !novelTitleDraft.trim()}
-                      onClick={async () => {
-                        if (creatingNovelInFlightRef.current) {
-                          return;
-                        }
-                        const title = novelTitleDraft.trim();
-                        if (!title) {
-                          return;
-                        }
-                        creatingNovelInFlightRef.current = true;
-                        setIsCreatingNovel(true);
-                        try {
-                          await onCreateNovel?.(title);
-                          setNovelTitleDraft("");
-                        } catch (error) {
-                          toast.error(error instanceof Error ? error.message : "小说创建失败，请重试。");
-                        } finally {
-                          creatingNovelInFlightRef.current = false;
-                          setIsCreatingNovel(false);
-                        }
-                      }}
-                    >
-                      {isCreatingNovel ? "正在创建..." : "创建并接入"}
-                    </Button>
-                  </div>
-                </div>
-              ) : null}
+              <div className="mt-2 flex flex-wrap gap-2">
+                <Button asChild size="sm" variant="outline"><Link to="/novels/create">创建小说</Link></Button>
+                {bindings.novelId ? <Button asChild size="sm" variant="outline"><Link to={`/novels/${bindings.novelId}/edit`}>打开小说工作台</Link></Button> : null}
+              </div>
             </div>
             <div className="grid gap-2 sm:grid-cols-2">
               <div>章节: {bindingStatusLabel(bindings.chapterId)}</div>
@@ -361,35 +304,13 @@ export default function CreativeHubSidebar({
           </div>
         </div>
 
-        {novelSetup ? (
-          <details className="rounded-md border border-border bg-background p-3">
-            <summary className="cursor-pointer text-xs font-medium text-muted-foreground">开书准备</summary>
-            <div className="mt-3">
-              <CreativeHubNovelSetupCard
-                setup={novelSetup}
-                actionDisabled={actionDisabled}
-                onQuickAction={onQuickAction}
-              />
-            </div>
-          </details>
-        ) : null}
-
-        {novelSetup?.stage === "setup_in_progress" || novelSetup?.stage === "ready_for_planning" ? null : (
-          <details className="rounded-md border border-border bg-background p-3">
-            <summary className="cursor-pointer text-xs font-medium text-muted-foreground">整本生产设置</summary>
-            <div className="mt-3">
-              <NovelProductionStarterCard
-                key={bindings.novelId ?? "new-novel"}
-                currentNovelId={bindings.novelId ?? null}
-                currentNovelTitle={currentNovelTitle}
-                productionStatus={productionStatus}
-                actionDisabled={actionDisabled}
-                onQuickAction={onQuickAction}
-                onSubmit={(prompt) => onStartProduction?.(prompt)}
-              />
-            </div>
-          </details>
-        )}
+        <div className="rounded-md border border-info/30 bg-info/5 p-3">
+          <div className="text-xs font-medium text-info">正式创作入口</div>
+          <div className="mt-2 text-sm leading-6 text-foreground">完整的小说创建、Agent 生产和自动导演流程，请从正式工作台继续。</div>
+          <div className="mt-3 flex flex-wrap gap-2">
+            <Button asChild size="sm"><Link to="/novels/auto-director">打开 AI 自动导演</Link></Button>
+          </div>
+        </div>
 
         <div className={cn("rounded-md border p-3", blocker.tone)}>
           <div className="mb-2 flex items-center justify-between gap-2">

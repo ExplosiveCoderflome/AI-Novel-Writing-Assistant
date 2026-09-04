@@ -9,10 +9,14 @@ import {
   isWorkflowRunningInBackground,
   requiresCandidateSelection,
 } from "@/lib/novelWorkflowTaskUi";
+import { featureFlags } from "@/config/featureFlags";
 
 export const HOME_NOVEL_FETCH_LIMIT = 12;
 export const HOME_RECENT_LIMIT = 6;
 export const DIRECTOR_CREATE_LINK = "/novels/auto-director";
+export const SHORT_STORY_CREATE_LINK = featureFlags.creationStudioEnabled
+  ? "/create?form=short_story"
+  : null;
 export const MANUAL_CREATE_LINK = "/novels/create";
 
 export type HomeNovelItem = NovelListResponse["items"][number];
@@ -52,6 +56,12 @@ export interface HomeNextAction {
   tone: HomeTone;
 }
 
+export function getHomeNovelTask(novel: HomeNovelItem) {
+  return novel.narrativeForm === "short_story"
+    ? novel.latestCreationStudioTask ?? null
+    : novel.latestAutoDirectorTask ?? null;
+}
+
 export function formatHomeDate(value: string | undefined): string {
   if (!value) {
     return "暂无";
@@ -64,7 +74,7 @@ export function formatHomeDate(value: string | undefined): string {
 }
 
 export function getNovelPriorityScore(novel: HomeNovelItem): number {
-  const task = novel.latestAutoDirectorTask ?? null;
+  const task = getHomeNovelTask(novel);
   if (canContinueChapterBatchAutoExecution(task)) {
     return 0;
   }
@@ -87,7 +97,7 @@ export function getNovelPriorityScore(novel: HomeNovelItem): number {
 }
 
 export function getNovelLeadSummary(novel: HomeNovelItem): string {
-  const workflowDescription = getWorkflowDescription(novel.latestAutoDirectorTask ?? null);
+  const workflowDescription = getWorkflowDescription(getHomeNovelTask(novel));
   if (workflowDescription) {
     return workflowDescription;
   }
@@ -119,19 +129,31 @@ export function buildHomeNextAction(primaryNovel: HomeNovelItem | null): HomeNex
     return {
       kind: "starter",
       eyebrow: "开始第一本小说",
-      title: "用一句灵感启动自动导演",
-      description: "先给 AI 一个模糊想法，系统会帮你整理方向、角色、世界观和章节准备。",
-      reason: "适合还没想清楚题材、卖点和前期承诺的新手。",
+      title: "选择适合你的第一种创作方式",
+      description: "想完成长篇，可以交给自动导演准备整本结构；想更快看到完整作品，可以直接从短篇开始。",
+      reason: "两种方式都只需要先说出一个模糊想法，AI 会继续帮你整理创作方向。",
       tone: "info",
     };
   }
 
-  const task = primaryNovel.latestAutoDirectorTask ?? null;
+  const task = getHomeNovelTask(primaryNovel);
+  if (primaryNovel.narrativeForm === "short_story") {
+    return {
+      kind: "novel",
+      eyebrow: task?.status === "succeeded" ? "完整作品" : "创作进行中",
+      title: task?.status === "succeeded" ? "继续完善这篇作品" : "查看成稿进度",
+      description: getNovelLeadSummary(primaryNovel),
+      reason: task?.status === "succeeded"
+        ? "作品已完整生成，可以直接阅读、编辑、修改或导出。"
+        : "短篇正在后台写成一篇连续作品，打开后即可查看实时进度。",
+      tone: task?.status === "succeeded" ? "success" : "info",
+    };
+  }
   if (canContinueChapterBatchAutoExecution(task)) {
     return {
       kind: "novel",
       eyebrow: "推荐下一步",
-      title: `恢复《${primaryNovel.title}》的章节执行`,
+      title: "恢复章节创作",
       description: getNovelLeadSummary(primaryNovel),
       reason: "章节批次停在可恢复节点，先恢复执行能最快回到正文生产。",
       tone: "danger",
@@ -141,7 +163,7 @@ export function buildHomeNextAction(primaryNovel: HomeNovelItem | null): HomeNex
     return {
       kind: "novel",
       eyebrow: "推荐下一步",
-      title: `确认《${primaryNovel.title}》的书级方向`,
+      title: "确认整本故事方向",
       description: getNovelLeadSummary(primaryNovel),
       reason: "确认方向后，系统才能继续准备世界观、角色和章节执行计划。",
       tone: "warning",
@@ -151,7 +173,7 @@ export function buildHomeNextAction(primaryNovel: HomeNovelItem | null): HomeNex
     return {
       kind: "novel",
       eyebrow: "推荐下一步",
-      title: `继续《${primaryNovel.title}》的自动导演`,
+      title: "继续准备整本小说",
       description: getNovelLeadSummary(primaryNovel),
       reason: "当前阶段等待确认，继续后会推进到下一段可执行准备。",
       tone: "warning",
@@ -160,8 +182,8 @@ export function buildHomeNextAction(primaryNovel: HomeNovelItem | null): HomeNex
   if (task?.status === "running" || task?.status === "queued") {
     return {
       kind: "novel",
-      eyebrow: "系统推进中",
-      title: `关注《${primaryNovel.title}》的后台进度`,
+      eyebrow: "AI 创作中",
+      title: "查看创作进度",
       description: getNovelLeadSummary(primaryNovel),
       reason: "自动导演或章节执行仍在后台处理，可以查看进度和最近阶段。",
       tone: "info",
@@ -171,7 +193,7 @@ export function buildHomeNextAction(primaryNovel: HomeNovelItem | null): HomeNex
     return {
       kind: "novel",
       eyebrow: "推荐下一步",
-      title: `进入《${primaryNovel.title}》的章节执行`,
+      title: "开始创作章节",
       description: getNovelLeadSummary(primaryNovel),
       reason: "规划资产已经能支撑章节生产，可以进入正文生成和审阅。",
       tone: "success",
@@ -181,7 +203,7 @@ export function buildHomeNextAction(primaryNovel: HomeNovelItem | null): HomeNex
     return {
       kind: "novel",
       eyebrow: "需要处理",
-      title: `查看《${primaryNovel.title}》的推进状态`,
+      title: "处理创作中断",
       description: getNovelLeadSummary(primaryNovel),
       reason: "任务存在暂停或失败记录，先查看详情再决定恢复、重试或调整。",
       tone: "danger",
@@ -190,7 +212,7 @@ export function buildHomeNextAction(primaryNovel: HomeNovelItem | null): HomeNex
   return {
     kind: "novel",
     eyebrow: "推荐下一步",
-    title: `继续编辑《${primaryNovel.title}》`,
+    title: "继续完善小说",
     description: getNovelLeadSummary(primaryNovel),
     reason: "没有更高优先级的阻塞项，可以回到项目主页继续完善资料或章节。",
     tone: "neutral",
@@ -202,44 +224,46 @@ export function buildHomeMetrics(input: {
   taskOverview?: TaskOverviewSummary | null;
 }): HomeMetric[] {
   const liveWorkflowCount = input.novels.filter((novel) => (
-    isWorkflowRunningInBackground(novel.latestAutoDirectorTask ?? null)
+    isWorkflowRunningInBackground(getHomeNovelTask(novel))
   )).length;
   const actionRequiredCount = input.novels.filter((novel) => (
-    isWorkflowActionRequired(novel.latestAutoDirectorTask ?? null)
+    isWorkflowActionRequired(getHomeNovelTask(novel))
   )).length;
   const readyForExecutionCount = input.novels.filter((novel) => (
-    canEnterChapterExecution(novel.latestAutoDirectorTask ?? null)
+    novel.narrativeForm === "short_story"
+      ? getHomeNovelTask(novel)?.status === "succeeded"
+      : canEnterChapterExecution(getHomeNovelTask(novel))
   )).length;
-  const failedTaskCount = input.taskOverview?.failedCount ?? 0;
+  const totalChapterCount = input.novels.reduce((sum, novel) => sum + novel._count.chapters, 0);
 
   return [
     {
       id: "running",
-      title: "推进中",
+      title: "正在创作",
       value: liveWorkflowCount,
-      hint: "最近项目中后台处理的自动导演或章节执行。",
+      hint: "AI 正在推进的小说或章节。",
       tone: "info",
     },
     {
       id: "attention",
-      title: "待处理",
+      title: "等待你确认",
       value: actionRequiredCount,
-      hint: "等待确认、暂停或失败后需要决策的项目。",
+      hint: "确认后即可继续创作的项目。",
       tone: actionRequiredCount > 0 ? "warning" : "success",
     },
     {
       id: "chapter-ready",
-      title: "可写章节",
+      title: "可以开始写",
       value: readyForExecutionCount,
-      hint: "规划准备完成，可以进入章节执行的项目。",
+      hint: "故事准备充分，可以进入正文。",
       tone: readyForExecutionCount > 0 ? "success" : "neutral",
     },
     {
-      id: "failed",
-      title: "失败任务",
-      value: failedTaskCount,
-      hint: "来自任务中心的失败任务，需要集中处理。",
-      tone: failedTaskCount > 0 ? "danger" : "success",
+      id: "chapters",
+      title: "已沉淀章节",
+      value: totalChapterCount,
+      hint: "所有作品中持续积累的章节。",
+      tone: totalChapterCount > 0 ? "info" : "neutral",
     },
   ];
 }
@@ -249,10 +273,12 @@ export function buildHomeAttentionItems(input: {
   taskOverview?: TaskOverviewSummary | null;
 }): HomeAttentionItem[] {
   const actionRequiredCount = input.novels.filter((novel) => (
-    isWorkflowActionRequired(novel.latestAutoDirectorTask ?? null)
+    isWorkflowActionRequired(getHomeNovelTask(novel))
   )).length;
   const readyForExecutionCount = input.novels.filter((novel) => (
-    canEnterChapterExecution(novel.latestAutoDirectorTask ?? null)
+    novel.narrativeForm === "short_story"
+      ? getHomeNovelTask(novel)?.status === "succeeded"
+      : canEnterChapterExecution(getHomeNovelTask(novel))
   )).length;
   const runningCount = input.taskOverview?.runningCount ?? 0;
   const waitingApprovalCount = input.taskOverview?.waitingApprovalCount ?? 0;

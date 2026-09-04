@@ -58,7 +58,6 @@ export class DefaultNovelApplicationServices {
   private readonly chapterEditorService = new NovelChapterEditorService();
   private readonly chapterRuntimeCoordinator = new ChapterRuntimeCoordinator();
   private readonly qualityRepairCoordinator = new ChapterRuntimeCoordinator({
-    reviewChapterAfterRepair: (novelId, chapterId, options) => this.core.reviewChapter(novelId, chapterId, options),
     resolveAuditIssues: (novelId, issueIds) => this.core.resolveAuditIssues(novelId, issueIds),
   });
 
@@ -595,6 +594,10 @@ export class DefaultNovelApplicationServices {
 
   applyCharacterCastOption(...args: Parameters<CharacterPreparationService["applyCharacterCastOption"]>) {
     return this.characterPreparationService.applyCharacterCastOption(...args);
+  }
+
+  runDeferredCharacterEnhancements(...args: Parameters<CharacterPreparationService["runDeferredEnhancements"]>) {
+    return this.characterPreparationService.runDeferredEnhancements(...args);
   }
 
   generateSupplementalCharacters(...args: Parameters<CharacterPreparationService["generateSupplementalCharacters"]>) {

@@ -1,5 +1,5 @@
 import { HumanMessage, SystemMessage } from "@langchain/core/messages";
-import type { ZodError, ZodType } from "zod";
+import { toJSONSchema, type ZodError, type ZodType } from "zod";
 import type { LLMProvider } from "@ai-novel/shared/types/llm";
 import type { ModelRouteRequestProtocol } from "@ai-novel/shared/types/novel";
 import { getLLM } from "./factory";
@@ -52,6 +52,29 @@ interface RepairHelpers<T> {
     repairAttempt?: number;
     strategy?: StructuredOutputStrategy;
   }) => void;
+}
+
+const MAX_REPAIR_SOURCE_CHARS = 12_000;
+
+function buildRepairSchemaContract<T>(schema: ZodType<T>): string {
+  try {
+    return JSON.stringify(toJSONSchema(schema), null, 2);
+  } catch {
+    return "目标 Schema 无法序列化；仍须严格按照校验错误中的字段路径补齐。";
+  }
+}
+
+function compactRepairSource(rawContent: string): string {
+  if (rawContent.length <= MAX_REPAIR_SOURCE_CHARS) {
+    return rawContent;
+  }
+  const head = rawContent.slice(0, 9_000);
+  const tail = rawContent.slice(-2_000);
+  return [
+    head,
+    "\n...[中间的异常重复或退化内容已省略，不能复述或延续]...\n",
+    tail,
+  ].join("");
 }
 
 function extractValidationPaths(validationError: string): string[] {
@@ -173,10 +196,15 @@ export async function repairWithLlm<T>(
     "如果缺失必填字符串字段，必须补出非空字符串；可根据原始 JSON 中已有内容做最小、保守、语义一致的补全，不能输出空字符串、null 或 undefined。",
     "如果校验错误是 expected string, received number/boolean，必须保留原值语义并改成 JSON 字符串，例如 19 改为 \"19\"、true 改为 \"true\"，不要删除字段。",
     "如果校验错误指出某个数组数量过多或过少，必须把该路径的数组长度修正到错误里要求的精确数量，不能停留在接近正确的数量。",
+    "目标 JSON Schema 是最终字段合同；即使原始输出已截断、退化或缺少大量字段，也必须依据 Schema 重建完整对象。",
+    "遇到无意义复读、乱码、失控长文本时，丢弃异常段落并用最短的语义一致内容重建，禁止继续复述损坏内容。",
+    "所有字符串保持简洁，只保留通过结构校验与恢复原意所需的信息。",
   ].join("\n");
 
   const validationPaths = extractValidationPaths(validationError);
   const arrayLengthHints = extractArrayLengthRepairHints(validationError);
+  const repairSchemaContract = buildRepairSchemaContract(input.schema);
+  const repairSource = compactRepairSource(rawContent);
 
   const repairHuman = [
     `校验失败：${input.label}`,
@@ -193,8 +221,11 @@ export async function repairWithLlm<T>(
         : `- ${formatIssuePath(hint.path)} 必须最终补足到恰好 ${hint.exactLength} 项；如果当前不足，按原顺序保留已有项并补齐缺失项。`),
     ] : []),
     "",
+    "目标 JSON Schema（字段名、类型、必填项与长度约束以此为准）：",
+    repairSchemaContract,
+    "",
     "原始模型输出（可能包含多余文本、markdown 或截断）：",
-    rawContent,
+    repairSource,
     "",
     "请修复后只输出最终 JSON。",
   ].join("\n");

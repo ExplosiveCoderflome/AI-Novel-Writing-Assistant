@@ -23,11 +23,13 @@
 ## Auto-Director Quality Gate Rules (Highest Priority)
 
 - Chapter audit, acceptance, and quality-loop results must not automatically block the global auto-director or full-book execution chain.
+- This non-blocking behavior is the default for the completion-first issue policy. When the task snapshot explicitly selects a quality-first policy and its unified issue decision is `pause_for_manual`, the pipeline must pause at the saved chapter boundary and wait for explicit recovery instead of overriding the preset.
 - Non-global chapter quality problems, including `local_patch_plan`, `continue_with_warning`, `patchable_obligation_gap`, `draft_obligation_unmet`, recoverable repair failures, and `defer_and_continue` quality debt, must be recorded as chapter-level quality debt or local repair guidance and allow the remaining chapter range to continue.
 - Only an explicit `stop_for_replan`, `replan_required`, `recommendedAction=replan`, unrecoverable generation failure with no usable chapter content, or a runtime safety/data integrity failure may stop the global chain.
 - Do not route local audit issues into `replanAlertDetails`, `PIPELINE_REPLAN_REQUIRED`, or the `replan_required` checkpoint unless the structured AI/runtime decision explicitly says the neighboring chapter plan must stop for replan.
 - If local repair has already been attempted and residual issues remain but the chapter has usable content, prefer degraded finalization plus quality debt over failing the whole auto-director task.
 - UI, task projection, and recovery logic must preserve this distinction: local quality debt is a visible warning and follow-up item, not a failed auto-director workflow.
+- A policy-driven manual pause must use the existing pending-manual-recovery state. Background polling and worker recovery must not clear it; only an explicit user recovery command may resume the pipeline.
 - Book-level auto-director projections with `failed`, `blocked`, or `waiting_recovery` status and a latest task must remain visible in AI cockpit, task drawer, and recovery entrypoints even when the URL does not include `directorTaskId`; `workspaceTaskId` is a manual workspace lane and must never be used as a substitute director task id.
 
 ## Product Context (Highest Priority)
@@ -42,6 +44,15 @@
 - Do not assume the primary user can manually repair structure, pacing, character arcs, or chapter planning without substantial AI support.
 - If there is a tradeoff between expert-oriented flexibility and beginner completion rate, prefer the path that better helps a novice user successfully produce a complete novel.
 
+## Task Center Role Rules (Highest Priority)
+
+- The task center is presented to users as “运行记录”. It is a read-only list for task status, progress, errors, recovery location, history, and source-page navigation; it is not a workflow operation surface.
+- Do not place task-mutating actions in the task center, including continue, recover, retry, cancel, replan, repair, approve, or archive actions.
+- Put each workflow action on the source page or workbench where the user can see the relevant creative context, affected scope, saved results, and consequence of the action.
+- The task center may refresh, filter, select, inspect, and open a source page. These read and navigation controls must not change task state.
+- Task projections and recovery candidates must carry a stable source route so a failed or paused record can return the user to the correct actionable page.
+- Product copy and documentation must not instruct users to perform recovery or retry inside the task center. It may tell users to inspect the record there and then return to the source page to act.
+
 ## UI Copy Rules
 
 - All user-facing UI copy must explain the function from the user's perspective: what the user can do, what the system is helping with, or what the next step is.
@@ -55,12 +66,21 @@
 - If a workflow belongs in another module, explain the correct user entry point directly, for example "从小说基础信息设置书级默认写法", rather than "书级默认写法已经迁回小说页".
 - Before finishing UI work, review newly added copy and rewrite any sentence that sounds like it is talking to the developer or describing the modification process.
 
+## UI Visual Rules
+
+- The client uses project-owned UI primitives, Tailwind CSS, and semantic CSS variables. Do not add or install new shadcn/ui components, run shadcn generators, or treat shadcn defaults as the product's visual authority. Existing files under `client/src/components/ui/` are maintained as project-owned compatibility primitives.
+- Use a low-border visual hierarchy by default. Ordinary content grouping must rely on typography, spacing, alignment, subtle background contrast, and section dividers instead of visible card borders and shadows.
+- Default content surfaces must not render a visible border or shadow. Add a border only when it communicates an interaction or semantic boundary: form controls, selected or focus state, warning/error state, table/list separation, drag/drop targets, or floating layers such as dialogs and menus.
+- Avoid nested bordered cards. When a surface already establishes the outer boundary, inner groups should be borderless rows, sections, muted backgrounds, or separators.
+- Shadows are reserved for floating layers and temporary elevation. Persistent page content, dashboards, lists, and settings sections should remain flat unless a documented interaction requires elevation.
+- Before finishing UI work, inspect the result for repeated rectangles. If removing a border does not reduce comprehension or interaction clarity, remove it.
+
 ## Architecture Rules
 
 - If a single source file becomes too long, it must be split into functional modules.
-- Preferred threshold: keep a single source file around 600 lines.
-- Floating range: 500-700 lines is acceptable when module cohesion is still clear and the file is not becoming hard to maintain.
-- Hard threshold: when a source file exceeds 700 lines, refactoring and modularization are mandatory before continuing feature expansion.
+- Preferred threshold: keep a single source file around 1,200 lines.
+- Floating range: 1,000-1,300 lines is acceptable when module cohesion is still clear and the file is not becoming hard to maintain.
+- Hard threshold: when a source file exceeds 1,300 lines, refactoring and modularization are mandatory before continuing feature expansion.
 - Long-file splitting must improve module boundaries, not merely reduce line count.
 - Before splitting a long file, list its responsibilities and separate business rules, application orchestration, persistence/external adapters, and HTTP/API mapping.
 - Do not split an oversized file by adding loose same-level files such as generic `helper`, `utils`, `shared`, or `runtime` files without clear module ownership.

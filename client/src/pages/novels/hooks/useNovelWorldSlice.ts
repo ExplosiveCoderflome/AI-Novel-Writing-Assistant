@@ -97,18 +97,26 @@ export function useNovelWorldSlice({
         queryClient.invalidateQueries({ queryKey: queryKeys.novels.novelWorld(novelId) }),
         queryClient.invalidateQueries({ queryKey: queryKeys.novels.worldSlice(novelId) }),
         queryClient.invalidateQueries({ queryKey: queryKeys.novels.detail(novelId) }),
+        queryClient.invalidateQueries({ queryKey: queryKeys.novels.all }),
       ]);
     },
   });
 
   const generateNovelWorldMutation = useMutation({
-    mutationFn: (payload: NovelWorldGenerateInput) => generateNovelWorldFromTheme(novelId, payload),
+    mutationFn: (payload: NovelWorldGenerateInput) =>
+      generateNovelWorldFromTheme(novelId, {
+        ...payload,
+        provider: llm.provider,
+        model: llm.model,
+        temperature: llm.temperature,
+      }),
     onSuccess: async () => {
       setWorldSliceMessage("已根据本书主题生成世界，并保存到世界库供后续复用。");
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: queryKeys.novels.novelWorld(novelId) }),
         queryClient.invalidateQueries({ queryKey: queryKeys.novels.worldSlice(novelId) }),
         queryClient.invalidateQueries({ queryKey: queryKeys.novels.detail(novelId) }),
+        queryClient.invalidateQueries({ queryKey: queryKeys.novels.all }),
         queryClient.invalidateQueries({ queryKey: queryKeys.worlds.all }),
       ]);
     },
@@ -122,6 +130,7 @@ export function useNovelWorldSlice({
         queryClient.invalidateQueries({ queryKey: queryKeys.novels.novelWorld(novelId) }),
         queryClient.invalidateQueries({ queryKey: queryKeys.novels.worldSlice(novelId) }),
         queryClient.invalidateQueries({ queryKey: queryKeys.novels.detail(novelId) }),
+        queryClient.invalidateQueries({ queryKey: queryKeys.novels.all }),
         queryClient.invalidateQueries({ queryKey: queryKeys.worlds.all }),
       ]);
     },
@@ -135,6 +144,7 @@ export function useNovelWorldSlice({
         queryClient.invalidateQueries({ queryKey: queryKeys.novels.novelWorld(novelId) }),
         queryClient.invalidateQueries({ queryKey: queryKeys.novels.novelWorldSyncDiff(novelId) }),
         queryClient.invalidateQueries({ queryKey: queryKeys.novels.detail(novelId) }),
+        queryClient.invalidateQueries({ queryKey: queryKeys.novels.all }),
         queryClient.invalidateQueries({ queryKey: queryKeys.worlds.all }),
       ]);
     },
@@ -155,6 +165,7 @@ export function useNovelWorldSlice({
         queryClient.invalidateQueries({ queryKey: queryKeys.novels.novelWorldSyncDiff(novelId) }),
         queryClient.invalidateQueries({ queryKey: queryKeys.novels.worldSlice(novelId) }),
         queryClient.invalidateQueries({ queryKey: queryKeys.novels.detail(novelId) }),
+        queryClient.invalidateQueries({ queryKey: queryKeys.novels.all }),
         queryClient.invalidateQueries({ queryKey: queryKeys.worlds.all }),
       ]);
     },

@@ -60,6 +60,7 @@ type ChapterDraftStepInput =
     resumeCheckpointType?: "chapter_batch_ready" | "replan_required" | null;
     previousFailureMessage?: string | null;
     allowSkipReviewBlockedChapter?: boolean;
+    resumePendingManualRecovery?: boolean;
   }
   | {
     mode: "manual";
@@ -223,6 +224,7 @@ function createChapterDraftExecutableModule(
             : "chapter_batch_ready",
           previousFailureMessage: state.task.lastError ?? null,
           allowSkipReviewBlockedChapter: requestedAutoExecutionContinue && isDirectorAutoExecutionRunMode(directorRequest.runMode),
+          resumePendingManualRecovery: requestedAutoExecutionContinue,
         };
       },
       validateOutput: async (_output, context) => {
@@ -236,6 +238,17 @@ function createChapterDraftExecutableModule(
           : null;
         const observedState = freshState ?? state;
         const progress = await inspectFreshScopedProgress({ novelId, state: observedState, request });
+        if (observedState.task.pendingManualRecovery) {
+          return {
+            valid: true,
+            evidence: {
+              pendingManualRecovery: true,
+              draftedChapterCount: progress?.draftedChapterCount ?? 0,
+              totalChapters: progress?.totalChapters ?? 0,
+              lastError: observedState.task.lastError ?? null,
+            },
+          };
+        }
         const hasObservedDraft = Boolean(
           progress
           && progress.totalChapters > 0
@@ -388,6 +401,16 @@ function createChapterDraftExecutableModule(
           && progress.totalChapters > 0
           && progress.draftedChapterCount >= progress.totalChapters,
         );
+      },
+      acceptablePauseCriteria: async (_output, context) => {
+        const directorTaskId = getWorkflowStepDirectorTaskId(context);
+        const freshState = directorTaskId
+          ? await getDirectorCoreStateReader().readByTaskId(directorTaskId).catch(() => null)
+          : null;
+        const { state } = freshState
+          ? { state: freshState }
+          : await loadDirectorModuleState(context);
+        return state.task.pendingManualRecovery === true;
       },
     },
   );
@@ -606,7 +629,7 @@ export const DIRECTOR_EXECUTION_STEP_MODULES: Record<
     id: DIRECTOR_EXECUTION_STEP_IDS.chapter_execution,
     stage: "chapter_execution",
     adapter: getDirectorExecutionNodeAdapter("chapter_execution"),
-    promptAssets: [{ id: "novel.chapter.writer", version: "v5" }],
+    promptAssets: [{ id: "novel.chapter.writer", version: "v6" }],
   })),
   chapter_quality_review: createFactOnlyExecutionModule({
     descriptor: createWorkflowStepDescriptorFromDirectorAdapter({

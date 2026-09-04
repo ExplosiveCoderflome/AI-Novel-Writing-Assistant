@@ -15,7 +15,9 @@ import {
   type DirectorRefinementRequest,
 } from "@ai-novel/shared/types/novelDirector";
 import type { TitleFactorySuggestion } from "@ai-novel/shared/types/title";
+import type { NovelCreateResourceRecommendation } from "@ai-novel/shared/types/novelResourceRecommendation";
 import { runStructuredPrompt } from "../../../../prompting/core/promptRunner";
+import { novelCreateResourceRecommendationService } from "../../NovelCreateResourceRecommendationService";
 import {
   buildDirectorCandidateContextBlocks,
   directorCandidatePatchPrompt,
@@ -29,9 +31,11 @@ import {
   buildWorkflowSeedPayload,
   enhanceCandidateTitles,
   normalizeCandidate,
+  selectDistinctCandidateTitle,
   type CandidateGenerationContext,
 } from "../runtime/novelDirectorHelpers";
 import { DIRECTOR_PROGRESS } from "../projections/novelDirectorProgress";
+import { marketRadarService } from "../../../../modules/marketRadar/application/MarketRadarService";
 
 type WorkflowDependency = Pick<NovelWorkflowService, "bootstrapTask" | "markTaskRunning" | "recordCandidateSelectionRequired">;
 
@@ -175,7 +179,10 @@ export class NovelDirectorCandidateStageService {
     });
   }
 
-  private async generateBatch(context: CandidateGenerationContext & { workflowTaskId?: string }): Promise<{ batch: DirectorCandidateBatch }> {
+  private async generateBatch(context: CandidateGenerationContext & {
+    workflowTaskId?: string;
+    productionFoundation?: NovelCreateResourceRecommendation;
+  }): Promise<{ batch: DirectorCandidateBatch }> {
     await this.markCandidateProgress(
       context.workflowTaskId,
       "candidate_direction_batch",
@@ -204,10 +211,19 @@ export class NovelDirectorCandidateStageService {
         provider: context.options.provider,
         model: context.options.model,
         temperature: clampTemperature(context.options.temperature, 0.45),
+        taskId: context.workflowTaskId,
+        stage: "auto_director",
+        itemKey: "candidate_direction_batch",
+        entrypoint: "auto_director_create",
       },
     });
 
-    const normalizedCandidates = parsed.output.candidates.map((candidate, index) => normalizeCandidate(candidate, index));
+    const productionFoundation = context.productionFoundation
+      ?? context.batches.at(-1)?.candidates[0]?.productionFoundation;
+    const normalizedCandidates = parsed.output.candidates.map((candidate, index) => ({
+      ...normalizeCandidate(candidate, index),
+      productionFoundation,
+    }));
 
     await this.markCandidateProgress(
       context.workflowTaskId,
@@ -215,9 +231,26 @@ export class NovelDirectorCandidateStageService {
       "正在为每套方案补强书名组",
       DIRECTOR_PROGRESS.candidateTitlePack,
     );
-    const enrichedCandidates = await Promise.all(
+    const independentlyEnrichedCandidates = await Promise.all(
       normalizedCandidates.map((candidate) => enhanceCandidateTitles(candidate, context)),
     );
+    const enrichedCandidates: DirectorCandidate[] = [];
+    const selectedTitles: string[] = [];
+    for (let index = 0; index < independentlyEnrichedCandidates.length; index += 1) {
+      const enrichedCandidate = independentlyEnrichedCandidates[index];
+      let distinctCandidate = selectDistinctCandidateTitle(enrichedCandidate, selectedTitles);
+      if (!distinctCandidate) {
+        const regeneratedCandidate = await enhanceCandidateTitles(normalizedCandidates[index], context, {
+          excludedTitles: selectedTitles,
+        });
+        distinctCandidate = selectDistinctCandidateTitle(regeneratedCandidate, selectedTitles);
+      }
+      if (!distinctCandidate) {
+        throw new Error(`第 ${index + 1} 套方案未能生成与其他方案区分开的书名，请重试。`);
+      }
+      enrichedCandidates.push(distinctCandidate);
+      selectedTitles.push(distinctCandidate.workingTitle);
+    }
 
     const round = (context.batches.at(-1)?.round ?? 0) + 1;
     return {
@@ -235,12 +268,59 @@ export class NovelDirectorCandidateStageService {
   }
 
   async generateCandidates(input: DirectorCandidatesRequest): Promise<DirectorCandidatesResponse> {
-    if (input.workflowTaskId?.trim()) {
+    const marketBriefPrompt = await marketRadarService.getBriefPromptBlock(input.marketBriefId);
+    const { novelReferenceService } = await import("../../NovelReferenceService");
+    const referenceAnalysisPrompt = await novelReferenceService.buildReferenceFromAnalysisId(
+      input.writingMode === "continuation" ? input.continuationBookAnalysisId : input.referenceBookAnalysisId,
+      "outline",
+      input.writingMode === "continuation"
+        ? input.continuationBookAnalysisSections
+        : input.referenceBookAnalysisSections,
+    );
+    const foundation = await novelCreateResourceRecommendationService.resolveRequired({
+      marketBriefPrompt,
+      title: input.title,
+      description: input.description || input.idea,
+      targetAudience: input.targetAudience,
+      bookSellingPoint: input.bookSellingPoint,
+      competingFeel: input.competingFeel,
+      first30ChapterPromise: input.first30ChapterPromise,
+      commercialTags: input.commercialTags,
+      genreId: input.genreId,
+      primaryStoryModeId: input.primaryStoryModeId,
+      secondaryStoryModeId: input.secondaryStoryModeId,
+      writingMode: input.writingMode,
+      projectMode: input.projectMode,
+      narrativePov: input.narrativePov,
+      pacePreference: input.pacePreference,
+      styleTone: input.styleTone,
+      emotionIntensity: input.emotionIntensity,
+      aiFreedom: input.aiFreedom,
+      provider: input.provider,
+      model: input.model,
+      temperature: input.temperature,
+    });
+    const resolvedInput: DirectorCandidatesRequest = {
+      ...input,
+      marketBriefPrompt,
+      genreId: foundation.genreId,
+      primaryStoryModeId: foundation.primaryStoryModeId,
+      secondaryStoryModeId: foundation.secondaryStoryModeId,
+      productionFoundationPrompt: [
+        foundation.promptBlock,
+        referenceAnalysisPrompt
+          ? input.writingMode === "continuation"
+            ? `续写来源约束：保留原作既有事实、角色关系、世界规则和未完线索。\n${referenceAnalysisPrompt}`
+            : `结构参考：只借鉴结构机制、节奏和写法，禁止沿用原作专名、角色、世界事实和具体剧情。\n${referenceAnalysisPrompt}`
+          : "",
+      ].filter(Boolean).join("\n\n"),
+    };
+    if (resolvedInput.workflowTaskId?.trim()) {
       await this.workflowService.bootstrapTask({
-        workflowTaskId: input.workflowTaskId,
+        workflowTaskId: resolvedInput.workflowTaskId,
         lane: "auto_director",
-        title: input.title ?? null,
-        seedPayload: buildWorkflowSeedPayload(input, {
+        title: resolvedInput.title ?? null,
+        seedPayload: buildWorkflowSeedPayload(resolvedInput, {
           batches: [],
           candidateStage: {
             mode: "generate",
@@ -263,24 +343,26 @@ export class NovelDirectorCandidateStageService {
     );
 
     const result = await this.generateBatch({
-      idea: input.idea,
+      idea: resolvedInput.idea,
       count: 2,
       batches: [],
       presets: [],
-      request: input,
-      options: input,
-      workflowTaskId: input.workflowTaskId,
+      request: resolvedInput,
+      options: resolvedInput,
+      workflowTaskId: resolvedInput.workflowTaskId,
+      productionFoundation: foundation.recommendation,
     });
-    if (!input.workflowTaskId?.trim()) {
+    if (!resolvedInput.workflowTaskId?.trim()) {
       return result;
     }
 
     const workflowTask = await this.workflowService.bootstrapTask({
-      workflowTaskId: input.workflowTaskId,
+      workflowTaskId: resolvedInput.workflowTaskId,
       lane: "auto_director",
-      title: input.title ?? null,
-      seedPayload: buildWorkflowSeedPayload(input, {
+      title: resolvedInput.title ?? null,
+      seedPayload: buildWorkflowSeedPayload(resolvedInput, {
         batches: [result.batch],
+        productionFoundation: foundation.recommendation,
         candidateStage: {
           mode: "generate",
         },
@@ -288,8 +370,9 @@ export class NovelDirectorCandidateStageService {
     });
     await this.workflowService.recordCandidateSelectionRequired(workflowTask.id, {
       summary: `${result.batch.roundLabel} 已生成 ${result.batch.candidates.length} 套书级方向，并完成每套书名组。`,
-      seedPayload: buildWorkflowSeedPayload(input, {
+      seedPayload: buildWorkflowSeedPayload(resolvedInput, {
         batches: [result.batch],
+        productionFoundation: foundation.recommendation,
         candidateStage: {
           mode: "generate",
         },
@@ -432,6 +515,10 @@ export class NovelDirectorCandidateStageService {
         provider: input.provider,
         model: input.model,
         temperature: clampTemperature(input.temperature, 0.4),
+        taskId: input.workflowTaskId,
+        stage: "auto_director",
+        itemKey: "candidate_direction_batch",
+        entrypoint: "auto_director_create",
       },
     });
 
@@ -444,6 +531,7 @@ export class NovelDirectorCandidateStageService {
     const enrichedCandidate = await enhanceCandidateTitles({
       ...normalizeCandidate(parsed.output, 0),
       id: targetCandidate.id,
+      productionFoundation: targetCandidate.productionFoundation,
     }, {
       idea: input.idea,
       count: 1,

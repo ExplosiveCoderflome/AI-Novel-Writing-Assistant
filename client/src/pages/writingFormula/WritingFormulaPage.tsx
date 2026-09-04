@@ -500,11 +500,11 @@ export default function WritingFormulaPage() {
   }, [selectedProfileId]);
 
   return (
-    <div className="flex h-full min-h-0 flex-col gap-4">
+    <div className="writing-formula-theme flex h-full min-h-0 flex-col gap-4">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="space-y-1">
-          <div className="text-sm font-medium uppercase tracking-[0.18em] text-slate-500">Style Engine V2</div>
-          <div className="text-2xl font-semibold tracking-tight text-slate-950">写法引擎</div>
+          <div className="text-sm font-medium uppercase tracking-[0.18em] text-muted-foreground">Style Engine V2</div>
+          <div className="text-2xl font-semibold tracking-tight text-foreground">写法引擎</div>
         </div>
         <OpenInCreativeHubButton bindings={{ styleProfileId: selectedProfileId || null }} label="把这套写法带去创作中枢" />
       </div>
@@ -522,6 +522,7 @@ export default function WritingFormulaPage() {
 
       <WritingFormulaLanding
         onOpenCreate={() => setCreateDialogOpen(true)}
+        onOpenPromptLab={() => navigate("/prompt-workbench?experience=writing")}
         onSelectProfile={setSelectedProfileId}
         onEditProfile={(profileId) => openWorkspaceDialog("editor", profileId)}
         onOpenWorkbench={(profileId) => openWorkspaceDialog("workbench", profileId)}
@@ -575,7 +576,7 @@ export default function WritingFormulaPage() {
           }
         }}
       >
-        <DialogContent ref={editorDialogRef} className="!flex h-[88vh] w-[min(1180px,96vw)] max-w-none flex-col gap-0 overflow-hidden p-0">
+        <DialogContent ref={editorDialogRef} className="writing-formula-theme !flex h-[88vh] w-[min(1180px,96vw)] max-w-none flex-col gap-0 overflow-hidden p-0">
           <DialogHeader className="border-b px-6 py-5 pr-14">
             <DialogTitle>编辑当前写法</DialogTitle>
             <DialogDescription>
@@ -624,7 +625,7 @@ export default function WritingFormulaPage() {
         open={activeWorkspaceDialog === "workbench"}
         onOpenChange={(open) => setActiveWorkspaceDialog(open ? "workbench" : null)}
       >
-        <DialogContent className="!flex h-[84vh] w-[min(1080px,94vw)] max-w-none flex-col gap-0 overflow-hidden p-0">
+        <DialogContent className="writing-formula-theme !flex h-[84vh] w-[min(1080px,94vw)] max-w-none flex-col gap-0 overflow-hidden p-0">
           <DialogHeader className="border-b px-6 py-5 pr-14">
             <DialogTitle>当前写法的应用与测试</DialogTitle>
             <DialogDescription>
@@ -657,7 +658,7 @@ export default function WritingFormulaPage() {
         open={activeWorkspaceDialog === "clean"}
         onOpenChange={(open) => setActiveWorkspaceDialog(open ? "clean" : null)}
       >
-        <DialogContent className="!flex h-[84vh] w-[min(980px,92vw)] max-w-none flex-col gap-0 overflow-hidden p-0">
+        <DialogContent className="writing-formula-theme !flex h-[84vh] w-[min(980px,92vw)] max-w-none flex-col gap-0 overflow-hidden p-0">
           <DialogHeader className="border-b px-6 py-5 pr-14">
             <DialogTitle>去 AI 味</DialogTitle>
             <DialogDescription>

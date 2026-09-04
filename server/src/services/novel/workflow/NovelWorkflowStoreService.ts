@@ -12,13 +12,16 @@ import { NovelVolumeService } from "../volume/NovelVolumeService";
 import { AutoDirectorFollowUpNotificationService } from "../../task/autoDirectorFollowUps/AutoDirectorFollowUpNotificationService";
 import type { AutoDirectorEventWorkflowSnapshot } from "../../task/autoDirectorFollowUps/autoDirectorFollowUpEventBuilder";
 import {
+  buildCreationStudioResumeTarget,
   buildNovelCreateResumeTarget,
   buildNovelEditResumeTarget,
+  buildShortStoryResumeTarget,
   defaultWorkflowTitle,
   parseResumeTarget,
   stringifyResumeTarget,
   mergeSeedPayload,
 } from "./novelWorkflow.shared";
+import { getNovelWorkflowLaneDescriptor } from "@ai-novel/shared/types/novelWorkflow";
 import {
   defaultProgressForStage,
   mapStageToTab,
@@ -71,6 +74,7 @@ export class NovelWorkflowStoreService {
     checkpointSummary?: string | null;
     currentItemLabel?: string | null;
     pendingManualRecovery: boolean;
+    lastError?: string | null;
     updatedAt: Date;
     seedPayloadJson?: string | null;
     novel?: {
@@ -149,6 +153,7 @@ export class NovelWorkflowStoreService {
     checkpointSummary?: string | null;
     currentItemLabel?: string | null;
     pendingManualRecovery: boolean;
+    lastError?: string | null;
     updatedAt: Date;
     seedPayloadJson?: string | null;
   }>(input: {
@@ -169,6 +174,28 @@ export class NovelWorkflowStoreService {
       }),
       { label: "novelWorkflowTask.update" },
     ) as unknown as T;
+    const stepStatus = next.pendingManualRecovery
+      ? "waiting_approval"
+      : next.status === "failed"
+        ? "failed"
+        : next.status === "cancelled"
+          ? "skipped"
+          : next.status === "succeeded"
+            ? "succeeded"
+            : null;
+    if (stepStatus) {
+      await withSqliteRetry(
+        () => prisma.directorStepRun.updateMany({
+          where: { taskId: next.id, status: "running" },
+          data: {
+            status: stepStatus,
+            finishedAt: new Date(),
+            ...(stepStatus === "failed" ? { error: next.lastError ?? "自动导演任务执行失败。" } : {}),
+          },
+        }),
+        { label: "directorStepRun.finalizeRunning" },
+      );
+    }
     await this.notifyAutoDirectorTaskTransition({
       before: input.before,
       after: next,
@@ -299,6 +326,11 @@ export class NovelWorkflowStoreService {
     chapterId?: string | null;
     volumeId?: string | null;
   }): NovelWorkflowResumeTarget {
+    if (input.lane === "creation_studio") {
+      return input.novelId
+        ? buildShortStoryResumeTarget(input.novelId, input.taskId)
+        : buildCreationStudioResumeTarget(input.taskId);
+    }
     if (!input.novelId) {
       return buildNovelCreateResumeTarget(input.taskId, input.lane === "auto_director" ? "director" : null);
     }
@@ -330,12 +362,13 @@ export class NovelWorkflowStoreService {
   }) {
     const novelTitle = input.novelId ? await this.getNovelTitle(input.novelId) : null;
     const initialState = input.initialState;
+    const laneDescriptor = getNovelWorkflowLaneDescriptor(input.lane);
     const initialStage = initialState?.stage
-      ?? (input.lane === "auto_director" ? "auto_director" : "project_setup");
+      ?? laneDescriptor.initialStage;
     const initialItemKey = initialState?.itemKey
-      ?? (input.lane === "auto_director" ? "auto_director" : "project_setup");
+      ?? laneDescriptor.initialItemKey;
     const initialItemLabel = initialState?.itemLabel
-      ?? (input.lane === "auto_director" ? "等待生成候选方向" : "等待创建项目");
+      ?? laneDescriptor.initialItemLabel;
     const initialProgress = initialState?.progress
       ?? (input.novelId ? defaultProgressForStage(initialStage) : 0);
     const created = await prisma.novelWorkflowTask.create({

@@ -53,6 +53,7 @@ interface LLMOptions {
   provider?: LLMProvider;
   model?: string;
   temperature?: number;
+  workflowTaskId?: string;
 }
 
 export class StoryMacroPlanService {
@@ -197,6 +198,10 @@ export class StoryMacroPlanService {
         provider: options.provider,
         model: options.model,
         temperature: options.temperature ?? 0.3,
+        taskId: options.workflowTaskId,
+        stage: "story_macro",
+        itemKey: "story_macro",
+        entrypoint: "auto_director",
       },
     });
     return {
