@@ -9,8 +9,8 @@ import {
   getStructuredFallbackConfig,
   saveModelRoute,
   saveStructuredFallbackConfig,
-  testModelRouteConnectivity,
 } from "@/api/settings";
+import { useModelRouteCheck } from "@/hooks/useModelRouteCheck";
 import { queryKeys } from "@/api/queryKeys";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -61,12 +61,12 @@ export default function ModelRoutesPage() {
     queryFn: getModelRoutes,
   });
 
-  const modelRouteConnectivityQuery = useQuery({
-    queryKey: queryKeys.settings.modelRouteConnectivity,
-    queryFn: testModelRouteConnectivity,
-    enabled: modelRoutesQuery.isSuccess,
-    refetchOnWindowFocus: false,
-  });
+  const {
+    status: connectivityCheck,
+    isChecking,
+    triggerCheck,
+    checkAfterConfigChange,
+  } = useModelRouteCheck();
 
   const structuredFallbackQuery = useQuery({
     queryKey: queryKeys.settings.structuredFallback,
@@ -78,10 +78,8 @@ export default function ModelRoutesPage() {
     mutationFn: (payload: RouteSavePayload) => saveModelRoute(payload),
     onSuccess: async () => {
       setActionResult("保存完成，这个任务会使用新路由。");
-      await Promise.all([
-        queryClient.invalidateQueries({ queryKey: queryKeys.settings.modelRoutes }),
-        queryClient.invalidateQueries({ queryKey: queryKeys.settings.modelRouteConnectivity }),
-      ]);
+      await queryClient.invalidateQueries({ queryKey: queryKeys.settings.modelRoutes });
+      checkAfterConfigChange();
     },
   });
 
@@ -92,10 +90,8 @@ export default function ModelRoutesPage() {
     },
     onSuccess: async (count) => {
       setActionResult(`保存完成，${count} 个任务会使用新路由。`);
-      await Promise.all([
-        queryClient.invalidateQueries({ queryKey: queryKeys.settings.modelRoutes }),
-        queryClient.invalidateQueries({ queryKey: queryKeys.settings.modelRouteConnectivity }),
-      ]);
+      await queryClient.invalidateQueries({ queryKey: queryKeys.settings.modelRoutes });
+      checkAfterConfigChange();
     },
   });
 
@@ -103,16 +99,14 @@ export default function ModelRoutesPage() {
     mutationFn: (payload: Partial<StructuredFallbackSettings>) => saveStructuredFallbackConfig(payload),
     onSuccess: async () => {
       setActionResult("结构化备用模型保存完成。");
-      await Promise.all([
-        queryClient.invalidateQueries({ queryKey: queryKeys.settings.structuredFallback }),
-        queryClient.invalidateQueries({ queryKey: queryKeys.settings.modelRouteConnectivity }),
-      ]);
+      await queryClient.invalidateQueries({ queryKey: queryKeys.settings.structuredFallback });
+      checkAfterConfigChange();
     },
   });
 
   const providerConfigs = useMemo(() => apiKeySettingsQuery.data?.data ?? [], [apiKeySettingsQuery.data?.data]);
   const modelRoutes = modelRoutesQuery.data?.data;
-  const modelRouteConnectivity = modelRouteConnectivityQuery.data?.data;
+  const modelRouteConnectivity = connectivityCheck?.result;
   const structuredFallback = structuredFallbackQuery.data?.data;
   const taskTypes = modelRoutes?.taskTypes ?? [];
   const providerOptions = useMemo(() => providerConfigs.map((item) => item.provider), [providerConfigs]);
@@ -265,7 +259,7 @@ export default function ModelRoutesPage() {
             <div className="flex flex-wrap items-center gap-3 text-xs">
               <span className="inline-flex items-center gap-2">
                 <RouteStatusDot
-                  state={modelRouteConnectivityQuery.isPending || modelRouteConnectivityQuery.isFetching
+                  state={isChecking
                     ? "checking"
                     : connectivitySummary.failed > 0
                       ? "failed"
@@ -273,7 +267,7 @@ export default function ModelRoutesPage() {
                         ? "healthy"
                         : "idle"}
                 />
-                {modelRouteConnectivityQuery.isPending || modelRouteConnectivityQuery.isFetching
+                {isChecking
                   ? "正在检测生效路由..."
                   : connectivitySummary.total > 0
                     ? `检测结果：${connectivitySummary.total} 条路由，健康 ${connectivitySummary.healthy}，异常 ${connectivitySummary.failed}`
@@ -287,11 +281,11 @@ export default function ModelRoutesPage() {
           <div className="flex items-center gap-2">
             <Button
               variant="outline"
-              onClick={() => void modelRouteConnectivityQuery.refetch()}
-              disabled={modelRouteConnectivityQuery.isFetching || !modelRoutesQuery.isSuccess}
+              onClick={() => triggerCheck.mutate(true)}
+              disabled={triggerCheck.isPending || !modelRoutesQuery.isSuccess}
             >
-              <RefreshCw className={`h-4 w-4 ${modelRouteConnectivityQuery.isFetching ? "animate-spin" : ""}`} />
-              {modelRouteConnectivityQuery.isFetching ? "检测中..." : "重新检测"}
+              <RefreshCw className={`h-4 w-4 ${isChecking ? "animate-spin" : ""}`} />
+              {isChecking ? "检测中..." : "重新检测"}
             </Button>
             <Button asChild variant="outline">
               <Link to="/settings">
@@ -434,7 +428,7 @@ export default function ModelRoutesPage() {
         const connectivity = connectivityMap.get(taskType);
         const connectivityState = resolveConnectivityState(
           connectivity,
-          modelRouteConnectivityQuery.isPending || modelRouteConnectivityQuery.isFetching,
+          isChecking,
         );
         const isDirty = dirtyTaskTypeSet.has(taskType);
         const hasUnsavedRouteDiff = connectivity != null
