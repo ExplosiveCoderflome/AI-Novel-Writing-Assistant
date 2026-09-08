@@ -50,6 +50,22 @@ interface FullVolumeResumeState {
   isAlreadyComplete: boolean;
 }
 
+export function isCompactBookFinaleBeat(params: {
+  completionProfile: VolumeGenerationNovel["completionProfile"];
+  targetVolumeIndex: number;
+  chapterBudgets: number[];
+  beatChapterEndOrder: number;
+}): boolean {
+  if (params.completionProfile?.mode !== "compact_book" || params.targetVolumeIndex < 0) {
+    return false;
+  }
+  const chaptersBeforeCurrentVolume = params.chapterBudgets
+    .slice(0, params.targetVolumeIndex)
+    .reduce((total, chapterCount) => total + chapterCount, 0);
+  return chaptersBeforeCurrentVolume + params.beatChapterEndOrder
+    >= params.completionProfile.endingRequiredBy;
+}
+
 function buildBeatGenerationPlans(beatSheet: VolumeBeatSheet): BeatGenerationPlan[] {
   let nextChapterOrder = 1;
   return beatSheet.beats.map((beat) => {
@@ -217,6 +233,7 @@ async function generateBeatChapterBlock(params: {
   nextBeat?: VolumeBeat | null;
   previousBeatChapterSummary?: string | null;
   preservedBeatChapterSummary?: string | null;
+  chapterBudgets: number[];
 }): Promise<GeneratedVolumeChapterBlock> {
   const targetIndex = params.document.volumes.findIndex((volume) => volume.id === params.targetVolume.id);
   const promptInput = {
@@ -247,8 +264,12 @@ async function generateBeatChapterBlock(params: {
       targetChapterCount: params.beatPlan.chapterCount,
       targetBeatKey: params.beatPlan.beat.key,
       targetBeatLabel: params.beatPlan.beat.label,
-      isBookFinale: params.novel.completionProfile?.mode === "compact_book"
-        && params.beatPlan.chapterEndOrder >= (params.novel.completionProfile.endingRequiredBy ?? Number.MAX_SAFE_INTEGER),
+      isBookFinale: isCompactBookFinaleBeat({
+        completionProfile: params.novel.completionProfile,
+        targetVolumeIndex: targetIndex,
+        chapterBudgets: params.chapterBudgets,
+        beatChapterEndOrder: params.beatPlan.chapterEndOrder,
+      }),
       reservedChapterTitles: params.targetVolume.chapters
         .filter((chapter) => chapter.beatKey !== params.beatPlan.beat.key)
         .map((chapter) => chapter.title),
@@ -407,6 +428,7 @@ export async function generateBeatChunkedChapterList(params: {
           targetBeatIndex: currentBeatIndex,
         })
         : null,
+      chapterBudgets,
     });
     generatedBlocks.push(generatedBlock);
 

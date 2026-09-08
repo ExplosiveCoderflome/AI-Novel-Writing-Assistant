@@ -1,5 +1,5 @@
 import type { BaseMessageChunk } from "@langchain/core/messages";
-import type { LLMProvider } from "@ai-novel/shared/types/llm";
+import { REASONING_EFFORTS, type LLMProvider, type ReasoningEffort } from "@ai-novel/shared/types/llm";
 import { isBuiltInProvider } from "./providers";
 
 const THINK_OPEN_TAG = "<think>";
@@ -10,9 +10,16 @@ const MINIMAX_MODEL_PATTERN = /^minimax-m2(?:[.-]|$)/i;
 
 export interface ProviderReasoningBehavior {
   reasoningEnabled: boolean;
+  reasoningEffort: ReasoningEffort | null;
   modelKwargs?: Record<string, unknown>;
   includeRawResponse: boolean;
   usesAccumulatedStreamDeltas: boolean;
+}
+
+export function normalizeReasoningEffort(value: unknown): ReasoningEffort {
+  return typeof value === "string" && (REASONING_EFFORTS as readonly string[]).includes(value)
+    ? value as ReasoningEffort
+    : "high";
 }
 
 export interface StreamFilterResult {
@@ -114,14 +121,18 @@ export function resolveProviderReasoningBehavior(input: {
   baseURL: string;
   model: string;
   reasoningEnabled: boolean;
+  reasoningEffort?: ReasoningEffort | null;
 }): ProviderReasoningBehavior {
   if (isDeepSeekThinkingModeProvider(input.provider, input.baseURL, input.model)) {
+    const reasoningEffort = normalizeReasoningEffort(input.reasoningEffort);
     return {
       reasoningEnabled: input.reasoningEnabled,
+      reasoningEffort: input.reasoningEnabled ? reasoningEffort : null,
       modelKwargs: {
         thinking: {
           type: input.reasoningEnabled ? "enabled" : "disabled",
         },
+        ...(input.reasoningEnabled ? { reasoning_effort: reasoningEffort } : {}),
       },
       includeRawResponse: false,
       usesAccumulatedStreamDeltas: false,
@@ -132,6 +143,7 @@ export function resolveProviderReasoningBehavior(input: {
   if (isMiniMax) {
     return {
       reasoningEnabled: input.reasoningEnabled,
+      reasoningEffort: null,
       modelKwargs: {
         reasoning_split: true,
       },
@@ -142,6 +154,7 @@ export function resolveProviderReasoningBehavior(input: {
 
   return {
     reasoningEnabled: input.reasoningEnabled,
+    reasoningEffort: null,
     includeRawResponse: false,
     usesAccumulatedStreamDeltas: false,
   };
@@ -303,5 +316,25 @@ export class ThinkTagStreamFilter {
       text,
       reasoning,
     };
+  }
+}
+
+export class ReasoningStreamCollector {
+  private readonly thinkFilter = new ThinkTagStreamFilter();
+
+  private miniMaxReasoningBuffer = "";
+
+  push(chunk: BaseMessageChunk, text: string): string {
+    const rawResponse = (chunk.additional_kwargs as { __raw_response?: unknown } | undefined)
+      ?.__raw_response;
+    const rawReasoning = extractMiniMaxRawStreamData(rawResponse).reasoningBuffer;
+    const normalized = diffAccumulatedText(this.miniMaxReasoningBuffer, rawReasoning);
+    this.miniMaxReasoningBuffer = normalized.nextBuffer;
+    const direct = normalized.delta || extractReasoningTextFromChunk(chunk);
+    return uniqueJoinedText([direct, this.thinkFilter.push(text).reasoning]);
+  }
+
+  flush(): string {
+    return this.thinkFilter.flush().reasoning;
   }
 }

@@ -120,7 +120,7 @@ export const marketTrendSynthesisPrompt: PromptAsset<TrendReportInput, z.infer<t
 
 export const marketCreativeBriefPrompt: PromptAsset<CreativeBriefInput, z.infer<typeof marketCreativeBriefSchema>> = {
   id: "market_radar.creative_brief",
-  version: "v2",
+  version: "v3",
   taskType: "planner",
   mode: "structured",
   language: "zh",
@@ -132,6 +132,7 @@ export const marketCreativeBriefPrompt: PromptAsset<CreativeBriefInput, z.infer<
     new SystemMessage([
       "你是自动导演的开书市场简报编辑。把用户选择的市场信号整理成第一次创意生成可执行的约束。",
       "严禁复用榜单作品的人名、专有设定、简介句子和完整书名；只能提炼读者需求、爽点机制和结构机会。",
+      "雷达阶段不得新造或输出任何具体人物姓名、艺名、笔名、作品名、组织名、学校名、城市名或门派名。summary、promptBlock 和 creativeSeed 全部使用身份、角色职能或通用场景称谓，例如“女经纪人”“当红演员”“商业对手”；具体命名留给后续角色与世界规划阶段。",
       "promptBlock 必须能直接指导题材推荐、金手指、首章爆点、整书方向和网文书名。",
       "creativeSeed.openingIdea 必须是一段可直接开书的中文起始想法，写清主角身份、金手指或核心优势、开局发生的具体事件和近期目标，不输出标题、大纲、Markdown 或过程说明。",
       "creativeSeed.coreAdvantage 必须说明主角能做什么，并至少包含触发条件、使用边界、成长方向或代价中的一项；现实题材可使用专业能力、信息差、身份资源或稀缺关系。",

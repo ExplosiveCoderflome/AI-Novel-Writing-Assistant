@@ -14,7 +14,22 @@ const {
   getModelParameterCompatibility,
   resolveModelTemperature,
 } = require("../dist/llm/capabilities.js");
-const { resolveLLMClientOptions, setProviderSecretCache } = require("../dist/llm/factory.js");
+const {
+  buildOpenAICompatibleDefaultHeaders,
+  resolveLLMClientOptions,
+  setProviderSecretCache,
+} = require("../dist/llm/factory.js");
+
+test("custom provider auth mode replaces the SDK bearer header when requested", () => {
+  assert.equal(buildOpenAICompatibleDefaultHeaders("bearer", "secret"), undefined);
+  assert.deepEqual(buildOpenAICompatibleDefaultHeaders("x-api-key", "secret"), {
+    Authorization: null,
+    "x-api-key": "secret",
+  });
+  assert.deepEqual(buildOpenAICompatibleDefaultHeaders("none", "secret"), {
+    Authorization: null,
+  });
+});
 const {
   classifyStructuredOutputFailure,
   resolveStructuredOutputProfile,
@@ -364,7 +379,17 @@ test("resolveLLMClientOptions applies structured reasoning and token guardrails"
     assert.equal(deepseekFlash.reasoningEnabled, false);
     assert.equal(deepseekFlash.reasoningForcedOff, true);
     assert.deepEqual(deepseekFlash.modelKwargs?.thinking, { type: "disabled" });
+    assert.equal(deepseekFlash.modelKwargs?.reasoning_effort, undefined);
+    assert.equal(deepseekFlash.reasoningEffort, null);
     assert.equal(deepseekFlash.modelKwargs?.enable_thinking, undefined);
+
+    const deepseekMax = await resolveLLMClientOptions("deepseek", {
+      model: "deepseek-v4-pro",
+      reasoningEffort: "max",
+    });
+    assert.deepEqual(deepseekMax.modelKwargs?.thinking, { type: "enabled" });
+    assert.equal(deepseekMax.modelKwargs?.reasoning_effort, "max");
+    assert.equal(deepseekMax.reasoningEffort, "max");
 
     const atlasCloud = await resolveLLMClientOptions("atlascloud", {
       apiKey: "test-key",

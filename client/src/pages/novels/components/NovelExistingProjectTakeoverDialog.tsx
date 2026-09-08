@@ -2,7 +2,6 @@ import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
 import { buildStyleIntentSummary } from "@ai-novel/shared/types/styleEngine";
-import { normalizeCommercialTags } from "@ai-novel/shared/types/novelFraming";
 import type {
   DirectorAutoExecutionPlan,
   DirectorRunMode,
@@ -45,7 +44,6 @@ import {
   isTakeoverEntryStepAllowedForScope,
   resolveRecommendedTakeoverEntryStep,
 } from "./novelExistingProjectTakeoverViewModel";
-import TakeoverContextSummaryPanel from "./takeover/TakeoverContextSummaryPanel";
 import TakeoverDiagnosisPanel from "./takeover/TakeoverDiagnosisPanel";
 import { useDirectorAutoApprovalDraft } from "./useDirectorAutoApprovalDraft";
 import { AUTO_DIRECTOR_MOBILE_CLASSES } from "@/mobile/autoDirector";
@@ -54,9 +52,6 @@ import SelectControl from "@/components/common/SelectControl";
 interface NovelExistingProjectTakeoverDialogProps {
   novelId: string;
   basicForm: NovelBasicFormState;
-  genreOptions: Array<{ id: string; path: string; label: string }>;
-  storyModeOptions: Array<{ id: string; path: string; name: string }>;
-  worldOptions: Array<{ id: string; name: string }>;
   triggerVariant?: "default" | "outline" | "secondary";
   defaultEntryStep?: DirectorTakeoverEntryStep;
   workflowTaskId?: string | null;
@@ -83,27 +78,6 @@ const STRATEGY_OPTIONS: Array<{ value: DirectorTakeoverStrategy; label: string; 
   },
 ];
 
-function summarizeCurrentContext(
-  basicForm: NovelBasicFormState,
-  genreOptions: Array<{ id: string; path: string; label: string }>,
-  storyModeOptions: Array<{ id: string; path: string; name: string }>,
-  worldOptions: Array<{ id: string; name: string }>,
-): string[] {
-  const commercialTags = normalizeCommercialTags(basicForm.commercialTagsText);
-  const genrePath = genreOptions.find((item) => item.id === basicForm.genreId)?.path ?? basicForm.genreId;
-  const primaryStoryModePath = storyModeOptions.find((item) => item.id === basicForm.primaryStoryModeId)?.path ?? basicForm.primaryStoryModeId;
-  const worldName = worldOptions.find((item) => item.id === basicForm.worldId)?.name ?? basicForm.worldId;
-  return [
-    basicForm.description.trim() ? `概述：${basicForm.description.trim()}` : "",
-    basicForm.targetAudience.trim() ? `目标读者：${basicForm.targetAudience.trim()}` : "",
-    basicForm.bookSellingPoint.trim() ? `书级卖点：${basicForm.bookSellingPoint.trim()}` : "",
-    genrePath ? `题材：${genrePath}` : "",
-    primaryStoryModePath ? `主推进模式：${primaryStoryModePath}` : "",
-    worldName ? `参考世界样本：${worldName}` : "",
-    commercialTags.length > 0 ? `商业标签：${commercialTags.join(" / ")}` : "",
-  ].filter(Boolean);
-}
-
 function buildEditRoute(input: {
   novelId: string;
   workflowTaskId: string;
@@ -122,9 +96,6 @@ function buildEditRoute(input: {
 export default function NovelExistingProjectTakeoverDialog({
   novelId,
   basicForm,
-  genreOptions,
-  storyModeOptions,
-  worldOptions,
   triggerVariant = "outline",
   defaultEntryStep = "basic",
   workflowTaskId,
@@ -189,10 +160,6 @@ export default function NovelExistingProjectTakeoverDialog({
     }),
     [basicForm.styleTone, selectedStyleProfile],
   );
-  const contextLines = useMemo(
-    () => summarizeCurrentContext(basicForm, genreOptions, storyModeOptions, worldOptions),
-    [basicForm, genreOptions, storyModeOptions, worldOptions],
-  );
   const advancedAutoExecutionPlan: DirectorAutoExecutionPlan | undefined = runMode === "full_book_autopilot"
     ? buildFullBookAutopilotExecutionPlan()
     : runMode === "auto_to_execution"
@@ -209,7 +176,10 @@ export default function NovelExistingProjectTakeoverDialog({
   const useFullBookAutopilot = !advancedOpen
     && continuousTarget
     && continuousTarget.selectedOrder >= continuousTarget.targetOrder;
-  const effectiveRunMode: DirectorRunMode = useFullBookAutopilot
+  const useRollingTargetAutopilot = !advancedOpen
+    && continuousTarget
+    && continuousTarget.selectedOrder > continuousTarget.currentWindowEndOrder;
+  const effectiveRunMode: DirectorRunMode = useRollingTargetAutopilot
     ? "full_book_autopilot"
     : !advancedOpen && quickChapterTarget
       ? "auto_to_execution"
@@ -389,15 +359,14 @@ export default function NovelExistingProjectTakeoverDialog({
       </Button>
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent className={AUTO_DIRECTOR_MOBILE_CLASSES.takeoverDialogContent}>
-          <DialogHeader className="shrink-0 border-b px-4 pb-4 pr-12 pt-5 text-left sm:px-6 sm:pt-6">
-            <DialogTitle>让 AI 从当前项目继续自动导演</DialogTitle>
+          <DialogHeader className="shrink-0 border-b bg-gradient-to-r from-primary/[0.06] via-primary/[0.025] to-transparent px-4 pb-4 pr-12 pt-5 text-left sm:px-6 sm:pt-6">
+            <DialogTitle>继续自动导演</DialogTitle>
             <DialogDescription>
-              先读取当前项目真实进度，再明确告诉你这次会跳过、继续还是重跑哪些步骤。
+              AI 会先核对已完成的内容，再从最合适的位置继续，不会重复生成已有资产。
             </DialogDescription>
           </DialogHeader>
           <div className={AUTO_DIRECTOR_MOBILE_CLASSES.dialogBody}>
-            <div className="min-w-0 space-y-4">
-              <TakeoverContextSummaryPanel lines={contextLines} />
+            <div className="min-w-0 space-y-5">
               <TakeoverDiagnosisPanel
                 guidance={takeoverGuidance}
                 inspection={progressInspection}
@@ -416,21 +385,22 @@ export default function NovelExistingProjectTakeoverDialog({
                 onStart={() => startMutation.mutate()}
               />
               <details
-                className="min-w-0 rounded-xl border bg-background/80 p-3 sm:p-4"
+                className="min-w-0 border-t border-border/70 pt-4"
                 open={advancedOpen}
                 onToggle={(event) => setAdvancedOpen(event.currentTarget.open)}
               >
-                <summary className="cursor-pointer text-sm font-medium text-foreground">
-                  高级设置
+                <summary className="cursor-pointer list-none text-sm font-medium text-foreground [&::-webkit-details-marker]:hidden">
+                  需要调整模型、写法或接续位置？
                 </summary>
-                <div className="mt-4 space-y-4">
-              <div className="min-w-0 rounded-xl border bg-background/80 p-3 sm:p-4">
+                <div className="mt-1 text-xs text-muted-foreground">默认方案会保留已有资产并按建议范围继续。</div>
+                <div className="mt-5 space-y-6">
+              <div className="min-w-0 border-t border-border/70 pt-5">
                 <div className="text-sm font-medium text-foreground">模型设置</div>
                 <div className="mt-3"><LLMSelector /></div>
               </div>
-              <div className="min-w-0 rounded-xl border bg-background/80 p-3 sm:p-4">
+              <div className="min-w-0 border-t border-border/70 pt-5">
                 <div className="text-sm font-medium text-foreground">自动导演运行方式</div>
-                <div className="mt-3 rounded-lg border bg-muted/15 p-3">
+                <div className="mt-3 bg-muted/25 p-3">
                   <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                     <div className="space-y-1">
                       <div className="text-sm font-medium text-foreground">正文后去 AI 检测与修正</div>
@@ -493,7 +463,7 @@ export default function NovelExistingProjectTakeoverDialog({
                 ) : null}
               </div>
 
-              <div className="min-w-0 rounded-xl border bg-background/80 p-3 sm:p-4">
+              <div className="min-w-0 border-t border-border/70 pt-5">
                 <div className="text-sm font-medium text-foreground">本次接管使用的写法</div>
                 <div className={`mt-1 text-xs leading-5 text-muted-foreground ${AUTO_DIRECTOR_MOBILE_CLASSES.wrapText}`}>
                   绑定书级默认写法后，接管时建议沿用它。前半段导演只读取轻量摘要，避免干扰结构规划。
@@ -510,21 +480,21 @@ export default function NovelExistingProjectTakeoverDialog({
                     ))}
                   </SelectControl>
                   {currentNovelStyleBindings.length > 0 ? (
-                    <div className={`rounded-lg border bg-muted/15 p-3 text-xs leading-6 text-muted-foreground ${AUTO_DIRECTOR_MOBILE_CLASSES.wrapText}`}>
+                    <div className={`bg-muted/25 p-3 text-xs leading-6 text-muted-foreground ${AUTO_DIRECTOR_MOBILE_CLASSES.wrapText}`}>
                       当前书级默认写法：{currentNovelStyleBindings
                         .map((binding) => binding.styleProfile?.name ?? binding.styleProfileId)
                         .join(" / ")}
                     </div>
                   ) : null}
                   {selectedStyleSummary?.stageSummaryLines.length ? (
-                    <div className={`rounded-lg border bg-muted/15 p-3 text-xs leading-6 text-muted-foreground ${AUTO_DIRECTOR_MOBILE_CLASSES.wrapText}`}>
+                    <div className={`bg-muted/25 p-3 text-xs leading-6 text-muted-foreground ${AUTO_DIRECTOR_MOBILE_CLASSES.wrapText}`}>
                       本阶段仅生效的写法摘要：{selectedStyleSummary.stageSummaryLines.join("；")}
                     </div>
                   ) : null}
                 </div>
               </div>
 
-              <div className="min-w-0 rounded-xl border bg-background/80 p-3 sm:p-4">
+              <div className="min-w-0 border-t border-border/70 pt-5">
                 <div className="flex items-center justify-between gap-3">
                   <div className="text-sm font-medium text-foreground">接续位置</div>
                   {readinessQuery.isLoading ? <Badge variant="outline">读取中</Badge> : null}
@@ -538,19 +508,19 @@ export default function NovelExistingProjectTakeoverDialog({
                 {readiness ? (
                   <>
                     <div className="mt-3 grid min-w-0 gap-3 sm:grid-cols-2 lg:grid-cols-4">
-                      <div className="rounded-lg border bg-muted/15 p-3">
+                      <div className="rounded-lg bg-muted/25 p-3">
                         <div className="text-xs text-muted-foreground">书级规划</div>
                         <div className="mt-1 text-sm font-medium text-foreground">{readiness.snapshot.hasStoryMacroPlan ? "已具备" : "未具备"}</div>
                       </div>
-                      <div className="rounded-lg border bg-muted/15 p-3">
+                      <div className="rounded-lg bg-muted/25 p-3">
                         <div className="text-xs text-muted-foreground">创作约束</div>
                         <div className="mt-1 text-sm font-medium text-foreground">{readiness.snapshot.hasBookContract ? "已具备" : "未具备"}</div>
                       </div>
-                      <div className="rounded-lg border bg-muted/15 p-3">
+                      <div className="rounded-lg bg-muted/25 p-3">
                         <div className="text-xs text-muted-foreground">角色数量</div>
                         <div className="mt-1 text-sm font-medium text-foreground">{readiness.snapshot.characterCount}</div>
                       </div>
-                      <div className="rounded-lg border bg-muted/15 p-3">
+                      <div className="rounded-lg bg-muted/25 p-3">
                         <div className="text-xs text-muted-foreground">卷 / 当前卷章节</div>
                         <div className="mt-1 text-sm font-medium text-foreground">{readiness.snapshot.volumeCount} / {readiness.snapshot.firstVolumeChapterCount}</div>
                       </div>
@@ -637,7 +607,7 @@ export default function NovelExistingProjectTakeoverDialog({
                         </div>
 
                         {selectedEntry ? (
-                          <div className="mt-4 min-w-0 rounded-xl border bg-muted/15 p-3 sm:p-4">
+                          <div className="mt-4 min-w-0 bg-muted/25 p-3 sm:p-4">
                             <div className="text-sm font-medium text-foreground">本次接管预览</div>
                             <div className={`mt-2 text-sm text-muted-foreground ${AUTO_DIRECTOR_MOBILE_CLASSES.wrapText}`}>{selectedPreview?.summary ?? selectedEntry.reason}</div>
                             <div className={`mt-3 text-xs leading-5 text-muted-foreground ${AUTO_DIRECTOR_MOBILE_CLASSES.wrapText}`}>{selectedPreview?.effectSummary ?? selectedEntry.description}</div>

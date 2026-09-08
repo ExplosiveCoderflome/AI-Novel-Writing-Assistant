@@ -3,7 +3,7 @@ import type {
   DirectorAutoApprovalPreferenceSettings,
 } from "@ai-novel/shared/types/autoDirectorApproval";
 import type { DirectorIssuePolicy } from "@ai-novel/shared/types/directorIssue";
-import type { LLMProvider } from "@ai-novel/shared/types/llm";
+import type { LLMProvider, ProviderAuthMode, ReasoningEffort } from "@ai-novel/shared/types/llm";
 import type {
   ModelRouteConfig,
   ModelRouteRequestProtocol,
@@ -22,6 +22,7 @@ export interface APIKeyStatus {
   currentModel: string;
   currentImageModel: string | null;
   currentBaseURL: string;
+  currentAuthMode: ProviderAuthMode;
   models: string[];
   imageModels: string[];
   defaultModel: string;
@@ -31,6 +32,9 @@ export interface APIKeyStatus {
   isConfigured: boolean;
   isActive: boolean;
   reasoningEnabled: boolean;
+  reasoningEffort: ReasoningEffort | null;
+  supportsReasoningEffort: boolean;
+  hiddenModels: string[];
   concurrencyLimit: number;
   requestIntervalMs: number;
   supportsImageGeneration: boolean;
@@ -327,8 +331,11 @@ export async function saveAPIKeySetting(
     model?: string;
     imageModel?: string;
     baseURL?: string;
+    authMode?: ProviderAuthMode;
     isActive?: boolean;
     reasoningEnabled?: boolean;
+    reasoningEffort?: ReasoningEffort;
+    hiddenModels?: string[];
     concurrencyLimit?: number;
     requestIntervalMs?: number;
   },
@@ -342,6 +349,9 @@ export async function saveAPIKeySetting(
       baseURL: string | null;
       isActive: boolean;
       reasoningEnabled: boolean;
+      reasoningEffort: ReasoningEffort | null;
+      supportsReasoningEffort: boolean;
+      hiddenModels: string[];
       concurrencyLimit: number;
       requestIntervalMs: number;
       models: string[];
@@ -358,8 +368,10 @@ export async function createCustomProvider(payload: {
   model?: string;
   imageModel?: string;
   baseURL: string;
+  authMode?: ProviderAuthMode;
   isActive?: boolean;
   reasoningEnabled?: boolean;
+  reasoningEffort?: ReasoningEffort;
   concurrencyLimit?: number;
   requestIntervalMs?: number;
 }) {
@@ -372,6 +384,9 @@ export async function createCustomProvider(payload: {
       baseURL: string | null;
       isActive: boolean;
       reasoningEnabled: boolean;
+      reasoningEffort: ReasoningEffort | null;
+      supportsReasoningEffort: boolean;
+      hiddenModels: string[];
       concurrencyLimit: number;
       requestIntervalMs: number;
       models: string[];
@@ -385,6 +400,7 @@ export async function createCustomProvider(payload: {
 export async function previewCustomProviderModels(payload: {
   key?: string;
   baseURL: string;
+  authMode?: ProviderAuthMode;
 }) {
   const { data } = await apiClient.post<
     ApiResponse<{
@@ -507,6 +523,7 @@ export async function testLLMConnection(payload: {
   apiKey?: string;
   model?: string;
   baseURL?: string;
+  authMode?: ProviderAuthMode;
   probeMode?: "plain" | "structured" | "both";
 }) {
   const { data } = await apiClient.post<

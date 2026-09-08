@@ -2,6 +2,10 @@ const test = require("node:test");
 const assert = require("node:assert/strict");
 
 const {
+  ChapterScenePlanNormalizationError,
+} = require("../../shared/dist/types/chapterLengthControl.js");
+
+const {
   assessChapterExecutionContractShape,
   aiChapterTaskSheetQualityAssessmentSchema,
   formatChapterTaskSheetQualityFailure,
@@ -133,6 +137,10 @@ test("chapter execution contract does not retry a semantic quality warning", () 
   assert.equal(shouldRetryChapterExecutionContract(qualityError, 0), false);
   assert.equal(shouldRetryChapterExecutionContract(qualityError, 1), false);
   assert.equal(shouldRetryChapterExecutionContract(postValidateError, 0), true);
+  assert.equal(shouldRetryChapterExecutionContract(
+    new ChapterScenePlanNormalizationError("scene_count_below_minimum", "章节场景拆解至少需要 3 个有效场景。"),
+    0,
+  ), true);
   assert.equal(shouldRetryChapterExecutionContract(new Error("terminated"), 0), false);
 });
 

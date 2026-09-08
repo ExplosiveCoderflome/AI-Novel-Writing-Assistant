@@ -1,10 +1,11 @@
 import { Router } from "express";
 import type { ApiResponse } from "@ai-novel/shared/types/api";
+import { PROVIDER_AUTH_MODES } from "@ai-novel/shared/types/llm";
 import { z } from "zod";
 import { prisma } from "../db/prisma";
 import { llmConnectivityService } from "../llm/connectivity";
 import { getStructuredFallbackSettings, saveStructuredFallbackSettings } from "../llm/structuredFallbackSettings";
-import { getProviderModels } from "../llm/modelCatalog";
+import { filterHiddenModels, getProviderModels, parseHiddenModels } from "../llm/modelCatalog";
 import { listModelRouteConfigs, MODEL_ROUTE_TASK_TYPES, upsertModelRouteConfig } from "../llm/modelRouter";
 import { llmProviderSchema } from "../llm/providerSchema";
 import { getProviderEnvApiKey, getProviderEnvModel, isBuiltInProvider, PROVIDERS } from "../llm/providers";
@@ -19,6 +20,7 @@ const llmTestSchema = z.object({
   apiKey: z.string().trim().optional(),
   model: z.string().trim().optional(),
   baseURL: z.string().trim().url("API URL 格式不正确。").optional(),
+  authMode: z.enum(PROVIDER_AUTH_MODES).optional(),
   probeMode: z.enum(["plain", "structured", "both"]).optional(),
 });
 
@@ -34,9 +36,7 @@ router.use(authMiddleware);
 
 router.get("/providers", async (_req, res, next) => {
   try {
-    const keys = await prisma.aPIKey.findMany({
-      orderBy: [{ createdAt: "asc" }],
-    });
+    const keys = await prisma.aPIKey.findMany({ orderBy: [{ createdAt: "asc" }] });
     const keyMap = new Map(keys.map((item) => [item.provider, item]));
 
     const builtInEntries = await Promise.all(
@@ -45,12 +45,12 @@ router.get("/providers", async (_req, res, next) => {
         const currentModel = keyConfig?.model?.trim()
           || getProviderEnvModel(provider)
           || config.defaultModel;
-        const models = await getProviderModels(provider, {
+        const models = filterHiddenModels(await getProviderModels(provider, {
           apiKey: keyConfig?.key ?? getProviderEnvApiKey(provider),
           baseURL: keyConfig?.baseURL ?? undefined,
           fallbackModel: currentModel,
           fallbackModels: [...config.models, currentModel],
-        });
+        }), parseHiddenModels(keyConfig?.hiddenModels), currentModel);
         return [provider, {
           name: config.name,
           defaultModel: currentModel,
@@ -64,12 +64,13 @@ router.get("/providers", async (_req, res, next) => {
         .filter((item) => !isBuiltInProvider(item.provider))
         .map(async (item) => {
           const currentModel = item.model?.trim() || "";
-          const models = await getProviderModels(item.provider, {
+          const models = filterHiddenModels(await getProviderModels(item.provider, {
             apiKey: item.key ?? undefined,
             baseURL: item.baseURL ?? undefined,
+            authMode: item.authMode === "x-api-key" || item.authMode === "none" ? item.authMode : "bearer",
             fallbackModel: currentModel,
             fallbackModels: [currentModel],
-          });
+          }), parseHiddenModels(item.hiddenModels), currentModel);
           return [item.provider, {
             name: item.displayName?.trim() || item.provider,
             defaultModel: currentModel,
@@ -192,8 +193,8 @@ router.post(
   validate({ body: llmTestSchema }),
   async (req, res, next) => {
     try {
-      const { provider, apiKey, model, baseURL, probeMode } = req.body as z.infer<typeof llmTestSchema>;
-      const result = await llmConnectivityService.testConnection({ provider, apiKey, model, baseURL, probeMode });
+      const { provider, apiKey, model, baseURL, authMode, probeMode } = req.body as z.infer<typeof llmTestSchema>;
+      const result = await llmConnectivityService.testConnection({ provider, apiKey, model, baseURL, authMode, probeMode });
       const shouldFail =
         probeMode === "structured"
           ? result.structured?.ok === false

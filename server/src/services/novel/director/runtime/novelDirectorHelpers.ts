@@ -140,7 +140,9 @@ export function applyDirectorRunModeContract<T extends {
   return {
     ...input,
     runMode,
-    autoExecutionPlan: buildFullBookAutopilotExecutionPlan(),
+    autoExecutionPlan: input.autoExecutionPlan?.mode === "chapter_range"
+      ? input.autoExecutionPlan
+      : buildFullBookAutopilotExecutionPlan(),
     autoApproval: buildFullDirectorAutoApprovalConfig(),
   };
 }

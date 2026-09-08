@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type { ApiResponse } from "@ai-novel/shared/types/api";
-import type { LLMProvider } from "@ai-novel/shared/types/llm";
+import type { LLMProvider, ProviderAuthMode, ReasoningEffort } from "@ai-novel/shared/types/llm";
 import {
   type APIKeyStatus,
   createCustomProvider,
@@ -47,6 +47,7 @@ export default function SettingsPage() {
     model: "",
     imageModel: "",
     baseURL: "",
+    authMode: "bearer",
     concurrencyLimit: "0",
     requestIntervalMs: "0",
   });
@@ -84,6 +85,7 @@ export default function SettingsPage() {
       model: "",
       imageModel: "",
       baseURL: "",
+      authMode: "bearer",
       concurrencyLimit: "0",
       requestIntervalMs: "0",
     });
@@ -133,6 +135,7 @@ export default function SettingsPage() {
       model?: string;
       imageModel?: string;
       baseURL?: string;
+      authMode?: ProviderAuthMode;
       concurrencyLimit?: number;
       requestIntervalMs?: number;
     }) =>
@@ -142,6 +145,7 @@ export default function SettingsPage() {
         model: payload.model,
         imageModel: payload.imageModel,
         baseURL: payload.baseURL,
+        authMode: payload.authMode,
         concurrencyLimit: payload.concurrencyLimit,
         requestIntervalMs: payload.requestIntervalMs,
       }),
@@ -162,6 +166,7 @@ export default function SettingsPage() {
       model?: string;
       imageModel?: string;
       baseURL: string;
+      authMode?: ProviderAuthMode;
       concurrencyLimit?: number;
       requestIntervalMs?: number;
     }) => createCustomProvider(payload),
@@ -176,7 +181,7 @@ export default function SettingsPage() {
   });
 
   const previewCustomProviderModelsMutation = useMutation({
-    mutationFn: (payload: { key?: string; baseURL: string }) => previewCustomProviderModels(payload),
+    mutationFn: (payload: { key?: string; baseURL: string; authMode?: ProviderAuthMode }) => previewCustomProviderModels(payload),
     onSuccess: (response) => {
       const models = response.data?.models ?? [];
       setPreviewModels(models);
@@ -240,18 +245,25 @@ export default function SettingsPage() {
     },
   });
 
-  const toggleReasoningMutation = useMutation({
-    mutationFn: (payload: { provider: LLMProvider; reasoningEnabled: boolean }) =>
-      saveAPIKeySetting(payload.provider, {
-        reasoningEnabled: payload.reasoningEnabled,
-      }),
+  const modelControlsMutation = useMutation({
+    mutationFn: (payload: {
+      provider: LLMProvider;
+      reasoningEnabled?: boolean;
+      reasoningEffort?: ReasoningEffort;
+      hiddenModels?: string[];
+      message: string;
+    }) => saveAPIKeySetting(payload.provider, {
+      reasoningEnabled: payload.reasoningEnabled,
+      reasoningEffort: payload.reasoningEffort,
+      hiddenModels: payload.hiddenModels,
+    }),
     onSuccess: async (_response, variables) => {
       const providerName = providerConfigs.find((item) => item.provider === variables.provider)?.name ?? variables.provider;
-      setActionResult(`${providerName} 思考功能已${variables.reasoningEnabled ? "开启" : "关闭"}。`);
+      setActionResult(`${providerName}：${variables.message}`);
       await invalidateProviderQueries();
     },
     onError: (error) => {
-      setActionResult(error instanceof Error ? error.message : "更新思考开关失败。");
+      setActionResult(error instanceof Error ? error.message : "更新模型设置失败。");
     },
   });
 
@@ -280,6 +292,7 @@ export default function SettingsPage() {
       model: config.currentModel,
       imageModel: config.currentImageModel ?? config.defaultImageModel ?? "",
       baseURL: config.currentBaseURL,
+      authMode: config.currentAuthMode,
       concurrencyLimit: String(config.concurrencyLimit ?? 0),
       requestIntervalMs: String(config.requestIntervalMs ?? 0),
     });
@@ -298,6 +311,7 @@ export default function SettingsPage() {
       model: "",
       imageModel: "",
       baseURL: "",
+      authMode: "bearer",
       concurrencyLimit: "0",
       requestIntervalMs: "0",
     });
@@ -317,6 +331,7 @@ export default function SettingsPage() {
     previewCustomProviderModelsMutation.mutate({
       key: form.key.trim() ? form.key : undefined,
       baseURL: form.baseURL.trim(),
+      authMode: form.authMode,
     });
   };
 
@@ -328,6 +343,7 @@ export default function SettingsPage() {
         model: form.model.trim() || undefined,
         imageModel: form.imageModel.trim(),
         baseURL: form.baseURL.trim(),
+        authMode: form.authMode,
         concurrencyLimit: Number.parseInt(form.concurrencyLimit, 10) || 0,
         requestIntervalMs: Number.parseInt(form.requestIntervalMs, 10) || 0,
       });
@@ -343,6 +359,7 @@ export default function SettingsPage() {
       model: form.model.trim() || undefined,
       imageModel: form.imageModel.trim(),
       baseURL: form.baseURL,
+      authMode: isCustomDialog ? form.authMode : undefined,
       concurrencyLimit: Number.parseInt(form.concurrencyLimit, 10) || 0,
       requestIntervalMs: Number.parseInt(form.requestIntervalMs, 10) || 0,
     });
@@ -383,6 +400,7 @@ export default function SettingsPage() {
         apiKey: form.key.trim() ? form.key : undefined,
         model: form.model.trim() || undefined,
         baseURL: form.baseURL.trim() ? form.baseURL : undefined,
+        authMode: isCustomDialog ? form.authMode : undefined,
         probeMode: "both",
       },
       {
@@ -434,7 +452,7 @@ export default function SettingsPage() {
           providerTestResults={providerTestResults}
           refreshingModelProvider={refreshModelsMutation.variables}
           refreshingBalanceProvider={refreshBalanceMutation.variables}
-          reasoningProvider={toggleReasoningMutation.variables?.provider}
+          reasoningProvider={modelControlsMutation.variables?.provider}
           onCreateCustomProvider={openCreateCustomDialog}
           onRemoveProvider={handleRemoveProvider}
           onOpenConfig={openBuiltInDialog}
@@ -447,12 +465,19 @@ export default function SettingsPage() {
             setActionResult("");
             refreshBalanceMutation.mutate(provider);
           }}
-          onToggleReasoning={(provider, reasoningEnabled) => {
+          onSetReasoning={(provider, reasoningEnabled, reasoningEffort) => {
             setActionResult("");
-            toggleReasoningMutation.mutate({
+            const effortLabel = reasoningEffort === "low" ? "低" : reasoningEffort === "max" ? "最大" : "高";
+            modelControlsMutation.mutate({
               provider,
               reasoningEnabled,
+              reasoningEffort,
+              message: reasoningEnabled ? `思考深度设为${effortLabel}。` : "思考功能已关闭。",
             });
+          }}
+          onSetHiddenModels={(provider, hiddenModels, message) => {
+            setActionResult("");
+            modelControlsMutation.mutate({ provider, hiddenModels, message });
           }}
           removingProvider={removeProviderMutation.variables?.provider}
         />

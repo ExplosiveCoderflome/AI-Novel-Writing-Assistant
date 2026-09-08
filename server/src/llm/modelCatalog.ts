@@ -1,4 +1,4 @@
-import type { LLMProvider } from "@ai-novel/shared/types/llm";
+import type { LLMProvider, ProviderAuthMode } from "@ai-novel/shared/types/llm";
 import {
   isBuiltInProvider,
   providerRequiresApiKey,
@@ -14,6 +14,7 @@ interface ModelCacheItem {
 interface GetProviderModelsOptions {
   apiKey?: string;
   baseURL?: string;
+  authMode?: ProviderAuthMode;
   forceRefresh?: boolean;
   allowAnonymous?: boolean;
   fallbackModel?: string;
@@ -26,6 +27,32 @@ const modelCache = new Map<string, ModelCacheItem>();
 
 function uniqueModels(models: string[]): string[] {
   return Array.from(new Set(models.map((item) => item.trim()).filter(Boolean)));
+}
+
+export function parseHiddenModels(value: string | null | undefined): string[] {
+  if (!value) return [];
+  try {
+    const parsed = JSON.parse(value) as unknown;
+    return Array.isArray(parsed)
+      ? uniqueModels(parsed.filter((item): item is string => typeof item === "string")).slice(0, 200)
+      : [];
+  } catch {
+    return [];
+  }
+}
+
+export function serializeHiddenModels(models: string[]): string {
+  return JSON.stringify(uniqueModels(models).slice(0, 200));
+}
+
+export function filterHiddenModels(
+  models: string[],
+  hiddenModels: string[],
+  currentModel?: string,
+): string[] {
+  const hidden = new Set(hiddenModels);
+  const current = currentModel?.trim();
+  return uniqueModels(models).filter((model) => model === current || !hidden.has(model));
 }
 
 function getFallbackModels(provider: LLMProvider, options: GetProviderModelsOptions = {}): string[] {
@@ -109,7 +136,11 @@ async function fetchJson(url: string, init: RequestInit): Promise<unknown> {
   }
 }
 
-function buildHeaders(provider: LLMProvider, apiKey?: string): Record<string, string> {
+export function buildProviderModelHeaders(
+  provider: LLMProvider,
+  apiKey?: string,
+  authMode: ProviderAuthMode = "bearer",
+): Record<string, string> {
   const headers: Record<string, string> = {
     Accept: "application/json",
   };
@@ -124,8 +155,26 @@ function buildHeaders(provider: LLMProvider, apiKey?: string): Record<string, st
     return headers;
   }
 
+  if (!isBuiltInProvider(provider) && authMode === "none") {
+    return headers;
+  }
+
+  if (!isBuiltInProvider(provider) && authMode === "x-api-key") {
+    headers["x-api-key"] = apiKey;
+    return headers;
+  }
+
   headers.Authorization = `Bearer ${apiKey}`;
   return headers;
+}
+
+export function resolveModelsEndpoint(baseURL: string): string {
+  const endpoint = new URL(baseURL);
+  const normalizedPath = endpoint.pathname.replace(/\/+$/, "");
+  endpoint.pathname = normalizedPath.endsWith("/models")
+    ? normalizedPath
+    : `${normalizedPath}/models`;
+  return endpoint.toString();
 }
 
 async function fetchOllamaModels(baseURL: string): Promise<string[]> {
@@ -146,7 +195,7 @@ async function fetchOllamaModels(baseURL: string): Promise<string[]> {
     // Fall back to the OpenAI-compatible models endpoint.
   }
 
-  const payload = await fetchJson(`${baseURL}/models`, {
+  const payload = await fetchJson(resolveModelsEndpoint(baseURL), {
     method: "GET",
     headers: {
       Accept: "application/json",
@@ -163,6 +212,7 @@ async function fetchProviderModels(
   provider: LLMProvider,
   apiKey?: string,
   customBaseURL?: string,
+  authMode?: ProviderAuthMode,
 ): Promise<string[]> {
   const baseURL = resolveProviderBaseUrl(provider, customBaseURL, customBaseURL);
   if (!baseURL) {
@@ -172,9 +222,9 @@ async function fetchProviderModels(
     return fetchOllamaModels(baseURL);
   }
 
-  const payload = await fetchJson(`${baseURL}/models`, {
+  const payload = await fetchJson(resolveModelsEndpoint(baseURL), {
     method: "GET",
-    headers: buildHeaders(provider, apiKey),
+    headers: buildProviderModelHeaders(provider, apiKey, authMode),
   });
 
   const models = parseModelIds(payload);
@@ -204,7 +254,7 @@ export async function getProviderModels(
   }
 
   try {
-    const models = await fetchProviderModels(provider, normalizedApiKey, options.baseURL);
+    const models = await fetchProviderModels(provider, normalizedApiKey, options.baseURL, options.authMode);
     return models.length > 0 ? setCachedModels(provider, models, options.baseURL) : fallback;
   } catch {
     const cached = getCachedModels(provider, options.baseURL);
@@ -219,7 +269,8 @@ export async function refreshProviderModels(
   provider: LLMProvider,
   apiKey?: string,
   baseURL?: string,
+  authMode?: ProviderAuthMode,
 ): Promise<string[]> {
-  const models = await fetchProviderModels(provider, apiKey?.trim(), baseURL);
+  const models = await fetchProviderModels(provider, apiKey?.trim(), baseURL, authMode);
   return setCachedModels(provider, models, baseURL);
 }

@@ -72,7 +72,7 @@ export default function SettingsNavigationCards(props: {
             路由健康时，自动导演和章节生产会按任务自动选择模型。
           </div>
           <Button asChild className={AUTO_DIRECTOR_MOBILE_CLASSES.fullWidthAction}>
-            <Link to="/settings/models">进入模型与厂商</Link>
+            <Link to="/settings/model-routes">进入模型路由管理</Link>
           </Button>
         </CardContent>
         </Card>

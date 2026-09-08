@@ -1,12 +1,20 @@
 import { Router } from "express";
 import type { ApiResponse } from "@ai-novel/shared/types/api";
-import type { BuiltinLLMProvider, LLMProvider } from "@ai-novel/shared/types/llm";
+import {
+  PROVIDER_AUTH_MODES,
+  REASONING_EFFORTS,
+  type BuiltinLLMProvider,
+  type LLMProvider,
+  type ProviderAuthMode,
+  type ReasoningEffort,
+} from "@ai-novel/shared/types/llm";
 import { z } from "zod";
 import { prisma } from "../db/prisma";
 import { setProviderSecretCache } from "../llm/factory";
 import { evictSharedLimiters } from "../llm/requestLimiter";
-import { refreshProviderModels } from "../llm/modelCatalog";
+import { filterHiddenModels, parseHiddenModels, refreshProviderModels, serializeHiddenModels } from "../llm/modelCatalog";
 import { llmProviderSchema } from "../llm/providerSchema";
+import { isDeepSeekThinkingModeProvider, normalizeReasoningEffort } from "../llm/reasoning";
 import {
   getProviderEnvApiKey,
   getProviderEnvBaseUrl,
@@ -62,8 +70,11 @@ const upsertApiKeySchema = z.object({
   model: z.string().trim().optional(),
   imageModel: z.string().trim().optional(),
   baseURL: z.union([z.string().trim().url("API URL 格式不正确。"), z.literal("")]).optional(),
+  authMode: z.enum(PROVIDER_AUTH_MODES).optional(),
   isActive: z.boolean().optional(),
   reasoningEnabled: z.boolean().optional(),
+  reasoningEffort: z.enum(REASONING_EFFORTS).optional(),
+  hiddenModels: z.array(z.string().trim().min(1).max(240)).max(200).optional(),
   concurrencyLimit: z.coerce.number().int().min(0).max(MAX_PROVIDER_CONCURRENCY_LIMIT).optional(),
   requestIntervalMs: z.coerce.number().int().min(0).max(MAX_PROVIDER_REQUEST_INTERVAL_MS).optional(),
 });
@@ -118,8 +129,11 @@ type APIKeyRecordLike = {
   key: string | null;
   model: string | null;
   baseURL: string | null;
+  authMode: string;
   isActive: boolean;
   reasoningEnabled?: boolean | null;
+  reasoningEffort?: string | null;
+  hiddenModels?: string | null;
   concurrencyLimit?: number | null;
   requestIntervalMs?: number | null;
 };
@@ -132,6 +146,7 @@ type BuiltInProviderStatus = {
   currentModel: string;
   currentImageModel: string | null;
   currentBaseURL: string;
+  currentAuthMode: ProviderAuthMode;
   models: string[];
   imageModels: string[];
   defaultModel: string;
@@ -141,6 +156,9 @@ type BuiltInProviderStatus = {
   isConfigured: boolean;
   isActive: boolean;
   reasoningEnabled: boolean;
+  reasoningEffort: ReasoningEffort | null;
+  supportsReasoningEffort: boolean;
+  hiddenModels: string[];
   concurrencyLimit: number;
   requestIntervalMs: number;
   supportsImageGeneration: boolean;
@@ -154,6 +172,7 @@ type CustomProviderStatus = {
   currentModel: string;
   currentImageModel: string | null;
   currentBaseURL: string;
+  currentAuthMode: ProviderAuthMode;
   models: string[];
   imageModels: string[];
   defaultModel: string;
@@ -163,6 +182,9 @@ type CustomProviderStatus = {
   isConfigured: boolean;
   isActive: boolean;
   reasoningEnabled: boolean;
+  reasoningEffort: ReasoningEffort | null;
+  supportsReasoningEffort: boolean;
+  hiddenModels: string[];
   concurrencyLimit: number;
   requestIntervalMs: number;
   supportsImageGeneration: boolean;
@@ -183,6 +205,10 @@ function normalizeProviderLimit(value: number | null | undefined): number {
   return Math.floor(value);
 }
 
+function normalizeProviderAuthMode(value: unknown): ProviderAuthMode {
+  return value === "x-api-key" || value === "none" ? value : "bearer";
+}
+
 function getFallbackModels(provider: LLMProvider, currentModel?: string): string[] {
   const models = isBuiltInProvider(provider) ? PROVIDERS[provider].models : [];
   return Array.from(new Set([...models, currentModel ?? ""].filter(Boolean)));
@@ -197,6 +223,8 @@ function buildBuiltInProviderStatus(
     baseURL?: string | null;
     isActive?: boolean;
     reasoningEnabled?: boolean | null;
+    reasoningEffort?: string | null;
+    hiddenModels?: string | null;
     concurrencyLimit?: number | null;
     requestIntervalMs?: number | null;
   } | undefined,
@@ -211,10 +239,13 @@ function buildBuiltInProviderStatus(
     ?? getProviderEnvBaseUrl(provider)
     ?? PROVIDERS[provider].baseURL;
   const requiresApiKey = providerRequiresApiKey(provider);
-  const models = getFallbackModels(provider, configuredModel);
-  const currentModel = configuredModel ?? models[0] ?? "";
+  const hiddenModels = parseHiddenModels(item?.hiddenModels);
+  const fallbackModels = getFallbackModels(provider, configuredModel);
+  const currentModel = configuredModel ?? fallbackModels[0] ?? "";
+  const models = filterHiddenModels(fallbackModels, hiddenModels, currentModel);
   const currentImageModel = imageModel ?? getDefaultImageModel(provider) ?? null;
   const isConfigured = requiresApiKey ? Boolean(effectiveKey && currentModel) : Boolean(currentModel && currentBaseURL);
+  const supportsReasoningEffort = isDeepSeekThinkingModeProvider(provider, currentBaseURL, currentModel);
 
   return {
     provider,
@@ -224,6 +255,7 @@ function buildBuiltInProviderStatus(
     currentModel,
     currentImageModel,
     currentBaseURL,
+    currentAuthMode: "bearer",
     models,
     imageModels: Array.from(new Set([...getImageModelOptions(provider), currentImageModel ?? ""].filter(Boolean))),
     defaultModel: PROVIDERS[provider].defaultModel,
@@ -233,6 +265,9 @@ function buildBuiltInProviderStatus(
     isConfigured,
     isActive: item?.isActive ?? isConfigured,
     reasoningEnabled: item?.reasoningEnabled ?? true,
+    reasoningEffort: supportsReasoningEffort ? normalizeReasoningEffort(item?.reasoningEffort) : null,
+    supportsReasoningEffort,
+    hiddenModels,
     concurrencyLimit: normalizeProviderLimit(item?.concurrencyLimit),
     requestIntervalMs: normalizeProviderLimit(item?.requestIntervalMs),
     supportsImageGeneration: Boolean(currentImageModel),
@@ -245,14 +280,20 @@ function buildCustomProviderStatus(item: {
   key: string | null;
   model: string | null;
   baseURL: string | null;
+  authMode: string;
   isActive: boolean;
   reasoningEnabled?: boolean | null;
+  reasoningEffort?: string | null;
+  hiddenModels?: string | null;
   concurrencyLimit?: number | null;
   requestIntervalMs?: number | null;
 }, imageModel: string | undefined): CustomProviderStatus {
   const currentModel = normalizeOptionalText(item.model) ?? "";
   const currentBaseURL = normalizeOptionalText(item.baseURL) ?? "";
-  const models = currentModel ? [currentModel] : [];
+  const currentAuthMode = normalizeProviderAuthMode(item.authMode);
+  const hiddenModels = parseHiddenModels(item.hiddenModels);
+  const models = filterHiddenModels(currentModel ? [currentModel] : [], hiddenModels, currentModel);
+  const supportsReasoningEffort = isDeepSeekThinkingModeProvider(item.provider, currentBaseURL, currentModel);
   return {
     provider: item.provider,
     kind: "custom",
@@ -261,6 +302,7 @@ function buildCustomProviderStatus(item: {
     currentModel,
     currentImageModel: imageModel ?? null,
     currentBaseURL,
+    currentAuthMode,
     models,
     imageModels: imageModel ? [imageModel] : [],
     defaultModel: currentModel,
@@ -270,6 +312,9 @@ function buildCustomProviderStatus(item: {
     isConfigured: Boolean(currentModel && currentBaseURL),
     isActive: item.isActive,
     reasoningEnabled: item.reasoningEnabled ?? true,
+    reasoningEffort: supportsReasoningEffort ? normalizeReasoningEffort(item.reasoningEffort) : null,
+    supportsReasoningEffort,
+    hiddenModels,
     concurrencyLimit: normalizeProviderLimit(item.concurrencyLimit),
     requestIntervalMs: normalizeProviderLimit(item.requestIntervalMs),
     supportsImageGeneration: Boolean(imageModel),
@@ -353,6 +398,7 @@ router.put(
           model: record.model ?? undefined,
           baseURL: record.baseURL ?? undefined,
           reasoningEnabled: record.reasoningEnabled ?? true,
+          reasoningEffort: normalizeReasoningEffort(record.reasoningEffort),
           concurrencyLimit: record.concurrencyLimit ?? 0,
           requestIntervalMs: record.requestIntervalMs ?? 0,
         } : null);
@@ -514,13 +560,21 @@ router.put(
       const nextBaseURL = body.baseURL !== undefined
         ? normalizeOptionalText(body.baseURL)
         : normalizeOptionalText(existingRecord?.baseURL);
+      const nextAuthMode = isBuiltInProvider(provider)
+        ? "bearer"
+        : normalizeProviderAuthMode(body.authMode ?? existingRecord?.authMode);
       const nextDisplayName = !isBuiltInProvider(provider)
         ? normalizeOptionalText(body.displayName) ?? normalizeOptionalText(existingRecord?.displayName) ?? provider
         : undefined;
       const nextReasoningEnabled = body.reasoningEnabled ?? existingRecord?.reasoningEnabled ?? true;
+      const nextReasoningEffort = normalizeReasoningEffort(body.reasoningEffort ?? existingRecord?.reasoningEffort);
+      const nextHiddenModels = body.hiddenModels ?? parseHiddenModels(existingRecord?.hiddenModels);
       const nextConcurrencyLimit = body.concurrencyLimit ?? normalizeProviderLimit(existingRecord?.concurrencyLimit);
       const nextRequestIntervalMs = body.requestIntervalMs ?? normalizeProviderLimit(existingRecord?.requestIntervalMs);
       const requiresApiKey = providerRequiresApiKey(provider);
+      const effectiveCurrentModel = nextModel
+        ?? getProviderEnvModel(provider)
+        ?? (isBuiltInProvider(provider) ? PROVIDERS[provider].defaultModel : undefined);
 
       if (body.isActive === false) {
         const [routeInUse, selection, ragSettings, ragRuntimeSettings] = await Promise.all([
@@ -549,14 +603,23 @@ router.put(
       if (!isBuiltInProvider(provider) && !nextBaseURL) {
         throw new AppError("请先填写自定义厂商的 API URL。", 400);
       }
+      if (!isBuiltInProvider(provider) && nextAuthMode === "x-api-key" && !effectiveKey) {
+        throw new AppError("x-api-key 鉴权需要填写 API Key。", 400);
+      }
+      if (effectiveCurrentModel && nextHiddenModels.includes(effectiveCurrentModel)) {
+        throw new AppError("当前使用的模型不能隐藏，请先切换模型。", 400);
+      }
 
       const data = (isBuiltInProvider(provider)
         ? await secretStore.upsertProvider(provider, {
           key: nextKey ?? null,
           model: nextModel ?? null,
           baseURL: nextBaseURL ?? null,
+          authMode: nextAuthMode,
           isActive: body.isActive ?? true,
           reasoningEnabled: nextReasoningEnabled,
+          reasoningEffort: nextReasoningEffort,
+          hiddenModels: serializeHiddenModels(nextHiddenModels),
           concurrencyLimit: nextConcurrencyLimit,
           requestIntervalMs: nextRequestIntervalMs,
         })
@@ -565,8 +628,11 @@ router.put(
           key: nextKey ?? null,
           model: nextModel ?? null,
           baseURL: nextBaseURL ?? null,
+          authMode: nextAuthMode,
           isActive: body.isActive ?? existingRecord?.isActive ?? true,
           reasoningEnabled: nextReasoningEnabled,
+          reasoningEffort: nextReasoningEffort,
+          hiddenModels: serializeHiddenModels(nextHiddenModels),
           concurrencyLimit: nextConcurrencyLimit,
           requestIntervalMs: nextRequestIntervalMs,
         })) as APIKeyRecordLike;
@@ -584,16 +650,28 @@ router.put(
         key: data.key ?? undefined,
         model: data.model ?? undefined,
         baseURL: data.baseURL ?? undefined,
+        authMode: normalizeProviderAuthMode(data.authMode),
         reasoningEnabled: data.reasoningEnabled ?? true,
+        reasoningEffort: data.reasoningEffort === "low" || data.reasoningEffort === "max" ? data.reasoningEffort : "high",
         concurrencyLimit: data.concurrencyLimit ?? 0,
         requestIntervalMs: data.requestIntervalMs ?? 0,
       } : null);
       evictSharedLimiters(provider);
 
-      let models = getFallbackModels(provider, data.model ?? undefined);
+      const hiddenModels = parseHiddenModels(data.hiddenModels);
+      let models = filterHiddenModels(getFallbackModels(provider, data.model ?? undefined), hiddenModels, data.model ?? undefined);
       let message = "厂商配置已保存。";
       try {
-        models = await refreshProviderModels(provider, effectiveKey, nextBaseURL ?? getProviderEnvBaseUrl(provider));
+        models = filterHiddenModels(
+          await refreshProviderModels(
+            provider,
+            effectiveKey,
+            nextBaseURL ?? getProviderEnvBaseUrl(provider),
+            nextAuthMode,
+          ),
+          hiddenModels,
+          data.model ?? undefined,
+        );
       } catch {
         message = "厂商配置已保存，但模型列表刷新失败。可以稍后在厂商卡片中刷新。";
       }
@@ -606,8 +684,14 @@ router.put(
           model: data.model,
           imageModel: currentImageModel ?? null,
           baseURL: data.baseURL,
+          authMode: normalizeProviderAuthMode(data.authMode),
           isActive: data.isActive,
           reasoningEnabled: data.reasoningEnabled ?? true,
+          reasoningEffort: isDeepSeekThinkingModeProvider(provider, data.baseURL ?? undefined, data.model ?? undefined)
+            ? normalizeReasoningEffort(data.reasoningEffort)
+            : null,
+          supportsReasoningEffort: isDeepSeekThinkingModeProvider(provider, data.baseURL ?? undefined, data.model ?? undefined),
+          hiddenModels,
           concurrencyLimit: normalizeProviderLimit(data.concurrencyLimit),
           requestIntervalMs: normalizeProviderLimit(data.requestIntervalMs),
           models,
@@ -621,8 +705,12 @@ router.put(
         model: string | null;
         imageModel: string | null;
         baseURL: string | null;
+        authMode: ProviderAuthMode;
         isActive: boolean;
         reasoningEnabled: boolean;
+        reasoningEffort: ReasoningEffort | null;
+        supportsReasoningEffort: boolean;
+        hiddenModels: string[];
         concurrencyLimit: number;
         requestIntervalMs: number;
         models: string[];
@@ -671,14 +759,16 @@ router.post(
       if (providerRequiresApiKey(provider) && !effectiveKey) {
         throw new AppError("请先配置 API Key，再刷新模型列表。", 400);
       }
-      const models = await refreshProviderModels(
-        provider,
-        effectiveKey,
-        normalizeOptionalText(keyConfig?.baseURL) ?? getProviderEnvBaseUrl(provider),
-      );
+      const hiddenModels = parseHiddenModels(keyConfig?.hiddenModels);
       const currentModel = normalizeOptionalText(keyConfig?.model)
         ?? getProviderEnvModel(provider)
         ?? (isBuiltInProvider(provider) ? PROVIDERS[provider].defaultModel : "");
+      const models = filterHiddenModels(await refreshProviderModels(
+        provider,
+        effectiveKey,
+        normalizeOptionalText(keyConfig?.baseURL) ?? getProviderEnvBaseUrl(provider),
+        normalizeProviderAuthMode(keyConfig?.authMode),
+      ), hiddenModels, currentModel);
       res.status(200).json({
         success: true,
         data: {

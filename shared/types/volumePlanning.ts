@@ -50,11 +50,18 @@ function buildDecisionVolumeCountRange(chapterBudget: number, maxVolumeCount: nu
   profile: VolumeScaleProfile;
   rationale: string;
 } {
-  if (chapterBudget < 60) {
+  if (chapterBudget < 30) {
     return {
       range: { min: 1, max: Math.min(2, maxVolumeCount) },
       profile: "short",
       rationale: "短篇或短中篇可以保留一到两段结构，优先保证开局承诺和结尾兑现不被拆散。",
+    };
+  }
+  if (chapterBudget < 60) {
+    return {
+      range: { min: Math.min(3, maxVolumeCount), max: Math.min(3, maxVolumeCount) },
+      profile: "compact",
+      rationale: "30 至 59 章的紧凑全书需要三幕分卷，让开局、转向和终局各有独立篇幅，避免结尾被前期推进挤占。",
     };
   }
   if (chapterBudget < 120) {
@@ -148,7 +155,7 @@ export function buildVolumeCountGuidance(params: {
 
   const normalizedExistingVolumeCount = normalizePositiveInteger(params.existingVolumeCount);
   const respectedExistingVolumeCount = (
-    params.respectExistingVolumeCount !== false
+    params.respectExistingVolumeCount === true
     && userPreferredVolumeCount == null
     && normalizedExistingVolumeCount != null
   )

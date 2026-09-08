@@ -1796,8 +1796,11 @@ model APIKey {
   key       String?
   model     String?
   baseURL   String?
+  authMode String @default("bearer")
   isActive  Boolean  @default(true)
   reasoningEnabled Boolean @default(true)
+  reasoningEffort String?
+  hiddenModels String @default("[]")
   concurrencyLimit Int @default(0)
   requestIntervalMs Int @default(0)
   createdAt DateTime @default(now())

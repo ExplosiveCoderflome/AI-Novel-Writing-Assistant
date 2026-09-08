@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { Plus, PlugZap, ServerCog, Sparkles } from "lucide-react";
-import type { LLMProvider } from "@ai-novel/shared/types/llm";
+import type { LLMProvider, ReasoningEffort } from "@ai-novel/shared/types/llm";
 import type { APIKeyStatus, ProviderBalanceStatus } from "@/api/settings";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -24,7 +24,8 @@ export default function ProviderSettingsSection(props: {
   onTest: (provider: APIKeyStatus) => void;
   onRefreshModels: (provider: LLMProvider) => void;
   onRefreshBalance: (provider: LLMProvider) => void;
-  onToggleReasoning: (provider: LLMProvider, reasoningEnabled: boolean) => void;
+  onSetReasoning: (provider: LLMProvider, reasoningEnabled: boolean, reasoningEffort?: ReasoningEffort) => void;
+  onSetHiddenModels: (provider: LLMProvider, hiddenModels: string[], message: string) => void;
   removingProvider?: string;
 }) {
   const {
@@ -42,7 +43,8 @@ export default function ProviderSettingsSection(props: {
     onTest,
     onRefreshModels,
     onRefreshBalance,
-    onToggleReasoning,
+    onSetReasoning,
+    onSetHiddenModels,
     removingProvider,
   } = props;
   const [isAddProviderOpen, setIsAddProviderOpen] = useState(false);
@@ -103,7 +105,8 @@ export default function ProviderSettingsSection(props: {
             onTest={onTest}
             onRefreshModels={onRefreshModels}
             onRefreshBalance={onRefreshBalance}
-            onToggleReasoning={onToggleReasoning}
+            onSetReasoning={onSetReasoning}
+            onSetHiddenModels={onSetHiddenModels}
             onRemove={() => onRemoveProvider(item.provider)}
             isRemoving={removingProvider === item.provider.provider}
             isRefreshingModels={refreshingModelProvider === item.provider.provider}

@@ -518,7 +518,7 @@ test("volume strategy prompt renders volume count guidance and fixed-count const
   assert.equal(messages.length, 2);
   assert.match(String(messages[0].content), /recommendedVolumeCount 必须严格等于 10/);
   assert.match(String(messages[0].content), /hardPlannedVolumeCount 必须落在 2-4 之间/);
-  assert.match(String(messages[0].content), /60 章以上默认至少保留三段结构/);
+  assert.match(String(messages[0].content), /开局、转向和终局必须各有独立空间/);
   assert.match(String(messages[0].content), /超长篇必须避免把大量章节压成少数巨卷/);
   assert.match(String(messages[1].content), /decision volume count range: 8-13/);
   assert.match(String(messages[1].content), /user preferred volume count: 10/);

@@ -32,7 +32,7 @@ export default function TakeoverChapterTargetSelector({
   };
 
   return (
-    <div className="rounded-lg border bg-background/70 p-3">
+    <div className="bg-background/75 px-3 py-3">
       <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
         <div className="text-sm font-medium text-foreground">推进至</div>
         <Input

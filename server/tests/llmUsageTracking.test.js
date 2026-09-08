@@ -14,6 +14,7 @@ test("extractLlmTokenUsage reads usage_metadata returned by langchain messages",
     usage_metadata: {
       input_tokens: 128,
       output_tokens: 64,
+      output_token_details: { reasoning: 24 },
       total_tokens: 192,
     },
   });
@@ -21,6 +22,7 @@ test("extractLlmTokenUsage reads usage_metadata returned by langchain messages",
   assert.deepEqual(usage, {
     promptTokens: 128,
     completionTokens: 64,
+    reasoningTokens: 24,
     totalTokens: 192,
   });
 });
@@ -31,6 +33,7 @@ test("extractLlmTokenUsage falls back to response_metadata usage payload", () =>
       usage: {
         prompt_tokens: 40,
         completion_tokens: 15,
+        completion_tokens_details: { reasoning_tokens: 6 },
         total_tokens: 55,
       },
     },
@@ -39,6 +42,7 @@ test("extractLlmTokenUsage falls back to response_metadata usage payload", () =>
   assert.deepEqual(usage, {
     promptTokens: 40,
     completionTokens: 15,
+    reasoningTokens: 6,
     totalTokens: 55,
   });
 });

@@ -237,6 +237,7 @@ function validateScopeAgainstAssets(input: {
   assets: AutoDirectorTakeoverValidationInput["assets"];
   entryStep: DirectorTakeoverEntryStep;
   allowStructuredBackfill?: boolean;
+  allowRollingPlanExpansion?: boolean;
 }): string[] {
   const reasons: string[] = [];
   const volumeChapterRanges = Array.isArray(input.assets.volumeChapterRanges)
@@ -281,7 +282,7 @@ function validateScopeAgainstAssets(input: {
     const isCoveredByVolumeStrategy = volumeChapterRanges.some((range) => (
       range.startOrder <= affectedScope.startOrder && range.endOrder >= affectedScope.endOrder
     ));
-    if (!isCoveredByVolumeStrategy) {
+    if (!isCoveredByVolumeStrategy && !input.allowRollingPlanExpansion) {
       reasons.push("目标章节范围没有被当前卷战略完整覆盖，请先调整卷战略或缩小目标范围。");
     }
   }
@@ -341,6 +342,8 @@ export function validateAutoDirectorTakeoverRequest(
     assets: input.assets,
     entryStep,
     allowStructuredBackfill,
+    allowRollingPlanExpansion: input.request.runMode === "full_book_autopilot"
+      && (input.request.strategy ?? "continue_existing") === "continue_existing",
   }));
 
   return buildResult({

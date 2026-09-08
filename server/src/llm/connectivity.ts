@@ -1,6 +1,6 @@
 import { HumanMessage, SystemMessage } from "@langchain/core/messages";
 import { z } from "zod";
-import type { LLMProvider } from "@ai-novel/shared/types/llm";
+import type { LLMProvider, ProviderAuthMode } from "@ai-novel/shared/types/llm";
 import type {
   ModelRouteRequestProtocol,
   ModelRouteStructuredResponseFormat,
@@ -73,6 +73,7 @@ function getStructuredFormatCandidates(input: {
   provider: LLMProvider;
   model?: string;
   baseURL?: string;
+  authMode?: ProviderAuthMode;
   requestProtocol: ModelRouteRequestProtocol;
   preferred?: ModelRouteStructuredResponseFormat;
 }): ModelRouteStructuredResponseFormat[] {
@@ -104,12 +105,14 @@ async function testPlainConnection(input: {
   model?: string;
   apiKey?: string;
   baseURL?: string;
+  authMode?: ProviderAuthMode;
   requestProtocol?: ModelRouteRequestProtocol;
 }): Promise<LLMConnectivityStatus> {
   try {
     const resolved = await resolveLLMClientOptions(input.provider, {
       apiKey: input.apiKey,
       baseURL: input.baseURL,
+      authMode: input.authMode,
       model: input.model,
       temperature: 0.1,
       maxTokens: 16,
@@ -118,6 +121,7 @@ async function testPlainConnection(input: {
     const llm = await getLLM(input.provider, {
       apiKey: input.apiKey,
       baseURL: input.baseURL,
+      authMode: input.authMode,
       model: resolved.model,
       temperature: 0.1,
       maxTokens: 16,
@@ -166,12 +170,14 @@ async function testStructuredConnection(input: {
   model?: string;
   apiKey?: string;
   baseURL?: string;
+  authMode?: ProviderAuthMode;
   requestProtocol?: ModelRouteRequestProtocol;
   structuredResponseFormat?: ModelRouteStructuredResponseFormat;
 }): Promise<LLMConnectivityStatus> {
   const resolved = await resolveLLMClientOptions(input.provider, {
     apiKey: input.apiKey,
     baseURL: input.baseURL,
+    authMode: input.authMode,
     model: input.model,
     temperature: 0.2,
     maxTokens: 256,
@@ -186,6 +192,7 @@ async function testStructuredConnection(input: {
       model: resolved.model,
       apiKey: input.apiKey,
       baseURL: input.baseURL ?? resolved.baseURL,
+      authMode: input.authMode ?? resolved.authMode,
       temperature: 0.2,
       maxTokens: 256,
       taskType: "planner",
@@ -287,6 +294,7 @@ async function testConnection(input: {
   model?: string;
   apiKey?: string;
   baseURL?: string;
+  authMode?: ProviderAuthMode;
   probeMode?: ConnectivityProbeMode;
   requestProtocol?: ModelRouteRequestProtocol;
   structuredResponseFormat?: ModelRouteStructuredResponseFormat;

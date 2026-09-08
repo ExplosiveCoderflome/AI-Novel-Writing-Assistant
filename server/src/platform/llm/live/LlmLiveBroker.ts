@@ -4,6 +4,7 @@ import type {
   LlmLiveEvent,
   LlmLivePhase,
   LlmLiveSessionSnapshot,
+  LlmLiveTokenUsage,
 } from "@ai-novel/shared/types/llmLive";
 
 const COMPLETED_SESSION_RETENTION_MS = 10 * 60 * 1000;
@@ -36,6 +37,10 @@ export class LlmLiveBroker {
       phaseMessage: "正在连接模型",
       preview: "",
       totalChars: 0,
+      reasoning: "",
+      totalReasoningChars: 0,
+      firstResponseAt: null,
+      tokenUsage: null,
       startedAt: now.toISOString(),
       updatedAt: now.toISOString(),
       completedAt: null,
@@ -120,6 +125,7 @@ export class LlmLiveBroker {
       phaseMessage: record.snapshot.phase === "requesting" ? "模型正在返回内容" : record.snapshot.phaseMessage,
       preview: preview.length > MAX_PREVIEW_CHARS ? preview.slice(-MAX_PREVIEW_CHARS) : preview,
       totalChars: record.snapshot.totalChars + content.length,
+      firstResponseAt: record.snapshot.firstResponseAt ?? now,
       updatedAt: now,
     };
     this.publish({
@@ -129,6 +135,58 @@ export class LlmLiveBroker {
       interactionId,
       content,
       totalChars: record.snapshot.totalChars,
+    });
+  }
+
+  appendReasoning(interactionId: string, content: string): void {
+    if (!content) {
+      return;
+    }
+    const record = this.sessions.get(interactionId);
+    if (!record) {
+      return;
+    }
+    const now = new Date().toISOString();
+    const seq = this.nextSequence();
+    record.snapshot = {
+      ...record.snapshot,
+      seq,
+      phase: record.snapshot.phase === "requesting" ? "streaming" : record.snapshot.phase,
+      phaseMessage: record.snapshot.phase === "requesting" ? "模型正在思考" : record.snapshot.phaseMessage,
+      reasoning: record.snapshot.reasoning + content,
+      totalReasoningChars: record.snapshot.totalReasoningChars + content.length,
+      firstResponseAt: record.snapshot.firstResponseAt ?? now,
+      updatedAt: now,
+    };
+    this.publish({
+      type: "reasoning_delta",
+      seq,
+      at: now,
+      interactionId,
+      content,
+      totalReasoningChars: record.snapshot.totalReasoningChars,
+    });
+  }
+
+  updateUsage(interactionId: string, tokenUsage: LlmLiveTokenUsage | null): void {
+    const record = this.sessions.get(interactionId);
+    if (!record || !tokenUsage) {
+      return;
+    }
+    const now = new Date().toISOString();
+    const seq = this.nextSequence();
+    record.snapshot = {
+      ...record.snapshot,
+      seq,
+      tokenUsage,
+      updatedAt: now,
+    };
+    this.publish({
+      type: "usage_updated",
+      seq,
+      at: now,
+      interactionId,
+      tokenUsage,
     });
   }
 
@@ -239,6 +297,14 @@ export class LlmLiveSession {
 
   delta(content: string): void {
     this.broker.appendDelta(this.interactionId, content);
+  }
+
+  reasoning(content: string): void {
+    this.broker.appendReasoning(this.interactionId, content);
+  }
+
+  usage(tokenUsage: LlmLiveTokenUsage | null): void {
+    this.broker.updateUsage(this.interactionId, tokenUsage);
   }
 
   phase(phase: LlmLivePhase, message: string): void {

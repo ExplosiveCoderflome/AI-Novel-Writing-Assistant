@@ -2427,9 +2427,6 @@ export default function NovelEdit() {
       <NovelExistingProjectTakeoverDialog
         novelId={id}
         basicForm={basicForm}
-        genreOptions={genreOptions}
-        storyModeOptions={storyModeOptions}
-        worldOptions={worldListQuery.data?.data ?? []}
         triggerVariant={variant}
         defaultEntryStep={step}
         workflowTaskId={takeoverContextTaskId}
