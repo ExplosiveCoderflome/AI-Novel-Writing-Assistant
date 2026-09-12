@@ -17,6 +17,7 @@ export interface ChapterArtifactCheckpointRecord {
 }
 
 const RUNNING_STALE_MS = 15 * 60 * 1000;
+const MAX_FAILED_ATTEMPTS = 2;
 
 export class ChapterArtifactCheckpointStore {
   async read(identity: ChapterArtifactCheckpointIdentity): Promise<ChapterArtifactCheckpointRecord | null> {
@@ -49,6 +50,18 @@ export class ChapterArtifactCheckpointStore {
       if (existing.status === "succeeded") {
         return "already_done";
       }
+      let retryMetadata = metadata;
+      if (existing.status === "failed") {
+        try {
+          const metadata = existing.metadataJson ? JSON.parse(existing.metadataJson) as Record<string, unknown> : {};
+          if (Number(metadata.attemptCount ?? 0) >= MAX_FAILED_ATTEMPTS) {
+            return "already_done";
+          }
+          retryMetadata = { ...metadata, ...retryMetadata, attemptCount: Number(metadata.attemptCount ?? 0) + 1 };
+        } catch {
+          return "already_done";
+        }
+      }
       const staleBefore = new Date(Date.now() - RUNNING_STALE_MS);
       if (existing.status === "running" && existing.updatedAt > staleBefore) {
         return "running";
@@ -65,7 +78,7 @@ export class ChapterArtifactCheckpointStore {
           status: "running",
           sourceType: "chapter_background_sync",
           sourceStage: "chapter_execution",
-          metadataJson: JSON.stringify(metadata),
+          metadataJson: JSON.stringify(retryMetadata),
           updatedAt: new Date(),
         },
       });
@@ -105,11 +118,23 @@ export class ChapterArtifactCheckpointStore {
       data: {
         status: "failed",
         metadataJson: JSON.stringify({
+          attemptCount: await this.readAttemptCount(identity),
           reason: error instanceof Error ? error.message : String(error),
         }),
         updatedAt: new Date(),
       },
     });
+  }
+
+  private async readAttemptCount(identity: ChapterArtifactCheckpointIdentity): Promise<number> {
+    const row = await this.read(identity).catch(() => null);
+    if (!row?.metadataJson) return 1;
+    try {
+      const metadata = JSON.parse(row.metadataJson) as Record<string, unknown>;
+      return Number(metadata.attemptCount ?? 0) + 1;
+    } catch {
+      return 1;
+    }
   }
 
   private uniqueWhere(identity: ChapterArtifactCheckpointIdentity) {
