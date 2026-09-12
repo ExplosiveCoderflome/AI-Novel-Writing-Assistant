@@ -147,11 +147,31 @@ export class ChapterQualityGateService {
     const where = this.cacheWhere(input, identity);
     try {
       const row = await prisma.chapterArtifactSyncCheckpoint.findUnique({ where, select: { status: true, metadataJson: true } });
-      if (row?.status === "succeeded" && row.metadataJson) {
-        const payload = JSON.parse(row.metadataJson) as PersistedAcceptance;
+      const exact = row?.status === "succeeded" && row.metadataJson ? JSON.parse(row.metadataJson) as PersistedAcceptance : null;
+      if (exact?.schemaVersion === 2 && exact.gate === "acceptance"
+        && exact.contentHash === identity.contentHash && exact.requestKey === identity.requestKey
+        && this.isCacheable(exact.result)) {
+        rememberCacheValue(this.cache, key, exact.result);
+        return exact.result;
+      }
+
+      // requestKey can change after a task resume while the chapter content is unchanged.
+      // Reuse the latest cache for the same content hash instead of paying for a duplicate gate.
+      const fallback = await prisma.chapterArtifactSyncCheckpoint.findFirst({
+        where: {
+          novelId: input.novelId,
+          chapterId: input.chapterId,
+          contentHash: identity.contentHash,
+          artifactType: "quality_gate_acceptance",
+          status: "succeeded",
+        },
+        orderBy: { updatedAt: "desc" },
+        select: { metadataJson: true },
+      });
+      if (fallback?.metadataJson) {
+        const payload = JSON.parse(fallback.metadataJson) as PersistedAcceptance;
         if (payload.schemaVersion === 2 && payload.gate === "acceptance"
-          && payload.contentHash === identity.contentHash && payload.requestKey === identity.requestKey
-          && this.isCacheable(payload.result)) {
+          && payload.contentHash === identity.contentHash && this.isCacheable(payload.result)) {
           rememberCacheValue(this.cache, key, payload.result);
           return payload.result;
         }

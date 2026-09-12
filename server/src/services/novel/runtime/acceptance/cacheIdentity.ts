@@ -45,7 +45,7 @@ export async function buildAcceptanceCacheIdentity(input: ChapterAcceptanceAsses
   });
   const resolved = await resolveLLMClientOptions(input.provider, {
     model: input.model, temperature: Math.min(input.temperature ?? 0.2, 0.35),
-    maxTokens: 1600, taskType: asset.taskType, executionMode: "structured",
+    maxTokens: 3200, taskType: asset.taskType, executionMode: "structured",
   });
   const identity = {
     version: 2, promptId: asset.id, promptVersion: asset.version,

@@ -332,7 +332,7 @@ export class ChapterAcceptanceAssessmentService {
         provider: input.provider,
         model: input.model,
         temperature: Math.min(input.temperature ?? 0.2, 0.35),
-        maxTokens: 1600,
+        maxTokens: 3200,
         novelId: input.novelId,
         chapterId: input.chapterId,
         stage: "chapter_acceptance",
