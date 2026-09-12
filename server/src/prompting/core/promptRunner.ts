@@ -4,6 +4,7 @@ import { getLLM, getResolvedLLMClientOptionsFromInstance } from "../../llm/facto
 import {
   invokeStructuredLlmDetailed,
   parseStructuredLlmRawContentDetailed,
+  formatLivePrompt,
   type StructuredInvokeResult,
 } from "../../llm/structuredInvoke";
 import {
@@ -877,6 +878,7 @@ export async function runTextPrompt<I>(input: {
     promptMeta: prepared.invocation,
     provider: input.options?.provider,
     model: input.options?.model,
+    promptText: formatLivePrompt(messages),
   });
   try {
     const llm = await promptRunnerLLMFactory(input.options?.provider, {
@@ -984,6 +986,7 @@ export async function streamTextPrompt<I>(input: {
     promptMeta: prepared.invocation,
     provider: input.options?.provider,
     model: input.options?.model,
+    promptText: formatLivePrompt(prepared.messages),
   });
   let captured: ReturnType<typeof captureStreamOutput>;
   try {

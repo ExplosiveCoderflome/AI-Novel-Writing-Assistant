@@ -119,7 +119,7 @@ function buildInvokeMessages<T>(input: StructuredInvokeInput<T>): BaseMessage[] 
   throw new Error(`[${input.label}] missing prompt messages.`);
 }
 
-function formatLivePrompt(messages: BaseMessage[]): string {
+export function formatLivePrompt(messages: BaseMessage[]): string {
   return messages.map((message, index) => {
     const role = message._getType?.() ?? `message_${index + 1}`;
     const content = typeof message.content === "string"
