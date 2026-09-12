@@ -30,6 +30,7 @@
 - 当前使用模型不能隐藏。已有模型路由引用隐藏项时，该路由仍应显示并继续运行，直到用户主动切换。
 - 厂商级思考深度是普通请求的默认值。DeepSeek V4 使用低、高、最大三档，空值按高处理；关闭时不得继续发送深度参数。
 - 结构化任务的输出稳定性高于厂商级思考偏好。能力档案要求关闭思考时，运行时必须覆盖用户默认值，避免推理内容破坏结构化结果。
+- 顶部保存的 temperature 是用户偏好，不是绕过厂商参数约束的最终请求值。正式调用必须先经过模型能力兼容层；例如 Kimi K3 的 temperature 固定为 `1.0`，即使当前选择仍保存其他值，请求也必须收敛到厂商允许值。
 
 ## 示例
 
@@ -54,6 +55,7 @@
 - DeepSeek 思考深度未生效：先确认使用的是 V4 Flash/Pro 和 OpenAI 兼容协议，再检查结构化任务是否按能力档案强制关闭了思考。
 - 自定义厂商返回 401/403：先核对鉴权方式是否与接口文档一致，再分别检查模型目录、连接测试和正式生成是否使用同一 `authMode`；不要只在刷新模型接口临时改请求头。
 - 模型目录地址出现 `/models/models`：检查地址归一函数是否把用户填写的完整目录地址再次拼接，不要为单个厂商增加硬编码例外。
+- Kimi K3 返回 temperature 参数错误：先确认模型名进入 Kimi 能力兼容层，再检查最终客户端配置是否在构造请求前把 temperature 收敛为 `1.0`；不要要求用户反复调整顶部偏好来规避固定参数约束。
 
 ## 相关模块
 
@@ -61,6 +63,7 @@
 - `server/src/routes/settings/llmSelectionRoutes.ts`
 - `server/src/routes/settings.ts`
 - `server/src/llm/modelCatalog.ts`
+- `server/src/llm/capabilities.ts`
 - `client/src/components/layout/LLMSelectionBootstrap.tsx`
 - `client/src/components/common/LLMSelector.tsx`
 - `client/src/store/llmStore.ts`

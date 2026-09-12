@@ -36,8 +36,9 @@ function isKimiFixedTemperatureModel(normalizedModel: string): boolean {
   if (!normalizedModel || normalizedModel === "kimi-latest") {
     return false;
   }
-  // Moonshot 新的 K2 / K2.5 系列对 temperature 有固定要求，只接受 1。
+  // Moonshot 的 K2 / K2.5 / K3 系列对 temperature 有固定要求，只接受 1。
   return normalizedModel.startsWith("kimi-k2")
+    || normalizedModel.startsWith("kimi-k3")
     || normalizedModel.startsWith("kimi-2.5")
     || (normalizedModel.startsWith("kimi-") && normalizedModel.includes("k2"))
     || normalizedModel.includes("kimi2.5")

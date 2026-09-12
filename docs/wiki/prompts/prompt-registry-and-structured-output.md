@@ -43,6 +43,7 @@
 - 长列表与多层对象类 PromptAsset 必须同时控制字段长度、数组规模和调用级输出预算。仅声明“严格 JSON”不能防止模型把说明文字塞进字段或在闭合括号前持续生成；可以按卷、节拍或片段拆分的结果，应优先分段生成并持久化。
 - 空模型响应不属于 JSON 或 schema 修复问题。结构化运行时必须在进入 repair 前识别空响应，将其归为模型传输 / 输出失败，并优先交给模型路由、备用模型或当前生产项重试；repair 没有原始语义可保留，禁止用空对象补造必填业务内容。
 - 支持开关思考模式的模型执行结构化任务时，应由 provider capability profile 显式关闭思考模式，避免推理预算耗尽后没有最终 JSON。新模型别名接入时必须同步验证其思考开关、结构化 profile 和实际请求参数，不能只把模型名加入下拉列表。
+- GLM 4.5 及以上模型在官方兼容端点执行结构化任务时，必须通过 `thinking: { type: "disabled" }` 关闭思考。`enable_thinking: false` 是 Qwen 兼容参数，不能复用于 GLM；聚合或未知代理端点仍按自身已验证的能力处理。
 - Semantic retry 必须把原始业务失败原因传回重试 prompt，并指明需要整体重排还是局部修正。章节列表、卷级拆章这类结果如果因为标题同构、章节功能重复、摘要空泛或结尾牵引不足被拒绝，重试指令应要求重排整组标题骨架和章节功能分配，而不是只替换被点名的一章。
 - editable slots 只能开放低风险表达层内容，不能覆盖 schema、postValidate、taskType、mode、contextPolicy、工具目录、审批边界或 required context。
 - Prompt Workbench 的可视化编辑器只能把 `PromptAsset.slots` 呈现为可编辑项。`replace`、`token`、`append`、`choice` 和 `toggle` 可以映射成不同控件，但保存仍必须走 slot override；不得把整段 system prompt、contextPolicy 或 schema 暴露为自由编辑文本。
@@ -62,6 +63,7 @@
 - `novel.chapter.writer` 最终发送给模型的上下文正文必须面向写作任务可读。`{{context.xxx}}` 和保底 required context 可以在模板、诊断和结构字段中保留原始 group key，但渲染到 human message 时，区块标题和主要字段应使用中文标签，例如 `timeline_context` 显示为 `时间线`、`Title` 显示为 `标题`、角色状态显示为 `目标 / 状态 / 情绪`。内部数据库 ID、风格规则 id 和 `effective_style_profile_id` 这类调试字段不得进入 writer-facing 正文上下文；如需排查，应保留在 diagnostics、日志或专用 meta 文本中。
 - 高级模板版本历史属于本书覆盖数据，不是官方版本库。每次保存创建不可变版本并设为 active；回滚只切换 activeVersionId；恢复官方模板只把 mode 切回 `official` 并保留历史版本，真实生成随即回到 `PromptAsset.render()`。
 - Slot override 的解析优先级固定为：本书覆盖或本书 `official_default` 标记 > 全局覆盖 > `PromptAsset.slots` 官方默认。旧数据中只有 `{ value, baseHash }` 的槽位视为 `custom`，保持兼容。
+- Prompt slot 或高级模板新增持久化模型时，PostgreSQL 与 SQLite schema、迁移和桌面运行时迁移验证必须同步提交。只有 Prisma schema 而没有增量迁移，会让已安装桌面版启动正常但在首次保存时稳定报缺表错误。
 - `official_default` 只表示“当前作用域明确采用官方默认值”。全局层保存官方默认值应删除该槽位覆盖；本书层保存官方默认值时，如果全局层存在自定义覆盖，必须写入 `official_default` 标记来遮蔽全局值；如果没有全局覆盖，则删除本书覆盖即可。
 - “恢复官方当前版”必须通过官方恢复动作处理，而不是简单删除本书覆盖。删除本书覆盖的含义是回到继承链；在有全局覆盖时，这会重新继承全局值，不等于恢复官方默认。
 - “保留我的设置”只能更新当前槽位的 `baseHash/baseVersion`，用于确认用户接受自己的覆盖与当前官方版本的差异；不能顺手改写官方默认值、schema 或上下文策略。

@@ -55,9 +55,6 @@ export interface MarketPlatformStatus {
   error?: string | null;
 }
 
-export const MARKET_FOUNDATION_SYNC_TARGETS = ["genre", "story_modes"] as const;
-export type MarketFoundationSyncTarget = typeof MARKET_FOUNDATION_SYNC_TARGETS[number];
-
 export interface MarketFoundationCandidate {
   existingId: string | null;
   name: string;
@@ -89,6 +86,24 @@ export interface MarketTrendReport {
   productionFoundationCandidate?: MarketProductionFoundationCandidate | null;
   productionFoundationSync?: MarketProductionFoundationSyncState | null;
   createdAt: string;
+}
+
+export interface MarketSavedTopic {
+  id: string;
+  reportId: string;
+  signalId: string;
+  kind: MarketRadarSignal["kind"];
+  label: string;
+  summary: string;
+  direction: MarketTrendDirection;
+  heat: number;
+  crowding: number;
+  createdAt: string;
+}
+
+export interface SaveMarketTopicRequest {
+  reportId: string;
+  signalId: string;
 }
 
 export interface MarketScanRun {
@@ -142,8 +157,4 @@ export interface CreateMarketCreativeBriefRequest {
   reportId: string;
   signalIds: string[];
   influenceMode: MarketInfluenceMode;
-}
-
-export interface SyncMarketProductionFoundationRequest {
-  target: MarketFoundationSyncTarget;
 }
