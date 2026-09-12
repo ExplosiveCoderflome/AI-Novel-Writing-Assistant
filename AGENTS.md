@@ -262,6 +262,13 @@ These areas have the highest priority for wiki accumulation:
 
 ## README Release Notes Workflow
 
+### Commit And Iteration Summary Format
+
+- Commit, push, PR, and release iteration summaries must be organized by user-visible outcome under `新增`、`优化`、`修复`; omit categories with no applicable content.
+- New commit subjects must start with the dominant category as `新增：`、`优化：` or `修复：`, followed by a concise description of the user outcome.
+- Before publishing a batch of unpushed commits, inspect the complete unpublished range rather than only the working tree or latest commit, then merge duplicate items into one iteration summary.
+- Keep implementation details, file lists, test names, and internal schema identifiers out of user-facing summaries unless users need the exact term to operate the product.
+
 - Before any commit, push, or PR step in this repository, use the `readme-release-updater` skill from `${CODEX_HOME:-~/.codex}/skills/readme-release-updater` to inspect the Git scope, summarize the user-visible changes, update `docs/releases/release-notes.md`, and refresh `README.md` `## 最新更新` when applicable.
 - If the `readme-release-updater` skill does not exist in the expected Codex skills directory, create it first before any commit, push, or PR step instead of skipping the workflow.
 - When creating that skill, place it under `${CODEX_HOME:-~/.codex}/skills/readme-release-updater/` with a `SKILL.md` that explicitly instructs the agent to:
