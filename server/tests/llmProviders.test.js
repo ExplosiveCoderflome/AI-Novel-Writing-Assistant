@@ -91,6 +91,18 @@ test("structured output profiles distinguish official, ModelScope Qwen and unkno
   assert.equal(openaiProfile.nativeJsonSchema, true);
   assert.equal(selectStructuredOutputStrategy(openaiProfile, schema), "json_schema");
 
+  const glmProfile = resolveStructuredOutputProfile({
+    provider: "glm",
+    model: "glm-4.5-air",
+    baseURL: "https://open.bigmodel.cn/api/paas/v4",
+    executionMode: "structured",
+  });
+  assert.equal(glmProfile.family, "glm");
+  assert.equal(glmProfile.nativeJsonObject, true);
+  assert.equal(glmProfile.requiresNonThinkingForStructured, true);
+  assert.equal(glmProfile.supportsReasoningToggle, true);
+  assert.equal(selectStructuredOutputStrategy(glmProfile, schema), "json_object");
+
   const glmBehindProxyProfile = resolveStructuredOutputProfile({
     provider: "openai",
     model: "glm-5",
@@ -264,6 +276,10 @@ test("resolveLLMClientOptions applies structured reasoning and token guardrails"
     key: "test-key",
     reasoningEnabled: true,
   });
+  setProviderSecretCache("glm", {
+    key: "test-key",
+    reasoningEnabled: true,
+  });
 
   try {
     const modelscope = await resolveLLMClientOptions("custom_modelscope", {
@@ -292,6 +308,16 @@ test("resolveLLMClientOptions applies structured reasoning and token guardrails"
     assert.equal(qwen.modelKwargs?.enable_thinking, false);
     assert.equal(qwen.maxTokens, undefined);
     assert.equal(qwen.requestProtocol, "openai_compatible");
+
+    const glm = await resolveLLMClientOptions("glm", {
+      model: "glm-4.6v",
+      executionMode: "structured",
+      structuredStrategy: "json_object",
+    });
+    assert.equal(glm.structuredProfile?.family, "glm");
+    assert.equal(glm.reasoningEnabled, false);
+    assert.equal(glm.reasoningForcedOff, true);
+    assert.deepEqual(glm.modelKwargs?.thinking, { type: "disabled" });
 
     const qwenThinking = await resolveLLMClientOptions("qwen", {
       apiKey: "test-key",
@@ -345,6 +371,7 @@ test("resolveLLMClientOptions applies structured reasoning and token guardrails"
     setProviderSecretCache("qwen", null);
     setProviderSecretCache("openai", null);
     setProviderSecretCache("deepseek", null);
+    setProviderSecretCache("glm", null);
   }
 });
 
