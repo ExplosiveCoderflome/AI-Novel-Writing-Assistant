@@ -402,6 +402,7 @@ export function createLLMFromResolvedOptions(resolved: ResolvedLLMClientOptions)
       temperature: resolved.temperature,
       maxTokens: resolved.maxTokens,
       timeout: resolved.timeoutMs,
+      maxRetries: 0,
       modelKwargs: resolved.modelKwargs,
       __includeRawResponse: resolved.includeRawResponse,
       configuration: {

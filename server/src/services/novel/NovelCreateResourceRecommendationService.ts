@@ -7,7 +7,10 @@ import type {
   ProjectMode,
 } from "@ai-novel/shared/types/novel";
 import type { LLMProvider } from "@ai-novel/shared/types/llm";
-import type { NovelCreateResourceRecommendation } from "@ai-novel/shared/types/novelResourceRecommendation";
+import type {
+  NovelCreateResourceRecommendation,
+  PowerSystemPreference,
+} from "@ai-novel/shared/types/novelResourceRecommendation";
 import { runStructuredPrompt } from "../../prompting/core/promptRunner";
 import { novelCreateResourceRecommendationPrompt } from "../../prompting/prompts/novel/resourceRecommendation.prompts";
 import { ensureSystemResourceStarterData } from "../bootstrap/SystemResourceBootstrapService";
@@ -35,6 +38,7 @@ interface RecommendNovelCreateResourcesInput {
   styleTone?: string;
   emotionIntensity?: EmotionIntensity;
   aiFreedom?: AIFreedom;
+  powerSystemPreference?: PowerSystemPreference;
   provider?: LLMProvider;
   model?: string;
   temperature?: number;
@@ -175,6 +179,7 @@ function buildUserIntentSummary(
     input.pacePreference ? `节奏偏好：${input.pacePreference}` : "",
     input.emotionIntensity ? `情绪浓度：${input.emotionIntensity}` : "",
     input.aiFreedom ? `AI 自由度：${input.aiFreedom}` : "",
+    input.powerSystemPreference ? `战力体系偏好：${input.powerSystemPreference}` : "",
     input.styleTone?.trim() ? `文风关键词：${input.styleTone.trim()}` : "",
     bookFramingSummary ? `书级 framing：\n${bookFramingSummary}` : "",
     currentSelectionSummary ? `当前手动选择：\n${currentSelectionSummary}` : "",
@@ -212,6 +217,7 @@ export class NovelCreateResourceRecommendationService {
       asset: novelCreateResourceRecommendationPrompt,
       promptInput: {
         userIntentSummary: buildUserIntentSummary(input, options),
+        powerSystemPreference: input.powerSystemPreference ?? "ai_recommend",
         genreCatalogText: buildGenreCatalogText(options.genres),
         storyModeCatalogText: buildStoryModeCatalogText(options.storyModes),
         allowedGenreIds: options.genres.map((item) => item.id),
@@ -257,6 +263,17 @@ export class NovelCreateResourceRecommendationService {
           reason: parsed.secondaryStoryModeReason?.trim() || "用于补充主推进模式的风味与读者奖励。",
         }
         : null,
+      powerSystem: {
+        mode: input.powerSystemPreference && input.powerSystemPreference !== "ai_recommend"
+          ? input.powerSystemPreference
+          : parsed.powerSystemMode,
+        reason: input.powerSystemPreference && input.powerSystemPreference !== "ai_recommend"
+          ? "沿用你确认的战力体系设置。"
+          : parsed.powerSystemReason,
+        source: input.powerSystemPreference && input.powerSystemPreference !== "ai_recommend"
+          ? "user_selected"
+          : "ai_recommended",
+      },
       caution: parsed.caution?.trim() || null,
       recommendedAt: new Date().toISOString(),
     };
@@ -292,7 +309,8 @@ export class NovelCreateResourceRecommendationService {
       throw new Error("主推进模式和副推进模式不能相同。");
     }
 
-    const aiRecommendation = selectedGenre && selectedPrimary && selectedSecondary
+    const powerSystemPreference = input.powerSystemPreference ?? "ai_recommend";
+    const aiRecommendation = selectedGenre && selectedPrimary && selectedSecondary && powerSystemPreference !== "ai_recommend"
       ? null
       : await this.recommendFromOptions(input, options);
     const genre = selectedGenre
@@ -346,6 +364,13 @@ export class NovelCreateResourceRecommendationService {
             : "沿用你确认的辅助推进模式。",
         }
         : null,
+      powerSystem: aiRecommendation?.powerSystem ?? {
+        mode: powerSystemPreference === "ai_recommend" ? "none" : powerSystemPreference,
+        reason: powerSystemPreference === "ai_recommend"
+          ? "当前没有足够信息支持建立战力体系，按不设置处理。"
+          : "沿用你确认的战力体系设置。",
+        source: powerSystemPreference === "ai_recommend" ? "ai_recommended" : "user_selected",
+      },
       caution: aiRecommendation?.caution ?? null,
       recommendedAt: new Date().toISOString(),
     };
@@ -363,6 +388,8 @@ export class NovelCreateResourceRecommendationService {
         genre.description ? `题材定位：${genre.description}` : "",
         genre.template ? `题材使用倾向：${genre.template}` : "",
         storyModeBlock,
+        `战力体系模式：${recommendation.powerSystem?.mode ?? "none"}`,
+        recommendation.powerSystem?.reason ? `战力体系说明：${recommendation.powerSystem.reason}` : "",
       ].filter(Boolean).join("\n\n"),
     };
   }

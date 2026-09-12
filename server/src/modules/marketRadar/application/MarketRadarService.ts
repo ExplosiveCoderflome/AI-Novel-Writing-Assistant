@@ -430,6 +430,14 @@ export class MarketRadarService {
     return report ? this.serializeReport(report) : null;
   }
 
+  async getLatestDisplayableScan(): Promise<MarketScanRun | null> {
+    const run = await prisma.marketScanRun.findFirst({
+      where: { snapshots: { some: { items: { some: {} } } } },
+      orderBy: { createdAt: "desc" },
+    });
+    return run ? this.getScan(run.id) : null;
+  }
+
   async getScan(id: string): Promise<MarketScanRun | null> {
     const run = await prisma.marketScanRun.findUnique({
       where: { id },

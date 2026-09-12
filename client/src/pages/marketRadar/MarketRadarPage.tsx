@@ -11,6 +11,7 @@ import { ArrowRight, Check, ExternalLink, Loader2, Radar, RefreshCw, Sparkles } 
 import { Link, useNavigate } from "react-router-dom";
 import {
   createMarketCreativeBrief,
+  getLatestMarketRadarScan,
   getMarketRadarScan,
   getMarketRadarSources,
   startMarketRadarAnalysis,
@@ -73,6 +74,10 @@ export default function MarketRadarPage() {
   const analysisResultRef = useRef<HTMLDivElement | null>(null);
 
   const sourcesQuery = useQuery({ queryKey: queryKeys.marketRadar.sources, queryFn: getMarketRadarSources });
+  const latestScanQuery = useQuery({
+    queryKey: queryKeys.marketRadar.latest,
+    queryFn: getLatestMarketRadarScan,
+  });
   const scanQuery = useQuery({
     queryKey: queryKeys.marketRadar.scan(activeRunId || "none"),
     queryFn: () => getMarketRadarScan(activeRunId),
@@ -82,8 +87,13 @@ export default function MarketRadarPage() {
       return status === "queued" || status === "running" || status === "analyzing" ? 1500 : false;
     },
   });
-  const activeRun = scanQuery.data?.data ?? null;
-  const report = showAnalysis ? activeRun?.report ?? null : null;
+  const latestRun = latestScanQuery.data?.data ?? null;
+  const currentRun = scanQuery.data?.data ?? null;
+  const activeRun = currentRun && (currentRun.rankingItems.length > 0 || !latestRun)
+    ? currentRun
+    : latestRun;
+  const availableReport = activeRun?.report ?? latestRun?.report ?? null;
+  const report = showAnalysis ? availableReport : null;
 
   useEffect(() => {
     if (!report) return;
@@ -143,8 +153,21 @@ export default function MarketRadarPage() {
     scanMutation.mutate();
   }, []);
 
-  const scanning = (!activeRun && scanMutation.isPending) || activeRun?.status === "queued" || activeRun?.status === "running";
-  const analyzing = analysisMutation.isPending || activeRun?.status === "analyzing";
+  const switchingToNewRun = Boolean(activeRunId && activeRunId !== latestRun?.id);
+  const scanning = scanMutation.isPending
+    || currentRun?.status === "queued"
+    || currentRun?.status === "running"
+    || (switchingToNewRun && !currentRun);
+  const scanningProgress = Math.min(99, Math.round((currentRun?.progress ?? 0) * 100));
+  const analyzing = analysisMutation.isPending || currentRun?.status === "analyzing";
+  const displayingPreviousRun = Boolean(
+    latestRun
+    && activeRun?.id === latestRun.id
+    && scanning,
+  );
+  const refreshFailure = latestRun && currentRun?.id !== latestRun.id && currentRun?.status === "failed"
+    ? currentRun.lastError || "没有取得新的公开榜单数据。"
+    : null;
   const foundationCandidate = report?.productionFoundationCandidate ?? null;
   const {
     genreId: genreLibraryId,
@@ -221,7 +244,7 @@ export default function MarketRadarPage() {
   };
   const openOrStartAnalysis = () => {
     setShowAnalysis(true);
-    if (!activeRun?.report) analysisMutation.mutate();
+    if (!availableReport) analysisMutation.mutate();
   };
 
   return (
@@ -234,10 +257,26 @@ export default function MarketRadarPage() {
           ))}
           <Button onClick={() => scanMutation.mutate()} disabled={scanMutation.isPending || scanning || sourcesQuery.isPending} variant="outline">
             {scanning ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
-            {scanning ? `正在获取榜单 ${Math.round((activeRun?.progress ?? 0) * 100)}%` : "重新扫榜"}
+            {scanning ? `正在获取榜单 ${scanningProgress}%` : "重新扫榜"}
           </Button>
         </div>
       </div>
+
+      {displayingPreviousRun ? (
+        <Card className="border-primary/25 bg-primary/[0.035]">
+          <CardContent className="p-4 text-sm text-muted-foreground">
+             正在更新公开榜单，暂时展示上次获取结果。
+          </CardContent>
+        </Card>
+      ) : null}
+
+      {refreshFailure ? (
+        <Card className="border-amber-300 bg-amber-50/60 dark:bg-amber-950/15">
+          <CardContent className="p-4 text-sm text-amber-800 dark:text-amber-200">
+            本次更新未取得新榜单，暂时保留上次获取结果：{refreshFailure}
+          </CardContent>
+        </Card>
+      ) : null}
 
       {activeRun?.platformStatuses.some((item) => item.status !== "succeeded") ? (
         <Card className="border-amber-300 bg-amber-50/60 dark:bg-amber-950/15"><CardContent className="p-4 text-sm text-amber-800 dark:text-amber-200">部分榜单暂时无法读取，仍可查看并分析已成功获取的数据：{activeRun.platformStatuses.filter((item) => item.status !== "succeeded").map((item) => `${PLATFORM_LABELS[item.platform]}：${item.error || "读取失败"}`).join("；")}</CardContent></Card>
@@ -253,11 +292,13 @@ export default function MarketRadarPage() {
         <Card className="border-dashed"><CardContent className="flex min-h-72 flex-col items-center justify-center gap-3 text-center">{scanning ? <Loader2 className="h-10 w-10 animate-spin text-primary" /> : <Radar className="h-10 w-10 text-muted-foreground" />}<div className="font-medium">{scanning ? "正在获取公开榜单" : "还没有可展示的榜单数据"}</div><p className="max-w-lg text-sm text-muted-foreground">进入页面会自动扫榜。榜单获取完成后，你可以先查看原始排名，再决定是否让 AI 分析。</p></CardContent></Card>
       ) : <>
         <section className="flex flex-col gap-4 border-b border-border/50 pb-5 lg:flex-row lg:items-end lg:justify-between">
-          <p className="text-sm text-muted-foreground">{activeRun?.report ? "本次报告使用当前勾选的作品；如需更换范围，请重新扫榜。" : `已选 ${selectedAnalysisItemIds.length} 本作品，可在各榜单右上角全选或逐本调整。`}</p>
+          <p className="text-sm text-muted-foreground">{availableReport
+            ? activeRun?.report ? "本次报告使用当前勾选的作品；如需更换范围，请重新扫榜。" : "榜单正在更新，可继续查看上次 AI 分析。"
+            : `已选 ${selectedAnalysisItemIds.length} 本作品，可在各榜单右上角全选或逐本调整。`}</p>
           <div className="flex justify-end">
-            <Button onClick={openOrStartAnalysis} disabled={scanning || analyzing || selectedAnalysisItemIds.length === 0} className="shrink-0">
+            <Button onClick={openOrStartAnalysis} disabled={analyzing || (!availableReport && (scanning || selectedAnalysisItemIds.length === 0))} className="shrink-0">
               {analyzing ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
-              {scanning ? "等待榜单获取完成" : analyzing ? `AI 分析中 ${Math.round((activeRun?.progress ?? 0) * 100)}%` : activeRun?.report ? "查看 AI 分析" : `开始 AI 分析（${selectedAnalysisItemIds.length} 本）`}
+              {analyzing ? `AI 分析中 ${Math.round((activeRun?.progress ?? 0) * 100)}%` : availableReport ? "查看 AI 分析" : scanning ? "等待榜单获取完成" : `开始 AI 分析（${selectedAnalysisItemIds.length} 本）`}
             </Button>
           </div>
         </section>

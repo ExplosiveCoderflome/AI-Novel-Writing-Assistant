@@ -30,6 +30,7 @@ const structuredFallbackSchema = z.object({
   model: z.string().trim().min(1).optional(),
   temperature: z.number().min(0).max(2).optional(),
   maxTokens: z.union([z.number().int().min(64).max(32768), z.null()]).optional(),
+  retryCount: z.number().int().min(0).max(3).optional(),
 });
 
 router.use(authMiddleware);

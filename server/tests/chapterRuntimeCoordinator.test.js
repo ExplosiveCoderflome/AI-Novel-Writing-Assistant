@@ -285,6 +285,11 @@ test("createChapterStream uses lightweight readiness without forcing execution c
     ensureChapterExecutionContract: async (novelId, chapterId, options) => {
       calls.push(["ensure_contract", novelId, chapterId, options]);
     },
+    preparationService: {
+      prepare: async (novelId, chapterId, options) => {
+        calls.push(["prepare", novelId, chapterId, options]);
+      },
+    },
     assembler: {
       assemble: async (novelId, chapterId, options) => {
         calls.push(["assemble", novelId, chapterId, options]);
@@ -307,12 +312,14 @@ test("createChapterStream uses lightweight readiness without forcing execution c
   await coordinator.createChapterStream("novel-1", "chapter-1", { provider: "openai" });
 
   const ensureContractIndex = calls.findIndex((item) => Array.isArray(item) && item[0] === "ensure_contract");
+  const prepareIndex = calls.findIndex((item) => Array.isArray(item) && item[0] === "prepare");
   const assembleIndex = calls.findIndex((item) => Array.isArray(item) && item[0] === "assemble");
   const writerIndex = calls.findIndex((item) => Array.isArray(item) && item[0] === "writer");
 
   assert.notEqual(assembleIndex, -1);
   assert.notEqual(writerIndex, -1);
   assert.equal(ensureContractIndex, -1);
+  assert.ok(prepareIndex < assembleIndex);
   assert.ok(assembleIndex < writerIndex);
 });
 
@@ -404,7 +411,7 @@ test("finalizeChapterContent runs acceptance gate once and finalizes the current
     });
 
     const start = Date.now();
-    await coordinator.contentFinalizationService.finalizeChapterContent({
+    const deferredInput = {
       novelId: "novel-1",
       chapterId: "chapter-1",
       request: {},
@@ -415,13 +422,20 @@ test("finalizeChapterContent runs acceptance gate once and finalizes the current
       content: "正文",
       runId: null,
       startMs: null,
-    });
+      deferTerminalCommit: true,
+    };
+    const deferredEvaluation = await coordinator.contentFinalizationService.finalizeChapterContent(deferredInput);
     const duration = Date.now() - start;
 
     const firstAcceptanceStart = gateCalls.find((item) => item[0] === "acceptance-start")[1];
     const firstAcceptanceEnd = gateCalls.find((item) => item[0] === "acceptance-end")[1];
 
     assert.equal(acceptanceCalls, 1);
+    assert.equal(timelineFinalizationCalls.length, 0);
+    await coordinator.contentFinalizationService.commitFinalizedChapterContent({
+      ...deferredInput,
+      evaluation: deferredEvaluation,
+    });
     assert.equal(timelineFinalizationCalls.length, 1);
     assert.equal(timelineFinalizationCalls[0].mode, "stable");
     assert.equal(timelineFinalizationCalls[0].sourceStage, "chapter_content_finalization");
@@ -441,7 +455,7 @@ test("finalizeChapterContent runs acceptance gate once and finalizes the current
       startMs: null,
     });
 
-    assert.equal(acceptanceCalls, 1);
+    assert.equal(acceptanceCalls, 2);
     assert.equal(timelineFinalizationCalls.length, 2);
     assert.ok(firstAcceptanceEnd >= firstAcceptanceStart);
   } finally {
@@ -795,7 +809,9 @@ test("createRepairStream discovers fallback issues through read-only audit", asy
         },
       },
       artifactSyncService: {
-        async syncChapterArtifacts() {},
+        async syncChapterArtifacts() {
+          return { status: "completed", contentHash: "test", completedArtifacts: ["artifact_delta"] };
+        },
       },
       timelineFinalizer: createTimelineFinalizer(),
     });
@@ -885,11 +901,10 @@ test("createRepairStream does not escalate patch schema failures to a heavy repa
   }
 });
 
-test("createChapterStream does not block hot path on execution contract failure", async () => {
+test("createChapterStream stops before context assembly when explicit preparation fails", async () => {
   const warnings = [];
   const originalWarn = console.warn;
   let assembledCalled = false;
-  let contractCalled = false;
 
   console.warn = (...args) => {
     warnings.push(args);
@@ -899,9 +914,10 @@ test("createChapterStream does not block hot path on execution contract failure"
     const coordinator = new ChapterRuntimeCoordinator({
       validateRequest: (input) => input,
       ensureNovelCharacters: async () => undefined,
-      ensureChapterExecutionContract: async () => {
-        contractCalled = true;
-        throw new Error("contract invalid");
+      preparationService: {
+        prepare: async () => {
+          throw new Error("contract invalid");
+        },
       },
       assembler: {
         assemble: async () => {
@@ -919,9 +935,11 @@ test("createChapterStream does not block hot path on execution contract failure"
     });
     coordinator.streamOrchestrator.markChapterStatus = async () => undefined;
 
-    await coordinator.createChapterStream("novel-1", "chapter-1", {});
-    assert.equal(contractCalled, false);
-    assert.equal(assembledCalled, true);
+    await assert.rejects(
+      coordinator.createChapterStream("novel-1", "chapter-1", {}),
+      /contract invalid/,
+    );
+    assert.equal(assembledCalled, false);
     assert.equal(warnings.length, 0);
   } finally {
     console.warn = originalWarn;
@@ -941,6 +959,7 @@ test("createChapterStream blocks when state-driven decision requires review firs
     validateRequest: (input) => input,
     ensureNovelCharacters: async () => undefined,
     ensureChapterExecutionContract: async () => undefined,
+    preparationService: { prepare: async () => undefined },
     assembler: {
       assemble: async () => assembled,
     },
@@ -974,6 +993,7 @@ test("createChapterStream lets full_book_autopilot continue past pending state p
     validateRequest: (input) => input,
     ensureNovelCharacters: async () => undefined,
     ensureChapterExecutionContract: async () => undefined,
+    preparationService: { prepare: async () => undefined },
     assembler: {
       assemble: async () => assembled,
     },
@@ -1015,6 +1035,7 @@ test("createChapterStream retries once before failing empty generated content", 
     validateRequest: (input) => input,
     ensureNovelCharacters: async () => undefined,
     ensureChapterExecutionContract: async () => undefined,
+    preparationService: { prepare: async () => undefined },
     assembler: {
       assemble: async () => assembled,
     },
@@ -1068,6 +1089,7 @@ test("runPipelineChapter does not leave a blocked chapter in generating status",
     validateRequest: (input) => input,
     ensureNovelCharacters: async () => undefined,
     ensureChapterExecutionContract: async () => undefined,
+    preparationService: { prepare: async () => undefined },
     assembler: {
       assemble: async () => assembled,
     },

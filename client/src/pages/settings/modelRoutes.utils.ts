@@ -20,6 +20,7 @@ export interface RouteDraft {
 
 export interface StructuredFallbackDraft extends RouteDraft {
   enabled: boolean;
+  retryCount: string;
 }
 
 export type ConnectivityState = "idle" | "checking" | "healthy" | "failed";
@@ -74,6 +75,14 @@ function parseMaxTokens(value: string): number | null {
   }
   const parsed = Number(trimmed);
   return Number.isFinite(parsed) ? Math.floor(parsed) : null;
+}
+
+export function parseStructuredRetryCount(value: string, fallback = 1): number {
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed)) {
+    return fallback;
+  }
+  return Math.min(3, Math.max(0, Math.floor(parsed)));
 }
 
 export function buildRouteSavePayload(taskType: ModelRouteTaskType, draft: RouteDraft): RouteSavePayload {

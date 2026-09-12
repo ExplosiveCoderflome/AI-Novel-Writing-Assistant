@@ -7,6 +7,7 @@ import { GenerationContextAssembler } from "./GenerationContextAssembler";
 import { ChapterRuntimeReadinessService } from "./ChapterRuntimeReadinessService";
 import type { ChapterRuntimeRequestInput } from "./chapterRuntimeSchema";
 import type { AssembledRuntimeChapter } from "./chapterRuntimePipeline";
+import type { ChapterExecutionPreparationService } from "../production/preparation";
 import {
   assertChapterContentNotEmpty,
   isChapterEmptyContentError,
@@ -23,6 +24,7 @@ export interface ChapterStreamGenerationAgentRuntime {
 
 export interface ChapterStreamGenerationOrchestratorDeps {
   assembler: Pick<GenerationContextAssembler, "assemble">;
+  preparationService: Pick<ChapterExecutionPreparationService, "prepare">;
   chapterWritingGraph: Pick<ChapterWritingGraph, "createChapterStream">;
   readinessService: Pick<ChapterRuntimeReadinessService, "assertReady">;
   contentFinalizationService: Pick<ChapterContentFinalizationService, "finalizeChapterContent" | "markChapterStatus">;
@@ -136,6 +138,7 @@ export class ChapterStreamGenerationOrchestrator {
   ): Promise<PreparedRuntimeChapter> {
     const request = this.deps.validateRequest(options);
     await this.deps.ensureNovelCharacters(novelId, "generate chapter content");
+    await this.deps.preparationService.prepare(novelId, chapterId, request);
     const assembled = await this.deps.assembler.assemble(novelId, chapterId, request);
     this.deps.readinessService.assertReady(assembled.contextPackage);
     this.assertStateDrivenReady(assembled.contextPackage, request);

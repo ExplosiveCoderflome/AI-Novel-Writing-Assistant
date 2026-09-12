@@ -21,6 +21,11 @@ export async function startMarketRadarScan(platforms: MarketRadarPlatform[]) {
   return data;
 }
 
+export async function getLatestMarketRadarScan() {
+  const { data } = await apiClient.get<ApiResponse<MarketScanRun | null>>("/market-radar/scans/latest");
+  return data;
+}
+
 export async function getMarketRadarScan(id: string) {
   const { data } = await apiClient.get<ApiResponse<MarketScanRun>>(`/market-radar/scans/${id}`);
   return data;

@@ -5,6 +5,12 @@ import { ragServices } from "../../rag";
 import { briefSummary, extractFacts } from "../novelP0Utils";
 import { chapterArtifactBackgroundSyncService } from "./ChapterArtifactBackgroundSyncService";
 import type { ArtifactSyncMode } from "../novelCoreShared";
+import { buildContentHash } from "./ChapterArtifactDeltaService";
+import {
+  ChapterArtifactContentVersionError,
+  mergeChapterArtifactSyncResults,
+  type ChapterArtifactSyncResult,
+} from "./artifactSync/ChapterArtifactSyncResult";
 import type { ContentProvenance } from "@ai-novel/shared/types/canonicalState";
 import {
   chapterLifecycleService,
@@ -52,13 +58,22 @@ export class ChapterArtifactSyncService {
     chapterId: string,
     content: string,
     options: ChapterArtifactSyncOptions = {},
-  ): Promise<void> {
+  ): Promise<ChapterArtifactSyncResult> {
+    const contentHash = buildContentHash(content);
+    const completedArtifacts: string[] = [];
     if (!options.skipLegacySummaryAndFacts) {
       const facts = extractFacts(content);
       const summary = briefSummary(content, facts);
 
       await withSqliteRetry(
         () => prisma.$transaction(async (tx) => {
+          const current = await tx.chapter.findFirst({
+            where: { id: chapterId, novelId },
+            select: { content: true },
+          });
+          if (!current || buildContentHash(current.content ?? "") !== contentHash) {
+            throw new ChapterArtifactContentVersionError("章节正文版本已变化，已拒绝写入过期基础资产。");
+          }
           await tx.chapterSummary.upsert({
             where: { chapterId },
             update: {
@@ -90,13 +105,16 @@ export class ChapterArtifactSyncService {
         }),
         { label: "chapterArtifactSync.summaryAndFacts" },
       );
+      completedArtifacts.push("legacy_summary_and_facts");
     }
 
     await this.syncCharacterTimelineForChapter(novelId, chapterId, content);
+    completedArtifacts.push("character_timeline");
+    let deltaResult: ChapterArtifactSyncResult | null = null;
     if (options.scheduleBackgroundSync !== false) {
       const artifactSyncMode = options.artifactSyncMode ?? "adaptive";
       if (options.awaitArtifactDelta || artifactSyncMode === "strict") {
-        await chapterArtifactBackgroundSyncService.runChapterSyncNow(novelId, chapterId, content, {
+        deltaResult = await chapterArtifactBackgroundSyncService.runChapterSyncNow(novelId, chapterId, content, {
           artifactSyncMode,
           provider: options.provider,
           model: options.model,
@@ -111,6 +129,12 @@ export class ChapterArtifactSyncService {
           temperature: options.temperature,
           contentProvenance: options.contentProvenance,
         });
+        deltaResult = {
+          status: "pending",
+          contentHash,
+          completedArtifacts: [],
+          reason: "章节资产已进入后台同步队列。",
+        };
       }
     }
     this.queueRagUpsert("chapter", chapterId);
@@ -125,6 +149,14 @@ export class ChapterArtifactSyncService {
       this.queueRagUpsert("consistency_fact", fact.id);
     }
 
+    const localResult: ChapterArtifactSyncResult = {
+      status: "completed",
+      contentHash,
+      completedArtifacts,
+    };
+    return deltaResult
+      ? mergeChapterArtifactSyncResults(contentHash, localResult, deltaResult)
+      : localResult;
   }
 
   private async syncCharacterTimelineForChapter(novelId: string, chapterId: string, content: string): Promise<void> {
@@ -174,6 +206,13 @@ export class ChapterArtifactSyncService {
 
     await withSqliteRetry(
       () => prisma.$transaction(async (tx) => {
+        const current = await tx.chapter.findFirst({
+          where: { id: chapterId, novelId },
+          select: { content: true },
+        });
+        if (!current || buildContentHash(current.content ?? "") !== buildContentHash(content)) {
+          throw new ChapterArtifactContentVersionError("章节正文版本已变化，已拒绝写入过期角色时间线。");
+        }
         await tx.characterTimeline.deleteMany({
           where: {
             novelId,

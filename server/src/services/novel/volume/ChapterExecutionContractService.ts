@@ -16,6 +16,7 @@ import {
   runVolumeWorkspaceTransaction,
 } from "./volumeWorkspacePersistence";
 import { serializeVolumeWorkspaceDocument } from "./volumeWorkspaceDocument";
+import { inspectChapterExecutionContractReadiness } from "./chapterDetail/chapterExecutionContractReadiness";
 
 export interface ChapterExecutionContractServiceDeps {
   storyMacroPlanService: Pick<StoryMacroPlanService, "getPlan">;
@@ -112,29 +113,29 @@ export class ChapterExecutionContractService {
       throw new Error("章节不存在。");
     }
 
-    const existingScenePlan = parseChapterScenePlan(chapter.sceneCards, {
-      targetWordCount: chapter.targetWordCount ?? undefined,
+    const workspace = await this.deps.ensureVolumeWorkspace(novelId);
+    const matched = this.deps.findVolumeChapterMatch(workspace, {
+      order: chapter.order,
+      title: chapter.title,
     });
-    if (
-      typeof chapter.conflictLevel === "number"
-      && typeof chapter.revealLevel === "number"
-      && typeof chapter.targetWordCount === "number"
-      && chapter.mustAvoid?.trim()
-      && chapter.taskSheet?.trim()
-      && existingScenePlan
-    ) {
+    const currentRequirement = workspace.volumes
+      .find((volume) => volume.id === matched.volumeId)
+      ?.chapters.find((item) => item.id === matched.volumeChapterId);
+    const readiness = currentRequirement
+      ? inspectChapterExecutionContractReadiness({
+        novelId,
+        volumeId: matched.volumeId,
+        requirement: currentRequirement,
+        persisted: chapter,
+      })
+      : null;
+    if (readiness?.canReuse) {
       const styleContract = await this.resolveStyleContract(novelId, chapterId, options.taskStyleProfileId);
       return {
         ...chapter,
         styleContract,
       };
     }
-
-    const workspace = await this.deps.ensureVolumeWorkspace(novelId);
-    const matched = this.deps.findVolumeChapterMatch(workspace, {
-      order: chapter.order,
-      title: chapter.title,
-    });
     const generatedDocument = await generateVolumePlanDocument({
       novelId,
       workspace,

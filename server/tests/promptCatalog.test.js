@@ -8,4 +8,8 @@ test("live prompt labels use the catalog name and retain the stable identifier",
     formatPromptLiveLabel({ promptId: "novel.volume.chapter_execution_contract", promptVersion: "v3", taskType: "planner" }),
     "章节执行合同 · novel.volume.chapter_execution_contract@v3",
   );
+  assert.equal(
+    formatPromptLiveLabel({ promptId: "market_radar.cross_platform_synthesis", promptVersion: "v4", taskType: "planner" }),
+    "跨平台市场判断 · market_radar.cross_platform_synthesis@v4",
+  );
 });

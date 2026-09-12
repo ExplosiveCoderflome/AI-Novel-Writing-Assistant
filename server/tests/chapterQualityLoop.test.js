@@ -305,6 +305,37 @@ test("buildChapterQualityLoopChapterUpdate clears stale repair state after a val
   assert.equal(riskFlags.qualityLoop.source, "repair_recheck");
 });
 
+test("buildChapterQualityLoopChapterUpdate records repair candidate selection without storing draft text", () => {
+  const assessment = buildChapterQualityLoopAssessment({
+    chapterId: "chapter-selection",
+    chapterOrder: 4,
+    score: score({ overall: 70 }),
+    issues: [],
+    evaluatedAt: "2026-09-07T00:00:00.000Z",
+  });
+  const repairSelection = {
+    selected: "original",
+    reasonCode: "original_retained_no_clear_improvement",
+    reason: "修复候选没有形成明确的结构化质量改善，因此保留原稿。",
+    originalContentHash: "original-hash",
+    candidateContentHash: "candidate-hash",
+    originalScore: 70,
+    candidateScore: 72,
+  };
+
+  const update = buildChapterQualityLoopChapterUpdate({
+    content: "应只存在于章节正文中的文本",
+    riskFlags: null,
+    repairHistory: null,
+    chapterStatus: "needs_repair",
+    generationState: "reviewed",
+  }, assessment, "repair_recheck", "defer_and_continue", null, repairSelection);
+
+  const riskFlags = JSON.parse(update.riskFlags);
+  assert.deepEqual(riskFlags.qualityLoop.repairSelection, repairSelection);
+  assert.equal(update.riskFlags.includes("应只存在于章节正文中的文本"), false);
+});
+
 test("buildChapterQualityLoopChapterUpdate marks exhausted auto repair as deferred continue", () => {
   const assessment = buildChapterQualityLoopAssessment({
     chapterId: "chapter-5",

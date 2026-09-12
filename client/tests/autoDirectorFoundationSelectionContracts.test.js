@@ -24,6 +24,7 @@ test("changing a creation foundation invalidates persisted and local candidates"
   assert.match(source, /productionFoundation: null/);
   assert.match(source, /batches: \[\]/);
   assert.match(source, /setBatches\(\[\]\)/);
+  assert.match(source, /powerSystemPreference/);
 });
 
 test("candidate cards disclose whether foundations came from the user or AI", () => {

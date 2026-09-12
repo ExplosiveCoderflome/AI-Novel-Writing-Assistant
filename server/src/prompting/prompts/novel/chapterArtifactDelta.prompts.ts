@@ -77,9 +77,12 @@ function normalizeCharacterResourceDelta(value: unknown): unknown {
   const updateType = typeof value.updateType === "string"
     ? updateTypeAliases[value.updateType.trim().toLowerCase()] ?? value.updateType
     : value.updateType;
-  const resourceType = typeof value.resourceType === "string"
+  let resourceType = typeof value.resourceType === "string"
     ? resourceTypeAliases[value.resourceType.trim().toLowerCase()] ?? value.resourceType
     : value.resourceType;
+  if (typeof resourceType === "string" && !["physical_item", "clue", "credential", "ability_resource", "relationship_token", "consumable", "hidden_card", "world_resource"].includes(resourceType)) {
+    resourceType = "physical_item";
+  }
   const statusAfterAliases: Record<string, string> = {
     active: "available",
     owned: "available",
@@ -102,14 +105,22 @@ function normalizeCharacterResourceDelta(value: unknown): unknown {
   const statusAfter = typeof value.statusAfter === "string"
     ? statusAfterAliases[value.statusAfter.trim().toLowerCase()] ?? value.statusAfter
     : value.statusAfter;
-  const narrativeFunction = normalizeCharacterResourceNarrativeFunction({
+  let ownerType = value.ownerType;
+  if (typeof ownerType === "string" && !["character", "organization", "location", "world", "unknown"].includes(ownerType)) {
+    ownerType = "unknown";
+  }
+  let narrativeFunction = normalizeCharacterResourceNarrativeFunction({
     rawValue: value.narrativeFunction,
     normalizedResourceType: resourceType,
     statusAfter,
   });
+  if (typeof narrativeFunction === "string" && !["tool", "clue", "weapon", "proof", "key", "cost", "promise", "hidden_card", "constraint"].includes(narrativeFunction)) {
+    narrativeFunction = "tool";
+  }
   return {
     ...value,
     resourceType,
+    ownerType,
     updateType,
     statusAfter,
     narrativeFunction,
@@ -235,6 +246,19 @@ function normalizeSyncPlan(value: unknown): unknown {
   return {
     ...value,
     characterDynamics,
+  };
+}
+
+function normalizeArtifactDeltaOutput(value: unknown): unknown {
+  if (!isRecord(value)) return value;
+  return {
+    ...value,
+    syncPlan: isRecord(value.syncPlan)
+      ? value.syncPlan
+      : { stateSnapshot: "write", characterResources: "write", payoffLedger: "delta", characterDynamics: "write", reason: "根据章节正文完成默认同步。" },
+    confidence: typeof value.confidence === "number" && Number.isFinite(value.confidence)
+      ? Math.max(0, Math.min(1, value.confidence))
+      : 0.5,
   };
 }
 
@@ -383,22 +407,22 @@ export const chapterArtifactDeltaSyncPlanSchema = z.preprocess(normalizeSyncPlan
   reason: z.string().trim().min(1),
 }));
 
-export const chapterArtifactDeltaOutputSchema = z.object({
+export const chapterArtifactDeltaOutputSchema = z.preprocess(normalizeArtifactDeltaOutput, z.object({
   summary: z.string().trim().min(1),
-  concreteFacts: z.array(chapterConcreteFactSchema).max(12).default([]),
+  concreteFacts: z.array(chapterConcreteFactSchema).default([]),
   stateDeltas: chapterArtifactDeltaStateSchema,
-  characterResourceDeltas: z.array(z.preprocess(normalizeCharacterResourceDelta, characterResourceExtractionUpdateSchema)).max(8).default([]),
+  characterResourceDeltas: z.array(z.preprocess(normalizeCharacterResourceDelta, characterResourceExtractionUpdateSchema)).default([]),
   payoffDeltas: z.array(z.preprocess(normalizePayoffDelta, payoffLedgerSyncItemSchema)).default([]),
   relationDynamics: z.array(chapterArtifactRelationDynamicSchema).default([]),
   factionUpdates: z.array(chapterArtifactFactionUpdateSchema).default([]),
   characterCandidates: z.array(chapterArtifactCharacterCandidateSchema).default([]),
   characterKnowledgeStates: z.array(chapterArtifactCharacterKnowledgeStateSchema).default([]),
-  characterMindDeltas: z.array(characterMindDeltaSchema).max(4).default([]),
-  characterDialogueInfluenceResolutions: z.array(characterDialogueInfluenceResolutionSchema).max(4).default([]),
+  characterMindDeltas: z.array(characterMindDeltaSchema).default([]),
+  characterDialogueInfluenceResolutions: z.array(characterDialogueInfluenceResolutionSchema).default([]),
   syncPlan: chapterArtifactDeltaSyncPlanSchema,
   confidence: z.number().min(0).max(1),
   requiresFullReconcile: z.boolean().default(false),
-});
+}));
 
 export type ChapterArtifactDeltaOutput = z.infer<typeof chapterArtifactDeltaOutputSchema>;
 

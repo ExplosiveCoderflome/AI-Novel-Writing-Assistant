@@ -226,6 +226,27 @@ function compactPlanningContext(value: unknown, maxLength = 3000): string {
   return raw.length > maxLength ? `${raw.slice(0, maxLength)}...` : raw;
 }
 
+function buildPowerSystemConstraint(request: DirectorConfirmRequest): string {
+  const recommendation = request.candidate.productionFoundation?.powerSystem;
+  const mode = recommendation?.mode
+    ?? (request.powerSystemPreference && request.powerSystemPreference !== "ai_recommend"
+      ? request.powerSystemPreference
+      : null);
+  if (!mode) {
+    return "";
+  }
+  const rule = mode === "none"
+    ? "本书不采用战力等级、境界或升级线；冲突由人物选择、关系、信息、资源与现实条件推动。"
+    : mode === "soft"
+      ? "本书只采用定性强弱、能力代价与克制关系，不建立等级表或境界序列。"
+      : "本书采用明确等级体系；等级必须有稳定顺序、能力边界、跨级条件与成长代价。";
+  return [
+    `战力体系决策：${mode}`,
+    `战力体系约束：${rule}`,
+    recommendation?.reason ? `决策原因：${recommendation.reason}` : "",
+  ].filter(Boolean).join("\n");
+}
+
 async function prepareDirectorNovelWorld(input: {
   novelId: string;
   request: DirectorConfirmRequest;
@@ -243,12 +264,13 @@ async function prepareDirectorNovelWorld(input: {
       getDirectorCoreStepRuntime().getStoryMacroPlan(input.novelId),
       getDirectorCoreStepRuntime().getBookContract(input.novelId),
     ]);
+    const powerSystemConstraint = buildPowerSystemConstraint(input.request);
     await gateway.generateWorldFromNovelTheme(input.novelId, {
       saveToLibrary: false,
       provider: input.request.provider,
       model: input.request.model,
       temperature: input.request.temperature,
-      storyMacroContext: compactPlanningContext(storyMacro),
+      storyMacroContext: [compactPlanningContext(storyMacro), powerSystemConstraint].filter(Boolean).join("\n\n"),
       bookContractContext: compactPlanningContext(bookContract),
       openingOnly: input.request.startupPreparation?.strategy === "fast_start",
     });
@@ -258,7 +280,7 @@ async function prepareDirectorNovelWorld(input: {
   await gateway.getWorldContextBlock(input.novelId, {
     purpose: "character",
     forceRefresh: false,
-    storyInput: input.request.idea,
+    storyInput: [input.request.idea, buildPowerSystemConstraint(input.request)].filter(Boolean).join("\n\n"),
     provider: input.request.provider,
     model: input.request.model,
     temperature: input.request.temperature,

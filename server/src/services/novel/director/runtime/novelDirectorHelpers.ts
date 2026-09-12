@@ -446,6 +446,11 @@ export function buildRefinementSummary(
 }
 
 export function buildStoryInput(input: DirectorConfirmRequest, bookSpec: BookSpec): string {
+  const powerSystem = input.candidate.productionFoundation?.powerSystem;
+  const powerSystemMode = powerSystem?.mode
+    ?? (input.powerSystemPreference && input.powerSystemPreference !== "ai_recommend"
+      ? input.powerSystemPreference
+      : null);
   const lines = [
     input.idea.trim(),
     input.description?.trim() ? `补充概述：${input.description.trim()}` : "",
@@ -457,6 +462,8 @@ export function buildStoryInput(input: DirectorConfirmRequest, bookSpec: BookSpe
     input.genreId?.trim() ? `题材基底：${input.genreId.trim()}` : "",
     input.primaryStoryModeId?.trim() ? `主推进模式：${input.primaryStoryModeId.trim()}` : "",
     input.secondaryStoryModeId?.trim() ? `副推进模式：${input.secondaryStoryModeId.trim()}` : "",
+    powerSystemMode ? `战力体系模式：${powerSystemMode}` : "",
+    powerSystem?.reason ? `战力体系说明：${powerSystem.reason}` : "",
     `确认方案：${input.candidate.workingTitle}`,
     `作品定位：${bookSpec.positioning}`,
     `核心卖点：${bookSpec.sellingPoint}`,
@@ -513,6 +520,7 @@ export function buildWorkflowSeedPayload(
     writingMode: input.writingMode ?? "original",
     projectMode: input.projectMode ?? "co_pilot",
     readerChannelPreference: input.readerChannelPreference ?? "ai_judge",
+    powerSystemPreference: input.powerSystemPreference ?? "ai_recommend",
     writingPlatformPreference: input.writingPlatformPreference ?? "ai_recommend",
     narrativePov: input.narrativePov ?? "third_person",
     pacePreference: input.pacePreference ?? "balanced",
@@ -554,6 +562,7 @@ export function buildWorkflowSeedPayload(
     writingMode: basicForm.writingMode,
     projectMode: basicForm.projectMode,
     readerChannelPreference: basicForm.readerChannelPreference,
+    powerSystemPreference: basicForm.powerSystemPreference,
     writingPlatformPreference: basicForm.writingPlatformPreference,
     narrativePov: basicForm.narrativePov,
     pacePreference: basicForm.pacePreference,

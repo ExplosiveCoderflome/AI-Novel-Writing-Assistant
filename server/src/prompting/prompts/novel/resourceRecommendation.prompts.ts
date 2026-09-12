@@ -5,6 +5,7 @@ import { novelCreateResourceRecommendationSchema } from "./resourceRecommendatio
 
 export interface NovelCreateResourceRecommendationPromptInput {
   userIntentSummary: string;
+  powerSystemPreference: "ai_recommend" | "none" | "soft" | "ranked";
   genreCatalogText: string;
   storyModeCatalogText: string;
   allowedGenreIds: string[];
@@ -16,7 +17,7 @@ export const novelCreateResourceRecommendationPrompt: PromptAsset<
   z.infer<typeof novelCreateResourceRecommendationSchema>
 > = {
   id: "novel.create.resource_recommendation",
-  version: "v1",
+  version: "v2",
   taskType: "planner",
   mode: "structured",
   language: "zh",
@@ -47,10 +48,13 @@ export const novelCreateResourceRecommendationPrompt: PromptAsset<
       "4. 如果信息还比较少，优先选择更稳、更宽、更不容易写崩的组合，而不是看起来华丽但难以驾驭的细分组合。",
       "5. 如果用户当前已经手动选了某个方向，除非明显冲突，否则应尽量围绕它收敛，而不是强行推翻。",
       "6. 如果能够判断到具体子类，就优先推荐具体子类；如果信息不足，再退回更宽的父类。",
+      "7. 战力体系不是小说必需品。现实、悬疑、言情、日常等故事如果不依赖能力升级，应优先返回 none，不得为了显得完整而强加等级。",
+      "8. 战力体系模式：none=不设置境界、等级或升级线；soft=允许定性强弱、代价与克制但没有等级表；ranked=存在有序等级、边界与成长条件。",
+      "9. powerSystemPreference 不是 ai_recommend 时必须服从用户选择；为 ai_recommend 时根据冲突解决方式、人物成长和长期推进需要判断。",
       "",
       "输出必须是一个 JSON 对象，不要输出 Markdown、解释、注释或额外文本。",
       "固定格式为：",
-      "{\"summary\":\"...\",\"genreId\":\"...\",\"genreReason\":\"...\",\"primaryStoryModeId\":\"...\",\"primaryStoryModeReason\":\"...\",\"secondaryStoryModeId\":\"...\",\"secondaryStoryModeReason\":\"...\",\"caution\":\"...\"}",
+      "{\"summary\":\"...\",\"genreId\":\"...\",\"genreReason\":\"...\",\"primaryStoryModeId\":\"...\",\"primaryStoryModeReason\":\"...\",\"secondaryStoryModeId\":\"...\",\"secondaryStoryModeReason\":\"...\",\"powerSystemMode\":\"none|soft|ranked\",\"powerSystemReason\":\"...\",\"caution\":\"...\"}",
       "",
       "字段要求：",
       "1. summary：用简洁中文说明这套组合为什么适合作为当前开书默认底座。",
@@ -58,6 +62,7 @@ export const novelCreateResourceRecommendationPrompt: PromptAsset<
       "3. primaryStoryModeReason：说明为什么这个主推进模式能稳定兑现核心阅读期待。",
       "4. secondaryStoryModeId / secondaryStoryModeReason：只有在确实有必要时才填写；否则返回空字符串或 null。",
       "5. caution：提示这套组合最容易翻车的点；没有明显风险时可为空字符串。",
+      "6. powerSystemMode / powerSystemReason：给出是否需要战力体系及原因；none 是正常完整结果。",
       "",
       "硬性约束：",
       "1. genreId 必须来自给定题材基底列表。",
@@ -68,6 +73,7 @@ export const novelCreateResourceRecommendationPrompt: PromptAsset<
     new HumanMessage([
       "当前开书信息：",
       input.userIntentSummary,
+      `战力体系偏好：${input.powerSystemPreference}`,
       "",
       "可选题材基底列表：",
       input.genreCatalogText,

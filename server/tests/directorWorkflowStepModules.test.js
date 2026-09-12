@@ -1,5 +1,6 @@
 const test = require("node:test");
 const assert = require("node:assert/strict");
+const { createHash } = require("node:crypto");
 const fs = require("node:fs");
 const path = require("node:path");
 
@@ -259,6 +260,7 @@ function buildChapterRowFromProgressChapter(chapter) {
   const hasDraft = chapter.completedStages.includes("draft_saved");
   const hasAudit = chapter.completedStages.includes("audit_completed");
   const hasStateCommit = chapter.completedStages.includes("chapter_state_committed");
+  const hasArtifactBoundary = chapter.completedStages.includes("chapter_artifacts_synced");
   return {
     id: chapter.chapterId,
     order: chapter.chapterOrder,
@@ -281,6 +283,10 @@ function buildChapterRowFromProgressChapter(chapter) {
     auditReports: hasAudit ? [{ issues: chapter.auditIssues ?? [] }] : [],
     storyStateSnapshots: hasStateCommit ? [{ id: `state-${chapter.chapterOrder}` }] : [],
     canonicalStateVersions: [],
+    artifactSyncCheckpoints: hasArtifactBoundary ? [{
+      contentHash: createHash("sha256").update("Draft body").digest("hex").slice(0, 24),
+      metadataJson: JSON.stringify({ outcome: "completed" }),
+    }] : [],
   };
 }
 
@@ -347,6 +353,48 @@ test("chapter draft completion is scoped to the active auto execution range", as
   assert.equal(progress.evidence.draftedChapterCount, 3);
   assert.equal(progress.evidence.totalChapters, 3);
   assert.equal(completeCriteria, true);
+});
+
+test("chapter execution progress stays incomplete until every current-version boundary closes", async (t) => {
+  const originalFindMany = prisma.chapter.findMany;
+  const module = getDirectorExecutionStepModule("chapter_execution");
+  const chapter = buildProgressChapter(1, {
+    status: "reviewable",
+    completedStages: [
+      "execution_contract_ready",
+      "context_package_ready",
+      "draft_started",
+      "draft_saved",
+      "audit_completed",
+      "repair_completed_or_not_needed",
+      "runtime_package_saved",
+      "chapter_state_committed",
+      "reviewable_or_approved",
+    ],
+  });
+  prisma.chapter.findMany = async () => [buildChapterRowFromProgressChapter(chapter)];
+  t.after(() => {
+    prisma.chapter.findMany = originalFindMany;
+  });
+  const context = {
+    taskId: "task-boundary-progress",
+    novelId: "novel-boundary-progress",
+    projectionHints: {
+      directorCanonicalState: buildDirectorStateHint({
+        autoExecutionPlan: { mode: "chapter_range", startOrder: 1, endOrder: 1 },
+      }, buildChapterProgressSummary([chapter])),
+    },
+  };
+
+  const completion = await module.inspectCompletion(context);
+  const progress = await module.inspectProgress(context);
+  const completeCriteria = await module.completeCriteria(undefined, context);
+
+  assert.equal(completion.completed, false);
+  assert.equal(progress.status, "partially_done");
+  assert.equal(progress.ratio, 0);
+  assert.equal(progress.evidence.closedChapterCount, 0);
+  assert.equal(completeCriteria, false);
 });
 
 test("chapter state commit completion ignores uncommitted chapters outside the active auto execution range", async (t) => {

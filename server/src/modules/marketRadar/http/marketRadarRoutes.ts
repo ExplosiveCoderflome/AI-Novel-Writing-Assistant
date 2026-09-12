@@ -45,6 +45,10 @@ router.post("/scans", validate({ body: scanSchema }), async (req, res, next) => 
   } catch (error) { next(error); }
 });
 
+router.get("/scans/latest", async (_req, res, next) => {
+  try { res.json(ok(await marketRadarService.getLatestDisplayableScan())); } catch (error) { next(error); }
+});
+
 router.get("/scans/:id", validate({ params: idParamsSchema }), async (req, res, next) => {
   try {
     const { id } = req.params as z.infer<typeof idParamsSchema>;
