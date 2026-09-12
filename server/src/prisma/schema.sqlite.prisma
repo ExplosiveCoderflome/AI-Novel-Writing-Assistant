@@ -4054,7 +4054,28 @@ model MarketTrendReport {
   createdAt          DateTime              @default(now())
   run                MarketScanRun         @relation(fields: [runId], references: [id], onDelete: Cascade)
   briefs             MarketCreativeBrief[]
+  savedTopics        MarketSavedTopic[]
 
+  @@index([createdAt])
+}
+
+model MarketSavedTopic {
+  id         String            @id @default(cuid())
+  reportId   String
+  signalId   String            @default("")
+  kind       String            @default("genre")
+  label      String            @default("")
+  summary    String            @default("")
+  direction  String            @default("current")
+  heat       Int               @default(0)
+  crowding   Int               @default(0)
+  name       String?
+  reason     String?
+  existingId String?
+  createdAt  DateTime          @default(now())
+  report     MarketTrendReport @relation(fields: [reportId], references: [id], onDelete: Cascade)
+
+  @@unique([reportId, signalId])
   @@index([createdAt])
 }
 
