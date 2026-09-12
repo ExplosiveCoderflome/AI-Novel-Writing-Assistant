@@ -98,6 +98,11 @@ const productionFoundationSchema = z.object({
   genre: productionFoundationOptionSchema,
   primaryStoryMode: productionFoundationOptionSchema,
   secondaryStoryMode: productionFoundationOptionSchema.nullable().optional(),
+  powerSystem: z.object({
+    mode: z.enum(["none", "soft", "ranked"]),
+    reason: nonEmptyString,
+    source: z.enum(["user_selected", "ai_recommended", "market_recommended"]).optional(),
+  }).optional(),
   caution: z.string().nullable().optional(),
   recommendedAt: nonEmptyString,
 });

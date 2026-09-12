@@ -23,7 +23,7 @@ export const characterCastAutoMembersPrompt: PromptAsset<
   z.infer<typeof characterCastAutoMembersResponseSchema>
 > = {
   id: "novel.character.castAuto.members",
-  version: "v1",
+  version: "v2",
   taskType: "planner",
   mode: "structured",
   language: "zh",
@@ -61,7 +61,7 @@ export const characterCastAutoMembersPrompt: PromptAsset<
       "4. castRole 只能使用：protagonist, antagonist, ally, foil, mentor, love_interest, pressure_source, catalyst。",
       "5. name 只能写可直接进入正文的人名或稳定称谓，禁止功能位式名字。",
       "6. 如果故事存在隐藏身份、历史真名、伪装身份或终局身份反转，成员信息里必须显式承接这条线。",
-      "7. 每个角色必须输出 personality、background、development 和角色硬事实字段：identityLabel、factionLabel、stanceLabel、powerLevel、realm、currentLocation、availability、prohibitions。",
+      "7. 每个角色必须输出 personality、background、development 和角色硬事实字段：identityLabel、factionLabel、stanceLabel、powerLevel、realm、currentLocation、availability、prohibitions。世界明确不设战力体系时 powerLevel、realm 必须留空；软性强弱只允许 powerLevel 填定性描述，realm 留空。",
       "8. 不要输出 relations，也不要在字段里假装塞关系数组。",
       "",
       "表达要求：",

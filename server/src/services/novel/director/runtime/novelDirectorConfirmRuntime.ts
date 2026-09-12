@@ -181,6 +181,7 @@ export class NovelDirectorConfirmRuntime {
           styleTone: directorInput.styleTone,
           emotionIntensity: directorInput.emotionIntensity,
           aiFreedom: directorInput.aiFreedom,
+          powerSystemPreference: directorInput.powerSystemPreference,
           provider: directorInput.provider,
           model: directorInput.model,
           temperature: directorInput.temperature,
@@ -190,6 +191,10 @@ export class NovelDirectorConfirmRuntime {
           genreId: foundation.genreId,
           primaryStoryModeId: foundation.primaryStoryModeId,
           secondaryStoryModeId: foundation.secondaryStoryModeId,
+          candidate: {
+            ...directorInput.candidate,
+            productionFoundation: foundation.recommendation,
+          },
         };
         const selectedPlatform = resolvedDirectorInput.writingPlatformPreference && resolvedDirectorInput.writingPlatformPreference !== "ai_recommend"
           ? resolvedDirectorInput.writingPlatformPreference

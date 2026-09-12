@@ -70,6 +70,7 @@ export function buildAutoDirectorRequestPayload(
     writingMode: basicForm.writingMode,
     projectMode: basicForm.projectMode,
     readerChannelPreference: basicForm.readerChannelPreference,
+    powerSystemPreference: basicForm.powerSystemPreference,
     writingPlatformPreference: basicForm.writingPlatformPreference,
     narrativePov: basicForm.narrativePov,
     pacePreference: basicForm.pacePreference,

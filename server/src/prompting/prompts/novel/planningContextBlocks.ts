@@ -73,6 +73,7 @@ export function formatProjectContext(input: DirectorProjectContextInput): string
     input.writingMode ? `writing mode: ${input.writingMode}` : "",
     input.projectMode ? `project mode: ${input.projectMode}` : "",
     readerChannel ? `reader channel tendency: ${readerChannel}` : "",
+    input.powerSystemPreference ? `power system preference: ${input.powerSystemPreference}` : "",
     input.narrativePov ? `narrative pov: ${input.narrativePov}` : "",
     input.pacePreference ? `pace: ${input.pacePreference}` : "",
     input.styleTone?.trim() && !input.styleProfileId?.trim() ? `style tone: ${input.styleTone.trim()}` : "",

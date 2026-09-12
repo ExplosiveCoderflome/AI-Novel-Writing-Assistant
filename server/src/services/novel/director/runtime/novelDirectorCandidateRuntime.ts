@@ -234,6 +234,11 @@ export class NovelDirectorCandidateRuntime {
         || seedPayload.readerChannelPreference === "general"
         ? seedPayload.readerChannelPreference
         : undefined,
+      powerSystemPreference: seedPayload.powerSystemPreference === "none"
+        || seedPayload.powerSystemPreference === "soft"
+        || seedPayload.powerSystemPreference === "ranked"
+        ? seedPayload.powerSystemPreference
+        : "ai_recommend",
       narrativePov: seedPayload.narrativePov === "first_person"
         || seedPayload.narrativePov === "third_person"
         || seedPayload.narrativePov === "mixed"

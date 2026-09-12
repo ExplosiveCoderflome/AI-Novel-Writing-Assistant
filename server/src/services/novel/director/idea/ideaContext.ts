@@ -47,6 +47,7 @@ export function buildDirectorIdeaContextSummary(input: DirectorIdeaContextReques
     line("世界观", input.worldName ?? input.worldId),
     marketBriefPrompt.trim() ? `开书市场简报：\n${marketBriefPrompt.trim()}` : "",
     line("读者频道倾向", readerChannelPreferenceLabel(input.readerChannelPreference)),
+    input.powerSystemPreference ? `战力体系偏好：${input.powerSystemPreference}` : "",
     input.narrativePov ? `叙事视角：${input.narrativePov}` : "",
     input.pacePreference ? `节奏偏好：${input.pacePreference}` : "",
     input.emotionIntensity ? `情绪浓度：${input.emotionIntensity}` : "",
