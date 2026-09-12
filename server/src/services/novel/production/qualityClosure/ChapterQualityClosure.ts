@@ -118,6 +118,7 @@ export async function applyChapterQualityClosure(input: {
       terminalAction: qualityDebtTerminalAction,
       taskId: input.workflowTaskId,
       qualityDebtAttribution: chapterResult.qualityDebtAttribution ?? null,
+      repairSelection: chapterResult.repairSelection ?? null,
     }).catch((error) => {
       logPipelineError("记录章节质量闭环状态失败", {
         jobId: input.jobId,

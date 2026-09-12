@@ -18,7 +18,10 @@ export interface ChapterPipelineRuntimeAdapterDeps {
     "prepareRuntimeChapter" | "generateDraftFromWriter" | "markChapterStatus"
   >;
   artifactSyncService: Pick<ChapterArtifactSyncService, "saveDraftAndArtifacts" | "syncChapterArtifacts">;
-  contentFinalizationService: Pick<ChapterContentFinalizationService, "finalizeChapterContent">;
+  contentFinalizationService: Pick<
+    ChapterContentFinalizationService,
+    "finalizeChapterContent" | "commitFinalizedChapterContent"
+  >;
   lifecycleService: Pick<ChapterLifecycleService, "markGenerationState">;
   ensureNovelCharacters: (novelId: string, actionName: string, minCount?: number) => Promise<void>;
 }
@@ -73,12 +76,32 @@ export class ChapterPipelineRuntimeAdapter {
               ...input,
               deferArtifactBackgroundSync: true,
               scheduleDeferredArtifactBackgroundSync: false,
+              deferTerminalCommit: true,
+              assertExecutionOwnership: hooks.onCheckCancelled,
             });
             return {
               finalContent: finalized.finalContent,
               runtimePackage: finalized.runtimePackage,
+              needsRepair: finalized.needsRepair,
+              acceptanceResult: finalized.acceptanceResult,
+              acceptancePersistenceDeferred: finalized.acceptancePersistenceDeferred,
             };
           },
+          commitFinalizedChapterContent: (input) =>
+            this.deps.contentFinalizationService.commitFinalizedChapterContent({
+              novelId: input.novelId,
+              chapterId: input.chapterId,
+              request: input.request,
+              contextPackage: input.contextPackage,
+              runId: null,
+              startMs: null,
+              deferArtifactBackgroundSync: true,
+              scheduleDeferredArtifactBackgroundSync: false,
+              evaluation: {
+                ...input.evaluation,
+              },
+              assertExecutionOwnership: hooks.onCheckCancelled,
+            }),
           markChapterGenerationState: (targetChapterId, generationState) =>
             this.markChapterGenerationState(targetChapterId, generationState),
           markChapterNeedsRepair: (targetChapterId) =>

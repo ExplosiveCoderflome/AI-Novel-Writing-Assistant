@@ -179,6 +179,7 @@ export interface StructuredFallbackSettings {
   model: string;
   temperature: number;
   maxTokens: number | null;
+  retryCount: number;
 }
 
 export interface AutoDirectorChannelConfig {

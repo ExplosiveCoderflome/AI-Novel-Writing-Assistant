@@ -1896,6 +1896,7 @@ model ConsistencyFact {
 }
 
 model GenerationJob {
+  automaticAttempts ChapterAutomaticAttempt[]
   id             String            @id @default(cuid())
   novelId        String
   startOrder     Int
@@ -1914,6 +1915,8 @@ model GenerationJob {
   maxRetries     Int               @default(2)
   pendingManualRecovery Boolean    @default(false)
   heartbeatAt    DateTime?
+  executionOwner String?
+  executionLeaseExpiresAt DateTime?
   currentStage   String?
   currentItemKey String?
   currentItemLabel String?
@@ -1934,6 +1937,18 @@ model GenerationJob {
 
   @@index([novelId])
   @@index([novelId, status])
+  @@index([status, executionLeaseExpiresAt])
+}
+
+model ChapterAutomaticAttempt {
+  id        String   @id @default(cuid())
+  jobId     String
+  chapterId String
+  kind      String
+  createdAt DateTime @default(now())
+  job       GenerationJob @relation(fields: [jobId], references: [id], onDelete: Cascade)
+
+  @@unique([jobId, chapterId])
 }
 
 model AgentRun {

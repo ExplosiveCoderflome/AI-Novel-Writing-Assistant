@@ -48,6 +48,27 @@ function sessionDurationMs(session: LlmLiveSessionSnapshot, nowMs: number): numb
   return Number.isFinite(startedAt) && Number.isFinite(endedAt) ? endedAt - startedAt : 0;
 }
 
+function SessionModelRoute({
+  session,
+  className,
+}: {
+  session: LlmLiveSessionSnapshot;
+  className?: string;
+}) {
+  const provider = session.context.provider?.trim() || "未记录";
+  const model = session.context.model?.trim() || "未记录";
+  return (
+    <span
+      className={cn("block truncate text-[10px] text-emerald-100/55", className)}
+      title={`本次调用：厂商 ${provider}，模型 ${model}`}
+    >
+      厂商 <span className="text-emerald-100/80">{provider}</span>
+      <span className="px-1 text-emerald-400/45">·</span>
+      模型 <span className="text-emerald-100/80">{model}</span>
+    </span>
+  );
+}
+
 function SessionMetrics({ session, nowMs }: { session: LlmLiveSessionSnapshot; nowMs: number }) {
   const firstResponseMs = session.firstResponseAt
     ? Date.parse(session.firstResponseAt) - Date.parse(session.startedAt)
@@ -388,6 +409,7 @@ export default function LiveExecutionDialog(props: LiveExecutionDialogProps) {
                     <span className="shrink-0 text-emerald-100/55">{phaseLabel(latestSession.phase)}</span>
                   </div>
                   <div className="mb-1 truncate text-[11px] text-emerald-100/45">{latestSession.phaseMessage}</div>
+                  <SessionModelRoute session={latestSession} className="mb-1" />
                   <SessionMetrics session={latestSession} nowMs={nowMs} />
                   {latestSession.reasoning ? (
                     <>
@@ -420,7 +442,10 @@ export default function LiveExecutionDialog(props: LiveExecutionDialogProps) {
                           aria-expanded={!collapsed}
                         >
                           {collapsed ? <ChevronRight className="h-4 w-4 shrink-0 text-emerald-300" /> : <ChevronDown className="h-4 w-4 shrink-0 text-emerald-300" />}
-                          <span className="min-w-0 flex-1 truncate font-semibold text-emerald-50">{session.context.label}</span>
+                          <div className="min-w-0 flex-1">
+                            <span className="block truncate font-semibold text-emerald-50">{session.context.label}</span>
+                            <SessionModelRoute session={session} className="mt-0.5" />
+                          </div>
                           <span className="shrink-0 text-[11px] text-emerald-100/55">
                             {durationLabel(sessionDurationMs(session, nowMs))}
                             {session.tokenUsage ? ` · ${session.tokenUsage.totalTokens.toLocaleString()} Tokens` : ""}
@@ -431,7 +456,10 @@ export default function LiveExecutionDialog(props: LiveExecutionDialogProps) {
                         </button>
                         {!collapsed ? (
                           <div className="border-t border-emerald-400/15 px-3 py-2">
-                            <div className="mb-2 text-[11px] text-emerald-100/60">{session.phaseMessage}</div>
+                            <div className="mb-2 flex flex-wrap items-center gap-x-3 gap-y-1">
+                              <span className="text-[11px] text-emerald-100/60">{session.phaseMessage}</span>
+                              <SessionModelRoute session={session} className="max-w-full" />
+                            </div>
                             <div className="mb-2"><SessionMetrics session={session} nowMs={nowMs} /></div>
                             {session.context.promptText ? (
                               <div className="mb-2">

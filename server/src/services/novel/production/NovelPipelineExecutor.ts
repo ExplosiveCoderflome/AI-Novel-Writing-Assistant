@@ -1,4 +1,4 @@
-import type { Prisma } from "@prisma/client";
+import { AsyncLocalStorage } from "node:async_hooks";
 import {
   DIRECTOR_ISSUE_GOVERNANCE_VERSION,
   type DirectorIssueAction,
@@ -10,6 +10,7 @@ import { runWithLlmUsageTracking } from "../../../llm/usageTracking";
 import { buildDirectorCompletionProfile } from "@ai-novel/shared/types/directorCompletion";
 import { ChapterRouteWindowService } from "../planning/ChapterRouteWindowService";
 import { ChapterRuntimeCoordinator } from "../runtime/ChapterRuntimeCoordinator";
+import { CHAPTER_ARTIFACT_BOUNDARY_TYPE } from "../runtime/artifactSync";
 import { isChapterEmptyContentError } from "../runtime/chapterEmptyContentError";
 import { ChapterContentPersistenceError } from "../runtime/lifecycle";
 import {
@@ -21,6 +22,8 @@ import {
 } from "../novelCoreShared";
 import { plannerService } from "../../planner/PlannerService";
 import { applyChapterQualityClosure } from "./qualityClosure/ChapterQualityClosure";
+import { ChapterAutomaticAttemptService } from "./attempts";
+import { isCurrentChapterProductionCompleted } from "./completion";
 import {
   loadDirectorIssueTaskContext,
 } from "../director/issues";
@@ -37,7 +40,6 @@ import {
 } from "../pipelineJobState";
 
 const PIPELINE_HEARTBEAT_INTERVAL_MS = 15000;
-const TERMINAL_CONTINUE_QUALITY_LOOP_RISK_FLAG_FRAGMENT = '"terminalAction":"defer_and_continue"';
 
 class PipelineIssueAppliedError extends Error {
   constructor(
@@ -62,6 +64,13 @@ class PipelineIssueFailure extends Error {
   }
 }
 
+class PipelineExecutionLeaseLostError extends Error {
+  constructor() {
+    super("PIPELINE_EXECUTION_LEASE_LOST");
+    this.name = "PipelineExecutionLeaseLostError";
+  }
+}
+
 function clampPipelineMaxRetries(value: number | null | undefined): number {
   return Math.max(0, Math.min(value ?? 1, 1));
 }
@@ -70,39 +79,39 @@ function buildEmptyChapterDetail(chapter: { order: number; title: string }): str
   return `第${chapter.order}章「${chapter.title}」正文生成失败：模型连续未返回可保存正文，已暂停继续。`;
 }
 
-function buildSkipCompletedChapterWhere(): Prisma.ChapterWhereInput {
-  return {
-    NOT: {
-      AND: [
-        { content: { not: null } },
-        { content: { not: "" } },
-        {
-          OR: [
-            { generationState: { in: ["approved", "published"] } },
-            { chapterStatus: "completed" },
-            {
-              AND: [
-                { riskFlags: { not: null } },
-                { riskFlags: { contains: TERMINAL_CONTINUE_QUALITY_LOOP_RISK_FLAG_FRAGMENT } },
-              ],
-            },
-          ],
-        },
-      ],
-    },
-  };
-}
-
 export class NovelPipelineExecutor {
-  constructor(private readonly chapterRuntimeCoordinator = new ChapterRuntimeCoordinator()) {}
+  private readonly executionOwnerStore = new AsyncLocalStorage<string | null>();
+
+  constructor(
+    private readonly chapterRuntimeCoordinator = new ChapterRuntimeCoordinator(),
+    private readonly automaticAttempts = new ChapterAutomaticAttemptService(),
+  ) {}
 
   private async ensurePipelineNotCancelled(jobId: string): Promise<void> {
+    const executionOwner = this.executionOwnerStore.getStore();
     const job = await prisma.generationJob.findUnique({
       where: { id: jobId },
-      select: { status: true, cancelRequestedAt: true },
+      select: {
+        status: true,
+        pendingManualRecovery: true,
+        cancelRequestedAt: true,
+        executionOwner: true,
+        executionLeaseExpiresAt: true,
+      },
     });
     if (!job || job.status === "cancelled" || job.cancelRequestedAt) {
       throw new Error("PIPELINE_CANCELLED");
+    }
+    if (
+      executionOwner
+      && (
+        job.pendingManualRecovery
+        || job.executionOwner !== executionOwner
+        || !job.executionLeaseExpiresAt
+        || job.executionLeaseExpiresAt.getTime() <= Date.now()
+      )
+    ) {
+      throw new PipelineExecutionLeaseLostError();
     }
   }
 
@@ -123,10 +132,36 @@ export class NovelPipelineExecutor {
     startedAt?: Date | null;
     finishedAt?: Date | null;
     payload?: string | null;
-  }) {
+  }, writeMode: "runnable" | "cancelled" = "runnable") {
+    const executionOwner = this.executionOwnerStore.getStore();
     try {
-      await prisma.generationJob.update({ where: { id: jobId }, data });
-    } catch {
+      if (executionOwner) {
+        const updated = await prisma.generationJob.updateMany({
+          where: {
+            id: jobId,
+            executionOwner,
+            executionLeaseExpiresAt: { gt: new Date() },
+            ...(writeMode === "runnable"
+              ? {
+                  status: { in: ["queued", "running"] as const },
+                  pendingManualRecovery: false,
+                  cancelRequestedAt: null,
+                }
+              : {
+                  OR: [
+                    { status: "cancelled" as const },
+                    { cancelRequestedAt: { not: null } },
+                  ],
+                }),
+          },
+          data,
+        });
+        if (updated.count !== 1) throw new PipelineExecutionLeaseLostError();
+      } else {
+        await prisma.generationJob.update({ where: { id: jobId }, data });
+      }
+    } catch (error) {
+      if (error instanceof PipelineExecutionLeaseLostError) throw error;
       // 后台任务状态更新失败不应影响主服务稳定
     }
   }
@@ -135,7 +170,23 @@ export class NovelPipelineExecutor {
     jobId: string,
     data: Parameters<NovelPipelineExecutor["updateJobSafe"]>[1],
   ): Promise<void> {
-    await prisma.generationJob.update({ where: { id: jobId }, data });
+    const executionOwner = this.executionOwnerStore.getStore();
+    if (!executionOwner) {
+      await prisma.generationJob.update({ where: { id: jobId }, data });
+      return;
+    }
+    const updated = await prisma.generationJob.updateMany({
+      where: {
+        id: jobId,
+        executionOwner,
+        executionLeaseExpiresAt: { gt: new Date() },
+        status: { in: ["queued", "running"] },
+        pendingManualRecovery: false,
+        cancelRequestedAt: null,
+      },
+      data,
+    });
+    if (updated.count !== 1) throw new PipelineExecutionLeaseLostError();
   }
 
   private stringifyPipelinePayload(input: PipelinePayload) {
@@ -146,7 +197,14 @@ export class NovelPipelineExecutor {
     return parsePipelineJobPayload(payload);
   }
 
-  async execute(jobId: string, novelId: string, options: PipelineRunOptions) {
+  execute(jobId: string, novelId: string, options: PipelineRunOptions, executionOwner?: string): Promise<void> {
+    return this.executionOwnerStore.run(
+      executionOwner?.trim() || null,
+      () => this.executeWithOwnership(jobId, novelId, options),
+    );
+  }
+
+  private async executeWithOwnership(jobId: string, novelId: string, options: PipelineRunOptions) {
     const maxRetries = clampPipelineMaxRetries(options.maxRetries);
     const qualityThreshold = options.qualityThreshold ?? 75;
     const existingJob = await prisma.generationJob.findUnique({
@@ -291,6 +349,7 @@ export class NovelPipelineExecutor {
           ? directorTelemetryTask?.directorRun?.id ?? runtimePayload.workflowTaskId ?? null
           : null,
       }, async () => {
+        await this.ensurePipelineNotCancelled(jobId);
         await this.updateJobSafe(jobId, {
           status: "running",
           pendingManualRecovery: false,
@@ -305,20 +364,28 @@ export class NovelPipelineExecutor {
           maxRetries,
         });
 
-        const [novel, chapters] = await Promise.all([
+        const [novel, chapterCandidates] = await Promise.all([
           prisma.novel.findUnique({ where: { id: novelId } }),
           prisma.chapter.findMany({
             where: {
               novelId,
               order: { gte: options.startOrder, lte: options.endOrder },
-              ...(options.skipCompleted
-                ? buildSkipCompletedChapterWhere()
-                : {}),
             },
             orderBy: { order: "asc" },
+            include: {
+              artifactSyncCheckpoints: {
+                where: { artifactType: CHAPTER_ARTIFACT_BOUNDARY_TYPE, status: "succeeded" },
+                select: { contentHash: true, metadataJson: true },
+                orderBy: { updatedAt: "desc" },
+                take: 6,
+              },
+            },
           }),
         ]);
-        if (!novel || chapters.length === 0) {
+        const chapters = options.skipCompleted
+          ? chapterCandidates.filter((chapter) => !isCurrentChapterProductionCompleted(chapter))
+          : chapterCandidates;
+        if (!novel) {
           throw new Error("任务执行失败：小说或章节不存在");
         }
 
@@ -335,7 +402,7 @@ export class NovelPipelineExecutor {
           : options.endOrder;
         let totalCount = isAutopilotMode
           ? Math.max(1, autopilotTargetEndOrder - options.startOrder + 1)
-          : Math.max(existingJob?.totalCount ?? 0, chapters.length, 1);
+          : Math.max(existingJob?.totalCount ?? 0, chapterCandidates.length, 1);
         const storedCompleted = Math.min(Math.max(existingJob?.completedCount ?? 0, 0), totalCount);
         const filteredCompletedCount = runtimePayload.skipCompleted
           ? Math.max(0, totalCount - chapters.length)
@@ -344,7 +411,7 @@ export class NovelPipelineExecutor {
           Math.max(0, storedCompleted - filteredCompletedCount),
           chapters.length,
         );
-        let completed = storedCompleted;
+        let completed = Math.max(storedCompleted, filteredCompletedCount);
         const chaptersToProcess = chapters.slice(remainingStartIndex);
         let pendingManualRecovery = false;
 
@@ -403,18 +470,30 @@ export class NovelPipelineExecutor {
                 totalCount,
                 stage: activeStage,
               }),
-            });
+            }).catch(() => undefined);
           }, PIPELINE_HEARTBEAT_INTERVAL_MS);
           heartbeatTimer.unref?.();
 
           let chapterResult: Awaited<ReturnType<ChapterRuntimeCoordinator["runPipelineChapter"]>> | null = null;
-          const chapterRetryBudget = isAutopilotMode
-            ? Math.min(maxRetries, issueGovernance?.policy.maxAutomaticRetries ?? maxRetries)
-            : maxRetries;
+          const chapterRetryBudget = Math.min(runtimePayload.maxRetries ?? maxRetries,
+            issueGovernance?.policy.maxAutomaticRetries ?? maxRetries);
           let chapterRetryCountUsed = 0;
+          let previouslyConsumed = 0;
+          const claimAttempt = async (kind: "quality_repair" | "runtime_retry") => {
+            await this.ensurePipelineNotCancelled(jobId);
+            if (chapterRetryCountUsed >= chapterRetryBudget) return false;
+            const claimed = await this.automaticAttempts.claim(jobId, chapter.id, kind);
+            chapterRetryCountUsed = 1;
+            if (claimed) {
+              await this.updateJobRequired(jobId, { retryCount: totalRetryCount + 1 });
+            }
+            return claimed;
+          };
           try {
+            previouslyConsumed = chapterRetryCountUsed = await this.automaticAttempts.used(jobId, chapter.id);
             while (true) {
               try {
+                await this.ensurePipelineNotCancelled(jobId);
                 chapterResult = await this.chapterRuntimeCoordinator.runPipelineChapter(
                   novelId,
                   chapter.id,
@@ -437,9 +516,7 @@ export class NovelPipelineExecutor {
                   onStageChange: async (stage) => {
                     await applyChapterStage(stage);
                   },
-                  onRetryConsumed: async () => {
-                    chapterRetryCountUsed += 1;
-                  },
+                  onRetryConsumed: () => claimAttempt("quality_repair"),
                   onEmptyContent: async (event) => {
                     const willRetry = event.willRetry || (isAutopilotMode && chapterRetryCountUsed < chapterRetryBudget);
                     const detail = buildEmptyChapterDetail(chapter);
@@ -471,6 +548,9 @@ export class NovelPipelineExecutor {
                 );
                 break;
               } catch (error) {
+                if (error instanceof PipelineExecutionLeaseLostError) {
+                  throw error;
+                }
                 if (error instanceof Error && error.message === "PIPELINE_CANCELLED") {
                   throw error;
                 }
@@ -498,7 +578,9 @@ export class NovelPipelineExecutor {
                     : issueGovernance?.policy.maxAutomaticRetries ?? chapterRetryCountUsed,
                   onRetry: canOfferGovernedRetry
                     ? async () => {
-                        chapterRetryCountUsed += 1;
+                        if (!(await claimAttempt("runtime_retry"))) {
+                          throw new Error("本章自动处理额度已被使用，请从保存位置继续处理。");
+                        }
                         const retryLabel = `第${chapter.order}章遇到临时问题，AI 正在自动修复并重试（${chapterRetryCountUsed}/${chapterRetryBudget}）`;
                         await this.updateJobRequired(jobId, {
                           heartbeatAt: new Date(),
@@ -523,7 +605,7 @@ export class NovelPipelineExecutor {
                   throw error;
                 }
                 if (!action) {
-                  chapterRetryCountUsed += 1;
+                  if (!(await claimAttempt("runtime_retry"))) throw error;
                 }
                 const retryLabel = `第${chapter.order}章遇到临时问题，AI 正在自动修复并重试（${chapterRetryCountUsed}/${chapterRetryBudget}）`;
                 if (!action) {
@@ -551,7 +633,7 @@ export class NovelPipelineExecutor {
             throw new Error(`第${chapter.order}章在自动重试后仍未生成可用结果。`);
           }
 
-          totalRetryCount += Math.max(chapterRetryCountUsed, chapterResult.retryCountUsed);
+          totalRetryCount += Math.max(0, chapterRetryCountUsed - previouslyConsumed);
           const closure = await applyChapterQualityClosure({
             governance: issueGovernance,
             workflowTaskId: runtimePayload.workflowTaskId,
@@ -603,8 +685,16 @@ export class NovelPipelineExecutor {
                   order: chapter.order + 1,
                 },
                 orderBy: { order: "asc" },
+                include: {
+                  artifactSyncCheckpoints: {
+                    where: { artifactType: CHAPTER_ARTIFACT_BOUNDARY_TYPE, status: "succeeded" },
+                    select: { contentHash: true, metadataJson: true },
+                    orderBy: { updatedAt: "desc" },
+                    take: 6,
+                  },
+                },
               });
-            if (!persistedNextChapter) {
+              if (!persistedNextChapter) {
                 throw new PipelineIssueFailure(
                   `滚动规划未能准备第 ${chapter.order + 1} 章，当前正文已安全保存，可从本章后恢复。`,
                   "planning.route_window_unavailable",
@@ -729,6 +819,10 @@ export class NovelPipelineExecutor {
         }).catch(() => {});
       });
     } catch (error) {
+      if (error instanceof PipelineExecutionLeaseLostError) {
+        logPipelineWarn("任务执行租约已转移，旧执行者停止写入", { jobId, novelId });
+        return;
+      }
       if (error instanceof PipelineIssueAppliedError) {
         logPipelineError("任务已按问题策略结束当前执行", {
           jobId,
@@ -759,7 +853,7 @@ export class NovelPipelineExecutor {
             replanAlertDetails,
             recoverableRepairDetails,
           }),
-        });
+        }, "cancelled");
         void novelEventBus.emit({
           type: "pipeline:completed",
           payload: { novelId, jobId, status: "cancelled" },

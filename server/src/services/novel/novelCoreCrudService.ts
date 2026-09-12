@@ -23,6 +23,7 @@ import {
   UpdateNovelInput,
 } from "./novelCoreShared";
 import { queueRagDelete, queueRagUpsert } from "./novelCoreSupport";
+import { novelEventBus } from "../../events";
 
 export class NovelCoreCrudService {
   private readonly novelContinuationService = new NovelContinuationService();
@@ -557,6 +558,10 @@ export class NovelCoreCrudService {
     if (updated.worldId) {
       queueRagUpsert("world", updated.worldId);
     }
+    void novelEventBus.emit({
+      type: "novel:updated",
+      payload: { novelId: id, fields: Object.keys(input) },
+    }).catch(() => {});
     return normalizeNovelOutput(updated);
   }
 

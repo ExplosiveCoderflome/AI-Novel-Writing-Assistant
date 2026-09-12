@@ -7,6 +7,7 @@ import type {
 import { characterResourceUpdatePayloadSchema } from "@ai-novel/shared/types/characterResource";
 import type { Prisma } from "@prisma/client";
 import { prisma } from "../../../db/prisma";
+import { ChapterArtifactContentVersionError } from "../runtime/artifactSync/ChapterArtifactSyncResult";
 import { characterResourceLedgerService } from "../characterResource/CharacterResourceLedgerService";
 import { compactText as compactResourceText, normalizeResourceKey } from "../characterResource/characterResourceShared";
 import { characterResourceValidationService } from "../characterResource/CharacterResourceValidationService";
@@ -69,6 +70,7 @@ export interface StateCommitServiceInput extends ChapterFactExtractorInput {
   proposals?: StateChangeProposal[];
   skipFactExtraction?: boolean;
   contentProvenance?: ContentProvenance;
+  expectedChapterContent?: string;
 }
 
 export interface CommitExistingProposalsInput {
@@ -112,7 +114,11 @@ export class StateCommitService {
       input.novelId,
       this.validate(proposals),
     );
-    const persisted = await this.persistValidated(validation);
+    const persisted = await this.persistValidated(validation, {
+      novelId: input.novelId,
+      chapterId: input.chapterId,
+      expectedChapterContent: input.expectedChapterContent,
+    });
 
     let versionRecord: StateVersionRecord | null = null;
     if (persisted.committed.length > 0) {
@@ -329,6 +335,11 @@ export class StateCommitService {
       pendingReview: StateChangeProposal[];
       rejected: StateChangeProposal[];
     },
+    integrity: {
+      novelId: string;
+      chapterId?: string | null;
+      expectedChapterContent?: string;
+    },
   ): Promise<{
     committed: StateChangeProposal[];
     pendingReview: StateChangeProposal[];
@@ -339,6 +350,19 @@ export class StateCommitService {
     const rejectedRows: PersistedProposalRow[] = [];
 
     await prisma.$transaction(async (tx) => {
+      if (integrity.expectedChapterContent !== undefined && integrity.chapterId) {
+        const chapter = await tx.chapter.findFirst({
+          where: {
+            id: integrity.chapterId,
+            novelId: integrity.novelId,
+            content: integrity.expectedChapterContent,
+          },
+          select: { id: true },
+        });
+        if (!chapter) {
+          throw new ChapterArtifactContentVersionError("章节正文版本已变化，已拒绝写入过期角色资源状态。");
+        }
+      }
       for (const proposal of validation.accepted) {
         const created = await tx.stateChangeProposal.create({
           data: {

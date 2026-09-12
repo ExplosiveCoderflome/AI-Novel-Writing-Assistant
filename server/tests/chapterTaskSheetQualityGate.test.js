@@ -21,6 +21,9 @@ const {
   ChapterTaskSheetQualityGateError,
 } = require("../dist/services/novel/volume/ChapterTaskSheetQualityGateService.js");
 const {
+  inspectChapterExecutionContractReadiness,
+} = require("../dist/services/novel/volume/chapterDetail/chapterExecutionContractReadiness.js");
+const {
   chapterTaskSheetQualityPrompt,
 } = require("../dist/prompting/prompts/novel/volume/chapterTaskSheetQuality.prompts.js");
 const {
@@ -119,6 +122,61 @@ test("incomplete persisted contracts are regenerated instead of reused", () => {
       targetWordCount: null,
     },
   }), false);
+});
+
+test("contract readiness distinguishes structural completeness from current requirement compatibility", () => {
+  const requirement = {
+    ...buildCandidate(),
+    id: "volume-chapter-1",
+    chapterId: "chapter-1",
+    volumeId: "volume-1",
+    chapterOrder: 1,
+    payoffRefs: ["资源危机"],
+    createdAt: "2026-09-08T00:00:00.000Z",
+    updatedAt: "2026-09-08T00:00:00.000Z",
+  };
+  const persisted = {
+    targetWordCount: requirement.targetWordCount,
+    conflictLevel: requirement.conflictLevel,
+    revealLevel: requirement.revealLevel,
+    mustAvoid: requirement.mustAvoid,
+    taskSheet: requirement.taskSheet,
+    sceneCards: requirement.sceneCards,
+  };
+
+  const compatible = inspectChapterExecutionContractReadiness({
+    novelId: "novel-1",
+    volumeId: "volume-1",
+    requirement,
+    persisted,
+  });
+  assert.equal(compatible.structure.canEnterExecution, true);
+  assert.equal(compatible.compatibility, "compatible");
+  assert.equal(compatible.canReuse, true);
+
+  const stale = inspectChapterExecutionContractReadiness({
+    novelId: "novel-1",
+    volumeId: "volume-1",
+    requirement: {
+      ...requirement,
+      mustAvoid: "不要提前揭示幕后主使，也不要让主角离开当前地点。",
+    },
+    persisted,
+  });
+  assert.equal(stale.structure.canEnterExecution, true);
+  assert.equal(stale.compatibility, "incompatible");
+  assert.deepEqual(stale.mismatchedFields, ["mustAvoid"]);
+  assert.equal(stale.canReuse, false);
+
+  const incomplete = inspectChapterExecutionContractReadiness({
+    novelId: "novel-1",
+    volumeId: "volume-1",
+    requirement: { ...requirement, purpose: null },
+    persisted,
+  });
+  assert.equal(incomplete.structure.canEnterExecution, false);
+  assert.equal(incomplete.compatibility, "compatible");
+  assert.equal(incomplete.canReuse, false);
 });
 
 test("chapter execution contract does not retry a semantic quality warning", () => {

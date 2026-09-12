@@ -1,5 +1,6 @@
 import type { CharacterMindSnapshot, CharacterMindSnapshotSource } from "@ai-novel/shared/types/characterMind";
 import { prisma } from "../../../db/prisma";
+import { ChapterArtifactContentVersionError } from "../runtime/artifactSync/ChapterArtifactSyncResult";
 import { runStructuredPrompt } from "../../../prompting/core/promptRunner";
 import {
   buildCharacterMindContextBlocks,
@@ -134,6 +135,7 @@ export class CharacterMindService {
   async applyChapterMindDeltas(input: {
     novelId: string;
     chapterId: string;
+    expectedChapterContent?: string;
     deltas: CharacterMindDelta[];
   }): Promise<number> {
     if (input.deltas.length === 0) {
@@ -152,6 +154,7 @@ export class CharacterMindService {
       characterId: item.characterId,
       sourceChapterId: input.chapterId,
       sourceType: "artifact_delta" as const,
+      expectedChapterContent: input.expectedChapterContent,
       snapshot: item.snapshot,
     })));
     return normalized.length;
@@ -201,6 +204,7 @@ export class CharacterMindService {
     characterId: string;
     sourceChapterId: string | null;
     sourceType: CharacterMindSnapshotSource;
+    expectedChapterContent?: string;
     snapshot: CharacterMindSnapshotItem | CharacterMindDelta;
   }>): Promise<CharacterMindSnapshot[]> {
     if (items.length === 0) {
@@ -208,6 +212,38 @@ export class CharacterMindService {
     }
     const rows = await prisma.$transaction(async (tx) => {
       const created = [];
+      const chapterArtifactIntegrity = items.find((item) => (
+        item.sourceType === "artifact_delta" && item.sourceChapterId && item.expectedChapterContent !== undefined
+      ));
+      if (chapterArtifactIntegrity?.sourceChapterId) {
+        const chapter = await tx.chapter.findFirst({
+          where: {
+            id: chapterArtifactIntegrity.sourceChapterId,
+            novelId: inputNovelId,
+            content: chapterArtifactIntegrity.expectedChapterContent,
+          },
+          select: { id: true },
+        });
+        if (!chapter) {
+          throw new ChapterArtifactContentVersionError("章节正文版本已变化，已拒绝写入过期角色思维快照。");
+        }
+      }
+      const chapterArtifactCharacterIds = items
+        .filter((item) => item.sourceType === "artifact_delta" && item.sourceChapterId)
+        .map((item) => item.characterId);
+      const chapterArtifactSourceChapterId = items.find((item) => (
+        item.sourceType === "artifact_delta" && item.sourceChapterId
+      ))?.sourceChapterId;
+      if (chapterArtifactCharacterIds.length > 0 && chapterArtifactSourceChapterId) {
+        await tx.characterMindSnapshot.deleteMany({
+          where: {
+            novelId: inputNovelId,
+            sourceType: "artifact_delta",
+            sourceChapterId: chapterArtifactSourceChapterId,
+            characterId: { in: chapterArtifactCharacterIds },
+          },
+        });
+      }
       for (const item of items) {
         await tx.characterMindSnapshot.updateMany({
           where: { novelId: inputNovelId, characterId: item.characterId, isCurrent: true },

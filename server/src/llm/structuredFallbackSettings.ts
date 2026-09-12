@@ -6,6 +6,7 @@ const STRUCTURED_FALLBACK_PROVIDER_KEY = "structuredFallback.provider";
 const STRUCTURED_FALLBACK_MODEL_KEY = "structuredFallback.model";
 const STRUCTURED_FALLBACK_TEMPERATURE_KEY = "structuredFallback.temperature";
 const STRUCTURED_FALLBACK_MAX_TOKENS_KEY = "structuredFallback.maxTokens";
+const STRUCTURED_FALLBACK_RETRY_COUNT_KEY = "structuredFallback.retryCount";
 
 const DEFAULT_STRUCTURED_FALLBACK_SETTINGS: StructuredFallbackSettings = {
   enabled: false,
@@ -13,6 +14,7 @@ const DEFAULT_STRUCTURED_FALLBACK_SETTINGS: StructuredFallbackSettings = {
   model: "deepseek-chat",
   temperature: 0.2,
   maxTokens: null,
+  retryCount: 1,
 };
 
 let cachedSettings: StructuredFallbackSettings | null = null;
@@ -23,6 +25,7 @@ export interface StructuredFallbackSettings {
   model: string;
   temperature: number;
   maxTokens: number | null;
+  retryCount: number;
 }
 
 function isMissingTableError(error: unknown): boolean {
@@ -65,6 +68,14 @@ function normalizeMaxTokens(value: number | string | undefined | null): number |
   return Math.min(32768, normalized);
 }
 
+function normalizeRetryCount(value: number | string | undefined | null): number {
+  const numeric = typeof value === "number" ? value : Number(value);
+  if (!Number.isFinite(numeric)) {
+    return DEFAULT_STRUCTURED_FALLBACK_SETTINGS.retryCount;
+  }
+  return Math.min(3, Math.max(0, Math.floor(numeric)));
+}
+
 function buildSettingsFromEntries(entries: Map<string, string>): StructuredFallbackSettings {
   return {
     enabled: entries.get(STRUCTURED_FALLBACK_ENABLED_KEY) === "true",
@@ -72,6 +83,7 @@ function buildSettingsFromEntries(entries: Map<string, string>): StructuredFallb
     model: normalizeModel(entries.get(STRUCTURED_FALLBACK_MODEL_KEY)),
     temperature: clampTemperature(Number(entries.get(STRUCTURED_FALLBACK_TEMPERATURE_KEY))),
     maxTokens: normalizeMaxTokens(entries.get(STRUCTURED_FALLBACK_MAX_TOKENS_KEY)),
+    retryCount: normalizeRetryCount(entries.get(STRUCTURED_FALLBACK_RETRY_COUNT_KEY)),
   };
 }
 
@@ -89,6 +101,7 @@ export async function getStructuredFallbackSettings(forceRefresh = false): Promi
             STRUCTURED_FALLBACK_MODEL_KEY,
             STRUCTURED_FALLBACK_TEMPERATURE_KEY,
             STRUCTURED_FALLBACK_MAX_TOKENS_KEY,
+            STRUCTURED_FALLBACK_RETRY_COUNT_KEY,
           ],
         },
       },
@@ -113,6 +126,7 @@ export async function saveStructuredFallbackSettings(input: Partial<StructuredFa
     model: normalizeModel(input.model ?? previous.model),
     temperature: clampTemperature(input.temperature ?? previous.temperature),
     maxTokens: normalizeMaxTokens(input.maxTokens ?? previous.maxTokens),
+    retryCount: normalizeRetryCount(input.retryCount ?? previous.retryCount),
   };
   try {
     await prisma.$transaction([
@@ -140,6 +154,11 @@ export async function saveStructuredFallbackSettings(input: Partial<StructuredFa
         where: { key: STRUCTURED_FALLBACK_MAX_TOKENS_KEY },
         update: { value: next.maxTokens == null ? "" : String(next.maxTokens) },
         create: { key: STRUCTURED_FALLBACK_MAX_TOKENS_KEY, value: next.maxTokens == null ? "" : String(next.maxTokens) },
+      }),
+      prisma.appSetting.upsert({
+        where: { key: STRUCTURED_FALLBACK_RETRY_COUNT_KEY },
+        update: { value: String(next.retryCount) },
+        create: { key: STRUCTURED_FALLBACK_RETRY_COUNT_KEY, value: String(next.retryCount) },
       }),
     ]);
     cachedSettings = next;
