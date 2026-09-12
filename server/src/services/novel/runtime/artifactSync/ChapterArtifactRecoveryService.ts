@@ -38,6 +38,7 @@ export class ChapterArtifactRecoveryPendingError extends Error {
 
 export class ChapterArtifactRecoveryService {
   private readonly deps: RecoveryServiceDeps;
+  private readonly extractionInFlight = new Map<string, Promise<ChapterArtifactExtractionResult>>();
 
   constructor(deps: Partial<RecoveryServiceDeps> = {}) {
     this.deps = {
@@ -106,6 +107,22 @@ export class ChapterArtifactRecoveryService {
   }
 
   private async loadOrExtract(
+    input: ChapterArtifactDeltaSyncInput & { artifactSyncMode: ArtifactSyncMode },
+    contentHash: string,
+  ): Promise<ChapterArtifactExtractionResult> {
+    const inFlightKey = `${input.novelId}:${input.chapterId}:${contentHash}:${input.artifactSyncMode}`;
+    const running = this.extractionInFlight.get(inFlightKey);
+    if (running) return running;
+    const promise = this.loadOrExtractOnce(input, contentHash);
+    this.extractionInFlight.set(inFlightKey, promise);
+    try {
+      return await promise;
+    } finally {
+      this.extractionInFlight.delete(inFlightKey);
+    }
+  }
+
+  private async loadOrExtractOnce(
     input: ChapterArtifactDeltaSyncInput & { artifactSyncMode: ArtifactSyncMode },
     contentHash: string,
   ): Promise<ChapterArtifactExtractionResult> {
