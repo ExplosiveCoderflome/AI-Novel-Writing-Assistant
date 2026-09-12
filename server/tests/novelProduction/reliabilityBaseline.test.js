@@ -39,7 +39,7 @@ function backgroundHarness() {
   const { ChapterArtifactBackgroundSyncService } = loadRuntimeSource("ChapterArtifactBackgroundSyncService.ts", {
     "../../../db/prisma": { prisma: {
       chapter: { findFirst: async () => ({ id: "c", order: 1, title: "Chapter", content: "draft" }) },
-      chapterArtifactSyncCheckpoint: { findUnique: async () => null },
+      chapterArtifactSyncCheckpoint: { findUnique: async () => null, upsert: async () => ({}) },
     } },
     "../../payoff/PayoffLedgerSyncService": {},
     "../pipelineJobState": {},
@@ -107,15 +107,15 @@ test("R3: failed repair request consumes its reserved budget", async () => {
   assert.equal(h.budget, 1);
 });
 
-test("R4a: running artifact checkpoint remains pending instead of entering success cache", async () => {
+test("R4a: running artifact checkpoint degrades adaptive sync instead of blocking chapter completion", async () => {
   const service = backgroundHarness();
   let inspections = 0;
   service.hasCompletedCheckpoint = async () => { inspections++; return false; };
   service.claimCheckpoint = async () => "running";
   const first = await service.runChapterSyncNow("n", "c", "draft");
   const second = await service.runChapterSyncNow("n", "c", "draft");
-  assert.equal(first.status, "pending");
-  assert.equal(second.status, "pending");
+  assert.equal(first.status, "degraded");
+  assert.equal(second.status, "degraded");
   assert.equal(inspections, 0, "running checkpoint is resolved by the durable claim, not a success-cache probe");
 });
 

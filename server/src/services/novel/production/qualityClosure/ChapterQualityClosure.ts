@@ -153,6 +153,7 @@ export async function applyChapterQualityClosure(input: {
         coherence: final.score.coherence,
         repetition: final.score.repetition,
         engagement: final.score.engagement,
+        overall: final.score.overall,
       },
       hasUsableOutput: true,
       provider: runtimePayload.provider,
