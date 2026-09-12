@@ -5,6 +5,7 @@ import { isBuiltInProvider } from "./providers";
 const THINK_OPEN_TAG = "<think>";
 const THINK_CLOSE_TAG = "</think>";
 const DEEPSEEK_HOST_PATTERN = /(?:^|:\/\/)(?:api\.)?deepseek\.com(?:\/|$)/i;
+const GLM_HOST_PATTERN = /(?:^|:\/\/)open\.bigmodel\.cn(?:\/|$)/i;
 const MINIMAX_HOST_PATTERN = /(?:^|:\/\/)(?:api\.)?minimax(?:i)?\.(?:io|com)(?:\/|$)/i;
 const MINIMAX_MODEL_PATTERN = /^minimax-m2(?:[.-]|$)/i;
 
@@ -116,6 +117,25 @@ export function isDeepSeekThinkingModeProvider(
   return Boolean(normalizedBaseURL && DEEPSEEK_HOST_PATTERN.test(normalizedBaseURL));
 }
 
+export function isGlmThinkingModeProvider(
+  provider: LLMProvider,
+  baseURL?: string,
+  model?: string,
+): boolean {
+  const normalizedModel = normalizeOptionalText(model)?.toLowerCase().split("/").at(-1);
+  const version = normalizedModel?.match(/^glm-(\d+)(?:\.(\d+))?/);
+  const major = Number(version?.[1] ?? 0);
+  const minor = Number(version?.[2] ?? 0);
+  if (major < 4 || (major === 4 && minor < 5)) {
+    return false;
+  }
+  if (provider === "glm") {
+    return true;
+  }
+  const normalizedBaseURL = normalizeOptionalText(baseURL);
+  return Boolean(normalizedBaseURL && GLM_HOST_PATTERN.test(normalizedBaseURL));
+}
+
 export function resolveProviderReasoningBehavior(input: {
   provider: LLMProvider;
   baseURL: string;
@@ -123,6 +143,20 @@ export function resolveProviderReasoningBehavior(input: {
   reasoningEnabled: boolean;
   reasoningEffort?: ReasoningEffort | null;
 }): ProviderReasoningBehavior {
+  if (isGlmThinkingModeProvider(input.provider, input.baseURL, input.model)) {
+    return {
+      reasoningEnabled: input.reasoningEnabled,
+      reasoningEffort: null,
+      modelKwargs: {
+        thinking: {
+          type: input.reasoningEnabled ? "enabled" : "disabled",
+        },
+      },
+      includeRawResponse: false,
+      usesAccumulatedStreamDeltas: false,
+    };
+  }
+
   if (isDeepSeekThinkingModeProvider(input.provider, input.baseURL, input.model)) {
     const reasoningEffort = normalizeReasoningEffort(input.reasoningEffort);
     return {

@@ -18,6 +18,7 @@ const allMigrationNames = fs.readdirSync(migrationsDir, { withFileTypes: true })
 
 const targetMigration = "20260318233000_book_analysis_source_cache";
 const novelFactMigration = "20260812120000_novel_fact_ledger";
+const promptSlotOverrideMigration = "20260912170000_prompt_slot_overrides";
 
 function createMigrationTable(database) {
   database.exec(`
@@ -260,6 +261,41 @@ test("ensureRuntimeDatabaseReady creates the novel fact ledger for existing desk
       ).get());
       assert.ok(verifyDb.prepare(
         `SELECT name FROM sqlite_master WHERE type = 'index' AND name = 'NovelFactEntry_novelId_chapterOrder_idx'`,
+      ).get());
+    } finally {
+      verifyDb.close();
+    }
+  } finally {
+    fs.rmSync(tempDir, { recursive: true, force: true });
+  }
+});
+
+test("ensureRuntimeDatabaseReady creates prompt slot overrides for existing desktop databases", async () => {
+  const { tempDir, databasePath } = createTempDatabaseFile();
+  const database = new Database(databasePath);
+
+  try {
+    createMigrationTable(database);
+    database.exec('CREATE TABLE "Novel" ("id" TEXT NOT NULL PRIMARY KEY);');
+    for (const migrationName of allMigrationNames) {
+      if (migrationName !== promptSlotOverrideMigration) {
+        insertMigrationRecord(database, migrationName);
+      }
+    }
+  } finally {
+    database.close();
+  }
+
+  try {
+    await withDesktopRuntime(databasePath, () => ensureRuntimeDatabaseReady());
+
+    const verifyDb = new Database(databasePath, { readonly: true });
+    try {
+      assert.ok(verifyDb.prepare(
+        `SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'PromptSlotOverride'`,
+      ).get());
+      assert.ok(verifyDb.prepare(
+        `SELECT name FROM sqlite_master WHERE type = 'index' AND name = 'PromptSlotOverride_scope_novelId_promptId_key'`,
       ).get());
     } finally {
       verifyDb.close();
