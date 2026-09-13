@@ -3,6 +3,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type { ApiResponse } from "@ai-novel/shared/types/api";
 import type { KnowledgeDocumentStatus, KnowledgeRecallTestResult } from "@ai-novel/shared/types/knowledge";
 import { useSearchParams } from "react-router-dom";
+import { toast } from "@/components/ui/toast";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { queryKeys } from "@/api/queryKeys";
 import {
@@ -247,13 +248,17 @@ export default function KnowledgePage() {
 
   const reindexMutation = useMutation({
     mutationFn: (id: string) => reindexKnowledgeDocument(id),
-    onSuccess: async () => {
+    onSuccess: async (response) => {
       setRecallResult(null);
+      toast.success(response.message ?? "资料已加入切片与索引队列。");
       await queryClient.invalidateQueries({ queryKey: documentListQueryKey });
       await queryClient.invalidateQueries({ queryKey: ragJobsQueryKey });
       if (selectedDocumentId) {
         await queryClient.invalidateQueries({ queryKey: queryKeys.knowledge.detail(selectedDocumentId) });
       }
+    },
+    onError: (error) => {
+      toast.error(error instanceof Error ? error.message : "重建索引失败，请检查检索设置后重试。");
     },
   });
 
@@ -564,6 +569,7 @@ export default function KnowledgePage() {
               setStatus("");
             }}
             latestKnowledgeDocumentJobs={latestKnowledgeDocumentJobs}
+            reindexingDocumentId={reindexMutation.isPending ? reindexMutation.variables : undefined}
             onSelectDocument={setSelectedDocumentId}
             onOpenRecallTest={(id) => {
               setRecallQuery("");

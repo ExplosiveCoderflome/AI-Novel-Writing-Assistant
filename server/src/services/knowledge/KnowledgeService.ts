@@ -7,6 +7,7 @@ import type {
 import { prisma } from "../../db/prisma";
 import { ragConfig } from "../../config/rag";
 import { ragServices } from "../rag";
+import { RAG_ENABLED_KEY } from "../settings/ragSettingKeys";
 import {
   buildKnowledgeContentHash,
   normalizeKnowledgeContent,
@@ -14,6 +15,19 @@ import {
 } from "./common";
 
 export class KnowledgeService {
+  private async enableRagForManualReindex(): Promise<void> {
+    if (ragConfig.enabled) {
+      return;
+    }
+    await prisma.appSetting.upsert({
+      where: { key: RAG_ENABLED_KEY },
+      update: { value: "true" },
+      create: { key: RAG_ENABLED_KEY, value: "true" },
+    });
+    ragConfig.enabled = true;
+    ragServices.ragWorker.start();
+  }
+
   private getPendingIndexStatus(): "idle" | "queued" {
     return ragConfig.enabled ? "queued" : "idle";
   }
@@ -413,6 +427,7 @@ export class KnowledgeService {
     if (document.status === "archived") {
       throw new Error("Archived knowledge documents must be restored before reindexing.");
     }
+    await this.enableRagForManualReindex();
     const updated = await prisma.knowledgeDocument.update({
       where: { id: documentId },
       data: {
