@@ -1169,29 +1169,45 @@ export async function streamStructuredPrompt<I, O, R = O>(input: {
     complete: captured.completedText.then(async (rawContent) => {
       liveSession.phase("validating", "正在检查生成结果");
       let repairStarted = false;
-      const parsed = await parseStructuredLlmRawContentDetailed({
-        rawContent,
-        schema: outputSchema,
-        provider: input.options?.provider,
-        model: input.options?.model,
-        temperature: input.options?.temperature,
-        maxTokens: input.options?.maxTokens,
-        timeoutMs: input.options?.timeoutMs,
-        signal: input.options?.signal,
-        taskType: input.asset.taskType,
-        label: `${input.asset.id}@${input.asset.version}`,
-        maxRepairAttempts: resolveStructuredRepairAttempts(input.asset as PromptAsset<unknown, unknown, unknown>),
-        promptMeta: prepared.invocation,
-        onRepairOutputDelta: (content) => {
-          if (!repairStarted) {
-            repairStarted = true;
-            liveSession.phase("repairing", "正在修复生成结果");
-          }
-          liveSession.delta(content);
-        },
-        strategy,
-        profile,
-      });
+      const parsed = rawContent.trim()
+        ? await parseStructuredLlmRawContentDetailed({
+          rawContent,
+          schema: outputSchema,
+          provider: input.options?.provider,
+          model: input.options?.model,
+          temperature: input.options?.temperature,
+          maxTokens: input.options?.maxTokens,
+          timeoutMs: input.options?.timeoutMs,
+          signal: input.options?.signal,
+          taskType: input.asset.taskType,
+          label: `${input.asset.id}@${input.asset.version}`,
+          maxRepairAttempts: resolveStructuredRepairAttempts(input.asset as PromptAsset<unknown, unknown, unknown>),
+          promptMeta: prepared.invocation,
+          onRepairOutputDelta: (content) => {
+            if (!repairStarted) {
+              repairStarted = true;
+              liveSession.phase("repairing", "正在修复生成结果");
+            }
+            liveSession.delta(content);
+          },
+          strategy,
+          profile,
+        })
+        : await promptRunnerStructuredInvoker<R>({
+          label: `${input.asset.id}@${input.asset.version}#empty-stream-fallback`,
+          provider: input.options?.provider,
+          model: input.options?.model,
+          temperature: input.options?.temperature,
+          maxTokens: input.options?.maxTokens,
+          timeoutMs: input.options?.timeoutMs,
+          signal: input.options?.signal,
+          taskType: input.asset.taskType,
+          messages: prepared.messages,
+          schema: outputSchema,
+          structuredStrategy: "prompt_json",
+          maxRepairAttempts: resolveStructuredRepairAttempts(input.asset as PromptAsset<unknown, unknown, unknown>),
+          promptMeta: prepared.invocation,
+        });
       const resolved = await resolveStructuredOutput({
         asset: input.asset,
         promptInput: input.promptInput,
@@ -1201,7 +1217,7 @@ export async function streamStructuredPrompt<I, O, R = O>(input: {
         initialResult: parsed,
         options: input.options,
       });
-      const tokenUsage = await captured.completedUsage.catch(() => null);
+      const tokenUsage = parsed.tokenUsage ?? await captured.completedUsage.catch(() => null);
       const result = buildPromptRunResult({
         asset: input.asset as PromptAsset<unknown, unknown, unknown>,
         output: resolved.output,

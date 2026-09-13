@@ -281,6 +281,7 @@ export function buildStructuredError(input: {
   category: StructuredOutputErrorCategory;
   strategy: StructuredOutputStrategy;
   profile: StructuredOutputProfile;
+  retryWithNextStrategy?: boolean;
   reasoningForcedOff?: boolean;
   fallbackAvailable?: boolean;
   fallbackUsed?: boolean;
@@ -288,6 +289,7 @@ export function buildStructuredError(input: {
   return new StructuredOutputError({
     message: input.message,
     category: input.category,
+    retryWithNextStrategy: input.retryWithNextStrategy,
     diagnostics: buildDiagnostics({
       strategy: input.strategy,
       profile: input.profile,
@@ -372,6 +374,7 @@ export async function parseStructuredLlmRawContentDetailed<T>(
     throw buildStructuredError({
       message: `[${input.label}] 模型没有返回可用内容，无法执行结构校验或 JSON 修复。`,
       category: "transport_error",
+      retryWithNextStrategy: input.strategy !== "prompt_json",
       strategy: input.strategy,
       profile: input.profile,
       reasoningForcedOff: input.reasoningForcedOff,

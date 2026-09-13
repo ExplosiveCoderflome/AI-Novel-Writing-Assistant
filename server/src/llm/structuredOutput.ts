@@ -448,15 +448,19 @@ export class StructuredOutputError extends Error {
 
   readonly diagnostics: StructuredOutputDiagnostics;
 
+  readonly retryWithNextStrategy: boolean;
+
   constructor(input: {
     message: string;
     category: StructuredOutputErrorCategory;
     diagnostics: StructuredOutputDiagnostics;
+    retryWithNextStrategy?: boolean;
   }) {
     super(`[STRUCTURED_OUTPUT:${input.category}] ${input.message}`);
     this.name = "StructuredOutputError";
     this.category = input.category;
     this.diagnostics = input.diagnostics;
+    this.retryWithNextStrategy = input.retryWithNextStrategy ?? false;
   }
 }
 

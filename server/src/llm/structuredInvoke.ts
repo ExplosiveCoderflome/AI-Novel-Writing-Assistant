@@ -405,7 +405,7 @@ async function tryStructuredStrategies<T>(input: {
         fallbackAvailable: input.fallbackAvailable,
         fallbackUsed: input.fallbackUsed,
       });
-      if (lastError.category === "transport_error") {
+      if (lastError.category === "transport_error" && !lastError.retryWithNextStrategy) {
         break;
       }
       if (lastError.category === "schema_mismatch" && strategy === "prompt_json") {
