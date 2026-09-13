@@ -302,7 +302,7 @@ test("summarizeStructuredOutputFailure tells users to retry or switch models for
   assert.match(summary.summary, /更强模型|备用模型/);
 });
 
-test("invokeStructuredLlmDetailed degrades to prompt JSON before using fallback models", async () => {
+test("invokeStructuredLlmDetailed degrades through unsupported and empty native JSON before using fallback models", async () => {
   const originalResolveOptions = factory.resolveLLMClientOptions;
   const originalCreateLLM = factory.createLLMFromResolvedOptions;
   const originalGetFallbackSettings = structuredFallbackSettings.getStructuredFallbackSettings;
@@ -347,8 +347,11 @@ test("invokeStructuredLlmDetailed degrades to prompt JSON before using fallback 
         provider: resolved.provider,
         strategy: resolved.structuredStrategy,
       });
-      if (resolved.provider === "openai" && resolved.structuredStrategy !== "prompt_json") {
+      if (resolved.provider === "openai" && resolved.structuredStrategy === "json_schema") {
         throw new Error("response_format is not supported");
+      }
+      if (resolved.structuredStrategy === "json_object") {
+        return;
       }
       yield { content: "{\"value\":\"primary-prompt-json\"}" };
     },
@@ -382,6 +385,25 @@ test("invokeStructuredLlmDetailed degrades to prompt JSON before using fallback 
       { provider: "openai", strategy: "json_schema" },
       { provider: "openai", strategy: "json_object" },
       { provider: "openai", strategy: "prompt_json" },
+    ]);
+
+    calls.length = 0;
+    const deepseekResult = await structuredInvoke.invokeStructuredLlmDetailed({
+      provider: "deepseek",
+      model: "deepseek-v4-flash",
+      label: "structured.invoke.compat.deepseek-empty-json",
+      taskType: "planner",
+      schema: z.object({
+        value: z.string(),
+      }),
+      systemPrompt: "只返回 JSON。",
+      userPrompt: "给我一个 value。",
+    });
+
+    assert.deepEqual(deepseekResult.data, { value: "primary-prompt-json" });
+    assert.deepEqual(calls, [
+      { provider: "deepseek", strategy: "json_object" },
+      { provider: "deepseek", strategy: "prompt_json" },
     ]);
   } finally {
     factory.resolveLLMClientOptions = originalResolveOptions;
