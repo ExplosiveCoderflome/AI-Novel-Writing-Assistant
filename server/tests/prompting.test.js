@@ -2141,6 +2141,49 @@ test("streamStructuredPrompt parses streamed JSON and preserves telemetry", asyn
   }
 });
 
+test("streamStructuredPrompt falls back to prompt JSON when native structured streaming is empty", async () => {
+  let streamCall = null;
+  let fallbackCall = null;
+  setPromptRunnerLLMFactoryForTests(async (provider, options) => {
+    return {
+      stream: async (_messages, invokeOptions) => {
+        streamCall = { provider, responseFormat: invokeOptions.response_format?.type };
+        return {
+          async *[Symbol.asyncIterator]() {},
+        };
+      },
+    };
+  });
+  setPromptRunnerStructuredInvokerForTests(async (input) => {
+    fallbackCall = input;
+    return {
+      data: { name: "都市", description: "异能成长", children: [] },
+      repairUsed: false,
+      repairAttempts: 0,
+    };
+  });
+
+  try {
+    const handle = await streamStructuredPrompt({
+      asset: genreTreePrompt,
+      promptInput: { prompt: "都市异能", retry: false, forceJson: true },
+      options: { provider: "deepseek", model: "deepseek-v4-flash" },
+    });
+
+    for await (const _chunk of handle.stream) {
+      // drain stream
+    }
+    const completed = await handle.complete;
+
+    assert.deepEqual(streamCall, { provider: "deepseek", responseFormat: "json_object" });
+    assert.equal(fallbackCall.structuredStrategy, "prompt_json");
+    assert.equal(completed.output.name, "都市");
+  } finally {
+    setPromptRunnerLLMFactoryForTests();
+    setPromptRunnerStructuredInvokerForTests();
+  }
+});
+
 test("streamStructuredPrompt parses top-level array outputs and ignores trailing text", async () => {
   setPromptRunnerLLMFactoryForTests(async () => ({
     stream: async () => ({
