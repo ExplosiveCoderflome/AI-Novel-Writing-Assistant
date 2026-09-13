@@ -72,8 +72,12 @@ function buildCurrentChapterContractText(input: VolumeChapterDetailPromptInput):
 }
 
 function validatePurposeDistinct(output: { purpose: string }, input: VolumeChapterDetailPromptInput) {
-  if (normalizeComparableText(output.purpose) === normalizeComparableText(input.targetChapter.summary)) {
-    throw new Error("章节目标不能与章节摘要完全相同；请改为一句明确的本章推进目标。");
+  const purpose = normalizeComparableText(output.purpose);
+  if (
+    purpose === normalizeComparableText(input.targetChapter.summary)
+    || purpose === normalizeComparableText(input.targetChapter.purpose)
+  ) {
+    throw new Error("章节目标不能与章节摘要或现有目标完全相同；请改为一句明确的本章推进目标。");
   }
   return output;
 }
@@ -308,7 +312,7 @@ export const volumeChapterPurposePrompt: PromptAsset<
   ReturnType<typeof createChapterPurposeSchema>["_output"]
 > = {
   id: "novel.volume.chapter_purpose",
-  version: "v2",
+  version: "v3",
   taskType: "planner",
   mode: "structured",
   language: "zh",

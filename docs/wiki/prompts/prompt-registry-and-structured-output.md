@@ -24,7 +24,7 @@
 - 确定性代码只允许处理结构契约和安全边界，例如必填字段、枚举归一、ID 是否存在、数组长度、权限和数据保护。确定性质量闸门可以指出“缺少 protagonist / gender / 必填字段”这类结构问题，但不能判断“是否承接了某个题材身份”“名字是否像功能位”“语言是否像英文残留”等创作语义。
 - 结构化输出使用 `runStructuredPrompt`，纯文本使用 `runTextPrompt`，流式能力使用对应 stream runner。
 - JSON 解析、schema 校验失败由 repair policy 处理；JSON 合法但业务语义不合格由 semantic retry 处理。
-- 同一结构化结果中承担不同职责的字段必须在 `postValidate` 中保护其最小差异边界。比如章节摘要与章节目标在去除空白后完全相同时，目标输出无效：应把失败原因交给 `semanticRetryPolicy` 重新生成；重试仍失败时中止本次写入并保留已保存内容，不能让一个字段静默覆盖成另一个字段的副本。
+- 同一结构化结果中承担不同职责的字段必须在 `postValidate` 中保护其最小差异边界。比如章节目标在去除空白后与章节摘要或本次修正前的章节目标完全相同时，目标输出无效：应把失败原因交给 `semanticRetryPolicy` 重新生成；重试仍失败时中止本次写入并保留已保存内容，不能让一个字段静默覆盖成另一个字段或沿用无效草稿。
 - 自动导演关键路径优先使用职责单一的小型结构化合同。开篇世界切片、路线窗口和下一章执行合同应分别约束，不要为了减少代码步骤把整本世界、全角色、整卷章节和执行细节塞进一个巨型 JSON。拆分的目标是降低 repair 面积和首章前耗时，不是复制生产链。
 - 自定义高级模板或业务上下文只能影响提示词正文。运行时必须在模板编译后强制追加 JSON skeleton、完整 Schema 和 repair 合同，用户模板不能覆盖这些结构安全边界。
 - 所有通过 registry runner 执行的 PromptAsset 都必须产生 prompt quality telemetry，用于观察 repair 率、semantic retry 率、空输出率、上下文 token 预算、输出长度和耗时。业务服务不得绕过 runner 自行吞掉 postValidate 失败；语义失败应通过 `semanticRetryPolicy` 重试，或通过明确的 `postValidateFailureRecovery` 降级。
