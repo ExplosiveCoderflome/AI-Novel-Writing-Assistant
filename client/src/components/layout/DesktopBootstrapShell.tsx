@@ -297,8 +297,8 @@ export default function DesktopBootstrapShell({ snapshot, overlay = false }: Des
                 <div className="flex items-center gap-4">
                   <div className="rounded-[24px] bg-primary/10 p-2 ring-1 ring-primary/20"><DesktopBrandMark className="h-16 w-16" /></div>
                   <div>
-                    <div className="text-xs font-medium uppercase tracking-[0.24em] text-info">AI NOVEL STUDIO</div>
-                    <h1 className="mt-2 text-2xl font-semibold tracking-tight sm:text-3xl">AI 小说创作工作台</h1>
+                    <div className="text-xs font-medium uppercase tracking-[0.24em] text-info">FORMERLY AI NOVEL WRITING ASSISTANT</div>
+                    <h1 className="mt-2 text-2xl font-semibold tracking-tight sm:text-3xl">Biz Novel Studio</h1>
                   </div>
                 </div>
                 <Badge variant="outline" className="hidden border-info/30 bg-info/10 text-info sm:inline-flex">桌面版 · {resolveStageLabel(snapshot)}</Badge>

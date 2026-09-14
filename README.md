@@ -1,5 +1,9 @@
-# AI 小说创作工作台 / AI Novel Production Engine
-一个面向长篇小说创作的 AI Native 开源项目。
+# Biz Novel Studio / AI-Native Novel Production Engine
+一个帮助新手从灵感走到完整长篇的 AI Native 开源小说创作工作台，简称 **Biz Studio**。
+
+Open-source AI novel writing assistant and long-form production studio.
+
+> 原项目名：**AI Novel Writing Assistant / AI 小说创作工作台**。GitHub 仓库地址和既有下载入口保持不变。
 
 当前开发主线：
 `Creative Hub + 自动导演开书 + 本书世界上下文 + 整本生产主链 + 写法引擎`
@@ -19,7 +23,7 @@
 
 ## ✨ 项目简介
 
-这是一个**面向长篇小说完成度的 AI 生产系统**，不是普通的"你写一句、AI 补一句"聊天壳子。
+**Biz Novel Studio** 是一个**面向长篇小说完成度的 AI 生产系统**，不是普通的"你写一句、AI 补一句"聊天壳子。
 
 它的核心做法是：
 
@@ -150,13 +154,12 @@
 
 ## 最新更新
 
-### 2026-09-13
+### 2026-09-14
 
-#### 修复
+#### 优化
 
-- 使用 DeepSeek 等支持原生 JSON 的模型生成卷战略、世界观草稿等结构化结果时，如果模型返回空内容，普通与流式生成都会自动切换为兼容格式继续；只有兼容格式仍失败时才进入重试或备用模型，减少创作流程无故中断。
-- Windows 客户端点击“重建索引”会自动开启资料检索并把资料加入切片与索引队列；页面会显示提交结果和失败原因，避免操作没有反馈。
-- AI 修正章节目标时会拒绝与章节摘要或原有目标完全相同的结果，并要求模型重新生成；保存到章节执行区时会分别保留摘要和目标，持续不合格时也不会覆盖原有内容。
+- 产品品牌更新为 **Biz Novel Studio**，简称 **Biz Studio**；网页、桌面端、公开介绍站和使用文档统一展示新名称，并保留“原 AI Novel Writing Assistant / AI 小说创作工作台”标识，方便老用户确认仍是同一项目。
+- GitHub 仓库、下载入口和本地作品数据继续沿用既有兼容路径；公开页面保留原名称与 AI 小说写作关键词，兼顾品牌记忆和搜索发现。
 
 完整历史更新见 [docs/releases/release-notes.md](./docs/releases/release-notes.md)。
 
