@@ -1,9 +1,9 @@
-# Biz Novel Studio / AI-Native Novel Production Engine
-一个帮助新手从灵感走到完整长篇的 AI Native 开源小说创作工作台，简称 **Biz Studio**。
+# AI 小说创作工作台 / Biz Novel Studio
+一个帮助新手从灵感走到完整长篇的 AI Native 开源小说创作工作台；英文名由 **AI Novel Production Engine** 更新为 **Biz Novel Studio**。
 
 Open-source AI novel writing assistant and long-form production studio.
 
-> 原项目名：**AI Novel Writing Assistant / AI 小说创作工作台**。GitHub 仓库地址和既有下载入口保持不变。
+> 中文名仍为 **AI 小说创作工作台**；`AI Novel Writing Assistant` 仓库地址和既有下载入口保持不变。
 
 当前开发主线：
 `Creative Hub + 自动导演开书 + 本书世界上下文 + 整本生产主链 + 写法引擎`
@@ -23,7 +23,7 @@ Open-source AI novel writing assistant and long-form production studio.
 
 ## ✨ 项目简介
 
-**Biz Novel Studio** 是一个**面向长篇小说完成度的 AI 生产系统**，不是普通的"你写一句、AI 补一句"聊天壳子。
+**AI 小说创作工作台 / Biz Novel Studio** 是一个**面向长篇小说完成度的 AI 生产系统**。
 
 它的核心做法是：
 
@@ -158,8 +158,8 @@ Open-source AI novel writing assistant and long-form production studio.
 
 #### 优化
 
-- 产品品牌更新为 **Biz Novel Studio**，简称 **Biz Studio**；网页、桌面端、公开介绍站和使用文档统一展示新名称，并保留“原 AI Novel Writing Assistant / AI 小说创作工作台”标识，方便老用户确认仍是同一项目。
-- GitHub 仓库、下载入口和本地作品数据继续沿用既有兼容路径；公开页面保留原名称与 AI 小说写作关键词，兼顾品牌记忆和搜索发现。
+- 产品英文名更新为 **Biz Novel Studio**，中文名继续使用 **AI 小说创作工作台**；网页、桌面端、公开介绍站和使用文档统一展示这组中英文名称。
+- GitHub 仓库、下载入口和本地作品数据继续沿用既有兼容路径；公开页面保留 `AI Novel Production Engine` 与 `AI Novel Writing Assistant` 作为旧英文名和搜索关键词。
 
 完整历史更新见 [docs/releases/release-notes.md](./docs/releases/release-notes.md)。
 

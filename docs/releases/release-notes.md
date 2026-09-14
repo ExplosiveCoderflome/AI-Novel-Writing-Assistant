@@ -8,8 +8,8 @@
 
 #### 优化
 
-- 产品品牌更新为 **Biz Novel Studio**，简称 **Biz Studio**；网页、桌面端、公开介绍站和使用文档统一展示新名称，并保留“原 AI Novel Writing Assistant / AI 小说创作工作台”标识，方便老用户确认仍是同一项目。
-- GitHub 仓库、下载入口和本地作品数据继续沿用既有兼容路径；公开页面保留原名称与 AI 小说写作关键词，兼顾品牌记忆和搜索发现。
+- 产品英文名更新为 **Biz Novel Studio**，中文名继续使用 **AI 小说创作工作台**；网页、桌面端、公开介绍站和使用文档统一展示这组中英文名称。
+- GitHub 仓库、下载入口和本地作品数据继续沿用既有兼容路径；公开页面保留 `AI Novel Production Engine` 与 `AI Novel Writing Assistant` 作为旧英文名和搜索关键词。
 
 ### 2026-09-13
 

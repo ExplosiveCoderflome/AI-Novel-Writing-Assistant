@@ -161,11 +161,11 @@ function SiteNav({ page }: { page: "home" | "docs" }) {
   const stars = useGithubStars("ExplosiveCoderflome", "AI-Novel-Writing-Assistant");
   return (
     <nav className="site-nav" aria-label="主导航">
-      <a className="brand" href={sitePath("/")} aria-label="Biz Novel Studio 首页">
+      <a className="brand" href={sitePath("/")} aria-label="AI 小说创作工作台首页">
         <span className="brand-mark">
           <img src={appIcon} alt="" aria-hidden="true" />
         </span>
-        <span>Biz Novel Studio</span>
+        <span>AI 小说创作工作台</span>
       </a>
       <div className="nav-links">
         <a href={docsPath()}>文档</a>
@@ -206,7 +206,7 @@ function HomePage() {
       >
         <div className="hero-scrim" />
         <div className="hero-content">
-          <p className="eyebrow">原 AI 小说创作工作台 · AI 驱动的长篇小说生产系统</p>
+          <p className="eyebrow">Biz Novel Studio · AI 驱动的长篇小说生产系统</p>
           <h1>说出你的故事</h1>
           <p className="hero-copy">
             你只需要先选开书依据。AI 会准备书级定位、世界、角色和卷章任务；到达可开写状态后，可以让简易创作持续推进，也可以进入专业工作台随时接管。

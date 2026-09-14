@@ -69,7 +69,7 @@ export default function MobileSiteShell({ children }: MobileSiteShellProps) {
               <DesktopBrandMark className="h-8 w-8 shrink-0 drop-shadow-none" />
               <div className="min-w-0 leading-tight">
                 <div className="flex min-w-0 items-center gap-1.5">
-                  <span className="min-w-0 truncate text-sm font-semibold">Biz Novel Studio</span>
+                  <span className="min-w-0 truncate text-sm font-semibold">AI 小说创作工作台</span>
                   <AppVersionBadge />
                 </div>
                 <div className="truncate text-[11px] text-muted-foreground">{pageTitle}</div>

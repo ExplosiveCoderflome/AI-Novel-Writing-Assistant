@@ -231,7 +231,7 @@ function createSplashHtml(): string {
         http-equiv="Content-Security-Policy"
         content="default-src 'none'; style-src 'unsafe-inline'; img-src data:"
       />
-      <title>Biz Novel Studio</title>
+      <title>AI 小说创作工作台</title>
       <style>
         :root {
           color-scheme: dark;
@@ -304,8 +304,8 @@ function createSplashHtml(): string {
     <body>
       <main class="panel">
         ${brandMark}
-        <div class="title">Biz Novel Studio</div>
-        <p class="subtitle">原 AI 小说创作工作台，正在准备本地写作引擎。</p>
+        <div class="title">AI 小说创作工作台</div>
+        <p class="subtitle">Biz Novel Studio 正在准备本地写作引擎。</p>
         <div class="meter"><span></span></div>
       </main>
     </body>
@@ -406,7 +406,7 @@ async function showBootstrapFailureDialog(error: unknown): Promise<void> {
   const errorMessage = error instanceof Error ? error.message : String(error);
   const result = await dialog.showMessageBox({
     type: "error",
-    title: "Biz Novel Studio 启动失败",
+    title: "AI 小说创作工作台启动失败",
     message: "桌面应用未能完成初始化。",
     detail: `${errorMessage}\n\n日志目录:\n${logDir}\n\n日志文件:\n${logFilePath}`,
     buttons: ["打开日志目录", "复制日志路径", "退出"],
@@ -454,7 +454,7 @@ function registerDesktopIpcHandlers(): void {
     const bootstrap = desktopBootstrapStore.getSnapshot();
     const updater = desktopUpdaterStore.getSnapshot();
     const summary = [
-      "Biz Novel Studio 近期日志包摘要",
+      "AI 小说创作工作台近期日志包摘要",
       `生成时间: ${new Date().toISOString()}`,
       `应用版本: ${app.getVersion()}`,
       `平台: ${process.platform} ${process.arch}`,
