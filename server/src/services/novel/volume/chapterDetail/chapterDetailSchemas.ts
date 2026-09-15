@@ -4,6 +4,15 @@ import { generatedReaderExperienceContractSchema } from "@ai-novel/shared/types/
 
 const conciseRequiredText = z.string().trim().min(1).max(240);
 const conciseTextList = z.array(z.string().trim().min(1).max(160)).max(8).default([]);
+const vagueScenePurposePatterns = [
+  /推动剧情/,
+  /推进故事/,
+  /发展情节/,
+  /继续推进/,
+  /进一步发展/,
+  /为.*铺垫/,
+  /为.*做准备/,
+];
 const boundedReaderExperienceSchema = generatedReaderExperienceContractSchema.extend({
   readerQuestion: conciseRequiredText,
   promisedReward: conciseRequiredText,
@@ -29,7 +38,85 @@ const boundedSceneCardSchema = generatedChapterSceneCardSchema.extend({
   turn: conciseRequiredText,
   emotionalShift: conciseRequiredText,
   readerValue: conciseRequiredText,
+}).superRefine((value, ctx) => {
+  // 检查 purpose 是否过于空泛或与章节目标重复
+  if (isVagueScenePurpose(value.purpose)) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ["purpose"],
+      message: "场景卡的 purpose 不能是空泛的'推动剧情'、'推进故事'等，必须是具体的执行动作。例如：'主角在档案室发现关键文件被篡改的痕迹'。",
+    });
+  }
 });
+
+function normalizeText(value: unknown): string | null {
+  if (typeof value === "number" && Number.isFinite(value)) {
+    return String(Math.round(value));
+  }
+  if (typeof value !== "string") {
+    return null;
+  }
+  const trimmed = value.trim();
+  return trimmed || null;
+}
+
+function isVagueScenePurpose(value: unknown): boolean {
+  const text = normalizeText(value);
+  return Boolean(text && vagueScenePurposePatterns.some((pattern) => pattern.test(text)));
+}
+
+function firstSpecificText(value: unknown): string | null {
+  const candidates = Array.isArray(value)
+    ? value
+    : typeof value === "string"
+      ? value.split(/[\n,，;；、|]/g)
+      : [value];
+  for (const candidate of candidates) {
+    const text = normalizeText(candidate);
+    if (text && !isVagueScenePurpose(text)) {
+      return text;
+    }
+  }
+  return null;
+}
+
+function fitConciseText(value: string): string {
+  return value.length > 240 ? value.slice(0, 239) : value;
+}
+
+function repairScenePurpose(record: Record<string, unknown>): string | null {
+  const currentPurpose = normalizeText(record.purpose);
+  if (currentPurpose && !isVagueScenePurpose(currentPurpose)) {
+    return currentPurpose;
+  }
+
+  const advance = firstSpecificText(record.mustAdvance);
+  const resistance = firstSpecificText(record.resistance);
+  const turn = firstSpecificText(record.turn);
+  const entryState = firstSpecificText(record.entryState);
+  const exitState = firstSpecificText(record.exitState);
+  const title = firstSpecificText(record.title);
+
+  if (advance && resistance && turn) {
+    return fitConciseText(`${advance}，在${resistance}的压力下通过${turn}完成本场景落点。`);
+  }
+  if (advance && turn) {
+    return fitConciseText(`${advance}，并通过${turn}改变当前局面。`);
+  }
+  if (advance && resistance) {
+    return fitConciseText(`${advance}，同时正面处理${resistance}。`);
+  }
+  if (turn) {
+    return fitConciseText(`围绕${turn}完成本场景的关键转折。`);
+  }
+  if (resistance) {
+    return fitConciseText(`让主角正面遭遇${resistance}并产生具体应对。`);
+  }
+  if (title && entryState && exitState) {
+    return fitConciseText(`围绕“${title}”，让场景从${entryState}转入${exitState}。`);
+  }
+  return currentPurpose;
+}
 
 function normalizeObjectAlias(raw: unknown, aliasMap: Record<string, string[]>): unknown {
   if (!raw || typeof raw !== "object" || Array.isArray(raw)) {
@@ -96,11 +183,18 @@ function normalizeSceneCardPayload(raw: unknown): unknown {
     return normalized;
   }
   const record = normalized as Record<string, unknown>;
+  const mustAdvance = normalizeStringArray(record.mustAdvance);
+  const mustPreserve = normalizeStringArray(record.mustPreserve);
+  const forbiddenExpansion = normalizeStringArray(record.forbiddenExpansion);
   return {
     ...record,
-    mustAdvance: normalizeStringArray(record.mustAdvance),
-    mustPreserve: normalizeStringArray(record.mustPreserve),
-    forbiddenExpansion: normalizeStringArray(record.forbiddenExpansion),
+    purpose: repairScenePurpose({
+      ...record,
+      mustAdvance,
+    }),
+    mustAdvance,
+    mustPreserve,
+    forbiddenExpansion,
     targetWordCount: normalizeInteger(record.targetWordCount),
   };
 }

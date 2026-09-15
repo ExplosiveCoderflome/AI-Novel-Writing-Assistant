@@ -28,6 +28,7 @@ function createHarness(overrides = {}) {
     seedPayloadJson: JSON.stringify({
       runMode: "full_book_autopilot",
     }),
+    heartbeatAt: new Date("2026-04-30T09:00:00.000Z"),
     updatedAt: new Date("2026-04-30T09:00:00.000Z"),
     ...overrides.latestTask,
   };
@@ -407,6 +408,69 @@ test("book automation projection treats manual recovery as a book-level user act
     assert.equal(projection.userHeadline, "AI 已暂停在可处理的位置");
     assert.equal(projection.primaryAction.label, "从进度点继续");
     assert.equal(projection.primaryAction.commandPayload.continuationMode, "resume");
+  } finally {
+    harness.restore();
+  }
+});
+
+test("book automation projection treats detached running task as recoverable without spending tokens", async () => {
+  const harness = createHarness({
+    latestTask: {
+      status: "running",
+      progress: 0.78,
+      currentStage: "节奏 / 拆章",
+      currentItemKey: "beat_sheet",
+      currentItemLabel: "正在继续生成第 1 卷节奏板与细化",
+      checkpointType: null,
+      checkpointSummary: null,
+      pendingManualRecovery: false,
+      lastError: null,
+      heartbeatAt: new Date("2026-04-30T08:58:00.000Z"),
+      updatedAt: new Date("2026-04-30T08:58:00.000Z"),
+    },
+    commands: [
+      {
+        id: "command-succeeded",
+        taskId: "task-1",
+        novelId: "novel-1",
+        commandType: "approve_gate",
+        status: "succeeded",
+        errorMessage: null,
+        leaseOwner: "worker-1",
+        leaseExpiresAt: null,
+        runAfter: new Date("2026-04-30T08:57:00.000Z"),
+        createdAt: new Date("2026-04-30T08:57:00.000Z"),
+        updatedAt: new Date("2026-04-30T08:58:00.000Z"),
+        startedAt: new Date("2026-04-30T08:57:55.000Z"),
+        finishedAt: new Date("2026-04-30T08:58:00.000Z"),
+      },
+    ],
+    steps: [],
+    runtimeProjection: null,
+    usageTelemetry: {
+      summary: {
+        llmCallCount: 0,
+        promptTokens: 0,
+        completionTokens: 0,
+        totalTokens: 0,
+      },
+      recentUsage: [],
+      stepUsage: [],
+    },
+  });
+  try {
+    const projection = await harness.service.getProjection("novel-1");
+
+    assert.equal(projection.status, "waiting_recovery");
+    assert.equal(projection.dashboardView.mode, "recovering");
+    assert.equal(projection.displayState, "paused");
+    assert.equal(projection.requiresUserAction, true);
+    assert.match(projection.blockedReason, /后台执行已经停止/);
+    assert.equal(projection.workerHealth.derivedState, "failed_recoverable");
+    assert.equal(projection.workerHealth.queuedCommandCount, 0);
+    assert.equal(projection.workerHealth.runningCommandCount, 0);
+    assert.equal(projection.primaryAction.label, "从进度点继续");
+    assert.equal(projection.usageSummary.totalTokens, 0);
   } finally {
     harness.restore();
   }

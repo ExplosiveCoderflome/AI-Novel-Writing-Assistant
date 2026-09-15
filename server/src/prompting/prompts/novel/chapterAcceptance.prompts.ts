@@ -290,8 +290,17 @@ export const chapterAcceptanceAssessmentPrompt: PromptAsset<
   language: "zh",
   contextPolicy: {
     maxTokensBudget: NOVEL_PROMPT_BUDGETS.chapterAcceptance,
+    requiredGroups: [
+      "chapter_mission",
+      "book_contract",
+      "writing_platform",
+      "reader_experience",
+      "obligation_contract",
+    ],
     preferredGroups: [
       "chapter_mission",
+      "book_contract",
+      "writing_platform",
       "reader_experience",
       "obligation_contract",
       "structure_obligations",
@@ -308,6 +317,8 @@ export const chapterAcceptanceAssessmentPrompt: PromptAsset<
   },
   contextRequirements: [
     { group: "chapter_mission", required: true, priority: 100 },
+    { group: "book_contract", required: true, priority: 99 },
+    { group: "writing_platform", required: true, priority: 99 },
     { group: "reader_experience", required: true, priority: 100 },
     { group: "obligation_contract", required: true, priority: 98 },
     { group: "structure_obligations", priority: 94 },
@@ -345,6 +356,9 @@ export const chapterAcceptanceAssessmentPrompt: PromptAsset<
       "15. status 只能使用 accepted、repairable、needs_manual_review、continue_with_risk；不得输出 acceptable、pass、passed、ok、approved 等别名。",
       "16. reader_experience 是本章读者体验合同。检查 promisedReward 是否在正文中可见、主角是否围绕 protagonistWant 主动行动并遭遇 primaryResistance、keyTurn 与 netChange 是否成立、inheritedHookResponsibilities 是否得到回应，以及 endingHook 是否产生追读力。",
       "17. 普通读者体验缺口应输出可执行的 blockingIssues / repairDirectives，并优先使用 repairable 或 continue_with_risk；不得仅因爽点、钩子或情绪强度不足升级为 needs_manual_review 或全局重规划。",
+      "18. book_contract 与 writing_platform 是商业定位依据。正文如果完全偏离核心卖点、目标读者、前 30 章承诺或平台读感，应作为 plot 或 mode_fit 问题记录；但只要能通过局部补强读者回报或章末追读理由解决，就优先 repairable / continue_with_risk，不要要求整章重写。",
+      "19. 发现参考作品实体、专有设定、标志性桥段或可识别表达被直接复用时，必须归入 voice 或 mode_fit；这是发布风险，不得当作普通风格偏好忽略。",
+      "20. 为节省用量，blockingIssues、repairDirectives 和 missingObligations 只保留会影响继续生产或发布风险的高价值项；不要罗列泛泛的文学建议。",
       "正文退化检测边界：",
       ...CHAPTER_PROSE_QUALITY_AUDIT_RULES.map((rule, index) => `${index + 1}. ${rule}`),
     ].join("\n")),

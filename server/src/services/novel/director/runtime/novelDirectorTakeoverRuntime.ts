@@ -136,17 +136,32 @@ function reconcileAutoExecutionStateAfterStaleNoChapterFailure(input: {
 function applyAutoExecutionStateCursorToExecutableRange(
   range: DirectorTakeoverExecutableRangeSnapshot | null,
   state: DirectorWorkflowSeedPayload["autoExecution"] | null,
+  chapterRows: TakeoverChapterRow[] = [],
 ): DirectorTakeoverExecutableRangeSnapshot | null {
   if (!range || !state?.enabled) {
     return range;
   }
-  const nextChapterOrder = typeof state.nextChapterOrder === "number"
+  const stateNextChapterOrder = typeof state.nextChapterOrder === "number"
     && state.nextChapterOrder >= range.startOrder
     && state.nextChapterOrder <= range.endOrder
     ? state.nextChapterOrder
-    : range.nextChapterOrder ?? null;
-  const nextChapterId = state.nextChapterId?.trim()
+    : null;
+  const stateNextChapterId = state.nextChapterId?.trim()
     ? state.nextChapterId.trim()
+    : null;
+  const stateNextChapter = chapterRows.find((chapter) => (
+    (stateNextChapterId && chapter.id === stateNextChapterId)
+    || (stateNextChapterOrder != null && chapter.order === stateNextChapterOrder)
+  )) ?? null;
+  const canUseStateCursor = Boolean(
+    (stateNextChapterOrder != null || stateNextChapterId)
+    && (!stateNextChapter || isPendingAutoExecutionChapter(stateNextChapter)),
+  );
+  const nextChapterOrder = canUseStateCursor
+    ? stateNextChapterOrder ?? stateNextChapter?.order ?? range.nextChapterOrder ?? null
+    : range.nextChapterOrder ?? null;
+  const nextChapterId = canUseStateCursor
+    ? stateNextChapterId ?? stateNextChapter?.id ?? range.nextChapterId ?? null
     : range.nextChapterId ?? null;
   return {
     ...range,
@@ -245,11 +260,20 @@ function computeMissingExecutionContractOrders(input: {
   if (targetOrders.size === 0) {
     return [];
   }
-  return input.chapterRows
-    .filter((chapter) => targetOrders.has(chapter.order))
-    .filter((chapter) => isPendingAutoExecutionChapter(chapter))
-    .filter((chapter) => !hasExecutableChapterPlanningContext(chapter, input.allowLazyChapterPlanning))
-    .map((chapter) => chapter.order)
+  return Array.from(targetOrders)
+    .filter((order) => {
+      const orderChapters = input.chapterRows.filter((chapter) => chapter.order === order);
+      if (orderChapters.length === 0) {
+        return false;
+      }
+      if (orderChapters.some((chapter) => !isPendingAutoExecutionChapter(chapter))) {
+        return false;
+      }
+      return !orderChapters.some((chapter) => hasExecutableChapterPlanningContext(
+        chapter,
+        input.allowLazyChapterPlanning,
+      ));
+    })
     .sort((left, right) => left - right);
 }
 
@@ -283,9 +307,7 @@ function buildPreparedRangeFromSyncedChapters(
     return null;
   }
 
-  const nextPending = prepared.find((chapter) => {
-    return chapter.generationState !== "approved" && chapter.generationState !== "published";
-  }) ?? null;
+  const nextPending = prepared.find((chapter) => isPendingAutoExecutionChapter(chapter)) ?? null;
 
   return {
     startOrder: prepared[0].order,
@@ -553,6 +575,7 @@ export async function loadDirectorTakeoverState(input: {
       }
     : executableRangeFromSyncedChapters,
     reconciledLatestAutoExecutionState,
+    chapterRows as TakeoverChapterRow[],
   );
 
   return {

@@ -10,6 +10,7 @@ const {
 } = require("../dist/prompting/slots/PromptSlotOverrideService.js");
 const {
   NOVEL_PROMPT_BUDGETS,
+  RUNTIME_PROMPT_BUDGET_PROFILES,
 } = require("../dist/prompting/prompts/novel/promptBudgetProfiles.js");
 const {
   runTextPrompt,
@@ -155,10 +156,10 @@ test("prompt registry exposes versioned planning assets", () => {
     "novel.director.candidates@v2",
     "novel.director.candidate_patch@v1",
     "novel.director.blueprint@v1",
-    "novel.character.castOptions@v2",
+    "novel.character.castOptions@v3",
     "novel.character.castOptions.repair@v1",
     "novel.character.castOptions.zhNormalize@v1",
-    "novel.character.supplemental@v1",
+    "novel.character.supplemental@v2",
     "novel.character.supplemental.zhNormalize@v1",
     "novel.character.mind.snapshot@v1",
     "novel.character.influence.options@v1",
@@ -417,7 +418,7 @@ test("prompt registry resolves style prompts by their declared asset versions", 
 });
 
 test("character cast prompt hardens real-name constraints and required gender output", () => {
-  const asset = getRegisteredPromptAsset("novel.character.castOptions", "v2");
+  const asset = getRegisteredPromptAsset("novel.character.castOptions", "v3");
   assert.ok(asset);
 
   const messages = asset.render({
@@ -660,11 +661,31 @@ test("chapter writer prompt does not expose scene contract controls", () => {
   const humanContent = String(messages[1].content);
   assert.match(systemContent, /本章目标长度：约 3000 字/);
   assert.match(systemContent, /不得明显超过上限/);
+  assert.match(systemContent, /book_contract 与 writing_platform 是商业定位硬约束/);
+  assert.match(systemContent, /追读理由/);
+  assert.match(systemContent, /不得当作普通风格偏好忽略|参考只允许转化为抽象技法/);
   assert.doesNotMatch(systemContent, /当前场景合同/);
   assert.doesNotMatch(systemContent, /场景标题/);
   assert.doesNotMatch(systemContent, /控字数模式/);
   assert.doesNotMatch(systemContent, /本轮硬上限/);
   assert.doesNotMatch(humanContent, /只写当前场景/);
+});
+
+test("chapter hot-path budget profiles keep commercial context before optional context", () => {
+  const writerProfile = RUNTIME_PROMPT_BUDGET_PROFILES.find(
+    (profile) => profile.promptId === "novel.chapter.writer",
+  );
+  const acceptanceProfile = RUNTIME_PROMPT_BUDGET_PROFILES.find(
+    (profile) => profile.promptId === "novel.chapter.acceptance_assessment",
+  );
+
+  assert.ok(writerProfile);
+  assert.ok(acceptanceProfile);
+  assert.ok(writerProfile.preferredGroups.indexOf("book_contract") >= 0);
+  assert.ok(writerProfile.preferredGroups.indexOf("writing_platform") >= 0);
+  assert.ok(acceptanceProfile.preferredGroups.indexOf("book_contract") >= 0);
+  assert.ok(acceptanceProfile.preferredGroups.indexOf("reader_experience") >= 0);
+  assert.ok(writerProfile.dropOrder.indexOf("rag_facts") < writerProfile.dropOrder.indexOf("recent_chapters"));
 });
 
 test("novel main-chain prompt assets declare explicit non-zero context budgets", () => {

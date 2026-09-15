@@ -146,6 +146,9 @@ export function getFollowUpActionConsequence(action: AutoDirectorAction): string
   if (action.code === "auto_backfill_structured_outline") {
     return "补齐校验确认缺失的拆章资产，再继续当前导演任务。";
   }
+  if (action.code === "archive_follow_up") {
+    return "将这条已处理记录从任务中心和导演跟进中心收起，不删除正文、规划或生成资产。";
+  }
   return "只执行校验声明为低风险的状态修复，不替用户确认候选或重写正文。";
 }
 

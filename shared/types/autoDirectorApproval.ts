@@ -134,6 +134,8 @@ export const DEFAULT_DIRECTOR_AUTO_APPROVAL_POINT_CODES: DirectorAutoApprovalPoi
   "character_setup_ready",
   "volume_strategy_ready",
   "structured_outline_ready",
+  "chapter_execution_continue",
+  "low_risk_quality_repair_continue",
 ];
 
 const AUTO_APPROVAL_POINT_CODE_SET = new Set<string>(

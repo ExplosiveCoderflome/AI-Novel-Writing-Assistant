@@ -228,16 +228,16 @@ export function buildTakeoverChapterTarget(
     progress?.completedChapters,
     snapshot?.generatedChapterCount,
   ]);
-  const startOrder = maxNormalizedOrder([
+  const executableNextOrder = normalizePositiveOrder(readiness?.executableRange?.nextChapterOrder ?? null);
+  const fallbackStartOrder = maxNormalizedOrder([
     progress?.currentChapterOrder
       ?? null,
     progress?.activeChapterOrder
       ?? null,
-    readiness?.executableRange?.nextChapterOrder
-      ?? null,
     writtenChapterCount ? writtenChapterCount + 1 : null,
     snapshot?.approvedChapterCount ? snapshot.approvedChapterCount + 1 : null,
   ]);
+  const startOrder = executableNextOrder ?? fallbackStartOrder;
   const totalChapters = maxNormalizedOrder([
     progress?.totalChapters
       ?? null,

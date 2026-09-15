@@ -35,7 +35,9 @@ import {
 } from "./novelWorkflow.helpers";
 import { buildRestoreTaskToCheckpointResult } from "./novelWorkflowCheckpoint";
 import {
+  ABANDONED_AUTO_DIRECTOR_RUNNING_MESSAGE,
   STALE_AUTO_DIRECTOR_RUNNING_MESSAGE,
+  isAbandonedAutoDirectorRunningTask,
   isStaleAutoDirectorRunningTask,
 } from "./autoDirectorStaleTaskRecovery";
 import {
@@ -71,6 +73,17 @@ type AutoDirectorNovelTaskRow = {
 
 export class NovelWorkflowHealingService {
   constructor(private readonly workflow: NovelWorkflowStoreService) {}
+
+  private async hasActiveDirectorCommand(taskId: string): Promise<boolean> {
+    const activeCommand = await prisma.directorRunCommand.findFirst({
+      where: {
+        taskId,
+        status: { in: ["queued", "leased", "running"] },
+      },
+      select: { id: true },
+    });
+    return Boolean(activeCommand);
+  }
 
   private async resolveStructuredOutlineTaskProgress(input: {
     novelId: string;
@@ -273,14 +286,7 @@ export class NovelWorkflowHealingService {
     ) {
       return false;
     }
-    const activeCommand = await prisma.directorRunCommand.findFirst({
-      where: {
-        taskId,
-        status: { in: ["queued", "leased", "running"] },
-      },
-      select: { id: true },
-    });
-    if (activeCommand) {
+    if (await this.hasActiveDirectorCommand(taskId)) {
       return false;
     }
     if (await resolveActiveAutoDirectorAutoExecution({ taskId, row: candidate })) {
@@ -330,14 +336,7 @@ export class NovelWorkflowHealingService {
     ) {
       return false;
     }
-    const activeCommand = await prisma.directorRunCommand.findFirst({
-      where: {
-        taskId,
-        status: { in: ["queued", "leased", "running"] },
-      },
-      select: { id: true },
-    });
-    if (activeCommand) {
+    if (await this.hasActiveDirectorCommand(taskId)) {
       return false;
     }
     if (await resolveActiveAutoDirectorAutoExecution({ taskId, row: candidate })) {
@@ -380,13 +379,32 @@ export class NovelWorkflowHealingService {
     row = null as AutoDirectorNovelTaskRow | null,
   ): Promise<boolean> {
     const candidate = row ?? await this.workflow.getTaskByIdWithoutHealing(taskId);
-    if (!candidate || !isStaleAutoDirectorRunningTask(candidate)) {
+    const staleByHeartbeat = candidate ? isStaleAutoDirectorRunningTask(candidate) : false;
+    const abandonedByMissingWorker = candidate ? isAbandonedAutoDirectorRunningTask(candidate) : false;
+    if (!candidate || (!staleByHeartbeat && !abandonedByMissingWorker)) {
+      return false;
+    }
+    if (await this.hasActiveDirectorCommand(taskId)) {
+      return false;
+    }
+    if (await resolveActiveAutoDirectorAutoExecution({ taskId, row: candidate })) {
       return false;
     }
     const existing = await this.workflow.getTaskByIdWithoutHealing(taskId);
-    if (!existing || !isStaleAutoDirectorRunningTask(existing)) {
+    const existingStale = existing ? isStaleAutoDirectorRunningTask(existing) : false;
+    const existingAbandoned = existing ? isAbandonedAutoDirectorRunningTask(existing) : false;
+    if (!existing || (!existingStale && !existingAbandoned)) {
       return false;
     }
+    if (await this.hasActiveDirectorCommand(taskId)) {
+      return false;
+    }
+    if (await resolveActiveAutoDirectorAutoExecution({ taskId, row: existing })) {
+      return false;
+    }
+    const message = existingStale
+      ? STALE_AUTO_DIRECTOR_RUNNING_MESSAGE
+      : ABANDONED_AUTO_DIRECTOR_RUNNING_MESSAGE;
     const resumeTarget = parseResumeTarget(existing.resumeTargetJson) ?? this.workflow.buildResumeTarget({
       taskId,
       novelId: existing.novelId,
@@ -396,11 +414,16 @@ export class NovelWorkflowHealingService {
     await this.workflow.updateWorkflowTaskWithNotifications({
       before: existing,
       data: {
-        status: "failed",
-        finishedAt: new Date(),
+        status: "waiting_approval",
+        checkpointType: null,
+        checkpointSummary: message,
+        currentItemLabel: existing.currentItemLabel?.trim() || "自动导演已暂停，等待恢复",
+        finishedAt: null,
         heartbeatAt: new Date(),
         resumeTargetJson: stringifyResumeTarget(resumeTarget),
-        lastError: STALE_AUTO_DIRECTOR_RUNNING_MESSAGE,
+        lastError: null,
+        pendingManualRecovery: false,
+        cancelRequestedAt: null,
       },
     });
     return true;
@@ -629,6 +652,9 @@ export class NovelWorkflowHealingService {
       || isTaskCancellationRequested(candidate)
       || (!isStructuredOutlineItemKey(candidate.currentItemKey) && candidate.currentStage !== stageLabel("structured_outline"))
     ) {
+      return false;
+    }
+    if (!await this.hasActiveDirectorCommand(taskId)) {
       return false;
     }
 

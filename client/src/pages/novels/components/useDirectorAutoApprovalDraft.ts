@@ -1,9 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import {
-  ALL_DIRECTOR_AUTO_APPROVAL_POINT_CODES,
   DEFAULT_DIRECTOR_AUTO_APPROVAL_POINT_CODES,
-  buildFullDirectorAutoApprovalConfig,
   normalizeDirectorAutoApprovalConfig,
   type DirectorAutoApprovalConfig,
 } from "@ai-novel/shared/types/autoDirectorApproval";
@@ -21,14 +19,6 @@ function areCodeListsEqual(left: readonly string[] | undefined, right: readonly 
   return left.every((item, index) => item === right[index]);
 }
 
-function hasAllApprovalPoints(values: readonly string[]): boolean {
-  const normalized = normalizeDirectorAutoApprovalConfig({
-    enabled: true,
-    approvalPointCodes: values,
-  }).approvalPointCodes;
-  return ALL_DIRECTOR_AUTO_APPROVAL_POINT_CODES.every((code) => normalized.includes(code));
-}
-
 export function useDirectorAutoApprovalDraft(open: boolean) {
   const [enabled, setEnabled] = useState(true);
   const [codes, setCodes] = useState<string[]>([...DEFAULT_DIRECTOR_AUTO_APPROVAL_POINT_CODES]);
@@ -40,7 +30,7 @@ export function useDirectorAutoApprovalDraft(open: boolean) {
   const defaultCodes = preferenceQuery.data?.data?.approvalPointCodes;
 
   useEffect(() => {
-    if (!open || !defaultCodes?.length) {
+    if (!open || !Array.isArray(defaultCodes)) {
       return;
     }
     setCodes((current) => {
@@ -61,8 +51,7 @@ export function useDirectorAutoApprovalDraft(open: boolean) {
       return;
     }
     const normalized = normalizeDirectorAutoApprovalConfig(value);
-    const isFullAuto = normalized.enabled && hasAllApprovalPoints(normalized.approvalPointCodes);
-    setEnabled((current) => (current === isFullAuto ? current : isFullAuto));
+    setEnabled((current) => (current === normalized.enabled ? current : normalized.enabled));
     setCodes((current) => (
       areCodeListsEqual(current, normalized.approvalPointCodes)
         ? current
@@ -71,7 +60,7 @@ export function useDirectorAutoApprovalDraft(open: boolean) {
   }, []);
 
   const reset = useCallback(() => {
-    const nextCodes = defaultCodes?.length ? defaultCodes : DEFAULT_DIRECTOR_AUTO_APPROVAL_POINT_CODES;
+    const nextCodes = Array.isArray(defaultCodes) ? defaultCodes : DEFAULT_DIRECTOR_AUTO_APPROVAL_POINT_CODES;
     setEnabled((current) => (current ? current : true));
     setCodes((current) => (areCodeListsEqual(current, nextCodes) ? current : [...nextCodes]));
   }, [defaultCodes]);
@@ -82,7 +71,10 @@ export function useDirectorAutoApprovalDraft(open: boolean) {
       approvalPointCodes: codes,
     }).approvalPointCodes;
     if (runMode === "full_book_autopilot") {
-      return buildFullDirectorAutoApprovalConfig();
+      return {
+        enabled,
+        approvalPointCodes: boundaryCodes,
+      };
     }
     if (runMode !== "auto_to_execution") {
       return {
@@ -91,10 +83,8 @@ export function useDirectorAutoApprovalDraft(open: boolean) {
       };
     }
     return {
-      enabled: true,
-      approvalPointCodes: enabled
-        ? [...ALL_DIRECTOR_AUTO_APPROVAL_POINT_CODES]
-        : boundaryCodes,
+      enabled,
+      approvalPointCodes: boundaryCodes,
     };
   }, [codes, enabled]);
 

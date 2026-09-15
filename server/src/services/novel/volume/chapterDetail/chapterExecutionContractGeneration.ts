@@ -7,6 +7,7 @@ import { assessChapterExecutionContractShape } from "@ai-novel/shared/types/chap
 import {
   ChapterScenePlanNormalizationError,
   normalizeChapterScenePlan,
+  parseChapterScenePlan,
   serializeChapterScenePlan,
 } from "@ai-novel/shared/types/chapterLengthControl";
 import { runStructuredPrompt } from "../../../../prompting/core/promptRunner";
@@ -16,6 +17,10 @@ import type { StoryMacroPlanService } from "../../storyMacro/StoryMacroPlanServi
 import {
   ChapterTaskSheetQualityGateService,
 } from "../ChapterTaskSheetQualityGateService";
+import {
+  completeChapterExecutionContractFallback,
+  resolveChapterExecutionTargetWordCount,
+} from "../chapterExecutionContractFallback";
 import type {
   VolumeGenerateOptions,
   VolumeGenerationNovel,
@@ -91,6 +96,10 @@ export async function generateChapterTaskSheetDetail(params: {
   sceneCards: string;
 }> {
   const existingChapter = params.promptInput.targetChapter;
+  const fallbackTargetWordCount = resolveChapterExecutionTargetWordCount({
+    chapterTargetWordCount: existingChapter.targetWordCount,
+    novelDefaultChapterLength: params.promptInput.novel.defaultChapterLength,
+  });
   if (
     !params.promptInput.guidance?.trim()
     && canReuseChapterExecutionContract({
@@ -99,21 +108,39 @@ export async function generateChapterTaskSheetDetail(params: {
       chapter: existingChapter,
     })
   ) {
-    const scenePlan = normalizeChapterScenePlan(
-      existingChapter.sceneCards,
-      existingChapter.targetWordCount,
-    );
+    let completedChapter = completeChapterExecutionContractFallback({
+      chapter: existingChapter,
+      novelDefaultChapterLength: params.promptInput.novel.defaultChapterLength,
+    });
+    let scenePlan = parseChapterScenePlan(completedChapter.sceneCards, {
+      targetWordCount: completedChapter.targetWordCount,
+    });
+    if (!scenePlan) {
+      completedChapter = completeChapterExecutionContractFallback({
+        chapter: {
+          ...completedChapter,
+          sceneCards: null,
+        },
+        novelDefaultChapterLength: params.promptInput.novel.defaultChapterLength,
+      });
+      scenePlan = parseChapterScenePlan(completedChapter.sceneCards, {
+        targetWordCount: completedChapter.targetWordCount,
+      });
+    }
+    if (!scenePlan) {
+      throw new Error("章节执行合同场景卡兜底生成失败。");
+    }
     return {
-      purpose: existingChapter.purpose?.trim() || existingChapter.summary.trim(),
-      exclusiveEvent: existingChapter.exclusiveEvent?.trim() || existingChapter.summary.trim(),
-      endingState: existingChapter.endingState?.trim() || "本章完成当前章节任务，并为下一章留下明确入口。",
-      nextChapterEntryState: existingChapter.nextChapterEntryState?.trim() || existingChapter.endingState?.trim() || "下一章承接本章结果继续推进。",
-      conflictLevel: existingChapter.conflictLevel ?? 3,
-      revealLevel: existingChapter.revealLevel ?? 2,
-      targetWordCount: existingChapter.targetWordCount ?? 2200,
-      mustAvoid: existingChapter.mustAvoid?.trim() || "避免偏离本章任务单和卷节奏。",
-      payoffRefs: existingChapter.payoffRefs,
-      taskSheet: existingChapter.taskSheet?.trim() ?? "",
+      purpose: completedChapter.purpose?.trim() || completedChapter.summary.trim(),
+      exclusiveEvent: completedChapter.exclusiveEvent?.trim() || completedChapter.summary.trim(),
+      endingState: completedChapter.endingState?.trim() || "本章完成当前章节任务，并为下一章留下明确入口。",
+      nextChapterEntryState: completedChapter.nextChapterEntryState?.trim() || completedChapter.endingState?.trim() || "下一章承接本章结果继续推进。",
+      conflictLevel: completedChapter.conflictLevel ?? 3,
+      revealLevel: completedChapter.revealLevel ?? 2,
+      targetWordCount: completedChapter.targetWordCount ?? fallbackTargetWordCount,
+      mustAvoid: completedChapter.mustAvoid?.trim() || "避免偏离本章任务单和卷节奏。",
+      payoffRefs: completedChapter.payoffRefs,
+      taskSheet: completedChapter.taskSheet?.trim() || "",
       sceneCards: serializeChapterScenePlan(scenePlan),
     };
   }
@@ -159,8 +186,25 @@ export async function generateChapterTaskSheetDetail(params: {
           scenes: generated.output.sceneCards,
           readerExperience: generated.output.readerExperience,
         },
-        generated.output.targetWordCount ?? promptInput.targetChapter.targetWordCount,
+        generated.output.targetWordCount ?? fallbackTargetWordCount,
       );
+      const completedOutput = completeChapterExecutionContractFallback({
+        chapter: {
+          ...promptInput.targetChapter,
+          purpose: generated.output.purpose,
+          exclusiveEvent: generated.output.exclusiveEvent,
+          endingState: generated.output.endingState,
+          nextChapterEntryState: generated.output.nextChapterEntryState,
+          conflictLevel: generated.output.conflictLevel,
+          revealLevel: generated.output.revealLevel,
+          targetWordCount: generated.output.targetWordCount ?? fallbackTargetWordCount,
+          mustAvoid: generated.output.mustAvoid,
+          payoffRefs: generated.output.payoffRefs,
+          taskSheet: generated.output.taskSheet,
+          sceneCards: serializeChapterScenePlan(scenePlan),
+        },
+        novelDefaultChapterLength: promptInput.novel.defaultChapterLength,
+      });
       await qualityGate.assertCanEnterExecution({
         novelId: promptInput.workspace.novelId,
         volumeId: promptInput.targetVolume.id,
@@ -168,17 +212,17 @@ export async function generateChapterTaskSheetDetail(params: {
         chapterOrder: promptInput.targetChapter.chapterOrder,
         title: promptInput.targetChapter.title,
         summary: promptInput.targetChapter.summary,
-        purpose: generated.output.purpose,
-        exclusiveEvent: generated.output.exclusiveEvent,
-        endingState: generated.output.endingState,
-        nextChapterEntryState: generated.output.nextChapterEntryState,
-        conflictLevel: generated.output.conflictLevel,
-        revealLevel: generated.output.revealLevel,
-        targetWordCount: generated.output.targetWordCount,
-        mustAvoid: generated.output.mustAvoid,
-        payoffRefs: generated.output.payoffRefs,
-        taskSheet: generated.output.taskSheet,
-        sceneCards: serializeChapterScenePlan(scenePlan),
+        purpose: completedOutput.purpose,
+        exclusiveEvent: completedOutput.exclusiveEvent,
+        endingState: completedOutput.endingState,
+        nextChapterEntryState: completedOutput.nextChapterEntryState,
+        conflictLevel: completedOutput.conflictLevel,
+        revealLevel: completedOutput.revealLevel,
+        targetWordCount: completedOutput.targetWordCount,
+        mustAvoid: completedOutput.mustAvoid,
+        payoffRefs: completedOutput.payoffRefs,
+        taskSheet: completedOutput.taskSheet,
+        sceneCards: completedOutput.sceneCards,
       }, {
         mode: params.options.chapterTaskSheetQualityMode,
         provider: params.options.provider,
@@ -188,17 +232,17 @@ export async function generateChapterTaskSheetDetail(params: {
         signal: params.options.signal,
       });
       return {
-        purpose: generated.output.purpose.trim(),
-        exclusiveEvent: generated.output.exclusiveEvent.trim(),
-        endingState: generated.output.endingState.trim(),
-        nextChapterEntryState: generated.output.nextChapterEntryState.trim(),
-        conflictLevel: generated.output.conflictLevel,
-        revealLevel: generated.output.revealLevel,
-        targetWordCount: generated.output.targetWordCount,
-        mustAvoid: generated.output.mustAvoid.trim(),
-        payoffRefs: generated.output.payoffRefs,
-        taskSheet: generated.output.taskSheet.trim(),
-        sceneCards: serializeChapterScenePlan(scenePlan),
+        purpose: completedOutput.purpose?.trim() || promptInput.targetChapter.summary.trim(),
+        exclusiveEvent: completedOutput.exclusiveEvent?.trim() || promptInput.targetChapter.summary.trim(),
+        endingState: completedOutput.endingState?.trim() || "本章完成当前章节任务，并为下一章留下明确入口。",
+        nextChapterEntryState: completedOutput.nextChapterEntryState?.trim() || "下一章承接本章结果继续推进。",
+        conflictLevel: completedOutput.conflictLevel ?? 3,
+        revealLevel: completedOutput.revealLevel ?? 2,
+        targetWordCount: completedOutput.targetWordCount ?? fallbackTargetWordCount,
+        mustAvoid: completedOutput.mustAvoid?.trim() || "避免偏离本章任务单和卷节奏。",
+        payoffRefs: completedOutput.payoffRefs,
+        taskSheet: completedOutput.taskSheet?.trim() || generated.output.taskSheet.trim(),
+        sceneCards: completedOutput.sceneCards ?? serializeChapterScenePlan(scenePlan),
       };
     } catch (error) {
       lastError = error instanceof Error ? error : new Error("章节执行合同生成失败。");

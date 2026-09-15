@@ -112,7 +112,7 @@ test("novel workflow auto director route returns null when only historical visib
   }
 });
 
-test("novel workflow continue route accepts range and full-book continuation modes", { concurrency: false }, async () => {
+test("novel workflow continue route accepts range continuation modes", { concurrency: false }, async () => {
   const calls = [];
   const originalEnqueue = DirectorCommandService.prototype.enqueueContinueCommand;
   const originalDetail = NovelWorkflowTaskAdapter.prototype.detail;
@@ -155,14 +155,14 @@ test("novel workflow continue route accepts range and full-book continuation mod
     const payload = await response.json();
     assert.equal(payload.success, true);
     assert.equal(payload.data.commandId, "command-1");
-    const fullBookResponse = await fetch(`http://127.0.0.1:${port}/api/novel-workflows/workflow-auto-exec/continue`, {
+    const skipRepairResponse = await fetch(`http://127.0.0.1:${port}/api/novel-workflows/workflow-auto-exec/continue`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        continuationMode: "full_book_autopilot",
+        continuationMode: "skip_quality_repair",
       }),
     });
-    assert.equal(fullBookResponse.status, 202);
+    assert.equal(skipRepairResponse.status, 202);
     assert.deepEqual(calls, [
       {
         taskId: "workflow-auto-exec",
@@ -173,13 +173,130 @@ test("novel workflow continue route accepts range and full-book continuation mod
       {
         taskId: "workflow-auto-exec",
         input: {
-          continuationMode: "full_book_autopilot",
+          continuationMode: "skip_quality_repair",
         },
       },
     ]);
   } finally {
     DirectorCommandService.prototype.enqueueContinueCommand = originalEnqueue;
     NovelWorkflowTaskAdapter.prototype.detail = originalDetail;
+    await new Promise((resolve, reject) => server.close((error) => (error ? reject(error) : resolve())));
+  }
+});
+
+test("novel workflow continue route resumes detached running tasks from checkpoint", { concurrency: false }, async () => {
+  const calls = [];
+  const originalGetTaskById = NovelWorkflowService.prototype.getTaskById;
+  const originalRecovery = DirectorCommandService.prototype.enqueueRecoveryCommand;
+  const originalApprove = DirectorCommandService.prototype.enqueueApproveGateCommand;
+
+  NovelWorkflowService.prototype.getTaskById = async function getTaskByIdMock(taskId) {
+    calls.push(["getTaskById", taskId]);
+    return {
+      id: taskId,
+      lane: "auto_director",
+      status: "running",
+      pendingManualRecovery: false,
+    };
+  };
+  DirectorCommandService.prototype.enqueueRecoveryCommand = async function enqueueRecoveryCommandMock(taskId, input) {
+    calls.push(["recovery", taskId, input]);
+    return {
+      commandId: "command-recovery",
+      taskId,
+      novelId: "novel-1",
+      commandType: "resume_from_checkpoint",
+      status: "queued",
+      leaseExpiresAt: null,
+    };
+  };
+  DirectorCommandService.prototype.enqueueApproveGateCommand = async function enqueueApproveGateCommandMock() {
+    throw new Error("manual recovery must not approve a stale gate");
+  };
+
+  const app = createApp();
+  const server = http.createServer(app);
+  const port = await listen(server);
+
+  try {
+    const response = await fetch(`http://127.0.0.1:${port}/api/novel-workflows/workflow-recovery/continue`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        continuationMode: "resume",
+      }),
+    });
+    assert.equal(response.status, 202);
+    const payload = await response.json();
+    assert.equal(payload.success, true);
+    assert.equal(payload.data.commandType, "resume_from_checkpoint");
+    assert.deepEqual(calls, [
+      ["getTaskById", "workflow-recovery"],
+      ["recovery", "workflow-recovery", { continuationMode: "resume" }],
+    ]);
+  } finally {
+    NovelWorkflowService.prototype.getTaskById = originalGetTaskById;
+    DirectorCommandService.prototype.enqueueRecoveryCommand = originalRecovery;
+    DirectorCommandService.prototype.enqueueApproveGateCommand = originalApprove;
+    await new Promise((resolve, reject) => server.close((error) => (error ? reject(error) : resolve())));
+  }
+});
+
+test("novel workflow continue route approves explicit waiting gates", { concurrency: false }, async () => {
+  const calls = [];
+  const originalGetTaskById = NovelWorkflowService.prototype.getTaskById;
+  const originalRecovery = DirectorCommandService.prototype.enqueueRecoveryCommand;
+  const originalApprove = DirectorCommandService.prototype.enqueueApproveGateCommand;
+
+  NovelWorkflowService.prototype.getTaskById = async function getTaskByIdMock(taskId) {
+    calls.push(["getTaskById", taskId]);
+    return {
+      id: taskId,
+      lane: "auto_director",
+      status: "waiting_approval",
+      checkpointType: "chapter_batch_ready",
+      pendingManualRecovery: false,
+    };
+  };
+  DirectorCommandService.prototype.enqueueRecoveryCommand = async function enqueueRecoveryCommandMock() {
+    throw new Error("waiting approval should approve the current gate");
+  };
+  DirectorCommandService.prototype.enqueueApproveGateCommand = async function enqueueApproveGateCommandMock(taskId, input) {
+    calls.push(["approve", taskId, input]);
+    return {
+      commandId: "command-approve",
+      taskId,
+      novelId: "novel-1",
+      commandType: "approve_gate",
+      status: "queued",
+      leaseExpiresAt: null,
+    };
+  };
+
+  const app = createApp();
+  const server = http.createServer(app);
+  const port = await listen(server);
+
+  try {
+    const response = await fetch(`http://127.0.0.1:${port}/api/novel-workflows/workflow-gate/continue`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        continuationMode: "resume",
+      }),
+    });
+    assert.equal(response.status, 202);
+    const payload = await response.json();
+    assert.equal(payload.success, true);
+    assert.equal(payload.data.commandType, "approve_gate");
+    assert.deepEqual(calls, [
+      ["getTaskById", "workflow-gate"],
+      ["approve", "workflow-gate", { continuationMode: "resume" }],
+    ]);
+  } finally {
+    NovelWorkflowService.prototype.getTaskById = originalGetTaskById;
+    DirectorCommandService.prototype.enqueueRecoveryCommand = originalRecovery;
+    DirectorCommandService.prototype.enqueueApproveGateCommand = originalApprove;
     await new Promise((resolve, reject) => server.close((error) => (error ? reject(error) : resolve())));
   }
 });

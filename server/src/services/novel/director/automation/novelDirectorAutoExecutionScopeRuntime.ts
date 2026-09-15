@@ -62,18 +62,28 @@ function findMissingExecutionContextOrders(
 ): number[] {
   const skippedChapterIds = new Set(state?.skippedChapterIds ?? []);
   const skippedChapterOrders = new Set(state?.skippedChapterOrders ?? []);
-  return chapters
-    .filter((chapter) => chapter.order >= range.startOrder && chapter.order <= range.endOrder)
-    .filter((chapter) => (
+  const missing: number[] = [];
+  for (let order = range.startOrder; order <= range.endOrder; order += 1) {
+    const orderChapters = chapters.filter((chapter) => chapter.order === order);
+    if (orderChapters.length === 0) {
+      continue;
+    }
+    const actionable = orderChapters.filter((chapter) => (
       !(skippedChapterIds.has(chapter.id) || skippedChapterOrders.has(chapter.order))
       || !canPreserveDirectorAutoExecutionSkippedChapter(chapter)
-    ))
-    .filter((chapter) => !isDirectorAutoExecutionChapterProcessed(chapter))
-    .filter((chapter) => options?.allowLazyChapterPlanning
-      ? !hasDirectorSyncedChapterExecutionContext(chapter)
-      : !hasDirectorAutoExecutionChapterContract(chapter))
-    .map((chapter) => chapter.order)
-    .sort((left, right) => left - right);
+    ));
+    if (actionable.some((chapter) => isDirectorAutoExecutionChapterProcessed(chapter))) {
+      continue;
+    }
+    const pending = actionable.filter((chapter) => !isDirectorAutoExecutionChapterProcessed(chapter));
+    const hasRunnableContext = options?.allowLazyChapterPlanning
+      ? pending.some((chapter) => hasDirectorSyncedChapterExecutionContext(chapter))
+      : pending.some((chapter) => hasDirectorAutoExecutionChapterContract(chapter));
+    if (!hasRunnableContext) {
+      missing.push(order);
+    }
+  }
+  return missing;
 }
 
 export function applyReviewSkipOverride(input: {

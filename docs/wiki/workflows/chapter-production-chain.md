@@ -71,6 +71,7 @@
 - 当前章的钩子承接由 `ReaderExperienceContract.inheritedHookResponsibilities` 负责；已发生事实由 Novel Fact Ledger 负责；长期伏笔窗口由 Payoff Ledger 负责。
 - `ChapterTimelineFinalizationService` 只允许由 `ChapterContentFinalizationService` 调用。手动生成、批量执行、自动导演和手动修复都必须通过这个统一终态入口，不得各自补写 Timeline，也不得在 route、director 或旧 service 中直接调用。
 - writer prompt 必须包含原始 `chapter.taskSheet`、`reader_experience` 和上一章实际正文尾段。任务单负责执行职责，读者体验合同负责本章回报、主动性、转折、净变化和钩子责任，上一章尾段负责约束开场承接；三者不能被旧摘要挤掉。
+- writer prompt 与接收闸门必须消费 `book_contract` 和 `writing_platform`。Token 压力下优先保留书级卖点、目标读者、前 30 章承诺、平台读感、章节任务、读者体验合同、角色硬事实和义务合同；RAG、远期世界规则、历史问题和近期摘要属于可裁剪上下文。正文质量判断应关注可发布、可追读、原创表达和本章可见回报，避免为泛泛文学建议反复消耗 LLM。
 - 续写模式下，writer prompt 必须包含 `continuation_constraints` required context。该块只提炼前作承接约束，例如来源、角色当前状态、终局摘要、关键事实和未完线索；它不能携带大段原文，也不能替代结构规划阶段的参考注入。
 - 续写小说绑定已成功的拆书分析时，章节续写上下文优先消费结构化小节，尤其是 `character_system`、`timeline` 和 `plot_structure`。只有没有可用拆书分析或分析读取失败时，才退回站内小说 / 知识库原文的有限摘要切片。
 - 参考创作新书的拆书内容只服务候选方向和规划阶段，不进入 `continuation_constraints` 或章节事实上下文。章节写作只能消费由规划链生成的新书世界、角色和剧情事实，并通过绑定的写法资产继承表达技法；不得把参考原作的专名、人物关系或具体事件当作新书正史。
@@ -133,6 +134,7 @@
 - 逾期 payoff 无论逾期距离、是否落在当前窗口、是否被当前章目标引用，都只能输出 `continue_with_warning`。只有结构化 `nextAction=replan`、人工强制或章节验收确认 `plan_misalignment` 才能输出 `stop_for_replan`；高/严重审计问题输出 `local_patch_plan`，不得停止剩余章节。
 - 无明确目标窗口的 overdue payoff 只能作为账本风险跟进，不能用 `lastTouchedChapterOrder` 或 `firstSeenChapterOrder` 推导逾期距离，也不能锚定旧章节触发 `stop_for_replan`。伏笔账本同步若发现 AI 输出了无 `targetStartChapterOrder`、`targetEndChapterOrder`、`payoffChapterOrder`、`payoffChapterId` 的 overdue，应降级为 `pending_payoff` 并保留 `payoff_missing_progress` 风险信号。
 - 章节创作合同中的 `mustAdvance` 只能保存剧情推进项。`acceptance_gate_unavailable`、`missing_must_hit`、`mode_fit/acceptance_gate_unavailable` 等系统审计标签只能进入审计、修复或诊断通道，不得写入任务单“必须推进”或 sceneCards 的 `mustAdvance`。
+- sceneCards 的 `mustAdvance` 只能保存当前章、当前场景必须完成的推进项。下一章入口状态、下一章开场事件或下一章首个资源/危机节点不得写入最后一场 `mustAdvance`；这类牵引应进入 `readerExperience.endingHook`、最后一场 `exitState` 或章节级 `nextChapterEntryState`，避免最后一场同时承担本章收束和下一章事件落地。
 - `autoReview=false` 时仍可保存正文并进入异步资产回灌。自动导演的 `chapter.quality.review` 事实检查应读取执行计划，把本轮不执行自动审校视为可解释的跳过事实；此时不能因为 `AuditReport` / `QualityReport` 数量为 0 而让已完成正文的批次失败。
 - 同一章正文 content hash 未变化时，不重复跑状态快照、角色资源、伏笔账本和角色动态同步。
 - 同一章规划已经有 `taskSheet` 和 `sceneCards`，且没有新的用户 guidance 时，章节执行合同细化应复用已有规划，不重复调用 `novel.volume.chapter_execution_contract`。带 guidance 的重生成仍允许覆盖旧结果。

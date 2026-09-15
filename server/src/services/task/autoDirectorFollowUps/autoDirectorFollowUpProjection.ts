@@ -32,6 +32,7 @@ import {
 } from "../../novel/workflow/novelWorkflow.shared";
 import type { getAutoDirectorChannelSettings } from "../../settings/AutoDirectorChannelSettingsService";
 import { buildWorkflowExplainability } from "../novelWorkflowExplainability";
+import { parseAutoExecutionScopeLabel } from "../autoExecutionScopeLabel";
 import { resolveAutoDirectorFollowUpReason } from "./autoDirectorFollowUpReasonResolver";
 import {
   extractBlockedAutoDirectorValidationResult,
@@ -181,8 +182,7 @@ function parseWorkflowSeedPayload(seedPayloadJson: string | null | undefined): D
 }
 
 function getExecutionScopeLabel(seedPayloadJson: string | null | undefined): string | null {
-  const scopeLabel = parseWorkflowSeedPayload(seedPayloadJson)?.autoExecution?.scopeLabel;
-  return typeof scopeLabel === "string" && scopeLabel.trim() ? scopeLabel.trim() : null;
+  return parseAutoExecutionScopeLabel(seedPayloadJson);
 }
 
 function getCurrentModel(seedPayloadJson: string | null | undefined): string | null {

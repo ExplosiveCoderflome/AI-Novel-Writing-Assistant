@@ -61,19 +61,19 @@ function hasLiveRunningEvidence(input: {
   return Boolean(
     workerState === "running_step"
     || workerState === "leased_starting"
+    || activeStepStatus === "running"
+    || commandStatus === "leased"
+    || commandStatus === "running"
+    || commandStatus === "queued"
     || (
       input.task.status === "running"
+      && input.projection?.status === "running"
       && (
-        input.task.currentItemLabel?.trim()
-        || input.task.currentItemKey?.trim()
-        || input.task.currentStage?.trim()
-        || input.projection?.status === "running"
-        || input.projection?.currentLabel?.trim()
-        || input.projection?.lastEventSummary?.trim()
-        || activeStepStatus === "running"
-        || commandStatus === "leased"
-        || commandStatus === "running"
-        || commandStatus === "queued"
+        input.projection.currentLabel?.trim()
+        || input.projection.lastEventSummary?.trim()
+        || input.projection.currentAction?.trim()
+        || typeof input.projection.progressBreakdown?.activeJobProgress === "number"
+        || typeof input.projection.progressBreakdown?.totalPercent === "number"
       )
     ),
   );
@@ -100,6 +100,9 @@ function buildMode(input: {
   if (workerState === "queued_waiting_worker") {
     return "queued";
   }
+  if (input.latestCommand?.status === "queued") {
+    return "queued";
+  }
   if (workerState === "auto_recovering" && !liveRunning) {
     return "recovering";
   }
@@ -113,17 +116,17 @@ function buildMode(input: {
   if (input.task.pendingManualRecovery && !liveRunning) {
     return "recovering";
   }
+  if (input.task.status === "queued") {
+    return "queued";
+  }
   if (checkpointNeedsUser(input.task)) {
     return "waiting_user";
   }
+  if (workerState === "failed_recoverable" && !liveRunning && input.task.status === "running") {
+    return "recovering";
+  }
   if (liveRunning || input.task.status === "running") {
     return "running";
-  }
-  if (
-    input.task.status === "queued"
-    || input.latestCommand?.status === "queued"
-  ) {
-    return "queued";
   }
   if (
     input.projection?.status === "failed"

@@ -71,7 +71,7 @@ function toTaskStatusVariant(task: DrawerTask): "default" | "outline" | "seconda
 }
 
 function formatCheckpoint(checkpoint: NovelWorkflowMilestoneType | null | undefined, scopeLabel?: string | null): string {
-  const resolvedScopeLabel = scopeLabel?.trim() || "前 10 章";
+  const resolvedScopeLabel = scopeLabel?.trim() || "当前章节范围";
   if (checkpoint === "rewrite_snapshot_created") {
     return "重写前备份已创建";
   }

@@ -154,12 +154,17 @@ Open-source AI novel writing assistant and long-form production studio.
 
 ## 最新更新
 
-### 2026-09-14
+### 2026-09-15
 
 #### 优化
 
-- 产品英文名更新为 **Biz Novel Studio**，中文名继续使用 **AI 小说创作工作台**；网页、桌面端、公开介绍站和使用文档统一展示这组中英文名称。
-- GitHub 仓库、下载入口和本地作品数据继续沿用既有兼容路径；公开页面保留 `AI Novel Production Engine` 与 `AI Novel Writing Assistant` 作为旧英文名和搜索关键词。
+- 长篇自动创作新增任务级与章节级成本保护，达到模型调用或 Token 上限时会停在可恢复位置；经济模式会减少非必要预取和重试。
+- 旧项目缺少章节执行契约、场景卡或目标字数时会自动补齐；正文生成加强相邻章节上下文、重复桥段和模板化表达检查。
+
+#### 修复
+
+- 简易创作会等待用户确认章节范围，不再在选择界面后直接启动全书生成；专业创作会正确交接到完整工作台。
+- 修复自动导演排队、运行和等待恢复状态相互覆盖的问题，并为 Anthropic 超时、限流及临时服务错误增加有限重试。
 
 完整历史更新见 [docs/releases/release-notes.md](./docs/releases/release-notes.md)。
 

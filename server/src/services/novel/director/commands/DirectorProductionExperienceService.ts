@@ -2,8 +2,10 @@ import type {
   NovelProductionExperience,
   NovelProductionExperienceSelectionResponse,
 } from "@ai-novel/shared/types/novelWorkflow";
-import { buildFullBookAutopilotExecutionPlan } from "@ai-novel/shared/types/novelDirector";
-import { buildFullDirectorAutoApprovalConfig } from "@ai-novel/shared/types/autoDirectorApproval";
+import {
+  type DirectorAutoApprovalConfig,
+  type DirectorAutoApprovalPointCode,
+} from "@ai-novel/shared/types/autoDirectorApproval";
 import { prisma } from "../../../../db/prisma";
 import { AppError } from "../../../../middleware/errorHandler";
 import { parseSeedPayload } from "../../workflow/novelWorkflow.shared";
@@ -11,7 +13,13 @@ import {
   applyDirectorRunModeContract,
   type DirectorWorkflowSeedPayload,
 } from "../runtime/novelDirectorHelpers";
-import { DirectorCommandService } from "./DirectorCommandService";
+
+const SIMPLE_CREATION_MANUAL_APPROVAL_POINT_CODES = [
+  "candidate_direction_confirmed",
+  "character_setup_ready",
+  "volume_strategy_ready",
+  "structured_outline_ready",
+] satisfies DirectorAutoApprovalPointCode[];
 
 export function parseSelectedExperience(seed: DirectorWorkflowSeedPayload): NovelProductionExperience | null {
   return seed.productionExperience === "simple" || seed.productionExperience === "professional"
@@ -27,11 +35,15 @@ export function buildProductionExperienceSeed(
   if (!directorInput) {
     throw new AppError("自动导演任务缺少继续生产所需的上下文。", 409);
   }
+  const manualApprovalConfig: DirectorAutoApprovalConfig = {
+    enabled: false,
+    approvalPointCodes: [...SIMPLE_CREATION_MANUAL_APPROVAL_POINT_CODES],
+  };
   const nextInput = applyDirectorRunModeContract({
     ...directorInput,
-    runMode: "full_book_autopilot" as const,
-    autoExecutionPlan: buildFullBookAutopilotExecutionPlan(),
-    autoApproval: buildFullDirectorAutoApprovalConfig(),
+    runMode: "auto_to_ready" as const,
+    autoExecutionPlan: undefined,
+    autoApproval: manualApprovalConfig,
   });
   return {
     ...seed,
@@ -44,8 +56,6 @@ export function buildProductionExperienceSeed(
 }
 
 export class DirectorProductionExperienceService {
-  constructor(private readonly commandService = new DirectorCommandService()) {}
-
   async select(
     taskId: string,
     experience: NovelProductionExperience,
@@ -93,16 +103,29 @@ export class DirectorProductionExperienceService {
             id: task.id,
             checkpointType: "production_experience_required",
           },
-          data: {
-            seedPayloadJson: JSON.stringify(nextSeed),
-            status: "waiting_approval",
-            currentStage: "chapter_execution",
-            currentItemKey: "chapter_batch_ready",
-            currentItemLabel: "已选择创作界面，准备开始全书生产",
-            checkpointType: "chapter_batch_ready",
-            checkpointSummary: "章节执行资源已准备完成，AI 将开始全书生产。",
-            pendingManualRecovery: false,
-          },
+            data: experience === "simple"
+              ? {
+                seedPayloadJson: JSON.stringify(nextSeed),
+                status: "waiting_approval",
+                currentStage: "chapter_execution",
+                currentItemKey: "chapter_batch_ready",
+                currentItemLabel: "已选择简易创作，等待确认章节执行范围",
+                checkpointType: "chapter_batch_ready",
+                checkpointSummary: "章节执行资源已准备完成，请确认本次要执行的章节范围后再继续。",
+                pendingManualRecovery: false,
+              }
+            : {
+              seedPayloadJson: JSON.stringify(nextSeed),
+              status: "succeeded",
+              progress: 1,
+              currentStage: "chapter_execution",
+              currentItemKey: "professional_production_handoff",
+              currentItemLabel: "已交接到专业创作工作台",
+              checkpointType: "workflow_completed",
+              checkpointSummary: "自动导演已完成前期准备，后续章节生产由专业工作台接管。",
+              pendingManualRecovery: false,
+              finishedAt: new Date(),
+            },
         });
         if (updated.count === 0) {
           return false;
@@ -117,25 +140,21 @@ export class DirectorProductionExperienceService {
       if (!claimed) {
         return this.select(taskId, experience);
       }
+      return {
+        experience,
+        workflowTaskId: task.id,
+        novelId: task.novelId,
+        targetRoute: experience === "simple" ? `/novels/${task.novelId}/simple` : `/novels/${task.novelId}/edit`,
+        backgroundStarted: false,
+      };
     }
 
-    const shouldEnqueue = !selected || (
-      task.status === "waiting_approval"
-      && task.checkpointType === "chapter_batch_ready"
-    );
-    const command = shouldEnqueue
-      ? await this.commandService.enqueueContinueCommand(task.id, {
-        continuationMode: "auto_execute_range",
-        forceResume: true,
-      })
-      : null;
     return {
       experience,
       workflowTaskId: task.id,
       novelId: task.novelId,
       targetRoute: experience === "simple" ? `/novels/${task.novelId}/simple` : `/novels/${task.novelId}/edit`,
-      backgroundStarted: true,
-      commandId: command?.commandId,
+      backgroundStarted: task.status === "queued" || task.status === "running",
     };
   }
 }

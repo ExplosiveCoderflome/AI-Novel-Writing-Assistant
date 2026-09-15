@@ -4,6 +4,7 @@ import type { TaskStatus } from "@ai-novel/shared/types/task";
 import { buildWorkflowExplainability, buildWorkflowResumeAction } from "./novelWorkflowExplainability";
 import type { DirectorWorkflowSeedPayload } from "../novel/director/runtime/novelDirectorHelpers";
 import { parseSeedPayload } from "../novel/workflow/novelWorkflow.shared";
+import { resolveAutoExecutionScopeLabel } from "./autoExecutionScopeLabel";
 
 export function buildNovelWorkflowNextActionLabel(
   status: TaskStatus,
@@ -50,7 +51,7 @@ export function mapNovelAutoDirectorTaskSummary(
     ? "queued"
     : row.status) as TaskStatus;
   const seedPayload = parseSeedPayload<DirectorWorkflowSeedPayload>(row.seedPayloadJson);
-  const executionScopeLabel = seedPayload?.autoExecution?.scopeLabel?.trim() || null;
+  const executionScopeLabel = resolveAutoExecutionScopeLabel(seedPayload);
   const explainability = buildWorkflowExplainability({
     status,
     pendingManualRecovery,

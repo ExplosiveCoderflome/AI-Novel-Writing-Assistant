@@ -12,7 +12,7 @@ const router = Router();
 const workflowService = new NovelWorkflowService();
 const workflowAdapter = new NovelWorkflowTaskAdapter();
 const directorCommandService = new DirectorCommandService(workflowService);
-const productionExperienceService = new DirectorProductionExperienceService(directorCommandService);
+const productionExperienceService = new DirectorProductionExperienceService();
 
 const stageSchema = z.enum([
   "project_setup",
@@ -115,13 +115,27 @@ router.post("/:id/continue", validate({ params: continueParamsSchema, body: cont
   try {
     const { id } = req.params as z.infer<typeof continueParamsSchema>;
     const body = req.body as z.infer<typeof continueBodySchema>;
-    const data = body.continuationMode === "resume"
-      ? await directorCommandService.enqueueApproveGateCommand(id, {
+    const task = await workflowService.getTaskById(id);
+    const shouldRecoverFromCheckpoint = Boolean(
+      body.continuationMode === "resume"
+      && (
+        task?.pendingManualRecovery
+        || task?.status === "failed"
+        || task?.status === "cancelled"
+        || task?.status !== "waiting_approval"
+      ),
+    );
+    const data = shouldRecoverFromCheckpoint
+      ? await directorCommandService.enqueueRecoveryCommand(id, {
         continuationMode: body.continuationMode,
       })
-      : await directorCommandService.enqueueContinueCommand(id, {
-        continuationMode: body.continuationMode,
-      });
+      : body.continuationMode === "resume"
+        ? await directorCommandService.enqueueApproveGateCommand(id, {
+          continuationMode: body.continuationMode,
+        })
+        : await directorCommandService.enqueueContinueCommand(id, {
+          continuationMode: body.continuationMode,
+        });
     res.status(202).json({
       success: true,
       data,

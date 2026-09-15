@@ -33,7 +33,8 @@ export type AutoDirectorMutationActionCode =
   | "auto_backfill_structured_outline"
   | "retry_with_task_model"
   | "retry_with_route_model"
-  | "safe_fix_validation";
+  | "safe_fix_validation"
+  | "archive_follow_up";
 
 export type AutoDirectorNavigationActionCode =
   | "go_replan"

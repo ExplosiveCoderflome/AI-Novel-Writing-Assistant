@@ -420,3 +420,77 @@ test("persistActiveVolumeWorkspace writes explicit user conflict anchors", async
   assert.equal(updateCall[1].data.conflictLevel, 88);
   assert.equal(updateCall[1].data.conflictLevelSource, "user");
 });
+
+test("persistActiveVolumeWorkspace normalizes duplicate incoming chapter orders before writes", async () => {
+  const {
+    persistActiveVolumeWorkspace,
+  } = require("../dist/services/novel/volume/volumeWorkspacePersistence.js");
+  const calls = [];
+  const tx = {
+    volumePlan: {
+      findMany: async () => ([{
+        id: "volume-1",
+        sortOrder: 1,
+        title: "第一卷",
+        summary: "卷摘要",
+        mainPromise: null,
+        escalationMode: null,
+        protagonistChange: null,
+        climax: null,
+        nextVolumeHook: null,
+        resetPoint: null,
+        openPayoffsJson: "[]",
+        status: "active",
+        sourceVersionId: "version-1",
+        chapters: [
+          createExistingVolumeChapter({ id: "chapter-1", chapterOrder: 1 }),
+          createExistingVolumeChapter({ id: "chapter-2", chapterOrder: 2, title: "第二章" }),
+        ],
+      }]),
+      update: async (args) => calls.push(["volumePlan.update", args]),
+      deleteMany: async (args) => calls.push(["volumePlan.deleteMany", args]),
+    },
+    volumeChapterPlan: {
+      create: async (args) => calls.push(["volumeChapterPlan.create", args]),
+      update: async (args) => calls.push(["volumeChapterPlan.update", args]),
+      deleteMany: async (args) => calls.push(["volumeChapterPlan.deleteMany", args]),
+    },
+    novel: {
+      update: async (args) => calls.push(["novel.update", args]),
+    },
+    storyPlan: {
+      deleteMany: async (args) => calls.push(["storyPlan.deleteMany", args]),
+      findFirst: async () => null,
+      create: async (args) => calls.push(["storyPlan.create", args]),
+      update: async (args) => calls.push(["storyPlan.update", args]),
+    },
+  };
+  const document = createVolumeWorkspaceDocument();
+  document.volumes[0].chapters = [
+    {
+      ...document.volumes[0].chapters[0],
+      id: "chapter-1",
+      chapterOrder: 1,
+      title: "第一章",
+    },
+    {
+      ...document.volumes[0].chapters[0],
+      id: "chapter-2",
+      chapterOrder: 1,
+      title: "第二章",
+    },
+  ];
+
+  await persistActiveVolumeWorkspace(tx, "novel-1", document, "version-1");
+
+  const chapterUpdates = calls
+    .filter(([name]) => name === "volumeChapterPlan.update")
+    .map(([, args]) => args);
+  const firstUpdate = chapterUpdates.find((args) => args.where.id === "chapter-1");
+  const secondUpdate = chapterUpdates.find((args) => args.where.id === "chapter-2");
+
+  assert.ok(firstUpdate);
+  assert.ok(secondUpdate);
+  assert.equal(firstUpdate.data.chapterOrder, 1);
+  assert.equal(secondUpdate.data.chapterOrder, 2);
+});

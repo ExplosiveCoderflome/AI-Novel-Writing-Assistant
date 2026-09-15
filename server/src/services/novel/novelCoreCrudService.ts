@@ -625,11 +625,18 @@ export class NovelCoreCrudService {
   }
 
   async listChapters(novelId: string) {
-    return prisma.chapter.findMany({
+    const chapters = await prisma.chapter.findMany({
       where: { novelId },
       orderBy: { order: "asc" },
-      include: { chapterSummary: true },
+      include: {
+        chapterSummary: true,
+        _count: { select: { volumeChapterPlans: true } },
+      },
     });
+    return chapters.map(({ _count, ...chapter }) => ({
+      ...chapter,
+      volumeChapterPlanCount: _count.volumeChapterPlans,
+    }));
   }
 
   async createChapter(novelId: string, input: ChapterInput) {

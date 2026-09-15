@@ -198,10 +198,23 @@ export interface PipelineRunOptions extends LLMGenerateOptions {
   qualityThreshold?: number;
   repairMode?: "detect_only" | "light_repair" | "heavy_repair" | "continuity_only" | "character_only" | "ending_only";
   artifactSyncMode?: ArtifactSyncMode;
+  costMode?: PipelineCostMode;
+  prefetchMode?: PipelinePrefetchMode;
+  costGuard?: PipelineCostGuardPolicy;
 }
 
 export type PipelineBackgroundSyncKind = "artifact_delta" | "character_dynamics" | "state_snapshot" | "payoff_ledger" | "character_resources" | "canonical_state";
 export type ArtifactSyncMode = "adaptive" | "deferred" | "strict";
+export type PipelineCostMode = "economy" | "balanced" | "unlimited";
+export type PipelinePrefetchMode = "enabled" | "disabled";
+
+export interface PipelineCostGuardPolicy {
+  maxJobTotalTokens?: number;
+  maxJobLlmCalls?: number;
+  maxChapterTotalTokens?: number;
+  maxChapterLlmCalls?: number;
+  warningRatio?: number;
+}
 
 export type PipelineBackgroundSyncStatus = "running" | "failed";
 
@@ -233,6 +246,9 @@ export interface PipelinePayload extends LLMGenerateOptions {
   qualityThreshold?: number;
   repairMode?: "detect_only" | "light_repair" | "heavy_repair" | "continuity_only" | "character_only" | "ending_only";
   artifactSyncMode?: ArtifactSyncMode;
+  costMode?: PipelineCostMode;
+  prefetchMode?: PipelinePrefetchMode;
+  costGuard?: PipelineCostGuardPolicy;
   qualityAlertDetails?: string[];
   replanAlertDetails?: string[];
   recoverableRepairDetails?: string[];

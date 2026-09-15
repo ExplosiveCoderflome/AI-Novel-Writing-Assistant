@@ -1,5 +1,6 @@
 import type { NovelControlPolicy } from "@ai-novel/shared/types/canonicalState";
 import type { ArtifactSyncMode, PipelineJobStatus, VolumePlanDocument } from "@ai-novel/shared/types/novel";
+import type { PipelineCostGuardPolicy, PipelineCostMode, PipelinePrefetchMode } from "../../novelCoreShared";
 import type {
   DirectorAutoExecutionState,
   DirectorConfirmRequest,
@@ -75,9 +76,12 @@ export interface NovelDirectorAutoExecutionNovelPort {
     autoReview: boolean;
     autoRepair: boolean;
     artifactSyncMode?: ArtifactSyncMode;
+    costMode?: PipelineCostMode;
+    prefetchMode?: PipelinePrefetchMode;
+    costGuard?: PipelineCostGuardPolicy;
     skipCompleted: boolean;
     qualityThreshold: number;
-    repairMode: "light_repair" | "heavy_repair";
+    repairMode: "detect_only" | "light_repair" | "heavy_repair";
   }): Promise<{ id: string; status: PipelineJobStatus }>;
   findActivePipelineJobForRange(
     novelId: string,

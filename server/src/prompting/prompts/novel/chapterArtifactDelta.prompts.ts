@@ -411,7 +411,7 @@ export const chapterArtifactDeltaOutputSchema = z.preprocess(normalizeArtifactDe
   summary: z.string().trim().min(1),
   concreteFacts: z.array(chapterConcreteFactSchema).default([]),
   stateDeltas: chapterArtifactDeltaStateSchema,
-  characterResourceDeltas: z.array(z.preprocess(normalizeCharacterResourceDelta, characterResourceExtractionUpdateSchema)).default([]),
+  characterResourceDeltas: z.array(z.preprocess(normalizeCharacterResourceDelta, characterResourceExtractionUpdateSchema)).max(8).default([]),
   payoffDeltas: z.array(z.preprocess(normalizePayoffDelta, payoffLedgerSyncItemSchema)).default([]),
   relationDynamics: z.array(chapterArtifactRelationDynamicSchema).default([]),
   factionUpdates: z.array(chapterArtifactFactionUpdateSchema).default([]),

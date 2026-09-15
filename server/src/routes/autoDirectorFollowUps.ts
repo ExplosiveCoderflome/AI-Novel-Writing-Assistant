@@ -43,6 +43,8 @@ const singleActionBodySchema = z.object({
     "retry_with_task_model",
     "retry_with_route_model",
     "safe_fix_validation",
+    "auto_backfill_structured_outline",
+    "archive_follow_up",
   ]),
   idempotencyKey: z.string().trim().min(1),
 });
@@ -135,9 +137,7 @@ router.get("/:taskId", validate({ params: taskParamsSchema }), async (req, res, 
 router.get("/:taskId/revalidation", validate({ params: taskParamsSchema }), async (req, res, next) => {
   try {
     const { taskId } = req.params as z.infer<typeof taskParamsSchema>;
-    const data = await followUpService.getDetail(taskId, {
-      heal: false,
-    });
+    const data = await followUpService.getDetail(taskId);
     if (!data) {
       res.status(404).json({
         success: false,
