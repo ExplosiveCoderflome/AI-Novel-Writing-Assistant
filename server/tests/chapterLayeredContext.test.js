@@ -11,7 +11,16 @@ const {
   buildChapterWriterContextBlocks,
   buildChapterReviewContextBlocks,
   buildChapterRepairContextBlocks,
+  resolveTargetWordRange,
 } = require("../dist/prompting/prompts/novel/chapterLayeredContext.js");
+
+test("chapter writer target range uses a stricter publishable lower bound", () => {
+  assert.deepEqual(resolveTargetWordRange(2800), {
+    targetWordCount: 2800,
+    minWordCount: 2576,
+    maxWordCount: 3220,
+  });
+});
 
 test("chapter layered context keeps full book promise and volume reader rewards", () => {
   const book = buildBookContractContext({
@@ -840,7 +849,7 @@ test("chapter layered contexts carry volume mission, character duties and repair
     block.id === "chapter_mission"
     && /目标篇幅：约 3000 个中文字符/.test(block.content)
     && /状态驱动的下一步动作：write_chapter/.test(block.content)
-    && /2550-3450/.test(block.content)
+    && /2760-3450/.test(block.content)
   )));
   assert.ok(writerBlocks.some((block) => (
     block.id === "state_goal"

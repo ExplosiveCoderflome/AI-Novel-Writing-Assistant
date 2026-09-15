@@ -44,6 +44,13 @@ function mutationAction(input: {
   };
 }
 
+const ARCHIVE_FOLLOW_UP_ACTION = mutationAction({
+  code: "archive_follow_up",
+  label: "标记已处理",
+  riskLevel: "low",
+  requiresConfirm: true,
+});
+
 function navigationAction(input: {
   code: Extract<AutoDirectorActionCode, "go_replan" | "go_candidate_selection" | "open_detail" | "open_follow_up_center">;
   label: string;
@@ -141,6 +148,7 @@ export function resolveAutoDirectorFollowUpReason(
           code: "open_detail",
           label: "查看替代详情",
         }),
+        ARCHIVE_FOLLOW_UP_ACTION,
       ],
     });
   }
@@ -198,6 +206,7 @@ export function resolveAutoDirectorFollowUpReason(
           code: "open_detail",
           label: "查看详情",
         }),
+        ARCHIVE_FOLLOW_UP_ACTION,
       ],
       batchActionCodes: ["retry_with_task_model"],
     });
@@ -224,6 +233,7 @@ export function resolveAutoDirectorFollowUpReason(
           code: "open_detail",
           label: "查看详情",
         }),
+        ARCHIVE_FOLLOW_UP_ACTION,
       ],
       batchActionCodes: ["retry_with_task_model"],
     });

@@ -45,6 +45,7 @@ import {
 import { buildNovelWorkflowDetailSteps } from "../novelWorkflowDetailSteps";
 import { buildWorkflowExplainability } from "../novelWorkflowExplainability";
 import { buildNovelWorkflowNextActionLabel } from "../novelWorkflowTaskSummary";
+import { resolveAutoExecutionScopeLabel } from "../autoExecutionScopeLabel";
 
 function buildOwnerLabel(row: {
   novel?: { title: string } | null;
@@ -278,6 +279,8 @@ function mapSummary(row: {
     : row.status) as TaskStatus;
   const checkpointType = row.checkpointType as NovelWorkflowCheckpoint | null;
   const autoExecution = parseAutoExecutionState(row.seedPayloadJson);
+  const seedPayload = parseSeedPayload<DirectorWorkflowSeedPayload>(row.seedPayloadJson);
+  const executionScopeLabel = resolveAutoExecutionScopeLabel(seedPayload);
   const isRecoveryInProgress = isAutoDirectorRecoveryInProgress({
     status,
     lastError: row.lastError,
@@ -318,14 +321,14 @@ function mapSummary(row: {
     currentItemKey: row.currentItemKey,
     checkpointType,
     lastError: row.lastError,
-    executionScopeLabel: autoExecution?.scopeLabel ?? null,
+    executionScopeLabel,
   });
   const blockingReason = isSkippableReviewBlockedFailure
     ? buildSkippableAutoExecutionReviewBlockingReason(autoExecution)
     : explainability.blockingReason;
   const checkpointSummary = isSkippableReviewBlockedFailure
     ? buildSkippableAutoExecutionReviewCheckpointSummary({
-      scopeLabel: autoExecution?.scopeLabel?.trim() || "前 10 章",
+      scopeLabel: executionScopeLabel ?? "当前章节范围",
       autoExecution,
     })
     : row.checkpointSummary;
@@ -349,7 +352,7 @@ function mapSummary(row: {
     currentStage: row.currentStage,
     currentItemKey: row.currentItemKey,
     currentItemLabel: row.currentItemLabel,
-    executionScopeLabel: autoExecution?.scopeLabel?.trim() || null,
+    executionScopeLabel,
     displayStatus: explainability.displayStatus,
     blockingReason,
     resumeAction: explainability.resumeAction,
@@ -369,7 +372,7 @@ function mapSummary(row: {
     nextActionLabel: buildNovelWorkflowNextActionLabel(
       status,
       checkpointType,
-      autoExecution?.scopeLabel ?? null,
+      executionScopeLabel,
       pendingManualRecovery,
     ),
     noticeCode: taskNotice?.code ?? null,

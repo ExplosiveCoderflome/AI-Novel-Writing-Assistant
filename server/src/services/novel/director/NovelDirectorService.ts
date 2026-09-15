@@ -1,4 +1,5 @@
 import { buildStyleIntentSummary } from "@ai-novel/shared/types/styleEngine";
+import { randomUUID } from "node:crypto";
 import { AppError } from "../../../middleware/errorHandler";
 import {
   runWithLlmUsageTracking,
@@ -30,7 +31,7 @@ import type {
   DirectorTakeoverResponse,
   DirectorStepCalibrationRequest,
 } from "@ai-novel/shared/types/novelDirector";
-import { isFullBookAutopilotRunMode } from "@ai-novel/shared/types/novelDirector";
+import { isDirectorAutoExecutionRunMode, isFullBookAutopilotRunMode } from "@ai-novel/shared/types/novelDirector";
 import { BookContractService } from "../BookContractService";
 import { CharacterPreparationService } from "../characterPrep/CharacterPreparationService";
 import { CharacterDynamicsService } from "../dynamics/CharacterDynamicsService";
@@ -139,9 +140,12 @@ export class NovelDirectorService {
     buildDirectorSeedPayload: (input, novelId, extra) => buildDirectorWorkflowSeedPayload(input, novelId, extra),
     shouldAutoContinueQualityRepair: async ({ request, qualityRepairRisk }) => (
       qualityRepairRisk.autoContinuable
-      && shouldAutoApproveDirectorApprovalPoint(
+      && (
+        isDirectorAutoExecutionRunMode(request.runMode)
+        || shouldAutoApproveDirectorApprovalPoint(
         normalizeDirectorAutoApprovalConfig(request.autoApproval),
         "low_risk_quality_repair_continue",
+        )
       )
     ),
     recordAutoApproval: async ({ taskId, checkpointType, checkpointSummary }) => {
@@ -257,21 +261,89 @@ export class NovelDirectorService {
   }
 
   private async runScheduledBackgroundRun(taskId: string, runner: () => Promise<void>): Promise<void> {
+    const usageContext = await this.buildDirectorUsageContext(taskId);
     try {
+      await this.recordBackgroundRunnerEvent({
+        taskId,
+        novelId: usageContext.novelId,
+        runId: usageContext.directorRunId,
+        summary: "自动导演后台执行器已开始接手。",
+        severity: "low",
+        reason: "background_runner_started",
+      });
       await runWithLlmUsageTracking(
-        await this.buildDirectorUsageContext(taskId),
+        usageContext,
         runner,
       );
+      await this.recordBackgroundRunnerEvent({
+        taskId,
+        novelId: usageContext.novelId,
+        runId: usageContext.directorRunId,
+        summary: "自动导演后台执行器已完成本次接手。",
+        severity: "low",
+        reason: "background_runner_completed",
+      });
     } catch (error) {
-      if (isWorkflowTaskCancelledError(error) || isDirectorRuntimeGateError(error)) {
+      if (isWorkflowTaskCancelledError(error)) {
+        await this.recordBackgroundRunnerEvent({
+          taskId,
+          novelId: usageContext.novelId,
+          runId: usageContext.directorRunId,
+          summary: "自动导演后台执行器已停止：任务已取消。",
+          severity: "low",
+          reason: "background_runner_cancelled",
+        });
+        return;
+      }
+      if (isDirectorRuntimeGateError(error)) {
+        const message = error instanceof Error ? error.message : "自动导演后台执行器被运行门控暂停。";
+        await this.recordBackgroundRunnerEvent({
+          taskId,
+          novelId: usageContext.novelId,
+          runId: usageContext.directorRunId,
+          summary: message,
+          severity: "medium",
+          reason: "background_runner_gate",
+        });
         return;
       }
       const message = error instanceof Error ? error.message : "自动导演后台任务执行失败。";
+      await this.recordBackgroundRunnerEvent({
+        taskId,
+        novelId: usageContext.novelId,
+        runId: usageContext.directorRunId,
+        summary: message,
+        severity: "high",
+        reason: "background_runner_failed",
+      });
       await this.workflowService.markTaskFailed(taskId, message);
       console.error(`[director.background] task failed taskId=${taskId}`, error);
     } finally {
       await releaseHighMemoryDirectorReservations(taskId);
     }
+  }
+
+  private async recordBackgroundRunnerEvent(input: {
+    taskId: string;
+    novelId?: string | null;
+    runId?: string | null;
+    summary: string;
+    severity: "low" | "medium" | "high";
+    reason: string;
+  }): Promise<void> {
+    await prisma.directorEvent.create({
+      data: {
+        id: `${input.taskId}:background_runner:${input.reason}:${randomUUID()}`,
+        runId: input.runId ?? input.taskId,
+        taskId: input.taskId,
+        novelId: input.novelId ?? null,
+        type: "node_heartbeat",
+        summary: input.summary,
+        severity: input.severity,
+        metadataJson: JSON.stringify({ reason: input.reason }),
+        occurredAt: new Date(),
+      },
+    }).catch(() => null);
   }
 
   private withWorkflowTaskUsage<T>(workflowTaskId: string | null | undefined, runner: () => Promise<T>): Promise<T> {
@@ -441,7 +513,14 @@ export class NovelDirectorService {
   async runDirectorPipeline(
     input: Parameters<NovelDirectorPipelineRuntime["runPipeline"]>[0],
   ): ReturnType<NovelDirectorPipelineRuntime["runPipeline"]> {
-    return this.directorPipelineRuntime.runPipeline(input);
+    return this.recordBackgroundRunnerEvent({
+      taskId: input.taskId,
+      novelId: input.novelId,
+      runId: input.taskId,
+      summary: `自动导演管线已进入${input.startPhase}阶段。`,
+      severity: "low",
+      reason: "background_pipeline_started",
+    }).then(() => this.directorPipelineRuntime.runPipeline(input));
   }
 
   async repairChapterTitles(taskId: string, input?: {

@@ -38,6 +38,14 @@ import {
   stringifyPipelinePayload as stringifyPipelineJobPayload,
   type PipelineActiveStage,
 } from "../pipelineJobState";
+import {
+  buildCostGuardPayloadPatch,
+  buildPipelineBudgetContext,
+  isPipelineCostGuardExceededError,
+  resolvePipelineCostGuardPolicy,
+  resolvePipelineCostMode,
+  resolvePipelinePrefetchMode,
+} from "./pipelineCostGuard";
 
 const PIPELINE_HEARTBEAT_INTERVAL_MS = 15000;
 
@@ -73,6 +81,13 @@ class PipelineExecutionLeaseLostError extends Error {
 
 function clampPipelineMaxRetries(value: number | null | undefined): number {
   return Math.max(0, Math.min(value ?? 1, 1));
+}
+
+function applyCostSavingRetryCap(
+  requestedMaxRetries: number,
+  costMode: PipelinePayload["costMode"],
+): number {
+  return costMode === "economy" ? Math.min(requestedMaxRetries, 1) : requestedMaxRetries;
 }
 
 function buildEmptyChapterDetail(chapter: { order: number; title: string }): string {
@@ -205,7 +220,6 @@ export class NovelPipelineExecutor {
   }
 
   private async executeWithOwnership(jobId: string, novelId: string, options: PipelineRunOptions) {
-    const maxRetries = clampPipelineMaxRetries(options.maxRetries);
     const qualityThreshold = options.qualityThreshold ?? 75;
     const existingJob = await prisma.generationJob.findUnique({
       where: { id: jobId },
@@ -218,6 +232,11 @@ export class NovelPipelineExecutor {
       },
     });
     const persistedPayload = this.parsePipelinePayload(existingJob?.payload);
+    const initialCostMode = resolvePipelineCostMode(persistedPayload.costMode ?? options.costMode);
+    const initialPrefetchMode = resolvePipelinePrefetchMode({
+      costMode: initialCostMode,
+      prefetchMode: persistedPayload.prefetchMode ?? options.prefetchMode,
+    });
     const runtimePayload: PipelinePayload = {
       provider: persistedPayload.provider ?? options.provider ?? "deepseek",
       model: persistedPayload.model ?? options.model ?? "",
@@ -235,6 +254,9 @@ export class NovelPipelineExecutor {
       qualityThreshold: persistedPayload.qualityThreshold ?? options.qualityThreshold,
       repairMode: persistedPayload.repairMode ?? options.repairMode ?? "light_repair",
       artifactSyncMode: persistedPayload.artifactSyncMode ?? options.artifactSyncMode ?? "adaptive",
+      costMode: initialCostMode,
+      prefetchMode: initialPrefetchMode,
+      costGuard: persistedPayload.costGuard ?? options.costGuard,
     };
     const directorTelemetryTask = runtimePayload.workflowTaskId
       ? await prisma.novelWorkflowTask.findUnique({
@@ -261,6 +283,10 @@ export class NovelPipelineExecutor {
     const issueGovernance = snapshottedIssueGovernance ?? (shouldRecordDirectorTelemetry
       ? await loadDirectorIssueTaskContext(runtimePayload.workflowTaskId)
       : null);
+    let effectiveMaxRetries = applyCostSavingRetryCap(
+      clampPipelineMaxRetries(runtimePayload.maxRetries ?? options.maxRetries),
+      runtimePayload.costMode,
+    );
     let totalRetryCount = Math.max(existingJob?.retryCount ?? 0, 0);
     const qualityAlertDetails = [...(persistedPayload.qualityAlertDetails ?? [])];
     const replanAlertDetails = [...(persistedPayload.replanAlertDetails ?? [])];
@@ -361,7 +387,7 @@ export class NovelPipelineExecutor {
           jobId,
           novelId,
           range: `${options.startOrder}-${options.endOrder}`,
-          maxRetries,
+          maxRetries: effectiveMaxRetries,
         });
 
         const [novel, chapterCandidates] = await Promise.all([
@@ -414,6 +440,21 @@ export class NovelPipelineExecutor {
         let completed = Math.max(storedCompleted, filteredCompletedCount);
         const chaptersToProcess = chapters.slice(remainingStartIndex);
         let pendingManualRecovery = false;
+        const costGuardPolicy = resolvePipelineCostGuardPolicy({
+          costMode: runtimePayload.costMode,
+          chapterCount: totalCount,
+          costGuard: runtimePayload.costGuard,
+        });
+        const jobUsageBaseline = await prisma.generationJob.findUnique({
+          where: { id: jobId },
+          select: { totalTokens: true, llmCallCount: true },
+        }).catch(() => null);
+        Object.assign(runtimePayload, buildCostGuardPayloadPatch({
+          payload: runtimePayload,
+          costMode: runtimePayload.costMode ?? "economy",
+          prefetchMode: runtimePayload.prefetchMode ?? "disabled",
+          costGuard: costGuardPolicy,
+        }));
 
         const routeWindowService = new ChapterRouteWindowService();
         if (isAutopilotMode) {
@@ -475,8 +516,8 @@ export class NovelPipelineExecutor {
           heartbeatTimer.unref?.();
 
           let chapterResult: Awaited<ReturnType<ChapterRuntimeCoordinator["runPipelineChapter"]>> | null = null;
-          const chapterRetryBudget = Math.min(runtimePayload.maxRetries ?? maxRetries,
-            issueGovernance?.policy.maxAutomaticRetries ?? maxRetries);
+          const chapterRetryBudget = Math.min(effectiveMaxRetries,
+            issueGovernance?.policy.maxAutomaticRetries ?? effectiveMaxRetries);
           let chapterRetryCountUsed = 0;
           let previouslyConsumed = 0;
           const claimAttempt = async (kind: "quality_repair" | "runtime_retry") => {
@@ -491,10 +532,20 @@ export class NovelPipelineExecutor {
           };
           try {
             previouslyConsumed = chapterRetryCountUsed = await this.automaticAttempts.used(jobId, chapter.id);
+            const chapterUsageBaseline = await prisma.generationJob.findUnique({
+              where: { id: jobId },
+              select: { totalTokens: true, llmCallCount: true },
+            }).catch(() => null);
             while (true) {
               try {
                 await this.ensurePipelineNotCancelled(jobId);
-                chapterResult = await this.chapterRuntimeCoordinator.runPipelineChapter(
+                chapterResult = await runWithLlmUsageTracking({
+                  usageBudget: buildPipelineBudgetContext({
+                    policy: costGuardPolicy,
+                    jobBaseline: jobUsageBaseline,
+                    chapterBaseline: chapterUsageBaseline,
+                  }),
+                }, () => this.chapterRuntimeCoordinator.runPipelineChapter(
                   novelId,
                   chapter.id,
                   {
@@ -545,7 +596,7 @@ export class NovelPipelineExecutor {
                     logPipelineError("章节生成连续未返回正文，准备自动重试当前章", meta);
                   },
                   },
-                );
+                ));
                 break;
               } catch (error) {
                 if (error instanceof PipelineExecutionLeaseLostError) {
@@ -862,6 +913,7 @@ export class NovelPipelineExecutor {
       }
 
       const message = error instanceof Error ? error.message : "流水线执行失败";
+      const isCostGuardStop = isPipelineCostGuardExceededError(error);
       if (isChapterEmptyContentError(error)) {
         logPipelineError("任务因章节空正文失败", {
           jobId,
@@ -874,6 +926,22 @@ export class NovelPipelineExecutor {
           contentLength: error.details.trimmedLength,
           rawContentLength: error.details.rawLength,
         });
+      }
+      if (isCostGuardStop) {
+        await this.updateJobSafe(jobId, {
+          status: "failed",
+          error: message,
+          pendingManualRecovery: true,
+          finishedAt: new Date(),
+          payload: this.stringifyPipelinePayload({
+            ...runtimePayload,
+            qualityAlertDetails,
+            replanAlertDetails,
+            recoverableRepairDetails,
+          }),
+        });
+        logPipelineWarn("任务已达到用量预算上限，等待人工恢复", { jobId, novelId, message });
+        return;
       }
       const governedAction = await applyGovernedIssue({
         issueCode: error instanceof PipelineIssueFailure
@@ -892,7 +960,7 @@ export class NovelPipelineExecutor {
         evidence: error instanceof Error ? error.stack : undefined,
         chapterId: error instanceof PipelineIssueFailure ? error.chapterId : undefined,
         chapterOrder: error instanceof PipelineIssueFailure ? error.chapterOrder : undefined,
-        attempt: issueGovernance?.policy.maxAutomaticRetries ?? maxRetries,
+        attempt: issueGovernance?.policy.maxAutomaticRetries ?? effectiveMaxRetries,
       });
       if (governedAction) {
         logPipelineError("任务已按问题策略收束", {

@@ -15,7 +15,7 @@ type WorkflowTaskLike = {
 export const LIVE_TASK_STATUSES = new Set<TaskStatus>(["queued", "running", "waiting_approval"]);
 export const BACKGROUND_RUNNING_TASK_STATUSES = new Set<TaskStatus>(["running"]);
 
-function getExecutionScopeLabel(scopeLabel?: string | null, fallback = "第 1-10 章"): string {
+function getExecutionScopeLabel(scopeLabel?: string | null, fallback = "当前章节范围"): string {
   return scopeLabel?.trim() || fallback;
 }
 

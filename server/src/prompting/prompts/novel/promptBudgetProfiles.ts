@@ -31,6 +31,8 @@ export const RUNTIME_PROMPT_BUDGET_PROFILES: PromptBudgetProfile[] = [
     promptId: "novel.chapter.writer",
     maxTokensBudget: NOVEL_PROMPT_BUDGETS.chapterWriter,
     preferredGroups: [
+      "book_contract",
+      "writing_platform",
       "chapter_boundary",
       "chapter_mission",
       "previous_chapter_tail",
@@ -49,13 +51,17 @@ export const RUNTIME_PROMPT_BUDGET_PROFILES: PromptBudgetProfile[] = [
       "world_rules",
       "continuation_constraints",
       "opening_constraints",
+      "recent_chapters",
     ],
   },
   {
     promptId: "novel.chapter.acceptance_assessment",
     maxTokensBudget: NOVEL_PROMPT_BUDGETS.chapterAcceptance,
     preferredGroups: [
+      "book_contract",
+      "writing_platform",
       "chapter_mission",
+      "reader_experience",
       "structure_obligations",
       "character_hard_facts",
       "local_state",

@@ -404,7 +404,7 @@ export class NovelDirectorRuntimeOrchestrator {
       },
       collectArtifacts: (moduleResult) => moduleResult.producedArtifacts,
     });
-    return result.output as TOutput;
+    return result?.output as TOutput;
   }
 
   async runChapterExecutionNode(input: {

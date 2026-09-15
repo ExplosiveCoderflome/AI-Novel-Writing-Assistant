@@ -280,6 +280,19 @@ type ExistingVolumeWorkspaceRow = Prisma.VolumePlanGetPayload<{
   };
 }>;
 
+function normalizePersistedVolumeWorkspaceDocument(document: VolumePlanDocument): VolumePlanDocument {
+  return buildVolumeWorkspaceDocument({
+    novelId: document.novelId,
+    volumes: document.volumes,
+    strategyPlan: document.strategyPlan,
+    critiqueReport: document.critiqueReport,
+    beatSheets: document.beatSheets,
+    rebalanceDecisions: document.rebalanceDecisions,
+    source: document.source,
+    activeVersionId: document.activeVersionId,
+  });
+}
+
 function sameNullableText(left: string | null | undefined, right: string | null | undefined): boolean {
   return (left ?? null) === (right ?? null);
 }
@@ -397,9 +410,10 @@ async function parkExistingVolumeWorkspaceRows(
 export async function persistActiveVolumeWorkspace(
   tx: Prisma.TransactionClient,
   novelId: string,
-  document: VolumePlanDocument,
+  inputDocument: VolumePlanDocument,
   sourceVersionId: string | null,
 ): Promise<void> {
+  const document = normalizePersistedVolumeWorkspaceDocument(inputDocument);
   const existingVolumes = await tx.volumePlan.findMany({
     where: { novelId },
     select: {

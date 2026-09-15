@@ -67,6 +67,102 @@ test("chapter execution contract requires reader experience and scene experience
   }).success, true);
 });
 
+test("chapter execution contract repairs vague scene purpose from concrete scene fields", () => {
+  const schema = createChapterExecutionContractSchema();
+  const scene = (index, overrides = {}) => ({
+    key: `scene_${index}`,
+    title: `场景${index}`,
+    purpose: "推动剧情",
+    mustAdvance: [`赵铁柱在夜班中核对第${index}处异常工单`],
+    mustPreserve: ["保持工头不满的暗线"],
+    entryState: `夜班压力压到第${index}处`,
+    exitState: `赵铁柱拿到第${index}个可验证线索`,
+    forbiddenExpansion: ["不要提前写发薪日工资被扣"],
+    targetWordCount: 1000,
+    resistance: "工头安排老员工盯住赵铁柱，不让他单独接触登记本。",
+    turn: "赵铁柱借换班间隙对上登记本和实际工时的差额。",
+    emotionalShift: "从紧张忍耐转为确认问题后的克制兴奋。",
+    readerValue: "读者看见赵铁柱不是被动挨压，而是开始抓到可用证据。",
+    ...overrides,
+  });
+
+  const parsed = schema.parse({
+    purpose: "赵铁柱在夜班中发现工时登记异常，为后续讨薪冲突积累证据。",
+    exclusiveEvent: "赵铁柱第一次在夜班登记本中抓到工时被动手脚的痕迹。",
+    endingState: "赵铁柱确认登记本有问题，但还没有公开摊牌。",
+    nextChapterEntryState: "下一章从发薪日前的压抑等待承接，工资扣款风险逼近。",
+    conflictLevel: 72,
+    revealLevel: 38,
+    targetWordCount: 3000,
+    mustAvoid: "不要提前落地发薪日工资被扣事件。",
+    payoffRefs: [],
+    taskSheet: "让赵铁柱在夜班压力下抓到工时异常证据，收束到发薪日前的不安。",
+    readerExperience: {
+      readerQuestion: "赵铁柱能不能在被盯住的夜班里找到工时被扣的证据？",
+      promisedReward: "读者看到赵铁柱拿到第一条可验证证据，并加深赵铁柱对他的信任。",
+      rewardLevel: "partial",
+      protagonistWant: "赵铁柱想确认自己的工时有没有被动手脚。",
+      primaryResistance: "工头安排人盯着他，登记本也不让新人随便翻。",
+      keyTurn: "赵铁柱借换班间隙把登记本和实际工时对上，发现差额。",
+      emotionalShift: "从压抑忍耐转为抓住线索后的克制兴奋。",
+      informationReveal: "登记本里的夜班工时存在人为缩减。",
+      netChange: "赵铁柱从怀疑变成握有证据，讨薪线具备下一步入口。",
+      inheritedHookResponsibilities: [],
+      endingHook: "发薪日前一晚，工头忽然让人通知所有新人明早先别闹。",
+    },
+    sceneCards: [scene(1), scene(2, { purpose: "推进故事" }), scene(3, { purpose: "发展情节" })],
+  });
+
+  assert.match(parsed.sceneCards[0].purpose, /赵铁柱在夜班中核对第1处异常工单/);
+  assert.doesNotMatch(parsed.sceneCards[0].purpose, /推动剧情|推进故事|发展情节/);
+});
+
+test("chapter execution contract still rejects vague scene purpose without concrete fallback fields", () => {
+  const schema = createChapterExecutionContractSchema();
+  const scene = (index) => ({
+    key: `scene_${index}`,
+    title: `场景${index}`,
+    purpose: "推动剧情",
+    mustAdvance: ["推动剧情"],
+    mustPreserve: ["保持主线"],
+    entryState: `入口${index}`,
+    exitState: `出口${index}`,
+    forbiddenExpansion: ["不要越界"],
+    targetWordCount: 1000,
+    resistance: "",
+    turn: "",
+    emotionalShift: "情绪变化。",
+    readerValue: "读者看到剧情变化。",
+  });
+
+  assert.equal(schema.safeParse({
+    purpose: "赵铁柱继续适应工地夜班。",
+    exclusiveEvent: "赵铁柱发现工地登记存在问题。",
+    endingState: "赵铁柱带着怀疑进入下一章。",
+    nextChapterEntryState: "下一章承接工资发放前的不安。",
+    conflictLevel: 70,
+    revealLevel: 30,
+    targetWordCount: 3000,
+    mustAvoid: "不要提前写发薪日工资被扣。",
+    payoffRefs: [],
+    taskSheet: "让赵铁柱发现登记异常。",
+    readerExperience: {
+      readerQuestion: "赵铁柱能不能发现登记异常？",
+      promisedReward: "读者看到赵铁柱抓到疑点。",
+      rewardLevel: "partial",
+      protagonistWant: "赵铁柱想弄清工时登记。",
+      primaryResistance: "工头阻止新人查账。",
+      keyTurn: "赵铁柱发现登记差额。",
+      emotionalShift: "从怀疑转为警觉。",
+      informationReveal: "工时登记存在异常。",
+      netChange: "赵铁柱有了下一步追问的理由。",
+      inheritedHookResponsibilities: [],
+      endingHook: "发薪日前的通知变得反常。",
+    },
+    sceneCards: [scene(1), scene(2), scene(3)],
+  }).success, false);
+});
+
 function makeResourceDelta(index = 1) {
   return {
     resourceName: `关键资源${index}`,
@@ -229,6 +325,8 @@ test("chapter acceptance prompt forbids status alias values", () => {
 
   assert.match(systemText, /status 只能使用 accepted、repairable、needs_manual_review、continue_with_risk/);
   assert.match(systemText, /不得输出 acceptable、pass、passed、ok、approved/);
+  assert.match(systemText, /book_contract 与 writing_platform 是商业定位依据/);
+  assert.match(systemText, /只保留会影响继续生产或发布风险的高价值项/);
 });
 
 test("chapter acceptance schema accepts obligation diagnostics", () => {

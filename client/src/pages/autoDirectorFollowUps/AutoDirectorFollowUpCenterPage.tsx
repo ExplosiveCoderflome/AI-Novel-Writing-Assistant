@@ -280,6 +280,17 @@ export default function AutoDirectorFollowUpCenterPage() {
         queryKeys.autoDirectorFollowUps.detail(directorTaskId),
         response,
       );
+      await invalidateFollowUps();
+      if (!response.data) {
+        setSearchParams((prev) => {
+          const next = new URLSearchParams(prev);
+          next.delete("directorTaskId");
+          next.delete("taskId");
+          return next;
+        });
+        toast.success("当前任务已无须跟进，提醒已移除。");
+        return;
+      }
       toast.success("校验结果已刷新。");
     },
   });

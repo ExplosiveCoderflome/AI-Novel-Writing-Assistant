@@ -3,6 +3,10 @@ import type { DirectorLockScope } from "@ai-novel/shared/types/novelDirector";
 import type { NovelEditTakeoverState } from "./components/NovelEditView.types";
 
 export function resolveAutoExecutionScopeLabel(task: UnifiedTaskDetail | null): string {
+  const topLevelScopeLabel = (task as { executionScopeLabel?: string | null } | null)?.executionScopeLabel?.trim();
+  if (topLevelScopeLabel) {
+    return topLevelScopeLabel;
+  }
   const seedPayload = (task?.meta.seedPayload ?? null) as {
     autoExecution?: {
       scopeLabel?: string | null;
@@ -13,8 +17,11 @@ export function resolveAutoExecutionScopeLabel(task: UnifiedTaskDetail | null): 
   if (scopeLabel) {
     return scopeLabel;
   }
-  const fallbackCount = Math.max(1, Math.round(seedPayload?.autoExecution?.totalChapterCount ?? 10));
-  return `第 1-${fallbackCount} 章`;
+  const totalChapterCount = seedPayload?.autoExecution?.totalChapterCount;
+  if (typeof totalChapterCount === "number" && Number.isFinite(totalChapterCount) && totalChapterCount > 1) {
+    return `第 1-${Math.round(totalChapterCount)} 章`;
+  }
+  return "当前章节范围";
 }
 
 export function formatTakeoverCheckpoint(

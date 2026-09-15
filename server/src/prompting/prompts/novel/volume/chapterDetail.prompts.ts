@@ -164,6 +164,67 @@ function buildTaskSheetSemanticText(output: {
   ].join("\n"));
 }
 
+function normalizeBoundaryDutyText(value: string | null | undefined): string {
+  return value?.replace(/[\s，,。；;：:、|/\\\-（）()《》【】「」『』“”"'‘’！？!?]/g, "").trim() || "";
+}
+
+function buildCharacterBigrams(value: string): Set<string> {
+  const result = new Set<string>();
+  for (let index = 0; index < value.length - 1; index += 1) {
+    result.add(value.slice(index, index + 2));
+  }
+  return result;
+}
+
+function hasStrongTextOverlap(left: string, right: string): boolean {
+  const normalizedLeft = normalizeBoundaryDutyText(left);
+  const normalizedRight = normalizeBoundaryDutyText(right);
+  if (normalizedLeft.length < 6 || normalizedRight.length < 6) {
+    return false;
+  }
+  if (normalizedLeft.includes(normalizedRight) || normalizedRight.includes(normalizedLeft)) {
+    return true;
+  }
+
+  const leftBigrams = buildCharacterBigrams(normalizedLeft);
+  const rightBigrams = buildCharacterBigrams(normalizedRight);
+  if (leftBigrams.size === 0 || rightBigrams.size === 0) {
+    return false;
+  }
+  const overlap = [...leftBigrams].filter((item) => rightBigrams.has(item)).length;
+  return overlap / Math.min(leftBigrams.size, rightBigrams.size) >= 0.72;
+}
+
+function validateSceneMustAdvanceDuty<T extends {
+    sceneCards: Array<{
+      title: string;
+      mustAdvance: string[];
+    }>;
+    nextChapterEntryState?: string;
+  }>(
+  output: T,
+  input: VolumeChapterDetailPromptInput,
+): T {
+  const nextChapterEntryState = output.nextChapterEntryState?.trim()
+    || input.targetChapter.nextChapterEntryState?.trim()
+    || "";
+  if (!nextChapterEntryState) {
+    return output;
+  }
+
+  output.sceneCards.forEach((scene, sceneIndex) => {
+    scene.mustAdvance.forEach((item, itemIndex) => {
+      if (hasStrongTextOverlap(item, nextChapterEntryState)) {
+        throw new Error(
+          `sceneCards[${sceneIndex}].mustAdvance[${itemIndex}] 与 nextChapterEntryState 高度重叠。场景 mustAdvance 只能写本章内必须完成的推进；下一章入口状态应保留在 endingHook、exitState 或 nextChapterEntryState 中。`,
+        );
+      }
+    });
+  });
+
+  return output;
+}
+
 function validateAdjacentChapterBoundary<T extends {
     taskSheet: string;
     sceneCards: Array<{
@@ -238,12 +299,27 @@ function createVolumeDetailSystemPrompt(detailMode: VolumeChapterDetailPromptInp
     "只输出严格 JSON，且只包含 taskSheet、readerExperience、sceneCards 三个字段。",
     "taskSheet 是给用户读的简洁执行摘要，需要覆盖情绪基调、冲突对象、关键推进和收尾要求。",
     "readerExperience 是本章唯一的读者体验合同，必须包含 readerQuestion、promisedReward、rewardLevel、protagonistWant、primaryResistance、keyTurn、emotionalShift、informationReveal、netChange、inheritedHookResponsibilities、endingHook。",
+    "readerExperience 的所有字段都不可为空字符串或缺失。每个字段必须提供具体、可感知的内容，不能写成空泛的主题或作者意图。",
+    "readerQuestion 必须是一个能引发读者好奇心的具体问题，例如'主角能否在 deadline 前找到关键证据？'，不能写成'本章的悬念是什么'。",
+    "promisedReward 必须是读者能在本章结束时获得的具体回报，例如'主角获得关键证人的信任，拿到决定性证据'，不能写成'推动剧情发展'。",
+    "protagonistWant 必须是主角在本章中的具体目标，例如'主角想在不被发现的情况下潜入档案室'，不能写成'主角想要成功'。",
+    "primaryResistance 必须是主角面临的具体障碍，例如'档案室的安保系统升级，主角的旧钥匙失效'，不能写成'主角遇到困难'。",
+    "keyTurn 必须是本章中的关键转折点，例如'主角发现档案被篡改的痕迹，意识到敌人来自内部'，不能写成'剧情发生转折'。",
+    "emotionalShift 必须是主角情绪的具体变化，例如'从绝望到愤怒，再到决心反击'，不能写成'主角情绪波动'。",
+    "informationReveal 必须是本章中揭露的具体信息，例如'敌人的真实身份是主角的导师'，不能写成'揭露真相'。",
+    "netChange 必须是本章结束时主角处境的具体变化，例如'主角从被动调查转为主动反击，获得关键证人支持'，不能写成'主角处境改变'。",
+    "endingHook 必须是能吸引读者继续阅读的具体悬念，例如'主角刚要行动，却收到一条匿名短信：'你以为只有你在查吗？''，不能写成'留下悬念'。",
     "rewardLevel 只能是 setup、partial、major；由本章在卷节奏中的职责决定，不要每章都写成 major。",
     "inheritedHookResponsibilities 必须优先承接相邻章已经提出的问题；没有明确旧钩子时返回空数组，不要编造。",
     "promisedReward 与 netChange 必须是读者在正文中能看见的回报和变化，不能写成作者意图或抽象主题。",
     "sceneCards 必须是 3-8 个场景卡数组，每个场景卡都必须包含 key、title、purpose、mustAdvance、mustPreserve、entryState、exitState、forbiddenExpansion、targetWordCount、resistance、turn、emotionalShift、readerValue。",
     "每个场景都必须有具体阻力和转折；readerValue 要说明该场景给读者带来的推进、揭示、情绪或关系价值。",
     "sceneCards 必须完整覆盖整章推进和结尾 hook，不要把整章压成一个场景。",
+    "sceneCards.mustAdvance 只能写本章、本场景必须完成的当前推进项；不得把下一章开场事件、下一章入口状态或下一章首个付费/资源/危机节点写成 mustAdvance。",
+    "如果需要牵引下一章，把它写入 readerExperience.endingHook、最后一场 exitState 或 nextChapterEntryState 的承接压力；不要让最后一场同时承担本章收束和下一章事件落地。",
+    "sceneCards 的 purpose 必须是章节目标的子步骤或具体执行动作，不能简单复述章节目标。每个场景的 purpose 必须明确回答：在这个场景中，主角具体做了什么、遭遇了什么、改变了什么。",
+    "sceneCards 的 purpose 禁止只写“推动剧情”“推进故事”“发展情节”“继续推进”“为后续铺垫”“为后续做准备”；如果不确定，就用该场景的 mustAdvance + resistance + turn 组合成具体动作。",
+    "如果章节目标是'主角发现真相，决定反击'，场景卡的 purpose 必须分解为具体步骤，例如：'主角在档案室发现关键文件被篡改的痕迹'、'主角追踪线索找到知情人并获取证词'、'主角整合证据，制定反击计划'。禁止三个场景都写成'主角发现真相，决定反击'。",
     "当前章节的 title、summary、purpose、exclusiveEvent、endingState、nextChapterEntryState、conflictLevel、revealLevel、mustAvoid、payoffRefs 共同组成了本章硬边界合同。taskSheet 和 sceneCards 只能执行当前章合同，不能改写或覆盖它。",
     "你必须把 chapter_neighbors 视为相邻章边界提示：上一章已经完成的关键首次事件不能在本章重写一次，下一章标题或摘要中的关键首次事件也不能提前写进本章。",
     "本章结尾只能把局面推到下一章入口，不能直接落完下一章标题所承诺的核心里程碑。",
@@ -281,6 +357,11 @@ function createExecutionContractSystemPrompt(): string {
     "readerExperience 是本章唯一的读者体验合同，必须完整包含 readerQuestion、promisedReward、rewardLevel、protagonistWant、primaryResistance、keyTurn、emotionalShift、informationReveal、netChange、inheritedHookResponsibilities、endingHook。",
     "rewardLevel 只能使用 setup、partial、major；promisedReward 和 netChange 必须能在正文中被读者直接感知。",
     "sceneCards 除原字段外还必须包含 resistance、turn、emotionalShift、readerValue，确保每个场景都有阻力、转折和读者价值。",
+    "sceneCards.mustAdvance 只能写本章、本场景必须完成的当前推进项；不得把下一章开场事件、下一章入口状态或下一章首个付费/资源/危机节点写成 mustAdvance。",
+    "下一章入口只能作为 endingHook、最后一场 exitState 或 nextChapterEntryState 的承接压力出现，不能挤占最后一场的本章收束职责。",
+    "sceneCards 的 purpose 必须是章节目标的子步骤或具体执行动作，不能简单复述章节目标。每个场景的 purpose 必须明确回答：在这个场景中，主角具体做了什么、遭遇了什么、改变了什么。",
+    "sceneCards 的 purpose 禁止只写“推动剧情”“推进故事”“发展情节”“继续推进”“为后续铺垫”“为后续做准备”；如果不确定，就用该场景的 mustAdvance + resistance + turn 组合成具体动作。",
+    "如果章节目标是'主角发现真相，决定反击'，场景卡的 purpose 必须分解为具体步骤，例如：'主角在档案室发现关键文件被篡改的痕迹'、'主角追踪线索找到知情人并获取证词'、'主角整合证据，制定反击计划'。禁止三个场景都写成'主角发现真相，决定反击'。",
     "taskSheet 和 sceneCards 只能执行当前章的合同，不得提前占用相邻章的一次性事件，也不得重写上一章已经完成的里程碑。",
     "如果 conflict_level_curve 标出用户锚定的 conflictLevel，该数值是硬约束，不得改写。",
     "如果最近章节已经连续使用相同开场、相同推进路数或同类钩子，本章必须通过 sceneCards 主动做出差异化。",
@@ -367,7 +448,7 @@ export const volumeChapterTaskSheetPrompt: PromptAsset<
     new SystemMessage(createVolumeDetailSystemPrompt("task_sheet")),
     new HumanMessage(buildChapterDetailPrompt(renderSelectedContextBlocks(context), input.detailMode)),
   ],
-  postValidate: (output, input) => validateAdjacentChapterBoundary(output, input),
+  postValidate: (output, input) => validateSceneMustAdvanceDuty(validateAdjacentChapterBoundary(output, input), input),
 };
 
 export const volumeChapterExecutionContractPrompt: PromptAsset<
@@ -388,6 +469,7 @@ export const volumeChapterExecutionContractPrompt: PromptAsset<
   postValidate: (output, input) => {
     validateBoundaryContract(output, input);
     validateAdjacentChapterBoundary(output, input);
+    validateSceneMustAdvanceDuty(output, input);
     return output;
   },
 };

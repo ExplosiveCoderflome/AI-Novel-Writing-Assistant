@@ -19,6 +19,10 @@ const outlinePhaseSource = fs.readFileSync(
   path.resolve(__dirname, "../src/services/novel/director/phases/novelDirectorStructuredOutlinePhase.ts"),
   "utf8",
 );
+const pipelineRuntimeSource = fs.readFileSync(
+  path.resolve(__dirname, "../src/services/novel/director/novelDirectorPipelineRuntime.ts"),
+  "utf8",
+);
 
 function candidate(title) {
   return {
@@ -68,29 +72,28 @@ test("fast-start director waits for the user to choose a production interface", 
   assert.doesNotMatch(outlinePhaseSource, /continueSimpleProduction/);
 });
 
-test("production interface selection keeps the same full-book automation", () => {
+test("production handoff keeps simple creation at a manual execution boundary", () => {
   const seed = directorSeed();
-  for (const experience of ["simple", "professional"]) {
-    const nextSeed = buildProductionExperienceSeed(seed, experience);
-    assert.equal(parseSelectedExperience(nextSeed), experience);
-    assert.equal(nextSeed.runMode, "full_book_autopilot");
-    assert.equal(nextSeed.directorInput.runMode, "full_book_autopilot");
-    assert.equal(nextSeed.autoExecutionPlan.mode, "book");
-    assert.equal(nextSeed.autoExecutionPlan.autoReview, true);
-    assert.equal(nextSeed.autoExecutionPlan.autoRepair, true);
-    assert.equal(nextSeed.autoApproval.enabled, true);
-    assert.ok(nextSeed.autoApproval.approvalPointCodes.includes("chapter_execution_continue"));
-    assert.ok(nextSeed.autoApproval.approvalPointCodes.includes("replan_continue"));
-  }
+  const nextSeed = buildProductionExperienceSeed(seed, "simple");
+  assert.equal(parseSelectedExperience(nextSeed), "simple");
+  assert.equal(nextSeed.runMode, "auto_to_ready");
+  assert.equal(nextSeed.directorInput.runMode, "auto_to_ready");
+  assert.equal(nextSeed.autoExecutionPlan, undefined);
+  assert.equal(nextSeed.autoApproval.enabled, false);
+  assert.deepEqual(nextSeed.autoApproval.approvalPointCodes, [
+    "candidate_direction_confirmed",
+    "character_setup_ready",
+    "volume_strategy_ready",
+    "structured_outline_ready",
+  ]);
 });
 
-test("complete-workspace selection starts the same chapter execution", async () => {
+test("production interface handoff does not enqueue chapter generation", async () => {
   const originals = {
     findUnique: prisma.novelWorkflowTask.findUnique,
     transaction: prisma.$transaction,
   };
   let checkpointUpdate = null;
-  let commandInput = null;
   prisma.novelWorkflowTask.findUnique = async () => ({
     id: "director-task-1",
     lane: "auto_director",
@@ -110,22 +113,20 @@ test("complete-workspace selection starts the same chapter execution", async () 
   });
 
   try {
-    const service = new DirectorProductionExperienceService({
-      enqueueContinueCommand: async (_taskId, input) => {
-        commandInput = input;
-        return { commandId: "command-1" };
-      },
-    });
-    const result = await service.select("director-task-1", "professional");
-    assert.equal(result.targetRoute, "/novels/novel-1/edit");
-    assert.equal(result.backgroundStarted, true);
+    const result = await new DirectorProductionExperienceService().select("director-task-1", "simple");
+    assert.equal(result.targetRoute, "/novels/novel-1/simple");
+    assert.equal(result.backgroundStarted, false);
+    assert.equal(result.commandId, undefined);
+    assert.equal(checkpointUpdate.data.status, "waiting_approval");
     assert.equal(checkpointUpdate.data.checkpointType, "chapter_batch_ready");
-    assert.equal(JSON.parse(checkpointUpdate.data.seedPayloadJson).runMode, "full_book_autopilot");
-    assert.deepEqual(commandInput, { continuationMode: "auto_execute_range", forceResume: true });
+    assert.match(checkpointUpdate.data.checkpointSummary, /确认本次要执行的章节范围/);
   } finally {
     prisma.novelWorkflowTask.findUnique = originals.findUnique;
     prisma.$transaction = originals.transaction;
   }
+
+  assert.doesNotMatch(pipelineRuntimeSource, /earlySimpleSelection/);
+  assert.doesNotMatch(pipelineRuntimeSource, /buildFullBookAutopilotExecutionPlan/);
 });
 
 test("production interface selection waits until preparation is complete", async () => {

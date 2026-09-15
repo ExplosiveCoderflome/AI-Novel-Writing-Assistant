@@ -15,6 +15,60 @@ interface AnthropicLLMOptions {
   timeoutMs?: number;
 }
 
+const DEFAULT_TRANSIENT_MAX_RETRIES = 3;
+const DEFAULT_RETRY_BASE_DELAY_MS = 750;
+const DEFAULT_RETRY_MAX_DELAY_MS = 6_000;
+const RETRYABLE_HTTP_STATUSES = new Set([408, 429, 500, 502, 503, 504]);
+
+function readNonNegativeInteger(value: string | undefined, fallback: number): number {
+  if (value == null || value.trim() === "") {
+    return fallback;
+  }
+  const parsed = Number(value);
+  return Number.isInteger(parsed) && parsed >= 0 ? parsed : fallback;
+}
+
+function resolveRetrySettings(): {
+  maxRetries: number;
+  baseDelayMs: number;
+  maxDelayMs: number;
+} {
+  return {
+    maxRetries: readNonNegativeInteger(
+      process.env.ANTHROPIC_TRANSIENT_MAX_RETRIES,
+      DEFAULT_TRANSIENT_MAX_RETRIES,
+    ),
+    baseDelayMs: readNonNegativeInteger(
+      process.env.ANTHROPIC_RETRY_BASE_DELAY_MS,
+      DEFAULT_RETRY_BASE_DELAY_MS,
+    ),
+    maxDelayMs: readNonNegativeInteger(
+      process.env.ANTHROPIC_RETRY_MAX_DELAY_MS,
+      DEFAULT_RETRY_MAX_DELAY_MS,
+    ),
+  };
+}
+
+function waitForRetry(delayMs: number, signal: AbortSignal): Promise<void> {
+  if (signal.aborted) {
+    return Promise.reject(signal.reason ?? new Error("Anthropic request aborted."));
+  }
+  if (delayMs <= 0) {
+    return Promise.resolve();
+  }
+  return new Promise((resolve, reject) => {
+    const timeout = setTimeout(() => {
+      signal.removeEventListener("abort", onAbort);
+      resolve();
+    }, delayMs);
+    const onAbort = () => {
+      clearTimeout(timeout);
+      reject(signal.reason ?? new Error("Anthropic request aborted."));
+    };
+    signal.addEventListener("abort", onAbort, { once: true });
+  });
+}
+
 type AnthropicRole = "user" | "assistant";
 
 interface AnthropicMessage {
@@ -144,28 +198,53 @@ export function createAnthropicLLM(options: AnthropicLLMOptions): {
       : null;
     callOptions?.signal?.addEventListener("abort", () => controller.abort(callOptions.signal?.reason), { once: true });
     try {
-      const response = await fetch(`${normalizeBaseURL(options.baseURL)}/messages`, {
-        method: "POST",
-        signal: controller.signal,
-        headers: {
-          "content-type": "application/json",
-          "x-api-key": options.apiKey ?? "",
-          "anthropic-version": process.env.ANTHROPIC_VERSION ?? "2023-06-01",
-        },
-        body: JSON.stringify({
-          model: options.model,
-          max_tokens: options.maxTokens ?? 4096,
-          temperature: options.temperature,
-          stream,
-          ...(converted.system ? { system: converted.system } : {}),
-          messages: converted.messages,
-        }),
+      const retrySettings = resolveRetrySettings();
+      const url = `${normalizeBaseURL(options.baseURL)}/messages`;
+      const body = JSON.stringify({
+        model: options.model,
+        max_tokens: options.maxTokens ?? 4096,
+        temperature: options.temperature,
+        stream,
+        ...(converted.system ? { system: converted.system } : {}),
+        messages: converted.messages,
       });
-      if (!response.ok) {
+      for (let attempt = 0; ; attempt += 1) {
+        let response: Response;
+        try {
+          response = await fetch(url, {
+            method: "POST",
+            signal: controller.signal,
+            headers: {
+              "content-type": "application/json",
+              "x-api-key": options.apiKey ?? "",
+              "anthropic-version": process.env.ANTHROPIC_VERSION ?? "2023-06-01",
+            },
+            body,
+          });
+        } catch (error) {
+          if (controller.signal.aborted || attempt >= retrySettings.maxRetries) {
+            throw error;
+          }
+          const delayMs = Math.min(
+            retrySettings.maxDelayMs,
+            retrySettings.baseDelayMs * (2 ** attempt),
+          );
+          await waitForRetry(delayMs, controller.signal);
+          continue;
+        }
+        if (response.ok) {
+          return response;
+        }
         const detail = await response.text();
-        throw new Error(`Anthropic request failed (${response.status}): ${detail || response.statusText}`);
+        if (!RETRYABLE_HTTP_STATUSES.has(response.status) || attempt >= retrySettings.maxRetries) {
+          throw new Error(`Anthropic request failed (${response.status}): ${detail || response.statusText}`);
+        }
+        const delayMs = Math.min(
+          retrySettings.maxDelayMs,
+          retrySettings.baseDelayMs * (2 ** attempt),
+        );
+        await waitForRetry(delayMs, controller.signal);
       }
-      return response;
     } finally {
       if (timeout) {
         clearTimeout(timeout);

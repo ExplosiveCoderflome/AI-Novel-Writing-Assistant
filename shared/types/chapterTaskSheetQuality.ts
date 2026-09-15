@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { parseChapterScenePlan } from "./chapterLengthControl.js";
+import type { ReaderExperienceContract } from "./novel/readerExperience.js";
 
 export const CHAPTER_TASK_SHEET_QUALITY_MODES = [
   "full_book_autopilot",
@@ -160,6 +161,22 @@ function hasText(value: string | null | undefined): boolean {
   return Boolean(value?.trim());
 }
 
+function collectMissingReaderExperienceFields(value: ReaderExperienceContract): string[] {
+  return [
+    ["readerQuestion", value.readerQuestion],
+    ["promisedReward", value.promisedReward],
+    ["protagonistWant", value.protagonistWant],
+    ["primaryResistance", value.primaryResistance],
+    ["keyTurn", value.keyTurn],
+    ["emotionalShift", value.emotionalShift],
+    ["informationReveal", value.informationReveal],
+    ["netChange", value.netChange],
+    ["endingHook", value.endingHook],
+  ]
+    .filter(([, fieldValue]) => !hasText(fieldValue as string | null | undefined))
+    .map(([fieldName]) => fieldName);
+}
+
 function createQualityIssue(
   id: string,
   target: ChapterTaskSheetQualityIssue["target"],
@@ -229,6 +246,16 @@ export function assessChapterExecutionContractShape(
       "场景拆解无法作为正文执行依据。",
       "重建 3-8 个场景卡，并为每个场景补齐目标、入场状态、离场状态、必须推进和字数预算。",
     ));
+  } else {
+    const missingReaderExperienceFields = collectMissingReaderExperienceFields(scenePlan.readerExperience);
+    if (missingReaderExperienceFields.length > 0) {
+      issues.push(createQualityIssue(
+        "missing_reader_experience_contract",
+        "semantic",
+        "读者体验合同缺少可执行字段。",
+        `补齐 readerExperience 的 ${missingReaderExperienceFields.join("、")}，明确本章问题、可见回报、主角欲望、主要阻力、关键转折、情绪位移、信息揭示、净变化和钩子责任。`,
+      ));
+    }
   }
 
   if (issues.length === 0) {

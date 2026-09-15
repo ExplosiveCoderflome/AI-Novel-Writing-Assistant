@@ -54,6 +54,9 @@ type ProjectionCommandRow = {
   finishedAt: Date | null;
 };
 
+const DETACHED_RUNNING_TASK_GRACE_MS = 30_000;
+const DETACHED_RUNNING_TASK_MESSAGE = "后台执行已经停止，当前没有排队或运行中的自动导演动作。可以从最近进度继续。";
+
 function minDate(values: Array<Date | null | undefined>): Date | null {
   const timestamps = values
     .filter((value): value is Date => Boolean(value))
@@ -77,6 +80,48 @@ function splitLeaseOwner(value: string | null | undefined): {
     workerId: workerId || value,
     slotId: slotParts.length > 0 ? slotParts.join(":") : null,
   };
+}
+
+function isLiveRuntimeProjection(projection: DirectorRuntimeProjection | null): boolean {
+  return Boolean(
+    projection?.status === "running"
+    && !projection.requiresUserAction
+    && (
+      projection.currentLabel?.trim()
+      || projection.currentAction?.trim()
+      || projection.lastEventSummary?.trim()
+      || typeof projection.progressBreakdown?.activeJobProgress === "number"
+      || typeof projection.progressBreakdown?.totalPercent === "number"
+    ),
+  );
+}
+
+function isDetachedRunningTask(input: {
+  task: {
+    status: string;
+    pendingManualRecovery?: boolean | null;
+    heartbeatAt?: Date | null;
+    updatedAt?: Date | null;
+  } | null;
+  commands: ProjectionCommandRow[];
+  hasRunningStep: boolean;
+  runtimeProjection: DirectorRuntimeProjection | null;
+  now: Date;
+}): boolean {
+  if (!input.task || input.task.status !== "running" || input.task.pendingManualRecovery) {
+    return false;
+  }
+  const hasActiveCommand = input.commands.some((command) =>
+    command.status === "queued" || command.status === "leased" || command.status === "running",
+  );
+  if (hasActiveCommand || input.hasRunningStep || isLiveRuntimeProjection(input.runtimeProjection)) {
+    return false;
+  }
+  const lastHeartbeat = input.task.heartbeatAt ?? input.task.updatedAt ?? null;
+  if (!lastHeartbeat) {
+    return true;
+  }
+  return input.now.getTime() - lastHeartbeat.getTime() > DETACHED_RUNNING_TASK_GRACE_MS;
 }
 
 function buildWorkerHealth(input: {
@@ -241,6 +286,7 @@ export class DirectorBookAutomationProjectionService {
         pendingManualRecovery: true,
         lastError: true,
         seedPayloadJson: true,
+        heartbeatAt: true,
         updatedAt: true,
       },
     });
@@ -348,6 +394,7 @@ export class DirectorBookAutomationProjectionService {
       steps: steps.map(mapStepForUsage),
     });
 
+    const now = new Date();
     const activeCommandCount = commands.filter((item) => item.status === "running" || item.status === "leased").length;
     const pendingCommandCount = commands.filter((item) => item.status === "queued").length;
     const autoApprovalRecordCount = approvalRecords.length;
@@ -355,23 +402,51 @@ export class DirectorBookAutomationProjectionService {
       ?? parseJsonOrNull<{ mode?: DirectorPolicyMode }>(latestRun?.policyJson)?.mode
       ?? null;
     const circuitBreaker = extractCircuitBreaker(latestTask?.seedPayloadJson);
-    const taskStatus = latestTask?.pendingManualRecovery
+    const hasRunningStep = steps.some((step) => step.status === "running");
+    const hasActiveCommand = commands.some((command) =>
+      command.status === "queued" || command.status === "leased" || command.status === "running",
+    );
+    const detachedRunningTask = isDetachedRunningTask({
+      task: latestTask,
+      commands,
+      hasRunningStep,
+      runtimeProjection,
+      now,
+    });
+    const displayTask = detachedRunningTask && latestTask
+      ? {
+        ...latestTask,
+        pendingManualRecovery: true,
+        lastError: latestTask.lastError ?? DETACHED_RUNNING_TASK_MESSAGE,
+      }
+      : latestTask;
+    const taskStatus = displayTask?.pendingManualRecovery && !hasActiveCommand
       ? "waiting_recovery"
-      : workflowStatusToBookStatus(latestTask?.status);
-    const workerHealth = buildWorkerHealth({
+      : workflowStatusToBookStatus(displayTask?.status);
+    const baseWorkerHealth = buildWorkerHealth({
       commands,
       status: taskStatus,
-      now: new Date(),
+      now,
     });
+    const workerHealth: DirectorWorkerHealthSummary = detachedRunningTask
+      ? {
+        ...baseWorkerHealth,
+        derivedState: "failed_recoverable",
+        message: DETACHED_RUNNING_TASK_MESSAGE,
+        blockedReason: DETACHED_RUNNING_TASK_MESSAGE,
+        lastErrorMessage: DETACHED_RUNNING_TASK_MESSAGE,
+        nextAction: "requires_user_action",
+      }
+      : baseWorkerHealth;
     const activeStep = steps.find((step) =>
       step.status === "running" || step.status === "waiting_approval" || step.status === "failed",
     ) ?? steps[0] ?? null;
     const latestCommand = commands.find((command) =>
       command.status === "running" || command.status === "leased" || command.status === "queued",
     ) ?? commands[0] ?? null;
-    const dashboardDisplayState = latestTask
+    const dashboardDisplayState = displayTask
       ? buildDirectorDisplayState({
-        task: latestTask,
+        task: displayTask,
         projection: runtimeProjection,
         factSummary: null,
         activeStepNodeKey: activeStep?.nodeKey ?? null,
@@ -381,9 +456,9 @@ export class DirectorBookAutomationProjectionService {
         chapterProgress: null,
       })
       : null;
-    const dashboardView = latestTask && dashboardDisplayState
+    const dashboardView = displayTask && dashboardDisplayState
       ? buildDirectorDashboardView({
-        task: latestTask,
+        task: displayTask,
         projection: runtimeProjection,
         displayState: dashboardDisplayState,
         factSummary: null,
@@ -395,6 +470,8 @@ export class DirectorBookAutomationProjectionService {
       : null;
     const status: DirectorBookAutomationStatus = latestTask?.status === "cancelled"
       ? "cancelled"
+      : taskStatus === "waiting_recovery" && !hasActiveCommand
+        ? taskStatus
       : dashboardView
         ? dashboardModeToBookStatus(dashboardView.mode)
         : taskStatus;
@@ -415,29 +492,29 @@ export class DirectorBookAutomationProjectionService {
       || status === "blocked"
       || status === "failed";
     const blockedReason = dashboardView?.requiresUserAction
-      ? dashboardView.userActionReason ?? latestTask?.checkpointSummary ?? null
+      ? dashboardView.userActionReason ?? displayTask?.checkpointSummary ?? null
       : status === "waiting_recovery"
-      ? latestTask?.lastError ?? displayRuntimeProjection?.blockedReason ?? null
+      ? displayTask?.lastError ?? displayRuntimeProjection?.blockedReason ?? null
       : status === "failed"
-        ? latestTask?.lastError ?? displayRuntimeProjection?.blockedReason ?? displayRuntimeProjection?.detail ?? null
-        : displayRuntimeProjection?.blockedReason ?? null;
-    const headline = buildHeadline({ status, runtimeProjection: displayRuntimeProjection, task: latestTask });
-    const baseDetail = buildDetail({ status, runtimeProjection: displayRuntimeProjection, task: latestTask });
+        ? displayTask?.lastError ?? displayRuntimeProjection?.blockedReason ?? displayRuntimeProjection?.detail ?? null
+      : displayRuntimeProjection?.blockedReason ?? null;
+    const headline = buildHeadline({ status, runtimeProjection: displayRuntimeProjection, task: displayTask });
+    const baseDetail = buildDetail({ status, runtimeProjection: displayRuntimeProjection, task: displayTask });
     const detail = (status === "queued" || status === "running") && workerHealth.message
       ? workerHealth.message
       : baseDetail;
-    const userHeadline = buildUserHeadline({ status, task: latestTask });
+    const userHeadline = buildUserHeadline({ status, task: displayTask });
     const userReason = dashboardView?.userActionReason ?? buildUserReason({
       status,
       runtimeProjection: displayRuntimeProjection,
-      task: latestTask,
+      task: displayTask,
       blockedReason,
       detail,
     });
     const primaryAction = buildPrimaryAction({
       novelId,
       status,
-      task: latestTask ? { id: latestTask.id, checkpointType: latestTask.checkpointType } : null,
+      task: displayTask ? { id: displayTask.id, checkpointType: displayTask.checkpointType } : null,
     });
     const secondaryActions = buildSecondaryActions({
       novelId,

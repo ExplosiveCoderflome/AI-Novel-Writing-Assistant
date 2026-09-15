@@ -111,6 +111,7 @@ async function loadGenerationContext(params: {
         first30ChapterPromise: true,
         commercialTagsJson: true,
         estimatedChapterCount: true,
+        defaultChapterLength: true,
         narrativePov: true,
         pacePreference: true,
         emotionIntensity: true,

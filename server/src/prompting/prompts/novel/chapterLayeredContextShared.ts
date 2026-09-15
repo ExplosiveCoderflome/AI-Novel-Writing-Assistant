@@ -7,6 +7,8 @@ import type {
 import { resolveLengthBudgetContract } from "@ai-novel/shared/types/chapterLengthControl";
 import { buildPlannerStyleContractSummaryText } from "../../../services/styleEngine/styleContractText";
 
+const PUBLISHABLE_LENGTH_MIN_RATIO = 0.92;
+
 export function compactText(value: string | null | undefined, fallback = ""): string {
   return value?.replace(/\s+/g, " ").trim() || fallback;
 }
@@ -117,9 +119,13 @@ export function resolveTargetWordRange(targetWordCount: number | null | undefine
       maxWordCount: null,
     };
   }
+  const publishableMinWordCount = Math.max(
+    budget.softMinWordCount,
+    Math.floor(budget.targetWordCount * PUBLISHABLE_LENGTH_MIN_RATIO),
+  );
   return {
     targetWordCount: budget.targetWordCount,
-    minWordCount: budget.softMinWordCount,
+    minWordCount: publishableMinWordCount,
     maxWordCount: budget.softMaxWordCount,
   };
 }

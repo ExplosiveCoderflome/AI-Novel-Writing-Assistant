@@ -93,7 +93,38 @@ test("normalizeAssessment keeps under-length issue when actual content is still 
   assert.deepEqual(normalized.blockingIssues.map((issue) => issue.code), ["length_insufficient"]);
 });
 
-test("normalizeAssessment routes missing obligations to repairable draft obligation gaps", () => {
+test("normalizeAssessment adds deterministic under-length issue when model misses short content", () => {
+  const normalized = normalizeAssessment(createAssessment({
+    status: "accepted",
+    summary: "模型误判为可通过。",
+  }), "字".repeat(2046), 3000);
+
+  assert.equal(normalized.status, "repairable");
+  assert.equal(normalized.continuePolicy, "repair_once");
+  assert.deepEqual(normalized.blockingIssues.map((issue) => issue.code), ["LENGTH_UNDER_SOFT_MIN"]);
+  assert.equal(normalized.blockingIssues[0].severity, "high");
+  assert.match(normalized.blockingIssues[0].evidence, /2046/);
+  assert.match(normalized.blockingIssues[0].evidence, /2760/);
+  assert.deepEqual(normalized.riskTags, ["length_under_soft_min"]);
+  assert.equal(normalized.repairDirectives[0].mode, "patch");
+  assert.match(normalized.repairDirectives[0].instruction, /至少需要达到 2760 字/);
+});
+
+test("normalizeAssessment requires commercial drafts to stay close to the target length", () => {
+  const normalized = normalizeAssessment(createAssessment({
+    status: "accepted",
+    summary: "模型误判为可通过。",
+  }), "字".repeat(2409), 2800);
+
+  assert.equal(normalized.status, "repairable");
+  assert.equal(normalized.continuePolicy, "repair_once");
+  assert.deepEqual(normalized.blockingIssues.map((issue) => issue.code), ["LENGTH_UNDER_SOFT_MIN"]);
+  assert.match(normalized.blockingIssues[0].evidence, /2409/);
+  assert.match(normalized.blockingIssues[0].evidence, /2576/);
+  assert.match(normalized.repairDirectives[0].instruction, /至少需要达到 2576 字/);
+});
+
+test("normalizeAssessment allows soft-only draft obligation gaps to continue with risk", () => {
   const normalized = normalizeAssessment(createAssessment({
     status: "accepted",
     missingObligations: [{
@@ -105,8 +136,8 @@ test("normalizeAssessment routes missing obligations to repairable draft obligat
     decisionReason: "只需局部补写即可兑现本章义务。",
   }), "字".repeat(3600), 3000);
 
-  assert.equal(normalized.status, "repairable");
-  assert.equal(normalized.continuePolicy, "repair_once");
+  assert.equal(normalized.status, "continue_with_risk");
+  assert.equal(normalized.continuePolicy, "continue");
   assert.equal(normalized.missingObligations[0].kind, "payoff_touch");
 });
 

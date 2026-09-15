@@ -20,6 +20,8 @@ import {
 } from "./autoDirectorFollowUpEventBuilder";
 import { resolveAutoDirectorFollowUpReason } from "./autoDirectorFollowUpReasonResolver";
 import { extractBlockedAutoDirectorValidationResult } from "./autoDirectorFollowUpValidationResult";
+import type { DirectorRiskAssessment } from "@ai-novel/shared/types/directorRisk";
+import { parseAutoExecutionScopeLabel } from "../autoExecutionScopeLabel";
 
 function isMissingTableError(error: unknown): boolean {
   return typeof error === "object"
@@ -38,21 +40,7 @@ function isDbUnavailableError(error: unknown): boolean {
 }
 
 function parseExecutionScopeLabel(seedPayloadJson: string | null | undefined): string | null {
-  if (!seedPayloadJson?.trim()) {
-    return null;
-  }
-  try {
-    const parsed = JSON.parse(seedPayloadJson) as {
-      autoExecution?: {
-        scopeLabel?: unknown;
-      };
-    };
-    return typeof parsed.autoExecution?.scopeLabel === "string" && parsed.autoExecution.scopeLabel.trim()
-      ? parsed.autoExecution.scopeLabel.trim()
-      : null;
-  } catch {
-    return null;
-  }
+  return parseAutoExecutionScopeLabel(seedPayloadJson);
 }
 
 function parseReplacementTaskId(seedPayloadJson: string | null | undefined): string | null {

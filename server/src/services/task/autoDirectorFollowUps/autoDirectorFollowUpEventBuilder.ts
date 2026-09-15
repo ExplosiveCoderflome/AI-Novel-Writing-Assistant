@@ -8,6 +8,7 @@ import type {
 } from "@ai-novel/shared/types/autoDirectorFollowUp";
 import type { NovelWorkflowCheckpoint } from "@ai-novel/shared/types/novelWorkflow";
 import type { TaskStatus } from "@ai-novel/shared/types/task";
+import { parseAutoExecutionScopeLabel } from "../autoExecutionScopeLabel";
 import { resolveAutoDirectorFollowUpReason } from "./autoDirectorFollowUpReasonResolver";
 import { extractBlockedAutoDirectorValidationResult } from "./autoDirectorFollowUpValidationResult";
 
@@ -44,20 +45,7 @@ export interface AutoDirectorDerivedFollowUpState {
 }
 
 function parseExecutionScopeLabel(seedPayloadJson: string | null | undefined): string | null {
-  if (!seedPayloadJson?.trim()) {
-    return null;
-  }
-  try {
-    const parsed = JSON.parse(seedPayloadJson) as {
-      autoExecution?: {
-        scopeLabel?: unknown;
-      };
-    };
-    const scopeLabel = parsed.autoExecution?.scopeLabel;
-    return typeof scopeLabel === "string" && scopeLabel.trim() ? scopeLabel.trim() : null;
-  } catch {
-    return null;
-  }
+  return parseAutoExecutionScopeLabel(seedPayloadJson);
 }
 
 function parseReplacementTaskId(seedPayloadJson: string | null | undefined): string | null {

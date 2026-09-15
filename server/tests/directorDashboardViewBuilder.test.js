@@ -48,7 +48,7 @@ function buildView(patch = {}) {
       pendingManualRecovery: false,
       ...patch.task,
     },
-    projection: patch.projection ?? {
+    projection: Object.prototype.hasOwnProperty.call(patch, "projection") ? patch.projection : {
       status: "running",
       currentLabel: "正在细化第 9/10 章 · 任务单",
       requiresUserAction: false,
@@ -75,6 +75,7 @@ function buildView(patch = {}) {
       status: "running",
       commandType: "continue",
     },
+    workerHealth: Object.prototype.hasOwnProperty.call(patch, "workerHealth") ? patch.workerHealth : null,
   });
 }
 
@@ -182,6 +183,32 @@ test("dashboard keeps running mode when an old failed projection is stale", () =
   assert.equal(view.mode, "running");
   assert.equal(view.requiresUserAction, false);
   assert.ok(view.diagnostics.some((item) => item.code === "stale_action_projection_ignored"));
+});
+
+test("dashboard treats detached running task as recoverable instead of live", () => {
+  const view = buildView({
+    projection: null,
+    activeStep: null,
+    latestCommand: null,
+    displayState: {
+      progressPercent: 89,
+    },
+    workerHealth: {
+      derivedState: "failed_recoverable",
+      message: "后台执行已经停止，当前没有排队或运行中的自动导演动作。可以从最近进度继续。",
+      queuedCommandCount: 0,
+      leasedCommandCount: 0,
+      runningCommandCount: 0,
+      staleCommandCount: 0,
+      nextAction: "requires_user_action",
+    },
+  });
+
+  assert.equal(view.mode, "recovering");
+  assert.equal(view.statusLabel, "等待恢复");
+  assert.equal(view.progressPercent, 89);
+  assert.equal(view.progressSource, "fallback");
+  assert.equal(view.currentAction, "系统会从最近进度继续恢复。");
 });
 
 test("dashboard separates failed and recovering states", () => {

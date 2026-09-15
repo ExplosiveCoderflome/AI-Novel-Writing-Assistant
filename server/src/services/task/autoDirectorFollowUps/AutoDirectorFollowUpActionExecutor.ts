@@ -16,6 +16,7 @@ import type { DirectorWorkflowSeedPayload } from "../../novel/director/runtime/n
 import { NovelWorkflowService } from "../../novel/workflow/NovelWorkflowService";
 import { parseSeedPayload } from "../../novel/workflow/novelWorkflow.shared";
 import { NovelWorkflowTaskAdapter } from "../adapters/NovelWorkflowTaskAdapter";
+import { parseAutoExecutionScopeLabel } from "../autoExecutionScopeLabel";
 import { resolveAutoDirectorFollowUpReason } from "./autoDirectorFollowUpReasonResolver";
 import { resolveAutoDirectorFollowUpSection } from "../../novel/director/runtime/autoDirectorValidationService";
 import { extractBlockedAutoDirectorValidationResult } from "./autoDirectorFollowUpValidationResult";
@@ -24,6 +25,7 @@ import {
   buildAutoDirectorSafeFixPlan,
   canApplyAutoDirectorSafeFix,
 } from "./autoDirectorSafeFix";
+import { archiveTask as archiveTaskCenterRecord } from "../taskArchive";
 
 type WorkflowTaskRow = NonNullable<Awaited<ReturnType<NovelWorkflowService["getTaskByIdWithoutHealing"]>>>;
 
@@ -66,8 +68,7 @@ function isDbUnavailableError(error: unknown): boolean {
 }
 
 function getExecutionScopeLabel(seedPayloadJson: string | null | undefined): string | null {
-  const scopeLabel = parseSeedPayload<DirectorWorkflowSeedPayload>(seedPayloadJson)?.autoExecution?.scopeLabel;
-  return typeof scopeLabel === "string" && scopeLabel.trim() ? scopeLabel.trim() : null;
+  return parseAutoExecutionScopeLabel(seedPayloadJson);
 }
 
 function toCheckpointType(value: string | null | undefined): NovelWorkflowCheckpoint | null {
@@ -220,6 +221,9 @@ export class AutoDirectorFollowUpActionExecutor {
     }
     if (input.actionCode === "auto_backfill_structured_outline") {
       return this.executeStructuredBackfill(row, input, executedCacheKey, healed);
+    }
+    if (input.actionCode === "archive_follow_up") {
+      return this.executeArchiveFollowUp(row, input, executedCacheKey, healed);
     }
 
     if (input.metadata?.batchAction === true) {
@@ -576,6 +580,44 @@ export class AutoDirectorFollowUpActionExecutor {
       retryInput.batchAlreadyStartedCount = batchAlreadyStartedCount;
     }
     return this.workflowTaskAdapter.retry(retryInput);
+  }
+
+  private async executeArchiveFollowUp(
+    row: WorkflowTaskRow,
+    input: AutoDirectorActionRequest,
+    executedCacheKey: string,
+    healed: boolean,
+  ): Promise<AutoDirectorActionExecutionResult> {
+    if (!["succeeded", "failed", "cancelled"].includes(row.status)) {
+      const result: AutoDirectorActionExecutionResult = {
+        directorTaskId: input.taskId,
+        taskId: input.taskId,
+        actionCode: input.actionCode,
+        code: "forbidden",
+        message: "当前任务仍在推进或等待操作，不能直接收起提醒。",
+        task: await this.safeGetTaskDetail(input.taskId),
+      };
+      await this.recordActionLog(input, result);
+      return result;
+    }
+
+    await archiveTaskCenterRecord("novel_workflow", input.taskId);
+    const result: AutoDirectorActionExecutionResult = {
+      directorTaskId: input.taskId,
+      taskId: input.taskId,
+      actionCode: input.actionCode,
+      code: "executed",
+      message: "已标记处理并从任务中心隐藏；小说正文和生成资产不会被删除。",
+      task: null,
+    };
+    EXECUTED_ACTION_CACHE.set(executedCacheKey, result);
+    await this.recordActionLog(mergeActionMetadata(input, {
+      archiveFollowUp: {
+        status: row.status,
+        healed,
+      },
+    }), result);
+    return result;
   }
 
   private async safeGetTaskDetail(taskId: string) {

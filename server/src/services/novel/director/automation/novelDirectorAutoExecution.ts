@@ -50,6 +50,7 @@ export interface DirectorAutoExecutionChapterRef {
   expectation?: string | null;
   generationState?: ChapterGenerationState | null;
   chapterStatus?: "unplanned" | "pending_generation" | "generating" | "pending_review" | "needs_repair" | "completed" | null;
+  volumeChapterPlanCount?: number | null;
 }
 
 export function normalizeDirectorAutoExecutionPlan(
@@ -359,6 +360,42 @@ export function hasDirectorSyncedChapterExecutionContext(chapter: DirectorAutoEx
     || Boolean(chapter.expectation?.trim());
 }
 
+function scoreDirectorAutoExecutionChapterCandidate(chapter: DirectorAutoExecutionChapterRef): number {
+  const planLinkedScore = typeof chapter.volumeChapterPlanCount === "number" && chapter.volumeChapterPlanCount > 0
+    ? 1000
+    : 0;
+  if (isDirectorAutoExecutionChapterProcessed(chapter)) {
+    return planLinkedScore + 100;
+  }
+  if (hasDirectorAutoExecutionChapterContract(chapter)) {
+    return planLinkedScore + 80;
+  }
+  if (hasDirectorSyncedChapterExecutionContext(chapter)) {
+    return planLinkedScore + 60;
+  }
+  if (hasDirectorAutoExecutionChapterContent(chapter)) {
+    return planLinkedScore + 40;
+  }
+  return planLinkedScore;
+}
+
+function selectDirectorAutoExecutionChapterCandidates(input: {
+  chapters: DirectorAutoExecutionChapterRef[];
+  range: DirectorAutoExecutionRange;
+}): DirectorAutoExecutionChapterRef[] {
+  const bestByOrder = new Map<number, DirectorAutoExecutionChapterRef>();
+  for (const chapter of input.chapters) {
+    if (chapter.order < input.range.startOrder || chapter.order > input.range.endOrder) {
+      continue;
+    }
+    const existing = bestByOrder.get(chapter.order);
+    if (!existing || scoreDirectorAutoExecutionChapterCandidate(chapter) > scoreDirectorAutoExecutionChapterCandidate(existing)) {
+      bestByOrder.set(chapter.order, chapter);
+    }
+  }
+  return Array.from(bestByOrder.values()).sort((left, right) => left.order - right.order);
+}
+
 export function buildDirectorAutoExecutionState(input: {
   range: DirectorAutoExecutionRange;
   chapters: DirectorAutoExecutionChapterRef[];
@@ -377,9 +414,7 @@ export function buildDirectorAutoExecutionState(input: {
   const skippedChapterOrders = new Set((input.plan as DirectorAutoExecutionState | null | undefined)?.skippedChapterOrders ?? []);
   const qualityDebtChapterIds = new Set((input.plan as DirectorAutoExecutionState | null | undefined)?.qualityDebtChapterIds ?? []);
   const qualityDebtChapterOrders = new Set((input.plan as DirectorAutoExecutionState | null | undefined)?.qualityDebtChapterOrders ?? []);
-  const selected = input.chapters
-    .filter((chapter) => chapter.order >= input.range.startOrder && chapter.order <= input.range.endOrder)
-    .sort((left, right) => left.order - right.order);
+  const selected = selectDirectorAutoExecutionChapterCandidates(input);
   const skipped = selected.filter((chapter) => {
     const isSkippedChapter = skippedChapterIds.has(chapter.id) || skippedChapterOrders.has(chapter.order);
     if (!isSkippedChapter) {
@@ -507,6 +542,17 @@ export function buildDirectorAutoExecutionCompletedSummary(input: {
   return `《${title}》已自动完成${completedScope}的章节执行、自动审核与修复。`;
 }
 
+function clampDirectorAutoExecutionTemperature(
+  value: number | undefined,
+  advanceMode?: NovelControlPolicy["advanceMode"],
+): number {
+  const maxTemperature = advanceMode === "full_book_autopilot" ? 0.35 : 0.45;
+  if (typeof value !== "number" || !Number.isFinite(value)) {
+    return maxTemperature;
+  }
+  return Math.max(0, Math.min(maxTemperature, value));
+}
+
 export function buildDirectorAutoExecutionPipelineOptions(input: {
   provider?: LLMProvider;
   model?: string;
@@ -523,6 +569,7 @@ export function buildDirectorAutoExecutionPipelineOptions(input: {
   repairMode?: DirectorAutoExecutionRepairMode;
 }) {
   const autoReview = input.autoReview ?? true;
+  const costMode = "economy" as const;
   return {
     startOrder: input.startOrder,
     endOrder: input.endOrder,
@@ -537,10 +584,12 @@ export function buildDirectorAutoExecutionPipelineOptions(input: {
     repairMode: input.repairMode ?? "light_repair",
     provider: input.provider,
     model: input.model,
-    temperature: input.temperature,
+    temperature: clampDirectorAutoExecutionTemperature(input.temperature, input.controlAdvanceMode),
     workflowTaskId: input.workflowTaskId,
     taskStyleProfileId: input.taskStyleProfileId,
-    artifactSyncMode: input.artifactSyncMode ?? "adaptive",
+    artifactSyncMode: costMode === "economy" ? "deferred" as const : input.artifactSyncMode ?? "adaptive",
+    costMode,
+    prefetchMode: "disabled" as const,
   };
 }
 

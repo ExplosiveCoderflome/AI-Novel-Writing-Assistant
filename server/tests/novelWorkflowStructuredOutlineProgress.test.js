@@ -139,6 +139,19 @@ function createSceneCards(chapterOrder) {
       softMaxWordCount: 2800,
       hardMaxWordCount: 3200,
     },
+    readerExperience: {
+      readerQuestion: `第${chapterOrder}章主角能否完成当前目标？`,
+      promisedReward: `第${chapterOrder}章交付一个可见推进。`,
+      rewardLevel: "partial",
+      protagonistWant: "保住当前机会并找到下一步。",
+      primaryResistance: "现实压力和信息差持续阻拦主角。",
+      keyTurn: "主角发现新的行动方向。",
+      emotionalShift: "从被动承压转向主动判断。",
+      informationReveal: "本章揭示当前困境背后的具体压力。",
+      netChange: "主角处境比开章更主动。",
+      inheritedHookResponsibilities: [],
+      endingHook: "新的具体压力在章末浮出。",
+    },
     scenes: [
       {
         key: `chapter-${chapterOrder}-scene-1`,
@@ -150,6 +163,10 @@ function createSceneCards(chapterOrder) {
         exitState: "压力升级",
         forbiddenExpansion: [],
         targetWordCount: 900,
+        resistance: "外部压力逼近。",
+        turn: "主角被迫采取行动。",
+        emotionalShift: "紧张感升高。",
+        readerValue: "读者看清本章问题。",
       },
       {
         key: `chapter-${chapterOrder}-scene-2`,
@@ -161,6 +178,10 @@ function createSceneCards(chapterOrder) {
         exitState: "代价显形",
         forbiddenExpansion: [],
         targetWordCount: 800,
+        resistance: "对手或环境制造阻碍。",
+        turn: "关键选择带来代价。",
+        emotionalShift: "从试探转向决断。",
+        readerValue: "核心冲突出现阶段推进。",
       },
       {
         key: `chapter-${chapterOrder}-scene-3`,
@@ -172,6 +193,10 @@ function createSceneCards(chapterOrder) {
         exitState: "进入下一章",
         forbiddenExpansion: [],
         targetWordCount: 800,
+        resistance: "结果余波形成新压力。",
+        turn: "章末钩子落地。",
+        emotionalShift: "阶段结果落定但压力未消。",
+        readerValue: "读者获得兑现并期待后续。",
       },
     ],
   });
@@ -368,6 +393,7 @@ test("healStaleAutoDirectorStructuredOutlineProgress advances stale chapter list
   const originals = {
     findUnique: prisma.novelWorkflowTask.findUnique,
     update: prisma.novelWorkflowTask.update,
+    commandFindFirst: prisma.directorRunCommand.findFirst,
     getVolumes: NovelVolumeService.prototype.getVolumes,
   };
 
@@ -422,6 +448,7 @@ test("healStaleAutoDirectorStructuredOutlineProgress advances stale chapter list
     updatedPayload = data;
     return data;
   };
+  prisma.directorRunCommand.findFirst = async () => ({ id: "command-active" });
 
   try {
     const service = new NovelWorkflowService();
@@ -436,6 +463,60 @@ test("healStaleAutoDirectorStructuredOutlineProgress advances stale chapter list
   } finally {
     prisma.novelWorkflowTask.findUnique = originals.findUnique;
     prisma.novelWorkflowTask.update = originals.update;
+    prisma.directorRunCommand.findFirst = originals.commandFindFirst;
+    NovelVolumeService.prototype.getVolumes = originals.getVolumes;
+  }
+});
+
+test("healStaleAutoDirectorStructuredOutlineProgress does not refresh a task with no active command", async () => {
+  const originals = {
+    findUnique: prisma.novelWorkflowTask.findUnique,
+    update: prisma.novelWorkflowTask.update,
+    commandFindFirst: prisma.directorRunCommand.findFirst,
+    getVolumes: NovelVolumeService.prototype.getVolumes,
+  };
+
+  let updateCalled = false;
+  prisma.novelWorkflowTask.findUnique = async () => ({
+    id: "task-outline-orphan",
+    novelId: "novel-demo",
+    lane: "auto_director",
+    status: "running",
+    progress: 0.78,
+    currentStage: "节奏 / 拆章",
+    currentItemKey: "chapter_list",
+    currentItemLabel: "正在生成第 1 卷章节列表",
+    checkpointType: null,
+    checkpointSummary: null,
+    seedPayloadJson: JSON.stringify({
+      runMode: "auto_to_execution",
+      autoExecutionPlan: { mode: "chapter_range", endOrder: 10 },
+      directorInput: { runMode: "auto_to_execution" },
+    }),
+    cancelRequestedAt: null,
+  });
+  prisma.novelWorkflowTask.update = async () => {
+    updateCalled = true;
+    return {};
+  };
+  prisma.directorRunCommand.findFirst = async () => null;
+  NovelVolumeService.prototype.getVolumes = async () => createWorkspace({
+    chapters: [
+      createDetailedChapter("chapter-1", 1),
+      createEmptyChapter("chapter-2", 2),
+    ],
+    beatSheets: createBeatSheet(),
+  });
+
+  try {
+    const service = new NovelWorkflowService();
+    const healed = await service.healStaleAutoDirectorStructuredOutlineProgress("task-outline-orphan");
+    assert.equal(healed, false);
+    assert.equal(updateCalled, false);
+  } finally {
+    prisma.novelWorkflowTask.findUnique = originals.findUnique;
+    prisma.novelWorkflowTask.update = originals.update;
+    prisma.directorRunCommand.findFirst = originals.commandFindFirst;
     NovelVolumeService.prototype.getVolumes = originals.getVolumes;
   }
 });

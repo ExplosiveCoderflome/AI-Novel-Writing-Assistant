@@ -24,6 +24,9 @@ const {
   inspectChapterExecutionContractReadiness,
 } = require("../dist/services/novel/volume/chapterDetail/chapterExecutionContractReadiness.js");
 const {
+  completeChapterExecutionContractFallback,
+} = require("../dist/services/novel/volume/chapterExecutionContractFallback.js");
+const {
   chapterTaskSheetQualityPrompt,
 } = require("../dist/prompting/prompts/novel/volume/chapterTaskSheetQuality.prompts.js");
 const {
@@ -74,7 +77,76 @@ function buildSceneCards() {
         targetWordCount: 1000,
       },
     ],
+    readerExperience: {
+      readerQuestion: "主角能否把资源危机转成主动试探机会？",
+      promisedReward: "主角拿到一份可验证证据，并看到下一步危险入口。",
+      rewardLevel: "partial",
+      protagonistWant: "主角想确认危机来源并争取第一份证据。",
+      primaryResistance: "内部对手隐藏痕迹，主角缺少公开调查空间。",
+      keyTurn: "主角用低成本试探逼出对手反常反应。",
+      emotionalShift: "从被动承压转为谨慎主动，再进入新的警惕。",
+      informationReveal: "资源危机来自内部而非偶然损耗。",
+      netChange: "主角从被动承压变成握有证据的试探者。",
+      inheritedHookResponsibilities: [],
+      endingHook: "新证据指向更危险的入口。",
+    },
   });
+}
+
+function buildTooShortSceneCards() {
+  return JSON.stringify({
+    targetWordCount: 3000,
+    lengthBudget: {
+      targetWordCount: 3000,
+      softMinWordCount: 2550,
+      softMaxWordCount: 3450,
+      hardMaxWordCount: 3750,
+    },
+    scenes: [
+      {
+        key: "scene-1",
+        title: "入口压力",
+        purpose: "让主角被迫正面处理新的资源危机。",
+        mustAdvance: ["暴露危机来源"],
+        mustPreserve: ["不提前解决最终对手"],
+        entryState: "主角刚拿到异常线索。",
+        exitState: "主角确认危机来自内部。",
+        forbiddenExpansion: ["不要直接揭开幕后人身份"],
+        targetWordCount: 3000,
+      },
+    ],
+    readerExperience: {
+      readerQuestion: "主角能否把资源危机转成主动试探机会？",
+      promisedReward: "主角拿到一份可验证证据，并看到下一步危险入口。",
+      rewardLevel: "partial",
+      protagonistWant: "主角想确认危机来源并争取第一份证据。",
+      primaryResistance: "内部对手隐藏痕迹，主角缺少公开调查空间。",
+      keyTurn: "主角用低成本试探逼出对手反常反应。",
+      emotionalShift: "从被动承压转为谨慎主动，再进入新的警惕。",
+      informationReveal: "资源危机来自内部而非偶然损耗。",
+      netChange: "主角从被动承压变成握有证据的试探者。",
+      inheritedHookResponsibilities: [],
+      endingHook: "新证据指向更危险的入口。",
+    },
+  });
+}
+
+function buildSceneCardsWithEmptyReaderExperience() {
+  const plan = JSON.parse(buildSceneCards());
+  plan.readerExperience = {
+    readerQuestion: "",
+    promisedReward: "",
+    rewardLevel: "setup",
+    protagonistWant: "",
+    primaryResistance: "",
+    keyTurn: "",
+    emotionalShift: "",
+    informationReveal: "",
+    netChange: "",
+    inheritedHookResponsibilities: [],
+    endingHook: "",
+  };
+  return JSON.stringify(plan);
 }
 
 function buildCandidate(overrides = {}) {
@@ -215,7 +287,112 @@ test("chapter execution contract shape gate blocks invalid task sheet artifacts"
   assert.match(formatChapterTaskSheetQualityFailure(result), /章节执行合同/);
 });
 
-test("chapter task sheet quality service lets full book mode continue with semantic warnings", async () => {
+test("chapter execution contract shape gate blocks empty reader experience contracts", () => {
+  const result = assessChapterExecutionContractShape(buildCandidate({
+    sceneCards: buildSceneCardsWithEmptyReaderExperience(),
+  }));
+
+  assert.equal(result.canEnterExecution, false);
+  assert.equal(result.status, "repairable");
+  assert.ok(result.issues.some((issue) => issue.id === "missing_reader_experience_contract"));
+  assert.match(formatChapterTaskSheetQualityFailure(result), /readerExperience/);
+});
+
+test("chapter execution contract fallback restores stale task sheet target length", () => {
+  const staleChapter = {
+    id: "volume-chapter-1",
+    volumeId: "volume-1",
+    chapterId: "chapter-1",
+    chapterOrder: 1,
+    beatKey: null,
+    title: "第一章 危机入局",
+    summary: "主角发现资源危机并开始试探。",
+    purpose: null,
+    exclusiveEvent: null,
+    endingState: null,
+    nextChapterEntryState: null,
+    conflictLevel: null,
+    conflictLevelSource: "ai",
+    revealLevel: null,
+    targetWordCount: null,
+    mustAvoid: null,
+    payoffRefs: [],
+    taskSheet: "本章以资源危机开场，主角从被动承压转为主动试探，结尾留下更危险的证据入口。",
+    sceneCards: buildSceneCards(),
+    styleContract: null,
+    createdAt: new Date(0).toISOString(),
+    updatedAt: new Date(0).toISOString(),
+  };
+
+  const completed = completeChapterExecutionContractFallback({
+    chapter: staleChapter,
+    novelDefaultChapterLength: 2600,
+  });
+  const result = assessChapterExecutionContractShape({
+    novelId: "novel-1",
+    volumeId: completed.volumeId,
+    chapterId: completed.id,
+    chapterOrder: completed.chapterOrder,
+    title: completed.title,
+    summary: completed.summary,
+    purpose: completed.purpose,
+    exclusiveEvent: completed.exclusiveEvent,
+    endingState: completed.endingState,
+    nextChapterEntryState: completed.nextChapterEntryState,
+    conflictLevel: completed.conflictLevel,
+    revealLevel: completed.revealLevel,
+    targetWordCount: completed.targetWordCount,
+    mustAvoid: completed.mustAvoid,
+    payoffRefs: completed.payoffRefs,
+    taskSheet: completed.taskSheet,
+    sceneCards: completed.sceneCards,
+  });
+  const scenePlan = JSON.parse(completed.sceneCards);
+
+  assert.equal(completed.targetWordCount, 2600);
+  assert.equal(scenePlan.targetWordCount, 2600);
+  assert.equal(result.canEnterExecution, true);
+});
+
+test("chapter execution contract fallback rebuilds too-short scene cards", () => {
+  const completed = completeChapterExecutionContractFallback({
+    chapter: {
+      id: "volume-chapter-1",
+      volumeId: "volume-1",
+      chapterId: "chapter-1",
+      chapterOrder: 1,
+      beatKey: null,
+      title: "第三章 逼近选择",
+      summary: "主角被迫在坏消息后做出下一步选择。",
+      purpose: "让主角明确选择进入下一阶段行动。",
+      exclusiveEvent: "主角做出进入下一阶段的决定。",
+      endingState: "主角带着新决定进入下一章。",
+      nextChapterEntryState: "下一章从执行这个决定开始。",
+      conflictLevel: 40,
+      conflictLevelSource: "ai",
+      revealLevel: 25,
+      targetWordCount: null,
+      mustAvoid: "不要提前解决后续主冲突。",
+      payoffRefs: [],
+      taskSheet: "本章推进主角做出关键选择。",
+      sceneCards: buildTooShortSceneCards(),
+      styleContract: null,
+      createdAt: new Date(0).toISOString(),
+      updatedAt: new Date(0).toISOString(),
+    },
+    novelDefaultChapterLength: 2800,
+  });
+  const scenePlan = JSON.parse(completed.sceneCards);
+
+  assert.equal(completed.targetWordCount, 2800);
+  assert.equal(scenePlan.scenes.length, 3);
+  assert.equal(scenePlan.scenes.reduce((sum, scene) => sum + scene.targetWordCount, 0), 2800);
+  assert.deepEqual(scenePlan.scenes[2].mustAdvance, ["主角带着新决定进入下一章。"]);
+  assert.equal(scenePlan.readerExperience.rewardLevel, "partial");
+  assert.equal(scenePlan.readerExperience.endingHook, "下一章从执行这个决定开始。");
+});
+
+test("chapter task sheet quality service lets full book mode auto-repair semantic failures", async () => {
   const service = new ChapterTaskSheetQualityGateService(async () => ({
     verdict: "repairable",
     safeToSync: false,
@@ -277,6 +454,9 @@ test("chapter task sheet quality prompt declares strict JSON contract", () => {
   assert.match(systemText, /readerExperience\.rewardLevel 表示本章计划提供的可见回报强度/);
   assert.match(systemText, /只能使用 setup、partial、major/);
   assert.match(systemText, /完整兑现了 promisedReward，也不要建议把 rewardLevel 改为 full/);
+  assert.match(systemText, /通常应评估为 partial/);
+  assert.match(systemText, /sceneCards\.mustAdvance 只能保存本章/);
+  assert.match(systemText, /nextChapterEntryState/);
   assert.match(systemText, /confidence 必须是 0 到 1 之间的小数/);
   assert.match(systemText, /"verdict": "repairable"/);
 });

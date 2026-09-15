@@ -278,6 +278,33 @@ test("takeover chapter target builds a chapter range when the user chooses a lat
   assert.match(target?.summary ?? "", /第 11 章开始/);
 });
 
+test("takeover chapter target prefers the executable next chapter over generated counts", () => {
+  const target = buildTakeoverChapterTarget(buildReadiness({
+    snapshot: {
+      hasStoryMacroPlan: true,
+      hasBookContract: true,
+      characterCount: 5,
+      chapterCount: 40,
+      volumeCount: 1,
+      firstVolumeChapterCount: 40,
+      generatedChapterCount: 21,
+      approvedChapterCount: 18,
+    },
+    executableRange: {
+      startOrder: 1,
+      endOrder: 40,
+      totalChapterCount: 40,
+      nextChapterOrder: 19,
+    },
+  }), null, 21);
+
+  assert.equal(target?.startOrder, 19);
+  assert.equal(target?.selectedOrder, 21);
+  assert.equal(target?.plan.startOrder, 19);
+  assert.equal(target?.plan.endOrder, 21);
+  assert.match(target?.summary ?? "", /第 19 章开始/);
+});
+
 test("takeover chapter target clamps input to unwritten chapter range", () => {
   const target = buildTakeoverChapterTarget(buildReadiness({
     snapshot: {

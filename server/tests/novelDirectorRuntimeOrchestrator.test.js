@@ -54,6 +54,9 @@ function buildOrchestrator(artifacts = [artifact], options = {}) {
         inventory: { artifacts: resolveArtifacts() },
       }),
       runNode: async (contract, input, collectArtifacts) => {
+        if (options.runNode) {
+          return options.runNode(contract, input, collectArtifacts);
+        }
         const output = await contract.run(input.payload);
         const producedArtifacts = collectArtifacts ? await collectArtifacts(output) : [];
         runtimeCalls.push({
@@ -132,6 +135,31 @@ function buildNoopModule(input) {
     },
   );
 }
+
+test("executable steps tolerate reused runtime nodes without stored output", async () => {
+  const { orchestrator } = buildOrchestrator([], {
+    runNode: async () => ({
+      status: "completed",
+      producedArtifacts: [],
+    }),
+  });
+  const module = buildNoopModule({
+    id: "structured.outline.reused",
+    nodeKey: "structured_outline_node",
+    label: "Reuse structured outline",
+    stage: "structured_outline",
+    writes: ["chapter_task_sheet"],
+  });
+
+  const result = await orchestrator.runStepModule({
+    module,
+    taskId: "task-reused-node",
+    novelId: "novel-1",
+    runner: async () => ({ shouldNotRun: true }),
+  });
+
+  assert.equal(result, undefined);
+});
 
 test("executable projection steps inspect preloaded artifacts before validation", async () => {
   const readerPromise = buildArtifact("reader_promise");

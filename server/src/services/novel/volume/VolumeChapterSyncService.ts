@@ -15,6 +15,7 @@ import {
   hasPayoffLedgerRelevantPlanChanges,
   type ExistingChapterRecord,
 } from "./volumePlanUtils";
+import { completeExecutionContractsInDocument } from "./chapterExecutionContractFallback";
 import type { VolumeSyncInput } from "./volumeModels";
 import {
   mergeVolumeWorkspaceInput,
@@ -65,14 +66,39 @@ export class VolumeChapterSyncService {
     }));
   }
 
+  private collectSyncedChapterOrders(
+    volumes: VolumePlan[],
+    chapterRange?: VolumeSyncInput["executionContractChapterRange"],
+  ): number[] {
+    return Array.from(new Set(
+      volumes.flatMap((volume) => volume.chapters)
+        .filter((chapter) => (
+          !chapterRange
+          || (chapter.chapterOrder >= chapterRange.startOrder && chapter.chapterOrder <= chapterRange.endOrder)
+        ))
+        .map((chapter) => chapter.chapterOrder)
+        .filter((order) => Number.isFinite(order) && order >= 1),
+    )).sort((left, right) => left - right);
+  }
+
   async syncVolumeChaptersWithOptions(
     novelId: string,
     input: VolumeSyncInput,
     options: VolumeChapterSyncOptions = {},
   ): Promise<VolumeSyncPreview> {
     const workspace = await this.deps.ensureVolumeWorkspace(novelId);
-    const mergedDocument = mergeVolumeWorkspaceInput(novelId, workspace, { volumes: input.volumes });
+    const rawMergedDocument = mergeVolumeWorkspaceInput(novelId, workspace, { volumes: input.volumes });
+    let mergedDocument = rawMergedDocument;
     if (!input.allowIncompleteExecutionContracts) {
+      const novel = await prisma.novel.findUnique({
+        where: { id: novelId },
+        select: { defaultChapterLength: true },
+      });
+      mergedDocument = completeExecutionContractsInDocument({
+        document: rawMergedDocument,
+        novelDefaultChapterLength: novel?.defaultChapterLength ?? null,
+        chapterRange: input.executionContractChapterRange,
+      });
       this.assertSyncableChapterExecutionContracts(mergedDocument, input.executionContractChapterRange);
     }
     const shouldSyncPayoffLedger = hasPayoffLedgerRelevantPlanChanges(workspace.volumes, mergedDocument.volumes);
@@ -107,6 +133,10 @@ export class VolumeChapterSyncService {
     await runVolumeWorkspaceTransaction(async (tx) => {
       const { versionId } = await this.deps.ensureActiveVersionRecord(tx, novelId, mergedDocument);
       const linkUpdates: Array<{ volumeChapterId: string; chapterId: string }> = [...plan.links];
+      const syncedChapterOrders = this.collectSyncedChapterOrders(
+        mergedDocument.volumes,
+        input.executionContractChapterRange,
+      );
       for (const item of plan.creates) {
         const created = await tx.chapter.create({
           data: {
@@ -159,6 +189,20 @@ export class VolumeChapterSyncService {
       for (const item of plan.deletes) {
         await tx.chapter.deleteMany({
           where: { id: item.chapterId, novelId },
+        });
+      }
+      const linkedChapterIds = Array.from(new Set(linkUpdates.map((link) => link.chapterId).filter(Boolean)));
+      if (linkedChapterIds.length > 0 && syncedChapterOrders.length > 0) {
+        await tx.chapter.deleteMany({
+          where: {
+            novelId,
+            order: { in: syncedChapterOrders },
+            id: { notIn: linkedChapterIds },
+            generationState: "planned",
+            chapterStatus: "unplanned",
+            OR: [{ content: null }, { content: "" }],
+            volumeChapterPlans: { none: {} },
+          },
         });
       }
       const linkedDocument = {

@@ -64,6 +64,44 @@ function normalizeArtifactSyncMode(value: unknown): PipelinePayload["artifactSyn
     : undefined;
 }
 
+function normalizePipelineCostMode(value: unknown): PipelinePayload["costMode"] | undefined {
+  return value === "economy" || value === "balanced" || value === "unlimited"
+    ? value
+    : undefined;
+}
+
+function normalizePipelinePrefetchMode(value: unknown): PipelinePayload["prefetchMode"] | undefined {
+  return value === "enabled" || value === "disabled"
+    ? value
+    : undefined;
+}
+
+function normalizePositiveInteger(value: unknown): number | undefined {
+  if (typeof value !== "number" || !Number.isFinite(value)) {
+    return undefined;
+  }
+  const normalized = Math.floor(value);
+  return normalized > 0 ? normalized : undefined;
+}
+
+function normalizePipelineCostGuard(value: unknown): PipelinePayload["costGuard"] | undefined {
+  if (!value || typeof value !== "object") {
+    return undefined;
+  }
+  const raw = value as Record<string, unknown>;
+  const warningRatio = typeof raw.warningRatio === "number" && Number.isFinite(raw.warningRatio)
+    ? Math.max(0.1, Math.min(0.99, raw.warningRatio))
+    : undefined;
+  const costGuard = {
+    maxJobTotalTokens: normalizePositiveInteger(raw.maxJobTotalTokens),
+    maxJobLlmCalls: normalizePositiveInteger(raw.maxJobLlmCalls),
+    maxChapterTotalTokens: normalizePositiveInteger(raw.maxChapterTotalTokens),
+    maxChapterLlmCalls: normalizePositiveInteger(raw.maxChapterLlmCalls),
+    ...(warningRatio != null ? { warningRatio } : {}),
+  };
+  return Object.values(costGuard).some((item) => item != null) ? costGuard : undefined;
+}
+
 function normalizePipelineBackgroundActivity(value: unknown): PipelineBackgroundSyncActivity | null {
   if (!value || typeof value !== "object") {
     return null;
@@ -248,6 +286,9 @@ export function parsePipelinePayload(payload: string | null | undefined): Pipeli
           ? parsed.repairMode
           : undefined,
       artifactSyncMode: normalizeArtifactSyncMode(parsed.artifactSyncMode),
+      costMode: normalizePipelineCostMode(parsed.costMode),
+      prefetchMode: normalizePipelinePrefetchMode(parsed.prefetchMode),
+      costGuard: normalizePipelineCostGuard(parsed.costGuard),
       controlPolicy: normalizeControlPolicy(parsed.controlPolicy),
       issueGovernanceVersion: parsed.issueGovernanceVersion === 1 ? 1 : undefined,
       issuePolicySnapshot: normalizeIssuePolicy(parsed.issuePolicySnapshot),
@@ -280,6 +321,9 @@ export function stringifyPipelinePayload(input: PipelinePayload): string {
     qualityThreshold: input.qualityThreshold ?? null,
     repairMode: input.repairMode ?? "light_repair",
     artifactSyncMode: input.artifactSyncMode ?? "adaptive",
+    costMode: input.costMode ?? "economy",
+    prefetchMode: input.prefetchMode ?? "disabled",
+    ...(input.costGuard ? { costGuard: normalizePipelineCostGuard(input.costGuard) ?? input.costGuard } : {}),
     ...(input.controlPolicy ? { controlPolicy: normalizeControlPolicy(input.controlPolicy) ?? input.controlPolicy } : {}),
     ...(input.issueGovernanceVersion === 1 && input.issuePolicySnapshot
       ? {

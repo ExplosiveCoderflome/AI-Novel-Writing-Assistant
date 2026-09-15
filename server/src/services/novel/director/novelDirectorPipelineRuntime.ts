@@ -20,7 +20,12 @@ import type { NovelVolumeService } from "../volume/NovelVolumeService";
 import type { NovelWorkflowService } from "../workflow/NovelWorkflowService";
 import { recordAutoDirectorAutoApprovalFromTask } from "../../task/autoDirectorFollowUps/autoDirectorAutoApprovalAudit";
 import { normalizeDirectorMemoryScope } from "./runtime/autoDirectorMemorySafety";
-import { buildWorkflowSeedPayload, normalizeDirectorRunMode } from "./runtime/novelDirectorHelpers";
+import {
+  buildWorkflowSeedPayload,
+  buildDirectorSessionState,
+  normalizeDirectorRunMode,
+} from "./runtime/novelDirectorHelpers";
+import { DIRECTOR_PROGRESS } from "./projections/novelDirectorProgress";
 import {
   type DirectorCharacterSetupPhaseResult,
   runDirectorCharacterSetupPhase,
@@ -46,6 +51,7 @@ import {
 import type { DirectorPipelinePhase } from "./recovery/novelDirectorRecovery";
 import { WorldContextGateway } from "../worldContext/WorldContextGateway";
 import type { NovelWorkflowStage } from "@ai-novel/shared/types/novelWorkflow";
+import { buildDirectorAutoExecutionScopeLabel } from "./automation/novelDirectorAutoExecution";
 
 export interface DirectorPipelineRunInput {
   taskId: string;
@@ -381,8 +387,28 @@ export class NovelDirectorPipelineRuntime {
   }
 
   private async maybeRunAutoApprovedChapters(input: DirectorPipelineRunInput): Promise<void> {
-    const shouldAutoApproveCheckpoint = this.shouldAutoApproveCheckpoint(input.input, "chapter_batch_ready");
-    if (!input.approveAutoExecutionScope && !shouldAutoApproveCheckpoint) {
+    const request = input.input;
+    const effectiveInput = input;
+    const shouldAutoApproveCheckpoint = this.shouldAutoApproveCheckpoint(request, "chapter_batch_ready");
+    if (!effectiveInput.approveAutoExecutionScope && !shouldAutoApproveCheckpoint) {
+      if (isDirectorAutoExecutionRunMode(normalizeDirectorRunMode(request.runMode))) {
+        const scopeLabel = buildDirectorAutoExecutionScopeLabel(request.autoExecutionPlan, null, null);
+        await this.deps.workflowService.markTaskWaitingApproval(input.taskId, {
+          stage: "chapter_execution",
+          itemKey: "chapter_batch_ready",
+          itemLabel: `${scopeLabel}已可进入章节执行`,
+          progress: DIRECTOR_PROGRESS.chapterBatchReady,
+          checkpointType: "chapter_batch_ready",
+          checkpointSummary: `《${request.candidate.workingTitle.trim() || request.title?.trim() || "当前项目"}》的${scopeLabel}执行资源已准备好，可以继续进入正文生成。`,
+          seedPayload: this.deps.buildDirectorSeedPayload(request, input.novelId, {
+            directorSession: buildDirectorSessionState({
+              runMode: request.runMode,
+              phase: "chapter_execution",
+              isBackgroundRunning: false,
+            }),
+          }),
+        });
+      }
       return;
     }
     if (shouldAutoApproveCheckpoint) {

@@ -105,3 +105,31 @@ test("pipeline payload preserves the issue policy snapshot used for recovery", (
     },
   });
 });
+
+test("pipeline payload preserves cost guard controls", () => {
+  const payload = stringifyPipelinePayload({
+    provider: "deepseek",
+    model: "deepseek-v4-flash",
+    costMode: "economy",
+    prefetchMode: "disabled",
+    costGuard: {
+      maxJobTotalTokens: 120000,
+      maxJobLlmCalls: 14,
+      maxChapterTotalTokens: 55000,
+      maxChapterLlmCalls: 6,
+      warningRatio: 0.75,
+    },
+  });
+
+  const parsed = parsePipelinePayload(payload);
+
+  assert.equal(parsed.costMode, "economy");
+  assert.equal(parsed.prefetchMode, "disabled");
+  assert.deepEqual(parsed.costGuard, {
+    maxJobTotalTokens: 120000,
+    maxJobLlmCalls: 14,
+    maxChapterTotalTokens: 55000,
+    maxChapterLlmCalls: 6,
+    warningRatio: 0.75,
+  });
+});

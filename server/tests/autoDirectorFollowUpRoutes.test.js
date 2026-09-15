@@ -247,6 +247,19 @@ test("auto director follow-up routes expose overview, list, detail, and action e
     assert.equal(safeFixPayload.success, true);
     assert.equal(safeFixPayload.data.code, "executed");
 
+    const archiveFollowUpResponse = await fetch(`http://127.0.0.1:${port}/api/auto-director/follow-ups/task_1/actions`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        actionCode: "archive_follow_up",
+        idempotencyKey: "route-archive-follow-up-k1",
+      }),
+    });
+    assert.equal(archiveFollowUpResponse.status, 200);
+    const archiveFollowUpPayload = await archiveFollowUpResponse.json();
+    assert.equal(archiveFollowUpPayload.success, true);
+    assert.equal(archiveFollowUpPayload.data.code, "executed");
+
     const batchResponse = await fetch(`http://127.0.0.1:${port}/api/auto-director/follow-ups/batch-actions`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -276,9 +289,7 @@ test("auto director follow-up routes expose overview, list, detail, and action e
         pageSize: 20,
       }],
       ["detail", "task_1", undefined],
-      ["detail", "task_1", {
-        heal: false,
-      }],
+      ["detail", "task_1", undefined],
       ["execute", {
         directorTaskId: "task_1",
         taskId: "task_1",
@@ -294,6 +305,14 @@ test("auto director follow-up routes expose overview, list, detail, and action e
         source: "web",
         operatorId: "anonymous",
         idempotencyKey: "route-safe-fix-k1",
+      }],
+      ["execute", {
+        directorTaskId: "task_1",
+        taskId: "task_1",
+        actionCode: "archive_follow_up",
+        source: "web",
+        operatorId: "anonymous",
+        idempotencyKey: "route-archive-follow-up-k1",
       }],
       ["batch", {
         actionCode: "retry_with_task_model",

@@ -84,7 +84,7 @@ const CHECKPOINT_LAST_HEALTHY_STAGE: Record<NovelWorkflowCheckpoint, NovelWorkfl
   workflow_completed: "quality_repair",
 };
 
-function getExecutionScopeLabel(input: WorkflowExplainabilityInput, fallback = "第 1-10 章"): string {
+function getExecutionScopeLabel(input: WorkflowExplainabilityInput, fallback = "当前章节范围"): string {
   return input.executionScopeLabel?.trim() || fallback;
 }
 

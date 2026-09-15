@@ -125,6 +125,38 @@ function isLengthDirective(directive: AcceptanceRepairDirective): boolean {
   return includesAnyMarker(directive.instruction, [...UNDER_LENGTH_MARKERS, ...OVER_LENGTH_MARKERS]);
 }
 
+function createUnderLengthIssue(input: {
+  actualWordCount: number;
+  minWordCount: number;
+  targetWordCount: number | null;
+}): AcceptanceIssue {
+  const targetText = input.targetWordCount != null ? `目标 ${input.targetWordCount} 字` : "当前目标字数";
+  const gap = input.minWordCount - input.actualWordCount;
+  return {
+    severity: gap >= 200 ? "high" : "medium",
+    category: "mode_fit",
+    code: "LENGTH_UNDER_SOFT_MIN",
+    evidence: `正文约 ${input.actualWordCount} 字，低于${targetText}的软下限 ${input.minWordCount} 字。`,
+    fixSuggestion: "补写有效剧情、冲突、对话和动作，使正文进入目标字数区间；不要用重复回顾或空泛心理独白凑字数。",
+  };
+}
+
+function createUnderLengthDirective(input: {
+  actualWordCount: number;
+  minWordCount: number;
+  targetWordCount: number | null;
+}): AcceptanceRepairDirective {
+  const targetText = input.targetWordCount != null ? `${input.targetWordCount} 字目标` : "目标字数";
+  return {
+    mode: "patch",
+    target: "plot",
+    instruction: `在不改写既有关键事实的前提下，补强正文到 ${targetText} 的可接受区间；当前约 ${input.actualWordCount} 字，至少需要达到 ${input.minWordCount} 字。`,
+  };
+}
+
+function isHardMissingObligation(obligation: ChapterExecutionMissingObligation): boolean {
+  return obligation.kind === "must_hit_now" || obligation.kind === "forbidden_crossing";
+}
 function shouldDropLengthIssue(input: {
   issue: AcceptanceIssue;
   actualWordCount: number;
@@ -156,14 +188,45 @@ function reconcileLengthAssessment(
     minWordCount: range.minWordCount,
     maxWordCount: range.maxWordCount,
   }));
-  if (blockingIssues.length === output.blockingIssues.length) {
+  const repairDirectives = output.repairDirectives.filter((directive) => !isLengthDirective(directive));
+  let riskTags = output.riskTags.filter((tag) => !includesAnyMarker(tag, [...UNDER_LENGTH_MARKERS, ...OVER_LENGTH_MARKERS]));
+  let nextBlockingIssues = blockingIssues;
+  let nextRepairDirectives = repairDirectives;
+  if (
+    range.minWordCount != null
+    && actualWordCount < range.minWordCount
+    && !blockingIssues.some(isUnderLengthIssue)
+  ) {
+    nextBlockingIssues = [
+      ...blockingIssues,
+      createUnderLengthIssue({
+        actualWordCount,
+        minWordCount: range.minWordCount,
+        targetWordCount: range.targetWordCount,
+      }),
+    ];
+    nextRepairDirectives = [
+      ...repairDirectives,
+      createUnderLengthDirective({
+        actualWordCount,
+        minWordCount: range.minWordCount,
+        targetWordCount: range.targetWordCount,
+      }),
+    ];
+    riskTags = [...riskTags, "length_under_soft_min"];
+  }
+  if (
+    nextBlockingIssues.length === output.blockingIssues.length
+    && nextRepairDirectives.length === output.repairDirectives.length
+    && riskTags.length === output.riskTags.length
+  ) {
     return output;
   }
   return {
     ...output,
-    blockingIssues,
-    repairDirectives: output.repairDirectives.filter((directive) => !isLengthDirective(directive)),
-    riskTags: output.riskTags.filter((tag) => !includesAnyMarker(tag, [...UNDER_LENGTH_MARKERS, ...OVER_LENGTH_MARKERS])),
+    blockingIssues: nextBlockingIssues,
+    repairDirectives: nextRepairDirectives,
+    riskTags,
   };
 }
 
@@ -176,14 +239,23 @@ export function normalizeAssessment(
   const score = normalizeScore(reconciled.score ?? ruleScore(content));
   const missingObligations = reconciled.missingObligations ?? [];
   const hasHighRisk = reconciled.blockingIssues.some((issue) => issue.severity === "high" || issue.severity === "critical");
+  const hasUnderLengthIssue = reconciled.blockingIssues.some(isUnderLengthIssue);
+  const hasHardMissingObligation = missingObligations.some(isHardMissingObligation);
   const hasRepairWork = reconciled.blockingIssues.length > 0
     || reconciled.repairDirectives.length > 0
     || missingObligations.length > 0
     || reconciled.repairability === "patchable_obligation_gap"
     || reconciled.repairability === "rewrite_needed";
-  let status: ChapterAcceptanceAssessmentOutput["status"] = reconciled.status;
-  if (status === "accepted" && (hasHighRisk || hasRepairWork)) {
-    status = "repairable";
+  const hasNonObligationRepairWork = reconciled.blockingIssues.length > 0
+    || reconciled.repairDirectives.length > 0
+    || (reconciled.repairability === "patchable_obligation_gap" && missingObligations.length === 0)
+    || reconciled.repairability === "rewrite_needed";
+  let status: ChapterAcceptanceAssessmentOutput["status"] = reconciled.status === "accepted"
+    && (hasHighRisk || hasUnderLengthIssue || hasNonObligationRepairWork)
+    ? "repairable"
+    : reconciled.status;
+  if (status === "accepted" && missingObligations.length > 0) {
+    status = hasHardMissingObligation ? "repairable" : "continue_with_risk";
   }
   if (status === "needs_manual_review" && reconciled !== output && !hasHighRisk && hasRepairWork) {
     status = "repairable";

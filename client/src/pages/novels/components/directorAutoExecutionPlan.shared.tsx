@@ -92,7 +92,7 @@ export function createDefaultDirectorAutoExecutionDraftState(
 ): DirectorAutoExecutionDraftState {
   return {
     ...DEFAULT_DIRECTOR_AUTO_EXECUTION_DRAFT,
-    mode: usage === "takeover" ? "book" : DEFAULT_DIRECTOR_AUTO_EXECUTION_DRAFT.mode,
+    mode: usage === "takeover" ? "chapter_range" : DEFAULT_DIRECTOR_AUTO_EXECUTION_DRAFT.mode,
   };
 }
 

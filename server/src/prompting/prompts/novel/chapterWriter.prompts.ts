@@ -24,6 +24,8 @@ export const chapterWriterPrompt: PromptAsset<ChapterWriterPromptInput, string, 
   contextPolicy: {
     maxTokensBudget: NOVEL_PROMPT_BUDGETS.chapterWriter,
     requiredGroups: [
+      "writing_platform",
+      "book_contract",
       "chapter_mission",
       "reader_experience",
       "character_hard_facts",
@@ -34,6 +36,8 @@ export const chapterWriterPrompt: PromptAsset<ChapterWriterPromptInput, string, 
       "local_state",
     ],
     preferredGroups: [
+      "book_contract",
+      "writing_platform",
       "obligation_contract",
       "reader_experience",
       "character_hard_facts",
@@ -116,6 +120,14 @@ export const chapterWriterPrompt: PromptAsset<ChapterWriterPromptInput, string, 
       default: "结尾必须形成新的钩子（悬念、决策点、突发变化或压力升级），推动读者进入下一章。",
       maxLength: 500,
     },
+    {
+      kind: "replace",
+      key: "writer.commercialViability",
+      label: "追读与变现约束",
+      description: "控制每章围绕卖点、平台读感和读者回报写作，减少可读但不吸引人的正文。",
+      default: "每章都要服务本书核心卖点和目标平台读感：让主角主动争取、读者看到阶段回报、冲突继续升级，并在结尾留下明确追读理由。正文必须保持原创表达，不复制参考文本、角色名、专有设定或标志性桥段。",
+      maxLength: 800,
+    },
     // choice：叙事视角
     {
       kind: "choice",
@@ -183,6 +195,8 @@ export const chapterWriterPrompt: PromptAsset<ChapterWriterPromptInput, string, 
       ?? "控制无效修饰，避免长段空洞描写或「AI感」八股表达。";
     const endingHook = slots?.text("writer.endingHookPreference")
       ?? "结尾必须形成新的钩子（悬念、决策点、突发变化或压力升级），推动读者进入下一章。";
+    const commercialViability = slots?.text("writer.commercialViability")
+      ?? "每章都要服务本书核心卖点和目标平台读感：让主角主动争取、读者看到阶段回报、冲突继续升级，并在结尾留下明确追读理由。正文必须保持原创表达，不复制参考文本、角色名、专有设定或标志性桥段。";
     const povCopy = slots?.choiceCopy("writer.pov")
       ?? "使用第三人称有限视角叙述，聚焦主角感知，不跳出其认知边界。";
     const antiClicherEnabled = slots?.enabled("writer.antiCliché") ?? false;
@@ -231,6 +245,8 @@ export const chapterWriterPrompt: PromptAsset<ChapterWriterPromptInput, string, 
         "1. 必须推进新的剧情动作，本章必须发生实质变化（局面、关系、信息、风险、决策至少一项）。",
         "1a. reader_experience 是本章读者体验硬合同：必须让 promisedReward、keyTurn 与 netChange 在正文中可见，主角必须围绕 protagonistWant 主动行动并面对 primaryResistance。",
         "1b. inheritedHookResponsibilities 必须优先得到回应、触达或部分兑现；不得只制造新钩子而不给旧问题任何回报。",
+        "1c. book_contract 与 writing_platform 是商业定位硬约束：正文必须围绕核心卖点、目标读者、前 30 章承诺和平台读感组织，不写与卖点无关的漂亮空转段落。",
+        "1d. 本章至少要提供一个读者可感知的追读理由：阶段收益、信息差、关系张力、危机升级、资源变化、目标推进或反压爽点之一必须落到正文中。",
         "2. 必须严格服从 chapter mission、mustAdvance、mustPreserve 与 ending hook。",
         "3. obligation contract 中的 must hit now、required payoff touches、required character appearances、required goal changes 都是本章必达项，必须在正文中让读者可见。",
       "4. character_hard_facts 是不可违背的人物硬事实，角色身份、阵营、立场、境界/战力、当前位置和可出场状态不得写反。",
@@ -244,6 +260,7 @@ export const chapterWriterPrompt: PromptAsset<ChapterWriterPromptInput, string, 
         "2. 中段必须出现推进、变化或对抗，不能平铺直叙维持同一状态。",
         "3. 本章至少出现一次明确的「状态变化」（信息反转、局面升级、关系变化、风险上升或计划转向）。",
         "4. " + endingHook,
+        "5. " + commercialViability,
         "",
         "【篇幅要求】",
         lengthBlock,
@@ -274,6 +291,8 @@ export const chapterWriterPrompt: PromptAsset<ChapterWriterPromptInput, string, 
         "禁止用总结性语句代替剧情发展。",
         "禁止重复追求 chapter_mission 中 'Already completed' 列表里已完成的目标（如已办好的证件、已签的协议）。",
         "禁止重复使用 opening_constraints 中 'Scene pattern blacklist' 列表里标注的场景模式（时间+地点+动作三要素完全相同的场景）。",
+        "禁止为了凑字数写与主卖点、当前冲突、角色选择或读者回报无关的支线闲聊。",
+        "禁止复用参考作品的可识别角色、组织、地名、专有名词、名场面或标志性表达；参考只允许转化为抽象技法。",
         antiClicherEnabled ? `\n【额外套路禁区】\n${antiClicherCopy}` : "",
         "",
         "【反模式替换】",
@@ -287,6 +306,7 @@ export const chapterWriterPrompt: PromptAsset<ChapterWriterPromptInput, string, 
         "(2) obligation contract 的所有必达项是否已在正文中可见兑现？",
         "(3) 是否违反了任何禁止规则（新角色、场景模式重复、未铺垫转折）？",
         "(4) 读者是否实际获得了 promisedReward，并能看见 keyTurn、netChange 和旧钩子承接？",
+        "(5) 本章是否贴合 book_contract、writing_platform 和核心卖点，能让目标读者愿意继续读下一章？",
         "确认通过后再开始输出，不需要在正文中输出核查结果。",
       ].filter((line) => line !== "").join("\n")),
       new HumanMessage([

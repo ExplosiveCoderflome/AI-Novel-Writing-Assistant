@@ -19,6 +19,19 @@ export interface LlmUsageTrackingContext {
   directorRunId?: string | null;
   directorStepIdempotencyKey?: string | null;
   directorNodeKey?: string | null;
+  usageBudget?: LlmUsageBudgetContext | null;
+}
+
+export interface LlmUsageBudgetContext {
+  maxJobTotalTokens?: number;
+  maxJobLlmCalls?: number;
+  maxChapterTotalTokens?: number;
+  maxChapterLlmCalls?: number;
+  warningRatio?: number;
+  jobBaselineTotalTokens?: number;
+  jobBaselineLlmCallCount?: number;
+  chapterBaselineTotalTokens?: number;
+  chapterBaselineLlmCallCount?: number;
 }
 
 export interface LlmUsageTrackingMeta {
@@ -193,6 +206,16 @@ function mergeBooleanValue(current: boolean | null | undefined, next: boolean | 
   return current === true;
 }
 
+function mergeUsageBudget(
+  current: LlmUsageBudgetContext | null | undefined,
+  next: LlmUsageBudgetContext | null | undefined,
+): LlmUsageBudgetContext | null {
+  if (next !== undefined) {
+    return next;
+  }
+  return current ?? null;
+}
+
 export function runWithLlmUsageTracking<T>(
   context: LlmUsageTrackingContext,
   runner: () => Promise<T>,
@@ -211,9 +234,114 @@ export function runWithLlmUsageTracking<T>(
         context.directorStepIdempotencyKey,
       ),
       directorNodeKey: mergeContextValue(current?.directorNodeKey, context.directorNodeKey),
+      usageBudget: mergeUsageBudget(current?.usageBudget, context.usageBudget),
     },
     runner,
   );
+}
+
+function normalizeBudgetLimit(value: number | null | undefined): number | null {
+  if (typeof value !== "number" || !Number.isFinite(value)) {
+    return null;
+  }
+  const normalized = Math.floor(value);
+  return normalized > 0 ? normalized : null;
+}
+
+function isBudgetExceeded(current: number, limit: number | null): limit is number {
+  return limit != null && current >= limit;
+}
+
+function buildUsageBudgetError(input: {
+  scope: "job" | "chapter";
+  metric: "tokens" | "llm_calls";
+  current: number;
+  limit: number;
+}): Error {
+  const metricLabel = input.metric === "tokens" ? "Tokens" : "AI 调用次数";
+  const scopeLabel = input.scope === "chapter" ? "单章" : "当前任务";
+  const error = new Error(`${scopeLabel}${metricLabel}已达到预算上限 ${input.limit}，系统已暂停，避免继续消耗。当前=${input.current}。`);
+  Object.assign(error, {
+    code: "PIPELINE_COST_GUARD_EXCEEDED",
+    details: input,
+  });
+  return error;
+}
+
+async function readTrackedUsageCounters(context: LlmUsageTrackingContext): Promise<{
+  totalTokens: number;
+  llmCallCount: number;
+}> {
+  if (context.generationJobId) {
+    const job = await prisma.generationJob.findUnique({
+      where: { id: context.generationJobId },
+      select: { totalTokens: true, llmCallCount: true },
+    }).catch(() => null);
+    return {
+      totalTokens: Math.max(0, job?.totalTokens ?? 0),
+      llmCallCount: Math.max(0, job?.llmCallCount ?? 0),
+    };
+  }
+  if (context.workflowTaskId) {
+    const task = await prisma.novelWorkflowTask.findUnique({
+      where: { id: context.workflowTaskId },
+      select: { totalTokens: true, llmCallCount: true },
+    }).catch(() => null);
+    return {
+      totalTokens: Math.max(0, task?.totalTokens ?? 0),
+      llmCallCount: Math.max(0, task?.llmCallCount ?? 0),
+    };
+  }
+  return { totalTokens: 0, llmCallCount: 0 };
+}
+
+async function assertLlmUsageBudgetBeforeCall(): Promise<void> {
+  const context = usageTrackingStore.getStore();
+  const budget = context?.usageBudget;
+  if (!context || !budget) {
+    return;
+  }
+  const counters = await readTrackedUsageCounters(context);
+  const jobTotalTokens = Math.max(0, counters.totalTokens - Math.max(0, budget.jobBaselineTotalTokens ?? 0));
+  const jobLlmCallCount = Math.max(0, counters.llmCallCount - Math.max(0, budget.jobBaselineLlmCallCount ?? 0));
+  const chapterTotalTokens = Math.max(0, counters.totalTokens - Math.max(0, budget.chapterBaselineTotalTokens ?? counters.totalTokens));
+  const chapterLlmCallCount = Math.max(0, counters.llmCallCount - Math.max(0, budget.chapterBaselineLlmCallCount ?? counters.llmCallCount));
+  const maxJobTotalTokens = normalizeBudgetLimit(budget.maxJobTotalTokens);
+  const maxJobLlmCalls = normalizeBudgetLimit(budget.maxJobLlmCalls);
+  const maxChapterTotalTokens = normalizeBudgetLimit(budget.maxChapterTotalTokens);
+  const maxChapterLlmCalls = normalizeBudgetLimit(budget.maxChapterLlmCalls);
+  if (isBudgetExceeded(chapterTotalTokens, maxChapterTotalTokens)) {
+    throw buildUsageBudgetError({
+      scope: "chapter",
+      metric: "tokens",
+      current: chapterTotalTokens,
+      limit: maxChapterTotalTokens,
+    });
+  }
+  if (isBudgetExceeded(chapterLlmCallCount, maxChapterLlmCalls)) {
+    throw buildUsageBudgetError({
+      scope: "chapter",
+      metric: "llm_calls",
+      current: chapterLlmCallCount,
+      limit: maxChapterLlmCalls,
+    });
+  }
+  if (isBudgetExceeded(jobTotalTokens, maxJobTotalTokens)) {
+    throw buildUsageBudgetError({
+      scope: "job",
+      metric: "tokens",
+      current: jobTotalTokens,
+      limit: maxJobTotalTokens,
+    });
+  }
+  if (isBudgetExceeded(jobLlmCallCount, maxJobLlmCalls)) {
+    throw buildUsageBudgetError({
+      scope: "job",
+      metric: "llm_calls",
+      current: jobLlmCallCount,
+      limit: maxJobLlmCalls,
+    });
+  }
 }
 
 function resolveAttributionStatus(context: LlmUsageTrackingContext): "step_attributed" | "task_only" | "unattributed" {
@@ -388,6 +516,7 @@ export function attachLLMUsageTracking(llm: ChatOpenAI, meta?: LlmUsageTrackingM
   const originalBatch = llm.batch.bind(llm);
 
   patchable.invoke = (async (...args: Parameters<ChatOpenAI["invoke"]>) => {
+    await assertLlmUsageBudgetBeforeCall();
     const startedAt = Date.now();
     const result = await originalInvoke(...args);
     await recordTrackedLlmUsage(extractLlmTokenUsage(result), {
@@ -398,6 +527,7 @@ export function attachLLMUsageTracking(llm: ChatOpenAI, meta?: LlmUsageTrackingM
   }) as ChatOpenAI["invoke"];
 
   patchable.stream = (async (...args: Parameters<ChatOpenAI["stream"]>) => {
+    await assertLlmUsageBudgetBeforeCall();
     const startedAt = Date.now();
     const result = await originalStream(...args);
     return wrapUsageTrackedStream(
@@ -408,6 +538,7 @@ export function attachLLMUsageTracking(llm: ChatOpenAI, meta?: LlmUsageTrackingM
   }) as ChatOpenAI["stream"];
 
   patchable.batch = (async (...args: Parameters<ChatOpenAI["batch"]>) => {
+    await assertLlmUsageBudgetBeforeCall();
     const startedAt = Date.now();
     const result = await originalBatch(...args);
     await recordTrackedLlmUsage(extractLlmTokenUsage(result), {
