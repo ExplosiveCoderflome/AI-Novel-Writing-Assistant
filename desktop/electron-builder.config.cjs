@@ -35,7 +35,7 @@ if (!isBetaRelease && !hasWindowsSigningMaterial && !allowUnsignedRelease) {
 
 module.exports = {
   appId: "com.ai-novel.desktop",
-  productName: "AI Novel Writing Assistant v2",
+  productName: "Biz Novel Studio",
   directories: {
     app: "build/app",
     output: "build/dist",

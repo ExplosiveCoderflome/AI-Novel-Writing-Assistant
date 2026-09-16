@@ -206,7 +206,7 @@ function HomePage() {
       >
         <div className="hero-scrim" />
         <div className="hero-content">
-          <p className="eyebrow">AI 驱动的长篇小说生产工作台</p>
+          <p className="eyebrow">Biz Novel Studio · AI 驱动的长篇小说生产系统</p>
           <h1>说出你的故事</h1>
           <p className="hero-copy">
             你只需要先选开书依据。AI 会准备书级定位、世界、角色和卷章任务；到达可开写状态后，可以让简易创作持续推进，也可以进入专业工作台随时接管。

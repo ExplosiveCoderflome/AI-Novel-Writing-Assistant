@@ -297,7 +297,7 @@ export default function DesktopBootstrapShell({ snapshot, overlay = false }: Des
                 <div className="flex items-center gap-4">
                   <div className="rounded-[24px] bg-primary/10 p-2 ring-1 ring-primary/20"><DesktopBrandMark className="h-16 w-16" /></div>
                   <div>
-                    <div className="text-xs font-medium uppercase tracking-[0.24em] text-info">AI NOVEL STUDIO</div>
+                    <div className="text-xs font-medium uppercase tracking-[0.24em] text-info">BIZ NOVEL STUDIO</div>
                     <h1 className="mt-2 text-2xl font-semibold tracking-tight sm:text-3xl">AI 小说创作工作台</h1>
                   </div>
                 </div>

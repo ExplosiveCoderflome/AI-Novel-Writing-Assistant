@@ -19,6 +19,14 @@ const allMigrationNames = fs.readdirSync(migrationsDir, { withFileTypes: true })
 const targetMigration = "20260318233000_book_analysis_source_cache";
 const novelFactMigration = "20260812120000_novel_fact_ledger";
 const promptSlotOverrideMigration = "20260912170000_prompt_slot_overrides";
+const visualAssetSchemaRepairMigrations = [
+  "20260916090000_comic_character_gender",
+  "20260916090100_comic_panel_scene_ref",
+  "20260916090200_drama_character_portrait_data",
+  "20260916090300_drama_character_three_view_data",
+  "20260916090400_comic_character_assets",
+  "20260916090500_comic_scenes",
+];
 
 function createMigrationTable(database) {
   database.exec(`
@@ -297,6 +305,111 @@ test("ensureRuntimeDatabaseReady creates prompt slot overrides for existing desk
       assert.ok(verifyDb.prepare(
         `SELECT name FROM sqlite_master WHERE type = 'index' AND name = 'PromptSlotOverride_scope_novelId_promptId_key'`,
       ).get());
+    } finally {
+      verifyDb.close();
+    }
+  } finally {
+    fs.rmSync(tempDir, { recursive: true, force: true });
+  }
+});
+
+test("ensureRuntimeDatabaseReady repairs partially satisfied visual asset schemas", async () => {
+  const { tempDir, databasePath } = createTempDatabaseFile();
+  const database = new Database(databasePath);
+
+  try {
+    createMigrationTable(database);
+    for (const migrationName of allMigrationNames) {
+      if (visualAssetSchemaRepairMigrations.includes(migrationName)) {
+        continue;
+      }
+      database.exec(fs.readFileSync(path.join(migrationsDir, migrationName, "migration.sql"), "utf8"));
+      insertMigrationRecord(database, migrationName);
+    }
+
+    database.exec('ALTER TABLE "ComicCharacter" ADD COLUMN "gender" TEXT NOT NULL DEFAULT \'unknown\';');
+    database.exec(`
+      CREATE TABLE "ComicScene" (
+        "id" TEXT NOT NULL PRIMARY KEY,
+        "projectId" TEXT NOT NULL,
+        "name" TEXT NOT NULL,
+        "sceneType" TEXT NOT NULL DEFAULT 'interior',
+        "bible" TEXT,
+        "sheetData" TEXT,
+        "sortOrder" INTEGER NOT NULL DEFAULT 0,
+        "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        "updatedAt" DATETIME NOT NULL,
+        CONSTRAINT "ComicScene_projectId_fkey" FOREIGN KEY ("projectId") REFERENCES "ComicProject" ("id") ON DELETE CASCADE ON UPDATE CASCADE
+      );
+    `);
+    database.prepare(
+      `INSERT INTO "ComicProject" (id, title, createdAt, updatedAt)
+       VALUES (?, ?, ?, ?)`,
+    ).run("comic-project-1", "Existing project", new Date().toISOString(), new Date().toISOString());
+    database.prepare(
+      `INSERT INTO "ComicCharacter" (id, projectId, name, createdAt, updatedAt)
+       VALUES (?, ?, ?, ?, ?)`,
+    ).run(
+      "comic-character-1",
+      "comic-project-1",
+      "Existing character",
+      new Date().toISOString(),
+      new Date().toISOString(),
+    );
+    database.prepare(
+      `INSERT INTO "ComicScene" (id, projectId, name, updatedAt)
+       VALUES (?, ?, ?, ?)`,
+    ).run("comic-scene-1", "comic-project-1", "Existing scene", new Date().toISOString());
+  } finally {
+    database.close();
+  }
+
+  try {
+    await withDesktopRuntime(databasePath, () => ensureRuntimeDatabaseReady());
+
+    const verifyDb = new Database(databasePath, { readonly: true });
+    try {
+      const columnsFor = (tableName) => verifyDb
+        .prepare(`PRAGMA table_info("${tableName}")`)
+        .all()
+        .map((column) => column.name);
+      const objectExists = (type, name) => verifyDb.prepare(
+        "SELECT 1 FROM sqlite_master WHERE type = ? AND name = ? LIMIT 1",
+      ).get(type, name) != null;
+
+      assert.equal(objectExists("table", "ComicCharacterAsset"), true);
+      assert.equal(objectExists("table", "ComicScene"), true);
+      assert.equal(columnsFor("ComicCharacter").includes("gender"), true);
+      assert.equal(columnsFor("ComicPanel").includes("sceneRef"), true);
+      assert.equal(columnsFor("DramaCharacter").includes("portraitData"), true);
+      assert.equal(columnsFor("DramaCharacter").includes("threeViewData"), true);
+      assert.equal(objectExists("index", "ComicCharacterAsset_characterId_idx"), true);
+      assert.equal(objectExists("index", "ComicCharacterAsset_projectId_idx"), true);
+      assert.equal(objectExists("index", "ComicScene_projectId_idx"), true);
+      assert.deepEqual(
+        verifyDb.prepare(
+          'SELECT name, gender FROM "ComicCharacter" WHERE id = ?',
+        ).get("comic-character-1"),
+        { name: "Existing character", gender: "unknown" },
+      );
+      assert.deepEqual(
+        verifyDb.prepare(
+          'SELECT name, sceneType FROM "ComicScene" WHERE id = ?',
+        ).get("comic-scene-1"),
+        { name: "Existing scene", sceneType: "interior" },
+      );
+
+      for (const migrationName of visualAssetSchemaRepairMigrations) {
+        assert.ok(verifyDb.prepare(
+          `SELECT 1 FROM "_prisma_migrations"
+           WHERE migration_name = ?
+             AND finished_at IS NOT NULL
+             AND rolled_back_at IS NULL
+           LIMIT 1`,
+        ).get(migrationName));
+      }
+      assert.equal(verifyDb.pragma("integrity_check", { simple: true }), "ok");
+      assert.deepEqual(verifyDb.pragma("foreign_key_check"), []);
     } finally {
       verifyDb.close();
     }

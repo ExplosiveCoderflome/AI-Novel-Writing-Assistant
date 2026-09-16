@@ -38,7 +38,7 @@ export default function Navbar(props: NavbarProps) {
             <DesktopReleaseNotesDialog />
             <ProjectGithubLink />
           </div>
-          <span className="hidden truncate text-[11px] text-muted-foreground sm:block">AI Novel Production Engine</span>
+          <span className="hidden truncate text-[11px] text-muted-foreground sm:block">Biz Novel Studio</span>
         </div>
       </div>
       <div className="flex shrink-0 items-center gap-2 sm:gap-3">
