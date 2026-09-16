@@ -51,3 +51,5 @@ pnpm check:docs-manifest
 文档内容由 `src/docsContent.ts` 使用 Vite glob 自动加载，不需要为每篇 Markdown 手写 import。
 
 深度文档中的流程图放在 `docs/public/flow/diagrams/`。站点通过 `src/docsAssets.ts` 把这些 SVG/PNG 解析为构建产物 URL，Markdown 可以使用相对路径引用，例如 `![端到端三层生产链](./diagrams/end-to-end-production.svg)`。
+
+自动导演交互架构图以 `docs/architecture/auto-director-idea-to-novel.detailed.workflow.html` 为唯一 HTML 源。站点启动或构建前由 `scripts/sync-architecture-assets.cjs` 同步到公开静态目录；预览图仍直接引用 `docs/architecture/diagram.webp`，避免维护第二份图片。交互图由 [Archify](https://github.com/tt-a1i/archify) 生成。

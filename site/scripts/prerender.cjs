@@ -29,6 +29,14 @@ function loadAssetMap() {
   for (const [key, entry] of Object.entries(manifest)) {
     addAssetCandidate(assetMap, key, entry.file);
     addAssetCandidate(assetMap, entry.src, entry.file);
+    if (entry.src?.startsWith("../")) {
+      const fsUrl = `/@fs/${path.resolve(siteRoot, entry.src).replace(/\\/g, "/")}`;
+      const outputUrl = `${siteBase}${entry.file}`;
+      assetMap.set(fsUrl, outputUrl);
+      assetMap.set(encodeURI(fsUrl), outputUrl);
+      assetMap.set(`${siteBase}${fsUrl.slice(1)}`, outputUrl);
+      assetMap.set(encodeURI(`${siteBase}${fsUrl.slice(1)}`), outputUrl);
+    }
   }
   return assetMap;
 }
