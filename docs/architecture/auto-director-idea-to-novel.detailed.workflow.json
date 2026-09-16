@@ -21,8 +21,14 @@
       {
         "id": "chapter-production",
         "label": "章节生产与验收",
-        "focus": ["chapter_refinement", "chapter_generation", "quality_review"],
-        "note": "按章节任务生成正文，验收后通过、定向修复，或在明确条件下暂停重规划。"
+        "focus": ["chapter_refinement", "style_binding_resolution", "anti_ai_contract", "chapter_generation", "quality_review"],
+        "note": "按章节任务解析写法绑定与反 AI 规则，编译为写作契约后生成正文；局部问题修复或记债，明确重规划才暂停等待恢复。"
+      },
+      {
+        "id": "style-contract",
+        "label": "写法与反 AI 契约",
+        "focus": ["chapter_refinement", "style_binding_resolution", "anti_ai_contract", "chapter_generation"],
+        "note": "任务、章节、小说三级写法绑定按优先级合并；全局基线与写法专属反 AI 规则共同编译进章节提示。"
       },
       {
         "id": "state-sync",
@@ -35,6 +41,7 @@
   "lanes": [
     { "id": "creator", "label": "创作者与成品" },
     { "id": "planning", "label": "全书规划与章节准备" },
+    { "id": "style", "label": "写法引擎与反 AI 契约" },
     { "id": "production", "label": "逐章生产与写后同步" }
   ],
   "phases": [
@@ -46,6 +53,7 @@
   "groups": [
     { "id": "book_planning", "label": "书级规划链", "lane": "planning", "fromCol": 0, "toCol": 3 },
     { "id": "chapter_planning", "label": "章节可执行化", "lane": "planning", "fromCol": 4, "toCol": 5, "variant": "emphasis" },
+    { "id": "style_contract", "label": "生成前约束编译", "lane": "style", "fromCol": 4, "toCol": 5, "variant": "security" },
     { "id": "chapter_loop", "label": "每章闭环后进入下一章", "lane": "production", "fromCol": 2, "toCol": 5, "variant": "dashed" }
   ],
   "nodes": [
@@ -56,8 +64,10 @@
     { "id": "volume_planning", "lane": "planning", "col": 3, "width": 96, "type": "backend", "label": "规划分卷", "sublabel": "卷目标、阶段与伏笔" },
     { "id": "chapter_structure", "lane": "planning", "col": 4, "width": 96, "type": "backend", "label": "生成章节结构", "sublabel": "节奏板 → 章节表" },
     { "id": "chapter_refinement", "lane": "planning", "col": 5, "width": 96, "type": "database", "label": "细化章节任务", "sublabel": "任务单、场景卡、合同" },
+    { "id": "style_binding_resolution", "lane": "style", "col": 4, "width": 88, "type": "cloud", "label": "解析写法绑定", "sublabel": "任务 > 章节 > 小说" },
+    { "id": "anti_ai_contract", "lane": "style", "col": 5, "width": 100, "type": "security", "label": "编译反 AI 契约", "sublabel": "全局基线 + 写法专属" },
     { "id": "chapter_generation", "lane": "production", "col": 5, "width": 96, "type": "backend", "label": "生成章节正文", "sublabel": "装配上下文并存草稿" },
-    { "id": "quality_review", "lane": "production", "col": 4, "width": 96, "type": "security", "label": "验收与修复", "sublabel": "通过、修复、记债" },
+    { "id": "quality_review", "lane": "production", "col": 4, "width": 104, "type": "security", "label": "验收与修复", "sublabel": "记债继续｜重规划暂停" },
     { "id": "fact_state_commit", "lane": "production", "col": 3, "width": 100, "type": "database", "label": "抽取并提交状态", "sublabel": "人物、关系与事件" },
     { "id": "ledger_character_sync", "lane": "production", "col": 2, "width": 100, "type": "messagebus", "label": "同步伏笔与人物", "sublabel": "伏笔账本 → 角色资源" },
     { "id": "novel_complete", "lane": "production", "col": 1, "width": 92, "type": "external", "label": "产出完整小说", "sublabel": "闭合后精修或导出" }
@@ -69,13 +79,14 @@
     { "from": "character_generation", "to": "volume_planning", "label": "角色资产" },
     { "from": "volume_planning", "to": "chapter_structure", "label": "卷战略" },
     { "from": "chapter_structure", "to": "chapter_refinement", "label": "章节清单" },
-    { "from": "chapter_refinement", "to": "chapter_generation", "label": "当前章节执行合同" },
+    { "from": "chapter_refinement", "to": "style_binding_resolution", "label": "当前章节与任务写法" },
+    { "from": "style_binding_resolution", "to": "anti_ai_contract", "variant": "security" },
+    { "from": "anti_ai_contract", "to": "chapter_generation", "label": "注入写法、反 AI 与自检块", "variant": "security" },
     { "from": "chapter_generation", "to": "quality_review", "label": "可用正文" },
     { "from": "quality_review", "to": "fact_state_commit", "label": "通过或降级闭合" },
     { "from": "fact_state_commit", "to": "ledger_character_sync", "label": "连续性状态" },
     { "from": "ledger_character_sync", "to": "chapter_generation", "label": "还有计划章节", "role": "return", "variant": "dashed" },
-    { "from": "ledger_character_sync", "to": "novel_complete", "label": "全部章节闭合", "variant": "emphasis" },
-    { "from": "quality_review", "to": "chapter_refinement", "label": "明确重规划后恢复", "role": "return", "variant": "security", "route": "drop" }
+    { "from": "ledger_character_sync", "to": "novel_complete", "label": "全部章节闭合", "variant": "emphasis" }
   ],
   "mainPath": [
     "idea_direction",
@@ -93,14 +104,16 @@
       { "from": "world_generation", "to": "character_generation" },
       { "from": "character_generation", "to": "volume_planning" },
       { "from": "chapter_structure", "to": "chapter_refinement" },
+      { "from": "chapter_refinement", "to": "style_binding_resolution" },
+      { "from": "style_binding_resolution", "to": "anti_ai_contract" },
+      { "from": "anti_ai_contract", "to": "chapter_generation" },
       { "from": "quality_review", "to": "fact_state_commit" },
       { "from": "fact_state_commit", "to": "ledger_character_sync" },
       { "from": "ledger_character_sync", "to": "chapter_generation" },
       { "from": "ledger_character_sync", "to": "novel_complete" }
     ],
     "requiredPaths": [
-      { "from": "idea_direction", "to": "novel_complete" },
-      { "from": "quality_review", "to": "chapter_refinement" }
+      { "from": "idea_direction", "to": "novel_complete" }
     ]
   }
 }
