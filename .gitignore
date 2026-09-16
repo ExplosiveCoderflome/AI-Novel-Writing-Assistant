@@ -39,3 +39,6 @@ server/prisma-diff-migrations-to-schema.sql
 .spec-workflow/
 .codex-backups/
 .cursor/
+
+# Generated public copies of self-contained architecture artifacts
+site/public/architecture/
