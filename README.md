@@ -154,12 +154,11 @@ Open-source AI novel writing assistant and long-form production studio.
 
 ## 最新更新
 
-### 2026-09-14
+### 2026-09-16
 
-#### 优化
+#### 修复
 
-- 产品英文名更新为 **Biz Novel Studio**，中文名继续使用 **AI 小说创作工作台**；网页、桌面端、公开介绍站和使用文档统一展示这组中英文名称。
-- GitHub 仓库、下载入口和本地作品数据继续沿用既有兼容路径；公开页面保留 `AI Novel Production Engine` 与 `AI Novel Writing Assistant` 作为旧英文名和搜索关键词。
+- 修复 Windows 桌面版升级后打开素材库或视觉资产页面可能报错的问题；应用启动时会自动补齐漫画角色资产、场景资料和短剧角色图片所需的数据结构，保留已有项目与角色内容，无需删除数据库或手工迁移。
 
 完整历史更新见 [docs/releases/release-notes.md](./docs/releases/release-notes.md)。
 
