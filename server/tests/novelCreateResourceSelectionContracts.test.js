@@ -88,6 +88,38 @@ test("resource recommendation resolves structured catalog ordinals without accep
   }
 });
 
+test("resource recommendation normalizes numeric catalog ordinals before semantic validation", () => {
+  const { novelCreateResourceRecommendationSchema } = require(
+    "../dist/prompting/prompts/novel/resourceRecommendation.promptSchemas.js"
+  );
+  const { novelCreateResourceRecommendationPrompt } = require(
+    "../dist/prompting/prompts/novel/resourceRecommendation.prompts.js"
+  );
+  const parsed = novelCreateResourceRecommendationSchema.parse(recommendationOutput({
+    genreId: 2,
+    primaryStoryModeId: 3,
+    secondaryStoryModeId: 1,
+    secondaryStoryModeReason: "补充关系推进。",
+  }));
+  const resolved = novelCreateResourceRecommendationPrompt.postValidate(
+    parsed,
+    recommendationInput(),
+    {},
+  );
+
+  assert.equal(resolved.genreId, "genre-b");
+  assert.equal(resolved.primaryStoryModeId, "mode-c");
+  assert.equal(resolved.secondaryStoryModeId, "mode-a");
+  assert.throws(
+    () => novelCreateResourceRecommendationPrompt.postValidate(
+      novelCreateResourceRecommendationSchema.parse(recommendationOutput({ genreId: 0 })),
+      recommendationInput(),
+      {},
+    ),
+    /题材推荐结果包含非法 ID/,
+  );
+});
+
 test("resource recommendation prefers an exact numeric id and rejects duplicate normalized modes", () => {
   const { novelCreateResourceRecommendationPrompt } = require(
     "../dist/prompting/prompts/novel/resourceRecommendation.prompts.js"
