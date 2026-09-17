@@ -119,7 +119,8 @@ function flattenStoryModeOptions(nodes: StoryModeTreeNode[], path: string[] = []
 
 function buildGenreCatalogText(options: FlattenedGenreOption[]): string {
   return options.map((option, index) => [
-    `${index + 1}. ID=${option.id}`,
+    `候选序号（仅用于定位）：${index + 1}`,
+    `ID（选择后必须原样返回）：${option.id}`,
     `路径：${option.path}`,
     option.description ? `说明：${option.description}` : "",
     option.template ? `使用倾向：${option.template}` : "",
@@ -128,7 +129,8 @@ function buildGenreCatalogText(options: FlattenedGenreOption[]): string {
 
 function buildStoryModeCatalogText(options: FlattenedStoryModeOption[]): string {
   return options.map((option, index) => [
-    `${index + 1}. ID=${option.id}`,
+    `候选序号（仅用于定位）：${index + 1}`,
+    `ID（选择后必须原样返回）：${option.id}`,
     `路径：${option.path}`,
     option.description ? `说明：${option.description}` : "",
     `核心驱动：${option.profile.coreDrive}`,

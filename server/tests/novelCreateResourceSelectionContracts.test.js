@@ -6,6 +6,34 @@ const test = require("node:test");
 const root = path.resolve(__dirname, "..");
 const read = (file) => fs.readFileSync(path.join(root, file), "utf8");
 
+function recommendationOutput(overrides = {}) {
+  return {
+    summary: "适合作为开书底座。",
+    genreId: "genre-a",
+    genreReason: "题材匹配。",
+    primaryStoryModeId: "mode-a",
+    primaryStoryModeReason: "推进稳定。",
+    secondaryStoryModeId: null,
+    secondaryStoryModeReason: null,
+    powerSystemMode: "none",
+    powerSystemReason: "无需等级体系。",
+    caution: null,
+    ...overrides,
+  };
+}
+
+function recommendationInput(overrides = {}) {
+  return {
+    userIntentSummary: "测试开书",
+    powerSystemPreference: "ai_recommend",
+    genreCatalogText: "",
+    storyModeCatalogText: "",
+    allowedGenreIds: ["genre-a", "genre-b"],
+    allowedStoryModeIds: ["mode-a", "mode-b", "mode-c"],
+    ...overrides,
+  };
+}
+
 test("resource recommendation records user and AI selection sources", () => {
   const shared = read("../shared/types/novelResourceRecommendation.ts");
   const service = read("src/services/novel/NovelCreateResourceRecommendationService.ts");
@@ -21,6 +49,114 @@ test("AI secondary mode cannot duplicate the resolved primary mode", () => {
 
   assert.match(service, /selectedGenre && selectedPrimary && selectedSecondary/);
   assert.match(service, /item\.id !== primary\?\.id/);
+});
+
+test("resource recommendation resolves structured catalog ordinals without accepting arbitrary ids", () => {
+  const { novelCreateResourceRecommendationPrompt } = require(
+    "../dist/prompting/prompts/novel/resourceRecommendation.prompts.js"
+  );
+  const validate = novelCreateResourceRecommendationPrompt.postValidate;
+  assert.equal(typeof validate, "function");
+
+  const resolved = validate(
+    recommendationOutput({
+      genreId: "2",
+      primaryStoryModeId: "3",
+      secondaryStoryModeId: "1",
+      secondaryStoryModeReason: "补充关系推进。",
+    }),
+    recommendationInput(),
+    {},
+  );
+  assert.equal(resolved.genreId, "genre-b");
+  assert.equal(resolved.primaryStoryModeId, "mode-c");
+  assert.equal(resolved.secondaryStoryModeId, "mode-a");
+
+  assert.throws(
+    () => validate(recommendationOutput({ genreId: "genre-missing" }), recommendationInput(), {}),
+    /题材推荐结果包含非法 ID/,
+  );
+  assert.throws(
+    () => validate(recommendationOutput({ genreId: "3" }), recommendationInput(), {}),
+    /题材推荐结果包含非法 ID/,
+  );
+  for (const invalidOrdinal of ["0", "-1", "02", "2.0"]) {
+    assert.throws(
+      () => validate(recommendationOutput({ genreId: invalidOrdinal }), recommendationInput(), {}),
+      /题材推荐结果包含非法 ID/,
+    );
+  }
+});
+
+test("resource recommendation normalizes numeric catalog ordinals before semantic validation", () => {
+  const { novelCreateResourceRecommendationSchema } = require(
+    "../dist/prompting/prompts/novel/resourceRecommendation.promptSchemas.js"
+  );
+  const { novelCreateResourceRecommendationPrompt } = require(
+    "../dist/prompting/prompts/novel/resourceRecommendation.prompts.js"
+  );
+  const parsed = novelCreateResourceRecommendationSchema.parse(recommendationOutput({
+    genreId: 2,
+    primaryStoryModeId: 3,
+    secondaryStoryModeId: 1,
+    secondaryStoryModeReason: "补充关系推进。",
+  }));
+  const resolved = novelCreateResourceRecommendationPrompt.postValidate(
+    parsed,
+    recommendationInput(),
+    {},
+  );
+
+  assert.equal(resolved.genreId, "genre-b");
+  assert.equal(resolved.primaryStoryModeId, "mode-c");
+  assert.equal(resolved.secondaryStoryModeId, "mode-a");
+  assert.throws(
+    () => novelCreateResourceRecommendationPrompt.postValidate(
+      novelCreateResourceRecommendationSchema.parse(recommendationOutput({ genreId: 0 })),
+      recommendationInput(),
+      {},
+    ),
+    /题材推荐结果包含非法 ID/,
+  );
+});
+
+test("resource recommendation prefers an exact numeric id and rejects duplicate normalized modes", () => {
+  const { novelCreateResourceRecommendationPrompt } = require(
+    "../dist/prompting/prompts/novel/resourceRecommendation.prompts.js"
+  );
+  const validate = novelCreateResourceRecommendationPrompt.postValidate;
+
+  const exact = validate(
+    recommendationOutput({ genreId: "2" }),
+    recommendationInput({ allowedGenreIds: ["2", "genre-b"] }),
+    {},
+  );
+  assert.equal(exact.genreId, "2");
+
+  assert.throws(
+    () => validate(
+      recommendationOutput({
+        primaryStoryModeId: "1",
+        secondaryStoryModeId: "mode-a",
+        secondaryStoryModeReason: "重复项。",
+      }),
+      recommendationInput(),
+      {},
+    ),
+    /副推进模式不能与主推进模式相同/,
+  );
+});
+
+test("resource recommendation prompt distinguishes candidate ordinals from stable ids", () => {
+  const service = read("src/services/novel/NovelCreateResourceRecommendationService.ts");
+  const prompt = read("src/prompting/prompts/novel/resourceRecommendation.prompts.ts");
+  const loaders = read("src/prompting/registry/promptAssetLoaderEntries.ts");
+
+  assert.match(service, /候选序号（仅用于定位）/);
+  assert.match(service, /ID（选择后必须原样返回）/);
+  assert.match(prompt, /version: "v3"/);
+  assert.match(prompt, /绝对不能把 1、2、3 等候选序号写进任何 ID 字段/);
+  assert.match(loaders, /novel\.create\.resource_recommendation@v3/);
 });
 
 test("candidate workflow persists the resolved production foundation for recovery", () => {
