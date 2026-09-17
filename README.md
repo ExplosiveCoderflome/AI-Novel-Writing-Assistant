@@ -165,7 +165,7 @@ Open-source AI novel writing assistant and long-form production studio.
 
 #### 修复
 
-- 创建小说项目时，AI 把题材或推进方式的候选序号返回成资源标识也能安全识别；未知或越界选项仍会要求重新生成，减少“非法 ID”导致的开书中断。
+- Windows 桌面版更新至 `0.4.26`。创建小说项目时，AI 把题材或推进方式的候选序号返回成资源标识也能安全识别；未知或越界选项仍会要求重新生成，减少“非法 ID”导致的开书中断。
 
 完整历史更新见 [docs/releases/release-notes.md](./docs/releases/release-notes.md)。
 
