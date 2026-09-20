@@ -165,7 +165,7 @@ Open-source AI novel writing assistant and long-form production studio.
 
 #### 修复
 
-- 兼容 DeepSeek 最新模型名 Flash / Pro。用这些模型做开书简报、卷战略等结构化任务时，系统会像原来的 V4 模型一样先关闭思考再生成结构结果，减少空转后返回空白内容。
+- Windows 桌面版更新至 `0.4.27`。兼容 DeepSeek 最新模型名 Flash / Pro；用这些模型做开书简报、卷战略等结构化任务时，系统会像原来的 V4 模型一样先关闭思考再生成结构结果，减少空转后返回空白内容。
 
 完整历史更新见 [docs/releases/release-notes.md](./docs/releases/release-notes.md)。
 
