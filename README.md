@@ -166,6 +166,7 @@ Open-source AI novel writing assistant and long-form production studio.
 #### 修复
 
 - 热门题材雷达生成过 AI 分析后，仍可重新勾选其他榜单作品并生成新的分析，无需重复扫榜；分析期间会显示本次进度，已有报告关联的收藏题材和创作简报继续保留。
+- 修复长篇小说自动导演在生成多卷战略时可能因结构化结果被截断而中断的问题；系统会按预计卷数提供足够的输出空间，并要求卷级策略保持精简完整，减少停在“缺少规划资源”的情况。
 
 完整历史更新见 [docs/releases/release-notes.md](./docs/releases/release-notes.md)。
 

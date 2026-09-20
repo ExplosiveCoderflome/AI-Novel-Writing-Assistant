@@ -26,6 +26,23 @@ export const NOVEL_PROMPT_BUDGETS = {
   chapterSummary: 1000,
 } as const;
 
+const VOLUME_STRATEGY_OUTPUT_TOKEN_FLOOR = 1_800;
+const VOLUME_STRATEGY_OUTPUT_TOKENS_PER_VOLUME = 160;
+const VOLUME_STRATEGY_OUTPUT_TOKEN_CEILING = 5_200;
+
+export function resolveVolumeStrategyOutputTokenBudget(expectedVolumeCount: number): number {
+  const normalizedVolumeCount = Number.isFinite(expectedVolumeCount)
+    ? Math.max(1, Math.round(expectedVolumeCount))
+    : 1;
+  return Math.min(
+    VOLUME_STRATEGY_OUTPUT_TOKEN_CEILING,
+    Math.max(
+      VOLUME_STRATEGY_OUTPUT_TOKEN_FLOOR,
+      1_200 + normalizedVolumeCount * VOLUME_STRATEGY_OUTPUT_TOKENS_PER_VOLUME,
+    ),
+  );
+}
+
 export const RUNTIME_PROMPT_BUDGET_PROFILES: PromptBudgetProfile[] = [
   {
     promptId: "novel.chapter.writer",

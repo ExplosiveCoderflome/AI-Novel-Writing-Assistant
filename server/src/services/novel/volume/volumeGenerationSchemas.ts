@@ -413,9 +413,9 @@ const generatedChapterBeatBlockItemSchema = z.preprocess((raw) => normalizeChapt
 const generatedVolumeStrategyVolumeSchema = z.object({
   sortOrder: z.number().int().min(1),
   planningMode: z.enum(["hard", "soft"]),
-  roleLabel: z.string().trim().min(1),
-  coreReward: z.string().trim().min(1),
-  escalationFocus: z.string().trim().min(1),
+  roleLabel: z.string().trim().min(1).max(32),
+  coreReward: z.string().trim().min(1).max(64),
+  escalationFocus: z.string().trim().min(1).max(64),
   uncertaintyLevel: z.enum(["low", "medium", "high"]),
 });
 
@@ -423,7 +423,7 @@ const generatedVolumeUncertaintySchema = z.object({
   targetType: z.enum(["book", "volume", "beat_sheet", "chapter_list"]),
   targetRef: z.string().trim().min(1),
   level: z.enum(["low", "medium", "high"]),
-  reason: z.string().trim().min(1),
+  reason: z.string().trim().min(1).max(64),
 });
 
 const volumeBeatSlotKeySchema = z.enum([
@@ -550,10 +550,10 @@ export function createVolumeStrategySchema(config: {
   return z.object({
     recommendedVolumeCount: z.number().int().min(recommendedVolumeCountRange.min).max(recommendedVolumeCountRange.max),
     hardPlannedVolumeCount: z.number().int().min(hardPlannedVolumeRange.min).max(hardPlannedVolumeRange.max),
-    readerRewardLadder: z.string().trim().min(1),
-    escalationLadder: z.string().trim().min(1),
-    midpointShift: z.string().trim().min(1),
-    notes: z.string().trim().min(1),
+    readerRewardLadder: z.string().trim().min(1).max(160),
+    escalationLadder: z.string().trim().min(1).max(160),
+    midpointShift: z.string().trim().min(1).max(160),
+    notes: z.string().trim().min(1).max(160),
     volumes: z.array(generatedVolumeStrategyVolumeSchema).min(1).max(maxVolumeCount),
     uncertainties: z.array(generatedVolumeUncertaintySchema).max(maxVolumeCount).default([]),
   }).superRefine((value, ctx) => {

@@ -22,6 +22,7 @@ import {
   createVolumeStrategyPrompt,
   volumeStrategyCritiquePrompt,
 } from "../../../prompting/prompts/novel/volume/strategy.prompts";
+import { resolveVolumeStrategyOutputTokenBudget } from "../../../prompting/prompts/novel/promptBudgetProfiles";
 import { buildStoryModePromptBlock, normalizeStoryModeOutput } from "../../storyMode/storyModeProfile";
 import type { StoryMacroPlanService } from "../storyMacro/StoryMacroPlanService";
 import {
@@ -191,6 +192,8 @@ async function generateStrategy(params: {
     maxVolumeCount: MAX_VOLUME_COUNT,
   });
   const fixedRecommendedVolumeCount = resolveFixedRecommendedVolumeCount(volumeCountGuidance);
+  const expectedVolumeCount = fixedRecommendedVolumeCount
+    ?? volumeCountGuidance.decisionVolumeCountRange.max;
   await notifyVolumeGenerationPhase({
     novelId: document.novelId,
     scope: "strategy",
@@ -224,7 +227,7 @@ async function generateStrategy(params: {
       provider: options.provider,
       model: options.model,
       temperature: options.temperature ?? 0.3,
-      maxTokens: 1_800,
+      maxTokens: resolveVolumeStrategyOutputTokenBudget(expectedVolumeCount),
       novelId: document.novelId,
       taskId: options.taskId,
       stage: "volume_strategy",

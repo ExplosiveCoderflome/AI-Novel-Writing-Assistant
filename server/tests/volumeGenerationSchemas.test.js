@@ -20,6 +20,9 @@ const {
 const {
   volumeRebalancePrompt,
 } = require("../dist/prompting/prompts/novel/volume/rebalance.prompts.js");
+const {
+  resolveVolumeStrategyOutputTokenBudget,
+} = require("../dist/prompting/prompts/novel/promptBudgetProfiles.js");
 
 function createValidStrategyPayload() {
   return {
@@ -65,6 +68,13 @@ function createValidStrategyPayload() {
     ],
   };
 }
+
+test("volume strategy output budget grows with the expected volume count and remains bounded", () => {
+  assert.equal(resolveVolumeStrategyOutputTokenBudget(3), 1800);
+  assert.equal(resolveVolumeStrategyOutputTokenBudget(9), 2640);
+  assert.equal(resolveVolumeStrategyOutputTokenBudget(24), 5040);
+  assert.equal(resolveVolumeStrategyOutputTokenBudget(100), 5200);
+});
 
 function createVolume(sortOrder) {
   return {
