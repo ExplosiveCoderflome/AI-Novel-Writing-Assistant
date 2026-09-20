@@ -163,12 +163,21 @@ test("structured output profiles distinguish official, ModelScope Qwen and unkno
 
   const deepseekFlashProfile = resolveStructuredOutputProfile({
     provider: "deepseek",
-    model: "deepseek-v4-flash",
+    model: "deepseek-flash",
     baseURL: "https://api.deepseek.com/v1",
     executionMode: "structured",
   });
   assert.equal(deepseekFlashProfile.requiresNonThinkingForStructured, true);
   assert.equal(deepseekFlashProfile.supportsReasoningToggle, true);
+
+  const deepseekLegacyFlashProfile = resolveStructuredOutputProfile({
+    provider: "deepseek",
+    model: "deepseek-v4-flash",
+    baseURL: "https://api.deepseek.com/v1",
+    executionMode: "structured",
+  });
+  assert.equal(deepseekLegacyFlashProfile.requiresNonThinkingForStructured, true);
+  assert.equal(deepseekLegacyFlashProfile.supportsReasoningToggle, true);
 
   const kimiProfile = resolveStructuredOutputProfile({
     provider: "kimi",
@@ -349,7 +358,7 @@ test("resolveLLMClientOptions applies structured reasoning and token guardrails"
     assert.equal(qwenThinking.requestProtocol, "openai_compatible");
 
     const deepseekFlash = await resolveLLMClientOptions("deepseek", {
-      model: "deepseek-v4-flash",
+      model: "deepseek-flash",
       executionMode: "structured",
       structuredStrategy: "json_object",
       maxTokens: 5000,

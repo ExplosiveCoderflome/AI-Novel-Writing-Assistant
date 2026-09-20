@@ -71,7 +71,7 @@ export default function ProviderConfigDialog({
   const imageModelOptions = editingConfig?.imageModels ?? [];
   const canSelectImageModels = imageModelOptions.length > 0;
   const modelGuidance = editingConfig?.provider === "deepseek"
-    ? "推荐使用 DeepSeek V4 Flash，兼顾中文长篇质量与响应速度；也可以选择其他可用模型。"
+    ? "推荐使用 DeepSeek Flash，兼顾中文长篇质量与响应速度；也可以选择其他可用模型。"
     : isCreatingCustomProvider
       ? "获取模型列表后会自动填入第一个可用模型；接口不返回列表时，可以手动填写。"
       : editingConfig?.kind === "custom" && !canSelectListedModels
