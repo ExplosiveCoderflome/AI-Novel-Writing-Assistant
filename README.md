@@ -161,11 +161,11 @@ Open-source AI novel writing assistant and long-form production studio.
 
 ## 最新更新
 
-### 2026-09-20
+### 2026-09-22
 
 #### 修复
 
-- Windows 桌面版更新至 `0.4.27`。兼容 DeepSeek 最新模型名 Flash / Pro；用这些模型做开书简报、卷战略等结构化任务时，系统会像原来的 V4 模型一样先关闭思考再生成结构结果，减少空转后返回空白内容。
+- 热门题材雷达生成过 AI 分析后，仍可重新勾选其他榜单作品并生成新的分析，无需重复扫榜；分析期间会显示本次进度，已有报告关联的收藏题材和创作简报继续保留。
 
 完整历史更新见 [docs/releases/release-notes.md](./docs/releases/release-notes.md)。
 

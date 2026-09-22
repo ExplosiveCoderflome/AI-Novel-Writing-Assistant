@@ -6,6 +6,11 @@ import type {
   MarketRadarSignal,
   MarketTrendReport,
 } from "@ai-novel/shared/types/marketRadar";
+import {
+  resolveMarketRadarAnalysisAvailability,
+  resolveMarketRadarPollingRunId,
+  shouldResetMarketRadarSignalSelection,
+} from "@ai-novel/shared/types/marketRadar";
 import { ArrowRight, Check, ExternalLink, Loader2, Radar, RefreshCw, Sparkles, X } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import {
@@ -75,6 +80,7 @@ export default function MarketRadarPage() {
   const [influenceMode, setInfluenceMode] = useState<MarketInfluenceMode>("differentiate");
   const initialScanStarted = useRef(false);
   const analysisResultRef = useRef<HTMLDivElement | null>(null);
+  const selectedSignalReportIdRef = useRef("");
 
   const sourcesQuery = useQuery({ queryKey: queryKeys.marketRadar.sources, queryFn: getMarketRadarSources });
   const latestScanQuery = useQuery({
@@ -99,9 +105,10 @@ export default function MarketRadarPage() {
   const report = showAnalysis ? availableReport : null;
 
   useEffect(() => {
-    if (!report) return;
-    setSelectedIds((current) => current.length > 0 ? current : recommendedSignalIds(report));
-  }, [report?.id]);
+    if (!availableReport || !shouldResetMarketRadarSignalSelection(selectedSignalReportIdRef.current, availableReport.id)) return;
+    selectedSignalReportIdRef.current = availableReport.id;
+    setSelectedIds(recommendedSignalIds(availableReport));
+  }, [availableReport?.id]);
 
   useEffect(() => {
     if (report) analysisResultRef.current?.scrollIntoView({ block: "start" });
@@ -116,7 +123,8 @@ export default function MarketRadarPage() {
       queryClient.setQueryData(queryKeys.marketRadar.scan(run.id), response);
       setShowAnalysis(false);
       setSelectedAnalysisItemIds([]);
-      setSelectedIds([]);
+      selectedSignalReportIdRef.current = run.report?.id ?? "";
+      setSelectedIds(run.report ? recommendedSignalIds(run.report) : []);
       void queryClient.invalidateQueries({ queryKey: queryKeys.marketRadar.latest });
     },
     onError: (error) => toast.error(error instanceof Error ? error.message : "扫榜失败，请稍后重试。"),
@@ -139,7 +147,10 @@ export default function MarketRadarPage() {
       const run = response.data;
       if (!run) return;
       queryClient.setQueryData(queryKeys.marketRadar.scan(run.id), response);
-      if (run.report) setSelectedIds(recommendedSignalIds(run.report));
+      if (run.status !== "analyzing" && run.report) {
+        selectedSignalReportIdRef.current = run.report.id;
+        setSelectedIds(recommendedSignalIds(run.report));
+      }
     },
     onError: (error) => toast.error(error instanceof Error ? error.message : "AI分析失败，请稍后重试。"),
   });
@@ -174,6 +185,17 @@ export default function MarketRadarPage() {
     || (switchingToNewRun && !currentRun);
   const scanningProgress = Math.min(99, Math.round((currentRun?.progress ?? 0) * 100));
   const analyzing = analysisMutation.isPending || currentRun?.status === "analyzing";
+  const analysisAvailability = resolveMarketRadarAnalysisAvailability({
+    hasReport: Boolean(availableReport),
+    scanning,
+    analyzing,
+    selectedItemCount: selectedAnalysisItemIds.length,
+  });
+  const pollingRunId = resolveMarketRadarPollingRunId(activeRunId, latestRun);
+
+  useEffect(() => {
+    if (pollingRunId && pollingRunId !== activeRunId) setActiveRunId(pollingRunId);
+  }, [activeRunId, pollingRunId]);
   const displayingPreviousRun = Boolean(
     latestRun
     && activeRun?.id === latestRun.id
@@ -249,10 +271,12 @@ export default function MarketRadarPage() {
       ? current.filter((item) => item !== id)
       : [...current, id]);
   };
-  const openOrStartAnalysis = () => {
+  const startNewAnalysis = () => {
+    if (!activeRun) return;
+    setActiveRunId(activeRun.id);
     setShowAnalysis(true);
     setViewTab("analysis");
-    if (!availableReport) analysisMutation.mutate();
+    analysisMutation.mutate();
   };
 
   return (
@@ -273,7 +297,7 @@ export default function MarketRadarPage() {
       <Tabs value={viewTab} onValueChange={(value) => { const next = value as typeof viewTab; setViewTab(next); setShowAnalysis(next === "analysis"); }}>
         <TabsList className="grid h-auto w-full grid-cols-3 rounded-lg bg-muted/45 p-1">
           <TabsTrigger value="rankings">当前榜单</TabsTrigger>
-          <TabsTrigger value="analysis" disabled={!availableReport}>AI 分析结果</TabsTrigger>
+          <TabsTrigger value="analysis" disabled={!analysisAvailability.canViewReport && !analyzing}>AI 分析结果</TabsTrigger>
           <TabsTrigger value="saved">热门题材列表{savedTopicsQuery.data?.data?.length ? ` · ${savedTopicsQuery.data.data.length}` : ""}</TabsTrigger>
         </TabsList>
       </Tabs>
@@ -309,12 +333,12 @@ export default function MarketRadarPage() {
       ) : <>
         <section className="flex flex-col gap-4 border-b border-border/50 pb-5 lg:flex-row lg:items-end lg:justify-between">
           <p className="text-sm text-muted-foreground">{availableReport
-            ? activeRun?.report ? "本次报告使用当前勾选的作品；如需更换范围，请重新扫榜。" : "榜单正在更新，可继续查看上次 AI 分析。"
+            ? `已选 ${selectedAnalysisItemIds.length} 本作品，可调整范围并生成新的 AI 分析；已有报告关联的题材与简报会保留。`
             : `已选 ${selectedAnalysisItemIds.length} 本作品，可在各榜单右上角全选或逐本调整。`}</p>
           <div className="flex justify-end">
-            <Button onClick={openOrStartAnalysis} disabled={analyzing || (!availableReport && (scanning || selectedAnalysisItemIds.length === 0))} className="shrink-0">
+            <Button onClick={startNewAnalysis} disabled={analysisAvailability.startDisabled} className="shrink-0">
               {analyzing ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
-              {analyzing ? `AI 分析中 ${Math.round((activeRun?.progress ?? 0) * 100)}%` : availableReport ? "查看 AI 分析" : scanning ? "等待榜单获取完成" : `开始 AI 分析（${selectedAnalysisItemIds.length} 本）`}
+              {analyzing ? `AI 分析中 ${Math.round((activeRun?.progress ?? 0) * 100)}%` : scanning ? "等待榜单获取完成" : `${availableReport ? "生成新分析" : "开始 AI 分析"}（${selectedAnalysisItemIds.length} 本）`}
             </Button>
           </div>
         </section>
@@ -326,18 +350,18 @@ export default function MarketRadarPage() {
             return <Card key={key} className="flex h-[34rem] flex-col">
             <CardHeader className="flex-row items-start justify-between gap-3 border-b border-border/40 px-4 pb-4 pt-4">
               <div><CardTitle className="text-base">{PLATFORM_LABELS[items[0].platform]} · {sourceLabels.get(key) ?? items[0].listKey}</CardTitle><CardDescription className="mt-1">本次识别 {items.length} 条公开上榜记录（最多 30 条）</CardDescription></div>
-              <Button type="button" variant="ghost" size="sm" aria-pressed={allSelected} disabled={Boolean(activeRun?.report) || scanning || analyzing} onClick={() => toggleAnalysisList(itemIds)} className="shrink-0">
+              <Button type="button" variant="ghost" size="sm" aria-pressed={allSelected} disabled={analysisAvailability.selectionDisabled} onClick={() => toggleAnalysisList(itemIds)} className="shrink-0">
                 {allSelected ? "取消全选" : "全选"}{selectedCount > 0 && !allSelected ? ` ${selectedCount}/${items.length}` : ""}
               </Button>
             </CardHeader>
             <CardContent className="min-h-0 flex-1 overflow-y-auto px-4 pb-4 pt-2"><div className="divide-y divide-border/35">{items.map((item) => {
               const selected = selectedAnalysisItemIds.includes(item.id);
               return <div key={item.id} className="grid grid-cols-[1.5rem_2.5rem_minmax(0,1fr)_1.75rem] items-center gap-2 px-2 py-2.5 text-sm transition-colors hover:bg-muted/45">
-                <button type="button" aria-pressed={selected} aria-label={`${selected ? "取消选择" : "选择"}${item.title}`} disabled={Boolean(activeRun?.report) || analyzing} onClick={() => toggleAnalysisItem(item.id)} className={cn("flex h-4 w-4 items-center justify-center rounded border focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 disabled:cursor-not-allowed disabled:opacity-70", selected ? "border-primary bg-primary text-primary-foreground" : "border-border")}>
+                <button type="button" aria-pressed={selected} aria-label={`${selected ? "取消选择" : "选择"}${item.title}`} disabled={analysisAvailability.selectionDisabled} onClick={() => toggleAnalysisItem(item.id)} className={cn("flex h-4 w-4 items-center justify-center rounded border focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 disabled:cursor-not-allowed disabled:opacity-70", selected ? "border-primary bg-primary text-primary-foreground" : "border-border")}>
                   {selected ? <Check className="h-3 w-3" /> : null}
                 </button>
                 <span className="font-mono text-muted-foreground">#{item.rank}</span>
-                <button type="button" disabled={Boolean(activeRun?.report) || analyzing} onClick={() => toggleAnalysisItem(item.id)} className="min-w-0 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 disabled:cursor-not-allowed">
+                <button type="button" disabled={analysisAvailability.selectionDisabled} onClick={() => toggleAnalysisItem(item.id)} className="min-w-0 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 disabled:cursor-not-allowed">
                   <span className="block truncate font-medium">{item.title}</span>
                   <span className="block truncate text-xs text-muted-foreground">{item.author || "作者未公开"}{item.category ? ` · ${item.category}` : ""}</span>
                 </button>
@@ -348,7 +372,15 @@ export default function MarketRadarPage() {
         </div>
       </>)}
 
-      {viewTab === "analysis" && report ? (
+      {viewTab === "analysis" && analyzing ? (
+        <section className="flex min-h-56 flex-col items-center justify-center gap-3 bg-muted/25 px-6 py-10 text-center">
+          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+          <div className="font-medium">正在分析所选作品 · {Math.round((activeRun?.progress ?? 0) * 100)}%</div>
+          <p className="text-sm text-muted-foreground">完成后会在这里展示新的市场判断。</p>
+        </section>
+      ) : null}
+
+      {viewTab === "analysis" && !analyzing && report ? (
         <div ref={analysisResultRef} className="space-y-6 scroll-mt-6">
           <Card>
             <CardHeader><CardTitle className="text-xl">本期判断</CardTitle><CardDescription>采集于 {new Date(report.createdAt).toLocaleString()}，结论均可回看公开榜单证据。</CardDescription></CardHeader>

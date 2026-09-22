@@ -73,7 +73,8 @@ router.post("/scans/:id/analysis", validate({ params: idParamsSchema, body: anal
   try {
     const { id } = req.params as z.infer<typeof idParamsSchema>;
     const run = await marketRadarService.startAnalysis(id, req.body as StartMarketRadarAnalysisRequest);
-    res.status(run.report ? 200 : 202).json(ok(run, run.report ? "AI分析已完成。" : "AI分析已开始。"));
+    const analysisStarted = run.status === "analyzing";
+    res.status(analysisStarted ? 202 : 200).json(ok(run, analysisStarted ? "AI分析已开始。" : "AI分析任务未重复启动。"));
   } catch (error) { next(error); }
 });
 

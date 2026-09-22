@@ -17,6 +17,12 @@ const {
 const {
   marketCreativeBriefPrompt,
 } = require("../dist/prompting/prompts/marketRadar/marketRadar.prompts.js");
+const {
+  canStartMarketRadarAnalysis,
+  resolveMarketRadarAnalysisAvailability,
+  resolveMarketRadarPollingRunId,
+  shouldResetMarketRadarSignalSelection,
+} = require("../../shared/dist/types/marketRadar.js");
 
 const storyModeProfile = {
   coreDrive: "持续解决身份与能力带来的阶段目标。",
@@ -78,6 +84,38 @@ test("market radar limits AI evidence to explicitly selected books", () => {
   const items = [{ id: "book-1" }, { id: "book-2" }, { id: "book-3" }];
   assert.deepEqual(selectMarketAnalysisItems(items, ["book-1", "book-3"]), [items[0], items[2]]);
   assert.deepEqual(selectMarketAnalysisItems(items), items);
+});
+
+test("completed market radar scans can start another analysis while active scans cannot", () => {
+  assert.equal(canStartMarketRadarAnalysis("succeeded"), true);
+  assert.equal(canStartMarketRadarAnalysis("partial"), true);
+  assert.equal(canStartMarketRadarAnalysis("analyzing"), false);
+  assert.equal(canStartMarketRadarAnalysis("running"), false);
+});
+
+test("an existing market report does not lock selection or prevent a new analysis", () => {
+  assert.deepEqual(resolveMarketRadarAnalysisAvailability({
+    hasReport: true,
+    scanning: false,
+    analyzing: false,
+    selectedItemCount: 2,
+  }), {
+    selectionDisabled: false,
+    startDisabled: false,
+    canViewReport: true,
+  });
+});
+
+test("an analyzing scan loaded from history is attached to polling", () => {
+  assert.equal(resolveMarketRadarPollingRunId("", { id: "scan-existing", status: "analyzing" }), "scan-existing");
+  assert.equal(resolveMarketRadarPollingRunId("scan-active", { id: "scan-existing", status: "analyzing" }), "scan-active");
+  assert.equal(resolveMarketRadarPollingRunId("", { id: "scan-existing", status: "succeeded" }), "");
+});
+
+test("market signal defaults reset only when the projected report changes", () => {
+  assert.equal(shouldResetMarketRadarSignalSelection("report-old", "report-new"), true);
+  assert.equal(shouldResetMarketRadarSignalSelection("report-new", "report-new"), false);
+  assert.equal(shouldResetMarketRadarSignalSelection("", null), false);
 });
 
 test("market radar schemas reject oversized signal lists", () => {

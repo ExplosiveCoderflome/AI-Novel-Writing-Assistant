@@ -11,7 +11,11 @@ import type {
   MarketScanRun,
   MarketTrendReport,
 } from "@ai-novel/shared/types/marketRadar";
-import { MARKET_RADAR_PLATFORMS } from "@ai-novel/shared/types/marketRadar";
+import {
+  canStartMarketRadarAnalysis,
+  MARKET_RADAR_ANALYSIS_STARTABLE_STATUSES,
+  MARKET_RADAR_PLATFORMS,
+} from "@ai-novel/shared/types/marketRadar";
 import type {
   NovelCreateResourceRecommendation,
   NovelResourceRecommendationOption,
@@ -345,7 +349,7 @@ export class MarketRadarService {
     const recent = await prisma.marketScanRun.findFirst({
       where: { createdAt: { gte: new Date(Date.now() - REFRESH_GUARD_MS) }, status: { in: ["queued", "running", "ready", "analyzing", "succeeded", "partial"] } },
       orderBy: { createdAt: "desc" },
-      include: { snapshots: { include: { items: true } }, report: true },
+      include: { snapshots: { include: { items: true } } },
     });
     const hasObfuscatedFanqieData = recent?.snapshots.some((snapshot) => snapshot.platform === "fanqie"
       && snapshot.items.some((item) => hasPrivateUseCharacters(item.title) || hasPrivateUseCharacters(item.author)));
@@ -374,11 +378,12 @@ export class MarketRadarService {
   ): Promise<MarketScanRun> {
     const run = await prisma.marketScanRun.findUnique({
       where: { id: runId },
-      include: { snapshots: { include: { items: true } }, report: true },
+      include: { snapshots: { include: { items: true } } },
     });
     if (!run) throw new Error("扫榜任务不存在。");
-    if (run.report) return this.getScan(runId) as Promise<MarketScanRun>;
     if (run.status === "queued" || run.status === "running") throw new Error("榜单仍在采集中，请稍后再分析。");
+    if (run.status === "analyzing") return this.getScan(runId) as Promise<MarketScanRun>;
+    if (!canStartMarketRadarAnalysis(run.status as MarketScanRun["status"])) throw new Error("当前扫榜任务无法启动AI分析，请重新扫榜。");
     const successful = run.snapshots.filter((snapshot) => snapshot.status === "succeeded" && snapshot.items.length > 0);
     if (successful.length === 0) throw new Error("没有可供AI分析的榜单数据。");
     const requestedItemIds = [...new Set(input.selectedItemIds ?? [])];
@@ -400,7 +405,7 @@ export class MarketRadarService {
     if (selectedSnapshots.length !== uniqueSelections.length) throw new Error("选择中包含未成功获取的榜单，请重新选择。");
 
     const claimed = await prisma.marketScanRun.updateMany({
-      where: { id: runId, status: { in: ["ready", "partial", "interrupted"] } },
+      where: { id: runId, status: { in: [...MARKET_RADAR_ANALYSIS_STARTABLE_STATUSES] } },
       data: { status: "analyzing", progress: 0.05, lastError: null, finishedAt: null },
     });
     if (claimed.count > 0) {
@@ -440,10 +445,14 @@ export class MarketRadarService {
   async getScan(id: string): Promise<MarketScanRun | null> {
     const run = await prisma.marketScanRun.findUnique({
       where: { id },
-      include: { snapshots: { include: { items: true } }, report: true },
+      include: {
+        snapshots: { include: { items: true } },
+        reports: { orderBy: [{ createdAt: "desc" }, { id: "desc" }], take: 1 },
+      },
     });
     if (!run) return null;
-    const report = run.report ? await this.getReport(run.report.id) : null;
+    const latestReport = run.reports[0];
+    const report = latestReport ? await this.getReport(latestReport.id) : null;
     return {
       id: run.id,
       status: run.status as MarketScanRun["status"],

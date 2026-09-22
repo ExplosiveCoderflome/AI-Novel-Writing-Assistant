@@ -4092,7 +4092,7 @@ model MarketScanRun {
   createdAt          DateTime                @default(now())
   updatedAt          DateTime                @updatedAt
   snapshots          MarketRankingSnapshot[]
-  report             MarketTrendReport?
+  reports            MarketTrendReport[]
 
   @@index([status, createdAt])
   @@index([createdAt])
@@ -4136,7 +4136,7 @@ model MarketRankingItem {
 
 model MarketTrendReport {
   id                 String                @id @default(cuid())
-  runId              String                @unique
+  runId              String
   summary            String
   structuredDataJson String
   createdAt          DateTime              @default(now())
@@ -4144,6 +4144,7 @@ model MarketTrendReport {
   briefs             MarketCreativeBrief[]
   savedTopics        MarketSavedTopic[]
 
+  @@index([runId, createdAt])
   @@index([createdAt])
 }
 
