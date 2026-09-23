@@ -51,6 +51,8 @@ export interface CreateNovelInput {
   continuationBookAnalysisSections?: BookAnalysisSectionKey[] | null;
   referenceBookAnalysisId?: string | null;
   referenceBookAnalysisSections?: BookAnalysisSectionKey[] | null;
+  creativeCarryoverContractJson?: string | null;
+  creativeCarryoverContractSchemaVersion?: number | null;
 }
 
 export interface UpdateNovelInput {

@@ -226,6 +226,10 @@ export const promptAssetLoaderEntries: PromptAssetLoaderEntry[] = [
     load: () => require("../prompts/novel/directorPlanning.prompts").directorBookContractPrompt as UnknownPromptAsset,
   },
   {
+    key: "novel.creative_carryover.contract@v1",
+    load: () => require("../prompts/novel/creativeCarryoverContract.prompts").creativeCarryoverContractPrompt as UnknownPromptAsset,
+  },
+  {
     key: "novel.director.blueprint@v1",
     load: () => require("../prompts/novel/directorPlanning.prompts").directorBlueprintPrompt as UnknownPromptAsset,
   },

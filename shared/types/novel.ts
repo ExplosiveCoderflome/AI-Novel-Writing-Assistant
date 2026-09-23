@@ -259,6 +259,8 @@ export interface Novel {
   continuationBookAnalysisSections?: BookAnalysisSectionKey[] | null;
   referenceBookAnalysisId?: string | null;
   referenceBookAnalysisSections?: BookAnalysisSectionKey[] | null;
+  creativeCarryoverContractJson?: string | null;
+  creativeCarryoverContractSchemaVersion?: number | null;
   outline?: string | null;
   structuredOutline?: string | null;
   volumes?: VolumePlan[];

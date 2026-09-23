@@ -406,6 +406,8 @@ export class NovelCoreCrudService {
             : null,
         referenceBookAnalysisId,
         referenceBookAnalysisSections: referenceBookAnalysisId ? referenceBookAnalysisSections : null,
+        creativeCarryoverContractJson: input.creativeCarryoverContractJson ?? null,
+        creativeCarryoverContractSchemaVersion: input.creativeCarryoverContractSchemaVersion ?? null,
       },
     });
 

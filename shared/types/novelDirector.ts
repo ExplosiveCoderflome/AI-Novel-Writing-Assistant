@@ -12,6 +12,7 @@ import type {
 import type { LLMProvider } from "./llm";
 import type { ArtifactSyncMode } from "./novel";
 import type { BookAnalysisSectionKey } from "./bookAnalysis";
+import type { CreativeCarryoverContract } from "./creativeCarryoverContract";
 import type { NovelWorkflowResumeTarget, NovelWorkflowStage } from "./novelWorkflow";
 import type { WritingPlatformPreference } from "./writingPlatform";
 import type {
@@ -477,6 +478,7 @@ export interface DirectorTaskSeedPayloadSnapshot {
     targetId?: string | null;
     completedAt: string;
   } | null;
+  creativeCarryoverContract?: CreativeCarryoverContract | null;
 }
 
 export interface DirectorLLMOptions {

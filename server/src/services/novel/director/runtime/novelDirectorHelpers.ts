@@ -1,4 +1,5 @@
 import { randomUUID } from "node:crypto";
+import type { CreativeCarryoverContract } from "@ai-novel/shared/types/creativeCarryoverContract";
 import type {
   DirectorAutoExecutionPlan,
   DirectorAutoExecutionState,
@@ -90,6 +91,7 @@ export interface DirectorWorkflowSeedPayload extends Record<string, unknown> {
     targetId?: string | null;
     completedAt: string;
   } | null;
+  creativeCarryoverContract?: CreativeCarryoverContract | null;
 }
 
 export interface CandidateGenerationContext {

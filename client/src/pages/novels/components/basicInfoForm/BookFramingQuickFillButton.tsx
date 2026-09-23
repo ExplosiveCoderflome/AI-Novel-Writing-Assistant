@@ -1,5 +1,7 @@
 import { useMemo } from "react";
 import { useMutation } from "@tanstack/react-query";
+import type { BookAnalysisSectionKey } from "@ai-novel/shared/types/bookAnalysis";
+import type { BookFramingReferenceIntent } from "@ai-novel/shared/types/novelFraming";
 import { formatCommercialTagsInput, type NovelBasicFormState } from "../../novelBasicInfo.shared";
 import { suggestBookFraming } from "@/api/novelFraming";
 import AiButton from "@/components/common/AiButton";
@@ -29,10 +31,37 @@ function hasExistingFramingContent(basicForm: NovelBasicFormState): boolean {
   );
 }
 
+function resolveReferenceBinding(basicForm: NovelBasicFormState): {
+  bookAnalysisId?: string;
+  referenceIntent?: BookFramingReferenceIntent;
+  bookAnalysisSections?: BookAnalysisSectionKey[];
+} {
+  if (basicForm.writingMode === "continuation" && basicForm.continuationBookAnalysisId.trim()) {
+    return {
+      bookAnalysisId: basicForm.continuationBookAnalysisId.trim(),
+      referenceIntent: "continuation",
+      bookAnalysisSections: basicForm.continuationBookAnalysisSections.length > 0
+        ? basicForm.continuationBookAnalysisSections
+        : undefined,
+    };
+  }
+  if (basicForm.referenceBookAnalysisId.trim()) {
+    return {
+      bookAnalysisId: basicForm.referenceBookAnalysisId.trim(),
+      referenceIntent: "adaptation",
+      bookAnalysisSections: basicForm.referenceBookAnalysisSections.length > 0
+        ? basicForm.referenceBookAnalysisSections
+        : undefined,
+    };
+  }
+  return {};
+}
+
 export function BookFramingQuickFillButton(props: BookFramingQuickFillButtonProps) {
   const { basicForm, genreOptions, onApplySuggestion, descriptionOverride } = props;
   const llm = useLLMStore();
   const effectiveDescription = basicForm.description.trim() || descriptionOverride?.trim() || "";
+  const referenceBinding = useMemo(() => resolveReferenceBinding(basicForm), [basicForm]);
   const selectedGenreLabel = useMemo(
     () => genreOptions.find((item) => item.id === basicForm.genreId)?.path
       ?? genreOptions.find((item) => item.id === basicForm.genreId)?.label
@@ -46,6 +75,9 @@ export function BookFramingQuickFillButton(props: BookFramingQuickFillButtonProp
       description: effectiveDescription || undefined,
       genreLabel: selectedGenreLabel || undefined,
       styleTone: basicForm.styleTone.trim() || undefined,
+      bookAnalysisId: referenceBinding.bookAnalysisId,
+      referenceIntent: referenceBinding.referenceIntent,
+      bookAnalysisSections: referenceBinding.bookAnalysisSections,
       provider: llm.provider,
       model: llm.model,
       temperature: llm.temperature,
@@ -63,7 +95,11 @@ export function BookFramingQuickFillButton(props: BookFramingQuickFillButtonProp
         bookSellingPoint: suggestion.bookSellingPoint,
         first30ChapterPromise: suggestion.first30ChapterPromise,
       });
-      toast.success("已根据当前书名和概述填入读者与卖点建议。");
+      toast.success(
+        referenceBinding.bookAnalysisId
+          ? "已根据拆书结论填入读者与卖点建议。"
+          : "已根据当前书名和概述填入读者与卖点建议。",
+      );
     },
     onError: (error) => {
       toast.error(error instanceof Error ? error.message : "读者与卖点自动填写失败，请稍后再试。");
@@ -71,7 +107,7 @@ export function BookFramingQuickFillButton(props: BookFramingQuickFillButtonProp
   });
 
   const handleGenerate = () => {
-    if (!basicForm.title.trim() && !effectiveDescription) {
+    if (!basicForm.title.trim() && !effectiveDescription && !referenceBinding.bookAnalysisId) {
       toast.error("请先填写书名或一句话概述，再让 AI 帮你填写。");
       return;
     }

@@ -60,6 +60,8 @@ import {
 import { useNovelAutoDirectorCandidateMutations } from "../components/useNovelAutoDirectorCandidateMutations";
 import { hasCreationFoundationChanged } from "./creationFoundationPickerState";
 import type { AutoDirectorCreateDraft } from "./draft/autoDirectorCreateDraft";
+import type { CreativeCarryoverContract } from "@ai-novel/shared/types/creativeCarryoverContract";
+import { parseCreativeCarryoverContract } from "@ai-novel/shared/types/creativeCarryoverContract";
 
 interface UseAutoDirectorCreateControllerInput {
   marketBriefId?: string;
@@ -81,6 +83,9 @@ interface UseAutoDirectorCreateControllerInput {
   initialDraft?: AutoDirectorCreateDraft | null;
   workflowTaskId?: string;
   restoredTask?: UnifiedTaskDetail | null;
+  creativeCarryoverContract?: CreativeCarryoverContract | null;
+  requireCreativeCarryoverAdopted?: boolean;
+  onCreativeCarryoverContractChange?: (contract: CreativeCarryoverContract | null) => void;
   onWorkflowTaskChange?: (workflowTaskId: string) => void;
   onBasicFormChange: (patch: Partial<NovelBasicFormState>) => void;
 }
@@ -107,6 +112,9 @@ export function useAutoDirectorCreateController(input: UseAutoDirectorCreateCont
     initialDraft,
     workflowTaskId: workflowTaskIdProp,
     restoredTask,
+    creativeCarryoverContract,
+    requireCreativeCarryoverAdopted = false,
+    onCreativeCarryoverContractChange,
     onWorkflowTaskChange,
     onBasicFormChange,
     marketBriefId,
@@ -189,8 +197,12 @@ export function useAutoDirectorCreateController(input: UseAutoDirectorCreateCont
     if (typeof seedPayload?.styleProfileId === "string") {
       setSelectedStyleProfileId(seedPayload.styleProfileId);
     }
+    const restoredContract = parseCreativeCarryoverContract(seedPayload?.creativeCarryoverContract);
+    if (restoredContract) {
+      onCreativeCarryoverContractChange?.(restoredContract);
+    }
     setWorldSetupMode("auto_generate");
-  }, [applyAutoApprovalSnapshot, restoredTask, workflowTaskId]);
+  }, [applyAutoApprovalSnapshot, onCreativeCarryoverContractChange, restoredTask, workflowTaskId]);
 
   const directorBasicForm = useMemo(
     () => patchNovelBasicForm(basicForm, {
@@ -392,6 +404,7 @@ export function useAutoDirectorCreateController(input: UseAutoDirectorCreateCont
         issueGovernanceVersion: issuePolicy ? 1 : undefined,
         issuePolicy: issuePolicy ?? undefined,
         issuePolicySource: "global",
+        creativeCarryoverContract: creativeCarryoverContract ?? null,
       },
     });
     const taskId = response.data?.id ?? "";
@@ -567,7 +580,9 @@ export function useAutoDirectorCreateController(input: UseAutoDirectorCreateCont
     setBatches((prev) => applyDirectorCandidateTitleOption(prev, batchId, candidateId, option));
   };
 
-  const canGenerate = idea.trim().length > 0 && !generateMutation.isPending;
+  const canGenerate = idea.trim().length > 0
+    && !generateMutation.isPending
+    && (!requireCreativeCarryoverAdopted || Boolean(creativeCarryoverContract?.adopted));
 
   const updateProductionFoundation = async (patch: Partial<{
     genreId: string;

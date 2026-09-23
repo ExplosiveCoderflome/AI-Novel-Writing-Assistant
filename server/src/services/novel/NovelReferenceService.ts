@@ -221,6 +221,13 @@ const STAGE_SECTION_MAP: Record<NovelReferenceStage, BookAnalysisSectionKey[]> =
   character: ["character_system"],
 };
 
+const FRAMING_SECTION_KEYS: Record<"continuation" | "adaptation", BookAnalysisSectionKey[]> = {
+  continuation: ["overview", "character_system", "plot_structure", "timeline", "market_highlights"],
+  adaptation: ["overview", "plot_structure", "themes", "style_technique", "market_highlights"],
+};
+
+const MAX_FRAMING_REFERENCE_CHARS = 4_500;
+
 export class NovelReferenceService {
   async buildReferenceFromAnalysisId(
     analysisId: string | null | undefined,
@@ -241,6 +248,33 @@ export class NovelReferenceService {
     return clipText(
       this.buildAnalysisBlock(analysis, selected.size > 0 ? selected : stageKeys, "analysis.reference.input"),
       MAX_REFERENCE_CHARS_PER_STAGE,
+    );
+  }
+
+  async buildFramingReferenceFromAnalysisId(
+    analysisId: string | null | undefined,
+    intent: "continuation" | "adaptation",
+    sectionKeys?: BookAnalysisSectionKey[] | null,
+  ): Promise<string> {
+    if (!analysisId) {
+      return "";
+    }
+    const analysis = await this.resolveAnalysisById(analysisId);
+    if (!analysis) {
+      return "";
+    }
+    const defaults = FRAMING_SECTION_KEYS[intent];
+    const preferred = sectionKeys?.length
+      ? sectionKeys.filter((key) => defaults.includes(key) || ALL_SECTION_KEY_SET.has(key))
+      : defaults;
+    const selected = new Set(preferred.length > 0 ? preferred : defaults);
+    return clipText(
+      this.buildAnalysisBlock(
+        analysis,
+        selected,
+        intent === "continuation" ? "continuation.framing.analysis" : "structure.framing.analysis",
+      ),
+      MAX_FRAMING_REFERENCE_CHARS,
     );
   }
 
