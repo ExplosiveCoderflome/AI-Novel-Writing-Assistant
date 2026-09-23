@@ -297,6 +297,11 @@ test("resolveLLMClientOptions applies structured reasoning and token guardrails"
   setProviderSecretCache("kimi", {
     key: "test-key",
   });
+  setProviderSecretCache("custom_kimik3", {
+    key: "test-key",
+    model: "kimi-k3",
+    baseURL: "https://gateway.example.com/v1",
+  });
 
   try {
     const modelscope = await resolveLLMClientOptions("custom_modelscope", {
@@ -341,6 +346,11 @@ test("resolveLLMClientOptions applies structured reasoning and token guardrails"
       temperature: 0.5,
     });
     assert.equal(kimiK3.temperature, 1);
+
+    const proxiedKimiK3 = await resolveLLMClientOptions("custom_kimik3", {
+      temperature: 0.1,
+    });
+    assert.equal(proxiedKimiK3.temperature, 1);
 
     const qwenThinking = await resolveLLMClientOptions("qwen", {
       apiKey: "test-key",
@@ -396,6 +406,7 @@ test("resolveLLMClientOptions applies structured reasoning and token guardrails"
     setProviderSecretCache("deepseek", null);
     setProviderSecretCache("glm", null);
     setProviderSecretCache("kimi", null);
+    setProviderSecretCache("custom_kimik3", null);
   }
 });
 
