@@ -11,8 +11,11 @@ export interface ProviderConfig {
   defaultModel: string;
   models: string[];
   envKey: string;
+  envKeyAliases?: string[];
   envBaseURLKey?: string;
+  envBaseURLKeyAliases?: string[];
   envModelKey?: string;
+  envModelKeyAliases?: string[];
   maxTokens?: number;
   requiresApiKey?: boolean;
 }
@@ -140,6 +143,18 @@ export const PROVIDERS: Record<BuiltinLLMProvider, ProviderConfig> = {
     envModelKey: "OLLAMA_MODEL",
     requiresApiKey: false,
   },
+  atlascloud: {
+    name: "Atlas Cloud",
+    baseURL: "https://api.atlascloud.ai/v1",
+    defaultModel: "qwen/qwen3.5-flash",
+    models: ["qwen/qwen3.5-flash", "deepseek-ai/deepseek-v4-pro"],
+    envKey: "ATLASCLOUD_API_KEY",
+    envKeyAliases: ["ATLAS_CLOUD_API_KEY"],
+    envBaseURLKey: "ATLASCLOUD_BASE_URL",
+    envBaseURLKeyAliases: ["ATLAS_CLOUD_BASE_URL"],
+    envModelKey: "ATLASCLOUD_MODEL",
+    envModelKeyAliases: ["ATLAS_CLOUD_MODEL"],
+  },
 };
 
 export const SUPPORTED_PROVIDERS: BuiltinLLMProvider[] = [...LLM_PROVIDERS];
@@ -152,37 +167,42 @@ export function normalizeBaseURL(baseURL: string): string {
   return baseURL.endsWith("/") ? baseURL.slice(0, -1) : baseURL;
 }
 
+function readProviderEnv(keys: Array<string | undefined>, normalize?: (value: string) => string): string | undefined {
+  for (const key of keys) {
+    if (!key) {
+      continue;
+    }
+    const value = process.env[key];
+    if (typeof value === "string" && value.trim()) {
+      const trimmed = value.trim();
+      return normalize ? normalize(trimmed) : trimmed;
+    }
+  }
+  return undefined;
+}
+
 export function getProviderEnvApiKey(provider: LLMProvider): string | undefined {
   if (!isBuiltInProvider(provider)) {
     return undefined;
   }
-  const envKey = PROVIDERS[provider].envKey;
-  const value = process.env[envKey];
-  return typeof value === "string" && value.trim() ? value.trim() : undefined;
+  const config = PROVIDERS[provider];
+  return readProviderEnv([config.envKey, ...(config.envKeyAliases ?? [])]);
 }
 
 export function getProviderEnvBaseUrl(provider: LLMProvider): string | undefined {
   if (!isBuiltInProvider(provider)) {
     return undefined;
   }
-  const envKey = PROVIDERS[provider].envBaseURLKey;
-  if (!envKey) {
-    return undefined;
-  }
-  const value = process.env[envKey];
-  return typeof value === "string" && value.trim() ? normalizeBaseURL(value.trim()) : undefined;
+  const config = PROVIDERS[provider];
+  return readProviderEnv([config.envBaseURLKey, ...(config.envBaseURLKeyAliases ?? [])], normalizeBaseURL);
 }
 
 export function getProviderEnvModel(provider: LLMProvider): string | undefined {
   if (!isBuiltInProvider(provider)) {
     return undefined;
   }
-  const envKey = PROVIDERS[provider].envModelKey;
-  if (!envKey) {
-    return undefined;
-  }
-  const value = process.env[envKey];
-  return typeof value === "string" && value.trim() ? value.trim() : undefined;
+  const config = PROVIDERS[provider];
+  return readProviderEnv([config.envModelKey, ...(config.envModelKeyAliases ?? [])]);
 }
 
 export function getProviderDefaultBaseUrl(provider: LLMProvider): string | undefined {
