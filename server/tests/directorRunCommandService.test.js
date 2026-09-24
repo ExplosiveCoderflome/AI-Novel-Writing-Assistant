@@ -73,6 +73,7 @@ function createCandidatesRequest(overrides = {}) {
 function createHarness(task = createTask(), pipelineJob = null) {
   const commands = [];
   const bootstraps = [];
+  const starts = [];
   const requeued = [];
   const stepUpdates = [];
   const jobUpdates = [];
@@ -143,6 +144,15 @@ function createHarness(task = createTask(), pipelineJob = null) {
       task.id = input.workflowTaskId?.trim() || (input.novelId ? `takeover-task-${commands.length + 1}` : task.id);
       task.novelId = input.novelId ?? null;
       task.lane = input.lane;
+      task.status = "queued";
+      task.updatedAt = new Date(task.updatedAt.getTime() + 1);
+      return task;
+    },
+    async startDirectorTaskForNovel(input, options) {
+      starts.push({ input, options });
+      task.id = `takeover-task-${starts.length}`;
+      task.novelId = input.novelId;
+      task.lane = "auto_director";
       task.status = "queued";
       task.updatedAt = new Date(task.updatedAt.getTime() + 1);
       return task;
@@ -304,6 +314,7 @@ function createHarness(task = createTask(), pipelineJob = null) {
   return {
     commands,
     bootstraps,
+    starts,
     requeued,
     task,
     stepUpdates,
@@ -596,6 +607,8 @@ test("director command service reuses active takeover command by novel", async (
     assert.equal(first.commandId, second.commandId);
     assert.equal(first.commandType, "takeover");
     assert.equal(harness.commands.length, 1);
+    assert.equal(harness.starts.length, 1);
+    assert.equal(harness.starts[0].options.whenActive, "supersede");
   } finally {
     harness.restore();
   }

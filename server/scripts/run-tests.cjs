@@ -7,6 +7,7 @@ const testsRoot = path.join(serverRoot, "tests");
 
 const integrationTests = new Set([
   "directorTaskFactInspection.test.js",
+  "directorCurrentTask.test.js",
   "directorWorkflowStepModules.test.js",
   "novelDirectorPipelineRuntime.test.js",
   "novelDirectorRetry.test.js",

@@ -1,6 +1,11 @@
 import { NovelWorkflowStoreService } from "./NovelWorkflowStoreService";
 import { NovelWorkflowHealingService } from "./NovelWorkflowHealingService";
 import { NovelWorkflowApplicationService } from "./NovelWorkflowApplicationService";
+import {
+  findActiveDirectorTask,
+  resolveCurrentDirectorTask,
+  startDirectorTaskForNovel,
+} from "../director/state/currentDirectorTask";
 
 export class NovelWorkflowService extends NovelWorkflowStoreService {
   private readonly healingService = new NovelWorkflowHealingService(this);
@@ -9,6 +14,18 @@ export class NovelWorkflowService extends NovelWorkflowStoreService {
   constructor() {
     super();
     this.setHealingPort(this.healingService);
+  }
+
+  findActiveDirectorTask(...args: Parameters<typeof findActiveDirectorTask>) {
+    return findActiveDirectorTask(...args);
+  }
+
+  resolveCurrentDirectorTask(...args: Parameters<typeof resolveCurrentDirectorTask>) {
+    return resolveCurrentDirectorTask(...args);
+  }
+
+  startDirectorTaskForNovel(...args: Parameters<typeof startDirectorTaskForNovel>) {
+    return startDirectorTaskForNovel(...args);
   }
 
   healBrokenAutoDirectorCandidateSeedPayload(...args: Parameters<NovelWorkflowHealingService["healBrokenAutoDirectorCandidateSeedPayload"]>) {

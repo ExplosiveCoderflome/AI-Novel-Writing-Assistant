@@ -16,6 +16,10 @@ import { buildRestoreTaskToCheckpointResult } from "./novelWorkflowCheckpoint";
 import { applyDirectorLlmOverride, type DirectorWorkflowSeedPayload } from "../director/runtime/novelDirectorHelpers";
 import type { DirectorLLMOptions } from "@ai-novel/shared/types/novelDirector";
 import { NovelWorkflowStoreService } from "./NovelWorkflowStoreService";
+import {
+  resolveCurrentDirectorTask,
+  startDirectorTaskForNovel,
+} from "../director/state/currentDirectorTask";
 
 type WorkflowRow = Awaited<ReturnType<typeof prisma.novelWorkflowTask.findUnique>>;
 
@@ -72,6 +76,18 @@ export class NovelWorkflowApplicationService {
     }
 
     if (input.novelId?.trim() && input.forceNew !== true) {
+      if (input.lane === "auto_director") {
+        const current = await resolveCurrentDirectorTask(input.novelId.trim());
+        if (current) {
+          return current;
+        }
+        return startDirectorTaskForNovel({
+          novelId: input.novelId.trim(),
+          title: input.title,
+          seedPayload: input.seedPayload,
+          initialState: input.initialState,
+        }, { whenActive: "reject" });
+      }
       const visibleRows = await this.workflow.getVisibleRowsByNovelId(input.novelId.trim(), input.lane);
       const active = visibleRows.find((row) => ["queued", "running", "waiting_approval"].includes(row.status as string));
       if (active) {
@@ -81,6 +97,15 @@ export class NovelWorkflowApplicationService {
       if (latest) {
         return latest;
       }
+    }
+
+    if (input.novelId?.trim() && input.lane === "auto_director") {
+      return startDirectorTaskForNovel({
+        novelId: input.novelId.trim(),
+        title: input.title,
+        seedPayload: input.seedPayload,
+        initialState: input.initialState,
+      }, { whenActive: "reject" });
     }
 
     return this.workflow.createWorkflow({
@@ -94,24 +119,30 @@ export class NovelWorkflowApplicationService {
     if (!existing) {
       throw new AppError("Workflow task not found.", 404);
     }
+    const attachable = existing.lane === "auto_director"
+      ? await startDirectorTaskForNovel({
+        novelId,
+        existingTaskId: taskId,
+      }, { whenActive: "reject" })
+      : existing;
     const novelTitle = await this.getNovelTitle(novelId);
     return this.workflow.updateTaskWithRetry({
       where: { id: taskId },
       data: {
         novelId,
-        title: novelTitle ?? existing.title,
-        progress: Math.max(existing.progress, defaultProgressForStage(stage)),
+        title: novelTitle ?? attachable.title,
+        progress: Math.max(attachable.progress, defaultProgressForStage(stage)),
         currentStage: stageLabel(stage),
-        currentItemKey: existing.lane === "auto_director"
-          ? (existing.currentItemKey ?? "novel_create")
+        currentItemKey: attachable.lane === "auto_director"
+          ? (attachable.currentItemKey ?? "novel_create")
           : stage,
-        currentItemLabel: existing.lane === "auto_director"
-          ? (existing.currentItemLabel ?? "正在创建小说项目")
-          : (stage === "project_setup" ? "小说项目已创建" : (existing.currentItemLabel ?? "已恢复小说主任务")),
+        currentItemLabel: attachable.lane === "auto_director"
+          ? (attachable.currentItemLabel ?? "正在创建小说项目")
+          : (stage === "project_setup" ? "小说项目已创建" : (attachable.currentItemLabel ?? "已恢复小说主任务")),
         resumeTargetJson: stringifyResumeTarget(this.workflow.buildResumeTarget({
           taskId,
           novelId,
-          lane: existing.lane,
+          lane: attachable.lane,
           stage,
         })),
         heartbeatAt: new Date(),

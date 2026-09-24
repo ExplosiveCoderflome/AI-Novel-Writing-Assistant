@@ -1,0 +1,17 @@
+﻿{
+  "measuredAt": "2026-09-24",
+  "plan": "docs/plans/auto-director-simplification-execution-plan.md",
+  "metrics": {
+    "adHocCurrentTaskLookups": 0,
+    "clientUrlTaskIdParams": 34,
+    "healOnReadCallSites": 9,
+    "directorTaskWritesOutsideState": 63,
+    "directorSeedPayloadRefs": 291,
+    "continuationModeRefs": 31,
+    "runModeBranches": 45,
+    "inProcessBackgroundScheduling": 13,
+    "stepRuntimeServiceLocator": 54,
+    "clientStatusDerivation": 205,
+    "legacyRuntimeTableAccess": 1
+  }
+}

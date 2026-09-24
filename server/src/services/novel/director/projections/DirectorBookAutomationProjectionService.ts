@@ -35,6 +35,7 @@ import {
 } from "./DirectorBookAutomationProjectionModel";
 import { buildDirectorDashboardView } from "./DirectorDashboardViewBuilder";
 import { buildDirectorDisplayState } from "./DirectorDisplayStateBuilder";
+import { resolveCurrentDirectorTask } from "../state";
 
 type RuntimeProjectionLoader = (taskId: string) => Promise<DirectorRuntimeProjection | null>;
 
@@ -222,28 +223,7 @@ export class DirectorBookAutomationProjectionService {
         title: true,
       },
     });
-    const latestTask = await prisma.novelWorkflowTask.findFirst({
-      where: {
-        novelId,
-        lane: "auto_director",
-      },
-      orderBy: { updatedAt: "desc" },
-      select: {
-        id: true,
-        title: true,
-        status: true,
-        progress: true,
-        currentStage: true,
-        currentItemKey: true,
-        currentItemLabel: true,
-        checkpointType: true,
-        checkpointSummary: true,
-        pendingManualRecovery: true,
-        lastError: true,
-        seedPayloadJson: true,
-        updatedAt: true,
-      },
-    });
+    const latestTask = await resolveCurrentDirectorTask(novelId);
     const latestRun = await prisma.directorRun.findFirst({
       where: { novelId },
       orderBy: { updatedAt: "desc" },

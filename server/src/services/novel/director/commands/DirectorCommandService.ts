@@ -482,6 +482,7 @@ export class DirectorCommandService {
 
   async enqueueTakeoverCommand(input: DirectorTakeoverRequest): Promise<DirectorCommandAcceptedResponse> {
     const takeoverInput = applyDirectorRunModeContract(input);
+    const takeoverStrategy = takeoverInput.strategy ?? (takeoverInput.startPhase ? "restart_current_step" : "continue_existing");
     const reusableCommand = await prisma.directorRunCommand.findFirst({
       where: {
         novelId: takeoverInput.novelId,
@@ -494,11 +495,9 @@ export class DirectorCommandService {
       return toAcceptedResponse(reusableCommand, null);
     }
 
-    const task = await this.workflowService.bootstrapTask({
+    const task = await this.workflowService.startDirectorTaskForNovel({
       novelId: takeoverInput.novelId,
-      lane: "auto_director",
       title: "执行 AI 自动导演接管",
-      forceNew: true,
       initialState: {
         stage: "auto_director",
         itemKey: "takeover",
@@ -513,6 +512,8 @@ export class DirectorCommandService {
           autoExecutionPlan: takeoverInput.autoExecutionPlan ?? null,
         },
       },
+    }, {
+      whenActive: takeoverStrategy === "continue_existing" ? "supersede" : "reject",
     });
     return this.enqueueExecutionCommand({
       taskId: task.id,

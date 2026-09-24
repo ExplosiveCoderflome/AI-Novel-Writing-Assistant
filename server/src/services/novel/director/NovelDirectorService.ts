@@ -462,8 +462,8 @@ export class NovelDirectorService {
       getStoryMacroPlan: (targetNovelId) => this.storyMacroService.getPlan(targetNovelId),
       getDirectorAssetSnapshot: (targetNovelId) => this.getDirectorAssetSnapshot(targetNovelId),
       getVolumeWorkspace: (targetNovelId) => this.volumeService.getVolumes(targetNovelId),
-      findActiveAutoDirectorTask: (targetNovelId) => this.workflowService.findActiveTaskByNovelAndLane(targetNovelId, "auto_director"),
-      findLatestAutoDirectorTask: (targetNovelId) => this.workflowService.findLatestVisibleTaskByNovelId(targetNovelId, "auto_director"),
+      findActiveAutoDirectorTask: (targetNovelId) => this.workflowService.findActiveDirectorTask(targetNovelId),
+      findLatestAutoDirectorTask: (targetNovelId) => this.workflowService.resolveCurrentDirectorTask(targetNovelId),
     });
     return buildDirectorTakeoverReadiness({
       novel: takeoverState.novel,
@@ -632,18 +632,12 @@ export class NovelDirectorService {
       getDirectorAssetSnapshot: (targetNovelId) => this.getDirectorAssetSnapshot(targetNovelId),
       getVolumeWorkspace: (targetNovelId) => this.volumeService.getVolumes(targetNovelId),
       findActiveAutoDirectorTask: async (targetNovelId) => {
-        if (!commandTaskId) {
-          return this.workflowService.findActiveTaskByNovelAndLane(targetNovelId, "auto_director");
-        }
-        const rows = await this.workflowService.listVisibleTasksByNovelAndLane(targetNovelId, "auto_director");
-        return rows.find((row) => row.id !== commandTaskId && ["queued", "running", "waiting_approval"].includes(row.status)) ?? null;
+        const currentTask = await this.workflowService.findActiveDirectorTask(targetNovelId);
+        return currentTask?.id !== commandTaskId ? currentTask : null;
       },
       findLatestAutoDirectorTask: async (targetNovelId) => {
-        if (!commandTaskId) {
-          return this.workflowService.findLatestVisibleTaskByNovelId(targetNovelId, "auto_director");
-        }
-        const rows = await this.workflowService.listVisibleTasksByNovelAndLane(targetNovelId, "auto_director");
-        return rows.find((row) => row.id !== commandTaskId) ?? null;
+        const currentTask = await this.workflowService.resolveCurrentDirectorTask(targetNovelId);
+        return currentTask?.id !== commandTaskId ? currentTask : null;
       },
     });
     const takeoverStrategy = input.strategy ?? (input.startPhase ? "restart_current_step" : "continue_existing");

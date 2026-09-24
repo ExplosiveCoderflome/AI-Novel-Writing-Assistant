@@ -42,7 +42,7 @@ export type HighMemoryDirectorStartInput = {
   batchAlreadyStartedCount?: number;
 };
 
-type WorkflowTaskRow = Awaited<ReturnType<NovelWorkflowService["listActiveTasksByNovelAndLane"]>>[number];
+type WorkflowTaskRow = NonNullable<Awaited<ReturnType<NovelWorkflowService["findActiveDirectorTask"]>>>;
 
 const backgroundStartedAtByTaskId = new Map<string, number>();
 const backgroundStartedByNovelScope = new Map<string, { taskId: string; startedAt: number }>();
@@ -239,7 +239,7 @@ export function resolveHighMemoryDirectorStartDecision(input: {
 }
 
 export async function assertHighMemoryDirectorStartAllowed(
-  workflowService: Pick<NovelWorkflowService, "listActiveTasksByNovelAndLane">,
+  workflowService: Pick<NovelWorkflowService, "findActiveDirectorTask">,
   input: HighMemoryDirectorStartInput,
 ): Promise<void> {
   const scope = normalizeDirectorMemoryScope({
@@ -247,7 +247,8 @@ export async function assertHighMemoryDirectorStartAllowed(
     chapterId: input.chapterId,
     fallback: input.scope,
   });
-  const rows = await workflowService.listActiveTasksByNovelAndLane(input.novelId, "auto_director");
+  const activeTask = await workflowService.findActiveDirectorTask(input.novelId);
+  const rows = activeTask ? [activeTask] : [];
   const recentTaskId = resolveRecentlyStartedTaskId({
     novelId: input.novelId,
     scope,

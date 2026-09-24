@@ -410,7 +410,6 @@ export async function startDirectorTakeoverExecution(
     novelId: request.novelId,
     lane: "auto_director",
     title: input.takeoverState.novel.title,
-    forceNew: input.workflowTaskId ? undefined : true,
     initialState,
     seedPayload: input.buildDirectorSeedPayload(directorInput, request.novelId, buildTakeoverSeedPayloadExtra({
       directorSession,

@@ -50,6 +50,14 @@ Web API 只接收命令和返回轻量投影；Worker 负责执行重型生产�
 
 ## 当前规则
 
+### 书级当前导演任务与启动约束
+
+同一本书的当前导演任务必须只有一个解析口：`resolveCurrentDirectorTask(novelId)`。它读取未归档的 `auto_director` 任务，按 `createdAt` 降序、再按 `id` 降序取第一条；状态和 `updatedAt` 都不参与选择，读取时也不触发任务修复。终态任务仍可能是当前任务，因此 `findActiveDirectorTask(novelId)` 只在这条当前任务处于 `queued`、`running` 或 `waiting_approval` 时返回它，不回退寻找更旧的活动任务。
+
+新建或关联导演任务时，必须在同一事务中检查该书所有非终态导演任务。普通启动在发现活动任务时以 `409 / DIRECTOR_TASK_ALREADY_ACTIVE` 拒绝；只有 `continue_existing` 接管允许替换，替换时要把旧任务和仍活动的 `DirectorRunCommand` 一起置为 `cancelled`。候选任务关联到新书时也经过同一事务检查。历史冲突只通过只读报告脚本列出，不在启动或读取路径里自动清理。
+
+这条规则把“当前任务是谁”和“当前任务是否正在运行”拆成两个明确问题：任务身份由创建顺序确定，活动状态只用于决定是否允许再启动。这样终态任务不会因一次刷新或状态变化突然切换成旧任务，多个创建入口也不能各自选出不同的任务。
+
 ### 统一问题治理与停止边界
 
 自动导演的新任务使用一条统一问题链路：生产阶段报告稳定问题码，治理服务结合任务启动时冻结的全局/本书问题动作，写入 `issue_detected`、执行既有处理入口，再写入 `issue_action_applied`。已带稳定问题码的事件直接使用调用方提供的结构化事实，不再重复调用 AI；只有 `runtime.unclassified` 才调用结构化 AI 补全问题分类。AI 评估不得改变控制流。完整问题记录保存在 `DirectorEvent.metadata`，不另建问题表；相同 fingerprint 必须幂等。旧任务没有 `issueGovernanceVersion: 1` 时继续使用原运行逻辑。
@@ -166,7 +174,7 @@ Web API 只接收命令和返回轻量投影；Worker 负责执行重型生产�
 - 现有项目接管的默认范围是“全书前置规划接管”，不是章节范围。接管可以选择资产起点，但导演必须先补齐 Story Macro / Book Contract / 角色 / 卷战略 / 拆章，随后停在 `production_experience_required`；接管入口携带的旧章节范围或全书自动参数不得提前启动正文。
 - 现有项目接管的用户入口应优先呈现“系统推荐接续位置 + 资产保护说明 + 一键继续”。阶段选择、重跑当前步、范围执行、自动审批等属于高级控制，默认折叠。只有会覆盖或重建已有资产的动作才需要显式确认；普通 `continue_existing` 不应让用户先理解内部阶段卡片才能启动。
 - 接管入口的进度体检应把“系统看到的资产”直接展示给用户，至少包含卷规划、拆章同步、章节细化、正文书写和质量进度。若 URL 或上下文携带 `workspaceTaskId` / `directorTaskId`，前端应并行读取该任务快照，并优先用任务真实阶段、当前章节和任务状态解释主按钮；任务快照读取失败时再退回小说资产体检，不能让慢体检阻塞弹窗打开。
-- 接管入口只能把 `directorTaskId`、当前 active auto-director task 或 live auto-director projection 作为“当前导演任务”上下文。`workspaceTaskId` 属于普通编辑工作流 lane，不能传入接管弹窗参与“进入当前任务”判断；否则被本地收起但仍处于 `waiting_approval` 的手动流程会误导接管入口，以为存在可继续的自动导演任务。
+- 接管入口确定书级当前任务时必须使用 `resolveCurrentDirectorTask(novelId)`；`directorTaskId` 只作为明确指定的任务详情上下文，不能覆盖书级当前任务解析。`workspaceTaskId` 属于普通编辑工作流 lane，不能传入接管弹窗参与“进入当前任务”判断；否则被本地收起但仍处于 `waiting_approval` 的手动流程会误导接管入口，以为存在可继续的自动导演任务。
 - 书级自动化投影如果返回 `failed`、`blocked` 或 `waiting_recovery` 且包含 `latestTask.id`，前端必须把它视为当前需要处理的导演状态。即使 URL 没有 `directorTaskId`、active auto-director task 查询返回空，AI 驾驶舱、任务抽屉入口和恢复入口也要显示该投影，并在用户打开详情时把 `latestTask.id` 写入 `directorTaskId`。`completed` / `cancelled` 终态可以继续只在 URL 钉住时展示，避免旧任务反复打扰。
 - 当接管入口能从任务快照或小说资产推断出下一章和章节总数时，默认入口可以提供“推进至第 N 章”的轻量选择。该选择必须生成显式 `chapter_range` 的 `autoExecutionPlan`，范围从当前待执行章开始，到用户选择的目标章结束；高级设置打开时仍以高级范围配置为准。
 - 现有项目接管进入执行面时，用户提交的 `runMode`、`chapter_range` 与自动审批配置必须作为同一份执行契约写入任务 Seed，并驱动后续拆章细化与章节执行。运行时不得把范围接管降级为 `auto_to_ready`，也不得回退读取上一条已完成任务的范围；若最终持久化范围和用户请求不一致，应明确失败并保留可诊断证据，而不能显示为流程完成。

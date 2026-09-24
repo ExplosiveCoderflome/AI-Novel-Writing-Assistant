@@ -549,8 +549,8 @@ export class NovelDirectorContinueRuntime {
       getStoryMacroPlan: (targetNovelId) => this.deps.storyMacroService.getPlan(targetNovelId),
       getDirectorAssetSnapshot: (targetNovelId) => this.deps.getDirectorAssetSnapshot(targetNovelId),
       getVolumeWorkspace: (targetNovelId) => this.deps.volumeService.getVolumes(targetNovelId),
-      findActiveAutoDirectorTask: (targetNovelId) => this.deps.workflowService.findActiveTaskByNovelAndLane(targetNovelId, "auto_director"),
-      findLatestAutoDirectorTask: (targetNovelId) => this.deps.workflowService.findLatestVisibleTaskByNovelId(targetNovelId, "auto_director"),
+      findActiveAutoDirectorTask: (targetNovelId) => this.deps.workflowService.findActiveDirectorTask(targetNovelId),
+      findLatestAutoDirectorTask: (targetNovelId) => this.deps.workflowService.resolveCurrentDirectorTask(targetNovelId),
     });
     const structuredOutlineStep = takeoverState.snapshot.structuredOutlineRecoveryStep;
     const latestCheckpointType = takeoverState.latestCheckpoint?.checkpointType ?? null;
@@ -592,8 +592,8 @@ export class NovelDirectorContinueRuntime {
       getStoryMacroPlan: (targetNovelId) => this.deps.storyMacroService.getPlan(targetNovelId),
       getDirectorAssetSnapshot: (targetNovelId) => this.deps.getDirectorAssetSnapshot(targetNovelId),
       getVolumeWorkspace: (targetNovelId) => this.deps.volumeService.getVolumes(targetNovelId),
-      findActiveAutoDirectorTask: (targetNovelId) => this.deps.workflowService.findActiveTaskByNovelAndLane(targetNovelId, "auto_director"),
-      findLatestAutoDirectorTask: (targetNovelId) => this.deps.workflowService.findLatestVisibleTaskByNovelId(targetNovelId, "auto_director"),
+      findActiveAutoDirectorTask: (targetNovelId) => this.deps.workflowService.findActiveDirectorTask(targetNovelId),
+      findLatestAutoDirectorTask: (targetNovelId) => this.deps.workflowService.resolveCurrentDirectorTask(targetNovelId),
     });
     const planningRecovery = this.resolvePlanningPhaseFromTakeoverState(takeoverState);
     if (planningRecovery?.type === "phase") {
