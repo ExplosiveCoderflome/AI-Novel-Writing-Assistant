@@ -1,5 +1,6 @@
 import {
   Component,
+  useCallback,
   useEffect,
   useMemo,
   useRef,
@@ -185,6 +186,12 @@ function AutoDirectorCreatePage() {
     resolvedCarryoverMode,
     resolvedCarryoverAnalysisId,
   ) ? carryoverContract : null;
+  const handleCreativeCarryoverContractChange = useCallback((contract: CreativeCarryoverContract | null) => {
+    setCarryoverContract(contract);
+    if (contract) {
+      setCarryoverPanelState({ kind: "ready", contract });
+    }
+  }, []);
 
   const worldListQuery = useQuery({
     queryKey: queryKeys.worlds.all,
@@ -359,12 +366,7 @@ function AutoDirectorCreatePage() {
     restoredTask: restoredWorkflowTask,
     creativeCarryoverContract: activeCarryoverContract,
     requireCreativeCarryoverAdopted: showCarryoverPanel,
-    onCreativeCarryoverContractChange: (contract) => {
-      setCarryoverContract(contract);
-      if (contract) {
-        setCarryoverPanelState({ kind: "ready", contract });
-      }
-    },
+    onCreativeCarryoverContractChange: handleCreativeCarryoverContractChange,
     onWorkflowTaskChange: replaceTaskId,
     onBasicFormChange: (patch) => setBasicForm((prev) => patchNovelBasicForm(prev, patch)),
   });
@@ -568,13 +570,16 @@ function AutoDirectorCreatePage() {
     const adopted = { ...activeCarryoverContract, adopted: true };
     if (controller.workflowTaskId) {
       try {
-        await bootstrapNovelWorkflow({
+        const response = await bootstrapNovelWorkflow({
           workflowTaskId: controller.workflowTaskId,
           lane: "auto_director",
           seedPayload: {
             creativeCarryoverContract: adopted,
           },
         });
+        if (!response.data) {
+          throw new Error(response.error || "保存承接方案失败。");
+        }
       } catch (error) {
         toast.error(error instanceof Error ? error.message : "保存承接方案失败。");
         return;
