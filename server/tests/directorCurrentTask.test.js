@@ -32,6 +32,8 @@ async function main() {
   const repoRoot = process.cwd();
   const { prisma } = require(path.join(repoRoot, "server", "dist", "db", "prisma.js"));
   const { archiveTask } = require(path.join(repoRoot, "server", "dist", "services", "task", "taskArchive.js"));
+  const { NovelWorkflowService } = require(path.join(repoRoot, "server", "dist", "services", "novel", "workflow", "NovelWorkflowService.js"));
+  const { DirectorCommandService } = require(path.join(repoRoot, "server", "dist", "services", "novel", "director", "commands", "DirectorCommandService.js"));
   const {
     findActiveDirectorTask,
     resolveCurrentDirectorTask,
@@ -108,6 +110,27 @@ async function main() {
     select: { id: true, status: true },
   });
 
+  const commandNovel = await createNovel("接管命令并发测试");
+  const commandWorkflowService = new NovelWorkflowService();
+  const startCommandTask = commandWorkflowService.startDirectorTaskForNovel.bind(commandWorkflowService);
+  commandWorkflowService.startDirectorTaskForNovel = async (...args) => {
+    const task = await startCommandTask(...args);
+    await prisma.novelWorkflowTask.update({
+      where: { id: task.id },
+      data: { status: "cancelled", finishedAt: new Date(), lastError: "已被新的 AI 任务替换" },
+    });
+    return task;
+  };
+  const directorCommandService = new DirectorCommandService(commandWorkflowService);
+  const supersededTakeover = await directorCommandService.enqueueTakeoverCommand({
+    novelId: commandNovel.id,
+    strategy: "continue_existing",
+  }).then(() => null, (error) => ({ statusCode: error.statusCode ?? null, details: error.details ?? null }));
+  const supersededTakeoverCommands = await prisma.directorRunCommand.findMany({
+    where: { novelId: commandNovel.id, commandType: "takeover" },
+    select: { id: true, taskId: true, status: true },
+  });
+
   console.log(JSON.stringify({
     currentTaskId: currentTask?.id ?? null,
     activeTaskId: activeTask?.id ?? null,
@@ -119,6 +142,8 @@ async function main() {
     replacementTaskId: replacement.id,
     supersededTasks,
     supersededCommands,
+    supersededTakeover,
+    supersededTakeoverCommands,
   }));
 }
 
@@ -170,4 +195,7 @@ test("starting director work rejects, serializes, or supersedes active tasks as 
   assert.deepEqual(result.supersededTasks.map((task) => task.status), ["cancelled", "cancelled"]);
   assert.ok(result.supersededTasks.every((task) => task.lastError === "已被新的 AI 任务替换"));
   assert.deepEqual(result.supersededCommands.map((command) => command.status), ["cancelled", "cancelled"]);
+  assert.equal(result.supersededTakeover.statusCode, 409);
+  assert.equal(result.supersededTakeover.details.code, "DIRECTOR_TASK_SUPERSEDED");
+  assert.deepEqual(result.supersededTakeoverCommands, []);
 });

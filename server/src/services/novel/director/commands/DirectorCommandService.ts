@@ -41,6 +41,7 @@ import { taskDispatcher } from "../../../../workers/TaskDispatcher";
 import { DirectorCommandLeaseService } from "./leases/DirectorCommandLeaseService";
 
 const ACTIVE_COMMAND_STATUSES: DirectorRunCommandStatus[] = ["queued", "leased", "running"];
+const ACTIVE_DIRECTOR_TASK_STATUSES = ["queued", "running", "waiting_approval"] as const;
 const EXECUTION_COMMAND_TYPES: DirectorRunCommandType[] = [
   "generate_candidates",
   "refine_candidates",
@@ -59,6 +60,10 @@ const EXECUTION_COMMAND_TYPES: DirectorRunCommandType[] = [
   "accept_manual_changes_and_continue",
   "repair_chapter_titles",
 ];
+
+function resolveTakeoverStrategy(request: DirectorTakeoverRequest | undefined) {
+  return request?.strategy ?? (request?.startPhase ? "restart_current_step" : "continue_existing");
+}
 
 export type DirectorRunCommandRow = Awaited<ReturnType<DirectorCommandService["getCommandById"]>>;
 
@@ -482,7 +487,7 @@ export class DirectorCommandService {
 
   async enqueueTakeoverCommand(input: DirectorTakeoverRequest): Promise<DirectorCommandAcceptedResponse> {
     const takeoverInput = applyDirectorRunModeContract(input);
-    const takeoverStrategy = takeoverInput.strategy ?? (takeoverInput.startPhase ? "restart_current_step" : "continue_existing");
+    const takeoverStrategy = resolveTakeoverStrategy(takeoverInput);
     const reusableCommand = await prisma.directorRunCommand.findFirst({
       where: {
         novelId: takeoverInput.novelId,
@@ -491,8 +496,19 @@ export class DirectorCommandService {
       },
       orderBy: [{ createdAt: "desc" }, { id: "desc" }],
     });
-    if (reusableCommand) {
-      return toAcceptedResponse(reusableCommand, null);
+    if (reusableCommand && takeoverStrategy === "continue_existing") {
+      const existingRequest = parsePayload(reusableCommand.payloadJson).takeoverRequest;
+      const existingTask = await this.workflowService.getTaskByIdWithoutHealing(reusableCommand.taskId);
+      if (
+        resolveTakeoverStrategy(existingRequest) === "continue_existing"
+        && existingTask?.novelId === takeoverInput.novelId
+        && existingTask.lane === "auto_director"
+        && ACTIVE_DIRECTOR_TASK_STATUSES.includes(
+          existingTask.status as (typeof ACTIVE_DIRECTOR_TASK_STATUSES)[number],
+        )
+      ) {
+        return toAcceptedResponse(reusableCommand, null);
+      }
     }
 
     const task = await this.workflowService.startDirectorTaskForNovel({
@@ -518,6 +534,7 @@ export class DirectorCommandService {
     return this.enqueueExecutionCommand({
       taskId: task.id,
       commandType: "takeover",
+      requireActiveTask: true,
       payload: {
         takeoverRequest: takeoverInput,
       },
@@ -660,6 +677,7 @@ export class DirectorCommandService {
     payload: DirectorCommandPayload;
     allowTerminalReuse?: boolean;
     preserveLastError?: boolean;
+    requireActiveTask?: boolean;
   }): Promise<DirectorCommandAcceptedResponse> {
     let row = await this.workflowService.getTaskById(input.taskId);
     if (!row) {
@@ -692,22 +710,50 @@ export class DirectorCommandService {
     );
     const idempotencyKey = `${input.commandType}:${row.updatedAt.getTime()}:${hashPayload(normalizedPayload)}`;
     const payloadJson = stableJson(normalizedPayload);
-    const createCommand = () => prisma.directorRunCommand.create({
-      data: {
-        taskId: input.taskId,
-        novelId: row.novelId,
-        commandType: input.commandType,
-        idempotencyKey,
-        status: "queued",
-        payloadJson,
-      },
-    });
+    const commandData = {
+      taskId: input.taskId,
+      novelId: row.novelId,
+      commandType: input.commandType,
+      idempotencyKey,
+      status: "queued" as const,
+      payloadJson,
+    };
+    const createCommand = () => input.requireActiveTask
+      ? prisma.$transaction(async (tx) => {
+        const acceptedTask = await tx.novelWorkflowTask.updateMany({
+          where: {
+            id: input.taskId,
+            novelId: row.novelId,
+            lane: "auto_director",
+            status: { in: [...ACTIVE_DIRECTOR_TASK_STATUSES] },
+          },
+          data: {
+            status: "queued",
+            pendingManualRecovery: false,
+            lastError: null,
+            ...buildAcceptedTaskState(input.commandType),
+            heartbeatAt: new Date(),
+            finishedAt: null,
+            cancelRequestedAt: null,
+          },
+        });
+        if (acceptedTask.count === 0) {
+          throw new AppError("这项 AI 任务已被替换或已结束，请重新尝试接管。", 409, {
+            code: "DIRECTOR_TASK_SUPERSEDED",
+            taskId: input.taskId,
+          });
+        }
+        return tx.directorRunCommand.create({ data: commandData });
+      }, { isolationLevel: "Serializable" })
+      : prisma.directorRunCommand.create({ data: commandData });
 
     try {
       const command = await withSqliteRetry(createCommand, { label: "director.command.create" });
-      await this.markCommandAcceptedOnTask(input.taskId, input.commandType, {
-        preserveLastError: input.preserveLastError,
-      });
+      if (!input.requireActiveTask) {
+        await this.markCommandAcceptedOnTask(input.taskId, input.commandType, {
+          preserveLastError: input.preserveLastError,
+        });
+      }
       taskDispatcher.notify({ commandType: input.commandType, taskId: input.taskId });
       return toAcceptedResponse(command, null);
     } catch (error) {

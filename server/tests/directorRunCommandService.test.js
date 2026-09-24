@@ -70,8 +70,9 @@ function createCandidatesRequest(overrides = {}) {
   };
 }
 
-function createHarness(task = createTask(), pipelineJob = null) {
-  const commands = [];
+function createHarness(task = createTask(), pipelineJob = null, options = {}) {
+  const commands = [...(options.commands ?? [])];
+  const harnessOptions = options;
   const bootstraps = [];
   const starts = [];
   const requeued = [];
@@ -104,6 +105,7 @@ function createHarness(task = createTask(), pipelineJob = null) {
     create: prisma.directorEvent.create,
     upsert: prisma.directorEvent.upsert,
   };
+  const originalTransaction = prisma.$transaction;
   const workflowService = {
     async getTaskById(taskId) {
       return taskId === task.id ? task : null;
@@ -150,11 +152,19 @@ function createHarness(task = createTask(), pipelineJob = null) {
     },
     async startDirectorTaskForNovel(input, options) {
       starts.push({ input, options });
+      if (
+        options.whenActive === "reject"
+        && task.novelId === input.novelId
+        && ["queued", "running", "waiting_approval"].includes(task.status)
+      ) {
+        throw new Error("这本书已有进行中的 AI 任务，请先继续或取消当前任务。");
+      }
       task.id = `takeover-task-${starts.length}`;
       task.novelId = input.novelId;
       task.lane = "auto_director";
       task.status = "queued";
       task.updatedAt = new Date(task.updatedAt.getTime() + 1);
+      harnessOptions.afterStart?.(task);
       return task;
     },
   };
@@ -282,10 +292,17 @@ function createHarness(task = createTask(), pipelineJob = null) {
         return { count: 0 };
       }
     }
+    if (typeof args?.where?.status === "string" && args.where.status !== task.status) {
+      return { count: 0 };
+    }
+    if (Array.isArray(args?.where?.status?.in) && !args.where.status.in.includes(task.status)) {
+      return { count: 0 };
+    }
     Object.assign(task, args?.data ?? {});
     task.updatedAt = new Date(task.updatedAt.getTime() + 1);
     return { count: 1 };
   };
+  prisma.$transaction = async (callback) => callback(prisma);
   prisma.directorStepRun.updateMany = async (args) => {
     stepUpdates.push(args);
     return { count: 1 };
@@ -329,6 +346,7 @@ function createHarness(task = createTask(), pipelineJob = null) {
       Object.assign(prisma.generationJob, originalGenerationJob);
       Object.assign(prisma.directorRun, originalDirectorRun);
       Object.assign(prisma.directorEvent, originalDirectorEvent);
+      prisma.$transaction = originalTransaction;
     },
   };
 }
@@ -609,6 +627,86 @@ test("director command service reuses active takeover command by novel", async (
     assert.equal(harness.commands.length, 1);
     assert.equal(harness.starts.length, 1);
     assert.equal(harness.starts[0].options.whenActive, "supersede");
+  } finally {
+    harness.restore();
+  }
+});
+
+test("director command service rejects restart when an active continue takeover command exists", async () => {
+  const harness = createHarness(createTask(), null, {
+    commands: [{
+      id: "command-existing-continue",
+      taskId: "task-1",
+      novelId: "novel-1",
+      commandType: "takeover",
+      status: "queued",
+      payloadJson: JSON.stringify({
+        takeoverRequest: { novelId: "novel-1", strategy: "continue_existing" },
+      }),
+    }],
+  });
+  try {
+    await assert.rejects(
+      harness.service.enqueueTakeoverCommand({
+        novelId: "novel-1",
+        startPhase: "structured_outline",
+        strategy: "restart_current_step",
+      }),
+      /已有进行中的 AI 任务/,
+    );
+
+    assert.equal(harness.starts.length, 1);
+    assert.equal(harness.starts[0].options.whenActive, "reject");
+    assert.equal(harness.commands.length, 1);
+  } finally {
+    harness.restore();
+  }
+});
+
+test("director command service ignores an active takeover command linked to a terminal task", async () => {
+  const harness = createHarness(createTask({ status: "cancelled" }), null, {
+    commands: [{
+      id: "command-orphaned-takeover",
+      taskId: "task-1",
+      novelId: "novel-1",
+      commandType: "takeover",
+      status: "queued",
+      payloadJson: JSON.stringify({
+        takeoverRequest: { novelId: "novel-1", strategy: "continue_existing" },
+      }),
+    }],
+  });
+  try {
+    const accepted = await harness.service.enqueueTakeoverCommand({
+      novelId: "novel-1",
+      strategy: "continue_existing",
+    });
+
+    assert.notEqual(accepted.commandId, "command-orphaned-takeover");
+    assert.equal(accepted.taskId, "takeover-task-1");
+    assert.equal(harness.starts.length, 1);
+    assert.equal(harness.commands.length, 2);
+  } finally {
+    harness.restore();
+  }
+});
+
+test("director command service will not enqueue takeover after its task was superseded", async () => {
+  const harness = createHarness(createTask(), null, {
+    afterStart(task) {
+      task.status = "cancelled";
+    },
+  });
+  try {
+    await assert.rejects(
+      harness.service.enqueueTakeoverCommand({
+        novelId: "novel-1",
+        strategy: "continue_existing",
+      }),
+      /任务已被替换或已结束/,
+    );
+
+    assert.equal(harness.commands.length, 0);
   } finally {
     harness.restore();
   }

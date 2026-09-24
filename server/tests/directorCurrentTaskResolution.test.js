@@ -1,4 +1,4 @@
-const test = require("node:test");
+const { afterEach, test } = require("node:test");
 const assert = require("node:assert/strict");
 const path = require("node:path");
 
@@ -8,6 +8,21 @@ const currentTaskModulePath = path.resolve(
   __dirname,
   "../dist/services/novel/director/state/currentDirectorTask.js",
 );
+const originalModuleCacheEntries = new Map([
+  [prismaModulePath, require.cache[prismaModulePath]],
+  [archiveModulePath, require.cache[archiveModulePath]],
+]);
+
+afterEach(() => {
+  delete require.cache[currentTaskModulePath];
+  for (const [modulePath, originalEntry] of originalModuleCacheEntries) {
+    if (originalEntry) {
+      require.cache[modulePath] = originalEntry;
+    } else {
+      delete require.cache[modulePath];
+    }
+  }
+});
 
 function loadCurrentTaskModule(rows, archivedIds = []) {
   const calls = [];
