@@ -5,7 +5,9 @@ const {
   buildOpeningIdeaFromCarryoverContract,
   creativeCarryoverContractDraftSchema,
   creativeCarryoverContractSchema,
+  matchesCreativeCarryoverSource,
   parseCreativeCarryoverContract,
+  requireAdoptedCreativeCarryoverContract,
   REQUIRED_SECTIONS_BY_CARRYOVER_MODE,
 } = require("../../shared/dist/types/creativeCarryoverContract.js");
 
@@ -119,4 +121,43 @@ test("required sections differ by mode", () => {
     "style_technique",
     "market_highlights",
   ]);
+});
+
+test("carryover contract belongs only to its selected mode and analysis", () => {
+  const contract = creativeCarryoverContractSchema.parse({
+    schemaVersion: 1,
+    mode: "adaptation",
+    bookAnalysisId: "analysis-1",
+    documentId: "doc-1",
+    documentVersionId: "version-1",
+    documentVersionNumber: 1,
+    usedSectionKeys: ["plot_structure"],
+    generatedAt: "2026-09-23T00:00:00.000Z",
+    adopted: true,
+    sourceTraits: ["节奏鲜明"],
+    bookRealization: ["独立创作"],
+    openingChapters: validOpeningChapters(),
+    basis: [{ sectionKey: "plot_structure", fieldKeys: [], summary: "结构" }],
+    continuationFocus: null,
+    adaptationFocus: {
+      hooks: ["悬念"],
+      conflictLoops: ["推进"],
+      payoffRhythm: ["兑现"],
+      conversionPlan: "使用全新角色和世界",
+    },
+  });
+
+  assert.equal(matchesCreativeCarryoverSource(contract, "adaptation", "analysis-1"), true);
+  assert.equal(matchesCreativeCarryoverSource(contract, "continuation", "analysis-1"), false);
+  assert.equal(matchesCreativeCarryoverSource(contract, "adaptation", "analysis-2"), false);
+  assert.equal(matchesCreativeCarryoverSource(contract, "", ""), false);
+  assert.equal(matchesCreativeCarryoverSource(null, "adaptation", "analysis-1"), false);
+  assert.equal(requireAdoptedCreativeCarryoverContract(contract, "adaptation", "analysis-1")?.documentVersionId, "version-1");
+  assert.throws(() => requireAdoptedCreativeCarryoverContract(null, "adaptation", "analysis-1"), /生成并采用/);
+  assert.throws(() => requireAdoptedCreativeCarryoverContract({ ...contract, adopted: false }, "adaptation", "analysis-1"), /生成并采用/);
+  assert.throws(() => requireAdoptedCreativeCarryoverContract(contract, "continuation", "analysis-1"), /不一致/);
+  assert.throws(() => requireAdoptedCreativeCarryoverContract(contract, "adaptation", "analysis-2"), /不一致/);
+  assert.throws(() => requireAdoptedCreativeCarryoverContract({ ...contract, adaptationFocus: null }, "adaptation", "analysis-1"), /参考创作方案/);
+  assert.throws(() => requireAdoptedCreativeCarryoverContract(contract, "", ""), /不一致/);
+  assert.equal(requireAdoptedCreativeCarryoverContract(null, "", ""), null);
 });

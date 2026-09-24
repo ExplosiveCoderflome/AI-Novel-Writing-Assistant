@@ -24,7 +24,10 @@ import { Button } from "@/components/ui/button";
 import { toast } from "@/components/ui/toast";
 import { useLLMStore } from "@/store/llmStore";
 import type { CreativeCarryoverContract } from "@ai-novel/shared/types/creativeCarryoverContract";
-import { buildOpeningIdeaFromCarryoverContract } from "@ai-novel/shared/types/creativeCarryoverContract";
+import {
+  buildOpeningIdeaFromCarryoverContract,
+  matchesCreativeCarryoverSource,
+} from "@ai-novel/shared/types/creativeCarryoverContract";
 import ReferenceNovelStartDialog from "../components/ReferenceNovelStartDialog";
 import CreativeCarryoverContractPanel, {
   type CreativeCarryoverPanelState,
@@ -160,10 +163,28 @@ function AutoDirectorCreatePage() {
       : { kind: "idle" }
   ));
   const carryoverRequestedRef = useRef<string | null>(null);
+  const carryoverSelectionRef = useRef<string | null>(null);
   const restoreHandledRef = useRef<string | null>(null);
   const marketBriefFormAppliedRef = useRef<string | null>(null);
   const marketBriefIdeaAppliedRef = useRef<string | null>(null);
   const referenceAppliedRef = useRef<string | null>(null);
+  const resolvedCarryoverMode = referenceMode
+    || (basicForm.writingMode === "continuation" && basicForm.continuationBookAnalysisId
+      ? "continuation" as const
+      : basicForm.referenceBookAnalysisId
+        ? "adaptation" as const
+        : "");
+  const resolvedCarryoverAnalysisId = referenceBookAnalysisId
+    || (resolvedCarryoverMode === "continuation"
+      ? basicForm.continuationBookAnalysisId
+      : basicForm.referenceBookAnalysisId)
+    || "";
+  const showCarryoverPanel = Boolean(resolvedCarryoverMode && resolvedCarryoverAnalysisId);
+  const activeCarryoverContract = matchesCreativeCarryoverSource(
+    carryoverContract,
+    resolvedCarryoverMode,
+    resolvedCarryoverAnalysisId,
+  ) ? carryoverContract : null;
 
   const worldListQuery = useQuery({
     queryKey: queryKeys.worlds.all,
@@ -336,13 +357,8 @@ function AutoDirectorCreatePage() {
     initialDraft,
     workflowTaskId: normalizedTaskId,
     restoredTask: restoredWorkflowTask,
-    creativeCarryoverContract: carryoverContract,
-    requireCreativeCarryoverAdopted: Boolean(
-      referenceMode
-      || carryoverContract
-      || basicForm.continuationBookAnalysisId
-      || basicForm.referenceBookAnalysisId
-    ),
+    creativeCarryoverContract: activeCarryoverContract,
+    requireCreativeCarryoverAdopted: showCarryoverPanel,
     onCreativeCarryoverContractChange: (contract) => {
       setCarryoverContract(contract);
       if (contract) {
@@ -377,12 +393,12 @@ function AutoDirectorCreatePage() {
       runMode: controller.runMode,
       worldSetupMode: controller.worldSetupMode,
       selectedStyleProfileId: controller.selectedStyleProfileId,
-      creativeCarryoverContract: carryoverContract,
+      creativeCarryoverContract: activeCarryoverContract,
     });
   }, [
     activeStage,
     basicForm,
-    carryoverContract,
+    activeCarryoverContract,
     completedStages,
     controller.idea,
     controller.runMode,
@@ -474,28 +490,11 @@ function AutoDirectorCreatePage() {
     setCompletedStages((prev) => new Set([...prev, stage]));
   };
 
-  const resolvedCarryoverMode = referenceMode
-    || carryoverContract?.mode
-    || (basicForm.writingMode === "continuation"
-      ? "continuation" as const
-      : basicForm.referenceBookAnalysisId
-        ? "adaptation" as const
-        : "");
-  const resolvedCarryoverAnalysisId = referenceBookAnalysisId
-    || carryoverContract?.bookAnalysisId
-    || basicForm.continuationBookAnalysisId
-    || basicForm.referenceBookAnalysisId
-    || "";
-  const showCarryoverPanel = Boolean(resolvedCarryoverMode && resolvedCarryoverAnalysisId);
-
   const carryoverGenerateMutation = useMutation({
-    mutationFn: async () => {
-      if (!resolvedCarryoverMode || !resolvedCarryoverAnalysisId) {
-        throw new Error("缺少参考拆书，无法生成创作承接方案。");
-      }
+    mutationFn: async (selection: { mode: "continuation" | "adaptation"; bookAnalysisId: string; key: string }) => {
       const response = await generateCreativeCarryoverContract({
-        mode: resolvedCarryoverMode,
-        bookAnalysisId: resolvedCarryoverAnalysisId,
+        mode: selection.mode,
+        bookAnalysisId: selection.bookAnalysisId,
         provider: llm.provider || undefined,
         model: llm.model || undefined,
         temperature: llm.temperature,
@@ -505,14 +504,16 @@ function AutoDirectorCreatePage() {
       }
       return response.data;
     },
-    onMutate: () => {
+    onMutate: (selection) => {
+      if (carryoverSelectionRef.current !== selection.key) return;
       setCarryoverPanelState((prev) => (
-        prev.kind === "ready"
+        prev.kind === "ready" && matchesCreativeCarryoverSource(prev.contract, selection.mode, selection.bookAnalysisId)
           ? prev
           : { kind: "loading" }
       ));
     },
-    onSuccess: (result) => {
+    onSuccess: (result, selection) => {
+      if (carryoverSelectionRef.current !== selection.key) return;
       if (result.status === "insufficient_material") {
         setCarryoverPanelState({
           kind: "insufficient",
@@ -522,47 +523,49 @@ function AutoDirectorCreatePage() {
         });
         return;
       }
+      if (!matchesCreativeCarryoverSource(result.contract, selection.mode, selection.bookAnalysisId)) {
+        setCarryoverPanelState({ kind: "error", message: "承接方案与当前参考作品不一致，请重新生成。", hasPrevious: Boolean(activeCarryoverContract) });
+        return;
+      }
       setCarryoverContract(result.contract);
       setCarryoverPanelState({ kind: "ready", contract: result.contract });
     },
-    onError: (error) => {
+    onError: (error, selection) => {
+      if (carryoverSelectionRef.current !== selection.key) return;
       const message = error instanceof Error ? error.message : "创作承接方案生成失败。";
       setCarryoverPanelState({
         kind: "error",
         message,
-        hasPrevious: Boolean(carryoverContract),
+        hasPrevious: Boolean(activeCarryoverContract),
       });
     },
   });
 
   useEffect(() => {
     if (!showCarryoverPanel || !resolvedCarryoverMode || !resolvedCarryoverAnalysisId) {
+      carryoverSelectionRef.current = null;
       return;
     }
     const requestKey = `${resolvedCarryoverMode}:${resolvedCarryoverAnalysisId}`;
+    carryoverSelectionRef.current = requestKey;
     if (carryoverRequestedRef.current === requestKey) {
       return;
     }
-    if (carryoverContract && carryoverContract.bookAnalysisId === resolvedCarryoverAnalysisId) {
+    if (activeCarryoverContract) {
       carryoverRequestedRef.current = requestKey;
-      setCarryoverPanelState({ kind: "ready", contract: carryoverContract });
+      setCarryoverPanelState({ kind: "ready", contract: activeCarryoverContract });
       return;
     }
     carryoverRequestedRef.current = requestKey;
     setCarryoverPanelState({ kind: "loading" });
-    carryoverGenerateMutation.mutate();
-  }, [carryoverContract, resolvedCarryoverAnalysisId, resolvedCarryoverMode, showCarryoverPanel]);
+    carryoverGenerateMutation.mutate({ mode: resolvedCarryoverMode, bookAnalysisId: resolvedCarryoverAnalysisId, key: requestKey });
+  }, [activeCarryoverContract, resolvedCarryoverAnalysisId, resolvedCarryoverMode, showCarryoverPanel]);
 
   const adoptCarryoverContract = async () => {
-    if (!carryoverContract) {
+    if (!activeCarryoverContract) {
       return;
     }
-    const adopted = { ...carryoverContract, adopted: true };
-    setCarryoverContract(adopted);
-    setCarryoverPanelState({ kind: "ready", contract: adopted });
-    if (!controller.idea.trim()) {
-      controller.setIdea(buildOpeningIdeaFromCarryoverContract(adopted));
-    }
+    const adopted = { ...activeCarryoverContract, adopted: true };
     if (controller.workflowTaskId) {
       try {
         await bootstrapNovelWorkflow({
@@ -574,12 +577,18 @@ function AutoDirectorCreatePage() {
         });
       } catch (error) {
         toast.error(error instanceof Error ? error.message : "保存承接方案失败。");
+        return;
       }
+    }
+    setCarryoverContract(adopted);
+    setCarryoverPanelState({ kind: "ready", contract: adopted });
+    if (!controller.idea.trim()) {
+      controller.setIdea(buildOpeningIdeaFromCarryoverContract(adopted));
     }
   };
 
   const startGenerate = () => {
-    if (showCarryoverPanel && !carryoverContract?.adopted) {
+    if (showCarryoverPanel && !activeCarryoverContract?.adopted) {
       toast.error("请先采用创作承接方案，再生成书级方向。");
       return;
     }
@@ -590,6 +599,19 @@ function AutoDirectorCreatePage() {
     setActiveStage("candidates");
     controller.generateMutation.mutate();
   };
+  const currentCarryoverKey = `${resolvedCarryoverMode}:${resolvedCarryoverAnalysisId}`;
+  const panelBelongsToCurrentSource = !carryoverRequestedRef.current
+    || carryoverRequestedRef.current === currentCarryoverKey;
+  const readyPanelHasCurrentContract = carryoverPanelState.kind !== "ready"
+    || matchesCreativeCarryoverSource(
+      carryoverPanelState.contract,
+      resolvedCarryoverMode,
+      resolvedCarryoverAnalysisId,
+    );
+  const visibleCarryoverPanelState: CreativeCarryoverPanelState =
+    !panelBelongsToCurrentSource || !readyPanelHasCurrentContract || carryoverPanelState.kind === "idle"
+      ? { kind: "loading" }
+      : carryoverPanelState;
 
   const renderStage = () => {
     if (activeStage === "idea") {
@@ -707,12 +729,19 @@ function AutoDirectorCreatePage() {
       {showCarryoverPanel ? (
         <CreativeCarryoverContractPanel
           modeLabel={resolvedCarryoverMode === "continuation" ? "续写原作" : "参考创作新书"}
-          referenceTitle={referenceTitle || carryoverContract?.documentTitle || ""}
-          state={carryoverPanelState.kind === "idle" ? { kind: "loading" } : carryoverPanelState}
+          referenceTitle={referenceTitle || activeCarryoverContract?.documentTitle || ""}
+          state={visibleCarryoverPanelState}
           onAdopt={() => {
             void adoptCarryoverContract();
           }}
-          onRegenerate={() => carryoverGenerateMutation.mutate()}
+          onRegenerate={() => {
+            if (!resolvedCarryoverMode || !resolvedCarryoverAnalysisId) return;
+            carryoverGenerateMutation.mutate({
+              mode: resolvedCarryoverMode,
+              bookAnalysisId: resolvedCarryoverAnalysisId,
+              key: `${resolvedCarryoverMode}:${resolvedCarryoverAnalysisId}`,
+            });
+          }}
           isGenerating={carryoverGenerateMutation.isPending}
         />
       ) : null}
@@ -936,9 +965,17 @@ class AutoDirectorCreateErrorBoundary extends Component<
 }
 
 export default function AutoDirectorCreateRoute() {
+  const [searchParams] = useSearchParams();
+  const scopeKey = buildAutoDirectorCreateDraftScope({
+    marketBriefId: searchParams.get("marketBriefId") ?? "",
+    referenceMode: searchParams.get("referenceMode") ?? "",
+    referenceBookAnalysisId: searchParams.get("bookAnalysisId") ?? "",
+    referenceDocumentId: searchParams.get("sourceDocumentId") ?? "",
+    initialStyleProfileId: searchParams.get("styleProfileId") ?? "",
+  });
   return (
     <AutoDirectorCreateErrorBoundary>
-      <AutoDirectorCreatePage />
+      <AutoDirectorCreatePage key={scopeKey} />
     </AutoDirectorCreateErrorBoundary>
   );
 }

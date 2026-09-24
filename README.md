@@ -171,6 +171,10 @@ Open-source AI novel writing assistant and long-form production studio.
 
 - 为参考小说填写目标读者和卖点时，“帮我填写”可以结合所选拆书结论给出建议。
 
+#### 修复
+
+- 切换续写与参考创作方式，或更换参考小说后，开书页会使用当前选择对应的方案；旧方案不会被误用来生成新书方向或创建小说。
+
 完整历史更新见 [docs/releases/release-notes.md](./docs/releases/release-notes.md)。
 
 ## 功能预览

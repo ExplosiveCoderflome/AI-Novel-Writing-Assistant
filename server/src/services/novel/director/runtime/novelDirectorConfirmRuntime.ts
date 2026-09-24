@@ -1,6 +1,6 @@
 import {
   CREATIVE_CARRYOVER_CONTRACT_SCHEMA_VERSION,
-  parseCreativeCarryoverContract,
+  requireAdoptedCreativeCarryoverContract,
   serializeCreativeCarryoverContract,
 } from "@ai-novel/shared/types/creativeCarryoverContract";
 import {
@@ -97,6 +97,16 @@ export class NovelDirectorConfirmRuntime {
         }),
       }),
     });
+    const expectedCarryoverMode = resolvedInput.writingMode === "continuation" && resolvedInput.continuationBookAnalysisId
+      ? "continuation" as const
+      : resolvedInput.referenceBookAnalysisId ? "adaptation" as const : "";
+    const adoptedCarryover = workflowTask.novelId ? null : requireAdoptedCreativeCarryoverContract(
+      parseSeedPayload<DirectorWorkflowSeedPayload>(workflowTask.seedPayloadJson)?.creativeCarryoverContract,
+      expectedCarryoverMode,
+      expectedCarryoverMode === "continuation"
+        ? resolvedInput.continuationBookAnalysisId
+        : resolvedInput.referenceBookAnalysisId,
+    );
     await this.deps.directorRuntime.initializeRun({
       taskId: workflowTask.id,
       novelId: workflowTask.novelId,
@@ -237,10 +247,6 @@ export class NovelDirectorConfirmRuntime {
               itemLabel: "正在创建小说项目",
               progress: DIRECTOR_PROGRESS.novelCreate,
             });
-            const seedCarryover = parseCreativeCarryoverContract(
-              parseSeedPayload<DirectorWorkflowSeedPayload>(workflowTask.seedPayloadJson)?.creativeCarryoverContract,
-            );
-            const adoptedCarryover = seedCarryover?.adopted ? seedCarryover : null;
             const novel = await this.deps.novelContextService.createNovel({
               title,
               description,
