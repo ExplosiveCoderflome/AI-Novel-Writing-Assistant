@@ -228,7 +228,7 @@ pnpm --filter @ai-novel/client test              # 阶段 2、4、6
 
 #### 阶段 1 报告
 
-- **分支 / 提交：** `refactor/director-simplification`，基于 `feature/creative-carryover-contract` 的 `d3a9ca992133895f9ff97dd28a3dc73388ff37be`；阶段实现提交 `3e20bbef`，审查修复提交号待补录。
+- **分支 / 提交：** `refactor/director-simplification`，基于 `feature/creative-carryover-contract` 的 `d3a9ca992133895f9ff97dd28a3dc73388ff37be`；阶段实现提交 `3e20bbef`，审查修复提交 `6c4ff9f8`。
 - **指标变化：** `adHocCurrentTaskLookups` 16 → 0；`directorTaskWritesOutsideState` 64 → 63；`directorSeedPayloadRefs` 292 → 291。三个基线值均已同步下调。
 - **新增不变量测试：** `server/tests/directorCurrentTaskResolution.test.js` 覆盖创建时间/id 决定当前任务、归档过滤及状态无关；`server/tests/directorCurrentTask.test.js` 使用真实 SQLite 覆盖当前任务选择、并发 reject、supersede 和活动命令取消。两者覆盖 I1、I2。
 - **修改的现有测试：** `server/tests/directorRunCommandService.test.js` 增加启动服务桩、`continue_existing` 使用 supersede 的断言，以及“不同策略不复用命令”“终态任务的旧命令不复用”“已被替换任务不落命令”三个回归测试；`server/tests/autoDirectorMemorySafety.test.js` 调整为 mock 统一活动任务入口。`directorCurrentTaskResolution.test.js` 在每项测试后恢复模块缓存。
@@ -244,7 +244,7 @@ pnpm --filter @ai-novel/client test              # 阶段 2、4、6
 - **当前任务查询迁移：** 活动任务调用改到 `findActiveDirectorTask`：`NovelDirectorService`、`novelDirectorContinueRuntime`、`DirectorTakeoverReadService`、`autoDirectorMemorySafety`、`http/novelWorkflows.ts`、`agents/tools/directorRuntimeTools.ts`；最近可见任务调用改到 `resolveCurrentDirectorTask`：`DirectorBookAutomationProjectionService`。后者的 `updatedAt` 查询也已替换。
 - **验证命令与结果：** 当前任务、命令服务和内存安全针对性测试通过（43/43）；`node --test server/tests/directorSimplificationGuard.test.js` 通过（12/12）；`pnpm typecheck` 在阶段实现提交前通过，代码审查修复后 `pnpm --filter @ai-novel/server typecheck` 通过。`node server/scripts/report-director-task-conflicts.cjs` 输出 `conflictNovelCount: 0`，只读检查未发现冲突任务。
 - **集成验证：** 审查修复后重跑 `pnpm --filter @ai-novel/server test:integration`，运行 146 项，134 项通过、10 项失败。3 项 `p0bRealPrismaChain.test.js` 在 Windows 下以 `spawnSync pnpm.cmd EINVAL` 失败；4 项 `ragCompatibilityBootstrap.test.js` 在临时库 `prisma db push` 的 Schema Engine 初始化失败；其余 3 项为不涉及本阶段文件的 Prompt 治理断言（`ComicFactService.ts` 内联消息）和缺少 `novel.character.castOptions@v2` 资产的两项断言。当前任务真实 SQLite 测试在同一轮通过。失败项留待各自范围处理，不放宽断言。
-- **代码审查修复：** 只复用策略相同且关联任务仍活动的 `continue_existing` 命令；新接管命令通过事务内的活动任务条件更新与命令写入，避免被并发替换后留下悬空命令。新增三项回归测试；修复提交后复核代码审查结果。
+- **代码审查修复：** 只复用策略相同且关联任务仍活动的 `continue_existing` 命令；新接管命令通过事务内的活动任务条件更新与命令写入，避免被并发替换后留下悬空命令。新增三项回归测试；复审确认没有遗留 Critical 或 Important 问题。
 - **需要人工点验的界面路径：** 无；本阶段未改前端。
 - **遗留问题与停止条件：** 集成套件仍有上述 10 项失败；失败点已定位到临时数据库启动兼容和无关 Prompt 检查，本阶段 I1、I2 相关测试通过。未修改 Prisma schema 或现有数据库数据。
 - **wiki 改写：** 在 `docs/wiki/workflows/auto-director-runtime.md` 补充书级当前任务唯一判定、活动任务定义和启动冲突策略，并把接管链中的旧任务选择规则改为统一入口。
@@ -438,4 +438,4 @@ pnpm --filter @ai-novel/client test              # 阶段 2、4、6
 | 日期 | 阶段 | 提交 | 指标变化 | 新增测试 | 遗留问题 / 批准记录 |
 | --- | --- | --- | --- | --- | --- |
 | 2026-09-24 | 0 | 与阶段 1 同批提交 | 建立基线（11 项） | `directorSimplificationGuard.test.js` | 阶段 1 分支基点：`feature/creative-carryover-contract` @ `d3a9ca992133895f9ff97dd28a3dc73388ff37be`；执行分支为 `refactor/director-simplification` |
-| 2026-09-24 | 1 | `3e20bbef` + 审查修复提交号待补录 | `adHocCurrentTaskLookups` 16 → 0；`directorTaskWritesOutsideState` 64 → 63；`directorSeedPayloadRefs` 292 → 291 | `directorCurrentTaskResolution.test.js`、`directorCurrentTask.test.js` | 集成套件 134/146；10 项未通过的原因见阶段报告 |
+| 2026-09-24 | 1 | `3e20bbef` + `6c4ff9f8` | `adHocCurrentTaskLookups` 16 → 0；`directorTaskWritesOutsideState` 64 → 63；`directorSeedPayloadRefs` 292 → 291 | `directorCurrentTaskResolution.test.js`、`directorCurrentTask.test.js` | 集成套件 134/146；10 项未通过的原因见阶段报告 |
