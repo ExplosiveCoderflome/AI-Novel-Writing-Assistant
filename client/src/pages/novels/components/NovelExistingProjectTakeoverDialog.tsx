@@ -80,13 +80,11 @@ const STRATEGY_OPTIONS: Array<{ value: DirectorTakeoverStrategy; label: string; 
 
 function buildEditRoute(input: {
   novelId: string;
-  workflowTaskId: string;
   stage?: string | null;
   chapterId?: string | null;
   volumeId?: string | null;
 }): string {
   const search = new URLSearchParams();
-  search.set("directorTaskId", input.workflowTaskId);
   if (input.stage) search.set("stage", input.stage);
   if (input.chapterId) search.set("chapterId", input.chapterId);
   if (input.volumeId) search.set("volumeId", input.volumeId);
@@ -211,18 +209,10 @@ export default function NovelExistingProjectTakeoverDialog({
 
   const enterCurrentTask = () => {
     setOpen(false);
-    const targetTaskId = (contextTaskIsContinuable ? contextTaskSnapshot?.task.id : null) ?? readiness?.activeTaskId ?? "";
-    if (targetTaskId) {
-      navigate(buildEditRoute({
-        novelId,
-        workflowTaskId: targetTaskId,
-        stage: effectiveEntryStep === "basic" ? "basic" : effectiveEntryStep,
-      }));
-      return;
-    }
-    const search = new URLSearchParams();
-    search.set("stage", effectiveEntryStep === "basic" ? "basic" : effectiveEntryStep);
-    navigate(`/novels/${novelId}/edit?${search.toString()}`);
+    navigate(buildEditRoute({
+      novelId,
+      stage: effectiveEntryStep === "basic" ? "basic" : effectiveEntryStep,
+    }));
   };
 
   useEffect(() => {
@@ -338,7 +328,6 @@ export default function NovelExistingProjectTakeoverDialog({
       );
       navigate(buildEditRoute({
         novelId,
-        workflowTaskId: data.taskId,
         stage: effectiveEntryStep === "basic" ? "basic" : effectiveEntryStep,
       }));
     },
@@ -537,17 +526,10 @@ export default function NovelExistingProjectTakeoverDialog({
                             className="w-full sm:w-auto"
                             onClick={() => {
                               setOpen(false);
-                              if (readiness.activeTaskId) {
-                                navigate(buildEditRoute({
-                                  novelId,
-                                  workflowTaskId: readiness.activeTaskId,
-                                  stage: effectiveEntryStep === "basic" ? "basic" : effectiveEntryStep,
-                                }));
-                                return;
-                              }
-                              const search = new URLSearchParams();
-                              search.set("stage", effectiveEntryStep === "basic" ? "basic" : effectiveEntryStep);
-                              navigate(`/novels/${novelId}/edit?${search.toString()}`);
+                              navigate(buildEditRoute({
+                                novelId,
+                                stage: effectiveEntryStep === "basic" ? "basic" : effectiveEntryStep,
+                              }));
                             }}
                           >
                             处理当前任务

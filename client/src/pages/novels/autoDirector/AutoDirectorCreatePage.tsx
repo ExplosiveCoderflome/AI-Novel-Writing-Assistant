@@ -23,6 +23,8 @@ import { createStyleProfileFromBookAnalysis, getStyleProfiles } from "@/api/styl
 import { generateCreativeCarryoverContract } from "@/api/creativeCarryoverContract";
 import { Button } from "@/components/ui/button";
 import { toast } from "@/components/ui/toast";
+import { buildCandidateTaskHref, readCandidateTaskId, stripLegacyTaskUrlParams } from "@/lib/legacyTaskUrlParams";
+import { getCandidateTaskNovelHref } from "@/lib/novelRoutes";
 import { useLLMStore } from "@/store/llmStore";
 import type { CreativeCarryoverContract } from "@ai-novel/shared/types/creativeCarryoverContract";
 import {
@@ -88,9 +90,10 @@ function buildAutoDirectorCreateLink(taskId?: string, marketBriefId?: string): s
     return "/novels/auto-director";
   }
   const searchParams = new URLSearchParams();
-  if (taskId) searchParams.set("taskId", taskId);
   if (marketBriefId) searchParams.set("marketBriefId", marketBriefId);
-  return `/novels/auto-director?${searchParams.toString()}`;
+  return taskId
+    ? buildCandidateTaskHref(taskId, searchParams)
+    : `/novels/auto-director?${searchParams.toString()}`;
 }
 
 function completedThrough(stage: AutoDirectorCreateStageKey): Set<AutoDirectorCreateStageKey> {
@@ -112,7 +115,7 @@ function AutoDirectorCreatePage() {
   const reducedMotion = useReducedMotion();
   const queryClient = useQueryClient();
   const llm = useLLMStore();
-  const taskIdFromQuery = searchParams.get("taskId")?.trim() ?? "";
+  const taskIdFromQuery = readCandidateTaskId(searchParams)?.trim() ?? "";
   const legacyTaskIdFromQuery = searchParams.get("workflowTaskId")?.trim() ?? "";
   const normalizedTaskId = taskIdFromQuery || legacyTaskIdFromQuery;
   const marketBriefId = searchParams.get("marketBriefId")?.trim() ?? "";
@@ -308,11 +311,10 @@ function AutoDirectorCreatePage() {
     if (storage) {
       clearAutoDirectorCreateDraft(storage, draftScopeKey);
     }
-    const nextSearchParams = new URLSearchParams(searchParams);
+    const nextSearchParams = stripLegacyTaskUrlParams(searchParams);
     nextSearchParams.delete("workflowTaskId");
     nextSearchParams.delete("mode");
-    nextSearchParams.set("taskId", taskId);
-    navigate(`/novels/auto-director?${nextSearchParams.toString()}`, { replace: true });
+    navigate(buildCandidateTaskHref(taskId, nextSearchParams), { replace: true });
   };
 
   const restoreWorkflowMutation = useMutation({
@@ -324,6 +326,11 @@ function AutoDirectorCreatePage() {
       const task = response.data ?? null;
       setRestoredWorkflowTask(task);
       if (!task) {
+        return;
+      }
+      const novelHref = getCandidateTaskNovelHref(task);
+      if (novelHref) {
+        navigate(novelHref, { replace: true });
         return;
       }
       const seedPayload = (task.meta.seedPayload ?? null) as { basicForm?: Partial<NovelBasicFormState> } | null;
@@ -411,6 +418,12 @@ function AutoDirectorCreatePage() {
     normalizedTaskId,
   ]);
   const createdNovelId = controller.directorTask?.resumeTarget?.novelId?.trim() ?? "";
+  useEffect(() => {
+    const novelHref = getCandidateTaskNovelHref(controller.directorTask ?? restoredWorkflowTask);
+    if (novelHref) {
+      navigate(novelHref, { replace: true });
+    }
+  }, [controller.directorTask, navigate, restoredWorkflowTask]);
   const enterSimpleMutation = useMutation({
     mutationFn: () => setNovelCreationExperience(createdNovelId, "simple"),
     onSuccess: () => navigate(`/novels/${createdNovelId}/simple`, { replace: true }),

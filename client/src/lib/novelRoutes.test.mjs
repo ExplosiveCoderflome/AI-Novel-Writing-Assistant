@@ -1,12 +1,9 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 
-import {
-  buildStructuredOutlineRoute,
-  buildTaskNoticeRoute,
-  getDirectorCockpitActionHref,
-  getNovelWorkspaceHref,
-} from "./novelRoutes.ts";
+import * as routes from "./novelRoutes.ts";
+
+const { buildStructuredOutlineRoute, buildTaskNoticeRoute, getDirectorCockpitActionHref, getNovelWorkspaceHref } = routes;
 
 test("novel list links use only novel identity for each writing experience", () => {
   assert.equal(getNovelWorkspaceHref({ id: "book 1", narrativeForm: "novel", creationExperience: "professional", latestAutoDirectorTask: { id: "old" } }), "/novels/book%201/edit");
@@ -43,4 +40,34 @@ test("structured outline task notice links retain volume and stage but omit task
   assert.equal(buildStructuredOutlineRoute(task, "volume A"), "/novels/book/edit?stage=structured&volumeId=volume+A");
   assert.equal(buildTaskNoticeRoute(task, notice), "/novels/book/edit?stage=structured&volumeId=volume+A");
   assert.equal(buildTaskNoticeRoute({ ...task, sourceResource: { type: "chapter", id: "chapter" } }, notice), null);
+});
+
+test("workspace navigation keeps stage and task panel intent without task identity", () => {
+  assert.equal(routes.getNovelEditHref("book 1", { stage: "chapter", taskPanel: true }), "/novels/book%201/edit?stage=chapter&taskPanel=1");
+});
+
+test("task history opens a novel source page without its historical task selector", () => {
+  assert.equal(routes.getTaskSourceHref("/novels/book/edit?stage=chapter&directorTaskId=old&taskPanel=1"), "/novels/book/edit?stage=chapter&taskPanel=1");
+  assert.equal(routes.getTaskSourceHref("/novels/book/edit/chapter?directorTaskId=old&chapterId=c1"), "/novels/book/edit/chapter?chapterId=c1");
+  assert.equal(routes.getTaskSourceHref("/novels/book/chapters/c1?workspaceTaskId=manual"), "/novels/book/chapters/c1");
+  assert.equal(routes.getTaskSourceHref("/novels/auto-director?taskId=candidate"), "/novels/auto-director?taskId=candidate");
+});
+
+test("a candidate task moves to its novel workspace once the novel exists", () => {
+  assert.equal(routes.getCandidateTaskNovelHref({ resumeTarget: { novelId: "book 1" }, sourceResource: null }), "/novels/book%201/edit");
+  assert.equal(routes.getCandidateTaskNovelHref({ resumeTarget: null, sourceResource: { type: "novel", id: "book 2" } }), "/novels/book%202/edit");
+  assert.equal(routes.getCandidateTaskNovelHref({ resumeTarget: null, sourceResource: null }), null);
+});
+
+test("task history source follows the novel when an old candidate link belongs to a book", () => {
+  assert.equal(routes.getTaskHistorySourceHref({
+    sourceRoute: "/novels/auto-director?taskId=old",
+    sourceResource: { type: "novel", id: "book" },
+    resumeTarget: null,
+  }), "/novels/book/edit");
+  assert.equal(routes.getTaskHistorySourceHref({
+    sourceRoute: "/novels/auto-director?taskId=candidate",
+    sourceResource: null,
+    resumeTarget: null,
+  }), "/novels/auto-director?taskId=candidate");
 });

@@ -14,6 +14,7 @@ import { validate } from "../../../../middleware/validate";
 import { KnowledgeService } from "../../../../services/knowledge/KnowledgeService";
 import { novelCreateResourceRecommendationService } from "../../../../services/novel/NovelCreateResourceRecommendationService";
 import type { NovelApplicationServices } from "../../../../services/novel/application/NovelApplicationContracts";
+import { resolveCurrentDirectorTask } from "../../../../services/novel/director/state";
 
 const paginationSchema = z.object({
   page: z.coerce.number().int().min(1).default(1),
@@ -326,33 +327,31 @@ export function registerNovelBaseRoutes(input: RegisterNovelBaseRoutesInput): vo
               volumePlans: true,
             },
           },
-          workflowTasks: {
-            where: { lane: "auto_director" },
-            orderBy: { updatedAt: "desc" },
-            take: 1,
-            select: {
-              id: true,
-              status: true,
-              progress: true,
-              currentItemLabel: true,
-              pendingManualRecovery: true,
-              lastError: true,
-              checkpointType: true,
-              seedPayloadJson: true,
-              directorEvents: {
-                orderBy: { occurredAt: "desc" },
-                take: 80,
-                select: { id: true, metadataJson: true },
-              },
-            },
-          },
         },
       });
       if (!novel) {
         res.status(404).json({ success: false, error: "小说不存在。" } satisfies ApiResponse<null>);
         return;
       }
-      const task = novel.workflowTasks[0] ?? null;
+      const currentTask = await resolveCurrentDirectorTask(id);
+      const task = currentTask ? await prisma.novelWorkflowTask.findUnique({
+        where: { id: currentTask.id },
+        select: {
+          id: true,
+          status: true,
+          progress: true,
+          currentItemLabel: true,
+          pendingManualRecovery: true,
+          lastError: true,
+          checkpointType: true,
+          seedPayloadJson: true,
+          directorEvents: {
+            orderBy: { occurredAt: "desc" },
+            take: 80,
+            select: { id: true, metadataJson: true },
+          },
+        },
+      }) : null;
       const seedPayload = parseJsonRecord(task?.seedPayloadJson);
       const autoExecution = seedPayload?.autoExecution;
       const autoExecutionRecord = autoExecution && typeof autoExecution === "object" && !Array.isArray(autoExecution)

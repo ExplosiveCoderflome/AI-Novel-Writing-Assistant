@@ -2,34 +2,25 @@ import { useCallback, useEffect, useMemo } from "react";
 import { useMutation } from "@tanstack/react-query";
 import { useSearchParams } from "react-router-dom";
 import { bootstrapNovelWorkflow } from "@/api/novelWorkflow";
+import { stripLegacyTaskUrlParams } from "@/lib/legacyTaskUrlParams";
 import { normalizeNovelWorkspaceTab } from "../novelWorkspaceNavigation";
-import {
-  readNovelEditWorkflowTaskIds,
-  withNovelEditDirectorTaskId,
-  withNovelEditWorkspaceTaskId,
-} from "./novelEditWorkflowParams";
 
 export function useNovelEditWorkflow(novelId: string) {
   const [searchParams, setSearchParams] = useSearchParams();
 
-  const { directorTaskId, workspaceTaskId: workflowTaskId } = readNovelEditWorkflowTaskIds(searchParams);
   const selectedVolumeId = searchParams.get("volumeId") ?? "";
   const taskPanelOpen = searchParams.get("taskPanel") === "1";
 
   useEffect(() => {
-    const canonicalDirectorTaskId = searchParams.get("directorTaskId")?.trim() ?? "";
-    const legacyDirectorTaskId = searchParams.get("taskId")?.trim() ?? "";
-    if (!legacyDirectorTaskId) {
+    const cleaned = stripLegacyTaskUrlParams(searchParams);
+    if (cleaned.toString() === searchParams.toString()) {
       return;
     }
-    setSearchParams((prev) => withNovelEditDirectorTaskId(prev, canonicalDirectorTaskId || legacyDirectorTaskId), {
-      replace: true,
-    });
+    setSearchParams(cleaned, { replace: true });
   }, [searchParams, setSearchParams]);
 
   const bootstrapMutation = useMutation({
     mutationFn: () => bootstrapNovelWorkflow({
-      workflowTaskId: workflowTaskId || undefined,
       novelId,
       lane: "manual_create",
       seedPayload: {
@@ -37,19 +28,6 @@ export function useNovelEditWorkflow(novelId: string) {
         stage: normalizeNovelWorkspaceTab(searchParams.get("stage")),
       },
     }),
-    onSuccess: (response) => {
-      const nextTaskId = response.data?.id;
-      if (!nextTaskId || nextTaskId === workflowTaskId) {
-        return;
-      }
-      setSearchParams((prev) => {
-        const next = withNovelEditWorkspaceTaskId(prev, nextTaskId);
-        if (!next.get("stage")) {
-          next.set("stage", normalizeNovelWorkspaceTab(searchParams.get("stage")));
-        }
-        return next;
-      }, { replace: true });
-    },
   });
 
   useEffect(() => {
@@ -57,7 +35,7 @@ export function useNovelEditWorkflow(novelId: string) {
       return;
     }
     bootstrapMutation.mutate();
-  }, [novelId, workflowTaskId]);
+  }, [novelId]);
 
   const activeTab = useMemo(
     () => normalizeNovelWorkspaceTab(searchParams.get("stage")),
@@ -101,12 +79,6 @@ export function useNovelEditWorkflow(novelId: string) {
     }, { replace: true });
   };
 
-  const setDirectorTaskId = useCallback((value: string) => {
-    setSearchParams((prev) => {
-      return withNovelEditDirectorTaskId(prev, value);
-    }, { replace: true });
-  }, [setSearchParams]);
-
   const clearTaskPanelOpen = useCallback(() => {
     setSearchParams((prev) => {
       const next = new URLSearchParams(prev);
@@ -118,13 +90,10 @@ export function useNovelEditWorkflow(novelId: string) {
   return {
     activeTab,
     setActiveTab,
-    directorTaskId,
-    setDirectorTaskId,
     selectedChapterId,
     setSelectedChapterId,
     selectedVolumeId,
     setSelectedVolumeId,
-    workflowTaskId,
     taskPanelOpen,
     clearTaskPanelOpen,
   };

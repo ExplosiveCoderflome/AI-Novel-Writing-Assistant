@@ -180,6 +180,13 @@ export async function getDirectorBookAutomationProjection(novelId: string) {
   return data;
 }
 
+export async function getCurrentDirectorTask(novelId: string) {
+  const { data } = await apiClient.get<ApiResponse<{ id: string } | null>>(
+    `/novels/director/novels/${encodeURIComponent(novelId)}/current`,
+  );
+  return data;
+}
+
 export async function startDirectorTakeover(payload: DirectorTakeoverRequest) {
   const { data } = await apiClient.post<ApiResponse<DirectorCommandAcceptedResponse>>("/novels/director/tasks", {
     taskType: "takeover",

@@ -3,7 +3,7 @@
   "plan": "docs/plans/auto-director-simplification-execution-plan.md",
   "metrics": {
     "adHocCurrentTaskLookups": 0,
-    "clientUrlTaskIdParams": 34,
+    "clientUrlTaskIdParams": 0,
     "healOnReadCallSites": 9,
     "directorTaskWritesOutsideState": 63,
     "directorSeedPayloadRefs": 291,

@@ -2,6 +2,7 @@ import type { DirectorDashboardView, DirectorRuntimeProjection } from "@ai-novel
 import type { NovelWorkflowMilestone } from "@ai-novel/shared/types/novelWorkflow";
 import type { UnifiedTaskDetail, UnifiedTaskStep } from "@ai-novel/shared/types/task";
 import { Link } from "react-router-dom";
+import { getTaskHistorySourceHref } from "@/lib/novelRoutes";
 import DirectorRuntimeProjectionCard from "@/components/autoDirector/DirectorRuntimeProjectionCard";
 import {
   TaskQueueActionRow,
@@ -103,7 +104,7 @@ export default function TaskCenterDetailPanel(props: TaskCenterDetailPanelProps)
             <TaskQueueActionRow
               title="打开来源页面"
               consequence="只打开任务来源，不会改变任务状态。继续、恢复或重试请在来源页面完成。"
-              action={<Button asChild size="sm" variant="outline"><Link to={task.sourceRoute}>打开来源页面</Link></Button>}
+              action={<Button asChild size="sm" variant="outline"><Link to={getTaskHistorySourceHref(task)}>打开来源页面</Link></Button>}
             />
 
             <details className="group border-t border-border/35 pt-3">

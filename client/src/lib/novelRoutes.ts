@@ -20,7 +20,13 @@ export function getNovelWorkspaceHref(novel: NovelWorkspaceLinkInput): string {
   return novel.creationExperience === "simple" ? `${root}/simple` : `${root}/edit`;
 }
 
-function buildNovelEditHref(novelId: string, options?: { stage?: string | null; taskPanel?: boolean }): string {
+export function getCandidateTaskNovelHref(task: Pick<UnifiedTaskDetail, "resumeTarget" | "sourceResource"> | null | undefined): string | null {
+  const novelId = task?.resumeTarget?.novelId?.trim()
+    || (task?.sourceResource?.type === "novel" ? task.sourceResource.id.trim() : "");
+  return novelId ? getNovelWorkspaceHref({ id: novelId }) : null;
+}
+
+export function getNovelEditHref(novelId: string, options?: { stage?: string | null; taskPanel?: boolean }): string {
   const params = new URLSearchParams();
   if (options?.stage) {
     params.set("stage", options.stage);
@@ -32,9 +38,21 @@ function buildNovelEditHref(novelId: string, options?: { stage?: string | null; 
   return `/novels/${encodeURIComponent(novelId)}/edit${query ? `?${query}` : ""}`;
 }
 
+export function getTaskSourceHref(href: string): string {
+  return cleanNovelPageHref(href);
+}
+
+export function getTaskHistorySourceHref(task: Pick<UnifiedTaskDetail, "sourceRoute" | "sourceResource" | "resumeTarget">): string {
+  const cleaned = getTaskSourceHref(task.sourceRoute);
+  if (/^\/novels\/(auto-director|create)(?:\?|$)/.test(cleaned)) {
+    return getCandidateTaskNovelHref(task) ?? cleaned;
+  }
+  return cleaned;
+}
+
 function cleanNovelPageHref(href: string): string {
   const url = new URL(href, "https://novel.local");
-  if (url.origin !== "https://novel.local" || !/^\/novels\/[^/]+\/(edit|simple|story)$/.test(url.pathname)) {
+  if (url.origin !== "https://novel.local" || !/^\/novels\/[^/]+\/(edit|simple|story|chapters)(?:\/|$)/.test(url.pathname)) {
     return href;
   }
   const search = stripLegacyTaskUrlParams(url.searchParams).toString();
@@ -49,7 +67,7 @@ export function getDirectorCockpitActionHref(
     return cleanNovelPageHref(action.target.href);
   }
   if (action.target.tab || action.type === "open_details") {
-    return buildNovelEditHref(projection.novelId, {
+    return getNovelEditHref(projection.novelId, {
       stage: action.target.tab,
       taskPanel: action.type === "open_details",
     });

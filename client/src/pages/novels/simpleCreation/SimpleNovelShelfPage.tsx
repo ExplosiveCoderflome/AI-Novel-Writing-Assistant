@@ -15,7 +15,7 @@ import {
   Settings2,
   Sparkles,
 } from "lucide-react";
-import { Link, useNavigate, useParams } from "react-router-dom";
+import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom";
 import type { ChapterQualityDebtDetails, ChapterQualityDebtSource } from "@ai-novel/shared/types/chapterQualityLoop";
 import type { SimpleCreationShelfChapterStatus } from "@ai-novel/shared/types/novel";
 import {
@@ -25,6 +25,8 @@ import {
 } from "@/api/novel";
 import { continueNovelWorkflow } from "@/api/novelWorkflow";
 import { queryKeys } from "@/api/queryKeys";
+import { stripLegacyTaskUrlParams } from "@/lib/legacyTaskUrlParams";
+import { getTaskCenterLink } from "@/lib/novelWorkflowTaskUi";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "@/components/ui/toast";
@@ -96,8 +98,16 @@ function formatWordCount(value: number): string {
 export default function SimpleNovelShelfPage() {
   const { id = "" } = useParams();
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const queryClient = useQueryClient();
   const [selectedChapterId, setSelectedChapterId] = useState("");
+
+  useEffect(() => {
+    const cleaned = stripLegacyTaskUrlParams(searchParams);
+    if (cleaned.toString() !== searchParams.toString()) {
+      setSearchParams(cleaned, { replace: true });
+    }
+  }, [searchParams, setSearchParams]);
 
   const shelfQuery = useQuery({
     queryKey: queryKeys.novels.simpleShelf(id),
@@ -224,7 +234,7 @@ export default function SimpleNovelShelfPage() {
           <div className="flex flex-wrap items-center gap-2 border-t border-border bg-muted/20 px-5 py-3 sm:px-7">
             {shelf.progress.directorTaskId ? (
               <Button variant="outline" size="sm" asChild>
-                <Link to={`/novels/auto-director?taskId=${encodeURIComponent(shelf.progress.directorTaskId)}`}>查看 AI 导演进度</Link>
+                <Link to={getTaskCenterLink(shelf.progress.directorTaskId)}>查看 AI 导演进度</Link>
               </Button>
             ) : null}
             {shelf.progress.canRetry ? (

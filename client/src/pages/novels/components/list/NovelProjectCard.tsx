@@ -6,6 +6,7 @@ import type { NovelAutoDirectorTaskSummary } from "@ai-novel/shared/types/novel"
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
+import { getNovelEditHref } from "@/lib/novelRoutes";
 import {
   canContinueChapterBatchAutoExecution,
   canContinueDirector,
@@ -176,7 +177,7 @@ export function NovelProjectCard(props: {
           <div className="flex items-center gap-1 opacity-70 transition group-hover:opacity-100 focus-within:opacity-100">
             {task && props.novel.narrativeForm !== "short_story" ? (
               <Button asChild size="sm" variant="ghost" className="h-8 w-8 px-0" title="查看执行详情" aria-label="查看执行详情">
-                <Link to={`/novels/${props.novel.id}/edit?directorTaskId=${task.id}&taskPanel=1`} onClick={stopCardClick}>
+                <Link to={getNovelEditHref(props.novel.id, { taskPanel: true })} onClick={stopCardClick}>
                   <Gauge className="h-4 w-4" aria-hidden="true" />
                 </Link>
               </Button>
@@ -301,7 +302,7 @@ function renderPrimaryAction(input: {
   if (input.task) {
     return (
       <Button asChild size="sm">
-        <Link to={`/novels/${input.novel.id}/edit?directorTaskId=${input.task.id}`} onClick={input.onStopCardClick}>
+        <Link to={getNovelEditHref(input.novel.id)} onClick={input.onStopCardClick}>
           {input.label}
         </Link>
       </Button>

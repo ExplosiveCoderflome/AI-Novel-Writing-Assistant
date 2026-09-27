@@ -165,7 +165,7 @@ Open-source AI novel writing assistant and long-form production studio.
 
 #### 优化
 
-- 从小说列表或自动导演提示进入小说工作台时，会回到对应作品和创作位置；开书中的导演任务仍可从候选页继续。
+- 进入小说工作台、查看自动导演进度或从运行记录返回时，系统会按小说定位当前任务并保留创作位置；新书候选任务关联小说后会自动转入对应工作台。
 
 完整历史更新见 [docs/releases/release-notes.md](./docs/releases/release-notes.md)。
 
