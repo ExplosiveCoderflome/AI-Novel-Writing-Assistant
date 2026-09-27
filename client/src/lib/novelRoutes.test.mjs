@@ -72,6 +72,19 @@ test("a candidate task moves to its novel workspace once the novel exists", () =
   assert.equal(routes.getCandidateTaskNovelHref({ resumeTarget: null, sourceResource: null }), null);
 });
 
+test("a candidate task stays on the choice page until production experience is selected", () => {
+  assert.equal(routes.getCandidateTaskNovelHref({
+    checkpointType: "production_experience_required",
+    resumeTarget: { novelId: "book awaiting choice" },
+    sourceResource: { type: "novel", id: "book awaiting choice" },
+  }), null);
+});
+
+test("production experience selection keeps its chosen workspace and saved location without task identity", () => {
+  assert.equal(routes.getTaskSourceHref("/novels/book%201/simple?taskId=old&chapterId=chapter+1"), "/novels/book%201/simple?chapterId=chapter+1");
+  assert.equal(routes.getTaskSourceHref("/novels/book%202/edit?directorTaskId=old&stage=chapter&volumeId=volume+1"), "/novels/book%202/edit?stage=chapter&volumeId=volume+1");
+});
+
 test("candidate redirect keeps its saved stage, chapter, and volume without task identity", () => {
   assert.equal(routes.getCandidateTaskNovelHref({
     resumeTarget: {

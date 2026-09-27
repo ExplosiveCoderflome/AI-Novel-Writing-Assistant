@@ -31,7 +31,10 @@ export function buildCandidateTaskHref(taskId: string, otherParams?: URLSearchPa
   return `/novels/auto-director?${searchParams.toString()}`;
 }
 
-export function getCandidateTaskNovelHref(task: Pick<UnifiedTaskDetail, "resumeTarget" | "sourceResource"> | null | undefined): string | null {
+export function getCandidateTaskNovelHref(task: Pick<UnifiedTaskDetail, "resumeTarget" | "sourceResource" | "checkpointType"> | null | undefined): string | null {
+  if (task?.checkpointType === "production_experience_required") {
+    return null;
+  }
   const novelId = task?.resumeTarget?.novelId?.trim()
     || (task?.sourceResource?.type === "novel" ? task.sourceResource.id.trim() : "");
   return novelId ? getNovelResumeTargetHref(novelId, task?.resumeTarget) : null;
