@@ -139,13 +139,6 @@ export function resumeTargetToRoute(target: NovelWorkflowResumeTarget | null | u
   if (target.stage) {
     searchParams.set("stage", target.stage);
   }
-  if (target.taskId) {
-    if (target.lane === "manual_create") {
-      searchParams.set("workspaceTaskId", target.taskId);
-    } else {
-      searchParams.set("directorTaskId", target.taskId);
-    }
-  }
   if (target.chapterId) {
     searchParams.set("chapterId", target.chapterId);
   }
@@ -153,7 +146,8 @@ export function resumeTargetToRoute(target: NovelWorkflowResumeTarget | null | u
     searchParams.set("volumeId", target.volumeId);
   }
   const query = searchParams.toString();
-  return query ? `/novels/${target.novelId}/edit?${query}` : `/novels/${target.novelId}/edit`;
+  const route = target.route === "/novels/:id/simple" ? "simple" : "edit";
+  return query ? `/novels/${target.novelId}/${route}?${query}` : `/novels/${target.novelId}/${route}`;
 }
 
 export function parseMilestones(value: string | null | undefined): NovelWorkflowMilestone[] {

@@ -70,7 +70,7 @@ test("structured auto-director tasks fall back to seed resume target when row re
   assert.equal(resumeTarget.volumeId, "volume-1");
 });
 
-test("edit resume routes keep manual workspace tasks separate from director task ids", () => {
+test("edit resume routes use the novel and stage for both workflow lanes", () => {
   assert.equal(
     resumeTargetToRoute({
       route: "/novels/:id/edit",
@@ -79,7 +79,7 @@ test("edit resume routes keep manual workspace tasks separate from director task
       lane: "manual_create",
       stage: "basic",
     }),
-    "/novels/novel-1/edit?stage=basic&workspaceTaskId=manual-task",
+    "/novels/novel-1/edit?stage=basic",
   );
 
   assert.equal(
@@ -90,7 +90,7 @@ test("edit resume routes keep manual workspace tasks separate from director task
       lane: "auto_director",
       stage: "structured",
     }),
-    "/novels/novel-1/edit?stage=structured&directorTaskId=director-task",
+    "/novels/novel-1/edit?stage=structured",
   );
 });
 
