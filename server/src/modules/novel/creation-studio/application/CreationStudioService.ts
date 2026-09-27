@@ -556,7 +556,7 @@ export class CreationStudioService {
       narrativeForm: form,
       resumeRoute: form === "short_story"
         ? `/novels/${novelId}/story`
-        : `/novels/${novelId}/edit?directorTaskId=${encodeURIComponent(productionTaskId)}`,
+        : `/novels/${novelId}/edit`,
     };
   }
 }

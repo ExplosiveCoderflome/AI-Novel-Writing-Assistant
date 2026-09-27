@@ -5,6 +5,15 @@ const { createApp } = require("../dist/app.js");
 const { NovelWorkflowService } = require("../dist/services/novel/workflow/NovelWorkflowService.js");
 const { DirectorCommandService } = require("../dist/services/novel/director/commands/DirectorCommandService.js");
 const { resumeTargetToRoute } = require("../dist/services/novel/workflow/novelWorkflow.shared.js");
+const { buildWorkflowSourceRoute } = require("../dist/services/task/RecoveryTaskService.js");
+const { prisma } = require("../dist/db/prisma.js");
+const quickSetup = require("../dist/modules/setup/onboarding/application/QuickSetupService.js");
+const { getFirstNovelOnboardingProjection } = require("../dist/modules/setup/onboarding/application/FirstNovelOnboardingService.js");
+const { CreationStudioService } = require("../dist/modules/novel/creation-studio/application/CreationStudioService.js");
+const {
+  buildPrimaryAction,
+  buildSecondaryActions,
+} = require("../dist/services/novel/director/projections/DirectorBookAutomationProjectionModel.js");
 
 function listen(server) {
   return new Promise((resolve) => {
@@ -150,4 +159,89 @@ test("book resume links retain location but omit task identifiers", () => {
     mode: "director",
     taskId: "candidate-task",
   }), "/novels/auto-director?taskId=candidate-task");
+});
+
+test("recovery task source routes keep book location but omit task identifiers", () => {
+  assert.equal(buildWorkflowSourceRoute({ id: "task-1", novelId: "novel-1", creationExperience: "professional" }), "/novels/novel-1/edit?taskPanel=1");
+  assert.equal(buildWorkflowSourceRoute({ id: "task-2", novelId: "novel-2", creationExperience: "simple" }), "/novels/novel-2/simple");
+  assert.equal(buildWorkflowSourceRoute({ id: "task-3", novelId: null }), "/tasks?kind=novel_workflow&id=task-3");
+});
+
+test("first novel onboarding routes do not bind a book link to a historical task", async (t) => {
+  const originals = {
+    chapterFindFirst: prisma.chapter.findFirst,
+    taskFindFirst: prisma.novelWorkflowTask.findFirst,
+    novelFindFirst: prisma.novel.findFirst,
+    quickSetupStatus: quickSetup.getQuickSetupStatus,
+  };
+  const novel = { id: "novel-1", title: "示例小说", creationExperience: "professional" };
+  let latestTask = null;
+  prisma.chapter.findFirst = async () => null;
+  prisma.novelWorkflowTask.findFirst = async () => latestTask;
+  prisma.novel.findFirst = async () => novel;
+  quickSetup.getQuickSetupStatus = async () => ({
+    readyForCreation: true,
+    providers: [],
+    selectedProvider: "deepseek",
+    selectedModel: "deepseek-chat",
+    routeCoverage: { configured: 11, total: 11, missingTaskTypes: [] },
+    blockingReasons: [],
+    recommendedAction: "start_creating",
+  });
+  t.after(() => {
+    prisma.chapter.findFirst = originals.chapterFindFirst;
+    prisma.novelWorkflowTask.findFirst = originals.taskFindFirst;
+    prisma.novel.findFirst = originals.novelFindFirst;
+    quickSetup.getQuickSetupStatus = originals.quickSetupStatus;
+  });
+
+  const cases = [
+    { checkpointType: "production_experience_required", currentStage: "chapter_execution" },
+    { checkpointType: null, currentStage: "chapter_execution" },
+    { checkpointType: null, currentStage: "chapter_planning" },
+  ];
+  for (const state of cases) {
+    latestTask = {
+      id: "old-task-id",
+      novelId: novel.id,
+      status: "running",
+      checkpointType: state.checkpointType,
+      currentStage: state.currentStage,
+      currentItemLabel: "准备章节",
+      lastError: null,
+      novel,
+    };
+    const projection = await getFirstNovelOnboardingProjection();
+    assert.equal(projection.primaryAction.route, "/novels/novel-1/edit");
+  }
+});
+
+test("creation studio confirmation resumes at the novel page without a task selector", () => {
+  const service = new CreationStudioService();
+  const result = service.buildConfirmationResult("studio-task", "long_novel", "novel-1", "production-task");
+  assert.equal(result.resumeRoute, "/novels/novel-1/edit");
+});
+
+test("director book automation action builders omit task identifiers from novel links", () => {
+  assert.equal(buildPrimaryAction({
+    novelId: "novel-1",
+    status: "running",
+    task: { id: "task-1" },
+  }).target.href, "/novels/novel-1/edit");
+  assert.equal(buildPrimaryAction({
+    novelId: "novel-1",
+    status: "waiting_approval",
+    task: { id: "task-1", checkpointType: "chapter_batch_ready" },
+  }).target.href, "/novels/novel-1/edit?stage=chapter");
+  assert.equal(buildPrimaryAction({
+    novelId: "novel-1",
+    status: "failed",
+    task: { id: "task-1", checkpointType: "replan_required" },
+  }).target.href, "/novels/novel-1/edit?stage=pipeline");
+  assert.equal(buildPrimaryAction({
+    novelId: "novel-1",
+    status: "failed",
+    task: { id: "task-1" },
+  }).target.href, "/novels/novel-1/edit?taskPanel=1");
+  assert.equal(buildSecondaryActions({ novelId: "novel-1", status: "failed", taskId: "task-1" })[0].target.href, "/novels/novel-1/edit?taskPanel=1");
 });

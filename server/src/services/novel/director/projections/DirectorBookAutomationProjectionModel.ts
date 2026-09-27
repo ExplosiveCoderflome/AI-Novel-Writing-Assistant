@@ -269,16 +269,12 @@ function buildNovelHref(
   novelId: string,
   options?: {
     tab?: DirectorBookAutomationAction["target"]["tab"];
-    taskId?: string | null;
     taskPanel?: boolean;
   },
 ): string {
   const params = new URLSearchParams();
   if (options?.tab) {
     params.set("stage", options.tab);
-  }
-  if (options?.taskId) {
-    params.set("directorTaskId", options.taskId);
   }
   if (options?.taskPanel) {
     params.set("taskPanel", "1");
@@ -441,7 +437,7 @@ export function buildPrimaryAction(input: {
         novelId: input.novelId,
         taskId,
         tab: "pipeline",
-        href: buildNovelHref(input.novelId, { tab: "pipeline", taskId }),
+        href: buildNovelHref(input.novelId, { tab: "pipeline" }),
       },
       commandPayload: { taskId, continuationMode: "auto_execute_range" },
       emphasis: "primary",
@@ -464,7 +460,7 @@ export function buildPrimaryAction(input: {
         target: {
           novelId: input.novelId,
           taskId,
-          href: buildNovelHref(input.novelId, { taskId }),
+          href: buildNovelHref(input.novelId),
         },
         emphasis: "primary",
       });
@@ -477,7 +473,7 @@ export function buildPrimaryAction(input: {
           novelId: input.novelId,
           taskId,
           tab: "chapter",
-          href: buildNovelHref(input.novelId, { tab: "chapter", taskId }),
+          href: buildNovelHref(input.novelId, { tab: "chapter" }),
         },
         commandPayload: { taskId, continuationMode: "auto_execute_range" },
         emphasis: "primary",
@@ -486,7 +482,7 @@ export function buildPrimaryAction(input: {
     return action({
       type: "continue",
       label: "确认并继续",
-      target: { novelId: input.novelId, taskId, href: buildNovelHref(input.novelId, { taskId }) },
+      target: { novelId: input.novelId, taskId, href: buildNovelHref(input.novelId) },
       commandPayload: { taskId, continuationMode: "resume" },
       emphasis: "primary",
     });
@@ -496,7 +492,7 @@ export function buildPrimaryAction(input: {
     return action({
       type: "continue",
       label: "从进度点继续",
-      target: { novelId: input.novelId, taskId, href: buildNovelHref(input.novelId, { taskId }) },
+      target: { novelId: input.novelId, taskId, href: buildNovelHref(input.novelId) },
       commandPayload: { taskId, continuationMode: "resume" },
       emphasis: "primary",
     });
@@ -506,7 +502,7 @@ export function buildPrimaryAction(input: {
     return action({
       type: "open_details",
       label: input.status === "failed" ? "查看失败原因" : "查看暂停原因",
-      target: { novelId: input.novelId, taskId, href: buildNovelHref(input.novelId, { taskId, taskPanel: true }) },
+      target: { novelId: input.novelId, taskId, href: buildNovelHref(input.novelId, { taskPanel: true }) },
       emphasis: "primary",
     });
   }
@@ -515,7 +511,7 @@ export function buildPrimaryAction(input: {
     return action({
       type: "open_novel",
       label: "查看推进状态",
-      target: { novelId: input.novelId, taskId, href: buildNovelHref(input.novelId, { taskId }) },
+      target: { novelId: input.novelId, taskId, href: buildNovelHref(input.novelId) },
       emphasis: "primary",
     });
   }
@@ -528,7 +524,7 @@ export function buildPrimaryAction(input: {
         novelId: input.novelId,
         taskId,
         tab: "chapter",
-        href: buildNovelHref(input.novelId, { tab: "chapter", taskId }),
+        href: buildNovelHref(input.novelId, { tab: "chapter" }),
       },
       emphasis: "primary",
     });
@@ -537,7 +533,7 @@ export function buildPrimaryAction(input: {
   return action({
     type: "open_novel",
     label: "打开小说",
-    target: { novelId: input.novelId, taskId, href: buildNovelHref(input.novelId, { taskId }) },
+    target: { novelId: input.novelId, taskId, href: buildNovelHref(input.novelId) },
     emphasis: "primary",
   });
 }
@@ -557,7 +553,7 @@ export function buildSecondaryActions(input: {
       target: {
         novelId: input.novelId,
         taskId: input.taskId,
-        href: buildNovelHref(input.novelId, { taskId: input.taskId, taskPanel: true }),
+        href: buildNovelHref(input.novelId, { taskPanel: true }),
       },
       emphasis: "secondary",
     }),

@@ -62,6 +62,8 @@ Web API 只接收命令和返回轻量投影；Worker 负责执行重型生产�
 
 同一本书的当前导演任务必须只有一个解析口：`resolveCurrentDirectorTask(novelId)`。它读取未归档的 `auto_director` 任务，按 `createdAt` 降序、再按 `id` 降序取第一条；状态和 `updatedAt` 都不参与选择，读取时也不触发任务修复。终态任务仍可能是当前任务，因此 `findActiveDirectorTask(novelId)` 只在这条当前任务处于 `queued`、`running` 或 `waiting_approval` 时返回它，不回退寻找更旧的活动任务。跟进中心以 `novelId` 作为书级过滤条件，并将这条当前任务作为默认选择；`directorTaskId` 等历史 URL 参数只在进入小说页时清理，不参与跟进中心选中逻辑，任务之间的手动切换只保留在页面状态中。
 
+服务端导航到已创建的小说时只生成书级路由，并按需保留 `stage`、`chapterId`、`volumeId` 或 `taskPanel` 等页面位置；不得把任务 ID 放进小说页 URL。目标页面根据小说解析当前任务，任务明细仍由运行记录或任务详情接口承载。
+
 新建或关联导演任务时，必须在同一事务中检查该书所有非终态导演任务。普通启动在发现活动任务时以 `409 / DIRECTOR_TASK_ALREADY_ACTIVE` 拒绝；只有 `continue_existing` 接管允许替换，替换时要把旧任务和仍活动的 `DirectorRunCommand` 一起置为 `cancelled`。候选任务关联到新书时也经过同一事务检查。历史冲突只通过只读报告脚本列出，不在启动或读取路径里自动清理。
 
 接管命令可能在执行前已经创建了替换任务。此时 `startTakeover` 通过命令拿到的任务 ID 代表新任务，而接管恢复所需的执行范围、运行模式、章节游标和检查点仍属于被替换的前序任务；必须用 `resolvePreviousDirectorTask(novelId, excludeTaskId)` 读取排除本次任务后的最新可见任务。这个读取保留已取消前序任务的 Seed 和检查点作为接管输入，不改变书级当前任务判定；接管请求明确提交的执行契约仍优先于历史范围。

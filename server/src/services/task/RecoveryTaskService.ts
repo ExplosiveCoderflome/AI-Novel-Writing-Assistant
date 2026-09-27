@@ -31,7 +31,7 @@ function toRunningStatus(status: string): RecoverableTaskSummary["status"] {
   return status === "running" ? "running" : "queued";
 }
 
-function buildWorkflowSourceRoute(row: {
+export function buildWorkflowSourceRoute(row: {
   id: string;
   novelId: string | null;
   creationExperience?: "simple" | "professional" | null;
@@ -42,7 +42,7 @@ function buildWorkflowSourceRoute(row: {
   if (row.creationExperience === "simple") {
     return `/novels/${row.novelId}/simple`;
   }
-  return `/novels/${row.novelId}/edit?directorTaskId=${row.id}&taskPanel=1`;
+  return `/novels/${row.novelId}/edit?taskPanel=1`;
 }
 
 function buildImagePresentation(row: {
