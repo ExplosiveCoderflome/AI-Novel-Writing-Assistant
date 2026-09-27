@@ -10,6 +10,7 @@ import {
   DIRECTOR_TAKEOVER_ENTRY_STEPS,
 } from "@ai-novel/shared/types/novelDirector";
 import { prisma } from "../../../../db/prisma";
+import { DirectorTaskStateWriter } from "../state";
 import {
   normalizeDirectorAutoExecutionPlan,
   resolveDirectorAutoExecutionRangeFromState,
@@ -245,7 +246,8 @@ export async function cancelContinueExistingReplacedRuns(input: {
 
   const now = new Date();
   const replacementSummary = buildReplacementSummary(replacementTaskId);
-  await Promise.all(replacedTasks.map((task) => prisma.novelWorkflowTask.update({
+  const stateWriter = new DirectorTaskStateWriter();
+  await Promise.all(replacedTasks.map((task) => stateWriter.updateRunState({
     where: { id: task.id },
     data: {
       status: "cancelled",

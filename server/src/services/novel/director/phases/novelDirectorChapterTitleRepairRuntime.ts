@@ -1,3 +1,4 @@
+import { DirectorTaskStateWriter } from "../state";
 import type { DirectorConfirmRequest } from "@ai-novel/shared/types/novelDirector";
 import { getChapterTitleDiversityIssue, isChapterTitleDiversityIssue } from "../../volume/chapterTitleDiversity";
 import type { NovelVolumeService } from "../../volume/NovelVolumeService";
@@ -116,7 +117,7 @@ export class NovelDirectorChapterTitleRepairRuntime {
       stage: "structured",
       volumeId: targetVolume.id,
     });
-    await this.deps.workflowService.bootstrapTask({
+    await new DirectorTaskStateWriter(this.deps.workflowService).initializeTask({
       workflowTaskId: taskId,
       novelId,
       lane: "auto_director",
@@ -127,7 +128,7 @@ export class NovelDirectorChapterTitleRepairRuntime {
         taskNotice: null,
       }),
     });
-    await this.deps.workflowService.markTaskRunning(taskId, {
+    await new DirectorTaskStateWriter(this.deps.workflowService).markRunning(taskId, {
       stage: "structured_outline",
       itemKey: "chapter_list",
       itemLabel: `正在 AI 修复第 ${targetVolume.sortOrder} 卷章节标题`,

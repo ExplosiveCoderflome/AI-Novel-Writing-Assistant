@@ -1,3 +1,4 @@
+import { DirectorTaskStateWriter } from "../state";
 import type { VolumePlanDocument } from "@ai-novel/shared/types/novel";
 import type { DirectorConfirmRequest } from "@ai-novel/shared/types/novelDirector";
 import { buildCharacterCastBlockedMessage } from "../../characterPrep/characterCastQuality";
@@ -95,7 +96,7 @@ export async function runDirectorCharacterSetupPhase(input: {
     taskId,
     stage: "character",
   });
-  await dependencies.workflowService.bootstrapTask({
+  await new DirectorTaskStateWriter(dependencies.workflowService).initializeTask({
     workflowTaskId: taskId,
     novelId,
     lane: "auto_director",
@@ -155,7 +156,7 @@ export async function runDirectorCharacterSetupPhase(input: {
       "角色阵容候选已生成，但当前自动质量闸未通过，不能直接自动应用。",
       buildCharacterCastBlockedMessage(assessment),
     ].join("\n");
-    await dependencies.workflowService.recordCheckpoint(taskId, {
+    await new DirectorTaskStateWriter(dependencies.workflowService).persistCheckpoint(taskId, {
       stage: "character_setup",
       checkpointType: "character_setup_required",
       checkpointSummary: reason,
@@ -227,7 +228,7 @@ export async function runDirectorCharacterSetupPhase(input: {
     isBackgroundRunning: false,
   });
   const reason = `角色准备已生成并应用「${targetOption.title}」。建议先检查核心角色、关系与当前目标，再继续自动导演。`;
-  await dependencies.workflowService.recordCheckpoint(taskId, {
+  await new DirectorTaskStateWriter(dependencies.workflowService).persistCheckpoint(taskId, {
     stage: "character_setup",
     checkpointType: "character_setup_required",
     checkpointSummary: reason,
@@ -265,7 +266,7 @@ export async function runDirectorVolumeStrategyPhase(input: {
     taskId,
     stage: "outline",
   });
-  await dependencies.workflowService.bootstrapTask({
+  await new DirectorTaskStateWriter(dependencies.workflowService).initializeTask({
     workflowTaskId: taskId,
     novelId,
     lane: "auto_director",
@@ -378,7 +379,7 @@ export async function runDirectorVolumeStrategyPhase(input: {
     phase: "volume_strategy",
     isBackgroundRunning: false,
   });
-  await dependencies.workflowService.recordCheckpoint(taskId, {
+  await new DirectorTaskStateWriter(dependencies.workflowService).persistCheckpoint(taskId, {
     stage: "volume_strategy",
     checkpointType: "volume_strategy_ready",
     checkpointSummary: `卷战略与卷骨架已生成，共 ${persistedStrategyWorkspace.volumes.length} 卷。确认无误后再继续第 1 卷节奏与拆章。`,

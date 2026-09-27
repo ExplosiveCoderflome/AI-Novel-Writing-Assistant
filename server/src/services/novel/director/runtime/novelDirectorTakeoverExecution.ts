@@ -1,3 +1,4 @@
+import { DirectorTaskStateWriter } from "../state";
 import type {
   DirectorAutoExecutionState,
   DirectorSessionState,
@@ -7,6 +8,7 @@ import type {
 } from "@ai-novel/shared/types/novelDirector";
 import { isFullBookAutopilotRunMode } from "@ai-novel/shared/types/novelDirector";
 import { buildNovelEditResumeTarget } from "../../workflow/novelWorkflow.shared";
+import type { NovelWorkflowService } from "../../workflow/NovelWorkflowService";
 import type { DirectorConfirmRequest } from "@ai-novel/shared/types/novelDirector";
 import { buildDirectorSessionState } from "./novelDirectorHelpers";
 import {
@@ -20,52 +22,16 @@ import {
   buildRestartCurrentStepDownstreamReset,
 } from "./novelDirectorTakeoverContinue";
 
-interface TakeoverBootstrapTaskResult {
-  id: string;
-}
-
 interface RewriteSnapshotReference {
   snapshotId: string;
   label: string;
   restoreEntry: "version_history";
 }
 
-interface TakeoverExecutionWorkflowPort {
-  bootstrapTask(input: {
-    workflowTaskId?: string | null;
-    novelId: string;
-    lane: "auto_director";
-    title: string;
-    forceNew?: true;
-    seedPayload: Record<string, unknown>;
-    initialState?: {
-      stage: "story_macro" | "world_setup" | "character_setup" | "volume_strategy" | "structured_outline" | "chapter_execution" | "quality_repair";
-      itemKey?: string | null;
-      itemLabel: string;
-      progress?: number;
-      chapterId?: string | null;
-      volumeId?: string | null;
-    };
-  }): Promise<TakeoverBootstrapTaskResult>;
-  markTaskRunning(taskId: string, input: {
-    stage: "story_macro" | "world_setup" | "character_setup" | "volume_strategy" | "structured_outline" | "chapter_execution" | "quality_repair";
-    itemLabel: string;
-    itemKey?: string | null;
-    progress?: number;
-    clearCheckpoint?: boolean;
-  }): Promise<unknown>;
-  markTaskFailed?(taskId: string, message: string): Promise<unknown>;
-  recordCheckpoint(taskId: string, input: {
-    stage: "chapter_execution";
-    checkpointType: "production_experience_required";
-    checkpointSummary: string;
-    itemLabel: string;
-    chapterId?: string | null;
-    volumeId?: string | null;
-    progress?: number;
-    seedPayload?: Record<string, unknown>;
-  }): Promise<unknown>;
-}
+type TakeoverExecutionWorkflowPort = Pick<
+  NovelWorkflowService,
+  "bootstrapTask" | "markTaskRunning" | "markTaskFailed" | "recordCheckpoint"
+>;
 
 interface TakeoverExecutionAutoRuntimePort {
   prepareRequestedAutoExecution(input: {
@@ -405,7 +371,7 @@ export async function startDirectorTakeoverExecution(
   });
 
   const initialState = buildTakeoverInitialState({ plan, takeoverState: input.takeoverState });
-  const workflowTask = await input.workflowService.bootstrapTask({
+  const workflowTask = await new DirectorTaskStateWriter(input.workflowService).initializeTask({
     workflowTaskId: input.workflowTaskId ?? undefined,
     novelId: request.novelId,
     lane: "auto_director",
@@ -460,7 +426,7 @@ export async function startDirectorTakeoverExecution(
           scope: "book",
         });
       }
-      await input.workflowService.markTaskRunning(workflowTask.id, resolveDirectorRunningStateForPhase(plan.phase ?? plan.startPhase));
+      await new DirectorTaskStateWriter(input.workflowService).markRunning(workflowTask.id, resolveDirectorRunningStateForPhase(plan.phase ?? plan.startPhase));
       input.scheduleBackgroundRun(workflowTask.id, async () => {
         await input.runDirectorPipeline({
           taskId: workflowTask.id,
@@ -472,7 +438,7 @@ export async function startDirectorTakeoverExecution(
         });
       });
     } else {
-      await input.workflowService.recordCheckpoint(workflowTask.id, {
+      await new DirectorTaskStateWriter(input.workflowService).persistCheckpoint(workflowTask.id, {
         stage: "chapter_execution",
         checkpointType: "production_experience_required",
         checkpointSummary: "自动导演已确认现有章节执行资源可用，请选择正文生产方式。",
@@ -505,7 +471,9 @@ export async function startDirectorTakeoverExecution(
       },
     };
   } catch (error) {
-    await input.workflowService.markTaskFailed?.(workflowTask.id, getErrorMessage(error)).catch(() => null);
+    await new DirectorTaskStateWriter(input.workflowService)
+      .markFailed(workflowTask.id, getErrorMessage(error))
+      .catch(() => null);
     throw error;
   }
 }

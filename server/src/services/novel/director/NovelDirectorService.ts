@@ -1,3 +1,4 @@
+import { DirectorTaskStateWriter } from "./state";
 import { buildStyleIntentSummary } from "@ai-novel/shared/types/styleEngine";
 import { AppError } from "../../../middleware/errorHandler";
 import {
@@ -267,7 +268,7 @@ export class NovelDirectorService {
         return;
       }
       const message = error instanceof Error ? error.message : "自动导演后台任务执行失败。";
-      await this.workflowService.markTaskFailed(taskId, message);
+      await new DirectorTaskStateWriter(this.workflowService).markFailed(taskId, message);
       console.error(`[director.background] task failed taskId=${taskId}`, error);
     } finally {
       await releaseHighMemoryDirectorReservations(taskId);
@@ -543,7 +544,7 @@ export class NovelDirectorService {
         `before-step-calibration-${module.id}-${Date.now()}`,
       );
     }
-    await this.workflowService.bootstrapTask({
+    await new DirectorTaskStateWriter(this.workflowService).initializeTask({
       workflowTaskId: taskId,
       novelId: task.novelId,
       lane: "auto_director",
@@ -566,7 +567,7 @@ export class NovelDirectorService {
       approveAutoExecutionScope: false,
       reuseCompletedStep: false,
     });
-    await this.workflowService.markTaskWaitingApproval(taskId, {
+    await new DirectorTaskStateWriter(this.workflowService).markWaitingCheckpoint(taskId, {
       stage: "auto_director",
       itemKey: module.id,
       itemLabel: `${module.label}已校准，请检查后继续`,

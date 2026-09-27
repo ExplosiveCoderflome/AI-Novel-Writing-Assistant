@@ -1,3 +1,4 @@
+import { DirectorTaskStateWriter } from "./state";
 import type { CharacterCastOption, VolumePlanDocument } from "@ai-novel/shared/types/novel";
 import type { DirectorConfirmRequest } from "@ai-novel/shared/types/novelDirector";
 import {
@@ -289,7 +290,7 @@ export class NovelDirectorPipelineRuntime {
   ): Promise<void> {
     const stage = this.resolveWorkflowStage(module);
     const progress = module.defaultWaitingState?.progress ?? 0.5;
-    await this.deps.workflowService.markTaskWaitingApproval(input.taskId, {
+    await new DirectorTaskStateWriter(this.deps.workflowService).markWaitingCheckpoint(input.taskId, {
       stage,
       itemKey: module.defaultWaitingState?.itemKey ?? module.id,
       itemLabel: `${module.label}已完成，请检查后继续`,
@@ -490,7 +491,7 @@ export class NovelDirectorPipelineRuntime {
       },
       callbacks: {
         markDirectorTaskRunning: (runningTaskId, stage, itemKey, itemLabel, progress, options) => (
-          this.deps.runtimeOrchestrator.markTaskRunning(runningTaskId, stage, itemKey, itemLabel, progress, {
+          this.deps.runtimeOrchestrator.markRunning(runningTaskId, stage, itemKey, itemLabel, progress, {
             ...options,
             novelId,
           })
@@ -514,7 +515,7 @@ export class NovelDirectorPipelineRuntime {
       },
       callbacks: {
         markDirectorTaskRunning: (runningTaskId, stage, itemKey, itemLabel, progress, options) => (
-          this.deps.runtimeOrchestrator.markTaskRunning(runningTaskId, stage, itemKey, itemLabel, progress, {
+          this.deps.runtimeOrchestrator.markRunning(runningTaskId, stage, itemKey, itemLabel, progress, {
             ...options,
             novelId,
           })
@@ -609,7 +610,7 @@ export class NovelDirectorPipelineRuntime {
       callbacks: {
         buildDirectorSeedPayload: (request, takeoverNovelId, extra) => this.deps.buildDirectorSeedPayload(request, takeoverNovelId, extra),
         markDirectorTaskRunning: (runningTaskId, stage, itemKey, itemLabel, progress, options) => (
-          this.deps.runtimeOrchestrator.markTaskRunning(runningTaskId, stage, itemKey, itemLabel, progress, {
+          this.deps.runtimeOrchestrator.markRunning(runningTaskId, stage, itemKey, itemLabel, progress, {
             ...options,
             novelId,
           })
@@ -637,7 +638,7 @@ export class NovelDirectorPipelineRuntime {
       callbacks: {
         buildDirectorSeedPayload: (request, takeoverNovelId, extra) => this.deps.buildDirectorSeedPayload(request, takeoverNovelId, extra),
         markDirectorTaskRunning: (runningTaskId, stage, itemKey, itemLabel, progress, options) => (
-          this.deps.runtimeOrchestrator.markTaskRunning(runningTaskId, stage, itemKey, itemLabel, progress, {
+          this.deps.runtimeOrchestrator.markRunning(runningTaskId, stage, itemKey, itemLabel, progress, {
             ...options,
             novelId,
           })
@@ -667,7 +668,7 @@ export class NovelDirectorPipelineRuntime {
       callbacks: {
         buildDirectorSeedPayload: (request, takeoverNovelId, extra) => this.deps.buildDirectorSeedPayload(request, takeoverNovelId, extra),
         markDirectorTaskRunning: (runningTaskId, stage, itemKey, itemLabel, progress, options) => (
-          this.deps.runtimeOrchestrator.markTaskRunning(runningTaskId, stage, itemKey, itemLabel, progress, {
+          this.deps.runtimeOrchestrator.markRunning(runningTaskId, stage, itemKey, itemLabel, progress, {
             ...options,
             novelId,
           })

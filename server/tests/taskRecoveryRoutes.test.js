@@ -14,20 +14,16 @@ function listen(server) {
   });
 }
 
-test("recovery task service accepts auto director resume before background work finishes", async () => {
+test("recovery task service accepts auto director resume through an explicit command", async () => {
   const { RecoveryTaskService } = require("../dist/services/task/RecoveryTaskService.js");
-  let releaseContinue;
-  let continueStarted = false;
-  const continuePromise = new Promise((resolve) => {
-    releaseContinue = resolve;
-  });
+  let commandAccepted = false;
   const recoveryService = new RecoveryTaskService(
     {},
     {},
     {
-      async continueTask(taskId) {
-        continueStarted = taskId === "workflow-1";
-        return continuePromise;
+      async enqueueRecoveryCommand(taskId) {
+        commandAccepted = taskId === "workflow-1";
+        return { commandId: "command-1", taskId };
       },
     },
     {},
@@ -40,16 +36,10 @@ test("recovery task service accepts auto director resume before background work 
     },
   );
 
-  const result = await Promise.race([
-    recoveryService.startResumeRecoveryCandidate("novel_workflow", "workflow-1").then(() => "accepted"),
-    continuePromise.then(() => "finished"),
-  ]);
+  const result = await recoveryService.startResumeRecoveryCandidate("novel_workflow", "workflow-1");
 
-  assert.equal(result, "accepted");
-  await new Promise((resolve) => setImmediate(resolve));
-  assert.equal(continueStarted, true);
-  releaseContinue();
-  await continuePromise;
+  assert.deepEqual(result, { commandId: "command-1", taskId: "workflow-1" });
+  assert.equal(commandAccepted, true);
 });
 
 test("task recovery routes expose overview, recovery candidates, and resume actions", async () => {

@@ -6,6 +6,7 @@ import { DirectorCommandInterpreter } from "./DirectorCommandInterpreter";
 import { DirectorCommandService } from "./DirectorCommandService";
 import type { DirectorCommandPayload } from "./DirectorCommandServiceHelpers";
 import { DirectorStateStore } from "../DirectorStateStore";
+import { DirectorTaskStateWriter } from "../state";
 import { NovelDirectorService } from "../NovelDirectorService";
 import {
   getDirectorInputFromSeedPayload,
@@ -64,7 +65,7 @@ export class DirectorCommandExecutor {
 
     switch (pipelineCommand.intent) {
       case "cancel":
-        await this.workflowService.cancelTask(pipelineCommand.taskId);
+        await new DirectorTaskStateWriter(this.workflowService).markCancelled(pipelineCommand.taskId);
         return "cancelled";
       case "generate_candidates": {
         const request = pipelineCommand.payload.candidatesRequest;
@@ -266,7 +267,7 @@ export class DirectorCommandExecutor {
         completedAt: new Date().toISOString(),
       },
     };
-    await prisma.novelWorkflowTask.update({
+    await new DirectorTaskStateWriter(this.workflowService).updateRunState({
       where: { id: taskId },
       data: {
         ...(candidateSelectionReady

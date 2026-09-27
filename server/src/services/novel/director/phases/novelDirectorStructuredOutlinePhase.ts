@@ -1,3 +1,4 @@
+import { DirectorTaskStateWriter } from "../state";
 import type { VolumePlanDocument } from "@ai-novel/shared/types/novel";
 import type {
   DirectorConfirmRequest,
@@ -220,7 +221,7 @@ export async function runDirectorStructuredOutlinePhase(input: {
     volumeId: initialRecoveryCursor.volumeId ?? firstVolume.id,
     chapterId: initialRecoveryCursor.chapterId,
   });
-  await dependencies.workflowService.bootstrapTask({
+  await new DirectorTaskStateWriter(dependencies.workflowService).initializeTask({
     workflowTaskId: taskId,
     novelId,
     lane: "auto_director",
@@ -349,7 +350,7 @@ export async function runDirectorStructuredOutlinePhase(input: {
         volumeId: targetVolume.id,
         dependencies,
       });
-      await dependencies.workflowService.markTaskRunning(taskId, {
+      await new DirectorTaskStateWriter(dependencies.workflowService).markRunning(taskId, {
         stage: "structured_outline",
         itemKey: "chapter_list",
         itemLabel: `第 ${targetVolume.sortOrder} 卷章节列表已生成`,
@@ -600,7 +601,7 @@ export async function runDirectorStructuredOutlinePhase(input: {
     volumeId: selectedChapters[0]?.volumeId ?? firstVolume.id,
     chapterId: selectedChapters[0]?.id ?? null,
   });
-  await dependencies.workflowService.recordCheckpoint(taskId, {
+  await new DirectorTaskStateWriter(dependencies.workflowService).persistCheckpoint(taskId, {
     stage: "chapter_execution",
     checkpointType: "production_experience_required",
     checkpointSummary: `《${request.candidate.workingTitle.trim() || request.title?.trim() || "当前项目"}》已完成前期准备，请选择创作界面。`,

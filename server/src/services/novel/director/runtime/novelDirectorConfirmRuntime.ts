@@ -1,3 +1,4 @@
+import { DirectorTaskStateWriter } from "../state";
 import {
   CREATIVE_CARRYOVER_CONTRACT_SCHEMA_VERSION,
   requireAdoptedCreativeCarryoverContract,
@@ -84,7 +85,7 @@ export class NovelDirectorConfirmRuntime {
       resolvedInput.idea,
       resolvedInput.estimatedChapterCount,
     );
-    const workflowTask = await this.deps.workflowService.bootstrapTask({
+    const workflowTask = await new DirectorTaskStateWriter(this.deps.workflowService).initializeTask({
       workflowTaskId: resolvedInput.workflowTaskId,
       lane: "auto_director",
       title,
@@ -241,7 +242,7 @@ export class NovelDirectorConfirmRuntime {
           taskId: workflowTask.id,
           targetId: workflowTask.id,
           runner: async () => {
-            await this.deps.workflowService.markTaskRunning(workflowTask.id, {
+            await new DirectorTaskStateWriter(this.deps.workflowService).markRunning(workflowTask.id, {
               stage: "auto_director",
               itemKey: "novel_create",
               itemLabel: "正在创建小说项目",
@@ -327,7 +328,7 @@ export class NovelDirectorConfirmRuntime {
           taskId: workflowTask.id,
           stage: "story_macro",
         });
-        await this.deps.workflowService.bootstrapTask({
+        await new DirectorTaskStateWriter(this.deps.workflowService).initializeTask({
           workflowTaskId: workflowTask.id,
           novelId: createdNovel.id,
           lane: "auto_director",
@@ -345,7 +346,7 @@ export class NovelDirectorConfirmRuntime {
           policyMode: this.resolveInitialPolicyMode(runMode),
           summary: "自动导演已创建小说项目并进入统一运行时。",
         });
-        await this.deps.runtimeOrchestrator.markTaskRunning(
+        await this.deps.runtimeOrchestrator.markRunning(
           workflowTask.id,
           "story_macro",
           "book_contract",
@@ -389,7 +390,7 @@ export class NovelDirectorConfirmRuntime {
       });
     } catch (error) {
       const message = error instanceof Error ? error.message : "自动导演确认链执行失败。";
-      await this.deps.workflowService.markTaskFailed(workflowTask.id, message);
+      await new DirectorTaskStateWriter(this.deps.workflowService).markFailed(workflowTask.id, message);
       throw error;
     }
   }

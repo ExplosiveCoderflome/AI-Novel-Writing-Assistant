@@ -4,16 +4,13 @@ import { withSqliteRetry } from "../../../../db/sqliteRetry";
 import { getArchivedTaskIdSet } from "../../../task/taskArchive";
 import type { BootstrapWorkflowInput } from "../../workflow/novelWorkflow.helpers";
 import {
-  defaultProgressForStage,
   mapStageToTab,
-  stageLabel,
 } from "../../workflow/novelWorkflow.helpers";
 import {
   buildNovelEditResumeTarget,
-  defaultWorkflowTitle,
   stringifyResumeTarget,
 } from "../../workflow/novelWorkflow.shared";
-import { getNovelWorkflowLaneDescriptor } from "@ai-novel/shared/types/novelWorkflow";
+import { buildWorkflowTaskInitialData } from "../../workflow/taskCreation";
 
 const ACTIVE_DIRECTOR_TASK_STATUSES = ["queued", "running", "waiting_approval"] as const;
 const ACTIVE_DIRECTOR_COMMAND_STATUSES = ["queued", "leased", "running"] as const;
@@ -147,29 +144,28 @@ export async function startDirectorTaskForNovel(
       }
 
       const initialState = input.initialState;
-      const laneDescriptor = getNovelWorkflowLaneDescriptor("auto_director");
-      const initialStage = initialState?.stage ?? laneDescriptor.initialStage;
-      const initialItemKey = initialState?.itemKey ?? laneDescriptor.initialItemKey;
-      const initialItemLabel = initialState?.itemLabel ?? laneDescriptor.initialItemLabel;
       const novel = await tx.novel.findUnique({
         where: { id: novelId },
         select: { title: true },
       });
+      const { data: initialTaskData, initialStage } = buildWorkflowTaskInitialData({
+        lane: "auto_director",
+        novelId,
+        title: input.title,
+        seedPayload: input.seedPayload,
+        initialState,
+      }, novel?.title);
       const created = await tx.novelWorkflowTask.create({
         data: {
-          novelId,
-          lane: "auto_director",
-          title: defaultWorkflowTitle({
+          ...initialTaskData,
+          resumeTargetJson: stringifyResumeTarget(buildNovelEditResumeTarget({
+            taskId: "",
+            novelId,
             lane: "auto_director",
-            title: input.title,
-            novelTitle: novel?.title,
-          }),
-          status: "queued",
-          progress: initialState?.progress ?? defaultProgressForStage(initialStage),
-          currentStage: stageLabel(initialStage),
-          currentItemKey: initialItemKey,
-          currentItemLabel: initialItemLabel,
-          seedPayloadJson: input.seedPayload ? JSON.stringify(input.seedPayload) : null,
+            stage: mapStageToTab(initialStage),
+            chapterId: initialState?.chapterId,
+            volumeId: initialState?.volumeId,
+          })),
         },
       });
       const resumeTarget = buildNovelEditResumeTarget({

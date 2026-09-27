@@ -1,3 +1,4 @@
+import { DirectorTaskStateWriter } from "../state";
 import type {
   DirectorAutoExecutionState,
   DirectorCircuitBreakerState,
@@ -27,6 +28,7 @@ import { directorAutomationLedgerEventService } from "../runtime/DirectorAutomat
 import { directorUsageTelemetryQueryService } from "../runtime/DirectorUsageTelemetryQueryService";
 import { directorIssueService } from "../issues";
 import { loadDirectorIssueTaskContext } from "../issues/DirectorIssueTaskContext";
+import type { NovelWorkflowService } from "../../workflow/NovelWorkflowService";
 import {
   directorIssuePolicySchema,
   type DirectorIssueAction,
@@ -38,21 +40,10 @@ type AutomationLedgerEventPort = Pick<
   "recordCircuitBreakerOpened" | "recordEvent"
 >;
 
-interface CircuitBreakerWorkflowPort extends AutoExecutionCheckpointRuntimeDeps {
-  workflowService: AutoExecutionCheckpointRuntimeDeps["workflowService"] & {
-    markTaskFailed(taskId: string, message: string, patch?: {
-      stage?: "quality_repair";
-      itemKey?: string | null;
-      itemLabel?: string;
-      checkpointType?: "chapter_batch_ready" | "replan_required";
-      checkpointSummary?: string | null;
-      chapterId?: string | null;
-      progress?: number;
-    }): Promise<unknown>;
-    requeueTaskForRecovery(taskId: string, message: string): Promise<unknown>;
-  };
+type CircuitBreakerWorkflowPort = Omit<AutoExecutionCheckpointRuntimeDeps, "workflowService"> & {
+  workflowService: Pick<NovelWorkflowService, "bootstrapTask" | "recordCheckpoint" | "markTaskFailed" | "requeueTaskForRecovery">;
   automationLedgerEventService?: AutomationLedgerEventPort;
-}
+};
 
 async function applyCircuitBreakerDecision(
   deps: CircuitBreakerWorkflowPort,
@@ -72,7 +63,7 @@ async function applyCircuitBreakerDecision(
     return;
   }
   if (action === "pause_for_manual") {
-    await deps.workflowService.requeueTaskForRecovery(
+    await new DirectorTaskStateWriter(deps.workflowService).markPendingManualRecovery(
       input.taskId,
       input.circuitBreaker.message ?? "自动导演已在安全节点暂停，处理后可继续。",
     );
@@ -109,7 +100,7 @@ async function applyCircuitBreakerStop(
     novelId: input.novelId,
     state: input.circuitBreaker,
   }).catch(() => null);
-  await deps.workflowService.markTaskFailed(input.taskId, message, {
+  await new DirectorTaskStateWriter(deps.workflowService).markFailed(input.taskId, message, {
     stage: "quality_repair",
     itemKey: "quality_repair",
     itemLabel: buildDirectorAutoExecutionPausedLabel(autoExecution),

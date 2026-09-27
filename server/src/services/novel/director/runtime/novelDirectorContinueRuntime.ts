@@ -1,3 +1,4 @@
+import { DirectorTaskStateWriter } from "../state";
 import {
   DIRECTOR_RUN_MODES,
   isDirectorAutoExecutionRunMode,
@@ -346,7 +347,7 @@ export class NovelDirectorContinueRuntime {
         })
         : null;
       const resumedChapterId = firstUnwrittenChapter?.id ?? checkpointChapterId;
-      await this.deps.workflowService.markTaskRunning(taskId, {
+      await new DirectorTaskStateWriter(this.deps.workflowService).markRunning(taskId, {
         stage: assetFirstRecovery.resumeCheckpointType === "replan_required" ? "quality_repair" : "chapter_execution",
         itemKey: assetFirstRecovery.resumeCheckpointType === "replan_required" ? "quality_repair" : "chapter_execution",
         itemLabel: assetFirstRecovery.resumeCheckpointType === "replan_required"
@@ -460,7 +461,7 @@ export class NovelDirectorContinueRuntime {
         batchAlreadyStartedCount: input?.batchAlreadyStartedCount,
       });
     }
-    await this.deps.workflowService.bootstrapTask({
+    await new DirectorTaskStateWriter(this.deps.workflowService).initializeTask({
       workflowTaskId: taskId,
       novelId,
       lane: "auto_director",
@@ -470,7 +471,7 @@ export class NovelDirectorContinueRuntime {
         resumeTarget,
       }),
     });
-    await this.deps.workflowService.markTaskRunning(taskId, {
+    await new DirectorTaskStateWriter(this.deps.workflowService).markRunning(taskId, {
       ...resolveDirectorRunningStateForPhase(phase === "book_contract" ? "story_macro" : phase),
       volumeId: recoveryResumeTarget?.volumeId,
       chapterId: recoveryResumeTarget?.chapterId,

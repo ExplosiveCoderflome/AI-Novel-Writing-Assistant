@@ -1,3 +1,4 @@
+import { DirectorTaskStateWriter } from "../state";
 import type {
   DirectorAutoExecutionState,
   DirectorConfirmRequest,
@@ -174,7 +175,7 @@ export class NovelDirectorAutoExecutionRuntime {
           return;
         }
 
-        await this.deps.workflowService.markTaskRunning(input.taskId, {
+        await new DirectorTaskStateWriter(this.deps.workflowService).markRunning(input.taskId, {
           stage: "chapter_execution",
           itemKey: "chapter_execution",
           itemLabel: buildDirectorAutoExecutionStageLabel(autoExecution),
@@ -257,7 +258,7 @@ export class NovelDirectorAutoExecutionRuntime {
             pipelineStatus: job.status,
             allowLazyChapterPlanning,
           }));
-          await this.deps.workflowService.requeueTaskForRecovery(input.taskId, failureMessage, {
+          await new DirectorTaskStateWriter(this.deps.workflowService).markPendingManualRecovery(input.taskId, failureMessage, {
             stage: "quality_repair",
             itemKey: "quality_repair",
             itemLabel: buildDirectorAutoExecutionPausedLabel(autoExecution),
@@ -279,7 +280,7 @@ export class NovelDirectorAutoExecutionRuntime {
         }
         if (job.status === "queued" || job.status === "running") {
           const runningState = resolveDirectorAutoExecutionWorkflowState(job, range, autoExecution);
-          await this.deps.workflowService.markTaskRunning(input.taskId, {
+          await new DirectorTaskStateWriter(this.deps.workflowService).markRunning(input.taskId, {
             ...runningState,
             clearCheckpoint: shouldClearAutoExecutionCheckpoint(input.resumeCheckpointType),
           });
@@ -542,7 +543,7 @@ export class NovelDirectorAutoExecutionRuntime {
           });
           return;
         }
-        await this.deps.workflowService.markTaskFailed(input.taskId, failureMessage, {
+        await new DirectorTaskStateWriter(this.deps.workflowService).markFailed(input.taskId, failureMessage, {
           stage: "quality_repair",
           itemKey: "quality_repair",
           itemLabel: buildDirectorAutoExecutionPausedLabel(autoExecution),

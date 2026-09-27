@@ -1,3 +1,4 @@
+import { DirectorTaskStateWriter } from "../state";
 import { Router } from "express";
 import type { ApiResponse } from "@ai-novel/shared/types/api";
 import { z } from "zod";
@@ -84,7 +85,7 @@ router.use(authMiddleware);
 router.post("/bootstrap", validate({ body: bootstrapSchema }), async (req, res, next) => {
   try {
     const body = req.body as z.infer<typeof bootstrapSchema>;
-    const row = await workflowService.bootstrapTask(body);
+    const row = await new DirectorTaskStateWriter(workflowService).initializeTask(body);
     const data = await workflowAdapter.detail(row.id);
     res.status(200).json({
       success: true,

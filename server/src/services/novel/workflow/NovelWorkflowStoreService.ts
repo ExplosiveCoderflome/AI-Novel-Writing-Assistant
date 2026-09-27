@@ -1,4 +1,5 @@
 import { prisma } from "../../../db/prisma";
+import type { Prisma } from "@prisma/client";
 import { withSqliteRetry } from "../../../db/sqliteRetry";
 import { getArchivedTaskIdSet, isTaskArchived } from "../../task/taskArchive";
 import type { TaskStatus } from "@ai-novel/shared/types/task";
@@ -16,21 +17,18 @@ import {
   buildNovelCreateResumeTarget,
   buildNovelEditResumeTarget,
   buildShortStoryResumeTarget,
-  defaultWorkflowTitle,
   parseResumeTarget,
   stringifyResumeTarget,
   mergeSeedPayload,
 } from "./novelWorkflow.shared";
-import { getNovelWorkflowLaneDescriptor } from "@ai-novel/shared/types/novelWorkflow";
+import { buildWorkflowTaskInitialData } from "./taskCreation";
 import {
-  defaultProgressForStage,
   mapStageToTab,
-  stageLabel,
 } from "./novelWorkflow.helpers";
 import { isStaleAutoDirectorRunningTask } from "./autoDirectorStaleTaskRecovery";
 
-type NovelWorkflowTaskUpdateArgs = Parameters<typeof prisma.novelWorkflowTask.update>[0];
-type NovelWorkflowTaskUpdateManyArgs = Parameters<typeof prisma.novelWorkflowTask.updateMany>[0];
+export type NovelWorkflowTaskUpdateArgs = Parameters<typeof prisma.novelWorkflowTask.update>[0];
+export type NovelWorkflowTaskUpdateManyArgs = Parameters<typeof prisma.novelWorkflowTask.updateMany>[0];
 
 const ACTIVE_STATUSES = ["queued", "running", "waiting_approval"] as const;
 
@@ -39,14 +37,20 @@ export class NovelWorkflowStoreService {
 
   public readonly autoDirectorFollowUpNotificationService = new AutoDirectorFollowUpNotificationService();
 
-  public updateTaskWithRetry(args: NovelWorkflowTaskUpdateArgs) {
+  public updateTaskWithRetry(args: NovelWorkflowTaskUpdateArgs, transaction?: Prisma.TransactionClient) {
+    if (transaction) {
+      return transaction.novelWorkflowTask.update(args);
+    }
     return withSqliteRetry(
       () => prisma.novelWorkflowTask.update(args),
       { label: "novelWorkflowTask.update" },
     );
   }
 
-  public updateTaskManyWithRetry(args: NovelWorkflowTaskUpdateManyArgs) {
+  public updateTaskManyWithRetry(args: NovelWorkflowTaskUpdateManyArgs, transaction?: Prisma.TransactionClient) {
+    if (transaction) {
+      return transaction.novelWorkflowTask.updateMany(args);
+    }
     return withSqliteRetry(
       () => prisma.novelWorkflowTask.updateMany(args),
       { label: "novelWorkflowTask.updateMany" },
@@ -337,29 +341,10 @@ export class NovelWorkflowStoreService {
   }) {
     const novelTitle = input.novelId ? await this.getNovelTitle(input.novelId) : null;
     const initialState = input.initialState;
-    const laneDescriptor = getNovelWorkflowLaneDescriptor(input.lane);
-    const initialStage = initialState?.stage
-      ?? laneDescriptor.initialStage;
-    const initialItemKey = initialState?.itemKey
-      ?? laneDescriptor.initialItemKey;
-    const initialItemLabel = initialState?.itemLabel
-      ?? laneDescriptor.initialItemLabel;
-    const initialProgress = initialState?.progress
-      ?? (input.novelId ? defaultProgressForStage(initialStage) : 0);
+    const { data: initialTaskData, initialStage } = buildWorkflowTaskInitialData(input, novelTitle);
     const created = await prisma.novelWorkflowTask.create({
       data: {
-        novelId: input.novelId ?? null,
-        lane: input.lane,
-        title: defaultWorkflowTitle({
-          lane: input.lane,
-          title: input.title,
-          novelTitle,
-        }),
-        status: "queued",
-        progress: initialProgress,
-        currentStage: stageLabel(initialStage),
-        currentItemKey: initialItemKey,
-        currentItemLabel: initialItemLabel,
+        ...initialTaskData,
         resumeTargetJson: stringifyResumeTarget(
           this.buildResumeTarget({
             taskId: "",
@@ -370,7 +355,6 @@ export class NovelWorkflowStoreService {
             volumeId: initialState?.volumeId,
           }),
         ),
-        seedPayloadJson: input.seedPayload ? JSON.stringify(input.seedPayload) : null,
       },
     });
     const resumeTarget = this.buildResumeTarget({

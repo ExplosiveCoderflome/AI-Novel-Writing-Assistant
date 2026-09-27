@@ -1,3 +1,4 @@
+import { DirectorTaskStateWriter } from "../state";
 import type { DirectorStepCalibrationRequest } from "@ai-novel/shared/types/novelDirector";
 import { AppError } from "../../../../middleware/errorHandler";
 import type { getSharedNovelServices } from "../../application/sharedNovelServices";
@@ -51,7 +52,7 @@ export class DirectorStepCalibrationService {
         `before-step-calibration-${module.id}-${Date.now()}`,
       );
     }
-    await this.workflowService.bootstrapTask({
+    await new DirectorTaskStateWriter(this.workflowService).initializeTask({
       workflowTaskId: taskId,
       novelId: task.novelId,
       lane: "auto_director",
@@ -69,7 +70,7 @@ export class DirectorStepCalibrationService {
       approveAutoExecutionScope: false,
       reuseCompletedStep: false,
     });
-    await this.workflowService.markTaskWaitingApproval(taskId, {
+    await new DirectorTaskStateWriter(this.workflowService).markWaitingCheckpoint(taskId, {
       stage: "auto_director",
       itemKey: module.id,
       itemLabel: `${module.label}已校准，请检查后继续`,

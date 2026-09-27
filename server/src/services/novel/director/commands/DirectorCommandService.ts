@@ -21,6 +21,7 @@ import { prisma } from "../../../../db/prisma";
 import { withSqliteRetry } from "../../../../db/sqliteRetry";
 import { AppError } from "../../../../middleware/errorHandler";
 import { NovelWorkflowService } from "../../workflow/NovelWorkflowService";
+import { DirectorTaskStateWriter } from "../state";
 import {
   applyDirectorRunModeContract,
   buildDirectorSessionState,
@@ -184,7 +185,11 @@ function resolveConfirmRequestFromTaskSeed(
 }
 
 export class DirectorCommandService {
-  constructor(private readonly workflowService = new NovelWorkflowService()) {}
+  private readonly stateWriter: DirectorTaskStateWriter;
+
+  constructor(private readonly workflowService = new NovelWorkflowService()) {
+    this.stateWriter = new DirectorTaskStateWriter(this.workflowService);
+  }
 
   async enqueueGenerateCandidatesCommand(input: DirectorCandidatesRequest): Promise<DirectorCommandAcceptedResponse> {
     const task = await this.ensureCandidateTask(input, {
@@ -268,7 +273,7 @@ export class DirectorCommandService {
       existingTask?.seedPayloadJson,
     ));
     const runMode = confirmedInput.runMode;
-    const task = await this.workflowService.bootstrapTask({
+    const task = await new DirectorTaskStateWriter(this.workflowService).initializeTask({
       workflowTaskId: input.workflowTaskId,
       lane: "auto_director",
       title: input.candidate.workingTitle.trim() || input.title?.trim() || "自动导演开书",
@@ -304,6 +309,7 @@ export class DirectorCommandService {
       taskId,
       commandType: "continue",
       payload: input,
+      clearPendingManualRecovery: true,
     });
   }
 
@@ -316,6 +322,7 @@ export class DirectorCommandService {
         continuationMode: "resume",
         forceResume: true,
       },
+      clearPendingManualRecovery: true,
     });
   }
 
@@ -334,7 +341,7 @@ export class DirectorCommandService {
     workflowTaskId?: string | null;
     includeAiInterpretation?: boolean;
   }): Promise<DirectorCommandAcceptedResponse> {
-    const task = await this.workflowService.bootstrapTask({
+    const task = await new DirectorTaskStateWriter(this.workflowService).initializeTask({
       workflowTaskId: input.workflowTaskId?.trim() || undefined,
       novelId: input.novelId,
       lane: "auto_director",
@@ -365,7 +372,7 @@ export class DirectorCommandService {
     chapterId?: string | null;
     includeAiInterpretation?: boolean;
   }): Promise<DirectorCommandAcceptedResponse> {
-    const task = await this.workflowService.bootstrapTask({
+    const task = await new DirectorTaskStateWriter(this.workflowService).initializeTask({
       workflowTaskId: input.workflowTaskId?.trim() || undefined,
       novelId: input.novelId,
       lane: "auto_director",
@@ -408,6 +415,7 @@ export class DirectorCommandService {
         continuationMode: "resume",
         forceResume: true,
       },
+      clearPendingManualRecovery: true,
     });
   }
 
@@ -419,6 +427,7 @@ export class DirectorCommandService {
         ...input,
         forceResume: true,
       },
+      clearPendingManualRecovery: true,
     });
   }
 
@@ -445,6 +454,7 @@ export class DirectorCommandService {
         forceResume: true,
         batchAlreadyStartedCount: input.batchAlreadyStartedCount,
       },
+      clearPendingManualRecovery: true,
     });
   }
 
@@ -456,7 +466,7 @@ export class DirectorCommandService {
     if (row.lane !== "auto_director") {
       throw new AppError("Only auto director workflow tasks can be queued as director commands.", 400);
     }
-    await this.workflowService.cancelTask(taskId);
+    await this.stateWriter.markCancelled(taskId);
     await prisma.directorRunCommand.updateMany({
       where: {
         taskId,
@@ -496,11 +506,13 @@ export class DirectorCommandService {
       },
       orderBy: [{ createdAt: "desc" }, { id: "desc" }],
     });
-    if (reusableCommand && takeoverStrategy === "continue_existing") {
+    if (reusableCommand) {
       const existingRequest = parsePayload(reusableCommand.payloadJson).takeoverRequest;
       const existingTask = await this.workflowService.getTaskByIdWithoutHealing(reusableCommand.taskId);
       if (
-        resolveTakeoverStrategy(existingRequest) === "continue_existing"
+        existingRequest
+        && resolveTakeoverStrategy(existingRequest) === takeoverStrategy
+        && stableJson(existingRequest) === stableJson(takeoverInput)
         && existingTask?.novelId === takeoverInput.novelId
         && existingTask.lane === "auto_director"
         && ACTIVE_DIRECTOR_TASK_STATUSES.includes(
@@ -564,7 +576,7 @@ export class DirectorCommandService {
       candidateId?: string | null;
     },
   ) {
-    return this.workflowService.bootstrapTask({
+    return new DirectorTaskStateWriter(this.workflowService).initializeTask({
       workflowTaskId: input.workflowTaskId?.trim() || undefined,
       lane: "auto_director",
       title: input.title?.trim() || "AI 自动导演候选方向",
@@ -678,6 +690,7 @@ export class DirectorCommandService {
     allowTerminalReuse?: boolean;
     preserveLastError?: boolean;
     requireActiveTask?: boolean;
+    clearPendingManualRecovery?: boolean;
   }): Promise<DirectorCommandAcceptedResponse> {
     let row = await this.workflowService.getTaskById(input.taskId);
     if (!row) {
@@ -686,11 +699,23 @@ export class DirectorCommandService {
     if (row.lane !== "auto_director") {
       throw new AppError("Only auto director workflow tasks can be queued as director commands.", 400);
     }
+    if (!input.clearPendingManualRecovery && row.pendingManualRecovery) {
+      throw new AppError("This auto director task is waiting for explicit manual recovery.", 409, {
+        code: "DIRECTOR_MANUAL_RECOVERY_REQUIRED",
+        taskId: input.taskId,
+      });
+    }
     const recoveredStaleLeaseCount = await this.recoverStaleLeases(new Date(), { taskId: input.taskId });
     if (recoveredStaleLeaseCount > 0) {
       row = await this.workflowService.getTaskById(input.taskId);
       if (!row) {
         throw new AppError("Task not found.", 404);
+      }
+      if (!input.clearPendingManualRecovery && row.pendingManualRecovery) {
+        throw new AppError("This auto director task is waiting for explicit manual recovery.", 409, {
+          code: "DIRECTOR_MANUAL_RECOVERY_REQUIRED",
+          taskId: input.taskId,
+        });
       }
     }
     const reusableCommand = await prisma.directorRunCommand.findFirst({
@@ -702,7 +727,88 @@ export class DirectorCommandService {
       orderBy: [{ createdAt: "desc" }, { id: "desc" }],
     });
     if (reusableCommand) {
-      return toAcceptedResponse(reusableCommand, null);
+      if (input.clearPendingManualRecovery) {
+        const reusedCommand = await withSqliteRetry(() => prisma.$transaction(async (tx) => {
+          const currentTask = await tx.novelWorkflowTask.findUnique({
+            where: { id: input.taskId },
+            select: {
+              novelId: true,
+              lane: true,
+              pendingManualRecovery: true,
+            },
+          });
+          if (!currentTask || currentTask.novelId !== row.novelId || currentTask.lane !== "auto_director") {
+            throw new AppError("这项 AI 任务已被替换或已结束，请重新尝试接管。", 409, {
+              code: "DIRECTOR_TASK_SUPERSEDED",
+              taskId: input.taskId,
+            });
+          }
+
+          const activeCommand = await tx.directorRunCommand.findFirst({
+            where: {
+              id: reusableCommand.id,
+              taskId: input.taskId,
+              commandType: { in: EXECUTION_COMMAND_TYPES },
+              // A locked task needs its own durable queued command because an
+              // older leased/running command can finish after this transaction.
+              // An unlocked task may safely reuse any active command without
+              // resetting its current execution state.
+              ...(currentTask.pendingManualRecovery
+                ? { status: "queued" }
+                : { status: { in: ACTIVE_COMMAND_STATUSES } }),
+            },
+          });
+          if (!activeCommand) {
+            return null;
+          }
+          if (!currentTask.pendingManualRecovery) {
+            return { command: activeCommand, manualRecoveryCleared: false };
+          }
+
+          const reusableExecutionCommandType = EXECUTION_COMMAND_TYPES.find(
+            (commandType) => commandType === activeCommand.commandType,
+          );
+          if (!reusableExecutionCommandType) {
+            throw new AppError("无法恢复这项 AI 任务，请刷新后重试。", 409);
+          }
+          const acceptedTask = await this.stateWriter.clearPendingManualRecovery({
+            userCommandId: activeCommand.id,
+            where: {
+              id: input.taskId,
+              novelId: row.novelId,
+              lane: "auto_director",
+              pendingManualRecovery: true,
+              OR: [
+                { status: { in: ["queued", "running", "waiting_approval", "failed"] } },
+                { pendingManualRecovery: true },
+              ],
+            },
+            data: {
+              status: "queued",
+              lastError: null,
+              ...buildAcceptedTaskState(reusableExecutionCommandType),
+              heartbeatAt: new Date(),
+              finishedAt: null,
+              cancelRequestedAt: null,
+            },
+          }, { transaction: tx });
+          if (acceptedTask.count === 0) {
+            throw new AppError("这项 AI 任务已被替换或已结束，请重新尝试接管。", 409, {
+              code: "DIRECTOR_TASK_SUPERSEDED",
+              taskId: input.taskId,
+            });
+          }
+          return { command: activeCommand, manualRecoveryCleared: true };
+        }, { isolationLevel: "Serializable" }), { label: "director.command.reuse_recovery" });
+        if (reusedCommand) {
+          if (reusedCommand.manualRecoveryCleared) {
+            taskDispatcher.notify({ commandType: reusedCommand.command.commandType, taskId: input.taskId });
+          }
+          return toAcceptedResponse(reusedCommand.command, null);
+        }
+      } else {
+        return toAcceptedResponse(reusableCommand, null);
+      }
     }
 
     const normalizedPayload = Object.fromEntries(
@@ -718,40 +824,72 @@ export class DirectorCommandService {
       status: "queued" as const,
       payloadJson,
     };
-    const createCommand = () => input.requireActiveTask
+    const createCommand = () => input.requireActiveTask || input.clearPendingManualRecovery
       ? prisma.$transaction(async (tx) => {
-        const acceptedTask = await tx.novelWorkflowTask.updateMany({
-          where: {
-            id: input.taskId,
-            novelId: row.novelId,
-            lane: "auto_director",
-            status: { in: [...ACTIVE_DIRECTOR_TASK_STATUSES] },
-          },
+        const command = await tx.directorRunCommand.create({ data: commandData });
+        const taskUpdate: Parameters<typeof prisma.novelWorkflowTask.updateMany>[0] = {
+          where: input.requireActiveTask
+            ? {
+              id: input.taskId,
+              novelId: row.novelId,
+              lane: "auto_director",
+              status: { in: [...ACTIVE_DIRECTOR_TASK_STATUSES] },
+              ...(!input.clearPendingManualRecovery ? { pendingManualRecovery: false } : {}),
+            }
+            : {
+              id: input.taskId,
+              novelId: row.novelId,
+              lane: "auto_director",
+              OR: [
+                { status: { in: ["queued", "running", "waiting_approval", "failed"] } },
+                { pendingManualRecovery: true },
+              ],
+              ...(!input.clearPendingManualRecovery ? { pendingManualRecovery: false } : {}),
+            },
           data: {
             status: "queued",
-            pendingManualRecovery: false,
             lastError: null,
             ...buildAcceptedTaskState(input.commandType),
             heartbeatAt: new Date(),
             finishedAt: null,
             cancelRequestedAt: null,
           },
-        });
+        };
+        const acceptedTask = input.clearPendingManualRecovery
+          ? await this.stateWriter.clearPendingManualRecovery({
+            userCommandId: command.id,
+            where: taskUpdate.where!,
+            data: taskUpdate.data,
+          }, { transaction: tx })
+          : await this.stateWriter.updateRunState(taskUpdate, { transaction: tx, many: true });
         if (acceptedTask.count === 0) {
+          if (!input.clearPendingManualRecovery) {
+            const currentTask = await tx.novelWorkflowTask.findUnique({
+              where: { id: input.taskId },
+              select: { pendingManualRecovery: true },
+            });
+            if (currentTask?.pendingManualRecovery) {
+              throw new AppError("This auto director task is waiting for explicit manual recovery.", 409, {
+                code: "DIRECTOR_MANUAL_RECOVERY_REQUIRED",
+                taskId: input.taskId,
+              });
+            }
+          }
           throw new AppError("这项 AI 任务已被替换或已结束，请重新尝试接管。", 409, {
             code: "DIRECTOR_TASK_SUPERSEDED",
             taskId: input.taskId,
           });
         }
-        return tx.directorRunCommand.create({ data: commandData });
+        return command;
       }, { isolationLevel: "Serializable" })
       : prisma.directorRunCommand.create({ data: commandData });
 
     try {
       const command = await withSqliteRetry(createCommand, { label: "director.command.create" });
-      if (!input.requireActiveTask) {
-        await this.markCommandAcceptedOnTask(input.taskId, input.commandType, {
+      if (!input.requireActiveTask && !input.clearPendingManualRecovery) {
+        await this.markCommandAcceptedOnTask(command.id, input.taskId, input.commandType, {
           preserveLastError: input.preserveLastError,
+          clearPendingManualRecovery: input.clearPendingManualRecovery,
         });
       }
       taskDispatcher.notify({ commandType: input.commandType, taskId: input.taskId });
@@ -775,27 +913,36 @@ export class DirectorCommandService {
     }
   }
 
-  private async markCommandAcceptedOnTask(taskId: string, commandType: DirectorRunCommandType, options: {
+  private async markCommandAcceptedOnTask(commandId: string, taskId: string, commandType: DirectorRunCommandType, options: {
     preserveLastError?: boolean;
+    clearPendingManualRecovery?: boolean;
   } = {}): Promise<void> {
     const taskState = buildAcceptedTaskState(commandType);
-    await prisma.novelWorkflowTask.updateMany({
+    const taskUpdate: Parameters<typeof prisma.novelWorkflowTask.updateMany>[0] = {
       where: {
         id: taskId,
         OR: [
           { status: { in: ["queued", "running", "waiting_approval", "failed"] } },
           { pendingManualRecovery: true },
         ],
+        ...(!options.clearPendingManualRecovery ? { pendingManualRecovery: false } : {}),
       },
       data: {
         status: "queued",
-        pendingManualRecovery: false,
         ...(options.preserveLastError ? {} : { lastError: null }),
         ...taskState,
         heartbeatAt: new Date(),
         finishedAt: null,
         cancelRequestedAt: null,
       },
-    }).catch(() => null);
+    };
+    const update = options.clearPendingManualRecovery
+      ? this.stateWriter.clearPendingManualRecovery({
+        userCommandId: commandId,
+        where: taskUpdate.where!,
+        data: taskUpdate.data,
+      })
+      : this.stateWriter.updateRunState(taskUpdate, { many: true });
+    await update.catch(() => null);
   }
 }

@@ -1,3 +1,4 @@
+import { DirectorTaskStateWriter } from "../state";
 import type {
   DirectorAutoExecutionState,
   DirectorConfirmRequest,
@@ -7,6 +8,7 @@ import { isDirectorAutoExecutionRunMode, isFullBookAutopilotRunMode } from "@ai-
 import type { PipelineJobStatus } from "@ai-novel/shared/types/novel";
 import type { NovelWorkflowCheckpoint } from "@ai-novel/shared/types/novelWorkflow";
 import { buildNovelEditResumeTarget } from "../../workflow/novelWorkflow.shared";
+import type { NovelWorkflowService } from "../../workflow/NovelWorkflowService";
 import {
   buildDirectorAutoExecutionCompletedLabel,
   buildDirectorAutoExecutionCompletedSummary,
@@ -23,24 +25,7 @@ import { buildDirectorQualityRepairRisk } from "../phases/novelDirectorQualityRe
 
 export type AutoExecutionResumeStage = "chapter" | "pipeline";
 
-export interface AutoExecutionWorkflowCheckpointPort {
-  bootstrapTask(input: {
-    workflowTaskId: string;
-    novelId: string;
-    lane: "auto_director";
-    title: string;
-    seedPayload?: Record<string, unknown>;
-  }): Promise<unknown>;
-  recordCheckpoint(taskId: string, input: {
-    stage: "quality_repair";
-    checkpointType: "workflow_completed" | "chapter_batch_ready" | "replan_required";
-    checkpointSummary: string;
-    itemLabel: string;
-    progress?: number;
-    chapterId?: string | null;
-    seedPayload?: Record<string, unknown>;
-  }): Promise<unknown>;
-}
+export type AutoExecutionWorkflowCheckpointPort = Pick<NovelWorkflowService, "bootstrapTask" | "recordCheckpoint">;
 
 export interface AutoExecutionCheckpointRuntimeDeps {
   workflowService: AutoExecutionWorkflowCheckpointPort;
@@ -88,7 +73,7 @@ export async function syncAutoExecutionTaskState(
     stage: input.resumeStage ?? "pipeline",
     chapterId: input.autoExecution.nextChapterId ?? input.range.firstChapterId,
   });
-  await deps.workflowService.bootstrapTask({
+  await new DirectorTaskStateWriter(deps.workflowService).initializeTask({
     workflowTaskId: input.taskId,
     novelId: input.novelId,
     lane: "auto_director",
@@ -115,7 +100,7 @@ export async function recordCompletedCheckpoint(
   };
   const scopeLabel = buildDirectorAutoExecutionScopeLabelFromState(completedState, input.range.totalChapterCount);
   if (completedState.volumeChapterListComplete === false) {
-    await deps.workflowService.recordCheckpoint(input.taskId, {
+    await new DirectorTaskStateWriter(deps.workflowService).persistCheckpoint(input.taskId, {
       stage: "quality_repair",
       checkpointType: "chapter_batch_ready",
       checkpointSummary: `《${input.request.candidate.workingTitle.trim() || input.request.title?.trim() || "当前项目"}》已完成${scopeLabel}正文。继续后会补齐下一段章节规划并进入后续写作。`,
@@ -139,7 +124,7 @@ export async function recordCompletedCheckpoint(
     });
     return;
   }
-  await deps.workflowService.recordCheckpoint(input.taskId, {
+  await new DirectorTaskStateWriter(deps.workflowService).persistCheckpoint(input.taskId, {
     stage: "quality_repair",
     checkpointType: "workflow_completed",
     checkpointSummary: buildDirectorAutoExecutionCompletedSummary({
@@ -185,7 +170,7 @@ export async function recordQualityRepairCheckpoint(
     qualityRepairRisk: input.qualityRepairRisk,
   };
   const scopeLabel = buildDirectorAutoExecutionScopeLabelFromState(checkpointState, input.range.totalChapterCount);
-  await deps.workflowService.recordCheckpoint(input.taskId, {
+  await new DirectorTaskStateWriter(deps.workflowService).persistCheckpoint(input.taskId, {
     stage: "quality_repair",
     checkpointType: input.checkpointType,
     itemLabel: input.checkpointType === "replan_required"

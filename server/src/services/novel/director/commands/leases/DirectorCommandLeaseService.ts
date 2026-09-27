@@ -1,3 +1,4 @@
+import { DirectorTaskStateWriter } from "../../state";
 import crypto from "node:crypto";
 import { prisma } from "../../../../../db/prisma";
 import { taskDispatcher } from "../../../../../workers/TaskDispatcher";
@@ -107,9 +108,12 @@ export class DirectorCommandLeaseService {
           data: { status: "failed", finishedAt: now, error: STALE_COMMAND_INTERNAL_MESSAGE },
         }).catch(() => null);
         if (action === "fail_task") {
-          await this.workflowService.markTaskFailed(command.taskId, STALE_COMMAND_INTERNAL_MESSAGE);
+          await new DirectorTaskStateWriter(this.workflowService).markFailed(command.taskId, STALE_COMMAND_INTERNAL_MESSAGE);
         } else {
-          await this.workflowService.requeueTaskForRecovery(command.taskId, STALE_COMMAND_MANUAL_RECOVERY_MESSAGE);
+          await new DirectorTaskStateWriter(this.workflowService).markPendingManualRecovery(
+            command.taskId,
+            STALE_COMMAND_MANUAL_RECOVERY_MESSAGE,
+          );
         }
         actionApplied = true;
       };
@@ -210,7 +214,7 @@ export class DirectorCommandLeaseService {
         errorMessage: STALE_COMMAND_AUTO_RECOVERY_MESSAGE,
       },
     });
-    await prisma.novelWorkflowTask.updateMany({
+    await new DirectorTaskStateWriter(this.workflowService).updateRunState({
       where: {
         id: taskId,
         status: { in: ["queued", "running"] },
@@ -222,7 +226,7 @@ export class DirectorCommandLeaseService {
         heartbeatAt: now,
         finishedAt: null,
       },
-    });
+    }, { many: true });
     taskDispatcher.notify();
   }
 
@@ -247,7 +251,7 @@ export class DirectorCommandLeaseService {
       data: { status: "failed", finishedAt: now, error: STALE_COMMAND_INTERNAL_MESSAGE },
     }).catch(() => null);
     if (recoveryMessage) {
-      await this.workflowService.requeueTaskForRecovery(taskId, recoveryMessage);
+      await new DirectorTaskStateWriter(this.workflowService).markPendingManualRecovery(taskId, recoveryMessage);
     }
   }
 
@@ -343,7 +347,9 @@ export class DirectorCommandLeaseService {
       where: { taskId: command.taskId, status: "running" },
       data: { status: "failed", finishedAt: failedAt, error: message },
     }).catch(() => null);
-    await this.workflowService.requeueTaskForRecovery(command.taskId, message).catch(() => null);
+    await new DirectorTaskStateWriter(this.workflowService)
+      .markPendingManualRecovery(command.taskId, message)
+      .catch(() => null);
   }
 
   async closeCancelledTaskRuntimeState(taskId: string, now: Date): Promise<void> {

@@ -23,8 +23,7 @@ interface RecoveryInitializationDeps {
 }
 
 interface AutoDirectorRecoveryCommandPort {
-  enqueueRecoveryCommand?: (taskId: string) => Promise<unknown>;
-  continueTask?: (taskId: string) => Promise<void>;
+  enqueueRecoveryCommand: (taskId: string) => Promise<unknown>;
 }
 
 function toRunningStatus(status: string): RecoverableTaskSummary["status"] {
@@ -321,11 +320,7 @@ export class RecoveryTaskService {
   async startResumeRecoveryCandidate(kind: TaskKind, id: string): Promise<unknown> {
     await this.waitUntilReady();
     if (kind === "novel_workflow") {
-      if (this.directorCommandService.enqueueRecoveryCommand) {
-        return this.directorCommandService.enqueueRecoveryCommand(id);
-      }
-      this.scheduleAutoDirectorRecovery(id);
-      return null;
+      return this.resumeAutoDirectorWorkflow(id);
     }
     this.scheduleRecoveryResume(kind, id);
     return null;
@@ -382,23 +377,7 @@ export class RecoveryTaskService {
   }
 
   private resumeAutoDirectorWorkflow(id: string): Promise<unknown> {
-    if (this.directorCommandService.enqueueRecoveryCommand) {
-      return this.directorCommandService.enqueueRecoveryCommand(id);
-    }
-    if (this.directorCommandService.continueTask) {
-      return this.directorCommandService.continueTask(id);
-    }
-    throw new AppError("Auto director recovery command service is unavailable.", 500);
-  }
-
-  private scheduleAutoDirectorRecovery(id: string): void {
-    if (this.directorCommandService.enqueueRecoveryCommand) {
-      void this.directorCommandService.enqueueRecoveryCommand(id).catch((error) => {
-        console.error(`[recovery] auto director command enqueue failed: novel_workflow/${id}`, error);
-      });
-      return;
-    }
-    this.scheduleRecoveryResume("novel_workflow", id);
+    return this.directorCommandService.enqueueRecoveryCommand(id);
   }
 }
 

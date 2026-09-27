@@ -18,6 +18,7 @@ export interface NovelWorkflowCheckpointRestoreSource {
   progress?: number | null;
   currentStage?: string | null;
   currentItemKey?: string | null;
+  pendingManualRecovery?: boolean;
 }
 
 export interface NovelWorkflowCheckpointRestoreResult {
@@ -25,7 +26,7 @@ export interface NovelWorkflowCheckpointRestoreResult {
   resumeTarget: NovelWorkflowResumeTarget;
   data: {
     status: "succeeded" | "waiting_approval";
-    pendingManualRecovery: false;
+    pendingManualRecovery: boolean;
     finishedAt: Date | null;
     cancelRequestedAt: null;
     heartbeatAt: Date;
@@ -74,7 +75,9 @@ export function buildRestoreTaskToCheckpointResult(input: {
     resumeTarget,
     data: {
       status: checkpointType === "workflow_completed" ? "succeeded" : "waiting_approval",
-      pendingManualRecovery: false,
+      pendingManualRecovery: input.existing.lane === "auto_director"
+        ? (input.existing.pendingManualRecovery ?? false)
+        : false,
       finishedAt: checkpointType === "workflow_completed"
         ? (input.existing.finishedAt ?? new Date())
         : null,

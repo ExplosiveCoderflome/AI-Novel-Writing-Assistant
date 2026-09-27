@@ -1,3 +1,4 @@
+import { DirectorTaskStateWriter } from "../state";
 import { randomUUID } from "node:crypto";
 import {
   DIRECTOR_CANDIDATE_SETUP_STEPS,
@@ -171,7 +172,7 @@ export class NovelDirectorCandidateStageService {
     if (!workflowTaskId?.trim()) {
       return;
     }
-    await this.workflowService.markTaskRunning(workflowTaskId, {
+    await new DirectorTaskStateWriter(this.workflowService).markRunning(workflowTaskId, {
       stage: "auto_director",
       itemKey,
       itemLabel,
@@ -317,7 +318,7 @@ export class NovelDirectorCandidateStageService {
       ].filter(Boolean).join("\n\n"),
     };
     if (resolvedInput.workflowTaskId?.trim()) {
-      await this.workflowService.bootstrapTask({
+      await new DirectorTaskStateWriter(this.workflowService).initializeTask({
         workflowTaskId: resolvedInput.workflowTaskId,
         lane: "auto_director",
         title: resolvedInput.title ?? null,
@@ -357,7 +358,7 @@ export class NovelDirectorCandidateStageService {
       return result;
     }
 
-    const workflowTask = await this.workflowService.bootstrapTask({
+    const workflowTask = await new DirectorTaskStateWriter(this.workflowService).initializeTask({
       workflowTaskId: resolvedInput.workflowTaskId,
       lane: "auto_director",
       title: resolvedInput.title ?? null,
@@ -387,7 +388,7 @@ export class NovelDirectorCandidateStageService {
 
   async refineCandidates(input: DirectorRefinementRequest): Promise<DirectorRefineResponse> {
     if (input.workflowTaskId?.trim()) {
-      await this.workflowService.bootstrapTask({
+      await new DirectorTaskStateWriter(this.workflowService).initializeTask({
         workflowTaskId: input.workflowTaskId,
         lane: "auto_director",
         title: input.title ?? null,
@@ -430,7 +431,7 @@ export class NovelDirectorCandidateStageService {
     }
 
     const nextBatches = [...input.previousBatches, result.batch];
-    const workflowTask = await this.workflowService.bootstrapTask({
+    const workflowTask = await new DirectorTaskStateWriter(this.workflowService).initializeTask({
       workflowTaskId: input.workflowTaskId,
       lane: "auto_director",
       title: input.title ?? null,
@@ -462,7 +463,7 @@ export class NovelDirectorCandidateStageService {
 
   async patchCandidate(input: DirectorCandidatePatchRequest): Promise<DirectorCandidatePatchResponse> {
     if (input.workflowTaskId?.trim()) {
-      await this.workflowService.bootstrapTask({
+      await new DirectorTaskStateWriter(this.workflowService).initializeTask({
         workflowTaskId: input.workflowTaskId,
         lane: "auto_director",
         title: input.title ?? null,
@@ -557,7 +558,7 @@ export class NovelDirectorCandidateStageService {
       };
     }
 
-    const workflowTask = await this.workflowService.bootstrapTask({
+    const workflowTask = await new DirectorTaskStateWriter(this.workflowService).initializeTask({
       workflowTaskId: input.workflowTaskId,
       lane: "auto_director",
       title: input.title ?? null,
@@ -594,7 +595,7 @@ export class NovelDirectorCandidateStageService {
 
   async refineCandidateTitleOptions(input: DirectorCandidateTitleRefineRequest): Promise<DirectorCandidateTitleRefineResponse> {
     if (input.workflowTaskId?.trim()) {
-      await this.workflowService.bootstrapTask({
+      await new DirectorTaskStateWriter(this.workflowService).initializeTask({
         workflowTaskId: input.workflowTaskId,
         lane: "auto_director",
         title: input.title ?? null,
@@ -655,7 +656,7 @@ export class NovelDirectorCandidateStageService {
       };
     }
 
-    const workflowTask = await this.workflowService.bootstrapTask({
+    const workflowTask = await new DirectorTaskStateWriter(this.workflowService).initializeTask({
       workflowTaskId: input.workflowTaskId,
       lane: "auto_director",
       title: input.title ?? null,

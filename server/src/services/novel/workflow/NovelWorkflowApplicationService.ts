@@ -249,7 +249,7 @@ export class NovelWorkflowApplicationService {
         startedAt: existing.startedAt ?? new Date(),
         finishedAt: null,
         heartbeatAt: new Date(),
-        pendingManualRecovery: false,
+        ...(existing.lane === "auto_director" ? {} : { pendingManualRecovery: false }),
         currentStage: stageLabel(input.stage),
         currentItemKey: input.itemKey ?? input.stage,
         currentItemLabel: input.itemLabel,
@@ -378,7 +378,7 @@ export class NovelWorkflowApplicationService {
       before: existing,
       data: {
         status: existing.checkpointType ? "waiting_approval" : "queued",
-        pendingManualRecovery: false,
+        ...(existing.lane === "auto_director" ? {} : { pendingManualRecovery: false }),
         attemptCount: existing.attemptCount + 1,
         lastError: null,
         finishedAt: null,
@@ -446,7 +446,7 @@ export class NovelWorkflowApplicationService {
       before: existing,
       data: {
         heartbeatAt: new Date(),
-        pendingManualRecovery: false,
+        ...(existing.lane === "auto_director" ? {} : { pendingManualRecovery: false }),
         status: existing.status === "queued" ? "running" : existing.status,
       },
     });

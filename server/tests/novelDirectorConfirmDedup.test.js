@@ -242,7 +242,7 @@ test("confirm runtime creates the novel through the standard runtime node", asyn
         await collectArtifacts?.(output);
         return output;
       },
-      markTaskRunning: async (_taskId, stage, itemKey) => {
+      markRunning: async (_taskId, stage, itemKey) => {
         calls.push(["runtimeMarkTaskRunning", stage, itemKey]);
       },
     },

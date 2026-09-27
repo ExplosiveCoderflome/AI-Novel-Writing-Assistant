@@ -1,3 +1,4 @@
+import { DirectorTaskStateWriter } from "../state";
 import {
   DIRECTOR_RUN_MODES,
   type DirectorCandidateBatch,
@@ -141,7 +142,7 @@ export class NovelDirectorCandidateRuntime {
     } catch (error) {
       if (taskId && !isDirectorRuntimeGateError(error)) {
         const message = error instanceof Error ? error.message : "自动导演候选阶段执行失败。";
-        await this.deps.workflowService.markTaskFailed(taskId, message);
+        await new DirectorTaskStateWriter(this.deps.workflowService).markFailed(taskId, message);
       }
       throw error;
     }
