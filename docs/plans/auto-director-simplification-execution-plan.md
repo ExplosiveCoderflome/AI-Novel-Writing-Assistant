@@ -121,7 +121,10 @@ pnpm --filter @ai-novel/client test              # 阶段 2、4、6
 
 界面验收由人进行。执行者在报告里列出需要人工点验的页面和操作路径，不自行做浏览器或截图验证。
 
-**“通过”的判定：与分支基点对比，不得新增失败。** 基点 `d3a9ca99` 本身存在历史失败：fast 套件 33 项，集成套件 6 项（`p0bRealPrismaChain` 3 项、`prompting` 2 项、`prompting-governance` 1 项）。每次验收都必须运行**完整的** fast 套件和集成套件，按 `test at <文件>:<行号>` 列出失败清单，与基点清单比较，报告里写明“新增失败：无”。只跑相关的针对性测试不能作为通过依据。
+**“通过”的判定：与分支基点对比，不得新增失败。** 基点 `d3a9ca99` 本身存在历史失败：按下面的隔离方式运行，fast 套件 34 项，集成套件 6 项（`p0bRealPrismaChain` 3 项、`prompting` 2 项、`prompting-governance` 1 项）。每次验收都必须运行**完整的** fast 套件和集成套件，列出失败清单，与基点清单比较，报告里写明“新增失败：无”。只跑相关的针对性测试不能作为通过依据。
+
+- **按“文件 + 测试名称”对比，不按行号对比。** 本阶段改过的测试文件行号会移动，同一行号在两边可能是不同的测试。
+- **用隔离进程运行后再对比。** `pnpm --filter @ai-novel/server test` 的 fast 模式把所有测试文件放在同一进程里执行，文件之间共享的 `prisma` 替身会互相干扰，失败数不稳定，在 Windows 上还可能挂住不退出。对比时使用 `node --test --test-concurrency=4 --test-timeout=120000 --test-reporter=junit --test-reporter-destination=<文件> <测试文件…>`，从 junit 结果里提取失败的测试名称。
 
 注意：`server/tests/*.test.js` 读取的是 `server/dist` 编译产物。切换分支或提交后，必须先重新编译 `shared` 和 `server`，再单独运行测试文件，否则测的是上一次编译的代码。
 
@@ -468,3 +471,5 @@ pnpm --filter @ai-novel/client test              # 阶段 2、4、6
 | 2026-09-24 | 0 | 与阶段 1 同批提交 | 建立基线（11 项） | `directorSimplificationGuard.test.js` | 阶段 1 分支基点：`feature/creative-carryover-contract` @ `d3a9ca992133895f9ff97dd28a3dc73388ff37be`；执行分支为 `refactor/director-simplification` |
 | 2026-09-24 | 1 | `3e20bbef` + `6c4ff9f8` | `adHocCurrentTaskLookups` 16 → 0；`directorTaskWritesOutsideState` 64 → 63；`directorSeedPayloadRefs` 292 → 291 | `directorCurrentTaskResolution.test.js`、`directorCurrentTask.test.js` | 集成套件 134/146；10 项未通过的原因见阶段报告 |
 | 2026-09-24 | 1 验收 | `2f0bdeb8` | 指标核验一致 | — | **未通过，需返工。** ① 接管时 `startTakeover` 的 `findLatestAutoDirectorTask` 恒为 null，丢失上一条任务的执行范围、运行模式、章节游标和检查点，属于行为回退（违反 U5）；② fast 套件相对基点新增 15 项失败（`directorBookAutomationProjection` 13 项、`novelWorkflowContinue` 第 19、70 行），原因是测试替身仍替换旧查询函数。集成套件与基点一致（6 项历史失败），类型检查通过，不变量测试 44/44 通过。 |
+| 2026-09-27 | 1 复验 | `6013eb31` | 指标无变化 | `directorTakeoverPreviousTask.test.js`；`novelDirectorTakeover`、`directorCurrentTaskResolution` 各补 1 项 | **通过。** 按测试名称隔离对比：fast 套件当前分支与基点失败清单完全相同（各 34 项），集成套件完全相同（各 6 项），新增失败为 0；类型检查通过。遗留（不阻塞，放到阶段 3B 单一写入口时处理）：非 `continue_existing` 接管重复提交返回 409，不再复用已入队命令；`startDirectorTaskForNovel` 与 `createWorkflow` 的建任务字段组装重复。 |
+| 2026-09-27 | 2 | `52818adf` + `d6172213` + `78bbcf00` + `4e29ffa4` + `8444ee27` | `clientUrlTaskIdParams` 34 → 0；其他指标不变 | `novelRouteWithoutTaskId.test.js`、`novelWorkflowCandidateSelectionRouting.test.js`、`simpleShelfCurrentDirectorTask.test.js`、`novelChapterRouteContracts.test.js`、`novelRoutes.test.mjs`、跟进任务选择状态测试 | **通过代码验收。** Guard 12/12；类型检查及客户端构建通过。客户端完整套件 216/222，6 项失败名称与基线完全一致。按仓库官方分组隔离运行并与阶段 2 起点 `6013eb31` 比较：fast 1,417/34 失败/12 跳过，对比基线 1,413/34/12；集成 146/10/2，与基线 146/10/2；两套失败的 `文件 + 测试名称` 清单完全一致，新增失败：无。当前 Windows 环境集成基线包含 4 项 `ragCompatibilityBootstrap.test.js` Prisma 引擎启动失败；阶段 2 起点已有同样失败。候选任务跳转、章节子路由清理、旧链接参数移除和 takeover 当前任务切换的人工验收待用户统一进行。 |
