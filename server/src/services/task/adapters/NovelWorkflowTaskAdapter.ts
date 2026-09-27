@@ -446,48 +446,11 @@ export class NovelWorkflowTaskAdapter {
       orderBy: [{ updatedAt: "desc" }, { id: "desc" }],
       take: input.take,
     });
-    const healed = await Promise.all(
-      rows.map((row) => this.workflowService.healAutoDirectorTaskState(row.id, row)),
-    );
-    const normalizedRows = healed.some(Boolean)
-      ? await prisma.novelWorkflowTask.findMany({
-        where: {
-          ...(archivedIds.length
-            ? {
-              id: {
-                notIn: archivedIds,
-              },
-            }
-            : {}),
-          lane: "auto_director",
-          ...(input.status ? { status: input.status } : {}),
-          ...(input.keyword
-            ? {
-              OR: [
-                { title: { contains: input.keyword } },
-                { id: { contains: input.keyword } },
-                { novel: { title: { contains: input.keyword } } },
-              ],
-            }
-            : {}),
-        },
-        include: {
-          novel: {
-            select: {
-              title: true,
-            },
-          },
-        },
-        orderBy: [{ updatedAt: "desc" }, { id: "desc" }],
-        take: input.take,
-      })
-      : rows;
-
-    const visibleRows = normalizedRows.filter((row) => {
+    const visibleRows = rows.filter((row) => {
       if (row.lane !== "manual_create" || !row.novelId) {
         return true;
       }
-      return !normalizedRows.some((candidate) =>
+      return !rows.some((candidate) =>
         candidate.id !== row.id
         && candidate.novelId === row.novelId
         && candidate.lane === "auto_director"
@@ -508,10 +471,6 @@ export class NovelWorkflowTaskAdapter {
     if (await isTaskArchived("novel_workflow", id)) {
       return null;
     }
-    if (options.heal !== false) {
-      await this.workflowService.healAutoDirectorTaskState(id);
-    }
-
     const row = await prisma.novelWorkflowTask.findUnique({
       where: { id },
       include: {

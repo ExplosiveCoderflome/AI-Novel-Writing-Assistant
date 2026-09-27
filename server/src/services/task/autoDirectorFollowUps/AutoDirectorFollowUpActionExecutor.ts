@@ -206,7 +206,6 @@ export class AutoDirectorFollowUpActionExecutor {
       return result;
     }
 
-    const healed = await this.workflowService.healAutoDirectorTaskState(input.taskId);
     const row = await this.workflowService.getTaskByIdWithoutHealing(input.taskId);
     if (!row) {
       throw new AppError("Task not found.", 404);
@@ -216,10 +215,10 @@ export class AutoDirectorFollowUpActionExecutor {
     }
 
     if (input.actionCode === "safe_fix_validation") {
-      return this.executeSafeFix(row, input, executedCacheKey, healed);
+      return this.executeSafeFix(row, input, executedCacheKey);
     }
     if (input.actionCode === "auto_backfill_structured_outline") {
-      return this.executeStructuredBackfill(row, input, executedCacheKey, healed);
+      return this.executeStructuredBackfill(row, input, executedCacheKey);
     }
 
     if (input.metadata?.batchAction === true) {
@@ -411,7 +410,6 @@ export class AutoDirectorFollowUpActionExecutor {
     row: WorkflowTaskRow,
     input: AutoDirectorActionRequest,
     executedCacheKey: string,
-    healed: boolean,
   ): Promise<AutoDirectorActionExecutionResult> {
     const validationResult = extractBlockedAutoDirectorValidationResult(row.seedPayloadJson);
     const safeFixPlan = buildAutoDirectorSafeFixPlan(validationResult);
@@ -442,7 +440,7 @@ export class AutoDirectorFollowUpActionExecutor {
       taskId: input.taskId,
       seedPayloadJson: row.seedPayloadJson,
       validationResult,
-      healed,
+      healed: false,
     });
     const task = await this.safeGetTaskDetail(input.taskId);
     const result: AutoDirectorActionExecutionResult = {
@@ -457,7 +455,7 @@ export class AutoDirectorFollowUpActionExecutor {
     await this.recordActionLog(mergeActionMetadata(input, {
       safeFix: {
         safeActionCodes: applied.safeActionCodes,
-        healed,
+        healed: false,
       },
     }), result);
     return result;
@@ -467,7 +465,6 @@ export class AutoDirectorFollowUpActionExecutor {
     row: WorkflowTaskRow,
     input: AutoDirectorActionRequest,
     executedCacheKey: string,
-    healed: boolean,
   ): Promise<AutoDirectorActionExecutionResult> {
     const validationResult = extractBlockedAutoDirectorValidationResult(row.seedPayloadJson);
     const canBackfill = validationResult?.requiredActions.some((action) => (
@@ -492,7 +489,7 @@ export class AutoDirectorFollowUpActionExecutor {
       taskId: input.taskId,
       seedPayloadJson: row.seedPayloadJson,
       validationResult,
-      healed,
+      healed: false,
     });
     await this.novelDirectorService.continueTask(input.taskId, {
       continuationMode: "resume",
@@ -510,7 +507,7 @@ export class AutoDirectorFollowUpActionExecutor {
     await this.recordActionLog(mergeActionMetadata(input, {
       structuredBackfill: {
         affectedScope: validationResult.affectedScope,
-        healed,
+        healed: false,
       },
     }), result);
     return result;

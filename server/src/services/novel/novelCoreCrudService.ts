@@ -236,7 +236,6 @@ export class NovelCoreCrudService {
 
   private async listLatestVisibleAutoDirectorTasksByNovelIds(
     novelIds: string[],
-    allowHealing = false,
   ): Promise<Map<string, NovelAutoDirectorTaskSummary>> {
     const uniqueNovelIds = Array.from(new Set(novelIds.filter((id) => id.trim().length > 0)));
     if (uniqueNovelIds.length === 0) {
@@ -275,15 +274,6 @@ export class NovelCoreCrudService {
 
     if (rows.length === 0) {
       return new Map();
-    }
-
-    if (allowHealing) {
-      const healed = await Promise.all(
-        rows.map((row) => this.workflowService.healAutoDirectorTaskState(row.id, row)),
-      );
-      if (healed.some(Boolean)) {
-        return this.listLatestVisibleAutoDirectorTasksByNovelIds(uniqueNovelIds, false);
-      }
     }
 
     const archivedTaskIds = await getArchivedTaskIdSet("novel_workflow", rows.map((row) => row.id));

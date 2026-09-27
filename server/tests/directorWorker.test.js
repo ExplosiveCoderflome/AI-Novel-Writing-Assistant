@@ -104,6 +104,77 @@ test("director worker renews a leased command while waiting for resource budget"
   );
 });
 
+test("director worker completes initial healing before leasing and schedules later sweeps every 60 seconds", async () => {
+  const events = [];
+  let releaseHealing;
+  const healingGate = new Promise((resolve) => { releaseHealing = resolve; });
+  const sweep = { run: async () => { events.push("heal"); await healingGate; } };
+  const queue = {
+    workerId: "healing-test",
+    executionSlots: 1,
+    pollMs: 1,
+    leaseMs: 1000,
+    leaseNext: async () => { events.push("lease"); return null; },
+    waitForWork: async () => { await delay(1); },
+  };
+  const originalSetInterval = global.setInterval;
+  let intervalMs = null;
+  let intervalCallback;
+  let worker;
+  let running;
+  global.setInterval = (callback, ms) => { intervalCallback = callback; intervalMs = ms; return { unref() {} }; };
+  try {
+    worker = new DirectorWorker({ queue, commandExecutor: { execute: async () => "completed" }, healingSweep: sweep });
+    running = worker.start();
+    await delay(5);
+    assert.deepEqual(events, ["heal"]);
+    releaseHealing();
+    await delay(5);
+    assert.equal(events[1], "lease");
+    assert.equal(intervalMs, 60_000);
+    intervalCallback();
+    await delay(5);
+    assert.equal(events.filter((event) => event === "heal").length, 2);
+    worker.stop();
+    await running;
+  } finally {
+    global.setInterval = originalSetInterval;
+    worker?.stop();
+    releaseHealing();
+    await running;
+  }
+});
+
+test("healing sweep isolates task failures and coalesces overlapping runs", async () => {
+  const { DirectorTaskHealingSweep } = require("../dist/workers/directorTaskHealingSweep.js");
+  const events = [];
+  let releaseFirst;
+  const firstGate = new Promise((resolve) => { releaseFirst = resolve; });
+  const sweep = new DirectorTaskHealingSweep({
+    taskStore: { findMany: async () => [{ id: "one" }, { id: "two" }] },
+    healTask: async (id) => {
+      events.push(id);
+      if (id === "one") { await firstGate; throw new Error("bad task"); }
+    },
+  });
+  const originalError = console.error;
+  const logged = [];
+  console.error = (...args) => logged.push(args);
+  try {
+    const first = sweep.run();
+    const second = sweep.run();
+    await delay(5);
+    assert.deepEqual(events, ["one"]);
+    releaseFirst();
+    await Promise.all([first, second]);
+    assert.deepEqual(events, ["one", "two"]);
+    assert.ok(logged.some((args) => args.some((part) => String(part).includes("one"))));
+  } finally {
+    console.error = originalError;
+    releaseFirst();
+  }
+});
+
 test("director task queue delegates leasing to the command service", async () => {
   const calls = [];
   const leasedCommand = {

@@ -4,7 +4,7 @@
   "metrics": {
     "adHocCurrentTaskLookups": 0,
     "clientUrlTaskIdParams": 0,
-    "healOnReadCallSites": 9,
+    "healOnReadCallSites": 0,
     "directorTaskWritesOutsideState": 63,
     "directorSeedPayloadRefs": 291,
     "continuationModeRefs": 31,

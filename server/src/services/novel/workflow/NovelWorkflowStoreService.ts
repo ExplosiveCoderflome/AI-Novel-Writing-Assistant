@@ -29,10 +29,6 @@ import {
 } from "./novelWorkflow.helpers";
 import { isStaleAutoDirectorRunningTask } from "./autoDirectorStaleTaskRecovery";
 
-export interface NovelWorkflowHealingPort {
-  healAutoDirectorTaskState(taskId: string, row?: unknown): Promise<boolean>;
-}
-
 type NovelWorkflowTaskUpdateArgs = Parameters<typeof prisma.novelWorkflowTask.update>[0];
 type NovelWorkflowTaskUpdateManyArgs = Parameters<typeof prisma.novelWorkflowTask.updateMany>[0];
 
@@ -42,12 +38,6 @@ export class NovelWorkflowStoreService {
   public readonly volumeService = new NovelVolumeService();
 
   public readonly autoDirectorFollowUpNotificationService = new AutoDirectorFollowUpNotificationService();
-
-  private healingPort: NovelWorkflowHealingPort | null = null;
-
-  setHealingPort(port: NovelWorkflowHealingPort): void {
-    this.healingPort = port;
-  }
 
   public updateTaskWithRetry(args: NovelWorkflowTaskUpdateArgs) {
     return withSqliteRetry(
@@ -217,13 +207,6 @@ export class NovelWorkflowStoreService {
   }
 
   public async getVisibleRowsByNovelId(novelId: string, lane?: NovelWorkflowLane) {
-    const rows = await this.getVisibleRowsByNovelIdRaw(novelId, lane);
-    const healed = await Promise.all(
-      rows.map((row) => this.healingPort?.healAutoDirectorTaskState(row.id, row) ?? Promise.resolve(false)),
-    );
-    if (!healed.some(Boolean)) {
-      return rows;
-    }
     return this.getVisibleRowsByNovelIdRaw(novelId, lane);
   }
 
@@ -237,14 +220,6 @@ export class NovelWorkflowStoreService {
   }
 
   public async getVisibleRowById(taskId: string) {
-    const existing = await this.getVisibleRowByIdRaw(taskId);
-    if (!existing) {
-      return null;
-    }
-    const healed = await (this.healingPort?.healAutoDirectorTaskState(taskId, existing) ?? Promise.resolve(false));
-    if (!healed) {
-      return existing;
-    }
     return this.getVisibleRowByIdRaw(taskId);
   }
 

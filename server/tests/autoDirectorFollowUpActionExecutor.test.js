@@ -945,7 +945,7 @@ test("auto director follow-up safe fix repairs only validator-marked safe action
 
   assert.equal(result.code, "executed");
   assert.match(result.message, /安全修复/);
-  assert.deepEqual(calls, [["heal", "task_validation_fix"]]);
+  assert.deepEqual(calls, [], "user safe-fix action must not run aggregate healing first");
   assert.equal(workflowUpdates.length, 1);
   assert.equal(JSON.parse(workflowUpdates[0].data.seedPayloadJson).autoDirectorValidationResult, undefined);
   assert.equal(actionLogs.get("safe-fix-k1").resultCode, "executed");

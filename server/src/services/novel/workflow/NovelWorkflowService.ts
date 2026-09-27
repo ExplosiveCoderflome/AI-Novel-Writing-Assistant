@@ -12,11 +12,6 @@ export class NovelWorkflowService extends NovelWorkflowStoreService {
   private readonly healingService = new NovelWorkflowHealingService(this);
   private readonly applicationService = new NovelWorkflowApplicationService(this);
 
-  constructor() {
-    super();
-    this.setHealingPort(this.healingService);
-  }
-
   findActiveDirectorTask(...args: Parameters<typeof findActiveDirectorTask>) {
     return findActiveDirectorTask(...args);
   }
@@ -37,9 +32,7 @@ export class NovelWorkflowService extends NovelWorkflowStoreService {
     return this.healingService.healBrokenAutoDirectorCandidateSeedPayload(...args);
   }
 
-  healAutoDirectorTaskState(...args: Parameters<NovelWorkflowHealingService["healAutoDirectorTaskState"]>) {
-    return this.healingService.healAutoDirectorTaskState(...args);
-  }
+  readonly healAutoDirectorTaskState = this.healingService.healAutoDirectorTaskState.bind(this.healingService);
 
   healRuntimeGateApprovalState(...args: Parameters<NovelWorkflowHealingService["healRuntimeGateApprovalState"]>) {
     return this.healingService.healRuntimeGateApprovalState(...args);
