@@ -3,6 +3,7 @@ const assert = require("node:assert/strict");
 const http = require("node:http");
 
 const { createApp } = require("../dist/app.js");
+const { prisma } = require("../dist/db/prisma.js");
 const { DirectorCommandService } = require("../dist/services/novel/director/commands/DirectorCommandService.js");
 const { NovelWorkflowService } = require("../dist/services/novel/workflow/NovelWorkflowService.js");
 const { NovelWorkflowTaskAdapter } = require("../dist/services/task/adapters/NovelWorkflowTaskAdapter.js");
@@ -18,20 +19,13 @@ function listen(server) {
 
 test("novel workflow auto director route prefers the active auto director task over stale visible entries", { concurrency: false }, async () => {
   const calls = [];
-  const originalFindActive = NovelWorkflowService.prototype.findActiveTaskByNovelAndLane;
-  const originalFindLatest = NovelWorkflowService.prototype.findLatestVisibleTaskByNovelId;
+  const originalFindActive = NovelWorkflowService.prototype.findActiveDirectorTask;
   const originalDetail = NovelWorkflowTaskAdapter.prototype.detail;
 
-  NovelWorkflowService.prototype.findActiveTaskByNovelAndLane = async function findActiveTaskByNovelAndLaneMock(novelId, lane) {
-    calls.push(["active", novelId, lane]);
+  NovelWorkflowService.prototype.findActiveDirectorTask = async function findActiveDirectorTaskMock(novelId) {
+    calls.push(["active", novelId]);
     return {
       id: "workflow-active",
-    };
-  };
-  NovelWorkflowService.prototype.findLatestVisibleTaskByNovelId = async function findLatestVisibleTaskByNovelIdMock(novelId, lane) {
-    calls.push(["latest", novelId, lane]);
-    return {
-      id: "workflow-latest",
     };
   };
   NovelWorkflowTaskAdapter.prototype.detail = async function detailMock(taskId) {
@@ -56,12 +50,11 @@ test("novel workflow auto director route prefers the active auto director task o
     assert.equal(payload.success, true);
     assert.equal(payload.data.id, "workflow-active");
     assert.deepEqual(calls, [
-      ["active", "novel-active", "auto_director"],
+      ["active", "novel-active"],
       ["detail", "workflow-active", { seedPayloadMode: "compact" }],
     ]);
   } finally {
-    NovelWorkflowService.prototype.findActiveTaskByNovelAndLane = originalFindActive;
-    NovelWorkflowService.prototype.findLatestVisibleTaskByNovelId = originalFindLatest;
+    NovelWorkflowService.prototype.findActiveDirectorTask = originalFindActive;
     NovelWorkflowTaskAdapter.prototype.detail = originalDetail;
     await new Promise((resolve, reject) => server.close((error) => (error ? reject(error) : resolve())));
   }
@@ -69,19 +62,22 @@ test("novel workflow auto director route prefers the active auto director task o
 
 test("novel workflow auto director route returns null when only historical visible tasks remain", { concurrency: false }, async () => {
   const calls = [];
-  const originalFindActive = NovelWorkflowService.prototype.findActiveTaskByNovelAndLane;
-  const originalFindLatest = NovelWorkflowService.prototype.findLatestVisibleTaskByNovelId;
+  const originalTaskFindMany = prisma.novelWorkflowTask.findMany;
+  const originalArchiveFindMany = prisma.taskCenterArchive.findMany;
   const originalDetail = NovelWorkflowTaskAdapter.prototype.detail;
 
-  NovelWorkflowService.prototype.findActiveTaskByNovelAndLane = async function findActiveTaskByNovelAndLaneMock(novelId, lane) {
-    calls.push(["active", novelId, lane]);
-    return null;
-  };
-  NovelWorkflowService.prototype.findLatestVisibleTaskByNovelId = async function findLatestVisibleTaskByNovelIdMock() {
-    calls.push(["latest"]);
-    return {
+  prisma.novelWorkflowTask.findMany = async (args) => {
+    calls.push(["current", args.where.novelId, args.where.lane]);
+    assert.deepEqual(args.orderBy, [{ createdAt: "desc" }, { id: "desc" }]);
+    return [{
       id: "workflow-historical",
-    };
+      status: "cancelled",
+      createdAt: new Date("2026-01-01T00:00:00.000Z"),
+    }];
+  };
+  prisma.taskCenterArchive.findMany = async (args) => {
+    calls.push(["archive", args.where.taskId.in]);
+    return [];
   };
   NovelWorkflowTaskAdapter.prototype.detail = async function detailMock(taskId) {
     calls.push(["detail", taskId]);
@@ -102,11 +98,13 @@ test("novel workflow auto director route returns null when only historical visib
     assert.equal(payload.data, null);
     assert.equal(payload.message, "No active auto director task found.");
     assert.deepEqual(calls, [
-      ["active", "novel-idle", "auto_director"],
+      ["current", "novel-idle", "auto_director"],
+      ["archive", ["workflow-historical"]],
     ]);
+    assert.equal(calls.some(([kind]) => kind === "detail"), false);
   } finally {
-    NovelWorkflowService.prototype.findActiveTaskByNovelAndLane = originalFindActive;
-    NovelWorkflowService.prototype.findLatestVisibleTaskByNovelId = originalFindLatest;
+    prisma.novelWorkflowTask.findMany = originalTaskFindMany;
+    prisma.taskCenterArchive.findMany = originalArchiveFindMany;
     NovelWorkflowTaskAdapter.prototype.detail = originalDetail;
     await new Promise((resolve, reject) => server.close((error) => (error ? reject(error) : resolve())));
   }

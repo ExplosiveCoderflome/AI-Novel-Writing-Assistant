@@ -121,6 +121,10 @@ pnpm --filter @ai-novel/client test              # 阶段 2、4、6
 
 界面验收由人进行。执行者在报告里列出需要人工点验的页面和操作路径，不自行做浏览器或截图验证。
 
+**“通过”的判定：与分支基点对比，不得新增失败。** 基点 `d3a9ca99` 本身存在历史失败：fast 套件 33 项，集成套件 6 项（`p0bRealPrismaChain` 3 项、`prompting` 2 项、`prompting-governance` 1 项）。每次验收都必须运行**完整的** fast 套件和集成套件，按 `test at <文件>:<行号>` 列出失败清单，与基点清单比较，报告里写明“新增失败：无”。只跑相关的针对性测试不能作为通过依据。
+
+注意：`server/tests/*.test.js` 读取的是 `server/dist` 编译产物。切换分支或提交后，必须先重新编译 `shared` 和 `server`，再单独运行测试文件，否则测的是上一次编译的代码。
+
 ### 4.3 修改现有测试的规则
 
 - 只允许修改“因为删除或移动了内部实现，导致无法导入或编译”的测试，改为测试新的入口。
@@ -249,6 +253,30 @@ pnpm --filter @ai-novel/client test              # 阶段 2、4、6
 - **遗留问题与停止条件：** 集成套件仍有上述 10 项失败；失败点已定位到临时数据库启动兼容和无关 Prompt 检查，本阶段 I1、I2 相关测试通过。未修改 Prisma schema 或现有数据库数据。
 - **wiki 改写：** 在 `docs/wiki/workflows/auto-director-runtime.md` 补充书级当前任务唯一判定、活动任务定义和启动冲突策略，并把接管链中的旧任务选择规则改为统一入口。
 - **发布说明：** 本阶段为内部架构、测试与计划维护，没有明确用户可见变化，按仓库规则跳过发布说明和 README 最新更新。
+
+#### 阶段 1 返工要求（2026-09-24 验收）
+
+必须修复，修复后重新验收：
+
+1. **接管丢失上一条任务的上下文。** 接管命令入队时已经新建了本次任务，所以在 `NovelDirectorService.startTakeover` 里，`resolveCurrentDirectorTask` 返回的就是本次任务自己，`findLatestAutoDirectorTask` 因此恒为 `null`。`loadDirectorTakeoverState` 靠它读取上一条任务的 `autoExecutionPlan`、`runMode`（决定是否允许延迟生成章节合同）、`autoExecution` 游标和最近检查点。
+   - 修法：在 `state/currentDirectorTask.ts` 新增 `resolvePreviousDirectorTask(novelId, excludeTaskId)`，查询条件与 `resolveCurrentDirectorTask` 相同，只是排除指定任务，取第一条。`startTakeover` 在有 `commandTaskId` 时用它实现 `findLatestAutoDirectorTask`。
+   - 回归测试：上一条任务的 seed 带 `runMode: "full_book_autopilot"` 和 `autoExecution` 游标，并且已被 `continue_existing` 替换为 `cancelled`。断言接管时 `loadDirectorTakeoverState` 得到的 `latestTaskId`、`latestAutoExecutionState`、`latestCheckpoint` 来自这条被替换的任务。
+2. **fast 套件新增 15 项失败。** `directorBookAutomationProjection.test.js` 仍在替换 `prisma.novelWorkflowTask.findFirst`；`novelWorkflowContinue.test.js` 第 19、70 行仍在替换 `findActiveTaskByNovelAndLane`。按 4.3 的规则把替身改为替换新入口（`resolveCurrentDirectorTask` / `findActiveDirectorTask`，或它们使用的 `findMany` 与归档查询）。原有断言的含义保持不变，例如第 70 行仍要断言“只查询活动任务、没有活动任务时返回 null”。
+3. 修复后运行完整的 fast 套件和集成套件，按 4.2 与基点清单对比，报告写明“新增失败：无”。
+
+建议修复（不阻塞验收，可在本阶段一并处理）：
+
+- 策略不是 `continue_existing` 时，重复点击接管会返回 409，不再像原来那样复用已入队的命令。建议在策略、请求内容和任务活动状态都相同时复用命令，任一不同则按现有规则处理。
+- `startDirectorTaskForNovel` 复制了一份 `createWorkflow` 的建任务字段组装逻辑，两处以后可能改得不一致。建议抽出一个共用的字段组装函数，两处都调用它。
+
+#### 阶段 1 返工执行记录（2026-09-27）
+
+- **接管上下文：** 新增 `resolvePreviousDirectorTask(novelId, excludeTaskId)` 并从 `startTakeover` 排除本次已创建任务，回归覆盖上一条已取消任务提供的 `runMode`、执行范围、章节游标和检查点。
+- **测试入口：** 书级投影测试切到 `findMany` 与归档查询；工作流路由测试切到 `findActiveDirectorTask`。历史任务用真实当前任务解析路径读取，断言终态任务不会被当成活动任务，且路由不读取任务详情。
+- **定向验证：** `pnpm --filter @ai-novel/shared build`、`pnpm --filter @ai-novel/server build`、`pnpm --filter @ai-novel/server typecheck` 通过；`directorSimplificationGuard.test.js` 12/12 通过；接管及当前任务相关回归 35/35 通过，历史任务路由回归 1/1 通过。`server/tests/fixtures/directorSimplification.baseline.json` 的指标无需调整。
+- **fast 全量：** 当前分支 1,420 项中 1,377 通过、31 失败。失败位置：`autoDirectorAutoApprovalAudit.test.js:159`、`bookAnalysis.test.js:1190,2773`、`bookAnalysisCharacterCandidate.test.js:211,253,306,355`、`chapterArtifactInfluence.test.js:7,72`、`chapterStructuredOutputNormalization.test.js:91`、`characterMind.test.js:24`、`characterVisibleProfile.test.js:53`、`directorDirectoryBoundary.test.js:14`、`directorDisplayStateBuilder.test.js:8,121`、`dramaPipelineContract.test.js:400`、`novelDirectorCharacterGate.test.js:238`、`novelDirectorStageNodeAdapters.test.js:9`、`novelDirectorStructuredOutlinePersistence.test.js:124,332`、`novelDirectorTakeoverExecution.test.js:441`、`novelExportService.test.js:7`、`novelProduction/artifactCheckpoint.test.js:119`、`novelWorkflowContinue.test.js:99`、`novelWorldModelSelection.test.js:55`、`payoffLedgerShared.test.js:159`、`ragRetrievalTrace.test.js:20`、`style-engine.test.js:593`、`styleGenerationSanitizer.test.js:110`、`tools.test.js:43`、`worldContextGateway.test.js:72`。这些失败位置均出现在基点 fast 日志中；基点 Windows runner 未正常退出，日志记录到 1,321 个通过、67 个失败和 12 个跳过后仍挂起，因此无法用该次运行核对完整基点总数。
+- **集成全量：** 当前分支 146 项中 134 通过、10 失败、2 跳过。失败位置：`p0bRealPrismaChain.test.js:483,495,507`、`prompting-governance.test.js:122`、`prompting.test.js:148,419`、`ragCompatibilityBootstrap.test.js:256,288,321,337`。这些位置均在基点集成输出或基点单文件复跑中复现；RAG 四项在两边单文件运行时均因 Prisma schema engine 错误失败。
+- **新增失败：无（按失败测试位置与基点已观测日志/复跑对照）。** 当前 Windows runner 的全量数量与方案记录的基点数量口径不同，且基点 fast runner 没有返回最终摘要；本记录明确保留该总量对比限制。发布说明与 README 最新更新按内部重构范围跳过。
 
 ### 阶段 2：小说页面地址不再携带任务编号
 
@@ -439,3 +467,4 @@ pnpm --filter @ai-novel/client test              # 阶段 2、4、6
 | --- | --- | --- | --- | --- | --- |
 | 2026-09-24 | 0 | 与阶段 1 同批提交 | 建立基线（11 项） | `directorSimplificationGuard.test.js` | 阶段 1 分支基点：`feature/creative-carryover-contract` @ `d3a9ca992133895f9ff97dd28a3dc73388ff37be`；执行分支为 `refactor/director-simplification` |
 | 2026-09-24 | 1 | `3e20bbef` + `6c4ff9f8` | `adHocCurrentTaskLookups` 16 → 0；`directorTaskWritesOutsideState` 64 → 63；`directorSeedPayloadRefs` 292 → 291 | `directorCurrentTaskResolution.test.js`、`directorCurrentTask.test.js` | 集成套件 134/146；10 项未通过的原因见阶段报告 |
+| 2026-09-24 | 1 验收 | `2f0bdeb8` | 指标核验一致 | — | **未通过，需返工。** ① 接管时 `startTakeover` 的 `findLatestAutoDirectorTask` 恒为 null，丢失上一条任务的执行范围、运行模式、章节游标和检查点，属于行为回退（违反 U5）；② fast 套件相对基点新增 15 项失败（`directorBookAutomationProjection` 13 项、`novelWorkflowContinue` 第 19、70 行），原因是测试替身仍替换旧查询函数。集成套件与基点一致（6 项历史失败），类型检查通过，不变量测试 44/44 通过。 |

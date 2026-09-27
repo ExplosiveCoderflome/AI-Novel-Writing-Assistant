@@ -31,21 +31,31 @@ export type StartDirectorTaskOptions = {
   whenActive: "reject" | "supersede";
 };
 
-export async function resolveCurrentDirectorTask(novelId: string) {
+async function resolveLatestVisibleDirectorTask(novelId: string, excludeTaskId?: string) {
   const normalizedNovelId = novelId.trim();
   if (!normalizedNovelId) {
     return null;
   }
+  const normalizedExcludeTaskId = excludeTaskId?.trim();
 
   const rows = await prisma.novelWorkflowTask.findMany({
     where: {
       novelId: normalizedNovelId,
       lane: "auto_director",
+      ...(normalizedExcludeTaskId ? { id: { not: normalizedExcludeTaskId } } : {}),
     },
     orderBy: [{ createdAt: "desc" }, { id: "desc" }],
   });
   const archivedTaskIds = await getArchivedTaskIdSet("novel_workflow", rows.map((row) => row.id));
   return rows.find((row) => !archivedTaskIds.has(row.id)) ?? null;
+}
+
+export function resolveCurrentDirectorTask(novelId: string) {
+  return resolveLatestVisibleDirectorTask(novelId);
+}
+
+export function resolvePreviousDirectorTask(novelId: string, excludeTaskId: string) {
+  return resolveLatestVisibleDirectorTask(novelId, excludeTaskId);
 }
 
 export async function findActiveDirectorTask(novelId: string) {

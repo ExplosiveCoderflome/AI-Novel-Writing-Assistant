@@ -636,8 +636,10 @@ export class NovelDirectorService {
         return currentTask?.id !== commandTaskId ? currentTask : null;
       },
       findLatestAutoDirectorTask: async (targetNovelId) => {
-        const currentTask = await this.workflowService.resolveCurrentDirectorTask(targetNovelId);
-        return currentTask?.id !== commandTaskId ? currentTask : null;
+        const latestTask = commandTaskId
+          ? await this.workflowService.resolvePreviousDirectorTask(targetNovelId, commandTaskId)
+          : await this.workflowService.resolveCurrentDirectorTask(targetNovelId);
+        return latestTask?.id !== commandTaskId ? latestTask : null;
       },
     });
     const takeoverStrategy = input.strategy ?? (input.startPhase ? "restart_current_step" : "continue_existing");

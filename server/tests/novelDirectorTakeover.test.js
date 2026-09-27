@@ -528,6 +528,84 @@ test("loadDirectorTakeoverState does not trust stale auto execution state when o
   }
 });
 
+test("loadDirectorTakeoverState restores continuation context from the cancelled task replaced by takeover", async () => {
+  const originals = {
+    novelFindUnique: prisma.novel.findUnique,
+    chapterFindMany: prisma.chapter.findMany,
+    generationJobFindFirst: prisma.generationJob.findFirst,
+  };
+  const previousTask = {
+    id: "previous-cancelled-task",
+    status: "cancelled",
+    checkpointType: "chapter_batch_ready",
+    checkpointSummary: "第 7 章之后继续执行。",
+    resumeTargetJson: JSON.stringify({ chapterId: "chapter-7", volumeId: "volume-1" }),
+    seedPayloadJson: JSON.stringify({
+      runMode: "full_book_autopilot",
+      autoExecutionPlan: { mode: "chapter_range", startOrder: 1, endOrder: 10 },
+      autoExecution: {
+        enabled: true,
+        mode: "chapter_range",
+        startOrder: 1,
+        endOrder: 10,
+        totalChapterCount: 30,
+        firstChapterId: "chapter-1",
+        nextChapterId: "chapter-7",
+        nextChapterOrder: 7,
+      },
+    }),
+  };
+
+  prisma.novel.findUnique = async () => ({
+    id: "novel_takeover_previous_task",
+    title: "接管续写测试",
+    continuationBookAnalysisSections: null,
+    referenceBookAnalysisSections: null,
+    commercialTagsJson: "[]",
+    worldId: null,
+    bookContract: null,
+  });
+  prisma.chapter.findMany = async () => [];
+  prisma.generationJob.findFirst = async () => null;
+
+  try {
+    const state = await loadDirectorTakeoverState({
+      novelId: "novel_takeover_previous_task",
+      getStoryMacroPlan: async () => null,
+      getDirectorAssetSnapshot: async () => ({
+        characterCount: 0,
+        chapterCount: 0,
+        volumeCount: 1,
+        hasVolumeStrategyPlan: true,
+        firstVolumeId: "volume-1",
+        firstVolumeChapterCount: 10,
+        volumeChapterRanges: [{ volumeOrder: 1, startOrder: 1, endOrder: 10 }],
+        structuredOutlineChapterOrders: Array.from({ length: 10 }, (_, index) => index + 1),
+      }),
+      getVolumeWorkspace: async () => null,
+      findActiveAutoDirectorTask: async () => null,
+      findLatestAutoDirectorTask: async () => previousTask,
+    });
+
+    assert.equal(state.latestTaskId, "previous-cancelled-task");
+    assert.equal(state.latestAutoExecutionState.nextChapterId, "chapter-7");
+    assert.equal(state.latestAutoExecutionState.nextChapterOrder, 7);
+    assert.equal(state.latestAutoExecutionState.startOrder, 1);
+    assert.equal(state.latestAutoExecutionState.endOrder, 10);
+    assert.deepEqual(state.latestCheckpoint, {
+      checkpointType: "chapter_batch_ready",
+      checkpointSummary: "第 7 章之后继续执行。",
+      chapterId: "chapter-7",
+      chapterOrder: null,
+      volumeId: "volume-1",
+    });
+  } finally {
+    prisma.novel.findUnique = originals.novelFindUnique;
+    prisma.chapter.findMany = originals.chapterFindMany;
+    prisma.generationJob.findFirst = originals.generationJobFindFirst;
+  }
+});
+
 test("loadDirectorTakeoverState treats full-book autopilot outline seeds as JIT executable", async () => {
   const originals = {
     novelFindUnique: prisma.novel.findUnique,

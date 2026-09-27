@@ -117,7 +117,8 @@ function createHarness(overrides = {}) {
   };
   const originals = {
     novelFindUnique: prisma.novel.findUnique,
-    taskFindFirst: prisma.novelWorkflowTask.findFirst,
+    taskFindMany: prisma.novelWorkflowTask.findMany,
+    archivedTaskFindMany: prisma.taskCenterArchive.findMany,
     runFindFirst: prisma.directorRun.findFirst,
     commandFindMany: prisma.directorRunCommand.findMany,
     eventFindMany: prisma.directorEvent.findMany,
@@ -134,10 +135,16 @@ function createHarness(overrides = {}) {
       title: "测试小说",
     };
   };
-  prisma.novelWorkflowTask.findFirst = async ({ where }) => {
+  prisma.novelWorkflowTask.findMany = async ({ where, orderBy }) => {
     assert.equal(where.novelId, "novel-1");
     assert.equal(where.lane, "auto_director");
-    return latestTask;
+    assert.deepEqual(orderBy, [{ createdAt: "desc" }, { id: "desc" }]);
+    return [latestTask];
+  };
+  prisma.taskCenterArchive.findMany = async ({ where }) => {
+    assert.equal(where.taskKind, "novel_workflow");
+    assert.deepEqual(where.taskId.in, [latestTask.id]);
+    return [];
   };
   prisma.directorRun.findFirst = async ({ where }) => {
     assert.equal(where.novelId, "novel-1");
@@ -190,7 +197,8 @@ function createHarness(overrides = {}) {
     )),
     restore() {
       prisma.novel.findUnique = originals.novelFindUnique;
-      prisma.novelWorkflowTask.findFirst = originals.taskFindFirst;
+      prisma.novelWorkflowTask.findMany = originals.taskFindMany;
+      prisma.taskCenterArchive.findMany = originals.archivedTaskFindMany;
       prisma.directorRun.findFirst = originals.runFindFirst;
       prisma.directorRunCommand.findMany = originals.commandFindMany;
       prisma.directorEvent.findMany = originals.eventFindMany;

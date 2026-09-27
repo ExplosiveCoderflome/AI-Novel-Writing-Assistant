@@ -35,7 +35,7 @@ function loadCurrentTaskModule(rows, archivedIds = []) {
         novelWorkflowTask: {
           findMany: async (args) => {
             calls.push(args);
-            return [...rows].sort((left, right) => {
+            return rows.filter((row) => row.id !== args.where.id?.not).sort((left, right) => {
               const createdAtOrder = right.createdAt.getTime() - left.createdAt.getTime();
               return createdAtOrder || right.id.localeCompare(left.id);
             });
@@ -70,6 +70,31 @@ test("current director task uses creation order, excludes archived rows, and doe
   assert.equal(result.id, "newer-terminal-z");
   assert.deepEqual(calls[0], {
     where: { novelId: "novel-1", lane: "auto_director" },
+    orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+  });
+});
+
+test("previous director task excludes the newly created takeover task and keeps the newest visible predecessor", async () => {
+  const { module, calls } = loadCurrentTaskModule([
+    { id: "older-active", status: "running", createdAt: new Date("2025-01-01T00:00:00.000Z") },
+    {
+      id: "previous-cancelled",
+      status: "cancelled",
+      createdAt: new Date("2026-01-01T00:00:00.000Z"),
+      seedPayloadJson: JSON.stringify({ runMode: "full_book_autopilot" }),
+    },
+    { id: "replacement-task", status: "queued", createdAt: new Date("2026-02-01T00:00:00.000Z") },
+  ]);
+
+  const result = await module.resolvePreviousDirectorTask("novel-1", "replacement-task");
+
+  assert.equal(result.id, "previous-cancelled");
+  assert.deepEqual(calls[0], {
+    where: {
+      novelId: "novel-1",
+      lane: "auto_director",
+      id: { not: "replacement-task" },
+    },
     orderBy: [{ createdAt: "desc" }, { id: "desc" }],
   });
 });

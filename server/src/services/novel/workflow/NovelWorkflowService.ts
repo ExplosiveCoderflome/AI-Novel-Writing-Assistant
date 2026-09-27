@@ -4,6 +4,7 @@ import { NovelWorkflowApplicationService } from "./NovelWorkflowApplicationServi
 import {
   findActiveDirectorTask,
   resolveCurrentDirectorTask,
+  resolvePreviousDirectorTask,
   startDirectorTaskForNovel,
 } from "../director/state/currentDirectorTask";
 
@@ -22,6 +23,10 @@ export class NovelWorkflowService extends NovelWorkflowStoreService {
 
   resolveCurrentDirectorTask(...args: Parameters<typeof resolveCurrentDirectorTask>) {
     return resolveCurrentDirectorTask(...args);
+  }
+
+  resolvePreviousDirectorTask(...args: Parameters<typeof resolvePreviousDirectorTask>) {
+    return resolvePreviousDirectorTask(...args);
   }
 
   startDirectorTaskForNovel(...args: Parameters<typeof startDirectorTaskForNovel>) {
