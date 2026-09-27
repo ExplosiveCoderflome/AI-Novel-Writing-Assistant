@@ -1,10 +1,11 @@
-import { useMemo } from "react";
+import { useEffect, useMemo } from "react";
 import { FlaskConical } from "lucide-react";
-import { Link, useNavigate, useParams } from "react-router-dom";
+import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { getChapterEditorWorkspace, getNovelDetail } from "@/api/novel";
 import { queryKeys } from "@/api/queryKeys";
 import { Button } from "@/components/ui/button";
+import { stripLegacyTaskUrlParams } from "@/lib/legacyTaskUrlParams";
 import ChapterEditorShell from "./components/chapterEditor/ChapterEditorShell";
 
 function PageStateCard(props: { message: string }) {
@@ -18,6 +19,14 @@ function PageStateCard(props: { message: string }) {
 export default function NovelChapterEdit() {
   const { id = "", chapterId = "" } = useParams();
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
+
+  useEffect(() => {
+    const cleaned = stripLegacyTaskUrlParams(searchParams);
+    if (cleaned.toString() !== searchParams.toString()) {
+      setSearchParams(cleaned, { replace: true });
+    }
+  }, [searchParams, setSearchParams]);
 
   const novelDetailQuery = useQuery({
     queryKey: queryKeys.novels.detail(id),

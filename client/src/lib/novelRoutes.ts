@@ -4,6 +4,7 @@ import type {
 } from "@ai-novel/shared/types/directorRuntime";
 import type { DirectorTaskNotice } from "@ai-novel/shared/types/novelDirector";
 import type { UnifiedTaskDetail } from "@ai-novel/shared/types/task";
+import type { NovelWorkflowResumeTarget } from "@ai-novel/shared/types/novelWorkflow";
 import { stripLegacyTaskUrlParams } from "./legacyTaskUrlParams.ts";
 
 interface NovelWorkspaceLinkInput {
@@ -23,7 +24,27 @@ export function getNovelWorkspaceHref(novel: NovelWorkspaceLinkInput): string {
 export function getCandidateTaskNovelHref(task: Pick<UnifiedTaskDetail, "resumeTarget" | "sourceResource"> | null | undefined): string | null {
   const novelId = task?.resumeTarget?.novelId?.trim()
     || (task?.sourceResource?.type === "novel" ? task.sourceResource.id.trim() : "");
-  return novelId ? getNovelWorkspaceHref({ id: novelId }) : null;
+  return novelId ? getNovelResumeTargetHref(novelId, task?.resumeTarget) : null;
+}
+
+function getNovelResumeTargetHref(novelId: string, target: NovelWorkflowResumeTarget | null | undefined): string {
+  const root = `/novels/${encodeURIComponent(novelId)}`;
+  if (target?.route === "/novels/:id/story") {
+    return `${root}/story`;
+  }
+  const route = target?.route === "/novels/:id/simple" ? "simple" : "edit";
+  const params = new URLSearchParams();
+  if (target?.stage) {
+    params.set("stage", target.stage);
+  }
+  if (target?.chapterId) {
+    params.set("chapterId", target.chapterId);
+  }
+  if (target?.volumeId) {
+    params.set("volumeId", target.volumeId);
+  }
+  const query = params.toString();
+  return `${root}/${route}${query ? `?${query}` : ""}`;
 }
 
 export function getNovelEditHref(novelId: string, options?: { stage?: string | null; taskPanel?: boolean }): string {

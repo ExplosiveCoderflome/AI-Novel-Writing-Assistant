@@ -59,6 +59,33 @@ test("a candidate task moves to its novel workspace once the novel exists", () =
   assert.equal(routes.getCandidateTaskNovelHref({ resumeTarget: null, sourceResource: null }), null);
 });
 
+test("candidate redirect keeps its saved stage, chapter, and volume without task identity", () => {
+  assert.equal(routes.getCandidateTaskNovelHref({
+    resumeTarget: {
+      route: "/novels/:id/edit",
+      novelId: "book 1",
+      taskId: "old",
+      stage: "chapter",
+      chapterId: "chapter A",
+      volumeId: "volume + one",
+    },
+    sourceResource: null,
+  }), "/novels/book%201/edit?stage=chapter&chapterId=chapter+A&volumeId=volume+%2B+one");
+  assert.equal(routes.getCandidateTaskNovelHref({
+    resumeTarget: {
+      route: "/novels/:id/simple",
+      novelId: "book 2",
+      stage: "structured",
+      volumeId: "volume 2",
+    },
+    sourceResource: null,
+  }), "/novels/book%202/simple?stage=structured&volumeId=volume+2");
+  assert.equal(routes.getCandidateTaskNovelHref({
+    resumeTarget: { route: "/novels/:id/story", novelId: "short", stage: "chapter", chapterId: "one" },
+    sourceResource: null,
+  }), "/novels/short/story");
+});
+
 test("task history source follows the novel when an old candidate link belongs to a book", () => {
   assert.equal(routes.getTaskHistorySourceHref({
     sourceRoute: "/novels/auto-director?taskId=old",

@@ -33,7 +33,7 @@ import { AutoDirectorFollowUpBatchBar } from "./components/AutoDirectorFollowUpB
 import { AutoDirectorFollowUpDetailPanel } from "./components/AutoDirectorFollowUpDetail";
 import { AutoDirectorFollowUpListPanel } from "./components/AutoDirectorFollowUpList";
 import { AutoDirectorFollowUpOverviewCards } from "./components/AutoDirectorFollowUpOverview";
-import { reconcileSelectedTaskIds } from "./selectionState";
+import { reconcileSelectedTaskIds, resolveFollowUpSelectedTaskId, type FollowUpTaskOverride } from "./selectionState";
 import { resolveFollowUpOverviewPresentation } from "./followUpPresentation";
 import { toast } from "@/components/ui/toast";
 import { Button } from "@/components/ui/button";
@@ -123,7 +123,6 @@ export default function AutoDirectorFollowUpCenterPage() {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const [selectedDirectorTaskIds, setSelectedDirectorTaskIds] = useState<string[]>([]);
-  const [selectedTaskOverride, setSelectedTaskOverride] = useState(() => readLegacyDirectorTaskId(searchParams)?.trim() || "");
 
   const selectedNovelId = searchParams.get("novelId")?.trim() || "";
   const currentDirectorQuery = useQuery({
@@ -147,6 +146,11 @@ export default function AutoDirectorFollowUpCenterPage() {
     channelType,
     page,
     pageSize,
+  });
+  const selectionContextKey = JSON.stringify([selectedNovelId, paramsKey]);
+  const [selectedTaskOverride, setSelectedTaskOverride] = useState<FollowUpTaskOverride | null>(() => {
+    const taskId = readLegacyDirectorTaskId(searchParams)?.trim();
+    return taskId ? { taskId, contextKey: selectionContextKey, source: "legacy" } : null;
   });
 
   const overviewQuery = useQuery({
@@ -176,8 +180,12 @@ export default function AutoDirectorFollowUpCenterPage() {
   });
 
   const items = listQuery.data?.data?.items ?? [];
-  const selectedDirectorTaskId = selectedTaskOverride
-    || (selectedNovelId ? currentDirectorQuery.data?.data?.id ?? "" : items[0]?.directorTaskId ?? "");
+  const selectedDirectorTaskId = resolveFollowUpSelectedTaskId({
+    override: selectedTaskOverride,
+    contextKey: selectionContextKey,
+    items,
+    fallbackTaskId: selectedNovelId ? currentDirectorQuery.data?.data?.id ?? "" : items[0]?.directorTaskId ?? "",
+  });
 
   const detailQuery = useQuery({
     queryKey: queryKeys.autoDirectorFollowUps.detail(selectedDirectorTaskId || "none"),
@@ -196,6 +204,20 @@ export default function AutoDirectorFollowUpCenterPage() {
   useEffect(() => {
     setSelectedDirectorTaskIds((current) => reconcileSelectedTaskIds(current, items));
   }, [items]);
+
+  useEffect(() => {
+    setSelectedTaskOverride((current) => current?.contextKey === selectionContextKey ? current : null);
+  }, [selectionContextKey]);
+
+  useEffect(() => {
+    if (!listQuery.isSuccess) {
+      return;
+    }
+    setSelectedTaskOverride((current) => current?.source === "manual"
+      && current.contextKey === selectionContextKey
+      && !items.some((item) => item.directorTaskId === current.taskId)
+      ? null : current);
+  }, [items, listQuery.isSuccess, selectionContextKey]);
 
   const selectedItems = useMemo(
     () => items.filter((item) => selectedDirectorTaskIds.includes(item.directorTaskId)),
@@ -276,11 +298,11 @@ export default function AutoDirectorFollowUpCenterPage() {
   });
 
   const handleSelectTask = (directorTaskId: string) => {
-    setSelectedTaskOverride(directorTaskId);
+    setSelectedTaskOverride({ taskId: directorTaskId, contextKey: selectionContextKey, source: "manual" });
   };
 
   const handleSectionChange = (nextSection: AutoDirectorFollowUpSection | "") => {
-    setSelectedTaskOverride("");
+    setSelectedTaskOverride(null);
     setSearchParams((prev) => {
       const next = stripLegacyTaskUrlParams(prev);
       if (!nextSection) {
