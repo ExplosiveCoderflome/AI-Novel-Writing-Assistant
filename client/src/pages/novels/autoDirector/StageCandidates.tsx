@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import type { useAutoDirectorCreateController } from "./useAutoDirectorCreateController";
 import NovelProductionExperienceHandoff from "../components/NovelProductionExperienceHandoff";
 import OnboardingTip from "@/components/onboarding/OnboardingTip";
+import { isProductionExperienceChoicePending } from "@/lib/novelRoutes";
 
 type AutoDirectorCreateController = ReturnType<typeof useAutoDirectorCreateController>;
 
@@ -16,15 +17,17 @@ export default function StageCandidates({
   controller,
   onRegenerateSettings,
 }: StageCandidatesProps) {
+  const directorTask = controller.directorTask;
   if (
-    controller.directorTask?.checkpointType === "production_experience_required"
-    && controller.directorTask.resumeTarget?.novelId
+    directorTask
+    && isProductionExperienceChoicePending(directorTask)
+    && directorTask.resumeTarget?.novelId
   ) {
     return (
       <NovelProductionExperienceHandoff
-        taskId={controller.directorTask.id}
-        novelId={controller.directorTask.resumeTarget.novelId}
-        novelTitle={controller.directorTask.title}
+        taskId={directorTask.id}
+        novelId={directorTask.resumeTarget.novelId}
+        novelTitle={directorTask.title}
       />
     );
   }

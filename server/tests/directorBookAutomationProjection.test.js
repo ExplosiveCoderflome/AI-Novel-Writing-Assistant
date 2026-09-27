@@ -239,8 +239,8 @@ test("book automation projection aggregates task, command, event, approval and a
       repairTicketCount: 1,
     });
     assert.equal(projection.primaryAction.label, "查看推进状态");
-    assert.equal(projection.primaryAction.target.href, "/novels/novel-1/edit?directorTaskId=task-1");
-    assert.equal(projection.secondaryActions[0].target.href, "/novels/novel-1/edit?directorTaskId=task-1&taskPanel=1");
+    assert.equal(projection.primaryAction.target.href, "/novels/novel-1/edit");
+    assert.equal(projection.secondaryActions[0].target.href, "/novels/novel-1/edit?taskPanel=1");
     assert.equal(projection.timeline[0].id, "event:event-1");
     assert.ok(projection.timeline.some((item) => item.id === "command:command-1"));
     assert.ok(projection.timeline.some((item) => item.id === "approval:approval-1"));
@@ -271,7 +271,7 @@ test("book automation projection exposes production experience handoff as the pr
     const projection = await harness.service.getProjection("novel-1");
     assert.equal(projection.status, "waiting_approval");
     assert.equal(projection.primaryAction.label, "选择正文生产方式");
-    assert.equal(projection.primaryAction.target.href, "/novels/novel-1/edit?directorTaskId=task-1");
+    assert.equal(projection.primaryAction.target.href, "/novels/novel-1/edit");
   } finally {
     harness.restore();
   }

@@ -66,6 +66,7 @@ test("candidate recovery and task changes keep the experience choice on the page
   assert.equal((createPage.match(/getCandidateTaskNovelHref\(/g) ?? []).length, 2);
   assert.match(createPage, /const novelHref = getCandidateTaskNovelHref\(task\);[\s\S]*?if \(novelHref\) \{\s*navigate\(novelHref, \{ replace: true \}\);/);
   assert.match(createPage, /const novelHref = getCandidateTaskNovelHref\(controller\.directorTask \?\? restoredWorkflowTask\);[\s\S]*?if \(novelHref\) \{\s*navigate\(novelHref, \{ replace: true \}\);/);
+  assert.match(candidateStage, /const directorTask = controller\.directorTask;[\s\S]*?isProductionExperienceChoicePending\(directorTask\)/);
   assert.match(experienceHandoff, /onSuccess: async \(response\) =>/);
   assert.match(experienceHandoff, /navigate\(getTaskSourceHref\(response\.targetRoute\), \{ replace: true \}\)/);
 });
