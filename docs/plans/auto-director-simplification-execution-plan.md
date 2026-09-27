@@ -357,6 +357,48 @@ pnpm --filter @ai-novel/client test              # 阶段 2、4、6
 
 **禁止：** 不改 schema；不改任何业务判断结果，只改“从哪里读、经谁写”。
 
+#### 阶段 2、3A 复核与 3B 中期检查（2026-09-27）
+
+测试结论：已提交代码加 3B 未提交改动，按“文件 + 测试名称”隔离对比阶段 1 终点 `6013eb31`，fast（34 项）、集成（6 项）、客户端（6 项）失败清单完全相同，类型检查通过。下列问题都是测试覆盖不到的代码层问题。
+
+**执行顺序：** 先单独提交 3A 返工（3A-1、3A-2），再补阶段 2 的三项（2-1、2-2、2-3），最后完成并提交 3B。
+
+阶段 2 返工（必须）：
+
+- **2-1 跟进中心仍按 URL 里的任务编号选任务（R3）。** 读取逻辑被移进守卫排除的 `client/src/lib/legacyTaskUrlParams.ts`（`readLegacyDirectorTaskId`），`AutoDirectorFollowUpCenterPage.tsx:152` 用它选任务；`DingTalkNotifier.ts:83`、`WeComNotifier.ts:71` 仍在生成新的 `follow-ups?directorTaskId=` 链接。修法：两个通知器改用 `?novelId=`；跟进中心只按 `novelId` 选择，旧参数只清理、不参与选择；`legacyTaskUrlParams.ts` 只保留 `stripLegacyTaskUrlParams`，候选链接的生成和读取函数移到 `novelRoutes.ts`。
+- **2-2 服务端仍生成带 `directorTaskId` 的小说页链接（U1）。** 位置：`RecoveryTaskService.ts:44`、`FirstNovelOnboardingService.ts:159,180,194`、`CreationStudioService.ts:559`、`DirectorBookAutomationProjectionModel.ts` 的 `buildNovelHref`。前端虽然在打开后清理，但地址栏会先出现参数，新增的消费方也容易漏掉清理。修法：从源头去掉参数，并在 `novelRouteWithoutTaskId.test.js` 中逐个断言这些生成函数的输出。
+
+- **2-3 恢复开书页的创作界面选择（2026-09-27 人工决定）。** `AutoDirectorCreatePage.tsx` 在任务已关联小说时立即跳转，页面上的“简易模式 / 专业模式”选择和候选交接界面（`StageCandidates.tsx`）因此无法到达，新手会被直接送进完整工作台。修法：任务已关联小说时，先显示这组选择；用户选定后，用 `replace` 跳到对应的书页地址（`/novels/:id/simple` 或 `/novels/:id/edit`，都不带任务编号）。页面布局和文案保持改造前的样子；这是方案第 1 节“开书前页面保留任务编号，书创建后跳到书的地址”的具体落法。补客户端测试，断言选择前不跳转、选择后跳到对应地址。
+
+阶段 2 建议（写进报告，需要人工点验确认）：
+
+- 跟进中心的选中项不再写进地址，刷新或后退后会丢失。
+- 普通编辑工作流初始化不再把 `entry` / `stage` 合并进已有任务，属于 U5 范围内的行为差异，需在报告里注明。
+- 4e29ffa4 误提交了 `.superpowers/sdd/…/task-3-report.md`，应取消跟踪。
+
+3A 返工（必须）：
+
+- **3A-1 `.bind` 规避守卫（R3）。** `NovelWorkflowService.ts:35` 把会被计数的转发方法改成了 `readonly healAutoDirectorTaskState = ….bind(…)`，功能不变，只是让守卫正则匹配不到。修法：从 `NovelWorkflowService` 删除这个入口，`workers/directorTaskHealingSweep.ts` 直接创建 `NovelWorkflowHealingService` 调用。
+- **3A-2 Worker 扫描绕过人工暂停保护。** `directorTaskHealingSweep.ts` 只传任务编号，`healAutoDirectorTaskState` 开头的“已请求取消 / 等待人工恢复就跳过”两道判断只检查传入的任务行，传空即失效。`healStaleAutoDirectorQueuedProgress` 自己不检查 `pendingManualRecovery`，会把“排队中 + 等待人工恢复”的任务改成 `running`，违反 AGENTS.md 的人工暂停规则。3A 之前读取路径会传入任务行，所以这是 3A 引入的问题。修法：`healAutoDirectorTaskState` 在没有传入任务行时，先读取任务行再做两道判断，保证任何调用方都受保护。回归测试写进 `directorManualRecoveryLock.test.js`：任务为 `queued`、`pendingManualRecovery=true`、当前项不是排队项，扫描后五列不变；`failed` 且带锁的任务经过历史失败修复后锁仍在。
+- **3A-3 S4 行为窗口（2026-09-27 人工批准接受）。** 用户动作不再先修复后，在“步骤事实已进入审批或失败、任务行仍为 `running`”的窗口内（最长约 60 秒），跟进动作会返回 `forbidden`。用户决定接受这个窗口，不在用户命令里补做同步；阶段 4 让检查点自带可选动作后，这个窗口应随之消失，阶段 4 验收时确认。以后遇到 S4 仍须先停下等待决定，不能先合入。
+
+3A 建议：
+
+- 报告补齐 10 个修复例程的分类、改过的测试（`autoDirectorFollowUpActionExecutor.test.js:948`）以及失去“先修复”的命令路径清单。
+- 台账“读操作保持纯读”说得过满：带 `workflowTaskId` 的 `GET /workspace-analysis/:novelId`、`GET /manual-edit-impact/:novelId` 仍会写运行时快照，这是既有问题，登记为遗留。
+- 扫描不按状态过滤，会全量扫描所有导演任务；`tasks.ts` 仍在传已经无效的 `heal` 参数。
+
+3B 中期检查（未提交，不做通过判定）：
+
+- `directorTaskWritesOutsideState` 63 → 0，下降真实，没有发现通过别名、中括号取方法名或解构绕过守卫。
+- 完成前必须处理：
+  - I5 测试只覆盖写入器本身，要补齐 Worker 恢复、后台扫描、命令接受三类场景，并包含 3A-2 的回归。
+  - `markCompleted`、`markCancelled`、`markPendingManualRecovery` 只是原样转发给 `updateRunState`，并且没有调用方。要么补上实际语义并替换现有写入（`requeueTaskForRecovery` 5 处、`cancelTask` 2 处、`novelDirectorTakeoverExecution.ts:474` 的 `markTaskFailed?.(`），要么删掉这三个方法。
+  - `enqueueExecutionCommand` 默认清除人工恢复锁，改为默认保留、由用户命令显式清除。
+  - `resumePendingAutoDirectorTasks` 没有生产调用方，为它新增的后台恢复链路要么删掉，要么在报告里说明保留理由。
+  - 报告说明编排器 `markTaskRunning` → `markRunning` 改名带来的 6 处下降，以及 `directorSeedPayloadRefs` 因端口类型收窄附带下降的 6 处。
+  - 阶段 1 留给 3B 的两项：非 `continue_existing` 接管重复提交返回 409；建任务字段组装重复。
+
 ### 阶段 4：检查点自带可选动作
 
 **依赖：** 阶段 3 完成。
@@ -474,3 +516,5 @@ pnpm --filter @ai-novel/client test              # 阶段 2、4、6
 | 2026-09-27 | 1 复验 | `6013eb31` | 指标无变化 | `directorTakeoverPreviousTask.test.js`；`novelDirectorTakeover`、`directorCurrentTaskResolution` 各补 1 项 | **通过。** 按测试名称隔离对比：fast 套件当前分支与基点失败清单完全相同（各 34 项），集成套件完全相同（各 6 项），新增失败为 0；类型检查通过。遗留（不阻塞，放到阶段 3B 单一写入口时处理）：非 `continue_existing` 接管重复提交返回 409，不再复用已入队命令；`startDirectorTaskForNovel` 与 `createWorkflow` 的建任务字段组装重复。 |
 | 2026-09-27 | 2 | `52818adf` + `d6172213` + `78bbcf00` + `4e29ffa4` + `8444ee27` | `clientUrlTaskIdParams` 34 → 0；其他指标不变 | `novelRouteWithoutTaskId.test.js`、`novelWorkflowCandidateSelectionRouting.test.js`、`simpleShelfCurrentDirectorTask.test.js`、`novelChapterRouteContracts.test.js`、`novelRoutes.test.mjs`、跟进任务选择状态测试 | **通过代码验收。** Guard 12/12；类型检查及客户端构建通过。客户端完整套件 216/222，6 项失败名称与基线完全一致。按仓库官方分组隔离运行并与阶段 2 起点 `6013eb31` 比较：fast 1,417/34 失败/12 跳过，对比基线 1,413/34/12；集成 146/10/2，与基线 146/10/2；两套失败的 `文件 + 测试名称` 清单完全一致，新增失败：无。当前 Windows 环境集成基线包含 4 项 `ragCompatibilityBootstrap.test.js` Prisma 引擎启动失败；阶段 2 起点已有同样失败。候选任务跳转、章节子路由清理、旧链接参数移除和 takeover 当前任务切换的人工验收待用户统一进行。 |
 | 2026-09-27 | 3A | `9d2cf8a2` | `healOnReadCallSites` 9 → 0；其他指标不变 | `directorReadPathsArePure.test.js`、`directorWorker.test.js` | **通过独立代码验收。** Typecheck、server build 通过；定向 20/20、关联 37 通过/1 跳过；完整 fast 1,419/34 失败/12 跳过（基点 1,417/34/12），integration 147/10/2（基点 146/10/2），按文件和测试名称比较新增失败均为 0。读操作保持纯读，Worker 初扫先于领取并每 60 秒修复。遗留 S4 行为窗口：步骤事实先进入审批/失败而任务行仍为 `running` 时，跟进动作暂时返回 `forbidden`，直到 Worker 对账；阶段 4 的动作表验收需明确该窗口。纯内部改动，跳过发布说明。 |
+| 2026-09-27 | 2、3A 复核 | `dc830e9b` + 3B 工作区 | 指标核验一致 | — | **测试层面无新增失败**（fast、集成、客户端失败清单与 `6013eb31` 完全相同）。**阶段 2 有条件通过**，需补 2-1（跟进中心按 URL 任务编号选任务，R3）、2-2（服务端仍生成带任务编号的小说页链接）、2-3（恢复开书页创作界面选择，人工决定）。**3A 未通过**，需返工 3A-1（`.bind` 规避守卫，R3）、3A-2（Worker 扫描绕过人工暂停保护）。**人工批准：** 3A-3 的 S4 行为窗口（最长约 60 秒）接受，阶段 4 验收时确认已消失。3B 未提交，中期检查结论见“阶段 2、3A 复核与 3B 中期检查”。 |
+| 2026-09-27 | 3A 返工 | `a5d31fde` + 待提交 | 无指标变化 | `directorManualRecoveryLock.test.js`；更新 `novelWorkflowCancellation.test.js`、`novelWorkflowRecoveryNormalization.test.js` 到修复器入口 | **通过。** 3A-1 删除 facade 的 `.bind` 转发并由 Worker 直接持有修复器；3A-2 在无行调用时先加载任务行，并在聚合与排队进度修复两层保护人工恢复锁。Guard 12/12、typecheck、server build 通过。完整 fast 失败 34 项、集成失败 10 项，与 `stage3a` 基线按“文件 + 测试名称”完全一致，新增失败：无；集成新增 1 项真实 SQLite 回归通过。纯内部改动，跳过发布说明。 |

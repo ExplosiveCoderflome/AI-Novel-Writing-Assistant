@@ -2,6 +2,7 @@ const test = require("node:test");
 const assert = require("node:assert/strict");
 
 const { NovelWorkflowService } = require("../dist/services/novel/workflow/NovelWorkflowService.js");
+const { NovelWorkflowHealingService } = require("../dist/services/novel/workflow/NovelWorkflowHealingService.js");
 const { prisma } = require("../dist/db/prisma.js");
 
 test("healHistoricalAutoDirectorRecoveryFailure restores legacy restart failures back to checkpoint state", async () => {
@@ -131,7 +132,8 @@ test("healAutoDirectorTaskState completes chapter batch checkpoints when every c
 
   try {
     const service = new NovelWorkflowService();
-    const healed = await service.healAutoDirectorTaskState("task_batch_ready");
+    const healer = new NovelWorkflowHealingService(service);
+    const healed = await healer.healAutoDirectorTaskState("task_batch_ready");
 
     assert.equal(healed, true);
     assert.equal(currentRow.status, "succeeded");
@@ -359,7 +361,8 @@ test("healAutoDirectorTaskState revives chapter_range auto execution tasks that 
 
   try {
     const service = new NovelWorkflowService();
-    const healed = await service.healAutoDirectorTaskState("task_chapter_range_restart");
+    const healer = new NovelWorkflowHealingService(service);
+    const healed = await healer.healAutoDirectorTaskState("task_chapter_range_restart");
 
     assert.equal(healed, true);
     assert.equal(currentRow.status, "running");
@@ -524,7 +527,8 @@ test("healAutoDirectorTaskState promotes advanced queued auto director tasks bac
 
   try {
     const service = new NovelWorkflowService();
-    const healed = await service.healAutoDirectorTaskState("task_stale_queued");
+    const healer = new NovelWorkflowHealingService(service);
+    const healed = await healer.healAutoDirectorTaskState("task_stale_queued");
 
     assert.equal(healed, true);
     assert.equal(currentRow.status, "running");
@@ -651,7 +655,8 @@ test("healAutoDirectorTaskState repairs broken candidate seed payloads and resto
 
   try {
     const service = new NovelWorkflowService();
-    const healed = await service.healAutoDirectorTaskState("task_candidate_seed_repair");
+    const healer = new NovelWorkflowHealingService(service);
+    const healed = await healer.healAutoDirectorTaskState("task_candidate_seed_repair");
 
     assert.equal(healed, true);
     assert.equal(currentRow.status, "waiting_approval");
@@ -748,7 +753,8 @@ test.skip("healAutoDirectorTaskState degrades chapter title diversity failures i
 
   try {
     const service = new NovelWorkflowService();
-    const healed = await service.healAutoDirectorTaskState("task_title_diversity");
+    const healer = new NovelWorkflowHealingService(service);
+    const healed = await healer.healAutoDirectorTaskState("task_title_diversity");
 
     assert.equal(healed, true);
     assert.equal(currentRow.status, "waiting_approval");

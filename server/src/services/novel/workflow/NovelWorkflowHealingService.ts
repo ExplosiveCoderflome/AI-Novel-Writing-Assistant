@@ -210,15 +210,16 @@ export class NovelWorkflowHealingService {
     taskId: string,
     row = null as AutoDirectorNovelTaskRow | null,
   ): Promise<boolean> {
-    if (isTaskCancellationRequested(row)) {
+    const existingRow = row ?? await this.workflow.getTaskByIdWithoutHealing(taskId);
+    if (isTaskCancellationRequested(existingRow)) {
       return false;
     }
-    if (row?.pendingManualRecovery) {
+    if (existingRow?.pendingManualRecovery) {
       return false;
     }
-    const brokenSeedHealed = await this.healBrokenAutoDirectorCandidateSeedPayload(taskId, row);
-    const normalizedRow = brokenSeedHealed ? await this.workflow.getTaskByIdWithoutHealing(taskId) : row;
-    if (isTaskCancellationRequested(normalizedRow)) {
+    const brokenSeedHealed = await this.healBrokenAutoDirectorCandidateSeedPayload(taskId, existingRow);
+    const normalizedRow = brokenSeedHealed ? await this.workflow.getTaskByIdWithoutHealing(taskId) : existingRow;
+    if (isTaskCancellationRequested(normalizedRow) || normalizedRow?.pendingManualRecovery) {
       return false;
     }
     const queuedHealed = await this.healStaleAutoDirectorQueuedProgress(taskId, normalizedRow);
@@ -411,7 +412,12 @@ export class NovelWorkflowHealingService {
     row = null as AutoDirectorNovelTaskRow | null,
   ): Promise<boolean> {
     const candidate = row ?? await this.workflow.getTaskByIdWithoutHealing(taskId);
-    if (!candidate || candidate.lane !== "auto_director" || isTaskCancellationRequested(candidate)) {
+    if (
+      !candidate
+      || candidate.lane !== "auto_director"
+      || isTaskCancellationRequested(candidate)
+      || candidate.pendingManualRecovery
+    ) {
       return false;
     }
 

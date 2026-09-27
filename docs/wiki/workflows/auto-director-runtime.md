@@ -54,7 +54,7 @@ Web API 只接收命令和返回轻量投影；Worker 负责执行重型生产�
 
 导演任务的详情、列表、书级自动化投影、运行记录和跟进中心读取都必须是纯读。读取只返回已持久化的任务状态与 Seed，不得为了展示结果调用聚合修复、更新心跳、`updatedAt`、检查点或人工恢复标记。需要提示疑似失联时，投影只能用已保存的 `heartbeatAt` 与当前时间在内存计算，不能通过一次读取改变事实源。
 
-`NovelWorkflowHealingService` 的历史兼容修复、运行时失联修复与跨运行事实对账由 Director Worker 的周期扫描统一调用。Worker 启动前先等待 `initializePendingRecoveries()` 完成，再在领取任何命令前完成首次扫描；之后每 60 秒扫描一次。扫描不得重叠，单任务修复失败应记录任务编号并继续扫描其他任务。API 路由和读取服务不启动扫描；显式聚合修复入口只供 Worker 使用。历史数据兼容修复在迁为人工执行的一次性脚本前仍由这条 Worker 路径处理。
+`NovelWorkflowHealingService` 的历史兼容修复、运行时失联修复与跨运行事实对账由 Director Worker 的周期扫描统一调用。Worker 启动前先等待 `initializePendingRecoveries()` 完成，再在领取任何命令前完成首次扫描；之后每 60 秒扫描一次。扫描不得重叠，单任务修复失败应记录任务编号并继续扫描其他任务。Worker 调用聚合修复时若只有任务 ID，聚合器必须先读取当前任务行，再判断取消标记和 `pendingManualRecovery`；带人工恢复锁的任务必须保持原状态，连“排队中但当前项已经推进”这类旧进度归一化也不能由后台接管。单项排队进度修复自身也要拒绝带锁任务，避免绕开聚合入口的调用产生写入。API 路由和读取服务不启动扫描；显式聚合修复入口只供 Worker 使用。历史数据兼容修复在迁为人工执行的一次性脚本前仍由这条 Worker 路径处理。
 
 `NovelWorkflowService` 不转发暴露聚合修复方法；Worker 扫描器直接持有 `NovelWorkflowHealingService`。这样一般工作流 facade 和 API 读取入口不会意外获得可写修复能力，守卫统计到的唯一修复调用也与进程边界一致。
 
