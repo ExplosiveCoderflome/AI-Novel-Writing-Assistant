@@ -1,9 +1,9 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
+import { getNovelWorkspaceHref } from "../src/lib/novelRoutes.ts";
 
 const read = (path) => fs.readFileSync(new URL(path, import.meta.url), "utf8");
-const listViewModel = read("../src/pages/novels/components/list/novelListViewModel.ts");
 const progressPanel = read("../src/pages/novels/components/NovelAutoDirectorProgressPanel.tsx");
 const shelfPage = read("../src/pages/novels/simpleCreation/SimpleNovelShelfPage.tsx");
 const journey = read("../src/pages/novels/components/NovelDirectorPreparationJourney.tsx");
@@ -14,8 +14,16 @@ const basicInfo = read("../src/pages/novels/novelBasicInfo.shared.ts");
 const directorRequest = read("../src/pages/novels/components/NovelAutoDirectorDialog.shared.ts");
 
 test("workspace routing follows the persisted novel experience without a redirect bounce", () => {
-  assert.match(listViewModel, /novel\.creationExperience === "simple"/);
-  assert.doesNotMatch(listViewModel, /latestAutoDirectorTask\?\.productionExperience === "simple"/);
+  assert.equal(getNovelWorkspaceHref({
+    id: "book",
+    creationExperience: "professional",
+    latestAutoDirectorTask: { productionExperience: "simple" },
+  }), "/novels/book/edit");
+  assert.equal(getNovelWorkspaceHref({
+    id: "book",
+    creationExperience: "simple",
+    latestAutoDirectorTask: { productionExperience: "professional" },
+  }), "/novels/book/simple");
 });
 
 test("director pages use the global live view and omit passive task-center actions", () => {

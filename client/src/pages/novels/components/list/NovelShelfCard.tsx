@@ -5,7 +5,8 @@ import defaultNovelCoverUrl from "@/assets/default-novel-cover.webp";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { resolveImageAssetUrl } from "@/api/images";
-import { getNovelWorkspaceHref, type NovelListItem } from "./novelListViewModel";
+import { getNovelWorkspaceHref } from "@/lib/novelRoutes";
+import type { NovelListItem } from "./novelListViewModel";
 
 function formatDate(value: string): string {
   const date = new Date(value);

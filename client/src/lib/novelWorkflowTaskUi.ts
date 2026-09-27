@@ -1,6 +1,7 @@
 ﻿import type { NovelAutoDirectorTaskSummary } from "@ai-novel/shared/types/novel";
 import type { NovelWorkflowCheckpoint } from "@ai-novel/shared/types/novelWorkflow";
 import type { TaskStatus } from "@ai-novel/shared/types/task";
+import { buildCandidateTaskHref } from "./legacyTaskUrlParams.ts";
 
 export type WorkflowBadgeVariant = "default" | "outline" | "secondary" | "destructive";
 
@@ -215,7 +216,5 @@ export function getTaskCenterLink(taskId: string): string {
 }
 
 export function getCandidateSelectionLink(taskId: string): string {
-  const searchParams = new URLSearchParams();
-  searchParams.set("taskId", taskId);
-  return `/novels/auto-director?${searchParams.toString()}`;
+  return buildCandidateTaskHref(taskId);
 }

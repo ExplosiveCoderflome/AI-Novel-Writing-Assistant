@@ -80,10 +80,10 @@ import NovelExistingProjectTakeoverDialog from "./components/NovelExistingProjec
 import { syncNovelWorkflowStageSilently, workflowStageFromTab } from "./novelWorkflow.client";
 import { isNovelWorkspaceFlowTab, scopeFromWorkspaceTab, tabFromDirectorDisplayStage, tabFromDirectorProgress, tabFromScope, type NovelWorkspaceFlowTab } from "./novelWorkspaceNavigation";
 import { resolveChapterTitleWarning } from "@/lib/directorTaskNotice";
+import { getDirectorCockpitActionHref } from "@/lib/novelRoutes";
 import { resolveInternalNavigationTarget } from "@/lib/internalNavigation";
 import { resolveDirectorContinueMode, resolveWorkflowContinuationFeedback } from "@/lib/novelWorkflowContinuation";
 import {
-  getDirectorCockpitActionHref,
   getDirectorCockpitContinuationMode,
   isDirectorCockpitContinuationAction,
 } from "@/lib/directorCockpitActions";
