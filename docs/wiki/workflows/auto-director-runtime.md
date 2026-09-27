@@ -60,7 +60,7 @@ Web API 只接收命令和返回轻量投影；Worker 负责执行重型生产�
 
 用户跟进动作直接按当前持久化任务行校验。若步骤事实已到审批或失败态，而任务行仍处于 `running`，动作不能在命令入口先修复任务后绕过原有状态守卫；用户需等待 Worker 对账完成，再依据更新后的状态操作。这样的短暂状态差异应由运行记录和来源工作台说明，后续检查点动作设计需明确处理这一过渡窗口。
 
-同一本书的当前导演任务必须只有一个解析口：`resolveCurrentDirectorTask(novelId)`。它读取未归档的 `auto_director` 任务，按 `createdAt` 降序、再按 `id` 降序取第一条；状态和 `updatedAt` 都不参与选择，读取时也不触发任务修复。终态任务仍可能是当前任务，因此 `findActiveDirectorTask(novelId)` 只在这条当前任务处于 `queued`、`running` 或 `waiting_approval` 时返回它，不回退寻找更旧的活动任务。
+同一本书的当前导演任务必须只有一个解析口：`resolveCurrentDirectorTask(novelId)`。它读取未归档的 `auto_director` 任务，按 `createdAt` 降序、再按 `id` 降序取第一条；状态和 `updatedAt` 都不参与选择，读取时也不触发任务修复。终态任务仍可能是当前任务，因此 `findActiveDirectorTask(novelId)` 只在这条当前任务处于 `queued`、`running` 或 `waiting_approval` 时返回它，不回退寻找更旧的活动任务。跟进中心以 `novelId` 作为书级过滤条件，并将这条当前任务作为默认选择；`directorTaskId` 等历史 URL 参数只在进入小说页时清理，不参与跟进中心选中逻辑，任务之间的手动切换只保留在页面状态中。
 
 新建或关联导演任务时，必须在同一事务中检查该书所有非终态导演任务。普通启动在发现活动任务时以 `409 / DIRECTOR_TASK_ALREADY_ACTIVE` 拒绝；只有 `continue_existing` 接管允许替换，替换时要把旧任务和仍活动的 `DirectorRunCommand` 一起置为 `cancelled`。候选任务关联到新书时也经过同一事务检查。历史冲突只通过只读报告脚本列出，不在启动或读取路径里自动清理。
 

@@ -6,7 +6,6 @@ interface TaskIdLike {
 export interface FollowUpTaskOverride {
   taskId: string;
   contextKey: string;
-  source: "legacy" | "manual";
 }
 
 export function resolveFollowUpSelectedTaskId<T extends TaskIdLike>(input: {
@@ -19,7 +18,7 @@ export function resolveFollowUpSelectedTaskId<T extends TaskIdLike>(input: {
   if (!override || override.contextKey !== contextKey) {
     return fallbackTaskId;
   }
-  if (override.source === "legacy" || items.some((item) => (item.directorTaskId ?? item.taskId) === override.taskId)) {
+  if (items.some((item) => (item.directorTaskId ?? item.taskId) === override.taskId)) {
     return override.taskId;
   }
   return fallbackTaskId;

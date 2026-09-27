@@ -21,6 +21,16 @@ export function getNovelWorkspaceHref(novel: NovelWorkspaceLinkInput): string {
   return novel.creationExperience === "simple" ? `${root}/simple` : `${root}/edit`;
 }
 
+export function readCandidateTaskId(searchParams: URLSearchParams): string | null {
+  return searchParams.get("taskId");
+}
+
+export function buildCandidateTaskHref(taskId: string, otherParams?: URLSearchParams): string {
+  const searchParams = new URLSearchParams(otherParams);
+  searchParams.set("taskId", taskId);
+  return `/novels/auto-director?${searchParams.toString()}`;
+}
+
 export function getCandidateTaskNovelHref(task: Pick<UnifiedTaskDetail, "resumeTarget" | "sourceResource"> | null | undefined): string | null {
   const novelId = task?.resumeTarget?.novelId?.trim()
     || (task?.sourceResource?.type === "novel" ? task.sourceResource.id.trim() : "");

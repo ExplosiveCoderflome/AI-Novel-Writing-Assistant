@@ -1,7 +1,7 @@
 ﻿import type { NovelAutoDirectorTaskSummary } from "@ai-novel/shared/types/novel";
 import type { NovelWorkflowCheckpoint } from "@ai-novel/shared/types/novelWorkflow";
 import type { TaskStatus } from "@ai-novel/shared/types/task";
-import { buildCandidateTaskHref } from "./legacyTaskUrlParams.ts";
+import { buildCandidateTaskHref } from "./novelRoutes.ts";
 
 export type WorkflowBadgeVariant = "default" | "outline" | "secondary" | "destructive";
 

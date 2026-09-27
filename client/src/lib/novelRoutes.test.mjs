@@ -3,7 +3,20 @@ import assert from "node:assert/strict";
 
 import * as routes from "./novelRoutes.ts";
 
-const { buildStructuredOutlineRoute, buildTaskNoticeRoute, getDirectorCockpitActionHref, getNovelWorkspaceHref } = routes;
+const {
+  buildCandidateTaskHref,
+  buildStructuredOutlineRoute,
+  buildTaskNoticeRoute,
+  getDirectorCockpitActionHref,
+  getNovelWorkspaceHref,
+  readCandidateTaskId,
+} = routes;
+
+test("candidate task routes live with novel navigation helpers", () => {
+  assert.equal(buildCandidateTaskHref("candidate 1"), "/novels/auto-director?taskId=candidate+1");
+  assert.equal(buildCandidateTaskHref("candidate 1", new URLSearchParams("marketBriefId=brief")), "/novels/auto-director?marketBriefId=brief&taskId=candidate+1");
+  assert.equal(readCandidateTaskId(new URLSearchParams("taskId=candidate+1")), "candidate 1");
+});
 
 test("novel list links use only novel identity for each writing experience", () => {
   assert.equal(getNovelWorkspaceHref({ id: "book 1", narrativeForm: "novel", creationExperience: "professional", latestAutoDirectorTask: { id: "old" } }), "/novels/book%201/edit");

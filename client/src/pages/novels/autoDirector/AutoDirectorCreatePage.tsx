@@ -23,7 +23,8 @@ import { createStyleProfileFromBookAnalysis, getStyleProfiles } from "@/api/styl
 import { generateCreativeCarryoverContract } from "@/api/creativeCarryoverContract";
 import { Button } from "@/components/ui/button";
 import { toast } from "@/components/ui/toast";
-import { buildCandidateTaskHref, readCandidateTaskId, stripLegacyTaskUrlParams } from "@/lib/legacyTaskUrlParams";
+import { stripLegacyTaskUrlParams } from "@/lib/legacyTaskUrlParams";
+import { buildCandidateTaskHref, readCandidateTaskId } from "@/lib/novelRoutes";
 import { getCandidateTaskNovelHref } from "@/lib/novelRoutes";
 import { useLLMStore } from "@/store/llmStore";
 import type { CreativeCarryoverContract } from "@ai-novel/shared/types/creativeCarryoverContract";

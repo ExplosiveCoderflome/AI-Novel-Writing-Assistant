@@ -19,13 +19,17 @@ test("selection drops director ids that are no longer visible", () => {
   );
 });
 
-test("legacy follow-up deep link survives URL cleanup within its initial context", () => {
-  const override = { taskId: "legacy-director", contextKey: "book-1|page-1", source: "legacy" };
-  assert.equal(resolveFollowUpSelectedTaskId({ override, contextKey: "book-1|page-1", items: [], fallbackTaskId: "current" }), "legacy-director");
+test("follow-up selection falls back to the current novel task without a manual selection", () => {
+  assert.equal(resolveFollowUpSelectedTaskId({
+    override: null,
+    contextKey: "book-1|page-1",
+    items: [],
+    fallbackTaskId: "current-novel-task",
+  }), "current-novel-task");
 });
 
 test("follow-up detail leaves a stale override when book or list context changes", () => {
-  const override = { taskId: "book-1-task", contextKey: "book-1|page-1", source: "manual" };
+  const override = { taskId: "book-1-task", contextKey: "book-1|page-1" };
   const items = [{ directorTaskId: "book-1-task", taskId: "book-1-task" }];
   assert.equal(resolveFollowUpSelectedTaskId({ override, contextKey: "book-2|page-1", items, fallbackTaskId: "book-2-task" }), "book-2-task");
   assert.equal(resolveFollowUpSelectedTaskId({ override, contextKey: "book-1|page-2", items: [], fallbackTaskId: "page-2-task" }), "page-2-task");

@@ -80,7 +80,12 @@ export class DingTalkNotifier {
     cardTitle?: string;
   }): AutoDirectorChannelNotificationPayload {
     const baseUrl = resolveAutoDirectorBaseUrl(input.baseUrl);
-    const followUpCenterUrl = `${baseUrl}/auto-director/follow-ups?directorTaskId=${input.taskId}`;
+    const followUpParams = new URLSearchParams();
+    if (input.novelId?.trim()) {
+      followUpParams.set("novelId", input.novelId.trim());
+    }
+    const followUpCenterQuery = followUpParams.toString();
+    const followUpCenterUrl = `${baseUrl}/auto-director/follow-ups${followUpCenterQuery ? `?${followUpCenterQuery}` : ""}`;
     const detailUrl = `${baseUrl}/tasks?kind=novel_workflow&id=${input.taskId}`;
     const callbackActions = hasCallbackSupport(input.channelConfig)
       ? input.availableActions

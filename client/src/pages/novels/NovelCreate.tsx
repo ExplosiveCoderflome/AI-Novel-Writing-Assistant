@@ -9,7 +9,7 @@ import { queryKeys } from "@/api/queryKeys";
 import { flattenStoryModeTreeOptions, getStoryModeTree } from "@/api/storyMode";
 import { getWorldList } from "@/api/world";
 import { Button } from "@/components/ui/button";
-import { buildCandidateTaskHref } from "@/lib/legacyTaskUrlParams";
+import { buildCandidateTaskHref } from "@/lib/novelRoutes";
 import NovelBasicInfoForm from "./components/NovelBasicInfoForm";
 import NovelCreateResourceRecommendationCard from "./components/NovelCreateResourceRecommendationCard";
 import { BookFramingQuickFillButton } from "./components/basicInfoForm/BookFramingQuickFillButton";

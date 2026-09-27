@@ -27,7 +27,7 @@ import {
 } from "@/api/autoDirectorFollowUps";
 import { queryKeys } from "@/api/queryKeys";
 import { getCurrentDirectorTask } from "@/api/novelDirector";
-import { readLegacyDirectorTaskId, stripLegacyTaskUrlParams } from "@/lib/legacyTaskUrlParams";
+import { stripLegacyTaskUrlParams } from "@/lib/legacyTaskUrlParams";
 import { getTaskSourceHref } from "@/lib/novelRoutes";
 import { AutoDirectorFollowUpBatchBar } from "./components/AutoDirectorFollowUpBatchBar";
 import { AutoDirectorFollowUpDetailPanel } from "./components/AutoDirectorFollowUpDetail";
@@ -148,10 +148,7 @@ export default function AutoDirectorFollowUpCenterPage() {
     pageSize,
   });
   const selectionContextKey = JSON.stringify([selectedNovelId, paramsKey]);
-  const [selectedTaskOverride, setSelectedTaskOverride] = useState<FollowUpTaskOverride | null>(() => {
-    const taskId = readLegacyDirectorTaskId(searchParams)?.trim();
-    return taskId ? { taskId, contextKey: selectionContextKey, source: "legacy" } : null;
-  });
+  const [selectedTaskOverride, setSelectedTaskOverride] = useState<FollowUpTaskOverride | null>(null);
 
   const overviewQuery = useQuery({
     queryKey: queryKeys.autoDirectorFollowUps.overview,
@@ -213,8 +210,7 @@ export default function AutoDirectorFollowUpCenterPage() {
     if (!listQuery.isSuccess) {
       return;
     }
-    setSelectedTaskOverride((current) => current?.source === "manual"
-      && current.contextKey === selectionContextKey
+    setSelectedTaskOverride((current) => current?.contextKey === selectionContextKey
       && !items.some((item) => item.directorTaskId === current.taskId)
       ? null : current);
   }, [items, listQuery.isSuccess, selectionContextKey]);
@@ -298,7 +294,7 @@ export default function AutoDirectorFollowUpCenterPage() {
   });
 
   const handleSelectTask = (directorTaskId: string) => {
-    setSelectedTaskOverride({ taskId: directorTaskId, contextKey: selectionContextKey, source: "manual" });
+    setSelectedTaskOverride({ taskId: directorTaskId, contextKey: selectionContextKey });
   };
 
   const handleSectionChange = (nextSection: AutoDirectorFollowUpSection | "") => {
