@@ -58,6 +58,8 @@ Web API 只接收命令和返回轻量投影；Worker 负责执行重型生产�
 
 `NovelWorkflowService` 不转发暴露聚合修复方法；Worker 扫描器直接持有 `NovelWorkflowHealingService`。这样一般工作流 facade 和 API 读取入口不会意外获得可写修复能力，守卫统计到的唯一修复调用也与进程边界一致。
 
+`pendingManualRecovery` 是显式人工恢复锁。自动扫描、租约修复、普通命令入队和任务状态归一化都必须保留该标记；只有用户发出的继续、批准、恢复或重试命令可以解除。解锁必须经 `DirectorTaskStateWriter.clearPendingManualRecovery`，并传入已持久化的命令编号；命令创建和解锁应处于同一事务，避免出现任务仍锁定但命令已被接受的悬空状态。**带锁任务恢复时**只可复用仍处于 `queued` 的命令；`leased` 或 `running` 的旧命令可能在恢复事务提交后结束，不能替代恢复命令，必须为恢复请求保留独立的排队命令。任务已解锁时，重复恢复应复用现有活动命令，不能把运行中的任务重置回 `queued`。启动扫描只负责把中断任务置为等待人工恢复，不自动排入继续命令。
+
 用户跟进动作直接按当前持久化任务行校验。若步骤事实已到审批或失败态，而任务行仍处于 `running`，动作不能在命令入口先修复任务后绕过原有状态守卫；用户需等待 Worker 对账完成，再依据更新后的状态操作。这样的短暂状态差异应由运行记录和来源工作台说明，后续检查点动作设计需明确处理这一过渡窗口。
 
 同一本书的当前导演任务必须只有一个解析口：`resolveCurrentDirectorTask(novelId)`。它读取未归档的 `auto_director` 任务，按 `createdAt` 降序、再按 `id` 降序取第一条；状态和 `updatedAt` 都不参与选择，读取时也不触发任务修复。终态任务仍可能是当前任务，因此 `findActiveDirectorTask(novelId)` 只在这条当前任务处于 `queued`、`running` 或 `waiting_approval` 时返回它，不回退寻找更旧的活动任务。跟进中心以 `novelId` 作为书级过滤条件，并将这条当前任务作为默认选择；`directorTaskId` 等历史 URL 参数只在进入小说页时清理，不参与跟进中心选中逻辑，任务之间的手动切换只保留在页面状态中。

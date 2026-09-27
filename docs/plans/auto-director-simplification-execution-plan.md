@@ -128,6 +128,8 @@ pnpm --filter @ai-novel/client test              # 阶段 2、4、6
 
 注意：`server/tests/*.test.js` 读取的是 `server/dist` 编译产物。切换分支或提交后，必须先重新编译 `shared` 和 `server`，再单独运行测试文件，否则测的是上一次编译的代码。
 
+如果历史基点 `d3a9ca99` 因工作树初始化或测试进程异常而无法形成完整 JUnit 报告，必须记录具体阻碍，不能把不完整输出写成“与基点一致”。执行者还要对比阶段开始前最近一份已验收阶段的完整 JUnit 快照，并明确称为“前置阶段回归对比”。这项补充比较只说明相对前置阶段没有引入失败，**不能替代分支基点对比，也不能据此宣布阶段验收通过**；直接基点比较仍不可判定时，必须作为验收缺口列出，待补齐有效对照后再关闭。不同 Windows 工作树的 SQLite 初始化和 Prisma 引擎启动情况可能造成集成失败数不同，报告应分别列出各自环境及失败清单，不得把环境差异折算成“新增失败：无”。
+
 ### 4.3 修改现有测试的规则
 
 - 只允许修改“因为删除或移动了内部实现，导致无法导入或编译”的测试，改为测试新的入口。
@@ -399,6 +401,53 @@ pnpm --filter @ai-novel/client test              # 阶段 2、4、6
   - 报告说明编排器 `markTaskRunning` → `markRunning` 改名带来的 6 处下降，以及 `directorSeedPayloadRefs` 因端口类型收窄附带下降的 6 处。
   - 阶段 1 留给 3B 的两项：非 `continue_existing` 接管重复提交返回 409；建任务字段组装重复。
 
+#### 阶段 3B 代码复核（2026-09-28）
+
+- **结论：代码和前置阶段回归检查通过；阶段验收仍有基点对比缺口。** `DirectorTaskStateWriter` 成为导演任务状态写入门面；命令创建与任务接受/人工恢复锁清除在同一事务中提交。I5 覆盖写入器、命令接受、命令租约恢复、启动恢复和 3A-2 后台扫描保护。人工恢复锁只由带持久命令编号的用户恢复命令清除；一般状态写入也拒绝 Prisma `{ set: false }` 形式。带锁任务恢复时仅复用仍处于 `queued` 的命令；若先前命令已 `leased` 或 `running`，会为恢复请求创建独立的排队命令，避免旧 Worker 在恢复事务后结束时吞掉恢复请求。未锁定任务已有活动命令时继续复用，不重置其运行状态。
+- **中期检查项已关闭：** `markCompleted`、`markCancelled`、`markPendingManualRecovery` 分别承担完成检查点、取消任务、转人工恢复队列语义并有调用方；移除了无生产调用方的 `resumePendingAutoDirectorTasks` 后台自动恢复链；接管命令在策略与规范化请求负载相同时复用；`startDirectorTaskForNovel` 与 `createWorkflow` 共用 `workflow/taskCreation` 字段组装。
+- **指标：** `directorTaskWritesOutsideState` 63 → 0；`directorSeedPayloadRefs` 291 → 285。状态写入指标中有 6 处因把编排器 `markTaskRunning` 调用迁到语义门面 `markRunning` 而下降；seed 引用伴随下降的 6 处来自收窄 Writer 端口类型，不是排除守卫目录或改写指标。
+- **验证：** `pnpm typecheck`、server build 通过；状态写入与命令服务定向测试 39/39 通过；防回退守卫 12/12 通过。完整隔离 fast 为 1,435 项（1,389 通过、34 失败、12 跳过），前置快照为 1,419 项（1,373 通过、34 失败、12 跳过）；完整隔离 integration 为 144 项（132 通过、10 失败、2 跳过），前置快照为 148 项（136 通过、10 失败、2 跳过）。两套都按“文件 + 测试名称”比较：新增失败 0，已修复基线失败 0。integration 少 4 项是删除无生产调用方后台恢复链后同步删除测试造成。最终代码复验的 JUnit 结果保存在 `server/.tmp/stage3b-fast-final2.xml` 与 `server/.tmp/stage3b-integration-final2.xml`。
+- **历史基点对比缺口：** `d3a9ca99` 工作树的完整 fast 运行停在 `routes.test.js`，没有完整 JUnit 结果；integration 有 24 项因数据库缺少 `main.NovelWorkflowTask` 表而失败，合计 34 失败、2 跳过，无法作为有效直接对照。前置阶段 JUnit 比较只能证明本工作树的改动未相对最近已验收阶段引入新失败，不能证明与 `d3a9ca99` 一致；基点原有 fast 34 项与 integration 6 项的记录保留，当前 Windows 工作树 integration 10 项失败也未冒称为同环境基线。**本缺口关闭前不开始阶段 4，也不宣告阶段 3B 完整验收通过。**
+- **测试数量说明：** 相对 1,419 项快照，当前 fast 套件增加的用例包含 4 项在该快照之后已合入阶段 2 的路由测试，以及阶段 3B 新增的 12 项测试；`taskRecoveryRoutes.test.js` 的一项既有用例调整了断言目标以匹配显式恢复命令，未放宽行为要求。
+- **修改既有测试的原因（符合 4.3，原有行为断言未放宽）：**
+  - `directorRunCommandService.test.js`：测试替身改接事务化工作流端口和语义状态写入器；保留原命令行为断言，并增加人工恢复锁、排队/运行命令交错和事务回滚断言。
+  - `novelDirectorConfirmDedup.test.js`：状态入口迁到语义门面后，把替身从旧方法名改为 `markRunning`；原有去重行为和调用结果断言不变。
+  - `novelWorkflowRuntime.test.js`：移除已删除且无生产调用方的后台自动恢复链测试，改为验证启动时锁定中断任务且不自动排队；对手动恢复语义的断言保持严格。
+  - `taskRecoveryRoutes.test.js`：恢复路由已提交显式恢复命令，不再直接调用被移除的后台继续入口；调整既有用例的断言对象，但仍断言请求接受结果和恢复命令语义，没有放宽行为断言。
+- **fast 既有失败清单（34 项）：**
+  - `autoDirectorAutoApprovalAudit.test.js`：`auto director auto-approval audit loads the latest 10 records per novel`。
+  - `bookAnalysis.test.js`：`NovelExportService exports generated chapters as a knowledge document for diagnosis`；`NovelReferenceService formats structured timeline nodes by phase`。
+  - `bookAnalysisCharacterCandidate.test.js`：`identifyCharacterCandidates dedupes candidates and keeps generated rows intact`；`generateCharacterProfile transitions candidate to generated with arcs and scenes`；`generateAllCandidates skips generated rows and processes failed candidates`；`legacy generateCharacters identifies then generates profiles`。
+  - `chapterArtifactInfluence.test.js`：`artifact delta only applies accepted influence proposals that are active in this chapter`；`artifact delta expires accepted influence proposals once their window has passed`。
+  - `chapterStructuredOutputNormalization.test.js`：`character resource extraction schemas cap resource deltas at eight items`。
+  - `characterMind.test.js`：`character mind persistence archives the old current snapshot before creating a replacement`。
+  - `characterVisibleProfile.test.js`：`chapter character context includes compact visible profile summary`。
+  - `directorDirectoryBoundary.test.js`：`director root stays limited to compatibility facades`。
+  - `directorDisplayStateBuilder.test.js`：`display state maps chapter draft execution into chapter stage and uses fact progress`；`display state keeps running mode when task is running despite stale approval projection`。
+  - `novelContinuationReferenceHardening.test.js`：Node test runner以该测试文件绝对路径作为失败名称。
+  - `novelDirectorCharacterGate.test.js`：`director character phase applies an existing draft cast option without regenerating`。
+  - `novelDirectorStageNodeAdapters.test.js`：`director planning stages expose standard node adapter contracts`。
+  - `novelDirectorStructuredOutlinePersistence.test.js`：`runDirectorStructuredOutlinePhase persists chapter detail after each completed chapter`；`runDirectorStructuredOutlinePhase resumes from the next incomplete chapter`。
+  - `novelDirectorTakeoverExecution.test.js`：`continue_existing chapter takeover does not reuse the requested auto execution range`。
+  - `novelExportService.test.js`：`buildExportContent uses novel title plus timestamp as export filename`。
+  - `novelPlanningService.test.js`：Node test runner以该测试文件绝对路径作为失败名称。
+  - `artifactCheckpoint.test.js`：`checkpoint: active running claim does not start another extraction`。
+  - `novelWorkflowContinue.test.js`：`novel workflow continue route accepts range and full-book continuation modes`。
+  - `novelWorldModelSelection.test.js`：`novel theme world prompt stays within a one-shot JSON budget`。
+  - `payoffLedgerShared.test.js`：`buildPayoffLedgerResponse orders items by risk and computes summary counts`。
+  - `ragContextualChunk.test.js`、`ragJobListing.test.js`：Node test runner以各自测试文件绝对路径作为失败名称。
+  - `ragRetrievalTrace.test.js`：`RagRetrievalTracer writes sampled trace summaries without chunk text`。
+  - `style-engine.test.js`：`StyleRewriteService includes preview anti-ai rules in the repair prompt`。
+  - `styleGenerationSanitizer.test.js`：`sanitizeStyleContextForGeneration redacts source entities before writer context`。
+  - `tools.test.js`：`agent tool definitions keep zod declarations in dedicated schema modules`。
+  - `worldContextGateway.test.js`：`gateway delegates novel theme world generation through novel world service`。
+- **integration 既有失败清单（10 项）：**
+  - `p0bRealPrismaChain.test.js`：`legacy project migration feeds shared review context through manual audit on a real sqlite chain`；`volume workspace projects feed the same shared review context through manual audit on a real sqlite chain`；`persisted volume strategy resumes auto director into structured outline on a real sqlite chain`。
+  - `prompting-governance.test.js`：`prompt governance keeps inline SystemMessage/HumanMessage builders in the approved set`。
+  - `prompting.test.js`：`prompt registry exposes versioned planning assets`；`character cast prompt hardens real-name constraints and required gender output`。
+  - `ragCompatibilityBootstrap.test.js`：`legacy RAG env bootstrap preserves the historical default collection when legacy knowledge exists`；`legacy provider-specific embedding env is imported when generic embedding env is absent`；`packaged desktop restores the legacy forced RAG pause only when no user runtime settings exist`；`packaged desktop preserves a user-saved RAG pause`。
+- **发布说明：** 本阶段属于纯内部架构和测试改动，跳过 release notes 与 README 最新更新。
+
 ### 阶段 4：检查点自带可选动作
 
 **依赖：** 阶段 3 完成。
@@ -519,3 +568,4 @@ pnpm --filter @ai-novel/client test              # 阶段 2、4、6
 | 2026-09-27 | 2、3A 复核 | `dc830e9b` + 3B 工作区 | 指标核验一致 | — | **测试层面无新增失败**（fast、集成、客户端失败清单与 `6013eb31` 完全相同）。**阶段 2 有条件通过**，需补 2-1（跟进中心按 URL 任务编号选任务，R3）、2-2（服务端仍生成带任务编号的小说页链接）、2-3（恢复开书页创作界面选择，人工决定）。**3A 未通过**，需返工 3A-1（`.bind` 规避守卫，R3）、3A-2（Worker 扫描绕过人工暂停保护）。**人工批准：** 3A-3 的 S4 行为窗口（最长约 60 秒）接受，阶段 4 验收时确认已消失。3B 未提交，中期检查结论见“阶段 2、3A 复核与 3B 中期检查”。 |
 | 2026-09-27 | 3A 返工 | `a5d31fde` + `738ed3c0` | 无指标变化 | `directorManualRecoveryLock.test.js`；更新 `novelWorkflowCancellation.test.js`、`novelWorkflowRecoveryNormalization.test.js` 到修复器入口 | **通过。** 3A-1 删除 facade 的 `.bind` 转发并由 Worker 直接持有修复器；3A-2 在无行调用时先加载任务行，并在聚合与排队进度修复两层保护人工恢复锁。Guard 12/12、typecheck、server build 通过。完整 fast 失败 34 项、集成失败 10 项，与 `stage3a` 基线按“文件 + 测试名称”完全一致，新增失败：无；集成新增 1 项真实 SQLite 回归通过。纯内部改动，跳过发布说明。 |
 | 2026-09-27 | 2-3 返工验收 | `c5f5847a` + `c5041786` | 指标与基线 fixture 不变；检查点判定共用一个语义入口 | `novelRoutes.test.mjs`、`autoDirectorWorkspaceUxContracts.test.js`；更新 `directorBookAutomationProjection.test.js`、`onboardingServices.test.js` | **代码验收通过，人工界面点验待用户完成。** 接管任务在 `production_experience_required` 时保留界面选择，用户选定后才进入 `/simple` 或 `/edit`；任务编号不进入小说页 URL。全仓 `pnpm typecheck` 通过；客户端 225/219/6，与客户端基线 210/204/6 的 6 个失败名称一致。Fast 当前 1,423/1,377/34/12，对照基线 1,413/1,367/34/12；integration 当前 148/136/10/2，对照基线 146/134/10/2；两套均按文件与测试名称比较，新增失败：无。测试保护钩子保留的 SQLite 路径记录在阶段报告；未删除数据。手工点验路径见阶段报告。该记录只补充代码验收，尚不宣告阶段 2 的人工验收完成。 |
+| 2026-09-28 | 3B 代码复核（基点对比待关闭） | `6452309b` | `directorTaskWritesOutsideState` 63 → 0；`directorSeedPayloadRefs` 291 → 285 | `directorTaskStateWriter.test.js`、`novelWorkflowTaskFactory.test.js`、命令服务中的恢复锁及命令完成竞态回归 | 前置阶段对比：fast 1,435/1,389/34/12 vs 1,419/1,373/34/12；integration 144/132/10/2 vs 148/136/10/2；失败身份完全一致，新增失败：无。`d3a9ca99` 的直接比较不可判定，按 4.2 保留为验收缺口；关闭前不进入阶段 4。 |
