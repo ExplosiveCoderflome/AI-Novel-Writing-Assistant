@@ -56,6 +56,8 @@ Web API 只接收命令和返回轻量投影；Worker 负责执行重型生产�
 
 `NovelWorkflowHealingService` 的历史兼容修复、运行时失联修复与跨运行事实对账由 Director Worker 的周期扫描统一调用。Worker 启动前先等待 `initializePendingRecoveries()` 完成，再在领取任何命令前完成首次扫描；之后每 60 秒扫描一次。扫描不得重叠，单任务修复失败应记录任务编号并继续扫描其他任务。API 路由和读取服务不启动扫描；显式聚合修复入口只供 Worker 使用。历史数据兼容修复在迁为人工执行的一次性脚本前仍由这条 Worker 路径处理。
 
+`NovelWorkflowService` 不转发暴露聚合修复方法；Worker 扫描器直接持有 `NovelWorkflowHealingService`。这样一般工作流 facade 和 API 读取入口不会意外获得可写修复能力，守卫统计到的唯一修复调用也与进程边界一致。
+
 用户跟进动作直接按当前持久化任务行校验。若步骤事实已到审批或失败态，而任务行仍处于 `running`，动作不能在命令入口先修复任务后绕过原有状态守卫；用户需等待 Worker 对账完成，再依据更新后的状态操作。这样的短暂状态差异应由运行记录和来源工作台说明，后续检查点动作设计需明确处理这一过渡窗口。
 
 同一本书的当前导演任务必须只有一个解析口：`resolveCurrentDirectorTask(novelId)`。它读取未归档的 `auto_director` 任务，按 `createdAt` 降序、再按 `id` 降序取第一条；状态和 `updatedAt` 都不参与选择，读取时也不触发任务修复。终态任务仍可能是当前任务，因此 `findActiveDirectorTask(novelId)` 只在这条当前任务处于 `queued`、`running` 或 `waiting_approval` 时返回它，不回退寻找更旧的活动任务。

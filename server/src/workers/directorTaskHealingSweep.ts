@@ -1,5 +1,6 @@
 import { prisma } from "../db/prisma";
-import { NovelWorkflowService } from "../services/novel/workflow/NovelWorkflowService";
+import { NovelWorkflowHealingService } from "../services/novel/workflow/NovelWorkflowHealingService";
+import { NovelWorkflowStoreService } from "../services/novel/workflow/NovelWorkflowStoreService";
 
 type TaskIdRow = { id: string };
 
@@ -25,8 +26,8 @@ export class DirectorTaskHealingSweep {
     this.taskStore = deps.taskStore ?? {
       findMany: (args) => prisma.novelWorkflowTask.findMany(args),
     };
-    const workflow = new NovelWorkflowService();
-    this.healTask = deps.healTask ?? ((taskId) => workflow.healAutoDirectorTaskState(taskId));
+    const healer = new NovelWorkflowHealingService(new NovelWorkflowStoreService());
+    this.healTask = deps.healTask ?? ((taskId) => healer.healAutoDirectorTaskState(taskId));
   }
 
   run(): Promise<void> {

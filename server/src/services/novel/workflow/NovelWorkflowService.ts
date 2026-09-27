@@ -32,8 +32,6 @@ export class NovelWorkflowService extends NovelWorkflowStoreService {
     return this.healingService.healBrokenAutoDirectorCandidateSeedPayload(...args);
   }
 
-  readonly healAutoDirectorTaskState = this.healingService.healAutoDirectorTaskState.bind(this.healingService);
-
   healRuntimeGateApprovalState(...args: Parameters<NovelWorkflowHealingService["healRuntimeGateApprovalState"]>) {
     return this.healingService.healRuntimeGateApprovalState(...args);
   }
