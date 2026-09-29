@@ -359,6 +359,17 @@ pnpm --filter @ai-novel/client test              # 阶段 2、4、6
 
 **禁止：** 不改 schema；不改任何业务判断结果，只改“从哪里读、经谁写”。
 
+#### 阶段三完整独立验收与返工要求（2026-09-29）
+
+**最新结论：未通过，需要返工。** 被验收提交为 `6f72603e`（3C 实现 `6d06276c`）；本记录补充并修正此前 3B、3C 的通过结论，历史台账保留用于追溯。完整证据、改造成果、测试调整清单和失败身份见 [阶段三独立验收报告](../reports/auto-director-stage3-acceptance-2026-09-29.md)。返工与复验完成前，阶段四前置条件不成立。
+
+- **已完成的结构改造：** 核心读路径移除修复，Worker 初扫及周期对账；多数状态写入归 Writer；Reader 区分启动合同与运行态，恢复位置以任务列为准，废弃运行时字段不写回。三个守卫指标均计为 0，但存在守卫未覆盖的语义缺陷及一处等价别名降数。
+- **必须修复的回退：** 候选确认在创建/关联小说后再次初始化，因最终输入不同而失败；自动执行进度同步误走初始化，模式转换时触发合同冲突；步骤模块只取启动输入，丢失运行态校准指令与有效模式；部分更新误清恢复列；接管嵌套替换标记与跟进/通知旧读取位置不匹配。
+- **必须补齐的边界：** 新增单条/批量运行态写入口绕过人工锁检查；一般命令接受更新为 0 仍返回 accepted；候选检查点、重试和模型覆盖的间接写入尚未归 Writer；已关联小说仍允许补启动字段，接管替换实际合并旧字段。补事实对账成功日志。
+- **R3 / S2 返工：** `seedPayloadMode` 改为同义 `directorTaskDataMode` 仅消除一处计数，需恢复统计或完成真实读取收敛；恢复命令测试中的旧模式转换场景，保留恢复测试的小说身份断言。使用真实 builder 和完整确认链补回归，不降低守卫阈值或放宽原断言。返工按独立边界小批次提交。
+- **完整测试证据：** 先分别重新编译，再用新建隔离 SQLite 库及 103 个 migration SQL 同环境对照 `d3a9ca99`。显式 `NODE_ENV=test`、`RAG_ENABLED=false` 下，fast 基点 1,393/1,341 通过/40 失败/12 跳过，当前 1,450/1,398/40/12；integration 两侧均 144/132/10/2。按文件和测试名称比较，新增失败：无、已修复基点失败：无。Guard 12/12、全仓 typecheck 和 shared/server 编译通过。此前 37 项 fast 失败与本次 40 项的预加载环境差异在报告中逐项说明，不能混写。首次当前 fast 的文件加载异常经定向及完整复跑未再出现，保留原始记录。
+- **范围：** 本次只做验收和文档记录，没有修改业务代码、测试、守卫或 schema；既有 60 秒对账窗口沿用人工批准。本次属于内部验收，跳过发布说明及 README；wiki 正确的长期规则保持有效。
+
 #### 阶段 2、3A 复核与 3B 中期检查（2026-09-27）
 
 测试结论：已提交代码加 3B 未提交改动，按“文件 + 测试名称”隔离对比阶段 1 终点 `6013eb31`，fast（34 项）、集成（6 项）、客户端（6 项）失败清单完全相同，类型检查通过。下列问题都是测试覆盖不到的代码层问题。
@@ -599,3 +610,4 @@ pnpm --filter @ai-novel/client test              # 阶段 2、4、6
 | 2026-09-27 | 2-3 返工验收 | `c5f5847a` + `c5041786` | 指标与基线 fixture 不变；检查点判定共用一个语义入口 | `novelRoutes.test.mjs`、`autoDirectorWorkspaceUxContracts.test.js`；更新 `directorBookAutomationProjection.test.js`、`onboardingServices.test.js` | **代码验收通过，人工界面点验待用户完成。** 接管任务在 `production_experience_required` 时保留界面选择，用户选定后才进入 `/simple` 或 `/edit`；任务编号不进入小说页 URL。全仓 `pnpm typecheck` 通过；客户端 225/219/6，与客户端基线 210/204/6 的 6 个失败名称一致。Fast 当前 1,423/1,377/34/12，对照基线 1,413/1,367/34/12；integration 当前 148/136/10/2，对照基线 146/134/10/2；两套均按文件与测试名称比较，新增失败：无。测试保护钩子保留的 SQLite 路径记录在阶段报告；未删除数据。手工点验路径见阶段报告。该记录只补充代码验收，尚不宣告阶段 2 的人工验收完成。 |
 | 2026-09-28 | 3B 验收 | `6452309b` | `directorTaskWritesOutsideState` 63 → 0；`directorSeedPayloadRefs` 291 → 285 | `directorTaskStateWriter.test.js`、`novelWorkflowTaskFactory.test.js`、命令服务中的恢复锁及命令完成竞态回归 | 与 `d3a9ca99` 同环境直接对照：fast 基点 1,393/37 失败/12 跳过，当前 1,435/37/12；integration 基点和当前均 144/10 失败/2 跳过。两套均按文件与测试名称比较，新增失败：无、已修复基点失败：无。隔离新库按 103 个 SQLite migration SQL 初始化；基点加载当前 `.env`，RAG 默认关闭；Windows integration 含 4 项既有 Prisma/`pnpm.cmd` 启动失败。阶段 3B 完整验收通过；纯内部改动，跳过发布说明。 |
 | 2026-09-29 | 3C 验收 | `6d06276c` | `directorSeedPayloadRefs` 285 → 0；阶段 1～3 相关守卫指标保持 0 | `directorStateReader.test.js`、`directorTaskStateWriter.test.js`、`directorLaunchContractImmutable.test.js`、`novelDirectorConfirmLaunchContract.test.js`、`novelWorkflowBootstrapBody.test.js` 及相关调用方回归 | **通过。** Guard 12/12；全仓 `pnpm typecheck`、server build 通过；定向回归 60/60。隔离新库并按 103 个 SQLite migration SQL 初始化后，同环境对比 `d3a9ca99`：fast 当前 1,450/37 失败/12 跳过，基点 1,393/37/12；integration 当前与基点均 144/10/2。均按“文件 + 测试名称”比较，新增失败：无、已修复基点失败：无。运行态更新保留启动合同；候选确认与接管边界有回归覆盖。阶段 3C 完成；纯内部改动，跳过发布说明和 README 更新。 |
+| 2026-09-29 | 3 完整独立验收 | 验收对象 `6f72603e` | 三项指标为 0；一处同义参数改名不满足 R3 | 本次不改测试；完整调用链和内存边界复现 | **未通过，需返工；修正此前 3B/3C 通过结论。** 确认创建后合同冲突、自动执行同步误初始化、校准请求丢失、部分更新清恢复目标、接管标记消费不兼容；另有 I5/I6 入口及间接写入缺口、命令接受竞态和 S2 测试覆盖缺口。新鲜 fast 基点 1,393/40 失败/12 跳过、当前 1,450/40/12；integration 均 144/10/2，失败身份一致，新增失败：无。Guard 12/12、typecheck、编译通过。完整成果和返工清单见 [独立验收报告](../reports/auto-director-stage3-acceptance-2026-09-29.md)；阶段四前置条件未满足。纯内部验收文档，跳过发布说明。 |
