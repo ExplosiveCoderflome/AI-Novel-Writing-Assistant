@@ -12,6 +12,7 @@ import { AppError } from "../../../middleware/errorHandler";
 import { resolveModel, type TaskType } from "../../../llm/modelRouter";
 import { DirectorCommandService } from "../../novel/director/commands/DirectorCommandService";
 import { AutoDirectorValidationService } from "../../novel/director/runtime/autoDirectorValidationService";
+import { readDirectorTaskState, toDirectorTaskDataView } from "../../novel/director/state/DirectorStateReader";
 import type { DirectorWorkflowSeedPayload } from "../../novel/director/runtime/novelDirectorHelpers";
 import { NovelWorkflowService } from "../../novel/workflow/NovelWorkflowService";
 import { parseSeedPayload } from "../../novel/workflow/novelWorkflow.shared";
@@ -274,7 +275,7 @@ export class AutoDirectorFollowUpActionExecutor {
         checkpointType: toCheckpointType(row.checkpointType),
         pendingManualRecovery: row.pendingManualRecovery,
         novelId: row.novelId,
-        seedPayload: parseSeedPayload<DirectorWorkflowSeedPayload>(row.seedPayloadJson),
+        directorTaskData: toDirectorTaskDataView(readDirectorTaskState(row)),
       },
     });
     if (!validation.allowed) {

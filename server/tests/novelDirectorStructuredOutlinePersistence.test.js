@@ -237,6 +237,13 @@ test("runDirectorStructuredOutlinePhase persists chapter detail after each compl
   const dependencies = {
     workflowService: {
       bootstrapTask: async () => undefined,
+      getTaskById: async (taskId) => ({
+        id: taskId,
+        novelId: "novel-demo",
+        lane: "auto_director",
+        seedPayloadJson: JSON.stringify({ novelId: "novel-demo", runMode: "auto_to_execution" }),
+      }),
+      updateTaskWithRetry: async (args) => args,
       markTaskRunning: async () => undefined,
       recordCheckpoint: async () => undefined,
     },
@@ -446,6 +453,13 @@ test("runDirectorStructuredOutlinePhase resumes from the next incomplete chapter
   const dependencies = {
     workflowService: {
       bootstrapTask: async () => undefined,
+      getTaskById: async (taskId) => ({
+        id: taskId,
+        novelId: "novel-demo",
+        lane: "auto_director",
+        seedPayloadJson: JSON.stringify({ novelId: "novel-demo", runMode: "auto_to_execution" }),
+      }),
+      updateTaskWithRetry: async (args) => args,
       markTaskRunning: async () => undefined,
       recordCheckpoint: async () => undefined,
     },

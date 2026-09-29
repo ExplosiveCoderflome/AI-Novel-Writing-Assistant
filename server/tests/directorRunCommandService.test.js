@@ -568,6 +568,12 @@ test("director command service preserves an explicit chapter range while applyin
   const harness = createHarness(createTask({
     novelId: null,
     status: "waiting_approval",
+    seedPayloadJson: JSON.stringify({
+      issueGovernanceVersion: 1,
+      issuePolicy: { maxAutomaticRetries: 1, issueActions: {} },
+      issuePolicySource: "global",
+      runMode: "full_book_autopilot",
+    }),
   }));
   try {
     await harness.service.enqueueConfirmCandidateCommand(createConfirmRequest({
@@ -1312,6 +1318,12 @@ test("director command service applies the single governance retry budget to ful
     status: "running",
     pendingManualRecovery: false,
     lastError: null,
+    seedPayloadJson: JSON.stringify({
+      issueGovernanceVersion: 1,
+      issuePolicy: { maxAutomaticRetries: 1, issueActions: {} },
+      issuePolicySource: "global",
+      runMode: "full_book_autopilot",
+    }),
   }));
   try {
     await harness.service.enqueueConfirmCandidateCommand(createConfirmRequest({

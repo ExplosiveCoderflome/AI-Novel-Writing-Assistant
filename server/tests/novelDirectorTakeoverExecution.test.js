@@ -4,6 +4,41 @@ const {
   startDirectorTakeoverExecution,
 } = require("../dist/services/novel/director/runtime/novelDirectorTakeoverExecution.js");
 
+function withDirectorTaskStatePort(workflowService) {
+  let storedTask = null;
+  return {
+    ...workflowService,
+    async bootstrapTask(input) {
+      const result = await workflowService.bootstrapTask?.(input);
+      const id = result?.id ?? input.workflowTaskId?.trim() ?? "workflow_takeover_demo";
+      storedTask = {
+        id,
+        novelId: input.novelId ?? null,
+        lane: input.lane,
+        seedPayloadJson: JSON.stringify(input.seedPayload ?? {}),
+      };
+      return result ?? storedTask;
+    },
+    async getTaskById(taskId) {
+      return storedTask?.id === taskId ? storedTask : null;
+    },
+    async updateTaskWithRetry(args) {
+      if (!storedTask || storedTask.id !== args.where?.id) return null;
+      storedTask = { ...storedTask, ...args.data };
+      return storedTask;
+    },
+    async recordCheckpoint(taskId, input) {
+      const seedPayload = storedTask?.id === taskId && storedTask.seedPayloadJson
+        ? JSON.parse(storedTask.seedPayloadJson)
+        : {};
+      return workflowService.recordCheckpoint?.(taskId, { ...input, seedPayload });
+    },
+    async markTaskFailed(taskId, message) {
+      return workflowService.markTaskFailed?.(taskId, message) ?? null;
+    },
+  };
+}
+
 function buildTakeoverState() {
   return {
     novel: {
@@ -68,7 +103,7 @@ test("restart_current_step prepares reset before recording the production handof
       runMode: "auto_to_execution",
       autoExecutionPlan: { mode: "chapter_range" },
     },
-    workflowService: {
+    workflowService: withDirectorTaskStatePort({
       bootstrapTask: async () => {
         calls.push("bootstrap");
         return { id: "workflow_takeover_demo" };
@@ -80,7 +115,7 @@ test("restart_current_step prepares reset before recording the production handof
         checkpointInput = input;
         calls.push("production_handoff");
       },
-    },
+    }),
     autoExecutionRuntime: {
       prepareRequestedAutoExecution: async (input) => {
         calls.push(["prepare_auto_execution", input.existingState]);
@@ -134,7 +169,7 @@ test("restart_current_step stores rewrite snapshot reference in task seed and mi
       runMode: "auto_to_execution",
       autoExecutionPlan: { mode: "chapter_range" },
     },
-    workflowService: {
+    workflowService: withDirectorTaskStatePort({
       bootstrapTask: async (input) => {
         bootstrapInput = input;
         calls.push("bootstrap");
@@ -146,7 +181,7 @@ test("restart_current_step stores rewrite snapshot reference in task seed and mi
       recordCheckpoint: async () => {
         calls.push("production_handoff");
       },
-    },
+    }),
     autoExecutionRuntime: {
       prepareRequestedAutoExecution: async () => {
         calls.push("prepare_auto_execution");
@@ -202,7 +237,7 @@ test("restart_current_step stops before reset when rewrite snapshot creation fai
         runMode: "auto_to_execution",
         autoExecutionPlan: { mode: "chapter_range" },
       },
-      workflowService: {
+      workflowService: withDirectorTaskStatePort({
         bootstrapTask: async () => {
           calls.push("bootstrap");
           return { id: "workflow_takeover_demo" };
@@ -210,7 +245,7 @@ test("restart_current_step stops before reset when rewrite snapshot creation fai
         markTaskRunning: async () => {
           calls.push("mark_running");
         },
-      },
+      }),
       autoExecutionRuntime: {
         prepareRequestedAutoExecution: async () => {
           calls.push("prepare_auto_execution");
@@ -248,11 +283,11 @@ test("continue_existing does not invoke restart preparation", async () => {
       runMode: "auto_to_execution",
       autoExecutionPlan: { mode: "chapter_range" },
     },
-    workflowService: {
+    workflowService: withDirectorTaskStatePort({
       bootstrapTask: async () => ({ id: "workflow_takeover_demo" }),
       markTaskRunning: async () => {},
       recordCheckpoint: async () => {},
-    },
+    }),
     autoExecutionRuntime: {
       prepareRequestedAutoExecution: async () => {},
       runFromReady: async () => {},
@@ -289,7 +324,7 @@ test("continue_existing from structured records downstream reset metadata and re
       runMode: "auto_to_execution",
       autoExecutionPlan: { mode: "chapter_range" },
     },
-    workflowService: {
+    workflowService: withDirectorTaskStatePort({
       bootstrapTask: async (input) => {
         bootstrapInput = input;
         calls.push("bootstrap");
@@ -299,7 +334,7 @@ test("continue_existing from structured records downstream reset metadata and re
         runningState = input;
         calls.push("mark_running");
       },
-    },
+    }),
     autoExecutionRuntime: {
       prepareRequestedAutoExecution: async () => {
         throw new Error("structured takeover should not enter auto execution before downstream reset");
@@ -361,7 +396,7 @@ test("continue_existing from structured resets downstream runtime state before b
       runMode: "auto_to_execution",
       autoExecutionPlan: { mode: "book" },
     },
-    workflowService: {
+    workflowService: withDirectorTaskStatePort({
       bootstrapTask: async (input) => {
         bootstrapInput = input;
         calls.push("bootstrap");
@@ -370,7 +405,7 @@ test("continue_existing from structured resets downstream runtime state before b
       markTaskRunning: async () => {
         calls.push("mark_running");
       },
-    },
+    }),
     autoExecutionRuntime: {
       prepareRequestedAutoExecution: async () => {
         throw new Error("structured takeover should not prepare auto execution");
@@ -413,7 +448,7 @@ test("continue_existing from chapter records the production handoff without auto
       runMode: "auto_to_execution",
       autoExecutionPlan: { mode: "chapter_range" },
     },
-    workflowService: {
+    workflowService: withDirectorTaskStatePort({
       bootstrapTask: async (input) => {
         bootstrapInput = input;
         return { id: "workflow_takeover_demo" };
@@ -422,7 +457,7 @@ test("continue_existing from chapter records the production handoff without auto
       recordCheckpoint: async (_taskId, input) => {
         checkpointInput = input;
       },
-    },
+    }),
     autoExecutionRuntime: {
       prepareRequestedAutoExecution: async () => {},
       runFromReady: async () => {},
@@ -467,7 +502,7 @@ test("continue_existing chapter takeover does not reuse the requested auto execu
         endOrder: 10,
       },
     },
-    workflowService: {
+    workflowService: withDirectorTaskStatePort({
       bootstrapTask: async (input) => {
         bootstrapInput = input;
         return { id: "workflow_takeover_demo" };
@@ -476,7 +511,7 @@ test("continue_existing chapter takeover does not reuse the requested auto execu
       recordCheckpoint: async (_taskId, input) => {
         checkpointInput = input;
       },
-    },
+    }),
     autoExecutionRuntime: {
       prepareRequestedAutoExecution: async (input) => {
         preparedInput = input;
@@ -514,13 +549,13 @@ test("restart_current_step records downstream reset metadata for workspace navig
       runMode: "auto_to_execution",
       autoExecutionPlan: { mode: "chapter_range" },
     },
-    workflowService: {
+    workflowService: withDirectorTaskStatePort({
       bootstrapTask: async (input) => {
         bootstrapInput = input;
         return { id: "workflow_takeover_demo" };
       },
       markTaskRunning: async () => {},
-    },
+    }),
     autoExecutionRuntime: {
       prepareRequestedAutoExecution: async () => {},
       runFromReady: async () => {},
@@ -558,7 +593,7 @@ test("takeover startup failure after bootstrap marks the replacement task failed
         runMode: "auto_to_execution",
         autoExecutionPlan: { mode: "chapter_range" },
       },
-      workflowService: {
+      workflowService: withDirectorTaskStatePort({
         bootstrapTask: async (input) => {
           calls.push(["bootstrap", input.initialState.stage, input.initialState.itemKey]);
           return { id: "workflow_takeover_demo" };
@@ -569,7 +604,7 @@ test("takeover startup failure after bootstrap marks the replacement task failed
         markTaskFailed: async (taskId, message) => {
           calls.push(["mark_failed", taskId, message]);
         },
-      },
+      }),
       autoExecutionRuntime: {
         prepareRequestedAutoExecution: async () => {},
         runFromReady: async () => {},

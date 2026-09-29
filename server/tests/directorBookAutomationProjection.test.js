@@ -118,6 +118,7 @@ function createHarness(overrides = {}) {
   const originals = {
     novelFindUnique: prisma.novel.findUnique,
     taskFindMany: prisma.novelWorkflowTask.findMany,
+    taskFindUnique: prisma.novelWorkflowTask.findUnique,
     archivedTaskFindMany: prisma.taskCenterArchive.findMany,
     runFindFirst: prisma.directorRun.findFirst,
     commandFindMany: prisma.directorRunCommand.findMany,
@@ -141,6 +142,9 @@ function createHarness(overrides = {}) {
     assert.deepEqual(orderBy, [{ createdAt: "desc" }, { id: "desc" }]);
     return [latestTask];
   };
+  prisma.novelWorkflowTask.findUnique = async ({ where }) => (
+    where.id === latestTask.id ? latestTask : null
+  );
   prisma.taskCenterArchive.findMany = async ({ where }) => {
     assert.equal(where.taskKind, "novel_workflow");
     assert.deepEqual(where.taskId.in, [latestTask.id]);
@@ -198,6 +202,7 @@ function createHarness(overrides = {}) {
     restore() {
       prisma.novel.findUnique = originals.novelFindUnique;
       prisma.novelWorkflowTask.findMany = originals.taskFindMany;
+      prisma.novelWorkflowTask.findUnique = originals.taskFindUnique;
       prisma.taskCenterArchive.findMany = originals.archivedTaskFindMany;
       prisma.directorRun.findFirst = originals.runFindFirst;
       prisma.directorRunCommand.findMany = originals.commandFindMany;

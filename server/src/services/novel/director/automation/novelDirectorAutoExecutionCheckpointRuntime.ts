@@ -78,7 +78,7 @@ export async function syncAutoExecutionTaskState(
     novelId: input.novelId,
     lane: "auto_director",
     title: input.request.candidate.workingTitle,
-    seedPayload: deps.buildDirectorSeedPayload(input.request, input.novelId, {
+    directorState: deps.buildDirectorSeedPayload(input.request, input.novelId, {
       directorSession,
       resumeTarget,
       autoExecution: input.autoExecution,
@@ -100,31 +100,49 @@ export async function recordCompletedCheckpoint(
   };
   const scopeLabel = buildDirectorAutoExecutionScopeLabelFromState(completedState, input.range.totalChapterCount);
   if (completedState.volumeChapterListComplete === false) {
-    await new DirectorTaskStateWriter(deps.workflowService).persistCheckpoint(input.taskId, {
+    const directorTaskData = deps.buildDirectorSeedPayload(input.request, input.novelId, {
+      directorSession: buildDirectorSessionState({
+        runMode: input.request.runMode,
+        phase: "structured_outline",
+        isBackgroundRunning: false,
+      }),
+      resumeTarget: buildNovelEditResumeTarget({
+        novelId: input.novelId,
+        taskId: input.taskId,
+        stage: "structured",
+        chapterId: completedState.firstChapterId ?? input.range.firstChapterId,
+      }),
+      autoExecution: completedState,
+    });
+    const writer = new DirectorTaskStateWriter(deps.workflowService);
+    await writer.updateDirectorRunStateFromTaskData(input.taskId, directorTaskData);
+    await writer.persistCheckpoint(input.taskId, {
       stage: "quality_repair",
       checkpointType: "chapter_batch_ready",
       checkpointSummary: `《${input.request.candidate.workingTitle.trim() || input.request.title?.trim() || "当前项目"}》已完成${scopeLabel}正文。继续后会补齐下一段章节规划并进入后续写作。`,
       itemLabel: `${scopeLabel}正文已完成，等待续拆下一段`,
       progress: 0.98,
       chapterId: completedState.firstChapterId ?? input.range.firstChapterId,
-      seedPayload: deps.buildDirectorSeedPayload(input.request, input.novelId, {
-        directorSession: buildDirectorSessionState({
-          runMode: input.request.runMode,
-          phase: "structured_outline",
-          isBackgroundRunning: false,
-        }),
-        resumeTarget: buildNovelEditResumeTarget({
-          novelId: input.novelId,
-          taskId: input.taskId,
-          stage: "structured",
-          chapterId: completedState.firstChapterId ?? input.range.firstChapterId,
-        }),
-        autoExecution: completedState,
-      }),
     });
     return;
   }
-  await new DirectorTaskStateWriter(deps.workflowService).persistCheckpoint(input.taskId, {
+  const directorTaskData = deps.buildDirectorSeedPayload(input.request, input.novelId, {
+    directorSession: buildDirectorSessionState({
+      runMode: input.request.runMode,
+      phase: "chapter_execution",
+      isBackgroundRunning: false,
+    }),
+    resumeTarget: buildNovelEditResumeTarget({
+      novelId: input.novelId,
+      taskId: input.taskId,
+      stage: "pipeline",
+      chapterId: completedState.firstChapterId ?? input.range.firstChapterId,
+    }),
+    autoExecution: completedState,
+  });
+  const writer = new DirectorTaskStateWriter(deps.workflowService);
+  await writer.updateDirectorRunStateFromTaskData(input.taskId, directorTaskData);
+  await writer.persistCheckpoint(input.taskId, {
     stage: "quality_repair",
     checkpointType: "workflow_completed",
     checkpointSummary: buildDirectorAutoExecutionCompletedSummary({
@@ -136,20 +154,6 @@ export async function recordCompletedCheckpoint(
     itemLabel: buildDirectorAutoExecutionCompletedLabel(scopeLabel),
     progress: 1,
     chapterId: completedState.firstChapterId ?? input.range.firstChapterId,
-    seedPayload: deps.buildDirectorSeedPayload(input.request, input.novelId, {
-      directorSession: buildDirectorSessionState({
-        runMode: input.request.runMode,
-        phase: "chapter_execution",
-        isBackgroundRunning: false,
-      }),
-      resumeTarget: buildNovelEditResumeTarget({
-        novelId: input.novelId,
-        taskId: input.taskId,
-        stage: "pipeline",
-        chapterId: completedState.firstChapterId ?? input.range.firstChapterId,
-      }),
-      autoExecution: completedState,
-    }),
   });
 }
 
@@ -170,7 +174,23 @@ export async function recordQualityRepairCheckpoint(
     qualityRepairRisk: input.qualityRepairRisk,
   };
   const scopeLabel = buildDirectorAutoExecutionScopeLabelFromState(checkpointState, input.range.totalChapterCount);
-  await new DirectorTaskStateWriter(deps.workflowService).persistCheckpoint(input.taskId, {
+  const directorTaskData = deps.buildDirectorSeedPayload(input.request, input.novelId, {
+    directorSession: buildDirectorSessionState({
+      runMode: input.request.runMode,
+      phase: "chapter_execution",
+      isBackgroundRunning: false,
+    }),
+    resumeTarget: buildNovelEditResumeTarget({
+      novelId: input.novelId,
+      taskId: input.taskId,
+      stage: "pipeline",
+      chapterId: checkpointState.nextChapterId ?? input.range.firstChapterId,
+    }),
+    autoExecution: checkpointState,
+  });
+  const writer = new DirectorTaskStateWriter(deps.workflowService);
+  await writer.updateDirectorRunStateFromTaskData(input.taskId, directorTaskData);
+  await writer.persistCheckpoint(input.taskId, {
     stage: "quality_repair",
     checkpointType: input.checkpointType,
     itemLabel: input.checkpointType === "replan_required"
@@ -184,20 +204,6 @@ export async function recordQualityRepairCheckpoint(
     }),
     chapterId: checkpointState.nextChapterId ?? input.range.firstChapterId,
     progress: 0.98,
-    seedPayload: deps.buildDirectorSeedPayload(input.request, input.novelId, {
-      directorSession: buildDirectorSessionState({
-        runMode: input.request.runMode,
-        phase: "chapter_execution",
-        isBackgroundRunning: false,
-      }),
-      resumeTarget: buildNovelEditResumeTarget({
-        novelId: input.novelId,
-        taskId: input.taskId,
-        stage: "pipeline",
-        chapterId: checkpointState.nextChapterId ?? input.range.firstChapterId,
-      }),
-      autoExecution: checkpointState,
-    }),
   });
   return checkpointState;
 }

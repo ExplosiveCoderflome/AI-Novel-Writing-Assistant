@@ -5,13 +5,33 @@ const crypto = require("node:crypto");
 const {
   buildDirectorRecoverySampleAudit,
 } = require("../dist/services/novel/director/recovery/directorRecoverySampleAudit.js");
+const { readDirectorTaskState } = require("../dist/services/novel/director/state/DirectorStateReader.js");
+
+function buildAuditFromTaskRows(input) {
+  return buildDirectorRecoverySampleAudit({
+    ...input,
+    tasks: input.tasks.map((task) => ({
+      id: task.id,
+      novelId: task.novelId,
+      status: task.status,
+      pendingManualRecovery: task.pendingManualRecovery,
+      checkpointType: task.checkpointType,
+      currentStage: task.currentStage,
+      currentItemKey: task.currentItemKey,
+      currentItemLabel: task.currentItemLabel,
+      lastError: task.lastError,
+      updatedAt: task.updatedAt,
+      directorTaskState: readDirectorTaskState(task),
+    })),
+  });
+}
 
 function hash(value) {
   return crypto.createHash("sha256").update(value.trim()).digest("hex");
 }
 
 test("director recovery sample audit classifies real-data recovery fixtures", () => {
-  const audit = buildDirectorRecoverySampleAudit({
+  const audit = buildAuditFromTaskRows({
     tasks: [
       {
         id: "task-takeover-recovery",
@@ -256,7 +276,7 @@ test("director recovery sample audit classifies real-data recovery fixtures", ()
 });
 
 test("director recovery sample audit checks draft baselines separately from protected artifacts", () => {
-  const audit = buildDirectorRecoverySampleAudit({
+  const audit = buildAuditFromTaskRows({
     tasks: [],
     commands: [],
     jobs: [],

@@ -5,44 +5,12 @@ import type { NovelVolumeService } from "../../volume/NovelVolumeService";
 import type { NovelWorkflowService } from "../../workflow/NovelWorkflowService";
 import {
   buildNovelEditResumeTarget,
-  parseSeedPayload,
-  parseResumeTarget,
 } from "../../workflow/novelWorkflow.shared";
+import { DirectorStateReader, toDirectorTaskDataView } from "../state/DirectorStateReader";
 import { getDirectorInputFromSeedPayload, getDirectorLlmOptionsFromSeedPayload, type DirectorWorkflowSeedPayload } from "../runtime/novelDirectorHelpers";
 import { buildDirectorSessionState } from "../runtime/novelDirectorHelpers";
 import { repairDirectorChapterTitles } from "./novelDirectorChapterTitleRepair";
 import { DIRECTOR_PROGRESS } from "../projections/novelDirectorProgress";
-
-function parseResumeTargetLike(value: unknown) {
-  if (typeof value === "string") {
-    return parseResumeTarget(value);
-  }
-  if (value && typeof value === "object") {
-    return value as NonNullable<ReturnType<typeof parseResumeTarget>>;
-  }
-  return null;
-}
-
-function mergeResumeTargets(
-  primary: ReturnType<typeof parseResumeTarget>,
-  fallback: ReturnType<typeof parseResumeTarget>,
-) {
-  if (!primary) {
-    return fallback;
-  }
-  if (!fallback) {
-    return primary;
-  }
-  return {
-    ...fallback,
-    ...primary,
-    stage: primary.stage === "basic" && fallback.stage !== "basic"
-      ? fallback.stage
-      : primary.stage,
-    chapterId: primary.chapterId ?? fallback.chapterId ?? null,
-    volumeId: primary.volumeId ?? fallback.volumeId ?? null,
-  };
-}
 
 export class NovelDirectorChapterTitleRepairRuntime {
   constructor(private readonly deps: {
@@ -66,19 +34,17 @@ export class NovelDirectorChapterTitleRepairRuntime {
     if (row.lane !== "auto_director") {
       throw new Error("只有自动导演任务支持 AI 修复章节标题。");
     }
-    const seedPayload = parseSeedPayload<DirectorWorkflowSeedPayload>(row.seedPayloadJson) ?? {};
-    const directorInput = getDirectorInputFromSeedPayload(seedPayload);
-    const novelId = row.novelId ?? seedPayload.novelId ?? null;
+    const storedState = await new DirectorStateReader().readTaskStateById(row.id);
+    const directorTaskData = (storedState ? toDirectorTaskDataView(storedState) : {}) as DirectorWorkflowSeedPayload;
+    const directorInput = getDirectorInputFromSeedPayload(directorTaskData);
+    const novelId = row.novelId ?? directorTaskData.novelId ?? null;
     if (!directorInput || !novelId) {
       throw new Error("当前自动导演任务缺少恢复 AI 修复所需的上下文。");
     }
 
-    const notice = seedPayload.taskNotice;
+    const notice = directorTaskData.taskNotice;
     const requestedVolumeId = input?.volumeId?.trim() || null;
-    const resumeTarget = mergeResumeTargets(
-      parseResumeTarget(row.resumeTargetJson),
-      parseResumeTargetLike(seedPayload.resumeTarget),
-    );
+    const resumeTarget = storedState?.run.resumeTarget ?? null;
     const targetVolumeId = requestedVolumeId
       || notice?.action?.volumeId?.trim()
       || resumeTarget?.volumeId?.trim()
@@ -97,7 +63,7 @@ export class NovelDirectorChapterTitleRepairRuntime {
       throw new Error("当前任务没有可直接 AI 修复的章节标题提醒。");
     }
 
-    const boundLlm = getDirectorLlmOptionsFromSeedPayload(seedPayload);
+    const boundLlm = getDirectorLlmOptionsFromSeedPayload(directorTaskData);
     const repairRequest: DirectorConfirmRequest = {
       ...directorInput,
       provider: boundLlm?.provider ?? directorInput.provider,
@@ -122,7 +88,7 @@ export class NovelDirectorChapterTitleRepairRuntime {
       novelId,
       lane: "auto_director",
       title: repairRequest.candidate.workingTitle,
-      seedPayload: this.deps.buildDirectorSeedPayload(repairRequest, novelId, {
+      directorState: this.deps.buildDirectorSeedPayload(repairRequest, novelId, {
         directorSession,
         resumeTarget: resumeTargetForRepair,
         taskNotice: null,

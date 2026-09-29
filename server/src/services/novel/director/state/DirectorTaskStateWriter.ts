@@ -4,8 +4,17 @@ import type {
   NovelWorkflowTaskUpdateArgs,
   NovelWorkflowTaskUpdateManyArgs,
 } from "../../workflow/NovelWorkflowStoreService";
+import {
+  mergeDirectorTaskRunState,
+  readDirectorTaskState,
+  serializeDirectorTaskState,
+  splitDirectorTaskState,
+  type DirectorTaskDataView,
+  type DirectorTaskState,
+} from "./DirectorStateReader";
 
 type WorkflowDelegateName =
+  | "getTaskById"
   | "bootstrapTask"
   | "markTaskRunning"
   | "markTaskWaitingApproval"
@@ -17,6 +26,57 @@ type WorkflowDelegateName =
   | "updateTaskManyWithRetry";
 
 export type DirectorTaskStateWorkflowPort = Partial<Pick<NovelWorkflowService, WorkflowDelegateName>>;
+
+type WorkflowBootstrapInput = Parameters<NovelWorkflowService["bootstrapTask"]>[0];
+
+export type DirectorTaskInitializationInput = Omit<WorkflowBootstrapInput, "seedPayload"> & {
+  directorState?: DirectorTaskState | Record<string, unknown>;
+};
+
+export interface DirectorTaskInitializationOptions {
+  replaceLaunchContract?: "takeover" | "candidate_confirmation";
+}
+
+function stableJson(value: unknown): string {
+  if (Array.isArray(value)) {
+    return `[${value.map(stableJson).join(",")}]`;
+  }
+  if (value && typeof value === "object") {
+    return `{${Object.entries(value as Record<string, unknown>)
+      .filter(([, item]) => item !== undefined)
+      .sort(([left], [right]) => left.localeCompare(right))
+      .map(([key, item]) => `${JSON.stringify(key)}:${stableJson(item)}`)
+      .join(",")}}`;
+  }
+  return JSON.stringify(value) ?? String(value);
+}
+
+function findLaunchContractConflict(current: DirectorTaskState, incoming: DirectorTaskState): string | null {
+  const currentLaunch = current.launch as unknown as Record<string, unknown>;
+  const incomingLaunch = incoming.launch as unknown as Record<string, unknown>;
+  // Candidate-generation tasks can predate the final novel input. A missing
+  // contract field may be initialized once; an established field stays fixed.
+  // Unknown legacy payload is compatibility context, not a typed contract.
+  for (const [key, value] of Object.entries(incoming.launch)) {
+    if (key === "legacyContext") continue;
+    if (currentLaunch[key] === undefined) continue;
+    if (value !== undefined && stableJson(currentLaunch[key]) !== stableJson(value)) {
+      return key;
+    }
+  }
+  return null;
+}
+
+function mergeLaunchState(
+  current: DirectorTaskState["launch"],
+  incoming: DirectorTaskState["launch"],
+): DirectorTaskState["launch"] {
+  return {
+    ...current,
+    ...incoming,
+    legacyContext: { ...current.legacyContext, ...incoming.legacyContext },
+  };
+}
 
 export interface DirectorTaskStateWriteOptions {
   transaction?: Prisma.TransactionClient;
@@ -31,9 +91,43 @@ export interface ClearPendingManualRecoveryInput {
 export class DirectorTaskStateWriter {
   constructor(private readonly workflowService: DirectorTaskStateWorkflowPort = new NovelWorkflowService()) {}
 
-  initializeTask(...args: Parameters<NovelWorkflowService["bootstrapTask"]>) {
+  async initializeTask(
+    input: DirectorTaskInitializationInput,
+    options: DirectorTaskInitializationOptions = {},
+  ) {
     if (!this.workflowService.bootstrapTask) throw new Error("Task state workflow port does not support initialization.");
-    return this.workflowService.bootstrapTask(...args);
+    const directorStateInput = input.directorState;
+    let directorState = directorStateInput
+      ? ("launch" in directorStateInput && "run" in directorStateInput
+          ? directorStateInput as DirectorTaskState
+          : splitDirectorTaskState(directorStateInput))
+      : undefined;
+    const workflowTaskId = input.workflowTaskId?.trim();
+    if (workflowTaskId && directorState && this.workflowService.getTaskById) {
+      const currentTask = await this.workflowService.getTaskById(workflowTaskId);
+      if (currentTask?.lane === "auto_director") {
+        const currentState = readDirectorTaskState(currentTask);
+        const mayReplaceLaunchContract = options.replaceLaunchContract === "takeover"
+          || (options.replaceLaunchContract === "candidate_confirmation" && currentTask.novelId === null);
+        const launchConflict = mayReplaceLaunchContract
+          ? null
+          : findLaunchContractConflict(currentState, directorState);
+        if (launchConflict) {
+          throw new Error(`Director launch contract is immutable after task creation (${launchConflict}).`);
+        }
+        directorState = {
+          launch: mergeLaunchState(currentState.launch, directorState.launch),
+          run: { ...currentState.run, ...directorState.run },
+        };
+      }
+    }
+    const { directorState: _directorState, ...bootstrapInput } = input;
+    return this.workflowService.bootstrapTask(directorState
+      ? {
+        ...bootstrapInput,
+        seedPayload: JSON.parse(serializeDirectorTaskState(directorState)) as Record<string, unknown>,
+      }
+      : bootstrapInput);
   }
 
   markRunning(...args: Parameters<NovelWorkflowService["markTaskRunning"]>) {
@@ -135,5 +229,80 @@ export class DirectorTaskStateWriter {
       args as NovelWorkflowTaskUpdateArgs,
       options?.transaction,
     );
+  }
+
+  async updateDirectorRunState(
+    taskId: string,
+    patch: Partial<DirectorTaskState["run"]>,
+    taskData?: Partial<NovelWorkflowTaskUpdateArgs["data"]>,
+    options?: DirectorTaskStateWriteOptions,
+  ) {
+    if (!this.workflowService.getTaskById) throw new Error("Task state workflow port does not support task reads.");
+    if (!this.workflowService.updateTaskWithRetry) throw new Error("Task state workflow port does not support task updates.");
+    const currentTask = await this.workflowService.getTaskById(taskId);
+    if (!currentTask || currentTask.lane !== "auto_director") {
+      throw new Error("Auto director task was not found.");
+    }
+    const currentState = readDirectorTaskState(currentTask);
+    const nextState: DirectorTaskState = {
+      launch: currentState.launch,
+      run: mergeDirectorTaskRunState(currentState.run, patch),
+    };
+    return this.workflowService.updateTaskWithRetry({
+      where: { id: taskId },
+      data: {
+        ...taskData,
+        seedPayloadJson: serializeDirectorTaskState(nextState),
+      } as NovelWorkflowTaskUpdateArgs["data"],
+    }, options?.transaction);
+  }
+
+  async updateDirectorRunStateMany(
+    args: NovelWorkflowTaskUpdateManyArgs,
+    patch: Partial<DirectorTaskState["run"]>,
+    options?: DirectorTaskStateWriteOptions,
+  ) {
+    if (!this.workflowService.getTaskById) throw new Error("Task state workflow port does not support task reads.");
+    if (!this.workflowService.updateTaskManyWithRetry) throw new Error("Task state workflow port does not support task updates.");
+    const taskId = typeof args.where?.id === "string" ? args.where.id : null;
+    if (!taskId) throw new Error("Updating director run state many requires one task id.");
+    const currentTask = await this.workflowService.getTaskById(taskId);
+    if (!currentTask || currentTask.lane !== "auto_director") {
+      throw new Error("Auto director task was not found.");
+    }
+    const currentState = readDirectorTaskState(currentTask);
+    const nextState: DirectorTaskState = {
+      launch: currentState.launch,
+      run: mergeDirectorTaskRunState(currentState.run, patch),
+    };
+    return this.workflowService.updateTaskManyWithRetry({
+      ...args,
+      data: {
+        ...args.data,
+        seedPayloadJson: serializeDirectorTaskState(nextState),
+      },
+    }, options?.transaction);
+  }
+
+  async updateDirectorRunStateFromTaskData(
+    taskId: string,
+    directorTaskData: DirectorTaskDataView,
+    taskData?: Partial<NovelWorkflowTaskUpdateArgs["data"]>,
+    options?: DirectorTaskStateWriteOptions,
+  ) {
+    if (!this.workflowService.getTaskById) throw new Error("Task state workflow port does not support task reads.");
+    const currentTask = await this.workflowService.getTaskById(taskId);
+    if (!currentTask || currentTask.lane !== "auto_director") {
+      throw new Error("Auto director task was not found.");
+    }
+    const currentState = readDirectorTaskState(currentTask);
+    const incomingState = splitDirectorTaskState(directorTaskData);
+    const { resumeTarget, directorRuntime: _directorRuntime, ...runPatch } = incomingState.run;
+    const persistenceData: Partial<NovelWorkflowTaskUpdateArgs["data"]> = { ...taskData };
+    if (Object.prototype.hasOwnProperty.call(incomingState.run, "resumeTarget")
+      && !Object.prototype.hasOwnProperty.call(persistenceData, "resumeTargetJson")) {
+      persistenceData.resumeTargetJson = resumeTarget ? JSON.stringify(resumeTarget) : null;
+    }
+    return this.updateDirectorRunState(taskId, runPatch, persistenceData, options);
   }
 }

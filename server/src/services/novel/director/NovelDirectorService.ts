@@ -93,7 +93,7 @@ import { prisma } from "../../../db/prisma";
 import { loadPersistentDirectorRuntimeProjection } from "./projections/novelDirectorRuntimeProjection";
 import { qualityDebtSettingsService } from "../../settings/QualityDebtSettingsService";
 import { pendingReviewAutoPromotionService } from "../state/PendingReviewAutoPromotionService";
-import { parseSeedPayload } from "../workflow/novelWorkflow.shared";
+import { DirectorStateReader, toDirectorTaskDataView } from "./state/DirectorStateReader";
 import { getDirectorInputFromSeedPayload } from "./runtime/novelDirectorHelpers";
 import {
   directorWorkflowStepModuleRegistry,
@@ -528,15 +528,13 @@ export class NovelDirectorService {
       };
     }
 
-    const seedPayload = parseSeedPayload<DirectorWorkflowSeedPayload>(task.seedPayloadJson) ?? {};
-    const directorInput = getDirectorInputFromSeedPayload(seedPayload);
+    const storedState = await new DirectorStateReader().readTaskStateById(task.id);
+    const directorTaskData = (storedState ? toDirectorTaskDataView(storedState) : {}) as DirectorWorkflowSeedPayload;
+    const directorInput = getDirectorInputFromSeedPayload(directorTaskData);
     if (!directorInput) {
       throw new AppError("当前导演任务缺少可复用的生成输入，请从项目接管入口继续。", 409);
     }
     const instruction = input.instruction?.trim() || null;
-    const calibratedDirectorInput = instruction
-      ? { ...directorInput, stepCalibrationInstruction: instruction }
-      : directorInput;
     if (input.action === "regenerate") {
       await this.novelService.createNovelSnapshot(
         task.novelId,
@@ -544,18 +542,13 @@ export class NovelDirectorService {
         `before-step-calibration-${module.id}-${Date.now()}`,
       );
     }
-    await new DirectorTaskStateWriter(this.workflowService).initializeTask({
-      workflowTaskId: taskId,
-      novelId: task.novelId,
-      lane: "auto_director",
-      seedPayload: {
-        directorInput: calibratedDirectorInput,
-        stepCalibration: {
-          action: input.action,
-          stepId: module.id,
-          instruction,
-          updatedAt: new Date().toISOString(),
-        },
+    const stateWriter = new DirectorTaskStateWriter(this.workflowService);
+    await stateWriter.updateDirectorRunState(taskId, {
+      stepCalibration: {
+        action: input.action,
+        stepId: module.id,
+        instruction,
+        updatedAt: new Date().toISOString(),
       },
     });
     await this.directorRuntimeOrchestrator.runStepModule({
@@ -567,22 +560,22 @@ export class NovelDirectorService {
       approveAutoExecutionScope: false,
       reuseCompletedStep: false,
     });
-    await new DirectorTaskStateWriter(this.workflowService).markWaitingCheckpoint(taskId, {
+    await stateWriter.updateDirectorRunState(taskId, {
+      stepReview: {
+        stepId: module.id,
+        nodeKey: module.nodeKey,
+        label: module.label,
+        targetType: module.targetType,
+        targetId: input.targetId?.trim() || task.novelId,
+        completedAt: new Date().toISOString(),
+      },
+    });
+    await stateWriter.markWaitingCheckpoint(taskId, {
       stage: "auto_director",
       itemKey: module.id,
       itemLabel: `${module.label}已校准，请检查后继续`,
       checkpointType: "step_review_required",
       checkpointSummary: `${module.label}已完成${input.action === "improve" ? "完善" : "重新生成"}。请确认当前内容后再继续导演。`,
-      seedPayload: buildDirectorWorkflowSeedPayload(calibratedDirectorInput, task.novelId, {
-        stepReview: {
-          stepId: module.id,
-          nodeKey: module.nodeKey,
-          label: module.label,
-          targetType: module.targetType,
-          targetId: input.targetId?.trim() || task.novelId,
-          completedAt: new Date().toISOString(),
-        },
-      }),
     });
     return {
       action: input.action,

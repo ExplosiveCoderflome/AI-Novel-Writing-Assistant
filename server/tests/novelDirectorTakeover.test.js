@@ -533,6 +533,7 @@ test("loadDirectorTakeoverState restores continuation context from the cancelled
     novelFindUnique: prisma.novel.findUnique,
     chapterFindMany: prisma.chapter.findMany,
     generationJobFindFirst: prisma.generationJob.findFirst,
+    workflowTaskFindUnique: prisma.novelWorkflowTask.findUnique,
   };
   const previousTask = {
     id: "previous-cancelled-task",
@@ -567,6 +568,7 @@ test("loadDirectorTakeoverState restores continuation context from the cancelled
   });
   prisma.chapter.findMany = async () => [];
   prisma.generationJob.findFirst = async () => null;
+  prisma.novelWorkflowTask.findUnique = async () => previousTask;
 
   try {
     const state = await loadDirectorTakeoverState({
@@ -603,6 +605,7 @@ test("loadDirectorTakeoverState restores continuation context from the cancelled
     prisma.novel.findUnique = originals.novelFindUnique;
     prisma.chapter.findMany = originals.chapterFindMany;
     prisma.generationJob.findFirst = originals.generationJobFindFirst;
+    prisma.novelWorkflowTask.findUnique = originals.workflowTaskFindUnique;
   }
 });
 
@@ -611,6 +614,7 @@ test("loadDirectorTakeoverState treats full-book autopilot outline seeds as JIT 
     novelFindUnique: prisma.novel.findUnique,
     chapterFindMany: prisma.chapter.findMany,
     generationJobFindFirst: prisma.generationJob.findFirst,
+    workflowTaskFindUnique: prisma.novelWorkflowTask.findUnique,
   };
   const workspace = {
     volumes: [
@@ -743,6 +747,8 @@ test("loadDirectorTakeoverState treats full-book autopilot outline seeds as JIT 
     },
   ];
   prisma.generationJob.findFirst = async () => null;
+  let latestTaskStateRow = null;
+  prisma.novelWorkflowTask.findUnique = async () => latestTaskStateRow;
 
   try {
     const state = await loadDirectorTakeoverState({
@@ -763,7 +769,7 @@ test("loadDirectorTakeoverState treats full-book autopilot outline seeds as JIT 
       }),
       getVolumeWorkspace: async () => workspace,
       findActiveAutoDirectorTask: async () => null,
-      findLatestAutoDirectorTask: async () => ({
+      findLatestAutoDirectorTask: async () => (latestTaskStateRow = {
         id: "task_full_book_jit",
         checkpointType: "chapter_batch_ready",
         checkpointSummary: "ready",
@@ -797,6 +803,7 @@ test("loadDirectorTakeoverState treats full-book autopilot outline seeds as JIT 
     prisma.novel.findUnique = originals.novelFindUnique;
     prisma.chapter.findMany = originals.chapterFindMany;
     prisma.generationJob.findFirst = originals.generationJobFindFirst;
+    prisma.novelWorkflowTask.findUnique = originals.workflowTaskFindUnique;
   }
 });
 
@@ -938,7 +945,6 @@ test("loadDirectorTakeoverState applies requested book scope before trusting sta
     },
   ];
   prisma.generationJob.findFirst = async () => null;
-
   try {
     const state = await loadDirectorTakeoverState({
       novelId: "novel_takeover_book_scope",
@@ -994,6 +1000,7 @@ test("loadDirectorTakeoverState advances stale no-chapters cursor to the next pe
     novelFindUnique: prisma.novel.findUnique,
     chapterFindMany: prisma.chapter.findMany,
     generationJobFindFirst: prisma.generationJob.findFirst,
+    workflowTaskFindUnique: prisma.novelWorkflowTask.findUnique,
   };
   const completeSceneCards = buildSceneCards("chapter_1");
   const workspace = {
@@ -1155,6 +1162,8 @@ test("loadDirectorTakeoverState advances stale no-chapters cursor to the next pe
     },
   ];
   prisma.generationJob.findFirst = async () => null;
+  let latestTaskStateRow = null;
+  prisma.novelWorkflowTask.findUnique = async () => latestTaskStateRow;
 
   try {
     const state = await loadDirectorTakeoverState({
@@ -1175,7 +1184,7 @@ test("loadDirectorTakeoverState advances stale no-chapters cursor to the next pe
       }),
       getVolumeWorkspace: async () => workspace,
       findActiveAutoDirectorTask: async () => null,
-      findLatestAutoDirectorTask: async () => ({
+      findLatestAutoDirectorTask: async () => (latestTaskStateRow = {
         id: "task_stale_continue_cursor",
         checkpointType: null,
         checkpointSummary: "Too small: expected string to have >=6 characters",
@@ -1209,6 +1218,7 @@ test("loadDirectorTakeoverState advances stale no-chapters cursor to the next pe
     prisma.novel.findUnique = originals.novelFindUnique;
     prisma.chapter.findMany = originals.chapterFindMany;
     prisma.generationJob.findFirst = originals.generationJobFindFirst;
+    prisma.novelWorkflowTask.findUnique = originals.workflowTaskFindUnique;
   }
 });
 

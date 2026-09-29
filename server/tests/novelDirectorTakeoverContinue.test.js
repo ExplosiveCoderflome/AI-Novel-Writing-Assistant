@@ -23,6 +23,7 @@ test("buildContinueExistingDownstreamReset resets steps after user selected entr
 test("cancelContinueExistingReplacedRuns marks only overlapping active runs as replaced", async () => {
   const originals = {
     workflowFindMany: prisma.novelWorkflowTask.findMany,
+    workflowFindUnique: prisma.novelWorkflowTask.findUnique,
     workflowUpdate: prisma.novelWorkflowTask.update,
     generationFindMany: prisma.generationJob.findMany,
     generationUpdateMany: prisma.generationJob.updateMany,
@@ -31,9 +32,12 @@ test("cancelContinueExistingReplacedRuns marks only overlapping active runs as r
   const generationUpdates = [];
   const cancelAttempts = [];
 
-  prisma.novelWorkflowTask.findMany = async () => ([
+  const activeTasks = [
     {
       id: "task_old_overlap",
+      novelId: "novel_demo",
+      lane: "auto_director",
+      status: "running",
       seedPayloadJson: JSON.stringify({
         autoExecution: {
           enabled: true,
@@ -45,6 +49,9 @@ test("cancelContinueExistingReplacedRuns marks only overlapping active runs as r
     },
     {
       id: "task_old_outside",
+      novelId: "novel_demo",
+      lane: "auto_director",
+      status: "running",
       seedPayloadJson: JSON.stringify({
         autoExecution: {
           enabled: true,
@@ -54,7 +61,11 @@ test("cancelContinueExistingReplacedRuns marks only overlapping active runs as r
         },
       }),
     },
-  ]);
+  ];
+  prisma.novelWorkflowTask.findMany = async () => activeTasks.map(({ id }) => ({ id }));
+  prisma.novelWorkflowTask.findUnique = async ({ where }) => (
+    activeTasks.find((task) => task.id === where.id) ?? null
+  );
   prisma.novelWorkflowTask.update = async ({ where, data }) => {
     workflowUpdates.push({ where, data });
     return { id: where.id, ...data };
@@ -89,13 +100,14 @@ test("cancelContinueExistingReplacedRuns marks only overlapping active runs as r
     assert.equal(workflowUpdates[0].data.status, "cancelled");
     assert.equal(workflowUpdates[0].data.lastError, "由本任务替代：task_new");
     const replacementPayload = JSON.parse(workflowUpdates[0].data.seedPayloadJson);
-    assert.equal(replacementPayload.replacementTaskId, "task_new");
-    assert.equal(replacementPayload.replacementReason, "由本任务替代");
+    assert.equal(replacementPayload.takeover.replacementTaskId, "task_new");
+    assert.equal(replacementPayload.takeover.replacementReason, "由本任务替代");
     assert.deepEqual(cancelAttempts, ["job_overlap"]);
     assert.deepEqual(generationUpdates.map((item) => item.where.id), ["job_overlap"]);
     assert.equal(generationUpdates[0].data.error, "由本任务替代：task_new");
   } finally {
     prisma.novelWorkflowTask.findMany = originals.workflowFindMany;
+    prisma.novelWorkflowTask.findUnique = originals.workflowFindUnique;
     prisma.novelWorkflowTask.update = originals.workflowUpdate;
     prisma.generationJob.findMany = originals.generationFindMany;
     prisma.generationJob.updateMany = originals.generationUpdateMany;

@@ -161,7 +161,19 @@ export async function repairDirectorChapterTitles(input: {
     phase: "structured_outline",
     isBackgroundRunning: false,
   });
-  await new DirectorTaskStateWriter(input.workflowService).markWaitingCheckpoint(input.taskId, {
+  const directorTaskData = input.buildDirectorSeedPayload(input.request, input.novelId, {
+    directorSession: pausedSession,
+    resumeTarget,
+    taskNotice: titleDiversityIssue
+      ? buildChapterTitleDiversityTaskNotice({
+        issue: titleDiversityIssue,
+        volumeId: repairedVolume.id,
+      })
+      : null,
+  });
+  const stateWriter = new DirectorTaskStateWriter(input.workflowService);
+  await stateWriter.updateDirectorRunStateFromTaskData(input.taskId, directorTaskData);
+  await stateWriter.markWaitingCheckpoint(input.taskId, {
     stage: "structured_outline",
     itemKey: "chapter_list",
     itemLabel: titleDiversityIssue
@@ -170,15 +182,5 @@ export async function repairDirectorChapterTitles(input: {
     progress: DIRECTOR_PROGRESS.chapterList,
     volumeId: repairedVolume.id,
     clearCheckpoint: true,
-    seedPayload: input.buildDirectorSeedPayload(input.request, input.novelId, {
-      directorSession: pausedSession,
-      resumeTarget,
-      taskNotice: titleDiversityIssue
-        ? buildChapterTitleDiversityTaskNotice({
-          issue: titleDiversityIssue,
-          volumeId: repairedVolume.id,
-        })
-        : null,
-    }),
   });
 }

@@ -4,6 +4,7 @@ import { prisma } from "../../../../../db/prisma";
 import { taskDispatcher } from "../../../../../workers/TaskDispatcher";
 import { NovelWorkflowService } from "../../../workflow/NovelWorkflowService";
 import { directorIssueService, loadDirectorIssueTaskContext } from "../../issues";
+import { DirectorStateReader } from "../../state/DirectorStateReader";
 
 const STALE_COMMAND_AUTO_RECOVERY_MESSAGE = "后台执行中断，系统已自动从最近进度继续。";
 const STALE_COMMAND_MANUAL_RECOVERY_MESSAGE = "后台执行中断，任务已暂停。点击恢复后会从最近进度继续。";
@@ -21,10 +22,7 @@ interface DirectorLeaseRecoveryState {
   } | null;
 }
 
-function parseLinkedPipelineJobId(seedPayloadJson: string | null): string | null {
-  if (!seedPayloadJson?.trim()) return null;
-  const seed = JSON.parse(seedPayloadJson) as { autoExecution?: { pipelineJobId?: unknown } };
-  const value = seed.autoExecution?.pipelineJobId;
+function normalizeLinkedPipelineJobId(value: unknown): string | null {
   if (value === undefined || value === null || value === "") return null;
   if (typeof value !== "string" || !value.trim()) {
     throw new Error("Invalid linked pipeline job id.");
@@ -150,11 +148,11 @@ export class DirectorCommandLeaseService {
       select: {
         novelId: true,
         pendingManualRecovery: true,
-        seedPayloadJson: true,
       },
     });
     if (!task) return null;
-    const pipelineJobId = parseLinkedPipelineJobId(task.seedPayloadJson);
+    const state = await new DirectorStateReader().readTaskStateById(taskId);
+    const pipelineJobId = normalizeLinkedPipelineJobId(state?.run.autoExecution?.pipelineJobId);
     if (!pipelineJobId) {
       return { taskPendingManualRecovery: task.pendingManualRecovery, linkedPipelineJob: null };
     }

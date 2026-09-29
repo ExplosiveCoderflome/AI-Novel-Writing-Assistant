@@ -465,6 +465,7 @@ export class NovelWorkflowTaskAdapter {
     id: string,
     options: {
       heal?: boolean;
+      directorTaskDataMode?: "full" | "compact" | "none";
       seedPayloadMode?: "full" | "compact" | "none";
     } = {},
   ): Promise<UnifiedTaskDetail | null> {
@@ -508,13 +509,13 @@ export class NovelWorkflowTaskAdapter {
     const directorSession = workflowSeedPayload && typeof workflowSeedPayload.directorSession === "object"
       ? workflowSeedPayload.directorSession
       : null;
-    const seedPayloadMode = options.seedPayloadMode ?? "full";
-    const responseSeedPayload = seedPayloadMode === "full"
+    const taskDataMode = options.directorTaskDataMode ?? options.seedPayloadMode ?? "full";
+    const responseSeedPayload = taskDataMode === "full"
       ? seedPayload
-      : seedPayloadMode === "compact"
+      : taskDataMode === "compact"
         ? compactSeedPayload(seedPayload)
         : null;
-    const responseDirectorSession = seedPayloadMode === "full"
+    const responseDirectorSession = taskDataMode === "full"
       ? directorSession
       : compactDirectorSession(directorSession);
     const boundLlm = getDirectorLlmOptionsFromSeedPayload(workflowSeedPayload);

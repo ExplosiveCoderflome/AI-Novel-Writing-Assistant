@@ -377,14 +377,14 @@ export async function startDirectorTakeoverExecution(
     lane: "auto_director",
     title: input.takeoverState.novel.title,
     initialState,
-    seedPayload: input.buildDirectorSeedPayload(directorInput, request.novelId, buildTakeoverSeedPayloadExtra({
+    directorState: input.buildDirectorSeedPayload(directorInput, request.novelId, buildTakeoverSeedPayloadExtra({
       directorSession,
       resumeTarget: initialResumeTarget,
       plan,
       takeoverState: input.takeoverState,
       rewriteSnapshot,
     })),
-  });
+  }, { replaceLaunchContract: "takeover" });
 
   try {
     if (rewriteSnapshot) {
@@ -438,7 +438,17 @@ export async function startDirectorTakeoverExecution(
         });
       });
     } else {
-      await new DirectorTaskStateWriter(input.workflowService).persistCheckpoint(workflowTask.id, {
+      const stateWriter = new DirectorTaskStateWriter(input.workflowService);
+      const directorTaskData = input.buildDirectorSeedPayload(directorInput, request.novelId, {
+        directorSession: buildDirectorSessionState({
+          runMode: "auto_to_ready",
+          phase: "chapter_execution",
+          isBackgroundRunning: false,
+        }),
+        resumeTarget,
+      });
+      await stateWriter.updateDirectorRunStateFromTaskData(workflowTask.id, directorTaskData);
+      await stateWriter.persistCheckpoint(workflowTask.id, {
         stage: "chapter_execution",
         checkpointType: "production_experience_required",
         checkpointSummary: "自动导演已确认现有章节执行资源可用，请选择正文生产方式。",
@@ -446,14 +456,6 @@ export async function startDirectorTakeoverExecution(
         chapterId: input.takeoverState.latestCheckpoint?.chapterId ?? null,
         volumeId: input.takeoverState.latestCheckpoint?.volumeId ?? input.takeoverState.snapshot.firstVolumeId ?? null,
         progress: 0.9,
-        seedPayload: input.buildDirectorSeedPayload(directorInput, request.novelId, {
-          directorSession: buildDirectorSessionState({
-            runMode: "auto_to_ready",
-            phase: "chapter_execution",
-            isBackgroundRunning: false,
-          }),
-          resumeTarget,
-        }),
       });
     }
 

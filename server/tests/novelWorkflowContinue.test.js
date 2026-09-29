@@ -51,7 +51,7 @@ test("novel workflow auto director route prefers the active auto director task o
     assert.equal(payload.data.id, "workflow-active");
     assert.deepEqual(calls, [
       ["active", "novel-active"],
-      ["detail", "workflow-active", { seedPayloadMode: "compact" }],
+      ["detail", "workflow-active", { directorTaskDataMode: "compact" }],
     ]);
   } finally {
     NovelWorkflowService.prototype.findActiveDirectorTask = originalFindActive;

@@ -11,6 +11,7 @@ import {
   stringifyResumeTarget,
 } from "../../workflow/novelWorkflow.shared";
 import { buildWorkflowTaskInitialData } from "../../workflow/taskCreation";
+import { serializeDirectorTaskState, splitDirectorTaskState, type DirectorTaskState } from "./DirectorStateReader";
 
 const ACTIVE_DIRECTOR_TASK_STATUSES = ["queued", "running", "waiting_approval"] as const;
 const ACTIVE_DIRECTOR_COMMAND_STATUSES = ["queued", "leased", "running"] as const;
@@ -18,10 +19,12 @@ const REPLACED_TASK_MESSAGE = "已被新的 AI 任务替换";
 
 export type StartDirectorTaskInput = Omit<
   BootstrapWorkflowInput,
-  "workflowTaskId" | "forceNew" | "lane" | "novelId"
+  "workflowTaskId" | "forceNew" | "lane" | "novelId" | "seedPayload"
 > & {
   novelId: string;
   existingTaskId?: string;
+  directorState?: DirectorTaskState | Record<string, unknown>;
+  seedPayload?: Record<string, unknown>;
 };
 
 export type StartDirectorTaskOptions = {
@@ -152,7 +155,13 @@ export async function startDirectorTaskForNovel(
         lane: "auto_director",
         novelId,
         title: input.title,
-        seedPayload: input.seedPayload,
+        seedPayload: input.directorState
+          ? JSON.parse(serializeDirectorTaskState(
+            "launch" in input.directorState && "run" in input.directorState
+              ? input.directorState as DirectorTaskState
+              : splitDirectorTaskState(input.directorState),
+          )) as Record<string, unknown>
+          : input.seedPayload,
         initialState,
       }, novel?.title);
       const created = await tx.novelWorkflowTask.create({

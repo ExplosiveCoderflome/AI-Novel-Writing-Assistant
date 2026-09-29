@@ -6,7 +6,7 @@
     "clientUrlTaskIdParams": 0,
     "healOnReadCallSites": 0,
     "directorTaskWritesOutsideState": 0,
-    "directorSeedPayloadRefs": 285,
+    "directorSeedPayloadRefs": 0,
     "continuationModeRefs": 31,
     "runModeBranches": 45,
     "inProcessBackgroundScheduling": 13,

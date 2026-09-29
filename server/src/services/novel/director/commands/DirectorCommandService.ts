@@ -22,12 +22,12 @@ import { withSqliteRetry } from "../../../../db/sqliteRetry";
 import { AppError } from "../../../../middleware/errorHandler";
 import { NovelWorkflowService } from "../../workflow/NovelWorkflowService";
 import { DirectorTaskStateWriter } from "../state";
+import { DirectorStateReader, toDirectorTaskDataView } from "../state/DirectorStateReader";
 import {
   applyDirectorRunModeContract,
   buildDirectorSessionState,
   buildDirectorWorkflowSeedPayload,
 } from "../runtime/novelDirectorHelpers";
-import { parseSeedPayload } from "../../workflow/novelWorkflow.shared";
 import {
   buildAcceptedTaskState,
   hashPayload,
@@ -131,9 +131,9 @@ function findAuthoritativeCandidate(
 
 function resolveConfirmRequestFromTaskSeed(
   input: DirectorConfirmRequest,
-  seedPayloadJson: string | null | undefined,
+  taskData: ConfirmTaskSeedPayload | null | undefined,
 ): DirectorConfirmRequest {
-  const seed = parseSeedPayload<ConfirmTaskSeedPayload>(seedPayloadJson) ?? {};
+  const seed = taskData ?? {};
   const basicForm = seed.basicForm ?? {};
   const batches = Array.isArray(seed.batches) ? seed.batches : [];
   const authoritativeCandidate = findAuthoritativeCandidate(seed, input);
@@ -268,16 +268,19 @@ export class DirectorCommandService {
     const existingTask = input.workflowTaskId?.trim()
       ? await this.workflowService.getTaskByIdWithoutHealing(input.workflowTaskId.trim())
       : null;
+    const existingTaskState = existingTask
+      ? await new DirectorStateReader().readTaskStateById(existingTask.id)
+      : null;
     const confirmedInput = applyDirectorRunModeContract(resolveConfirmRequestFromTaskSeed(
       input,
-      existingTask?.seedPayloadJson,
+      existingTaskState ? toDirectorTaskDataView(existingTaskState) as ConfirmTaskSeedPayload : null,
     ));
     const runMode = confirmedInput.runMode;
     const task = await new DirectorTaskStateWriter(this.workflowService).initializeTask({
       workflowTaskId: input.workflowTaskId,
       lane: "auto_director",
       title: input.candidate.workingTitle.trim() || input.title?.trim() || "自动导演开书",
-      seedPayload: buildDirectorWorkflowSeedPayload(confirmedInput, null, {
+      directorState: buildDirectorWorkflowSeedPayload(confirmedInput, null, {
         directorSession: buildDirectorSessionState({
           runMode,
           phase: "candidate_selection",
@@ -532,7 +535,7 @@ export class DirectorCommandService {
         itemLabel: "自动导演接管任务已提交",
         progress: 0,
       },
-      seedPayload: {
+      directorState: {
         takeover: {
           entryStep: takeoverInput.entryStep ?? null,
           startPhase: takeoverInput.startPhase ?? null,
@@ -580,7 +583,7 @@ export class DirectorCommandService {
       workflowTaskId: input.workflowTaskId?.trim() || undefined,
       lane: "auto_director",
       title: input.title?.trim() || "AI 自动导演候选方向",
-      seedPayload: {
+      directorState: {
         idea: input.idea,
         provider: input.provider ?? null,
         model: input.model ?? null,
@@ -615,10 +618,10 @@ export class DirectorCommandService {
       throw new AppError("Director command not found.", 404);
     }
     const task = await this.workflowService.getTaskByIdWithoutHealing(command.taskId);
-    const seedPayload = parseSeedPayload<{ directorCommandResults?: Record<string, { result?: unknown } | unknown> }>(
-      task?.seedPayloadJson,
-    ) ?? {};
-    const resultEntry = seedPayload.directorCommandResults?.[commandId] ?? null;
+    const directorTaskData = task
+      ? await new DirectorStateReader().readTaskDataById(task.id) as { directorCommandResults?: Record<string, { result?: unknown } | unknown> } | null ?? {}
+      : {};
+    const resultEntry = directorTaskData.directorCommandResults?.[commandId] ?? null;
     const result = resultEntry && typeof resultEntry === "object" && "result" in resultEntry
       ? (resultEntry as { result?: unknown }).result ?? null
       : resultEntry;

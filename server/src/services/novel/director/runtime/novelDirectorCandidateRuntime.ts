@@ -43,27 +43,27 @@ export class NovelDirectorCandidateRuntime {
       status: string;
       checkpointType: string | null;
       currentItemKey?: string | null;
-      seedPayload: DirectorWorkflowSeedPayload;
+      directorTaskData: DirectorWorkflowSeedPayload;
     },
   ): Promise<boolean> {
     if (!this.isCandidateSelectionTask({
       novelId: input.novelId,
       checkpointType: input.checkpointType,
       currentItemKey: input.currentItemKey,
-      seedPayload: input.seedPayload,
+      directorTaskData: input.directorTaskData,
     })) {
       return false;
     }
     if (input.checkpointType === "candidate_selection_required" || input.status === "waiting_approval") {
       return true;
     }
-    const baseRequest = this.buildCandidateStageBaseRequest(taskId, input.seedPayload);
+    const baseRequest = this.buildCandidateStageBaseRequest(taskId, input.directorTaskData);
     if (!baseRequest) {
       throw new Error("自动导演候选阶段任务缺少恢复所需上下文。");
     }
-    const candidateStage = input.seedPayload.candidateStage;
-    const previousBatches = Array.isArray(input.seedPayload.batches)
-      ? input.seedPayload.batches as DirectorCandidateBatch[]
+    const candidateStage = input.directorTaskData.candidateStage;
+    const previousBatches = Array.isArray(input.directorTaskData.batches)
+      ? input.directorTaskData.batches as DirectorCandidateBatch[]
       : [];
     const feedback = candidateStage?.feedback?.trim();
     const mode = candidateStage?.mode ?? (previousBatches.length === 0 ? "generate" : "refine");
@@ -152,7 +152,7 @@ export class NovelDirectorCandidateRuntime {
     novelId?: string | null;
     checkpointType: string | null;
     currentItemKey?: string | null;
-    seedPayload: DirectorWorkflowSeedPayload;
+    directorTaskData: DirectorWorkflowSeedPayload;
   }): boolean {
     if (input.novelId?.trim()) {
       return false;
@@ -161,7 +161,7 @@ export class NovelDirectorCandidateRuntime {
     const currentItemKey = input.currentItemKey?.trim() || null;
     const isCandidateStageItem = currentItemKey === "auto_director"
       || (currentItemKey?.startsWith("candidate_") ?? false);
-    const directorSessionPhase = input.seedPayload.directorSession?.phase;
+    const directorSessionPhase = input.directorTaskData.directorSession?.phase;
 
     if (directorSessionPhase === "candidate_selection") {
       return true;
@@ -178,7 +178,7 @@ export class NovelDirectorCandidateRuntime {
     if (input.checkpointType === "candidate_selection_required" && (isCandidateStageItem || !currentItemKey)) {
       return true;
     }
-    if (input.seedPayload.candidateStage) {
+    if (input.directorTaskData.candidateStage) {
       return !currentItemKey || isCandidateStageItem;
     }
     return isCandidateStageItem;
@@ -186,121 +186,121 @@ export class NovelDirectorCandidateRuntime {
 
   private buildCandidateStageBaseRequest(
     taskId: string,
-    seedPayload: DirectorWorkflowSeedPayload,
+    directorTaskData: DirectorWorkflowSeedPayload,
   ): DirectorCandidatesRequest | null {
-    const idea = readText(seedPayload.idea);
+    const idea = readText(directorTaskData.idea);
     if (!idea) {
       return null;
     }
-    const llm = getDirectorLlmOptionsFromSeedPayload(seedPayload);
-    const runMode = typeof seedPayload.runMode === "string"
-      && (DIRECTOR_RUN_MODES as readonly string[]).includes(seedPayload.runMode)
-      ? seedPayload.runMode as (typeof DIRECTOR_RUN_MODES)[number]
+    const llm = getDirectorLlmOptionsFromSeedPayload(directorTaskData);
+    const runMode = typeof directorTaskData.runMode === "string"
+      && (DIRECTOR_RUN_MODES as readonly string[]).includes(directorTaskData.runMode)
+      ? directorTaskData.runMode as (typeof DIRECTOR_RUN_MODES)[number]
       : undefined;
-    const commercialTags = Array.isArray(seedPayload.commercialTags)
-      ? seedPayload.commercialTags.filter((item): item is string => typeof item === "string" && item.trim().length > 0)
+    const commercialTags = Array.isArray(directorTaskData.commercialTags)
+      ? directorTaskData.commercialTags.filter((item): item is string => typeof item === "string" && item.trim().length > 0)
       : undefined;
-    const continuationBookAnalysisSections = Array.isArray(seedPayload.continuationBookAnalysisSections)
-      ? seedPayload.continuationBookAnalysisSections.filter((item): item is string => typeof item === "string" && item.trim().length > 0)
+    const continuationBookAnalysisSections = Array.isArray(directorTaskData.continuationBookAnalysisSections)
+      ? directorTaskData.continuationBookAnalysisSections.filter((item): item is string => typeof item === "string" && item.trim().length > 0)
       : undefined;
-    const referenceBookAnalysisSections = Array.isArray(seedPayload.referenceBookAnalysisSections)
-      ? seedPayload.referenceBookAnalysisSections.filter((item): item is string => typeof item === "string" && item.trim().length > 0)
+    const referenceBookAnalysisSections = Array.isArray(directorTaskData.referenceBookAnalysisSections)
+      ? directorTaskData.referenceBookAnalysisSections.filter((item): item is string => typeof item === "string" && item.trim().length > 0)
       : undefined;
     return {
       workflowTaskId: taskId,
       idea,
-      marketBriefId: readText(seedPayload.marketBriefId),
-      title: readText(seedPayload.title),
-      description: readText(seedPayload.description),
-      targetAudience: readText(seedPayload.targetAudience),
-      bookSellingPoint: readText(seedPayload.bookSellingPoint),
-      competingFeel: readText(seedPayload.competingFeel),
-      first30ChapterPromise: readText(seedPayload.first30ChapterPromise),
+      marketBriefId: readText(directorTaskData.marketBriefId),
+      title: readText(directorTaskData.title),
+      description: readText(directorTaskData.description),
+      targetAudience: readText(directorTaskData.targetAudience),
+      bookSellingPoint: readText(directorTaskData.bookSellingPoint),
+      competingFeel: readText(directorTaskData.competingFeel),
+      first30ChapterPromise: readText(directorTaskData.first30ChapterPromise),
       commercialTags,
-      genreId: readText(seedPayload.genreId),
-      primaryStoryModeId: readText(seedPayload.primaryStoryModeId),
-      secondaryStoryModeId: readText(seedPayload.secondaryStoryModeId),
-      worldId: readText(seedPayload.worldId),
-      worldSetupMode: seedPayload.worldSetupMode === "skip" ? "skip" : undefined,
-      writingMode: seedPayload.writingMode === "continuation" ? "continuation" : "original",
-      projectMode: seedPayload.projectMode === "ai_led"
-        || seedPayload.projectMode === "co_pilot"
-        || seedPayload.projectMode === "draft_mode"
-        || seedPayload.projectMode === "auto_pipeline"
-        ? seedPayload.projectMode
+      genreId: readText(directorTaskData.genreId),
+      primaryStoryModeId: readText(directorTaskData.primaryStoryModeId),
+      secondaryStoryModeId: readText(directorTaskData.secondaryStoryModeId),
+      worldId: readText(directorTaskData.worldId),
+      worldSetupMode: directorTaskData.worldSetupMode === "skip" ? "skip" : undefined,
+      writingMode: directorTaskData.writingMode === "continuation" ? "continuation" : "original",
+      projectMode: directorTaskData.projectMode === "ai_led"
+        || directorTaskData.projectMode === "co_pilot"
+        || directorTaskData.projectMode === "draft_mode"
+        || directorTaskData.projectMode === "auto_pipeline"
+        ? directorTaskData.projectMode
         : undefined,
-      readerChannelPreference: seedPayload.readerChannelPreference === "ai_judge"
-        || seedPayload.readerChannelPreference === "male_oriented"
-        || seedPayload.readerChannelPreference === "female_oriented"
-        || seedPayload.readerChannelPreference === "general"
-        ? seedPayload.readerChannelPreference
+      readerChannelPreference: directorTaskData.readerChannelPreference === "ai_judge"
+        || directorTaskData.readerChannelPreference === "male_oriented"
+        || directorTaskData.readerChannelPreference === "female_oriented"
+        || directorTaskData.readerChannelPreference === "general"
+        ? directorTaskData.readerChannelPreference
         : undefined,
-      powerSystemPreference: seedPayload.powerSystemPreference === "none"
-        || seedPayload.powerSystemPreference === "soft"
-        || seedPayload.powerSystemPreference === "ranked"
-        ? seedPayload.powerSystemPreference
+      powerSystemPreference: directorTaskData.powerSystemPreference === "none"
+        || directorTaskData.powerSystemPreference === "soft"
+        || directorTaskData.powerSystemPreference === "ranked"
+        ? directorTaskData.powerSystemPreference
         : "ai_recommend",
-      narrativePov: seedPayload.narrativePov === "first_person"
-        || seedPayload.narrativePov === "third_person"
-        || seedPayload.narrativePov === "mixed"
-        ? seedPayload.narrativePov
+      narrativePov: directorTaskData.narrativePov === "first_person"
+        || directorTaskData.narrativePov === "third_person"
+        || directorTaskData.narrativePov === "mixed"
+        ? directorTaskData.narrativePov
         : undefined,
-      pacePreference: seedPayload.pacePreference === "slow"
-        || seedPayload.pacePreference === "balanced"
-        || seedPayload.pacePreference === "fast"
-        ? seedPayload.pacePreference
+      pacePreference: directorTaskData.pacePreference === "slow"
+        || directorTaskData.pacePreference === "balanced"
+        || directorTaskData.pacePreference === "fast"
+        ? directorTaskData.pacePreference
         : undefined,
-      styleTone: readText(seedPayload.styleTone),
-      styleProfileId: readText(seedPayload.styleProfileId),
-      styleIntentSummary: seedPayload.styleIntentSummary as DirectorCandidatesRequest["styleIntentSummary"] | undefined,
-      emotionIntensity: seedPayload.emotionIntensity === "low"
-        || seedPayload.emotionIntensity === "medium"
-        || seedPayload.emotionIntensity === "high"
-        ? seedPayload.emotionIntensity
+      styleTone: readText(directorTaskData.styleTone),
+      styleProfileId: readText(directorTaskData.styleProfileId),
+      styleIntentSummary: directorTaskData.styleIntentSummary as DirectorCandidatesRequest["styleIntentSummary"] | undefined,
+      emotionIntensity: directorTaskData.emotionIntensity === "low"
+        || directorTaskData.emotionIntensity === "medium"
+        || directorTaskData.emotionIntensity === "high"
+        ? directorTaskData.emotionIntensity
         : undefined,
-      aiFreedom: seedPayload.aiFreedom === "low"
-        || seedPayload.aiFreedom === "medium"
-        || seedPayload.aiFreedom === "high"
-        ? seedPayload.aiFreedom
+      aiFreedom: directorTaskData.aiFreedom === "low"
+        || directorTaskData.aiFreedom === "medium"
+        || directorTaskData.aiFreedom === "high"
+        ? directorTaskData.aiFreedom
         : undefined,
-      postGenerationStyleReviewEnabled: typeof seedPayload.postGenerationStyleReviewEnabled === "boolean"
-        ? seedPayload.postGenerationStyleReviewEnabled
+      postGenerationStyleReviewEnabled: typeof directorTaskData.postGenerationStyleReviewEnabled === "boolean"
+        ? directorTaskData.postGenerationStyleReviewEnabled
         : undefined,
-      defaultChapterLength: typeof seedPayload.defaultChapterLength === "number"
-        ? seedPayload.defaultChapterLength
+      defaultChapterLength: typeof directorTaskData.defaultChapterLength === "number"
+        ? directorTaskData.defaultChapterLength
         : undefined,
-      estimatedChapterCount: typeof seedPayload.estimatedChapterCount === "number"
-        ? seedPayload.estimatedChapterCount
+      estimatedChapterCount: typeof directorTaskData.estimatedChapterCount === "number"
+        ? directorTaskData.estimatedChapterCount
         : undefined,
-      projectStatus: seedPayload.projectStatus === "not_started"
-        || seedPayload.projectStatus === "in_progress"
-        || seedPayload.projectStatus === "completed"
-        || seedPayload.projectStatus === "rework"
-        || seedPayload.projectStatus === "blocked"
-        ? seedPayload.projectStatus
+      projectStatus: directorTaskData.projectStatus === "not_started"
+        || directorTaskData.projectStatus === "in_progress"
+        || directorTaskData.projectStatus === "completed"
+        || directorTaskData.projectStatus === "rework"
+        || directorTaskData.projectStatus === "blocked"
+        ? directorTaskData.projectStatus
         : undefined,
-      storylineStatus: seedPayload.storylineStatus === "not_started"
-        || seedPayload.storylineStatus === "in_progress"
-        || seedPayload.storylineStatus === "completed"
-        || seedPayload.storylineStatus === "rework"
-        || seedPayload.storylineStatus === "blocked"
-        ? seedPayload.storylineStatus
+      storylineStatus: directorTaskData.storylineStatus === "not_started"
+        || directorTaskData.storylineStatus === "in_progress"
+        || directorTaskData.storylineStatus === "completed"
+        || directorTaskData.storylineStatus === "rework"
+        || directorTaskData.storylineStatus === "blocked"
+        ? directorTaskData.storylineStatus
         : undefined,
-      outlineStatus: seedPayload.outlineStatus === "not_started"
-        || seedPayload.outlineStatus === "in_progress"
-        || seedPayload.outlineStatus === "completed"
-        || seedPayload.outlineStatus === "rework"
-        || seedPayload.outlineStatus === "blocked"
-        ? seedPayload.outlineStatus
+      outlineStatus: directorTaskData.outlineStatus === "not_started"
+        || directorTaskData.outlineStatus === "in_progress"
+        || directorTaskData.outlineStatus === "completed"
+        || directorTaskData.outlineStatus === "rework"
+        || directorTaskData.outlineStatus === "blocked"
+        ? directorTaskData.outlineStatus
         : undefined,
-      resourceReadyScore: typeof seedPayload.resourceReadyScore === "number"
-        ? seedPayload.resourceReadyScore
+      resourceReadyScore: typeof directorTaskData.resourceReadyScore === "number"
+        ? directorTaskData.resourceReadyScore
         : undefined,
-      sourceNovelId: readText(seedPayload.sourceNovelId),
-      sourceKnowledgeDocumentId: readText(seedPayload.sourceKnowledgeDocumentId),
-      continuationBookAnalysisId: readText(seedPayload.continuationBookAnalysisId),
+      sourceNovelId: readText(directorTaskData.sourceNovelId),
+      sourceKnowledgeDocumentId: readText(directorTaskData.sourceKnowledgeDocumentId),
+      continuationBookAnalysisId: readText(directorTaskData.continuationBookAnalysisId),
       continuationBookAnalysisSections: continuationBookAnalysisSections as DirectorCandidatesRequest["continuationBookAnalysisSections"],
-      referenceBookAnalysisId: readText(seedPayload.referenceBookAnalysisId),
+      referenceBookAnalysisId: readText(directorTaskData.referenceBookAnalysisId),
       referenceBookAnalysisSections: referenceBookAnalysisSections as DirectorCandidatesRequest["referenceBookAnalysisSections"],
       provider: llm?.provider,
       model: llm?.model,

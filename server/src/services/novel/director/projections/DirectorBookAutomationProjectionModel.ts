@@ -86,23 +86,20 @@ export function workflowStatusToBookStatus(status: string | null | undefined): D
   return "idle";
 }
 
-export function extractRunMode(seedPayloadJson: string | null | undefined): string | null {
-  const seedPayload = parseJsonOrNull<Record<string, unknown>>(seedPayloadJson);
-  if (!seedPayload) {
-    return null;
-  }
-  const direct = seedPayload.runMode;
+export function extractRunMode(directorTaskData: Record<string, unknown> | null | undefined): string | null {
+  if (!directorTaskData) return null;
+  const direct = directorTaskData.runMode;
   if (typeof direct === "string") {
     return direct;
   }
-  const directorInput = seedPayload.directorInput;
+  const directorInput = directorTaskData.directorInput;
   if (directorInput && typeof directorInput === "object") {
     const value = (directorInput as { runMode?: unknown }).runMode;
     if (typeof value === "string") {
       return value;
     }
   }
-  const directorSession = seedPayload.directorSession;
+  const directorSession = directorTaskData.directorSession;
   if (directorSession && typeof directorSession === "object") {
     const value = (directorSession as { runMode?: unknown }).runMode;
     if (typeof value === "string") {
@@ -113,10 +110,9 @@ export function extractRunMode(seedPayloadJson: string | null | undefined): stri
 }
 
 export function extractCircuitBreaker(
-  seedPayloadJson: string | null | undefined,
+  directorTaskData: Record<string, unknown> | null | undefined,
 ): DirectorBookAutomationProjection["circuitBreaker"] {
-  const seedPayload = parseJsonOrNull<Record<string, unknown>>(seedPayloadJson);
-  const autoExecution = seedPayload?.autoExecution;
+  const autoExecution = directorTaskData?.autoExecution;
   if (!autoExecution || typeof autoExecution !== "object") {
     return null;
   }

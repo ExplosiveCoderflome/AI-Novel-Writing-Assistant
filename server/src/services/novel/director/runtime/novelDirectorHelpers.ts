@@ -632,9 +632,9 @@ export function buildDirectorWorkflowSeedPayload(
 }
 
 export function getDirectorInputFromSeedPayload(
-  seedPayload: DirectorWorkflowSeedPayload | null | undefined,
+  directorTaskData: DirectorWorkflowSeedPayload | null | undefined,
 ): DirectorConfirmRequest | null {
-  const directorInput = seedPayload?.directorInput;
+  const directorInput = directorTaskData?.directorInput;
   if (!directorInput || typeof directorInput !== "object") {
     return null;
   }
@@ -642,18 +642,18 @@ export function getDirectorInputFromSeedPayload(
 }
 
 export function getDirectorLlmOptionsFromSeedPayload(
-  seedPayload: DirectorWorkflowSeedPayload | null | undefined,
+  directorTaskData: DirectorWorkflowSeedPayload | null | undefined,
 ): Pick<DirectorLLMOptions, "provider" | "model" | "temperature"> | null {
-  if (!seedPayload) {
+  if (!directorTaskData) {
     return null;
   }
-  const directorInput = getDirectorInputFromSeedPayload(seedPayload);
-  const provider = seedPayload.provider ?? directorInput?.provider ?? undefined;
-  const model = typeof seedPayload.model === "string"
-    ? (seedPayload.model.trim() || undefined)
+  const directorInput = getDirectorInputFromSeedPayload(directorTaskData);
+  const provider = directorTaskData.provider ?? directorInput?.provider ?? undefined;
+  const model = typeof directorTaskData.model === "string"
+    ? (directorTaskData.model.trim() || undefined)
     : (directorInput?.model?.trim() || undefined);
-  const temperature = typeof seedPayload.temperature === "number"
-    ? seedPayload.temperature
+  const temperature = typeof directorTaskData.temperature === "number"
+    ? directorTaskData.temperature
     : directorInput?.temperature;
   if (!provider && !model && typeof temperature !== "number") {
     return null;
@@ -666,21 +666,21 @@ export function getDirectorLlmOptionsFromSeedPayload(
 }
 
 export function applyDirectorLlmOverride(
-  seedPayload: DirectorWorkflowSeedPayload | null | undefined,
+  directorTaskData: DirectorWorkflowSeedPayload | null | undefined,
   llmOverride: Pick<DirectorLLMOptions, "provider" | "model" | "temperature">,
 ): DirectorWorkflowSeedPayload | null {
-  if (!seedPayload) {
+  if (!directorTaskData) {
     return null;
   }
-  const directorInput = getDirectorInputFromSeedPayload(seedPayload);
+  const directorInput = getDirectorInputFromSeedPayload(directorTaskData);
   const nextModel = llmOverride.model?.trim()
-    || (typeof seedPayload.model === "string" ? seedPayload.model.trim() : directorInput?.model?.trim() || null);
+    || (typeof directorTaskData.model === "string" ? directorTaskData.model.trim() : directorInput?.model?.trim() || null);
   const nextTemperature = typeof llmOverride.temperature === "number"
     ? llmOverride.temperature
-    : (typeof seedPayload.temperature === "number" ? seedPayload.temperature : directorInput?.temperature ?? null);
-  const nextProvider = llmOverride.provider ?? seedPayload.provider ?? directorInput?.provider ?? null;
+    : (typeof directorTaskData.temperature === "number" ? directorTaskData.temperature : directorInput?.temperature ?? null);
+  const nextProvider = llmOverride.provider ?? directorTaskData.provider ?? directorInput?.provider ?? null;
   return {
-    ...seedPayload,
+    ...directorTaskData,
     provider: nextProvider,
     model: nextModel,
     temperature: nextTemperature,

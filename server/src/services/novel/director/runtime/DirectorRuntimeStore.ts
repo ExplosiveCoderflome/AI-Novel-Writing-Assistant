@@ -11,7 +11,7 @@ import type {
   DirectorWorkspaceAnalysis,
 } from "@ai-novel/shared/types/directorRuntime";
 import { prisma } from "../../../../db/prisma";
-import { parseSeedPayload } from "../../workflow/novelWorkflow.shared";
+import { DirectorStateReader, toDirectorTaskDataView } from "../state/DirectorStateReader";
 import type { DirectorWorkflowSeedPayload } from "./novelDirectorHelpers";
 import { normalizeDirectorArtifactRef, reconcileDirectorArtifactLedger } from "./DirectorArtifactLedger";
 import { buildDefaultDirectorPolicy, buildEmptyDirectorRuntimeSnapshot } from "./directorRuntimeDefaults";
@@ -58,22 +58,22 @@ function isoFromDate(value: Date | string | null | undefined): string | null {
 function normalizeRuntimeSnapshot(input: {
   taskId: string;
   novelId?: string | null;
-  seedPayload: DirectorWorkflowSeedPayload;
+  directorTaskData: DirectorWorkflowSeedPayload;
   entrypoint?: string | null;
   policyMode?: DirectorPolicyMode;
 }): DirectorRuntimeSnapshot {
   return buildEmptyDirectorRuntimeSnapshot({
     runId: input.taskId,
-    novelId: input.novelId ?? input.seedPayload.novelId ?? null,
+    novelId: input.novelId ?? input.directorTaskData.novelId ?? null,
     entrypoint: input.entrypoint ?? null,
     policyMode: input.policyMode,
   });
 }
 
 function getLegacySeedRuntimeSnapshot(
-  seedPayload: DirectorWorkflowSeedPayload,
+  directorTaskData: DirectorWorkflowSeedPayload,
 ): DirectorRuntimeSnapshot | null {
-  const runtime = (seedPayload as { directorRuntime?: unknown }).directorRuntime;
+  const runtime = (directorTaskData as { directorRuntime?: unknown }).directorRuntime;
   if (!runtime || typeof runtime !== "object") {
     return null;
   }
@@ -117,6 +117,7 @@ function compactPolicyPatch(
 
 export class DirectorRuntimeStore {
   private readonly snapshotCache = new Map<string, DirectorRuntimeSnapshot>();
+  private readonly stateReader = new DirectorStateReader();
 
   async getSnapshot(taskId: string): Promise<DirectorRuntimeSnapshot | null> {
     const row = await prisma.novelWorkflowTask.findUnique({
@@ -124,19 +125,18 @@ export class DirectorRuntimeStore {
       select: {
         id: true,
         novelId: true,
-        seedPayloadJson: true,
       },
     });
     if (!row) {
       return null;
     }
-    const seedPayload = parseSeedPayload<DirectorWorkflowSeedPayload>(row.seedPayloadJson) ?? {};
+    const directorTaskData = await this.stateReader.readTaskDataById(taskId) as DirectorWorkflowSeedPayload | null ?? {};
     const emptySnapshot = normalizeRuntimeSnapshot({
       taskId: row.id,
       novelId: row.novelId,
-      seedPayload,
+      directorTaskData,
     });
-    const legacySeedSnapshot = getLegacySeedRuntimeSnapshot(seedPayload);
+    const legacySeedSnapshot = getLegacySeedRuntimeSnapshot(directorTaskData);
     const persisted = await this.getPersistentSnapshot(taskId);
     if (persisted) {
       const snapshot = mergeLegacyRuntimeArtifacts(
@@ -153,26 +153,25 @@ export class DirectorRuntimeStore {
 
   async mutateSnapshot(
     taskId: string,
-    mutator: (snapshot: DirectorRuntimeSnapshot, seedPayload: DirectorWorkflowSeedPayload) => DirectorRuntimeSnapshot,
+    mutator: (snapshot: DirectorRuntimeSnapshot, directorTaskData: DirectorWorkflowSeedPayload) => DirectorRuntimeSnapshot,
   ): Promise<DirectorRuntimeSnapshot | null> {
     const row = await prisma.novelWorkflowTask.findUnique({
       where: { id: taskId },
       select: {
         id: true,
         novelId: true,
-        seedPayloadJson: true,
       },
     });
     if (!row) {
       return null;
     }
-    const seedPayload = parseSeedPayload<DirectorWorkflowSeedPayload>(row.seedPayloadJson) ?? {};
+    const directorTaskData = await this.stateReader.readTaskDataById(taskId) as DirectorWorkflowSeedPayload | null ?? {};
     const emptySnapshot = normalizeRuntimeSnapshot({
       taskId: row.id,
       novelId: row.novelId,
-      seedPayload,
+      directorTaskData,
     });
-    const legacySeedSnapshot = getLegacySeedRuntimeSnapshot(seedPayload);
+    const legacySeedSnapshot = getLegacySeedRuntimeSnapshot(directorTaskData);
     const cached = this.snapshotCache.get(taskId);
     const persisted = await this.getPersistentSnapshot(taskId);
     const current = mergeLegacyRuntimeArtifacts(
@@ -183,7 +182,7 @@ export class DirectorRuntimeStore {
       emptySnapshot,
     );
     const nextRuntime = trimRuntimeSnapshot({
-      ...mutator(current, seedPayload),
+      ...mutator(current, directorTaskData),
       updatedAt: new Date().toISOString(),
     });
     const deltaBase = persisted ?? emptySnapshot;

@@ -10,6 +10,7 @@ const {
   workflowStepModuleToDirectorNodeContract,
 } = require("../dist/services/novel/director/workflowStepRuntime/WorkflowStepModule.js");
 const { prisma } = require("../dist/db/prisma.js");
+const { readDirectorTaskState } = require("../dist/services/novel/director/state/DirectorStateReader.js");
 const { DefaultNovelApplicationServices } = require("../dist/services/novel/application/NovelApplicationServices.js");
 const {
   stepModuleRunner,
@@ -231,6 +232,10 @@ function buildChapterProgressSummary(chapters) {
 }
 
 function buildDirectorStateHint(seedPayload, chapterProgress) {
+  const state = readDirectorTaskState({
+    seedPayloadJson: JSON.stringify(seedPayload),
+    resumeTargetJson: null,
+  });
   return {
     task: {
       id: "task-scoped-chapter-execution",
@@ -247,11 +252,10 @@ function buildDirectorStateHint(seedPayload, chapterProgress) {
       pendingManualRecovery: false,
       cancelRequestedAt: null,
     },
-    run: null,
+    ...state,
     runtime: null,
     latestCommand: null,
     activeStep: null,
-    seedPayload,
     chapterProgress,
   };
 }

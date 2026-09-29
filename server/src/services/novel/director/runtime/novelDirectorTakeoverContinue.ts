@@ -11,12 +11,12 @@ import {
 } from "@ai-novel/shared/types/novelDirector";
 import { prisma } from "../../../../db/prisma";
 import { DirectorTaskStateWriter } from "../state";
+import { DirectorStateReader, toDirectorTaskDataView } from "../state/DirectorStateReader";
 import {
   normalizeDirectorAutoExecutionPlan,
   resolveDirectorAutoExecutionRangeFromState,
 } from "../automation/novelDirectorAutoExecution";
 import type { DirectorTakeoverResolvedPlan } from "./novelDirectorTakeover";
-import { parseSeedPayload, mergeSeedPayload } from "../../workflow/novelWorkflow.shared";
 import type { DirectorWorkflowSeedPayload } from "./novelDirectorHelpers";
 
 export const CONTINUE_EXISTING_REPLACEMENT_REASON = "由本任务替代";
@@ -146,13 +146,12 @@ function resolveScopeFromState(state: DirectorAutoExecutionState | null | undefi
   return { type: "unknown" };
 }
 
-function resolveTaskScope(seedPayloadJson: string | null | undefined): ContinueExistingReplacementScope {
-  const seedPayload = parseSeedPayload<DirectorWorkflowSeedPayload>(seedPayloadJson);
-  const autoExecutionScope = resolveScopeFromState(seedPayload?.autoExecution);
+function resolveTaskScope(directorTaskData: DirectorWorkflowSeedPayload | null | undefined): ContinueExistingReplacementScope {
+  const autoExecutionScope = resolveScopeFromState(directorTaskData?.autoExecution);
   if (autoExecutionScope.type !== "unknown") {
     return autoExecutionScope;
   }
-  return resolveScopeFromPlan(seedPayload?.autoExecutionPlan ?? seedPayload?.directorInput?.autoExecutionPlan);
+  return resolveScopeFromPlan(directorTaskData?.autoExecutionPlan ?? directorTaskData?.directorInput?.autoExecutionPlan);
 }
 
 function scopesOverlap(
@@ -234,36 +233,37 @@ export async function cancelContinueExistingReplacedRuns(input: {
       id: { not: replacementTaskId },
       status: { in: ["queued", "running", "waiting_approval"] },
     },
-    select: {
-      id: true,
-      seedPayloadJson: true,
-    },
+    select: { id: true },
   });
-  const replacedTasks = activeTasks.filter((task) => scopesOverlap(
+  const stateReader = new DirectorStateReader();
+  const replacedTasks = (await Promise.all(activeTasks.map(async (task) => ({
+    task,
+    taskState: await stateReader.readTaskStateById(task.id),
+  })))).filter(({ taskState }) => scopesOverlap(
     requestedScope,
-    resolveTaskScope(task.seedPayloadJson),
+    resolveTaskScope(taskState ? toDirectorTaskDataView(taskState) as DirectorWorkflowSeedPayload : null),
   ));
 
   const now = new Date();
   const replacementSummary = buildReplacementSummary(replacementTaskId);
   const stateWriter = new DirectorTaskStateWriter();
-  await Promise.all(replacedTasks.map((task) => stateWriter.updateRunState({
-    where: { id: task.id },
-    data: {
+  await Promise.all(replacedTasks.map(async ({ task, taskState }) => {
+    const takeover = {
+      ...(taskState?.run.takeover ?? {}),
+      replacementTaskId,
+      replacementReason: CONTINUE_EXISTING_REPLACEMENT_REASON,
+      replacementSummary,
+      replacedAt: now.toISOString(),
+    };
+    return stateWriter.updateDirectorRunState(task.id, { takeover }, {
       status: "cancelled",
       cancelRequestedAt: now,
       finishedAt: now,
       heartbeatAt: now,
       lastError: replacementSummary,
       currentItemLabel: "已由新的自动导演任务接管",
-      seedPayloadJson: mergeSeedPayload(task.seedPayloadJson, {
-        replacementTaskId,
-        replacementReason: CONTINUE_EXISTING_REPLACEMENT_REASON,
-        replacementSummary,
-        replacedAt: now.toISOString(),
-      }),
-    },
-  })));
+    });
+  }));
 
   const pipelineJobs = await prisma.generationJob.findMany({
     where: {
@@ -320,7 +320,7 @@ export async function cancelContinueExistingReplacedRuns(input: {
   }
 
   return {
-    workflowTaskIds: replacedTasks.map((task) => task.id),
+    workflowTaskIds: replacedTasks.map(({ task }) => task.id),
     pipelineJobIds: replacedPipelineJobs.map((job) => job.id),
   };
 }

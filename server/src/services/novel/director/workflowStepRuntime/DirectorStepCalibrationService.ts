@@ -3,10 +3,9 @@ import type { DirectorStepCalibrationRequest } from "@ai-novel/shared/types/nove
 import { AppError } from "../../../../middleware/errorHandler";
 import type { getSharedNovelServices } from "../../application/sharedNovelServices";
 import { NovelWorkflowService } from "../../workflow/NovelWorkflowService";
-import { buildDirectorWorkflowSeedPayload, getDirectorInputFromSeedPayload } from "../runtime/novelDirectorHelpers";
-import type { DirectorWorkflowSeedPayload } from "../runtime/novelDirectorHelpers";
+import { getDirectorInputFromSeedPayload } from "../runtime/novelDirectorHelpers";
+import { DirectorStateReader, toDirectorTaskDataView } from "../state/DirectorStateReader";
 import type { NovelDirectorRuntimeOrchestrator } from "../runtime/novelDirectorRuntimeOrchestrator";
-import { parseSeedPayload } from "../../workflow/novelWorkflow.shared";
 import { directorWorkflowStepModuleRegistry } from "./directorWorkflowStepModules";
 import { inspectWorkflowStepFacts, isExecutableWorkflowStepModule } from "./WorkflowStepModule";
 
@@ -36,15 +35,13 @@ export class DirectorStepCalibrationService {
       return { action: input.action, stepId: module.id, inspection: await inspectWorkflowStepFacts(module, context) };
     }
 
-    const seedPayload = parseSeedPayload<DirectorWorkflowSeedPayload>(task.seedPayloadJson) ?? {};
-    const directorInput = getDirectorInputFromSeedPayload(seedPayload);
+    const storedState = await new DirectorStateReader().readTaskStateById(task.id);
+    const directorTaskData = storedState ? toDirectorTaskDataView(storedState) : {};
+    const directorInput = getDirectorInputFromSeedPayload(directorTaskData);
     if (!directorInput) {
       throw new AppError("当前导演任务缺少可复用的生成输入，请从项目接管入口继续。", 409);
     }
     const instruction = input.instruction?.trim() || null;
-    const calibratedDirectorInput = instruction
-      ? { ...directorInput, stepCalibrationInstruction: instruction }
-      : directorInput;
     if (input.action === "regenerate") {
       await this.novelService.createNovelSnapshot(
         task.novelId,
@@ -52,14 +49,9 @@ export class DirectorStepCalibrationService {
         `before-step-calibration-${module.id}-${Date.now()}`,
       );
     }
-    await new DirectorTaskStateWriter(this.workflowService).initializeTask({
-      workflowTaskId: taskId,
-      novelId: task.novelId,
-      lane: "auto_director",
-      seedPayload: {
-        directorInput: calibratedDirectorInput,
-        stepCalibration: { action: input.action, stepId: module.id, instruction, updatedAt: new Date().toISOString() },
-      },
+    const stateWriter = new DirectorTaskStateWriter(this.workflowService);
+    await stateWriter.updateDirectorRunState(taskId, {
+      stepCalibration: { action: input.action, stepId: module.id, instruction, updatedAt: new Date().toISOString() },
     });
     await this.runtimeOrchestrator.runStepModule({
       module,
@@ -70,22 +62,22 @@ export class DirectorStepCalibrationService {
       approveAutoExecutionScope: false,
       reuseCompletedStep: false,
     });
-    await new DirectorTaskStateWriter(this.workflowService).markWaitingCheckpoint(taskId, {
+    await stateWriter.updateDirectorRunState(taskId, {
+      stepReview: {
+        stepId: module.id,
+        nodeKey: module.nodeKey,
+        label: module.label,
+        targetType: module.targetType,
+        targetId: input.targetId?.trim() || task.novelId,
+        completedAt: new Date().toISOString(),
+      },
+    });
+    await stateWriter.markWaitingCheckpoint(taskId, {
       stage: "auto_director",
       itemKey: module.id,
       itemLabel: `${module.label}已校准，请检查后继续`,
       checkpointType: "step_review_required",
       checkpointSummary: `${module.label}已完成${input.action === "improve" ? "完善" : "重新生成"}。请确认当前内容后再继续导演。`,
-      seedPayload: buildDirectorWorkflowSeedPayload(calibratedDirectorInput, task.novelId, {
-        stepReview: {
-          stepId: module.id,
-          nodeKey: module.nodeKey,
-          label: module.label,
-          targetType: module.targetType,
-          targetId: input.targetId?.trim() || task.novelId,
-          completedAt: new Date().toISOString(),
-        },
-      }),
     });
     return { action: input.action, stepId: module.id, instruction, status: "waiting_review" };
   }

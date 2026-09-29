@@ -149,8 +149,22 @@ test("pipeline resumes structured outline from persisted volume workspace when v
 test("stage_review pauses after one workflow step and records the resumable step", async () => {
   const modules = [];
   const checkpoints = [];
+  const stateUpdates = [];
   const runtime = createRuntime({
     workflowService: {
+      async getTaskById(taskId) {
+        return {
+          id: taskId,
+          lane: "auto_director",
+          novelId: "novel_stage_review",
+          seedPayloadJson: JSON.stringify(buildDirectorInput({ workflowTaskId: taskId, runMode: "stage_review" })),
+          resumeTargetJson: null,
+        };
+      },
+      async updateTaskWithRetry(input) {
+        stateUpdates.push(input);
+        return input;
+      },
       async markTaskWaitingApproval(taskId, input) {
         checkpoints.push({ taskId, input });
       },
@@ -181,12 +195,15 @@ test("stage_review pauses after one workflow step and records the resumable step
   assert.deepEqual(modules, ["story.macro.plan"]);
   assert.equal(checkpoints.length, 1);
   assert.equal(checkpoints[0].input.checkpointType, "step_review_required");
-  assert.equal(checkpoints[0].input.seedPayload.stepReview.stepId, "story.macro.plan");
+  const persistedRunState = JSON.parse(stateUpdates[0].data.seedPayloadJson);
+  assert.equal(persistedRunState.stepReview.stepId, "story.macro.plan");
+  assert.equal(persistedRunState.directorSession.phase, "story_macro");
 });
 
 test("stage_review pauses at world setup and keeps the world review step identity", async () => {
   const modules = [];
   const checkpoints = [];
+  const stateUpdates = [];
   const runtime = createRuntime({
     storyMacroService: {
       async getPlan() {
@@ -199,6 +216,19 @@ test("stage_review pauses at world setup and keeps the world review step identit
       },
     },
     workflowService: {
+      async getTaskById(taskId) {
+        return {
+          id: taskId,
+          lane: "auto_director",
+          novelId: "novel_stage_review_world",
+          seedPayloadJson: JSON.stringify(buildDirectorInput({ workflowTaskId: taskId, runMode: "stage_review" })),
+          resumeTargetJson: null,
+        };
+      },
+      async updateTaskWithRetry(input) {
+        stateUpdates.push(input);
+        return input;
+      },
       async markTaskWaitingApproval(taskId, input) {
         checkpoints.push({ taskId, input });
       },
@@ -230,10 +260,11 @@ test("stage_review pauses at world setup and keeps the world review step identit
   assert.deepEqual(modules, ["book.world.prepare"]);
   assert.equal(checkpoints.length, 1);
   assert.equal(checkpoints[0].input.checkpointType, "step_review_required");
-  assert.equal(checkpoints[0].input.seedPayload.stepReview.stepId, "book.world.prepare");
+  const persistedRunState = JSON.parse(stateUpdates[0].data.seedPayloadJson);
+  assert.equal(persistedRunState.stepReview.stepId, "book.world.prepare");
+  assert.equal(persistedRunState.directorSession.phase, "world_setup");
   assert.equal(checkpoints[0].input.stage, "world_setup");
   assert.equal(checkpoints[0].input.itemKey, "world_setup");
-  assert.equal(checkpoints[0].input.seedPayload.directorSession.phase, "world_setup");
 });
 
 test("automatic mode continues from world setup without creating a review checkpoint", async () => {

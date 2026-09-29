@@ -36,6 +36,7 @@ import {
 import { buildDirectorDashboardView } from "./DirectorDashboardViewBuilder";
 import { buildDirectorDisplayState } from "./DirectorDisplayStateBuilder";
 import { resolveCurrentDirectorTask } from "../state";
+import { DirectorStateReader, toDirectorTaskDataView } from "../state/DirectorStateReader";
 
 type RuntimeProjectionLoader = (taskId: string) => Promise<DirectorRuntimeProjection | null>;
 
@@ -334,7 +335,11 @@ export class DirectorBookAutomationProjectionService {
     const policyMode = runtimeProjection?.policyMode
       ?? parseJsonOrNull<{ mode?: DirectorPolicyMode }>(latestRun?.policyJson)?.mode
       ?? null;
-    const circuitBreaker = extractCircuitBreaker(latestTask?.seedPayloadJson);
+    const latestTaskState = latestTask?.id
+      ? await new DirectorStateReader().readByTaskId(latestTask.id)
+      : null;
+    const latestTaskData = latestTaskState ? toDirectorTaskDataView(latestTaskState) : null;
+    const circuitBreaker = extractCircuitBreaker(latestTaskData);
     const taskStatus = latestTask?.pendingManualRecovery
       ? "waiting_recovery"
       : workflowStatusToBookStatus(latestTask?.status);
@@ -545,7 +550,7 @@ export class DirectorBookAutomationProjectionService {
       latestRunId: latestRun?.id ?? runtimeProjection?.runId ?? null,
       status,
       displayState,
-      runMode: extractRunMode(latestTask?.seedPayloadJson),
+      runMode: extractRunMode(latestTaskData),
       policyMode,
       headline,
       userHeadline,

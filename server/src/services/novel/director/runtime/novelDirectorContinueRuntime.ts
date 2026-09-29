@@ -13,9 +13,8 @@ import type { NovelVolumeService } from "../../volume/NovelVolumeService";
 import type { NovelWorkflowService } from "../../workflow/NovelWorkflowService";
 import {
   buildNovelEditResumeTarget,
-  parseResumeTarget,
-  parseSeedPayload,
 } from "../../workflow/novelWorkflow.shared";
+import { DirectorStateReader, toDirectorTaskDataView } from "../state/DirectorStateReader";
 import { normalizeDirectorMemoryScope } from "./autoDirectorMemorySafety";
 import { DirectorRecoveryNotNeededError } from "./novelDirectorErrors";
 import {
@@ -51,43 +50,12 @@ export type DirectorAssetFirstRecovery =
   }
   | null;
 
-function mergeResumeTargets(
-  primary: ReturnType<typeof parseResumeTarget>,
-  fallback: ReturnType<typeof parseResumeTarget>,
-) {
-  if (!primary) {
-    return fallback;
-  }
-  if (!fallback) {
-    return primary;
-  }
-  return {
-    ...fallback,
-    ...primary,
-    stage: primary.stage === "basic" && fallback.stage !== "basic"
-      ? fallback.stage
-      : primary.stage,
-    chapterId: primary.chapterId ?? fallback.chapterId ?? null,
-    volumeId: primary.volumeId ?? fallback.volumeId ?? null,
-  };
-}
-
-function parseResumeTargetLike(value: unknown) {
-  if (typeof value === "string") {
-    return parseResumeTarget(value);
-  }
-  if (value && typeof value === "object") {
-    return value as NonNullable<ReturnType<typeof parseResumeTarget>>;
-  }
-  return null;
-}
-
 function inferPhaseFromTaskState(input: {
   currentItemKey?: string | null;
-  seedPayload: DirectorWorkflowSeedPayload;
+  directorTaskData: DirectorWorkflowSeedPayload;
 }): "story_macro" | "book_contract" | "world_setup" | "character_setup" | "volume_strategy" | "structured_outline" | null {
   const itemKey = input.currentItemKey?.trim() || "";
-  const sessionPhase = input.seedPayload.directorSession?.phase?.trim() || "";
+  const sessionPhase = input.directorTaskData.directorSession?.phase?.trim() || "";
   const normalized = itemKey || sessionPhase;
   if (normalized === "story_macro" || normalized === "book_contract") {
     return normalized;
@@ -257,12 +225,13 @@ export class NovelDirectorContinueRuntime {
       return;
     }
 
-    const seedPayload = parseSeedPayload<DirectorWorkflowSeedPayload>(row.seedPayloadJson) ?? {};
-    const directorInput = getDirectorInputFromSeedPayload(seedPayload);
-    const novelId = row.novelId ?? seedPayload.novelId ?? null;
-    const fallbackRunMode = typeof seedPayload.runMode === "string"
-      && (DIRECTOR_RUN_MODES as readonly string[]).includes(seedPayload.runMode)
-      ? seedPayload.runMode as (typeof DIRECTOR_RUN_MODES)[number]
+    const storedState = await new DirectorStateReader().readTaskStateById(row.id);
+    const directorTaskData = (storedState ? toDirectorTaskDataView(storedState) : {}) as DirectorWorkflowSeedPayload;
+    const directorInput = getDirectorInputFromSeedPayload(directorTaskData);
+    const novelId = row.novelId ?? directorTaskData.novelId ?? null;
+    const fallbackRunMode = typeof directorTaskData.runMode === "string"
+      && (DIRECTOR_RUN_MODES as readonly string[]).includes(directorTaskData.runMode)
+      ? directorTaskData.runMode as (typeof DIRECTOR_RUN_MODES)[number]
       : undefined;
     const storedRunMode = normalizeDirectorRunMode(directorInput?.runMode ?? fallbackRunMode);
     await this.deps.directorRuntime.initializeRun({
@@ -287,7 +256,7 @@ export class NovelDirectorContinueRuntime {
       status: row.status,
       checkpointType: row.checkpointType,
       currentItemKey: row.currentItemKey,
-      seedPayload,
+      directorTaskData,
     });
     if (resumedCandidateStage) {
       return;
@@ -331,9 +300,8 @@ export class NovelDirectorContinueRuntime {
 
     if (assetFirstRecovery?.type === "auto_execution") {
       const checkpointChapterId = (
-        parseResumeTargetLike(row.resumeTargetJson)?.chapterId
-        ?? parseResumeTargetLike(seedPayload.resumeTarget)?.chapterId
-        ?? seedPayload.autoExecution?.nextChapterId
+        storedState?.run.resumeTarget?.chapterId
+        ?? directorTaskData.autoExecution?.nextChapterId
         ?? null
       );
       const firstUnwrittenChapter = requestedReplanRecovery
@@ -347,7 +315,23 @@ export class NovelDirectorContinueRuntime {
         })
         : null;
       const resumedChapterId = firstUnwrittenChapter?.id ?? checkpointChapterId;
-      await new DirectorTaskStateWriter(this.deps.workflowService).markRunning(taskId, {
+      const stateWriter = new DirectorTaskStateWriter(this.deps.workflowService);
+      const nextTaskData = this.deps.buildDirectorSeedPayload(effectiveDirectorInput, novelId, {
+        directorSession: buildDirectorSessionState({
+          runMode: effectiveDirectorInput.runMode,
+          phase: "chapter_execution",
+          isBackgroundRunning: true,
+        }),
+        resumeTarget: buildNovelEditResumeTarget({
+          novelId,
+          taskId,
+          stage: "pipeline",
+          chapterId: resumedChapterId,
+        }),
+        autoExecution: directorTaskData.autoExecution ?? null,
+      });
+      await stateWriter.updateDirectorRunStateFromTaskData(taskId, nextTaskData);
+      await stateWriter.markRunning(taskId, {
         stage: assetFirstRecovery.resumeCheckpointType === "replan_required" ? "quality_repair" : "chapter_execution",
         itemKey: assetFirstRecovery.resumeCheckpointType === "replan_required" ? "quality_repair" : "chapter_execution",
         itemLabel: assetFirstRecovery.resumeCheckpointType === "replan_required"
@@ -355,20 +339,6 @@ export class NovelDirectorContinueRuntime {
           : "正在根据当前内容恢复章节执行",
         progress: assetFirstRecovery.resumeCheckpointType === "replan_required" ? 0.975 : 0.93,
         clearCheckpoint: assetFirstRecovery.resumeCheckpointType === "chapter_batch_ready",
-        seedPayload: this.deps.buildDirectorSeedPayload(effectiveDirectorInput, novelId, {
-          directorSession: buildDirectorSessionState({
-            runMode: effectiveDirectorInput.runMode,
-            phase: "chapter_execution",
-            isBackgroundRunning: true,
-          }),
-          resumeTarget: buildNovelEditResumeTarget({
-            novelId,
-            taskId,
-            stage: "pipeline",
-            chapterId: resumedChapterId,
-          }),
-          autoExecution: seedPayload.autoExecution ?? null,
-        }),
       });
       this.deps.scheduleBackgroundRun(taskId, async () => {
         if (requestedReplanRecovery) {
@@ -399,8 +369,8 @@ export class NovelDirectorContinueRuntime {
             taskId,
             novelId,
             request: effectiveDirectorInput,
-            existingPipelineJobId: seedPayload.autoExecution?.pipelineJobId ?? null,
-            existingState: seedPayload.autoExecution ?? null,
+            existingPipelineJobId: directorTaskData.autoExecution?.pipelineJobId ?? null,
+            existingState: directorTaskData.autoExecution ?? null,
             resumeCheckpointType: "chapter_batch_ready",
             previousFailureMessage: row.lastError ?? null,
             allowSkipReviewBlockedChapter: canSkipReviewBlockedChapter,
@@ -412,8 +382,8 @@ export class NovelDirectorContinueRuntime {
           taskId,
           novelId,
           request: effectiveDirectorInput,
-          existingPipelineJobId: seedPayload.autoExecution?.pipelineJobId ?? null,
-          existingState: seedPayload.autoExecution ?? null,
+          existingPipelineJobId: directorTaskData.autoExecution?.pipelineJobId ?? null,
+          existingState: directorTaskData.autoExecution ?? null,
           resumeCheckpointType: assetFirstRecovery.resumeCheckpointType,
           previousFailureMessage: row.lastError ?? null,
           allowSkipReviewBlockedChapter: canSkipReviewBlockedChapter,
@@ -427,7 +397,7 @@ export class NovelDirectorContinueRuntime {
 
     const inferredPhase = inferPhaseFromTaskState({
       currentItemKey: row.currentItemKey,
-      seedPayload,
+      directorTaskData,
     });
     const phase = assetFirstRecovery?.type === "phase"
       ? assetFirstRecovery.phase
@@ -438,10 +408,7 @@ export class NovelDirectorContinueRuntime {
       phase: directorSessionPhase,
       isBackgroundRunning: true,
     });
-    const recoveryResumeTarget = mergeResumeTargets(
-      parseResumeTargetLike(row.resumeTargetJson),
-      parseResumeTargetLike(seedPayload.resumeTarget),
-    );
+    const recoveryResumeTarget = storedState?.run.resumeTarget ?? null;
     const resumeTarget = buildNovelEditResumeTarget({
       novelId,
       taskId,
@@ -461,16 +428,16 @@ export class NovelDirectorContinueRuntime {
         batchAlreadyStartedCount: input?.batchAlreadyStartedCount,
       });
     }
-    await new DirectorTaskStateWriter(this.deps.workflowService).initializeTask({
-      workflowTaskId: taskId,
-      novelId,
-      lane: "auto_director",
-      title: effectiveDirectorInput.candidate.workingTitle,
-      seedPayload: this.deps.buildDirectorSeedPayload(effectiveDirectorInput, novelId, {
+    await new DirectorTaskStateWriter(this.deps.workflowService).updateDirectorRunStateFromTaskData(
+      taskId,
+      this.deps.buildDirectorSeedPayload(effectiveDirectorInput, novelId, {
         directorSession,
         resumeTarget,
       }),
-    });
+      {
+        title: effectiveDirectorInput.candidate.workingTitle,
+      },
+    );
     await new DirectorTaskStateWriter(this.deps.workflowService).markRunning(taskId, {
       ...resolveDirectorRunningStateForPhase(phase === "book_contract" ? "story_macro" : phase),
       volumeId: recoveryResumeTarget?.volumeId,

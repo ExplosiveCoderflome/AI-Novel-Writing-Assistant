@@ -18,9 +18,8 @@ import type { NovelContextService } from "../../NovelContextService";
 import type { NovelWorkflowService } from "../../workflow/NovelWorkflowService";
 import {
   buildNovelEditResumeTarget,
-  parseSeedPayload,
-  parseResumeTarget,
 } from "../../workflow/novelWorkflow.shared";
+import { DirectorStateReader, toDirectorTaskDataView } from "../state/DirectorStateReader";
 import { novelFramingSuggestionService } from "../../NovelFramingSuggestionService";
 import { resolveDirectorBookFraming } from "./novelDirectorFraming";
 import {
@@ -89,7 +88,7 @@ export class NovelDirectorConfirmRuntime {
       workflowTaskId: resolvedInput.workflowTaskId,
       lane: "auto_director",
       title,
-      seedPayload: this.deps.buildDirectorSeedPayload({ ...resolvedInput, runMode }, null, {
+      directorState: this.deps.buildDirectorSeedPayload({ ...resolvedInput, runMode }, null, {
         startupPreparation: resolvedInput.startupPreparation,
         directorSession: buildDirectorSessionState({
           runMode,
@@ -97,12 +96,12 @@ export class NovelDirectorConfirmRuntime {
           isBackgroundRunning: false,
         }),
       }),
-    });
+    }, { replaceLaunchContract: "candidate_confirmation" });
     const expectedCarryoverMode = resolvedInput.writingMode === "continuation" && resolvedInput.continuationBookAnalysisId
       ? "continuation" as const
       : resolvedInput.referenceBookAnalysisId ? "adaptation" as const : "";
     const adoptedCarryover = workflowTask.novelId ? null : requireAdoptedCreativeCarryoverContract(
-      parseSeedPayload<DirectorWorkflowSeedPayload>(workflowTask.seedPayloadJson)?.creativeCarryoverContract,
+      (await new DirectorStateReader().readTaskDataById(workflowTask.id) as DirectorWorkflowSeedPayload | null)?.creativeCarryoverContract,
       expectedCarryoverMode,
       expectedCarryoverMode === "continuation"
         ? resolvedInput.continuationBookAnalysisId
@@ -333,7 +332,7 @@ export class NovelDirectorConfirmRuntime {
           novelId: createdNovel.id,
           lane: "auto_director",
           title,
-          seedPayload: this.deps.buildDirectorSeedPayload(executionDirectorInput, createdNovel.id, {
+          directorState: this.deps.buildDirectorSeedPayload(executionDirectorInput, createdNovel.id, {
             startupPreparation: executionDirectorInput.startupPreparation,
             directorSession,
             resumeTarget,
@@ -417,13 +416,14 @@ export class NovelDirectorConfirmRuntime {
     if (!novel) {
       throw new Error("自动导演确认链未能读取已创建的小说项目。");
     }
-    const seedPayload = parseSeedPayload<DirectorWorkflowSeedPayload>(task.seedPayloadJson) ?? {};
-    const directorSession = seedPayload.directorSession ?? buildDirectorSessionState({
+    const storedState = await new DirectorStateReader().readTaskStateById(task.id);
+    const directorTaskData = (storedState ? toDirectorTaskDataView(storedState) : {}) as DirectorWorkflowSeedPayload;
+    const directorSession = directorTaskData.directorSession ?? buildDirectorSessionState({
       runMode: normalizeDirectorRunMode(input.runMode),
       phase: "story_macro",
       isBackgroundRunning: true,
     });
-    const resumeTarget = parseResumeTarget(task.resumeTargetJson) ?? buildNovelEditResumeTarget({
+    const resumeTarget = storedState?.run.resumeTarget ?? buildNovelEditResumeTarget({
       novelId: task.novelId,
       taskId: task.id,
       stage: "story_macro",

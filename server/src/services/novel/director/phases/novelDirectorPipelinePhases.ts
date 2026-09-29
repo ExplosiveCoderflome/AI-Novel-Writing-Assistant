@@ -1,4 +1,5 @@
 import { DirectorTaskStateWriter } from "../state";
+import { splitDirectorTaskState } from "../state/DirectorStateReader";
 import type { VolumePlanDocument } from "@ai-novel/shared/types/novel";
 import type { DirectorConfirmRequest } from "@ai-novel/shared/types/novelDirector";
 import { buildCharacterCastBlockedMessage } from "../../characterPrep/characterCastQuality";
@@ -101,7 +102,7 @@ export async function runDirectorCharacterSetupPhase(input: {
     novelId,
     lane: "auto_director",
     title: request.candidate.workingTitle,
-    seedPayload: callbacks.buildDirectorSeedPayload(request, novelId, {
+    directorState: callbacks.buildDirectorSeedPayload(request, novelId, {
       directorSession,
       resumeTarget,
     }),
@@ -156,16 +157,18 @@ export async function runDirectorCharacterSetupPhase(input: {
       "角色阵容候选已生成，但当前自动质量闸未通过，不能直接自动应用。",
       buildCharacterCastBlockedMessage(assessment),
     ].join("\n");
-    await new DirectorTaskStateWriter(dependencies.workflowService).persistCheckpoint(taskId, {
+    const directorTaskData = callbacks.buildDirectorSeedPayload(request, novelId, {
+      directorSession: blockedSession,
+      resumeTarget,
+    });
+    const stateWriter = new DirectorTaskStateWriter(dependencies.workflowService);
+    await stateWriter.updateDirectorRunStateFromTaskData(taskId, directorTaskData);
+    await stateWriter.persistCheckpoint(taskId, {
       stage: "character_setup",
       checkpointType: "character_setup_required",
       checkpointSummary: reason,
       itemLabel: "等待审核角色准备",
       progress: DIRECTOR_PROGRESS.characterSetup,
-      seedPayload: callbacks.buildDirectorSeedPayload(request, novelId, {
-        directorSession: blockedSession,
-        resumeTarget,
-      }),
     });
     return {
       status: "waiting_review",
@@ -228,16 +231,20 @@ export async function runDirectorCharacterSetupPhase(input: {
     isBackgroundRunning: false,
   });
   const reason = `角色准备已生成并应用「${targetOption.title}」。建议先检查核心角色、关系与当前目标，再继续自动导演。`;
-  await new DirectorTaskStateWriter(dependencies.workflowService).persistCheckpoint(taskId, {
+  const stateWriter = new DirectorTaskStateWriter(dependencies.workflowService);
+  const nextState = splitDirectorTaskState(callbacks.buildDirectorSeedPayload(request, novelId, {
+    directorSession: pausedSession,
+    resumeTarget,
+  }));
+  await stateWriter.updateDirectorRunState(taskId, {
+    directorSession: nextState.run.directorSession,
+  });
+  await stateWriter.persistCheckpoint(taskId, {
     stage: "character_setup",
     checkpointType: "character_setup_required",
     checkpointSummary: reason,
     itemLabel: "等待审核角色准备",
     progress: DIRECTOR_PROGRESS.characterSetupReady,
-    seedPayload: callbacks.buildDirectorSeedPayload(request, novelId, {
-      directorSession: pausedSession,
-      resumeTarget,
-    }),
   });
   return {
     status: "applied_waiting_review",
@@ -271,7 +278,7 @@ export async function runDirectorVolumeStrategyPhase(input: {
     novelId,
     lane: "auto_director",
     title: request.candidate.workingTitle,
-    seedPayload: callbacks.buildDirectorSeedPayload(request, novelId, {
+    directorState: callbacks.buildDirectorSeedPayload(request, novelId, {
       directorSession,
       resumeTarget,
     }),
@@ -379,16 +386,18 @@ export async function runDirectorVolumeStrategyPhase(input: {
     phase: "volume_strategy",
     isBackgroundRunning: false,
   });
-  await new DirectorTaskStateWriter(dependencies.workflowService).persistCheckpoint(taskId, {
+  const directorTaskData = callbacks.buildDirectorSeedPayload(request, novelId, {
+    directorSession: pausedSession,
+    resumeTarget,
+  });
+  const stateWriter = new DirectorTaskStateWriter(dependencies.workflowService);
+  await stateWriter.updateDirectorRunStateFromTaskData(taskId, directorTaskData);
+  await stateWriter.persistCheckpoint(taskId, {
     stage: "volume_strategy",
     checkpointType: "volume_strategy_ready",
     checkpointSummary: `卷战略与卷骨架已生成，共 ${persistedStrategyWorkspace.volumes.length} 卷。确认无误后再继续第 1 卷节奏与拆章。`,
     itemLabel: "等待审核卷战略 / 卷骨架",
     progress: DIRECTOR_PROGRESS.volumeStrategyReady,
-    seedPayload: callbacks.buildDirectorSeedPayload(request, novelId, {
-      directorSession: pausedSession,
-      resumeTarget,
-    }),
   });
   return null;
 }

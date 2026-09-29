@@ -7,6 +7,10 @@ import { validate } from "../../../../middleware/validate";
 import { DirectorCommandService } from "../commands/DirectorCommandService";
 import { DirectorProductionExperienceService } from "../commands/DirectorProductionExperienceService";
 import { NovelWorkflowService } from "../../workflow/NovelWorkflowService";
+import {
+  novelWorkflowBootstrapBodySchema,
+  parseNovelWorkflowBootstrapBody,
+} from "../../workflow/http/novelWorkflowBootstrapBody";
 import { NovelWorkflowTaskAdapter } from "../../../task/adapters/NovelWorkflowTaskAdapter";
 
 const router = Router();
@@ -38,14 +42,6 @@ const checkpointSchema = z.enum([
   "replan_required",
   "workflow_completed",
 ]);
-
-const bootstrapSchema = z.object({
-  workflowTaskId: z.string().trim().optional(),
-  novelId: z.string().trim().optional(),
-  lane: z.enum(["manual_create", "auto_director"]),
-  title: z.string().trim().optional(),
-  seedPayload: z.record(z.string(), z.unknown()).optional(),
-});
 
 const continueParamsSchema = z.object({
   id: z.string().trim().min(1),
@@ -82,10 +78,10 @@ const syncStageSchema = z.object({
 
 router.use(authMiddleware);
 
-router.post("/bootstrap", validate({ body: bootstrapSchema }), async (req, res, next) => {
+router.post("/bootstrap", validate({ body: novelWorkflowBootstrapBodySchema }), async (req, res, next) => {
   try {
-    const body = req.body as z.infer<typeof bootstrapSchema>;
-    const row = await new DirectorTaskStateWriter(workflowService).initializeTask(body);
+    const bootstrapInput = parseNovelWorkflowBootstrapBody(req.body);
+    const row = await new DirectorTaskStateWriter(workflowService).initializeTask(bootstrapInput);
     const data = await workflowAdapter.detail(row.id);
     res.status(200).json({
       success: true,
@@ -101,7 +97,7 @@ router.get("/novels/:novelId/auto-director", validate({ params: novelParamsSchem
   try {
     const { novelId } = req.params as z.infer<typeof novelParamsSchema>;
     const row = await workflowService.findActiveDirectorTask(novelId);
-    const data = row ? await workflowAdapter.detail(row.id, { seedPayloadMode: "compact" }) : null;
+    const data = row ? await workflowAdapter.detail(row.id, { directorTaskDataMode: "compact" }) : null;
     res.status(200).json({
       success: true,
       data,

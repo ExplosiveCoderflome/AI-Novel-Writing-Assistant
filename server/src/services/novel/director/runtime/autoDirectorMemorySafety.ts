@@ -5,7 +5,7 @@ import {
   startHighMemoryReservationRenewal,
   type HighMemoryReservationHandle,
 } from "../../highMemoryReservation";
-import { parseResumeTarget } from "../../workflow/novelWorkflow.shared";
+import { readDirectorTaskState } from "../state";
 import type { NovelWorkflowService } from "../../workflow/NovelWorkflowService";
 
 export const AUTO_DIRECTOR_HIGH_MEMORY_BATCH_LIMIT = 1;
@@ -76,7 +76,7 @@ function listActiveDirectorTaskSnapshots(rows: WorkflowTaskRow[]): ActiveDirecto
     status: row.status,
     currentStage: row.currentStage,
     currentItemKey: row.currentItemKey,
-    resumeTarget: parseResumeTarget(row.resumeTargetJson),
+    resumeTarget: readDirectorTaskState(row).run.resumeTarget ?? null,
   }));
 }
 
