@@ -1,8 +1,21 @@
 const test = require("node:test");
 const assert = require("node:assert/strict");
 
-const { DirectorTaskStateWriter } = require("../dist/services/novel/director/state/index.js");
-const { NovelWorkflowService } = require("../dist/services/novel/workflow/NovelWorkflowService.js");
+const Module = require("node:module");
+const originalLoad = Module._load;
+let DirectorTaskStateWriter;
+let NovelWorkflowService;
+try {
+  // Intercept before importing the service graph: these are memory-only tests.
+  Module._load = function (request, parent, isMain) {
+    if (/[\\/]db[\\/]prisma(?:\.js)?$/.test(request)) return { prisma: {} };
+    return originalLoad.call(this, request, parent, isMain);
+  };
+  ({ DirectorTaskStateWriter } = require("../dist/services/novel/director/state/index.js"));
+  ({ NovelWorkflowService } = require("../dist/services/novel/workflow/NovelWorkflowService.js"));
+} finally {
+  Module._load = originalLoad;
+}
 
 test("semantic state transitions delegate to their workflow application methods", async () => {
   const calls = [];
@@ -270,4 +283,71 @@ test("run updates ignore the deprecated director runtime snapshot", async () => 
   assert.equal(persisted.directorRuntime, undefined);
   assert.equal(persisted.runMode, "auto_to_ready");
   assert.deepEqual(persisted.directorSession, { phase: "chapter_execution" });
+});
+
+for (const pendingManualRecovery of [false, { set: false }]) {
+  for (const entrypoint of ["updateRunState", "updateRunStateMany", "updateDirectorRunState", "updateDirectorRunStateMany", "updateDirectorRunStateFromTaskData"]) {
+    test(`${entrypoint} rejects manual recovery clear ${JSON.stringify(pendingManualRecovery)} before persistence`, async () => {
+      const writes = [];
+      const writer = new DirectorTaskStateWriter({
+        async getTaskById() {
+          return { id: "task-locked", lane: "auto_director", pendingManualRecovery: true, seedPayloadJson: "{}" };
+        },
+        async updateTaskWithRetry(args) { writes.push(args); return args; },
+        async updateTaskManyWithRetry(args) { writes.push(args); return { count: 1 }; },
+      });
+      const data = { pendingManualRecovery };
+      await assert.rejects(async () => {
+        if (entrypoint === "updateRunState") return writer.updateRunState({ where: { id: "task-locked" }, data });
+        if (entrypoint === "updateRunStateMany") return writer.updateRunState({ where: { id: "task-locked" }, data }, { many: true });
+        if (entrypoint === "updateDirectorRunStateMany") return writer.updateDirectorRunStateMany({ where: { id: "task-locked" }, data }, {});
+        return writer[entrypoint]("task-locked", { directorSession: { phase: "chapter_execution" } }, data);
+      }, /clearPendingManualRecovery/);
+      assert.deepEqual(writes, []);
+    });
+  }
+}
+
+for (const scenario of [
+  { name: "omitted", patch: {}, expected: { route: "/novels/novel-1/edit", chapterId: "saved-chapter" }, writesColumn: false },
+  { name: "explicit null", patch: { resumeTarget: null }, expected: null, writesColumn: true },
+  { name: "object", patch: { resumeTarget: { route: "/novels/novel-1/edit", chapterId: "next-chapter" } }, expected: { route: "/novels/novel-1/edit", chapterId: "next-chapter" }, writesColumn: true },
+]) {
+  test(`flat run update respects ${scenario.name} resume target`, async () => {
+    let task = {
+      id: "task-resume", lane: "auto_director", seedPayloadJson: JSON.stringify({ runMode: "auto_to_ready" }),
+      resumeTargetJson: JSON.stringify({ route: "/novels/novel-1/edit", chapterId: "saved-chapter" }),
+    };
+    const writes = [];
+    const writer = new DirectorTaskStateWriter({
+      async getTaskById() { return task; },
+      async updateTaskWithRetry({ data }) { writes.push(data); task = { ...task, ...data }; return task; },
+    });
+    await writer.updateDirectorRunStateFromTaskData(task.id, { directorSession: { phase: "chapter_execution" }, ...scenario.patch });
+    assert.deepEqual(JSON.parse(task.resumeTargetJson), scenario.expected);
+    assert.equal(Object.hasOwn(writes[0], "resumeTargetJson"), scenario.writesColumn);
+    assert.equal(Object.hasOwn(JSON.parse(task.seedPayloadJson), "resumeTarget"), false);
+  });
+}
+
+test("candidate checkpoint and retry use workflow transitions and preserve the manual lock", async () => {
+  let task = {
+    id: "task-candidate", lane: "auto_director", novelId: null, status: "running", progress: 0.1,
+    checkpointType: null, pendingManualRecovery: true, cancelRequestedAt: null, attemptCount: 2,
+    seedPayloadJson: JSON.stringify({ idea: "候选创意" }), milestonesJson: "[]",
+  };
+  const workflow = new NovelWorkflowService();
+  workflow.getTaskById = async () => task;
+  workflow.updateWorkflowTaskWithNotifications = async ({ data }) => (task = { ...task, ...data });
+  const writer = new DirectorTaskStateWriter(workflow);
+  await writer.markCandidateSelectionRequired(task.id, { summary: "请选择故事方向", seedPayload: { batches: [{ id: "batch-1" }] } });
+  assert.equal(task.status, "waiting_approval");
+  assert.equal(task.checkpointType, "candidate_selection_required");
+  assert.deepEqual(JSON.parse(task.seedPayloadJson).batches, [{ id: "batch-1" }]);
+  assert.equal(JSON.parse(task.seedPayloadJson).idea, "候选创意");
+  assert.equal(task.pendingManualRecovery, true);
+  await writer.retryTask(task.id);
+  assert.equal(task.attemptCount, 3);
+  assert.equal(task.status, "waiting_approval");
+  assert.equal(task.pendingManualRecovery, true);
 });

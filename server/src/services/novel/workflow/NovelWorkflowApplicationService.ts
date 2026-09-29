@@ -35,7 +35,12 @@ export class NovelWorkflowApplicationService {
     return this.workflow.getNovelTitle(novelId);
   }
 
-  async bootstrapTask(input: BootstrapWorkflowInput) {
+  async bootstrapTask(
+    input: BootstrapWorkflowInput,
+    // Internal persistence option: the Writer has already validated and composed
+    // a complete launch/run state. Keep it outside the public bootstrap input.
+    options: { replaceSeedPayload?: boolean } = {},
+  ) {
     if (input.workflowTaskId?.trim()) {
       const existing = await this.workflow.getTaskById(input.workflowTaskId.trim());
       if (existing) {
@@ -48,6 +53,17 @@ export class NovelWorkflowApplicationService {
         }
         if (input.novelId?.trim() && existing.novelId !== input.novelId.trim()) {
           if (isPreNovelAutoDirectorCandidateTask(existing)) {
+            // Candidate creation owns attachment, but a validated launch
+            // replacement must still be saved before that later boundary.
+            if (options.replaceSeedPayload && input.seedPayload) {
+              return this.workflow.updateTaskWithRetry({
+                where: { id: existing.id },
+                data: {
+                  seedPayloadJson: JSON.stringify(input.seedPayload),
+                  heartbeatAt: new Date(),
+                },
+              });
+            }
             return existing;
           }
           const attached = await this.attachNovelToTask(existing.id, input.novelId.trim());
@@ -55,7 +71,9 @@ export class NovelWorkflowApplicationService {
             return this.workflow.updateTaskWithRetry({
               where: { id: attached.id },
               data: {
-                seedPayloadJson: mergeSeedPayload(attached.seedPayloadJson, input.seedPayload),
+                seedPayloadJson: options.replaceSeedPayload
+                  ? JSON.stringify(input.seedPayload)
+                  : mergeSeedPayload(attached.seedPayloadJson, input.seedPayload),
                 heartbeatAt: new Date(),
               },
             });
@@ -66,7 +84,9 @@ export class NovelWorkflowApplicationService {
           return this.workflow.updateTaskWithRetry({
             where: { id: existing.id },
             data: {
-              seedPayloadJson: mergeSeedPayload(existing.seedPayloadJson, input.seedPayload),
+              seedPayloadJson: options.replaceSeedPayload
+                ? JSON.stringify(input.seedPayload)
+                : mergeSeedPayload(existing.seedPayloadJson, input.seedPayload),
               heartbeatAt: new Date(),
             },
           });
