@@ -4,7 +4,7 @@
 
 依据 [独立验收报告](auto-director-stage3-acceptance-2026-09-29.md) 的 3-1～3-9、R3/S2 和对账日志缺口执行返工。用户已授权修复、分批提交、不推送。执行分支 `refactor/director-simplification`，返工起点 `eb4fcee7`。
 
-**返工实现与自动化复验已完成。** Guard、全仓类型检查及完整 fast/integration 与直接基点的失败身份对照均已通过；独立代码审阅尚未执行，阶段四的人工动作表决策仍需单独确认。
+**返工实现与补充复验已完成；用户复验指出的最后一项测试失败已关闭，满足本次阶段三放行条件。** Guard、全仓类型检查及完整 fast/integration 的验证记录见下文；独立代码审阅尚未执行，阶段四的人工动作表决策仍需单独确认。
 
 | 批次 | 对应问题 | 状态 |
 | --- | --- | --- |
@@ -47,7 +47,7 @@ node server/.tmp/stage3-acceptance-run.cjs D:/code/ai/server fast stage3-rework-
 
 主控复核还发现整体定稿会清除候选 Seed 中已采用的创作承接方案。追加的完整确认链测试先复现该缺失，随后将已验证方案纳入最终合同，关联前后均保持相同方案。
 
-新鲜 server 编译通过。定向 fast 四文件 76 项中 75 通过；唯一失败是直接基点也存在的 `novelDirectorConfirmDedup.test.js` 缺 DeepSeek API Key。重试 integration 单文件 16/16 通过。创作承接方案的追加回归先 4/5、修复后 5/5；完整 fast/integration 与基点的最终对照将在全部返工批次结束后执行。本批尚不代表阶段三复验通过。
+新鲜 server 编译通过。定向 fast 四文件 76 项中 75 通过；`novelDirectorConfirmDedup.test.js` 当时在缺少 DeepSeek API Key 的执行环境中提前失败，因此未覆盖确认链后段的测试替身缺口，不能据此认定该项在有密钥的环境中也属于基点失败。重试 integration 单文件 16/16 通过。创作承接方案的追加回归先 4/5、修复后 5/5；完整 fast/integration 与基点的最终对照将在全部返工批次结束后执行。本批尚不代表阶段三复验通过。
 
 ## 批次 3 第一片：有效步骤输入与替换关系
 
@@ -75,3 +75,13 @@ node server/.tmp/stage3-acceptance-run.cjs D:/code/ai/server fast stage3-rework-
 两套失败身份清单逐项一致；历史失败的具体名单见[独立验收报告](auto-director-stage3-acceptance-2026-09-29.md)。当前报告保留在 `server/.tmp/stage3-rework-task5-full-fast-fast.xml` 与 `server/.tmp/stage3-rework-task5-full-integration-integration.xml`，基点报告分别为 `D:/code/ai-baseline-d3a9ca99/server/.tmp/stage3-acceptance-baseline-20260929-{fast,integration}.xml`。比较使用 `server/.tmp/stage3-acceptance-compare.cjs`，同时核对新增失败与基点失败消失；完整套件退出码为 1 是上述历史失败，并非全部通过。
 
 本批仅写验收记录；长期边界已写入 auto-director runtime wiki，没有新增其他稳定规则。代码审阅由本次执行者自行检查关键调用链与 diff；受项目子代理授权规则限制，未启动独立审阅者，故本报告只给出自动化复验结论，不冒称独立代码审阅已完成。既有 60 秒 Worker 对账窗口维持已批准边界，阶段四动作表仍需用户确认。
+
+## 补充返工：确认开书测试的环境遮蔽（2026-09-30）
+
+用户在有模型密钥的环境，以 `150777b7` 对照阶段 1 终点 `6013eb31`，发现 fast 新增一项失败：`novelDirectorConfirmDedup.test.js` 的“通过标准运行节点创建小说”。模型请求成功后，测试内手写的工作流服务替身缺少 `getTaskById`，导致状态写入器在实际持久化阶段报错。前述“基点也存在、仅因缺少密钥”的归因只描述了执行者环境的提前失败，不能解释此项新增失败；上面的完整套件对照也仅能证明该无密钥环境下失败身份一致。
+
+将此测试的资源推荐和平台资料改为固定测试返回，明确选择平台并阻止结构化模型调用；测试不再依赖外部密钥。工作流替身现在保存可读、可更新的任务行，支持 `getTaskById` 与 `updateTaskWithRetry`，关联小说时同步任务行。原有创建节点、任务状态和小说关联断言保留，并追加关联及运行阶段落盘断言。隔离库定向复现：模型调用被隔离后 2/3 通过，失败定位为缺少任务读取；补齐后 3/3 通过。此补充只修测试契约与验收记录，没有修改生产运行逻辑。
+
+使用非空的无效测试密钥重复定向验证仍为 3/3 通过；结构化模型入口若被调用会立即抛错。完整 fast 重新运行结果为 1484/1433 通过/39 失败/12 跳过，与同环境直接基点 `d3a9ca99` 的 1393/1341/40/12 按“文件＋用例名”比较，新增失败：无；减少的失败仅为上述确认开书用例。报告产物：`server/.tmp/stage3-confirm-dedup-{red,green2,key-independent,full-fast}-fast.xml`。该结果没有冒称在用户环境重跑 `6013eb31`；用户此前以该终点对照发现的新增失败，已由同名用例稳定通过关闭。
+
+本轮仅修改测试与报告，复用 `abeb5158` 上通过的 shared/server 编译、全仓 typecheck、Guard 12/12，以及 `stage3-rework-task5-full-integration-integration.xml` 的完整 integration 144/132/10/2；这些生产路径未被本轮改动影响。用户环境 integration 保持历史 6 项失败的结果来自用户复验，不能与执行者环境的 10 项混写。测试替身修正未引入新的长期架构规则，无新增 wiki 价值；发布说明和 README 不记录这项纯内部测试修复。阶段四草稿及开书页未提交改动不属于此次验证范围。

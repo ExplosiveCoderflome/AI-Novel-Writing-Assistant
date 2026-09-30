@@ -4,6 +4,9 @@ require("../dist/app.js");
 const { NovelDirectorService } = require("../dist/services/novel/director/NovelDirectorService.js");
 const { NovelDirectorConfirmRuntime } = require("../dist/services/novel/director/runtime/novelDirectorConfirmRuntime.js");
 const { prisma } = require("../dist/db/prisma.js");
+const { novelCreateResourceRecommendationService } = require("../dist/services/novel/NovelCreateResourceRecommendationService.js");
+const { writingPlatformProfileService } = require("../dist/modules/novel/writing-platform/application/WritingPlatformProfileService.js");
+const promptRunner = require("../dist/prompting/core/promptRunner.js");
 
 function buildDirectorInput(overrides = {}) {
   return {
@@ -193,23 +196,52 @@ test("confirm runtime creates the novel through the standard runtime node", asyn
   const calls = [];
   const backgroundRuns = [];
   const builtSeeds = [];
+  let taskRow = null;
   const input = buildDirectorInput({
     targetAudience: "新手作者",
     bookSellingPoint: "低门槛完成整本书",
     competingFeel: "稳定推进",
     first30ChapterPromise: "前 30 章持续兑现成长",
     commercialTags: ["AI 写作", "长篇完成"],
+    writingPlatformPreference: "fanqie_free",
   });
+  const originals = {
+    resolveRequired: novelCreateResourceRecommendationService.resolveRequired,
+    snapshot: writingPlatformProfileService.snapshot,
+    runStructuredPrompt: promptRunner.runStructuredPrompt,
+  };
+  novelCreateResourceRecommendationService.resolveRequired = async () => ({
+    genreId: "genre_demo",
+    primaryStoryModeId: "story_mode_demo",
+    secondaryStoryModeId: null,
+    recommendation: {
+      summary: "稳定的测试推荐",
+      genre: { id: "genre_demo", name: "测试题材", path: "测试题材", reason: "测试选择" },
+      primaryStoryMode: { id: "story_mode_demo", name: "测试推进", path: "测试推进", reason: "测试选择" },
+      secondaryStoryMode: null,
+    },
+  });
+  writingPlatformProfileService.snapshot = async () => ({ profileVersion: "test-v1" });
+  promptRunner.runStructuredPrompt = async () => {
+    throw new Error("confirm runtime must not invoke an external model in this test");
+  };
   const runtime = new NovelDirectorConfirmRuntime({
     workflowService: {
-      bootstrapTask: async ({ novelId }) => {
+      bootstrapTask: async ({ novelId, seedPayload }) => {
         calls.push(["bootstrapTask", novelId ?? null]);
-        return {
+        taskRow = {
           id: "task_dedup_demo",
+          lane: "auto_director",
           novelId: novelId ?? null,
-          seedPayloadJson: buildSeedPayloadJson(),
+          seedPayloadJson: JSON.stringify(seedPayload),
           resumeTargetJson: novelId ? buildResumeTargetJson(novelId, "task_dedup_demo") : null,
         };
+        return taskRow;
+      },
+      getTaskById: async () => taskRow,
+      updateTaskWithRetry: async ({ data }) => {
+        taskRow = { ...taskRow, ...data };
+        return taskRow;
       },
       claimAutoDirectorNovelCreation: async () => {
         calls.push(["claim"]);
@@ -220,6 +252,7 @@ test("confirm runtime creates the novel through the standard runtime node", asyn
       },
       attachNovelToTask: async (_taskId, novelId, stage) => {
         calls.push(["attachNovelToTask", novelId, stage]);
+        taskRow = { ...taskRow, novelId };
       },
       markTaskFailed: async (_taskId, message) => {
         calls.push(["markTaskFailed", message]);
@@ -286,6 +319,9 @@ test("confirm runtime creates the novel through the standard runtime node", asyn
     result = await runtime.confirmCandidate(input);
   } finally {
     prisma.novel.update = originalNovelUpdate;
+    novelCreateResourceRecommendationService.resolveRequired = originals.resolveRequired;
+    writingPlatformProfileService.snapshot = originals.snapshot;
+    promptRunner.runStructuredPrompt = originals.runStructuredPrompt;
   }
 
   assert.equal(result.novel.id, "novel_created_demo");
@@ -310,4 +346,6 @@ test("confirm runtime creates the novel through the standard runtime node", asyn
   )));
   assert.ok(calls.some((call) => call[0] === "analyzeWorkspace" && call[1] === "novel_created_demo"));
   assert.ok(calls.some((call) => call[0] === "attachNovelToTask" && call[1] === "novel_created_demo"));
+  assert.equal(taskRow.novelId, "novel_created_demo");
+  assert.equal(JSON.parse(taskRow.seedPayloadJson).directorSession.phase, "story_macro");
 });
