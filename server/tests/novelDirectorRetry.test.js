@@ -462,6 +462,7 @@ test("continueTask ignores stale candidate-stage state after the workflow has en
     assert.equal(runningCalls[0].itemKey, "book_contract");
     assert.equal(scheduledRuns.length, 1);
     assert.equal(pipelineRuns.length, 1);
+    assert.equal(pipelineRuns[0].novelId, "novel_story_macro_resume");
     assert.equal(pipelineRuns[0].startPhase, "story_macro");
     assert.equal(pipelineRuns[0].scope, "book");
   } finally {

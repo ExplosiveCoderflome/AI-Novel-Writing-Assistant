@@ -18,7 +18,7 @@ export type AutomationLedgerEventPort = Pick<
 
 export type NovelDirectorAutoExecutionWorkflowPort = Pick<
   NovelWorkflowService,
-  "bootstrapTask" | "getTaskById" | "markTaskRunning" | "recordCheckpoint" | "markTaskFailed" | "requeueTaskForRecovery"
+  "getTaskById" | "updateTaskWithRetry" | "markTaskRunning" | "recordCheckpoint" | "markTaskFailed" | "requeueTaskForRecovery"
 >;
 
 export interface NovelDirectorAutoExecutionNovelPort {

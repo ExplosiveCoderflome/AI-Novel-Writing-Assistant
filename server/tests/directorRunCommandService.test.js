@@ -149,6 +149,7 @@ function createHarness(task = createTask(), pipelineJob = null, options = {}) {
       task.id = input.workflowTaskId?.trim() || (input.novelId ? `takeover-task-${commands.length + 1}` : task.id);
       task.novelId = input.novelId ?? null;
       task.lane = input.lane;
+      task.seedPayloadJson = JSON.stringify(input.seedPayload ?? {});
       task.status = "queued";
       task.updatedAt = new Date(task.updatedAt.getTime() + 1);
       return task;
@@ -565,6 +566,55 @@ test("director command service queues policy updates without directly mutating r
 });
 
 test("director command service preserves an explicit chapter range while applying full-book autopilot approval", async () => {
+  const harness = createHarness(createTask({
+    novelId: null,
+    status: "waiting_approval",
+    seedPayloadJson: JSON.stringify({
+      issueGovernanceVersion: 1,
+      issuePolicy: { maxAutomaticRetries: 1, issueActions: {} },
+      issuePolicySource: "global",
+      runMode: "auto_to_execution",
+    }),
+  }));
+  try {
+    await harness.service.enqueueConfirmCandidateCommand(createConfirmRequest({
+      runMode: "full_book_autopilot",
+      autoExecutionPlan: {
+        mode: "chapter_range",
+        endOrder: 10,
+        autoReview: false,
+        autoRepair: false,
+      },
+      autoApproval: {
+        enabled: false,
+        approvalPointCodes: ["candidate_direction_confirmed"],
+      },
+    }));
+
+    const payload = JSON.parse(harness.commands[0].payloadJson);
+    assert.equal(payload.confirmRequest.runMode, "full_book_autopilot");
+    assert.deepEqual(payload.confirmRequest.autoExecutionPlan, {
+      mode: "chapter_range",
+      endOrder: 10,
+      autoReview: false,
+      autoRepair: false,
+    });
+    assert.equal(payload.confirmRequest.autoApproval.enabled, true);
+    assert.ok(payload.confirmRequest.autoApproval.approvalPointCodes.includes("chapter_execution_continue"));
+    assert.ok(payload.confirmRequest.autoApproval.approvalPointCodes.includes("replan_continue"));
+    assert.deepEqual(harness.bootstraps[0].seedPayload.autoExecutionPlan, {
+      mode: "chapter_range",
+      endOrder: 10,
+      autoReview: false,
+      autoRepair: false,
+    });
+    assert.equal(harness.bootstraps[0].seedPayload.autoApproval.enabled, true);
+  } finally {
+    harness.restore();
+  }
+});
+
+test("director command service preserves an explicit chapter range while applying full-book autopilot approval from an existing full-book launch", async () => {
   const harness = createHarness(createTask({
     novelId: null,
     status: "waiting_approval",
@@ -1315,6 +1365,41 @@ test("director command stale recovery applies the task policy instead of only re
 
 test("director command service applies the single governance retry budget to full-book stale leases", async () => {
   const harness = createHarness(createTask({
+    novelId: null,
+    status: "running",
+    pendingManualRecovery: false,
+    lastError: null,
+    seedPayloadJson: JSON.stringify({
+      issueGovernanceVersion: 1,
+      issuePolicy: { maxAutomaticRetries: 1, issueActions: {} },
+      issuePolicySource: "global",
+      runMode: "auto_to_execution",
+    }),
+  }));
+  try {
+    await harness.service.enqueueConfirmCandidateCommand(createConfirmRequest({
+      runMode: "full_book_autopilot",
+    }));
+    harness.commands[0].status = "running";
+    harness.commands[0].leaseOwner = "worker-a";
+    harness.commands[0].attempt = 2;
+    harness.commands[0].leaseExpiresAt = new Date("2026-04-29T12:00:00.000Z");
+
+    const count = await harness.service.recoverStaleLeases(new Date("2026-04-29T12:01:00.000Z"));
+
+    assert.equal(count, 1);
+    assert.equal(harness.commands[0].status, "stale");
+    assert.equal(harness.requeued.length, 1);
+    assert.equal(harness.task.status, "queued");
+    assert.equal(harness.task.pendingManualRecovery, true);
+  } finally {
+    harness.restore();
+  }
+});
+
+test("director command service applies the single governance retry budget to full-book stale leases from an existing full-book launch", async () => {
+  const harness = createHarness(createTask({
+    novelId: null,
     status: "running",
     pendingManualRecovery: false,
     lastError: null,
@@ -1421,6 +1506,49 @@ test("non-recovery director commands cannot clear the manual recovery lock by de
     assert.equal(harness.task.pendingManualRecovery, true);
     assert.equal(harness.task.lastError, "等待用户恢复。");
     assert.equal(harness.taskUpdates.length, 0);
+  } finally {
+    harness.restore();
+  }
+});
+
+test("repeat confirm command preserves an attached launch and reuses its active command", async () => {
+  const harness = createHarness(createTask({ novelId: null }));
+  try {
+    const request = createConfirmRequest();
+    const first = await harness.service.enqueueConfirmCandidateCommand(request);
+    harness.task.novelId = "novel-created";
+    const frozen = harness.task.seedPayloadJson;
+    const second = await harness.service.enqueueConfirmCandidateCommand(request);
+    assert.equal(second.commandId, first.commandId);
+    assert.equal(harness.commands.length, 1);
+    assert.equal(harness.task.novelId, "novel-created");
+    assert.equal(harness.task.seedPayloadJson, frozen);
+    assert.equal(harness.bootstraps.length, 1);
+  } finally {
+    harness.restore();
+  }
+});
+
+test("repeat confirm command preserves the creation claim and resolved unbound contract", async () => {
+  const harness = createHarness(createTask({ novelId: null }));
+  try {
+    const request = createConfirmRequest();
+    const first = await harness.service.enqueueConfirmCandidateCommand(request);
+    harness.commands[0].status = "running";
+    harness.commands[0].leaseExpiresAt = new Date(Date.now() + 60_000);
+    harness.task.status = "running";
+    harness.task.currentItemKey = "novel_create";
+    const resolved = JSON.parse(harness.task.seedPayloadJson);
+    resolved.directorInput.genreId = "resolved-genre";
+    harness.task.seedPayloadJson = JSON.stringify(resolved);
+    const frozen = harness.task.seedPayloadJson;
+    const second = await harness.service.enqueueConfirmCandidateCommand(request);
+    assert.equal(second.commandId, first.commandId);
+    assert.equal(harness.commands.length, 1);
+    assert.equal(harness.task.seedPayloadJson, frozen);
+    assert.equal(harness.task.currentItemKey, "novel_create");
+    assert.equal(harness.task.status, "running");
+    assert.equal(harness.bootstraps.length, 1);
   } finally {
     harness.restore();
   }

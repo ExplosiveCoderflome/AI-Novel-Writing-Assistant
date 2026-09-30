@@ -70,6 +70,7 @@ test("confirmCandidate reuses an already attached novel instead of creating a du
   const service = new NovelDirectorService();
   const originals = {
     bootstrapTask: service.workflowService.bootstrapTask,
+    getTaskByIdWithoutHealing: service.workflowService.getTaskByIdWithoutHealing,
     claimAutoDirectorNovelCreation: service.workflowService.claimAutoDirectorNovelCreation,
     getNovelById: service.novelContextService.getNovelById,
     createNovel: service.novelContextService.createNovel,
@@ -78,8 +79,9 @@ test("confirmCandidate reuses an already attached novel instead of creating a du
   let claimCalls = 0;
   const runtimeInitializations = [];
 
-  service.workflowService.bootstrapTask = async () => ({
+  service.workflowService.getTaskByIdWithoutHealing = async () => ({
     id: "task_dedup_demo",
+    lane: "auto_director",
     novelId: "novel_existing_demo",
     seedPayloadJson: buildSeedPayloadJson(),
     resumeTargetJson: buildResumeTargetJson("novel_existing_demo", "task_dedup_demo"),
@@ -107,6 +109,7 @@ test("confirmCandidate reuses an already attached novel instead of creating a du
     assert.deepEqual(runtimeInitializations.map((item) => item.novelId), ["novel_existing_demo"]);
   } finally {
     service.workflowService.bootstrapTask = originals.bootstrapTask;
+    service.workflowService.getTaskByIdWithoutHealing = originals.getTaskByIdWithoutHealing;
     service.workflowService.claimAutoDirectorNovelCreation = originals.claimAutoDirectorNovelCreation;
     service.novelContextService.getNovelById = originals.getNovelById;
     service.novelContextService.createNovel = originals.createNovel;
@@ -124,6 +127,7 @@ test("confirmCandidate returns the in-flight novel instead of creating a second 
   };
   let createCalls = 0;
   let pollCalls = 0;
+  let waitingForCreation = false;
   const runtimeInitializations = [];
 
   service.workflowService.bootstrapTask = async () => ({
@@ -132,22 +136,27 @@ test("confirmCandidate returns the in-flight novel instead of creating a second 
     seedPayloadJson: buildSeedPayloadJson(),
     resumeTargetJson: null,
   });
-  service.workflowService.claimAutoDirectorNovelCreation = async () => ({
+  service.workflowService.claimAutoDirectorNovelCreation = async () => {
+    waitingForCreation = true;
+    return {
     status: "in_progress",
     task: {
       id: "task_dedup_demo",
+      lane: "auto_director",
       novelId: null,
       status: "running",
       lastError: null,
       seedPayloadJson: buildSeedPayloadJson(),
       resumeTargetJson: null,
     },
-  });
+    };
+  };
   service.workflowService.getTaskByIdWithoutHealing = async () => {
-    pollCalls += 1;
+    if (waitingForCreation) pollCalls += 1;
     return {
       id: "task_dedup_demo",
-      novelId: "novel_existing_demo",
+      lane: "auto_director",
+      novelId: waitingForCreation ? "novel_existing_demo" : null,
       status: "running",
       lastError: null,
       seedPayloadJson: buildSeedPayloadJson(),

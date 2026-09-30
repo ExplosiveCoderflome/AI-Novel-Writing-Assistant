@@ -276,7 +276,21 @@ export class DirectorCommandService {
       existingTaskState ? toDirectorTaskDataView(existingTaskState) as ConfirmTaskSeedPayload : null,
     ));
     const runMode = confirmedInput.runMode;
-    const task = await new DirectorTaskStateWriter(this.workflowService).initializeTask({
+    const activeConfirmation = existingTask && !existingTask.novelId
+      ? await prisma.directorRunCommand.findFirst({
+        where: {
+          taskId: existingTask.id,
+          commandType: "confirm_candidate",
+          status: { in: ACTIVE_COMMAND_STATUSES },
+        },
+      })
+      : null;
+    // A repeated request must not replace a contract already being resolved by
+    // the worker, or reset a task that has attached its novel. Command acceptance
+    // below still owns stale-lease, manual-lock and active-command checks.
+    const task = existingTask && (existingTask.novelId || activeConfirmation)
+      ? existingTask
+      : await new DirectorTaskStateWriter(this.workflowService).initializeTask({
       workflowTaskId: input.workflowTaskId,
       lane: "auto_director",
       title: input.candidate.workingTitle.trim() || input.title?.trim() || "自动导演开书",
@@ -293,8 +307,7 @@ export class DirectorCommandService {
         itemLabel: "等待创建小说项目",
         progress: 0.18,
       },
-
-    });
+    }, existingTask ? { replaceLaunchContract: "candidate_confirmation" } : undefined);
     return this.enqueueExecutionCommand({
       taskId: task.id,
       commandType: "confirm_candidate",

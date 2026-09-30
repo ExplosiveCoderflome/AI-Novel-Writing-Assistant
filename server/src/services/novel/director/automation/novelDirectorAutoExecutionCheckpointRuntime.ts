@@ -25,7 +25,9 @@ import { buildDirectorQualityRepairRisk } from "../phases/novelDirectorQualityRe
 
 export type AutoExecutionResumeStage = "chapter" | "pipeline";
 
-export type AutoExecutionWorkflowCheckpointPort = Pick<NovelWorkflowService, "bootstrapTask" | "recordCheckpoint">;
+export type AutoExecutionWorkflowCheckpointPort = Pick<NovelWorkflowService,
+  "getTaskById" | "updateTaskWithRetry" | "recordCheckpoint"
+>;
 
 export interface AutoExecutionCheckpointRuntimeDeps {
   workflowService: AutoExecutionWorkflowCheckpointPort;
@@ -73,17 +75,15 @@ export async function syncAutoExecutionTaskState(
     stage: input.resumeStage ?? "pipeline",
     chapterId: input.autoExecution.nextChapterId ?? input.range.firstChapterId,
   });
-  await new DirectorTaskStateWriter(deps.workflowService).initializeTask({
-    workflowTaskId: input.taskId,
-    novelId: input.novelId,
-    lane: "auto_director",
-    title: input.request.candidate.workingTitle,
-    directorState: deps.buildDirectorSeedPayload(input.request, input.novelId, {
+  await new DirectorTaskStateWriter(deps.workflowService).updateDirectorRunStateFromTaskData(
+    input.taskId,
+    deps.buildDirectorSeedPayload(input.request, input.novelId, {
       directorSession,
       resumeTarget,
       autoExecution: input.autoExecution,
     }),
-  });
+    { title: input.request.candidate.workingTitle },
+  );
 }
 
 export async function recordCompletedCheckpoint(

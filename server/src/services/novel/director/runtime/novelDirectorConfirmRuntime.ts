@@ -84,7 +84,15 @@ export class NovelDirectorConfirmRuntime {
       resolvedInput.idea,
       resolvedInput.estimatedChapterCount,
     );
-    const workflowTask = await new DirectorTaskStateWriter(this.deps.workflowService).initializeTask({
+    const existingTask = resolvedInput.workflowTaskId?.trim()
+      ? await this.deps.workflowService.getTaskByIdWithoutHealing(resolvedInput.workflowTaskId.trim())
+      : null;
+    if (existingTask && existingTask.lane !== "auto_director") {
+      throw new Error("Candidate confirmation requires an auto director task.");
+    }
+    // Repeated confirmations must reach the creation claim without rewriting the
+    // winner's contract, including the interval before the novel is attached.
+    const workflowTask = existingTask ?? await new DirectorTaskStateWriter(this.deps.workflowService).initializeTask({
       workflowTaskId: resolvedInput.workflowTaskId,
       lane: "auto_director",
       title,
@@ -96,7 +104,7 @@ export class NovelDirectorConfirmRuntime {
           isBackgroundRunning: false,
         }),
       }),
-    }, { replaceLaunchContract: "candidate_confirmation" });
+    });
     const expectedCarryoverMode = resolvedInput.writingMode === "continuation" && resolvedInput.continuationBookAnalysisId
       ? "continuation" as const
       : resolvedInput.referenceBookAnalysisId ? "adaptation" as const : "";
@@ -235,6 +243,23 @@ export class NovelDirectorConfirmRuntime {
             })).output.platform;
         const platformSnapshot = await writingPlatformProfileService.snapshot(selectedPlatform, "long_novel");
 
+        // Only the creation-claim owner finalizes the complete startup contract.
+        // Attachment closes this boundary; subsequent progress writes are run-only.
+        await new DirectorTaskStateWriter(this.deps.workflowService).initializeTask({
+          workflowTaskId: workflowTask.id,
+          lane: "auto_director",
+          title,
+          directorState: this.deps.buildDirectorSeedPayload(resolvedDirectorInput, null, {
+            startupPreparation: resolvedDirectorInput.startupPreparation,
+            creativeCarryoverContract: adoptedCarryover,
+            directorSession: buildDirectorSessionState({
+              runMode,
+              phase: "candidate_selection",
+              isBackgroundRunning: false,
+            }),
+          }),
+        }, { replaceLaunchContract: "candidate_confirmation" });
+
         const novelCreateModule = getDirectorConfirmNovelCreateStepModule();
         const createdNovel = await this.deps.runtimeOrchestrator.runStepModule({
           module: novelCreateModule,
@@ -327,17 +352,15 @@ export class NovelDirectorConfirmRuntime {
           taskId: workflowTask.id,
           stage: "story_macro",
         });
-        await new DirectorTaskStateWriter(this.deps.workflowService).initializeTask({
-          workflowTaskId: workflowTask.id,
-          novelId: createdNovel.id,
-          lane: "auto_director",
-          title,
-          directorState: this.deps.buildDirectorSeedPayload(executionDirectorInput, createdNovel.id, {
+        await new DirectorTaskStateWriter(this.deps.workflowService).updateDirectorRunStateFromTaskData(
+          workflowTask.id,
+          this.deps.buildDirectorSeedPayload(executionDirectorInput, createdNovel.id, {
             startupPreparation: executionDirectorInput.startupPreparation,
             directorSession,
             resumeTarget,
           }),
-        });
+          { title },
+        );
         await this.deps.directorRuntime.initializeRun({
           taskId: workflowTask.id,
           novelId: createdNovel.id,

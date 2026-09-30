@@ -22,38 +22,26 @@ function withDirectorTaskStatePort(workflowService) {
   const tasks = new Map();
   return {
     ...workflowService,
-    async bootstrapTask(input) {
-      const result = await workflowService.bootstrapTask?.(input);
-      const taskId = result?.id ?? input.workflowTaskId?.trim();
-      if (taskId) {
-        tasks.set(taskId, {
-          id: taskId,
-          novelId: input.novelId ?? null,
-          lane: input.lane,
-          seedPayloadJson: JSON.stringify(input.seedPayload ?? {}),
-        });
-      }
-      return result;
-    },
     async getTaskById(taskId) {
       const result = await workflowService.getTaskById?.(taskId);
-      const stored = tasks.get(taskId);
-      if (!result && !stored) return result;
-      return {
-        ...stored,
-        ...result,
-        id: result?.id ?? stored?.id ?? taskId,
-        lane: result?.lane ?? stored?.lane ?? "auto_director",
-        seedPayloadJson: result?.seedPayloadJson ?? stored?.seedPayloadJson ?? "{}",
-      };
+      let stored = tasks.get(taskId);
+      if (!stored) {
+        stored = {
+          id: taskId, novelId: "novel-1", lane: "auto_director", status: "running",
+          pendingManualRecovery: false, resumeTargetJson: null, seedPayloadJson: "{}",
+        };
+        tasks.set(taskId, stored);
+      }
+      return { ...stored, ...result };
     },
     async updateTaskWithRetry(args, transaction) {
-      const taskId = args.where?.id;
-      const current = (taskId && tasks.get(taskId)) ?? {};
+      const taskId = args.where.id;
+      const current = tasks.get(taskId);
+      assert.ok(current, "runtime writes require an existing task");
       const updated = { ...current, ...args.data };
-      if (taskId) tasks.set(taskId, updated);
-      const result = await workflowService.updateTaskWithRetry?.(args, transaction);
-      return result ?? updated;
+      tasks.set(taskId, updated);
+      await workflowService.updateTaskWithRetry?.(args, transaction);
+      return updated;
     },
     async recordCheckpoint(taskId, input) {
       const stored = tasks.get(taskId);
@@ -156,8 +144,9 @@ test("circuit-breaker governance continues, pauses, or fails the real workflow s
       calls,
       deps: {
         workflowService: withDirectorTaskStatePort({
-          async bootstrapTask(input) {
-            calls.push(["bootstrapTask", input.seedPayload.autoExecution.circuitBreaker.status]);
+          async updateTaskWithRetry({ data }) {
+            const input = { seedPayload: JSON.parse(data.seedPayloadJson) };
+            calls.push(["updateRunState", input.seedPayload.autoExecution.circuitBreaker.status]);
           },
           async recordCheckpoint() {},
           async markTaskFailed() {
@@ -206,7 +195,7 @@ test("circuit-breaker governance continues, pauses, or fails the real workflow s
     selectedAction = "continue_with_warning";
     await stopAutoExecutionForCircuitBreaker(continued.deps, baseInput);
     assert.equal(continued.task.status, "running");
-    assert.deepEqual(continued.calls, [["bootstrapTask", "closed"]]);
+    assert.deepEqual(continued.calls, [["updateRunState", "closed"]]);
 
     const paused = buildHarness();
     selectedAction = "pause_for_manual";
@@ -253,7 +242,7 @@ test("legacy circuit breakers load compatible governance instead of using the ol
   const calls = [];
   const deps = {
     workflowService: withDirectorTaskStatePort({
-      async bootstrapTask() { calls.push("continued"); },
+      async updateTaskWithRetry() { calls.push("continued"); },
       async recordCheckpoint() {},
       async markTaskFailed() { calls.push("failed"); },
       async requeueTaskForRecovery() { calls.push("paused"); },
@@ -417,8 +406,9 @@ test("runFromReady completes immediately when repaired chapters leave no remaini
       },
     },
     workflowService: withDirectorTaskStatePort({
-      async bootstrapTask(input) {
-        calls.push(["bootstrapTask", input.seedPayload.autoExecution.remainingChapterCount]);
+      async updateTaskWithRetry({ data }) {
+        const input = { seedPayload: JSON.parse(data.seedPayloadJson) };
+        calls.push(["updateRunState", input.seedPayload.autoExecution.remainingChapterCount]);
       },
       async getTaskById() {
         return { status: "waiting_approval" };
@@ -459,11 +449,12 @@ test("runFromReady completes immediately when repaired chapters leave no remaini
     },
   });
 
-  assert.equal(calls.length, 2);
-  assert.deepEqual(calls[0], ["bootstrapTask", 0]);
-  assert.deepEqual(calls[1].slice(0, 3), ["recordCheckpoint", "task-auto-exec", "workflow_completed"]);
-  assert.match(String(calls[1][3]), /第 1-2 章自动执行完成/);
-  assert.equal(calls[1][4], 0);
+  assert.equal(calls.length, 3);
+  assert.deepEqual(calls[0], ["updateRunState", 0]);
+  assert.deepEqual(calls[1], ["updateRunState", 0]);
+  assert.deepEqual(calls[2].slice(0, 3), ["recordCheckpoint", "task-auto-exec", "workflow_completed"]);
+  assert.match(String(calls[2][3]), /第 1-2 章自动执行完成/);
+  assert.equal(calls[2][4], 0);
 });
 
 test("runFromReady keeps partial structured outline windows resumable after the current beat completes", async () => {
@@ -490,8 +481,9 @@ test("runFromReady keeps partial structured outline windows resumable after the 
       async cancelPipelineJob() {},
     },
     workflowService: withDirectorTaskStatePort({
-      async bootstrapTask(input) {
-        calls.push(["bootstrapTask", input.seedPayload.autoExecution.volumeChapterListComplete]);
+      async updateTaskWithRetry({ data }) {
+        const input = { seedPayload: JSON.parse(data.seedPayloadJson) };
+        calls.push(["updateRunState", input.seedPayload.autoExecution.volumeChapterListComplete]);
       },
       async getTaskById() {
         return { status: "waiting_approval" };
@@ -534,7 +526,8 @@ test("runFromReady keeps partial structured outline windows resumable after the 
   });
 
   assert.deepEqual(calls, [
-    ["bootstrapTask", false],
+    ["updateRunState", false],
+    ["updateRunState", false],
     ["recordCheckpoint", "task-partial-auto-exec", "chapter_batch_ready", "structured_outline", 0, false],
   ]);
 });
@@ -580,8 +573,9 @@ test("runFromReady reuses an existing active range job before starting a new pip
       },
     },
     workflowService: withDirectorTaskStatePort({
-      async bootstrapTask(input) {
-        calls.push(["bootstrapTask", input.seedPayload.autoExecution.pipelineJobId, input.seedPayload.autoExecution.pipelineStatus]);
+      async updateTaskWithRetry({ data }) {
+        const input = { seedPayload: JSON.parse(data.seedPayloadJson) };
+        calls.push(["updateRunState", input.seedPayload.autoExecution.pipelineJobId, input.seedPayload.autoExecution.pipelineStatus]);
       },
       async getTaskById() {
         return { status: "running" };
@@ -619,10 +613,11 @@ test("runFromReady reuses an existing active range job before starting a new pip
 
   assert.deepEqual(calls, [
     ["getPipelineJobById", "job-stale"],
-    ["bootstrapTask", null, "queued"],
+    ["updateRunState", null, "queued"],
     ["findActivePipelineJobForRange", "novel-1", 1, 1, null],
-    ["bootstrapTask", "job-active", "running"],
+    ["updateRunState", "job-active", "running"],
     ["getPipelineJobById", "job-active"],
+    ["updateRunState", "job-active", "succeeded"],
     ["recordCheckpoint", "task-auto-exec", "job-active", "succeeded"],
   ]);
 });
@@ -670,9 +665,10 @@ test("runFromReady treats explicit range continuation as approval for quality-al
       },
     },
     workflowService: withDirectorTaskStatePort({
-      async bootstrapTask(input) {
+      async updateTaskWithRetry({ data }) {
+        const input = { seedPayload: JSON.parse(data.seedPayloadJson) };
         calls.push([
-          "bootstrapTask",
+          "updateRunState",
           input.seedPayload.autoExecution.pipelineJobId,
           input.seedPayload.autoExecution.pipelineStatus,
           input.seedPayload.autoExecution.remainingChapterCount,
@@ -765,8 +761,9 @@ test("runFromReady keeps a pending manual-recovery pipeline job paused", async (
       },
     },
     workflowService: withDirectorTaskStatePort({
-      async bootstrapTask(input) {
-        calls.push(["bootstrapTask", input.seedPayload.autoExecution.pipelineJobId, input.seedPayload.autoExecution.pipelineStatus]);
+      async updateTaskWithRetry({ data }) {
+        const input = { seedPayload: JSON.parse(data.seedPayloadJson) };
+        calls.push(["updateRunState", input.seedPayload.autoExecution.pipelineJobId, input.seedPayload.autoExecution.pipelineStatus]);
       },
       async getTaskById() {
         return { status: "running" };
@@ -807,11 +804,11 @@ test("runFromReady keeps a pending manual-recovery pipeline job paused", async (
 
   assert.deepEqual(calls, [
     ["getPipelineJobById", "job-paused"],
-    ["bootstrapTask", "job-paused", "running"],
+    ["updateRunState", "job-paused", "running"],
     ["findActivePipelineJobForRange", "novel-1", 1, 1, "job-paused"],
     ["getPipelineJobById", "job-paused"],
     ["requeueTaskForRecovery", "chapter_batch_ready"],
-    ["bootstrapTask", "job-paused", "queued"],
+    ["updateRunState", "job-paused", "queued"],
   ]);
 });
 
@@ -852,8 +849,9 @@ test("runFromReady records a normal checkpoint when pipeline completes with qual
       },
     },
     workflowService: withDirectorTaskStatePort({
-      async bootstrapTask(input) {
-        calls.push(["bootstrapTask", input.seedPayload.autoExecution.pipelineStatus]);
+      async updateTaskWithRetry({ data }) {
+        const input = { seedPayload: JSON.parse(data.seedPayloadJson) };
+        calls.push(["updateRunState", input.seedPayload.autoExecution.pipelineStatus]);
       },
       async getTaskById() {
         return { status: "running" };
@@ -895,18 +893,19 @@ test("runFromReady records a normal checkpoint when pipeline completes with qual
     },
   });
 
-  assert.equal(calls.length, 7);
-  assert.deepEqual(calls[0], ["bootstrapTask", "queued"]);
+  assert.equal(calls.length, 8);
+  assert.deepEqual(calls[0], ["updateRunState", "queued"]);
   assert.deepEqual(calls[1], ["markTaskRunning", true]);
   assert.deepEqual(calls[2], ["startPipelineJob"]);
-  assert.deepEqual(calls[3], ["bootstrapTask", "queued"]);
+  assert.deepEqual(calls[3], ["updateRunState", "queued"]);
   assert.deepEqual(calls[4], ["getPipelineJobById", "job-quality"]);
-  assert.equal(calls[5][0], "recordCheckpoint");
-  assert.equal(calls[5][1], "task-auto-exec");
-  assert.equal(calls[5][2], "chapter_batch_ready");
-  assert.ok(String(calls[5][3]).length > 0);
-  assert.equal(calls[5][4], "succeeded");
-  assert.deepEqual(calls[6], ["bootstrapTask", "succeeded"]);
+  assert.deepEqual(calls[5], ["updateRunState", "succeeded"]);
+  assert.equal(calls[6][0], "recordCheckpoint");
+  assert.equal(calls[6][1], "task-auto-exec");
+  assert.equal(calls[6][2], "chapter_batch_ready");
+  assert.ok(String(calls[6][3]).length > 0);
+  assert.equal(calls[6][4], "succeeded");
+  assert.deepEqual(calls[7], ["updateRunState", "succeeded"]);
 });
 
 test("runFromReady notifies and continues low-risk quality repair in AI-driver execution", async () => {
@@ -977,8 +976,9 @@ test("runFromReady notifies and continues low-risk quality repair in AI-driver e
       },
     },
     workflowService: withDirectorTaskStatePort({
-      async bootstrapTask(input) {
-        calls.push(["bootstrapTask", input.seedPayload.autoExecution.qualityRepairRisk?.riskLevel ?? null]);
+      async updateTaskWithRetry({ data }) {
+        const input = { seedPayload: JSON.parse(data.seedPayloadJson) };
+        calls.push(["updateRunState", input.seedPayload.autoExecution.qualityRepairRisk?.riskLevel ?? null]);
       },
       async getTaskById() {
         return { status: "running" };
@@ -1073,8 +1073,9 @@ test("runFromReady notifies final low-risk quality repair without pausing AI-dri
       },
     },
     workflowService: withDirectorTaskStatePort({
-      async bootstrapTask(input) {
-        calls.push(["bootstrapTask", input.seedPayload.autoExecution?.remainingChapterCount ?? null]);
+      async updateTaskWithRetry({ data }) {
+        const input = { seedPayload: JSON.parse(data.seedPayloadJson) };
+        calls.push(["updateRunState", input.seedPayload.autoExecution?.remainingChapterCount ?? null]);
       },
       async getTaskById() {
         return { status: "running" };
@@ -1188,8 +1189,9 @@ test("runFromReady honors approval selection for low-risk quality repair outside
       },
     },
     workflowService: withDirectorTaskStatePort({
-      async bootstrapTask(input) {
-        calls.push(["bootstrapTask", input.seedPayload.autoExecution?.pipelineJobId ?? null]);
+      async updateTaskWithRetry({ data }) {
+        const input = { seedPayload: JSON.parse(data.seedPayloadJson) };
+        calls.push(["updateRunState", input.seedPayload.autoExecution?.pipelineJobId ?? null]);
       },
       async getTaskById() {
         return { status: "running" };
@@ -1317,8 +1319,9 @@ test("runFromReady pauses replan notices in AI-driver execution", async () => {
       },
     },
     workflowService: withDirectorTaskStatePort({
-      async bootstrapTask(input) {
-        calls.push(["bootstrapTask", input.seedPayload.autoExecution?.qualityRepairRisk?.riskLevel ?? null]);
+      async updateTaskWithRetry({ data }) {
+        const input = { seedPayload: JSON.parse(data.seedPayloadJson) };
+        calls.push(["updateRunState", input.seedPayload.autoExecution?.qualityRepairRisk?.riskLevel ?? null]);
       },
       async getTaskById() {
         return { status: "running" };
@@ -1428,9 +1431,10 @@ test("runFromReady can skip a replan notice and continue the remaining auto-exec
       },
     },
     workflowService: withDirectorTaskStatePort({
-      async bootstrapTask(input) {
+      async updateTaskWithRetry({ data }) {
+        const input = { seedPayload: JSON.parse(data.seedPayloadJson) };
         calls.push([
-          "bootstrapTask",
+          "updateRunState",
           input.seedPayload.autoExecution?.qualityDebtChapterOrders ?? [],
         ]);
       },
@@ -1478,8 +1482,8 @@ test("runFromReady can skip a replan notice and continue the remaining auto-exec
     [2, 2],
     [3, 3],
   ]);
-  assert.ok(calls.some((call) => call[0] === "bootstrapTask" && Array.isArray(call[1]) && call[1].includes(1)));
-  assert.equal(calls.some((call) => call[0] === "bootstrapTask" && Array.isArray(call[1]) && call[1].includes(2)), false);
+  assert.ok(calls.some((call) => call[0] === "updateRunState" && Array.isArray(call[1]) && call[1].includes(1)));
+  assert.equal(calls.some((call) => call[0] === "updateRunState" && Array.isArray(call[1]) && call[1].includes(2)), false);
   assert.equal(calls.some((call) => call[0] === "recordCheckpoint" && call[2] === "replan_required"), false);
   assert.ok(calls.some((call) => call[0] === "recordCheckpoint" && call[2] === "workflow_completed"));
 });
@@ -1587,8 +1591,9 @@ test("runFromReady keeps full-book replan notices blocking instead of auto-compl
       async cancelPipelineJob() {},
     },
     workflowService: withDirectorTaskStatePort({
-      async bootstrapTask(input) {
-        calls.push(["bootstrapTask", input.seedPayload.autoExecution?.qualityRepairRisk?.riskLevel ?? null]);
+      async updateTaskWithRetry({ data }) {
+        const input = { seedPayload: JSON.parse(data.seedPayloadJson) };
+        calls.push(["updateRunState", input.seedPayload.autoExecution?.qualityRepairRisk?.riskLevel ?? null]);
       },
       async getTaskById() {
         return { status: "running" };
@@ -1712,9 +1717,10 @@ test("runFromReady keeps repeated full-book replan loops as replan checkpoints",
       },
     },
     workflowService: withDirectorTaskStatePort({
-      async bootstrapTask(input) {
+      async updateTaskWithRetry({ data }) {
+        const input = { seedPayload: JSON.parse(data.seedPayloadJson) };
         calls.push([
-          "bootstrapTask",
+          "updateRunState",
           input.seedPayload.autoExecution?.nextChapterOrder ?? null,
           input.seedPayload.autoExecution?.skippedChapterOrders ?? [],
           input.seedPayload.autoExecution?.qualityDebtChapterOrders ?? [],
@@ -1830,8 +1836,9 @@ test("runFromReady records replan_required outside AI-driver execution when pipe
       },
     },
     workflowService: withDirectorTaskStatePort({
-      async bootstrapTask(input) {
-        calls.push(["bootstrapTask", input.seedPayload.autoExecution.pipelineStatus]);
+      async updateTaskWithRetry({ data }) {
+        const input = { seedPayload: JSON.parse(data.seedPayloadJson) };
+        calls.push(["updateRunState", input.seedPayload.autoExecution.pipelineStatus]);
       },
       async getTaskById() {
         return { status: "running" };
@@ -1872,10 +1879,11 @@ test("runFromReady records replan_required outside AI-driver execution when pipe
     },
   });
 
-  assert.equal(calls[5][0], "recordCheckpoint");
-  assert.equal(calls[5][2], "replan_required");
-  assert.match(String(calls[5][3]), /等待处理重规划建议/);
-  assert.match(String(calls[5][4]), /replan/i);
+  assert.deepEqual(calls[5], ["updateRunState", "succeeded"]);
+  assert.equal(calls[6][0], "recordCheckpoint");
+  assert.equal(calls[6][2], "replan_required");
+  assert.match(String(calls[6][3]), /等待处理重规划建议/);
+  assert.match(String(calls[6][4]), /replan/i);
 });
 
 test("runFromReady uses the latest auto-execution review toggles instead of stale saved state when starting a new batch", async () => {
@@ -1917,9 +1925,10 @@ test("runFromReady uses the latest auto-execution review toggles instead of stal
       },
     },
     workflowService: withDirectorTaskStatePort({
-      async bootstrapTask(input) {
+      async updateTaskWithRetry({ data }) {
+        const input = { seedPayload: JSON.parse(data.seedPayloadJson) };
         calls.push([
-          "bootstrapTask",
+          "updateRunState",
           input.seedPayload.autoExecution?.autoReview ?? null,
           input.seedPayload.autoExecution?.autoRepair ?? null,
         ]);
@@ -1970,12 +1979,13 @@ test("runFromReady uses the latest auto-execution review toggles instead of stal
     },
   });
 
-  assert.deepEqual(calls[0], ["bootstrapTask", false, false]);
+  assert.deepEqual(calls[0], ["updateRunState", false, false]);
   assert.deepEqual(calls[1], ["markTaskRunning"]);
   assert.deepEqual(calls[2], ["startPipelineJob", 1, 1, false, false]);
-  assert.deepEqual(calls[3], ["bootstrapTask", false, false]);
+  assert.deepEqual(calls[3], ["updateRunState", false, false]);
   assert.deepEqual(calls[4], ["getPipelineJobById", "job-no-review"]);
-  assert.deepEqual(calls[5], ["recordCheckpoint", "task-auto-exec", false, false]);
+  assert.deepEqual(calls[5], ["updateRunState", false, false]);
+  assert.deepEqual(calls[6], ["recordCheckpoint", "task-auto-exec", false, false]);
 });
 
 test("runFromReady skips the current review-blocked chapter when continuing explicit auto execution", async () => {
@@ -2028,9 +2038,10 @@ test("runFromReady skips the current review-blocked chapter when continuing expl
       },
     },
     workflowService: withDirectorTaskStatePort({
-      async bootstrapTask(input) {
+      async updateTaskWithRetry({ data }) {
+        const input = { seedPayload: JSON.parse(data.seedPayloadJson) };
         calls.push([
-          "bootstrapTask",
+          "updateRunState",
           input.seedPayload.autoExecution?.nextChapterOrder ?? null,
           input.seedPayload.autoExecution?.skippedChapterOrders ?? [],
         ]);
@@ -2077,7 +2088,7 @@ test("runFromReady skips the current review-blocked chapter when continuing expl
     allowSkipReviewBlockedChapter: true,
   });
 
-  assert.deepEqual(calls[0], ["bootstrapTask", 2, [1]]);
+  assert.deepEqual(calls[0], ["updateRunState", 2, [1]]);
   assert.deepEqual(calls[1], ["findActivePipelineJobForRange", 2, 2, null]);
   assert.deepEqual(calls.filter((call) => call[0] === "startPipelineJob").map((call) => call.slice(1)), [
     [2, 2],
@@ -2126,8 +2137,8 @@ test("prepareRequestedAutoExecution resolves the selected volume range instead o
       },
     },
     workflowService: withDirectorTaskStatePort({
-      async bootstrapTask() {
-        throw new Error("should not bootstrap in prepareRequestedAutoExecution");
+      async updateTaskWithRetry() {
+        throw new Error("should not persist progress in prepareRequestedAutoExecution");
       },
       async getTaskById() {
         return { status: "waiting_approval" };
@@ -2222,8 +2233,8 @@ test("prepareRequestedAutoExecution refreshes a stale volume range after chapter
       },
     },
     workflowService: withDirectorTaskStatePort({
-      async bootstrapTask() {
-        throw new Error("should not bootstrap in prepareRequestedAutoExecution");
+      async updateTaskWithRetry() {
+        throw new Error("should not persist progress in prepareRequestedAutoExecution");
       },
       async getTaskById() {
         return { status: "waiting_approval" };
@@ -2297,8 +2308,8 @@ test("prepareRequestedAutoExecution reruns the earliest ungenerated chapter inst
       },
     },
     workflowService: withDirectorTaskStatePort({
-      async bootstrapTask() {
-        throw new Error("should not bootstrap in prepareRequestedAutoExecution");
+      async updateTaskWithRetry() {
+        throw new Error("should not persist progress in prepareRequestedAutoExecution");
       },
       async getTaskById() {
         return { status: "waiting_approval" };
@@ -2373,8 +2384,8 @@ test("prepareRequestedAutoExecution does not let stale skips bypass execution de
       },
     },
     workflowService: withDirectorTaskStatePort({
-      async bootstrapTask() {
-        throw new Error("should not bootstrap in prepareRequestedAutoExecution");
+      async updateTaskWithRetry() {
+        throw new Error("should not persist progress in prepareRequestedAutoExecution");
       },
       async getTaskById() {
         return { status: "waiting_approval" };
@@ -2454,8 +2465,8 @@ test("prepareRequestedAutoExecution rejects skipping to a later volume while ear
       },
     },
     workflowService: withDirectorTaskStatePort({
-      async bootstrapTask() {
-        throw new Error("should not bootstrap in prepareRequestedAutoExecution");
+      async updateTaskWithRetry() {
+        throw new Error("should not persist progress in prepareRequestedAutoExecution");
       },
       async getTaskById() {
         return { status: "waiting_approval" };
@@ -2579,8 +2590,8 @@ test("prepareRequestedAutoExecution rejects chapter ranges with incomplete execu
       async cancelPipelineJob() {},
     },
     workflowService: withDirectorTaskStatePort({
-      async bootstrapTask() {
-        throw new Error("should not bootstrap in prepareRequestedAutoExecution");
+      async updateTaskWithRetry() {
+        throw new Error("should not persist progress in prepareRequestedAutoExecution");
       },
       async getTaskById() {
         return { status: "waiting_approval" };
@@ -2672,8 +2683,8 @@ test("prepareRequestedAutoExecution allows full-book autopilot JIT chapters with
       async cancelPipelineJob() {},
     },
     workflowService: withDirectorTaskStatePort({
-      async bootstrapTask() {
-        throw new Error("should not bootstrap in prepareRequestedAutoExecution");
+      async updateTaskWithRetry() {
+        throw new Error("should not persist progress in prepareRequestedAutoExecution");
       },
       async getTaskById() {
         return { status: "waiting_approval" };
@@ -2792,9 +2803,10 @@ test("runFromReady keeps explicit replan notices blocking after worker recovery"
       async cancelPipelineJob() {},
     },
     workflowService: withDirectorTaskStatePort({
-      async bootstrapTask(input) {
+      async updateTaskWithRetry({ data }) {
+        const input = { seedPayload: JSON.parse(data.seedPayloadJson) };
         calls.push([
-          "bootstrapTask",
+          "updateRunState",
           input.seedPayload.autoExecution?.nextChapterOrder ?? null,
           input.seedPayload.autoExecution?.qualityDebtChapterOrders ?? [],
           input.seedPayload.autoExecution?.qualityLoopLedger?.entries?.[0]?.deferredCount ?? 0,
@@ -2849,7 +2861,7 @@ test("runFromReady keeps explicit replan notices blocking after worker recovery"
   ]);
   assert.equal(calls.some((call) => call[0] === "replanNovel"), false);
   assert.equal(calls.some((call) => call[0] === "recordEvent" && call[1] === "continue_with_risk"), false);
-  assert.equal(calls.some((call) => call[0] === "bootstrapTask" && Array.isArray(call[2]) && call[2].includes(6)), false);
+  assert.equal(calls.some((call) => call[0] === "updateRunState" && Array.isArray(call[2]) && call[2].includes(6)), false);
   assert.ok(calls.some((call) => call[0] === "recordCheckpoint" && call[2] === "replan_required"));
   assert.equal(calls.some((call) => call[0] === "recordCheckpoint" && call[2] === "workflow_completed"), false);
 });
@@ -2906,8 +2918,9 @@ test("runFromReady resolves pending state proposals before retrying full-book au
       async cancelPipelineJob() {},
     },
     workflowService: withDirectorTaskStatePort({
-      async bootstrapTask(input) {
-        calls.push(["bootstrapTask", input.seedPayload.autoExecution?.nextChapterOrder ?? null]);
+      async updateTaskWithRetry({ data }) {
+        const input = { seedPayload: JSON.parse(data.seedPayloadJson) };
+        calls.push(["updateRunState", input.seedPayload.autoExecution?.nextChapterOrder ?? null]);
       },
       async getTaskById() {
         return { status: "running" };

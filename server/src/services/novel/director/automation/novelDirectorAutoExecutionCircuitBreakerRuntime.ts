@@ -41,7 +41,8 @@ type AutomationLedgerEventPort = Pick<
 >;
 
 type CircuitBreakerWorkflowPort = Omit<AutoExecutionCheckpointRuntimeDeps, "workflowService"> & {
-  workflowService: Pick<NovelWorkflowService, "bootstrapTask" | "recordCheckpoint" | "markTaskFailed" | "requeueTaskForRecovery">;
+  workflowService: AutoExecutionCheckpointRuntimeDeps["workflowService"]
+    & Pick<NovelWorkflowService, "markTaskFailed" | "requeueTaskForRecovery">;
   automationLedgerEventService?: AutomationLedgerEventPort;
 };
 
