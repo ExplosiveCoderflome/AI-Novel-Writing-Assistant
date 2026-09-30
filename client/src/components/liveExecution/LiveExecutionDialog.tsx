@@ -79,11 +79,16 @@ function SessionMetrics({ session, nowMs }: { session: LlmLiveSessionSnapshot; n
       <span>总耗时 {durationLabel(sessionDurationMs(session, nowMs))}</span>
       <span>首返 {firstResponseMs === null ? (isActive(session.phase) ? "等待中" : "未返回") : durationLabel(firstResponseMs)}</span>
       {usage ? (
-        <span title="思考 Token 通常包含在输出 Token 中">
-          Token 输入 {usage.promptTokens.toLocaleString()} / 输出 {usage.completionTokens.toLocaleString()} / 思考 {usage.reasoningTokens?.toLocaleString() ?? "未提供"} / 合计 {usage.totalTokens.toLocaleString()}
+        <span className="flex flex-col tabular-nums" title="思考 Token 通常包含在输出 Token 中">
+          <span>输入 Token {usage.promptTokens.toLocaleString()}</span>
+          <span>输出 Token {usage.completionTokens.toLocaleString()}</span>
+          <span>思考 {usage.reasoningTokens?.toLocaleString() ?? "未提供"} · 合计 {usage.totalTokens.toLocaleString()}</span>
         </span>
       ) : (
-        <span>Token {isActive(session.phase) ? "统计中" : "未返回"}</span>
+        <span className="flex flex-col">
+          <span>输入 Token {isActive(session.phase) ? "统计中" : "未返回"}</span>
+          <span>输出 Token {isActive(session.phase) ? "统计中" : "未返回"}</span>
+        </span>
       )}
     </div>
   );
@@ -448,7 +453,10 @@ export default function LiveExecutionDialog(props: LiveExecutionDialogProps) {
                           </div>
                           <span className="shrink-0 text-[11px] text-emerald-100/55">
                             {durationLabel(sessionDurationMs(session, nowMs))}
-                            {session.tokenUsage ? ` · ${session.tokenUsage.totalTokens.toLocaleString()} Tokens` : ""}
+                          </span>
+                          <span className="flex shrink-0 flex-col whitespace-nowrap text-[10px] leading-4 text-emerald-100/65 tabular-nums">
+                            <span>输入 Token {session.tokenUsage?.promptTokens.toLocaleString() ?? (active ? "统计中" : "未返回")}</span>
+                            <span>输出 Token {session.tokenUsage?.completionTokens.toLocaleString() ?? (active ? "统计中" : "未返回")}</span>
                           </span>
                           <span className={cn("shrink-0 rounded border px-1.5 py-0.5 text-[10px]", active ? "border-emerald-400/45 text-emerald-200" : "border-emerald-400/20 text-emerald-100/65")}>
                             {phaseLabel(session.phase)}
