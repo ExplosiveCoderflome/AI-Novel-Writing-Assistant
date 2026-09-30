@@ -240,6 +240,91 @@ export function toDirectorTaskDataView(state: DirectorTaskState): DirectorTaskDa
   return view;
 }
 
+function compactDirectorObject(input: Record<string, unknown>): Record<string, unknown> | null {
+  const entries = Object.entries(input).filter(([, value]) => value !== undefined);
+  return entries.length ? Object.fromEntries(entries) : null;
+}
+
+function compactDirectorSession(input: unknown): Record<string, unknown> | null {
+  if (!input || typeof input !== "object" || Array.isArray(input)) return null;
+  const session = input as Record<string, unknown>;
+  return compactDirectorObject({
+    phase: session.phase,
+    runMode: session.runMode,
+    reviewScope: session.reviewScope,
+    activeStepKey: session.activeStepKey,
+    checkpointType: session.checkpointType,
+  });
+}
+
+function compactDirectorTaskData(input: DirectorTaskDataView): Record<string, unknown> | null {
+  const autoExecution = asObject(input.autoExecution);
+  const styleIntentSummary = asObject(input.styleIntentSummary);
+  const downstreamResetValue = asObject(input.takeover).downstreamReset;
+  const downstreamReset = asObject(downstreamResetValue);
+  return compactDirectorObject({
+    resumeTarget: input.resumeTarget ?? undefined,
+    runMode: input.runMode,
+    styleProfileId: input.styleProfileId,
+    styleTone: input.styleTone,
+    autoExecution: input.autoExecution && typeof input.autoExecution === "object"
+      ? compactDirectorObject({
+        scopeLabel: autoExecution.scopeLabel,
+        totalChapterCount: autoExecution.totalChapterCount,
+        completedChapterCount: autoExecution.completedChapterCount,
+        mode: autoExecution.mode,
+      })
+      : undefined,
+    styleIntentSummary: input.styleIntentSummary && typeof input.styleIntentSummary === "object"
+      ? compactDirectorObject({
+        headline: styleIntentSummary.headline,
+        styleProfileName: styleIntentSummary.styleProfileName,
+        stageSummaryLines: styleIntentSummary.stageSummaryLines,
+      })
+      : undefined,
+    takeover: downstreamResetValue && typeof downstreamResetValue === "object"
+      ? { downstreamReset: compactDirectorObject({
+        preserveAssets: downstreamReset.preserveAssets,
+        resetStatus: downstreamReset.resetStatus,
+        resetSteps: downstreamReset.resetSteps,
+      }) }
+      : undefined,
+  });
+}
+
+/** A bounded task-detail projection owned by Reader, so polling never parses raw director state in the adapter. */
+export function readDirectorTaskDetailProjection(
+  row: DirectorTaskStateRow,
+  mode: "full" | "compact",
+): {
+  seedPayload: Record<string, unknown> | null;
+  directorSession: Record<string, unknown> | null;
+  effectiveTaskData: DirectorTaskDataView;
+} {
+  const state = readDirectorTaskState(row);
+  const effectiveTaskData = toDirectorTaskDataView(state);
+  if (mode === "compact") {
+    return {
+      seedPayload: compactDirectorTaskData(effectiveTaskData),
+      directorSession: compactDirectorSession(state.run.directorSession),
+      effectiveTaskData,
+    };
+  }
+  let seedPayload: Record<string, unknown> | null = null;
+  if (row.seedPayloadJson?.trim()) {
+    try {
+      seedPayload = JSON.parse(row.seedPayloadJson) as Record<string, unknown>;
+    } catch {
+      seedPayload = { rawSeedPayload: row.seedPayloadJson };
+    }
+  }
+  return {
+    seedPayload,
+    directorSession: (state.run.directorSession as Record<string, unknown> | undefined) ?? null,
+    effectiveTaskData,
+  };
+}
+
 export function mergeDirectorTaskRunState(
   current: DirectorTaskRunState,
   patch: Partial<DirectorTaskRunState>,

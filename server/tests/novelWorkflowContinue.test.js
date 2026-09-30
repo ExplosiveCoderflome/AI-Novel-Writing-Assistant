@@ -20,7 +20,7 @@ function listen(server) {
 test("novel workflow auto director route prefers the active auto director task over stale visible entries", { concurrency: false }, async () => {
   const calls = [];
   const originalFindActive = NovelWorkflowService.prototype.findActiveDirectorTask;
-  const originalDetail = NovelWorkflowTaskAdapter.prototype.detail;
+  const originalDetailCompact = NovelWorkflowTaskAdapter.prototype.detailCompact;
 
   NovelWorkflowService.prototype.findActiveDirectorTask = async function findActiveDirectorTaskMock(novelId) {
     calls.push(["active", novelId]);
@@ -28,8 +28,8 @@ test("novel workflow auto director route prefers the active auto director task o
       id: "workflow-active",
     };
   };
-  NovelWorkflowTaskAdapter.prototype.detail = async function detailMock(taskId) {
-    calls.push(["detail", taskId, arguments[1]]);
+  NovelWorkflowTaskAdapter.prototype.detailCompact = async function detailCompactMock(taskId) {
+    calls.push(["detailCompact", taskId]);
     return {
       id: taskId,
       lane: "auto_director",
@@ -51,11 +51,11 @@ test("novel workflow auto director route prefers the active auto director task o
     assert.equal(payload.data.id, "workflow-active");
     assert.deepEqual(calls, [
       ["active", "novel-active"],
-      ["detail", "workflow-active", { directorTaskDataMode: "compact" }],
+      ["detailCompact", "workflow-active"],
     ]);
   } finally {
     NovelWorkflowService.prototype.findActiveDirectorTask = originalFindActive;
-    NovelWorkflowTaskAdapter.prototype.detail = originalDetail;
+    NovelWorkflowTaskAdapter.prototype.detailCompact = originalDetailCompact;
     await new Promise((resolve, reject) => server.close((error) => (error ? reject(error) : resolve())));
   }
 });

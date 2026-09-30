@@ -97,7 +97,7 @@ router.get("/novels/:novelId/auto-director", validate({ params: novelParamsSchem
   try {
     const { novelId } = req.params as z.infer<typeof novelParamsSchema>;
     const row = await workflowService.findActiveDirectorTask(novelId);
-    const data = row ? await workflowAdapter.detail(row.id, { directorTaskDataMode: "compact" }) : null;
+    const data = row ? await workflowAdapter.detailCompact(row.id) : null;
     res.status(200).json({
       success: true,
       data,

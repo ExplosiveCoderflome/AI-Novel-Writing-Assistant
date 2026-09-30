@@ -89,6 +89,8 @@ Web API 只接收命令和返回轻量投影；Worker 负责执行重型生产�
 
 步骤执行必须读取 Reader 合成的有效请求，包含创作界面选择、逐步校准和运行期模型覆盖；冻结的 `launch.directorInput` 仅用于保留启动事实。接管替换关系以 `run.takeover.replacementTaskId` 为当前存储位置，Reader 同时兼容旧记录的顶层 `replacementTaskId`；跟进投影和通知应共用这一读取边界。
 
+书级状态轮询使用 Reader 提供的精简任务详情投影，只输出运行展示需要的范围、进度和会话摘要；完整任务详情仍可携带原始启动资料。任务适配器负责组装返回格式，不自行解析再裁剪导演状态。精简投影和完整投影都应使用 Reader 的有效运行视图计算当前模型，以免重试后的模型覆盖只停留在运行态而不显示。
+
 恢复位置以任务记录的 `resumeTargetJson` 为准，Reader 只在该列为空时读取旧 Seed 里的 `resumeTarget`。历史 `directorRuntime` 仅为兼容读取字段，不进入新的持久化写入。新的读取投影和运行状态更新必须同时保留这一边界，避免旧字段在无关进度写入时被带回。
 
 这项分区让“用户当初授权什么”和“执行目前走到哪里”有不同的更新规则：运行恢复可以前进、暂停或改变游标，但不能悄悄改变用户启动任务时选定的输入和范围。`DirectorStateReader`、`DirectorTaskStateWriter` 与 `directorLaunchContractImmutable.test.js` 是维护这条边界的代码入口和回归测试。

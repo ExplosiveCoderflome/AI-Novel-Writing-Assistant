@@ -11,6 +11,7 @@ import type { TaskStatus, UnifiedTaskDetail, UnifiedTaskSummary } from "@ai-nove
 import { prisma } from "../../../db/prisma";
 import { AppError } from "../../../middleware/errorHandler";
 import { DirectorCommandService } from "../../novel/director/commands/DirectorCommandService";
+import { readDirectorTaskDetailProjection } from "../../novel/director/state/DirectorStateReader";
 import {
   buildSkippableAutoExecutionReviewBlockingReason,
   buildSkippableAutoExecutionReviewCheckpointSummary,
@@ -148,74 +149,6 @@ function parseAutoExecutionState(seedPayloadJson?: string | null): DirectorAutoE
     return null;
   }
   return seedPayload.autoExecution as DirectorAutoExecutionState;
-}
-
-function compactObject(input: Record<string, unknown>): Record<string, unknown> | null {
-  const entries = Object.entries(input).filter(([, value]) => value !== undefined);
-  return entries.length > 0 ? Object.fromEntries(entries) : null;
-}
-
-function compactDirectorSession(input: unknown): Record<string, unknown> | null {
-  if (!input || typeof input !== "object") {
-    return null;
-  }
-  const session = input as Record<string, unknown>;
-  return compactObject({
-    phase: session.phase,
-    runMode: session.runMode,
-    reviewScope: session.reviewScope,
-    activeStepKey: session.activeStepKey,
-    checkpointType: session.checkpointType,
-  });
-}
-
-function compactSeedPayload(input: Record<string, unknown> | null): Record<string, unknown> | null {
-  if (!input) {
-    return null;
-  }
-  const autoExecution = input.autoExecution && typeof input.autoExecution === "object"
-    ? input.autoExecution as Record<string, unknown>
-    : null;
-  const styleIntentSummary = input.styleIntentSummary && typeof input.styleIntentSummary === "object"
-    ? input.styleIntentSummary as Record<string, unknown>
-    : null;
-  const takeover = input.takeover && typeof input.takeover === "object"
-    ? input.takeover as Record<string, unknown>
-    : null;
-  const downstreamReset = takeover?.downstreamReset && typeof takeover.downstreamReset === "object"
-    ? takeover.downstreamReset as Record<string, unknown>
-    : null;
-
-  return compactObject({
-    resumeTarget: input.resumeTarget,
-    runMode: input.runMode,
-    styleProfileId: input.styleProfileId,
-    styleTone: input.styleTone,
-    autoExecution: autoExecution
-      ? compactObject({
-        scopeLabel: autoExecution.scopeLabel,
-        totalChapterCount: autoExecution.totalChapterCount,
-        completedChapterCount: autoExecution.completedChapterCount,
-        mode: autoExecution.mode,
-      })
-      : undefined,
-    styleIntentSummary: styleIntentSummary
-      ? compactObject({
-        headline: styleIntentSummary.headline,
-        styleProfileName: styleIntentSummary.styleProfileName,
-        stageSummaryLines: styleIntentSummary.stageSummaryLines,
-      })
-      : undefined,
-    takeover: downstreamReset
-      ? {
-        downstreamReset: compactObject({
-          preserveAssets: downstreamReset.preserveAssets,
-          resetStatus: downstreamReset.resetStatus,
-          resetSteps: downstreamReset.resetSteps,
-        }),
-      }
-      : undefined,
-  });
 }
 
 export function normalizeWorkflowResumeTargetForCandidateSelection(input: {
@@ -461,13 +394,17 @@ export class NovelWorkflowTaskAdapter {
     return visibleRows.map((row) => mapSummary(row));
   }
 
-  async detail(
+  async detail(id: string, _options: { heal?: boolean } = {}): Promise<UnifiedTaskDetail | null> {
+    return this.readDetail(id, "full");
+  }
+
+  async detailCompact(id: string): Promise<UnifiedTaskDetail | null> {
+    return this.readDetail(id, "compact");
+  }
+
+  private async readDetail(
     id: string,
-    options: {
-      heal?: boolean;
-      directorTaskDataMode?: "full" | "compact" | "none";
-      seedPayloadMode?: "full" | "compact" | "none";
-    } = {},
+    projectionMode: "full" | "compact",
   ): Promise<UnifiedTaskDetail | null> {
     if (await isTaskArchived("novel_workflow", id)) {
       return null;
@@ -495,30 +432,10 @@ export class NovelWorkflowTaskAdapter {
       seedPayloadJson: row.seedPayloadJson,
     });
     const milestones = parseMilestones(row.milestonesJson);
-    let seedPayload: Record<string, unknown> | null = null;
-    if (row.seedPayloadJson?.trim()) {
-      try {
-        seedPayload = JSON.parse(row.seedPayloadJson) as Record<string, unknown>;
-      } catch {
-        seedPayload = {
-          rawSeedPayload: row.seedPayloadJson,
-        };
-      }
-    }
-    const workflowSeedPayload = seedPayload as DirectorWorkflowSeedPayload | null;
-    const directorSession = workflowSeedPayload && typeof workflowSeedPayload.directorSession === "object"
-      ? workflowSeedPayload.directorSession
-      : null;
-    const taskDataMode = options.directorTaskDataMode ?? options.seedPayloadMode ?? "full";
-    const responseSeedPayload = taskDataMode === "full"
-      ? seedPayload
-      : taskDataMode === "compact"
-        ? compactSeedPayload(seedPayload)
-        : null;
-    const responseDirectorSession = taskDataMode === "full"
-      ? directorSession
-      : compactDirectorSession(directorSession);
-    const boundLlm = getDirectorLlmOptionsFromSeedPayload(workflowSeedPayload);
+    const directorProjection = readDirectorTaskDetailProjection(row, projectionMode);
+    const boundLlm = getDirectorLlmOptionsFromSeedPayload(
+      directorProjection.effectiveTaskData as DirectorWorkflowSeedPayload,
+    );
 
     return {
       ...summary,
@@ -532,7 +449,7 @@ export class NovelWorkflowTaskAdapter {
         checkpointType: row.checkpointType,
         checkpointSummary: row.checkpointSummary,
         resumeTarget,
-        directorSession: responseDirectorSession,
+        directorSession: directorProjection.directorSession,
         llm: boundLlm
           ? {
             provider: boundLlm.provider ?? null,
@@ -541,7 +458,7 @@ export class NovelWorkflowTaskAdapter {
           }
           : null,
         taskNotice: parseTaskNotice(row.seedPayloadJson),
-        seedPayload: responseSeedPayload,
+        seedPayload: directorProjection.seedPayload,
         milestones,
         cancelRequestedAt: row.cancelRequestedAt?.toISOString() ?? null,
       },
@@ -552,8 +469,8 @@ export class NovelWorkflowTaskAdapter {
         pendingManualRecovery: summary.pendingManualRecovery,
         currentItemKey: row.currentItemKey,
         checkpointType: row.checkpointType as NovelWorkflowCheckpoint | null,
-        directorSessionPhase: directorSession && typeof directorSession === "object"
-          ? (directorSession as { phase?: unknown }).phase
+        directorSessionPhase: directorProjection.directorSession && typeof directorProjection.directorSession === "object"
+          ? (directorProjection.directorSession as { phase?: unknown }).phase
           : null,
         createdAt: summary.createdAt,
         updatedAt: summary.updatedAt,

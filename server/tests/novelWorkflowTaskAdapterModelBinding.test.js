@@ -116,6 +116,7 @@ test("task detail compact mode strips heavyweight auto-director seed payload fro
       idea: "这段只用于创建弹窗恢复，不应该进入运行态轮询。",
       provider: "deepseek",
       model: "deepseek-v4-flash",
+      llmOverride: { model: "deepseek-chat", temperature: 0.4 },
       runMode: "auto_to_execution",
       batches: [{
         id: "batch-heavy",
@@ -152,10 +153,11 @@ test("task detail compact mode strips heavyweight auto-director seed payload fro
   adapter.workflowService.healAutoDirectorTaskState = async () => false;
 
   try {
-    const detail = await adapter.detail("task_compact_auto_director", { seedPayloadMode: "compact" });
+    const detail = await adapter.detailCompact("task_compact_auto_director");
     assert.ok(detail);
     assert.equal(detail.provider, "deepseek");
-    assert.equal(detail.model, "deepseek-v4-flash");
+    assert.equal(detail.model, "deepseek-chat");
+    assert.equal(detail.meta.llm.temperature, 0.4);
     assert.equal(detail.meta.seedPayload.idea, undefined);
     assert.equal(detail.meta.seedPayload.batches, undefined);
     assert.equal(detail.meta.seedPayload.autoExecution.scopeLabel, "前 3 章");
