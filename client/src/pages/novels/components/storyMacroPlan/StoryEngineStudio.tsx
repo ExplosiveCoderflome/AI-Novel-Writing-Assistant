@@ -1,7 +1,6 @@
 import { AlertTriangle, ArrowRight, CheckCircle2, Compass, FileText, Flame, GitBranch, Lock, Sparkles, Target } from "lucide-react";
 import AiButton from "@/components/common/AiButton";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import type { StoryMacroField } from "@ai-novel/shared/types/storyMacro";
@@ -12,6 +11,7 @@ import {
   listToText,
   textareaClassName,
 } from "../StoryMacroPlanTab.shared";
+import StoryMacroEditableField from "./StoryMacroEditableField";
 
 interface StoryEngineStudioProps {
   tab: StoryMacroTabProps;
@@ -152,9 +152,13 @@ function SummaryFieldCard({ tab, field }: { tab: StoryMacroTabProps; field: Stor
   const value = tab.decomposition[item.field as keyof typeof tab.decomposition];
 
   return (
-    <div className="space-y-2 rounded-lg border border-border/60 bg-background p-3">
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <div className="text-sm font-medium text-foreground">{item.label}</div>
+    <StoryMacroEditableField
+      label={item.label}
+      value={typeof value === "string" ? value : ""}
+      onChange={(value) => tab.onFieldChange(item.field, value)}
+      placeholder={item.placeholder}
+      className="bg-background p-3"
+      actions={
         <FieldActions
           field={item.field}
           lockedFields={tab.lockedFields}
@@ -163,22 +167,8 @@ function SummaryFieldCard({ tab, field }: { tab: StoryMacroTabProps; field: Stor
           onToggleLock={tab.onToggleLock}
           onRegenerateField={tab.onRegenerateField}
         />
-      </div>
-      {item.multiline ? (
-        <textarea
-          value={typeof value === "string" ? value : ""}
-          onChange={(event) => tab.onFieldChange(item.field, event.target.value)}
-          placeholder={item.placeholder}
-          className={textareaClassName("min-h-32")}
-        />
-      ) : (
-        <Input
-          value={typeof value === "string" ? value : ""}
-          onChange={(event) => tab.onFieldChange(item.field, event.target.value)}
-          placeholder={item.placeholder}
-        />
-      )}
-    </div>
+      }
+    />
   );
 }
 
@@ -266,7 +256,7 @@ export default function StoryEngineStudio({ tab }: StoryEngineStudioProps) {
           <div>
             <h3 className="text-base font-semibold text-foreground">主线骨架</h3>
             <p className="mt-1 text-sm leading-6 text-muted-foreground">
-              这组字段会进入后续角色、卷战略、节奏拆章和章节任务，是故事能否持续推进的核心资产。
+              这些内容会指导角色、卷规划和章节写作。点击正文或铅笔图标可编辑，修改后点击“保存”。
             </p>
           </div>
           <div className="flex items-center gap-2 text-xs text-muted-foreground">
@@ -283,9 +273,17 @@ export default function StoryEngineStudio({ tab }: StoryEngineStudioProps) {
           <SummaryFieldCard tab={tab} field="ending_flavor" />
           <SummaryFieldCard tab={tab} field="progression_loop" />
           <SummaryFieldCard tab={tab} field="growth_path" />
-          <div className="space-y-2 rounded-lg border border-border/60 bg-background p-3 xl:col-span-2">
-            <div className="flex flex-wrap items-center justify-between gap-2">
-              <div className="text-sm font-medium text-foreground">关键兑现点</div>
+          <StoryMacroEditableField
+            label="关键兑现点"
+            value={listToText(tab.decomposition.major_payoffs)}
+            onChange={(value) => tab.onFieldChange(
+              "major_payoffs",
+              value.split(/\r?\n/).map((line) => line.trim()).filter(Boolean),
+            )}
+            placeholder="每行一个关键兑现点。"
+            list
+            className="bg-background p-3 xl:col-span-2"
+            actions={
               <FieldActions
                 field="major_payoffs"
                 lockedFields={tab.lockedFields}
@@ -294,17 +292,8 @@ export default function StoryEngineStudio({ tab }: StoryEngineStudioProps) {
                 onToggleLock={tab.onToggleLock}
                 onRegenerateField={tab.onRegenerateField}
               />
-            </div>
-            <textarea
-              value={listToText(tab.decomposition.major_payoffs)}
-              onChange={(event) => tab.onFieldChange(
-                "major_payoffs",
-                event.target.value.split(/\r?\n/).map((line) => line.trim()).filter(Boolean),
-              )}
-              placeholder="每行一个关键兑现点。"
-              className={textareaClassName("min-h-32")}
-            />
-          </div>
+            }
+          />
         </div>
       </div>
     </section>
