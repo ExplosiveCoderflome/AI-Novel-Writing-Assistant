@@ -4,7 +4,7 @@
 
 依据 [独立验收报告](auto-director-stage3-acceptance-2026-09-29.md) 的 3-1～3-9、R3/S2 和对账日志缺口执行返工。用户已授权修复、分批提交、不推送。执行分支 `refactor/director-simplification`，返工起点 `eb4fcee7`。
 
-**当前为返工进行中；不表示阶段三已通过复验。** 最终验收仍要求完整 fast、integration 的失败身份对照、类型检查和所有边界回归。
+**返工实现与自动化复验已完成。** Guard、全仓类型检查及完整 fast/integration 与直接基点的失败身份对照均已通过；独立代码审阅尚未执行，阶段四的人工动作表决策仍需单独确认。
 
 | 批次 | 对应问题 | 状态 |
 | --- | --- | --- |
@@ -12,7 +12,7 @@
 | 2 启动与章节执行 | 3-1、3-2；S2 原模式及小说身份覆盖 | 实现、定向验证及主控复核完成；完整套件待批次 5 |
 | 3 有效输入与消费者 | 3-3、3-5；R3 真实读取收敛 | 实现与定向验证完成；完整套件待批次 5 |
 | 4 命令与剩余写入 | 3-7、3-8；事实对账日志 | 实现与定向验证完成；完整套件待批次 5 |
-| 5 完整复验 | 不变量、Guard、编译、typecheck、完整套件、wiki/台账 | 待执行 |
+| 5 完整复验 | 不变量、Guard、编译、typecheck、完整套件、wiki/台账 | 自动化复验完成；独立代码审阅未执行 |
 
 ## 批次 1：状态写入边界
 
@@ -62,3 +62,16 @@ node server/.tmp/stage3-acceptance-run.cjs D:/code/ai/server fast stage3-rework-
 普通命令创建与任务接受收成同一个串行化事务。任务在入队窗口进入人工恢复锁时，状态更新计数为零会回滚命令并返回冲突，不再通知 Worker 或伪报已接受；显式恢复仍以持久命令编号在事务内清锁。候选选择、命令重试及运行记录重试走状态写入器的语义入口，非导演任务仍走原工作流入口。模型重试覆盖保存在运行态 `llmOverride`，启动合同的模型和创作输入保持原样，Reader 负责合成有效模型。门禁审批和失败步骤的事实对账成功后记录任务编号与固定类别，不输出内容、种子或错误详情。
 
 回归先复现命令竞态 40/41、模型覆盖 22/23、事实对账日志 6/8（另有 1 项跳过）以及运行记录重试 7/8；修复并重新编译后分别为 41/41、23/23、8/8（另有 1 项跳过）和 8/8。候选相关 fast 四文件 13/13、重试 integration 单文件 16/16 通过。测试均使用隔离 SQLite；完整 fast/integration 失败身份对照留在批次 5。
+
+## 批次 5：完整自动化复验
+
+验收对象 `abeb5158`；与独立验收相同的直接基点 `d3a9ca99`、Node `v24.20.0`、`NODE_ENV=test`、`RAG_ENABLED=false` 和 103 个 SQLite migration SQL。重新执行 shared/server 编译、`pnpm typecheck`，均 exit 0；Guard 12/12。核心 fast 五文件 92 项通过、1 项跳过；候选相关四文件 13/13；重试 integration 16/16。
+
+| 套件 | 直接基点：总数/通过/失败/跳过 | 当前：总数/通过/失败/跳过 | 按文件＋用例名新增失败 | 基点失败消失 |
+| --- | --- | --- | ---: | ---: |
+| fast | 1393/1341/40/12 | 1484/1432/40/12 | 0 | 0 |
+| integration | 144/132/10/2 | 144/132/10/2 | 0 | 0 |
+
+两套失败身份清单逐项一致；历史失败的具体名单见[独立验收报告](auto-director-stage3-acceptance-2026-09-29.md)。当前报告保留在 `server/.tmp/stage3-rework-task5-full-fast-fast.xml` 与 `server/.tmp/stage3-rework-task5-full-integration-integration.xml`，基点报告分别为 `D:/code/ai-baseline-d3a9ca99/server/.tmp/stage3-acceptance-baseline-20260929-{fast,integration}.xml`。比较使用 `server/.tmp/stage3-acceptance-compare.cjs`，同时核对新增失败与基点失败消失；完整套件退出码为 1 是上述历史失败，并非全部通过。
+
+本批仅写验收记录；长期边界已写入 auto-director runtime wiki，没有新增其他稳定规则。代码审阅由本次执行者自行检查关键调用链与 diff；受项目子代理授权规则限制，未启动独立审阅者，故本报告只给出自动化复验结论，不冒称独立代码审阅已完成。既有 60 秒 Worker 对账窗口维持已批准边界，阶段四动作表仍需用户确认。
