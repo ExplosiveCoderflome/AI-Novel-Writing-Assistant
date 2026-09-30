@@ -314,6 +314,7 @@ export class NovelWorkflowHealingService {
         cancelRequestedAt: null,
       },
     });
+    console.info("[director.fact-repair]", { taskId, category: "runtime_gate_approval" });
     return true;
   }
 
@@ -373,6 +374,7 @@ export class NovelWorkflowHealingService {
         cancelRequestedAt: null,
       },
     });
+    console.info("[director.fact-repair]", { taskId, category: "runtime_step_failed" });
     return true;
   }
 

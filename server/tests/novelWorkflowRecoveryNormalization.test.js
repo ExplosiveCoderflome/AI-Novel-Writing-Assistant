@@ -151,7 +151,10 @@ test("healRuntimeGateApprovalState mirrors blocked runtime gates into waiting ap
     commandFindFirst: prisma.directorRunCommand.findFirst,
     stepFindFirst: prisma.directorStepRun.findFirst,
     update: prisma.novelWorkflowTask.update,
+    info: console.info,
   };
+  const repairLogs = [];
+  console.info = (...args) => repairLogs.push(args);
 
   let currentRow = {
     id: "task_runtime_gate",
@@ -204,10 +207,12 @@ test("healRuntimeGateApprovalState mirrors blocked runtime gates into waiting ap
     assert.equal(currentRow.status, "waiting_approval");
     assert.equal(currentRow.currentItemLabel, "等待确认章节执行");
     assert.equal(currentRow.checkpointSummary, "该动作可能覆盖用户手写内容，需要确认后继续。");
+    assert.deepEqual(repairLogs, [["[director.fact-repair]", { taskId: "task_runtime_gate", category: "runtime_gate_approval" }]]);
   } finally {
     prisma.directorRunCommand.findFirst = originals.commandFindFirst;
     prisma.directorStepRun.findFirst = originals.stepFindFirst;
     prisma.novelWorkflowTask.update = originals.update;
+    console.info = originals.info;
   }
 });
 
@@ -216,7 +221,10 @@ test("healRuntimeFailedState mirrors failed runtime steps out of false running t
     commandFindFirst: prisma.directorRunCommand.findFirst,
     stepFindFirst: prisma.directorStepRun.findFirst,
     update: prisma.novelWorkflowTask.update,
+    info: console.info,
   };
+  const repairLogs = [];
+  console.info = (...args) => repairLogs.push(args);
 
   let currentRow = {
     id: "task_runtime_failed",
@@ -267,10 +275,12 @@ test("healRuntimeFailedState mirrors failed runtime steps out of false running t
     assert.equal(currentRow.currentItemLabel, "正在生成第 1 卷节奏段：开卷抓手");
     assert.equal(currentRow.lastError, "[STRUCTURED_OUTPUT:transport_error] Connection error.");
     assert.equal(currentRow.checkpointSummary, "[STRUCTURED_OUTPUT:transport_error] Connection error.");
+    assert.deepEqual(repairLogs, [["[director.fact-repair]", { taskId: "task_runtime_failed", category: "runtime_step_failed" }]]);
   } finally {
     prisma.directorRunCommand.findFirst = originals.commandFindFirst;
     prisma.directorStepRun.findFirst = originals.stepFindFirst;
     prisma.novelWorkflowTask.update = originals.update;
+    console.info = originals.info;
   }
 });
 

@@ -148,7 +148,6 @@ export function applyDirectorRunModeContract<T extends {
     autoApproval: buildFullDirectorAutoApprovalConfig(),
   };
 }
-
 export function normalizeDirectorTargetChapterCount(value: number | null | undefined, fallback = 80): number {
   const numericValue = typeof value === "number" && Number.isFinite(value) ? value : fallback;
   return Math.max(
@@ -662,37 +661,5 @@ export function getDirectorLlmOptionsFromSeedPayload(
     provider,
     model,
     temperature,
-  };
-}
-
-export function applyDirectorLlmOverride(
-  directorTaskData: DirectorWorkflowSeedPayload | null | undefined,
-  llmOverride: Pick<DirectorLLMOptions, "provider" | "model" | "temperature">,
-): DirectorWorkflowSeedPayload | null {
-  if (!directorTaskData) {
-    return null;
-  }
-  const directorInput = getDirectorInputFromSeedPayload(directorTaskData);
-  const nextModel = llmOverride.model?.trim()
-    || (typeof directorTaskData.model === "string" ? directorTaskData.model.trim() : directorInput?.model?.trim() || null);
-  const nextTemperature = typeof llmOverride.temperature === "number"
-    ? llmOverride.temperature
-    : (typeof directorTaskData.temperature === "number" ? directorTaskData.temperature : directorInput?.temperature ?? null);
-  const nextProvider = llmOverride.provider ?? directorTaskData.provider ?? directorInput?.provider ?? null;
-  return {
-    ...directorTaskData,
-    provider: nextProvider,
-    model: nextModel,
-    temperature: nextTemperature,
-    directorInput: directorInput
-      ? {
-        ...directorInput,
-        provider: nextProvider ?? directorInput.provider,
-        model: nextModel || directorInput.model,
-        temperature: typeof nextTemperature === "number"
-          ? nextTemperature
-          : directorInput.temperature,
-      }
-      : undefined,
   };
 }

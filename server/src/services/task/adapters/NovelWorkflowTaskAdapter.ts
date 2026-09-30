@@ -12,6 +12,7 @@ import { prisma } from "../../../db/prisma";
 import { AppError } from "../../../middleware/errorHandler";
 import { DirectorCommandService } from "../../novel/director/commands/DirectorCommandService";
 import { readDirectorTaskDetailProjection } from "../../novel/director/state/DirectorStateReader";
+import { DirectorTaskStateWriter } from "../../novel/director/state/DirectorTaskStateWriter";
 import {
   buildSkippableAutoExecutionReviewBlockingReason,
   buildSkippableAutoExecutionReviewCheckpointSummary,
@@ -500,7 +501,11 @@ export class NovelWorkflowTaskAdapter {
     if (row.lane === "auto_director" && llmOverride) {
       await this.workflowService.applyAutoDirectorLlmOverride(id, llmOverride);
     }
-    await this.workflowService.retryTask(id);
+    if (row.lane === "auto_director") {
+      await new DirectorTaskStateWriter(this.workflowService).retryTask(id);
+    } else {
+      await this.workflowService.retryTask(id);
+    }
     if (shouldResumeAutoDirector) {
       await this.novelDirectorService.continueTask(id, {
         batchAlreadyStartedCount,

@@ -13,7 +13,7 @@ import {
   stageLabel,
 } from "./novelWorkflow.helpers";
 import { buildRestoreTaskToCheckpointResult } from "./novelWorkflowCheckpoint";
-import { applyDirectorLlmOverride, type DirectorWorkflowSeedPayload } from "../director/runtime/novelDirectorHelpers";
+import { DirectorTaskStateWriter } from "../director/state/DirectorTaskStateWriter";
 import type { DirectorLLMOptions } from "@ai-novel/shared/types/novelDirector";
 import { NovelWorkflowStoreService } from "./NovelWorkflowStoreService";
 import {
@@ -440,18 +440,10 @@ export class NovelWorkflowApplicationService {
     if (existing.lane !== "auto_director") {
       return existing;
     }
-    const seedPayload = parseSeedPayload<DirectorWorkflowSeedPayload>(existing.seedPayloadJson);
-    const nextSeedPayload = applyDirectorLlmOverride(seedPayload, llmOverride);
-    if (!nextSeedPayload) {
+    if (!parseSeedPayload<Record<string, unknown>>(existing.seedPayloadJson)) {
       throw new AppError("当前自动导演任务缺少可覆盖的模型上下文。", 400);
     }
-    return this.workflow.updateTaskWithRetry({
-      where: { id: taskId },
-      data: {
-        seedPayloadJson: JSON.stringify(nextSeedPayload),
-        heartbeatAt: new Date(),
-      },
-    });
+    return new DirectorTaskStateWriter(this.workflow).applyLlmOverride(taskId, llmOverride);
   }
 
   async continueTask(taskId: string) {

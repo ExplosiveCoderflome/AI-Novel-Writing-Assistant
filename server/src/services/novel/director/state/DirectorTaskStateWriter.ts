@@ -1,4 +1,5 @@
 import type { Prisma } from "@prisma/client";
+import type { DirectorLLMOptions } from "@ai-novel/shared/types/novelDirector";
 import { NovelWorkflowService } from "../../workflow/NovelWorkflowService";
 import type {
   NovelWorkflowTaskUpdateArgs,
@@ -172,6 +173,24 @@ export class DirectorTaskStateWriter {
   retryTask(...args: Parameters<NovelWorkflowService["retryTask"]>) {
     if (!this.workflowService.retryTask) throw new Error("Task state workflow port does not support retries.");
     return this.workflowService.retryTask(...args);
+  }
+
+  async applyLlmOverride(
+    taskId: string,
+    override: Pick<DirectorLLMOptions, "provider" | "model" | "temperature">,
+  ) {
+    if (!this.workflowService.getTaskById) throw new Error("Task state workflow port does not support task reads.");
+    const task = await this.workflowService.getTaskById(taskId);
+    if (!task || task.lane !== "auto_director") throw new Error("Auto director task was not found.");
+    const current = readDirectorTaskState(task).run.llmOverride ?? {};
+    return this.updateDirectorRunState(taskId, {
+      llmOverride: {
+        ...current,
+        ...(override.provider ? { provider: override.provider } : {}),
+        ...(override.model?.trim() ? { model: override.model.trim() } : {}),
+        ...(typeof override.temperature === "number" ? { temperature: override.temperature } : {}),
+      },
+    }, { heartbeatAt: new Date() });
   }
 
   persistCheckpoint(...args: Parameters<NovelWorkflowService["recordCheckpoint"]>) {

@@ -5,6 +5,7 @@ const Module = require("node:module");
 const originalLoad = Module._load;
 let DirectorTaskStateWriter;
 let NovelWorkflowService;
+let NovelWorkflowApplicationService;
 try {
   // Intercept before importing the service graph: these are memory-only tests.
   Module._load = function (request, parent, isMain) {
@@ -13,6 +14,7 @@ try {
   };
   ({ DirectorTaskStateWriter } = require("../dist/services/novel/director/state/index.js"));
   ({ NovelWorkflowService } = require("../dist/services/novel/workflow/NovelWorkflowService.js"));
+  ({ NovelWorkflowApplicationService } = require("../dist/services/novel/workflow/NovelWorkflowApplicationService.js"));
 } finally {
   Module._load = originalLoad;
 }
@@ -350,4 +352,26 @@ test("candidate checkpoint and retry use workflow transitions and preserve the m
   assert.equal(task.attemptCount, 3);
   assert.equal(task.status, "waiting_approval");
   assert.equal(task.pendingManualRecovery, true);
+});
+
+test("model retry override updates run state while preserving the launch contract", async () => {
+  let task = {
+    id: "task-model", lane: "auto_director", novelId: "novel-1",
+    seedPayloadJson: JSON.stringify({
+      directorInput: { idea: "创意", provider: "deepseek", model: "original-model", temperature: 0.7 },
+      provider: "deepseek", model: "original-model", temperature: 0.7,
+    }),
+  };
+  const initialLaunch = JSON.parse(task.seedPayloadJson);
+  const workflow = {
+    async getTaskById() { return task; },
+    async updateTaskWithRetry({ data }) { task = { ...task, ...data }; return task; },
+  };
+  const application = new NovelWorkflowApplicationService(workflow);
+  await application.applyAutoDirectorLlmOverride(task.id, { model: "retry-model", temperature: 0.3 });
+
+  const saved = JSON.parse(task.seedPayloadJson);
+  assert.equal(saved.model, initialLaunch.model);
+  assert.deepEqual(saved.directorInput, initialLaunch.directorInput);
+  assert.deepEqual(saved.llmOverride, { model: "retry-model", temperature: 0.3 });
 });

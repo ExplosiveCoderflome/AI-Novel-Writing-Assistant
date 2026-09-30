@@ -176,8 +176,10 @@ test("task detail compact mode strips heavyweight auto-director seed payload fro
 });
 
 test("auto-director retry resumes failed tasks by default", async () => {
+  const { DirectorTaskStateWriter } = require("../dist/services/novel/director/state/DirectorTaskStateWriter.js");
   const originals = {
     archiveFindUnique: prisma.taskCenterArchive.findUnique,
+    writerRetryTask: DirectorTaskStateWriter.prototype.retryTask,
   };
   const adapter = new NovelWorkflowTaskAdapter();
   const originalGetTaskById = adapter.workflowService.getTaskById;
@@ -195,6 +197,10 @@ test("auto-director retry resumes failed tasks by default", async () => {
   adapter.workflowService.retryTask = async (taskId) => {
     calls.push(["retry", taskId]);
   };
+  DirectorTaskStateWriter.prototype.retryTask = async function retryTask(taskId) {
+    calls.push(["writer-retry", taskId]);
+    return this.workflowService.retryTask(taskId);
+  };
   adapter.novelDirectorService.continueTask = async (taskId, input) => {
     calls.push(["continue", taskId, input]);
   };
@@ -210,11 +216,13 @@ test("auto-director retry resumes failed tasks by default", async () => {
 
     assert.equal(detail.id, "task_failed_auto_director");
     assert.deepEqual(calls, [
+      ["writer-retry", "task_failed_auto_director"],
       ["retry", "task_failed_auto_director"],
       ["continue", "task_failed_auto_director", { batchAlreadyStartedCount: undefined, forceResume: true }],
     ]);
   } finally {
     prisma.taskCenterArchive.findUnique = originals.archiveFindUnique;
+    DirectorTaskStateWriter.prototype.retryTask = originals.writerRetryTask;
     adapter.workflowService.getTaskById = originalGetTaskById;
     adapter.workflowService.retryTask = originalRetryTask;
     adapter.novelDirectorService.continueTask = originalContinueTask;

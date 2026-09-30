@@ -462,7 +462,7 @@ export class DirectorCommandService {
     if (input.llmOverride) {
       await this.workflowService.applyAutoDirectorLlmOverride(input.taskId, input.llmOverride);
     }
-    await this.workflowService.retryTask(input.taskId);
+    await this.stateWriter.retryTask(input.taskId);
     return this.enqueueExecutionCommand({
       taskId: input.taskId,
       commandType: "retry",
@@ -840,8 +840,7 @@ export class DirectorCommandService {
       status: "queued" as const,
       payloadJson,
     };
-    const createCommand = () => input.requireActiveTask || input.clearPendingManualRecovery
-      ? prisma.$transaction(async (tx) => {
+    const createCommand = () => prisma.$transaction(async (tx) => {
         const command = await tx.directorRunCommand.create({ data: commandData });
         const taskUpdate: Parameters<typeof prisma.novelWorkflowTask.updateMany>[0] = {
           where: input.requireActiveTask
@@ -864,7 +863,7 @@ export class DirectorCommandService {
             },
           data: {
             status: "queued",
-            lastError: null,
+            ...(input.preserveLastError ? {} : { lastError: null }),
             ...buildAcceptedTaskState(input.commandType),
             heartbeatAt: new Date(),
             finishedAt: null,
@@ -897,17 +896,10 @@ export class DirectorCommandService {
           });
         }
         return command;
-      }, { isolationLevel: "Serializable" })
-      : prisma.directorRunCommand.create({ data: commandData });
+      }, { isolationLevel: "Serializable" });
 
     try {
       const command = await withSqliteRetry(createCommand, { label: "director.command.create" });
-      if (!input.requireActiveTask && !input.clearPendingManualRecovery) {
-        await this.markCommandAcceptedOnTask(command.id, input.taskId, input.commandType, {
-          preserveLastError: input.preserveLastError,
-          clearPendingManualRecovery: input.clearPendingManualRecovery,
-        });
-      }
       taskDispatcher.notify({ commandType: input.commandType, taskId: input.taskId });
       return toAcceptedResponse(command, null);
     } catch (error) {
@@ -929,36 +921,4 @@ export class DirectorCommandService {
     }
   }
 
-  private async markCommandAcceptedOnTask(commandId: string, taskId: string, commandType: DirectorRunCommandType, options: {
-    preserveLastError?: boolean;
-    clearPendingManualRecovery?: boolean;
-  } = {}): Promise<void> {
-    const taskState = buildAcceptedTaskState(commandType);
-    const taskUpdate: Parameters<typeof prisma.novelWorkflowTask.updateMany>[0] = {
-      where: {
-        id: taskId,
-        OR: [
-          { status: { in: ["queued", "running", "waiting_approval", "failed"] } },
-          { pendingManualRecovery: true },
-        ],
-        ...(!options.clearPendingManualRecovery ? { pendingManualRecovery: false } : {}),
-      },
-      data: {
-        status: "queued",
-        ...(options.preserveLastError ? {} : { lastError: null }),
-        ...taskState,
-        heartbeatAt: new Date(),
-        finishedAt: null,
-        cancelRequestedAt: null,
-      },
-    };
-    const update = options.clearPendingManualRecovery
-      ? this.stateWriter.clearPendingManualRecovery({
-        userCommandId: commandId,
-        where: taskUpdate.where!,
-        data: taskUpdate.data,
-      })
-      : this.stateWriter.updateRunState(taskUpdate, { many: true });
-    await update.catch(() => null);
-  }
 }

@@ -217,6 +217,7 @@ function createHarness(task = createTask(), pipelineJob = null, options = {}) {
       novelId: data.novelId ?? null,
     };
     commands.push(row);
+    harnessOptions.afterCommandCreate?.({ task, command: row });
     return row;
   };
   prisma.directorRunCommand.findUnique = async ({ where }) => (
@@ -303,6 +304,9 @@ function createHarness(task = createTask(), pipelineJob = null, options = {}) {
     if (Array.isArray(args?.where?.status?.in) && !args.where.status.in.includes(task.status)) {
       return { count: 0 };
     }
+    if (args?.where?.pendingManualRecovery === false && task.pendingManualRecovery === true) {
+      return { count: 0 };
+    }
     if (Array.isArray(args?.where?.OR)) {
       const matchesBranch = args.where.OR.some((branch) => (
         (typeof branch.status === "string" && branch.status === task.status)
@@ -325,6 +329,7 @@ function createHarness(task = createTask(), pipelineJob = null, options = {}) {
     } catch (error) {
       commands.length = commandCount;
       Object.assign(task, before);
+      if (harnessOptions.preserveConcurrentPause) task.pendingManualRecovery = true;
       throw error;
     }
   };
@@ -1034,6 +1039,29 @@ test("director command service queues chapter title repair with a null volume fi
     assert.equal(harness.commands.length, 1);
     assert.equal(harness.commands[0].payloadJson, "{\"volumeId\":null}");
     assert.equal("lastError" in harness.taskUpdates[0].data, false);
+  } finally {
+    harness.restore();
+  }
+});
+
+test("chapter title repair rejects a concurrent manual pause without leaving an accepted command", async () => {
+  const harness = createHarness(createTask({
+    status: "failed",
+    pendingManualRecovery: false,
+  }), null, {
+    preserveConcurrentPause: true,
+    afterCommandCreate({ task }) {
+      task.pendingManualRecovery = true;
+    },
+  });
+  try {
+    await assert.rejects(
+      harness.service.enqueueChapterTitleRepairCommand("task-1"),
+      (error) => error.details?.code === "DIRECTOR_MANUAL_RECOVERY_REQUIRED",
+    );
+    assert.equal(harness.commands.length, 0);
+    assert.equal(harness.task.pendingManualRecovery, true);
+    assert.equal(harness.task.status, "failed");
   } finally {
     harness.restore();
   }

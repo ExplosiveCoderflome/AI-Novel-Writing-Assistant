@@ -2,9 +2,12 @@ const test = require("node:test");
 const assert = require("node:assert/strict");
 require("../dist/app.js");
 const {
-  applyDirectorLlmOverride,
   getDirectorLlmOptionsFromSeedPayload,
 } = require("../dist/services/novel/director/runtime/novelDirectorHelpers.js");
+const {
+  readDirectorTaskState,
+  toDirectorTaskDataView,
+} = require("../dist/services/novel/director/state/DirectorStateReader.js");
 const { NovelDirectorService } = require("../dist/services/novel/director/NovelDirectorService.js");
 const {
   runDirectorStructuredOutlinePhase,
@@ -265,25 +268,27 @@ function createStructuredOutlineWorkspace() {
   });
 }
 
-test("applyDirectorLlmOverride rewrites persisted auto director model selection", () => {
-  const nextSeedPayload = applyDirectorLlmOverride({
+test("retry model override changes effective selection without rewriting the launch input", () => {
+  const launch = {
     novelId: "novel_retry_demo",
     directorInput: buildDirectorInput(),
-  }, {
-    provider: "openai",
-    model: "gpt-5-mini",
-    temperature: 1,
+  };
+  const state = readDirectorTaskState({
+    seedPayloadJson: JSON.stringify({ ...launch, llmOverride: {
+      provider: "openai", model: "gpt-5-mini", temperature: 1,
+    } }),
   });
+  const effective = toDirectorTaskDataView(state);
 
-  assert.ok(nextSeedPayload);
-  assert.equal(nextSeedPayload.directorInput.provider, "openai");
-  assert.equal(nextSeedPayload.directorInput.model, "gpt-5-mini");
-  assert.equal(nextSeedPayload.directorInput.temperature, 1);
-  assert.equal(nextSeedPayload.directorInput.candidate.workingTitle, "Rulebound Courier");
+  assert.equal(state.launch.directorInput.model, launch.directorInput.model);
+  assert.equal(effective.directorInput.provider, "openai");
+  assert.equal(effective.directorInput.model, "gpt-5-mini");
+  assert.equal(effective.directorInput.temperature, 1);
+  assert.equal(effective.directorInput.candidate.workingTitle, "Rulebound Courier");
 });
 
-test("applyDirectorLlmOverride also rewrites candidate-stage seed payload before directorInput exists", () => {
-  const nextSeedPayload = applyDirectorLlmOverride({
+test("retry model override changes candidate-stage effective selection before director input exists", () => {
+  const state = readDirectorTaskState({ seedPayloadJson: JSON.stringify({
     idea: "A courier discovers a hidden rule-bound city underworld.",
     provider: "custom_coding_plan",
     model: "kimi-k2.5",
@@ -291,17 +296,19 @@ test("applyDirectorLlmOverride also rewrites candidate-stage seed payload before
     candidateStage: {
       mode: "generate",
     },
-  }, {
-    provider: "glm",
-    model: "glm-5",
-    temperature: 0.6,
-  });
+    llmOverride: {
+      provider: "glm",
+      model: "glm-5",
+      temperature: 0.6,
+    },
+  }) });
+  const effective = toDirectorTaskDataView(state);
 
-  assert.ok(nextSeedPayload);
-  assert.equal(nextSeedPayload.provider, "glm");
-  assert.equal(nextSeedPayload.model, "glm-5");
-  assert.equal(nextSeedPayload.temperature, 0.6);
-  assert.deepEqual(getDirectorLlmOptionsFromSeedPayload(nextSeedPayload), {
+  assert.equal(state.launch.model, "kimi-k2.5");
+  assert.equal(effective.provider, "glm");
+  assert.equal(effective.model, "glm-5");
+  assert.equal(effective.temperature, 0.6);
+  assert.deepEqual(getDirectorLlmOptionsFromSeedPayload(effective), {
     provider: "glm",
     model: "glm-5",
     temperature: 0.6,
