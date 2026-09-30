@@ -10,7 +10,7 @@ import {
   resolveDirectorAutoExecutionPlanChapterRange,
   resolveDirectorAutoExecutionRangeFromState,
 } from "../automation/novelDirectorAutoExecution";
-import { DirectorStateReader, type DirectorCanonicalState } from "../DirectorStateReader";
+import { DirectorStateReader, toDirectorTaskDataView, type DirectorCanonicalState } from "../DirectorStateReader";
 import { DirectorStateCommitter } from "../DirectorStateCommitter";
 import { DirectorFactSummaryService } from "../projections/DirectorFactSummaryService";
 import { CHAPTER_EXECUTION_PROGRESS_STAGES } from "../runtime/ChapterExecutionProgressInspector";
@@ -105,7 +105,7 @@ export async function loadDirectorModuleState(
   if (options.requireNovel !== false && !novelId) {
     throw new Error("Step module requires novelId.");
   }
-  const request = state.launch.directorInput ?? null;
+  const request = (toDirectorTaskDataView(state).directorInput as DirectorConfirmRequest | undefined) ?? null;
   if ((options.requireRequest ?? false) && !request) {
     throw new Error("Director step module requires persisted director input.");
   }

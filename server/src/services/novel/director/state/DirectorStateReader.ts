@@ -160,6 +160,15 @@ export function readDirectorTaskState(row: DirectorTaskStateRow): DirectorTaskSt
   );
 }
 
+/** Resolve the replacement relation at the canonical run boundary, including historical flat records. */
+export function readDirectorReplacementTaskId(seedPayloadJson: string | null | undefined): string | null {
+  const state = readDirectorTaskState({ seedPayloadJson });
+  const current = state.run.takeover?.replacementTaskId;
+  const legacy = state.launch.legacyContext.replacementTaskId;
+  const value = typeof current === "string" && current.trim() ? current : legacy;
+  return typeof value === "string" && value.trim() ? value.trim() : null;
+}
+
 export function serializeDirectorTaskState(state: DirectorTaskState): string {
   const launch = state.launch as DirectorTaskLaunchState & Record<string, unknown>;
   const run = state.run;
@@ -212,6 +221,21 @@ export function toDirectorTaskDataView(state: DirectorTaskState): DirectorTaskDa
       ...(directorInput as Record<string, unknown>),
       stepCalibrationInstruction: calibrationInstruction,
     };
+  }
+  const llmOverride = state.run.llmOverride;
+  if (llmOverride) {
+    const effectiveLlm = {
+      ...(llmOverride.provider ? { provider: llmOverride.provider } : {}),
+      ...(llmOverride.model?.trim() ? { model: llmOverride.model.trim() } : {}),
+      ...(typeof llmOverride.temperature === "number" ? { temperature: llmOverride.temperature } : {}),
+    };
+    Object.assign(view, effectiveLlm);
+    if (view.directorInput && typeof view.directorInput === "object" && !Array.isArray(view.directorInput)) {
+      view.directorInput = {
+        ...(view.directorInput as Record<string, unknown>),
+        ...effectiveLlm,
+      };
+    }
   }
   return view;
 }

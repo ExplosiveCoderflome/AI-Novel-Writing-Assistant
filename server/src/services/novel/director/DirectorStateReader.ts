@@ -1,1 +1,1 @@
-export { DirectorStateReader, type DirectorCanonicalState } from "./state/DirectorStateReader";
+export { DirectorStateReader, toDirectorTaskDataView, type DirectorCanonicalState } from "./state/DirectorStateReader";
