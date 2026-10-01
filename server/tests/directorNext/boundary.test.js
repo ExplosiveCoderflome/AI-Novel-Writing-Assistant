@@ -38,17 +38,28 @@ test("the director module exists and has source files", () => {
 
 test("the director module only imports files inside itself", () => {
   const violations = [];
+  const infrastructureRoot = path.join(moduleRoot, "infrastructure");
+  const allowedInfrastructureImports = new Set([
+    "@prisma/client",
+    "../../../db/prisma",
+    "node:crypto",
+  ]);
   for (const file of listTsFiles(moduleRoot)) {
     const source = fs.readFileSync(file, "utf8");
+    const isInfrastructure = file === infrastructureRoot || file.startsWith(`${infrastructureRoot}${path.sep}`);
     for (const specifier of importSpecifiers(source)) {
       const relative = path.relative(moduleRoot, file);
       if (!specifier.startsWith(".")) {
-        violations.push(`${relative} imports package or alias "${specifier}"`);
+        if (!isInfrastructure || !allowedInfrastructureImports.has(specifier)) {
+          violations.push(`${relative} imports package or alias "${specifier}"`);
+        }
         continue;
       }
       const resolved = path.resolve(path.dirname(file), specifier);
       if (resolved !== moduleRoot && !resolved.startsWith(`${moduleRoot}${path.sep}`)) {
-        violations.push(`${relative} imports outside the module: "${specifier}"`);
+        if (!isInfrastructure || specifier !== "../../../db/prisma") {
+          violations.push(`${relative} imports outside the module: "${specifier}"`);
+        }
       }
     }
   }

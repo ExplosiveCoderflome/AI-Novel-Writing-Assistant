@@ -11,6 +11,7 @@ const integrationTests = new Set([
   "directorReadPathsArePure.test.js",
   "directorManualRecoveryLock.test.js",
   "directorWorkflowStepModules.test.js",
+  "persistence.test.js",
   "novelDirectorPipelineRuntime.test.js",
   "novelDirectorRetry.test.js",
   "novelWorkflowRuntime.test.js",

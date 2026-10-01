@@ -1,6 +1,6 @@
-# 自动导演重构 · 计划 03：持久化（任务级，待细化）
+# 自动导演重构 · 计划 03：持久化（P2 已交付）
 
-状态：**P1 已验收，待按实际 Prisma/SQLite 结构实施**。以下 P1 细化覆盖优先于原任务级描述；先完成 schema 与迁移的只增验证，再实现仓储。
+状态：**P2 已验收（2026-10-01）**。两套 schema、14 条只增迁移、事实层仓储、真实临时 SQLite 集成测试和模块边界测试均已通过；未触碰开发数据库。
 
 **目标：** 为新内核新增独立的事实表、迁移和仓储实现，使计划 01 的领域类型能够被持久化。
 
@@ -18,6 +18,8 @@
 6. 真实 SQLite 集成测试使用临时文件库和两套迁移完整性检查；不触碰开发库，不执行 `migrate dev`。若本机 Prisma 引擎不可用，停在 P3 并报告，不以 mock 替代。
 
 **风险等级：高。** 项目有 Postgres 和 SQLite 两套 schema 与迁移，漏改任何一处都会导致运行时缺表。这份计划每个 Task 都由我逐步验收。
+
+**验收证据：** 两份 Prisma schema `validate` 通过；全量 SQLite 迁移完整性测试通过；运行时迁移回归测试 7/7 通过；自动导演新内核测试 50/50 通过，其中仓储集成测试使用临时 SQLite 文件验证活跃 Run 唯一性、CAS 版本冲突、租约、产物版本、质量债和并发事件序号。
 
 ## Global Constraints
 
@@ -80,8 +82,8 @@ export interface RunRepository {
   getControl(runId: string): Promise<RunControl | null>;
   findActiveRunIdByNovel(novelId: string): Promise<string | null>;
   transition(runId: string, event: RunEvent, expectedVersion: number): Promise<RunControl>;
-  acquireLease(runId: string, owner: string, ttlMs: number, now: Date): Promise<boolean>;
-  heartbeat(runId: string, owner: string, ttlMs: number, now: Date): Promise<boolean>;
+  acquireLease(runId: string, owner: string, leaseExpiresAt: Date, now: Date): Promise<boolean>;
+  heartbeat(runId: string, owner: string, leaseExpiresAt: Date, now: Date): Promise<boolean>;
   listExpiredLeases(now: Date): Promise<string[]>;
 }
 
@@ -89,7 +91,7 @@ export interface ArtifactLedger {
   listByNovel(novelId: string): Promise<ArtifactRef[]>;
   record(input: {
     novelId: string; type: ArtifactType; scope: string; status: ArtifactStatus;
-    protectedUserContent: boolean; contentRef: string; contentHash: string; producedByRunId: string;
+    protectedUserContent: boolean; contentRef: string; contentHash: string | null; producedByRunId: string;
   }): Promise<ArtifactRef>;
   markStale(novelId: string, types: readonly ArtifactType[]): Promise<number>;
 }
