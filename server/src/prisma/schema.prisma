@@ -4182,3 +4182,99 @@ model MarketCreativeBrief {
 
   @@index([reportId, createdAt])
 }
+
+
+model DirectorNextRun {
+  id               String                     @id
+  novelId          String
+  driver           String
+  planVersion      String
+  contractJson     String
+  createdAt        DateTime                   @default(now())
+  control          DirectorNextRunControl?
+  artifacts        DirectorNextArtifact[]      @relation("DirectorNextRunProducedArtifacts")
+  qualityDebts     DirectorNextQualityDebt[]
+  events           DirectorNextEvent[]
+  commands         DirectorNextCommand[]
+
+  @@index([novelId, createdAt])
+}
+
+model DirectorNextRunControl {
+  runId          String         @id
+  novelId        String
+  version        Int            @default(0)
+  status         String
+  pauseJson      String?
+  gateJson       String?
+  cursorStepId   String?
+  failureReason  String?
+  leaseOwner     String?
+  leaseExpiresAt DateTime?
+  heartbeatAt    DateTime?
+  updatedAt      DateTime       @updatedAt
+  run            DirectorNextRun @relation(fields: [runId], references: [id], onDelete: Cascade)
+
+  @@index([novelId, status])
+}
+
+model DirectorNextArtifact {
+  id                String          @id
+  novelId           String
+  type              String
+  scope             String
+  version           Int
+  status            String
+  protectedUserContent Boolean
+  contentRef        String
+  contentHash       String?
+  producedByRunId   String?
+  createdAt         DateTime        @default(now())
+  producedByRun     DirectorNextRun? @relation("DirectorNextRunProducedArtifacts", fields: [producedByRunId], references: [id], onDelete: SetNull)
+
+  @@unique([novelId, type, scope, version])
+  @@index([novelId, type, scope, status])
+}
+
+model DirectorNextQualityDebt {
+  id           String          @id
+  novelId      String
+  runId        String
+  chapterOrder Int
+  code         String
+  action       String
+  createdAt    DateTime        @default(now())
+  run          DirectorNextRun @relation(fields: [runId], references: [id], onDelete: Cascade)
+
+  @@index([novelId, chapterOrder, createdAt])
+  @@index([runId, createdAt])
+}
+
+model DirectorNextEvent {
+  id            String          @id
+  runId         String
+  seq           Int
+  type          String
+  payloadJson   String
+  promptVersion String?
+  model         String?
+  createdAt     DateTime        @default(now())
+  run           DirectorNextRun @relation(fields: [runId], references: [id], onDelete: Cascade)
+
+  @@unique([runId, seq])
+  @@index([runId, createdAt])
+}
+
+model DirectorNextCommand {
+  idempotencyKey String          @id
+  id             String          @unique
+  runId          String
+  type           String
+  payloadJson    String
+  resultJson     String?
+  createdAt      DateTime        @default(now())
+  run            DirectorNextRun @relation(fields: [runId], references: [id], onDelete: Cascade)
+
+  @@index([runId, createdAt])
+}
+
