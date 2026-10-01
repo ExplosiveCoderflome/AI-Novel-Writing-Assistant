@@ -60,6 +60,13 @@ export interface DirectorRuntime {
   nextId(): string;
 }
 
+export interface DirectorWorkerRuntime extends DirectorRuntime {
+  workerId(): string;
+  now(): Date;
+  leaseExpiresAt(now: Date): Date;
+  enabled(): boolean;
+}
+
 export interface RunRepository {
   open(contract: RunContract): Promise<RunControl>;
   getContract(runId: string): Promise<RunContract | null>;
@@ -68,6 +75,7 @@ export interface RunRepository {
   transition(runId: string, event: RunEvent, expectedVersion: number): Promise<RunControl>;
   acquireLease(runId: string, owner: string, leaseExpiresAt: Date, now: Date): Promise<boolean>;
   heartbeat(runId: string, owner: string, leaseExpiresAt: Date, now: Date): Promise<boolean>;
+  listLeaseCandidates(now: Date, limit: number): Promise<string[]>;
   listExpiredLeases(now: Date): Promise<string[]>;
 }
 

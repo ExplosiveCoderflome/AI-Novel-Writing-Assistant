@@ -39,6 +39,7 @@ test("the director module exists and has source files", () => {
 test("the director module only imports files inside itself", () => {
   const violations = [];
   const infrastructureRoot = path.join(moduleRoot, "infrastructure");
+  const runtimeFile = path.join(moduleRoot, "application", "runtime.ts");
   const allowedInfrastructureImports = new Set([
     "@prisma/client",
     "../../../db/prisma",
@@ -47,10 +48,12 @@ test("the director module only imports files inside itself", () => {
   for (const file of listTsFiles(moduleRoot)) {
     const source = fs.readFileSync(file, "utf8");
     const isInfrastructure = file === infrastructureRoot || file.startsWith(`${infrastructureRoot}${path.sep}`);
+    const isRuntime = file === runtimeFile;
     for (const specifier of importSpecifiers(source)) {
       const relative = path.relative(moduleRoot, file);
       if (!specifier.startsWith(".")) {
-        if (!isInfrastructure || !allowedInfrastructureImports.has(specifier)) {
+        const allowedRuntimeImport = isRuntime && (specifier === "node:crypto" || specifier === "node:os");
+        if ((!isInfrastructure || !allowedInfrastructureImports.has(specifier)) && !allowedRuntimeImport) {
           violations.push(`${relative} imports package or alias "${specifier}"`);
         }
         continue;

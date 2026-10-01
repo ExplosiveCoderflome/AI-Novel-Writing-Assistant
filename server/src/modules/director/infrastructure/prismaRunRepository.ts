@@ -163,6 +163,23 @@ export class PrismaRunRepository implements RunRepository {
     return result.count === 1;
   }
 
+  async listLeaseCandidates(now: Date, limit: number): Promise<string[]> {
+    const rows = await this.db.directorNextRunControl.findMany({
+      where: {
+        status: { in: ["queued", "running", "waiting_gate"] },
+        OR: [
+          { leaseOwner: null },
+          { leaseExpiresAt: null },
+          { leaseExpiresAt: { lt: now } },
+        ],
+      },
+      select: { runId: true },
+      orderBy: { updatedAt: "asc" },
+      take: limit,
+    });
+    return rows.map((row) => row.runId);
+  }
+
   async listExpiredLeases(now: Date): Promise<string[]> {
     const rows = await this.db.directorNextRunControl.findMany({
       where: {

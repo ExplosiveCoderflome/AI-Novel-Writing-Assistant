@@ -58,6 +58,7 @@ const contract = {
   await assert.rejects(() => runs.transition("run-1", { type: "complete" }, 0), (error) => error.name === "VersionConflictError");
 
   const now = new Date("2026-10-01T00:00:00.000Z");
+  assert.deepEqual(await runs.listLeaseCandidates(now, 10), ["run-1"]);
   assert.equal(await runs.acquireLease("run-1", "worker-a", new Date("2026-10-01T00:00:10.000Z"), now), true);
   assert.equal(await runs.acquireLease("run-1", "worker-b", new Date("2026-10-01T00:00:20.000Z"), new Date("2026-10-01T00:00:01.000Z")), false);
   assert.deepEqual(await runs.listExpiredLeases(new Date("2026-10-01T00:00:11.000Z")), ["run-1"]);

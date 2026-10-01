@@ -4,3 +4,5 @@ export * from "./projectionService";
 export * from "./commandService";
 export * from "./stepRegistry";
 export * from "./runExecutor";
+export * from "./runtime";
+export * from "./worker";
