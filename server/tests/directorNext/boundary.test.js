@@ -40,25 +40,35 @@ test("the director module only imports files inside itself", () => {
   const violations = [];
   const infrastructureRoot = path.join(moduleRoot, "infrastructure");
   const runtimeFile = path.join(moduleRoot, "application", "runtime.ts");
+  const httpRoot = path.join(moduleRoot, "http");
+  const applicationRoot = path.join(moduleRoot, "application");
   const allowedInfrastructureImports = new Set([
     "@prisma/client",
     "../../../db/prisma",
     "node:crypto",
   ]);
+  const allowedHttpImports = new Set(["express", "zod"]);
   for (const file of listTsFiles(moduleRoot)) {
     const source = fs.readFileSync(file, "utf8");
     const isInfrastructure = file === infrastructureRoot || file.startsWith(`${infrastructureRoot}${path.sep}`);
     const isRuntime = file === runtimeFile;
+    const isHttp = file === httpRoot || file.startsWith(`${httpRoot}${path.sep}`);
+    const isApplication = file === applicationRoot || file.startsWith(`${applicationRoot}${path.sep}`);
     for (const specifier of importSpecifiers(source)) {
       const relative = path.relative(moduleRoot, file);
       if (!specifier.startsWith(".")) {
         const allowedRuntimeImport = isRuntime && (specifier === "node:crypto" || specifier === "node:os");
-        if ((!isInfrastructure || !allowedInfrastructureImports.has(specifier)) && !allowedRuntimeImport) {
+        const allowedHttpImport = isHttp && allowedHttpImports.has(specifier);
+        if ((!isInfrastructure || !allowedInfrastructureImports.has(specifier)) && !allowedRuntimeImport && !allowedHttpImport) {
           violations.push(`${relative} imports package or alias "${specifier}"`);
         }
         continue;
       }
       const resolved = path.resolve(path.dirname(file), specifier);
+      if ((isApplication || isHttp) && resolved === infrastructureRoot || (isApplication || isHttp) && resolved.startsWith(`${infrastructureRoot}${path.sep}`)) {
+        violations.push(`${relative} imports infrastructure directly: "${specifier}"`);
+        continue;
+      }
       if (resolved !== moduleRoot && !resolved.startsWith(`${moduleRoot}${path.sep}`)) {
         if (!isInfrastructure || specifier !== "../../../db/prisma") {
           violations.push(`${relative} imports outside the module: "${specifier}"`);

@@ -56,6 +56,23 @@ test("a lease that expires can be claimed by another worker", async () => {
   assert.equal(harness.leases.get("run-1").owner, "worker-b");
 });
 
+test("a newly opened queued run is started before its first execution turn", async () => {
+  const harness = createHarness();
+  let control = { version: 0, status: "queued", pause: null, gate: null, cursorStepId: null, failureReason: null };
+  const transitions = [];
+  harness.repository.getControl = async () => control;
+  harness.repository.transition = async (_runId, event, expectedVersion) => {
+    assert.equal(expectedVersion, control.version);
+    transitions.push(event.type);
+    control = { ...control, version: control.version + 1, status: event.type === "start" ? "running" : control.status };
+    return control;
+  };
+  const worker = new DirectorWorker({ runRepository: harness.repository, executor: harness.executor, runtime: harness.runtime("worker-a") });
+  assert.equal(await worker.tick(), true);
+  assert.deepEqual(transitions, ["start"]);
+  assert.deepEqual(harness.executions, ["run-1"]);
+});
+
 test("worker does not clear a paused run or claim it as new work", async () => {
   const harness = createHarness();
   harness.repository.listLeaseCandidates = async () => [];

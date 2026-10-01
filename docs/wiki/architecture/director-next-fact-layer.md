@@ -31,6 +31,10 @@
 
 Worker 候选只包含 `queued`、`running` 和 `waiting_gate`，暂停中的 Run 不会被后台重新领取。领取使用数据库条件更新，心跳和到期时间由运行时注入；竞争失败的 Worker 放弃该 Run，租约过期后才允许另一个 Worker 接手。异常次数按注入的策略快照计算；预算内只记录失败并等待接管，预算耗尽后写结构化人工恢复信号，后台不能清除暂停。
 
+HTTP 门面只负责结构化校验、调用应用服务和返回投影。命令接口返回 `202`，步骤执行始终由 Worker 完成；当前 Run、历史和详情接口都通过同一个投影服务读取，详情只在适配层追加事件时间线。`DIRECTOR_NEXT_ENABLED` 默认关闭，关闭时不加载新模块、不挂载路由也不启动新 Worker；开启后由模块根目录的组合入口装配 Prisma 适配器。新建的 `queued` Run 在 Worker 首轮领取后先通过版本化 `start` 迁移进入 `running`，再执行步骤，确保命令创建与后台执行之间的边界是显式的。
+
+应用层只能依赖端口和领域出口，HTTP 层只能依赖应用 facade；基础设施实现只由组合入口装配。跨书历史筛选在持久化查询中按 `paused`、`waiting_gate` 和 `failed` 状态筛选，并保持读取接口无写入。
+
 租约的到期时间和比较时间由调用方传入，仓储不得调用 `Date.now()` 或 `new Date()`。事件序号和产物版本在事务中递增，读取和投影只能经应用端口获得事实。
 
 质量债是可继续生产的局部信息，不得被仓储或投影转换成全局重规划。人工恢复锁仍由控制态和显式用户命令解除，后台扫描不能清除它。
@@ -48,6 +52,8 @@ Worker 候选只包含 `queued`、`running` 和 `waiting_gate`，暂停中的 Ru
 - `server/src/modules/director/domain/`
 - `server/src/modules/director/application/`
 - `server/src/modules/director/infrastructure/`
+- `server/src/modules/director/http/`
+- `server/src/modules/director/bootstrap.ts`
 - `server/src/prisma/schema.prisma`
 - `server/src/prisma/schema.sqlite.prisma`
 - `server/tests/directorNext/persistence.test.js`

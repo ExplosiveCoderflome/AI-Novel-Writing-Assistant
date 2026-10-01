@@ -19,6 +19,7 @@ const integrationTests = new Set([
   "runExecutor.test.js",
   "worker.test.js",
   "runtime.test.js",
+  "directorNextHttp.test.js",
   "novelDirectorPipelineRuntime.test.js",
   "novelDirectorRetry.test.js",
   "novelWorkflowRuntime.test.js",

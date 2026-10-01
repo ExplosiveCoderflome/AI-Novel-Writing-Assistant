@@ -47,6 +47,12 @@ export class DirectorWorker {
       }, this.deps.heartbeatMs ?? 10_000);
       renewal.unref();
       try {
+        if (this.deps.runRepository.getControl && this.deps.runRepository.transition) {
+          const control = await this.deps.runRepository.getControl(runId);
+          if (control?.status === "queued") {
+            await this.deps.runRepository.transition(runId, { type: "start" }, control.version);
+          }
+        }
         await this.deps.executor.runOnce(runId);
       } catch (error) {
         if (!this.deps.eventLog || !this.deps.recoveryPolicy) throw error;

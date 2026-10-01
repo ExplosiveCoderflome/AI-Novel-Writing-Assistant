@@ -104,6 +104,18 @@ export class PrismaRunRepository implements RunRepository {
     return row?.runId ?? null;
   }
 
+  async listRunIds(options: { needsAttention?: boolean; limit: number }): Promise<string[]> {
+    const rows = await this.db.directorNextRun.findMany({
+      where: options.needsAttention
+        ? { control: { is: { status: { in: ["paused", "waiting_gate", "failed"] } } } }
+        : undefined,
+      orderBy: { createdAt: "desc" },
+      take: Math.min(Math.max(options.limit, 1), 100),
+      select: { id: true },
+    });
+    return rows.map((row) => row.id);
+  }
+
   async transition(runId: string, event: RunEvent, expectedVersion: number): Promise<RunControl> {
     return this.db.$transaction(async (tx) => {
       const row = await tx.directorNextRunControl.findUnique({ where: { runId } });

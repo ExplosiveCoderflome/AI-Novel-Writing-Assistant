@@ -1,6 +1,6 @@
 # 自动导演重构 · 计划 04：应用层、Worker、接口与开关（P3 细化版）
 
-状态：**P3 细化完成，Task 1～4 已验收**。事实装载、停止信号生命周期、版本化计划投影、命令幂等事务、假步骤恢复、拒绝预算、租约竞争和策略重试耗尽暂停测试均已通过。
+状态：**P3 已完成**。事实装载、停止信号生命周期、版本化计划投影、命令幂等事务、假步骤恢复、拒绝预算、租约竞争、策略重试耗尽暂停、HTTP 门面与开关边界均已通过验证。
 
 **目标：** 实现五种命令、单一执行循环、以 Run 为单位的 Worker 租约，以及独立接口 `/api/director-next/*`，全部由环境开关控制，不影响任何现有入口。
 
@@ -85,8 +85,8 @@ type Command =
 | 2 | `commandService` 五种命令 | **已通过**：幂等、版本冲突 409、活跃冲突 409、`resume` 是唯一解除人工暂停的命令；真实 SQLite 验证命令记录与 Run 写入同一事务 |
 | 3 | `runExecutor` 与 `stepRegistry`，使用假步骤 | **已通过**：全部假步骤按依赖执行；产物落账后步骤边界崩溃可恢复且每个步骤恰好执行一次；守卫拒绝非法动作并累计拒绝次数，耗尽后暂停 |
 | 4 | `worker`：租约、心跳、过期重领 | **已通过**：两个 Worker 竞争同一 Run 只有一个运行，租约过期后另一个 Worker 接手；策略允许的重试耗尽后写停止信号并进入人工暂停 |
-| 5 | `http/routes` 与 `mountDirectorNext`，开关接入 `app.ts` | 开关关闭时 `app.ts` 行为与改动前完全一致（路由不存在、Worker 不启动）；开关开启时四个接口可用 |
-| 6 | 边界测试扩展：`application/` 不得 import `infrastructure/` 的具体实现（只经 `ports.ts`）；`http/` 不得 import `infrastructure/` | 边界测试通过 |
+| 5 | `http/routes` 与 `mountDirectorNext`，开关接入 `app.ts` | **已通过**：四个接口、结构化校验、命令 `202` 返回、小说来源路由和开关保护均已接入 |
+| 6 | 边界测试扩展：`application/` 不得 import `infrastructure/` 的具体实现（只经 `ports.ts`）；`http/` 不得 import `infrastructure/` | **已通过**：边界测试覆盖应用、HTTP 与基础设施组合入口 |
 
 ## 停止条件
 

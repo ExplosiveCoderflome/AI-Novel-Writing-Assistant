@@ -72,6 +72,7 @@ export interface RunRepository {
   getContract(runId: string): Promise<RunContract | null>;
   getControl(runId: string): Promise<RunControl | null>;
   findActiveRunIdByNovel(novelId: string): Promise<string | null>;
+  listRunIds(options: { needsAttention?: boolean; limit: number }): Promise<string[]>;
   transition(runId: string, event: RunEvent, expectedVersion: number): Promise<RunControl>;
   acquireLease(runId: string, owner: string, leaseExpiresAt: Date, now: Date): Promise<boolean>;
   heartbeat(runId: string, owner: string, leaseExpiresAt: Date, now: Date): Promise<boolean>;

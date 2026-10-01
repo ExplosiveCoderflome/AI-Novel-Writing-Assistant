@@ -56,6 +56,11 @@ const contract = {
   assert.equal((await runs.getContract("run-1")).runId, "run-1");
   assert.equal((await runs.transition("run-1", { type: "start" }, 0)).status, "running");
   await assert.rejects(() => runs.transition("run-1", { type: "complete" }, 0), (error) => error.name === "VersionConflictError");
+  await runs.open({ ...contract, runId: "run-2", novelId: "novel-2" });
+  await runs.transition("run-2", { type: "start" }, 0);
+  await runs.transition("run-2", { type: "pause", pause: { kind: "manual_recovery", reason: "needs_review" } }, 1);
+  assert.deepEqual(await runs.listRunIds({ needsAttention: true, limit: 10 }), ["run-2"]);
+  assert.ok((await runs.listRunIds({ limit: 10 })).includes("run-1"));
 
   const now = new Date("2026-10-01T00:00:00.000Z");
   assert.deepEqual(await runs.listLeaseCandidates(now, 10), ["run-1"]);

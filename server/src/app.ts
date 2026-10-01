@@ -164,6 +164,11 @@ export function createApp() {
   app.use("/api/settings", settingsRouter);
   app.use("/api", onboardingRoutes);
   app.use("/api/astrology", astrologyRouter);
+  if (parseEnvFlag(process.env.DIRECTOR_NEXT_ENABLED, false)) {
+    const { getDirectorNextServices } = require("./modules/director/bootstrap") as typeof import("./modules/director/bootstrap");
+    const { mountDirectorNext } = require("./modules/director/http") as typeof import("./modules/director/http");
+    mountDirectorNext(app, getDirectorNextServices().http);
+  }
 
   app.use((_req, res) => {
     const response: ApiResponse<null> = {
@@ -270,6 +275,9 @@ function initializeBackgroundServices(): BackgroundServicesHandle {
   novelSideEffectWorker.start();
   const recoveryInitialization = recoveryTaskService.initializePendingRecoveries();
   const directorWorker = new DirectorWorker();
+  const directorNextWorker = parseEnvFlag(process.env.DIRECTOR_NEXT_ENABLED, false)
+    ? (require("./modules/director/bootstrap") as typeof import("./modules/director/bootstrap")).getDirectorNextServices().worker
+    : null;
   void recoveryInitialization.then(() => {
     void directorWorker.start().catch((error) => {
       console.error("[director.worker] unexpected stop", error);
@@ -277,6 +285,11 @@ function initializeBackgroundServices(): BackgroundServicesHandle {
   }).catch((error) => {
     console.error("[director.worker] recovery initialization failed; worker was not started", error);
   });
+  if (directorNextWorker) {
+    void directorNextWorker.start().catch((error) => {
+      console.error("[director-next.worker] unexpected stop", error);
+    });
+  }
   void shortStoryProductionService.recoverPending().catch((error) => {
     console.warn("[short-story] failed to resume pending production.", error);
   });
@@ -309,6 +322,7 @@ function initializeBackgroundServices(): BackgroundServicesHandle {
   return {
     stop: async () => {
       directorWorker.stop();
+      directorNextWorker?.stop();
       novelSideEffectWorker.stop();
       ragServices.ragWorker.stop();
       ragServices.ragRetrievalTraceRetention.stop();
