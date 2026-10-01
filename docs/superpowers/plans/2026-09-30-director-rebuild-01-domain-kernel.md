@@ -1,4 +1,4 @@
-# 自动导演重构 · 计划 01：领域内核落地（已开发）
+# 自动导演重构 · 计划 01：领域内核落地（P0 修订版）
 
 > **给执行者：** 本计划的代码和测试**已经开发完成，并在验证环境中 49/49 通过**。你的任务不是设计或改写，而是把下面给出的文件**逐字**放进仓库、编译、运行测试、提交。按 Task 顺序执行，用复选框记录进度。遇到"停止条件"立即停止并报告。
 
@@ -12,13 +12,22 @@
 
 **分支与目录：** 分支 `refactor/director-rebuild`，工作目录 `D:\code\ai-director-rebuild`。所有命令在该目录下执行。
 
+## P0 修订覆盖（2026-10-01，执行时以此为准）
+
+1. **范围隔离必须进入领域函数签名。** `ArtifactRef.scope` 与 `RunContract.scope` 均为必填；`latestArtifact`、`isArtifactSatisfied`、`readySteps`、`remainingSteps`、展示进度和守卫必须按 scope 过滤。不得用另一本书、另一卷或另一章的同类型最高版本解锁当前步骤。新增回归用例：同类型跨 scope 时不能满足依赖。
+2. **Run 合同冻结启动事实。** `RunContract` 增加 `chapterRange`、`issuePolicy`（含 `completion_first | quality_first` 与版本）和 `modelConfig`（路由、模型、版本），创建后视为只读。质量优先策略的 `pause_for_manual` 必须以 `StopSignal.kind = manual_recovery` 在已保存边界暂停；完成优先下局部质量债不得制造 stop signal。
+3. **停止动作必须有结构化依据。** `checkAction` 不得无条件接受 `pause` / `fail`。`pause(replan|safety)` 必须匹配 `FactsSnapshot.stopSignal`，`pause(manual_recovery)` 只能匹配质量优先人工暂停或结构化的 `no_runnable_step` 安全边界；`fail` 必须有安全、完整性或无可用正文信号。新增任意 `pause(replan)` 被拒绝的回归用例。
+4. **章节质量与重试边界。** `record_debt` 必须落在 `chapterRange` 内；质量债只记录不改变运行状态。每章自动修复预算由下游章节 runtime 持有，本领域内核不得新增第二份重试计数或把局部债务转成全局失败。
+5. **失效保护。** `chapter_draft` 永不因规划产物重算而被覆盖、清空或作为可覆盖目标；用户编辑产物触发的是 requires 依赖闭包，保留 scope，跳过受保护正文。领域测试增加传递下游、用户保护和正文排除用例。
+6. **模块边界与提交。** 仍只允许本文列出的 `server/src/modules/director/domain/*`、`server/tests/directorNext/*` 文件；不导入旧导演代码、数据库、时钟或随机数。每个 Task 单独提交，内部文档不更新发布说明。
+
 ## Global Constraints
 
 - 新内核位于 `server/src/modules/director/`，**只 import 模块内部文件**，不得 import 旧导演代码、`prisma`、`db`、任何包或路径别名。（由 Task 6 的边界测试强制）
 - `domain/` 内不得出现 `Date.now()`、`new Date(`、`Math.random()`、`process.env`。（边界测试强制）
 - **不得修改**列表之外的任何文件；尤其不得修改 `server/src/services/novel/director/`、`shared/`、`client/`、`server/src/prisma/`、`server/scripts/run-tests.cjs`。
 - 不得新增依赖；不得使用 `any`、`@ts-ignore`、`@ts-expect-error`。
-- 代码与测试**逐字照抄**，包括中文文案（投影里的 `headline` 文案已按 `AGENTS.md` 的 UI 文案规则审定，不得改写）。
+- 原型代码片段是基线；与上方 **P0 修订覆盖** 冲突的类型、函数签名、守卫和测试必须按修订覆盖实施。未冲突的中文文案与断言保持原样。
 - 测试就是完成标准：不得修改、跳过、放宽任何断言。
 - 每个 Task 一次提交；提交信息以 `优化：` 开头；只 `git add` 该 Task 列出的文件。
 - 本计划是纯内部改动，**不更新发布说明和 README**。
