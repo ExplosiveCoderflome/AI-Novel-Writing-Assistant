@@ -1,12 +1,21 @@
 # 自动导演重构 · 计划 03：持久化（任务级，待细化）
 
-状态：**待开发，任务级计划**。代码级步骤在计划 01 验收通过后细化。详细程度说明见计划 00 第 2 节。
+状态：**P1 已验收，待按实际 Prisma/SQLite 结构实施**。以下 P1 细化覆盖优先于原任务级描述；先完成 schema 与迁移的只增验证，再实现仓储。
 
 **目标：** 为新内核新增独立的事实表、迁移和仓储实现，使计划 01 的领域类型能够被持久化。
 
 **依赖：** 计划 01（领域类型）。
 
 **设计文档：** 第 4 节（事实层）、第 6.3 节（数据库兜底的不变量）。
+
+## P1 细化覆盖（2026-10-01，执行时以此为准）
+
+1. 当前两个 schema 已存在旧 `Director*` 模型；新模型必须使用 `DirectorNext*` 前缀，追加在两个 schema 文件末尾，不修改现有 `Novel` 或旧导演模型的字段、关系和索引。新 Run 只与自己的控制态、产物、质量债、事件和命令建立关系。
+2. 原任务写“12 条迁移”但同时要求部分唯一索引单独成迁移；六张表各一份 Postgres/SQLite 加控制态部分唯一索引各一份，实际为 **14 个新迁移目录**。迁移目录统一使用 `20261001` 前缀和 `director_next_*` 名称，旧迁移目录不改。
+3. `DirectorNextRun.contractJson` 是不可变的 `RunContract` 快照，仓储不得拆写合同字段；`DirectorNextRunControl` 只保存 `RunControl` 与租约字段。`transition` 在事务内按 `runId + expectedVersion` CAS 更新，冲突映射为领域 `VersionConflictError`。
+4. `DirectorNextArtifact` 的唯一业务键是 `(novelId, type, scope, version)`；版本号在同一事务内按三元组取最大值加一。`listByNovel` 必须返回带 `scope` 的领域 `ArtifactRef`，`markStale` 只更新指定书和类型，并跳过 `chapter_draft` 保护行。
+5. 所有仓储时间由调用方传入。租约、控制态、事件序号和产物版本都禁止在仓储中调用 `Date.now()` / `new Date()`；Prisma 的 `@default(now())` 仅作为数据库插入兜底，不代替业务比较时间。
+6. 真实 SQLite 集成测试使用临时文件库和两套迁移完整性检查；不触碰开发库，不执行 `migrate dev`。若本机 Prisma 引擎不可用，停在 P3 并报告，不以 mock 替代。
 
 **风险等级：高。** 项目有 Postgres 和 SQLite 两套 schema 与迁移，漏改任何一处都会导致运行时缺表。这份计划每个 Task 都由我逐步验收。
 
