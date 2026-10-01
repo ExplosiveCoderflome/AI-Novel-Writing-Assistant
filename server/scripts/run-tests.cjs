@@ -13,6 +13,7 @@ const integrationTests = new Set([
   "directorWorkflowStepModules.test.js",
   "persistence.test.js",
   "directorNextReadOnlySqlite.test.js",
+  "commandRepositorySqlite.test.js",
   "novelDirectorPipelineRuntime.test.js",
   "novelDirectorRetry.test.js",
   "novelWorkflowRuntime.test.js",

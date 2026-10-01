@@ -13,6 +13,53 @@ export interface PlanRegistry {
   get(version: string): PlanDefinition | null;
 }
 
+export type DirectorCommandType = "open_run" | "resolve_gate" | "resume" | "handoff" | "cancel";
+
+export interface DirectorCommandRecord {
+  id: string;
+  idempotencyKey: string;
+  runId: string;
+  type: DirectorCommandType;
+  payload: unknown;
+  result: unknown;
+}
+
+export interface CommandExecutionInput {
+  id: string;
+  idempotencyKey: string;
+  type: DirectorCommandType;
+  payload: unknown;
+}
+
+export interface CommandTransitionInput extends CommandExecutionInput {
+  runId: string;
+  event: RunEvent;
+  expectedVersion: number;
+}
+
+export interface CommandOpenRunInput extends CommandExecutionInput {
+  runId: string;
+  contract: RunContract;
+}
+
+export interface CommandHandoffInput extends CommandExecutionInput {
+  oldRunId: string;
+  oldExpectedVersion: number;
+  newRunId: string;
+  newContract: RunContract;
+}
+
+export interface CommandRepository {
+  find(idempotencyKey: string): Promise<DirectorCommandRecord | null>;
+  openRun(input: CommandOpenRunInput): Promise<{ runId: string; control: RunControl; commandId: string; replayed: boolean }>;
+  transition(input: CommandTransitionInput): Promise<{ runId: string; control: RunControl; commandId: string; replayed: boolean }>;
+  handoff(input: CommandHandoffInput): Promise<{ runId: string; control: RunControl; commandId: string; replayed: boolean }>;
+}
+
+export interface DirectorRuntime {
+  nextId(): string;
+}
+
 export interface RunRepository {
   open(contract: RunContract): Promise<RunControl>;
   getContract(runId: string): Promise<RunContract | null>;
