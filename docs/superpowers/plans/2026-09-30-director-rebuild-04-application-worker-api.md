@@ -1,12 +1,22 @@
-# 自动导演重构 · 计划 04：应用层、Worker、接口与开关（任务级，待细化）
+# 自动导演重构 · 计划 04：应用层、Worker、接口与开关（P3 细化版）
 
-状态：**待开发，任务级计划**。代码级步骤在计划 01、03 验收通过后细化。
+状态：**P3 细化完成，Task 1 已验收**。计划 01、03 已验收；事实装载、停止信号生命周期、版本化计划投影和临时 SQLite 纯读快照均已通过。
 
 **目标：** 实现五种命令、单一执行循环、以 Run 为单位的 Worker 租约，以及独立接口 `/api/director-next/*`，全部由环境开关控制，不影响任何现有入口。
 
 **依赖：** 计划 01、03。
 
 **设计文档：** 第 5.3、6、8.1 节。
+
+## P3 细化覆盖（2026-10-01，执行时以此为准）
+
+1. `FactsLoader` 只通过 `RunRepository`、`ArtifactLedger`、`QualityDebtRepository` 和 `EventLog` 读取事实；它返回 `RunContract`、`RunControl` 和 `FactsSnapshot`，不写入任何表。停止信号只接受事件账本中结构化的 `stop_signal` 载荷，控制态中的暂停也只按已保存的 `PauseKind` 映射，禁止从错误文本或关键词猜测停止原因。
+2. `ProjectionService` 只读取 `FactsLoader` 和不可变的计划注册表，再调用领域层 `project()`；来源路由由小说 ID 生成，不能包含 Run ID、任务 ID 或控制态字段。`summary` 与 `detail` 共用同一投影函数，事件时间线只在 detail 适配层追加。
+3. 计划注册表按 `contract.planVersion` 查找已冻结的 `PlanDefinition`；找不到版本是应用错误，不能回退到最新计划。测试使用内存注册表和真实临时 SQLite 两种方式覆盖。
+4. 命令幂等记录必须与 Run 创建或控制态迁移处于同一数据库事务。`DirectorNextCommand` 的 `idempotencyKey` 是唯一入口；相同键直接返回第一次保存的结果，不重新执行。为此在应用端口增加命令仓储的读取、原子保存和结果更新能力，Prisma 实现仍只放在 `infrastructure/`。
+5. Worker 只领取 `DirectorNextRunControl` 的活跃 Run，租约过期后重新从事实层计算 `next()`；不读取旧任务、旧命令或旧导演服务。每个步骤边界先写产物/事件，再推进控制态，崩溃恢复依赖事实账本而不是内存游标。
+6. HTTP 路由只解析结构化请求、调用命令服务或投影服务并立即返回；命令返回 `202`，路由不等待步骤执行。`DIRECTOR_NEXT_ENABLED` 默认关闭时不挂载路由、不实例化新 Worker；`app.ts` 只能追加受开关保护的代码。
+7. 应用层只依赖 `application/ports.ts` 和领域出口；`http/` 只能依赖应用 facade，不能 import `infrastructure/`。集成测试统一使用临时 SQLite 文件，禁止连接开发库或使用内存替身替代真实持久化验收。
 
 ## Global Constraints
 
@@ -32,6 +42,13 @@
 | `server/src/modules/director/http/routes.ts` | `/api/director-next/*` 路由 |
 | `server/src/modules/director/http/index.ts` | 出口与 `mountDirectorNext(app)` |
 | `server/tests/directorNext/application/*.test.js` | 使用假步骤与真实 SQLite 的测试 |
+
+补充文件：
+
+| 路径 | 职责 |
+| --- | --- |
+| `server/src/modules/director/infrastructure/prismaCommandRepository.ts` | `DirectorNextCommand` 的幂等记录与原子命令结果持久化 |
+| `server/src/modules/director/application/runtime.ts` | 统一注入时间、随机 ID、环境开关和 Worker 标识，业务服务不直接读取环境变量 |
 
 ## 命令契约（定稿）
 

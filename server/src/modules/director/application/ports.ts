@@ -5,8 +5,13 @@ import type {
   QualityDebtRef,
   RunContract,
   RunControl,
+  PlanDefinition,
 } from "../domain";
 import type { RunEvent } from "../domain/control";
+
+export interface PlanRegistry {
+  get(version: string): PlanDefinition | null;
+}
 
 export interface RunRepository {
   open(contract: RunContract): Promise<RunControl>;
