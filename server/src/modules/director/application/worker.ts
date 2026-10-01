@@ -1,10 +1,17 @@
 import type { RunExecutor } from "./runExecutor";
-import type { DirectorWorkerRuntime, RunRepository } from "./ports";
+import type { DirectorWorkerRuntime, EventLog, RunRepository } from "./ports";
+import type { RunContract, RunControl } from "../domain";
+
+export interface DirectorRecoveryPolicy {
+  maxAttempts(contract: RunContract): number;
+}
 
 export interface DirectorWorkerDeps {
-  runRepository: Pick<RunRepository, "listLeaseCandidates" | "acquireLease" | "heartbeat">;
+  runRepository: Pick<RunRepository, "listLeaseCandidates" | "acquireLease" | "heartbeat" | "getContract" | "getControl" | "transition">;
   executor: Pick<RunExecutor, "runOnce">;
   runtime: DirectorWorkerRuntime;
+  eventLog?: Pick<EventLog, "list" | "append">;
+  recoveryPolicy?: DirectorRecoveryPolicy;
   pollMs?: number;
   heartbeatMs?: number;
 }
@@ -41,6 +48,9 @@ export class DirectorWorker {
       renewal.unref();
       try {
         await this.deps.executor.runOnce(runId);
+      } catch (error) {
+        if (!this.deps.eventLog || !this.deps.recoveryPolicy) throw error;
+        await this.handleExecutionFailure(runId, error);
       } finally {
         clearInterval(renewal);
       }
@@ -53,6 +63,35 @@ export class DirectorWorker {
       return true;
     }
     return false;
+  }
+
+  private async handleExecutionFailure(runId: string, error: unknown): Promise<void> {
+    const [contract, control, events] = await Promise.all([
+      this.deps.runRepository.getContract(runId),
+      this.deps.runRepository.getControl(runId),
+      this.deps.eventLog?.list(runId),
+    ]);
+    if (!contract || !control || !events || !this.deps.eventLog || !this.deps.recoveryPolicy) {
+      throw error;
+    }
+    const failures = events.filter((event) => event.type === "execution_failure").length;
+    await this.deps.eventLog.append({
+      runId,
+      type: "execution_failure",
+      payload: { attempt: failures + 1, message: error instanceof Error ? error.message : "unknown execution failure" },
+    });
+    const maxAttempts = Math.max(0, Math.floor(this.deps.recoveryPolicy.maxAttempts(contract)));
+    if (failures + 1 <= maxAttempts) return;
+    const reason = "execution_retry_budget_exhausted";
+    await this.deps.eventLog.append({
+      runId,
+      type: "stop_signal",
+      payload: { kind: "manual_recovery", reason, action: "pause_for_manual" },
+    });
+    await this.deps.runRepository.transition(runId, {
+      type: "pause",
+      pause: { kind: "manual_recovery", reason },
+    }, control.version);
   }
 
   async start(): Promise<void> {

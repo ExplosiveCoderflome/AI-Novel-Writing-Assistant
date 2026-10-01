@@ -1,6 +1,7 @@
 const test = require("node:test");
 const assert = require("node:assert/strict");
 const { DirectorWorker } = require("../../../dist/modules/director/application");
+const { contract } = require("../fixtures");
 
 function createHarness() {
   let now = new Date("2026-10-01T00:00:00.000Z");
@@ -61,4 +62,50 @@ test("worker does not clear a paused run or claim it as new work", async () => {
   const worker = new DirectorWorker({ runRepository: harness.repository, executor: harness.executor, runtime: harness.runtime("worker-a") });
   assert.equal(await worker.tick(), false);
   assert.deepEqual(harness.executions, []);
+});
+
+test("one policy retry is allowed before the worker pauses for manual recovery", async () => {
+  const harness = createHarness();
+  let control = { version: 1, status: "running", pause: null, gate: null, cursorStepId: null, failureReason: null };
+  const events = [];
+  let failures = 0;
+  const repository = {
+    ...harness.repository,
+    getContract: async () => contract({ issuePolicy: { mode: "completion_first", version: "policy-1" } }),
+    getControl: async () => control,
+    transition: async (_runId, event, expectedVersion) => {
+      assert.equal(control.version, expectedVersion);
+      control = {
+        ...control,
+        version: control.version + 1,
+        status: event.type === "pause" ? "paused" : control.status,
+        pause: event.type === "pause" ? event.pause : control.pause,
+      };
+      return control;
+    },
+  };
+  const executor = { runOnce: async () => { failures += 1; throw new Error(`failure-${failures}`); } };
+  const eventLog = {
+    list: async () => events,
+    append: async (input) => { events.push({ type: input.type, payload: input.payload }); },
+  };
+  const first = new DirectorWorker({
+    runRepository: repository,
+    executor,
+    eventLog,
+    recoveryPolicy: { maxAttempts: () => 1 },
+    runtime: harness.runtime("worker-a"),
+  });
+  const second = new DirectorWorker({
+    runRepository: repository,
+    executor,
+    eventLog,
+    recoveryPolicy: { maxAttempts: () => 1 },
+    runtime: harness.runtime("worker-b"),
+  });
+  assert.equal(await first.tick(), true);
+  harness.advance(11_000);
+  assert.equal(await second.tick(), true);
+  assert.equal(control.status, "paused");
+  assert.deepEqual(events.map((event) => event.type), ["execution_failure", "execution_failure", "stop_signal"]);
 });
