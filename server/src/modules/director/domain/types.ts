@@ -39,6 +39,7 @@ export type IssuePolicyMode = "completion_first" | "quality_first";
 export interface IssuePolicySnapshot {
   mode: IssuePolicyMode;
   version: string;
+  pipelinePolicy?: {maxAutomaticRetries: number; issueActions: Readonly<Record<string, string>>};
 }
 
 export interface ModelConfigSnapshot {
@@ -74,6 +75,7 @@ export interface RunLaunchInput {
   temperature?: number;
   worldMode: "generate" | "reuse" | "skip";
   targetVolumeId?: string | null;
+  targetMode?: "opening" | "selected_volume";
   provider?: string;
   model?: string;
   executionRange?: ChapterRange;

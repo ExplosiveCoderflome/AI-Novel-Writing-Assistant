@@ -5,6 +5,7 @@ import type {
   CommandTransitionInput,
   DirectorRuntime,
   RunRepository,
+  InitialArtifact,
 } from "./ports";
 
 export type DirectorCommand =
@@ -59,6 +60,7 @@ export interface CommandServiceDeps {
     stepIdsInScope: string[] | null;
     launchInput?: RunLaunchInput;
   }) => RunContract;
+  prepareOpen?: (contract: RunContract) => Promise<readonly InitialArtifact[]>;
 }
 
 function isDirectorCommand(value: unknown): value is DirectorCommand {
@@ -117,13 +119,16 @@ export class CommandService {
     if (activeRunId) throw new ActiveRunConflictError(activeRunId);
     const runId = this.deps.runtime.nextId();
     const commandId = this.deps.runtime.nextId();
+    const contract = this.deps.contractFactory({ runId, novelId: command.novelId, driver: command.driver, stepIdsInScope: command.stepIdsInScope, launchInput: command.launchInput });
+    const initialArtifacts = this.deps.prepareOpen ? await this.deps.prepareOpen(contract) : undefined;
     const result = await this.deps.commandRepository.openRun({
       id: commandId,
       idempotencyKey: command.idempotencyKey,
       type: command.type,
       payload: command,
       runId,
-      contract: this.deps.contractFactory({ runId, novelId: command.novelId, driver: command.driver, stepIdsInScope: command.stepIdsInScope, launchInput: command.launchInput }),
+      contract,
+      ...(initialArtifacts ? {initialArtifacts} : {}),
     });
     return { runId: result.runId, controlVersion: result.control.version, commandId: result.commandId, replayed: result.replayed };
   }

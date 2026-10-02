@@ -248,7 +248,7 @@ export class NovelCorePipelineService {
     });
   }
 
-  async resumePipelineJob(jobId: string): Promise<void> {
+  async resumePipelineJob(jobId: string, options: {preserveManualRecovery?: boolean} = {}): Promise<void> {
     const job = await prisma.generationJob.findUnique({
       where: { id: jobId },
       select: {
@@ -273,7 +273,11 @@ export class NovelCorePipelineService {
       if (job.status !== "queued" && job.status !== "running") {
         return;
       }
-      await this.updateJobSafe(job.id, {
+      if (options.preserveManualRecovery) {
+        const resumed = await prisma.generationJob.updateMany({where: {id: job.id, status: {in: ["queued", "running"]}, pendingManualRecovery: false, cancelRequestedAt: null},
+          data: {status: "queued", heartbeatAt: null}});
+        if (resumed.count !== 1) return;
+      } else await this.updateJobSafe(job.id, {
         status: "queued",
         pendingManualRecovery: false,
         heartbeatAt: null,
@@ -287,6 +291,7 @@ export class NovelCorePipelineService {
         issueGovernanceVersion: payload.issueGovernanceVersion,
         issuePolicySnapshot: payload.issuePolicySnapshot,
         workflowTaskId: payload.workflowTaskId,
+        directorNext: payload.directorNext,
         taskStyleProfileId: payload.taskStyleProfileId,
         maxRetries: clampPipelineMaxRetries(job.maxRetries),
         runMode: job.runMode ?? payload.runMode,
@@ -315,12 +320,27 @@ export class NovelCorePipelineService {
       };
       await ensureNovelCharacters(novelId, "启动批量章节流水");
 
+      if (options.directorNext) {
+        const jobs = await prisma.generationJob.findMany({where: {novelId, startOrder: options.startOrder, endOrder: options.endOrder}, orderBy: {createdAt: "desc"}});
+        for (const job of jobs) {
+          const owner = this.parsePipelinePayload(job.payload).directorNext?.runId;
+          if (owner !== options.directorNext.runId && (job.status === "queued" || job.status === "running")) throw new Error("同一章节范围存在其他运行的正文作业，请从原创作页面处理。");
+        }
+        const owned = jobs.find(job => this.parsePipelinePayload(job.payload).directorNext?.runId === options.directorNext?.runId);
+        if (owned) {
+          if (!owned.pendingManualRecovery && (owned.status === "queued" || owned.status === "running")) this.schedulePipelineExecution(owned.id, novelId, runtimeOptions);
+          return this.decoratePipelineJob(owned);
+        }
+      }
+
       const existingActiveJob = await this.reconcileActivePipelineJobsForRange({
         novelId,
         startOrder: options.startOrder,
         endOrder: options.endOrder,
       });
       if (existingActiveJob) {
+        const owner = this.parsePipelinePayload(existingActiveJob.payload).directorNext?.runId;
+        if (owner && owner !== options.directorNext?.runId) throw new Error("该正文作业属于导演创作，请从导演页面继续。");
         logPipelineWarn("检测到同区间已有活跃批量任务，复用现有任务", {
           novelId,
           range: `${options.startOrder}-${options.endOrder}`,
@@ -403,6 +423,7 @@ export class NovelCorePipelineService {
             issueGovernanceVersion: DIRECTOR_ISSUE_GOVERNANCE_VERSION,
             issuePolicySnapshot,
             workflowTaskId: options.workflowTaskId?.trim() || undefined,
+            directorNext: options.directorNext,
             taskStyleProfileId: options.taskStyleProfileId?.trim() || undefined,
             maxRetries,
             runMode: options.runMode ?? "fast",

@@ -24,6 +24,7 @@ const commandBodySchema = z.discriminatedUnion("type", [
       temperature: z.number().min(0).max(2).optional(),
       worldMode: z.enum(["generate", "reuse", "skip"]),
       targetVolumeId: nonEmpty.nullable().optional(),
+      targetMode: z.enum(["opening", "selected_volume"]).optional(),
       provider: nonEmpty.optional(),
       model: nonEmpty.optional(),
       executionRange: z.object({from: z.number().int().positive(), to: z.number().int().positive()})

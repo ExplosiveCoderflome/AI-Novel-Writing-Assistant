@@ -110,6 +110,12 @@ export class PrismaCommandRepository implements CommandRepository {
       });
       const control = initialControl();
       await tx.directorNextRunControl.create({ data: controlCreate(input.runId, input.contract.novelId, control) });
+      for (const artifact of input.initialArtifacts ?? []) {
+        const latest = await tx.directorNextArtifact.findFirst({where: {novelId: input.contract.novelId, type: artifact.type, scope: artifact.scope}, orderBy: {version: "desc"}, select: {version: true}});
+        const version = (latest?.version ?? 0) + 1;
+        await tx.directorNextArtifact.create({data: {...artifact, id: `${input.contract.novelId}:${artifact.type}:${artifact.scope}:${version}`,
+          novelId: input.contract.novelId, version, producedByRunId: input.runId}});
+      }
       const result = commandResult(input.runId, control, input.id);
       await tx.directorNextCommand.create({
         data: {

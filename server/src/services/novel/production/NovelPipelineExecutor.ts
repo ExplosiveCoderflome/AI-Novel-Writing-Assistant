@@ -226,6 +226,7 @@ export class NovelPipelineExecutor {
       issueGovernanceVersion: persistedPayload.issueGovernanceVersion ?? options.issueGovernanceVersion,
       issuePolicySnapshot: persistedPayload.issuePolicySnapshot ?? options.issuePolicySnapshot,
       workflowTaskId: persistedPayload.workflowTaskId ?? options.workflowTaskId,
+      directorNext: persistedPayload.directorNext ?? options.directorNext,
       taskStyleProfileId: persistedPayload.taskStyleProfileId ?? options.taskStyleProfileId,
       maxRetries: clampPipelineMaxRetries(persistedPayload.maxRetries ?? options.maxRetries),
       runMode: persistedPayload.runMode ?? options.runMode ?? "fast",
@@ -293,6 +294,7 @@ export class NovelPipelineExecutor {
         model: runtimePayload.model,
         temperature: runtimePayload.temperature,
         applyAction: async (decision) => {
+          runtimePayload.directorNext?.decisions.push({...decision, ...(input.chapterOrder ? {chapterOrder: input.chapterOrder} : {})});
           appliedAction = decision.action;
           if (decision.action === "auto_retry") {
             if (!input.onRetry) {
@@ -398,7 +400,7 @@ export class NovelPipelineExecutor {
 
         const isAutopilotMode = runtimePayload.controlPolicy?.advanceMode === "full_book_autopilot";
         const autopilotTargetEndOrder = isAutopilotMode
-          ? Math.max(options.endOrder, novel.estimatedChapterCount ?? options.endOrder)
+          ? runtimePayload.directorNext ? options.endOrder : Math.max(options.endOrder, novel.estimatedChapterCount ?? options.endOrder)
           : options.endOrder;
         let totalCount = isAutopilotMode
           ? Math.max(1, autopilotTargetEndOrder - options.startOrder + 1)
@@ -652,6 +654,7 @@ export class NovelPipelineExecutor {
               model: runtimePayload.model,
               temperature: runtimePayload.temperature,
             }),
+            onIssueDecision: decision => {runtimePayload.directorNext?.decisions.push({...decision, chapterOrder: chapter.order});},
           });
           shouldStopAfterCurrentChapter = closure.shouldStopAfterCurrentChapter;
           chapterStopAction = closure.stopAction;

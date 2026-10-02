@@ -19,7 +19,7 @@ export interface ChapterBatchDependencies<Options extends BatchOptions> {
   pipelineService: {
     startPipelineJob(novelId: string, options: Options & {skipCompleted: true}): Promise<BatchJob>;
     getPipelineJobById(jobId: string): Promise<BatchJob | null>;
-    resumePipelineJob(jobId: string): Promise<void>;
+    resumePipelineJob(jobId: string, options: {preserveManualRecovery: true}): Promise<void>;
   };
   readOutcome(job: BatchJob, context: StepContext): Promise<BatchOutcome>;
   /** Worker renews its lease while this adapter waits; no nested director heartbeat loop. */
@@ -46,7 +46,7 @@ export function createChapterBatchStepHandler<Options extends BatchOptions>(depe
       && candidate.startOrder === input.startOrder && candidate.endOrder === input.endOrder && (!bound || candidate.id === bound));
     if (!valid(job)) return integrity("正文作业记录丢失、跨书或超出授权范围，请检查运行记录。");
     if (!bound) await dependencies.jobBinding.save(context.runId, job.id);
-    if (bound && active(job)) await dependencies.pipelineService.resumePipelineJob(job.id);
+    if (bound && active(job)) await dependencies.pipelineService.resumePipelineJob(job.id, {preserveManualRecovery: true});
     while (active(job)) {
       if (!await dependencies.isRunActive(context.runId)) throw new Error("导演运行已结束或暂停，停止等待正文作业。");
       await dependencies.waitForPoll();

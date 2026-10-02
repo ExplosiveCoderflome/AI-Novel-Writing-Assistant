@@ -38,6 +38,7 @@ const { contract } = require(path.join(serverRoot, "tests/directorNext/fixtures"
     commandRepository,
     runtime: { nextId: () => "id-" + (++sequence) },
     contractFactory: ({ runId, novelId, driver, stepIdsInScope }) => contract({ runId, novelId, driver, stepIdsInScope }),
+    prepareOpen: async () => [{type: 'novel_seed', scope: 'book', status: 'confirmed', protectedUserContent: true, contentRef: 'novel:novel-1', contentHash: 'seed-hash'}],
   });
   const first = await service.execute({ type: "open_run", novelId: "novel-1", driver: "auto", stepIdsInScope: null, idempotencyKey: "open-1" });
   const replay = await service.execute({ type: "open_run", novelId: "novel-1", driver: "auto", stepIdsInScope: null, idempotencyKey: "open-1" });
@@ -46,6 +47,8 @@ const { contract } = require(path.join(serverRoot, "tests/directorNext/fixtures"
   assert.equal(replay.runId, first.runId);
   assert.equal(await prisma.directorNextCommand.count(), 1);
   assert.equal(await prisma.directorNextRun.count(), 1);
+  assert.equal(await prisma.directorNextArtifact.count(), 1);
+  assert.equal((await prisma.directorNextArtifact.findFirst()).producedByRunId, first.runId);
 
   await assert.rejects(
     () => service.execute({ type: "open_run", novelId: "novel-1", driver: "auto", stepIdsInScope: null, idempotencyKey: "open-2" }),
@@ -59,12 +62,14 @@ const { contract } = require(path.join(serverRoot, "tests/directorNext/fixtures"
   assert.equal((await runRepository.getControl(first.runId)).status, "cancelled");
 
   const second = await service.execute({ type: "open_run", novelId: "novel-1", driver: "auto", stepIdsInScope: ["story_macro"], idempotencyKey: "open-3" });
+  const artifactsBeforeHandoff = await prisma.directorNextArtifact.findMany();
   const handoff = await service.execute({ type: "handoff", runId: second.runId, toDriver: "assisted", expectedVersion: 0, idempotencyKey: "handoff-1" });
   assert.equal((await runRepository.getControl(second.runId)).status, "cancelled");
   assert.equal((await runRepository.getContract(handoff.runId)).driver, "assisted");
   assert.equal((await runRepository.getContract(handoff.runId)).stepIdsInScope[0], "story_macro");
   assert.equal((await runRepository.getControl(handoff.runId)).status, "queued");
   assert.equal(await prisma.directorNextCommand.count(), 4);
+  assert.deepEqual(await prisma.directorNextArtifact.findMany(), artifactsBeforeHandoff);
   await prisma.$disconnect();
 })().catch(async (error) => {
   console.error(error);

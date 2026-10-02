@@ -23,6 +23,7 @@ export async function applyChapterQualityClosure(input: {
   qualityAlertDetails: string[];
   replanAlertDetails: string[];
   recoverableRepairDetails: string[];
+  onIssueDecision?: (decision: DirectorIssueDecision) => void;
   runLocalReplan: (input: {
     chapterId: string;
     triggerType: string;
@@ -44,6 +45,7 @@ export async function applyChapterQualityClosure(input: {
   let shouldStopAfterCurrentChapter = false;
   let stopAction: ChapterQualityStopAction | null = null;
   const applyDecision = async (decision: DirectorIssueDecision) => {
+    input.onIssueDecision?.(decision);
     if (decision.action === "auto_retry") {
       throw new Error("章节质量闭环已耗尽本章自动处理预算，不能登记未执行的自动重试。");
     }
@@ -231,7 +233,8 @@ export async function applyChapterQualityClosure(input: {
     provider: runtimePayload.provider,
     model: runtimePayload.model,
     temperature: runtimePayload.temperature,
-    applyAction: async () => {
+    applyAction: async decision => {
+      input.onIssueDecision?.(decision);
       if (!input.replanAlertDetails.includes(detail)) input.replanAlertDetails.push(detail);
     },
   });

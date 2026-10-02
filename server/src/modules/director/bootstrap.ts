@@ -7,6 +7,7 @@ import {
   createDirectorRuntime,
   DirectorWorker,
   type PlanRegistry,
+  type CommandServiceDeps,
 } from "./application";
 import { definePlan, createPlanOrchestrator, type PlanDefinition, type RunContract } from "./domain";
 import {
@@ -61,7 +62,14 @@ export interface DirectorNextServices {
   worker: DirectorWorker;
 }
 
-export function createDirectorNextServices(): DirectorNextServices {
+export interface DirectorNextServiceOptions {
+  plan?: PlanDefinition;
+  stepRegistry?: StepRegistry;
+  contractFactory?: CommandServiceDeps["contractFactory"];
+  prepareOpen?: CommandServiceDeps["prepareOpen"];
+}
+
+export function createDirectorNextServices(options: DirectorNextServiceOptions = {}): DirectorNextServices {
   const runRepository = new PrismaRunRepository();
   const artifactLedger = new PrismaArtifactLedger();
   const qualityDebtRepository = new PrismaQualityDebtRepository();
@@ -69,12 +77,13 @@ export function createDirectorNextServices(): DirectorNextServices {
   const commandRepository = new PrismaCommandRepository();
   const runtime = createDirectorRuntime();
   const factsLoader = new FactsLoader({ runRepository, artifactLedger, qualityDebtRepository, eventLog });
-  const projectionService = new ProjectionService({ factsLoader, planRegistry });
-  const commandService = new CommandService({ runRepository, commandRepository, runtime, contractFactory });
-  const stepRegistry = new StepRegistry();
+  const configuredPlans: PlanRegistry = {get: version => options.plan?.version === version ? options.plan : planRegistry.get(version)};
+  const projectionService = new ProjectionService({ factsLoader, planRegistry: configuredPlans });
+  const commandService = new CommandService({ runRepository, commandRepository, runtime, contractFactory: options.contractFactory ?? contractFactory, prepareOpen: options.prepareOpen });
+  const stepRegistry = options.stepRegistry ?? new StepRegistry();
   const executor = new RunExecutor({
     factsLoader,
-    planRegistry,
+    planRegistry: configuredPlans,
     orchestrator: createPlanOrchestrator(),
     runRepository,
     artifactLedger,

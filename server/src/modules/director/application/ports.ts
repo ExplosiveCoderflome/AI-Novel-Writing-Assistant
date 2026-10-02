@@ -40,6 +40,12 @@ export interface CommandTransitionInput extends CommandExecutionInput {
 export interface CommandOpenRunInput extends CommandExecutionInput {
   runId: string;
   contract: RunContract;
+  initialArtifacts?: readonly InitialArtifact[];
+}
+
+export interface InitialArtifact {
+  type: string; scope: string; status: ArtifactStatus; protectedUserContent: boolean;
+  contentRef: string; contentHash: string | null;
 }
 
 export interface CommandHandoffInput extends CommandExecutionInput {
