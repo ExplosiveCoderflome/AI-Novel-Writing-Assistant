@@ -4,7 +4,8 @@ import { directorIssueDecisionSchema } from "@ai-novel/shared/types/directorIssu
 export const pipelineDirectorSnapshotSchema = z.object({
   runId: z.string().trim().min(1),
   decisions: z.array(directorIssueDecisionSchema.extend({chapterOrder: z.number().int().positive().optional()})),
-});
+  resolvedDecisionCount: z.number().int().nonnegative().optional(),
+}).refine(value => (value.resolvedDecisionCount ?? 0) <= value.decisions.length);
 export type PipelineDirectorSnapshot = z.infer<typeof pipelineDirectorSnapshotSchema>;
 export class InvalidPipelineDirectorSnapshotError extends Error {
   constructor() {super("invalid director pipeline snapshot"); this.name = "InvalidPipelineDirectorSnapshotError";}

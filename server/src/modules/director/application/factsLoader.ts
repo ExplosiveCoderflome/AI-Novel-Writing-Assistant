@@ -28,10 +28,11 @@ function parseStopSignal(payload: unknown, seq: number): StopSignal {
   if (!value || typeof value !== "object"
     || !kinds.includes(value.kind as StopSignal["kind"])
     || typeof value.reason !== "string" || !value.reason.trim()
-    || (value.action !== undefined && !actions.includes(value.action))) {
+    || (value.action !== undefined && !actions.includes(value.action))
+    || (value.source !== undefined && value.source !== "quality" && value.source !== "runtime")) {
     throw new InvalidStopSignalError(seq);
   }
-  return { kind: value.kind as StopSignal["kind"], reason: value.reason, ...(value.action ? { action: value.action } : {}) };
+  return { kind: value.kind as StopSignal["kind"], reason: value.reason, ...(value.action ? { action: value.action } : {}), ...(value.source ? {source: value.source} : {}) };
 }
 
 function readStopSignal(events: Awaited<ReturnType<EventLog["list"]>>): StopSignal | null {
@@ -92,7 +93,7 @@ export class FactsLoader {
     return {
       contract,
       control,
-      facts: { artifacts, debts, stopSignal: savedPause(control) ?? eventStop },
+      facts: { artifacts, debts, stopSignal: control.pause && eventStop?.reason === control.pause.reason && eventStop.kind === control.pause.kind ? eventStop : savedPause(control) ?? eventStop },
     };
   }
 }

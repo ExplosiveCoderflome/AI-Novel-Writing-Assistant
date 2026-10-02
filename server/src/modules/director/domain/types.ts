@@ -128,6 +128,7 @@ export interface StopSignal {
   kind: StopSignalKind;
   reason: string;
   action?: StopSignalAction;
+  source?: "quality" | "runtime";
 }
 
 export interface FactsSnapshot {

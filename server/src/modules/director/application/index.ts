@@ -6,3 +6,4 @@ export * from "./stepRegistry";
 export * from "./runExecutor";
 export * from "./runtime";
 export * from "./worker";
+export * from "./gateService";

@@ -35,6 +35,14 @@ export interface CommandTransitionInput extends CommandExecutionInput {
   runId: string;
   event: RunEvent;
   expectedVersion: number;
+  gateResolution?: GateResolution;
+}
+
+export interface GateResolution {
+  decision: "confirm" | "confirm_after_edit" | "regenerate";
+  scope: string;
+  artifacts: readonly {type: string; expectedVersion: number}[];
+  invalidateTypes: readonly string[];
 }
 
 export interface CommandOpenRunInput extends CommandExecutionInput {

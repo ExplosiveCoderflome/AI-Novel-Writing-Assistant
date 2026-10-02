@@ -20,6 +20,13 @@ function codeOf(verdict) {
   return verdict.code;
 }
 
+test("runtime manual pauses remain valid under completion-first without weakening quality policy", () => {
+  const action = {kind: 'pause', pause: {kind: 'manual_recovery', reason: 'runtime interruption'}};
+  const stopSignal = {kind: 'manual_recovery', reason: 'runtime interruption', action: 'pause_for_manual', source: 'runtime'};
+  assert.equal(check({action, facts: {...facts([]), stopSignal}}).ok, true);
+  assert.equal(check({action, facts: {...facts([]), stopSignal: {...stopSignal, source: 'quality'}}}).ok, false);
+});
+
 test("a legal run_step is accepted", () => {
   assert.deepEqual(check(), { ok: true });
 });

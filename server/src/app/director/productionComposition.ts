@@ -15,6 +15,7 @@ import { NovelCorePipelineService } from "../../services/novel/novelCorePipeline
 import { DIRECTOR_ISSUE_POLICY_PRESETS, directorIssuePolicySchema } from "@ai-novel/shared/types/directorIssue";
 import { requireLaunch, modelOptions, bookContractInput, targetVolume, executionWindow } from "./productionInputs";
 import { readBatchOutcome } from "./batchOutcome";
+import {readEditedArtifact, resumeBusiness} from "./savedContent";
 
 /** Composition only: business generation remains owned by existing novel services. Not enabled by importing this module. */
 export function createDirectorProductionOptions(): DirectorNextServiceOptions {
@@ -66,7 +67,7 @@ export function createDirectorProductionOptions(): DirectorNextServiceOptions {
       readOutcome: readBatchOutcome, waitForPoll: () => new Promise(resolve => setTimeout(resolve, 1000)),
       isRunActive: async runId => (await prisma.directorNextRunControl.findUnique({where: {runId}, select: {status: true}}))?.status === "running", contentHash}),
   });
-  return {plan: directorProductionPlan, stepRegistry, contractFactory: input => {
+  return {plan: directorProductionPlan, stepRegistry, readEditedArtifact, resumeBusiness, contractFactory: input => {
     const launch = input.launchInput;
     if (!launch) throw new Error("启动创作需要故事、模型与范围快照。");
     if (!launch.targetVolumeId && launch.targetMode !== "opening") throw new Error("启动创作需要明确选择开篇或目标卷。");

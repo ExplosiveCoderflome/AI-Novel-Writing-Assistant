@@ -48,5 +48,5 @@
 3. 旧 `protectedUserContent` 是产物级布尔值，且 `source=user_edited` 也参与保护摘要；它没有记录编辑者、scope 或来源页。新台账需要保留这些信息或在边界层补齐。来源：`server/src/services/novel/director/runtime/DirectorArtifactLedger.ts:280`、`server/src/services/novel/director/runtime/DirectorArtifactGateway.ts:153`。
 4. `volume_beat_sheet`、`volume_chapter_list`、`chapter_execution_contract`、`chapter_batch_closed` 等类型在目录中存在，但旧 workspace inventory 没有独立台账写入；实现前必须确认它们的内容引用和版本来源。来源：`server/src/services/novel/director/phases/novelDirectorStructuredOutlinePhase.ts:262`、`server/src/services/novel/director/phases/novelDirectorStructuredOutlinePhase.ts:311`、`shared/types/directorWorkflowStepCatalogData.ts:479`、`server/src/services/novel/director/workflowStepRuntime/directorExecutionStepModules.ts:119`。
 
-仍需新内核定稿的范围：`volume_beat_sheet`、`volume_chapter_list`、`chapter_execution_contract`、`chapter_batch_closed` 共 4/23（17.4%）为 UNKNOWN，低于计划 02 的 30% 停止阈值；它们不能直接沿用旧台账实现，必须在实现计划中给出内容引用、版本和失效来源。
+上述四类旧实现缺项已由计划 05 新内核声明补齐，不沿用旧台账：`volume_beat_sheet` 引用已保存目标卷节奏段，`volume_chapter_list` 引用目标卷章节路线，`chapter_execution_contract` 引用授权起始章的已保存执行合同，`chapter_batch_closed` 引用授权批次的正文完成事实。内容哈希由已保存内容计算，版本由新台账分配，失效来源直接使用 `directorProductionPlan` 的 requires 传递闭包并限定 scope。批次完成事实可因合同变化过期，正文内容和 `chapter_draft` 不能被规划失效清空或解除保护。计划 07 没有继续使用这四项 UNKNOWN。
 

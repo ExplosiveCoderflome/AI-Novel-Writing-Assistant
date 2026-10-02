@@ -15,7 +15,8 @@ export interface RunExecutorDeps {
   factsLoader: Pick<FactsLoader, "load">;
   planRegistry: PlanRegistry;
   orchestrator: Orchestrator;
-  runRepository: Pick<RunRepository, "transition">;
+  assistedOrchestrator?: Orchestrator;
+  runRepository: Pick<RunRepository, "transition"> & Partial<Pick<RunRepository, "getControl">>;
   artifactLedger: Pick<ArtifactLedger, "record">;
   qualityDebtRepository: Pick<QualityDebtRepository, "record">;
   eventLog: Pick<EventLog, "list" | "append">;
@@ -41,7 +42,8 @@ export class RunExecutor {
     const plan = this.deps.planRegistry.get(loaded.contract.planVersion);
     if (!plan) throw new Error(`director next plan version not found: ${loaded.contract.planVersion}`);
     const events = await this.deps.eventLog.list(runId);
-    const action = this.deps.orchestrator.next({ plan, contract: loaded.contract, facts: loaded.facts });
+    const orchestrator = loaded.contract.driver === "assisted" ? this.deps.assistedOrchestrator ?? this.deps.orchestrator : this.deps.orchestrator;
+    const action = orchestrator.next({ plan, contract: loaded.contract, facts: loaded.facts });
     const verdict = checkAction({
       action,
       plan,
@@ -79,7 +81,7 @@ export class RunExecutor {
     await this.deps.eventLog.append({
       runId,
       type: "stop_signal",
-      payload: { kind: "manual_recovery", reason, action: "pause_for_manual" },
+      payload: { kind: "manual_recovery", reason, action: "pause_for_manual", source: "runtime" },
     });
     await this.deps.runRepository.transition(runId, {
       type: "pause",
@@ -135,6 +137,10 @@ export class RunExecutor {
       facts: loaded.facts,
       step,
     });
+    if (this.deps.runRepository.getControl) {
+      const current = await this.deps.runRepository.getControl(runId);
+      if (!current || current.status !== "running" || current.version !== started.version) return {kind: "idle"};
+    }
     if (result.stopSignal) {
       const facts = {...loaded.facts, stopSignal: result.stopSignal};
       const action = createPlanOrchestrator().next({plan, contract: loaded.contract, facts});

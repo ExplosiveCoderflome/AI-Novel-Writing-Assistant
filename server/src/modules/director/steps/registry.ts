@@ -9,7 +9,12 @@ export function createProductionStepRegistry(handlers: Record<ProductionStepId, 
   for (const step of directorProductionPlan.steps) {
     const handler = handlers[step.id as ProductionStepId];
     if (typeof handler !== "function") throw new Error(`missing director production implementation: ${step.id}`);
-    registry.register(step.id, handler);
+    registry.register(step.id, step.gateable ? handler : async context => {
+      const result = await handler(context);
+      // Non-gateable stages are explicitly auto-approved by the declared plan, including before handoff.
+      if (result.artifact?.status === "draft") return {...result, artifact: {...result.artifact, status: "confirmed"}};
+      return result;
+    });
   }
   return registry;
 }

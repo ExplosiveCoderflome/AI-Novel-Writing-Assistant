@@ -8,14 +8,17 @@ import {
   DirectorWorker,
   type PlanRegistry,
   type CommandServiceDeps,
+  GateService,
 } from "./application";
-import { definePlan, createPlanOrchestrator, type PlanDefinition, type RunContract } from "./domain";
+import { definePlan, createPlanOrchestrator, createGateOrchestrator, type PlanDefinition, type RunContract } from "./domain";
 import {
   PrismaArtifactLedger,
   PrismaCommandRepository,
   PrismaEventLog,
   PrismaQualityDebtRepository,
   PrismaRunRepository,
+  type ArtifactEditReader,
+  type BusinessResume,
 } from "./infrastructure";
 import type { DirectorNextHttpDeps } from "./http";
 
@@ -67,6 +70,8 @@ export interface DirectorNextServiceOptions {
   stepRegistry?: StepRegistry;
   contractFactory?: CommandServiceDeps["contractFactory"];
   prepareOpen?: CommandServiceDeps["prepareOpen"];
+  readEditedArtifact?: ArtifactEditReader;
+  resumeBusiness?: BusinessResume;
 }
 
 export function createDirectorNextServices(options: DirectorNextServiceOptions = {}): DirectorNextServices {
@@ -74,17 +79,19 @@ export function createDirectorNextServices(options: DirectorNextServiceOptions =
   const artifactLedger = new PrismaArtifactLedger();
   const qualityDebtRepository = new PrismaQualityDebtRepository();
   const eventLog = new PrismaEventLog();
-  const commandRepository = new PrismaCommandRepository();
+  const commandRepository = new PrismaCommandRepository(undefined, {readEditedArtifact: options.readEditedArtifact, resumeBusiness: options.resumeBusiness});
   const runtime = createDirectorRuntime();
   const factsLoader = new FactsLoader({ runRepository, artifactLedger, qualityDebtRepository, eventLog });
   const configuredPlans: PlanRegistry = {get: version => options.plan?.version === version ? options.plan : planRegistry.get(version)};
   const projectionService = new ProjectionService({ factsLoader, planRegistry: configuredPlans });
-  const commandService = new CommandService({ runRepository, commandRepository, runtime, contractFactory: options.contractFactory ?? contractFactory, prepareOpen: options.prepareOpen });
+  const gateService = new GateService({factsLoader, planRegistry: configuredPlans});
+  const commandService = new CommandService({ runRepository, commandRepository, runtime, contractFactory: options.contractFactory ?? contractFactory, prepareOpen: options.prepareOpen, gateService });
   const stepRegistry = options.stepRegistry ?? new StepRegistry();
   const executor = new RunExecutor({
     factsLoader,
     planRegistry: configuredPlans,
     orchestrator: createPlanOrchestrator(),
+    assistedOrchestrator: createGateOrchestrator(),
     runRepository,
     artifactLedger,
     qualityDebtRepository,

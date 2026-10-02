@@ -7,6 +7,7 @@ import type {
   RunRepository,
   InitialArtifact,
 } from "./ports";
+import type {GateService} from "./gateService";
 
 export type DirectorCommand =
   | { type: "open_run"; novelId: string; driver: RunContract["driver"]; stepIdsInScope: string[] | null; launchInput?: RunLaunchInput; idempotencyKey: string }
@@ -61,6 +62,7 @@ export interface CommandServiceDeps {
     launchInput?: RunLaunchInput;
   }) => RunContract;
   prepareOpen?: (contract: RunContract) => Promise<readonly InitialArtifact[]>;
+  gateService?: Pick<GateService, "prepare">;
 }
 
 function isDirectorCommand(value: unknown): value is DirectorCommand {
@@ -146,12 +148,14 @@ export class CommandService {
     if (control.status !== "waiting_gate") {
       throw new InvalidDirectorCommandError("只有等待确认的创作可以处理门控。");
     }
-    return this.transition(command, { type: "resolve_gate" });
+    const resolution = this.deps.gateService ? await this.deps.gateService.prepare(command.runId, command.decision, command.expectedVersion) : undefined;
+    return this.transition(command, { type: "resolve_gate" }, resolution);
   }
 
   private async transition(
     command: Extract<DirectorCommand, { runId: string; expectedVersion: number }>,
     event: Parameters<RunRepository["transition"]>[1],
+    gateResolution?: CommandTransitionInput["gateResolution"],
   ): Promise<DirectorCommandResult> {
     const commandId = this.deps.runtime.nextId();
     const result = await this.deps.commandRepository.transition({
@@ -162,6 +166,7 @@ export class CommandService {
       runId: command.runId,
       event,
       expectedVersion: command.expectedVersion,
+      ...(gateResolution ? {gateResolution} : {}),
     });
     return {
       runId: result.runId,
@@ -177,6 +182,9 @@ export class CommandService {
       this.deps.runRepository.getContract(command.runId),
     ]);
     if (!contract) throw new InvalidDirectorCommandError("找不到要切换的创作。");
+    if (control.cursorStepId) {
+      throw new InvalidDirectorCommandError("请等待当前阶段保存后再切换创作方式。");
+    }
     if (control.status === "cancelled" || control.status === "completed" || control.status === "failed") {
       throw new InvalidDirectorCommandError("只有未结束的创作可以切换方式。");
     }

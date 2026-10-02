@@ -80,6 +80,7 @@ export class DirectorWorker {
     if (!contract || !control || !events || !this.deps.eventLog || !this.deps.recoveryPolicy) {
       throw error;
     }
+    if (control.status !== "running") return;
     const failures = events.filter((event) => event.type === "execution_failure").length;
     await this.deps.eventLog.append({
       runId,
@@ -92,7 +93,7 @@ export class DirectorWorker {
     await this.deps.eventLog.append({
       runId,
       type: "stop_signal",
-      payload: { kind: "manual_recovery", reason, action: "pause_for_manual" },
+      payload: { kind: "manual_recovery", reason, action: "pause_for_manual", source: "runtime" },
     });
     await this.deps.runRepository.transition(runId, {
       type: "pause",

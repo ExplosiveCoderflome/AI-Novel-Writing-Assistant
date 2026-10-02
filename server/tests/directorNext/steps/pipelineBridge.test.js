@@ -8,6 +8,11 @@ test('director ownership and structured issue decisions survive pipeline payload
 test('malformed director ownership cannot silently become a legacy job',()=>{
  assert.throws(()=>parsePipelinePayload(JSON.stringify({directorNext:{runId:'',decisions:[]}})),/director/i);
 });
+test('explicit recovery cursor preserves issue history and cannot exceed saved decisions',()=>{
+ const directorNext={runId:'run',decisions:[],resolvedDecisionCount:0};
+ assert.deepEqual(parsePipelinePayload(stringifyPipelinePayload({directorNext})).directorNext,directorNext);
+ assert.throws(()=>parsePipelinePayload(JSON.stringify({directorNext:{...directorNext,resolvedDecisionCount:1}})),/director/i);
+});
 test('legacy payloads retain their existing shape without new director metadata',()=>{
  const saved=JSON.parse(stringifyPipelinePayload({model:'legacy'}));assert.equal('directorNext' in saved,false);assert.equal(parsePipelinePayload(JSON.stringify(saved)).model,'legacy');
 });

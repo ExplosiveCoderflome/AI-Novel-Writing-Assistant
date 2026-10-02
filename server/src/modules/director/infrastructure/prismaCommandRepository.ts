@@ -14,6 +14,8 @@ import type {
   CommandTransitionInput,
   DirectorCommandRecord,
 } from "../application/ports";
+import {commitGateResolution, type ArtifactEditReader} from "./commands/gateResolution";
+import {commitExplicitResume, type BusinessResume} from "./commands/resumeRun";
 
 function parseJson<T>(value: string | null): T | null {
   return value ? JSON.parse(value) as T : null;
@@ -84,7 +86,7 @@ function fromRow(row: {
 }
 
 export class PrismaCommandRepository implements CommandRepository {
-  constructor(private readonly db: PrismaClient = prisma) {}
+  constructor(private readonly db: PrismaClient = prisma, private readonly options: {readEditedArtifact?: ArtifactEditReader; resumeBusiness?: BusinessResume} = {}) {}
 
   async find(idempotencyKey: string): Promise<DirectorCommandRecord | null> {
     const row = await this.db.directorNextCommand.findUnique({ where: { idempotencyKey } });
@@ -139,6 +141,14 @@ export class PrismaCommandRepository implements CommandRepository {
       if (!row) throw new Error(`director next run control not found: ${input.runId}`);
       const current = controlFromRow(row);
       const next = applyEvent(current, input.event, input.expectedVersion);
+      if (input.event.type === "resume") {
+        const run = await tx.directorNextRun.findUniqueOrThrow({where: {id: input.runId}, select: {contractJson: true}});
+        await commitExplicitResume(tx, JSON.parse(run.contractJson) as RunContract, input.id, this.options.resumeBusiness);
+      }
+      if (input.gateResolution) {
+        const run = await tx.directorNextRun.findUniqueOrThrow({where: {id: input.runId}, select: {contractJson: true}});
+        await commitGateResolution(tx, {runId: input.runId, contract: JSON.parse(run.contractJson) as RunContract, control: current, resolution: input.gateResolution}, this.options.readEditedArtifact);
+      }
       const updated = await tx.directorNextRunControl.updateMany({
         where: { runId: input.runId, version: input.expectedVersion },
         data: controlUpdate(next),
@@ -166,6 +176,13 @@ export class PrismaCommandRepository implements CommandRepository {
       const oldRow = await tx.directorNextRunControl.findUnique({ where: { runId: input.oldRunId } });
       if (!oldRow) throw new Error(`director next run control not found: ${input.oldRunId}`);
       const oldControl = controlFromRow(oldRow);
+      if (oldControl.cursorStepId) throw new Error("当前阶段尚未保存，不能切换方式。");
+      const batch = await tx.directorNextEvent.findFirst({where: {runId: input.oldRunId, type: "chapter_batch_job"}, orderBy: {seq: "desc"}});
+      if (batch) {
+        const binding = JSON.parse(batch.payloadJson) as {jobId?: string};
+        const job = binding.jobId ? await tx.generationJob.findUnique({where: {id: binding.jobId}, select: {status: true, pendingManualRecovery: true}}) : null;
+        if (!job || job.status !== "succeeded" || job.pendingManualRecovery) throw new Error("请先处理并保存当前正文批次，再切换创作方式。");
+      }
       const cancelled = applyEvent(oldControl, { type: "cancel" }, input.oldExpectedVersion);
       const updated = await tx.directorNextRunControl.updateMany({
         where: { runId: input.oldRunId, version: input.oldExpectedVersion },
@@ -183,6 +200,11 @@ export class PrismaCommandRepository implements CommandRepository {
       });
       const next = initialControl();
       await tx.directorNextRunControl.create({ data: controlCreate(input.newRunId, input.newContract.novelId, next) });
+      if (oldControl.status === "paused" && oldControl.pause) {
+        const signal = await tx.directorNextEvent.findFirst({where: {runId: input.oldRunId, type: "stop_signal"}, orderBy: {seq: "desc"}});
+        const payloadJson = signal?.payloadJson ?? JSON.stringify({...oldControl.pause, action: oldControl.pause.kind === "replan" ? "stop_for_replan" : "pause_for_manual", source: "runtime"});
+        await tx.directorNextEvent.create({data: {id: `${input.newRunId}:1`, runId: input.newRunId, seq: 1, type: "stop_signal", payloadJson}});
+      }
       const result = commandResult(input.newRunId, next, input.id);
       await tx.directorNextCommand.create({
         data: {
