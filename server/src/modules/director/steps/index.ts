@@ -7,3 +7,4 @@ export * from "./planning/volumeBeatSheet";
 export * from "./planning/volumeChapterList";
 export * from "./planning/chapterDetailBundle";
 export * from "./planning/executionContractSync";
+export * from "./planning/characterSetup";
