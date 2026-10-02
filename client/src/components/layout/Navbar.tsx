@@ -15,6 +15,7 @@ import {
 } from "@/mobile/autoDirector";
 
 interface NavbarProps {
+  onOpenProjectNav?: () => void;
   workspaceNavMode?: "workspace" | "project";
   onWorkspaceNavModeChange?: (mode: "workspace" | "project") => void;
 }
@@ -42,6 +43,7 @@ export default function Navbar(props: NavbarProps) {
         </div>
       </div>
       <div className="flex shrink-0 items-center gap-2 sm:gap-3">
+        {props.onOpenProjectNav ? <Button type="button" size="sm" variant="ghost" onClick={props.onOpenProjectNav}>全局菜单</Button> : null}
         {!isHome && showWorkspaceToggle ? (
           <Button
             type="button"

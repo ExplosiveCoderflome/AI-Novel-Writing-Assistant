@@ -16,6 +16,7 @@ import {
   shouldUseAutoDirectorMobileFullWidthContent,
 } from "@/mobile/autoDirector";
 import { CreationSetupProvider } from "@/components/onboarding/CreationSetupContext";
+import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 
 const SIDEBAR_COLLAPSED_STORAGE_KEY = "ai-novel.sidebar.collapsed";
 const WORKSPACE_RAIL_COLLAPSED_STORAGE_KEY = "ai-novel.workspace-rail.collapsed";
@@ -23,6 +24,9 @@ const DEFAULT_APP_MAIN_CLASS_NAME = "h-[calc(100dvh-4rem)] min-w-0 flex-1 overfl
 
 export default function AppLayout() {
   const location = useLocation();
+  const isDirectorWorkbench = Boolean(matchPath("/lab/director/:novelId", location.pathname));
+  const [projectMenuOpen, setProjectMenuOpen] = useState(false);
+  useEffect(() => { setProjectMenuOpen(false); }, [location.pathname]);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [isWorkspaceRailCollapsed, setIsWorkspaceRailCollapsed] = useState(false);
   const [workspaceNavMode, setWorkspaceNavMode] = useState<"workspace" | "project">("project");
@@ -133,11 +137,12 @@ export default function AppLayout() {
         <AutoDirectorPauseNotificationWatcher />
         <LLMSelectionBootstrap />
         <Navbar
+          onOpenProjectNav={isDirectorWorkbench ? () => setProjectMenuOpen(true) : undefined}
           workspaceNavMode={isNovelWorkspace ? workspaceNavMode : undefined}
           onWorkspaceNavModeChange={isNovelWorkspace ? setWorkspaceNavMode : undefined}
         />
         <div className="flex h-[calc(100dvh-4rem)] min-h-0">
-          <div className={useMobileFullWidthContent ? "hidden md:block" : "shrink-0"}>
+          {!isDirectorWorkbench ? <div className={useMobileFullWidthContent ? "hidden md:block" : "shrink-0"}>
             {isNovelWorkspace && workspaceNavMode === "workspace" && workspaceRoute ? (
               <NovelWorkspaceRail
                 novelId={workspaceRoute.novelId}
@@ -152,13 +157,14 @@ export default function AppLayout() {
                 onToggle={() => setIsSidebarCollapsed((current) => !current)}
               />
             )}
-          </div>
+          </div> : null}
           <main className={useMobileFullWidthContent ? AUTO_DIRECTOR_MOBILE_CLASSES.appMain : DEFAULT_APP_MAIN_CLASS_NAME}>
             <Suspense fallback={<AppRouteFallback />}>
               <Outlet />
             </Suspense>
           </main>
         </div>
+        {isDirectorWorkbench ? <Dialog open={projectMenuOpen} onOpenChange={setProjectMenuOpen}><DialogContent aria-describedby={undefined} className="max-h-[90dvh] w-auto overflow-y-auto p-4"><DialogTitle>全局菜单</DialogTitle><Sidebar collapsed={false} onToggle={() => setProjectMenuOpen(false)} /></DialogContent></Dialog> : null}
         <TaskRecoveryDialog />
       </div>
     </TaskRecoveryProvider>
