@@ -48,9 +48,9 @@ test('the projection guard also rejects a third rendering component', () => {
   assert.notEqual(presentationViolations('Third.tsx', 'view.mode === "running"').length, 0);
   const roots = ['components/directorNext', 'pages/directorNext'];
   for (const root of roots) {
-    for (const file of fs.readdirSync(new URL(`../src/${root}/`, import.meta.url))) {
+    for (const file of fs.readdirSync(new URL(`../src/${root}/`, import.meta.url), {recursive: true})) {
       if (!file.endsWith('.tsx')) continue;
-      assert.deepEqual(presentationViolations(file, read(`${root}/${file}`)), [], file);
+      assert.deepEqual(presentationViolations(file, read(`${root}/${file.replaceAll('\\', '/')}`)), [], file);
     }
   }
 });
