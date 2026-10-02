@@ -42,7 +42,7 @@ test("story macro adapter delegates to the plan service and returns a ledger-rea
         return plan;
       },
     },
-    storyInputProvider: async () => "一名失忆的守门人守护一座会移动的城",
+    inputProvider: async () => ({ storyInput: "一名失忆的守门人守护一座会移动的城", provider: "openai", model: "saved-model", temperature: 0.35 }),
     contentHash: artifactContentHash,
   });
 
@@ -50,6 +50,7 @@ test("story macro adapter delegates to the plan service and returns a ledger-rea
 
   assert.equal(calls.length, 1);
   assert.deepEqual(calls[0].slice(0, 2), ["novel-1", "一名失忆的守门人守护一座会移动的城"]);
+  assert.deepEqual(calls[0][2], { provider: "openai", model: "saved-model", temperature: 0.35 });
   assert.equal(result.artifact.scope, "book");
   assert.equal(result.artifact.status, "draft");
   assert.equal(result.artifact.protectedUserContent, false);
@@ -61,10 +62,22 @@ test("story macro adapter rejects an empty novel seed before invoking the model"
   let called = false;
   const handler = createStoryMacroStepHandler({
     storyMacroService: { decompose: async () => { called = true; throw new Error("unexpected"); } },
-    storyInputProvider: async () => "  ",
+    inputProvider: async () => ({storyInput: "  "}),
     contentHash: artifactContentHash,
   });
 
   await assert.rejects(() => handler(context()), /故事想法不能为空/);
   assert.equal(called, false);
+});
+
+test("story macro input is resolved against the active run rather than mutable book defaults", async () => {
+  const active = context();
+  let seen;
+  const handler = createStoryMacroStepHandler({
+    inputProvider: async input => { seen = input; return {storyInput: "保存的故事想法", model: input.contract.modelConfig.model}; },
+    storyMacroService: {decompose: async (_id, _story, options) => ({model: options.model})},
+    contentHash: artifactContentHash,
+  });
+  await handler(active);
+  assert.equal(seen, active);
 });
