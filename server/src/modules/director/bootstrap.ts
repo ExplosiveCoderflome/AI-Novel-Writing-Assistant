@@ -9,6 +9,7 @@ import {
   type PlanRegistry,
   type CommandServiceDeps,
   GateService,
+  type ProjectionServiceDeps,
 } from "./application";
 import { definePlan, createPlanOrchestrator, createGateOrchestrator, type PlanDefinition, type RunContract } from "./domain";
 import {
@@ -72,6 +73,9 @@ export interface DirectorNextServiceOptions {
   prepareOpen?: CommandServiceDeps["prepareOpen"];
   readEditedArtifact?: ArtifactEditReader;
   resumeBusiness?: BusinessResume;
+  cancelBusiness?: BusinessResume;
+  artifactTypes?: ProjectionServiceDeps["artifactTypes"];
+  sourceRoute?: ProjectionServiceDeps["sourceRoute"];
 }
 
 export function createDirectorNextServices(options: DirectorNextServiceOptions = {}): DirectorNextServices {
@@ -79,11 +83,11 @@ export function createDirectorNextServices(options: DirectorNextServiceOptions =
   const artifactLedger = new PrismaArtifactLedger();
   const qualityDebtRepository = new PrismaQualityDebtRepository();
   const eventLog = new PrismaEventLog();
-  const commandRepository = new PrismaCommandRepository(undefined, {readEditedArtifact: options.readEditedArtifact, resumeBusiness: options.resumeBusiness});
+  const commandRepository = new PrismaCommandRepository(undefined, {readEditedArtifact: options.readEditedArtifact, resumeBusiness: options.resumeBusiness, cancelBusiness: options.cancelBusiness});
   const runtime = createDirectorRuntime();
   const factsLoader = new FactsLoader({ runRepository, artifactLedger, qualityDebtRepository, eventLog });
   const configuredPlans: PlanRegistry = {get: version => options.plan?.version === version ? options.plan : planRegistry.get(version)};
-  const projectionService = new ProjectionService({ factsLoader, planRegistry: configuredPlans });
+  const projectionService = new ProjectionService({ factsLoader, planRegistry: configuredPlans, artifactTypes: options.artifactTypes, sourceRoute: options.sourceRoute });
   const gateService = new GateService({factsLoader, planRegistry: configuredPlans});
   const commandService = new CommandService({ runRepository, commandRepository, runtime, contractFactory: options.contractFactory ?? contractFactory, prepareOpen: options.prepareOpen, gateService });
   const stepRegistry = options.stepRegistry ?? new StepRegistry();

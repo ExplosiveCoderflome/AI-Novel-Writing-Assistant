@@ -8,7 +8,7 @@ import type {
   CreationStudioTaskProjection,
   NarrativeForm,
 } from "@ai-novel/shared/types/creationStudio";
-import type { DirectorCandidate } from "@ai-novel/shared/types/novelDirector";
+import type { DirectorCandidate, DirectorConfirmRequest } from "@ai-novel/shared/types/novelDirector";
 import type { WritingPlatform, WritingPlatformPreference } from "@ai-novel/shared/types/writingPlatform";
 import { prisma } from "../../../../db/prisma";
 import { AppError } from "../../../../middleware/errorHandler";
@@ -71,6 +71,8 @@ function toDirectorCandidate(direction: CreationDirection, targetWordCount: numb
 export class CreationStudioService {
   private readonly workflowService = new NovelWorkflowService();
   private readonly directorService = new NovelDirectorService();
+  private longNovelLauncher?: (input: DirectorConfirmRequest, sourceTaskId: string) => Promise<{novel: {id: string}; workflowTaskId: string}>;
+  configureLongNovelLauncher(launcher?: NonNullable<CreationStudioService["longNovelLauncher"]>): void {this.longNovelLauncher = launcher;}
 
   async interpret(input: CreationStudioInterpretRequest): Promise<CreationStudioTaskProjection> {
     const idea = input.idea.trim();
@@ -167,7 +169,7 @@ export class CreationStudioService {
       ? JSON.parse(task.resumeTargetJson) as Parameters<typeof resumeTargetToRoute>[0]
       : null;
     const resumeRoute = confirmation?.narrativeForm === "long_novel" && confirmation.novelId
-      ? `/novels/${confirmation.novelId}/edit`
+      ? this.longNovelLauncher ? `/lab/director/${confirmation.novelId}` : `/novels/${confirmation.novelId}/edit`
       : resumeTargetToRoute(resumeTarget);
     return {
       taskId: task.id,
@@ -442,7 +444,7 @@ export class CreationStudioService {
           writingMode: "original",
           projectMode: "auto_pipeline",
         });
-      const result = await this.directorService.confirmCandidate({
+      const confirmInput: DirectorConfirmRequest = {
         idea: seed.idea,
         candidate: toDirectorCandidate(direction, input.targetWordCount, input.writingPlatform),
         title: direction.title,
@@ -457,7 +459,8 @@ export class CreationStudioService {
         genreId: foundation.genreId,
         primaryStoryModeId: foundation.primaryStoryModeId,
         secondaryStoryModeId: foundation.secondaryStoryModeId,
-      });
+      };
+      const result = this.longNovelLauncher ? await this.longNovelLauncher(confirmInput,taskId) : await this.directorService.confirmCandidate(confirmInput);
       const productionTaskId = result.workflowTaskId;
       if (!productionTaskId) {
         throw new Error("长篇自动导演未返回生产任务。");
@@ -556,7 +559,7 @@ export class CreationStudioService {
       narrativeForm: form,
       resumeRoute: form === "short_story"
         ? `/novels/${novelId}/story`
-        : `/novels/${novelId}/edit`,
+        : this.longNovelLauncher ? `/lab/director/${novelId}` : `/novels/${novelId}/edit`,
     };
   }
 }

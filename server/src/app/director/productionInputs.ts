@@ -33,7 +33,7 @@ export async function bookContractInput(context: StepContext, macroService: Stor
       whyItFits: "", toneKeywords: [], targetChapterCount: input.estimatedChapterCount}};
 }
 
-export function targetVolume(context: StepContext, workspace: VolumePlanDocument): string {
+export function targetVolume(context: Pick<StepContext,"contract">, workspace: VolumePlanDocument): string {
   const input = requireLaunch(context.contract);
   if (input.targetVolumeId) {
     if (!workspace.volumes.some(volume => volume.id === input.targetVolumeId)) throw new Error("指定卷不属于当前小说。");

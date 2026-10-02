@@ -85,13 +85,12 @@ export class RecoveryTaskService {
     },
   ) {}
 
-  initializePendingRecoveries(): Promise<void> {
+  initializePendingRecoveries(options: {includeNovelProduction?: boolean} = {}): Promise<void> {
     if (!this.initializationPromise) {
       this.initializationPromise = Promise.all([
         this.initializationDeps.markPendingBookAnalysesForManualRecovery(),
         this.initializationDeps.markPendingImageTasksForManualRecovery(),
-        this.initializationDeps.markPendingAutoDirectorTasksForManualRecovery(),
-        this.initializationDeps.markPendingPipelineJobsForManualRecovery(),
+        ...(options.includeNovelProduction === false ? [] : [this.initializationDeps.markPendingAutoDirectorTasksForManualRecovery(), this.initializationDeps.markPendingPipelineJobsForManualRecovery()]),
         this.initializationDeps.markPendingStyleTasksForManualRecovery(),
       ]).then(() => undefined);
     }

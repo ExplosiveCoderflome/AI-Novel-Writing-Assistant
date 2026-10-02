@@ -42,6 +42,8 @@ export class RunExecutor {
     const plan = this.deps.planRegistry.get(loaded.contract.planVersion);
     if (!plan) throw new Error(`director next plan version not found: ${loaded.contract.planVersion}`);
     const events = await this.deps.eventLog.list(runId);
+    const resumedAt = events.filter(event => event.type === "stop_signal_cleared").at(-1)?.seq ?? 0;
+    const rejections = events.filter(event => event.type === "action_rejected" && event.seq > resumedAt).length;
     const orchestrator = loaded.contract.driver === "assisted" ? this.deps.assistedOrchestrator ?? this.deps.orchestrator : this.deps.orchestrator;
     const action = orchestrator.next({ plan, contract: loaded.contract, facts: loaded.facts });
     const verdict = checkAction({
@@ -51,7 +53,7 @@ export class RunExecutor {
       control: loaded.control,
       facts: loaded.facts,
       tokensUsed: eventTotal(events, "token_usage", "tokensUsed"),
-      rejections: events.filter((event) => event.type === "action_rejected").length,
+      rejections,
     });
     if (!verdict.ok) {
       return this.reject(
@@ -60,7 +62,7 @@ export class RunExecutor {
         action,
         verdict.code,
         verdict.message,
-        events.filter((event) => event.type === "action_rejected").length,
+        rejections,
       );
     }
     return this.executeAction(runId, loaded, plan, action);

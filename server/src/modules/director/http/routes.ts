@@ -1,12 +1,15 @@
 import { Router, type NextFunction, type Request, type Response } from "express";
 import { z } from "zod";
 import { DirectorRunNotFoundError, type CommandService, type DirectorCommand, type EventLog, type ProjectionService, type RunRepository } from "../application";
+import type {LegacyRunProjection} from "../legacy";
 
 export interface DirectorNextHttpDeps {
   commandService: Pick<CommandService, "execute">;
   projectionService: Pick<ProjectionService, "get">;
   runRepository: Pick<RunRepository, "findActiveRunIdByNovel" | "listRunIds">;
   eventLog: Pick<EventLog, "list">;
+  legacyProjection?: Pick<LegacyRunProjection, "list">;
+  readWorkspace?: (novelId: string) => Promise<unknown>;
 }
 
 const nonEmpty = z.string().trim().min(1);
@@ -89,6 +92,18 @@ function asyncRoute(
 
 export function createDirectorNextRouter(deps: DirectorNextHttpDeps): Router {
   const router = Router();
+  router.get("/novels/:novelId/workspace",asyncRoute(async(req,res)=>{
+    const id=nonEmpty.safeParse(req.params.novelId);
+    if (!id.success) {sendValidationError(res,id.error);return;}
+    if (!deps.readWorkspace) {res.status(404).json({success:false,error:"小说内容入口未配置。"});return;}
+    res.json({success:true,data:await deps.readWorkspace(id.data)});
+  }));
+  router.get("/legacy-records", asyncRoute(async (req, res) => {
+    const query = querySchema.safeParse(req.query);
+    if (!query.success) {sendValidationError(res, query.error); return;}
+    const novelId = typeof req.query.novelId === "string" ? req.query.novelId : undefined;
+    res.json({success: true, data: await deps.legacyProjection?.list({novelId, limit: query.data.limit}) ?? []});
+  }));
 
   router.post("/commands", asyncRoute(async (req, res) => {
     const parsed = commandBodySchema.safeParse(req.body);

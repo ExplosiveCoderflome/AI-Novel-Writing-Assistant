@@ -6,3 +6,4 @@ export function mountDirectorNext(app: Express, deps: DirectorNextHttpDeps): voi
 }
 
 export * from "./routes";
+export {LegacyRunProjection} from "../legacy";

@@ -1,6 +1,7 @@
 import type {Prisma} from "@prisma/client";
 import {artifactContentHash, type RunContract} from "../../modules/director";
 import {parsePipelinePayload, stringifyPipelinePayload} from "../../services/novel/pipelineJobState";
+import {AppError} from "../../middleware/errorHandler";
 
 /** Reads saved business assets in the same transaction as gate confirmation. */
 export async function readEditedArtifact(input: {contract: RunContract; type: string; contentRef: string}, tx: Prisma.TransactionClient) {
@@ -53,8 +54,20 @@ export async function resumeBusiness(contract: RunContract, tx: Prisma.Transacti
   const payload = parsePipelinePayload(job.payload);
   if (job.novelId !== contract.novelId || payload.directorNext?.runId !== contract.runId) throw new Error("正文作业不属于本次运行。");
   if (job.pendingManualRecovery) {
+    if (payload.replanAlertDetails?.length || payload.directorNext.decisions.slice(payload.directorNext.resolvedDecisionCount ?? 0).some(decision => decision.issueCode === "quality.replan_required")) {
+      const plan = await tx.volumePlanVersion.findFirst({where: {novelId: contract.novelId, status: "active"}, orderBy: {version: "desc"}, select: {updatedAt: true}});
+      if (!plan || plan.updatedAt <= job.updatedAt) throw new AppError("请先从本书规划页保存调整后的章节路线，再继续创作。", 400);
+    }
     payload.directorNext.resolvedDecisionCount = payload.directorNext.decisions.length;
     payload.replanAlertDetails = [];
     await tx.generationJob.update({where: {id: job.id}, data: {pendingManualRecovery: false, payload: stringifyPipelinePayload(payload)}});
+  }
+}
+
+export async function cancelBusiness(contract: RunContract, tx: Prisma.TransactionClient) {
+  const jobs = await tx.generationJob.findMany({where: {novelId: contract.novelId, status: {in: ["queued","running"]}}});
+  for (const job of jobs) {
+    if (parsePipelinePayload(job.payload).directorNext?.runId !== contract.runId) continue;
+    await tx.generationJob.update({where: {id: job.id}, data: {cancelRequestedAt: new Date(), ...(job.status === "queued" ? {status: "cancelled", pendingManualRecovery: false} : {})}});
   }
 }

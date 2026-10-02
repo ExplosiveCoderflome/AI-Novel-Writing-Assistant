@@ -67,6 +67,8 @@ const contract = {
   const now = new Date("2026-10-01T00:00:00.000Z");
   assert.deepEqual(await runs.listLeaseCandidates(now, 10), ["run-1"]);
   assert.equal(await runs.acquireLease("run-1", "worker-a", new Date("2026-10-01T00:00:10.000Z"), now), true);
+  assert.deepEqual(await runs.listLeaseCandidates(now, 10, "worker-a"), ["run-1"], "the lease owner continues at the next saved boundary without waiting for expiry");
+  assert.deepEqual(await runs.listLeaseCandidates(now, 10, "worker-b"), [], "a different worker cannot claim a live lease");
   assert.equal(await runs.acquireLease("run-1", "worker-b", new Date("2026-10-01T00:00:20.000Z"), new Date("2026-10-01T00:00:01.000Z")), false);
   assert.deepEqual(await runs.listExpiredLeases(new Date("2026-10-01T00:00:11.000Z")), ["run-1"]);
   assert.equal(await runs.heartbeat("run-1", "worker-a", new Date("2026-10-01T00:00:20.000Z"), new Date("2026-10-01T00:00:11.000Z")), false);

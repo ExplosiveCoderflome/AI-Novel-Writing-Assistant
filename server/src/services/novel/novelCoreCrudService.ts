@@ -356,6 +356,7 @@ export class NovelCoreCrudService {
 
     const created = await prisma.novel.create({
       data: {
+        id: input.id,
         title: input.title,
         description: input.description,
         targetAudience: normalizeOptionalTextForCreate(input.targetAudience),

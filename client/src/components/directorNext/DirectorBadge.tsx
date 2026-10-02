@@ -88,6 +88,7 @@ export default function DirectorBadge({ view, novelId, onActionComplete, compact
   );
 
   const renderAction = (action: DirectorAction, primary: boolean) => {
+    if (action.command === "open_run") return preview ? <Button key={action.id} disabled>{action.label}</Button> : <Button key={action.id} asChild variant={primary ? "default" : "ghost"}><a href="#director-start">{action.label}</a></Button>;
     if (action.kind === "navigate" && action.target) {
       return (
         <Button key={action.id} asChild size={primary ? "default" : "sm"} variant={primary ? "default" : "ghost"}>

@@ -11,6 +11,8 @@ const context={runId:'run',contract};
 test('real production composition registers all adapters and freezes complete policy settings',()=>{
  for(const step of options.plan.steps)assert.equal(typeof options.stepRegistry.get(step.id),'function');
  assert.equal(contract.modelConfig.model,'snapshot-model');assert.equal(contract.issuePolicy.pipelinePolicy.issueActions['quality.chapter_below_threshold'],'continue_with_warning');
+ const nextRange=options.contractFactory({runId:'next',novelId:'novel',driver:'auto',stepIdsInScope:null,launchInput:{...launchInput,executionRange:{from:2,to:3}}});
+ assert.notEqual(nextRange.scope,contract.scope,'a completed batch from a different range cannot satisfy the next batch');
  assert.throws(()=>options.contractFactory({runId:'bad',novelId:'novel',driver:'auto',stepIdsInScope:null}),/快照/);
  assert.throws(()=>options.contractFactory({runId:'bad',novelId:'novel',driver:'auto',stepIdsInScope:null,launchInput:{...launchInput,model:'default'}}),/快照/);
  const planning=options.contractFactory({runId:'plan',novelId:'novel',driver:'auto',stepIdsInScope:null,launchInput:{...launchInput,executionRange:undefined}});

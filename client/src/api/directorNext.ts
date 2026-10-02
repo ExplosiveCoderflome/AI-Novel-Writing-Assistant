@@ -1,8 +1,24 @@
 import type { ApiResponse } from "@ai-novel/shared/types/api";
 import { apiClient, type ApiHttpError } from "./client";
+import type {SimpleCreationShelfProjection,VolumePlanDocument} from "@ai-novel/shared/types/novel";
+import {getSimpleCreationShelf,getNovelVolumeWorkspace} from "./novel";
 
 export type DirectorMode = "queued" | "running" | "waiting_gate" | "paused" | "completed" | "failed" | "cancelled";
 export type DirectorDriver = "auto" | "assisted";
+export async function getDirectorWorkspace(novelId:string): Promise<ApiResponse<Pick<SimpleCreationShelfProjection,"novel"|"chapters"|"materials"> & {planning?:VolumePlanDocument}>> {
+  try {return (await apiClient.get(`/director-next/novels/${encodeURIComponent(novelId)}/workspace`,{silentErrorStatuses:[404]})).data;}
+  catch(error) {
+    if ((error as ApiHttpError).status !== 404) throw error;
+    const [shelf,planning]=await Promise.all([getSimpleCreationShelf(novelId),getNovelVolumeWorkspace(novelId)]);
+    if (!shelf.data) return shelf;
+    return {...shelf,data:{...shelf.data,planning:planning.data}};
+  }
+}
+
+export async function listLegacyDirectorRuns() {
+  const {data} = await apiClient.get<ApiResponse<DirectorRunRecord[]>>("/director-next/legacy-records",{params:{limit:50}});
+  return data;
+}
 
 export interface DirectorAction {
   id: string;
@@ -56,7 +72,11 @@ export interface DirectorRunRecord {
 }
 
 export type DirectorCommand =
-  | { type: "open_run"; novelId: string; driver: DirectorDriver; stepIdsInScope: string[] | null; idempotencyKey: string }
+  | { type: "open_run"; novelId: string; driver: DirectorDriver; stepIdsInScope: string[] | null; idempotencyKey: string; launchInput?: {
+    storyInput: string; estimatedChapterCount: number; worldMode: "generate" | "reuse" | "skip"; targetMode: "opening" | "selected_volume";
+    targetVolumeId?: string | null; provider: string; model: string; temperature?: number;
+    executionRange?: {from: number; to: number}; issuePolicyMode?: "completion_first" | "quality_first";
+  } }
   | { type: "resolve_gate"; runId: string; decision: "confirm" | "confirm_after_edit" | "regenerate"; expectedVersion: number; idempotencyKey: string }
   | { type: "resume"; runId: string; expectedVersion: number; idempotencyKey: string }
   | { type: "handoff"; runId: string; toDriver: DirectorDriver; expectedVersion: number; idempotencyKey: string }

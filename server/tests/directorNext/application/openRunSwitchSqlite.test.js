@@ -1,0 +1,57 @@
+const test=require('node:test');const fs=require('node:fs');const os=require('node:os');const path=require('node:path');const {execFileSync}=require('node:child_process');
+
+test('temporary full-schema switch preserves historical tasks and prose while takeover and handoff share one ledger',()=>{
+ const root=path.resolve(__dirname,'../../../..'),dir=fs.mkdtempSync(path.join(os.tmpdir(),'director-switch-')),script=path.join(dir,'drill.cjs');
+ fs.writeFileSync(script,String.raw`
+const assert=require('node:assert/strict');const path=require('node:path');const server=path.join(process.env.DIRECTOR_NEXT_REPO_ROOT,'server');
+const {prisma}=require(path.join(server,'dist/db/prisma'));
+const {ensureRuntimeDatabaseReady}=require(path.join(server,'dist/db/runtimeMigrations'));
+const {createDirectorNextServices}=require(path.join(server,'dist/modules/director'));
+const {createDirectorProductionOptions}=require(path.join(server,'dist/app/director/productionComposition'));
+const {LegacyRunProjection}=require(path.join(server,'dist/modules/director/http'));
+const {readDirectorWorkspace}=require(path.join(server,'dist/app/director/workspace'));
+const {launchNewDirectorBook}=require(path.join(server,'dist/app/director/newBook'));
+(async()=>{
+ await ensureRuntimeDatabaseReady();
+ await prisma.novel.create({data:{id:'existing',title:'验收小说'}});
+ await prisma.novel.create({data:{id:'fresh',title:'新小说'}});
+ await prisma.character.create({data:{id:'character',novelId:'existing',name:'原有主角',role:'主角'}});
+ await prisma.chapter.create({data:{id:'chapter',novelId:'existing',order:1,title:'原章节',content:'已有正文，必须完整保留。'}});
+ for(const status of ['queued','running','failed','succeeded'])await prisma.novelWorkflowTask.create({data:{id:'old-'+status,novelId:'existing',lane:'auto_director',title:'旧导演',status,seedPayloadJson:'not valid JSON; must never be read'}});
+ const before=await prisma.novelWorkflowTask.findMany({orderBy:{id:'asc'}});
+ const workspace=await readDirectorWorkspace('existing');
+ assert.equal(workspace.chapters[0].content,'已有正文，必须完整保留。');assert.equal(workspace.materials.characters[0].name,'原有主角');assert.equal('progress' in workspace,false);
+ const history=new LegacyRunProjection({list:()=>prisma.novelWorkflowTask.findMany({select:{id:true,novelId:true,title:true,status:true,progress:true,lastError:true}})});
+ assert.equal((await history.list({limit:50})).every(v=>v.mode==='history'),true);
+ const services=createDirectorNextServices(createDirectorProductionOptions());
+ const launchInput={storyInput:'故事方向',estimatedChapterCount:30,worldMode:'skip',targetMode:'opening',provider:'openai',model:'test-no-invocation'};
+ const opened=await services.http.commandService.execute({type:'open_run',novelId:'existing',driver:'auto',stepIdsInScope:[],launchInput,idempotencyKey:'takeover'});
+ const rows=await prisma.directorNextArtifact.findMany({where:{novelId:'existing'},orderBy:{id:'asc'}});
+ assert.equal(rows.find(a=>a.type==='character_cast').protectedUserContent,true);
+ assert.equal(rows.find(a=>a.type==='chapter_draft').protectedUserContent,true);
+ assert.equal(rows.find(a=>a.type==='chapter_draft').scope,'chapter:1');
+ assert.equal(rows.some(a=>a.type==='story_macro'),false);
+ const switched=await services.http.commandService.execute({type:'handoff',runId:opened.runId,toDriver:'assisted',expectedVersion:0,idempotencyKey:'switch'});
+ assert.deepEqual(await prisma.directorNextArtifact.findMany({where:{novelId:'existing'},orderBy:{id:'asc'}}),rows);
+ assert.equal(await prisma.directorNextRunControl.count({where:{novelId:'existing',status:{in:['queued','running','paused','waiting_gate']}}}),1);
+ assert.equal(await services.worker.tick(),true);
+ assert.equal((await prisma.directorNextRunControl.findUnique({where:{runId:switched.runId}})).status,'completed');
+ assert.equal((await prisma.chapter.findUnique({where:{id:'chapter'}})).content,'已有正文，必须完整保留。');
+ const fresh=await services.http.commandService.execute({type:'open_run',novelId:'fresh',driver:'assisted',stepIdsInScope:null,launchInput,idempotencyKey:'fresh'});
+ const saved=JSON.parse((await prisma.directorNextRun.findUnique({where:{id:fresh.runId}})).contractJson);
+ assert.equal(saved.chapterRange,null);assert.equal(saved.stepIdsInScope.includes('chapter_batch'),false);
+ assert.deepEqual(await prisma.novelWorkflowTask.findMany({orderBy:{id:'asc'}}),before);
+ await prisma.novelWorkflowTask.create({data:{id:'creation',lane:'creation_studio',title:'新开书'}});
+ await prisma.creationStudioConfirmation.create({data:{id:'confirmation',workflowTaskId:'creation',idempotencyKey:'new-book',narrativeForm:'long_novel'}});
+ const input={idea:'开书故事',candidate:{workingTitle:'新书标题',logline:'新书故事',targetChapterCount:30},provider:'openai',model:'test-no-invocation',worldSetupMode:'skip',estimatedChapterCount:30};
+ const created=await launchNewDirectorBook(input,'creation');
+ const replayed=await launchNewDirectorBook(input,'creation');
+ assert.equal(created.novel.id,'director-book-confirmation');assert.equal(replayed.workflowTaskId,created.workflowTaskId);
+ assert.equal(await prisma.directorNextRun.count({where:{novelId:created.novel.id}}),1);
+ assert.equal(await prisma.novelWorkflowTask.count({where:{lane:'auto_director'}}),before.length);
+ await prisma.$disconnect();
+})().catch(async e=>{console.error(e);await prisma.$disconnect();process.exitCode=1;});
+`);
+ const env={...process.env,NODE_ENV:'test',AI_NOVEL_RUNTIME:'desktop',AI_NOVEL_APP_DATA_DIR:dir,DIRECTOR_NEXT_REPO_ROOT:root,DATABASE_URL:'file:'+path.join(dir,'drill.db').replace(/\\/g,'/')};
+ execFileSync(process.execPath,[script],{cwd:root,env,stdio:'pipe'});
+});

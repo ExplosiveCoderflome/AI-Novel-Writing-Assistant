@@ -90,7 +90,7 @@ export interface RunRepository {
   transition(runId: string, event: RunEvent, expectedVersion: number): Promise<RunControl>;
   acquireLease(runId: string, owner: string, leaseExpiresAt: Date, now: Date): Promise<boolean>;
   heartbeat(runId: string, owner: string, leaseExpiresAt: Date, now: Date): Promise<boolean>;
-  listLeaseCandidates(now: Date, limit: number): Promise<string[]>;
+  listLeaseCandidates(now: Date, limit: number, owner?: string): Promise<string[]>;
   listExpiredLeases(now: Date): Promise<string[]>;
 }
 

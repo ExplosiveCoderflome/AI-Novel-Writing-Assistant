@@ -2,7 +2,7 @@ import { prisma } from "../../db/prisma";
 import { createProductionStepRegistry, directorProductionPlan, createStoryMacroStepHandler, createBookContractStepHandler,
   createWorldSetupStepHandler, createCharacterSetupStepHandler, createVolumeStrategyStepHandler, createVolumeBeatSheetStepHandler,
   createVolumeChapterListStepHandler, createChapterDetailBundleStepHandler, createExecutionContractSyncStepHandler, createChapterBatchStepHandler,
-  resolveChapterQualityReports, PrismaEventLog, artifactContentHash, type DirectorNextServiceOptions } from "../../modules/director";
+  resolveChapterQualityReports, PrismaEventLog, artifactContentHash, inferExistingAssets, type DirectorNextServiceOptions } from "../../modules/director";
 import { StoryMacroPlanService } from "../../services/novel/storyMacro/StoryMacroPlanService";
 import { BookContractGenerationService } from "../../services/novel/bookContract";
 import { BookContractService } from "../../services/novel/BookContractService";
@@ -15,7 +15,10 @@ import { NovelCorePipelineService } from "../../services/novel/novelCorePipeline
 import { DIRECTOR_ISSUE_POLICY_PRESETS, directorIssuePolicySchema } from "@ai-novel/shared/types/directorIssue";
 import { requireLaunch, modelOptions, bookContractInput, targetVolume, executionWindow } from "./productionInputs";
 import { readBatchOutcome } from "./batchOutcome";
-import {readEditedArtifact, resumeBusiness} from "./savedContent";
+import {readEditedArtifact, resumeBusiness, cancelBusiness} from "./savedContent";
+import {readExistingAssets} from "./existingAssets";
+import {isCurrentChapterProductionCompleted} from "../../services/novel/production/completion";
+import {CHAPTER_ARTIFACT_BOUNDARY_TYPE} from "../../services/novel/runtime/artifactSync";
 
 /** Composition only: business generation remains owned by existing novel services. Not enabled by importing this module. */
 export function createDirectorProductionOptions(): DirectorNextServiceOptions {
@@ -54,6 +57,12 @@ export function createDirectorProductionOptions(): DirectorNextServiceOptions {
     chapter_batch: createChapterBatchStepHandler({pipelineService: pipeline, inputProvider: async context => {
       const input = requireLaunch(context.contract), range = context.contract.chapterRange;
       if (!range) throw new Error("正文生成缺少章节授权范围。");
+      const binding = (await events.list(context.runId)).some(event => event.type === "chapter_batch_job");
+      if (!binding) {
+        const saved = await prisma.chapter.findMany({where: {novelId: context.contract.novelId, order: {gte: range.from, lte: range.to}},
+          include: {artifactSyncCheckpoints: {where: {artifactType: CHAPTER_ARTIFACT_BOUNDARY_TYPE, status: "succeeded"}, select: {contentHash: true, metadataJson: true}, orderBy: {updatedAt: "desc"}, take: 6}}});
+        if (saved.some(chapter => chapter.content?.trim() && !isCurrentChapterProductionCompleted(chapter))) throw new Error("授权范围包含已有正文，请选择尚未写作的章节；已有正文可从章节页面查看和调整。");
+      }
       const policy = directorIssuePolicySchema.parse(context.contract.issuePolicy.pipelinePolicy);
       return {...modelOptions(context), startOrder: range.from, endOrder: range.to, directorNext: {runId: context.runId, decisions: []},
         issueGovernanceVersion: 1 as const, issuePolicySnapshot: policy, autoReview: true, autoRepair: true,
@@ -67,7 +76,10 @@ export function createDirectorProductionOptions(): DirectorNextServiceOptions {
       readOutcome: readBatchOutcome, waitForPoll: () => new Promise(resolve => setTimeout(resolve, 1000)),
       isRunActive: async runId => (await prisma.directorNextRunControl.findUnique({where: {runId}, select: {status: true}}))?.status === "running", contentHash}),
   });
-  return {plan: directorProductionPlan, stepRegistry, readEditedArtifact, resumeBusiness, contractFactory: input => {
+  const labels: Record<string, string> = {story_macro: "故事规划", book_contract: "创作约定", world_skeleton: "世界设定", character_cast: "角色阵容", volume_strategy: "卷纲", volume_beat_sheet: "节奏段", volume_chapter_list: "章节路线", chapter_task_sheet: "章节任务与场景", chapter_execution_contract: "正文执行计划", chapter_batch_closed: "本批次正文"};
+  return {plan: directorProductionPlan, stepRegistry, readEditedArtifact, resumeBusiness, cancelBusiness,
+    sourceRoute: novelId => `/lab/director/${encodeURIComponent(novelId)}`,
+    artifactTypes: Object.fromEntries(Object.entries(labels).map(([type,label]) => [type,{label,reviewRoute: ""}])), contractFactory: input => {
     const launch = input.launchInput;
     if (!launch) throw new Error("启动创作需要故事、模型与范围快照。");
     if (!launch.targetVolumeId && launch.targetMode !== "opening") throw new Error("启动创作需要明确选择开篇或目标卷。");
@@ -77,7 +89,8 @@ export function createDirectorProductionOptions(): DirectorNextServiceOptions {
     const requestedSteps = input.stepIdsInScope ?? (launch.executionRange ? null : directorProductionPlan.steps.filter(step => !["chapter_detail_bundle", "execution_contract_sync", "chapter_batch"].includes(step.id)).map(step => step.id));
     if (requestedSteps?.some(id => !directorProductionPlan.steps.some(step => step.id === id))) throw new Error("创作步骤范围无效。");
     if (!launch.executionRange && requestedSteps?.some(id => ["chapter_detail_bundle", "execution_contract_sync", "chapter_batch"].includes(id))) throw new Error("正文准备与生成需要明确授权范围。");
-    const contract = {runId: input.runId, novelId: input.novelId, driver: input.driver, planVersion: directorProductionPlan.version, scope: "book",
+    const scope = launch.executionRange ? `chapters:${launch.executionRange.from}-${launch.executionRange.to}${launch.targetVolumeId ? `:volume:${launch.targetVolumeId}` : ""}` : launch.targetVolumeId ? `volume:${launch.targetVolumeId}` : "book";
+    const contract = {runId: input.runId, novelId: input.novelId, driver: input.driver, planVersion: directorProductionPlan.version, scope,
       stepIdsInScope: requestedSteps, chapterRange: launch.executionRange ?? null,
       issuePolicy: {mode, version: "director-next-policy-v1", pipelinePolicy: {...preset.policy, issueActions: {...preset.policy.issueActions}}},
       modelConfig: {route: launch.provider ?? "default", model: launch.model ?? "default", version: "director-next-model-v1"},
@@ -85,6 +98,7 @@ export function createDirectorProductionOptions(): DirectorNextServiceOptions {
     requireLaunch(contract);return contract;
   }, prepareOpen: async contract => {
     const novel = await prisma.novel.findUniqueOrThrow({where: {id: contract.novelId}, select: {id: true, title: true, description: true}});
-    return [{type: "novel_seed", scope: contract.scope, status: "confirmed", protectedUserContent: true, contentRef: `novel:${novel.id}`, contentHash: contentHash({novel, launchInput: contract.launchInput})}];
+    return [{type: "novel_seed", scope: contract.scope, status: "confirmed", protectedUserContent: true, contentRef: `novel:${novel.id}`, contentHash: contentHash({novel, launchInput: contract.launchInput})},
+      ...await inferExistingAssets(contract, {read: readExistingAssets, contentHash})];
   }};
 }

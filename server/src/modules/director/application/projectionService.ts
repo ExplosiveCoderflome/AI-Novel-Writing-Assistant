@@ -13,6 +13,7 @@ export interface ProjectionServiceDeps {
   factsLoader: Pick<FactsLoader, "load">;
   planRegistry: PlanRegistry;
   artifactTypes?: Readonly<Record<ArtifactType, ArtifactTypeInfo>>;
+  sourceRoute?: (novelId: string) => string;
 }
 
 export class ProjectionService {
@@ -29,8 +30,8 @@ export class ProjectionService {
       control,
       plan,
       facts,
-      artifactTypes: this.deps.artifactTypes ?? {},
-      sourceRoute: `/novels/${encodeURIComponent(contract.novelId)}/edit`,
+      artifactTypes: Object.fromEntries(Object.entries(this.deps.artifactTypes ?? {}).map(([type,info]) => [type,{...info,reviewRoute: info.reviewRoute || `/novels/${encodeURIComponent(contract.novelId)}/edit`}])),
+      sourceRoute: this.deps.sourceRoute?.(contract.novelId) ?? `/novels/${encodeURIComponent(contract.novelId)}/edit`,
     });
   }
 }

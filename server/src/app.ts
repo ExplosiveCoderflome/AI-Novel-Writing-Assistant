@@ -139,7 +139,19 @@ export function createApp() {
   app.use("/api", styleEngineRouter);
   app.use("/api", styleEngineExtractionRouter);
   app.use("/api/novels", novelRouter);
+  if (parseEnvFlag(process.env.DIRECTOR_NEXT_ENABLED, false)) {
+    const {creationStudioService} = require("./modules/novel/creation-studio/application/CreationStudioService") as typeof import("./modules/novel/creation-studio/application/CreationStudioService");
+    const {launchNewDirectorBook} = require("./app/director/newBook") as typeof import("./app/director/newBook");
+    creationStudioService.configureLongNovelLauncher(launchNewDirectorBook);
+  } else {
+    const {creationStudioService} = require("./modules/novel/creation-studio/application/CreationStudioService") as typeof import("./modules/novel/creation-studio/application/CreationStudioService");
+    creationStudioService.configureLongNovelLauncher();
+  }
   app.use("/api/creation-studio", creationStudioRouter);
+  if (parseEnvFlag(process.env.DIRECTOR_NEXT_ENABLED, false)) {
+    const {createFrozenDirectorEntry} = require("./app/director/entrySwitch") as typeof import("./app/director/entrySwitch");
+    app.use("/api/novels/director", createFrozenDirectorEntry());
+  }
   app.use("/api/novels/director", novelDirectorRouter);
   app.use("/api/novels/director/creative-carryover-contracts", creativeCarryoverContractsRouter);
   app.use("/api/novel-workflows", novelWorkflowsRouter);
@@ -165,9 +177,9 @@ export function createApp() {
   app.use("/api", onboardingRoutes);
   app.use("/api/astrology", astrologyRouter);
   if (parseEnvFlag(process.env.DIRECTOR_NEXT_ENABLED, false)) {
-    const { getDirectorNextServices } = require("./modules/director/bootstrap") as typeof import("./modules/director/bootstrap");
+    const { getDirectorProductionServices } = require("./app/director/services") as typeof import("./app/director/services");
     const { mountDirectorNext } = require("./modules/director/http") as typeof import("./modules/director/http");
-    mountDirectorNext(app, getDirectorNextServices().http);
+    mountDirectorNext(app, getDirectorProductionServices().http);
   }
 
   app.use((_req, res) => {
@@ -273,12 +285,14 @@ function initializeBackgroundServices(): BackgroundServicesHandle {
   ragServices.ragWorker.start();
   ragServices.ragRetrievalTraceRetention.start();
   novelSideEffectWorker.start();
-  const recoveryInitialization = recoveryTaskService.initializePendingRecoveries();
+  const useDirectorNext = parseEnvFlag(process.env.DIRECTOR_NEXT_ENABLED, false);
+  const recoveryInitialization = recoveryTaskService.initializePendingRecoveries({includeNovelProduction: !useDirectorNext});
   const directorWorker = new DirectorWorker();
   const directorNextWorker = parseEnvFlag(process.env.DIRECTOR_NEXT_ENABLED, false)
-    ? (require("./modules/director/bootstrap") as typeof import("./modules/director/bootstrap")).getDirectorNextServices().worker
+    ? (require("./app/director/services") as typeof import("./app/director/services")).getDirectorProductionServices().worker
     : null;
   void recoveryInitialization.then(() => {
+    if (useDirectorNext) return;
     void directorWorker.start().catch((error) => {
       console.error("[director.worker] unexpected stop", error);
     });
@@ -311,12 +325,12 @@ function initializeBackgroundServices(): BackgroundServicesHandle {
   void recoveryInitialization
     .then(() => {
       bookAnalysisService.startWatchdog();
-      novelPipelineRuntimeService.startWatchdog();
+      if (!useDirectorNext) novelPipelineRuntimeService.startWatchdog();
     })
     .catch((error) => {
       console.warn("Failed to prepare pending recovery candidates.", error);
       bookAnalysisService.startWatchdog();
-      novelPipelineRuntimeService.startWatchdog();
+      if (!useDirectorNext) novelPipelineRuntimeService.startWatchdog();
     });
 
   return {

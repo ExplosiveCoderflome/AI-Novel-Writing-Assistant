@@ -28,7 +28,7 @@ export class DirectorWorker {
   async tick(): Promise<boolean> {
     if (this.stopped) return false;
     const now = this.deps.runtime.now();
-    const candidates = await this.deps.runRepository.listLeaseCandidates(now, 1);
+    const candidates = await this.deps.runRepository.listLeaseCandidates(now, 1, this.deps.runtime.workerId());
     for (const runId of candidates) {
       const acquired = await this.deps.runRepository.acquireLease(
         runId,
@@ -81,7 +81,8 @@ export class DirectorWorker {
       throw error;
     }
     if (control.status !== "running") return;
-    const failures = events.filter((event) => event.type === "execution_failure").length;
+    const resumedAt = events.filter(event => event.type === "stop_signal_cleared").at(-1)?.seq ?? 0;
+    const failures = events.filter((event) => event.type === "execution_failure" && (!resumedAt || event.seq > resumedAt)).length;
     await this.deps.eventLog.append({
       runId,
       type: "execution_failure",

@@ -176,11 +176,12 @@ export class PrismaRunRepository implements RunRepository {
     return result.count === 1;
   }
 
-  async listLeaseCandidates(now: Date, limit: number): Promise<string[]> {
+  async listLeaseCandidates(now: Date, limit: number, owner?: string): Promise<string[]> {
     const rows = await this.db.directorNextRunControl.findMany({
       where: {
-        status: { in: ["queued", "running", "waiting_gate"] },
+        status: { in: ["queued", "running"] },
         OR: [
+          ...(owner ? [{leaseOwner: owner}] : []),
           { leaseOwner: null },
           { leaseExpiresAt: null },
           { leaseExpiresAt: { lt: now } },

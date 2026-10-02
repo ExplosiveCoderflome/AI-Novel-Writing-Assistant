@@ -86,7 +86,7 @@ function fromRow(row: {
 }
 
 export class PrismaCommandRepository implements CommandRepository {
-  constructor(private readonly db: PrismaClient = prisma, private readonly options: {readEditedArtifact?: ArtifactEditReader; resumeBusiness?: BusinessResume} = {}) {}
+  constructor(private readonly db: PrismaClient = prisma, private readonly options: {readEditedArtifact?: ArtifactEditReader; resumeBusiness?: BusinessResume; cancelBusiness?: BusinessResume} = {}) {}
 
   async find(idempotencyKey: string): Promise<DirectorCommandRecord | null> {
     const row = await this.db.directorNextCommand.findUnique({ where: { idempotencyKey } });
@@ -141,6 +141,10 @@ export class PrismaCommandRepository implements CommandRepository {
       if (!row) throw new Error(`director next run control not found: ${input.runId}`);
       const current = controlFromRow(row);
       const next = applyEvent(current, input.event, input.expectedVersion);
+      if (input.event.type === "cancel" && this.options.cancelBusiness) {
+        const run = await tx.directorNextRun.findUniqueOrThrow({where: {id: input.runId}, select: {contractJson: true}});
+        await this.options.cancelBusiness(JSON.parse(run.contractJson) as RunContract, tx);
+      }
       if (input.event.type === "resume") {
         const run = await tx.directorNextRun.findUniqueOrThrow({where: {id: input.runId}, select: {contractJson: true}});
         await commitExplicitResume(tx, JSON.parse(run.contractJson) as RunContract, input.id, this.options.resumeBusiness);
