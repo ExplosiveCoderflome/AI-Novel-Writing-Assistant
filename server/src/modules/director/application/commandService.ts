@@ -1,4 +1,4 @@
-import { VersionConflictError, type RunContract, type RunControl } from "../domain";
+import { VersionConflictError, type RunContract, type RunControl, type RunLaunchInput } from "../domain";
 import type {
   CommandExecutionInput,
   CommandRepository,
@@ -8,7 +8,7 @@ import type {
 } from "./ports";
 
 export type DirectorCommand =
-  | { type: "open_run"; novelId: string; driver: RunContract["driver"]; stepIdsInScope: string[] | null; idempotencyKey: string }
+  | { type: "open_run"; novelId: string; driver: RunContract["driver"]; stepIdsInScope: string[] | null; launchInput?: RunLaunchInput; idempotencyKey: string }
   | { type: "resolve_gate"; runId: string; decision: "confirm" | "confirm_after_edit" | "regenerate"; expectedVersion: number; idempotencyKey: string }
   | { type: "resume"; runId: string; expectedVersion: number; idempotencyKey: string }
   | { type: "handoff"; runId: string; toDriver: RunContract["driver"]; expectedVersion: number; idempotencyKey: string }
@@ -57,6 +57,7 @@ export interface CommandServiceDeps {
     novelId: string;
     driver: RunContract["driver"];
     stepIdsInScope: string[] | null;
+    launchInput?: RunLaunchInput;
   }) => RunContract;
 }
 
@@ -122,7 +123,7 @@ export class CommandService {
       type: command.type,
       payload: command,
       runId,
-      contract: this.deps.contractFactory({ runId, novelId: command.novelId, driver: command.driver, stepIdsInScope: command.stepIdsInScope }),
+      contract: this.deps.contractFactory({ runId, novelId: command.novelId, driver: command.driver, stepIdsInScope: command.stepIdsInScope, launchInput: command.launchInput }),
     });
     return { runId: result.runId, controlVersion: result.control.version, commandId: result.commandId, replayed: result.replayed };
   }
@@ -184,12 +185,7 @@ export class CommandService {
       oldRunId: command.runId,
       oldExpectedVersion: command.expectedVersion,
       newRunId: runId,
-      newContract: this.deps.contractFactory({
-        runId,
-        novelId: contract.novelId,
-        driver: command.toDriver,
-        stepIdsInScope: contract.stepIdsInScope ? [...contract.stepIdsInScope] : null,
-      }),
+      newContract: {...contract, runId, driver: command.toDriver},
     });
     return { runId: result.runId, controlVersion: result.control.version, commandId: result.commandId, replayed: result.replayed };
   }

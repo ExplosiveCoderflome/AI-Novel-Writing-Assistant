@@ -8,6 +8,7 @@ export interface WorldSetupStepInput<Provider extends string = string> {
   model?: string;
   temperature?: number;
   openingOnly: boolean;
+  worldMode?: "generate" | "reuse" | "skip";
 }
 
 export interface WorldSetupStepDependencies<Provider extends string> {
@@ -27,7 +28,13 @@ export function createWorldSetupStepHandler<Provider extends string>(dependencie
       throw new Error("世界准备缺少故事想法、故事宏观规划或书级创作约定。");
     }
     const novelId = context.contract.novelId;
+    if (input.worldMode === "skip") {
+      return {artifact: {scope: context.contract.scope, status: "confirmed", protectedUserContent: true,
+        contentRef: `world_skeleton:${novelId}:disabled`,
+        contentHash: dependencies.contentHash({novelId, worldMode: "skip"})}};
+    }
     const existing = await dependencies.worldService.hasActiveWorld(novelId);
+    if (!existing && input.worldMode === "reuse") throw new Error("本书缺少可复用的世界设定。");
     if (!existing) {
       await dependencies.worldService.generateWorldFromNovelTheme(novelId, {
         saveToLibrary: false,

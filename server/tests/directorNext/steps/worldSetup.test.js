@@ -20,6 +20,16 @@ function setup({existing=false, result=block, seed=input, failure=null}={}) {
   return {handler,calls};
 }
 
+test('explicit world skip records the disabled contract without touching world assets',async()=>{
+  const {handler,calls}=setup({seed:{...input,worldMode:'skip'}});const result=await handler(context);
+  assert.deepEqual(calls,[['input','run']]);assert.equal(result.artifact.contentRef,'world_skeleton:novel:disabled');
+  assert.equal(result.artifact.status,'confirmed');assert.equal(result.artifact.protectedUserContent,true);
+});
+test('reuse-only world mode does not generate when there is no existing world',async()=>{
+  const {handler,calls}=setup({seed:{...input,worldMode:'reuse'}});await assert.rejects(()=>handler(context),/可复用/);
+  assert.equal(calls.some(c=>c[0]==='generate'),false);
+});
+
 test('world adapter generates through the gateway and hashes the saved story slice', async()=>{
   const {handler,calls}=setup();
   const result=await handler(context);

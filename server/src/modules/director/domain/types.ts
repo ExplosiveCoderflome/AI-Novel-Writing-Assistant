@@ -64,6 +64,20 @@ export interface RunContract {
   modelConfig: ModelConfigSnapshot;
   tokenBudget: number | null;
   rejectionBudget: number;
+  /** Optional only for already-persisted kernel test runs; production requires a launch snapshot. */
+  launchInput?: RunLaunchInput;
+}
+
+export interface RunLaunchInput {
+  storyInput: string;
+  estimatedChapterCount: number;
+  temperature?: number;
+  worldMode: "generate" | "reuse" | "skip";
+  targetVolumeId?: string | null;
+  provider?: string;
+  model?: string;
+  executionRange?: ChapterRange;
+  issuePolicyMode?: IssuePolicyMode;
 }
 
 export type RunStatus =

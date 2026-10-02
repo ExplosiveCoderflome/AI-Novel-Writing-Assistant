@@ -38,6 +38,7 @@ function contractFactory(input: {
   novelId: string;
   driver: RunContract["driver"];
   stepIdsInScope: string[] | null;
+  launchInput?: RunContract["launchInput"];
 }): RunContract {
   return {
     runId: input.runId,
@@ -46,11 +47,12 @@ function contractFactory(input: {
     planVersion: defaultPlan.version,
     scope: "book",
     stepIdsInScope: input.stepIdsInScope ? [...input.stepIdsInScope] : null,
-    chapterRange: null,
-    issuePolicy: { mode: "completion_first", version: "director-next-default" },
-    modelConfig: { route: "default", model: "default", version: "director-next-default" },
+    chapterRange: input.launchInput?.executionRange ?? null,
+    issuePolicy: { mode: input.launchInput?.issuePolicyMode ?? "completion_first", version: "director-next-default" },
+    modelConfig: { route: input.launchInput?.provider ?? "default", model: input.launchInput?.model ?? "default", version: "director-next-default" },
     tokenBudget: null,
     rejectionBudget: 3,
+    ...(input.launchInput ? {launchInput: input.launchInput} : {}),
   };
 }
 

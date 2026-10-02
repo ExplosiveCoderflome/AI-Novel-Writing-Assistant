@@ -18,6 +18,18 @@ const commandBodySchema = z.discriminatedUnion("type", [
     novelId: nonEmpty,
     driver: z.enum(["auto", "assisted"]),
     stepIdsInScope: z.array(nonEmpty).nullable(),
+    launchInput: z.object({
+      storyInput: nonEmpty,
+      estimatedChapterCount: z.number().int().positive(),
+      temperature: z.number().min(0).max(2).optional(),
+      worldMode: z.enum(["generate", "reuse", "skip"]),
+      targetVolumeId: nonEmpty.nullable().optional(),
+      provider: nonEmpty.optional(),
+      model: nonEmpty.optional(),
+      executionRange: z.object({from: z.number().int().positive(), to: z.number().int().positive()})
+        .refine(range => range.to >= range.from).optional(),
+      issuePolicyMode: z.enum(["completion_first", "quality_first"]).optional(),
+    }).optional(),
     idempotencyKey: nonEmpty,
   }),
   z.object({
