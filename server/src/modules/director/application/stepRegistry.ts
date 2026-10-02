@@ -1,4 +1,4 @@
-import type { FactsSnapshot, RunContract, RunControl, StepDefinition } from "../domain";
+import type { FactsSnapshot, RunContract, RunControl, StepDefinition, StopSignal } from "../domain";
 
 export interface StepContext {
   runId: string;
@@ -17,6 +17,8 @@ export interface StepResult {
     contentHash: string | null;
   };
   debt?: { chapterOrder: number; code: string; action: string };
+  debts?: readonly { chapterOrder: number; code: string; action: string }[];
+  stopSignal?: StopSignal;
   tokensUsed?: number;
 }
 

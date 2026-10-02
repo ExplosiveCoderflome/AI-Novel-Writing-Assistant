@@ -1,5 +1,5 @@
 import type { LLMProvider } from "@ai-novel/shared/types/llm";
-import type { ChapterTaskSheetQualityMode } from "@ai-novel/shared/types/chapterTaskSheetQuality";
+import type { ChapterTaskSheetQualityMode, ChapterTaskSheetQualityGateResult, AiChapterTaskSheetQualityAssessment } from "@ai-novel/shared/types/chapterTaskSheetQuality";
 import type { DirectorCompletionProfile } from "@ai-novel/shared/types/directorCompletion";
 import type {
   VolumeChapterListGenerationMode,
@@ -76,6 +76,11 @@ export interface VolumeGenerationNovel {
 }
 
 export interface VolumeGenerateOptions {
+  onChapterTaskSheetQuality?: (event: {
+    chapterId: string; chapterOrder: number;
+    result: ChapterTaskSheetQualityGateResult;
+    assessment?: AiChapterTaskSheetQualityAssessment;
+  }) => void | Promise<void>;
   provider?: LLMProvider;
   model?: string;
   temperature?: number;

@@ -16,6 +16,7 @@ const {
 const {
   canReuseChapterExecutionContract,
   shouldRetryChapterExecutionContract,
+  generateChapterTaskSheetDetail,
 } = require("../dist/services/novel/volume/chapterDetail/chapterExecutionContractGeneration.js");
 const {
   ChapterTaskSheetQualityGateError,
@@ -99,6 +100,34 @@ function buildCandidate(overrides = {}) {
     ...overrides,
   };
 }
+
+test('quality observer retains the structured AI assessment without changing the legacy gate result',async()=>{
+  const assessment={verdict:'repairable',safeToSync:false,loadRisk:'normal',recommendedHandling:'repair_contract',summary:'局部补充',issues:[],repairGuidance:['补足目标'],confidence:0.9};
+  const gate=new ChapterTaskSheetQualityGateService(async()=>assessment);
+  let observed;
+  const result=await gate.evaluate(buildCandidate(),{mode:'full_book_autopilot',onEvaluated:async event=>{observed=event;}});
+  assert.equal(result.canEnterExecution,true);
+  assert.deepEqual(observed,{result,assessment});
+  await assert.rejects(()=>gate.assertCanEnterExecution(buildCandidate(),{mode:'ai_copilot'}),ChapterTaskSheetQualityGateError);
+});
+
+test('task-sheet generation forwards the assessment once while preserving legacy return and rejection behavior',async()=>{
+  const runner=require('../dist/prompting/core/promptRunner.js');
+  const original=runner.runStructuredPrompt;
+  const candidate=buildCandidate();
+  const chapter={...candidate,id:candidate.chapterId,taskSheet:null,sceneCards:null};
+  const assessment={verdict:'repairable',safeToSync:false,loadRisk:'normal',recommendedHandling:'repair_contract',summary:'局部目标需完善',issues:[],repairGuidance:['补足目标'],confidence:0.9};
+  runner.runStructuredPrompt=async({asset})=>({output:asset.id===chapterTaskSheetQualityPrompt.id?assessment:{...candidate,sceneCards:JSON.parse(buildSceneCards()).scenes}});
+  try {
+    const events=[];
+    const params={promptInput:{novel:{id:'novel-1',title:'测试小说',characters:[]},workspace:{novelId:'novel-1',volumes:[]},storyMacroPlan:null,strategyPlan:null,targetVolume:{id:'volume-1',sortOrder:1,title:'第一卷',chapters:[chapter],openPayoffs:[]},targetBeatSheet:null,targetChapter:chapter,detailMode:'task_sheet'},options:{chapterTaskSheetQualityMode:'full_book_autopilot',onChapterTaskSheetQuality:async event=>events.push(event)}};
+    const detail=await generateChapterTaskSheetDetail(params);
+    assert.equal(detail.taskSheet,candidate.taskSheet);assert.equal(events.length,1);
+    assert.equal(events[0].chapterId,chapter.id);assert.equal(events[0].chapterOrder,1);
+    assert.deepEqual(events[0].assessment,assessment);
+    await assert.rejects(()=>generateChapterTaskSheetDetail({...params,options:{chapterTaskSheetQualityMode:'ai_copilot'}}),ChapterTaskSheetQualityGateError);
+  } finally {runner.runStructuredPrompt=original;}
+});
 
 test("incomplete persisted contracts are regenerated instead of reused", () => {
   const complete = buildCandidate();

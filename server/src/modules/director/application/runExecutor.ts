@@ -1,4 +1,4 @@
-import { checkAction, type Action, type Orchestrator, type PlanDefinition } from "../domain";
+import { checkAction, createPlanOrchestrator, type Action, type Orchestrator, type PlanDefinition } from "../domain";
 import type { RunRepository, ArtifactLedger, EventLog, QualityDebtRepository, PlanRegistry } from "./ports";
 import type { FactsLoader, LoadedRunFacts } from "./factsLoader";
 import { StepRegistry, type StepResult } from "./stepRegistry";
@@ -135,13 +135,25 @@ export class RunExecutor {
       facts: loaded.facts,
       step,
     });
+    if (result.stopSignal) {
+      const facts = {...loaded.facts, stopSignal: result.stopSignal};
+      const action = createPlanOrchestrator().next({plan, contract: loaded.contract, facts});
+      const verdict = checkAction({action, plan, contract: loaded.contract, control: started, facts, tokensUsed: 0, rejections: 0});
+      if (!result.stopSignal.reason?.trim() || !verdict.ok) throw new Error("invalid step stop signal");
+    }
     await this.recordStepResult(runId, loaded, step.produces, result);
     await this.deps.eventLog.append({ runId, type: "step_finished", payload: { stepId, tokensUsed: result.tokensUsed ?? 0 } });
     await this.deps.runRepository.transition(runId, { type: "step_finished" }, started.version);
+    if (result.stopSignal) return this.runOnce(runId);
     return { kind: "executed" };
   }
 
   private async recordStepResult(runId: string, loaded: LoadedRunFacts, producedType: string, result: StepResult): Promise<void> {
+    // Record safety and quality facts before the artifact can make this step skippable on recovery.
+    for (const debt of [...(result.debt ? [result.debt] : []), ...(result.debts ?? [])]) {
+      await this.deps.qualityDebtRepository.record({runId, novelId: loaded.contract.novelId, ...debt});
+    }
+    if (result.stopSignal) await this.deps.eventLog.append({runId, type: "stop_signal", payload: result.stopSignal});
     if (result.artifact) {
       await this.deps.artifactLedger.record({
         novelId: loaded.contract.novelId,
@@ -153,9 +165,6 @@ export class RunExecutor {
         contentHash: result.artifact.contentHash,
         producedByRunId: runId,
       });
-    }
-    if (result.debt) {
-      await this.deps.qualityDebtRepository.record({ runId, novelId: loaded.contract.novelId, ...result.debt });
     }
     if (result.tokensUsed && result.tokensUsed > 0) {
       await this.deps.eventLog.append({ runId, type: "token_usage", payload: { tokensUsed: result.tokensUsed } });

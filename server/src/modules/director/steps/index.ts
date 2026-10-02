@@ -5,3 +5,4 @@ export * from "./planning/worldSetup";
 export * from "./planning/volumeStrategy";
 export * from "./planning/volumeBeatSheet";
 export * from "./planning/volumeChapterList";
+export * from "./planning/chapterDetailBundle";
