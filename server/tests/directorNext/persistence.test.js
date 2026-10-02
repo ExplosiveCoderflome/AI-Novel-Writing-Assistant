@@ -61,6 +61,8 @@ const contract = {
   await runs.transition("run-2", { type: "pause", pause: { kind: "manual_recovery", reason: "needs_review" } }, 1);
   assert.deepEqual(await runs.listRunIds({ needsAttention: true, limit: 10 }), ["run-2"]);
   assert.ok((await runs.listRunIds({ limit: 10 })).includes("run-1"));
+  assert.deepEqual(await runs.listRunIds({ novelId: "novel-1", limit: 1 }), ["run-1"]);
+  assert.deepEqual(await runs.listRunIds({ novelId: "missing-novel", limit: 1 }), []);
 
   const now = new Date("2026-10-01T00:00:00.000Z");
   assert.deepEqual(await runs.listLeaseCandidates(now, 10), ["run-1"]);

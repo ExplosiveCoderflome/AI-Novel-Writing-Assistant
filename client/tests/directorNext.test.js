@@ -1,0 +1,104 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import path from 'node:path';
+import { createRequire } from 'node:module';
+import { pathToFileURL } from 'node:url';
+import { queryKeys } from '../src/api/queryKeys.ts';
+
+const read = (path) => fs.readFileSync(new URL(`../src/${path}`, import.meta.url), 'utf8');
+
+test('summary and detail caches cannot replace each other', () => {
+  assert.notDeepEqual(queryKeys.directorNext.summary('book'), queryKeys.directorNext.detail('book'));
+  assert.notDeepEqual(queryKeys.directorNext.runs(true), queryKeys.directorNext.runs(false));
+});
+
+test('history is read only and new routes do not enter navigation', () => {
+  const history = read('pages/directorNext/DirectorRunHistoryPage.tsx');
+  assert.doesNotMatch(history, /submitDirectorCommand|useMutation|DirectorPanel|DirectorBadge/);
+  assert.match(history, /needsAttention/);
+  assert.match(history, /directorRoute/);
+  assert.match(read('router/index.tsx'), /lab\/director\/:novelId/);
+  for (const file of ['components/layout/Sidebar.tsx', 'components/layout/Navbar.tsx']) {
+    assert.doesNotMatch(read(file), /lab\/director/);
+  }
+});
+
+test('panel has all four sections and closed diagnostics', () => {
+  const source = read('components/directorNext/DirectorPanel.tsx');
+  for (const label of ['正在做什么', '需要你做什么', '质量债', '时间线']) assert.ok(source.includes(label));
+  assert.doesNotMatch(source, /<details[^>]*\bopen/);
+  assert.match(read('components/directorNext/DirectorBadge.tsx'), /find\(\(action\) => action.primary\)/);
+});
+
+test('pages forward the projection without inferring its state', () => {
+  for (const file of ['DirectorNovelPage.tsx', 'DirectorRunHistoryPage.tsx']) {
+    const source = read(`pages/directorNext/${file}`);
+    assert.doesNotMatch(source, /(?:view|summary|detail)\??\.(?:mode|headline|progress|availableActions|sourceTrace)/);
+    assert.doesNotMatch(source, /cursorStepId|failureReason|pauseKind|controlStatus/);
+  }
+});
+
+function presentationViolations(filename, source) {
+  if (filename.endsWith('DirectorBadge.tsx') || filename.endsWith('DirectorPanel.tsx')) return [];
+  return [...source.matchAll(/\b(?:view|dashboardView)\??\.(?:mode|headline|progress|availableActions|sourceTrace)/g)].map(match => match[0]);
+}
+
+test('the projection guard also rejects a third rendering component', () => {
+  assert.notEqual(presentationViolations('Third.tsx', 'view.mode === "running"').length, 0);
+  const roots = ['components/directorNext', 'pages/directorNext'];
+  for (const root of roots) {
+    for (const file of fs.readdirSync(new URL(`../src/${root}/`, import.meta.url))) {
+      if (!file.endsWith('.tsx')) continue;
+      assert.deepEqual(presentationViolations(file, read(`${root}/${file}`)), [], file);
+    }
+  }
+});
+
+test('seven states render their projected headline, progress, closed diagnostics and disabled preview commands', async () => {
+  const viteRequire = createRequire(import.meta.resolve('vite'));
+  const { build } = viteRequire('esbuild');
+  const clientDir = path.resolve(new URL('..', import.meta.url).pathname.replace(/^\/(\w:)/, '$1'));
+  const output = path.join(clientDir, 'tests', `.director-render-${Date.now()}.mjs`);
+  try {
+    await build({
+      stdin: {
+        contents: `import React from 'react';
+import { renderToStaticMarkup } from 'react-dom/server';
+import { MemoryRouter } from 'react-router-dom';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import DirectorPanel from './src/components/directorNext/DirectorPanel';
+import { previewStates, previewTimeline, previewView } from './src/pages/directorNext/preview';
+export function renderedStates() {
+  return previewStates.map(state => {
+    const view = previewView(state.id);
+    return { state, view, markup: renderToStaticMarkup(
+      <QueryClientProvider client={new QueryClient()}><MemoryRouter>
+        <DirectorPanel view={view} novelId='preview' timeline={previewTimeline} preview />
+      </MemoryRouter></QueryClientProvider>
+    ) };
+  });
+}`,
+        resolveDir: clientDir, loader: 'tsx',
+      },
+      bundle: true, platform: 'node', format: 'esm', packages: 'external',
+      alias: { '@': path.join(clientDir, 'src') },
+      define: { 'import.meta.env': '{}' },
+      outfile: output,
+    });
+    const { renderedStates } = await import(pathToFileURL(output).href);
+    const rows = renderedStates();
+    assert.equal(rows.length, 7);
+    for (const { view, markup } of rows) {
+      assert.ok(markup.includes(view.headline));
+      assert.ok(markup.includes('role="progressbar"'));
+      assert.doesNotMatch(markup, /<details[^>]*\bopen/);
+      for (const action of view.availableActions) {
+        assert.ok(markup.includes(action.label));
+        if (action.kind === 'command') assert.match(markup, /disabled=""/);
+      }
+    }
+  } finally {
+    if (fs.existsSync(output)) fs.unlinkSync(output);
+  }
+});

@@ -56,7 +56,7 @@ function snapshot() {
   for (let index = 0; index < 3; index += 1) {
     const view = await projection.get("run-1");
     assert.equal(view.mode, "paused");
-    assert.equal(view.sourceRoute, "/novels/novel-1");
+    assert.equal(view.sourceRoute, "/novels/novel-1/edit");
     assert.deepEqual(view.progress, { done: 1, total: 4, source: "artifact_ledger" });
     assert.deepEqual(view.debts, { count: 1, chapterOrders: [1] });
     assert.deepEqual(view.availableActions.map((action) => action.command), ["resume", "cancel"]);

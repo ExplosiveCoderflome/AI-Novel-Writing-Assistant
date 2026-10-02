@@ -104,11 +104,12 @@ export class PrismaRunRepository implements RunRepository {
     return row?.runId ?? null;
   }
 
-  async listRunIds(options: { needsAttention?: boolean; limit: number }): Promise<string[]> {
+  async listRunIds(options: { needsAttention?: boolean; novelId?: string; limit: number }): Promise<string[]> {
     const rows = await this.db.directorNextRun.findMany({
-      where: options.needsAttention
-        ? { control: { is: { status: { in: ["paused", "waiting_gate", "failed"] } } } }
-        : undefined,
+      where: {
+        ...(options.novelId ? { novelId: options.novelId } : {}),
+        ...(options.needsAttention ? { control: { is: { status: { in: ["paused", "waiting_gate", "failed"] } } } } : {}),
+      },
       orderBy: { createdAt: "desc" },
       take: Math.min(Math.max(options.limit, 1), 100),
       select: { id: true },

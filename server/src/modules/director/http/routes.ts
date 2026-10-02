@@ -101,9 +101,10 @@ export function createDirectorNextRouter(deps: DirectorNextHttpDeps): Router {
       sendValidationError(res, novelId.error);
       return;
     }
-    const runId = await deps.runRepository.findActiveRunIdByNovel(novelId.data);
+    const activeRunId = await deps.runRepository.findActiveRunIdByNovel(novelId.data);
+    const runId = activeRunId ?? (await deps.runRepository.listRunIds({ novelId: novelId.data, limit: 1 }))[0];
     if (!runId) {
-      res.status(404).json({ success: false, error: "当前没有进行中的创作。" });
+      res.status(404).json({ success: false, error: "这本小说没有创作记录。" });
       return;
     }
     try {
@@ -140,6 +141,22 @@ export function createDirectorNextRouter(deps: DirectorNextHttpDeps): Router {
     const runIds = await deps.runRepository.listRunIds(parsed.data);
     const data = await Promise.all(runIds.map((runId) => deps.projectionService.get(runId)));
     res.json({ success: true, data, message: "创作记录已加载。" });
+  }));
+
+  router.get("/records", asyncRoute(async (req, res) => {
+    const parsed = querySchema.safeParse(req.query);
+    if (!parsed.success) { sendValidationError(res, parsed.error); return; }
+    const runIds = await deps.runRepository.listRunIds(parsed.data);
+    const labels = { queued: "等待开始", running: "推进中", waiting_gate: "等待确认", paused: "暂停中", completed: "已完成", failed: "中断", cancelled: "已取消" };
+    const data = await Promise.all(runIds.map(async (runId) => {
+      const view = await deps.projectionService.get(runId);
+      return {
+        runId, novelId: view.novelId, statusLabel: labels[view.mode], headline: view.headline,
+        detail: view.detail, progressLabel: `${view.progress.done}/${view.progress.total} 个阶段完成`,
+        sourceRoute: view.sourceRoute, directorRoute: `/lab/director/${encodeURIComponent(view.novelId)}`,
+      };
+    }));
+    res.json({ success: true, data });
   }));
 
   return router;

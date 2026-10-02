@@ -30,7 +30,7 @@ export class ProjectionService {
       plan,
       facts,
       artifactTypes: this.deps.artifactTypes ?? {},
-      sourceRoute: `/novels/${encodeURIComponent(contract.novelId)}`,
+      sourceRoute: `/novels/${encodeURIComponent(contract.novelId)}/edit`,
     });
   }
 }

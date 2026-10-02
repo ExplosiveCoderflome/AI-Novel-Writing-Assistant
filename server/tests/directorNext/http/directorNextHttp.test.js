@@ -26,7 +26,7 @@ function deps(overrides = {}) {
       execute: async () => ({ runId: "run-1", controlVersion: 0, commandId: "cmd-1", replayed: false }),
     },
     projectionService: {
-      get: async () => ({ runId: "run-1", mode: "running", driver: "auto", headline: "正在推进创作", detail: null, progress: { done: 1, total: 4, source: "artifact_ledger" }, debts: { count: 0, chapterOrders: [] }, availableActions: [], sourceRoute: "/novels/novel-1", sourceTrace: { controlStatus: "running", controlVersion: 0, pauseKind: null, planVersion: "p1" } }),
+      get: async () => ({ runId: "run-1", novelId: "novel-1", mode: "running", driver: "auto", headline: "正在推进创作", detail: null, progress: { done: 1, total: 4, source: "artifact_ledger" }, debts: { count: 0, chapterOrders: [] }, availableActions: [], sourceRoute: "/novels/novel-1/edit", sourceTrace: { controlStatus: "running", controlVersion: 0, pauseKind: null, planVersion: "p1" } }),
     },
     runRepository: {
       findActiveRunIdByNovel: async () => "run-1",
@@ -54,7 +54,7 @@ test("current and detail reads use the source page route and never expose a task
     const current = await fetch(`${baseUrl}/api/director-next/novels/novel-1/current`);
     const currentBody = await current.json();
     assert.equal(current.status, 200);
-    assert.equal(currentBody.data.sourceRoute, "/novels/novel-1");
+    assert.equal(currentBody.data.sourceRoute, "/novels/novel-1/edit");
     assert.equal(JSON.stringify(currentBody).includes("directorTaskId"), false);
 
     const detail = await fetch(`${baseUrl}/api/director-next/runs/run-1`);
@@ -85,4 +85,29 @@ test("invalid commands return a validation error and never reach the command ser
     assert.equal(response.status, 400);
   });
   assert.equal(calls, 0);
+});
+
+test("a novel with no active run displays its latest terminal record", async () => {
+  let requested;
+  await withServer(deps({ runRepository: {
+    findActiveRunIdByNovel: async () => null,
+    listRunIds: async (options) => { requested = options; return ["run-1"]; },
+  } }), async (url) => {
+    const response = await fetch(`${url}/api/director-next/novels/novel-1/current`);
+    assert.equal(response.status, 200);
+    assert.equal((await response.json()).data.novelId, "novel-1");
+  });
+  assert.deepEqual(requested, { novelId: "novel-1", limit: 1 });
+});
+
+test("read-only records expose labels and a stable novel route without commands", async () => {
+  await withServer(deps(), async (url) => {
+    const response = await fetch(`${url}/api/director-next/records?needsAttention=true`);
+    const record = (await response.json()).data[0];
+    assert.equal(record.directorRoute, "/lab/director/novel-1");
+    assert.equal(record.statusLabel, "推进中");
+    assert.equal(record.progressLabel, "1/4 个阶段完成");
+    assert.equal(Object.hasOwn(record, "availableActions"), false);
+    assert.equal(Object.hasOwn(record, "sourceTrace"), false);
+  });
 });

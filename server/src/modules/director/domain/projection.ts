@@ -26,6 +26,7 @@ export interface ActionDescriptor {
 
 export interface DashboardView {
   runId: string;
+  novelId: string;
   mode: RunStatus;
   driver: Driver;
   headline: string;
@@ -164,6 +165,7 @@ export function project(input: ProjectionInput): DashboardView {
 
   return {
     runId: contract.runId,
+    novelId: contract.novelId,
     mode: control.status,
     driver: contract.driver,
     headline,

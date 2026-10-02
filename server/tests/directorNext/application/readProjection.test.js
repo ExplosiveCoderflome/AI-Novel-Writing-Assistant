@@ -78,7 +78,7 @@ test("projection uses the saved plan version and the book source route", async (
   const view = await service.get("run-1");
   assert.equal(view.mode, "running");
   assert.deepEqual(view.progress, { done: 1, total: 4, source: "artifact_ledger" });
-  assert.equal(view.sourceRoute, "/novels/novel-1");
+  assert.equal(view.sourceRoute, "/novels/novel-1/edit");
   assert.deepEqual(view.debts, { count: 1, chapterOrders: [2] });
   assert.equal("contract" in view, false);
 });
