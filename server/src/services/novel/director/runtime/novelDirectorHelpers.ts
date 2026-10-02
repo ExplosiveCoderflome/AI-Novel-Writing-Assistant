@@ -31,12 +31,11 @@ import {
   normalizeDirectorAutoApprovalConfig,
   type DirectorAutoApprovalConfig,
 } from "@ai-novel/shared/types/autoDirectorApproval";
-import type { BookContractDraft } from "@ai-novel/shared/types/novelWorkflow";
 import type { TitleFactorySuggestion } from "@ai-novel/shared/types/title";
 import { titleGenerationService } from "../../../title/TitleGenerationService";
 import { isNearDuplicateTitle } from "../../../title/titleGeneration.shared";
 import type { NovelWorkflowResumeTarget } from "@ai-novel/shared/types/novelWorkflow";
-import type { DirectorBookContractParsed } from "./novelDirectorSchemas";
+export { normalizeBookContract } from "../../bookContract";
 import type { DirectorCompletionProfile } from "@ai-novel/shared/types/directorCompletion";
 import { buildDirectorCompletionProfile } from "@ai-novel/shared/types/directorCompletion";
 
@@ -478,22 +477,6 @@ export function buildStoryInput(input: DirectorConfirmRequest, bookSpec: BookSpe
       : "",
   ].filter(Boolean);
   return lines.join("\n");
-}
-
-export function normalizeBookContract(parsed: DirectorBookContractParsed): BookContractDraft {
-  return {
-    readingPromise: parsed.readingPromise.trim(),
-    protagonistFantasy: parsed.protagonistFantasy.trim(),
-    coreSellingPoint: parsed.coreSellingPoint.trim(),
-    chapter3Payoff: parsed.chapter3Payoff.trim(),
-    chapter10Payoff: parsed.chapter10Payoff.trim(),
-    chapter30Payoff: parsed.chapter30Payoff.trim(),
-    escalationLadder: parsed.escalationLadder.trim(),
-    relationshipMainline: parsed.relationshipMainline.trim(),
-    absoluteRedLines: Array.from(
-      new Set(parsed.absoluteRedLines.map((item) => item.trim()).filter(Boolean)),
-    ).slice(0, 6),
-  };
 }
 
 export function buildWorkflowSeedPayload(
