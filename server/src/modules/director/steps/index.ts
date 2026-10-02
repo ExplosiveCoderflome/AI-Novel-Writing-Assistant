@@ -8,3 +8,5 @@ export * from "./planning/volumeChapterList";
 export * from "./planning/chapterDetailBundle";
 export * from "./planning/executionContractSync";
 export * from "./planning/characterSetup";
+export * from "./production/chapterBatch";
+export * from "./registry";
