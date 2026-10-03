@@ -24,6 +24,7 @@ import { plannerService } from "../../planner/PlannerService";
 import { applyChapterQualityClosure } from "./qualityClosure/ChapterQualityClosure";
 import { ChapterAutomaticAttemptService } from "./attempts";
 import { isCurrentChapterProductionCompleted } from "./completion";
+import { beginChapterUsage, observeChapterUsage } from "./usage";
 import {
   loadDirectorIssueTaskContext,
 } from "../director/issues";
@@ -429,6 +430,39 @@ export class NovelPipelineExecutor {
           const chapter = chaptersToProcess[chapterIndex];
           await this.ensurePipelineNotCancelled(jobId);
 
+          const checkChapterBudget = async (closed = false) => {
+            if (!runtimePayload.directorNext) return;
+            const usage = await prisma.generationJob.findUniqueOrThrow({
+              where: { id: jobId }, select: { totalTokens: true },
+            });
+            let initialized: boolean;
+            let observed: ReturnType<typeof observeChapterUsage>;
+            try {
+              initialized = beginChapterUsage(runtimePayload.directorNext, chapter.id, chapter.order, usage.totalTokens);
+              observed = observeChapterUsage(runtimePayload.directorNext, chapter.id, usage.totalTokens);
+            } catch (error) {
+              throw new PipelineIssueFailure(error instanceof Error ? error.message : "章节用量记录异常，不能继续生成。",
+                "runtime.data_integrity", "chapter_usage", chapter.id, chapter.order);
+            }
+            if (initialized || (closed && observed.exceeded)) {
+              try {
+                await this.updateJobRequired(jobId, {
+                  ...(closed ? { completedCount: completed + 1, progress: Number(((completed + 1) / totalCount).toFixed(4)) } : {}),
+                  payload: this.stringifyPipelinePayload({ ...runtimePayload, qualityAlertDetails, replanAlertDetails, recoverableRepairDetails }),
+                });
+              } catch (error) {
+                if (error instanceof PipelineExecutionLeaseLostError) throw error;
+                throw new PipelineIssueFailure("章节用量检查点无法确认已保存，生成已停止。",
+                  "runtime.persistence_failed", "chapter_usage", chapter.id, chapter.order);
+              }
+            }
+            if (observed.exceeded) {
+              throw new PipelineIssueFailure(`第${chapter.order}章累计 AI 用量达到 ${observed.totalTokens} Tokens，${closed ? "正文已保存，" : ""}请检查后再继续。`,
+                "runtime.token_budget_exceeded", "chapter_usage", chapter.id, chapter.order);
+            }
+          };
+          await checkChapterBudget();
+
           let shouldStopAfterCurrentChapter = false;
           let chapterStopAction: "pause_for_manual" | "fail_task" | null = null;
           const currentItemLabel = buildPipelineCurrentItemLabel({
@@ -496,6 +530,7 @@ export class NovelPipelineExecutor {
             while (true) {
               try {
                 await this.ensurePipelineNotCancelled(jobId);
+                await checkChapterBudget();
                 chapterResult = await this.chapterRuntimeCoordinator.runPipelineChapter(
                   novelId,
                   chapter.id,
@@ -550,6 +585,7 @@ export class NovelPipelineExecutor {
                 );
                 break;
               } catch (error) {
+                if (error instanceof PipelineIssueFailure && error.stage === "chapter_usage") throw error;
                 if (error instanceof PipelineExecutionLeaseLostError) {
                   throw error;
                 }
@@ -658,6 +694,8 @@ export class NovelPipelineExecutor {
           });
           shouldStopAfterCurrentChapter = closure.shouldStopAfterCurrentChapter;
           chapterStopAction = closure.stopAction;
+
+          await checkChapterBudget(true);
 
           // Phase 3：同步补齐下一段章节路线；正文执行合同仍由下一章 JIT 独立生成。
           if (!shouldStopAfterCurrentChapter && isAutopilotMode && chapter.order < autopilotTargetEndOrder) {

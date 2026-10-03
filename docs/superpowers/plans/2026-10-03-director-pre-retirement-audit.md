@@ -34,9 +34,13 @@
 
 `server/tests/directorNext/application/processRecoverySqlite.test.js` 用完整临时 SQLite 和两个独立 Node 进程验证：第一个进程在产物事务提交后直接退出（73），第二个进程不抢占仍有效的租约，测试推进租约到期后从台账继续。故事产物生成调用计数保持 1，后续步骤完成，人工暂停的 Run 各控制字段不变，旧任务、旧命令和已有正文的所有列不变。这里使用无 AI 的步骤端口和独立测试数据库；不是实际收费章节生成或强杀模型请求的验收。
 
-## 未完成：继承规则 R05 的单章用量熔断
+## 继承规则 R05：单章用量保护已接通
 
-`02-inherited-rules.md` R05 要求单章累计 Token 达硬预算后暂停尚未执行的工作。实际源码的预算查询与熔断仍位于旧 `novelDirectorAutoExecutionCircuitBreakerRuntime.resolveUsageCircuitBreaker`，没有新运行调用；`app/director/productionComposition.ts` 的新运行 `tokenBudget=null`，步骤结果也没有真实调用用量装配证据。纯领域预算守卫测试不能证明这个生产约束已实现。必须用新运行的持久用量事实接通单章预算检查，保留已保存正文、阻止后续收费工作，恢复继续遵守新导演显式恢复，不导入旧导演运行时或双写旧台账。
+核对发现旧熔断只由旧导演调用，新正文作业没有继承这一保护。新链路使用 `GenerationJob.totalTokens` 和 `directorNext.chapterUsage` 的持久单章基线，在章节执行/重试之前及闭合边界检查 80,000 Tokens。保存边界超限先登记本章完成进度，再通过锁定的 `runtime.token_budget_exceeded` 暂停后续滚动规划与正文。恢复同章保留基线，不依赖旧熔断或旧用量台账。计数异常直接产生数据完整性暂停，检查点保存失败停止，不能追加 AI 分类请求。
+
+`chapterUsagePipeline.test.js` 驱动真实 NovelPipelineExecutor、结构化问题策略及 readBatchOutcome，模型生产端口使用无 AI 桩，验证阈值、正文与进度保留、下一章不执行、恢复不清预算、正常章节继续、非导演作业兼容、计数和保存故障。服务端构建通过；定向预算、身份桥接和既有流水线状态 23/23，新导演完整套件 190/190。该证据证明生产边界和新导演暂停投影，不证明收费模型报告完整用量，也不代表真实整书或页面验收已完成。
+
+边界：不中断已启动章节的内部生成、审校、修复、保存和时间线算法；只计入供应商经统一用量跟踪保存的计数，不伪造缺失用量。`RunContract.tokenBudget=null` 表示未设置整次 Run 的总预算，不再用它否定独立的单章保护。
 
 ## 本轮验证
 
