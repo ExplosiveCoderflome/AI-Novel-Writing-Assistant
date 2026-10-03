@@ -1,4 +1,4 @@
-import { project, type ArtifactType, type ArtifactTypeInfo, type DashboardView } from "../domain";
+import { project, type ArtifactType, type ArtifactTypeInfo, type DashboardView, type RunContract, type RunControl } from "../domain";
 import type { FactsLoader } from "./factsLoader";
 import type { PlanRegistry } from "./ports";
 
@@ -13,6 +13,8 @@ export interface ProjectionServiceDeps {
   factsLoader: Pick<FactsLoader, "load">;
   planRegistry: PlanRegistry;
   artifactTypes?: Readonly<Record<ArtifactType, ArtifactTypeInfo>>;
+  /** Read-only business adapter resolves saved asset identities before pure projection. */
+  resolveArtifactTypes?: (input: {contract: RunContract; control: RunControl}) => Promise<Readonly<Record<ArtifactType, ArtifactTypeInfo>>>;
   sourceRoute?: (novelId: string) => string;
 }
 
@@ -25,12 +27,14 @@ export class ProjectionService {
     if (!plan) {
       throw new UnknownPlanVersionError(contract.planVersion);
     }
+    const artifactTypes = this.deps.resolveArtifactTypes
+      ? await this.deps.resolveArtifactTypes({contract, control}) : this.deps.artifactTypes ?? {};
     return project({
       contract,
       control,
       plan,
       facts,
-      artifactTypes: Object.fromEntries(Object.entries(this.deps.artifactTypes ?? {}).map(([type,info]) => [type,{
+      artifactTypes: Object.fromEntries(Object.entries(artifactTypes).map(([type,info]) => [type,{
         ...info,
         reviewRoute: info.reviewRoute.replace(":novelId", encodeURIComponent(contract.novelId))
           || `/novels/${encodeURIComponent(contract.novelId)}/edit`,

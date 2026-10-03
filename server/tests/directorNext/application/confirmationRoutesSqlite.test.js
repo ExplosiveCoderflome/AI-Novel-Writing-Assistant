@@ -1,0 +1,89 @@
+const test = require('node:test');
+const fs = require('node:fs');
+const os = require('node:os');
+const path = require('node:path');
+const {execFileSync} = require('node:child_process');
+
+test('production confirmation routes locate the saved range in its own volume without writing facts', () => {
+  const root = path.resolve(__dirname, '../../../..');
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'director-confirmation-routes-'));
+  const script = path.join(dir, 'verify.cjs');
+  fs.writeFileSync(script, String.raw`
+const assert = require('node:assert/strict');
+const path = require('node:path');
+const server = path.join(process.env.DIRECTOR_NEXT_REPO_ROOT, 'server');
+const Database = require(require.resolve('better-sqlite3', {paths: [server]}));
+const {prisma} = require(path.join(server, 'dist/db/prisma'));
+const {ensureRuntimeDatabaseReady} = require(path.join(server, 'dist/db/runtimeMigrations'));
+const {createDirectorProductionOptions} = require(path.join(server, 'dist/app/director/productionComposition'));
+const {createDirectorNextServices, FactIntegrityError} = require(path.join(server, 'dist/modules/director'));
+const {PrismaRunRepository} = require(path.join(server, 'dist/modules/director/infrastructure'));
+function snapshot() {
+ const db = new Database(process.env.DATABASE_URL.slice(5), {readonly: true});
+ try {return ['DirectorNextRun','DirectorNextRunControl','DirectorNextArtifact','DirectorNextEvent','DirectorNextCommand','DirectorNextQualityDebt',
+  'Novel','VolumePlan','VolumeChapterPlan','Chapter'].map(table => ({table, rows: db.prepare('SELECT * FROM "'+table+'" ORDER BY rowid').all()}));}
+ finally {db.close();}
+}
+(async () => {
+ await ensureRuntimeDatabaseReady();
+ await prisma.novel.createMany({data: [{id: 'book/中文?x=1', title: '本书'}, {id: 'other', title: '其他书'}]});
+ const novelId = 'book/中文?x=1';
+ await prisma.volumePlan.createMany({data: [
+  {id: 'v-first', novelId, sortOrder: 1, title: '首卷'},
+  {id: 'v/target?x=2', novelId, sortOrder: 2, title: '目标卷'},
+  {id: 'v-other', novelId: 'other', sortOrder: 1, title: '其他书的卷'},
+ ]});
+ await prisma.chapter.createMany({data: [
+  {id: 'c-first', novelId, order: 1, title: '首章', content: '保留首章正文'},
+  {id: 'c/7?x=3', novelId, order: 7, title: '范围起点', content: '保留目标正文'},
+  {id: 'c-other', novelId: 'other', order: 7, title: '其他书同章序', content: '其他书正文'},
+ ]});
+ await prisma.volumeChapterPlan.createMany({data: [
+  {id: 'p-first', volumeId: 'v-first', chapterId: 'c-first', chapterOrder: 1, title: '首章', summary: '首章路线'},
+  {id: 'p/7?x=4', volumeId: 'v/target?x=2', chapterId: 'c/7?x=3', chapterOrder: 7, title: '目标章', summary: '目标路线'},
+  {id: 'p-other', volumeId: 'v-other', chapterId: 'c-other', chapterOrder: 7, title: '其他书', summary: '其他书路线'},
+ ]});
+ const options = createDirectorProductionOptions();
+ const services = createDirectorNextServices(options), runs = new PrismaRunRepository(prisma);
+ const contract = options.contractFactory({runId: 'range-run', novelId, driver: 'assisted', stepIdsInScope: null,
+  launchInput: {storyInput: '故事', estimatedChapterCount: 12, worldMode: 'skip', targetMode: 'opening', provider: 'openai', model: 'no-ai', executionRange: {from: 7, to: 8}}});
+ await runs.open(contract); await runs.transition(contract.runId, {type: 'start'}, 0);
+ for (const [type, stage, chapterId, volumeId] of [
+  ['chapter_task_sheet','structured','p/7?x=4','v/target?x=2'],
+  ['chapter_execution_contract','structured','p/7?x=4','v/target?x=2'],
+  ['chapter_batch_closed','chapter','c/7?x=3',null],
+ ]) {
+  const control = await runs.getControl(contract.runId);
+  await runs.transition(contract.runId, {type: 'open_gate', gateId: type, artifactTypes: [type]}, control.version);
+  const before = snapshot();
+  for (let read = 0; read < 2; read++) {
+   const view = await services.http.projectionService.get(contract.runId);
+   const action = view.availableActions.find(item => item.id === 'review:'+type);
+   const url = new URL(action.target, 'https://local.test');
+   assert.equal(url.pathname, '/novels/'+encodeURIComponent(novelId)+'/edit');
+   assert.equal(url.searchParams.get('stage'), stage);
+   assert.equal(url.searchParams.get('chapterId'), chapterId, 'must locate the saved authorized start, not the first chapter');
+   assert.equal(url.searchParams.get('volumeId'), volumeId);
+   assert.equal(url.searchParams.has('directorTaskId'), false);
+   assert.equal(url.searchParams.has('workspaceTaskId'), false);
+  }
+  assert.deepEqual(snapshot(), before);
+  await runs.transition(contract.runId, {type: 'resolve_gate'}, (await runs.getControl(contract.runId)).version);
+ }
+ // Missing or duplicate current-book mappings must not silently select a different chapter.
+ await runs.transition(contract.runId, {type: 'open_gate', gateId: 'missing', artifactTypes: ['chapter_task_sheet']}, (await runs.getControl(contract.runId)).version);
+ await prisma.volumeChapterPlan.update({where: {id: 'p/7?x=4'}, data: {chapterOrder: 9}});
+ let before = snapshot();
+ await assert.rejects(() => services.http.projectionService.get(contract.runId), error => error instanceof FactIntegrityError);
+ assert.deepEqual(snapshot(), before);
+ await prisma.volumeChapterPlan.update({where: {id: 'p/7?x=4'}, data: {chapterOrder: 7}});
+ await prisma.volumeChapterPlan.create({data: {id: 'p-duplicate', volumeId: 'v-first', chapterOrder: 7, title: '冲突映射', summary: '不可猜测'}});
+ before = snapshot();
+ await assert.rejects(() => services.http.projectionService.get(contract.runId), error => error instanceof FactIntegrityError);
+ assert.deepEqual(snapshot(), before);
+ await prisma.$disconnect();
+})().catch(async error => {console.error(error); await prisma.$disconnect(); process.exitCode = 1;});
+`);
+  execFileSync(process.execPath, [script], {cwd: root, env: {...process.env, NODE_ENV: 'test', AI_NOVEL_RUNTIME: 'desktop',
+    AI_NOVEL_APP_DATA_DIR: dir, DIRECTOR_NEXT_REPO_ROOT: root, DATABASE_URL: 'file:'+path.join(dir, 'routes.db').replace(/\\/g, '/')}, stdio: 'pipe'});
+});

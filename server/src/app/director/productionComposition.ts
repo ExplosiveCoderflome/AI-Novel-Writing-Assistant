@@ -21,6 +21,7 @@ import {readEditedArtifact, resumeBusiness, cancelBusiness} from "./savedContent
 import {readExistingAssets} from "./existingAssets";
 import {isCurrentChapterProductionCompleted} from "../../services/novel/production/completion";
 import {CHAPTER_ARTIFACT_BOUNDARY_TYPE} from "../../services/novel/runtime/artifactSync";
+import {directorArtifactTypes, resolveConfirmationArtifactTypes} from "./projections/confirmationRoutes";
 
 /** Composition only: business generation remains owned by existing novel services. Not enabled by importing this module. */
 export function createDirectorProductionOptions(): DirectorNextServiceOptions {
@@ -96,22 +97,9 @@ export function createDirectorProductionOptions(): DirectorNextServiceOptions {
       readOutcome: readBatchOutcome, waitForPoll: () => new Promise(resolve => setTimeout(resolve, 1000)),
       isRunActive: async runId => (await prisma.directorNextRunControl.findUnique({where: {runId}, select: {status: true}}))?.status === "running", contentHash}),
   });
-  const reviewTargets: Record<string, {label: string; stage: string}> = {
-    story_macro: {label: "故事规划", stage: "story_macro"},
-    book_contract: {label: "创作约定", stage: "basic"},
-    world_skeleton: {label: "世界设定", stage: "world"},
-    character_cast: {label: "角色阵容", stage: "character"},
-    volume_strategy: {label: "卷纲", stage: "outline"},
-    volume_beat_sheet: {label: "节奏段", stage: "structured"},
-    volume_chapter_list: {label: "章节路线", stage: "structured"},
-    chapter_task_sheet: {label: "章节任务与场景", stage: "structured"},
-    chapter_execution_contract: {label: "正文执行计划", stage: "structured"},
-    chapter_batch_closed: {label: "本批次正文", stage: "chapter"},
-  };
   return {plan: directorProductionPlan, stepRegistry, readEditedArtifact, resumeBusiness, cancelBusiness,
     sourceRoute: novelId => `/lab/director/${encodeURIComponent(novelId)}`,
-    artifactTypes: Object.fromEntries(Object.entries(reviewTargets).map(([type,{label,stage}]) =>
-      [type,{label,reviewRoute: `/novels/:novelId/edit?stage=${stage}`}])), contractFactory: input => {
+    artifactTypes: directorArtifactTypes, resolveArtifactTypes: resolveConfirmationArtifactTypes, contractFactory: input => {
     const launch = input.launchInput;
     if (!launch) throw new Error("启动创作需要故事、模型与范围快照。");
     if (!launch.targetVolumeId && launch.targetMode !== "opening") throw new Error("启动创作需要明确选择开篇或目标卷。");

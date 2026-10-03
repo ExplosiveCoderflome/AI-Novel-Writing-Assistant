@@ -76,6 +76,7 @@ export interface DirectorNextServiceOptions {
   resumeBusiness?: BusinessResume;
   cancelBusiness?: BusinessResume;
   artifactTypes?: ProjectionServiceDeps["artifactTypes"];
+  resolveArtifactTypes?: ProjectionServiceDeps["resolveArtifactTypes"];
   sourceRoute?: ProjectionServiceDeps["sourceRoute"];
 }
 
@@ -88,7 +89,8 @@ export function createDirectorNextServices(options: DirectorNextServiceOptions =
   const runtime = createDirectorRuntime();
   const factsLoader = new FactsLoader({ runRepository, artifactLedger, qualityDebtRepository, eventLog });
   const configuredPlans: PlanRegistry = {get: version => options.plan?.version === version ? options.plan : planRegistry.get(version)};
-  const projectionService = new ProjectionService({ factsLoader, planRegistry: configuredPlans, artifactTypes: options.artifactTypes, sourceRoute: options.sourceRoute });
+  const projectionService = new ProjectionService({ factsLoader, planRegistry: configuredPlans, artifactTypes: options.artifactTypes,
+    resolveArtifactTypes: options.resolveArtifactTypes, sourceRoute: options.sourceRoute });
   const gateService = new GateService({factsLoader, planRegistry: configuredPlans});
   const commandService = new CommandService({ runRepository, commandRepository, runtime, contractFactory: options.contractFactory ?? contractFactory, prepareOpen: options.prepareOpen, gateService });
   const stepRegistry = options.stepRegistry ?? new StepRegistry();
