@@ -1,5 +1,6 @@
 import type { PrismaClient } from "@prisma/client";
 import { prisma } from "../../../db/prisma";
+import { FactIntegrityError } from "../domain";
 import type {
   ArtifactRef,
   ArtifactStatus,
@@ -7,11 +8,18 @@ import type {
 } from "../domain";
 import type { ArtifactLedger } from "../application/ports";
 
+export class InvalidArtifactStatusError extends FactIntegrityError {
+  constructor(readonly status: string) {
+    super("创作结果状态异常，请保留运行记录以便排查。");
+    this.name = "InvalidArtifactStatusError";
+  }
+}
+
 function artifactStatus(value: string): ArtifactStatus {
   if (value === "stale" || value === "draft" || value === "user_edited" || value === "confirmed") {
     return value;
   }
-  return "confirmed";
+  throw new InvalidArtifactStatusError(value);
 }
 
 function toArtifactRef(row: {

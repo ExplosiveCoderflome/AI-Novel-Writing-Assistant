@@ -2,6 +2,14 @@ export type ArtifactType = string;
 
 export type ArtifactStatus = "draft" | "confirmed" | "user_edited" | "stale";
 
+/** Invalid persisted facts are a safety boundary, never a transient model failure. */
+export class FactIntegrityError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "FactIntegrityError";
+  }
+}
+
 export interface ArtifactRef {
   type: ArtifactType;
   /** Scope is part of identity. A book, volume, and chapter must never share a latest lookup. */

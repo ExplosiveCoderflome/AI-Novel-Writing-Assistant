@@ -86,6 +86,30 @@ const contract = {
 
   await Promise.all(Array.from({ length: 8 }, (_, index) => events.append({ runId: "run-1", type: "event-" + index, payload: { index } })));
   assert.deepEqual((await events.list("run-1")).map((entry) => entry.seq), [1, 2, 3, 4, 5, 6, 7, 8]);
+  await db.directorNextArtifact.create({data: {id: 'invalid-status', novelId: 'invalid-book', type: 'story_macro', scope: 'book', version: 1,
+    status: 'unknown_persisted_state', protectedUserContent: false, contentRef: 'invalid', contentHash: null}});
+  const invalidBefore = await db.directorNextArtifact.findUniqueOrThrow({where: {id: 'invalid-status'}});
+  await assert.rejects(artifacts.listByNovel('invalid-book'), error => error.name === 'InvalidArtifactStatusError');
+  assert.deepEqual(await db.directorNextArtifact.findUniqueOrThrow({where: {id: 'invalid-status'}}), invalidBefore);
+  await runs.transition('run-1', {type: 'complete'}, 1);
+  await runs.open({...contract, runId: 'invalid-run', novelId: 'invalid-book'});
+  const {FactsLoader, DirectorWorker} = require(path.join(serverRoot, 'dist/modules/director/application'));
+  const factsLoader = new FactsLoader({runRepository: runs, artifactLedger: artifacts, qualityDebtRepository: debts, eventLog: events});
+  let attempts = 0;
+  const worker = new DirectorWorker({runRepository: runs, eventLog: events, recoveryPolicy: {maxAttempts: () => 9},
+    executor: {runOnce: async runId => {attempts++; await factsLoader.load(runId); assert.fail('invalid facts reached execution');}},
+    runtime: {workerId: () => 'integrity-worker', now: () => new Date('2026-10-03T00:00:00Z'),
+      leaseExpiresAt: now => new Date(now.getTime()+10_000)}});
+  assert.equal(await worker.tick(), true);
+  const stopped = await runs.getControl('invalid-run');
+  assert.equal(stopped.status, 'paused');
+  assert.equal(stopped.pause.kind, 'safety');
+  const stopEvents = await events.list('invalid-run');
+  assert.equal(stopEvents.length, 1);
+  assert.equal(stopEvents[0].payload.kind, 'data_integrity');
+  assert.equal(await worker.tick(), false);
+  assert.equal(attempts, 1, 'an integrity fault must not consume the model retry budget');
+  assert.deepEqual(await db.directorNextArtifact.findUniqueOrThrow({where: {id: 'invalid-status'}}), invalidBefore);
   await db.$disconnect();
 })().catch(async (error) => {
   console.error(error);

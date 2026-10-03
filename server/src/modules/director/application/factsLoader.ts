@@ -1,4 +1,4 @@
-import type { FactsSnapshot, RunContract, RunControl, StopSignal } from "../domain";
+import { FactIntegrityError, type FactsSnapshot, type RunContract, type RunControl, type StopSignal } from "../domain";
 import type { ArtifactLedger, EventLog, QualityDebtRepository, RunRepository } from "./ports";
 
 export interface LoadedRunFacts {
@@ -14,7 +14,7 @@ export class DirectorRunNotFoundError extends Error {
   }
 }
 
-export class InvalidStopSignalError extends Error {
+export class InvalidStopSignalError extends FactIntegrityError {
   constructor(readonly seq: number) {
     super(`invalid director stop signal event at seq ${seq}`);
     this.name = "InvalidStopSignalError";

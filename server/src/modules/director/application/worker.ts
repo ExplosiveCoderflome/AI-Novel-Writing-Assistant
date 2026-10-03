@@ -1,6 +1,6 @@
 import type { RunExecutor } from "./runExecutor";
 import type { DirectorWorkerRuntime, EventLog, RunRepository } from "./ports";
-import type { RunContract, RunControl } from "../domain";
+import { FactIntegrityError, type RunContract, type RunControl } from "../domain";
 
 export interface DirectorRecoveryPolicy {
   maxAttempts(contract: RunContract): number;
@@ -81,6 +81,19 @@ export class DirectorWorker {
       throw error;
     }
     if (control.status !== "running") return;
+    if (error instanceof FactIntegrityError) {
+      const reason = error.message;
+      await this.deps.eventLog.append({
+        runId,
+        type: "stop_signal",
+        payload: { kind: "data_integrity", reason, action: "pause_for_manual", source: "runtime" },
+      });
+      await this.deps.runRepository.transition(runId, {
+        type: "pause",
+        pause: { kind: "safety", reason },
+      }, control.version);
+      return;
+    }
     const resumedAt = events.filter(event => event.type === "stop_signal_cleared").at(-1)?.seq ?? 0;
     const failures = events.filter((event) => event.type === "execution_failure" && (!resumedAt || event.seq > resumedAt)).length;
     await this.deps.eventLog.append({

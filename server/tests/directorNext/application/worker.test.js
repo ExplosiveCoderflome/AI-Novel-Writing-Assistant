@@ -126,3 +126,32 @@ test("one policy retry is allowed before the worker pauses for manual recovery",
   assert.equal(control.status, "paused");
   assert.deepEqual(events.map((event) => event.type), ["execution_failure", "execution_failure", "stop_signal"]);
 });
+
+test("invalid persisted facts pause immediately while error text alone follows the retry budget", async () => {
+  const {InvalidStopSignalError} = require('../../../dist/modules/director/application');
+  for (const error of [new InvalidStopSignalError(1), new Error('invalid director stop signal event at seq 1')]) {
+    const harness = createHarness();
+    let control = {version: 1, status: 'running', pause: null};
+    const events = [];
+    const repo = {...harness.repository, getContract: async () => contract(), getControl: async () => control,
+      listLeaseCandidates: async () => control.status === 'running' ? ['run-1'] : [],
+      transition: async (_runId, event, version) => {
+        assert.equal(version, control.version);
+        control = {...control, version: version+1, status: 'paused', pause: event.pause};
+      }};
+    const worker = new DirectorWorker({runRepository: repo, runtime: harness.runtime('worker'),
+      executor: {runOnce: async () => {throw error;}}, recoveryPolicy: {maxAttempts: () => 9},
+      eventLog: {list: async () => events, append: async event => events.push(event)}});
+    await worker.tick();
+    if (error instanceof InvalidStopSignalError) {
+      assert.equal(control.status, 'paused');
+      assert.equal(control.pause.kind, 'safety');
+      assert.equal(events[0].type, 'stop_signal');
+      assert.equal(events[0].payload.kind, 'data_integrity');
+      assert.equal(await worker.tick(), false);
+    } else {
+      assert.equal(control.status, 'running');
+      assert.deepEqual(events.map(event => event.type), ['execution_failure']);
+    }
+  }
+});
