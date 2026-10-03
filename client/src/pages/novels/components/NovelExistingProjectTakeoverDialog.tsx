@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { buildStyleIntentSummary } from "@ai-novel/shared/types/styleEngine";
 import type {
   DirectorAutoExecutionPlan,
@@ -10,6 +10,8 @@ import type {
 } from "@ai-novel/shared/types/novelDirector";
 import { buildFullBookAutopilotExecutionPlan } from "@ai-novel/shared/types/novelDirector";
 import { getDirectorTaskSnapshot, getDirectorTakeoverReadiness, startDirectorTakeover } from "@/api/novelDirector";
+import {getNovelDetail} from "@/api/novel";
+import {getDirectorWorkspaceHref} from "@/lib/novelRoutes";
 import { queryKeys } from "@/api/queryKeys";
 import { getStyleBindings, getStyleProfiles } from "@/api/styleEngine";
 import LLMSelector from "@/components/common/LLMSelector";
@@ -91,7 +93,16 @@ function buildEditRoute(input: {
   return `/novels/${input.novelId}/edit?${search.toString()}`;
 }
 
-export default function NovelExistingProjectTakeoverDialog({
+export default function NovelExistingProjectTakeoverDialog(props: NovelExistingProjectTakeoverDialogProps) {
+  const entry = useQuery({queryKey: queryKeys.novels.detail(props.novelId), queryFn: () => getNovelDetail(props.novelId), enabled: !!props.novelId, retry: false});
+  const book = entry.data?.data;
+  const directorHref = book?.id === props.novelId ? getDirectorWorkspaceHref(book) : null;
+  if (directorHref) return <Button asChild variant={props.triggerVariant ?? "outline"}><Link to={directorHref}>打开导演台</Link></Button>;
+  if (book?.id === props.novelId && book.workspaceSourceRoute === null) return <LegacyProjectTakeoverDialog {...props}/>;
+  return <Button variant={props.triggerVariant ?? "outline"} disabled={entry.isPending || entry.isFetching} onClick={() => void entry.refetch()}>{entry.isPending || entry.isFetching ? "正在读取创作入口…" : "重新读取创作入口"}</Button>;
+}
+
+function LegacyProjectTakeoverDialog({
   novelId,
   basicForm,
   triggerVariant = "outline",

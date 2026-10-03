@@ -5,6 +5,7 @@ import { BOOK_ANALYSIS_SECTIONS } from "@ai-novel/shared/types/bookAnalysis";
 import { flattenGenreTreeOptions, getGenreTree } from "@/api/genre";
 import { bootstrapNovelWorkflow } from "@/api/novelWorkflow";
 import { createNovel } from "@/api/novel";
+import {getDirectorWorkspaceHref} from "@/lib/novelRoutes";
 import { queryKeys } from "@/api/queryKeys";
 import { flattenStoryModeTreeOptions, getStoryModeTree } from "@/api/storyMode";
 import { getWorldList } from "@/api/world";
@@ -154,6 +155,8 @@ export default function NovelCreate() {
     onSuccess: async ({ response }) => {
       await queryClient.invalidateQueries({ queryKey: queryKeys.novels.all });
       if (response.data?.id) {
+        const directorHref = getDirectorWorkspaceHref(response.data);
+        if (directorHref) {navigate(directorHref);return;}
         const search = new URLSearchParams();
         search.set("stage", "basic");
         navigate(`/novels/${response.data.id}/edit?${search.toString()}`);

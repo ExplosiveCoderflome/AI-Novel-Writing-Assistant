@@ -25,6 +25,7 @@ import {
   extractFileName,
   type NovelDetailResponse,
   type NovelListResponse,
+  type NovelWorkspaceEntry,
   normalizeNovelListLimit,
 } from "./shared";
 
@@ -90,7 +91,7 @@ export async function createNovel(payload: {
   referenceBookAnalysisId?: string;
   referenceBookAnalysisSections?: BookAnalysisSectionKey[];
 }) {
-  const { data } = await apiClient.post<ApiResponse<Novel>>("/novels", payload);
+  const { data } = await apiClient.post<ApiResponse<Novel & NovelWorkspaceEntry>>("/novels", payload);
   return data;
 }
 

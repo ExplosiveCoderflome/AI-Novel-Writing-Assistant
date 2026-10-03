@@ -178,6 +178,11 @@ interface RegisterNovelBaseRoutesInput {
   >;
 }
 
+function withWorkspaceSource<T extends {id: string; narrativeForm?: string | null}>(book: T, enabled: boolean) {
+  return {...book, workspaceSourceRoute: enabled && book.narrativeForm !== "short_story"
+    ? `/lab/director/${encodeURIComponent(book.id)}` : null};
+}
+
 export function registerNovelBaseRoutes(input: RegisterNovelBaseRoutesInput): void {
   const { router, novelService } = input;
   const knowledgeService = new KnowledgeService();
@@ -186,10 +191,8 @@ export function registerNovelBaseRoutes(input: RegisterNovelBaseRoutesInput): vo
     try {
       const query = paginationSchema.parse(req.query);
       const listed = await novelService.listNovels(query);
-      const data = {...listed, items: listed.items.map((book: {id: string; narrativeForm?: string | null} & Record<string, unknown>) => ({...book,
-        workspaceSourceRoute: res.locals.directorNextEnabled === true && book.narrativeForm !== "short_story"
-          ? `/lab/director/${encodeURIComponent(book.id)}` : null,
-      }))};
+      const data = {...listed, items: listed.items.map((book: {id: string; narrativeForm?: string | null} & Record<string, unknown>) =>
+        withWorkspaceSource(book, res.locals.directorNextEnabled === true))};
       const response: ApiResponse<typeof data> = {
         success: true,
         data,
@@ -205,12 +208,13 @@ export function registerNovelBaseRoutes(input: RegisterNovelBaseRoutesInput): vo
     try {
       const createInput = req.body as z.infer<typeof createNovelSchema>;
       const foundation = await novelCreateResourceRecommendationService.resolveRequired(createInput);
-      const data = await novelService.createNovel({
+      const created = await novelService.createNovel({
         ...createInput,
         genreId: foundation.genreId,
         primaryStoryModeId: foundation.primaryStoryModeId,
         secondaryStoryModeId: foundation.secondaryStoryModeId,
       });
+      const data = withWorkspaceSource(created, res.locals.directorNextEnabled === true);
       const response: ApiResponse<typeof data> = {
         success: true,
         data,
@@ -240,14 +244,15 @@ export function registerNovelBaseRoutes(input: RegisterNovelBaseRoutesInput): vo
   router.get("/:id", validate({ params: idParamsSchema }), async (req, res, next) => {
     try {
       const { id } = req.params as z.infer<typeof idParamsSchema>;
-      const data = await novelService.getNovelById(id);
-      if (!data) {
+      const book = await novelService.getNovelById(id);
+      if (!book) {
         res.status(404).json({
           success: false,
           error: "小说不存在。",
         } satisfies ApiResponse<null>);
         return;
       }
+      const data = withWorkspaceSource(book, res.locals.directorNextEnabled === true);
       res.status(200).json({
         success: true,
         data,

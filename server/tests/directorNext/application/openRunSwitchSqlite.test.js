@@ -34,13 +34,19 @@ const {executeOpeningCommand,prepareOpeningRetry}=require(path.join(server,'dist
   const shelf=await (await fetch(base+'/api/novels?limit=24')).json();
   assert.equal(shelf.success,true);
   for(const id of ['existing','fresh'])assert.equal(shelf.data.items.find(book=>book.id===id).workspaceSourceRoute,'/lab/director/'+id);
+  const bookDetail=await (await fetch(base+'/api/novels/existing')).json();
+  assert.equal(bookDetail.data.workspaceSourceRoute,'/lab/director/existing');
   assert.equal(shelf.data.items.find(book=>book.id==='short-source').workspaceSourceRoute,null);
+  const shortDetail=await (await fetch(base+'/api/novels/short-source')).json();
+  assert.equal(shortDetail.data.workspaceSourceRoute,null);
   process.env.DIRECTOR_NEXT_ENABLED='false';
   const disabledHttp=createApp().listen(0);await new Promise(resolve=>disabledHttp.once('listening',resolve));
   try {
    const disabledShelf=await (await fetch('http://127.0.0.1:'+disabledHttp.address().port+'/api/novels?limit=24')).json();
    assert.equal(disabledShelf.success,true);
    assert.equal(disabledShelf.data.items.every(book=>book.workspaceSourceRoute===null),true);
+   const disabledDetail=await (await fetch('http://127.0.0.1:'+disabledHttp.address().port+'/api/novels/existing')).json();
+   assert.equal(disabledDetail.data.workspaceSourceRoute,null);
   }finally{await new Promise(resolve=>disabledHttp.close(resolve));process.env.DIRECTOR_NEXT_ENABLED='true';createApp();}
   const {getAgentToolDefinition}=require(path.join(server,'dist/agents/toolRegistry'));
   for(const tool of ['analyze_director_workspace','get_director_run_status','explain_director_next_action','run_director_next_step','run_director_until_gate','switch_director_policy','evaluate_manual_edit_impact']) {
