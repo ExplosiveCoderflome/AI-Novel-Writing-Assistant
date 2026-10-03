@@ -57,3 +57,9 @@
 2. 在 `DirectorBadge` 与 `DirectorPanel` 之外读取 `DashboardView`，守卫测试必须失败。
 3. 运行记录页没有任何状态变更动作。
 4. 发布说明：本计划有用户可见变化，在用户完成界面验收后，按仓库的发布说明流程统一更新 `docs/releases/release-notes.md` 与 `README.md` 的"最新更新"。
+
+## 清理前展示守卫补验
+
+2026-10-03 发现原守卫仅匹配 view/dashboardView 两个变量名，无法捕获改名、下标或解构读取。守卫改用 TypeScript 语法树与类型信息，只允许指定路径的 DirectorBadge 与 DirectorPanel 消费 DashboardView 展示字段；历史记录 DTO 的 headline 不冒充 DashboardView，不能误报。别名、展开、下标和解构均核对类型来源，仿冒组件文件名不能取得豁免。
+
+`node client/tests/directorNext/projectionMutationAudit.mjs` 在临时副本先验证基线，然后增加第三个读取 DashboardView 的 TSX 组件，检查 mode、headline、progress、availableActions、sourceTrace 均被捕获，实际测试以断言失败退出。临时副本通过 node_modules junction 保持与本仓库相同的类型依赖；真实页面未修改。客户端导演检查 7/7 通过，变异被捕获。该内部验证不需要发布说明，不代替用户界面验收。

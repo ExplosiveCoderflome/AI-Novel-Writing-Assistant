@@ -3,8 +3,9 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
 import { createRequire } from 'node:module';
-import { pathToFileURL } from 'node:url';
+import { pathToFileURL,fileURLToPath } from 'node:url';
 import { queryKeys } from '../src/api/queryKeys.ts';
+import {presentationViolations,inspectDirectorProjectionSources} from './directorNext/projectionGuard.mjs';
 
 const read = (path) => fs.readFileSync(new URL(`../src/${path}`, import.meta.url), 'utf8');
 
@@ -39,20 +40,18 @@ test('pages forward the projection without inferring its state', () => {
   }
 });
 
-function presentationViolations(filename, source) {
-  if (filename.endsWith('DirectorBadge.tsx') || filename.endsWith('DirectorPanel.tsx')) return [];
-  return [...source.matchAll(/\b(?:view|dashboardView)\??\.(?:mode|headline|progress|availableActions|sourceTrace)/g)].map(match => match[0]);
-}
-
 test('the projection guard also rejects a third rendering component', () => {
   assert.notEqual(presentationViolations('Third.tsx', 'view.mode === "running"').length, 0);
-  const roots = ['components/directorNext', 'pages/directorNext'];
-  for (const root of roots) {
-    for (const file of fs.readdirSync(new URL(`../src/${root}/`, import.meta.url), {recursive: true})) {
-      if (!file.endsWith('.tsx')) continue;
-      assert.deepEqual(presentationViolations(file, read(`${root}/${file.replaceAll('\\', '/')}`)), [], file);
-    }
+  const sourceRoot=process.env.DIRECTOR_PROJECTION_SOURCE_ROOT??fileURLToPath(new URL('../src/',import.meta.url));
+  assert.deepEqual(inspectDirectorProjectionSources(sourceRoot),[]);
+});
+
+test('the projection guard rejects aliases, element access, destructuring and lookalike component names',()=>{
+  for(const source of ['state.mode === "running"','const alias = dashboard; alias?.headline','state["progress"]',
+    'const {availableActions: actions} = state','const {mode} = state','props.state.sourceTrace']) {
+    assert.notEqual(presentationViolations('Third.tsx',source).length,0,source);
   }
+  assert.notEqual(presentationViolations('ThirdDirectorPanel.tsx','view.mode').length,0);
 });
 
 test('seven states render their projected headline, progress, closed diagnostics and disabled preview commands', async () => {
