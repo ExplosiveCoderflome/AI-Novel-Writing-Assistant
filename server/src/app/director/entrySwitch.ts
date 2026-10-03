@@ -32,12 +32,14 @@ export function createFrozenWorkflowEntry({findTask}: TaskLookup) {
   return router;
 }
 
-export function createFrozenTaskEntry({findTask}: TaskLookup) {
+export function createFrozenTaskEntry({findTask,findPipelineOwner}: TaskLookup & {findPipelineOwner?: (jobId: string) => Promise<string | null>}) {
   const router=Router();
   const freeze: import("express").RequestHandler=async(req,res,next)=>{
     try {
       const task=req.params.kind === "novel_workflow" ? await findTask(String(req.params.id)) : null;
       if(task?.lane === "auto_director") {rejectFrozenWrite(res,task.novelId,String(req.params.id));return;}
+      const novelId=req.params.kind === "novel_pipeline" && findPipelineOwner ? await findPipelineOwner(String(req.params.id)) : null;
+      if(novelId) {rejectFrozenWrite(res,novelId);return;}
       next();
     }catch(error){next(error);}
   };

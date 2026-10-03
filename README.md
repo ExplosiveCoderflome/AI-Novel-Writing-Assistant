@@ -180,6 +180,7 @@ Open-source AI novel writing assistant and long-form production studio.
 - 开书候选生成失败后，可在原页面重试，保留想法、设置和失败记录，重复点击复用同一次重试。
 - 确认开书方向后，自动进入对应小说导演台；保留的候选历史不会将导航带回开书页。
 - 历史导演任务的继续和重试统一返回小说导演台，运行记录和通知操作不会重新启动历史创作。
+- 导演所属的正文作业可从运行记录返回小说导演台，恢复操作保留创作范围和运行归属。
 
 完整历史更新见 [docs/releases/release-notes.md](./docs/releases/release-notes.md)。
 

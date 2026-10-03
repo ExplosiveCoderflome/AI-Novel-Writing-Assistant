@@ -25,12 +25,23 @@ const {executeOpeningCommand,prepareOpeningRetry}=require(path.join(server,'dist
  const http=createApp().listen(0);await new Promise(resolve=>http.once('listening',resolve));
  const base='http://127.0.0.1:'+http.address().port;
  const oldCommands=await prisma.directorRunCommand.count();
+ await prisma.generationJob.create({data:{id:'owned-job',novelId:'existing',startOrder:1,endOrder:1,status:'failed',pendingManualRecovery:true,payload:JSON.stringify({directorNext:{runId:'test-run',decisions:[]}})}});
+ await prisma.generationJob.create({data:{id:'old-owned-job',novelId:'existing',startOrder:2,endOrder:2,status:'failed',pendingManualRecovery:true,payload:JSON.stringify({workflowTaskId:'old-failed'})}});
+ const jobsBefore=await prisma.generationJob.findMany({orderBy:{id:'asc'}});
  try {
   for(const route of ['/api/novel-workflows/old-failed/continue','/api/novel-workflows/old-failed/production-experience','/api/novel-workflows/old-failed/repair-chapter-titles','/api/tasks/novel_workflow/old-failed/retry','/api/tasks/novel_workflow/old-failed/cancel','/api/auto-director/follow-ups/old-failed/actions','/api/auto-director/channel-callbacks/dingtalk']) {
    const response=await fetch(base+route,{method:'POST',headers:{'Content-Type':'application/json'},body:'{}'});assert.equal(response.status,409,route);
   }
   assert.equal(await prisma.directorRunCommand.count(),oldCommands);
   assert.deepEqual(await prisma.novelWorkflowTask.findMany({orderBy:{id:'asc'}}),before);
+  const jobDetail=await (await fetch(base+'/api/tasks/novel_pipeline/owned-job')).json();
+  assert.equal(jobDetail.data.sourceRoute,'/lab/director/existing');
+  assert.equal(jobDetail.data.sourceResource.route,'/lab/director/existing');
+  for(const jobId of ['owned-job','old-owned-job'])for(const action of ['retry','cancel','archive']){
+   const response=await fetch(base+'/api/tasks/novel_pipeline/'+jobId+'/'+action,{method:'POST',headers:{'Content-Type':'application/json'},body:'{}'});assert.equal(response.status,409);
+  }
+  assert.deepEqual(await prisma.generationJob.findMany({orderBy:{id:'asc'}}),jobsBefore);
+  assert.equal(await prisma.directorRunCommand.count(),oldCommands);
  }finally{await new Promise(resolve=>http.close(resolve));}
  const workspace=await readDirectorWorkspace('existing');
  assert.equal(workspace.chapters[0].content,'已有正文，必须完整保留。');assert.equal(workspace.materials.characters[0].name,'原有主角');assert.equal('progress' in workspace,false);

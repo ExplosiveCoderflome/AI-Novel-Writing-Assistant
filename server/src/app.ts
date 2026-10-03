@@ -161,7 +161,14 @@ export function createApp() {
     const {createFrozenWorkflowEntry,createFrozenTaskEntry,createFrozenFollowUpEntry} = require("./app/director/entrySwitch") as typeof import("./app/director/entrySwitch");
     const lookup={findTask: (taskId: string) => prisma.novelWorkflowTask.findUnique({where:{id:taskId},select:{lane:true,novelId:true}})};
     app.use("/api/novel-workflows",createFrozenWorkflowEntry(lookup));
-    app.use("/api/tasks",createFrozenTaskEntry(lookup));
+    const {parsePipelinePayload} = require("./services/novel/pipelineJobState") as typeof import("./services/novel/pipelineJobState");
+    app.use("/api/tasks",createFrozenTaskEntry({...lookup,findPipelineOwner:async jobId=>{
+      const job=await prisma.generationJob.findUnique({where:{id:jobId},select:{novelId:true,payload:true}});
+      if(!job) return null;
+      const payload=parsePipelinePayload(job.payload);
+      if(payload.directorNext) return job.novelId;
+      return payload.workflowTaskId && (await lookup.findTask(payload.workflowTaskId))?.lane === "auto_director" ? job.novelId : null;
+    }}));
     app.use("/api/auto-director/follow-ups",createFrozenFollowUpEntry());
     app.use("/api/auto-director/channel-callbacks",createFrozenFollowUpEntry());
   }
