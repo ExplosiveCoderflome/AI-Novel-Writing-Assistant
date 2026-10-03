@@ -415,7 +415,7 @@ export class NovelWorkflowTaskAdapter {
     if (await isTaskArchived("novel_workflow", id)) {
       return null;
     }
-    const row = await prisma.novelWorkflowTask.findUnique({
+    let row = await prisma.novelWorkflowTask.findUnique({
       where: { id },
       include: {
         novel: {
@@ -427,6 +427,16 @@ export class NovelWorkflowTaskAdapter {
     });
     if (!row) {
       return null;
+    }
+
+    // Expose an explicit recovery action without mutating a stale opening during polling.
+    if (["true","1"].includes(process.env.DIRECTOR_NEXT_ENABLED ?? "") && row.lane === "auto_director" && !row.novelId
+      && ["queued","running"].includes(row.status)) {
+      const command = await prisma.directorRunCommand.findFirst({where:{taskId:id},orderBy:[{createdAt:"desc"},{id:"desc"}]});
+      if (command && ["generate_candidates","refine_candidates","patch_candidate","refine_titles","confirm_candidate"].includes(command.commandType)
+        && ["leased","running"].includes(command.status) && command.leaseExpiresAt && command.leaseExpiresAt <= new Date()) {
+        row = {...row,status:"failed",pendingManualRecovery:true,lastError:"开书操作中断，请重试。"};
+      }
     }
 
     const summary = mapSummary(row);

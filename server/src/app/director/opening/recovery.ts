@@ -10,8 +10,15 @@ export async function prepareOpeningRetry(taskId: string) {
     const task = await tx.novelWorkflowTask.findUnique({where:{id:taskId}});
     if (!task || task.lane !== "auto_director") throw new AppError("找不到可重试的开书任务。",404);
     if (task.novelId) throw new AppError("请在小说导演台继续创作。",409);
-    const failed = await tx.directorRunCommand.findFirst({where:{taskId},orderBy:[{createdAt:"desc"},{id:"desc"}]});
+    let failed = await tx.directorRunCommand.findFirst({where:{taskId},orderBy:[{createdAt:"desc"},{id:"desc"}]});
     if (!failed || !retryable.has(failed.commandType)) throw new AppError("当前任务没有可重试的开书操作。",409);
+    const now = new Date();
+    if (["leased","running"].includes(failed.status) && failed.leaseExpiresAt && failed.leaseExpiresAt <= now) {
+      const expired = await tx.directorRunCommand.updateMany({where:{id:failed.id,status:failed.status,leaseOwner:failed.leaseOwner,leaseExpiresAt:failed.leaseExpiresAt},
+        data:{status:"stale",finishedAt:now,errorMessage:"开书操作中断，请重试。",leaseOwner:null,leaseExpiresAt:null}});
+      if (expired.count !== 1) throw new AppError("开书操作状态已更新，请刷新后重试。",409);
+      failed = await tx.directorRunCommand.findUniqueOrThrow({where:{id:failed.id}});
+    }
     if (["queued","leased","running"].includes(failed.status) && !task.pendingManualRecovery) return toAcceptedResponse(failed);
     if (!["failed","stale"].includes(failed.status)) throw new AppError("请等待本次开书操作结束，再重试。",409);
     const idempotencyKey = `opening-retry:${failed.id}`;
