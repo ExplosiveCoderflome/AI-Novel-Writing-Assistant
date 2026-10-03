@@ -50,7 +50,7 @@
 | 1 | `gateOrchestrator.ts` 及单元测试 | 按上面 5 条行为逐条有测试；`next()` 纯函数；不 import 计划编排器 |
 | 2 | 编辑后失效：`gateService` 在事务内先 `record` 用户编辑的新版本，再对 `downstreamArtifactTypes` 的结果 `markStale` | 测试：编辑 `story_macro` 后 `character_cast`、`volume_strategy`、`chapter_list` 均为 `stale`；编辑 `chapter_list` 后没有任何类型被标为 `stale`；章节正文产物不受影响 |
 | 3 | `resolve_gate` 三种决定：`confirm` 把产物置为 `confirmed`；`confirm_after_edit` 按 Task 2 处理；`regenerate` 把该产物标为 `stale` 并使其下游失效 | 测试覆盖三种决定；版本冲突返回 409 |
-| 4 | 崩溃恢复：在门打开、门等待、编辑后三个时点模拟崩溃，重启后重新 `next()` 仍得到一致的动作 | 测试通过，且不重复执行步骤 |
+| 4 | 崩溃恢复：在门打开、门等待、编辑后三个时点模拟崩溃，重启后重新 `next()` 仍得到一致的动作 | 2026-10-04 独立四进程完整 SQLite 补验通过：三个提交边界退出后恢复原门/编辑事实，不重复生成上游，保留正文及历史任务；见清理前核对 |
 | 5 | 契约测试：假 agent 在半自动 Run 里提交"跳过未确认依赖直接执行下游"，守卫必须拒绝 `requires_unmet` | 测试通过 |
 | 6 | 全自动与半自动互切：`handoff` 在已保存边界生效；切换后新 Run 从台账继续，不迁移状态 | 测试：切换前后产物台账完全一致；同一本书任意时刻只有一个活跃 Run |
 
