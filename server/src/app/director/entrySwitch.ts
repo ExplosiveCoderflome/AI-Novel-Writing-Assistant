@@ -3,6 +3,10 @@ import {Router} from "express";
 type FrozenTask = {lane: string; novelId: string | null};
 type TaskLookup = {findTask: (taskId: string) => Promise<FrozenTask | null>};
 
+function noLegacyCurrent(res: import("express").Response, novelId: string) {
+  res.status(200).json({success: true, data: null, sourceRoute: `/lab/director/${encodeURIComponent(novelId)}`});
+}
+
 function rejectFrozenWrite(res: import("express").Response, novelId?: string | null, taskId?: string) {
   res.status(409).json({success:false,error:novelId ? "请打开小说导演台，选择创作范围后继续。" : "请从开书页面选择方向并继续。",
     sourceRoute:novelId ? `/lab/director/${encodeURIComponent(novelId)}` : taskId ? `/novels/auto-director?taskId=${encodeURIComponent(taskId)}` : "/novels/auto-director"});
@@ -11,6 +15,7 @@ function rejectFrozenWrite(res: import("express").Response, novelId?: string | n
 /** Freeze alternate legacy orchestration entrances, while retaining the pre-book form and manual lane. */
 export function createFrozenWorkflowEntry({findTask}: TaskLookup) {
   const router=Router();
+  router.get("/novels/:novelId/auto-director", (req,res) => noLegacyCurrent(res,String(req.params.novelId)));
   router.post("/bootstrap",async(req,res,next)=>{
     try {
       const id=typeof req.body?.workflowTaskId === "string" ? req.body.workflowTaskId : undefined;
@@ -65,6 +70,9 @@ export function createFrozenFollowUpEntry() {
 /** Installed at the HTTP entry only; switching never rewrites historical tasks. */
 export function createFrozenDirectorEntry(options: {findTaskNovelId?: (taskId: string) => Promise<string | null>} = {}) {
   const router = Router();
+  for (const route of ["/novels/:novelId/current", "/book-automation/:novelId"]) {
+    router.get(route, (req,res) => noLegacyCurrent(res,String(req.params.novelId)));
+  }
   const frozen = async (req: import("express").Request, res: import("express").Response, next: import("express").NextFunction) => {
     if (res.locals.directorOpeningAllowed) return next();
     try {

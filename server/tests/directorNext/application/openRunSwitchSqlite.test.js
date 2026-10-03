@@ -36,6 +36,10 @@ const {executeOpeningCommand,prepareOpeningRetry}=require(path.join(server,'dist
   for(const id of ['existing','fresh'])assert.equal(shelf.data.items.find(book=>book.id===id).workspaceSourceRoute,'/lab/director/'+id);
   const bookDetail=await (await fetch(base+'/api/novels/existing')).json();
   assert.equal(bookDetail.data.workspaceSourceRoute,'/lab/director/existing');
+  for(const route of ['/api/novel-workflows/novels/existing/auto-director','/api/novels/director/novels/existing/current','/api/novels/director/book-automation/existing']) {
+   const response=await fetch(base+route);assert.equal(response.status,200,route);
+   const body=await response.json();assert.equal(body.data,null,route);assert.equal(body.sourceRoute,'/lab/director/existing');
+  }
   assert.equal(shelf.data.items.find(book=>book.id==='short-source').workspaceSourceRoute,null);
   const shortDetail=await (await fetch(base+'/api/novels/short-source')).json();
   assert.equal(shortDetail.data.workspaceSourceRoute,null);
@@ -47,6 +51,10 @@ const {executeOpeningCommand,prepareOpeningRetry}=require(path.join(server,'dist
    assert.equal(disabledShelf.data.items.every(book=>book.workspaceSourceRoute===null),true);
    const disabledDetail=await (await fetch('http://127.0.0.1:'+disabledHttp.address().port+'/api/novels/existing')).json();
    assert.equal(disabledDetail.data.workspaceSourceRoute,null);
+   const legacyCurrentResponse=await fetch('http://127.0.0.1:'+disabledHttp.address().port+'/api/novels/director/novels/existing/current');
+   assert.equal(legacyCurrentResponse.status,200);
+   const legacyCurrent=await legacyCurrentResponse.json();assert.ok(legacyCurrent.data?.id);
+   assert.equal('sourceRoute' in legacyCurrent,false);
   }finally{await new Promise(resolve=>disabledHttp.close(resolve));process.env.DIRECTOR_NEXT_ENABLED='true';createApp();}
   const {getAgentToolDefinition}=require(path.join(server,'dist/agents/toolRegistry'));
   for(const tool of ['analyze_director_workspace','get_director_run_status','explain_director_next_action','run_director_next_step','run_director_until_gate','switch_director_policy','evaluate_manual_edit_impact']) {

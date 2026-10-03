@@ -179,7 +179,7 @@ export async function getDirectorTakeoverReadiness(novelId: string) {
 }
 
 export async function getDirectorBookAutomationProjection(novelId: string) {
-  const { data } = await apiClient.get<ApiResponse<DirectorBookAutomationProjectionResponse>>(
+  const { data } = await apiClient.get<ApiResponse<DirectorBookAutomationProjectionResponse | null>>(
     `/novels/director/book-automation/${novelId}`,
   );
   return data;

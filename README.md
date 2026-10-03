@@ -196,6 +196,7 @@ Open-source AI novel writing assistant and long-form production studio.
 - 启用小说导演台后，创作助手的历史导演操作会引导返回创作页面，避免从对话任务重新启动旧创作流程。
 - 启用小说导演台后，书架长篇卡片的打开与继续创作进入本书导演台，避免显示旧任务进度或从卡片启动旧创作流程。
 - 手动建书、空正文预览及编辑页的 AI 接管入口可打开本书导演台，先查看资产再选择创作范围；入口读取失败时支持重新读取。
+- 启用小说导演台后，小说编辑页不会把历史导演记录当成当前创作，也不会据此显示旧接管或生产方式选择。
 
 完整历史更新见 [docs/releases/release-notes.md](./docs/releases/release-notes.md)。
 
