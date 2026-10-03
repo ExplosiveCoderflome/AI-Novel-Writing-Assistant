@@ -30,6 +30,18 @@ const {executeOpeningCommand,prepareOpeningRetry}=require(path.join(server,'dist
  const jobsBefore=await prisma.generationJob.findMany({orderBy:{id:'asc'}});
  const chaptersBefore=await prisma.chapter.findMany({where:{novelId:'existing'},orderBy:{id:'asc'}});
  try {
+  await prisma.novel.create({data:{id:'short-source',title:'短篇入口',narrativeForm:'short_story'}});
+  const shelf=await (await fetch(base+'/api/novels?limit=24')).json();
+  assert.equal(shelf.success,true);
+  for(const id of ['existing','fresh'])assert.equal(shelf.data.items.find(book=>book.id===id).workspaceSourceRoute,'/lab/director/'+id);
+  assert.equal(shelf.data.items.find(book=>book.id==='short-source').workspaceSourceRoute,null);
+  process.env.DIRECTOR_NEXT_ENABLED='false';
+  const disabledHttp=createApp().listen(0);await new Promise(resolve=>disabledHttp.once('listening',resolve));
+  try {
+   const disabledShelf=await (await fetch('http://127.0.0.1:'+disabledHttp.address().port+'/api/novels?limit=24')).json();
+   assert.equal(disabledShelf.success,true);
+   assert.equal(disabledShelf.data.items.every(book=>book.workspaceSourceRoute===null),true);
+  }finally{await new Promise(resolve=>disabledHttp.close(resolve));process.env.DIRECTOR_NEXT_ENABLED='true';createApp();}
   const {getAgentToolDefinition}=require(path.join(server,'dist/agents/toolRegistry'));
   for(const tool of ['analyze_director_workspace','get_director_run_status','explain_director_next_action','run_director_next_step','run_director_until_gate','switch_director_policy','evaluate_manual_edit_impact']) {
    await assert.rejects(getAgentToolDefinition(tool).execute({runId:'agent-test',agentName:'novel',contextMode:'novel'}, {taskId:'old-failed'}),error=>error.code==='CONFLICT' && error.message.includes('/lab/director/existing'));

@@ -56,6 +56,8 @@ export type NovelListItem = Pick<
   | "createdAt"
   | "updatedAt"
 > & {
+  /** App-owned creation entry; it never grants generation or recovery authority. */
+  workspaceSourceRoute?: string | null;
   primaryCover?: ImageAsset | null;
   coverGeneration?: {
     taskId: string;

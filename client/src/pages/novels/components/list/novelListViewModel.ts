@@ -12,6 +12,7 @@ import {
   requiresCandidateSelection,
 } from "@/lib/novelWorkflowTaskUi";
 import { featureFlags } from "@/config/featureFlags";
+import {getDirectorWorkspaceHref} from "@/lib/novelRoutes";
 
 export type NovelListItem = NovelListResponse["items"][number];
 export type StatusFilter = "all" | "draft" | "published";
@@ -47,6 +48,7 @@ export interface WorkflowDisplay {
 }
 
 export function getNovelWorkflowTask(novel: NovelListItem): NovelAutoDirectorTaskSummary | null {
+  if (getDirectorWorkspaceHref(novel)) return null;
   return novel.narrativeForm === "short_story"
     ? novel.latestCreationStudioTask ?? null
     : novel.latestAutoDirectorTask ?? null;
@@ -181,6 +183,7 @@ export function getPrimaryActionLabel(novel: NovelListItem): string {
   if (novel.narrativeForm === "short_story") {
     return "打开作品";
   }
+  if (getDirectorWorkspaceHref(novel)) return "打开导演台";
   const task = getNovelWorkflowTask(novel);
   if (canContinueChapterBatchAutoExecution(task)) {
     return task?.resumeAction ?? `继续自动执行${task?.executionScopeLabel ?? "当前章节范围"}`;

@@ -11,6 +11,13 @@ interface NovelWorkspaceLinkInput {
   id: string;
   narrativeForm?: string | null;
   creationExperience?: string | null;
+  workspaceSourceRoute?: string | null;
+}
+
+export function getDirectorWorkspaceHref(novel: NovelWorkspaceLinkInput): string | null {
+  if (novel.narrativeForm === "short_story") return null;
+  const route = `/lab/director/${encodeURIComponent(novel.id)}`;
+  return novel.workspaceSourceRoute === route ? route : null;
 }
 
 export function getNovelWorkspaceHref(novel: NovelWorkspaceLinkInput): string {
@@ -18,6 +25,8 @@ export function getNovelWorkspaceHref(novel: NovelWorkspaceLinkInput): string {
   if (novel.narrativeForm === "short_story") {
     return `${root}/story`;
   }
+  const directorHref = getDirectorWorkspaceHref(novel);
+  if (directorHref) return directorHref;
   return novel.creationExperience === "simple" ? `${root}/simple` : `${root}/edit`;
 }
 

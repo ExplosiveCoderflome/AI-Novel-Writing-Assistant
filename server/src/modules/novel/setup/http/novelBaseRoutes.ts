@@ -185,7 +185,11 @@ export function registerNovelBaseRoutes(input: RegisterNovelBaseRoutesInput): vo
   router.get("/", validate({ query: paginationSchema }), async (req, res, next) => {
     try {
       const query = paginationSchema.parse(req.query);
-      const data = await novelService.listNovels(query);
+      const listed = await novelService.listNovels(query);
+      const data = {...listed, items: listed.items.map((book: {id: string; narrativeForm?: string | null} & Record<string, unknown>) => ({...book,
+        workspaceSourceRoute: res.locals.directorNextEnabled === true && book.narrativeForm !== "short_story"
+          ? `/lab/director/${encodeURIComponent(book.id)}` : null,
+      }))};
       const response: ApiResponse<typeof data> = {
         success: true,
         data,

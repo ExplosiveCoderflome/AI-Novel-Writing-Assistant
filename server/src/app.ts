@@ -141,7 +141,11 @@ export function createApp() {
   app.use("/api/title-library", titleLibraryRouter);
   app.use("/api", styleEngineRouter);
   app.use("/api", styleEngineExtractionRouter);
-  app.use("/api/novels", novelRouter);
+  const directorNextEnabled = parseEnvFlag(process.env.DIRECTOR_NEXT_ENABLED, false);
+  app.use("/api/novels", (_req, res, next) => {
+    res.locals.directorNextEnabled = directorNextEnabled;
+    next();
+  }, novelRouter);
   configureDirectorAgentEntry(parseEnvFlag(process.env.DIRECTOR_NEXT_ENABLED, false));
   if (parseEnvFlag(process.env.DIRECTOR_NEXT_ENABLED, false)) {
     const {creationStudioService} = require("./modules/novel/creation-studio/application/CreationStudioService") as typeof import("./modules/novel/creation-studio/application/CreationStudioService");
