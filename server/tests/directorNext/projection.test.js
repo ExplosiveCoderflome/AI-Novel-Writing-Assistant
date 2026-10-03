@@ -49,6 +49,24 @@ test("running view names the current step and offers only cancel", () => {
   assert.equal(view().headline, "正在推进创作");
 });
 
+test("both drivers can switch at a saved boundary, but not during a step or manual pause", () => {
+  for (const driver of ["auto", "assisted"]) {
+    const toDriver = driver === "auto" ? "assisted" : "auto";
+    for (const status of ["queued", "running", "waiting_gate"]) {
+      const projected = view({contract: contract({driver}), control: runningControl({status, cursorStepId: null})});
+      const action = projected.availableActions.find(action => action.command === "handoff");
+      assert.ok(action, driver+":"+status);
+      assert.equal(action.toDriver, toDriver);
+      assert.equal(action.primary, false);
+    }
+    for (const status of ["paused", "failed", "completed", "cancelled"]) {
+      assert.equal(view({contract: contract({driver}), control: runningControl({status})}).availableActions.some(action => action.command === "handoff"), false);
+    }
+    assert.equal(view({contract: contract({driver}), control: runningControl({cursorStepId: "story_macro"})}).availableActions.some(action => action.command === "handoff"), false);
+    assert.equal(view({contract: contract({driver}), facts: facts([], {stopSignal: {kind: "safety", reason: "stop"}})}).availableActions.some(action => action.command === "handoff"), false);
+  }
+});
+
 test("waiting_gate view navigates to the review page of each gated artifact", () => {
   const gated = view({
     control: runningControl({
@@ -63,6 +81,7 @@ test("waiting_gate view navigates to the review page of each gated artifact", ()
       ["review:story_macro", "navigate", true, "/novels/n1/edit?stage=story_macro"],
       ["review:character_cast", "navigate", false, "/novels/n1/edit?stage=character"],
       ["cancel", "command", false, undefined],
+      ["handoff", "command", false, undefined],
     ],
   );
 });

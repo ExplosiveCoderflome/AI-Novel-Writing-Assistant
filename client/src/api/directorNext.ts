@@ -25,7 +25,8 @@ export interface DirectorAction {
   label: string;
   kind: "command" | "navigate";
   primary: boolean;
-  command?: "resume" | "cancel" | "open_run";
+  command?: "resume" | "cancel" | "open_run" | "handoff";
+  toDriver?: DirectorDriver;
   target?: string;
 }
 

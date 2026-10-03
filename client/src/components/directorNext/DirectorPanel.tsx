@@ -48,6 +48,7 @@ function formatTime(value: string): string {
 }
 
 export default function DirectorPanel({ view, novelId, timeline = [], preview = false, startForm }: DirectorPanelProps) {
+  const driveSwitch = view.availableActions.find(action => action.command === "handoff" && action.toDriver);
   const chapterText = view.debts.chapterOrders.length > 0
     ? `第 ${view.debts.chapterOrders.join("、")} 章`
     : "暂时没有需要回收的章节";
@@ -56,7 +57,7 @@ export default function DirectorPanel({ view, novelId, timeline = [], preview = 
     <aside className="flex min-h-0 flex-col gap-0 bg-background lg:sticky lg:top-0 lg:max-h-[calc(100dvh-6rem)]" aria-label="小说导演台">
       <DirectorBadge view={view} novelId={novelId} preview={preview} />
       {!preview && view.mode === "waiting_gate" ? <DirectorGate runId={view.runId} novelId={novelId} expectedVersion={view.sourceTrace.controlVersion}/>:null}
-      {!preview && view.mode === "waiting_gate" ? <DirectorDriveSwitch runId={view.runId} novelId={novelId} expectedVersion={view.sourceTrace.controlVersion} toDriver={view.driver === "auto" ? "assisted" : "auto"}/>:null}
+      {driveSwitch?.toDriver ? <DirectorDriveSwitch runId={view.runId} novelId={novelId} expectedVersion={view.sourceTrace.controlVersion} toDriver={driveSwitch.toDriver} label={driveSwitch.label} disabled={preview}/>:null}
       {!preview && ["completed","cancelled","failed"].includes(view.mode) ? startForm : null}
 
       <section className="border-t border-border/60 py-4" aria-labelledby="director-current-work">

@@ -70,6 +70,20 @@ const { contract } = require(path.join(serverRoot, "tests/directorNext/fixtures"
   assert.equal((await runRepository.getControl(handoff.runId)).status, "queued");
   assert.equal(await prisma.directorNextCommand.count(), 4);
   assert.deepEqual(await prisma.directorNextArtifact.findMany(), artifactsBeforeHandoff);
+  const switchedContract = await runRepository.getContract(handoff.runId);
+  await runRepository.transition(handoff.runId, {type: 'start'}, 0);
+  await runRepository.transition(handoff.runId, {type: 'step_started', stepId: 'story_macro'}, 1);
+  const duringStep = await prisma.directorNextRunControl.findUniqueOrThrow({where: {runId: handoff.runId}});
+  await assert.rejects(service.execute({type: 'handoff', runId: handoff.runId, toDriver: 'auto', expectedVersion: 2, idempotencyKey: 'switch-during-step'}), error => error.statusCode === 400);
+  assert.deepEqual(await prisma.directorNextRunControl.findUniqueOrThrow({where: {runId: handoff.runId}}), duringStep);
+  assert.equal(await prisma.directorNextCommand.count({where: {idempotencyKey: 'switch-during-step'}}), 0);
+  await runRepository.transition(handoff.runId, {type: 'step_finished'}, 2);
+  const back = await service.execute({type: 'handoff', runId: handoff.runId, toDriver: 'auto', expectedVersion: 3, idempotencyKey: 'switch-back'});
+  const backContract = await runRepository.getContract(back.runId);
+  assert.deepEqual(backContract, {...switchedContract, runId: back.runId, driver: 'auto'});
+  assert.deepEqual(await prisma.directorNextArtifact.findMany(), artifactsBeforeHandoff);
+  assert.equal(await prisma.directorNextRunControl.count({where: {novelId: 'novel-1', status: {in: ['queued', 'running', 'paused', 'waiting_gate']}}}), 1);
+  assert.equal((await service.execute({type: 'handoff', runId: handoff.runId, toDriver: 'auto', expectedVersion: 3, idempotencyKey: 'switch-back'})).replayed, true);
   await prisma.$disconnect();
 })().catch(async (error) => {
   console.error(error);

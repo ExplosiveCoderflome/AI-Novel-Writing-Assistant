@@ -83,7 +83,7 @@ export default function DirectorBadge({ view, novelId, onActionComplete, compact
     [view.availableActions],
   );
   const secondaryActions = useMemo(
-    () => view.availableActions.filter((action) => action !== primaryAction),
+    () => view.availableActions.filter((action) => action !== primaryAction && action.command !== "handoff"),
     [primaryAction, view.availableActions],
   );
 

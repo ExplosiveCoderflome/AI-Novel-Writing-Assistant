@@ -20,7 +20,8 @@ export interface ActionDescriptor {
   label: string;
   kind: "command" | "navigate";
   primary: boolean;
-  command?: "resume" | "cancel" | "open_run";
+  command?: "resume" | "cancel" | "open_run" | "handoff";
+  toDriver?: Driver;
   target?: string;
 }
 
@@ -161,6 +162,12 @@ export function project(input: ProjectionInput): DashboardView {
       const unreachable: never = control.status;
       throw new Error(`unsupported run status ${String(unreachable)}`);
     }
+  }
+
+  if (["queued", "running", "waiting_gate"].includes(control.status) && !control.cursorStepId && !facts.stopSignal) {
+    const toDriver = contract.driver === "auto" ? "assisted" : "auto";
+    availableActions.push({id: "handoff", kind: "command", primary: false, command: "handoff", toDriver,
+      label: toDriver === "auto" ? "按原范围切换为全自动推进" : "按原范围切换为阶段确认"});
   }
 
   return {

@@ -77,6 +77,18 @@ export function renderedStates() {
       </MemoryRouter></QueryClientProvider>
     ) };
   });
+}
+export function renderedSwitchCases() {
+  const label = '按本次授权切换创作方式';
+  return ['auto', 'assisted'].flatMap(driver => [true, false].map(available => {
+    const view = {...previewView('running'), driver,
+      availableActions: available ? [{id:'handoff', kind:'command', primary:false, command:'handoff',
+        toDriver:driver === 'auto' ? 'assisted' : 'auto', label}] : []};
+    return {available, label, markup: renderToStaticMarkup(
+      <QueryClientProvider client={new QueryClient()}><MemoryRouter>
+        <DirectorPanel view={view} novelId='preview' preview />
+      </MemoryRouter></QueryClientProvider>)};
+  }));
 }`,
         resolveDir: clientDir, loader: 'tsx',
       },
@@ -85,7 +97,7 @@ export function renderedStates() {
       define: { 'import.meta.env': '{}' },
       outfile: output,
     });
-    const { renderedStates } = await import(pathToFileURL(output).href);
+    const { renderedStates, renderedSwitchCases } = await import(pathToFileURL(output).href);
     const rows = renderedStates();
     assert.equal(rows.length, 7);
     for (const { view, markup } of rows) {
@@ -96,6 +108,10 @@ export function renderedStates() {
         assert.ok(markup.includes(action.label));
         if (action.kind === 'command') assert.match(markup, /disabled=""/);
       }
+    }
+    for (const {available, label, markup} of renderedSwitchCases()) {
+      assert.equal(markup.split(label).length-1, available ? 1 : 0, 'switch renders only once from the projected action');
+      if (available) assert.match(markup, /<button[^>]*disabled=""[^>]*>按本次授权切换创作方式<\/button>/);
     }
   } finally {
     if (fs.existsSync(output)) fs.unlinkSync(output);
