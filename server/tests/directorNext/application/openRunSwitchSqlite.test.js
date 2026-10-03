@@ -29,7 +29,7 @@ const {executeOpeningCommand,prepareOpeningRetry}=require(path.join(server,'dist
  await prisma.generationJob.create({data:{id:'old-owned-job',novelId:'existing',startOrder:2,endOrder:2,status:'failed',pendingManualRecovery:true,payload:JSON.stringify({workflowTaskId:'old-failed'})}});
  const jobsBefore=await prisma.generationJob.findMany({orderBy:{id:'asc'}});
  try {
-  for(const route of ['/api/novel-workflows/old-failed/continue','/api/novel-workflows/old-failed/production-experience','/api/novel-workflows/old-failed/repair-chapter-titles','/api/tasks/novel_workflow/old-failed/retry','/api/tasks/novel_workflow/old-failed/cancel','/api/auto-director/follow-ups/old-failed/actions','/api/auto-director/channel-callbacks/dingtalk']) {
+  for(const route of ['/api/novel-workflows/old-failed/continue','/api/novel-workflows/old-failed/production-experience','/api/novel-workflows/old-failed/repair-chapter-titles','/api/tasks/novel_workflow/old-failed/retry','/api/tasks/novel_workflow/old-failed/cancel','/api/tasks/recovery-candidates/novel_workflow/old-failed/resume','/api/tasks/recovery-candidates/resume-all','/api/auto-director/follow-ups/old-failed/actions','/api/auto-director/channel-callbacks/dingtalk']) {
    const response=await fetch(base+route,{method:'POST',headers:{'Content-Type':'application/json'},body:'{}'});assert.equal(response.status,409,route);
   }
   assert.equal(await prisma.directorRunCommand.count(),oldCommands);
@@ -39,6 +39,9 @@ const {executeOpeningCommand,prepareOpeningRetry}=require(path.join(server,'dist
   assert.equal(jobDetail.data.sourceResource.route,'/lab/director/existing');
   for(const jobId of ['owned-job','old-owned-job'])for(const action of ['retry','cancel','archive']){
    const response=await fetch(base+'/api/tasks/novel_pipeline/'+jobId+'/'+action,{method:'POST',headers:{'Content-Type':'application/json'},body:'{}'});assert.equal(response.status,409);
+  }
+  for(const jobId of ['owned-job','old-owned-job']){
+   const response=await fetch(base+'/api/tasks/recovery-candidates/novel_pipeline/'+jobId+'/resume',{method:'POST',headers:{'Content-Type':'application/json'},body:'{}'});assert.equal(response.status,409);
   }
   assert.deepEqual(await prisma.generationJob.findMany({orderBy:{id:'asc'}}),jobsBefore);
   assert.equal(await prisma.directorRunCommand.count(),oldCommands);

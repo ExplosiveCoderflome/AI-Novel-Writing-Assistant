@@ -17,11 +17,13 @@ test('frozen workflow and recovery entrances cannot enqueue old director command
   assert.equal((await post('/workflows/opening/continue')).status,409);
   for(const action of ['retry','cancel','archive'])assert.equal((await post('/tasks/novel_workflow/old/'+action)).status,409);
   for(const action of ['retry','cancel','archive'])assert.equal((await post('/tasks/novel_pipeline/owned-job/'+action)).status,409);
+  for(const path of ['/tasks/recovery-candidates/novel_workflow/old/resume','/tasks/recovery-candidates/novel_workflow/opening/resume','/tasks/recovery-candidates/novel_pipeline/owned-job/resume','/tasks/recovery-candidates/resume-all'])assert.equal((await post(path)).status,409);
   for(const path of ['/follow-ups/old/actions','/follow-ups/batch-actions','/callbacks/dingtalk','/callbacks/wecom'])assert.equal((await post(path)).status,409);
   for(const path of ['/callbacks/wecom/execute','/callbacks/wecom/execute/'])assert.equal((await fetch(url+path)).status,409);assert.equal(writes,0);
   for(const [path,body] of [['/workflows/bootstrap',{lane:'auto_director'}],['/workflows/bootstrap',{lane:'auto_director',workflowTaskId:'opening'}],['/workflows/bootstrap',{lane:'manual_create',novelId:'manual-book'}],['/workflows/manual/continue',{}],['/workflows/sync-stage',{novelId:'manual-book'}],['/tasks/image/image-id/retry',{}]])assert.equal((await post(path,body)).status,200);
   assert.equal((await fetch(url+'/workflows/novels/book/auto-director')).status,200);
   assert.equal((await fetch(url+'/follow-ups/overview')).status,200);
+  assert.equal((await post('/tasks/recovery-candidates/image_generation/image/resume')).status,200);
  }finally{await new Promise(resolve=>server.close(resolve));}
 });
 test('entry switch keeps legacy reads and freezes task writes with a stable source route',async()=>{

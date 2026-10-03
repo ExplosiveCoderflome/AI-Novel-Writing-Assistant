@@ -43,6 +43,10 @@ export function createFrozenTaskEntry({findTask,findPipelineOwner}: TaskLookup &
       next();
     }catch(error){next(error);}
   };
+  router.post("/recovery-candidates/:kind/:id/resume",freeze);
+  router.post("/recovery-candidates/resume-all",(_req,res)=>{
+    res.status(409).json({success:false,error:"请从任务对应的创作页面恢复。",sourceRoute:"/lab/director"});
+  });
   for(const action of ["retry","cancel","archive"])router.post(`/:kind/:id/${action}`,freeze);
   return router;
 }
