@@ -90,3 +90,18 @@ test("projection rejects an unavailable saved plan instead of using a new plan",
   });
   await assert.rejects(() => service.get("run-1"), (error) => error.name === "UnknownPlanVersionError");
 });
+
+test("review templates encode the saved book id while literal and empty routes retain their contract", async () => {
+  const runContract = contract({novelId: 'book/中文?x=1'});
+  for (const [registered, expected] of [
+    ['/novels/:novelId/edit?stage=character', `/novels/${encodeURIComponent(runContract.novelId)}/edit?stage=character`],
+    ['/registered/review', '/registered/review'],
+    ['', `/novels/${encodeURIComponent(runContract.novelId)}/edit`],
+  ]) {
+    const service = new ProjectionService({factsLoader: loader({runContract,
+      control: runningControl({status: 'waiting_gate', gate: {gateId: 'cast', artifactTypes: ['character_cast']}})}),
+      planRegistry: {get: () => plan}, artifactTypes: {character_cast: {label: '角色阵容', reviewRoute: registered}}});
+    const view = await service.get('run-1');
+    assert.equal(view.availableActions.find(action => action.id === 'review:character_cast').target, expected);
+  }
+});

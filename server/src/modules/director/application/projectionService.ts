@@ -30,7 +30,11 @@ export class ProjectionService {
       control,
       plan,
       facts,
-      artifactTypes: Object.fromEntries(Object.entries(this.deps.artifactTypes ?? {}).map(([type,info]) => [type,{...info,reviewRoute: info.reviewRoute || `/novels/${encodeURIComponent(contract.novelId)}/edit`}])),
+      artifactTypes: Object.fromEntries(Object.entries(this.deps.artifactTypes ?? {}).map(([type,info]) => [type,{
+        ...info,
+        reviewRoute: info.reviewRoute.replace(":novelId", encodeURIComponent(contract.novelId))
+          || `/novels/${encodeURIComponent(contract.novelId)}/edit`,
+      }])),
       sourceRoute: this.deps.sourceRoute?.(contract.novelId) ?? `/novels/${encodeURIComponent(contract.novelId)}/edit`,
     });
   }

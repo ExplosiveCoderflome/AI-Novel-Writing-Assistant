@@ -96,10 +96,22 @@ export function createDirectorProductionOptions(): DirectorNextServiceOptions {
       readOutcome: readBatchOutcome, waitForPoll: () => new Promise(resolve => setTimeout(resolve, 1000)),
       isRunActive: async runId => (await prisma.directorNextRunControl.findUnique({where: {runId}, select: {status: true}}))?.status === "running", contentHash}),
   });
-  const labels: Record<string, string> = {story_macro: "故事规划", book_contract: "创作约定", world_skeleton: "世界设定", character_cast: "角色阵容", volume_strategy: "卷纲", volume_beat_sheet: "节奏段", volume_chapter_list: "章节路线", chapter_task_sheet: "章节任务与场景", chapter_execution_contract: "正文执行计划", chapter_batch_closed: "本批次正文"};
+  const reviewTargets: Record<string, {label: string; stage: string}> = {
+    story_macro: {label: "故事规划", stage: "story_macro"},
+    book_contract: {label: "创作约定", stage: "basic"},
+    world_skeleton: {label: "世界设定", stage: "world"},
+    character_cast: {label: "角色阵容", stage: "character"},
+    volume_strategy: {label: "卷纲", stage: "outline"},
+    volume_beat_sheet: {label: "节奏段", stage: "structured"},
+    volume_chapter_list: {label: "章节路线", stage: "structured"},
+    chapter_task_sheet: {label: "章节任务与场景", stage: "structured"},
+    chapter_execution_contract: {label: "正文执行计划", stage: "structured"},
+    chapter_batch_closed: {label: "本批次正文", stage: "chapter"},
+  };
   return {plan: directorProductionPlan, stepRegistry, readEditedArtifact, resumeBusiness, cancelBusiness,
     sourceRoute: novelId => `/lab/director/${encodeURIComponent(novelId)}`,
-    artifactTypes: Object.fromEntries(Object.entries(labels).map(([type,label]) => [type,{label,reviewRoute: ""}])), contractFactory: input => {
+    artifactTypes: Object.fromEntries(Object.entries(reviewTargets).map(([type,{label,stage}]) =>
+      [type,{label,reviewRoute: `/novels/:novelId/edit?stage=${stage}`}])), contractFactory: input => {
     const launch = input.launchInput;
     if (!launch) throw new Error("启动创作需要故事、模型与范围快照。");
     if (!launch.targetVolumeId && launch.targetMode !== "opening") throw new Error("启动创作需要明确选择开篇或目标卷。");

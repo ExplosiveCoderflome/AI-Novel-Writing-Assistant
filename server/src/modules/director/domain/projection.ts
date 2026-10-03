@@ -12,6 +12,7 @@ import type {
 
 export interface ArtifactTypeInfo {
   label: string;
+  /** Composition may register a :novelId template; the application resolves it before project(). */
   reviewRoute: string;
 }
 
