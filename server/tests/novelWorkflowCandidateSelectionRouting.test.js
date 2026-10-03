@@ -16,6 +16,20 @@ const {
   normalizeWorkflowResumeTargetForCandidateSelection,
 } = require("../dist/services/task/adapters/NovelWorkflowTaskAdapter.js");
 
+test("confirmed openings preserve the new director route despite candidate history", () => {
+  for (const history of [{ candidateStage: { mode: "generate" } }, { directorSession: { phase: "candidate_selection" } }]) {
+    const target = { route: "/lab/director/:novelId", novelId: "confirmed-book" };
+    const actual = normalizeWorkflowResumeTargetForCandidateSelection({
+      id: "confirmed-opening", checkpointType: null, currentItemKey: "opening_complete",
+      resumeTargetJson: JSON.stringify(target),
+      seedPayloadJson: JSON.stringify({ ...history, resumeTarget: { route: "/novels/create", taskId: "confirmed-opening" } }),
+    });
+    assert.equal(actual.route, target.route);
+    assert.equal(actual.novelId, target.novelId);
+    assert.equal(resumeTargetToRoute(actual), "/lab/director/confirmed-book");
+  }
+});
+
 test("candidate-selection tasks always resolve back to the auto-director create page", () => {
   const resumeTarget = normalizeWorkflowResumeTargetForCandidateSelection({
     id: "task_candidate_selection",

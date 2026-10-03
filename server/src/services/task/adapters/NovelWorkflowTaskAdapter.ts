@@ -159,6 +159,11 @@ export function normalizeWorkflowResumeTargetForCandidateSelection(input: {
   resumeTargetJson: string | null;
   seedPayloadJson?: string | null;
 }) {
+  // The saved handoff owns navigation; candidate history remains useful after confirmation.
+  const savedTarget = parseResumeTarget(input.resumeTargetJson);
+  if (savedTarget?.route === "/lab/director/:novelId" && savedTarget.novelId?.trim()) {
+    return savedTarget;
+  }
   const seedResumeTarget = parseSeedPayload<DirectorWorkflowSeedPayload>(input.seedPayloadJson)?.resumeTarget;
   const parsed = mergeResumeTargets(
     parseResumeTarget(input.resumeTargetJson),
