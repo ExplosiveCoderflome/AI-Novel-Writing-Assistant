@@ -179,12 +179,16 @@ export class ChapterRouteWindowService {
   }
 
   private async countAvailableRoute(novelId: string, fromChapterOrder: number): Promise<number> {
-    return prisma.chapter.count({
-      where: {
-        novelId,
-        order: { gte: fromChapterOrder },
-      },
+    const chapters = await prisma.chapter.findMany({
+      where: {novelId, order: {gte: fromChapterOrder}},
+      orderBy: {order: "asc"}, select: {order: true},
     });
+    let nextOrder = fromChapterOrder;
+    for (const chapter of chapters) {
+      if (chapter.order !== nextOrder) break;
+      nextOrder++;
+    }
+    return nextOrder-fromChapterOrder;
   }
 
   private findNextRouteTarget(workspace: VolumePlanDocument): { volumeId: string; beatKey: string | null } | null {

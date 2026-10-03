@@ -49,3 +49,29 @@ test('chapter quality closure exposes the applied structured decision without ch
   qualityThreshold:75,runtimePayload:{autoReview:true},qualityAlertDetails:[],replanAlertDetails:[],recoverableRepairDetails:[],runLocalReplan:async()=>{},onIssueDecision:value=>observed.push(value)});
  assert.equal(result.shouldStopAfterCurrentChapter,false);assert.deepEqual(observed,[decision]);
 });
+
+
+test('registered production routes reuse the window service and never request a full volume',async()=>{
+ const {NovelVolumeService}=require('../../../dist/services/novel/volume/NovelVolumeService');
+ const {ChapterRouteWindowService}=require('../../../dist/services/novel/planning/ChapterRouteWindowService');
+ const originals={read:NovelVolumeService.prototype.getVolumes,generate:NovelVolumeService.prototype.generateVolumes,window:ChapterRouteWindowService.prototype.ensureRouteWindow};
+ const calls=[];const workspace={novelId:'novel',volumes:[{id:'v1',sortOrder:1,chapters:[1,2,3,4,5].map(chapterOrder=>({chapterOrder}))}]};
+ NovelVolumeService.prototype.getVolumes=async()=>workspace;
+ NovelVolumeService.prototype.generateVolumes=async()=>{throw Error('full volume generation is forbidden in this production step');};
+ ChapterRouteWindowService.prototype.ensureRouteWindow=async(...args)=>{calls.push(args);return {availableRouteCount:5,extended:false};};
+ try {const result=await options.stepRegistry.get('volume_chapter_list')(context);assert.equal(result.artifact.scope,contract.scope);assert.equal(calls.length,1);assert.equal(calls[0][1],1);assert.equal(calls[0][2].target,5);assert.equal(calls[0][2].model,'snapshot-model');}
+ finally {NovelVolumeService.prototype.getVolumes=originals.read;NovelVolumeService.prototype.generateVolumes=originals.generate;ChapterRouteWindowService.prototype.ensureRouteWindow=originals.window;}
+});
+
+test('registered opening production defers future volume skeletons but planning retains the full-book request',async()=>{
+ const {NovelVolumeService}=require('../../../dist/services/novel/volume/NovelVolumeService');
+ const originals={generate:NovelVolumeService.prototype.generateVolumes,save:NovelVolumeService.prototype.updateVolumes};
+ const calls=[];NovelVolumeService.prototype.generateVolumes=async(_id,input)=>{calls.push(input);return {volumes:[{id:'v1'}]};};NovelVolumeService.prototype.updateVolumes=async(_id,input)=>input;
+ try {
+  await options.stepRegistry.get('volume_strategy')(context);
+  assert.equal(calls.find(call=>call.scope==='skeleton').skeletonVolumeCount,1);
+  assert.equal(calls[0].estimatedChapterCount,10);
+  calls.length=0;await options.stepRegistry.get('volume_strategy')({...context,contract:{...contract,chapterRange:null}});
+  assert.equal(calls.find(call=>call.scope==='skeleton').skeletonVolumeCount,undefined);
+ } finally {NovelVolumeService.prototype.generateVolumes=originals.generate;NovelVolumeService.prototype.updateVolumes=originals.save;}
+});

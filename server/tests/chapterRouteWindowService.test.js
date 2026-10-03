@@ -112,8 +112,8 @@ test("route window adds a future skeleton before planning the next beat and chap
     },
     syncVolumeChaptersWithOptions: async () => {},
   };
-  const originalCount = prisma.chapter.count;
-  prisma.chapter.count = async () => (chapterWasPlanned ? 1 : 0);
+  const originalRead = prisma.chapter.findMany;
+  prisma.chapter.findMany = async () => (chapterWasPlanned ? [{order:2}] : []);
 
   try {
     const result = await new ChapterRouteWindowService(volumeService).ensureRouteWindow("novel-1", 2, {
@@ -126,6 +126,23 @@ test("route window adds a future skeleton before planning the next beat and chap
     assert.equal(result.availableRouteCount, 1);
     assert.equal(result.extended, true);
   } finally {
-    prisma.chapter.count = originalCount;
+    prisma.chapter.findMany = originalRead;
   }
+});
+
+
+test('future chapters cannot satisfy a route window whose starting chapter is missing', async () => {
+ let planned=false;
+ let workspace=buildWorkspace([createVolume('volume-gap',1)], [{volumeId:'volume-gap',volumeSortOrder:1,status:'generated',beats:[{key:'opening',label:'起始路线',summary:'补齐缺口',chapterSpanHint:'3章',mustDeliver:['起始路线']}]}]);
+ const calls=[];
+ const service={getVolumes:async()=>workspace,generateVolumes:async(_id,options)=>{
+  calls.push(options.scope);return buildWorkspace([createVolume('volume-gap',1,[7,8,9].map(order=>createChapter('route-'+order,'volume-gap',order)))],workspace.beatSheets);
+ },syncVolumeChaptersWithOptions:async()=>{planned=true;},updateVolumesWithOptions:async(_id,value)=>{workspace=value;return value;}};
+ const originalCount=prisma.chapter.count,originalRead=prisma.chapter.findMany;
+ prisma.chapter.count=async()=>planned?6:3;
+ prisma.chapter.findMany=async()=> (planned?[7,8,9,10,11,12]:[10,11,12]).map(order=>({order}));
+ try {
+  const result=await new ChapterRouteWindowService(service).ensureRouteWindow('novel-1',7,{min:3,target:3});
+  assert.deepEqual(calls,['chapter_list']);assert.equal(result.extended,true);assert.equal(result.availableRouteCount,6);
+ } finally {prisma.chapter.count=originalCount;prisma.chapter.findMany=originalRead;}
 });

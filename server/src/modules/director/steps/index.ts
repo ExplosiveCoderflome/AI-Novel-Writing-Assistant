@@ -11,3 +11,5 @@ export * from "./planning/characterSetup";
 export * from "./production/chapterBatch";
 export * from "./registry";
 export * from "./planning/chapterIssueDecision";
+
+export * from "./planning/chapterRouteWindow";

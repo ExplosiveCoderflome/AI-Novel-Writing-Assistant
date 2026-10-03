@@ -5,6 +5,7 @@ export interface VolumeStrategyStepInput<Provider extends string> {
   model?: string;
   temperature?: number;
   estimatedChapterCount: number;
+  skeletonVolumeCount?: number;
 }
 
 interface VolumeStrategyGenerationOptions<Provider extends string, Document> extends VolumeStrategyStepInput<Provider> {
@@ -46,6 +47,7 @@ export function createVolumeStrategyStepHandler<Provider extends string, Documen
     });
     const skeleton = await dependencies.volumeService.generateVolumes(novelId, {
       ...options, scope: "skeleton", draftWorkspace: reviewed,
+      ...(input.skeletonVolumeCount === undefined ? {} : {skeletonVolumeCount: input.skeletonVolumeCount}),
     });
     const saved = await dependencies.volumeService.updateVolumes(novelId, {
       ...skeleton, syncToChapterExecution: false,

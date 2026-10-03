@@ -1,13 +1,14 @@
 import { prisma } from "../../db/prisma";
 import { createProductionStepRegistry, directorProductionPlan, createStoryMacroStepHandler, createBookContractStepHandler,
   createWorldSetupStepHandler, createCharacterSetupStepHandler, createVolumeStrategyStepHandler, createVolumeBeatSheetStepHandler,
-  createVolumeChapterListStepHandler, createChapterDetailBundleStepHandler, createExecutionContractSyncStepHandler, createChapterBatchStepHandler,
+  createChapterRouteWindowStepHandler, createVolumeChapterListStepHandler, createChapterDetailBundleStepHandler, createExecutionContractSyncStepHandler, createChapterBatchStepHandler,
   resolveChapterQualityReports, PrismaEventLog, artifactContentHash, inferExistingAssets, type DirectorNextServiceOptions } from "../../modules/director";
 import { StoryMacroPlanService } from "../../services/novel/storyMacro/StoryMacroPlanService";
 import { BookContractGenerationService } from "../../services/novel/bookContract";
 import { BookContractService } from "../../services/novel/BookContractService";
 import { WorldContextGateway } from "../../services/novel/worldContext/WorldContextGateway";
 import { NovelVolumeService } from "../../services/novel/volume/NovelVolumeService";
+import {ChapterRouteWindowService} from "../../services/novel/planning/ChapterRouteWindowService";
 import { ChapterService } from "../../services/novel/ChapterService";
 import { CharacterPreparationService } from "../../services/novel/characterPrep/CharacterPreparationService";
 import { generateAutoCharacterCastDraft, appendCharacterCastOptionsDraft } from "../../services/novel/characterPrep/characterCastGeneration";
@@ -25,6 +26,15 @@ export function createDirectorProductionOptions(): DirectorNextServiceOptions {
   const macro = new StoryMacroPlanService(), book = new BookContractService(), volumes = new NovelVolumeService();
   const characters = new CharacterPreparationService(), pipeline = new NovelCorePipelineService(), events = new PrismaEventLog();
   const contentHash = artifactContentHash;
+  const fullVolumeRoutes = createVolumeChapterListStepHandler({volumeService: volumes, inputProvider: async context => {
+    const workspace = await volumes.getVolumes(context.contract.novelId);
+    return {...modelOptions(context), workspace, targetVolumeId: targetVolume(context, workspace)};
+  }, contentHash});
+  const productionRoutes = createChapterRouteWindowStepHandler({volumeService: volumes, routeService: new ChapterRouteWindowService(volumes),
+    inputProvider: async context => {
+      const workspace = await volumes.getVolumes(context.contract.novelId);
+      return {...modelOptions(context), targetVolumeId: targetVolume(context, workspace)};
+    }, contentHash});
   const stepRegistry = createProductionStepRegistry({
     story_macro: createStoryMacroStepHandler({storyMacroService: macro, inputProvider: async context => ({...modelOptions(context), storyInput: requireLaunch(context.contract).storyInput}), contentHash}),
     book_contract: createBookContractStepHandler({generationService: new BookContractGenerationService(), bookContractService: book,
@@ -41,13 +51,12 @@ export function createDirectorProductionOptions(): DirectorNextServiceOptions {
           if (ids.length !== 1) throw new Error("角色候选保存结果无效。");
           return characters.applyCharacterCastOption(novelId, ids[0], {requireEmptyCast: true, postApplyMode: "deferred"});
         }}, contentHash}),
-    volume_strategy: createVolumeStrategyStepHandler({volumeService: volumes, inputProvider: async context => ({...modelOptions(context), estimatedChapterCount: requireLaunch(context.contract).estimatedChapterCount}), contentHash}),
+    volume_strategy: createVolumeStrategyStepHandler({volumeService: volumes, inputProvider: async context => ({...modelOptions(context), estimatedChapterCount: requireLaunch(context.contract).estimatedChapterCount,
+      ...(context.contract.chapterRange?.from === 1 ? {skeletonVolumeCount: 1} : {})}), contentHash}),
     volume_beat_sheet: createVolumeBeatSheetStepHandler({volumeService: volumes, inputProvider: async context => {
       const workspace = await volumes.getVolumes(context.contract.novelId);return {...modelOptions(context), workspace, targetVolumeId: targetVolume(context, workspace)};
     }, contentHash}),
-    volume_chapter_list: createVolumeChapterListStepHandler({volumeService: volumes, inputProvider: async context => {
-      const workspace = await volumes.getVolumes(context.contract.novelId);return {...modelOptions(context), workspace, targetVolumeId: targetVolume(context, workspace)};
-    }, contentHash}),
+    volume_chapter_list: context => context.contract.chapterRange ? productionRoutes(context) : fullVolumeRoutes(context),
     chapter_detail_bundle: createChapterDetailBundleStepHandler({volumeService: volumes, inputProvider: async context => {
       const workspace = await volumes.getVolumes(context.contract.novelId);return {...modelOptions(context), workspace, targets: executionWindow(context, workspace).targets};
     }, resolveIssues: async (_context, reports) => resolveChapterQualityReports(reports), contentHash}),
