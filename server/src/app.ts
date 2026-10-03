@@ -157,6 +157,14 @@ export function createApp() {
   }
   app.use("/api/novels/director", novelDirectorRouter);
   app.use("/api/novels/director/creative-carryover-contracts", creativeCarryoverContractsRouter);
+  if (parseEnvFlag(process.env.DIRECTOR_NEXT_ENABLED, false)) {
+    const {createFrozenWorkflowEntry,createFrozenTaskEntry,createFrozenFollowUpEntry} = require("./app/director/entrySwitch") as typeof import("./app/director/entrySwitch");
+    const lookup={findTask: (taskId: string) => prisma.novelWorkflowTask.findUnique({where:{id:taskId},select:{lane:true,novelId:true}})};
+    app.use("/api/novel-workflows",createFrozenWorkflowEntry(lookup));
+    app.use("/api/tasks",createFrozenTaskEntry(lookup));
+    app.use("/api/auto-director/follow-ups",createFrozenFollowUpEntry());
+    app.use("/api/auto-director/channel-callbacks",createFrozenFollowUpEntry());
+  }
   app.use("/api/novel-workflows", novelWorkflowsRouter);
   app.use("/api/novels", novelExportRouter);
   app.use("/api/drama", dramaRouter);

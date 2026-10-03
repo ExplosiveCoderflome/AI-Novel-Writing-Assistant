@@ -20,6 +20,18 @@ const {executeOpeningCommand,prepareOpeningRetry}=require(path.join(server,'dist
  await prisma.chapter.create({data:{id:'chapter',novelId:'existing',order:1,title:'原章节',content:'已有正文，必须完整保留。'}});
  for(const status of ['queued','running','failed','succeeded'])await prisma.novelWorkflowTask.create({data:{id:'old-'+status,novelId:'existing',lane:'auto_director',title:'旧导演',status,seedPayloadJson:'not valid JSON; must never be read'}});
  const before=await prisma.novelWorkflowTask.findMany({orderBy:{id:'asc'}});
+ process.env.DIRECTOR_NEXT_ENABLED='true';
+ const {createApp}=require(path.join(server,'dist/app'));
+ const http=createApp().listen(0);await new Promise(resolve=>http.once('listening',resolve));
+ const base='http://127.0.0.1:'+http.address().port;
+ const oldCommands=await prisma.directorRunCommand.count();
+ try {
+  for(const route of ['/api/novel-workflows/old-failed/continue','/api/novel-workflows/old-failed/production-experience','/api/novel-workflows/old-failed/repair-chapter-titles','/api/tasks/novel_workflow/old-failed/retry','/api/tasks/novel_workflow/old-failed/cancel','/api/auto-director/follow-ups/old-failed/actions','/api/auto-director/channel-callbacks/dingtalk']) {
+   const response=await fetch(base+route,{method:'POST',headers:{'Content-Type':'application/json'},body:'{}'});assert.equal(response.status,409,route);
+  }
+  assert.equal(await prisma.directorRunCommand.count(),oldCommands);
+  assert.deepEqual(await prisma.novelWorkflowTask.findMany({orderBy:{id:'asc'}}),before);
+ }finally{await new Promise(resolve=>http.close(resolve));}
  const workspace=await readDirectorWorkspace('existing');
  assert.equal(workspace.chapters[0].content,'已有正文，必须完整保留。');assert.equal(workspace.materials.characters[0].name,'原有主角');assert.equal('progress' in workspace,false);
  const history=new LegacyRunProjection({list:()=>prisma.novelWorkflowTask.findMany({select:{id:true,novelId:true,title:true,status:true,progress:true,lastError:true}})});
