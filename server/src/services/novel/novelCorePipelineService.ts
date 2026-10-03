@@ -274,7 +274,8 @@ export class NovelCorePipelineService {
         return;
       }
       if (options.preserveManualRecovery) {
-        const resumed = await prisma.generationJob.updateMany({where: {id: job.id, status: {in: ["queued", "running"]}, pendingManualRecovery: false, cancelRequestedAt: null},
+        const resumed = await prisma.generationJob.updateMany({where: {id: job.id, status: {in: ["queued", "running"]}, pendingManualRecovery: false, cancelRequestedAt: null,
+          OR: [{executionOwner: null}, {executionLeaseExpiresAt: {lt: new Date()}}]},
           data: {status: "queued", heartbeatAt: null}});
         if (resumed.count !== 1) return;
       } else await this.updateJobSafe(job.id, {

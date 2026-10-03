@@ -52,3 +52,16 @@ test('manual-pending jobs are never automatically resumed',async()=>{
  const {handler,calls}=setup({bound:'job',jobs:[{...base,status:'running',pendingManualRecovery:true}],outcome:{chapters,debts:[],stopSignal:{kind:'manual_recovery',reason:'需确认'}}});
  await handler({...context,contract:{...context.contract,issuePolicy:{mode:'quality_first'}}});assert.equal(calls.some(c=>c[0]==='resume'),false);
 });
+
+test('restored batch retries scheduling after a foreign pipeline lease expires while waiting',async()=>{
+ let job={...base,status:'running'}, polls=0, attempts=0, expired=false;
+ const handler=createChapterBatchStepHandler({inputProvider:async()=>({startOrder:1,endOrder:2}),
+  jobBinding:{get:async()=>job.id,save:async()=>assert.fail('existing binding must remain')},
+  pipelineService:{startPipelineJob:async()=>assert.fail('existing job must not be recreated'),getPipelineJobById:async()=>job,
+   resumePipelineJob:async(_id,options)=>{assert.equal(options.preserveManualRecovery,true);attempts++;if(expired)job={...base};}},
+  readOutcome:async()=>({chapters,debts:[]}),waitForPoll:async()=>{if(++polls>2)throw Error('batch stayed stuck after pipeline lease expiry');expired=true;},
+  isRunActive:async()=>true,contentHash:()=> 'saved-hash'});
+ const result=await handler(context);
+ assert.equal(result.artifact.contentRef,'chapter_batch_closed:novel:1-2');
+ assert.equal(attempts,2);
+});

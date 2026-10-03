@@ -46,9 +46,11 @@ export function createChapterBatchStepHandler<Options extends BatchOptions>(depe
       && candidate.startOrder === input.startOrder && candidate.endOrder === input.endOrder && (!bound || candidate.id === bound));
     if (!valid(job)) return integrity("正文作业记录丢失、跨书或超出授权范围，请检查运行记录。");
     if (!bound) await dependencies.jobBinding.save(context.runId, job.id);
-    if (bound && active(job)) await dependencies.pipelineService.resumePipelineJob(job.id, {preserveManualRecovery: true});
     while (active(job)) {
       if (!await dependencies.isRunActive(context.runId)) throw new Error("导演运行已结束或暂停，停止等待正文作业。");
+      // A foreign pipeline lease can outlive the director lease after a crash.
+      // Resume is conditional on pipeline ownership and preserves manual recovery.
+      await dependencies.pipelineService.resumePipelineJob(job.id, {preserveManualRecovery: true});
       await dependencies.waitForPoll();
       const next = await dependencies.pipelineService.getPipelineJobById(job.id);
       if (!valid(next) || next.id !== job.id) return integrity("等待正文时作业身份或范围发生变化。");
