@@ -1,5 +1,6 @@
 const test = require("node:test");
 const assert = require("node:assert/strict");
+const { stubDatabaseMethod } = require("./legacyDirector/databasePorts.js");
 
 const {
   buildContinueExistingDownstreamReset,
@@ -20,7 +21,11 @@ test("buildContinueExistingDownstreamReset resets steps after user selected entr
   });
 });
 
-test("cancelContinueExistingReplacedRuns marks only overlapping active runs as replaced", async () => {
+test("cancelContinueExistingReplacedRuns marks only overlapping active runs as replaced", async (t) => {
+  stubDatabaseMethod(t, prisma.taskCenterArchive, "findUnique", async ({ where }) => {
+    assert.equal(where.taskKind_taskId.taskKind, "novel_workflow");
+    return null;
+  });
   const originals = {
     workflowFindMany: prisma.novelWorkflowTask.findMany,
     workflowFindUnique: prisma.novelWorkflowTask.findUnique,

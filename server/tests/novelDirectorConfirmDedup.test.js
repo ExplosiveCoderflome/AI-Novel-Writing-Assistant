@@ -1,5 +1,6 @@
 const test = require("node:test");
 const assert = require("node:assert/strict");
+const { stubDatabaseMethod } = require("./legacyDirector/databasePorts.js");
 require("../dist/app.js");
 const { NovelDirectorService } = require("../dist/services/novel/director/NovelDirectorService.js");
 const { NovelDirectorConfirmRuntime } = require("../dist/services/novel/director/runtime/novelDirectorConfirmRuntime.js");
@@ -7,6 +8,10 @@ const { prisma } = require("../dist/db/prisma.js");
 const { novelCreateResourceRecommendationService } = require("../dist/services/novel/NovelCreateResourceRecommendationService.js");
 const { writingPlatformProfileService } = require("../dist/modules/novel/writing-platform/application/WritingPlatformProfileService.js");
 const promptRunner = require("../dist/prompting/core/promptRunner.js");
+
+test.beforeEach((t) => {
+  stubDatabaseMethod(t, prisma.appSetting, "findUnique", async () => null);
+});
 
 function buildDirectorInput(overrides = {}) {
   return {
@@ -69,8 +74,12 @@ function buildResumeTargetJson(novelId, taskId) {
   });
 }
 
-test("confirmCandidate reuses an already attached novel instead of creating a duplicate", async () => {
+test("confirmCandidate reuses an already attached novel instead of creating a duplicate", async (t) => {
   const service = new NovelDirectorService();
+  stubDatabaseMethod(t, prisma.novelWorkflowTask, "findUnique", ({ where }) => {
+    assert.equal(where.id, "task_dedup_demo");
+    return service.workflowService.getTaskByIdWithoutHealing(where.id);
+  });
   const originals = {
     bootstrapTask: service.workflowService.bootstrapTask,
     getTaskByIdWithoutHealing: service.workflowService.getTaskByIdWithoutHealing,
@@ -119,8 +128,13 @@ test("confirmCandidate reuses an already attached novel instead of creating a du
   }
 });
 
-test("confirmCandidate returns the in-flight novel instead of creating a second project", async () => {
+test("confirmCandidate returns the in-flight novel instead of creating a second project", async (t) => {
   const service = new NovelDirectorService();
+  let canonicalTaskRow = null;
+  stubDatabaseMethod(t, prisma.novelWorkflowTask, "findUnique", async ({ where }) => {
+    assert.equal(where.id, "task_dedup_demo");
+    return canonicalTaskRow;
+  });
   const originals = {
     bootstrapTask: service.workflowService.bootstrapTask,
     claimAutoDirectorNovelCreation: service.workflowService.claimAutoDirectorNovelCreation,
@@ -156,7 +170,7 @@ test("confirmCandidate returns the in-flight novel instead of creating a second 
   };
   service.workflowService.getTaskByIdWithoutHealing = async () => {
     if (waitingForCreation) pollCalls += 1;
-    return {
+    return canonicalTaskRow = {
       id: "task_dedup_demo",
       lane: "auto_director",
       novelId: waitingForCreation ? "novel_existing_demo" : null,
@@ -192,11 +206,15 @@ test("confirmCandidate returns the in-flight novel instead of creating a second 
   }
 });
 
-test("confirm runtime creates the novel through the standard runtime node", async () => {
+test("confirm runtime creates the novel through the standard runtime node", async (t) => {
   const calls = [];
   const backgroundRuns = [];
   const builtSeeds = [];
   let taskRow = null;
+  stubDatabaseMethod(t, prisma.novelWorkflowTask, "findUnique", async ({ where }) => {
+    assert.equal(where.id, "task_dedup_demo");
+    return taskRow;
+  });
   const input = buildDirectorInput({
     targetAudience: "新手作者",
     bookSellingPoint: "低门槛完成整本书",

@@ -110,13 +110,13 @@ test("novel workflow auto director route returns null when only historical visib
   }
 });
 
-test("novel workflow continue route accepts range and full-book continuation modes", { concurrency: false }, async () => {
+test("novel workflow continue route accepts range and resume commands but rejects a run-mode string", { concurrency: false }, async (t) => {
   const calls = [];
   const originalEnqueue = DirectorCommandService.prototype.enqueueContinueCommand;
   const originalDetail = NovelWorkflowTaskAdapter.prototype.detail;
 
   DirectorCommandService.prototype.enqueueContinueCommand = async function enqueueContinueCommandMock(taskId, input) {
-    calls.push({ taskId, input });
+    calls.push({ taskId, input, commandType: "continue" });
     return {
       commandId: "command-1",
       taskId,
@@ -126,6 +126,10 @@ test("novel workflow continue route accepts range and full-book continuation mod
       leaseExpiresAt: null,
     };
   };
+  t.mock.method(DirectorCommandService.prototype, "enqueueApproveGateCommand", async (taskId, input) => {
+    calls.push({ taskId, input, commandType: "approve_gate" });
+    return { commandId: "command-2", taskId, commandType: "approve_gate", status: "queued" };
+  });
   NovelWorkflowTaskAdapter.prototype.detail = async function detailMock(taskId) {
     return {
       id: taskId,
@@ -160,18 +164,29 @@ test("novel workflow continue route accepts range and full-book continuation mod
         continuationMode: "full_book_autopilot",
       }),
     });
-    assert.equal(fullBookResponse.status, 202);
+    assert.equal(fullBookResponse.status, 400);
+    assert.equal(calls.length, 1);
+    const resumeResponse = await fetch(`http://127.0.0.1:${port}/api/novel-workflows/workflow-auto-exec/continue`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ continuationMode: "resume" }),
+    });
+    assert.equal(resumeResponse.status, 202);
+    const resumePayload = await resumeResponse.json();
+    assert.equal(resumePayload.data.commandType, "approve_gate");
     assert.deepEqual(calls, [
       {
         taskId: "workflow-auto-exec",
+        commandType: "continue",
         input: {
           continuationMode: "auto_execute_range",
         },
       },
       {
         taskId: "workflow-auto-exec",
+        commandType: "approve_gate",
         input: {
-          continuationMode: "full_book_autopilot",
+          continuationMode: "resume",
         },
       },
     ]);

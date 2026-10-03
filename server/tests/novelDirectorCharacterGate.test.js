@@ -298,6 +298,7 @@ test("director character phase applies an existing draft cast option without reg
   assert.equal(autoGenerateCalls, 0);
   assert.equal(applyCalls, 1);
   assert.deepEqual(applyArgs[0]?.[2], {
+    postApplyMode: "sync",
     visibleProfileGeneration: {
       provider: "deepseek",
       model: "deepseek-chat",

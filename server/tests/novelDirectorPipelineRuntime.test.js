@@ -1,5 +1,9 @@
 const test = require("node:test");
 const assert = require("node:assert/strict");
+const { DirectorStateReader, readDirectorTaskState } = require("../dist/services/novel/director/state/DirectorStateReader.js");
+const { DirectorCoreStepModuleRuntime } = require("../dist/services/novel/director/workflowStepRuntime/DirectorCoreStepModuleRuntime.js");
+const { WorldContextGateway } = require("../dist/services/novel/worldContext/WorldContextGateway.js");
+const approvalAudit = require("../dist/services/task/autoDirectorFollowUps/autoDirectorAutoApprovalAudit.js");
 
 const {
   NovelDirectorPipelineRuntime,
@@ -42,7 +46,7 @@ function buildDirectorInput(overrides = {}) {
   };
 }
 
-function createRuntime(overrides = {}) {
+function createRuntime(t, overrides = {}) {
   const deps = {
     workflowService: {},
     novelContextService: {
@@ -84,10 +88,51 @@ function createRuntime(overrides = {}) {
     async assertHighMemoryStartAllowed() {},
     ...overrides,
   };
-  return new NovelDirectorPipelineRuntime(deps);
+  // The executable modules inspect their own read ports. They must see the same
+  // saved fixtures as this orchestration instance, rather than a developer DB.
+  let context = null;
+  let savedWorkspace = null;
+  const getVolumes = deps.volumeService.getVolumes.bind(deps.volumeService);
+  deps.volumeService.getVolumes = async (...args) => {
+    const workspace = await getVolumes(...args);
+    savedWorkspace = { beatSheets: [], ...workspace };
+    return savedWorkspace;
+  };
+  const loadState = async (taskId) => {
+    assert.equal(taskId, context.taskId);
+    const row = await deps.workflowService.getTaskById?.(taskId);
+    return readDirectorTaskState({
+      ...row,
+      seedPayloadJson: JSON.stringify({
+        directorInput: context.input,
+        ...JSON.parse(row?.seedPayloadJson ?? "{}"),
+      }),
+    });
+  };
+  t.mock.method(DirectorStateReader.prototype, "readTaskStateById", loadState);
+  t.mock.method(DirectorStateReader.prototype, "readByTaskId", async (taskId) => ({
+    task: { id: taskId, novelId: context.novelId, lane: "auto_director", status: "running" },
+    directorRun: null, runtime: null, latestCommand: null, activeStep: null, chapterProgress: null,
+    ...await loadState(taskId),
+  }));
+  const core = DirectorCoreStepModuleRuntime.prototype;
+  t.mock.method(core, "getStoryMacroPlan", (id) => deps.storyMacroService.getPlan(id));
+  t.mock.method(core, "getBookContract", (id) => deps.bookContractService.getByNovelId(id));
+  t.mock.method(core, "getCharacters", (id) => deps.novelContextService.listCharacters(id));
+  t.mock.method(core, "getVolumeWorkspace", async () => savedWorkspace);
+  t.mock.method(core, "getExecutionChapters", async () => []);
+  t.mock.method(core, "inspectChapterExecutionProgress", async () => null);
+  t.mock.method(WorldContextGateway.prototype, "hasActiveWorld", async () => false);
+  t.mock.method(approvalAudit, "recordAutoDirectorAutoApprovalFromTask", async () => null);
+  const runtime = new NovelDirectorPipelineRuntime(deps);
+  for (const method of ["runPipeline", "runStructuredOutlineNode"]) {
+    const run = runtime[method].bind(runtime);
+    runtime[method] = (input, ...args) => { context = input; return run(input, ...args); };
+  }
+  return runtime;
 }
 
-test("pipeline resumes structured outline from persisted volume workspace when volume step is already completed", async () => {
+test("pipeline resumes structured outline from persisted volume workspace when volume step is already completed", async (t) => {
   const modules = [];
   const highMemoryChecks = [];
   let getVolumeCalls = 0;
@@ -102,7 +147,7 @@ test("pipeline resumes structured outline from persisted volume workspace when v
       targetChapterCount: 30,
     },
   };
-  const runtime = createRuntime({
+  const runtime = createRuntime(t, {
     volumeService: {
       async getVolumes() {
         getVolumeCalls += 1;
@@ -146,11 +191,11 @@ test("pipeline resumes structured outline from persisted volume workspace when v
   assert.equal(highMemoryChecks[0].volumeId, "volume_1");
 });
 
-test("stage_review pauses after one workflow step and records the resumable step", async () => {
+test("stage_review pauses after one workflow step and records the resumable step", async (t) => {
   const modules = [];
   const checkpoints = [];
   const stateUpdates = [];
-  const runtime = createRuntime({
+  const runtime = createRuntime(t, {
     workflowService: {
       async getTaskById(taskId) {
         return {
@@ -200,11 +245,11 @@ test("stage_review pauses after one workflow step and records the resumable step
   assert.equal(persistedRunState.directorSession.phase, "story_macro");
 });
 
-test("stage_review pauses at world setup and keeps the world review step identity", async () => {
+test("stage_review pauses at world setup and keeps the world review step identity", async (t) => {
   const modules = [];
   const checkpoints = [];
   const stateUpdates = [];
-  const runtime = createRuntime({
+  const runtime = createRuntime(t, {
     storyMacroService: {
       async getPlan() {
         return { id: "story_macro", storyInput: "story", decomposition: { core_conflict: "conflict" } };
@@ -267,10 +312,10 @@ test("stage_review pauses at world setup and keeps the world review step identit
   assert.equal(checkpoints[0].input.itemKey, "world_setup");
 });
 
-test("automatic mode continues from world setup without creating a review checkpoint", async () => {
+test("automatic mode continues from world setup without creating a review checkpoint", async (t) => {
   const modules = [];
   const checkpoints = [];
-  const runtime = createRuntime({
+  const runtime = createRuntime(t, {
     storyMacroService: {
       async getPlan() {
         return { id: "story_macro", storyInput: "story", decomposition: { core_conflict: "conflict" } };
@@ -311,9 +356,9 @@ test("automatic mode continues from world setup without creating a review checkp
   assert.equal(checkpoints.length, 0);
 });
 
-test("auto-to-execution volume strategy approval is passed into the runtime gate", async () => {
+test("auto-to-execution volume strategy approval is passed into the runtime gate", async (t) => {
   const calls = [];
-  const runtime = createRuntime({
+  const runtime = createRuntime(t, {
     runtimeOrchestrator: {
       async runStepModule(input) {
         calls.push({
@@ -349,9 +394,9 @@ test("auto-to-execution volume strategy approval is passed into the runtime gate
   }]);
 });
 
-test("auto-to-ready passes planning gates until the production experience handoff", async () => {
+test("auto-to-ready passes planning gates until the production experience handoff", async (t) => {
   const calls = [];
-  const runtime = createRuntime({
+  const runtime = createRuntime(t, {
     runtimeOrchestrator: {
       async runStepModule(input) {
         calls.push({
@@ -387,13 +432,13 @@ test("auto-to-ready passes planning gates until the production experience handof
   }]);
 });
 
-test("auto-to-execution structured outline approval is passed into each structured runtime gate", async () => {
+test("auto-to-execution structured outline approval is passed into each structured runtime gate", async (t) => {
   const calls = [];
   const workspace = {
     volumes: [{ id: "volume_1", chapters: [] }],
     strategyPlan: { targetChapterCount: 30 },
   };
-  const runtime = createRuntime({
+  const runtime = createRuntime(t, {
     runtimeOrchestrator: {
       async runStepModule(input) {
         calls.push({
@@ -441,14 +486,14 @@ test("auto-to-execution structured outline approval is passed into each structur
   ]);
 });
 
-test("explicit chapter execution resume runs chapters even when auto approval preference is disabled", async () => {
+test("explicit chapter execution resume runs chapters even when auto approval preference is disabled", async (t) => {
   const modules = [];
   const chapterCalls = [];
   const workspace = {
     volumes: [{ id: "volume_1", chapters: [] }],
     strategyPlan: { targetChapterCount: 30 },
   };
-  const runtime = createRuntime({
+  const runtime = createRuntime(t, {
     novelContextService: {
       async listCharacters() {
         return [{ id: "character_1" }];
@@ -506,9 +551,9 @@ test("explicit chapter execution resume runs chapters even when auto approval pr
   assert.equal(chapterCalls[0].approveAutoExecutionScope, true);
 });
 
-test("auto-to-execution does not pass planning gates without matching approval", async () => {
+test("auto-to-execution does not pass planning gates without matching approval", async (t) => {
   const calls = [];
-  const runtime = createRuntime({
+  const runtime = createRuntime(t, {
     runtimeOrchestrator: {
       async runStepModule(input) {
         calls.push({
@@ -544,10 +589,10 @@ test("auto-to-execution does not pass planning gates without matching approval",
   }]);
 });
 
-test("pipeline pauses after volume strategy checkpoint instead of falling through to structured outline", async () => {
+test("pipeline pauses after volume strategy checkpoint instead of falling through to structured outline", async (t) => {
   const modules = [];
   let getVolumeCalls = 0;
-  const runtime = createRuntime({
+  const runtime = createRuntime(t, {
     volumeService: {
       async getVolumes() {
         getVolumeCalls += 1;
@@ -587,9 +632,9 @@ test("pipeline pauses after volume strategy checkpoint instead of falling throug
   assert.equal(getVolumeCalls, 1);
 });
 
-test("pipeline resumes book contract when story macro exists without contract", async () => {
+test("pipeline resumes book contract when story macro exists without contract", async (t) => {
   const modules = [];
-  const runtime = createRuntime({
+  const runtime = createRuntime(t, {
     storyMacroService: {
       async getPlan() {
         return {
@@ -622,9 +667,9 @@ test("pipeline resumes book contract when story macro exists without contract", 
   assert.deepEqual(modules, ["book.contract.create", "character.cast.prepare", "volume.strategy.plan"]);
 });
 
-test("pipeline does not rerun book planning nodes when story macro and contract already exist", async () => {
+test("pipeline does not rerun book planning nodes when story macro and contract already exist", async (t) => {
   const modules = [];
-  const runtime = createRuntime({
+  const runtime = createRuntime(t, {
     storyMacroService: {
       async getPlan() {
         return {
@@ -662,9 +707,9 @@ test("pipeline does not rerun book planning nodes when story macro and contract 
   assert.deepEqual(modules, ["character.cast.prepare", "volume.strategy.plan"]);
 });
 
-test("pipeline treats empty story macro shell as incomplete during recovery", async () => {
+test("pipeline treats empty story macro shell as incomplete during recovery", async (t) => {
   const modules = [];
-  const runtime = createRuntime({
+  const runtime = createRuntime(t, {
     storyMacroService: {
       async getPlan() {
         return { id: "story_macro_shell", storyInput: "", decomposition: null };

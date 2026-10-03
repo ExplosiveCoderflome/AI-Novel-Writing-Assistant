@@ -1,5 +1,6 @@
 const test = require("node:test");
 const assert = require("node:assert/strict");
+const { stubDatabaseMethod } = require("./legacyDirector/databasePorts.js");
 require("../dist/app.js");
 const {
   getDirectorLlmOptionsFromSeedPayload,
@@ -87,6 +88,7 @@ function routeTaskReaderThroughWorkflowMock(service) {
   };
   service.directorRuntime.initializeRun = async () => null;
   service.directorRuntime.recordRunResumed = async () => undefined;
+  service.directorRuntime.getSnapshot = async () => null;
 }
 
 function createVolumeChapter(input) {
@@ -315,8 +317,11 @@ test("retry model override changes candidate-stage effective selection before di
   });
 });
 
-test("generateCandidates marks workflow task failed when candidate-stage generation throws", async () => {
+test("generateCandidates marks workflow task failed when candidate-stage generation throws", async (t) => {
   const service = new NovelDirectorService();
+  t.mock.method(service.directorRuntime, "initializeRun", async () => null);
+  t.mock.method(service.directorRuntimeOrchestrator, "runStepModule", async ({ runner }) => runner());
+  t.mock.method(service, "withWorkflowTaskUsage", async (_taskId, runner) => runner());
   const originalGenerate = service.candidateStageService.generateCandidates;
   const originalMarkTaskFailed = service.workflowService.markTaskFailed;
   const failures = [];
@@ -1017,7 +1022,14 @@ test("continueTask does not skip the current chapter when approving a waiting au
   }
 });
 
-test("continueTask replans the affected window before continuing from a replan checkpoint", async () => {
+test("continueTask replans the affected window before continuing from a replan checkpoint", async (t) => {
+  stubDatabaseMethod(t, prisma.chapter, "findFirst", async ({ where, orderBy }) => {
+    assert.equal(where.novelId, "novel_quality_repair_skip_normalized");
+    assert.deepEqual(where.OR, [{ content: null }, { content: "" }]);
+    assert.deepEqual(orderBy, { order: "asc" });
+    return null;
+  });
+  stubDatabaseMethod(t, prisma.replanRun, "findFirst", async () => null);
   const service = new NovelDirectorService();
   routeTaskReaderThroughWorkflowMock(service);
   const originalContinueCandidateStageTask = service.continueCandidateStageTask;
@@ -1128,7 +1140,12 @@ test("continueTask replans the affected window before continuing from a replan c
   }
 });
 
-test("continueTask keeps the replan checkpoint when window replanning fails", async () => {
+test("continueTask keeps the replan checkpoint when window replanning fails", async (t) => {
+  stubDatabaseMethod(t, prisma.chapter, "findFirst", async ({ where }) => {
+    assert.equal(where.novelId, "novel_replan_failure");
+    return null;
+  });
+  stubDatabaseMethod(t, prisma.replanRun, "findFirst", async () => null);
   const service = new NovelDirectorService();
   routeTaskReaderThroughWorkflowMock(service);
   const originalContinueCandidateStageTask = service.continueCandidateStageTask;

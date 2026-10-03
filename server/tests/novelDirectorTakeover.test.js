@@ -1,5 +1,6 @@
 const test = require("node:test");
 const assert = require("node:assert/strict");
+const { stubDatabaseMethod } = require("./legacyDirector/databasePorts.js");
 const {
   buildSkipSteps,
   entryStepToLegacyStartPhase,
@@ -340,7 +341,12 @@ test("continue_existing from structured keeps partially detailed requested scope
   assert.equal(plan.effectiveStage, "structured_outline");
 });
 
-test("loadDirectorTakeoverState does not trust stale auto execution state when only part of the range is detailed", async () => {
+test("loadDirectorTakeoverState does not trust stale auto execution state when only part of the range is detailed", async (t) => {
+  let latestTaskStateRow = null;
+  stubDatabaseMethod(t, prisma.novelWorkflowTask, "findUnique", async ({ where }) => {
+    assert.equal(where.id, latestTaskStateRow.id);
+    return latestTaskStateRow;
+  });
   const originals = {
     novelFindUnique: prisma.novel.findUnique,
     chapterFindMany: prisma.chapter.findMany,
@@ -498,7 +504,7 @@ test("loadDirectorTakeoverState does not trust stale auto execution state when o
       }),
       getVolumeWorkspace: async () => workspace,
       findActiveAutoDirectorTask: async () => null,
-      findLatestAutoDirectorTask: async () => ({
+      findLatestAutoDirectorTask: async () => (latestTaskStateRow = {
         id: "task_stale_ready",
         checkpointType: "chapter_batch_ready",
         checkpointSummary: "旧任务认为前 2 章可执行",
@@ -807,7 +813,12 @@ test("loadDirectorTakeoverState treats full-book autopilot outline seeds as JIT 
   }
 });
 
-test("loadDirectorTakeoverState applies requested book scope before trusting stale execution state", async () => {
+test("loadDirectorTakeoverState applies requested book scope before trusting stale execution state", async (t) => {
+  let latestTaskStateRow = null;
+  stubDatabaseMethod(t, prisma.novelWorkflowTask, "findUnique", async ({ where }) => {
+    assert.equal(where.id, latestTaskStateRow.id);
+    return latestTaskStateRow;
+  });
   const originals = {
     novelFindUnique: prisma.novel.findUnique,
     chapterFindMany: prisma.chapter.findMany,
@@ -965,7 +976,7 @@ test("loadDirectorTakeoverState applies requested book scope before trusting sta
       }),
       getVolumeWorkspace: async () => workspace,
       findActiveAutoDirectorTask: async () => null,
-      findLatestAutoDirectorTask: async () => ({
+      findLatestAutoDirectorTask: async () => (latestTaskStateRow = {
         id: "task_stale_single_ready",
         checkpointType: "chapter_batch_ready",
         checkpointSummary: "旧任务只覆盖第 1 章",

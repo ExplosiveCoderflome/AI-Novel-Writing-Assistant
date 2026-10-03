@@ -1,9 +1,19 @@
 const test = require("node:test");
 const assert = require("node:assert/strict");
+const { stubDatabaseMethod } = require("./legacyDirector/databasePorts.js");
 
 const { NovelWorkflowService } = require("../dist/services/novel/workflow/NovelWorkflowService.js");
 const { NovelWorkflowHealingService } = require("../dist/services/novel/workflow/NovelWorkflowHealingService.js");
 const { prisma } = require("../dist/db/prisma.js");
+
+test.beforeEach((t) => {
+  // These fixtures are visible workflow records; archive lookup is a separate port.
+  stubDatabaseMethod(t, prisma.taskCenterArchive, "findUnique", async ({ where }) => {
+    assert.equal(where.taskKind_taskId.taskKind, "novel_workflow");
+    return null;
+  });
+  stubDatabaseMethod(t, prisma.appSetting, "findMany", async () => []);
+});
 
 test("healHistoricalAutoDirectorRecoveryFailure restores legacy restart failures back to checkpoint state", async () => {
   const originals = {
@@ -63,7 +73,11 @@ test("healHistoricalAutoDirectorRecoveryFailure restores legacy restart failures
   }
 });
 
-test("healAutoDirectorTaskState completes chapter batch checkpoints when every chapter is already processed", async () => {
+test("healAutoDirectorTaskState completes chapter batch checkpoints when every chapter is already processed", async (t) => {
+  stubDatabaseMethod(t, prisma.generationJob, "findUnique", async ({ where }) => {
+    assert.equal(where.id, "job-3");
+    return { id: "job-3", status: "failed" };
+  });
   const originals = {
     findUnique: prisma.novelWorkflowTask.findUnique,
     chapterFindMany: prisma.chapter.findMany,

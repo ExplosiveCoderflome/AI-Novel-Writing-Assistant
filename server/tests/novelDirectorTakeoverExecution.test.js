@@ -473,7 +473,7 @@ test("continue_existing from chapter records the production handoff without auto
   assert.equal(checkpointInput.seedPayload.directorSession.runMode, "auto_to_ready");
 });
 
-test("continue_existing chapter takeover does not reuse the requested auto execution range", async () => {
+test("continue_existing chapter takeover starts at the saved cursor and preserves the requested end", async () => {
   let preparedInput = null;
   let bootstrapInput = null;
   let checkpointInput = null;
@@ -528,7 +528,11 @@ test("continue_existing chapter takeover does not reuse the requested auto execu
   });
 
   assert.equal(preparedInput, null);
-  assert.equal(bootstrapInput.seedPayload.autoExecutionPlan, undefined);
+  assert.deepEqual(bootstrapInput.seedPayload.autoExecutionPlan, {
+    mode: "chapter_range",
+    startOrder: 3,
+    endOrder: 10,
+  });
   assert.equal(checkpointInput.checkpointType, "production_experience_required");
 });
 
