@@ -98,6 +98,17 @@ const {executeOpeningCommand,prepareOpeningRetry}=require(path.join(server,'dist
  assert.deepEqual(openingDetail.steps.map(step=>step.key),['opening_complete']);
  assert.equal(openingDetail.steps[0].status,'succeeded');
  assert.equal(await prisma.generationJob.count({where:{novelId:opening.novelId}}),0);
+ const {readEditedArtifact}=require(path.join(server,'dist/app/director/savedContent'));
+ const {CHAPTER_ARTIFACT_BOUNDARY_TYPE,buildChapterArtifactContentHash}=require(path.join(server,'dist/services/novel/runtime/artifactSync'));
+ const editedChapter=await prisma.chapter.create({data:{novelId:opening.novelId,order:1,title:'编辑验收',content:'编辑后的正文',generationState:'approved',chapterStatus:'completed'}});
+ const editInput={contract:{novelId:opening.novelId,chapterRange:{from:1,to:1}},type:'chapter_batch_closed',contentRef:'batch:edited'};
+ await assert.rejects(()=>prisma.$transaction(tx=>readEditedArtifact(editInput,tx)),/同步|收尾/);
+ await prisma.chapterArtifactSyncCheckpoint.create({data:{novelId:opening.novelId,chapterId:editedChapter.id,artifactType:CHAPTER_ARTIFACT_BOUNDARY_TYPE,syncMode:'production',status:'succeeded',contentHash:buildChapterArtifactContentHash('旧版本正文'),metadataJson:JSON.stringify({outcome:'completed'})}});
+ await assert.rejects(()=>prisma.$transaction(tx=>readEditedArtifact(editInput,tx)),/同步|收尾/);
+ await prisma.chapterArtifactSyncCheckpoint.create({data:{novelId:opening.novelId,chapterId:editedChapter.id,artifactType:CHAPTER_ARTIFACT_BOUNDARY_TYPE,syncMode:'production',status:'succeeded',contentHash:buildChapterArtifactContentHash(editedChapter.content),metadataJson:JSON.stringify({outcome:'completed'})}});
+ const editedArtifact=await prisma.$transaction(tx=>readEditedArtifact(editInput,tx));assert.equal(editedArtifact.contentRef,editInput.contentRef);assert.ok(editedArtifact.contentHash);
+ assert.deepEqual(await prisma.chapter.findUniqueOrThrow({where:{id:editedChapter.id}}),editedChapter);
+
  assert.deepEqual(await prisma.novelWorkflowTask.findUniqueOrThrow({where:{id:opening.id}}),opening);
 
  assert.equal(await prisma.directorNextRun.count({where:{novelId:opening.novelId}}),1);

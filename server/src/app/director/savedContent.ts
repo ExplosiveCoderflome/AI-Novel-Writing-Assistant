@@ -2,6 +2,8 @@ import type {Prisma} from "@prisma/client";
 import {artifactContentHash, type RunContract} from "../../modules/director";
 import {parsePipelinePayload, stringifyPipelinePayload} from "../../services/novel/pipelineJobState";
 import {AppError} from "../../middleware/errorHandler";
+import {isCurrentChapterProductionCompleted} from "../../services/novel/production/completion";
+import {CHAPTER_ARTIFACT_BOUNDARY_TYPE} from "../../services/novel/runtime/artifactSync";
 
 /** Reads saved business assets in the same transaction as gate confirmation. */
 export async function readEditedArtifact(input: {contract: RunContract; type: string; contentRef: string}, tx: Prisma.TransactionClient) {
@@ -35,9 +37,12 @@ export async function readEditedArtifact(input: {contract: RunContract; type: st
     case "chapter_batch_closed": {
       const range = input.contract.chapterRange;
       if (!range) throw new Error("缺少正文授权范围。");
-      const chapters = await tx.chapter.findMany({where: {novelId, order: {gte: range.from, lte: range.to}}, orderBy: {order: "asc"}, select: {id: true, order: true, content: true}});
+      const chapters = await tx.chapter.findMany({where: {novelId, order: {gte: range.from, lte: range.to}}, orderBy: {order: "asc"}, select: {id: true, order: true, content: true, generationState: true, chapterStatus: true, riskFlags: true,
+        artifactSyncCheckpoints: {where: {artifactType: CHAPTER_ARTIFACT_BOUNDARY_TYPE, status: "succeeded"},
+          select: {contentHash: true, metadataJson: true}, orderBy: {updatedAt: "desc"}, take: 6}}});
       if (chapters.length !== range.to-range.from+1 || chapters.some(chapter => !chapter.content?.trim())) throw new Error("请先保存本批次的章节正文。");
-      content = chapters;
+      if (chapters.some(chapter => !isCurrentChapterProductionCompleted(chapter))) throw new AppError("正文修改尚未完成状态同步，请在章节页面完成收尾后再确认。", 400);
+      content = chapters.map(({id, order, content}) => ({id, order, content}));
       break;
     }
     default: throw new Error("该阶段请使用确认结果，或从对应资产页面查看修改。");
