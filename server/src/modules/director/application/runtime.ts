@@ -1,8 +1,17 @@
 import { randomUUID } from "node:crypto";
 import os from "node:os";
 import type { DirectorWorkerRuntime } from "./ports";
+import type { RunContract } from "../domain";
 
 const DEFAULT_LEASE_MS = 30_000;
+
+/** Production snapshots allow zero or one automatic retry; kernel-only runs predate that snapshot. */
+export function automaticRecoveryBudget(contract: RunContract): number {
+  const policy = contract.issuePolicy.pipelinePolicy;
+  if (!policy) return 1;
+  const budget = policy.maxAutomaticRetries;
+  return Number.isSafeInteger(budget) && budget >= 0 && budget <= 1 ? budget : 0;
+}
 
 function resolveLeaseMs(value: string | undefined, fallback: number): number {
   const parsed = Number(value);

@@ -70,8 +70,29 @@ function createHarness({ orchestrator = createPlanOrchestrator(), crashOnStepFin
     eventLog,
     stepRegistry: registry,
   });
-  return { executor, executed, artifacts, debts, events, getControl: () => control };
+  return { executor, executed, artifacts, debts, events, runRepository, getControl: () => control };
 }
+
+test('repeated interruption of an unfinished step consumes the saved recovery budget',async()=>{
+ for(const maxAutomaticRetries of [0,1]) {
+  const harness=createHarness({contractOverrides:{issuePolicy:{mode:'completion_first',version:'frozen',pipelinePolicy:{maxAutomaticRetries,issueActions:{}}}},resultFactory:()=>{throw Error('process stopped before saving');}});
+  await assert.rejects(()=>harness.executor.runOnce('run-1'),/process stopped/);
+  if(maxAutomaticRetries===1)await assert.rejects(()=>harness.executor.runOnce('run-1'),/process stopped/);
+  assert.equal((await harness.executor.runOnce('run-1')).kind,'paused');
+  assert.equal(harness.executed.length,maxAutomaticRetries+1);
+  assert.equal(harness.events.filter(event=>event.type==='execution_failure').length,maxAutomaticRetries+1);
+  assert.equal(harness.getControl().pause.reason,'execution_retry_budget_exhausted');
+ }
+});
+
+test('an already recorded execution failure is not charged again as a process interruption',async()=>{
+ let calls=0;
+ const harness=createHarness({resultFactory:step=>{if(++calls===1)throw Error('failed call');return {artifact:{scope:'book',status:'draft',protectedUserContent:false,contentRef:step.id,contentHash:null}};}});
+ await assert.rejects(()=>harness.executor.runOnce('run-1'));
+ harness.events.push({seq:1,type:'execution_failure',payload:{controlVersion:harness.getControl().version,attempt:1},createdAt:new Date()});
+ assert.equal((await harness.executor.runOnce('run-1')).kind,'executed');
+ assert.equal(harness.events.filter(event=>event.type==='execution_failure').length,1);
+});
 
 test("the executor runs every dependency step once and completes the run", async () => {
   const harness = createHarness();

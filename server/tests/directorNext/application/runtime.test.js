@@ -1,6 +1,6 @@
 const test = require("node:test");
 const assert = require("node:assert/strict");
-const { createDirectorRuntime } = require("../../../dist/modules/director/application");
+const { createDirectorRuntime, automaticRecoveryBudget } = require("../../../dist/modules/director/application");
 
 test("director runtime centralizes IDs, clock, lease expiry and the disabled default", () => {
   let current = new Date("2026-10-01T00:00:00.000Z");
@@ -29,4 +29,10 @@ test("director runtime reads only the explicit enable flag", () => {
 test("invalid lease configuration falls back to a positive default", () => {
   const runtime = createDirectorRuntime({ env: { DIRECTOR_NEXT_LEASE_MS: "invalid" }, now: () => new Date("2026-10-01T00:00:00.000Z"), idFactory: () => "id", workerId: "w" });
   assert.equal(runtime.leaseExpiresAt(new Date("2026-10-01T00:00:00.000Z")).toISOString(), "2026-10-01T00:00:30.000Z");
+});
+
+test('automatic recovery reads the frozen policy budget and fails closed on invalid snapshots',()=>{
+ for(const maxAutomaticRetries of [0,1])assert.equal(automaticRecoveryBudget({issuePolicy:{pipelinePolicy:{maxAutomaticRetries}}}),maxAutomaticRetries);
+ for(const maxAutomaticRetries of [-1,2,NaN,'1'])assert.equal(automaticRecoveryBudget({issuePolicy:{pipelinePolicy:{maxAutomaticRetries}}}),0);
+ assert.equal(automaticRecoveryBudget({issuePolicy:{}}),1,'kernel-only contracts retain their documented default');
 });

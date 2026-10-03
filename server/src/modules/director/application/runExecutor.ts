@@ -2,6 +2,7 @@ import { checkAction, createPlanOrchestrator, type Action, type Orchestrator, ty
 import type { RunRepository, ArtifactLedger, EventLog, QualityDebtRepository, PlanRegistry } from "./ports";
 import type { FactsLoader, LoadedRunFacts } from "./factsLoader";
 import { StepRegistry, type StepResult } from "./stepRegistry";
+import { automaticRecoveryBudget } from "./runtime";
 
 export type RunExecutionResult =
   | { kind: "idle" }
@@ -131,6 +132,23 @@ export class RunExecutor {
   private async executeStep(runId: string, loaded: LoadedRunFacts, plan: PlanDefinition, stepId: string): Promise<RunExecutionResult> {
     const step = plan.steps.find((candidate) => candidate.id === stepId);
     if (!step) throw new Error(`director step not found in plan: ${stepId}`);
+    if (loaded.control.cursorStepId === stepId) {
+      // The plan still needs the previously started step: no usable artifact was committed.
+      const events = await this.deps.eventLog.list(runId);
+      const resumedAt = events.filter(event => event.type === "stop_signal_cleared").at(-1)?.seq ?? 0;
+      const failures = events.filter(event => event.type === "execution_failure" && event.seq > resumedAt);
+      const counted = failures.some(event => payloadNumber(event.payload, "controlVersion") === loaded.control.version);
+      const attempts = failures.length + (counted ? 0 : 1);
+      if (!counted) await this.deps.eventLog.append({runId, type: "execution_failure",
+        payload: {attempt: attempts, controlVersion: loaded.control.version, stepId, cause: "interrupted_step"}});
+      if (attempts > automaticRecoveryBudget(loaded.contract)) {
+        const reason = "execution_retry_budget_exhausted";
+        await this.deps.eventLog.append({runId, type: "stop_signal",
+          payload: {kind: "manual_recovery", reason, action: "pause_for_manual", source: "runtime"}});
+        await this.deps.runRepository.transition(runId, {type: "pause", pause: {kind: "manual_recovery", reason}}, loaded.control.version);
+        return {kind: "paused"};
+      }
+    }
     const started = await this.deps.runRepository.transition(runId, { type: "step_started", stepId }, loaded.control.version);
     const result = await this.deps.stepRegistry.get(stepId)({
       runId,

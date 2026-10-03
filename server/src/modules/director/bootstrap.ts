@@ -5,6 +5,7 @@ import {
   RunExecutor,
   StepRegistry,
   createDirectorRuntime,
+  automaticRecoveryBudget,
   DirectorWorker,
   type PlanRegistry,
   type CommandServiceDeps,
@@ -107,7 +108,7 @@ export function createDirectorNextServices(options: DirectorNextServiceOptions =
     executor,
     runtime,
     eventLog,
-    recoveryPolicy: { maxAttempts: () => 1 },
+    recoveryPolicy: { maxAttempts: automaticRecoveryBudget },
   });
   return { http: { commandService, projectionService, runRepository, eventLog }, worker };
 }

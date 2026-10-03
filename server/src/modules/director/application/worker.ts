@@ -86,7 +86,7 @@ export class DirectorWorker {
     await this.deps.eventLog.append({
       runId,
       type: "execution_failure",
-      payload: { attempt: failures + 1, message: error instanceof Error ? error.message : "unknown execution failure" },
+      payload: { attempt: failures + 1, controlVersion: control.version, message: error instanceof Error ? error.message : "unknown execution failure" },
     });
     const maxAttempts = Math.max(0, Math.floor(this.deps.recoveryPolicy.maxAttempts(contract)));
     if (failures + 1 <= maxAttempts) return;
