@@ -1,10 +1,12 @@
 # 自动导演重构 · 计划 08：`open_run` 统一入口、legacy 适配器与入口切换（任务级，待细化）
 
-状态：**代码与隔离演练完成，真实验收副本启用待明确授权；实际 AI 和界面验收待用户运行**。当前执行者独立完成。
+状态：**代码与隔离演练完成；2026-10-03 经用户授权启用验收副本和新入口，实际 AI 和界面验收待用户运行**。当前执行者独立完成。
 
 验证：服务端构建、前端类型检查、194 项导演与章节链路联合测试、11 项前端投影与工作台检查、旧启动恢复定向测试通过。完整 SQLite 临时库验证新书重复请求、接管、切换、历史只读、正文保护和默认规划范围。扩展旧流程套件中的 stale-healing 用例因缺少 `DirectorStepRun.updateMany` mock 而访问空测试库失败；未修改或放宽该用例，本阶段的启动默认行为另经定向验证。
 
-已准备验收副本备份：`D:\code\ai-director-rebuild\server\.tmp\director-before-activation-1790961502448.db`，770,453,504 字节，`quick_check=ok`，116 本小说。尚未在副本应用迁移或开启入口。入口与接管规则见 `docs/wiki/workflows/director-next-entry-and-takeover.md`。
+验收副本备份：`D:\code\ai-director-rebuild\server\.tmp\director-before-activation-1790961502448.db`，770,453,504 字节，`quick_check=ok`，116 本小说。用户“那进行呀”授权后，在 `director-acceptance-1790949326498.db` 事务应用 7 份新增表与索引迁移并记录迁移台账。前后核对 116 本小说、3931 章、538 个角色、106 个卷规划版本、295 个旧任务的完整行摘要一致，迁移后 `quick_check=ok`。原开发库未操作。
+
+本地 API 已以 `DIRECTOR_NEXT_ENABLED=true` 启动新 Worker；未启动旧导演恢复及其他历史任务后台恢复。健康、小说 workspace、运行列表和前端实际小说地址均 HTTP 200；workspace 返回《废器重演，我以修器入道》的 7 章、资产分组和规划。未提交生成命令，实际模型生成待用户点击。入口与接管规则见 `docs/wiki/workflows/director-next-entry-and-takeover.md`。
 
 **目标：** 把"新开书、接管已有小说、全自动与半自动切换、冻结的旧任务继续写"统一为 `open_run`；用只读的 legacy 适配器展示旧任务；把真实入口的开关切到新内核。
 
