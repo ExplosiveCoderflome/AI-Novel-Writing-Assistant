@@ -44,7 +44,7 @@ import settingsRouter from "./routes/settings";
 import styleEngineRouter from "./routes/styleEngine";
 import styleEngineExtractionRouter from "./routes/styleEngineExtraction";
 import storyModeRouter from "./routes/storyMode";
-import tasksRouter from "./routes/tasks";
+import tasksRouter, { createTasksRouter } from "./routes/tasks";
 import titleLibraryRouter from "./routes/titleLibrary";
 import worldRouter from "./modules/setup/world/http";
 import writingFormulaRouter from "./routes/writingFormula";
@@ -89,6 +89,7 @@ function parseEnvFlag(value: string | undefined, defaultValue: boolean): boolean
 export function createApp() {
   getSharedNovelServices();
   const app = express();
+  let taskRouterForApp = tasksRouter;
   const jsonBodyLimit = process.env.API_JSON_LIMIT ?? "20mb";
   const corsOriginEnv = process.env.CORS_ORIGIN;
   const corsAllowList = corsOriginEnv
@@ -162,13 +163,18 @@ export function createApp() {
     const lookup={findTask: (taskId: string) => prisma.novelWorkflowTask.findUnique({where:{id:taskId},select:{lane:true,novelId:true}})};
     app.use("/api/novel-workflows",createFrozenWorkflowEntry(lookup));
     const {parsePipelinePayload} = require("./services/novel/pipelineJobState") as typeof import("./services/novel/pipelineJobState");
-    app.use("/api/tasks",createFrozenTaskEntry({...lookup,findPipelineOwner:async jobId=>{
+    const findPipelineOwner = async (jobId: string) => {
       const job=await prisma.generationJob.findUnique({where:{id:jobId},select:{novelId:true,payload:true}});
       if(!job) return null;
       const payload=parsePipelinePayload(job.payload);
       if(payload.directorNext) return job.novelId;
       return payload.workflowTaskId && (await lookup.findTask(payload.workflowTaskId))?.lane === "auto_director" ? job.novelId : null;
-    }}));
+    };
+    app.use("/api/tasks",createFrozenTaskEntry({...lookup,findPipelineOwner}));
+    const {projectDirectorRecoveryCandidates} = require("./app/director/projections/recoveryCandidates") as typeof import("./app/director/projections/recoveryCandidates");
+    taskRouterForApp = createTasksRouter({
+      projectRecoveryCandidates: data => projectDirectorRecoveryCandidates(data, {...lookup,findPipelineOwner}),
+    });
     app.use("/api/auto-director/follow-ups",createFrozenFollowUpEntry());
     app.use("/api/auto-director/channel-callbacks",createFrozenFollowUpEntry());
   }
@@ -187,7 +193,7 @@ export function createApp() {
   app.use("/api/prompt-workbench", promptWorkbenchRouter);
   app.use("/api/images", imagesRouter);
   app.use("/api/visual-assets", visualAssetRouter);
-  app.use("/api/tasks", tasksRouter);
+  app.use("/api/tasks", taskRouterForApp);
   app.use("/api/auto-director/follow-ups", autoDirectorFollowUpsRouter);
   app.use("/api/settings/auto-director", settingsAutoDirectorRouter);
   app.use("/api/auto-director/channel-callbacks", autoDirectorChannelCallbacksRouter);

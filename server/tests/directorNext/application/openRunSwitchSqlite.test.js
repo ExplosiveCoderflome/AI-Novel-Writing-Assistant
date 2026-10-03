@@ -18,21 +18,29 @@ const {executeOpeningCommand,prepareOpeningRetry}=require(path.join(server,'dist
  await prisma.novel.create({data:{id:'fresh',title:'新小说'}});
  await prisma.character.create({data:{id:'character',novelId:'existing',name:'原有主角',role:'主角'}});
  await prisma.chapter.create({data:{id:'chapter',novelId:'existing',order:1,title:'原章节',content:'已有正文，必须完整保留。'}});
- for(const status of ['queued','running','failed','succeeded'])await prisma.novelWorkflowTask.create({data:{id:'old-'+status,novelId:'existing',lane:'auto_director',title:'旧导演',status,seedPayloadJson:'not valid JSON; must never be read'}});
+ for(const status of ['queued','running','failed','succeeded'])await prisma.novelWorkflowTask.create({data:{id:'old-'+status,novelId:'existing',lane:'auto_director',title:'旧导演',status,pendingManualRecovery:true,seedPayloadJson:'not valid JSON; must never be read'}});
  const before=await prisma.novelWorkflowTask.findMany({orderBy:{id:'asc'}});
  process.env.DIRECTOR_NEXT_ENABLED='true';
  const {createApp}=require(path.join(server,'dist/app'));
  const http=createApp().listen(0);await new Promise(resolve=>http.once('listening',resolve));
  const base='http://127.0.0.1:'+http.address().port;
  const oldCommands=await prisma.directorRunCommand.count();
- await prisma.generationJob.create({data:{id:'owned-job',novelId:'existing',startOrder:1,endOrder:1,status:'failed',pendingManualRecovery:true,payload:JSON.stringify({directorNext:{runId:'test-run',decisions:[]}})}});
- await prisma.generationJob.create({data:{id:'old-owned-job',novelId:'existing',startOrder:2,endOrder:2,status:'failed',pendingManualRecovery:true,payload:JSON.stringify({workflowTaskId:'old-failed'})}});
+ await prisma.generationJob.create({data:{id:'owned-job',novelId:'existing',startOrder:1,endOrder:1,status:'queued',pendingManualRecovery:true,payload:JSON.stringify({directorNext:{runId:'test-run',decisions:[]}})}});
+ await prisma.generationJob.create({data:{id:'old-owned-job',novelId:'existing',startOrder:2,endOrder:2,status:'queued',pendingManualRecovery:true,payload:JSON.stringify({workflowTaskId:'old-failed'})}});
  const jobsBefore=await prisma.generationJob.findMany({orderBy:{id:'asc'}});
  try {
   for(const route of ['/api/novel-workflows/old-failed/continue','/api/novel-workflows/old-failed/production-experience','/api/novel-workflows/old-failed/repair-chapter-titles','/api/tasks/novel_workflow/old-failed/retry','/api/tasks/novel_workflow/old-failed/cancel','/api/tasks/recovery-candidates/novel_workflow/old-failed/resume','/api/tasks/recovery-candidates/resume-all','/api/auto-director/follow-ups/old-failed/actions','/api/auto-director/channel-callbacks/dingtalk']) {
    const response=await fetch(base+route,{method:'POST',headers:{'Content-Type':'application/json'},body:'{}'});assert.equal(response.status,409,route);
   }
   assert.equal(await prisma.directorRunCommand.count(),oldCommands);
+  assert.deepEqual(await prisma.novelWorkflowTask.findMany({orderBy:{id:'asc'}}),before);
+  const recoveryResponse=await fetch(base+'/api/tasks/recovery-candidates');
+  assert.equal(recoveryResponse.status,200);
+  const recovery=(await recoveryResponse.json()).data.items;
+  for(const id of ['old-queued','old-running','owned-job','old-owned-job']){
+   const item=recovery.find(item=>item.id===id);
+   assert.ok(item,id+' must stay visible');assert.equal(item.sourceRoute,'/lab/director/existing');
+  }
   assert.deepEqual(await prisma.novelWorkflowTask.findMany({orderBy:{id:'asc'}}),before);
   const jobDetail=await (await fetch(base+'/api/tasks/novel_pipeline/owned-job')).json();
   assert.equal(jobDetail.data.sourceRoute,'/lab/director/existing');
