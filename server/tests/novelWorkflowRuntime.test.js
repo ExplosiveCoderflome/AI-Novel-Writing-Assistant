@@ -77,8 +77,10 @@ test("stale running auto director healing does not recurse through markTaskFaile
     archiveFindUnique: prisma.taskCenterArchive.findUnique,
     taskFindUnique: prisma.novelWorkflowTask.findUnique,
     taskUpdate: prisma.novelWorkflowTask.update,
+    stepUpdateMany: prisma.directorStepRun.updateMany,
   };
   const updates = [];
+  const stepUpdates = [];
   const staleRow = {
     id: "task-stale",
     novelId: "novel-1",
@@ -110,6 +112,10 @@ test("stale running auto director healing does not recurse through markTaskFaile
       updatedAt: new Date("2026-05-04T00:00:00.000Z"),
     };
   };
+  prisma.directorStepRun.updateMany = async (input) => {
+    stepUpdates.push(input);
+    return { count: 1 };
+  };
 
   try {
     const service = new NovelWorkflowService();
@@ -124,10 +130,16 @@ test("stale running auto director healing does not recurse through markTaskFaile
     assert.equal(updates.length, 1);
     assert.equal(updates[0].status, "failed");
     assert.equal(updates[0].lastError, "自动导演任务长时间没有心跳，可能已因服务重启或内存不足中断。请检查后继续或重试。");
+    assert.equal(stepUpdates.length, 1);
+    assert.deepEqual(stepUpdates[0].where, { taskId: "task-stale", status: "running" });
+    assert.equal(stepUpdates[0].data.status, "failed");
+    assert.equal(stepUpdates[0].data.error, updates[0].lastError);
+    assert.ok(stepUpdates[0].data.finishedAt instanceof Date);
   } finally {
     prisma.taskCenterArchive.findUnique = originals.archiveFindUnique;
     prisma.novelWorkflowTask.findUnique = originals.taskFindUnique;
     prisma.novelWorkflowTask.update = originals.taskUpdate;
+    prisma.directorStepRun.updateMany = originals.stepUpdateMany;
   }
 });
 
