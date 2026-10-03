@@ -42,6 +42,7 @@ export async function executeOpeningCommand(commandId: string): Promise<void> {
     await service.markCommandSucceeded(commandId,owner);
   } catch(error) {
     await service.markCommandFailed(commandId,owner,error);
+    await prisma.novelWorkflowTask.updateMany({where:{id:task.id,novelId:null,cancelRequestedAt:null,status:{not:"cancelled"}},data:{status:"failed",pendingManualRecovery:true,lastError:error instanceof Error ? error.message : "开书操作失败，请重试。"}});
     throw error;
   } finally {clearInterval(renewal);}
 }

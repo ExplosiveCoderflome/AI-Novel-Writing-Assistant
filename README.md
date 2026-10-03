@@ -177,6 +177,7 @@ Open-source AI novel writing assistant and long-form production studio.
 #### 修复
 
 - 长篇开书保留原有设置和候选选择界面，确认方向后进入小说导演台；已有小说的旧操作提示提供对应创作入口。
+- 开书候选生成失败后，可在原页面重试，保留想法、设置和失败记录，重复点击复用同一次重试。
 
 完整历史更新见 [docs/releases/release-notes.md](./docs/releases/release-notes.md)。
 

@@ -1,7 +1,9 @@
 import { Router } from "express";
 import { prisma } from "../../../db/prisma";
 import { scheduleOpeningCommand } from "./execution";
+import { prepareOpeningRetry } from "./recovery";
 export { executeOpeningCommand } from "./execution";
+export { prepareOpeningRetry } from "./recovery";
 
 const candidateCommands = new Set(["refine_candidates", "patch_candidate", "refine_titles", "confirm_candidate"]);
 export function createOriginalOpeningEntry(deps: {
@@ -9,6 +11,13 @@ export function createOriginalOpeningEntry(deps: {
   schedule: (id: string) => void;
 } = {readTask: id => prisma.novelWorkflowTask.findUnique({where:{id},select:{novelId:true}}), schedule: scheduleOpeningCommand}) {
   const router = Router();
+  router.post("/tasks/:taskId/opening-retry", async (req,res,next) => {
+    try {
+      const command = await prepareOpeningRetry(String(req.params.taskId));
+      res.status(202).json({success:true,data:command});
+      deps.schedule(command.commandId);
+    } catch(error) {next(error);}
+  });
   router.use(async (req,res,next) => {
     if (req.method !== "POST") return next();
     const match = /^\/tasks\/([^/]+)\/commands$/.exec(req.path);

@@ -11,7 +11,7 @@ const {createDirectorProductionOptions}=require(path.join(server,'dist/app/direc
 const {LegacyRunProjection}=require(path.join(server,'dist/modules/director/http'));
 const {readDirectorWorkspace}=require(path.join(server,'dist/app/director/workspace'));
 const {launchNewDirectorBook}=require(path.join(server,'dist/app/director/newBook'));
-const {executeOpeningCommand}=require(path.join(server,'dist/app/director/opening'));
+const {executeOpeningCommand,prepareOpeningRetry}=require(path.join(server,'dist/app/director/opening'));
 (async()=>{
  await ensureRuntimeDatabaseReady();
  await prisma.novel.create({data:{id:'existing',title:'验收小说'}});
@@ -63,6 +63,26 @@ const {executeOpeningCommand}=require(path.join(server,'dist/app/director/openin
  const originalContract=JSON.parse((await prisma.directorNextRun.findFirst({where:{novelId:opening.novelId}})).contractJson);
  assert.equal(originalContract.driver,'assisted');assert.equal(originalContract.chapterRange,null);assert.ok(originalContract.launchInput.storyInput.includes('新书标题'));
  assert.deepEqual(await prisma.novelWorkflowTask.findMany({where:{id:{in:before.map(row=>row.id)}},orderBy:{id:'asc'}}),before);
+ await prisma.novelWorkflowTask.create({data:{id:'interrupted-opening',lane:'auto_director',title:'传输中断',pendingManualRecovery:true,lastError:'transport_error'}});
+ const failedOpening=await prisma.directorRunCommand.create({data:{id:'failed-opening',taskId:'interrupted-opening',commandType:'generate_candidates',idempotencyKey:'original',status:'failed',errorMessage:'transport_error',payloadJson:JSON.stringify({candidatesRequest:{idea:'保存的想法',model:'same-model'}})}});
+ const retried=await prepareOpeningRetry('interrupted-opening');const retryReplay=await prepareOpeningRetry('interrupted-opening');
+ assert.equal(retried.commandId,retryReplay.commandId);assert.notEqual(retried.commandId,failedOpening.id);
+ assert.deepEqual(await prisma.directorRunCommand.findUnique({where:{id:failedOpening.id}}),failedOpening);
+ const retryCommand=await prisma.directorRunCommand.findUniqueOrThrow({where:{id:retried.commandId}});
+ assert.equal(retryCommand.payloadJson,failedOpening.payloadJson);assert.equal(retryCommand.commandType,'generate_candidates');assert.equal(retryCommand.status,'queued');
+ assert.equal((await prisma.novelWorkflowTask.findUnique({where:{id:'interrupted-opening'}})).pendingManualRecovery,false);
+ await assert.rejects(prepareOpeningRetry('old-failed'),/小说导演台/);
+ await prisma.novelWorkflowTask.create({data:{id:'wrong-opening',lane:'auto_director',title:'不允许重试生产命令',pendingManualRecovery:true}});
+ await prisma.directorRunCommand.create({data:{taskId:'wrong-opening',commandType:'continue',idempotencyKey:'wrong',status:'failed'}});
+ await assert.rejects(prepareOpeningRetry('wrong-opening'),/没有可重试/);
+ await prisma.novelWorkflowTask.create({data:{id:'transport-failure',lane:'auto_director',title:'可见的开书失败'}});
+ await prisma.directorRunCommand.create({data:{id:'transport-command',taskId:'transport-failure',commandType:'generate_candidates',idempotencyKey:'transport',payloadJson:'{}'}});
+ const {DirectorCommandExecutor}=require(path.join(server,'dist/services/novel/director/commands/DirectorCommandExecutor'));
+ const originalExecute=DirectorCommandExecutor.prototype.execute;
+ try {DirectorCommandExecutor.prototype.execute=async()=>{throw Error('[STRUCTURED_OUTPUT:transport_error] interrupted');};await assert.rejects(executeOpeningCommand('transport-command'),/transport_error/);}
+ finally {DirectorCommandExecutor.prototype.execute=originalExecute;}
+ const visibleFailure=await prisma.novelWorkflowTask.findUnique({where:{id:'transport-failure'}});
+ assert.equal(visibleFailure.status,'failed');assert.equal(visibleFailure.pendingManualRecovery,true);assert.match(visibleFailure.lastError,/transport_error/);
  await prisma.$disconnect();
 })().catch(async e=>{console.error(e);await prisma.$disconnect();process.exitCode=1;});
 `);

@@ -24,6 +24,7 @@ import {
   confirmDirectorCandidate,
   generateDirectorIdeaInspirations,
   generateDirectorIdeaConstellationOptions,
+  retryOriginalDirectorOpening,
 } from "@/api/novelDirector";
 import { queryKeys } from "@/api/queryKeys";
 import { getStyleProfiles } from "@/api/styleEngine";
@@ -537,6 +538,10 @@ export function useAutoDirectorCreateController(input: UseAutoDirectorCreateCont
       const taskId = directorTask?.id || workflowTaskId;
       if (!taskId) {
         throw new Error("当前没有可继续的自动导演任务。");
+      }
+      if (!directorTask?.resumeTarget?.novelId) {
+        try { return await retryOriginalDirectorOpening(taskId); }
+        catch(error) { if ((error as {status?:number}).status !== 404) throw error; }
       }
       return continueNovelWorkflow(taskId, { continuationMode: "resume" });
     },

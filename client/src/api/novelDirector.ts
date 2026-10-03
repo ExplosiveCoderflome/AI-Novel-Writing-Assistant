@@ -32,6 +32,11 @@ import type {
 import { apiClient } from "./client";
 import type { DirectorIssuePolicy, DirectorIssuePolicyOverride } from "@ai-novel/shared/types/directorIssue";
 
+export async function retryOriginalDirectorOpening(taskId: string) {
+  const {data} = await apiClient.post<ApiResponse<DirectorCommandAcceptedResponse>>(`/novels/director/tasks/${encodeURIComponent(taskId)}/opening-retry`, {}, {silentErrorStatuses:[404]});
+  return data;
+}
+
 export interface NovelDirectorIssuePolicyResponse {
   effectivePolicy: DirectorIssuePolicy;
   override: DirectorIssuePolicyOverride | null;
