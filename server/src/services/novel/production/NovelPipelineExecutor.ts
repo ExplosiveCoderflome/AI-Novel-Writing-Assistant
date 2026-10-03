@@ -399,16 +399,21 @@ export class NovelPipelineExecutor {
           chapterCount: chapters.length,
         });
 
-        const isAutopilotMode = runtimePayload.controlPolicy?.advanceMode === "full_book_autopilot";
+        const isAutopilotMode = Boolean(runtimePayload.directorNext)
+          || runtimePayload.controlPolicy?.advanceMode === "full_book_autopilot";
         const autopilotTargetEndOrder = isAutopilotMode
           ? runtimePayload.directorNext ? options.endOrder : Math.max(options.endOrder, novel.estimatedChapterCount ?? options.endOrder)
           : options.endOrder;
-        let totalCount = isAutopilotMode
+        let totalCount = runtimePayload.directorNext
+          ? options.endOrder - options.startOrder + 1
+          : isAutopilotMode
           ? Math.max(1, autopilotTargetEndOrder - options.startOrder + 1)
           : Math.max(existingJob?.totalCount ?? 0, chapterCandidates.length, 1);
-        const storedCompleted = Math.min(Math.max(existingJob?.completedCount ?? 0, 0), totalCount);
+        const storedCompleted = runtimePayload.directorNext && runtimePayload.skipCompleted
+          ? 0
+          : Math.min(Math.max(existingJob?.completedCount ?? 0, 0), totalCount);
         const filteredCompletedCount = runtimePayload.skipCompleted
-          ? Math.max(0, totalCount - chapters.length)
+          ? chapterCandidates.length - chapters.length
           : 0;
         const remainingStartIndex = Math.min(
           Math.max(0, storedCompleted - filteredCompletedCount),
@@ -416,9 +421,51 @@ export class NovelPipelineExecutor {
         );
         let completed = Math.max(storedCompleted, filteredCompletedCount);
         const chaptersToProcess = chapters.slice(remainingStartIndex);
+        const closedOrders = new Set(chapterCandidates.filter(isCurrentChapterProductionCompleted).map(chapter => chapter.order));
         let pendingManualRecovery = false;
 
+        if (runtimePayload.directorNext) {
+          await this.updateJobRequired(jobId, {
+            totalCount, completedCount: completed,
+            progress: Number((completed / totalCount).toFixed(4)),
+          });
+        }
+
         const routeWindowService = new ChapterRouteWindowService();
+        const prepareRollingChapter = async (order: number, previous?: { id: string; order: number }, cached?: (typeof chapterCandidates)[number]) => {
+          await this.ensurePipelineNotCancelled(jobId);
+          try {
+            await routeWindowService.ensureRouteWindow(novelId, order, {
+              min: 3, target: 5,
+              provider: runtimePayload.provider, model: runtimePayload.model, temperature: runtimePayload.temperature,
+              taskId: runtimePayload.workflowTaskId ?? jobId,
+              completionProfile: buildDirectorCompletionProfile(autopilotTargetEndOrder),
+            });
+          } catch (error) {
+            throw new PipelineIssueFailure(`滚动规划未能准备第 ${order} 章，已保存正文会保留，请检查后继续。`,
+              "planning.route_window_unavailable", "route_window", previous?.id, previous?.order);
+          }
+          if (cached) return cached;
+          const prepared = await prisma.chapter.findFirst({
+            where: { novelId, order }, orderBy: { order: "asc" },
+            include: { artifactSyncCheckpoints: {
+              where: { artifactType: CHAPTER_ARTIFACT_BOUNDARY_TYPE, status: "succeeded" },
+              select: { contentHash: true, metadataJson: true }, orderBy: { updatedAt: "desc" }, take: 6,
+            } },
+          });
+          if (!prepared) {
+            throw new PipelineIssueFailure(`滚动规划未能准备第 ${order} 章，已保存正文会保留，请检查后继续。`,
+              "planning.route_window_unavailable", "route_window", previous?.id, previous?.order);
+          }
+          return prepared;
+        };
+        if (isAutopilotMode && runtimePayload.directorNext) {
+          let nextOrder = options.startOrder;
+          while (closedOrders.has(nextOrder)) nextOrder++;
+          if (nextOrder <= autopilotTargetEndOrder && chaptersToProcess[0]?.order !== nextOrder) {
+            chaptersToProcess.unshift(await prepareRollingChapter(nextOrder));
+          }
+        }
         if (isAutopilotMode) {
           await this.updateJobSafe(jobId, {
             endOrder: autopilotTargetEndOrder,
@@ -699,52 +746,14 @@ export class NovelPipelineExecutor {
 
           // Phase 3：同步补齐下一段章节路线；正文执行合同仍由下一章 JIT 独立生成。
           if (!shouldStopAfterCurrentChapter && isAutopilotMode && chapter.order < autopilotTargetEndOrder) {
-            try {
-              await routeWindowService.ensureRouteWindow(novelId, chapter.order + 1, {
-                min: 3,
-                target: 5,
-                provider: runtimePayload.provider,
-                model: runtimePayload.model,
-                temperature: runtimePayload.temperature,
-                taskId: runtimePayload.workflowTaskId ?? jobId,
-                completionProfile: buildDirectorCompletionProfile(autopilotTargetEndOrder),
-              });
-            } catch (error) {
-              throw new PipelineIssueFailure(
-                `滚动规划未能准备第 ${chapter.order + 1} 章，当前正文已安全保存，可从本章后恢复。`,
-                "planning.route_window_unavailable",
-                "route_window",
-                chapter.id,
-                chapter.order,
-              );
-            }
-            const queuedNextChapter = chaptersToProcess[chapterIndex + 1];
-            if (!queuedNextChapter) {
-              const persistedNextChapter = await prisma.chapter.findFirst({
-                where: {
-                  novelId,
-                  order: chapter.order + 1,
-                },
-                orderBy: { order: "asc" },
-                include: {
-                  artifactSyncCheckpoints: {
-                    where: { artifactType: CHAPTER_ARTIFACT_BOUNDARY_TYPE, status: "succeeded" },
-                    select: { contentHash: true, metadataJson: true },
-                    orderBy: { updatedAt: "desc" },
-                    take: 6,
-                  },
-                },
-              });
-              if (!persistedNextChapter) {
-                throw new PipelineIssueFailure(
-                  `滚动规划未能准备第 ${chapter.order + 1} 章，当前正文已安全保存，可从本章后恢复。`,
-                  "planning.route_window_unavailable",
-                  "route_window",
-                  chapter.id,
-                  chapter.order,
-                );
+            let nextOrder = chapter.order + 1;
+            if (runtimePayload.skipCompleted) while (closedOrders.has(nextOrder)) nextOrder++;
+            if (nextOrder <= autopilotTargetEndOrder) {
+              const cached = chaptersToProcess[chapterIndex + 1];
+              const prepared = await prepareRollingChapter(nextOrder, chapter, cached?.order === nextOrder ? cached : undefined);
+              if (cached?.order !== prepared.order) {
+                chaptersToProcess.splice(chapterIndex + 1, 0, prepared);
               }
-              chaptersToProcess.push(persistedNextChapter);
             }
           }
 
@@ -835,6 +844,7 @@ export class NovelPipelineExecutor {
         });
         await this.updateJobSafe(jobId, {
           status: finalStatus,
+          progress: 1,
           error: null,
           heartbeatAt: null,
           currentStage: null,

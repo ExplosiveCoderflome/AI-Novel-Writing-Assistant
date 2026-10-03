@@ -45,8 +45,12 @@ test('director autopilot never expands beyond its authorized range using mutable
  const {novelEventBus}=require('../../../dist/events');novelEventBus.emit=async()=>{};
  const updates=[];const state={id:'job',status:'running',cancelRequestedAt:null,completedCount:0,totalCount:1,payload:stringifyPipelinePayload({directorNext:{runId:'run',decisions:[]}})};
  prisma.generationJob.findUnique=async()=>state;prisma.generationJob.update=async input=>{updates.push(input.data);Object.assign(state,input.data);return state;};
- prisma.novel.findUnique=async()=>({id:'novel',title:'测试书',estimatedChapterCount:100});prisma.chapter.findMany=async()=>[];
+ const {buildChapterArtifactContentHash}=require('../../../dist/services/novel/runtime/artifactSync');
+ prisma.novel.findUnique=async()=>({id:'novel',title:'测试书',estimatedChapterCount:100});
+ prisma.chapter.findMany=async()=>[1,2,3].map(order=>({id:'chapter-'+order,novelId:'novel',order,content:'已闭合正文',generationState:'approved',
+  artifactSyncCheckpoints:[{contentHash:buildChapterArtifactContentHash('已闭合正文'),metadataJson:JSON.stringify({outcome:'completed'})}]}));
  const executor=new NovelPipelineExecutor({});
  await executor.execute('job','novel',{startOrder:1,endOrder:3,skipCompleted:true,controlPolicy:{kickoffMode:'director_start',advanceMode:'full_book_autopilot',reviewCheckpoints:[]}});
  assert.equal(updates.find(row=>row.endOrder!==undefined).endOrder,3);assert.equal(state.status,'succeeded');
+ assert.equal(state.completedCount,3);assert.equal(state.progress,1);
 });

@@ -184,6 +184,7 @@ Open-source AI novel writing assistant and long-form production studio.
 - 导演所属的正文作业可从运行记录返回小说导演台，恢复操作保留创作范围和运行归属。
 - 开书生成中断后，可在原页面恢复已过期的操作，保留设置并避免重复启动仍在运行的生成。
 - 小说导演生成单章达到用量上限时，保留已保存正文并暂停后续生成；恢复同一章继续累计用量，避免反复重试绕过限制。
+- 正文生成进度按已保存章节计算；中断后补齐尚未准备的后续章节，跳过已完成正文，所选章节范围也支持连续推进。
 
 完整历史更新见 [docs/releases/release-notes.md](./docs/releases/release-notes.md)。
 
