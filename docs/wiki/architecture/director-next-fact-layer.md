@@ -6,6 +6,12 @@
 
 ## Decision
 
+### Agent 入口与历史计划
+
+HTTP 冻结不能保护进程内工具调用。新导演启用时，应用层从 Agent 工具目录和 AI 规划上下文排除旧 Runtime 工具；工具注册表保留稳定执行包装，在执行前读取当前应用边界。这样已保存的计划和切换前缓存的工具定义也不能绕过切换。
+
+拒绝使用 `CONFLICT`，避免执行器自动重试旧动作。来源导航只查询旧任务的小说归属，不解析 Seed、不协调旧状态、不追加旧命令，也不把旧请求转换成新生成授权。创作范围和恢复由小说导演台负责。相关装配及单进程策略约束见 `server/src/app/director/entry/README.md`。
+
 新内核采用 `domain -> application ports -> infrastructure repositories` 的依赖方向。领域层只处理计划、控制态、停止信号和投影，不知道 Prisma、数据库时钟或随机 ID；应用层只定义事实访问端口；Prisma 实现集中在 `infrastructure/`。
 
 持久化事实分成六张独立表：

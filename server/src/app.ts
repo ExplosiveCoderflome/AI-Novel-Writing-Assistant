@@ -1,5 +1,6 @@
 import "dotenv/config";
 import { prisma } from "./db/prisma";
+import {configureDirectorAgentEntry} from "./app/director/entry/agentTools";
 import type { Server } from "node:http";
 import os from "node:os";
 import cors from "cors";
@@ -141,6 +142,7 @@ export function createApp() {
   app.use("/api", styleEngineRouter);
   app.use("/api", styleEngineExtractionRouter);
   app.use("/api/novels", novelRouter);
+  configureDirectorAgentEntry(parseEnvFlag(process.env.DIRECTOR_NEXT_ENABLED, false));
   if (parseEnvFlag(process.env.DIRECTOR_NEXT_ENABLED, false)) {
     const {creationStudioService} = require("./modules/novel/creation-studio/application/CreationStudioService") as typeof import("./modules/novel/creation-studio/application/CreationStudioService");
     const {launchNewDirectorBook} = require("./app/director/newBook") as typeof import("./app/director/newBook");

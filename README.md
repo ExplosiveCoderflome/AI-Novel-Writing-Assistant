@@ -193,6 +193,7 @@ Open-source AI novel writing assistant and long-form production studio.
 - 继续写作时可补齐尚未规划的后续章节；已有少量目录不会被误认为授权范围的路线已准备完成。
 - 正文生成中断后，等待原执行租约到期再继续同一批次，保留已完成章节，避免恢复后一直等待。
 - 自动恢复遵循本次创作保存的重试额度；反复中断达到上限后暂停，等待明确恢复，避免持续重复生成。
+- 启用小说导演台后，创作助手的历史导演操作会引导返回创作页面，避免从对话任务重新启动旧创作流程。
 
 完整历史更新见 [docs/releases/release-notes.md](./docs/releases/release-notes.md)。
 

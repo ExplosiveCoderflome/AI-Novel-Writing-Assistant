@@ -28,7 +28,13 @@ const {executeOpeningCommand,prepareOpeningRetry}=require(path.join(server,'dist
  await prisma.generationJob.create({data:{id:'owned-job',novelId:'existing',startOrder:1,endOrder:1,status:'queued',pendingManualRecovery:true,payload:JSON.stringify({directorNext:{runId:'test-run',decisions:[]}})}});
  await prisma.generationJob.create({data:{id:'old-owned-job',novelId:'existing',startOrder:2,endOrder:2,status:'queued',pendingManualRecovery:true,payload:JSON.stringify({workflowTaskId:'old-failed'})}});
  const jobsBefore=await prisma.generationJob.findMany({orderBy:{id:'asc'}});
+ const chaptersBefore=await prisma.chapter.findMany({where:{novelId:'existing'},orderBy:{id:'asc'}});
  try {
+  const {getAgentToolDefinition}=require(path.join(server,'dist/agents/toolRegistry'));
+  for(const tool of ['analyze_director_workspace','get_director_run_status','explain_director_next_action','run_director_next_step','run_director_until_gate','switch_director_policy','evaluate_manual_edit_impact']) {
+   await assert.rejects(getAgentToolDefinition(tool).execute({runId:'agent-test',agentName:'novel',contextMode:'novel'}, {taskId:'old-failed'}),error=>error.code==='CONFLICT' && error.message.includes('/lab/director/existing'));
+  }
+  assert.deepEqual(await prisma.chapter.findMany({where:{novelId:'existing'},orderBy:{id:'asc'}}),chaptersBefore);
   for(const route of ['/api/novel-workflows/old-failed/continue','/api/novel-workflows/old-failed/production-experience','/api/novel-workflows/old-failed/repair-chapter-titles','/api/tasks/novel_workflow/old-failed/retry','/api/tasks/novel_workflow/old-failed/cancel','/api/tasks/recovery-candidates/novel_workflow/old-failed/resume','/api/tasks/recovery-candidates/resume-all','/api/auto-director/follow-ups/old-failed/actions','/api/auto-director/channel-callbacks/dingtalk']) {
    const response=await fetch(base+route,{method:'POST',headers:{'Content-Type':'application/json'},body:'{}'});assert.equal(response.status,409,route);
   }
