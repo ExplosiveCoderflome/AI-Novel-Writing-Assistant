@@ -1,5 +1,5 @@
 import {prisma} from "../../db/prisma";
-import type {ExistingNovelAsset, RunContract} from "../../modules/director";
+import {isSavedVolumeChapterListComplete, type ExistingNovelAsset, type RunContract} from "../../modules/director";
 import {normalizeVolumeWorkspaceDocument} from "../../services/novel/volume/volumeWorkspaceDocument";
 import {isDecompositionComplete} from "../../services/novel/storyMacro/storyMacroPlanUtils";
 import {StoryMacroPlanService} from "../../services/novel/storyMacro/StoryMacroPlanService";
@@ -35,8 +35,8 @@ export async function readExistingAssets(contract: RunContract): Promise<Existin
     if (beats?.beats.length) add("volume_beat_sheet", beats, true, `volume_beat_sheet:${novelId}:${targetId}`);
     if (volume?.chapters.length) {
       const range = contract.chapterRange;
-      if (!range) add("volume_chapter_list", volume.chapters, true, `volume_chapter_list:${novelId}:${targetId}`);
-      else if (volume.chapters.some(chapter => chapter.chapterOrder === range.from)) {
+      if (!range && isSavedVolumeChapterListComplete(volume)) add("volume_chapter_list", volume.chapters, true, `volume_chapter_list:${novelId}:${targetId}`);
+      else if (range && volume.chapters.some(chapter => chapter.chapterOrder === range.from)) {
         const minimum = Math.min(3, range.to-range.from+1);
         const target = Math.min(5, range.to-range.from+1);
         const planned = workspace.volumes.flatMap(item => item.chapters);

@@ -29,13 +29,17 @@ export interface VolumeChapterListStepDependencies<Provider extends string, Docu
   contentHash: (content: unknown) => string;
 }
 
+/** Saved service status describes completeness; it is not a story-quality decision. */
+export function isSavedVolumeChapterListComplete(volume: {status: string; chapters: readonly unknown[]}): boolean {
+  const status = volume.status.trim();
+  return volume.chapters.length > 0 && status !== "chapter_list_partial" && !status.startsWith("chapter_list_partial:");
+}
+
 function requireCompleteList(document: ChapterListWorkspace, novelId: string, volumeId: string) {
   if (document.novelId !== novelId) throw new Error("拆章工作区不属于当前小说。");
   const volume = document.volumes.find(row => row.id === volumeId);
   if (!volume || volume.chapters.length === 0) throw new Error("目标卷没有可用的章节列表。");
-  // This is the persisted service status contract, not a judgment about story quality.
-  const status = volume.status.trim();
-  if (status === "chapter_list_partial" || status.startsWith("chapter_list_partial:")) {
+  if (!isSavedVolumeChapterListComplete(volume)) {
     throw new Error("目标卷章节列表尚未完整保存，不能登记为完成产物。");
   }
   return volume.chapters;
