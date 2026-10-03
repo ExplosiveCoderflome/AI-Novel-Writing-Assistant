@@ -11,6 +11,7 @@ const {createDirectorProductionOptions}=require(path.join(server,'dist/app/direc
 const {LegacyRunProjection}=require(path.join(server,'dist/modules/director/http'));
 const {readDirectorWorkspace}=require(path.join(server,'dist/app/director/workspace'));
 const {launchNewDirectorBook}=require(path.join(server,'dist/app/director/newBook'));
+const {executeOpeningCommand}=require(path.join(server,'dist/app/director/opening'));
 (async()=>{
  await ensureRuntimeDatabaseReady();
  await prisma.novel.create({data:{id:'existing',title:'验收小说'}});
@@ -49,6 +50,19 @@ const {launchNewDirectorBook}=require(path.join(server,'dist/app/director/newBoo
  assert.equal(created.novel.id,'director-book-confirmation');assert.equal(replayed.workflowTaskId,created.workflowTaskId);
  assert.equal(await prisma.directorNextRun.count({where:{novelId:created.novel.id}}),1);
  assert.equal(await prisma.novelWorkflowTask.count({where:{lane:'auto_director'}}),before.length);
+ await prisma.novelWorkflowTask.create({data:{id:'original-opening',lane:'auto_director',title:'原开书界面'}});
+ await prisma.directorRunCommand.create({data:{id:'original-confirm',taskId:'original-opening',commandType:'confirm_candidate',idempotencyKey:'confirm',payloadJson:JSON.stringify({confirmRequest:{...input,runMode:'stage_review',narrativePov:'first_person',pacePreference:'fast'}})}});
+ await executeOpeningCommand('original-confirm');await executeOpeningCommand('original-confirm');
+ const opening=await prisma.novelWorkflowTask.findUniqueOrThrow({where:{id:'original-opening'}});
+ assert.equal(opening.status,'succeeded');assert.equal(opening.novelId,'director-opening-book-original-opening');
+ assert.equal(JSON.parse(opening.resumeTargetJson).route,'/lab/director/:novelId');
+ assert.equal(await prisma.directorNextRun.count({where:{novelId:opening.novelId}}),1);
+ const originalNovel=await prisma.novel.findUniqueOrThrow({where:{id:opening.novelId}});
+ assert.equal(originalNovel.narrativePov,'first_person');assert.equal(originalNovel.pacePreference,'fast');
+ assert.equal((await prisma.directorRunCommand.findUniqueOrThrow({where:{id:'original-confirm'}})).status,'succeeded');
+ const originalContract=JSON.parse((await prisma.directorNextRun.findFirst({where:{novelId:opening.novelId}})).contractJson);
+ assert.equal(originalContract.driver,'assisted');assert.equal(originalContract.chapterRange,null);assert.ok(originalContract.launchInput.storyInput.includes('新书标题'));
+ assert.deepEqual(await prisma.novelWorkflowTask.findMany({where:{id:{in:before.map(row=>row.id)}},orderBy:{id:'asc'}}),before);
  await prisma.$disconnect();
 })().catch(async e=>{console.error(e);await prisma.$disconnect();process.exitCode=1;});
 `);

@@ -4,6 +4,7 @@ import {Router} from "express";
 export function createFrozenDirectorEntry(options: {findTaskNovelId?: (taskId: string) => Promise<string | null>} = {}) {
   const router = Router();
   const frozen = async (req: import("express").Request, res: import("express").Response, next: import("express").NextFunction) => {
+    if (res.locals.directorOpeningAllowed) return next();
     try {
       const novelId = typeof req.body?.payload?.novelId === "string" ? req.body.payload.novelId
         : req.params.taskId && options.findTaskNovelId ? await options.findTaskNovelId(String(req.params.taskId)) : null;

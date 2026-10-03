@@ -131,6 +131,8 @@ export function resumeTargetToRoute(target: NovelWorkflowResumeTarget | null | u
     return "/tasks";
   }
 
+  if (target.route === "/lab/director/:novelId") return `/lab/director/${encodeURIComponent(target.novelId)}`;
+
   if (target.route === "/novels/:id/story") {
     return `/novels/${target.novelId}/story`;
   }

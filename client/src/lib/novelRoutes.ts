@@ -49,6 +49,7 @@ export function getCandidateTaskNovelHref(
 }
 
 function getNovelResumeTargetHref(novelId: string, target: NovelWorkflowResumeTarget | null | undefined): string {
+  if (target?.route === "/lab/director/:novelId") return `/lab/director/${encodeURIComponent(novelId)}`;
   const root = `/novels/${encodeURIComponent(novelId)}`;
   if (target?.route === "/novels/:id/story") {
     return `${root}/story`;

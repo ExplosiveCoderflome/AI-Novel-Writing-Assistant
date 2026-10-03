@@ -151,6 +151,8 @@ export function createApp() {
   app.use("/api/creation-studio", creationStudioRouter);
   if (parseEnvFlag(process.env.DIRECTOR_NEXT_ENABLED, false)) {
     const {createFrozenDirectorEntry} = require("./app/director/entrySwitch") as typeof import("./app/director/entrySwitch");
+    const {createOriginalOpeningEntry} = require("./app/director/opening") as typeof import("./app/director/opening");
+    app.use("/api/novels/director", createOriginalOpeningEntry());
     app.use("/api/novels/director", createFrozenDirectorEntry({findTaskNovelId: async taskId => (await prisma.novelWorkflowTask.findUnique({where: {id: taskId}, select: {novelId: true}}))?.novelId ?? null}));
   }
   app.use("/api/novels/director", novelDirectorRouter);

@@ -176,7 +176,7 @@ Open-source AI novel writing assistant and long-form production studio.
 
 #### 修复
 
-- 长篇开书从创作入口选择方向后进入小说导演台；旧入口被拦截时提供可点击的创作入口，已有小说返回对应导演台。
+- 长篇开书保留原有设置和候选选择界面，确认方向后进入小说导演台；已有小说的旧操作提示提供对应创作入口。
 
 完整历史更新见 [docs/releases/release-notes.md](./docs/releases/release-notes.md)。
 

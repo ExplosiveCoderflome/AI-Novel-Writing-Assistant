@@ -18,6 +18,10 @@ test("candidate task routes live with novel navigation helpers", () => {
   assert.equal(readCandidateTaskId(new URLSearchParams("taskId=candidate+1")), "candidate 1");
 });
 
+test("original opening confirmation enters the new director through its explicit resume route",()=>{
+ assert.equal(routes.getCandidateTaskNovelHref({resumeTarget:{novelId:'book 1',route:'/lab/director/:novelId'},sourceResource:null}),'/lab/director/book%201');
+});
+
 test("novel list links use only novel identity for each writing experience", () => {
   assert.equal(getNovelWorkspaceHref({ id: "book 1", narrativeForm: "novel", creationExperience: "professional", latestAutoDirectorTask: { id: "old" } }), "/novels/book%201/edit");
   assert.equal(getNovelWorkspaceHref({ id: "simple", narrativeForm: "novel", creationExperience: "simple" }), "/novels/simple/simple");
