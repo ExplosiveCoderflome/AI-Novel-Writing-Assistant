@@ -25,6 +25,8 @@
 
 建书成功后，持久化的 `/lab/director/:novelId` 路由是任务详情、运行记录和开书页导航的共同来源。开书候选历史仍保存在 seed 中，它表示已发生的候选操作，不表示任务仍处于候选选择。读取投影若依据这些历史标记覆盖交接路由，会出现“书和新导演运行已创建，但页面仍返回开书”的故障。排查时必须检查实际任务详情响应，而非只检查数据库字段；回归应覆盖保留候选历史的已交接任务和未确认候选任务两种情况。
 
+打开带 taskId 的开书链接只读取 `/tasks/novel_workflow/:id`，不能调用工作流 bootstrap。bootstrap 是创建或启动工作流的写入口；小说关联后它必须被入口冻结规则拒绝。若用它恢复页面，就会在正确冻结旧引擎的同时阻断新导演导航。新建开书仍可调用 bootstrap，读取已有记录与创建记录必须分开。详情返回新导演来源后，页面替换导航到对应小说导演台；未确认的记录保留在候选页。
+
 ## 相关模块
 
 `server/src/llm/structuredInvoke.ts`、`server/src/app/director/opening/`、`client/src/pages/novels/autoDirector/useAutoDirectorCreateController.ts`。这些规则作用于建书前候选，不改变小说章节的质量策略和新导演恢复协议。

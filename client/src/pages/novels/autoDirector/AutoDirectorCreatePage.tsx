@@ -15,6 +15,7 @@ import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { flattenGenreTreeOptions, getGenreTree } from "@/api/genre";
 import { flattenStoryModeTreeOptions, getStoryModeTree } from "@/api/storyMode";
 import { bootstrapNovelWorkflow } from "@/api/novelWorkflow";
+import { getTaskDetail } from "@/api/tasks";
 import { setNovelCreationExperience } from "@/api/novel";
 import { queryKeys } from "@/api/queryKeys";
 import { getWorldList } from "@/api/world";
@@ -319,10 +320,7 @@ function AutoDirectorCreatePage() {
   };
 
   const restoreWorkflowMutation = useMutation({
-    mutationFn: () => bootstrapNovelWorkflow({
-      workflowTaskId: normalizedTaskId || undefined,
-      lane: "auto_director",
-    }),
+    mutationFn: () => getTaskDetail("novel_workflow", normalizedTaskId),
     onSuccess: (response) => {
       const task = response.data ?? null;
       setRestoredWorkflowTask(task);
