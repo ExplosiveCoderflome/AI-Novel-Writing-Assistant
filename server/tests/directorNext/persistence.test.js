@@ -110,6 +110,23 @@ const contract = {
   assert.equal(await worker.tick(), false);
   assert.equal(attempts, 1, 'an integrity fault must not consume the model retry budget');
   assert.deepEqual(await db.directorNextArtifact.findUniqueOrThrow({where: {id: 'invalid-status'}}), invalidBefore);
+  const {ProjectionService, RecordProjection} = require(path.join(serverRoot, 'dist/modules/director/application'));
+  const {definePlan} = require(path.join(serverRoot, 'dist/modules/director/domain'));
+  const projection = new ProjectionService({factsLoader, planRegistry: {get: () => definePlan({version: 'p1', externalArtifacts: [], steps: []})}});
+  const records = new RecordProjection({projectionService: projection, runRepository: runs});
+  async function savedFacts() {
+    return Promise.all([db.directorNextRun.findMany(), db.directorNextRunControl.findMany(), db.directorNextArtifact.findMany(),
+      db.directorNextQualityDebt.findMany(), db.directorNextEvent.findMany(), db.directorNextCommand.findMany()]);
+  }
+  const beforeRead = await savedFacts();
+  const diagnostic = await records.get('invalid-run');
+  assert.equal(diagnostic.statusLabel, '暂停中');
+  assert.equal(diagnostic.progressLabel, '创作进度暂时无法读取');
+  assert.equal(diagnostic.sourceRoute, '/lab/director/invalid-book');
+  assert.equal(Object.hasOwn(diagnostic, 'availableActions'), false);
+  assert.equal((await records.get('run-2')).progressLabel, '0/0 个阶段完成');
+  await assert.rejects(projection.get('invalid-run'), error => error.name === 'InvalidArtifactStatusError');
+  assert.deepEqual(await savedFacts(), beforeRead, 'diagnostic history must not repair, finalize or change any persisted fact');
   await db.$disconnect();
 })().catch(async (error) => {
   console.error(error);

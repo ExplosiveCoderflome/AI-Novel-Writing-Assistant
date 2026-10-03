@@ -111,3 +111,56 @@ test("read-only records expose labels and a stable novel route without commands"
     assert.equal(Object.hasOwn(record, "sourceTrace"), false);
   });
 });
+
+test("unreadable facts or plans remain read-only records without hiding healthy books or inventing progress", async () => {
+  const {FactIntegrityError} = require('../../../dist/modules/director/domain');
+  const {UnknownPlanVersionError} = require('../../../dist/modules/director/application');
+  const saved = {contract: {runId: 'damaged', novelId: 'book/中文?x=1'},
+    control: {status: 'paused', version: 4, pause: {kind: 'safety', reason: '保存结果需要检查'}}};
+  const before = JSON.stringify(saved);
+  const normal = deps().projectionService;
+  for (const failure of [new FactIntegrityError('invalid persisted artifact'), new UnknownPlanVersionError('unavailable')]) {
+   await withServer(deps({projectionService: {get: async id => {
+    if (id === 'damaged') throw failure;
+    return normal.get(id);
+  }}, runRepository: {listRunIds: async () => ['damaged','run-1'],
+    getContract: async id => id === 'damaged' ? saved.contract : null,
+    getControl: async id => id === 'damaged' ? saved.control : null}}), async url => {
+    const response = await fetch(`${url}/api/director-next/records?needsAttention=true`);
+    assert.equal(response.status, 200);
+    const records = (await response.json()).data;
+    assert.equal(records.length, 2);
+    const damaged = records[0];
+    assert.equal(damaged.runId, 'damaged');
+    assert.equal(damaged.statusLabel, '暂停中');
+    assert.equal(damaged.detail, saved.control.pause.reason);
+    assert.equal(damaged.progressLabel, '创作进度暂时无法读取');
+    assert.equal(damaged.sourceRoute, `/lab/director/${encodeURIComponent(saved.contract.novelId)}`);
+    assert.equal(damaged.directorRoute, damaged.sourceRoute);
+    assert.equal(Object.hasOwn(damaged, 'availableActions'), false);
+    assert.equal(Object.hasOwn(damaged, 'progress'), false);
+    assert.equal(records[1].progressLabel, '1/4 个阶段完成');
+   });
+  }
+  assert.equal(JSON.stringify(saved), before);
+});
+
+test("record diagnostics cannot invent a missing identity or hide unrelated failures", async () => {
+  const {RecordProjection, UnknownPlanVersionError} = require('../../../dist/modules/director/application');
+  const {FactIntegrityError} = require('../../../dist/modules/director/domain');
+  for (const [failure, savedContract, savedControl, expectedReads] of [
+    [new Error('invalid persisted artifact'), {novelId:'book'}, {status:'paused'}, 0],
+    [new FactIntegrityError('bad'), null, {status:'paused'}, 2],
+    [new UnknownPlanVersionError('missing'), {novelId:'book'}, null, 2],
+    [new FactIntegrityError('bad'), {novelId:'book'}, {status:'invalid_status'}, 2],
+    [new FactIntegrityError('bad'), {runId:'run',novelId:'book'}, {status:'constructor'}, 2],
+    [new FactIntegrityError('bad'), {runId:'another',novelId:'book'}, {status:'paused'}, 2],
+  ]) {
+    let reads = 0;
+    const service = new RecordProjection({projectionService: {get: async () => {throw failure;}},
+      runRepository: {getContract: async () => {reads++; return savedContract;},
+        getControl: async () => {reads++; return savedControl;}}});
+    await assert.rejects(service.get('run'), error => error === failure);
+    assert.equal(reads, expectedReads);
+  }
+});

@@ -1,12 +1,12 @@
 import { Router, type NextFunction, type Request, type Response } from "express";
 import { z } from "zod";
-import { DirectorRunNotFoundError, type CommandService, type DirectorCommand, type EventLog, type ProjectionService, type RunRepository } from "../application";
+import { DirectorRunNotFoundError, RecordProjection, type CommandService, type DirectorCommand, type EventLog, type ProjectionService, type RunRepository } from "../application";
 import type {LegacyRunProjection} from "../legacy";
 
 export interface DirectorNextHttpDeps {
   commandService: Pick<CommandService, "execute">;
   projectionService: Pick<ProjectionService, "get">;
-  runRepository: Pick<RunRepository, "findActiveRunIdByNovel" | "listRunIds">;
+  runRepository: Pick<RunRepository, "findActiveRunIdByNovel" | "listRunIds" | "getContract" | "getControl">;
   eventLog: Pick<EventLog, "list">;
   legacyProjection?: Pick<LegacyRunProjection, "list">;
   readWorkspace?: (novelId: string) => Promise<unknown>;
@@ -92,6 +92,7 @@ function asyncRoute(
 
 export function createDirectorNextRouter(deps: DirectorNextHttpDeps): Router {
   const router = Router();
+  const records = new RecordProjection({projectionService: deps.projectionService, runRepository: deps.runRepository});
   router.get("/novels/:novelId/workspace",asyncRoute(async(req,res)=>{
     const id=nonEmpty.safeParse(req.params.novelId);
     if (!id.success) {sendValidationError(res,id.error);return;}
@@ -175,15 +176,7 @@ export function createDirectorNextRouter(deps: DirectorNextHttpDeps): Router {
     const parsed = querySchema.safeParse(req.query);
     if (!parsed.success) { sendValidationError(res, parsed.error); return; }
     const runIds = await deps.runRepository.listRunIds(parsed.data);
-    const labels = { queued: "等待开始", running: "推进中", waiting_gate: "等待确认", paused: "暂停中", completed: "已完成", failed: "中断", cancelled: "已取消" };
-    const data = await Promise.all(runIds.map(async (runId) => {
-      const view = await deps.projectionService.get(runId);
-      return {
-        runId, novelId: view.novelId, statusLabel: labels[view.mode], headline: view.headline,
-        detail: view.detail, progressLabel: `${view.progress.done}/${view.progress.total} 个阶段完成`,
-        sourceRoute: view.sourceRoute, directorRoute: `/lab/director/${encodeURIComponent(view.novelId)}`,
-      };
-    }));
+    const data = await Promise.all(runIds.map(runId => records.get(runId)));
     res.json({ success: true, data });
   }));
 
