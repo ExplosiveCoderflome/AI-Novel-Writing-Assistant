@@ -18,7 +18,7 @@ export type StatusFilter = "all" | "draft" | "published";
 export type WritingModeFilter = "all" | "original" | "continuation";
 export type NovelListTone = "neutral" | "info" | "success" | "warning" | "danger";
 
-export const DIRECTOR_CREATE_LINK = "/novels/auto-director";
+export const DIRECTOR_CREATE_LINK = featureFlags.creationStudioEnabled ? "/create?form=long_novel" : "/novels/auto-director";
 export const REFERENCE_CREATE_LINK = "/novels/auto-director?start=reference";
 export const SHORT_STORY_CREATE_LINK = featureFlags.creationStudioEnabled
   ? "/create?form=short_story"

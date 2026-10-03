@@ -174,6 +174,10 @@ Open-source AI novel writing assistant and long-form production studio.
 - 明确要求重新规划的创作需先保存调整后的路线再继续；取消创作会通知对应正文作业停止。
 - 小说导演台采用紧凑标题栏；目录、正文和导演台之间可拖动调整宽度，刷新保留偏好，双击分隔线恢复默认。
 
+#### 修复
+
+- 长篇开书从创作入口选择方向后进入小说导演台；旧入口被拦截时提供可点击的创作入口，已有小说返回对应导演台。
+
 完整历史更新见 [docs/releases/release-notes.md](./docs/releases/release-notes.md)。
 
 ## 功能预览

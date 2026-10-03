@@ -1,4 +1,5 @@
 import "dotenv/config";
+import { prisma } from "./db/prisma";
 import type { Server } from "node:http";
 import os from "node:os";
 import cors from "cors";
@@ -150,7 +151,7 @@ export function createApp() {
   app.use("/api/creation-studio", creationStudioRouter);
   if (parseEnvFlag(process.env.DIRECTOR_NEXT_ENABLED, false)) {
     const {createFrozenDirectorEntry} = require("./app/director/entrySwitch") as typeof import("./app/director/entrySwitch");
-    app.use("/api/novels/director", createFrozenDirectorEntry());
+    app.use("/api/novels/director", createFrozenDirectorEntry({findTaskNovelId: async taskId => (await prisma.novelWorkflowTask.findUnique({where: {id: taskId}, select: {novelId: true}}))?.novelId ?? null}));
   }
   app.use("/api/novels/director", novelDirectorRouter);
   app.use("/api/novels/director/creative-carryover-contracts", creativeCarryoverContractsRouter);
