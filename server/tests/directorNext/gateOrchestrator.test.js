@@ -30,3 +30,11 @@ test('missing prerequisites pause and out-of-scope products do not open gates',(
  assert.equal(next().pause.reason,'no_runnable_step');
  const result=createGateOrchestrator().next({plan,contract:contract({driver:'assisted',stepIdsInScope:[]}),facts:facts([artifact('story_macro')])});assert.equal(result.kind,'complete');
 });
+
+
+test('assisted scoped work cannot consume an unconfirmed upstream artifact outside its scope',()=>{
+ const runContract=contract({driver:'assisted',stepIdsInScope:['character_cast']});
+ const input={plan,contract:runContract,facts:facts([artifact('story_macro')])};
+ assert.deepEqual(createGateOrchestrator().next(input),{kind:'pause',pause:{kind:'manual_recovery',reason:'no_runnable_step'}});
+ assert.deepEqual(createGateOrchestrator().next({...input,facts:facts([artifact('story_macro',{status:'confirmed'})])}),{kind:'run_step',stepId:'character_cast'});
+});
