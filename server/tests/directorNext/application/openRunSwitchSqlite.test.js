@@ -90,6 +90,16 @@ const {executeOpeningCommand,prepareOpeningRetry}=require(path.join(server,'dist
  const opening=await prisma.novelWorkflowTask.findUniqueOrThrow({where:{id:'original-opening'}});
  assert.equal(opening.status,'succeeded');assert.equal(opening.novelId,'director-opening-book-original-opening');
  assert.equal(JSON.parse(opening.resumeTargetJson).route,'/lab/director/:novelId');
+ const {NovelWorkflowTaskAdapter:OpeningTaskAdapter}=require(path.join(server,'dist/services/task/adapters/NovelWorkflowTaskAdapter'));
+ const openingDetail=await new OpeningTaskAdapter().detail('original-opening');
+ assert.equal(openingDetail.displayStatus,'开书方向已确认');
+ assert.equal(openingDetail.executionScopeLabel,'开书准备');
+ assert.equal(openingDetail.nextActionLabel,'打开小说导演台');
+ assert.deepEqual(openingDetail.steps.map(step=>step.key),['opening_complete']);
+ assert.equal(openingDetail.steps[0].status,'succeeded');
+ assert.equal(await prisma.generationJob.count({where:{novelId:opening.novelId}}),0);
+ assert.deepEqual(await prisma.novelWorkflowTask.findUniqueOrThrow({where:{id:opening.id}}),opening);
+
  assert.equal(await prisma.directorNextRun.count({where:{novelId:opening.novelId}}),1);
  const originalNovel=await prisma.novel.findUniqueOrThrow({where:{id:opening.novelId}});
  assert.equal(originalNovel.narrativePov,'first_person');assert.equal(originalNovel.pacePreference,'fast');

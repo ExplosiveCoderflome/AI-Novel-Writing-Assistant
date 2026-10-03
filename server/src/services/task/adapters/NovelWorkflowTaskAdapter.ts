@@ -183,6 +183,18 @@ export function normalizeWorkflowResumeTargetForCandidateSelection(input: {
   return buildNovelCreateResumeTarget(input.id, "director");
 }
 
+function isCompletedOpeningHandoff(row: {
+  lane: string;
+  status: string;
+  currentItemKey: string | null;
+  resumeTargetJson: string | null;
+}): boolean {
+  const target = parseResumeTarget(row.resumeTargetJson);
+  return row.lane === "auto_director" && row.status === "succeeded"
+    && row.currentItemKey === "opening_complete"
+    && target?.route === "/lab/director/:novelId" && Boolean(target.novelId?.trim());
+}
+
 function mapSummary(row: {
   id: string;
   title: string;
@@ -211,6 +223,7 @@ function mapSummary(row: {
   novel?: { title: string } | null;
   seedPayloadJson?: string | null;
 }): UnifiedTaskSummary {
+  const completedOpening = isCompletedOpeningHandoff(row);
   const pendingManualRecovery = Boolean(row.pendingManualRecovery);
   const status = (pendingManualRecovery && (row.status === "queued" || row.status === "running")
     ? "queued"
@@ -285,11 +298,11 @@ function mapSummary(row: {
     status,
     pendingManualRecovery,
     progress: row.progress,
-    currentStage: row.currentStage,
+    currentStage: completedOpening ? "开书准备" : row.currentStage,
     currentItemKey: row.currentItemKey,
     currentItemLabel: row.currentItemLabel,
-    executionScopeLabel: autoExecution?.scopeLabel?.trim() || null,
-    displayStatus: explainability.displayStatus,
+    executionScopeLabel: completedOpening ? "开书准备" : autoExecution?.scopeLabel?.trim() || null,
+    displayStatus: completedOpening ? "开书方向已确认" : explainability.displayStatus,
     blockingReason,
     resumeAction: explainability.resumeAction,
     lastHealthyStage: explainability.lastHealthyStage,
@@ -305,7 +318,7 @@ function mapSummary(row: {
     checkpointType,
     checkpointSummary,
     resumeTarget,
-    nextActionLabel: buildNovelWorkflowNextActionLabel(
+    nextActionLabel: completedOpening ? "打开小说导演台" : buildNovelWorkflowNextActionLabel(
       status,
       checkpointType,
       autoExecution?.scopeLabel ?? null,
@@ -478,7 +491,10 @@ export class NovelWorkflowTaskAdapter {
         milestones,
         cancelRequestedAt: row.cancelRequestedAt?.toISOString() ?? null,
       },
-      steps: buildNovelWorkflowDetailSteps({
+      steps: isCompletedOpeningHandoff(row) ? [{
+        key: "opening_complete", label: "确认开书方向", status: "succeeded",
+        startedAt: row.startedAt?.toISOString() ?? null, updatedAt: summary.updatedAt,
+      }] : buildNovelWorkflowDetailSteps({
         lane: row.lane,
         novelId: row.novelId,
         status: summary.status,

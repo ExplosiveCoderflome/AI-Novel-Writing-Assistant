@@ -5,6 +5,21 @@ require("../dist/app.js");
 const { NovelWorkflowTaskAdapter } = require("../dist/services/task/adapters/NovelWorkflowTaskAdapter.js");
 const { prisma } = require("../dist/db/prisma.js");
 
+// These adapter tests isolate workflow projections, including their read-only archive lookup.
+const originalArchiveReads = {
+  findUnique: prisma.taskCenterArchive.findUnique,
+  findMany: prisma.taskCenterArchive.findMany,
+};
+test.before(() => {
+  prisma.taskCenterArchive.findUnique = async () => null;
+  prisma.taskCenterArchive.findMany = async () => [];
+});
+test.after(() => {
+  prisma.taskCenterArchive.findUnique = originalArchiveReads.findUnique;
+  prisma.taskCenterArchive.findMany = originalArchiveReads.findMany;
+});
+
+
 test("task detail exposes candidate-stage bound model before directorInput exists", async () => {
   const originals = {
     findUnique: prisma.novelWorkflowTask.findUnique,
