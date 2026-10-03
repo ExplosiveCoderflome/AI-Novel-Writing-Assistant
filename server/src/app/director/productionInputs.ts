@@ -33,7 +33,7 @@ export async function bookContractInput(context: StepContext, macroService: Stor
       whyItFits: "", toneKeywords: [], targetChapterCount: input.estimatedChapterCount}};
 }
 
-export function targetVolume(context: Pick<StepContext,"contract">, workspace: VolumePlanDocument): string {
+export function findTargetVolume(context: Pick<StepContext,"contract">, workspace: VolumePlanDocument): string | null {
   const input = requireLaunch(context.contract);
   if (input.targetVolumeId) {
     if (!workspace.volumes.some(volume => volume.id === input.targetVolumeId)) throw new Error("指定卷不属于当前小说。");
@@ -48,7 +48,13 @@ export function targetVolume(context: Pick<StepContext,"contract">, workspace: V
     const opening = [...workspace.volumes].sort((a,b) => a.sortOrder-b.sortOrder)[0];
     if (opening) return opening.id;
   }
-  throw new Error("授权章节尚未对应到卷，请先准备目标卷路线。");
+  return null;
+}
+
+export function targetVolume(context: Pick<StepContext,"contract">, workspace: VolumePlanDocument): string {
+  const target = findTargetVolume(context, workspace);
+  if (!target) throw new Error("授权章节尚未对应到卷，请先准备目标卷路线。");
+  return target;
 }
 export function executionWindow(context: StepContext, workspace: VolumePlanDocument) {
   const range = context.contract.chapterRange;

@@ -75,3 +75,17 @@ test('registered opening production defers future volume skeletons but planning 
   assert.equal(calls.find(call=>call.scope==='skeleton').skeletonVolumeCount,undefined);
  } finally {NovelVolumeService.prototype.generateVolumes=originals.generate;NovelVolumeService.prototype.updateVolumes=originals.save;}
 });
+
+
+test('next batch prepares missing future routes before resolving its volume and reuses saved beats',async()=>{
+ const {NovelVolumeService}=require('../../../dist/services/novel/volume/NovelVolumeService');
+ const {ChapterRouteWindowService}=require('../../../dist/services/novel/planning/ChapterRouteWindowService');
+ const originals={read:NovelVolumeService.prototype.getVolumes,generate:NovelVolumeService.prototype.generateVolumes,window:ChapterRouteWindowService.prototype.ensureRouteWindow};
+ let workspace={novelId:'novel',volumes:[{id:'v1',sortOrder:1,chapters:[{chapterOrder:1}]}],beatSheets:[]};const calls=[];
+ NovelVolumeService.prototype.getVolumes=async()=>workspace;
+ NovelVolumeService.prototype.generateVolumes=async()=>{throw Error('prepared beats must not be regenerated');};
+ ChapterRouteWindowService.prototype.ensureRouteWindow=async(...args)=>{calls.push(args);workspace={...workspace,volumes:[...workspace.volumes,{id:'v2',sortOrder:2,chapters:[11,12,13].map(chapterOrder=>({chapterOrder}))}],beatSheets:[{volumeId:'v2',beats:[{key:'continuation'}]}]};return {availableRouteCount:3,extended:true};};
+ const next=options.contractFactory({runId:'next',novelId:'novel',driver:'auto',stepIdsInScope:null,launchInput:{...launchInput,estimatedChapterCount:30,executionRange:{from:11,to:13}}});
+ try {const result=await options.stepRegistry.get('volume_beat_sheet')({runId:'next',contract:next});assert.equal(result.artifact.contentRef,'volume_beat_sheet:novel:v2');assert.equal(calls.length,1);assert.equal(calls[0][1],11);assert.equal(calls[0][2].completionProfile.targetChapterCount,30);assert.equal(calls[0][2].model,'snapshot-model');}
+ finally {NovelVolumeService.prototype.getVolumes=originals.read;NovelVolumeService.prototype.generateVolumes=originals.generate;ChapterRouteWindowService.prototype.ensureRouteWindow=originals.window;}
+});

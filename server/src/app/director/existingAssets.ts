@@ -3,7 +3,7 @@ import type {ExistingNovelAsset, RunContract} from "../../modules/director";
 import {normalizeVolumeWorkspaceDocument} from "../../services/novel/volume/volumeWorkspaceDocument";
 import {isDecompositionComplete} from "../../services/novel/storyMacro/storyMacroPlanUtils";
 import {StoryMacroPlanService} from "../../services/novel/storyMacro/StoryMacroPlanService";
-import {targetVolume} from "./productionInputs";
+import {findTargetVolume} from "./productionInputs";
 
 /** Read-only takeover inventory; getVolumes is intentionally avoided because it can persist compatibility state. */
 export async function readExistingAssets(contract: RunContract): Promise<ExistingNovelAsset[]> {
@@ -29,11 +29,28 @@ export async function readExistingAssets(contract: RunContract): Promise<Existin
     const workspace = normalizeVolumeWorkspaceDocument(novelId, version.contentJson, {activeVersionId: version.id});
     if (!workspace) throw new Error("已保存的卷规划无法读取，请先在规划页核对。");
     if (workspace.volumes.length) add("volume_strategy", workspace);
-    const targetId = workspace.volumes.length ? targetVolume({contract},workspace) : undefined;
+    const targetId = workspace.volumes.length ? findTargetVolume({contract},workspace) : undefined;
     const volume = workspace.volumes.find(item => item.id === targetId);
     const beats = workspace.beatSheets.find(item => item.volumeId === targetId);
     if (beats?.beats.length) add("volume_beat_sheet", beats, true, `volume_beat_sheet:${novelId}:${targetId}`);
-    if (volume?.chapters.length) add("volume_chapter_list", volume.chapters, true, `volume_chapter_list:${novelId}:${targetId}`);
+    if (volume?.chapters.length) {
+      const range = contract.chapterRange;
+      if (!range) add("volume_chapter_list", volume.chapters, true, `volume_chapter_list:${novelId}:${targetId}`);
+      else if (volume.chapters.some(chapter => chapter.chapterOrder === range.from)) {
+        const minimum = Math.min(3, range.to-range.from+1);
+        const target = Math.min(5, range.to-range.from+1);
+        const planned = workspace.volumes.flatMap(item => item.chapters);
+        const routes: typeof planned = [];
+        let unique = true;
+        for (let order = range.from; order < range.from+target; order++) {
+          const matches = planned.filter(chapter => chapter.chapterOrder === order);
+          if (matches.length > 1) {unique = false; break;}
+          if (!matches.length) break;
+          routes.push(matches[0]);
+        }
+        if (unique && routes.length >= minimum) add("volume_chapter_list", routes, true, `volume_chapter_list:${novelId}:${targetId}`);
+      }
+    }
     const from = contract.chapterRange?.from;
     if (from) {
       const planned = workspace.volumes.flatMap(item => item.chapters).filter(item => item.chapterOrder === from);

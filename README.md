@@ -190,6 +190,7 @@ Open-source AI novel writing assistant and long-form production studio.
 - 小说导演生成单章达到用量上限时，保留已保存正文并暂停后续生成；恢复同一章继续累计用量，避免反复重试绕过限制。
 - 正文生成进度按已保存章节计算；中断后补齐尚未准备的后续章节，跳过已完成正文，所选章节范围也支持连续推进。
 - 授权正文生成后先准备连续的近期章节路线，开篇远期卷规划随写作推进补齐；较远章节不会掩盖起始章的规划缺口。
+- 继续写作时可补齐尚未规划的后续章节；已有少量目录不会被误认为授权范围的路线已准备完成。
 
 完整历史更新见 [docs/releases/release-notes.md](./docs/releases/release-notes.md)。
 

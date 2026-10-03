@@ -13,6 +13,7 @@ export interface VolumeBeatSheetStepInput<Provider extends string, Document exte
   model?: string;
   temperature?: number;
   guidance?: string;
+  reuseSaved?: boolean;
 }
 
 export interface VolumeBeatSheetStepDependencies<Provider extends string, Document extends BeatSheetWorkspace> {
@@ -47,6 +48,12 @@ export function createVolumeBeatSheetStepHandler<Provider extends string, Docume
     if (input.workspace.novelId !== novelId) throw new Error("节奏板工作区不属于当前小说。");
     if (!input.workspace.volumes.some(volume => volume.id === input.targetVolumeId)) {
       throw new Error("缺少待生成节奏板的目标卷。");
+    }
+    if (input.reuseSaved) {
+      const sheet = requireTargetSheet(input.workspace, novelId, input.targetVolumeId);
+      return {artifact: {scope: context.contract.scope, status: "draft", protectedUserContent: false,
+        contentRef: 'volume_beat_sheet:'+novelId+':'+input.targetVolumeId,
+        contentHash: dependencies.contentHash(sheet)}};
     }
     const generated = await dependencies.volumeService.generateVolumes(novelId, {
       scope: "beat_sheet",

@@ -54,6 +54,44 @@ const {executeOpeningCommand,prepareOpeningRetry}=require(path.join(server,'dist
   assert.deepEqual(await prisma.generationJob.findMany({orderBy:{id:'asc'}}),jobsBefore);
   assert.equal(await prisma.directorRunCommand.count(),oldCommands);
  }finally{await new Promise(resolve=>http.close(resolve));}
+
+ await prisma.novel.create({data:{id:'future-batch',title:'分批续写'}});
+ const {buildVolumeWorkspaceDocument}=require(path.join(server,'dist/services/novel/volume/volumeWorkspaceDocument'));
+ const futureWorkspace=buildVolumeWorkspaceDocument({novelId:'future-batch',volumes:[{id:'only-first',novelId:'future-batch',sortOrder:1,title:'第一卷',chapters:[],openPayoffs:[],status:'active',createdAt:new Date().toISOString(),updatedAt:new Date().toISOString()}],beatSheets:[],rebalanceDecisions:[],strategyPlan:null});
+ const savedFuture=await prisma.volumePlanVersion.create({data:{novelId:'future-batch',version:1,status:'active',contentJson:JSON.stringify(futureWorkspace)}});
+ const {readExistingAssets}=require(path.join(server,'dist/app/director/existingAssets'));
+ const futureOptions=createDirectorProductionOptions();
+ const futureInput={storyInput:'续写',estimatedChapterCount:30,worldMode:'skip',targetMode:'opening',provider:'openai',model:'test-no-invocation',executionRange:{from:11,to:13}};
+ const futureContract=futureOptions.contractFactory({runId:'future-prep',novelId:'future-batch',driver:'auto',stepIdsInScope:null,launchInput:futureInput});
+ const assetsFuture=await readExistingAssets(futureContract);
+ assert.ok(assetsFuture.some(asset=>asset.type==='volume_strategy'));
+ assert.equal(assetsFuture.some(asset=>['volume_beat_sheet','volume_chapter_list'].includes(asset.type)),false);
+ assert.deepEqual(await prisma.volumePlanVersion.findUniqueOrThrow({where:{id:savedFuture.id}}),savedFuture);
+ const futureServices=createDirectorNextServices(futureOptions);
+ const futureOpened=await futureServices.http.commandService.execute({type:'open_run',novelId:'future-batch',driver:'auto',stepIdsInScope:null,launchInput:futureInput,idempotencyKey:'future-open'});
+ assert.equal((await prisma.directorNextRunControl.findUniqueOrThrow({where:{runId:futureOpened.runId}})).status,'queued');
+ assert.equal(await prisma.generationJob.count({where:{novelId:'future-batch'}}),0);
+ await futureServices.http.commandService.execute({type:'cancel',runId:futureOpened.runId,expectedVersion:0,idempotencyKey:'future-cancel-before-worker'});
+ await prisma.novel.create({data:{id:'partial-batch',title:'近期路线缺口'}});
+ const partialWorkspace=buildVolumeWorkspaceDocument({novelId:'partial-batch',volumes:[{...futureWorkspace.volumes[0],id:'partial-volume',novelId:'partial-batch',chapters:[{id:'one-route',chapterOrder:1,title:'第一章',summary:'已保存的路线'}]}],beatSheets:[],rebalanceDecisions:[],strategyPlan:null});
+ const partialSaved=await prisma.volumePlanVersion.create({data:{novelId:'partial-batch',version:1,status:'active',contentJson:JSON.stringify(partialWorkspace)}});
+ const partialContract=futureOptions.contractFactory({runId:'partial-prep',novelId:'partial-batch',driver:'auto',stepIdsInScope:null,launchInput:{...futureInput,executionRange:{from:1,to:3}}});
+ const partialAssets=await readExistingAssets(partialContract);
+ assert.equal(partialAssets.some(asset=>asset.type==='volume_chapter_list'),false,'a single saved route cannot satisfy a three-chapter opening window');
+ assert.deepEqual(await prisma.volumePlanVersion.findUniqueOrThrow({where:{id:partialSaved.id}}),partialSaved);
+ const shortContract=futureOptions.contractFactory({runId:'short-prep',novelId:'partial-batch',driver:'auto',stepIdsInScope:null,launchInput:{...futureInput,executionRange:{from:1,to:1}}});
+ assert.equal((await readExistingAssets(shortContract)).some(asset=>asset.type==='volume_chapter_list'),true,'one authorized chapter needs only one saved route');
+ for (const [suffix,orders,ready] of [['ready',[1,2,3],true],['gap',[1,3,4],false]]) {
+  const novelId='window-'+suffix;
+  await prisma.novel.create({data:{id:novelId,title:'路线盘点 '+suffix}});
+  const workspace=buildVolumeWorkspaceDocument({novelId,volumes:[{...partialWorkspace.volumes[0],novelId,id:novelId+'-volume',chapters:orders.map((chapterOrder,index)=>({id:novelId+'-'+index,chapterOrder,title:'章节 '+chapterOrder,summary:'保存路线'}))}],beatSheets:[],rebalanceDecisions:[],strategyPlan:null});
+  const saved=await prisma.volumePlanVersion.create({data:{novelId,version:1,status:'active',contentJson:JSON.stringify(workspace)}});
+  const contract=futureOptions.contractFactory({runId:novelId+'-prep',novelId,driver:'auto',stepIdsInScope:null,launchInput:{...futureInput,executionRange:{from:1,to:3}}});
+  assert.equal((await readExistingAssets(contract)).some(asset=>asset.type==='volume_chapter_list'),ready,suffix+' window readiness');
+  assert.deepEqual(await prisma.volumePlanVersion.findUniqueOrThrow({where:{id:saved.id}}),saved);
+ }
+
+
  const workspace=await readDirectorWorkspace('existing');
  assert.equal(workspace.chapters[0].content,'已有正文，必须完整保留。');assert.equal(workspace.materials.characters[0].name,'原有主角');assert.equal('progress' in workspace,false);
  const history=new LegacyRunProjection({list:()=>prisma.novelWorkflowTask.findMany({select:{id:true,novelId:true,title:true,status:true,progress:true,lastError:true}})});

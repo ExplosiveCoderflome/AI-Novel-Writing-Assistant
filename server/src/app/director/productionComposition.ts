@@ -13,6 +13,7 @@ import { ChapterService } from "../../services/novel/ChapterService";
 import { CharacterPreparationService } from "../../services/novel/characterPrep/CharacterPreparationService";
 import { generateAutoCharacterCastDraft, appendCharacterCastOptionsDraft } from "../../services/novel/characterPrep/characterCastGeneration";
 import { NovelCorePipelineService } from "../../services/novel/novelCorePipelineService";
+import {buildDirectorCompletionProfile} from "@ai-novel/shared/types/directorCompletion";
 import { DIRECTOR_ISSUE_POLICY_PRESETS, directorIssuePolicySchema } from "@ai-novel/shared/types/directorIssue";
 import { requireLaunch, modelOptions, bookContractInput, targetVolume, executionWindow } from "./productionInputs";
 import { readBatchOutcome } from "./batchOutcome";
@@ -30,7 +31,8 @@ export function createDirectorProductionOptions(): DirectorNextServiceOptions {
     const workspace = await volumes.getVolumes(context.contract.novelId);
     return {...modelOptions(context), workspace, targetVolumeId: targetVolume(context, workspace)};
   }, contentHash});
-  const productionRoutes = createChapterRouteWindowStepHandler({volumeService: volumes, routeService: new ChapterRouteWindowService(volumes),
+  const routeService = new ChapterRouteWindowService(volumes);
+  const productionRoutes = createChapterRouteWindowStepHandler({volumeService: volumes, routeService,
     inputProvider: async context => {
       const workspace = await volumes.getVolumes(context.contract.novelId);
       return {...modelOptions(context), targetVolumeId: targetVolume(context, workspace)};
@@ -54,7 +56,16 @@ export function createDirectorProductionOptions(): DirectorNextServiceOptions {
     volume_strategy: createVolumeStrategyStepHandler({volumeService: volumes, inputProvider: async context => ({...modelOptions(context), estimatedChapterCount: requireLaunch(context.contract).estimatedChapterCount,
       ...(context.contract.chapterRange?.from === 1 ? {skeletonVolumeCount: 1} : {})}), contentHash}),
     volume_beat_sheet: createVolumeBeatSheetStepHandler({volumeService: volumes, inputProvider: async context => {
-      const workspace = await volumes.getVolumes(context.contract.novelId);return {...modelOptions(context), workspace, targetVolumeId: targetVolume(context, workspace)};
+      const range = context.contract.chapterRange;
+      if (range) {
+        const remaining = range.to-range.from+1;
+        await routeService.ensureRouteWindow(context.contract.novelId, range.from, {
+          ...modelOptions(context), min: Math.min(3, remaining), target: Math.min(5, remaining), taskId: context.runId,
+          completionProfile: buildDirectorCompletionProfile(requireLaunch(context.contract).estimatedChapterCount),
+        });
+      }
+      const workspace = await volumes.getVolumes(context.contract.novelId);
+      return {...modelOptions(context), workspace, targetVolumeId: targetVolume(context, workspace), reuseSaved: Boolean(range)};
     }, contentHash}),
     volume_chapter_list: context => context.contract.chapterRange ? productionRoutes(context) : fullVolumeRoutes(context),
     chapter_detail_bundle: createChapterDetailBundleStepHandler({volumeService: volumes, inputProvider: async context => {
