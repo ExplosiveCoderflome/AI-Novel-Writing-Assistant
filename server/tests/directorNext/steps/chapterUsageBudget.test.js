@@ -5,6 +5,16 @@ test('chapter usage checkpoints survive serialization and reject impossible coun
  assert.deepEqual(parsePipelineDirectorSnapshot(JSON.parse(JSON.stringify(snapshot))),snapshot);
  assert.throws(()=>parsePipelineDirectorSnapshot({...snapshot,chapterUsage:[{...snapshot.chapterUsage[0],startJobTokens:-1}]}),/invalid director/);
 });
+test('a saved chapter end freezes attribution and rejects inconsistent persisted boundaries',()=>{
+ const {observeChapterUsage,beginChapterUsage}=require('../../../dist/services/novel/production/usage');
+ const snapshot={runId:'new-run',decisions:[],chapterUsage:[{chapterId:'c1',chapterOrder:1,startJobTokens:500,totalTokens:70000,endJobTokens:70500}]};
+ const restored=parsePipelineDirectorSnapshot(JSON.parse(JSON.stringify(snapshot)));
+ assert.deepEqual(restored,snapshot);
+ assert.deepEqual(observeChapterUsage(restored,'c1',100500),{totalTokens:70000,exceeded:false});
+ assert.throws(()=>observeChapterUsage(restored,'c1',70499),/计数倒退/);
+ assert.throws(()=>beginChapterUsage(restored,'c1',1,100500),/已闭合/);
+ assert.throws(()=>parsePipelineDirectorSnapshot({...snapshot,chapterUsage:[{...snapshot.chapterUsage[0],endJobTokens:70499}]}),/invalid director/);
+});
 test('chapter budget retains its baseline on recovery and counts only this chapter',()=>{
  const {beginChapterUsage,observeChapterUsage,DIRECTOR_CHAPTER_TOKEN_LIMIT}=require('../../../dist/services/novel/production/usage');
  const snapshot={runId:'new-run',decisions:[]};

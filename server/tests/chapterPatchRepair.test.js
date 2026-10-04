@@ -13,6 +13,57 @@ const {
   runChapterRepairText,
 } = require("../dist/services/novel/runtime/repair/chapterRepairRuntime.js");
 
+function patch(id, targetExcerpt, replacement) {
+  return { id, targetExcerpt, replacement, reason: "修复对应问题", issueIds: [] };
+}
+
+test("patches locate against original prose even when another replacement introduces the same target", () => {
+  const result = applyChapterPatchRepairPlan("前段需要补全。后段需要修改。", {
+    summary: "修复两处", patches: [
+      patch("first", "前段需要补全。", "后段需要修改。前段补全。"),
+      patch("second", "后段需要修改。", "后段修改完成。"),
+    ],
+  });
+  assert.equal(result.success, true);
+  assert.equal(result.content, "后段需要修改。前段补全。后段修改完成。");
+});
+
+test("overlapping patches are reported as conflicts and leave all original prose intact", () => {
+  const content = "开头需要调整。角色开门，进入房间，放下佩剑。结尾需要收束。";
+  for (const targets of [
+    ["角色开门，进入房间，放下佩剑。", "进入房间，放下佩剑。"],
+    ["角色开门，进入房间，", "进入房间，放下佩剑。"],
+  ]) {
+    for (const order of [targets, [...targets].reverse()]) {
+      const result = applyChapterPatchRepairPlan(content, {
+        summary: "修复重叠问题", patches: [
+          patch("opening", "开头需要调整。", "开头调整完成。"),
+          ...order.map((target, i) => patch(`overlap-${i}`, target, "替换后的完整片段。")),
+        ],
+      });
+      assert.equal(result.success, false);
+      assert.equal(result.content, content);
+      assert.deepEqual(result.appliedPatchIds, []);
+      assert.ok(result.failures.every(failure => failure.failureType === "overlapping_target"));
+      assert.deepEqual(new Set(result.failures.map(f => f.patchId)), new Set(["overlap-0", "overlap-1"]));
+    }
+  }
+});
+
+test("a missing patch target rejects the whole plan rather than returning partially edited prose", () => {
+  const content = "第一段需要调整。第二段保留原文。";
+  const result = applyChapterPatchRepairPlan(content, {
+    summary: "不可定位的计划", patches: [
+      patch("valid", "第一段需要调整。", "第一段调整完成。"),
+      patch("missing", "不存在的目标句段。", "第二段调整完成。"),
+    ],
+  });
+  assert.equal(result.success, false);
+  assert.equal(result.content, content);
+  assert.deepEqual(result.appliedPatchIds, []);
+  assert.equal(result.failures[0].failureType, "missing_target");
+});
+
 test("applyChapterPatchRepairPlan applies exact single-location patches", () => {
   const result = applyChapterPatchRepairPlan("第一段承接断裂。第二段继续推进。", {
     strategy: "patch_first",

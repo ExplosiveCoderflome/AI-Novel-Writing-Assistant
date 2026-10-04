@@ -30,6 +30,7 @@ export type ChapterPatchApplyFailureType =
   | "requires_full_rewrite"
   | "missing_target"
   | "ambiguous_target"
+  | "overlapping_target"
   | "no_effect";
 
 export type ChapterPatchMatchStrategy = "exact" | "normalized_whitespace";
@@ -192,10 +193,11 @@ export function applyChapterPatchRepairPlan(
     };
   }
 
+  const located: { patch: ChapterPatchOperation; match: PatchMatch }[] = [];
   for (const patch of normalizedPlan.patches) {
     const target = patch.targetExcerpt.trim();
     const replacement = patch.replacement.trim();
-    const matchResult = findSafePatchMatch(nextContent, target);
+    const matchResult = findSafePatchMatch(content, target);
     if (!matchResult.match) {
       failures.push({
         patchId: patch.id,
@@ -209,13 +211,7 @@ export function applyChapterPatchRepairPlan(
       continue;
     }
 
-    const beforePatch = nextContent;
-    nextContent = [
-      nextContent.slice(0, matchResult.match.start),
-      replacement,
-      nextContent.slice(matchResult.match.end),
-    ].join("");
-    if (nextContent === beforePatch) {
+    if (content.slice(matchResult.match.start, matchResult.match.end) === replacement) {
       failures.push({
         patchId: patch.id,
         reason: "局部补丁没有产生有效正文变化。",
@@ -225,10 +221,34 @@ export function applyChapterPatchRepairPlan(
       });
       continue;
     }
+    located.push({ patch, match: matchResult.match });
+  }
+
+  // Resolve every range against the original text before changing any prose.
+  // Nested targets cannot be composed safely: neither replacement may be discarded.
+  for (let i = 0; i < located.length; i += 1) {
+    const current = located[i]!;
+    const conflicts = located.filter((other, j) => j !== i
+      && current.match.start < other.match.end && other.match.start < current.match.end);
+    if (conflicts.length) {
+      failures.push({
+        patchId: current.patch.id,
+        failureType: "overlapping_target",
+        matchedBy: current.match.matchedBy,
+        reason: `目标片段与补丁 ${conflicts.map(other => other.patch.id).join("、")} 重叠，需合并为一条补丁。`,
+      });
+    }
+  }
+  if (failures.length) return { success: false, content, appliedPatchIds, appliedPatches, failures };
+
+  for (const { patch, match } of [...located].sort((a, b) => b.match.start - a.match.start)) {
+    nextContent = nextContent.slice(0, match.start) + patch.replacement.trim() + nextContent.slice(match.end);
+  }
+  for (const { patch, match } of located) {
     appliedPatchIds.push(patch.id);
     appliedPatches.push({
       patchId: patch.id,
-      matchedBy: matchResult.match.matchedBy,
+      matchedBy: match.matchedBy,
     });
   }
 

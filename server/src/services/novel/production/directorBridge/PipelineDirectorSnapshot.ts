@@ -9,7 +9,10 @@ export const pipelineDirectorSnapshotSchema = z.object({
     chapterId:z.string().trim().min(1), chapterOrder:z.number().int().positive(),
     startJobTokens:z.number().int().nonnegative().max(Number.MAX_SAFE_INTEGER),
     totalTokens:z.number().int().nonnegative().max(Number.MAX_SAFE_INTEGER),
-  })).refine(rows=>new Set(rows.map(row=>row.chapterId)).size === rows.length && new Set(rows.map(row=>row.chapterOrder)).size === rows.length).optional(),
+    endJobTokens:z.number().int().nonnegative().max(Number.MAX_SAFE_INTEGER).optional(),
+  }).refine(row => row.endJobTokens === undefined
+    || row.endJobTokens - row.startJobTokens === row.totalTokens))
+    .refine(rows=>new Set(rows.map(row=>row.chapterId)).size === rows.length && new Set(rows.map(row=>row.chapterOrder)).size === rows.length).optional(),
 }).refine(value => (value.resolvedDecisionCount ?? 0) <= value.decisions.length);
 export type PipelineDirectorSnapshot = z.infer<typeof pipelineDirectorSnapshotSchema>;
 export class InvalidPipelineDirectorSnapshotError extends Error {

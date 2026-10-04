@@ -18,7 +18,7 @@ export const chapterPatchRepairPrompt: PromptAsset<
   ChapterPatchRepairPlan
 > = {
   id: "novel.review.patch",
-  version: "v2",
+  version: "v3",
   taskType: "repair",
   mode: "structured",
   language: "zh",
@@ -59,6 +59,7 @@ export const chapterPatchRepairPrompt: PromptAsset<
       "【补丁原则】",
       "1. strategy 默认必须是 patch_first。",
       "2. patches 中每个 targetExcerpt 必须逐字摘自当前正文，并且应足够长，确保在正文里只出现一次。",
+      "2a. 所有 targetExcerpt 都定位于同一份当前正文，片段之间不得重叠或相互包含。多个问题落在同一片段时，合并为一条补丁，在 replacement 中一次完成全部修复，并合并 issueIds；不得假设前一条补丁的替换结果是后一条的目标。",
       "3. replacement 只替换 targetExcerpt 对应片段，不要改写无关段落；如果修复目标是删除重复片段，replacement 可以是空字符串。",
       "4. 优先修复问题清单中影响主线推进、连续性、人物动机、节奏和结尾钩子的关键问题。",
       "4b. 最多输出 4 个最高价值补丁；每个补丁保持 targetExcerpt、replacement、reason 简洁，避免重复描述问题。",

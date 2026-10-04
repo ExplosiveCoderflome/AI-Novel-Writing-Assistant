@@ -8,7 +8,7 @@ const { buildChapterArtifactContentHash } = require('../../../dist/services/nove
 const { novelEventBus } = require('../../../dist/events');
 const promptRunner = require('../../../dist/prompting/core/promptRunner');
 
-async function exercise({ initialTokens = 0, checkpoints, chapterTokens = 80_000, director = true, rejectBaseline = false, rolling = false, storedCompleted = 0, firstClosed = false, secondClosed = false } = {}) {
+async function exercise({ initialTokens = 0, checkpoints, chapterTokens = 80_000, futurePlanningTokens = 0, director = true, rejectBaseline = false, rolling = false, storedCompleted = 0, firstClosed = false, secondClosed = false } = {}) {
   const restore = [];
   const replace = (target, key, value) => {
     const previous = target[key];
@@ -52,6 +52,11 @@ async function exercise({ initialTokens = 0, checkpoints, chapterTokens = 80_000
   replace(prisma.novelWorkflowTask, 'findUnique', async () => { throw new Error('new pipeline must not read a legacy workflow'); });
   replace(prisma.novelWorkflowTask, 'update', async () => { throw new Error('new pipeline must not write a legacy workflow'); });
   replace(promptRunner, 'runStructuredPrompt', async () => { classifications++; throw new Error('test must not call AI'); });
+  const { plannerService } = require('../../../dist/services/planner/PlannerService');
+  replace(plannerService, 'replan', async () => {
+    job.totalTokens += futurePlanningTokens;
+    return { affectedChapterOrders: [2], action: 'local_replan' };
+  });
   replace(novelEventBus, 'emit', async () => {});
   const runtime = { runPipelineChapter: async (_novelId, id) => {
     calls.push(id);
@@ -61,7 +66,11 @@ async function exercise({ initialTokens = 0, checkpoints, chapterTokens = 80_000
     chapter.content = `已保存的${id}正文`;
     chapter.generationState = 'approved';
     chapter.artifactSyncCheckpoints = [{ contentHash: buildChapterArtifactContentHash(chapter.content), metadataJson: JSON.stringify({ outcome: 'completed' }) }];
-    return { retryCountUsed: 0, reviewExecuted: false, pass: true, score: {}, issues: [] };
+    return { retryCountUsed: 0, reviewExecuted: false, pass: true, score: {}, issues: [],
+      ...(futurePlanningTokens ? { runtimePackage: { replanRecommendation: {
+        recommended: true, scope: 'local_window', action: 'local_replan', blockingIssueIds: [],
+        affectedChapterOrders: [2], reason: '后续章节需与已保存正文对齐',
+      } } } : {}) };
   } };
   const executor = new NovelPipelineExecutor(runtime, { used: async () => 0, claim: async () => { throw new Error('budget must not consume retry'); } });
   try {
@@ -81,13 +90,33 @@ test('new director pauses at the saved chapter boundary on the 80000-token ceili
   assert.equal(result.job.status, 'queued');
   assert.equal(result.job.retryCount, 0);
   const snapshot = JSON.parse(result.job.payload).directorNext;
-  assert.deepEqual(snapshot.chapterUsage, [{ chapterId: 'c1', chapterOrder: 1, startJobTokens: 500, totalTokens: 80000 }]);
+  assert.deepEqual(snapshot.chapterUsage, [{ chapterId: 'c1', chapterOrder: 1, startJobTokens: 500, totalTokens: 80000, endJobTokens: 80500 }]);
   assert.equal(snapshot.decisions.at(-1).issueCode, 'runtime.token_budget_exceeded');
   assert.equal(snapshot.decisions.at(-1).locked, true);
   assert.equal(result.outcome.chapters[0].closed, true);
   assert.equal(result.outcome.stopSignal.kind, 'manual_recovery');
   assert.equal(result.outcome.stopSignal.source, 'runtime');
+  assert.match(result.outcome.stopSignal.reason, /第1章.*80000 Tokens.*正文已保存/);
   assert.equal(result.classifications, 0);
+});
+
+test('future planning does not exhaust the saved chapter budget and its boundary survives serialization', async () => {
+  const result = await exercise({ chapterTokens: 70000, futurePlanningTokens: 20000 });
+  assert.deepEqual(result.calls, ['c1', 'c2']);
+  assert.equal(result.job.status, 'succeeded');
+  assert.equal(result.job.totalTokens, 180000);
+  const usage = JSON.parse(result.job.payload).directorNext.chapterUsage;
+  assert.deepEqual(usage.map(row => row.totalTokens), [70000, 70000]);
+  assert.deepEqual(usage.map(row => row.endJobTokens), [70000, 160000]);
+  assert.equal(result.outcome.stopSignal, undefined);
+});
+
+test('a truly exhausted chapter stops before spending more tokens on future planning', async () => {
+  const result = await exercise({ chapterTokens: 80000, futurePlanningTokens: 20000 });
+  assert.deepEqual(result.calls, ['c1']);
+  assert.equal(result.job.totalTokens, 80000);
+  assert.equal(result.job.completedCount, 1);
+  assert.equal(result.job.pendingManualRecovery, true);
 });
 
 test('recovery keeps the original chapter baseline and refuses another generation after exhaustion', async () => {

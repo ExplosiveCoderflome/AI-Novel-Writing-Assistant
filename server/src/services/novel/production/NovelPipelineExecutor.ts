@@ -24,7 +24,7 @@ import { plannerService } from "../../planner/PlannerService";
 import { applyChapterQualityClosure } from "./qualityClosure/ChapterQualityClosure";
 import { ChapterAutomaticAttemptService } from "./attempts";
 import { isCurrentChapterProductionCompleted } from "./completion";
-import { beginChapterUsage, observeChapterUsage } from "./usage";
+import { beginChapterUsage, observeChapterUsage, finalizeChapterUsage } from "./usage";
 import {
   loadDirectorIssueTaskContext,
 } from "../director/issues";
@@ -486,12 +486,14 @@ export class NovelPipelineExecutor {
             let observed: ReturnType<typeof observeChapterUsage>;
             try {
               initialized = beginChapterUsage(runtimePayload.directorNext, chapter.id, chapter.order, usage.totalTokens);
-              observed = observeChapterUsage(runtimePayload.directorNext, chapter.id, usage.totalTokens);
+              observed = closed
+                ? finalizeChapterUsage(runtimePayload.directorNext, chapter.id, usage.totalTokens)
+                : observeChapterUsage(runtimePayload.directorNext, chapter.id, usage.totalTokens);
             } catch (error) {
               throw new PipelineIssueFailure(error instanceof Error ? error.message : "章节用量记录异常，不能继续生成。",
                 "runtime.data_integrity", "chapter_usage", chapter.id, chapter.order);
             }
-            if (initialized || (closed && observed.exceeded)) {
+            if (initialized || closed) {
               try {
                 await this.updateJobRequired(jobId, {
                   ...(closed ? { completedCount: completed + 1, progress: Number(((completed + 1) / totalCount).toFixed(4)) } : {}),
@@ -719,6 +721,8 @@ export class NovelPipelineExecutor {
           }
 
           totalRetryCount += Math.max(0, chapterRetryCountUsed - previouslyConsumed);
+          // Freeze the saved chapter's consumption before quality closure plans future chapters.
+          await checkChapterBudget(true);
           const closure = await applyChapterQualityClosure({
             governance: issueGovernance,
             workflowTaskId: runtimePayload.workflowTaskId,
@@ -741,8 +745,6 @@ export class NovelPipelineExecutor {
           });
           shouldStopAfterCurrentChapter = closure.shouldStopAfterCurrentChapter;
           chapterStopAction = closure.stopAction;
-
-          await checkChapterBudget(true);
 
           // Phase 3：同步补齐下一段章节路线；正文执行合同仍由下一章 JIT 独立生成。
           if (!shouldStopAfterCurrentChapter && isAutopilotMode && chapter.order < autopilotTargetEndOrder) {

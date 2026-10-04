@@ -3,6 +3,7 @@ import type { ChatOpenAI } from "@langchain/openai";
 import type { TaskType } from "./modelRouter";
 import type { PromptInvocationMeta } from "../prompting/core/promptTypes";
 import { appendLlmSessionLog } from "./sessionLogFile";
+import { extractLlmTokenUsage, mergeStreamTokenUsage, type LlmTokenUsageSnapshot } from "./usageTracking";
 
 const LLM_DEBUG_PATCHED = Symbol("LLM_DEBUG_PATCHED");
 const LOG_TRUE_VALUES = new Set(["1", "true", "on", "yes"]);
@@ -417,7 +418,7 @@ function buildFileLogBlock(input: {
     taskType: input.meta.taskType ?? null,
     baseURL: input.meta.baseURL ?? null,
     promptMeta: input.meta.promptMeta ?? null,
-    actualPromptTokens: input.event === "response" ? extractActualPromptTokens(input.payload) : null,
+    actualPromptTokens: input.event !== "request" ? extractActualPromptTokens(input.payload) : null,
     latencyMs: input.latencyMs ?? null,
     payload: input.payload ?? null,
     error: input.error ?? null,
@@ -471,7 +472,7 @@ function logLLMResponse(method: "invoke" | "stream" | "batch", output: unknown, 
   });
 }
 
-function logLLMError(method: "invoke" | "stream" | "batch", error: unknown, meta: LLMDebugMeta, requestId: string, latencyMs: number): void {
+function logLLMError(method: "invoke" | "stream" | "batch", error: unknown, meta: LLMDebugMeta, requestId: string, latencyMs: number, output?: unknown): void {
   const message = error instanceof Error ? error.message : String(error);
   console.warn(
     [
@@ -490,6 +491,7 @@ function logLLMError(method: "invoke" | "stream" | "batch", error: unknown, meta
     method,
     meta,
     latencyMs,
+    payload: output === undefined ? undefined : serializeLLMOutputForJson(method, output),
     error: error instanceof Error
       ? { name: error.name, message: error.message, stack: error.stack ?? null }
       : { message },
@@ -500,8 +502,14 @@ function wrapLoggedStream(stream: AsyncIterable<unknown>, meta: LLMDebugMeta, re
   return {
     async *[Symbol.asyncIterator]() {
       const chunks: string[] = [];
+      let usage: LlmTokenUsageSnapshot | null = null;
+      const output = () => ({ content: chunks.join(""), ...(usage ? { usage_metadata: {
+        input_tokens: usage.promptTokens, output_tokens: usage.completionTokens, total_tokens: usage.totalTokens,
+        ...(usage.reasoningTokens !== undefined ? { output_token_details: { reasoning: usage.reasoningTokens } } : {}),
+      } } : {}) });
       try {
         for await (const chunk of stream) {
+          usage = mergeStreamTokenUsage(usage, extractLlmTokenUsage(chunk));
           if (chunk && typeof chunk === "object" && "content" in (chunk as Record<string, unknown>)) {
             chunks.push(stringifyContent((chunk as { content?: unknown }).content));
           } else {
@@ -511,13 +519,13 @@ function wrapLoggedStream(stream: AsyncIterable<unknown>, meta: LLMDebugMeta, re
         }
         logLLMResponse(
           "stream",
-          { content: chunks.join("") },
+          output(),
           meta,
           requestId,
           Date.now() - startedAt,
         );
       } catch (error) {
-        logLLMError("stream", error, meta, requestId, Date.now() - startedAt);
+        logLLMError("stream", error, meta, requestId, Date.now() - startedAt, output());
         throw error;
       }
     },
