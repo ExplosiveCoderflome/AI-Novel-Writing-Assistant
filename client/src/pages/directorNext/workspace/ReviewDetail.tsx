@@ -19,7 +19,7 @@ export function ReviewDetail({book,review}:{book:WorkspaceBook;review:SavedRevie
   const chapter=review.plan ?? review.execution;
   return <article className="mx-auto max-w-[42rem] px-2 pb-8 sm:px-6" aria-label="本阶段创作结果">
     <p className="mb-3 text-xs text-muted-foreground">查看本阶段结果</p><h2 className="mb-4 text-2xl font-semibold">{review.label}</h2>
-    {review.error ? <p role="alert" className="text-sm text-destructive">{review.error}</p> : <>
+    {review.error ? <p role="alert" className="text-sm text-destructive">{review.error}</p> : review.notice ? <p role="status" className="text-sm leading-6 text-muted-foreground">{review.notice}</p> : <>
       {chapter ? <><h3 className="mb-3 text-lg font-medium">第 {review.plan?.chapterOrder ?? review.execution?.order} 章 · {chapter.title}</h3>
         {review.plan ? <><Field label="章节概要" value={review.plan.summary}/><Field label="剧情目标" value={review.plan.purpose}/><Field label="核心事件" value={review.plan.exclusiveEvent}/><Field label="结尾状态" value={review.plan.endingState}/></> : null}
         <Field label="章节任务" value={chapter.taskSheet}/><Field label="目标字数" value={chapter.targetWordCount}/><Field label="需要避免" value={chapter.mustAvoid}/><Scenes value={chapter.sceneCards} targetWordCount={chapter.targetWordCount}/><Field label="写法约定" value={review.plan?.styleContract}/>

@@ -16,7 +16,13 @@ test('short review URLs resolve only saved current contexts and ignore forged or
  for(const change of [{volumeId:'other'},{chapterId:'other'},{from:1},{to:6},{novelId:'other'}]) {
   assert.equal(resolveSavedReview({...book,reviewContexts:[{...context,...change}]},query).ready,false);
  }
- assert.equal(resolveSavedReview({...book,reviewContexts:[]},query).ready,false,'closed or paused gates cannot be confirmed');
+ const closed=resolveSavedReview({...book,reviewContexts:[]},query);
+ assert.equal(closed.ready,false,'closed or paused gates cannot be confirmed');
+ assert.equal(closed.error,undefined,'absence of an open gate is a normal review state');
+ assert.ok(closed.notice.includes('没有待确认'));
+ assert.equal(resolveSavedReview({...book,reviewContexts:[],reviewContextError:'保存结果归属异常'},query).error,'保存结果归属异常');
+ assert.ok(resolveSavedReview({...book,reviewContexts:[context,context]},query).error);
+ assert.ok(resolveSavedReview(book,new URLSearchParams('review=unknown')).error);
  assert.equal(resolveSavedReview({...book,reviewContexts:[context,context]},query).ready,false);
  assert.equal(resolveSavedReview({...book,planning:{volumes:[{id:'v2',chapters:[row,{...row,id:'duplicate'}]}]}},query).ready,false);
  assert.equal(resolveSavedReview({...book,planning:{volumes:[{id:'v2',chapters:[{...row,taskSheet:{invalid:true}}]}]}},query).ready,false,'invalid stored values must not crash rendering');
@@ -46,6 +52,8 @@ export const review=render(<NovelWorkspace book={book} review={new URLSearchPara
 export const execution=render(<NovelWorkspace book={book} review={new URLSearchParams('review=chapter_execution_contract&volumeId=v2&chapterId=c7&from=7&to=8')} preview/>);
 export const batch=render(<NovelWorkspace book={book} review={new URLSearchParams('review=chapter_batch_closed&chapterId=c7&from=7&to=8')} preview/>);
 export const invalid=render(<NovelWorkspace book={{...book,reviewContexts:book.reviewContexts.map(row=>({...row,chapterId:'p1'}))}} review={new URLSearchParams('review=chapter_task_sheet')} preview/>);
+export const closed=render(<NovelWorkspace book={{...book,reviewContexts:[]}} review={new URLSearchParams('review=chapter_batch_closed')} preview/>);
+export const contextError=render(<NovelWorkspace book={{...book,reviewContexts:[],reviewContextError:'保存结果归属异常'}} review={new URLSearchParams('review=chapter_batch_closed')} preview/>);
 const target='/lab/director/book?review=chapter_task_sheet';
 const view={...previewView('waiting_gate'),novelId:'book',availableActions:[{id:'review:chapter_task_sheet',label:'去确认「章节任务与场景」',kind:'navigate',primary:true,target},{id:'cancel',label:'取消本次创作',kind:'command',command:'cancel',primary:false}]};
 export const noReview=render(<DirectorPanel view={view} novelId='book'/>);
@@ -72,6 +80,10 @@ export const page=renderToStaticMarkup(<MemoryRouter initialEntries={[target]}><
     assert.ok(m.batch.includes('保存的第八章正文'));
     assert.ok(!m.batch.includes('不能列入本次审阅'));
     assert.ok(m.invalid.includes('无法定位'));
+    assert.match(m.invalid,/<p role="alert" class="text-sm text-destructive">/);
+    assert.match(m.closed,/<p role="status" class="text-sm leading-6 text-muted-foreground">本阶段没有待确认的结果/);
+    assert.doesNotMatch(m.closed,/role="alert"|text-destructive/);
+    assert.match(m.contextError,/<p role="alert" class="text-sm text-destructive">保存结果归属异常/);
     for(const html of [m.noReview,m.wrongReview,m.missing,m.stale,m.staleVersion]) assert.ok(!html.includes('确认结果并继续'));
     assert.ok(m.ready.includes('确认结果并继续'));
     assert.ok(m.ready.includes('请核对左侧本阶段结果，确认后 AI 按本次授权范围继续。'));
