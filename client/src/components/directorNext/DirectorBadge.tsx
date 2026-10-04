@@ -94,10 +94,11 @@ export default function DirectorBadge({ view, novelId, onActionComplete, compact
   );
 
   const renderAction = (action: DirectorAction, primary: boolean) => {
-    if (action.command === "open_run") return preview ? <Button key={action.id} disabled>{action.label}</Button> : <Button key={action.id} asChild variant={primary ? "default" : "ghost"}><a href="#director-start">{action.label}</a></Button>;
+    const actionClassName = "h-auto max-w-full whitespace-normal py-2";
+    if (action.command === "open_run") return preview ? <Button key={action.id} className={actionClassName} disabled>{action.label}</Button> : <Button key={action.id} className={actionClassName} asChild variant={primary ? "default" : "ghost"}><a href="#director-start">{action.label}</a></Button>;
     if (action.kind === "navigate" && action.target) {
       return (
-        <Button key={action.id} asChild size={primary ? "default" : "sm"} variant={primary ? "default" : "ghost"}>
+        <Button key={action.id} className={actionClassName} asChild size={primary ? "default" : "sm"} variant={primary ? "default" : "ghost"}>
           <Link to={action.target}>{action.label}</Link>
         </Button>
       );
@@ -106,6 +107,7 @@ export default function DirectorBadge({ view, novelId, onActionComplete, compact
       return (
         <Button
           key={action.id}
+          className={actionClassName}
           type="button"
           size={primary ? "default" : "sm"}
           variant={primary ? "default" : "ghost"}
@@ -120,13 +122,15 @@ export default function DirectorBadge({ view, novelId, onActionComplete, compact
   };
 
   return (
-    <section className={cn("flex flex-wrap items-center gap-3", compact ? "py-1" : "py-3")} aria-label="导演状态">
-      <Badge variant="outline" className={cn("flex shrink-0 items-center gap-1.5", statusTone(view.mode))}>
-        <StatusIcon mode={view.mode} />
-        {statusLabel(view.mode)}
-      </Badge>
-      <p className="min-w-0 flex-1 text-sm leading-6 text-foreground" title={view.headline}>{view.headline}</p>
-      <div className="flex shrink-0 items-center gap-1.5">
+    <section className={cn("flex min-w-0 flex-col gap-3", compact ? "py-1" : "py-3")} aria-label="导演状态">
+      <div className="flex min-w-0 items-start gap-3">
+        <Badge variant="outline" className={cn("flex shrink-0 items-center gap-1.5", statusTone(view.mode))}>
+          <StatusIcon mode={view.mode} />
+          {statusLabel(view.mode)}
+        </Badge>
+        <p className="min-w-0 flex-1 break-words text-sm leading-6 text-foreground" title={view.headline}>{view.headline}</p>
+      </div>
+      <div className="flex min-w-0 flex-wrap items-center gap-1.5">
         {primaryAction ? renderAction(primaryAction, true) : null}
         {secondaryActions.map((action) => renderAction(action, false))}
       </div>
