@@ -3,6 +3,7 @@ const path = require("path");
 const { spawnSync } = require("child_process");
 
 const rootDir = path.resolve(__dirname, "..");
+require("dotenv").config({ path: path.join(rootDir, ".env"), quiet: true });
 const repoRoot = path.resolve(rootDir, "..");
 const generatedClientPath = path.join(rootDir, "node_modules", "@prisma", "client", "index.js");
 const stampPath = path.join(rootDir, ".tmp", "prisma-dev-prepare.json");
