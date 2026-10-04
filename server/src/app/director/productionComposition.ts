@@ -22,6 +22,7 @@ import {readExistingAssets} from "./existingAssets";
 import {isCurrentChapterProductionCompleted} from "../../services/novel/production/completion";
 import {CHAPTER_ARTIFACT_BOUNDARY_TYPE} from "../../services/novel/runtime/artifactSync";
 import {directorArtifactTypes, resolveConfirmationArtifactTypes} from "./projections/confirmationRoutes";
+import {readProductionProjection} from "./projections/productionProgress";
 
 /** Composition only: business generation remains owned by existing novel services. Not enabled by importing this module. */
 export function createDirectorProductionOptions(): DirectorNextServiceOptions {
@@ -99,7 +100,7 @@ export function createDirectorProductionOptions(): DirectorNextServiceOptions {
   });
   return {plan: directorProductionPlan, stepRegistry, readEditedArtifact, resumeBusiness, cancelBusiness,
     sourceRoute: novelId => `/lab/director/${encodeURIComponent(novelId)}`,
-    artifactTypes: directorArtifactTypes, resolveArtifactTypes: resolveConfirmationArtifactTypes, contractFactory: input => {
+    artifactTypes: directorArtifactTypes, resolveArtifactTypes: resolveConfirmationArtifactTypes, readProductionProjection, contractFactory: input => {
     const launch = input.launchInput;
     if (!launch) throw new Error("启动创作需要故事、模型与范围快照。");
     if (!launch.targetVolumeId && launch.targetMode !== "opening") throw new Error("启动创作需要明确选择开篇或目标卷。");

@@ -129,6 +129,42 @@ test("terminal views", () => {
   assert.deepEqual(cancelled.availableActions.map((action) => action.command), ["open_run"]);
 });
 
+test('chapter batch projection names the bound chapter and separates chapter completion from planning', () => {
+  const current = view({control: runningControl({cursorStepId:'chapter_batch'}),
+    contract: contract({chapterRange:{from:1,to:3}}),
+    production: {chapterProgress:{from:1,to:3,done:2,total:3,current:{order:3,title:'迁出簿上的第三个人',phase:'reviewing'}},nextLaunchRange:{from:4,to:6}}});
+  assert.equal(current.headline,'正在检查第 3 章《迁出簿上的第三个人》');
+  assert.equal(current.chapterProgress.done,2);
+  assert.match(current.nextActionGuidance,/等待/);
+  assert.deepEqual(current.availableActions.map(a=>a.command),['cancel']);
+  for (const [phase, text] of [['generating_chapters','写作'],['repairing','完善'],['finalizing','保存']]) {
+    assert.match(view({control:runningControl({cursorStepId:'chapter_batch'}),production:{chapterProgress:{...current.chapterProgress,current:{order:3,title:'章名',phase}},nextLaunchRange:null}}).headline,new RegExp('正在'+text+'第 3 章'));
+  }
+});
+
+test('completed ranges offer explicit authorization for the next range without extending this run', () => {
+  const projected=view({control:runningControl({status:'completed'}),contract:contract({chapterRange:{from:1,to:3}}),
+    production:{chapterProgress:{from:1,to:3,done:3,total:3,current:null},nextLaunchRange:{from:4,to:6}}});
+  assert.equal(projected.headline,'第 1—3 章已完成');
+  assert.deepEqual(projected.nextLaunchRange,{from:4,to:6});
+  assert.equal(projected.availableActions[0].command,'open_run');
+  assert.match(projected.availableActions[0].label,/第 4—6 章/);
+  assert.match(projected.nextActionGuidance,/提交/);
+  const finished=view({control:runningControl({status:'completed'}),production:{chapterProgress:null,nextLaunchRange:null}});
+  assert.deepEqual(finished.availableActions,[]);
+  assert.match(finished.nextActionGuidance,/目标章节/);
+});
+
+test('missing live chapter never invents a chapter number, and pauses and gates keep their own instructions', () => {
+  const production={chapterProgress:{from:1,to:3,done:2,total:3,current:null},nextLaunchRange:{from:4,to:6}};
+  assert.match(view({control:runningControl({cursorStepId:'chapter_batch'}),production}).headline,/第 1—3 章/);
+  const paused=view({control:runningControl({status:'paused',pause:{kind:'safety',reason:'用量限制'}}),production});
+  assert.match(paused.headline,/风险/);
+  assert.match(paused.nextActionGuidance,/原因/);
+  const gated=view({control:runningControl({status:'waiting_gate',gate:{id:'g',artifactTypes:['story_macro']}}),production});
+  assert.match(gated.nextActionGuidance,/确认/);
+});
+
 test("progress comes from the artifact ledger and respects the run scope", () => {
   const partial = facts([artifact("novel_seed"), artifact("story_macro"), artifact("character_cast", { status: "stale" })]);
   const full = view({ facts: partial });

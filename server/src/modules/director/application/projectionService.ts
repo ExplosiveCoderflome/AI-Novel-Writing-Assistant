@@ -1,4 +1,4 @@
-import { project, type ArtifactType, type ArtifactTypeInfo, type DashboardView, type RunContract, type RunControl } from "../domain";
+import { project, type ArtifactType, type ArtifactTypeInfo, type DashboardView, type RunContract, type RunControl, type ProductionProjection } from "../domain";
 import type { FactsLoader } from "./factsLoader";
 import type { PlanRegistry } from "./ports";
 
@@ -15,6 +15,7 @@ export interface ProjectionServiceDeps {
   artifactTypes?: Readonly<Record<ArtifactType, ArtifactTypeInfo>>;
   /** Read-only business adapter resolves saved asset identities before pure projection. */
   resolveArtifactTypes?: (input: {contract: RunContract; control: RunControl}) => Promise<Readonly<Record<ArtifactType, ArtifactTypeInfo>>>;
+  readProductionProjection?: (input: {contract: RunContract; control: RunControl}) => Promise<ProductionProjection>;
   sourceRoute?: (novelId: string) => string;
 }
 
@@ -41,6 +42,7 @@ export class ProjectionService {
           || sourceRoute,
       }])),
       sourceRoute,
+      production: await this.deps.readProductionProjection?.({contract, control}),
     });
   }
 }

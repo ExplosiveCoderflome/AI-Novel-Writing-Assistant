@@ -27,7 +27,7 @@ test('history is read only and new routes do not enter navigation', () => {
 
 test('panel has all four sections and closed diagnostics', () => {
   const source = read('components/directorNext/DirectorPanel.tsx');
-  for (const label of ['正在做什么', '需要你做什么', '质量债', '时间线']) assert.ok(source.includes(label));
+  for (const label of ['正在做什么', '需要你做什么', '质量提醒', '时间线']) assert.ok(source.includes(label));
   assert.doesNotMatch(source, /<details[^>]*\bopen/);
   assert.match(read('components/directorNext/DirectorBadge.tsx'), /find\(\(action\) => action.primary\)/);
 });
@@ -48,7 +48,8 @@ test('the projection guard also rejects a third rendering component', () => {
 
 test('the projection guard rejects aliases, element access, destructuring and lookalike component names',()=>{
   for(const source of ['state.mode === "running"','const alias = dashboard; alias?.headline','state["progress"]',
-    'const {availableActions: actions} = state','const {mode} = state','props.state.sourceTrace']) {
+    'const {availableActions: actions} = state','const {mode} = state','props.state.sourceTrace',
+    'state.chapterProgress','state["nextLaunchRange"]','const {nextActionGuidance} = state']) {
     assert.notEqual(presentationViolations('Third.tsx',source).length,0,source);
   }
   assert.notEqual(presentationViolations('ThirdDirectorPanel.tsx','view.mode').length,0);
@@ -67,6 +68,7 @@ import { renderToStaticMarkup } from 'react-dom/server';
 import { MemoryRouter } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import DirectorPanel from './src/components/directorNext/DirectorPanel';
+import DirectorStart from './src/components/directorNext/DirectorStart';
 import { previewStates, previewTimeline, previewView } from './src/pages/directorNext/preview';
 export function renderedStates() {
   return previewStates.map(state => {
@@ -89,6 +91,13 @@ export function renderedSwitchCases() {
         <DirectorPanel view={view} novelId='preview' preview />
       </MemoryRouter></QueryClientProvider>)};
   }));
+}
+export function renderedProduction() {
+ const render=view=>renderToStaticMarkup(<QueryClientProvider client={new QueryClient()}><MemoryRouter>
+  <DirectorPanel view={view} novelId='book' startForm={range=><DirectorStart novelId='book' estimatedChapterCount={12} nextChapter={4} initialStory='故事' suggestedRange={range}/>} />
+ </MemoryRouter></QueryClientProvider>);
+ const running={...previewView('running'),headline:'正在检查第 3 章《第三章》',nextActionGuidance:'等待本批次完成',chapterProgress:{from:1,to:3,done:2,total:3,current:{order:3,title:'第三章',phase:'reviewing'}},nextLaunchRange:{from:4,to:6}};
+ return {running:render(running),completed:render({...running,mode:'completed',headline:'第 1—3 章已完成',nextActionGuidance:'核对范围并提交',chapterProgress:{...running.chapterProgress,done:3,current:null},availableActions:[{id:'open_run',command:'open_run',kind:'command',label:'选择并继续写第 4—6 章',primary:true}]})};
 }`,
         resolveDir: clientDir, loader: 'tsx',
       },
@@ -97,7 +106,7 @@ export function renderedSwitchCases() {
       define: { 'import.meta.env': '{}' },
       outfile: output,
     });
-    const { renderedStates, renderedSwitchCases } = await import(pathToFileURL(output).href);
+    const { renderedStates, renderedSwitchCases, renderedProduction } = await import(pathToFileURL(output).href);
     const rows = renderedStates();
     assert.equal(rows.length, 7);
     for (const { view, markup } of rows) {
@@ -113,6 +122,14 @@ export function renderedSwitchCases() {
       assert.equal(markup.split(label).length-1, available ? 1 : 0, 'switch renders only once from the projected action');
       if (available) assert.match(markup, /<button[^>]*disabled=""[^>]*>按本次授权切换创作方式<\/button>/);
     }
+    const production=renderedProduction();
+    assert.match(production.running,/本次正文/);
+    assert.match(production.running,/2\/3/);
+    assert.match(production.running,/等待本批次完成/);
+    assert.doesNotMatch(production.running,/id="director-start"/);
+    assert.match(production.completed,/提交并生成第 4—6 章/);
+    assert.match(production.completed,/更多创作设置/);
+    assert.ok(production.completed.indexOf('正在做什么')<production.completed.indexOf('id="director-start"'),'status and next-step context come before launch settings');
   } finally {
     if (fs.existsSync(output)) fs.unlinkSync(output);
   }

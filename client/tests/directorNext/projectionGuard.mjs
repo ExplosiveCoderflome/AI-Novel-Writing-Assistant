@@ -4,7 +4,7 @@ import ts from 'typescript';
 import {fileURLToPath} from 'node:url';
 
 const presenters=new Set(['components/directorNext/DirectorBadge.tsx','components/directorNext/DirectorPanel.tsx']);
-const displayFields=new Set(['mode','headline','progress','availableActions','sourceTrace']);
+const displayFields=new Set(['mode','headline','progress','availableActions','sourceTrace','chapterProgress','nextLaunchRange','nextActionGuidance']);
 const rawControlFields=new Set(['cursorStepId','failureReason','pauseKind','controlStatus']);
 
 /** Feature rendering boundaries are independent of local variable names. */

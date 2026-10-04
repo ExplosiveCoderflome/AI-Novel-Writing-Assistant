@@ -29,6 +29,16 @@
 
 只有用户恢复命令可以在同一事务中解除正文作业的人工等待、记录已处理问题游标并追加 `stop_signal_cleared`。问题历史保留，轮询和 Worker 重启不能解除等待。取消后旧执行者的错误不能再次把 Run 改为失败或暂停。
 
+## 章节进度与后续授权
+
+阶段台账完成比例表示规划与编排步骤，不是已写章节比例。正文范围进入投影后，主进度使用本次授权范围内通过统一章节完成策略的数量：当前内容必须具有对应的成功资产同步边界，仅有正文、完成标签或旧正文的同步记录不能计为完成。阶段比例保留在运行诊断中，避免新手将十步编排误解为十章正文。
+
+`app/director/projections/productionProgress.ts` 通过本 Run 的 `chapter_batch_job` 事件读取固定作业，核验书、Run 和范围归属，再用 `currentItemKey` 对应实际 Chapter 身份。处理阶段来自结构化 `currentStage`，不能解析展示标签或猜测下一章。人工等待、暂停、确认和终态不能沿用旧的运行阶段。缺少当前章时只说明批次准备或收尾，不虚构章号；归属不一致明确拒绝读取。该端口只读，不确认阶段、不恢复作业、不修改正文。
+
+纯投影提供 `chapterProgress`、`nextActionGuidance` 和 `nextLaunchRange`。只有 `DirectorPanel` 与 `DirectorBadge` 消费这些导演展示字段，小说页只转交投影及授权表单渲染函数。章节完成、门确认、人工恢复和失败分别说明用户下一步，不能用通用“继续推进”掩盖等待操作。
+
+终态的后续范围建议来自冻结的全书目标与已保存正文，选首个无正文位置、最多三章，并在遇到已有正文时停止。它是用户授权表单的默认值，不是自动延长合同或 AI 意图路由。初次无 Run 的接管入口仍默认仅规划；本次范围完成后的表单默认显示建议正文范围，用户点击“提交并生成”才创建新授权。新 Run 仍冻结模型、范围、确认方式和问题策略；旧 Run 的授权终点保持不变。全书目标范围均有正文时引导阅读检查，不能把“有保存正文”宣称为全书通过质量验收。
+
 ## 相关模块
 
 - `modules/director/domain/gateOrchestrator.ts`：纯编排。
@@ -36,6 +46,7 @@
 - `modules/director/infrastructure/commands/`：原子确认与恢复。
 - `app/director/savedContent.ts`：业务资产读取和正文恢复装配。
 - `app/director/projections/confirmationRoutes.ts`：确认入口的业务资产身份解析，不生成、不同步、不修改选择范围。
+- `app/director/projections/productionProgress.ts`：正文进度与后续范围的只读业务事实装配。
 - `pages/directorNext/workspace/review.ts` 与 `ReviewDetail.tsx`：保存资产的身份校验和审阅呈现；不是导演状态推断或旧编辑器封装。
 
 本规则影响规划产物、章节批次、任务状态和前端恢复投影，不改变章节生成 Prompt 或质量判断算法。

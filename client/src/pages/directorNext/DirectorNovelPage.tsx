@@ -27,7 +27,8 @@ export default function DirectorNovelPage({ previewOnly = false }: { previewOnly
   const novelQuery = useQuery({queryKey: ["directorNovelMetadata",novelId],queryFn:()=>getNovelDetail(novelId),enabled:!preview && !!novelId,retry:false});
   const view = preview ? previewView(params.get("state") ?? "running") : detail?.view ?? summaryQuery.data?.data;
   const error = detailQuery.error ?? summaryQuery.error;
-  const startForm = !preview && book && novelQuery.data?.data ? <DirectorStart key={view?.runId ?? novelId} novelId={novelId} estimatedChapterCount={book.novel.estimatedChapterCount} nextChapter={Math.max(0,...book.chapters.filter(chapter=>chapter.content?.trim()).map(chapter=>chapter.order))+1} initialStory={novelQuery.data.data.description ?? ""} worldId={novelQuery.data.data.worldId}/> : null;
+  const metadata = novelQuery.data?.data;
+  const startForm = !preview && book && metadata ? (range: {from:number;to:number}|null) => <DirectorStart key={`${view?.runId ?? novelId}:${range?.from ?? "planning"}`} novelId={novelId} estimatedChapterCount={book.novel.estimatedChapterCount} nextChapter={Math.max(0,...book.chapters.filter(chapter=>chapter.content?.trim()).map(chapter=>chapter.order))+1} initialStory={metadata.description ?? ""} worldId={metadata.worldId} suggestedRange={range}/> : null;
 
   return (
     <div className="mx-auto max-w-[1600px] space-y-3">
@@ -48,7 +49,7 @@ export default function DirectorNovelPage({ previewOnly = false }: { previewOnly
           {!preview && error ? <div role="alert" className="space-y-3 py-4"><p className="text-sm text-destructive">{error instanceof Error ? error.message : "导演信息读取失败。"}</p><Button variant="outline" onClick={() => void Promise.all([summaryQuery.refetch(), detailQuery.refetch()])}>重新读取</Button></div>
             : view ? <DirectorPanel view={view} novelId={novelId} timeline={preview ? previewTimeline : detail?.timeline} preview={preview} startForm={startForm} reviewTarget={savedReview ? location.pathname+location.search : undefined} reviewReady={Boolean(savedReview?.ready) && !bookQuery.isError}/>
               : <p className="py-4 text-sm text-muted-foreground">{summaryQuery.isLoading || detailQuery.isLoading ? "正在读取导演信息…" : "选择创作范围，让 AI 从本书内容继续。"}</p>}
-          {!error && !view ? startForm:null}
+          {!error && !view ? startForm?.(null):null}
         </aside> : null}/>
     </div>
   );

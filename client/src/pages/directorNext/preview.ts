@@ -15,6 +15,8 @@ export function previewView(id: string): DashboardView {
   return {
     runId: "preview", novelId: "preview", mode: state.mode, driver: "auto", headline: state.headline,
     detail: state.id === "safety" ? "本次授权的用量范围已到达，请核对设置后决定下一步。" : null,
+    nextActionGuidance: state.mode === "completed" ? "请核对后续章节范围并提交创作。" : state.mode === "waiting_gate" ? "打开本阶段结果，核对后确认继续。" : state.mode === "paused" ? "查看暂停原因，处理后从保存进度继续。" : "请等待 AI 推进本次授权范围。",
+    chapterProgress: null, nextLaunchRange: null,
     progress: { done: state.id === "completed" ? 10 : 4, total: 10, source: "artifact_ledger" },
     debts: { count: 2, chapterOrders: [3, 5] },
     availableActions: state.mode === "completed" ? [] : state.mode === "waiting_gate"

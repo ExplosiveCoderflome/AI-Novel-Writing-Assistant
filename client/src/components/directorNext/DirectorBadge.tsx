@@ -119,7 +119,7 @@ export default function DirectorBadge({ view, novelId, onActionComplete, compact
         <StatusIcon mode={view.mode} />
         {statusLabel(view.mode)}
       </Badge>
-      <p className="min-w-0 flex-1 truncate text-sm text-foreground" title={view.headline}>{view.headline}</p>
+      <p className="min-w-0 flex-1 text-sm leading-6 text-foreground" title={view.headline}>{view.headline}</p>
       <div className="flex shrink-0 items-center gap-1.5">
         {primaryAction ? renderAction(primaryAction, true) : null}
         {secondaryActions.map((action) => renderAction(action, false))}
