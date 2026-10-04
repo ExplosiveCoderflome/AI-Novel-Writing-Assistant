@@ -589,3 +589,24 @@ export function buildChapterRepairContextBlocks(repairContext: ChapterRepairCont
     }),
   ].filter((block): block is PromptContextBlock => block !== null && block.content.trim().length > 0);
 }
+
+/** Remove only structurally identical issues already present in the explicit patch payload. */
+export function buildChapterPatchRepairContextBlocks(repairContext: ChapterRepairContext, issuesJson: string): PromptContextBlock[] {
+  let supplied: unknown[] = [];
+  try {
+    const parsed: unknown = JSON.parse(issuesJson);
+    if (Array.isArray(parsed)) supplied = parsed;
+    else if (parsed && typeof parsed === "object" && "issues" in parsed && Array.isArray(parsed.issues)) supplied = parsed.issues;
+  } catch { /* Keep the full context for an opaque custom issue payload. */ }
+  const key = (value: unknown): string | null => {
+    if (!value || typeof value !== "object") return null;
+    const issue = value as Record<string, unknown>;
+    const fields = ["severity", "category", "evidence", "fixSuggestion"].map(field => issue[field]);
+    if (!fields.every(field => typeof field === "string")) return null;
+    return JSON.stringify(fields.map(field => compactText(field as string)));
+  };
+  const present = new Set(supplied.map(key).filter((item): item is string => item !== null));
+  const issues = repairContext.issues.filter(issue => !present.has(key(issue)!));
+  return buildChapterRepairContextBlocks({ ...repairContext, issues })
+    .filter(block => block.group !== "repair_issues" || issues.length > 0);
+}

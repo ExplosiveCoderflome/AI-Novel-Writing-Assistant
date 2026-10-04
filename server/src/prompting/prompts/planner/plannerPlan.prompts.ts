@@ -47,6 +47,7 @@ function buildPlannerPlanAsset(input: {
         : undefined,
     outputSchema: plannerOutputSchema,
     structuredOutputHint: {
+      compact: input.planLevel === "chapter",
       example: {
         title: "示例标题",
         objective: "示例目标",
@@ -225,7 +226,7 @@ export const plannerArcPlanPrompt = buildPlannerPlanAsset({
 
 export const plannerChapterPlanPrompt = buildPlannerPlanAsset({
   id: "planner.chapter.plan",
-  version: "v1",
+  version: "v2",
   planLevel: "chapter",
   includeScenes: true,
   maxTokensBudget: 2400,

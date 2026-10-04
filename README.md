@@ -180,6 +180,10 @@ Open-source AI novel writing assistant and long-form production studio.
 - 个别小说的创作结果或计划无法读取时，运行记录仍保留状态和来源入口，并提示进度暂不可读，其他小说的记录可继续查看。
 - 章节阶段确认打开本次范围起始章的计划或正文，便于核对目标卷与章节，避免落到首章或上次查看的内容。
 
+#### 优化
+
+- 正文修文与后续规划减少重复问题和重复审校内容，保留角色事实、伏笔及修复要求；规划读取完整状态，避免长状态中的关键信息被截断。
+
 完整历史更新见 [docs/releases/release-notes.md](./docs/releases/release-notes.md)。
 
 ## 功能预览

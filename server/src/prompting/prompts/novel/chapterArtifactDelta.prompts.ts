@@ -563,7 +563,7 @@ export const chapterArtifactDeltaPrompt: PromptAsset<
   ChapterArtifactDeltaOutput
 > = {
   id: "novel.chapter.artifact_delta.extract",
-  version: "v1",
+  version: "v2",
   taskType: "fact_extraction",
   mode: "structured",
   language: "zh",
@@ -574,6 +574,7 @@ export const chapterArtifactDeltaPrompt: PromptAsset<
     maxAttempts: 1,
   },
   structuredOutputHint: {
+    compact: true,
     example: CHAPTER_ARTIFACT_DELTA_EXAMPLE,
     note: [
       "一次性抽取章节摘要、硬事实、状态快照、角色资源、伏笔/payoff、关系动态、信息边界和同步计划。",

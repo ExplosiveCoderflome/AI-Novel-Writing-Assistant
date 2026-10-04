@@ -8,6 +8,7 @@ import {
 } from "@ai-novel/shared/types/replanWindowDecision";
 import { runStructuredPrompt } from "../../prompting/core/promptRunner";
 import { replanWindowDecisionPrompt } from "../../prompting/prompts/planner/replanWindowDecision.prompts";
+import { buildReplanAuditContext } from "./replan/context";
 
 interface ReplanWindowDecisionInput {
   triggerType: string;
@@ -27,9 +28,9 @@ interface ReplanWindowDecisionInput {
   temperature?: number;
 }
 
-function compactJson(value: unknown, maxLength = 9000): string {
-  const text = JSON.stringify(value ?? null);
-  return text.length > maxLength ? `${text.slice(0, maxLength)}...` : text;
+function compactJson(value: unknown): string {
+  // Never cut JSON in the middle of a field: it discards late facts and produces invalid input.
+  return JSON.stringify(value ?? null);
 }
 
 export class ReplanWindowDecisionService {
@@ -44,7 +45,7 @@ export class ReplanWindowDecisionService {
         requestedWindowSize,
         availableChapterOrdersJson: compactJson(input.availableChapterOrders),
         sourceIssueIdsJson: compactJson(input.sourceIssueIds),
-        auditReportsJson: compactJson(input.auditReports),
+        auditReportsJson: compactJson(buildReplanAuditContext(input.auditReports)),
         payoffSummaryJson: compactJson(input.ledgerSummary),
         canonicalStateJson: compactJson(input.snapshot),
         nextAction: input.nextAction ?? "none",

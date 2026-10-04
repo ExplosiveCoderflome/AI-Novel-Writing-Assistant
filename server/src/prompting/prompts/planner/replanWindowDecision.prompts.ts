@@ -23,7 +23,7 @@ export const replanWindowDecisionPrompt: PromptAsset<
   AiReplanWindowDecision
 > = {
   id: "planner.replan.window_decision",
-  version: "v1",
+  version: "v2",
   taskType: "planner",
   mode: "structured",
   language: "zh",
@@ -33,6 +33,7 @@ export const replanWindowDecisionPrompt: PromptAsset<
     dropOrder: ["protected_secrets"],
   },
   outputSchema: aiReplanWindowDecisionSchema,
+  structuredOutputHint: { compact: true },
   render: (input) => [
     new SystemMessage([
       "你是长篇小说自动导演的重规划窗口决策器。",
@@ -46,6 +47,7 @@ export const replanWindowDecisionPrompt: PromptAsset<
       "4. chapter_rewrite 只在结构性缺章或原计划完全不可用时使用。",
       "5. 不要把 protectedSecrets 写进剧情结论，只能作为选择窗口时的保密约束。",
       "6. triggerReason、windowReason、whyTheseChapters 必须让新手能理解为什么要调整这些章节。",
+      "7. 审校报告使用 reports 和 assessments：每份 report 的 assessmentIndex 是 assessments 的从 0 开始索引，共享相同评估内容；仍须分别核对 report 的 issues、summary 与章节身份。unparsedAssessment 是无法解析的历史原始评估，只作参考，不得忽略对应报告的问题。",
     ].join("\n")),
     new HumanMessage([
       `触发类型：${input.triggerType}`,

@@ -151,14 +151,14 @@ test("prompt registry exposes versioned planning assets", () => {
     "agent.runtime.fallback_answer@v1",
     "agent.runtime.setup_guidance@v1",
     "agent.runtime.setup_ideation@v1",
-    "planner.chapter.plan@v1",
+    "planner.chapter.plan@v2",
     "novel.director.candidates@v2",
     "novel.director.candidate_patch@v1",
     "novel.director.blueprint@v1",
-    "novel.character.castOptions@v2",
+    "novel.character.castOptions@v3",
     "novel.character.castOptions.repair@v1",
     "novel.character.castOptions.zhNormalize@v1",
-    "novel.character.supplemental@v1",
+    "novel.character.supplemental@v2",
     "novel.character.supplemental.zhNormalize@v1",
     "novel.character.mind.snapshot@v1",
     "novel.character.influence.options@v1",
@@ -213,7 +213,7 @@ test("prompt registry exposes versioned planning assets", () => {
     assert.ok(getRegisteredPromptAsset(id, version), `missing prompt asset ${key}`);
   }
 
-  const chapterAsset = getRegisteredPromptAsset("planner.chapter.plan", "v1");
+  const chapterAsset = getRegisteredPromptAsset("planner.chapter.plan", "v2");
   assert.ok(chapterAsset);
   assert.equal(chapterAsset.taskType, "planner");
 });
@@ -417,7 +417,7 @@ test("prompt registry resolves style prompts by their declared asset versions", 
 });
 
 test("character cast prompt hardens real-name constraints and required gender output", () => {
-  const asset = getRegisteredPromptAsset("novel.character.castOptions", "v2");
+  const asset = getRegisteredPromptAsset("novel.character.castOptions", "v3");
   assert.ok(asset);
 
   const messages = asset.render({

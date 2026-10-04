@@ -107,7 +107,7 @@ function buildRepairIssuesPayload(
   const blockingIssueCodes = resolveIssueCodes(runtimePackage);
 
   if (missingObligations.length === 0 && blockingIssueCodes.length === 0) {
-    return JSON.stringify(issues, null, 2);
+    return JSON.stringify(issues);
   }
 
   return JSON.stringify(
@@ -120,8 +120,6 @@ function buildRepairIssuesPayload(
       })),
       blockingIssueCodes,
     },
-    null,
-    2,
   );
 }
 

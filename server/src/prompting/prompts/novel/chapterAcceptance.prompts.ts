@@ -284,7 +284,7 @@ export const chapterAcceptanceAssessmentPrompt: PromptAsset<
   ChapterAcceptanceAssessmentOutput
 > = {
   id: "novel.chapter.acceptance_assessment",
-  version: "v2",
+  version: "v3",
   taskType: "review",
   mode: "structured",
   language: "zh",
@@ -316,6 +316,7 @@ export const chapterAcceptanceAssessmentPrompt: PromptAsset<
     { group: "open_conflicts", priority: 70 },
   ],
   structuredOutputHint: {
+    compact: true,
     example: CHAPTER_ACCEPTANCE_EXAMPLE,
     note: "一次性判断章节是否可接收、是否需要局部修文、是否需要暂停确认，以及后续资产同步优先级。",
   },

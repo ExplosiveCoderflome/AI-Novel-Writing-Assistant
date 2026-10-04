@@ -527,5 +527,5 @@ test("sanitizeAiReplanWindowDecision rejects empty AI-selected windows", () => {
 });
 
 test("replan window decision prompt is registered as a product prompt asset", () => {
-  assert.equal(hasRegisteredPromptAsset("planner.replan.window_decision", "v1"), true);
+  assert.equal(hasRegisteredPromptAsset("planner.replan.window_decision", "v2"), true);
 });

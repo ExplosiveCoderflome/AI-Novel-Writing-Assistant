@@ -194,6 +194,8 @@ export type PromptStructuredOutputExampleBuilder<I, R> = (input: I, context: Pro
 
 export interface PromptStructuredOutputHint<I, R> {
   mode?: "auto" | "off";
+  /** Keep all example fields while omitting indentation in high-volume production calls. */
+  compact?: boolean;
   example?: unknown | PromptStructuredOutputExampleBuilder<I, R>;
   note?: string | ((input: I, context: PromptRenderContext) => string | undefined);
 }

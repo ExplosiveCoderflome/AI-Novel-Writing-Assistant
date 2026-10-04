@@ -18,7 +18,7 @@ export const chapterPatchRepairPrompt: PromptAsset<
   ChapterPatchRepairPlan
 > = {
   id: "novel.review.patch",
-  version: "v3",
+  version: "v4",
   taskType: "repair",
   mode: "structured",
   language: "zh",
@@ -38,6 +38,7 @@ export const chapterPatchRepairPrompt: PromptAsset<
     ],
   },
   outputSchema: chapterPatchRepairPlanSchema,
+  structuredOutputHint: { compact: true },
   slots: [
     {
       kind: "append" as const,

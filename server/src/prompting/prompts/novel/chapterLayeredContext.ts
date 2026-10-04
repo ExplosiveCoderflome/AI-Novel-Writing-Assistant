@@ -54,6 +54,7 @@ import {
 export {
   WRITER_FORBIDDEN_GROUPS,
   buildChapterRepairContextBlocks,
+  buildChapterPatchRepairContextBlocks,
   buildChapterReviewContextBlocks,
   buildChapterWriterContextBlocks,
   sanitizeWriterContextBlocks,
