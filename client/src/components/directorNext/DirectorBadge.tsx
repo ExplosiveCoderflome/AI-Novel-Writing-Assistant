@@ -15,6 +15,7 @@ interface DirectorBadgeProps {
   onActionComplete?: () => void;
   compact?: boolean;
   preview?: boolean;
+  currentNavigationTarget?: string;
 }
 
 function statusLabel(mode: DashboardView["mode"]): string {
@@ -59,7 +60,7 @@ function commandFor(action: DirectorAction, view: DashboardView, novelId: string
   return null;
 }
 
-export default function DirectorBadge({ view, novelId, onActionComplete, compact = false, preview = false }: DirectorBadgeProps) {
+export default function DirectorBadge({ view, novelId, onActionComplete, compact = false, preview = false, currentNavigationTarget }: DirectorBadgeProps) {
   const queryClient = useQueryClient();
   const mutation = useMutation({
     mutationFn: (action: DirectorAction) => {
@@ -78,13 +79,18 @@ export default function DirectorBadge({ view, novelId, onActionComplete, compact
     },
   });
 
+  const visibleActions = useMemo(
+    () => view.availableActions.filter((action) => !currentNavigationTarget
+      || action.kind !== "navigate" || action.target !== currentNavigationTarget),
+    [currentNavigationTarget, view.availableActions],
+  );
   const primaryAction = useMemo(
-    () => view.availableActions.find((action) => action.primary) ?? null,
-    [view.availableActions],
+    () => visibleActions.find((action) => action.primary) ?? null,
+    [visibleActions],
   );
   const secondaryActions = useMemo(
-    () => view.availableActions.filter((action) => action !== primaryAction && action.command !== "handoff"),
-    [primaryAction, view.availableActions],
+    () => visibleActions.filter((action) => action !== primaryAction && action.command !== "handoff"),
+    [primaryAction, visibleActions],
   );
 
   const renderAction = (action: DirectorAction, primary: boolean) => {

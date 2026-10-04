@@ -47,7 +47,7 @@ export const execution=render(<NovelWorkspace book={book} review={new URLSearchP
 export const batch=render(<NovelWorkspace book={book} review={new URLSearchParams('review=chapter_batch_closed&chapterId=c7&from=7&to=8')} preview/>);
 export const invalid=render(<NovelWorkspace book={{...book,reviewContexts:book.reviewContexts.map(row=>({...row,chapterId:'p1'}))}} review={new URLSearchParams('review=chapter_task_sheet')} preview/>);
 const target='/lab/director/book?review=chapter_task_sheet';
-const view={...previewView('waiting_gate'),novelId:'book',availableActions:[{id:'review:chapter_task_sheet',label:'查看章节任务',kind:'navigate',primary:true,target}]};
+const view={...previewView('waiting_gate'),novelId:'book',availableActions:[{id:'review:chapter_task_sheet',label:'去确认「章节任务与场景」',kind:'navigate',primary:true,target},{id:'cancel',label:'取消本次创作',kind:'command',command:'cancel',primary:false}]};
 export const noReview=render(<DirectorPanel view={view} novelId='book'/>);
 export const wrongReview=render(<DirectorPanel view={view} novelId='book' reviewTarget='/lab/director/book?review=volume_strategy' reviewReady/>);
 export const ready=render(<DirectorPanel view={view} novelId='book' reviewTarget={target} reviewReady reviewRunId={view.runId} reviewVersion={view.sourceTrace.controlVersion}/>);
@@ -74,10 +74,23 @@ export const page=renderToStaticMarkup(<MemoryRouter initialEntries={[target]}><
     assert.ok(m.invalid.includes('无法定位'));
     for(const html of [m.noReview,m.wrongReview,m.missing,m.stale,m.staleVersion]) assert.ok(!html.includes('确认结果并继续'));
     assert.ok(m.ready.includes('确认结果并继续'));
+    assert.ok(m.ready.includes('请核对左侧本阶段结果，确认后 AI 按本次授权范围继续。'));
+    for(const html of [m.ready,m.missing,m.stale,m.staleVersion]) {
+      assert.ok(!html.includes('去确认「章节任务与场景」'),'the open review must not repeat its navigation action');
+      assert.doesNotMatch(html,/href="\/lab\/director\/book\?review=chapter_task_sheet"/);
+      assert.ok(!html.includes('查看本阶段结果'),'the open review must not link to itself again');
+      assert.ok(html.includes('取消本次创作'),'navigation suppression must preserve workflow commands');
+    }
+    for(const html of [m.noReview,m.wrongReview]) {
+      assert.ok(html.includes('去确认「章节任务与场景」'));
+      assert.match(html,/href="\/lab\/director\/book\?review=chapter_task_sheet"/);
+    }
     for(const html of [m.ready,m.noReview]) assert.doesNotMatch(html,/href="\/novels\//);
     assert.ok(m.cast.includes('角色阵容') && m.cast.includes('林渡'));
     assert.ok(m.outline.includes('本次目标卷') && m.outline.includes('本次卷纲内容'));
     assert.ok(m.page.includes('目标场景证据') && m.page.includes('确认结果并继续'));
+    assert.ok(!m.page.includes('去确认「章节任务与场景」'));
+    assert.doesNotMatch(m.page,/href="\/lab\/director\/book\?review=chapter_task_sheet"/);
     assert.doesNotMatch(m.page,/href="\/novels\/[^\"]+\/edit|编辑本书/);
   } finally {fs.rmSync(output,{force:true});}
 });

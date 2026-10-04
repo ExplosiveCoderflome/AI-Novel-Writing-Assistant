@@ -37,6 +37,7 @@ function formatTime(value: string): string {
 
 export default function DirectorPanel({ view, novelId, timeline = [], preview = false, startForm, reviewTarget, reviewReady = false, reviewRunId, reviewVersion }: DirectorPanelProps) {
   const reviewingCurrentGate=reviewReady && reviewRunId===view.runId && reviewVersion===view.sourceTrace.controlVersion && view.availableActions.some(action=>action.id.startsWith("review:") && action.kind==="navigate" && action.target===reviewTarget);
+  const navigationAction = view.availableActions.find(action => action.kind === "navigate" && action.target !== reviewTarget);
   const driveSwitch = view.availableActions.find(action => action.command === "handoff" && action.toDriver);
   const chapterText = view.debts.chapterOrders.length > 0
     ? `第 ${view.debts.chapterOrders.join("、")} 章`
@@ -46,7 +47,7 @@ export default function DirectorPanel({ view, novelId, timeline = [], preview = 
 
   return (
     <aside className="flex min-h-0 flex-col gap-0 bg-background lg:sticky lg:top-0 lg:max-h-[calc(100dvh-6rem)]" aria-label="小说导演台">
-      <DirectorBadge view={view} novelId={novelId} preview={preview} />
+      <DirectorBadge view={view} novelId={novelId} preview={preview} currentNavigationTarget={reviewTarget} />
       {!preview && view.mode === "waiting_gate" && reviewingCurrentGate ? <DirectorGate runId={view.runId} novelId={novelId} expectedVersion={view.sourceTrace.controlVersion}/>:null}
       {driveSwitch?.toDriver ? <DirectorDriveSwitch runId={view.runId} novelId={novelId} expectedVersion={view.sourceTrace.controlVersion} toDriver={driveSwitch.toDriver} label={driveSwitch.label} disabled={preview}/>:null}
 
@@ -73,10 +74,10 @@ export default function DirectorPanel({ view, novelId, timeline = [], preview = 
           <ClipboardList className="h-4 w-4 text-muted-foreground" aria-hidden="true" />
           需要你做什么
         </div>
-        <p className="mt-2 text-sm leading-6 text-muted-foreground">{view.nextActionGuidance}</p>
+        <p className="mt-2 text-sm leading-6 text-muted-foreground">{reviewingCurrentGate ? "请核对左侧本阶段结果，确认后 AI 按本次授权范围继续。" : view.nextActionGuidance}</p>
         {view.detail ? <p className="mt-2 text-sm leading-6 text-destructive">{view.detail}</p> : null}
-        {view.availableActions.some((action) => action.kind === "navigate") ? (
-          <Link className="mt-3 inline-flex text-sm font-medium text-primary underline-offset-4 hover:underline" to={view.availableActions.find((action) => action.kind === "navigate")?.target ?? view.sourceRoute}>
+        {navigationAction ? (
+          <Link className="mt-3 inline-flex text-sm font-medium text-primary underline-offset-4 hover:underline" to={navigationAction.target ?? view.sourceRoute}>
             查看本阶段结果
           </Link>
         ) : null}
