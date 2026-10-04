@@ -2,6 +2,7 @@ import { Router, type NextFunction, type Request, type Response } from "express"
 import { z } from "zod";
 import { DirectorRunNotFoundError, RecordProjection, type CommandService, type DirectorCommand, type EventLog, type ProjectionService, type RunRepository } from "../application";
 import type {LegacyRunProjection} from "../legacy";
+import type { DirectorGenerationSnapshot } from "@ai-novel/shared/types/director/generation";
 
 export interface DirectorNextHttpDeps {
   commandService: Pick<CommandService, "execute">;
@@ -10,6 +11,7 @@ export interface DirectorNextHttpDeps {
   eventLog: Pick<EventLog, "list">;
   legacyProjection?: Pick<LegacyRunProjection, "list">;
   readWorkspace?: (novelId: string) => Promise<unknown>;
+  observeGeneration?: (novelId: string, listener: (snapshot: DirectorGenerationSnapshot | null) => void) => () => void;
 }
 
 const nonEmpty = z.string().trim().min(1);
@@ -93,6 +95,28 @@ function asyncRoute(
 export function createDirectorNextRouter(deps: DirectorNextHttpDeps): Router {
   const router = Router();
   const records = new RecordProjection({projectionService: deps.projectionService, runRepository: deps.runRepository});
+  router.get("/novels/:novelId/generation-stream", (req, res) => {
+    const id = nonEmpty.safeParse(req.params.novelId);
+    if (!id.success) { sendValidationError(res, id.error); return; }
+    if (!deps.observeGeneration) { res.status(404).json({success:false,error:"正文预览入口未配置。"}); return; }
+    res.setHeader("Content-Type", "text/event-stream");
+    res.setHeader("Cache-Control", "no-cache, no-transform");
+    res.setHeader("X-Accel-Buffering", "no");
+    res.flushHeaders();
+    let latest: DirectorGenerationSnapshot | null = null;
+    let pending = false;
+    const send = () => {
+      pending = false;
+      if (!res.destroyed && !res.writableEnded && !res.write(`data: ${JSON.stringify(latest)}\n\n`)) res.end();
+    };
+    const unsubscribe = deps.observeGeneration(id.data, snapshot => { latest = snapshot; pending = true; });
+    send(); // Full snapshot on reconnect; subsequent frames are coalesced.
+    const flush = setInterval(() => { if (pending) send(); }, 80);
+    const heartbeat = setInterval(() => {
+      if (!res.destroyed && !res.writableEnded && !res.write(": keep-alive\n\n")) res.end();
+    }, 15_000);
+    res.on("close", () => { clearInterval(flush); clearInterval(heartbeat); unsubscribe(); });
+  });
   router.get("/novels/:novelId/workspace",asyncRoute(async(req,res)=>{
     const id=nonEmpty.safeParse(req.params.novelId);
     if (!id.success) {sendValidationError(res,id.error);return;}

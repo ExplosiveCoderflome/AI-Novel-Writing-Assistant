@@ -11,6 +11,7 @@ import DirectorStart from "@/components/directorNext/DirectorStart";
 import { ResizableWorkspace } from "@/components/layout/resizableWorkspace";
 import { previewStates, previewTimeline, previewView } from "./preview";
 import { NovelWorkspace, previewBook, resolveSavedReview } from "./workspace";
+import { useGenerationFollow } from "./generation";
 
 export default function DirectorNovelPage({ previewOnly = false }: { previewOnly?: boolean }) {
   const { novelId: routeNovelId = "" } = useParams();
@@ -18,6 +19,7 @@ export default function DirectorNovelPage({ previewOnly = false }: { previewOnly
   const [params, setParams] = useSearchParams();
   const location=useLocation();
   const preview = novelId === "preview";
+  const follow = useGenerationFollow(novelId, preview);
   useEffect(()=>{
     const type=params.get("review");
     if (!preview && type && [...params.keys()].some(key=>key!=="review")) setParams({review:type},{replace:true});
@@ -41,6 +43,10 @@ export default function DirectorNovelPage({ previewOnly = false }: { previewOnly
         <div className="flex min-w-0 flex-1 basis-full flex-wrap items-center gap-x-4 gap-y-2 lg:basis-auto">
           <h1 title={book?.novel.title} className="min-w-0 truncate text-lg font-semibold">{book?.novel.title ?? "小说创作"}</h1>
           {!error && view ? <DirectorBadge view={view} novelId={novelId} modeOnly/> : null}
+          <label className="flex shrink-0 cursor-pointer items-center gap-2 rounded-md bg-muted/40 px-3 py-2 text-sm" title="自动打开正在写的章节，实时显示正文">
+            <input type="checkbox" checked={follow.enabled} disabled={preview} onChange={event => follow.setEnabled(event.target.checked)} className="h-4 w-4 accent-primary"/>
+            跟随生成
+          </label>
         </div>
         <div className="flex shrink-0 flex-wrap gap-1 [&_button]:h-8 [&_a]:h-8">
           {!previewOnly ? <Button asChild variant="ghost"><Link to="/novels">返回书架</Link></Button> : null}
@@ -49,10 +55,11 @@ export default function DirectorNovelPage({ previewOnly = false }: { previewOnly
           {!previewOnly ? <Button asChild variant="ghost"><Link to="/lab/director">运行记录</Link></Button> : null}
         </div>
       </header>
+      {follow.disconnected ? <p role="status" className="text-xs text-muted-foreground">正文预览连接中断，正在重新连接。创作任务继续运行。</p> : null}
       {preview ? <details className="rounded-md bg-muted/30 px-4 py-3"><summary className="cursor-pointer text-xs text-muted-foreground">示例预览 · 切换导演状态</summary><p className="mt-3 text-xs text-muted-foreground">本页使用示例内容，创作命令禁用。</p><div className="mt-3 flex flex-wrap gap-2">{previewStates.map((state) => <Button key={state.id} size="sm" variant={(params.get("state") ?? "running") === state.id ? "default" : "ghost"} onClick={() => setParams({ state: state.id })}>{state.label}</Button>)}</div></details> : null}
       <ResizableWorkspace id="director-novel-layout" label="调整正文与导演台宽度" defaultLeft={76} minLeft={580} minRight={280} breakpoint={920} left={<div className="min-w-0">
           {!preview && bookQuery.isError ? <div role="alert" className="mb-4 space-y-2 rounded-md bg-destructive/5 p-4"><p className="text-sm text-destructive">本书内容读取失败。{book ? "你仍可查看上次读取的内容。" : ""}</p><Button variant="outline" size="sm" onClick={() => void bookQuery.refetch()}>重新读取本书</Button></div> : null}
-          {book ? <NovelWorkspace key={novelId} book={book} preview={preview} review={params} onLeaveReview={()=>setParams({})} /> : <p className="py-12 text-sm text-muted-foreground">{bookQuery.isLoading ? "正在读取本书内容…" : "暂无可展示的内容。"}</p>}
+          {book ? <NovelWorkspace key={novelId} book={book} preview={preview} review={params} onLeaveReview={()=>setParams({})} followGeneration={follow.enabled} generation={follow.snapshot} /> : <p className="py-12 text-sm text-muted-foreground">{bookQuery.isLoading ? "正在读取本书内容…" : "暂无可展示的内容。"}</p>}
         </div>} right={directorOpen ? <aside aria-label="导演台" className="min-w-0">
           {!preview && error ? <div role="alert" className="space-y-3 py-4"><p className="text-sm text-destructive">{error instanceof Error ? error.message : "导演信息读取失败。"}</p><Button variant="outline" onClick={() => void Promise.all([summaryQuery.refetch(), detailQuery.refetch()])}>重新读取</Button></div>
             : view ? <DirectorPanel view={view} novelId={novelId} timeline={preview ? previewTimeline : detail?.timeline} preview={preview} startForm={startForm} reviewTarget={savedReview ? location.pathname+location.search : undefined} reviewReady={Boolean(savedReview?.ready) && !bookQuery.isError} reviewRunId={savedReview?.runId} reviewVersion={savedReview?.controlVersion}/>

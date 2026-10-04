@@ -18,6 +18,7 @@ import { NovelContinuationService } from "./NovelContinuationService";
 import { assertChapterContentNotEmpty } from "./runtime/chapterEmptyContentError";
 import { prisma } from "../../db/prisma";
 import type { WritingPlatformSnapshot } from "@ai-novel/shared/types/writingPlatform";
+import { toText } from "./novelP0Utils";
 
 async function loadWritingPlatformBlock(novelId: string) {
   const novel = await prisma.novel.findUnique({
@@ -82,6 +83,7 @@ export interface ChapterStreamInput {
   chapter: ChapterRef;
   contextPackage?: GenerationContextPackage;
   options: ChapterGraphGenerateOptions;
+  onDraftProgress?: (content: string, state: "writing" | "checking") => void;
 }
 
 const continuationService = new NovelContinuationService();
@@ -169,6 +171,7 @@ export class ChapterWritingGraph {
     content: string;
     contextPackage: GenerationContextPackage;
     options: ChapterGraphLLMOptions;
+    onDraftProgress?: ChapterStreamInput["onDraftProgress"];
   }): Promise<string> {
     const writeContext = input.contextPackage.chapterWriteContext;
     const lengthGoal = buildLengthInstruction(
@@ -227,13 +230,13 @@ export class ChapterWritingGraph {
       fallbackBlocks: sanitized.allowedBlocks,
     });
 
-    const completion = await runTextPrompt({
+    const promptRequest = {
       asset: chapterWriterPrompt,
       promptInput: {
         novelTitle: input.novelTitle,
         chapterOrder: input.chapter.order,
         chapterTitle: input.chapter.title,
-        mode: "continue",
+        mode: "continue" as const,
         targetWordCount: lengthGoal.targetWordCount,
         minWordCount: lengthGoal.minWordCount,
         maxWordCount: lengthGoal.maxWordCount,
@@ -251,8 +254,22 @@ export class ChapterWritingGraph {
         stage: "writer_extend",
         triggerReason: "length_recovery",
       },
-    });
-    const appended = completion.output.trim();
+    };
+    let output: string;
+    if (input.onDraftProgress) {
+      const streamed = await streamTextPrompt(promptRequest);
+      void streamed.complete.catch(() => {});
+      let continuation = "";
+      for await (const chunk of streamed.stream) {
+        continuation += toText(chunk.content);
+        input.onDraftProgress(`${input.content.trim()}\n\n${continuation}`, "writing");
+      }
+      output = (await streamed.complete).output;
+      input.onDraftProgress(`${input.content.trim()}\n\n${output.trim()}`.trim(), "checking");
+    } else {
+      output = (await runTextPrompt(promptRequest)).output;
+    }
+    const appended = output.trim();
     if (!appended) {
       return input.content;
     }
@@ -352,6 +369,7 @@ export class ChapterWritingGraph {
           content: normalized,
           contextPackage,
           options: input.options,
+          onDraftProgress: input.onDraftProgress,
         });
         const safeContent = assertChapterContentNotEmpty(lengthAdjusted, {
           novelId: input.novelId,

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { ResizableWorkspace } from "@/components/layout/resizableWorkspace";
 import { ResourceDirectory } from "./ResourceDirectory";
 import { ChapterReader } from "./ChapterReader";
@@ -9,15 +9,33 @@ import { resolveSelection } from "./model";
 import type { Selection, WorkspaceBook } from "./model";
 import {resolveSavedReview} from "./review";
 import {ReviewDetail} from "./ReviewDetail";
+import type {DirectorGenerationSnapshot} from "@ai-novel/shared/types/director/generation";
+import {followedChapterSelection} from "../generation";
+import type {WorkspaceChapter} from "./model";
 
-export function NovelWorkspace({ book, preview = false, review, onLeaveReview }: { book: WorkspaceBook; preview?: boolean; review?:URLSearchParams; onLeaveReview?:()=>void }) {
+export function NovelWorkspace({ book, preview = false, review, onLeaveReview, followGeneration = false, generation = null }: { book: WorkspaceBook; preview?: boolean; review?:URLSearchParams; onLeaveReview?:()=>void; followGeneration?:boolean; generation?:DirectorGenerationSnapshot|null }) {
+  const live = followGeneration && generation?.novelId === book.novel.id ? generation : null;
+  // Planning/polling may not yet include the newly created chapter. The preview is read-only.
+  const previewChapter: WorkspaceChapter | null = live ? {id:live.chapterId,order:live.chapterOrder,title:live.chapterTitle,
+    content:null,wordCount:0,status:"generating",updatedAt:"",qualityDebt:null} : null;
+  const displayBook = previewChapter && !book.chapters.some(row=>row.id===previewChapter.id)
+    ? {...book,chapters:[...book.chapters,previewChapter].sort((a,b)=>a.order-b.order)} : book;
   const savedReview=review ? resolveSavedReview(book,review) : null;
-  const [selection, setSelection] = useState<Selection | null>(null);
-  const selected = resolveSelection(selection, book);
+  const followTarget = followedChapterSelection(followGeneration, live, book.novel.id);
+  const [selection, setSelection] = useState<Selection | null>(()=>followTarget);
+  const selected = resolveSelection(selection, displayBook);
   const reviewChapterId=savedReview?.execution?.id ?? savedReview?.chapters?.[0]?.id;
   const directorySelected:Selection=savedReview?.plan ? {kind:"plan",id:savedReview.plan.id}
     : reviewChapterId ? {kind:"chapter",id:reviewChapterId} : selected;
-  const chapter = selected.kind === "chapter" ? book.chapters.find(row => row.id === selected.id) : null;
+  const chapter = selected.kind === "chapter" ? displayBook.chapters.find(row => row.id === selected.id) : null;
+  useEffect(() => {
+    if (!followTarget) return;
+    setSelection(followTarget);
+    setReadingOrder(live?.chapterOrder ?? null);
+    setCharacterId(null);
+    if (savedReview) onLeaveReview?.();
+    // A new execution (including a retry) focuses once, rather than on every token.
+  }, [followTarget?.id, live?.executionId, Boolean(savedReview)]);
   const [readingOrder, setReadingOrder] = useState<number | null>(() => chapter?.order ?? null);
   const [characterId, setCharacterId] = useState<string | null>(null);
   const [directoryOpen, setDirectoryOpen] = useState(true);
@@ -34,11 +52,11 @@ export function NovelWorkspace({ book, preview = false, review, onLeaveReview }:
   }
   const directory = <aside>
       <button onClick={()=>setDirectoryOpen(open=>!open)} aria-expanded={directoryOpen} className="mb-3 px-3 py-2 text-xs text-muted-foreground hover:text-primary">{directoryOpen ? "收起本书目录" : "显示本书目录"}</button>
-      {directoryOpen ? <ResourceDirectory book={book} selected={directorySelected} onSelect={select} /> : null}
+      {directoryOpen ? <ResourceDirectory book={displayBook} selected={directorySelected} onSelect={select} /> : null}
     </aside>;
   const content = savedReview ? <section key={review?.toString()} className="max-h-[75dvh] min-w-0 overflow-y-auto pb-6"><ReviewDetail book={book} review={savedReview}/></section> : <section key={selected.kind + (selected.kind === "beat" ? selected.volumeId : "") + ("id" in selected ? selected.id : "")} className="max-h-[75dvh] min-w-0 overflow-y-auto pb-6">
       <PlanningDetail book={book} selected={selected} onSelect={select} />
-      {chapter ? <ChapterReader key={chapter.id} chapter={chapter} chapters={book.chapters} characters={book.materials.characters} onCharacter={openCharacter} onChapter={id => select({kind:"chapter",id})} />
+      {chapter ? <ChapterReader key={chapter.id} chapter={chapter} chapters={displayBook.chapters} characters={book.materials.characters} onCharacter={openCharacter} onChapter={id => select({kind:"chapter",id})} generation={live?.chapterId===chapter.id ? live : null} followGeneration={followGeneration} />
         : selected.kind === "beat" || selected.kind === "plan" || (selected.kind === "volume" && book.planning) ? null : <AssetDetail book={book} selected={selected} onCharacter={openCharacter} />}
     </section>;
   return <div className="min-w-0">

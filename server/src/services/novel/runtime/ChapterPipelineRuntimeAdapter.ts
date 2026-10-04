@@ -11,6 +11,7 @@ import {
 import type { ChapterContentFinalizationService } from "./ChapterContentFinalizationService";
 import type { ChapterStreamGenerationOrchestrator } from "./ChapterStreamGenerationOrchestrator";
 import type { ChapterLifecycleService } from "./lifecycle";
+import { chapterGenerationFeed } from "../production/observation";
 
 export interface ChapterPipelineRuntimeAdapterDeps {
   streamOrchestrator: Pick<
@@ -41,13 +42,21 @@ export class ChapterPipelineRuntimeAdapter {
   ): Promise<PipelineRuntimeResult> {
     const { request, assembled } = await this.deps.streamOrchestrator.prepareRuntimeChapter(novelId, chapterId, options);
     await this.deps.streamOrchestrator.markChapterStatus(chapterId, "generating");
+    let preview: ReturnType<typeof chapterGenerationFeed.begin> | undefined;
     try {
-      return await runPipelineChapterWithRuntime(
+      const result = await runPipelineChapterWithRuntime(
         {
           validateRequest: () => request,
           ensureNovelCharacters: this.deps.ensureNovelCharacters,
           assemble: async () => assembled,
-          generateDraftFromWriter: (input) => this.deps.streamOrchestrator.generateDraftFromWriter(input),
+          generateDraftFromWriter: async (input) => {
+            preview = chapterGenerationFeed.begin({novelId, chapterId,
+              chapterOrder: assembled.chapter.order, chapterTitle: assembled.chapter.title});
+            const generated = await this.deps.streamOrchestrator.generateDraftFromWriter({...input,
+              onDraftProgress: (content, state) => chapterGenerationFeed.update(preview!, state, content)});
+            chapterGenerationFeed.update(preview, "checking", generated.content);
+            return generated;
+          },
           saveDraftAndArtifacts: (targetNovelId, targetChapterId, content, generationState, saveOptions) =>
             this.deps.artifactSyncService.saveDraftAndArtifacts(
               targetNovelId,
@@ -87,8 +96,8 @@ export class ChapterPipelineRuntimeAdapter {
               acceptancePersistenceDeferred: finalized.acceptancePersistenceDeferred,
             };
           },
-          commitFinalizedChapterContent: (input) =>
-            this.deps.contentFinalizationService.commitFinalizedChapterContent({
+          commitFinalizedChapterContent: async (input) => {
+            await this.deps.contentFinalizationService.commitFinalizedChapterContent({
               novelId: input.novelId,
               chapterId: input.chapterId,
               request: input.request,
@@ -101,7 +110,9 @@ export class ChapterPipelineRuntimeAdapter {
                 ...input.evaluation,
               },
               assertExecutionOwnership: hooks.onCheckCancelled,
-            }),
+            });
+            if (preview) chapterGenerationFeed.update(preview, "saved", input.evaluation.finalContent);
+          },
           markChapterGenerationState: (targetChapterId, generationState) =>
             this.markChapterGenerationState(targetChapterId, generationState),
           markChapterNeedsRepair: (targetChapterId) =>
@@ -112,7 +123,11 @@ export class ChapterPipelineRuntimeAdapter {
         options,
         hooks,
       );
+      // The no-review path saves its draft without a terminal evaluation commit.
+      if (preview && chapterGenerationFeed.read(novelId)?.state !== "saved") chapterGenerationFeed.update(preview, "saved");
+      return result;
     } catch (error) {
+      if (preview) chapterGenerationFeed.update(preview, "interrupted");
       if (isChapterEmptyContentError(error)) {
         await this.deps.streamOrchestrator.markChapterStatus(chapterId, "pending_generation");
       }

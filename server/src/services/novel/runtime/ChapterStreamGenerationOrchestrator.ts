@@ -153,6 +153,7 @@ export class ChapterStreamGenerationOrchestrator {
     chapterId: string;
     request: ChapterRuntimeRequestInput;
     assembled: AssembledRuntimeChapter;
+    onDraftProgress?: (content: string, state: "writing" | "checking") => void;
   }): Promise<{
     content: string;
     lengthControl?: ChapterRuntimePackage["lengthControl"];
@@ -164,6 +165,7 @@ export class ChapterStreamGenerationOrchestrator {
       novelTitle: input.assembled.novel.title,
       chapter: input.assembled.chapter,
       contextPackage: input.assembled.contextPackage,
+      onDraftProgress: input.onDraftProgress,
       options: {
         ...input.request,
         deferArtifactBackgroundSync: true,
@@ -173,7 +175,9 @@ export class ChapterStreamGenerationOrchestrator {
     let fullContent = "";
     for await (const chunk of writerResult.stream) {
       fullContent += toText(chunk.content);
+      input.onDraftProgress?.(fullContent, "writing");
     }
+    input.onDraftProgress?.(fullContent, "checking");
     const normalized = await writerResult.onDone(fullContent);
     const content = assertChapterContentNotEmpty(normalized?.finalContent ?? fullContent, {
       novelId: input.novelId,
@@ -181,6 +185,7 @@ export class ChapterStreamGenerationOrchestrator {
       chapterOrder: input.assembled.chapter.order,
       source: "chapter_runtime_writer",
     });
+    input.onDraftProgress?.(content, "checking");
     return {
       content,
       lengthControl: normalized?.lengthControl,
