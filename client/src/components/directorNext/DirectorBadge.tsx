@@ -30,6 +30,10 @@ function statusLabel(mode: DashboardView["mode"]): string {
   }
 }
 
+function driverLabel(driver: DashboardView["driver"]): string {
+  return driver === "auto" ? "全自动推进" : "按阶段确认（半自动）";
+}
+
 function statusTone(mode: DashboardView["mode"]): string {
   if (mode === "failed") return "border-destructive/30 bg-destructive/5 text-destructive";
   if (mode === "waiting_gate" || mode === "paused") return "border-primary/30 bg-primary/5 text-foreground";
@@ -123,13 +127,14 @@ export default function DirectorBadge({ view, novelId, onActionComplete, compact
 
   return (
     <section className={cn("flex min-w-0 flex-col gap-3", compact ? "py-1" : "py-3")} aria-label="导演状态">
-      <div className="flex min-w-0 items-start gap-3">
+      <div className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1">
         <Badge variant="outline" className={cn("flex shrink-0 items-center gap-1.5", statusTone(view.mode))}>
           <StatusIcon mode={view.mode} />
           {statusLabel(view.mode)}
         </Badge>
-        <p className="min-w-0 flex-1 break-words text-sm leading-6 text-foreground" title={view.headline}>{view.headline}</p>
+        <span className="text-xs font-medium leading-6 text-muted-foreground" aria-label="创作方式">模式：{driverLabel(view.driver)}</span>
       </div>
+      <p className="min-w-0 break-words text-sm leading-6 text-foreground" title={view.headline}>{view.headline}</p>
       <div className="flex min-w-0 flex-wrap items-center gap-1.5">
         {primaryAction ? renderAction(primaryAction, true) : null}
         {secondaryActions.map((action) => renderAction(action, false))}
@@ -139,4 +144,4 @@ export default function DirectorBadge({ view, novelId, onActionComplete, compact
   );
 }
 
-export { statusLabel as directorStatusLabel };
+export { statusLabel as directorStatusLabel, driverLabel as directorDriverLabel };

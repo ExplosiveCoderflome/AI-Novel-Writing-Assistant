@@ -1,7 +1,7 @@
 import { Link } from "react-router-dom";
 import { BookOpen, ClipboardList, History, ShieldAlert } from "lucide-react";
 import type { DashboardView, DirectorTimelineEvent } from "@/api/directorNext";
-import DirectorBadge from "./DirectorBadge";
+import DirectorBadge, { directorDriverLabel } from "./DirectorBadge";
 import DirectorGate from "./DirectorGate";
 import DirectorDriveSwitch from "./DirectorDriveSwitch";
 import type {ReactNode} from "react";
@@ -121,7 +121,7 @@ export default function DirectorPanel({ view, novelId, timeline = [], preview = 
       <details className="border-t border-border/60 py-3 text-xs text-muted-foreground">
         <summary className="cursor-pointer select-none">查看运行诊断</summary>
         <dl className="mt-3 grid grid-cols-[auto_1fr] gap-x-3 gap-y-1.5">
-          <dt>运行方式</dt><dd className="text-foreground">{view.driver === "auto" ? "自动推进" : "辅助推进"}</dd>
+          <dt>创作方式</dt><dd className="text-foreground">{directorDriverLabel(view.driver)}</dd>
           <dt>计划版本</dt><dd className="break-all text-foreground">{view.sourceTrace.planVersion}</dd>
           <dt>状态版本</dt><dd className="text-foreground">{view.sourceTrace.controlVersion}</dd>
           <dt>阶段完成</dt><dd className="text-foreground">{view.progress.done}/{view.progress.total}</dd>

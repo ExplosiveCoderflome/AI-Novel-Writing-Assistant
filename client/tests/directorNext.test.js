@@ -86,7 +86,7 @@ export function renderedSwitchCases() {
     const view = {...previewView('running'), driver,
       availableActions: available ? [{id:'handoff', kind:'command', primary:false, command:'handoff',
         toDriver:driver === 'auto' ? 'assisted' : 'auto', label}] : []};
-    return {available, label, markup: renderToStaticMarkup(
+    return {available, label, driver, markup: renderToStaticMarkup(
       <QueryClientProvider client={new QueryClient()}><MemoryRouter>
         <DirectorPanel view={view} novelId='preview' preview />
       </MemoryRouter></QueryClientProvider>)};
@@ -111,6 +111,7 @@ export function renderedProduction() {
     assert.equal(rows.length, 7);
     for (const { view, markup } of rows) {
       assert.ok(markup.includes(view.headline));
+      assert.match(markup,/aria-label="创作方式"[^>]*>模式：全自动推进<\/span>/);
       assert.ok(markup.includes('role="progressbar"'));
       assert.doesNotMatch(markup, /<details[^>]*\bopen/);
       for (const action of view.availableActions) {
@@ -118,7 +119,9 @@ export function renderedProduction() {
         if (action.kind === 'command') assert.match(markup, /disabled=""/);
       }
     }
-    for (const {available, label, markup} of renderedSwitchCases()) {
+    for (const {available, label, driver, markup} of renderedSwitchCases()) {
+      const modeLabel=driver==='auto' ? '全自动推进' : '按阶段确认（半自动）';
+      assert.ok(markup.includes(`aria-label="创作方式">模式：${modeLabel}</span>`),'the header shows the current driver even when switching is unavailable');
       assert.equal(markup.split(label).length-1, available ? 1 : 0, 'switch renders only once from the projected action');
       if (available) assert.match(markup, /<button[^>]*disabled=""[^>]*>按本次授权切换创作方式<\/button>/);
     }
