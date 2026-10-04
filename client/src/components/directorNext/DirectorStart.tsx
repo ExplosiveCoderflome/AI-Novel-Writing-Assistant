@@ -4,7 +4,7 @@ import LLMSelector from "@/components/common/LLMSelector";
 import {useLLMStore} from "@/store/llmStore";
 import {Button} from "@/components/ui/button";
 import {Input} from "@/components/ui/input";
-import {submitDirectorCommand} from "@/api/directorNext";
+import {createDirectorCommandKey,submitDirectorCommand} from "@/api/directorNext";
 import {queryKeys} from "@/api/queryKeys";
 
 export default function DirectorStart({novelId, estimatedChapterCount, nextChapter, initialStory, worldId, suggestedRange}: {
@@ -19,7 +19,7 @@ export default function DirectorStart({novelId, estimatedChapterCount, nextChapt
   const mutation = useMutation({mutationFn: async () => {
     if (!story.trim() || !model.provider || !model.model || !Number.isInteger(count) || count < 1) throw new Error("请填写故事方向、目标章数并选择模型。");
     if (production && (!Number.isInteger(from) || !Number.isInteger(to) || from < 1 || to < from || to > count)) throw new Error("请填写目标章数以内的有效章节范围。");
-    return submitDirectorCommand({type:"open_run",novelId,driver:assisted ? "assisted" : "auto",stepIdsInScope:null,idempotencyKey:crypto.randomUUID(),
+    return submitDirectorCommand({type:"open_run",novelId,driver:assisted ? "assisted" : "auto",stepIdsInScope:null,idempotencyKey:createDirectorCommandKey(),
       launchInput:{storyInput:story.trim(),estimatedChapterCount:count,worldMode:world,targetMode:"opening",provider:model.provider,model:model.model,temperature:model.temperature,
         issuePolicyMode:qualityFirst ? "quality_first" : "completion_first",...(production ? {executionRange:{from,to}} : {})}});
   },onSuccess: async()=>{await Promise.all([queries.invalidateQueries({queryKey:queryKeys.directorNext.summary(novelId)}),queries.invalidateQueries({queryKey:queryKeys.directorNext.detail(novelId)})]);}});

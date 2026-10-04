@@ -29,6 +29,14 @@
 - 重新生成候选没有进入新一轮：检查 batch reuse、command idempotency 和候选阶段运行态。
 - 生成没有使用知识库资料：检查 `knowledgeDocumentIds`、小说/世界绑定、启用状态和 prompt context requirement。
 
+### 局域网 HTTP 的导演命令提交
+
+`crypto.randomUUID()` 依赖浏览器安全上下文。通过 `http://192.168.*` 等局域网地址访问时，直接调用它会在构造命令时抛错，请求尚未发出；开发机的 localhost 测试不能覆盖这个环境差异。
+
+新导演的命令标识由 `client/src/api/directorNext.ts` 的 `createDirectorCommandKey` 统一生成。优先使用原生 UUID；缺失时使用可在普通 HTTP 中工作的 `getRandomValues`，加时间和本页面序号；没有 Crypto API 时使用随机片段、时间和序号。标识只用于命令去重，不能作为认证令牌或授权依据，同一时刻的不同提交也必须保持不同标识。
+
+此规则覆盖启动正文、三种阶段处理、模式切换、继续与取消。兼容处理不能改变本次章节范围、运行归属、预期状态版本或创作方式，也不能绕过服务端的命令与状态校验。排查时先确认请求是否发出，再区分浏览器能力缺失与服务端拒绝。代码回归需模拟缺少 `randomUUID` 的环境并检查真实请求载荷，不能只在 Node 的完整 Crypto 环境中验证。
+
 ## 失败模式
 
 不能用来替代根因修复的手段：

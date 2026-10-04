@@ -3,7 +3,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
 import { Activity, CheckCircle2, CircleAlert, PauseCircle, PlayCircle, XCircle } from "lucide-react";
 import type { DashboardView, DirectorAction, DirectorCommand } from "@/api/directorNext";
-import { submitDirectorCommand } from "@/api/directorNext";
+import { createDirectorCommandKey, submitDirectorCommand } from "@/api/directorNext";
 import { queryKeys } from "@/api/queryKeys";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -52,7 +52,7 @@ function StatusIcon({ mode }: { mode: DashboardView["mode"] }) {
 }
 
 function commandFor(action: DirectorAction, view: DashboardView, novelId: string): DirectorCommand | null {
-  const idempotencyKey = `director-next:${view.runId}:${action.id}:${Date.now()}`;
+  const idempotencyKey = createDirectorCommandKey();
   if (action.command === "open_run") {
     return { type: "open_run", novelId, driver: view.driver, stepIdsInScope: null, idempotencyKey };
   }

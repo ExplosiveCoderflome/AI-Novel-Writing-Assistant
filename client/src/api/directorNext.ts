@@ -146,6 +146,18 @@ export async function listDirectorRuns(options?: { needsAttention?: boolean; lim
   return data;
 }
 
+let directorCommandSequence = 0;
+
+/** Command deduplication identity, not an authentication token. LAN HTTP lacks randomUUID. */
+export function createDirectorCommandKey(): string {
+  const crypto = globalThis.crypto;
+  if (typeof crypto?.randomUUID === "function") return crypto.randomUUID();
+  const entropy = typeof crypto?.getRandomValues === "function"
+    ? Array.from(crypto.getRandomValues(new Uint8Array(16)), byte => byte.toString(16).padStart(2, "0")).join("")
+    : Math.random().toString(36).slice(2);
+  return `director-next:${Date.now()}:${++directorCommandSequence}:${entropy}`;
+}
+
 export async function submitDirectorCommand(command: DirectorCommand): Promise<ApiResponse<{ runId: string; controlVersion: number }>> {
   const { data } = await apiClient.post<ApiResponse<{ runId: string; controlVersion: number }>>(
     "/director-next/commands",
