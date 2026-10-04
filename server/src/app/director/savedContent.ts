@@ -4,6 +4,7 @@ import {parsePipelinePayload, stringifyPipelinePayload} from "../../services/nov
 import {AppError} from "../../middleware/errorHandler";
 import {isCurrentChapterProductionCompleted} from "../../services/novel/production/completion";
 import {CHAPTER_ARTIFACT_BOUNDARY_TYPE} from "../../services/novel/runtime/artifactSync";
+import {revalidateSavedPlanning} from "./recovery/missingPlanning";
 
 /** Reads saved business assets in the same transaction as gate confirmation. */
 export async function readEditedArtifact(input: {contract: RunContract; type: string; contentRef: string}, tx: Prisma.TransactionClient) {
@@ -52,7 +53,7 @@ export async function readEditedArtifact(input: {contract: RunContract; type: st
 
 export async function resumeBusiness(contract: RunContract, tx: Prisma.TransactionClient) {
   const event = await tx.directorNextEvent.findFirst({where: {runId: contract.runId, type: "chapter_batch_job"}, orderBy: {seq: "desc"}});
-  if (!event) return;
+  if (!event) {await revalidateSavedPlanning(contract,tx);return;}
   const binding = JSON.parse(event.payloadJson) as {jobId?: unknown};
   if (typeof binding.jobId !== "string") throw new Error("正文恢复绑定无效。");
   const job = await tx.generationJob.findUniqueOrThrow({where: {id: binding.jobId}});

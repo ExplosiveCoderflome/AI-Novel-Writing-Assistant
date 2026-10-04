@@ -30,13 +30,13 @@ export function createDirectorProductionOptions(): DirectorNextServiceOptions {
   const characters = new CharacterPreparationService(), pipeline = new NovelCorePipelineService(), events = new PrismaEventLog();
   const contentHash = artifactContentHash;
   const fullVolumeRoutes = createVolumeChapterListStepHandler({volumeService: volumes, inputProvider: async context => {
-    const workspace = await volumes.getVolumes(context.contract.novelId);
+    const workspace = await volumes.getVolumes(context.contract.novelId, {hydrateCanonical:false});
     return {...modelOptions(context), workspace, targetVolumeId: targetVolume(context, workspace)};
   }, contentHash});
   const routeService = new ChapterRouteWindowService(volumes);
   const productionRoutes = createChapterRouteWindowStepHandler({volumeService: volumes, routeService,
     inputProvider: async context => {
-      const workspace = await volumes.getVolumes(context.contract.novelId);
+      const workspace = await volumes.getVolumes(context.contract.novelId, {hydrateCanonical:false});
       return {...modelOptions(context), targetVolumeId: targetVolume(context, workspace)};
     }, contentHash});
   const stepRegistry = createProductionStepRegistry({
@@ -66,15 +66,15 @@ export function createDirectorProductionOptions(): DirectorNextServiceOptions {
           completionProfile: buildDirectorCompletionProfile(requireLaunch(context.contract).estimatedChapterCount),
         });
       }
-      const workspace = await volumes.getVolumes(context.contract.novelId);
+      const workspace = await volumes.getVolumes(context.contract.novelId, {hydrateCanonical:false});
       return {...modelOptions(context), workspace, targetVolumeId: targetVolume(context, workspace), reuseSaved: Boolean(range)};
     }, contentHash}),
     volume_chapter_list: context => context.contract.chapterRange ? productionRoutes(context) : fullVolumeRoutes(context),
     chapter_detail_bundle: createChapterDetailBundleStepHandler({volumeService: volumes, inputProvider: async context => {
-      const workspace = await volumes.getVolumes(context.contract.novelId);return {...modelOptions(context), workspace, targets: executionWindow(context, workspace).targets};
+      const workspace = await volumes.getVolumes(context.contract.novelId, {hydrateCanonical:false});return {...modelOptions(context), workspace, targets: executionWindow(context, workspace).targets};
     }, resolveIssues: async (_context, reports) => resolveChapterQualityReports(reports), contentHash}),
-    execution_contract_sync: createExecutionContractSyncStepHandler({volumeService: volumes, chapterService: new ChapterService(), inputProvider: async context => {
-      const workspace = await volumes.getVolumes(context.contract.novelId);return {workspace, executionRange: executionWindow(context, workspace).executionRange};
+    execution_contract_sync: createExecutionContractSyncStepHandler({volumeService: {syncVolumeChaptersWithOptions:(novelId,input,options)=>volumes.syncVolumeChaptersWithOptions(novelId,input,{...options,hydrateCanonical:false})}, chapterService: new ChapterService(), inputProvider: async context => {
+      const workspace = await volumes.getVolumes(context.contract.novelId, {hydrateCanonical:false});return {workspace, executionRange: executionWindow(context, workspace).executionRange};
     }, contentHash}),
     chapter_batch: createChapterBatchStepHandler({pipelineService: pipeline, inputProvider: async context => {
       const input = requireLaunch(context.contract), range = context.contract.chapterRange;

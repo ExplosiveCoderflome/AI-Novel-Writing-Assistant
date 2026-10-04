@@ -12,34 +12,43 @@ export const directorArtifactTypes: Readonly<Record<string, ArtifactTypeInfo>> =
   Object.entries(reviewTargets).map(([type, label]) => [type, {label, reviewRoute: `/lab/director/:novelId?review=${type}`}]),
 );
 
+export interface SavedReviewContext {
+  type:string; novelId:string; runId:string; controlVersion:number;
+  from?:number; to?:number; chapterId?:string; volumeId?:string;
+}
+
 /** Resolve only the open chapter gates, using saved current-book identities, never a first-row default. */
-export async function resolveConfirmationArtifactTypes({contract, control}: {contract: RunContract; control: RunControl}) {
+export async function resolveSavedReviewContexts({contract, control}: {contract: RunContract; control: RunControl}): Promise<SavedReviewContext[]> {
   const types = control.status === "waiting_gate" ? control.gate?.artifactTypes ?? [] : [];
-  const chapterTypes = types.filter(type => ["chapter_task_sheet", "chapter_execution_contract", "chapter_batch_closed"].includes(type));
-  if (!chapterTypes.length) return directorArtifactTypes;
+  const contexts:SavedReviewContext[]=types.map(type=>({type,novelId:contract.novelId,runId:contract.runId,controlVersion:control.version}));
+  const chapterTypes = contexts.filter(row => ["chapter_task_sheet", "chapter_execution_contract", "chapter_batch_closed"].includes(row.type));
+  if (!chapterTypes.length) return contexts;
   const from = contract.chapterRange?.from, to = contract.chapterRange?.to;
   if (!from || !to || !Number.isSafeInteger(from) || !Number.isSafeInteger(to) || from < 1 || to < from) throw new FactIntegrityError("待确认章节缺少有效的授权范围。");
-  const resolved = {...directorArtifactTypes};
-  for (const type of chapterTypes) {
-    const query = new URLSearchParams({review: type});
+  for (const context of chapterTypes) {
+    const {type}=context;
     if (type === "chapter_batch_closed") {
       const chapters = await prisma.chapter.findMany({where: {novelId: contract.novelId, order: from}, select: {id: true}});
       if (chapters.length !== 1) throw new FactIntegrityError("待确认正文缺少唯一的已保存章节。");
-      query.set("chapterId", chapters[0].id);
+      context.chapterId=chapters[0].id;
     } else {
       const chapters = await prisma.volumeChapterPlan.findMany({where: {volume: {novelId: contract.novelId}, chapterOrder: from}, select: {id: true, volumeId: true}});
       if (chapters.length !== 1 || (contract.launchInput?.targetVolumeId && chapters[0].volumeId !== contract.launchInput.targetVolumeId)) {
         throw new FactIntegrityError("待确认计划缺少唯一的已保存目标卷章节。");
       }
-      query.set("volumeId", chapters[0].volumeId);
+      context.volumeId=chapters[0].volumeId;
       if (type === "chapter_execution_contract") {
         const saved = await prisma.chapter.findMany({where: {novelId: contract.novelId, order: from}, select: {id: true}});
         if (saved.length !== 1) throw new FactIntegrityError("待确认执行计划缺少唯一的已保存章节。");
-        query.set("chapterId", saved[0].id);
-      } else query.set("chapterId", chapters[0].id);
+        context.chapterId=saved[0].id;
+      } else context.chapterId=chapters[0].id;
     }
-    query.set("from", String(from)); query.set("to", String(to));
-    resolved[type] = {...resolved[type], reviewRoute: `/lab/director/${encodeURIComponent(contract.novelId)}?${query}`};
+    context.from=from;context.to=to;
   }
-  return resolved;
+  return contexts;
+}
+
+export async function resolveConfirmationArtifactTypes(input: {contract: RunContract; control: RunControl}) {
+  await resolveSavedReviewContexts(input);
+  return directorArtifactTypes;
 }

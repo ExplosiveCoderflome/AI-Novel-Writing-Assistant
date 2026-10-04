@@ -19,6 +19,7 @@ const {createDirectorProductionOptions} = require(path.join(server, 'dist/app/di
 const {createDirectorNextServices, FactIntegrityError} = require(path.join(server, 'dist/modules/director'));
 const {PrismaRunRepository} = require(path.join(server, 'dist/modules/director/infrastructure'));
 const {readDirectorWorkspace} = require(path.join(server, 'dist/app/director/workspace'));
+const {NovelVolumeService} = require(path.join(server,'dist/services/novel/volume/NovelVolumeService'));
 function snapshot() {
  const db = new Database(process.env.DATABASE_URL.slice(5), {readonly: true});
  try {return ['DirectorNextRun','DirectorNextRunControl','DirectorNextArtifact','DirectorNextEvent','DirectorNextCommand','DirectorNextQualityDebt',
@@ -44,6 +45,10 @@ function snapshot() {
   {id: 'p/7?x=4', volumeId: 'v/target?x=2', chapterId: 'c/7?x=3', chapterOrder: 7, title: '目标章', summary: '目标路线', taskSheet: '上游规划任务', sceneCards: '上游规划场景'},
   {id: 'p-other', volumeId: 'v-other', chapterId: 'c-other', chapterOrder: 7, title: '其他书', summary: '其他书路线'},
  ]});
+ const planningBefore=snapshot();
+ const savedPlanning=await new NovelVolumeService().getVolumes(novelId,{hydrateCanonical:false});
+ assert.equal(savedPlanning.volumes.find(v=>v.id==='v/target?x=2').chapters[0].taskSheet,'上游规划任务','planning reads must retain the prepared source instead of copying execution');
+ assert.deepEqual(snapshot(),planningBefore);
  const options = createDirectorProductionOptions();
  const services = createDirectorNextServices(options), runs = new PrismaRunRepository(prisma);
  const contract = options.contractFactory({runId: 'range-run', novelId, driver: 'assisted', stepIdsInScope: null,
@@ -70,10 +75,13 @@ function snapshot() {
    assert.equal(url.pathname, '/lab/director/'+encodeURIComponent(novelId));
    assert.equal(url.searchParams.get('review'), type);
    assert.equal(url.searchParams.has('stage'), false);
-   assert.equal(url.searchParams.get('from'), '7');
-   assert.equal(url.searchParams.get('to'), '8');
-   assert.equal(url.searchParams.get('chapterId'), chapterId, 'must locate the saved authorized start, not the first chapter');
-   assert.equal(url.searchParams.get('volumeId'), volumeId);
+   assert.deepEqual([...url.searchParams.keys()], ['review']);
+   const context=book.reviewContexts.find(row=>row.type===type);
+   assert.equal(context.from,7);assert.equal(context.to,8);
+   assert.equal(context.chapterId,chapterId,'identity belongs in saved review context');
+   assert.equal(context.volumeId??null,volumeId);
+   assert.equal(context.runId,contract.runId);
+   assert.equal(context.controlVersion,view.sourceTrace.controlVersion);
    assert.equal(url.searchParams.has('directorTaskId'), false);
    assert.equal(url.searchParams.has('workspaceTaskId'), false);
   }
@@ -85,6 +93,9 @@ function snapshot() {
  await prisma.volumeChapterPlan.update({where: {id: 'p/7?x=4'}, data: {chapterOrder: 9}});
  let before = snapshot();
  await assert.rejects(() => services.http.projectionService.get(contract.runId), error => error instanceof FactIntegrityError);
+ const readable=await readDirectorWorkspace(novelId);
+ assert.ok(readable.chapters.some(row=>row.id==='c/7?x=3'));
+ assert.equal(readable.reviewContexts.length,0);assert.match(readable.reviewContextError,/缺少唯一/);
  assert.deepEqual(snapshot(), before);
  await prisma.volumeChapterPlan.update({where: {id: 'p/7?x=4'}, data: {chapterOrder: 7}});
  await prisma.volumeChapterPlan.create({data: {id: 'p-duplicate', volumeId: 'v-first', chapterOrder: 7, title: '冲突映射', summary: '不可猜测'}});

@@ -5,8 +5,14 @@ import {getSimpleCreationShelf,getNovelVolumeWorkspace} from "./novel";
 
 export type DirectorMode = "queued" | "running" | "waiting_gate" | "paused" | "completed" | "failed" | "cancelled";
 export type DirectorDriver = "auto" | "assisted";
+export interface DirectorReviewContext {
+  type:string;novelId:string;runId:string;controlVersion:number;
+  from?:number;to?:number;chapterId?:string;volumeId?:string;
+}
 export type DirectorWorkspace = Pick<SimpleCreationShelfProjection,"novel"|"chapters"|"materials"> & {
   planning?:VolumePlanDocument;
+  reviewContexts?:DirectorReviewContext[];
+  reviewContextError?:string|null;
   executionPlans?: {id:string;order:number;title:string;taskSheet:string|null;sceneCards:string|null;targetWordCount:number|null;mustAvoid:string|null}[];
 };
 export async function getDirectorWorkspace(novelId:string): Promise<ApiResponse<DirectorWorkspace>> {

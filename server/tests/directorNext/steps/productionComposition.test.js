@@ -43,6 +43,26 @@ test('opening follows AI volume order and prepares only the first execution cont
  assert.deepEqual(executionWindow(context,workspace),{targets:[{volumeId:'opening',chapterId:'p1'}],executionRange:{startOrder:1,endOrder:1}});
  assert.throws(()=>targetVolume({...context,contract:{...contract,chapterRange:{from:5,to:10}}},workspace),/路线/);
 });
+
+test('new director planning reads cannot hydrate empty execution fields over prepared tasks',async()=>{
+ const {NovelVolumeService}=require('../../../dist/services/novel/volume/NovelVolumeService');
+ const original=NovelVolumeService.prototype.getVolumes,seen=[];
+ NovelVolumeService.prototype.getVolumes=async(_id,input)=>{seen.push(input);throw Error('read-boundary-reached');};
+ try {await assert.rejects(()=>options.stepRegistry.get('execution_contract_sync')(context),/read-boundary-reached/);
+  assert.deepEqual(seen,[{hydrateCanonical:false}]);}
+ finally {NovelVolumeService.prototype.getVolumes=original;}
+});
+
+test('new director synchronization keeps the planning source until contracts are explicitly written',async()=>{
+ const {NovelVolumeService}=require('../../../dist/services/novel/volume/NovelVolumeService');
+ const {ChapterService}=require('../../../dist/services/novel/ChapterService');
+ const originals={read:NovelVolumeService.prototype.getVolumes,sync:NovelVolumeService.prototype.syncVolumeChaptersWithOptions,chapters:ChapterService.prototype.listChapters};
+ NovelVolumeService.prototype.getVolumes=async()=>({novelId:'novel',volumes:[{id:'v1',chapters:[{id:'p1',chapterOrder:1,taskSheet:'保存任务',sceneCards:'保存场景'}]}]});
+ ChapterService.prototype.listChapters=async()=>[];
+ NovelVolumeService.prototype.syncVolumeChaptersWithOptions=async(_id,_input,opts)=>{assert.deepEqual(opts,{emitEvent:false,syncPayoffLedger:false,hydrateCanonical:false});throw Error('sync-boundary-reached');};
+ try {await assert.rejects(()=>options.stepRegistry.get('execution_contract_sync')(context),/sync-boundary-reached/);}
+ finally {NovelVolumeService.prototype.getVolumes=originals.read;NovelVolumeService.prototype.syncVolumeChaptersWithOptions=originals.sync;ChapterService.prototype.listChapters=originals.chapters;}
+});
 test('batch result reads structured decisions and current-content closure instead of status alone',async()=>{
  const decision={issueCode:'quality.chapter_below_threshold',action:'continue_with_warning',reason:'局部债',locked:false,policySource:'task_snapshot',retryExhaustedAction:'continue_with_warning',chapterOrder:1};
  let decisions=[decision],manual=false;

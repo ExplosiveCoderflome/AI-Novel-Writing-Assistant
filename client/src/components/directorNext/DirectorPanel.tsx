@@ -14,6 +14,8 @@ interface DirectorPanelProps {
   startForm?: ReactNode | ((range: DashboardView["nextLaunchRange"]) => ReactNode);
   reviewTarget?:string;
   reviewReady?:boolean;
+  reviewRunId?:string;
+  reviewVersion?:number;
 }
 
 function formatEvent(event: DirectorTimelineEvent): string {
@@ -33,8 +35,8 @@ function formatTime(value: string): string {
   return Number.isNaN(date.getTime()) ? "时间未知" : date.toLocaleString();
 }
 
-export default function DirectorPanel({ view, novelId, timeline = [], preview = false, startForm, reviewTarget, reviewReady = false }: DirectorPanelProps) {
-  const reviewingCurrentGate=reviewReady && view.availableActions.some(action=>action.id.startsWith("review:") && action.kind==="navigate" && action.target===reviewTarget);
+export default function DirectorPanel({ view, novelId, timeline = [], preview = false, startForm, reviewTarget, reviewReady = false, reviewRunId, reviewVersion }: DirectorPanelProps) {
+  const reviewingCurrentGate=reviewReady && reviewRunId===view.runId && reviewVersion===view.sourceTrace.controlVersion && view.availableActions.some(action=>action.id.startsWith("review:") && action.kind==="navigate" && action.target===reviewTarget);
   const driveSwitch = view.availableActions.find(action => action.command === "handoff" && action.toDriver);
   const chapterText = view.debts.chapterOrders.length > 0
     ? `第 ${view.debts.chapterOrders.join("、")} 章`
