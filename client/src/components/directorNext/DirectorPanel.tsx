@@ -12,11 +12,13 @@ interface DirectorPanelProps {
   timeline?: DirectorTimelineEvent[];
   preview?: boolean;
   startForm?: ReactNode;
+  reviewTarget?:string;
+  reviewReady?:boolean;
 }
 
 function actionGuidance(view: DashboardView): string {
   if (view.availableActions.some((action) => action.kind === "navigate" && action.primary)) {
-    return "请先查看需要确认的内容，再回到这里继续。";
+    return "查看本阶段结果，核对内容后确认继续。";
   }
   if (view.availableActions.some((action) => action.command === "resume" && action.primary)) {
     return "保存的创作内容仍然保留，确认上下文后可以继续推进。";
@@ -47,7 +49,8 @@ function formatTime(value: string): string {
   return Number.isNaN(date.getTime()) ? "时间未知" : date.toLocaleString();
 }
 
-export default function DirectorPanel({ view, novelId, timeline = [], preview = false, startForm }: DirectorPanelProps) {
+export default function DirectorPanel({ view, novelId, timeline = [], preview = false, startForm, reviewTarget, reviewReady = false }: DirectorPanelProps) {
+  const reviewingCurrentGate=reviewReady && view.availableActions.some(action=>action.id.startsWith("review:") && action.kind==="navigate" && action.target===reviewTarget);
   const driveSwitch = view.availableActions.find(action => action.command === "handoff" && action.toDriver);
   const chapterText = view.debts.chapterOrders.length > 0
     ? `第 ${view.debts.chapterOrders.join("、")} 章`
@@ -56,7 +59,7 @@ export default function DirectorPanel({ view, novelId, timeline = [], preview = 
   return (
     <aside className="flex min-h-0 flex-col gap-0 bg-background lg:sticky lg:top-0 lg:max-h-[calc(100dvh-6rem)]" aria-label="小说导演台">
       <DirectorBadge view={view} novelId={novelId} preview={preview} />
-      {!preview && view.mode === "waiting_gate" ? <DirectorGate runId={view.runId} novelId={novelId} expectedVersion={view.sourceTrace.controlVersion}/>:null}
+      {!preview && view.mode === "waiting_gate" && reviewingCurrentGate ? <DirectorGate runId={view.runId} novelId={novelId} expectedVersion={view.sourceTrace.controlVersion}/>:null}
       {driveSwitch?.toDriver ? <DirectorDriveSwitch runId={view.runId} novelId={novelId} expectedVersion={view.sourceTrace.controlVersion} toDriver={driveSwitch.toDriver} label={driveSwitch.label} disabled={preview}/>:null}
       {!preview && ["completed","cancelled","failed"].includes(view.mode) ? startForm : null}
 
@@ -85,8 +88,8 @@ export default function DirectorPanel({ view, novelId, timeline = [], preview = 
         <p className="mt-2 text-sm leading-6 text-muted-foreground">{actionGuidance(view)}</p>
         {view.detail ? <p className="mt-2 text-sm leading-6 text-destructive">{view.detail}</p> : null}
         {view.availableActions.some((action) => action.kind === "navigate") ? (
-          <Link className="mt-3 inline-flex text-sm font-medium text-primary underline-offset-4 hover:underline" to={view.availableActions.find((action) => action.kind === "navigate")?.target ?? `/novels/${encodeURIComponent(novelId)}/edit`}>
-            打开小说工作区
+          <Link className="mt-3 inline-flex text-sm font-medium text-primary underline-offset-4 hover:underline" to={view.availableActions.find((action) => action.kind === "navigate")?.target ?? view.sourceRoute}>
+            查看本阶段结果
           </Link>
         ) : null}
       </section>

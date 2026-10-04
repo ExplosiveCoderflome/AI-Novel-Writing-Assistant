@@ -44,10 +44,10 @@ const plan = domain.definePlan({
 });
 
 const artifactTypes = {
-  story_macro: { label: "故事宏观规划", reviewRoute: "/novels/n1/edit?stage=story_macro" },
-  character_cast: { label: "角色阵容", reviewRoute: "/novels/n1/edit?stage=character" },
-  volume_strategy: { label: "卷战略", reviewRoute: "/novels/n1/edit?stage=outline" },
-  chapter_list: { label: "章节列表", reviewRoute: "/novels/n1/edit?stage=outline" },
+  story_macro: { label: "故事宏观规划", reviewRoute: "/lab/director/n1?review=story_macro" },
+  character_cast: { label: "角色阵容", reviewRoute: "/lab/director/n1?review=character_cast" },
+  volume_strategy: { label: "卷战略", reviewRoute: "/lab/director/n1?review=volume_strategy" },
+  chapter_list: { label: "章节列表", reviewRoute: "/lab/director/n1?review=chapter_list" },
 };
 
 function artifact(type, overrides = {}) {

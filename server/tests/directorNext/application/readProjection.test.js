@@ -78,7 +78,7 @@ test("projection uses the saved plan version and the book source route", async (
   const view = await service.get("run-1");
   assert.equal(view.mode, "running");
   assert.deepEqual(view.progress, { done: 1, total: 4, source: "artifact_ledger" });
-  assert.equal(view.sourceRoute, "/novels/novel-1/edit");
+  assert.equal(view.sourceRoute, "/lab/director/novel-1");
   assert.deepEqual(view.debts, { count: 1, chapterOrders: [2] });
   assert.equal("contract" in view, false);
 });
@@ -94,9 +94,9 @@ test("projection rejects an unavailable saved plan instead of using a new plan",
 test("review templates encode the saved book id while literal and empty routes retain their contract", async () => {
   const runContract = contract({novelId: 'book/中文?x=1'});
   for (const [registered, expected] of [
-    ['/novels/:novelId/edit?stage=character', `/novels/${encodeURIComponent(runContract.novelId)}/edit?stage=character`],
+    ['/lab/director/:novelId?review=character_cast', `/lab/director/${encodeURIComponent(runContract.novelId)}?review=character_cast`],
     ['/registered/review', '/registered/review'],
-    ['', `/novels/${encodeURIComponent(runContract.novelId)}/edit`],
+    ['', `/lab/director/${encodeURIComponent(runContract.novelId)}`],
   ]) {
     const service = new ProjectionService({factsLoader: loader({runContract,
       control: runningControl({status: 'waiting_gate', gate: {gateId: 'cast', artifactTypes: ['character_cast']}})}),

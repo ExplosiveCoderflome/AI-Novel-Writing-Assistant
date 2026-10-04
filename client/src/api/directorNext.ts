@@ -5,7 +5,11 @@ import {getSimpleCreationShelf,getNovelVolumeWorkspace} from "./novel";
 
 export type DirectorMode = "queued" | "running" | "waiting_gate" | "paused" | "completed" | "failed" | "cancelled";
 export type DirectorDriver = "auto" | "assisted";
-export async function getDirectorWorkspace(novelId:string): Promise<ApiResponse<Pick<SimpleCreationShelfProjection,"novel"|"chapters"|"materials"> & {planning?:VolumePlanDocument}>> {
+export type DirectorWorkspace = Pick<SimpleCreationShelfProjection,"novel"|"chapters"|"materials"> & {
+  planning?:VolumePlanDocument;
+  executionPlans?: {id:string;order:number;title:string;taskSheet:string|null;sceneCards:string|null;targetWordCount:number|null;mustAvoid:string|null}[];
+};
+export async function getDirectorWorkspace(novelId:string): Promise<ApiResponse<DirectorWorkspace>> {
   try {return (await apiClient.get(`/director-next/novels/${encodeURIComponent(novelId)}/workspace`,{silentErrorStatuses:[404]})).data;}
   catch(error) {
     if ((error as ApiHttpError).status !== 404) throw error;

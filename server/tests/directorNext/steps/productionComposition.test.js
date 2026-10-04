@@ -19,11 +19,11 @@ test('real production composition registers all adapters and freezes complete po
  assert.equal(planning.stepIdsInScope.includes('chapter_batch'),false);assert.equal(planning.chapterRange,null);
  assert.throws(()=>options.contractFactory({runId:'bad',novelId:'novel',driver:'auto',stepIdsInScope:['chapter_batch'],launchInput:{...launchInput,executionRange:undefined}}),/授权范围/);
 });
-test('every production confirmation opens its own book and matching editor stage', async () => {
+test('every production confirmation stays in its own new director workspace', async () => {
  const {ProjectionService}=require('../../../dist/modules/director/application');
- const stages={character_cast:'character',volume_strategy:'outline',chapter_task_sheet:'structured',chapter_execution_contract:'structured',chapter_batch_closed:'chapter'};
+ const expectedGates=['character_cast','volume_strategy','chapter_task_sheet','chapter_execution_contract','chapter_batch_closed'];
  const gates=options.plan.steps.filter(step=>step.gateable).map(step=>step.produces);
- assert.deepEqual(gates,Object.keys(stages));
+ assert.deepEqual(gates,expectedGates);
  for(const type of gates){
   const savedContract={...contract,novelId:'book/中文?other=1',driver:'assisted'};
   const service=new ProjectionService({planRegistry:{get:()=>options.plan},artifactTypes:options.artifactTypes,
@@ -32,7 +32,7 @@ test('every production confirmation opens its own book and matching editor stage
     facts:{artifacts:[],debts:[],stopSignal:null}})}});
   const view=await service.get(contract.runId);
   const target=view.availableActions.find(action=>action.id===`review:${type}`).target;
-  assert.equal(target,`/novels/${encodeURIComponent(savedContract.novelId)}/edit?stage=${stages[type]}`);
+  assert.equal(target,`/lab/director/${encodeURIComponent(savedContract.novelId)}?review=${type}`);
   assert.equal(view.sourceRoute,`/lab/director/${encodeURIComponent(savedContract.novelId)}`);
   assert.equal(new URL(target,'https://local.test').searchParams.has('directorTaskId'),false);
  }

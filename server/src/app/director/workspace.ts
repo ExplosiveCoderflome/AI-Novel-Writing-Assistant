@@ -5,7 +5,7 @@ import {normalizeVolumeWorkspaceDocument} from "../../services/novel/volume/volu
 import {AppError} from "../../middleware/errorHandler";
 
 /** Saved book display never reads task seeds or repairs compatibility records. */
-export async function readDirectorWorkspace(novelId: string): Promise<Pick<SimpleCreationShelfProjection,"novel"|"chapters"|"materials"> & {planning:VolumePlanDocument}> {
+export async function readDirectorWorkspace(novelId: string) {
   const novel = await prisma.novel.findUnique({where:{id:novelId},include:{world:true,bookContract:true,characters:{orderBy:{createdAt:"asc"}},chapters:{orderBy:{order:"asc"}},volumePlans:{where:{status:"active"},orderBy:{sortOrder:"asc"},include:{chapters:true}}}});
   if (!novel) throw new AppError("小说不存在。",404);
   const version = await prisma.volumePlanVersion.findFirst({where:{novelId,status:"active"},orderBy:{version:"desc"}});
@@ -16,6 +16,7 @@ export async function readDirectorWorkspace(novelId: string): Promise<Pick<Simpl
     return {id:chapter.id,order:chapter.order,title:chapter.title,content,status,qualityDebt,wordCount:content ? Array.from(content).length:0,updatedAt:chapter.updatedAt.toISOString()};
   });
   return {novel:{id:novel.id,title:novel.title,creationExperience:novel.creationExperience,estimatedChapterCount:novel.estimatedChapterCount},chapters,planning,
+    executionPlans:novel.chapters.map(({id,order,title,taskSheet,sceneCards,targetWordCount,mustAvoid})=>({id,order,title,taskSheet,sceneCards,targetWordCount,mustAvoid})),
     materials:{description:novel.description,characterCount:novel.characters.length,volumeCount:planning.volumes.length,openQualityDebtCount:chapters.filter(chapter=>chapter.qualityDebt).length,
       story:{coreSellingPoint:novel.bookContract?.coreSellingPoint ?? novel.bookSellingPoint,readingPromise:novel.bookContract?.readingPromise ?? novel.competingFeel,first30ChapterPromise:novel.first30ChapterPromise,protagonistFantasy:novel.bookContract?.protagonistFantasy ?? null},
       world:novel.world ? {name:novel.world.name,summary:novel.world.overviewSummary ?? novel.world.description}:null,

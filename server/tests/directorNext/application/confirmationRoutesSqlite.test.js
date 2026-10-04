@@ -18,6 +18,7 @@ const {ensureRuntimeDatabaseReady} = require(path.join(server, 'dist/db/runtimeM
 const {createDirectorProductionOptions} = require(path.join(server, 'dist/app/director/productionComposition'));
 const {createDirectorNextServices, FactIntegrityError} = require(path.join(server, 'dist/modules/director'));
 const {PrismaRunRepository} = require(path.join(server, 'dist/modules/director/infrastructure'));
+const {readDirectorWorkspace} = require(path.join(server, 'dist/app/director/workspace'));
 function snapshot() {
  const db = new Database(process.env.DATABASE_URL.slice(5), {readonly: true});
  try {return ['DirectorNextRun','DirectorNextRunControl','DirectorNextArtifact','DirectorNextEvent','DirectorNextCommand','DirectorNextQualityDebt',
@@ -35,12 +36,12 @@ function snapshot() {
  ]});
  await prisma.chapter.createMany({data: [
   {id: 'c-first', novelId, order: 1, title: '首章', content: '保留首章正文'},
-  {id: 'c/7?x=3', novelId, order: 7, title: '范围起点', content: '保留目标正文'},
+  {id: 'c/7?x=3', novelId, order: 7, title: '范围起点', content: '保留目标正文', taskSheet: '真正同步的任务', sceneCards: '真正同步的场景', targetWordCount: 2100, mustAvoid: '执行禁忌'},
   {id: 'c-other', novelId: 'other', order: 7, title: '其他书同章序', content: '其他书正文'},
  ]});
  await prisma.volumeChapterPlan.createMany({data: [
   {id: 'p-first', volumeId: 'v-first', chapterId: 'c-first', chapterOrder: 1, title: '首章', summary: '首章路线'},
-  {id: 'p/7?x=4', volumeId: 'v/target?x=2', chapterId: 'c/7?x=3', chapterOrder: 7, title: '目标章', summary: '目标路线'},
+  {id: 'p/7?x=4', volumeId: 'v/target?x=2', chapterId: 'c/7?x=3', chapterOrder: 7, title: '目标章', summary: '目标路线', taskSheet: '上游规划任务', sceneCards: '上游规划场景'},
   {id: 'p-other', volumeId: 'v-other', chapterId: 'c-other', chapterOrder: 7, title: '其他书', summary: '其他书路线'},
  ]});
  const options = createDirectorProductionOptions();
@@ -48,20 +49,29 @@ function snapshot() {
  const contract = options.contractFactory({runId: 'range-run', novelId, driver: 'assisted', stepIdsInScope: null,
   launchInput: {storyInput: '故事', estimatedChapterCount: 12, worldMode: 'skip', targetMode: 'opening', provider: 'openai', model: 'no-ai', executionRange: {from: 7, to: 8}}});
  await runs.open(contract); await runs.transition(contract.runId, {type: 'start'}, 0);
- for (const [type, stage, chapterId, volumeId] of [
-  ['chapter_task_sheet','structured','p/7?x=4','v/target?x=2'],
-  ['chapter_execution_contract','structured','p/7?x=4','v/target?x=2'],
-  ['chapter_batch_closed','chapter','c/7?x=3',null],
+ for (const [type, chapterId, volumeId] of [
+  ['chapter_task_sheet','p/7?x=4','v/target?x=2'],
+  ['chapter_execution_contract','c/7?x=3','v/target?x=2'],
+  ['chapter_batch_closed','c/7?x=3',null],
  ]) {
   const control = await runs.getControl(contract.runId);
   await runs.transition(contract.runId, {type: 'open_gate', gateId: type, artifactTypes: [type]}, control.version);
   const before = snapshot();
   for (let read = 0; read < 2; read++) {
+   const book = await readDirectorWorkspace(novelId);
+   const execution = book.executionPlans.find(row => row.id === 'c/7?x=3');
+   assert.equal(execution.taskSheet,'真正同步的任务');
+   assert.equal(execution.sceneCards,'真正同步的场景');
+   assert.equal(execution.targetWordCount,2100);
+   assert.equal(book.executionPlans.some(row=>row.id==='c-other'),false);
    const view = await services.http.projectionService.get(contract.runId);
    const action = view.availableActions.find(item => item.id === 'review:'+type);
    const url = new URL(action.target, 'https://local.test');
-   assert.equal(url.pathname, '/novels/'+encodeURIComponent(novelId)+'/edit');
-   assert.equal(url.searchParams.get('stage'), stage);
+   assert.equal(url.pathname, '/lab/director/'+encodeURIComponent(novelId));
+   assert.equal(url.searchParams.get('review'), type);
+   assert.equal(url.searchParams.has('stage'), false);
+   assert.equal(url.searchParams.get('from'), '7');
+   assert.equal(url.searchParams.get('to'), '8');
    assert.equal(url.searchParams.get('chapterId'), chapterId, 'must locate the saved authorized start, not the first chapter');
    assert.equal(url.searchParams.get('volumeId'), volumeId);
    assert.equal(url.searchParams.has('directorTaskId'), false);

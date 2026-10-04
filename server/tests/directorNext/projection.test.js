@@ -78,8 +78,8 @@ test("waiting_gate view navigates to the review page of each gated artifact", ()
   assert.deepEqual(
     gated.availableActions.map((action) => [action.id, action.kind, action.primary, action.target]),
     [
-      ["review:story_macro", "navigate", true, "/novels/n1/edit?stage=story_macro"],
-      ["review:character_cast", "navigate", false, "/novels/n1/edit?stage=character"],
+      ["review:story_macro", "navigate", true, "/lab/director/n1?review=story_macro"],
+      ["review:character_cast", "navigate", false, "/lab/director/n1?review=character_cast"],
       ["cancel", "command", false, undefined],
       ["handoff", "command", false, undefined],
     ],

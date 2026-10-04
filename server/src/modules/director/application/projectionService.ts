@@ -27,6 +27,7 @@ export class ProjectionService {
     if (!plan) {
       throw new UnknownPlanVersionError(contract.planVersion);
     }
+    const sourceRoute=this.deps.sourceRoute?.(contract.novelId) ?? `/lab/director/${encodeURIComponent(contract.novelId)}`;
     const artifactTypes = this.deps.resolveArtifactTypes
       ? await this.deps.resolveArtifactTypes({contract, control}) : this.deps.artifactTypes ?? {};
     return project({
@@ -37,9 +38,9 @@ export class ProjectionService {
       artifactTypes: Object.fromEntries(Object.entries(artifactTypes).map(([type,info]) => [type,{
         ...info,
         reviewRoute: info.reviewRoute.replace(":novelId", encodeURIComponent(contract.novelId))
-          || `/novels/${encodeURIComponent(contract.novelId)}/edit`,
+          || sourceRoute,
       }])),
-      sourceRoute: this.deps.sourceRoute?.(contract.novelId) ?? `/novels/${encodeURIComponent(contract.novelId)}/edit`,
+      sourceRoute,
     });
   }
 }

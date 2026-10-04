@@ -1,7 +1,8 @@
-import type { SimpleCreationShelfProjection, CharacterTimeline, VolumePlanDocument } from "@ai-novel/shared/types/novel";
+import type { CharacterTimeline } from "@ai-novel/shared/types/novel";
+import type {DirectorWorkspace} from "@/api/directorNext";
 
 // Saved creative assets only. The legacy shelf's workflow projection is intentionally excluded.
-export type WorkspaceBook = Pick<SimpleCreationShelfProjection, "novel" | "chapters" | "materials"> & { planning?: VolumePlanDocument };
+export type WorkspaceBook = DirectorWorkspace;
 export type WorkspaceChapter = WorkspaceBook["chapters"][number];
 export type WorkspaceCharacter = WorkspaceBook["materials"]["characters"][number];
 export type Selection = { kind: "story" | "world" } | { kind: "chapter" | "character" | "volume" | "plan"; id: string } | { kind: "beat"; id: string; volumeId: string };
