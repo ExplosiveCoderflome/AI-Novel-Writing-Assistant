@@ -11,7 +11,7 @@ interface DirectorPanelProps {
   novelId: string;
   timeline?: DirectorTimelineEvent[];
   preview?: boolean;
-  startForm?: ReactNode | ((range: DashboardView["nextLaunchRange"]) => ReactNode);
+  startForm?: ReactNode | ((range: DashboardView["nextLaunchRange"], driver: DashboardView["driver"]) => ReactNode);
   reviewTarget?:string;
   reviewReady?:boolean;
   reviewRunId?:string;
@@ -82,7 +82,7 @@ export default function DirectorPanel({ view, novelId, timeline = [], preview = 
           </Link>
         ) : null}
         {!preview && ["completed","cancelled","failed"].includes(view.mode) && (view.mode !== "completed" || view.availableActions.some(action=>action.command === "open_run"))
-          ? typeof startForm === "function" ? startForm(view.nextLaunchRange) : startForm : null}
+          ? typeof startForm === "function" ? startForm(view.nextLaunchRange, view.driver) : startForm : null}
       </section>
 
       <section className="border-t border-border/60 py-4" aria-labelledby="director-quality-debt">

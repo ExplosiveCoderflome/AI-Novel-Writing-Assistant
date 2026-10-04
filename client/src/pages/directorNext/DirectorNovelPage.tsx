@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Link, useParams, useSearchParams, useLocation } from "react-router-dom";
-import { getDirectorDetail, getDirectorSummary, getDirectorWorkspace } from "@/api/directorNext";
+import { getDirectorDetail, getDirectorSummary, getDirectorWorkspace, type DirectorDriver } from "@/api/directorNext";
 import { getNovelDetail } from "@/api/novel";
 import { queryKeys } from "@/api/queryKeys";
 import { Button } from "@/components/ui/button";
@@ -33,7 +33,7 @@ export default function DirectorNovelPage({ previewOnly = false }: { previewOnly
   const view = preview ? previewView(params.get("state") ?? "running") : detail?.view ?? summaryQuery.data?.data;
   const error = detailQuery.error ?? summaryQuery.error;
   const metadata = novelQuery.data?.data;
-  const startForm = !preview && book && metadata ? (range: {from:number;to:number}|null) => <DirectorStart key={`${view?.runId ?? novelId}:${range?.from ?? "planning"}`} novelId={novelId} estimatedChapterCount={book.novel.estimatedChapterCount} nextChapter={Math.max(0,...book.chapters.filter(chapter=>chapter.content?.trim()).map(chapter=>chapter.order))+1} initialStory={metadata.description ?? ""} worldId={metadata.worldId} suggestedRange={range}/> : null;
+  const startForm = !preview && book && metadata ? (range: {from:number;to:number}|null, driver: DirectorDriver = "assisted") => <DirectorStart key={`${view?.runId ?? novelId}:${range?.from ?? "planning"}`} novelId={novelId} estimatedChapterCount={book.novel.estimatedChapterCount} nextChapter={Math.max(0,...book.chapters.filter(chapter=>chapter.content?.trim()).map(chapter=>chapter.order))+1} initialStory={metadata.description ?? ""} worldId={metadata.worldId} suggestedRange={range} initialDriver={driver}/> : null;
 
   return (
     <div className="mx-auto max-w-[1600px] space-y-3">

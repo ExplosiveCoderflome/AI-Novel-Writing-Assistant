@@ -8,7 +8,7 @@ import { webcrypto } from 'node:crypto';
 
 const clientDir = fileURLToPath(new URL('../', import.meta.url));
 const output = path.join(clientDir, 'tests', `.director-commands-${process.pid}.mjs`);
-let exercise;
+let exercise, exerciseContinuation;
 
 before(async () => {
   const { build } = createRequire(import.meta.resolve('vite'))('esbuild');
@@ -16,7 +16,7 @@ before(async () => {
     stdin: { resolveDir: clientDir, loader: 'tsx', contents: `
 import React from 'react';
 import {renderToStaticMarkup} from 'react-dom/server';
-import {MemoryRouter} from 'react-router-dom';
+import {MemoryRouter,Routes,Route} from 'react-router-dom';
 import {QueryClient,QueryClientProvider} from '@tanstack/react-query';
 import {captured} from 'test-command-hooks';
 import {apiClient} from './src/api/client';
@@ -25,6 +25,34 @@ import DirectorStart from './src/components/directorNext/DirectorStart';
 import DirectorGate from './src/components/directorNext/DirectorGate';
 import DirectorDriveSwitch from './src/components/directorNext/DirectorDriveSwitch';
 import DirectorBadge from './src/components/directorNext/DirectorBadge';
+import DirectorNovelPage from './src/pages/directorNext/DirectorNovelPage';
+import {previewBook} from './src/pages/directorNext/workspace/previewBook';
+import {queryKeys} from './src/api/queryKeys';
+export async function exerciseContinuation(driver) {
+  useLLMStore.getState().setSelection({provider:'deepseek',model:'deepseek-flash',temperature:0.7});
+  Object.assign(useLLMStore.getInitialState(),useLLMStore.getState());
+  const posts=[];
+  apiClient.defaults.adapter=async config=>{
+    if(config.method!=='post' || config.url!=='/director-next/commands') throw new Error('Unexpected request');
+    posts.push(JSON.parse(config.data));
+    return {status:200,statusText:'OK',headers:{},config,data:{success:true,data:{runId:'next-run',controlVersion:1}}};
+  };
+  const client=new QueryClient({defaultOptions:{queries:{retry:false}}});
+  const view={runId:'previous-run',novelId:'book',driver,mode:'completed',headline:'规划完成',detail:null,
+    nextActionGuidance:'选择正文范围',chapterProgress:null,nextLaunchRange:{from:1,to:10},progress:{done:7,total:7,source:'artifact_ledger'},
+    debts:{count:0,chapterOrders:[]},availableActions:[{id:'open_run',command:'open_run',kind:'command',primary:true,label:'继续写作'}],sourceRoute:'/lab/director/book',
+    sourceTrace:{controlStatus:'completed',controlVersion:17,pauseKind:null,planVersion:'v1'}};
+  client.setQueryData(queryKeys.directorNext.summary('book'),{success:true,data:view});
+  client.setQueryData(queryKeys.directorNext.detail('book'),{success:true,data:{view,timeline:[]}});
+  client.setQueryData(['directorBookWorkspace','book'],{success:true,data:{...previewBook,novel:{...previewBook.novel,id:'book',estimatedChapterCount:30},chapters:[]}});
+  client.setQueryData(['directorNovelMetadata','book'],{success:true,data:{description:'故事方向'}});
+  try {
+    captured.length=0;
+    renderToStaticMarkup(<QueryClientProvider client={client}><MemoryRouter initialEntries={['/lab/director/book']}><Routes><Route path='/lab/director/:novelId' element={<DirectorNovelPage/>}/></Routes></MemoryRouter></QueryClientProvider>);
+    await captured.at(-1).mutationFn();
+    return posts;
+  } finally {client.clear();}
+}
 export async function exercise() {
   useLLMStore.getState().setSelection({provider:'deepseek',model:'deepseek-flash',temperature:0.7});
   Object.assign(useLLMStore.getInitialState(),useLLMStore.getState());
@@ -72,7 +100,7 @@ export function useMutation(options) {captured.push(options);return realUseMutat
 `}));
     }}],
   });
-  ({exercise}=await import(pathToFileURL(output).href));
+  ({exercise,exerciseContinuation}=await import(pathToFileURL(output).href));
 });
 
 after(() => {if(fs.existsSync(output)) fs.unlinkSync(output);});
@@ -121,4 +149,14 @@ test('commands remain distinct without crypto even in the same clock tick',async
   Math.random=()=>0.5;
   try {assertCommands(await withCrypto(undefined,exercise));}
   finally {Date.now=originalNow;Math.random=originalRandom;}
+});
+
+test('starting chapter production from the real novel page inherits both automatic and assisted modes',async()=>{
+  for(const driver of ['auto','assisted']) {
+    const posts=await exerciseContinuation(driver);
+    assert.equal(posts.length,1);
+    assert.equal(posts[0].type,'open_run');
+    assert.equal(posts[0].driver,driver,'starting a new chapter range must inherit the previous run mode');
+    assert.deepEqual(posts[0].launchInput.executionRange,{from:1,to:10});
+  }
 });
