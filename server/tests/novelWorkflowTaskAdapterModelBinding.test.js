@@ -4,23 +4,17 @@ const assert = require("node:assert/strict");
 require("../dist/app.js");
 const { NovelWorkflowTaskAdapter } = require("../dist/services/task/adapters/NovelWorkflowTaskAdapter.js");
 const { prisma } = require("../dist/db/prisma.js");
+const { stubDatabaseMethod } = require("./legacyDirector/databasePorts.js");
 
 // These adapter tests isolate workflow projections, including their read-only archive lookup.
-const originalArchiveReads = {
-  findUnique: prisma.taskCenterArchive.findUnique,
-  findMany: prisma.taskCenterArchive.findMany,
-};
-test.before(() => {
-  prisma.taskCenterArchive.findUnique = async () => null;
-  prisma.taskCenterArchive.findMany = async () => [];
-});
-test.after(() => {
-  prisma.taskCenterArchive.findUnique = originalArchiveReads.findUnique;
-  prisma.taskCenterArchive.findMany = originalArchiveReads.findMany;
-});
+function isolateArchiveReads(t) {
+  stubDatabaseMethod(t, prisma.taskCenterArchive, "findUnique", async () => null);
+  stubDatabaseMethod(t, prisma.taskCenterArchive, "findMany", async () => []);
+}
 
 
-test("task detail exposes candidate-stage bound model before directorInput exists", async () => {
+test("task detail exposes candidate-stage bound model before directorInput exists", async (t) => {
+  isolateArchiveReads(t);
   const originals = {
     findUnique: prisma.novelWorkflowTask.findUnique,
   };
@@ -85,7 +79,8 @@ test("task detail exposes candidate-stage bound model before directorInput exist
   }
 });
 
-test("task detail compact mode strips heavyweight auto-director seed payload from polling responses", async () => {
+test("task detail compact mode strips heavyweight auto-director seed payload from polling responses", async (t) => {
+  isolateArchiveReads(t);
   const originals = {
     findUnique: prisma.novelWorkflowTask.findUnique,
   };
@@ -190,7 +185,8 @@ test("task detail compact mode strips heavyweight auto-director seed payload fro
   }
 });
 
-test("auto-director retry resumes failed tasks by default", async () => {
+test("auto-director retry resumes failed tasks by default", async (t) => {
+  isolateArchiveReads(t);
   const { DirectorTaskStateWriter } = require("../dist/services/novel/director/state/DirectorTaskStateWriter.js");
   const originals = {
     archiveFindUnique: prisma.taskCenterArchive.findUnique,
@@ -245,7 +241,8 @@ test("auto-director retry resumes failed tasks by default", async () => {
   }
 });
 
-test("task center list only queries auto director workflow rows", async () => {
+test("task center list only queries auto director workflow rows", async (t) => {
+  isolateArchiveReads(t);
   const originals = {
     findMany: prisma.novelWorkflowTask.findMany,
   };
@@ -336,7 +333,8 @@ test("task center list only queries auto director workflow rows", async () => {
   }
 });
 
-test("task center list treats restart recovery note as running recovery instead of failure", async () => {
+test("task center list treats restart recovery note as running recovery instead of failure", async (t) => {
+  isolateArchiveReads(t);
   const originals = {
     findMany: prisma.novelWorkflowTask.findMany,
   };
@@ -393,7 +391,8 @@ test("task center list treats restart recovery note as running recovery instead 
   }
 });
 
-test("task center list keeps manual recovery tasks out of running display state", async () => {
+test("task center list keeps manual recovery tasks out of running display state", async (t) => {
+  isolateArchiveReads(t);
   const originals = {
     findMany: prisma.novelWorkflowTask.findMany,
   };
@@ -452,7 +451,8 @@ test("task center list keeps manual recovery tasks out of running display state"
   }
 });
 
-test("task center list surfaces actual auto execution range in explainability fields", async () => {
+test("task center list surfaces actual auto execution range in explainability fields", async (t) => {
+  isolateArchiveReads(t);
   const originals = {
     findMany: prisma.novelWorkflowTask.findMany,
   };
@@ -517,7 +517,8 @@ test("task center list surfaces actual auto execution range in explainability fi
   }
 });
 
-test("task detail treats review-blocked auto execution as skippable continuation", async () => {
+test("task detail treats review-blocked auto execution as skippable continuation", async (t) => {
+  isolateArchiveReads(t);
   const originals = {
     findUnique: prisma.novelWorkflowTask.findUnique,
   };

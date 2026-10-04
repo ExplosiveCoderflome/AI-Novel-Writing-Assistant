@@ -14,6 +14,15 @@ const integrationTests = new Set([
   "persistence.test.js",
   "directorNextReadOnlySqlite.test.js",
   "commandRepositorySqlite.test.js",
+  "batchProcessRecoverySqlite.test.js",
+  "confirmationRoutesSqlite.test.js",
+  "gateProcessRecoverySqlite.test.js",
+  "gateService.test.js",
+  "openRunSwitchSqlite.test.js",
+  "planningInventorySqlite.test.js",
+  "processRecoverySqlite.test.js",
+  "productionProgressSqlite.test.js",
+  "recoveryBudgetSqlite.test.js",
   "readProjection.test.js",
   "commandService.test.js",
   "runExecutor.test.js",
@@ -66,14 +75,8 @@ if (files.length === 0) {
   process.exit(1);
 }
 
-if (mode === "fast") {
-  for (const file of files) {
-    require(file);
-  }
-  return;
-}
-
-const result = spawnSync(process.execPath, ["--test", ...files], {
+// File isolation prevents cache replacements and root hooks from leaking across tests.
+const result = spawnSync(process.execPath, ["--test", "--test-concurrency=4", ...files], {
   cwd: serverRoot,
   stdio: "inherit",
 });
