@@ -15,6 +15,7 @@ interface DirectorBadgeProps {
   onActionComplete?: () => void;
   compact?: boolean;
   preview?: boolean;
+  modeOnly?: boolean;
   currentNavigationTarget?: string;
 }
 
@@ -64,7 +65,7 @@ function commandFor(action: DirectorAction, view: DashboardView, novelId: string
   return null;
 }
 
-export default function DirectorBadge({ view, novelId, onActionComplete, compact = false, preview = false, currentNavigationTarget }: DirectorBadgeProps) {
+export default function DirectorBadge({ view, novelId, onActionComplete, compact = false, preview = false, modeOnly = false, currentNavigationTarget }: DirectorBadgeProps) {
   const queryClient = useQueryClient();
   const mutation = useMutation({
     mutationFn: (action: DirectorAction) => {
@@ -95,6 +96,12 @@ export default function DirectorBadge({ view, novelId, onActionComplete, compact
   const secondaryActions = useMemo(
     () => visibleActions.filter((action) => action !== primaryAction && action.command !== "handoff"),
     [primaryAction, visibleActions],
+  );
+
+  if (modeOnly) return (
+    <span className="inline-flex max-w-full items-center rounded-md bg-primary/10 px-3 py-1.5 text-sm font-semibold text-foreground" aria-label="当前创作模式">
+      当前模式：{driverLabel(view.driver)}
+    </span>
   );
 
   const renderAction = (action: DirectorAction, primary: boolean) => {

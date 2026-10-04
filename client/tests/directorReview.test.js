@@ -70,6 +70,9 @@ cache.setQueryData(queryKeys.directorNext.summary('book'),{success:true,data:vie
 cache.setQueryData(queryKeys.directorNext.detail('book'),{success:true,data:{view,timeline:[]}});
 cache.setQueryData(['directorNovelMetadata','book'],{success:true,data:{description:'故事'}});
 export const page=renderToStaticMarkup(<MemoryRouter initialEntries={[target]}><QueryClientProvider client={cache}><Routes><Route path='/lab/director/:novelId' element={<DirectorNovelPage/>}/></Routes></QueryClientProvider></MemoryRouter>);
+cache.setQueryData(queryKeys.directorNext.summary('book'),{success:true,data:{...view,driver:'assisted'}});
+cache.setQueryData(queryKeys.directorNext.detail('book'),{success:true,data:{view:{...view,driver:'assisted'},timeline:[]}});
+export const assistedPage=renderToStaticMarkup(<MemoryRouter initialEntries={[target]}><QueryClientProvider client={cache}><Routes><Route path='/lab/director/:novelId' element={<DirectorNovelPage/>}/></Routes></QueryClientProvider></MemoryRouter>);
 `,resolveDir:root,loader:'tsx'},bundle:true,platform:'node',format:'esm',packages:'external',alias:{'@':path.join(root,'src')},define:{'import.meta.env':'{}'},outfile:output});
     const m=await import(pathToFileURL(output).href);
     for (const text of ['章节任务与场景','本章必须取得证据','目标场景证据','保持有限视角','2000','避免提前揭晓']) assert.ok(m.review.includes(text),text);
@@ -101,6 +104,11 @@ export const page=renderToStaticMarkup(<MemoryRouter initialEntries={[target]}><
     assert.ok(m.cast.includes('角色阵容') && m.cast.includes('林渡'));
     assert.ok(m.outline.includes('本次目标卷') && m.outline.includes('本次卷纲内容'));
     assert.ok(m.page.includes('目标场景证据') && m.page.includes('确认结果并继续'));
+    const automaticHeader=m.page.match(/<header\b[^>]*>[\s\S]*?<\/header>/)?.[0] ?? '';
+    const assistedHeader=m.assistedPage.match(/<header\b[^>]*>[\s\S]*?<\/header>/)?.[0] ?? '';
+    assert.ok(automaticHeader.includes('当前模式：全自动推进'),'the book header must show the current mode');
+    assert.ok(assistedHeader.includes('当前模式：按阶段确认（半自动）'));
+    for (const header of [automaticHeader,assistedHeader]) assert.ok(!header.includes('取消本次创作'),'the header mode indicator cannot expose workflow commands');
     assert.ok(!m.page.includes('去确认「章节任务与场景」'));
     assert.doesNotMatch(m.page,/href="\/lab\/director\/book\?review=chapter_task_sheet"/);
     assert.doesNotMatch(m.page,/href="\/novels\/[^\"]+\/edit|编辑本书/);

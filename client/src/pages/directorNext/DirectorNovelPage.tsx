@@ -6,6 +6,7 @@ import { getNovelDetail } from "@/api/novel";
 import { queryKeys } from "@/api/queryKeys";
 import { Button } from "@/components/ui/button";
 import DirectorPanel from "@/components/directorNext/DirectorPanel";
+import DirectorBadge from "@/components/directorNext/DirectorBadge";
 import DirectorStart from "@/components/directorNext/DirectorStart";
 import { ResizableWorkspace } from "@/components/layout/resizableWorkspace";
 import { previewStates, previewTimeline, previewView } from "./preview";
@@ -37,7 +38,10 @@ export default function DirectorNovelPage({ previewOnly = false }: { previewOnly
   return (
     <div className="mx-auto max-w-[1600px] space-y-3">
       <header className="flex min-w-0 flex-wrap items-center justify-between gap-x-4 gap-y-1 border-b border-border/60 pb-2">
-        <h1 title={book?.novel.title} className="min-w-0 flex-1 truncate text-lg font-semibold">{book?.novel.title ?? "小说创作"}</h1>
+        <div className="flex min-w-0 flex-1 basis-full flex-wrap items-center gap-x-4 gap-y-2 lg:basis-auto">
+          <h1 title={book?.novel.title} className="min-w-0 truncate text-lg font-semibold">{book?.novel.title ?? "小说创作"}</h1>
+          {!error && view ? <DirectorBadge view={view} novelId={novelId} modeOnly/> : null}
+        </div>
         <div className="flex shrink-0 flex-wrap gap-1 [&_button]:h-8 [&_a]:h-8">
           {!previewOnly ? <Button asChild variant="ghost"><Link to="/novels">返回书架</Link></Button> : null}
           <Button variant="ghost" aria-expanded={directorOpen} onClick={() => setDirectorOpen(open => !open)}>{directorOpen ? "收起导演台" : "显示导演台"}</Button>
