@@ -341,6 +341,7 @@ export async function runPipelineChapterWithRuntime(
           pass,
           runtimePackage: latestResult.runtimePackage,
           issues: latestIssues,
+          assessmentVerified: !latestResult.acceptanceResult?.assessment.riskTags?.includes("acceptance_gate_unavailable"),
         },
       });
       if (repairSelection.selected === "candidate") {

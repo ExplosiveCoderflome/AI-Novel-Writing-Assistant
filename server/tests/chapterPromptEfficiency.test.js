@@ -33,7 +33,8 @@ test('repair review baseline follows candidate prose and preserves the preceding
   const baseline = { blockingIssues: [{ code: 'goal_change', evidence: '此前只有旁观' }], missingObligations: [], repairDirectives: [] };
   const candidate = prepare(chapterAcceptanceAssessmentPrompt, { ...input, repairReviewBaseline: baseline });
   assert.deepEqual(candidate.slice(0, original.length).map(m => m.content), original.map(m => m.content));
-  assert.ok(String(candidate.at(-1).content).includes(JSON.stringify(baseline)));
+  assert.ok(String(candidate.at(-1).content).includes('goal_change'));
+  assert.ok(!String(candidate.at(-1).content).includes('此前只有旁观'));
   assert.ok(String(candidate.at(-1).content).includes('仍须核对完整合同'));
 });
 

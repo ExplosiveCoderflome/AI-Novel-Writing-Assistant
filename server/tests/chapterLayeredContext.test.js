@@ -633,6 +633,37 @@ function createContextPackage() {
   };
 }
 
+test('canonical scene-card length reaches mission, budget, writing and review when chapter metadata is empty', () => {
+  const contextPackage = createContextPackage();
+  const plan = JSON.parse(contextPackage.chapter.sceneCards);
+  contextPackage.chapter.targetWordCount = null;
+  plan.targetWordCount = 1800;
+  plan.lengthBudget = { targetWordCount: 1800, softMinWordCount: 1530, softMaxWordCount: 2070, hardMaxWordCount: 2250 };
+  plan.scenes.forEach(scene => { scene.targetWordCount = 600; });
+  contextPackage.chapter.sceneCards = JSON.stringify(plan);
+  const write = buildChapterWriteContext({ bookContract: buildBookContractContext({ title: '本书' }), macroConstraints: null, volumeWindow: null, contextPackage });
+  assert.equal(write.chapterMission.targetWordCount, 1800);
+  assert.equal(write.lengthBudget.targetWordCount, 1800);
+  assert.equal(write.scenePlan.targetWordCount, 1800);
+  assert.equal(buildChapterReviewContext(write, contextPackage).chapterMission.targetWordCount, 1800);
+});
+
+test('explicit chapter length takes precedence over scene-card length', () => {
+  const contextPackage = createContextPackage(); contextPackage.chapter.targetWordCount = 2400;
+  const write = buildChapterWriteContext({ bookContract: buildBookContractContext({ title: '本书' }), macroConstraints: null, volumeWindow: null, contextPackage });
+  assert.equal(write.chapterMission.targetWordCount, 2400);
+  assert.equal(write.lengthBudget.targetWordCount, 2400);
+  assert.equal(write.scenePlan.targetWordCount, 2400);
+});
+
+test('malformed scene cards cannot invent a chapter target', () => {
+  const contextPackage = createContextPackage(); contextPackage.chapter.targetWordCount = null;
+  contextPackage.chapter.sceneCards = JSON.stringify({ targetWordCount: 1800, scenes: [] });
+  const write = buildChapterWriteContext({ bookContract: buildBookContractContext({ title: '本书' }), macroConstraints: null, volumeWindow: null, contextPackage });
+  assert.equal(write.chapterMission.targetWordCount, null);
+  assert.equal(write.lengthBudget, null);
+});
+
 test('genre and story-mode foundation precedes changing chapter state in writing, review and repair without freezing edits', () => {
   const { renderCacheContextSections } = require('../dist/prompting/core/cache');
   const contextPackage = createContextPackage();

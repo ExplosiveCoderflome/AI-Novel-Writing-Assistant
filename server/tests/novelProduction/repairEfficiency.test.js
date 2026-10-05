@@ -54,6 +54,16 @@ test('repair reacceptance carries only the first assessment issue baseline', asy
   });
 });
 
+test('unverified repair assessment cannot replace saved prose even with a higher fallback score', async () => {
+  const h = createPipelineHarness({ scores: [78, 92], acceptanceAssessment: { blockingIssues: [], missingObligations: [], repairDirectives: [], riskTags: [] },
+    recheckAssessment: { blockingIssues: [], missingObligations: [], repairDirectives: [], riskTags: ['acceptance_gate_unavailable'] } });
+  const result = await h.run({ autoRepair: true, maxRetries: 1 });
+  assert.deepEqual(h.committedContents, ['original draft']);
+  assert.deepEqual(h.syncedContents, ['original draft']);
+  assert.equal(result.repairSelection.reasonCode, 'original_retained_unverified_review');
+  assert.equal(result.pass, false);
+});
+
 test('new severe prose defects reject a patch before paying for another AI acceptance', async () => {
   for (const repairContent of ['他收好钥匙——推开木门。', '他收好钥匙。作为AI，我无法继续创作。']) {
     const h = createPipelineHarness({ content: '他收好钥匙，推开木门。', scores: [78, 92], repairContent });

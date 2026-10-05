@@ -4,6 +4,8 @@ import type { PromptAsset } from "../../core/promptTypes";
 import {renderCacheContextSections} from "../../core/cache";
 import { NOVEL_PROMPT_BUDGETS } from "./promptBudgetProfiles";
 import { CHAPTER_PROSE_QUALITY_AUDIT_RULES } from "@ai-novel/shared/types/chapterProseContract";
+import { repairVerificationSchema, buildRepairReviewChecklist, validateRepairReview } from "./acceptance";
+export { ChapterRepairVerificationError } from "./acceptance";
 
 export const chapterAcceptanceIssueCategorySchema = z.enum([
   "continuity",
@@ -184,6 +186,7 @@ export const chapterAcceptanceAssessmentSchema = z.object({
     category: z.preprocess(normalizeAcceptanceCategory, chapterAcceptanceIssueCategorySchema),
     code: z.string().trim().min(1),
     evidence: z.string().trim().min(1),
+    currentEvidence: z.string().trim().min(1).max(350).optional(),
     fixSuggestion: z.string().trim().min(1),
   })).default([]),
   repairDirectives: z.array(z.object({
@@ -202,6 +205,7 @@ export const chapterAcceptanceAssessmentSchema = z.object({
     ])),
     summary: z.string().trim().min(1),
     evidence: z.string().trim().min(1).nullable().optional(),
+    currentEvidence: z.string().trim().min(1).max(350).optional(),
   }))).default([]),
   repairability: z.enum([
     "none",
@@ -217,6 +221,7 @@ export const chapterAcceptanceAssessmentSchema = z.object({
     requiresFullPayoffReconcile: z.boolean().default(false),
   }),
   continuePolicy: z.preprocess(normalizeContinuePolicy, z.enum(["continue", "repair_once", "pause"])),
+  repairVerification: repairVerificationSchema.optional(),
 });
 
 export type ChapterAcceptanceAssessmentOutput = z.infer<typeof chapterAcceptanceAssessmentSchema>;
@@ -261,7 +266,7 @@ export const chapterAcceptanceAssessmentPrompt: PromptAsset<
   ChapterAcceptanceAssessmentOutput
 > = {
   id: "novel.chapter.acceptance_assessment",
-  version: "v7",
+  version: "v8",
   cacheBoundary: {messageIndex:0,contentBlockIndex:0},
   taskType: "review",
   mode: "structured",
@@ -297,9 +302,10 @@ export const chapterAcceptanceAssessmentPrompt: PromptAsset<
     placement: "stable_prefix",
     compact: true,
     example: CHAPTER_ACCEPTANCE_EXAMPLE,
-    note: "示例只演示格式，不预设当前章节通过。需修复时 blockingIssues 项使用 severity/category/code/evidence/fixSuggestion，repairDirectives 项使用 mode/target/instruction；missingObligations 项使用 kind/summary/evidence。所有判断以当前合同和正文证据为准。",
+    note: "示例只演示格式，不预设当前章节通过。需修复时 blockingIssues 项使用 severity/category/code/evidence/fixSuggestion，repairDirectives 项使用 mode/target/instruction；missingObligations 项使用 kind/summary/evidence。修文复验另按尾部清单输出 repairVerification，并为问题与义务填写 currentEvidence。所有判断以当前合同和正文证据为准。",
   },
   outputSchema: chapterAcceptanceAssessmentSchema,
+  postValidate: validateRepairReview,
   render: (input, context) => [
     new SystemMessage([
       "你是中文长篇小说正文接收闸门。",
@@ -320,7 +326,7 @@ export const chapterAcceptanceAssessmentPrompt: PromptAsset<
       "10. blockingIssues.category 只能使用 continuity、character、plot、mode_fit、voice；节奏、重复、中段铺垫、结尾钩子都归入 plot。",
       "11. repairDirectives.target 只能使用 continuity、character、plot、ending、voice；不要输出 middle、pacing、internal_monologue、ending_tone 等自定义目标。",
       "12. repairDirectives.mode 只能使用 patch、rewrite、manual；continuePolicy 只能使用 continue、repair_once、pause。",
-      "13. missingObligations 必须是对象数组，每项只能使用 kind、summary、evidence；不得输出字符串数组，也不得输出 obligationType、target、fixSuggestion、type 等别名字段。",
+      "13. missingObligations 必须是对象数组，每项使用 kind、summary、evidence；修文复验还须填写 currentEvidence。不得输出字符串数组，也不得输出 obligationType、target、fixSuggestion、type 等别名字段。",
       "14. missingObligations.kind 只能使用 must_hit_now、must_preserve、payoff_touch、character_appearance、goal_change、forbidden_crossing。",
       "15. status 只能使用 accepted、repairable、needs_manual_review、continue_with_risk；不得输出 acceptable、pass、passed、ok、approved 等别名。",
       "16. reader_experience 是本章读者体验合同。检查 promisedReward 是否在正文中可见、主角是否围绕 protagonistWant 主动行动并遭遇 primaryResistance、keyTurn 与 netChange 是否成立、inheritedHookResponsibilities 是否得到回应，以及 endingHook 是否产生追读力。",
@@ -347,9 +353,11 @@ export const chapterAcceptanceAssessmentPrompt: PromptAsset<
       input.content,
     ].join("\n")),
     ...(input.repairReviewBaseline ? [new HumanMessage([
-      "【局部修文复验基线】",
-      JSON.stringify(input.repairReviewBaseline),
-      "先对照原审校问题和修文指令，核对候选正文是否解决了同一缺口。已解决的项不要换一种措辞再次要求补写；未解决的同一问题保留原 code 和 missingObligations 的 kind/summary，更新定位证据。",
+      "【局部修文复验清单】",
+      JSON.stringify(buildRepairReviewChecklist(input)),
+      "上面的清单只列历史待核对要求，不是当前正文缺陷或证据。只以本次完整候选正文为证据，逐项重新判断；不要复述首次结论。已解决的项从 blockingIssues/missingObligations 删除，未解决的同一项保留原 code 和 kind/summary。",
+      "必须输出 repairVerification：contentHash 原样返回清单值；checks 对清单每个 issue/obligation 恰好核对一次，用 kind/key 标识，status 为 resolved/unresolved，currentEvidence 为当前候选中可定位的短原句（不超过350字），reason 简述解决或仍缺失的原因。禁止引用历史原句。",
+      "仍未解决或新增的 blockingIssues/missingObligations 必须另外填写 currentEvidence，引用当前候选原句；普通缺失也应引用相关现有场景作为判断依据。已补入行动、专业判断或受限动作时必须核对这些变化，不能重复报告不存在的旧标点或忽略新增段落。原句证明来源，语义仍须独立判断。",
       "仍须核对完整合同、保密边界和连续性。新增问题必须引用候选正文与合同的具体冲突，并在 evidence 中说明属于修文引入的退化还是首次漏检的硬合同缺口；不得仅因角色目标表达不够直白、希望增加场景或提高刺激强度而扩大修文范围。",
     ].join("\n"))] : []),
   ],

@@ -28,6 +28,7 @@ function createPipelineHarness({
   repairContent = "repair candidate",
   acceptanceMeta = {},
   acceptanceAssessment,
+  recheckAssessment,
   auditHasBlockingIssues = false,
   timelineStatus,
   stopAt,
@@ -88,7 +89,7 @@ function createPipelineHarness({
           ...(timelineStatus ? { timelineCheck: { status: timelineStatus } } : {}),
         },
         needsRepair: score < 80,
-        ...(acceptanceAssessment ? { acceptanceResult: { assessment: acceptanceAssessment } } : {}),
+        ...(acceptanceAssessment ? { acceptanceResult: { assessment: reviewIndex > 1 && recheckAssessment ? recheckAssessment : acceptanceAssessment } } : {}),
       };
     },
     commitFinalizedChapterContent: async ({ evaluation }) => {

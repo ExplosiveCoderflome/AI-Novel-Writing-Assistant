@@ -47,7 +47,7 @@ function graphFixture(output, streaming = false) {
     contextPackage: { chapter: {}, chapterWriteContext: { chapterMission: { targetWordCount: 3200 } } }, options: {},
     ...(streaming ? { onDraftProgress: (content, state) => progress.push({ content, state }) } : {}),
   };
-  return { calls, warnings, progress, original, input, run: () => graph.enforceTargetLength(input) };
+  return { graph, calls, warnings, progress, original, input, run: () => graph.enforceTargetLength(input) };
 }
 
 test('bounded extension appends to the draft and receives a small output allowance', async () => {
@@ -72,4 +72,14 @@ test('already adequate drafts skip continuation completely', async () => {
   const h = graphFixture('unused'); h.input.content = '字'.repeat(2720);
   assert.equal(await h.run(), h.input.content);
   assert.equal(h.calls.length, 0);
+});
+
+test('initial Writer request uses the resolved mission target even when chapter metadata is empty', async () => {
+  const h = graphFixture('正文');
+  h.input.contextPackage.chapterWriteContext.chapterMission.targetWordCount = 1800;
+  h.input.contextPackage.continuation = {};
+  await h.graph.createChapterStream(h.input);
+  assert.equal(h.calls[0].promptInput.targetWordCount, 1800);
+  assert.equal(h.calls[0].promptInput.minWordCount, 1530);
+  assert.equal(h.calls[0].promptInput.maxWordCount, 2070);
 });

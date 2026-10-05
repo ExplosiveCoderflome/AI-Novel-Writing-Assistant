@@ -11,6 +11,7 @@ import { buildChapterReviewContextBlocks } from "../../../prompting/prompts/nove
 import { resolveTargetWordRange } from "../../../prompting/prompts/novel/chapterLayeredContextShared";
 import {
   chapterAcceptanceAssessmentPrompt,
+  ChapterRepairVerificationError,
   type ChapterAcceptanceAssessmentOutput,
   type ChapterAcceptancePromptInput,
 } from "../../../prompting/prompts/novel/chapterAcceptance.prompts";
@@ -248,7 +249,14 @@ export class ChapterAcceptanceAssessmentService {
   }
 
   async assess(input: ChapterAcceptanceAssessmentInput): Promise<ChapterAcceptanceAssessmentResult> {
-    const assessment = await this.invokeAssessment(input).catch(() => buildFallbackAssessment(input.content));
+    const assessment = await this.invokeAssessment(input).catch((error: unknown) => {
+      const fallback = buildFallbackAssessment(input.content);
+      if (error instanceof ChapterRepairVerificationError) {
+        fallback.riskTags.push("repair_review_evidence_invalid");
+        console.warn("[chapter-runtime] repair verification rejected", { chapterId: input.chapterId, reason: error.message });
+      }
+      return fallback;
+    });
     const proseQuality = detectProseQuality(input.content);
     const proseIssues = proseQuality.findings.slice(0, 5).map((finding) => ({
       severity: finding.severity,

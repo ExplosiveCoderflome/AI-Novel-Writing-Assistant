@@ -217,7 +217,12 @@ function buildCompatibleReaderExperienceContract(input: {
   };
 }
 
-export function buildChapterMissionContext(contextPackage: GenerationContextPackage): ChapterMissionContext {
+export function buildChapterMissionContext(
+  contextPackage: GenerationContextPackage,
+  scenePlan = parseChapterScenePlan(contextPackage.chapter.sceneCards, {
+    targetWordCount: resolveLengthBudgetContract(contextPackage.chapter.targetWordCount)?.targetWordCount,
+  }),
+): ChapterMissionContext {
   const stateGoal = contextPackage.chapterStateGoal;
   return {
     chapterId: contextPackage.chapter.id,
@@ -232,7 +237,8 @@ export function buildChapterMissionContext(contextPackage: GenerationContextPack
       || compactText(stateGoal?.summary)
       || compactText(contextPackage.plan?.title, "Deliver the current chapter mission."),
     taskSheet: compactText(contextPackage.chapter.taskSheet) || null,
-    targetWordCount: contextPackage.chapter.targetWordCount ?? null,
+    targetWordCount: resolveLengthBudgetContract(contextPackage.chapter.targetWordCount)?.targetWordCount
+      ?? scenePlan?.targetWordCount ?? null,
     planRole: contextPackage.plan?.planRole ?? null,
     hookTarget: compactText(contextPackage.plan?.hookTarget, "Leave a fresh tension point at the ending."),
     mustAdvance: sanitizeCreativeMustAdvanceItems(takeUnique([
@@ -329,9 +335,9 @@ export function buildChapterWriteContext(input: {
     currentChapterOrder: input.contextPackage.chapter.order,
   });
   const scenePlan = parseChapterScenePlan(input.contextPackage.chapter.sceneCards, {
-    targetWordCount: input.contextPackage.chapter.targetWordCount ?? undefined,
+    targetWordCount: resolveLengthBudgetContract(input.contextPackage.chapter.targetWordCount)?.targetWordCount,
   });
-  const chapterMission = buildChapterMissionContext(input.contextPackage);
+  const chapterMission = buildChapterMissionContext(input.contextPackage, scenePlan);
   const chapterBoundary = buildChapterBoundaryContract(input.contextPackage, scenePlan);
   const openConflictSummaries = summarizeOpenConflicts(input.contextPackage);
   const readerExperience = buildCompatibleReaderExperienceContract({
@@ -364,7 +370,7 @@ export function buildChapterWriteContext(input: {
       ledgerPendingItems: input.contextPackage.ledgerPendingItems,
     }),
     chapterBoundary,
-    lengthBudget: resolveLengthBudgetContract(input.contextPackage.chapter.targetWordCount),
+    lengthBudget: resolveLengthBudgetContract(chapterMission.targetWordCount),
     scenePlan,
     readerExperience,
     participants,
