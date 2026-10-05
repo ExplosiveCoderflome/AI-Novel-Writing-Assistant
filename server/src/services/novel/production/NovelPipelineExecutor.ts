@@ -347,7 +347,8 @@ export class NovelPipelineExecutor {
         generationJobId: jobId,
         workflowTaskId: runtimePayload.workflowTaskId,
         directorTelemetry: shouldRecordDirectorTelemetry,
-        novelId: shouldRecordDirectorTelemetry ? novelId : null,
+        novelId,
+        directorNextRunId: runtimePayload.directorNext?.runId ?? null,
         directorRunId: shouldRecordDirectorTelemetry
           ? directorTelemetryTask?.directorRun?.id ?? runtimePayload.workflowTaskId ?? null
           : null,

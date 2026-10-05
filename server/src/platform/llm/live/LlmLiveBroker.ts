@@ -9,7 +9,7 @@ import type {
 
 import { summarizeUsage } from "../usage";
 import type { LlmTokenUsageSnapshot } from "../usage";
-import { runWithInvocationUsageObserver } from "../usage/application/InvocationUsageObserver";
+import { runWithInvocationUsageObserver } from "../usage";
 
 const COMPLETED_SESSION_RETENTION_MS = 10 * 60 * 1000;
 const MAX_PREVIEW_CHARS = 16_000;

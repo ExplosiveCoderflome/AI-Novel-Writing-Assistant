@@ -4190,3 +4190,32 @@ model DirectorNextCommand {
   @@index([runId, createdAt])
 }
 
+
+model LlmInvocationUsageRecord {
+  id String @id
+  runId String?
+  generationJobId String?
+  workflowTaskId String?
+  novelId String?
+  chapterId String?
+  stage String?
+  provider String?
+  model String?
+  requestProtocol String
+  promptId String?
+  promptVersion String?
+  status String
+  startedAt DateTime
+  finishedAt DateTime
+  promptTokens Int?
+  completionTokens Int?
+  totalTokens Int?
+  cacheHitTokens Int?
+  cacheMissTokens Int?
+  cacheWriteTokens Int?
+  cacheUsageStatus String
+  cacheDiagnostic String?
+  @@index([runId, startedAt, id])
+  @@index([generationJobId, startedAt, id])
+  @@index([novelId, chapterId, startedAt, id])
+}

@@ -139,9 +139,9 @@ test('Anthropic 创建量属于未命中且不重复统计', () => {
 
 **Interfaces:** Consumes Observer、InvocationUsageRecord；produces `InvocationUsageRepository.record` 与 `InvocationUsageQueryService.getRunUsage(runId, query)`。
 
-- [ ] 对 repo stub 添加记录去重、两次真实尝试两条、未返回 usage 仍有失败记录、记录身份不混旧 run 的测试。
-- [ ] 用 `node:os.tmpdir()` 创建一次性 SQLite 文件，在该连接创建最小已有 schema 后应用新增迁移；插入一条用户章节作为保护样本，迁移后正文和旧计数原样保留。禁止加载 server/.env 的 DATABASE_URL。
-- [ ] 编写 additive Prisma model，字段/索引按 spec，nullable 用量，invocationId 唯一；不关联旧 DirectorRun 外键，不删除旧表、不回填历史。
+- [x] 对 repo stub 添加记录去重、两次真实尝试两条、未返回 usage 仍有失败记录、记录身份不混旧 run 的测试。
+- [x] 用 `node:os.tmpdir()` 创建一次性 SQLite 文件，在该连接创建最小已有 schema 后应用新增迁移；插入一条用户章节作为保护样本，迁移后正文和旧计数原样保留。禁止加载 server/.env 的 DATABASE_URL。
+- [x] 编写 additive Prisma model，字段/索引按 spec，nullable 用量，invocationId 唯一；不关联旧 DirectorRun 外键，不删除旧表、不回填历史。
 
 两套 schema 新增同一模型（纯调用身份不建旧导演外键）：
 
@@ -178,13 +178,13 @@ model LlmInvocationUsageRecord {
 
 迁移仅 CREATE TABLE/CREATE INDEX。SQLite 用 TEXT/INTEGER/DATETIME，PostgreSQL 用 TEXT/INTEGER/TIMESTAMP(3)；两份迁移均不得出现 DROP、DELETE、重建 Chapter 等操作。单次用量写入需落在数据库 Int 范围；超范围记录统计不可用并诊断，不截断计数、不改 generationJob 原始总量。
 
-- [ ] repository 对同 ID 重复 insert 使用 createMany skipDuplicates（按数据库支持验证）或 upsert 不改首次终态记录；重复记录不得再次 increment 业务计数。测试不同内容同 ID 的冲突必须诊断，不能安静覆盖。
-- [ ] 在 app 包装 planning StepRegistry 的 handler，显式 runId/novelId/stage 上下文；production worker 使用 persisted `directorNext.runId`，不假设 ALS 跨进程存活。
-- [ ] 旧 generationJob/task 增量逻辑保留单一入口。repository 失败写诊断但不自动暂停/重试模型；台账与预算不得相互替代。
-- [ ] QueryService 按 run 和稳定游标分页；汇总整个已记录范围，不按当前页。测试未知记录传播 null、部分断流覆盖、没有记录、其他 run 隔离。
-- [ ] Prisma generate 使用既有配置但不部署迁移；临时 SQLite 集成验证，PostgreSQL 有隔离环境时验证增量迁移，无环境明确记录缺口。已有数据应用迁移仅在备份验证后执行。
-- [ ] 运行 `node --test server/tests/llmInvocationUsageRepository.test.js server/tests/llmInvocationUsageAttribution.test.js server/tests/directorNext/steps/chapterUsagePipeline.test.js server/tests/directorNext/steps/chapterUsageBudget.test.js`。确认缓存不影响已冻结的章节结束计数与暂停恢复。
-- [ ] 更新平台 usage 与 app/director/usage 边界文档，按发布说明技能提交。schema 没有实际部署到当前验收库时明确标注。
+- [x] repository 对同 ID 重复 insert 使用 createMany skipDuplicates（按数据库支持验证）或 upsert 不改首次终态记录；重复记录不得再次 increment 业务计数。测试不同内容同 ID 的冲突必须诊断，不能安静覆盖。
+- [x] 在 app 包装 planning StepRegistry 的 handler，显式 runId/novelId/stage 上下文；production worker 使用 persisted `directorNext.runId`，不假设 ALS 跨进程存活。
+- [x] 旧 generationJob/task 增量逻辑保留单一入口。repository 失败写诊断但不自动暂停/重试模型；台账与预算不得相互替代。
+- [x] QueryService 按 run 和稳定游标分页；汇总整个已记录范围，不按当前页。测试未知记录传播 null、部分断流覆盖、没有记录、其他 run 隔离。
+- [x] Prisma generate 使用既有配置但不部署迁移；临时 SQLite 集成验证，PostgreSQL 有隔离环境时验证增量迁移，无环境明确记录缺口。已有数据应用迁移仅在备份验证后执行。
+- [x] 运行 `node --test server/tests/llmInvocationUsageRepository.test.js server/tests/llmInvocationUsageAttribution.test.js server/tests/directorNext/steps/chapterUsagePipeline.test.js server/tests/directorNext/steps/chapterUsageBudget.test.js`。确认缓存不影响已冻结的章节结束计数与暂停恢复。
+- [x] 更新平台 usage 与 app/director/usage 边界文档，按发布说明技能提交。schema 没有实际部署到当前验收库时明确标注。
 
 ## Task 4：只读接口与两项数字展示
 
@@ -291,3 +291,5 @@ function applyCacheRequestPolicy<T extends Record<string, unknown>>(
 完成条件：Tasks 1–4 提供可用统计闭环，Tasks 5–6 提供可回退的前缀优化；定量收益等待正常授权调用证据。开发验证通过与模型生成质量验收分开报告。
 
 规划自审：口径、未知值、流式、多次修复、持久化、新导演归属、UI 只读、动态资产、预算边界、回退、验证均有任务覆盖。该文档阶段只新增规划文件，不更新产品发布说明；wiki 在相关实现落地时更新，避免把计划写成现行规则。
+
+阶段 3 验证：SQLite 增量迁移在临时库保护正文/旧计数；25 项台账、归属、章节预算测试通过。已生成 Prisma Client，未部署到验收库；无隔离 PostgreSQL 实例，PG 迁移仅静态审核。

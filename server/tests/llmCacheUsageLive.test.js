@@ -20,3 +20,6 @@ test('session sums attempts, deduplicates notifications and ignores legacy last-
  s.attemptUsage('failed',null);assert.equal(b.getSnapshots({})[0].tokenUsage.inputCache.cacheHitTokens,null);
 });
 test('failed invoke still emits one unknown attempt and preserves error',async()=>{const records=[]; const llm={invoke:async()=>{throw new Error('original')},stream:async()=>{},batch:async()=>[]};attachLLMUsageTracking(llm);await assert.rejects(runWithInvocationUsageObserver(r=>records.push(r),()=>llm.invoke([])),/original/);assert.equal(records.length,1);assert.equal(records[0].status,'failed');assert.equal(records[0].usage,null)});
+
+// Isolated collector tests never persist against a configured database.
+prisma.llmInvocationUsageRecord.create=async ({data})=>data;

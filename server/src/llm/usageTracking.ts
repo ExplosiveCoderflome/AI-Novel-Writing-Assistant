@@ -1,5 +1,6 @@
+import { PrismaInvocationUsageRepository } from "../platform/llm/usage";
 import { randomUUID } from "node:crypto";
-import { captureInvocationUsageObserver, type InvocationUsageRecord } from "../platform/llm/usage/application/InvocationUsageObserver";
+import { captureInvocationUsageObserver, type InvocationUsageRecord } from "../platform/llm/usage";
 import { AsyncLocalStorage } from "node:async_hooks";
 import type { ChatOpenAI } from "@langchain/openai";
 import { prisma } from "../db/prisma";
@@ -23,7 +24,7 @@ export interface LlmUsageTrackingContext {
 }
 
 export interface LlmUsageTrackingMeta {
-  requestProtocol?: "anthropic" | "openai_compatible" | "openai-compatible";
+  requestProtocol?: "anthropic" | "openai_compatible" | "openai-compatible" | "auto";
   provider?: LLMProvider | string | null;
   model?: string | null;
   taskType?: string | null;
@@ -251,6 +252,7 @@ function beginAttempt(meta?: LlmUsageTrackingMeta) {
    chapterId:meta?.promptMeta?.chapterId ?? null,stage:meta?.promptMeta?.stage ?? context?.stage ?? null,
    promptId:meta?.promptMeta?.promptId ?? null,promptVersion:meta?.promptMeta?.promptVersion ?? null};
   await notify(record);
+  await new PrismaInvocationUsageRepository(prisma.llmInvocationUsageRecord).record(record).catch(() => console.warn("[llm-usage] journal write failed",record.invocationId));
   await usageTrackingStore.run(context ?? {},()=>recordTrackedLlmUsage(usage,{meta,status,durationMs:Date.now()-startedAt.getTime()}));
  }};
 }

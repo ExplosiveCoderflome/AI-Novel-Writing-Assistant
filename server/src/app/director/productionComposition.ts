@@ -1,3 +1,4 @@
+import {withStepUsage} from "./usage";
 import { prisma } from "../../db/prisma";
 import { createProductionStepRegistry, directorProductionPlan, createStoryMacroStepHandler, createBookContractStepHandler,
   createWorldSetupStepHandler, createCharacterSetupStepHandler, createVolumeStrategyStepHandler, createVolumeBeatSheetStepHandler,
@@ -39,7 +40,7 @@ export function createDirectorProductionOptions(): DirectorNextServiceOptions {
       const workspace = await volumes.getVolumes(context.contract.novelId, {hydrateCanonical:false});
       return {...modelOptions(context), targetVolumeId: targetVolume(context, workspace)};
     }, contentHash});
-  const stepRegistry = createProductionStepRegistry({
+  const stepRegistry = createProductionStepRegistry(withStepUsage({
     story_macro: createStoryMacroStepHandler({storyMacroService: macro, inputProvider: async context => ({...modelOptions(context), storyInput: requireLaunch(context.contract).storyInput}), contentHash}),
     book_contract: createBookContractStepHandler({generationService: new BookContractGenerationService(), bookContractService: book,
       inputProvider: async context => ({novelId: context.contract.novelId, ...modelOptions(context), promptInput: await bookContractInput(context, macro)}), contentHash}),
@@ -97,7 +98,7 @@ export function createDirectorProductionOptions(): DirectorNextServiceOptions {
     }, save: async (runId, jobId) => events.append({runId, type: "chapter_batch_job", payload: {jobId}})},
       readOutcome: readBatchOutcome, waitForPoll: () => new Promise(resolve => setTimeout(resolve, 1000)),
       isRunActive: async runId => (await prisma.directorNextRunControl.findUnique({where: {runId}, select: {status: true}}))?.status === "running", contentHash}),
-  });
+  }));
   return {plan: directorProductionPlan, stepRegistry, readEditedArtifact, resumeBusiness, cancelBusiness,
     sourceRoute: novelId => `/lab/director/${encodeURIComponent(novelId)}`,
     artifactTypes: directorArtifactTypes, resolveArtifactTypes: resolveConfirmationArtifactTypes, readProductionProjection, contractFactory: input => {

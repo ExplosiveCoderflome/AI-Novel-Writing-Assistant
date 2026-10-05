@@ -420,6 +420,7 @@ export function createLLMFromResolvedOptions(resolved: ResolvedLLMClientOptions)
     modelRoute: resolved.modelRoute,
     routeDegraded: resolved.routeDegraded,
     baseURL: resolved.baseURL,
+    requestProtocol: resolved.requestProtocol,
     promptMeta: resolved.promptMeta,
   };
   const decorated = attachLLMDebugLogging(attachLLMUsageTracking(attachLLMRequestGuard(llm, meta), meta), meta);

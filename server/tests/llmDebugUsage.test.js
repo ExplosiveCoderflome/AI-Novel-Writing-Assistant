@@ -77,3 +77,6 @@ test('stream log preserves cache hit and miss from normalized usage', async () =
  const usage = entries.find(e=>e.event==='response').payload.usageMetadata;
  assert.equal(usage.inputCache.cacheHitTokens,800); assert.equal(usage.inputCache.cacheMissTokens,200);
 });
+
+// Isolated collector tests never persist against a configured database.
+prisma.llmInvocationUsageRecord.create=async ({data})=>data;
