@@ -98,7 +98,7 @@ function fixture({
   };
 }
 
-const sync = (service) => service.runChapterSyncNow("n", "c", "draft", { artifactSyncMode: "deferred" });
+const sync = (service, artifactSyncMode = "deferred") => service.runChapterSyncNow("n", "c", "draft", { artifactSyncMode });
 
 test("checkpoint: partial failure marks failed, fresh instance reclaims, success skips extraction", async () => {
   const f = fixture({ failOnce: true });
@@ -116,10 +116,19 @@ test("checkpoint: partial failure marks failed, fresh instance reclaims, success
   assert.deepEqual(f.applied, ["summary", "summary", "remaining"]);
 });
 
-test("checkpoint: active running claim does not start another extraction", async () => {
+test("checkpoint: strict active running claim stays pending without another extraction", async () => {
+  const f = fixture({ initialStatus: "running" });
+  const result = await sync(f.create(), "strict");
+  assert.equal(result.status, "pending");
+  assert.equal(f.calls, 0);
+  assert.equal(f.status, "running");
+  assert.deepEqual(f.transitions, []);
+});
+
+test("checkpoint: deferred active running claim records degradation without another extraction", async () => {
   const f = fixture({ initialStatus: "running" });
   const result = await sync(f.create());
-  assert.equal(result.status, "pending");
+  assert.equal(result.status, "degraded");
   assert.equal(f.calls, 0);
   assert.equal(f.status, "running");
   assert.deepEqual(f.transitions, []);

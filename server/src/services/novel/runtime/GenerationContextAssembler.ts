@@ -520,6 +520,7 @@ export class GenerationContextAssembler {
       openingHint,
       continuation: runtimeContinuation,
       styleContext,
+      postGenerationStyleReviewEnabled: novel.postGenerationStyleReviewEnabled ?? true,
       bookContract,
       macroConstraints,
       volumeWindow,

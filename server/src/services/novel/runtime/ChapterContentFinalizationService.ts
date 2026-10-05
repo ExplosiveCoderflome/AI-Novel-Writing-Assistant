@@ -122,7 +122,7 @@ export class ChapterContentFinalizationService {
         : acceptance.auditReports,
     };
     const styleReview: StyleReviewResult = {
-      report: null,
+      report: acceptance.styleReviewReport ?? null,
       autoRewritten: false,
       originalContent: null,
       finalContent,

@@ -508,7 +508,8 @@ export function buildChapterWriterContextBlocks(
         reuseScope: "book",
         group: "style_contract",
         priority: 74,
-        required: mode === "full",
+        required: true,
+        allowSummary: false,
         content: buildWriterStyleContractText(writeContext.styleContract),
       })
       : null,

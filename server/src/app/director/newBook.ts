@@ -4,6 +4,7 @@ import {NovelCoreService} from "../../services/novel/NovelCoreService";
 import {getLLMSelectionSettings} from "../../services/settings/LLMSelectionSettingsService";
 import {getDirectorProductionServices} from "./services";
 import {AppError} from "../../middleware/errorHandler";
+import {StyleBindingService} from "../../services/styleEngine/StyleBindingService";
 
 /** New-book handoff is an entry adapter; it creates no legacy director task. */
 export async function launchNewDirectorBook(input: DirectorConfirmRequest, sourceTaskId: string, source: "creation_studio" | "original_opening" = "creation_studio") {
@@ -22,6 +23,7 @@ export async function launchNewDirectorBook(input: DirectorConfirmRequest, sourc
       postGenerationStyleReviewEnabled:input.postGenerationStyleReviewEnabled,sourceNovelId:input.sourceNovelId,sourceKnowledgeDocumentId:input.sourceKnowledgeDocumentId,
       continuationBookAnalysisId:input.continuationBookAnalysisId,continuationBookAnalysisSections:input.continuationBookAnalysisSections,
       referenceBookAnalysisId:input.referenceBookAnalysisId,referenceBookAnalysisSections:input.referenceBookAnalysisSections});
+  await new StyleBindingService().ensureNovelDefault(novel.id, input.styleProfileId);
   if (confirmation && !confirmation.novelId) await prisma.creationStudioConfirmation.update({where:{workflowTaskId:sourceTaskId},data:{novelId:novel.id}});
   const chapterCount = input.estimatedChapterCount ?? input.candidate.targetChapterCount;
   const end = input.autoExecutionPlan?.endOrder ?? (input.runMode === "full_book_autopilot" ? chapterCount : undefined);

@@ -4,7 +4,7 @@ import type { PromptAsset } from "../../core/promptTypes";
 import {renderCacheContextSections} from "../../core/cache";
 import { NOVEL_PROMPT_BUDGETS } from "./promptBudgetProfiles";
 import { CHAPTER_PROSE_QUALITY_AUDIT_RULES } from "@ai-novel/shared/types/chapterProseContract";
-import { repairVerificationSchema, buildRepairReviewChecklist, validateRepairReview } from "./acceptance";
+import { repairVerificationSchema, buildRepairReviewChecklist, validateRepairReview, acceptanceStyleReviewSchema, validateAcceptanceStyleReview } from "./acceptance";
 export { ChapterRepairVerificationError } from "./acceptance";
 
 export const chapterAcceptanceIssueCategorySchema = z.enum([
@@ -185,6 +185,7 @@ export const chapterAcceptanceAssessmentSchema = z.object({
     severity: z.enum(["low", "medium", "high", "critical"]),
     category: z.preprocess(normalizeAcceptanceCategory, chapterAcceptanceIssueCategorySchema),
     code: z.string().trim().min(1),
+    styleRuleId: z.string().trim().min(1).nullable().optional(),
     evidence: z.string().trim().min(1),
     currentEvidence: z.string().trim().min(1).max(350).optional(),
     fixSuggestion: z.string().trim().min(1),
@@ -222,6 +223,7 @@ export const chapterAcceptanceAssessmentSchema = z.object({
   }),
   continuePolicy: z.preprocess(normalizeContinuePolicy, z.enum(["continue", "repair_once", "pause"])),
   repairVerification: repairVerificationSchema.optional(),
+  styleReview: acceptanceStyleReviewSchema.nullable().optional(),
 });
 
 export type ChapterAcceptanceAssessmentOutput = z.infer<typeof chapterAcceptanceAssessmentSchema>;
@@ -232,12 +234,15 @@ export interface ChapterAcceptancePromptInput {
   chapterTitle: string;
   targetWordCount?: number | null;
   content: string;
+  styleReviewEnabled?: boolean;
+  styleRuleIds?: string[];
   repairReviewBaseline?: Pick<ChapterAcceptanceAssessmentOutput,
     "blockingIssues" | "missingObligations" | "repairDirectives">;
 }
 
 const CHAPTER_ACCEPTANCE_EXAMPLE: ChapterAcceptanceAssessmentOutput = {
   status: "accepted",
+  styleReview: { riskScore: 0, summary: "写法规则已核对，无需局部修正。", issueCodes: [] },
   score: {
     coherence: 82,
     pacing: 84,
@@ -266,13 +271,14 @@ export const chapterAcceptanceAssessmentPrompt: PromptAsset<
   ChapterAcceptanceAssessmentOutput
 > = {
   id: "novel.chapter.acceptance_assessment",
-  version: "v8",
+  version: "v9",
   cacheBoundary: {messageIndex:0,contentBlockIndex:0},
   taskType: "review",
   mode: "structured",
   language: "zh",
   contextPolicy: {
     maxTokensBudget: NOVEL_PROMPT_BUDGETS.chapterAcceptance,
+    requiredGroups: ["style_contract"],
     preferredGroups: [
       "chapter_mission",
       "reader_experience",
@@ -295,7 +301,7 @@ export const chapterAcceptanceAssessmentPrompt: PromptAsset<
     { group: "obligation_contract", required: true, priority: 98 },
     { group: "structure_obligations", priority: 94 },
     { group: "local_state", priority: 89 },
-    { group: "style_contract", priority: 74 },
+    { group: "style_contract", required: true, priority: 74 },
     { group: "open_conflicts", priority: 70 },
   ],
   structuredOutputHint: {
@@ -305,7 +311,7 @@ export const chapterAcceptanceAssessmentPrompt: PromptAsset<
     note: "示例只演示格式，不预设当前章节通过。需修复时 blockingIssues 项使用 severity/category/code/evidence/fixSuggestion，repairDirectives 项使用 mode/target/instruction；missingObligations 项使用 kind/summary/evidence。修文复验另按尾部清单输出 repairVerification，并为问题与义务填写 currentEvidence。所有判断以当前合同和正文证据为准。",
   },
   outputSchema: chapterAcceptanceAssessmentSchema,
-  postValidate: validateRepairReview,
+  postValidate: (output, input) => validateAcceptanceStyleReview(validateRepairReview(output, input), input),
   render: (input, context) => [
     new SystemMessage([
       "你是中文长篇小说正文接收闸门。",
@@ -321,7 +327,7 @@ export const chapterAcceptanceAssessmentPrompt: PromptAsset<
       "5. blockingIssues 保留最关键的 0-5 条，每条必须有明确证据和可执行修复建议。",
       "6. obligation contract 是本章硬合同。must hit now 与 forbidden crossing 缺口必须写入 missingObligations；可后续承接的 payoff、角色露面或目标变化缺口，只有会影响下一章入口时才写入 missingObligations，否则放入 riskTags。",
       "7. repairability 只能用 none、patchable_obligation_gap、rewrite_needed、plan_misalignment。局部漏写但不阻断下一章时优先 continue_with_risk；只有需要当前章节立刻补齐时才用 patchable_obligation_gap。",
-      "8. style_contract 或反 AI 要求属于强约束；发现明显来源实体泄露、模板腔、总结腔时归入 voice。",
+      "8. 写法检测开启时按 style_contract 评估写法与反 AI 表达，明显违规归入 voice；检测关闭时不评价这些专项规则。普通措辞提升不升级为硬合同缺口。",
       "9. assetSyncRecommendation 只判断资产同步优先级和是否需要全量伏笔对账，不要输出落库细节。",
       "10. blockingIssues.category 只能使用 continuity、character、plot、mode_fit、voice；节奏、重复、中段铺垫、结尾钩子都归入 plot。",
       "11. repairDirectives.target 只能使用 continuity、character、plot、ending、voice；不要输出 middle、pacing、internal_monologue、ending_tone 等自定义目标。",
@@ -337,12 +343,15 @@ export const chapterAcceptanceAssessmentPrompt: PromptAsset<
       "21. 结尾可用未决选择、已建立的代价或明确下一步形成追读钩子；仅因没有新增追兵、反转或更强刺激，不应输出 blockingIssues / repairDirectives。普通表达提升放入 riskTags；确实未兑现本章硬合同仍须报告。",
       "22. 判断秘密泄漏须引用具体正文和 forbidden crossing / protected reveals；角色含糊警告、怀疑或误解不等同于对方已知秘密。若歧义会导致读者误判关键事实，说明冲突和必须明确的范围，避免把推测当成已发生的泄漏。",
       "23. 检查完整合同与正文后一次列齐需立即修复的缺口；同一缺口保持含义明确的 code，不用不同措辞制造新问题。summary、decisionReason 和指令简短，证据引用足以定位的句段，避免多字段重复长篇解释。",
+      "24. 写法检测开启时必须输出 styleReview:{riskScore:0至100整数,summary:简短结论,issueCodes:[]}。需要局部修复的写法问题使用 blockingIssues 中的 voice 项，issueCodes 只引用这些项的 code，避免重复输出证据和修复建议。低风险表达提醒写入 riskTags；鼓励性规则未出现不构成违规。关闭时 styleReview 为 null。",
+      "25. 写法 voice 项必须用 styleRuleId 引用规则目录中的真实 ID；普通写法合同问题用 null。autoRewrite=false 的规则只记录风险提醒，不安排修文。专项表达问题不能单独升级为整章重写、人工暂停或 plan_misalignment；事实、保密与章节义务冲突仍按对应合同判断。",
       "正文退化检测边界：",
       ...CHAPTER_PROSE_QUALITY_AUDIT_RULES.map((rule, index) => `${index + 1}. ${rule}`),
     ].join("\n")),
     new HumanMessage([
       `小说：${input.novelTitle}`,
       renderCacheContextSections(context).stable,
+      `写法与反 AI 检测：${input.styleReviewEnabled ? "开启，逐项核对有效写法合同；按表达语义判断，不依赖违禁词命中" : "关闭，不执行专项写法检测；仍检查正文可读性、事实与章节义务"}`,
       `章节：第 ${input.chapterOrder} 章 ${input.chapterTitle}`,
       typeof input.targetWordCount === "number" ? `目标长度：约 ${input.targetWordCount} 字` : "目标长度：未指定",
       "",

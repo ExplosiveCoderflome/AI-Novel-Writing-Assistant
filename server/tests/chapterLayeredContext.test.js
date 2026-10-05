@@ -13,6 +13,26 @@ const {
   buildChapterRepairContextBlocks,
 } = require("../dist/prompting/prompts/novel/chapterLayeredContext.js");
 
+test("acceptance keeps the complete effective style contract when required facts exhaust the budget", () => {
+  const pkg = createContextPackage();
+  pkg.styleContext = createStyleContext();
+  const write = buildChapterWriteContext({ bookContract: pkg.bookContract, contextPackage: pkg });
+  const blocks = buildChapterReviewContextBlocks(buildChapterReviewContext(write, pkg));
+  const { createContextBlock } = require("../dist/prompting/core/contextBudget.js");
+  blocks.unshift(createContextBlock({ id: "oversized_facts", group: "character_hard_facts", priority: 200,
+    required: true, allowSummary: false, content: "必须保留的事实。".repeat(900) }));
+  const { preparePromptExecution } = require("../dist/prompting/core/promptRunner.js");
+  const { chapterAcceptanceAssessmentPrompt } = require("../dist/prompting/prompts/novel/chapterAcceptance.prompts.js");
+  const prepared = preparePromptExecution({ asset: chapterAcceptanceAssessmentPrompt,
+    promptInput: { novelTitle: "测试", chapterOrder: 5, chapterTitle: "测试", content: "正文", styleReviewEnabled: true },
+    contextBlocks: blocks });
+  const original = blocks.find(block => block.group === "style_contract");
+  const selected = prepared.context.blocks.find(block => block.group === "style_contract");
+  assert.ok(selected, "budget cannot discard the selected writing rules");
+  assert.equal(selected.content, original.content, "budget cannot truncate the rule contract");
+  assert.equal(prepared.invocation.summarizedContextBlockIds.includes("style_contract"), false);
+});
+
 test("chapter layered context keeps full book promise and volume reader rewards", () => {
   const book = buildBookContractContext({
     title: "反压测试",
