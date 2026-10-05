@@ -55,6 +55,7 @@ function createPipelineHarness({
     "../chapterPatchRepairService": { ChapterPatchRepairFailedError: class extends Error {} },
     "./selection/ChapterRepairCandidateSelection": selectionModule,
     "./repair/ChapterRepairEligibility": loadRuntimeSource("repair/ChapterRepairEligibility.ts", {}),
+    "./proseQuality": loadRuntimeSource("proseQuality/ProseQualityDetector.ts", {}),
     "./artifactSync/ChapterArtifactSyncResult": {
       ChapterArtifactSyncBoundaryError: class extends Error {
         constructor(result) { super(result.reason); this.result = result; }

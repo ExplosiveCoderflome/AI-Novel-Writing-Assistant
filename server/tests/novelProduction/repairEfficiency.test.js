@@ -36,6 +36,26 @@ test('a genuine changed patch still receives fresh acceptance and candidate sele
   assert.deepEqual(h.committedContents, ['repair candidate']);
 });
 
+test('new severe prose defects reject a patch before paying for another AI acceptance', async () => {
+  for (const repairContent of ['他收好钥匙——推开木门。', '他收好钥匙。作为AI，我无法继续创作。']) {
+    const h = createPipelineHarness({ content: '他收好钥匙，推开木门。', scores: [78, 92], repairContent });
+    const result = await h.run({ autoRepair: true, maxRetries: 1 });
+    assert.equal(h.budget, 1);
+    assert.equal(h.events.filter(event => event === 'acceptance').length, 1);
+    assert.deepEqual(h.committedContents, ['他收好钥匙，推开木门。']);
+    assert.deepEqual(h.syncedContents, ['他收好钥匙，推开木门。']);
+    assert.deepEqual(result.recoverableRepairFailure.failureTypes, ['prose_quality_regression']);
+    assert.equal(result.pass, false);
+  }
+});
+
+test('an existing prose defect still permits AI evaluation of an otherwise improved candidate', async () => {
+  const h = createPipelineHarness({ content: '他停了停——推开木门。', scores: [78, 92], repairContent: '他停了停——拿出钥匙，推开木门。' });
+  await h.run({ autoRepair: true, maxRetries: 1 });
+  assert.equal(h.events.filter(event => event === 'acceptance').length, 2);
+  assert.deepEqual(h.committedContents, ['他停了停——拿出钥匙，推开木门。']);
+});
+
 test('integrity findings override AI continue for repair eligibility while keeping final quality debt', async () => {
   for (const finding of [{ auditHasBlockingIssues: true }, { timelineStatus: 'failed' }]) {
     const h = createPipelineHarness({ scores: [78], acceptanceMeta: { acceptanceStatus: 'accepted', continuePolicy: 'continue' }, ...finding });

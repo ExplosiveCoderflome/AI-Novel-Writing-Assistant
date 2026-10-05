@@ -5,7 +5,7 @@ test('dynamic examples and advanced templates retain tail hint placement',()=>{f
 
 test('updated production assets resolve through registry at their exact versions', () => {
   const { getRegisteredPromptAsset } = require('../dist/prompting/registry');
-  for (const [id, version] of [['novel.chapter.writer', 'v7'], ['novel.chapter.acceptance_assessment', 'v5'], ['novel.review.patch', 'v6']]) {
+  for (const [id, version] of [['novel.chapter.writer', 'v7'], ['novel.chapter.acceptance_assessment', 'v5'], ['novel.review.patch', 'v7'], ['novel.review.repair', 'v3'], ['novel.chapter.artifact_delta.extract', 'v4']]) {
     assert.equal(getRegisteredPromptAsset(id, version).version, version);
   }
 });

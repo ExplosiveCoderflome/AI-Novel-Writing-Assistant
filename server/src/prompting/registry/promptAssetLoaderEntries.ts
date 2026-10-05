@@ -282,7 +282,7 @@ export const promptAssetLoaderEntries: PromptAssetLoaderEntry[] = [
     load: () => require("../prompts/novel/chapterAcceptance.prompts").chapterAcceptanceAssessmentPrompt as UnknownPromptAsset,
   },
   {
-    key: "novel.chapter.artifact_delta.extract@v3",
+    key: "novel.chapter.artifact_delta.extract@v4",
     load: () => require("../prompts/novel/chapterArtifactDelta.prompts").chapterArtifactDeltaPrompt as UnknownPromptAsset,
   },
   {
@@ -442,11 +442,11 @@ export const promptAssetLoaderEntries: PromptAssetLoaderEntry[] = [
     load: () => require("../prompts/novel/review.prompts").chapterReviewPrompt as UnknownPromptAsset,
   },
   {
-    key: "novel.review.repair@v2",
+    key: "novel.review.repair@v3",
     load: () => require("../prompts/novel/review.prompts").chapterRepairPrompt as UnknownPromptAsset,
   },
   {
-    key: "novel.review.patch@v2",
+    key: "novel.review.patch@v7",
     load: () => require("../prompts/novel/chapterPatchRepair.prompts").chapterPatchRepairPrompt as UnknownPromptAsset,
   },
   {

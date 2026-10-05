@@ -1,6 +1,7 @@
 import { HumanMessage, SystemMessage } from "@langchain/core/messages";
 import type { ChapterPatchRepairPlan } from "@ai-novel/shared/types/chapterPatchRepair";
 import { chapterPatchRepairPlanSchema } from "@ai-novel/shared/types/chapterPatchRepair";
+import { CHAPTER_PROSE_QUALITY_RULES } from "@ai-novel/shared/types/chapterProseContract";
 import type { PromptAsset } from "../../core/promptTypes";
 import { renderCacheContextSections } from "../../core/cache";
 import { NOVEL_PROMPT_BUDGETS } from "./promptBudgetProfiles";
@@ -18,7 +19,7 @@ export const chapterPatchRepairPrompt: PromptAsset<
   ChapterPatchRepairPlan
 > = {
   id: "novel.review.patch",
-  version: "v6",
+  version: "v7",
   taskType: "repair",
   mode: "structured",
   language: "zh",
@@ -76,6 +77,10 @@ export const chapterPatchRepairPrompt: PromptAsset<
         "10. 问题清单包含 repairDirectives 时，只执行 mode=patch 的指令；mode=rewrite/manual 保留为未处理说明，不得用局部补丁强行完成。",
         "11. 未出场角色的目标变化不得靠新增场景、视角、远程消息或泄露秘密补齐。书级规则、文风、世界规则和保密约束均须保留；只修有正文证据且本章合同要求的缺口。",
         "12. 每条 patches 必须包含 id、targetExcerpt、replacement、reason、issueIds；reason 用一句话说明修复的具体缺口，不得省略。replacement 与 targetExcerpt 相同时不要输出该补丁；无必要改动时返回空 patches。",
+        "13. 不要用一个短句作为锚点插入整场新戏。若缺口必须新增完整场景、跨越当前章结尾或大幅扩写才能兑现，返回 requiresFullRewrite=true 并说明原因，不能把整章重写伪装为局部补丁。",
+        "【替换正文的表达约束】",
+        "以下约束只用于 replacement；targetExcerpt 必须保留原文，不能为满足表达约束修改定位片段。",
+        ...CHAPTER_PROSE_QUALITY_RULES,
       ].join("\n")),
       new HumanMessage([
         `小说：${input.novelTitle}`,

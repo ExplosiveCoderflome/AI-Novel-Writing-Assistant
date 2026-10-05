@@ -16,6 +16,7 @@ import {
 } from "./chapterEmptyContentError";
 import { runChapterRepairText } from "./repair/chapterRepairRuntime";
 import { shouldAttemptAutomaticRepair } from "./repair/ChapterRepairEligibility";
+import { detectNewSevereProseFindings } from "./proseQuality";
 import { ChapterPatchRepairFailedError } from "../chapterPatchRepairService";
 import {
   selectChapterRepairCandidate,
@@ -407,6 +408,18 @@ export async function runPipelineChapterWithRuntime(
     }
     // The issued repair still counts, but unchanged prose needs no paid re-acceptance.
     if (repairResult.content === content) break;
+    const newProseFindings = detectNewSevereProseFindings(content, repairResult.content);
+    if (newProseFindings.length > 0) {
+      recoverableRepairFailure = {
+        chapterId,
+        message: `修文新增严重表达问题，保留原稿：${[...new Set(newProseFindings.map(finding => finding.message))].join("；")}`,
+        repairMode,
+        failureTypes: ["prose_quality_regression"],
+        occurredAt: new Date().toISOString(),
+      };
+      await deps.markChapterNeedsRepair(chapterId);
+      break;
+    }
     content = repairResult.content;
   }
 
