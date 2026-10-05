@@ -22,6 +22,7 @@ import {
 } from "../novelCoreShared";
 import { plannerService } from "../../planner/PlannerService";
 import { applyChapterQualityClosure } from "./qualityClosure/ChapterQualityClosure";
+import { recoverSavedChapterQuality, SavedChapterQualityRecoveryError } from "./qualityClosure/SavedChapterQualityRecovery";
 import { ChapterAutomaticAttemptService } from "./attempts";
 import { isCurrentChapterProductionCompleted } from "./completion";
 import { beginChapterUsage, observeChapterUsage, finalizeChapterUsage } from "./usage";
@@ -478,6 +479,22 @@ export class NovelPipelineExecutor {
           const chapter = chaptersToProcess[chapterIndex];
           await this.ensurePipelineNotCancelled(jobId);
 
+          let chapterResult: Awaited<ReturnType<ChapterRuntimeCoordinator["runPipelineChapter"]>> | null = null;
+          const savedUsage = runtimePayload.directorNext?.chapterUsage?.find(row => row.chapterId === chapter.id);
+          const recoveringSavedQuality = savedUsage?.endJobTokens !== undefined;
+          if (recoveringSavedQuality) {
+            try {
+              if (savedUsage.chapterOrder !== chapter.order) throw new Error("章节用量检查点身份不一致。");
+              const usage = await prisma.generationJob.findUniqueOrThrow({ where: { id: jobId }, select: { totalTokens: true } });
+              observeChapterUsage(runtimePayload.directorNext!, chapter.id, usage.totalTokens);
+              chapterResult = await recoverSavedChapterQuality(novelId, chapter);
+            } catch (error) {
+              throw new PipelineIssueFailure(error instanceof Error ? error.message : "章节保存进度无法核验。",
+                error instanceof SavedChapterQualityRecoveryError ? error.issueCode : "runtime.data_integrity",
+                "chapter_usage", chapter.id, chapter.order);
+            }
+          }
+
           const checkChapterBudget = async (closed = false) => {
             if (!runtimePayload.directorNext) return;
             const usage = await prisma.generationJob.findUniqueOrThrow({
@@ -511,7 +528,7 @@ export class NovelPipelineExecutor {
                 "runtime.token_budget_exceeded", "chapter_usage", chapter.id, chapter.order);
             }
           };
-          await checkChapterBudget();
+          if (!recoveringSavedQuality) await checkChapterBudget();
 
           let shouldStopAfterCurrentChapter = false;
           let chapterStopAction: "pause_for_manual" | "fail_task" | null = null;
@@ -537,7 +554,7 @@ export class NovelPipelineExecutor {
             });
           };
 
-          await applyChapterStage("generating_chapters");
+          await applyChapterStage(recoveringSavedQuality ? "reviewing" : "generating_chapters");
           logPipelineInfo("开始处理章节", {
             jobId,
             chapterId: chapter.id,
@@ -560,7 +577,6 @@ export class NovelPipelineExecutor {
           }, PIPELINE_HEARTBEAT_INTERVAL_MS);
           heartbeatTimer.unref?.();
 
-          let chapterResult: Awaited<ReturnType<ChapterRuntimeCoordinator["runPipelineChapter"]>> | null = null;
           const chapterRetryBudget = Math.min(runtimePayload.maxRetries ?? maxRetries,
             issueGovernance?.policy.maxAutomaticRetries ?? maxRetries);
           let chapterRetryCountUsed = 0;
@@ -577,7 +593,7 @@ export class NovelPipelineExecutor {
           };
           try {
             previouslyConsumed = chapterRetryCountUsed = await this.automaticAttempts.used(jobId, chapter.id);
-            while (true) {
+            while (!chapterResult) {
               try {
                 await this.ensurePipelineNotCancelled(jobId);
                 await checkChapterBudget();
@@ -722,8 +738,6 @@ export class NovelPipelineExecutor {
           }
 
           totalRetryCount += Math.max(0, chapterRetryCountUsed - previouslyConsumed);
-          // Freeze the saved chapter's consumption before quality closure plans future chapters.
-          await checkChapterBudget(true);
           const closure = await applyChapterQualityClosure({
             governance: issueGovernance,
             workflowTaskId: runtimePayload.workflowTaskId,
@@ -743,6 +757,9 @@ export class NovelPipelineExecutor {
               temperature: runtimePayload.temperature,
             }),
             onIssueDecision: decision => {runtimePayload.directorNext?.decisions.push({...decision, chapterOrder: chapter.order});},
+            // Persist local quality facts before freezing/pausing, while future
+            // planning remains outside the saved chapter's token boundary.
+            beforeFuturePlanning: recoveringSavedQuality ? undefined : () => checkChapterBudget(true),
           });
           shouldStopAfterCurrentChapter = closure.shouldStopAfterCurrentChapter;
           chapterStopAction = closure.stopAction;

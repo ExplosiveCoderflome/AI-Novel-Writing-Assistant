@@ -24,6 +24,7 @@ export async function applyChapterQualityClosure(input: {
   replanAlertDetails: string[];
   recoverableRepairDetails: string[];
   onIssueDecision?: (decision: DirectorIssueDecision) => void;
+  beforeFuturePlanning?: () => Promise<void>;
   runLocalReplan: (input: {
     chapterId: string;
     triggerType: string;
@@ -164,6 +165,10 @@ export async function applyChapterQualityClosure(input: {
       applyAction: applyDecision,
     });
   }
+
+  // Quality facts must survive a saved-boundary safety pause. This callback may
+  // stop execution, but must run before any future-chapter model invocation.
+  await input.beforeFuturePlanning?.();
 
   if (shouldStopAfterCurrentChapter) {
     return { shouldStopAfterCurrentChapter: true, stopAction };

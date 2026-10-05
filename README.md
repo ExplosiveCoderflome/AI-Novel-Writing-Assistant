@@ -169,6 +169,7 @@ Open-source AI novel writing assistant and long-form production studio.
 
 #### 修复
 
+- 已保存章节因用量暂停后，可从保存进度继续后续章节；保留原正文与质量提醒，避免恢复时报重复生成错误。
 - AI 实况合计包含生成与修复的各次调用，批量请求按实际调用计数，避免重复记录用量。
 - Anthropic 模型流保留实际输入消耗，并提示模型返回错误或提前断流。
 
