@@ -1,0 +1,2 @@
+import test from 'node:test';import assert from 'node:assert/strict';import {formatCacheTokens} from './presentation.ts';
+test('cache copy distinguishes explicit zero, active, absent, invalid and legacy',()=>{assert.equal(formatCacheTokens(0,'completed','reported'),'0');assert.equal(formatCacheTokens(null,'streaming','unavailable'),'统计中');assert.equal(formatCacheTokens(null,'completed','unavailable'),'未提供');assert.equal(formatCacheTokens(null,'completed','invalid'),'统计不可用');assert.equal(formatCacheTokens(undefined,'completed',undefined),'未记录')});

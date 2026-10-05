@@ -198,8 +198,8 @@ model LlmInvocationUsageRecord {
 
 **Interfaces:** Consumes QueryService；HTTP deps 注入 `readUsage`，不把 DB 放 domain；GET `/director-next/runs/:runId/usage` 返回共享 Page。
 
-- [ ] 添加 HTTP 404、分页 limit1..100、无效 cursor、run 归属、跨 run 隔离测试；stub mutation 方法全部抛错，GET 仍成功。
-- [ ] 添加纯展示测试，锁定以下文本：
+- [x] 添加 HTTP 404、分页 limit1..100、无效 cursor、run 归属、跨 run 隔离测试；stub mutation 方法全部抛错，GET 仍成功。
+- [x] 添加纯展示测试，锁定以下文本：
 
 ```js
 // presentation.test.mjs 中先 import node:test、node:assert/strict，
@@ -212,11 +212,11 @@ assert.equal(formatCacheTokens(null, 'completed', 'invalid'), '统计不可用')
 assert.equal(formatCacheTokens(undefined, 'completed', undefined), '未记录');
 ```
 
-- [ ] 实现展示与 GET；实况折叠/展开使用相同 formatter，浏览器旧缓存 payload 缺字段可读，UI 更新不触发模型调用。
-- [ ] 新导演“调用用量”显示阶段、模型、调用状态、两项数字；合计未知用中性色说明，不用红色失败样式。运行记录仅查看/导航，保留来源路由。
-- [ ] 页面关闭、SSE 重连和 IndexedDB 读取不改变台账/任务。保留现有思考/输入/输出/合计，不新增费用/命中率卡片。
-- [ ] 执行共享构建、服务端对应测试、`node --test client/src/components/liveExecution/usage/presentation.test.mjs client/src/lib/storage/llmLiveCache.test.mjs`、`pnpm --filter @ai-novel/client typecheck`。
-- [ ] UI 交互验收交给用户；按发布说明技能更新 README/release notes 的“新增”条目，提交本阶段。
+- [x] 实现展示与 GET；实况折叠/展开使用相同 formatter，浏览器旧缓存 payload 缺字段可读，UI 更新不触发模型调用。
+- [x] 新导演“调用用量”显示阶段、模型、调用状态、两项数字；合计未知用中性色说明，不用红色失败样式。运行记录仅查看/导航，保留来源路由。
+- [x] 页面关闭、SSE 重连和 IndexedDB 读取不改变台账/任务。保留现有思考/输入/输出/合计，不新增费用/命中率卡片。
+- [x] 执行共享构建、服务端对应测试、`node --test client/src/components/liveExecution/usage/presentation.test.mjs client/src/lib/storage/llmLiveCache.test.mjs`、`pnpm --filter @ai-novel/client typecheck`。
+- [x] UI 交互验收交给用户；按发布说明技能更新 README/release notes 的“新增”条目，提交本阶段。
 
 ## Task 5：正文与验收稳定前缀试点
 
@@ -293,3 +293,5 @@ function applyCacheRequestPolicy<T extends Record<string, unknown>>(
 规划自审：口径、未知值、流式、多次修复、持久化、新导演归属、UI 只读、动态资产、预算边界、回退、验证均有任务覆盖。该文档阶段只新增规划文件，不更新产品发布说明；wiki 在相关实现落地时更新，避免把计划写成现行规则。
 
 阶段 3 验证：SQLite 增量迁移在临时库保护正文/旧计数；25 项台账、归属、章节预算测试通过。已生成 Prisma Client，未部署到验收库；无隔离 PostgreSQL 实例，PG 迁移仅静态审核。
+
+阶段 4：服务端构建、前端 typecheck、5 项纯展示/旧浏览器缓存/只读 HTTP 检查通过。界面交互由用户验收，当前验收库尚未建新增表，长期调用查询需迁移后可用。

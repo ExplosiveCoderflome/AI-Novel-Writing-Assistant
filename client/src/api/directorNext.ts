@@ -165,3 +165,8 @@ export async function submitDirectorCommand(command: DirectorCommand): Promise<A
   );
   return data;
 }
+
+export async function getDirectorUsage(runId:string,params:{cursor?:string;limit?:number}={}) {
+ const {data}=await apiClient.get<ApiResponse<import('@ai-novel/shared/types/llmUsage').LlmInvocationUsagePage>>(
+ '/director-next/runs/'+encodeURIComponent(runId)+'/usage',{params});return data;
+}

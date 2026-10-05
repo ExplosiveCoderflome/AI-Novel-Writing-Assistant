@@ -1,3 +1,4 @@
+import {InvocationUsageList} from "./usage";
 import { Link } from "react-router-dom";
 import { BookOpen, ClipboardList, History, ShieldAlert } from "lucide-react";
 import type { DashboardView, DirectorTimelineEvent } from "@/api/directorNext";
@@ -85,6 +86,7 @@ export default function DirectorPanel({ view, novelId, timeline = [], preview = 
           ? typeof startForm === "function" ? startForm(view.nextLaunchRange, view.driver) : startForm : null}
       </section>
 
+      {!preview ? <InvocationUsageList runId={view.runId} active={["running","queued"].includes(view.mode)}/> : null}
       <section className="border-t border-border/60 py-4" aria-labelledby="director-quality-debt">
         <div className="flex items-center gap-2 text-sm font-semibold" id="director-quality-debt">
           <ShieldAlert className="h-4 w-4 text-muted-foreground" aria-hidden="true" />

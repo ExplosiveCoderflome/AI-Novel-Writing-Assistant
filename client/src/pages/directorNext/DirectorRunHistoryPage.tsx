@@ -1,3 +1,4 @@
+import {InvocationUsageList} from "@/components/directorNext/usage";
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
@@ -20,7 +21,7 @@ export default function DirectorRunHistoryPage() {
         <Button variant="ghost" disabled={query.isFetching} onClick={() => void query.refetch()}>刷新记录</Button>
       </div>
       {query.isLoading ? <p className="text-sm text-muted-foreground">正在读取运行记录…</p> : query.isError ? <p role="alert" className="text-sm text-destructive">{query.error instanceof Error ? query.error.message : "读取失败，请重新读取。"}</p> : !query.data?.data?.length ? <p className="py-8 text-sm text-muted-foreground">没有符合条件的创作记录。</p> : (
-        <ul className="divide-y divide-border/60">{query.data.data.map((record) => <li key={record.runId} className="flex flex-wrap items-start justify-between gap-4 py-5"><div className="min-w-0 flex-1"><p className="text-xs text-muted-foreground">{record.statusLabel} · {record.progressLabel}</p><p className="mt-1 text-sm font-medium">{record.headline}</p>{record.detail ? <p className="mt-2 text-sm text-muted-foreground">{record.detail}</p> : null}</div><Button asChild variant="ghost" size="sm"><Link to={record.directorRoute}>打开小说导演台</Link></Button></li>)}</ul>
+        <ul className="divide-y divide-border/60">{query.data.data.map((record) => <li key={record.runId} className="flex flex-wrap items-start justify-between gap-4 py-5"><div className="min-w-0 flex-1"><p className="text-xs text-muted-foreground">{record.statusLabel} · {record.progressLabel}</p><p className="mt-1 text-sm font-medium">{record.headline}</p>{record.detail ? <p className="mt-2 text-sm text-muted-foreground">{record.detail}</p> : null}<InvocationUsageList runId={record.runId}/></div><Button asChild variant="ghost" size="sm"><Link to={record.directorRoute}>打开小说导演台</Link></Button></li>)}</ul>
       )}
       {!needsAttention && legacy.data?.data?.length ? <section className="border-t border-border/60 pt-5"><h2 className="text-sm font-semibold">历史创作</h2><ul className="divide-y divide-border/50">{legacy.data.data.map(record=><li key={record.runId} className="flex items-center justify-between gap-3 py-4"><div><p className="text-xs text-muted-foreground">{record.statusLabel} · {record.progressLabel}</p><p className="mt-1 text-sm">{record.headline}</p></div><Button asChild variant="ghost" size="sm"><Link to={record.sourceRoute}>打开小说</Link></Button></li>)}</ul></section>:null}
     </div>

@@ -1,3 +1,5 @@
+import type {LlmInvocationUsagePage} from "@ai-novel/shared/types/llmUsage";
+import {decodeUsageCursor} from "../../../platform/llm/usage";
 import { Router, type NextFunction, type Request, type Response } from "express";
 import { z } from "zod";
 import { DirectorRunNotFoundError, RecordProjection, type CommandService, type DirectorCommand, type EventLog, type ProjectionService, type RunRepository } from "../application";
@@ -10,6 +12,7 @@ export interface DirectorNextHttpDeps {
   runRepository: Pick<RunRepository, "findActiveRunIdByNovel" | "listRunIds" | "getContract" | "getControl">;
   eventLog: Pick<EventLog, "list">;
   legacyProjection?: Pick<LegacyRunProjection, "list">;
+  readUsage?: (runId:string,query:{limit?:number;cursor?:string|null})=>Promise<LlmInvocationUsagePage>;
   readWorkspace?: (novelId: string) => Promise<unknown>;
   observeGeneration?: (novelId: string, listener: (snapshot: DirectorGenerationSnapshot | null) => void) => () => void;
 }
@@ -166,6 +169,18 @@ export function createDirectorNextRouter(deps: DirectorNextHttpDeps): Router {
     } catch (error) {
       if (!sendKnownError(res, error)) throw error;
     }
+  }));
+
+  router.get("/runs/:runId/usage",asyncRoute(async(req,res)=>{
+    const runId=nonEmpty.parse(req.params.runId);
+    const query=z.object({limit:z.coerce.number().int().min(1).max(100).default(30),cursor:z.string().min(1).optional()}).safeParse(req.query);
+    if(!query.success){sendValidationError(res,query.error);return;}
+    try{
+      if(query.data.cursor && decodeUsageCursor(query.data.cursor).runId!==runId)throw Object.assign(new Error("分页位置不属于本次创作。"),{statusCode:400});
+      if(!await deps.runRepository.getContract(runId)){res.status(404).json({success:false,error:"找不到对应的创作记录。"});return;}
+      if(!deps.readUsage){res.status(503).json({success:false,error:"调用用量暂不可读取。"});return;}
+      res.json({success:true,data:await deps.readUsage(runId,query.data)});
+    }catch(error){if(!sendKnownError(res,error))throw error;}
   }));
 
   router.get("/runs/:runId", asyncRoute(async (req, res) => {

@@ -163,6 +163,10 @@ Open-source AI novel writing assistant and long-form production studio.
 
 ### 2026-10-05
 
+#### 新增
+
+- AI 实况与导演台提供缓存命中 Tokens、缓存未命中 Tokens，可从运行记录查看每次调用；未提供统计的模型与旧历史明确显示未知。
+
 #### 修复
 
 - AI 实况合计包含生成与修复的各次调用，批量请求按实际调用计数，避免重复记录用量。
