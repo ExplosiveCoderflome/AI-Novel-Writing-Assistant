@@ -53,6 +53,7 @@ export default function DirectorNovelPage({ previewOnly = false }: { previewOnly
           <Button variant="ghost" aria-expanded={directorOpen} onClick={() => setDirectorOpen(open => !open)}>{directorOpen ? "收起导演台" : "显示导演台"}</Button>
           {params.has("review") ? <Button asChild variant="ghost"><Link to={`/lab/director/${encodeURIComponent(novelId)}`}>返回本书</Link></Button> : null}
           {!previewOnly ? <Button asChild variant="ghost"><Link to="/lab/director">运行记录</Link></Button> : null}
+          {!preview ? <Button asChild variant="ghost"><Link to={`/novels/${encodeURIComponent(novelId)}/ai-usage`}>AI 用量</Link></Button> : null}
         </div>
       </header>
       {follow.disconnected ? <p role="status" className="text-xs text-muted-foreground">正文预览连接中断，正在重新连接。创作任务继续运行。</p> : null}

@@ -166,6 +166,7 @@ Open-source AI novel writing assistant and long-form production studio.
 #### 新增
 
 - AI 实况与导演台提供缓存命中 Tokens、缓存未命中 Tokens，可从运行记录查看每次调用；未提供统计的模型与旧历史明确显示未知。
+- 小说导演台和书架提供“AI 用量”入口，汇总本书各次创作已记录的输入、输出与缓存 Token；调用日志支持按章节、步骤、厂商、模型和状态筛选，并提示未知及部分返回的用量。
 
 #### 修复
 

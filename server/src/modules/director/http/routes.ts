@@ -1,4 +1,4 @@
-import type {LlmInvocationUsagePage} from "@ai-novel/shared/types/llmUsage";
+import type {LlmInvocationUsagePage, NovelUsagePage, NovelUsageQuery} from "@ai-novel/shared/types/llmUsage";
 import {decodeUsageCursor} from "../../../platform/llm/usage";
 import { Router, type NextFunction, type Request, type Response } from "express";
 import { z } from "zod";
@@ -13,6 +13,7 @@ export interface DirectorNextHttpDeps {
   eventLog: Pick<EventLog, "list">;
   legacyProjection?: Pick<LegacyRunProjection, "list">;
   readUsage?: (runId:string,query:{limit?:number;cursor?:string|null})=>Promise<LlmInvocationUsagePage>;
+  readNovelUsage?: (novelId: string, query: NovelUsageQuery) => Promise<NovelUsagePage>;
   readWorkspace?: (novelId: string) => Promise<unknown>;
   observeGeneration?: (novelId: string, listener: (snapshot: DirectorGenerationSnapshot | null) => void) => () => void;
 }
@@ -169,6 +170,23 @@ export function createDirectorNextRouter(deps: DirectorNextHttpDeps): Router {
     } catch (error) {
       if (!sendKnownError(res, error)) throw error;
     }
+  }));
+
+  router.get("/novels/:novelId/usage", asyncRoute(async (req, res) => {
+    const id = nonEmpty.safeParse(req.params.novelId);
+    const filter = z.string().trim().min(1).max(250).optional();
+    const query = z.object({
+      limit: z.coerce.number().int().min(1).max(100).default(30),
+      cursor: z.string().min(1).max(2048).optional(),
+      chapterId: filter, stage: filter, provider: filter, model: filter,
+      status: z.enum(["completed", "partial", "failed"]).optional(),
+    }).safeParse(req.query);
+    if (!id.success) { sendValidationError(res, id.error); return; }
+    if (!query.success) { sendValidationError(res, query.error); return; }
+    if (!deps.readNovelUsage) { res.status(503).json({success: false, error: "本书 AI 用量暂不可读取。"}); return; }
+    try {
+      res.json({success: true, data: await deps.readNovelUsage(id.data, query.data)});
+    } catch (error) { if (!sendKnownError(res, error)) throw error; }
   }));
 
   router.get("/runs/:runId/usage",asyncRoute(async(req,res)=>{

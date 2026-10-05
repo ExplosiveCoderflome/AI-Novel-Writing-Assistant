@@ -1,4 +1,4 @@
-import {InvocationUsageQueryService} from "../../platform/llm/usage";
+import {InvocationUsageQueryService, NovelInvocationUsageQueryService} from "../../platform/llm/usage";
 import {prisma} from "../../db/prisma";
 import {createDirectorNextServices, type DirectorNextServices} from "../../modules/director";
 import {LegacyRunProjection} from "../../modules/director/http";
@@ -11,6 +11,16 @@ export function getDirectorProductionServices(): DirectorNextServices {
   if (!services) {
     services = createDirectorNextServices(createDirectorProductionOptions());
     services.http.readUsage = (runId,query) => new InvocationUsageQueryService(prisma.llmInvocationUsageRecord).getRunUsage(runId,query);
+    services.http.readNovelUsage = (novelId, query) => new NovelInvocationUsageQueryService(prisma.llmInvocationUsageRecord, async id => {
+      const novel = await prisma.novel.findUnique({where: {id}, select: {id: true, title: true}});
+      if (!novel) return null;
+      const [chapters, workflows, jobs] = await Promise.all([
+        prisma.chapter.findMany({where: {novelId: id}, orderBy: {order: "asc"}, select: {id: true, order: true, title: true}}),
+        prisma.novelWorkflowTask.findMany({where: {novelId: id}, select: {id: true}}),
+        prisma.generationJob.findMany({where: {novelId: id}, select: {id: true}}),
+      ]);
+      return {novel, chapters, workflowTaskIds: workflows.map(row => row.id), generationJobIds: jobs.map(row => row.id)};
+    }).getNovelUsage(novelId, query);
     services.http.readWorkspace = readDirectorWorkspace;
     services.http.observeGeneration = (novelId, listener) => chapterGenerationFeed.subscribe(novelId, listener);
     services.http.legacyProjection = new LegacyRunProjection({list: input => prisma.novelWorkflowTask.findMany({

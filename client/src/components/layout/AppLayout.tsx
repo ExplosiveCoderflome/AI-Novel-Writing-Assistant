@@ -24,7 +24,10 @@ const DEFAULT_APP_MAIN_CLASS_NAME = "h-[calc(100dvh-4rem)] min-w-0 flex-1 overfl
 
 export default function AppLayout() {
   const location = useLocation();
-  const isDirectorWorkbench = Boolean(matchPath("/lab/director/:novelId", location.pathname));
+  const isDirectorWorkbench = Boolean(
+    matchPath("/lab/director/:novelId", location.pathname)
+    || matchPath("/novels/:id/ai-usage", location.pathname),
+  );
   const [projectMenuOpen, setProjectMenuOpen] = useState(false);
   useEffect(() => { setProjectMenuOpen(false); }, [location.pathname]);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);

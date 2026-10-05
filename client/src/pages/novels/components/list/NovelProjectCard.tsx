@@ -175,6 +175,9 @@ export function NovelProjectCard(props: {
             ) : null}
           </div>
           <div className="flex items-center gap-1 opacity-70 transition group-hover:opacity-100 focus-within:opacity-100">
+            {directorHref ? <Button asChild size="sm" variant="ghost" className="h-8 px-2" title="查看本书 AI 用量与调用日志">
+              <Link to={`/novels/${encodeURIComponent(props.novel.id)}/ai-usage`} onClick={stopCardClick}>AI 用量</Link>
+            </Button> : null}
             {task && props.novel.narrativeForm !== "short_story" ? (
               <Button asChild size="sm" variant="ghost" className="h-8 w-8 px-0" title="查看执行详情" aria-label="查看执行详情">
                 <Link to={getNovelEditHref(props.novel.id, { taskPanel: true })} onClick={stopCardClick}>

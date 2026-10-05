@@ -45,6 +45,7 @@ const WritingFormulaPage = lazy(() => import("@/pages/writingFormula/WritingForm
 const CharacterLibrary = lazy(() => import("@/pages/characters/CharacterLibrary"));
 const DirectorRunHistoryPage = lazy(() => import("@/pages/directorNext/DirectorRunHistoryPage"));
 const DirectorNovelPage = lazy(() => import("@/pages/directorNext/DirectorNovelPage"));
+const NovelUsagePage = lazy(() => import("@/pages/novelUsage/NovelUsagePage"));
 
 const routes: RouteObject[] = [
   {
@@ -62,6 +63,7 @@ const routes: RouteObject[] = [
       { path: "novels/:id/simple", element: <SimpleNovelShelfPage /> },
       { path: "novels/:id/story", element: <ShortStoryStudioPage /> },
       { path: "novels/:id/preview", element: <NovelPreview /> },
+      { path: "novels/:id/ai-usage", element: <NovelUsagePage /> },
       { path: "novels/:id/edit", element: <NarrativeFormNovelEditRoute /> },
       { path: "novels/:id/chapters/:chapterId", element: <NovelChapterEdit /> },
       { path: "drama", element: <DramaWorkspacePage /> },
