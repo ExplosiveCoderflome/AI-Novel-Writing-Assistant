@@ -47,7 +47,7 @@ test('stream log retains actual final usage without charging cumulative chunks t
   const result = await exercise(chunks);
   const response = result.entries.find(entry => entry.event === 'response');
   assert.equal(response.actualPromptTokens, 100);
-  assert.deepEqual(response.payload.usageMetadata, { input_tokens: 100, output_tokens: 20, total_tokens: 120 });
+  assert.deepEqual(response.payload.usageMetadata, { input_tokens: 100, output_tokens: 20, total_tokens: 120, inputCache: { cacheHitTokens: null, cacheMissTokens: null, cacheWriteTokens: null, cacheUsageStatus: "unavailable" } });
   assert.equal(response.payload.content, '第一段第二段');
   assert.equal(result.updates.length, 1);
   assert.equal(result.updates[0].data.totalTokens.increment, 120);
@@ -70,4 +70,10 @@ test('interrupted stream reports the known partial usage on the error entry', as
   assert.equal(error.actualPromptTokens, 80);
   assert.equal(error.payload.usageMetadata.total_tokens, 85);
   assert.equal(result.updates[0].data.totalTokens.increment, 85);
+});
+
+test('stream log preserves cache hit and miss from normalized usage', async () => {
+ const { entries } = await exercise([{content:'正文',usage_metadata:{input_tokens:1000,output_tokens:100,total_tokens:1100,input_token_details:{cache_read:800}}}]);
+ const usage = entries.find(e=>e.event==='response').payload.usageMetadata;
+ assert.equal(usage.inputCache.cacheHitTokens,800); assert.equal(usage.inputCache.cacheMissTokens,200);
 });

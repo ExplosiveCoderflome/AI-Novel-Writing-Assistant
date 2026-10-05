@@ -116,15 +116,15 @@ test('Anthropic 创建量属于未命中且不重复统计', () => {
 
 **Interfaces:** Consumes Task 1 解码；produces invocationId 和一次调用结束事件，Task 3 订阅登记。Observer 不依赖 DB。
 
-- [ ] mock fetch 构造 Anthropic SSE：message_start input=20/read=800/creation=180，两个 text_delta，message_delta output=100，message_stop；断言文字顺序、输入1000、合计1100、缓存800/200。
-- [ ] 添加 UTF-8 分包、CRLF、usage-only 帧、无缓存字段、断流、原始错误透传用例。无 usage 时保留未知，不写计费估计。
-- [ ] 先跑失败测试，再让 Anthropic adapter 传递标准化 usage 与原始 metadata。使用唯一消费者，不为了拿 usage 再 invoke。
-- [ ] 调整 factory 把真实 requestProtocol 传入解码；OpenAI-compatible 不注入其他厂商专有参数，确认 stream usage 选项和当前 SDK 兼容。
-- [ ] 每次 invoke/stream 尝试生成 invocationId；batch 内每个独立结果各有 ID。若 batch 内部已经过包装后的 invoke，外层不再登记/计数；若 SDK 子结果未被观察则逐项登记。mock 三次物理请求断言三个唯一 ID、各一次业务计数，不能维护已证实的重复统计；若发现既有重复计数，应在该阶段明确报告修复影响。
-- [ ] 流式 debug 日志使用同一 normalized inputCache；不要重建只有 input/output 的对象。不保存新增密钥或全量原始响应。
-- [ ] 实况一个会话含多个尝试时，用 invocationId 合计替换每次尝试快照；初次1000/修复500总输入为1500，重复通知修复仍为1500。增加依赖边界清晰的小模块，不能使 promptRunner 超1300行。
-- [ ] 运行 `node --test server/tests/anthropicUsageStream.test.js server/tests/llmDebugUsage.test.js server/tests/llmLiveBroker.test.js server/tests/llmCacheUsageLive.test.js`，必要时只在源码变更后重建服务端。
-- [ ] 按发布说明技能提交；更新 `docs/wiki/workflows/llm-live-execution.md` 的真实计数/多尝试规则。
+- [x] mock fetch 构造 Anthropic SSE：message_start input=20/read=800/creation=180，两个 text_delta，message_delta output=100，message_stop；断言文字顺序、输入1000、合计1100、缓存800/200。
+- [x] 添加 UTF-8 分包、CRLF、usage-only 帧、无缓存字段、断流、原始错误透传用例。无 usage 时保留未知，不写计费估计。
+- [x] 先跑失败测试，再让 Anthropic adapter 传递标准化 usage 与原始 metadata。使用唯一消费者，不为了拿 usage 再 invoke。
+- [x] 调整 factory 把真实 requestProtocol 传入解码；OpenAI-compatible 不注入其他厂商专有参数，确认 stream usage 选项和当前 SDK 兼容。
+- [x] 每次 invoke/stream 尝试生成 invocationId；batch 内每个独立结果各有 ID。若 batch 内部已经过包装后的 invoke，外层不再登记/计数；若 SDK 子结果未被观察则逐项登记。mock 三次物理请求断言三个唯一 ID、各一次业务计数，不能维护已证实的重复统计；若发现既有重复计数，应在该阶段明确报告修复影响。
+- [x] 流式 debug 日志使用同一 normalized inputCache；不要重建只有 input/output 的对象。不保存新增密钥或全量原始响应。
+- [x] 实况一个会话含多个尝试时，用 invocationId 合计替换每次尝试快照；初次1000/修复500总输入为1500，重复通知修复仍为1500。增加依赖边界清晰的小模块，不能使 promptRunner 超1300行。
+- [x] 运行 `node --test server/tests/anthropicUsageStream.test.js server/tests/llmDebugUsage.test.js server/tests/llmLiveBroker.test.js server/tests/llmCacheUsageLive.test.js`，必要时只在源码变更后重建服务端。
+- [x] 按发布说明技能提交；更新 `docs/wiki/workflows/llm-live-execution.md` 的真实计数/多尝试规则。
 
 ## Task 3：独立逐次调用台账与新导演归属
 

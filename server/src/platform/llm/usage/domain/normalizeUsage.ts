@@ -17,6 +17,14 @@ function base(u: Obj, nativeAnthropic: boolean): LlmTokenUsageSnapshot | null {
 }
 
 function cache(u: Obj, total: number): LlmInputCacheUsage {
+  if (u.inputCache) {
+    const value = object(u.inputCache);
+    if (value.cacheUsageStatus !== "reported") return unknownCache(value.cacheUsageStatus === "invalid" ? "invalid" : "unavailable");
+    if (tokenCount(value.cacheHitTokens) === null || tokenCount(value.cacheMissTokens) === null
+      || value.cacheHitTokens + value.cacheMissTokens !== total
+      || (value.cacheWriteTokens != null && (tokenCount(value.cacheWriteTokens) === null || value.cacheWriteTokens > value.cacheMissTokens))) return unknownCache("invalid");
+    return { cacheHitTokens: value.cacheHitTokens, cacheMissTokens: value.cacheMissTokens, cacheWriteTokens: value.cacheWriteTokens ?? null, cacheUsageStatus: "reported" };
+  }
   // Only fields actually supplied by the provider establish a cache observation.
   const reads = [u.prompt_cache_hit_tokens, u.prompt_tokens_details?.cached_tokens,
     u.input_tokens_details?.cached_tokens, u.input_token_details?.cache_read,

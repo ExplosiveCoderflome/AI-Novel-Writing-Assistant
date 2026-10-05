@@ -505,6 +505,7 @@ function wrapLoggedStream(stream: AsyncIterable<unknown>, meta: LLMDebugMeta, re
       let usage: LlmTokenUsageSnapshot | null = null;
       const output = () => ({ content: chunks.join(""), ...(usage ? { usage_metadata: {
         input_tokens: usage.promptTokens, output_tokens: usage.completionTokens, total_tokens: usage.totalTokens,
+        ...(usage.inputCache ? { inputCache: usage.inputCache } : {}),
         ...(usage.reasoningTokens !== undefined ? { output_token_details: { reasoning: usage.reasoningTokens } } : {}),
       } } : {}) });
       try {

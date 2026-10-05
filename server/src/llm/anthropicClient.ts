@@ -193,6 +193,19 @@ export function createAnthropicLLM(options: AnthropicLLMOptions): {
           const reader = body.getReader();
           const decoder = new TextDecoder();
           let buffer = "";
+          let stopped = false;
+          let usage: Record<string, unknown> = {};
+          function eventChunk(event: unknown): AIMessageChunk | null {
+            if (!event || typeof event !== "object") return null;
+            const control=event as {type?:string;error?:{message?:string}};
+            if(control.type === "error") throw new Error(control.error?.message ?? "Anthropic stream error.");
+            if(control.type === "message_stop") stopped=true;
+            const e = event as { message?: { usage?: Record<string, unknown> }; usage?: Record<string, unknown> };
+            const reported = e.message?.usage ?? e.usage;
+            if (reported) usage = { ...usage, ...reported };
+            const text = extractDeltaText(event);
+            return text || reported ? new AIMessageChunk({ content: text, ...(reported ? { response_metadata: { usage } } : {}) }) : null;
+          }
           try {
             while (true) {
               const { value, done } = await reader.read();
@@ -203,10 +216,8 @@ export function createAnthropicLLM(options: AnthropicLLMOptions): {
               const lines = buffer.split(/\r?\n/u);
               buffer = lines.pop() ?? "";
               for (const line of lines) {
-                const text = extractDeltaText(parseStreamLine(line));
-                if (text) {
-                  yield new AIMessageChunk(text);
-                }
+                const chunk = eventChunk(parseStreamLine(line));
+                if (chunk) yield chunk;
               }
             }
             const tail = decoder.decode();
@@ -214,12 +225,12 @@ export function createAnthropicLLM(options: AnthropicLLMOptions): {
               buffer += tail;
             }
             for (const line of buffer.split(/\r?\n/u)) {
-              const text = extractDeltaText(parseStreamLine(line));
-              if (text) {
-                yield new AIMessageChunk(text);
-              }
+              const chunk = eventChunk(parseStreamLine(line));
+              if (chunk) yield chunk;
             }
+            if (!stopped) throw new Error("Anthropic stream interrupted before message_stop.");
           } finally {
+            await reader.cancel().catch(() => undefined);
             reader.releaseLock();
           }
         },

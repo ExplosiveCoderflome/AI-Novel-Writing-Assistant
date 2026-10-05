@@ -7,12 +7,17 @@ import type {
   LlmLiveTokenUsage,
 } from "@ai-novel/shared/types/llmLive";
 
+import { summarizeUsage } from "../usage";
+import type { LlmTokenUsageSnapshot } from "../usage";
+import { runWithInvocationUsageObserver } from "../usage/application/InvocationUsageObserver";
+
 const COMPLETED_SESSION_RETENTION_MS = 10 * 60 * 1000;
 const MAX_PREVIEW_CHARS = 16_000;
 
 interface SessionRecord {
   snapshot: LlmLiveSessionSnapshot;
   startedAtMs: number;
+  attempts?: Map<string,LlmTokenUsageSnapshot | null>;
 }
 
 export interface LlmLiveSubscriptionFilter {
@@ -170,7 +175,7 @@ export class LlmLiveBroker {
 
   updateUsage(interactionId: string, tokenUsage: LlmLiveTokenUsage | null): void {
     const record = this.sessions.get(interactionId);
-    if (!record || !tokenUsage) {
+    if (!record || !tokenUsage || record.attempts?.size) {
       return;
     }
     const now = new Date().toISOString();
@@ -188,6 +193,16 @@ export class LlmLiveBroker {
       interactionId,
       tokenUsage,
     });
+  }
+
+  updateAttemptUsage(interactionId: string, id: string, usage: LlmTokenUsageSnapshot | null): void {
+    const record=this.sessions.get(interactionId);if(!record)return;
+    const attempts=record.attempts ?? new Map();attempts.set(id,usage);
+    // Legacy usage updates cannot replace a complete set of physical attempts.
+    record.attempts=undefined;
+    const sum=summarizeUsage([...attempts.values()]);
+    this.updateUsage(interactionId,sum ? {...sum,reasoningTokens:sum.reasoningTokens ?? null}:null);
+    record.attempts=attempts;
   }
 
   complete(interactionId: string): void {
@@ -301,6 +316,14 @@ export class LlmLiveSession {
 
   reasoning(content: string): void {
     this.broker.appendReasoning(this.interactionId, content);
+  }
+
+  attemptUsage(id: string, usage: LlmTokenUsageSnapshot | null): void {
+    this.broker.updateAttemptUsage(this.interactionId,id,usage);
+  }
+
+  observe<T>(runner: () => T): T {
+    return runWithInvocationUsageObserver(record => this.attemptUsage(record.invocationId,record.usage),runner);
   }
 
   usage(tokenUsage: LlmLiveTokenUsage | null): void {

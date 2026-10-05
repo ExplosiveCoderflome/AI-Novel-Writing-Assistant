@@ -46,3 +46,9 @@ LLM 调用采用“服务端消费流 + 全局创作实况订阅”的双轨方�
 - `server/src/prompting/core/promptRunner.ts`：注册 Prompt 的文本/结构化执行入口。
 - `client/src/hooks/useLlmLiveFeed.ts`：SSE 消费与批量状态更新。
 - `client/src/components/liveExecution/LiveExecutionDialog.tsx`：所有页面均可打开的用户可见实况入口。
+
+## 真实用量与多次尝试
+
+实况会话可包含初次生成、JSON 修复和语义重试。每次平台物理请求生成 invocationId，会话按身份替换快照再求和；重复通知和 SSE 重连不增加用量。流帧是累计值，仅独立请求求和。失败且未报告用量的尝试保留未知覆盖，不能补零。实况不提供计费估计。
+
+批量 API 若内部调用已包装 invoke，外层不得重复计数；SDK 直接返回的多个结果逐项登记。Anthropic 原生消息包含普通输入、缓存读取与创建三部分，总输入必须合并三者。提前断流保留已知部分并报告异常，不将部分结果视作完整结束。
