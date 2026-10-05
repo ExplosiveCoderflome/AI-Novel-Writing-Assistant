@@ -4,6 +4,7 @@ import { chapterPatchRepairPlanSchema } from "@ai-novel/shared/types/chapterPatc
 import { CHAPTER_PROSE_QUALITY_RULES } from "@ai-novel/shared/types/chapterProseContract";
 import type { PromptAsset } from "../../core/promptTypes";
 import { renderCacheContextSections } from "../../core/cache";
+import { CUSTOM_SLOT_CONTEXT_GROUP } from "../../slots/slotResolution";
 import { NOVEL_PROMPT_BUDGETS } from "./promptBudgetProfiles";
 
 export interface ChapterPatchRepairPromptInput {
@@ -19,7 +20,7 @@ export const chapterPatchRepairPrompt: PromptAsset<
   ChapterPatchRepairPlan
 > = {
   id: "novel.review.patch",
-  version: "v7",
+  version: "v8",
   taskType: "repair",
   mode: "structured",
   language: "zh",
@@ -54,7 +55,11 @@ export const chapterPatchRepairPrompt: PromptAsset<
     },
   ],
   render: (input, context) => {
-    const sections = renderCacheContextSections(context);
+    // Attempt-specific requirements follow the prose, preserving the reusable
+    // prefix without dropping selected context or changing message roles.
+    const isRepairInstruction = (group: string) => group === "repair_issues" || group === CUSTOM_SLOT_CONTEXT_GROUP;
+    const sections = renderCacheContextSections({ ...context, blocks: context.blocks.filter(block => !isRepairInstruction(block.group)) });
+    const instructions = context.blocks.filter(block => isRepairInstruction(block.group)).map(block => block.content).join("\n\n");
     return [
       new SystemMessage([
         "你是网络小说局部修文编辑。",
@@ -78,6 +83,7 @@ export const chapterPatchRepairPrompt: PromptAsset<
         "11. 未出场角色的目标变化不得靠新增场景、视角、远程消息或泄露秘密补齐。书级规则、文风、世界规则和保密约束均须保留；只修有正文证据且本章合同要求的缺口。",
         "12. 每条 patches 必须包含 id、targetExcerpt、replacement、reason、issueIds；reason 用一句话说明修复的具体缺口，不得省略。replacement 与 targetExcerpt 相同时不要输出该补丁；无必要改动时返回空 patches。",
         "13. 不要用一个短句作为锚点插入整场新戏。若缺口必须新增完整场景、跨越当前章结尾或大幅扩写才能兑现，返回 requiresFullRewrite=true 并说明原因，不能把整章重写伪装为局部补丁。",
+        "14. 修复前核对问题证据和当前正文。若正文已兑现合同，不得为了提高评分新增条件、道具或追兵；summary 说明保留原文的依据，返回空 patches。若确有信息边界问题，替换必须消除指定歧义，不能只改标点而保留原缺口。",
         "【替换正文的表达约束】",
         "以下约束只用于 replacement；targetExcerpt 必须保留原文，不能为满足表达约束修改定位片段。",
         ...CHAPTER_PROSE_QUALITY_RULES,
@@ -86,7 +92,6 @@ export const chapterPatchRepairPrompt: PromptAsset<
         `小说：${input.novelTitle}`,
         sections.stable,
       ].filter(Boolean).join("\n\n")),
-      ...(input.modeHint ? [new SystemMessage(`修复重点：${input.modeHint}`)] : []),
       new HumanMessage([
         `章节：${input.chapterTitle}`,
         "",
@@ -95,6 +100,10 @@ export const chapterPatchRepairPrompt: PromptAsset<
         "",
         "【当前正文】",
         input.chapterContent,
+      ].join("\n")),
+      ...(input.modeHint ? [new SystemMessage(`修复重点：${input.modeHint}`)] : []),
+      new HumanMessage([
+        instructions,
         "",
         "【问题清单】",
         input.issuesJson,

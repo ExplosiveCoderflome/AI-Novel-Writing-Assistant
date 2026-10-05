@@ -278,7 +278,7 @@ export const promptAssetLoaderEntries: PromptAssetLoaderEntry[] = [
     load: () => require("../prompts/novel/coreGeneration.prompts").novelChapterHookPrompt as UnknownPromptAsset,
   },
   {
-    key: "novel.chapter.acceptance_assessment@v4",
+    key: "novel.chapter.acceptance_assessment@v6",
     load: () => require("../prompts/novel/chapterAcceptance.prompts").chapterAcceptanceAssessmentPrompt as UnknownPromptAsset,
   },
   {
@@ -446,7 +446,7 @@ export const promptAssetLoaderEntries: PromptAssetLoaderEntry[] = [
     load: () => require("../prompts/novel/review.prompts").chapterRepairPrompt as UnknownPromptAsset,
   },
   {
-    key: "novel.review.patch@v7",
+    key: "novel.review.patch@v8",
     load: () => require("../prompts/novel/chapterPatchRepair.prompts").chapterPatchRepairPrompt as UnknownPromptAsset,
   },
   {

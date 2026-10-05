@@ -1,5 +1,14 @@
 const test=require('node:test');const assert=require('node:assert/strict');
 const {parsePipelineDirectorSnapshot}=require('../../../dist/services/novel/production/directorBridge');
+
+test('100000-token budget allows the observed 86009-token chapter and stops exactly at the new boundary',()=>{
+ const {beginChapterUsage,observeChapterUsage}=require('../../../dist/services/novel/production/usage');
+ const snapshot={runId:'new-run',decisions:[]};
+ beginChapterUsage(snapshot,'c16',16,165911);
+ assert.deepEqual(observeChapterUsage(snapshot,'c16',251920),{totalTokens:86009,exceeded:false});
+ assert.equal(observeChapterUsage(snapshot,'c16',165911+99999).exceeded,false);
+ assert.equal(observeChapterUsage(snapshot,'c16',165911+100000).exceeded,true);
+});
 test('chapter usage checkpoints survive serialization and reject impossible counts',()=>{
  const snapshot={runId:'new-run',decisions:[],chapterUsage:[{chapterId:'c1',chapterOrder:1,startJobTokens:100,totalTokens:80000}]};
  assert.deepEqual(parsePipelineDirectorSnapshot(JSON.parse(JSON.stringify(snapshot))),snapshot);

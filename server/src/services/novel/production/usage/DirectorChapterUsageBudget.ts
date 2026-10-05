@@ -1,7 +1,7 @@
 import type {PipelineDirectorSnapshot} from "../directorBridge";
 
-/** Existing per-chapter safety ceiling, independent of the retired director control loop. */
-export const DIRECTOR_CHAPTER_TOKEN_LIMIT = 80_000;
+/** Per-chapter safety ceiling, independent of the retired director control loop. */
+export const DIRECTOR_CHAPTER_TOKEN_LIMIT = 100_000;
 
 function validCount(total: number) {
   if(!Number.isSafeInteger(total) || total < 0) throw new Error("章节用量计数无效，不能继续生成。");

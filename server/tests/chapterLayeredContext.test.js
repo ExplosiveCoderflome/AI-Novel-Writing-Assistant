@@ -633,6 +633,33 @@ function createContextPackage() {
   };
 }
 
+test('genre and story-mode foundation precedes changing chapter state in writing, review and repair without freezing edits', () => {
+  const { renderCacheContextSections } = require('../dist/prompting/core/cache');
+  const contextPackage = createContextPackage();
+  const build = (foundation, nextAction) => buildChapterWriteContext({
+    bookContract: buildBookContractContext({ title: '本书' }),
+    productionFoundationPrompt: foundation,
+    macroConstraints: null, volumeWindow: null,
+    contextPackage: { ...contextPackage, nextAction },
+  });
+  for (const mode of ['full', 'review', 'repair']) {
+    const blocks = buildChapterWriterContextBlocks(build('题材：悬疑，线索须有来源', '确认钥匙来源'), { mode });
+    const foundation = blocks.find(block => block.group === 'production_foundation');
+    assert.equal(foundation.reuseScope, 'book');
+    assert.equal(foundation.required, true);
+    assert.equal(foundation.allowSummary, false);
+    const a = renderCacheContextSections({ blocks });
+    const b = renderCacheContextSections({ blocks: buildChapterWriterContextBlocks(build('题材：悬疑，线索须有来源', '进入维修通道'), { mode }) });
+    assert.equal(a.stable, b.stable);
+    assert.ok(b.dynamic.includes('进入维修通道'));
+    assert.ok(!b.dynamic.includes('确认钥匙来源'));
+    assert.ok(a.stable.includes('线索须有来源'));
+    const edited = renderCacheContextSections({ blocks: buildChapterWriterContextBlocks(build('题材：悬疑，叙事保持克制', '进入维修通道'), { mode }) });
+    assert.ok(edited.stable.includes('叙事保持克制'));
+    assert.ok(!edited.stable.includes('线索须有来源'));
+  }
+});
+
 function createStyleContext() {
   const makeSection = (key, title, text) => ({
     key,

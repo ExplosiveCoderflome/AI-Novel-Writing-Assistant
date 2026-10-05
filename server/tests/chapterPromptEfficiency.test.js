@@ -1,9 +1,11 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const { preparePromptExecution } = require('../dist/prompting/core/promptRunner');
+const { createContextBlock } = require('../dist/prompting/core/contextBudget');
 const { chapterArtifactDeltaPrompt } = require('../dist/prompting/prompts/novel/chapterArtifactDelta.prompts');
 const { chapterPatchRepairPrompt } = require('../dist/prompting/prompts/novel/chapterPatchRepair.prompts');
 const { chapterRepairPrompt } = require('../dist/prompting/prompts/novel/review.prompts');
+const { chapterAcceptanceAssessmentPrompt } = require('../dist/prompting/prompts/novel/chapterAcceptance.prompts');
 const { CHAPTER_PROSE_QUALITY_RULES } = require('../../shared/dist/types/chapterProseContract');
 
 const input = {
@@ -14,6 +16,43 @@ const input = {
   issuesJson: '[]', content: '沈夜收起宴帖。', bibleContent: '', ragContext: '',
 };
 const prepare = (asset, promptInput = input) => preparePromptExecution({ asset, promptInput }).messages;
+
+test('patch issue and mode changes retain the prefix through the complete prose while every instruction stays fresh', () => {
+  const render = (issue, modeHint) => preparePromptExecution({
+    asset: chapterPatchRepairPrompt, promptInput: { ...input, issuesJson: issue, modeHint },
+    contextBlocks: [
+      { id: 'book', group: 'book_contract', content: '保密合同：门房不知道旧刀来源', reuseScope: 'book', priority: 100, required: true },
+      { id: 'mission', group: 'chapter_mission', content: '本章须让主角拿到宴帖', priority: 100, required: true },
+      { id: 'extra', group: 'repair_issues', content: `补充问题：${issue}`, priority: 100, required: true },
+      { id: 'custom', group: 'custom_slot', content: `本次约束：${issue}`, priority: 999, required: true },
+    ].map(createContextBlock),
+  }).messages;
+  const first = render('修复肩伤状态', '只处理连续性');
+  const second = render('修复钥匙归属', '只处理人物事实');
+  const flatten = messages => messages.map(m => `${m._getType()}:${m.content}`).join('\n');
+  const a = flatten(first), b = flatten(second);
+  const end = a.indexOf(input.chapterContent) + input.chapterContent.length;
+  assert.equal(a.slice(0, end), b.slice(0, end));
+  assert.ok(b.includes('补充问题：修复钥匙归属'));
+  assert.ok(b.includes('本次约束：修复钥匙归属'));
+  assert.ok(!b.includes('修复肩伤状态'));
+  assert.ok(second.some(m => m._getType() === 'system' && String(m.content).includes('只处理人物事实')));
+  assert.ok(b.indexOf('修复钥匙归属') > b.indexOf(input.chapterContent));
+  assert.ok(b.includes('保密合同：门房不知道旧刀来源'));
+});
+
+test('acceptance example demonstrates evidence-based acceptance instead of prescribing a new ending scene', () => {
+  const messages = prepare(chapterAcceptanceAssessmentPrompt, { ...input, chapterOrder: 16 });
+  const hint = messages.find(m => String(m.content).includes('结构化输出骨架'));
+  const example = chapterAcceptanceAssessmentPrompt.outputSchema.parse(JSON.parse(String(hint.content).split('示例：\n').at(-1)));
+  assert.equal(example.status, 'accepted');
+  assert.equal(example.continuePolicy, 'continue');
+  assert.deepEqual(example.blockingIssues, []);
+  assert.deepEqual(example.repairDirectives, []);
+  assert.deepEqual(example.missingObligations, []);
+  assert.ok(example.riskTags.length > 0, 'acceptance can retain follow-up risks without inventing a prose defect');
+  assert.ok(JSON.stringify(example).length < 800);
+});
 
 test('both repair paths transmit the same prose contract as drafting before the editable prose', () => {
   for (const asset of [chapterPatchRepairPrompt, chapterRepairPrompt]) {

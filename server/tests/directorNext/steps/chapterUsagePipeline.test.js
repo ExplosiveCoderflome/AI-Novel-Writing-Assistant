@@ -8,7 +8,7 @@ const { buildChapterArtifactContentHash } = require('../../../dist/services/nove
 const { novelEventBus } = require('../../../dist/events');
 const promptRunner = require('../../../dist/prompting/core/promptRunner');
 
-async function exercise({ initialTokens = 0, checkpoints, chapterTokens = 80_000, futurePlanningTokens = 0, director = true, rejectBaseline = false, rolling = false, storedCompleted = 0, firstClosed = false, secondClosed = false, reviewedRisk = false, legacySaved = false, staleAcceptance = false, missingBoundary = false, qualityFirst = false, acceptancePause = false } = {}) {
+async function exercise({ initialTokens = 0, checkpoints, chapterTokens = 100_000, futurePlanningTokens = 0, director = true, rejectBaseline = false, rolling = false, storedCompleted = 0, firstClosed = false, secondClosed = false, reviewedRisk = false, legacySaved = false, staleAcceptance = false, missingBoundary = false, qualityFirst = false, acceptancePause = false } = {}) {
   const restore = [];
   const replace = (target, key, value) => {
     const previous = target[key];
@@ -100,7 +100,7 @@ async function exercise({ initialTokens = 0, checkpoints, chapterTokens = 80_000
 test('budget pause records local quality debt before stopping so saved prose remains skippable', async () => {
   const result = await exercise({ reviewedRisk: true, futurePlanningTokens: 20000 });
   assert.deepEqual(result.calls, ['c1']);
-  assert.equal(result.job.totalTokens, 80000);
+  assert.equal(result.job.totalTokens, 100000);
   assert.equal(result.job.pendingManualRecovery, true);
   assert.equal(result.outcome.chapters[0].closed, true);
   assert.equal(JSON.parse(result.chapters[0].riskFlags).qualityLoop.terminalAction, 'defer_and_continue');
@@ -139,7 +139,7 @@ test('recovering closed usage preserves the quality-first manual pause', async (
   assert.equal(JSON.parse(result.job.payload).directorNext.decisions.at(-1).issueCode, 'quality.chapter_below_threshold');
 });
 
-test('new director pauses at the saved chapter boundary on the 80000-token ceiling', async () => {
+test('new director pauses at the saved chapter boundary on the 100000-token ceiling', async () => {
   const result = await exercise({ initialTokens: 500 });
   assert.deepEqual(result.calls, ['c1']);
   assert.equal(result.chapters[0].content, '已保存的c1正文');
@@ -149,14 +149,24 @@ test('new director pauses at the saved chapter boundary on the 80000-token ceili
   assert.equal(result.job.status, 'queued');
   assert.equal(result.job.retryCount, 0);
   const snapshot = JSON.parse(result.job.payload).directorNext;
-  assert.deepEqual(snapshot.chapterUsage, [{ chapterId: 'c1', chapterOrder: 1, startJobTokens: 500, totalTokens: 80000, endJobTokens: 80500 }]);
+  assert.deepEqual(snapshot.chapterUsage, [{ chapterId: 'c1', chapterOrder: 1, startJobTokens: 500, totalTokens: 100000, endJobTokens: 100500 }]);
   assert.equal(snapshot.decisions.at(-1).issueCode, 'runtime.token_budget_exceeded');
   assert.equal(snapshot.decisions.at(-1).locked, true);
   assert.equal(result.outcome.chapters[0].closed, true);
   assert.equal(result.outcome.stopSignal.kind, 'manual_recovery');
   assert.equal(result.outcome.stopSignal.source, 'runtime');
-  assert.match(result.outcome.stopSignal.reason, /第1章.*80000 Tokens.*正文已保存/);
+  assert.match(result.outcome.stopSignal.reason, /第1章.*100000 Tokens.*正文已保存/);
   assert.equal(result.classifications, 0);
+});
+
+test('the observed 86009-token chapter can close and proceed without a budget pause', async () => {
+  const result = await exercise({ chapterTokens: 86009 });
+  assert.deepEqual(result.calls, ['c1', 'c2']);
+  assert.equal(result.job.status, 'succeeded');
+  assert.equal(result.job.pendingManualRecovery, false);
+  assert.equal(result.job.completedCount, 2);
+  assert.equal(result.job.totalTokens, 172018);
+  assert.equal(result.outcome.stopSignal, undefined);
 });
 
 test('future planning does not exhaust the saved chapter budget and its boundary survives serialization', async () => {
@@ -171,29 +181,29 @@ test('future planning does not exhaust the saved chapter budget and its boundary
 });
 
 test('a truly exhausted chapter stops before spending more tokens on future planning', async () => {
-  const result = await exercise({ chapterTokens: 80000, futurePlanningTokens: 20000 });
+  const result = await exercise({ chapterTokens: 100000, futurePlanningTokens: 20000 });
   assert.deepEqual(result.calls, ['c1']);
-  assert.equal(result.job.totalTokens, 80000);
+  assert.equal(result.job.totalTokens, 100000);
   assert.equal(result.job.completedCount, 1);
   assert.equal(result.job.pendingManualRecovery, true);
 });
 
 test('recovery keeps the original chapter baseline and refuses another generation after exhaustion', async () => {
-  const result = await exercise({ initialTokens: 80500, checkpoints: [{ chapterId: 'c1', chapterOrder: 1, startJobTokens: 500, totalTokens: 20000 }] });
+  const result = await exercise({ initialTokens: 100500, checkpoints: [{ chapterId: 'c1', chapterOrder: 1, startJobTokens: 500, totalTokens: 20000 }] });
   assert.deepEqual(result.calls, []);
   assert.equal(result.job.pendingManualRecovery, true);
   assert.equal(JSON.parse(result.job.payload).directorNext.chapterUsage[0].startJobTokens, 500);
-  assert.equal(JSON.parse(result.job.payload).directorNext.chapterUsage[0].totalTokens, 80000);
+  assert.equal(JSON.parse(result.job.payload).directorNext.chapterUsage[0].totalTokens, 100000);
   assert.equal(result.classifications, 0);
 });
 
 test('valid per-chapter usage continues across chapters while manual pipelines retain their behavior', async () => {
-  const result = await exercise({ chapterTokens: 79999 });
+  const result = await exercise({ chapterTokens: 99999 });
   assert.deepEqual(result.calls, ['c1', 'c2']);
   assert.equal(result.job.status, 'succeeded');
   assert.equal(result.job.completedCount, 2);
   assert.equal(result.outcome.stopSignal, undefined);
-  assert.deepEqual(JSON.parse(result.job.payload).directorNext.chapterUsage.map(row => row.totalTokens), [79999, 79999]);
+  assert.deepEqual(JSON.parse(result.job.payload).directorNext.chapterUsage.map(row => row.totalTokens), [99999, 99999]);
   const manual = await exercise({ director: false, chapterTokens: 85000 });
   assert.deepEqual(manual.calls, ['c1', 'c2']);
   assert.equal(manual.job.status, 'succeeded');

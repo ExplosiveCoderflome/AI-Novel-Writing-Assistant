@@ -240,6 +240,9 @@ export function buildChapterWriterContextBlocks(
       ? createContextBlock({
         id: "production_foundation",
         group: "production_foundation",
+        // Assembled from current novel genre and story-mode settings only.
+        // Chapter state stays in request blocks; book edits render afresh.
+        reuseScope: "book",
         priority: 100,
         required: true,
         allowSummary: false,

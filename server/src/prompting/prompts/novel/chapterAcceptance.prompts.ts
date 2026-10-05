@@ -230,53 +230,28 @@ export interface ChapterAcceptancePromptInput {
 }
 
 const CHAPTER_ACCEPTANCE_EXAMPLE: ChapterAcceptanceAssessmentOutput = {
-  status: "repairable",
+  status: "accepted",
   score: {
     coherence: 82,
-    pacing: 78,
+    pacing: 84,
     repetition: 86,
-    engagement: 80,
-    voice: 81,
-    overall: 81,
+    engagement: 84,
+    voice: 85,
+    overall: 84,
   },
-  summary: "本章主线可以成立，但结尾钩子和中段推进需要轻修后再继续。",
-  blockingIssues: [
-    {
-      severity: "medium",
-      category: "plot",
-      code: "ending_hook_soft",
-      evidence: "结尾只说明主角准备行动，没有形成新的压力或悬念。",
-      fixSuggestion: "补强结尾的决策代价或外部压力，让下一章入口更明确。",
-    },
-  ],
-  repairDirectives: [
-    {
-      mode: "patch",
-      target: "ending",
-      instruction: "保留正文主体，只补强结尾 300 字以内的钩子和压力。",
-    },
-  ],
-  missingObligations: [
-    {
-      kind: "must_hit_now",
-      summary: "本章必须让主角发现敌方试探，但正文只写了日常过渡。",
-      evidence: "正文没有出现敌方试探或主角识破的可见行动。",
-    },
-    {
-      kind: "character_appearance",
-      summary: "关键角色春桃必须出场并执行观察任务。",
-      evidence: "正文未出现春桃，也没有替代执行者。",
-    },
-  ],
-  repairability: "patchable_obligation_gap",
-  decisionReason: "结尾钩子可以通过局部补丁补齐，不需要重排章节计划。",
-  riskTags: ["ending_hook"],
+  summary: "主角识破试探并取得钥匙，代价与下一步选择清晰，可继续。",
+  blockingIssues: [],
+  repairDirectives: [],
+  missingObligations: [],
+  repairability: "none",
+  decisionReason: "合同动作已通过正文兑现；结尾选择能承接下一章，无需额外新增场景。",
+  riskTags: ["下一章承接追查钥匙的压力"],
   assetSyncRecommendation: {
     priority: "normal",
-    reason: "本章有可记录的剧情推进，但没有明显需要全量伏笔对账的风险。",
+    reason: "同步钥匙归属与人物状态。",
     requiresFullPayoffReconcile: false,
   },
-  continuePolicy: "repair_once",
+  continuePolicy: "continue",
 };
 
 export const chapterAcceptanceAssessmentPrompt: PromptAsset<
@@ -284,7 +259,7 @@ export const chapterAcceptanceAssessmentPrompt: PromptAsset<
   ChapterAcceptanceAssessmentOutput
 > = {
   id: "novel.chapter.acceptance_assessment",
-  version: "v5",
+  version: "v6",
   cacheBoundary: {messageIndex:0,contentBlockIndex:0},
   taskType: "review",
   mode: "structured",
@@ -320,7 +295,7 @@ export const chapterAcceptanceAssessmentPrompt: PromptAsset<
     placement: "stable_prefix",
     compact: true,
     example: CHAPTER_ACCEPTANCE_EXAMPLE,
-    note: "一次性判断章节是否可接收、是否需要局部修文、是否需要暂停确认，以及后续资产同步优先级。",
+    note: "示例只演示格式，不预设当前章节通过。需修复时 blockingIssues 项使用 severity/category/code/evidence/fixSuggestion，repairDirectives 项使用 mode/target/instruction；missingObligations 项使用 kind/summary/evidence。所有判断以当前合同和正文证据为准。",
   },
   outputSchema: chapterAcceptanceAssessmentSchema,
   render: (input, context) => [
@@ -333,7 +308,7 @@ export const chapterAcceptanceAssessmentPrompt: PromptAsset<
       "判断原则：",
       "1. 默认支持继续推进；普通可优化问题不要升级为暂停。",
       "2. 只有严重越过章节任务、关键连续性断裂、角色行为严重失真、受保护信息提前泄露、正文无法阅读时，才使用 needs_manual_review。",
-      "3. 可通过局部补丁解决的问题使用 repairable，并给出 repairDirectives。",
+      "3. 必须在本章立刻解决且可通过局部补丁修复的问题使用 repairable，并给出 repairDirectives；只有提升空间而无合同缺口时，不安排修文。",
       "4. 章节可以继续但存在后续风险时使用 continue_with_risk，并用 riskTags 说明风险。",
       "5. blockingIssues 保留最关键的 0-5 条，每条必须有明确证据和可执行修复建议。",
       "6. obligation contract 是本章硬合同。must hit now 与 forbidden crossing 缺口必须写入 missingObligations；可后续承接的 payoff、角色露面或目标变化缺口，只有会影响下一章入口时才写入 missingObligations，否则放入 riskTags。",
@@ -350,6 +325,10 @@ export const chapterAcceptanceAssessmentPrompt: PromptAsset<
       "17. 普通读者体验缺口应输出可执行的 blockingIssues / repairDirectives，并优先使用 repairable 或 continue_with_risk；不得仅因爽点、钩子或情绪强度不足升级为 needs_manual_review 或全局重规划。",
       "18. 账本进入窗口或未推进属于关注提醒，不能单独作为本章正文缺陷。判定缺失必须同时引用本章执行义务和正文证据；可延后的承诺不得要求本章全部兑现。",
       "19. 未出场角色的目标没有变化不自动构成本章缺口，只有本章执行义务明确要求时才报告。若修复需要新增场景、改变视角、提前泄密或重新安排剧情，repairDirectives.mode 使用 rewrite/manual；仅对可定位、能保留场景与保密边界的局部缺口使用 patch。",
+      "20. 以正文中可观察的行动、代价和局面变化验收，不要求逐字复述任务单。限制行动、有后果的口头条件或实际控制也可兑现相应义务，不得擅自追加字条、道具或新场景为验收条件；合同明确指定的动作、载体与结束态仍须逐项核对。",
+      "21. 结尾可用未决选择、已建立的代价或明确下一步形成追读钩子；仅因没有新增追兵、反转或更强刺激，不应输出 blockingIssues / repairDirectives。普通表达提升放入 riskTags；确实未兑现本章硬合同仍须报告。",
+      "22. 判断秘密泄漏须引用具体正文和 forbidden crossing / protected reveals；角色含糊警告、怀疑或误解不等同于对方已知秘密。若歧义会导致读者误判关键事实，说明冲突和必须明确的范围，避免把推测当成已发生的泄漏。",
+      "23. 检查完整合同与正文后一次列齐需立即修复的缺口；同一缺口保持含义明确的 code，不用不同措辞制造新问题。summary、decisionReason 和指令简短，证据引用足以定位的句段，避免多字段重复长篇解释。",
       "正文退化检测边界：",
       ...CHAPTER_PROSE_QUALITY_AUDIT_RULES.map((rule, index) => `${index + 1}. ${rule}`),
     ].join("\n")),
