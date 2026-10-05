@@ -748,6 +748,7 @@ export async function runStructuredPrompt<I, O, R = O>(input: {
     promptInput: input.promptInput,
     context: prepared.context,
     messages: resolvedTemplateMessages,
+    preserveMessageLayout: true,
   });
   logPromptEvent({
     event: "started",

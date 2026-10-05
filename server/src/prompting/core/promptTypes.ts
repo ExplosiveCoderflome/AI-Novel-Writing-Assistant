@@ -9,6 +9,7 @@ export type PromptMode = "structured" | "text";
 export type PromptLanguage = "zh" | "en";
 
 export interface PromptContextBlock {
+  reuseScope?: "book" | "volume" | "request";
   id: string;
   group: string;
   priority: number;
@@ -193,6 +194,7 @@ export interface PromptPostValidateFailureRecoveryInput<I, R> {
 export type PromptStructuredOutputExampleBuilder<I, R> = (input: I, context: PromptRenderContext) => unknown;
 
 export interface PromptStructuredOutputHint<I, R> {
+  placement?: "stable_prefix" | "tail";
   mode?: "auto" | "off";
   /** Keep all example fields while omitting indentation in high-volume production calls. */
   compact?: boolean;

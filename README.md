@@ -172,6 +172,10 @@ Open-source AI novel writing assistant and long-form production studio.
 - AI 实况合计包含生成与修复的各次调用，批量请求按实际调用计数，避免重复记录用量。
 - Anthropic 模型流保留实际输入消耗，并提示模型返回错误或提前断流。
 
+#### 优化
+
+- 正文与检查复用稳定规则前缀，章节任务和人物状态随内容更新，减少连续章节中的重复处理。
+
 完整历史更新见 [docs/releases/release-notes.md](./docs/releases/release-notes.md)。
 
 ## 功能预览

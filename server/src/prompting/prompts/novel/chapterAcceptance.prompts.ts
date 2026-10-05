@@ -1,7 +1,7 @@
 import { HumanMessage, SystemMessage } from "@langchain/core/messages";
 import { z } from "zod";
 import type { PromptAsset } from "../../core/promptTypes";
-import { renderSelectedContextBlocks } from "../../core/renderContextBlocks";
+import {renderCacheContextSections} from "../../core/cache";
 import { NOVEL_PROMPT_BUDGETS } from "./promptBudgetProfiles";
 import { CHAPTER_PROSE_QUALITY_AUDIT_RULES } from "@ai-novel/shared/types/chapterProseContract";
 
@@ -284,7 +284,7 @@ export const chapterAcceptanceAssessmentPrompt: PromptAsset<
   ChapterAcceptanceAssessmentOutput
 > = {
   id: "novel.chapter.acceptance_assessment",
-  version: "v3",
+  version: "v4",
   taskType: "review",
   mode: "structured",
   language: "zh",
@@ -316,6 +316,7 @@ export const chapterAcceptanceAssessmentPrompt: PromptAsset<
     { group: "open_conflicts", priority: 70 },
   ],
   structuredOutputHint: {
+    placement: "stable_prefix",
     compact: true,
     example: CHAPTER_ACCEPTANCE_EXAMPLE,
     note: "一次性判断章节是否可接收、是否需要局部修文、是否需要暂停确认，以及后续资产同步优先级。",
@@ -351,11 +352,12 @@ export const chapterAcceptanceAssessmentPrompt: PromptAsset<
     ].join("\n")),
     new HumanMessage([
       `小说：${input.novelTitle}`,
+      renderCacheContextSections(context).stable,
       `章节：第 ${input.chapterOrder} 章 ${input.chapterTitle}`,
       typeof input.targetWordCount === "number" ? `目标长度：约 ${input.targetWordCount} 字` : "目标长度：未指定",
       "",
       "分层上下文：",
-      renderSelectedContextBlocks(context),
+      renderCacheContextSections(context).dynamic,
       "",
       "正文：",
       input.content,

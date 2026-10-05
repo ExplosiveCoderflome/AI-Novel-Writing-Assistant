@@ -497,6 +497,7 @@ export function buildChapterWriterContextBlocks(
     includeStyleContract
       ? createContextBlock({
         id: "style_contract",
+        reuseScope: "book",
         group: "style_contract",
         priority: 74,
         required: mode === "full",

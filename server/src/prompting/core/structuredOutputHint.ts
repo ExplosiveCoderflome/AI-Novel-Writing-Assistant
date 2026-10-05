@@ -1,3 +1,4 @@
+import {placeStructuredHint} from "./cache";
 import { HumanMessage, type BaseMessage } from "@langchain/core/messages";
 import { z } from "zod";
 import type { PromptAsset, PromptRenderContext } from "./promptTypes";
@@ -402,6 +403,7 @@ export function appendStructuredOutputHintMessages<I, O, R>(input: {
   promptInput: I;
   context: PromptRenderContext;
   messages: BaseMessage[];
+  preserveMessageLayout?: boolean;
 }): BaseMessage[] {
   if (input.asset.mode !== "structured" || !input.asset.outputSchema) {
     return input.messages;
@@ -416,8 +418,8 @@ export function appendStructuredOutputHintMessages<I, O, R>(input: {
   const example = resolveStructuredOutputExample(input.asset, input.promptInput, input.context);
   const note = resolveStructuredOutputNote(input.asset, input.promptInput, input.context);
 
-  return [
-    ...input.messages,
-    new HumanMessage(buildStructuredOutputHintText(example, note, input.asset.structuredOutputHint?.compact === true)),
-  ];
+  const hint=new HumanMessage(buildStructuredOutputHintText(example,note,input.asset.structuredOutputHint?.compact===true));
+  const declared=input.asset.structuredOutputHint;
+  return placeStructuredHint(input.messages,hint,!input.preserveMessageLayout && declared?.placement==="stable_prefix"
+    && typeof declared.example!=="function" && typeof declared.note!=="function");
 }

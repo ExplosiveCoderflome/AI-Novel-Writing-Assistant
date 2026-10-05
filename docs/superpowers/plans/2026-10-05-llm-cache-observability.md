@@ -228,15 +228,15 @@ assert.equal(formatCacheTokens(undefined, 'completed', undefined), '未记录');
 
 **Interfaces:** `PromptContextBlock` 增加可选 `reuseScope: "book" | "volume" | "request"`，缺省 request；`renderCacheOrderedContextBlocks(context)` 在选定块中按层级与声明顺序渲染，不增删内容。StructuredHintPlacement 只处理资产明确声明的静态骨架。
 
-- [ ] 先构造两个连续章节 fixture：相同书级约束、不同章节编号/任务。断言稳定材料出现在章节信息前；变化只发生在动态尾部。字符前缀只用于离线布局验证，不当作真实缓存命中数。
-- [ ] 编辑文风、slots、卷规划后对应文本立即变化；角色位置/状态每章刷新，mixed block 默认动态。不能冻结 book/volume 版本来追求命中。
-- [ ] 场景/义务有语义顺序测试保持不变；新增布局不影响 selectedBlockIds/droppedBlockIds/requiredGroups/预算取舍。
-- [ ] 实现显式 reuseScope，不用关键词或 regex 判别稳定性；只拆确有结构化来源的混合块。新增 shared 合同字段如有需要必须让 writer/acceptance 同步消费。
-- [ ] 将 writer/acceptance 的稳定书级区段先渲染，动态章节标识后置。静态输出格式前移，输入相关 example/note 不误前移，不改变约束优先级。
-- [ ] advanced template 走原有消息布局；slots/addendum 保留语义。不得全局重排 raw prompt 或改变 JSON 修复提示。
-- [ ] 核对并更新 Prompt version/registry，相关快照只改预期布局，不放宽质量断言；源码文件保持 <=1300 行。
-- [ ] 运行 `node --test server/tests/promptCacheLayout.test.js server/tests/promptCacheTemplateCompatibility.test.js server/tests/chapterAcceptanceAssessmentService.test.js server/tests/promptSlotResolution.test.js server/tests/structuredOutputHint.test.js`。构建一次服务端；没有真实模型验证时注明生成质量尚待用户连续章节验收。
-- [ ] 更新上下文 module README、`docs/wiki/prompts/llm-input-cache.md`（建立稳定规则），按发布说明技能提交“优化”。
+- [x] 先构造两个连续章节 fixture：相同书级约束、不同章节编号/任务。断言稳定材料出现在章节信息前；变化只发生在动态尾部。字符前缀只用于离线布局验证，不当作真实缓存命中数。
+- [x] 编辑文风、slots、卷规划后对应文本立即变化；角色位置/状态每章刷新，mixed block 默认动态。不能冻结 book/volume 版本来追求命中。
+- [x] 场景/义务有语义顺序测试保持不变；新增布局不影响 selectedBlockIds/droppedBlockIds/requiredGroups/预算取舍。
+- [x] 实现显式 reuseScope，不用关键词或 regex 判别稳定性；只拆确有结构化来源的混合块。新增 shared 合同字段如有需要必须让 writer/acceptance 同步消费。
+- [x] 将 writer/acceptance 的稳定书级区段先渲染，动态章节标识后置。静态输出格式前移，输入相关 example/note 不误前移，不改变约束优先级。
+- [x] advanced template 走原有消息布局；slots/addendum 保留语义。不得全局重排 raw prompt 或改变 JSON 修复提示。
+- [x] 核对并更新 Prompt version/registry，相关快照只改预期布局，不放宽质量断言；源码文件保持 <=1300 行。
+- [x] 运行 `node --test server/tests/promptCacheLayout.test.js server/tests/promptCacheTemplateCompatibility.test.js server/tests/chapterAcceptanceAssessmentService.test.js server/tests/promptSlotResolution.test.js server/tests/structuredOutputHint.test.js`。构建一次服务端；没有真实模型验证时注明生成质量尚待用户连续章节验收。
+- [x] 更新上下文 module README、`docs/wiki/prompts/llm-input-cache.md`（建立稳定规则），按发布说明技能提交“优化”。
 
 ## Task 6：扩展高消耗阶段与显式参数兼容
 
@@ -295,3 +295,5 @@ function applyCacheRequestPolicy<T extends Record<string, unknown>>(
 阶段 3 验证：SQLite 增量迁移在临时库保护正文/旧计数；25 项台账、归属、章节预算测试通过。已生成 Prisma Client，未部署到验收库；无隔离 PostgreSQL 实例，PG 迁移仅静态审核。
 
 阶段 4：服务端构建、前端 typecheck、5 项纯展示/旧浏览器缓存/只读 HTTP 检查通过。界面交互由用户验收，当前验收库尚未建新增表，长期调用查询需迁移后可用。
+
+阶段 5：13 项布局、资产版本、模板兼容、验收合同、槽位、骨架测试与服务端构建通过。文风块明确声明 book；角色/世界相关检索/义务混合块保持 request。正文篇幅与补写指令保留 System 角色，移到静态规则之后。未调用真实模型，生成质量与实际命中收益待正常章节验收。
