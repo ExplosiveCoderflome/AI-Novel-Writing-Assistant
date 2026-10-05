@@ -2,6 +2,7 @@ import type { ApiResponse } from "@ai-novel/shared/types/api";
 import { apiClient, type ApiHttpError } from "./client";
 import type {SimpleCreationShelfProjection,VolumePlanDocument} from "@ai-novel/shared/types/novel";
 import {getSimpleCreationShelf,getNovelVolumeWorkspace} from "./novel";
+import type {DirectorWorkspaceMaterials} from "@ai-novel/shared/types/director/workspace";
 
 export type DirectorMode = "queued" | "running" | "waiting_gate" | "paused" | "completed" | "failed" | "cancelled";
 export type DirectorDriver = "auto" | "assisted";
@@ -9,7 +10,8 @@ export interface DirectorReviewContext {
   type:string;novelId:string;runId:string;controlVersion:number;
   from?:number;to?:number;chapterId?:string;volumeId?:string;
 }
-export type DirectorWorkspace = Pick<SimpleCreationShelfProjection,"novel"|"chapters"|"materials"> & {
+export type DirectorWorkspace = Pick<SimpleCreationShelfProjection,"novel"|"chapters"> & {
+  materials:DirectorWorkspaceMaterials;
   planning?:VolumePlanDocument;
   reviewContexts?:DirectorReviewContext[];
   reviewContextError?:string|null;

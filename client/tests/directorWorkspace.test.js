@@ -76,3 +76,33 @@ export const planned = renderToStaticMarkup(<><ResourceDirectory book={book} sel
     assert.doesNotMatch(markup, /border rounded|shadow-lg/);
   } finally { fs.rmSync(output, {force:true}); }
 });
+
+test('asset details expose saved world constraints, story milestones and character motives without raw identifiers or invented data', async () => {
+  const {build} = createRequire(import.meta.resolve('vite'))('esbuild');
+  const clientDir = path.resolve(new URL('..', import.meta.url).pathname.replace(/^\/(\w:)/, '$1'));
+  const output = path.join(clientDir, 'tests', `.asset-render-${Date.now()}.mjs`);
+  try {
+    await build({stdin:{contents:`import React from 'react';
+import {renderToStaticMarkup} from 'react-dom/server';
+import {AssetDetail} from './src/pages/directorNext/workspace/AssetDetail';
+import {previewBook} from './src/pages/directorNext/workspace/previewBook';
+const world={name:'本书世界',summary:'保存概况',source:'novel',structure:{profile:{identity:'古代县城',tone:'悬疑',themes:['代价'],coreConflict:'翻案与斩妖'},rules:{summary:'妖刀法则',axioms:Array.from({length:8},(_,i)=>({id:'internal-rule-'+i,name:'规则'+i,summary:'规则说明'+i,cost:'付出寿命',boundary:'不能复活',enforcement:'承雷'})),taboo:['不能无代价升级'],sharedConsequences:['伤势保留']},factions:[{id:'internal-faction',name:'守城派',position:'县衙',doctrine:'守法',goals:['维持秩序'],methods:['封城'],representativeForceIds:['internal-force']}],forces:[{id:'internal-force',name:'县衙捕房',summary:'搜捕机构',baseOfPower:'公门',currentObjective:'抓捕主角',pressure:'搜捕',narrativeRole:'追捕压力',factionId:'internal-faction'}],locations:[{id:'internal-location',name:'县城刑场',summary:'行刑场地',terrain:'城西',narrativeFunction:'起始舞台',risk:'围捕',entryConstraint:'持令进入',exitCost:'交出信物',controllingForceIds:['internal-force']}],relations:{forceRelations:[],locationControls:[],locationConnections:[]}},storySlice:{coreWorldFrame:'本书舞台',appliedRules:[{id:'internal-rule-7',name:'规则7',summary:'规则说明7',whyItMatters:'决定行动代价'}],activeForces:[],activeLocations:[],activeElements:[],conflictCandidates:['翻案'],pressureSources:['追杀'],mysterySources:['妖刀来历'],suggestedStoryAxes:[],recommendedEntryPoints:[],forbiddenCombinations:['不能提前揭开刀主'],storyScopeBoundary:'先写县城'}};
+const book={...previewBook,materials:{...previewBook.materials,world,story:{...previewBook.materials.story,chapter10Payoff:'十章兑现',relationshipMainline:'同伴信任',absoluteRedLines:['不滥杀无辜']},characters:[{...previewBook.materials.characters[0],background:'保存的过去',outerGoal:'救下家人',innerNeed:'学会信任',fear:'失去同伴',secret:'保存的秘密'}]}};
+const render=(book,kind)=>renderToStaticMarkup(<AssetDetail book={book} selected={kind==='character'?{kind,id:'lin'}:{kind}} onCharacter={()=>{}}/>);
+export const worldMarkup=render(book,'world');
+export const storyMarkup=render(book,'story');
+export const characterMarkup=render(book,'character');
+export const absent=render({...book,materials:{...book.materials,world:null}},'world');
+export const broken=render({...book,materials:{...book.materials,world:{name:'读取异常',summary:null,warnings:['详细设定读取失败']}}},'world');
+`,resolveDir:clientDir,loader:'tsx'},bundle:true,platform:'node',format:'esm',packages:'external',alias:{'@':path.join(clientDir,'src')},define:{'import.meta.env':'{}'},outfile:output});
+    const result = await import(pathToFileURL(output).href);
+    for (const label of ['规则7','付出寿命','不能复活','县衙捕房','县城刑场','持令进入','交出信物','不能提前揭开刀主','决定行动代价']) assert.ok(result.worldMarkup.includes(label), label);
+    assert.doesNotMatch(result.worldMarkup, /internal-rule|internal-force|internal-faction|internal-location/);
+    for (const label of ['十章兑现','同伴信任','不滥杀无辜']) assert.ok(result.storyMarkup.includes(label), label);
+    for (const label of ['保存的过去','救下家人','学会信任','失去同伴','保存的秘密']) assert.ok(result.characterMarkup.includes(label), label);
+    assert.match(result.characterMarkup, /<details[^>]*><summary[^>]*>[^<]*秘密/);
+    assert.match(result.absent, /本书尚未保存世界设定/);
+    assert.match(result.broken, /详细设定读取失败/);
+    assert.doesNotMatch(result.absent, /保存概况|县城刑场/);
+  } finally {fs.rmSync(output,{force:true});}
+});

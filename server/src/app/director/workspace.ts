@@ -5,10 +5,11 @@ import {normalizeVolumeWorkspaceDocument} from "../../services/novel/volume/volu
 import {AppError} from "../../middleware/errorHandler";
 import {FactIntegrityError,PrismaRunRepository} from "../../modules/director";
 import {resolveSavedReviewContexts,type SavedReviewContext} from "./projections/confirmationRoutes";
+import {projectWorldMaterials,projectCharacterMaterials,savedStringList} from "./workspace/index";
 
 /** Saved book display never reads task seeds or repairs compatibility records. */
 export async function readDirectorWorkspace(novelId: string) {
-  const novel = await prisma.novel.findUnique({where:{id:novelId},include:{world:true,bookContract:true,characters:{orderBy:{createdAt:"asc"}},chapters:{orderBy:{order:"asc"}},volumePlans:{where:{status:"active"},orderBy:{sortOrder:"asc"},include:{chapters:true}}}});
+  const novel = await prisma.novel.findUnique({where:{id:novelId},include:{world:true,novelWorld:true,bookContract:true,characters:{orderBy:{createdAt:"asc"}},chapters:{orderBy:{order:"asc"}},volumePlans:{where:{status:"active"},orderBy:{sortOrder:"asc"},include:{chapters:true}}}});
   if (!novel) throw new AppError("小说不存在。",404);
   const runs=new PrismaRunRepository();
   const runId=await runs.findActiveRunIdByNovel(novelId);
@@ -26,8 +27,10 @@ export async function readDirectorWorkspace(novelId: string) {
   return {novel:{id:novel.id,title:novel.title,creationExperience:novel.creationExperience,estimatedChapterCount:novel.estimatedChapterCount},chapters,planning,reviewContexts,reviewContextError,
     executionPlans:novel.chapters.map(({id,order,title,taskSheet,sceneCards,targetWordCount,mustAvoid})=>({id,order,title,taskSheet,sceneCards,targetWordCount,mustAvoid})),
     materials:{description:novel.description,characterCount:novel.characters.length,volumeCount:planning.volumes.length,openQualityDebtCount:chapters.filter(chapter=>chapter.qualityDebt).length,
-      story:{coreSellingPoint:novel.bookContract?.coreSellingPoint ?? novel.bookSellingPoint,readingPromise:novel.bookContract?.readingPromise ?? novel.competingFeel,first30ChapterPromise:novel.first30ChapterPromise,protagonistFantasy:novel.bookContract?.protagonistFantasy ?? null},
-      world:novel.world ? {name:novel.world.name,summary:novel.world.overviewSummary ?? novel.world.description}:null,
-      characters:novel.characters.map(character=>({id:character.id,name:character.name,role:character.role,storyFunction:character.storyFunction,currentGoal:character.currentGoal,personality:character.personality})),
+      story:{coreSellingPoint:novel.bookContract?.coreSellingPoint ?? novel.bookSellingPoint,readingPromise:novel.bookContract?.readingPromise ?? novel.competingFeel,first30ChapterPromise:novel.first30ChapterPromise,protagonistFantasy:novel.bookContract?.protagonistFantasy ?? null,
+        chapter3Payoff:novel.bookContract?.chapter3Payoff ?? null,chapter10Payoff:novel.bookContract?.chapter10Payoff ?? null,chapter30Payoff:novel.bookContract?.chapter30Payoff ?? null,
+        escalationLadder:novel.bookContract?.escalationLadder ?? null,relationshipMainline:novel.bookContract?.relationshipMainline ?? null,absoluteRedLines:savedStringList(novel.bookContract?.absoluteRedLinesJson)},
+      world:projectWorldMaterials(novelId,novel.novelWorld,novel.world,novel.storyWorldSliceJson),
+      characters:novel.characters.map(projectCharacterMaterials),
       volumes:planning.volumes.map(volume=>({id:volume.id,order:volume.sortOrder,title:volume.title,summary:volume.summary ?? null,mainPromise:volume.mainPromise ?? null,chapterCount:volume.chapters.length}))}};
 }
