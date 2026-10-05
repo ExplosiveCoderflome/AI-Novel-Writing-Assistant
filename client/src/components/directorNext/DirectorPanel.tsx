@@ -47,7 +47,7 @@ export default function DirectorPanel({ view, novelId, timeline = [], preview = 
   const progress = chapterProgress ?? view.progress;
 
   return (
-    <aside className="flex min-h-0 flex-col gap-0 bg-background lg:sticky lg:top-0 lg:max-h-[calc(100dvh-6rem)]" aria-label="小说导演台">
+    <aside className="flex min-h-0 flex-col gap-0 bg-background" aria-label="小说导演台">
       <DirectorBadge view={view} novelId={novelId} preview={preview} currentNavigationTarget={reviewTarget} />
       {!preview && view.mode === "waiting_gate" && reviewingCurrentGate ? <DirectorGate runId={view.runId} novelId={novelId} expectedVersion={view.sourceTrace.controlVersion}/>:null}
       {driveSwitch?.toDriver ? <DirectorDriveSwitch runId={view.runId} novelId={novelId} expectedVersion={view.sourceTrace.controlVersion} toDriver={driveSwitch.toDriver} label={driveSwitch.label} disabled={preview}/>:null}

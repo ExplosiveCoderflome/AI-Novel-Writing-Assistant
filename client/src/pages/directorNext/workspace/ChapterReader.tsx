@@ -16,7 +16,11 @@ export function ChapterReader({ chapter, characters, onCharacter, onChapter, cha
   const changed = !followGeneration && (edition.updatedAt !== chapter.updatedAt || edition.content !== chapter.content);
   const tail = useRef<HTMLDivElement>(null);
   useEffect(() => {
-    if (live?.state === "writing") tail.current?.scrollIntoView({block:"nearest"});
+    if (live?.state !== "writing" || !tail.current) return;
+    const viewport = tail.current.closest<HTMLElement>("[data-chapter-scroll-viewport]");
+    if (!viewport) return;
+    // Follow only within the reader; scrollIntoView also moves outer page containers.
+    viewport.scrollTop += Math.max(0, tail.current.getBoundingClientRect().bottom - viewport.getBoundingClientRect().bottom);
   }, [live?.executionId, live?.revision]);
   const index = chapters.findIndex(row => row.id === chapter.id);
   return <article className="mx-auto max-w-[42rem] px-2 pb-10 sm:px-6" aria-label="章节正文">

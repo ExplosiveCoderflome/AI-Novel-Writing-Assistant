@@ -27,7 +27,7 @@ export function ResourceDirectory({ book, selected, onSelect }: { book: Workspac
   function group(label: string, icon: ReactNode, count: number, children: ReactNode) {
     return <details open className="mt-5"><summary className="mb-2 flex cursor-pointer items-center gap-2 px-3 text-xs font-medium text-muted-foreground">{icon}{label}<span className="ml-auto">{count}</span></summary>{children}{count === 0 ? <p className="px-3 py-2 text-xs text-muted-foreground">暂无{label}</p> : null}</details>;
   }
-  return <nav aria-label="小说资源目录" className="max-h-[70vh] overflow-y-auto pb-4 lg:sticky lg:top-4 lg:max-h-[calc(100vh-7rem)]">
+  return <nav aria-label="小说资源目录" className="max-h-[70dvh] min-h-0 flex-1 overflow-y-auto overscroll-contain pb-4 md:max-h-none">
     <p className="px-3 pb-3 text-xs font-medium tracking-widest text-muted-foreground">故事目录</p>
     {tree.volumes.map(({volume,beats,chapters,unassigned}) => <details key={volume.id} open={contains(chapters) || (selected.kind === "volume" && selected.id === volume.id) || (selected.kind === "beat" && selected.volumeId === volume.id)} className="mb-3">
       <summary className="cursor-pointer px-2 py-2 text-sm font-medium">{volume.title}</summary>

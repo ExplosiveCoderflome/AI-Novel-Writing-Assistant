@@ -21,11 +21,13 @@ import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 const SIDEBAR_COLLAPSED_STORAGE_KEY = "ai-novel.sidebar.collapsed";
 const WORKSPACE_RAIL_COLLAPSED_STORAGE_KEY = "ai-novel.workspace-rail.collapsed";
 const DEFAULT_APP_MAIN_CLASS_NAME = "h-[calc(100dvh-4rem)] min-w-0 flex-1 overflow-y-auto p-6";
+const DIRECTOR_APP_MAIN_CLASS_NAME = "h-full min-h-0 min-w-0 flex-1 overflow-hidden p-6";
 
 export default function AppLayout() {
   const location = useLocation();
+  const isDirectorNovel = Boolean(matchPath("/lab/director/:novelId", location.pathname));
   const isDirectorWorkbench = Boolean(
-    matchPath("/lab/director/:novelId", location.pathname)
+    isDirectorNovel
     || matchPath("/novels/:id/ai-usage", location.pathname),
   );
   const [projectMenuOpen, setProjectMenuOpen] = useState(false);
@@ -161,7 +163,7 @@ export default function AppLayout() {
               />
             )}
           </div> : null}
-          <main className={useMobileFullWidthContent ? AUTO_DIRECTOR_MOBILE_CLASSES.appMain : DEFAULT_APP_MAIN_CLASS_NAME}>
+          <main className={isDirectorNovel ? DIRECTOR_APP_MAIN_CLASS_NAME : useMobileFullWidthContent ? AUTO_DIRECTOR_MOBILE_CLASSES.appMain : DEFAULT_APP_MAIN_CLASS_NAME}>
             <Suspense fallback={<AppRouteFallback />}>
               <Outlet />
             </Suspense>
