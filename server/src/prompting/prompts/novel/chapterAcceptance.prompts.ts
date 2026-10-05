@@ -284,7 +284,7 @@ export const chapterAcceptanceAssessmentPrompt: PromptAsset<
   ChapterAcceptanceAssessmentOutput
 > = {
   id: "novel.chapter.acceptance_assessment",
-  version: "v4",
+  version: "v5",
   cacheBoundary: {messageIndex:0,contentBlockIndex:0},
   taskType: "review",
   mode: "structured",
@@ -348,6 +348,8 @@ export const chapterAcceptanceAssessmentPrompt: PromptAsset<
       "15. status 只能使用 accepted、repairable、needs_manual_review、continue_with_risk；不得输出 acceptable、pass、passed、ok、approved 等别名。",
       "16. reader_experience 是本章读者体验合同。检查 promisedReward 是否在正文中可见、主角是否围绕 protagonistWant 主动行动并遭遇 primaryResistance、keyTurn 与 netChange 是否成立、inheritedHookResponsibilities 是否得到回应，以及 endingHook 是否产生追读力。",
       "17. 普通读者体验缺口应输出可执行的 blockingIssues / repairDirectives，并优先使用 repairable 或 continue_with_risk；不得仅因爽点、钩子或情绪强度不足升级为 needs_manual_review 或全局重规划。",
+      "18. 账本进入窗口或未推进属于关注提醒，不能单独作为本章正文缺陷。判定缺失必须同时引用本章执行义务和正文证据；可延后的承诺不得要求本章全部兑现。",
+      "19. 未出场角色的目标没有变化不自动构成本章缺口，只有本章执行义务明确要求时才报告。若修复需要新增场景、改变视角、提前泄密或重新安排剧情，repairDirectives.mode 使用 rewrite/manual；仅对可定位、能保留场景与保密边界的局部缺口使用 patch。",
       "正文退化检测边界：",
       ...CHAPTER_PROSE_QUALITY_AUDIT_RULES.map((rule, index) => `${index + 1}. ${rule}`),
     ].join("\n")),

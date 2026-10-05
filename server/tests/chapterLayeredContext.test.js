@@ -745,17 +745,18 @@ test("chapter layered contexts carry volume mission, character duties and repair
   assert.ok(writeContext.chapterBoundary.doNotCross.some((item) => item.includes("不要提前揭露幕后黑手")));
   assert.ok(reviewContext.structureObligations.includes("volume mission: 建立压迫源并完成第一次反压"));
   assert.ok(reviewContext.structureObligations.some((item) => item.includes("payoff directive: pressure First payoff")));
-  assert.ok(reviewContext.structureObligations.some((item) => item.includes("pending payoff: 女二情报钥匙")));
-  assert.ok(reviewContext.structureObligations.some((item) => item.includes("urgent payoff: 黑市账户异常")));
-  assert.ok(reviewContext.structureObligations.some((item) => item.includes("overdue payoff: 第一次反压收益")));
+  assert.ok(!reviewContext.structureObligations.some((item) => item.includes("pending payoff: 女二情报钥匙")));
+  assert.ok(!reviewContext.structureObligations.some((item) => item.includes("urgent payoff: 黑市账户异常")));
+  assert.ok(!reviewContext.structureObligations.some((item) => item.includes("overdue payoff: 第一次反压收益")));
   assert.ok(reviewContext.structureObligations.some((item) => item.includes("resource setup needed: 女二暗账副本")));
   assert.ok(reviewContext.structureObligations.some((item) => item.includes("resource unavailable: 旧通行证")));
   assert.ok(reviewContext.structureObligations.some((item) => item.includes("unconfirmed resource proposal: 女二暗账副本可能已经交给主角")));
   assert.ok(!reviewContext.structureObligations.some((item) => item.includes("resource needs confirmation")));
   assert.ok(repairContext.allowedEditBoundaries.some((item) => item.includes("Pending character candidates remain read-only")));
   assert.ok(repairContext.allowedEditBoundaries.some((item) => item.includes("女二")));
-  assert.ok(repairContext.allowedEditBoundaries.some((item) => item.includes("urgent payoff thread: 黑市账户异常")));
-  assert.ok(repairContext.allowedEditBoundaries.some((item) => item.includes("overdue payoff pressure: 第一次反压收益")));
+  assert.ok(repairContext.allowedEditBoundaries.some((item) => item.includes("Preserve established payoff setups")));
+  assert.ok(!repairContext.allowedEditBoundaries.some((item) => item.includes("urgent payoff thread:")));
+  assert.ok(!repairContext.allowedEditBoundaries.some((item) => item.includes("overdue payoff pressure:")));
   assert.ok(repairContext.allowedEditBoundaries.some((item) => item.includes("Patch resource continuity before using 旧通行证")));
 
   const writerBlocks = buildChapterWriterContextBlocks(writeContext);
@@ -832,9 +833,10 @@ test("chapter layered contexts carry volume mission, character duties and repair
     && /Do not cross/.test(block.content)
   )));
   assert.ok(reviewBlocks.some((block) => (
-    block.id === "structure_obligations"
-    && /urgent payoff: 黑市账户异常/.test(block.content)
-    && /overdue payoff: 第一次反压收益/.test(block.content)
+    block.id === "payoff_ledger"
+    && block.required && block.allowSummary === false
+    && /urgent: 黑市账户异常/.test(block.content)
+    && /overdue: 第一次反压收益/.test(block.content)
   )));
   assert.ok(reviewBlocks.some((block) => (
     block.id === "chapter_mission"

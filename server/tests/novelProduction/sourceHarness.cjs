@@ -25,6 +25,10 @@ function createPipelineHarness({
   content = "original draft",
   scores = [90],
   repairError,
+  repairContent = "repair candidate",
+  acceptanceMeta = {},
+  auditHasBlockingIssues = false,
+  timelineStatus,
   stopAt,
   artifactSyncStatus = "completed",
 } = {}) {
@@ -45,11 +49,12 @@ function createPipelineHarness({
       runChapterRepairText: async () => {
         events.push("repair");
         if (repairError) throw repairError;
-        return { content: "repair candidate" };
+        return { content: repairContent };
       },
     },
     "../chapterPatchRepairService": { ChapterPatchRepairFailedError: class extends Error {} },
     "./selection/ChapterRepairCandidateSelection": selectionModule,
+    "./repair/ChapterRepairEligibility": loadRuntimeSource("repair/ChapterRepairEligibility.ts", {}),
     "./artifactSync/ChapterArtifactSyncResult": {
       ChapterArtifactSyncBoundaryError: class extends Error {
         constructor(result) { super(result.reason); this.result = result; }
@@ -74,8 +79,9 @@ function createPipelineHarness({
         finalContent: value,
         runtimePackage: {
           novelId: "n", chapterId: "c",
-          audit: { score: { coherence: score, repetition: score, engagement: score, overall: score }, openIssues: [], reports: [] },
-          context: {}, meta: { acceptanceStatus: score >= 80 ? "accepted" : "repairable" },
+          audit: { score: { coherence: score, repetition: score, engagement: score, overall: score }, openIssues: [], reports: [], hasBlockingIssues: auditHasBlockingIssues },
+          context: {}, meta: { acceptanceStatus: score >= 80 ? "accepted" : "repairable", ...acceptanceMeta },
+          ...(timelineStatus ? { timelineCheck: { status: timelineStatus } } : {}),
         },
         needsRepair: score < 80,
       };

@@ -733,7 +733,7 @@ test("runPipelineChapterWithRuntime does not rewrite the chapter when a patch ta
   }
 });
 
-test("runPipelineChapterWithRuntime defers acceptance gate unavailable risk without local patch prompt", async () => {
+test("runPipelineChapterWithRuntime defers acceptance gate unavailable risk without spending a local patch attempt", async () => {
   const originalRunStructuredPrompt = promptRunner.runStructuredPrompt;
   const stages = [];
   const savedDrafts = [];
@@ -802,11 +802,11 @@ test("runPipelineChapterWithRuntime defers acceptance gate unavailable risk with
       },
     );
 
-    assert.deepEqual(stages, ["generating_chapters", "reviewing", "repairing"]);
+    assert.deepEqual(stages, ["generating_chapters", "reviewing"]);
     assert.equal(reviewCount, 1);
     assert.equal(result.pass, false);
-    assert.equal(result.retryCountUsed, 1);
-    assert.equal(result.qualityDebtAttribution.repairAttemptsUsed, 1);
+    assert.equal(result.retryCountUsed, 0);
+    assert.equal(result.qualityDebtAttribution.repairAttemptsUsed, 0);
     assert.equal(result.qualityDebtAttribution.repairAttemptsAllowed, 1);
     assert.equal(result.recoverableRepairFailure.message, "章节接收判断暂时不可用，正文已保留，后续需要重新审校或人工复查。");
     assert.deepEqual(result.recoverableRepairFailure.failureTypes, ["review_gate_unavailable"]);

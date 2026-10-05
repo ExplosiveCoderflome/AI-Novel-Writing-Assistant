@@ -18,7 +18,7 @@ export const chapterPatchRepairPrompt: PromptAsset<
   ChapterPatchRepairPlan
 > = {
   id: "novel.review.patch",
-  version: "v5",
+  version: "v6",
   taskType: "repair",
   mode: "structured",
   language: "zh",
@@ -73,6 +73,9 @@ export const chapterPatchRepairPrompt: PromptAsset<
         "7. targetExcerpt 必须是正文里的完整短句或段落，不得是单个词语、称谓、标点或过短短语。",
         "8. 如果找不到至少 6 个字符且在正文中唯一出现的原文片段，不要输出 patch；requiresFullRewrite 设为 true，并说明 escalationReason。",
         "9. 如果确实无法用局部补丁安全修复，requiresFullRewrite 设为 true，并说明 escalationReason。",
+        "10. 问题清单包含 repairDirectives 时，只执行 mode=patch 的指令；mode=rewrite/manual 保留为未处理说明，不得用局部补丁强行完成。",
+        "11. 未出场角色的目标变化不得靠新增场景、视角、远程消息或泄露秘密补齐。书级规则、文风、世界规则和保密约束均须保留；只修有正文证据且本章合同要求的缺口。",
+        "12. 每条 patches 必须包含 id、targetExcerpt、replacement、reason、issueIds；reason 用一句话说明修复的具体缺口，不得省略。replacement 与 targetExcerpt 相同时不要输出该补丁；无必要改动时返回空 patches。",
       ].join("\n")),
       new HumanMessage([
         `小说：${input.novelTitle}`,

@@ -105,8 +105,9 @@ function buildRepairIssuesPayload(
 ): string {
   const missingObligations = runtimePackage?.obligationCoverage?.missing ?? [];
   const blockingIssueCodes = resolveIssueCodes(runtimePackage);
+  const repairDirectives = runtimePackage?.meta?.repairDirectives ?? [];
 
-  if (missingObligations.length === 0 && blockingIssueCodes.length === 0) {
+  if (missingObligations.length === 0 && blockingIssueCodes.length === 0 && repairDirectives.length === 0) {
     return JSON.stringify(issues);
   }
 
@@ -119,6 +120,7 @@ function buildRepairIssuesPayload(
         ...(o.evidence ? { evidence: o.evidence } : {}),
       })),
       blockingIssueCodes,
+      repairDirectives,
     },
   );
 }

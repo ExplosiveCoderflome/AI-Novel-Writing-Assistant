@@ -3,4 +3,9 @@ const c={blocks:[],selectedBlockIds:[],droppedBlockIds:[],summarizedBlockIds:[],
 test('explicit static hint is before dynamic material with Human role preserved',()=>{const result=appendStructuredOutputHintMessages({asset:base,context:c,promptInput:{},messages});assert.equal(result[0].content,'规则');assert.match(result[1].content,/结构化输出骨架/);assert.equal(result[1].type,'human');assert.equal(result[2].content,'动态章节')});
 test('dynamic examples and advanced templates retain tail hint placement',()=>{for(const asset of [{...base,structuredOutputHint:{...base.structuredOutputHint,example:()=>({text:'当前内容'})}},base]){const result=appendStructuredOutputHintMessages({asset,context:c,promptInput:{},messages,preserveMessageLayout:asset===base});assert.equal(result[1].content,'动态章节');assert.match(result[2].content,/结构化输出骨架/);}});
 
-test('updated production assets resolve through registry at their exact versions',()=>{const {getRegisteredPromptAsset}=require('../dist/prompting/registry');assert.equal(getRegisteredPromptAsset('novel.chapter.writer','v7').version,'v7');assert.equal(getRegisteredPromptAsset('novel.chapter.acceptance_assessment','v4').version,'v4')});
+test('updated production assets resolve through registry at their exact versions', () => {
+  const { getRegisteredPromptAsset } = require('../dist/prompting/registry');
+  for (const [id, version] of [['novel.chapter.writer', 'v7'], ['novel.chapter.acceptance_assessment', 'v5'], ['novel.review.patch', 'v6']]) {
+    assert.equal(getRegisteredPromptAsset(id, version).version, version);
+  }
+});

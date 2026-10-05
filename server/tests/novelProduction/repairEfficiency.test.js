@@ -1,0 +1,56 @@
+const test = require('node:test');
+const assert = require('node:assert/strict');
+const { createPipelineHarness } = require('./sourceHarness.cjs');
+
+test('AI continue-with-risk retains saved prose and quality debt without spending a patch attempt', async () => {
+  const h = createPipelineHarness({ scores: [78], acceptanceMeta: { acceptanceStatus: 'continue_with_risk', continuePolicy: 'continue' } });
+  const result = await h.run({ autoRepair: true, maxRetries: 1 });
+  assert.equal(h.budget, 0);
+  assert.equal(h.events.filter(event => event === 'repair').length, 0);
+  assert.deepEqual(h.committedContents, ['original draft']);
+  assert.equal(result.pass, false);
+  assert.equal(result.qualityDebtAttribution.repairAttemptsUsed, 0);
+});
+
+test('rewrite-only AI directives do not spend a light-patch attempt', async () => {
+  const h = createPipelineHarness({ scores: [78], acceptanceMeta: { repairDirectives: [{ mode: 'rewrite', target: 'plot', instruction: '需要整体重新安排' }] } });
+  await h.run({ autoRepair: true, repairMode: 'light_repair', maxRetries: 1 });
+  assert.equal(h.budget, 0);
+  assert.deepEqual(h.committedContents, ['original draft']);
+});
+
+test('an unchanged patch spends its issued attempt but avoids another acceptance call', async () => {
+  const h = createPipelineHarness({ scores: [78], repairContent: 'original draft' });
+  await h.run({ autoRepair: true, maxRetries: 1 });
+  assert.equal(h.budget, 1);
+  assert.equal(h.events.filter(event => event === 'repair').length, 1);
+  assert.equal(h.events.filter(event => event === 'acceptance').length, 1);
+  assert.deepEqual(h.committedContents, ['original draft']);
+});
+
+test('a genuine changed patch still receives fresh acceptance and candidate selection', async () => {
+  const h = createPipelineHarness({ scores: [78, 92] });
+  await h.run({ autoRepair: true, maxRetries: 1 });
+  assert.equal(h.budget, 1);
+  assert.equal(h.events.filter(event => event === 'acceptance').length, 2);
+  assert.deepEqual(h.committedContents, ['repair candidate']);
+});
+
+test('integrity findings override AI continue for repair eligibility while keeping final quality debt', async () => {
+  for (const finding of [{ auditHasBlockingIssues: true }, { timelineStatus: 'failed' }]) {
+    const h = createPipelineHarness({ scores: [78], acceptanceMeta: { acceptanceStatus: 'accepted', continuePolicy: 'continue' }, ...finding });
+    const result = await h.run({ autoRepair: true, maxRetries: 1 });
+    assert.equal(h.budget, 1);
+    assert.equal(h.events.filter(event => event === 'acceptance').length, 2);
+    assert.equal(result.pass, false);
+  }
+});
+
+test('explicit AI manual pause does not become an automatic repair or a passing chapter', async () => {
+  const h = createPipelineHarness({ scores: [92], acceptanceMeta: { acceptanceStatus: 'needs_manual_review', continuePolicy: 'pause' } });
+  const result = await h.run({ autoRepair: true, maxRetries: 1 });
+  assert.equal(h.budget, 0);
+  assert.equal(result.runtimePackage.meta.continuePolicy, 'pause');
+  assert.equal(result.pass, false);
+  assert.deepEqual(h.committedContents, ['original draft']);
+});

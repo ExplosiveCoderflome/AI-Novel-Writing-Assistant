@@ -333,3 +333,27 @@ test("ChapterPatchRepairService converts unsafe apply-stage patch validation int
     promptRunner.runStructuredPrompt = originalRunStructuredPrompt;
   }
 });
+
+test("runChapterRepairText preserves AI directive modes in the patch request instead of only flattened advice", async () => {
+  const previous = promptRunner.runStructuredPrompt;
+  const directives = [
+    { mode: "patch", target: "plot", instruction: "补齐当前行动的代价" },
+    { mode: "manual", target: "character", instruction: "复查未出场角色的后续计划" },
+  ];
+  let payload;
+  promptRunner.runStructuredPrompt = async request => {
+    payload = JSON.parse(request.promptInput.issuesJson);
+    return { output: { summary: "修复行动", patches: [{ id: "p", targetExcerpt: "主角直接走进门里。", replacement: "主角留下佩刀，走进门里。", reason: "交代代价", issueIds: [] }] } };
+  };
+  try {
+    const result = await runChapterRepairText({
+      novelId: "n", chapterId: "c", novelTitle: "小说", chapterTitle: "章", content: "主角直接走进门里。",
+      issues: [{ severity: "medium", category: "pacing", evidence: "行动缺乏代价", fixSuggestion: "补齐代价" }],
+      runtimePackage: { meta: { repairDirectives: directives }, audit: { openIssues: [] }, context: {} },
+      options: { repairMode: "light_repair" },
+    });
+    assert.deepEqual(payload.repairDirectives, directives);
+    assert.equal(payload.issues.length, 1);
+    assert.equal(result.content, "主角留下佩刀，走进门里。");
+  } finally { promptRunner.runStructuredPrompt = previous; }
+});

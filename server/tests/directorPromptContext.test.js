@@ -31,7 +31,9 @@ function context(blocks = []) {
   return { blocks, selectedBlockIds: blocks.map(b => b.id), droppedBlockIds: [], summarizedBlockIds: [], estimatedInputTokens: 0 };
 }
 function structuredExample(messages) {
-  return String(messages.at(-1).content).split('示例：\n')[1];
+  const hint = messages.find(message => String(message.content).includes('示例：\n'));
+  assert.ok(hint, 'structured hint must include a JSON example');
+  return String(hint.content).split('示例：\n')[1];
 }
 
 test('chapter prompt examples keep the same JSON fields with compact serialization', () => {
@@ -115,15 +117,18 @@ test('replan context shares identical assessments while keeping every report and
       availableChapterOrders: [1, 2, 3], sourceIssueIds: ['issue-1'], auditReports: reports,
       ledgerSummary: null, snapshot: { bookContract: { hardConstraints: ['首尾保留'.repeat(3000)] }, narrative: { hiddenKnowledge: ['末尾秘密必须保留'] } },
       nextAction: 'replan', chapterStateGoal: { summary: '先兑现约定' }, protectedSecrets: ['不能提前揭底'] });
-    const audit = JSON.parse(request.promptInput.auditReportsJson);
+    const jsonBlock = id => JSON.parse(request.contextBlocks.find(block => block.id === id).content.split('\n').slice(1).join('\n'));
+    const auditJson = request.contextBlocks.find(block => block.id === 'audit').content.split('\n').slice(1).join('\n');
+    const audit = jsonBlock('audit');
     assert.deepEqual(audit.assessments, [assessment]);
     assert.deepEqual(audit.reports.map(r => r.assessmentIndex), [0, 0]);
     assert.deepEqual(audit.reports.map(r => r.id), ['report-1', 'report-2']);
     assert.deepEqual(audit.reports.map(r => r.issues[0].evidence), ['独有证据1', '独有证据2']);
-    const snapshot = JSON.parse(request.promptInput.canonicalStateJson);
+    const snapshot = { ...jsonBlock('canonical_baseline'), ...jsonBlock('canonical_state') };
     assert.equal(snapshot.bookContract.hardConstraints[0].length, 12000);
     assert.deepEqual(snapshot.narrative.hiddenKnowledge, ['末尾秘密必须保留']);
-    assert.equal(request.promptInput.auditReportsJson.includes('保留唯一的行动代价'), true);
-    assert.ok(request.promptInput.auditReportsJson.length < JSON.stringify(reports).length);
+    assert.equal(auditJson.includes('保留唯一的行动代价'), true);
+    assert.ok(auditJson.length < JSON.stringify(reports).length);
+    assert.ok(request.contextBlocks.every(block => block.required && block.allowSummary === false));
   } finally { promptRunner.runStructuredPrompt = previous; }
 });
