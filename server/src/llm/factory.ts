@@ -1,3 +1,4 @@
+import {attachLLMCacheRequestPolicy,resolveCacheCapability} from "../platform/llm/cache";
 import type { LLMProvider, ProviderAuthMode, ReasoningEffort } from "@ai-novel/shared/types/llm";
 import type { ModelRouteRequestProtocol } from "@ai-novel/shared/types/novel";
 import { ChatOpenAI } from "@langchain/openai";
@@ -423,7 +424,8 @@ export function createLLMFromResolvedOptions(resolved: ResolvedLLMClientOptions)
     requestProtocol: resolved.requestProtocol,
     promptMeta: resolved.promptMeta,
   };
-  const decorated = attachLLMDebugLogging(attachLLMUsageTracking(attachLLMRequestGuard(llm, meta), meta), meta);
+  const cacheAware=attachLLMCacheRequestPolicy(llm,resolveCacheCapability({model:resolved.model,baseURL:resolved.baseURL,protocol:resolved.requestProtocol==="anthropic"?"anthropic":"openai-compatible"}));
+  const decorated = attachLLMDebugLogging(attachLLMUsageTracking(attachLLMRequestGuard(cacheAware, meta), meta), meta);
   const limited = attachLLMRequestLimiter(decorated, {
     provider: resolved.provider,
     model: resolved.model,

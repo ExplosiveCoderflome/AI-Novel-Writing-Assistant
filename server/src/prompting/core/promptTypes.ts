@@ -225,6 +225,7 @@ export interface PromptAsset<I, O, R = O> {
   semanticRetryPolicy?: PromptSemanticRetryPolicy<I, R>;
   outputSchema?: ZodType<R>;
   structuredOutputHint?: PromptStructuredOutputHint<I, R>;
+  cacheBoundary?: {messageIndex:number;contentBlockIndex:number|null};
   editableSlots?: PromptEditableSlot[];
   slots?: PromptSlotDef[];
   contextRequirements?: PromptContextRequirement[];

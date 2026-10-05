@@ -23,3 +23,7 @@ test('failed invoke still emits one unknown attempt and preserves error',async()
 
 // Isolated collector tests never persist against a configured database.
 prisma.llmInvocationUsageRecord.create=async ({data})=>data;
+
+test('SDK batch returned exceptions have failed status and unknown usage',async()=>{const records=[];const llm={invoke:async()=>{},stream:async()=>{},batch:async()=>[answer(1000),new Error('request failed')]};attachLLMUsageTracking(llm);await runWithInvocationUsageObserver(r=>records.push(r),()=>llm.batch([1,2]));assert.equal(records.length,2);assert.equal(records[1].status,'failed');assert.equal(records[1].usage,null)});
+
+test('result identity from a previous call does not suppress a later independent SDK batch',async()=>{const records=[],result=answer(1000);const llm={invoke:async()=>result,stream:async()=>{},batch:async()=>[result]};attachLLMUsageTracking(llm);await runWithInvocationUsageObserver(r=>records.push(r),async()=>{await llm.invoke([]);await llm.batch([1])});assert.equal(records.length,2);assert.notEqual(records[0].invocationId,records[1].invocationId)});

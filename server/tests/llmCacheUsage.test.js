@@ -48,3 +48,6 @@ test('independent array calls sum cache only with complete coverage',()=>{
   const u=decode([sdk(800),sdk(0)]);assert.equal(u.inputCache.cacheHitTokens,800);assert.equal(u.inputCache.cacheMissTokens,1200);
   assert.equal(decode([sdk(800),sdk()]).inputCache.cacheHitTokens,null);
 });
+
+test('explicit zero total tokens still establishes reported zero cache',()=>{const usage=decode({usage_metadata:{input_tokens:0,output_tokens:0,total_tokens:0,input_token_details:{cache_read:0}}});assert.ok(usage);assert.equal(usage.inputCache.cacheHitTokens,0);assert.equal(usage.inputCache.cacheMissTokens,0)});
+test('conflicting creation counts across cumulative frames invalidate cache',()=>{const frame=write=>decode({usage_metadata:{input_tokens:1000,output_tokens:100,total_tokens:1100,input_token_details:{cache_read:800,cache_creation:write}}});assert.equal(merge(frame(100),frame(180)).inputCache.cacheUsageStatus,'invalid')});

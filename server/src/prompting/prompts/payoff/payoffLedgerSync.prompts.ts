@@ -67,7 +67,8 @@ export const payoffLedgerSyncPrompt: PromptAsset<
   z.infer<typeof payoffLedgerSyncOutputSchema>
 > = {
   id: "novel.payoff_ledger.sync",
-  version: "v6",
+  version: "v7",
+  cacheBoundary: {messageIndex:0,contentBlockIndex:0},
   taskType: "planner",
   mode: "structured",
   language: "zh",
@@ -78,6 +79,7 @@ export const payoffLedgerSyncPrompt: PromptAsset<
     maxAttempts: 1,
   },
   structuredOutputHint: {
+    placement: "stable_prefix",
     example: PAYOFF_LEDGER_SYNC_EXAMPLE,
     note: [
       "sourceRefs、evidence、riskSignals 始终必须是数组。",

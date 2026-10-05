@@ -563,7 +563,8 @@ export const chapterArtifactDeltaPrompt: PromptAsset<
   ChapterArtifactDeltaOutput
 > = {
   id: "novel.chapter.artifact_delta.extract",
-  version: "v2",
+  version: "v3",
+  cacheBoundary: {messageIndex:0,contentBlockIndex:0},
   taskType: "fact_extraction",
   mode: "structured",
   language: "zh",
@@ -574,6 +575,7 @@ export const chapterArtifactDeltaPrompt: PromptAsset<
     maxAttempts: 1,
   },
   structuredOutputHint: {
+    placement: "stable_prefix",
     compact: true,
     example: CHAPTER_ARTIFACT_DELTA_EXAMPLE,
     note: [

@@ -18,6 +18,7 @@ export interface ChapterWriterPromptInput {
 export const chapterWriterPrompt: PromptAsset<ChapterWriterPromptInput, string, string> = {
   id: "novel.chapter.writer",
   version: "v7",
+  cacheBoundary: {messageIndex:0,contentBlockIndex:0},
   taskType: "writer",
   mode: "text",
   language: "zh",

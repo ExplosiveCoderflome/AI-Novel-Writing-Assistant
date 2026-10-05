@@ -8,7 +8,7 @@
 
 **Tech Stack:** TypeScript、LangChain ChatOpenAI、自有 Anthropic adapter、Prisma SQLite/PostgreSQL、Node test、React、SSE、IndexedDB。
 
-**Spec:** `docs/superpowers/specs/2026-10-05-llm-cache-observability-design.md`。状态：开发中，按阶段记录完成情况。
+**Spec:** `docs/superpowers/specs/2026-10-05-llm-cache-observability-design.md`。状态：六个开发阶段完成；数据库部署、UI 与真实生成质量待验收。
 
 ## Global Constraints
 
@@ -261,14 +261,14 @@ function applyCacheRequestPolicy<T extends Record<string, unknown>>(
 ): T;
 ```
 
-- [ ] 阅读 `server/src/prompting/prompts/payoff/payoffLedgerSync.prompts.ts` 的 `novel.payoff_ledger.sync` 资产，只修改注册 Prompt，不能服务内新增内联 Prompt。
-- [ ] 添加 extraction/ledger fixtures：输出 schema 静态约束稳定；正文、当前资源、角色心智、伏笔账本真实变化时必须更新。测试预算、动态示例和顺序边界。
-- [ ] 应用 Task 5 布局，仅携带本阶段所需上下文，不复制 writer 全量上下文。事实提取的输出截断修复另列缺陷任务，本阶段不得声称缓存已解决截断。
-- [ ] mock 请求验证：DeepSeek/OpenAI 自动路径不需要增加缓存参数；Claude/百炼显式缓存仅对已核验模型/协议发送合法 cache_control，标记稳定前缀结束位置。
-- [ ] 对未知中转、Ollama、未核验模型保持参数原样；400 不自动增加模型重试/移除参数重发。显式策略可在平台配置关闭并于下一次正常调用生效。
-- [ ] 先支持默认短 TTL；更长 TTL/费用控制单独规划。Gemini 原生缓存对象管理不在本任务，无原生通道时只返回实际兼容字段。
-- [ ] 跑 artifact layout/参数兼容聚焦测试、Anthropic SSE 回归、共享/服务端 build。用户正常授权章节中观察实际数字，不添加预热调用或声称固定收益。
-- [ ] 更新平台 cache README、wiki 的协议差异和回退规则；按发布说明技能提交。
+- [x] 阅读 `server/src/prompting/prompts/payoff/payoffLedgerSync.prompts.ts` 的 `novel.payoff_ledger.sync` 资产，只修改注册 Prompt，不能服务内新增内联 Prompt。
+- [x] 添加 extraction/ledger fixtures：输出 schema 静态约束稳定；正文、当前资源、角色心智、伏笔账本真实变化时必须更新。测试预算、动态示例和顺序边界。
+- [x] 应用 Task 5 布局，仅携带本阶段所需上下文，不复制 writer 全量上下文。事实提取的输出截断修复另列缺陷任务，本阶段不得声称缓存已解决截断。
+- [x] mock 请求验证：DeepSeek/OpenAI 自动路径不需要增加缓存参数；Claude/百炼显式缓存仅对已核验模型/协议发送合法 cache_control，标记稳定前缀结束位置。
+- [x] 对未知中转、Ollama、未核验模型保持参数原样；400 不自动增加模型重试/移除参数重发。显式策略可在平台配置关闭并于下一次正常调用生效。
+- [x] 先支持默认短 TTL；更长 TTL/费用控制单独规划。Gemini 原生缓存对象管理不在本任务，无原生通道时只返回实际兼容字段。
+- [x] 跑 artifact layout/参数兼容聚焦测试、Anthropic SSE 回归、共享/服务端 build。用户正常授权章节中观察实际数字，不添加预热调用或声称固定收益。
+- [x] 更新平台 cache README、wiki 的协议差异和回退规则；按发布说明技能提交。
 
 ## 验证矩阵与交接
 
@@ -297,3 +297,11 @@ function applyCacheRequestPolicy<T extends Record<string, unknown>>(
 阶段 4：服务端构建、前端 typecheck、5 项纯展示/旧浏览器缓存/只读 HTTP 检查通过。界面交互由用户验收，当前验收库尚未建新增表，长期调用查询需迁移后可用。
 
 阶段 5：13 项布局、资产版本、模板兼容、验收合同、槽位、骨架测试与服务端构建通过。文风块明确声明 book；角色/世界相关检索/义务混合块保持 request。正文篇幅与补写指令保留 System 角色，移到静态规则之后。未调用真实模型，生成质量与实际命中收益待正常章节验收。
+
+阶段 6 / 最终验证：86 项组合聚焦测试通过（协议口径、流式、日志、实况、逐次台账、临时 SQLite、归属、预算恢复、只读接口、布局、槽位、SDK 请求及浏览器缓存兼容）。服务端 build 与前端 typecheck 通过；共享 build 在共享类型最后修改后通过，本阶段未再改共享文件，复用该证据。promptRunner 保持 1264 行，新导演 domain 无平台缓存/持久化依赖。
+
+未验证/待部署：未运行全量测试或浏览器交互；用户负责 UI 验收。未调用真实模型，真实缓存收益及正文质量需正常授权章节验证。未部署新增迁移到验收库，未操作暂停作业、beta/main 或推送。无 PostgreSQL 隔离环境，PG 增量 SQL 仅静态检查。
+
+显式缓存采用默认短 TTL，可通过 LLM_EXPLICIT_CACHE_ENABLED=false 停用下一次正常调用的标记；自动缓存路径不加标记，未知中转不猜测支持，不因 400 增加重发。事实提取输出截断为独立缺陷，本计划未以缓存修复该问题。
+
+最终补充：批量去重限制在当前批次上下文，避免跨调用对象身份复用导致漏记。新增 1 项回归并复测受影响的 19 项用例通过，服务端源码修改后重新构建通过；累计 87 项相关用例通过。前端未再改代码，复用此前 typecheck 证据。

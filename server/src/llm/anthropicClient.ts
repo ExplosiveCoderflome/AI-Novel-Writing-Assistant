@@ -1,3 +1,4 @@
+import {applyCacheRequestPolicy,getPromptCacheBoundary,resolveCacheCapability} from "../platform/llm/cache";
 import {
   AIMessage,
   AIMessageChunk,
@@ -19,7 +20,7 @@ type AnthropicRole = "user" | "assistant";
 
 interface AnthropicMessage {
   role: AnthropicRole;
-  content: string;
+  content: {type:"text";text:string}[];
 }
 
 function stringifyMessageContent(content: MessageContent | unknown): string {
@@ -55,31 +56,37 @@ function normalizeBaseURL(baseURL: string): string {
   return trimmed.endsWith("/v1") ? trimmed : `${trimmed}/v1`;
 }
 
-function convertMessages(messages: BaseMessage[]): { system?: string; messages: AnthropicMessage[] } {
+function convertMessages(messages: BaseMessage[]): { system?: {type:"text";text:string}[]; messages: AnthropicMessage[]; cacheBoundary: import("../platform/llm/cache").PromptCacheBoundary|null } {
   const systemParts: string[] = [];
   const converted: AnthropicMessage[] = [];
 
-  for (const message of messages) {
+  const declared=getPromptCacheBoundary(messages);
+  let cacheBoundary:import("../platform/llm/cache").PromptCacheBoundary|null=null;
+  for (const [sourceIndex,message] of messages.entries()) {
     const content = stringifyMessageContent(message.content).trim();
     if (!content) {
       continue;
     }
     const role = detectRole(message);
     if (role === "system") {
+      if(declared?.messageIndex===sourceIndex && (declared.contentBlockIndex??0)===0)cacheBoundary={messageIndex:0,contentBlockIndex:systemParts.length};
       systemParts.push(content);
       continue;
     }
     const previous = converted[converted.length - 1];
     if (previous && previous.role === role) {
-      previous.content = `${previous.content}\n\n${content}`;
+      if(declared?.messageIndex===sourceIndex && (declared.contentBlockIndex??0)===0)cacheBoundary={messageIndex:converted.length,contentBlockIndex:previous.content.length};
+      previous.content.push({type:"text",text:content});
     } else {
-      converted.push({ role, content });
+      if(declared?.messageIndex===sourceIndex && (declared.contentBlockIndex??0)===0)cacheBoundary={messageIndex:converted.length+1,contentBlockIndex:0};
+      converted.push({ role, content:[{type:"text",text:content}] });
     }
   }
 
   return {
-    system: systemParts.length > 0 ? systemParts.join("\n\n") : undefined,
+    system: systemParts.length > 0 ? systemParts.map(text=>({type:"text" as const,text})) : undefined,
     messages: converted,
+    cacheBoundary,
   };
 }
 
@@ -152,14 +159,14 @@ export function createAnthropicLLM(options: AnthropicLLMOptions): {
           "x-api-key": options.apiKey ?? "",
           "anthropic-version": process.env.ANTHROPIC_VERSION ?? "2023-06-01",
         },
-        body: JSON.stringify({
+        body: JSON.stringify(applyCacheRequestPolicy({
           model: options.model,
           max_tokens: options.maxTokens ?? 4096,
           temperature: options.temperature,
           stream,
           ...(converted.system ? { system: converted.system } : {}),
           messages: converted.messages,
-        }),
+        },resolveCacheCapability({model:options.model,protocol:"anthropic",baseURL:options.baseURL}),converted.cacheBoundary)),
       });
       if (!response.ok) {
         const detail = await response.text();

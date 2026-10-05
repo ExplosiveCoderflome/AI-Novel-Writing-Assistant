@@ -285,6 +285,7 @@ export const chapterAcceptanceAssessmentPrompt: PromptAsset<
 > = {
   id: "novel.chapter.acceptance_assessment",
   version: "v4",
+  cacheBoundary: {messageIndex:0,contentBlockIndex:0},
   taskType: "review",
   mode: "structured",
   language: "zh",
