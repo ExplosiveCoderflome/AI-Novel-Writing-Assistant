@@ -273,12 +273,14 @@ export function buildChapterPlanContextBlocks(input: {
   return [
     createContextBlock({
       id: "story_mode",
+      reuseScope: "book",
       group: "story_mode",
       priority: 95,
       content: input.storyModeBlock || "故事模式：无",
     }),
     createContextBlock({
       id: "novel_overview",
+      reuseScope: "book",
       group: "novel_overview",
       priority: 100,
       required: true,
@@ -289,6 +291,7 @@ export function buildChapterPlanContextBlocks(input: {
     }),
     createContextBlock({
       id: "book_framing",
+      reuseScope: "book",
       group: "book_framing",
       priority: 99,
       content: buildBookFramingText({
@@ -318,6 +321,7 @@ export function buildChapterPlanContextBlocks(input: {
     }),
     createContextBlock({
       id: "book_bible",
+      reuseScope: "book",
       group: "book_bible",
       priority: 92,
       content: buildBlockContent("作品圣经", input.bible ?? "无"),

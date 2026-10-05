@@ -176,6 +176,7 @@ Open-source AI novel writing assistant and long-form production studio.
 #### 优化
 
 - 正文、检查、资产整理与伏笔对账使用稳定规则前缀，章节任务和人物状态随内容更新，为连续章节提供可复用输入。
+- 章节规划、局部修文和后续计划调整优先复用书级资料，减少重复发送伏笔内容，保留人物事实、章节职责与保密要求。
 
 完整历史更新见 [docs/releases/release-notes.md](./docs/releases/release-notes.md)。
 

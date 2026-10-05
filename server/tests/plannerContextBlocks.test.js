@@ -111,3 +111,18 @@ test("chapter planner context prioritizes framing, story macro and current volum
   assert.ok(byId.get("current_volume_window").priority > byId.get("legacy_outline_source").priority);
   assert.ok(byId.get("character_dynamics_summary").priority > byId.get("legacy_outline_source").priority);
 });
+
+test("chapter planner declares only book sources reusable and refreshes them from current inputs", () => {
+  const first = buildChapterPlanContextBlocks(createInput());
+  const second = buildChapterPlanContextBlocks({ ...createInput(), bible: "编辑后的世界规则", stateSnapshot: "最新人物位置" });
+  for (const id of ["story_mode", "novel_overview", "book_framing", "book_bible"]) {
+    assert.equal(first.find(block => block.id === id).reuseScope, "book");
+  }
+  for (const id of ["chapter_target", "payoff_ledger", "current_volume_window", "state_snapshot", "style_engine"]) {
+    const block = first.find(block => block.id === id);
+    assert.ok(block, id);
+    assert.equal(block.reuseScope ?? "request", "request");
+  }
+  assert.match(second.find(block => block.id === "book_bible").content, /编辑后的世界规则/);
+  assert.match(second.find(block => block.id === "state_snapshot").content, /最新人物位置/);
+});
