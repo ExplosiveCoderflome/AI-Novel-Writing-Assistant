@@ -126,7 +126,7 @@ export default function LiveExecutionDialog(props: LiveExecutionDialogProps) {
   const followLatestRef = useRef(true);
   const latestSessionIdRef = useRef<string | null>(null);
   const autoOpenedSessionIdsRef = useRef(new Set<string>());
-  const { clearSessions, connected, sessions } = useLlmLiveFeed({
+  const { clearSessions, connected, connectionState, sessions } = useLlmLiveFeed({
     enabled: true,
     taskId: props.taskId,
   });
@@ -341,7 +341,9 @@ export default function LiveExecutionDialog(props: LiveExecutionDialogProps) {
                 </DialogPrimitive.Description>
               </div>
               <Badge variant="outline" className="shrink-0 border-emerald-400/50 bg-emerald-400/10 font-mono text-emerald-200">
-                {activeCount > 0 ? `${activeCount} 项进行中` : connected ? "等待生成" : "正在连接"}
+                {!connected
+                  ? connectionState === "reconnecting" ? "连接中断 · 自动重连中" : "正在连接"
+                  : activeCount > 0 ? `${activeCount} 项进行中` : "等待生成"}
               </Badge>
               <Button
                 type="button"

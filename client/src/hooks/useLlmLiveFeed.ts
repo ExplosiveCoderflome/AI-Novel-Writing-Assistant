@@ -5,6 +5,7 @@ import type {
   LlmLiveStreamFrame,
 } from "@ai-novel/shared/types/llmLive";
 import { API_BASE_URL } from "@/lib/constants";
+import { subscribeLlmLiveStream, type LlmLiveConnectionState } from "@/lib/llmLive/stream";
 import {
   clearLlmLiveCache,
   llmLiveCacheKey,
@@ -13,7 +14,6 @@ import {
 } from "@/lib/storage/llmLiveCache";
 
 const MAX_PREVIEW_CHARS = 16_000;
-const RECONNECT_DELAY_MS = 2_000;
 
 function updateSession(
   current: LlmLiveSessionSnapshot | undefined,
@@ -110,7 +110,7 @@ export function useLlmLiveFeed(input: {
   enabled?: boolean;
 }) {
   const [sessionsById, setSessionsById] = useState<Record<string, LlmLiveSessionSnapshot>>({});
-  const [connected, setConnected] = useState(false);
+  const [connectionState, setConnectionState] = useState<LlmLiveConnectionState>("disconnected");
   const pendingFramesRef = useRef<LlmLiveStreamFrame[]>([]);
   const flushTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const hiddenSessionIdsRef = useRef(new Set<string>());
@@ -122,7 +122,7 @@ export function useLlmLiveFeed(input: {
     cacheReadyRef.current = null;
     if (input.enabled === false) {
       setSessionsById({});
-      setConnected(false);
+      setConnectionState("disconnected");
       return;
     }
 
@@ -188,61 +188,22 @@ export function useLlmLiveFeed(input: {
       }
     };
 
-    const connect = async () => {
-      while (!controller.signal.aborted) {
-        try {
-          const streamUrl = taskId
-            ? API_BASE_URL + "/llm-live/stream?taskId=" + encodeURIComponent(taskId)
-            : API_BASE_URL + "/llm-live/stream";
-          const response = await fetch(
-            streamUrl,
-            { signal: controller.signal },
-          );
-          if (!response.ok || !response.body) {
-            throw new Error("生成实况连接失败");
-          }
-          setConnected(true);
-          const reader = response.body.getReader();
-          const decoder = new TextDecoder("utf-8");
-          let buffer = "";
-          while (!controller.signal.aborted) {
-            const { value, done } = await reader.read();
-            if (done) {
-              break;
-            }
-            buffer += decoder.decode(value, { stream: true });
-            const frames = buffer.split("\n\n");
-            buffer = frames.pop() ?? "";
-            for (const rawFrame of frames) {
-              const dataLine = rawFrame.split("\n").find((line) => line.startsWith("data: "));
-              if (!dataLine) {
-                continue;
-              }
-              enqueue(JSON.parse(dataLine.slice(6)) as LlmLiveStreamFrame);
-            }
-          }
-        } catch {
-          // 断线后由下方统一重连。
-        } finally {
-          if (!controller.signal.aborted) {
-            setConnected(false);
-          }
-        }
-        if (!controller.signal.aborted) {
-          await new Promise((resolve) => setTimeout(resolve, RECONNECT_DELAY_MS));
-        }
-      }
-    };
-
-    void connect();
+    const stopStream = subscribeLlmLiveStream({
+      url: taskId
+        ? API_BASE_URL + "/llm-live/stream?taskId=" + encodeURIComponent(taskId)
+        : API_BASE_URL + "/llm-live/stream",
+      onFrame: enqueue,
+      onConnectionState: setConnectionState,
+    });
     return () => {
       controller.abort();
+      stopStream();
       if (flushTimerRef.current) {
         clearTimeout(flushTimerRef.current);
         flushTimerRef.current = null;
       }
       pendingFramesRef.current = [];
-      setConnected(false);
+      setConnectionState("disconnected");
     };
   }, [cacheKey, input.enabled, input.taskId]);
 
@@ -271,7 +232,8 @@ export function useLlmLiveFeed(input: {
     });
   };
   return {
-    connected,
+    connected: connectionState === "connected",
+    connectionState,
     sessions,
     latestSession: sessions[sessions.length - 1] ?? null,
     clearSessions,
