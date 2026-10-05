@@ -3,12 +3,9 @@ import type { ChatOpenAI } from "@langchain/openai";
 import { prisma } from "../db/prisma";
 import type { LLMProvider } from "@ai-novel/shared/types/llm";
 
-export interface LlmTokenUsageSnapshot {
-  promptTokens: number;
-  completionTokens: number;
-  reasoningTokens?: number;
-  totalTokens: number;
-}
+import { extractLlmTokenUsage, mergeStreamTokenUsage, type LlmTokenUsageSnapshot } from "../platform/llm/usage";
+export { extractLlmTokenUsage, mergeStreamTokenUsage } from "../platform/llm/usage";
+export type { LlmTokenUsageSnapshot } from "../platform/llm/usage";
 
 export interface LlmUsageTrackingContext {
   workflowTaskId?: string | null;
@@ -54,130 +51,6 @@ const LLM_USAGE_PATCHED = Symbol("LLM_USAGE_PATCHED");
 type PatchableChatOpenAI = ChatOpenAI & {
   [LLM_USAGE_PATCHED]?: boolean;
 };
-
-function toPositiveInteger(value: unknown): number | null {
-  if (typeof value !== "number" || !Number.isFinite(value)) {
-    return null;
-  }
-  const normalized = Math.max(0, Math.round(value));
-  return normalized;
-}
-
-function normalizeSnapshot(input: {
-  promptTokens?: unknown;
-  completionTokens?: unknown;
-  reasoningTokens?: unknown;
-  totalTokens?: unknown;
-}): LlmTokenUsageSnapshot | null {
-  const promptTokens = toPositiveInteger(input.promptTokens) ?? 0;
-  const completionTokens = toPositiveInteger(input.completionTokens) ?? 0;
-  const reasoningTokens = toPositiveInteger(input.reasoningTokens);
-  const totalTokens = toPositiveInteger(input.totalTokens)
-    ?? Math.max(promptTokens + completionTokens, 0);
-  if (promptTokens <= 0 && completionTokens <= 0 && totalTokens <= 0) {
-    return null;
-  }
-  return {
-    promptTokens,
-    completionTokens,
-    ...(reasoningTokens !== null ? { reasoningTokens } : {}),
-    totalTokens: Math.max(totalTokens, promptTokens + completionTokens),
-  };
-}
-
-function extractUsageObject(value: unknown): LlmTokenUsageSnapshot | null {
-  if (!value || typeof value !== "object") {
-    return null;
-  }
-  const usage = value as {
-    prompt_tokens?: unknown;
-    completion_tokens?: unknown;
-    total_tokens?: unknown;
-    promptTokens?: unknown;
-    completionTokens?: unknown;
-    totalTokens?: unknown;
-    input_tokens?: unknown;
-    output_tokens?: unknown;
-    inputTokens?: unknown;
-    outputTokens?: unknown;
-    completion_tokens_details?: { reasoning_tokens?: unknown } | null;
-    output_token_details?: { reasoning?: unknown } | null;
-    outputTokenDetails?: { reasoning?: unknown } | null;
-  };
-  return normalizeSnapshot({
-    promptTokens: usage.prompt_tokens ?? usage.promptTokens ?? usage.input_tokens ?? usage.inputTokens,
-    completionTokens: usage.completion_tokens ?? usage.completionTokens ?? usage.output_tokens ?? usage.outputTokens,
-    reasoningTokens: usage.completion_tokens_details?.reasoning_tokens
-      ?? usage.output_token_details?.reasoning
-      ?? usage.outputTokenDetails?.reasoning,
-    totalTokens: usage.total_tokens ?? usage.totalTokens,
-  });
-}
-
-export function extractLlmTokenUsage(output: unknown): LlmTokenUsageSnapshot | null {
-  if (Array.isArray(output)) {
-    return output.reduce<LlmTokenUsageSnapshot | null>((acc, item) => {
-      const next = extractLlmTokenUsage(item);
-      if (!next) {
-        return acc;
-      }
-      if (!acc) {
-        return next;
-      }
-      return {
-        promptTokens: acc.promptTokens + next.promptTokens,
-        completionTokens: acc.completionTokens + next.completionTokens,
-        ...((acc.reasoningTokens !== undefined || next.reasoningTokens !== undefined)
-          ? { reasoningTokens: (acc.reasoningTokens ?? 0) + (next.reasoningTokens ?? 0) }
-          : {}),
-        totalTokens: acc.totalTokens + next.totalTokens,
-      };
-    }, null);
-  }
-
-  if (!output || typeof output !== "object") {
-    return null;
-  }
-
-  const candidate = output as {
-    usage_metadata?: unknown;
-    usageMetadata?: unknown;
-    response_metadata?: { usage?: unknown; tokenUsage?: unknown } | null;
-    responseMetadata?: { usage?: unknown; tokenUsage?: unknown } | null;
-    llmOutput?: { tokenUsage?: unknown; estimatedTokenUsage?: unknown } | null;
-  };
-
-  return (
-    extractUsageObject(candidate.usage_metadata)
-    ?? extractUsageObject(candidate.usageMetadata)
-    ?? extractUsageObject(candidate.response_metadata?.usage)
-    ?? extractUsageObject(candidate.response_metadata?.tokenUsage)
-    ?? extractUsageObject(candidate.responseMetadata?.usage)
-    ?? extractUsageObject(candidate.responseMetadata?.tokenUsage)
-    ?? extractUsageObject(candidate.llmOutput?.tokenUsage)
-    ?? extractUsageObject(candidate.llmOutput?.estimatedTokenUsage)
-  );
-}
-
-export function mergeStreamTokenUsage(
-  current: LlmTokenUsageSnapshot | null,
-  next: LlmTokenUsageSnapshot | null,
-): LlmTokenUsageSnapshot | null {
-  if (!current) {
-    return next;
-  }
-  if (!next) {
-    return current;
-  }
-  return {
-    promptTokens: Math.max(current.promptTokens, next.promptTokens),
-    completionTokens: Math.max(current.completionTokens, next.completionTokens),
-    ...((current.reasoningTokens !== undefined || next.reasoningTokens !== undefined)
-      ? { reasoningTokens: Math.max(current.reasoningTokens ?? 0, next.reasoningTokens ?? 0) }
-      : {}),
-    totalTokens: Math.max(current.totalTokens, next.totalTokens),
-  };
-}
 
 function mergeContextValue<T extends string | null | undefined>(current: T, next: T): string | null {
   if (next !== undefined) {

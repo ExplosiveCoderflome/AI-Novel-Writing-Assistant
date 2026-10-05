@@ -8,7 +8,7 @@
 
 **Tech Stack:** TypeScript、LangChain ChatOpenAI、自有 Anthropic adapter、Prisma SQLite/PostgreSQL、Node test、React、SSE、IndexedDB。
 
-**Spec:** `docs/superpowers/specs/2026-10-05-llm-cache-observability-design.md`。状态：仅规划，下面步骤尚未执行。
+**Spec:** `docs/superpowers/specs/2026-10-05-llm-cache-observability-design.md`。状态：开发中，按阶段记录完成情况。
 
 ## Global Constraints
 
@@ -72,7 +72,7 @@ interface InvocationUsageRepository {
 
 **Interfaces:** Produces `extractLlmTokenUsage`、`mergeStreamTokenUsage` 和共享 inputCache；不消费 DB。
 
-- [ ] 先添加失败测试，覆盖下面样例：
+- [x] 先添加失败测试，覆盖下面样例：
 
 ```js
 const test = require('node:test');
@@ -98,13 +98,13 @@ test('Anthropic 创建量属于未命中且不重复统计', () => {
 });
 ```
 
-- [ ] 为 DeepSeek hit/miss、OpenAI Responses details、百炼 cached_tokens、Gemini usageMetadata 写表驱动样例；各自验证 800/200/1000。
-- [ ] 缺失字段→unavailable/null；明确 hit=0→reported/0/1000；hit=1001、-1、NaN、0.5、冲突来源→invalid/null。标准 SDK 无缓存但 raw 有缓存时正确补齐，不双算 Anthropic SDK 总输入。
-- [ ] 流样例相同 final frame 重复两次后总量仍 1100；最后帧无缓存时保留此前同调用有效 800/200；输入变更导致失配时 invalid。多个独立请求才求和。
-- [ ] 运行共享构建、服务端构建与聚焦测试确认失败，然后实现纯解码/合并/汇总函数；不引用 Prisma、不连接模型。
-- [ ] 旧基础计数测试逐个复核；若新增可选 inputCache 改变 deepEqual，只更新明确的结构期待，不能放松输入/输出/合计断言。
-- [ ] 执行 `pnpm --filter @ai-novel/shared build`、`pnpm --filter @ai-novel/server build`、`node --test server/tests/llmCacheUsage.test.js server/tests/llmUsageTracking.test.js`。
-- [ ] 更新模块 README：unknown、write 包含关系、原生/SDK 区分、流累计规则；按发布说明技能提交本阶段（内部能力，无产品入口时不写发布说明）。
+- [x] 为 DeepSeek hit/miss、OpenAI Responses details、百炼 cached_tokens、Gemini usageMetadata 写表驱动样例；各自验证 800/200/1000。
+- [x] 缺失字段→unavailable/null；明确 hit=0→reported/0/1000；hit=1001、-1、NaN、0.5、冲突来源→invalid/null。标准 SDK 无缓存但 raw 有缓存时正确补齐，不双算 Anthropic SDK 总输入。
+- [x] 流样例相同 final frame 重复两次后总量仍 1100；最后帧无缓存时保留此前同调用有效 800/200；输入变更导致失配时 invalid。多个独立请求才求和。
+- [x] 运行共享构建、服务端构建与聚焦测试确认失败，然后实现纯解码/合并/汇总函数；不引用 Prisma、不连接模型。
+- [x] 旧基础计数测试逐个复核；若新增可选 inputCache 改变 deepEqual，只更新明确的结构期待，不能放松输入/输出/合计断言。
+- [x] 执行 `pnpm --filter @ai-novel/shared build`、`pnpm --filter @ai-novel/server build`、`node --test server/tests/llmCacheUsage.test.js server/tests/llmUsageTracking.test.js`。
+- [x] 更新模块 README：unknown、write 包含关系、原生/SDK 区分、流累计规则；按发布说明技能提交本阶段（内部能力，无产品入口时不写发布说明）。
 
 ## Task 2：补齐上游采集、日志与实况
 

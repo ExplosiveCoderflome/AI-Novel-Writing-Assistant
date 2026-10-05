@@ -24,6 +24,7 @@ test("extractLlmTokenUsage reads usage_metadata returned by langchain messages",
     completionTokens: 64,
     reasoningTokens: 24,
     totalTokens: 192,
+    inputCache: { cacheHitTokens: null, cacheMissTokens: null, cacheWriteTokens: null, cacheUsageStatus: 'unavailable' },
   });
 });
 
@@ -44,6 +45,7 @@ test("extractLlmTokenUsage falls back to response_metadata usage payload", () =>
     completionTokens: 15,
     reasoningTokens: 6,
     totalTokens: 55,
+    inputCache: { cacheHitTokens: null, cacheMissTokens: null, cacheWriteTokens: null, cacheUsageStatus: 'unavailable' },
   });
 });
 
