@@ -35,6 +35,7 @@ export async function buildAcceptanceCacheIdentity(input: ChapterAcceptanceAsses
   const promptInput = {
     novelTitle: input.novelTitle, chapterTitle: input.chapterTitle, chapterOrder: input.chapterOrder,
     targetWordCount: input.targetWordCount ?? null, content: input.content,
+    repairReviewBaseline: input.repairReviewBaseline,
   };
   const prepared = preparePromptExecution({
     asset, promptInput, contextBlocks: [...context.blocks, ...(overlays?.appendBlocks ?? [])],

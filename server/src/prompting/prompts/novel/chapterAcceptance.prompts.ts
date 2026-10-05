@@ -227,6 +227,8 @@ export interface ChapterAcceptancePromptInput {
   chapterTitle: string;
   targetWordCount?: number | null;
   content: string;
+  repairReviewBaseline?: Pick<ChapterAcceptanceAssessmentOutput,
+    "blockingIssues" | "missingObligations" | "repairDirectives">;
 }
 
 const CHAPTER_ACCEPTANCE_EXAMPLE: ChapterAcceptanceAssessmentOutput = {
@@ -259,7 +261,7 @@ export const chapterAcceptanceAssessmentPrompt: PromptAsset<
   ChapterAcceptanceAssessmentOutput
 > = {
   id: "novel.chapter.acceptance_assessment",
-  version: "v6",
+  version: "v7",
   cacheBoundary: {messageIndex:0,contentBlockIndex:0},
   taskType: "review",
   mode: "structured",
@@ -344,5 +346,11 @@ export const chapterAcceptanceAssessmentPrompt: PromptAsset<
       "正文：",
       input.content,
     ].join("\n")),
+    ...(input.repairReviewBaseline ? [new HumanMessage([
+      "【局部修文复验基线】",
+      JSON.stringify(input.repairReviewBaseline),
+      "先对照原审校问题和修文指令，核对候选正文是否解决了同一缺口。已解决的项不要换一种措辞再次要求补写；未解决的同一问题保留原 code 和 missingObligations 的 kind/summary，更新定位证据。",
+      "仍须核对完整合同、保密边界和连续性。新增问题必须引用候选正文与合同的具体冲突，并在 evidence 中说明属于修文引入的退化还是首次漏检的硬合同缺口；不得仅因角色目标表达不够直白、希望增加场景或提高刺激强度而扩大修文范围。",
+    ].join("\n"))] : []),
   ],
 };

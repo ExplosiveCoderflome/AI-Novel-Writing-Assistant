@@ -6,6 +6,7 @@ const { chapterArtifactDeltaPrompt } = require('../dist/prompting/prompts/novel/
 const { chapterPatchRepairPrompt } = require('../dist/prompting/prompts/novel/chapterPatchRepair.prompts');
 const { chapterRepairPrompt } = require('../dist/prompting/prompts/novel/review.prompts');
 const { chapterAcceptanceAssessmentPrompt } = require('../dist/prompting/prompts/novel/chapterAcceptance.prompts');
+const { chapterWriterPrompt } = require('../dist/prompting/prompts/novel/chapterWriter.prompts');
 const { CHAPTER_PROSE_QUALITY_RULES } = require('../../shared/dist/types/chapterProseContract');
 
 const input = {
@@ -16,6 +17,25 @@ const input = {
   issuesJson: '[]', content: '沈夜收起宴帖。', bibleContent: '', ragContext: '',
 };
 const prepare = (asset, promptInput = input) => preparePromptExecution({ asset, promptInput }).messages;
+
+test('continuation prompt gives the additional range instead of repeating the whole chapter quota', () => {
+  const messages = prepare(chapterWriterPrompt, { ...input, mode: 'continue', targetWordCount: 3200, minWordCount: 2720, maxWordCount: 3680,
+    continuationBudget: { minAdditionalCharacters: 405, targetAdditionalCharacters: 885, maxAdditionalCharacters: 1365 } });
+  const text = messages.map(m => String(m.content)).join('\n');
+  assert.ok(text.includes('目标约 885 字'));
+  assert.ok(text.includes('405-1365 字'));
+  assert.ok(!text.includes('本章目标长度：约 3200 字'));
+  assert.ok(!text.includes('至少缺少约'));
+});
+
+test('repair review baseline follows candidate prose and preserves the preceding acceptance prefix', () => {
+  const original = prepare(chapterAcceptanceAssessmentPrompt);
+  const baseline = { blockingIssues: [{ code: 'goal_change', evidence: '此前只有旁观' }], missingObligations: [], repairDirectives: [] };
+  const candidate = prepare(chapterAcceptanceAssessmentPrompt, { ...input, repairReviewBaseline: baseline });
+  assert.deepEqual(candidate.slice(0, original.length).map(m => m.content), original.map(m => m.content));
+  assert.ok(String(candidate.at(-1).content).includes(JSON.stringify(baseline)));
+  assert.ok(String(candidate.at(-1).content).includes('仍须核对完整合同'));
+});
 
 test('patch issue and mode changes retain the prefix through the complete prose while every instruction stays fresh', () => {
   const render = (issue, modeHint) => preparePromptExecution({

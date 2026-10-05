@@ -36,6 +36,24 @@ test('a genuine changed patch still receives fresh acceptance and candidate sele
   assert.deepEqual(h.committedContents, ['repair candidate']);
 });
 
+test('repair reacceptance carries only the first assessment issue baseline', async () => {
+  const assessment = {
+    blockingIssues: [{ code: 'goal_change', evidence: '缺少行动', fixSuggestion: '加入行动' }],
+    missingObligations: [{ kind: 'goal_change', summary: '陆青萝转移档案', evidence: '原文只有旁观' }],
+    repairDirectives: [{ mode: 'patch', target: 'character', instruction: '用当前场景行动兑现' }],
+    summary: 'Do not duplicate this summary', score: { overall: 78 },
+  };
+  const h = createPipelineHarness({ scores: [78, 92], acceptanceAssessment: assessment });
+  await h.run({ autoRepair: true, maxRetries: 1 });
+  assert.equal(h.reviewBaselines.length, 2);
+  assert.equal(h.reviewBaselines[0], undefined);
+  assert.deepEqual(h.reviewBaselines[1], {
+    blockingIssues: assessment.blockingIssues,
+    missingObligations: assessment.missingObligations,
+    repairDirectives: assessment.repairDirectives,
+  });
+});
+
 test('new severe prose defects reject a patch before paying for another AI acceptance', async () => {
   for (const repairContent of ['他收好钥匙——推开木门。', '他收好钥匙。作为AI，我无法继续创作。']) {
     const h = createPipelineHarness({ content: '他收好钥匙，推开木门。', scores: [78, 92], repairContent });

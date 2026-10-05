@@ -12,6 +12,7 @@ import { resolveTargetWordRange } from "../../../prompting/prompts/novel/chapter
 import {
   chapterAcceptanceAssessmentPrompt,
   type ChapterAcceptanceAssessmentOutput,
+  type ChapterAcceptancePromptInput,
 } from "../../../prompting/prompts/novel/chapterAcceptance.prompts";
 import { openConflictService } from "../../state/OpenConflictService";
 import { normalizeScore, ruleScore } from "../novelP0Utils";
@@ -25,6 +26,7 @@ export interface ChapterAcceptanceAssessmentInput {
   chapterTitle: string;
   chapterOrder: number;
   targetWordCount?: number | null;
+  repairReviewBaseline?: ChapterAcceptancePromptInput["repairReviewBaseline"];
   content: string;
   contextPackage: GenerationContextPackage;
   provider?: LLMProvider;
@@ -326,6 +328,7 @@ export class ChapterAcceptanceAssessmentService {
         chapterTitle: input.chapterTitle,
         targetWordCount: input.targetWordCount ?? null,
         content: input.content,
+        repairReviewBaseline: input.repairReviewBaseline,
       },
       contextBlocks: resolvedContext.blocks,
       options: {

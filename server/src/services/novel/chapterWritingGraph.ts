@@ -19,6 +19,7 @@ import { assertChapterContentNotEmpty } from "./runtime/chapterEmptyContentError
 import { prisma } from "../../db/prisma";
 import type { WritingPlatformSnapshot } from "@ai-novel/shared/types/writingPlatform";
 import { toText } from "./novelP0Utils";
+import { buildContinuationBudget, type ContinuationBudget } from "./runtime/writing";
 
 async function loadWritingPlatformBlock(novelId: string) {
   const novel = await prisma.novel.findUnique({
@@ -111,12 +112,12 @@ function buildLengthInstruction(targetWordCount?: number | null): {
   };
 }
 
-function buildDraftContinuationBlock(content: string, targetWordCount: number, minWordCount: number): string {
+function buildDraftContinuationBlock(content: string, budget: ContinuationBudget): string {
   const trimmed = content.trim();
   const excerpt = trimmed.length > 1400 ? trimmed.slice(-1400) : trimmed;
   return [
     `Current saved draft length: ${countChapterCharacters(trimmed)} Chinese characters.`,
-    `Target length: about ${targetWordCount} Chinese characters. Minimum acceptable length: ${minWordCount}.`,
+    `Append only ${budget.minAdditionalCharacters}-${budget.maxAdditionalCharacters} Chinese characters; aim for ${budget.targetAdditionalCharacters}. These are additional characters, not a new whole chapter.`,
     "Continue from the existing ending. Do not restart the chapter. Do not repeat already written events.",
     "Current draft tail (continue after this):",
     excerpt || "none",
@@ -185,14 +186,11 @@ export class ChapterWritingGraph {
     }
 
     const currentLength = countChapterCharacters(input.content);
-    if (currentLength >= lengthGoal.minWordCount) {
+    const continuationBudget = buildContinuationBudget(currentLength, lengthGoal);
+    if (!continuationBudget) {
       return input.content;
     }
 
-    const missingWordGap = Math.max(
-      lengthGoal.targetWordCount - currentLength,
-      lengthGoal.minWordCount - currentLength,
-    );
     const builtBlocks = [await loadWritingPlatformBlock(input.novelId), ...buildChapterWriterContextBlocks(writeContext)];
     const sanitized = sanitizeWriterContextBlocks([
       createContextBlock({
@@ -202,8 +200,7 @@ export class ChapterWritingGraph {
         required: true,
         content: buildDraftContinuationBlock(
           input.content,
-          lengthGoal.targetWordCount,
-          lengthGoal.minWordCount,
+          continuationBudget,
         ),
       }),
       ...builtBlocks,
@@ -240,7 +237,7 @@ export class ChapterWritingGraph {
         targetWordCount: lengthGoal.targetWordCount,
         minWordCount: lengthGoal.minWordCount,
         maxWordCount: lengthGoal.maxWordCount,
-        missingWordGap,
+        continuationBudget,
       },
       contextBlocks: resolvedContext.blocks,
       options: {
@@ -248,7 +245,7 @@ export class ChapterWritingGraph {
         model: input.options.model,
         temperature: input.options.temperature ?? 0.8,
         reasoningEnabled: false,
-        maxTokens: 6000,
+        maxTokens: continuationBudget.maxOutputTokens,
         novelId: input.novelId,
         chapterId: input.chapter.id,
         stage: "writer_extend",
@@ -265,16 +262,26 @@ export class ChapterWritingGraph {
         input.onDraftProgress(`${input.content.trim()}\n\n${continuation}`, "writing");
       }
       output = (await streamed.complete).output;
-      input.onDraftProgress(`${input.content.trim()}\n\n${output.trim()}`.trim(), "checking");
     } else {
       output = (await runTextPrompt(promptRequest)).output;
     }
     const appended = output.trim();
     if (!appended) {
+      input.onDraftProgress?.(input.content, "checking");
+      return input.content;
+    }
+    const additionalCharacters = countChapterCharacters(appended);
+    if (additionalCharacters > continuationBudget.maxAdditionalCharacters) {
+      this.deps.logWarn("Chapter continuation rejected: additional length exceeded allowance", {
+        chapterOrder: input.chapter.order, beforeLength: currentLength,
+        additionalCharacters, ...continuationBudget,
+      });
+      input.onDraftProgress?.(input.content, "checking");
       return input.content;
     }
 
     const merged = `${input.content.trim()}\n\n${appended}`.trim();
+    input.onDraftProgress?.(merged, "checking");
     this.deps.logInfo("Chapter draft auto-extended for target length", {
       chapterOrder: input.chapter.order,
       beforeLength: currentLength,

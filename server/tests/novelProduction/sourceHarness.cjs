@@ -27,6 +27,7 @@ function createPipelineHarness({
   repairError,
   repairContent = "repair candidate",
   acceptanceMeta = {},
+  acceptanceAssessment,
   auditHasBlockingIssues = false,
   timelineStatus,
   stopAt,
@@ -35,6 +36,7 @@ function createPipelineHarness({
   const events = [];
   const committedContents = [];
   const syncedContents = [];
+  const reviewBaselines = [];
   let persisted = content;
   let reviewIndex = 0;
   let budget = 0;
@@ -72,7 +74,8 @@ function createPipelineHarness({
       events.push("save");
       if (stopAt === "after_save") throw new Error("after_save");
     },
-    finalizeChapterContent: async ({ content: value }) => {
+    finalizeChapterContent: async ({ content: value, repairReviewBaseline }) => {
+      reviewBaselines.push(repairReviewBaseline);
       events.push("acceptance");
       if (stopAt === "recheck" && reviewIndex > 0) throw new Error("recheck");
       const score = scores[Math.min(reviewIndex++, scores.length - 1)];
@@ -85,6 +88,7 @@ function createPipelineHarness({
           ...(timelineStatus ? { timelineCheck: { status: timelineStatus } } : {}),
         },
         needsRepair: score < 80,
+        ...(acceptanceAssessment ? { acceptanceResult: { assessment: acceptanceAssessment } } : {}),
       };
     },
     commitFinalizedChapterContent: async ({ evaluation }) => {
@@ -110,6 +114,7 @@ function createPipelineHarness({
   };
   return {
     events,
+    reviewBaselines,
     get content() { return persisted; },
     get budget() { return budget; },
     get approved() { return approved; },

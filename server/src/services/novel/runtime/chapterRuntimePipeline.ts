@@ -147,6 +147,8 @@ interface RunPipelineChapterDeps {
     request: ChapterRuntimeRequestInput;
     contextPackage: GenerationContextPackage;
     content: string;
+    repairReviewBaseline?: Pick<ChapterAcceptanceAssessmentResult["assessment"],
+      "blockingIssues" | "missingObligations" | "repairDirectives">;
     lengthControl?: ChapterRuntimePackage["lengthControl"];
     runId: string | null;
     startMs: number | null;
@@ -279,12 +281,18 @@ export async function runPipelineChapterWithRuntime(
     }
 
     await hooks.onStageChange?.("reviewing");
+    const priorAssessment = attempt > 0 ? originalEvaluation?.result.acceptanceResult?.assessment : undefined;
     latestResult = await deps.finalizeChapterContent({
       novelId,
       chapterId,
       request,
       contextPackage: assembled.contextPackage,
       content,
+      repairReviewBaseline: priorAssessment ? {
+        blockingIssues: priorAssessment.blockingIssues,
+        missingObligations: priorAssessment.missingObligations,
+        repairDirectives: priorAssessment.repairDirectives,
+      } : undefined,
       lengthControl: latestLengthControl,
       runId: null,
       startMs: null,

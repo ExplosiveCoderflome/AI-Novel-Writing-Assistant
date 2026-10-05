@@ -9,6 +9,7 @@ function fixture() {
   const { ChapterQualityGateService } = loadRuntimeSource("ChapterQualityGateService.ts", {
     "../../../db/prisma": { prisma: { chapterArtifactSyncCheckpoint: {
       findUnique: async ({ where }) => rows.get(JSON.stringify(where)) ?? null,
+      findFirst: async () => [...rows.values()].at(-1) ?? null,
       upsert: async ({ where, create, update }) => rows.set(JSON.stringify(where), rows.has(JSON.stringify(where)) ? { ...rows.get(JSON.stringify(where)), ...update } : create),
     } } },
     "./ChapterAcceptanceAssessmentService": {},
@@ -112,4 +113,21 @@ test("cache identity renders effective context, overrides and model without vola
     state[key] = previous;
   }
   assert.notEqual(await buildAcceptanceCacheIdentity({ ...input, targetWordCount: 9000 }), original);
+  assert.notEqual(await buildAcceptanceCacheIdentity({ ...input, repairReviewBaseline: { blockingIssues: [], missingObligations: [], repairDirectives: [] } }), original);
+});
+
+test('acceptance receives the mission length when chapter metadata has no target', async () => {
+  const h = fixture();
+  let received;
+  const { ChapterQualityGateService } = loadRuntimeSource('ChapterQualityGateService.ts', {
+    '../../../db/prisma': { prisma: {} },
+    './ChapterAcceptanceAssessmentService': {},
+    './chapterRuntimePackageBuilders': { hashContent: () => 'hash', rememberCacheValue: () => {} },
+  });
+  const gate = new ChapterQualityGateService({ acceptanceAssessmentService: { assess: async input => {
+    received = input;
+    return { assessment: { riskTags: [], blockingIssues: [] } };
+  } } });
+  await gate.runAcceptanceGate({ ...h.input, contextPackage: { ...h.input.contextPackage, chapterWriteContext: { chapterMission: { targetWordCount: 3200 } } } });
+  assert.equal(received.targetWordCount, 3200);
 });

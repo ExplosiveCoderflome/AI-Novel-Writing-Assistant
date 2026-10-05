@@ -13,11 +13,16 @@ export interface ChapterWriterPromptInput {
   minWordCount?: number | null;
   maxWordCount?: number | null;
   missingWordGap?: number | null;
+  continuationBudget?: {
+    minAdditionalCharacters: number;
+    targetAdditionalCharacters: number;
+    maxAdditionalCharacters: number;
+  };
 }
 
 export const chapterWriterPrompt: PromptAsset<ChapterWriterPromptInput, string, string> = {
   id: "novel.chapter.writer",
-  version: "v7",
+  version: "v8",
   cacheBoundary: {messageIndex:0,contentBlockIndex:0},
   taskType: "writer",
   mode: "text",
@@ -193,7 +198,14 @@ export const chapterWriterPrompt: PromptAsset<ChapterWriterPromptInput, string, 
     const wordCountHint = slots?.token("writer.wordCountHint") ?? "3000 字左右";
 
     const hasTarget = typeof input.targetWordCount === "number" && input.targetWordCount > 0;
-    const lengthBlock = hasTarget
+    const lengthBlock = mode === "continue" && input.continuationBudget
+      ? [
+          `本次只输出追加正文，目标约 ${input.continuationBudget.targetAdditionalCharacters} 字，可接受追加区间 ${input.continuationBudget.minAdditionalCharacters}-${input.continuationBudget.maxAdditionalCharacters} 字。`,
+          "追加字数包含全部补写内容；整章目标包含已有正文，禁止按整章字数另写一章。",
+          "只完成现有场景必要的动作、代价或收束，不扩展下一章任务，不重复兑现已有情节。",
+          "接近追加上限时自然收束，禁止为了加强钩子反复新增事件或场景。",
+        ].join("\n")
+      : hasTarget
       ? [
           `本章目标长度：约 ${input.targetWordCount} 字。`,
           typeof input.minWordCount === "number" && typeof input.maxWordCount === "number"
@@ -210,8 +222,8 @@ export const chapterWriterPrompt: PromptAsset<ChapterWriterPromptInput, string, 
           "当前任务不是从头重写，而是在已有正文基础上继续补写。",
           "必须无缝衔接现有结尾，延续同一叙事视角、时空位置、事件链和人物状态。",
           "禁止重写开头，禁止重复已经写出的事件，禁止把已有剧情换一种说法再说一遍。",
-          typeof input.missingWordGap === "number" && input.missingWordGap > 0
-            ? `当前仍至少缺少约 ${input.missingWordGap} 字的有效正文，请补足后再自然收束。`
+          !input.continuationBudget && typeof input.missingWordGap === "number" && input.missingWordGap > 0
+            ? `本次追加目标约 ${input.missingWordGap} 字的有效正文，补足后自然收束。`
             : "",
         ].filter(Boolean).join("\n")
       : "";
