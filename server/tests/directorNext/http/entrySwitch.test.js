@@ -1,6 +1,21 @@
 const test=require('node:test');const assert=require('node:assert/strict');const express=require('express');
 const {createFrozenDirectorEntry}=require('../../../dist/app/director/entrySwitch');
 const boundary={isV2:async()=>true,canExecuteLegacyTask:async()=>false,canRecoverLegacyPipelineJob:async()=>false};
+test('follow-up batches permit owned V1 tasks and reject mixed or stale owners before any action',async()=>{
+ const {createFrozenFollowUpEntry}=require('../../../dist/app/director/entrySwitch');
+ const app=express();app.use(express.json());let writes=0;
+ app.use(createFrozenFollowUpEntry({canExecuteLegacyTask:async id=>['v1-a','v1-b'].includes(id)}));
+ app.post('/batch-actions',(_req,res)=>{writes++;res.json({allowed:true});});
+ const server=app.listen(0);await new Promise(resolve=>server.once('listening',resolve));
+ const url='http://127.0.0.1:'+server.address().port;
+ const post=taskIds=>fetch(url+'/batch-actions',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({taskIds})});
+ try{
+  for(const ids of [[],['v1-a','v2'],['v1-a','stale'],['missing'],['v1-a',42]])assert.equal((await post(ids)).status,409);
+  assert.equal(writes,0,'a mixed batch must not partially enqueue V1 actions');
+  assert.equal((await post(['v1-a','v1-b'])).status,200);
+  assert.equal(writes,1);
+ }finally{await new Promise(resolve=>server.close(resolve));}
+});
 test('frozen workflow and recovery entrances cannot enqueue old director commands',async()=>{
  const {createFrozenWorkflowEntry,createFrozenTaskEntry,createFrozenFollowUpEntry}=require('../../../dist/app/director/entrySwitch');
  const app=express();app.use(express.json());let writes=0;

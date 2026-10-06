@@ -1,6 +1,7 @@
 const test = require("node:test");
 const assert = require("node:assert/strict");
 const http = require("node:http");
+const { stubLegacyNovelIdentity, stubLegacyTaskOwnership } = require("./legacyDirector/databasePorts.js");
 const { createApp } = require("../dist/app.js");
 const { NovelWorkflowService } = require("../dist/services/novel/workflow/NovelWorkflowService.js");
 const { DirectorCommandService } = require("../dist/services/novel/director/commands/DirectorCommandService.js");
@@ -46,6 +47,7 @@ function requestJson(port, method, path, body) {
 }
 
 test("book current route returns the latest task summary including terminal state", async (t) => {
+  stubLegacyNovelIdentity(t, prisma, ["running", "finished", "empty"]);
   const originalResolve = NovelWorkflowService.prototype.resolveCurrentDirectorTask;
   NovelWorkflowService.prototype.resolveCurrentDirectorTask = async function resolveCurrent(novelId) {
     if (novelId === "empty") return null;
@@ -94,6 +96,7 @@ test("book current route returns the latest task summary including terminal stat
 });
 
 test("book command route uses the current task and the existing command behavior", async (t) => {
+  stubLegacyTaskOwnership(t, prisma, { "task-current": "novel-1" }, ["empty"]);
   const originalResolve = NovelWorkflowService.prototype.resolveCurrentDirectorTask;
   const originalContinue = DirectorCommandService.prototype.enqueueContinueCommand;
   const calls = [];

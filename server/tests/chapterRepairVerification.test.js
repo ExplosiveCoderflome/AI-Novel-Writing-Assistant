@@ -70,7 +70,7 @@ test('verification failure degrades to an uncached warning without further model
   const { ChapterRepairVerificationError } = require('../dist/prompting/prompts/novel/chapterAcceptance.prompts');
   const service = new ChapterAcceptanceAssessmentService(); let calls = 0;
   service.invokeAssessment = async () => { calls++; throw new ChapterRepairVerificationError('修文复验证据来源不正确'); };
-  const result = await service.assess({ ...input, novelId: 'n', chapterId: 'c', persist: false });
+  const result = await service.assess({ ...input, novelId: 'n', chapterId: 'c', contextPackage: {}, persist: false });
   assert.equal(calls, 1);
   assert.ok(result.assessment.riskTags.includes('repair_review_evidence_invalid'));
   assert.ok(result.assessment.riskTags.includes('acceptance_gate_unavailable'));

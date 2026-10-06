@@ -689,7 +689,7 @@ test("novel main-chain prompt assets declare explicit non-zero context budgets",
     ["novel.volume.rebalance.adjacent@v1", NOVEL_PROMPT_BUDGETS.volumeRebalance],
     [promptKey(chapterWriterPrompt), NOVEL_PROMPT_BUDGETS.chapterWriter],
     ["novel.review.chapter@v2", NOVEL_PROMPT_BUDGETS.chapterReview],
-    ["novel.review.repair@v2", NOVEL_PROMPT_BUDGETS.chapterRepair],
+    ["novel.review.repair@v3", NOVEL_PROMPT_BUDGETS.chapterRepair],
     ["audit.chapter.full@v2", NOVEL_PROMPT_BUDGETS.chapterReview],
   ]);
 
@@ -770,7 +770,7 @@ test("chapter writer prompt carries explicit target length and continuation inst
   });
   assert.equal(continueMessages[2]._getType(), "system");
   assert.match(String(continueMessages[2].content), /不得重写章节开头/);
-  assert.match(String(continueMessages[2].content), /至少缺少约 900 字/);
+  assert.match(String(continueMessages[2].content), /本次追加目标约 900 字的有效正文，补足后自然收束/);
   assert.match(String(continueMessages[3].content), /任务模式：补写当前章节/);
 });
 

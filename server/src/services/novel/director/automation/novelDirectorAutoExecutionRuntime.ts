@@ -3,7 +3,7 @@ import type {
   DirectorAutoExecutionState,
   DirectorConfirmRequest,
 } from "@ai-novel/shared/types/novelDirector";
-import { isFullBookAutopilotRunMode } from "@ai-novel/shared/types/novelDirector";
+import { canAutomaticallyReviewDirectorResources, isFullBookAutopilotRunMode } from "@ai-novel/shared/types/novelDirector";
 import {
   buildDirectorAutoExecutionPausedLabel,
   buildDirectorAutoExecutionPausedSummary,
@@ -305,7 +305,7 @@ export class NovelDirectorAutoExecutionRuntime {
           continue;
         }
 
-        if (job.status === "succeeded" && isFullBookAutopilotRunMode(input.request.runMode)) {
+        if (job.status === "succeeded" && canAutomaticallyReviewDirectorResources(input.request.runMode)) {
           await this.deps.confirmChapterResources?.({
             novelId: input.novelId, taskId: input.taskId, pipelineJobId: job.id,
             provider: input.request.provider, model: input.request.model, temperature: input.request.temperature,

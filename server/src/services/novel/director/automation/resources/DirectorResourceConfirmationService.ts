@@ -1,9 +1,10 @@
 import type { Prisma } from "@prisma/client";
 import type { LLMProvider } from "@ai-novel/shared/types/llm";
-import { isFullBookAutopilotRunMode } from "@ai-novel/shared/types/novelDirector";
+import { canAutomaticallyReviewDirectorResources } from "@ai-novel/shared/types/novelDirector";
 import { prisma } from "../../../../../db/prisma";
 import { AppError } from "../../../../../middleware/errorHandler";
 import { canExecuteLegacyTask } from "../../../../../modules/novel/director-routing";
+import { readDirectorTaskState } from "../../state";
 import {
   directorStateProposalResolutionService,
   type DirectorStateProposalResolutionService,
@@ -94,8 +95,8 @@ export class DirectorResourceConfirmationService {
     const task = await db.novelWorkflowTask.findUnique({ where: { id: input.taskId } });
     if (!task || task.novelId !== input.novelId || task.lane !== "auto_director"
       || task.status !== "running" || task.pendingManualRecovery || task.cancelRequestedAt) return null;
-    const seed = JSON.parse(task.seedPayloadJson ?? "{}");
-    if (!isFullBookAutopilotRunMode(seed.directorInput?.runMode ?? seed.runMode)) return null;
+    const {launch} = readDirectorTaskState(task);
+    if (!canAutomaticallyReviewDirectorResources(launch.directorInput?.runMode ?? launch.runMode)) return null;
     if (!await canExecuteLegacyTask(input.taskId, db)) return null;
     return { startOrder: job.startOrder, endOrder: job.endOrder };
   }

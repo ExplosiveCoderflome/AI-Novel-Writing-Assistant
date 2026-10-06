@@ -1,9 +1,12 @@
 const test = require("node:test");
 const assert = require("node:assert/strict");
+const { stubLegacyNovelIdentity } = require("./legacyDirector/databasePorts.js");
 
 const { NovelWorkflowService } = require("../dist/services/novel/workflow/NovelWorkflowService.js");
 const { NovelWorkflowHealingService } = require("../dist/services/novel/workflow/NovelWorkflowHealingService.js");
 const { prisma } = require("../dist/db/prisma.js");
+
+test.beforeEach((t) => stubLegacyNovelIdentity(t, prisma, ["novel_demo"]));
 
 test("markTaskRunning does not revive cancelled auto director tasks", async () => {
   const originals = {
