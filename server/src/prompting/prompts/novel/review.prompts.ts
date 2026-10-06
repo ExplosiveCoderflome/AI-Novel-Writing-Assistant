@@ -5,6 +5,7 @@ import { renderSelectedContextBlocks } from "../../core/renderContextBlocks";
 import { fullAuditOutputSchema } from "../../../services/audit/auditSchemas";
 import { chapterSummaryOutputSchema } from "../../../services/novel/chapterSummarySchemas";
 import { NOVEL_PROMPT_BUDGETS } from "./promptBudgetProfiles";
+import { CHAPTER_PROSE_QUALITY_RULES } from "@ai-novel/shared/types/chapterProseContract";
 
 export interface ChapterSummaryPromptInput {
   novelTitle: string;
@@ -171,7 +172,7 @@ export const chapterReviewPrompt: PromptAsset<
 
 export const chapterRepairPrompt: PromptAsset<ChapterRepairPromptInput, string, string> = {
   id: "novel.review.repair",
-  version: "v2",
+  version: "v3",
   taskType: "repair",
   mode: "text",
   language: "zh",
@@ -232,6 +233,7 @@ export const chapterRepairPrompt: PromptAsset<ChapterRepairPromptInput, string, 
       "1. 保持与原章相近的叙述视角、语言风格与人物说话方式。",
       "2. 不要把修文写成另一种风格的新章。",
       "3. 控制 AI 味、总结味和说明味，优先用具体动作、对话、细节与局面变化完成修复。",
+      ...CHAPTER_PROSE_QUALITY_RULES,
       "",
       "【禁止事项】",
       "禁止加入问题清单未要求的大幅扩写。",

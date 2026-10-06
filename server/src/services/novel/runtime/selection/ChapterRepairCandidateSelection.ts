@@ -7,6 +7,7 @@ export interface ChapterRepairCandidateEvaluation {
   pass: boolean;
   runtimePackage: ChapterRuntimePackage;
   issues?: ReviewIssue[];
+  assessmentVerified?: boolean;
 }
 
 export interface ChapterRepairSelectionRecord {
@@ -17,7 +18,8 @@ export interface ChapterRepairSelectionRecord {
     | "candidate_improved"
     | "original_retained_new_severe_issue"
     | "original_retained_obligation_regression"
-    | "original_retained_no_clear_improvement";
+    | "original_retained_no_clear_improvement"
+    | "original_retained_unverified_review";
   reason: string;
   originalContentHash: string;
   candidateContentHash: string;
@@ -43,6 +45,13 @@ export function selectChapterRepairCandidate(input: {
     originalScore: input.original.runtimePackage.audit.score.overall,
     candidateScore: input.candidate.runtimePackage.audit.score.overall,
   };
+
+  if (input.candidate.assessmentVerified === false) {
+    return {
+      ...base, selected: "original", reasonCode: "original_retained_unverified_review",
+      reason: "候选正文的复验未完成有效核对，保留原稿及其检查结果。",
+    };
+  }
 
   if (addedSevereIssues.length > 0) {
     return {

@@ -6,3 +6,4 @@ export * from "./novel/storyline";
 export * from "./novel/volumes";
 export * from "./novel/production";
 export * from "./novel/planning";
+export * from "./novel/usage";

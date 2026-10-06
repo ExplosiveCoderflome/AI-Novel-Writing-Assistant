@@ -10,6 +10,7 @@ const {
   parseSelectedExperience,
 } = require("../dist/services/novel/director/commands/DirectorProductionExperienceService.js");
 const { prisma } = require("../dist/db/prisma.js");
+const { readDirectorTaskState, toDirectorTaskDataView } = require("../dist/services/novel/director/state/DirectorStateReader.js");
 
 const confirmRuntimeSource = fs.readFileSync(
   path.resolve(__dirname, "../src/services/novel/director/runtime/novelDirectorConfirmRuntime.ts"),
@@ -120,7 +121,16 @@ test("complete-workspace selection starts the same chapter execution", async () 
     assert.equal(result.targetRoute, "/novels/novel-1/edit");
     assert.equal(result.backgroundStarted, true);
     assert.equal(checkpointUpdate.data.checkpointType, "chapter_batch_ready");
-    assert.equal(JSON.parse(checkpointUpdate.data.seedPayloadJson).runMode, "full_book_autopilot");
+    const storedState = readDirectorTaskState({
+      seedPayloadJson: checkpointUpdate.data.seedPayloadJson,
+      resumeTargetJson: null,
+    });
+    const projectedTaskData = toDirectorTaskDataView(storedState);
+    assert.equal(storedState.launch.runMode, "auto_to_ready");
+    assert.equal(storedState.run.productionExperience, "professional");
+    assert.equal(projectedTaskData.runMode, "full_book_autopilot");
+    assert.equal(projectedTaskData.autoExecutionPlan.mode, "book");
+    assert.equal(projectedTaskData.autoApproval.enabled, true);
     assert.deepEqual(commandInput, { continuationMode: "auto_execute_range", forceResume: true });
   } finally {
     prisma.novelWorkflowTask.findUnique = originals.findUnique;

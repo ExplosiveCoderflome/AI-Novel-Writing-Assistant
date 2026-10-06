@@ -14,6 +14,7 @@ import {
   buildRelationStageText,
   compactText,
   resolveTargetWordRange,
+  renderBookContractText,
   takeUnique,
   toListBlock,
 } from "../chapterLayeredContextShared";
@@ -224,7 +225,7 @@ export function buildChapterWriterContextBlocks(
   const mode = options.mode ?? "full";
   const isIncremental = mode === "incremental";
   const includeVolumeWindow = mode === "full" || mode === "review";
-  const includePayoffLedger = mode === "full" && hasLedgerPressure(writeContext);
+  const includePayoffLedger = (mode === "full" || mode === "review") && hasLedgerPressure(writeContext);
   const includePayoffDirectives = writeContext.payoffDirectives.length > 0;
   const hasObligationContract = Object.values(writeContext.obligationContract).some((items) => items.length > 0);
   const includeCharacterResources = !isIncremental && hasCharacterResourcePressure(writeContext);
@@ -239,6 +240,9 @@ export function buildChapterWriterContextBlocks(
       ? createContextBlock({
         id: "production_foundation",
         group: "production_foundation",
+        // Assembled from current novel genre and story-mode settings only.
+        // Chapter state stays in request blocks; book edits render afresh.
+        reuseScope: "book",
         priority: 100,
         required: true,
         allowSummary: false,
@@ -406,7 +410,10 @@ export function buildChapterWriterContextBlocks(
         id: "payoff_ledger",
         group: "payoff_ledger",
         priority: 95,
+        required: mode === "review",
+        allowSummary: mode !== "review",
         content: [
+          "账本关注提醒：仅供核对；本章必须完成的动作以章节合同为准，窗口提醒本身不是正文缺陷。",
           writeContext.ledgerSummary
             ? `Payoff ledger summary: pending=${writeContext.ledgerSummary.pendingCount}, urgent=${writeContext.ledgerSummary.urgentCount}, overdue=${writeContext.ledgerSummary.overdueCount}`
             : "Payoff ledger summary: none",
@@ -414,7 +421,8 @@ export function buildChapterWriterContextBlocks(
           toListBlock("Overdue payoffs", writeContext.ledgerOverdueItems.map((item) => buildLedgerItemLine(item, "overdue"))),
           toListBlock(
             "Active pending payoffs",
-            writeContext.ledgerPendingItems.slice(0, 3).map((item) => buildLedgerItemLine(item, "pending")),
+            (mode === "review" ? writeContext.ledgerPendingItems : writeContext.ledgerPendingItems.slice(0, 3))
+              .map((item) => buildLedgerItemLine(item, "pending")),
           ),
         ].join("\n"),
       })
@@ -497,9 +505,11 @@ export function buildChapterWriterContextBlocks(
     includeStyleContract
       ? createContextBlock({
         id: "style_contract",
+        reuseScope: "book",
         group: "style_contract",
         priority: 74,
-        required: mode === "full",
+        required: true,
+        allowSummary: false,
         content: buildWriterStyleContractText(writeContext.styleContract),
       })
       : null,
@@ -588,4 +598,45 @@ export function buildChapterRepairContextBlocks(repairContext: ChapterRepairCont
       content: toListBlock("Historical unresolved issues", repairContext.historicalIssues),
     }),
   ].filter((block): block is PromptContextBlock => block !== null && block.content.trim().length > 0);
+}
+
+/** Remove only structurally identical issues already present in the explicit patch payload. */
+export function buildChapterPatchRepairContextBlocks(repairContext: ChapterRepairContext, issuesJson: string): PromptContextBlock[] {
+  let supplied: unknown[] = [];
+  try {
+    const parsed: unknown = JSON.parse(issuesJson);
+    if (Array.isArray(parsed)) supplied = parsed;
+    else if (parsed && typeof parsed === "object" && "issues" in parsed && Array.isArray(parsed.issues)) supplied = parsed.issues;
+  } catch { /* Keep the full context for an opaque custom issue payload. */ }
+  const key = (value: unknown): string | null => {
+    if (!value || typeof value !== "object") return null;
+    const issue = value as Record<string, unknown>;
+    const fields = ["severity", "category", "evidence", "fixSuggestion"].map(field => issue[field]);
+    if (!fields.every(field => typeof field === "string")) return null;
+    return JSON.stringify(fields.map(field => compactText(field as string)));
+  };
+  const present = new Set(supplied.map(key).filter((item): item is string => item !== null));
+  const issues = repairContext.issues.filter(issue => !present.has(key(issue)!));
+  const contract = repairContext.writeContext.bookContract;
+  const blocks = buildChapterRepairContextBlocks({ ...repairContext, issues })
+    .filter(block => block.group !== "repair_issues" || issues.length > 0)
+    .map(block => ["style_contract", "world_rules", "state_goal"].includes(block.group)
+      ? { ...block, required: true, allowSummary: false }
+      : block);
+  if (!blocks.some(block => block.group === "state_goal") && repairContext.writeContext.protectedSecrets.length > 0) {
+    blocks.push(createContextBlock({ id: "state_goal", group: "state_goal", priority: 97,
+      required: true, allowSummary: false,
+      content: toListBlock("Protected secrets", repairContext.writeContext.protectedSecrets) }));
+  }
+  return [
+    createContextBlock({ id: "patch_book_contract", group: "book_contract", reuseScope: "book",
+      priority: 100, required: true, allowSummary: false,
+      content: renderBookContractText({ ...contract, activeMilestonePayoffs: [] }) }),
+    ...(contract.activeMilestonePayoffs?.length ? [createContextBlock({
+      id: "patch_active_milestones", group: "chapter_mission", priority: 99,
+      required: true, allowSummary: false,
+      content: toListBlock("当前阶段必须关注的兑现", contract.activeMilestonePayoffs),
+    })] : []),
+    ...blocks,
+  ];
 }

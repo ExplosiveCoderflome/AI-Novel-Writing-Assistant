@@ -224,6 +224,8 @@ export type ModelRouteTaskType =
   | "chat";
 
 export interface Novel {
+  directorVersion?: "v1" | "v2";
+  directorEpoch?: number;
   id: string;
   title: string;
   description?: string | null;
@@ -259,6 +261,8 @@ export interface Novel {
   continuationBookAnalysisSections?: BookAnalysisSectionKey[] | null;
   referenceBookAnalysisId?: string | null;
   referenceBookAnalysisSections?: BookAnalysisSectionKey[] | null;
+  creativeCarryoverContractJson?: string | null;
+  creativeCarryoverContractSchemaVersion?: number | null;
   outline?: string | null;
   structuredOutline?: string | null;
   volumes?: VolumePlan[];

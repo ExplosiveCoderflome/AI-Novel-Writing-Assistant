@@ -73,8 +73,8 @@ export class DirectorTakeoverReadService {
       getStoryMacroPlan: (targetNovelId) => this.storyMacroService.getPlan(targetNovelId),
       getDirectorAssetSnapshot: (targetNovelId) => this.getAssetSnapshot(targetNovelId),
       getVolumeWorkspace: (targetNovelId) => this.volumeService.getVolumes(targetNovelId),
-      findActiveAutoDirectorTask: (targetNovelId) => this.workflowService.findActiveTaskByNovelAndLane(targetNovelId, "auto_director"),
-      findLatestAutoDirectorTask: (targetNovelId) => this.workflowService.findLatestVisibleTaskByNovelId(targetNovelId, "auto_director"),
+      findActiveAutoDirectorTask: (targetNovelId) => this.workflowService.findActiveDirectorTask(targetNovelId),
+      findLatestAutoDirectorTask: (targetNovelId) => this.workflowService.resolveCurrentDirectorTask(targetNovelId),
     });
     return buildDirectorTakeoverReadiness({
       novel: takeoverState.novel,

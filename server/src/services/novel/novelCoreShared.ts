@@ -4,6 +4,7 @@ import type { LLMProvider } from "@ai-novel/shared/types/llm";
 import type { QualityScore, ReviewIssue } from "@ai-novel/shared/types/novel";
 import { parseCommercialTagsJson } from "@ai-novel/shared/types/novelFraming";
 import { normalizeStoryModeOutput } from "../storyMode/storyModeProfile";
+import type { PipelineDirectorSnapshot } from "./production/directorBridge";
 
 export interface PaginationInput {
   page: number;
@@ -16,6 +17,9 @@ export interface PaginationInput {
 }
 
 export interface CreateNovelInput {
+  /** Internal stable creation identity; HTTP creation schemas do not accept this field. */
+  id?: string;
+  directorVersion?: "v1" | "v2";
   title: string;
   description?: string;
   targetAudience?: string;
@@ -51,6 +55,8 @@ export interface CreateNovelInput {
   continuationBookAnalysisSections?: BookAnalysisSectionKey[] | null;
   referenceBookAnalysisId?: string | null;
   referenceBookAnalysisSections?: BookAnalysisSectionKey[] | null;
+  creativeCarryoverContractJson?: string | null;
+  creativeCarryoverContractSchemaVersion?: number | null;
 }
 
 export interface UpdateNovelInput {
@@ -183,6 +189,7 @@ export interface TitleGenerateOptions extends LLMGenerateOptions {
 }
 
 export interface PipelineRunOptions extends LLMGenerateOptions {
+  directorNext?: PipelineDirectorSnapshot;
   startOrder: number;
   endOrder: number;
   controlPolicy?: NovelControlPolicy;
@@ -220,6 +227,7 @@ export interface PipelineBackgroundSyncState {
 }
 
 export interface PipelinePayload extends LLMGenerateOptions {
+  directorNext?: PipelineDirectorSnapshot;
   controlPolicy?: NovelControlPolicy;
   issueGovernanceVersion?: 1;
   issuePolicySnapshot?: DirectorIssuePolicy;

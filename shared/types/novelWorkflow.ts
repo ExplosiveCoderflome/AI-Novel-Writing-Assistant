@@ -37,7 +37,7 @@ export interface NovelWorkflowMilestone {
 }
 
 export interface NovelWorkflowResumeTarget {
-  route: "/create" | "/novels/create" | "/novels/:id/edit" | "/novels/:id/simple" | "/novels/:id/story";
+  route: "/create" | "/novels/create" | "/novels/:id/edit" | "/novels/:id/simple" | "/novels/:id/story" | "/lab/director/:novelId";
   novelId?: string | null;
   taskId?: string | null;
   lane?: NovelWorkflowLane | null;

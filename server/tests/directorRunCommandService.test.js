@@ -1,326 +1,10 @@
 const test = require("node:test");
 const assert = require("node:assert/strict");
 
-const { DirectorCommandService } = require("../dist/services/novel/director/commands/DirectorCommandService.js");
 const { directorIssueService } = require("../dist/services/novel/director/issues/DirectorIssueService.js");
 const { prisma } = require("../dist/db/prisma.js");
 
-function createTask(overrides = {}) {
-  return {
-    id: "task-1",
-    novelId: "novel-1",
-    lane: "auto_director",
-    status: "waiting_approval",
-    updatedAt: new Date("2026-04-29T12:00:00.000Z"),
-    seedPayloadJson: JSON.stringify({
-      issueGovernanceVersion: 1,
-      issuePolicy: { maxAutomaticRetries: 1, issueActions: {} },
-      issuePolicySource: "global",
-      runMode: "auto_to_execution",
-    }),
-    ...overrides,
-  };
-}
-
-function createConfirmRequest(overrides = {}) {
-  return {
-    idea: "A college girl accidentally enters a supernatural organization.",
-    title: "Neon Archive",
-    narrativePov: "third_person",
-    pacePreference: "balanced",
-    emotionIntensity: "medium",
-    aiFreedom: "medium",
-    projectMode: "ai_led",
-    writingMode: "original",
-    estimatedChapterCount: 30,
-    runMode: "auto_to_execution",
-    workflowTaskId: "task-1",
-    candidate: {
-      id: "candidate-1",
-      workingTitle: "Neon Archive",
-      logline: "A college girl enters a hidden power network.",
-      positioning: "Urban supernatural growth thriller.",
-      sellingPoint: "An ordinary girl levels up inside a dangerous secret organization.",
-      coreConflict: "The organization pushes back as she gets closer to the truth.",
-      protagonistPath: "She grows from cautious student into an active operator.",
-      endingDirection: "Hopeful victory with a meaningful cost.",
-      hookStrategy: "Each arc reveals a deeper layer of the conspiracy.",
-      progressionLoop: "Find clue, face pressure, pay cost, gain leverage.",
-      whyItFits: "It keeps the urban premise clear and easy to continue.",
-      toneKeywords: ["urban", "thriller"],
-      targetChapterCount: 30,
-    },
-    ...overrides,
-  };
-}
-
-function createCandidatesRequest(overrides = {}) {
-  return {
-    idea: "A college girl accidentally enters a supernatural organization.",
-    title: "Neon Archive",
-    narrativePov: "third_person",
-    pacePreference: "balanced",
-    emotionIntensity: "medium",
-    aiFreedom: "medium",
-    projectMode: "ai_led",
-    writingMode: "original",
-    estimatedChapterCount: 30,
-    runMode: "auto_to_execution",
-    ...overrides,
-  };
-}
-
-function createHarness(task = createTask(), pipelineJob = null) {
-  const commands = [];
-  const bootstraps = [];
-  const requeued = [];
-  const stepUpdates = [];
-  const jobUpdates = [];
-  const directorEvents = [];
-  const taskUpdates = [];
-  const originalDirectorRunCommand = {
-    findFirst: prisma.directorRunCommand.findFirst,
-    create: prisma.directorRunCommand.create,
-    findUnique: prisma.directorRunCommand.findUnique,
-    updateMany: prisma.directorRunCommand.updateMany,
-    findMany: prisma.directorRunCommand.findMany,
-  };
-  const originalNovelWorkflowTask = {
-    findUnique: prisma.novelWorkflowTask.findUnique,
-    updateMany: prisma.novelWorkflowTask.updateMany,
-  };
-  const originalDirectorStepRun = {
-    updateMany: prisma.directorStepRun.updateMany,
-  };
-  const originalGenerationJob = {
-    findUnique: prisma.generationJob.findUnique,
-    updateMany: prisma.generationJob.updateMany,
-  };
-  const originalDirectorRun = {
-    findUnique: prisma.directorRun.findUnique,
-  };
-  const originalDirectorEvent = {
-    create: prisma.directorEvent.create,
-    upsert: prisma.directorEvent.upsert,
-  };
-  const workflowService = {
-    async getTaskById(taskId) {
-      return taskId === task.id ? task : null;
-    },
-    async getTaskByIdWithoutHealing(taskId) {
-      return taskId === task.id ? task : null;
-    },
-    async retryTask() {
-      task.status = "queued";
-      task.updatedAt = new Date(task.updatedAt.getTime() + 1);
-      return task;
-    },
-    async applyAutoDirectorLlmOverride() {},
-    async cancelTask() {
-      task.status = "cancelled";
-      task.cancelRequestedAt = new Date();
-      task.updatedAt = new Date(task.updatedAt.getTime() + 1);
-      return task;
-    },
-    async requeueTaskForRecovery(taskId, message) {
-      requeued.push({ taskId, message });
-      task.status = "queued";
-      task.pendingManualRecovery = true;
-      task.lastError = message;
-      task.heartbeatAt = null;
-      task.updatedAt = new Date(task.updatedAt.getTime() + 1);
-      return task;
-    },
-    async markTaskFailed(taskId, message) {
-      task.status = "failed";
-      task.pendingManualRecovery = false;
-      task.lastError = message;
-      task.updatedAt = new Date(task.updatedAt.getTime() + 1);
-      return task;
-    },
-    async bootstrapTask(input) {
-      bootstraps.push(input);
-      task.id = input.workflowTaskId?.trim() || (input.novelId ? `takeover-task-${commands.length + 1}` : task.id);
-      task.novelId = input.novelId ?? null;
-      task.lane = input.lane;
-      task.status = "queued";
-      task.updatedAt = new Date(task.updatedAt.getTime() + 1);
-      return task;
-    },
-  };
-
-  prisma.directorRunCommand.findFirst = async ({ where }) => {
-    let rows = commands;
-    if (where?.novelId) {
-      rows = rows.filter((row) => row.novelId === where.novelId);
-    }
-    if (where?.taskId) {
-      rows = rows.filter((row) => row.taskId === where.taskId);
-    }
-    if (where?.commandType) {
-      if (typeof where.commandType === "string") {
-        rows = rows.filter((row) => row.commandType === where.commandType);
-      } else if (Array.isArray(where.commandType.in)) {
-        rows = rows.filter((row) => where.commandType.in.includes(row.commandType));
-      }
-    }
-    if (where?.status) {
-      if (typeof where.status === "string") {
-        rows = rows.filter((row) => row.status === where.status);
-      } else if (Array.isArray(where.status.in)) {
-        rows = rows.filter((row) => where.status.in.includes(row.status));
-      }
-    }
-    if (where?.runAfter?.lte) {
-      rows = rows.filter((row) => row.runAfter <= where.runAfter.lte);
-    }
-    return rows[0] ?? null;
-  };
-  prisma.directorRunCommand.create = async ({ data }) => {
-    const row = {
-      id: `command-${commands.length + 1}`,
-      novelId: data.novelId ?? null,
-      leaseOwner: null,
-      leaseExpiresAt: null,
-      attempt: 0,
-      runAfter: new Date(),
-      errorMessage: null,
-      startedAt: null,
-      finishedAt: null,
-      createdAt: new Date(),
-      updatedAt: new Date(),
-      ...data,
-      novelId: data.novelId ?? null,
-    };
-    commands.push(row);
-    return row;
-  };
-  prisma.directorRunCommand.findUnique = async ({ where }) => (
-    commands.find((row) => row.id === where.id) ?? null
-  );
-  prisma.directorRunCommand.findMany = async ({ where }) => {
-    let rows = commands;
-    if (where?.taskId) {
-      rows = rows.filter((row) => row.taskId === where.taskId);
-    }
-    if (where?.status?.in) {
-      rows = rows.filter((row) => where.status.in.includes(row.status));
-    }
-    if (where?.leaseExpiresAt?.lt) {
-      rows = rows.filter((row) => row.leaseExpiresAt && row.leaseExpiresAt < where.leaseExpiresAt.lt);
-    }
-    return rows.map((row) => ({
-      id: row.id,
-      taskId: row.taskId,
-      commandType: row.commandType,
-      attempt: row.attempt,
-      payloadJson: row.payloadJson,
-    }));
-  };
-  prisma.directorRunCommand.updateMany = async ({ where, data }) => {
-    let count = 0;
-    for (const row of commands) {
-      if (where?.id) {
-        if (typeof where.id === "string" && row.id !== where.id) {
-          continue;
-        }
-        if (Array.isArray(where.id.in) && !where.id.in.includes(row.id)) {
-          continue;
-        }
-      }
-      if (where?.taskId && row.taskId !== where.taskId) {
-        continue;
-      }
-      if (where?.leaseOwner && row.leaseOwner !== where.leaseOwner) {
-        continue;
-      }
-      if (where?.status) {
-        if (typeof where.status === "string" && row.status !== where.status) {
-          continue;
-        }
-        if (Array.isArray(where.status.in) && !where.status.in.includes(row.status)) {
-          continue;
-        }
-      }
-      if (data?.attempt?.increment) {
-        row.attempt += data.attempt.increment;
-      }
-      for (const [key, value] of Object.entries(data ?? {})) {
-        if (key !== "attempt") {
-          row[key] = value;
-        }
-      }
-      row.updatedAt = new Date();
-      count += 1;
-    }
-    return { count };
-  };
-  prisma.novelWorkflowTask.findUnique = async ({ where }) => where.id === task.id
-    ? {
-        novelId: task.novelId,
-        pendingManualRecovery: task.pendingManualRecovery ?? false,
-        seedPayloadJson: task.seedPayloadJson ?? null,
-      }
-    : null;
-  prisma.novelWorkflowTask.updateMany = async (args) => {
-    taskUpdates.push(args);
-    if (args?.where?.id) {
-      if (typeof args.where.id === "string" && args.where.id !== task.id) {
-        return { count: 0 };
-      }
-      if (Array.isArray(args.where.id.in) && !args.where.id.in.includes(task.id)) {
-        return { count: 0 };
-      }
-    }
-    Object.assign(task, args?.data ?? {});
-    task.updatedAt = new Date(task.updatedAt.getTime() + 1);
-    return { count: 1 };
-  };
-  prisma.directorStepRun.updateMany = async (args) => {
-    stepUpdates.push(args);
-    return { count: 1 };
-  };
-  prisma.generationJob.updateMany = async (args) => {
-    jobUpdates.push(args);
-    return { count: 1 };
-  };
-  prisma.generationJob.findUnique = async ({ where }) => (
-    pipelineJob && where.id === pipelineJob.id ? pipelineJob : null
-  );
-  prisma.directorRun.findUnique = async ({ where }) => (
-    where.taskId === task.id
-      ? { id: "run-1", novelId: task.novelId }
-      : null
-  );
-  prisma.directorEvent.create = async ({ data }) => {
-    directorEvents.push(data);
-    return data;
-  };
-  prisma.directorEvent.upsert = async ({ create }) => {
-    directorEvents.push(create);
-    return create;
-  };
-
-  return {
-    commands,
-    bootstraps,
-    requeued,
-    task,
-    stepUpdates,
-    jobUpdates,
-    directorEvents,
-    taskUpdates,
-    service: new DirectorCommandService(workflowService),
-    restore() {
-      Object.assign(prisma.directorRunCommand, originalDirectorRunCommand);
-      Object.assign(prisma.novelWorkflowTask, originalNovelWorkflowTask);
-      Object.assign(prisma.directorStepRun, originalDirectorStepRun);
-      Object.assign(prisma.generationJob, originalGenerationJob);
-      Object.assign(prisma.directorRun, originalDirectorRun);
-      Object.assign(prisma.directorEvent, originalDirectorEvent);
-    },
-  };
-}
+const {createTask, createConfirmRequest, createCandidatesRequest, createHarness} = require("./director/commands/fixtures/DirectorCommandFixture.js");
 
 test("director command service reuses active continue commands", async () => {
   const harness = createHarness();
@@ -362,7 +46,8 @@ test("director command service queues candidate confirmation as a serialized com
     assert.equal(harness.task.status, "queued");
     assert.equal(harness.task.currentItemKey, "candidate_confirm");
     assert.equal(harness.task.currentItemLabel, "书级方向提交完成，等待 AI 创建小说项目");
-    assert.equal(harness.task.pendingManualRecovery, false);
+    assert.equal(harness.task.pendingManualRecovery, undefined);
+    assert.equal(Object.hasOwn(harness.taskUpdates[0].data, "pendingManualRecovery"), false);
   } finally {
     harness.restore();
   }
@@ -514,6 +199,61 @@ test("director command service preserves an explicit chapter range while applyin
   const harness = createHarness(createTask({
     novelId: null,
     status: "waiting_approval",
+    seedPayloadJson: JSON.stringify({
+      issueGovernanceVersion: 1,
+      issuePolicy: { maxAutomaticRetries: 1, issueActions: {} },
+      issuePolicySource: "global",
+      runMode: "auto_to_execution",
+    }),
+  }));
+  try {
+    await harness.service.enqueueConfirmCandidateCommand(createConfirmRequest({
+      runMode: "full_book_autopilot",
+      autoExecutionPlan: {
+        mode: "chapter_range",
+        endOrder: 10,
+        autoReview: false,
+        autoRepair: false,
+      },
+      autoApproval: {
+        enabled: false,
+        approvalPointCodes: ["candidate_direction_confirmed"],
+      },
+    }));
+
+    const payload = JSON.parse(harness.commands[0].payloadJson);
+    assert.equal(payload.confirmRequest.runMode, "full_book_autopilot");
+    assert.deepEqual(payload.confirmRequest.autoExecutionPlan, {
+      mode: "chapter_range",
+      endOrder: 10,
+      autoReview: false,
+      autoRepair: false,
+    });
+    assert.equal(payload.confirmRequest.autoApproval.enabled, true);
+    assert.ok(payload.confirmRequest.autoApproval.approvalPointCodes.includes("chapter_execution_continue"));
+    assert.ok(payload.confirmRequest.autoApproval.approvalPointCodes.includes("replan_continue"));
+    assert.deepEqual(harness.bootstraps[0].seedPayload.autoExecutionPlan, {
+      mode: "chapter_range",
+      endOrder: 10,
+      autoReview: false,
+      autoRepair: false,
+    });
+    assert.equal(harness.bootstraps[0].seedPayload.autoApproval.enabled, true);
+  } finally {
+    harness.restore();
+  }
+});
+
+test("director command service preserves an explicit chapter range while applying full-book autopilot approval from an existing full-book launch", async () => {
+  const harness = createHarness(createTask({
+    novelId: null,
+    status: "waiting_approval",
+    seedPayloadJson: JSON.stringify({
+      issueGovernanceVersion: 1,
+      issuePolicy: { maxAutomaticRetries: 1, issueActions: {} },
+      issuePolicySource: "global",
+      runMode: "full_book_autopilot",
+    }),
   }));
   try {
     await harness.service.enqueueConfirmCandidateCommand(createConfirmRequest({
@@ -559,6 +299,13 @@ test("director command service clears manual recovery state when a stale running
     pendingManualRecovery: true,
     lastError: "Director Worker 已中断，任务已暂停，等待手动恢复。",
   }));
+  const writer = harness.service.stateWriter;
+  const originalClear = writer.clearPendingManualRecovery;
+  let clearedByCommandId = null;
+  writer.clearPendingManualRecovery = function(input, options) {
+    clearedByCommandId = input.userCommandId;
+    return originalClear.call(this, input, options);
+  };
   try {
     const accepted = await harness.service.enqueueContinueCommand("task-1", {
       forceResume: true,
@@ -571,10 +318,180 @@ test("director command service clears manual recovery state when a stale running
     assert.equal(harness.task.lastError, null);
     assert.equal(harness.task.finishedAt, null);
     assert.equal(harness.task.cancelRequestedAt, null);
+    assert.equal(clearedByCommandId, harness.commands[0].id);
     assert.deepEqual(harness.taskUpdates[0].where.OR, [
       { status: { in: ["queued", "running", "waiting_approval", "failed"] } },
       { pendingManualRecovery: true },
     ]);
+  } finally {
+    writer.clearPendingManualRecovery = originalClear;
+    harness.restore();
+  }
+});
+
+test("explicit recovery commands clear the manual recovery lock with their persisted command id", async () => {
+  const harness = createHarness(createTask({
+    status: "running",
+    pendingManualRecovery: true,
+  }));
+  const writer = harness.service.stateWriter;
+  const originalClear = writer.clearPendingManualRecovery;
+  let clearedByCommandId = null;
+  writer.clearPendingManualRecovery = function(input, options) {
+    clearedByCommandId = input.userCommandId;
+    return originalClear.call(this, input, options);
+  };
+  try {
+    await harness.service.enqueueRecoveryCommand("task-1");
+
+    assert.equal(harness.task.pendingManualRecovery, false);
+    assert.equal(clearedByCommandId, harness.commands[0].id);
+  } finally {
+    writer.clearPendingManualRecovery = originalClear;
+    harness.restore();
+  }
+});
+
+test("explicit recovery reuses a queued command and clears the startup recovery lock", async () => {
+  const harness = createHarness(createTask({
+    status: "queued",
+    pendingManualRecovery: false,
+  }));
+  try {
+    const acceptedBeforeRestart = await harness.service.enqueueContinueCommand("task-1");
+    harness.task.pendingManualRecovery = true;
+    harness.task.lastError = "服务重启后任务已暂停，等待手动恢复。";
+
+    const acceptedAfterRestart = await harness.service.enqueueRecoveryCommand("task-1");
+
+    assert.equal(acceptedAfterRestart.commandId, acceptedBeforeRestart.commandId);
+    assert.equal(harness.commands.length, 1);
+    assert.equal(harness.task.pendingManualRecovery, false);
+    assert.equal(harness.task.status, "queued");
+    assert.equal(harness.task.lastError, null);
+    assert.equal(harness.taskUpdates.length, 2);
+
+    const leased = await harness.service.leaseNextCommand({ workerId: "worker-a", leaseMs: 30_000 });
+    assert.equal(leased.id, acceptedBeforeRestart.commandId);
+  } finally {
+    harness.restore();
+  }
+});
+
+test("explicit recovery queues a durable follow-up when the previous command is still running", async () => {
+  const runningCommand = {
+    id: "command-running",
+    taskId: "task-1",
+    novelId: "novel-1",
+    commandType: "continue",
+    status: "running",
+    leaseOwner: "worker-a:slot-1",
+    leaseExpiresAt: new Date(Date.now() + 30_000),
+    createdAt: new Date("2026-04-29T12:00:00.000Z"),
+    payloadJson: JSON.stringify({ forceResume: true }),
+  };
+  const harness = createHarness(createTask({
+    status: "queued",
+    pendingManualRecovery: true,
+  }), null, { commands: [runningCommand] });
+  try {
+    const accepted = await harness.service.enqueueRecoveryCommand("task-1");
+
+    assert.notEqual(accepted.commandId, runningCommand.id);
+    assert.equal(harness.commands.length, 2);
+    assert.equal(harness.commands[0].status, "running");
+    assert.equal(harness.commands[1].status, "queued");
+    assert.equal(harness.task.pendingManualRecovery, false);
+    assert.equal(harness.task.status, "queued");
+
+    // The old worker finishes after recovery acceptance. The accepted recovery
+    // must still have a queued command that the worker can claim.
+    await harness.service.markCommandSucceeded(runningCommand.id, runningCommand.leaseOwner);
+    assert.equal(runningCommand.status, "succeeded");
+    const leased = await harness.service.leaseNextCommand({ workerId: "worker-b", leaseMs: 30_000 });
+    assert.equal(leased.id, accepted.commandId);
+  } finally {
+    harness.restore();
+  }
+});
+
+test("explicit recovery creates a new command if the reused command finishes before task recovery", async () => {
+  const harness = createHarness(createTask({
+    status: "queued",
+    pendingManualRecovery: false,
+  }));
+  const originalTransaction = prisma.$transaction;
+  try {
+    const acceptedBeforeRestart = await harness.service.enqueueContinueCommand("task-1");
+    harness.task.pendingManualRecovery = true;
+    let completeBeforeRecoveryTransaction = true;
+    prisma.$transaction = async (callback, options) => {
+      if (completeBeforeRecoveryTransaction) {
+        completeBeforeRecoveryTransaction = false;
+        harness.commands[0].status = "succeeded";
+      }
+      return originalTransaction(callback, options);
+    };
+
+    const acceptedAfterRestart = await harness.service.enqueueRecoveryCommand("task-1");
+
+    assert.notEqual(acceptedAfterRestart.commandId, acceptedBeforeRestart.commandId);
+    assert.equal(harness.commands.length, 2);
+    assert.equal(harness.commands[0].status, "succeeded");
+    assert.equal(harness.commands[1].status, "queued");
+    assert.equal(harness.task.pendingManualRecovery, false);
+    assert.equal(harness.task.status, "queued");
+  } finally {
+    prisma.$transaction = originalTransaction;
+    harness.restore();
+  }
+});
+
+test("repeated explicit recovery does not reset an unlocked running task", async () => {
+  const harness = createHarness(createTask({ pendingManualRecovery: false }));
+  try {
+    const acceptedBeforeRetry = await harness.service.enqueueContinueCommand("task-1");
+    const leased = await harness.service.leaseNextCommand({ workerId: "worker-a", leaseMs: 30_000 });
+    await harness.service.markCommandRunning(leased.id, "worker-a", 30_000);
+    Object.assign(harness.task, {
+      status: "running",
+      progress: 0.65,
+      currentStage: "chapter_execution",
+      currentItemLabel: "正在写第 8 章",
+    });
+    const updatesBeforeRetry = harness.taskUpdates.length;
+
+    const acceptedAfterRetry = await harness.service.enqueueRecoveryCommand("task-1");
+
+    assert.equal(acceptedAfterRetry.commandId, acceptedBeforeRetry.commandId);
+    assert.equal(harness.commands.length, 1);
+    assert.equal(harness.commands[0].status, "running");
+    assert.equal(harness.task.status, "running");
+    assert.equal(harness.task.progress, 0.65);
+    assert.equal(harness.task.currentStage, "chapter_execution");
+    assert.equal(harness.task.currentItemLabel, "正在写第 8 章");
+    assert.equal(harness.taskUpdates.length, updatesBeforeRetry);
+  } finally {
+    harness.restore();
+  }
+});
+
+test("explicit recovery command creation rolls back if the locked task cannot be updated", async () => {
+  const harness = createHarness(createTask({
+    status: "running",
+    pendingManualRecovery: true,
+  }));
+  prisma.novelWorkflowTask.updateMany = async () => {
+    throw new Error("task state write failed");
+  };
+  try {
+    await assert.rejects(
+      harness.service.enqueueRecoveryCommand("task-1"),
+      /task state write failed/,
+    );
+
+    assert.equal(harness.commands.length, 0);
+    assert.equal(harness.task.pendingManualRecovery, true);
   } finally {
     harness.restore();
   }
@@ -596,6 +513,119 @@ test("director command service reuses active takeover command by novel", async (
     assert.equal(first.commandId, second.commandId);
     assert.equal(first.commandType, "takeover");
     assert.equal(harness.commands.length, 1);
+    assert.equal(harness.starts.length, 1);
+    assert.equal(harness.starts[0].options.whenActive, "supersede");
+  } finally {
+    harness.restore();
+  }
+});
+
+test("director command service reuses identical active restart takeover commands", async () => {
+  const request = {
+    novelId: "novel-1",
+    entryStep: "structured",
+    strategy: "restart_current_step",
+    startPhase: "structured_outline",
+  };
+  const harness = createHarness(createTask({ status: "queued" }), null, {
+    commands: [{
+      id: "command-existing-restart",
+      taskId: "task-1",
+      novelId: "novel-1",
+      commandType: "takeover",
+      status: "queued",
+      payloadJson: JSON.stringify({
+        takeoverRequest: { ...request, runMode: "auto_to_ready" },
+      }),
+    }],
+  });
+  try {
+    const accepted = await harness.service.enqueueTakeoverCommand(request);
+
+    assert.equal(accepted.commandId, "command-existing-restart");
+    assert.equal(accepted.commandType, "takeover");
+    assert.equal(harness.commands.length, 1);
+    assert.equal(harness.starts.length, 0);
+  } finally {
+    harness.restore();
+  }
+});
+
+test("director command service rejects restart when an active continue takeover command exists", async () => {
+  const harness = createHarness(createTask(), null, {
+    commands: [{
+      id: "command-existing-continue",
+      taskId: "task-1",
+      novelId: "novel-1",
+      commandType: "takeover",
+      status: "queued",
+      payloadJson: JSON.stringify({
+        takeoverRequest: { novelId: "novel-1", strategy: "continue_existing" },
+      }),
+    }],
+  });
+  try {
+    await assert.rejects(
+      harness.service.enqueueTakeoverCommand({
+        novelId: "novel-1",
+        startPhase: "structured_outline",
+        strategy: "restart_current_step",
+      }),
+      /已有进行中的 AI 任务/,
+    );
+
+    assert.equal(harness.starts.length, 1);
+    assert.equal(harness.starts[0].options.whenActive, "reject");
+    assert.equal(harness.commands.length, 1);
+  } finally {
+    harness.restore();
+  }
+});
+
+test("director command service ignores an active takeover command linked to a terminal task", async () => {
+  const harness = createHarness(createTask({ status: "cancelled" }), null, {
+    commands: [{
+      id: "command-orphaned-takeover",
+      taskId: "task-1",
+      novelId: "novel-1",
+      commandType: "takeover",
+      status: "queued",
+      payloadJson: JSON.stringify({
+        takeoverRequest: { novelId: "novel-1", strategy: "continue_existing" },
+      }),
+    }],
+  });
+  try {
+    const accepted = await harness.service.enqueueTakeoverCommand({
+      novelId: "novel-1",
+      strategy: "continue_existing",
+    });
+
+    assert.notEqual(accepted.commandId, "command-orphaned-takeover");
+    assert.equal(accepted.taskId, "takeover-task-1");
+    assert.equal(harness.starts.length, 1);
+    assert.equal(harness.commands.length, 2);
+  } finally {
+    harness.restore();
+  }
+});
+
+test("director command service will not enqueue takeover after its task was superseded", async () => {
+  const harness = createHarness(createTask(), null, {
+    afterStart(task) {
+      task.status = "cancelled";
+    },
+  });
+  try {
+    await assert.rejects(
+      harness.service.enqueueTakeoverCommand({
+        novelId: "novel-1",
+        strategy: "continue_existing",
+      }),
+      /任务已被替换或已结束/,
+    );
+
+    assert.equal(harness.commands.length, 0);
   } finally {
     harness.restore();
   }
@@ -639,6 +669,29 @@ test("director command service queues chapter title repair with a null volume fi
   }
 });
 
+test("chapter title repair rejects a concurrent manual pause without leaving an accepted command", async () => {
+  const harness = createHarness(createTask({
+    status: "failed",
+    pendingManualRecovery: false,
+  }), null, {
+    preserveConcurrentPause: true,
+    afterCommandCreate({ task }) {
+      task.pendingManualRecovery = true;
+    },
+  });
+  try {
+    await assert.rejects(
+      harness.service.enqueueChapterTitleRepairCommand("task-1"),
+      (error) => error.details?.code === "DIRECTOR_MANUAL_RECOVERY_REQUIRED",
+    );
+    assert.equal(harness.commands.length, 0);
+    assert.equal(harness.task.pendingManualRecovery, true);
+    assert.equal(harness.task.status, "failed");
+  } finally {
+    harness.restore();
+  }
+});
+
 test("director command service leases a queued command once", async () => {
   const harness = createHarness();
   try {
@@ -662,7 +715,11 @@ test("director command service leases a queued command once", async () => {
 });
 
 test("director command service marks a leased command cancelled and closes running children", async () => {
-  const harness = createHarness();
+  const harness = createHarness(createTask(),null,{generationJobs:[
+    {id:'own-job',payload:JSON.stringify({workflowTaskId:'task-1'})},
+    {id:'v2-job',payload:JSON.stringify({directorNext:{runId:'run-2'},note:'task-1'})},
+    {id:'other-v1-job',payload:JSON.stringify({workflowTaskId:'other-task',note:'task-1'})},
+  ]});
   try {
     await harness.service.enqueueContinueCommand("task-1");
     const leased = await harness.service.leaseNextCommand({
@@ -682,7 +739,7 @@ test("director command service marks a leased command cancelled and closes runni
     assert.equal(harness.stepUpdates[0].data.error, "自动导演任务已取消。");
     assert.equal(harness.jobUpdates.length, 1);
     assert.deepEqual(harness.jobUpdates[0].where.status, { in: ["queued", "running"] });
-    assert.deepEqual(harness.jobUpdates[0].where.payload, { contains: "task-1" });
+    assert.deepEqual(harness.jobUpdates[0].where.id, {in:['own-job']},'cancellation cannot touch V2 or another V1 task');
     assert.equal(harness.jobUpdates[0].data.status, "cancelled");
     assert.equal(harness.directorEvents.length, 1);
     assert.equal(harness.directorEvents[0].type, "run_cancelled");
@@ -965,9 +1022,50 @@ test("director command stale recovery applies the task policy instead of only re
 
 test("director command service applies the single governance retry budget to full-book stale leases", async () => {
   const harness = createHarness(createTask({
+    novelId: null,
     status: "running",
     pendingManualRecovery: false,
     lastError: null,
+    seedPayloadJson: JSON.stringify({
+      issueGovernanceVersion: 1,
+      issuePolicy: { maxAutomaticRetries: 1, issueActions: {} },
+      issuePolicySource: "global",
+      runMode: "auto_to_execution",
+    }),
+  }));
+  try {
+    await harness.service.enqueueConfirmCandidateCommand(createConfirmRequest({
+      runMode: "full_book_autopilot",
+    }));
+    harness.commands[0].status = "running";
+    harness.commands[0].leaseOwner = "worker-a";
+    harness.commands[0].attempt = 2;
+    harness.commands[0].leaseExpiresAt = new Date("2026-04-29T12:00:00.000Z");
+
+    const count = await harness.service.recoverStaleLeases(new Date("2026-04-29T12:01:00.000Z"));
+
+    assert.equal(count, 1);
+    assert.equal(harness.commands[0].status, "stale");
+    assert.equal(harness.requeued.length, 1);
+    assert.equal(harness.task.status, "queued");
+    assert.equal(harness.task.pendingManualRecovery, true);
+  } finally {
+    harness.restore();
+  }
+});
+
+test("director command service applies the single governance retry budget to full-book stale leases from an existing full-book launch", async () => {
+  const harness = createHarness(createTask({
+    novelId: null,
+    status: "running",
+    pendingManualRecovery: false,
+    lastError: null,
+    seedPayloadJson: JSON.stringify({
+      issueGovernanceVersion: 1,
+      issuePolicy: { maxAutomaticRetries: 1, issueActions: {} },
+      issuePolicySource: "global",
+      runMode: "full_book_autopilot",
+    }),
   }));
   try {
     await harness.service.enqueueConfirmCandidateCommand(createConfirmRequest({
@@ -1043,6 +1141,71 @@ test("director command service requeues task recovery when worker execution fail
     assert.equal(harness.stepUpdates[0].where.status, "running");
     assert.equal(harness.stepUpdates[0].data.status, "failed");
     assert.equal(harness.stepUpdates[0].data.error, "worker boom");
+  } finally {
+    harness.restore();
+  }
+});
+
+test("non-recovery director commands cannot clear the manual recovery lock by default", async () => {
+  const harness = createHarness(createTask({
+    status: "queued",
+    pendingManualRecovery: true,
+    lastError: "等待用户恢复。",
+  }));
+  try {
+    await assert.rejects(
+      harness.service.enqueueChapterTitleRepairCommand("task-1"),
+      (error) => error.details?.code === "DIRECTOR_MANUAL_RECOVERY_REQUIRED",
+    );
+
+    assert.equal(harness.commands.length, 0);
+    assert.equal(harness.task.status, "queued");
+    assert.equal(harness.task.pendingManualRecovery, true);
+    assert.equal(harness.task.lastError, "等待用户恢复。");
+    assert.equal(harness.taskUpdates.length, 0);
+  } finally {
+    harness.restore();
+  }
+});
+
+test("repeat confirm command preserves an attached launch and reuses its active command", async () => {
+  const harness = createHarness(createTask({ novelId: null }));
+  try {
+    const request = createConfirmRequest();
+    const first = await harness.service.enqueueConfirmCandidateCommand(request);
+    harness.task.novelId = "novel-created";
+    const frozen = harness.task.seedPayloadJson;
+    const second = await harness.service.enqueueConfirmCandidateCommand(request);
+    assert.equal(second.commandId, first.commandId);
+    assert.equal(harness.commands.length, 1);
+    assert.equal(harness.task.novelId, "novel-created");
+    assert.equal(harness.task.seedPayloadJson, frozen);
+    assert.equal(harness.bootstraps.length, 1);
+  } finally {
+    harness.restore();
+  }
+});
+
+test("repeat confirm command preserves the creation claim and resolved unbound contract", async () => {
+  const harness = createHarness(createTask({ novelId: null }));
+  try {
+    const request = createConfirmRequest();
+    const first = await harness.service.enqueueConfirmCandidateCommand(request);
+    harness.commands[0].status = "running";
+    harness.commands[0].leaseExpiresAt = new Date(Date.now() + 60_000);
+    harness.task.status = "running";
+    harness.task.currentItemKey = "novel_create";
+    const resolved = JSON.parse(harness.task.seedPayloadJson);
+    resolved.directorInput.genreId = "resolved-genre";
+    harness.task.seedPayloadJson = JSON.stringify(resolved);
+    const frozen = harness.task.seedPayloadJson;
+    const second = await harness.service.enqueueConfirmCandidateCommand(request);
+    assert.equal(second.commandId, first.commandId);
+    assert.equal(harness.commands.length, 1);
+    assert.equal(harness.task.seedPayloadJson, frozen);
+    assert.equal(harness.task.currentItemKey, "novel_create");
+    assert.equal(harness.task.status, "running");
+    assert.equal(harness.bootstraps.length, 1);
   } finally {
     harness.restore();
   }

@@ -1,5 +1,6 @@
 const test = require("node:test");
 const assert = require("node:assert/strict");
+const { stubDatabaseMethod } = require("./legacyDirector/databasePorts.js");
 const {
   buildSkipSteps,
   entryStepToLegacyStartPhase,
@@ -340,7 +341,12 @@ test("continue_existing from structured keeps partially detailed requested scope
   assert.equal(plan.effectiveStage, "structured_outline");
 });
 
-test("loadDirectorTakeoverState does not trust stale auto execution state when only part of the range is detailed", async () => {
+test("loadDirectorTakeoverState does not trust stale auto execution state when only part of the range is detailed", async (t) => {
+  let latestTaskStateRow = null;
+  stubDatabaseMethod(t, prisma.novelWorkflowTask, "findUnique", async ({ where }) => {
+    assert.equal(where.id, latestTaskStateRow.id);
+    return latestTaskStateRow;
+  });
   const originals = {
     novelFindUnique: prisma.novel.findUnique,
     chapterFindMany: prisma.chapter.findMany,
@@ -498,7 +504,7 @@ test("loadDirectorTakeoverState does not trust stale auto execution state when o
       }),
       getVolumeWorkspace: async () => workspace,
       findActiveAutoDirectorTask: async () => null,
-      findLatestAutoDirectorTask: async () => ({
+      findLatestAutoDirectorTask: async () => (latestTaskStateRow = {
         id: "task_stale_ready",
         checkpointType: "chapter_batch_ready",
         checkpointSummary: "旧任务认为前 2 章可执行",
@@ -528,11 +534,93 @@ test("loadDirectorTakeoverState does not trust stale auto execution state when o
   }
 });
 
+test("loadDirectorTakeoverState restores continuation context from the cancelled task replaced by takeover", async () => {
+  const originals = {
+    novelFindUnique: prisma.novel.findUnique,
+    chapterFindMany: prisma.chapter.findMany,
+    generationJobFindFirst: prisma.generationJob.findFirst,
+    workflowTaskFindUnique: prisma.novelWorkflowTask.findUnique,
+  };
+  const previousTask = {
+    id: "previous-cancelled-task",
+    status: "cancelled",
+    checkpointType: "chapter_batch_ready",
+    checkpointSummary: "第 7 章之后继续执行。",
+    resumeTargetJson: JSON.stringify({ chapterId: "chapter-7", volumeId: "volume-1" }),
+    seedPayloadJson: JSON.stringify({
+      runMode: "full_book_autopilot",
+      autoExecutionPlan: { mode: "chapter_range", startOrder: 1, endOrder: 10 },
+      autoExecution: {
+        enabled: true,
+        mode: "chapter_range",
+        startOrder: 1,
+        endOrder: 10,
+        totalChapterCount: 30,
+        firstChapterId: "chapter-1",
+        nextChapterId: "chapter-7",
+        nextChapterOrder: 7,
+      },
+    }),
+  };
+
+  prisma.novel.findUnique = async () => ({
+    id: "novel_takeover_previous_task",
+    title: "接管续写测试",
+    continuationBookAnalysisSections: null,
+    referenceBookAnalysisSections: null,
+    commercialTagsJson: "[]",
+    worldId: null,
+    bookContract: null,
+  });
+  prisma.chapter.findMany = async () => [];
+  prisma.generationJob.findFirst = async () => null;
+  prisma.novelWorkflowTask.findUnique = async () => previousTask;
+
+  try {
+    const state = await loadDirectorTakeoverState({
+      novelId: "novel_takeover_previous_task",
+      getStoryMacroPlan: async () => null,
+      getDirectorAssetSnapshot: async () => ({
+        characterCount: 0,
+        chapterCount: 0,
+        volumeCount: 1,
+        hasVolumeStrategyPlan: true,
+        firstVolumeId: "volume-1",
+        firstVolumeChapterCount: 10,
+        volumeChapterRanges: [{ volumeOrder: 1, startOrder: 1, endOrder: 10 }],
+        structuredOutlineChapterOrders: Array.from({ length: 10 }, (_, index) => index + 1),
+      }),
+      getVolumeWorkspace: async () => null,
+      findActiveAutoDirectorTask: async () => null,
+      findLatestAutoDirectorTask: async () => previousTask,
+    });
+
+    assert.equal(state.latestTaskId, "previous-cancelled-task");
+    assert.equal(state.latestAutoExecutionState.nextChapterId, "chapter-7");
+    assert.equal(state.latestAutoExecutionState.nextChapterOrder, 7);
+    assert.equal(state.latestAutoExecutionState.startOrder, 1);
+    assert.equal(state.latestAutoExecutionState.endOrder, 10);
+    assert.deepEqual(state.latestCheckpoint, {
+      checkpointType: "chapter_batch_ready",
+      checkpointSummary: "第 7 章之后继续执行。",
+      chapterId: "chapter-7",
+      chapterOrder: null,
+      volumeId: "volume-1",
+    });
+  } finally {
+    prisma.novel.findUnique = originals.novelFindUnique;
+    prisma.chapter.findMany = originals.chapterFindMany;
+    prisma.generationJob.findFirst = originals.generationJobFindFirst;
+    prisma.novelWorkflowTask.findUnique = originals.workflowTaskFindUnique;
+  }
+});
+
 test("loadDirectorTakeoverState treats full-book autopilot outline seeds as JIT executable", async () => {
   const originals = {
     novelFindUnique: prisma.novel.findUnique,
     chapterFindMany: prisma.chapter.findMany,
     generationJobFindFirst: prisma.generationJob.findFirst,
+    workflowTaskFindUnique: prisma.novelWorkflowTask.findUnique,
   };
   const workspace = {
     volumes: [
@@ -665,6 +753,8 @@ test("loadDirectorTakeoverState treats full-book autopilot outline seeds as JIT 
     },
   ];
   prisma.generationJob.findFirst = async () => null;
+  let latestTaskStateRow = null;
+  prisma.novelWorkflowTask.findUnique = async () => latestTaskStateRow;
 
   try {
     const state = await loadDirectorTakeoverState({
@@ -685,7 +775,7 @@ test("loadDirectorTakeoverState treats full-book autopilot outline seeds as JIT 
       }),
       getVolumeWorkspace: async () => workspace,
       findActiveAutoDirectorTask: async () => null,
-      findLatestAutoDirectorTask: async () => ({
+      findLatestAutoDirectorTask: async () => (latestTaskStateRow = {
         id: "task_full_book_jit",
         checkpointType: "chapter_batch_ready",
         checkpointSummary: "ready",
@@ -719,10 +809,16 @@ test("loadDirectorTakeoverState treats full-book autopilot outline seeds as JIT 
     prisma.novel.findUnique = originals.novelFindUnique;
     prisma.chapter.findMany = originals.chapterFindMany;
     prisma.generationJob.findFirst = originals.generationJobFindFirst;
+    prisma.novelWorkflowTask.findUnique = originals.workflowTaskFindUnique;
   }
 });
 
-test("loadDirectorTakeoverState applies requested book scope before trusting stale execution state", async () => {
+test("loadDirectorTakeoverState applies requested book scope before trusting stale execution state", async (t) => {
+  let latestTaskStateRow = null;
+  stubDatabaseMethod(t, prisma.novelWorkflowTask, "findUnique", async ({ where }) => {
+    assert.equal(where.id, latestTaskStateRow.id);
+    return latestTaskStateRow;
+  });
   const originals = {
     novelFindUnique: prisma.novel.findUnique,
     chapterFindMany: prisma.chapter.findMany,
@@ -860,7 +956,6 @@ test("loadDirectorTakeoverState applies requested book scope before trusting sta
     },
   ];
   prisma.generationJob.findFirst = async () => null;
-
   try {
     const state = await loadDirectorTakeoverState({
       novelId: "novel_takeover_book_scope",
@@ -881,7 +976,7 @@ test("loadDirectorTakeoverState applies requested book scope before trusting sta
       }),
       getVolumeWorkspace: async () => workspace,
       findActiveAutoDirectorTask: async () => null,
-      findLatestAutoDirectorTask: async () => ({
+      findLatestAutoDirectorTask: async () => (latestTaskStateRow = {
         id: "task_stale_single_ready",
         checkpointType: "chapter_batch_ready",
         checkpointSummary: "旧任务只覆盖第 1 章",
@@ -916,6 +1011,7 @@ test("loadDirectorTakeoverState advances stale no-chapters cursor to the next pe
     novelFindUnique: prisma.novel.findUnique,
     chapterFindMany: prisma.chapter.findMany,
     generationJobFindFirst: prisma.generationJob.findFirst,
+    workflowTaskFindUnique: prisma.novelWorkflowTask.findUnique,
   };
   const completeSceneCards = buildSceneCards("chapter_1");
   const workspace = {
@@ -1077,6 +1173,8 @@ test("loadDirectorTakeoverState advances stale no-chapters cursor to the next pe
     },
   ];
   prisma.generationJob.findFirst = async () => null;
+  let latestTaskStateRow = null;
+  prisma.novelWorkflowTask.findUnique = async () => latestTaskStateRow;
 
   try {
     const state = await loadDirectorTakeoverState({
@@ -1097,7 +1195,7 @@ test("loadDirectorTakeoverState advances stale no-chapters cursor to the next pe
       }),
       getVolumeWorkspace: async () => workspace,
       findActiveAutoDirectorTask: async () => null,
-      findLatestAutoDirectorTask: async () => ({
+      findLatestAutoDirectorTask: async () => (latestTaskStateRow = {
         id: "task_stale_continue_cursor",
         checkpointType: null,
         checkpointSummary: "Too small: expected string to have >=6 characters",
@@ -1131,6 +1229,7 @@ test("loadDirectorTakeoverState advances stale no-chapters cursor to the next pe
     prisma.novel.findUnique = originals.novelFindUnique;
     prisma.chapter.findMany = originals.chapterFindMany;
     prisma.generationJob.findFirst = originals.generationJobFindFirst;
+    prisma.novelWorkflowTask.findUnique = originals.workflowTaskFindUnique;
   }
 });
 

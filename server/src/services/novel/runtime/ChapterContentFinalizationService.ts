@@ -41,6 +41,7 @@ export interface FinalizeChapterContentInput {
   request: ChapterRuntimeRequestInput;
   contextPackage: GenerationContextPackage;
   content: string;
+  repairReviewBaseline?: Parameters<ChapterQualityGateService["runAcceptanceGate"]>[0]["repairReviewBaseline"];
   lengthControl?: ChapterRuntimePackage["lengthControl"];
   runId: string | null;
   startMs: number | null;
@@ -101,6 +102,7 @@ export class ChapterContentFinalizationService {
       content: finalContent,
       request: input.request,
       persistAssessment: !input.deferTerminalCommit,
+      repairReviewBaseline: input.repairReviewBaseline,
     });
     await input.assertExecutionOwnership?.();
     const proseQualityReport = detectProseQuality(finalContent);
@@ -120,7 +122,7 @@ export class ChapterContentFinalizationService {
         : acceptance.auditReports,
     };
     const styleReview: StyleReviewResult = {
-      report: null,
+      report: acceptance.styleReviewReport ?? null,
       autoRewritten: false,
       originalContent: null,
       finalContent,

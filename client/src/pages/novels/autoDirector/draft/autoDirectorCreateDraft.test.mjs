@@ -47,6 +47,7 @@ test("creation draft restores the pre-task idea and last safe stage", () => {
     runMode: "auto_to_ready",
     worldSetupMode: "auto_generate",
     selectedStyleProfileId: "style-1",
+    creativeCarryoverContract: null,
     savedAt: loadAutoDirectorCreateDraft(storage, scopeKey)?.savedAt,
   });
 });
@@ -88,6 +89,38 @@ test("drafts are isolated by creation source and cleared after task creation", (
   assert.equal(loadAutoDirectorCreateDraft(storage, marketScope), null);
   assert.equal(clearAutoDirectorCreateDraft(storage, plainScope), true);
   assert.equal(loadAutoDirectorCreateDraft(storage, plainScope), null);
+});
+
+test("adopted carryover draft stays with its mode and analysis", () => {
+  const storage = createMemoryStorage();
+  const continuationScope = buildAutoDirectorCreateDraftScope({
+    referenceMode: "continuation",
+    referenceBookAnalysisId: "analysis-1",
+  });
+  const adaptationScope = buildAutoDirectorCreateDraftScope({
+    referenceMode: "adaptation",
+    referenceBookAnalysisId: "analysis-1",
+  });
+  const otherAnalysisScope = buildAutoDirectorCreateDraftScope({
+    referenceMode: "continuation",
+    referenceBookAnalysisId: "analysis-2",
+  });
+  const creativeCarryoverContract = { mode: "continuation", bookAnalysisId: "analysis-1", adopted: true };
+
+  saveAutoDirectorCreateDraft(storage, continuationScope, {
+    idea: "接续原作终局",
+    basicForm,
+    activeStage: "idea",
+    completedStages: [],
+    runMode: "auto_to_ready",
+    worldSetupMode: "auto_generate",
+    selectedStyleProfileId: "",
+    creativeCarryoverContract,
+  });
+
+  assert.deepEqual(loadAutoDirectorCreateDraft(storage, continuationScope)?.creativeCarryoverContract, creativeCarryoverContract);
+  assert.equal(loadAutoDirectorCreateDraft(storage, adaptationScope), null);
+  assert.equal(loadAutoDirectorCreateDraft(storage, otherAnalysisScope), null);
 });
 
 test("invalid or unavailable storage never breaks the creation page", () => {

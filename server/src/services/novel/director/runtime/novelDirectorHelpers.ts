@@ -1,4 +1,5 @@
 import { randomUUID } from "node:crypto";
+import type { CreativeCarryoverContract } from "@ai-novel/shared/types/creativeCarryoverContract";
 import type {
   DirectorAutoExecutionPlan,
   DirectorAutoExecutionState,
@@ -30,12 +31,11 @@ import {
   normalizeDirectorAutoApprovalConfig,
   type DirectorAutoApprovalConfig,
 } from "@ai-novel/shared/types/autoDirectorApproval";
-import type { BookContractDraft } from "@ai-novel/shared/types/novelWorkflow";
 import type { TitleFactorySuggestion } from "@ai-novel/shared/types/title";
 import { titleGenerationService } from "../../../title/TitleGenerationService";
 import { isNearDuplicateTitle } from "../../../title/titleGeneration.shared";
 import type { NovelWorkflowResumeTarget } from "@ai-novel/shared/types/novelWorkflow";
-import type { DirectorBookContractParsed } from "./novelDirectorSchemas";
+export { normalizeBookContract } from "../../bookContract";
 import type { DirectorCompletionProfile } from "@ai-novel/shared/types/directorCompletion";
 import { buildDirectorCompletionProfile } from "@ai-novel/shared/types/directorCompletion";
 
@@ -90,6 +90,7 @@ export interface DirectorWorkflowSeedPayload extends Record<string, unknown> {
     targetId?: string | null;
     completedAt: string;
   } | null;
+  creativeCarryoverContract?: CreativeCarryoverContract | null;
 }
 
 export interface CandidateGenerationContext {
@@ -146,7 +147,6 @@ export function applyDirectorRunModeContract<T extends {
     autoApproval: buildFullDirectorAutoApprovalConfig(),
   };
 }
-
 export function normalizeDirectorTargetChapterCount(value: number | null | undefined, fallback = 80): number {
   const numericValue = typeof value === "number" && Number.isFinite(value) ? value : fallback;
   return Math.max(
@@ -479,22 +479,6 @@ export function buildStoryInput(input: DirectorConfirmRequest, bookSpec: BookSpe
   return lines.join("\n");
 }
 
-export function normalizeBookContract(parsed: DirectorBookContractParsed): BookContractDraft {
-  return {
-    readingPromise: parsed.readingPromise.trim(),
-    protagonistFantasy: parsed.protagonistFantasy.trim(),
-    coreSellingPoint: parsed.coreSellingPoint.trim(),
-    chapter3Payoff: parsed.chapter3Payoff.trim(),
-    chapter10Payoff: parsed.chapter10Payoff.trim(),
-    chapter30Payoff: parsed.chapter30Payoff.trim(),
-    escalationLadder: parsed.escalationLadder.trim(),
-    relationshipMainline: parsed.relationshipMainline.trim(),
-    absoluteRedLines: Array.from(
-      new Set(parsed.absoluteRedLines.map((item) => item.trim()).filter(Boolean)),
-    ).slice(0, 6),
-  };
-}
-
 export function buildWorkflowSeedPayload(
   input: DirectorProjectContextInput & Pick<DirectorLLMOptions, "provider" | "model" | "temperature" | "runMode"> & {
     idea: string;
@@ -630,9 +614,9 @@ export function buildDirectorWorkflowSeedPayload(
 }
 
 export function getDirectorInputFromSeedPayload(
-  seedPayload: DirectorWorkflowSeedPayload | null | undefined,
+  directorTaskData: DirectorWorkflowSeedPayload | null | undefined,
 ): DirectorConfirmRequest | null {
-  const directorInput = seedPayload?.directorInput;
+  const directorInput = directorTaskData?.directorInput;
   if (!directorInput || typeof directorInput !== "object") {
     return null;
   }
@@ -640,18 +624,18 @@ export function getDirectorInputFromSeedPayload(
 }
 
 export function getDirectorLlmOptionsFromSeedPayload(
-  seedPayload: DirectorWorkflowSeedPayload | null | undefined,
+  directorTaskData: DirectorWorkflowSeedPayload | null | undefined,
 ): Pick<DirectorLLMOptions, "provider" | "model" | "temperature"> | null {
-  if (!seedPayload) {
+  if (!directorTaskData) {
     return null;
   }
-  const directorInput = getDirectorInputFromSeedPayload(seedPayload);
-  const provider = seedPayload.provider ?? directorInput?.provider ?? undefined;
-  const model = typeof seedPayload.model === "string"
-    ? (seedPayload.model.trim() || undefined)
+  const directorInput = getDirectorInputFromSeedPayload(directorTaskData);
+  const provider = directorTaskData.provider ?? directorInput?.provider ?? undefined;
+  const model = typeof directorTaskData.model === "string"
+    ? (directorTaskData.model.trim() || undefined)
     : (directorInput?.model?.trim() || undefined);
-  const temperature = typeof seedPayload.temperature === "number"
-    ? seedPayload.temperature
+  const temperature = typeof directorTaskData.temperature === "number"
+    ? directorTaskData.temperature
     : directorInput?.temperature;
   if (!provider && !model && typeof temperature !== "number") {
     return null;
@@ -660,37 +644,5 @@ export function getDirectorLlmOptionsFromSeedPayload(
     provider,
     model,
     temperature,
-  };
-}
-
-export function applyDirectorLlmOverride(
-  seedPayload: DirectorWorkflowSeedPayload | null | undefined,
-  llmOverride: Pick<DirectorLLMOptions, "provider" | "model" | "temperature">,
-): DirectorWorkflowSeedPayload | null {
-  if (!seedPayload) {
-    return null;
-  }
-  const directorInput = getDirectorInputFromSeedPayload(seedPayload);
-  const nextModel = llmOverride.model?.trim()
-    || (typeof seedPayload.model === "string" ? seedPayload.model.trim() : directorInput?.model?.trim() || null);
-  const nextTemperature = typeof llmOverride.temperature === "number"
-    ? llmOverride.temperature
-    : (typeof seedPayload.temperature === "number" ? seedPayload.temperature : directorInput?.temperature ?? null);
-  const nextProvider = llmOverride.provider ?? seedPayload.provider ?? directorInput?.provider ?? null;
-  return {
-    ...seedPayload,
-    provider: nextProvider,
-    model: nextModel,
-    temperature: nextTemperature,
-    directorInput: directorInput
-      ? {
-        ...directorInput,
-        provider: nextProvider ?? directorInput.provider,
-        model: nextModel || directorInput.model,
-        temperature: typeof nextTemperature === "number"
-          ? nextTemperature
-          : directorInput.temperature,
-      }
-      : undefined,
   };
 }

@@ -1,9 +1,9 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
+import { getNovelWorkspaceHref } from "../src/lib/novelRoutes.ts";
 
 const read = (path) => fs.readFileSync(new URL(path, import.meta.url), "utf8");
-const listViewModel = read("../src/pages/novels/components/list/novelListViewModel.ts");
 const progressPanel = read("../src/pages/novels/components/NovelAutoDirectorProgressPanel.tsx");
 const shelfPage = read("../src/pages/novels/simpleCreation/SimpleNovelShelfPage.tsx");
 const journey = read("../src/pages/novels/components/NovelDirectorPreparationJourney.tsx");
@@ -12,10 +12,19 @@ const candidateStage = read("../src/pages/novels/autoDirector/StageCandidates.ts
 const basicSetupStage = read("../src/pages/novels/autoDirector/StageBasicSetup.tsx");
 const basicInfo = read("../src/pages/novels/novelBasicInfo.shared.ts");
 const directorRequest = read("../src/pages/novels/components/NovelAutoDirectorDialog.shared.ts");
+const experienceHandoff = read("../src/pages/novels/components/NovelProductionExperienceHandoff.tsx");
 
 test("workspace routing follows the persisted novel experience without a redirect bounce", () => {
-  assert.match(listViewModel, /novel\.creationExperience === "simple"/);
-  assert.doesNotMatch(listViewModel, /latestAutoDirectorTask\?\.productionExperience === "simple"/);
+  assert.equal(getNovelWorkspaceHref({
+    id: "book",
+    creationExperience: "professional",
+    latestAutoDirectorTask: { productionExperience: "simple" },
+  }), "/novels/book/edit");
+  assert.equal(getNovelWorkspaceHref({
+    id: "book",
+    creationExperience: "simple",
+    latestAutoDirectorTask: { productionExperience: "professional" },
+  }), "/novels/book/simple");
 });
 
 test("director pages use the global live view and omit passive task-center actions", () => {
@@ -51,6 +60,15 @@ test("candidate generation failures expose a quick retry on the current page", (
   assert.match(candidateStage, /controller\.continueMutation\.mutate\(\)/);
   assert.match(progressPanel, /visualMode === "execution_failed" \|\| task\?\.pendingManualRecovery/);
   assert.match(progressPanel, /isConfirmingAndContinuing \? "重试中\.\.\."/);
+});
+
+test("candidate recovery and task changes keep the experience choice on the page until selection succeeds", () => {
+  assert.equal((createPage.match(/getCandidateTaskNovelHref\(/g) ?? []).length, 2);
+  assert.match(createPage, /const novelHref = getCandidateTaskNovelHref\(task\);[\s\S]*?if \(novelHref\) \{\s*navigate\(novelHref, \{ replace: true \}\);/);
+  assert.match(createPage, /const novelHref = getCandidateTaskNovelHref\(controller\.directorTask \?\? restoredWorkflowTask\);[\s\S]*?if \(novelHref\) \{\s*navigate\(novelHref, \{ replace: true \}\);/);
+  assert.match(candidateStage, /const directorTask = controller\.directorTask;[\s\S]*?isProductionExperienceChoicePending\(directorTask\)/);
+  assert.match(experienceHandoff, /onSuccess: async \(response\) =>/);
+  assert.match(experienceHandoff, /navigate\(getTaskSourceHref\(response\.targetRoute\), \{ replace: true \}\)/);
 });
 
 test("director basic setup offers an AI-recommended optional power system", () => {

@@ -19,7 +19,7 @@ function parsePayload(proposal: StateChangeProposal): CharacterResourceUpdatePay
 }
 
 export class CharacterResourceValidationService {
-  validateProposal(proposal: StateChangeProposal): StateChangeProposal {
+  validateProposal(proposal: StateChangeProposal, options: { automaticReviewApproved?: boolean } = {}): StateChangeProposal {
     const payload = parsePayload(proposal);
     if (!payload) {
       return {
@@ -45,7 +45,7 @@ export class CharacterResourceValidationService {
       };
     }
 
-    if (isDebtSourceProposal(proposal)) {
+    if (isDebtSourceProposal(proposal) && !options.automaticReviewApproved) {
       return markDebtSourcePendingReview(proposal);
     }
 
@@ -55,7 +55,7 @@ export class CharacterResourceValidationService {
       || payload.statusAfter === "destroyed"
       || payload.statusAfter === "lost";
 
-    if (proposal.riskLevel === "high" || lowConfidence || highImpact) {
+    if (proposal.riskLevel === "high" || lowConfidence || (highImpact && !options.automaticReviewApproved)) {
       return {
         ...proposal,
         status: "pending_review",
@@ -76,7 +76,9 @@ export class CharacterResourceValidationService {
     return {
       ...proposal,
       status: "committed",
-      validationNotes: proposal.riskLevel === "medium"
+      validationNotes: options.automaticReviewApproved
+        ? proposal.validationNotes.concat("auto_director_resource_review:approved")
+        : proposal.riskLevel === "medium"
         ? proposal.validationNotes.concat("auto-committed background resource update")
         : proposal.validationNotes,
     };

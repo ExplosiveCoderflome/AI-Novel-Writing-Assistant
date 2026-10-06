@@ -1,4 +1,5 @@
 import { prisma } from "../../../db/prisma";
+import {canExecuteLegacyTask} from "../../../modules/novel/director-routing";
 import { isDirectorAutoExecutionRunMode } from "@ai-novel/shared/types/novelDirector";
 import { buildChapterDetailBundleLabel, buildChapterDetailBundleProgress, DIRECTOR_PROGRESS } from "../director/projections/novelDirectorProgress";
 import {
@@ -210,15 +211,17 @@ export class NovelWorkflowHealingService {
     taskId: string,
     row = null as AutoDirectorNovelTaskRow | null,
   ): Promise<boolean> {
-    if (isTaskCancellationRequested(row)) {
+    const existingRow = row ?? await this.workflow.getTaskByIdWithoutHealing(taskId);
+    if (existingRow?.lane === "auto_director" && !await canExecuteLegacyTask(taskId)) return false;
+    if (isTaskCancellationRequested(existingRow)) {
       return false;
     }
-    if (row?.pendingManualRecovery) {
+    if (existingRow?.pendingManualRecovery) {
       return false;
     }
-    const brokenSeedHealed = await this.healBrokenAutoDirectorCandidateSeedPayload(taskId, row);
-    const normalizedRow = brokenSeedHealed ? await this.workflow.getTaskByIdWithoutHealing(taskId) : row;
-    if (isTaskCancellationRequested(normalizedRow)) {
+    const brokenSeedHealed = await this.healBrokenAutoDirectorCandidateSeedPayload(taskId, existingRow);
+    const normalizedRow = brokenSeedHealed ? await this.workflow.getTaskByIdWithoutHealing(taskId) : existingRow;
+    if (isTaskCancellationRequested(normalizedRow) || normalizedRow?.pendingManualRecovery) {
       return false;
     }
     const queuedHealed = await this.healStaleAutoDirectorQueuedProgress(taskId, normalizedRow);
@@ -313,6 +316,7 @@ export class NovelWorkflowHealingService {
         cancelRequestedAt: null,
       },
     });
+    console.info("[director.fact-repair]", { taskId, category: "runtime_gate_approval" });
     return true;
   }
 
@@ -372,6 +376,7 @@ export class NovelWorkflowHealingService {
         cancelRequestedAt: null,
       },
     });
+    console.info("[director.fact-repair]", { taskId, category: "runtime_step_failed" });
     return true;
   }
 
@@ -411,7 +416,12 @@ export class NovelWorkflowHealingService {
     row = null as AutoDirectorNovelTaskRow | null,
   ): Promise<boolean> {
     const candidate = row ?? await this.workflow.getTaskByIdWithoutHealing(taskId);
-    if (!candidate || candidate.lane !== "auto_director" || isTaskCancellationRequested(candidate)) {
+    if (
+      !candidate
+      || candidate.lane !== "auto_director"
+      || isTaskCancellationRequested(candidate)
+      || candidate.pendingManualRecovery
+    ) {
       return false;
     }
 

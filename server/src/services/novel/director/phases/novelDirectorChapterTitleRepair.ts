@@ -1,3 +1,4 @@
+import { DirectorTaskStateWriter } from "../state";
 import type { DirectorConfirmRequest } from "@ai-novel/shared/types/novelDirector";
 import { buildNovelEditResumeTarget } from "../../workflow/novelWorkflow.shared";
 import { getChapterTitleDiversityIssue } from "../../volume/chapterTitleDiversity";
@@ -98,7 +99,7 @@ export async function repairDirectorChapterTitles(input: {
       targetVolumeId: targetVolume.id,
       draftWorkspace: workingWorkspace,
       onPhaseStart: async (event) => {
-        await input.workflowService.markTaskRunning(input.taskId, {
+        await new DirectorTaskStateWriter(input.workflowService).markRunning(input.taskId, {
           stage: "structured_outline",
           itemKey: "beat_sheet",
           itemLabel: event.label.trim() || `正在重整第 ${targetVolume.sortOrder} 卷节奏板`,
@@ -130,7 +131,7 @@ export async function repairDirectorChapterTitles(input: {
       targetVolumeId: targetVolume.id,
       draftWorkspace: workingWorkspace,
       onPhaseStart: async (event) => {
-        await input.workflowService.markTaskRunning(input.taskId, {
+        await new DirectorTaskStateWriter(input.workflowService).markRunning(input.taskId, {
           stage: "structured_outline",
           itemKey: "chapter_list",
           itemLabel: buildRepairStatusLabel({
@@ -160,7 +161,19 @@ export async function repairDirectorChapterTitles(input: {
     phase: "structured_outline",
     isBackgroundRunning: false,
   });
-  await input.workflowService.markTaskWaitingApproval(input.taskId, {
+  const directorTaskData = input.buildDirectorSeedPayload(input.request, input.novelId, {
+    directorSession: pausedSession,
+    resumeTarget,
+    taskNotice: titleDiversityIssue
+      ? buildChapterTitleDiversityTaskNotice({
+        issue: titleDiversityIssue,
+        volumeId: repairedVolume.id,
+      })
+      : null,
+  });
+  const stateWriter = new DirectorTaskStateWriter(input.workflowService);
+  await stateWriter.updateDirectorRunStateFromTaskData(input.taskId, directorTaskData);
+  await stateWriter.markWaitingCheckpoint(input.taskId, {
     stage: "structured_outline",
     itemKey: "chapter_list",
     itemLabel: titleDiversityIssue
@@ -169,15 +182,5 @@ export async function repairDirectorChapterTitles(input: {
     progress: DIRECTOR_PROGRESS.chapterList,
     volumeId: repairedVolume.id,
     clearCheckpoint: true,
-    seedPayload: input.buildDirectorSeedPayload(input.request, input.novelId, {
-      directorSession: pausedSession,
-      resumeTarget,
-      taskNotice: titleDiversityIssue
-        ? buildChapterTitleDiversityTaskNotice({
-          issue: titleDiversityIssue,
-          volumeId: repairedVolume.id,
-        })
-        : null,
-    }),
   });
 }

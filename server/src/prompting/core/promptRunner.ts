@@ -1,3 +1,4 @@
+import {registerPromptCacheBoundary} from "./cache";
 import { HumanMessage, type BaseMessage, type BaseMessageChunk } from "@langchain/core/messages";
 import type { LLMProvider } from "@ai-novel/shared/types/llm";
 import { getLLM, getResolvedLLMClientOptionsFromInstance } from "../../llm/factory";
@@ -281,13 +282,10 @@ export function preparePromptExecution<I, O, R = O>(input: {
     input.resolvedSlots,
   );
   const renderedMessages = input.asset.render(input.promptInput, context);
+  const messages = appendStructuredOutputHintMessages({asset:input.asset,promptInput:input.promptInput,context,messages:renderedMessages});
+  registerPromptCacheBoundary(input.asset as PromptAsset<unknown,unknown>,renderedMessages,messages);
   return {
-    messages: appendStructuredOutputHintMessages({
-      asset: input.asset,
-      promptInput: input.promptInput,
-      context,
-      messages: renderedMessages,
-    }),
+    messages,
     context,
     invocation: buildPromptInvocationMeta(
       input.asset as PromptAsset<unknown, unknown, unknown>,
@@ -748,6 +746,7 @@ export async function runStructuredPrompt<I, O, R = O>(input: {
     promptInput: input.promptInput,
     context: prepared.context,
     messages: resolvedTemplateMessages,
+    preserveMessageLayout: true,
   });
   logPromptEvent({
     event: "started",
@@ -892,7 +891,7 @@ export async function runTextPrompt<I>(input: {
       promptMeta: prepared.invocation,
     });
     liveSession.phase("streaming", "模型正在返回内容");
-    const stream = await llm.stream(messages, buildPromptCallOptions(input.options));
+    const stream = await liveSession.observe(() => llm.stream(messages, buildPromptCallOptions(input.options)));
     let rawOutput = "";
     let tokenUsage: LlmTokenUsageSnapshot | null = null;
     const reasoningCollector = new ReasoningStreamCollector();
@@ -1001,7 +1000,7 @@ export async function streamTextPrompt<I>(input: {
       promptMeta: prepared.invocation,
     });
     liveSession.phase("streaming", "模型正在返回内容");
-    const rawStream = await llm.stream(messages, buildPromptCallOptions(input.options));
+    const rawStream = await liveSession.observe(() => llm.stream(messages, buildPromptCallOptions(input.options)));
     captured = captureStreamOutput(
       rawStream as AsyncIterable<BaseMessageChunk>,
       (content) => liveSession.delta(content),
@@ -1143,7 +1142,7 @@ export async function streamStructuredPrompt<I, O, R = O>(input: {
       invokeOptions.signal = input.options.signal;
     }
     liveSession.phase("streaming", "模型正在返回结构化结果");
-    const rawStream = await llm.stream(prepared.messages, invokeOptions);
+    const rawStream = await liveSession.observe(() => llm.stream(prepared.messages, invokeOptions));
     captured = captureStreamOutput(
       rawStream as AsyncIterable<BaseMessageChunk>,
       (content) => liveSession.delta(content),
@@ -1166,7 +1165,7 @@ export async function streamStructuredPrompt<I, O, R = O>(input: {
 
   return {
     stream: captured.stream,
-    complete: captured.completedText.then(async (rawContent) => {
+    complete: captured.completedText.then((rawContent) => liveSession.observe(async () => {
       liveSession.phase("validating", "正在检查生成结果");
       let repairStarted = false;
       const parsed = rawContent.trim()
@@ -1236,7 +1235,7 @@ export async function streamStructuredPrompt<I, O, R = O>(input: {
       } : null);
       liveSession.complete();
       return result;
-    }).catch((error) => {
+    })).catch((error) => {
       liveSession.fail(error);
       recordPromptFailure({
         asset: input.asset as PromptAsset<unknown, unknown, unknown>,

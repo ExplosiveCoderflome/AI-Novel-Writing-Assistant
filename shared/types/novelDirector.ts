@@ -12,6 +12,7 @@ import type {
 import type { LLMProvider } from "./llm";
 import type { ArtifactSyncMode } from "./novel";
 import type { BookAnalysisSectionKey } from "./bookAnalysis";
+import type { CreativeCarryoverContract } from "./creativeCarryoverContract";
 import type { NovelWorkflowResumeTarget, NovelWorkflowStage } from "./novelWorkflow";
 import type { WritingPlatformPreference } from "./writingPlatform";
 import type {
@@ -26,6 +27,7 @@ import type { StyleIntentSummary } from "./styleEngine";
 import type { DirectorAutoApprovalConfig } from "./autoDirectorApproval";
 import type { DirectorIssuePolicy } from "./directorIssue";
 import type { DirectorRiskAssessment } from "./directorRisk";
+import type {DirectorVersion} from "./director/version";
 
 export const DIRECTOR_CORRECTION_PRESETS = [
   {
@@ -477,9 +479,11 @@ export interface DirectorTaskSeedPayloadSnapshot {
     targetId?: string | null;
     completedAt: string;
   } | null;
+  creativeCarryoverContract?: CreativeCarryoverContract | null;
 }
 
 export interface DirectorLLMOptions {
+  directorVersion?: DirectorVersion;
   provider?: LLMProvider;
   model?: string;
   temperature?: number;

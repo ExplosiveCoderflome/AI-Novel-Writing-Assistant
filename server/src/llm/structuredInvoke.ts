@@ -306,7 +306,7 @@ async function invokeStructuredAttempt<T>(input: {
     });
     liveSession.phase("validating", "正在检查生成结果");
     let repairStarted = false;
-    const parsed = await parseStructuredLlmRawContentDetailed({
+    const parsed = await liveSession.observe(() => parseStructuredLlmRawContentDetailed({
       rawContent,
       schema: input.baseInput.schema,
       tokenUsage: collected.tokenUsage,
@@ -335,7 +335,7 @@ async function invokeStructuredAttempt<T>(input: {
       fallbackAvailable: input.fallbackAvailable,
       fallbackUsed: input.fallbackUsed,
       reasoningForcedOff: resolved.reasoningForcedOff,
-    });
+    }));
     liveSession.usage(parsed.tokenUsage ? {
       ...parsed.tokenUsage,
       reasoningTokens: parsed.tokenUsage.reasoningTokens ?? null,

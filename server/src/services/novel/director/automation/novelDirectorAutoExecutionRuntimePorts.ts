@@ -6,7 +6,9 @@ import type {
   DirectorQualityRepairRisk,
 } from "@ai-novel/shared/types/novelDirector";
 import type { NovelWorkflowCheckpoint } from "@ai-novel/shared/types/novelWorkflow";
+import type { NovelWorkflowService } from "../../workflow/NovelWorkflowService";
 import type { DirectorStateProposalResolutionRunResult } from "../runtime/DirectorStateProposalResolutionService";
+import type { DirectorResourceConfirmationInput } from "./resources";
 import { directorAutomationLedgerEventService } from "../runtime/DirectorAutomationLedgerEventService";
 import type { DirectorAutoExecutionChapterRef } from "./novelDirectorAutoExecution";
 
@@ -15,50 +17,10 @@ export type AutomationLedgerEventPort = Pick<
   "recordEvent" | "recordCircuitBreakerOpened"
 >;
 
-export interface NovelDirectorAutoExecutionWorkflowPort {
-  bootstrapTask(input: {
-    workflowTaskId: string;
-    novelId: string;
-    lane: "auto_director";
-    title: string;
-    seedPayload?: Record<string, unknown>;
-  }): Promise<unknown>;
-  getTaskById(taskId: string): Promise<{ status: string } | null>;
-  markTaskRunning(taskId: string, input: {
-    stage: "chapter_execution" | "quality_repair";
-    itemLabel: string;
-    itemKey?: string | null;
-    progress?: number;
-    clearCheckpoint?: boolean;
-  }): Promise<unknown>;
-  recordCheckpoint(taskId: string, input: {
-    stage: "quality_repair";
-    checkpointType: "workflow_completed" | "chapter_batch_ready" | "replan_required";
-    checkpointSummary: string;
-    itemLabel: string;
-    progress?: number;
-    chapterId?: string | null;
-    seedPayload?: Record<string, unknown>;
-  }): Promise<unknown>;
-  markTaskFailed(taskId: string, message: string, patch?: {
-    stage?: "quality_repair";
-    itemKey?: string | null;
-    itemLabel?: string;
-    checkpointType?: "chapter_batch_ready" | "replan_required";
-    checkpointSummary?: string | null;
-    chapterId?: string | null;
-    progress?: number;
-  }): Promise<unknown>;
-  requeueTaskForRecovery(taskId: string, message: string, patch?: {
-    stage?: "quality_repair";
-    itemKey?: string | null;
-    itemLabel?: string;
-    checkpointType?: "chapter_batch_ready" | "replan_required";
-    checkpointSummary?: string | null;
-    chapterId?: string | null;
-    progress?: number;
-  }): Promise<unknown>;
-}
+export type NovelDirectorAutoExecutionWorkflowPort = Pick<
+  NovelWorkflowService,
+  "getTaskById" | "updateTaskWithRetry" | "markTaskRunning" | "recordCheckpoint" | "markTaskFailed" | "requeueTaskForRecovery"
+>;
 
 export interface NovelDirectorAutoExecutionNovelPort {
   listChapters(novelId: string): Promise<DirectorAutoExecutionChapterRef[]>;
@@ -84,6 +46,7 @@ export interface NovelDirectorAutoExecutionNovelPort {
     startOrder: number,
     endOrder: number,
     preferredJobId?: string | null,
+    owner?: {workflowTaskId: string},
   ): Promise<{ id: string; status: PipelineJobStatus } | null>;
   getPipelineJobById(jobId: string): Promise<{
     id: string;
@@ -99,7 +62,7 @@ export interface NovelDirectorAutoExecutionNovelPort {
     noticeSummary?: string | null;
     error?: string | null;
   } | null>;
-  resumePipelineJob(jobId: string): Promise<unknown>;
+  resumePipelineJob(jobId: string, options?: {expectedOwner: {workflowTaskId: string}}): Promise<unknown>;
   cancelPipelineJob(jobId: string): Promise<unknown>;
 }
 
@@ -155,6 +118,7 @@ export interface NovelDirectorAutoExecutionRuntimeDeps {
   }) => Promise<DirectorStateProposalResolutionRunResult>;
   automationLedgerEventService?: AutomationLedgerEventPort;
   autoConfirmPendingCandidates?: (novelId: string) => Promise<void>;
+  confirmChapterResources?: (input: DirectorResourceConfirmationInput) => Promise<void>;
   isPendingReviewAutoPromotionEnabled?: () => Promise<boolean> | boolean;
   autoPromotePendingReviewProposals?: (input: {
     novelId: string;

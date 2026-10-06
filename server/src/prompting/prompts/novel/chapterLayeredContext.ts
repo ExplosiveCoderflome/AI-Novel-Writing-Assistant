@@ -26,7 +26,6 @@ import type { PromptContextBlock } from "../../core/promptTypes";
 import { buildDynamicCharacterGuidance, buildParticipants } from "./chapterLayeredContextCharacters";
 import {
   buildCharacterGuidanceText,
-  buildLedgerItemLine,
   buildParticipantText,
   buildPendingCandidateGuardText,
   buildRelationStageText,
@@ -54,6 +53,7 @@ import {
 export {
   WRITER_FORBIDDEN_GROUPS,
   buildChapterRepairContextBlocks,
+  buildChapterPatchRepairContextBlocks,
   buildChapterReviewContextBlocks,
   buildChapterWriterContextBlocks,
   sanitizeWriterContextBlocks,
@@ -217,7 +217,12 @@ function buildCompatibleReaderExperienceContract(input: {
   };
 }
 
-export function buildChapterMissionContext(contextPackage: GenerationContextPackage): ChapterMissionContext {
+export function buildChapterMissionContext(
+  contextPackage: GenerationContextPackage,
+  scenePlan = parseChapterScenePlan(contextPackage.chapter.sceneCards, {
+    targetWordCount: resolveLengthBudgetContract(contextPackage.chapter.targetWordCount)?.targetWordCount,
+  }),
+): ChapterMissionContext {
   const stateGoal = contextPackage.chapterStateGoal;
   return {
     chapterId: contextPackage.chapter.id,
@@ -232,7 +237,8 @@ export function buildChapterMissionContext(contextPackage: GenerationContextPack
       || compactText(stateGoal?.summary)
       || compactText(contextPackage.plan?.title, "Deliver the current chapter mission."),
     taskSheet: compactText(contextPackage.chapter.taskSheet) || null,
-    targetWordCount: contextPackage.chapter.targetWordCount ?? null,
+    targetWordCount: resolveLengthBudgetContract(contextPackage.chapter.targetWordCount)?.targetWordCount
+      ?? scenePlan?.targetWordCount ?? null,
     planRole: contextPackage.plan?.planRole ?? null,
     hookTarget: compactText(contextPackage.plan?.hookTarget, "Leave a fresh tension point at the ending."),
     mustAdvance: sanitizeCreativeMustAdvanceItems(takeUnique([
@@ -329,9 +335,9 @@ export function buildChapterWriteContext(input: {
     currentChapterOrder: input.contextPackage.chapter.order,
   });
   const scenePlan = parseChapterScenePlan(input.contextPackage.chapter.sceneCards, {
-    targetWordCount: input.contextPackage.chapter.targetWordCount ?? undefined,
+    targetWordCount: resolveLengthBudgetContract(input.contextPackage.chapter.targetWordCount)?.targetWordCount,
   });
-  const chapterMission = buildChapterMissionContext(input.contextPackage);
+  const chapterMission = buildChapterMissionContext(input.contextPackage, scenePlan);
   const chapterBoundary = buildChapterBoundaryContract(input.contextPackage, scenePlan);
   const openConflictSummaries = summarizeOpenConflicts(input.contextPackage);
   const readerExperience = buildCompatibleReaderExperienceContract({
@@ -364,7 +370,7 @@ export function buildChapterWriteContext(input: {
       ledgerPendingItems: input.contextPackage.ledgerPendingItems,
     }),
     chapterBoundary,
-    lengthBudget: resolveLengthBudgetContract(input.contextPackage.chapter.targetWordCount),
+    lengthBudget: resolveLengthBudgetContract(chapterMission.targetWordCount),
     scenePlan,
     readerExperience,
     participants,
@@ -459,9 +465,6 @@ export function buildChapterReviewContext(
       ...(writeContext.characterResourceContext?.blockedItems ?? []).map((item) => `resource unavailable: ${item.name} is ${item.status}; do not use it without repair setup`),
       ...(writeContext.characterResourceContext?.highRiskCommittedItems ?? []).map((item) => `committed high-risk resource: ${item.name} / ${item.summary}; use cautiously`),
       ...(writeContext.characterResourceContext?.pendingProposalItems ?? []).map((item) => `unconfirmed resource proposal: ${item.summary}; do not treat as committed fact`),
-      ...writeContext.ledgerPendingItems.map((item) => buildLedgerItemLine(item, "pending payoff")),
-      ...writeContext.ledgerUrgentItems.map((item) => buildLedgerItemLine(item, "urgent payoff")),
-      ...writeContext.ledgerOverdueItems.map((item) => buildLedgerItemLine(item, "overdue payoff")),
     ], 32),
     worldRules: summarizeWorldRules(contextPackage),
     historicalIssues: summarizeHistoricalIssues(contextPackage),
@@ -496,12 +499,13 @@ export function buildChapterRepairContext(input: {
         : "",
       ...(writeContext.characterResourceContext?.setupNeededItems ?? []).map((item) => `resource setup needed: ${item.name} / ${item.summary}`),
       ...(writeContext.characterResourceContext?.blockedItems ?? []).map((item) => `resource unavailable: ${item.name} is ${item.status}; patch locally before use`),
-      ...writeContext.ledgerPendingItems.map((item) => buildLedgerItemLine(item, "pending payoff")),
-      ...writeContext.ledgerUrgentItems.map((item) => buildLedgerItemLine(item, "urgent payoff")),
-      ...writeContext.ledgerOverdueItems.map((item) => buildLedgerItemLine(item, "overdue payoff")),
     ], 32),
     worldRules: summarizeWorldRules(input.contextPackage),
-    historicalIssues: summarizeHistoricalIssues(input.contextPackage),
+    historicalIssues: summarizeHistoricalIssues({
+      ...input.contextPackage,
+      // The producer-owned report namespace identifies reminders, not AI audit codes or prose.
+      openAuditIssues: input.contextPackage.openAuditIssues.filter(issue => !issue.reportId.startsWith("payoff-ledger:")),
+    }),
     allowedEditBoundaries: takeUnique([
       "Keep the chapter's established objective, participants, and major outcome direction intact.",
       "Do not introduce new core characters, new world rules, or off-outline twists.",
@@ -512,9 +516,7 @@ export function buildChapterRepairContext(input: {
       writeContext.pendingCandidateGuards.length > 0
         ? "Pending character candidates remain read-only unless they are confirmed outside the repair flow."
         : "",
-      ...writeContext.ledgerPendingItems.map((item) => `Do not erase pending payoff setup: ${item.title}`),
-      ...writeContext.ledgerUrgentItems.map((item) => `This chapter must visibly touch the urgent payoff thread: ${item.title}`),
-      ...writeContext.ledgerOverdueItems.map((item) => `You must either兑现 or explicitly explain the overdue payoff pressure: ${item.title}`),
+      "Preserve established payoff setups; only add payoff actions required by the chapter contract and supported by its audit evidence.",
       ...(writeContext.characterResourceContext?.blockedItems ?? []).map((item) => `Patch resource continuity before using ${item.name}; current status is ${item.status}.`),
       ...(writeContext.characterResourceContext?.highRiskCommittedItems ?? []).map((item) => `Do not create a new irreversible resource fact from high-risk committed item: ${item.name}.`),
       ...(writeContext.characterResourceContext?.pendingProposalItems ?? []).map((item) => `Pending proposal is not committed yet; do not write it as fact: ${item.summary}.`),

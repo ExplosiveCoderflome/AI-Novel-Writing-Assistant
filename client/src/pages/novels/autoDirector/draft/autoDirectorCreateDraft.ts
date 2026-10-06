@@ -3,8 +3,10 @@ import {
   type DirectorRunMode,
   type DirectorWorldSetupMode,
 } from "@ai-novel/shared/types/novelDirector";
+import type { CreativeCarryoverContract } from "@ai-novel/shared/types/creativeCarryoverContract";
 import type { NovelBasicFormState } from "../../novelBasicInfo.shared";
 import type { AutoDirectorCreateStageKey } from "../directorCreateStages";
+import type {DirectorVersion} from "@ai-novel/shared/types/director/version";
 
 const DRAFT_VERSION = 1;
 const DRAFT_STORAGE_PREFIX = `ai-novel.auto-director-create.draft.v${DRAFT_VERSION}`;
@@ -34,12 +36,15 @@ export interface AutoDirectorCreateDraft {
   activeStage: RecoverableStage;
   completedStages: RecoverableStage[];
   runMode: DirectorRunMode;
+  directorVersion?: DirectorVersion;
   worldSetupMode: DirectorWorldSetupMode;
   selectedStyleProfileId: string;
+  creativeCarryoverContract?: CreativeCarryoverContract | null;
   savedAt: string;
 }
 
 export interface AutoDirectorCreateDraftInput {
+  directorVersion?: DirectorVersion;
   idea: string;
   basicForm: NovelBasicFormState;
   activeStage: AutoDirectorCreateStageKey;
@@ -47,6 +52,7 @@ export interface AutoDirectorCreateDraftInput {
   runMode: DirectorRunMode;
   worldSetupMode: DirectorWorldSetupMode;
   selectedStyleProfileId: string;
+  creativeCarryoverContract?: CreativeCarryoverContract | null;
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -94,8 +100,10 @@ export function saveAutoDirectorCreateDraft(
         .filter(isRecoverableStage),
     )),
     runMode: input.runMode,
+    ...(input.directorVersion ? {directorVersion: input.directorVersion} : {}),
     worldSetupMode: input.worldSetupMode,
     selectedStyleProfileId: input.selectedStyleProfileId,
+    creativeCarryoverContract: input.creativeCarryoverContract ?? null,
     savedAt: new Date().toISOString(),
   };
 
@@ -142,8 +150,14 @@ export function loadAutoDirectorCreateDraft(
       activeStage: value.activeStage,
       completedStages: Array.from(new Set(value.completedStages.filter(isRecoverableStage))),
       runMode: value.runMode as DirectorRunMode,
+      ...(value.directorVersion === "v1" || value.directorVersion === "v2" ? {directorVersion: value.directorVersion} : {}),
       worldSetupMode: value.worldSetupMode,
       selectedStyleProfileId: value.selectedStyleProfileId,
+      creativeCarryoverContract: isRecord(value.creativeCarryoverContract)
+        ? value.creativeCarryoverContract as CreativeCarryoverContract
+        : value.creativeCarryoverContract === null
+          ? null
+          : undefined,
       savedAt: value.savedAt,
     };
   } catch {

@@ -1,4 +1,4 @@
-import { Router } from "express";
+import { Router, type NextFunction, type Request, type Response } from "express";
 import { z } from "zod";
 import type { ApiResponse } from "@ai-novel/shared/types/api";
 import type {
@@ -39,6 +39,7 @@ import {
 } from "@ai-novel/shared/types/novelFraming";
 import { DIRECTOR_AUTO_APPROVAL_POINTS } from "@ai-novel/shared/types/autoDirectorApproval";
 import { validate } from "../../../../middleware/validate";
+import { AppError } from "../../../../middleware/errorHandler";
 import { llmProviderSchema } from "../../../../llm/providerSchema";
 import { DirectorBookAutomationProjectionService } from "../projections/DirectorBookAutomationProjectionService";
 import { DirectorCommandService } from "../commands/DirectorCommandService";
@@ -47,12 +48,14 @@ import { NovelDirectorService } from "../NovelDirectorService";
 import { novelDirectorIdeaInspirationService } from "../NovelDirectorIdeaInspirationService";
 import { novelDirectorIdeaConstellationService } from "../idea/NovelDirectorIdeaConstellationService";
 import { directorPersistedCandidateSchema } from "../runtime/novelDirectorSchemas";
+import { NovelWorkflowService } from "../../workflow/NovelWorkflowService";
 
 const router = Router();
 const commandService = new DirectorCommandService();
 const snapshotService = new DirectorTaskSnapshotService();
 const novelDirectorService = new NovelDirectorService();
 const projectionService = new DirectorBookAutomationProjectionService();
+const workflowService = new NovelWorkflowService();
 
 const correctionPresetValues = DIRECTOR_CORRECTION_PRESETS.map((item) => item.value) as [string, ...string[]];
 const takeoverStartPhaseValues = [...DIRECTOR_TAKEOVER_START_PHASES] as [string, ...string[]];
@@ -64,6 +67,7 @@ const runtimePolicyModeValues = [...DIRECTOR_POLICY_MODES] as [DirectorPolicyMod
 const autoApprovalPointValues = DIRECTOR_AUTO_APPROVAL_POINTS.map((item) => item.code) as [string, ...string[]];
 
 const llmOptionsSchema = z.object({
+  directorVersion: z.enum(["v1", "v2"]).optional(),
   provider: llmProviderSchema.optional(),
   model: z.string().trim().optional(),
   temperature: z.number().min(0).max(2).optional(),
@@ -387,9 +391,15 @@ router.post("/idea-constellation/compose", validate({ body: ideaConstellationCom
   }
 });
 
-router.post("/tasks/:taskId/commands", validate({ params: taskParamsSchema, body: appendCommandSchema }), async (req, res, next) => {
+async function appendDirectorCommand(req: Request, res: Response, next: NextFunction) {
   try {
-    const { taskId } = req.params as z.infer<typeof taskParamsSchema>;
+    const params = req.params as z.infer<typeof taskParamsSchema> | z.infer<typeof takeoverParamsSchema>;
+    const taskId = "taskId" in params
+      ? params.taskId
+      : (await workflowService.resolveCurrentDirectorTask(params.novelId))?.id;
+    if (!taskId) {
+      throw new AppError("Auto director task not found.", 404);
+    }
     const body = req.body as z.infer<typeof appendCommandSchema>;
     let data: DirectorCommandAcceptedResponse;
     switch (body.commandType) {
@@ -458,6 +468,31 @@ router.post("/tasks/:taskId/commands", validate({ params: taskParamsSchema, body
         throw new Error("Unsupported director command type.");
     }
     res.status(202).json(accepted(data, "Director command accepted."));
+  } catch (error) {
+    next(error);
+  }
+}
+
+router.post("/tasks/:taskId/commands", validate({ params: taskParamsSchema, body: appendCommandSchema }), appendDirectorCommand);
+router.post("/novels/:novelId/commands", validate({ params: takeoverParamsSchema, body: appendCommandSchema }), appendDirectorCommand);
+
+router.get("/novels/:novelId/current", validate({ params: takeoverParamsSchema }), async (req, res, next) => {
+  try {
+    const { novelId } = req.params as z.infer<typeof takeoverParamsSchema>;
+    const row = await workflowService.resolveCurrentDirectorTask(novelId);
+    const data = row ? {
+      id: row.id,
+      novelId: row.novelId,
+      status: row.status,
+      currentStage: row.currentStage,
+      currentItemKey: row.currentItemKey,
+      currentItemLabel: row.currentItemLabel,
+      progress: row.progress,
+      checkpointType: row.checkpointType,
+      checkpointSummary: row.checkpointSummary,
+      isActive: row.status === "queued" || row.status === "running" || row.status === "waiting_approval",
+    } : null;
+    res.status(200).json(accepted(data, "Director current task loaded."));
   } catch (error) {
     next(error);
   }

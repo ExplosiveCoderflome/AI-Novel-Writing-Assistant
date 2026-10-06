@@ -6,6 +6,7 @@ import type {
 import type { DirectorAutoApprovalPointCode } from "@ai-novel/shared/types/autoDirectorApproval";
 import type { NovelWorkflowCheckpoint } from "@ai-novel/shared/types/novelWorkflow";
 import { prisma } from "../../../db/prisma";
+import { readDirectorReplacementTaskId } from "../../novel/director/state/DirectorStateReader";
 import { DingTalkNotifier } from "./DingTalkNotifier";
 import { WeComNotifier } from "./WeComNotifier";
 import {
@@ -55,22 +56,6 @@ function parseExecutionScopeLabel(seedPayloadJson: string | null | undefined): s
   }
 }
 
-function parseReplacementTaskId(seedPayloadJson: string | null | undefined): string | null {
-  if (!seedPayloadJson?.trim()) {
-    return null;
-  }
-  try {
-    const parsed = JSON.parse(seedPayloadJson) as {
-      replacementTaskId?: unknown;
-    };
-    return typeof parsed.replacementTaskId === "string" && parsed.replacementTaskId.trim()
-      ? parsed.replacementTaskId.trim()
-      : null;
-  } catch {
-    return null;
-  }
-}
-
 function buildAutoApprovalNotificationCopy(checkpointType: NovelWorkflowCheckpoint): {
   cardTitle: string;
   reasonLabel: string;
@@ -93,7 +78,7 @@ function resolveReasonInput(input: AutoDirectorEventWorkflowSnapshot) {
     checkpointType: input.checkpointType,
     pendingManualRecovery: input.pendingManualRecovery,
     executionScopeLabel: parseExecutionScopeLabel(input.seedPayloadJson),
-    replacementTaskId: parseReplacementTaskId(input.seedPayloadJson),
+    replacementTaskId: readDirectorReplacementTaskId(input.seedPayloadJson),
     validationResult: extractBlockedAutoDirectorValidationResult(input.seedPayloadJson),
   };
 }

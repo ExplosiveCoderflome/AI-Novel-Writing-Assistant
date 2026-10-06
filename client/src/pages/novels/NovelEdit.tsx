@@ -80,10 +80,10 @@ import NovelExistingProjectTakeoverDialog from "./components/NovelExistingProjec
 import { syncNovelWorkflowStageSilently, workflowStageFromTab } from "./novelWorkflow.client";
 import { isNovelWorkspaceFlowTab, scopeFromWorkspaceTab, tabFromDirectorDisplayStage, tabFromDirectorProgress, tabFromScope, type NovelWorkspaceFlowTab } from "./novelWorkspaceNavigation";
 import { resolveChapterTitleWarning } from "@/lib/directorTaskNotice";
+import { getDirectorCockpitActionHref, getTaskSourceHref } from "@/lib/novelRoutes";
 import { resolveInternalNavigationTarget } from "@/lib/internalNavigation";
 import { resolveDirectorContinueMode, resolveWorkflowContinuationFeedback } from "@/lib/novelWorkflowContinuation";
 import {
-  getDirectorCockpitActionHref,
   getDirectorCockpitContinuationMode,
   isDirectorCockpitContinuationAction,
 } from "@/lib/directorCockpitActions";
@@ -103,8 +103,6 @@ import {
   resolveTakeoverDialogContextTaskId,
   resolveAutomationActionText,
   resolveTakeoverModeFromAutomation,
-  shouldPreserveRequestedDirectorTaskId,
-  shouldAutofocusProjectedDirectorTask,
 } from "./novelEditAutomationStatus";
 
 function mapDashboardModeToTakeoverMode(mode: DirectorDashboardMode | null | undefined): NovelEditTakeoverState["mode"] | null {
@@ -260,13 +258,10 @@ export default function NovelEdit() {
   const {
     activeTab,
     setActiveTab,
-    directorTaskId,
-    setDirectorTaskId,
     selectedChapterId,
     setSelectedChapterId,
     selectedVolumeId,
     setSelectedVolumeId,
-    workflowTaskId,
     taskPanelOpen,
     clearTaskPanelOpen,
   } = useNovelEditWorkflow(id);
@@ -697,9 +692,8 @@ export default function NovelEdit() {
     : latestAutoDirectorTask;
   const activeAutoDirectorTask = activeDirectorTask;
   const bookAutomationProjection = bookAutomationQuery.data?.data?.projection ?? null;
-  const requestedDirectorTaskId = directorTaskId
+  const requestedDirectorTaskId = bookAutomationProjection?.latestTask?.id
     || activeAutoDirectorTask?.id
-    || (shouldAutofocusProjectedDirectorTask(bookAutomationProjection) ? bookAutomationProjection?.latestTask?.id : "")
     || "";
   const requestedDirectorTaskQuery = useQuery({
     queryKey: queryKeys.tasks.detail("novel_workflow", requestedDirectorTaskId || "none"),
@@ -711,47 +705,16 @@ export default function NovelEdit() {
   const visibleDirectorTask = useMemo(
     () => {
       const sourceTask = requestedDirectorTask ?? activeAutoDirectorTask;
-      if (!directorTaskId && !taskPanelOpen && sourceTask?.status === "cancelled") {
+      if (!taskPanelOpen && sourceTask?.status === "cancelled") {
         return null;
       }
       return buildDisplayAutoDirectorTask(sourceTask, bookAutomationProjection);
     },
-    [activeAutoDirectorTask, bookAutomationProjection, directorTaskId, requestedDirectorTask, taskPanelOpen],
+    [activeAutoDirectorTask, bookAutomationProjection, requestedDirectorTask, taskPanelOpen],
   );
   const displayAutoDirectorTask = visibleDirectorTask;
   const actionTargetDirectorTaskId = visibleDirectorTask?.id ?? "";
   const selectedDirectorTaskId = visibleDirectorTask?.id ?? requestedDirectorTaskId;
-  useEffect(() => {
-    if (!id || !activeAutoDirectorTaskQuery.isSuccess) {
-      return;
-    }
-    const canonicalDirectorTaskId = activeAutoDirectorTask?.id ?? "";
-    if (!canonicalDirectorTaskId && taskPanelOpen && directorTaskId) {
-      return;
-    }
-    if (!canonicalDirectorTaskId && directorTaskId && !requestedDirectorTaskQuery.isFetched) {
-      return;
-    }
-    if (!canonicalDirectorTaskId && shouldPreserveRequestedDirectorTaskId({
-      directorTaskId,
-      requestedTask: requestedDirectorTask,
-    })) {
-      return;
-    }
-    if (directorTaskId === canonicalDirectorTaskId) {
-      return;
-    }
-    setDirectorTaskId(canonicalDirectorTaskId);
-  }, [
-    activeAutoDirectorTask?.id,
-    activeAutoDirectorTaskQuery.isSuccess,
-    directorTaskId,
-    id,
-    requestedDirectorTask,
-    requestedDirectorTaskQuery.isFetched,
-    setDirectorTaskId,
-    taskPanelOpen,
-  ]);
   useEffect(() => {
     if (!id || !activeAutoDirectorTaskQuery.isSuccess) {
       return;
@@ -1057,7 +1020,6 @@ export default function NovelEdit() {
     onSuccess: async (response, input) => {
       const targetTaskId = input?.directorTaskId || actionTargetDirectorTaskId;
       const targetTask = targetTaskId === visibleDirectorTask?.id ? visibleDirectorTask : activeAutoDirectorTask;
-      setDirectorTaskId(response.data?.taskId ?? targetTaskId);
       void invalidateAutoDirectorTaskState(response.data?.taskId ?? targetTaskId);
       const feedback = resolveWorkflowContinuationFeedback(response.data, {
         mode: resolveDirectorContinueMode(targetTask),
@@ -1096,7 +1058,6 @@ export default function NovelEdit() {
   const acceptManualChangesAndContinueMutation = useMutation({
     mutationFn: (directorTaskId: string) => acceptManualChangesAndContinueDirector(directorTaskId),
     onSuccess: async (response, directorTaskId) => {
-      setDirectorTaskId(response.data?.taskId ?? directorTaskId);
       await invalidateAutoDirectorTaskState(response.data?.taskId ?? directorTaskId);
       toast.success("已确认当前修改，导演将从下一个未完成步骤继续。");
     },
@@ -1117,7 +1078,6 @@ export default function NovelEdit() {
     onSuccess: async (response, input) => {
       const targetTaskId = input?.directorTaskId || actionTargetDirectorTaskId;
       const targetTask = targetTaskId === visibleDirectorTask?.id ? visibleDirectorTask : activeAutoDirectorTask;
-      setDirectorTaskId(response.data?.taskId ?? targetTaskId);
       void invalidateAutoDirectorTaskState(response.data?.taskId ?? targetTaskId);
       const feedback = resolveWorkflowContinuationFeedback(response.data, {
         mode: input?.continuationMode ?? "auto_execute_range",
@@ -1144,7 +1104,6 @@ export default function NovelEdit() {
       input.mode ? { continuationMode: input.mode } : undefined,
     ),
     onSuccess: async (response, input) => {
-      setDirectorTaskId(response.data?.taskId ?? input.taskId);
       void invalidateAutoDirectorTaskState(response.data?.taskId ?? input.taskId);
       const feedback = resolveWorkflowContinuationFeedback(response.data, {
         mode: input.mode,
@@ -1185,7 +1144,6 @@ export default function NovelEdit() {
       if (result?.task) {
         syncAutoDirectorTaskCache(queryClient, id, result.task);
       }
-      setDirectorTaskId(result?.directorTaskId ?? result?.taskId ?? input.directorTaskId ?? actionTargetDirectorTaskId);
       await invalidateAutoDirectorTaskState(result?.directorTaskId ?? result?.taskId ?? input.directorTaskId ?? actionTargetDirectorTaskId);
       if (result?.code === "failed" || result?.code === "forbidden") {
         toast.error(result.message);
@@ -1290,7 +1248,7 @@ export default function NovelEdit() {
       const internalTarget = resolveInternalNavigationTarget(targetUrl);
       if (internalTarget) {
         setIsTaskDrawerOpen(false);
-        navigate(internalTarget);
+        navigate(getTaskSourceHref(internalTarget));
         return;
       }
       if (/^https?:\/\//i.test(targetUrl)) {
@@ -2418,7 +2376,6 @@ export default function NovelEdit() {
     variant: "default" | "outline" | "secondary" = "default",
   ) => {
     const takeoverContextTaskId = resolveTakeoverDialogContextTaskId({
-      directorTaskId,
       activeAutoDirectorTask,
       projection: bookAutomationProjection,
     });

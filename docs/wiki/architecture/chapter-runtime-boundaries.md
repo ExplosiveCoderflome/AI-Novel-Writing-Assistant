@@ -17,6 +17,7 @@ Phase 5 后，`ChapterRuntimeCoordinator` 只保留稳定门面和 3 个公开�
 - `runtime/lifecycle/ChapterLifecycleService` 是章节生产链中 `content`、`generationState` 和 `chapterStatus` 的唯一持久化写入口。生成、审校、修复和资产服务只决定业务状态并委托它落库，不得各自直接更新 Chapter 生命周期字段。
 - `ChapterPipelineRuntimeAdapter` 只负责把 pipeline hooks 适配到统一章节 runtime，不复制 writer、门禁或定稿逻辑。
 - `chapterRuntimePackageBuilders.ts` 只放无 IO 构建函数，不允许引入 Prisma、route、director 或服务单例。
+- `runtime/repair/ChapterRepairEligibility` 只后处理已有 AI 结构化判断，决定自动补丁是否适用；pipeline 在领取次数前调用它。它不得调用模型、猜测问题文本、改变用户策略或决定全局停机。账本提醒与正文审计的证据边界见 [章节生产主链](../workflows/chapter-production-chain.md)。
 - `shared/types/chapterRuntime.ts` 是共享运行时合同的稳定门面；样式、动态角色、Payoff 和质量结果 Schema 分别归属 `shared/types/chapterRuntime/` 下的领域文件，外部仍从原门面路径导入。
 - 共享 Schema 子模块只允许包含 Zod 合同和推导类型。跨域 `chapterRuntimePackageSchema` 继续留在门面中负责装配，避免子模块反向依赖门面形成初始化循环。
 - `ChapterRepairStreamRuntime` 仍是修复流实现边界，暂不在 Phase 5 拆分；门面只继续委托它。

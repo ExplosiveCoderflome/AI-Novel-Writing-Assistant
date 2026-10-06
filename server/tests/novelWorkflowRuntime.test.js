@@ -9,127 +9,6 @@ const {
 } = require("../dist/services/novel/workflow/NovelWorkflowService.js");
 const { prisma } = require("../dist/db/prisma.js");
 
-test("resumePendingAutoDirectorTasks requeues interrupted running tasks before continuing", async () => {
-  const calls = [];
-  const runtimeService = new NovelWorkflowRuntimeService(
-    {
-      async listRecoverableAutoDirectorTasks() {
-        return [{ id: "task-running", status: "running" }];
-      },
-      async requeueTaskForRecovery(taskId, message) {
-        calls.push(["requeue", taskId, message]);
-      },
-      async markTaskFailed(taskId, message) {
-        calls.push(["failed", taskId, message]);
-      },
-    },
-    {
-      async continueTask(taskId) {
-        calls.push(["continue", taskId]);
-      },
-    },
-  );
-
-  await runtimeService.resumePendingAutoDirectorTasks();
-
-  assert.deepEqual(calls, [
-    ["requeue", "task-running", "自动导演任务因服务重启中断，正在尝试恢复。"],
-    ["continue", "task-running"],
-  ]);
-});
-
-test("resumePendingAutoDirectorTasks continues queued tasks without marking them for manual recovery", async () => {
-  const calls = [];
-  const runtimeService = new NovelWorkflowRuntimeService(
-    {
-      async listRecoverableAutoDirectorTasks() {
-        return [{ id: "task-queued", status: "queued" }];
-      },
-      async requeueTaskForRecovery(taskId, message) {
-        calls.push(["requeue", taskId, message]);
-      },
-      async markTaskFailed(taskId, message) {
-        calls.push(["failed", taskId, message]);
-      },
-    },
-    {
-      async continueTask(taskId) {
-        calls.push(["continue", taskId]);
-      },
-    },
-  );
-
-  await runtimeService.resumePendingAutoDirectorTasks();
-
-  assert.deepEqual(calls, [
-    ["continue", "task-queued"],
-  ]);
-});
-
-test("resumePendingAutoDirectorTasks marks failed when recovery throws", async () => {
-  const calls = [];
-  const runtimeService = new NovelWorkflowRuntimeService(
-    {
-      async listRecoverableAutoDirectorTasks() {
-        return [{ id: "task-queued", status: "queued" }];
-      },
-      async requeueTaskForRecovery(taskId, message) {
-        calls.push(["requeue", taskId, message]);
-      },
-      async restoreTaskToCheckpoint(taskId) {
-        calls.push(["restore", taskId]);
-      },
-      async markTaskFailed(taskId, message) {
-        calls.push(["failed", taskId, message]);
-      },
-    },
-    {
-      async continueTask() {
-        throw new Error("缺少恢复上下文");
-      },
-    },
-  );
-
-  await runtimeService.resumePendingAutoDirectorTasks();
-
-  assert.deepEqual(calls, [
-    ["failed", "task-queued", "服务重启后恢复失败：缺少恢复上下文"],
-  ]);
-});
-
-test("resumePendingAutoDirectorTasks restores checkpoint instead of failing when recovery is no longer needed", async () => {
-  const calls = [];
-  const runtimeService = new NovelWorkflowRuntimeService(
-    {
-      async listRecoverableAutoDirectorTasks() {
-        return [{ id: "task-chapter_range", status: "queued" }];
-      },
-      async requeueTaskForRecovery(taskId, message) {
-        calls.push(["requeue", taskId, message]);
-      },
-      async restoreTaskToCheckpoint(taskId) {
-        calls.push(["restore", taskId]);
-      },
-      async markTaskFailed(taskId, message) {
-        calls.push(["failed", taskId, message]);
-      },
-    },
-    {
-      async continueTask() {
-        const error = new Error("当前导演产物已经完整，无需继续自动导演。");
-        error.code = "director_recovery_not_needed";
-        throw error;
-      },
-    },
-  );
-
-  await runtimeService.resumePendingAutoDirectorTasks();
-
-  assert.deepEqual(calls, [
-    ["restore", "task-chapter_range"],
-  ]);
-});
-
 test("markPendingAutoDirectorTasksForManualRecovery only marks tasks without continuing them", async () => {
   const calls = [];
   const runtimeService = new NovelWorkflowRuntimeService(
@@ -195,11 +74,14 @@ test("markPendingAutoDirectorTasksForManualRecovery marks stale running tasks as
 
 test("stale running auto director healing does not recurse through markTaskFailed", async () => {
   const originals = {
+    novelFindUnique: prisma.novel.findUnique,
     archiveFindUnique: prisma.taskCenterArchive.findUnique,
     taskFindUnique: prisma.novelWorkflowTask.findUnique,
     taskUpdate: prisma.novelWorkflowTask.update,
+    stepUpdateMany: prisma.directorStepRun.updateMany,
   };
   const updates = [];
+  const stepUpdates = [];
   const staleRow = {
     id: "task-stale",
     novelId: "novel-1",
@@ -221,6 +103,7 @@ test("stale running auto director healing does not recurse through markTaskFaile
   };
 
   prisma.taskCenterArchive.findUnique = async () => null;
+  prisma.novel.findUnique=async()=>({directorVersion:'v1',directorEpoch:0,narrativeForm:'long_novel'});
   prisma.novelWorkflowTask.findUnique = async () => staleRow;
   prisma.novelWorkflowTask.update = async ({ data }) => {
     updates.push(data);
@@ -230,6 +113,10 @@ test("stale running auto director healing does not recurse through markTaskFaile
       novel: { title: "测试小说" },
       updatedAt: new Date("2026-05-04T00:00:00.000Z"),
     };
+  };
+  prisma.directorStepRun.updateMany = async (input) => {
+    stepUpdates.push(input);
+    return { count: 1 };
   };
 
   try {
@@ -245,20 +132,46 @@ test("stale running auto director healing does not recurse through markTaskFaile
     assert.equal(updates.length, 1);
     assert.equal(updates[0].status, "failed");
     assert.equal(updates[0].lastError, "自动导演任务长时间没有心跳，可能已因服务重启或内存不足中断。请检查后继续或重试。");
+    assert.equal(stepUpdates.length, 1);
+    assert.deepEqual(stepUpdates[0].where, { taskId: "task-stale", status: "running" });
+    assert.equal(stepUpdates[0].data.status, "failed");
+    assert.equal(stepUpdates[0].data.error, updates[0].lastError);
+    assert.ok(stepUpdates[0].data.finishedAt instanceof Date);
   } finally {
+    prisma.novel.findUnique=originals.novelFindUnique;
     prisma.taskCenterArchive.findUnique = originals.archiveFindUnique;
     prisma.novelWorkflowTask.findUnique = originals.taskFindUnique;
     prisma.novelWorkflowTask.update = originals.taskUpdate;
+    prisma.directorStepRun.updateMany = originals.stepUpdateMany;
   }
 });
 
-test("startup recovery initialization marks interrupted auto director tasks for manual recovery", async () => {
+test("startup recovery locks interrupted auto director tasks without auto-enqueuing a recovery command", async () => {
   const calls = [];
   const { RecoveryTaskService } = require("../dist/services/task/RecoveryTaskService.js");
+  const task = { id: "task-restarted", status: "running", pendingManualRecovery: false };
+  const workflowRuntime = new NovelWorkflowRuntimeService({
+    async listRecoverableAutoDirectorTasks() {
+      return task.pendingManualRecovery ? [] : [task];
+    },
+    async requeueTaskForRecovery(taskId, message) {
+      calls.push(["manual-recovery", taskId, message]);
+      task.status = "queued";
+      task.pendingManualRecovery = true;
+    },
+    async markTaskFailed(taskId, message) {
+      calls.push(["failed", taskId, message]);
+    },
+  });
+  const directorCommandService = {
+    async enqueueRecoveryCommand(taskId) {
+      calls.push(["background-command", taskId]);
+    },
+  };
   const recoveryService = new RecoveryTaskService(
     undefined,
     undefined,
-    undefined,
+    directorCommandService,
     undefined,
     {
       async markPendingBookAnalysesForManualRecovery() {
@@ -268,7 +181,7 @@ test("startup recovery initialization marks interrupted auto director tasks for 
         calls.push(["manual-image"]);
       },
       async markPendingAutoDirectorTasksForManualRecovery() {
-        calls.push(["manual-auto-director"]);
+        await workflowRuntime.markPendingAutoDirectorTasksForManualRecovery();
       },
       async markPendingPipelineJobsForManualRecovery() {
         calls.push(["manual-pipeline"]);
@@ -281,7 +194,8 @@ test("startup recovery initialization marks interrupted auto director tasks for 
 
   await recoveryService.initializePendingRecoveries();
 
-  assert.deepEqual(calls.filter((call) => call[0].includes("auto-director")), [
-    ["manual-auto-director"],
-  ]);
+  assert.equal(task.status, "queued");
+  assert.equal(task.pendingManualRecovery, true);
+  assert.equal(calls.filter((call) => call[0] === "manual-recovery").length, 1);
+  assert.equal(calls.filter((call) => call[0] === "background-command").length, 0);
 });

@@ -18,6 +18,7 @@ import { NovelVolumeService } from "../../volume/NovelVolumeService";
 import { NovelWorkflowService } from "../../workflow/NovelWorkflowService";
 import { buildDirectorWorkflowSeedPayload } from "../runtime/novelDirectorHelpers";
 import { NovelDirectorAutoExecutionRuntime } from "../automation/novelDirectorAutoExecutionRuntime";
+import { directorResourceConfirmationService } from "../automation/resources";
 import { NovelDirectorPipelineRuntime } from "../novelDirectorPipelineRuntime";
 import { NovelDirectorRuntimeOrchestrator } from "../runtime/novelDirectorRuntimeOrchestrator";
 import { DirectorRuntimeService } from "../runtime/DirectorRuntimeService";
@@ -74,6 +75,7 @@ export function buildDefaultDirectorCoreStepModuleRuntimeDeps(): DirectorCoreSte
       extra?: Record<string, unknown>,
     ) => buildDirectorWorkflowSeedPayload(input, novelId, extra),
     autoConfirmPendingCandidates: (novelId: string) => characterDynamicsService.autoConfirmPendingCandidates(novelId),
+    confirmChapterResources: (input) => directorResourceConfirmationService.confirmCompletedChapterResources(input),
     isPendingReviewAutoPromotionEnabled: () => qualityDebtSettingsService.isAutoPromotionEnabled(),
     autoPromotePendingReviewProposals: async (input) => {
       const settings = await qualityDebtSettingsService.getAutoPromotionSettings();

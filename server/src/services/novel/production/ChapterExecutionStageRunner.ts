@@ -107,9 +107,11 @@ export class ChapterExecutionStageRunner implements NovelProductionStageRunner {
       input.novelId,
       input.payload.options.startOrder,
       input.payload.options.endOrder,
+      null,
+      input.payload.options,
     );
     if (existing) {
-      await core.resumePipelineJob(existing.id);
+      await core.resumePipelineJob(existing.id, {expectedOwner: input.payload.options});
       return {
         stage: "chapter_execution",
         status: "checkpoint",

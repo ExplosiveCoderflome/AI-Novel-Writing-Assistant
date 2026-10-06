@@ -21,3 +21,5 @@ test("AI 实况本地缓存按作用域隔离并只保留最近 30 次调用", (
 test("不支持 IndexedDB 的客户端会跳过缓存而不影响实况", async () => {
   assert.deepEqual(await loadLlmLiveCache("llm-live:test"), []);
 });
+
+test('old snapshots keep legacy absence and new cache fields survive storage selection',()=>{const usage={promptTokens:1000,completionTokens:100,totalTokens:1100};const old={context:{interactionId:'old'},phase:'completed',updatedAt:new Date().toISOString(),tokenUsage:usage};const fresh={...old,context:{interactionId:'new'},tokenUsage:{...usage,inputCache:{cacheHitTokens:800,cacheMissTokens:200,cacheWriteTokens:null,cacheUsageStatus:'reported'}}};const [a,b]=selectRecentLlmLiveSessions([old,fresh]);assert.equal(a.tokenUsage.inputCache,undefined);assert.equal(b.tokenUsage.inputCache.cacheHitTokens,800)});

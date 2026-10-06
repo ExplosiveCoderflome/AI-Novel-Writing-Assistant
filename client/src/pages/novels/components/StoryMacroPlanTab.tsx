@@ -7,11 +7,11 @@ import {
   ENGINE_TEXT_FIELDS,
   FieldActions,
   listToText,
-  textareaClassName,
 } from "./StoryMacroPlanTab.shared";
 import DirectorTakeoverEntryPanel from "./DirectorTakeoverEntryPanel";
 import { DetailDisclosure } from "./workspaceShell";
 import StoryEngineStudio from "./storyMacroPlan/StoryEngineStudio";
+import StoryMacroEditableField from "./storyMacroPlan/StoryMacroEditableField";
 
 const EMPTY_CONFLICT_LAYERS: StoryConflictLayers = {
   external: "",
@@ -58,9 +58,14 @@ export default function StoryMacroPlanTab(props: StoryMacroTabProps) {
                   {ENGINE_TEXT_FIELDS.map((item) => {
                     const value = expansion[item.field as keyof typeof expansion];
                     return (
-                      <div key={item.field} className="space-y-2 rounded-xl border border-border/70 p-4">
-                        <div className="flex flex-wrap items-center justify-between gap-2">
-                          <div className="text-sm font-medium text-foreground">{item.label}</div>
+                      <StoryMacroEditableField
+                        key={item.field}
+                        label={item.label}
+                        value={typeof value === "string" ? value : ""}
+                        onChange={(value) => props.onFieldChange(item.field, value)}
+                        placeholder={item.placeholder}
+                        className="bg-muted/10 p-4"
+                        actions={
                           <FieldActions
                             field={item.field}
                             lockedFields={props.lockedFields}
@@ -69,27 +74,13 @@ export default function StoryMacroPlanTab(props: StoryMacroTabProps) {
                             onToggleLock={props.onToggleLock}
                             onRegenerateField={props.onRegenerateField}
                           />
-                        </div>
-                        {item.multiline ? (
-                          <textarea
-                            value={typeof value === "string" ? value : ""}
-                            onChange={(event) => props.onFieldChange(item.field, event.target.value)}
-                            placeholder={item.placeholder}
-                            className={textareaClassName()}
-                          />
-                        ) : (
-                          <Input
-                            value={typeof value === "string" ? value : ""}
-                            onChange={(event) => props.onFieldChange(item.field, event.target.value)}
-                            placeholder={item.placeholder}
-                          />
-                        )}
-                      </div>
+                        }
+                      />
                     );
                   })}
                 </div>
 
-                <div className="space-y-2 rounded-xl border border-border/70 p-4">
+                <div className="space-y-2 bg-muted/10 p-4">
                   <div className="flex flex-wrap items-center justify-between gap-2">
                     <div className="text-sm font-medium text-foreground">冲突层</div>
                     <FieldActions
@@ -102,48 +93,47 @@ export default function StoryMacroPlanTab(props: StoryMacroTabProps) {
                     />
                   </div>
                   <div className="grid gap-4 xl:grid-cols-3">
-                    <div className="space-y-2">
-                      <div className="text-sm text-muted-foreground">外部压迫</div>
-                      <textarea
-                        value={expansion.conflict_layers.external}
-                        onChange={(event) => props.onFieldChange("conflict_layers", {
-                          ...expansion.conflict_layers,
-                          external: event.target.value,
-                        })}
-                        placeholder="外部系统、威胁或环境如何持续压迫主角。"
-                        className={textareaClassName("min-h-24")}
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <div className="text-sm text-muted-foreground">内部崩塌</div>
-                      <textarea
-                        value={expansion.conflict_layers.internal}
-                        onChange={(event) => props.onFieldChange("conflict_layers", {
-                          ...expansion.conflict_layers,
-                          internal: event.target.value,
-                        })}
-                        placeholder="主角内在恐惧、欲望或误判怎样反噬自己。"
-                        className={textareaClassName("min-h-24")}
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <div className="text-sm text-muted-foreground">关系压力</div>
-                      <textarea
-                        value={expansion.conflict_layers.relational}
-                        onChange={(event) => props.onFieldChange("conflict_layers", {
-                          ...expansion.conflict_layers,
-                          relational: event.target.value,
-                        })}
-                        placeholder="关键关系如何制造选择代价和情感张力。"
-                        className={textareaClassName("min-h-24")}
-                      />
-                    </div>
+                    <StoryMacroEditableField
+                      label="外部压迫"
+                      value={expansion.conflict_layers.external}
+                      onChange={(value) => props.onFieldChange("conflict_layers", {
+                        ...expansion.conflict_layers,
+                        external: value,
+                      })}
+                      placeholder="外部系统、威胁或环境如何持续压迫主角。"
+                    />
+                    <StoryMacroEditableField
+                      label="内部崩塌"
+                      value={expansion.conflict_layers.internal}
+                      onChange={(value) => props.onFieldChange("conflict_layers", {
+                        ...expansion.conflict_layers,
+                        internal: value,
+                      })}
+                      placeholder="主角内在恐惧、欲望或误判怎样反噬自己。"
+                    />
+                    <StoryMacroEditableField
+                      label="关系压力"
+                      value={expansion.conflict_layers.relational}
+                      onChange={(value) => props.onFieldChange("conflict_layers", {
+                        ...expansion.conflict_layers,
+                        relational: value,
+                      })}
+                      placeholder="关键关系如何制造选择代价和情感张力。"
+                    />
                   </div>
                 </div>
 
-                <div className="space-y-2 rounded-xl border border-border/70 p-4">
-                  <div className="flex flex-wrap items-center justify-between gap-2">
-                    <div className="text-sm font-medium text-foreground">高张力场面种子</div>
+                <StoryMacroEditableField
+                  label="高张力场面种子"
+                  value={listToText(expansion.setpiece_seeds)}
+                  onChange={(value) => props.onFieldChange(
+                    "setpiece_seeds",
+                    value.split(/\r?\n/).map((line) => line.trim()).filter(Boolean),
+                  )}
+                  placeholder="每行一个高张力场面。"
+                  list
+                  className="bg-muted/10 p-4"
+                  actions={
                     <FieldActions
                       field="setpiece_seeds"
                       lockedFields={props.lockedFields}
@@ -152,17 +142,8 @@ export default function StoryMacroPlanTab(props: StoryMacroTabProps) {
                       onToggleLock={props.onToggleLock}
                       onRegenerateField={props.onRegenerateField}
                     />
-                  </div>
-                  <textarea
-                    value={listToText(expansion.setpiece_seeds)}
-                    onChange={(event) => props.onFieldChange(
-                      "setpiece_seeds",
-                      event.target.value.split(/\r?\n/).map((line) => line.trim()).filter(Boolean),
-                    )}
-                    placeholder="每行一个高张力场面。"
-                    className={textareaClassName("min-h-32")}
-                  />
-                </div>
+                  }
+                />
               </CardContent>
             </Card>
           ) : null}
@@ -191,25 +172,25 @@ export default function StoryMacroPlanTab(props: StoryMacroTabProps) {
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-2">
-              <div className="flex flex-wrap items-center justify-between gap-2">
-                <div className="text-sm font-medium text-foreground">叙事规则</div>
-                <FieldActions
-                  field="constraints"
-                  lockedFields={props.lockedFields}
-                  regeneratingField={props.regeneratingField}
-                  storyInput={props.storyInput}
-                  onToggleLock={props.onToggleLock}
-                  onRegenerateField={props.onRegenerateField}
-                />
-              </div>
-              <textarea
+              <StoryMacroEditableField
+                label="叙事规则"
                 value={listToText(props.constraints)}
-                onChange={(event) => props.onFieldChange(
+                onChange={(value) => props.onFieldChange(
                   "constraints",
-                  event.target.value.split(/\r?\n/).map((line) => line.trim()).filter(Boolean),
+                  value.split(/\r?\n/).map((line) => line.trim()).filter(Boolean),
                 )}
                 placeholder="每行一条必须遵守的叙事规则。"
-                className={textareaClassName("min-h-36")}
+                list
+                actions={
+                  <FieldActions
+                    field="constraints"
+                    lockedFields={props.lockedFields}
+                    regeneratingField={props.regeneratingField}
+                    storyInput={props.storyInput}
+                    onToggleLock={props.onToggleLock}
+                    onRegenerateField={props.onRegenerateField}
+                  />
+                }
               />
             </CardContent>
           </Card>
@@ -338,14 +319,12 @@ export default function StoryMacroPlanTab(props: StoryMacroTabProps) {
                   max={100}
                 />
               </div>
-              <div className="space-y-2">
-                <div className="text-sm font-medium text-foreground">主角当前处境</div>
-                <Input
-                  value={props.state.protagonistState}
-                  onChange={(event) => props.onStateChange("protagonistState", event.target.value)}
-                  placeholder="例如：仍在否认真相，但已经无法退出。"
-                />
-              </div>
+              <StoryMacroEditableField
+                label="主角当前处境"
+                value={props.state.protagonistState}
+                onChange={(value) => props.onStateChange("protagonistState", value)}
+                placeholder="例如：仍在否认真相，但已经无法退出。"
+              />
               <div className="flex items-end">
                 <Button variant="outline" onClick={props.onSaveState} disabled={props.isSavingState}>
                   {props.isSavingState ? "保存中..." : "保存状态"}

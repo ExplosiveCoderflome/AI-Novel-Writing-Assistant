@@ -1,3 +1,9 @@
+import { DirectorTaskStateWriter } from "../state";
+import {
+  CREATIVE_CARRYOVER_CONTRACT_SCHEMA_VERSION,
+  requireAdoptedCreativeCarryoverContract,
+  serializeCreativeCarryoverContract,
+} from "@ai-novel/shared/types/creativeCarryoverContract";
 import {
   DEFAULT_DIRECTOR_STARTUP_PREPARATION,
   isFullBookAutopilotRunMode,
@@ -12,9 +18,8 @@ import type { NovelContextService } from "../../NovelContextService";
 import type { NovelWorkflowService } from "../../workflow/NovelWorkflowService";
 import {
   buildNovelEditResumeTarget,
-  parseSeedPayload,
-  parseResumeTarget,
 } from "../../workflow/novelWorkflow.shared";
+import { DirectorStateReader, toDirectorTaskDataView } from "../state/DirectorStateReader";
 import { novelFramingSuggestionService } from "../../NovelFramingSuggestionService";
 import { resolveDirectorBookFraming } from "./novelDirectorFraming";
 import {
@@ -79,11 +84,19 @@ export class NovelDirectorConfirmRuntime {
       resolvedInput.idea,
       resolvedInput.estimatedChapterCount,
     );
-    const workflowTask = await this.deps.workflowService.bootstrapTask({
+    const existingTask = resolvedInput.workflowTaskId?.trim()
+      ? await this.deps.workflowService.getTaskByIdWithoutHealing(resolvedInput.workflowTaskId.trim())
+      : null;
+    if (existingTask && existingTask.lane !== "auto_director") {
+      throw new Error("Candidate confirmation requires an auto director task.");
+    }
+    // Repeated confirmations must reach the creation claim without rewriting the
+    // winner's contract, including the interval before the novel is attached.
+    const workflowTask = existingTask ?? await new DirectorTaskStateWriter(this.deps.workflowService).initializeTask({
       workflowTaskId: resolvedInput.workflowTaskId,
       lane: "auto_director",
       title,
-      seedPayload: this.deps.buildDirectorSeedPayload({ ...resolvedInput, runMode }, null, {
+      directorState: this.deps.buildDirectorSeedPayload({ ...resolvedInput, runMode }, null, {
         startupPreparation: resolvedInput.startupPreparation,
         directorSession: buildDirectorSessionState({
           runMode,
@@ -92,6 +105,16 @@ export class NovelDirectorConfirmRuntime {
         }),
       }),
     });
+    const expectedCarryoverMode = resolvedInput.writingMode === "continuation" && resolvedInput.continuationBookAnalysisId
+      ? "continuation" as const
+      : resolvedInput.referenceBookAnalysisId ? "adaptation" as const : "";
+    const adoptedCarryover = workflowTask.novelId ? null : requireAdoptedCreativeCarryoverContract(
+      (await new DirectorStateReader().readTaskDataById(workflowTask.id) as DirectorWorkflowSeedPayload | null)?.creativeCarryoverContract,
+      expectedCarryoverMode,
+      expectedCarryoverMode === "continuation"
+        ? resolvedInput.continuationBookAnalysisId
+        : resolvedInput.referenceBookAnalysisId,
+    );
     await this.deps.directorRuntime.initializeRun({
       taskId: workflowTask.id,
       novelId: workflowTask.novelId,
@@ -220,13 +243,30 @@ export class NovelDirectorConfirmRuntime {
             })).output.platform;
         const platformSnapshot = await writingPlatformProfileService.snapshot(selectedPlatform, "long_novel");
 
+        // Only the creation-claim owner finalizes the complete startup contract.
+        // Attachment closes this boundary; subsequent progress writes are run-only.
+        await new DirectorTaskStateWriter(this.deps.workflowService).initializeTask({
+          workflowTaskId: workflowTask.id,
+          lane: "auto_director",
+          title,
+          directorState: this.deps.buildDirectorSeedPayload(resolvedDirectorInput, null, {
+            startupPreparation: resolvedDirectorInput.startupPreparation,
+            creativeCarryoverContract: adoptedCarryover,
+            directorSession: buildDirectorSessionState({
+              runMode,
+              phase: "candidate_selection",
+              isBackgroundRunning: false,
+            }),
+          }),
+        }, { replaceLaunchContract: "candidate_confirmation" });
+
         const novelCreateModule = getDirectorConfirmNovelCreateStepModule();
         const createdNovel = await this.deps.runtimeOrchestrator.runStepModule({
           module: novelCreateModule,
           taskId: workflowTask.id,
           targetId: workflowTask.id,
           runner: async () => {
-            await this.deps.workflowService.markTaskRunning(workflowTask.id, {
+            await new DirectorTaskStateWriter(this.deps.workflowService).markRunning(workflowTask.id, {
               stage: "auto_director",
               itemKey: "novel_create",
               itemLabel: "正在创建小说项目",
@@ -264,6 +304,12 @@ export class NovelDirectorConfirmRuntime {
               continuationBookAnalysisSections: resolvedInput.continuationBookAnalysisSections ?? undefined,
               referenceBookAnalysisId: resolvedInput.referenceBookAnalysisId ?? undefined,
               referenceBookAnalysisSections: resolvedInput.referenceBookAnalysisSections ?? undefined,
+              creativeCarryoverContractJson: adoptedCarryover
+                ? serializeCreativeCarryoverContract(adoptedCarryover)
+                : null,
+              creativeCarryoverContractSchemaVersion: adoptedCarryover
+                ? CREATIVE_CARRYOVER_CONTRACT_SCHEMA_VERSION
+                : null,
             });
             await this.deps.workflowService.attachNovelToTask(workflowTask.id, novel.id, "project_setup");
             return novel;
@@ -306,17 +352,15 @@ export class NovelDirectorConfirmRuntime {
           taskId: workflowTask.id,
           stage: "story_macro",
         });
-        await this.deps.workflowService.bootstrapTask({
-          workflowTaskId: workflowTask.id,
-          novelId: createdNovel.id,
-          lane: "auto_director",
-          title,
-          seedPayload: this.deps.buildDirectorSeedPayload(executionDirectorInput, createdNovel.id, {
+        await new DirectorTaskStateWriter(this.deps.workflowService).updateDirectorRunStateFromTaskData(
+          workflowTask.id,
+          this.deps.buildDirectorSeedPayload(executionDirectorInput, createdNovel.id, {
             startupPreparation: executionDirectorInput.startupPreparation,
             directorSession,
             resumeTarget,
           }),
-        });
+          { title },
+        );
         await this.deps.directorRuntime.initializeRun({
           taskId: workflowTask.id,
           novelId: createdNovel.id,
@@ -324,7 +368,7 @@ export class NovelDirectorConfirmRuntime {
           policyMode: this.resolveInitialPolicyMode(runMode),
           summary: "自动导演已创建小说项目并进入统一运行时。",
         });
-        await this.deps.runtimeOrchestrator.markTaskRunning(
+        await this.deps.runtimeOrchestrator.markRunning(
           workflowTask.id,
           "story_macro",
           "book_contract",
@@ -368,7 +412,7 @@ export class NovelDirectorConfirmRuntime {
       });
     } catch (error) {
       const message = error instanceof Error ? error.message : "自动导演确认链执行失败。";
-      await this.deps.workflowService.markTaskFailed(workflowTask.id, message);
+      await new DirectorTaskStateWriter(this.deps.workflowService).markFailed(workflowTask.id, message);
       throw error;
     }
   }
@@ -395,13 +439,14 @@ export class NovelDirectorConfirmRuntime {
     if (!novel) {
       throw new Error("自动导演确认链未能读取已创建的小说项目。");
     }
-    const seedPayload = parseSeedPayload<DirectorWorkflowSeedPayload>(task.seedPayloadJson) ?? {};
-    const directorSession = seedPayload.directorSession ?? buildDirectorSessionState({
+    const storedState = await new DirectorStateReader().readTaskStateById(task.id);
+    const directorTaskData = (storedState ? toDirectorTaskDataView(storedState) : {}) as DirectorWorkflowSeedPayload;
+    const directorSession = directorTaskData.directorSession ?? buildDirectorSessionState({
       runMode: normalizeDirectorRunMode(input.runMode),
       phase: "story_macro",
       isBackgroundRunning: true,
     });
-    const resumeTarget = parseResumeTarget(task.resumeTargetJson) ?? buildNovelEditResumeTarget({
+    const resumeTarget = storedState?.run.resumeTarget ?? buildNovelEditResumeTarget({
       novelId: task.novelId,
       taskId: task.id,
       stage: "story_macro",

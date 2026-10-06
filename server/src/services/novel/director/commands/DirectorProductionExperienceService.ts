@@ -6,7 +6,8 @@ import { buildFullBookAutopilotExecutionPlan } from "@ai-novel/shared/types/nove
 import { buildFullDirectorAutoApprovalConfig } from "@ai-novel/shared/types/autoDirectorApproval";
 import { prisma } from "../../../../db/prisma";
 import { AppError } from "../../../../middleware/errorHandler";
-import { parseSeedPayload } from "../../workflow/novelWorkflow.shared";
+import { DirectorTaskStateWriter } from "../state";
+import { DirectorStateReader, toDirectorTaskDataView } from "../state/DirectorStateReader";
 import {
   applyDirectorRunModeContract,
   type DirectorWorkflowSeedPayload,
@@ -44,34 +45,41 @@ export function buildProductionExperienceSeed(
 }
 
 export class DirectorProductionExperienceService {
-  constructor(private readonly commandService = new DirectorCommandService()) {}
+  constructor(
+    private readonly commandService = new DirectorCommandService(),
+    private readonly stateWriter = new DirectorTaskStateWriter(),
+  ) {}
 
   async select(
     taskId: string,
     experience: NovelProductionExperience,
   ): Promise<NovelProductionExperienceSelectionResponse> {
-    const task = await prisma.novelWorkflowTask.findUnique({ where: { id: taskId } });
+    const task = await prisma.novelWorkflowTask.findUnique({
+      where: { id: taskId },
+      select: { id: true, lane: true, novelId: true, status: true, checkpointType: true },
+    });
     if (!task || task.lane !== "auto_director") {
       throw new AppError("自动导演任务不存在。", 404);
     }
     if (!task.novelId) {
       throw new AppError("自动导演任务还没有绑定小说项目。", 409);
     }
+    const novelId = task.novelId;
 
-    const seed = parseSeedPayload<DirectorWorkflowSeedPayload>(task.seedPayloadJson) ?? {};
+    const state = await new DirectorStateReader().readTaskStateById(task.id);
+    const seed = (state ? toDirectorTaskDataView(state) : {}) as DirectorWorkflowSeedPayload;
     const selected = parseSelectedExperience(seed);
     if (selected && selected !== experience) {
-      const nextSeed = buildProductionExperienceSeed(seed, experience);
-      await prisma.$transaction([
-        prisma.novelWorkflowTask.update({
-          where: { id: task.id },
-          data: { seedPayloadJson: JSON.stringify(nextSeed) },
-        }),
-        prisma.novel.update({
-          where: { id: task.novelId },
+      buildProductionExperienceSeed(seed, experience);
+      await prisma.$transaction(async (tx) => {
+        await this.stateWriter.updateDirectorRunState(task.id, {
+          productionExperience: experience,
+        }, undefined, { transaction: tx });
+        await tx.novel.update({
+          where: { id: novelId },
           data: { creationExperience: experience },
-        }),
-      ]);
+        });
+      });
       return {
         experience,
         workflowTaskId: task.id,
@@ -85,25 +93,23 @@ export class DirectorProductionExperienceService {
       if (task.checkpointType !== "production_experience_required") {
         throw new AppError("自动导演还没有完成正文生产前的准备。", 409);
       }
-      const nextSeed = buildProductionExperienceSeed(seed, experience);
+      buildProductionExperienceSeed(seed, experience);
 
       const claimed = await prisma.$transaction(async (tx) => {
-        const updated = await tx.novelWorkflowTask.updateMany({
+        const updated = await this.stateWriter.updateDirectorRunStateMany({
           where: {
             id: task.id,
             checkpointType: "production_experience_required",
           },
           data: {
-            seedPayloadJson: JSON.stringify(nextSeed),
             status: "waiting_approval",
             currentStage: "chapter_execution",
             currentItemKey: "chapter_batch_ready",
             currentItemLabel: "已选择创作界面，准备开始全书生产",
             checkpointType: "chapter_batch_ready",
             checkpointSummary: "章节执行资源已准备完成，AI 将开始全书生产。",
-            pendingManualRecovery: false,
           },
-        });
+        }, { productionExperience: experience }, { transaction: tx });
         if (updated.count === 0) {
           return false;
         }

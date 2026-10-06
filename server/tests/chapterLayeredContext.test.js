@@ -13,6 +13,26 @@ const {
   buildChapterRepairContextBlocks,
 } = require("../dist/prompting/prompts/novel/chapterLayeredContext.js");
 
+test("acceptance keeps the complete effective style contract when required facts exhaust the budget", () => {
+  const pkg = createContextPackage();
+  pkg.styleContext = createStyleContext();
+  const write = buildChapterWriteContext({ bookContract: pkg.bookContract, contextPackage: pkg });
+  const blocks = buildChapterReviewContextBlocks(buildChapterReviewContext(write, pkg));
+  const { createContextBlock } = require("../dist/prompting/core/contextBudget.js");
+  blocks.unshift(createContextBlock({ id: "oversized_facts", group: "character_hard_facts", priority: 200,
+    required: true, allowSummary: false, content: "必须保留的事实。".repeat(900) }));
+  const { preparePromptExecution } = require("../dist/prompting/core/promptRunner.js");
+  const { chapterAcceptanceAssessmentPrompt } = require("../dist/prompting/prompts/novel/chapterAcceptance.prompts.js");
+  const prepared = preparePromptExecution({ asset: chapterAcceptanceAssessmentPrompt,
+    promptInput: { novelTitle: "测试", chapterOrder: 5, chapterTitle: "测试", content: "正文", styleReviewEnabled: true },
+    contextBlocks: blocks });
+  const original = blocks.find(block => block.group === "style_contract");
+  const selected = prepared.context.blocks.find(block => block.group === "style_contract");
+  assert.ok(selected, "budget cannot discard the selected writing rules");
+  assert.equal(selected.content, original.content, "budget cannot truncate the rule contract");
+  assert.equal(prepared.invocation.summarizedContextBlockIds.includes("style_contract"), false);
+});
+
 test("chapter layered context keeps full book promise and volume reader rewards", () => {
   const book = buildBookContractContext({
     title: "反压测试",
@@ -633,6 +653,64 @@ function createContextPackage() {
   };
 }
 
+test('canonical scene-card length reaches mission, budget, writing and review when chapter metadata is empty', () => {
+  const contextPackage = createContextPackage();
+  const plan = JSON.parse(contextPackage.chapter.sceneCards);
+  contextPackage.chapter.targetWordCount = null;
+  plan.targetWordCount = 1800;
+  plan.lengthBudget = { targetWordCount: 1800, softMinWordCount: 1530, softMaxWordCount: 2070, hardMaxWordCount: 2250 };
+  plan.scenes.forEach(scene => { scene.targetWordCount = 600; });
+  contextPackage.chapter.sceneCards = JSON.stringify(plan);
+  const write = buildChapterWriteContext({ bookContract: buildBookContractContext({ title: '本书' }), macroConstraints: null, volumeWindow: null, contextPackage });
+  assert.equal(write.chapterMission.targetWordCount, 1800);
+  assert.equal(write.lengthBudget.targetWordCount, 1800);
+  assert.equal(write.scenePlan.targetWordCount, 1800);
+  assert.equal(buildChapterReviewContext(write, contextPackage).chapterMission.targetWordCount, 1800);
+});
+
+test('explicit chapter length takes precedence over scene-card length', () => {
+  const contextPackage = createContextPackage(); contextPackage.chapter.targetWordCount = 2400;
+  const write = buildChapterWriteContext({ bookContract: buildBookContractContext({ title: '本书' }), macroConstraints: null, volumeWindow: null, contextPackage });
+  assert.equal(write.chapterMission.targetWordCount, 2400);
+  assert.equal(write.lengthBudget.targetWordCount, 2400);
+  assert.equal(write.scenePlan.targetWordCount, 2400);
+});
+
+test('malformed scene cards cannot invent a chapter target', () => {
+  const contextPackage = createContextPackage(); contextPackage.chapter.targetWordCount = null;
+  contextPackage.chapter.sceneCards = JSON.stringify({ targetWordCount: 1800, scenes: [] });
+  const write = buildChapterWriteContext({ bookContract: buildBookContractContext({ title: '本书' }), macroConstraints: null, volumeWindow: null, contextPackage });
+  assert.equal(write.chapterMission.targetWordCount, null);
+  assert.equal(write.lengthBudget, null);
+});
+
+test('genre and story-mode foundation precedes changing chapter state in writing, review and repair without freezing edits', () => {
+  const { renderCacheContextSections } = require('../dist/prompting/core/cache');
+  const contextPackage = createContextPackage();
+  const build = (foundation, nextAction) => buildChapterWriteContext({
+    bookContract: buildBookContractContext({ title: '本书' }),
+    productionFoundationPrompt: foundation,
+    macroConstraints: null, volumeWindow: null,
+    contextPackage: { ...contextPackage, nextAction },
+  });
+  for (const mode of ['full', 'review', 'repair']) {
+    const blocks = buildChapterWriterContextBlocks(build('题材：悬疑，线索须有来源', '确认钥匙来源'), { mode });
+    const foundation = blocks.find(block => block.group === 'production_foundation');
+    assert.equal(foundation.reuseScope, 'book');
+    assert.equal(foundation.required, true);
+    assert.equal(foundation.allowSummary, false);
+    const a = renderCacheContextSections({ blocks });
+    const b = renderCacheContextSections({ blocks: buildChapterWriterContextBlocks(build('题材：悬疑，线索须有来源', '进入维修通道'), { mode }) });
+    assert.equal(a.stable, b.stable);
+    assert.ok(b.dynamic.includes('进入维修通道'));
+    assert.ok(!b.dynamic.includes('确认钥匙来源'));
+    assert.ok(a.stable.includes('线索须有来源'));
+    const edited = renderCacheContextSections({ blocks: buildChapterWriterContextBlocks(build('题材：悬疑，叙事保持克制', '进入维修通道'), { mode }) });
+    assert.ok(edited.stable.includes('叙事保持克制'));
+    assert.ok(!edited.stable.includes('线索须有来源'));
+  }
+});
+
 function createStyleContext() {
   const makeSection = (key, title, text) => ({
     key,
@@ -745,17 +823,18 @@ test("chapter layered contexts carry volume mission, character duties and repair
   assert.ok(writeContext.chapterBoundary.doNotCross.some((item) => item.includes("不要提前揭露幕后黑手")));
   assert.ok(reviewContext.structureObligations.includes("volume mission: 建立压迫源并完成第一次反压"));
   assert.ok(reviewContext.structureObligations.some((item) => item.includes("payoff directive: pressure First payoff")));
-  assert.ok(reviewContext.structureObligations.some((item) => item.includes("pending payoff: 女二情报钥匙")));
-  assert.ok(reviewContext.structureObligations.some((item) => item.includes("urgent payoff: 黑市账户异常")));
-  assert.ok(reviewContext.structureObligations.some((item) => item.includes("overdue payoff: 第一次反压收益")));
+  assert.ok(!reviewContext.structureObligations.some((item) => item.includes("pending payoff: 女二情报钥匙")));
+  assert.ok(!reviewContext.structureObligations.some((item) => item.includes("urgent payoff: 黑市账户异常")));
+  assert.ok(!reviewContext.structureObligations.some((item) => item.includes("overdue payoff: 第一次反压收益")));
   assert.ok(reviewContext.structureObligations.some((item) => item.includes("resource setup needed: 女二暗账副本")));
   assert.ok(reviewContext.structureObligations.some((item) => item.includes("resource unavailable: 旧通行证")));
   assert.ok(reviewContext.structureObligations.some((item) => item.includes("unconfirmed resource proposal: 女二暗账副本可能已经交给主角")));
   assert.ok(!reviewContext.structureObligations.some((item) => item.includes("resource needs confirmation")));
   assert.ok(repairContext.allowedEditBoundaries.some((item) => item.includes("Pending character candidates remain read-only")));
   assert.ok(repairContext.allowedEditBoundaries.some((item) => item.includes("女二")));
-  assert.ok(repairContext.allowedEditBoundaries.some((item) => item.includes("urgent payoff thread: 黑市账户异常")));
-  assert.ok(repairContext.allowedEditBoundaries.some((item) => item.includes("overdue payoff pressure: 第一次反压收益")));
+  assert.ok(repairContext.allowedEditBoundaries.some((item) => item.includes("Preserve established payoff setups")));
+  assert.ok(!repairContext.allowedEditBoundaries.some((item) => item.includes("urgent payoff thread:")));
+  assert.ok(!repairContext.allowedEditBoundaries.some((item) => item.includes("overdue payoff pressure:")));
   assert.ok(repairContext.allowedEditBoundaries.some((item) => item.includes("Patch resource continuity before using 旧通行证")));
 
   const writerBlocks = buildChapterWriterContextBlocks(writeContext);
@@ -832,9 +911,10 @@ test("chapter layered contexts carry volume mission, character duties and repair
     && /Do not cross/.test(block.content)
   )));
   assert.ok(reviewBlocks.some((block) => (
-    block.id === "structure_obligations"
-    && /urgent payoff: 黑市账户异常/.test(block.content)
-    && /overdue payoff: 第一次反压收益/.test(block.content)
+    block.id === "payoff_ledger"
+    && block.required && block.allowSummary === false
+    && /urgent: 黑市账户异常/.test(block.content)
+    && /overdue: 第一次反压收益/.test(block.content)
   )));
   assert.ok(reviewBlocks.some((block) => (
     block.id === "chapter_mission"

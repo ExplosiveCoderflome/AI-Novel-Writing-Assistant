@@ -216,7 +216,7 @@ export function createStructuredOutlineFactModule(input: {
         inspectProgress: async (context) => (await inspectStructuredOutlineFactState(context, input.step)).progress,
         recover: async (context) => {
           const { novelId, state } = await loadDirectorModuleState(context);
-          const cursor = await getDirectorCoreStepRuntime().getStructuredOutlineRecoveryCursor(novelId, state.seedPayload ? getDirectorInputFromSeedPayload(state.seedPayload) : null);
+          const cursor = await getDirectorCoreStepRuntime().getStructuredOutlineRecoveryCursor(novelId, state.launch.directorInput ?? null);
           const resumeFrom = cursor?.step ?? input.step;
           return {
             recoverable: true,

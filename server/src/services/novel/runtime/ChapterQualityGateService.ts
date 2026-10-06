@@ -22,6 +22,7 @@ export interface RunChapterQualityGatesInput {
   content: string;
   request: ChapterRuntimeRequestInput;
   persistAssessment?: boolean;
+  repairReviewBaseline?: ChapterAcceptanceAssessmentInput["repairReviewBaseline"];
 }
 
 interface CacheIdentity {
@@ -52,7 +53,10 @@ export class ChapterQualityGateService {
       novelId: input.novelId, chapterId: input.chapterId,
       novelTitle: input.contextPackage.bookContract?.title ?? input.contextPackage.chapter.title,
       chapterTitle: input.contextPackage.chapter.title, chapterOrder: input.contextPackage.chapter.order,
-      targetWordCount: input.contextPackage.chapter.targetWordCount ?? null,
+      targetWordCount: input.contextPackage.chapterWriteContext?.chapterMission.targetWordCount
+        ?? input.contextPackage.chapterReviewContext?.chapterMission.targetWordCount
+        ?? input.contextPackage.chapter.targetWordCount ?? null,
+      repairReviewBaseline: input.repairReviewBaseline,
       content: input.content, contextPackage: input.contextPackage,
       provider: input.request.provider, model: input.request.model, temperature: input.request.temperature,
       persist: input.persistAssessment !== false,
@@ -92,7 +96,10 @@ export class ChapterQualityGateService {
       novelTitle: input.contextPackage.bookContract?.title ?? input.contextPackage.chapter.title,
       chapterTitle: input.contextPackage.chapter.title,
       chapterOrder: input.contextPackage.chapter.order,
-      targetWordCount: input.contextPackage.chapter.targetWordCount ?? null,
+      targetWordCount: input.contextPackage.chapterWriteContext?.chapterMission.targetWordCount
+        ?? input.contextPackage.chapterReviewContext?.chapterMission.targetWordCount
+        ?? input.contextPackage.chapter.targetWordCount ?? null,
+      repairReviewBaseline: input.repairReviewBaseline,
       content: input.content,
       contextPackage: input.contextPackage,
       provider: input.request.provider,
@@ -155,27 +162,7 @@ export class ChapterQualityGateService {
         return exact.result;
       }
 
-      // requestKey can change after a task resume while the chapter content is unchanged.
-      // Reuse the latest cache for the same content hash instead of paying for a duplicate gate.
-      const fallback = await prisma.chapterArtifactSyncCheckpoint.findFirst({
-        where: {
-          novelId: input.novelId,
-          chapterId: input.chapterId,
-          contentHash: identity.contentHash,
-          artifactType: "quality_gate_acceptance",
-          status: "succeeded",
-        },
-        orderBy: { updatedAt: "desc" },
-        select: { metadataJson: true },
-      });
-      if (fallback?.metadataJson) {
-        const payload = JSON.parse(fallback.metadataJson) as PersistedAcceptance;
-        if (payload.schemaVersion === 2 && payload.gate === "acceptance"
-          && payload.contentHash === identity.contentHash && this.isCacheable(payload.result)) {
-          rememberCacheValue(this.cache, key, payload.result);
-          return payload.result;
-        }
-      }
+      // Same prose is insufficient: prompt, contract, repair baseline and model must also match.
     } catch {
       console.warn("[chapter-runtime] acceptance cache read skipped", { chapterId: input.chapterId });
     }

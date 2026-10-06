@@ -181,6 +181,11 @@ export async function generateChapterTaskSheetDetail(params: {
         sceneCards: serializeChapterScenePlan(scenePlan),
       }, {
         mode: params.options.chapterTaskSheetQualityMode,
+        onEvaluated: async event => params.options.onChapterTaskSheetQuality?.({
+          chapterId: promptInput.targetChapter.id,
+          chapterOrder: promptInput.targetChapter.chapterOrder,
+          ...event,
+        }),
         provider: params.options.provider,
         model: params.options.model,
         taskId: params.options.taskId,

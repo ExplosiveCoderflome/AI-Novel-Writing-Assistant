@@ -25,12 +25,19 @@ function createPipelineHarness({
   content = "original draft",
   scores = [90],
   repairError,
+  repairContent = "repair candidate",
+  acceptanceMeta = {},
+  acceptanceAssessment,
+  recheckAssessment,
+  auditHasBlockingIssues = false,
+  timelineStatus,
   stopAt,
   artifactSyncStatus = "completed",
 } = {}) {
   const events = [];
   const committedContents = [];
   const syncedContents = [];
+  const reviewBaselines = [];
   let persisted = content;
   let reviewIndex = 0;
   let budget = 0;
@@ -45,11 +52,13 @@ function createPipelineHarness({
       runChapterRepairText: async () => {
         events.push("repair");
         if (repairError) throw repairError;
-        return { content: "repair candidate" };
+        return { content: repairContent };
       },
     },
     "../chapterPatchRepairService": { ChapterPatchRepairFailedError: class extends Error {} },
     "./selection/ChapterRepairCandidateSelection": selectionModule,
+    "./repair/ChapterRepairEligibility": loadRuntimeSource("repair/ChapterRepairEligibility.ts", {}),
+    "./proseQuality": loadRuntimeSource("proseQuality/ProseQualityDetector.ts", {}),
     "./artifactSync/ChapterArtifactSyncResult": {
       ChapterArtifactSyncBoundaryError: class extends Error {
         constructor(result) { super(result.reason); this.result = result; }
@@ -66,7 +75,8 @@ function createPipelineHarness({
       events.push("save");
       if (stopAt === "after_save") throw new Error("after_save");
     },
-    finalizeChapterContent: async ({ content: value }) => {
+    finalizeChapterContent: async ({ content: value, repairReviewBaseline }) => {
+      reviewBaselines.push(repairReviewBaseline);
       events.push("acceptance");
       if (stopAt === "recheck" && reviewIndex > 0) throw new Error("recheck");
       const score = scores[Math.min(reviewIndex++, scores.length - 1)];
@@ -74,10 +84,12 @@ function createPipelineHarness({
         finalContent: value,
         runtimePackage: {
           novelId: "n", chapterId: "c",
-          audit: { score: { coherence: score, repetition: score, engagement: score, overall: score }, openIssues: [], reports: [] },
-          context: {}, meta: { acceptanceStatus: score >= 80 ? "accepted" : "repairable" },
+          audit: { score: { coherence: score, repetition: score, engagement: score, overall: score }, openIssues: [], reports: [], hasBlockingIssues: auditHasBlockingIssues },
+          context: {}, meta: { acceptanceStatus: score >= 80 ? "accepted" : "repairable", ...acceptanceMeta },
+          ...(timelineStatus ? { timelineCheck: { status: timelineStatus } } : {}),
         },
         needsRepair: score < 80,
+        ...(acceptanceAssessment ? { acceptanceResult: { assessment: reviewIndex > 1 && recheckAssessment ? recheckAssessment : acceptanceAssessment } } : {}),
       };
     },
     commitFinalizedChapterContent: async ({ evaluation }) => {
@@ -103,6 +115,7 @@ function createPipelineHarness({
   };
   return {
     events,
+    reviewBaselines,
     get content() { return persisted; },
     get budget() { return budget; },
     get approved() { return approved; },

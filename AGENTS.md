@@ -181,8 +181,10 @@ These areas have the highest priority for wiki accumulation:
 
 ## Agent Collaboration Rules
 
+- Before creating, resuming, or assigning work to a subagent, ask the user and obtain explicit approval for that specific delegation. General authorization to continue development and earlier subagent approval do not carry over to another delegation.
+- An approved subagent must use an explicitly selected Luna-series model. Never inherit the current model, and never invoke Astra, Sol, Terra, or another higher-tier or non-Luna model as a subagent. If Luna is unavailable, continue without subagents and report the limitation.
 - The project allows subagents to assist with development, investigation, verification, and documentation work when the active tool environment and higher-priority instructions permit it.
-- Use subagents for well-scoped parallel work such as independent codebase exploration, focused implementation slices, documentation audits, or non-blocking verification.
+- After that specific approval, use Luna subagents only for well-scoped work such as independent codebase exploration, focused implementation slices, documentation audits, or non-blocking verification.
 - When delegating implementation, assign clear ownership of files or modules. Subagents must not revert or overwrite changes made by others.
 - Do not use subagents to bypass project safety rules, data protection rules, branch workflow, prompt governance, or release-note / wiki requirements.
 - Do not delegate destructive operations, database resets, migrations with data-loss risk, public release uploads, or branch promotion decisions.

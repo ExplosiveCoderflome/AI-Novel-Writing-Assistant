@@ -25,7 +25,8 @@ function buildState(input) {
     runtime: null,
     latestCommand: null,
     activeStep: null,
-    seedPayload: {},
+    launch: { legacyContext: {} },
+    run: {},
     chapterProgress: null,
   };
 }

@@ -1,3 +1,4 @@
+import { DirectorTaskStateWriter } from "../state";
 import type { VolumePlanDocument } from "@ai-novel/shared/types/novel";
 import type {
   DirectorConfirmRequest,
@@ -220,12 +221,12 @@ export async function runDirectorStructuredOutlinePhase(input: {
     volumeId: initialRecoveryCursor.volumeId ?? firstVolume.id,
     chapterId: initialRecoveryCursor.chapterId,
   });
-  await dependencies.workflowService.bootstrapTask({
+  await new DirectorTaskStateWriter(dependencies.workflowService).initializeTask({
     workflowTaskId: taskId,
     novelId,
     lane: "auto_director",
     title: request.candidate.workingTitle,
-    seedPayload: callbacks.buildDirectorSeedPayload(request, novelId, {
+    directorState: callbacks.buildDirectorSeedPayload(request, novelId, {
       directorSession,
       resumeTarget: runningResumeTarget,
     }),
@@ -349,7 +350,7 @@ export async function runDirectorStructuredOutlinePhase(input: {
         volumeId: targetVolume.id,
         dependencies,
       });
-      await dependencies.workflowService.markTaskRunning(taskId, {
+      await new DirectorTaskStateWriter(dependencies.workflowService).markRunning(taskId, {
         stage: "structured_outline",
         itemKey: "chapter_list",
         itemLabel: `第 ${targetVolume.sortOrder} 卷章节列表已生成`,
@@ -600,7 +601,15 @@ export async function runDirectorStructuredOutlinePhase(input: {
     volumeId: selectedChapters[0]?.volumeId ?? firstVolume.id,
     chapterId: selectedChapters[0]?.id ?? null,
   });
-  await dependencies.workflowService.recordCheckpoint(taskId, {
+  const directorTaskData = callbacks.buildDirectorSeedPayload(request, novelId, {
+    directorSession: pausedSession,
+    resumeTarget: chapterResumeTarget,
+    autoExecution: autoExecutionState,
+    startupPreparation: request.startupPreparation,
+  });
+  const stateWriter = new DirectorTaskStateWriter(dependencies.workflowService);
+  await stateWriter.updateDirectorRunStateFromTaskData(taskId, directorTaskData);
+  await stateWriter.persistCheckpoint(taskId, {
     stage: "chapter_execution",
     checkpointType: "production_experience_required",
     checkpointSummary: `《${request.candidate.workingTitle.trim() || request.title?.trim() || "当前项目"}》已完成前期准备，请选择创作界面。`,
@@ -608,12 +617,6 @@ export async function runDirectorStructuredOutlinePhase(input: {
     volumeId: selectedChapters[0]?.volumeId ?? firstVolume.id,
     chapterId: selectedChapters[0]?.id ?? null,
     progress: DIRECTOR_PROGRESS.chapterBatchReady,
-    seedPayload: callbacks.buildDirectorSeedPayload(request, novelId, {
-      directorSession: pausedSession,
-      resumeTarget: chapterResumeTarget,
-      autoExecution: autoExecutionState,
-      startupPreparation: request.startupPreparation,
-    }),
   });
   logMemoryUsage({
     event: "done",

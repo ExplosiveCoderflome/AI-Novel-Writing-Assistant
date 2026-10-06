@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { toast } from "@/components/ui/toast";
 import OnboardingTip from "@/components/onboarding/OnboardingTip";
 import { queryKeys } from "@/api/queryKeys";
+import { getTaskSourceHref } from "@/lib/novelRoutes";
 
 interface NovelProductionExperienceHandoffProps {
   taskId: string;
@@ -37,7 +38,7 @@ export default function NovelProductionExperienceHandoff({
       toast.success(response.experience === "simple"
         ? "已切换到阅读书架，AI 会继续完成整本书。"
         : "已切换到完整工作台，AI 会继续完成整本书。");
-      navigate(response.targetRoute, { replace: true });
+      navigate(getTaskSourceHref(response.targetRoute), { replace: true });
     },
     onError: (error) => toast.error(error instanceof Error ? error.message : "选择生产方式失败，请重试。"),
   });

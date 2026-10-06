@@ -1,0 +1,244 @@
+const test=require('node:test');const fs=require('node:fs');const os=require('node:os');const path=require('node:path');const {execFileSync}=require('node:child_process');
+
+test('temporary full-schema switch preserves historical tasks and prose while takeover and handoff share one ledger',()=>{
+ const root=path.resolve(__dirname,'../../../..'),dir=fs.mkdtempSync(path.join(os.tmpdir(),'director-switch-')),script=path.join(dir,'drill.cjs');
+ fs.writeFileSync(script,String.raw`
+const assert=require('node:assert/strict');const path=require('node:path');const server=path.join(process.env.DIRECTOR_NEXT_REPO_ROOT,'server');
+const {prisma}=require(path.join(server,'dist/db/prisma'));
+const {ensureRuntimeDatabaseReady}=require(path.join(server,'dist/db/runtimeMigrations'));
+const {createDirectorNextServices}=require(path.join(server,'dist/modules/director'));
+const {createDirectorProductionOptions}=require(path.join(server,'dist/app/director/productionComposition'));
+const {LegacyRunProjection}=require(path.join(server,'dist/modules/director/http'));
+const {readDirectorWorkspace}=require(path.join(server,'dist/app/director/workspace'));
+const {launchNewDirectorBook}=require(path.join(server,'dist/app/director/newBook'));
+const {executeOpeningCommand,prepareOpeningRetry}=require(path.join(server,'dist/app/director/opening'));
+(async()=>{
+ await ensureRuntimeDatabaseReady();
+ await prisma.novel.create({data:{directorVersion:'v2',id:'existing',title:'验收小说'}});
+ await prisma.novel.create({data:{directorVersion:'v2',id:'fresh',title:'新小说'}});
+ await prisma.character.create({data:{id:'character',novelId:'existing',name:'原有主角',role:'主角'}});
+ await prisma.chapter.create({data:{id:'chapter',novelId:'existing',order:1,title:'原章节',content:'已有正文，必须完整保留。'}});
+ for(const status of ['queued','running','failed','succeeded'])await prisma.novelWorkflowTask.create({data:{id:'old-'+status,novelId:'existing',lane:'auto_director',title:'旧导演',status,pendingManualRecovery:true,seedPayloadJson:'not valid JSON; must never be read'}});
+ const before=await prisma.novelWorkflowTask.findMany({orderBy:{id:'asc'}});
+ process.env.DIRECTOR_NEXT_ENABLED='true';
+ const {createApp}=require(path.join(server,'dist/app'));
+ const http=createApp().listen(0);await new Promise(resolve=>http.once('listening',resolve));
+ const base='http://127.0.0.1:'+http.address().port;
+ const oldCommands=await prisma.directorRunCommand.count();
+ await prisma.generationJob.create({data:{id:'owned-job',novelId:'existing',startOrder:1,endOrder:1,status:'queued',pendingManualRecovery:true,payload:JSON.stringify({directorNext:{runId:'test-run',decisions:[]}})}});
+ await prisma.generationJob.create({data:{id:'old-owned-job',novelId:'existing',startOrder:2,endOrder:2,status:'queued',pendingManualRecovery:true,payload:JSON.stringify({workflowTaskId:'old-failed'})}});
+ const jobsBefore=await prisma.generationJob.findMany({orderBy:{id:'asc'}});
+ const chaptersBefore=await prisma.chapter.findMany({where:{novelId:'existing'},orderBy:{id:'asc'}});
+ try {
+  await prisma.novel.create({data:{directorVersion:'v2',id:'short-source',title:'短篇入口',narrativeForm:'short_story'}});
+  const shelf=await (await fetch(base+'/api/novels?limit=24')).json();
+  assert.equal(shelf.success,true);
+  for(const id of ['existing','fresh'])assert.equal(shelf.data.items.find(book=>book.id===id).workspaceSourceRoute,'/lab/director/'+id);
+  const bookDetail=await (await fetch(base+'/api/novels/existing')).json();
+  assert.equal(bookDetail.data.workspaceSourceRoute,'/lab/director/existing');
+  for(const route of ['/api/novel-workflows/novels/existing/auto-director','/api/novels/director/novels/existing/current','/api/novels/director/book-automation/existing']) {
+   const response=await fetch(base+route);assert.equal(response.status,200,route);
+   const body=await response.json();assert.equal(body.data,null,route);assert.equal(body.sourceRoute,'/lab/director/existing');
+  }
+  assert.equal(shelf.data.items.find(book=>book.id==='short-source').workspaceSourceRoute,null);
+  const shortDetail=await (await fetch(base+'/api/novels/short-source')).json();
+  assert.equal(shortDetail.data.workspaceSourceRoute,null);
+  process.env.DIRECTOR_NEXT_ENABLED='false';
+  const disabledHttp=createApp().listen(0);await new Promise(resolve=>disabledHttp.once('listening',resolve));
+  try {
+   const disabledShelf=await (await fetch('http://127.0.0.1:'+disabledHttp.address().port+'/api/novels?limit=24')).json();
+   assert.equal(disabledShelf.success,true);
+   assert.equal(disabledShelf.data.items.find(book=>book.id==='existing').workspaceSourceRoute,'/lab/director/existing');
+   const disabledDetail=await (await fetch('http://127.0.0.1:'+disabledHttp.address().port+'/api/novels/existing')).json();
+   assert.equal(disabledDetail.data.workspaceSourceRoute,'/lab/director/existing');
+   const legacyCurrentResponse=await fetch('http://127.0.0.1:'+disabledHttp.address().port+'/api/novels/director/novels/existing/current');
+   assert.equal(legacyCurrentResponse.status,200);
+   const legacyCurrent=await legacyCurrentResponse.json();
+   assert.equal(legacyCurrent.data,null);assert.equal(legacyCurrent.sourceRoute,'/lab/director/existing');
+  }finally{await new Promise(resolve=>disabledHttp.close(resolve));process.env.DIRECTOR_NEXT_ENABLED='true';createApp();}
+  const {getAgentToolDefinition}=require(path.join(server,'dist/agents/toolRegistry'));
+  for(const tool of ['analyze_director_workspace','get_director_run_status','explain_director_next_action','run_director_next_step','run_director_until_gate','switch_director_policy','evaluate_manual_edit_impact']) {
+   await assert.rejects(getAgentToolDefinition(tool).execute({runId:'agent-test',agentName:'novel',contextMode:'novel'}, {taskId:'old-failed'}),error=>error.code==='CONFLICT' && error.message.includes('/lab/director/existing'));
+  }
+  assert.deepEqual(await prisma.chapter.findMany({where:{novelId:'existing'},orderBy:{id:'asc'}}),chaptersBefore);
+  for(const route of ['/api/novel-workflows/old-failed/continue','/api/novel-workflows/old-failed/production-experience','/api/novel-workflows/old-failed/repair-chapter-titles','/api/tasks/novel_workflow/old-failed/retry','/api/tasks/novel_workflow/old-failed/cancel','/api/tasks/recovery-candidates/novel_workflow/old-failed/resume','/api/tasks/recovery-candidates/resume-all','/api/auto-director/follow-ups/old-failed/actions','/api/auto-director/channel-callbacks/dingtalk']) {
+   const response=await fetch(base+route,{method:'POST',headers:{'Content-Type':'application/json'},body:'{}'});assert.equal(response.status,409,route);
+  }
+  assert.equal(await prisma.directorRunCommand.count(),oldCommands);
+  assert.deepEqual(await prisma.novelWorkflowTask.findMany({orderBy:{id:'asc'}}),before);
+  const recoveryResponse=await fetch(base+'/api/tasks/recovery-candidates');
+  assert.equal(recoveryResponse.status,200);
+  const recovery=(await recoveryResponse.json()).data.items;
+  for(const id of ['old-queued','old-running','owned-job','old-owned-job']){
+   const item=recovery.find(item=>item.id===id);
+   assert.ok(item,id+' must stay visible');assert.equal(item.sourceRoute,'/lab/director/existing');
+  }
+  assert.deepEqual(await prisma.novelWorkflowTask.findMany({orderBy:{id:'asc'}}),before);
+  const jobDetail=await (await fetch(base+'/api/tasks/novel_pipeline/owned-job')).json();
+  assert.equal(jobDetail.data.sourceRoute,'/lab/director/existing');
+  assert.equal(jobDetail.data.sourceResource.route,'/lab/director/existing');
+  for(const jobId of ['owned-job','old-owned-job'])for(const action of ['retry','cancel','archive']){
+   const response=await fetch(base+'/api/tasks/novel_pipeline/'+jobId+'/'+action,{method:'POST',headers:{'Content-Type':'application/json'},body:'{}'});assert.equal(response.status,409);
+  }
+  for(const jobId of ['owned-job','old-owned-job']){
+   const response=await fetch(base+'/api/tasks/recovery-candidates/novel_pipeline/'+jobId+'/resume',{method:'POST',headers:{'Content-Type':'application/json'},body:'{}'});assert.equal(response.status,409);
+  }
+  assert.deepEqual(await prisma.generationJob.findMany({orderBy:{id:'asc'}}),jobsBefore);
+  assert.equal(await prisma.directorRunCommand.count(),oldCommands);
+ }finally{await new Promise(resolve=>http.close(resolve));}
+
+ await prisma.novel.create({data:{directorVersion:'v2',id:'future-batch',title:'分批续写'}});
+ const {buildVolumeWorkspaceDocument}=require(path.join(server,'dist/services/novel/volume/volumeWorkspaceDocument'));
+ const futureWorkspace=buildVolumeWorkspaceDocument({novelId:'future-batch',volumes:[{id:'only-first',novelId:'future-batch',sortOrder:1,title:'第一卷',chapters:[],openPayoffs:[],status:'active',createdAt:new Date().toISOString(),updatedAt:new Date().toISOString()}],beatSheets:[],rebalanceDecisions:[],strategyPlan:null});
+ const savedFuture=await prisma.volumePlanVersion.create({data:{novelId:'future-batch',version:1,status:'active',contentJson:JSON.stringify(futureWorkspace)}});
+ const {readExistingAssets}=require(path.join(server,'dist/app/director/existingAssets'));
+ const futureOptions=createDirectorProductionOptions();
+ const futureInput={storyInput:'续写',estimatedChapterCount:30,worldMode:'skip',targetMode:'opening',provider:'openai',model:'test-no-invocation',executionRange:{from:11,to:13}};
+ const futureContract=futureOptions.contractFactory({runId:'future-prep',novelId:'future-batch',driver:'auto',stepIdsInScope:null,launchInput:futureInput});
+ const assetsFuture=await readExistingAssets(futureContract);
+ assert.ok(assetsFuture.some(asset=>asset.type==='volume_strategy'));
+ assert.equal(assetsFuture.some(asset=>['volume_beat_sheet','volume_chapter_list'].includes(asset.type)),false);
+ assert.deepEqual(await prisma.volumePlanVersion.findUniqueOrThrow({where:{id:savedFuture.id}}),savedFuture);
+ const futureServices=createDirectorNextServices(futureOptions);
+ const futureOpened=await futureServices.http.commandService.execute({type:'open_run',novelId:'future-batch',driver:'auto',stepIdsInScope:null,launchInput:futureInput,idempotencyKey:'future-open'});
+ assert.equal((await prisma.directorNextRunControl.findUniqueOrThrow({where:{runId:futureOpened.runId}})).status,'queued');
+ assert.equal(await prisma.generationJob.count({where:{novelId:'future-batch'}}),0);
+ await futureServices.http.commandService.execute({type:'cancel',runId:futureOpened.runId,expectedVersion:0,idempotencyKey:'future-cancel-before-worker'});
+ await prisma.novel.create({data:{directorVersion:'v2',id:'partial-batch',title:'近期路线缺口'}});
+ const partialWorkspace=buildVolumeWorkspaceDocument({novelId:'partial-batch',volumes:[{...futureWorkspace.volumes[0],id:'partial-volume',novelId:'partial-batch',chapters:[{id:'one-route',chapterOrder:1,title:'第一章',summary:'已保存的路线'}]}],beatSheets:[],rebalanceDecisions:[],strategyPlan:null});
+ const partialSaved=await prisma.volumePlanVersion.create({data:{novelId:'partial-batch',version:1,status:'active',contentJson:JSON.stringify(partialWorkspace)}});
+ const partialContract=futureOptions.contractFactory({runId:'partial-prep',novelId:'partial-batch',driver:'auto',stepIdsInScope:null,launchInput:{...futureInput,executionRange:{from:1,to:3}}});
+ const partialAssets=await readExistingAssets(partialContract);
+ assert.equal(partialAssets.some(asset=>asset.type==='volume_chapter_list'),false,'a single saved route cannot satisfy a three-chapter opening window');
+ assert.deepEqual(await prisma.volumePlanVersion.findUniqueOrThrow({where:{id:partialSaved.id}}),partialSaved);
+ const shortContract=futureOptions.contractFactory({runId:'short-prep',novelId:'partial-batch',driver:'auto',stepIdsInScope:null,launchInput:{...futureInput,executionRange:{from:1,to:1}}});
+ assert.equal((await readExistingAssets(shortContract)).some(asset=>asset.type==='volume_chapter_list'),true,'one authorized chapter needs only one saved route');
+ for (const [suffix,orders,ready] of [['ready',[1,2,3],true],['gap',[1,3,4],false]]) {
+  const novelId='window-'+suffix;
+  await prisma.novel.create({data:{directorVersion:'v2',id:novelId,title:'路线盘点 '+suffix}});
+  const workspace=buildVolumeWorkspaceDocument({novelId,volumes:[{...partialWorkspace.volumes[0],novelId,id:novelId+'-volume',chapters:orders.map((chapterOrder,index)=>({id:novelId+'-'+index,chapterOrder,title:'章节 '+chapterOrder,summary:'保存路线'}))}],beatSheets:[],rebalanceDecisions:[],strategyPlan:null});
+  const saved=await prisma.volumePlanVersion.create({data:{novelId,version:1,status:'active',contentJson:JSON.stringify(workspace)}});
+  const contract=futureOptions.contractFactory({runId:novelId+'-prep',novelId,driver:'auto',stepIdsInScope:null,launchInput:{...futureInput,executionRange:{from:1,to:3}}});
+  assert.equal((await readExistingAssets(contract)).some(asset=>asset.type==='volume_chapter_list'),ready,suffix+' window readiness');
+  assert.deepEqual(await prisma.volumePlanVersion.findUniqueOrThrow({where:{id:saved.id}}),saved);
+ }
+
+
+ const workspace=await readDirectorWorkspace('existing');
+ assert.equal(workspace.chapters[0].content,'已有正文，必须完整保留。');assert.equal(workspace.materials.characters[0].name,'原有主角');assert.equal('progress' in workspace,false);
+ const history=new LegacyRunProjection({list:()=>prisma.novelWorkflowTask.findMany({select:{id:true,novelId:true,title:true,status:true,progress:true,lastError:true}})});
+ assert.equal((await history.list({limit:50})).every(v=>v.mode==='history'),true);
+ const services=createDirectorNextServices(createDirectorProductionOptions());
+ const launchInput={storyInput:'故事方向',estimatedChapterCount:30,worldMode:'skip',targetMode:'opening',provider:'openai',model:'test-no-invocation'};
+ const opened=await services.http.commandService.execute({type:'open_run',novelId:'existing',driver:'auto',stepIdsInScope:[],launchInput,idempotencyKey:'takeover'});
+ const rows=await prisma.directorNextArtifact.findMany({where:{novelId:'existing'},orderBy:{id:'asc'}});
+ assert.equal(rows.find(a=>a.type==='character_cast').protectedUserContent,true);
+ assert.equal(rows.find(a=>a.type==='chapter_draft').protectedUserContent,true);
+ assert.equal(rows.find(a=>a.type==='chapter_draft').scope,'chapter:1');
+ assert.equal(rows.some(a=>a.type==='story_macro'),false);
+ const switched=await services.http.commandService.execute({type:'handoff',runId:opened.runId,toDriver:'assisted',expectedVersion:0,idempotencyKey:'switch'});
+ assert.deepEqual(await prisma.directorNextArtifact.findMany({where:{novelId:'existing'},orderBy:{id:'asc'}}),rows);
+ assert.equal(await prisma.directorNextRunControl.count({where:{novelId:'existing',status:{in:['queued','running','paused','waiting_gate']}}}),1);
+ assert.equal(await services.worker.tick(),true);
+ assert.equal((await prisma.directorNextRunControl.findUnique({where:{runId:switched.runId}})).status,'completed');
+ assert.equal((await prisma.chapter.findUnique({where:{id:'chapter'}})).content,'已有正文，必须完整保留。');
+ const fresh=await services.http.commandService.execute({type:'open_run',novelId:'fresh',driver:'assisted',stepIdsInScope:null,launchInput,idempotencyKey:'fresh'});
+ const saved=JSON.parse((await prisma.directorNextRun.findUnique({where:{id:fresh.runId}})).contractJson);
+ assert.equal(saved.chapterRange,null);assert.equal(saved.stepIdsInScope.includes('chapter_batch'),false);
+ assert.deepEqual(await prisma.novelWorkflowTask.findMany({orderBy:{id:'asc'}}),before);
+ await prisma.novelWorkflowTask.create({data:{id:'creation',lane:'creation_studio',title:'新开书'}});
+ await prisma.creationStudioConfirmation.create({data:{id:'confirmation',workflowTaskId:'creation',idempotencyKey:'new-book',narrativeForm:'long_novel'}});
+ await prisma.styleProfile.create({data:{id:'selected-style',name:'所选写法',sourceType:'manual'}});
+ const input={idea:'开书故事',candidate:{workingTitle:'新书标题',logline:'新书故事',targetChapterCount:30},provider:'openai',model:'test-no-invocation',worldSetupMode:'skip',estimatedChapterCount:30,styleProfileId:'selected-style',postGenerationStyleReviewEnabled:false};
+ const created=await launchNewDirectorBook(input,'creation');
+ const replayed=await launchNewDirectorBook(input,'creation');
+ assert.equal(created.novel.id,'director-book-confirmation');assert.equal(replayed.workflowTaskId,created.workflowTaskId);
+ assert.equal(await prisma.directorNextRun.count({where:{novelId:created.novel.id}}),1);
+ const selectedBindings=await prisma.styleBinding.findMany({where:{targetType:'novel',targetId:created.novel.id}});
+ assert.equal(selectedBindings.length,1,'confirmed style must survive opening and replay without duplicate bindings');
+ assert.equal(selectedBindings[0].styleProfileId,'selected-style');assert.equal(selectedBindings[0].enabled,true);
+ assert.equal((await prisma.novel.findUnique({where:{id:created.novel.id}})).postGenerationStyleReviewEnabled,false);
+ await prisma.styleProfile.create({data:{id:'edited-style',name:'用户调整的写法',sourceType:'manual'}});
+ await prisma.styleBinding.update({where:{id:selectedBindings[0].id},data:{styleProfileId:'edited-style',enabled:false}});
+ await prisma.novel.update({where:{id:created.novel.id},data:{postGenerationStyleReviewEnabled:true}});
+ await launchNewDirectorBook(input,'creation');
+ const retainedBinding=await prisma.styleBinding.findUniqueOrThrow({where:{id:selectedBindings[0].id}});
+ assert.equal(retainedBinding.styleProfileId,'edited-style');assert.equal(retainedBinding.enabled,false);
+ assert.equal((await prisma.novel.findUnique({where:{id:created.novel.id}})).postGenerationStyleReviewEnabled,true);
+ assert.equal(await prisma.novelWorkflowTask.count({where:{lane:'auto_director'}}),before.length);
+ await prisma.novelWorkflowTask.create({data:{directorVersion:'v2',id:'original-opening',lane:'auto_director',title:'原开书界面'}});
+ await prisma.directorRunCommand.create({data:{id:'original-confirm',taskId:'original-opening',commandType:'confirm_candidate',idempotencyKey:'confirm',payloadJson:JSON.stringify({confirmRequest:{...input,runMode:'stage_review',narrativePov:'first_person',pacePreference:'fast'}})}});
+ await executeOpeningCommand('original-confirm');await executeOpeningCommand('original-confirm');
+ const opening=await prisma.novelWorkflowTask.findUniqueOrThrow({where:{id:'original-opening'}});
+ assert.equal(opening.status,'succeeded');assert.equal(opening.novelId,'director-opening-book-original-opening');
+ assert.equal(JSON.parse(opening.resumeTargetJson).route,'/lab/director/:novelId');
+ const {NovelWorkflowTaskAdapter:OpeningTaskAdapter}=require(path.join(server,'dist/services/task/adapters/NovelWorkflowTaskAdapter'));
+ const openingDetail=await new OpeningTaskAdapter().detail('original-opening');
+ assert.equal(openingDetail.displayStatus,'开书方向已确认');
+ assert.equal(openingDetail.executionScopeLabel,'开书准备');
+ assert.equal(openingDetail.nextActionLabel,'打开小说导演台');
+ assert.deepEqual(openingDetail.steps.map(step=>step.key),['opening_complete']);
+ assert.equal(openingDetail.steps[0].status,'succeeded');
+ assert.equal(await prisma.generationJob.count({where:{novelId:opening.novelId}}),0);
+ const {readEditedArtifact}=require(path.join(server,'dist/app/director/savedContent'));
+ const {CHAPTER_ARTIFACT_BOUNDARY_TYPE,buildChapterArtifactContentHash}=require(path.join(server,'dist/services/novel/runtime/artifactSync'));
+ const editedChapter=await prisma.chapter.create({data:{novelId:opening.novelId,order:1,title:'编辑验收',content:'编辑后的正文',generationState:'approved',chapterStatus:'completed'}});
+ const editInput={contract:{novelId:opening.novelId,chapterRange:{from:1,to:1}},type:'chapter_batch_closed',contentRef:'batch:edited'};
+ await assert.rejects(()=>prisma.$transaction(tx=>readEditedArtifact(editInput,tx)),/同步|收尾/);
+ await prisma.chapterArtifactSyncCheckpoint.create({data:{novelId:opening.novelId,chapterId:editedChapter.id,artifactType:CHAPTER_ARTIFACT_BOUNDARY_TYPE,syncMode:'production',status:'succeeded',contentHash:buildChapterArtifactContentHash('旧版本正文'),metadataJson:JSON.stringify({outcome:'completed'})}});
+ await assert.rejects(()=>prisma.$transaction(tx=>readEditedArtifact(editInput,tx)),/同步|收尾/);
+ await prisma.chapterArtifactSyncCheckpoint.create({data:{novelId:opening.novelId,chapterId:editedChapter.id,artifactType:CHAPTER_ARTIFACT_BOUNDARY_TYPE,syncMode:'production',status:'succeeded',contentHash:buildChapterArtifactContentHash(editedChapter.content),metadataJson:JSON.stringify({outcome:'completed'})}});
+ const editedArtifact=await prisma.$transaction(tx=>readEditedArtifact(editInput,tx));assert.equal(editedArtifact.contentRef,editInput.contentRef);assert.ok(editedArtifact.contentHash);
+ assert.deepEqual(await prisma.chapter.findUniqueOrThrow({where:{id:editedChapter.id}}),editedChapter);
+
+ assert.deepEqual(await prisma.novelWorkflowTask.findUniqueOrThrow({where:{id:opening.id}}),opening);
+
+ assert.equal(await prisma.directorNextRun.count({where:{novelId:opening.novelId}}),1);
+ const originalNovel=await prisma.novel.findUniqueOrThrow({where:{id:opening.novelId}});
+ assert.equal(originalNovel.narrativePov,'first_person');assert.equal(originalNovel.pacePreference,'fast');
+ assert.equal((await prisma.directorRunCommand.findUniqueOrThrow({where:{id:'original-confirm'}})).status,'succeeded');
+ const originalContract=JSON.parse((await prisma.directorNextRun.findFirst({where:{novelId:opening.novelId}})).contractJson);
+ assert.equal(originalContract.driver,'assisted');assert.equal(originalContract.chapterRange,null);assert.ok(originalContract.launchInput.storyInput.includes('新书标题'));
+ assert.deepEqual(await prisma.novelWorkflowTask.findMany({where:{id:{in:before.map(row=>row.id)}},orderBy:{id:'asc'}}),before);
+ await prisma.novelWorkflowTask.create({data:{directorVersion:'v2',id:'interrupted-opening',lane:'auto_director',title:'传输中断',pendingManualRecovery:true,lastError:'transport_error'}});
+ const failedOpening=await prisma.directorRunCommand.create({data:{id:'failed-opening',taskId:'interrupted-opening',commandType:'generate_candidates',idempotencyKey:'original',status:'failed',errorMessage:'transport_error',payloadJson:JSON.stringify({candidatesRequest:{idea:'保存的想法',model:'same-model'}})}});
+ const retried=await prepareOpeningRetry('interrupted-opening');const retryReplay=await prepareOpeningRetry('interrupted-opening');
+ assert.equal(retried.commandId,retryReplay.commandId);assert.notEqual(retried.commandId,failedOpening.id);
+ assert.deepEqual(await prisma.directorRunCommand.findUnique({where:{id:failedOpening.id}}),failedOpening);
+ const retryCommand=await prisma.directorRunCommand.findUniqueOrThrow({where:{id:retried.commandId}});
+ assert.equal(retryCommand.payloadJson,failedOpening.payloadJson);assert.equal(retryCommand.commandType,'generate_candidates');assert.equal(retryCommand.status,'queued');
+ assert.equal((await prisma.novelWorkflowTask.findUnique({where:{id:'interrupted-opening'}})).pendingManualRecovery,false);
+ await prisma.novelWorkflowTask.create({data:{directorVersion:'v2',id:'crashed-opening',lane:'auto_director',title:'进程中断'}});
+ const crashed=await prisma.directorRunCommand.create({data:{id:'crashed-command',taskId:'crashed-opening',commandType:'generate_candidates',idempotencyKey:'crashed',status:'running',leaseOwner:'dead-worker',leaseExpiresAt:new Date(Date.now()-60_000),payloadJson:failedOpening.payloadJson}});
+ const {NovelWorkflowTaskAdapter}=require(path.join(server,'dist/services/task/adapters/NovelWorkflowTaskAdapter'));
+ const interruptedView=await new NovelWorkflowTaskAdapter().detail('crashed-opening');
+ assert.equal(interruptedView.status,'failed');assert.equal(interruptedView.pendingManualRecovery,true);
+ assert.deepEqual(await prisma.directorRunCommand.findUniqueOrThrow({where:{id:crashed.id}}),crashed);
+ const recoveredCrash=await prepareOpeningRetry('crashed-opening');
+ assert.notEqual(recoveredCrash.commandId,crashed.id);
+ const stale=await prisma.directorRunCommand.findUniqueOrThrow({where:{id:crashed.id}});
+ assert.equal(stale.status,'stale');assert.equal(stale.payloadJson,crashed.payloadJson);
+ assert.equal((await prisma.directorRunCommand.findUniqueOrThrow({where:{id:recoveredCrash.commandId}})).payloadJson,crashed.payloadJson);
+ assert.equal((await prepareOpeningRetry('crashed-opening')).commandId,recoveredCrash.commandId);
+ await prisma.novelWorkflowTask.create({data:{directorVersion:'v2',id:'live-opening',lane:'auto_director',title:'有效租约'}});
+ const live=await prisma.directorRunCommand.create({data:{id:'live-command',taskId:'live-opening',commandType:'generate_candidates',idempotencyKey:'live',status:'running',leaseOwner:'live-worker',leaseExpiresAt:new Date(Date.now()+60_000)}});
+ assert.equal((await prepareOpeningRetry('live-opening')).commandId,live.id);
+ assert.deepEqual(await prisma.directorRunCommand.findUniqueOrThrow({where:{id:live.id}}),live);
+ await assert.rejects(prepareOpeningRetry('old-failed'),/小说导演台/);
+ await prisma.novelWorkflowTask.create({data:{directorVersion:'v2',id:'wrong-opening',lane:'auto_director',title:'不允许重试生产命令',pendingManualRecovery:true}});
+ await prisma.directorRunCommand.create({data:{taskId:'wrong-opening',commandType:'continue',idempotencyKey:'wrong',status:'failed'}});
+ await assert.rejects(prepareOpeningRetry('wrong-opening'),/没有可重试/);
+ await prisma.novelWorkflowTask.create({data:{directorVersion:'v2',id:'transport-failure',lane:'auto_director',title:'可见的开书失败'}});
+ await prisma.directorRunCommand.create({data:{id:'transport-command',taskId:'transport-failure',commandType:'generate_candidates',idempotencyKey:'transport',payloadJson:'{}'}});
+ const {DirectorCommandExecutor}=require(path.join(server,'dist/services/novel/director/commands/DirectorCommandExecutor'));
+ const originalExecute=DirectorCommandExecutor.prototype.execute;
+ try {DirectorCommandExecutor.prototype.execute=async()=>{throw Error('[STRUCTURED_OUTPUT:transport_error] interrupted');};await assert.rejects(executeOpeningCommand('transport-command'),/transport_error/);}
+ finally {DirectorCommandExecutor.prototype.execute=originalExecute;}
+ const visibleFailure=await prisma.novelWorkflowTask.findUnique({where:{id:'transport-failure'}});
+ assert.equal(visibleFailure.status,'failed');assert.equal(visibleFailure.pendingManualRecovery,true);assert.match(visibleFailure.lastError,/transport_error/);
+ await prisma.$disconnect();
+})().catch(async e=>{console.error(e);await prisma.$disconnect();process.exitCode=1;});
+`);
+ const env={...process.env,NODE_ENV:'test',AI_NOVEL_RUNTIME:'desktop',AI_NOVEL_APP_DATA_DIR:dir,DIRECTOR_NEXT_REPO_ROOT:root,DATABASE_URL:'file:'+path.join(dir,'drill.db').replace(/\\/g,'/')};
+ execFileSync(process.execPath,[script],{cwd:root,env,stdio:'pipe'});
+});

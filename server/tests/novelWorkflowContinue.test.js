@@ -3,6 +3,7 @@ const assert = require("node:assert/strict");
 const http = require("node:http");
 
 const { createApp } = require("../dist/app.js");
+const { prisma } = require("../dist/db/prisma.js");
 const { DirectorCommandService } = require("../dist/services/novel/director/commands/DirectorCommandService.js");
 const { NovelWorkflowService } = require("../dist/services/novel/workflow/NovelWorkflowService.js");
 const { NovelWorkflowTaskAdapter } = require("../dist/services/task/adapters/NovelWorkflowTaskAdapter.js");
@@ -18,24 +19,17 @@ function listen(server) {
 
 test("novel workflow auto director route prefers the active auto director task over stale visible entries", { concurrency: false }, async () => {
   const calls = [];
-  const originalFindActive = NovelWorkflowService.prototype.findActiveTaskByNovelAndLane;
-  const originalFindLatest = NovelWorkflowService.prototype.findLatestVisibleTaskByNovelId;
-  const originalDetail = NovelWorkflowTaskAdapter.prototype.detail;
+  const originalFindActive = NovelWorkflowService.prototype.findActiveDirectorTask;
+  const originalDetailCompact = NovelWorkflowTaskAdapter.prototype.detailCompact;
 
-  NovelWorkflowService.prototype.findActiveTaskByNovelAndLane = async function findActiveTaskByNovelAndLaneMock(novelId, lane) {
-    calls.push(["active", novelId, lane]);
+  NovelWorkflowService.prototype.findActiveDirectorTask = async function findActiveDirectorTaskMock(novelId) {
+    calls.push(["active", novelId]);
     return {
       id: "workflow-active",
     };
   };
-  NovelWorkflowService.prototype.findLatestVisibleTaskByNovelId = async function findLatestVisibleTaskByNovelIdMock(novelId, lane) {
-    calls.push(["latest", novelId, lane]);
-    return {
-      id: "workflow-latest",
-    };
-  };
-  NovelWorkflowTaskAdapter.prototype.detail = async function detailMock(taskId) {
-    calls.push(["detail", taskId, arguments[1]]);
+  NovelWorkflowTaskAdapter.prototype.detailCompact = async function detailCompactMock(taskId) {
+    calls.push(["detailCompact", taskId]);
     return {
       id: taskId,
       lane: "auto_director",
@@ -56,32 +50,34 @@ test("novel workflow auto director route prefers the active auto director task o
     assert.equal(payload.success, true);
     assert.equal(payload.data.id, "workflow-active");
     assert.deepEqual(calls, [
-      ["active", "novel-active", "auto_director"],
-      ["detail", "workflow-active", { seedPayloadMode: "compact" }],
+      ["active", "novel-active"],
+      ["detailCompact", "workflow-active"],
     ]);
   } finally {
-    NovelWorkflowService.prototype.findActiveTaskByNovelAndLane = originalFindActive;
-    NovelWorkflowService.prototype.findLatestVisibleTaskByNovelId = originalFindLatest;
-    NovelWorkflowTaskAdapter.prototype.detail = originalDetail;
+    NovelWorkflowService.prototype.findActiveDirectorTask = originalFindActive;
+    NovelWorkflowTaskAdapter.prototype.detailCompact = originalDetailCompact;
     await new Promise((resolve, reject) => server.close((error) => (error ? reject(error) : resolve())));
   }
 });
 
 test("novel workflow auto director route returns null when only historical visible tasks remain", { concurrency: false }, async () => {
   const calls = [];
-  const originalFindActive = NovelWorkflowService.prototype.findActiveTaskByNovelAndLane;
-  const originalFindLatest = NovelWorkflowService.prototype.findLatestVisibleTaskByNovelId;
+  const originalTaskFindMany = prisma.novelWorkflowTask.findMany;
+  const originalArchiveFindMany = prisma.taskCenterArchive.findMany;
   const originalDetail = NovelWorkflowTaskAdapter.prototype.detail;
 
-  NovelWorkflowService.prototype.findActiveTaskByNovelAndLane = async function findActiveTaskByNovelAndLaneMock(novelId, lane) {
-    calls.push(["active", novelId, lane]);
-    return null;
-  };
-  NovelWorkflowService.prototype.findLatestVisibleTaskByNovelId = async function findLatestVisibleTaskByNovelIdMock() {
-    calls.push(["latest"]);
-    return {
+  prisma.novelWorkflowTask.findMany = async (args) => {
+    calls.push(["current", args.where.novelId, args.where.lane]);
+    assert.deepEqual(args.orderBy, [{ createdAt: "desc" }, { id: "desc" }]);
+    return [{
       id: "workflow-historical",
-    };
+      status: "cancelled",
+      createdAt: new Date("2026-01-01T00:00:00.000Z"),
+    }];
+  };
+  prisma.taskCenterArchive.findMany = async (args) => {
+    calls.push(["archive", args.where.taskId.in]);
+    return [];
   };
   NovelWorkflowTaskAdapter.prototype.detail = async function detailMock(taskId) {
     calls.push(["detail", taskId]);
@@ -102,23 +98,25 @@ test("novel workflow auto director route returns null when only historical visib
     assert.equal(payload.data, null);
     assert.equal(payload.message, "No active auto director task found.");
     assert.deepEqual(calls, [
-      ["active", "novel-idle", "auto_director"],
+      ["current", "novel-idle", "auto_director"],
+      ["archive", ["workflow-historical"]],
     ]);
+    assert.equal(calls.some(([kind]) => kind === "detail"), false);
   } finally {
-    NovelWorkflowService.prototype.findActiveTaskByNovelAndLane = originalFindActive;
-    NovelWorkflowService.prototype.findLatestVisibleTaskByNovelId = originalFindLatest;
+    prisma.novelWorkflowTask.findMany = originalTaskFindMany;
+    prisma.taskCenterArchive.findMany = originalArchiveFindMany;
     NovelWorkflowTaskAdapter.prototype.detail = originalDetail;
     await new Promise((resolve, reject) => server.close((error) => (error ? reject(error) : resolve())));
   }
 });
 
-test("novel workflow continue route accepts range and full-book continuation modes", { concurrency: false }, async () => {
+test("novel workflow continue route accepts range and resume commands but rejects a run-mode string", { concurrency: false }, async (t) => {
   const calls = [];
   const originalEnqueue = DirectorCommandService.prototype.enqueueContinueCommand;
   const originalDetail = NovelWorkflowTaskAdapter.prototype.detail;
 
   DirectorCommandService.prototype.enqueueContinueCommand = async function enqueueContinueCommandMock(taskId, input) {
-    calls.push({ taskId, input });
+    calls.push({ taskId, input, commandType: "continue" });
     return {
       commandId: "command-1",
       taskId,
@@ -128,6 +126,10 @@ test("novel workflow continue route accepts range and full-book continuation mod
       leaseExpiresAt: null,
     };
   };
+  t.mock.method(DirectorCommandService.prototype, "enqueueApproveGateCommand", async (taskId, input) => {
+    calls.push({ taskId, input, commandType: "approve_gate" });
+    return { commandId: "command-2", taskId, commandType: "approve_gate", status: "queued" };
+  });
   NovelWorkflowTaskAdapter.prototype.detail = async function detailMock(taskId) {
     return {
       id: taskId,
@@ -162,18 +164,29 @@ test("novel workflow continue route accepts range and full-book continuation mod
         continuationMode: "full_book_autopilot",
       }),
     });
-    assert.equal(fullBookResponse.status, 202);
+    assert.equal(fullBookResponse.status, 400);
+    assert.equal(calls.length, 1);
+    const resumeResponse = await fetch(`http://127.0.0.1:${port}/api/novel-workflows/workflow-auto-exec/continue`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ continuationMode: "resume" }),
+    });
+    assert.equal(resumeResponse.status, 202);
+    const resumePayload = await resumeResponse.json();
+    assert.equal(resumePayload.data.commandType, "approve_gate");
     assert.deepEqual(calls, [
       {
         taskId: "workflow-auto-exec",
+        commandType: "continue",
         input: {
           continuationMode: "auto_execute_range",
         },
       },
       {
         taskId: "workflow-auto-exec",
+        commandType: "approve_gate",
         input: {
-          continuationMode: "full_book_autopilot",
+          continuationMode: "resume",
         },
       },
     ]);

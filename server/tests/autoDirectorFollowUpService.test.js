@@ -367,6 +367,13 @@ test("auto director follow-up service returns section-first counts and filters s
       updatedAt: new Date("2026-04-21T11:00:00.000Z"),
     }),
     buildWorkflowRow({
+      id: "task_replaced_takeover",
+      status: "cancelled",
+      checkpointType: "chapter_batch_ready",
+      seedPayloadJson: JSON.stringify({ takeover: { replacementTaskId: "task_new" } }),
+      updatedAt: new Date("2026-04-21T11:30:00.000Z"),
+    }),
+    buildWorkflowRow({
       id: "task_new",
       status: "running",
       checkpointType: null,
@@ -449,6 +456,7 @@ test("auto director follow-up service returns section-first counts and filters s
       "task_pending",
       "task_new",
       "task_running",
+      "task_replaced_takeover",
       "task_replaced",
     ]);
     assert.deepEqual(all.countersBySection, {
@@ -456,12 +464,13 @@ test("auto director follow-up service returns section-first counts and filters s
       exception: 1,
       pending: 1,
       auto_progress: 2,
-      replaced: 1,
+      replaced: 2,
     });
     assert.deepEqual(all.availableFilters.sections, ["needs_validation", "exception", "pending", "auto_progress", "replaced"]);
     assert.equal(all.items.find((item) => item.taskId === "task_running").section, "auto_progress");
     assert.equal(all.items.find((item) => item.taskId === "task_running").supportsBatch, false);
     assert.equal(all.items.find((item) => item.taskId === "task_replaced").section, "replaced");
+    assert.equal(all.items.find((item) => item.taskId === "task_replaced_takeover").section, "replaced");
     assert.equal(all.items.find((item) => item.taskId === "task_validation").reason, "validation_required");
     assert.equal(all.items.find((item) => item.taskId === "task_validation").section, "needs_validation");
     assert.equal(all.items.find((item) => item.taskId === "task_validation").supportsBatch, false);

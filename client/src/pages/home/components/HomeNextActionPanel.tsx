@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { getWorkflowBadge } from "@/lib/novelWorkflowTaskUi";
+import { getNovelEditHref } from "@/lib/novelRoutes";
 import { cn } from "@/lib/utils";
 import {
   DIRECTOR_CREATE_LINK,
@@ -169,7 +170,7 @@ export function HomeNextActionPanel(props: {
               <Button asChild variant="ghost" className="text-muted-foreground">
                 <Link to={novel.narrativeForm === "short_story"
                   ? `/novels/${novel.id}/story`
-                  : task ? `/novels/${novel.id}/edit?directorTaskId=${task.id}&taskPanel=1` : `/novels/${novel.id}/edit`}>
+                  : getNovelEditHref(novel.id, { taskPanel: Boolean(task) })}>
                   {novel.narrativeForm === "short_story" ? "阅读完整作品" : task ? "查看创作记录" : "打开小说工作台"}
                 </Link>
               </Button>

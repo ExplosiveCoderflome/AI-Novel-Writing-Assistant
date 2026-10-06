@@ -9,6 +9,7 @@ export type PromptMode = "structured" | "text";
 export type PromptLanguage = "zh" | "en";
 
 export interface PromptContextBlock {
+  reuseScope?: "book" | "volume" | "request";
   id: string;
   group: string;
   priority: number;
@@ -193,7 +194,10 @@ export interface PromptPostValidateFailureRecoveryInput<I, R> {
 export type PromptStructuredOutputExampleBuilder<I, R> = (input: I, context: PromptRenderContext) => unknown;
 
 export interface PromptStructuredOutputHint<I, R> {
+  placement?: "stable_prefix" | "tail";
   mode?: "auto" | "off";
+  /** Keep all example fields while omitting indentation in high-volume production calls. */
+  compact?: boolean;
   example?: unknown | PromptStructuredOutputExampleBuilder<I, R>;
   note?: string | ((input: I, context: PromptRenderContext) => string | undefined);
 }
@@ -221,6 +225,7 @@ export interface PromptAsset<I, O, R = O> {
   semanticRetryPolicy?: PromptSemanticRetryPolicy<I, R>;
   outputSchema?: ZodType<R>;
   structuredOutputHint?: PromptStructuredOutputHint<I, R>;
+  cacheBoundary?: {messageIndex:number;contentBlockIndex:number|null};
   editableSlots?: PromptEditableSlot[];
   slots?: PromptSlotDef[];
   contextRequirements?: PromptContextRequirement[];

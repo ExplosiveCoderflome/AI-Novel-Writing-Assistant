@@ -8,6 +8,7 @@ import { downloadNovelExport, getNovelChapters, getNovelDetail } from "@/api/nov
 import { queryKeys } from "@/api/queryKeys";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import {getNovelWorkspaceHref, getDirectorWorkspaceHref} from "@/lib/novelRoutes";
 
 function countWords(content: string | null | undefined): number {
   const text = content?.trim() ?? "";
@@ -86,6 +87,8 @@ export default function NovelPreview() {
   });
 
   const novel = novelQuery.data?.data ?? null;
+  const directorHref = novel ? getDirectorWorkspaceHref(novel) : null;
+  const workspaceHref = novel ? getNovelWorkspaceHref(novel) : `/novels/${encodeURIComponent(id)}/edit`;
   const chapters = useMemo(
     () => [...(chaptersQuery.data?.data ?? [])].sort((a, b) => a.order - b.order),
     [chaptersQuery.data?.data],
@@ -172,7 +175,7 @@ export default function NovelPreview() {
       <div className="flex min-h-full flex-col items-center justify-center gap-4 text-center">
         <BookOpen className="h-8 w-8 text-muted-foreground" aria-hidden="true" />
         <p className="text-sm text-muted-foreground">这本作品还没有可阅读的章节。</p>
-        <Button asChild><Link to={`/novels/${id}/edit`}>进入工作区</Link></Button>
+        <Button asChild><Link to={workspaceHref}>{directorHref ? "打开导演台" : "进入工作区"}</Link></Button>
       </div>
     );
   }
