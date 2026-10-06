@@ -128,6 +128,16 @@ test("prompt governance keeps inline SystemMessage/HumanMessage builders in the 
   assert.deepEqual(violations, []);
 });
 
+test("comic cross-episode fact extraction is registered with a bounded output", () => {
+  const { getRegisteredPromptAsset } = require("../dist/prompting/registry.js");
+  const asset = getRegisteredPromptAsset("comic.factExtraction", "v1");
+  assert.ok(asset);
+  assert.equal(asset.mode, "structured");
+  assert.equal(asset.contextPolicy.maxTokensBudget, 3000);
+  assert.equal(asset.outputSchema.safeParse({ facts: [{ text: "右臂有刀疤", category: "revealed" }] }).success, true);
+  assert.equal(asset.outputSchema.safeParse({ facts: Array.from({ length: 11 }, () => ({ text: "刀疤", category: "revealed" })) }).success, false);
+});
+
 test("prompt governance keeps ad-hoc systemPrompt builders in the approved set", () => {
   const violations = collectViolations({
     lineMatcher: (line) => line.includes("systemPrompt"),

@@ -71,7 +71,7 @@ test("novel theme world prompt stays within a one-shot JSON budget", () => {
     estimatedInputTokens: 0,
   });
 
-  assert.equal(novelThemeWorldGenerationPrompt.version, "v2");
+  assert.equal(novelThemeWorldGenerationPrompt.version, "v3");
   assert.equal(novelThemeWorldGenerationPrompt.repairPolicy.maxAttempts, 0);
   assert.match(String(messages[0].content), /输出容量硬约束/);
   assert.match(String(messages[0].content), /1,800 个汉字以内/);

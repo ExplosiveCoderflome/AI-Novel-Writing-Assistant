@@ -79,25 +79,13 @@ function createPrisma(databasePath) {
   });
 }
 
-function pnpmExecutable() {
-  return process.platform === "win32" ? "pnpm.cmd" : "pnpm";
-}
-
 function createTempDatabase(prefix) {
   const tempRoot = path.join(serverRoot, ".tmp");
   fs.mkdirSync(tempRoot, { recursive: true });
   const tempDir = fs.mkdtempSync(path.join(tempRoot, `${prefix}-`));
   const databasePath = path.join(tempDir, `${prefix}.db`);
   const databaseUrl = `file:${databasePath.replace(/\\/g, "/")}`;
-  childProcess.execFileSync(pnpmExecutable(), ["--filter", "@ai-novel/server", "prisma:push"], {
-    cwd: repoRoot,
-    shell: process.platform === "win32",
-    env: {
-      ...process.env,
-      DATABASE_URL: databaseUrl,
-    },
-    stdio: ["ignore", "ignore", "pipe"],
-  });
+  require("./testInfrastructure/tempSqliteDatabase.cjs").initializeTemporarySqliteDatabase(tempDir, `${prefix}.db`);
 
   return {
     tempDir,

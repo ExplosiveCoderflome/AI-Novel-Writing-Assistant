@@ -180,7 +180,7 @@ test("idea inspiration prompt treats readable creation foundations as fixed cons
 });
 
 test("idea inspirations bound creative sampling and retry with the original context", () => {
-  const service = read("src/services/novel/director/NovelDirectorIdeaInspirationService.ts");
+  const service = read("src/services/novel/director/idea/NovelDirectorIdeaInspirationService.ts");
   const context = read("src/services/novel/director/idea/ideaContext.ts");
   const prompt = read("src/prompting/prompts/novel/ideaInspiration.prompts.ts");
   const schema = read("src/prompting/prompts/novel/ideaInspiration.promptSchemas.ts");

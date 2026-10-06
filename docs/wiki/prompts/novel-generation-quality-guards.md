@@ -87,6 +87,12 @@ keyMilestoneGuards: z.array(volumeKeyMilestoneGuardSchema).default([])
 
 ## 失效模式
 
+### 写法参考实体的生成边界
+
+写法参考可以保存原作品名称、人物和称谓，供作者查看和提炼技巧；发送给正文模型的写法合同必须使用生成专用副本。`sanitizeStyleContextForGeneration` 同时处理合同各段的 summary、lines、text 和编译后的写法块，原始绑定与存储资料保持完整。
+
+只过滤 `sanitizedGenerationProfile.writingGuidance` 无法保护正文：writer 消费的是 `compiledBlocks.contract`。回归验证必须渲染 writer 实际使用的合同，并检查来源实体没有进入该输入，同时证明原始资料未被修改。实体识别规则仍属于已有写法提炼结果的确定性后处理，不承担创作意图或工作流路由。
+
 - `completedMilestones` 和 `recentScenePatterns` 依赖上游服务在构建上下文时正确填入，若上游不填，这两个守卫就不生效。本次修改只建立了接口契约，数据填充需要在章节运行时协调器中实现。
 - `keyMilestoneGuards` 目前初始化为空数组，需要卷规划服务在生成卷结构时填充守卫数据，否则 `volume_window` block 中不会出现守卫内容。
 - `narrativeProgressHint` 依赖小说预计总章数。没有 `estimatedChapterCount` 时应自然跳过，不应为了显示进度而猜测总章数。

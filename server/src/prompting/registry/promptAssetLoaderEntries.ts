@@ -10,6 +10,10 @@ export interface PromptAssetLoaderEntry {
 
 export const promptAssetLoaderEntries: PromptAssetLoaderEntry[] = [
   {
+    key: "comic.factExtraction@v1",
+    load: () => require("../prompts/comic/comicFactExtraction.prompts").comicFactExtractionPrompt as UnknownPromptAsset,
+  },
+  {
     key: "director.issue.assessment@v1",
     load: () => require("../prompts/director/directorIssueAssessment.prompts").directorIssueAssessmentPrompt as UnknownPromptAsset,
   },

@@ -1211,7 +1211,28 @@ test("creative hub thread create and state routes return success payloads", asyn
   }
 });
 
-test("novel routes preserve book framing fields through create-get-update cycle", async () => {
+test("novel routes preserve book framing fields through create-get-update cycle", async (t) => {
+  const { ensureSystemResourceStarterData } = require("../dist/services/bootstrap/SystemResourceBootstrapService.js");
+  await ensureSystemResourceStarterData();
+  const genre = await prisma.novelGenre.findFirst();
+  const modes = await prisma.novelStoryMode.findMany({ take: 2 });
+  assert.ok(genre);
+  assert.equal(modes.length, 2);
+  const { NovelCreateResourceRecommendationService } = require("../dist/services/novel/NovelCreateResourceRecommendationService.js");
+  const originalRecommend = NovelCreateResourceRecommendationService.prototype.recommendFromOptions;
+  t.after(() => { NovelCreateResourceRecommendationService.prototype.recommendFromOptions = originalRecommend; });
+  NovelCreateResourceRecommendationService.prototype.recommendFromOptions = async (input, options) => {
+    assert.equal(input.genreId, genre.id);
+    const selected = (choices, id) => ({ ...choices.find(item => item.id === id), reason: "测试模型的结构化推荐" });
+    return {
+      summary: "沿用测试所选创作基础",
+      genre: selected(options.genres, genre.id),
+      primaryStoryMode: selected(options.storyModes, modes[0].id),
+      secondaryStoryMode: selected(options.storyModes, modes[1].id),
+      powerSystem: { mode: "none", reason: "现实题材", source: "ai_recommended" },
+      caution: null, recommendedAt: new Date().toISOString(),
+    };
+  };
   const app = createApp();
   const server = http.createServer(app);
   const port = await listen(server);
@@ -1225,6 +1246,9 @@ test("novel routes preserve book framing fields through create-get-update cycle"
       },
       body: JSON.stringify({
         title: `book-framing-route-${Date.now()}`,
+        genreId: genre.id,
+        primaryStoryModeId: modes[0].id,
+        secondaryStoryModeId: modes[1].id,
         description: "测试书级 framing roundtrip。",
         targetAudience: "爱看都市高压逆袭的读者",
         bookSellingPoint: "每次现实困局都会撬动更大的利益链。",
