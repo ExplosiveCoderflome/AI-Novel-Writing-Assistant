@@ -10,6 +10,7 @@ eventsStub.loaded = true;
 eventsStub.exports = {
   novelEventBus: {
     async emit() {},
+    on() { return () => {}; },
   },
 };
 require.cache[eventsEntry] = eventsStub;

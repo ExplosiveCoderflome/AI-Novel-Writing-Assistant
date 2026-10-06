@@ -72,6 +72,8 @@ test("RagRetrievalTracer writes sampled trace summaries without chunk text", asy
       vector: 4,
       keyword: 3,
       fused: 5,
+      rerankerInput: 0,
+      rerankerOutput: 0,
       final: 1,
     });
     const timings = JSON.parse(captured.timingsJson);

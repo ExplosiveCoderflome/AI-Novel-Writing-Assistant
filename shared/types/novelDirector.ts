@@ -244,6 +244,13 @@ export function isFullBookAutopilotRunMode(
   return runMode === DIRECTOR_FULL_BOOK_AUTOPILOT_RUN_MODE;
 }
 
+/** Frozen mode permission shared by scheduling and persisted resource authority. */
+export function canAutomaticallyReviewDirectorResources(
+  runMode: DirectorRunMode | string | null | undefined,
+): boolean {
+  return isFullBookAutopilotRunMode(runMode);
+}
+
 export function buildFullBookAutopilotExecutionPlan(): DirectorAutoExecutionPlan {
   return {
     ...DIRECTOR_FULL_BOOK_AUTOPILOT_CONTRACT.autoExecutionPlan,

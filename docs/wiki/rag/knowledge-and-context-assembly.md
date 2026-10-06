@@ -77,6 +77,12 @@
 - reranker 提升不稳定：先用固定评测集比较启用前后的 Hit@K / MRR，再检查候选数量是否过小、候选中是否已经缺少正确 chunk；不要用 reranker 掩盖基础召回范围错误。
 - 历史 trace 数据无限增长：检查服务启动时是否调用了 `ragRetrievalTraceRetention.start()`，以及 `RAG_RETRIEVAL_TRACE_RETENTION_DAYS` 是否设置合理。
 
+## 冷启动依赖边界
+
+Prompt Runner 的默认上下文提供者会加载 RAG 和章节生产能力。反向依赖 Runner 的 RAG 上下文化服务、续写服务必须在真正执行模型调用时加载 Runner，或通过函数端口注入；不能在模块顶层再次静态加载它。否则冷启动可能在类尚未完成导出时创建单例，出现构造函数缺失或循环初始化。
+
+验证时分别直接加载上下文化服务、RAG 作业查询和续写服务；只从完整 HTTP 应用加载会因导入顺序掩盖问题。延迟加载不改变 PromptAsset、上下文预算、结构化输出或模型调用路径。
+
 ## 相关模块
 
 - `server/src/services/rag/`

@@ -1,6 +1,7 @@
 const test = require("node:test");
 const assert = require("node:assert/strict");
 const http = require("node:http");
+const { stubLegacyNovelIdentity } = require("./legacyDirector/databasePorts.js");
 
 const { createApp } = require("../dist/app.js");
 const { prisma } = require("../dist/db/prisma.js");
@@ -17,7 +18,8 @@ function listen(server) {
   });
 }
 
-test("novel workflow auto director route prefers the active auto director task over stale visible entries", { concurrency: false }, async () => {
+test("novel workflow auto director route prefers the active auto director task over stale visible entries", { concurrency: false }, async (t) => {
+  stubLegacyNovelIdentity(t, prisma, ["novel-active"]);
   const calls = [];
   const originalFindActive = NovelWorkflowService.prototype.findActiveDirectorTask;
   const originalDetailCompact = NovelWorkflowTaskAdapter.prototype.detailCompact;
@@ -60,7 +62,8 @@ test("novel workflow auto director route prefers the active auto director task o
   }
 });
 
-test("novel workflow auto director route returns null when only historical visible tasks remain", { concurrency: false }, async () => {
+test("novel workflow auto director route returns null when only historical visible tasks remain", { concurrency: false }, async (t) => {
+  stubLegacyNovelIdentity(t, prisma, ["novel-idle"]);
   const calls = [];
   const originalTaskFindMany = prisma.novelWorkflowTask.findMany;
   const originalArchiveFindMany = prisma.taskCenterArchive.findMany;

@@ -45,7 +45,7 @@ import { DirectorBookAutomationProjectionService } from "../projections/Director
 import { DirectorCommandService } from "../commands/DirectorCommandService";
 import { DirectorTaskSnapshotService } from "../projections/DirectorTaskSnapshotService";
 import { NovelDirectorService } from "../NovelDirectorService";
-import { novelDirectorIdeaInspirationService } from "../NovelDirectorIdeaInspirationService";
+import { novelDirectorIdeaInspirationService } from "../idea";
 import { novelDirectorIdeaConstellationService } from "../idea/NovelDirectorIdeaConstellationService";
 import { directorPersistedCandidateSchema } from "../runtime/novelDirectorSchemas";
 import { NovelWorkflowService } from "../../workflow/NovelWorkflowService";

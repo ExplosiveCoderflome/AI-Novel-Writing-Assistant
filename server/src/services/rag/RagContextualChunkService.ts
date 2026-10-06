@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto";
 import { ragConfig } from "../../config/rag";
-import { runStructuredPrompt } from "../../prompting/core/promptRunner";
+import type { runStructuredPrompt } from "../../prompting/core/promptRunner";
 import { ragContextualChunkPrompt } from "../../prompting/prompts/rag/contextualChunk.prompts";
 import type { RagChunkCandidate, RagSourceDocument } from "./types";
 import { estimateTokenCount, normalizeRagText, runWithConcurrency } from "./utils";
@@ -69,7 +69,7 @@ export function buildSearchText(chunkText: string, contextPrefix?: string): stri
 }
 
 export class RagContextualChunkService {
-  constructor(private readonly promptRunner: ContextualPromptRunner = runStructuredPrompt) {}
+  constructor(private readonly promptRunner?: ContextualPromptRunner) {}
 
   async buildContextPrefix(input: RagContextualChunkInput): Promise<{
     contextPrefix?: string;
@@ -88,7 +88,9 @@ export class RagContextualChunkService {
     }
 
     try {
-      const result = await this.promptRunner({
+      // The runner owns context providers that consume RAG. Load it only at invocation.
+      const runner = this.promptRunner ?? (await import("../../prompting/core/promptRunner")).runStructuredPrompt;
+      const result = await runner({
         asset: ragContextualChunkPrompt,
         promptInput: {
           ownerType: input.document.ownerType,

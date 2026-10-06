@@ -81,6 +81,15 @@ export function createFrozenFollowUpEntry(options: Partial<EntryOwnership> = {})
   const router=Router();
   const reject: import("express").RequestHandler=async(req,res,next)=>{
     try {
+      if (req.path === "/batch-actions") {
+        const ids: unknown = req.body?.taskIds;
+        if (Array.isArray(ids) && ids.length > 0 && ids.length <= 100 && ids.every(id => typeof id === "string")) {
+          const allowed = await Promise.all(ids.map(id => canExecuteLegacyTask(id)));
+          if (allowed.every(Boolean)) {next(); return;}
+        }
+        res.status(409).json({success:false,error:"请从小说对应的导演工作台查看创作范围并继续。",sourceRoute:"/lab/director"});
+        return;
+      }
       const taskId = req.body?.taskId ?? req.query.taskId ?? /^\/([^/]+)\/actions$/.exec(req.path)?.[1];
       if (typeof taskId === "string" && await canExecuteLegacyTask(taskId)) {next(); return;}
       res.status(409).json({success:false,error:"请从小说对应的导演工作台查看创作范围并继续。",sourceRoute:"/lab/director"});

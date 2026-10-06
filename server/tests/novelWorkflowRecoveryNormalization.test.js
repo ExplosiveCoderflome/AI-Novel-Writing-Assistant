@@ -1,12 +1,13 @@
 const test = require("node:test");
 const assert = require("node:assert/strict");
-const { stubDatabaseMethod } = require("./legacyDirector/databasePorts.js");
+const { stubDatabaseMethod, stubLegacyNovelIdentity } = require("./legacyDirector/databasePorts.js");
 
 const { NovelWorkflowService } = require("../dist/services/novel/workflow/NovelWorkflowService.js");
 const { NovelWorkflowHealingService } = require("../dist/services/novel/workflow/NovelWorkflowHealingService.js");
 const { prisma } = require("../dist/db/prisma.js");
 
 test.beforeEach((t) => {
+  stubLegacyNovelIdentity(t, prisma, ["novel_demo"]);
   // These fixtures are visible workflow records; archive lookup is a separate port.
   stubDatabaseMethod(t, prisma.taskCenterArchive, "findUnique", async ({ where }) => {
     assert.equal(where.taskKind_taskId.taskKind, "novel_workflow");
@@ -160,7 +161,7 @@ test("healAutoDirectorTaskState completes chapter batch checkpoints when every c
   }
 });
 
-test("healRuntimeGateApprovalState mirrors blocked runtime gates into waiting approval task state", async () => {
+test("healRuntimeGateApprovalState mirrors blocked runtime gates into waiting approval task state", async (t) => {
   const originals = {
     commandFindFirst: prisma.directorRunCommand.findFirst,
     stepFindFirst: prisma.directorStepRun.findFirst,
@@ -216,6 +217,7 @@ test("healRuntimeGateApprovalState mirrors blocked runtime gates into waiting ap
 
   try {
     const service = new NovelWorkflowService();
+    stubDatabaseMethod(t, prisma.novelWorkflowTask, "findUnique", async () => currentRow);
     const healed = await service.healRuntimeGateApprovalState("task_runtime_gate", currentRow);
     assert.equal(healed, true);
     assert.equal(currentRow.status, "waiting_approval");
@@ -230,7 +232,7 @@ test("healRuntimeGateApprovalState mirrors blocked runtime gates into waiting ap
   }
 });
 
-test("healRuntimeFailedState mirrors failed runtime steps out of false running task state", async () => {
+test("healRuntimeFailedState mirrors failed runtime steps out of false running task state", async (t) => {
   const originals = {
     commandFindFirst: prisma.directorRunCommand.findFirst,
     stepFindFirst: prisma.directorStepRun.findFirst,
@@ -283,6 +285,7 @@ test("healRuntimeFailedState mirrors failed runtime steps out of false running t
 
   try {
     const service = new NovelWorkflowService();
+    stubDatabaseMethod(t, prisma.novelWorkflowTask, "findUnique", async () => currentRow);
     const healed = await service.healRuntimeFailedState("task_runtime_failed", currentRow);
     assert.equal(healed, true);
     assert.equal(currentRow.status, "failed");

@@ -49,6 +49,7 @@ import {
 - `runtime/`：接管、确认、候选、继续执行、运行时编排和内存/校验策略。
 - `issues/`：问题目录、策略事实源、任务策略快照读取与 detected / decided / applied 事件合同。
 - `http/`：Express 路由映射。
+- `idea/`：开书灵感上下文和灵感推荐服务，HTTP 通过 `idea/index.ts` 门面调用；业务实现不放在导演根目录。
 
 外部模块优先依赖这些目录的门面或稳定入口，不应向 `director/` 根目录继续添加同前缀业务文件。
 

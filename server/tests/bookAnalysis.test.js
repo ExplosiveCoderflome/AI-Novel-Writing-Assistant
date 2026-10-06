@@ -66,8 +66,10 @@ test("BookAnalysisBudgetGuard increments used tokens and throws budget_exceeded"
   const original = {
     findUnique: prisma.bookAnalysis.findUnique,
     update: prisma.bookAnalysis.update,
+    updateMany: prisma.bookAnalysis.updateMany,
   };
   let usedTokens = 900;
+  prisma.bookAnalysis.updateMany = async () => ({ count: 0 });
   prisma.bookAnalysis.update = async ({ data }) => {
     usedTokens = typeof data.usedTokens === "number" ? data.usedTokens : usedTokens + data.usedTokens.increment;
     return { budgetTokens: 1000, usedTokens };
@@ -92,6 +94,7 @@ test("BookAnalysisBudgetGuard increments used tokens and throws budget_exceeded"
   } finally {
     prisma.bookAnalysis.findUnique = original.findUnique;
     prisma.bookAnalysis.update = original.update;
+    prisma.bookAnalysis.updateMany = original.updateMany;
   }
 });
 
@@ -104,6 +107,34 @@ function createNoopDocumentChapterService() {
     }),
   };
 }
+
+test("budget accounting initializes legacy NULL once and retains concurrent usage", async (t) => {
+  const originals = {
+    updateMany: prisma.bookAnalysis.updateMany,
+    update: prisma.bookAnalysis.update,
+    findUnique: prisma.bookAnalysis.findUnique,
+  };
+  t.after(() => Object.assign(prisma.bookAnalysis, originals));
+  let usedTokens = null;
+  const initializationCalls = [];
+  prisma.bookAnalysis.updateMany = async (args) => {
+    initializationCalls.push(args);
+    if (usedTokens === null) { usedTokens = args.data.usedTokens; return { count: 1 }; }
+    return { count: 0 };
+  };
+  prisma.bookAnalysis.update = async ({ data }) => {
+    assert.equal(typeof data.usedTokens.increment, "number");
+    usedTokens += data.usedTokens.increment;
+    return { budgetTokens: 1000, usedTokens };
+  };
+  prisma.bookAnalysis.findUnique = async () => { throw new Error("positive usage must not use read-modify-write"); };
+  const guard = new BookAnalysisBudgetGuard("analysis-null");
+  await Promise.all([7, 11].map(totalTokens => guard.onSectionFinished({ totalTokens })));
+  assert.equal(usedTokens, 18);
+  assert.deepEqual(initializationCalls, [7, 11].map(() => ({
+    where: { id: "analysis-null", usedTokens: null }, data: { usedTokens: 0 },
+  })));
+});
 
 function matchCacheIdentity(row, key) {
   if (!key) {
@@ -1197,6 +1228,8 @@ test("NovelExportService exports generated chapters as a knowledge document for 
     return {
       title: "雪夜旧案",
       description: "刑侦悬疑",
+      narrativeForm: "long_novel",
+      shortStorySegments: [],
       chapters: [
         { order: 1, title: "雨夜来客", content: "主角在雨夜接到旧案线索。" },
         { order: 2, title: "反向试探", content: "同伴隐瞒关键证词，矛盾升级。" },
@@ -2807,7 +2840,7 @@ test("NovelReferenceService formats structured timeline nodes by phase", async (
 
   try {
     const service = new NovelReferenceService();
-    const reference = await service.buildReferenceForStage("novel-1", "chapter");
+    const reference = await service.buildReferenceForStage("novel-1", "structured_outline");
 
     assert.match(reference, /\[analysis\.reference\] 测试拆书/);
     assert.match(reference, /### 潜入/);

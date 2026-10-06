@@ -1,6 +1,6 @@
 const test = require("node:test");
 const assert = require("node:assert/strict");
-const { stubDatabaseMethod } = require("./legacyDirector/databasePorts.js");
+const { stubDatabaseMethod, stubLegacyNovelIdentity } = require("./legacyDirector/databasePorts.js");
 
 const { NovelWorkflowService } = require("../dist/services/novel/workflow/NovelWorkflowService.js");
 const {
@@ -11,6 +11,8 @@ const {
   buildVolumeWorkspaceDocument,
 } = require("../dist/services/novel/volume/volumeWorkspaceDocument.js");
 const { prisma } = require("../dist/db/prisma.js");
+
+test.beforeEach((t) => stubLegacyNovelIdentity(t, prisma, ["novel-demo"]));
 
 function createWorkspace({
   chapters = [],

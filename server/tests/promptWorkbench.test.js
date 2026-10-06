@@ -79,7 +79,7 @@ test("prompt workbench catalog exposes registered prompts without override execu
   assert.ok(planner.lockedFields.includes("approvalBoundary"));
 
   const chapterWriter = service.listCatalog({ keyword: "novel.chapter.writer" })
-    .find((item) => item.key === "novel.chapter.writer@v6");
+    .find((item) => item.key === "novel.chapter.writer@v8");
   assert.ok(chapterWriter);
   assert.equal(chapterWriter.slotSupported, true);
   assert.equal(chapterWriter.managementStatus, "complete");
@@ -377,7 +377,7 @@ test("prompt preview assembles selected novel chapter write context for chapter 
   });
 
   const preview = await service.preview({
-    promptKey: "novel.chapter.writer@v6",
+    promptKey: "novel.chapter.writer@v8",
     promptInput: {
       novelTitle: "当代码开始杀人",
       chapterOrder: 3,
@@ -501,7 +501,7 @@ test("prompt preview renders unsaved advanced template draft without reading act
 
   try {
     const preview = await service.preview({
-      promptKey: "novel.chapter.writer@v6",
+      promptKey: "novel.chapter.writer@v8",
       promptInput: {
         novelTitle: "模板测试书",
         chapterOrder: 2,
