@@ -16,6 +16,8 @@ const databaseScenarios = [
   "processRecoverySqlite.test.js",
   "productionProgressSqlite.test.js",
   "recoveryBudgetSqlite.test.js",
+  "directorResourceConfirmation.test.js",
+  "directorVersionIsolationSqlite.test.js",
 ];
 
 function runSelectionFixture(mode) {

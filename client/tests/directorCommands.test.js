@@ -87,6 +87,10 @@ export async function exercise() {
     bundle: true, platform: 'node', format: 'esm', packages: 'external',
     alias: {'@':path.join(clientDir,'src')}, define: {'import.meta.env':'{}'}, outfile: output,
     plugins: [{name:'capture-real-mutation-options',setup(build) {
+      // Graph components import styles through the real page. Node exercises
+      // command submissions without a DOM or a CSS loader.
+      build.onResolve({filter:/\.css$/},()=>({path:'styles',namespace:'command-test-style'}));
+      build.onLoad({filter:/.*/,namespace:'command-test-style'},()=>({loader:'js',contents:''}));
       build.onResolve({filter:/^(@tanstack\/react-query|test-command-hooks)$/},args=>{
         if(args.path==='test-command-hooks' || /Director(?:Start|Gate|DriveSwitch|Badge)\.tsx$/.test(args.importer)) {
           return {path:'test-command-hooks',namespace:'command-test'};

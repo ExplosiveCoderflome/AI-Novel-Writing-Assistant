@@ -10,6 +10,8 @@ const integrationTests = new Set([
   "directorCurrentTask.test.js",
   "directorReadPathsArePure.test.js",
   "directorManualRecoveryLock.test.js",
+  "directorResourceConfirmation.test.js",
+  "directorVersionIsolationSqlite.test.js",
   "directorWorkflowStepModules.test.js",
   "persistence.test.js",
   "directorNextReadOnlySqlite.test.js",
@@ -76,9 +78,12 @@ if (files.length === 0) {
 }
 
 // File isolation prevents cache replacements and root hooks from leaking across tests.
-const result = spawnSync(process.execPath, ["--test", "--test-concurrency=4", ...files], {
+const result = spawnSync(process.execPath, ["--test", "--test-concurrency=4", ...files.map((file) => path.relative(serverRoot, file))], {
   cwd: serverRoot,
   stdio: "inherit",
 });
 
+if (result.error) {
+  console.error(`Unable to start tests: ${result.error.message}`);
+}
 process.exit(result.status ?? 1);

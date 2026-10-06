@@ -206,6 +206,7 @@ function startWorkspaceManagedServer(port: number): ManagedDesktopProcess {
     env: {
       ...process.env,
       AI_NOVEL_RUNTIME: "desktop",
+      DIRECTOR_NEXT_ENABLED: process.env.DIRECTOR_NEXT_ENABLED ?? "true",
       AI_NOVEL_APP_DATA_DIR: appDataDir,
       PORT: String(port),
       HOST: "127.0.0.1",
@@ -241,6 +242,7 @@ function startPackagedManagedServer(port: number): ManagedDesktopProcess {
       ...process.env,
       NODE_ENV: "production",
       AI_NOVEL_RUNTIME: "desktop",
+      DIRECTOR_NEXT_ENABLED: process.env.DIRECTOR_NEXT_ENABLED ?? "true",
       AI_NOVEL_DESKTOP_PACKAGED: "true",
       AI_NOVEL_APP_DATA_DIR: resolveDesktopAppDataDir(),
       AI_NOVEL_DATABASE_MODE: "sqlite",
