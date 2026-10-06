@@ -1,4 +1,4 @@
-import { BookOpen, Globe2, Users, Layers, FileText } from "lucide-react";
+import { BookOpen, Globe2, Users, Layers, FileText, Map, Network } from "lucide-react";
 import type { ReactNode } from "react";
 import type { Selection, WorkspaceBook } from "./model";
 import { buildStoryDirectory, beatSelection, chapterSelection, sameSelection } from "./planning";
@@ -46,6 +46,8 @@ export function ResourceDirectory({ book, selected, onSelect }: { book: Workspac
     <p className="mt-6 px-3 pb-3 text-xs font-medium tracking-widest text-muted-foreground">小说资产</p>
     {row({ kind: "story" }, "故事规划", <BookOpen className="h-4 w-4" />)}
     {row({ kind: "world" }, "世界设定", <Globe2 className="h-4 w-4" />)}
+    {row({ kind: "world_map" }, "世界地图", <Map className="h-4 w-4" />)}
+    {row({ kind: "character_graph" }, "角色关系图", <Network className="h-4 w-4" />)}
     {group("角色", <Users className="h-3.5 w-3.5" />, book.materials.characters.length, book.materials.characters.map(character => row({ kind: "character", id: character.id }, character.name)))}
   </nav>;
 }

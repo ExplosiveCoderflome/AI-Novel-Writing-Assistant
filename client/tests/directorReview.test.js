@@ -4,6 +4,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import {createRequire} from 'node:module';
 import {fileURLToPath, pathToFileURL} from 'node:url';
+import {nodeStyles} from './support/nodeStyles.js';
 import {resolveSavedReview} from '../src/pages/directorNext/workspace/review.ts';
 
 test('short review URLs resolve only saved current contexts and ignore forged or malformed routing fields',()=>{
@@ -73,7 +74,7 @@ export const page=renderToStaticMarkup(<MemoryRouter initialEntries={[target]}><
 cache.setQueryData(queryKeys.directorNext.summary('book'),{success:true,data:{...view,driver:'assisted'}});
 cache.setQueryData(queryKeys.directorNext.detail('book'),{success:true,data:{view:{...view,driver:'assisted'},timeline:[]}});
 export const assistedPage=renderToStaticMarkup(<MemoryRouter initialEntries={[target]}><QueryClientProvider client={cache}><Routes><Route path='/lab/director/:novelId' element={<DirectorNovelPage/>}/></Routes></QueryClientProvider></MemoryRouter>);
-`,resolveDir:root,loader:'tsx'},bundle:true,platform:'node',format:'esm',packages:'external',alias:{'@':path.join(root,'src')},define:{'import.meta.env':'{}'},outfile:output});
+`,resolveDir:root,loader:'tsx'},bundle:true,platform:'node',format:'esm',packages:'external',plugins:[nodeStyles],alias:{'@':path.join(root,'src')},define:{'import.meta.env':'{}'},outfile:output});
     const m=await import(pathToFileURL(output).href);
     for (const text of ['章节任务与场景','本章必须取得证据','目标场景证据','保持有限视角','2000','避免提前揭晓']) assert.ok(m.review.includes(text),text);
     assert.ok(!m.review.includes('错误首章任务'));

@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { lazy, Suspense, useEffect, useState } from "react";
 import { ResizableWorkspace } from "@/components/layout/resizableWorkspace";
 import { ResourceDirectory } from "./ResourceDirectory";
 import { ChapterReader } from "./ChapterReader";
@@ -12,6 +12,8 @@ import {ReviewDetail} from "./ReviewDetail";
 import type {DirectorGenerationSnapshot} from "@ai-novel/shared/types/director/generation";
 import {followedChapterSelection} from "../generation";
 import type {WorkspaceChapter} from "./model";
+const WorldMapView = lazy(()=>import("./visualizations").then(module=>({default:module.WorldMapView})));
+const CharacterGraphView = lazy(()=>import("./visualizations").then(module=>({default:module.CharacterGraphView})));
 
 export function NovelWorkspace({ book, preview = false, review, onLeaveReview, followGeneration = false, generation = null }: { book: WorkspaceBook; preview?: boolean; review?:URLSearchParams; onLeaveReview?:()=>void; followGeneration?:boolean; generation?:DirectorGenerationSnapshot|null }) {
   const live = followGeneration && generation?.novelId === book.novel.id ? generation : null;
@@ -56,7 +58,9 @@ export function NovelWorkspace({ book, preview = false, review, onLeaveReview, f
     </aside>;
   const content = savedReview ? <section key={review?.toString()} className="h-full max-h-[75dvh] min-h-0 min-w-0 flex-1 overflow-y-auto overscroll-contain pb-6 md:max-h-none"><ReviewDetail book={book} review={savedReview}/></section> : <section data-chapter-scroll-viewport key={selected.kind + (selected.kind === "beat" ? selected.volumeId : "") + ("id" in selected ? selected.id : "")} className="h-full max-h-[75dvh] min-h-0 min-w-0 flex-1 overflow-y-auto overscroll-contain pb-6 md:max-h-none">
       <PlanningDetail book={book} selected={selected} onSelect={select} />
-      {chapter ? <ChapterReader key={chapter.id} chapter={chapter} chapters={displayBook.chapters} characters={book.materials.characters} onCharacter={openCharacter} onChapter={id => select({kind:"chapter",id})} generation={live?.chapterId===chapter.id ? live : null} followGeneration={followGeneration} />
+      {selected.kind === "world_map" ? <Suspense fallback={<p className="px-6 text-sm text-muted-foreground">正在读取世界地图…</p>}><WorldMapView book={book} onOpenWorld={()=>select({kind:"world"})}/></Suspense>
+        : selected.kind === "character_graph" ? <Suspense fallback={<p className="px-6 text-sm text-muted-foreground">正在读取角色关系图…</p>}><CharacterGraphView book={book} preview={preview} onOpenCharacter={id=>select({kind:"character",id})}/></Suspense>
+        : chapter ? <ChapterReader key={chapter.id} chapter={chapter} chapters={displayBook.chapters} characters={book.materials.characters} onCharacter={openCharacter} onChapter={id => select({kind:"chapter",id})} generation={live?.chapterId===chapter.id ? live : null} followGeneration={followGeneration} />
         : selected.kind === "beat" || selected.kind === "plan" || (selected.kind === "volume" && book.planning) ? null : <AssetDetail book={book} selected={selected} onCharacter={openCharacter} />}
     </section>;
   return <div className="flex min-h-0 min-w-0 flex-1 flex-col">

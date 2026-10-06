@@ -4,6 +4,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { createRequire } from 'node:module';
 import { pathToFileURL } from 'node:url';
+import {nodeStyles} from './support/nodeStyles.js';
 import { resolveSelection, visibleCharacterHistory, readableChapter } from '../src/pages/directorNext/workspace/model.ts';
 import { buildStoryDirectory } from '../src/pages/directorNext/workspace/planning.ts';
 
@@ -38,6 +39,14 @@ test('newly saved chapters preserve the chosen asset or reading chapter', () => 
   assert.deepEqual(resolveSelection({kind:'chapter',id:'other-book'}, book), selected);
 });
 
+test('map and relationship selections survive saved chapter refreshes', () => {
+  for (const kind of ['world_map', 'character_graph']) {
+    const selected = {kind};
+    assert.deepEqual(resolveSelection(selected, book), selected);
+    assert.deepEqual(resolveSelection(selected, {...book, chapters: [...book.chapters, {id:'new', content:'新正文'}]}), selected);
+  }
+});
+
 test('planned chapters stay selectable but have no readable prose', () => {
   assert.equal(readableChapter(book.chapters[1]), false);
   assert.deepEqual(resolveSelection({kind:'chapter',id:'c2'}, book), {kind:'chapter',id:'c2'});
@@ -67,11 +76,12 @@ export const markup = renderToStaticMarkup(<QueryClientProvider client={new Quer
 const book = {...previewBook, planning:{volumes:[{id:'v',sortOrder:1,title:'卷标题',chapters:[{id:'p',volumeId:'v',chapterOrder:4,beatKey:'b',title:'未写章',summary:'计划摘要'}]}],beatSheets:[{volumeId:'v',beats:[{key:'b',label:'开篇',title:'节奏标题',summary:'节奏目标',mustDeliver:['兑现目标']}]}]}};
 export const planned = renderToStaticMarkup(<><ResourceDirectory book={book} selected={{kind:'beat',id:'b',volumeId:'v'}} onSelect={()=>{}}/><PlanningDetail book={book} selected={{kind:'beat',id:'b',volumeId:'v'}} onSelect={()=>{}}/></>);`, resolveDir: clientDir, loader: 'tsx' },
       bundle: true, platform: 'node', format: 'esm', packages: 'external',
+      plugins: [nodeStyles],
       alias: { '@': path.join(clientDir, 'src') }, define: { 'import.meta.env': '{}' }, outfile: output,
     });
     const { markup, planned } = await import(pathToFileURL(output).href);
     for (const label of ['卷标题','节奏标题','节奏目标','兑现目标','未写章','待写正文']) assert.ok(planned.includes(label),label);
-    for (const label of ['故事规划', '世界设定', '角色', '卷纲', '章节', '林渡醒来时', '快速查看角色', '钟声之后']) assert.ok(markup.includes(label), label);
+    for (const label of ['故事规划', '世界设定', '世界地图', '角色关系图', '角色', '卷纲', '章节', '林渡醒来时', '快速查看角色', '钟声之后']) assert.ok(markup.includes(label), label);
     assert.ok(markup.includes('待写作'));
     assert.doesNotMatch(markup, /border rounded|shadow-lg/);
   } finally { fs.rmSync(output, {force:true}); }

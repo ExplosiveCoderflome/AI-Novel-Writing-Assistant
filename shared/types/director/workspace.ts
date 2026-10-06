@@ -16,7 +16,7 @@ export type DirectorWorldMaterials = NonNullable<ShelfMaterials["world"]> & {
 };
 
 export type DirectorCharacterMaterials = ShelfMaterials["characters"][number] & Pick<Character,
-  "background" | "development" | "relationToProtagonist" | "identityLabel" | "factionLabel" | "stanceLabel"
+  "castRole" | "currentState" | "background" | "development" | "relationToProtagonist" | "identityLabel" | "factionLabel" | "stanceLabel"
   | "powerLevel" | "realm" | "outerGoal" | "innerNeed" | "fear" | "wound" | "misbelief" | "secret" | "moralLine"
   | "firstImpression" | "appearance" | "physique" | "attireStyle" | "signatureDetail" | "voiceTexture"
   | "presenceImpression" | "arcStart" | "arcMidpoint" | "arcClimax" | "arcEnd">;

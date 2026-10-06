@@ -5,6 +5,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { createRequire } from 'node:module';
 import { fileURLToPath, pathToFileURL } from 'node:url';
+import {nodeStyles} from './support/nodeStyles.js';
 
 const frame = {novelId:'n',chapterId:'c2',chapterOrder:2,chapterTitle:'第二章',executionId:'attempt',revision:2,state:'writing',content:'正在生成的正文',updatedAt:123};
 test('follow selects the streamed chapter only when enabled and belonging to this book', () => {
@@ -46,7 +47,7 @@ export const manual=render(<NovelWorkspace book={book} generation={generation}/>
 export const unseen=render(<NovelWorkspace book={book} generation={{...generation,chapterId:'new-chapter',chapterOrder:3}} followGeneration/>);
 export const header=render(<DirectorNovelPage previewOnly/>);
 export const savedProse=book.chapters[0].content;
-`,resolveDir:clientDir,loader:'tsx'},bundle:true,platform:'node',format:'esm',packages:'external',alias:{'@':path.join(clientDir,'src')},define:{'import.meta.env':'{}'},outfile:output});
+`,resolveDir:clientDir,loader:'tsx'},bundle:true,platform:'node',format:'esm',packages:'external',plugins:[nodeStyles],alias:{'@':path.join(clientDir,'src')},define:{'import.meta.env':'{}'},outfile:output});
     const result=await import(pathToFileURL(output).href);
     assert.match(result.followed,/流式预览正文/);
     assert.match(result.followed,/正在生成正文 · 实时预览/);

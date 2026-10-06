@@ -167,6 +167,7 @@ Open-source AI novel writing assistant and long-form production studio.
 
 - 开书时可选择导演 V1 或 V2，工作台顶部和书架显示所选版本；新书优先使用 V2。
 - 本书设置支持选择导演版本，结束当前创作后可打开对应工作台，保留已保存正文和历史记录。
+- 导演 V2 目录可查看世界地图与角色关系图，支持筛选、关系详情及全屏浏览。
 
 #### 优化
 

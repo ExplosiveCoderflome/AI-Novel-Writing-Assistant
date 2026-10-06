@@ -45,10 +45,10 @@ export function projectWorldMaterials(novelId: string, local: NovelWorld | null,
 }
 
 export function projectCharacterMaterials(character: Character): DirectorCharacterMaterials {
-  const {id,name,role,storyFunction,currentGoal,personality,background,development,relationToProtagonist,
+  const {id,name,role,castRole,currentState,storyFunction,currentGoal,personality,background,development,relationToProtagonist,
     identityLabel,factionLabel,stanceLabel,powerLevel,realm,outerGoal,innerNeed,fear,wound,misbelief,secret,moralLine,
     firstImpression,appearance,physique,attireStyle,signatureDetail,voiceTexture,presenceImpression,arcStart,arcMidpoint,arcClimax,arcEnd} = character;
-  return {id,name,role,storyFunction,currentGoal,personality,background,development,relationToProtagonist,
+  return {id,name,role,castRole:castRole as DirectorCharacterMaterials["castRole"],currentState,storyFunction,currentGoal,personality,background,development,relationToProtagonist,
     identityLabel,factionLabel,stanceLabel,powerLevel,realm,outerGoal,innerNeed,fear,wound,misbelief,secret,moralLine,
     firstImpression,appearance,physique,attireStyle,signatureDetail,voiceTexture,presenceImpression,arcStart,arcMidpoint,arcClimax,arcEnd};
 }

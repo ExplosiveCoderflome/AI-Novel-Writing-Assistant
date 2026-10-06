@@ -15,6 +15,8 @@ const server = path.join(process.env.DIRECTOR_NEXT_REPO_ROOT, 'server');
 const {prisma} = require(path.join(server, 'dist/db/prisma'));
 const {ensureRuntimeDatabaseReady} = require(path.join(server, 'dist/db/runtimeMigrations'));
 const {readDirectorWorkspace} = require(path.join(server, 'dist/app/director/workspace'));
+const {CharacterPreparationService} = require(path.join(server, 'dist/services/novel/characterPrep/CharacterPreparationService'));
+const {CharacterDynamicsQueryService} = require(path.join(server, 'dist/services/novel/dynamics/CharacterDynamicsQueryService'));
 const structure = {
   profile:{summary:'本书世界概况',identity:'江湖',tone:'冷峻',themes:['选择'],coreConflict:'城内权力争斗'},
   rules:{summary:'力量总纲',axioms:Array.from({length:8},(_,i)=>({id:'r'+i,name:'规则'+i,summary:'约束'+i,cost:'付出寿命',boundary:'不能复活',enforcement:'雷罚'})),taboo:['不可凭空得力'],sharedConsequences:['留下伤痕']},
@@ -29,14 +31,17 @@ const slice = {storyId:'book',worldId:'local',coreWorldFrame:'已保存范围',a
  await prisma.world.create({data:{id:'sample',name:'外部样本',overviewSummary:'样本世界',structureJson:JSON.stringify({...structure,profile:{...structure.profile,summary:'外部样本新设定'}}),geography:'样本地理'}});
  await prisma.novel.create({data:{id:'book',title:'本书',worldId:'sample'}});
  await prisma.novelWorld.create({data:{id:'local',novelId:'book',sourceWorldId:'sample',title:'本书专属世界',structuredDataJson:JSON.stringify(structure),storySliceJson:JSON.stringify(slice)}});
- await prisma.character.create({data:{id:'hero',novelId:'book',name:'主角',role:'主角',background:'保存的经历',outerGoal:'救下家人',innerNeed:'学会信任',fear:'失去同伴',secret:'保存的秘密'}});
+ await prisma.character.create({data:{id:'hero',novelId:'book',name:'主角',role:'主角',castRole:'protagonist',currentState:'受伤待援',background:'保存的经历',outerGoal:'救下家人',innerNeed:'学会信任',fear:'失去同伴',secret:'保存的秘密'}});
+ await prisma.character.create({data:{id:'ally',novelId:'book',name:'同伴',role:'医者'}});
+ await prisma.characterRelation.create({data:{id:'saved-relation',novelId:'book',sourceCharacterId:'hero',targetCharacterId:'ally',surfaceRelation:'同盟'}});
+ await prisma.characterRelationStage.create({data:{id:'saved-stage',novelId:'book',sourceCharacterId:'hero',targetCharacterId:'ally',stageLabel:'互相信任',stageSummary:'联手脱险',sourceType:'chapter',isCurrent:true}});
  await prisma.bookContract.create({data:{novelId:'book',readingPromise:'承诺',protagonistFantasy:'体验',coreSellingPoint:'看点',chapter3Payoff:'三章兑现',chapter10Payoff:'十章兑现',chapter30Payoff:'三十章兑现',escalationLadder:'逐步升级',relationshipMainline:'同伴信任',absoluteRedLinesJson:'["不滥杀无辜"]'}});
  await prisma.novel.create({data:{id:'manual',title:'独立本书'}});
  await prisma.novelWorld.create({data:{novelId:'manual',title:'独立世界',structuredDataJson:JSON.stringify(structure)}});
  await prisma.novel.create({data:{id:'legacy',title:'旧数据',worldId:'sample'}});
  await prisma.novel.create({data:{id:'broken',title:'损坏资料',worldId:'sample'}});
  await prisma.novelWorld.create({data:{novelId:'broken',title:'本书损坏资料',structuredDataJson:'{bad',storySliceJson:JSON.stringify({...slice,storyId:'another-book'})}});
- const snapshot=async()=>Promise.all([prisma.novel.findMany({orderBy:{id:'asc'}}),prisma.novelWorld.findMany({orderBy:{id:'asc'}}),prisma.world.findMany({orderBy:{id:'asc'}}),prisma.character.findMany({orderBy:{id:'asc'}}),prisma.bookContract.findMany({orderBy:{id:'asc'}})]);
+ const snapshot=async()=>Promise.all([prisma.novel.findMany({orderBy:{id:'asc'}}),prisma.novelWorld.findMany({orderBy:{id:'asc'}}),prisma.world.findMany({orderBy:{id:'asc'}}),prisma.character.findMany({orderBy:{id:'asc'}}),prisma.bookContract.findMany({orderBy:{id:'asc'}}),prisma.characterRelation.findMany(),prisma.characterRelationStage.findMany()]);
  const before=await snapshot();
  for(let i=0;i<2;i++){
   const saved=await readDirectorWorkspace('book');
@@ -48,6 +53,8 @@ const slice = {storyId:'book',worldId:'local',coreWorldFrame:'已保存范围',a
   assert.deepEqual(saved.materials.world.storySlice.forbiddenCombinations,['不能提前揭开刀主']);
   assert.equal(saved.materials.characters[0].background,'保存的经历');
   assert.equal(saved.materials.characters[0].innerNeed,'学会信任');
+  assert.equal(saved.materials.characters[0].castRole,'protagonist');
+  assert.equal(saved.materials.characters[0].currentState,'受伤待援');
   assert.equal(saved.materials.story.chapter10Payoff,'十章兑现');
   assert.deepEqual(saved.materials.story.absoluteRedLines,['不滥杀无辜']);
  }
@@ -57,6 +64,12 @@ const slice = {storyId:'book',worldId:'local',coreWorldFrame:'已保存范围',a
  const broken=(await readDirectorWorkspace('broken')).materials.world;
  assert.equal(broken.name,'本书损坏资料');assert.equal(broken.structure,null);assert.equal(broken.storySlice,null);
  assert.ok(broken.warnings.length>=2);assert.doesNotMatch(JSON.stringify(broken),/外部样本新设定/);
+ const staticRelations=await new CharacterPreparationService().listCharacterRelations('book');
+ assert.deepEqual(staticRelations.map(row=>row.id),['saved-relation']);
+ const dynamicRelations=await new CharacterDynamicsQueryService().getOverview('book');
+ assert.deepEqual(dynamicRelations.relations.map(row=>row.id),['saved-stage']);
+ assert.deepEqual(await new CharacterPreparationService().listCharacterRelations('manual'),[]);
+ assert.deepEqual((await new CharacterDynamicsQueryService().getOverview('manual')).relations,[]);
  assert.deepEqual(await snapshot(),before);
  await prisma.$disconnect();
 })().catch(async error=>{console.error(error);await prisma.$disconnect();process.exitCode=1;});
