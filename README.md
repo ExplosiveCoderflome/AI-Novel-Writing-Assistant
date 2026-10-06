@@ -173,6 +173,10 @@ Open-source AI novel writing assistant and long-form production studio.
 
 - 两套导演使用独立的任务、执行和恢复流程；版本切换只调整本书选择，不自动生成或恢复旧任务。
 
+#### 修复
+
+- 导演 V1 全自动创作会在章节保存后自动核验可信资源变动，用于后续写作；证据不足、状态冲突或受保护内容保留核对提醒。
+
 完整历史更新见 [docs/releases/release-notes.md](./docs/releases/release-notes.md)。
 
 ## 功能预览

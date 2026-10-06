@@ -68,3 +68,15 @@ test("CharacterResourceValidationService still rejects malformed debt proposals"
   assert.equal(result.status, "rejected");
   assert.match(result.validationNotes.join(" "), /missing evidence/);
 });
+
+test("AI-reviewed resource changes preserve high risk, low confidence, and evidence guards", () => {
+  const service = new CharacterResourceValidationService();
+  const options = { automaticReviewApproved: true };
+  for (const overrides of [{ riskLevel: "high" }, { payload: { confidence: 0.3 } }]) {
+    assert.equal(service.validateProposal(makeResourceProposal(overrides), options).status, "pending_review");
+  }
+  assert.equal(service.validateProposal(makeResourceProposal({ evidence: [] }), options).status, "rejected");
+  const ordinaryLoss = makeResourceProposal({ payload: { updateType: "lost", statusAfter: "lost" } });
+  assert.equal(service.validateProposal(ordinaryLoss).status, "pending_review", "manual and V2 callers keep the existing policy");
+  assert.equal(service.validateProposal(ordinaryLoss, options).status, "committed");
+});

@@ -305,6 +305,13 @@ export class NovelDirectorAutoExecutionRuntime {
           continue;
         }
 
+        if (job.status === "succeeded" && isFullBookAutopilotRunMode(input.request.runMode)) {
+          await this.deps.confirmChapterResources?.({
+            novelId: input.novelId, taskId: input.taskId, pipelineJobId: job.id,
+            provider: input.request.provider, model: input.request.model, temperature: input.request.temperature,
+          });
+        }
+
         ({ range, autoExecution } = await resolveAutoExecutionRuntimeRangeAndState(this.deps, {
           novelId: input.novelId,
           existingState: autoExecution,

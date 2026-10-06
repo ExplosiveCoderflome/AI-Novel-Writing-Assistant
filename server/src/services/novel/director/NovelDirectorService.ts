@@ -53,6 +53,7 @@ import {
   isTakeoverStructuredOutlineReadyForValidation,
 } from "./runtime/novelDirectorTakeover";
 import { NovelDirectorAutoExecutionRuntime } from "./automation/novelDirectorAutoExecutionRuntime";
+import { directorResourceConfirmationService } from "./automation/resources";
 import {
   loadDirectorTakeoverState,
 } from "./runtime/novelDirectorTakeoverRuntime";
@@ -155,6 +156,7 @@ export class NovelDirectorService {
     replanNovel: (novelId, input) => this.novelService.replanNovel(novelId, input),
     resolveStateProposals: (input) => directorStateProposalResolutionService.resolvePendingProposals(input),
     autoConfirmPendingCandidates: (novelId) => this.characterDynamicsService.autoConfirmPendingCandidates(novelId),
+    confirmChapterResources: (input) => directorResourceConfirmationService.confirmCompletedChapterResources(input),
     isPendingReviewAutoPromotionEnabled: () => qualityDebtSettingsService.isAutoPromotionEnabled(),
     autoPromotePendingReviewProposals: (input) => this.autoPromotePendingReviewProposals(input),
   });

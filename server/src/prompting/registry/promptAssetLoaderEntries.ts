@@ -242,7 +242,7 @@ export const promptAssetLoaderEntries: PromptAssetLoaderEntry[] = [
     load: () => require("../prompts/novel/directorManualEditImpact.prompts").directorManualEditImpactPrompt as UnknownPromptAsset,
   },
   {
-    key: "director.state_proposal_resolution@v1",
+    key: "director.state_proposal_resolution@v2",
     load: () => require("../prompts/novel/directorStateProposalResolution.prompts").directorStateProposalResolutionPrompt as UnknownPromptAsset,
   },
   {

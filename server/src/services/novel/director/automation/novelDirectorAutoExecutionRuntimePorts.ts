@@ -8,6 +8,7 @@ import type {
 import type { NovelWorkflowCheckpoint } from "@ai-novel/shared/types/novelWorkflow";
 import type { NovelWorkflowService } from "../../workflow/NovelWorkflowService";
 import type { DirectorStateProposalResolutionRunResult } from "../runtime/DirectorStateProposalResolutionService";
+import type { DirectorResourceConfirmationInput } from "./resources";
 import { directorAutomationLedgerEventService } from "../runtime/DirectorAutomationLedgerEventService";
 import type { DirectorAutoExecutionChapterRef } from "./novelDirectorAutoExecution";
 
@@ -117,6 +118,7 @@ export interface NovelDirectorAutoExecutionRuntimeDeps {
   }) => Promise<DirectorStateProposalResolutionRunResult>;
   automationLedgerEventService?: AutomationLedgerEventPort;
   autoConfirmPendingCandidates?: (novelId: string) => Promise<void>;
+  confirmChapterResources?: (input: DirectorResourceConfirmationInput) => Promise<void>;
   isPendingReviewAutoPromotionEnabled?: () => Promise<boolean> | boolean;
   autoPromotePendingReviewProposals?: (input: {
     novelId: string;
