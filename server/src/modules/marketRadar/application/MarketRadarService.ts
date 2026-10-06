@@ -2,7 +2,6 @@ import type {
   CreateMarketCreativeBriefRequest,
   MarketCreativeBrief,
   MarketCreativeSeed,
-  MarketFoundationSyncTarget,
   MarketPlatformStatus,
   MarketProductionFoundationCandidate,
   MarketProductionFoundationSyncState,
@@ -12,7 +11,11 @@ import type {
   MarketScanRun,
   MarketTrendReport,
 } from "@ai-novel/shared/types/marketRadar";
-import { MARKET_RADAR_PLATFORMS } from "@ai-novel/shared/types/marketRadar";
+import {
+  canStartMarketRadarAnalysis,
+  MARKET_RADAR_ANALYSIS_STARTABLE_STATUSES,
+  MARKET_RADAR_PLATFORMS,
+} from "@ai-novel/shared/types/marketRadar";
 import type {
   NovelCreateResourceRecommendation,
   NovelResourceRecommendationOption,
@@ -346,7 +349,7 @@ export class MarketRadarService {
     const recent = await prisma.marketScanRun.findFirst({
       where: { createdAt: { gte: new Date(Date.now() - REFRESH_GUARD_MS) }, status: { in: ["queued", "running", "ready", "analyzing", "succeeded", "partial"] } },
       orderBy: { createdAt: "desc" },
-      include: { snapshots: { include: { items: true } }, report: true },
+      include: { snapshots: { include: { items: true } } },
     });
     const hasObfuscatedFanqieData = recent?.snapshots.some((snapshot) => snapshot.platform === "fanqie"
       && snapshot.items.some((item) => hasPrivateUseCharacters(item.title) || hasPrivateUseCharacters(item.author)));
@@ -375,11 +378,12 @@ export class MarketRadarService {
   ): Promise<MarketScanRun> {
     const run = await prisma.marketScanRun.findUnique({
       where: { id: runId },
-      include: { snapshots: { include: { items: true } }, report: true },
+      include: { snapshots: { include: { items: true } } },
     });
     if (!run) throw new Error("扫榜任务不存在。");
-    if (run.report) return this.getScan(runId) as Promise<MarketScanRun>;
     if (run.status === "queued" || run.status === "running") throw new Error("榜单仍在采集中，请稍后再分析。");
+    if (run.status === "analyzing") return this.getScan(runId) as Promise<MarketScanRun>;
+    if (!canStartMarketRadarAnalysis(run.status as MarketScanRun["status"])) throw new Error("当前扫榜任务无法启动AI分析，请重新扫榜。");
     const successful = run.snapshots.filter((snapshot) => snapshot.status === "succeeded" && snapshot.items.length > 0);
     if (successful.length === 0) throw new Error("没有可供AI分析的榜单数据。");
     const requestedItemIds = [...new Set(input.selectedItemIds ?? [])];
@@ -401,7 +405,7 @@ export class MarketRadarService {
     if (selectedSnapshots.length !== uniqueSelections.length) throw new Error("选择中包含未成功获取的榜单，请重新选择。");
 
     const claimed = await prisma.marketScanRun.updateMany({
-      where: { id: runId, status: { in: ["ready", "partial", "interrupted"] } },
+      where: { id: runId, status: { in: [...MARKET_RADAR_ANALYSIS_STARTABLE_STATUSES] } },
       data: { status: "analyzing", progress: 0.05, lastError: null, finishedAt: null },
     });
     if (claimed.count > 0) {
@@ -430,13 +434,25 @@ export class MarketRadarService {
     return report ? this.serializeReport(report) : null;
   }
 
+  async getLatestDisplayableScan(): Promise<MarketScanRun | null> {
+    const run = await prisma.marketScanRun.findFirst({
+      where: { snapshots: { some: { items: { some: {} } } } },
+      orderBy: { createdAt: "desc" },
+    });
+    return run ? this.getScan(run.id) : null;
+  }
+
   async getScan(id: string): Promise<MarketScanRun | null> {
     const run = await prisma.marketScanRun.findUnique({
       where: { id },
-      include: { snapshots: { include: { items: true } }, report: true },
+      include: {
+        snapshots: { include: { items: true } },
+        reports: { orderBy: [{ createdAt: "desc" }, { id: "desc" }], take: 1 },
+      },
     });
     if (!run) return null;
-    const report = run.report ? await this.getReport(run.report.id) : null;
+    const latestReport = run.reports[0];
+    const report = latestReport ? await this.getReport(latestReport.id) : null;
     return {
       id: run.id,
       status: run.status as MarketScanRun["status"],
@@ -458,64 +474,6 @@ export class MarketRadarService {
       include: { run: { include: { snapshots: { include: { items: true } } } } },
     });
     return report ? this.serializeReport(report) : null;
-  }
-
-  async syncReportFoundation(id: string, target: MarketFoundationSyncTarget): Promise<MarketTrendReport> {
-    const row = await prisma.marketTrendReport.findUnique({ where: { id } });
-    if (!row) throw new Error("市场分析报告不存在。");
-    const stored = parseJson<StoredMarketReportData>(row.structuredDataJson, { signals: [] });
-    const legacy = stored.productionFoundation;
-    const syncState = stored.productionFoundationSync ?? {};
-
-    await ensureSystemResourceStarterData();
-    const [genreTree, storyModeTree] = await Promise.all([
-      this.genreService.listGenreTree(),
-      this.storyModeService.listStoryModeTree(),
-    ]);
-    const catalog = {
-      genres: flattenGenreCatalog(genreTree),
-      storyModes: flattenStoryModeCatalog(storyModeTree),
-    };
-
-    if (target === "genre") {
-      if (stored.productionFoundationDraft) {
-        syncState.genre = await this.syncGenreFoundation(stored.productionFoundationDraft, catalog.genres);
-      } else if (legacy) {
-        const genre = catalog.genres.find((item) => item.id === legacy.genre.id);
-        if (!genre) throw new Error("报告推荐的题材基底已不存在，请重新分析。");
-        syncState.genre = { ...legacy.genre, path: genre.path, source: "market_recommended" };
-      } else {
-        throw new Error("这份历史报告没有可加入的题材基底，请重新分析。");
-      }
-    } else {
-      if (stored.productionFoundationDraft) {
-        syncState.storyModes = await this.syncStoryModeFoundation(stored.productionFoundationDraft, catalog.storyModes);
-      } else if (legacy) {
-        const primary = catalog.storyModes.find((item) => item.id === legacy.primaryStoryMode.id);
-        const secondary = legacy.secondaryStoryMode
-          ? catalog.storyModes.find((item) => item.id === legacy.secondaryStoryMode?.id)
-          : null;
-        if (!primary || (legacy.secondaryStoryMode && !secondary)) {
-          throw new Error("报告推荐的推进模式已不存在，请重新分析。");
-        }
-        syncState.storyModes = {
-          primaryStoryMode: { ...legacy.primaryStoryMode, path: primary.path, source: "market_recommended" },
-          secondaryStoryMode: legacy.secondaryStoryMode && secondary
-            ? { ...legacy.secondaryStoryMode, path: secondary.path, source: "market_recommended" }
-            : null,
-        };
-      } else {
-        throw new Error("这份历史报告没有可加入的推进模式，请重新分析。");
-      }
-    }
-
-    await prisma.marketTrendReport.update({
-      where: { id },
-      data: { structuredDataJson: JSON.stringify({ ...stored, productionFoundationSync: syncState }) },
-    });
-    const report = await this.getReport(id);
-    if (!report) throw new Error("市场分析报告同步后无法读取。");
-    return report;
   }
 
   async createBrief(input: CreateMarketCreativeBriefRequest): Promise<MarketCreativeBrief> {
@@ -573,6 +531,29 @@ export class MarketRadarService {
     if (!id?.trim()) return "";
     const brief = await prisma.marketCreativeBrief.findUnique({ where: { id: id.trim() }, select: { promptBlock: true } });
     return brief?.promptBlock.trim() ?? "";
+  }
+
+  async listSavedTopics() {
+    const rows = await prisma.marketSavedTopic.findMany({ orderBy: { createdAt: "desc" } });
+    return rows.map((row) => ({ id: row.id, reportId: row.reportId, signalId: row.signalId, kind: row.kind as MarketTrendReport["signals"][number]["kind"], label: row.label || row.name || "未命名题材", summary: row.summary || row.reason || "", direction: row.direction as MarketTrendReport["signals"][number]["direction"], heat: row.heat, crowding: row.crowding, createdAt: row.createdAt.toISOString() }));
+  }
+
+  async saveTopic(input: { reportId: string; signalId: string }) {
+    const report = await prisma.marketTrendReport.findUnique({ where: { id: input.reportId } });
+    if (!report) throw new Error("市场分析报告不存在。");
+    const stored = parseJson<StoredMarketReportData>(report.structuredDataJson, { signals: [] });
+    const signal = stored.signals.find((item) => item.id === input.signalId);
+    if (!signal) throw new Error("这条市场信号不属于当前报告。");
+    const row = await prisma.marketSavedTopic.upsert({
+      where: { reportId_signalId: { reportId: report.id, signalId: signal.id } },
+      create: { reportId: report.id, signalId: signal.id, kind: signal.kind, label: signal.label, summary: signal.summary, direction: signal.direction, heat: signal.heat, crowding: signal.crowding },
+      update: { kind: signal.kind, label: signal.label, summary: signal.summary, direction: signal.direction, heat: signal.heat, crowding: signal.crowding },
+    });
+    return { id: row.id, reportId: row.reportId, signalId: row.signalId, kind: row.kind as MarketTrendReport["signals"][number]["kind"], label: row.label, summary: row.summary, direction: row.direction as MarketTrendReport["signals"][number]["direction"], heat: row.heat, crowding: row.crowding, createdAt: row.createdAt.toISOString() };
+  }
+
+  async deleteSavedTopic(id: string): Promise<void> {
+    await prisma.marketSavedTopic.delete({ where: { id } });
   }
 
   private async collectRankings(runId: string): Promise<void> {
@@ -718,86 +699,6 @@ export class MarketRadarService {
       lines.push(`${current.platform}/${current.listKey}: ${changes.join("，") || "没有重复上榜作品"}`);
     }
     return { text: lines.join("\n"), hasComparableHistory: lines.length > 0 };
-  }
-
-  private async syncGenreFoundation(
-    draft: MarketProductionFoundationDraft,
-    catalog: MarketFoundationCatalogOption[],
-  ): Promise<NovelResourceRecommendationOption> {
-    const genreMatch = findMarketFoundationAsset(catalog, draft.genre);
-    if (draft.genre.existingId && !genreMatch) {
-      throw new Error("AI 推荐的题材基底在同步前失效，请重新分析。");
-    }
-    let genre = genreMatch;
-    if (!genre) {
-      const created = await this.genreService.createGenreTree({
-        name: draft.genre.name,
-        description: draft.genre.description,
-        template: draft.genre.template,
-      });
-      genre = { ...created, path: created.name };
-    }
-
-    return {
-      id: genre.id,
-      name: genre.name,
-      path: genre.path,
-      reason: draft.genre.reason,
-      source: "market_recommended",
-    };
-  }
-
-  private async syncStoryModeFoundation(
-    draft: MarketProductionFoundationDraft,
-    catalog: MarketStoryModeCatalogOption[],
-  ): Promise<NonNullable<MarketProductionFoundationSyncState["storyModes"]>> {
-    const resolveStoryMode = async (
-      modeDraft: MarketProductionFoundationDraft["primaryStoryMode"],
-    ): Promise<MarketStoryModeCatalogOption> => {
-      const matched = findMarketFoundationAsset(catalog, modeDraft);
-      if (modeDraft.existingId && !matched) {
-        throw new Error("AI 推荐的推进模式在同步前失效，请重新分析。");
-      }
-      if (matched) {
-        return matched;
-      }
-      const created = await this.storyModeService.createStoryModeTree({
-        name: modeDraft.name,
-        description: modeDraft.description,
-        template: modeDraft.template,
-        profile: modeDraft.profile,
-      });
-      const option = { ...created, path: created.name };
-      catalog.push(option);
-      return option;
-    };
-
-    const primaryStoryMode = await resolveStoryMode(draft.primaryStoryMode);
-    const secondaryStoryMode = draft.secondaryStoryMode
-      ? await resolveStoryMode(draft.secondaryStoryMode)
-      : null;
-    if (secondaryStoryMode?.id === primaryStoryMode.id) {
-      throw new Error("AI 推荐的主推进模式与辅助推进模式重复，请重新分析。");
-    }
-
-    return {
-      primaryStoryMode: {
-        id: primaryStoryMode.id,
-        name: primaryStoryMode.name,
-        path: primaryStoryMode.path,
-        reason: draft.primaryStoryMode.reason,
-        source: "market_recommended",
-      },
-      secondaryStoryMode: secondaryStoryMode && draft.secondaryStoryMode
-        ? {
-          id: secondaryStoryMode.id,
-          name: secondaryStoryMode.name,
-          path: secondaryStoryMode.path,
-          reason: draft.secondaryStoryMode.reason,
-          source: "market_recommended",
-        }
-        : null,
-    };
   }
 
   private serializeReport(report: {

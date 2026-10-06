@@ -1095,7 +1095,7 @@ export const novelThemeWorldGenerationPrompt: PromptAsset<
   z.infer<typeof novelThemeWorldGenerationSchema>
 > = {
   id: "novel.world.generate_from_theme",
-  version: "v2",
+  version: "v3",
   taskType: "planner",
   mode: "structured",
   language: "zh",
@@ -1142,12 +1142,13 @@ export const novelThemeWorldGenerationPrompt: PromptAsset<
       "全局硬规则：",
       "1. 所有文本必须使用简体中文。",
       "2. 世界必须紧扣本书主题，不得生成一套与小说卖点无关的通用百科。",
-      "3. 世界设定必须能约束后续生成：力量有代价，秩序有执行者，冲突有来源，地点有叙事功能。",
+      "3. 世界设定必须能约束后续生成：若本书采用能力体系，力量必须有代价；秩序有执行者，冲突有来源，地点有叙事功能。",
       "4. 不要写主角个人剧情，不要替小说生成完整大纲，不要把单次事件当成世界规则。",
       "5. 允许根据小说信息做合理补全；如果信息不足，要生成稳妥、低风险、可继续扩展的本书舞台。",
       input.openingOnly
         ? "6. 当前只准备开篇切片：仅生成前 3-5 章会直接读取的规则、势力和地点，不扩写远期百科。"
         : "6. 当前生成可持续扩展的本书世界基础。",
+      "7. 如果故事宏观规划中包含“战力体系决策”，必须严格服从：none 不得生成境界、等级或升级线，rules.summary 要明确本书不设战力等级并改写社会、关系、资源或信息规则；soft 只生成定性强弱、代价与克制，不得命名等级；ranked 才能生成有序等级及跨级边界。",
       "",
       "内容数量要求：",
       "1. rules.axioms 生成 2-3 条硬规则。",

@@ -322,7 +322,7 @@ export const promptAssetLoaderEntries: PromptAssetLoaderEntry[] = [
     load: () => require("../prompts/novel/volume/chapterList.prompts").createVolumeChapterListPrompt(1) as UnknownPromptAsset,
   },
   {
-    key: "novel.volume.chapter_purpose@v1",
+    key: "novel.volume.chapter_purpose@v3",
     load: () => require("../prompts/novel/volume/chapterDetail.prompts").volumeChapterPurposePrompt as UnknownPromptAsset,
   },
   {
@@ -466,7 +466,7 @@ export const promptAssetLoaderEntries: PromptAssetLoaderEntry[] = [
     load: () => require("../prompts/novel/production.prompts").novelProductionCharactersPrompt as UnknownPromptAsset,
   },
   {
-    key: "novel.create.resource_recommendation@v1",
+    key: "novel.create.resource_recommendation@v3",
     load: () => require("../prompts/novel/resourceRecommendation.prompts").novelCreateResourceRecommendationPrompt as UnknownPromptAsset,
   },
   {

@@ -448,11 +448,11 @@ export default function SettingsPage() {
           providers={providerConfigs}
           balances={providerBalancesQuery.data?.data ?? []}
           isBalanceLoading={providerBalancesQuery.isLoading}
-          testingProvider={testMutation.variables?.provider}
+          testingProvider={testMutation.isPending ? testMutation.variables?.provider : undefined}
           providerTestResults={providerTestResults}
-          refreshingModelProvider={refreshModelsMutation.variables}
-          refreshingBalanceProvider={refreshBalanceMutation.variables}
-          reasoningProvider={modelControlsMutation.variables?.provider}
+          refreshingModelProvider={refreshModelsMutation.isPending ? refreshModelsMutation.variables : undefined}
+          refreshingBalanceProvider={refreshBalanceMutation.isPending ? refreshBalanceMutation.variables : undefined}
+          reasoningProvider={modelControlsMutation.isPending ? modelControlsMutation.variables?.provider : undefined}
           onCreateCustomProvider={openCreateCustomDialog}
           onRemoveProvider={handleRemoveProvider}
           onOpenConfig={openBuiltInDialog}
@@ -479,7 +479,7 @@ export default function SettingsPage() {
             setActionResult("");
             modelControlsMutation.mutate({ provider, hiddenModels, message });
           }}
-          removingProvider={removeProviderMutation.variables?.provider}
+          removingProvider={removeProviderMutation.isPending ? removeProviderMutation.variables?.provider : undefined}
         />
       </div>
 

@@ -4,6 +4,7 @@ import {
   BASIC_INFO_FIELD_HINTS,
   EMOTION_OPTIONS,
   PACE_OPTIONS,
+  POWER_SYSTEM_OPTIONS,
   POV_OPTIONS,
   READER_CHANNEL_OPTIONS,
   WRITING_PLATFORM_OPTIONS,
@@ -152,6 +153,25 @@ export default function StageBasicSetup({
           </SelectControl>
           <div className={`text-xs text-muted-foreground ${AUTO_DIRECTOR_MOBILE_CLASSES.wrapText}`}>
             {findOptionSummary(EMOTION_OPTIONS, basicForm.emotionIntensity)}
+          </div>
+        </div>
+
+        <div className="space-y-2">
+          <FieldLabel htmlFor="director-basic-power-system" hint={BASIC_INFO_FIELD_HINTS.powerSystemPreference}>战力体系</FieldLabel>
+          <SelectControl
+            id="director-basic-power-system"
+            className={controlClassName}
+            value={basicForm.powerSystemPreference}
+            onChange={(event) => onBasicFormChange({
+              powerSystemPreference: event.target.value as NovelBasicFormState["powerSystemPreference"],
+            })}
+          >
+            {POWER_SYSTEM_OPTIONS.map((option) => (
+              <option key={option.value} value={option.value}>{option.label}</option>
+            ))}
+          </SelectControl>
+          <div className={`text-xs text-muted-foreground ${AUTO_DIRECTOR_MOBILE_CLASSES.wrapText}`}>
+            {findOptionSummary(POWER_SYSTEM_OPTIONS, basicForm.powerSystemPreference)}
           </div>
         </div>
 

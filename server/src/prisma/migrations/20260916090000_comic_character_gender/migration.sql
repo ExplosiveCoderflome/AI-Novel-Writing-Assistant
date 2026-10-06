@@ -1,0 +1,1 @@
+ALTER TABLE "ComicCharacter" ADD COLUMN IF NOT EXISTS "gender" TEXT NOT NULL DEFAULT 'unknown';

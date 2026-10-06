@@ -32,16 +32,14 @@ function buildChapter(overrides = {}) {
   };
 }
 
-test("JIT reuses the contract synchronized by the route window", async () => {
+test("JIT delegates contract reuse to the shared preparation policy", async () => {
   let loadCount = 0;
   let factLoads = 0;
   let generations = 0;
   const service = new ChapterPlanJITService({
     loadChapter: async () => {
       loadCount += 1;
-      return loadCount === 1
-        ? buildChapter({ taskSheet: null, sceneCards: null })
-        : buildChapter();
+      return buildChapter({ taskSheet: null, sceneCards: null });
     },
     ensureRouteWindow: async () => ({ availableRouteCount: 5, extended: true }),
     listFacts: async () => {
@@ -55,12 +53,12 @@ test("JIT reuses the contract synchronized by the route window", async () => {
 
   await service.ensureExecutionReady("novel-1", "chapter-1");
 
-  assert.equal(loadCount, 2);
-  assert.equal(factLoads, 0);
-  assert.equal(generations, 0);
+  assert.equal(loadCount, 1);
+  assert.equal(factLoads, 1);
+  assert.equal(generations, 1);
 });
 
-test("JIT generates a missing contract once and reads facts only then", async () => {
+test("JIT forwards fact guidance to centralized contract preparation", async () => {
   let factLoads = 0;
   let generations = 0;
   let generationOptions = null;

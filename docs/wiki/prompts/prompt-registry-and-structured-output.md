@@ -24,6 +24,7 @@
 - 确定性代码只允许处理结构契约和安全边界，例如必填字段、枚举归一、ID 是否存在、数组长度、权限和数据保护。确定性质量闸门可以指出“缺少 protagonist / gender / 必填字段”这类结构问题，但不能判断“是否承接了某个题材身份”“名字是否像功能位”“语言是否像英文残留”等创作语义。
 - 结构化输出使用 `runStructuredPrompt`，纯文本使用 `runTextPrompt`，流式能力使用对应 stream runner。
 - JSON 解析、schema 校验失败由 repair policy 处理；JSON 合法但业务语义不合格由 semantic retry 处理。
+- 同一结构化结果中承担不同职责的字段必须在 `postValidate` 中保护其最小差异边界。比如章节目标在去除空白后与章节摘要或本次修正前的章节目标完全相同时，目标输出无效：应把失败原因交给 `semanticRetryPolicy` 重新生成；重试仍失败时中止本次写入并保留已保存内容，不能让一个字段静默覆盖成另一个字段或沿用无效草稿。
 - 自动导演关键路径优先使用职责单一的小型结构化合同。开篇世界切片、路线窗口和下一章执行合同应分别约束，不要为了减少代码步骤把整本世界、全角色、整卷章节和执行细节塞进一个巨型 JSON。拆分的目标是降低 repair 面积和首章前耗时，不是复制生产链。
 - 自定义高级模板或业务上下文只能影响提示词正文。运行时必须在模板编译后强制追加 JSON skeleton、完整 Schema 和 repair 合同，用户模板不能覆盖这些结构安全边界。
 - 所有通过 registry runner 执行的 PromptAsset 都必须产生 prompt quality telemetry，用于观察 repair 率、semantic retry 率、空输出率、上下文 token 预算、输出长度和耗时。业务服务不得绕过 runner 自行吞掉 postValidate 失败；语义失败应通过 `semanticRetryPolicy` 重试，或通过明确的 `postValidateFailureRecovery` 降级。
@@ -33,16 +34,18 @@
 - 抽取类 schema 如果用字符串承载“可读状态值”，必须在 PromptAsset 中明示数值也要按字符串输出，并在 schema 层对已经结构化的数值 / 布尔标量做确定性字符串化。典型场景是时间线 `stateChanges.before/after`：差评值、评分、倒计时等是剧情状态，不是计算字段，进入连续性账本时应保存为 `"19"`、`"5"` 这类可读文本，避免每次抽取都把合理数值输出推给 JSON repair。
 - 聚合型结构化 prompt 必须列出所有受限 enum 字段，不能只列最容易出错的字段。章节资产抽取这类一次性输出多个子账本的 prompt，应同时约束 `updateType`、`resourceType`、`narrativeFunction`、`scopeType`、`syncPlan` 等字段；否则模型会用语义合理但不被 schema 接受的自然分类词，导致后台任务被 Zod 校验失败卡住。
 - 结构化输出后的确定性归一只用于字段别名、枚举别名和兼容旧形状，例如把 `pacing` 映射为接收闸门的 `plot`、把 payoff `active` 映射为 `pending_payoff`、把字符串风险转成 `{ code, severity, summary }` 对象。不能用这种归一替代 AI 对剧情事实、风险等级或下一步动作的判断。
+- 当结构化 Prompt 要求 AI 从候选目录中选择稳定 ID 时，目录必须明确区分“候选序号”和“真实 ID”，并要求原样返回真实 ID。若模型仍把纯整数候选序号写入 ID 字段，schema 应先把 JSON 数字确定性转成字符串，`postValidate` 再按本次已传入的有序候选数组做确定性映射；精确 ID 必须优先，零、负数、非规范整数、越界序号和任意未知值必须继续拒绝并进入 semantic retry。该映射只修复已经结构化的目录引用，不能根据名称、关键词或描述猜测选择结果。
 - 章节接收闸门、时间线抽取和章节资产抽取都属于高频后台结构化 prompt，示例必须覆盖非空对象数组。`missingObligations`、`hooks/possibleHooks`、资源变化等字段不能只给空数组示例，否则模型在发现真实问题时容易自造字段或把对象压成字符串。
 - 事实抽取类 prompt 不继承创作温度。时间线、章节资产 delta、接收闸门等用于审校或账本写入的调用应在 service 层钳制低温，避免自动导演高创造温度放大 schema drift。
 - JSON repair 日志应保留 `promptId`、`schemaPaths`、`repairAttempt` 和 `validationError`。诊断 repair 率时先按 `promptId + schemaPath` 聚合，判断是 prompt 示例、枚举合同、上下文污染还是模型路由问题。
 - 原生 JSON 格式是接口能力，不是模型名称能力。只有官方直连接口（或未覆盖的官方默认接口）可以按内置 provider profile 启用 `json_schema` / `json_object`；任何自定义或聚合 OpenAI 兼容地址即使模型名带有 `deepseek`、`glm`、`kimi` 等前缀，也必须先使用 `prompt_json`。模型路由连通性检测会实际验证协议与结构化格式，并把验证成功的格式保存为该路由偏好；禁止仅因新增型号或名称别名而把自定义接口升级为原生格式。
 - JSON repair 必须接收目标 JSON Schema，不能只依赖原始校验错误推测字段结构。尤其在原始文本无法解析、`schemaPaths` 为空时，完整 schema 是修复模型恢复必填字段、嵌套对象和枚举合同的唯一可靠依据。
 - repair 不应无限量回放损坏输出。遇到超长重复、乱码或退化内容时，应保留足够的前缀与尾部用于恢复语义，同时压缩中间异常内容，避免损坏文本继续污染修复上下文。
-- 开书灵感、短方向候选这类“小结构、强创作上下文”的任务，通用 JSON repair 可能只恢复字段结构，却丢失用户已选题材、推进方式和方向差异。此类 PromptAsset 应限制采样温度与输出预算、给出完整非空数组示例；原始输出退化或结构损坏时，优先携带原始业务上下文重新执行已注册 Prompt，而不是让无业务上下文的 repair 补造一组新内容。传输错误仍直接返回，不能用内容重试掩盖模型连接问题。
+- 开书灵感、短方向候选这类“小结构、强创作上下文”的任务，通用 JSON repair 可能只恢复字段结构，却丢失用户已选题材、推进方式和方向差异。此类 PromptAsset 应限制采样温度与输出预算、给出完整非空数组示例；原始输出退化或结构损坏时，优先携带原始业务上下文重新执行已注册 Prompt，而不是让无业务上下文的 repair 补造一组新内容。传输错误不能用内容重试掩盖模型连接问题；结构化调用只可按“模型路由管理”的全局重试次数，对尚未取得可信输出的服务端错误、超时或连接中断执行有限重试，默认 1 次、最多 3 次。达到次数后才可切换已启用的备用模型或返回来源页恢复；每次重试必须沿用同一 Prompt 与结构合同，并在 AI 实况中留下独立调用记录，不能伪造成功或把它当作 JSON repair。
 - 长列表与多层对象类 PromptAsset 必须同时控制字段长度、数组规模和调用级输出预算。仅声明“严格 JSON”不能防止模型把说明文字塞进字段或在闭合括号前持续生成；可以按卷、节拍或片段拆分的结果，应优先分段生成并持久化。
-- 空模型响应不属于 JSON 或 schema 修复问题。结构化运行时必须在进入 repair 前识别空响应，将其归为模型传输 / 输出失败，并优先交给模型路由、备用模型或当前生产项重试；repair 没有原始语义可保留，禁止用空对象补造必填业务内容。
-- 支持开关思考模式的模型执行结构化任务时，应由 provider capability profile 显式关闭思考模式，避免推理预算耗尽后没有最终 JSON。新模型别名接入时必须同步验证其思考开关、结构化 profile 和实际请求参数，不能只把模型名加入下拉列表。
+- 空模型响应不属于 JSON 或 schema 修复问题。普通和流式结构化入口在原生 JSON 模式返回空内容时，都应先用同一模型、同一 Prompt 和同一 Schema 降级到 `prompt_json`；降级后仍为空，才按模型传输 / 输出失败进入有限重试和备用模型。repair 没有原始语义可保留，禁止用空对象补造必填业务内容。
+- 支持开关思考模式的模型执行结构化任务时，应由 provider capability profile 显式关闭思考模式，避免推理预算耗尽后没有最终 JSON。新模型别名接入时必须同步验证其思考开关、结构化 profile 和实际请求参数，不能只把模型名加入下拉列表。DeepSeek 当前官方名 `deepseek-flash` / `deepseek-pro` 与旧名 `deepseek-v4-flash` / `deepseek-v4-pro` 必须按同一套思考开关处理。
+- GLM 4.5 及以上模型在官方兼容端点执行结构化任务时，必须通过 `thinking: { type: "disabled" }` 关闭思考。`enable_thinking: false` 是 Qwen 兼容参数，不能复用于 GLM；聚合或未知代理端点仍按自身已验证的能力处理。
 - Semantic retry 必须把原始业务失败原因传回重试 prompt，并指明需要整体重排还是局部修正。章节列表、卷级拆章这类结果如果因为标题同构、章节功能重复、摘要空泛或结尾牵引不足被拒绝，重试指令应要求重排整组标题骨架和章节功能分配，而不是只替换被点名的一章。
 - editable slots 只能开放低风险表达层内容，不能覆盖 schema、postValidate、taskType、mode、contextPolicy、工具目录、审批边界或 required context。
 - Prompt Workbench 的可视化编辑器只能把 `PromptAsset.slots` 呈现为可编辑项。`replace`、`token`、`append`、`choice` 和 `toggle` 可以映射成不同控件，但保存仍必须走 slot override；不得把整段 system prompt、contextPolicy 或 schema 暴露为自由编辑文本。
@@ -62,6 +65,7 @@
 - `novel.chapter.writer` 最终发送给模型的上下文正文必须面向写作任务可读。`{{context.xxx}}` 和保底 required context 可以在模板、诊断和结构字段中保留原始 group key，但渲染到 human message 时，区块标题和主要字段应使用中文标签，例如 `timeline_context` 显示为 `时间线`、`Title` 显示为 `标题`、角色状态显示为 `目标 / 状态 / 情绪`。内部数据库 ID、风格规则 id 和 `effective_style_profile_id` 这类调试字段不得进入 writer-facing 正文上下文；如需排查，应保留在 diagnostics、日志或专用 meta 文本中。
 - 高级模板版本历史属于本书覆盖数据，不是官方版本库。每次保存创建不可变版本并设为 active；回滚只切换 activeVersionId；恢复官方模板只把 mode 切回 `official` 并保留历史版本，真实生成随即回到 `PromptAsset.render()`。
 - Slot override 的解析优先级固定为：本书覆盖或本书 `official_default` 标记 > 全局覆盖 > `PromptAsset.slots` 官方默认。旧数据中只有 `{ value, baseHash }` 的槽位视为 `custom`，保持兼容。
+- Prompt slot 或高级模板新增持久化模型时，PostgreSQL 与 SQLite schema、迁移和桌面运行时迁移验证必须同步提交。只有 Prisma schema 而没有增量迁移，会让已安装桌面版启动正常但在首次保存时稳定报缺表错误。
 - `official_default` 只表示“当前作用域明确采用官方默认值”。全局层保存官方默认值应删除该槽位覆盖；本书层保存官方默认值时，如果全局层存在自定义覆盖，必须写入 `official_default` 标记来遮蔽全局值；如果没有全局覆盖，则删除本书覆盖即可。
 - “恢复官方当前版”必须通过官方恢复动作处理，而不是简单删除本书覆盖。删除本书覆盖的含义是回到继承链；在有全局覆盖时，这会重新继承全局值，不等于恢复官方默认。
 - “保留我的设置”只能更新当前槽位的 `baseHash/baseVersion`，用于确认用户接受自己的覆盖与当前官方版本的差异；不能顺手改写官方默认值、schema 或上下文策略。
@@ -106,6 +110,7 @@
 ## 失败模式
 
 - 模型返回 JSON 不稳定：先检查 schema、provider JSON 能力和 repair policy，不在业务 service 里补局部解析。
+- 服务端繁忙、超时或连接中断：先检查“模型路由管理”的服务端错误重试次数是否符合当前成本与可用性要求。默认会额外调用 1 次；达到次数后才检查备用模型和厂商状态。不要通过提高 JSON repair 或 semantic retry 次数处理这类错误。
 - 模型请求耗时较长但最终 `content` 为空：先看 LLM 会话日志中的响应长度、模型名和思考模式参数。若原始响应为空，不要根据后续 `{}` repair 错误误判为字段缺失；应检查该模型是否需要关闭思考模式，并确认空响应被归入模型调用失败而不是 JSON repair。
 - 同一 prompt 频繁进入 JSON repair：检查日志里的原始字段值是否来自上下文或示例中的非 schema 值。如果模型只是复用了 prompt 中出现的别名，应先修 prompt/schema 合同；如果输出语义完整但字段名是常见别名，应在 PromptAsset schema 层归一，而不是让后台任务无限重试。
 - 关键路径 repair 率升高时，还要检查合同是否同时承担了远期规划和当前执行。若大量失败集中在深层数组、跨卷章节或非开篇角色字段，应缩小当前 PromptAsset 的职责和输出窗口；不能靠增加 repair 次数掩盖过大的结构合同。

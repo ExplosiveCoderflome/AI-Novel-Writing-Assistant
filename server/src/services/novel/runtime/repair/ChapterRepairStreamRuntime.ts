@@ -16,6 +16,7 @@ import type { ChapterArtifactSyncService } from "../ChapterArtifactSyncService";
 import type { ChapterContentFinalizationService } from "../ChapterContentFinalizationService";
 import type { GenerationContextAssembler } from "../GenerationContextAssembler";
 import type { ChapterLifecycleService } from "../lifecycle";
+import { ChapterArtifactSyncBoundaryError } from "../artifactSync/ChapterArtifactSyncResult";
 import {
   ChapterContextAssemblyError,
   assembleChapterAuditContextPackage,
@@ -216,7 +217,7 @@ export class ChapterRepairStreamRuntime {
       scheduleDeferredArtifactBackgroundSync: false,
     });
     const pass = !finalized.needsRepair && isPass(finalized.runtimePackage.audit.score);
-    await this.deps.artifactSyncService.syncChapterArtifacts(
+    const artifactSyncResult = await this.deps.artifactSyncService.syncChapterArtifacts(
       input.novelId,
       input.chapterId,
       repairedContent,
@@ -229,6 +230,9 @@ export class ChapterRepairStreamRuntime {
         model: input.options.model,
       },
     );
+    if (artifactSyncResult.status !== "completed" && artifactSyncResult.status !== "degraded") {
+      throw new ChapterArtifactSyncBoundaryError(artifactSyncResult);
+    }
 
     if (pass) {
       await this.deps.lifecycleService.markGenerationState(input.chapterId, "approved");

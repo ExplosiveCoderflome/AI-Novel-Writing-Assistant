@@ -305,7 +305,7 @@ function createSplashHtml(): string {
       <main class="panel">
         ${brandMark}
         <div class="title">AI 小说创作工作台</div>
-        <p class="subtitle">正在准备桌面启动壳和打包后的本地写作引擎。</p>
+        <p class="subtitle">Biz Novel Studio 正在准备本地写作引擎。</p>
         <div class="meter"><span></span></div>
       </main>
     </body>
@@ -324,7 +324,7 @@ function createSplashWindow(): BrowserWindow {
     fullscreenable: false,
     frame: false,
     alwaysOnTop: true,
-    title: "AI Novel Writing Assistant v2",
+    title: "Biz Novel Studio",
     backgroundColor: MAIN_WINDOW_BACKGROUND,
     icon: windowIcon,
   });
@@ -444,7 +444,7 @@ function registerDesktopIpcHandlers(): void {
     return logPath;
   });
   ipcMain.handle("desktop:bundle-logs", async () => {
-    const suggestedName = `AI-Novel-logs-${new Date().toISOString().replace(/[:.]/g, "-")}.zip`;
+    const suggestedName = `Biz-Novel-Studio-logs-${new Date().toISOString().replace(/[:.]/g, "-")}.zip`;
     const result = await dialog.showSaveDialog({
       title: "保存桌面日志包",
       defaultPath: path.join(app.getPath("downloads"), suggestedName),

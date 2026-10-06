@@ -1,4 +1,5 @@
 import type { NovelControlPolicy } from "@ai-novel/shared/types/canonicalState";
+import type { ChapterProductionExecution } from "./stageExecution/ChapterProductionExecution";
 
 export type NovelProductionStage =
   | "project_framing"
@@ -15,6 +16,7 @@ export interface RunNovelStageInput {
   stage: NovelProductionStage;
   policy: NovelControlPolicy;
   trigger?: string | null;
+  workflowTaskId?: string | null;
   payload?: Record<string, unknown>;
 }
 
@@ -24,6 +26,7 @@ export interface NovelStageRunResult {
   summary: string;
   nextStage?: NovelProductionStage | null;
   payload?: unknown;
+  execution?: ChapterProductionExecution;
 }
 
 export interface NovelProductionStageRunner {

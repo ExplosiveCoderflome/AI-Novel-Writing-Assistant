@@ -1,5 +1,9 @@
-# AI 小说创作工作台 / AI Novel Production Engine
-一个面向长篇小说创作的 AI Native 开源项目。
+# AI 小说创作工作台 / Biz Novel Studio
+一个帮助新手从灵感走到完整长篇的 AI Native 开源小说创作工作台；英文名由 **AI Novel Production Engine** 更新为 **Biz Novel Studio**。
+
+Open-source AI novel writing assistant and long-form production studio.
+
+> 中文名仍为 **AI 小说创作工作台**；`AI Novel Writing Assistant` 仓库地址和既有下载入口保持不变。
 
 当前开发主线：
 `Creative Hub + 自动导演开书 + 本书世界上下文 + 整本生产主链 + 写法引擎`
@@ -19,7 +23,7 @@
 
 ## ✨ 项目简介
 
-这是一个**面向长篇小说完成度的 AI 生产系统**，不是普通的"你写一句、AI 补一句"聊天壳子。
+**AI 小说创作工作台 / Biz Novel Studio** 是一个**面向长篇小说完成度的 AI 生产系统**。
 
 它的核心做法是：
 
@@ -148,28 +152,23 @@
 - 角色、世界观、写法、知识库和质量控制一起托住单章生成，让每一章都尽量还在同一本书里。
 - 每写完一章，系统都会把新状态回灌回去，继续影响后续章节、卷级节奏和必要时的重规划。
 
+## 自动导演交互架构图
+
+[![自动导演：从想法到完整小说](./docs/architecture/diagram.webp)](https://explosivecoderflome.github.io/AI-Novel-Writing-Assistant/architecture/auto-director-idea-to-novel.detailed.workflow.html)
+
+- [打开交互架构图](https://explosivecoderflome.github.io/AI-Novel-Writing-Assistant/architecture/auto-director-idea-to-novel.detailed.workflow.html)，查看从想法、全书规划、写法与反 AI 契约到逐章生产和写后同步的完整链路。
+- 图表使用 [Archify](https://github.com/tt-a1i/archify) 生成；仓库内保留[图表源数据](./docs/architecture/auto-director-idea-to-novel.detailed.workflow.json)与[自包含 HTML](./docs/architecture/auto-director-idea-to-novel.detailed.workflow.html)。
+
 ## 最新更新
 
-### 2026-09-04
+### 2026-09-23
 
-- 模型厂商的候选模型可逐个隐藏，并能在高级维护区单独或全部恢复；隐藏结果会随配置保存，刷新或重启后仍然有效。
-- 当前使用的模型会受到保护，已有任务路由也会继续显示和运行原先选择的模型。
-- DeepSeek V4 可选择关闭、低、高或最大思考深度，默认使用高；结构化任务仍会优先保证稳定输出。
-- AI 实况会把厂商返回的思考过程与生成内容分开完整展示；关闭模型思考后，厂商仍然返回的思考内容也不会被隐藏。
-- AI 实况会实时显示本次调用的总耗时和首个返回耗时，并在结束后列出输入、输出、思考与合计 Token；近期实况保存在本机，缓存不可用时也不影响生成。
-- “模型路由管理”成为独立设置入口；模型与厂商页面只负责连接和模型目录，任务用哪个模型可在路由页面集中设置。
-- DeepSeek 内置候选聚焦 V4 Flash 与 V4 Pro，旧模型只在已有配置或历史路由需要时保留。
-- 从已有项目继续自动导演时，弹窗会直接展示推荐接续方式；主要动作更集中，模型、写法和接续位置等调整收在按需展开的高级设置中。
-- 接续目标超过当前卷的章节范围时，AI 会先补齐后续卷规划与近期拆章，再持续推进到选定章节。
-- 调整卷规划的审查或其他局部内容时，会保留已有卷和章节规划，不会因一次局部保存误清空整本结构。
-- 30 至 59 章的紧凑全书会按三卷安排开局、转向和终局，第三卷末会完成整书收尾。
-- 新小说的空白占位卷不会再把自动导演锁成一卷；系统会按整书篇幅正确分卷，同时保留用户明确设置的分卷方案。
-- 从热门题材雷达开书时，AI 会先用通用角色称谓整理创意种子，具体人物与世界命名留到后续规划。
-- 章节场景拆解不完整时会自动携带中文原因修正一次，不再直接显示内部英文错误。
-- 章节完成审校且有待处理建议时，右侧 AI 执行台也会提供修复入口。
-- 自定义模型厂商可选择 Bearer、x-api-key 或无需鉴权，模型列表、连接测试和正式生成保持一致。
-- 模型地址已包含 `/models` 时不会重复追加路径，避免 Gemini 和第三方网关获取模型失败。
-- Windows 桌面版更新至 0.4.19，包含章节执行保护、模型路由管理以及 AI 实况耗时与 Token 统计。
+#### 修复
+
+- 热门题材雷达生成过 AI 分析后，仍可重新勾选其他榜单作品并生成新的分析，无需重复扫榜；分析期间会显示本次进度，已有报告关联的收藏题材和创作简报继续保留。
+- 修复长篇小说自动导演在生成多卷战略时可能因结构化结果被截断而中断的问题；系统会按预计卷数提供足够的输出空间，并要求卷级策略保持精简完整，减少停在“缺少规划资源”的情况。
+- 修复通过自定义中转使用 Kimi K3 时，章节任务可能因温度参数不受模型支持而失败的问题；生成请求会按模型要求使用温度 `1`。
+- Windows 桌面版更新至 `0.4.28`，包含本次热门题材雷达与生成稳定性修复。
 
 完整历史更新见 [docs/releases/release-notes.md](./docs/releases/release-notes.md)。
 

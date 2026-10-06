@@ -71,13 +71,15 @@ test("findCreationFoundationNode resolves a nested resource", () => {
   assert.equal(findCreationFoundationNode(tree, "missing"), null);
 });
 
-test("hasCreationFoundationChanged only invalidates candidates when a selected id changes", () => {
+test("hasCreationFoundationChanged invalidates candidates when a production preference changes", () => {
   const current = {
     genreId: "genre-near-future",
     primaryStoryModeId: "mode-growth",
+    powerSystemPreference: "ai_recommend",
   };
 
   assert.equal(hasCreationFoundationChanged(current, { genreId: current.genreId }), false);
   assert.equal(hasCreationFoundationChanged(current, { primaryStoryModeId: "mode-explore" }), true);
   assert.equal(hasCreationFoundationChanged(current, { genreId: "" }), true);
+  assert.equal(hasCreationFoundationChanged(current, { powerSystemPreference: "none" }), true);
 });

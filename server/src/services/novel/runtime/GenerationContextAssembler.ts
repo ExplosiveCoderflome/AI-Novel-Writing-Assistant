@@ -1,4 +1,5 @@
 import type { GenerationContextPackage } from "@ai-novel/shared/types/chapterRuntime";
+import { buildDirectorCompletionProfile } from "@ai-novel/shared/types/directorCompletion";
 import { buildCompressionLog } from "../../../prompting/core/contextBudget";
 import { prisma } from "../../../db/prisma";
 import { ragServices } from "../../rag";
@@ -41,10 +42,6 @@ import {
   buildRuntimeCharacterHardFactsList,
   parseCharacterProhibitionsJson,
 } from "../characters/characterHardFacts";
-import { NovelVolumeService } from "../volume/NovelVolumeService";
-import { ChapterPlanJITService } from "../planning/ChapterPlanJITService";
-import { buildDirectorCompletionProfile } from "@ai-novel/shared/types/directorCompletion";
-import { ChapterRouteWindowService } from "../planning/ChapterRouteWindowService";
 import {
   buildBlockingPendingReviewProposalWhere,
   loadPendingCharacterHardFactReviews,
@@ -60,6 +57,7 @@ import {
   runtimeChapterSelect,
 } from "./context/chapterSourceText";
 import { resolveChapterResourceCharacterIds } from "./context/chapterParticipantSelection";
+import { evaluateChapterContextProviderContracts } from "./context/chapterContextProviderContracts";
 
 export { buildBlockingPendingReviewProposalWhere } from "./context/pendingReviewContext";
 export { resolveChapterResourceCharacterIds } from "./context/chapterParticipantSelection";
@@ -105,16 +103,6 @@ export class GenerationContextAssembler {
   private readonly continuationService = new NovelContinuationService();
   private readonly worldContextGateway = new WorldContextGateway();
   private readonly styleBindingService = new StyleBindingService();
-  private readonly volumeService = new NovelVolumeService();
-  private readonly chapterRouteWindowService = new ChapterRouteWindowService(this.volumeService);
-  private readonly chapterPlanJITService = new ChapterPlanJITService({
-    ensureChapterExecutionContract: (novelId, chapterId, options) => (
-      this.volumeService.ensureChapterExecutionContract(novelId, chapterId, options)
-    ),
-    ensureRouteWindow: (novelId, fromChapterOrder, options) => (
-      this.chapterRouteWindowService.ensureRouteWindow(novelId, fromChapterOrder, options)
-    ),
-  });
 
   async assemble(
     novelId: string,
@@ -139,7 +127,7 @@ export class GenerationContextAssembler {
     contextPackage: GenerationContextPackage;
   }> {
     // Phase 2：novel 稳定层从缓存获取，避免每章重复全量查询
-    let [novel, chapter] = await Promise.all([
+    const [novel, chapter] = await Promise.all([
       batchContextCache.getNovelRow(novelId),
       prisma.chapter.findFirst({
         where: { id: chapterId, novelId },
@@ -151,28 +139,9 @@ export class GenerationContextAssembler {
       throw new Error("Novel or chapter not found.");
     }
 
-    // 懒规划 JIT：全书 autopilot 路径在 ensureChapterPlan 之前确保 task sheet 就绪。
-    // JIT 生成时会注入已发生事实（factLedger），解决 task sheet 与实际前文脱节问题。
-    if (request.controlPolicy?.advanceMode === "full_book_autopilot") {
-      await this.chapterPlanJITService.ensureExecutionReady(novelId, chapterId, {
-        min: 3,
-        target: 5,
-        provider: request.provider,
-        model: request.model,
-        temperature: request.temperature,
-        taskId: request.workflowTaskId,
-        completionProfile: buildDirectorCompletionProfile(novel.estimatedChapterCount ?? 80),
-      });
-    }
-    const ensuredPlan = await plannerService.ensureChapterPlan(novelId, chapterId, request);
-    const refreshedChapter = await prisma.chapter.findFirst({
-      where: { id: chapterId, novelId },
-      select: runtimeChapterSelect,
-    });
-    if (!refreshedChapter) {
-      throw new Error("Novel or chapter not found.");
-    }
-    chapter = refreshedChapter;
+    // Context assembly is a read boundary. Planning and contract writes must
+    // finish in ChapterExecutionPreparationService before this method runs.
+    const ensuredPlan = await plannerService.getChapterPlan(novelId, chapterId);
     const resourceCharacterIds = resolveChapterResourceCharacterIds({
       plan: ensuredPlan,
       characters: novel.characters,
@@ -666,6 +635,11 @@ export class GenerationContextAssembler {
       chapterReviewContext,
       chapterRepairContext,
     };
+    contextPackage.contextGatingDecisions = evaluateChapterContextProviderContracts({
+      stage: "write",
+      chapterOrder: chapter.order,
+      contextPackage,
+    });
     const compressionLog = buildCompressionLog(
       contextPackage.chapterWriteContext ? getAllContextBlocks(contextPackage) : [],
       2600,

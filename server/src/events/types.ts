@@ -7,6 +7,7 @@ export type VolumeUpdateReason =
 
 export type NovelEvent =
   | { type: "chapter:updated"; payload: { novelId: string; chapterId: string; chapterOrder: number } }
+  | { type: "novel:updated"; payload: { novelId: string; fields: string[] } }
   | { type: "chapter:reviewed"; payload: { novelId: string; chapterId: string; qualityScore?: number } }
   | { type: "chapter:finalized"; payload: { novelId: string; chapterId: string; chapterOrder: number } }
   | { type: "character:changed"; payload: { novelId: string; characterId: string } }

@@ -1,4 +1,3 @@
-import { parseChapterScenePlan } from "@ai-novel/shared/types/chapterLengthControl";
 import type { ChapterTaskSheetQualityMode } from "@ai-novel/shared/types/chapterTaskSheetQuality";
 import type { LLMProvider } from "@ai-novel/shared/types/llm";
 import { prisma } from "../../../db/prisma";
@@ -40,12 +39,6 @@ export interface ChapterPlanJITDeps {
   loadChapter?: (novelId: string, chapterId: string) => Promise<{
     id: string;
     order: number;
-    taskSheet: string | null;
-    sceneCards: string | null;
-    targetWordCount: number | null;
-    mustAvoid: string | null;
-    conflictLevel: number | null;
-    revealLevel: number | null;
   } | null>;
   listFacts?: typeof novelFactService.listForChapter;
 }
@@ -56,7 +49,7 @@ export class ChapterPlanJITService {
   /**
    * 确保第 N 章的执行合同（task sheet / sceneCards / targetWordCount / mustAvoid）就绪。
    *
-   * 调用时机：GenerationContextAssembler.assemble 中，plannerService.ensureChapterPlan 之前。
+   * 调用时机：ChapterExecutionPreparationService 中，plannerService.ensureChapterPlan 之前。
    * 仅在 advanceMode === "full_book_autopilot" 时调用。
    */
   async ensureExecutionReady(
@@ -69,12 +62,6 @@ export class ChapterPlanJITService {
       select: {
         id: true,
         order: true,
-        taskSheet: true,
-        sceneCards: true,
-        targetWordCount: true,
-        mustAvoid: true,
-        conflictLevel: true,
-        revealLevel: true,
       },
     }));
     let chapter = await loadChapter(novelId, chapterId);
@@ -84,30 +71,13 @@ export class ChapterPlanJITService {
 
     await this.deps.ensureRouteWindow?.(novelId, chapter.order, routeOptions);
 
-    // 路线补齐可能刚刚同步了当前章合同，必须读取最新持久化结果。
-    chapter = await loadChapter(novelId, chapterId);
-    if (!chapter) {
-      return;
-    }
-
-    const hasCompleteTaskSheet = Boolean(chapter.taskSheet?.trim())
-      && Boolean(chapter.sceneCards?.trim())
-      && typeof chapter.targetWordCount === "number"
-      && Boolean(parseChapterScenePlan(chapter.sceneCards, {
-        targetWordCount: chapter.targetWordCount ?? undefined,
-      }));
-
-    if (hasCompleteTaskSheet) {
-      return;
-    }
-
-    // 仅在合同缺失、确实需要生成时读取事实账本。
+    // 合同是否可复用由唯一的准备度策略判断；JIT 不再维护第二套字段规则。
     const facts = await (this.deps.listFacts ?? novelFactService.listForChapter)({
       novelId,
       beforeChapterOrder: chapter.order,
     });
 
-    // task sheet 缺失 —— 生成（含 factLedger 上下文）
+    // 中央准备服务会自行判断复用或刷新；事实账本仅作为确需刷新时的生成上下文。
     const factGuidance = facts.length > 0 ? buildFactLedgerGuidance(facts) : undefined;
     await this.deps.ensureChapterExecutionContract(novelId, chapterId, {
       provider: routeOptions.provider,

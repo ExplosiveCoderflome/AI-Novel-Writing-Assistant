@@ -1,6 +1,6 @@
 # Contributor License Agreement
 
-本贡献者许可协议适用于向 AI Novel Writing Assistant 2 提交的代码、提示词、测试、文档、图片、素材、数据、配置或其他内容。
+本贡献者许可协议适用于向 Biz Novel Studio（原 AI Novel Writing Assistant 2）提交的代码、提示词、测试、文档、图片、素材、数据、配置或其他内容。
 
 当你通过 Pull Request、补丁、Issue 附件、讨论区或其他方式有意向本项目提交贡献时，即表示你同意以下条款。
 

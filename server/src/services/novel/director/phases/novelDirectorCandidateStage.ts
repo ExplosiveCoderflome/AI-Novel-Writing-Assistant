@@ -296,6 +296,7 @@ export class NovelDirectorCandidateStageService {
       styleTone: input.styleTone,
       emotionIntensity: input.emotionIntensity,
       aiFreedom: input.aiFreedom,
+      powerSystemPreference: input.powerSystemPreference,
       provider: input.provider,
       model: input.model,
       temperature: input.temperature,

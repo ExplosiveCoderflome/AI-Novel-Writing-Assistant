@@ -91,6 +91,7 @@ function createTempDatabase(prefix) {
   const databaseUrl = `file:${databasePath.replace(/\\/g, "/")}`;
   childProcess.execFileSync(pnpmExecutable(), ["--filter", "@ai-novel/server", "prisma:push"], {
     cwd: repoRoot,
+    shell: process.platform === "win32",
     env: {
       ...process.env,
       DATABASE_URL: databaseUrl,
@@ -105,7 +106,7 @@ function createTempDatabase(prefix) {
   };
 }
 
-async function prepareLegacyDatabase(databasePath, { addLegacyKnowledgeMarker = false } = {}) {
+async function prepareLegacyDatabase(databasePath, { addLegacyKnowledgeMarker = false, runtimeSettings = [] } = {}) {
   const prisma = createPrisma(databasePath);
   try {
     await prisma.appSetting.deleteMany({
@@ -133,6 +134,10 @@ async function prepareLegacyDatabase(databasePath, { addLegacyKnowledgeMarker = 
           status: "queued",
         },
       });
+    }
+
+    if (runtimeSettings.length > 0) {
+      await prisma.appSetting.createMany({ data: runtimeSettings });
     }
   } finally {
     await prisma.$disconnect();
@@ -309,6 +314,43 @@ test("legacy provider-specific embedding env is imported when generic embedding 
       assert.equal(siliconflowApiKey.key, "legacy-siliconflow-key");
       assert.equal(siliconflowApiKey.baseURL, "https://api.siliconflow.cn/v1");
       assert.equal(siliconflowApiKey.isActive, true);
+    },
+  );
+});
+
+test("packaged desktop restores the legacy forced RAG pause only when no user runtime settings exist", async () => {
+  await withScenario(
+    "rag-packaged-desktop-default",
+    { AI_NOVEL_DESKTOP_PACKAGED: "true" },
+    { runtimeSettings: [{ key: "rag.enabled", value: "false" }] },
+    async (result) => {
+      assert.equal(result.report.restoredLegacyPackagedDesktopRagDefault, true);
+      assert.equal(result.runtime.enabled, true);
+      assert.deepEqual(result.settings.find((item) => item.key === "rag.enabled"), {
+        key: "rag.enabled",
+        value: "true",
+      });
+    },
+  );
+});
+
+test("packaged desktop preserves a user-saved RAG pause", async () => {
+  await withScenario(
+    "rag-packaged-desktop-paused",
+    { AI_NOVEL_DESKTOP_PACKAGED: "true" },
+    {
+      runtimeSettings: [
+        { key: "rag.enabled", value: "false" },
+        { key: "rag.qdrantUrl", value: "http://user-qdrant:6333" },
+      ],
+    },
+    async (result) => {
+      assert.equal(result.report.restoredLegacyPackagedDesktopRagDefault, false);
+      assert.equal(result.runtime.enabled, false);
+      assert.deepEqual(result.settings.find((item) => item.key === "rag.enabled"), {
+        key: "rag.enabled",
+        value: "false",
+      });
     },
   );
 });

@@ -19,6 +19,14 @@ function createTextStreamLLM(content) {
   };
 }
 
+function completedArtifactSync(content = "test content") {
+  return {
+    status: "completed",
+    contentHash: content,
+    completedArtifacts: ["artifact_delta"],
+  };
+}
+
 function createRuntimePackage(overallScore, options = {}) {
   return {
     novelId: "novel-1",
@@ -157,6 +165,7 @@ test("runPipelineChapterWithRuntime skips review and repair when autoReview is d
       },
       async syncFinalChapterArtifacts(_novelId, _chapterId, content) {
         finalSyncs.push(content);
+        return completedArtifactSync(content);
       },
       async finalizeChapterContent() {
         finalizeCalled = true;
@@ -165,6 +174,7 @@ test("runPipelineChapterWithRuntime skips review and repair when autoReview is d
       async finalizeChapterTimeline(input) {
         timelineFinalizationCalls.push(input);
       },
+        async commitFinalizedChapterContent() {},
         async markChapterGenerationState(_chapterId, generationState) {
           generationStates.push(generationState);
         },
@@ -239,7 +249,7 @@ test("runPipelineChapterWithRuntime does not approve when timeline check fails",
         return { content: "生成后的正文" };
       },
       async saveDraftAndArtifacts() {},
-      async syncFinalChapterArtifacts() {},
+      async syncFinalChapterArtifacts() { return completedArtifactSync(); },
       async finalizeChapterContent(input) {
         finalizedContent.push(input.content);
         return {
@@ -271,6 +281,7 @@ test("runPipelineChapterWithRuntime does not approve when timeline check fails",
           },
         };
       },
+      async commitFinalizedChapterContent() {},
       async markChapterGenerationState(_chapterId, generationState) {
         generationStates.push(generationState);
       },
@@ -321,6 +332,7 @@ test("runPipelineChapterWithRuntime passes confirmed provenance for approved fin
       async saveDraftAndArtifacts() {},
       async syncFinalChapterArtifacts(_novelId, _chapterId, content, options) {
         finalSyncs.push({ content, options });
+        return completedArtifactSync(content);
       },
       async finalizeChapterContent({ content }) {
         return {
@@ -328,6 +340,7 @@ test("runPipelineChapterWithRuntime passes confirmed provenance for approved fin
           runtimePackage: createRuntimePackage(90),
         };
       },
+      async commitFinalizedChapterContent() {},
       async markChapterGenerationState() {},
       async markChapterNeedsRepair() {},
     },
@@ -377,6 +390,7 @@ test("runPipelineChapterWithRuntime passes debt provenance for retained failed c
       async saveDraftAndArtifacts() {},
       async syncFinalChapterArtifacts(_novelId, _chapterId, content, options) {
         finalSyncs.push({ content, options });
+        return completedArtifactSync(content);
       },
       async finalizeChapterContent({ content }) {
         return {
@@ -384,6 +398,7 @@ test("runPipelineChapterWithRuntime passes debt provenance for retained failed c
           runtimePackage: createRuntimePackage(70),
         };
       },
+      async commitFinalizedChapterContent() {},
       async markChapterGenerationState() {},
       async markChapterNeedsRepair() {},
     },
@@ -470,6 +485,7 @@ test("runPipelineChapterWithRuntime keeps the draft when a light patch cannot be
         },
         async syncFinalChapterArtifacts(_novelId, _chapterId, content) {
           finalSyncs.push(content);
+          return completedArtifactSync(content);
         },
         async finalizeChapterContent({ content }) {
           reviewCount += 1;
@@ -478,6 +494,7 @@ test("runPipelineChapterWithRuntime keeps the draft when a light patch cannot be
             runtimePackage: createRuntimePackage(reviewCount === 1 ? 72 : 90),
           };
         },
+        async commitFinalizedChapterContent() {},
         async markChapterGenerationState() {},
         async markChapterNeedsRepair() {
           needsRepairMarked = true;
@@ -578,6 +595,7 @@ test("runPipelineChapterWithRuntime sends critical prose findings to repair and 
         },
         async syncFinalChapterArtifacts(_novelId, _chapterId, content, options) {
           finalSyncs.push({ content, options });
+          return completedArtifactSync(content);
         },
         async finalizeChapterContent({ content }) {
           reviewCount += 1;
@@ -589,6 +607,7 @@ test("runPipelineChapterWithRuntime sends critical prose findings to repair and 
         async finalizeChapterTimeline(input) {
           finalizationCalls.push(input);
         },
+        async commitFinalizedChapterContent() {},
         async markChapterGenerationState() {},
         async markChapterNeedsRepair() {},
       },
@@ -612,7 +631,8 @@ test("runPipelineChapterWithRuntime sends critical prose findings to repair and 
     assert.equal(result.runtimePackage.audit.openIssues[0].code, "prose_negative_flip");
     assert.match(patchIssues[0], /第 1 行/);
     assert.match(patchIssues[0], /模板化否定翻转/);
-    assert.deepEqual(savedDrafts.map((item) => item.generationState), ["drafted", "repaired"]);
+    assert.deepEqual(savedDrafts.map((item) => item.generationState), ["drafted"]);
+    assert.equal(result.repairSelection.selected, "original");
     assert.equal(finalSyncs[0].options.contentProvenance, "debt");
     assert.equal(finalizationCalls.length, 0);
     assert.deepEqual(result.qualityDebtAttribution.firstFailureIssueCodes, ["prose_negative_flip"]);
@@ -676,7 +696,7 @@ test("runPipelineChapterWithRuntime does not rewrite the chapter when a patch ta
         async saveDraftAndArtifacts(_novelId, _chapterId, content, generationState) {
           savedDrafts.push({ content, generationState });
         },
-        async syncFinalChapterArtifacts() {},
+        async syncFinalChapterArtifacts() { return completedArtifactSync(); },
         async finalizeChapterContent({ content }) {
           reviewCount += 1;
           return {
@@ -684,6 +704,7 @@ test("runPipelineChapterWithRuntime does not rewrite the chapter when a patch ta
             runtimePackage: createRuntimePackage(reviewCount === 1 ? 72 : 90),
           };
         },
+        async commitFinalizedChapterContent() {},
         async markChapterGenerationState() {},
         async markChapterNeedsRepair() {},
       },
@@ -754,7 +775,7 @@ test("runPipelineChapterWithRuntime defers acceptance gate unavailable risk with
         async saveDraftAndArtifacts(_novelId, _chapterId, content, generationState) {
           savedDrafts.push({ content, generationState });
         },
-        async syncFinalChapterArtifacts() {},
+        async syncFinalChapterArtifacts() { return completedArtifactSync(); },
         async finalizeChapterContent({ content }) {
           reviewCount += 1;
           return {
@@ -762,6 +783,7 @@ test("runPipelineChapterWithRuntime defers acceptance gate unavailable risk with
             runtimePackage: createAcceptanceGateUnavailableRuntimePackage(72),
           };
         },
+        async commitFinalizedChapterContent() {},
         async markChapterGenerationState() {},
         async markChapterNeedsRepair(chapterId) {
           needsRepairMarked.push(chapterId);
@@ -868,7 +890,7 @@ test("runPipelineChapterWithRuntime uses the selected light repair for style sou
         async saveDraftAndArtifacts(_novelId, _chapterId, content, generationState) {
           savedDrafts.push({ content, generationState });
         },
-        async syncFinalChapterArtifacts() {},
+        async syncFinalChapterArtifacts() { return completedArtifactSync(); },
         async finalizeChapterContent({ content }) {
           reviewCount += 1;
           return {
@@ -876,6 +898,7 @@ test("runPipelineChapterWithRuntime uses the selected light repair for style sou
             runtimePackage: createRuntimePackage(92, { styleContext }),
           };
         },
+        async commitFinalizedChapterContent() {},
         async markChapterGenerationState() {},
         async markChapterNeedsRepair() {},
       },
@@ -942,6 +965,7 @@ test("runPipelineChapterWithRuntime does not save a generated draft twice when w
       },
       async syncFinalChapterArtifacts(_novelId, _chapterId, content) {
         finalSyncs.push(content);
+        return completedArtifactSync(content);
       },
       async finalizeChapterContent({ content }) {
         return {
@@ -949,6 +973,7 @@ test("runPipelineChapterWithRuntime does not save a generated draft twice when w
           runtimePackage: createRuntimePackage(90),
         };
       },
+      async commitFinalizedChapterContent() {},
       async markChapterGenerationState() {},
       async markChapterNeedsRepair() {},
     },
@@ -999,6 +1024,7 @@ test("runPipelineChapterWithRuntime does not resave unchanged existing chapter c
       },
       async syncFinalChapterArtifacts(_novelId, _chapterId, content) {
         finalSyncs.push(content);
+        return completedArtifactSync(content);
       },
       async finalizeChapterContent({ content }) {
         return {
@@ -1006,6 +1032,7 @@ test("runPipelineChapterWithRuntime does not resave unchanged existing chapter c
           runtimePackage: createRuntimePackage(90),
         };
       },
+      async commitFinalizedChapterContent() {},
       async markChapterGenerationState(_chapterId, generationState) {
         generationStates.push(generationState);
       },
@@ -1027,7 +1054,7 @@ test("runPipelineChapterWithRuntime does not resave unchanged existing chapter c
   assert.deepEqual(stages, ["reviewing"]);
   assert.deepEqual(savedDrafts, []);
   assert.deepEqual(finalSyncs, ["existing reviewed content"]);
-  assert.deepEqual(generationStates, ["reviewed", "approved"]);
+  assert.deepEqual(generationStates, ["approved"]);
   assert.equal(result.pass, true);
 });
 
@@ -1064,10 +1091,11 @@ test("runPipelineChapterWithRuntime leaves empty writer retries to the outer exe
         async saveDraftAndArtifacts(_novelId, _chapterId, content, generationState) {
           savedDrafts.push({ content, generationState });
         },
-        async syncFinalChapterArtifacts() {},
+        async syncFinalChapterArtifacts() { return completedArtifactSync(); },
         async finalizeChapterContent() {
           throw new Error("empty drafts should not be reviewed");
         },
+        async commitFinalizedChapterContent() {},
         async markChapterGenerationState() {},
         async markChapterNeedsRepair() {},
       },
@@ -1154,6 +1182,7 @@ test("runPipelineChapterWithRuntime defaults to a single repair pass before stop
         },
         async syncFinalChapterArtifacts(_novelId, _chapterId, content) {
           finalSyncs.push(content);
+          return completedArtifactSync(content);
         },
         async finalizeChapterContent({ content }) {
           reviewCount += 1;
@@ -1166,6 +1195,7 @@ test("runPipelineChapterWithRuntime defaults to a single repair pass before stop
         async finalizeChapterTimeline(input) {
           finalizationCalls.push(input);
         },
+        async commitFinalizedChapterContent() {},
         async markChapterGenerationState(_chapterId, generationState) {
           generationStates.push(generationState);
         },
@@ -1193,17 +1223,12 @@ test("runPipelineChapterWithRuntime defaults to a single repair pass before stop
     assert.equal(result.retryCountUsed, 1);
     assert.deepEqual(consumedRetries, ["quality_repair"]);
     assert.equal(result.pass, false);
-    assert.deepEqual(generationStates, ["reviewed", "reviewed"]);
-    assert.deepEqual(savedDrafts, [
-      {
-        content: "生成后的正文",
-        generationState: "drafted",
-      },
-      {
-        content: "修后正文补足承接。",
-        generationState: "repaired",
-      },
-    ]);
+    assert.deepEqual(generationStates, ["reviewed"]);
+    assert.deepEqual(savedDrafts, [{
+      content: "生成后的正文",
+      generationState: "drafted",
+    }]);
+    assert.equal(result.repairSelection.selected, "original");
     assert.equal(finalSyncs.length, 1);
     assert.equal(finalizationCalls.length, 0);
   } finally {
@@ -1264,6 +1289,7 @@ test("runPipelineChapterWithRuntime clamps maxRetries to a single repair pass", 
         },
         async syncFinalChapterArtifacts(_novelId, _chapterId, content) {
           finalSyncs.push(content);
+          return completedArtifactSync(content);
         },
         async finalizeChapterContent({ content }) {
           reviewCount += 1;
@@ -1273,6 +1299,7 @@ test("runPipelineChapterWithRuntime clamps maxRetries to a single repair pass", 
             runtimePackage: createRuntimePackage(reviewCount === 1 ? 72 : 73),
           };
         },
+        async commitFinalizedChapterContent() {},
         async markChapterGenerationState(_chapterId, generationState) {
           generationStates.push(generationState);
         },
@@ -1297,27 +1324,17 @@ test("runPipelineChapterWithRuntime clamps maxRetries to a single repair pass", 
     assert.equal(reviewCount, 2);
     assert.equal(result.retryCountUsed, 1);
     assert.equal(result.pass, false);
-    assert.deepEqual(generationStates, ["reviewed", "reviewed"]);
-    assert.deepEqual(savedDrafts, [
-      {
-        content: "生成后的正文",
-        generationState: "drafted",
-        options: {
-          scheduleBackgroundSync: false,
-          artifactSyncMode: "adaptive",
-          syncArtifacts: false,
-        },
+    assert.deepEqual(generationStates, ["reviewed"]);
+    assert.deepEqual(savedDrafts, [{
+      content: "生成后的正文",
+      generationState: "drafted",
+      options: {
+        scheduleBackgroundSync: false,
+        artifactSyncMode: "adaptive",
+        syncArtifacts: false,
       },
-      {
-        content: "修后正文补足承接。",
-        generationState: "repaired",
-        options: {
-          scheduleBackgroundSync: false,
-          artifactSyncMode: "adaptive",
-          syncArtifacts: false,
-        },
-      },
-    ]);
+    }]);
+    assert.equal(result.repairSelection.selected, "original");
     assert.equal(finalSyncs.length, 1);
   } finally {
     promptRunner.runStructuredPrompt = originalRunStructuredPrompt;

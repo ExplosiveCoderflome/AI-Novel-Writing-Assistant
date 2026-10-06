@@ -197,7 +197,7 @@ export const characterCastOptionPrompt: PromptAsset<
   z.infer<typeof characterCastOptionResponseSchema>
 > = {
   id: "novel.character.castOptions",
-  version: "v2",
+  version: "v3",
   taskType: "planner",
   mode: "structured",
   language: "zh",
@@ -232,7 +232,7 @@ export const characterCastOptionPrompt: PromptAsset<
       "4. 每个角色都必须输出 gender，允许值只有 male、female、other、unknown。",
       "5. castRole 只能使用：protagonist, antagonist, ally, foil, mentor, love_interest, pressure_source, catalyst。",
       "6. 每个角色必须输出 personality、background、development，不得只给 shortDescription。",
-      "7. 每个角色必须输出角色硬事实字段：identityLabel、factionLabel、stanceLabel、powerLevel、realm、currentLocation、availability、prohibitions；拿不准可填空字符串或空数组，但不得编造超过书级设定的重大事实。",
+      "7. 每个角色必须输出角色硬事实字段：identityLabel、factionLabel、stanceLabel、powerLevel、realm、currentLocation、availability、prohibitions；拿不准可填空字符串或空数组，但不得编造超过书级设定的重大事实。世界明确不设战力体系时 powerLevel、realm 必须留空；软性强弱只允许 powerLevel 填定性描述，realm 留空。",
       "",
       "【命名硬规则】",
       "1. name 只能写可直接进入正文的真实人物名、稳定称谓、历史官职称呼、宫廷称呼、江湖称号或阵营身份称呼。",
@@ -368,7 +368,7 @@ export const characterCastAutoPrompt: PromptAsset<
   z.infer<typeof characterCastAutoResponseSchema>
 > = {
   id: "novel.character.castAuto",
-  version: "v1",
+  version: "v2",
   taskType: "planner",
   mode: "structured",
   language: "zh",
@@ -402,7 +402,7 @@ export const characterCastAutoPrompt: PromptAsset<
       "4. 每个角色都必须输出 gender，允许值只有 male、female、other、unknown。",
       "5. castRole 只能使用：protagonist, antagonist, ally, foil, mentor, love_interest, pressure_source, catalyst。",
       "6. 每个角色必须输出 personality、background、development，不得只给 shortDescription。",
-      "7. 每个角色必须输出角色硬事实字段：identityLabel、factionLabel、stanceLabel、powerLevel、realm、currentLocation、availability、prohibitions；拿不准可填空字符串或空数组，但不得编造超过书级设定的重大事实。",
+      "7. 每个角色必须输出角色硬事实字段：identityLabel、factionLabel、stanceLabel、powerLevel、realm、currentLocation、availability、prohibitions；拿不准可填空字符串或空数组，但不得编造超过书级设定的重大事实。世界明确不设战力体系时 powerLevel、realm 必须留空；软性强弱只允许 powerLevel 填定性描述，realm 留空。",
       "",
       "【命名硬规则】",
       "1. name 只能写可直接进入正文的真实人名、稳定称谓、历史官职称谓、宫廷称谓、江湖称号或阵营身份称呼。",
@@ -538,7 +538,7 @@ export const supplementalCharacterPrompt: PromptAsset<
   z.infer<typeof supplementalCharacterGenerationResponseSchema>
 > = {
   id: "novel.character.supplemental",
-  version: "v1",
+  version: "v2",
   taskType: "planner",
   mode: "structured",
   language: "zh",
@@ -559,7 +559,7 @@ export const supplementalCharacterPrompt: PromptAsset<
       "3. 所有展示文本值必须使用自然、流畅的简体中文。",
       "4. 禁止复用 forbidden names 里的现有角色名。",
       "5. castRole 只能使用：protagonist, antagonist, ally, foil, mentor, love_interest, pressure_source, catalyst。",
-      "6. 每个候选都必须输出 personality、background、development 和角色硬事实字段：identityLabel、factionLabel、stanceLabel、powerLevel、realm、currentLocation、availability、prohibitions。",
+      "6. 每个候选都必须输出 personality、background、development 和角色硬事实字段：identityLabel、factionLabel、stanceLabel、powerLevel、realm、currentLocation、availability、prohibitions。世界明确不设战力体系时 powerLevel、realm 必须留空；软性强弱只允许 powerLevel 填定性描述，realm 留空。",
       "",
       "补位要求：",
       "1. 候选角色必须真正补足现有阵容缺口，而不是机械再造一个同功能位。",

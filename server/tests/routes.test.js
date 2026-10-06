@@ -397,6 +397,7 @@ test("GET and PUT /api/llm/structured-fallback expose the global fallback config
     model: "deepseek-chat",
     temperature: 0.2,
     maxTokens: null,
+    retryCount: 1,
   });
   structuredFallbackSettings.saveStructuredFallbackSettings = async (input) => {
     savedPayload = input;
@@ -406,6 +407,7 @@ test("GET and PUT /api/llm/structured-fallback expose the global fallback config
       model: "gpt-4o-mini",
       temperature: 0.15,
       maxTokens: 2048,
+      retryCount: 2,
     };
   };
 
@@ -431,6 +433,7 @@ test("GET and PUT /api/llm/structured-fallback expose the global fallback config
         model: "gpt-4o-mini",
         temperature: 0.15,
         maxTokens: 2048,
+        retryCount: 2,
       }),
     });
     assert.equal(putResponse.status, 200);
@@ -442,10 +445,12 @@ test("GET and PUT /api/llm/structured-fallback expose the global fallback config
       model: "gpt-4o-mini",
       temperature: 0.15,
       maxTokens: 2048,
+      retryCount: 2,
     });
     assert.equal(putPayload.data.enabled, true);
     assert.equal(putPayload.data.provider, "openai");
     assert.equal(putPayload.data.maxTokens, 2048);
+    assert.equal(putPayload.data.retryCount, 2);
   } finally {
     structuredFallbackSettings.getStructuredFallbackSettings = originalGetStructuredFallbackSettings;
     structuredFallbackSettings.saveStructuredFallbackSettings = originalSaveStructuredFallbackSettings;
@@ -583,9 +588,9 @@ test("GET /api/settings/api-keys uses lightweight local model metadata", async (
     assert.equal(payload.success, true);
     const deepseek = payload.data.find((item) => item.provider === "deepseek");
     assert.ok(deepseek);
-    assert.equal(deepseek.currentModel, "deepseek-v4-flash");
+    assert.equal(deepseek.currentModel, "deepseek-flash");
     assert.equal(deepseek.isConfigured, true);
-    assert.ok(deepseek.models.includes("deepseek-v4-flash"));
+    assert.ok(deepseek.models.includes("deepseek-flash"));
   } finally {
     prisma.aPIKey.findMany = originalFindMany;
     global.fetch = originalFetch;

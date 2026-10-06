@@ -65,6 +65,8 @@ export const queryKeys = {
   },
   marketRadar: {
     sources: ["market-radar", "sources"] as const,
+    latest: ["market-radar", "latest"] as const,
+    savedTopics: ["market-radar", "saved-topics"] as const,
     scan: (id: string) => ["market-radar", "scan", id] as const,
     brief: (id: string) => ["market-radar", "brief", id] as const,
   },

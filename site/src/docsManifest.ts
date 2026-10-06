@@ -108,6 +108,12 @@ export const docsManifest: SiteDocCategory[] = [
         "docs/public/flow/end-to-end-production.md",
       ),
       doc(
+        "interactive-architecture",
+        "自动导演交互架构图",
+        "交互查看从想法、写法与反 AI 契约到逐章生产和状态同步的完整链路。",
+        "docs/public/flow/interactive-architecture.md",
+      ),
+      doc(
         "auto-director-pipeline",
         "自动导演阶段全景",
         "逐阶段解释自动导演的输入、产物、checkpoint、auto-approval 和恢复策略。",

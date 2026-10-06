@@ -14,6 +14,7 @@
 
 - 正式章节字段以 `Chapter` 为准：章序、标题、正文、执行状态、目标字数、冲突等级、揭露等级、禁止事项、任务单、场景卡和质量状态。
 - 规划扩展字段以 `VolumeChapterPlan` 为准：卷归属、节奏段、章节目的、独占事件、章末状态、下章入口状态和伏笔引用。
+- `Chapter.expectation` 是 `VolumeChapterPlan.summary` 在章节执行区的同步表示；同步时只能写入章节摘要，读取时也只能回填摘要。`VolumeChapterPlan.purpose` 是独立的章节目标扩展，绝不能借由 `expectation` 覆盖摘要。
 - 缺少 `chapterId` 的旧规划只能作为兼容状态存在，服务层应优先按章序和标题补链，并把补链结果写回卷工作区。
 
 ## Current Rule

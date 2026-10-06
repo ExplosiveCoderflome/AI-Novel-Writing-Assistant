@@ -572,6 +572,7 @@ export function useAutoDirectorCreateController(input: UseAutoDirectorCreateCont
   const updateProductionFoundation = async (patch: Partial<{
     genreId: string;
     primaryStoryModeId: string;
+    powerSystemPreference: NovelBasicFormState["powerSystemPreference"];
   }>): Promise<boolean> => {
     if (!hasCreationFoundationChanged(directorBasicForm, patch)) {
       return true;
@@ -580,14 +581,16 @@ export function useAutoDirectorCreateController(input: UseAutoDirectorCreateCont
     const shouldInvalidateCandidates = batches.length > 0;
     if (
       shouldInvalidateCandidates
-      && !window.confirm("修改故事类型或推进方式后，旧方向需要重新适配并重新生成。确认修改吗？")
+      && !window.confirm("修改故事类型、推进方式或战力体系后，旧方向需要重新适配并重新生成。确认修改吗？")
     ) {
       return false;
     }
 
     const nextPatch: Partial<NovelBasicFormState> = {
       ...patch,
-      secondaryStoryModeId: "",
+      ...(patch.genreId !== undefined || patch.primaryStoryModeId !== undefined
+        ? { secondaryStoryModeId: "" }
+        : {}),
     };
     const nextForm = patchNovelBasicForm(directorBasicForm, nextPatch);
 
@@ -602,7 +605,8 @@ export function useAutoDirectorCreateController(input: UseAutoDirectorCreateCont
             basicForm: nextForm,
             genreId: nextForm.genreId || null,
             primaryStoryModeId: nextForm.primaryStoryModeId || null,
-            secondaryStoryModeId: null,
+            secondaryStoryModeId: nextForm.secondaryStoryModeId || null,
+            powerSystemPreference: nextForm.powerSystemPreference,
             productionFoundation: null,
             batches: [],
             candidateStage: null,

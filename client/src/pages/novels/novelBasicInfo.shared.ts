@@ -1,6 +1,7 @@
 import type { BookAnalysisSectionKey } from "@ai-novel/shared/types/bookAnalysis";
 import { formatCommercialTagsInput, normalizeCommercialTags } from "@ai-novel/shared/types/novelFraming";
 import type { WritingPlatformPreference } from "@ai-novel/shared/types/writingPlatform";
+import type { PowerSystemPreference } from "@ai-novel/shared/types/novelResourceRecommendation";
 
 export interface NovelBasicFormState {
   title: string;
@@ -18,6 +19,7 @@ export interface NovelBasicFormState {
   writingMode: "original" | "continuation";
   projectMode: "ai_led" | "co_pilot" | "draft_mode" | "auto_pipeline";
   readerChannelPreference: "ai_judge" | "male_oriented" | "female_oriented" | "general";
+  powerSystemPreference: PowerSystemPreference;
   writingPlatformPreference: WritingPlatformPreference;
   narrativePov: "first_person" | "third_person" | "mixed";
   pacePreference: "slow" | "balanced" | "fast";
@@ -108,6 +110,30 @@ export const READER_CHANNEL_OPTIONS: BasicInfoOption<NovelBasicFormState["reader
     value: "general",
     label: "泛读者 / 不限定",
     summary: "不限定频道倾向，让 AI 优先按故事本身和目标读者描述来规划。",
+  },
+];
+
+export const POWER_SYSTEM_OPTIONS: BasicInfoOption<NovelBasicFormState["powerSystemPreference"]>[] = [
+  {
+    value: "ai_recommend",
+    label: "AI 推荐",
+    summary: "AI 会判断是否需要战力体系；不需要时不会生成等级，也不会强行安排升级剧情。",
+    recommended: true,
+  },
+  {
+    value: "none",
+    label: "不需要",
+    summary: "不设置境界、等级或升级线，让冲突由人物选择、关系、信息和现实条件推动。",
+  },
+  {
+    value: "soft",
+    label: "软性强弱",
+    summary: "允许能力差异、代价和克制，但不建立明确等级表。",
+  },
+  {
+    value: "ranked",
+    label: "明确等级",
+    summary: "建立有顺序、边界和代价的等级体系，并用于人物成长和剧情推进。",
   },
 ];
 
@@ -225,6 +251,7 @@ export const BASIC_INFO_FIELD_HINTS = {
   commercialTagsText: "用逗号分隔 3-6 个标签即可，例如逆袭、强冲突、悬念拉满、职场博弈。",
   projectMode: "决定你和 AI 的协作方式。会影响后续哪些步骤自动推进、哪些步骤更依赖人工确认。",
   readerChannelPreference: "帮助 AI 判断默认爽点、情绪重心和关系线权重。不确定时保持 AI 判断。",
+  powerSystemPreference: "决定本书是否需要明确的能力强弱或等级成长。现实、悬疑、言情等题材也可以完全不使用。",
   narrativePov: "决定章节生成默认采用哪种叙述视角，也会影响信息分发方式。",
   pacePreference: "决定章节规划时是偏铺垫还是偏推进，会影响场景密度和钩子强度。",
   emotionIntensity: "决定后续生成时情绪爆发和冲突的频率，不是越高越好。",
@@ -260,6 +287,7 @@ export function createDefaultNovelBasicFormState(): NovelBasicFormState {
     writingMode: "original",
     projectMode: "co_pilot",
     readerChannelPreference: "ai_judge",
+    powerSystemPreference: "ai_recommend",
     writingPlatformPreference: "ai_recommend",
     narrativePov: "third_person",
     pacePreference: "balanced",

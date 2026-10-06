@@ -3,7 +3,6 @@ import { z } from "zod";
 import type { ApiResponse } from "@ai-novel/shared/types/api";
 import {
   MARKET_INFLUENCE_MODES,
-  MARKET_FOUNDATION_SYNC_TARGETS,
   MARKET_RADAR_PLATFORMS,
   type CreateMarketCreativeBriefRequest,
   type StartMarketRadarAnalysisRequest,
@@ -26,7 +25,7 @@ const briefSchema = z.object({
   signalIds: z.array(z.string().trim().min(1)).min(1).max(5),
   influenceMode: z.enum(MARKET_INFLUENCE_MODES),
 });
-const foundationSyncSchema = z.object({ target: z.enum(MARKET_FOUNDATION_SYNC_TARGETS) }).strict();
+const saveTopicSchema = z.object({ reportId: z.string().trim().min(1), signalId: z.string().trim().min(1) }).strict();
 
 function ok<T>(data: T, message?: string): ApiResponse<T> {
   return { success: true, data, message };
@@ -38,11 +37,27 @@ router.get("/latest", async (_req, res, next) => {
   try { res.json(ok(await marketRadarService.getLatest())); } catch (error) { next(error); }
 });
 
+router.get("/saved-topics", async (_req, res, next) => {
+  try { res.json(ok(await marketRadarService.listSavedTopics())); } catch (error) { next(error); }
+});
+
+router.post("/saved-topics", validate({ body: saveTopicSchema }), async (req, res, next) => {
+  try { res.status(201).json(ok(await marketRadarService.saveTopic(req.body as z.infer<typeof saveTopicSchema>))); } catch (error) { next(error); }
+});
+
+router.delete("/saved-topics/:id", validate({ params: idParamsSchema }), async (req, res, next) => {
+  try { const { id } = req.params as z.infer<typeof idParamsSchema>; await marketRadarService.deleteSavedTopic(id); res.json(ok(true)); } catch (error) { next(error); }
+});
+
 router.post("/scans", validate({ body: scanSchema }), async (req, res, next) => {
   try {
     const run = await marketRadarService.startScan(req.body.platforms);
     res.status(run.status === "queued" || run.status === "running" ? 202 : 200).json(ok(run, "扫榜任务已准备。"));
   } catch (error) { next(error); }
+});
+
+router.get("/scans/latest", async (_req, res, next) => {
+  try { res.json(ok(await marketRadarService.getLatestDisplayableScan())); } catch (error) { next(error); }
 });
 
 router.get("/scans/:id", validate({ params: idParamsSchema }), async (req, res, next) => {
@@ -58,21 +73,14 @@ router.post("/scans/:id/analysis", validate({ params: idParamsSchema, body: anal
   try {
     const { id } = req.params as z.infer<typeof idParamsSchema>;
     const run = await marketRadarService.startAnalysis(id, req.body as StartMarketRadarAnalysisRequest);
-    res.status(run.report ? 200 : 202).json(ok(run, run.report ? "AI分析已完成。" : "AI分析已开始。"));
+    const analysisStarted = run.status === "analyzing";
+    res.status(analysisStarted ? 202 : 200).json(ok(run, analysisStarted ? "AI分析已开始。" : "AI分析任务未重复启动。"));
   } catch (error) { next(error); }
 });
 
 router.post("/briefs", validate({ body: briefSchema }), async (req, res, next) => {
   try { res.status(201).json(ok(await marketRadarService.createBrief(req.body as CreateMarketCreativeBriefRequest))); }
   catch (error) { next(error); }
-});
-
-router.post("/reports/:id/foundation-sync", validate({ params: idParamsSchema, body: foundationSyncSchema }), async (req, res, next) => {
-  try {
-    const { id } = req.params as z.infer<typeof idParamsSchema>;
-    const { target } = req.body as z.infer<typeof foundationSyncSchema>;
-    res.json(ok(await marketRadarService.syncReportFoundation(id, target), "资源库处理完成。"));
-  } catch (error) { next(error); }
 });
 
 router.get("/briefs/:id", validate({ params: idParamsSchema }), async (req, res, next) => {

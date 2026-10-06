@@ -1,4 +1,5 @@
 import { prisma } from "../../db/prisma";
+import { ChapterArtifactContentVersionError } from "../novel/runtime/artifactSync/ChapterArtifactSyncResult";
 import { stringifyStringArray } from "../novel/novelP0Utils";
 import { payoffLedgerSyncService } from "../payoff/PayoffLedgerSyncService";
 import { openConflictService } from "./OpenConflictService";
@@ -232,6 +233,7 @@ export class StateService {
     chapterId: string;
     extracted: SnapshotExtractionOutput;
     skipPayoffLedgerSync?: boolean;
+    expectedChapterContent?: string;
   }) {
     const [chapter, chapters, characters] = await Promise.all([
       prisma.chapter.findFirst({
@@ -260,6 +262,7 @@ export class StateService {
       previousSnapshot,
       extracted: input.extracted,
       skipPayoffLedgerSync: input.skipPayoffLedgerSync,
+      expectedChapterContent: input.expectedChapterContent,
     });
   }
 
@@ -290,6 +293,7 @@ export class StateService {
     previousSnapshot: Awaited<ReturnType<StateService["getLatestSnapshotBeforeChapter"]>>;
     extracted: SnapshotExtractionOutput;
     skipPayoffLedgerSync?: boolean;
+    expectedChapterContent?: string;
   }) {
     const characterMap = new Map<string, string>();
     for (const character of input.characters) {
@@ -393,6 +397,19 @@ export class StateService {
     });
 
     const snapshotId = await prisma.$transaction(async (tx) => {
+      if (input.expectedChapterContent !== undefined) {
+        const chapter = await tx.chapter.findFirst({
+          where: {
+            id: input.chapterId,
+            novelId: input.novelId,
+            content: input.expectedChapterContent,
+          },
+          select: { id: true },
+        });
+        if (!chapter) {
+          throw new ChapterArtifactContentVersionError("章节正文版本已变化，已拒绝写入过期状态快照。");
+        }
+      }
       const snapshot = existing
         ? await tx.storyStateSnapshot.update({
             where: { id: existing.id },

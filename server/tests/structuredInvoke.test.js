@@ -302,18 +302,27 @@ test("summarizeStructuredOutputFailure tells users to retry or switch models for
   assert.match(summary.summary, /更强模型|备用模型/);
 });
 
-test("invokeStructuredLlmDetailed degrades to prompt JSON before using fallback models", async () => {
+test("invokeStructuredLlmDetailed degrades through unsupported and empty native JSON before using fallback models", async () => {
   const originalResolveOptions = factory.resolveLLMClientOptions;
   const originalCreateLLM = factory.createLLMFromResolvedOptions;
   const originalGetFallbackSettings = structuredFallbackSettings.getStructuredFallbackSettings;
   const calls = [];
+  const providerDefaults = {
+    openai: ["gpt-5-mini", "https://api.openai.com/v1"],
+    gemini: ["gemini-2.5-flash", "https://generativelanguage.googleapis.com/v1beta/openai"],
+    glm: ["glm-4.5-air", "https://open.bigmodel.cn/api/paas/v4"],
+    qwen: ["qwen3.6-plus", "https://dashscope.aliyuncs.com/compatible-mode/v1"],
+    kimi: ["kimi-k2.5", "https://api.moonshot.cn/v1"],
+    grok: ["grok-4", "https://api.x.ai/v1"],
+    deepseek: ["deepseek-v4-flash", "https://api.deepseek.com/v1"],
+  };
 
   factory.resolveLLMClientOptions = async (provider, options = {}) => {
     const resolvedProvider = provider ?? "openai";
-    const resolvedModel = options.model ?? (resolvedProvider === "deepseek" ? "deepseek-chat" : "gpt-4o-mini");
-    const baseURL = options.baseURL ?? (resolvedProvider === "deepseek"
-      ? "https://api.deepseek.com/v1"
-      : "https://api.openai.com/v1");
+    const [defaultModel, defaultBaseURL] = providerDefaults[resolvedProvider]
+      ?? ["custom-model", "https://proxy.example.com/v1"];
+    const resolvedModel = options.model ?? defaultModel;
+    const baseURL = options.baseURL ?? defaultBaseURL;
     const structuredProfile = options.executionMode === "structured"
       ? resolveStructuredOutputProfile({
         provider: resolvedProvider,
@@ -347,8 +356,11 @@ test("invokeStructuredLlmDetailed degrades to prompt JSON before using fallback 
         provider: resolved.provider,
         strategy: resolved.structuredStrategy,
       });
-      if (resolved.provider === "openai" && resolved.structuredStrategy !== "prompt_json") {
+      if (resolved.provider === "openai" && resolved.structuredStrategy === "json_schema") {
         throw new Error("response_format is not supported");
+      }
+      if (resolved.structuredStrategy !== "prompt_json") {
+        return;
       }
       yield { content: "{\"value\":\"primary-prompt-json\"}" };
     },
@@ -359,6 +371,7 @@ test("invokeStructuredLlmDetailed degrades to prompt JSON before using fallback 
     model: "deepseek-chat",
     temperature: 0.2,
     maxTokens: null,
+    retryCount: 0,
   });
 
   try {
@@ -382,6 +395,36 @@ test("invokeStructuredLlmDetailed degrades to prompt JSON before using fallback 
       { provider: "openai", strategy: "json_object" },
       { provider: "openai", strategy: "prompt_json" },
     ]);
+
+    const nativeJsonProviders = [
+      ["gemini", "gemini-2.5-flash", ["json_schema", "json_object", "prompt_json"]],
+      ["glm", "glm-4.5-air", ["json_object", "prompt_json"]],
+      ["qwen", "qwen3.6-plus", ["json_object", "prompt_json"]],
+      ["kimi", "kimi-k2.5", ["json_object", "prompt_json"]],
+      ["grok", "grok-4", ["json_object", "prompt_json"]],
+      ["deepseek", "deepseek-v4-flash", ["json_object", "prompt_json"]],
+    ];
+    for (const [provider, model, expectedStrategies] of nativeJsonProviders) {
+      calls.length = 0;
+      const providerResult = await structuredInvoke.invokeStructuredLlmDetailed({
+        provider,
+        model,
+        label: `structured.invoke.compat.${provider}-empty-json`,
+        taskType: "planner",
+        schema: z.object({
+          value: z.string(),
+        }),
+        systemPrompt: "只返回 JSON。",
+        userPrompt: "给我一个 value。",
+      });
+
+      assert.deepEqual(providerResult.data, { value: "primary-prompt-json" }, provider);
+      assert.deepEqual(
+        calls,
+        expectedStrategies.map((strategy) => ({ provider, strategy })),
+        provider,
+      );
+    }
   } finally {
     factory.resolveLLMClientOptions = originalResolveOptions;
     factory.createLLMFromResolvedOptions = originalCreateLLM;
@@ -446,6 +489,7 @@ test("invokeStructuredLlmDetailed switches to the configured fallback model afte
     model: "deepseek-chat",
     temperature: 0.2,
     maxTokens: null,
+    retryCount: 0,
   });
 
   try {
@@ -467,6 +511,90 @@ test("invokeStructuredLlmDetailed switches to the configured fallback model afte
     assert.deepEqual(calls, [
       { provider: "openai", strategy: "json_schema" },
       { provider: "deepseek", strategy: "json_object" },
+    ]);
+  } finally {
+    factory.resolveLLMClientOptions = originalResolveOptions;
+    factory.createLLMFromResolvedOptions = originalCreateLLM;
+    structuredFallbackSettings.getStructuredFallbackSettings = originalGetFallbackSettings;
+  }
+});
+
+test("invokeStructuredLlmDetailed retries transport failures using the configured retry count", async () => {
+  const originalResolveOptions = factory.resolveLLMClientOptions;
+  const originalCreateLLM = factory.createLLMFromResolvedOptions;
+  const originalGetFallbackSettings = structuredFallbackSettings.getStructuredFallbackSettings;
+  const calls = [];
+
+  factory.resolveLLMClientOptions = async (provider, options = {}) => {
+    const resolvedProvider = provider ?? "openai";
+    const resolvedModel = options.model ?? "gpt-4o-mini";
+    const baseURL = options.baseURL ?? "https://api.openai.com/v1";
+    const structuredProfile = options.executionMode === "structured"
+      ? resolveStructuredOutputProfile({
+        provider: resolvedProvider,
+        model: resolvedModel,
+        baseURL,
+        executionMode: "structured",
+      })
+      : null;
+    return {
+      provider: resolvedProvider,
+      providerName: resolvedProvider,
+      model: resolvedModel,
+      temperature: options.temperature ?? 0.3,
+      apiKey: "test-key",
+      baseURL,
+      maxTokens: options.maxTokens,
+      reasoningEnabled: !(structuredProfile?.requiresNonThinkingForStructured),
+      modelKwargs: undefined,
+      includeRawResponse: false,
+      executionMode: options.executionMode ?? "plain",
+      structuredProfile,
+      structuredStrategy: options.structuredStrategy ?? null,
+      reasoningForcedOff: Boolean(structuredProfile?.requiresNonThinkingForStructured),
+      taskType: options.taskType,
+      promptMeta: options.promptMeta,
+    };
+  };
+  factory.createLLMFromResolvedOptions = (resolved) => ({
+    stream: async function* () {
+      calls.push({
+        provider: resolved.provider,
+        strategy: resolved.structuredStrategy,
+      });
+      if (calls.length === 1) {
+        throw new Error("Our servers are currently overloaded. Please try again later.");
+      }
+      yield { content: "{\"value\":\"retried-ok\"}" };
+    },
+  });
+  structuredFallbackSettings.getStructuredFallbackSettings = async () => ({
+    enabled: false,
+    provider: "deepseek",
+    model: "deepseek-chat",
+    temperature: 0.2,
+    maxTokens: null,
+    retryCount: 1,
+  });
+
+  try {
+    const result = await structuredInvoke.invokeStructuredLlmDetailed({
+      provider: "openai",
+      model: "gpt-4o-mini",
+      label: "structured.invoke.compat.transport-retry",
+      taskType: "planner",
+      schema: z.object({
+        value: z.string(),
+      }),
+      systemPrompt: "只返回 JSON。",
+      userPrompt: "给我一个 value。",
+    });
+
+    assert.deepEqual(result.data, { value: "retried-ok" });
+    assert.equal(result.diagnostics.fallbackUsed, false);
+    assert.deepEqual(calls, [
+      { provider: "openai", strategy: "json_schema" },
+      { provider: "openai", strategy: "json_schema" },
     ]);
   } finally {
     factory.resolveLLMClientOptions = originalResolveOptions;

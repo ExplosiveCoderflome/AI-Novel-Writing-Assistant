@@ -1,0 +1,457 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "AI 小说创作工作台运行架构",
+    "locale": "zh-CN",
+    "quality_profile": "showcase",
+    "repository": {
+      "url": "https://github.com/ExplosiveCoderflome/AI-Novel-Writing-Assistant",
+      "provider": "github",
+      "revision": "5682aae49cef49dcf6fa0636e009212dc31aeeb1"
+    },
+    "viewBox": [1375, 760],
+    "views": [
+      {
+        "id": "full_novel_path",
+        "label": "整书生产主链",
+        "focus": ["creator", "desktop_shell", "react_workspace", "express_api", "director_commands", "director_runtime", "chapter_pipeline", "prompt_gateway", "model_providers"],
+        "note": "从创作者操作到导演命令、章节生产和模型调用的完整执行路径。"
+      },
+      {
+        "id": "state_recovery",
+        "label": "状态与恢复",
+        "focus": ["express_api", "director_commands", "director_runtime", "chapter_pipeline", "persistent_state", "task_projection", "react_workspace"],
+        "note": "任务、检查点和质量债务持久化后，经投影返回创作工作台。"
+      },
+      {
+        "id": "quality_loop",
+        "label": "章节质量循环",
+        "focus": ["director_runtime", "chapter_pipeline", "prompt_gateway", "model_providers", "persistent_state", "task_projection"],
+        "note": "生成、审校、单次修复、最终提交与质量债务记录共用同一章节链。"
+      }
+    ]
+  },
+  "layout": {
+    "mode": "grid",
+    "origin": [50, 120],
+    "cols": 6,
+    "gapX": 70,
+    "gapY": 110,
+    "cellW": 190,
+    "cellH": 80
+  },
+  "components": [
+    {
+      "id": "creator",
+      "type": "external",
+      "label": "创作者",
+      "sublabel": "网页或桌面端",
+      "row": 1,
+      "col": 0,
+      "size": [125, 64]
+    },
+    {
+      "id": "desktop_shell",
+      "type": "frontend",
+      "label": "Electron / Web 壳",
+      "sublabel": "启动本地服务与工作区",
+      "row": 0,
+      "col": 0,
+      "size": [165, 70],
+      "sources": [
+        {
+          "path": "desktop/src/main.ts",
+          "line": 114,
+          "end_line": 143,
+          "label": "桌面启动状态"
+        },
+        {
+          "path": "desktop/src/runtime/server.ts",
+          "line": 78,
+          "end_line": 80,
+          "label": "本地服务端口"
+        }
+      ]
+    },
+    {
+      "id": "react_workspace",
+      "type": "frontend",
+      "label": "React 创作工作台",
+      "sublabel": "创作页、AI 驾驶舱、任务抽屉",
+      "row": 0,
+      "col": 1,
+      "size": [190, 76],
+      "sources": [
+        {
+          "path": "client/src/main.tsx",
+          "line": 14,
+          "end_line": 38,
+          "label": "客户端入口"
+        },
+        {
+          "path": "client/src/api/client.ts",
+          "line": 17,
+          "end_line": 20,
+          "label": "HTTP 客户端"
+        },
+        {
+          "path": "client/src/pages/novels/components/NovelTaskDrawer.tsx",
+          "line": 251,
+          "end_line": 280,
+          "label": "创作页任务投影"
+        }
+      ]
+    },
+    {
+      "id": "express_api",
+      "type": "backend",
+      "label": "Express API",
+      "sublabel": "业务路由与恢复入口",
+      "row": 0,
+      "col": 2,
+      "size": [165, 70],
+      "sources": [
+        {
+          "path": "server/src/app.ts",
+          "line": 87,
+          "end_line": 115,
+          "label": "应用创建"
+        },
+        {
+          "path": "server/src/modules/novel/http/novelRouteRegistration.ts",
+          "line": 81,
+          "end_line": 105,
+          "label": "小说路由装配"
+        }
+      ]
+    },
+    {
+      "id": "director_commands",
+      "type": "messagebus",
+      "label": "导演命令队列",
+      "sublabel": "持久化命令 + 租约调度",
+      "row": 0,
+      "col": 3,
+      "size": [175, 70],
+      "sources": [
+        {
+          "path": "server/src/services/novel/director/commands/DirectorCommandService.ts",
+          "line": 40,
+          "end_line": 61,
+          "label": "命令入队"
+        },
+        {
+          "path": "server/src/workers/directorWorker.ts",
+          "line": 18,
+          "end_line": 39,
+          "label": "租约工作器"
+        }
+      ]
+    },
+    {
+      "id": "director_runtime",
+      "type": "backend",
+      "label": "自动导演运行时",
+      "sublabel": "步骤编排、策略、检查点与恢复",
+      "row": 0,
+      "col": 4,
+      "size": [195, 76],
+      "sources": [
+        {
+          "path": "server/src/services/novel/director/runtime/novelDirectorRuntimeOrchestrator.ts",
+          "line": 23,
+          "end_line": 30,
+          "label": "步骤编排器"
+        },
+        {
+          "path": "server/src/services/novel/director/automation/novelDirectorAutoExecutionRuntime.ts",
+          "line": 49,
+          "end_line": 76,
+          "label": "自动执行入口"
+        },
+        {
+          "path": "server/src/services/novel/director/novelDirectorPipelineRuntime.ts",
+          "line": 26,
+          "end_line": 39,
+          "label": "规划阶段链"
+        }
+      ]
+    },
+    {
+      "id": "chapter_pipeline",
+      "type": "backend",
+      "label": "章节生产流水线",
+      "sublabel": "生成 → 审校 → 修复 → 提交",
+      "row": 1,
+      "col": 4,
+      "size": [185, 76],
+      "sources": [
+        {
+          "path": "server/src/services/novel/runtime/chapterRuntimePipeline.ts",
+          "line": 112,
+          "end_line": 149,
+          "label": "流水线契约"
+        },
+        {
+          "path": "server/src/services/novel/runtime/ChapterPipelineRuntimeAdapter.ts",
+          "line": 36,
+          "end_line": 45,
+          "label": "章节执行适配"
+        },
+        {
+          "path": "server/src/services/novel/runtime/repair/chapterRepairRuntime.ts",
+          "line": 270,
+          "end_line": 285,
+          "label": "章节修复"
+        }
+      ]
+    },
+    {
+      "id": "task_projection",
+      "type": "backend",
+      "label": "任务与导演投影",
+      "sublabel": "快照、进度、下一步和来源路由",
+      "row": 1,
+      "col": 2,
+      "size": [185, 76],
+      "sources": [
+        {
+          "path": "server/src/services/novel/director/projections/DirectorTaskSnapshotService.ts",
+          "line": 52,
+          "end_line": 69,
+          "label": "导演任务快照"
+        },
+        {
+          "path": "server/src/services/novel/director/runtime/DirectorEventProjectionService.ts",
+          "line": 677,
+          "end_line": 718,
+          "label": "运行事件投影"
+        },
+        {
+          "path": "server/src/services/task/TaskCenterService.ts",
+          "line": 32,
+          "end_line": 59,
+          "label": "运行记录聚合"
+        }
+      ]
+    },
+    {
+      "id": "persistent_state",
+      "type": "database",
+      "label": "Prisma 持久状态",
+      "sublabel": "SQLite / PostgreSQL",
+      "row": 1,
+      "col": 3,
+      "size": [175, 70],
+      "sources": [
+        {
+          "path": "server/src/db/prisma.ts",
+          "line": 46,
+          "end_line": 54,
+          "label": "Prisma 客户端"
+        },
+        {
+          "path": "server/src/services/novel/workflow/NovelWorkflowService.ts",
+          "line": 5,
+          "end_line": 19,
+          "label": "工作流状态服务"
+        }
+      ]
+    },
+    {
+      "id": "prompt_gateway",
+      "type": "backend",
+      "label": "Prompt 与结构化调用",
+      "sublabel": "Registry、上下文、Schema、修复",
+      "row": 2,
+      "col": 4,
+      "size": [205, 76],
+      "sources": [
+        {
+          "path": "server/src/prompting/registry.ts",
+          "line": 9,
+          "end_line": 27,
+          "label": "Prompt Registry"
+        },
+        {
+          "path": "server/src/prompting/core/promptRunner.ts",
+          "line": 716,
+          "label": "统一 Prompt 执行"
+        },
+        {
+          "path": "server/src/llm/structuredInvoke.ts",
+          "line": 49,
+          "end_line": 80,
+          "label": "结构化模型调用"
+        }
+      ]
+    },
+    {
+      "id": "model_providers",
+      "type": "external",
+      "label": "外部模型提供商",
+      "sublabel": "DeepSeek / OpenAI / Anthropic 等",
+      "row": 2,
+      "col": 3,
+      "size": [180, 76],
+      "sources": [
+        {
+          "path": "server/src/llm/providers.ts",
+          "line": 20,
+          "end_line": 64,
+          "label": "内置提供商目录"
+        }
+      ]
+    }
+  ],
+  "boundaries": [
+    {
+      "kind": "region",
+      "label": "客户端与桌面运行层",
+      "wraps": ["desktop_shell", "react_workspace"],
+      "pad": 22
+    },
+    {
+      "kind": "region",
+      "label": "服务端小说生产平台",
+      "wraps": ["express_api", "director_commands", "director_runtime", "chapter_pipeline", "task_projection", "persistent_state", "prompt_gateway"],
+      "pad": 24
+    }
+  ],
+  "connections": [
+    {
+      "id": "creator_opens_app",
+      "from": "creator",
+      "to": "desktop_shell",
+      "variant": "emphasis",
+      "fromSide": "top",
+      "toSide": "bottom"
+    },
+    {
+      "id": "shell_loads_workspace",
+      "from": "desktop_shell",
+      "to": "react_workspace",
+      "variant": "emphasis"
+    },
+    {
+      "id": "workspace_calls_api",
+      "from": "react_workspace",
+      "to": "express_api",
+      "label": "HTTP /api",
+      "variant": "emphasis"
+    },
+    {
+      "id": "api_enqueues_command",
+      "from": "express_api",
+      "to": "director_commands",
+      "label": "写入命令",
+      "variant": "emphasis"
+    },
+    {
+      "id": "worker_executes_command",
+      "from": "director_commands",
+      "to": "director_runtime",
+      "label": "租约执行",
+      "variant": "emphasis"
+    },
+    {
+      "id": "runtime_runs_chapters",
+      "from": "director_runtime",
+      "to": "chapter_pipeline",
+      "label": "推进章节",
+      "variant": "emphasis",
+      "fromSide": "bottom",
+      "toSide": "top",
+      "labelAt": [1130, 220]
+    },
+    {
+      "id": "runtime_persists_checkpoint",
+      "from": "director_runtime",
+      "to": "persistent_state",
+      "label": "检查点",
+      "fromSide": "bottom",
+      "toSide": "top"
+    },
+    {
+      "id": "chapter_persists_content",
+      "from": "chapter_pipeline",
+      "to": "persistent_state",
+      "label": "正文 / 质量债务",
+      "fromSide": "left",
+      "toSide": "right",
+      "labelAt": [1066, 400]
+    },
+    {
+      "id": "runtime_invokes_prompt",
+      "from": "director_runtime",
+      "to": "prompt_gateway",
+      "label": "规划决策",
+      "fromSide": "right",
+      "toSide": "right",
+      "via": [[1325, 158], [1325, 538]]
+    },
+    {
+      "id": "chapter_invokes_prompt",
+      "from": "chapter_pipeline",
+      "to": "prompt_gateway",
+      "label": "生成 / 审校 / 修复",
+      "fromSide": "bottom",
+      "toSide": "top"
+    },
+    {
+      "id": "prompt_calls_models",
+      "from": "prompt_gateway",
+      "to": "model_providers",
+      "label": "模型请求",
+      "variant": "dashed",
+      "fromSide": "left",
+      "toSide": "right"
+    },
+    {
+      "id": "api_reads_projection",
+      "from": "express_api",
+      "to": "task_projection",
+      "label": "查询快照",
+      "fromSide": "bottom",
+      "toSide": "top"
+    },
+    {
+      "id": "projection_reads_state",
+      "from": "task_projection",
+      "to": "persistent_state",
+      "label": "读取事实",
+      "fromSide": "right",
+      "toSide": "left"
+    }
+  ],
+  "cards": [
+    {
+      "dot": "cyan",
+      "title": "执行主链",
+      "items": [
+        "用户操作先进入持久化导演命令，再由租约 Worker 执行",
+        "自动导演负责跨阶段编排，章节流水线负责单章生成到最终提交",
+        "模型调用统一经过 Prompt Registry 与结构化输出边界"
+      ]
+    },
+    {
+      "dot": "emerald",
+      "title": "恢复与可见性",
+      "items": [
+        "任务、检查点、事件和章节结果落入同一持久状态层",
+        "导演快照基于运行事件与事实检查生成，不由前端猜测状态",
+        "运行记录负责查看与导航，创作页承载继续、恢复和修复动作"
+      ]
+    },
+    {
+      "dot": "amber",
+      "title": "复杂度热点",
+      "items": [
+        "自动导演横跨命令、运行时、自动执行、投影和恢复多个子模块",
+        "工作流任务状态与导演运行快照需要持续保持一致并支持修复",
+        "局部章节质量问题必须沉淀为质量债务，不能误停整书执行链"
+      ]
+    }
+  ]
+}

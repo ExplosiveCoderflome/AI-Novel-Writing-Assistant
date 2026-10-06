@@ -7,14 +7,18 @@ const { RagIndexService } = require("../dist/services/rag/RagIndexService.js");
 const { ragServices } = require("../dist/services/rag/index.js");
 const { ragConfig } = require("../dist/config/rag.js");
 
-test("reindexing while RAG is disabled leaves the document idle without queuing a job", async () => {
+test("manual reindex enables RAG and queues the document for slicing", async () => {
   const service = new KnowledgeService();
   const originalEnabled = ragConfig.enabled;
   const originalFindUnique = prisma.knowledgeDocument.findUnique;
   const originalUpdate = prisma.knowledgeDocument.update;
+  const originalUpsert = prisma.appSetting.upsert;
   const originalEnqueueOwnerJob = ragServices.ragIndexService.enqueueOwnerJob;
+  const originalWorkerStart = ragServices.ragWorker.start;
   let updateArgs = null;
-  let enqueueCount = 0;
+  let enableArgs = null;
+  const enqueueCalls = [];
+  let workerStarts = 0;
 
   ragConfig.enabled = false;
   prisma.knowledgeDocument.findUnique = async () => ({
@@ -26,19 +30,75 @@ test("reindexing while RAG is disabled leaves the document idle without queuing 
     updateArgs = args;
     return { id: args.where.id, latestIndexStatus: args.data.latestIndexStatus };
   };
-  ragServices.ragIndexService.enqueueOwnerJob = async () => {
-    enqueueCount += 1;
+  prisma.appSetting.upsert = async (args) => {
+    enableArgs = args;
+    return { key: args.where.key, value: args.update.value };
+  };
+  ragServices.ragIndexService.enqueueOwnerJob = async (...args) => {
+    enqueueCalls.push(args);
+    return { id: "rag-job-rebuild" };
+  };
+  ragServices.ragWorker.start = () => { workerStarts += 1; };
+
+  try {
+    const result = await service.reindexDocument("knowledge-doc-1");
+
+    assert.equal(result.latestIndexStatus, "queued");
+    assert.equal(ragConfig.enabled, true);
+    assert.deepEqual(enableArgs, {
+      where: { key: "rag.enabled" },
+      update: { value: "true" },
+      create: { key: "rag.enabled", value: "true" },
+    });
+    assert.deepEqual(updateArgs, {
+      where: { id: "knowledge-doc-1" },
+      data: { latestIndexStatus: "queued" },
+    });
+    assert.deepEqual(enqueueCalls, [["rebuild", "knowledge_document", "knowledge-doc-1"]]);
+    assert.equal(workerStarts, 1);
+  } finally {
+    ragConfig.enabled = originalEnabled;
+    prisma.knowledgeDocument.findUnique = originalFindUnique;
+    prisma.knowledgeDocument.update = originalUpdate;
+    prisma.appSetting.upsert = originalUpsert;
+    ragServices.ragIndexService.enqueueOwnerJob = originalEnqueueOwnerJob;
+    ragServices.ragWorker.start = originalWorkerStart;
+  }
+});
+
+test("reindexing while RAG is enabled queues the document for slicing", async () => {
+  const service = new KnowledgeService();
+  const originalEnabled = ragConfig.enabled;
+  const originalFindUnique = prisma.knowledgeDocument.findUnique;
+  const originalUpdate = prisma.knowledgeDocument.update;
+  const originalEnqueueOwnerJob = ragServices.ragIndexService.enqueueOwnerJob;
+  let updateArgs = null;
+  const enqueueCalls = [];
+
+  ragConfig.enabled = true;
+  prisma.knowledgeDocument.findUnique = async () => ({
+    id: "knowledge-doc-1",
+    activeVersionId: "knowledge-version-1",
+    status: "enabled",
+  });
+  prisma.knowledgeDocument.update = async (args) => {
+    updateArgs = args;
+    return { id: args.where.id, latestIndexStatus: args.data.latestIndexStatus };
+  };
+  ragServices.ragIndexService.enqueueOwnerJob = async (...args) => {
+    enqueueCalls.push(args);
+    return { id: "rag-job-rebuild" };
   };
 
   try {
     const result = await service.reindexDocument("knowledge-doc-1");
 
-    assert.equal(result.latestIndexStatus, "idle");
+    assert.equal(result.latestIndexStatus, "queued");
     assert.deepEqual(updateArgs, {
       where: { id: "knowledge-doc-1" },
-      data: { latestIndexStatus: "idle" },
+      data: { latestIndexStatus: "queued" },
     });
-    assert.equal(enqueueCount, 0);
+    assert.deepEqual(enqueueCalls, [["rebuild", "knowledge_document", "knowledge-doc-1"]]);
   } finally {
     ragConfig.enabled = originalEnabled;
     prisma.knowledgeDocument.findUnique = originalFindUnique;

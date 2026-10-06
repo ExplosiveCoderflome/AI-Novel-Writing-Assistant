@@ -71,6 +71,17 @@ function buildCurrentChapterContractText(input: VolumeChapterDetailPromptInput):
   ].filter(Boolean).join("\n"));
 }
 
+function validatePurposeDistinct(output: { purpose: string }, input: VolumeChapterDetailPromptInput) {
+  const purpose = normalizeComparableText(output.purpose);
+  if (
+    purpose === normalizeComparableText(input.targetChapter.summary)
+    || purpose === normalizeComparableText(input.targetChapter.purpose)
+  ) {
+    throw new Error("章节目标不能与章节摘要或现有目标完全相同；请改为一句明确的本章推进目标。");
+  }
+  return output;
+}
+
 function validateBoundaryContract(
   output: {
     exclusiveEvent: string;
@@ -301,16 +312,20 @@ export const volumeChapterPurposePrompt: PromptAsset<
   ReturnType<typeof createChapterPurposeSchema>["_output"]
 > = {
   id: "novel.volume.chapter_purpose",
-  version: "v1",
+  version: "v3",
   taskType: "planner",
   mode: "structured",
   language: "zh",
   contextPolicy: baseContextPolicy,
+  semanticRetryPolicy: {
+    maxAttempts: 2,
+  },
   outputSchema: createChapterPurposeSchema(),
   render: (input, context) => [
     new SystemMessage(createVolumeDetailSystemPrompt("purpose")),
     new HumanMessage(buildChapterDetailPrompt(renderSelectedContextBlocks(context), input.detailMode)),
   ],
+  postValidate: (output, input) => validatePurposeDistinct(output, input),
 };
 
 export const volumeChapterBoundaryPrompt: PromptAsset<

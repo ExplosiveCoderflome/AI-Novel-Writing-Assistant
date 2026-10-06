@@ -503,7 +503,15 @@ function AutoDirectorCreatePage() {
           basicForm={controller.directorBasicForm}
           genreOptions={genreOptions}
           idea={controller.idea}
-          onBasicFormChange={controller.onBasicFormChange}
+          onBasicFormChange={(patch) => {
+            if (patch.powerSystemPreference !== undefined) {
+              void controller.updateProductionFoundation({
+                powerSystemPreference: patch.powerSystemPreference,
+              });
+              return;
+            }
+            controller.onBasicFormChange(patch);
+          }}
           onBack={() => setActiveStage("idea")}
           onConfirm={() => {
             markStageCompleted("basic");

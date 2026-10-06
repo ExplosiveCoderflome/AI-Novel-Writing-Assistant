@@ -40,6 +40,7 @@ interface KnowledgeDocumentsTabProps {
   onRetry: () => void;
   onClearFilters: () => void;
   latestKnowledgeDocumentJobs: Map<string, RagJobSummary>;
+  reindexingDocumentId?: string;
   onSelectDocument: (id: string) => void;
   onOpenRecallTest: (id: string) => void;
   onReindexDocument: (id: string) => void;
@@ -63,6 +64,7 @@ export default function KnowledgeDocumentsTab({
   onRetry,
   onClearFilters,
   latestKnowledgeDocumentJobs,
+  reindexingDocumentId,
   onSelectDocument,
   onOpenRecallTest,
   onReindexDocument,
@@ -235,8 +237,14 @@ export default function KnowledgeDocumentsTab({
                   召回测试
                 </Button>
               ) : null}
-              <Button size="sm" variant="ghost" className="rounded-full" onClick={() => onReindexDocument(document.id)}>
-                重建索引
+              <Button
+                size="sm"
+                variant="ghost"
+                className="rounded-full"
+                onClick={() => onReindexDocument(document.id)}
+                disabled={reindexingDocumentId === document.id}
+              >
+                {reindexingDocumentId === document.id ? "加入队列中..." : "重建索引"}
               </Button>
               {document.status === "enabled" ? (
                 <Button size="sm" variant="ghost" className="rounded-full" onClick={() => onUpdateStatus(document.id, "disabled")}>停用</Button>

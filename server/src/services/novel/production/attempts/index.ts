@@ -1,0 +1,1 @@
+export { ChapterAutomaticAttemptService } from "./ChapterAutomaticAttemptService";

@@ -5,6 +5,10 @@ import {
   type DirectorAutoExecutionChapterRef,
 } from "../automation/novelDirectorAutoExecution";
 import { hasContinuableQualityLoopRiskFlags } from "./DirectorWorkspaceArtifactInventory";
+import {
+  CHAPTER_ARTIFACT_BOUNDARY_TYPE,
+  getCurrentChapterArtifactSyncOutcome,
+} from "../../runtime/artifactSync";
 
 export const CHAPTER_EXECUTION_PROGRESS_STAGES = [
   "execution_contract_ready",
@@ -94,6 +98,15 @@ export class ChapterExecutionProgressInspector {
         auditReports: { select: { id: true, issues: { select: { id: true, status: true, severity: true }, take: 8 } }, take: 1, orderBy: { createdAt: "desc" } },
         storyStateSnapshots: { select: { id: true }, take: 1 },
         canonicalStateVersions: { select: { id: true }, take: 1 },
+        artifactSyncCheckpoints: {
+          select: {
+            contentHash: true,
+            metadataJson: true,
+          },
+          where: { artifactType: CHAPTER_ARTIFACT_BOUNDARY_TYPE, status: "succeeded" },
+          orderBy: { updatedAt: "desc" },
+          take: 6,
+        },
       },
     });
     const matrix = chapters.map((chapter) => this.inspectChapterRow(chapter));
@@ -152,6 +165,10 @@ export class ChapterExecutionProgressInspector {
     auditReports: Array<{ issues: Array<{ status: string; severity: string }> }>;
     storyStateSnapshots: unknown[];
     canonicalStateVersions: unknown[];
+    artifactSyncCheckpoints?: Array<{
+      contentHash: string;
+      metadataJson: string | null;
+    }>;
   }): ChapterExecutionProgress {
     const completed = new Set<ChapterExecutionProgressStage>();
     const hasExecutionContext = hasDirectorSyncedChapterExecutionContext({
@@ -189,7 +206,10 @@ export class ChapterExecutionProgressInspector {
     const hasContinuableRiskFlags = hasContinuableQualityLoopRiskFlags(chapter.riskFlags);
     const needsRepair = hasOpenBlockingIssue && !hasContinuableRiskFlags;
     const hasStateCommit = chapter.storyStateSnapshots.length > 0 || chapter.canonicalStateVersions.length > 0;
-    const isApproved = chapter.generationState === "approved" || chapter.generationState === "published";
+    const artifactSyncOutcome = getCurrentChapterArtifactSyncOutcome(chapter.content, chapter.artifactSyncCheckpoints ?? []);
+    const hasArtifactSyncBoundary = artifactSyncOutcome === "completed" || artifactSyncOutcome === "degraded";
+    const hasApprovedState = chapter.generationState === "approved" || chapter.generationState === "published";
+    const isApproved = hasApprovedState && hasArtifactSyncBoundary;
     const isReviewable = (hasDraft && hasAudit && !needsRepair) || isApproved;
     const shouldContinueWithoutStateCommit = hasContinuableRiskFlags
       && isReviewable;
@@ -201,7 +221,7 @@ export class ChapterExecutionProgressInspector {
     if (hasAudit) completed.add("audit_completed");
     if (hasAudit && !needsRepair) completed.add("repair_completed_or_not_needed");
     if (hasDraft && hasAudit) completed.add("runtime_package_saved");
-    if (hasDraft) completed.add("chapter_artifacts_synced");
+    if (hasArtifactSyncBoundary) completed.add("chapter_artifacts_synced");
     if (hasStateCommit || isApproved || shouldContinueWithoutStateCommit) completed.add("chapter_state_committed");
     if (isReviewable) completed.add("reviewable_or_approved");
 
@@ -223,7 +243,9 @@ export class ChapterExecutionProgressInspector {
         ? "write_draft"
         : !hasAudit
           ? "run_audit"
-          : !hasStateCommit && !shouldContinueWithoutStateCommit
+          : !hasArtifactSyncBoundary
+            ? "commit_state"
+            : !hasStateCommit && !shouldContinueWithoutStateCommit
             ? "commit_state"
             : status === "reviewable" || status === "approved" || shouldContinueWithoutStateCommit
               ? "continue_next_chapter"
@@ -244,6 +266,9 @@ export class ChapterExecutionProgressInspector {
         needsRepair,
         hasOpenBlockingIssue,
         hasStateCommit,
+        hasArtifactSyncBoundary,
+        artifactSyncOutcome: artifactSyncOutcome ?? "missing",
+        hasApprovedState,
         isReviewable,
         generationState: chapter.generationState,
         chapterStatus: chapter.chapterStatus,

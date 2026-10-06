@@ -2,7 +2,7 @@ import { toJSONSchema, type ZodType } from "zod";
 import type { LLMProvider } from "@ai-novel/shared/types/llm";
 import type { ModelRouteRequestProtocol } from "@ai-novel/shared/types/novel";
 import { isBuiltInProvider } from "./providers";
-import { isDeepSeekThinkingModeProvider } from "./reasoning";
+import { isDeepSeekThinkingModeProvider, isGlmThinkingModeProvider } from "./reasoning";
 
 export type StructuredExecutionMode = "plain" | "structured";
 export type StructuredOutputStrategy = "json_schema" | "json_object" | "prompt_json";
@@ -178,10 +178,17 @@ export function resolveStructuredOutputProfile(input: {
     });
   }
   if (usesOfficialEndpoint("glm", GLM_HOST_PATTERN)) {
+    const supportsReasoningToggle = isGlmThinkingModeProvider(
+      input.provider,
+      input.baseURL,
+      input.model,
+    );
     return buildProfile({
       family: "glm",
       nativeJsonObject: true,
       preferredStructuredStrategy: "json_object",
+      requiresNonThinkingForStructured: supportsReasoningToggle,
+      supportsReasoningToggle,
     });
   }
   if (usesOfficialEndpoint("kimi", MOONSHOT_HOST_PATTERN)) {
@@ -441,15 +448,19 @@ export class StructuredOutputError extends Error {
 
   readonly diagnostics: StructuredOutputDiagnostics;
 
+  readonly retryWithNextStrategy: boolean;
+
   constructor(input: {
     message: string;
     category: StructuredOutputErrorCategory;
     diagnostics: StructuredOutputDiagnostics;
+    retryWithNextStrategy?: boolean;
   }) {
     super(`[STRUCTURED_OUTPUT:${input.category}] ${input.message}`);
     this.name = "StructuredOutputError";
     this.category = input.category;
     this.diagnostics = input.diagnostics;
+    this.retryWithNextStrategy = input.retryWithNextStrategy ?? false;
   }
 }
 

@@ -73,6 +73,8 @@ export function createVolumeStrategyPrompt(
         "当前阶段只做整书层面的分卷策略，不展开单卷骨架，不展开章节，不补写剧情细纲。",
         "你的输出应服务后续分卷骨架生成，因此重点是：卷数、阶段划分、规划深度、前后期控制方式。",
         "只输出严格 JSON，不要输出 Markdown、解释、注释或额外文本。",
+        "为保证输出完整：readerRewardLadder、escalationLadder、midpointShift、notes 各不超过 160 字；每卷 roleLabel 不超过 32 字，coreReward 和 escalationFocus 各不超过 64 字；uncertainties.reason 不超过 64 字。",
+        "每个字段只保留完成本阶段决策所需的信息，完成最后一个 volume 后立即结束 JSON，不要展开剧情细纲或重复说明。",
         "",
         "【硬性要求】",
         fixedRecommendedVolumeCount == null

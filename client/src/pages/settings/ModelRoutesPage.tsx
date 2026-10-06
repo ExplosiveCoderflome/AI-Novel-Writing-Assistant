@@ -24,6 +24,7 @@ import {
   getPreferredModel,
   getProviderDisplayName,
   isSameRouteDraft,
+  parseStructuredRetryCount,
   resolveConnectivityState,
   type ConnectivityState,
   type RouteDraft,
@@ -102,7 +103,7 @@ export default function ModelRoutesPage() {
   const saveStructuredFallbackMutation = useMutation({
     mutationFn: (payload: Partial<StructuredFallbackSettings>) => saveStructuredFallbackConfig(payload),
     onSuccess: async () => {
-      setActionResult("结构化备用模型保存完成。");
+      setActionResult("结构化调用容错设置已保存。");
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: queryKeys.settings.structuredFallback }),
         queryClient.invalidateQueries({ queryKey: queryKeys.settings.modelRouteConnectivity }),
@@ -234,6 +235,7 @@ export default function ModelRoutesPage() {
       model: structuredFallback?.model ?? "deepseek-chat",
       temperature: structuredFallback != null ? String(structuredFallback.temperature) : "0.2",
       maxTokens: structuredFallback?.maxTokens != null ? String(structuredFallback.maxTokens) : "",
+      retryCount: structuredFallback != null ? String(structuredFallback.retryCount) : "1",
       requestProtocol: "auto",
       structuredResponseFormat: "auto",
     };
@@ -379,17 +381,39 @@ export default function ModelRoutesPage() {
 
       <Card>
         <CardHeader>
-          <CardTitle>结构化备用模型</CardTitle>
+          <CardTitle>结构化调用容错</CardTitle>
           <CardDescription>
-            主模型能对话但 JSON 不稳时，可在所有结构化任务上统一启用备用模型。
+            服务端繁忙、超时或连接中断时，会先按设置重试；仍未成功时可切换备用模型。
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="flex items-center justify-between rounded-md border p-3">
-            <div>
-              <div className="font-medium">启用全局结构化回退</div>
+          <label className="flex flex-wrap items-center justify-between gap-3">
+            <span className="space-y-1">
+              <span className="block font-medium">服务端错误重试次数</span>
+              <span className="block text-sm text-muted-foreground">
+                0 表示不重试；每次重试都会重新发起一次模型调用，默认 1 次。
+              </span>
+            </span>
+            <span className="flex items-center gap-2">
+              <input
+                type="number"
+                min="0"
+                max="3"
+                step="1"
+                value={fallbackDraft.retryCount}
+                onChange={(event) => patchStructuredFallbackDraft({ retryCount: event.target.value })}
+                className="h-9 w-20 rounded-md border border-input bg-background px-2 text-sm"
+                aria-label="服务端错误重试次数"
+              />
+              <span className="text-sm text-muted-foreground">次</span>
+            </span>
+          </label>
+
+          <div className="flex items-center justify-between gap-3">
+            <div className="space-y-1">
+              <div className="font-medium">启用备用模型</div>
               <div className="text-sm text-muted-foreground">
-                主模型的结构化策略全部失败后，才会切到这套备用模型。
+                当前模型达到重试次数仍失败后，才会切到这套备用模型。
               </div>
             </div>
             <Switch
@@ -418,10 +442,11 @@ export default function ModelRoutesPage() {
                 model: fallbackDraft.model,
                 temperature: Number(fallbackDraft.temperature || 0.2),
                 maxTokens: fallbackDraft.maxTokens.trim() ? Number(fallbackDraft.maxTokens) : null,
+                retryCount: parseStructuredRetryCount(fallbackDraft.retryCount),
               })}
               disabled={saveStructuredFallbackMutation.isPending || !fallbackDraft.provider.trim() || !fallbackDraft.model.trim()}
             >
-              {saveStructuredFallbackMutation.isPending ? "保存中..." : "保存备用模型"}
+              {saveStructuredFallbackMutation.isPending ? "保存中..." : "保存容错设置"}
             </Button>
           </div>
         </CardContent>

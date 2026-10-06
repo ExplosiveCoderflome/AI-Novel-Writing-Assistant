@@ -9,6 +9,10 @@ import {
   type RunNovelStageInput,
   type NovelStageRunResult,
 } from "./NovelProductionOrchestrator";
+import {
+  createChapterStreamExecution,
+  createPipelineExecution,
+} from "./stageExecution/ChapterProductionExecution";
 
 interface ChapterExecutionSingleChapterPayload {
   mode: "single_chapter_stream";
@@ -86,10 +90,15 @@ export class ChapterExecutionStageRunner implements NovelProductionStageRunner {
       );
       return {
         stage: "chapter_execution",
-        status: input.policy.advanceMode === "manual" ? "checkpoint" : "completed",
-        summary: `Chapter ${input.payload.chapterId} execution has been delegated to the unified production orchestrator.`,
+        status: "checkpoint",
+        summary: `Chapter ${input.payload.chapterId} is awaiting completion through the unified production runtime.`,
         payload: streamResult,
-        nextStage: "quality_repair",
+        nextStage: null,
+        execution: createChapterStreamExecution({
+          stage: "chapter_execution",
+          novelId: input.novelId,
+          chapterId: input.payload.chapterId,
+        }),
       };
     }
 
@@ -103,21 +112,35 @@ export class ChapterExecutionStageRunner implements NovelProductionStageRunner {
       await core.resumePipelineJob(existing.id);
       return {
         stage: "chapter_execution",
-        status: "completed",
-        summary: `Reused active pipeline job ${existing.id} through the unified production orchestrator.`,
+        status: "checkpoint",
+        summary: `Pipeline job ${existing.id} is running through the unified production runtime.`,
         payload: existing,
-        nextStage: "quality_repair",
+        nextStage: null,
+        execution: createPipelineExecution({
+          novelId: input.novelId,
+          pipelineJobId: existing.id,
+          startOrder: input.payload.options.startOrder,
+          endOrder: input.payload.options.endOrder,
+          lifecycle: "running",
+        }),
       };
     }
 
     await core.createNovelSnapshot(input.novelId, "before_pipeline", `before-pipeline-${Date.now()}`);
     const job = await core.startPipelineJob(input.novelId, input.payload.options);
-    return {
-      stage: "chapter_execution",
-      status: "completed",
-      summary: `Started pipeline job ${job.id} through the unified production orchestrator.`,
-      payload: job,
-      nextStage: "quality_repair",
+      return {
+        stage: "chapter_execution",
+        status: "checkpoint",
+        summary: `Pipeline job ${job.id} is queued through the unified production runtime.`,
+        payload: job,
+        nextStage: null,
+        execution: createPipelineExecution({
+          novelId: input.novelId,
+          pipelineJobId: job.id,
+          startOrder: input.payload.options.startOrder,
+          endOrder: input.payload.options.endOrder,
+          lifecycle: "queued",
+        }),
     };
   }
 }

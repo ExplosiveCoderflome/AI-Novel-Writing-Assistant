@@ -32,9 +32,14 @@ import {
   defaultChapterRuntimeAgent,
   type ChapterRuntimeAgentPort,
 } from "./ChapterRuntimeDefaultDeps";
+import {
+  ChapterExecutionPreparationService,
+  createChapterExecutionPreparationService,
+} from "../production/preparation";
 
 interface ChapterRuntimeCoordinatorDeps {
   assembler?: Pick<GenerationContextAssembler, "assemble">;
+  preparationService?: Pick<ChapterExecutionPreparationService, "prepare">;
   chapterWritingGraph?: Pick<ChapterWritingGraph, "createChapterStream">;
   artifactSyncService?: Pick<ChapterArtifactSyncService, "saveDraftAndArtifacts" | "syncChapterArtifacts">;
   auditService?: Pick<typeof auditService, "auditChapter">;
@@ -69,6 +74,9 @@ export class ChapterRuntimeCoordinator {
     const artifactSyncService = deps.artifactSyncService ?? new ChapterArtifactSyncService(lifecycleService);
     const agentRuntime = this.getAgentRuntime(deps.agentRuntime);
     const assembler = deps.assembler ?? new GenerationContextAssembler();
+    const preparationService = deps.preparationService ?? createChapterExecutionPreparationService({
+      ensureChapterExecutionContract: deps.ensureChapterExecutionContract,
+    });
     const chapterWritingGraph = deps.chapterWritingGraph ?? this.createDefaultChapterWritingGraph(artifactSyncService);
     const plannerRuntime = deps.plannerService ?? plannerService;
     const chapterAuditService = deps.auditService ?? auditService;
@@ -89,6 +97,7 @@ export class ChapterRuntimeCoordinator {
     });
     this.streamOrchestrator = new ChapterStreamGenerationOrchestrator({
       assembler,
+      preparationService,
       chapterWritingGraph,
       readinessService: deps.readinessService ?? new ChapterRuntimeReadinessService(),
       contentFinalizationService: this.contentFinalizationService,

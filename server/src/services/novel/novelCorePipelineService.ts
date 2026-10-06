@@ -1,4 +1,4 @@
-import type { Prisma } from "@prisma/client";
+import crypto from "node:crypto";
 import { DIRECTOR_ISSUE_GOVERNANCE_VERSION, directorIssuePolicySchema } from "@ai-novel/shared/types/directorIssue";
 import { prisma } from "../../db/prisma";
 import {
@@ -9,44 +9,22 @@ import {
 } from "./novelCoreShared";
 import { ensureNovelCharacters } from "./novelCoreSupport";
 import { ChapterRuntimeCoordinator } from "./runtime/ChapterRuntimeCoordinator";
+import { CHAPTER_ARTIFACT_BOUNDARY_TYPE } from "./runtime/artifactSync";
 import { selectPrimaryPipelineJob } from "./pipelineJobDedup";
 import { buildPipelineCurrentItemLabel, buildPipelineStageProgress, decoratePipelineJob as decoratePipelineJobRow, isPipelineActiveStage, parsePipelinePayload as parsePipelineJobPayload, stringifyPipelinePayload as stringifyPipelineJobPayload, type DecoratedPipelineJob, type PipelineActiveStage, type PipelineJobLike } from "./pipelineJobState";
 import { NovelPipelineExecutor } from "./production/NovelPipelineExecutor";
+import { isCurrentChapterProductionCompleted } from "./production/completion";
+import {
+  PIPELINE_EXECUTION_LEASE_MS,
+  PIPELINE_EXECUTION_RENEW_INTERVAL_MS,
+  PipelineExecutionLeaseService,
+} from "./production/executionLease";
 import { directorIssuePolicyService, loadDirectorIssueTaskContext } from "./director/issues";
 
 export { buildPipelineCurrentItemLabel, buildPipelineStageProgress } from "./pipelineJobState";
 
-const TERMINAL_CONTINUE_QUALITY_LOOP_RISK_FLAG_FRAGMENT = '"terminalAction":"defer_and_continue"';
-const REPLAN_REQUIRED_QUALITY_LOOP_RISK_FLAG_FRAGMENT = '"rootCauseCode":"replan_required"';
-const REPLAN_ACTION_QUALITY_LOOP_RISK_FLAG_FRAGMENT = '"recommendedAction":"replan"';
-
 function clampPipelineMaxRetries(value: number | null | undefined): number {
   return Math.max(0, Math.min(value ?? 1, 1));
-}
-
-function buildSkipCompletedChapterWhere(): Prisma.ChapterWhereInput {
-  return {
-    NOT: {
-      AND: [
-        { content: { not: null } },
-        { content: { not: "" } },
-        {
-          OR: [
-            { generationState: { in: ["approved", "published"] } },
-            { chapterStatus: "completed" },
-            {
-              AND: [
-                { riskFlags: { not: null } },
-                { riskFlags: { contains: TERMINAL_CONTINUE_QUALITY_LOOP_RISK_FLAG_FRAGMENT } },
-                { riskFlags: { not: { contains: REPLAN_REQUIRED_QUALITY_LOOP_RISK_FLAG_FRAGMENT } } },
-                { riskFlags: { not: { contains: REPLAN_ACTION_QUALITY_LOOP_RISK_FLAG_FRAGMENT } } },
-              ],
-            },
-          ],
-        },
-      ],
-    },
-  };
 }
 
 export class NovelCorePipelineService {
@@ -54,6 +32,7 @@ export class NovelCorePipelineService {
   private static readonly startLocks = new Set<string>();
   private readonly chapterRuntimeCoordinator = new ChapterRuntimeCoordinator();
   private readonly pipelineExecutor = new NovelPipelineExecutor(this.chapterRuntimeCoordinator);
+  private readonly pipelineExecutionLeases = new PipelineExecutionLeaseService();
   private decoratePipelineJob<T extends PipelineJobLike | null>(
     job: T,
   ): T extends null ? null : DecoratedPipelineJob<Extract<T, PipelineJobLike>> {
@@ -361,17 +340,29 @@ export class NovelCorePipelineService {
         throw new Error("当前小说还没有章节，请先创建章节后再启动流水线。");
       }
 
-      const chapters = await prisma.chapter.findMany({
+      const chapterCandidates = await prisma.chapter.findMany({
         where: {
           novelId,
           order: { gte: options.startOrder, lte: options.endOrder },
-          ...(options.skipCompleted
-            ? buildSkipCompletedChapterWhere()
-            : {}),
         },
         orderBy: { order: "asc" },
-        select: { id: true },
+        select: {
+          id: true,
+          content: true,
+          generationState: true,
+          chapterStatus: true,
+          riskFlags: true,
+          artifactSyncCheckpoints: {
+            where: { artifactType: CHAPTER_ARTIFACT_BOUNDARY_TYPE, status: "succeeded" },
+            select: { contentHash: true, metadataJson: true },
+            orderBy: { updatedAt: "desc" },
+            take: 6,
+          },
+        },
       });
+      const chapters = options.skipCompleted
+        ? chapterCandidates.filter((chapter) => !isCurrentChapterProductionCompleted(chapter))
+        : chapterCandidates;
       if (chapters.length === 0) {
         const minOrder = chapterStats._min.order ?? 1;
         const maxOrder = chapterStats._max.order ?? 1;
@@ -567,6 +558,46 @@ export class NovelCorePipelineService {
     }
   }
 
+  private async pauseForExecutionLeaseFailure(jobId: string, error: unknown): Promise<void> {
+    const now = new Date();
+    const missingLeaseColumn = Boolean(
+      error
+      && typeof error === "object"
+      && "code" in error
+      && (error as { code?: unknown }).code === "P2022",
+    );
+    try {
+      await prisma.generationJob.updateMany({
+        where: {
+          id: jobId,
+          status: { in: ["queued", "running"] },
+          pendingManualRecovery: false,
+          cancelRequestedAt: null,
+          ...(!missingLeaseColumn
+            ? {
+                OR: [
+                  { executionOwner: null },
+                  { executionLeaseExpiresAt: { lt: now } },
+                ],
+              }
+            : {}),
+        },
+        data: {
+          status: "queued",
+          pendingManualRecovery: true,
+          heartbeatAt: null,
+          currentStage: "queued",
+          currentItemKey: null,
+          currentItemLabel: null,
+          error: "无法确认章节流水线执行所有权，任务已暂停。请检查数据库迁移和连接后再恢复。",
+          finishedAt: null,
+        },
+      });
+    } catch {
+      // 若兼容暂停也无法落库，保留原错误日志，由人工修复数据库后恢复。
+    }
+  }
+
   private schedulePipelineExecution(jobId: string, novelId: string, options: PipelineRunOptions): void {
     if (NovelCorePipelineService.activeJobIds.has(jobId)) {
       return;
@@ -582,6 +613,41 @@ export class NovelCorePipelineService {
   }
 
   private async executePipeline(jobId: string, novelId: string, options: PipelineRunOptions): Promise<void> {
-    await this.pipelineExecutor.execute(jobId, novelId, options);
+    const ownerId = `pipeline:${process.pid}:${crypto.randomUUID()}`;
+    let claimed = false;
+    try {
+      claimed = await this.pipelineExecutionLeases.claim({
+        jobId,
+        ownerId,
+        leaseMs: PIPELINE_EXECUTION_LEASE_MS,
+      });
+    } catch (error) {
+      const message = "无法确认章节流水线执行所有权，任务已暂停。请检查数据库迁移和连接后再恢复。";
+      await this.pauseForExecutionLeaseFailure(jobId, error);
+      logPipelineWarn(message, {
+        jobId,
+        novelId,
+        error: error instanceof Error ? error.message : String(error),
+      });
+      return;
+    }
+    if (!claimed) {
+      logPipelineInfo("任务已有执行者，跳过重复调度", { jobId, novelId });
+      return;
+    }
+    const renewalTimer = setInterval(() => {
+      void this.pipelineExecutionLeases.renew({
+        jobId,
+        ownerId,
+        leaseMs: PIPELINE_EXECUTION_LEASE_MS,
+      }).catch(() => false);
+    }, PIPELINE_EXECUTION_RENEW_INTERVAL_MS);
+    renewalTimer.unref?.();
+    try {
+      await this.pipelineExecutor.execute(jobId, novelId, options, ownerId);
+    } finally {
+      clearInterval(renewalTimer);
+      await this.pipelineExecutionLeases.release(jobId, ownerId).catch(() => false);
+    }
   }
 }

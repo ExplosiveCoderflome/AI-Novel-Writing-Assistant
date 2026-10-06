@@ -23,6 +23,7 @@ import {
   UpdateNovelInput,
 } from "./novelCoreShared";
 import { queueRagDelete, queueRagUpsert } from "./novelCoreSupport";
+import { novelEventBus } from "../../events";
 
 export class NovelCoreCrudService {
   private readonly novelContinuationService = new NovelContinuationService();
@@ -557,13 +558,70 @@ export class NovelCoreCrudService {
     if (updated.worldId) {
       queueRagUpsert("world", updated.worldId);
     }
+    void novelEventBus.emit({
+      type: "novel:updated",
+      payload: { novelId: id, fields: Object.keys(input) },
+    }).catch(() => {});
     return normalizeNovelOutput(updated);
   }
 
   async deleteNovel(id: string) {
+    await prisma.$transaction(async (transaction) => {
+      const [failedWorkflowTasks, failedAgentRuns, failedPipelineJobs, failedImageTasks] = await Promise.all([
+        transaction.novelWorkflowTask.findMany({
+          where: { novelId: id, status: "failed" },
+          select: { id: true },
+        }),
+        transaction.agentRun.findMany({
+          where: { novelId: id, status: "failed" },
+          select: { id: true },
+        }),
+        transaction.generationJob.findMany({
+          where: { novelId: id, status: "failed" },
+          select: { id: true },
+        }),
+        transaction.imageGenerationTask.findMany({
+          where: { novelId: id, status: "failed" },
+          select: { id: true },
+        }),
+      ]);
+      const failedWorkflowTaskIds = failedWorkflowTasks.map((task) => task.id);
+      const failedAgentRunIds = failedAgentRuns.map((task) => task.id);
+      const failedPipelineJobIds = failedPipelineJobs.map((task) => task.id);
+      const failedImageTaskIds = failedImageTasks.map((task) => task.id);
+
+      if (
+        failedWorkflowTaskIds.length > 0
+        || failedAgentRunIds.length > 0
+        || failedPipelineJobIds.length > 0
+        || failedImageTaskIds.length > 0
+      ) {
+        await transaction.taskCenterArchive.deleteMany({
+          where: {
+            OR: [
+              { taskKind: "novel_workflow", taskId: { in: failedWorkflowTaskIds } },
+              { taskKind: "agent_run", taskId: { in: failedAgentRunIds } },
+              { taskKind: "novel_pipeline", taskId: { in: failedPipelineJobIds } },
+              { taskKind: "image_generation", taskId: { in: failedImageTaskIds } },
+            ],
+          },
+        });
+      }
+      if (failedWorkflowTaskIds.length > 0) {
+        await transaction.novelWorkflowTask.deleteMany({
+          where: { id: { in: failedWorkflowTaskIds } },
+        });
+      }
+      if (failedAgentRunIds.length > 0) {
+        await transaction.agentRun.deleteMany({
+          where: { id: { in: failedAgentRunIds } },
+        });
+      }
+
+      await transaction.novel.delete({ where: { id } });
+    });
     queueRagDelete("novel", id);
     queueRagDelete("bible", id);
-    await prisma.novel.delete({ where: { id } });
   }
 
   async listChapters(novelId: string) {

@@ -36,6 +36,14 @@
 
 `allowedVolumeCountRange` 是技术和手动固定范围，当前上限为 `24`。`decisionVolumeCountRange` 是 AI 自动分卷时应遵守的结构决策区间。静态 Prompt Registry、Prompt Workbench 和真实运行路径必须共享同一个上限，不允许一个路径仍停留在旧的 `16` 卷上限。
 
+### Strategy Output Capacity
+
+卷战略的结构化输出容量必须随预期卷数增长。运行时以作者固定卷数为最高优先级；没有固定卷数时，使用动态结构区间的上限估算本次输出规模。短篇仍保留 `1800` token 的下限，长篇按每卷增加额度，并限制在 `5200` token 以内。
+
+这不是用 JSON repair 补齐被截断的结果：repair 只能修复已有的结构，无法可靠补造尚未输出的卷。卷战略必须把每卷职责、阶段回报、升级焦点与不确定项完整生成后才能进入 critique 和 skeleton。为让预算集中在结构而非剧情细纲，卷级字段和书级说明字段使用短文本合同；Prompt 和 schema 必须同步维护这些长度边界。
+
+遇到 `STRUCTURED_OUTPUT:incomplete_json` 且原始内容尾部截断时，先检查本次预期卷数、实际 `maxTokens`、字段长度合同和模型输出上限。不要仅增加 JSON repair 次数，也不要在服务层手工补齐缺失卷；否则会把不完整的策略伪装成可继续的规划资产。
+
 紧凑全书的终局判断必须使用**全书绝对章序**，不能把第三卷内的第 10 章误判成全书第 10 章。章节拆分时应累加前序卷的章节预算；只有达到 `endingRequiredBy` 的最后一个节奏段才进入终章合同，禁止再创建必须续写的新主线。
 
 ## Author Control
