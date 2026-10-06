@@ -65,6 +65,9 @@ export class PipelineTaskAdapter {
 
   private toSummary(row: PipelineRow): UnifiedTaskSummary {
     const payload = parsePipelinePayload(row.payload);
+    const sourceRoute = payload.directorNext
+      ? `/lab/director/${encodeURIComponent(row.novelId)}`
+      : `/novels/${row.novelId}/edit`;
     const notice = decoratePipelineJob({
       status: row.status as PipelineJobStatus,
       payload: row.payload,
@@ -87,7 +90,7 @@ export class PipelineTaskAdapter {
       heartbeatAt: row.heartbeatAt?.toISOString() ?? null,
       ownerId: row.novelId,
       ownerLabel: row.novel.title,
-      sourceRoute: `/novels/${row.novelId}/edit`,
+      sourceRoute,
       noticeCode: notice.noticeCode,
       noticeSummary: notice.noticeSummary,
       failureCode: row.lastErrorType ?? (row.status === "failed" ? "PIPELINE_FAILED" : null),
@@ -106,13 +109,13 @@ export class PipelineTaskAdapter {
         type: "novel",
         id: row.novelId,
         label: row.novel.title,
-        route: `/novels/${row.novelId}/edit`,
+        route: sourceRoute,
       },
       targetResources: [{
         type: "generation_job",
         id: row.id,
         label: `${row.startOrder}-${row.endOrder}章流水线`,
-        route: `/novels/${row.novelId}/edit`,
+        route: sourceRoute,
       }],
     };
   }

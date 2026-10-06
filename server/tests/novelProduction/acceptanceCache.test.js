@@ -9,6 +9,7 @@ function fixture() {
   const { ChapterQualityGateService } = loadRuntimeSource("ChapterQualityGateService.ts", {
     "../../../db/prisma": { prisma: { chapterArtifactSyncCheckpoint: {
       findUnique: async ({ where }) => rows.get(JSON.stringify(where)) ?? null,
+      findFirst: async () => [...rows.values()].at(-1) ?? null,
       upsert: async ({ where, create, update }) => rows.set(JSON.stringify(where), rows.has(JSON.stringify(where)) ? { ...rows.get(JSON.stringify(where)), ...update } : create),
     } } },
     "./ChapterAcceptanceAssessmentService": {},
@@ -93,6 +94,7 @@ test("cache identity renders effective context, overrides and model without vola
   const state = { context: "original", slot: "default", template: "official", model: "model-a", version: "v1" };
   const asset = { id: "acceptance", get version() { return state.version; }, slots: [{}], taskType: "review" };
   const { buildAcceptanceCacheIdentity } = loadRuntimeSource("acceptance/cacheIdentity.ts", {
+    "./styleReview": require("../../dist/services/novel/runtime/acceptance/styleReview"),
     "node:crypto": crypto,
     "../../../../llm/factory": { resolveLLMClientOptions: async () => ({ provider: "p", model: state.model, apiKey: "secret", baseURL: "local" }) },
     "../../../../prompting/core/promptRunner": { preparePromptExecution: ({ promptInput, contextBlocks }) => ({ context: {}, messages: [{ getType: () => "human", content: JSON.stringify({ promptInput, contextBlocks }) }] }) },
@@ -112,4 +114,29 @@ test("cache identity renders effective context, overrides and model without vola
     state[key] = previous;
   }
   assert.notEqual(await buildAcceptanceCacheIdentity({ ...input, targetWordCount: 9000 }), original);
+  assert.notEqual(await buildAcceptanceCacheIdentity({ ...input, repairReviewBaseline: { blockingIssues: [], missingObligations: [], repairDirectives: [] } }), original);
+  const { StyleCompiler } = require('../../dist/services/styleEngine/StyleCompiler');
+  const compiledBlocks = new StyleCompiler().compile({ styleProfile: { narrativeRules: {}, characterRules: {}, languageRules: {}, rhythmRules: {} },
+    antiAiRules: [{ id: 'r', name: '规则', type: 'forbidden', enabled: true, severity: 'high', autoRewrite: false, promptInstruction: '禁止总结' }] });
+  const enabledContext = { styleContext: { compiledBlocks }, postGenerationStyleReviewEnabled: true };
+  const enabledIdentity = await buildAcceptanceCacheIdentity({ ...input, contextPackage: enabledContext });
+  assert.notEqual(await buildAcceptanceCacheIdentity({ ...input, contextPackage: { ...enabledContext, postGenerationStyleReviewEnabled: false } }), enabledIdentity);
+  compiledBlocks.contract.meta.antiAiRulePolicies = [{ id: 'r', name: '规则', type: 'forbidden', severity: 'high', autoRewrite: true }];
+  assert.notEqual(await buildAcceptanceCacheIdentity({ ...input, contextPackage: enabledContext }), enabledIdentity);
+});
+
+test('acceptance receives the mission length when chapter metadata has no target', async () => {
+  const h = fixture();
+  let received;
+  const { ChapterQualityGateService } = loadRuntimeSource('ChapterQualityGateService.ts', {
+    '../../../db/prisma': { prisma: {} },
+    './ChapterAcceptanceAssessmentService': {},
+    './chapterRuntimePackageBuilders': { hashContent: () => 'hash', rememberCacheValue: () => {} },
+  });
+  const gate = new ChapterQualityGateService({ acceptanceAssessmentService: { assess: async input => {
+    received = input;
+    return { assessment: { riskTags: [], blockingIssues: [] } };
+  } } });
+  await gate.runAcceptanceGate({ ...h.input, contextPackage: { ...h.input.contextPackage, chapterWriteContext: { chapterMission: { targetWordCount: 3200 } } } });
+  assert.equal(received.targetWordCount, 3200);
 });

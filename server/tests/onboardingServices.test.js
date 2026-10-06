@@ -215,7 +215,7 @@ test("first novel onboarding exposes production handoff as the single next actio
     assert.equal(projection.graduated, false);
     assert.equal(projection.currentMilestone, "production_choice");
     assert.equal(projection.primaryAction.label, "选择生产方式");
-    assert.match(projection.primaryAction.route, /directorTaskId=task-handoff/);
+    assert.equal(projection.primaryAction.route, "/novels/novel-handoff/edit");
     assert.equal(
       projection.milestones.find((milestone) => milestone.key === "production_choice").status,
       "current",

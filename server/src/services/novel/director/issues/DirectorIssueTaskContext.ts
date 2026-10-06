@@ -5,6 +5,7 @@ import {
 } from "@ai-novel/shared/types/directorIssue";
 import { prisma } from "../../../../db/prisma";
 import { directorIssuePolicyService } from "./DirectorIssuePolicyService";
+import { DirectorStateReader, toDirectorTaskDataView } from "../state/DirectorStateReader";
 
 export interface DirectorIssueTaskContext {
   novelId: string | null;
@@ -20,28 +21,22 @@ export async function loadDirectorIssueTaskContext(
   if (!taskId?.trim()) return null;
   const task = await prisma.novelWorkflowTask.findUnique({
     where: { id: taskId },
-    select: { novelId: true, seedPayloadJson: true },
+    select: { novelId: true },
   });
   if (!task) return null;
-  let seed: Record<string, unknown> = {};
-  try {
-    seed = task.seedPayloadJson
-      ? JSON.parse(task.seedPayloadJson) as Record<string, unknown>
-      : {};
-    const policy = directorIssuePolicySchema.safeParse(seed.issuePolicy);
-    if (seed.issueGovernanceVersion === DIRECTOR_ISSUE_GOVERNANCE_VERSION && policy.success) {
-      return {
-        novelId: task.novelId,
-        issueGovernanceVersion: DIRECTOR_ISSUE_GOVERNANCE_VERSION,
-        policy: policy.data,
-        runMode: typeof seed.runMode === "string" ? seed.runMode : undefined,
-        policySource: seed.issuePolicySource === "global" || seed.issuePolicySource === "novel"
-          ? seed.issuePolicySource
-          : "task_snapshot",
-      };
-    }
-  } catch {
-    seed = {};
+  const taskState = await new DirectorStateReader().readTaskStateById(taskId);
+  const directorTaskData = taskState ? toDirectorTaskDataView(taskState) : {};
+  const policy = directorIssuePolicySchema.safeParse(directorTaskData.issuePolicy);
+  if (directorTaskData.issueGovernanceVersion === DIRECTOR_ISSUE_GOVERNANCE_VERSION && policy.success) {
+    return {
+      novelId: task.novelId,
+      issueGovernanceVersion: DIRECTOR_ISSUE_GOVERNANCE_VERSION,
+      policy: policy.data,
+      runMode: typeof directorTaskData.runMode === "string" ? directorTaskData.runMode : undefined,
+      policySource: directorTaskData.issuePolicySource === "global" || directorTaskData.issuePolicySource === "novel"
+        ? directorTaskData.issuePolicySource
+        : "task_snapshot",
+    };
   }
 
   const fallback = task.novelId
@@ -54,7 +49,7 @@ export async function loadDirectorIssueTaskContext(
     novelId: task.novelId,
     issueGovernanceVersion: DIRECTOR_ISSUE_GOVERNANCE_VERSION,
     policy: fallback.effectivePolicy,
-    runMode: typeof seed.runMode === "string" ? seed.runMode : undefined,
+    runMode: typeof directorTaskData.runMode === "string" ? directorTaskData.runMode : undefined,
     policySource: fallback.source,
   };
 }

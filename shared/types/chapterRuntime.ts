@@ -557,6 +557,8 @@ export const generationContextPackageSchema = z.object({
   openingHint: z.string(),
   continuation: runtimeContinuationSchema,
   styleContext: runtimeStyleContextSchema.nullable().optional(),
+  // Snapshot the book's review choice; older context producers retain the enabled default.
+  postGenerationStyleReviewEnabled: z.boolean().optional(),
   characterDynamics: runtimeDynamicCharacterOverviewSchema.nullable().optional(),
   characterMindStates: z.array(runtimeCharacterMindStateSchema).default([]),
   // Optional for older preview / recovery context producers; runtime consumers default to no guidance.

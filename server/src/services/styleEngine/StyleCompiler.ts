@@ -313,6 +313,9 @@ export class StyleCompiler {
         usesGlobalAntiAiBaseline: input.usesGlobalAntiAiBaseline ?? false,
         globalAntiAiRuleIds: input.globalAntiAiRuleIds ?? [],
         styleAntiAiRuleIds: input.styleAntiAiRuleIds ?? [],
+        antiAiRulePolicies: input.antiAiRules.filter(rule => rule.enabled).map(rule => ({
+          id: rule.id, name: rule.name, type: rule.type, severity: rule.severity, autoRewrite: rule.autoRewrite,
+        })),
       },
     };
 

@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import type {DirectorVersion} from "@ai-novel/shared/types/director/version";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { buildStyleIntentSummary } from "@ai-novel/shared/types/styleEngine";
 import type { UnifiedTaskDetail } from "@ai-novel/shared/types/task";
@@ -24,8 +25,10 @@ import {
   confirmDirectorCandidate,
   generateDirectorIdeaInspirations,
   generateDirectorIdeaConstellationOptions,
+  retryOriginalDirectorOpening,
 } from "@/api/novelDirector";
 import { queryKeys } from "@/api/queryKeys";
+import {getDirectorVersions} from "@/api/novel/directorVersion";
 import { getStyleProfiles } from "@/api/styleEngine";
 import { getAutoDirectorIssuePolicy } from "@/api/settings";
 import { getTaskDetail } from "@/api/tasks";
@@ -60,6 +63,8 @@ import {
 import { useNovelAutoDirectorCandidateMutations } from "../components/useNovelAutoDirectorCandidateMutations";
 import { hasCreationFoundationChanged } from "./creationFoundationPickerState";
 import type { AutoDirectorCreateDraft } from "./draft/autoDirectorCreateDraft";
+import type { CreativeCarryoverContract } from "@ai-novel/shared/types/creativeCarryoverContract";
+import { parseCreativeCarryoverContract } from "@ai-novel/shared/types/creativeCarryoverContract";
 
 interface UseAutoDirectorCreateControllerInput {
   marketBriefId?: string;
@@ -81,6 +86,9 @@ interface UseAutoDirectorCreateControllerInput {
   initialDraft?: AutoDirectorCreateDraft | null;
   workflowTaskId?: string;
   restoredTask?: UnifiedTaskDetail | null;
+  creativeCarryoverContract?: CreativeCarryoverContract | null;
+  requireCreativeCarryoverAdopted?: boolean;
+  onCreativeCarryoverContractChange?: (contract: CreativeCarryoverContract | null) => void;
   onWorkflowTaskChange?: (workflowTaskId: string) => void;
   onBasicFormChange: (patch: Partial<NovelBasicFormState>) => void;
 }
@@ -107,6 +115,9 @@ export function useAutoDirectorCreateController(input: UseAutoDirectorCreateCont
     initialDraft,
     workflowTaskId: workflowTaskIdProp,
     restoredTask,
+    creativeCarryoverContract,
+    requireCreativeCarryoverAdopted = false,
+    onCreativeCarryoverContractChange,
     onWorkflowTaskChange,
     onBasicFormChange,
     marketBriefId,
@@ -125,6 +136,13 @@ export function useAutoDirectorCreateController(input: UseAutoDirectorCreateCont
   const [pendingTitleHint, setPendingTitleHint] = useState("");
   const [executionError, setExecutionError] = useState("");
   const [runMode, setRunMode] = useState<DirectorRunMode>(initialDraft?.runMode ?? DEFAULT_VISIBLE_RUN_MODE);
+  const [directorVersion, setDirectorVersion] = useState<DirectorVersion>(initialDraft?.directorVersion ?? "v2");
+  const versionsQuery = useQuery({queryKey: ["director-versions"], queryFn: getDirectorVersions, retry: false});
+  useEffect(() => {
+    if (!workflowTaskId && versionsQuery.data && !versionsQuery.data.availableVersions.includes(directorVersion)) {
+      setDirectorVersion(versionsQuery.data.defaultVersion);
+    }
+  }, [workflowTaskId, versionsQuery.data, directorVersion]);
   const [worldSetupMode, setWorldSetupMode] = useState<DirectorWorldSetupMode>("auto_generate");
   const [autoExecutionDraft, setAutoExecutionDraft] = useState(() => createDefaultDirectorAutoExecutionDraftState());
   const [selectedStyleProfileId, setSelectedStyleProfileId] = useState(
@@ -174,6 +192,8 @@ export function useAutoDirectorCreateController(input: UseAutoDirectorCreateCont
     if (restoredIdea) {
       setIdea(restoredIdea);
     }
+    const restoredVersion = restoredTask.meta?.directorVersion;
+    if (restoredVersion === "v1" || restoredVersion === "v2") setDirectorVersion(restoredVersion);
     if (Array.isArray(seedPayload?.batches) && seedPayload.batches.length > 0) {
       setBatches(seedPayload.batches);
     }
@@ -189,8 +209,12 @@ export function useAutoDirectorCreateController(input: UseAutoDirectorCreateCont
     if (typeof seedPayload?.styleProfileId === "string") {
       setSelectedStyleProfileId(seedPayload.styleProfileId);
     }
+    const restoredContract = parseCreativeCarryoverContract(seedPayload?.creativeCarryoverContract);
+    if (restoredContract) {
+      onCreativeCarryoverContractChange?.(restoredContract);
+    }
     setWorldSetupMode("auto_generate");
-  }, [applyAutoApprovalSnapshot, restoredTask, workflowTaskId]);
+  }, [applyAutoApprovalSnapshot, onCreativeCarryoverContractChange, restoredTask, workflowTaskId]);
 
   const directorBasicForm = useMemo(
     () => patchNovelBasicForm(basicForm, {
@@ -377,6 +401,7 @@ export function useAutoDirectorCreateController(input: UseAutoDirectorCreateCont
       lane: "auto_director",
       title: directorBasicForm.title.trim() || undefined,
       seedPayload: {
+        directorVersion,
         basicForm: directorBasicForm,
         idea: nextIdea,
         batches,
@@ -392,6 +417,7 @@ export function useAutoDirectorCreateController(input: UseAutoDirectorCreateCont
         issueGovernanceVersion: issuePolicy ? 1 : undefined,
         issuePolicy: issuePolicy ?? undefined,
         issuePolicySource: "global",
+        creativeCarryoverContract: creativeCarryoverContract ?? null,
       },
     });
     const taskId = response.data?.id ?? "";
@@ -418,14 +444,14 @@ export function useAutoDirectorCreateController(input: UseAutoDirectorCreateCont
     if (!requestIdea) {
       throw new Error("请先补充起始想法，再继续生成或确认书级方向。");
     }
-    return buildAutoDirectorRequestPayload(
+    return {...buildAutoDirectorRequestPayload(
       directorBasicForm,
       requestIdea,
       llm,
       runMode,
       currentWorkflowTaskId,
       { styleProfileId: selectedStyleProfileId, worldSetupMode, marketBriefId },
-    );
+    ), directorVersion};
   };
 
   const {
@@ -461,6 +487,7 @@ export function useAutoDirectorCreateController(input: UseAutoDirectorCreateCont
       }
       const autoExecutionPlan = buildAutoExecutionPlanForRunMode();
       const response = await confirmDirectorCandidate({
+        directorVersion,
         ...buildAutoDirectorRequestPayload(directorBasicForm, requestIdea, llm, runMode, currentWorkflowTaskId, {
           styleProfileId: selectedStyleProfileId,
           worldSetupMode,
@@ -525,6 +552,10 @@ export function useAutoDirectorCreateController(input: UseAutoDirectorCreateCont
       if (!taskId) {
         throw new Error("当前没有可继续的自动导演任务。");
       }
+      if (!directorTask?.resumeTarget?.novelId) {
+        try { return await retryOriginalDirectorOpening(taskId); }
+        catch(error) { if ((error as {status?:number}).status !== 404) throw error; }
+      }
       return continueNovelWorkflow(taskId, { continuationMode: "resume" });
     },
     onSuccess: async (response) => {
@@ -567,7 +598,10 @@ export function useAutoDirectorCreateController(input: UseAutoDirectorCreateCont
     setBatches((prev) => applyDirectorCandidateTitleOption(prev, batchId, candidateId, option));
   };
 
-  const canGenerate = idea.trim().length > 0 && !generateMutation.isPending;
+  const canGenerate = idea.trim().length > 0
+    && Boolean(versionsQuery.data?.availableVersions.includes(directorVersion))
+    && !generateMutation.isPending
+    && (!requireCreativeCarryoverAdopted || Boolean(creativeCarryoverContract?.adopted));
 
   const updateProductionFoundation = async (patch: Partial<{
     genreId: string;
@@ -686,6 +720,9 @@ export function useAutoDirectorCreateController(input: UseAutoDirectorCreateCont
       return response.data?.idea ?? "";
     },
     runMode,
+    directorVersion,
+    setDirectorVersion,
+    availableDirectorVersions: versionsQuery.data?.availableVersions ?? [],
     runModeOptions: RUN_MODE_OPTIONS,
     setRunMode,
     worldSetupMode,

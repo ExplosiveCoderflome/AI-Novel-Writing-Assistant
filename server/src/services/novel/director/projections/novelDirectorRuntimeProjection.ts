@@ -12,6 +12,7 @@ import { DirectorEventProjectionService, parseDirectorIssueEventMetadata } from 
 import { directorUsageTelemetryQueryService } from "../runtime/DirectorUsageTelemetryQueryService";
 import { ChapterExecutionProgressInspector } from "../runtime/ChapterExecutionProgressInspector";
 import type { DirectorWorkflowSeedPayload } from "../runtime/novelDirectorHelpers";
+import { DirectorStateReader } from "../state/DirectorStateReader";
 import {
   parsePersistedDirectorRiskAssessment,
   type DirectorRiskHistoryItem,
@@ -559,7 +560,7 @@ export async function loadPersistentDirectorRuntimeProjection(
     }) as Promise<RuntimeInstanceProjectionRow | null>,
     prisma.novelWorkflowTask.findUnique({
       where: { id: taskId },
-      select: { status: true, seedPayloadJson: true },
+      select: { status: true },
     }).catch(() => null),
     prisma.directorEvent.findMany({
       where: { taskId },
@@ -569,9 +570,11 @@ export async function loadPersistentDirectorRuntimeProjection(
     }).catch(() => [] as Array<{ id: string; metadataJson: string | null }>),
   ]);
   const riskHistory = parseRiskHistory(riskEventRows);
-  const taskSeedPayload = parseJsonOrNull<DirectorWorkflowSeedPayload>(taskRow?.seedPayloadJson);
-  const startupPreparation = taskSeedPayload?.startupPreparation ?? null;
-  const latestRiskAssessment = parsePersistedDirectorRiskAssessment(taskSeedPayload?.autoExecution?.latestRiskAssessment)
+  const taskData = taskRow
+    ? await new DirectorStateReader().readTaskDataById(taskId) as DirectorWorkflowSeedPayload | null
+    : null;
+  const startupPreparation = taskData?.startupPreparation ?? null;
+  const latestRiskAssessment = parsePersistedDirectorRiskAssessment(taskData?.autoExecution?.latestRiskAssessment)
     ?? riskHistory[0]
     ?? null;
 

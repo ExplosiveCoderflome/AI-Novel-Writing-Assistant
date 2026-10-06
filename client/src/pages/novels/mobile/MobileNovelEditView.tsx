@@ -1,4 +1,5 @@
 import { useState } from "react";
+import DirectorVersionControl from "@/components/directorVersion/DirectorVersionControl";
 import { Loader2, MoreHorizontal } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -123,6 +124,7 @@ export default function MobileNovelEditView(props: NovelEditViewProps) {
         <div className="flex min-w-0 items-start justify-between gap-3">
           <div className="min-w-0">
             <h1 className="truncate text-lg font-semibold text-foreground">{novelTitle}</h1>
+            <DirectorVersionControl novelId={id} version="v1" />
             <p className="mt-0.5 text-xs text-muted-foreground">{statusText}</p>
           </div>
           <Dialog open={isToolsOpen} onOpenChange={setIsToolsOpen}>

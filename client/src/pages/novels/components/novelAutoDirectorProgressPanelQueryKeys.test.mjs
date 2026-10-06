@@ -15,8 +15,8 @@ test("auto director progress panel keeps previous snapshot data during polling",
 
 test("auto director progress panel uses dashboard view for main container state", () => {
   assert.match(source, /const dashboardView = snapshot\?\.dashboardView \?\? null/);
-  assert.match(source, /mapDashboardModeToContainerMode\(dashboardView\?\.mode \?\? null\)/);
-  assert.match(source, /dashboardView\?\.mode === "running" \|\| dashboardView\?\.mode === "queued"[\s\S]*\? null[\s\S]*: rawChapterTitleWarning/);
+  assert.match(source, /mapDashboardModeToContainerMode\(dashboardViewForDisplay\?\.mode \?\? null\)/);
+  assert.match(source, /dashboardViewForDisplay\?\.mode === "running" \|\| dashboardViewForDisplay\?\.mode === "queued"[\s\S]*\? null[\s\S]*: rawChapterTitleWarning/);
   assert.doesNotMatch(source, /runtimeProjectionForDisplay\?\.status === "waiting_approval"/);
   assert.doesNotMatch(source, /runtimeProjectionForDisplay\?\.requiresUserAction/);
   assert.doesNotMatch(source, /const runtimeRequiresUserAction/);

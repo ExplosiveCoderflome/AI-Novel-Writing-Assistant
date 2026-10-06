@@ -3,6 +3,7 @@ const assert = require("node:assert/strict");
 
 const { prisma } = require("../dist/db/prisma.js");
 const { novelEventBus } = require("../dist/events/index.js");
+const { stubDatabaseMethod } = require("./legacyDirector/databasePorts.js");
 const {
   ChapterContentPersistenceError,
   ChapterLifecycleService,
@@ -38,7 +39,14 @@ test("saveWorkingContent exposes uncertain正文 persistence as a safety error",
   }
 });
 
-test("pipeline does not regenerate a chapter when正文 persistence is uncertain", async () => {
+test("pipeline does not regenerate a chapter when正文 persistence is uncertain", async (t) => {
+  stubDatabaseMethod(t, prisma.chapterAutomaticAttempt, "findUnique", async ({ where }) => {
+    assert.deepEqual(where, { jobId_chapterId: { jobId: "job-1", chapterId: "chapter-1" } });
+    return null;
+  });
+  stubDatabaseMethod(t, prisma.chapterAutomaticAttempt, "create", async () => {
+    assert.fail("uncertain content persistence must not claim an automatic retry");
+  });
   const originals = {
     generationFindUnique: prisma.generationJob.findUnique,
     generationUpdate: prisma.generationJob.update,

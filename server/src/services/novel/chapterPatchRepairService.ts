@@ -7,7 +7,7 @@ import {
   type ChapterPatchRepairPlan,
 } from "@ai-novel/shared/types/chapterPatchRepair";
 import { runStructuredPrompt } from "../../prompting/core/promptRunner";
-import { buildChapterRepairContextBlocks } from "../../prompting/prompts/novel/chapterLayeredContext";
+import { buildChapterPatchRepairContextBlocks } from "../../prompting/prompts/novel/chapterLayeredContext";
 import { chapterPatchRepairPrompt } from "../../prompting/prompts/novel/chapterPatchRepair.prompts";
 
 export type PatchRepairMode =
@@ -65,8 +65,9 @@ export class ChapterPatchRepairService {
     }
 
     const repairContext = input.repairContext ?? input.runtimePackage?.context.chapterRepairContext;
+    const issuesJson = input.issuesJson ?? JSON.stringify(input.issues);
     const contextBlocks = repairContext
-      ? buildChapterRepairContextBlocks(repairContext)
+      ? buildChapterPatchRepairContextBlocks(repairContext, issuesJson)
       : undefined;
     let generated: { output: ChapterPatchRepairPlan };
     try {
@@ -76,7 +77,7 @@ export class ChapterPatchRepairService {
           novelTitle: input.novelTitle,
           chapterTitle: input.chapterTitle,
           chapterContent: input.content,
-          issuesJson: input.issuesJson ?? JSON.stringify(input.issues, null, 2),
+          issuesJson,
           modeHint: input.modeHint,
         },
         contextBlocks,

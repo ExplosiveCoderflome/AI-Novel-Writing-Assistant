@@ -6,10 +6,12 @@ import NovelCreateTitleQuickFill from "./titleWorkshop/NovelCreateTitleQuickFill
 import DirectorTakeoverEntryPanel from "./DirectorTakeoverEntryPanel";
 import { NovelCoverCard } from "./cover/NovelCoverCard";
 import { DetailDisclosure, SectionBlock } from "./workspaceShell";
+import DirectorVersionControl from "@/components/directorVersion/DirectorVersionControl";
 
 export default function BasicInfoTab(props: BasicTabProps) {
   return (
     <div className="space-y-5">
+      <SectionBlock title="导演版本" description="选择负责本书创作的流程；各版本独立运行和恢复。"><DirectorVersionControl novelId={props.novelId}/></SectionBlock>
       <DirectorTakeoverEntryPanel
         title="让 AI 从当前项目继续接管"
         description="如果基础信息较完整，可以直接从选定步骤开始自动接管，并选择继续已有进度或重跑当前步。"

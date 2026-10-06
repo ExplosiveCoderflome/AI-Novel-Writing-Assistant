@@ -7,6 +7,7 @@ import { chapterAcceptanceAssessmentPrompt } from "../../../../prompting/prompts
 import { promptSlotOverrideService } from "../../../../prompting/slots/PromptSlotOverrideService";
 import { resolveAdvancedPromptMessages } from "../../../../prompting/templates/templateRuntime";
 import type { ChapterAcceptanceAssessmentInput } from "../ChapterAcceptanceAssessmentService";
+import { applyAcceptanceStyleContext, isAcceptanceStyleReviewEnabled, getAcceptanceStyleRuleIds } from "./styleReview";
 
 function canonicalize(value: unknown): unknown {
   if (Array.isArray(value)) return value.map(canonicalize);
@@ -26,8 +27,8 @@ export async function buildAcceptanceCacheIdentity(input: ChapterAcceptanceAsses
       entrypoint: "chapter_pipeline", novelId: input.novelId, chapterId: input.chapterId,
       metadata: { chapterReviewContext: input.contextPackage.chapterReviewContext },
     },
-    fallbackBlocks: input.contextPackage.chapterReviewContext
-      ? buildChapterReviewContextBlocks(input.contextPackage.chapterReviewContext) : [],
+    fallbackBlocks: applyAcceptanceStyleContext(input.contextPackage, input.contextPackage.chapterReviewContext
+      ? buildChapterReviewContextBlocks(input.contextPackage.chapterReviewContext) : []),
   });
   const overlays = asset.slots?.length
     ? await promptSlotOverrideService.resolveForRuntime({ promptId: asset.id, novelId: input.novelId })
@@ -35,9 +36,12 @@ export async function buildAcceptanceCacheIdentity(input: ChapterAcceptanceAsses
   const promptInput = {
     novelTitle: input.novelTitle, chapterTitle: input.chapterTitle, chapterOrder: input.chapterOrder,
     targetWordCount: input.targetWordCount ?? null, content: input.content,
+    repairReviewBaseline: input.repairReviewBaseline,
+    styleReviewEnabled: isAcceptanceStyleReviewEnabled(input.contextPackage),
+    styleRuleIds: getAcceptanceStyleRuleIds(input.contextPackage),
   };
   const prepared = preparePromptExecution({
-    asset, promptInput, contextBlocks: [...context.blocks, ...(overlays?.appendBlocks ?? [])],
+    asset, promptInput, contextBlocks: [...applyAcceptanceStyleContext(input.contextPackage, context.blocks), ...(overlays?.appendBlocks ?? [])],
     resolvedSlots: overlays?.inlineSlots,
   });
   const messages = await resolveAdvancedPromptMessages({

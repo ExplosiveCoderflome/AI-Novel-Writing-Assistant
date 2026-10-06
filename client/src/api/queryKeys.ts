@@ -122,6 +122,11 @@ export const queryKeys = {
     directorRuntime: (directorTaskId: string) => ["tasks", "director-runtime", directorTaskId] as const,
     directorIssuePolicy: (novelId: string) => ["novels", "director-issue-policy", novelId] as const,
   },
+  directorNext: {
+    summary: (novelId: string) => ["director-next", "summary", novelId] as const,
+    detail: (novelId: string) => ["director-next", "detail", novelId] as const,
+    runs: (needsAttention: boolean) => ["director-next", "runs", needsAttention] as const,
+  },
   autoDirectorFollowUps: {
     overview: ["auto-director-follow-ups", "overview"] as const,
     list: (params: string) => ["auto-director-follow-ups", "list", params] as const,

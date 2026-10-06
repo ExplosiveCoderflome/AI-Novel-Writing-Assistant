@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { buildStyleIntentSummary } from "@ai-novel/shared/types/styleEngine";
 import type {
   DirectorAutoExecutionPlan,
@@ -10,6 +10,8 @@ import type {
 } from "@ai-novel/shared/types/novelDirector";
 import { buildFullBookAutopilotExecutionPlan } from "@ai-novel/shared/types/novelDirector";
 import { getDirectorTaskSnapshot, getDirectorTakeoverReadiness, startDirectorTakeover } from "@/api/novelDirector";
+import {getNovelDetail} from "@/api/novel";
+import {getDirectorWorkspaceHref} from "@/lib/novelRoutes";
 import { queryKeys } from "@/api/queryKeys";
 import { getStyleBindings, getStyleProfiles } from "@/api/styleEngine";
 import LLMSelector from "@/components/common/LLMSelector";
@@ -80,20 +82,27 @@ const STRATEGY_OPTIONS: Array<{ value: DirectorTakeoverStrategy; label: string; 
 
 function buildEditRoute(input: {
   novelId: string;
-  workflowTaskId: string;
   stage?: string | null;
   chapterId?: string | null;
   volumeId?: string | null;
 }): string {
   const search = new URLSearchParams();
-  search.set("directorTaskId", input.workflowTaskId);
   if (input.stage) search.set("stage", input.stage);
   if (input.chapterId) search.set("chapterId", input.chapterId);
   if (input.volumeId) search.set("volumeId", input.volumeId);
   return `/novels/${input.novelId}/edit?${search.toString()}`;
 }
 
-export default function NovelExistingProjectTakeoverDialog({
+export default function NovelExistingProjectTakeoverDialog(props: NovelExistingProjectTakeoverDialogProps) {
+  const entry = useQuery({queryKey: queryKeys.novels.detail(props.novelId), queryFn: () => getNovelDetail(props.novelId), enabled: !!props.novelId, retry: false});
+  const book = entry.data?.data;
+  const directorHref = book?.id === props.novelId ? getDirectorWorkspaceHref(book) : null;
+  if (directorHref) return <Button asChild variant={props.triggerVariant ?? "outline"}><Link to={directorHref}>打开导演台</Link></Button>;
+  if (book?.id === props.novelId && book.workspaceSourceRoute === null) return <LegacyProjectTakeoverDialog {...props}/>;
+  return <Button variant={props.triggerVariant ?? "outline"} disabled={entry.isPending || entry.isFetching} onClick={() => void entry.refetch()}>{entry.isPending || entry.isFetching ? "正在读取创作入口…" : "重新读取创作入口"}</Button>;
+}
+
+function LegacyProjectTakeoverDialog({
   novelId,
   basicForm,
   triggerVariant = "outline",
@@ -211,18 +220,10 @@ export default function NovelExistingProjectTakeoverDialog({
 
   const enterCurrentTask = () => {
     setOpen(false);
-    const targetTaskId = (contextTaskIsContinuable ? contextTaskSnapshot?.task.id : null) ?? readiness?.activeTaskId ?? "";
-    if (targetTaskId) {
-      navigate(buildEditRoute({
-        novelId,
-        workflowTaskId: targetTaskId,
-        stage: effectiveEntryStep === "basic" ? "basic" : effectiveEntryStep,
-      }));
-      return;
-    }
-    const search = new URLSearchParams();
-    search.set("stage", effectiveEntryStep === "basic" ? "basic" : effectiveEntryStep);
-    navigate(`/novels/${novelId}/edit?${search.toString()}`);
+    navigate(buildEditRoute({
+      novelId,
+      stage: effectiveEntryStep === "basic" ? "basic" : effectiveEntryStep,
+    }));
   };
 
   useEffect(() => {
@@ -338,7 +339,6 @@ export default function NovelExistingProjectTakeoverDialog({
       );
       navigate(buildEditRoute({
         novelId,
-        workflowTaskId: data.taskId,
         stage: effectiveEntryStep === "basic" ? "basic" : effectiveEntryStep,
       }));
     },
@@ -405,7 +405,7 @@ export default function NovelExistingProjectTakeoverDialog({
                     <div className="space-y-1">
                       <div className="text-sm font-medium text-foreground">正文后去 AI 检测与修正</div>
                       <div className={`text-xs leading-5 text-muted-foreground ${AUTO_DIRECTOR_MOBILE_CLASSES.wrapText}`}>
-                        开启后，章节正文生成完成时会检测 AI 味风险，并在命中可修正问题时生成修订稿。
+                        开启后，章节检查会核对写法与 AI 味风险；需要修正的问题按本次创作策略局部修文，普通建议保留为质量提醒。
                       </div>
                     </div>
                     <Switch
@@ -537,17 +537,10 @@ export default function NovelExistingProjectTakeoverDialog({
                             className="w-full sm:w-auto"
                             onClick={() => {
                               setOpen(false);
-                              if (readiness.activeTaskId) {
-                                navigate(buildEditRoute({
-                                  novelId,
-                                  workflowTaskId: readiness.activeTaskId,
-                                  stage: effectiveEntryStep === "basic" ? "basic" : effectiveEntryStep,
-                                }));
-                                return;
-                              }
-                              const search = new URLSearchParams();
-                              search.set("stage", effectiveEntryStep === "basic" ? "basic" : effectiveEntryStep);
-                              navigate(`/novels/${novelId}/edit?${search.toString()}`);
+                              navigate(buildEditRoute({
+                                novelId,
+                                stage: effectiveEntryStep === "basic" ? "basic" : effectiveEntryStep,
+                              }));
                             }}
                           >
                             处理当前任务

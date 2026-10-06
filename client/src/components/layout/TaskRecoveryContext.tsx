@@ -1,168 +1,56 @@
-import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from "react";
+import { useQuery } from "@tanstack/react-query";
 import type { RecoverableTaskSummary } from "@ai-novel/shared/types/task";
-import {
-  listRecoveryCandidates,
-  resumeAllRecoveryCandidates,
-  resumeRecoveryCandidate,
-} from "@/api/tasks";
+import { listRecoveryCandidates } from "@/api/tasks";
 import { queryKeys } from "@/api/queryKeys";
-import { toast } from "@/components/ui/toast";
-
-type RecoveryTaskInput = {
-  kind: RecoverableTaskSummary["kind"];
-  id: string;
-};
 
 type TaskRecoveryContextValue = {
   items: RecoverableTaskSummary[];
   candidateCount: number;
   isOpen: boolean;
   isLoading: boolean;
-  isResumeSinglePending: boolean;
-  isResumeAllPending: boolean;
-  busyTaskId: string;
   openDialog: () => void;
   closeDialog: () => void;
-  resumeSingle: (input: RecoveryTaskInput) => void;
-  resumeAll: () => void;
 };
-
 const TaskRecoveryContext = createContext<TaskRecoveryContextValue | null>(null);
-
-function recoveryItemKey(item: { kind: string; id: string }): string {
-  return `${item.kind}:${item.id}`;
-}
+const emptyItems: RecoverableTaskSummary[] = [];
 
 export function TaskRecoveryProvider({ children }: { children: ReactNode }) {
-  const queryClient = useQueryClient();
   const [manualOpen, setManualOpen] = useState(false);
   const [recoveryQueryEnabled, setRecoveryQueryEnabled] = useState(false);
-  const [acceptedRecoveryKeys, setAcceptedRecoveryKeys] = useState<Set<string>>(() => new Set());
-
   useEffect(() => {
     const timer = window.setTimeout(() => setRecoveryQueryEnabled(true), 900);
     return () => window.clearTimeout(timer);
   }, []);
-
   const recoveryQuery = useQuery({
     queryKey: queryKeys.tasks.recoveryCandidates,
     queryFn: listRecoveryCandidates,
     enabled: recoveryQueryEnabled,
     staleTime: 10_000,
   });
-
-  const rawItems = recoveryQuery.data?.data?.items ?? [];
-  const items = useMemo(
-    () => rawItems.filter((item) => !acceptedRecoveryKeys.has(recoveryItemKey(item))),
-    [acceptedRecoveryKeys, rawItems],
-  );
-
+  const items = recoveryQuery.data?.data?.items ?? emptyItems;
   useEffect(() => {
-    if (recoveryQuery.isSuccess && rawItems.length === 0) {
-      setManualOpen(false);
-      setAcceptedRecoveryKeys(new Set());
-    }
-  }, [rawItems.length, recoveryQuery.isSuccess]);
-
-  const refreshTaskState = useCallback(() => {
-    void Promise.all([
-      queryClient.invalidateQueries({ queryKey: ["tasks"] }),
-      queryClient.invalidateQueries({ queryKey: queryKeys.novels.all }),
-    ]);
-  }, [queryClient]);
-
-  const resumeSingleMutation = useMutation({
-    mutationFn: (input: RecoveryTaskInput) => resumeRecoveryCandidate(input.kind, input.id),
-    onSuccess: (_response, variables) => {
-      setAcceptedRecoveryKeys((previous) => {
-        const next = new Set(previous);
-        next.add(recoveryItemKey(variables));
-        return next;
-      });
-      toast.success("已开始恢复任务。");
-      refreshTaskState();
-      void recoveryQuery.refetch();
-    },
-    onError: (error) => {
-      toast.error(error instanceof Error ? error.message : "恢复任务失败。");
-    },
-  });
-
-  const resumeAllMutation = useMutation({
-    mutationFn: resumeAllRecoveryCandidates,
-    onSuccess: (response) => {
-      const resumedCount = response.data?.resumed.length ?? 0;
-      setAcceptedRecoveryKeys((previous) => {
-        const next = new Set(previous);
-        for (const item of response.data?.resumed ?? []) {
-          next.add(recoveryItemKey(item));
-        }
-        return next;
-      });
-      toast.success(resumedCount > 0 ? `已开始恢复 ${resumedCount} 个任务。` : "当前没有可恢复任务。");
-      refreshTaskState();
-      void recoveryQuery.refetch();
-    },
-    onError: (error) => {
-      toast.error(error instanceof Error ? error.message : "批量恢复任务失败。");
-    },
-  });
-
-  const busyTaskId = useMemo(() => {
-    if (!resumeSingleMutation.isPending) {
-      return "";
-    }
-    return resumeSingleMutation.variables?.id ?? "";
-  }, [resumeSingleMutation.isPending, resumeSingleMutation.variables]);
-
-  const isOpen = items.length > 0 && manualOpen;
-
-  const closeDialog = useCallback(() => {
-    setManualOpen(false);
-  }, []);
-
+    if (recoveryQuery.isSuccess && items.length === 0) setManualOpen(false);
+  }, [items.length, recoveryQuery.isSuccess]);
+  const closeDialog = useCallback(() => setManualOpen(false), []);
   const openDialog = useCallback(() => {
-    if (items.length === 0) {
-      return;
-    }
-    setManualOpen(true);
+    if (items.length > 0) setManualOpen(true);
   }, [items.length]);
-
-  const value = useMemo<TaskRecoveryContextValue>(() => ({
-    items,
-    candidateCount: items.length,
-    isOpen,
-    isLoading: recoveryQuery.isLoading,
-    isResumeSinglePending: resumeSingleMutation.isPending,
-    isResumeAllPending: resumeAllMutation.isPending,
-    busyTaskId,
-    openDialog,
-    closeDialog,
-    resumeSingle: (input) => resumeSingleMutation.mutate(input),
-    resumeAll: () => resumeAllMutation.mutate(),
-  }), [
-    busyTaskId,
-    closeDialog,
-    isOpen,
-    items,
-    openDialog,
-    recoveryQuery.isLoading,
-    resumeAllMutation,
-    resumeSingleMutation,
-  ]);
-
   return (
-    <TaskRecoveryContext.Provider value={value}>
+    <TaskRecoveryContext.Provider value={{
+      items,
+      candidateCount: items.length,
+      isOpen: items.length > 0 && manualOpen,
+      isLoading: recoveryQuery.isLoading,
+      openDialog,
+      closeDialog,
+    }}>
       {children}
     </TaskRecoveryContext.Provider>
   );
 }
-
 export function useTaskRecovery() {
   const context = useContext(TaskRecoveryContext);
-  if (!context) {
-    throw new Error("useTaskRecovery must be used within TaskRecoveryProvider.");
-  }
+  if (!context) throw new Error("useTaskRecovery must be used within TaskRecoveryProvider.");
   return context;
 }

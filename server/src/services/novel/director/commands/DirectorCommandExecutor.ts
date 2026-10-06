@@ -1,15 +1,16 @@
 import { AppError } from "../../../../middleware/errorHandler";
+import {assertLegacyTaskExecution} from "../../../../modules/novel/director-routing";
 import { prisma } from "../../../../db/prisma";
 import { NovelWorkflowService } from "../../workflow/NovelWorkflowService";
-import { mergeSeedPayload, parseSeedPayload } from "../../workflow/novelWorkflow.shared";
 import { DirectorCommandInterpreter } from "./DirectorCommandInterpreter";
 import { DirectorCommandService } from "./DirectorCommandService";
 import type { DirectorCommandPayload } from "./DirectorCommandServiceHelpers";
 import { DirectorStateStore } from "../DirectorStateStore";
+import { DirectorTaskStateWriter } from "../state";
+import { DirectorStateReader, type DirectorTaskRunState } from "../state/DirectorStateReader";
 import { NovelDirectorService } from "../NovelDirectorService";
 import {
   getDirectorInputFromSeedPayload,
-  type DirectorWorkflowSeedPayload,
 } from "../runtime/novelDirectorHelpers";
 import type { DirectorTakeoverRequest } from "@ai-novel/shared/types/novelDirector";
 
@@ -36,19 +37,22 @@ export class DirectorCommandExecutor {
     this.stateStore = deps.stateStore ?? new DirectorStateStore();
   }
 
-  async execute(commandId: string): Promise<DirectorCommandExecutionOutcome> {
+  async execute(commandId: string, options: {openingOnly?: boolean} = {}): Promise<DirectorCommandExecutionOutcome> {
     const command = await this.commandService.getCommandById(commandId);
     if (!command) {
       throw new AppError("Director command not found.", 404);
     }
+    await assertLegacyTaskExecution(command.taskId, command.commandType, options.openingOnly === true);
     const payload = this.commandService.parseCommandPayload(command);
-    return this.dispatch(command, payload);
+    return this.dispatch(command, payload, options);
   }
 
   async dispatch(
     command: NonNullable<Awaited<ReturnType<DirectorCommandService["getCommandById"]>>>,
     payload: DirectorCommandPayload,
+    options: {openingOnly?: boolean} = {},
   ): Promise<DirectorCommandExecutionOutcome> {
+    await assertLegacyTaskExecution(command.taskId, command.commandType, options.openingOnly === true);
     const pipelineCommand = this.interpreter.interpret(command, payload);
     const state = await this.stateStore.readTaskState(pipelineCommand.taskId);
     if (!state) {
@@ -64,7 +68,7 @@ export class DirectorCommandExecutor {
 
     switch (pipelineCommand.intent) {
       case "cancel":
-        await this.workflowService.cancelTask(pipelineCommand.taskId);
+        await new DirectorTaskStateWriter(this.workflowService).markCancelled(pipelineCommand.taskId);
         return "cancelled";
       case "generate_candidates": {
         const request = pipelineCommand.payload.candidatesRequest;
@@ -236,9 +240,8 @@ export class DirectorCommandExecutor {
   }
 
   private async resolveContextlessTakeoverRecovery(taskId: string): Promise<DirectorTakeoverRequest | null> {
-    const row = await this.workflowService.getTaskByIdWithoutHealing(taskId);
-    const seedPayload = parseSeedPayload<DirectorWorkflowSeedPayload>(row?.seedPayloadJson) ?? {};
-    if (getDirectorInputFromSeedPayload(seedPayload)) {
+    const directorTaskData = await new DirectorStateReader().readTaskDataById(taskId) ?? {};
+    if (getDirectorInputFromSeedPayload(directorTaskData)) {
       return null;
     }
     return this.commandService.getLatestTakeoverRequestForTask(taskId);
@@ -248,27 +251,25 @@ export class DirectorCommandExecutor {
     taskId: string,
     commandId: string,
     result: unknown,
-    seedPatch: Record<string, unknown> = {},
+    statePatch: Partial<DirectorTaskRunState> = {},
     candidateSelectionReady = false,
   ): Promise<void> {
-    const row = await prisma.novelWorkflowTask.findUnique({
-      where: { id: taskId },
-      select: { seedPayloadJson: true },
-    }).catch(() => null);
-    if (!row) {
+    const currentState = await new DirectorStateReader().readTaskStateById(taskId).catch(() => null);
+    if (!currentState) {
       return;
     }
-    const current = parseSeedPayload<{ directorCommandResults?: Record<string, unknown> }>(row.seedPayloadJson) ?? {};
+    const current = currentState.run.directorCommandResults ?? {};
     const directorCommandResults = {
-      ...(current.directorCommandResults ?? {}),
+      ...current,
       [commandId]: {
         result,
         completedAt: new Date().toISOString(),
       },
     };
-    await prisma.novelWorkflowTask.update({
-      where: { id: taskId },
-      data: {
+    await new DirectorTaskStateWriter(this.workflowService).updateDirectorRunState(taskId, {
+      ...statePatch,
+      directorCommandResults,
+    }, {
         ...(candidateSelectionReady
           ? {
             status: "waiting_approval",
@@ -280,12 +281,7 @@ export class DirectorCommandExecutor {
             checkpointSummary: "AI 已生成可选的书级方向。",
           }
           : {}),
-        seedPayloadJson: mergeSeedPayload(row.seedPayloadJson, {
-          ...seedPatch,
-          directorCommandResults,
-        }),
         heartbeatAt: new Date(),
-      },
     }).catch(() => null);
   }
 }

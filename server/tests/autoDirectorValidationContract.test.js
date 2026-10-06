@@ -468,7 +468,7 @@ test("validateAutoDirectorAction blocks channel callbacks for high-risk rewrite 
       checkpointType: "chapter_batch_ready",
       pendingManualRecovery: false,
       novelId: "novel-1",
-      seedPayload: {
+      directorTaskData: {
         autoExecution: {
           enabled: true,
           scopeLabel: "第 11-20 章",
@@ -495,7 +495,7 @@ test("validateAutoDirectorAction marks safe follow-up continue with required che
       checkpointType: "chapter_batch_ready",
       pendingManualRecovery: false,
       novelId: "novel-1",
-      seedPayload: {
+      directorTaskData: {
         autoExecution: {
           enabled: true,
           scopeLabel: "前 10 章",

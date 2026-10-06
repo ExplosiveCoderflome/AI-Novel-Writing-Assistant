@@ -1,4 +1,4 @@
-import type { AgentToolName } from "./types";
+import type { AgentToolName, ToolExecutionContext } from "./types";
 import { bookAnalysisToolDefinitions } from "./tools/bookAnalysisTools";
 import { characterToolDefinitions } from "./tools/characterTools";
 import { directorRuntimeToolDefinitions } from "./tools/directorRuntimeTools";
@@ -22,6 +22,31 @@ const definitions = {
   ...taskToolDefinitions,
   ...writeToolDefinitions,
 } as Record<AgentToolName, AgentToolDefinition<Record<string, unknown>, Record<string, unknown>>>;
+
+interface AgentToolEntryBoundary {
+  unavailableTools: readonly AgentToolName[];
+  assertExecutionAllowed: (name: AgentToolName, context: ToolExecutionContext, input: Record<string, unknown>) => Promise<void>;
+}
+
+let entryBoundary: AgentToolEntryBoundary | undefined;
+
+/** Configured by application composition, never by the planner or individual tools. */
+export function configureAgentToolEntryBoundary(boundary?: AgentToolEntryBoundary) {
+  entryBoundary = boundary;
+}
+
+// Stable wrappers also protect definitions obtained before the application switch.
+const guardedDefinitions = Object.fromEntries(Object.entries(definitions).map(([name, definition]) => [name, {
+  ...definition,
+  execute: async (context: ToolExecutionContext, input: Record<string, unknown>) => {
+    await entryBoundary?.assertExecutionAllowed(definition.name, context, input);
+    return definition.execute(context, input);
+  },
+}])) as typeof definitions;
+
+function availableDefinitions() {
+  return Object.values(guardedDefinitions).filter(item => !entryBoundary?.unavailableTools.includes(item.name));
+}
 
 export type { AgentToolDefinition, ToolRiskLevel } from "./tools/toolTypes";
 
@@ -67,7 +92,7 @@ function summarizeSchemaKeys(schema: unknown): string[] {
 }
 
 export function getAgentToolDefinition(toolName: AgentToolName) {
-  return definitions[toolName];
+  return guardedDefinitions[toolName];
 }
 
 export function listAgentToolDefinitions(): Array<{
@@ -81,7 +106,7 @@ export function listAgentToolDefinitions(): Array<{
   approvalRequired: boolean;
   inputSchemaSummary: string[];
 }> {
-  return Object.values(definitions).map((item) => ({
+  return availableDefinitions().map((item) => ({
     name: item.name,
     title: item.title,
     description: item.description,
@@ -95,7 +120,7 @@ export function listAgentToolDefinitions(): Array<{
 }
 
 export function listPlannerSemanticDefinitions(): PlannerSemanticDefinition[] {
-  return Object.values(definitions)
+  return availableDefinitions()
     .filter((item): item is typeof item & { parserHints: NonNullable<typeof item.parserHints> } => Boolean(item.parserHints?.intent))
     .map((item) => ({
       toolName: item.name,

@@ -111,7 +111,7 @@ function countSyncedExecutionChapters(
 }
 
 function buildEmptySummary(state: DirectorCanonicalState): DirectorFactBaseSummary {
-  const batches = Array.isArray(state.seedPayload.batches) ? state.seedPayload.batches : [];
+  const batches = Array.isArray(state.run.batches) ? state.run.batches : [];
   const candidateCount = batches.reduce((sum, batch) => (
     sum + (Array.isArray(batch?.candidates) ? batch.candidates.length : 0)
   ), 0);
@@ -120,8 +120,8 @@ function buildEmptySummary(state: DirectorCanonicalState): DirectorFactBaseSumma
     candidate: {
       batchCount: batches.length,
       candidateCount,
-      mode: typeof state.seedPayload.candidateStage?.mode === "string"
-        ? state.seedPayload.candidateStage.mode
+      mode: typeof state.run.candidateStage?.mode === "string"
+        ? state.run.candidateStage.mode
         : null,
       checkpointReady: batches.length > 0,
     },
@@ -189,11 +189,12 @@ export class DirectorFactSummaryService {
         pendingManualRecovery: false,
         cancelRequestedAt: null,
       },
-      run: null,
+      directorRun: null,
       runtime: null,
       latestCommand: null,
       activeStep: null,
-      seedPayload: {},
+      launch: { legacyContext: {} },
+      run: {},
       chapterProgress: null,
     };
   }
@@ -231,7 +232,7 @@ export class DirectorFactSummaryService {
     }
 
     const novelId = state.task.novelId.trim();
-    const request = getDirectorInputFromSeedPayload(state.seedPayload);
+    const request = state.launch.directorInput ?? null;
     const [storyMacroPlan, bookContract, characters, workspace, executionChapters] = await Promise.all([
       this.runtime.getStoryMacroPlan(novelId),
       this.runtime.getBookContract(novelId),

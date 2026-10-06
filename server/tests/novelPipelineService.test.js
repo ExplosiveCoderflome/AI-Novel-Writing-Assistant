@@ -25,12 +25,12 @@ test("startPipelineJob resumes an existing active range job before reusing it", 
   const calls = [];
   const service = new NovelPipelineService();
   service.core = {
-    async findActivePipelineJobForRange(novelId, startOrder, endOrder) {
-      calls.push(["findActivePipelineJobForRange", novelId, startOrder, endOrder]);
+    async findActivePipelineJobForRange(novelId, startOrder, endOrder, preferredJobId, owner) {
+      calls.push(["findActivePipelineJobForRange", novelId, startOrder, endOrder, preferredJobId, owner]);
       return { id: "job-active", status: "queued" };
     },
-    async resumePipelineJob(jobId) {
-      calls.push(["resumePipelineJob", jobId]);
+    async resumePipelineJob(jobId, options) {
+      calls.push(["resumePipelineJob", jobId, options]);
     },
     async createNovelSnapshot() {
       calls.push(["createNovelSnapshot"]);
@@ -45,11 +45,12 @@ test("startPipelineJob resumes an existing active range job before reusing it", 
   const result = await service.startPipelineJob("novel-1", {
     startOrder: 1,
     endOrder: 10,
+    workflowTaskId: "task-owned",
   });
 
   assert.deepEqual(calls, [
-    ["findActivePipelineJobForRange", "novel-1", 1, 10],
-    ["resumePipelineJob", "job-active"],
+    ["findActivePipelineJobForRange", "novel-1", 1, 10, null, {startOrder: 1, endOrder: 10, workflowTaskId: "task-owned"}],
+    ["resumePipelineJob", "job-active", {expectedOwner: {startOrder: 1, endOrder: 10, workflowTaskId: "task-owned"}}],
   ]);
   assert.deepEqual(result, { id: "job-active", status: "queued" });
 });

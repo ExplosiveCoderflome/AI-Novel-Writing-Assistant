@@ -1,3 +1,4 @@
+import { DirectorTaskStateWriter } from "../state";
 import type {
   DirectorArtifactRef,
   DirectorStepRun,
@@ -87,7 +88,7 @@ export class NovelDirectorRuntimeOrchestrator {
     projectionFactWaitIntervalMs?: number;
   }) {}
 
-  async markTaskRunning(
+  async markRunning(
     taskId: string,
     stage: NovelWorkflowStage,
     itemKey: DirectorProgressItemKey,
@@ -99,7 +100,7 @@ export class NovelDirectorRuntimeOrchestrator {
       novelId?: string | null;
     },
   ): Promise<void> {
-    await this.deps.workflowService.markTaskRunning(taskId, {
+    await new DirectorTaskStateWriter(this.deps.workflowService).markRunning(taskId, {
       stage,
       itemKey,
       itemLabel,
@@ -224,7 +225,7 @@ export class NovelDirectorRuntimeOrchestrator {
 
     const reason = result.reason ?? "当前自动导演策略需要确认后继续。";
     if (input.waitingState) {
-      await this.deps.workflowService.markTaskWaitingApproval(input.taskId, {
+      await new DirectorTaskStateWriter(this.deps.workflowService).markWaitingCheckpoint(input.taskId, {
         stage: input.waitingState.stage,
         itemKey: input.waitingState.itemKey ?? input.nodeKey,
         itemLabel: input.waitingState.itemLabel ?? reason,
@@ -317,7 +318,7 @@ export class NovelDirectorRuntimeOrchestrator {
       const blocker = readiness.blockers[0] ?? null;
       const reason = blocker?.reason || input.module.defaultWaitingState?.itemLabel || "当前导演步骤需要补齐上游条件。";
       if (input.module.defaultWaitingState) {
-        await this.deps.workflowService.markTaskWaitingApproval(input.taskId, {
+        await new DirectorTaskStateWriter(this.deps.workflowService).markWaitingCheckpoint(input.taskId, {
           stage: input.module.defaultWaitingState.stage,
           itemKey: input.module.defaultWaitingState.itemKey ?? input.module.nodeKey,
           itemLabel: input.module.defaultWaitingState.itemLabel ?? reason,
@@ -341,7 +342,7 @@ export class NovelDirectorRuntimeOrchestrator {
     if (preconditions.status !== "ready") {
       const reason = preconditions.reason;
       if (input.module.defaultWaitingState) {
-        await this.deps.workflowService.markTaskWaitingApproval(input.taskId, {
+        await new DirectorTaskStateWriter(this.deps.workflowService).markWaitingCheckpoint(input.taskId, {
           stage: input.module.defaultWaitingState.stage,
           itemKey: input.module.defaultWaitingState.itemKey ?? input.module.nodeKey,
           itemLabel: input.module.defaultWaitingState.itemLabel ?? reason,

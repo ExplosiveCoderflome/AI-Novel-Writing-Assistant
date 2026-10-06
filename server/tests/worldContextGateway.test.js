@@ -122,6 +122,7 @@ test("gateway delegates novel theme world generation through novel world service
     temperature: 0.4,
     storyMacroContext: undefined,
     bookContractContext: undefined,
+    openingOnly: undefined,
   }]);
 });
 

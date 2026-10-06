@@ -94,6 +94,7 @@ export interface StyleContractMeta {
   usesGlobalAntiAiBaseline: boolean;
   globalAntiAiRuleIds: string[];
   styleAntiAiRuleIds: string[];
+  antiAiRulePolicies?: Array<Pick<AntiAiRule, "id" | "name" | "type" | "severity" | "autoRewrite">>;
 }
 
 export interface StyleContract {

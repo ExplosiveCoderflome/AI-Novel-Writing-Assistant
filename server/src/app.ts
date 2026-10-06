@@ -1,4 +1,6 @@
 import "dotenv/config";
+import { prisma } from "./db/prisma";
+import {configureDirectorAgentEntry} from "./app/director/entry/agentTools";
 import type { Server } from "node:http";
 import os from "node:os";
 import cors from "cors";
@@ -33,6 +35,7 @@ import dramaRouter from "./modules/drama/http/dramaRoutes";
 import comicRouter from "./modules/comic/http/comicRoutes";
 import marketRadarRouter from "./modules/marketRadar/http/marketRadarRoutes";
 import novelDirectorRouter from "./services/novel/director/http/novelDirector";
+import creativeCarryoverContractsRouter from "./services/novel/director/http/creativeCarryoverContracts";
 import novelExportRouter from "./modules/export/http/novelExport";
 import novelWorkflowsRouter from "./services/novel/director/http/novelWorkflows";
 import promptWorkbenchRouter from "./routes/promptWorkbench";
@@ -42,7 +45,7 @@ import settingsRouter from "./routes/settings";
 import styleEngineRouter from "./routes/styleEngine";
 import styleEngineExtractionRouter from "./routes/styleEngineExtraction";
 import storyModeRouter from "./routes/storyMode";
-import tasksRouter from "./routes/tasks";
+import tasksRouter, { createTasksRouter } from "./routes/tasks";
 import titleLibraryRouter from "./routes/titleLibrary";
 import worldRouter from "./modules/setup/world/http";
 import writingFormulaRouter from "./routes/writingFormula";
@@ -87,6 +90,7 @@ function parseEnvFlag(value: string | undefined, defaultValue: boolean): boolean
 export function createApp() {
   getSharedNovelServices();
   const app = express();
+  let taskRouterForApp = tasksRouter;
   const jsonBodyLimit = process.env.API_JSON_LIMIT ?? "20mb";
   const corsOriginEnv = process.env.CORS_ORIGIN;
   const corsAllowList = corsOriginEnv
@@ -137,9 +141,51 @@ export function createApp() {
   app.use("/api/title-library", titleLibraryRouter);
   app.use("/api", styleEngineRouter);
   app.use("/api", styleEngineExtractionRouter);
-  app.use("/api/novels", novelRouter);
+  const directorNextEnabled = parseEnvFlag(process.env.DIRECTOR_NEXT_ENABLED, false);
+  const {createDirectorVersionRouter} = require("./modules/novel/director-routing") as typeof import("./modules/novel/director-routing");
+  app.use("/api/novels", createDirectorVersionRouter());
+  app.use("/api/novels", (_req, res, next) => {
+    res.locals.directorNextEnabled = directorNextEnabled;
+    next();
+  }, novelRouter);
+  configureDirectorAgentEntry(parseEnvFlag(process.env.DIRECTOR_NEXT_ENABLED, false));
+  if (directorNextEnabled) {
+    const {creationStudioService} = require("./modules/novel/creation-studio/application/CreationStudioService") as typeof import("./modules/novel/creation-studio/application/CreationStudioService");
+    const {launchNewDirectorBook} = require("./app/director/newBook") as typeof import("./app/director/newBook");
+    creationStudioService.configureLongNovelLauncher(launchNewDirectorBook);
+  } else {
+    const {creationStudioService} = require("./modules/novel/creation-studio/application/CreationStudioService") as typeof import("./modules/novel/creation-studio/application/CreationStudioService");
+    creationStudioService.configureLongNovelLauncher();
+  }
   app.use("/api/creation-studio", creationStudioRouter);
+  {
+    const {createFrozenDirectorEntry} = require("./app/director/entrySwitch") as typeof import("./app/director/entrySwitch");
+    const {createOriginalOpeningEntry} = require("./app/director/opening") as typeof import("./app/director/opening");
+    app.use("/api/novels/director", createOriginalOpeningEntry());
+    app.use("/api/novels/director", createFrozenDirectorEntry({findTaskNovelId: async taskId => (await prisma.novelWorkflowTask.findUnique({where: {id: taskId}, select: {novelId: true}}))?.novelId ?? null}));
+  }
   app.use("/api/novels/director", novelDirectorRouter);
+  app.use("/api/novels/director/creative-carryover-contracts", creativeCarryoverContractsRouter);
+  {
+    const {createFrozenWorkflowEntry,createFrozenTaskEntry,createFrozenFollowUpEntry} = require("./app/director/entrySwitch") as typeof import("./app/director/entrySwitch");
+    const lookup={findTask: (taskId: string) => prisma.novelWorkflowTask.findUnique({where:{id:taskId},select:{lane:true,novelId:true,directorVersion:true}})};
+    app.use("/api/novel-workflows",createFrozenWorkflowEntry(lookup));
+    const {parsePipelinePayload} = require("./services/novel/pipelineJobState") as typeof import("./services/novel/pipelineJobState");
+    const findPipelineOwner = async (jobId: string) => {
+      const job=await prisma.generationJob.findUnique({where:{id:jobId},select:{novelId:true,payload:true}});
+      if(!job) return null;
+      const payload=parsePipelinePayload(job.payload);
+      if(payload.directorNext) return job.novelId;
+      return payload.workflowTaskId && (await lookup.findTask(payload.workflowTaskId))?.lane === "auto_director" ? job.novelId : null;
+    };
+    app.use("/api/tasks",createFrozenTaskEntry({...lookup,findPipelineOwner}));
+    const {projectDirectorRecoveryCandidates} = require("./app/director/projections/recoveryCandidates") as typeof import("./app/director/projections/recoveryCandidates");
+    taskRouterForApp = createTasksRouter({
+      projectRecoveryCandidates: data => projectDirectorRecoveryCandidates(data, {...lookup,findPipelineOwner}),
+    });
+    app.use("/api/auto-director/follow-ups",createFrozenFollowUpEntry());
+    app.use("/api/auto-director/channel-callbacks",createFrozenFollowUpEntry());
+  }
   app.use("/api/novel-workflows", novelWorkflowsRouter);
   app.use("/api/novels", novelExportRouter);
   app.use("/api/drama", dramaRouter);
@@ -155,13 +201,18 @@ export function createApp() {
   app.use("/api/prompt-workbench", promptWorkbenchRouter);
   app.use("/api/images", imagesRouter);
   app.use("/api/visual-assets", visualAssetRouter);
-  app.use("/api/tasks", tasksRouter);
+  app.use("/api/tasks", taskRouterForApp);
   app.use("/api/auto-director/follow-ups", autoDirectorFollowUpsRouter);
   app.use("/api/settings/auto-director", settingsAutoDirectorRouter);
   app.use("/api/auto-director/channel-callbacks", autoDirectorChannelCallbacksRouter);
   app.use("/api/settings", settingsRouter);
   app.use("/api", onboardingRoutes);
   app.use("/api/astrology", astrologyRouter);
+  if (parseEnvFlag(process.env.DIRECTOR_NEXT_ENABLED, false)) {
+    const { getDirectorProductionServices } = require("./app/director/services") as typeof import("./app/director/services");
+    const { mountDirectorNext } = require("./modules/director/http") as typeof import("./modules/director/http");
+    mountDirectorNext(app, getDirectorProductionServices().http);
+  }
 
   app.use((_req, res) => {
     const response: ApiResponse<null> = {
@@ -268,6 +319,9 @@ function initializeBackgroundServices(): BackgroundServicesHandle {
   novelSideEffectWorker.start();
   const recoveryInitialization = recoveryTaskService.initializePendingRecoveries();
   const directorWorker = new DirectorWorker();
+  const directorNextWorker = parseEnvFlag(process.env.DIRECTOR_NEXT_ENABLED, false)
+    ? (require("./app/director/services") as typeof import("./app/director/services")).getDirectorProductionServices().worker
+    : null;
   void recoveryInitialization.then(() => {
     void directorWorker.start().catch((error) => {
       console.error("[director.worker] unexpected stop", error);
@@ -275,6 +329,11 @@ function initializeBackgroundServices(): BackgroundServicesHandle {
   }).catch((error) => {
     console.error("[director.worker] recovery initialization failed; worker was not started", error);
   });
+  if (directorNextWorker) {
+    void directorNextWorker.start().catch((error) => {
+      console.error("[director-next.worker] unexpected stop", error);
+    });
+  }
   void shortStoryProductionService.recoverPending().catch((error) => {
     console.warn("[short-story] failed to resume pending production.", error);
   });
@@ -307,6 +366,7 @@ function initializeBackgroundServices(): BackgroundServicesHandle {
   return {
     stop: async () => {
       directorWorker.stop();
+      directorNextWorker?.stop();
       novelSideEffectWorker.stop();
       ragServices.ragWorker.stop();
       ragServices.ragRetrievalTraceRetention.stop();

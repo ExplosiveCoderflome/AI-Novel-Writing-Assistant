@@ -1,8 +1,9 @@
+import { DirectorTaskStateWriter } from "../state";
 import type {
   DirectorAutoExecutionState,
   DirectorConfirmRequest,
 } from "@ai-novel/shared/types/novelDirector";
-import { isFullBookAutopilotRunMode } from "@ai-novel/shared/types/novelDirector";
+import { canAutomaticallyReviewDirectorResources, isFullBookAutopilotRunMode } from "@ai-novel/shared/types/novelDirector";
 import {
   buildDirectorAutoExecutionPausedLabel,
   buildDirectorAutoExecutionPausedSummary,
@@ -73,7 +74,7 @@ export class NovelDirectorAutoExecutionRuntime {
     if (pipelineJobId) {
       knownPipelineJob = await this.deps.novelService.getPipelineJobById(pipelineJobId);
       if (knownPipelineJob?.pendingManualRecovery && input.resumePendingManualRecovery) {
-        await this.deps.novelService.resumePipelineJob(knownPipelineJob.id);
+        await this.deps.novelService.resumePipelineJob(knownPipelineJob.id, {expectedOwner: {workflowTaskId: input.taskId}});
         knownPipelineJob = await this.deps.novelService.getPipelineJobById(knownPipelineJob.id);
       }
       if (!knownPipelineJob || ["failed", "cancelled"].includes(knownPipelineJob.status)) {
@@ -131,6 +132,7 @@ export class NovelDirectorAutoExecutionRuntime {
         resolveSingleChapterExecutionRange(range, autoExecution).startOrder,
         resolveSingleChapterExecutionRange(range, autoExecution).endOrder,
         pipelineJobId || null,
+        {workflowTaskId: input.taskId},
       );
       if (activeRangeJob) {
         pipelineJobId = activeRangeJob.id;
@@ -174,7 +176,7 @@ export class NovelDirectorAutoExecutionRuntime {
           return;
         }
 
-        await this.deps.workflowService.markTaskRunning(input.taskId, {
+        await new DirectorTaskStateWriter(this.deps.workflowService).markRunning(input.taskId, {
           stage: "chapter_execution",
           itemKey: "chapter_execution",
           itemLabel: buildDirectorAutoExecutionStageLabel(autoExecution),
@@ -257,7 +259,7 @@ export class NovelDirectorAutoExecutionRuntime {
             pipelineStatus: job.status,
             allowLazyChapterPlanning,
           }));
-          await this.deps.workflowService.requeueTaskForRecovery(input.taskId, failureMessage, {
+          await new DirectorTaskStateWriter(this.deps.workflowService).markPendingManualRecovery(input.taskId, failureMessage, {
             stage: "quality_repair",
             itemKey: "quality_repair",
             itemLabel: buildDirectorAutoExecutionPausedLabel(autoExecution),
@@ -279,7 +281,7 @@ export class NovelDirectorAutoExecutionRuntime {
         }
         if (job.status === "queued" || job.status === "running") {
           const runningState = resolveDirectorAutoExecutionWorkflowState(job, range, autoExecution);
-          await this.deps.workflowService.markTaskRunning(input.taskId, {
+          await new DirectorTaskStateWriter(this.deps.workflowService).markRunning(input.taskId, {
             ...runningState,
             clearCheckpoint: shouldClearAutoExecutionCheckpoint(input.resumeCheckpointType),
           });
@@ -301,6 +303,13 @@ export class NovelDirectorAutoExecutionRuntime {
           });
           await new Promise((resolve) => setTimeout(resolve, 1500));
           continue;
+        }
+
+        if (job.status === "succeeded" && canAutomaticallyReviewDirectorResources(input.request.runMode)) {
+          await this.deps.confirmChapterResources?.({
+            novelId: input.novelId, taskId: input.taskId, pipelineJobId: job.id,
+            provider: input.request.provider, model: input.request.model, temperature: input.request.temperature,
+          });
         }
 
         ({ range, autoExecution } = await resolveAutoExecutionRuntimeRangeAndState(this.deps, {
@@ -542,7 +551,7 @@ export class NovelDirectorAutoExecutionRuntime {
           });
           return;
         }
-        await this.deps.workflowService.markTaskFailed(input.taskId, failureMessage, {
+        await new DirectorTaskStateWriter(this.deps.workflowService).markFailed(input.taskId, failureMessage, {
           stage: "quality_repair",
           itemKey: "quality_repair",
           itemLabel: buildDirectorAutoExecutionPausedLabel(autoExecution),

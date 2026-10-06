@@ -411,7 +411,7 @@ export const chapterArtifactDeltaOutputSchema = z.preprocess(normalizeArtifactDe
   summary: z.string().trim().min(1),
   concreteFacts: z.array(chapterConcreteFactSchema).default([]),
   stateDeltas: chapterArtifactDeltaStateSchema,
-  characterResourceDeltas: z.array(z.preprocess(normalizeCharacterResourceDelta, characterResourceExtractionUpdateSchema)).default([]),
+  characterResourceDeltas: z.array(z.preprocess(normalizeCharacterResourceDelta, characterResourceExtractionUpdateSchema)).max(8).default([]),
   payoffDeltas: z.array(z.preprocess(normalizePayoffDelta, payoffLedgerSyncItemSchema)).default([]),
   relationDynamics: z.array(chapterArtifactRelationDynamicSchema).default([]),
   factionUpdates: z.array(chapterArtifactFactionUpdateSchema).default([]),
@@ -439,8 +439,9 @@ export interface ChapterArtifactDeltaPromptInput {
   chapterContent: string;
 }
 
-const CHAPTER_ARTIFACT_DELTA_EXAMPLE: ChapterArtifactDeltaOutput = {
-  summary: "程秩在本章确认库房后门存在可利用的通行漏洞，并拿到能开启后门的铜钥匙。读者由此知道潜入库房成为下一步行动选择，但他仍不掌握库房内的守卫布置，相关线索被推进到待兑现状态。",
+// Keep the wire example sparse. The existing schema supplies defaults after parsing.
+const CHAPTER_ARTIFACT_DELTA_EXAMPLE = {
+  summary: "程秩在库房外拿到后门铜钥匙，确认潜入有了可行入口。他收起钥匙，决定先观察换岗再行动，尚不知道库房内的守卫布置。本章完成进入手段的准备，守卫情况与潜入结果仍待后续揭示。",
   concreteFacts: [
     {
       text: "程秩已拿到能打开库房后门的铜钥匙",
@@ -448,17 +449,13 @@ const CHAPTER_ARTIFACT_DELTA_EXAMPLE: ChapterArtifactDeltaOutput = {
     },
   ],
   stateDeltas: {
-    summary: "主角拿到后门铜钥匙，读者知道后门潜入成为下一步行动可能。",
+    summary: "钥匙到手，潜入可行，守卫布置未知。",
     characterStates: [
       {
         characterName: "程秩",
         currentGoal: "利用后门铜钥匙进入库房",
-        emotion: "紧张但更有把握",
-        stressLevel: 62,
-        secretExposure: "读者知道他拿到钥匙",
         knownFacts: ["后门铜钥匙可以打开库房后门"],
-        misbeliefs: [],
-        summary: "程秩掌握了新的潜入手段，但仍不知道库房内的守卫布置。",
+        summary: "钥匙到手，准备潜入，尚不知守卫布置。",
       },
     ],
     relationStates: [],
@@ -467,17 +464,9 @@ const CHAPTER_ARTIFACT_DELTA_EXAMPLE: ChapterArtifactDeltaOutput = {
         holderType: "reader",
         fact: "后门铜钥匙已经被程秩拿到。",
         status: "known",
-        summary: "读者知道关键资源已到位。",
       },
     ],
-    foreshadowStates: [
-      {
-        title: "库房后门",
-        summary: "后门铜钥匙提示后续会出现潜入或逃离场景。",
-        status: "hinted",
-        setupChapterId: "当前章",
-      },
-    ],
+    foreshadowStates: [],
   },
   characterResourceDeltas: [
     {
@@ -492,33 +481,22 @@ const CHAPTER_ARTIFACT_DELTA_EXAMPLE: ChapterArtifactDeltaOutput = {
       holderKnows: true,
       knownByCharacterNames: ["程秩"],
       narrativeFunction: "key",
-      summary: "程秩拿到能打开库房后门的铜钥匙。",
-      narrativeImpact: "后续可以合理进入库房或从后门脱身。",
-      expectedFutureUse: "库房潜入。",
+      summary: "程秩持有后门钥匙。",
+      narrativeImpact: "可从后门潜入库房。",
       constraints: ["只能解释后门通行，不能替代正门权限。"],
       evidence: ["程秩把后门铜钥匙收进袖中。"],
-      confidence: 0.88,
-      riskLevel: "low",
-      riskReason: "",
     },
   ],
   payoffDeltas: [
     {
       ledgerKey: "ku_fang_hou_men",
       title: "库房后门",
-      summary: "铜钥匙为后续库房行动提供明确铺垫。",
+      summary: "钥匙提供潜入机会。",
       scopeType: "chapter",
       currentStatus: "hinted",
       targetStartChapterOrder: 4,
       targetEndChapterOrder: 6,
-      firstSeenChapterOrder: 3,
-      lastTouchedChapterOrder: 3,
-      setupChapterOrder: 3,
-      sourceRefs: [],
       evidence: [{ summary: "程秩拿到后门铜钥匙。", chapterOrder: 3 }],
-      riskSignals: [],
-      statusReason: "本章完成铺垫，后续需要兑现用途。",
-      confidence: 0.86,
     },
   ],
   relationDynamics: [],
@@ -534,14 +512,8 @@ const CHAPTER_ARTIFACT_DELTA_EXAMPLE: ChapterArtifactDeltaOutput = {
   characterMindDeltas: [
     {
       characterName: "程秩",
-      currentInterpretation: "他认为后门钥匙让潜入成为可行方案，但仍低估库房守卫的准备程度。",
-      privateIntent: "抢在赵管事察觉前独自验证后门。",
-      activePlan: "先摸清换岗时间，再利用钥匙进入库房。",
-      emotionalStance: "紧张中带着主动争取的笃定。",
-      actionTendency: "会先隐瞒线索、独自试探，再决定是否求助。",
-      decisionTrigger: "若守卫异常增多，会转而寻找同盟。",
-      beliefs: ["钥匙能提供一次隐蔽进入机会"],
-      misbeliefs: ["他以为赵管事尚未察觉钥匙失踪"],
+      currentInterpretation: "潜入可行，但需要先查守卫。",
+      activePlan: "观察换岗，再从后门潜入。",
       evidence: ["程秩把后门铜钥匙收进袖中，并决定先观察换岗。"],
       confidence: 0.78,
     },
@@ -552,7 +524,7 @@ const CHAPTER_ARTIFACT_DELTA_EXAMPLE: ChapterArtifactDeltaOutput = {
     characterResources: "write",
     payoffLedger: "delta",
     characterDynamics: "skip",
-    reason: "本章没有关系阶段变化，但有状态、资源和伏笔 delta。",
+    reason: "有状态、资源与伏笔变化，无关系阶段变化。",
   },
   confidence: 0.86,
   requiresFullReconcile: false,
@@ -563,7 +535,8 @@ export const chapterArtifactDeltaPrompt: PromptAsset<
   ChapterArtifactDeltaOutput
 > = {
   id: "novel.chapter.artifact_delta.extract",
-  version: "v1",
+  version: "v4",
+  cacheBoundary: {messageIndex:0,contentBlockIndex:0},
   taskType: "fact_extraction",
   mode: "structured",
   language: "zh",
@@ -574,10 +547,13 @@ export const chapterArtifactDeltaPrompt: PromptAsset<
     maxAttempts: 1,
   },
   structuredOutputHint: {
+    placement: "stable_prefix",
+    compact: true,
     example: CHAPTER_ARTIFACT_DELTA_EXAMPLE,
     note: [
       "一次性抽取章节摘要、硬事实、状态快照、角色资源、伏笔/payoff、关系动态、信息边界和同步计划。",
       "只记录正文中有明确证据或与任务目标强相关的变化。",
+      "示例是最小字段演示，可选字段仅在有实际信息时填写，不要照着示例扩写每个维度。",
       "syncPlan 与 requiresFullReconcile 由你基于剧情风险判断，代码只负责校验与落库。",
     ].join(" "),
   },
@@ -614,14 +590,23 @@ export const chapterArtifactDeltaPrompt: PromptAsset<
       "20. payoffDeltas.scopeType 只能使用 book、volume、chapter；全书/故事级伏笔统一用 book，不要输出 story、novel 或 global。",
       "21. stateDeltas.foreshadowStates 的 setupChapterId/payoffChapterId 只有在能确认真实 chapterId 时才填写；如果只能确认第几章，宁可省略或写入章节序号字符串，不要输出数字。",
       "22. syncPlan.stateSnapshot、characterResources、characterDynamics 只能是 skip 或 write；只有 payoffLedger 可以是 skip、delta 或 full_reconcile。",
+      "【紧凑输出与连续性保护】",
+      "23. 使用紧凑 JSON，不要缩进、排版换行或 Markdown。先保证对象完整闭合，再追求说明细节；输出上限不是必须写满的目标。",
+      "24. 不要重抄已有账本、全体人物档案或整章剧情。只输出与本章有关的有效状态、真正新增或改变的资产；无变化的数组返回 []。",
+      "25. summary 用于章节总览；各子项只写各自的变化。同一资源的 summary、narrativeImpact、expectedFutureUse 不要重复讲同一件事；可选字段没有新增信息时省略，不要填 null、空字符串或占位说明。",
+      "26. 每个子项的说明优先用一句短句；证据优先保留一条足以支持变化的正文短摘录，不抄整段。payoffDeltas.evidence 只输出一条；只有多个独立事实无法由一条证据覆盖时才增加其他维度的证据。",
+      "27. stateDeltas 保留本章相关角色的章末有效状态；信息归属、人物误判、伤势、资源归属、资源不可用条件与保护秘密不能为缩短输出而删除。readerKnows、holderKnows 等布尔字段必须反映真实信息边界，值为 false 时必须显式填写，不能省略后变为默认 true。",
+      "28. characterMindDeltas 描述人物主观理解和意图，不重复客观资源台账；relationStates 描述章末关系，relationDynamics 只描述有证据的关系阶段转变。必要的不同维度可以引用同一事件，但不得各自复述整段剧情。",
+      "29. 角色状态、关系状态和资源的 summary 会供后续章节读取，有有效变化时保留一句短摘要。资源风险等级、未来使用窗口等会改变后续行动边界的字段须按证据保留，不能将关键字段当作冗余省略。",
     ].join("\n")),
     new HumanMessage([
       `小说：${input.novelTitle}`,
-      `章节：第 ${input.chapterOrder} 章《${input.chapterTitle}》`,
-      `章节目标：${input.chapterGoal || "无明确目标"}`,
       "",
       "已知角色：",
       input.characterRosterText || "暂无角色名单",
+      "",
+      `章节：第 ${input.chapterOrder} 章《${input.chapterTitle}》`,
+      `章节目标：${input.chapterGoal || "无明确目标"}`,
       "",
       "上一状态摘要：",
       input.previousStateText || "暂无上一状态快照",

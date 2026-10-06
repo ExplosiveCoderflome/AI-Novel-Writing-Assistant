@@ -6,6 +6,7 @@ import type { NovelAutoDirectorTaskSummary } from "@ai-novel/shared/types/novel"
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
+import { getNovelEditHref, getDirectorWorkspaceHref } from "@/lib/novelRoutes";
 import {
   canContinueChapterBatchAutoExecution,
   canContinueDirector,
@@ -38,6 +39,7 @@ export function NovelProjectCard(props: {
   onDownload: (input: { novelId: string; novelTitle: string }) => void;
   onDelete: (novelId: string, title: string) => void;
 }) {
+  const directorHref = getDirectorWorkspaceHref(props.novel);
   const task = getNovelWorkflowTask(props.novel);
   const workflow = buildWorkflowDisplay(props.novel);
   const workflowBadge = getWorkflowBadge(task);
@@ -106,7 +108,7 @@ export function NovelProjectCard(props: {
           {props.novel.description || "暂无简介"}
         </p>
 
-        <div className={cn("border-l-2 py-0.5 pl-3", progressBorderClass)}>
+        {directorHref ? <p className="py-2 text-xs leading-5 text-muted-foreground">在导演台查看本书资产、创作进度，选择章节范围继续。</p> : <div className={cn("border-l-2 py-0.5 pl-3", progressBorderClass)}>
           <div className="flex items-center justify-between gap-3">
             <div className="min-w-0">
               <div className={cn("text-sm font-medium", toneTextClass(workflow.tone))}>{workflow.label}</div>
@@ -124,8 +126,7 @@ export function NovelProjectCard(props: {
               {workflow.description}{workflow.lastHealthyStage ? ` 最近完成：${workflow.lastHealthyStage}` : ""}
             </p>
           </div>
-        </div>
-
+        </div>}
         <div className="grid grid-cols-2 gap-x-4 gap-y-2 border-t border-border/55 pt-3 sm:grid-cols-4">
           {getProjectAssetRows(props.novel).map((item) => (
             <div key={item.label} className="min-w-0">
@@ -156,7 +157,7 @@ export function NovelProjectCard(props: {
               onContinueWorkflow: props.onContinueWorkflow,
               onStopCardClick: stopCardClick,
             })}
-            {props.novel.narrativeForm !== "short_story" ? (
+            {props.novel.narrativeForm !== "short_story" && !directorHref ? (
               <Button
                 type="button"
                 size="sm"
@@ -174,9 +175,12 @@ export function NovelProjectCard(props: {
             ) : null}
           </div>
           <div className="flex items-center gap-1 opacity-70 transition group-hover:opacity-100 focus-within:opacity-100">
+            {directorHref ? <Button asChild size="sm" variant="ghost" className="h-8 px-2" title="查看本书 AI 用量与调用日志">
+              <Link to={`/novels/${encodeURIComponent(props.novel.id)}/ai-usage`} onClick={stopCardClick}>AI 用量</Link>
+            </Button> : null}
             {task && props.novel.narrativeForm !== "short_story" ? (
               <Button asChild size="sm" variant="ghost" className="h-8 w-8 px-0" title="查看执行详情" aria-label="查看执行详情">
-                <Link to={`/novels/${props.novel.id}/edit?directorTaskId=${task.id}&taskPanel=1`} onClick={stopCardClick}>
+                <Link to={getNovelEditHref(props.novel.id, { taskPanel: true })} onClick={stopCardClick}>
                   <Gauge className="h-4 w-4" aria-hidden="true" />
                 </Link>
               </Button>
@@ -234,6 +238,8 @@ function renderPrimaryAction(input: {
   onContinueWorkflow: (input: { taskId: string; mode?: DirectorContinuationMode }) => void;
   onStopCardClick: (event: MouseEvent<HTMLElement> | KeyboardEvent<HTMLElement>) => void;
 }) {
+  const directorHref = getDirectorWorkspaceHref(input.novel);
+  if (directorHref) return <Button asChild size="sm"><Link to={directorHref} onClick={input.onStopCardClick}>打开导演台</Link></Button>;
   if (input.novel.narrativeForm === "short_story") {
     return (
       <Button asChild size="sm">
@@ -301,7 +307,7 @@ function renderPrimaryAction(input: {
   if (input.task) {
     return (
       <Button asChild size="sm">
-        <Link to={`/novels/${input.novel.id}/edit?directorTaskId=${input.task.id}`} onClick={input.onStopCardClick}>
+        <Link to={getNovelEditHref(input.novel.id)} onClick={input.onStopCardClick}>
           {input.label}
         </Link>
       </Button>

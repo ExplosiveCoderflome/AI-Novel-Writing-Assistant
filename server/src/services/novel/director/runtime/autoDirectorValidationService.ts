@@ -1,4 +1,4 @@
-﻿import type {
+import type {
   AutoDirectorActionValidationInput,
   AutoDirectorAffectedScope,
   AutoDirectorFollowUpSection,
@@ -78,7 +78,7 @@ function resolveScopeFromPlan(plan: DirectorAutoExecutionPlan | null | undefined
 }
 
 function resolveScopeFromTask(input: AutoDirectorActionValidationInput): AutoDirectorAffectedScope {
-  const autoExecution = input.task.seedPayload?.autoExecution;
+  const autoExecution = input.task.directorTaskData?.autoExecution;
   const startOrder = normalizeChapterOrder(autoExecution?.startOrder);
   const endOrder = normalizeChapterOrder(autoExecution?.endOrder);
   if (startOrder && endOrder) {

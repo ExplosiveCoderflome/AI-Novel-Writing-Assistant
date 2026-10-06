@@ -225,8 +225,8 @@ function createChapterDraftExecutableModule(
           taskId: state.task.id,
           novelId,
           request: directorRequest,
-          existingPipelineJobId: state.seedPayload.autoExecution?.pipelineJobId ?? null,
-          existingState: state.seedPayload.autoExecution ?? null,
+          existingPipelineJobId: state.run.autoExecution?.pipelineJobId ?? null,
+          existingState: state.run.autoExecution ?? null,
           resumeCheckpointType: (
             state.task.checkpointType === "chapter_batch_ready"
             || state.task.checkpointType === "replan_required"
@@ -615,12 +615,8 @@ function chapterHasCompletedStage(
 
 async function isAutoQualityReviewDisabled(context: WorkflowStepExecutionContext): Promise<boolean> {
   const { state, request } = await loadDirectorModuleState(context, { requireNovel: false });
-  const seedPayload = state.seedPayload as {
-    autoExecution?: { autoReview?: unknown } | null;
-    autoExecutionPlan?: { autoReview?: unknown } | null;
-  };
-  return seedPayload.autoExecution?.autoReview === false
-    || seedPayload.autoExecutionPlan?.autoReview === false
+  return state.run.autoExecution?.autoReview === false
+    || state.launch.autoExecutionPlan?.autoReview === false
     || request?.autoExecutionPlan?.autoReview === false;
 }
 

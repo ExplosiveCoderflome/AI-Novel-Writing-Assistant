@@ -3,26 +3,13 @@ const assert = require("node:assert/strict");
 const fs = require("node:fs");
 const path = require("node:path");
 const childProcess = require("node:child_process");
+const { initializeTemporarySqliteDatabase } = require("./testInfrastructure/tempSqliteDatabase.cjs");
 
 const repoRoot = path.resolve(__dirname, "..", "..");
 const serverRoot = path.resolve(repoRoot, "server");
 
-function pnpmExecutable() {
-  return process.platform === "win32" ? "pnpm.cmd" : "pnpm";
-}
-
 function setupTempSqliteDatabase(tempDir) {
-  const databasePath = path.join(tempDir, "p0b-real-chain.db");
-  const databaseUrl = `file:${databasePath.replace(/\\/g, "/")}`;
-  childProcess.execFileSync(pnpmExecutable(), ["--filter", "@ai-novel/server", "prisma:push"], {
-    cwd: repoRoot,
-    env: {
-      ...process.env,
-      DATABASE_URL: databaseUrl,
-    },
-    stdio: ["ignore", "ignore", "pipe"],
-  });
-  return databaseUrl;
+  return initializeTemporarySqliteDatabase(tempDir, "p0b-real-chain.db");
 }
 
 function writeChildScript(tempDir) {
@@ -121,7 +108,9 @@ async function main() {
 
     let volumeId = null;
     let workspaceSource = null;
+    let sourceBeforeMigration = null;
     if (scenario === "legacy") {
+      sourceBeforeMigration = (await novelService.getVolumes(novel.id, { hydrateCanonical: false })).source;
       const workspace = await novelService.migrateLegacyVolumes(novel.id);
       workspaceSource = workspace.source;
       volumeId = workspace.volumes[0]?.id ?? null;
@@ -421,6 +410,7 @@ async function main() {
     console.log(JSON.stringify({
       scenario,
       workspaceSource,
+      sourceBeforeMigration,
       hasReviewContext: Boolean(capturedContextPackage?.chapterReviewContext),
       hasWriteContext: Boolean(capturedContextPackage?.chapterWriteContext),
       volumeMission: capturedContextPackage?.chapterReviewContext?.volumeWindow?.missionSummary ?? null,
@@ -484,7 +474,8 @@ test("legacy project migration feeds shared review context through manual audit 
   const result = runScenario("legacy");
 
   assert.equal(result.scenario, "legacy");
-  assert.equal(result.workspaceSource, "legacy");
+  assert.equal(result.sourceBeforeMigration, "legacy");
+  assert.equal(result.workspaceSource, "volume");
   assert.equal(result.hasReviewContext, true);
   assert.equal(result.hasWriteContext, true);
   assert.match(result.volumeMission ?? "", /压迫|求生|赵高/);

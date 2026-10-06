@@ -443,7 +443,7 @@ export default function NovelBasicInfoForm(props: NovelBasicInfoFormProps) {
                   正文后去 AI 检测与修正
                 </FieldLabel>
                 <div className="text-xs leading-5 text-muted-foreground">
-                  开启后，章节正文生成完成时会检测 AI 味风险，并在命中可修正问题时生成修订稿。
+                  开启后，章节检查会核对写法与 AI 味风险；需要修正的问题按本次创作策略局部修文，普通建议保留为质量提醒。
                 </div>
               </div>
               <Switch

@@ -93,7 +93,7 @@ export interface AutoDirectorActionValidationTaskSnapshot {
   checkpointType?: NovelWorkflowCheckpoint | string | null;
   pendingManualRecovery?: boolean | null;
   novelId?: string | null;
-  seedPayload?: {
+  directorTaskData?: {
     autoExecution?: {
       enabled?: boolean;
       scopeLabel?: string | null;

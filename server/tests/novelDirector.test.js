@@ -1,6 +1,8 @@
 const test = require("node:test");
 const assert = require("node:assert/strict");
 const http = require("node:http");
+const { prisma } = require("../dist/db/prisma.js");
+const { stubLegacyTaskOwnership } = require("./legacyDirector/databasePorts.js");
 const { createApp } = require("../dist/app.js");
 const { DirectorCommandService } = require("../dist/services/novel/director/commands/DirectorCommandService.js");
 const { DirectorTaskSnapshotService } = require("../dist/services/novel/director/projections/DirectorTaskSnapshotService.js");
@@ -50,6 +52,7 @@ function requestJson(port, method, path, body) {
 }
 
 test("director task routes accept task creation, command append and snapshot reads", async (t) => {
+  stubLegacyTaskOwnership(t, prisma, { "task-created": "novel-created" });
   const originals = {
     enqueueGenerateCandidatesCommand: DirectorCommandService.prototype.enqueueGenerateCandidatesCommand,
     enqueueContinueCommand: DirectorCommandService.prototype.enqueueContinueCommand,

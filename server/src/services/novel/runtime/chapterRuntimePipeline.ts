@@ -15,6 +15,8 @@ import {
   type ChapterEmptyContentError,
 } from "./chapterEmptyContentError";
 import { runChapterRepairText } from "./repair/chapterRepairRuntime";
+import { shouldAttemptAutomaticRepair } from "./repair/ChapterRepairEligibility";
+import { detectNewSevereProseFindings } from "./proseQuality";
 import { ChapterPatchRepairFailedError } from "../chapterPatchRepairService";
 import {
   selectChapterRepairCandidate,
@@ -145,6 +147,8 @@ interface RunPipelineChapterDeps {
     request: ChapterRuntimeRequestInput;
     contextPackage: GenerationContextPackage;
     content: string;
+    repairReviewBaseline?: Pick<ChapterAcceptanceAssessmentResult["assessment"],
+      "blockingIssues" | "missingObligations" | "repairDirectives">;
     lengthControl?: ChapterRuntimePackage["lengthControl"];
     runId: string | null;
     startMs: number | null;
@@ -277,12 +281,18 @@ export async function runPipelineChapterWithRuntime(
     }
 
     await hooks.onStageChange?.("reviewing");
+    const priorAssessment = attempt > 0 ? originalEvaluation?.result.acceptanceResult?.assessment : undefined;
     latestResult = await deps.finalizeChapterContent({
       novelId,
       chapterId,
       request,
       contextPackage: assembled.contextPackage,
       content,
+      repairReviewBaseline: priorAssessment ? {
+        blockingIssues: priorAssessment.blockingIssues,
+        missingObligations: priorAssessment.missingObligations,
+        repairDirectives: priorAssessment.repairDirectives,
+      } : undefined,
       lengthControl: latestLengthControl,
       runId: null,
       startMs: null,
@@ -331,6 +341,7 @@ export async function runPipelineChapterWithRuntime(
           pass,
           runtimePackage: latestResult.runtimePackage,
           issues: latestIssues,
+          assessmentVerified: !latestResult.acceptanceResult?.assessment.riskTags?.includes("acceptance_gate_unavailable"),
         },
       });
       if (repairSelection.selected === "candidate") {
@@ -365,6 +376,21 @@ export async function runPipelineChapterWithRuntime(
     if (shouldPauseForAcceptance || !autoRepair || repairMode === "detect_only" || attempt >= effectiveMaxRetries) {
       break;
     }
+    if (shouldDeferNonPatchableReviewRisk(latestResult.runtimePackage)) {
+      recoverableRepairFailure = {
+        chapterId,
+        message: "章节接收判断暂时不可用，正文已保留，后续需要重新审校或人工复查。",
+        repairMode,
+        failureTypes: ["review_gate_unavailable"],
+        occurredAt: new Date().toISOString(),
+      };
+      await hooks.onCheckCancelled?.();
+      await deps.markChapterNeedsRepair(chapterId);
+      break;
+    }
+    if (styleLeakageIssues.length === 0 && !shouldAttemptAutomaticRepair(latestResult.runtimePackage, repairMode)) {
+      break;
+    }
 
     await hooks.onStageChange?.("repairing");
     await hooks.onCheckCancelled?.();
@@ -386,6 +412,20 @@ export async function runPipelineChapterWithRuntime(
     });
     if (repairResult.recoverableFailure) {
       recoverableRepairFailure = repairResult.recoverableFailure;
+      await deps.markChapterNeedsRepair(chapterId);
+      break;
+    }
+    // The issued repair still counts, but unchanged prose needs no paid re-acceptance.
+    if (repairResult.content === content) break;
+    const newProseFindings = detectNewSevereProseFindings(content, repairResult.content);
+    if (newProseFindings.length > 0) {
+      recoverableRepairFailure = {
+        chapterId,
+        message: `修文新增严重表达问题，保留原稿：${[...new Set(newProseFindings.map(finding => finding.message))].join("；")}`,
+        repairMode,
+        failureTypes: ["prose_quality_regression"],
+        occurredAt: new Date().toISOString(),
+      };
       await deps.markChapterNeedsRepair(chapterId);
       break;
     }
@@ -603,18 +643,6 @@ async function repairDraftContent(input: {
   content: string;
   recoverableFailure?: PipelineRecoverableRepairFailure | null;
 }> {
-  if (shouldDeferNonPatchableReviewRisk(input.runtimePackage, input.issues)) {
-    return {
-      content: input.content,
-      recoverableFailure: {
-        chapterId: input.runtimePackage.chapterId,
-        message: "章节接收判断暂时不可用，正文已保留，后续需要重新审校或人工复查。",
-        repairMode: input.options.repairMode ?? "light_repair",
-        failureTypes: ["review_gate_unavailable"],
-        occurredAt: new Date().toISOString(),
-      },
-    };
-  }
   let repaired: Awaited<ReturnType<typeof runChapterRepairText>>;
   try {
     repaired = await runChapterRepairText({
@@ -656,7 +684,6 @@ async function repairDraftContent(input: {
 
 function shouldDeferNonPatchableReviewRisk(
   runtimePackage: ChapterRuntimePackage,
-  _issues: ReviewIssue[],
 ): boolean {
   const openIssues = runtimePackage.audit.openIssues ?? [];
   return openIssues.length > 0

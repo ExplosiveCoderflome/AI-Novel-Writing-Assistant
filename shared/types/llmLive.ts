@@ -1,3 +1,4 @@
+import type { LlmInputCacheUsage } from "./llmUsage";
 export const LLM_LIVE_PHASES = [
   "requesting",
   "streaming",
@@ -31,6 +32,7 @@ export interface LlmLiveContext {
 }
 
 export interface LlmLiveTokenUsage {
+  inputCache?: LlmInputCacheUsage | null;
   promptTokens: number;
   completionTokens: number;
   reasoningTokens: number | null;

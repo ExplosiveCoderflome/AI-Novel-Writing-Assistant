@@ -18,8 +18,8 @@ import {
 } from "@/components/ui/dialog";
 import { toast } from "@/components/ui/toast";
 import { resolveWorkflowContinuationFeedback } from "@/lib/novelWorkflowContinuation";
+import { getDirectorCockpitActionHref, getNovelWorkspaceHref } from "@/lib/novelRoutes";
 import {
-  getDirectorCockpitActionHref,
   getDirectorCockpitContinuationMode,
   isDirectorCockpitContinuationAction,
 } from "@/lib/directorCockpitActions";
@@ -37,7 +37,6 @@ import { createDefaultNovelBasicFormState, type NovelBasicFormState } from "./no
 import {
   buildNovelListSummary,
   getNovelWorkflowTask,
-  getNovelWorkspaceHref,
   NOVEL_LIST_PAGE_SIZE,
   type StatusFilter,
   type WritingModeFilter,

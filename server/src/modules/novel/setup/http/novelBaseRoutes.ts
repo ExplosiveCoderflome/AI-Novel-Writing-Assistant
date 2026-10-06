@@ -9,11 +9,14 @@ import { z } from "zod";
 import type { SimpleCreationShelfProjection } from "@ai-novel/shared/types/novel";
 import { parsePersistedDirectorRiskAssessment } from "@ai-novel/shared/types/directorRisk";
 import { prisma } from "../../../../db/prisma";
+import {directorV2Available, readNovelDirectorIdentity} from "../../director-routing";
+import {AppError} from "../../../../middleware/errorHandler";
 import { llmProviderSchema } from "../../../../llm/providerSchema";
 import { validate } from "../../../../middleware/validate";
 import { KnowledgeService } from "../../../../services/knowledge/KnowledgeService";
 import { novelCreateResourceRecommendationService } from "../../../../services/novel/NovelCreateResourceRecommendationService";
 import type { NovelApplicationServices } from "../../../../services/novel/application/NovelApplicationContracts";
+import { resolveCurrentDirectorTask } from "../../../../services/novel/director/state";
 
 const paginationSchema = z.object({
   page: z.coerce.number().int().min(1).default(1),
@@ -56,6 +59,8 @@ function parseJsonRecord(value: string | null | undefined): Record<string, unkno
 }
 
 const createNovelSchema = z.object({
+  directorVersion: z.enum(["v1", "v2"]).optional(),
+  narrativeForm: z.enum(["long_novel", "short_story"]).optional(),
   title: z.string().trim().min(1, "标题不能为空。"),
   description: z.string().trim().optional(),
   targetAudience: z.string().trim().optional(),
@@ -168,6 +173,7 @@ const createResourceRecommendationSchema = z.object({
 
 interface RegisterNovelBaseRoutesInput {
   router: Router;
+  readDirectorIdentity?: typeof readNovelDirectorIdentity;
   novelService: Pick<NovelApplicationServices,
     | "listNovels"
     | "createNovel"
@@ -177,14 +183,24 @@ interface RegisterNovelBaseRoutesInput {
   >;
 }
 
+async function withWorkspaceSource<T extends {id: string; narrativeForm?: string | null}>(book: T, readIdentity: typeof readNovelDirectorIdentity) {
+  if (book.narrativeForm === "short_story") return {...book, workspaceSourceRoute: null};
+  const identity = await readIdentity(book.id);
+  return {...book, directorVersion: identity.version, directorEpoch: identity.epoch,
+    workspaceSourceRoute: identity.version === "v2" ? identity.sourceRoute : null};
+}
+
 export function registerNovelBaseRoutes(input: RegisterNovelBaseRoutesInput): void {
   const { router, novelService } = input;
+  const readIdentity = input.readDirectorIdentity ?? readNovelDirectorIdentity;
   const knowledgeService = new KnowledgeService();
 
   router.get("/", validate({ query: paginationSchema }), async (req, res, next) => {
     try {
       const query = paginationSchema.parse(req.query);
-      const data = await novelService.listNovels(query);
+      const listed = await novelService.listNovels(query);
+      const data = {...listed, items: await Promise.all(listed.items.map((book: {id: string; narrativeForm?: string | null} & Record<string, unknown>) =>
+        withWorkspaceSource(book, readIdentity)))};
       const response: ApiResponse<typeof data> = {
         success: true,
         data,
@@ -199,13 +215,18 @@ export function registerNovelBaseRoutes(input: RegisterNovelBaseRoutesInput): vo
   router.post("/", validate({ body: createNovelSchema }), async (req, res, next) => {
     try {
       const createInput = req.body as z.infer<typeof createNovelSchema>;
+      const directorVersion = createInput.narrativeForm === "short_story" ? undefined
+        : createInput.directorVersion ?? (directorV2Available() ? "v2" : "v1");
+      if (directorVersion === "v2" && !directorV2Available()) throw new AppError("导演 V2 未启用，请选择导演 V1。", 409);
       const foundation = await novelCreateResourceRecommendationService.resolveRequired(createInput);
-      const data = await novelService.createNovel({
+      const created = await novelService.createNovel({
         ...createInput,
+        directorVersion,
         genreId: foundation.genreId,
         primaryStoryModeId: foundation.primaryStoryModeId,
         secondaryStoryModeId: foundation.secondaryStoryModeId,
       });
+      const data = await withWorkspaceSource(created, readIdentity);
       const response: ApiResponse<typeof data> = {
         success: true,
         data,
@@ -235,14 +256,15 @@ export function registerNovelBaseRoutes(input: RegisterNovelBaseRoutesInput): vo
   router.get("/:id", validate({ params: idParamsSchema }), async (req, res, next) => {
     try {
       const { id } = req.params as z.infer<typeof idParamsSchema>;
-      const data = await novelService.getNovelById(id);
-      if (!data) {
+      const book = await novelService.getNovelById(id);
+      if (!book) {
         res.status(404).json({
           success: false,
           error: "小说不存在。",
         } satisfies ApiResponse<null>);
         return;
       }
+      const data = await withWorkspaceSource(book, readIdentity);
       res.status(200).json({
         success: true,
         data,
@@ -326,33 +348,31 @@ export function registerNovelBaseRoutes(input: RegisterNovelBaseRoutesInput): vo
               volumePlans: true,
             },
           },
-          workflowTasks: {
-            where: { lane: "auto_director" },
-            orderBy: { updatedAt: "desc" },
-            take: 1,
-            select: {
-              id: true,
-              status: true,
-              progress: true,
-              currentItemLabel: true,
-              pendingManualRecovery: true,
-              lastError: true,
-              checkpointType: true,
-              seedPayloadJson: true,
-              directorEvents: {
-                orderBy: { occurredAt: "desc" },
-                take: 80,
-                select: { id: true, metadataJson: true },
-              },
-            },
-          },
         },
       });
       if (!novel) {
         res.status(404).json({ success: false, error: "小说不存在。" } satisfies ApiResponse<null>);
         return;
       }
-      const task = novel.workflowTasks[0] ?? null;
+      const currentTask = await resolveCurrentDirectorTask(id);
+      const task = currentTask ? await prisma.novelWorkflowTask.findUnique({
+        where: { id: currentTask.id },
+        select: {
+          id: true,
+          status: true,
+          progress: true,
+          currentItemLabel: true,
+          pendingManualRecovery: true,
+          lastError: true,
+          checkpointType: true,
+          seedPayloadJson: true,
+          directorEvents: {
+            orderBy: { occurredAt: "desc" },
+            take: 80,
+            select: { id: true, metadataJson: true },
+          },
+        },
+      }) : null;
       const seedPayload = parseJsonRecord(task?.seedPayloadJson);
       const autoExecution = seedPayload?.autoExecution;
       const autoExecutionRecord = autoExecution && typeof autoExecution === "object" && !Array.isArray(autoExecution)

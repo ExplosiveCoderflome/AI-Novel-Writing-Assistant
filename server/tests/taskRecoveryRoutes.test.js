@@ -1,6 +1,8 @@
 const test = require("node:test");
 const assert = require("node:assert/strict");
 const http = require("node:http");
+const { prisma } = require("../dist/db/prisma.js");
+const { stubLegacyTaskOwnership } = require("./legacyDirector/databasePorts.js");
 const { createApp } = require("../dist/app.js");
 const { recoveryTaskService } = require("../dist/services/task/RecoveryTaskService.js");
 const { taskCenterService } = require("../dist/services/task/TaskCenterService.js");
@@ -14,20 +16,16 @@ function listen(server) {
   });
 }
 
-test("recovery task service accepts auto director resume before background work finishes", async () => {
+test("recovery task service accepts auto director resume through an explicit command", async () => {
   const { RecoveryTaskService } = require("../dist/services/task/RecoveryTaskService.js");
-  let releaseContinue;
-  let continueStarted = false;
-  const continuePromise = new Promise((resolve) => {
-    releaseContinue = resolve;
-  });
+  let commandAccepted = false;
   const recoveryService = new RecoveryTaskService(
     {},
     {},
     {
-      async continueTask(taskId) {
-        continueStarted = taskId === "workflow-1";
-        return continuePromise;
+      async enqueueRecoveryCommand(taskId) {
+        commandAccepted = taskId === "workflow-1";
+        return { commandId: "command-1", taskId };
       },
     },
     {},
@@ -40,19 +38,14 @@ test("recovery task service accepts auto director resume before background work 
     },
   );
 
-  const result = await Promise.race([
-    recoveryService.startResumeRecoveryCandidate("novel_workflow", "workflow-1").then(() => "accepted"),
-    continuePromise.then(() => "finished"),
-  ]);
+  const result = await recoveryService.startResumeRecoveryCandidate("novel_workflow", "workflow-1");
 
-  assert.equal(result, "accepted");
-  await new Promise((resolve) => setImmediate(resolve));
-  assert.equal(continueStarted, true);
-  releaseContinue();
-  await continuePromise;
+  assert.deepEqual(result, { commandId: "command-1", taskId: "workflow-1" });
+  assert.equal(commandAccepted, true);
 });
 
-test("task recovery routes expose overview, recovery candidates, and resume actions", async () => {
+test("task recovery routes expose overview and explicit recovery while rejecting global resume", async (t) => {
+  stubLegacyTaskOwnership(t, prisma, { "workflow-1": null });
   const originals = {
     getOverview: taskCenterService.getOverview,
     listRecoveryCandidates: recoveryTaskService.listRecoveryCandidates,
@@ -128,11 +121,12 @@ test("task recovery routes expose overview, recovery candidates, and resume acti
     const resumeAllResponse = await fetch(`http://127.0.0.1:${port}/api/tasks/recovery-candidates/resume-all`, {
       method: "POST",
     });
-    assert.equal(resumeAllResponse.status, 202);
+    assert.equal(resumeAllResponse.status, 409);
     const resumeAllPayload = await resumeAllResponse.json();
-    assert.equal(resumeAllPayload.success, true);
-    assert.equal(resumeAllPayload.data.resumed.length, 1);
-    assert.deepEqual(calls[1], ["all"]);
+    assert.equal(resumeAllPayload.success, false);
+    assert.equal(resumeAllPayload.sourceRoute, "/lab/director");
+    assert.deepEqual(calls, [["single", "novel_workflow", "workflow-1"]],
+      "global recovery must not mutate unrelated director workflows");
   } finally {
     taskCenterService.getOverview = originals.getOverview;
     recoveryTaskService.listRecoveryCandidates = originals.listRecoveryCandidates;

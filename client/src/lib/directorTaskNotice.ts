@@ -1,5 +1,8 @@
 import type { DirectorTaskNotice } from "@ai-novel/shared/types/novelDirector";
 import type { UnifiedTaskDetail } from "@ai-novel/shared/types/task";
+import { buildStructuredOutlineRoute, buildTaskNoticeRoute } from "./novelRoutes.ts";
+
+export { buildStructuredOutlineRoute, buildTaskNoticeRoute } from "./novelRoutes.ts";
 
 type StructuredOutlineTaskLike = Pick<
   UnifiedTaskDetail,
@@ -43,38 +46,6 @@ export function isChapterTitleDiversitySummary(value: string | null | undefined)
   return normalized.includes("章节标题结构过于集中")
     || normalized.includes("相邻章节标题结构过于重复")
     || normalized.includes("章节标题出现重复");
-}
-
-export function buildStructuredOutlineRoute(
-  task: Pick<UnifiedTaskDetail, "id" | "sourceResource" | "resumeTarget">,
-  volumeId?: string | null,
-): string | null {
-  const novelId = task.sourceResource?.type === "novel"
-    ? task.sourceResource.id
-    : null;
-  if (!novelId) {
-    return null;
-  }
-  const search = new URLSearchParams();
-  search.set("stage", "structured");
-  search.set("directorTaskId", task.id);
-  if (typeof volumeId === "string" && volumeId.trim()) {
-    search.set("volumeId", volumeId.trim());
-  }
-  return `/novels/${novelId}/edit?${search.toString()}`;
-}
-
-export function buildTaskNoticeRoute(
-  task: Pick<UnifiedTaskDetail, "id" | "sourceResource" | "resumeTarget">,
-  notice: DirectorTaskNotice | null,
-): string | null {
-  if (!notice?.action || notice.action.type !== "open_structured_outline") {
-    return null;
-  }
-  return buildStructuredOutlineRoute(
-    task,
-    notice.action.volumeId ?? task.resumeTarget?.volumeId ?? null,
-  );
 }
 
 export function resolveChapterTitleWarning(task: StructuredOutlineTaskLike | null | undefined): {

@@ -13,8 +13,10 @@ import {
 
 const QUERY_PARAMS_KEY = "auto-director-pause-notifications";
 
-function buildFollowUpTargetUrl(directorTaskId: string): string {
-  return `/auto-director/follow-ups?directorTaskId=${encodeURIComponent(directorTaskId)}`;
+function buildFollowUpTargetUrl(novelId: string | null): string {
+  return novelId
+    ? `/auto-director/follow-ups?novelId=${encodeURIComponent(novelId)}`
+    : "/auto-director/follow-ups";
 }
 
 export default function AutoDirectorPauseNotificationWatcher() {
@@ -62,7 +64,7 @@ export default function AutoDirectorPauseNotificationWatcher() {
     if (newItem) {
       showAutoDirectorPauseNotification({
         item: newItem,
-        targetUrl: buildFollowUpTargetUrl(newItem.directorTaskId),
+        targetUrl: buildFollowUpTargetUrl(newItem.novelId),
       });
     }
 

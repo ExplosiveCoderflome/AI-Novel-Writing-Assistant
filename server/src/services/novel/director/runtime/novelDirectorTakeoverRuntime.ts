@@ -13,7 +13,7 @@ import type { VolumePlanDocument } from "@ai-novel/shared/types/novel";
 import { prisma } from "../../../../db/prisma";
 import { normalizeNovelOutput } from "../../novelCoreShared";
 import { DIRECTOR_PROGRESS } from "../projections/novelDirectorProgress";
-import { parseSeedPayload } from "../../workflow/novelWorkflow.shared";
+import { DirectorStateReader, toDirectorTaskDataView } from "../state/DirectorStateReader";
 import {
   buildDirectorAutoExecutionState,
   buildDirectorAutoExecutionDeferredQualityState,
@@ -321,7 +321,10 @@ function buildCheckpointSnapshot(input: {
   task: {
     checkpointType?: string | null;
     checkpointSummary?: string | null;
-    resumeTargetJson?: string | null;
+  } | null;
+  resumeTarget?: {
+    chapterId?: string | null;
+    volumeId?: string | null;
   } | null;
   chapterOrderMap: Map<string, number>;
 }): DirectorTakeoverCheckpointSnapshot | null {
@@ -332,20 +335,8 @@ function buildCheckpointSnapshot(input: {
 
   let chapterId: string | null = null;
   let volumeId: string | null = null;
-  const rawResumeTarget = input.task?.resumeTargetJson?.trim();
-  if (rawResumeTarget) {
-    try {
-      const parsed = JSON.parse(rawResumeTarget) as {
-        chapterId?: string | null;
-        volumeId?: string | null;
-      };
-      chapterId = parsed.chapterId?.trim() || null;
-      volumeId = parsed.volumeId?.trim() || null;
-    } catch {
-      chapterId = null;
-      volumeId = null;
-    }
-  }
+  chapterId = input.resumeTarget?.chapterId?.trim() || null;
+  volumeId = input.resumeTarget?.volumeId?.trim() || null;
 
   return {
     checkpointType,
@@ -381,8 +372,6 @@ export async function loadDirectorTakeoverState(input: {
     id: string;
     checkpointType?: string | null;
     checkpointSummary?: string | null;
-    resumeTargetJson?: string | null;
-    seedPayloadJson?: string | null;
     lastError?: string | null;
   } | null>;
 }): Promise<DirectorTakeoverLoadedState> {
@@ -485,7 +474,12 @@ export async function loadDirectorTakeoverState(input: {
     }
     return chapter.generationState !== "approved" && chapter.generationState !== "published";
   }).length;
-  const latestSeedPayload = parseSeedPayload<DirectorWorkflowSeedPayload>(latestTask?.seedPayloadJson) ?? null;
+  const latestTaskState = latestTask
+    ? await new DirectorStateReader().readTaskStateById(latestTask.id)
+    : null;
+  const latestSeedPayload = latestTaskState
+    ? toDirectorTaskDataView(latestTaskState) as DirectorWorkflowSeedPayload
+    : null;
   const reconciledLatestAutoExecutionState = reconcileAutoExecutionStateAfterStaleNoChapterFailure({
     chapterRows: chapterRows as TakeoverChapterRow[],
     latestTaskError: latestTask?.lastError ?? null,
@@ -524,6 +518,7 @@ export async function loadDirectorTakeoverState(input: {
     : null;
   const latestCheckpoint = buildCheckpointSnapshot({
     task: latestTask,
+    resumeTarget: latestTaskState?.run.resumeTarget,
     chapterOrderMap,
   });
 

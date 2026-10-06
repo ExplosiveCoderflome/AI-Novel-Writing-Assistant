@@ -6,8 +6,8 @@ const {
   sanitizeStyleContextForGeneration,
 } = require("../dist/services/styleEngine/styleGenerationSanitizer.js");
 const {
-  buildStyleEngineBlock,
-} = require("../dist/services/novel/runtime/runtimeContextBlocks.js");
+  buildWriterStyleContractText,
+} = require("../dist/services/styleEngine/styleContractText.js");
 
 function section(key, text) {
   return {
@@ -108,8 +108,10 @@ function styleContext() {
 }
 
 test("sanitizeStyleContextForGeneration redacts source entities before writer context", () => {
+  const original = styleContext();
+  const originalJson = JSON.stringify(original);
   const sanitized = sanitizeStyleContextForGeneration(
-    styleContext(),
+    original,
     new Date("2026-05-01T00:00:00.000Z"),
   );
 
@@ -120,8 +122,10 @@ test("sanitizeStyleContextForGeneration redacts source entities before writer co
     ["北凉王世子"],
   );
 
-  const block = buildStyleEngineBlock(sanitized);
+  const block = buildWriterStyleContractText(sanitized.compiledBlocks.contract);
   assert.match(block, /\[source-entity\]/);
   assert.doesNotMatch(block, /北凉王世子/);
   assert.doesNotMatch(block, /徐凤年/);
+  assert.equal(JSON.stringify(original), originalJson, "stored style reference must remain intact");
+  assert.notEqual(sanitized.compiledBlocks.contract, original.compiledBlocks.contract);
 });

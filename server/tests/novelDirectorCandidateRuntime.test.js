@@ -68,7 +68,7 @@ test("candidate runtime resumes a candidate-generation retry after the command m
     status: "running",
     checkpointType: null,
     currentItemKey: "approve_gate",
-    seedPayload: {
+    directorTaskData: {
       idea: "A young heir uses battlefield simulations to survive a family conspiracy.",
       marketBriefId: "market-brief-1",
       provider: "custom_kkrich",

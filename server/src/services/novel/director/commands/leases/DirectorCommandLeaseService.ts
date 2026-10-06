@@ -1,8 +1,11 @@
+import { DirectorTaskStateWriter } from "../../state";
 import crypto from "node:crypto";
 import { prisma } from "../../../../../db/prisma";
+import {canExecuteLegacyTask} from "../../../../../modules/novel/director-routing";
 import { taskDispatcher } from "../../../../../workers/TaskDispatcher";
 import { NovelWorkflowService } from "../../../workflow/NovelWorkflowService";
 import { directorIssueService, loadDirectorIssueTaskContext } from "../../issues";
+import { DirectorStateReader } from "../../state/DirectorStateReader";
 
 const STALE_COMMAND_AUTO_RECOVERY_MESSAGE = "后台执行中断，系统已自动从最近进度继续。";
 const STALE_COMMAND_MANUAL_RECOVERY_MESSAGE = "后台执行中断，任务已暂停。点击恢复后会从最近进度继续。";
@@ -20,10 +23,7 @@ interface DirectorLeaseRecoveryState {
   } | null;
 }
 
-function parseLinkedPipelineJobId(seedPayloadJson: string | null): string | null {
-  if (!seedPayloadJson?.trim()) return null;
-  const seed = JSON.parse(seedPayloadJson) as { autoExecution?: { pipelineJobId?: unknown } };
-  const value = seed.autoExecution?.pipelineJobId;
+function normalizeLinkedPipelineJobId(value: unknown): string | null {
   if (value === undefined || value === null || value === "") return null;
   if (typeof value !== "string" || !value.trim()) {
     throw new Error("Invalid linked pipeline job id.");
@@ -59,6 +59,7 @@ export class DirectorCommandLeaseService {
       },
     });
     for (const command of staleCommands) {
+      if (!await canExecuteLegacyTask(command.taskId)) continue;
       let recoveryState: DirectorLeaseRecoveryState | null;
       try {
         recoveryState = await this.loadRecoveryState(command.taskId);
@@ -107,9 +108,12 @@ export class DirectorCommandLeaseService {
           data: { status: "failed", finishedAt: now, error: STALE_COMMAND_INTERNAL_MESSAGE },
         }).catch(() => null);
         if (action === "fail_task") {
-          await this.workflowService.markTaskFailed(command.taskId, STALE_COMMAND_INTERNAL_MESSAGE);
+          await new DirectorTaskStateWriter(this.workflowService).markFailed(command.taskId, STALE_COMMAND_INTERNAL_MESSAGE);
         } else {
-          await this.workflowService.requeueTaskForRecovery(command.taskId, STALE_COMMAND_MANUAL_RECOVERY_MESSAGE);
+          await new DirectorTaskStateWriter(this.workflowService).markPendingManualRecovery(
+            command.taskId,
+            STALE_COMMAND_MANUAL_RECOVERY_MESSAGE,
+          );
         }
         actionApplied = true;
       };
@@ -146,11 +150,11 @@ export class DirectorCommandLeaseService {
       select: {
         novelId: true,
         pendingManualRecovery: true,
-        seedPayloadJson: true,
       },
     });
     if (!task) return null;
-    const pipelineJobId = parseLinkedPipelineJobId(task.seedPayloadJson);
+    const state = await new DirectorStateReader().readTaskStateById(taskId);
+    const pipelineJobId = normalizeLinkedPipelineJobId(state?.run.autoExecution?.pipelineJobId);
     if (!pipelineJobId) {
       return { taskPendingManualRecovery: task.pendingManualRecovery, linkedPipelineJob: null };
     }
@@ -172,6 +176,7 @@ export class DirectorCommandLeaseService {
     if (job.novelId !== task.novelId) {
       throw new Error("Linked pipeline job belongs to another novel.");
     }
+    if (job.payload && JSON.parse(job.payload).directorNext) throw new Error("Linked pipeline job belongs to director V2.");
     const payloadTaskId = parsePipelineWorkflowTaskId(job.payload);
     if (payloadTaskId && payloadTaskId !== taskId) {
       throw new Error("Linked pipeline job belongs to another workflow task.");
@@ -210,7 +215,7 @@ export class DirectorCommandLeaseService {
         errorMessage: STALE_COMMAND_AUTO_RECOVERY_MESSAGE,
       },
     });
-    await prisma.novelWorkflowTask.updateMany({
+    await new DirectorTaskStateWriter(this.workflowService).updateRunState({
       where: {
         id: taskId,
         status: { in: ["queued", "running"] },
@@ -222,7 +227,7 @@ export class DirectorCommandLeaseService {
         heartbeatAt: now,
         finishedAt: null,
       },
-    });
+    }, { many: true });
     taskDispatcher.notify();
   }
 
@@ -247,14 +252,14 @@ export class DirectorCommandLeaseService {
       data: { status: "failed", finishedAt: now, error: STALE_COMMAND_INTERNAL_MESSAGE },
     }).catch(() => null);
     if (recoveryMessage) {
-      await this.workflowService.requeueTaskForRecovery(taskId, recoveryMessage);
+      await new DirectorTaskStateWriter(this.workflowService).markPendingManualRecovery(taskId, recoveryMessage);
     }
   }
 
   async leaseNextCommand(input: { workerId: string; leaseMs: number }) {
     const now = new Date();
     const leaseExpiresAt = new Date(now.getTime() + input.leaseMs);
-    const candidate = await prisma.directorRunCommand.findFirst({
+    const candidates = await prisma.directorRunCommand.findMany({
       where: {
         status: "queued",
         runAfter: { lte: now },
@@ -262,6 +267,10 @@ export class DirectorCommandLeaseService {
       },
       orderBy: [{ runAfter: "asc" }, { createdAt: "asc" }, { id: "asc" }],
     });
+    let candidate: (typeof candidates)[number] | undefined;
+    for (const item of candidates) {
+      if (await canExecuteLegacyTask(item.taskId)) {candidate = item; break;}
+    }
     if (!candidate) return null;
     const claimed = await prisma.directorRunCommand.updateMany({
       where: {
@@ -343,7 +352,9 @@ export class DirectorCommandLeaseService {
       where: { taskId: command.taskId, status: "running" },
       data: { status: "failed", finishedAt: failedAt, error: message },
     }).catch(() => null);
-    await this.workflowService.requeueTaskForRecovery(command.taskId, message).catch(() => null);
+    await new DirectorTaskStateWriter(this.workflowService)
+      .markPendingManualRecovery(command.taskId, message)
+      .catch(() => null);
   }
 
   async closeCancelledTaskRuntimeState(taskId: string, now: Date): Promise<void> {
@@ -351,8 +362,12 @@ export class DirectorCommandLeaseService {
       where: { taskId, status: "running" },
       data: { status: "failed", finishedAt: now, error: CANCELLED_COMMAND_MESSAGE },
     }).catch(() => null);
+    const jobs = await prisma.generationJob.findMany({where: {status: {in: ["queued", "running"]}}, select: {id: true, payload: true}});
+    const ownedIds = jobs.filter(job => {
+      try {const payload = JSON.parse(job.payload || "{}"); return !payload.directorNext && payload.workflowTaskId === taskId;} catch {return false;}
+    }).map(job => job.id);
     await prisma.generationJob.updateMany({
-      where: { status: { in: ["queued", "running"] }, payload: { contains: taskId } },
+      where: { id: {in: ownedIds}, status: { in: ["queued", "running"] } },
       data: {
         status: "cancelled",
         cancelRequestedAt: now,

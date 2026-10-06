@@ -600,9 +600,9 @@ test("StyleRewriteService includes preview anti-ai rules in the repair prompt", 
     rewriteSuggestion: "改成具体动作和对白。",
   })];
   promptRunner.setPromptRunnerLLMFactoryForTests(async () => ({
-    invoke: async (messages) => {
+    stream: async function* (messages) {
       capturedPrompt = messages.map((message) => String(message.content)).join("\n");
-      return { content: "他扶住桌沿，半晌才开口。" };
+      yield { content: "他扶住桌沿，半晌才开口。" };
     },
   }));
 

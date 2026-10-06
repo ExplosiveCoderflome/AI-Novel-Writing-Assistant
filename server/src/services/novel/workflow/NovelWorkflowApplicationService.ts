@@ -13,9 +13,13 @@ import {
   stageLabel,
 } from "./novelWorkflow.helpers";
 import { buildRestoreTaskToCheckpointResult } from "./novelWorkflowCheckpoint";
-import { applyDirectorLlmOverride, type DirectorWorkflowSeedPayload } from "../director/runtime/novelDirectorHelpers";
+import { DirectorTaskStateWriter } from "../director/state/DirectorTaskStateWriter";
 import type { DirectorLLMOptions } from "@ai-novel/shared/types/novelDirector";
 import { NovelWorkflowStoreService } from "./NovelWorkflowStoreService";
+import {
+  resolveCurrentDirectorTask,
+  startDirectorTaskForNovel,
+} from "../director/state/currentDirectorTask";
 
 type WorkflowRow = Awaited<ReturnType<typeof prisma.novelWorkflowTask.findUnique>>;
 
@@ -31,7 +35,12 @@ export class NovelWorkflowApplicationService {
     return this.workflow.getNovelTitle(novelId);
   }
 
-  async bootstrapTask(input: BootstrapWorkflowInput) {
+  async bootstrapTask(
+    input: BootstrapWorkflowInput,
+    // Internal persistence option: the Writer has already validated and composed
+    // a complete launch/run state. Keep it outside the public bootstrap input.
+    options: { replaceSeedPayload?: boolean } = {},
+  ) {
     if (input.workflowTaskId?.trim()) {
       const existing = await this.workflow.getTaskById(input.workflowTaskId.trim());
       if (existing) {
@@ -44,6 +53,17 @@ export class NovelWorkflowApplicationService {
         }
         if (input.novelId?.trim() && existing.novelId !== input.novelId.trim()) {
           if (isPreNovelAutoDirectorCandidateTask(existing)) {
+            // Candidate creation owns attachment, but a validated launch
+            // replacement must still be saved before that later boundary.
+            if (options.replaceSeedPayload && input.seedPayload) {
+              return this.workflow.updateTaskWithRetry({
+                where: { id: existing.id },
+                data: {
+                  seedPayloadJson: JSON.stringify(input.seedPayload),
+                  heartbeatAt: new Date(),
+                },
+              });
+            }
             return existing;
           }
           const attached = await this.attachNovelToTask(existing.id, input.novelId.trim());
@@ -51,7 +71,9 @@ export class NovelWorkflowApplicationService {
             return this.workflow.updateTaskWithRetry({
               where: { id: attached.id },
               data: {
-                seedPayloadJson: mergeSeedPayload(attached.seedPayloadJson, input.seedPayload),
+                seedPayloadJson: options.replaceSeedPayload
+                  ? JSON.stringify(input.seedPayload)
+                  : mergeSeedPayload(attached.seedPayloadJson, input.seedPayload),
                 heartbeatAt: new Date(),
               },
             });
@@ -62,7 +84,9 @@ export class NovelWorkflowApplicationService {
           return this.workflow.updateTaskWithRetry({
             where: { id: existing.id },
             data: {
-              seedPayloadJson: mergeSeedPayload(existing.seedPayloadJson, input.seedPayload),
+              seedPayloadJson: options.replaceSeedPayload
+                ? JSON.stringify(input.seedPayload)
+                : mergeSeedPayload(existing.seedPayloadJson, input.seedPayload),
               heartbeatAt: new Date(),
             },
           });
@@ -72,6 +96,18 @@ export class NovelWorkflowApplicationService {
     }
 
     if (input.novelId?.trim() && input.forceNew !== true) {
+      if (input.lane === "auto_director") {
+        const current = await resolveCurrentDirectorTask(input.novelId.trim());
+        if (current) {
+          return current;
+        }
+        return startDirectorTaskForNovel({
+          novelId: input.novelId.trim(),
+          title: input.title,
+          seedPayload: input.seedPayload,
+          initialState: input.initialState,
+        }, { whenActive: "reject" });
+      }
       const visibleRows = await this.workflow.getVisibleRowsByNovelId(input.novelId.trim(), input.lane);
       const active = visibleRows.find((row) => ["queued", "running", "waiting_approval"].includes(row.status as string));
       if (active) {
@@ -81,6 +117,15 @@ export class NovelWorkflowApplicationService {
       if (latest) {
         return latest;
       }
+    }
+
+    if (input.novelId?.trim() && input.lane === "auto_director") {
+      return startDirectorTaskForNovel({
+        novelId: input.novelId.trim(),
+        title: input.title,
+        seedPayload: input.seedPayload,
+        initialState: input.initialState,
+      }, { whenActive: "reject" });
     }
 
     return this.workflow.createWorkflow({
@@ -94,24 +139,30 @@ export class NovelWorkflowApplicationService {
     if (!existing) {
       throw new AppError("Workflow task not found.", 404);
     }
+    const attachable = existing.lane === "auto_director"
+      ? await startDirectorTaskForNovel({
+        novelId,
+        existingTaskId: taskId,
+      }, { whenActive: "reject" })
+      : existing;
     const novelTitle = await this.getNovelTitle(novelId);
     return this.workflow.updateTaskWithRetry({
       where: { id: taskId },
       data: {
         novelId,
-        title: novelTitle ?? existing.title,
-        progress: Math.max(existing.progress, defaultProgressForStage(stage)),
+        title: novelTitle ?? attachable.title,
+        progress: Math.max(attachable.progress, defaultProgressForStage(stage)),
         currentStage: stageLabel(stage),
-        currentItemKey: existing.lane === "auto_director"
-          ? (existing.currentItemKey ?? "novel_create")
+        currentItemKey: attachable.lane === "auto_director"
+          ? (attachable.currentItemKey ?? "novel_create")
           : stage,
-        currentItemLabel: existing.lane === "auto_director"
-          ? (existing.currentItemLabel ?? "正在创建小说项目")
-          : (stage === "project_setup" ? "小说项目已创建" : (existing.currentItemLabel ?? "已恢复小说主任务")),
+        currentItemLabel: attachable.lane === "auto_director"
+          ? (attachable.currentItemLabel ?? "正在创建小说项目")
+          : (stage === "project_setup" ? "小说项目已创建" : (attachable.currentItemLabel ?? "已恢复小说主任务")),
         resumeTargetJson: stringifyResumeTarget(this.workflow.buildResumeTarget({
           taskId,
           novelId,
-          lane: existing.lane,
+          lane: attachable.lane,
           stage,
         })),
         heartbeatAt: new Date(),
@@ -218,7 +269,7 @@ export class NovelWorkflowApplicationService {
         startedAt: existing.startedAt ?? new Date(),
         finishedAt: null,
         heartbeatAt: new Date(),
-        pendingManualRecovery: false,
+        ...(existing.lane === "auto_director" ? {} : { pendingManualRecovery: false }),
         currentStage: stageLabel(input.stage),
         currentItemKey: input.itemKey ?? input.stage,
         currentItemLabel: input.itemLabel,
@@ -347,7 +398,7 @@ export class NovelWorkflowApplicationService {
       before: existing,
       data: {
         status: existing.checkpointType ? "waiting_approval" : "queued",
-        pendingManualRecovery: false,
+        ...(existing.lane === "auto_director" ? {} : { pendingManualRecovery: false }),
         attemptCount: existing.attemptCount + 1,
         lastError: null,
         finishedAt: null,
@@ -389,18 +440,10 @@ export class NovelWorkflowApplicationService {
     if (existing.lane !== "auto_director") {
       return existing;
     }
-    const seedPayload = parseSeedPayload<DirectorWorkflowSeedPayload>(existing.seedPayloadJson);
-    const nextSeedPayload = applyDirectorLlmOverride(seedPayload, llmOverride);
-    if (!nextSeedPayload) {
+    if (!parseSeedPayload<Record<string, unknown>>(existing.seedPayloadJson)) {
       throw new AppError("当前自动导演任务缺少可覆盖的模型上下文。", 400);
     }
-    return this.workflow.updateTaskWithRetry({
-      where: { id: taskId },
-      data: {
-        seedPayloadJson: JSON.stringify(nextSeedPayload),
-        heartbeatAt: new Date(),
-      },
-    });
+    return new DirectorTaskStateWriter(this.workflow).applyLlmOverride(taskId, llmOverride);
   }
 
   async continueTask(taskId: string) {
@@ -415,7 +458,7 @@ export class NovelWorkflowApplicationService {
       before: existing,
       data: {
         heartbeatAt: new Date(),
-        pendingManualRecovery: false,
+        ...(existing.lane === "auto_director" ? {} : { pendingManualRecovery: false }),
         status: existing.status === "queued" ? "running" : existing.status,
       },
     });

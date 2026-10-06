@@ -1,0 +1,6 @@
+const test=require('node:test'),assert=require('node:assert/strict');
+const {withStepUsage}=require('../dist/app/director/usage');
+const {attachLLMUsageTracking}=require('../dist/llm/usageTracking');
+const {runWithInvocationUsageObserver}=require('../dist/platform/llm/usage/application/InvocationUsageObserver');
+const {prisma}=require('../dist/db/prisma');
+test('composition attributes new run independently of old director telemetry',async()=>{const records=[],saved=[],old=prisma.llmInvocationUsageRecord.create;prisma.llmInvocationUsageRecord.create=async({data})=>{saved.push(data);return data};try{const llm={invoke:async()=>({usage_metadata:{input_tokens:10,output_tokens:1,total_tokens:11}}),batch:async()=>[],stream:async()=>{}};attachLLMUsageTracking(llm,{promptMeta:{chapterId:'chapter'}});const handlers=withStepUsage({writer:async()=>{await llm.invoke([]);return {}}});await runWithInvocationUsageObserver(r=>records.push(r),()=>handlers.writer({runId:'new-run',contract:{novelId:'novel'}}));assert.equal(records[0].runId,'new-run');assert.equal(records[0].stage,'writer');assert.equal(records[0].novelId,'novel');assert.equal(saved[0].runId,'new-run')}finally{prisma.llmInvocationUsageRecord.create=old}});

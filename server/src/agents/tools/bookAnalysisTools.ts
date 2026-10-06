@@ -11,9 +11,8 @@ import {
   getBookAnalysisFailureReasonOutputSchema,
   listBookAnalysesInputSchema,
   listBookAnalysesOutputSchema,
-  type qualityDebtChapterAttributionSchema,
+  type QualityDebtChapterAttribution,
 } from "./bookAnalysisToolSchemas";
-import { z } from "zod";
 
 export const bookAnalysisToolDefinitions: Partial<
   Record<AgentToolName, AgentToolDefinition<Record<string, unknown>, Record<string, unknown>>>
@@ -345,8 +344,7 @@ export const bookAnalysisToolDefinitions: Partial<
       });
 
       // 过滤出 terminalAction = defer_and_continue 的章节
-      type AttributionData = z.infer<typeof qualityDebtChapterAttributionSchema>;
-      const deferredChapters: AttributionData[] = [];
+      const deferredChapters: QualityDebtChapterAttribution[] = [];
 
       for (const chapter of chapters) {
         let riskFlagsObj: Record<string, unknown> = {};
@@ -409,7 +407,7 @@ export const bookAnalysisToolDefinitions: Partial<
           : null;
 
         // 推断主要根因（优先级：D > B > A > E > unknown）
-        let primaryRootCause: AttributionData["primaryRootCause"] = "unknown";
+        let primaryRootCause: QualityDebtChapterAttribution["primaryRootCause"] = "unknown";
         if (planMisaligned) {
           primaryRootCause = "D";
         } else if (patchAnchorFailed) {

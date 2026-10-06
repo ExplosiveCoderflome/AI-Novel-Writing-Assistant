@@ -16,6 +16,7 @@ import {
 } from "../../../prompting/prompts/novel/volume/chapterTaskSheetQuality.prompts";
 
 export interface ChapterTaskSheetQualityGateOptions {
+  onEvaluated?: (event: {result: ChapterTaskSheetQualityGateResult; assessment?: AiChapterTaskSheetQualityAssessment}) => void | Promise<void>;
   mode?: ChapterTaskSheetQualityMode;
   provider?: LLMProvider;
   model?: string;
@@ -62,13 +63,16 @@ export class ChapterTaskSheetQualityGateService {
     const mode = normalizeQualityMode(options.mode);
     const shapeResult = assessChapterExecutionContractShape(candidate);
     if (!shapeResult.canEnterExecution) {
+      await options.onEvaluated?.({result: shapeResult});
       return shapeResult;
     }
 
     const assessment = this.semanticAssessor
       ? await this.semanticAssessor({ candidate, mode, options })
       : await this.runSemanticAssessment(candidate, mode, options);
-    return ensureFailureResult(mapSemanticAssessmentToQualityGate(assessment, mode));
+    const result = ensureFailureResult(mapSemanticAssessmentToQualityGate(assessment, mode));
+    await options.onEvaluated?.({result, assessment});
+    return result;
   }
 
   async assertCanEnterExecution(

@@ -95,8 +95,8 @@ async function resolveDirectorRuntimeScope(
     throw new AgentToolError("INVALID_INPUT", "需要绑定小说或传入自动导演任务 ID。");
   }
 
-  const activeTask = await workflowService.findActiveTaskByNovelAndLane(novelId, "auto_director");
-  const task = activeTask ?? await workflowService.findLatestVisibleTaskByNovelId(novelId, "auto_director");
+  const activeTask = await workflowService.findActiveDirectorTask(novelId);
+  const task = activeTask ?? await workflowService.resolveCurrentDirectorTask(novelId);
   if (!task) {
     throw new AgentToolError("NOT_FOUND", "当前小说还没有可读取的自动导演任务。");
   }

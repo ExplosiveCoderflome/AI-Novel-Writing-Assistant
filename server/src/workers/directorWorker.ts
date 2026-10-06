@@ -5,6 +5,7 @@ import { initializeRagSettingsCompatibility } from "../services/settings/RagComp
 import { qualityDebtSettingsService } from "../services/settings/QualityDebtSettingsService";
 import { DirectorCommandExecutor } from "../services/novel/director/commands/DirectorCommandExecutor";
 import { DirectorTaskQueue, type DirectorTaskQueueOptions } from "./DirectorTaskQueue";
+import { DirectorTaskHealingSweep } from "./directorTaskHealingSweep";
 import { taskDispatcher } from "./TaskDispatcher";
 
 // DirectorWorker 通常由 app.ts 的 initializeBackgroundServices() 在同进程内启动。
@@ -13,6 +14,7 @@ import { taskDispatcher } from "./TaskDispatcher";
 export interface DirectorWorkerDeps {
   queue: DirectorTaskQueue;
   commandExecutor: { execute: DirectorCommandExecutor["execute"] };
+  healingSweep?: { run(): Promise<void> };
 }
 
 /**
@@ -27,6 +29,8 @@ export class DirectorWorker {
   private stopped = false;
   private readonly queue: DirectorTaskQueue;
   private readonly commandExecutor: DirectorWorkerDeps["commandExecutor"];
+  private readonly healingSweep: { run(): Promise<void> };
+  private healingTimer: NodeJS.Timeout | null = null;
 
   constructor(options?: DirectorTaskQueueOptions);
   constructor(deps: DirectorWorkerDeps);
@@ -34,14 +38,18 @@ export class DirectorWorker {
     if (arg && "queue" in arg) {
       this.queue = arg.queue;
       this.commandExecutor = arg.commandExecutor;
+      this.healingSweep = arg.healingSweep ?? new DirectorTaskHealingSweep();
     } else {
       this.queue = new DirectorTaskQueue(arg);
       this.commandExecutor = new DirectorCommandExecutor();
+      this.healingSweep = new DirectorTaskHealingSweep();
     }
   }
 
   stop(): void {
     this.stopped = true;
+    if (this.healingTimer) clearInterval(this.healingTimer);
+    this.healingTimer = null;
     taskDispatcher.notify();
   }
 
@@ -49,6 +57,17 @@ export class DirectorWorker {
     console.log(
       `[director.worker] started workerId=${this.queue.workerId} slots=${this.queue.executionSlots} pollMs=${this.queue.pollMs} leaseMs=${this.queue.leaseMs}`,
     );
+
+    await this.healingSweep.run().catch((error) => {
+      console.error("[director.worker] initial healing sweep failed", error);
+    });
+    if (this.stopped) return;
+    this.healingTimer = setInterval(() => {
+      void this.healingSweep.run().catch((error) => {
+        console.error("[director.worker] periodic healing sweep failed", error);
+      });
+    }, 60_000);
+    this.healingTimer.unref();
 
     const runners = Array.from({ length: this.queue.executionSlots }, (_, i) =>
       this.runSlot(`slot-${i + 1}`),

@@ -22,8 +22,11 @@ import {
 } from "../novelCoreShared";
 import { plannerService } from "../../planner/PlannerService";
 import { applyChapterQualityClosure } from "./qualityClosure/ChapterQualityClosure";
+import { recoverSavedChapterQuality, SavedChapterQualityRecoveryError } from "./qualityClosure/SavedChapterQualityRecovery";
+import {assertDirectorPipelineOwner} from "../../../modules/novel/director-routing";
 import { ChapterAutomaticAttemptService } from "./attempts";
 import { isCurrentChapterProductionCompleted } from "./completion";
+import { beginChapterUsage, observeChapterUsage, finalizeChapterUsage } from "./usage";
 import {
   loadDirectorIssueTaskContext,
 } from "../director/issues";
@@ -85,6 +88,7 @@ export class NovelPipelineExecutor {
   constructor(
     private readonly chapterRuntimeCoordinator = new ChapterRuntimeCoordinator(),
     private readonly automaticAttempts = new ChapterAutomaticAttemptService(),
+    private readonly assertOwner = assertDirectorPipelineOwner,
   ) {}
 
   private async ensurePipelineNotCancelled(jobId: string): Promise<void> {
@@ -226,6 +230,7 @@ export class NovelPipelineExecutor {
       issueGovernanceVersion: persistedPayload.issueGovernanceVersion ?? options.issueGovernanceVersion,
       issuePolicySnapshot: persistedPayload.issuePolicySnapshot ?? options.issuePolicySnapshot,
       workflowTaskId: persistedPayload.workflowTaskId ?? options.workflowTaskId,
+      directorNext: persistedPayload.directorNext ?? options.directorNext,
       taskStyleProfileId: persistedPayload.taskStyleProfileId ?? options.taskStyleProfileId,
       maxRetries: clampPipelineMaxRetries(persistedPayload.maxRetries ?? options.maxRetries),
       runMode: persistedPayload.runMode ?? options.runMode ?? "fast",
@@ -235,6 +240,11 @@ export class NovelPipelineExecutor {
       qualityThreshold: persistedPayload.qualityThreshold ?? options.qualityThreshold,
       repairMode: persistedPayload.repairMode ?? options.repairMode ?? "light_repair",
       artifactSyncMode: persistedPayload.artifactSyncMode ?? options.artifactSyncMode ?? "adaptive",
+    };
+    await this.assertOwner(novelId, runtimePayload);
+    const checkCancelled = async () => {
+      await this.ensurePipelineNotCancelled(jobId);
+      await this.assertOwner(novelId, runtimePayload);
     };
     const directorTelemetryTask = runtimePayload.workflowTaskId
       ? await prisma.novelWorkflowTask.findUnique({
@@ -293,6 +303,7 @@ export class NovelPipelineExecutor {
         model: runtimePayload.model,
         temperature: runtimePayload.temperature,
         applyAction: async (decision) => {
+          runtimePayload.directorNext?.decisions.push({...decision, ...(input.chapterOrder ? {chapterOrder: input.chapterOrder} : {})});
           appliedAction = decision.action;
           if (decision.action === "auto_retry") {
             if (!input.onRetry) {
@@ -344,12 +355,13 @@ export class NovelPipelineExecutor {
         generationJobId: jobId,
         workflowTaskId: runtimePayload.workflowTaskId,
         directorTelemetry: shouldRecordDirectorTelemetry,
-        novelId: shouldRecordDirectorTelemetry ? novelId : null,
+        novelId,
+        directorNextRunId: runtimePayload.directorNext?.runId ?? null,
         directorRunId: shouldRecordDirectorTelemetry
           ? directorTelemetryTask?.directorRun?.id ?? runtimePayload.workflowTaskId ?? null
           : null,
       }, async () => {
-        await this.ensurePipelineNotCancelled(jobId);
+        await checkCancelled();
         await this.updateJobSafe(jobId, {
           status: "running",
           pendingManualRecovery: false,
@@ -396,16 +408,21 @@ export class NovelPipelineExecutor {
           chapterCount: chapters.length,
         });
 
-        const isAutopilotMode = runtimePayload.controlPolicy?.advanceMode === "full_book_autopilot";
+        const isAutopilotMode = Boolean(runtimePayload.directorNext)
+          || runtimePayload.controlPolicy?.advanceMode === "full_book_autopilot";
         const autopilotTargetEndOrder = isAutopilotMode
-          ? Math.max(options.endOrder, novel.estimatedChapterCount ?? options.endOrder)
+          ? runtimePayload.directorNext ? options.endOrder : Math.max(options.endOrder, novel.estimatedChapterCount ?? options.endOrder)
           : options.endOrder;
-        let totalCount = isAutopilotMode
+        let totalCount = runtimePayload.directorNext
+          ? options.endOrder - options.startOrder + 1
+          : isAutopilotMode
           ? Math.max(1, autopilotTargetEndOrder - options.startOrder + 1)
           : Math.max(existingJob?.totalCount ?? 0, chapterCandidates.length, 1);
-        const storedCompleted = Math.min(Math.max(existingJob?.completedCount ?? 0, 0), totalCount);
+        const storedCompleted = runtimePayload.directorNext && runtimePayload.skipCompleted
+          ? 0
+          : Math.min(Math.max(existingJob?.completedCount ?? 0, 0), totalCount);
         const filteredCompletedCount = runtimePayload.skipCompleted
-          ? Math.max(0, totalCount - chapters.length)
+          ? chapterCandidates.length - chapters.length
           : 0;
         const remainingStartIndex = Math.min(
           Math.max(0, storedCompleted - filteredCompletedCount),
@@ -413,9 +430,51 @@ export class NovelPipelineExecutor {
         );
         let completed = Math.max(storedCompleted, filteredCompletedCount);
         const chaptersToProcess = chapters.slice(remainingStartIndex);
+        const closedOrders = new Set(chapterCandidates.filter(isCurrentChapterProductionCompleted).map(chapter => chapter.order));
         let pendingManualRecovery = false;
 
+        if (runtimePayload.directorNext) {
+          await this.updateJobRequired(jobId, {
+            totalCount, completedCount: completed,
+            progress: Number((completed / totalCount).toFixed(4)),
+          });
+        }
+
         const routeWindowService = new ChapterRouteWindowService();
+        const prepareRollingChapter = async (order: number, previous?: { id: string; order: number }, cached?: (typeof chapterCandidates)[number]) => {
+          await checkCancelled();
+          try {
+            await routeWindowService.ensureRouteWindow(novelId, order, {
+              min: 3, target: 5,
+              provider: runtimePayload.provider, model: runtimePayload.model, temperature: runtimePayload.temperature,
+              taskId: runtimePayload.workflowTaskId ?? jobId,
+              completionProfile: buildDirectorCompletionProfile(autopilotTargetEndOrder),
+            });
+          } catch (error) {
+            throw new PipelineIssueFailure(`滚动规划未能准备第 ${order} 章，已保存正文会保留，请检查后继续。`,
+              "planning.route_window_unavailable", "route_window", previous?.id, previous?.order);
+          }
+          if (cached) return cached;
+          const prepared = await prisma.chapter.findFirst({
+            where: { novelId, order }, orderBy: { order: "asc" },
+            include: { artifactSyncCheckpoints: {
+              where: { artifactType: CHAPTER_ARTIFACT_BOUNDARY_TYPE, status: "succeeded" },
+              select: { contentHash: true, metadataJson: true }, orderBy: { updatedAt: "desc" }, take: 6,
+            } },
+          });
+          if (!prepared) {
+            throw new PipelineIssueFailure(`滚动规划未能准备第 ${order} 章，已保存正文会保留，请检查后继续。`,
+              "planning.route_window_unavailable", "route_window", previous?.id, previous?.order);
+          }
+          return prepared;
+        };
+        if (isAutopilotMode && runtimePayload.directorNext) {
+          let nextOrder = options.startOrder;
+          while (closedOrders.has(nextOrder)) nextOrder++;
+          if (nextOrder <= autopilotTargetEndOrder && chaptersToProcess[0]?.order !== nextOrder) {
+            chaptersToProcess.unshift(await prepareRollingChapter(nextOrder));
+          }
+        }
         if (isAutopilotMode) {
           await this.updateJobSafe(jobId, {
             endOrder: autopilotTargetEndOrder,
@@ -425,7 +484,58 @@ export class NovelPipelineExecutor {
 
         for (let chapterIndex = 0; chapterIndex < chaptersToProcess.length; chapterIndex++) {
           const chapter = chaptersToProcess[chapterIndex];
-          await this.ensurePipelineNotCancelled(jobId);
+          await checkCancelled();
+
+          let chapterResult: Awaited<ReturnType<ChapterRuntimeCoordinator["runPipelineChapter"]>> | null = null;
+          const savedUsage = runtimePayload.directorNext?.chapterUsage?.find(row => row.chapterId === chapter.id);
+          const recoveringSavedQuality = savedUsage?.endJobTokens !== undefined;
+          if (recoveringSavedQuality) {
+            try {
+              if (savedUsage.chapterOrder !== chapter.order) throw new Error("章节用量检查点身份不一致。");
+              const usage = await prisma.generationJob.findUniqueOrThrow({ where: { id: jobId }, select: { totalTokens: true } });
+              observeChapterUsage(runtimePayload.directorNext!, chapter.id, usage.totalTokens);
+              chapterResult = await recoverSavedChapterQuality(novelId, chapter);
+            } catch (error) {
+              throw new PipelineIssueFailure(error instanceof Error ? error.message : "章节保存进度无法核验。",
+                error instanceof SavedChapterQualityRecoveryError ? error.issueCode : "runtime.data_integrity",
+                "chapter_usage", chapter.id, chapter.order);
+            }
+          }
+
+          const checkChapterBudget = async (closed = false) => {
+            if (!runtimePayload.directorNext) return;
+            const usage = await prisma.generationJob.findUniqueOrThrow({
+              where: { id: jobId }, select: { totalTokens: true },
+            });
+            let initialized: boolean;
+            let observed: ReturnType<typeof observeChapterUsage>;
+            try {
+              initialized = beginChapterUsage(runtimePayload.directorNext, chapter.id, chapter.order, usage.totalTokens);
+              observed = closed
+                ? finalizeChapterUsage(runtimePayload.directorNext, chapter.id, usage.totalTokens)
+                : observeChapterUsage(runtimePayload.directorNext, chapter.id, usage.totalTokens);
+            } catch (error) {
+              throw new PipelineIssueFailure(error instanceof Error ? error.message : "章节用量记录异常，不能继续生成。",
+                "runtime.data_integrity", "chapter_usage", chapter.id, chapter.order);
+            }
+            if (initialized || closed) {
+              try {
+                await this.updateJobRequired(jobId, {
+                  ...(closed ? { completedCount: completed + 1, progress: Number(((completed + 1) / totalCount).toFixed(4)) } : {}),
+                  payload: this.stringifyPipelinePayload({ ...runtimePayload, qualityAlertDetails, replanAlertDetails, recoverableRepairDetails }),
+                });
+              } catch (error) {
+                if (error instanceof PipelineExecutionLeaseLostError) throw error;
+                throw new PipelineIssueFailure("章节用量检查点无法确认已保存，生成已停止。",
+                  "runtime.persistence_failed", "chapter_usage", chapter.id, chapter.order);
+              }
+            }
+            if (observed.exceeded) {
+              throw new PipelineIssueFailure(`第${chapter.order}章累计 AI 用量达到 ${observed.totalTokens} Tokens，${closed ? "正文已保存，" : ""}请检查后再继续。`,
+                "runtime.token_budget_exceeded", "chapter_usage", chapter.id, chapter.order);
+            }
+          };
+          if (!recoveringSavedQuality) await checkChapterBudget();
 
           let shouldStopAfterCurrentChapter = false;
           let chapterStopAction: "pause_for_manual" | "fail_task" | null = null;
@@ -451,7 +561,7 @@ export class NovelPipelineExecutor {
             });
           };
 
-          await applyChapterStage("generating_chapters");
+          await applyChapterStage(recoveringSavedQuality ? "reviewing" : "generating_chapters");
           logPipelineInfo("开始处理章节", {
             jobId,
             chapterId: chapter.id,
@@ -474,13 +584,12 @@ export class NovelPipelineExecutor {
           }, PIPELINE_HEARTBEAT_INTERVAL_MS);
           heartbeatTimer.unref?.();
 
-          let chapterResult: Awaited<ReturnType<ChapterRuntimeCoordinator["runPipelineChapter"]>> | null = null;
           const chapterRetryBudget = Math.min(runtimePayload.maxRetries ?? maxRetries,
             issueGovernance?.policy.maxAutomaticRetries ?? maxRetries);
           let chapterRetryCountUsed = 0;
           let previouslyConsumed = 0;
           const claimAttempt = async (kind: "quality_repair" | "runtime_retry") => {
-            await this.ensurePipelineNotCancelled(jobId);
+            await checkCancelled();
             if (chapterRetryCountUsed >= chapterRetryBudget) return false;
             const claimed = await this.automaticAttempts.claim(jobId, chapter.id, kind);
             chapterRetryCountUsed = 1;
@@ -491,9 +600,10 @@ export class NovelPipelineExecutor {
           };
           try {
             previouslyConsumed = chapterRetryCountUsed = await this.automaticAttempts.used(jobId, chapter.id);
-            while (true) {
+            while (!chapterResult) {
               try {
-                await this.ensurePipelineNotCancelled(jobId);
+                await checkCancelled();
+                await checkChapterBudget();
                 chapterResult = await this.chapterRuntimeCoordinator.runPipelineChapter(
                   novelId,
                   chapter.id,
@@ -512,7 +622,7 @@ export class NovelPipelineExecutor {
                     artifactSyncMode: runtimePayload.artifactSyncMode,
                   },
                   {
-                  onCheckCancelled: () => this.ensurePipelineNotCancelled(jobId),
+                  onCheckCancelled: checkCancelled,
                   onStageChange: async (stage) => {
                     await applyChapterStage(stage);
                   },
@@ -548,6 +658,7 @@ export class NovelPipelineExecutor {
                 );
                 break;
               } catch (error) {
+                if (error instanceof PipelineIssueFailure && error.stage === "chapter_usage") throw error;
                 if (error instanceof PipelineExecutionLeaseLostError) {
                   throw error;
                 }
@@ -652,58 +763,24 @@ export class NovelPipelineExecutor {
               model: runtimePayload.model,
               temperature: runtimePayload.temperature,
             }),
+            onIssueDecision: decision => {runtimePayload.directorNext?.decisions.push({...decision, chapterOrder: chapter.order});},
+            // Persist local quality facts before freezing/pausing, while future
+            // planning remains outside the saved chapter's token boundary.
+            beforeFuturePlanning: recoveringSavedQuality ? undefined : () => checkChapterBudget(true),
           });
           shouldStopAfterCurrentChapter = closure.shouldStopAfterCurrentChapter;
           chapterStopAction = closure.stopAction;
 
           // Phase 3：同步补齐下一段章节路线；正文执行合同仍由下一章 JIT 独立生成。
           if (!shouldStopAfterCurrentChapter && isAutopilotMode && chapter.order < autopilotTargetEndOrder) {
-            try {
-              await routeWindowService.ensureRouteWindow(novelId, chapter.order + 1, {
-                min: 3,
-                target: 5,
-                provider: runtimePayload.provider,
-                model: runtimePayload.model,
-                temperature: runtimePayload.temperature,
-                taskId: runtimePayload.workflowTaskId ?? jobId,
-                completionProfile: buildDirectorCompletionProfile(autopilotTargetEndOrder),
-              });
-            } catch (error) {
-              throw new PipelineIssueFailure(
-                `滚动规划未能准备第 ${chapter.order + 1} 章，当前正文已安全保存，可从本章后恢复。`,
-                "planning.route_window_unavailable",
-                "route_window",
-                chapter.id,
-                chapter.order,
-              );
-            }
-            const queuedNextChapter = chaptersToProcess[chapterIndex + 1];
-            if (!queuedNextChapter) {
-              const persistedNextChapter = await prisma.chapter.findFirst({
-                where: {
-                  novelId,
-                  order: chapter.order + 1,
-                },
-                orderBy: { order: "asc" },
-                include: {
-                  artifactSyncCheckpoints: {
-                    where: { artifactType: CHAPTER_ARTIFACT_BOUNDARY_TYPE, status: "succeeded" },
-                    select: { contentHash: true, metadataJson: true },
-                    orderBy: { updatedAt: "desc" },
-                    take: 6,
-                  },
-                },
-              });
-              if (!persistedNextChapter) {
-                throw new PipelineIssueFailure(
-                  `滚动规划未能准备第 ${chapter.order + 1} 章，当前正文已安全保存，可从本章后恢复。`,
-                  "planning.route_window_unavailable",
-                  "route_window",
-                  chapter.id,
-                  chapter.order,
-                );
+            let nextOrder = chapter.order + 1;
+            if (runtimePayload.skipCompleted) while (closedOrders.has(nextOrder)) nextOrder++;
+            if (nextOrder <= autopilotTargetEndOrder) {
+              const cached = chaptersToProcess[chapterIndex + 1];
+              const prepared = await prepareRollingChapter(nextOrder, chapter, cached?.order === nextOrder ? cached : undefined);
+              if (cached?.order !== prepared.order) {
+                chaptersToProcess.splice(chapterIndex + 1, 0, prepared);
               }
-              chaptersToProcess.push(persistedNextChapter);
             }
           }
 
@@ -794,6 +871,7 @@ export class NovelPipelineExecutor {
         });
         await this.updateJobSafe(jobId, {
           status: finalStatus,
+          progress: 1,
           error: null,
           heartbeatAt: null,
           currentStage: null,

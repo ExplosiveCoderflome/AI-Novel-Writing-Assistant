@@ -151,14 +151,14 @@ test("prompt registry exposes versioned planning assets", () => {
     "agent.runtime.fallback_answer@v1",
     "agent.runtime.setup_guidance@v1",
     "agent.runtime.setup_ideation@v1",
-    "planner.chapter.plan@v1",
+    "planner.chapter.plan@v3",
     "novel.director.candidates@v2",
     "novel.director.candidate_patch@v1",
     "novel.director.blueprint@v1",
-    "novel.character.castOptions@v2",
+    "novel.character.castOptions@v3",
     "novel.character.castOptions.repair@v1",
     "novel.character.castOptions.zhNormalize@v1",
-    "novel.character.supplemental@v1",
+    "novel.character.supplemental@v2",
     "novel.character.supplemental.zhNormalize@v1",
     "novel.character.mind.snapshot@v1",
     "novel.character.influence.options@v1",
@@ -177,7 +177,7 @@ test("prompt registry exposes versioned planning assets", () => {
     "novel.framing.suggest@v1",
     "novel.production.characters@v1",
     "state.snapshot.extract@v4",
-    "novel.payoff_ledger.sync@v6",
+    "novel.payoff_ledger.sync@v7",
     "novel.characterDynamics.volumeProjection@v3",
     "novel.character_resource.extract_updates@v1",
     "storyMode.child.generate@v1",
@@ -213,7 +213,7 @@ test("prompt registry exposes versioned planning assets", () => {
     assert.ok(getRegisteredPromptAsset(id, version), `missing prompt asset ${key}`);
   }
 
-  const chapterAsset = getRegisteredPromptAsset("planner.chapter.plan", "v1");
+  const chapterAsset = getRegisteredPromptAsset("planner.chapter.plan", "v3");
   assert.ok(chapterAsset);
   assert.equal(chapterAsset.taskType, "planner");
 });
@@ -417,7 +417,7 @@ test("prompt registry resolves style prompts by their declared asset versions", 
 });
 
 test("character cast prompt hardens real-name constraints and required gender output", () => {
-  const asset = getRegisteredPromptAsset("novel.character.castOptions", "v2");
+  const asset = getRegisteredPromptAsset("novel.character.castOptions", "v3");
   assert.ok(asset);
 
   const messages = asset.render({
@@ -658,13 +658,17 @@ test("chapter writer prompt does not expose scene contract controls", () => {
 
   const systemContent = String(messages[0].content);
   const humanContent = String(messages[1].content);
-  assert.match(systemContent, /本章目标长度：约 3000 字/);
-  assert.match(systemContent, /不得明显超过上限/);
-  assert.doesNotMatch(systemContent, /当前场景合同/);
-  assert.doesNotMatch(systemContent, /场景标题/);
-  assert.doesNotMatch(systemContent, /控字数模式/);
-  assert.doesNotMatch(systemContent, /本轮硬上限/);
-  assert.doesNotMatch(humanContent, /只写当前场景/);
+  const taskSystemContent = String(messages[2].content);
+  assert.equal(messages[2]._getType(), "system");
+  assert.match(taskSystemContent, /本章目标长度：约 3000 字/);
+  assert.match(taskSystemContent, /不得明显超过上限/);
+  assert.doesNotMatch(systemContent, /本章目标长度/);
+  const allSystemContent = messages.filter(message => message._getType() === "system").map(message => String(message.content)).join("\n");
+  assert.doesNotMatch(allSystemContent, /当前场景合同/);
+  assert.doesNotMatch(allSystemContent, /场景标题/);
+  assert.doesNotMatch(allSystemContent, /控字数模式/);
+  assert.doesNotMatch(allSystemContent, /本轮硬上限/);
+  assert.doesNotMatch(humanContent + String(messages[3].content), /只写当前场景/);
 });
 
 test("novel main-chain prompt assets declare explicit non-zero context budgets", () => {
@@ -685,7 +689,7 @@ test("novel main-chain prompt assets declare explicit non-zero context budgets",
     ["novel.volume.rebalance.adjacent@v1", NOVEL_PROMPT_BUDGETS.volumeRebalance],
     [promptKey(chapterWriterPrompt), NOVEL_PROMPT_BUDGETS.chapterWriter],
     ["novel.review.chapter@v2", NOVEL_PROMPT_BUDGETS.chapterReview],
-    ["novel.review.repair@v2", NOVEL_PROMPT_BUDGETS.chapterRepair],
+    ["novel.review.repair@v3", NOVEL_PROMPT_BUDGETS.chapterRepair],
     ["audit.chapter.full@v2", NOVEL_PROMPT_BUDGETS.chapterReview],
   ]);
 
@@ -744,8 +748,9 @@ test("chapter writer prompt carries explicit target length and continuation inst
     summarizedBlockIds: [],
     estimatedInputTokens: 0,
   });
-  assert.match(String(draftMessages[0].content), /本章目标长度：约 3000 字/);
-  assert.match(String(draftMessages[0].content), /2550-3450/);
+  assert.equal(draftMessages[2]._getType(), "system");
+  assert.match(String(draftMessages[2].content), /本章目标长度：约 3000 字/);
+  assert.match(String(draftMessages[2].content), /2550-3450/);
 
   const continueMessages = asset.render({
     novelTitle: "霜轨档案",
@@ -763,9 +768,10 @@ test("chapter writer prompt carries explicit target length and continuation inst
     summarizedBlockIds: [],
     estimatedInputTokens: 0,
   });
-  assert.match(String(continueMessages[0].content), /不得重写章节开头/);
-  assert.match(String(continueMessages[0].content), /至少缺少约 900 字/);
-  assert.match(String(continueMessages[1].content), /任务模式：补写当前章节/);
+  assert.equal(continueMessages[2]._getType(), "system");
+  assert.match(String(continueMessages[2].content), /不得重写章节开头/);
+  assert.match(String(continueMessages[2].content), /本次追加目标约 900 字的有效正文，补足后自然收束/);
+  assert.match(String(continueMessages[3].content), /任务模式：补写当前章节/);
 });
 
 test("director blueprint schema accepts chapter shells without scenes", () => {

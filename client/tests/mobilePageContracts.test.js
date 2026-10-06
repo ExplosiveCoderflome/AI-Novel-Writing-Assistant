@@ -212,7 +212,8 @@ function getWinningGridTemplateColumns({ routeClassName, elementClassName }) {
 
 function getClassNameContaining(source, marker) {
   const escapedMarker = marker.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-  const match = source.match(new RegExp(`className="([^"]*${escapedMarker}[^"]*)"`, "m"));
+  const match = source.match(new RegExp(`className="([^"]*${escapedMarker}[^"]*)"`, "m"))
+    ?? source.match(new RegExp('className=\\{`([^`$]*' + escapedMarker + '[^`$]*)\\$\\{', "m"));
   assert.ok(match, `${marker} should be present in a static className`);
   return match[1];
 }

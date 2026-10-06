@@ -8,6 +8,7 @@ import type {
 } from "@ai-novel/shared/types/autoDirectorFollowUp";
 import type { NovelWorkflowCheckpoint } from "@ai-novel/shared/types/novelWorkflow";
 import type { TaskStatus } from "@ai-novel/shared/types/task";
+import { readDirectorReplacementTaskId } from "../../novel/director/state/DirectorStateReader";
 import { resolveAutoDirectorFollowUpReason } from "./autoDirectorFollowUpReasonResolver";
 import { extractBlockedAutoDirectorValidationResult } from "./autoDirectorFollowUpValidationResult";
 
@@ -60,22 +61,6 @@ function parseExecutionScopeLabel(seedPayloadJson: string | null | undefined): s
   }
 }
 
-function parseReplacementTaskId(seedPayloadJson: string | null | undefined): string | null {
-  if (!seedPayloadJson?.trim()) {
-    return null;
-  }
-  try {
-    const parsed = JSON.parse(seedPayloadJson) as {
-      replacementTaskId?: unknown;
-    };
-    return typeof parsed.replacementTaskId === "string" && parsed.replacementTaskId.trim()
-      ? parsed.replacementTaskId.trim()
-      : null;
-  } catch {
-    return null;
-  }
-}
-
 function getNovelTitle(row: Pick<AutoDirectorEventWorkflowSnapshot, "novel" | "id">): string {
   const title = row.novel?.title;
   return typeof title === "string" && title.trim() ? title.trim() : row.id;
@@ -107,7 +92,7 @@ export function deriveAutoDirectorFollowUpState(
     checkpointType: row.checkpointType,
     pendingManualRecovery: row.pendingManualRecovery,
     executionScopeLabel,
-    replacementTaskId: parseReplacementTaskId(row.seedPayloadJson),
+    replacementTaskId: readDirectorReplacementTaskId(row.seedPayloadJson),
     validationResult: extractBlockedAutoDirectorValidationResult(row.seedPayloadJson),
   });
   if (!resolved) {

@@ -8,6 +8,8 @@ import {
 } from "@ai-novel/shared/types/replanWindowDecision";
 import { runStructuredPrompt } from "../../prompting/core/promptRunner";
 import { replanWindowDecisionPrompt } from "../../prompting/prompts/planner/replanWindowDecision.prompts";
+import { buildReplanAuditContext, buildReplanStateContext } from "./replan/context";
+import { createContextBlock } from "../../prompting/core/contextBudget";
 
 interface ReplanWindowDecisionInput {
   triggerType: string;
@@ -27,16 +29,30 @@ interface ReplanWindowDecisionInput {
   temperature?: number;
 }
 
-function compactJson(value: unknown, maxLength = 9000): string {
-  const text = JSON.stringify(value ?? null);
-  return text.length > maxLength ? `${text.slice(0, maxLength)}...` : text;
+function compactJson(value: unknown): string {
+  // Never cut JSON in the middle of a field: it discards late facts and produces invalid input.
+  return JSON.stringify(value ?? null);
 }
 
 export class ReplanWindowDecisionService {
   async decide(input: ReplanWindowDecisionInput): Promise<SanitizedReplanWindowDecision> {
     const requestedWindowSize = Math.max(1, Math.min(input.requestedWindowSize ?? 3, 5));
+    const state = buildReplanStateContext(input.snapshot);
+    const contextBlocks = [
+      { id: "canonical_baseline", label: "书级状态基线", content: state.stableJson, reuseScope: "book" as const },
+      { id: "canonical_state", label: "canonical state（动态状态）", content: state.dynamicJson },
+      { id: "audit", label: "审校报告", content: compactJson(buildReplanAuditContext(input.auditReports)) },
+      { id: "payoff_ledger", label: "伏笔账本摘要", content: compactJson(input.ledgerSummary) },
+      { id: "chapter_goal", label: "章节目标", content: compactJson(input.chapterStateGoal) },
+      { id: "protected_secrets", label: "受保护秘密", content: compactJson(input.protectedSecrets) },
+    ].map((block, index) => createContextBlock({
+      id: block.id, group: block.id, priority: 100 - index,
+      required: true, allowSummary: false, reuseScope: block.reuseScope,
+      content: `【${block.label}】\n${block.content}`,
+    }));
     const result = await runStructuredPrompt({
       asset: replanWindowDecisionPrompt,
+      contextBlocks,
       promptInput: {
         triggerType: input.triggerType,
         reason: input.reason,
@@ -44,12 +60,12 @@ export class ReplanWindowDecisionService {
         requestedWindowSize,
         availableChapterOrdersJson: compactJson(input.availableChapterOrders),
         sourceIssueIdsJson: compactJson(input.sourceIssueIds),
-        auditReportsJson: compactJson(input.auditReports),
-        payoffSummaryJson: compactJson(input.ledgerSummary),
-        canonicalStateJson: compactJson(input.snapshot),
+        auditReportsJson: "null",
+        payoffSummaryJson: "null",
+        canonicalStateJson: "null",
         nextAction: input.nextAction ?? "none",
-        chapterStateGoalJson: compactJson(input.chapterStateGoal),
-        protectedSecretsJson: compactJson(input.protectedSecrets),
+        chapterStateGoalJson: "null",
+        protectedSecretsJson: "null",
       },
       options: {
         provider: input.provider,

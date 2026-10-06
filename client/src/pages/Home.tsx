@@ -16,6 +16,7 @@ import {
 } from "@/lib/novelWorkflowTaskUi";
 import { toast } from "@/components/ui/toast";
 import { resolveWorkflowContinuationFeedback } from "@/lib/novelWorkflowContinuation";
+import { getNovelEditHref } from "@/lib/novelRoutes";
 import {
   buildHomeAssetHealthItems,
   buildHomeMetrics,
@@ -200,7 +201,7 @@ export default function Home() {
       return (
         <Button asChild size={size}>
           <Link
-            to={`/novels/${novel.id}/edit?directorTaskId=${task.id}`}
+            to={getNovelEditHref(novel.id)}
             onClick={stopPropagation ? stopCardClick : undefined}
           >
             查看推进状态
