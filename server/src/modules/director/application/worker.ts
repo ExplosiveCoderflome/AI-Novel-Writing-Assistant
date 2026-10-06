@@ -14,6 +14,7 @@ export interface DirectorWorkerDeps {
   recoveryPolicy?: DirectorRecoveryPolicy;
   pollMs?: number;
   heartbeatMs?: number;
+  canExecute?: (runId: string) => Promise<boolean>;
 }
 
 export class DirectorWorker {
@@ -28,45 +29,50 @@ export class DirectorWorker {
   async tick(): Promise<boolean> {
     if (this.stopped) return false;
     const now = this.deps.runtime.now();
-    const candidates = await this.deps.runRepository.listLeaseCandidates(now, 1, this.deps.runtime.workerId());
-    for (const runId of candidates) {
-      const acquired = await this.deps.runRepository.acquireLease(
-        runId,
-        this.deps.runtime.workerId(),
-        this.deps.runtime.leaseExpiresAt(now),
-        now,
-      );
-      if (!acquired) continue;
-      const renewal = setInterval(() => {
-        void this.deps.runRepository.heartbeat(
+    const pageSize = this.deps.canExecute ? 100 : 1;
+    for (let offset = 0; ; offset += pageSize) {
+      const candidates = await this.deps.runRepository.listLeaseCandidates(now, pageSize, this.deps.runtime.workerId(), offset);
+      for (const runId of candidates) {
+        if (this.deps.canExecute && !await this.deps.canExecute(runId)) continue;
+        const acquired = await this.deps.runRepository.acquireLease(
+          runId,
+          this.deps.runtime.workerId(),
+          this.deps.runtime.leaseExpiresAt(now),
+          now,
+        );
+        if (!acquired) continue;
+        const renewal = setInterval(() => {
+          void this.deps.runRepository.heartbeat(
+            runId,
+            this.deps.runtime.workerId(),
+            this.deps.runtime.leaseExpiresAt(this.deps.runtime.now()),
+            this.deps.runtime.now(),
+          );
+        }, this.deps.heartbeatMs ?? 10_000);
+        renewal.unref();
+        try {
+          if (this.deps.runRepository.getControl && this.deps.runRepository.transition) {
+            const control = await this.deps.runRepository.getControl(runId);
+            if (control?.status === "queued") {
+              await this.deps.runRepository.transition(runId, { type: "start" }, control.version);
+            }
+          }
+          await this.deps.executor.runOnce(runId);
+        } catch (error) {
+          if (!this.deps.eventLog || !this.deps.recoveryPolicy) throw error;
+          await this.handleExecutionFailure(runId, error);
+        } finally {
+          clearInterval(renewal);
+        }
+        await this.deps.runRepository.heartbeat(
           runId,
           this.deps.runtime.workerId(),
           this.deps.runtime.leaseExpiresAt(this.deps.runtime.now()),
           this.deps.runtime.now(),
         );
-      }, this.deps.heartbeatMs ?? 10_000);
-      renewal.unref();
-      try {
-        if (this.deps.runRepository.getControl && this.deps.runRepository.transition) {
-          const control = await this.deps.runRepository.getControl(runId);
-          if (control?.status === "queued") {
-            await this.deps.runRepository.transition(runId, { type: "start" }, control.version);
-          }
-        }
-        await this.deps.executor.runOnce(runId);
-      } catch (error) {
-        if (!this.deps.eventLog || !this.deps.recoveryPolicy) throw error;
-        await this.handleExecutionFailure(runId, error);
-      } finally {
-        clearInterval(renewal);
+        return true;
       }
-      await this.deps.runRepository.heartbeat(
-        runId,
-        this.deps.runtime.workerId(),
-        this.deps.runtime.leaseExpiresAt(this.deps.runtime.now()),
-        this.deps.runtime.now(),
-      );
-      return true;
+      if (!this.deps.canExecute || candidates.length < pageSize) break;
     }
     return false;
   }

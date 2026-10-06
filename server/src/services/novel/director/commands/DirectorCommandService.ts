@@ -20,6 +20,7 @@ import { normalizeCommercialTags } from "@ai-novel/shared/types/novelFraming";
 import { prisma } from "../../../../db/prisma";
 import { withSqliteRetry } from "../../../../db/sqliteRetry";
 import { AppError } from "../../../../middleware/errorHandler";
+import {assertLegacyTaskExecution, assertNovelDirectorVersion, readOpeningVersion} from "../../../../modules/novel/director-routing";
 import { NovelWorkflowService } from "../../workflow/NovelWorkflowService";
 import { DirectorTaskStateWriter } from "../state";
 import { DirectorStateReader, toDirectorTaskDataView } from "../state/DirectorStateReader";
@@ -265,6 +266,7 @@ export class DirectorCommandService {
   }
 
   async enqueueConfirmCandidateCommand(input: DirectorConfirmRequest): Promise<DirectorCommandAcceptedResponse> {
+    const directorVersion = await readOpeningVersion(input.workflowTaskId, input.directorVersion);
     const existingTask = input.workflowTaskId?.trim()
       ? await this.workflowService.getTaskByIdWithoutHealing(input.workflowTaskId.trim())
       : null;
@@ -291,6 +293,7 @@ export class DirectorCommandService {
     const task = existingTask && (existingTask.novelId || activeConfirmation)
       ? existingTask
       : await new DirectorTaskStateWriter(this.workflowService).initializeTask({
+      directorVersion,
       workflowTaskId: input.workflowTaskId,
       lane: "auto_director",
       title: input.candidate.workingTitle.trim() || input.title?.trim() || "自动导演开书",
@@ -308,6 +311,7 @@ export class DirectorCommandService {
         progress: 0.18,
       },
     }, existingTask ? { replaceLaunchContract: "candidate_confirmation" } : undefined);
+    await prisma.novelWorkflowTask.update({where: {id: task.id}, data: {directorVersion}});
     return this.enqueueExecutionCommand({
       taskId: task.id,
       commandType: "confirm_candidate",
@@ -357,6 +361,7 @@ export class DirectorCommandService {
     workflowTaskId?: string | null;
     includeAiInterpretation?: boolean;
   }): Promise<DirectorCommandAcceptedResponse> {
+    await assertNovelDirectorVersion(input.novelId, "v1");
     const task = await new DirectorTaskStateWriter(this.workflowService).initializeTask({
       workflowTaskId: input.workflowTaskId?.trim() || undefined,
       novelId: input.novelId,
@@ -388,6 +393,7 @@ export class DirectorCommandService {
     chapterId?: string | null;
     includeAiInterpretation?: boolean;
   }): Promise<DirectorCommandAcceptedResponse> {
+    await assertNovelDirectorVersion(input.novelId, "v1");
     const task = await new DirectorTaskStateWriter(this.workflowService).initializeTask({
       workflowTaskId: input.workflowTaskId?.trim() || undefined,
       novelId: input.novelId,
@@ -592,7 +598,9 @@ export class DirectorCommandService {
       candidateId?: string | null;
     },
   ) {
-    return new DirectorTaskStateWriter(this.workflowService).initializeTask({
+    const directorVersion = await readOpeningVersion(input.workflowTaskId, input.directorVersion);
+    const task = await new DirectorTaskStateWriter(this.workflowService).initializeTask({
+      directorVersion,
       workflowTaskId: input.workflowTaskId?.trim() || undefined,
       lane: "auto_director",
       title: input.title?.trim() || "AI 自动导演候选方向",
@@ -617,6 +625,7 @@ export class DirectorCommandService {
         progress: 0.1,
       },
     });
+    return prisma.novelWorkflowTask.update({where: {id: task.id}, data: {directorVersion}});
   }
 
   async getCommandById(commandId: string) {
@@ -708,7 +717,8 @@ export class DirectorCommandService {
     requireActiveTask?: boolean;
     clearPendingManualRecovery?: boolean;
   }): Promise<DirectorCommandAcceptedResponse> {
-    let row = await this.workflowService.getTaskById(input.taskId);
+    await assertLegacyTaskExecution(input.taskId, input.commandType, true);
+    let row = await this.workflowService.getTaskByIdWithoutHealing(input.taskId);
     if (!row) {
       throw new AppError("Task not found.", 404);
     }
@@ -723,7 +733,7 @@ export class DirectorCommandService {
     }
     const recoveredStaleLeaseCount = await this.recoverStaleLeases(new Date(), { taskId: input.taskId });
     if (recoveredStaleLeaseCount > 0) {
-      row = await this.workflowService.getTaskById(input.taskId);
+      row = await this.workflowService.getTaskByIdWithoutHealing(input.taskId);
       if (!row) {
         throw new AppError("Task not found.", 404);
       }
@@ -841,6 +851,8 @@ export class DirectorCommandService {
       payloadJson,
     };
     const createCommand = () => prisma.$transaction(async (tx) => {
+        if (row.novelId) await tx.novel.update({where: {id: row.novelId}, data: {directorEpoch: {increment: 0}}});
+        await assertLegacyTaskExecution(input.taskId, input.commandType, true, tx);
         const command = await tx.directorRunCommand.create({ data: commandData });
         const taskUpdate: Parameters<typeof prisma.novelWorkflowTask.updateMany>[0] = {
           where: input.requireActiveTask

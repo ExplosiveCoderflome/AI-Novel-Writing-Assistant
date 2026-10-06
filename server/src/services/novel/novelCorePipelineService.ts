@@ -1,4 +1,6 @@
 import crypto from "node:crypto";
+import {assertDirectorPipelineOwner, canRecoverLegacyPipelineJob, sameDirectorPipelineOwner, type DirectorPipelineOwner} from "../../modules/novel/director-routing";
+import {AppError} from "../../middleware/errorHandler";
 import { DIRECTOR_ISSUE_GOVERNANCE_VERSION, directorIssuePolicySchema } from "@ai-novel/shared/types/directorIssue";
 import { prisma } from "../../db/prisma";
 import {
@@ -28,6 +30,7 @@ function clampPipelineMaxRetries(value: number | null | undefined): number {
 }
 
 export class NovelCorePipelineService {
+  constructor(private readonly assertOwner = assertDirectorPipelineOwner) {}
   private static readonly activeJobIds = new Set<string>();
   private static readonly startLocks = new Set<string>();
   private readonly chapterRuntimeCoordinator = new ChapterRuntimeCoordinator();
@@ -98,6 +101,7 @@ export class NovelCorePipelineService {
     startOrder: number;
     endOrder: number;
     preferredJobId?: string | null;
+    owner?: PipelineRunOptions;
   }) {
     const jobs = await this.listActivePipelineJobsForRange(input.novelId, input.startOrder, input.endOrder);
     if (jobs.length === 0) {
@@ -105,6 +109,12 @@ export class NovelCorePipelineService {
     }
 
     const primaryJob = selectPrimaryPipelineJob(jobs, input.preferredJobId);
+    // Queries never reconcile another workflow's jobs. Only an authorized start
+    // may deduplicate jobs carrying the exact same persisted owner.
+    if (!input.owner) return primaryJob;
+    if (jobs.some(job => !sameDirectorPipelineOwner(this.parsePipelinePayload(job.payload), input.owner!))) {
+      throw new Error("同一章节范围存在其他创作任务，请从对应工作台处理。");
+    }
     const duplicateJobs = jobs.filter((job) => job.id !== primaryJob.id);
 
     if (duplicateJobs.length > 0) {
@@ -138,7 +148,13 @@ export class NovelCorePipelineService {
     startOrder: number,
     endOrder: number,
     preferredJobId?: string | null,
+    owner?: DirectorPipelineOwner,
   ) {
+    if (owner) {
+      const jobs = await this.listActivePipelineJobsForRange(novelId, startOrder, endOrder);
+      const owned = jobs.filter(job => sameDirectorPipelineOwner(this.parsePipelinePayload(job.payload), owner));
+      return owned.length ? selectPrimaryPipelineJob(owned, preferredJobId) : null;
+    }
     return this.reconcileActivePipelineJobsForRange({
       novelId,
       startOrder,
@@ -248,7 +264,7 @@ export class NovelCorePipelineService {
     });
   }
 
-  async resumePipelineJob(jobId: string, options: {preserveManualRecovery?: boolean} = {}): Promise<void> {
+  async resumePipelineJob(jobId: string, options: {preserveManualRecovery?: boolean; expectedOwner?: DirectorPipelineOwner} = {}): Promise<void> {
     const job = await prisma.generationJob.findUnique({
       where: { id: jobId },
       select: {
@@ -273,6 +289,9 @@ export class NovelCorePipelineService {
       if (job.status !== "queued" && job.status !== "running") {
         return;
       }
+      const persistedOwner = this.parsePipelinePayload(job.payload);
+      if (options.expectedOwner && !sameDirectorPipelineOwner(persistedOwner, options.expectedOwner)) throw new AppError("请从该正文作业所属的创作工作台继续。", 409);
+      await this.assertOwner(job.novelId, persistedOwner);
       if (options.preserveManualRecovery) {
         const resumed = await prisma.generationJob.updateMany({where: {id: job.id, status: {in: ["queued", "running"]}, pendingManualRecovery: false, cancelRequestedAt: null,
           OR: [{executionOwner: null}, {executionLeaseExpiresAt: {lt: new Date()}}]},
@@ -309,6 +328,7 @@ export class NovelCorePipelineService {
   }
 
   async startPipelineJob(novelId: string, options: PipelineRunOptions) {
+    await this.assertOwner(novelId, options);
     const rangeKey = this.buildRangeKey(novelId, options.startOrder, options.endOrder);
     return this.withStartLock(rangeKey, async () => {
       const maxRetries = clampPipelineMaxRetries(options.maxRetries);
@@ -338,6 +358,7 @@ export class NovelCorePipelineService {
         novelId,
         startOrder: options.startOrder,
         endOrder: options.endOrder,
+        owner: runtimeOptions,
       });
       if (existingActiveJob) {
         const owner = this.parsePipelinePayload(existingActiveJob.payload).directorNext?.runId;
@@ -466,6 +487,7 @@ export class NovelCorePipelineService {
     if (!job) {
       throw new Error("任务不存在。");
     }
+    if (!await canRecoverLegacyPipelineJob(jobId)) throw new AppError("请从该正文作业所属的导演工作台继续。", 409);
     if (job.status !== "failed" && job.status !== "cancelled") {
       throw new Error("仅失败或已取消的任务支持重试。");
     }
@@ -502,6 +524,7 @@ export class NovelCorePipelineService {
     if (!job) {
       throw new Error("任务不存在。");
     }
+    if (!await canRecoverLegacyPipelineJob(jobId)) throw new AppError("请从该正文作业所属的导演工作台取消创作。", 409);
     if (job.status === "succeeded" || job.status === "failed" || job.status === "cancelled") {
       throw new Error("仅排队中或运行中的任务可取消。");
     }

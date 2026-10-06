@@ -74,6 +74,7 @@ test("markPendingAutoDirectorTasksForManualRecovery marks stale running tasks as
 
 test("stale running auto director healing does not recurse through markTaskFailed", async () => {
   const originals = {
+    novelFindUnique: prisma.novel.findUnique,
     archiveFindUnique: prisma.taskCenterArchive.findUnique,
     taskFindUnique: prisma.novelWorkflowTask.findUnique,
     taskUpdate: prisma.novelWorkflowTask.update,
@@ -102,6 +103,7 @@ test("stale running auto director healing does not recurse through markTaskFaile
   };
 
   prisma.taskCenterArchive.findUnique = async () => null;
+  prisma.novel.findUnique=async()=>({directorVersion:'v1',directorEpoch:0,narrativeForm:'long_novel'});
   prisma.novelWorkflowTask.findUnique = async () => staleRow;
   prisma.novelWorkflowTask.update = async ({ data }) => {
     updates.push(data);
@@ -136,6 +138,7 @@ test("stale running auto director healing does not recurse through markTaskFaile
     assert.equal(stepUpdates[0].data.error, updates[0].lastError);
     assert.ok(stepUpdates[0].data.finishedAt instanceof Date);
   } finally {
+    prisma.novel.findUnique=originals.novelFindUnique;
     prisma.taskCenterArchive.findUnique = originals.archiveFindUnique;
     prisma.novelWorkflowTask.findUnique = originals.taskFindUnique;
     prisma.novelWorkflowTask.update = originals.taskUpdate;

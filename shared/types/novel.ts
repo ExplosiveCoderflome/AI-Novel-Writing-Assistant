@@ -224,6 +224,8 @@ export type ModelRouteTaskType =
   | "chat";
 
 export interface Novel {
+  directorVersion?: "v1" | "v2";
+  directorEpoch?: number;
   id: string;
   title: string;
   description?: string | null;

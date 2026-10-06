@@ -12,6 +12,8 @@ import type {
 import type { ImageAsset, ImageTaskStatus } from "@ai-novel/shared/types/image";
 
 export interface NovelWorkspaceEntry {
+  directorVersion?: "v1" | "v2";
+  directorEpoch?: number;
   /** App-owned creation entry; it never grants generation or recovery authority. */
   workspaceSourceRoute?: string | null;
 }

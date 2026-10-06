@@ -62,6 +62,8 @@ export interface ChapterRange {
 }
 
 export interface RunContract {
+  /** Generic execution fence, supplied by application composition. */
+  executionEpoch?: number;
   runId: string;
   novelId: string;
   driver: Driver;

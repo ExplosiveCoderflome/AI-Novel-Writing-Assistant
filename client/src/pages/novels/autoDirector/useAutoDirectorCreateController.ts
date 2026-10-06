@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import type {DirectorVersion} from "@ai-novel/shared/types/director/version";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { buildStyleIntentSummary } from "@ai-novel/shared/types/styleEngine";
 import type { UnifiedTaskDetail } from "@ai-novel/shared/types/task";
@@ -27,6 +28,7 @@ import {
   retryOriginalDirectorOpening,
 } from "@/api/novelDirector";
 import { queryKeys } from "@/api/queryKeys";
+import {getDirectorVersions} from "@/api/novel/directorVersion";
 import { getStyleProfiles } from "@/api/styleEngine";
 import { getAutoDirectorIssuePolicy } from "@/api/settings";
 import { getTaskDetail } from "@/api/tasks";
@@ -134,6 +136,13 @@ export function useAutoDirectorCreateController(input: UseAutoDirectorCreateCont
   const [pendingTitleHint, setPendingTitleHint] = useState("");
   const [executionError, setExecutionError] = useState("");
   const [runMode, setRunMode] = useState<DirectorRunMode>(initialDraft?.runMode ?? DEFAULT_VISIBLE_RUN_MODE);
+  const [directorVersion, setDirectorVersion] = useState<DirectorVersion>(initialDraft?.directorVersion ?? "v2");
+  const versionsQuery = useQuery({queryKey: ["director-versions"], queryFn: getDirectorVersions, retry: false});
+  useEffect(() => {
+    if (!workflowTaskId && versionsQuery.data && !versionsQuery.data.availableVersions.includes(directorVersion)) {
+      setDirectorVersion(versionsQuery.data.defaultVersion);
+    }
+  }, [workflowTaskId, versionsQuery.data, directorVersion]);
   const [worldSetupMode, setWorldSetupMode] = useState<DirectorWorldSetupMode>("auto_generate");
   const [autoExecutionDraft, setAutoExecutionDraft] = useState(() => createDefaultDirectorAutoExecutionDraftState());
   const [selectedStyleProfileId, setSelectedStyleProfileId] = useState(
@@ -183,6 +192,8 @@ export function useAutoDirectorCreateController(input: UseAutoDirectorCreateCont
     if (restoredIdea) {
       setIdea(restoredIdea);
     }
+    const restoredVersion = restoredTask.meta?.directorVersion;
+    if (restoredVersion === "v1" || restoredVersion === "v2") setDirectorVersion(restoredVersion);
     if (Array.isArray(seedPayload?.batches) && seedPayload.batches.length > 0) {
       setBatches(seedPayload.batches);
     }
@@ -390,6 +401,7 @@ export function useAutoDirectorCreateController(input: UseAutoDirectorCreateCont
       lane: "auto_director",
       title: directorBasicForm.title.trim() || undefined,
       seedPayload: {
+        directorVersion,
         basicForm: directorBasicForm,
         idea: nextIdea,
         batches,
@@ -432,14 +444,14 @@ export function useAutoDirectorCreateController(input: UseAutoDirectorCreateCont
     if (!requestIdea) {
       throw new Error("请先补充起始想法，再继续生成或确认书级方向。");
     }
-    return buildAutoDirectorRequestPayload(
+    return {...buildAutoDirectorRequestPayload(
       directorBasicForm,
       requestIdea,
       llm,
       runMode,
       currentWorkflowTaskId,
       { styleProfileId: selectedStyleProfileId, worldSetupMode, marketBriefId },
-    );
+    ), directorVersion};
   };
 
   const {
@@ -475,6 +487,7 @@ export function useAutoDirectorCreateController(input: UseAutoDirectorCreateCont
       }
       const autoExecutionPlan = buildAutoExecutionPlanForRunMode();
       const response = await confirmDirectorCandidate({
+        directorVersion,
         ...buildAutoDirectorRequestPayload(directorBasicForm, requestIdea, llm, runMode, currentWorkflowTaskId, {
           styleProfileId: selectedStyleProfileId,
           worldSetupMode,
@@ -586,6 +599,7 @@ export function useAutoDirectorCreateController(input: UseAutoDirectorCreateCont
   };
 
   const canGenerate = idea.trim().length > 0
+    && Boolean(versionsQuery.data?.availableVersions.includes(directorVersion))
     && !generateMutation.isPending
     && (!requireCreativeCarryoverAdopted || Boolean(creativeCarryoverContract?.adopted));
 
@@ -706,6 +720,9 @@ export function useAutoDirectorCreateController(input: UseAutoDirectorCreateCont
       return response.data?.idea ?? "";
     },
     runMode,
+    directorVersion,
+    setDirectorVersion,
+    availableDirectorVersions: versionsQuery.data?.availableVersions ?? [],
     runModeOptions: RUN_MODE_OPTIONS,
     setRunMode,
     worldSetupMode,

@@ -10,6 +10,7 @@ export async function prepareOpeningRetry(taskId: string) {
     const task = await tx.novelWorkflowTask.findUnique({where:{id:taskId}});
     if (!task || task.lane !== "auto_director") throw new AppError("找不到可重试的开书任务。",404);
     if (task.novelId) throw new AppError("请在小说导演台继续创作。",409);
+    if (task.directorVersion !== "v2") throw new AppError("请从导演 V1 开书页面恢复这项任务。",409);
     let failed = await tx.directorRunCommand.findFirst({where:{taskId},orderBy:[{createdAt:"desc"},{id:"desc"}]});
     if (!failed || !retryable.has(failed.commandType)) throw new AppError("当前任务没有可重试的开书操作。",409);
     const now = new Date();

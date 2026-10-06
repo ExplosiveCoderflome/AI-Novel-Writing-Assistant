@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import DirectorVersionControl from "@/components/directorVersion/DirectorVersionControl";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   AlertTriangle,
@@ -201,6 +202,7 @@ export default function SimpleNovelShelfPage() {
                   <div className="min-w-0">
                     <div className="flex flex-wrap items-center gap-2">
                       <h1 className="truncate text-2xl font-semibold tracking-tight text-foreground sm:text-3xl">{shelf.novel.title}</h1>
+                      <DirectorVersionControl novelId={id!} version="v1" />
                       <Badge variant="outline">简易模式 · 阅读书架</Badge>
                     </div>
                     <p className="mt-2 max-w-2xl text-sm leading-6 text-muted-foreground">这里优先展示这本书的正文和进度。AI 会在后台继续规划、写作和审校；需要查看完整资料时可随时切换工作台。</p>

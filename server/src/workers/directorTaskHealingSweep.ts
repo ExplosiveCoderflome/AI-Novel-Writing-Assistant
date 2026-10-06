@@ -1,4 +1,5 @@
 import { prisma } from "../db/prisma";
+import {canExecuteLegacyTask} from "../modules/novel/director-routing";
 import { NovelWorkflowHealingService } from "../services/novel/workflow/NovelWorkflowHealingService";
 import { NovelWorkflowStoreService } from "../services/novel/workflow/NovelWorkflowStoreService";
 
@@ -27,7 +28,10 @@ export class DirectorTaskHealingSweep {
       findMany: (args) => prisma.novelWorkflowTask.findMany(args),
     };
     const healer = new NovelWorkflowHealingService(new NovelWorkflowStoreService());
-    this.healTask = deps.healTask ?? ((taskId) => healer.healAutoDirectorTaskState(taskId));
+    this.healTask = deps.healTask ?? (async taskId => {
+      if (!await canExecuteLegacyTask(taskId)) return false;
+      return healer.healAutoDirectorTaskState(taskId);
+    });
   }
 
   run(): Promise<void> {

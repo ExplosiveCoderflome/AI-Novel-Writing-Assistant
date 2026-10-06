@@ -10,6 +10,10 @@ import { findDirectorIssuePolicyPreset, type DirectorIssuePolicy } from "@ai-nov
 import { AutoDirectorIssuePolicyCard } from "@/pages/settings/AutoDirectorIssuePolicyCard";
 
 interface StageModelRunProps {
+  directorVersion: "v1" | "v2";
+  availableDirectorVersions: ("v1" | "v2")[];
+  onDirectorVersionChange: (version: "v1" | "v2") => void;
+  versionLocked?: boolean;
   basicForm: NovelBasicFormState;
   onBasicFormChange: (patch: Partial<NovelBasicFormState>) => void;
   canGenerate: boolean;
@@ -22,6 +26,10 @@ interface StageModelRunProps {
 }
 
 export default function StageModelRun({
+  directorVersion,
+  availableDirectorVersions,
+  onDirectorVersionChange,
+  versionLocked,
   basicForm,
   onBasicFormChange,
   canGenerate,
@@ -52,6 +60,17 @@ export default function StageModelRun({
       </div>
 
       <div className="space-y-6">
+        <section className="space-y-2">
+          <label htmlFor="opening-director-version" className="block text-sm font-medium">导演版本</label>
+          <select id="opening-director-version" value={directorVersion} disabled={versionLocked || isGenerating}
+            onChange={event => onDirectorVersionChange(event.target.value as "v1" | "v2")}
+            className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm sm:max-w-sm">
+            {availableDirectorVersions.map(version => <option key={version} value={version}>{version === "v2" ? "导演 V2 · 新导演" : "导演 V1 · 原导演"}</option>)}
+            {!availableDirectorVersions.includes(directorVersion) ? <option value={directorVersion}>{availableDirectorVersions.length ? `导演 ${directorVersion.toUpperCase()} · 未启用` : "正在读取导演版本…"}</option> : null}
+          </select>
+          <p className="text-xs leading-5 text-muted-foreground">选择本书使用的创作流程。全自动或按阶段确认可在对应导演台设置。</p>
+          {versionLocked ? <p className="text-xs text-muted-foreground">结束当前开书任务后可选择其他版本。</p> : null}
+        </section>
         <section className="overflow-hidden rounded-2xl border border-border/70 bg-background shadow-[0_20px_55px_-45px_hsl(var(--foreground)/0.5)]">
           <div className="border-b border-border/60 bg-muted/15 px-5 py-4">
             <div className="flex items-center gap-2 text-sm font-semibold text-foreground">

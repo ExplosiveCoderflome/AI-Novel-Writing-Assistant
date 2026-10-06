@@ -1,4 +1,5 @@
 import { NovelWorkflowService } from "./NovelWorkflowService";
+import {canExecuteLegacyTask} from "../../../modules/novel/director-routing";
 
 const STALE_RUNNING_RECOVERY_MESSAGE = "自动导演任务长时间没有心跳，可能已因服务重启或内存不足中断。请检查后继续或重试。";
 
@@ -18,7 +19,12 @@ function createWorkflowService(): WorkflowRecoveryPort {
 }
 
 export class NovelWorkflowRuntimeService {
-  constructor(private readonly workflowService: WorkflowRecoveryPort = createWorkflowService()) {}
+  private readonly workflowService: WorkflowRecoveryPort;
+  private readonly canRecover: (id: string) => Promise<boolean>;
+  constructor(workflowService?: WorkflowRecoveryPort) {
+    this.workflowService = workflowService ?? createWorkflowService();
+    this.canRecover = workflowService ? async () => true : canExecuteLegacyTask;
+  }
 
   async markPendingAutoDirectorTasksForManualRecovery(options: {
     staleRunningAsFailed?: boolean;
@@ -27,6 +33,7 @@ export class NovelWorkflowRuntimeService {
       includeStaleRunningFlag: options.staleRunningAsFailed === true,
     });
     for (const row of rows) {
+      if (!await this.canRecover(row.id)) continue;
       if (options.staleRunningAsFailed === true && row.stale) {
         await this.workflowService.markTaskFailed(row.id, STALE_RUNNING_RECOVERY_MESSAGE);
         continue;

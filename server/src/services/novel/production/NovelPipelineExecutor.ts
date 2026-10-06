@@ -23,6 +23,7 @@ import {
 import { plannerService } from "../../planner/PlannerService";
 import { applyChapterQualityClosure } from "./qualityClosure/ChapterQualityClosure";
 import { recoverSavedChapterQuality, SavedChapterQualityRecoveryError } from "./qualityClosure/SavedChapterQualityRecovery";
+import {assertDirectorPipelineOwner} from "../../../modules/novel/director-routing";
 import { ChapterAutomaticAttemptService } from "./attempts";
 import { isCurrentChapterProductionCompleted } from "./completion";
 import { beginChapterUsage, observeChapterUsage, finalizeChapterUsage } from "./usage";
@@ -87,6 +88,7 @@ export class NovelPipelineExecutor {
   constructor(
     private readonly chapterRuntimeCoordinator = new ChapterRuntimeCoordinator(),
     private readonly automaticAttempts = new ChapterAutomaticAttemptService(),
+    private readonly assertOwner = assertDirectorPipelineOwner,
   ) {}
 
   private async ensurePipelineNotCancelled(jobId: string): Promise<void> {
@@ -239,6 +241,11 @@ export class NovelPipelineExecutor {
       repairMode: persistedPayload.repairMode ?? options.repairMode ?? "light_repair",
       artifactSyncMode: persistedPayload.artifactSyncMode ?? options.artifactSyncMode ?? "adaptive",
     };
+    await this.assertOwner(novelId, runtimePayload);
+    const checkCancelled = async () => {
+      await this.ensurePipelineNotCancelled(jobId);
+      await this.assertOwner(novelId, runtimePayload);
+    };
     const directorTelemetryTask = runtimePayload.workflowTaskId
       ? await prisma.novelWorkflowTask.findUnique({
         where: { id: runtimePayload.workflowTaskId },
@@ -354,7 +361,7 @@ export class NovelPipelineExecutor {
           ? directorTelemetryTask?.directorRun?.id ?? runtimePayload.workflowTaskId ?? null
           : null,
       }, async () => {
-        await this.ensurePipelineNotCancelled(jobId);
+        await checkCancelled();
         await this.updateJobSafe(jobId, {
           status: "running",
           pendingManualRecovery: false,
@@ -435,7 +442,7 @@ export class NovelPipelineExecutor {
 
         const routeWindowService = new ChapterRouteWindowService();
         const prepareRollingChapter = async (order: number, previous?: { id: string; order: number }, cached?: (typeof chapterCandidates)[number]) => {
-          await this.ensurePipelineNotCancelled(jobId);
+          await checkCancelled();
           try {
             await routeWindowService.ensureRouteWindow(novelId, order, {
               min: 3, target: 5,
@@ -477,7 +484,7 @@ export class NovelPipelineExecutor {
 
         for (let chapterIndex = 0; chapterIndex < chaptersToProcess.length; chapterIndex++) {
           const chapter = chaptersToProcess[chapterIndex];
-          await this.ensurePipelineNotCancelled(jobId);
+          await checkCancelled();
 
           let chapterResult: Awaited<ReturnType<ChapterRuntimeCoordinator["runPipelineChapter"]>> | null = null;
           const savedUsage = runtimePayload.directorNext?.chapterUsage?.find(row => row.chapterId === chapter.id);
@@ -582,7 +589,7 @@ export class NovelPipelineExecutor {
           let chapterRetryCountUsed = 0;
           let previouslyConsumed = 0;
           const claimAttempt = async (kind: "quality_repair" | "runtime_retry") => {
-            await this.ensurePipelineNotCancelled(jobId);
+            await checkCancelled();
             if (chapterRetryCountUsed >= chapterRetryBudget) return false;
             const claimed = await this.automaticAttempts.claim(jobId, chapter.id, kind);
             chapterRetryCountUsed = 1;
@@ -595,7 +602,7 @@ export class NovelPipelineExecutor {
             previouslyConsumed = chapterRetryCountUsed = await this.automaticAttempts.used(jobId, chapter.id);
             while (!chapterResult) {
               try {
-                await this.ensurePipelineNotCancelled(jobId);
+                await checkCancelled();
                 await checkChapterBudget();
                 chapterResult = await this.chapterRuntimeCoordinator.runPipelineChapter(
                   novelId,
@@ -615,7 +622,7 @@ export class NovelPipelineExecutor {
                     artifactSyncMode: runtimePayload.artifactSyncMode,
                   },
                   {
-                  onCheckCancelled: () => this.ensurePipelineNotCancelled(jobId),
+                  onCheckCancelled: checkCancelled,
                   onStageChange: async (stage) => {
                     await applyChapterStage(stage);
                   },

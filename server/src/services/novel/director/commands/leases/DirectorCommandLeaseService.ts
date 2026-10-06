@@ -1,6 +1,7 @@
 import { DirectorTaskStateWriter } from "../../state";
 import crypto from "node:crypto";
 import { prisma } from "../../../../../db/prisma";
+import {canExecuteLegacyTask} from "../../../../../modules/novel/director-routing";
 import { taskDispatcher } from "../../../../../workers/TaskDispatcher";
 import { NovelWorkflowService } from "../../../workflow/NovelWorkflowService";
 import { directorIssueService, loadDirectorIssueTaskContext } from "../../issues";
@@ -58,6 +59,7 @@ export class DirectorCommandLeaseService {
       },
     });
     for (const command of staleCommands) {
+      if (!await canExecuteLegacyTask(command.taskId)) continue;
       let recoveryState: DirectorLeaseRecoveryState | null;
       try {
         recoveryState = await this.loadRecoveryState(command.taskId);
@@ -174,6 +176,7 @@ export class DirectorCommandLeaseService {
     if (job.novelId !== task.novelId) {
       throw new Error("Linked pipeline job belongs to another novel.");
     }
+    if (job.payload && JSON.parse(job.payload).directorNext) throw new Error("Linked pipeline job belongs to director V2.");
     const payloadTaskId = parsePipelineWorkflowTaskId(job.payload);
     if (payloadTaskId && payloadTaskId !== taskId) {
       throw new Error("Linked pipeline job belongs to another workflow task.");
@@ -256,7 +259,7 @@ export class DirectorCommandLeaseService {
   async leaseNextCommand(input: { workerId: string; leaseMs: number }) {
     const now = new Date();
     const leaseExpiresAt = new Date(now.getTime() + input.leaseMs);
-    const candidate = await prisma.directorRunCommand.findFirst({
+    const candidates = await prisma.directorRunCommand.findMany({
       where: {
         status: "queued",
         runAfter: { lte: now },
@@ -264,6 +267,10 @@ export class DirectorCommandLeaseService {
       },
       orderBy: [{ runAfter: "asc" }, { createdAt: "asc" }, { id: "asc" }],
     });
+    let candidate: (typeof candidates)[number] | undefined;
+    for (const item of candidates) {
+      if (await canExecuteLegacyTask(item.taskId)) {candidate = item; break;}
+    }
     if (!candidate) return null;
     const claimed = await prisma.directorRunCommand.updateMany({
       where: {
@@ -355,8 +362,12 @@ export class DirectorCommandLeaseService {
       where: { taskId, status: "running" },
       data: { status: "failed", finishedAt: now, error: CANCELLED_COMMAND_MESSAGE },
     }).catch(() => null);
+    const jobs = await prisma.generationJob.findMany({where: {status: {in: ["queued", "running"]}}, select: {id: true, payload: true}});
+    const ownedIds = jobs.filter(job => {
+      try {const payload = JSON.parse(job.payload || "{}"); return !payload.directorNext && payload.workflowTaskId === taskId;} catch {return false;}
+    }).map(job => job.id);
     await prisma.generationJob.updateMany({
-      where: { status: { in: ["queued", "running"] }, payload: { contains: taskId } },
+      where: { id: {in: ownedIds}, status: { in: ["queued", "running"] } },
       data: {
         status: "cancelled",
         cancelRequestedAt: now,

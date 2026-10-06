@@ -399,6 +399,7 @@ function AutoDirectorCreatePage() {
       activeStage,
       completedStages,
       runMode: controller.runMode,
+      directorVersion: controller.directorVersion,
       worldSetupMode: controller.worldSetupMode,
       selectedStyleProfileId: controller.selectedStyleProfileId,
       creativeCarryoverContract: activeCarryoverContract,
@@ -410,6 +411,7 @@ function AutoDirectorCreatePage() {
     completedStages,
     controller.idea,
     controller.runMode,
+    controller.directorVersion,
     controller.selectedStyleProfileId,
     controller.workflowTaskId,
     controller.worldSetupMode,
@@ -718,6 +720,10 @@ function AutoDirectorCreatePage() {
     if (activeStage === "model_run") {
       return (
         <StageModelRun
+          directorVersion={controller.directorVersion}
+          availableDirectorVersions={controller.availableDirectorVersions}
+          onDirectorVersionChange={controller.setDirectorVersion}
+          versionLocked={Boolean(controller.workflowTaskId)}
           basicForm={controller.directorBasicForm}
           onBasicFormChange={controller.onBasicFormChange}
           canGenerate={controller.canGenerate}

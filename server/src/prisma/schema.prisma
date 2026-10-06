@@ -323,6 +323,8 @@ enum CharacterGender {
 
 model Novel {
   id                String      @id @default(cuid())
+  directorVersion   String?
+  directorEpoch     Int         @default(0)
   title             String
   description       String?
   targetAudience    String?
@@ -2207,6 +2209,8 @@ model BookContract {
 
 model NovelWorkflowTask {
   id                 String                  @id @default(cuid())
+  directorVersion    String?
+  directorEpoch      Int?
   novelId            String?
   lane               NovelWorkflowLane
   title              String

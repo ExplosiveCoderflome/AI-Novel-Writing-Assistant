@@ -21,7 +21,7 @@ test('pipeline startup reuses its own completed or manual-pending job and never 
  const support=require('../../../dist/services/novel/novelCoreSupport');support.ensureNovelCharacters=async()=>{};
  const {prisma}=require('../../../dist/db/prisma');
  const {NovelCorePipelineService}=require('../../../dist/services/novel/novelCorePipelineService');
- const service=new NovelCorePipelineService();service.resolveIssuePolicySnapshot=async()=>({maxAutomaticRetries:1,issueActions:{}});
+ const service=new NovelCorePipelineService(async(id,payload)=>{assert.equal(id,'novel');assert.equal(payload.directorNext.runId,'run');});service.resolveIssuePolicySnapshot=async()=>({maxAutomaticRetries:1,issueActions:{}});
  const scheduled=[];service.schedulePipelineExecution=(...args)=>scheduled.push(args);
  const options={startOrder:1,endOrder:2,directorNext:{runId:'run',decisions:[]}};
  for(const job of [{id:'own',status:'succeeded',pendingManualRecovery:false},{id:'own',status:'queued',pendingManualRecovery:true}]) {
@@ -49,7 +49,7 @@ test('director autopilot never expands beyond its authorized range using mutable
  prisma.novel.findUnique=async()=>({id:'novel',title:'测试书',estimatedChapterCount:100});
  prisma.chapter.findMany=async()=>[1,2,3].map(order=>({id:'chapter-'+order,novelId:'novel',order,content:'已闭合正文',generationState:'approved',
   artifactSyncCheckpoints:[{contentHash:buildChapterArtifactContentHash('已闭合正文'),metadataJson:JSON.stringify({outcome:'completed'})}]}));
- const executor=new NovelPipelineExecutor({});
+ const executor=new NovelPipelineExecutor({},undefined,async(id,payload)=>{assert.equal(id,'novel');assert.equal(payload.directorNext.runId,'run');});
  await executor.execute('job','novel',{startOrder:1,endOrder:3,skipCompleted:true,controlPolicy:{kickoffMode:'director_start',advanceMode:'full_book_autopilot',reviewCheckpoints:[]}});
  assert.equal(updates.find(row=>row.endOrder!==undefined).endOrder,3);assert.equal(state.status,'succeeded');
  assert.equal(state.completedCount,3);assert.equal(state.progress,1);

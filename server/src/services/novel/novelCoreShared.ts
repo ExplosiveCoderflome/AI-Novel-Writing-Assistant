@@ -19,6 +19,7 @@ export interface PaginationInput {
 export interface CreateNovelInput {
   /** Internal stable creation identity; HTTP creation schemas do not accept this field. */
   id?: string;
+  directorVersion?: "v1" | "v2";
   title: string;
   description?: string;
   targetAudience?: string;

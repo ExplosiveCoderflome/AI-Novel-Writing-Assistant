@@ -45,6 +45,7 @@ export interface NovelDirectorAutoExecutionNovelPort {
     startOrder: number,
     endOrder: number,
     preferredJobId?: string | null,
+    owner?: {workflowTaskId: string},
   ): Promise<{ id: string; status: PipelineJobStatus } | null>;
   getPipelineJobById(jobId: string): Promise<{
     id: string;
@@ -60,7 +61,7 @@ export interface NovelDirectorAutoExecutionNovelPort {
     noticeSummary?: string | null;
     error?: string | null;
   } | null>;
-  resumePipelineJob(jobId: string): Promise<unknown>;
+  resumePipelineJob(jobId: string, options?: {expectedOwner: {workflowTaskId: string}}): Promise<unknown>;
   cancelPipelineJob(jobId: string): Promise<unknown>;
 }
 

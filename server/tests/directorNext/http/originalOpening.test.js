@@ -3,8 +3,8 @@ const {createOriginalOpeningEntry}=require('../../../dist/app/director/opening')
 const {createFrozenDirectorEntry}=require('../../../dist/app/director/entrySwitch');
 test('original opening allows only pre-book candidate work and confirmation, dispatching accepted command ids',async()=>{
  const scheduled=[];const app=express();app.use(express.json());
- app.use('/director',createOriginalOpeningEntry({readTask:async id=>({novelId:id==='published'?'existing':null}),schedule:id=>scheduled.push(id)}));
- app.use('/director',createFrozenDirectorEntry());app.post('/director/tasks/:id/commands',(_req,res)=>res.status(202).json({success:true,data:{commandId:'accepted'}}));
+ app.use('/director',createOriginalOpeningEntry({readVersion:async()=> 'v2',readTask:async id=>({novelId:id==='published'?'existing':null}),schedule:id=>scheduled.push(id)}));
+ app.use('/director',createFrozenDirectorEntry({isV2:async()=>true,canExecuteLegacyTask:async()=>false}));app.post('/director/tasks/:id/commands',(_req,res)=>res.status(202).json({success:true,data:{commandId:'accepted'}}));
  app.post('/director/tasks',(_req,res)=>res.status(202).json({success:true,data:{commandId:'generated'}}));
  const server=app.listen(0);await new Promise(resolve=>server.once('listening',resolve));const url='http://127.0.0.1:'+server.address().port;
  try {const post=(path,body)=>fetch(url+path,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});

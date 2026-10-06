@@ -32,6 +32,7 @@ function loadCurrentTaskModule(rows, archivedIds = []) {
     loaded: true,
     exports: {
       prisma: {
+        novel:{findUnique:async()=>({directorVersion:'v1',directorEpoch:0,narrativeForm:'long_novel'})},
         novelWorkflowTask: {
           findMany: async (args) => {
             calls.push(args);
@@ -69,7 +70,7 @@ test("current director task uses creation order, excludes archived rows, and doe
 
   assert.equal(result.id, "newer-terminal-z");
   assert.deepEqual(calls[0], {
-    where: { novelId: "novel-1", lane: "auto_director" },
+    where: { novelId: "novel-1", lane: "auto_director", OR:[{directorEpoch:0},{directorEpoch:null}] },
     orderBy: [{ createdAt: "desc" }, { id: "desc" }],
   });
 });
@@ -93,6 +94,7 @@ test("previous director task excludes the newly created takeover task and keeps 
     where: {
       novelId: "novel-1",
       lane: "auto_director",
+      OR:[{directorEpoch:0},{directorEpoch:null}],
       id: { not: "replacement-task" },
     },
     orderBy: [{ createdAt: "desc" }, { id: "desc" }],

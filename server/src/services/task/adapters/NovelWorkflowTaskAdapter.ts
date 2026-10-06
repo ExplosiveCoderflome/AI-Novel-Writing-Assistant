@@ -443,7 +443,7 @@ export class NovelWorkflowTaskAdapter {
     }
 
     // Expose an explicit recovery action without mutating a stale opening during polling.
-    if (["true","1"].includes(process.env.DIRECTOR_NEXT_ENABLED ?? "") && row.lane === "auto_director" && !row.novelId
+    if (row.directorVersion === "v2" && row.lane === "auto_director" && !row.novelId
       && ["queued","running"].includes(row.status)) {
       const command = await prisma.directorRunCommand.findFirst({where:{taskId:id},orderBy:[{createdAt:"desc"},{id:"desc"}]});
       if (command && ["generate_candidates","refine_candidates","patch_candidate","refine_titles","confirm_candidate"].includes(command.commandType)
@@ -474,6 +474,8 @@ export class NovelWorkflowTaskAdapter {
       finishedAt: row.finishedAt?.toISOString() ?? null,
       retryCountLabel: `${row.attemptCount}/${row.maxAttempts}`,
       meta: {
+        directorVersion: row.directorVersion ?? "v1",
+        directorEpoch: row.directorEpoch ?? 0,
         lane: row.lane,
         checkpointType: row.checkpointType,
         checkpointSummary: row.checkpointSummary,

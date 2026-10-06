@@ -54,8 +54,8 @@ services=createDirectorNextServices({plan,stepRegistry:registry,
 const protectedState=async()=>({legacy:await prisma.novelWorkflowTask.findMany({orderBy:{id:'asc'}}),commands:await prisma.directorRunCommand.findMany({orderBy:{id:'asc'}}),outside:await prisma.chapter.findUnique({where:{id:'outside'}}),paused:await prisma.generationJob.findUnique({where:{id:'paused-job'}})});
 (async()=>{
  if(mode==='crash'){
-  await ensureRuntimeDatabaseReady();await prisma.novel.create({data:{id:'book',title:'正文中断恢复'}});
-  await prisma.novel.create({data:{id:'paused-book',title:'人工暂停'}});
+  await ensureRuntimeDatabaseReady();await prisma.novel.create({data:{directorVersion:'v2',id:'book',title:'正文中断恢复'}});
+  await prisma.novel.create({data:{directorVersion:'v2',id:'paused-book',title:'人工暂停'}});
   for(const order of [1,2])await prisma.chapter.create({data:{id:'c'+order,novelId:'book',order,title:'章节'+order,content:''}});
   await prisma.chapter.create({data:{id:'outside',novelId:'book',order:3,title:'范围外正文',content:'作者正文必须保留'}});
   await prisma.novelWorkflowTask.create({data:{id:'legacy',novelId:'book',lane:'auto_director',title:'旧任务',status:'running',seedPayloadJson:'invalid seed',pendingManualRecovery:true}});

@@ -1,4 +1,5 @@
 import { prisma } from "../../../../db/prisma";
+import {assertNovelDirectorVersion, readNovelDirectorIdentity} from "../../../../modules/novel/director-routing";
 import { AppError } from "../../../../middleware/errorHandler";
 import { withSqliteRetry } from "../../../../db/sqliteRetry";
 import { getArchivedTaskIdSet } from "../../../task/taskArchive";
@@ -37,11 +38,14 @@ async function resolveLatestVisibleDirectorTask(novelId: string, excludeTaskId?:
     return null;
   }
   const normalizedExcludeTaskId = excludeTaskId?.trim();
+  const identity = await readNovelDirectorIdentity(normalizedNovelId);
+  if (identity.version !== "v1") return null;
 
   const rows = await prisma.novelWorkflowTask.findMany({
     where: {
       novelId: normalizedNovelId,
       lane: "auto_director",
+      OR: [{directorEpoch: identity.epoch}, ...(identity.epoch === 0 ? [{directorEpoch: null}] : [])],
       ...(normalizedExcludeTaskId ? { id: { not: normalizedExcludeTaskId } } : {}),
     },
     orderBy: [{ createdAt: "desc" }, { id: "desc" }],
@@ -78,10 +82,13 @@ export async function startDirectorTaskForNovel(
 
   return withSqliteRetry(
     () => prisma.$transaction(async (tx) => {
+      await tx.novel.update({where: {id: novelId}, data: {directorEpoch: {increment: 0}}});
+      const identity = await assertNovelDirectorVersion(novelId, "v1", undefined, tx);
       const activeTasks = await tx.novelWorkflowTask.findMany({
         where: {
           novelId,
           lane: "auto_director",
+          OR: [{directorEpoch: identity.epoch}, ...(identity.epoch === 0 ? [{directorEpoch: null}] : [])],
           status: { in: [...ACTIVE_DIRECTOR_TASK_STATUSES] },
           ...(input.existingTaskId ? { id: { not: input.existingTaskId } } : {}),
         },
@@ -134,15 +141,16 @@ export async function startDirectorTaskForNovel(
         if (!existingTask) {
           throw new AppError("Workflow task not found.", 404);
         }
-        if (existingTask.lane !== "auto_director" || (existingTask.novelId && existingTask.novelId !== novelId)) {
+        if (existingTask.lane !== "auto_director" || existingTask.directorVersion === "v2" || (existingTask.novelId && existingTask.novelId !== novelId)) {
           throw new AppError("Only an unattached auto director task can be linked to this novel.", 409);
         }
         if (existingTask.novelId === novelId) {
+          if ((existingTask.directorEpoch ?? 0) !== identity.epoch || existingTask.directorVersion === "v2") throw new AppError("请在本书工作台开始新的创作任务。", 409);
           return existingTask;
         }
         return tx.novelWorkflowTask.update({
           where: { id: existingTask.id },
-          data: { novelId },
+          data: { novelId, directorVersion: "v1", directorEpoch: identity.epoch },
         });
       }
 
@@ -167,6 +175,8 @@ export async function startDirectorTaskForNovel(
       const created = await tx.novelWorkflowTask.create({
         data: {
           ...initialTaskData,
+          directorVersion: "v1",
+          directorEpoch: identity.epoch,
           resumeTargetJson: stringifyResumeTarget(buildNovelEditResumeTarget({
             taskId: "",
             novelId,

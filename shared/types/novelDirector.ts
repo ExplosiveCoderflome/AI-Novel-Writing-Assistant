@@ -27,6 +27,7 @@ import type { StyleIntentSummary } from "./styleEngine";
 import type { DirectorAutoApprovalConfig } from "./autoDirectorApproval";
 import type { DirectorIssuePolicy } from "./directorIssue";
 import type { DirectorRiskAssessment } from "./directorRisk";
+import type {DirectorVersion} from "./director/version";
 
 export const DIRECTOR_CORRECTION_PRESETS = [
   {
@@ -482,6 +483,7 @@ export interface DirectorTaskSeedPayloadSnapshot {
 }
 
 export interface DirectorLLMOptions {
+  directorVersion?: DirectorVersion;
   provider?: LLMProvider;
   model?: string;
   temperature?: number;

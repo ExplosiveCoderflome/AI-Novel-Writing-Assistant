@@ -1,10 +1,7 @@
-import type {LlmInvocationUsagePage, NovelUsagePage, NovelUsageQuery} from "@ai-novel/shared/types/llmUsage";
-import {decodeUsageCursor} from "../../../platform/llm/usage";
 import { Router, type NextFunction, type Request, type Response } from "express";
 import { z } from "zod";
 import { DirectorRunNotFoundError, RecordProjection, type CommandService, type DirectorCommand, type EventLog, type ProjectionService, type RunRepository } from "../application";
 import type {LegacyRunProjection} from "../legacy";
-import type { DirectorGenerationSnapshot } from "@ai-novel/shared/types/director/generation";
 
 export interface DirectorNextHttpDeps {
   commandService: Pick<CommandService, "execute">;
@@ -12,10 +9,12 @@ export interface DirectorNextHttpDeps {
   runRepository: Pick<RunRepository, "findActiveRunIdByNovel" | "listRunIds" | "getContract" | "getControl">;
   eventLog: Pick<EventLog, "list">;
   legacyProjection?: Pick<LegacyRunProjection, "list">;
-  readUsage?: (runId:string,query:{limit?:number;cursor?:string|null})=>Promise<LlmInvocationUsagePage>;
-  readNovelUsage?: (novelId: string, query: NovelUsageQuery) => Promise<NovelUsagePage>;
+  readUsage?: (runId:string,query:{limit?:number;cursor?:string|null})=>Promise<unknown>;
+  validateUsageCursor?: (runId: string, cursor: string) => void;
+  readNovelUsage?: (novelId: string, query: {limit?: number; cursor?: string; chapterId?: string; stage?: string; provider?: string; model?: string; status?: "completed" | "partial" | "failed"}) => Promise<unknown>;
   readWorkspace?: (novelId: string) => Promise<unknown>;
-  observeGeneration?: (novelId: string, listener: (snapshot: DirectorGenerationSnapshot | null) => void) => () => void;
+  readCurrentRunId?: (novelId: string) => Promise<string | null>;
+  observeGeneration?: (novelId: string, listener: (snapshot: unknown) => void) => () => void;
 }
 
 const nonEmpty = z.string().trim().min(1);
@@ -107,7 +106,7 @@ export function createDirectorNextRouter(deps: DirectorNextHttpDeps): Router {
     res.setHeader("Cache-Control", "no-cache, no-transform");
     res.setHeader("X-Accel-Buffering", "no");
     res.flushHeaders();
-    let latest: DirectorGenerationSnapshot | null = null;
+    let latest: unknown = null;
     let pending = false;
     const send = () => {
       pending = false;
@@ -158,8 +157,8 @@ export function createDirectorNextRouter(deps: DirectorNextHttpDeps): Router {
       sendValidationError(res, novelId.error);
       return;
     }
-    const activeRunId = await deps.runRepository.findActiveRunIdByNovel(novelId.data);
-    const runId = activeRunId ?? (await deps.runRepository.listRunIds({ novelId: novelId.data, limit: 1 }))[0];
+    const activeRunId = deps.readCurrentRunId ? await deps.readCurrentRunId(novelId.data) : await deps.runRepository.findActiveRunIdByNovel(novelId.data);
+    const runId = deps.readCurrentRunId ? activeRunId : activeRunId ?? (await deps.runRepository.listRunIds({ novelId: novelId.data, limit: 1 }))[0];
     if (!runId) {
       res.status(404).json({ success: false, error: "这本小说没有创作记录。" });
       return;
@@ -194,7 +193,10 @@ export function createDirectorNextRouter(deps: DirectorNextHttpDeps): Router {
     const query=z.object({limit:z.coerce.number().int().min(1).max(100).default(30),cursor:z.string().min(1).optional()}).safeParse(req.query);
     if(!query.success){sendValidationError(res,query.error);return;}
     try{
-      if(query.data.cursor && decodeUsageCursor(query.data.cursor).runId!==runId)throw Object.assign(new Error("分页位置不属于本次创作。"),{statusCode:400});
+      if(query.data.cursor) {
+        if (!deps.validateUsageCursor) {res.status(503).json({success:false,error:"调用用量分页暂不可读取。"}); return;}
+        deps.validateUsageCursor(runId, query.data.cursor);
+      }
       if(!await deps.runRepository.getContract(runId)){res.status(404).json({success:false,error:"找不到对应的创作记录。"});return;}
       if(!deps.readUsage){res.status(503).json({success:false,error:"调用用量暂不可读取。"});return;}
       res.json({success:true,data:await deps.readUsage(runId,query.data)});

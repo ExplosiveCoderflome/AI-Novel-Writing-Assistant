@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { Link, useParams, useSearchParams, useLocation } from "react-router-dom";
+import { Link, useParams, useSearchParams, useLocation, useNavigate } from "react-router-dom";
 import { getDirectorDetail, getDirectorSummary, getDirectorWorkspace, type DirectorDriver } from "@/api/directorNext";
 import { getNovelDetail } from "@/api/novel";
 import { queryKeys } from "@/api/queryKeys";
@@ -12,12 +12,14 @@ import { ResizableWorkspace } from "@/components/layout/resizableWorkspace";
 import { previewStates, previewTimeline, previewView } from "./preview";
 import { NovelWorkspace, previewBook, resolveSavedReview } from "./workspace";
 import { useGenerationFollow } from "./generation";
+import DirectorVersionControl from "@/components/directorVersion/DirectorVersionControl";
 
 export default function DirectorNovelPage({ previewOnly = false }: { previewOnly?: boolean }) {
   const { novelId: routeNovelId = "" } = useParams();
   const novelId = previewOnly ? "preview" : routeNovelId;
   const [params, setParams] = useSearchParams();
   const location=useLocation();
+  const navigate = useNavigate();
   const preview = novelId === "preview";
   const follow = useGenerationFollow(novelId, preview);
   useEffect(()=>{
@@ -35,6 +37,9 @@ export default function DirectorNovelPage({ previewOnly = false }: { previewOnly
   const view = preview ? previewView(params.get("state") ?? "running") : detail?.view ?? summaryQuery.data?.data;
   const error = detailQuery.error ?? summaryQuery.error;
   const metadata = novelQuery.data?.data;
+  useEffect(() => {
+    if (!preview && metadata?.directorVersion === "v1") navigate(`/novels/${encodeURIComponent(novelId)}/edit`, {replace: true});
+  }, [metadata?.directorVersion, navigate, novelId, preview]);
   const startForm = !preview && book && metadata ? (range: {from:number;to:number}|null, driver: DirectorDriver = "assisted") => <DirectorStart key={`${view?.runId ?? novelId}:${range?.from ?? "planning"}`} novelId={novelId} estimatedChapterCount={book.novel.estimatedChapterCount} nextChapter={Math.max(0,...book.chapters.filter(chapter=>chapter.content?.trim()).map(chapter=>chapter.order))+1} initialStory={metadata.description ?? ""} worldId={metadata.worldId} suggestedRange={range} initialDriver={driver}/> : null;
 
   return (
@@ -42,6 +47,7 @@ export default function DirectorNovelPage({ previewOnly = false }: { previewOnly
       <header className="flex min-w-0 shrink-0 flex-wrap items-center justify-between gap-x-4 gap-y-1 border-b border-border/60 pb-2">
         <div className="flex min-w-0 flex-1 basis-full flex-wrap items-center gap-x-4 gap-y-2 lg:basis-auto">
           <h1 title={book?.novel.title} className="min-w-0 truncate text-lg font-semibold">{book?.novel.title ?? "小说创作"}</h1>
+          {!preview ? <DirectorVersionControl novelId={novelId} version="v2"/> : <span className="text-sm">导演 V2</span>}
           {!error && view ? <DirectorBadge view={view} novelId={novelId} modeOnly/> : null}
           <label className="flex shrink-0 cursor-pointer items-center gap-2 rounded-md bg-muted/40 px-3 py-2 text-sm" title="自动打开正在写的章节，实时显示正文">
             <input type="checkbox" checked={follow.enabled} disabled={preview} onChange={event => follow.setEnabled(event.target.checked)} className="h-4 w-4 accent-primary"/>

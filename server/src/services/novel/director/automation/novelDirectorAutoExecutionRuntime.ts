@@ -74,7 +74,7 @@ export class NovelDirectorAutoExecutionRuntime {
     if (pipelineJobId) {
       knownPipelineJob = await this.deps.novelService.getPipelineJobById(pipelineJobId);
       if (knownPipelineJob?.pendingManualRecovery && input.resumePendingManualRecovery) {
-        await this.deps.novelService.resumePipelineJob(knownPipelineJob.id);
+        await this.deps.novelService.resumePipelineJob(knownPipelineJob.id, {expectedOwner: {workflowTaskId: input.taskId}});
         knownPipelineJob = await this.deps.novelService.getPipelineJobById(knownPipelineJob.id);
       }
       if (!knownPipelineJob || ["failed", "cancelled"].includes(knownPipelineJob.status)) {
@@ -132,6 +132,7 @@ export class NovelDirectorAutoExecutionRuntime {
         resolveSingleChapterExecutionRange(range, autoExecution).startOrder,
         resolveSingleChapterExecutionRange(range, autoExecution).endOrder,
         pipelineJobId || null,
+        {workflowTaskId: input.taskId},
       );
       if (activeRangeJob) {
         pipelineJobId = activeRangeJob.id;

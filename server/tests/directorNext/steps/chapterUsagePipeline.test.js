@@ -89,7 +89,7 @@ async function exercise({ initialTokens = 0, checkpoints, chapterTokens = 100_00
         affectedChapterOrders: [2], reason: '后续章节需与已保存正文对齐',
       } } } : {}) };
   } };
-  const executor = new NovelPipelineExecutor(runtime, { used: async () => 0, claim: async () => { throw new Error('budget must not consume retry'); } });
+  const executor = new NovelPipelineExecutor(runtime, { used: async () => 0, claim: async () => { throw new Error('budget must not consume retry'); } }, async (id, payload) => {assert.equal(id,'book');assert.equal(payload.directorNext?.runId,director ? 'new-run' : undefined);});
   try {
     await executor.execute(job.id, 'book', options);
     const outcome = director ? await readBatchOutcome(job, { runId: 'new-run', contract: { novelId: 'book', chapterRange: { from: 1, to: 2 }, issuePolicy: { mode: qualityFirst ? 'quality_first' : 'completion_first' } } }) : null;

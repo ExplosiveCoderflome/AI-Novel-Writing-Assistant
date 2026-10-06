@@ -1,4 +1,5 @@
 import { AppError } from "../../../../middleware/errorHandler";
+import {assertLegacyTaskExecution} from "../../../../modules/novel/director-routing";
 import { prisma } from "../../../../db/prisma";
 import { NovelWorkflowService } from "../../workflow/NovelWorkflowService";
 import { DirectorCommandInterpreter } from "./DirectorCommandInterpreter";
@@ -36,19 +37,22 @@ export class DirectorCommandExecutor {
     this.stateStore = deps.stateStore ?? new DirectorStateStore();
   }
 
-  async execute(commandId: string): Promise<DirectorCommandExecutionOutcome> {
+  async execute(commandId: string, options: {openingOnly?: boolean} = {}): Promise<DirectorCommandExecutionOutcome> {
     const command = await this.commandService.getCommandById(commandId);
     if (!command) {
       throw new AppError("Director command not found.", 404);
     }
+    await assertLegacyTaskExecution(command.taskId, command.commandType, options.openingOnly === true);
     const payload = this.commandService.parseCommandPayload(command);
-    return this.dispatch(command, payload);
+    return this.dispatch(command, payload, options);
   }
 
   async dispatch(
     command: NonNullable<Awaited<ReturnType<DirectorCommandService["getCommandById"]>>>,
     payload: DirectorCommandPayload,
+    options: {openingOnly?: boolean} = {},
   ): Promise<DirectorCommandExecutionOutcome> {
+    await assertLegacyTaskExecution(command.taskId, command.commandType, options.openingOnly === true);
     const pipelineCommand = this.interpreter.interpret(command, payload);
     const state = await this.stateStore.readTaskState(pipelineCommand.taskId);
     if (!state) {

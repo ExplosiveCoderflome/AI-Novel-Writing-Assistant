@@ -1,4 +1,5 @@
 import { prisma } from "../../../db/prisma";
+import {canExecuteLegacyTask} from "../../../modules/novel/director-routing";
 import { isDirectorAutoExecutionRunMode } from "@ai-novel/shared/types/novelDirector";
 import { buildChapterDetailBundleLabel, buildChapterDetailBundleProgress, DIRECTOR_PROGRESS } from "../director/projections/novelDirectorProgress";
 import {
@@ -211,6 +212,7 @@ export class NovelWorkflowHealingService {
     row = null as AutoDirectorNovelTaskRow | null,
   ): Promise<boolean> {
     const existingRow = row ?? await this.workflow.getTaskByIdWithoutHealing(taskId);
+    if (existingRow?.lane === "auto_director" && !await canExecuteLegacyTask(taskId)) return false;
     if (isTaskCancellationRequested(existingRow)) {
       return false;
     }

@@ -5,6 +5,7 @@ import {getLLMSelectionSettings} from "../../services/settings/LLMSelectionSetti
 import {getDirectorProductionServices} from "./services";
 import {AppError} from "../../middleware/errorHandler";
 import {StyleBindingService} from "../../services/styleEngine/StyleBindingService";
+import {assertNovelDirectorVersion} from "../../modules/novel/director-routing";
 
 /** New-book handoff is an entry adapter; it creates no legacy director task. */
 export async function launchNewDirectorBook(input: DirectorConfirmRequest, sourceTaskId: string, source: "creation_studio" | "original_opening" = "creation_studio") {
@@ -14,6 +15,7 @@ export async function launchNewDirectorBook(input: DirectorConfirmRequest, sourc
   const confirmation = source === "creation_studio" ? await prisma.creationStudioConfirmation.findUniqueOrThrow({where:{workflowTaskId:sourceTaskId}}) : null;
   const reservedNovelId = confirmation ? confirmation.novelId ?? `director-book-${confirmation.id}` : `director-opening-book-${sourceTaskId}`;
   const existing = await prisma.novel.findUnique({where:{id:reservedNovelId}});
+  if (existing?.directorVersion) await assertNovelDirectorVersion(existing.id, "v2", 0);
   const novel = existing ?? await new NovelCoreService().createNovel({id:reservedNovelId,title:input.title ?? input.candidate.workingTitle,description:input.description ?? input.candidate.logline,
       bookSellingPoint:input.bookSellingPoint,styleTone:input.styleTone,estimatedChapterCount:input.estimatedChapterCount,
       defaultChapterLength:input.defaultChapterLength,projectMode:input.projectMode,writingMode:input.writingMode,
@@ -23,6 +25,7 @@ export async function launchNewDirectorBook(input: DirectorConfirmRequest, sourc
       postGenerationStyleReviewEnabled:input.postGenerationStyleReviewEnabled,sourceNovelId:input.sourceNovelId,sourceKnowledgeDocumentId:input.sourceKnowledgeDocumentId,
       continuationBookAnalysisId:input.continuationBookAnalysisId,continuationBookAnalysisSections:input.continuationBookAnalysisSections,
       referenceBookAnalysisId:input.referenceBookAnalysisId,referenceBookAnalysisSections:input.referenceBookAnalysisSections});
+  if (!existing?.directorVersion) await prisma.novel.update({where: {id: novel.id}, data: {directorVersion: "v2"}});
   await new StyleBindingService().ensureNovelDefault(novel.id, input.styleProfileId);
   if (confirmation && !confirmation.novelId) await prisma.creationStudioConfirmation.update({where:{workflowTaskId:sourceTaskId},data:{novelId:novel.id}});
   const chapterCount = input.estimatedChapterCount ?? input.candidate.targetChapterCount;

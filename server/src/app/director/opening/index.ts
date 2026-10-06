@@ -2,6 +2,7 @@ import { Router } from "express";
 import { prisma } from "../../../db/prisma";
 import { scheduleOpeningCommand } from "./execution";
 import { prepareOpeningRetry } from "./recovery";
+import {readOpeningVersion} from "../../../modules/novel/director-routing";
 export { executeOpeningCommand } from "./execution";
 export { prepareOpeningRetry } from "./recovery";
 
@@ -9,6 +10,7 @@ const candidateCommands = new Set(["refine_candidates", "patch_candidate", "refi
 export function createOriginalOpeningEntry(deps: {
   readTask: (id: string) => Promise<{novelId: string | null} | null>;
   schedule: (id: string) => void;
+  readVersion?: typeof readOpeningVersion;
 } = {readTask: id => prisma.novelWorkflowTask.findUnique({where:{id},select:{novelId:true}}), schedule: scheduleOpeningCommand}) {
   const router = Router();
   router.post("/tasks/:taskId/opening-retry", async (req,res,next) => {
@@ -27,6 +29,8 @@ export function createOriginalOpeningEntry(deps: {
     try {
       const taskId = match ? decodeURIComponent(match[1]) : req.body?.payload?.workflowTaskId;
       const task = typeof taskId === "string" ? await deps.readTask(taskId) : null;
+      const version = await (deps.readVersion ?? readOpeningVersion)(typeof taskId === "string" ? taskId : undefined, req.body?.payload?.directorVersion);
+      if (version !== "v2") return next();
       if (match && !task) return next();
       if (task?.novelId && !(commandType === "confirm_candidate" && task.novelId === `director-opening-book-${taskId}`)) return next();
       res.locals.directorOpeningAllowed = true;

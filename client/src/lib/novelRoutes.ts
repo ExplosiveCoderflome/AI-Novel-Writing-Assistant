@@ -12,9 +12,11 @@ interface NovelWorkspaceLinkInput {
   narrativeForm?: string | null;
   creationExperience?: string | null;
   workspaceSourceRoute?: string | null;
+  directorVersion?: "v1" | "v2";
 }
 
 export function getDirectorWorkspaceHref(novel: NovelWorkspaceLinkInput): string | null {
+  if (novel.directorVersion === "v1") return null;
   if (novel.narrativeForm === "short_story") return null;
   const route = `/lab/director/${encodeURIComponent(novel.id)}`;
   return novel.workspaceSourceRoute === route ? route : null;

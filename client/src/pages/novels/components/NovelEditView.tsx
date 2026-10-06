@@ -39,6 +39,7 @@ import {
   tabFromDirectorDisplayStage,
 } from "../novelWorkspaceNavigation";
 import { StepHero } from "./workspaceShell";
+import DirectorVersionControl from "@/components/directorVersion/DirectorVersionControl";
 
 export default function NovelEditView(props: NovelEditViewProps) {
   const isMobileViewport = useIsMobileViewport();
@@ -196,6 +197,7 @@ function DesktopNovelEditView(props: NovelEditViewProps) {
           eyebrow={(
             <>
               <span className="truncate font-semibold text-foreground">{novelTitle}</span>
+              <DirectorVersionControl novelId={id} version="v1"/>
               {progressLabel ? <span>{progressLabel}</span> : null}
               <span>当前页面：{currentPageLabel}</span>
             </>

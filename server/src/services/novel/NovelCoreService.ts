@@ -176,12 +176,13 @@ export class NovelCoreService {
     startOrder: number,
     endOrder: number,
     preferredJobId?: string | null,
+    owner?: Parameters<NovelCorePipelineService["findActivePipelineJobForRange"]>[4],
   ) {
-    return this.pipelineService.findActivePipelineJobForRange(novelId, startOrder, endOrder, preferredJobId);
+    return this.pipelineService.findActivePipelineJobForRange(novelId, startOrder, endOrder, preferredJobId, owner);
   }
 
-  async resumePipelineJob(jobId: string) {
-    return this.pipelineService.resumePipelineJob(jobId);
+  async resumePipelineJob(jobId: string, options?: Parameters<NovelCorePipelineService["resumePipelineJob"]>[1]) {
+    return this.pipelineService.resumePipelineJob(jobId, options);
   }
 
   async retryPipelineJob(jobId: string) {

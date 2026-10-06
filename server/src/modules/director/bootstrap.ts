@@ -21,6 +21,7 @@ import {
   PrismaRunRepository,
   type ArtifactEditReader,
   type BusinessResume,
+  type RunOpenBoundary,
 } from "./infrastructure";
 import type { DirectorNextHttpDeps } from "./http";
 
@@ -68,6 +69,11 @@ export interface DirectorNextServices {
 }
 
 export interface DirectorNextServiceOptions {
+  executionBoundary?: {
+    beforeOpen: RunOpenBoundary;
+    assertRun: (runId: string) => Promise<void>;
+    canRun: (runId: string) => Promise<boolean>;
+  };
   plan?: PlanDefinition;
   stepRegistry?: StepRegistry;
   contractFactory?: CommandServiceDeps["contractFactory"];
@@ -82,7 +88,7 @@ export interface DirectorNextServiceOptions {
 }
 
 export function createDirectorNextServices(options: DirectorNextServiceOptions = {}): DirectorNextServices {
-  const runRepository = new PrismaRunRepository();
+  const runRepository = new PrismaRunRepository(undefined, options.executionBoundary?.beforeOpen);
   const artifactLedger = new PrismaArtifactLedger();
   const qualityDebtRepository = new PrismaQualityDebtRepository();
   const eventLog = new PrismaEventLog();
@@ -108,7 +114,11 @@ export function createDirectorNextServices(options: DirectorNextServiceOptions =
   });
   const worker = new DirectorWorker({
     runRepository,
-    executor,
+    executor: options.executionBoundary ? {runOnce: async runId => {
+      await options.executionBoundary!.assertRun(runId);
+      return executor.runOnce(runId);
+    }} : executor,
+    canExecute: options.executionBoundary?.canRun,
     runtime,
     eventLog,
     recoveryPolicy: { maxAttempts: automaticRecoveryBudget },

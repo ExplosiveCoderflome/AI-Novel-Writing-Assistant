@@ -215,7 +215,9 @@ test("director task queue delegates leasing to the command service", async () =>
 
 test("director command leasing excludes tasks waiting for manual recovery", async (t) => {
   const originals = {
-    findFirst: prisma.directorRunCommand.findFirst,
+    findMany: prisma.directorRunCommand.findMany,
+    taskFindUnique: prisma.novelWorkflowTask.findUnique,
+    novelFindUnique: prisma.novel.findUnique,
     updateMany: prisma.directorRunCommand.updateMany,
     findUnique: prisma.directorRunCommand.findUnique,
   };
@@ -226,17 +228,21 @@ test("director command leasing excludes tasks waiting for manual recovery", asyn
     commandType: "continue",
     status: "queued",
   };
-  prisma.directorRunCommand.findFirst = async (args) => {
+  prisma.directorRunCommand.findMany = async (args) => {
     assert.equal(args.where.task.pendingManualRecovery, false);
-    return candidate;
+    return [candidate];
   };
+  prisma.novelWorkflowTask.findUnique=async()=>({novelId:'novel-1',directorVersion:'v1',directorEpoch:0});
+  prisma.novel.findUnique=async()=>({directorVersion:'v1',directorEpoch:0,narrativeForm:'long_novel'});
   prisma.directorRunCommand.updateMany = async (args) => {
     assert.equal(args.where.task.pendingManualRecovery, false);
     return { count: 1 };
   };
   prisma.directorRunCommand.findUnique = async () => ({ ...candidate, status: "leased" });
   t.after(() => {
-    prisma.directorRunCommand.findFirst = originals.findFirst;
+    prisma.directorRunCommand.findMany = originals.findMany;
+    prisma.novelWorkflowTask.findUnique=originals.taskFindUnique;
+    prisma.novel.findUnique=originals.novelFindUnique;
     prisma.directorRunCommand.updateMany = originals.updateMany;
     prisma.directorRunCommand.findUnique = originals.findUnique;
   });

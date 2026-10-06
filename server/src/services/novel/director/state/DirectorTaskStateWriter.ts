@@ -33,6 +33,7 @@ export type DirectorTaskStateWorkflowPort = Partial<Pick<NovelWorkflowService, W
 type WorkflowBootstrapInput = Parameters<NovelWorkflowService["bootstrapTask"]>[0];
 
 export type DirectorTaskInitializationInput = Omit<WorkflowBootstrapInput, "seedPayload"> & {
+  directorVersion?: "v1" | "v2";
   directorState?: DirectorTaskState | Record<string, unknown>;
 };
 
@@ -143,11 +144,11 @@ export class DirectorTaskStateWriter {
         replacePersistedState = mayReplaceLaunchContract;
       }
     }
-    const { directorState: _directorState, ...bootstrapInput } = input;
+    const { directorState: _directorState, directorVersion, ...bootstrapInput } = input;
     const request = directorState
       ? {
         ...bootstrapInput,
-        seedPayload: JSON.parse(serializeDirectorTaskState(directorState)) as Record<string, unknown>,
+        seedPayload: {...JSON.parse(serializeDirectorTaskState(directorState)) as Record<string, unknown>, ...(directorVersion ? {directorVersion} : {})},
       }
       : bootstrapInput;
     return replacePersistedState

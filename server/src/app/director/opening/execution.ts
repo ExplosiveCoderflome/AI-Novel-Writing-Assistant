@@ -19,6 +19,7 @@ export async function executeOpeningCommand(commandId: string): Promise<void> {
   const command = await service.getCommandById(commandId);
   if (!command || !commands.has(command.commandType)) return;
   const task = await prisma.novelWorkflowTask.findUniqueOrThrow({where:{id:command.taskId}});
+  if (task.directorVersion !== "v2") return;
   if (task.novelId && !(command.commandType === "confirm_candidate" && task.novelId === `director-opening-book-${task.id}`)) return;
   if (task.cancelRequestedAt || task.pendingManualRecovery) return;
   const owner = `opening-${process.pid}-${commandId}`, leaseMs = 120_000, now = new Date();
@@ -33,10 +34,11 @@ export async function executeOpeningCommand(commandId: string): Promise<void> {
       if (!input) throw new Error("开书确认缺少选定方向。");
       const {novel} = await launchNewDirectorBook(input,task.id,"original_opening");
       await prisma.novelWorkflowTask.update({where:{id:task.id},data:{novelId:novel.id,status:"succeeded",progress:1,finishedAt:new Date(),pendingManualRecovery:false,
+        directorVersion: "v2", directorEpoch: novel.directorEpoch ?? 0,
         checkpointType:null,checkpointSummary:null,currentItemKey:"opening_complete",currentItemLabel:"进入小说导演台继续创作",
         resumeTargetJson:JSON.stringify({route:"/lab/director/:novelId",novelId:novel.id})}});
     } else {
-      const outcome = await new DirectorCommandExecutor().execute(commandId);
+      const outcome = await new DirectorCommandExecutor().execute(commandId, {openingOnly: true});
       if (outcome === "cancelled") {await service.markCommandCancelled(commandId,owner);return;}
     }
     await service.markCommandSucceeded(commandId,owner);

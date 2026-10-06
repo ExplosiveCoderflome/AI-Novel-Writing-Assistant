@@ -18,7 +18,7 @@ const {createDirectorProductionOptions} = require(path.join(server, 'dist/app/di
 const {readExistingAssets} = require(path.join(server, 'dist/app/director/existingAssets'));
 (async () => {
   await ensureRuntimeDatabaseReady();
-  await prisma.novel.create({data: {id: 'book', title: '规划接管'}});
+  await prisma.novel.create({data:{directorVersion:'v2',id: 'book', title: '规划接管'}});
   const chapter = await prisma.chapter.create({data: {novelId: 'book', order: 8, title: '保留正文', content: '授权之外已有的正文。'}});
   const options = createDirectorProductionOptions();
   const launchInput = {storyInput: '故事', estimatedChapterCount: 12, worldMode: 'skip', targetMode: 'opening', provider: 'openai', model: 'no-model-invocation'};

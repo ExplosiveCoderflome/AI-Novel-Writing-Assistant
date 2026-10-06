@@ -358,6 +358,7 @@ export class NovelCoreCrudService {
       data: {
         id: input.id,
         title: input.title,
+        directorVersion: input.directorVersion,
         description: input.description,
         targetAudience: normalizeOptionalTextForCreate(input.targetAudience),
         bookSellingPoint: normalizeOptionalTextForCreate(input.bookSellingPoint),

@@ -5,8 +5,9 @@ const {createFrozenWorkflowEntry,createFrozenDirectorEntry}=require('../../../di
 
 test('new entry does not expose legacy current identities or enter their projection services',async()=>{
  const app=express();let legacyReads=0;
- app.use('/workflows',createFrozenWorkflowEntry({findTask:async()=>null}));
- app.use('/director',createFrozenDirectorEntry());
+ const isV2=async id=>id!=='v1-book';
+ app.use('/workflows',createFrozenWorkflowEntry({findTask:async()=>null,isV2}));
+ app.use('/director',createFrozenDirectorEntry({isV2}));
  app.get(['/workflows/novels/:novelId/auto-director','/director/novels/:novelId/current','/director/book-automation/:novelId'],(_req,res)=>{legacyReads++;res.json({success:true,data:{id:'old',status:'running'}});});
  const http=app.listen(0);await new Promise(resolve=>http.once('listening',resolve));
  try {
@@ -16,5 +17,7 @@ test('new entry does not expose legacy current identities or enter their project
    assert.equal(body.data,null);assert.equal(body.sourceRoute,'/lab/director/book%20%2F1');
   }
   assert.equal(legacyReads,0);
+  assert.equal((await fetch('http://127.0.0.1:'+http.address().port+'/director/novels/v1-book/current')).status,200);
+  assert.equal(legacyReads,1,'V1 still reaches its own projection');
  }finally{await new Promise(resolve=>http.close(resolve));}
 });

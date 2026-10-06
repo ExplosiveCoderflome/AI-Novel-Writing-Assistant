@@ -142,12 +142,14 @@ export function createApp() {
   app.use("/api", styleEngineRouter);
   app.use("/api", styleEngineExtractionRouter);
   const directorNextEnabled = parseEnvFlag(process.env.DIRECTOR_NEXT_ENABLED, false);
+  const {createDirectorVersionRouter} = require("./modules/novel/director-routing") as typeof import("./modules/novel/director-routing");
+  app.use("/api/novels", createDirectorVersionRouter());
   app.use("/api/novels", (_req, res, next) => {
     res.locals.directorNextEnabled = directorNextEnabled;
     next();
   }, novelRouter);
   configureDirectorAgentEntry(parseEnvFlag(process.env.DIRECTOR_NEXT_ENABLED, false));
-  if (parseEnvFlag(process.env.DIRECTOR_NEXT_ENABLED, false)) {
+  if (directorNextEnabled) {
     const {creationStudioService} = require("./modules/novel/creation-studio/application/CreationStudioService") as typeof import("./modules/novel/creation-studio/application/CreationStudioService");
     const {launchNewDirectorBook} = require("./app/director/newBook") as typeof import("./app/director/newBook");
     creationStudioService.configureLongNovelLauncher(launchNewDirectorBook);
@@ -156,7 +158,7 @@ export function createApp() {
     creationStudioService.configureLongNovelLauncher();
   }
   app.use("/api/creation-studio", creationStudioRouter);
-  if (parseEnvFlag(process.env.DIRECTOR_NEXT_ENABLED, false)) {
+  {
     const {createFrozenDirectorEntry} = require("./app/director/entrySwitch") as typeof import("./app/director/entrySwitch");
     const {createOriginalOpeningEntry} = require("./app/director/opening") as typeof import("./app/director/opening");
     app.use("/api/novels/director", createOriginalOpeningEntry());
@@ -164,9 +166,9 @@ export function createApp() {
   }
   app.use("/api/novels/director", novelDirectorRouter);
   app.use("/api/novels/director/creative-carryover-contracts", creativeCarryoverContractsRouter);
-  if (parseEnvFlag(process.env.DIRECTOR_NEXT_ENABLED, false)) {
+  {
     const {createFrozenWorkflowEntry,createFrozenTaskEntry,createFrozenFollowUpEntry} = require("./app/director/entrySwitch") as typeof import("./app/director/entrySwitch");
-    const lookup={findTask: (taskId: string) => prisma.novelWorkflowTask.findUnique({where:{id:taskId},select:{lane:true,novelId:true}})};
+    const lookup={findTask: (taskId: string) => prisma.novelWorkflowTask.findUnique({where:{id:taskId},select:{lane:true,novelId:true,directorVersion:true}})};
     app.use("/api/novel-workflows",createFrozenWorkflowEntry(lookup));
     const {parsePipelinePayload} = require("./services/novel/pipelineJobState") as typeof import("./services/novel/pipelineJobState");
     const findPipelineOwner = async (jobId: string) => {
@@ -315,14 +317,12 @@ function initializeBackgroundServices(): BackgroundServicesHandle {
   ragServices.ragWorker.start();
   ragServices.ragRetrievalTraceRetention.start();
   novelSideEffectWorker.start();
-  const useDirectorNext = parseEnvFlag(process.env.DIRECTOR_NEXT_ENABLED, false);
-  const recoveryInitialization = recoveryTaskService.initializePendingRecoveries({includeNovelProduction: !useDirectorNext});
+  const recoveryInitialization = recoveryTaskService.initializePendingRecoveries();
   const directorWorker = new DirectorWorker();
   const directorNextWorker = parseEnvFlag(process.env.DIRECTOR_NEXT_ENABLED, false)
     ? (require("./app/director/services") as typeof import("./app/director/services")).getDirectorProductionServices().worker
     : null;
   void recoveryInitialization.then(() => {
-    if (useDirectorNext) return;
     void directorWorker.start().catch((error) => {
       console.error("[director.worker] unexpected stop", error);
     });
@@ -355,12 +355,12 @@ function initializeBackgroundServices(): BackgroundServicesHandle {
   void recoveryInitialization
     .then(() => {
       bookAnalysisService.startWatchdog();
-      if (!useDirectorNext) novelPipelineRuntimeService.startWatchdog();
+      novelPipelineRuntimeService.startWatchdog();
     })
     .catch((error) => {
       console.warn("Failed to prepare pending recovery candidates.", error);
       bookAnalysisService.startWatchdog();
-      if (!useDirectorNext) novelPipelineRuntimeService.startWatchdog();
+      novelPipelineRuntimeService.startWatchdog();
     });
 
   return {

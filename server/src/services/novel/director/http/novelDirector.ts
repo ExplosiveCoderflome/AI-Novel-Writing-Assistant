@@ -67,6 +67,7 @@ const runtimePolicyModeValues = [...DIRECTOR_POLICY_MODES] as [DirectorPolicyMod
 const autoApprovalPointValues = DIRECTOR_AUTO_APPROVAL_POINTS.map((item) => item.code) as [string, ...string[]];
 
 const llmOptionsSchema = z.object({
+  directorVersion: z.enum(["v1", "v2"]).optional(),
   provider: llmProviderSchema.optional(),
   model: z.string().trim().optional(),
   temperature: z.number().min(0).max(2).optional(),

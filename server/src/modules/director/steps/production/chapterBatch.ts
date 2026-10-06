@@ -19,7 +19,7 @@ export interface ChapterBatchDependencies<Options extends BatchOptions> {
   pipelineService: {
     startPipelineJob(novelId: string, options: Options & {skipCompleted: true}): Promise<BatchJob>;
     getPipelineJobById(jobId: string): Promise<BatchJob | null>;
-    resumePipelineJob(jobId: string, options: {preserveManualRecovery: true}): Promise<void>;
+    resumePipelineJob(jobId: string, options: {preserveManualRecovery: true; expectedOwner: {directorNext: {runId: string}}}): Promise<void>;
   };
   readOutcome(job: BatchJob, context: StepContext): Promise<BatchOutcome>;
   /** Worker renews its lease while this adapter waits; no nested director heartbeat loop. */
@@ -50,7 +50,7 @@ export function createChapterBatchStepHandler<Options extends BatchOptions>(depe
       if (!await dependencies.isRunActive(context.runId)) throw new Error("导演运行已结束或暂停，停止等待正文作业。");
       // A foreign pipeline lease can outlive the director lease after a crash.
       // Resume is conditional on pipeline ownership and preserves manual recovery.
-      await dependencies.pipelineService.resumePipelineJob(job.id, {preserveManualRecovery: true});
+      await dependencies.pipelineService.resumePipelineJob(job.id, {preserveManualRecovery: true, expectedOwner: {directorNext: {runId: context.runId}}});
       await dependencies.waitForPoll();
       const next = await dependencies.pipelineService.getPipelineJobById(job.id);
       if (!valid(next) || next.id !== job.id) return integrity("等待正文时作业身份或范围发生变化。");

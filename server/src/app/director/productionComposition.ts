@@ -24,6 +24,8 @@ import {isCurrentChapterProductionCompleted} from "../../services/novel/producti
 import {CHAPTER_ARTIFACT_BOUNDARY_TYPE} from "../../services/novel/runtime/artifactSync";
 import {directorArtifactTypes, resolveConfirmationArtifactTypes} from "./projections/confirmationRoutes";
 import {readProductionProjection} from "./projections/productionProgress";
+import {assertNovelDirectorVersion, assertV2RunExecution} from "../../modules/novel/director-routing";
+import {AppError} from "../../middleware/errorHandler";
 
 /** Composition only: business generation remains owned by existing novel services. Not enabled by importing this module. */
 export function createDirectorProductionOptions(): DirectorNextServiceOptions {
@@ -100,6 +102,19 @@ export function createDirectorProductionOptions(): DirectorNextServiceOptions {
       isRunActive: async runId => (await prisma.directorNextRunControl.findUnique({where: {runId}, select: {status: true}}))?.status === "running", contentHash}),
   }));
   return {plan: directorProductionPlan, stepRegistry, readEditedArtifact, resumeBusiness, cancelBusiness,
+    executionBoundary: {
+      beforeOpen: async (novelId, tx) => {
+        await tx.novel.update({where: {id: novelId}, data: {directorEpoch: {increment: 0}}});
+        return (await assertNovelDirectorVersion(novelId, "v2", undefined, tx)).epoch;
+      },
+      assertRun: assertV2RunExecution,
+      canRun: async runId => {
+        try {await assertV2RunExecution(runId); return true;} catch (error) {
+          if (error instanceof AppError && error.statusCode === 409) return false;
+          throw error;
+        }
+      },
+    },
     sourceRoute: novelId => `/lab/director/${encodeURIComponent(novelId)}`,
     artifactTypes: directorArtifactTypes, resolveArtifactTypes: resolveConfirmationArtifactTypes, readProductionProjection, contractFactory: input => {
     const launch = input.launchInput;
@@ -119,6 +134,7 @@ export function createDirectorProductionOptions(): DirectorNextServiceOptions {
       launchInput: launch, tokenBudget: null, rejectionBudget: 3};
     requireLaunch(contract);return contract;
   }, prepareOpen: async contract => {
+    await assertNovelDirectorVersion(contract.novelId, "v2");
     const novel = await prisma.novel.findUniqueOrThrow({where: {id: contract.novelId}, select: {id: true, title: true, description: true}});
     return [{type: "novel_seed", scope: contract.scope, status: "confirmed", protectedUserContent: true, contentRef: `novel:${novel.id}`, contentHash: contentHash({novel, launchInput: contract.launchInput})},
       ...await inferExistingAssets(contract, {read: readExistingAssets, contentHash})];

@@ -16,7 +16,8 @@ function formatDate(value: string): string {
 
 function getFormLabel(novel: NovelListItem): string {
   if (novel.narrativeForm === "short_story") return "短篇";
-  return novel.writingMode === "continuation" ? "长篇续写" : "长篇原创";
+  const form = novel.writingMode === "continuation" ? "长篇续写" : "长篇原创";
+  return novel.directorVersion ? `${form} · 导演 ${novel.directorVersion.toUpperCase()}` : form;
 }
 
 function getProgress(novel: NovelListItem): number {

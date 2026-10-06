@@ -20,6 +20,8 @@ export function buildWorkflowTaskInitialData(
     initialStage,
     data: {
       novelId: input.novelId ?? null,
+      ...(input.lane === "auto_director" && ["v1", "v2"].includes(String(input.seedPayload?.directorVersion))
+        ? {directorVersion: input.seedPayload!.directorVersion as string} : {}),
       lane: input.lane,
       title: defaultWorkflowTitle({
         lane: input.lane,

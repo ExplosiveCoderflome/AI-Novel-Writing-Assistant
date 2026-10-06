@@ -1,4 +1,5 @@
 import type { Prisma, PrismaClient } from "@prisma/client";
+export type RunOpenBoundary = (novelId: string, tx: Prisma.TransactionClient) => Promise<number>;
 import { prisma } from "../../../db/prisma";
 import {
   applyEvent,
@@ -52,18 +53,20 @@ function controlUpdate(control: RunControl): Prisma.DirectorNextRunControlUpdate
 }
 
 export class PrismaRunRepository implements RunRepository {
-  constructor(private readonly db: PrismaClient = prisma) {}
+  constructor(private readonly db: PrismaClient = prisma,
+    private readonly beforeOpen?: (novelId: string, tx: Prisma.TransactionClient) => Promise<number>) {}
 
   async open(contract: RunContract): Promise<RunControl> {
     const control = initialControl();
     await this.db.$transaction(async (tx) => {
+      const directorEpoch = this.beforeOpen ? await this.beforeOpen(contract.novelId, tx) : 0;
       await tx.directorNextRun.create({
         data: {
           id: contract.runId,
           novelId: contract.novelId,
           driver: contract.driver,
           planVersion: contract.planVersion,
-          contractJson: JSON.stringify(contract),
+          contractJson: JSON.stringify(this.beforeOpen ? {...contract, executionEpoch: directorEpoch} : contract),
         },
       });
       await tx.directorNextRunControl.create({
@@ -176,7 +179,7 @@ export class PrismaRunRepository implements RunRepository {
     return result.count === 1;
   }
 
-  async listLeaseCandidates(now: Date, limit: number, owner?: string): Promise<string[]> {
+  async listLeaseCandidates(now: Date, limit: number, owner?: string, offset = 0): Promise<string[]> {
     const rows = await this.db.directorNextRunControl.findMany({
       where: {
         status: { in: ["queued", "running"] },
@@ -188,8 +191,9 @@ export class PrismaRunRepository implements RunRepository {
         ],
       },
       select: { runId: true },
-      orderBy: { updatedAt: "asc" },
+      orderBy: [{ updatedAt: "asc" }, {runId: "asc"}],
       take: limit,
+      skip: offset,
     });
     return rows.map((row) => row.runId);
   }

@@ -14,6 +14,7 @@ test('recovery projection keeps director work on its source page without changin
   const result = await projectDirectorRecoveryCandidates(data, {
     findTask: async id => ({ lane: 'auto_director', novelId: id === 'old-book' ? 'book 1' : null }),
     findPipelineOwner: async id => id === 'owned' ? 'book 1' : null,
+    readSourceRoute: async id => '/lab/director/' + encodeURIComponent(id),
   });
   assert.deepEqual(data, original);
   assert.equal(result.items[0].sourceRoute, '/lab/director/book%201');

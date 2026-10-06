@@ -36,6 +36,16 @@ function createHarness() {
   return { repository, runtime, executor, executions, leases, advance: (ms) => { now = new Date(now.getTime() + ms); } };
 }
 
+test("ownership skips foreign runs before leasing and pages past a fenced backlog", async () => {
+  const harness=createHarness();
+  const candidates=[...Array.from({length:150},(_,index)=>'foreign-'+index),'owned'];
+  harness.repository.listLeaseCandidates=async(_now,limit,_owner,offset=0)=>candidates.slice(offset,offset+limit);
+  const worker=new DirectorWorker({runRepository:harness.repository,executor:harness.executor,runtime:harness.runtime('worker'),canExecute:async id=>id==='owned'});
+  assert.equal(await worker.tick(),true);
+  assert.deepEqual(harness.executions,['owned']);
+  assert.deepEqual([...harness.leases.keys()],['owned']);
+});
+
 test("two workers competing for one run leave only one executor call", async () => {
   const harness = createHarness();
   const first = new DirectorWorker({ runRepository: harness.repository, executor: harness.executor, runtime: harness.runtime("worker-a") });
