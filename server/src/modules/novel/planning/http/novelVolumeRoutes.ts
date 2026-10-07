@@ -81,12 +81,19 @@ function shouldUseSlimVolumeGenerationResponse(body: unknown): boolean {
   return input.slimResponse === true && isHighMemoryVolumeScope(input.scope);
 }
 
-function shouldPersistBeforeSlimVolumeResponse(body: unknown): boolean {
+export function shouldPersistBeforeSlimVolumeResponse(body: unknown): boolean {
   if (!body || typeof body !== "object" || Array.isArray(body)) {
     return false;
   }
   const scope = (body as { scope?: unknown }).scope;
-  return scope === "beat_sheet" || scope === "rebalance" || scope === "chapter_detail";
+  // chapter_list / volume 生成的结果体量大所以走 slim 响应，但客户端拿到 slim 后会
+  // 重新读取已落盘的工作区；若此处不先落盘，客户端重读到的就是旧文档，
+  // 生成的新标题会被随后的一次“保存旧文档”丢弃（issue #171）。
+  return scope === "beat_sheet"
+    || scope === "rebalance"
+    || scope === "chapter_detail"
+    || scope === "chapter_list"
+    || scope === "volume";
 }
 
 function shouldSyncSlimVolumeResponseToChapterExecution(body: unknown): boolean {
