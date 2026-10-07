@@ -193,6 +193,10 @@ import {
 } from "./novelBasicInfo.shared";
 import { useStructuredOutlineWorkspaceStore } from "./stores/useStructuredOutlineWorkspaceStore";
 import {
+  EMPTY_DIRECTOR_FOLLOW_MEMORY,
+  resolveStructuredOutlineDirectorFollow,
+} from "./stores/structuredOutlineDirectorFollow";
+import {
   applyVolumeChapterBatch,
   buildVolumePlanningReadiness,
   buildOutlinePreviewFromVolumes,
@@ -823,6 +827,8 @@ export default function NovelEdit() {
   const autoDirectorRefreshSignatureRef = useRef("");
   const autoDirectorArtifactSignatureRef = useRef("");
   const autoDirectorWorkspaceSignatureRef = useRef("");
+  // 记录上一次跟随过的导演目标章节：目标不变时，不因草稿变更重复抢回工作区选中（issue #172）。
+  const directorFollowMemoryRef = useRef({ ...EMPTY_DIRECTOR_FOLLOW_MEMORY });
   const activeAutoDirectorRefreshSignature = useMemo(() => {
     if (!activeAutoDirectorTask) {
       return "";
@@ -1950,38 +1956,34 @@ export default function NovelEdit() {
     if (!id) {
       return;
     }
-    useStructuredOutlineWorkspaceStore.getState().patchWorkspace(id, {
-      selectedVolumeId: selectedVolumeId || undefined,
-      selectedChapterId: selectedChapterId || undefined,
-    });
+    // URL 参数为空时不做任何同步：undefined 不得覆盖用户已选的工作区状态（issue #172）。
+    const patch: { selectedVolumeId?: string; selectedChapterId?: string } = {};
+    if (selectedVolumeId) {
+      patch.selectedVolumeId = selectedVolumeId;
+    }
+    if (selectedChapterId) {
+      patch.selectedChapterId = selectedChapterId;
+    }
+    if (Object.keys(patch).length === 0) {
+      return;
+    }
+    useStructuredOutlineWorkspaceStore.getState().patchWorkspace(id, patch);
   }, [id, selectedChapterId, selectedVolumeId]);
 
   useEffect(() => {
-    if (!id || activeTab !== "structured" || !activeStructuredOutlineChapterId) {
-      return;
-    }
-    const targetVolume = normalizedVolumeDraft.find((volume) => (
-      volume.chapters.some((chapter) => (
-        chapter.id === activeStructuredOutlineChapterId
-        || chapter.chapterId === activeStructuredOutlineChapterId
-      ))
-    ));
-    if (!targetVolume) {
-      return;
-    }
-    const currentWorkspace = useStructuredOutlineWorkspaceStore.getState().workspaces[id];
-    if (
-      currentWorkspace?.selectedChapterId === activeStructuredOutlineChapterId
-      && currentWorkspace.selectedVolumeId === targetVolume.id
-      && currentWorkspace.selectedBeatKey === "all"
-    ) {
-      return;
-    }
-    useStructuredOutlineWorkspaceStore.getState().patchWorkspace(id, {
-      selectedVolumeId: targetVolume.id,
-      selectedChapterId: activeStructuredOutlineChapterId,
-      selectedBeatKey: "all",
+    const { patch, memory } = resolveStructuredOutlineDirectorFollow({
+      novelId: id,
+      activeTab,
+      directorChapterId: activeStructuredOutlineChapterId,
+      volumes: normalizedVolumeDraft,
+      workspace: useStructuredOutlineWorkspaceStore.getState().workspaces[id],
+      memory: directorFollowMemoryRef.current,
     });
+    directorFollowMemoryRef.current = memory;
+    if (!patch) {
+      return;
+    }
+    useStructuredOutlineWorkspaceStore.getState().patchWorkspace(id, patch);
   }, [activeStructuredOutlineChapterId, activeTab, id, normalizedVolumeDraft]);
 
   useEffect(() => {
