@@ -6,6 +6,7 @@ import type { StoryMacroPlanService } from "../storyMacro/StoryMacroPlanService"
 import {
   allocateChapterBudgets,
   deriveChapterBudget,
+  resolveEvenShareChapterBudget,
 } from "./volumeChapterBudgetAllocation";
 import {
   getTargetVolume,
@@ -27,9 +28,11 @@ export function resolveBeatSheetTargetChapterCount(input: {
   chapterBudget: number;
   chapterBudgets: number[];
 }): number {
-  const fallbackTargetChapterCount = input.chapterBudgets[input.targetVolumeIndex]
-    ?? Math.max(3, Math.round(input.chapterBudget / Math.max(input.volumeCount, 1)));
-  return Math.max(input.targetVolumeChapterCount, fallbackTargetChapterCount);
+  // 均分份额兜底：原先的 ?? 分支恒为 dead code（数组恒有该下标），且加权预算会把
+  // 写作中的卷压到只有当前章数（issue #173）。
+  const evenShareChapterBudget = resolveEvenShareChapterBudget(input.chapterBudget, input.volumeCount);
+  const weightedChapterBudget = input.chapterBudgets[input.targetVolumeIndex] ?? evenShareChapterBudget;
+  return Math.max(input.targetVolumeChapterCount, weightedChapterBudget, evenShareChapterBudget);
 }
 
 export async function generateBeatSheet(params: {

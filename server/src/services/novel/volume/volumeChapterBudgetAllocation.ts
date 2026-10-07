@@ -19,6 +19,17 @@ export function deriveChapterBudget(params: {
   );
 }
 
+/**
+ * 均分份额：单卷章节预算的下限。
+ *
+ * 正在生成的卷当前章数反映的是写作进度而非计划规模（issue #173：已有 3 章、
+ * 节奏板规划 55 章的卷，加权只分到 3 章预算，导致节奏板被误判为"跨度异常"）。
+ * 以某卷为目标分配预算时，其预算不得低于均分份额。
+ */
+export function resolveEvenShareChapterBudget(chapterBudget: number, volumeCount: number): number {
+  return Math.max(3, Math.round(chapterBudget / Math.max(volumeCount, 1)));
+}
+
 function buildEvenChapterBudgets(input: {
   safeVolumeCount: number;
   minimumPerVolume: number;

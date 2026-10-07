@@ -17,6 +17,7 @@ import {
 import {
   allocateChapterBudgets,
   deriveChapterBudget,
+  resolveEvenShareChapterBudget,
   GeneratedVolumeChapterBlock,
   getBeatExpectedChapterCount,
   getBeatSheet,
@@ -336,8 +337,11 @@ export async function generateBeatChunkedChapterList(params: {
   });
   const targetIndex = document.volumes.findIndex((volume) => volume.id === targetVolume.id);
   const beatSheetRequiredChapterCount = inferRequiredChapterCountFromBeatSheet(targetBeatSheet);
-  const fallbackTargetChapterCount = chapterBudgets[targetIndex]
-    ?? Math.max(3, Math.round(chapterBudget / Math.max(document.volumes.length, 1)));
+  // 正在生成的卷当前章数是进度而非计划规模，其预算不得低于均分份额（issue #173）。
+  const fallbackTargetChapterCount = Math.max(
+    chapterBudgets[targetIndex] ?? 0,
+    resolveEvenShareChapterBudget(chapterBudget, document.volumes.length),
+  );
   // Legacy or partially generated workspaces may only carry a few seed chapters for the opening beat.
   // Those placeholders should not shrink the trusted chapter budget below the planned volume size.
   const budgetedTargetChapterCount = Math.max(targetVolume.chapters.length, fallbackTargetChapterCount);
