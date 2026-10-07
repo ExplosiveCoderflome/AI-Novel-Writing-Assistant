@@ -58,6 +58,7 @@
 - 下载安装、长篇与短篇首次创作、功能预览和开发资料提供独立入口，高级配置按需展开。
 - 使用说明分别解释 V1/V2 与全自动／按阶段确认，补充章节范围、暂停恢复和用量阅读方法，并校正源码启动说明。
 - 补充 Token 缓存与调用优化说明，介绍稳定资料、同章修文和有效审校结果的复用，并提供按阶段查看实际消耗的方法。
+- 创作链图展示世界样本、角色库、写法引擎、反 AI 规则和知识库参与规划、正文生成及写后延续的位置。
 
 #### 修复
 
@@ -264,21 +265,63 @@ V2 单章安全上限为 **100,000 Tokens**，累计包含该章的生成、检�
 
 ## 从灵感到章节的创作链
 
-下面展示长篇的持续创作路径；短篇直接进入独立的计划、生成与全篇检查流程。
+下面展示长篇的持续创作路径。实线表示创作推进，虚线表示按需导入资料或提供约束；短篇进入独立的计划、生成与全篇检查流程。
 
 ```mermaid
-flowchart LR
-    A[灵感或参考作品] --> B[选择故事方向]
-    B --> C[世界与角色]
-    C --> D[卷纲与近期章节规划]
-    D --> E[授权正文范围]
-    E --> F[生成 · 检查 · 保存]
-    F --> G[同步角色与故事状态]
-    G --> H[查看结果 · 选择下一段]
-    H --> D
+flowchart TB
+    subgraph Planning[开书与本书规划]
+        IDEA[灵感与故事方向] --> CONTRACT[本书创作约定]
+        CONTRACT -->|按题材需要准备| WORLD[本书世界 · 规则与舞台]
+        WORLD --> CHARACTERS[本书角色 · 目标与关系]
+        CHARACTERS --> PLAN[卷纲与近期章节规划]
+    end
+
+    subgraph Assets[可选外部资产与表达规则]
+        REFERENCE[参考作品 · 拆书结果]
+        WORLD_LIBRARY[外部世界 · 世界样本库]
+        CHARACTER_LIBRARY[外部角色 · 基础角色库]
+        STYLE_LIBRARY[写法引擎 · 写法资产]
+        ANTI_AI[去 AI 化 · 反 AI 规则]
+        KNOWLEDGE[知识库 · 参考资料]
+        RULES[本书生效写法与表达规则]
+    end
+
+    subgraph Production[章节生产与持续创作]
+        RANGE[授权正文范围] --> CONTEXT[组装本章上下文]
+        CONTEXT --> DRAFT[正文生成]
+        DRAFT --> REVIEW[章节检查]
+        REVIEW -->|通过或按策略保留提醒| SAVE[保存正文与检查结果]
+        REVIEW -->|按策略允许修正| PATCH[预算内局部修文]
+        PATCH --> RECHECK[复验并选择保留稿]
+        RECHECK --> SAVE
+        SAVE --> STATE[同步角色 · 资源 · 伏笔状态]
+        STATE -->|本次范围完成| RESULT[查看结果与质量提醒]
+        STATE -->|授权范围内继续| CONTEXT
+    end
+
+    PLAN --> RANGE
+    RESULT -->|选择下一批| PLAN
+    REFERENCE -.->|参考结构与人物| CONTRACT
+    REFERENCE -.->|提取文风与技法| STYLE_LIBRARY
+    REFERENCE -.->|沉淀参考资料| KNOWLEDGE
+    WORLD_LIBRARY -.->|导入为本书副本| WORLD
+    CHARACTER_LIBRARY -.->|导入并适配本书| CHARACTERS
+    STYLE_LIBRARY -.->|绑定本书写法| RULES
+    ANTI_AI -.->|全局基线与写法专属规则| RULES
+    WORLD -.->|世界规则与秘密边界| CONTEXT
+    CHARACTERS -.->|人物事实与当前状态| CONTEXT
+    KNOWLEDGE -.->|按需召回| PLAN
+    KNOWLEDGE -.->|按需召回| CONTEXT
+    RULES -.->|生成遵循表达约束| CONTEXT
+    RULES -.->|专项检测按设置启用| REVIEW
+    RULES -.->|修文遵循规则与权限| PATCH
 ```
 
-世界、人物、写法和参考资料为章节提供上下文；每章写后的状态会继续影响后续创作。V1 与 V2 分别编排这条链，已保存的小说资料可以复用。
+- **外部世界与角色：** [世界样本](./docs/public/modules/world-sample-library.md)导入为本书世界副本，[角色库](./docs/public/modules/character-library.md)资产导入为本书角色，按当前故事调整；本书剧情变化保留在书内，长期资产由你决定是否同步。
+- **写法与去 AI 化：** [写法引擎](./docs/public/modules/style-engine.md)与[反 AI 规则](./docs/public/modules/anti-ai-rules.md)提供生效的表达约束。专项检测按设置加入章节检查；需要修正时，沿用局部修文流程与规则权限，只提醒的规则保留为质量提醒。
+- **参考资料与状态回流：** 拆书和知识库提供按需参考，每章写后同步的人物、资源和伏笔状态参与后续章节，帮助连续创作承接已发生的剧情。
+
+V1 与 V2 分别编排这条链，已保存的小说资料可以复用。章节检查与修文按本次质量策略执行，暂停与恢复方式见[使用说明](#遇到暂停或错误)。
 
 <details>
 <summary><strong>查看生产链与交互架构图</strong></summary>
