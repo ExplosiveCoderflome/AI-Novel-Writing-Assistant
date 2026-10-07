@@ -10,7 +10,25 @@
 <p align="center">
   <a href="https://github.com/ExplosiveCoderflome/AI-Novel-Writing-Assistant/releases/latest"><img src="https://img.shields.io/github/v/release/ExplosiveCoderflome/AI-Novel-Writing-Assistant?style=flat-square&amp;label=Windows%20%E6%A1%8C%E9%9D%A2%E7%89%88&amp;color=17556b" alt="最新桌面版本" /></a>
   <a href="./LICENSE"><img src="https://img.shields.io/badge/License-AGPL--3.0-17556b?style=flat-square" alt="AGPL-3.0 许可证" /></a>
-  <a href="./package.json"><img src="https://img.shields.io/badge/pnpm-workspace-17556b?style=flat-square" alt="pnpm workspace" /></a>
+  <a href="./package.json"><img src="https://img.shields.io/badge/Monorepo-pnpm%20workspace-3C873A?style=flat-square" alt="Monorepo · pnpm workspace" /></a>
+</p>
+
+<p align="center">
+  <img src="https://img.shields.io/badge/Frontend-React%20%2B%20Vite-61DAFB?style=flat-square" alt="前端 · React + Vite" />
+  <img src="https://img.shields.io/badge/Backend-Express%20%2B%20Prisma-111827?style=flat-square" alt="后端 · Express + Prisma" />
+  <img src="https://img.shields.io/badge/AI-LangChain-0EA5E9?style=flat-square" alt="AI · LangChain" />
+  <img src="https://img.shields.io/badge/Agent-LangGraph-7C3AED?style=flat-square" alt="Agent · LangGraph" />
+</p>
+
+<p align="center">
+  <img src="https://img.shields.io/badge/Editor-Plate-7C3AED?style=flat-square" alt="编辑器 · Plate" />
+  <img src="https://img.shields.io/badge/Database-SQLite%20%2B%20PostgreSQL-111827?style=flat-square" alt="数据库 · SQLite + PostgreSQL" />
+  <img src="https://img.shields.io/badge/RAG-Qdrant-E63946?style=flat-square" alt="向量检索 · Qdrant" />
+  <img src="https://img.shields.io/badge/Desktop-Electron-47848F?style=flat-square" alt="桌面端 · Electron" />
+</p>
+
+<p align="center">
+  <a href="https://trendshift.io/repositories/26664"><img src="https://trendshift.io/api/badge/repositories/26664" alt="ExplosiveCoderflome/AI-Novel-Writing-Assistant | Trendshift" width="250" height="55" /></a>
 </p>
 
 <p align="center">
@@ -39,6 +57,10 @@
 
 - 下载安装、长篇与短篇首次创作、功能预览和开发资料提供独立入口，高级配置按需展开。
 - 使用说明分别解释 V1/V2 与全自动／按阶段确认，补充章节范围、暂停恢复和用量阅读方法，并校正源码启动说明。
+
+#### 修复
+
+- 项目首页顶部展示完整技术栈与 Trendshift 动态排名徽章，便于查看技术组成与榜单表现。
 
 **0.5.0 升级速览**
 
@@ -412,10 +434,6 @@ V2 内核位于 `server/src/modules/director/`，业务能力由应用层接入�
 ### 在 Codex 中创作：Ani Book Skill
 
 希望直接在 Codex 的本地文件工作区推进长篇，可以了解配套的 [Ani Book Skill](https://github.com/ExplosiveCoderflome/ani-book-skill)，通过阶段工件持续规划、写作和审校。本仓库提供可视化工作台，两种入口按你的使用习惯选择。
-
-<p>
-  <a href="https://trendshift.io/repositories/26664"><img src="https://trendshift.io/api/badge/repositories/26664" alt="ExplosiveCoderflome/AI-Novel-Writing-Assistant | Trendshift" width="250" height="55" /></a>
-</p>
 
 ## License
 
