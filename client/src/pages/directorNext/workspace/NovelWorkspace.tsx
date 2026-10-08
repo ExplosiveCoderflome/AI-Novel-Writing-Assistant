@@ -13,10 +13,12 @@ import type {DirectorGenerationSnapshot, DirectorWorkspaceActivity} from "@ai-no
 import {followedWorkspaceSelection} from "../generation";
 import {sameSelection} from "./planning";
 import type {WorkspaceChapter} from "./model";
+import {useReadingDisplayPreferences} from "./reading";
 const WorldMapView = lazy(()=>import("./visualizations").then(module=>({default:module.WorldMapView})));
 const CharacterGraphView = lazy(()=>import("./visualizations").then(module=>({default:module.CharacterGraphView})));
 
 export function NovelWorkspace({ book, preview = false, review, onLeaveReview, followGeneration = false, generation = null, activity }: { book: WorkspaceBook; preview?: boolean; review?:URLSearchParams; onLeaveReview?:()=>void; followGeneration?:boolean; generation?:DirectorGenerationSnapshot|null; activity?:DirectorWorkspaceActivity }) {
+  const {preferences: readingDisplay, updatePreferences: onReadingDisplayChange} = useReadingDisplayPreferences();
   const live = followGeneration && generation?.novelId === book.novel.id ? generation : null;
   // Planning/polling may not yet include the newly created chapter. The preview is read-only.
   const previewChapter: WorkspaceChapter | null = live ? {id:live.chapterId,order:live.chapterOrder,title:live.chapterTitle,
@@ -60,12 +62,12 @@ export function NovelWorkspace({ book, preview = false, review, onLeaveReview, f
       <button onClick={()=>setDirectoryOpen(open=>!open)} aria-expanded={directoryOpen} className="mb-3 shrink-0 self-start px-3 py-2 text-xs text-muted-foreground hover:text-primary">{directoryOpen ? "收起本书目录" : "显示本书目录"}</button>
       {directoryOpen ? <ResourceDirectory book={displayBook} selected={directorySelected} onSelect={select} /> : null}
     </aside>;
-  const content = savedReview ? <section key={review?.toString()} className="h-full max-h-[75dvh] min-h-0 min-w-0 flex-1 overflow-y-auto overscroll-contain pb-6 md:max-h-none"><ReviewDetail book={book} review={savedReview}/></section> : <section ref={contentViewport} data-chapter-scroll-viewport key={selected.kind + (selected.kind === "beat" ? selected.volumeId : "") + ("id" in selected ? selected.id : "")} className="h-full max-h-[75dvh] min-h-0 min-w-0 flex-1 overflow-y-auto overscroll-contain pb-6 md:max-h-none">
+  const content = savedReview ? <section key={review?.toString()} className="h-full max-h-[75dvh] min-h-0 min-w-0 flex-1 overflow-y-auto overscroll-contain pb-6 md:max-h-none"><ReviewDetail book={book} review={savedReview} readingDisplay={readingDisplay} onReadingDisplayChange={onReadingDisplayChange}/></section> : <section ref={contentViewport} data-chapter-scroll-viewport key={selected.kind + (selected.kind === "beat" ? selected.volumeId : "") + ("id" in selected ? selected.id : "")} className="h-full max-h-[75dvh] min-h-0 min-w-0 flex-1 overflow-y-auto overscroll-contain pb-6 md:max-h-none">
       {followTarget && sameSelection(selected, followTarget.selection) && selected.kind !== "chapter" && activity?.focus ? <p role="status" className="mx-auto mb-4 max-w-[42rem] px-2 text-xs leading-6 text-muted-foreground sm:px-6">正在查看「{activity.focus.label}」；生成的资料保存后会自动显示。</p> : null}
       <PlanningDetail book={book} selected={selected} onSelect={select} />
       {selected.kind === "world_map" ? <Suspense fallback={<p className="px-6 text-sm text-muted-foreground">正在读取世界地图…</p>}><WorldMapView book={book} onOpenWorld={()=>select({kind:"world"})}/></Suspense>
         : selected.kind === "character_graph" ? <Suspense fallback={<p className="px-6 text-sm text-muted-foreground">正在读取角色关系图…</p>}><CharacterGraphView book={book} preview={preview} onOpenCharacter={id=>select({kind:"character",id})}/></Suspense>
-        : chapter ? <ChapterReader key={chapter.id} chapter={chapter} chapters={displayBook.chapters} characters={book.materials.characters} onCharacter={openCharacter} onChapter={id => select({kind:"chapter",id})} generation={live?.chapterId===chapter.id ? live : null} followGeneration={followGeneration} />
+        : chapter ? <ChapterReader key={chapter.id} chapter={chapter} chapters={displayBook.chapters} characters={book.materials.characters} onCharacter={openCharacter} onChapter={id => select({kind:"chapter",id})} generation={live?.chapterId===chapter.id ? live : null} followGeneration={followGeneration} readingDisplay={readingDisplay} onReadingDisplayChange={onReadingDisplayChange}/>
         : selected.kind === "beat" || selected.kind === "plan" || (selected.kind === "volume" && book.planning) ? null : <AssetDetail book={book} selected={selected} onCharacter={openCharacter} onSelect={select} />}
     </section>;
   return <div className="flex min-h-0 min-w-0 flex-1 flex-col">
