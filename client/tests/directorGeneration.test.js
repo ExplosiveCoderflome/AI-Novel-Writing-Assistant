@@ -46,6 +46,12 @@ export const followed=render(<NovelWorkspace book={book} generation={generation}
 export const manual=render(<NovelWorkspace book={book} generation={generation}/>);
 export const unseen=render(<NovelWorkspace book={book} generation={{...generation,chapterId:'new-chapter',chapterOrder:3}} followGeneration/>);
 export const header=render(<DirectorNovelPage previewOnly/>);
+const activity=artifactType=>({novelId:'n',runId:'r',revision:'r:1',focus:{key:'r:1:'+artifactType,artifactType,label:'准备本书资料'}});
+export const characterPreparation=render(<NovelWorkspace book={{...book,materials:{...book.materials,characters:[]}}} activity={activity('character_cast')} followGeneration/>);
+export const savedCast=render(<NovelWorkspace book={{...book,materials:{...book.materials,characters:[{...book.materials.characters[0],name:'新保存的角色',role:'药铺学徒'}]}}} activity={activity('character_cast')} followGeneration/>);
+export const plannedVolumes=render(<NovelWorkspace book={book} activity={activity('volume_strategy')} followGeneration/>);
+export const savedStory=render(<NovelWorkspace book={book} activity={activity('book_contract')} followGeneration/>);
+export const preparationManual=render(<NovelWorkspace book={book} activity={activity('character_cast')}/>);
 export const savedProse=book.chapters[0].content;
 `,resolveDir:clientDir,loader:'tsx'},bundle:true,platform:'node',format:'esm',packages:'external',plugins:[nodeStyles],alias:{'@':path.join(clientDir,'src')},define:{'import.meta.env':'{}'},outfile:output});
     const result=await import(pathToFileURL(output).href);
@@ -56,6 +62,14 @@ export const savedProse=book.chapters[0].content;
     assert.doesNotMatch(result.manual,/流式预览正文/);
     assert.match(result.unseen,/流式预览正文/);
     assert.match(result.header,/跟随生成/);
+    assert.match(result.characterPreparation,/<h2[^>]*>角色阵容<\/h2>/);
+    assert.match(result.characterPreparation,/角色阵容保存后/);
+    assert.match(result.savedCast,/新保存的角色/);
+    assert.match(result.savedCast,/药铺学徒/);
+    assert.match(result.plannedVolumes,/<h2[^>]*>分卷与章节规划<\/h2>/);
+    assert.match(result.savedStory,/<h2[^>]*>故事规划<\/h2>/);
+    assert.doesNotMatch(result.savedStory,/手动阅读正文/);
+    assert.match(result.preparationManual,/手动阅读正文/);
     assert.equal(result.savedProse,'手动阅读正文');
   }finally{fs.rmSync(output,{force:true});}
 });

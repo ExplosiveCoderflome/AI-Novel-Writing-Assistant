@@ -52,6 +52,7 @@ export interface DashboardView {
   nextActionGuidance: string;
   chapterProgress: {from:number;to:number;done:number;total:number;current:{order:number;title:string;phase:"generating_chapters"|"reviewing"|"repairing"|"finalizing"}|null}|null;
   nextLaunchRange: {from:number;to:number}|null;
+  workspaceActivity?: import("@ai-novel/shared/types/director/generation").DirectorWorkspaceActivity;
   progress: { done: number; total: number; source: "artifact_ledger" };
   debts: { count: number; chapterOrders: number[] };
   availableActions: DirectorAction[];

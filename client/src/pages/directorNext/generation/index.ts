@@ -1,2 +1,3 @@
 export { useGenerationFollow } from "./useGenerationFollow";
-export { followedChapterSelection } from "./model";
+export { followedChapterSelection, followedWorkspaceSelection } from "./model";
+export { useWorkspaceActivity } from "./useWorkspaceActivity";

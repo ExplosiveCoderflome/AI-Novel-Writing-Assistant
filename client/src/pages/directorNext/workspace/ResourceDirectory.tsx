@@ -29,6 +29,7 @@ export function ResourceDirectory({ book, selected, onSelect }: { book: Workspac
   }
   return <nav aria-label="小说资源目录" className="max-h-[70dvh] min-h-0 flex-1 overflow-y-auto overscroll-contain pb-4 md:max-h-none">
     <p className="px-3 pb-3 text-xs font-medium tracking-widest text-muted-foreground">故事目录</p>
+    {row({kind:"volumes"}, "分卷与章节规划", <Layers className="h-4 w-4" />)}
     {tree.volumes.map(({volume,beats,chapters,unassigned}) => <details key={volume.id} open={contains(chapters) || (selected.kind === "volume" && selected.id === volume.id) || (selected.kind === "beat" && selected.volumeId === volume.id)} className="mb-3">
       <summary className="cursor-pointer px-2 py-2 text-sm font-medium">{volume.title}</summary>
       <div className="ml-2">
@@ -48,6 +49,7 @@ export function ResourceDirectory({ book, selected, onSelect }: { book: Workspac
     {row({ kind: "world" }, "世界设定", <Globe2 className="h-4 w-4" />)}
     {row({ kind: "world_map" }, "世界地图", <Map className="h-4 w-4" />)}
     {row({ kind: "character_graph" }, "角色关系图", <Network className="h-4 w-4" />)}
+    {row({ kind: "characters" }, "角色阵容", <Users className="h-4 w-4" />, `${book.materials.characters.length} 人`)}
     {group("角色", <Users className="h-3.5 w-3.5" />, book.materials.characters.length, book.materials.characters.map(character => row({ kind: "character", id: character.id }, character.name)))}
   </nav>;
 }

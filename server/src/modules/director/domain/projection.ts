@@ -37,6 +37,7 @@ export interface DashboardView {
   nextActionGuidance: string;
   chapterProgress: ChapterProgress | null;
   nextLaunchRange: ChapterRange | null;
+  workspaceActivity: WorkspaceActivity;
   progress: { done: number; total: number; source: "artifact_ledger" };
   debts: { count: number; chapterOrders: number[] };
   availableActions: ActionDescriptor[];
@@ -46,6 +47,31 @@ export interface DashboardView {
     controlVersion: number;
     pauseKind: PauseKind | null;
     planVersion: string;
+  };
+}
+
+/** Presentation-only identity and invalidation signal; never authorizes a workflow command. */
+export interface WorkspaceActivity {
+  novelId: string;
+  runId: string;
+  revision: string;
+  focus: {key: string; artifactType: string; label: string; volumeId?: string; chapterOrder?: number} | null;
+}
+
+function projectWorkspaceActivity({contract, control, plan, facts}: ProjectionInput): WorkspaceActivity {
+  const step = control.status === "running"
+    ? plan.steps.find(row => row.id === control.cursorStepId)
+    : control.status === "waiting_gate"
+      ? plan.steps.find(row => row.produces === control.gate?.artifactTypes[0]) : undefined;
+  return {
+    novelId: contract.novelId,
+    runId: contract.runId,
+    // Control boundaries also invalidate review contexts. Artifact versions catch saves before the boundary.
+    revision: JSON.stringify([contract.runId, control.version,
+      facts.artifacts.map(row => JSON.stringify([row.type, row.scope, row.version, row.status])).sort()]),
+    focus: step ? {key: `${contract.runId}:${control.version}:${step.id}`, artifactType: step.produces, label: step.label,
+      ...(contract.launchInput?.targetVolumeId ? {volumeId: contract.launchInput.targetVolumeId} : {}),
+      ...(contract.chapterRange ? {chapterOrder: contract.chapterRange.from} : {})} : null,
   };
 }
 
@@ -219,6 +245,7 @@ export function project(input: ProjectionInput): DashboardView {
     nextActionGuidance,
     chapterProgress,
     nextLaunchRange,
+    workspaceActivity: projectWorkspaceActivity(input),
     progress: { done, total: inScope.length, source: "artifact_ledger" },
     debts: { count: facts.debts.length, chapterOrders },
     availableActions,

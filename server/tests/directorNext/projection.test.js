@@ -23,6 +23,28 @@ function view(overrides = {}) {
   });
 }
 
+test('workspace activity identifies each producer without exposing raw control to the reader', () => {
+  const active = view({control: runningControl({cursorStepId: 'character_cast', version: 8}),
+    contract: contract({launchInput: {targetVolumeId: 'v2'}, chapterRange: {from: 11, to: 13}})}).workspaceActivity;
+  assert.equal(active.novelId, 'novel-1');
+  assert.equal(active.runId, 'run-1');
+  assert.deepEqual(active.focus, {key: 'run-1:8:character_cast', artifactType: 'character_cast',
+    label: '角色阵容', volumeId: 'v2', chapterOrder: 11});
+  for (const status of ['paused', 'completed', 'cancelled', 'failed', 'queued']) {
+    assert.equal(view({control: runningControl({status, cursorStepId: 'character_cast'})}).workspaceActivity.focus, null);
+  }
+  const gated = view({control: runningControl({status: 'waiting_gate', gate: {id: 'g', artifactTypes: ['volume_strategy']}})});
+  assert.equal(gated.workspaceActivity.focus.artifactType, 'volume_strategy');
+});
+
+test('workspace revision observes saves, regeneration and terminal changes without changing on debt or reordered facts', () => {
+  const rows = [artifact('story_macro'), artifact('character_cast')];
+  const original = view({facts: facts(rows)}).workspaceActivity.revision;
+  assert.equal(view({facts: facts([...rows].reverse(), {debts: [{chapterOrder: 1, code: 'warning'}]})}).workspaceActivity.revision, original);
+  assert.notEqual(view({facts: facts([rows[0], {...rows[1], version: 2}])}).workspaceActivity.revision, original);
+  assert.notEqual(view({facts: facts(rows), control: runningControl({status: 'completed', version: 2})}).workspaceActivity.revision, original);
+});
+
 test("project is a pure function of its input", () => {
   const input = deepFreeze({
     contract: contract(),
