@@ -41,6 +41,9 @@ export interface PipelineEmptyContentEvent {
 }
 
 export interface PipelineRuntimeInput extends ChapterRuntimeRequestInput {
+  /** Internal production policy, selected only by the V2 job owner. */
+  artifactSyncPolicy?: "director_v2";
+  finalizedResultScope?: string;
   maxRetries?: number;
   autoReview?: boolean;
   autoRepair?: boolean;
@@ -112,6 +115,8 @@ export interface AssembledRuntimeChapter {
 }
 
 interface RunPipelineChapterDeps {
+  loadFinalizedChapterResult?: (novelId: string, chapterId: string) => Promise<{content: string; result: PipelineRuntimeResult} | null>;
+  persistFinalizedChapterResult?: (novelId: string, chapterId: string, content: string, result: PipelineRuntimeResult) => Promise<void>;
   validateRequest: (input: ChapterRuntimeRequestInput) => ChapterRuntimeRequestInput;
   ensureNovelCharacters: (novelId: string, actionName: string, minCount?: number) => Promise<void>;
   assemble: (novelId: string, chapterId: string, request: ChapterRuntimeRequestInput) => Promise<AssembledRuntimeChapter>;
@@ -139,6 +144,7 @@ interface RunPipelineChapterDeps {
     options?: {
       artifactSyncMode?: PipelineRuntimeInput["artifactSyncMode"];
       contentProvenance?: ContentProvenance;
+      artifactSyncPolicy?: "director_v2";
     },
   ) => Promise<ChapterArtifactSyncResult>;
   finalizeChapterContent: (input: {
@@ -196,10 +202,17 @@ export async function runPipelineChapterWithRuntime(
     qualityThreshold = 75,
     repairMode = "light_repair",
     artifactSyncMode = "adaptive",
+    artifactSyncPolicy,
+    finalizedResultScope: _finalizedResultScope,
     ...requestInput
   } = options;
   const effectiveMaxRetries = Math.max(0, Math.min(maxRetries, 1));
   const repairAttemptsAllowed = autoRepair && repairMode !== "detect_only" ? effectiveMaxRetries : 0;
+  if (artifactSyncPolicy === "director_v2") {
+    await hooks.onCheckCancelled?.();
+    const saved = await deps.loadFinalizedChapterResult?.(novelId, chapterId);
+    if (saved) return resumeFinalizedPipelineChapter(deps, novelId, chapterId, saved, options, hooks);
+  }
   const request = deps.validateRequest(requestInput);
   await deps.ensureNovelCharacters(novelId, "run chapter pipeline");
 
@@ -249,18 +262,7 @@ export async function runPipelineChapterWithRuntime(
 
     if (!autoReview) {
       await hooks.onCheckCancelled?.();
-      const artifactSyncResult = await syncFinalRetainedChapterArtifacts(
-        deps,
-        novelId,
-        chapterId,
-        content,
-        artifactSyncMode,
-        "confirmed",
-      );
-      assertArtifactSyncCanContinue(artifactSyncResult);
-      await hooks.onCheckCancelled?.();
-      await deps.markChapterGenerationState(chapterId, "approved");
-      return {
+      const finalResult: PipelineRuntimeResult = {
         reviewExecuted: false,
         pass: true,
         score: {
@@ -276,8 +278,9 @@ export async function runPipelineChapterWithRuntime(
         retryCountUsed,
         recoverableRepairFailure: null,
         repairSelection: null,
-        artifactSyncResult,
       };
+      if (artifactSyncPolicy === "director_v2") await deps.persistFinalizedChapterResult?.(novelId, chapterId, content, finalResult);
+      return resumeFinalizedPipelineChapter(deps, novelId, chapterId, {content, result: finalResult}, options, hooks);
     }
 
     await hooks.onStageChange?.("reviewing");
@@ -444,19 +447,6 @@ export async function runPipelineChapterWithRuntime(
     evaluation: latestResult,
     assertExecutionOwnership: hooks.onCheckCancelled,
   });
-  const contentProvenance: ContentProvenance = pass ? "confirmed" : "debt";
-  const artifactSyncResult = await syncFinalRetainedChapterArtifacts(
-    deps,
-    novelId,
-    chapterId,
-    latestResult.finalContent,
-    artifactSyncMode,
-    contentProvenance,
-  );
-  assertArtifactSyncCanContinue(artifactSyncResult);
-  await hooks.onCheckCancelled?.();
-  await deps.markChapterGenerationState(chapterId, pass ? "approved" : "reviewed");
-
   // 章节未通过时构建归因对象
   const qualityDebtAttribution: QualityDebtAttribution | null = !pass
     ? buildQualityDebtAttribution({
@@ -469,7 +459,7 @@ export async function runPipelineChapterWithRuntime(
       })
     : null;
 
-  return {
+  const finalResult: PipelineRuntimeResult = {
     reviewExecuted: true,
     pass,
     score: latestResult.runtimePackage.audit.score,
@@ -478,9 +468,33 @@ export async function runPipelineChapterWithRuntime(
     retryCountUsed,
     recoverableRepairFailure,
     repairSelection,
-    artifactSyncResult,
     qualityDebtAttribution,
   };
+  await hooks.onCheckCancelled?.();
+  if (artifactSyncPolicy === "director_v2") {
+    await deps.persistFinalizedChapterResult?.(novelId, chapterId, latestResult.finalContent, finalResult);
+  }
+  return resumeFinalizedPipelineChapter(deps, novelId, chapterId, {content: latestResult.finalContent, result: finalResult}, options, hooks);
+}
+
+/** Resumes only the saved final version: generation and acceptance never run here. */
+export async function resumeFinalizedPipelineChapter(
+  deps: Pick<RunPipelineChapterDeps, "syncFinalChapterArtifacts" | "markChapterGenerationState">,
+  novelId: string,
+  chapterId: string,
+  saved: {content: string; result: PipelineRuntimeResult},
+  options: PipelineRuntimeInput,
+  hooks: PipelineRuntimeHooks,
+): Promise<PipelineRuntimeResult> {
+  await hooks.onCheckCancelled?.();
+  const artifactSyncResult = await syncFinalRetainedChapterArtifacts(
+    deps, novelId, chapterId, saved.content, options.artifactSyncMode ?? "adaptive",
+    saved.result.pass ? "confirmed" : "debt", options.artifactSyncPolicy,
+  );
+  assertArtifactSyncCanContinue(artifactSyncResult, options.artifactSyncPolicy);
+  await hooks.onCheckCancelled?.();
+  await deps.markChapterGenerationState(chapterId, saved.result.pass ? "approved" : "reviewed");
+  return {...saved.result, artifactSyncResult};
 }
 
 async function generateNonEmptyDraftFromWriter(input: {
@@ -540,12 +554,13 @@ async function generateNonEmptyDraftFromWriter(input: {
 }
 
 async function syncFinalRetainedChapterArtifacts(
-  deps: RunPipelineChapterDeps,
+  deps: Pick<RunPipelineChapterDeps, "syncFinalChapterArtifacts">,
   novelId: string,
   chapterId: string,
   content: string,
   artifactSyncMode: PipelineRuntimeInput["artifactSyncMode"],
   contentProvenance: ContentProvenance,
+  artifactSyncPolicy?: "director_v2",
 ): Promise<ChapterArtifactSyncResult> {
   if (!content.trim()) {
     return {
@@ -558,11 +573,13 @@ async function syncFinalRetainedChapterArtifacts(
   return deps.syncFinalChapterArtifacts(novelId, chapterId, content, {
     artifactSyncMode,
     contentProvenance,
+    ...(artifactSyncPolicy ? {artifactSyncPolicy} : {}),
   });
 }
 
-function assertArtifactSyncCanContinue(result: ChapterArtifactSyncResult): void {
-  if (result.status === "completed" || result.status === "degraded") {
+function assertArtifactSyncCanContinue(result: ChapterArtifactSyncResult, policy?: "director_v2"): void {
+  if ((result.status === "completed" || result.status === "degraded")
+    && (policy !== "director_v2" || result.completedArtifacts.includes("artifact_delta"))) {
     return;
   }
   throw new ChapterArtifactSyncBoundaryError(result);

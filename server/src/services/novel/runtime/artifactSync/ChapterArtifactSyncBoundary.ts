@@ -14,6 +14,7 @@ export interface ChapterArtifactSyncBoundaryCheckpoint {
 export function getCurrentChapterArtifactSyncOutcome(
   content: string | null | undefined,
   checkpoints: readonly ChapterArtifactSyncBoundaryCheckpoint[],
+  options: {requireAppliedDelta?: boolean} = {},
 ): ChapterArtifactSyncBoundaryOutcome | null {
   if (!content?.trim()) return null;
   const current = checkpoints.find((checkpoint) => (
@@ -25,6 +26,9 @@ export function getCurrentChapterArtifactSyncOutcome(
     const outcome = metadata && typeof metadata === "object" && !Array.isArray(metadata)
       ? (metadata as { outcome?: unknown }).outcome
       : null;
+    if (outcome === "degraded" && options.requireAppliedDelta
+      && !(Array.isArray((metadata as {completedArtifacts?: unknown}).completedArtifacts)
+        && ((metadata as {completedArtifacts: unknown[]}).completedArtifacts).includes("artifact_delta"))) return null;
     return outcome === "completed" || outcome === "degraded" ? outcome : null;
   } catch {
     return null;
@@ -34,6 +38,7 @@ export function getCurrentChapterArtifactSyncOutcome(
 export function hasCurrentChapterArtifactSyncBoundary(
   content: string | null | undefined,
   checkpoints: readonly ChapterArtifactSyncBoundaryCheckpoint[],
+  options: {requireAppliedDelta?: boolean} = {},
 ): boolean {
-  return getCurrentChapterArtifactSyncOutcome(content, checkpoints) !== null;
+  return getCurrentChapterArtifactSyncOutcome(content, checkpoints, options) !== null;
 }

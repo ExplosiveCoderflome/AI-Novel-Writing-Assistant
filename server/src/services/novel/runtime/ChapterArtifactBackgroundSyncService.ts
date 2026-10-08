@@ -11,6 +11,7 @@ import type {
   PipelinePayload,
 } from "../novelCoreShared";
 import type { ContentProvenance } from "@ai-novel/shared/types/canonicalState";
+import type { LLMProvider } from "@ai-novel/shared/types/llm";
 import { buildContentHash } from "./ChapterArtifactDeltaService";
 import { CHAPTER_ARTIFACT_BOUNDARY_TYPE } from "./artifactSync/ChapterArtifactSyncBoundary";
 import {
@@ -29,6 +30,7 @@ interface ChapterBackgroundSyncContext {
 }
 
 interface ChapterArtifactBackgroundSyncOptions {
+  artifactSyncPolicy?: "director_v2";
   artifactSyncMode?: ArtifactSyncMode;
   provider?: string;
   model?: string;
@@ -78,13 +80,19 @@ export class ChapterArtifactBackgroundSyncService {
   ): Promise<ChapterArtifactSyncResult> {
     const artifactSyncMode = options.artifactSyncMode ?? DEFAULT_ARTIFACT_SYNC_MODE;
     const contentHash = buildContentHash(content);
-    const chapterKey = `${novelId}:${chapterId}:${artifactSyncMode}`;
+    const chapterKey = `${novelId}:${chapterId}:${artifactSyncMode}:${options.artifactSyncPolicy ?? "legacy"}`;
     const syncKey = `${chapterKey}:${contentHash}`;
     const activeSync = this.activeSyncs.get(syncKey);
     if (activeSync) {
       return activeSync;
     }
     if (this.latestSyncedContentHashByChapter.get(chapterKey) === contentHash) {
+      if (options.artifactSyncPolicy === "director_v2") {
+        const current = await prisma.chapter.findFirst({where: {id: chapterId, novelId}, select: {content: true}});
+        if (!current || buildContentHash(current.content ?? "") !== contentHash) {
+          return {status: "failed", contentHash, completedArtifacts: [], reason: "正文版本已变化，请完成当前正文的资源回填后继续。"};
+        }
+      }
       return {
         status: "completed",
         contentHash,
@@ -190,7 +198,7 @@ export class ChapterArtifactBackgroundSyncService {
       });
       if (deltaClaim === "running") {
         return {
-          status: artifactSyncMode === "strict" ? "pending" : "degraded",
+          status: options.artifactSyncPolicy === "director_v2" || artifactSyncMode === "strict" ? "pending" : "degraded",
           contentHash,
           completedArtifacts: [],
           reason: "同一正文版本的资产同步仍在运行。",
@@ -254,7 +262,7 @@ export class ChapterArtifactBackgroundSyncService {
             };
           }
           return {
-            status: "degraded",
+            status: options.artifactSyncPolicy === "director_v2" ? "failed" : "degraded",
             contentHash,
             completedArtifacts: [],
             reason: error instanceof Error ? error.message : String(error),
@@ -289,6 +297,7 @@ export class ChapterArtifactBackgroundSyncService {
       novelId,
       chapterOrder: chapter.order,
       artifactSyncMode,
+      artifactSyncPolicy: options.artifactSyncPolicy,
       requiresFullReconcileFromDelta,
     });
     if (shouldReconcile && !(await this.hasCompletedCheckpoint({
@@ -321,6 +330,12 @@ export class ChapterArtifactBackgroundSyncService {
             await payoffLedgerSyncService.syncLedger(novelId, {
               chapterOrder: chapter.order,
               sourceChapterId: chapterId,
+              ...(options.artifactSyncPolicy === "director_v2" ? {
+                provider: options.provider as LLMProvider | undefined,
+                model: options.model,
+                temperature: options.temperature,
+                triggerReason: requiresFullReconcileFromDelta ? "artifact_delta_risk" : "volume_tail",
+              } : {}),
             });
           });
           await this.markCheckpoint({
@@ -335,6 +350,7 @@ export class ChapterArtifactBackgroundSyncService {
               trigger: this.describePayoffReconcileTrigger({
                 chapterOrder: chapter.order,
                 artifactSyncMode,
+                artifactSyncPolicy: options.artifactSyncPolicy,
                 requiresFullReconcileFromDelta,
                 isVolumeTail: await this.isVolumeTail(novelId, chapter.order),
               }),
@@ -377,6 +393,7 @@ export class ChapterArtifactBackgroundSyncService {
     novelId: string;
     chapterOrder: number;
     artifactSyncMode: ArtifactSyncMode;
+    artifactSyncPolicy?: "director_v2";
     requiresFullReconcileFromDelta: boolean;
   }): Promise<boolean> {
     if (input.artifactSyncMode === "strict") {
@@ -388,7 +405,7 @@ export class ChapterArtifactBackgroundSyncService {
     if (input.artifactSyncMode === "deferred") {
       return false;
     }
-    if (input.chapterOrder > 0 && input.chapterOrder % 3 === 0) {
+    if (input.artifactSyncPolicy !== "director_v2" && input.chapterOrder > 0 && input.chapterOrder % 3 === 0) {
       return true;
     }
     return this.isVolumeTail(input.novelId, input.chapterOrder);
@@ -397,6 +414,7 @@ export class ChapterArtifactBackgroundSyncService {
   private describePayoffReconcileTrigger(input: {
     chapterOrder: number;
     artifactSyncMode: ArtifactSyncMode;
+    artifactSyncPolicy?: "director_v2";
     requiresFullReconcileFromDelta: boolean;
     isVolumeTail: boolean;
   }): string {
@@ -406,7 +424,7 @@ export class ChapterArtifactBackgroundSyncService {
     if (input.requiresFullReconcileFromDelta) {
       return "artifact_delta_risk";
     }
-    if (input.chapterOrder > 0 && input.chapterOrder % 3 === 0) {
+    if (input.artifactSyncPolicy !== "director_v2" && input.chapterOrder > 0 && input.chapterOrder % 3 === 0) {
       return "adaptive_three_chapter_checkpoint";
     }
     if (input.isVolumeTail) {

@@ -20,7 +20,7 @@ import { requireLaunch, modelOptions, bookContractInput, targetVolume, execution
 import { readBatchOutcome } from "./batchOutcome";
 import {readEditedArtifact, resumeBusiness, cancelBusiness} from "./savedContent";
 import {readExistingAssets} from "./existingAssets";
-import {isCurrentChapterProductionCompleted} from "../../services/novel/production/completion";
+import {isCurrentV2ChapterProductionCompleted as isCurrentChapterProductionCompleted} from "../../services/novel/production/completion";
 import {CHAPTER_ARTIFACT_BOUNDARY_TYPE} from "../../services/novel/runtime/artifactSync";
 import {directorArtifactTypes, resolveConfirmationArtifactTypes} from "./projections/confirmationRoutes";
 import {readProductionProjection} from "./projections/productionProgress";

@@ -30,7 +30,7 @@ export async function recoverSavedChapterQuality(
   novelId: string,
   chapter: ChapterProductionCompletionCandidate & { id: string },
 ): Promise<PipelineRuntimeResult> {
-  if (!hasCurrentChapterArtifactSyncBoundary(chapter.content, chapter.artifactSyncCheckpoints ?? [])) {
+  if (!hasCurrentChapterArtifactSyncBoundary(chapter.content, chapter.artifactSyncCheckpoints ?? [], {requireAppliedDelta: true})) {
     throw new SavedChapterQualityRecoveryError("本章正文或状态同步记录与保存进度不一致，请核对章节内容后继续。");
   }
   const qualityLoop = JSON.parse(chapter.riskFlags || "{}").qualityLoop;

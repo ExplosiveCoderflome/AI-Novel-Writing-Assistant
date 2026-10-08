@@ -1,7 +1,7 @@
 import { prisma } from "../../db/prisma";
 import type { StepContext, BatchJob, BatchOutcome } from "../../modules/director";
 import { parsePipelinePayload, PIPELINE_REPLAN_NOTICE_CODE } from "../../services/novel/pipelineJobState";
-import { isCurrentChapterProductionCompleted } from "../../services/novel/production/completion";
+import { isCurrentV2ChapterProductionCompleted as isCurrentChapterProductionCompleted } from "../../services/novel/production/completion";
 import { CHAPTER_ARTIFACT_BOUNDARY_TYPE } from "../../services/novel/runtime/artifactSync";
 import { DIRECTOR_ISSUE_CATALOG_BY_CODE } from "@ai-novel/shared/types/directorIssue";
 

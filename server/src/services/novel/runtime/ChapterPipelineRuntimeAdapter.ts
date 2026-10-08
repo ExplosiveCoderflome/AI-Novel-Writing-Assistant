@@ -1,6 +1,7 @@
 import { ChapterArtifactSyncService } from "./ChapterArtifactSyncService";
 import {
   runPipelineChapterWithRuntime,
+  resumeFinalizedPipelineChapter,
   type PipelineRuntimeHooks,
   type PipelineRuntimeInput,
   type PipelineRuntimeResult,
@@ -12,8 +13,10 @@ import type { ChapterContentFinalizationService } from "./ChapterContentFinaliza
 import type { ChapterStreamGenerationOrchestrator } from "./ChapterStreamGenerationOrchestrator";
 import type { ChapterLifecycleService } from "./lifecycle";
 import { chapterGenerationFeed } from "../production/observation";
+import { ChapterPipelineFinalizationStore, ChapterArtifactSyncBoundaryError } from "./artifactSync";
 
 export interface ChapterPipelineRuntimeAdapterDeps {
+  finalizationStore?: Pick<ChapterPipelineFinalizationStore, "load" | "save">;
   streamOrchestrator: Pick<
     ChapterStreamGenerationOrchestrator,
     "prepareRuntimeChapter" | "generateDraftFromWriter" | "markChapterStatus"
@@ -29,9 +32,11 @@ export interface ChapterPipelineRuntimeAdapterDeps {
 
 export class ChapterPipelineRuntimeAdapter {
   private readonly deps: ChapterPipelineRuntimeAdapterDeps;
+  private readonly finalizationStore: Pick<ChapterPipelineFinalizationStore, "load" | "save">;
 
   constructor(deps: ChapterPipelineRuntimeAdapterDeps) {
     this.deps = deps;
+    this.finalizationStore = deps.finalizationStore ?? new ChapterPipelineFinalizationStore();
   }
 
   async runPipelineChapter(
@@ -40,12 +45,28 @@ export class ChapterPipelineRuntimeAdapter {
     options: PipelineRuntimeInput = {},
     hooks: PipelineRuntimeHooks = {},
   ): Promise<PipelineRuntimeResult> {
+    const scope = options.finalizedResultScope;
+    if (options.artifactSyncPolicy === "director_v2") {
+      if (!scope) throw new ChapterArtifactSyncBoundaryError({status: "failed", contentHash: "", completedArtifacts: [], reason: "缺少本次创作的资源回填恢复位置。"});
+      await hooks.onCheckCancelled?.();
+      const saved = await this.finalizationStore.load(novelId, chapterId, scope);
+      if (saved) return resumeFinalizedPipelineChapter({
+        syncFinalChapterArtifacts: (n, c, content, syncOptions) => this.deps.artifactSyncService.syncChapterArtifacts(n, c, content, {
+          ...syncOptions, scheduleBackgroundSync: true, awaitArtifactDelta: true, skipLegacySummaryAndFacts: true,
+          provider: options.provider, model: options.model, temperature: options.temperature,
+        }),
+        markChapterGenerationState: (c, state) => this.markChapterGenerationState(c, state),
+      }, novelId, chapterId, saved, options, hooks);
+    }
     const { request, assembled } = await this.deps.streamOrchestrator.prepareRuntimeChapter(novelId, chapterId, options);
     await this.deps.streamOrchestrator.markChapterStatus(chapterId, "generating");
     let preview: ReturnType<typeof chapterGenerationFeed.begin> | undefined;
     try {
       const result = await runPipelineChapterWithRuntime(
         {
+          persistFinalizedChapterResult: options.artifactSyncPolicy === "director_v2"
+            ? (n, c, content, result) => this.finalizationStore.save(n, c, scope!, content, result)
+            : undefined,
           validateRequest: () => request,
           ensureNovelCharacters: this.deps.ensureNovelCharacters,
           assemble: async () => assembled,
@@ -74,10 +95,12 @@ export class ChapterPipelineRuntimeAdapter {
                 scheduleBackgroundSync: true,
                 artifactSyncMode: syncOptions?.artifactSyncMode ?? options.artifactSyncMode,
                 contentProvenance: syncOptions?.contentProvenance,
+                artifactSyncPolicy: syncOptions?.artifactSyncPolicy,
                 awaitArtifactDelta: true,
                 skipLegacySummaryAndFacts: true,
                 provider: request.provider,
                 model: request.model,
+                temperature: request.temperature,
               },
             ),
           finalizeChapterContent: async (input) => {

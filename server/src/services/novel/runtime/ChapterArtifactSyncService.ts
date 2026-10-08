@@ -18,6 +18,7 @@ import {
 } from "./lifecycle";
 
 export interface ChapterArtifactSyncOptions {
+  artifactSyncPolicy?: "director_v2";
   scheduleBackgroundSync?: boolean;
   artifactSyncMode?: ArtifactSyncMode;
   syncArtifacts?: boolean;
@@ -116,6 +117,7 @@ export class ChapterArtifactSyncService {
       if (options.awaitArtifactDelta || artifactSyncMode === "strict") {
         deltaResult = await chapterArtifactBackgroundSyncService.runChapterSyncNow(novelId, chapterId, content, {
           artifactSyncMode,
+          artifactSyncPolicy: options.artifactSyncPolicy,
           provider: options.provider,
           model: options.model,
           temperature: options.temperature,
@@ -124,6 +126,7 @@ export class ChapterArtifactSyncService {
       } else {
         chapterArtifactBackgroundSyncService.scheduleChapterSync(novelId, chapterId, content, {
           artifactSyncMode,
+          artifactSyncPolicy: options.artifactSyncPolicy,
           provider: options.provider,
           model: options.model,
           temperature: options.temperature,

@@ -22,8 +22,9 @@ export interface ChapterProductionCompletionCandidate {
  */
 export function isCurrentChapterProductionCompleted(
   chapter: ChapterProductionCompletionCandidate,
+  options: {requireAppliedDelta?: boolean} = {},
 ): boolean {
-  if (!hasCurrentChapterArtifactSyncBoundary(chapter.content, chapter.artifactSyncCheckpoints ?? [])) {
+  if (!hasCurrentChapterArtifactSyncBoundary(chapter.content, chapter.artifactSyncCheckpoints ?? [], options)) {
     return false;
   }
   if (chapter.generationState === "approved" || chapter.generationState === "published") return true;
@@ -32,4 +33,8 @@ export function isCurrentChapterProductionCompleted(
   return riskFlags.includes(TERMINAL_CONTINUE_QUALITY_LOOP_RISK_FLAG_FRAGMENT)
     && !riskFlags.includes(REPLAN_REQUIRED_QUALITY_LOOP_RISK_FLAG_FRAGMENT)
     && !riskFlags.includes(REPLAN_ACTION_QUALITY_LOOP_RISK_FLAG_FRAGMENT);
+}
+
+export function isCurrentV2ChapterProductionCompleted(chapter: ChapterProductionCompletionCandidate): boolean {
+  return isCurrentChapterProductionCompleted(chapter, {requireAppliedDelta: true});
 }

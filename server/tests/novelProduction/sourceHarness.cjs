@@ -33,6 +33,7 @@ function createPipelineHarness({
   timelineStatus,
   stopAt,
   artifactSyncStatus = "completed",
+  completedArtifacts,
 } = {}) {
   const events = [];
   const committedContents = [];
@@ -42,6 +43,7 @@ function createPipelineHarness({
   let reviewIndex = 0;
   let budget = 0;
   let approved = false;
+  let finalizedResult;
   const selectionModule = loadRuntimeSource("selection/ChapterRepairCandidateSelection.ts", {
     "node:crypto": { createHash: require("node:crypto").createHash },
   });
@@ -66,6 +68,12 @@ function createPipelineHarness({
     },
   });
   const deps = {
+    loadFinalizedChapterResult: async () => finalizedResult && { content: persisted, result: finalizedResult },
+    persistFinalizedChapterResult: async (_novel, _chapter, value, result) => {
+      assertFinalContent(value);
+      events.push("finalized_checkpoint");
+      finalizedResult = JSON.parse(JSON.stringify(result));
+    },
     validateRequest: () => ({}),
     ensureNovelCharacters: async () => {},
     assemble: async () => ({ novel: { title: "Novel" }, chapter: { title: "Chapter", content: persisted }, contextPackage: {} }),
@@ -108,11 +116,14 @@ function createPipelineHarness({
       return {
         status: artifactSyncStatus,
         contentHash: value,
-        completedArtifacts: artifactSyncStatus === "completed" ? ["artifact_delta"] : [],
+        completedArtifacts: completedArtifacts ?? (artifactSyncStatus === "completed" ? ["artifact_delta"] : []),
         reason: artifactSyncStatus === "completed" ? undefined : `artifact sync ${artifactSyncStatus}`,
       };
     },
   };
+  function assertFinalContent(value) {
+    if (value !== persisted) throw new Error("checkpoint must describe the retained saved draft");
+  }
   return {
     events,
     reviewBaselines,
@@ -121,7 +132,7 @@ function createPipelineHarness({
     get approved() { return approved; },
     get committedContents() { return [...committedContents]; },
     get syncedContents() { return [...syncedContents]; },
-    resume: () => { stopAt = undefined; },
+    resume: () => { stopAt = undefined; artifactSyncStatus = "completed"; },
     run: (options = {}, hooks = {}) => runPipelineChapterWithRuntime(deps, "n", "c", options, {
       onRetryConsumed: async () => { budget++; }, ...hooks,
     }),

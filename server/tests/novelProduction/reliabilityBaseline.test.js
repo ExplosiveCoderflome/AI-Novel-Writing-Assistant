@@ -244,3 +244,32 @@ test("cancellation at repairing prevents repair, save and budget consumption", a
   assert.deepEqual(h.events, ["acceptance"]);
   assert.equal(h.budget, 0);
 });
+
+test("V2: degraded mandatory delta cannot approve the chapter", async () => {
+  const h = createPipelineHarness({ artifactSyncStatus: "degraded" });
+  await assert.rejects(h.run({ artifactSyncPolicy: "director_v2" }), /artifact sync degraded/);
+  assert.equal(h.approved, false);
+});
+
+test("V2: an optional reconciliation warning after applied delta preserves local continuation", async () => {
+  const h = createPipelineHarness({ artifactSyncStatus: "degraded", completedArtifacts: ["artifact_delta"] });
+  const result = await h.run({ artifactSyncPolicy: "director_v2" });
+  assert.equal(result.pass, true);
+  assert.equal(h.approved, true);
+});
+
+test("V2: recovering a final repaired draft retries assets without paid review or repair", async () => {
+  const h = createPipelineHarness({ scores: [60, 90], artifactSyncStatus: "failed" });
+  const options = { artifactSyncPolicy: "director_v2" };
+  await assert.rejects(h.run(options), /artifact sync failed/);
+  assert.equal(h.content, "repair candidate");
+  assert.deepEqual(h.events, ["acceptance", "repair", "acceptance", "save", "terminal_commit", "finalized_checkpoint", "artifact_sync"]);
+  h.resume();
+  const result = await h.run(options);
+  assert.equal(result.pass, true);
+  assert.equal(result.repairSelection.selected, "candidate");
+  assert.equal(h.events.filter(e => e === "acceptance").length, 2);
+  assert.equal(h.events.filter(e => e === "repair").length, 1);
+  assert.deepEqual(h.syncedContents, ["repair candidate", "repair candidate"]);
+  assert.equal(h.approved, true);
+});

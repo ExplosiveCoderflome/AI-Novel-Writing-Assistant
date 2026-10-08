@@ -10,7 +10,7 @@ import { runWithLlmUsageTracking } from "../../../llm/usageTracking";
 import { buildDirectorCompletionProfile } from "@ai-novel/shared/types/directorCompletion";
 import { ChapterRouteWindowService } from "../planning/ChapterRouteWindowService";
 import { ChapterRuntimeCoordinator } from "../runtime/ChapterRuntimeCoordinator";
-import { CHAPTER_ARTIFACT_BOUNDARY_TYPE } from "../runtime/artifactSync";
+import { CHAPTER_ARTIFACT_BOUNDARY_TYPE, ChapterArtifactSyncBoundaryError } from "../runtime/artifactSync";
 import { isChapterEmptyContentError } from "../runtime/chapterEmptyContentError";
 import { ChapterContentPersistenceError } from "../runtime/lifecycle";
 import {
@@ -25,7 +25,7 @@ import { applyChapterQualityClosure } from "./qualityClosure/ChapterQualityClosu
 import { recoverSavedChapterQuality, SavedChapterQualityRecoveryError } from "./qualityClosure/SavedChapterQualityRecovery";
 import {assertDirectorPipelineOwner} from "../../../modules/novel/director-routing";
 import { ChapterAutomaticAttemptService } from "./attempts";
-import { isCurrentChapterProductionCompleted } from "./completion";
+import { isCurrentChapterProductionCompleted, isCurrentV2ChapterProductionCompleted } from "./completion";
 import { beginChapterUsage, observeChapterUsage, finalizeChapterUsage } from "./usage";
 import {
   loadDirectorIssueTaskContext,
@@ -395,7 +395,7 @@ export class NovelPipelineExecutor {
           }),
         ]);
         const chapters = options.skipCompleted
-          ? chapterCandidates.filter((chapter) => !isCurrentChapterProductionCompleted(chapter))
+          ? chapterCandidates.filter((chapter) => !(runtimePayload.directorNext ? isCurrentV2ChapterProductionCompleted(chapter) : isCurrentChapterProductionCompleted(chapter)))
           : chapterCandidates;
         if (!novel) {
           throw new Error("任务执行失败：小说或章节不存在");
@@ -430,7 +430,7 @@ export class NovelPipelineExecutor {
         );
         let completed = Math.max(storedCompleted, filteredCompletedCount);
         const chaptersToProcess = chapters.slice(remainingStartIndex);
-        const closedOrders = new Set(chapterCandidates.filter(isCurrentChapterProductionCompleted).map(chapter => chapter.order));
+        const closedOrders = new Set(chapterCandidates.filter(chapter => runtimePayload.directorNext ? isCurrentV2ChapterProductionCompleted(chapter) : isCurrentChapterProductionCompleted(chapter)).map(chapter => chapter.order));
         let pendingManualRecovery = false;
 
         if (runtimePayload.directorNext) {
@@ -620,6 +620,7 @@ export class NovelPipelineExecutor {
                     qualityThreshold,
                     repairMode: runtimePayload.repairMode,
                     artifactSyncMode: runtimePayload.artifactSyncMode,
+                    ...(runtimePayload.directorNext ? {artifactSyncPolicy: "director_v2" as const, finalizedResultScope: jobId} : {}),
                   },
                   {
                   onCheckCancelled: checkCancelled,
@@ -658,6 +659,9 @@ export class NovelPipelineExecutor {
                 );
                 break;
               } catch (error) {
+                if (runtimePayload.directorNext && error instanceof ChapterArtifactSyncBoundaryError) {
+                  throw new PipelineIssueFailure(error.message, "runtime.data_integrity", "chapter_artifact_sync", chapter.id, chapter.order);
+                }
                 if (error instanceof PipelineIssueFailure && error.stage === "chapter_usage") throw error;
                 if (error instanceof PipelineExecutionLeaseLostError) {
                   throw error;

@@ -2,7 +2,7 @@ import type {Prisma} from "@prisma/client";
 import {artifactContentHash, type RunContract} from "../../modules/director";
 import {parsePipelinePayload, stringifyPipelinePayload} from "../../services/novel/pipelineJobState";
 import {AppError} from "../../middleware/errorHandler";
-import {isCurrentChapterProductionCompleted} from "../../services/novel/production/completion";
+import {isCurrentV2ChapterProductionCompleted as isCurrentChapterProductionCompleted} from "../../services/novel/production/completion";
 import {CHAPTER_ARTIFACT_BOUNDARY_TYPE} from "../../services/novel/runtime/artifactSync";
 import {revalidateSavedPlanning} from "./recovery/missingPlanning";
 

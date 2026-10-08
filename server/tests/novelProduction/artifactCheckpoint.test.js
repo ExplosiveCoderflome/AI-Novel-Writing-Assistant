@@ -9,12 +9,17 @@ function fixture({
   boundaryWriteError = false,
   deferRecovery = false,
   chapterContent = "draft",
+  chapterOrder = 1,
+  volumeTail = false,
+  requiresFullReconcile = false,
 } = {}) {
   const recoveryArtifactType = "artifact_delta_recoverable:v1";
   let row = initialStatus ? { status: initialStatus, updatedAt: new Date() } : null;
   let calls = 0;
   const transitions = [];
   const applied = [];
+  const reconciles = [];
+  let boundaryWrites = 0;
   let releaseRecovery;
   let markRecoveryStarted;
   const recoveryStarted = new Promise((resolve) => {
@@ -42,6 +47,7 @@ function fixture({
     upsert: async ({ where, create, update }) => {
       const artifactType = where.novelId_chapterId_contentHash_artifactType_syncMode.artifactType;
       if (artifactType !== recoveryArtifactType) {
+        if (artifactType === "artifact_sync_boundary:v1") boundaryWrites++;
         if (boundaryWriteError) throw new Error("checkpoint storage unavailable");
         return;
       }
@@ -52,11 +58,12 @@ function fixture({
   const ContentVersionError = class extends Error {};
   const { ChapterArtifactBackgroundSyncService } = loadRuntimeSource("ChapterArtifactBackgroundSyncService.ts", {
     "../../../db/prisma": { prisma: {
-      chapter: { findFirst: async () => ({ id: "c", order: 1, title: "Chapter", content: chapterContent }) },
+      chapter: { findFirst: async () => ({ id: "c", order: chapterOrder, title: "Chapter", content: chapterContent }) },
+      volumePlan: { findFirst: async () => volumeTail ? { chapters: [{ chapterOrder }] } : null },
       chapterArtifactSyncCheckpoint: checkpoint,
       generationJob: { findMany: async () => [] },
     } },
-    "../../payoff/PayoffLedgerSyncService": {},
+    "../../payoff/PayoffLedgerSyncService": { payoffLedgerSyncService: { syncLedger: async (_id, options) => reconciles.push(options) } },
     "../pipelineJobState": {},
     "./ChapterArtifactDeltaService": {
       buildContentHash: (value) => value,
@@ -80,7 +87,7 @@ function fixture({
           applied.push("summary");
           if (failOnce && calls === 1) throw new Error("after summary");
           applied.push("remaining");
-          return { requiresFullReconcile: false, output: { syncPlan: {}, confidence: 1 } };
+          return { requiresFullReconcile, output: { syncPlan: {}, confidence: 1 } };
         }
       },
     },
@@ -92,7 +99,9 @@ function fixture({
     create: () => new ChapterArtifactBackgroundSyncService(),
     get status() { return row?.status; },
     get calls() { return calls; },
-    transitions, applied,
+    transitions, applied, reconciles,
+    get boundaryWrites() { return boundaryWrites; },
+    set chapterContent(value) { chapterContent = value; },
     waitForRecoveryStart: () => recoveryStarted,
     releaseRecovery: () => releaseRecovery?.(),
   };
@@ -196,4 +205,57 @@ test("C3: completed delta checkpoints still evaluate strict payoff reconciliatio
   assert.equal(result.status, "completed");
   assert.equal(f.calls, 0);
   assert.equal(reconcileChecks, 1);
+});
+
+test("V2: a running mandatory delta cannot publish a degraded completion boundary", async () => {
+  const f = fixture({ initialStatus: "running" });
+  const result = await f.create().runChapterSyncNow("n", "c", "draft", {
+    artifactSyncMode: "adaptive", artifactSyncPolicy: "director_v2",
+  });
+  assert.equal(result.status, "pending");
+  assert.equal(f.calls, 0);
+  assert.equal(f.boundaryWrites, 0);
+});
+
+test("V2: failed mandatory application stays recoverable without publishing completion", async () => {
+  const f = fixture({ failOnce: true });
+  const options = { artifactSyncMode: "adaptive", artifactSyncPolicy: "director_v2" };
+  const failed = await f.create().runChapterSyncNow("n", "c", "draft", options);
+  assert.equal(failed.status, "failed");
+  assert.equal(f.boundaryWrites, 0);
+  const recovered = await f.create().runChapterSyncNow("n", "c", "draft", options);
+  assert.equal(recovered.status, "completed");
+  assert.equal(f.boundaryWrites, 1);
+});
+
+test("V2: chapter three uses its delta without an automatic whole-ledger model call", async () => {
+  const f = fixture({ chapterOrder: 3 });
+  const result = await f.create().runChapterSyncNow("n", "c", "draft", {
+    artifactSyncMode: "adaptive", artifactSyncPolicy: "director_v2",
+  });
+  assert.equal(result.status, "completed");
+  assert.deepEqual(f.reconciles, []);
+});
+
+test("V2: explicit AI reconciliation keeps the chosen model and chapter usage attribution", async () => {
+  const f = fixture({ requiresFullReconcile: true });
+  await f.create().runChapterSyncNow("n", "c", "draft", {
+    artifactSyncPolicy: "director_v2", provider: "deepseek", model: "chosen-model",
+  });
+  assert.equal(f.reconciles.length, 1);
+  assert.equal(f.reconciles[0].provider, "deepseek");
+  assert.equal(f.reconciles[0].model, "chosen-model");
+  assert.equal(f.reconciles[0].sourceChapterId, "c");
+  assert.equal(f.reconciles[0].triggerReason, "artifact_delta_risk");
+});
+
+test("V2: cached completion cannot approve an author-edited chapter using an old hash", async () => {
+  const f = fixture();
+  const service = f.create();
+  const options = {artifactSyncPolicy: "director_v2"};
+  assert.equal((await service.runChapterSyncNow("n", "c", "draft", options)).status, "completed");
+  f.chapterContent = "author edited draft";
+  const stale = await service.runChapterSyncNow("n", "c", "draft", options);
+  assert.equal(stale.status, "failed");
+  assert.equal(f.calls, 1);
 });

@@ -1,7 +1,7 @@
 import {prisma} from "../../../db/prisma";
 import {FactIntegrityError, PrismaEventLog, type RunContract, type RunControl, type ProductionProjection} from "../../../modules/director";
 import {parsePipelinePayload, isPipelineActiveStage} from "../../../services/novel/pipelineJobState";
-import {isCurrentChapterProductionCompleted} from "../../../services/novel/production/completion";
+import {isCurrentV2ChapterProductionCompleted as isCurrentChapterProductionCompleted} from "../../../services/novel/production/completion";
 import {CHAPTER_ARTIFACT_BOUNDARY_TYPE} from "../../../services/novel/runtime/artifactSync";
 
 /** Read saved production facts only. Never claim a live chapter from a human-readable job label. */
