@@ -1,7 +1,7 @@
-import { BookOpen, Globe2, Users, Layers, FileText, Map, Network } from "lucide-react";
+import { BookOpen, Globe2, Users, Layers, FileText, Map, Network, ChevronRight } from "lucide-react";
 import type { ReactNode } from "react";
 import type { Selection, WorkspaceBook } from "./model";
-import { buildStoryDirectory, beatSelection, chapterSelection, sameSelection } from "./planning";
+import { buildStoryDirectory, beatSelection, chapterSelection, sameSelection, beatChapterLabel } from "./planning";
 import type { PlannedChapter } from "./planning";
 
 const chapterLabels = {
@@ -34,8 +34,12 @@ export function ResourceDirectory({ book, selected, onSelect }: { book: Workspac
       <summary className="cursor-pointer px-2 py-2 text-sm font-medium">{volume.title}</summary>
       <div className="ml-2">
         {row({kind:"volume",id:volume.id}, "查看卷纲", <Layers className="h-3.5 w-3.5" />)}
-        {beats.map(({beat,chapters:beatChapters}) => <details key={beat.key} open={contains(beatChapters) || sameSelection(selected,beatSelection(volume.id,beat))}>
-          <summary className="cursor-pointer px-3 py-2 text-xs text-muted-foreground">{beat.title || beat.label}</summary>
+        {beats.map(({beat,chapters:beatChapters}) => <details key={beat.key} className="group/beat" open={contains(beatChapters) || sameSelection(selected,beatSelection(volume.id,beat))}>
+          <summary className="flex min-w-0 cursor-pointer list-none items-center gap-2 px-3 py-2 text-xs text-muted-foreground [&::-webkit-details-marker]:hidden">
+            <ChevronRight aria-hidden="true" className="h-3 w-3 shrink-0 transition-transform group-open/beat:rotate-90"/>
+            <span className="min-w-0 flex-1 truncate" title={beat.title || beat.label}>{beat.title || beat.label}</span>
+            <span title={beatChapterLabel(beatChapters)} className="max-w-[55%] shrink-0 truncate text-[10px] group-open/beat:hidden">{beatChapterLabel(beatChapters)}</span>
+          </summary>
           <div className="ml-3">{row(beatSelection(volume.id,beat),"查看节奏段目标")}{beatChapters.map(chapterRow)}{beatChapters.length === 0 ? <p className="px-3 py-2 text-xs text-muted-foreground">暂无章节规划</p> : null}</div>
         </details>)}
         {beats.length === 0 ? <p className="px-3 py-2 text-xs text-muted-foreground">节奏段待规划</p> : null}

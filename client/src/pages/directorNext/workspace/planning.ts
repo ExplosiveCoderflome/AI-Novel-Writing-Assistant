@@ -2,6 +2,23 @@ import type { VolumePlanDocument, VolumeChapterPlan, VolumeBeat } from "@ai-nove
 import type { WorkspaceBook, WorkspaceChapter, Selection } from "./model";
 
 export interface PlannedChapter { plan?: VolumeChapterPlan; chapter?: WorkspaceChapter }
+
+/** Only display chapters actually assigned to this beat, preserving gaps in their numbering. */
+export function beatChapterLabel(chapters: readonly PlannedChapter[]): string {
+  const orders = [...new Set(chapters.map(row => row.chapter?.order ?? row.plan?.chapterOrder)
+    .filter((order): order is number => typeof order === "number" && Number.isSafeInteger(order) && order > 0))].sort((a, b) => a - b);
+  if (!orders.length) return "待拆章";
+  const ranges: string[] = [];
+  let from = orders[0], to = from;
+  for (const order of orders.slice(1)) {
+    if (order === to + 1) { to = order; continue; }
+    ranges.push(from === to ? String(from) : `${from}—${to}`);
+    from = to = order;
+  }
+  ranges.push(from === to ? String(from) : `${from}—${to}`);
+  return `第 ${ranges.join("、")} 章`;
+}
+
 export function chapterSelection(row: PlannedChapter): Selection {
   return row.chapter ? { kind: "chapter", id: row.chapter.id } : { kind: "plan", id: row.plan!.id };
 }
