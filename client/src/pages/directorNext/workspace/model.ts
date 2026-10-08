@@ -5,7 +5,7 @@ import type {DirectorWorkspace} from "@/api/directorNext";
 export type WorkspaceBook = DirectorWorkspace;
 export type WorkspaceChapter = WorkspaceBook["chapters"][number];
 export type WorkspaceCharacter = WorkspaceBook["materials"]["characters"][number];
-export type Selection = { kind: "story" | "world" | "world_map" | "character_graph" | "characters" | "volumes" } | { kind: "chapter" | "character" | "volume" | "plan"; id: string } | { kind: "beat"; id: string; volumeId: string };
+export type Selection = { kind: "story" | "world" | "world_map" | "character_graph" | "characters" | "volumes" | "foreshadowing" | "resources" } | { kind: "chapter" | "character" | "character_resources" | "volume" | "plan"; id: string } | { kind: "beat"; id: string; volumeId: string };
 export type HistoryBoundary = number | null | "latest";
 
 export function readableChapter(chapter: { content: string | null }) {
@@ -14,13 +14,13 @@ export function readableChapter(chapter: { content: string | null }) {
 
 export function resolveSelection(selection: Selection | null, book: WorkspaceBook): Selection {
   if (selection) {
-    if (selection.kind === "story" || selection.kind === "world" || selection.kind === "world_map" || selection.kind === "character_graph" || selection.kind === "characters" || selection.kind === "volumes") return selection;
+    if (selection.kind === "story" || selection.kind === "world" || selection.kind === "world_map" || selection.kind === "character_graph" || selection.kind === "characters" || selection.kind === "volumes" || selection.kind === "foreshadowing" || selection.kind === "resources") return selection;
     if (selection.kind === "beat") {
       if (book.planning?.beatSheets.some(sheet => sheet.volumeId === selection.volumeId && sheet.beats.some(beat => beat.key === selection.id))) return selection;
     } else if (selection.kind === "plan") {
       if (book.planning?.volumes.some(volume => volume.chapters.some(plan => plan.id === selection.id))) return selection;
     } else {
-    const rows = selection.kind === "chapter" ? book.chapters : selection.kind === "character" ? book.materials.characters : book.planning?.volumes ?? book.materials.volumes;
+    const rows = selection.kind === "chapter" ? book.chapters : selection.kind === "character" || selection.kind === "character_resources" ? book.materials.characters : book.planning?.volumes ?? book.materials.volumes;
     const id = "id" in selection ? selection.id : undefined;
     if (rows.some(row => row.id === id)) return selection;
     }

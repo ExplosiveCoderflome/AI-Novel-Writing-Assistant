@@ -6,6 +6,7 @@ import {AppError} from "../../middleware/errorHandler";
 import {FactIntegrityError,PrismaRunRepository} from "../../modules/director";
 import {resolveSavedReviewContexts,type SavedReviewContext} from "./projections/confirmationRoutes";
 import {projectWorldMaterials,projectCharacterMaterials,savedStringList} from "./workspace/index";
+export {readDirectorLedgers} from "./workspace/index";
 
 /** Saved book display never reads task seeds or repairs compatibility records. */
 export async function readDirectorWorkspace(novelId: string) {

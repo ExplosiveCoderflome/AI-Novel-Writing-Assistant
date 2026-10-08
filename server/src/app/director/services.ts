@@ -3,7 +3,7 @@ import {prisma} from "../../db/prisma";
 import {createDirectorNextServices, type DirectorNextServices} from "../../modules/director";
 import {LegacyRunProjection} from "../../modules/director/http";
 import {createDirectorProductionOptions} from "./productionComposition";
-import {readDirectorWorkspace} from "./workspace";
+import {readDirectorWorkspace,readDirectorLedgers} from "./workspace";
 import {chapterGenerationFeed} from "../../services/novel/production/observation";
 import {assertNovelDirectorVersion, assertV2RunExecution, readRunExecutionEpoch} from "../../modules/novel/director-routing";
 import type {DirectorCommand} from "../../modules/director/application";
@@ -34,6 +34,7 @@ export function getDirectorProductionServices(): DirectorNextServices {
       return {novel, chapters, workflowTaskIds: workflows.map(row => row.id), generationJobIds: jobs.map(row => row.id)};
     }).getNovelUsage(novelId, query);
     services.http.readWorkspace = readDirectorWorkspace;
+    services.http.readLedgers = readDirectorLedgers;
     services.http.readCurrentRunId = async novelId => {
       const identity = await assertNovelDirectorVersion(novelId, "v2");
       const runs = await prisma.directorNextRun.findMany({where: {novelId}, orderBy: {createdAt: "desc"}, select: {id: true, contractJson: true}});

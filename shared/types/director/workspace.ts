@@ -2,6 +2,18 @@ import type {SimpleCreationShelfProjection} from "../novel";
 import type {Character} from "../novelCharacter";
 import type {StoryWorldSlice} from "../storyWorldSlice";
 import type {World, WorldStructuredData} from "../world";
+import type {PayoffLedgerItem} from "../payoffLedger";
+import type {CharacterResourceLedgerItem, CharacterResourceEvent, CharacterResourceProposalSummary} from "../characterResource";
+
+/** Saved whole-book facts only; reading never initializes, repairs or confirms them. */
+export interface DirectorWorkspaceLedgers {
+  novelId: string;
+  payoffs: PayoffLedgerItem[];
+  resources: CharacterResourceLedgerItem[];
+  resourceEvents: CharacterResourceEvent[];
+  pendingResources: CharacterResourceProposalSummary[];
+  warnings: string[];
+}
 
 type ShelfMaterials = SimpleCreationShelfProjection["materials"];
 

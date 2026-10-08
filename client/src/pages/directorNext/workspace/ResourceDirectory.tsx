@@ -1,4 +1,4 @@
-import { BookOpen, Globe2, Users, Layers, FileText, Map, Network, ChevronRight } from "lucide-react";
+import { BookOpen, Globe2, Users, Layers, FileText, Map, Network, ChevronRight, ListChecks, Package } from "lucide-react";
 import type { ReactNode } from "react";
 import type { Selection, WorkspaceBook } from "./model";
 import { buildStoryDirectory, beatSelection, chapterSelection, sameSelection, beatChapterLabel } from "./planning";
@@ -12,7 +12,7 @@ const chapterLabels = {
 export function ResourceDirectory({ book, selected, onSelect }: { book: WorkspaceBook; selected: Selection; onSelect: (item: Selection) => void }) {
   const tree = buildStoryDirectory(book, book.planning);
   function row(item: Selection, label: string, icon?: ReactNode, note?: string) {
-    const active = sameSelection(selected, item);
+    const active = sameSelection(selected, item) || (item.kind === "resources" && selected.kind === "character_resources");
     return <button type="button" key={"id" in item ? item.id : item.kind} aria-current={active ? "true" : undefined}
       className={`flex w-full items-center gap-2 rounded-md px-3 py-2.5 text-left text-sm transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${active ? "bg-primary/10 font-medium text-primary" : "text-foreground/80"}`}
       onClick={() => onSelect(item)}>
@@ -53,6 +53,8 @@ export function ResourceDirectory({ book, selected, onSelect }: { book: Workspac
     {row({ kind: "world" }, "世界设定", <Globe2 className="h-4 w-4" />)}
     {row({ kind: "world_map" }, "世界地图", <Map className="h-4 w-4" />)}
     {row({ kind: "character_graph" }, "角色关系图", <Network className="h-4 w-4" />)}
+    {row({ kind: "foreshadowing" }, "伏笔", <ListChecks className="h-4 w-4" />)}
+    {row({ kind: "resources" }, "背包与资源", <Package className="h-4 w-4" />)}
     {row({ kind: "characters" }, "角色阵容", <Users className="h-4 w-4" />, `${book.materials.characters.length} 人`)}
     {group("角色", <Users className="h-3.5 w-3.5" />, book.materials.characters.length, book.materials.characters.map(character => row({ kind: "character", id: character.id }, character.name)))}
   </nav>;

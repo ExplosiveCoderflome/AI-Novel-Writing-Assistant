@@ -16,7 +16,7 @@ export function AssetDetail({ book, selected, onCharacter, onSelect }: { book: W
     {selected.kind === "world" ? <WorldDetail world={materials.world}/> : null}
     {selected.kind === "characters" ? <CastOverview book={book} onSelect={onSelect}/> : null}
     {selected.kind === "volumes" ? <PlanningOverview book={book} onSelect={onSelect}/> : null}
-    {character ? <CharacterDetail character={character} onCharacter={onCharacter}/> : null}
+    {character ? <CharacterDetail character={character} onCharacter={onCharacter} onResources={onSelect ? id=>onSelect({kind:"character_resources",id}) : undefined}/> : null}
     {volume ? <div className="divide-y divide-border/40"><Field label="本卷故事" value={volume.summary} /><Field label="本卷看点" value={volume.mainPromise} /><Field label="规划章节数" value={String(volume.chapterCount)} /></div> : null}
   </div>;
 }

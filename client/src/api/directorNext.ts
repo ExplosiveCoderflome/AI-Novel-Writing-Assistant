@@ -2,7 +2,7 @@ import type { ApiResponse } from "@ai-novel/shared/types/api";
 import { apiClient, type ApiHttpError } from "./client";
 import type {SimpleCreationShelfProjection,VolumePlanDocument} from "@ai-novel/shared/types/novel";
 import {getSimpleCreationShelf,getNovelVolumeWorkspace} from "./novel";
-import type {DirectorWorkspaceMaterials} from "@ai-novel/shared/types/director/workspace";
+import type {DirectorWorkspaceMaterials,DirectorWorkspaceLedgers} from "@ai-novel/shared/types/director/workspace";
 
 export type DirectorMode = "queued" | "running" | "waiting_gate" | "paused" | "completed" | "failed" | "cancelled";
 export type DirectorDriver = "auto" | "assisted";
@@ -25,6 +25,10 @@ export async function getDirectorWorkspace(novelId:string): Promise<ApiResponse<
     if (!shelf.data) return shelf;
     return {...shelf,data:{...shelf.data,planning:planning.data}};
   }
+}
+
+export async function getDirectorLedgers(novelId:string):Promise<ApiResponse<DirectorWorkspaceLedgers>> {
+  return (await apiClient.get<ApiResponse<DirectorWorkspaceLedgers>>(`/director-next/novels/${encodeURIComponent(novelId)}/ledgers`)).data;
 }
 
 export async function listLegacyDirectorRuns() {

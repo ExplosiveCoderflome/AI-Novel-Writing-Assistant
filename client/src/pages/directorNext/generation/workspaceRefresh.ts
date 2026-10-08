@@ -1,3 +1,5 @@
+import type {QueryClient} from "@tanstack/react-query";
+
 /** One in-flight asset read per book; a later save requires a fresh read after the old one completes. */
 export function createWorkspaceRefresh(refresh: () => Promise<unknown>) {
   let active = true;
@@ -22,5 +24,16 @@ export function createWorkspaceRefresh(refresh: () => Promise<unknown>) {
       if (!loading && loaded !== revision) load(revision);
     },
     dispose() { active = false; },
+  };
+}
+
+/** Isolate read failures so ledger retries cannot make the prose query refresh repeatedly. */
+export function createWorkspaceAssetRefresh(queryClient:QueryClient,novelId:string) {
+  const refreshers=["directorBookWorkspace","directorWorkspaceLedgers"].map(key=>createWorkspaceRefresh(
+    ()=>queryClient.invalidateQueries({queryKey:[key,novelId]},{throwOnError:true}),
+  ));
+  return {
+    observe(revision:string) {for(const refresh of refreshers) refresh.observe(revision);},
+    dispose() {for(const refresh of refreshers) refresh.dispose();},
   };
 }

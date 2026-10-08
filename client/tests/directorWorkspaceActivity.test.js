@@ -1,12 +1,31 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { followedWorkspaceSelection } from '../src/pages/directorNext/generation/model.ts';
-import { createWorkspaceRefresh } from '../src/pages/directorNext/generation/workspaceRefresh.ts';
+import { createWorkspaceRefresh, createWorkspaceAssetRefresh } from '../src/pages/directorNext/generation/workspaceRefresh.ts';
+import {QueryClient,QueryObserver} from '@tanstack/react-query';
 
 const book = {novel: {id: 'n'}, materials: {characters: [], volumes: []}, chapters: [],
   planning: {volumes: [{id: 'v1', chapters: [{id: 'p1', chapterOrder: 11}]}]}};
 const activity = type => ({novelId: 'n', runId: 'r', revision: '1',
   focus: {key: `r:1:${type}`, artifactType: type, label: '生成阶段', volumeId: 'v1', chapterOrder: 11}});
+
+test('save revisions refresh book and ledger queries independently without invalidating another book', async () => {
+  const cache=new QueryClient({defaultOptions:{queries:{retry:false,gcTime:Infinity}}});
+  for(const key of [['directorBookWorkspace','n'],['directorWorkspaceLedgers','n'],['directorWorkspaceLedgers','other']]) cache.setQueryData(key,{success:true});
+  let bookReads=0,ledgerReads=0;
+  const bookObserver=new QueryObserver(cache,{queryKey:['directorBookWorkspace','n'],queryFn:async()=>{bookReads++;return {success:true};},staleTime:Infinity});
+  const ledgerObserver=new QueryObserver(cache,{queryKey:['directorWorkspaceLedgers','n'],queryFn:async()=>{ledgerReads++;throw Error('ledger offline');},staleTime:Infinity,retry:false});
+  const stopBook=bookObserver.subscribe(()=>{}),stopLedgers=ledgerObserver.subscribe(()=>{});
+  const refresh=createWorkspaceAssetRefresh(cache,'n');
+  try {
+    refresh.observe('saved:1');await new Promise(resolve=>setImmediate(resolve));
+    assert.equal(bookReads,1);assert.equal(ledgerReads,1);
+    refresh.observe('saved:1');await new Promise(resolve=>setImmediate(resolve));
+    assert.equal(bookReads,1,'a ledger failure must not repeatedly reload already refreshed prose');
+    assert.equal(ledgerReads,2,'ledger failure retries on the next revision observation');
+    assert.equal(cache.getQueryState(['directorWorkspaceLedgers','other']).isInvalidated,false);
+  } finally {refresh.dispose();stopBook();stopLedgers();cache.clear();}
+});
 
 test('follow covers preparation and planning, including empty assets, without guessing a chapter', () => {
   for (const [type, selection] of [

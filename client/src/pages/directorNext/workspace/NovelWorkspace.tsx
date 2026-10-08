@@ -14,6 +14,7 @@ import {followedWorkspaceSelection} from "../generation";
 import {sameSelection} from "./planning";
 import type {WorkspaceChapter} from "./model";
 import {useReadingDisplayPreferences} from "./reading";
+import {LedgerView} from "./ledgers";
 const WorldMapView = lazy(()=>import("./visualizations").then(module=>({default:module.WorldMapView})));
 const CharacterGraphView = lazy(()=>import("./visualizations").then(module=>({default:module.CharacterGraphView})));
 
@@ -67,11 +68,12 @@ export function NovelWorkspace({ book, preview = false, review, onLeaveReview, f
       <PlanningDetail book={book} selected={selected} onSelect={select} />
       {selected.kind === "world_map" ? <Suspense fallback={<p className="px-6 text-sm text-muted-foreground">正在读取世界地图…</p>}><WorldMapView book={book} onOpenWorld={()=>select({kind:"world"})}/></Suspense>
         : selected.kind === "character_graph" ? <Suspense fallback={<p className="px-6 text-sm text-muted-foreground">正在读取角色关系图…</p>}><CharacterGraphView book={book} preview={preview} onOpenCharacter={id=>select({kind:"character",id})}/></Suspense>
+        : selected.kind === "foreshadowing" || selected.kind === "resources" || selected.kind === "character_resources" ? <LedgerView book={book} selection={selected} onSelect={select} preview={preview}/>
         : chapter ? <ChapterReader key={chapter.id} chapter={chapter} chapters={displayBook.chapters} characters={book.materials.characters} onCharacter={openCharacter} onChapter={id => select({kind:"chapter",id})} generation={live?.chapterId===chapter.id ? live : null} followGeneration={followGeneration} readingDisplay={readingDisplay} onReadingDisplayChange={onReadingDisplayChange}/>
         : selected.kind === "beat" || selected.kind === "plan" || (selected.kind === "volume" && book.planning) ? null : <AssetDetail book={book} selected={selected} onCharacter={openCharacter} onSelect={select} />}
     </section>;
   return <div className="flex min-h-0 min-w-0 flex-1 flex-col">
     {directoryOpen ? <ResizableWorkspace id="director-resource-layout" className="min-h-0 flex-1" label="调整目录与正文宽度" defaultLeft={27} minLeft={180} minRight={340} breakpoint={560} left={directory} right={content}/> : <>{directory}{content}</>}
-    {character ? <CharacterDrawer key={character.id} book={book} character={character} readingOrder={chapter?.order ?? readingOrder} preview={preview} onClose={() => setCharacterId(null)} onChapter={id => select({kind:"chapter",id})} /> : null}
+    {character ? <CharacterDrawer key={character.id} book={book} character={character} readingOrder={chapter?.order ?? readingOrder} preview={preview} onClose={() => setCharacterId(null)} onChapter={id => select({kind:"chapter",id})} onResources={id=>{setCharacterId(null);select({kind:"character_resources",id});}}/> : null}
   </div>;
 }

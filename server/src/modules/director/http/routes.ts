@@ -13,6 +13,7 @@ export interface DirectorNextHttpDeps {
   validateUsageCursor?: (runId: string, cursor: string) => void;
   readNovelUsage?: (novelId: string, query: {limit?: number; cursor?: string; chapterId?: string; stage?: string; provider?: string; model?: string; status?: "completed" | "partial" | "failed"}) => Promise<unknown>;
   readWorkspace?: (novelId: string) => Promise<unknown>;
+  readLedgers?: (novelId: string) => Promise<unknown>;
   readCurrentRunId?: (novelId: string) => Promise<string | null>;
   observeGeneration?: (novelId: string, listener: (snapshot: unknown) => void) => () => void;
 }
@@ -125,6 +126,12 @@ export function createDirectorNextRouter(deps: DirectorNextHttpDeps): Router {
     if (!id.success) {sendValidationError(res,id.error);return;}
     if (!deps.readWorkspace) {res.status(404).json({success:false,error:"小说内容入口未配置。"});return;}
     res.json({success:true,data:await deps.readWorkspace(id.data)});
+  }));
+  router.get("/novels/:novelId/ledgers",asyncRoute(async(req,res)=>{
+    const id=nonEmpty.safeParse(req.params.novelId);
+    if (!id.success) {sendValidationError(res,id.error);return;}
+    if (!deps.readLedgers) {res.status(404).json({success:false,error:"本书伏笔与资源读取入口不可用。"});return;}
+    res.json({success:true,data:await deps.readLedgers(id.data)});
   }));
   router.get("/legacy-records", asyncRoute(async (req, res) => {
     const query = querySchema.safeParse(req.query);

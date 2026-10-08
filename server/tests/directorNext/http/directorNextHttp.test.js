@@ -37,6 +37,18 @@ function deps(overrides = {}) {
   };
 }
 
+test("ledger endpoint reads the requested book without entering director commands", async () => {
+  await withServer(deps({
+    readLedgers: async novelId => ({novelId, payoffs: [], resources: [], resourceEvents: [], pendingResources: [], warnings: []}),
+    commandService: {execute: async () => {throw new Error('a read must not execute commands');}},
+  }), async url => {
+    const response = await fetch(`${url}/api/director-next/novels/book%20one/ledgers`);
+    assert.equal(response.status, 200);
+    assert.equal((await response.json()).data.novelId, 'book one');
+    assert.equal((await fetch(`${url}/api/director-next/novels/book%20one/ledgers`, {method:'POST'})).status,404);
+  });
+});
+
 test("command endpoint validates and returns immediately with the run projection key", async () => {
   await withServer(deps(), async (baseUrl) => {
     const response = await fetch(`${baseUrl}/api/director-next/commands`, {

@@ -9,9 +9,10 @@ import { visibleCharacterHistory } from "./model";
 import type { WorkspaceBook, WorkspaceCharacter } from "./model";
 import { previewCharacterHistory } from "./previewBook";
 
-export function CharacterDrawer({ book, character, readingOrder, preview, onClose, onChapter }: {
+export function CharacterDrawer({ book, character, readingOrder, preview, onClose, onChapter, onResources }: {
   book: WorkspaceBook; character: WorkspaceCharacter; readingOrder: number | null; preview: boolean;
   onClose: () => void; onChapter: (id: string) => void;
+  onResources?: (id:string) => void;
 }) {
   const [latest, setLatest] = useState(false);
   const historyQuery = useQuery({
@@ -35,6 +36,7 @@ export function CharacterDrawer({ book, character, readingOrder, preview, onClos
         <Button size="sm" variant={latest ? "default" : "ghost"} onClick={() => setLatest(true)}>最新状态</Button>
       </div>
       <p className="mt-3 text-xs leading-6 text-muted-foreground">{latest ? "包含全书已保存的记录，可能透露后续剧情。" : readingOrder === null ? "先选择一个阅读章节，再查看对应范围的变化记录。" : `仅展示第 ${readingOrder} 章及以前的变化记录。`}</p>
+      {onResources ? <Button size="sm" variant="ghost" className="mt-3" onClick={()=>onResources(character.id)}>查看背包与资源</Button> : null}
       {latest ? <section className="mt-6 space-y-3 rounded-md bg-muted/40 p-4">
         <h3 className="text-sm font-medium">最新保存状态</h3>
         {!preview && latestQuery.isError ? <p role="alert" className="text-sm text-destructive">最新状态读取失败。<Button size="sm" variant="ghost" onClick={() => void latestQuery.refetch()}>重新读取</Button></p>
