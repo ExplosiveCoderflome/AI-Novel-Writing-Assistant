@@ -44,7 +44,7 @@ export default function DirectorNovelPage({ previewOnly = false }: { previewOnly
   const startForm = !preview && book && metadata ? (range: {from:number;to:number}|null, driver: DirectorDriver = "assisted") => <DirectorStart key={`${view?.runId ?? novelId}:${range?.from ?? "planning"}`} novelId={novelId} estimatedChapterCount={book.novel.estimatedChapterCount} nextChapter={Math.max(0,...book.chapters.filter(chapter=>chapter.content?.trim()).map(chapter=>chapter.order))+1} initialStory={metadata.description ?? ""} worldId={metadata.worldId} suggestedRange={range} initialDriver={driver}/> : null;
 
   return (
-    <div className="mx-auto flex h-full min-h-0 max-w-[1600px] flex-col gap-3">
+    <div className="mx-auto flex h-full min-h-0 w-full max-w-[1920px] flex-col gap-3">
       <header className="flex min-w-0 shrink-0 flex-wrap items-center justify-between gap-x-4 gap-y-1 border-b border-border/60 pb-2">
         <div className="flex min-w-0 flex-1 basis-full flex-wrap items-center gap-x-4 gap-y-2 lg:basis-auto">
           <h1 title={book?.novel.title} className="min-w-0 truncate text-lg font-semibold">{book?.novel.title ?? "小说创作"}</h1>
