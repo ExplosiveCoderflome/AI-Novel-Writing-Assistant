@@ -19,6 +19,7 @@ function fixture({
   const transitions = [];
   const applied = [];
   const reconciles = [];
+  const recoveryInputs = [];
   let boundaryWrites = 0;
   let releaseRecovery;
   let markRecoveryStarted;
@@ -74,7 +75,8 @@ function fixture({
     "./artifactSync/ChapterArtifactRecoveryService": {
       ChapterArtifactRecoveryPendingError: class extends Error {},
       ChapterArtifactRecoveryService: class {
-        async syncChapterArtifacts() {
+        async syncChapterArtifacts(input) {
+          recoveryInputs.push(input);
           calls++;
           assert.equal(row.status, "running", "must claim before extraction");
           if (deferRecovery) {
@@ -99,7 +101,7 @@ function fixture({
     create: () => new ChapterArtifactBackgroundSyncService(),
     get status() { return row?.status; },
     get calls() { return calls; },
-    transitions, applied, reconciles,
+    transitions, applied, reconciles, recoveryInputs,
     get boundaryWrites() { return boundaryWrites; },
     set chapterContent(value) { chapterContent = value; },
     waitForRecoveryStart: () => recoveryStarted,
@@ -235,6 +237,7 @@ test("V2: chapter three uses its delta without an automatic whole-ledger model c
   });
   assert.equal(result.status, "completed");
   assert.deepEqual(f.reconciles, []);
+  assert.equal(f.recoveryInputs[0].artifactSyncPolicy, "director_v2");
 });
 
 test("V2: explicit AI reconciliation keeps the chosen model and chapter usage attribution", async () => {

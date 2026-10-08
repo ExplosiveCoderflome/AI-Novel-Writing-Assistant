@@ -432,6 +432,9 @@ export interface ChapterArtifactDeltaPromptInput {
   chapterTitle: string;
   chapterGoal: string;
   characterRosterText: string;
+  characterStateText?: string;
+  resourceCatalogText?: string;
+  payoffCatalogText?: string;
   previousStateText: string;
   existingResourceText: string;
   existingPayoffText: string;
@@ -535,8 +538,8 @@ export const chapterArtifactDeltaPrompt: PromptAsset<
   ChapterArtifactDeltaOutput
 > = {
   id: "novel.chapter.artifact_delta.extract",
-  version: "v4",
-  cacheBoundary: {messageIndex:0,contentBlockIndex:0},
+  version: "v5",
+  cacheBoundary: {messageIndex:1,contentBlockIndex:0},
   taskType: "fact_extraction",
   mode: "structured",
   language: "zh",
@@ -605,8 +608,18 @@ export const chapterArtifactDeltaPrompt: PromptAsset<
       "已知角色：",
       input.characterRosterText || "暂无角色名单",
       "",
+      "资源目录（只用于识别同一资产，持有者和可用性以本章输入为准）：",
+      input.resourceCatalogText || "暂无资源目录",
+      "",
+      "伏笔目录（只用于识别同一线索，兑现状态以本章输入为准）：",
+      input.payoffCatalogText || "暂无伏笔目录",
+    ].join("\n")),
+    new HumanMessage([
       `章节：第 ${input.chapterOrder} 章《${input.chapterTitle}》`,
       `章节目标：${input.chapterGoal || "无明确目标"}`,
+      "",
+      "角色当前目标与状态：",
+      input.characterStateText || "暂无角色状态补充",
       "",
       "上一状态摘要：",
       input.previousStateText || "暂无上一状态快照",

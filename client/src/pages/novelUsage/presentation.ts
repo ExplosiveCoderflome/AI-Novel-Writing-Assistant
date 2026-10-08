@@ -30,6 +30,7 @@ const stages: Record<string, string> = {
   chapter_acceptance: "章节验收", review: "审校", chapter_review: "章节审校",
   chapter_repair: "正文修文", repair: "正文修文", chapter_patch: "局部修文",
   chapter_artifact_sync: "章节资料整理", chapter_summary: "章节总结",
+  chapter_artifact_delta: "章节资源回填", payoff_ledger_reconcile: "伏笔整体校准", payoff_ledger_planning: "伏笔规划",
   chapter_batch: "章节批次创作", production_run: "正文创作",
   story_macro: "故事规划", story_macro_plan: "故事规划", book_contract: "全书创作目标",
   world_setup: "世界设定", character_setup: "角色设定", volume_strategy: "分卷规划",

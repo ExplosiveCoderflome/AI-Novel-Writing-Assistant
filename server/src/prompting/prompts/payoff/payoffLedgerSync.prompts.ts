@@ -67,8 +67,8 @@ export const payoffLedgerSyncPrompt: PromptAsset<
   z.infer<typeof payoffLedgerSyncOutputSchema>
 > = {
   id: "novel.payoff_ledger.sync",
-  version: "v7",
-  cacheBoundary: {messageIndex:0,contentBlockIndex:0},
+  version: "v8",
+  cacheBoundary: {messageIndex:1,contentBlockIndex:0},
   taskType: "planner",
   mode: "structured",
   language: "zh",
@@ -150,12 +150,6 @@ export const payoffLedgerSyncPrompt: PromptAsset<
           )).join("\n")
         : "无",
       "",
-      "当前激活卷与章节窗口：",
-      input.activeVolumeSummary,
-      "",
-      "最近章节上下文：",
-      input.latestChapterContext,
-      "",
       "书级 major payoffs：",
       input.majorPayoffsText,
       "",
@@ -164,6 +158,13 @@ export const payoffLedgerSyncPrompt: PromptAsset<
       "",
       "当前卷 chapter payoff refs：",
       input.chapterPayoffRefsText,
+    ].join("\n")),
+    new HumanMessage([
+      "当前激活卷与章节窗口：",
+      input.activeVolumeSummary,
+      "",
+      "最近章节上下文：",
+      input.latestChapterContext,
       "",
       "最新 foreshadow states：",
       input.foreshadowStatesText,

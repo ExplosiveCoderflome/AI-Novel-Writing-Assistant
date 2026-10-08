@@ -37,6 +37,7 @@ import {
 } from "../state/stateProposalSourceQuality";
 import { ChapterArtifactContentVersionError } from "./artifactSync/ChapterArtifactSyncResult";
 import { buildChapterArtifactContentHash } from "./artifactSync/ChapterArtifactContentVersion";
+import { buildChapterArtifactLedgerContext } from "./artifactSync/context";
 
 const ARTIFACT_DELTA_SOURCE_TYPE = "chapter_artifact_delta";
 const ARTIFACT_DELTA_SOURCE_STAGE = "chapter_execution";
@@ -83,6 +84,7 @@ export interface ChapterArtifactDeltaSyncInput {
   model?: string;
   temperature?: number;
   contentProvenance?: ContentProvenance;
+  artifactSyncPolicy?: "director_v2";
 }
 
 export interface ChapterArtifactDeltaSyncResult {
@@ -231,36 +233,6 @@ function normalizeLedgerKey(title: string, fallback: string): string {
   return base || fallback;
 }
 
-function stringifyChapterResourceText(items: Awaited<ReturnType<typeof characterResourceLedgerService.listResources>>): string {
-  return items.slice(0, 20).map((item) => [
-    `- ${item.name}`,
-    `holder=${item.holderCharacterName ?? "未知"}`,
-    `status=${item.status}`,
-    `function=${item.narrativeFunction}`,
-    item.summary,
-  ].filter(Boolean).join(" | ")).join("\n");
-}
-
-function stringifyPayoffText(items: Array<{
-  ledgerKey: string;
-  title: string;
-  currentStatus: string;
-  summary: string;
-  targetStartChapterOrder: number | null;
-  targetEndChapterOrder: number | null;
-  lastTouchedChapterOrder: number | null;
-}>): string {
-  return items.slice(0, 20).map((item) => [
-    `- ${item.ledgerKey} | ${item.title}`,
-    `status=${item.currentStatus}`,
-    item.targetStartChapterOrder || item.targetEndChapterOrder
-      ? `target=${item.targetStartChapterOrder ?? "?"}-${item.targetEndChapterOrder ?? "?"}`
-      : "",
-    item.lastTouchedChapterOrder ? `lastTouched=${item.lastTouchedChapterOrder}` : "",
-    item.summary,
-  ].filter(Boolean).join(" | ")).join("\n");
-}
-
 function stringifyActiveCharacterDialogueInfluenceText(items: ActiveCharacterDialogueInfluence[]): string {
   return items.slice(0, 8).map((item) => [
     `- influenceId=${item.id}`,
@@ -343,7 +315,10 @@ export class ChapterArtifactDeltaService {
           currentState: true,
         },
       }),
-      characterResourceLedgerService.listResources(input.novelId).catch(() => []),
+      characterResourceLedgerService.listResources(input.novelId).catch((error) => {
+        if (input.artifactSyncPolicy === "director_v2") throw error;
+        return [];
+      }),
       prisma.payoffLedgerItem.findMany({
         where: { novelId: input.novelId },
         orderBy: [{ updatedAt: "desc" }, { createdAt: "desc" }],
@@ -367,10 +342,14 @@ export class ChapterArtifactDeltaService {
     const activeCharacterDialogueInfluences = await this.listActiveCharacterDialogueInfluences({
       novelId: input.novelId,
       chapterOrder: chapter.order,
-    }).catch(() => []);
+    }).catch((error) => {
+      if (input.artifactSyncPolicy === "director_v2") throw error;
+      return [];
+    });
 
     const previousSnapshot = await stateService.getLatestSnapshotBeforeChapter(input.novelId, chapter.order);
     const contentHash = buildContentHash(content);
+    const ledgerContext = buildChapterArtifactLedgerContext({characters, resources: existingResources, payoffs: payoffRows});
     const result = await runStructuredPrompt({
       asset: chapterArtifactDeltaPrompt,
       promptInput: {
@@ -378,10 +357,8 @@ export class ChapterArtifactDeltaService {
         chapterOrder: chapter.order,
         chapterTitle: chapter.title,
         chapterGoal: chapter.taskSheet?.trim() || chapter.expectation?.trim() || "无明确章节目标",
-        characterRosterText: this.buildCharacterRosterText(characters).slice(0, 7000),
+        ...ledgerContext,
         previousStateText: stringifyPreviousState(previousSnapshot).slice(0, 5000),
-        existingResourceText: stringifyChapterResourceText(existingResources).slice(0, 5000),
-        existingPayoffText: stringifyPayoffText(payoffRows).slice(0, 6000),
         activeCharacterDialogueInfluenceText: stringifyActiveCharacterDialogueInfluenceText(activeCharacterDialogueInfluences).slice(0, 3500),
         chapterContent: content.slice(0, 26000),
       },
@@ -736,17 +713,6 @@ export class ChapterArtifactDeltaService {
       )));
     });
     return results.reduce((count, result) => count + result.count, 0);
-  }
-
-  private buildCharacterRosterText(characters: CharacterLookupItem[]): string {
-    return characters.map((character) => [
-      `- ${character.id}`,
-      character.name,
-      character.role,
-      character.castRole ? `cast=${character.castRole}` : "",
-      character.currentGoal ? `goal=${character.currentGoal}` : "",
-      character.currentState ? `state=${character.currentState}` : "",
-    ].filter(Boolean).join(" | ")).join("\n");
   }
 
   private async persistChapterSummaryAndFacts(input: {

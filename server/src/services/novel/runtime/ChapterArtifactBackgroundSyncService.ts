@@ -212,6 +212,7 @@ export class ChapterArtifactBackgroundSyncService {
           chapterId,
           content,
           artifactSyncMode,
+          artifactSyncPolicy: options.artifactSyncPolicy,
           sourceType: "chapter_background_sync",
           sourceStage: "chapter_execution",
           provider: options.provider,
