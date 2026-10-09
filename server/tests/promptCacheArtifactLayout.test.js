@@ -11,6 +11,7 @@ const input = {
   resourceCatalogText: '铜钥匙目录', payoffCatalogText: '后门线索目录',
   chapterContent: '正文甲', previousStateText: '状态甲', existingResourceText: '资源甲',
   existingPayoffText: '账本甲', activeCharacterDialogueInfluenceText: '心智甲',
+  locationTrackingEnabled:true, characterLocationText:'甲在牢房，来源第1章',
   bookContractPayoffs: [], activeVolumeSummary: '卷甲', latestChapterContext: '最近正文甲',
   majorPayoffsText: '书级承诺', openPayoffsText: '卷级计划', chapterPayoffRefsText: '章节兑现安排',
   foreshadowStatesText: '线索甲', payoffConflictsText: '冲突甲', payoffAuditIssuesText: '问题甲',
@@ -22,6 +23,7 @@ const next = {
   activeCharacterDialogueInfluenceText: '心智乙', latestChapterContext: '最近正文乙',
   activeVolumeSummary: '卷乙', foreshadowStatesText: '线索乙',
   payoffConflictsText: '冲突乙', payoffAuditIssuesText: '问题乙',
+  characterLocationText:'甲到客栈，来源第2章',
 };
 
 for (const asset of [chapterArtifactDeltaPrompt, payoffLedgerSyncPrompt]) {
@@ -36,7 +38,7 @@ for (const asset of [chapterArtifactDeltaPrompt, payoffLedgerSyncPrompt]) {
     assert.match(String(b.messages[2].content), /本书/);
     const dynamic = b.messages.slice(boundary.messageIndex + 1).map(m => m.content).join('\n');
     const fresh = asset === chapterArtifactDeltaPrompt
-      ? ['正文乙', '状态乙', '角色状态乙', '资源乙', '账本乙', '心智乙', '本章目标乙']
+      ? ['正文乙', '状态乙', '角色状态乙', '资源乙', '账本乙', '心智乙', '本章目标乙', '甲到客栈，来源第2章']
       : ['卷乙', '最近正文乙', '线索乙', '冲突乙', '问题乙'];
     for (const word of fresh) {
       assert.ok(dynamic.includes(word), `missing fresh state: ${word}`);

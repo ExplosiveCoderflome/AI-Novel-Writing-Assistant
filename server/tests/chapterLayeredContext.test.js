@@ -653,6 +653,27 @@ function createContextPackage() {
   };
 }
 
+test("writer, acceptance and repair retain chapter-sourced positions in live context rather than the cache prefix", () => {
+  const pkg=createContextPackage();
+  pkg.characterHardFacts[0].currentLocation="牢房";
+  pkg.characterHardFacts[0].locationState={currentLocation:"牢房",source:"chapter",sourceChapterId:"c4",sourceChapterOrder:4,
+    contentHash:"hash4",evidence:"甲被押进牢房。",concern:"第4章移动经过有疑点"};
+  const write=buildChapterWriteContext({bookContract:pkg.bookContract,contextPackage:pkg});
+  const {renderCacheContextSections}=require('../dist/prompting/core/cache');
+  const blockSets=[buildChapterWriterContextBlocks(write),buildChapterReviewContextBlocks(buildChapterReviewContext(write,pkg)),
+    buildChapterRepairContextBlocks(buildChapterRepairContext({writeContext:write,contextPackage:pkg,issues:[]}))];
+  for(const blocks of blockSets){
+    const sections=renderCacheContextSections({blocks});
+    assert.ok(sections.dynamic.includes("甲被押进牢房。"));
+    assert.ok(sections.dynamic.includes("第4章移动经过有疑点"));
+    assert.ok(!sections.stable.includes("甲被押进牢房。"));
+    assert.ok(!sections.stable.includes("第4章移动经过有疑点"));
+    const facts=blocks.find(block=>block.group==='character_hard_facts');
+    assert.equal(facts.required,true);
+    assert.equal(facts.allowSummary,false);
+  }
+});
+
 test('canonical scene-card length reaches mission, budget, writing and review when chapter metadata is empty', () => {
   const contextPackage = createContextPackage();
   const plan = JSON.parse(contextPackage.chapter.sceneCards);

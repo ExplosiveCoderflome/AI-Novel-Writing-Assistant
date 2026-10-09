@@ -34,6 +34,7 @@ test('V2 summary and fact writes consume AI deltas rather than rerunning legacy 
     '../state/stateProposalSourceQuality':{normalizeContentProvenance:()=> 'confirmed'},
     './artifactSync/ChapterArtifactSyncResult':{ChapterArtifactContentVersionError:class extends Error{}},
     './artifactSync/ChapterArtifactContentVersion':version,'./artifactSync/context':{},'./artifactSync/facts':writer,
+    '../characters/locations':{},
   });
   const result=await new ChapterArtifactDeltaService().applyChapterArtifactConsumer({novelId:'n',chapterId:'c',content,contentHash:version.buildChapterArtifactContentHash(content),consumer:'summary_facts',artifactSyncPolicy:'director_v2',
     output:{summary:'甲交易后负伤。',concreteFacts:[{text:'甲已支付三百两。',category:'completed'}],stateDeltas:{characterStates:[{summary:'肩伤加重'}]}}});

@@ -87,6 +87,10 @@ function extractionFixture() {
     './artifactSync/ChapterArtifactContentVersion': {buildChapterArtifactContentHash: value => `hash:${value}`},
     './artifactSync/context': {buildChapterArtifactLedgerContext},
     './artifactSync/facts': {},
+    '../characters/locations': {
+      characterLocationService:{readBeforeChapter:async()=>new Map([["a",{currentLocation:"牢房",sourceChapterOrder:2,evidence:"甲被押进牢房。"}]])},
+      formatCharacterLocationContext:require('../../dist/services/novel/characters/locations').formatCharacterLocationContext,
+    },
   });
   return {service: new ChapterArtifactDeltaService(), calls,
     failResourceRead: () => {resourceError = Error('catalog unavailable');},
@@ -106,6 +110,9 @@ test('real extraction assembles one fresh unified request and retains stable cat
   assert.match(b.existingResourceText, /holder=b:乙/);
   assert.match(b.characterStateText, /肩部受伤/);
   assert.equal(b.chapterContent, '正文乙');
+  assert.equal(b.locationTrackingEnabled,true);
+  assert.match(b.characterLocationText,/甲.*牢房/);
+  assert.match(b.characterLocationText,/甲被押进牢房/);
   assert.equal(f.calls[1].options.stage, 'chapter_artifact_delta');
 });
 
@@ -117,4 +124,6 @@ test('V2 cannot spend a model call on a falsely empty resource catalog; V1 read 
   await f.service.extractChapterArtifacts({novelId: 'n', chapterId: 'c', content: '正文'});
   assert.equal(f.calls.length, 1);
   assert.equal(f.calls[0].promptInput.resourceCatalogText, '');
+  assert.equal(f.calls[0].promptInput.locationTrackingEnabled,false);
+  assert.equal(f.calls[0].promptInput.characterLocationText,'');
 });

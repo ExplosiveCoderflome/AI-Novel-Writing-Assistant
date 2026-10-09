@@ -87,6 +87,8 @@ function buildCharacterHardFactsText(writeContext: ChapterWriteContext): string 
   return [
     "【角色硬事实】",
     "以下内容是正文生成前的不可违背写作约束，优先级高于软性人物简介。",
+    hardFacts.some(fact => fact.locationState)
+      ? "位置记录是章前最后确认位置，不是不可移动的设定。逐角色继承：未出场不搬动，当前视角场景不等于所有人所在地。需换地点时写出可信移动或时空衔接，遵守囚禁、伤势、行动限制；回忆、梦境、计划和转述不改变现实位置。基础设定尚无正文证据，未知位置不得臆定为同场。位置待核对项保留疑点，不能当作已发生的移动。" : "",
     hasPendingReviewFields
       ? "标记为待确认的当前状态/当前目标只作参考；如与最新剧情冲突，可按合理逻辑调整。"
       : "",
@@ -100,6 +102,10 @@ function buildCharacterHardFactsText(writeContext: ChapterWriteContext): string 
         fact.powerLevel ? `战力=${fact.powerLevel}` : "",
         fact.realm ? `境界=${fact.realm}` : "",
         fact.currentLocation ? `当前位置=${fact.currentLocation}` : "",
+        fact.locationState ? fact.locationState.source === "chapter"
+          ? `位置来源=第${fact.locationState.sourceChapterOrder}章；证据=${fact.locationState.evidence}`
+          : "位置来源=基础设定或未知，尚无正文位置记录" : "",
+        fact.locationState?.concern ? `位置待核对=${fact.locationState.concern}` : "",
         fact.availability ? `可出场状态=${fact.availability}` : "",
         fact.currentState
           ? pendingReviewFields.has("currentState")
@@ -430,6 +436,7 @@ export function buildChapterWriterContextBlocks(
     createContextBlock({
       id: "character_hard_facts",
       group: "character_hard_facts",
+      reuseScope: "request",
       priority: 99,
       required: true,
       allowSummary: false,

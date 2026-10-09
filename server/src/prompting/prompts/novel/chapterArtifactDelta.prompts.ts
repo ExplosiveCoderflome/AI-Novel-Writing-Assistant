@@ -1,5 +1,6 @@
 import { HumanMessage, SystemMessage } from "@langchain/core/messages";
 import { z } from "zod";
+import { characterLocationDeltaSchema } from "@ai-novel/shared/types/characterLocation";
 import type { PromptAsset } from "../../core/promptTypes";
 import { characterMindDeltaSchema } from "./characterMind.promptSchemas";
 import { characterDialogueInfluenceResolutionSchema } from "@ai-novel/shared/types/characterDialogue";
@@ -416,6 +417,7 @@ export const chapterArtifactDeltaOutputSchema = z.preprocess(normalizeArtifactDe
   }))).max(8).default([]),
   payoffDeltas: z.array(z.preprocess(normalizePayoffDelta, payoffLedgerSyncItemSchema)).default([]),
   relationDynamics: z.array(chapterArtifactRelationDynamicSchema).default([]),
+  characterLocationDeltas: z.array(characterLocationDeltaSchema).default([]),
   factionUpdates: z.array(chapterArtifactFactionUpdateSchema).default([]),
   characterCandidates: z.array(chapterArtifactCharacterCandidateSchema).default([]),
   characterKnowledgeStates: z.array(chapterArtifactCharacterKnowledgeStateSchema).default([]),
@@ -435,6 +437,8 @@ export interface ChapterArtifactDeltaPromptInput {
   chapterGoal: string;
   characterRosterText: string;
   characterStateText?: string;
+  locationTrackingEnabled?: boolean;
+  characterLocationText?: string;
   resourceCatalogText?: string;
   payoffCatalogText?: string;
   previousStateText: string;
@@ -541,7 +545,7 @@ export const chapterArtifactDeltaPrompt: PromptAsset<
   ChapterArtifactDeltaOutput
 > = {
   id: "novel.chapter.artifact_delta.extract",
-  version: "v6",
+  version: "v7",
   cacheBoundary: {messageIndex:1,contentBlockIndex:0},
   taskType: "fact_extraction",
   mode: "structured",
@@ -605,6 +609,8 @@ export const chapterArtifactDeltaPrompt: PromptAsset<
       "28. characterMindDeltas 描述人物主观理解和意图，不重复客观资源台账；relationStates 描述章末关系，relationDynamics 只描述有证据的关系阶段转变。必要的不同维度可以引用同一事件，但不得各自复述整段剧情。",
       "29. 角色状态、关系状态和资源的 summary 会供后续章节读取，有有效变化时保留一句短摘要。资源风险等级、未来使用窗口等会改变后续行动边界的字段须按证据保留，不能将关键字段当作冗余省略。",
       "30. 每条 characterResourceDeltas 给出 reviewDecision：commit 表示正文摘录清楚支持且与现有资源一致的变化；hold 表示归属、消耗、信息可见性或证据有疑问，需要暂缓核对。普通丢失、消耗或损坏不必仅因事件类型就 hold；不能凭推测批准，高风险或低置信度必须 hold。evidence 使用可在正文找到的原文短摘录。",
+      "31. 位置连续性回填开启时，characterLocationDeltas 只记录本章实际有空间行动或位置证据的角色，每角色最多一条章末记录；未出场角色不输出，继承最后确认位置。角色未移动或首次确认位置用 stay，实际移动用 move，不确定用 uncertain，转述用 reported。使用名单真实 characterId/characterName，locationName 写章末地点；fromLocation 按章前记录填写，不能将当前视角场景套给其他人。关闭时返回 []。",
+      "32. timeContext 必须区分 present、flashback、dream、plan、hearsay：present 指当前故事时间线，不能按句子过去时认作回忆；回忆、梦、准备去或他人口述不更新现实位置。结合前后时间、囚禁/伤势/行动限制和地点上下级判断 continuityStatus 为 consistent、unexplained 或 conflicting；有可信移动过程或合理时空衔接才能 consistent。未交代的瞬移、不可能的同场出现或时间倒置不批准，explanation 一句简述疑点，evidence 只用最终正文足以定位的一条短原句，不超过350字。不能通过抽取擅自补写移动经过或替正文修错。",
     ].join("\n")),
     new HumanMessage([
       `小说：${input.novelTitle}`,
@@ -624,6 +630,8 @@ export const chapterArtifactDeltaPrompt: PromptAsset<
       "",
       "角色当前目标与状态：",
       input.characterStateText || "暂无角色状态补充",
+      `位置连续性回填：${input.locationTrackingEnabled ? "开启" : "关闭"}`,
+      input.locationTrackingEnabled ? `章前角色位置（按来源核对，不是本章叙事场景）：\n${input.characterLocationText || "尚无已确认位置"}` : "",
       "",
       "上一状态摘要：",
       input.previousStateText || "暂无上一状态快照",

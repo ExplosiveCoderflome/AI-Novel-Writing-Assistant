@@ -271,7 +271,7 @@ export const chapterAcceptanceAssessmentPrompt: PromptAsset<
   ChapterAcceptanceAssessmentOutput
 > = {
   id: "novel.chapter.acceptance_assessment",
-  version: "v9",
+  version: "v10",
   cacheBoundary: {messageIndex:0,contentBlockIndex:0},
   taskType: "review",
   mode: "structured",
@@ -346,6 +346,7 @@ export const chapterAcceptanceAssessmentPrompt: PromptAsset<
       "24. 写法检测开启时必须输出 styleReview:{riskScore:0至100整数,summary:简短结论,issueCodes:[]}。需要局部修复的写法问题使用 blockingIssues 中的 voice 项，issueCodes 只引用这些项的 code，避免重复输出证据和修复建议。低风险表达提醒写入 riskTags；鼓励性规则未出现不构成违规。关闭时 styleReview 为 null。",
       "25. 写法 voice 项必须用 styleRuleId 引用规则目录中的真实 ID；普通写法合同问题用 null。autoRewrite=false 的规则只记录风险提醒，不安排修文。专项表达问题不能单独升级为整章重写、人工暂停或 plan_misalignment；事实、保密与章节义务冲突仍按对应合同判断。",
       "正文退化检测边界：",
+      "角色位置连续性：若上下文携带正文位置来源，逐角色核对最后确认位置与本章实际出场、移动经过、囚禁/伤势及合理时空衔接。视角切换不搬动未出场角色；回忆、梦境、计划和转述不当作当下出场，地点上下级细化不等于瞬移。明确位置冲突使用 continuity 问题并同时引用来源与当前原句，给出保留情节的现有局部修复指令；不能擅自新增逃脱场景或把局部错位升级为全局重规划。位置未知或没有出场本身不构成缺口。",
       ...CHAPTER_PROSE_QUALITY_AUDIT_RULES.map((rule, index) => `${index + 1}. ${rule}`),
     ].join("\n")),
     new HumanMessage([

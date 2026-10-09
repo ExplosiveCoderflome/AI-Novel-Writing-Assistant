@@ -168,6 +168,9 @@ function buildRepairRagContext(input: {
           item.currentState ? `状态=${item.currentState}` : "",
           item.currentGoal ? `目标=${item.currentGoal}` : "",
           item.currentLocation ? `位置=${item.currentLocation}` : "",
+          item.locationState?.sourceChapterOrder !== null && item.locationState?.sourceChapterOrder !== undefined
+            ? `位置来源=第${item.locationState.sourceChapterOrder}章；证据=${item.locationState.evidence}` : "",
+          item.locationState?.concern ? `位置待核对=${item.locationState.concern}` : "",
           item.prohibitions?.length ? `禁止=${item.prohibitions.join(" / ")}` : "",
         ].filter(Boolean).join(" | ")).join("\n")}`
       : "",

@@ -58,6 +58,7 @@ import {
 } from "./context/chapterSourceText";
 import { resolveChapterResourceCharacterIds } from "./context/chapterParticipantSelection";
 import { evaluateChapterContextProviderContracts } from "./context/chapterContextProviderContracts";
+import { characterLocationService } from "../characters/locations";
 
 export { buildBlockingPendingReviewProposalWhere } from "./context/pendingReviewContext";
 export { resolveChapterResourceCharacterIds } from "./context/chapterParticipantSelection";
@@ -363,6 +364,8 @@ export class GenerationContextAssembler {
     const canonicalCharacterMap = new Map(
       canonicalState.characters.map((item) => [item.characterId, item]),
     );
+    const characterLocations = novel.directorVersion === "v2"
+      ? await characterLocationService.readBeforeChapter({novelId, chapterOrder: chapter.order, characters: novel.characters}) : null;
     const mappedCharacterRoster = novel.characters.map((item) => {
       const canonicalCharacter = canonicalCharacterMap.get(item.id);
       return {
@@ -377,7 +380,8 @@ export class GenerationContextAssembler {
         stanceLabel: item.stanceLabel ?? null,
         powerLevel: item.powerLevel ?? null,
         realm: item.realm ?? null,
-        currentLocation: item.currentLocation ?? null,
+        currentLocation: characterLocations?.get(item.id)?.currentLocation ?? item.currentLocation ?? null,
+        ...(characterLocations?.has(item.id) ? {locationState: characterLocations.get(item.id)} : {}),
         availability: item.availability ?? null,
         prohibitions: parseCharacterProhibitionsJson(item.prohibitionsJson),
         currentState: canonicalCharacter?.currentState ?? item.currentState ?? null,

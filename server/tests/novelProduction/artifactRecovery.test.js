@@ -40,6 +40,9 @@ function loadRecoveryService() {
     "../ChapterArtifactDeltaService": {
       buildContentHash: (value) => value,
       CHAPTER_ARTIFACT_CONSUMERS: ["summary_facts", "payoff", "knowledge"],
+      getChapterArtifactConsumers: (input) => input.artifactSyncPolicy === "director_v2"
+        ? ["summary_facts", "payoff", "knowledge", "character_locations"]
+        : ["summary_facts", "payoff", "knowledge"],
       ChapterArtifactDeltaService: class {},
     },
     "./ChapterArtifactCheckpointStore": { ChapterArtifactCheckpointStore: class {} },
@@ -117,4 +120,29 @@ test("C3: stale content is rejected before extraction or consumer writes", async
   );
   assert.equal(extractionCalls, 0);
   assert.equal(applyCalls, 0);
+});
+
+test("V2 recovery awaits location application and resumes it without another extraction; V1 stays independent", async () => {
+  const checkpoints = createCheckpointStore();
+  const applied = [];
+  let extractionCount = 0;
+  let failLocation = true;
+  const Service = loadRecoveryService();
+  const service = new Service({checkpoints,readCurrentContent: async () => "draft",deltaService:{
+    async extractChapterArtifacts() { extractionCount++; return {contentHash:"draft",output:{characterLocationDeltas:[{characterId:"a"}]}}; },
+    async applyChapterArtifactConsumer(input) {
+      applied.push(input.consumer);
+      if(input.consumer === "character_locations" && failLocation) {failLocation=false;throw new Error("location interrupted");}
+      return {};
+    },
+    toSyncResult: (extraction) => extraction,
+  }});
+  const input={novelId:"n",chapterId:"c",content:"draft",artifactSyncMode:"adaptive",artifactSyncPolicy:"director_v2"};
+  await assert.rejects(service.syncChapterArtifacts(input),/location interrupted/);
+  await service.syncChapterArtifacts(input);
+  assert.equal(extractionCount,1);
+  assert.deepEqual(applied,["summary_facts","payoff","knowledge","character_locations","character_locations"]);
+  applied.length=0;
+  await service.syncChapterArtifacts({...input,novelId:"v1",artifactSyncPolicy:undefined});
+  assert.deepEqual(applied,["summary_facts","payoff","knowledge"]);
 });

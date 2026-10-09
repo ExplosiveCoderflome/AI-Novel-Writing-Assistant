@@ -1,5 +1,6 @@
 const test = require("node:test");
 const assert = require("node:assert/strict");
+const {characterLocationService} = require("../dist/services/novel/characters/locations");
 
 const {
   GenerationContextAssembler,
@@ -162,6 +163,7 @@ test("assembler only reads planning artifacts prepared before context assembly",
     buildRagContext: ragServices.hybridRetrievalService.buildContextBlock,
     getPayoffLedger: payoffLedgerSyncService.getPayoffLedger,
     buildCharacterResourceContext: characterResourceLedgerService.buildContext,
+    readLocations: characterLocationService.readBeforeChapter,
   };
 
   try {
@@ -294,14 +296,31 @@ test("assembler only reads planning artifacts prepared before context assembly",
     assert.ok(assembled.contextPackage.chapterWriteContext.chapterBoundary.doNotCross.includes("新禁止"));
 
     const loadNovel = prisma.novel.findUnique;
-    prisma.novel.findUnique = async () => ({...await loadNovel(), directorVersion: "v2"});
+    prisma.novel.findUnique = async () => ({...await loadNovel(), directorVersion: "v2",
+      characters:[{id:"a",name:"甲",role:"主角",currentLocation:"村庄"}]});
     batchContextCache.invalidate("novel-1");
+    const loadChapter=prisma.chapter.findFirst;
+    prisma.chapter.findFirst=async()=>({...await loadChapter(),order:12});
+    let locationReads=0;
+    characterLocationService.readBeforeChapter=async(input)=>{
+      locationReads++;
+      assert.equal(input.chapterOrder,12);
+      return new Map([["a",{currentLocation:"牢房",source:"chapter",sourceChapterId:"c10",sourceChapterOrder:10,
+        contentHash:"hash10",evidence:"甲被押进牢房。",concern:null}]]);
+    };
+    const located=await assembler.assemble("novel-1","chapter-1",{});
+    assert.equal(located.contextPackage.characterRoster[0].currentLocation,"牢房","dynamic location must override a cached profile location");
+    assert.equal(located.contextPackage.chapterWriteContext.characterHardFacts[0].locationState.sourceChapterOrder,10);
+    assert.equal(located.contextPackage.chapterReviewContext.characterHardFacts[0].currentLocation,"牢房");
+    characterLocationService.readBeforeChapter=async()=>{throw new Error("位置读取失败");};
+    await assert.rejects(assembler.assemble("novel-1","chapter-1",{}),/位置读取失败/);
     characterResourceLedgerService.buildContext = async () => { throw new Error("资源读取失败"); };
     await assert.rejects(assembler.assemble("novel-1", "chapter-1", {}), /资源读取失败/,
       "V2 cannot pay for writing with silently missing cross-chapter constraints");
     prisma.novel.findUnique = async () => ({...await loadNovel(), directorVersion: "v1"});
     batchContextCache.invalidate("novel-1");
     assert.ok(await assembler.assemble("novel-1", "chapter-1", {}), "V1 retains its original read tolerance");
+    assert.equal(locationReads,1,"V1 must not read V2 locations");
   } finally {
     batchContextCache.invalidate("novel-1");
     prisma.novel.findUnique = originals.novelFindUnique;
@@ -323,5 +342,6 @@ test("assembler only reads planning artifacts prepared before context assembly",
     ragServices.hybridRetrievalService.buildContextBlock = originals.buildRagContext;
     payoffLedgerSyncService.getPayoffLedger = originals.getPayoffLedger;
     characterResourceLedgerService.buildContext = originals.buildCharacterResourceContext;
+    characterLocationService.readBeforeChapter = originals.readLocations;
   }
 });

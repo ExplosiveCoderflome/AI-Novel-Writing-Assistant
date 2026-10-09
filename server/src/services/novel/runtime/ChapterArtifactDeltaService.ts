@@ -37,6 +37,7 @@ import {
 import { ChapterArtifactContentVersionError } from "./artifactSync/ChapterArtifactSyncResult";
 import { buildChapterArtifactContentHash } from "./artifactSync/ChapterArtifactContentVersion";
 import { buildChapterArtifactLedgerContext } from "./artifactSync/context";
+import { characterLocationService, formatCharacterLocationContext } from "../characters/locations";
 
 const ARTIFACT_DELTA_SOURCE_TYPE = "chapter_artifact_delta";
 const ARTIFACT_DELTA_SOURCE_STAGE = "chapter_execution";
@@ -114,7 +115,12 @@ export const CHAPTER_ARTIFACT_CONSUMERS = [
   "dialogue_influence",
 ] as const;
 
-export type ChapterArtifactConsumer = typeof CHAPTER_ARTIFACT_CONSUMERS[number];
+export type ChapterArtifactConsumer = typeof CHAPTER_ARTIFACT_CONSUMERS[number] | "character_locations";
+
+export function getChapterArtifactConsumers(input: Pick<ChapterArtifactDeltaSyncInput, "artifactSyncPolicy">): readonly ChapterArtifactConsumer[] {
+  return input.artifactSyncPolicy === "director_v2"
+    ? [...CHAPTER_ARTIFACT_CONSUMERS, "character_locations"] : CHAPTER_ARTIFACT_CONSUMERS;
+}
 
 export interface ChapterArtifactExtractionResult {
   contentHash: string;
@@ -270,7 +276,7 @@ export class ChapterArtifactDeltaService {
   async syncChapterArtifacts(input: ChapterArtifactDeltaSyncInput): Promise<ChapterArtifactDeltaSyncResult> {
     const extraction = await this.extractChapterArtifacts(input);
     const aggregate: ChapterArtifactConsumerResult = {};
-    for (const consumer of CHAPTER_ARTIFACT_CONSUMERS) {
+    for (const consumer of getChapterArtifactConsumers(input)) {
       Object.assign(aggregate, await this.applyChapterArtifactConsumer({
         ...input,
         contentHash: extraction.contentHash,
@@ -307,6 +313,7 @@ export class ChapterArtifactDeltaService {
           castRole: true,
           currentGoal: true,
           currentState: true,
+          currentLocation: true,
         },
       }),
       characterResourceLedgerService.listResources(input.novelId).catch((error) => {
@@ -344,6 +351,8 @@ export class ChapterArtifactDeltaService {
     const previousSnapshot = await stateService.getLatestSnapshotBeforeChapter(input.novelId, chapter.order);
     const contentHash = buildContentHash(content);
     const ledgerContext = buildChapterArtifactLedgerContext({characters, resources: existingResources, payoffs: payoffRows});
+    const locationStates = input.artifactSyncPolicy === "director_v2"
+      ? await characterLocationService.readBeforeChapter({novelId: input.novelId, chapterOrder: chapter.order, characters}) : null;
     const result = await runStructuredPrompt({
       asset: chapterArtifactDeltaPrompt,
       promptInput: {
@@ -352,6 +361,8 @@ export class ChapterArtifactDeltaService {
         chapterTitle: chapter.title,
         chapterGoal: chapter.taskSheet?.trim() || chapter.expectation?.trim() || "无明确章节目标",
         ...ledgerContext,
+        locationTrackingEnabled: Boolean(locationStates),
+        characterLocationText: locationStates ? formatCharacterLocationContext(characters, locationStates) : "",
         previousStateText: stringifyPreviousState(previousSnapshot).slice(0, 5000),
         activeCharacterDialogueInfluenceText: stringifyActiveCharacterDialogueInfluenceText(activeCharacterDialogueInfluences).slice(0, 3500),
         chapterContent: content.slice(0, 26000),
@@ -383,6 +394,11 @@ export class ChapterArtifactDeltaService {
     const sourceType = input.sourceType?.trim() || ARTIFACT_DELTA_SOURCE_TYPE;
     const sourceStage = input.sourceStage ?? ARTIFACT_DELTA_SOURCE_STAGE;
     const sourceQuality = normalizeContentProvenance(input.contentProvenance);
+    if (input.consumer === "character_locations") {
+      if (input.artifactSyncPolicy !== "director_v2") throw new Error("角色位置回填需要导演 V2 授权。");
+      await characterLocationService.applyFinalChapter({...input, deltas: input.output.characterLocationDeltas});
+      return {};
+    }
     if (input.consumer === "summary_facts") {
       return { concreteFactCount: await this.persistChapterSummaryAndFacts({
         novelId: input.novelId,

@@ -3,7 +3,7 @@ import { chapterArtifactDeltaOutputSchema } from "../../../../prompting/prompts/
 import type { ArtifactSyncMode } from "../../novelCoreShared";
 import {
   buildContentHash,
-  CHAPTER_ARTIFACT_CONSUMERS,
+  getChapterArtifactConsumers,
   ChapterArtifactDeltaService,
   type ChapterArtifactConsumerResult,
   type ChapterArtifactDeltaSyncInput,
@@ -62,7 +62,7 @@ export class ChapterArtifactRecoveryService {
     const extraction = await this.loadOrExtract(input, contentHash);
     const aggregate: ChapterArtifactConsumerResult = {};
 
-    for (const consumer of CHAPTER_ARTIFACT_CONSUMERS) {
+    for (const consumer of getChapterArtifactConsumers(input)) {
       const identity = this.identity(input, contentHash, `${APPLY_ARTIFACT_PREFIX}${consumer}`);
       const existing = await this.deps.checkpoints.read(identity);
       if (existing?.status === "succeeded") {

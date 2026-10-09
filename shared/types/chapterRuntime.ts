@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { characterLocationStateSchema } from "./characterLocation";
 import {
   chapterScenePlanSchema,
   lengthBudgetContractSchema,
@@ -118,6 +119,7 @@ export const runtimeCharacterSchema = z.object({
   powerLevel: z.string().nullable().optional(),
   realm: z.string().nullable().optional(),
   currentLocation: z.string().nullable().optional(),
+  locationState: characterLocationStateSchema.optional(),
   availability: z.string().nullable().optional(),
   prohibitions: z.array(z.string()).default([]),
   currentState: z.string().nullable().optional(),
@@ -460,6 +462,7 @@ export const chapterCharacterHardFactSchema = z.object({
   powerLevel: z.string().nullable().optional(),
   realm: z.string().nullable().optional(),
   currentLocation: z.string().nullable().optional(),
+  locationState: characterLocationStateSchema.optional(),
   availability: z.string().nullable().optional(),
   currentState: z.string().nullable().optional(),
   currentGoal: z.string().nullable().optional(),
