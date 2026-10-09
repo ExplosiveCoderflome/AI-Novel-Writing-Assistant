@@ -140,16 +140,14 @@ export class ChapterArtifactSyncService {
         };
       }
     }
-    this.queueRagUpsert("chapter", chapterId);
-    this.queueRagUpsert("chapter_summary", chapterId);
-    this.queueRagUpsert("novel", novelId);
-
-    const factRows = await prisma.consistencyFact.findMany({
-      where: { novelId, chapterId },
-      select: { id: true },
-    });
-    for (const fact of factRows) {
-      this.queueRagUpsert("consistency_fact", fact.id);
+    if (options.artifactSyncPolicy !== "director_v2") {
+      this.queueRagUpsert("chapter", chapterId);
+      this.queueRagUpsert("chapter_summary", chapterId);
+      this.queueRagUpsert("novel", novelId);
+      const factRows = await prisma.consistencyFact.findMany({
+        where: { novelId, chapterId }, select: { id: true },
+      });
+      for (const fact of factRows) this.queueRagUpsert("consistency_fact", fact.id);
     }
 
     const localResult: ChapterArtifactSyncResult = {

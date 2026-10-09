@@ -254,8 +254,12 @@ export class GenerationContextAssembler {
       characterResourceLedgerService.buildContext(novelId, {
         chapterId,
         chapterOrder: chapter.order,
+        includePreviousPending: novel.directorVersion === "v2",
         ...(resourceCharacterIds.length > 0 ? { characterIds: resourceCharacterIds } : {}),
-      }).catch(() => null),
+      }).catch((error) => {
+        if (novel.directorVersion === "v2") throw error;
+        return null;
+      }),
     ]);
 
     const resolvedStateDrivenContext = await contextAssemblyService.build({

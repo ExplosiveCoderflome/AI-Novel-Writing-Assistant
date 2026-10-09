@@ -14,6 +14,7 @@ const { novelReferenceService } = require("../dist/services/novel/NovelReference
 const { characterDynamicsQueryService } = require("../dist/services/novel/dynamics/CharacterDynamicsQueryService.js");
 const { payoffLedgerSyncService } = require("../dist/services/payoff/PayoffLedgerSyncService.js");
 const { characterResourceLedgerService } = require("../dist/services/novel/characterResource/CharacterResourceLedgerService.js");
+const { batchContextCache } = require("../dist/services/novel/runtime/BatchContextCache.js");
 
 test("blocking pending-review proposals are scoped to the current chapter plus global proposals", () => {
   const where = buildBlockingPendingReviewProposalWhere("novel-1", "chapter-2");
@@ -164,6 +165,7 @@ test("assembler only reads planning artifacts prepared before context assembly",
   };
 
   try {
+    batchContextCache.invalidate("novel-1");
     prisma.novel.findUnique = async () => ({
       id: "novel-1",
       title: "测试小说",
@@ -290,7 +292,18 @@ test("assembler only reads planning artifacts prepared before context assembly",
     assert.equal(assembled.contextPackage.storyWorldSlice, storyWorldSlice);
     assert.equal(assembled.contextPackage.chapterWriteContext.chapterBoundary.entryState, "新合同入口1");
     assert.ok(assembled.contextPackage.chapterWriteContext.chapterBoundary.doNotCross.includes("新禁止"));
+
+    const loadNovel = prisma.novel.findUnique;
+    prisma.novel.findUnique = async () => ({...await loadNovel(), directorVersion: "v2"});
+    batchContextCache.invalidate("novel-1");
+    characterResourceLedgerService.buildContext = async () => { throw new Error("资源读取失败"); };
+    await assert.rejects(assembler.assemble("novel-1", "chapter-1", {}), /资源读取失败/,
+      "V2 cannot pay for writing with silently missing cross-chapter constraints");
+    prisma.novel.findUnique = async () => ({...await loadNovel(), directorVersion: "v1"});
+    batchContextCache.invalidate("novel-1");
+    assert.ok(await assembler.assemble("novel-1", "chapter-1", {}), "V1 retains its original read tolerance");
   } finally {
+    batchContextCache.invalidate("novel-1");
     prisma.novel.findUnique = originals.novelFindUnique;
     prisma.chapter.findFirst = originals.chapterFindFirst;
     prisma.stateChangeProposal.count = originals.stateChangeProposalCount;

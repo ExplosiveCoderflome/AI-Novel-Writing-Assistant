@@ -411,7 +411,9 @@ export const chapterArtifactDeltaOutputSchema = z.preprocess(normalizeArtifactDe
   summary: z.string().trim().min(1),
   concreteFacts: z.array(chapterConcreteFactSchema).default([]),
   stateDeltas: chapterArtifactDeltaStateSchema,
-  characterResourceDeltas: z.array(z.preprocess(normalizeCharacterResourceDelta, characterResourceExtractionUpdateSchema)).max(8).default([]),
+  characterResourceDeltas: z.array(z.preprocess(normalizeCharacterResourceDelta, characterResourceExtractionUpdateSchema.extend({
+    reviewDecision: z.enum(["commit", "hold"]).optional(),
+  }))).max(8).default([]),
   payoffDeltas: z.array(z.preprocess(normalizePayoffDelta, payoffLedgerSyncItemSchema)).default([]),
   relationDynamics: z.array(chapterArtifactRelationDynamicSchema).default([]),
   factionUpdates: z.array(chapterArtifactFactionUpdateSchema).default([]),
@@ -488,6 +490,7 @@ const CHAPTER_ARTIFACT_DELTA_EXAMPLE = {
       narrativeImpact: "可从后门潜入库房。",
       constraints: ["只能解释后门通行，不能替代正门权限。"],
       evidence: ["程秩把后门铜钥匙收进袖中。"],
+      reviewDecision: "commit",
     },
   ],
   payoffDeltas: [
@@ -538,7 +541,7 @@ export const chapterArtifactDeltaPrompt: PromptAsset<
   ChapterArtifactDeltaOutput
 > = {
   id: "novel.chapter.artifact_delta.extract",
-  version: "v5",
+  version: "v6",
   cacheBoundary: {messageIndex:1,contentBlockIndex:0},
   taskType: "fact_extraction",
   mode: "structured",
@@ -601,6 +604,7 @@ export const chapterArtifactDeltaPrompt: PromptAsset<
       "27. stateDeltas 保留本章相关角色的章末有效状态；信息归属、人物误判、伤势、资源归属、资源不可用条件与保护秘密不能为缩短输出而删除。readerKnows、holderKnows 等布尔字段必须反映真实信息边界，值为 false 时必须显式填写，不能省略后变为默认 true。",
       "28. characterMindDeltas 描述人物主观理解和意图，不重复客观资源台账；relationStates 描述章末关系，relationDynamics 只描述有证据的关系阶段转变。必要的不同维度可以引用同一事件，但不得各自复述整段剧情。",
       "29. 角色状态、关系状态和资源的 summary 会供后续章节读取，有有效变化时保留一句短摘要。资源风险等级、未来使用窗口等会改变后续行动边界的字段须按证据保留，不能将关键字段当作冗余省略。",
+      "30. 每条 characterResourceDeltas 给出 reviewDecision：commit 表示正文摘录清楚支持且与现有资源一致的变化；hold 表示归属、消耗、信息可见性或证据有疑问，需要暂缓核对。普通丢失、消耗或损坏不必仅因事件类型就 hold；不能凭推测批准，高风险或低置信度必须 hold。evidence 使用可在正文找到的原文短摘录。",
     ].join("\n")),
     new HumanMessage([
       `小说：${input.novelTitle}`,

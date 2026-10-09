@@ -86,6 +86,7 @@ function extractionFixture() {
     '../state/stateProposalSourceQuality': {}, './artifactSync/ChapterArtifactSyncResult': {},
     './artifactSync/ChapterArtifactContentVersion': {buildChapterArtifactContentHash: value => `hash:${value}`},
     './artifactSync/context': {buildChapterArtifactLedgerContext},
+    './artifactSync/facts': {},
   });
   return {service: new ChapterArtifactDeltaService(), calls,
     failResourceRead: () => {resourceError = Error('catalog unavailable');},

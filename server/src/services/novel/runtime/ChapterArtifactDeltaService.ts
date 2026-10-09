@@ -28,8 +28,7 @@ import {
   compactText,
   normalizeResourceKey,
 } from "../characterResource/characterResourceShared";
-import { novelFactService, type NovelFactWriteItem } from "../fact/NovelFactService";
-import { extractFacts } from "../novelP0Utils";
+import { ChapterArtifactFactWriter } from "./artifactSync/facts";
 import { stateCommitService } from "../state/StateCommitService";
 import {
   attachProposalSourceQuality,
@@ -191,11 +190,6 @@ function uniqueTextItems(items: string[] | null | undefined, maxItems: number): 
     }
   }
   return result;
-}
-
-function joinFactContents(items: string[], maxItems = 3): string | null {
-  const joined = uniqueTextItems(items, maxItems).join("；");
-  return joined || null;
 }
 
 function buildKnowledgeBoundaryLine(state: ChapterArtifactKnowledgeState): string | null {
@@ -399,6 +393,7 @@ export class ChapterArtifactDeltaService {
         content: input.content,
         output: input.output,
         expectedContentHash: input.contentHash,
+        artifactSyncPolicy: input.artifactSyncPolicy,
       }) };
     }
     if (input.consumer === "state_snapshot") {
@@ -438,6 +433,10 @@ export class ChapterArtifactDeltaService {
         contentProvenance: sourceQuality,
         skipFactExtraction: true,
         expectedChapterContent: input.content,
+        ...(input.artifactSyncPolicy === "director_v2" ? {artifactResourceReview: {
+          approvedResourceKeys: proposals.filter((_, index) => input.output.characterResourceDeltas[index].reviewDecision === "commit").map(p => String(p.payload.resourceKey)),
+          pendingResourceKeys: proposals.filter((_, index) => input.output.characterResourceDeltas[index].reviewDecision !== "commit").map(p => String(p.payload.resourceKey)),
+        }} : {}),
         proposals: await this.filterPreviouslyAppliedResourceProposals(proposals),
       });
       const staleMarkedCount = await characterResourceStaleScanService.scanAfterChapter({
@@ -722,64 +721,9 @@ export class ChapterArtifactDeltaService {
     content: string;
     output: ChapterArtifactDeltaOutput;
     expectedContentHash: string;
+    artifactSyncPolicy?: "director_v2";
   }): Promise<number> {
-    const summary = compactText(input.output.summary) || "暂无可总结正文";
-    const extractedFacts = extractFacts(input.content || summary);
-    const keyEvents = joinFactContents(
-      extractedFacts.filter((item) => item.category === "plot").map((item) => item.content),
-      3,
-    );
-    const characterStates = joinFactContents(
-      extractedFacts.filter((item) => item.category === "character").map((item) => item.content),
-      3,
-    );
-    await prisma.$transaction(async (tx) => {
-      const current = await tx.chapter.findFirst({
-        where: { id: input.chapterId, novelId: input.novelId },
-        select: { content: true },
-      });
-      if (!current || buildContentHash(current.content ?? "") !== input.expectedContentHash) {
-        throw new ChapterArtifactContentVersionError("章节正文版本已变化，已拒绝写入过期摘要与事实。");
-      }
-      await tx.chapter.update({
-        where: { id: input.chapterId },
-        data: { expectation: summary },
-      });
-      await tx.chapterSummary.upsert({
-        where: { chapterId: input.chapterId },
-        update: {
-          summary,
-          keyEvents,
-          characterStates,
-        },
-        create: {
-          novelId: input.novelId,
-          chapterId: input.chapterId,
-          summary,
-          keyEvents,
-          characterStates,
-        },
-      });
-    });
-
-    const concreteFacts: NovelFactWriteItem[] = input.output.concreteFacts
-      .map((fact) => ({
-        text: compactText(fact.text),
-        category: fact.category,
-        source: "auto" as const,
-      }))
-      .filter((fact) => fact.text.length > 0);
-    if (concreteFacts.length > 0) {
-      await novelFactService.writeFacts(input.novelId, input.chapterOrder, concreteFacts, {
-        chapterId: input.chapterId,
-        expectedChapterContent: input.content,
-      });
-    }
-
-    this.queueRagUpsert("chapter", input.chapterId);
-    this.queueRagUpsert("chapter_summary", input.chapterId);
-
-    return concreteFacts.length;
+    return new ChapterArtifactFactWriter((type, id) => this.queueRagUpsert(type, id)).persist(input);
   }
 
   private async persistStateSnapshot(input: {

@@ -72,6 +72,7 @@ export interface StateCommitServiceInput extends ChapterFactExtractorInput {
   skipFactExtraction?: boolean;
   contentProvenance?: ContentProvenance;
   expectedChapterContent?: string;
+  artifactResourceReview?: { approvedResourceKeys: readonly string[]; pendingResourceKeys: readonly string[] };
 }
 
 export interface CommitExistingProposalsInput {
@@ -120,12 +121,16 @@ export class StateCommitService {
     ));
     const validation = await this.applyCharacterResourceConflictChecks(
       input.novelId,
-      this.validate(proposals),
+      this.validate(proposals, input.artifactResourceReview ? {
+        review: input.artifactResourceReview, novelId: input.novelId, chapterId: input.chapterId,
+        content: input.expectedChapterContent,
+      } : undefined),
     );
     const persisted = await this.persistValidated(validation, {
       novelId: input.novelId,
       chapterId: input.chapterId,
       expectedChapterContent: input.expectedChapterContent,
+      artifactResourceReview: Boolean(input.artifactResourceReview),
     });
 
     let versionRecord: StateVersionRecord | null = null;
@@ -302,7 +307,10 @@ export class StateCommitService {
     };
   }
 
-  validate(proposals: StateChangeProposal[]): {
+  validate(proposals: StateChangeProposal[], artifactReview?: {
+    review: NonNullable<StateCommitServiceInput["artifactResourceReview"]>;
+    novelId: string; chapterId?: string | null; content?: string;
+  }): {
     accepted: StateChangeProposal[];
     pendingReview: StateChangeProposal[];
     rejected: StateChangeProposal[];
@@ -333,7 +341,23 @@ export class StateCommitService {
       }
 
       if (sourceNormalized.proposalType === "character_resource_update") {
-        const resourceValidation = characterResourceValidationService.validateProposal(sourceNormalized);
+        const key = String(sourceNormalized.payload.resourceKey ?? "");
+        const currentVersion = artifactReview && artifactReview.content !== undefined
+          && sourceNormalized.novelId === artifactReview.novelId && sourceNormalized.chapterId === artifactReview.chapterId
+          && sourceNormalized.payload.syncContentHash === buildChapterArtifactContentHash(artifactReview.content);
+        if (artifactReview && !currentVersion) {
+          rejected.push({...sourceNormalized, status: "rejected", validationNotes: sourceNormalized.validationNotes.concat("artifact_resource_review:stale_or_foreign_source")});
+          continue;
+        }
+        const evidenceSupported = artifactReview?.content !== undefined && sourceNormalized.evidence.some(
+          evidence => compactText(artifactReview.content).includes(evidence),
+        );
+        const approved = Boolean(currentVersion && evidenceSupported && artifactReview?.review.approvedResourceKeys.includes(key));
+        let resourceValidation = characterResourceValidationService.validateProposal(sourceNormalized, {automaticReviewApproved: approved});
+        if (artifactReview && resourceValidation.status !== "rejected"
+          && (artifactReview.review.pendingResourceKeys.includes(key) || !approved)) {
+          resourceValidation = {...resourceValidation, status: "pending_review", validationNotes: resourceValidation.validationNotes.concat("artifact_resource_review:hold")};
+        }
         if (resourceValidation.status === "committed") {
           accepted.push(resourceValidation);
         } else if (resourceValidation.status === "pending_review") {
@@ -400,6 +424,7 @@ export class StateCommitService {
       novelId: string;
       chapterId?: string | null;
       expectedChapterContent?: string;
+      artifactResourceReview?: boolean;
     },
   ): Promise<{
     committed: StateChangeProposal[];
@@ -411,6 +436,12 @@ export class StateCommitService {
     const rejectedRows: PersistedProposalRow[] = [];
 
     await prisma.$transaction(async (tx) => {
+      if (integrity.artifactResourceReview) {
+        const novel = await tx.novel.findUnique({where: {id: integrity.novelId}, select: {directorVersion: true}});
+        if (novel?.directorVersion !== "v2" || !integrity.chapterId || integrity.expectedChapterContent === undefined) {
+          throw new Error("统一抽取资源确认必须绑定 V2 小说与已保存正文。");
+        }
+      }
       if (integrity.expectedChapterContent !== undefined && integrity.chapterId) {
         const chapter = await tx.chapter.findFirst({
           where: {
@@ -425,6 +456,13 @@ export class StateCommitService {
         }
       }
       for (const proposal of validation.accepted) {
+        if (integrity.artifactResourceReview && proposal.proposalType === "character_resource_update") {
+          const conflicts = await this.findCharacterResourceConflictNotes(integrity.novelId, proposal, tx);
+          if (conflicts.length) {
+            validation.pendingReview.push({...proposal, status: "pending_review", riskLevel: "high", validationNotes: proposal.validationNotes.concat(conflicts)});
+            continue;
+          }
+        }
         const created = await tx.stateChangeProposal.create({
           data: {
             novelId: proposal.novelId,

@@ -65,7 +65,7 @@ export class CharacterResourceValidationService {
       };
     }
 
-    if (proposal.riskLevel === "medium" && !AUTO_DIRECTOR_RESOURCE_SOURCE_TYPES.has(proposal.sourceType)) {
+    if (proposal.riskLevel === "medium" && !AUTO_DIRECTOR_RESOURCE_SOURCE_TYPES.has(proposal.sourceType) && !options.automaticReviewApproved) {
       return {
         ...proposal,
         status: "pending_review",

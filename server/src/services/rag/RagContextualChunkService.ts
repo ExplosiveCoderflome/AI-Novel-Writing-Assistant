@@ -87,6 +87,26 @@ export class RagContextualChunkService {
       };
     }
 
+    // These chunks are the final artifact extraction itself, not unstructured source material.
+    // Their structured source labels are sufficient; enriching each fact would multiply AI calls.
+    const artifactKind = input.metadata?.artifactKind;
+    if (input.document.ownerType === "chapter_summary"
+      && input.document.metadata?.chapterArtifactVersion === 1
+      && (artifactKind === "summary" || artifactKind === "fact")) {
+      const chapterOrder = input.document.metadata.chapterOrder;
+      const chapterLabel = typeof chapterOrder === "number" ? `第${chapterOrder}章` : "章节";
+      const titleLabel = input.document.title ? `《${input.document.title}》` : "";
+      const contextPrefix = normalizeContextPrefix(
+        `${chapterLabel}${titleLabel}的${artifactKind === "summary" ? "已保存摘要" : "已保存事实"}`,
+      );
+      return {
+        contextPrefix,
+        contextVersion,
+        contextSourceHash,
+        searchText: buildSearchText(input.chunkText, contextPrefix),
+      };
+    }
+
     try {
       // The runner owns context providers that consume RAG. Load it only at invocation.
       const runner = this.promptRunner ?? (await import("../../prompting/core/promptRunner")).runStructuredPrompt;

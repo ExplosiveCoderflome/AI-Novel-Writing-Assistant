@@ -18,6 +18,7 @@ import {
   type RagPreChunk,
 } from "./chunkFacets";
 import { runWithConcurrency } from "./utils";
+import { loadVersionedChapterSummaryDocuments, buildChapterArtifactContentHash } from "./facts";
 
 type ReindexScope = "novel" | "world" | "all";
 
@@ -284,7 +285,7 @@ export class RagIndexService {
           : [];
       }
       case "chapter": {
-        const chapter = await prisma.chapter.findUnique({ where: { id: ownerId } });
+        const chapter = await prisma.chapter.findUnique({ where: { id: ownerId }, include: {novel: {select: {directorVersion: true}}} });
         if (!chapter) {
           return [];
         }
@@ -302,6 +303,8 @@ export class RagIndexService {
               chapterOrder: chapter.order,
               state: chapter.generationState,
               updatedAt: chapter.updatedAt.toISOString(),
+              ...(chapter.novel.directorVersion === "v2" ? {chapterArtifactVersion: 1, chapterId: chapter.id,
+                chapterContentHash: buildChapterArtifactContentHash(chapter.content ?? "")} : {}),
             },
           }]
           : [];
@@ -406,6 +409,8 @@ export class RagIndexService {
         if (!summary) {
           return [];
         }
+        const versionedDocuments = await loadVersionedChapterSummaryDocuments(ownerId, tenantId, summary);
+        if (versionedDocuments !== null) return versionedDocuments;
         const content = buildJoinedText(
           summary.summary,
           summary.keyEvents ?? undefined,
