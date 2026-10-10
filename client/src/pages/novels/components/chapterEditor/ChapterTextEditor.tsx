@@ -2,6 +2,8 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } fr
 import type { Value } from "platejs";
 import { ParagraphPlugin, Plate, PlateContent, usePlateEditor } from "platejs/react";
 import type { ChapterEditorDiffChunk } from "@ai-novel/shared/types/novel";
+import { applySelectedChapterEditorDiff, groupChapterEditorDiffChanges } from "@ai-novel/shared/types/chapterEditor/document";
+import type { ChapterEditorDiffChange } from "@ai-novel/shared/types/chapterEditor/document";
 import type { ChapterEditorSelectionRange, SelectionToolbarPosition } from "./chapterEditorTypes";
 import {
   buildSelectionRangeFromValue,
@@ -27,6 +29,7 @@ type ChapterEditorPreview =
     from: number;
     to: number;
     diffChunks: ChapterEditorDiffChunk[];
+    selectedChangeIds: ReadonlySet<string>;
     originalText: string;
     candidateText: string;
   }
@@ -35,6 +38,7 @@ type ChapterEditorPreview =
     from: number;
     to: number;
     diffChunks: ChapterEditorDiffChunk[];
+    selectedChangeIds: ReadonlySet<string>;
     originalText: string;
     candidateText: string;
   };
@@ -90,19 +94,19 @@ function getParagraphElements(surface: HTMLDivElement): HTMLElement[] {
   return candidates.filter((node) => node.textContent?.trim());
 }
 
-function renderDiffChunk(chunk: ChapterEditorDiffChunk) {
+function renderDiffChunk(chunk: ChapterEditorDiffChunk, change: ChapterEditorDiffChange | undefined, selected: boolean) {
   if (chunk.type === "equal") {
     return <span key={chunk.id}>{chunk.text}</span>;
   }
   if (chunk.type === "insert") {
     return (
-      <span key={chunk.id} className="rounded bg-emerald-100/90 px-0.5 text-emerald-950">
+      <span key={chunk.id} className={`rounded px-0.5 ${selected ? "bg-emerald-100/90 text-emerald-950" : "bg-muted/40 text-muted-foreground"}`} data-diff-change-id={change?.id}>
         {chunk.text}
       </span>
     );
   }
   return (
-    <span key={chunk.id} className="rounded bg-rose-100/80 px-0.5 text-rose-900 line-through">
+    <span key={chunk.id} className={`rounded px-0.5 line-through ${selected ? "bg-rose-100/80 text-rose-900" : "bg-muted/40 text-muted-foreground"}`} data-diff-change-id={change?.id}>
       {chunk.text}
     </span>
   );
@@ -144,6 +148,12 @@ function renderBlockPreview(
   surfaceRef: React.RefObject<HTMLDivElement | null>,
 ) {
   const isInsertion = preview.from === preview.to && preview.originalText.length === 0;
+  let selectedText = preview.candidateText;
+  try {
+    selectedText = applySelectedChapterEditorDiff(preview.originalText, preview.candidateText, preview.diffChunks, preview.selectedChangeIds);
+  } catch {
+    // The review panel surfaces the validation error; keep the full candidate visible as context.
+  }
   return (
     <div ref={surfaceRef} className={`space-y-4 rounded-2xl bg-muted/10 p-4 ${SURFACE_INNER_PADDING_CLASS_NAME}`}>
       <TextBlock text={previewContent.before} className="text-foreground" />
@@ -154,8 +164,12 @@ function renderBlockPreview(
           {isInsertion ? <div className="text-sm text-rose-950">这里没有需要删除的原文，候选会作为新内容插入。</div> : <TextBlock text={preview.originalText} className="text-rose-950" />}
         </div>
         <div className="rounded-2xl border border-emerald-200/80 bg-emerald-50/90 p-4">
-          <div className="mb-2 text-xs font-medium text-emerald-700">改写</div>
-          <TextBlock text={preview.candidateText} className="text-emerald-950" />
+          <div className="mb-2 text-xs font-medium text-emerald-700">本次将写回</div>
+          {selectedText === preview.originalText || !selectedText.trim() ? (
+            <div className="text-sm text-emerald-950/70">当前没有选择要写回的改动。</div>
+          ) : (
+            <TextBlock text={selectedText} className="text-emerald-950" />
+          )}
         </div>
       </div>
 
@@ -256,6 +270,16 @@ export default function ChapterTextEditor(props: ChapterTextEditorProps) {
   }, [internalText, onChange]);
 
   const normalizedContent = useMemo(() => normalizeChapterContent(value), [value]);
+
+  const previewChangeByChunkId = useMemo(() => {
+    if (!preview || preview.mode === "loading") {
+      return new Map<string, ChapterEditorDiffChange>();
+    }
+    return new Map(
+      groupChapterEditorDiffChanges(preview.diffChunks)
+        .flatMap((change) => change.chunkIds.map((chunkId) => [chunkId, change] as const)),
+    );
+  }, [preview]);
 
   const previewContent = useMemo(() => {
     if (!preview) {
@@ -392,7 +416,7 @@ export default function ChapterTextEditor(props: ChapterTextEditorProps) {
               className={`${INLINE_PREVIEW_BODY_CLASS_NAME} ${SURFACE_INNER_PADDING_CLASS_NAME} min-h-full rounded-2xl bg-muted/15 p-4 text-foreground`}
             >
               {previewContent.before}
-              {preview.diffChunks.map((chunk) => renderDiffChunk(chunk))}
+              {preview.diffChunks.map((chunk) => renderDiffChunk(chunk, previewChangeByChunkId.get(chunk.id), preview.selectedChangeIds.has(previewChangeByChunkId.get(chunk.id)?.id ?? "")))}
               {previewContent.after}
             </div>
           ) : preview?.mode === "loading" && previewContent ? (
