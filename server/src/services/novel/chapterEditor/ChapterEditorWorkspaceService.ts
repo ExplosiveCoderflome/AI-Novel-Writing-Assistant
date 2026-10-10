@@ -147,6 +147,7 @@ function normalizeSnapshotDates(snapshot: Awaited<ReturnType<NovelCoreService["g
 
 function mapDiagnosticCard(
   card: {
+    sourceIssueId?: string;
     title: string;
     problemSummary: string;
     whyItMatters: string;
@@ -158,11 +159,13 @@ function mapDiagnosticCard(
     sourceTags: string[];
   },
   paragraphs: ChapterEditorParagraph[],
+  sourceIssueIds: ReadonlySet<string>,
 ): ChapterEditorDiagnosticCard {
   const start = card.paragraphStart ?? null;
   const end = card.paragraphEnd ?? start;
   return {
     id: randomUUID(),
+    sourceIssueId: card.sourceIssueId && sourceIssueIds.has(card.sourceIssueId) ? card.sourceIssueId : null,
     title: card.title,
     problemSummary: card.problemSummary,
     whyItMatters: card.whyItMatters,
@@ -331,6 +334,7 @@ export class ChapterEditorWorkspaceService {
             text: trimPromptText(paragraph.text),
           })),
           openIssues: context.openAuditIssues.slice(0, 8).map((issue) => ({
+            id: issue.id,
             severity: issue.severity,
             auditType: issue.auditType,
             code: issue.code,
@@ -344,7 +348,8 @@ export class ChapterEditorWorkspaceService {
         },
       });
 
-      const diagnosticCards = result.output.cards.map((card) => mapDiagnosticCard(card, context.paragraphs));
+      const sourceIssueIds = new Set(context.openAuditIssues.map((issue) => issue.id));
+      const diagnosticCards = result.output.cards.map((card) => mapDiagnosticCard(card, context.paragraphs, sourceIssueIds));
       const recommendedTask = mapRecommendedTask(result.output.recommendedTask, diagnosticCards, context.paragraphs);
 
       return {

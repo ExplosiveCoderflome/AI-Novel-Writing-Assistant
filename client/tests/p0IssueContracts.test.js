@@ -30,6 +30,15 @@ test("正文编辑器在光标处提供续写候选并保留候选写回入口",
   assert.match(editor, /expectedUpdatedAt: draft\.savedUpdatedAt/);
 });
 
+test("章节问题卡提供保存后确认已处理的来源页闭环", async () => {
+  const sidebar = await read("src/pages/novels/components/chapterEditor/ChapterEditorSidebar.tsx");
+  const shell = await read("src/pages/novels/components/chapterEditor/ChapterEditorShell.tsx");
+  assert.match(sidebar, /确认问题已处理/);
+  assert.match(sidebar, /保存后确认已处理/);
+  assert.match(shell, /resolveChapterAuditIssue/);
+  assert.match(shell, /onRefreshWorkspace\?\.\(\)/);
+});
+
 test("自定义厂商配置可选择鉴权方式", async () => {
   const source = await read("src/pages/settings/components/ProviderConfigDialog.tsx");
   assert.match(source, /Authorization: Bearer/);

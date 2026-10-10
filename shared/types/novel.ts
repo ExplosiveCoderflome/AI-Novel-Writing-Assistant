@@ -382,6 +382,7 @@ export interface ChapterEditorMacroContext {
 
 export interface ChapterEditorDiagnosticCard {
   id: string;
+  sourceIssueId?: string | null;
   title: string;
   problemSummary: string;
   whyItMatters: string;
