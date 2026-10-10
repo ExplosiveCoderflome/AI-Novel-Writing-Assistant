@@ -19,6 +19,17 @@ test("半自动步骤确认把正文修改回填动作放在章节执行台", as
   assert.match(source, /manualDirectorHandoff\.onAccept/);
 });
 
+test("正文编辑器在光标处提供续写候选并保留候选写回入口", async () => {
+  const editor = await read("src/pages/novels/components/chapterEditor/ChapterEditorShell.tsx");
+  const toolbar = await read("src/pages/novels/components/chapterEditor/CursorAIFloatingToolbar.tsx");
+  assert.match(toolbar, /CHAPTER_EDITOR_CURSOR_OPERATION_LABELS/);
+  assert.match(toolbar, /"continue"/);
+  assert.match(toolbar, /"conflict"/);
+  assert.match(editor, /previewChapterCursorContinuation/);
+  assert.match(editor, /insertChapterContinuation/);
+  assert.match(editor, /expectedUpdatedAt: draft\.savedUpdatedAt/);
+});
+
 test("自定义厂商配置可选择鉴权方式", async () => {
   const source = await read("src/pages/settings/components/ProviderConfigDialog.tsx");
   assert.match(source, /Authorization: Bearer/);
