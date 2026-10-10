@@ -5,6 +5,9 @@ import type {
   ChapterEditorAiRevisionRequest,
   ChapterEditorAiRevisionResponse,
   ChapterEditorCandidate,
+  ChapterEditorCursorContinuationRequest,
+  ChapterEditorCursorContinuationResponse,
+  ChapterEditorCursorOperation,
   ChapterEditorOperation,
   ChapterEditorRewritePreviewRequest,
   ChapterEditorRewritePreviewResponse,
@@ -19,6 +22,10 @@ import {
   chapterEditorUserIntentPrompt,
   type ChapterEditorUserIntentPromptInput,
 } from "../../../prompting/prompts/novel/chapterEditor/userIntent.prompts";
+import {
+  chapterEditorContinuationPreviewPrompt,
+  type ChapterEditorContinuationPromptInput,
+} from "../../../prompting/prompts/novel/chapterEditor/continuePreview.prompts";
 import { buildChapterEditorDiffChunks } from "./chapterEditorDiff";
 import { ChapterEditorWorkspaceService } from "./ChapterEditorWorkspaceService";
 import {
@@ -41,6 +48,15 @@ const OPERATION_LABELS: Record<ChapterEditorOperation, string> = {
   emotion: "强化情绪",
   conflict: "强化冲突",
   custom: "自定义指令改写",
+};
+
+const CURSOR_OPERATION_LABELS: Record<ChapterEditorCursorOperation, string> = {
+  continue: "继续写下一段",
+  transition: "生成过渡段",
+  dialogue: "增加对话",
+  description: "增加环境描写",
+  inner_thought: "增加心理描写",
+  conflict: "推进冲突",
 };
 
 function buildConstraintsText(input: ChapterEditorAiRevisionRequest["constraints"]): string {
@@ -217,6 +233,74 @@ export class NovelChapterEditorService {
       targetRange: response.targetRange,
       candidates: response.candidates,
       activeCandidateId: response.activeCandidateId,
+    };
+  }
+
+  async previewCursorContinuation(
+    novelId: string,
+    chapterId: string,
+    input: ChapterEditorCursorContinuationRequest,
+  ): Promise<ChapterEditorCursorContinuationResponse> {
+    const context = await this.workspaceService.loadContext(novelId, chapterId);
+    const content = normalizeChapterContent(input.contentSnapshot ?? context.chapter.content ?? "");
+    if (!content.trim()) {
+      throw new Error("当前章节正文为空，无法发起 AI 续写。请先写下至少一段正文。");
+    }
+    if (!Number.isInteger(input.cursorOffset) || input.cursorOffset < 0 || input.cursorOffset > content.length) {
+      throw new Error("正文光标位置已变化，请重新定位光标后再试。");
+    }
+
+    const result = await this.promptRunner({
+      asset: chapterEditorContinuationPreviewPrompt,
+      promptInput: {
+        operation: input.operation,
+        operationLabel: CURSOR_OPERATION_LABELS[input.operation],
+        instruction: input.instruction?.trim() || undefined,
+        beforeParagraphs: input.context.beforeParagraphs,
+        afterParagraphs: input.context.afterParagraphs,
+        goalSummary: context.chapterPlan?.objective?.trim() || context.chapter.expectation?.trim() || null,
+        chapterSummary: context.chapterSummary,
+        styleSummary: context.styleSummary || null,
+        characterStateSummary: buildCharacterStateSummary(context.latestStateSnapshot),
+        worldConstraintSummary: context.macroContext.worldConstraintSummary,
+        macroContextSummary: buildMacroContextSummary(context.macroContext),
+      } satisfies ChapterEditorContinuationPromptInput,
+      options: {
+        provider: input.provider ?? "deepseek",
+        model: input.model,
+        temperature: input.temperature ?? 0.55,
+      },
+    });
+
+    const targetRange: ChapterEditorTargetRange = {
+      from: input.cursorOffset,
+      to: input.cursorOffset,
+      text: "",
+    };
+    const candidates = dedupeCandidates(
+      result.output.candidates.slice(0, 3).map((candidate, index) => ({
+        id: randomUUID(),
+        label: candidate.label?.trim() || `续写方案 ${index + 1}`,
+        content: candidate.content.trim(),
+        summary: candidate.summary?.trim() || null,
+        rationale: candidate.rationale?.trim() || null,
+        riskNotes: candidate.riskNotes?.filter((item) => item.trim().length > 0) ?? [],
+        semanticTags: candidate.semanticTags?.filter((tag) => tag.trim().length > 0) ?? [],
+        diffChunks: buildChapterEditorDiffChunks("", candidate.content.trim()),
+      })),
+    );
+
+    if (candidates.length < 2) {
+      throw new Error("AI 未返回足够的续写候选版本，请重试。");
+    }
+
+    return {
+      sessionId: randomUUID(),
+      operation: input.operation,
+      targetRange,
+      macroAlignmentNote: result.output.macroAlignmentNote?.trim() || null,
+      candidates,
+      activeCandidateId: candidates[0]?.id ?? null,
     };
   }
 

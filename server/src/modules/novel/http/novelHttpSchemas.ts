@@ -550,4 +550,18 @@ export const aiRevisionPreviewSchema = z.object({
   }
 });
 
+export const cursorContinuationPreviewSchema = z.object({
+  operation: z.enum(["continue", "transition", "dialogue", "description", "inner_thought", "conflict"]),
+  contentSnapshot: z.string(),
+  cursorOffset: z.number().int().min(0),
+  context: z.object({
+    beforeParagraphs: z.array(z.string()).max(3),
+    afterParagraphs: z.array(z.string()).max(2),
+  }),
+  instruction: z.string().trim().max(800).optional(),
+  provider: llmProviderSchema.optional(),
+  model: z.string().trim().max(120).optional(),
+  temperature: z.number().min(0).max(2).optional(),
+});
+
 export const chapterExecutionContractSchema = chapterRuntimeRequestSchema;

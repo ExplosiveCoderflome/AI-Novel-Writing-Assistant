@@ -2,6 +2,8 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import type {
   ChapterEditorDiagnosticCard,
+  ChapterEditorCursorContinuationRequest,
+  ChapterEditorCursorOperation,
   ChapterEditorOperation,
   ChapterEditorRecommendedTask,
   ChapterEditorRevisionScope,
@@ -12,7 +14,7 @@ import {
   type ChapterQualityDebtDetails,
 } from "@ai-novel/shared/types/chapterQualityLoop";
 import { AlertTriangle, Loader2 } from "lucide-react";
-import { createNovelSnapshot, previewChapterAiRevision, reviewNovelChapter, updateNovelChapter } from "@/api/novel";
+import { createNovelSnapshot, previewChapterAiRevision, previewChapterCursorContinuation, reviewNovelChapter, updateNovelChapter } from "@/api/novel";
 import { queryKeys } from "@/api/queryKeys";
 import { Button } from "@/components/ui/button";
 import { toast } from "@/components/ui/toast";
@@ -21,6 +23,7 @@ import ChapterEditorDirectorPanel from "./ChapterEditorDirectorPanel";
 import ChapterEditorSidebar from "./ChapterEditorSidebar";
 import ChapterTextEditor from "./ChapterTextEditor";
 import SelectionAIFloatingToolbar from "./SelectionAIFloatingToolbar";
+import CursorAIFloatingToolbar from "./CursorAIFloatingToolbar";
 import type {
   ChapterEditorSelectionRange,
   ChapterEditorSessionState,
@@ -28,11 +31,15 @@ import type {
   SelectionToolbarPosition,
 } from "./chapterEditorTypes";
 import {
+  CHAPTER_EDITOR_CURSOR_OPERATION_LABELS,
   CHAPTER_EDITOR_OPERATION_LABELS,
   applyCandidateToContent,
   buildAiRevisionRequest,
   countEditorWords,
   getSaveStatusLabel,
+  getParagraphWindow,
+  insertChapterContinuation,
+  normalizeChapterContent,
   useChapterDraft,
 } from "./document";
 
@@ -48,6 +55,7 @@ const EMPTY_SESSION: ChapterEditorSessionState = {
   activeCandidateId: null,
   status: "idle",
   viewMode: "block",
+  mode: "revision",
 };
 
 function formatQualityDebtSource(source: string | null): string {
@@ -102,6 +110,7 @@ export default function ChapterEditorShell(props: ChapterEditorShellProps) {
   const llm = useLLMStore();
   const queryClient = useQueryClient();
   const lastPreviewRequestRef = useRef<ReturnType<typeof buildAiRevisionRequest> | null>(null);
+  const lastContinuationRequestRef = useRef<ChapterEditorCursorContinuationRequest | null>(null);
   const qualityDebtDetails = useMemo(
     () => readChapterQualityDebtDetails(chapter?.riskFlags),
     [chapter?.riskFlags],
@@ -110,6 +119,8 @@ export default function ChapterEditorShell(props: ChapterEditorShellProps) {
   const [saveStatus, setSaveStatus] = useState<"idle" | "saving" | "saved" | "error">("idle");
   const [selection, setSelection] = useState<ChapterEditorSelectionRange | null>(null);
   const [selectionToolbarPosition, setSelectionToolbarPosition] = useState<SelectionToolbarPosition | null>(null);
+  const [cursorOffset, setCursorOffset] = useState<number | null>(null);
+  const [cursorToolbarPosition, setCursorToolbarPosition] = useState<SelectionToolbarPosition | null>(null);
   const [session, setSession] = useState<ChapterEditorSessionState>(EMPTY_SESSION);
   const [revisionScope, setRevisionScope] = useState<ChapterEditorRevisionScope>("selection");
   const [revisionInstruction, setRevisionInstruction] = useState("");
@@ -126,10 +137,13 @@ export default function ChapterEditorShell(props: ChapterEditorShellProps) {
     setSaveStatus("idle");
     setSelection(null);
     setSelectionToolbarPosition(null);
+    setCursorOffset(null);
+    setCursorToolbarPosition(null);
     setSession(EMPTY_SESSION);
     setRevisionInstruction("");
     setRevisionScope("selection");
     lastPreviewRequestRef.current = null;
+    lastContinuationRequestRef.current = null;
   }, [chapter?.id]);
 
   useEffect(() => {
@@ -248,6 +262,7 @@ export default function ChapterEditorShell(props: ChapterEditorShellProps) {
           : "正在生成修正方案";
       setSession((current) => ({
         ...current,
+        mode: "revision",
         status: "loading",
         requestLabel: label,
         customInstruction: request.instruction,
@@ -274,6 +289,7 @@ export default function ChapterEditorShell(props: ChapterEditorShellProps) {
       }
       setSession((current) => ({
         ...data,
+        mode: "revision",
         status: "ready",
         viewMode: "block",
         requestLabel: current.requestLabel,
@@ -291,13 +307,70 @@ export default function ChapterEditorShell(props: ChapterEditorShellProps) {
     },
   });
 
+  const continuationMutation = useMutation({
+    mutationFn: async (request: ChapterEditorCursorContinuationRequest) => {
+      if (!chapter) {
+        throw new Error("当前未选中章节。");
+      }
+      return previewChapterCursorContinuation(novelId, chapter.id, request);
+    },
+    onMutate: (request) => {
+      lastContinuationRequestRef.current = request;
+      setSession((current) => ({
+        ...current,
+        mode: "continuation",
+        status: "loading",
+        requestLabel: `正在生成${CHAPTER_EDITOR_CURSOR_OPERATION_LABELS[request.operation]}方案`,
+        continuationOperation: request.operation,
+        scope: "selection",
+        targetRange: {
+          from: request.cursorOffset,
+          to: request.cursorOffset,
+          text: "",
+        },
+        candidates: [],
+        activeCandidateId: null,
+        errorMessage: undefined,
+      }));
+    },
+    onSuccess: (response) => {
+      const data = response.data;
+      if (!data) {
+        setSession((current) => ({ ...current, status: "error", errorMessage: "AI 未返回续写结果，请重试。" }));
+        return;
+      }
+      setSession((current) => ({
+        ...current,
+        ...data,
+        mode: "continuation",
+        continuationOperation: data.operation,
+        status: "ready",
+        viewMode: "block",
+        errorMessage: undefined,
+      }));
+      setSelection(null);
+      setSelectionToolbarPosition(null);
+      setCursorOffset(null);
+      setCursorToolbarPosition(null);
+    },
+    onError: (error) => {
+      setSession((current) => ({
+        ...current,
+        status: "error",
+        errorMessage: error instanceof Error ? error.message : "AI 续写失败，请重试。",
+      }));
+    },
+  });
+
   const acceptMutation = useMutation({
     mutationFn: async () => {
       if (!chapter || !activeCandidate || !session.targetRange) {
         throw new Error("当前没有可应用的候选版本。");
       }
       const label = `chapter-editor:${chapter.order}:${session.scope}:${Date.now()}`;
-      const nextContent = applyCandidateToContent(contentDraft, session.targetRange, activeCandidate.content);
+      const nextContent = session.mode === "continuation"
+        ? insertChapterContinuation(contentDraft, session.targetRange.from, activeCandidate.content)
+        : applyCandidateToContent(contentDraft, session.targetRange, activeCandidate.content);
       await createNovelSnapshot(novelId, {
         triggerType: "manual",
         label,
@@ -321,7 +394,7 @@ export default function ChapterEditorShell(props: ChapterEditorShellProps) {
     },
   });
 
-  const previewPayload = session.status === "loading" && session.targetRange?.text
+  const previewPayload = session.status === "loading" && session.targetRange
     ? {
       mode: "loading" as const,
       from: session.targetRange.from,
@@ -402,7 +475,35 @@ export default function ChapterEditorShell(props: ChapterEditorShellProps) {
     );
   };
 
+  const handleRunCursorOperation = (operation: ChapterEditorCursorOperation, instruction?: string) => {
+    if (cursorOffset === null) {
+      toast.error("请先把光标放在正文中，再选择续写方向。");
+      return;
+    }
+    const normalizedContent = normalizeChapterContent(contentDraft);
+    const cursorRange: ChapterEditorSelectionRange = {
+      from: cursorOffset,
+      to: cursorOffset,
+      text: "",
+    };
+    const request: ChapterEditorCursorContinuationRequest = {
+      operation,
+      contentSnapshot: normalizedContent,
+      cursorOffset,
+      context: getParagraphWindow(normalizedContent, cursorRange),
+      instruction: instruction?.trim() || undefined,
+      provider: llm.provider,
+      model: llm.model,
+      temperature: llm.temperature,
+    };
+    continuationMutation.mutate(request);
+  };
+
   const handleRegenerate = () => {
+    if (session.mode === "continuation" && lastContinuationRequestRef.current) {
+      continuationMutation.mutate(lastContinuationRequestRef.current);
+      return;
+    }
     if (!lastPreviewRequestRef.current) {
       return;
     }
@@ -532,6 +633,19 @@ export default function ChapterEditorShell(props: ChapterEditorShellProps) {
               setSelection(nextSelection);
               setSelectionToolbarPosition(position);
               if (nextSelection) {
+                setCursorOffset(null);
+                setCursorToolbarPosition(null);
+              }
+              if (nextSelection) {
+                setSelectedDiagnosticId(null);
+              }
+            }}
+            onCursorChange={(offset, position) => {
+              setCursorOffset(offset);
+              setCursorToolbarPosition(position);
+              if (offset !== null) {
+                setSelection(null);
+                setSelectionToolbarPosition(null);
                 setSelectedDiagnosticId(null);
               }
             }}
@@ -547,6 +661,12 @@ export default function ChapterEditorShell(props: ChapterEditorShellProps) {
             position={selectionToolbarPosition}
             disabled={previewMutation.isPending}
             onRunOperation={handleRunOperation}
+          />
+          <CursorAIFloatingToolbar
+            visible={Boolean(cursorOffset !== null && !selection && session.status === "idle")}
+            position={cursorToolbarPosition}
+            disabled={continuationMutation.isPending || previewMutation.isPending}
+            onRunOperation={handleRunCursorOperation}
           />
         </div>
 

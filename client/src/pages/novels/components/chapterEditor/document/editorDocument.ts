@@ -1,6 +1,6 @@
 import type { Descendant, Value } from "platejs";
-import type { ChapterEditorOperation } from "@ai-novel/shared/types/novel";
-import { chapterParagraphs, normalizeChapterText, replaceChapterSelection } from "@ai-novel/shared/types/chapterEditor/document";
+import type { ChapterEditorCursorOperation, ChapterEditorOperation } from "@ai-novel/shared/types/novel";
+import { chapterParagraphs, insertChapterContinuation as insertChapterContinuationAtOffset, normalizeChapterText, replaceChapterSelection } from "@ai-novel/shared/types/chapterEditor/document";
 import type {
   ChapterEditorRequestBuilderInput,
   ChapterEditorSelectionRange,
@@ -14,6 +14,15 @@ export const CHAPTER_EDITOR_OPERATION_LABELS: Record<ChapterEditorOperation, str
   emotion: "强化情绪",
   conflict: "强化冲突",
   custom: "自定义指令",
+};
+
+export const CHAPTER_EDITOR_CURSOR_OPERATION_LABELS: Record<ChapterEditorCursorOperation, string> = {
+  continue: "继续写下一段",
+  transition: "生成过渡段",
+  dialogue: "增加对话",
+  description: "增加环境描写",
+  inner_thought: "增加心理描写",
+  conflict: "推进冲突",
 };
 
 export function normalizeEditorText(text: string): string {
@@ -141,6 +150,13 @@ function getAbsoluteOffsetFromPoint(value: Value, point: EditorPointLike): numbe
   return total + paragraphOffset;
 }
 
+export function getCursorOffsetFromValue(
+  value: Value,
+  point: EditorPointLike | null | undefined,
+): number | null {
+  return point ? getAbsoluteOffsetFromPoint(value, point) : null;
+}
+
 export function buildSelectionRangeFromValue(
   value: Value,
   selection: EditorSelectionLike | null | undefined,
@@ -249,6 +265,10 @@ export function getParagraphWindow(content: string, selection: ChapterEditorSele
 
 export function applyCandidateToContent(content: string, selection: ChapterEditorSelectionRange, replacement: string): string {
   return replaceChapterSelection(content, selection, replacement);
+}
+
+export function insertChapterContinuation(content: string, offset: number, insertion: string): string {
+  return insertChapterContinuationAtOffset(content, offset, insertion);
 }
 
 export function getParagraphIndicesForRange(content: string, selection: Pick<ChapterEditorSelectionRange, "from" | "to">) {

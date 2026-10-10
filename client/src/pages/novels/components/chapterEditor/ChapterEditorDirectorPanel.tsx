@@ -241,15 +241,23 @@ export default function ChapterEditorDirectorPanel(props: ChapterEditorDirectorP
         {session.status === "ready" && activeCandidate ? (
           <>
             <div className="rounded-2xl border border-border/70 bg-muted/10 p-4">
-              <div className="text-sm font-medium text-foreground">AI 理解到的修改目标</div>
-              <div className="mt-3 space-y-2 text-sm leading-6 text-muted-foreground">
-                <div>目标：{session.resolvedIntent?.editGoal}</div>
-                <div>语气：{session.resolvedIntent?.toneShift}</div>
-                <div>节奏：{session.resolvedIntent?.paceAdjustment}</div>
-                <div>冲突：{session.resolvedIntent?.conflictAdjustment}</div>
-                <div>情绪：{session.resolvedIntent?.emotionAdjustment}</div>
-                <div>说明：{session.resolvedIntent?.reasoningSummary}</div>
+              <div className="text-sm font-medium text-foreground">
+                {session.mode === "continuation" ? "AI 续写方向" : "AI 理解到的修改目标"}
               </div>
+              {session.mode === "continuation" ? (
+                <div className="mt-3 text-sm leading-6 text-muted-foreground">
+                  光标处将插入一段“{session.continuationOperation === "continue" ? "自然续写" : session.requestLabel?.replace(/^正在生成|方案$/g, "") || "续写"}”。你可以先比较候选，再决定是否写回正文。
+                </div>
+              ) : (
+                <div className="mt-3 space-y-2 text-sm leading-6 text-muted-foreground">
+                  <div>目标：{session.resolvedIntent?.editGoal}</div>
+                  <div>语气：{session.resolvedIntent?.toneShift}</div>
+                  <div>节奏：{session.resolvedIntent?.paceAdjustment}</div>
+                  <div>冲突：{session.resolvedIntent?.conflictAdjustment}</div>
+                  <div>情绪：{session.resolvedIntent?.emotionAdjustment}</div>
+                  <div>说明：{session.resolvedIntent?.reasoningSummary}</div>
+                </div>
+              )}
               {session.macroAlignmentNote ? (
                 <div className="mt-3 rounded-2xl border border-emerald-200 bg-emerald-50/90 p-3 text-sm leading-6 text-emerald-900">
                   与本章/本卷目标的对齐：{session.macroAlignmentNote}

@@ -26,3 +26,11 @@ export function replaceChapterSelection(
   }
   return text.slice(0, selection.from) + normalizeChapterText(replacement) + text.slice(selection.to);
 }
+
+export function insertChapterContinuation(content: string, offset: number, insertion: string): string {
+  const text = normalizeChapterText(content);
+  if (!Number.isInteger(offset) || offset < 0 || offset > text.length) {
+    throw new Error("正文光标位置已变化，请重新定位光标并生成续写建议。");
+  }
+  return text.slice(0, offset) + normalizeChapterText(insertion) + text.slice(offset);
+}

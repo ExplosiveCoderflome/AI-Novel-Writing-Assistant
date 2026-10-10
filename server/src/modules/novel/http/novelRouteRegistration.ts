@@ -29,6 +29,7 @@ import { registerWritingPlatformRoutes } from "../writing-platform/http/writingP
 import { registerDirectorIssuePolicyRoutes } from "../../../services/novel/director/issues/directorIssuePolicyRoutes";
 import {
   aiRevisionPreviewSchema,
+  cursorContinuationPreviewSchema,
   arcPlanParamsSchema,
   auditIssueParamsSchema,
   beatGenerateSchema,
@@ -110,6 +111,7 @@ export function registerNovelHttpRoutes(router: Router, services: NovelHttpServi
     chapterParamsSchema,
     rewritePreviewSchema,
     aiRevisionPreviewSchema,
+    cursorContinuationPreviewSchema,
     forwardBusinessError,
   });
 
