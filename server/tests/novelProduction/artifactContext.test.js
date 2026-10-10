@@ -91,6 +91,9 @@ function extractionFixture() {
       characterLocationService:{readBeforeChapter:async()=>new Map([["a",{currentLocation:"牢房",sourceChapterOrder:2,evidence:"甲被押进牢房。"}]])},
       formatCharacterLocationContext:require('../../dist/services/novel/characters/locations').formatCharacterLocationContext,
     },
+    '../characters/appearances': {
+      characterAppearanceService: { applyFinalChapter: async () => {} },
+    },
   });
   return {service: new ChapterArtifactDeltaService(), calls,
     failResourceRead: () => {resourceError = Error('catalog unavailable');},
