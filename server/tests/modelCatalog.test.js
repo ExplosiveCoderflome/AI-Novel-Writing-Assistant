@@ -4,8 +4,10 @@ const {
   buildProviderModelHeaders,
   filterHiddenModels,
   parseHiddenModels,
+  parseModelList,
   resolveModelsEndpoint,
   serializeHiddenModels,
+  serializeModelList,
 } = require("../dist/llm/modelCatalog.js");
 
 test("hidden model storage trims and deduplicates model ids", () => {
@@ -17,6 +19,12 @@ test("hidden model storage trims and deduplicates model ids", () => {
 test("invalid hidden model storage is treated as empty", () => {
   assert.deepEqual(parseHiddenModels("not-json"), []);
   assert.deepEqual(parseHiddenModels('{"model":"model-a"}'), []);
+});
+
+test("provider model catalogs use the same bounded JSON storage format", () => {
+  const stored = serializeModelList([" model-a ", "model-b", "model-a", ""]);
+  assert.equal(stored, '["model-a","model-b"]');
+  assert.deepEqual(parseModelList(stored), ["model-a", "model-b"]);
 });
 
 test("hidden models are filtered while the selected model remains available", () => {

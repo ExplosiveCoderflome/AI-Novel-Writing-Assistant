@@ -675,6 +675,7 @@ test("GET /api/settings/api-keys exposes custom OpenAI-compatible providers", as
       baseURL: "https://gateway.example.com/v1",
       isActive: true,
       reasoningEnabled: true,
+      availableModels: JSON.stringify(["story-model", "story-model-pro"]),
       concurrencyLimit: 3,
       requestIntervalMs: 5000,
       createdAt: new Date(),
@@ -697,6 +698,7 @@ test("GET /api/settings/api-keys exposes custom OpenAI-compatible providers", as
     assert.equal(custom.displayName, "StoryHub Gateway");
     assert.equal(custom.currentModel, "story-model");
     assert.equal(custom.currentBaseURL, "https://gateway.example.com/v1");
+    assert.deepEqual(custom.models, ["story-model", "story-model-pro"]);
     assert.equal(custom.requiresApiKey, false);
     assert.equal(custom.isConfigured, true);
     assert.equal(custom.reasoningEnabled, true);
@@ -914,18 +916,22 @@ test("POST /api/settings/custom-providers creates a custom provider entry", asyn
   const originalCreate = prisma.aPIKey.create;
   const originalFetch = global.fetch;
   const httpFetch = originalFetch.bind(global);
+  let createdData;
   prisma.aPIKey.findUnique = async () => null;
-  prisma.aPIKey.create = async ({ data }) => ({
-    id: "api-key-custom-created",
-    provider: data.provider,
-    displayName: data.displayName,
-    key: data.key,
-    model: data.model,
-    baseURL: data.baseURL,
-    isActive: data.isActive,
-    createdAt: new Date(),
-    updatedAt: new Date(),
-  });
+  prisma.aPIKey.create = async ({ data }) => {
+    createdData = data;
+    return {
+      id: "api-key-custom-created",
+      provider: data.provider,
+      displayName: data.displayName,
+      key: data.key,
+      model: data.model,
+      baseURL: data.baseURL,
+      isActive: data.isActive,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    };
+  };
   global.fetch = async () => new Response(JSON.stringify({
     data: [{ id: "story-model" }, { id: "story-model-pro" }],
   }), {
@@ -957,6 +963,7 @@ test("POST /api/settings/custom-providers creates a custom provider entry", asyn
     assert.equal(payload.data.baseURL, "https://gateway.example.com/v1");
     assert.ok(payload.data.provider.startsWith("custom_storyhub_gateway"));
     assert.ok(payload.data.models.includes("story-model"));
+    assert.deepEqual(JSON.parse(createdData.availableModels), ["story-model", "story-model-pro"]);
   } finally {
     prisma.aPIKey.findUnique = originalFindUnique;
     prisma.aPIKey.create = originalCreate;

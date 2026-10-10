@@ -12,6 +12,7 @@ function toPrismaWriteInput(input: SecretStoreWriteInput): Record<string, unknow
     ...(input.reasoningEnabled !== undefined ? { reasoningEnabled: input.reasoningEnabled } : {}),
     ...(input.reasoningEffort !== undefined ? { reasoningEffort: input.reasoningEffort } : {}),
     ...(input.hiddenModels !== undefined ? { hiddenModels: input.hiddenModels } : {}),
+    ...(input.availableModels !== undefined ? { availableModels: input.availableModels } : {}),
     ...(input.concurrencyLimit !== undefined ? { concurrencyLimit: input.concurrencyLimit } : {}),
     ...(input.requestIntervalMs !== undefined ? { requestIntervalMs: input.requestIntervalMs } : {}),
   };

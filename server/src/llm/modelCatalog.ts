@@ -29,7 +29,7 @@ function uniqueModels(models: string[]): string[] {
   return Array.from(new Set(models.map((item) => item.trim()).filter(Boolean)));
 }
 
-export function parseHiddenModels(value: string | null | undefined): string[] {
+export function parseModelList(value: string | null | undefined): string[] {
   if (!value) return [];
   try {
     const parsed = JSON.parse(value) as unknown;
@@ -41,7 +41,15 @@ export function parseHiddenModels(value: string | null | undefined): string[] {
   }
 }
 
+export function parseHiddenModels(value: string | null | undefined): string[] {
+  return parseModelList(value);
+}
+
 export function serializeHiddenModels(models: string[]): string {
+  return JSON.stringify(uniqueModels(models).slice(0, 200));
+}
+
+export function serializeModelList(models: string[]): string {
   return JSON.stringify(uniqueModels(models).slice(0, 200));
 }
 

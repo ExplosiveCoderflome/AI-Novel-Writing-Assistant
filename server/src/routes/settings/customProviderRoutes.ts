@@ -10,7 +10,7 @@ import { z } from "zod";
 import { prisma } from "../../db/prisma";
 import { setProviderSecretCache } from "../../llm/factory";
 import { evictSharedLimiters } from "../../llm/requestLimiter";
-import { refreshProviderModels } from "../../llm/modelCatalog";
+import { refreshProviderModels, serializeModelList } from "../../llm/modelCatalog";
 import { isDeepSeekThinkingModeProvider, normalizeReasoningEffort } from "../../llm/reasoning";
 import { llmProviderSchema } from "../../llm/providerSchema";
 import { isBuiltInProvider } from "../../llm/providers";
@@ -63,6 +63,7 @@ type APIKeyRecordLike = {
   reasoningEnabled?: boolean | null;
   reasoningEffort?: string | null;
   hiddenModels?: string | null;
+  availableModels?: string | null;
   concurrencyLimit?: number | null;
   requestIntervalMs?: number | null;
 };
@@ -185,6 +186,7 @@ export function registerCustomProviderRoutes(router: Router): void {
           reasoningEnabled: body.reasoningEnabled ?? true,
           reasoningEffort: normalizeReasoningEffort(body.reasoningEffort),
           hiddenModels: "[]",
+          availableModels: serializeModelList(models),
           concurrencyLimit: body.concurrencyLimit ?? 0,
           requestIntervalMs: body.requestIntervalMs ?? 0,
         }) as APIKeyRecordLike;

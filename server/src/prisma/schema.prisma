@@ -1805,6 +1805,7 @@ model APIKey {
   reasoningEnabled Boolean @default(true)
   reasoningEffort String?
   hiddenModels String @default("[]")
+  availableModels String @default("[]")
   concurrencyLimit Int @default(0)
   requestIntervalMs Int @default(0)
   createdAt DateTime @default(now())
