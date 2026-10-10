@@ -186,6 +186,9 @@ export default function ChapterEditorShell(props: ChapterEditorShellProps) {
         ? queryClient.invalidateQueries({ queryKey: queryKeys.novels.chapterPlan(novelId, chapter.id) })
         : Promise.resolve(),
       chapter?.id
+        ? queryClient.invalidateQueries({ queryKey: queryKeys.novels.chapterSnapshots(novelId, chapter.id) })
+        : Promise.resolve(),
+      chapter?.id
         ? queryClient.invalidateQueries({ queryKey: queryKeys.novels.chapterAuditReports(novelId, chapter.id) })
         : Promise.resolve(),
       queryClient.invalidateQueries({ queryKey: queryKeys.novels.latestStateSnapshot(novelId) }),
@@ -220,6 +223,20 @@ export default function ChapterEditorShell(props: ChapterEditorShellProps) {
       toast.error(error instanceof Error ? error.message : "章节保存失败。");
     },
   });
+
+  useEffect(() => {
+    const handleSaveShortcut = (event: KeyboardEvent) => {
+      if (!(event.ctrlKey || event.metaKey) || event.key.toLowerCase() !== "s") {
+        return;
+      }
+      event.preventDefault();
+      if (chapter && isDirty && !saveMutation.isPending) {
+        saveMutation.mutate(contentDraft);
+      }
+    };
+    window.addEventListener("keydown", handleSaveShortcut);
+    return () => window.removeEventListener("keydown", handleSaveShortcut);
+  }, [chapter, contentDraft, isDirty, saveMutation]);
 
   const reviewMutation = useMutation({
     mutationFn: async () => {
