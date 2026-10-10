@@ -498,28 +498,34 @@ pnpm --filter @ai-novel/client test              # 阶段 2、4、6
 
 **步骤：**
 
-1. **先填表、后写代码。** 执行者读现有前端各界面和 `novelDirectorContinueRuntime.continueTask`，填写下表并提交人工确认（这是 S4 类决策点，确认前不写实现）。下表是依据 wiki 的初稿：
+1. **先填表、后写代码。** 执行者读现有前端各界面、书级投影和 `novelDirectorContinueRuntime.continueTask`，填写下表并提交人工确认（这是 S4 类决策点，确认前不写实现）。下表已按当前代码核对，仍是待人工批准的方案：
 
-   | 检查点 / 状态 | 可选动作（主动作在前） | 对应现有行为 |
+   | 检查点 / 状态 | 可选动作（主动作在前） | 对应现有行为与边界 |
    | --- | --- | --- |
-   | `replan_required` | `replan_then_continue`（重规划后继续）、`skip_and_continue`（登记质量债后继续） | `auto_execute_range`、`skip_quality_repair` |
-   | `chapter_batch_ready` | `continue_chapters`（继续自动写章节） | `auto_execute_range` |
-   | `step_review_required` | `accept_and_continue`（确认并继续） | `resume` + `acceptManualChanges` |
-   | `volume_strategy_ready` | `continue`（继续） | `resume` |
-   | `production_experience_required` | `choose_simple`、`choose_professional` | 现有 production-experience 接口 |
-   | `character_setup_required` | `open_character_setup`（跳转，不是命令） | 现有跳转 |
-   | `candidate_selection_required` | 无，由候选页处理 | 现有候选页 |
-   | `rewrite_snapshot_created` | 执行者核实 | 执行者核实 |
-   | `workflow_completed` | 无 | 无 |
-   | `pendingManualRecovery = true` | `resume_from_saved_chapter`（从已保存章节继续） | `forceResume` |
-   | `failed`（无检查点） | `retry_from_checkpoint`（从检查点重试） | `continue` |
+   | `pendingManualRecovery = true`（优先于检查点） | `resume_from_saved_chapter`（从保存进度继续） | 现有“继续自动导演”；恢复意图必须显式确认并清除人工恢复锁。此状态下不显示检查点的继续动作。 |
+   | `candidate_selection_required` / 等待确认 | `open_candidate_selection`（去确认书级方向） | 导航到候选页；候选选择和确认仍由候选页处理，不经 `resolve_checkpoint`。 |
+   | `book_contract_ready` / 等待审核 | `open_book_contract`（查看书级创作约定）、`approve_and_continue`（确认并继续） | 导航到 `story_macro` 审核页；继续沿用现有 `resume` / gate approval 语义。 |
+   | `character_setup_required` / 等待审核 | `open_character_setup`（查看角色准备）、`approve_and_continue`（确认并继续） | 导航到角色页；继续沿用现有 `resume` / gate approval 语义。 |
+   | `volume_strategy_ready` / 等待审核 | `open_volume_strategy`（查看卷战略）、`approve_and_continue`（确认并继续） | 导航到 `outline` 审核页；继续沿用现有 `resume` / gate approval 语义。 |
+   | `production_experience_required` | `choose_simple`（使用阅读书架）、`choose_professional`（使用完整工作台） | 调用现有生产方式选择接口；它会保存选择并开始全书生产，不由 `resolve_checkpoint` 代替。 |
+   | `step_review_required` / 等待审核 | `validate_step`（AI 检查）、`improve_step`（AI 完善）、`regenerate_step`（重新生成）、`open_review_stage`（查看审核阶段，存在审核范围时）、`accept_and_continue`（确认并继续） | 三种校准继续使用现有 `calibrate_step` 命令；后两种可编辑动作需要步骤编号，完善 / 重生成可带用户指令。“保存并确认”和“继续自动导演”当前调用同一操作，表中合并为一个动作。只有最终确认动作进入 `resolve_checkpoint`。 |
+   | `chapter_batch_ready` / 等待继续 | `continue_chapters`（继续自动执行章节）、`open_chapter_execution`（进入章节执行） | 延续 `auto_execute_range` 和现有章节导航。 |
+   | `chapter_batch_ready` / 失败或取消 | `continue_chapters`（从当前范围继续）、`open_quality_repair`（查看质量修复）、`open_chapter_execution`（进入章节执行） | 保留小说页现有恢复与质量修复入口；`pendingManualRecovery` 为真时由上一行覆盖。 |
+   | `replan_required` / 等待、失败或取消 | `replan_then_continue`（重规划后继续）、`open_quality_repair`（查看质量修复） | 保留当前重规划恢复及质量修复导航。此检查点表示必须处理整书计划，不把 `skip_quality_repair` 作为绕过重规划的动作；本地质量债的延后规则由结构化质量决策决定。 |
+   | `workflow_completed` | `open_chapter_execution`（进入章节执行） | 现有章节执行导航，不触发自动导演恢复命令。 |
+   | 失败且无检查点、无人工恢复锁 | `retry_from_checkpoint`（从最近进度恢复） | 对应驾驶舱的“从最近进度恢复”；仅在失败恢复入口判定可用时提供。任务中心仍只负责查看记录和返回来源页。 |
+   | `rewrite_snapshot_created` | 不适用 | 它是 `NovelWorkflowMilestoneType` 的里程碑，不属于 `NovelWorkflowCheckpoint`，不能出现在检查点动作表中。 |
 
-2. 在 `shared/types/` 新增检查点动作表和类型。动作编号是封闭集合，每个动作包含 `id`、`label`、`description`、`primary`。
-3. 服务端生成投影时附带 `availableActions`，所有书级投影使用同一个函数生成。
+   **动作来源边界：** `availableActions` 覆盖书页、书架、驾驶舱等来源工作区中的检查点级按钮，包括导航、现有领域命令和检查点恢复命令；任务中心保持只读。取消任务、修复章节标题、补齐导演产物等不由检查点决定的独立操作继续走各自既有入口，不混入检查点表。动作描述需要区分 `resolve_checkpoint` 恢复动作、导航动作和已有领域命令；只有恢复动作使用 `expectedCheckpointType` 做过期检查。步骤校准需要的步骤编号 / 用户指令等上下文随相应领域命令提交。
+
+   **质量策略约束：** 本动作表不能把 `pause_for_manual` 自动改成继续，也不能绕过 `stop_for_replan` / `replan_required`。本地可延后的质量问题仍按统一 issue decision 记录质量债并继续；任何继续动作必须保留当前快照选定的质量策略。
+
+2. 在 `shared/types/` 新增检查点动作表和类型。动作编号是封闭集合；每个动作包含 `id`、`label`、`description`、`primary` 和 `kind`（恢复、导航或现有领域命令），按需携带稳定目标或领域输入定义。
+3. 服务端生成投影时附带 `availableActions`，所有书级投影使用同一个函数生成；按表中的状态和安全前置条件过滤动作，不在前端复制检查点 / 状态决策。
 4. 新增命令类型 `resolve_checkpoint { actionId, expectedCheckpointType }`：检查点已变化时返回 409 和“任务状态已变化，请刷新后再操作”；`actionId` 不在当前检查点的动作表中时返回 400。
-5. 在 `commands/` 中用一个函数把 `actionId` 映射为显式的恢复意图，例如 `{ kind: "replan_then_continue", anchorChapterId }`、`{ kind: "skip_and_continue", chapterId }`。`continueTask` 的入口只接收恢复意图，不再接收 `continuationMode`、`forceResume`、`acceptManualChanges`、`approveCurrentGate` 等散落参数。下游如果仍需要这些布尔值，只能由一个 `intentToExecutionOptions(intent)` 函数统一推导。
+5. 在 `commands/` 中用一个函数把恢复类 `actionId` 映射为显式的恢复意图，例如 `{ kind: "approve_current_gate" }`、`{ kind: "resume_from_saved_chapter", chapterId }`、`{ kind: "replan_then_continue", anchorChapterId }`、`{ kind: "continue_chapter_range", chapterId }`。`continueTask` 的入口只接收恢复意图，不再接收 `continuationMode`、`forceResume`、`acceptManualChanges`、`approveCurrentGate` 等散落参数。下游如果仍需要这些布尔值，只能由一个 `intentToExecutionOptions(intent)` 函数统一推导；不得新增绕过质量策略的恢复意图。
 6. 旧接口 `POST /:id/continue` 保留一个版本周期，参数经 `commands/legacyContinuationAdapter.ts` 转换为 `actionId`。这是唯一允许出现 `continuationMode` 的服务端文件，守卫已排除。
-7. 前端所有暂停按钮都从 `availableActions` 渲染，不再按 `checkpointType` 自行决定按钮。
+7. 前端所有检查点级暂停按钮都从 `availableActions` 渲染，不再按 `checkpointType` 自行决定按钮；不同 `kind` 分别导航、调用现有领域命令或提交 `resolve_checkpoint`。检查点之外的任务生命周期 / 局部修复操作不属于此表。
 8. 补 I7 测试：每种检查点类型在表中都有条目；每个动作只映射一种恢复意图；检查点过期时返回 409；书级投影、书架、驾驶舱的 `availableActions` 相同。
 
 **禁止：** 不新增动作语义。表中的每个动作都必须对应一个现有行为。
