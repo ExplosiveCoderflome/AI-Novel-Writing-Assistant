@@ -119,6 +119,7 @@ export const queryKeys = {
     recoveryCandidates: ["tasks", "recovery-candidates"] as const,
     autoDirectorFollowUpDetail: (directorTaskId: string) => ["tasks", "auto-director-follow-up", directorTaskId] as const,
     directorTaskSnapshot: (directorTaskId: string) => ["tasks", "director-task-snapshot", directorTaskId] as const,
+    directorTaskFactInspection: (directorTaskId: string) => ["tasks", "director-task-fact-inspection", directorTaskId] as const,
     directorRuntime: (directorTaskId: string) => ["tasks", "director-runtime", directorTaskId] as const,
     directorIssuePolicy: (novelId: string) => ["novels", "director-issue-policy", novelId] as const,
   },
