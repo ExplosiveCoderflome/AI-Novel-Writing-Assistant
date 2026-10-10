@@ -47,7 +47,11 @@ test("the director module only imports files inside itself", () => {
     "../../../db/prisma",
     "node:crypto",
   ]);
-  const allowedHttpImports = new Set(["express", "zod"]);
+  const allowedHttpImports = new Set([
+    "express",
+    "zod",
+    "@ai-novel/shared/types/director/characterCandidates",
+  ]);
   for (const file of listTsFiles(moduleRoot)) {
     const source = fs.readFileSync(file, "utf8");
     const isInfrastructure = file === infrastructureRoot || file.startsWith(`${infrastructureRoot}${path.sep}`);

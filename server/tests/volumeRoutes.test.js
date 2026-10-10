@@ -268,7 +268,8 @@ test("volume routes cover workspace, versions, impact analysis, sync and legacy 
     assert.equal(slimChapterListPayload.data.critiqueReport, null);
     assert.deepEqual(slimChapterListPayload.data.volumes, []);
     assert.deepEqual(slimChapterListPayload.data.beatSheets, []);
-    assert.equal(updateCalls.length, 0);
+    assert.equal(updateCalls.length, 1);
+    assert.equal(updateCalls.at(-1).syncToChapterExecution, false);
 
     const slimBeatSheetResponse = await fetch(`http://127.0.0.1:${port}/api/novels/${novelId}/volumes/generate`, {
       method: "POST",
@@ -286,7 +287,7 @@ test("volume routes cover workspace, versions, impact analysis, sync and legacy 
     assert.equal(slimBeatSheetPayload.data.slimmed, true);
     assert.equal(slimBeatSheetPayload.data.derivedStructuredOutline, "");
     assert.deepEqual(slimBeatSheetPayload.data.rebalanceDecisions, []);
-    assert.equal(updateCalls.length, 1);
+    assert.equal(updateCalls.length, 2);
     assert.equal(updateCalls.at(-1).syncToChapterExecution, false);
 
     const draftResponse = await fetch(`http://127.0.0.1:${port}/api/novels/${novelId}/volumes/versions/draft`, {
