@@ -568,6 +568,12 @@ export const chapterArtifactDeltaPrompt: PromptAsset<
   repairPolicy: {
     maxAttempts: 1,
   },
+  // The fallback model is a last-resort structured-output route. A second
+  // repair round repeats the whole chapter context without improving the
+  // saved artifact and can consume the remaining chapter budget.
+  fallbackRepairPolicy: {
+    maxAttempts: 0,
+  },
   structuredOutputHint: {
     placement: "stable_prefix",
     compact: true,

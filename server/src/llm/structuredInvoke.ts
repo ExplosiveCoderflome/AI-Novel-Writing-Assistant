@@ -63,6 +63,7 @@ export interface StructuredInvokeInput<T> {
   structuredStrategy?: StructuredOutputStrategy;
   label: string;
   maxRepairAttempts?: number;
+  fallbackMaxRepairAttempts?: number;
   promptMeta?: PromptInvocationMeta;
   disableFallbackModel?: boolean;
 }
@@ -515,6 +516,7 @@ export async function invokeStructuredLlmDetailed<T>(input: StructuredInvokeInpu
           model: fallbackTarget.model,
           temperature: fallbackTarget.temperature,
           maxTokens: fallbackTarget.maxTokens,
+          maxRepairAttempts: input.fallbackMaxRepairAttempts ?? input.maxRepairAttempts,
           disableFallbackModel: true,
         },
         target: fallbackTarget,

@@ -519,6 +519,80 @@ test("invokeStructuredLlmDetailed switches to the configured fallback model afte
   }
 });
 
+test("invokeStructuredLlmDetailed can disable repair replay on the fallback model", async () => {
+  const originalResolveOptions = factory.resolveLLMClientOptions;
+  const originalCreateLLM = factory.createLLMFromResolvedOptions;
+  const originalGetFallbackSettings = structuredFallbackSettings.getStructuredFallbackSettings;
+  const calls = [];
+
+  factory.resolveLLMClientOptions = async (provider, options = {}) => {
+    const resolvedProvider = provider ?? "openai";
+    const resolvedModel = options.model ?? (resolvedProvider === "deepseek" ? "deepseek-chat" : "gpt-4o-mini");
+    const baseURL = options.baseURL ?? (resolvedProvider === "deepseek"
+      ? "https://api.deepseek.com/v1"
+      : "https://api.openai.com/v1");
+    const structuredProfile = options.executionMode === "structured"
+      ? resolveStructuredOutputProfile({provider: resolvedProvider, model: resolvedModel, baseURL, executionMode: "structured"})
+      : null;
+    return {
+      provider: resolvedProvider,
+      providerName: resolvedProvider,
+      model: resolvedModel,
+      temperature: options.temperature ?? 0.3,
+      apiKey: "test-key",
+      baseURL,
+      maxTokens: options.maxTokens,
+      reasoningEnabled: !(structuredProfile?.requiresNonThinkingForStructured),
+      modelKwargs: undefined,
+      includeRawResponse: false,
+      executionMode: options.executionMode ?? "plain",
+      structuredProfile,
+      structuredStrategy: options.structuredStrategy ?? null,
+      reasoningForcedOff: Boolean(structuredProfile?.requiresNonThinkingForStructured),
+      taskType: options.taskType,
+      promptMeta: options.promptMeta,
+    };
+  };
+  factory.createLLMFromResolvedOptions = (resolved) => ({
+    stream: async function* () {
+      calls.push({provider: resolved.provider, strategy: resolved.structuredStrategy});
+      if (resolved.provider === "openai") throw new Error("primary structured output failed");
+      yield {content: "malformed fallback JSON"};
+    },
+  });
+  structuredFallbackSettings.getStructuredFallbackSettings = async () => ({
+    enabled: true,
+    provider: "deepseek",
+    model: "deepseek-chat",
+    temperature: 0.2,
+    maxTokens: null,
+    retryCount: 0,
+  });
+
+  try {
+    await assert.rejects(() => structuredInvoke.invokeStructuredLlmDetailed({
+      provider: "openai",
+      model: "gpt-4o-mini",
+      label: "structured.invoke.fallback.repair-budget",
+      taskType: "planner",
+      schema: z.object({value: z.string()}),
+      systemPrompt: "只返回 JSON。",
+      userPrompt: "给我一个 value。",
+      maxRepairAttempts: 1,
+      fallbackMaxRepairAttempts: 0,
+    }), /STRUCTURED_OUTPUT/);
+    assert.deepEqual(calls, [
+      {provider: "openai", strategy: "json_schema"},
+      {provider: "deepseek", strategy: "json_object"},
+      {provider: "deepseek", strategy: "prompt_json"},
+    ]);
+  } finally {
+    factory.resolveLLMClientOptions = originalResolveOptions;
+    factory.createLLMFromResolvedOptions = originalCreateLLM;
+    structuredFallbackSettings.getStructuredFallbackSettings = originalGetFallbackSettings;
+  }
+});
+
 test("invokeStructuredLlmDetailed retries transport failures using the configured retry count", async () => {
   const originalResolveOptions = factory.resolveLLMClientOptions;
   const originalCreateLLM = factory.createLLMFromResolvedOptions;

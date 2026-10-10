@@ -91,6 +91,26 @@ export class NovelPipelineExecutor {
     private readonly assertOwner = assertDirectorPipelineOwner,
   ) {}
 
+  private async readChapterBatchTokens(jobId: string): Promise<number | undefined> {
+    try {
+      const result = await prisma.llmInvocationUsageRecord.aggregate({
+        where: {
+          generationJobId: jobId,
+          stage: "chapter_batch",
+          totalTokens: { not: null },
+        },
+        _sum: { totalTokens: true },
+      });
+      return result._sum.totalTokens ?? 0;
+    } catch (error) {
+      logPipelineWarn("章节规划用量读取失败，沿用作业总量预算", {
+        jobId,
+        error: error instanceof Error ? error.message : String(error),
+      });
+      return undefined;
+    }
+  }
+
   private async ensurePipelineNotCancelled(jobId: string): Promise<void> {
     const executionOwner = this.executionOwnerStore.getStore();
     const job = await prisma.generationJob.findUnique({
@@ -507,13 +527,14 @@ export class NovelPipelineExecutor {
             const usage = await prisma.generationJob.findUniqueOrThrow({
               where: { id: jobId }, select: { totalTokens: true },
             });
+            const chapterBatchTokens = await this.readChapterBatchTokens(jobId);
             let initialized: boolean;
             let observed: ReturnType<typeof observeChapterUsage>;
             try {
-              initialized = beginChapterUsage(runtimePayload.directorNext, chapter.id, chapter.order, usage.totalTokens);
+              initialized = beginChapterUsage(runtimePayload.directorNext, chapter.id, chapter.order, usage.totalTokens, chapterBatchTokens);
               observed = closed
-                ? finalizeChapterUsage(runtimePayload.directorNext, chapter.id, usage.totalTokens)
-                : observeChapterUsage(runtimePayload.directorNext, chapter.id, usage.totalTokens);
+                ? finalizeChapterUsage(runtimePayload.directorNext, chapter.id, usage.totalTokens, chapterBatchTokens)
+                : observeChapterUsage(runtimePayload.directorNext, chapter.id, usage.totalTokens, chapterBatchTokens);
             } catch (error) {
               throw new PipelineIssueFailure(error instanceof Error ? error.message : "章节用量记录异常，不能继续生成。",
                 "runtime.data_integrity", "chapter_usage", chapter.id, chapter.order);

@@ -36,3 +36,12 @@ test('chapter budget retains its baseline on recovery and counts only this chapt
  assert.throws(()=>beginChapterUsage(snapshot,'c1',2,90000),/身份/);
  assert.throws(()=>observeChapterUsage(snapshot,'unknown',90000),/检查点/);
 });
+test('chapter budget excludes chapter-batch planning while preserving the job counter boundary',()=>{
+ const {beginChapterUsage,observeChapterUsage,finalizeChapterUsage}=require('../../../dist/services/novel/production/usage');
+ const snapshot={runId:'new-run',decisions:[]};
+ beginChapterUsage(snapshot,'c1',1,100,20);
+ assert.equal(observeChapterUsage(snapshot,'c1',1150,70).totalTokens,1000);
+ assert.equal(finalizeChapterUsage(snapshot,'c1',1150,70).totalTokens,1000);
+ assert.equal(snapshot.chapterUsage[0].endJobTokens,1150);
+ assert.equal(snapshot.chapterUsage[0].endChapterBatchTokens,70);
+});

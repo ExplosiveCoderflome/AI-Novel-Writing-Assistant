@@ -135,6 +135,10 @@ function resolveStructuredRepairAttempts(asset: PromptAsset<unknown, unknown, un
   return Math.max(0, asset.repairPolicy?.maxAttempts ?? 1);
 }
 
+function resolveStructuredFallbackRepairAttempts(asset: PromptAsset<unknown, unknown, unknown>): number {
+  return Math.max(0, asset.fallbackRepairPolicy?.maxAttempts ?? resolveStructuredRepairAttempts(asset));
+}
+
 function resolveStructuredSemanticRetryAttempts(asset: PromptAsset<unknown, unknown, unknown>): number {
   return Math.max(0, asset.semanticRetryPolicy?.maxAttempts ?? 0);
 }
@@ -671,6 +675,7 @@ async function resolveStructuredOutput<I, O, R = O>(input: {
         messages: currentMessages,
         schema: input.outputSchema,
         maxRepairAttempts: resolveStructuredRepairAttempts(asset),
+        fallbackMaxRepairAttempts: resolveStructuredFallbackRepairAttempts(asset),
         promptMeta: buildPromptInvocationMeta(
           asset,
           input.context,
@@ -770,6 +775,7 @@ export async function runStructuredPrompt<I, O, R = O>(input: {
       messages,
       schema: outputSchema,
       maxRepairAttempts: resolveStructuredRepairAttempts(input.asset as PromptAsset<unknown, unknown, unknown>),
+      fallbackMaxRepairAttempts: resolveStructuredFallbackRepairAttempts(input.asset as PromptAsset<unknown, unknown, unknown>),
       promptMeta: prepared.invocation,
     });
     logMemoryUsage({
@@ -1205,6 +1211,7 @@ export async function streamStructuredPrompt<I, O, R = O>(input: {
           schema: outputSchema,
           structuredStrategy: "prompt_json",
           maxRepairAttempts: resolveStructuredRepairAttempts(input.asset as PromptAsset<unknown, unknown, unknown>),
+          fallbackMaxRepairAttempts: resolveStructuredFallbackRepairAttempts(input.asset as PromptAsset<unknown, unknown, unknown>),
           promptMeta: prepared.invocation,
         });
       const resolved = await resolveStructuredOutput({

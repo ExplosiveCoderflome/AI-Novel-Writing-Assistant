@@ -222,6 +222,8 @@ export interface PromptAsset<I, O, R = O> {
   language: PromptLanguage;
   contextPolicy: ContextPolicy;
   repairPolicy?: PromptRepairPolicy;
+  /** Optional lower repair budget for the configured fallback model. */
+  fallbackRepairPolicy?: PromptRepairPolicy;
   semanticRetryPolicy?: PromptSemanticRetryPolicy<I, R>;
   outputSchema?: ZodType<R>;
   structuredOutputHint?: PromptStructuredOutputHint<I, R>;
