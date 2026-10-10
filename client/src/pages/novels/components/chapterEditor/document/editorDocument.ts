@@ -1,10 +1,11 @@
 import type { Descendant, Value } from "platejs";
 import type { ChapterEditorOperation } from "@ai-novel/shared/types/novel";
+import { chapterParagraphs, normalizeChapterText, replaceChapterSelection } from "@ai-novel/shared/types/chapterEditor/document";
 import type {
   ChapterEditorRequestBuilderInput,
   ChapterEditorSelectionRange,
   SelectionToolbarPosition,
-} from "./chapterEditorTypes";
+} from "../chapterEditorTypes";
 
 export const CHAPTER_EDITOR_OPERATION_LABELS: Record<ChapterEditorOperation, string> = {
   polish: "优化表达",
@@ -16,38 +17,19 @@ export const CHAPTER_EDITOR_OPERATION_LABELS: Record<ChapterEditorOperation, str
 };
 
 export function normalizeEditorText(text: string): string {
-  return text.replace(/\r\n/g, "\n");
+  return normalizeChapterText(text);
 }
 
 export function countEditorWords(text: string): number {
   return normalizeEditorText(text).replace(/\s+/g, "").length;
 }
 
-function normalizeParagraphText(text: string): string {
-  return normalizeEditorText(text)
-    .split("\n")
-    .map((line) => line.trim())
-    .filter((line) => line.length > 0)
-    .join(" ")
-    .replace(/\s+/g, " ")
-    .trim();
-}
-
 function splitParagraphs(text: string): string[] {
-  const normalized = normalizeEditorText(text).trim();
-  if (!normalized) {
-    return [];
-  }
-
-  return normalized
-    .split(/\n{2,}/)
-    .map((paragraph) => normalizeParagraphText(paragraph))
-    .filter((paragraph) => paragraph.length > 0);
+  return chapterParagraphs(text).map((paragraph) => paragraph.text);
 }
 
 export function normalizeChapterContent(text: string): string {
-  const paragraphs = splitParagraphs(text);
-  return paragraphs.length > 0 ? paragraphs.join("\n\n") : "";
+  return normalizeChapterText(text);
 }
 
 export function toPlateValue(text: string): Value {
@@ -70,9 +52,7 @@ function nodeToText(node: Descendant): string {
 
 export function toPlainText(value: Value): string {
   const paragraphs = (value as Descendant[])
-    .map((node) => nodeToText(node))
-    .map((paragraph) => normalizeParagraphText(paragraph))
-    .filter((paragraph) => paragraph.length > 0);
+    .map((node) => nodeToText(node));
 
   return paragraphs.length > 0 ? paragraphs.join("\n\n") : "";
 }
@@ -149,7 +129,7 @@ function getAbsoluteOffsetFromPoint(value: Value, point: EditorPointLike): numbe
 
   let total = 0;
   for (let index = 0; index < paragraphIndex; index += 1) {
-    total += normalizeParagraphText(nodeToText(nodes[index])).length + 2;
+    total += nodeToText(nodes[index]).length + 2;
   }
 
   const paragraph = nodes[paragraphIndex];
@@ -268,8 +248,7 @@ export function getParagraphWindow(content: string, selection: ChapterEditorSele
 }
 
 export function applyCandidateToContent(content: string, selection: ChapterEditorSelectionRange, replacement: string): string {
-  const normalized = normalizeEditorText(content);
-  return `${normalized.slice(0, selection.from)}${replacement}${normalized.slice(selection.to)}`;
+  return replaceChapterSelection(content, selection, replacement);
 }
 
 export function getParagraphIndicesForRange(content: string, selection: Pick<ChapterEditorSelectionRange, "from" | "to">) {
@@ -335,7 +314,7 @@ export function getSaveStatusLabel(status: "idle" | "saving" | "saved" | "error"
   if (status === "saving") {
     return "保存中";
   }
-  if (status === "saved") {
+  if (status === "saved" && !isDirty) {
     return "已保存";
   }
   if (status === "error") {

@@ -76,6 +76,11 @@ interface ChapterExecutionActionPanelProps {
   backgroundSyncActivities?: ChapterExecutionBackgroundActivity[];
   chapterRunStatus?: Extract<SSEFrame, { type: "run_status" }> | null;
   repairRunStatus?: Extract<SSEFrame, { type: "run_status" }> | null;
+  manualDirectorHandoff?: {
+    enabled: boolean;
+    isAccepting: boolean;
+    onAccept: () => void;
+  };
 }
 
 function resolvePrimaryAction(params: {
@@ -218,6 +223,7 @@ export default function ChapterExecutionActionPanel(props: ChapterExecutionActio
     backgroundSyncActivities,
     chapterRunStatus,
     repairRunStatus,
+    manualDirectorHandoff,
   } = props;
 
   const isSelectedChapterStreaming = Boolean(selectedChapter && isStreaming && streamingChapterId === selectedChapter.id);
@@ -307,6 +313,22 @@ export default function ChapterExecutionActionPanel(props: ChapterExecutionActio
       </CardHeader>
 
       <CardContent className="space-y-4 pt-4">
+        {manualDirectorHandoff?.enabled ? (
+          <div className="rounded-2xl border border-primary/20 bg-primary/5 p-4">
+            <div className="text-sm font-semibold text-foreground">把本章修改交还给自动导演</div>
+            <p className="mt-1 text-sm leading-6 text-muted-foreground">
+              当前章节正文已经有你的修改。确认后，导演会把这份正文作为当前结果，从未完成的步骤继续推进。
+            </p>
+            <Button
+              type="button"
+              className="mt-3 w-full"
+              onClick={manualDirectorHandoff.onAccept}
+              disabled={manualDirectorHandoff.isAccepting}
+            >
+              {manualDirectorHandoff.isAccepting ? "确认中..." : "确认本章修改并继续"}
+            </Button>
+          </div>
+        ) : null}
         <div className="rounded-2xl border border-primary/15 bg-primary/5 p-4">
           <div className="text-xs text-muted-foreground">当前最推荐动作</div>
           <div className="mt-2 text-sm leading-6 text-foreground">{primaryAction.reason}</div>

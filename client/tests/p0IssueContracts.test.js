@@ -12,6 +12,13 @@ test("AI 执行台在审校待确认且有报告时提供修复入口", async ()
   assert.match(source, /chapterAuditReports\.length > 0/);
 });
 
+test("半自动步骤确认把正文修改回填动作放在章节执行台", async () => {
+  const source = await read("src/pages/novels/components/ChapterExecutionActionPanel.tsx");
+  assert.match(source, /把本章修改交还给自动导演/);
+  assert.match(source, /确认本章修改并继续/);
+  assert.match(source, /manualDirectorHandoff\.onAccept/);
+});
+
 test("自定义厂商配置可选择鉴权方式", async () => {
   const source = await read("src/pages/settings/components/ProviderConfigDialog.tsx");
   assert.match(source, /Authorization: Bearer/);

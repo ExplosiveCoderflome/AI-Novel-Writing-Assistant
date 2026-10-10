@@ -12,6 +12,8 @@ interface ChapterEditorSidebarProps {
   selectedDiagnosticId: string | null;
   onBack?: () => void;
   onOpenVersionHistory?: () => void;
+  onRefreshWorkspace?: () => void;
+  isRefreshingWorkspace?: boolean;
   onSave: () => void;
   onFocusDiagnostic: (card: ChapterEditorDiagnosticCard) => void;
   onRunDiagnostic: (card: ChapterEditorDiagnosticCard) => void;
@@ -43,6 +45,8 @@ export default function ChapterEditorSidebar(props: ChapterEditorSidebarProps) {
     selectedDiagnosticId,
     onBack,
     onOpenVersionHistory,
+    onRefreshWorkspace,
+    isRefreshingWorkspace = false,
     onSave,
     onFocusDiagnostic,
     onRunDiagnostic,
@@ -74,7 +78,7 @@ export default function ChapterEditorSidebar(props: ChapterEditorSidebarProps) {
               <div className="flex flex-wrap gap-2">
                 <MetaChip label={`${wordCount} 字`} />
                 <MetaChip label={saveStatusLabel} />
-                <MetaChip label={isWorkspaceLoading ? "LLM 分析中" : `问题 ${workspace?.chapterMeta.openIssueCount ?? 0}`} />
+                <MetaChip label={isWorkspaceLoading ? "AI 分析中" : `问题 ${workspace?.chapterMeta.openIssueCount ?? 0}`} />
               </div>
 
               {isWorkspaceLoading ? (
@@ -101,6 +105,11 @@ export default function ChapterEditorSidebar(props: ChapterEditorSidebarProps) {
               {onOpenVersionHistory ? (
                 <Button size="sm" variant="outline" onClick={onOpenVersionHistory} className="w-full">
                   版本入口
+                </Button>
+              ) : null}
+              {onRefreshWorkspace ? (
+                <Button size="sm" variant="ghost" onClick={onRefreshWorkspace} disabled={isRefreshingWorkspace} className="w-full">
+                  {isRefreshingWorkspace ? "分析中..." : "重新分析本章"}
                 </Button>
               ) : null}
             </div>

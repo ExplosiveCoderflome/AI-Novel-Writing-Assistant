@@ -33,8 +33,8 @@ import {
   buildAiRevisionRequest,
   countEditorWords,
   getSaveStatusLabel,
-  normalizeChapterContent,
-} from "./chapterEditorUtils";
+  useChapterDraft,
+} from "./document";
 
 const EMPTY_SESSION: ChapterEditorSessionState = {
   sessionId: "",
@@ -96,18 +96,17 @@ export default function ChapterEditorShell(props: ChapterEditorShellProps) {
     workspaceStatus,
     onBack,
     onOpenVersionHistory,
+    onRefreshWorkspace,
+    isRefreshingWorkspace,
   } = props;
   const llm = useLLMStore();
   const queryClient = useQueryClient();
   const lastPreviewRequestRef = useRef<ReturnType<typeof buildAiRevisionRequest> | null>(null);
-  const normalizedChapterContent = useMemo(() => normalizeChapterContent(chapter?.content ?? ""), [chapter?.content]);
   const qualityDebtDetails = useMemo(
     () => readChapterQualityDebtDetails(chapter?.riskFlags),
     [chapter?.riskFlags],
   );
 
-  const [contentDraft, setContentDraft] = useState(normalizedChapterContent);
-  const [savedContent, setSavedContent] = useState(normalizedChapterContent);
   const [saveStatus, setSaveStatus] = useState<"idle" | "saving" | "saved" | "error">("idle");
   const [selection, setSelection] = useState<ChapterEditorSelectionRange | null>(null);
   const [selectionToolbarPosition, setSelectionToolbarPosition] = useState<SelectionToolbarPosition | null>(null);
@@ -116,10 +115,14 @@ export default function ChapterEditorShell(props: ChapterEditorShellProps) {
   const [revisionInstruction, setRevisionInstruction] = useState("");
   const [selectedDiagnosticId, setSelectedDiagnosticId] = useState<string | null>(null);
 
+  const draft = useChapterDraft({
+    novelId,
+    chapter: chapter ? { id: chapter.id, content: chapter.content, updatedAt: String(chapter.updatedAt) } : undefined,
+    busy: session.status !== "idle",
+  });
+  const { contentDraft, savedContent, isDirty, hasExternalChange, restored, storageError } = draft;
+
   useEffect(() => {
-    const nextContent = normalizedChapterContent;
-    setContentDraft(nextContent);
-    setSavedContent(nextContent);
     setSaveStatus("idle");
     setSelection(null);
     setSelectionToolbarPosition(null);
@@ -127,7 +130,7 @@ export default function ChapterEditorShell(props: ChapterEditorShellProps) {
     setRevisionInstruction("");
     setRevisionScope("selection");
     lastPreviewRequestRef.current = null;
-  }, [chapter?.id, normalizedChapterContent]);
+  }, [chapter?.id]);
 
   useEffect(() => {
     if (!workspace) {
@@ -139,7 +142,6 @@ export default function ChapterEditorShell(props: ChapterEditorShellProps) {
     }
   }, [selectedDiagnosticId, workspace]);
 
-  const isDirty = contentDraft !== savedContent;
   const wordCount = useMemo(() => countEditorWords(contentDraft), [contentDraft]);
   const activeCandidate = useMemo(
     () => session.candidates?.find((candidate) => candidate.id === session.activeCandidateId) ?? null,
@@ -163,7 +165,6 @@ export default function ChapterEditorShell(props: ChapterEditorShellProps) {
       queryClient.invalidateQueries({ queryKey: queryKeys.novels.detail(novelId) }),
       queryClient.invalidateQueries({ queryKey: queryKeys.novels.simpleShelf(novelId) }),
       queryClient.invalidateQueries({ queryKey: queryKeys.novels.qualityReport(novelId) }),
-      queryClient.invalidateQueries({ queryKey: queryKeys.novels.chapterEditorWorkspace(novelId, chapter?.id ?? "none") }),
       queryClient.invalidateQueries({ queryKey: queryKeys.novels.snapshots(novelId) }),
       chapter?.id
         ? queryClient.invalidateQueries({ queryKey: queryKeys.novels.chapterPlan(novelId, chapter.id) })
@@ -175,18 +176,25 @@ export default function ChapterEditorShell(props: ChapterEditorShellProps) {
     ]);
   };
 
+  const leaveEditor = (action?: () => void) => {
+    if (isDirty && !window.confirm("本章还有未保存的修改，离开后仍可从草稿恢复。要离开正文编辑吗？")) {
+      return;
+    }
+    action?.();
+  };
+
   const saveMutation = useMutation({
     mutationFn: async (nextContent: string) => {
       if (!chapter) {
         throw new Error("当前未选中章节。");
       }
-      return updateNovelChapter(novelId, chapter.id, { content: nextContent });
+      return updateNovelChapter(novelId, chapter.id, { content: nextContent, expectedUpdatedAt: draft.savedUpdatedAt });
     },
     onMutate: () => {
       setSaveStatus("saving");
     },
-    onSuccess: async (_response, nextContent) => {
-      setSavedContent(nextContent);
+    onSuccess: async (response, nextContent) => {
+      draft.acknowledgeSave(nextContent, { content: response.data?.content, updatedAt: String(response.data?.updatedAt ?? Date.now()) });
       setSaveStatus("saved");
       await invalidateChapterQueries();
       toast.success("章节正文已保存。");
@@ -294,14 +302,14 @@ export default function ChapterEditorShell(props: ChapterEditorShellProps) {
         triggerType: "manual",
         label,
       });
-      await updateNovelChapter(novelId, chapter.id, {
+      const response = await updateNovelChapter(novelId, chapter.id, {
         content: nextContent,
+        expectedUpdatedAt: draft.savedUpdatedAt,
       });
-      return nextContent;
+      return { nextContent, saved: response.data };
     },
-    onSuccess: async (nextContent) => {
-      setContentDraft(nextContent);
-      setSavedContent(nextContent);
+    onSuccess: async ({ nextContent, saved }) => {
+      draft.acknowledgeSave(nextContent, { content: saved?.content, updatedAt: String(saved?.updatedAt ?? Date.now()) });
       setSaveStatus("saved");
       setSession(EMPTY_SESSION);
       setRevisionInstruction("");
@@ -487,6 +495,12 @@ export default function ChapterEditorShell(props: ChapterEditorShellProps) {
           </Button>
         </div>
       ) : null}
+      {(restored || hasExternalChange || storageError) ? (
+        <div className="flex shrink-0 flex-wrap items-center justify-between gap-3 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-950">
+          <span>{storageError ? "浏览器暂时无法保存本地草稿，请尽快保存到作品。" : hasExternalChange ? "本章已有新的保存版本，你的草稿仍保留。" : "已恢复未保存的正文草稿。"}</span>
+          {hasExternalChange ? <Button size="sm" variant="outline" onClick={draft.loadSavedVersion}>加载新保存版本</Button> : null}
+        </div>
+      ) : null}
       <div className={`grid min-h-0 flex-1 gap-4 overflow-hidden ${gridClassName}`}>
         <ChapterEditorSidebar
           chapter={chapter}
@@ -497,8 +511,10 @@ export default function ChapterEditorShell(props: ChapterEditorShellProps) {
           isDirty={isDirty}
           isSaving={saveMutation.isPending}
           selectedDiagnosticId={selectedDiagnosticId}
-          onBack={onBack}
-          onOpenVersionHistory={onOpenVersionHistory}
+          onBack={onBack ? () => leaveEditor(onBack) : undefined}
+          onOpenVersionHistory={onOpenVersionHistory ? () => leaveEditor(onOpenVersionHistory) : undefined}
+          onRefreshWorkspace={onRefreshWorkspace}
+          isRefreshingWorkspace={isRefreshingWorkspace}
           onSave={() => saveMutation.mutate(contentDraft)}
           onFocusDiagnostic={handleFocusDiagnostic}
           onRunDiagnostic={handleRunDiagnostic}
@@ -509,7 +525,7 @@ export default function ChapterEditorShell(props: ChapterEditorShellProps) {
             value={contentDraft}
             readOnly={session.status !== "idle"}
             onChange={(next) => {
-              setContentDraft(next);
+              draft.setContentDraft(next);
               setSaveStatus("idle");
             }}
             onSelectionChange={(nextSelection, position) => {

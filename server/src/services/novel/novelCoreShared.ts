@@ -99,6 +99,8 @@ export interface UpdateNovelInput {
 }
 
 export interface ChapterInput {
+  /** Optional optimistic concurrency guard for editing a saved chapter. */
+  expectedUpdatedAt?: string;
   title: string;
   order: number;
   content?: string;

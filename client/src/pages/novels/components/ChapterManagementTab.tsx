@@ -82,6 +82,7 @@ export default function ChapterManagementTab(props: ChapterTabViewProps) {
     confirmingCharacterResourceProposalId = "",
     rejectingCharacterResourceProposalId = "",
     chapterAuditReports,
+    manualDirectorHandoff,
     backgroundSyncActivities,
     isGeneratingChapterPlan,
     isReplanningChapter,
@@ -322,6 +323,7 @@ export default function ChapterManagementTab(props: ChapterTabViewProps) {
                   isStreaming={isStreaming}
                   streamingChapterId={streamingChapterId}
                   chapterAuditReports={chapterAuditReports}
+                  manualDirectorHandoff={manualDirectorHandoff}
                   chapterRuntimePackage={chapterRuntimePackage}
                   latestStateSnapshot={latestStateSnapshot}
                   chapterStateSnapshot={chapterStateSnapshot}
