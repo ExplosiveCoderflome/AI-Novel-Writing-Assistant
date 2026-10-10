@@ -671,9 +671,12 @@ export class NovelCoreCrudService {
   }
 
   async updateChapter(novelId: string, chapterId: string, input: Partial<ChapterInput>) {
-    const exists = await prisma.chapter.findFirst({ where: { id: chapterId, novelId }, select: { id: true } });
+    const exists = await prisma.chapter.findFirst({ where: { id: chapterId, novelId }, select: { id: true, updatedAt: true } });
     if (!exists) {
       throw new Error("章节不存在");
+    }
+    if (input.expectedUpdatedAt && exists.updatedAt.getTime() !== new Date(input.expectedUpdatedAt).getTime()) {
+      throw new AppError("本章保存版本已变化。请先查看新内容，再合并你的修改。", 409);
     }
 
     const chapter = await prisma.chapter.update({

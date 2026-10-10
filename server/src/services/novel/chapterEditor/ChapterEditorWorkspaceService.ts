@@ -31,7 +31,7 @@ import {
   parseLooseTextList,
   splitParagraphsWithRanges,
   type ChapterEditorParagraph,
-} from "./chapterEditorShared";
+} from "./context";
 
 type LoadedWorkspaceNovel = NonNullable<Awaited<ReturnType<NovelCoreService["getNovelById"]>>>;
 

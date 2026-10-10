@@ -9,6 +9,7 @@ import type {
   StoryStateSnapshot,
   VolumePlan,
 } from "@ai-novel/shared/types/novel";
+import { chapterParagraphs, normalizeChapterText } from "@ai-novel/shared/types/chapterEditor/document";
 
 type WorldLike = {
   name?: string | null;
@@ -44,25 +45,11 @@ export interface ChapterEditorVolumeLocation {
 }
 
 export function normalizeEditorText(text: string | null | undefined): string {
-  return (text ?? "").replace(/\r\n/g, "\n");
-}
-
-function normalizeParagraphText(text: string): string {
-  return normalizeEditorText(text)
-    .split("\n")
-    .map((line) => line.trim())
-    .filter((line) => line.length > 0)
-    .join(" ")
-    .replace(/\s+/g, " ")
-    .trim();
+  return normalizeChapterText(text);
 }
 
 export function normalizeChapterContent(text: string | null | undefined): string {
-  const paragraphs = normalizeEditorText(text)
-    .split(/\n{2,}/)
-    .map((paragraph) => normalizeParagraphText(paragraph))
-    .filter(Boolean);
-  return paragraphs.join("\n\n");
+  return normalizeChapterText(text);
 }
 
 export function countEditorWords(text: string | null | undefined): number {
@@ -75,19 +62,7 @@ export function splitParagraphsWithRanges(text: string | null | undefined): Chap
     return [];
   }
 
-  const paragraphs = normalized.split(/\n{2,}/);
-  let cursor = 0;
-  return paragraphs.map((paragraph, index) => {
-    const from = cursor;
-    const to = from + paragraph.length;
-    cursor = to + 2;
-    return {
-      index: index + 1,
-      text: paragraph,
-      from,
-      to,
-    };
-  });
+  return chapterParagraphs(normalized);
 }
 
 export function buildParagraphWindow(

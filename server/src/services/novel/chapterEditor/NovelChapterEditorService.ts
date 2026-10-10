@@ -30,7 +30,7 @@ import {
   createTargetRangeForWholeChapter,
   normalizeChapterContent,
   normalizeEditorText,
-} from "./chapterEditorShared";
+} from "./context";
 
 const FULL_CHAPTER_REVISION_LIMIT = 8000;
 
@@ -120,7 +120,7 @@ export class NovelChapterEditorService {
     input: ChapterEditorAiRevisionRequest,
   ): Promise<ChapterEditorAiRevisionResponse> {
     const context = await this.workspaceService.loadContext(novelId, chapterId);
-    const content = normalizeChapterContent(input.contentSnapshot || context.chapter.content || "");
+    const content = normalizeChapterContent(input.contentSnapshot ?? context.chapter.content ?? "");
     if (!content.trim()) {
       throw new Error("当前章节正文为空，无法发起 AI 修正。");
     }

@@ -2598,6 +2598,25 @@ export default function NovelEdit() {
       ? rejectCharacterResourceProposalMutation.variables ?? ""
       : "",
     chapterAuditReports,
+    manualDirectorHandoff: {
+      enabled: Boolean(
+        displayAutoDirectorTask?.id
+        && selectedChapter?.content?.trim()
+        && (
+          displayAutoDirectorTask.pendingManualRecovery
+          || (
+            displayAutoDirectorTask.status === "waiting_approval"
+            && displayAutoDirectorTask.checkpointType === "step_review_required"
+          )
+        )
+      ),
+      isAccepting: acceptManualChangesAndContinueMutation.isPending,
+      onAccept: () => {
+        if (displayAutoDirectorTask?.id) {
+          acceptManualChangesAndContinueMutation.mutate(displayAutoDirectorTask.id);
+        }
+      },
+    },
     backgroundSyncActivities: pipelineBackgroundActivities,
     isGeneratingChapterPlan: generateChapterPlanMutation.isPending,
     isReplanningChapter: replanChapterMutation.isPending,

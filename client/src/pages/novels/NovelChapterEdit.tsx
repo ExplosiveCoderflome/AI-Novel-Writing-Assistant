@@ -42,6 +42,9 @@ export default function NovelChapterEdit() {
     queryKey: queryKeys.novels.chapterEditorWorkspace(id, chapterId || "none"),
     queryFn: () => getChapterEditorWorkspace(id, chapterId),
     enabled: Boolean(id && chapterId),
+    staleTime: 5 * 60 * 1000,
+    refetchOnWindowFocus: false,
+    refetchOnReconnect: false,
   });
 
   const detail = novelDetailQuery.data?.data;
@@ -85,7 +88,7 @@ export default function NovelChapterEdit() {
         </Button>
       </div>
       <ChapterEditorShell
-        key={`${chapter.id}:${chapter.updatedAt}`}
+        key={chapter.id}
         novelId={id}
         chapter={chapter}
         workspace={chapterEditorWorkspaceQuery.data?.data ?? null}
@@ -96,6 +99,8 @@ export default function NovelChapterEdit() {
             : "ready"}
         onBack={() => navigate(`/novels/${id}/edit`)}
         onOpenVersionHistory={() => navigate(`/novels/${id}/edit`)}
+        onRefreshWorkspace={() => { void chapterEditorWorkspaceQuery.refetch(); }}
+        isRefreshingWorkspace={chapterEditorWorkspaceQuery.isFetching}
       />
     </div>
   );

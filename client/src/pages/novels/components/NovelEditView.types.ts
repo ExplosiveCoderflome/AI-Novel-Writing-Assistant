@@ -389,6 +389,11 @@ export interface ChapterTabViewProps {
   confirmingCharacterResourceProposalId?: string;
   rejectingCharacterResourceProposalId?: string;
   chapterAuditReports: AuditReport[];
+  manualDirectorHandoff?: {
+    enabled: boolean;
+    isAccepting: boolean;
+    onAccept: () => void;
+  };
   backgroundSyncActivities?: ChapterExecutionBackgroundActivity[];
   isGeneratingChapterPlan: boolean;
   isReplanningChapter: boolean;
