@@ -75,6 +75,14 @@ test("正文编辑器提供本章版本预览和安全载入入口", async () =>
   assert.match(api, /chapters\/\$\{chapterId\}\/snapshots/);
 });
 
+test("正文编辑器提供快捷保存并刷新本章版本列表", async () => {
+  const shell = await read("src/pages/novels/components/chapterEditor/ChapterEditorShell.tsx");
+  const sidebar = await read("src/pages/novels/components/chapterEditor/ChapterEditorSidebar.tsx");
+  assert.match(shell, /handleSaveShortcut/);
+  assert.match(shell, /chapterSnapshots\(novelId, chapter\.id\)/);
+  assert.match(sidebar, /Ctrl\/Cmd\+S/);
+});
+
 test("自定义厂商配置可选择鉴权方式", async () => {
   const source = await read("src/pages/settings/components/ProviderConfigDialog.tsx");
   assert.match(source, /Authorization: Bearer/);
