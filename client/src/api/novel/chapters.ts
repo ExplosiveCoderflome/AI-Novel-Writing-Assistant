@@ -49,6 +49,7 @@ export async function updateNovelChapter(
   id: string,
   chapterId: string,
   payload: Partial<{
+    expectedUpdatedAt: string;
     title: string;
     order: number;
     content: string;

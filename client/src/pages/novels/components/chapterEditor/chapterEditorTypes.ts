@@ -34,6 +34,8 @@ export interface ChapterEditorShellProps {
   workspaceStatus: "loading" | "ready" | "error";
   onBack?: () => void;
   onOpenVersionHistory?: () => void;
+  onRefreshWorkspace?: () => void;
+  isRefreshingWorkspace?: boolean;
   onRunFullAudit?: () => void;
   onGenerateChapterPlan?: () => void;
   onReplanChapter?: () => void;

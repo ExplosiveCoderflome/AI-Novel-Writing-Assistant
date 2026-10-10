@@ -12,7 +12,7 @@ import {
   normalizeValuePayload,
   toPlainText,
   toPlateValue,
-} from "./chapterEditorUtils";
+} from "./document";
 
 type ChapterEditorPreview =
   | {
