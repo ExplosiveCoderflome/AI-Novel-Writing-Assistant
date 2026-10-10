@@ -29,6 +29,7 @@ const workspaceDiagnosticScopeSchema = z.enum(["selection", "chapter"]);
 const workspaceDiagnosticSeveritySchema = z.enum(["low", "medium", "high", "critical"]);
 
 export const chapterEditorWorkspaceDiagnosticCardSchema = z.object({
+  sourceIssueId: z.string().trim().min(1).optional(),
   title: z.string().trim().min(1).max(60),
   problemSummary: z.string().trim().min(1).max(220),
   whyItMatters: z.string().trim().min(1).max(220),

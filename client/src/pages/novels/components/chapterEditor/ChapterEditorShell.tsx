@@ -14,7 +14,7 @@ import {
   type ChapterQualityDebtDetails,
 } from "@ai-novel/shared/types/chapterQualityLoop";
 import { AlertTriangle, Loader2 } from "lucide-react";
-import { createNovelSnapshot, previewChapterAiRevision, previewChapterCursorContinuation, reviewNovelChapter, updateNovelChapter } from "@/api/novel";
+import { createNovelSnapshot, previewChapterAiRevision, previewChapterCursorContinuation, resolveChapterAuditIssue, reviewNovelChapter, updateNovelChapter } from "@/api/novel";
 import { queryKeys } from "@/api/queryKeys";
 import { Button } from "@/components/ui/button";
 import { toast } from "@/components/ui/toast";
@@ -243,6 +243,19 @@ export default function ChapterEditorShell(props: ChapterEditorShellProps) {
     },
     onError: (error) => {
       toast.error(error instanceof Error ? error.message : "重新审校失败，请稍后重试。");
+    },
+  });
+
+  const resolveDiagnosticMutation = useMutation({
+    mutationFn: async (issueId: string) => resolveChapterAuditIssue(novelId, issueId),
+    onSuccess: async () => {
+      setSelectedDiagnosticId(null);
+      await invalidateChapterQueries();
+      onRefreshWorkspace?.();
+      toast.success("问题已标记为处理完成，重新分析后会确认正文状态。");
+    },
+    onError: (error) => {
+      toast.error(error instanceof Error ? error.message : "问题状态更新失败，请稍后重试。");
     },
   });
 
@@ -619,6 +632,12 @@ export default function ChapterEditorShell(props: ChapterEditorShellProps) {
           onSave={() => saveMutation.mutate(contentDraft)}
           onFocusDiagnostic={handleFocusDiagnostic}
           onRunDiagnostic={handleRunDiagnostic}
+          onResolveDiagnostic={(card) => {
+            if (card.sourceIssueId) {
+              resolveDiagnosticMutation.mutate(card.sourceIssueId);
+            }
+          }}
+          isResolvingDiagnostic={resolveDiagnosticMutation.isPending}
         />
 
         <div className="relative min-h-0 overflow-hidden">
