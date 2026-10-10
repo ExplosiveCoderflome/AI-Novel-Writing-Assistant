@@ -13,6 +13,8 @@ interface RegisterNovelChapterRoutesInput {
     | "updateChapter"
     | "deleteChapter"
     | "ensureChapterExecutionContract"
+    | "listChapterSnapshots"
+    | "getChapterSnapshot"
   >;
   idParamsSchema: z.ZodType<{ id: string }>;
   chapterParamsSchema: z.ZodType<{ id: string; chapterId: string }>;
@@ -98,6 +100,40 @@ export function registerNovelChapterRoutes(input: RegisterNovelChapterRoutesInpu
       next(error);
     }
   });
+
+  router.get(
+    "/:id/chapters/:chapterId/snapshots",
+    validate({ params: chapterParamsSchema }),
+    async (req, res, next) => {
+      try {
+        const { id, chapterId } = req.params as z.infer<typeof chapterParamsSchema>;
+        const data = await novelService.listChapterSnapshots(id, chapterId);
+        res.status(200).json({ success: true, data, message: "Chapter snapshots loaded." } satisfies ApiResponse<typeof data>);
+      } catch (error) {
+        next(error);
+      }
+    },
+  );
+
+  router.get(
+    "/:id/chapters/:chapterId/snapshots/:snapshotId",
+    validate({
+      params: z.object({
+        id: z.string().trim().min(1),
+        chapterId: z.string().trim().min(1),
+        snapshotId: z.string().trim().min(1),
+      }),
+    }),
+    async (req, res, next) => {
+      try {
+        const { id, chapterId, snapshotId } = req.params as z.infer<typeof chapterParamsSchema> & { snapshotId: string };
+        const data = await novelService.getChapterSnapshot(id, chapterId, snapshotId);
+        res.status(200).json({ success: true, data, message: "Chapter snapshot loaded." } satisfies ApiResponse<typeof data>);
+      } catch (error) {
+        next(error);
+      }
+    },
+  );
 
   router.get(
     "/:id/chapters/:chapterId/traces",

@@ -22,6 +22,7 @@ import { toast } from "@/components/ui/toast";
 import { useLLMStore } from "@/store/llmStore";
 import ChapterEditorDirectorPanel from "./ChapterEditorDirectorPanel";
 import ChapterEditorSidebar from "./ChapterEditorSidebar";
+import ChapterVersionDrawer from "./ChapterVersionDrawer";
 import ChapterTextEditor from "./ChapterTextEditor";
 import SelectionAIFloatingToolbar from "./SelectionAIFloatingToolbar";
 import CursorAIFloatingToolbar from "./CursorAIFloatingToolbar";
@@ -124,6 +125,7 @@ export default function ChapterEditorShell(props: ChapterEditorShellProps) {
   const [revisionScope, setRevisionScope] = useState<ChapterEditorRevisionScope>("selection");
   const [revisionInstruction, setRevisionInstruction] = useState("");
   const [selectedDiagnosticId, setSelectedDiagnosticId] = useState<string | null>(null);
+  const [isVersionDrawerOpen, setIsVersionDrawerOpen] = useState(false);
 
   const draft = useChapterDraft({
     novelId,
@@ -141,6 +143,7 @@ export default function ChapterEditorShell(props: ChapterEditorShellProps) {
     setSession(EMPTY_SESSION);
     setRevisionInstruction("");
     setRevisionScope("selection");
+    setIsVersionDrawerOpen(false);
     lastPreviewRequestRef.current = null;
     lastContinuationRequestRef.current = null;
   }, [chapter?.id]);
@@ -514,6 +517,17 @@ export default function ChapterEditorShell(props: ChapterEditorShellProps) {
     setSession(EMPTY_SESSION);
   };
 
+  const handleLoadSnapshotContent = (content: string) => {
+    draft.setContentDraft(content);
+    setSaveStatus("idle");
+    setSession(EMPTY_SESSION);
+    setSelection(null);
+    setSelectionToolbarPosition(null);
+    setCursorOffset(null);
+    setCursorToolbarPosition(null);
+    setSelectedDiagnosticId(null);
+  };
+
   const handleFocusDiagnostic = (card: ChapterEditorDiagnosticCard) => {
     if (selectedDiagnosticId === card.id) {
       setSelectedDiagnosticId(null);
@@ -613,6 +627,7 @@ export default function ChapterEditorShell(props: ChapterEditorShellProps) {
           isSaving={saveMutation.isPending}
           selectedDiagnosticId={selectedDiagnosticId}
           onBack={onBack ? () => leaveEditor(onBack) : undefined}
+          onOpenChapterVersions={() => setIsVersionDrawerOpen(true)}
           onOpenVersionHistory={onOpenVersionHistory ? () => leaveEditor(onOpenVersionHistory) : undefined}
           onRefreshWorkspace={onRefreshWorkspace}
           isRefreshingWorkspace={isRefreshingWorkspace}
@@ -708,6 +723,16 @@ export default function ChapterEditorShell(props: ChapterEditorShellProps) {
           />
         </div>
       </div>
+      <ChapterVersionDrawer
+        novelId={novelId}
+        chapterId={chapter.id}
+        chapterTitle={chapter.title}
+        open={isVersionDrawerOpen}
+        onOpenChange={setIsVersionDrawerOpen}
+        currentContent={contentDraft}
+        isDirty={isDirty}
+        onLoadContent={handleLoadSnapshotContent}
+      />
     </div>
   );
 }

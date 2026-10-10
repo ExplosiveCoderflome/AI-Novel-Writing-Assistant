@@ -63,6 +63,18 @@ test("正文候选支持按差异项选择写回", async () => {
   assert.match(panel, /接受已选/);
 });
 
+test("正文编辑器提供本章版本预览和安全载入入口", async () => {
+  const drawer = await read("src/pages/novels/components/chapterEditor/ChapterVersionDrawer.tsx");
+  const shell = await read("src/pages/novels/components/chapterEditor/ChapterEditorShell.tsx");
+  const api = await read("src/api/novel/production.ts");
+  assert.match(drawer, /listNovelChapterSnapshots/);
+  assert.match(drawer, /载入编辑区/);
+  assert.match(drawer, /保存后才会写入正文/);
+  assert.doesNotMatch(drawer, /restoreNovelSnapshot/);
+  assert.match(shell, /onOpenChapterVersions/);
+  assert.match(api, /chapters\/\$\{chapterId\}\/snapshots/);
+});
+
 test("自定义厂商配置可选择鉴权方式", async () => {
   const source = await read("src/pages/settings/components/ProviderConfigDialog.tsx");
   assert.match(source, /Authorization: Bearer/);
