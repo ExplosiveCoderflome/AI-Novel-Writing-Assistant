@@ -330,6 +330,12 @@ export function buildVolumeChapterDetailContextBlocks(input: VolumeChapterDetail
       required: true,
       content: `Existing draft:\n${buildChapterDetailDraft(input.targetChapter, input.detailMode)}`,
     }),
+    ...(input.targetChapter.plannedCharacterIds !== undefined ? [createContextBlock({
+      id:"character_initial_schedule",group:"character_initial_schedule",priority:98,required:true,
+      content:`本章角色现场出场初排（用于细化任务，可依剧情调整；仅提及、回忆或梦境不算现场出场）：\n${JSON.stringify(
+        input.novel.characters.filter(character=>character.id && input.targetChapter.plannedCharacterIds!.includes(character.id))
+          .map(character=>({id:character.id,name:character.name,role:character.role})))}`,
+    })] : []),
     createContextBlock({
       id: "volume_window",
       group: "volume_window",

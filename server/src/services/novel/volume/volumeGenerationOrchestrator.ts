@@ -145,8 +145,10 @@ async function loadGenerationContext(params: {
         characters: {
           orderBy: { createdAt: "asc" },
           select: {
+            id: true,
             name: true,
             role: true,
+            castRole: true,
             currentGoal: true,
             currentState: true,
           },

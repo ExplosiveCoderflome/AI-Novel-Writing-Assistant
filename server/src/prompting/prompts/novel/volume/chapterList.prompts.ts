@@ -63,6 +63,7 @@ function resolvePromptConfig(
       targetBeatLabel?: string | null;
       isBookFinale?: boolean;
       reservedChapterTitles?: string[];
+      characterIds?: string[];
       },
 ): {
   targetChapterCount: number;
@@ -70,6 +71,7 @@ function resolvePromptConfig(
   targetBeatLabel: string;
   isBookFinale: boolean;
   reservedChapterTitles: string[];
+  characterIds?: string[];
 } {
   if (typeof input === "number") {
     return {
@@ -87,6 +89,7 @@ function resolvePromptConfig(
     targetBeatLabel: input.targetBeatLabel?.trim() || "目标节奏段",
     isBookFinale: input.isBookFinale === true,
     reservedChapterTitles: input.reservedChapterTitles ?? [],
+    characterIds: input.characterIds,
   };
 }
 
@@ -279,17 +282,19 @@ export function createVolumeChapterListPrompt(
         targetBeatLabel?: string | null;
         isBookFinale?: boolean;
         reservedChapterTitles?: string[];
+        characterIds?: string[];
       },
 ): PromptAsset<
   VolumeChapterListPromptInput,
   ReturnType<typeof createVolumeChapterBeatBlockSchema>["_output"]
 > {
-  const { targetChapterCount, targetBeatKey, targetBeatLabel, isBookFinale = false, reservedChapterTitles } =
+  const { targetChapterCount, targetBeatKey, targetBeatLabel, isBookFinale = false, reservedChapterTitles, characterIds } =
     resolvePromptConfig(input);
+  const withSchedule = characterIds !== undefined;
 
   return {
     id: "novel.volume.chapter_list",
-    version: "v9",
+    version: withSchedule ? "v10" : "v9",
     taskType: "planner",
     mode: "structured",
     language: "zh",
@@ -357,6 +362,7 @@ export function createVolumeChapterListPrompt(
       exactChapterCount: targetChapterCount,
       expectedBeatKey: targetBeatKey,
       expectedBeatLabel: targetBeatLabel,
+      characterIds,
     }),
 
     render: (promptInput, context) => [
@@ -367,7 +373,7 @@ export function createVolumeChapterListPrompt(
           "你必须同时满足：结构化输出正确、章节功能清晰、标题像章节名、摘要有真实推进。",
           "",
           "一、任务边界",
-          `1. 你当前只能为「${targetBeatLabel}」生成 ${targetChapterCount} 章，数量不得多也不得少。`,
+          withSchedule ? "1. 只能为用户消息指定的目标节奏段生成指定数量章节，数量不得多也不得少。" : `1. 你当前只能为「${targetBeatLabel}」生成 ${targetChapterCount} 章，数量不得多也不得少。`,
           "2. 只允许覆盖当前目标 beat，不得越界生成相邻 beat 的章节。",
           "3. 不得把两个章节合并成一章摘要，也不得用空泛占位章来凑数。",
           "4. 若 beat 信息不足，也必须补齐到精确章数，但只能做保守过渡，不得发明重大新设定。",
@@ -375,14 +381,15 @@ export function createVolumeChapterListPrompt(
           "",
           "二、硬性输出约束",
           "1. 顶层必须输出 beatKey、beatLabel、chapterCount、chapters 四个字段。",
-          "2. 每章只能包含 title、summary、beatKey 三个字段，不得新增字段。",
-          `3. beatKey 必须严格等于 ${targetBeatKey}。`,
-          `4. beatLabel 必须严格等于 ${targetBeatLabel}。`,
-          `5. chapterCount 与 chapters.length 必须严格等于 ${targetChapterCount}。`,
-          `6. 每章 beatKey 都必须严格等于 ${targetBeatKey}。`,
+          withSchedule ? "2. 每章只能包含 title、summary、beatKey、plannedCharacterIds 四个字段。" : "2. 每章只能包含 title、summary、beatKey 三个字段，不得新增字段。",
+          withSchedule ? "3. beatKey 必须等于用户消息指定的目标节奏段键。" : `3. beatKey 必须严格等于 ${targetBeatKey}。`,
+          withSchedule ? "4. beatLabel 必须等于用户消息指定的目标节奏段名称。" : `4. beatLabel 必须严格等于 ${targetBeatLabel}。`,
+          withSchedule ? "5. chapterCount 与 chapters.length 必须等于用户消息指定的章数。" : `5. chapterCount 与 chapters.length 必须严格等于 ${targetChapterCount}。`,
+          withSchedule ? "6. 每章 beatKey 必须等于目标节奏段键。" : `6. 每章 beatKey 都必须严格等于 ${targetBeatKey}。`,
           "7. 不得输出 Markdown、注释、解释或任何额外文本。",
           "8. 每章 summary 控制在 40-120 个汉字，只写核心行动、阻力和造成的新局面；禁止扩写场景、对白或正文。",
           "9. 写完指定数量的最后一章后立即结束 JSON，不得追加分析、自检过程或候选版本。",
+          withSchedule ? "10. plannedCharacterIds 必须逐章输出数组，只使用角色目录 ID，安排本章真实参与行动、对话或现场观察的角色；仅提及、回忆、梦境不算现场出场。不可全员铺满，不可只照抄摘要出现的名字；按剧情需要安排登场、离场、重逢和对手压力。无人现场出场则输出 []，不新增角色。" : "",
           "",
           "三、章节规划核心原则",
           "1. 章节列表必须严格服从当前卷骨架与当前目标 beat 合同，不能偷跑到相邻 beat。",
@@ -397,7 +404,7 @@ export function createVolumeChapterListPrompt(
           "3. 连续章节不能承担完全相同的功能，尤其不能连续多章只做调查、讨论、铺垫、等待、意识到或发现。",
           "4. 若目标章数大于等于 5，至少应包含一次局面加压、一次关键发现或判断反转、一次阶段性兑现或明确转向。",
           "5. 关键推进可以占更多章节，过渡章要短促有力，不要为了凑数制造低信息密度章节。",
-          isBookFinale
+          withSchedule ? "6. 若用户指定为全书终章，完成结局合同，不创建新主线；否则兑现当前 beat 的 mustDeliver 并留下阅读牵引，不能偷跑下一 beat。" : isBookFinale
             ? "6. 全书终章必须完成结局合同中的主冲突、关系变化、核心回报与主题落点，不得留下必须续写的新主线。"
             : "6. 最后一章必须完成当前 beat 的 mustDeliver，同时留下进入下一 beat 的阅读牵引，但不得提前兑现下一 beat 的核心事件。",
           "",
@@ -436,7 +443,7 @@ export function createVolumeChapterListPrompt(
           "1. 本次只覆盖当前目标 beat，不得为相邻 beats 生成章节。",
           "2. 开头章节要承接前序已生成章节状态，不能把已经发生的推进重新起一遍。",
           "3. 中段章节要围绕当前 beat 的核心矛盾持续加压、试探、转折或兑现。",
-          isBookFinale
+          withSchedule ? "4. 全书终章完成结局合同，其余节奏段留下阅读牵引但不得偷跑下一 beat。" : isBookFinale
             ? "4. 全书终章必须完成结局合同，不再要求下一阶段牵引。"
             : "4. 结尾章节要把当前 beat 的 mustDeliver 落到位，但不要提前偷跑下一 beat 的核心兑现。",
           "",
@@ -451,6 +458,7 @@ export function createVolumeChapterListPrompt(
           .join("\n"),
       ),
 
+      ...(withSchedule ? [new HumanMessage(`角色目录（ID、姓名、身份、剧情定位；后续章节沿用这些身份）：\n${JSON.stringify(promptInput.novel.characters.map(character => ({id:character.id,name:character.name,role:character.role,castRole:character.castRole ?? null})).sort((a,b)=>(a.id ?? "").localeCompare(b.id ?? "")))}`)] : []),
       new HumanMessage(
         [
           "请基于以下上下文，输出当前节奏段的章节块。",
@@ -460,7 +468,8 @@ export function createVolumeChapterListPrompt(
           `- beatKey 必须严格等于 ${targetBeatKey}`,
           `- beatLabel 必须严格等于 ${targetBeatLabel}`,
           `- chapterCount 与 chapters.length 必须严格等于 ${targetChapterCount}`,
-          "- 每章只能包含 title、summary、beatKey",
+          withSchedule ? "- 每章包含 title、summary、beatKey、plannedCharacterIds，逐章安排现场出场角色 ID" : "- 每章只能包含 title、summary、beatKey",
+          ...(withSchedule ? [`- 本次${isBookFinale ? "是" : "不是"}全书终章`] : []),
           "- 不得生成任何相邻 beat 的章节",
           "- 先在脑内规划章节功能分配与标题骨架配比，再输出完整章节块",
           "- 优先保证章节推进感、节奏承接、标题结构分散、摘要中的角色主动性与结尾牵引",

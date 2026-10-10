@@ -264,6 +264,30 @@ test("single-beat generation does not repeat completed beat titles in locked con
   }
 });
 
+test('V2 saves initial cast schedules in the existing beat calls without a separate model step',async()=>{
+  const document=createDocument();
+  document.volumes[0].chapters=[];
+  const original=promptRunner.runStructuredPrompt;
+  let calls=0;
+  promptRunner.runStructuredPrompt=async({asset,promptInput})=>{
+    calls++;
+    assert.equal(asset.version,'v10');
+    return {output:asset.outputSchema.parse({beatKey:promptInput.targetBeat.key,beatLabel:promptInput.targetBeat.label,
+      chapterCount:promptInput.targetBeatChapterCount,chapters:Array.from({length:promptInput.targetBeatChapterCount},(_,i)=>({
+        title:(promptInput.targetBeat.key==='open_hook'?'药铺开门':'医馆封门')+i,summary:'青禾主动选择救治伤者，打破官差追捕的僵局并承担药方暴露的代价。',
+        beatKey:promptInput.targetBeat.key,plannedCharacterIds:i===0?['qing']:[],
+      }))})};
+  };
+  try{
+    const result=await generateBeatChunkedChapterList({document,
+      novel:{title:'测试',estimatedChapterCount:4,characters:[{id:'qing',name:'青禾',role:'主角'}]},
+      workspace:{...document,workspaceVersion:'v2',readiness:{}},storyMacroPlan:null,
+      options:{targetVolumeId:'volume-1',generationMode:'full_volume',entrypoint:'director_next'},notifyPhase:async()=>{}});
+    assert.equal(calls,2,'two beats use only the original two split requests');
+    assert.deepEqual(result.mergedDocument.volumes[0].chapters.map(c=>c.plannedCharacterIds),[['qing'],[],['qing'],[]]);
+  }finally{promptRunner.runStructuredPrompt=original;}
+});
+
 test("single-beat generation rejects a title copied from a completed beat before persistence", async () => {
   const document = createDocument();
   const originalRunStructuredPrompt = promptRunner.runStructuredPrompt;

@@ -68,8 +68,10 @@ export interface VolumeGenerationNovel {
     name: string;
   } | null;
   characters: Array<{
+    id?: string;
     name: string;
     role: string;
+    castRole?: string | null;
     currentGoal: string | null;
     currentState: string | null;
   }>;

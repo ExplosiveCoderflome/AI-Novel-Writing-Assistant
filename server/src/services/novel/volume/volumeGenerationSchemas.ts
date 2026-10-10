@@ -476,8 +476,19 @@ export function createVolumeChapterBeatBlockSchema(config: {
   exactChapterCount?: number;
   expectedBeatKey?: string;
   expectedBeatLabel?: string | null;
+  characterIds?: string[];
 } = {}) {
   const { exactChapterCount, expectedBeatKey, expectedBeatLabel } = config;
+  const itemSchema = config.characterIds === undefined ? generatedChapterBeatBlockItemSchema : z.preprocess(
+    (raw) => normalizeChapterListItemPayload(raw), z.object({
+      title: z.string().trim().min(1).max(32), summary: z.string().trim().min(1).max(240),
+      beatKey: z.string().trim().min(1).max(64),
+      plannedCharacterIds: z.array(z.string().trim().min(1)).max(config.characterIds.length).superRefine((ids, ctx) => {
+        if (new Set(ids).size !== ids.length || ids.some(id => !config.characterIds!.includes(id))) {
+          ctx.addIssue({code:z.ZodIssueCode.custom,message:"出场安排只能使用角色目录中的 ID，不能重复或使用其他书籍角色。"});
+        }
+      }),
+    }));
   return z.preprocess(
     (raw) => normalizeChapterBeatBlockPayload(raw, { expectedBeatKey, expectedBeatLabel }),
     z.object({
@@ -485,8 +496,8 @@ export function createVolumeChapterBeatBlockSchema(config: {
     beatLabel: z.string().trim().min(1),
     chapterCount: z.number().int().min(1),
     chapters: typeof exactChapterCount === "number"
-      ? z.array(generatedChapterBeatBlockItemSchema).length(exactChapterCount)
-      : z.array(generatedChapterBeatBlockItemSchema).min(1).max(24),
+      ? z.array(itemSchema).length(exactChapterCount)
+      : z.array(itemSchema).min(1).max(24),
   }).superRefine((value, ctx) => {
     if (value.chapterCount !== value.chapters.length) {
       ctx.addIssue({
