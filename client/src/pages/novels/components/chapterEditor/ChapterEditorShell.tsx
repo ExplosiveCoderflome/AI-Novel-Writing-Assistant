@@ -9,12 +9,13 @@ import type {
   ChapterEditorRevisionScope,
   ChapterEditorTargetRange,
 } from "@ai-novel/shared/types/novel";
+import { useCandidateAcceptance, useCandidateReview } from "./review";
 import {
   readChapterQualityDebtDetails,
   type ChapterQualityDebtDetails,
 } from "@ai-novel/shared/types/chapterQualityLoop";
 import { AlertTriangle, Loader2 } from "lucide-react";
-import { createNovelSnapshot, previewChapterAiRevision, previewChapterCursorContinuation, resolveChapterAuditIssue, reviewNovelChapter, updateNovelChapter } from "@/api/novel";
+import { previewChapterAiRevision, previewChapterCursorContinuation, resolveChapterAuditIssue, reviewNovelChapter, updateNovelChapter } from "@/api/novel";
 import { queryKeys } from "@/api/queryKeys";
 import { Button } from "@/components/ui/button";
 import { toast } from "@/components/ui/toast";
@@ -33,12 +34,10 @@ import type {
 import {
   CHAPTER_EDITOR_CURSOR_OPERATION_LABELS,
   CHAPTER_EDITOR_OPERATION_LABELS,
-  applyCandidateToContent,
   buildAiRevisionRequest,
   countEditorWords,
   getSaveStatusLabel,
   getParagraphWindow,
-  insertChapterContinuation,
   normalizeChapterContent,
   useChapterDraft,
 } from "./document";
@@ -158,7 +157,7 @@ export default function ChapterEditorShell(props: ChapterEditorShellProps) {
 
   const wordCount = useMemo(() => countEditorWords(contentDraft), [contentDraft]);
   const activeCandidate = useMemo(
-    () => session.candidates?.find((candidate) => candidate.id === session.activeCandidateId) ?? null,
+    () => session.candidates?.find((candidate) => candidate.id === session.activeCandidateId) ?? session.candidates?.[0] ?? null,
     [session.activeCandidateId, session.candidates],
   );
   const selectedDiagnosticCard = useMemo(
@@ -305,6 +304,7 @@ export default function ChapterEditorShell(props: ChapterEditorShellProps) {
         mode: "revision",
         status: "ready",
         viewMode: "block",
+        activeCandidateId: data.activeCandidateId ?? data.candidates[0]?.id ?? null,
         requestLabel: current.requestLabel,
         errorMessage: undefined,
       }));
@@ -359,6 +359,7 @@ export default function ChapterEditorShell(props: ChapterEditorShellProps) {
         continuationOperation: data.operation,
         status: "ready",
         viewMode: "block",
+        activeCandidateId: data.activeCandidateId ?? data.candidates[0]?.id ?? null,
         errorMessage: undefined,
       }));
       setSelection(null);
@@ -375,35 +376,20 @@ export default function ChapterEditorShell(props: ChapterEditorShellProps) {
     },
   });
 
-  const acceptMutation = useMutation({
-    mutationFn: async () => {
-      if (!chapter || !activeCandidate || !session.targetRange) {
-        throw new Error("当前没有可应用的候选版本。");
-      }
-      const label = `chapter-editor:${chapter.order}:${session.scope}:${Date.now()}`;
-      const nextContent = session.mode === "continuation"
-        ? insertChapterContinuation(contentDraft, session.targetRange.from, activeCandidate.content)
-        : applyCandidateToContent(contentDraft, session.targetRange, activeCandidate.content);
-      await createNovelSnapshot(novelId, {
-        triggerType: "manual",
-        label,
-      });
-      const response = await updateNovelChapter(novelId, chapter.id, {
-        content: nextContent,
-        expectedUpdatedAt: draft.savedUpdatedAt,
-      });
-      return { nextContent, saved: response.data };
-    },
-    onSuccess: async ({ nextContent, saved }) => {
-      draft.acknowledgeSave(nextContent, { content: saved?.content, updatedAt: String(saved?.updatedAt ?? Date.now()) });
+  const review = useCandidateReview(session.sessionId ?? "", session.targetRange?.text ?? "", activeCandidate);
+  const acceptMutation = useCandidateAcceptance({
+    novelId, chapter, session, candidate: activeCandidate,
+    selectedChangeIds: review.selectedChangeIds,
+    content: contentDraft,
+    sourceSnapshot: session.mode === "continuation"
+      ? lastContinuationRequestRef.current?.contentSnapshot : lastPreviewRequestRef.current?.contentSnapshot,
+    savedUpdatedAt: draft.savedUpdatedAt,
+    acknowledgeSave: draft.acknowledgeSave,
+    onAccepted: async () => {
       setSaveStatus("saved");
       setSession(EMPTY_SESSION);
       setRevisionInstruction("");
       await invalidateChapterQueries();
-      toast.success("已应用候选版本，并创建 AI 修改前快照。");
-    },
-    onError: (error) => {
-      toast.error(error instanceof Error ? error.message : "应用候选版本失败。");
     },
   });
 
@@ -414,12 +400,13 @@ export default function ChapterEditorShell(props: ChapterEditorShellProps) {
       to: session.targetRange.to,
       originalText: session.targetRange.text,
     }
-    : session.status === "ready" && activeCandidate && session.targetRange
+    : session.status === "ready" && activeCandidate && session.targetRange && !review.error
       ? {
         mode: session.viewMode,
         from: session.targetRange.from,
         to: session.targetRange.to,
         diffChunks: activeCandidate.diffChunks,
+        selectedChangeIds: review.selectedChangeIds,
         originalText: session.targetRange.text,
         candidateText: activeCandidate.content,
       }
@@ -696,6 +683,10 @@ export default function ChapterEditorShell(props: ChapterEditorShellProps) {
             selectedDiagnosticCard={selectedDiagnosticCard}
             session={session}
             activeCandidate={activeCandidate}
+            diffChanges={review.changes}
+            selectedDiffChangeIds={review.selectedChangeIds}
+            reviewError={review.error}
+            hasSelectedChanges={review.resultText !== session.targetRange?.text}
             revisionScope={revisionScope}
             revisionInstruction={revisionInstruction}
             canRunSelectionRevision={canRunSelectionRevision}
@@ -708,6 +699,8 @@ export default function ChapterEditorShell(props: ChapterEditorShellProps) {
             onRunSelectedDiagnostic={handleRunSelectedDiagnostic}
             onRunFreeform={handleRunFreeform}
             onSelectCandidate={(candidateId) => setSession((current) => ({ ...current, activeCandidateId: candidateId }))}
+            onSelectAllChanges={review.selectAll}
+            onToggleDiffChange={review.toggleChange}
             onChangeViewMode={(mode) => setSession((current) => ({ ...current, viewMode: mode }))}
             onAccept={() => acceptMutation.mutate()}
             onReject={handleReject}
