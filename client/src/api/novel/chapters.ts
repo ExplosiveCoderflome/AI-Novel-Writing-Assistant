@@ -138,6 +138,14 @@ export async function previewChapterCursorContinuation(
   return data;
 }
 
+export async function resolveChapterAuditIssue(novelId: string, issueId: string) {
+  const { data } = await apiClient.post<ApiResponse<unknown>>(
+    `/novels/${novelId}/audit-issues/${issueId}/resolve`,
+    {},
+  );
+  return data;
+}
+
 export async function generateChapterExecutionContract(
   novelId: string,
   chapterId: string,

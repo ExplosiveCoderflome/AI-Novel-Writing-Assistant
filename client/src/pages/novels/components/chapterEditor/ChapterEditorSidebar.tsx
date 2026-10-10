@@ -17,6 +17,8 @@ interface ChapterEditorSidebarProps {
   onSave: () => void;
   onFocusDiagnostic: (card: ChapterEditorDiagnosticCard) => void;
   onRunDiagnostic: (card: ChapterEditorDiagnosticCard) => void;
+  onResolveDiagnostic: (card: ChapterEditorDiagnosticCard) => void;
+  isResolvingDiagnostic?: boolean;
 }
 
 function MetaChip(props: { label: string }) {
@@ -50,6 +52,8 @@ export default function ChapterEditorSidebar(props: ChapterEditorSidebarProps) {
     onSave,
     onFocusDiagnostic,
     onRunDiagnostic,
+    onResolveDiagnostic,
+    isResolvingDiagnostic = false,
   } = props;
 
   const recommendedTask = workspace?.recommendedTask ?? null;
@@ -244,6 +248,16 @@ export default function ChapterEditorSidebar(props: ChapterEditorSidebarProps) {
                     <Button size="sm" onClick={() => onRunDiagnostic(card)}>
                       直接用 AI 处理
                     </Button>
+                    {card.sourceIssueId ? (
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        disabled={isDirty || isResolvingDiagnostic}
+                        onClick={() => onResolveDiagnostic(card)}
+                      >
+                        {isResolvingDiagnostic ? "确认中..." : isDirty ? "保存后确认已处理" : "确认问题已处理"}
+                      </Button>
+                    ) : null}
                   </div>
                 </div>
               );
