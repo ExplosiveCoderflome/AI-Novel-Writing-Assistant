@@ -17,6 +17,7 @@ import KnowledgeBindingPanel from "@/components/knowledge/KnowledgeBindingPanel"
 import AITakeoverContainer from "@/components/workflow/AITakeoverContainer";
 import ChapterManagementTab from "./ChapterManagementTab";
 import DirectorFactDebugDialog from "./DirectorFactDebugDialog";
+import DirectorStepCalibrationDialog from "./DirectorStepCalibrationDialog";
 import NovelCharacterPanel from "./NovelCharacterPanel";
 import NovelTaskDrawer from "./NovelTaskDrawer";
 import OutlineTab from "./OutlineTab";
@@ -67,6 +68,7 @@ function DesktopNovelEditView(props: NovelEditViewProps) {
     characterTab,
     takeover,
     taskDrawer,
+    directorStepCalibration,
     activeStepTakeoverEntry,
     onSwitchToSimpleMode,
     isSwitchingToSimpleMode = false,
@@ -374,6 +376,7 @@ function DesktopNovelEditView(props: NovelEditViewProps) {
               执行详情
               {taskAttentionLabel ? <Badge variant="secondary">{taskAttentionLabel}</Badge> : null}
             </Button>
+            {directorStepCalibration ? <DirectorStepCalibrationDialog {...directorStepCalibration} /> : null}
             </>
           )}
         />

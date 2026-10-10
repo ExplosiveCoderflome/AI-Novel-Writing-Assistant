@@ -19,6 +19,19 @@ test("半自动步骤确认把正文修改回填动作放在章节执行台", as
   assert.match(source, /manualDirectorHandoff\.onAccept/);
 });
 
+test("半自动审核可以选择其他导演步骤重新校准", async () => {
+  const dialog = await read("src/pages/novels/components/DirectorStepCalibrationDialog.tsx");
+  const page = await read("src/pages/novels/NovelEdit.tsx");
+  const mobile = await read("src/pages/novels/mobile/MobileNovelEditView.tsx");
+  assert.match(dialog, /getDirectorTaskFactInspection/);
+  assert.match(dialog, /调整导演步骤/);
+  assert.match(dialog, /完善这一步/);
+  assert.match(dialog, /重新生成这一步/);
+  assert.match(page, /directorStepCalibration=/);
+  assert.match(page, /checkpointType === "step_review_required"/);
+  assert.match(mobile, /DirectorStepCalibrationDialog/);
+});
+
 test("正文编辑器在光标处提供续写候选并保留候选写回入口", async () => {
   const editor = await read("src/pages/novels/components/chapterEditor/ChapterEditorShell.tsx");
   const toolbar = await read("src/pages/novels/components/chapterEditor/CursorAIFloatingToolbar.tsx");
