@@ -5,7 +5,7 @@ import {AppError} from "../../../middleware/errorHandler";
 import {withSqliteRetry} from "../../../db/sqliteRetry";
 
 type Database = Pick<Prisma.TransactionClient, "novel" | "novelWorkflowTask" | "directorNextRun" | "directorNextRunControl" | "directorRunCommand" | "generationJob">;
-export const directorV2Available = () => ["true", "1"].includes(process.env.DIRECTOR_NEXT_ENABLED ?? "");
+export const directorV2Available = () => ["true", "1"].includes(process.env.DIRECTOR_NEXT_ENABLED ?? "true");
 const activeRuns = ["queued", "running", "waiting_gate", "paused"];
 const activeTasks = ["queued", "running", "waiting_approval"] as const;
 const openingCommands = new Set(["generate_candidates", "refine_candidates", "patch_candidate", "refine_titles", "confirm_candidate"]);

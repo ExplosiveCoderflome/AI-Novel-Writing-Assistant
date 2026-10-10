@@ -141,14 +141,14 @@ export function createApp() {
   app.use("/api/title-library", titleLibraryRouter);
   app.use("/api", styleEngineRouter);
   app.use("/api", styleEngineExtractionRouter);
-  const directorNextEnabled = parseEnvFlag(process.env.DIRECTOR_NEXT_ENABLED, false);
+  const directorNextEnabled = parseEnvFlag(process.env.DIRECTOR_NEXT_ENABLED, true);
   const {createDirectorVersionRouter} = require("./modules/novel/director-routing") as typeof import("./modules/novel/director-routing");
   app.use("/api/novels", createDirectorVersionRouter());
   app.use("/api/novels", (_req, res, next) => {
     res.locals.directorNextEnabled = directorNextEnabled;
     next();
   }, novelRouter);
-  configureDirectorAgentEntry(parseEnvFlag(process.env.DIRECTOR_NEXT_ENABLED, false));
+  configureDirectorAgentEntry(parseEnvFlag(process.env.DIRECTOR_NEXT_ENABLED, true));
   if (directorNextEnabled) {
     const {creationStudioService} = require("./modules/novel/creation-studio/application/CreationStudioService") as typeof import("./modules/novel/creation-studio/application/CreationStudioService");
     const {launchNewDirectorBook} = require("./app/director/newBook") as typeof import("./app/director/newBook");
@@ -208,7 +208,7 @@ export function createApp() {
   app.use("/api/settings", settingsRouter);
   app.use("/api", onboardingRoutes);
   app.use("/api/astrology", astrologyRouter);
-  if (parseEnvFlag(process.env.DIRECTOR_NEXT_ENABLED, false)) {
+  if (parseEnvFlag(process.env.DIRECTOR_NEXT_ENABLED, true)) {
     const { getDirectorProductionServices } = require("./app/director/services") as typeof import("./app/director/services");
     const { mountDirectorNext } = require("./modules/director/http") as typeof import("./modules/director/http");
     mountDirectorNext(app, getDirectorProductionServices().http);
@@ -319,7 +319,7 @@ function initializeBackgroundServices(): BackgroundServicesHandle {
   novelSideEffectWorker.start();
   const recoveryInitialization = recoveryTaskService.initializePendingRecoveries();
   const directorWorker = new DirectorWorker();
-  const directorNextWorker = parseEnvFlag(process.env.DIRECTOR_NEXT_ENABLED, false)
+  const directorNextWorker = parseEnvFlag(process.env.DIRECTOR_NEXT_ENABLED, true)
     ? (require("./app/director/services") as typeof import("./app/director/services")).getDirectorProductionServices().worker
     : null;
   void recoveryInitialization.then(() => {

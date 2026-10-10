@@ -2,7 +2,7 @@ const test = require("node:test");
 const assert = require("node:assert/strict");
 const { createDirectorRuntime, automaticRecoveryBudget } = require("../../../dist/modules/director/application");
 
-test("director runtime centralizes IDs, clock, lease expiry and the disabled default", () => {
+test("director runtime centralizes IDs, clock, lease expiry and the built-in default", () => {
   let current = new Date("2026-10-01T00:00:00.000Z");
   let sequence = 0;
   const runtime = createDirectorRuntime({
@@ -12,7 +12,7 @@ test("director runtime centralizes IDs, clock, lease expiry and the disabled def
     workerId: "test-worker",
     leaseMs: 5_000,
   });
-  assert.equal(runtime.enabled(), false);
+  assert.equal(runtime.enabled(), true);
   assert.equal(runtime.workerId(), "test-worker");
   assert.equal(runtime.nextId(), "id-1");
   assert.equal(runtime.leaseExpiresAt(current).toISOString(), "2026-10-01T00:00:05.000Z");
@@ -20,9 +20,10 @@ test("director runtime centralizes IDs, clock, lease expiry and the disabled def
   assert.equal(runtime.now().toISOString(), "2026-10-01T00:00:01.000Z");
 });
 
-test("director runtime reads only the explicit enable flag", () => {
+test("director runtime keeps the built-in default while honoring an explicit disable flag", () => {
   assert.equal(createDirectorRuntime({ env: { DIRECTOR_NEXT_ENABLED: "true" }, idFactory: () => "id", workerId: "w" }).enabled(), true);
   assert.equal(createDirectorRuntime({ env: { DIRECTOR_NEXT_ENABLED: "1" }, idFactory: () => "id", workerId: "w" }).enabled(), true);
+  assert.equal(createDirectorRuntime({ env: { DIRECTOR_NEXT_ENABLED: "false" }, idFactory: () => "id", workerId: "w" }).enabled(), false);
   assert.equal(createDirectorRuntime({ env: { DIRECTOR_NEXT_ENABLED: "yes" }, idFactory: () => "id", workerId: "w" }).enabled(), false);
 });
 

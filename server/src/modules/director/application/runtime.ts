@@ -35,6 +35,8 @@ export function createDirectorRuntime(options: {
     workerId: () => workerId,
     now,
     leaseExpiresAt: (value) => new Date(value.getTime() + leaseMs),
-    enabled: () => env.DIRECTOR_NEXT_ENABLED === "1" || env.DIRECTOR_NEXT_ENABLED === "true",
+    enabled: () => env.DIRECTOR_NEXT_ENABLED === undefined
+      || env.DIRECTOR_NEXT_ENABLED === "1"
+      || env.DIRECTOR_NEXT_ENABLED === "true",
   };
 }
