@@ -1,5 +1,6 @@
 import { prisma } from "../../db/prisma";
 import { normalizeNovelOutput } from "./novelCoreShared";
+import type { NovelChapterSnapshot, NovelChapterSnapshotListItem } from "@ai-novel/shared/types/novel";
 
 const DEFAULT_NOVEL_SNAPSHOT_RETENTION_COUNT = 10;
 const AUTOMATIC_SNAPSHOT_TRIGGERS = ["auto_milestone", "before_pipeline"] as const;
@@ -19,6 +20,18 @@ function isAutomaticSnapshotTrigger(triggerType: string): triggerType is Automat
 function snapshotCreatedAtMs(value: Date | string): number {
   const timestamp = value instanceof Date ? value.getTime() : Date.parse(value);
   return Number.isFinite(timestamp) ? timestamp : 0;
+}
+
+function readChapterSnapshotContent(snapshotData: string, chapterId: string): string | null {
+  try {
+    const parsed = JSON.parse(snapshotData) as {
+      chapters?: Array<{ id?: string; content?: string | null }>;
+    };
+    const chapter = parsed.chapters?.find((item) => item.id === chapterId);
+    return chapter && typeof chapter.content === "string" ? chapter.content : null;
+  } catch {
+    return null;
+  }
 }
 
 export function resolveNovelSnapshotRetentionCount(
@@ -144,6 +157,61 @@ export class NovelCoreSnapshotService {
       orderBy: { createdAt: "desc" },
       take: 50,
     });
+  }
+
+  async listChapterSnapshots(novelId: string, chapterId: string): Promise<NovelChapterSnapshotListItem[]> {
+    const chapter = await prisma.chapter.findFirst({
+      where: { id: chapterId, novelId },
+      select: { id: true, order: true },
+    });
+    if (!chapter) throw new Error("章节不存在");
+
+    const snapshots = await prisma.novelSnapshot.findMany({
+      where: { novelId },
+      select: { id: true, novelId: true, label: true, triggerType: true, createdAt: true, snapshotData: true },
+      orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+      take: 50,
+    });
+    return snapshots.flatMap((snapshot) => {
+      const content = readChapterSnapshotContent(snapshot.snapshotData, chapter.id);
+      if (content === null) return [];
+      return [{
+        id: snapshot.id,
+        novelId: snapshot.novelId,
+        label: snapshot.label,
+        triggerType: snapshot.triggerType as NovelChapterSnapshotListItem["triggerType"],
+        createdAt: snapshot.createdAt.toISOString(),
+        chapterId: chapter.id,
+        chapterOrder: chapter.order,
+        contentLength: content.length,
+      }];
+    });
+  }
+
+  async getChapterSnapshot(novelId: string, chapterId: string, snapshotId: string): Promise<NovelChapterSnapshot> {
+    const chapter = await prisma.chapter.findFirst({
+      where: { id: chapterId, novelId },
+      select: { id: true, order: true },
+    });
+    if (!chapter) throw new Error("章节不存在");
+    const snapshot = await prisma.novelSnapshot.findFirst({
+      where: { id: snapshotId, novelId },
+      select: { id: true, novelId: true, label: true, triggerType: true, createdAt: true, snapshotData: true },
+    });
+    if (!snapshot) throw new Error("版本不存在");
+    const content = readChapterSnapshotContent(snapshot.snapshotData, chapter.id);
+    if (content === null) throw new Error("这个版本没有当前章节正文");
+    return {
+      id: snapshot.id,
+      novelId: snapshot.novelId,
+      label: snapshot.label,
+      triggerType: snapshot.triggerType as NovelChapterSnapshot["triggerType"],
+      createdAt: snapshot.createdAt.toISOString(),
+      chapterId: chapter.id,
+      chapterOrder: chapter.order,
+      contentLength: content.length,
+      content,
+    };
   }
 
   async restoreFromSnapshot(novelId: string, snapshotId: string) {

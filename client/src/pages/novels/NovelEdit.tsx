@@ -2,7 +2,7 @@
 import { useNavigate, useParams } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { BOOK_ANALYSIS_SECTIONS } from "@ai-novel/shared/types/bookAnalysis";
-import type { DirectorContinuationMode, DirectorLockScope, DirectorSessionState, DirectorStepCalibrationAction } from "@ai-novel/shared/types/novelDirector";
+import type { DirectorContinuationMode, DirectorLockScope, DirectorSessionState, DirectorStepCalibrationAction, DirectorStepCalibrationRequest } from "@ai-novel/shared/types/novelDirector";
 import { extractDirectorTaskSeedPayloadFromMeta } from "@ai-novel/shared/types/novelDirector";
 import type { AutoDirectorAction, AutoDirectorMutationActionCode } from "@ai-novel/shared/types/autoDirectorFollowUp";
 import type { DirectorBookAutomationAction, DirectorDashboardMode, DirectorTaskSnapshot } from "@ai-novel/shared/types/directorRuntime";
@@ -933,6 +933,7 @@ export default function NovelEdit() {
       invalidations.push(
         queryClient.invalidateQueries({ queryKey: queryKeys.tasks.detail("novel_workflow", taskId) }),
         queryClient.invalidateQueries({ queryKey: queryKeys.tasks.directorTaskSnapshot(taskId) }),
+        queryClient.invalidateQueries({ queryKey: queryKeys.tasks.directorTaskFactInspection(taskId) }),
         queryClient.invalidateQueries({ queryKey: queryKeys.tasks.directorRuntime(taskId) }),
         queryClient.invalidateQueries({ queryKey: queryKeys.autoDirectorFollowUps.detail(taskId) }),
       );
@@ -2782,6 +2783,19 @@ export default function NovelEdit() {
       characterTab={characterTab}
       takeover={isTakeoverDismissed ? null : takeover}
       activeStepTakeoverEntry={activeStepTakeoverEntry}
+      directorStepCalibration={displayAutoDirectorTask ? {
+        taskId: displayAutoDirectorTask.id,
+        activeStepId: extractDirectorTaskSeedPayloadFromMeta(displayAutoDirectorTask.meta)?.stepReview?.stepId
+          ?? displayAutoDirectorTask.currentItemKey
+          ?? null,
+        enabled: displayAutoDirectorTask.status === "waiting_approval"
+          && displayAutoDirectorTask.checkpointType === "step_review_required",
+        isSubmitting: calibrateDirectorStepMutation.isPending,
+        onSubmit: (request: DirectorStepCalibrationRequest) => calibrateDirectorStepMutation.mutate({
+          directorTaskId: displayAutoDirectorTask.id,
+          ...request,
+        }),
+      } : undefined}
       onSwitchToSimpleMode={() => switchToSimpleMutation.mutate()}
       isSwitchingToSimpleMode={switchToSimpleMutation.isPending}
       taskDrawer={{

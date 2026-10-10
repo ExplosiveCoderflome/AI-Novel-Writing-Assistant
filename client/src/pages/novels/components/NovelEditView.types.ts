@@ -61,6 +61,7 @@ import type {
   DirectorRuntimeSnapshot,
   DirectorTaskSnapshot,
 } from "@ai-novel/shared/types/directorRuntime";
+import type { DirectorStepCalibrationRequest } from "@ai-novel/shared/types/novelDirector";
 import type { ChapterExecutionBackgroundActivity } from "./chapterExecution.shared";
 import type { QuickCharacterCreatePayload } from "./characterPanel.utils";
 import type { ChapterReviewResult } from "../chapterPlanning.shared";
@@ -669,6 +670,13 @@ export interface NovelEditViewProps {
   characterTab: CharacterTabViewProps;
   takeover?: NovelEditTakeoverState | null;
   taskDrawer?: NovelTaskDrawerState | null;
+  directorStepCalibration?: {
+    taskId: string;
+    activeStepId?: string | null;
+    enabled: boolean;
+    isSubmitting: boolean;
+    onSubmit: (input: DirectorStepCalibrationRequest) => void;
+  };
   activeStepTakeoverEntry?: ReactNode;
   onSwitchToSimpleMode?: () => void;
   isSwitchingToSimpleMode?: boolean;

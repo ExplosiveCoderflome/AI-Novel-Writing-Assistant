@@ -1,6 +1,13 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { chapterParagraphs, insertChapterContinuation, normalizeChapterText, replaceChapterSelection } from "./document.ts";
+import {
+  applySelectedChapterEditorDiff,
+  chapterParagraphs,
+  groupChapterEditorDiffChanges,
+  insertChapterContinuation,
+  normalizeChapterText,
+  replaceChapterSelection,
+} from "./document.ts";
 
 test("chapter document coordinates preserve authored whitespace", () => {
   const content = normalizeChapterText("  第一段\r\n\r\n第二段\n");
@@ -25,4 +32,23 @@ test("chapter continuation inserts at an exact cursor offset", () => {
     () => insertChapterContinuation("甲", 2, "乙"),
     /正文光标位置已变化/,
   );
+});
+
+test("chapter diff groups replacements so partial acceptance cannot duplicate source text", () => {
+  const chunks = [
+    { id: "equal-1", type: "equal", text: "她抬头" },
+    { id: "delete-1", type: "delete", text: "看向门口" },
+    { id: "insert-1", type: "insert", text: "望向漆黑的门口" },
+    { id: "equal-2", type: "equal", text: "。" },
+    { id: "insert-2", type: "insert", text: "\n" },
+  ];
+  const changes = groupChapterEditorDiffChanges(chunks);
+  assert.deepEqual(changes.map(({ kind, originalText, candidateText }) => ({ kind, originalText, candidateText })), [
+    { kind: "replace", originalText: "看向门口", candidateText: "望向漆黑的门口" },
+    { kind: "insert", originalText: "", candidateText: "\n" },
+  ]);
+  const candidate = "她抬头望向漆黑的门口。\n";
+  assert.equal(applySelectedChapterEditorDiff("她抬头看向门口。", candidate, chunks, new Set()), "她抬头看向门口。");
+  assert.equal(applySelectedChapterEditorDiff("她抬头看向门口。", candidate, chunks, new Set(["change-1"])), "她抬头望向漆黑的门口。");
+  assert.equal(applySelectedChapterEditorDiff("她抬头看向门口。", candidate, chunks, new Set(["change-2"])), "她抬头看向门口。\n");
 });

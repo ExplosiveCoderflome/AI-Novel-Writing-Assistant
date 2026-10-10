@@ -166,6 +166,7 @@ Web API 只接收命令和返回轻量投影；Worker 负责执行重型生产�
 - `validate` 只读取当前步骤的 readiness、completion、progress 和 recovery facts，不写规划资产。
 - `improve` 复用当前步骤模块重新执行，并把用户校准要求加入本次步骤输入；`regenerate` 在此基础上先创建快照。
 - `accept_manual_changes_and_continue` 复用原导演任务，不新建 takeover，不重新生成候选，也不把一次校准要求带入后续步骤。继续时由资产事实重新找到第一个未完成步骤。
+- `step_review_required` 的来源页必须允许作者从真实步骤检查清单选择任意已有结果或已具备前置条件的步骤进行校准。校准请求携带 `stepId` 和用户补充要求，完成后重新回到步骤审核检查点；运行记录只展示结果，不承载这类写入操作。
 
 人工保存的规划资产必须登记为 `user_edited`、`protectedUserContent=true`，更新内容 hash 和版本。上游规划变化只让依赖它的下游规划 artifact 变为 `stale`；`chapter_draft` 不因规划重算被清空或标记为可覆盖。`volume_beat_sheet` 和 `volume_chapter_list` 是独立 artifact 类型，用于区分节奏板、拆章列表和章节正文。
 

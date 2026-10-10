@@ -287,6 +287,14 @@ export class NovelCoreService {
     return this.snapshotService.listNovelSnapshots(novelId);
   }
 
+  async listChapterSnapshots(novelId: string, chapterId: string) {
+    return this.snapshotService.listChapterSnapshots(novelId, chapterId);
+  }
+
+  async getChapterSnapshot(novelId: string, chapterId: string, snapshotId: string) {
+    return this.snapshotService.getChapterSnapshot(novelId, chapterId, snapshotId);
+  }
+
   async restoreFromSnapshot(novelId: string, snapshotId: string) {
     return this.snapshotService.restoreFromSnapshot(novelId, snapshotId);
   }

@@ -4,6 +4,8 @@ import type {
   ArtifactSyncMode,
   CreativeDecision,
   Novel,
+  NovelChapterSnapshot,
+  NovelChapterSnapshotListItem,
   NovelSnapshotListItem,
   PipelineJob,
   PipelineRepairMode,
@@ -40,6 +42,20 @@ export async function getNovelPipelineJob(id: string, jobId: string) {
 
 export async function listNovelSnapshots(id: string) {
   const { data } = await apiClient.get<ApiResponse<NovelSnapshotListItem[]>>(`/novels/${id}/snapshots`);
+  return data;
+}
+
+export async function listNovelChapterSnapshots(novelId: string, chapterId: string) {
+  const { data } = await apiClient.get<ApiResponse<NovelChapterSnapshotListItem[]>>(
+    `/novels/${novelId}/chapters/${chapterId}/snapshots`,
+  );
+  return data;
+}
+
+export async function getNovelChapterSnapshot(novelId: string, chapterId: string, snapshotId: string) {
+  const { data } = await apiClient.get<ApiResponse<NovelChapterSnapshot>>(
+    `/novels/${novelId}/chapters/${chapterId}/snapshots/${snapshotId}`,
+  );
   return data;
 }
 

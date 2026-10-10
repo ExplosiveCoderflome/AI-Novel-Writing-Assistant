@@ -11,6 +11,7 @@ interface ChapterEditorSidebarProps {
   isSaving: boolean;
   selectedDiagnosticId: string | null;
   onBack?: () => void;
+  onOpenChapterVersions?: () => void;
   onOpenVersionHistory?: () => void;
   onRefreshWorkspace?: () => void;
   isRefreshingWorkspace?: boolean;
@@ -46,6 +47,7 @@ export default function ChapterEditorSidebar(props: ChapterEditorSidebarProps) {
     isSaving,
     selectedDiagnosticId,
     onBack,
+    onOpenChapterVersions,
     onOpenVersionHistory,
     onRefreshWorkspace,
     isRefreshingWorkspace = false,
@@ -106,7 +108,11 @@ export default function ChapterEditorSidebar(props: ChapterEditorSidebarProps) {
               >
                 {isSaving ? "保存中..." : "保存"}
               </Button>
-              {onOpenVersionHistory ? (
+              {onOpenChapterVersions ? (
+                <Button size="sm" variant="outline" onClick={onOpenChapterVersions} className="w-full">
+                  查看本章版本
+                </Button>
+              ) : onOpenVersionHistory ? (
                 <Button size="sm" variant="outline" onClick={onOpenVersionHistory} className="w-full">
                   版本入口
                 </Button>
