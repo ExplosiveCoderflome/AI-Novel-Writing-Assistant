@@ -3,6 +3,7 @@ import type {
   StateChangeProposal,
 } from "@ai-novel/shared/types/canonicalState";
 import { prisma } from "../../../db/prisma";
+import {characterAppearanceService} from "../characters/appearances";
 import { runStructuredPrompt } from "../../../prompting/core/promptRunner";
 import {
   chapterArtifactDeltaPrompt,
@@ -85,6 +86,7 @@ export interface ChapterArtifactDeltaSyncInput {
   temperature?: number;
   contentProvenance?: ContentProvenance;
   artifactSyncPolicy?: "director_v2";
+  directorRunId?: string;
 }
 
 export interface ChapterArtifactDeltaSyncResult {
@@ -115,11 +117,11 @@ export const CHAPTER_ARTIFACT_CONSUMERS = [
   "dialogue_influence",
 ] as const;
 
-export type ChapterArtifactConsumer = typeof CHAPTER_ARTIFACT_CONSUMERS[number] | "character_locations";
+export type ChapterArtifactConsumer = typeof CHAPTER_ARTIFACT_CONSUMERS[number] | "character_locations" | "character_appearances";
 
 export function getChapterArtifactConsumers(input: Pick<ChapterArtifactDeltaSyncInput, "artifactSyncPolicy">): readonly ChapterArtifactConsumer[] {
   return input.artifactSyncPolicy === "director_v2"
-    ? [...CHAPTER_ARTIFACT_CONSUMERS, "character_locations"] : CHAPTER_ARTIFACT_CONSUMERS;
+    ? [...CHAPTER_ARTIFACT_CONSUMERS, "character_locations", "character_appearances"] : CHAPTER_ARTIFACT_CONSUMERS;
 }
 
 export interface ChapterArtifactExtractionResult {
@@ -362,6 +364,7 @@ export class ChapterArtifactDeltaService {
         chapterGoal: chapter.taskSheet?.trim() || chapter.expectation?.trim() || "无明确章节目标",
         ...ledgerContext,
         locationTrackingEnabled: Boolean(locationStates),
+        characterCandidateResolutionEnabled: input.artifactSyncPolicy === "director_v2" && !!input.directorRunId,
         characterLocationText: locationStates ? formatCharacterLocationContext(characters, locationStates) : "",
         previousStateText: stringifyPreviousState(previousSnapshot).slice(0, 5000),
         activeCharacterDialogueInfluenceText: stringifyActiveCharacterDialogueInfluenceText(activeCharacterDialogueInfluences).slice(0, 3500),
@@ -394,6 +397,11 @@ export class ChapterArtifactDeltaService {
     const sourceType = input.sourceType?.trim() || ARTIFACT_DELTA_SOURCE_TYPE;
     const sourceStage = input.sourceStage ?? ARTIFACT_DELTA_SOURCE_STAGE;
     const sourceQuality = normalizeContentProvenance(input.contentProvenance);
+    if (input.consumer === "character_appearances") {
+      if (input.artifactSyncPolicy !== "director_v2") throw new Error("角色出场回填需要导演 V2 授权。");
+      await characterAppearanceService.applyFinalChapter({...input, appearances: input.output.characterAppearances});
+      return {};
+    }
     if (input.consumer === "character_locations") {
       if (input.artifactSyncPolicy !== "director_v2") throw new Error("角色位置回填需要导演 V2 授权。");
       await characterLocationService.applyFinalChapter({...input, deltas: input.output.characterLocationDeltas});
@@ -491,6 +499,7 @@ export class ChapterArtifactDeltaService {
         return { characterDynamicsCount: 0 };
       }
       return { characterDynamicsCount: await this.applyCharacterDynamics({
+        skipCandidates: input.artifactSyncPolicy === "director_v2",
         novelId: input.novelId,
         chapterId: input.chapterId,
         chapterOrder: chapter.order,
@@ -738,6 +747,7 @@ export class ChapterArtifactDeltaService {
     output: ChapterArtifactDeltaOutput;
     expectedContentHash: string;
     artifactSyncPolicy?: "director_v2";
+  directorRunId?: string;
   }): Promise<number> {
     return new ChapterArtifactFactWriter((type, id) => this.queueRagUpsert(type, id)).persist(input);
   }
@@ -1009,6 +1019,7 @@ export class ChapterArtifactDeltaService {
   }
 
   private async applyCharacterDynamics(input: {
+    skipCandidates?: boolean;
     novelId: string;
     chapterId: string;
     chapterOrder: number;
@@ -1044,37 +1055,39 @@ export class ChapterArtifactDeltaService {
     let writeCount = 0;
     await prisma.$transaction(async (tx) => {
       await this.assertExpectedChapterContentInTransaction(tx, input);
-      await tx.characterCandidate.deleteMany({
-        where: {
-          novelId: input.novelId,
-          sourceChapterId: input.chapterId,
-          status: "pending",
-        },
-      });
-      for (const candidate of input.output.characterCandidates) {
-        const proposed = characterByName.get(normalizeName(candidate.proposedName));
-        const matched = candidate.matchedCharacterName
-          ? characterByName.get(normalizeName(candidate.matchedCharacterName))
-          : proposed;
-        if (matched) {
-          continue;
-        }
-        await tx.characterCandidate.create({
-          data: {
+      if (!input.skipCandidates) {
+        await tx.characterCandidate.deleteMany({
+          where: {
             novelId: input.novelId,
             sourceChapterId: input.chapterId,
-            proposedName: candidate.proposedName,
-            proposedRole: candidate.proposedRole || null,
-            summary: candidate.summary || null,
-            evidenceJson: JSON.stringify(Array.from(new Set(candidate.evidence))),
-            matchedCharacterId: null,
             status: "pending",
-            confidence: clampConfidence(candidate.confidence),
           },
         });
-        writeCount += 1;
-      }
+        for (const candidate of input.output.characterCandidates) {
+          const proposed = characterByName.get(normalizeName(candidate.proposedName));
+          const matched = candidate.matchedCharacterName
+            ? characterByName.get(normalizeName(candidate.matchedCharacterName))
+            : proposed;
+          if (matched) {
+            continue;
+          }
+          await tx.characterCandidate.create({
+            data: {
+              novelId: input.novelId,
+              sourceChapterId: input.chapterId,
+              proposedName: candidate.proposedName,
+              proposedRole: candidate.proposedRole || null,
+              summary: candidate.summary || null,
+              evidenceJson: JSON.stringify(Array.from(new Set(candidate.evidence))),
+              matchedCharacterId: null,
+              status: "pending",
+              confidence: clampConfidence(candidate.confidence),
+            },
+          });
+          writeCount += 1;
+        }
 
+      }
       await tx.characterFactionTrack.deleteMany({
         where: {
           novelId: input.novelId,

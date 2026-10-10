@@ -813,6 +813,8 @@ export interface VolumeChapterPlan {
   beatKey?: string | null;
   title: string;
   summary: string;
+  /** V2 split-stage schedule. Missing = unknown; [] = explicitly no on-scene cast. Owned by the version document. */
+  plannedCharacterIds?: string[];
   purpose?: string | null;
   exclusiveEvent?: string | null;
   endingState?: string | null;

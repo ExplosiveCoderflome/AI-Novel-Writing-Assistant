@@ -30,6 +30,8 @@ Wiki 不记录单次提交改了什么，也不替代 release notes。它只记�
 - [Payoff Ledger 来源与同步合同](./workflows/payoff-ledger-contract.md)
 - [角色资源账本工作流](./workflows/character-resource-ledger.md)
 - [导演 V2 角色延后补全](./workflows/director-v2-character-enrichment.md)
+- [导演 V2 正文人物候选与运行模式](./workflows/director-v2-character-candidates.md)
+- [导演 V2 角色计划出场与正文出场](./workflows/director-v2-character-appearances.md)
 - [通用角色主体与跨来源角色对话](./workflows/universal-character-conversation.md)
 - [拆书工作流](./workflows/book-analysis-workflow.md)
 - [图片生成确认与统一运行时](./workflows/image-generation-confirmation-runtime.md)

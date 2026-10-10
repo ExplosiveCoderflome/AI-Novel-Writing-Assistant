@@ -1,5 +1,6 @@
 import {decodeUsageCursor, InvocationUsageQueryService, NovelInvocationUsageQueryService} from "../../platform/llm/usage";
 import {prisma} from "../../db/prisma";
+import {characterAppearanceService,initialCharacterScheduleService} from "../../services/novel/characters/appearances";
 import {createDirectorNextServices, type DirectorNextServices} from "../../modules/director";
 import {LegacyRunProjection} from "../../modules/director/http";
 import {createDirectorProductionOptions} from "./productionComposition";
@@ -7,6 +8,7 @@ import {readDirectorWorkspace,readDirectorLedgers} from "./workspace";
 import {chapterGenerationFeed} from "../../services/novel/production/observation";
 import {assertNovelDirectorVersion, assertV2RunExecution, readRunExecutionEpoch} from "../../modules/novel/director-routing";
 import type {DirectorCommand} from "../../modules/director/application";
+import {directorCharacterCandidates} from "../../services/novel/characters/candidates";
 
 let services: DirectorNextServices | null = null;
 export function getDirectorProductionServices(): DirectorNextServices {
@@ -34,6 +36,11 @@ export function getDirectorProductionServices(): DirectorNextServices {
       return {novel, chapters, workflowTaskIds: workflows.map(row => row.id), generationJobIds: jobs.map(row => row.id)};
     }).getNovelUsage(novelId, query);
     services.http.readWorkspace = readDirectorWorkspace;
+    services.http.readCharacterAppearances = (novelId, characterId) => characterAppearanceService.read(novelId, characterId);
+    services.http.readNovelCharacterAppearances = novelId => characterAppearanceService.readNovel(novelId);
+    services.http.fillInitialCharacterSchedule = (novelId,input) => initialCharacterScheduleService.fill(novelId,input);
+    services.http.readCharacterCandidates = runId => directorCharacterCandidates.read(runId);
+    services.http.resolveCharacterCandidates = (runId, input) => directorCharacterCandidates.resolve(runId, input);
     services.http.readLedgers = readDirectorLedgers;
     services.http.readCurrentRunId = async novelId => {
       const identity = await assertNovelDirectorVersion(novelId, "v2");

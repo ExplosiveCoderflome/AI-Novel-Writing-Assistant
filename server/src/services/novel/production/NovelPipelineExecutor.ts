@@ -620,7 +620,7 @@ export class NovelPipelineExecutor {
                     qualityThreshold,
                     repairMode: runtimePayload.repairMode,
                     artifactSyncMode: runtimePayload.artifactSyncMode,
-                    ...(runtimePayload.directorNext ? {artifactSyncPolicy: "director_v2" as const, finalizedResultScope: jobId} : {}),
+                    ...(runtimePayload.directorNext ? {artifactSyncPolicy: "director_v2" as const, finalizedResultScope: jobId, directorRunId: runtimePayload.directorNext.runId} : {}),
                   },
                   {
                   onCheckCancelled: checkCancelled,
@@ -659,6 +659,13 @@ export class NovelPipelineExecutor {
                 );
                 break;
               } catch (error) {
+                if (runtimePayload.directorNext && error instanceof ChapterArtifactSyncBoundaryError && error.result.characterReviewId) {
+                  await checkCancelled();
+                  runtimePayload.directorNext.pendingCharacterReviewId = error.result.characterReviewId;
+                  await this.updateJobRequired(jobId, {status: "queued", pendingManualRecovery: true,
+                    error: error.message, payload: this.stringifyPipelinePayload(runtimePayload)});
+                  throw new PipelineIssueAppliedError(error.message, "pause_for_manual");
+                }
                 if (runtimePayload.directorNext && error instanceof ChapterArtifactSyncBoundaryError) {
                   throw new PipelineIssueFailure(error.message, "runtime.data_integrity", "chapter_artifact_sync", chapter.id, chapter.order);
                 }
@@ -906,7 +913,8 @@ export class NovelPipelineExecutor {
         return;
       }
       if (error instanceof PipelineIssueAppliedError) {
-        logPipelineError("任务已按问题策略结束当前执行", {
+        const log = runtimePayload.directorNext?.pendingCharacterReviewId ? logPipelineInfo : logPipelineError;
+        log(runtimePayload.directorNext?.pendingCharacterReviewId ? "等待用户确认本章人物" : "任务已按问题策略结束当前执行", {
           jobId,
           novelId,
           action: error.action,

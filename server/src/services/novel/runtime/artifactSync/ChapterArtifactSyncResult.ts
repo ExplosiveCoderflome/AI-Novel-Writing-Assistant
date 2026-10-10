@@ -5,6 +5,7 @@ export interface ChapterArtifactSyncResult {
   contentHash: string;
   completedArtifacts: string[];
   reason?: string;
+  characterReviewId?: string;
 }
 
 export function mergeChapterArtifactSyncResults(
@@ -23,7 +24,15 @@ export function mergeChapterArtifactSyncResults(
     contentHash,
     completedArtifacts: [...new Set(results.flatMap((result) => result.completedArtifacts))],
     reason: results.find((result) => result.status === status)?.reason,
+    characterReviewId: results.find(result => result.characterReviewId)?.characterReviewId,
   };
+}
+
+export class CharacterCandidateReviewRequiredError extends Error {
+  constructor(readonly reviewId: string) {
+    super("本章正文已保存，请确认本章人物后继续；可选择新增、关联已有角色或忽略。");
+    this.name = "CharacterCandidateReviewRequiredError";
+  }
 }
 
 export class ChapterArtifactSyncBoundaryError extends Error {

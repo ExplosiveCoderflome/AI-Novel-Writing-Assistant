@@ -155,6 +155,33 @@ export async function listDirectorRuns(options?: { needsAttention?: boolean; lim
 
 let directorCommandSequence = 0;
 
+export async function getDirectorCharacterCandidates(runId: string) {
+  const {data} = await apiClient.get<ApiResponse<import('@ai-novel/shared/types/director/characterCandidates').DirectorCharacterCandidatePage>>(
+    `/director-next/runs/${encodeURIComponent(runId)}/character-candidates`);
+  return data;
+}
+export async function getDirectorCharacterAppearances(novelId: string, characterId: string) {
+  const {data} = await apiClient.get<ApiResponse<import('@ai-novel/shared/types/director/characterAppearances').DirectorCharacterAppearances>>(
+    `/director-next/novels/${encodeURIComponent(novelId)}/characters/${encodeURIComponent(characterId)}/appearances`);
+  return data;
+}
+
+export async function fillDirectorInitialCharacterSchedule(novelId:string,input:{provider:string;model:string}) {
+  return (await apiClient.post<ApiResponse<import('@ai-novel/shared/types/director/characterAppearances').InitialCharacterScheduleResult>>(
+    `/director-next/novels/${encodeURIComponent(novelId)}/character-appearances/initial-schedule`,input,{timeout:180000})).data;
+}
+
+export async function getDirectorNovelCharacterAppearances(novelId: string) {
+  const {data} = await apiClient.get<ApiResponse<import('@ai-novel/shared/types/director/characterAppearances').DirectorNovelCharacterAppearances>>(
+    `/director-next/novels/${encodeURIComponent(novelId)}/character-appearances`);
+  return data;
+}
+
+export async function resolveDirectorCharacterCandidates(runId: string, input: import('@ai-novel/shared/types/director/characterCandidates').ResolveDirectorCharacterCandidates) {
+  const {data} = await apiClient.post<ApiResponse<unknown>>(`/director-next/runs/${encodeURIComponent(runId)}/character-candidates`, input);
+  return data;
+}
+
 /** Command deduplication identity, not an authentication token. LAN HTTP lacks randomUUID. */
 export function createDirectorCommandKey(): string {
   const crypto = globalThis.crypto;

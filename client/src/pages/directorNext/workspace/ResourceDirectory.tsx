@@ -1,8 +1,9 @@
-import { BookOpen, Globe2, Users, Layers, FileText, Map, Network, ChevronRight, ListChecks, Package } from "lucide-react";
+import { BookOpen, Globe2, Users, Layers, FileText, Map, Network, ChevronRight, ListChecks, Package, CalendarDays } from "lucide-react";
 import type { ReactNode } from "react";
 import type { Selection, WorkspaceBook } from "./model";
 import { buildStoryDirectory, beatSelection, chapterSelection, sameSelection, beatChapterLabel } from "./planning";
 import type { PlannedChapter } from "./planning";
+import { CharacterDirectoryItem } from "./characters/CharacterDirectoryItem";
 
 const chapterLabels = {
   waiting_planning: "待规划", waiting_writing: "待写作", generating: "写作中", reviewing: "检查中",
@@ -56,6 +57,10 @@ export function ResourceDirectory({ book, selected, onSelect }: { book: Workspac
     {row({ kind: "foreshadowing" }, "伏笔", <ListChecks className="h-4 w-4" />)}
     {row({ kind: "resources" }, "背包与资源", <Package className="h-4 w-4" />)}
     {row({ kind: "characters" }, "角色阵容", <Users className="h-4 w-4" />, `${book.materials.characters.length} 人`)}
-    {group("角色", <Users className="h-3.5 w-3.5" />, book.materials.characters.length, book.materials.characters.map(character => row({ kind: "character", id: character.id }, character.name)))}
+    {group("角色", <Users className="h-3.5 w-3.5" />, book.materials.characters.length, <>
+      {row({kind:"character_timeline"}, "角色时间线", <CalendarDays className="h-4 w-4"/>)}
+      {book.materials.characters.map(character => <CharacterDirectoryItem key={character.id} character={character}
+        active={selected.kind === "character" && selected.id === character.id} onSelect={() => onSelect({ kind: "character", id: character.id })} />)}
+    </>)}
   </nav>;
 }

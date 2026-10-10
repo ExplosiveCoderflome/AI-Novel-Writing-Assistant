@@ -21,13 +21,14 @@ test('V2 adapter resumes finalized assets before context assembly, generation or
     finalizationStore: store,
     streamOrchestrator: {prepareRuntimeChapter: async () => {throw Error('must not rebuild paid context');}},
     artifactSyncService: {syncChapterArtifacts: async (novel, chapter, content, options) => {
+      assert.equal(options.directorRunId, 'run-1');
       events.push(['sync', novel, chapter, content, options.artifactSyncPolicy]);
       return {status: 'completed', contentHash: 'hash', completedArtifacts: ['artifact_delta']};
     }},
     lifecycleService: {markGenerationState: async (...args) => events.push(['state', ...args])},
   });
   const recovered = await adapter.runPipelineChapter('n', 'c', {
-    artifactSyncPolicy: 'director_v2', finalizedResultScope: 'job-1', provider: 'deepseek', model: 'chosen',
+    artifactSyncPolicy: 'director_v2', finalizedResultScope: 'job-1', directorRunId: 'run-1', provider: 'deepseek', model: 'chosen',
   });
   assert.equal(recovered.pass, true);
   assert.equal(recovered.retryCountUsed, 1);

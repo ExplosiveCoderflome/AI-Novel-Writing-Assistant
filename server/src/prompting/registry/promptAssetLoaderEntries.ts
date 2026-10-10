@@ -10,6 +10,10 @@ export interface PromptAssetLoaderEntry {
 
 export const promptAssetLoaderEntries: PromptAssetLoaderEntry[] = [
   {
+    key: "novel.character.initial_schedule@v1",
+    load: () => require("../prompts/novel/characterInitialSchedule.prompts").characterInitialSchedulePrompt as UnknownPromptAsset,
+  },
+  {
     key: "comic.factExtraction@v1",
     load: () => require("../prompts/comic/comicFactExtraction.prompts").comicFactExtractionPrompt as UnknownPromptAsset,
   },
@@ -286,7 +290,7 @@ export const promptAssetLoaderEntries: PromptAssetLoaderEntry[] = [
     load: () => require("../prompts/novel/chapterAcceptance.prompts").chapterAcceptanceAssessmentPrompt as UnknownPromptAsset,
   },
   {
-    key: "novel.chapter.artifact_delta.extract@v4",
+    key: "novel.chapter.artifact_delta.extract@v9",
     load: () => require("../prompts/novel/chapterArtifactDelta.prompts").chapterArtifactDeltaPrompt as UnknownPromptAsset,
   },
   {

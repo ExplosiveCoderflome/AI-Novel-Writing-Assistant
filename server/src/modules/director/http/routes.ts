@@ -2,6 +2,7 @@ import { Router, type NextFunction, type Request, type Response } from "express"
 import { z } from "zod";
 import { DirectorRunNotFoundError, RecordProjection, type CommandService, type DirectorCommand, type EventLog, type ProjectionService, type RunRepository } from "../application";
 import type {LegacyRunProjection} from "../legacy";
+import type {ResolveDirectorCharacterCandidates} from "@ai-novel/shared/types/director/characterCandidates";
 
 export interface DirectorNextHttpDeps {
   commandService: Pick<CommandService, "execute">;
@@ -14,8 +15,13 @@ export interface DirectorNextHttpDeps {
   readNovelUsage?: (novelId: string, query: {limit?: number; cursor?: string; chapterId?: string; stage?: string; provider?: string; model?: string; status?: "completed" | "partial" | "failed"}) => Promise<unknown>;
   readWorkspace?: (novelId: string) => Promise<unknown>;
   readLedgers?: (novelId: string) => Promise<unknown>;
+  readCharacterAppearances?: (novelId: string, characterId: string) => Promise<unknown>;
+  readNovelCharacterAppearances?: (novelId: string) => Promise<unknown>;
+  fillInitialCharacterSchedule?: (novelId:string,input:{provider:string;model:string}) => Promise<unknown>;
   readCurrentRunId?: (novelId: string) => Promise<string | null>;
   observeGeneration?: (novelId: string, listener: (snapshot: unknown) => void) => () => void;
+  readCharacterCandidates?: (runId: string) => Promise<unknown>;
+  resolveCharacterCandidates?: (runId: string, input: ResolveDirectorCharacterCandidates) => Promise<void>;
 }
 
 const nonEmpty = z.string().trim().min(1);
@@ -98,7 +104,44 @@ function asyncRoute(
 
 export function createDirectorNextRouter(deps: DirectorNextHttpDeps): Router {
   const router = Router();
+  router.post("/novels/:novelId/character-appearances/initial-schedule", asyncRoute(async (req,res)=>{
+    const id=nonEmpty.safeParse(req.params.novelId);
+    const body=z.object({provider:nonEmpty,model:nonEmpty}).strict().safeParse(req.body);
+    if(!id.success) {sendValidationError(res,id.error);return;}
+    if(!body.success) {sendValidationError(res,body.error);return;}
+    if(!deps.fillInitialCharacterSchedule) {res.status(404).json({success:false});return;}
+    res.json({success:true,data:await deps.fillInitialCharacterSchedule(id.data,body.data)});
+  }));
+  router.get("/novels/:novelId/character-appearances", asyncRoute(async (req, res) => {
+    const id = nonEmpty.safeParse(req.params.novelId);
+    if (!id.success) {sendValidationError(res, id.error); return;}
+    if (!deps.readNovelCharacterAppearances) {res.status(404).json({success: false}); return;}
+    res.json({success: true, data: await deps.readNovelCharacterAppearances(id.data)});
+  }));
+  router.get("/novels/:novelId/characters/:characterId/appearances", asyncRoute(async (req, res) => {
+    const params = z.object({novelId: nonEmpty, characterId: nonEmpty}).safeParse(req.params);
+    if (!params.success) {sendValidationError(res, params.error); return;}
+    if (!deps.readCharacterAppearances) {res.status(404).json({success: false}); return;}
+    res.json({success: true, data: await deps.readCharacterAppearances(params.data.novelId, params.data.characterId)});
+  }));
   const records = new RecordProjection({projectionService: deps.projectionService, runRepository: deps.runRepository});
+  router.get("/runs/:runId/character-candidates", asyncRoute(async (req, res) => {
+    const id = nonEmpty.safeParse(req.params.runId);
+    if (!id.success) {sendValidationError(res, id.error); return;}
+    if (!deps.readCharacterCandidates) {res.status(404).json({success: false}); return;}
+    res.json({success: true, data: await deps.readCharacterCandidates(id.data)});
+  }));
+  router.post("/runs/:runId/character-candidates", asyncRoute(async (req, res) => {
+    const id = nonEmpty.safeParse(req.params.runId);
+    const body = z.object({reviewId: nonEmpty, revision: expectedVersion, contentHash: nonEmpty,
+      decisions: z.array(z.object({candidateId: nonEmpty, action: z.enum(["create", "merge", "ignore"]), targetId: nonEmpty.optional()})).min(1).max(100),
+    }).safeParse(req.body);
+    if (!id.success) {sendValidationError(res, id.error); return;}
+    if (!body.success) {sendValidationError(res, body.error); return;}
+    if (!deps.resolveCharacterCandidates) {res.status(404).json({success: false}); return;}
+    await deps.resolveCharacterCandidates(id.data, body.data);
+    res.json({success: true});
+  }));
   router.get("/novels/:novelId/generation-stream", (req, res) => {
     const id = nonEmpty.safeParse(req.params.novelId);
     if (!id.success) { sendValidationError(res, id.error); return; }

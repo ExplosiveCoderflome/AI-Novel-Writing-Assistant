@@ -9,6 +9,8 @@ import { characterResourceExtractionUpdateSchema } from "./characterResource.pro
 import { NOVEL_PROMPT_BUDGETS } from "./promptBudgetProfiles";
 import { payoffLedgerSyncItemSchema } from "../payoff/payoffLedgerSync.promptSchemas";
 
+import {characterAppearanceSchema} from "@ai-novel/shared/types/director/characterAppearances";
+
 const nullableText = z.string().trim().optional().nullable();
 const confidenceSchema = z.number().min(0).max(1).optional().nullable();
 
@@ -391,6 +393,9 @@ const chapterArtifactCharacterCandidateSchema = z.preprocess(normalizeCharacterC
   summary: nullableText,
   evidence: z.array(z.string().trim().min(1)).default([]),
   matchedCharacterName: nullableText,
+  identityDecision: z.enum(["create", "merge", "defer", "ignore"]).default("defer"),
+  matchedCharacterId: nullableText,
+  decisionReason: nullableText,
   confidence: confidenceSchema,
 }));
 
@@ -417,9 +422,14 @@ export const chapterArtifactDeltaOutputSchema = z.preprocess(normalizeArtifactDe
   }))).max(8).default([]),
   payoffDeltas: z.array(z.preprocess(normalizePayoffDelta, payoffLedgerSyncItemSchema)).default([]),
   relationDynamics: z.array(chapterArtifactRelationDynamicSchema).default([]),
-  characterLocationDeltas: z.array(characterLocationDeltaSchema).default([]),
+  characterLocationDeltas: z.array(characterLocationDeltaSchema.extend({
+    // Newly discovered identities receive the real ID only after candidate confirmation.
+    characterId: z.string().trim().nullish().transform(value => value ?? ""),
+  })).default([]),
   factionUpdates: z.array(chapterArtifactFactionUpdateSchema).default([]),
   characterCandidates: z.array(chapterArtifactCharacterCandidateSchema).default([]),
+  // Missing means historical extraction without appearance coverage; [] means reviewed and empty.
+  characterAppearances: z.array(characterAppearanceSchema).max(60).optional(),
   characterKnowledgeStates: z.array(chapterArtifactCharacterKnowledgeStateSchema).default([]),
   characterMindDeltas: z.array(characterMindDeltaSchema).default([]),
   characterDialogueInfluenceResolutions: z.array(characterDialogueInfluenceResolutionSchema).default([]),
@@ -438,6 +448,7 @@ export interface ChapterArtifactDeltaPromptInput {
   characterRosterText: string;
   characterStateText?: string;
   locationTrackingEnabled?: boolean;
+  characterCandidateResolutionEnabled?: boolean;
   characterLocationText?: string;
   resourceCatalogText?: string;
   payoffCatalogText?: string;
@@ -450,6 +461,7 @@ export interface ChapterArtifactDeltaPromptInput {
 
 // Keep the wire example sparse. The existing schema supplies defaults after parsing.
 const CHAPTER_ARTIFACT_DELTA_EXAMPLE = {
+  characterAppearances: [],
   summary: "程秩在库房外拿到后门铜钥匙，确认潜入有了可行入口。他收起钥匙，决定先观察换岗再行动，尚不知道库房内的守卫布置。本章完成进入手段的准备，守卫情况与潜入结果仍待后续揭示。",
   concreteFacts: [
     {
@@ -545,7 +557,7 @@ export const chapterArtifactDeltaPrompt: PromptAsset<
   ChapterArtifactDeltaOutput
 > = {
   id: "novel.chapter.artifact_delta.extract",
-  version: "v7",
+  version: "v9",
   cacheBoundary: {messageIndex:1,contentBlockIndex:0},
   taskType: "fact_extraction",
   mode: "structured",
@@ -583,6 +595,7 @@ export const chapterArtifactDeltaPrompt: PromptAsset<
       "5. 默认输出 delta；只有账本明显冲突、已兑现但找不到前置铺垫、关键线索跨多章错位、或本章集中处理多个 payoff 时，才建议 full_reconcile。",
       "6. syncPlan 由你判断，不要依赖关键词；如果没有对应变化，明确 skip 并说明 reason。",
       "7. 所有角色名优先使用已知角色名单；无法确认的新人物放入 characterCandidates，不要强行归到已有角色。",
+      input.characterCandidateResolutionEnabled ? "7a. characterCandidates 同时完成身份判断，不另起角色扫描：identityDecision=create 表示正文证实有独立身份且后续需要追踪的新人物；merge 表示正文证实是已知人物的别名（matchedCharacterId 必须取名单真实 ID）；defer 表示身份不确定；ignore 表示无需建档的泛称或背景人群。每条填写 decisionReason 和逐字正文 evidence；不能仅凭名字相似合并，也不能为泛称编造姓名。新增人物只给必要身份和一句摘要，不生成全套人物档案。同步输出该候选的本章资源与位置时使用 proposedName；尚无真实 ID 的新人物位置 characterId 留空，待身份确认后绑定，禁止编造 ID。" : "",
       "8. summary 必须使用简体中文，控制在 80-180 字，覆盖关键事件、冲突推进、人物状态变化、本章结果或悬念方向。",
       "9. concreteFacts 只记录本章正文即兴产生且后续必须保持一致的硬事实，每条不超过 40 字；包括承诺、交易条款、事件性质、关键数字日期地点、身份与状态变化。",
       "10. concreteFacts.category 只能使用 completed、revealed、state_changed；无明确硬事实时输出 []，不得把抽象目标或氛围描述写入 concreteFacts。",
@@ -611,6 +624,7 @@ export const chapterArtifactDeltaPrompt: PromptAsset<
       "30. 每条 characterResourceDeltas 给出 reviewDecision：commit 表示正文摘录清楚支持且与现有资源一致的变化；hold 表示归属、消耗、信息可见性或证据有疑问，需要暂缓核对。普通丢失、消耗或损坏不必仅因事件类型就 hold；不能凭推测批准，高风险或低置信度必须 hold。evidence 使用可在正文找到的原文短摘录。",
       "31. 位置连续性回填开启时，characterLocationDeltas 只记录本章实际有空间行动或位置证据的角色，每角色最多一条章末记录；未出场角色不输出，继承最后确认位置。角色未移动或首次确认位置用 stay，实际移动用 move，不确定用 uncertain，转述用 reported。使用名单真实 characterId/characterName，locationName 写章末地点；fromLocation 按章前记录填写，不能将当前视角场景套给其他人。关闭时返回 []。",
       "32. timeContext 必须区分 present、flashback、dream、plan、hearsay：present 指当前故事时间线，不能按句子过去时认作回忆；回忆、梦、准备去或他人口述不更新现实位置。结合前后时间、囚禁/伤势/行动限制和地点上下级判断 continuityStatus 为 consistent、unexplained 或 conflicting；有可信移动过程或合理时空衔接才能 consistent。未交代的瞬移、不可能的同场出现或时间倒置不批准，explanation 一句简述疑点，evidence 只用最终正文足以定位的一条短原句，不超过350字。不能通过抽取擅自补写移动经过或替正文修错。",
+      "33. 角色出场记录开启时，必须输出 characterAppearances 数组（无人时 []）：复用本次阅读，每个人每类最多一条 {characterId,characterName,kind,summary,evidence}；present 为本章当前故事时刻实际行动或对话，mention 为仅被提及、传闻或未来计划，flashback 为回忆，dream 为梦境。区分名字被提到与实际出场，同人可以同时有当前出场和回忆记录。只记录名单人物及 characterCandidates 中需处理的人物；已知人物使用名单真实 ID/名字，新增候选 ID 留空、名字用 proposedName。summary 一句不超过160字，evidence 为足够证明出场类型的最终正文短原句（不超过350字）；不得复述整章，不输出未涉及的人物。关闭时省略此字段。",
     ].join("\n")),
     new HumanMessage([
       `小说：${input.novelTitle}`,
@@ -631,6 +645,7 @@ export const chapterArtifactDeltaPrompt: PromptAsset<
       "角色当前目标与状态：",
       input.characterStateText || "暂无角色状态补充",
       `位置连续性回填：${input.locationTrackingEnabled ? "开启" : "关闭"}`,
+      `角色出场记录：${input.locationTrackingEnabled ? "开启" : "关闭"}`,
       input.locationTrackingEnabled ? `章前角色位置（按来源核对，不是本章叙事场景）：\n${input.characterLocationText || "尚无已确认位置"}` : "",
       "",
       "上一状态摘要：",

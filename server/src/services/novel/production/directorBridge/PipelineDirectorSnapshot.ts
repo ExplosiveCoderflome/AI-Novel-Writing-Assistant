@@ -4,6 +4,7 @@ import { directorIssueDecisionSchema } from "@ai-novel/shared/types/directorIssu
 export const pipelineDirectorSnapshotSchema = z.object({
   runId: z.string().trim().min(1),
   decisions: z.array(directorIssueDecisionSchema.extend({chapterOrder: z.number().int().positive().optional()})),
+  pendingCharacterReviewId: z.string().trim().min(1).optional(),
   resolvedDecisionCount: z.number().int().nonnegative().optional(),
   chapterUsage: z.array(z.object({
     chapterId:z.string().trim().min(1), chapterOrder:z.number().int().positive(),

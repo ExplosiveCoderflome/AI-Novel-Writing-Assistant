@@ -40,7 +40,7 @@ test('newly saved chapters preserve the chosen asset or reading chapter', () => 
 });
 
 test('map and relationship selections survive saved chapter refreshes', () => {
-  for (const kind of ['world_map', 'character_graph']) {
+  for (const kind of ['world_map', 'character_graph', 'character_timeline']) {
     const selected = {kind};
     assert.deepEqual(resolveSelection(selected, book), selected);
     assert.deepEqual(resolveSelection(selected, {...book, chapters: [...book.chapters, {id:'new', content:'新正文'}]}), selected);
@@ -81,7 +81,7 @@ export const planned = renderToStaticMarkup(<><ResourceDirectory book={book} sel
     });
     const { markup, planned } = await import(pathToFileURL(output).href);
     for (const label of ['卷标题','节奏标题','节奏目标','兑现目标','未写章','待写正文']) assert.ok(planned.includes(label),label);
-    for (const label of ['故事规划', '世界设定', '世界地图', '角色关系图', '角色', '卷纲', '章节', '林渡醒来时', '快速查看角色', '钟声之后']) assert.ok(markup.includes(label), label);
+    for (const label of ['故事规划', '世界设定', '世界地图', '角色关系图', '角色时间线', '角色', '卷纲', '章节', '林渡醒来时', '快速查看角色', '钟声之后']) assert.ok(markup.includes(label), label);
     assert.ok(markup.includes('待写作'));
     assert.doesNotMatch(markup, /border rounded|shadow-lg/);
   } finally { fs.rmSync(output, {force:true}); }

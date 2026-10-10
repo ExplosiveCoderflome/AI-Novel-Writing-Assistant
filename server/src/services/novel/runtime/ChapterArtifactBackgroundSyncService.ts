@@ -20,6 +20,7 @@ import {
 } from "./artifactSync/ChapterArtifactRecoveryService";
 import {
   ChapterArtifactContentVersionError,
+  CharacterCandidateReviewRequiredError,
   type ChapterArtifactSyncResult,
 } from "./artifactSync/ChapterArtifactSyncResult";
 
@@ -31,6 +32,7 @@ interface ChapterBackgroundSyncContext {
 
 interface ChapterArtifactBackgroundSyncOptions {
   artifactSyncPolicy?: "director_v2";
+  directorRunId?: string;
   artifactSyncMode?: ArtifactSyncMode;
   provider?: string;
   model?: string;
@@ -80,7 +82,7 @@ export class ChapterArtifactBackgroundSyncService {
   ): Promise<ChapterArtifactSyncResult> {
     const artifactSyncMode = options.artifactSyncMode ?? DEFAULT_ARTIFACT_SYNC_MODE;
     const contentHash = buildContentHash(content);
-    const chapterKey = `${novelId}:${chapterId}:${artifactSyncMode}:${options.artifactSyncPolicy ?? "legacy"}`;
+    const chapterKey = `${novelId}:${chapterId}:${artifactSyncMode}:${options.artifactSyncPolicy ?? "legacy"}:${options.directorRunId ?? ""}`;
     const syncKey = `${chapterKey}:${contentHash}`;
     const activeSync = this.activeSyncs.get(syncKey);
     if (activeSync) {
@@ -213,6 +215,7 @@ export class ChapterArtifactBackgroundSyncService {
           content,
           artifactSyncMode,
           artifactSyncPolicy: options.artifactSyncPolicy,
+          directorRunId: options.directorRunId,
           sourceType: "chapter_background_sync",
           sourceStage: "chapter_execution",
           provider: options.provider,
@@ -254,6 +257,9 @@ export class ChapterArtifactBackgroundSyncService {
         sourceStage: "chapter_execution",
         metadata: { reason: error instanceof Error ? error.message : String(error) },
           });
+          if (error instanceof CharacterCandidateReviewRequiredError) {
+            return {status: "pending", contentHash, completedArtifacts: [], reason: error.message, characterReviewId: error.reviewId};
+          }
           if (error instanceof ChapterArtifactContentVersionError) {
             return {
               status: "failed",
@@ -299,6 +305,7 @@ export class ChapterArtifactBackgroundSyncService {
       chapterOrder: chapter.order,
       artifactSyncMode,
       artifactSyncPolicy: options.artifactSyncPolicy,
+          directorRunId: options.directorRunId,
       requiresFullReconcileFromDelta,
     });
     if (shouldReconcile && !(await this.hasCompletedCheckpoint({
@@ -352,6 +359,7 @@ export class ChapterArtifactBackgroundSyncService {
                 chapterOrder: chapter.order,
                 artifactSyncMode,
                 artifactSyncPolicy: options.artifactSyncPolicy,
+          directorRunId: options.directorRunId,
                 requiresFullReconcileFromDelta,
                 isVolumeTail: await this.isVolumeTail(novelId, chapter.order),
               }),
@@ -395,6 +403,7 @@ export class ChapterArtifactBackgroundSyncService {
     chapterOrder: number;
     artifactSyncMode: ArtifactSyncMode;
     artifactSyncPolicy?: "director_v2";
+  directorRunId?: string;
     requiresFullReconcileFromDelta: boolean;
   }): Promise<boolean> {
     if (input.artifactSyncMode === "strict") {
@@ -416,6 +425,7 @@ export class ChapterArtifactBackgroundSyncService {
     chapterOrder: number;
     artifactSyncMode: ArtifactSyncMode;
     artifactSyncPolicy?: "director_v2";
+  directorRunId?: string;
     requiresFullReconcileFromDelta: boolean;
     isVolumeTail: boolean;
   }): string {

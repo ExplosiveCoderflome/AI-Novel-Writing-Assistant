@@ -21,6 +21,7 @@ const EXTRACTION_ARTIFACT_TYPE = "artifact_delta_extraction:v1";
 const APPLY_ARTIFACT_PREFIX = "artifact_delta_apply:v1:";
 
 interface RecoveryServiceDeps {
+  prepareCandidates?: (input: ChapterArtifactDeltaSyncInput & {directorRunId: string}, output: ChapterArtifactExtractionResult["output"]) => Promise<ChapterArtifactExtractionResult["output"]>;
   deltaService: Pick<
     ChapterArtifactDeltaService,
     "extractChapterArtifacts" | "applyChapterArtifactConsumer" | "toSyncResult"
@@ -42,6 +43,7 @@ export class ChapterArtifactRecoveryService {
 
   constructor(deps: Partial<RecoveryServiceDeps> = {}) {
     this.deps = {
+      prepareCandidates: deps.prepareCandidates,
       deltaService: deps.deltaService ?? new ChapterArtifactDeltaService(),
       checkpoints: deps.checkpoints ?? new ChapterArtifactCheckpointStore(),
       readCurrentContent: deps.readCurrentContent ?? (async (novelId, chapterId) => {
@@ -59,7 +61,14 @@ export class ChapterArtifactRecoveryService {
   ): Promise<ChapterArtifactDeltaSyncResult> {
     const contentHash = buildContentHash(input.content);
     await this.assertCurrentContent(input.novelId, input.chapterId, contentHash);
-    const extraction = await this.loadOrExtract(input, contentHash);
+    let extraction = await this.loadOrExtract(input, contentHash);
+    if (input.artifactSyncPolicy === "director_v2" && input.directorRunId) {
+      const prepare = this.deps.prepareCandidates ?? (async (candidateInput, output) => {
+        const {directorCharacterCandidates} = await import("../../characters/candidates");
+        return directorCharacterCandidates.prepare(candidateInput, output);
+      });
+      extraction = {...extraction, output: await prepare({...input, directorRunId: input.directorRunId}, extraction.output)};
+    }
     const aggregate: ChapterArtifactConsumerResult = {};
 
     for (const consumer of getChapterArtifactConsumers(input)) {

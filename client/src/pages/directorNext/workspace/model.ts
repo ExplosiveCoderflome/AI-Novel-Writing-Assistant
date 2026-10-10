@@ -5,7 +5,7 @@ import type {DirectorWorkspace} from "@/api/directorNext";
 export type WorkspaceBook = DirectorWorkspace;
 export type WorkspaceChapter = WorkspaceBook["chapters"][number];
 export type WorkspaceCharacter = WorkspaceBook["materials"]["characters"][number];
-export type Selection = { kind: "story" | "world" | "world_map" | "character_graph" | "characters" | "volumes" | "foreshadowing" | "resources" } | { kind: "chapter" | "character" | "character_resources" | "volume" | "plan"; id: string } | { kind: "beat"; id: string; volumeId: string };
+export type Selection = { kind: "story" | "world" | "world_map" | "character_graph" | "character_timeline" | "characters" | "volumes" | "foreshadowing" | "resources" } | { kind: "chapter" | "character" | "character_resources" | "volume" | "plan"; id: string } | { kind: "beat"; id: string; volumeId: string };
 export type HistoryBoundary = number | null | "latest";
 
 export function readableChapter(chapter: { content: string | null }) {
@@ -14,7 +14,7 @@ export function readableChapter(chapter: { content: string | null }) {
 
 export function resolveSelection(selection: Selection | null, book: WorkspaceBook): Selection {
   if (selection) {
-    if (selection.kind === "story" || selection.kind === "world" || selection.kind === "world_map" || selection.kind === "character_graph" || selection.kind === "characters" || selection.kind === "volumes" || selection.kind === "foreshadowing" || selection.kind === "resources") return selection;
+    if (selection.kind === "story" || selection.kind === "world" || selection.kind === "world_map" || selection.kind === "character_graph" || selection.kind === "character_timeline" || selection.kind === "characters" || selection.kind === "volumes" || selection.kind === "foreshadowing" || selection.kind === "resources") return selection;
     if (selection.kind === "beat") {
       if (book.planning?.beatSheets.some(sheet => sheet.volumeId === selection.volumeId && sheet.beats.some(beat => beat.key === selection.id))) return selection;
     } else if (selection.kind === "plan") {

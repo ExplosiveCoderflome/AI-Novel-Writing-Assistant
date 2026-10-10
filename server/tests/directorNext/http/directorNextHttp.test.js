@@ -37,6 +37,49 @@ function deps(overrides = {}) {
   };
 }
 
+test('initial schedule fill is explicit, book-scoped and validates model selection without director commands',async()=>{
+  const fills=[];
+  await withServer(deps({fillInitialCharacterSchedule:async(novelId,input)=>{fills.push({novelId,input});return {updated:2,remaining:0};},
+    commandService:{execute:async()=>{throw Error('fill must not start chapters');}},
+  }),async base=>{
+    const url=`${base}/api/director-next/novels/book%20one/character-appearances/initial-schedule`;
+    assert.equal((await fetch(url)).status,404);
+    const post=body=>fetch(url,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(body)});
+    assert.equal((await post({provider:'deepseek'})).status,400);
+    assert.equal((await post({provider:'deepseek',model:'deepseek-flash',chapters:['foreign']})).status,400);
+    const response=await post({provider:'deepseek',model:'deepseek-flash'});
+    assert.equal(response.status,200);
+    assert.deepEqual((await response.json()).data,{updated:2,remaining:0});
+    assert.deepEqual(fills,[{novelId:'book one',input:{provider:'deepseek',model:'deepseek-flash'}}]);
+  });
+});
+
+test("appearance reads preserve novel and character scope and cannot dispatch commands", async () => {
+  await withServer(deps({readCharacterAppearances: async (novelId,characterId)=>({novelId,characterId,chapters:[]}),
+    commandService: {execute:async()=>{throw Error('read must not generate');}},
+  }),async base=>{
+    const url = `${base}/api/director-next/novels/book%20one/characters/person%20two/appearances`;
+    const response = await fetch(url);
+    assert.equal(response.status,200);
+    assert.deepEqual((await response.json()).data,{novelId:'book one',characterId:'person two',chapters:[]});
+    assert.equal((await fetch(url,{method:'POST'})).status,404);
+  });
+});
+
+test("cast timeline reads a whole book in one request and cannot dispatch commands", async () => {
+  const calls = [];
+  await withServer(deps({readNovelCharacterAppearances: async novelId=>{calls.push(novelId);return {novelId,chapters:[]};},
+    commandService: {execute:async()=>{throw Error('read must not generate');}},
+  }),async base=>{
+    const url = `${base}/api/director-next/novels/book%20one/character-appearances`;
+    const response = await fetch(url);
+    assert.equal(response.status,200);
+    assert.deepEqual((await response.json()).data,{novelId:'book one',chapters:[]});
+    assert.deepEqual(calls,['book one']);
+    assert.equal((await fetch(url,{method:'POST'})).status,404);
+  });
+});
+
 test("ledger endpoint reads the requested book without entering director commands", async () => {
   await withServer(deps({
     readLedgers: async novelId => ({novelId, payoffs: [], resources: [], resourceEvents: [], pendingResources: [], warnings: []}),
@@ -46,6 +89,23 @@ test("ledger endpoint reads the requested book without entering director command
     assert.equal(response.status, 200);
     assert.equal((await response.json()).data.novelId, 'book one');
     assert.equal((await fetch(`${url}/api/director-next/novels/book%20one/ledgers`, {method:'POST'})).status,404);
+  });
+});
+
+test("candidate review endpoint rejects incomplete actions and passes only the scoped batch decision", async () => {
+  const writes = [];
+  await withServer(deps({readCharacterCandidates: async runId => ({runId, reviews: []}),
+    resolveCharacterCandidates: async (runId, input) => writes.push({runId, input}),
+  }), async base => {
+    const url = `${base}/api/director-next/runs/run-1/character-candidates`;
+    assert.equal((await (await fetch(url)).json()).data.runId, 'run-1');
+    assert.equal(writes.length, 0);
+    const post = body => fetch(url, {method: 'POST', headers: {'content-type': 'application/json'}, body: JSON.stringify(body)});
+    assert.equal((await post({decisions: []})).status, 400);
+    const body = {reviewId: 'review', revision: 2, contentHash: 'saved', decisions: [{candidateId: 'c', action: 'create'}]};
+    assert.equal((await post({...body, decisions: [{candidateId: 'c', action: 'auto'}]})).status, 400);
+    assert.equal((await post(body)).status, 200);
+    assert.deepEqual(writes, [{runId: 'run-1', input: body}]);
   });
 });
 

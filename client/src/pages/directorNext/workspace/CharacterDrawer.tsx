@@ -8,10 +8,11 @@ import { AppDialogContent, Dialog } from "@/components/ui/dialog";
 import { visibleCharacterHistory } from "./model";
 import type { WorkspaceBook, WorkspaceCharacter } from "./model";
 import { previewCharacterHistory } from "./previewBook";
+import {CharacterAppearances} from "./characters/CharacterAppearances";
 
-export function CharacterDrawer({ book, character, readingOrder, preview, onClose, onChapter, onResources }: {
+export function CharacterDrawer({ book, character, readingOrder, preview, onClose, onChapter, onPlan, onResources }: {
   book: WorkspaceBook; character: WorkspaceCharacter; readingOrder: number | null; preview: boolean;
-  onClose: () => void; onChapter: (id: string) => void;
+  onClose: () => void; onChapter: (id: string) => void; onPlan: (id: string) => void;
   onResources?: (id:string) => void;
 }) {
   const [latest, setLatest] = useState(false);
@@ -43,7 +44,8 @@ export function CharacterDrawer({ book, character, readingOrder, preview, onClos
           : latestQuery.isLoading && !preview ? <p className="text-sm text-muted-foreground">正在读取最新状态…</p>
             : <><p className="whitespace-pre-wrap text-sm leading-7">{currentState || "暂无状态描述"}</p><p className="whitespace-pre-wrap text-sm leading-7"><span className="text-muted-foreground">行动目标：</span>{currentGoal || "暂无行动目标"}</p><p className="text-xs text-muted-foreground">此状态未提供逐章历史快照。</p></>}
       </section> : null}
-      <section className="mt-7"><h3 className="text-sm font-semibold">变化记录</h3>
+      <CharacterAppearances novelId={book.novel.id} characterId={character.id} preview={preview} boundary={latest ? "latest" : readingOrder} planning={book.planning} onSelect={target=>{if(target.kind==="chapter") onChapter(target.id);else onPlan(target.id);onClose();}}/>
+      <section className="mt-7"><h3 className="text-sm font-semibold">其他变化记录</h3>
         {!preview && historyQuery.isError ? <p role="alert" className="mt-4 text-sm text-destructive">变化记录读取失败。<Button size="sm" variant="ghost" onClick={() => void historyQuery.refetch()}>重新读取</Button></p>
           : !preview && historyQuery.isLoading ? <p className="mt-4 text-sm text-muted-foreground">正在读取变化记录…</p>
             : history.length === 0 ? <p className="mt-4 text-sm leading-7 text-muted-foreground">{readingOrder === null && !latest ? "尚未选择阅读章节。" : "这个范围暂无有来源的变化记录。角色资料可在下方查看。"}</p>

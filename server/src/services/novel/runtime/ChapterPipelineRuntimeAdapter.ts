@@ -52,7 +52,7 @@ export class ChapterPipelineRuntimeAdapter {
       const saved = await this.finalizationStore.load(novelId, chapterId, scope);
       if (saved) return resumeFinalizedPipelineChapter({
         syncFinalChapterArtifacts: (n, c, content, syncOptions) => this.deps.artifactSyncService.syncChapterArtifacts(n, c, content, {
-          ...syncOptions, scheduleBackgroundSync: true, awaitArtifactDelta: true, skipLegacySummaryAndFacts: true,
+          ...syncOptions, directorRunId: options.directorRunId, scheduleBackgroundSync: true, awaitArtifactDelta: true, skipLegacySummaryAndFacts: true,
           provider: options.provider, model: options.model, temperature: options.temperature,
         }),
         markChapterGenerationState: (c, state) => this.markChapterGenerationState(c, state),
@@ -96,6 +96,7 @@ export class ChapterPipelineRuntimeAdapter {
                 artifactSyncMode: syncOptions?.artifactSyncMode ?? options.artifactSyncMode,
                 contentProvenance: syncOptions?.contentProvenance,
                 artifactSyncPolicy: syncOptions?.artifactSyncPolicy,
+                directorRunId: options.directorRunId,
                 awaitArtifactDelta: true,
                 skipLegacySummaryAndFacts: true,
                 provider: request.provider,

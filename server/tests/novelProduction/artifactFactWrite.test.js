@@ -25,6 +25,7 @@ test('V2 summary and fact writes consume AI deltas rather than rerunning legacy 
     '../ChapterArtifactContentVersion':version,
   }):{};
   const {ChapterArtifactDeltaService}=loadRuntimeSource('ChapterArtifactDeltaService.ts',{
+    '../characters/appearances':{characterAppearanceService:{applyFinalChapter:async()=>{throw Error('fact writing must not write appearances');}}},
     '../../../db/prisma':{prisma},'../../../prompting/core/promptRunner':{},
     '../../../prompting/prompts/novel/chapterArtifactDelta.prompts':{},'../../rag':{ragServices:{ragIndexService:{enqueueUpsert:async(type,id)=>{queued.push([type,id]);}}}},
     '../../state/StateService':{},'../../payoff/payoffLedgerShared':{},
@@ -57,11 +58,14 @@ test('V2 working drafts do not schedule premature or duplicate embeddings; V1 in
     './artifactSync/ChapterArtifactSyncResult':resultModule,'./lifecycle':{chapterLifecycleService:{}},
   });
   const service=new ChapterArtifactSyncService();
-  service.syncCharacterTimelineForChapter=async()=>{};
+  let legacyTimelineWrites=0;
+  service.syncCharacterTimelineForChapter=async()=>{legacyTimelineWrites++;};
   await service.syncChapterArtifacts('n','c','待修复稿',{artifactSyncPolicy:'director_v2',skipLegacySummaryAndFacts:true,scheduleBackgroundSync:false});
   assert.deepEqual(queued,[]);
   assert.equal(legacyFactReads,0);
+  assert.equal(legacyTimelineWrites,0,'V2 must wait for structured identity-confirmed appearance records');
   await service.syncChapterArtifacts('n','c','旧链路稿',{skipLegacySummaryAndFacts:true,scheduleBackgroundSync:false});
   assert.deepEqual(queued,[['chapter','c'],['chapter_summary','c'],['novel','n']]);
   assert.equal(legacyFactReads,1);
+  assert.equal(legacyTimelineWrites,1,'V1 timeline behavior stays independent');
 });

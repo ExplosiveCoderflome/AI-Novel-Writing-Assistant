@@ -19,6 +19,7 @@ import {
 
 export interface ChapterArtifactSyncOptions {
   artifactSyncPolicy?: "director_v2";
+  directorRunId?: string;
   scheduleBackgroundSync?: boolean;
   artifactSyncMode?: ArtifactSyncMode;
   syncArtifacts?: boolean;
@@ -109,8 +110,11 @@ export class ChapterArtifactSyncService {
       completedArtifacts.push("legacy_summary_and_facts");
     }
 
-    await this.syncCharacterTimelineForChapter(novelId, chapterId, content);
-    completedArtifacts.push("character_timeline");
+    // V2 records structured appearances after candidate identity resolution in the recoverable consumers.
+    if (options.artifactSyncPolicy !== "director_v2") {
+      await this.syncCharacterTimelineForChapter(novelId, chapterId, content);
+      completedArtifacts.push("character_timeline");
+    }
     let deltaResult: ChapterArtifactSyncResult | null = null;
     if (options.scheduleBackgroundSync !== false) {
       const artifactSyncMode = options.artifactSyncMode ?? "adaptive";
@@ -118,6 +122,7 @@ export class ChapterArtifactSyncService {
         deltaResult = await chapterArtifactBackgroundSyncService.runChapterSyncNow(novelId, chapterId, content, {
           artifactSyncMode,
           artifactSyncPolicy: options.artifactSyncPolicy,
+          directorRunId: options.directorRunId,
           provider: options.provider,
           model: options.model,
           temperature: options.temperature,
@@ -127,6 +132,7 @@ export class ChapterArtifactSyncService {
         chapterArtifactBackgroundSyncService.scheduleChapterSync(novelId, chapterId, content, {
           artifactSyncMode,
           artifactSyncPolicy: options.artifactSyncPolicy,
+          directorRunId: options.directorRunId,
           provider: options.provider,
           model: options.model,
           temperature: options.temperature,

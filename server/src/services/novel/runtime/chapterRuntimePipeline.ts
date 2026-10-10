@@ -43,6 +43,7 @@ export interface PipelineEmptyContentEvent {
 export interface PipelineRuntimeInput extends ChapterRuntimeRequestInput {
   /** Internal production policy, selected only by the V2 job owner. */
   artifactSyncPolicy?: "director_v2";
+  directorRunId?: string;
   finalizedResultScope?: string;
   maxRetries?: number;
   autoReview?: boolean;

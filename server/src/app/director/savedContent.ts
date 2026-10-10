@@ -1,3 +1,4 @@
+import {directorCharacterCandidates} from "../../services/novel/characters/candidates";
 import type {Prisma} from "@prisma/client";
 import {artifactContentHash, type RunContract} from "../../modules/director";
 import {parsePipelinePayload, stringifyPipelinePayload} from "../../services/novel/pipelineJobState";
@@ -60,6 +61,10 @@ export async function resumeBusiness(contract: RunContract, tx: Prisma.Transacti
   const payload = parsePipelinePayload(job.payload);
   if (job.novelId !== contract.novelId || payload.directorNext?.runId !== contract.runId) throw new Error("正文作业不属于本次运行。");
   if (job.pendingManualRecovery) {
+    if (payload.directorNext.pendingCharacterReviewId) {
+      await directorCharacterCandidates.assertResolved(contract.runId, payload.directorNext.pendingCharacterReviewId, tx);
+      delete payload.directorNext.pendingCharacterReviewId;
+    }
     if (payload.replanAlertDetails?.length || payload.directorNext.decisions.slice(payload.directorNext.resolvedDecisionCount ?? 0).some(decision => decision.issueCode === "quality.replan_required")) {
       const plan = await tx.volumePlanVersion.findFirst({where: {novelId: contract.novelId, status: "active"}, orderBy: {version: "desc"}, select: {updatedAt: true}});
       if (!plan || plan.updatedAt <= job.updatedAt) throw new AppError("请先从本书规划页保存调整后的章节路线，再继续创作。", 400);

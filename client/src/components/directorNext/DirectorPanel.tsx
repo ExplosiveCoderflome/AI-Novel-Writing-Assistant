@@ -6,6 +6,7 @@ import DirectorBadge, { directorDriverLabel } from "./DirectorBadge";
 import DirectorGate from "./DirectorGate";
 import DirectorDriveSwitch from "./DirectorDriveSwitch";
 import type {ReactNode} from "react";
+import DirectorCharacterCandidates, {useDirectorCharacterCandidates} from "./characters/DirectorCharacterCandidates";
 
 interface DirectorPanelProps {
   view: DashboardView;
@@ -37,6 +38,10 @@ function formatTime(value: string): string {
 }
 
 export default function DirectorPanel({ view, novelId, timeline = [], preview = false, startForm, reviewTarget, reviewReady = false, reviewRunId, reviewVersion }: DirectorPanelProps) {
+  const candidates = useDirectorCharacterCandidates(view.runId, !preview);
+  const candidatePage = candidates.data?.data;
+  const reviewingCharacters = candidatePage?.reviews.some(r => r.blocking) ?? false;
+  const badgeView = reviewingCharacters ? {...view, headline: "请确认本章人物后继续", availableActions: view.availableActions.filter(a => a.command !== "resume")} : view;
   const reviewingCurrentGate=reviewReady && reviewRunId===view.runId && reviewVersion===view.sourceTrace.controlVersion && view.availableActions.some(action=>action.id.startsWith("review:") && action.kind==="navigate" && action.target===reviewTarget);
   const navigationAction = view.availableActions.find(action => action.kind === "navigate" && action.target !== reviewTarget);
   const driveSwitch = view.availableActions.find(action => action.command === "handoff" && action.toDriver);
@@ -48,7 +53,9 @@ export default function DirectorPanel({ view, novelId, timeline = [], preview = 
 
   return (
     <aside className="flex min-h-0 flex-col gap-0 bg-background" aria-label="小说导演台">
-      <DirectorBadge view={view} novelId={novelId} preview={preview} currentNavigationTarget={reviewTarget} />
+      <DirectorBadge view={badgeView} novelId={novelId} preview={preview} currentNavigationTarget={reviewTarget} />
+      {!preview ? <DirectorCharacterCandidates page={candidatePage} runId={view.runId} novelId={novelId}/> : null}
+      {candidates.isError ? <p role="alert" className="py-2 text-xs text-destructive">人物候选暂时未能加载，请稍后重试。</p> : null}
       {!preview && view.mode === "waiting_gate" && reviewingCurrentGate ? <DirectorGate runId={view.runId} novelId={novelId} expectedVersion={view.sourceTrace.controlVersion}/>:null}
       {driveSwitch?.toDriver ? <DirectorDriveSwitch runId={view.runId} novelId={novelId} expectedVersion={view.sourceTrace.controlVersion} toDriver={driveSwitch.toDriver} label={driveSwitch.label} disabled={preview}/>:null}
 
@@ -76,7 +83,7 @@ export default function DirectorPanel({ view, novelId, timeline = [], preview = 
           需要你做什么
         </div>
         <p className="mt-2 text-sm leading-6 text-muted-foreground">{reviewingCurrentGate ? "请核对左侧本阶段结果，确认后 AI 按本次授权范围继续。" : view.nextActionGuidance}</p>
-        {view.detail ? <p className="mt-2 text-sm leading-6 text-destructive">{view.detail}</p> : null}
+        {view.detail ? <p className={`mt-2 text-sm leading-6 ${reviewingCharacters ? "text-muted-foreground" : "text-destructive"}`}>{view.detail}</p> : null}
         {navigationAction ? (
           <Link className="mt-3 inline-flex text-sm font-medium text-primary underline-offset-4 hover:underline" to={navigationAction.target ?? view.sourceRoute}>
             查看本阶段结果

@@ -122,6 +122,30 @@ test("C3: stale content is rejected before extraction or consumer writes", async
   assert.equal(applyCalls, 0);
 });
 
+test("V2 chapter identity review precedes resource writes and resume reuses the stored extraction", async () => {
+  const checkpoints = createCheckpointStore();
+  let extractions = 0, identities = 0, writes = 0, confirmed = false;
+  const Service = loadRecoveryService();
+  const service = new Service({checkpoints, readCurrentContent: async () => "draft",
+    prepareCandidates: async (input, output) => {
+      assert.equal(input.directorRunId, "r"); identities++;
+      if (!confirmed) throw new Error("confirm candidates");
+      return {...output, identityApplied: true};
+    }, deltaService: {
+      async extractChapterArtifacts() {extractions++; return {contentHash: "draft", output: {}};},
+      async applyChapterArtifactConsumer(input) {assert.equal(input.output.identityApplied, true); writes++; return {};},
+      toSyncResult: extraction => extraction,
+    }});
+  const input = {novelId: "n", chapterId: "c", content: "draft", artifactSyncMode: "adaptive", artifactSyncPolicy: "director_v2", directorRunId: "r"};
+  await assert.rejects(service.syncChapterArtifacts(input), /confirm candidates/);
+  assert.equal(writes, 0);
+  confirmed = true;
+  await service.syncChapterArtifacts(input);
+  assert.equal(extractions, 1);
+  assert.equal(identities, 2);
+  assert.equal(writes, 4);
+});
+
 test("V2 recovery awaits location application and resumes it without another extraction; V1 stays independent", async () => {
   const checkpoints = createCheckpointStore();
   const applied = [];

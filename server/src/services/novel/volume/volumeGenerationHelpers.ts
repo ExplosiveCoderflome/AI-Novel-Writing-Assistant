@@ -30,6 +30,7 @@ export interface GeneratedVolumeChapterBlock {
     beatKey: string;
     title: string;
     summary: string;
+    plannedCharacterIds?: string[];
   }>;
 }
 
@@ -423,6 +424,7 @@ export function mergeChapterList(
           beatKey: beat.key,
           title: chapter.title,
           summary: chapter.summary,
+          ...(chapter.plannedCharacterIds !== undefined ? {plannedCharacterIds: chapter.plannedCharacterIds} : {}),
           purpose: existingChapter?.purpose ?? null,
           exclusiveEvent: existingChapter?.exclusiveEvent ?? null,
           endingState: existingChapter?.endingState ?? null,

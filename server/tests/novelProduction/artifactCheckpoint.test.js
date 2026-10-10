@@ -12,6 +12,7 @@ function fixture({
   chapterOrder = 1,
   volumeTail = false,
   requiresFullReconcile = false,
+  characterReview = false,
 } = {}) {
   const recoveryArtifactType = "artifact_delta_recoverable:v1";
   let row = initialStatus ? { status: initialStatus, updatedAt: new Date() } : null;
@@ -57,6 +58,7 @@ function fixture({
     },
   };
   const ContentVersionError = class extends Error {};
+  const ReviewRequiredError = class extends Error {constructor() {super("请确认人物"); this.reviewId = "review-1";}};
   const { ChapterArtifactBackgroundSyncService } = loadRuntimeSource("ChapterArtifactBackgroundSyncService.ts", {
     "../../../db/prisma": { prisma: {
       chapter: { findFirst: async () => ({ id: "c", order: chapterOrder, title: "Chapter", content: chapterContent }) },
@@ -86,6 +88,7 @@ function fixture({
             });
           }
           if (contentVersionError) throw new ContentVersionError("章节正文版本已变化");
+          if (characterReview && calls === 1) throw new ReviewRequiredError();
           applied.push("summary");
           if (failOnce && calls === 1) throw new Error("after summary");
           applied.push("remaining");
@@ -95,6 +98,7 @@ function fixture({
     },
     "./artifactSync/ChapterArtifactSyncResult": {
       ChapterArtifactContentVersionError: ContentVersionError,
+      CharacterCandidateReviewRequiredError: ReviewRequiredError,
     },
   });
   return {
@@ -110,6 +114,20 @@ function fixture({
 }
 
 const sync = (service, artifactSyncMode = "deferred") => service.runChapterSyncNow("n", "c", "draft", { artifactSyncMode });
+
+test("candidate confirmation releases the artifact claim without closing the chapter; a fresh instance can resume", async () => {
+  const f = fixture({characterReview: true});
+  const options = {artifactSyncPolicy: "director_v2", directorRunId: "run-1"};
+  const first = await f.create().runChapterSyncNow("n", "c", "draft", options);
+  assert.equal(first.status, "pending");
+  assert.equal(first.characterReviewId, "review-1");
+  assert.equal(f.status, "failed", "release the outer claim so explicit recovery does not wait for stale lease timeout");
+  assert.equal(f.boundaryWrites, 0);
+  assert.equal(f.recoveryInputs[0].directorRunId, "run-1");
+  const resumed = await f.create().runChapterSyncNow("n", "c", "draft", options);
+  assert.equal(resumed.status, "completed");
+  assert.equal(f.boundaryWrites, 1);
+});
 
 test("checkpoint: partial failure marks failed, fresh instance reclaims, success skips extraction", async () => {
   const f = fixture({ failOnce: true });

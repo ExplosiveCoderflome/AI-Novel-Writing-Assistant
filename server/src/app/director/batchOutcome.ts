@@ -18,6 +18,10 @@ export async function readBatchOutcome(job: BatchJob, context: StepContext): Pro
   const debts = decisions.filter(decision => decision.chapterOrder && decision.action !== "auto_retry" && DIRECTOR_ISSUE_CATALOG_BY_CODE[decision.issueCode].category === "quality")
     .map(decision => ({chapterOrder: decision.chapterOrder!, code: decision.issueCode, action: decision.action}));
   const outcome: BatchOutcome = {chapters: chapters.map(chapter => ({...chapter, closed: isCurrentChapterProductionCompleted(chapter)})), debts};
+  if (saved.pendingManualRecovery && payload.directorNext.pendingCharacterReviewId) {
+    return {...outcome, stopSignal: {kind: "manual_recovery", action: "pause_for_manual", source: "runtime",
+      reason: "本章正文已保存，请在导演台确认本章人物，再继续回填和下一章创作。"}};
+  }
   const replan = decisions.find(decision => decision.issueCode === "quality.replan_required");
   if (replan || jobNotice(saved.payload) === PIPELINE_REPLAN_NOTICE_CODE) {
     return {...outcome, stopSignal: {kind: "replan", action: "stop_for_replan", reason: replan?.reason ?? "章节生产明确要求重规划后续路线。"}};
