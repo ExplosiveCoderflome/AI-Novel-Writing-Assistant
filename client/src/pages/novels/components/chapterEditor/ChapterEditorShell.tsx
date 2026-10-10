@@ -15,7 +15,7 @@ import {
   type ChapterQualityDebtDetails,
 } from "@ai-novel/shared/types/chapterQualityLoop";
 import { AlertTriangle, Loader2 } from "lucide-react";
-import { previewChapterAiRevision, previewChapterCursorContinuation, resolveChapterAuditIssue, reviewNovelChapter, updateNovelChapter } from "@/api/novel";
+import { createNovelSnapshot, previewChapterAiRevision, previewChapterCursorContinuation, resolveChapterAuditIssue, reviewNovelChapter, updateNovelChapter } from "@/api/novel";
 import { queryKeys } from "@/api/queryKeys";
 import { Button } from "@/components/ui/button";
 import { toast } from "@/components/ui/toast";
@@ -126,6 +126,7 @@ export default function ChapterEditorShell(props: ChapterEditorShellProps) {
   const [revisionInstruction, setRevisionInstruction] = useState("");
   const [selectedDiagnosticId, setSelectedDiagnosticId] = useState<string | null>(null);
   const [isVersionDrawerOpen, setIsVersionDrawerOpen] = useState(false);
+  const [loadedSnapshotId, setLoadedSnapshotId] = useState<string | null>(null);
 
   const draft = useChapterDraft({
     novelId,
@@ -144,6 +145,7 @@ export default function ChapterEditorShell(props: ChapterEditorShellProps) {
     setRevisionInstruction("");
     setRevisionScope("selection");
     setIsVersionDrawerOpen(false);
+    setLoadedSnapshotId(null);
     lastPreviewRequestRef.current = null;
     lastContinuationRequestRef.current = null;
   }, [chapter?.id]);
@@ -207,6 +209,12 @@ export default function ChapterEditorShell(props: ChapterEditorShellProps) {
       if (!chapter) {
         throw new Error("当前未选中章节。");
       }
+      if (loadedSnapshotId) {
+        await createNovelSnapshot(novelId, {
+          triggerType: "manual",
+          label: `chapter-editor:before-version-load:${chapter.order}:${Date.now()}`,
+        });
+      }
       return updateNovelChapter(novelId, chapter.id, { content: nextContent, expectedUpdatedAt: draft.savedUpdatedAt });
     },
     onMutate: () => {
@@ -214,6 +222,7 @@ export default function ChapterEditorShell(props: ChapterEditorShellProps) {
     },
     onSuccess: async (response, nextContent) => {
       draft.acknowledgeSave(nextContent, { content: response.data?.content, updatedAt: String(response.data?.updatedAt ?? Date.now()) });
+      setLoadedSnapshotId(null);
       setSaveStatus("saved");
       await invalidateChapterQueries();
       toast.success("章节正文已保存。");
@@ -410,6 +419,7 @@ export default function ChapterEditorShell(props: ChapterEditorShellProps) {
       setSession(EMPTY_SESSION);
       setRevisionInstruction("");
       await invalidateChapterQueries();
+      setLoadedSnapshotId(null);
     },
   });
 
@@ -534,8 +544,9 @@ export default function ChapterEditorShell(props: ChapterEditorShellProps) {
     setSession(EMPTY_SESSION);
   };
 
-  const handleLoadSnapshotContent = (content: string) => {
+  const handleLoadSnapshotContent = (content: string, snapshotId: string) => {
     draft.setContentDraft(content);
+    setLoadedSnapshotId(snapshotId);
     setSaveStatus("idle");
     setSession(EMPTY_SESSION);
     setSelection(null);
