@@ -192,6 +192,14 @@ export class DefaultNovelApplicationServices {
     return this.core.listNovelSnapshots(...args);
   }
 
+  listChapterSnapshots(...args: Parameters<NovelCoreService["listChapterSnapshots"]>) {
+    return this.core.listChapterSnapshots(...args);
+  }
+
+  getChapterSnapshot(...args: Parameters<NovelCoreService["getChapterSnapshot"]>) {
+    return this.core.getChapterSnapshot(...args);
+  }
+
   async restoreFromSnapshot(novelId: string, snapshotId: string) {
     const snapshot = await prisma.novelSnapshot.findFirst({
       where: { id: snapshotId, novelId },

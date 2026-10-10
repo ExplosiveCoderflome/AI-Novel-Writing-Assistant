@@ -772,6 +772,16 @@ export interface NovelSnapshot {
 
 export type NovelSnapshotListItem = Omit<NovelSnapshot, "snapshotData">;
 
+export interface NovelChapterSnapshotListItem extends NovelSnapshotListItem {
+  chapterId: string;
+  chapterOrder: number;
+  contentLength: number;
+}
+
+export interface NovelChapterSnapshot extends NovelChapterSnapshotListItem {
+  content: string;
+}
+
 export interface ChapterPlanScene {
   id: string;
   planId: string;

@@ -28,6 +28,8 @@ export interface NovelApplicationServices {
   checkCharacterAgainstWorld: NovelApplicationMethod;
   createNovelSnapshot: NovelApplicationMethod;
   listNovelSnapshots: NovelApplicationMethod;
+  listChapterSnapshots: NovelApplicationMethod;
+  getChapterSnapshot: NovelApplicationMethod;
   restoreFromSnapshot: NovelApplicationMethod;
   createOutlineStream: NovelApplicationMethod;
   createStructuredOutlineStream: NovelApplicationMethod;
