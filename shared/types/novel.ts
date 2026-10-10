@@ -312,6 +312,13 @@ export type ChapterEditorOperation =
   | "emotion"
   | "conflict"
   | "custom";
+export type ChapterEditorCursorOperation =
+  | "continue"
+  | "transition"
+  | "dialogue"
+  | "description"
+  | "inner_thought"
+  | "conflict";
 export type ChapterEditorRevisionSource = "preset" | "freeform";
 export type ChapterEditorRevisionScope = "selection" | "chapter";
 
@@ -464,6 +471,26 @@ export interface ChapterEditorRewritePreviewResponse {
   sessionId: string;
   operation: ChapterEditorOperation;
   targetRange: ChapterEditorTargetRange;
+  candidates: ChapterEditorCandidate[];
+  activeCandidateId: string | null;
+}
+
+export interface ChapterEditorCursorContinuationRequest {
+  operation: ChapterEditorCursorOperation;
+  contentSnapshot: string;
+  cursorOffset: number;
+  context: ChapterEditorContextWindow;
+  instruction?: string;
+  provider?: import("./llm").LLMProvider;
+  model?: string;
+  temperature?: number;
+}
+
+export interface ChapterEditorCursorContinuationResponse {
+  sessionId: string;
+  operation: ChapterEditorCursorOperation;
+  targetRange: ChapterEditorTargetRange;
+  macroAlignmentNote?: string | null;
   candidates: ChapterEditorCandidate[];
   activeCandidateId: string | null;
 }

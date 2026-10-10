@@ -455,6 +455,10 @@ export class DefaultNovelApplicationServices {
     return this.chapterEditorService.previewAiRevision(...args);
   }
 
+  previewChapterCursorContinuation(...args: Parameters<NovelChapterEditorService["previewCursorContinuation"]>) {
+    return this.chapterEditorService.previewCursorContinuation(...args);
+  }
+
   getChapterEditorWorkspace(...args: Parameters<ChapterEditorWorkspaceService["getWorkspace"]>) {
     return this.chapterEditorWorkspaceService.getWorkspace(...args);
   }

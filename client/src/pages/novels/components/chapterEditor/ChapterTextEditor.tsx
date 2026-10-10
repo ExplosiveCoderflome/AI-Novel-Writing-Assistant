@@ -6,6 +6,7 @@ import type { ChapterEditorSelectionRange, SelectionToolbarPosition } from "./ch
 import {
   buildSelectionRangeFromValue,
   buildToolbarPosition,
+  getCursorOffsetFromValue,
   getParagraphIndicesForRange,
   normalizeChapterContent,
   normalizeEditorText,
@@ -43,6 +44,7 @@ interface ChapterTextEditorProps {
   readOnly?: boolean;
   onChange: (next: string) => void;
   onSelectionChange: (selection: ChapterEditorSelectionRange | null, position: SelectionToolbarPosition | null) => void;
+  onCursorChange: (offset: number | null, position: SelectionToolbarPosition | null) => void;
   preview?: ChapterEditorPreview | null;
   focusRange?: Pick<ChapterEditorSelectionRange, "from" | "to"> | null;
 }
@@ -111,14 +113,15 @@ function renderLoadingPreview(
   previewContent: { before: string; after: string },
   surfaceRef: React.RefObject<HTMLDivElement | null>,
 ) {
+  const isInsertion = preview.from === preview.to && preview.originalText.length === 0;
   return (
     <div ref={surfaceRef} className={`space-y-4 rounded-2xl bg-muted/10 p-4 ${SURFACE_INNER_PADDING_CLASS_NAME}`}>
       <TextBlock text={previewContent.before} className="text-foreground" />
 
       <div className="space-y-3">
         <div className="rounded-2xl border border-amber-200/80 bg-amber-50/80 p-4">
-          <div className="mb-2 text-xs font-medium text-amber-700">待改写原文</div>
-          <TextBlock text={preview.originalText} className="text-amber-950" />
+          <div className="mb-2 text-xs font-medium text-amber-700">{isInsertion ? "待插入位置" : "待改写原文"}</div>
+          {isInsertion ? <div className="text-sm text-amber-950">光标所在位置将插入 AI 候选正文。</div> : <TextBlock text={preview.originalText} className="text-amber-950" />}
         </div>
         <div className="rounded-2xl border border-dashed border-border/70 bg-background/80 p-4">
           <div className="mb-2 text-xs font-medium text-muted-foreground">AI 正在生成候选版本</div>
@@ -140,14 +143,15 @@ function renderBlockPreview(
   previewContent: { before: string; after: string },
   surfaceRef: React.RefObject<HTMLDivElement | null>,
 ) {
+  const isInsertion = preview.from === preview.to && preview.originalText.length === 0;
   return (
     <div ref={surfaceRef} className={`space-y-4 rounded-2xl bg-muted/10 p-4 ${SURFACE_INNER_PADDING_CLASS_NAME}`}>
       <TextBlock text={previewContent.before} className="text-foreground" />
 
       <div className="space-y-3">
         <div className="rounded-2xl border border-rose-200/80 bg-rose-50/80 p-4">
-          <div className="mb-2 text-xs font-medium text-rose-700">原文</div>
-          <TextBlock text={preview.originalText} className="text-rose-950" />
+          <div className="mb-2 text-xs font-medium text-rose-700">{isInsertion ? "插入位置" : "原文"}</div>
+          {isInsertion ? <div className="text-sm text-rose-950">这里没有需要删除的原文，候选会作为新内容插入。</div> : <TextBlock text={preview.originalText} className="text-rose-950" />}
         </div>
         <div className="rounded-2xl border border-emerald-200/80 bg-emerald-50/90 p-4">
           <div className="mb-2 text-xs font-medium text-emerald-700">改写</div>
@@ -161,7 +165,7 @@ function renderBlockPreview(
 }
 
 export default function ChapterTextEditor(props: ChapterTextEditorProps) {
-  const { value, readOnly = false, onChange, onSelectionChange, preview, focusRange = null } = props;
+  const { value, readOnly = false, onChange, onSelectionChange, onCursorChange, preview, focusRange = null } = props;
   const [editorSeed, setEditorSeed] = useState(0);
   const [internalText, setInternalText] = useState(() => normalizeChapterContent(value));
   const [paragraphMarkerOffsets, setParagraphMarkerOffsets] = useState<Array<{ index: number; top: number }>>([]);
@@ -189,25 +193,39 @@ export default function ChapterTextEditor(props: ChapterTextEditorProps) {
   useEffect(() => {
     if (preview || readOnly) {
       onSelectionChange(null, null);
+      onCursorChange(null, null);
     }
-  }, [onSelectionChange, preview, readOnly]);
+  }, [onCursorChange, onSelectionChange, preview, readOnly]);
 
   const updateSelection = useCallback(() => {
     if (!editor || preview || readOnly) {
       onSelectionChange(null, null);
+      onCursorChange(null, null);
       return;
     }
 
     const selectionObject = globalThis.window?.getSelection?.();
     const surface = surfaceRef.current;
     if (!selectionObject || !surface || selectionObject.rangeCount === 0 || selectionObject.isCollapsed) {
-      onSelectionChange(null, null);
+      if (selectionObject?.isCollapsed && surface && selectionObject.rangeCount > 0 && surface.contains(selectionObject.anchorNode)) {
+        const range = selectionObject.getRangeAt(0);
+        const point = editor.selection?.anchor as { path: number[]; offset: number } | undefined;
+        const offset = getCursorOffsetFromValue(editor.children as Value, point);
+        const container = containerRef.current;
+        const position = container ? buildToolbarPosition(container, range) : null;
+        onSelectionChange(null, null);
+        onCursorChange(offset, position);
+      } else {
+        onSelectionChange(null, null);
+        onCursorChange(null, null);
+      }
       return;
     }
 
     const range = selectionObject.getRangeAt(0);
     if (!surface.contains(range.commonAncestorContainer)) {
       onSelectionChange(null, null);
+      onCursorChange(null, null);
       return;
     }
 
@@ -217,6 +235,7 @@ export default function ChapterTextEditor(props: ChapterTextEditorProps) {
     } | null);
     if (!selectionRange) {
       onSelectionChange(null, null);
+      onCursorChange(null, null);
       return;
     }
 
@@ -224,7 +243,8 @@ export default function ChapterTextEditor(props: ChapterTextEditorProps) {
     const position = container ? buildToolbarPosition(container, range) : null;
 
     onSelectionChange(selectionRange, position);
-  }, [editor, onSelectionChange, preview, readOnly]);
+    onCursorChange(null, null);
+  }, [editor, onCursorChange, onSelectionChange, preview, readOnly]);
 
   const handleValueChange = useCallback((payload: unknown) => {
     const nextText = normalizeEditorText(toPlainText(normalizeValuePayload(payload)));

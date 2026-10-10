@@ -361,6 +361,60 @@ test("NovelChapterEditorService previewAiRevision supports freeform whole-chapte
   assert.ok(result.macroAlignmentNote.includes("opening pressure"));
 });
 
+test("NovelChapterEditorService previewCursorContinuation preserves the cursor and creates insertion diffs", async () => {
+  let capturedPromptInput = null;
+  const service = new NovelChapterEditorService(
+    {
+      loadContext: async () => createWorkspaceContext(),
+    },
+    async ({ asset, promptInput }) => {
+      assert.equal(asset.id, "novel.chapter_editor.continue_preview");
+      capturedPromptInput = promptInput;
+      return {
+        output: {
+          macroAlignmentNote: "让场景压力继续向前推进。",
+          candidates: [
+            {
+              label: "直接推进",
+              content: "门外忽然传来三下敲门声。",
+              summary: "用外部动静打破僵持。",
+              rationale: "让冲突在当前场景内自然升级。",
+              semanticTags: ["推进冲突"],
+            },
+            {
+              label: "克制过渡",
+              content: "他还没想好下一句话，门外便传来三下敲门声。",
+              summary: "先保留人物犹豫，再引入压力。",
+              rationale: "承接人物当前的隐忍状态。",
+              semanticTags: ["过渡"],
+            },
+          ],
+        },
+      };
+    },
+  );
+
+  const result = await service.previewCursorContinuation("novel-1", "chapter-1", {
+    operation: "conflict",
+    contentSnapshot: "alpha\n\nbeta",
+    cursorOffset: 5,
+    context: {
+      beforeParagraphs: [],
+      afterParagraphs: ["beta"],
+    },
+    provider: "deepseek",
+    model: "deepseek-chat",
+    temperature: 0.5,
+  });
+
+  assert.equal(result.operation, "conflict");
+  assert.deepEqual(result.targetRange, { from: 5, to: 5, text: "" });
+  assert.equal(result.candidates.length, 2);
+  assert.ok(result.candidates[0].diffChunks.some((chunk) => chunk.type === "insert"));
+  assert.equal(capturedPromptInput.operation, "conflict");
+  assert.equal(capturedPromptInput.afterParagraphs[0], "beta");
+});
+
 test("ChapterEditorWorkspaceService maps diagnosis paragraphs into anchor ranges", async () => {
   const workspaceService = new ChapterEditorWorkspaceService(
     {
