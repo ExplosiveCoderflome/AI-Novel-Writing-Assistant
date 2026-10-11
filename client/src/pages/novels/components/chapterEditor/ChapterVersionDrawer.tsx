@@ -15,7 +15,7 @@ interface ChapterVersionDrawerProps {
   onOpenChange: (open: boolean) => void;
   currentContent: string;
   isDirty: boolean;
-  onLoadContent: (content: string) => void;
+  onLoadContent: (content: string, snapshotId: string) => void;
 }
 
 function formatSnapshotDate(value: string): string {
@@ -82,7 +82,7 @@ export default function ChapterVersionDrawer(props: ChapterVersionDrawerProps) {
     if (isDirty && !window.confirm("当前正文还有未保存的修改，载入版本会替换编辑区内容。继续吗？")) {
       return;
     }
-    onLoadContent(selectedSnapshot.content);
+    onLoadContent(selectedSnapshot.content, selectedSnapshot.id);
     onOpenChange(false);
     toast.success("版本已载入编辑区，保存后才会写入正文。");
   };

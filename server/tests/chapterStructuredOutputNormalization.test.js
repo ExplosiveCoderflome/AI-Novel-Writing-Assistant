@@ -7,6 +7,7 @@ const {
 } = require("../dist/prompting/prompts/novel/chapterAcceptance.prompts.js");
 const {
   chapterArtifactDeltaOutputSchema,
+  chapterArtifactDeltaPrompt,
 } = require("../dist/prompting/prompts/novel/chapterArtifactDelta.prompts.js");
 const {
   characterResourceExtractionOutputSchema,
@@ -578,4 +579,69 @@ test("chapter artifact delta schema normalizes enum drift from artifact extracti
   assert.equal(parsed.characterResourceDeltas[3].narrativeFunction, "cost");
   assert.equal(parsed.payoffDeltas[0].scopeType, "book");
   assert.equal(parsed.syncPlan.characterDynamics, "write");
+});
+
+function makeArtifactNormalizationInput(overrides = {}) {
+  return {
+    summary: "主角发现门后的线索。",
+    stateDeltas: {},
+    syncPlan: { reason: "按最终正文整理资料。" },
+    confidence: 0.9,
+    ...overrides,
+  };
+}
+
+function makeMindDelta(confidence) {
+  return { characterName: "主角", currentInterpretation: "门后可能有危险。", evidence: ["他停在门前。"], confidence };
+}
+
+test("artifact extraction accepts missing foreshadow titles and numeric-string mind confidence together", () => {
+  const summary = "两条线索有相同开头但不同结尾，必须保留完整的门后线索。";
+  const parsed = chapterArtifactDeltaOutputSchema.parse(makeArtifactNormalizationInput({
+    stateDeltas: { foreshadowStates: [{ summary, status: "hinted", setupChapterId: 3 }] },
+    characterMindDeltas: [makeMindDelta(" 0.8 ")],
+  }));
+  assert.equal(parsed.stateDeltas.foreshadowStates[0].title, summary);
+  assert.equal(parsed.stateDeltas.foreshadowStates[0].setupChapterId, "3");
+  assert.equal(parsed.characterMindDeltas[0].confidence, 0.8);
+  assert.deepEqual(chapterArtifactDeltaOutputSchema.parse(parsed), parsed, "checkpoint parsing is idempotent");
+});
+
+test("foreshadow title normalization preserves explicit titles and supplied aliases", () => {
+  const states = [
+    { title: "明确标题", summary: "摘要不应覆盖标题" },
+    { foreshadowTitle: "别名标题", summary: "摘要" },
+    { name: "线索名称" },
+    { label: "线索标识" },
+    { title: " ", summary: "完整的已有线索" },
+  ];
+  const parsed = chapterArtifactDeltaOutputSchema.parse(makeArtifactNormalizationInput({stateDeltas: {foreshadowStates: states}}));
+  assert.deepEqual(parsed.stateDeltas.foreshadowStates.map(item => item.title), ["明确标题", "别名标题", "线索名称", "线索标识", "完整的已有线索"]);
+});
+
+test("missing foreshadow content still requires AI repair instead of a fabricated title", () => {
+  for (const state of [{status: "setup"}, {title: " ", summary: " "}, {title: 42}, null, []]) {
+    assert.equal(chapterArtifactDeltaOutputSchema.safeParse(makeArtifactNormalizationInput({stateDeltas: {foreshadowStates: [state]}})).success, false);
+  }
+});
+
+test("mind confidence accepts JSON numbers without inventing ambiguous or out-of-range scores", () => {
+  for (const [input, expected] of [["0", 0], ["1", 1], ["8e-1", 0.8], [0.8, 0.8]]) {
+    const parsed = chapterArtifactDeltaOutputSchema.parse(makeArtifactNormalizationInput({characterMindDeltas: [makeMindDelta(input)]}));
+    assert.equal(parsed.characterMindDeltas[0].confidence, expected);
+  }
+  for (const input of ["", " ", "很高", "80%", "0.8%", "1.2", "-0.1", "null", "true", "{}", "[]", "0x1", "NaN", "Infinity", null, undefined, true, false, NaN, Infinity, -0.1, 1.2]) {
+    const result = chapterArtifactDeltaOutputSchema.safeParse(makeArtifactNormalizationInput({characterMindDeltas: [makeMindDelta(input)]}));
+    assert.equal(result.success, false, `must reject ${String(input)}`);
+    assert.ok(result.error.issues.some(issue => issue.path.join(".") === "characterMindDeltas.0.confidence"));
+  }
+});
+
+test("artifact format compatibility preserves the bounded repair policy and a complete wire example", () => {
+  assert.equal(chapterArtifactDeltaPrompt.repairPolicy.maxAttempts, 1);
+  assert.equal(chapterArtifactDeltaPrompt.fallbackRepairPolicy.maxAttempts, 0);
+  const parsed = chapterArtifactDeltaOutputSchema.parse(chapterArtifactDeltaPrompt.structuredOutputHint.example);
+  assert.ok(parsed.stateDeltas.foreshadowStates[0].title);
+  assert.equal(typeof parsed.characterMindDeltas[0].confidence, "number");
+  assert.equal(parsed.characterResourceDeltas[0].reviewDecision, "commit");
 });

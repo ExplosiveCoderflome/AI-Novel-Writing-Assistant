@@ -75,6 +75,23 @@ test("正文编辑器提供本章版本预览和安全载入入口", async () =>
   assert.match(api, /chapters\/\$\{chapterId\}\/snapshots/);
 });
 
+test("正文编辑器提供快捷保存并刷新本章版本列表", async () => {
+  const shell = await read("src/pages/novels/components/chapterEditor/ChapterEditorShell.tsx");
+  const sidebar = await read("src/pages/novels/components/chapterEditor/ChapterEditorSidebar.tsx");
+  assert.match(shell, /handleSaveShortcut/);
+  assert.match(shell, /chapterSnapshots\(novelId, chapter\.id\)/);
+  assert.match(sidebar, /Ctrl\/Cmd\+S/);
+});
+
+test("载入旧版本后的首次保存先保护当前正文", async () => {
+  const shell = await read("src/pages/novels/components/chapterEditor/ChapterEditorShell.tsx");
+  const drawer = await read("src/pages/novels/components/chapterEditor/ChapterVersionDrawer.tsx");
+  assert.match(shell, /loadedSnapshotId/);
+  assert.match(shell, /before-version-load/);
+  assert.match(shell, /createNovelSnapshot/);
+  assert.match(drawer, /onLoadContent\(selectedSnapshot\.content, selectedSnapshot\.id\)/);
+});
+
 test("自定义厂商配置可选择鉴权方式", async () => {
   const source = await read("src/pages/settings/components/ProviderConfigDialog.tsx");
   assert.match(source, /Authorization: Bearer/);

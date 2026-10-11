@@ -28,6 +28,26 @@ function readString(record: Record<string, unknown>, keys: string[]): string | u
   return undefined;
 }
 
+function normalizeNumericConfidence(value: unknown): unknown {
+  if (typeof value !== "string") return value;
+  try {
+    const parsed: unknown = JSON.parse(value);
+    return typeof parsed === "number" && Number.isFinite(parsed) ? parsed : value;
+  } catch {
+    // Preserve ambiguous values so validation can request an AI repair.
+    return value;
+  }
+}
+
+function normalizeForeshadowState(value: unknown): unknown {
+  if (!isRecord(value)) return value;
+  return {
+    ...value,
+    // Keep the complete supplied clue; truncating it can merge distinct clues.
+    title: readString(value, ["title", "foreshadowTitle", "name", "label", "summary"]),
+  };
+}
+
 function normalizeCharacterResourceDelta(value: unknown): unknown {
   if (!isRecord(value)) {
     return value;
@@ -367,7 +387,7 @@ export const chapterArtifactDeltaStateSchema = z.object({
   characterStates: z.array(chapterArtifactStateCharacterSchema).default([]),
   relationStates: z.array(chapterArtifactRelationStateSchema).default([]),
   informationStates: z.array(chapterArtifactInformationStateSchema).default([]),
-  foreshadowStates: z.array(chapterArtifactForeshadowStateSchema).default([]),
+  foreshadowStates: z.array(z.preprocess(normalizeForeshadowState, chapterArtifactForeshadowStateSchema)).default([]),
 });
 
 const chapterArtifactRelationDynamicSchema = z.preprocess(normalizeRelationDynamic, z.object({
@@ -431,7 +451,9 @@ export const chapterArtifactDeltaOutputSchema = z.preprocess(normalizeArtifactDe
   // Missing means historical extraction without appearance coverage; [] means reviewed and empty.
   characterAppearances: z.array(characterAppearanceSchema).max(60).optional(),
   characterKnowledgeStates: z.array(chapterArtifactCharacterKnowledgeStateSchema).default([]),
-  characterMindDeltas: z.array(characterMindDeltaSchema).default([]),
+  characterMindDeltas: z.array(characterMindDeltaSchema.extend({
+    confidence: z.preprocess(normalizeNumericConfidence, characterMindDeltaSchema.shape.confidence),
+  })).default([]),
   characterDialogueInfluenceResolutions: z.array(characterDialogueInfluenceResolutionSchema).default([]),
   syncPlan: chapterArtifactDeltaSyncPlanSchema,
   confidence: z.number().min(0).max(1),
@@ -487,7 +509,7 @@ const CHAPTER_ARTIFACT_DELTA_EXAMPLE = {
         status: "known",
       },
     ],
-    foreshadowStates: [],
+    foreshadowStates: [{ title: "库房守卫布置", summary: "潜入前仍需查明守卫。", status: "hinted" }],
   },
   characterResourceDeltas: [
     {
@@ -557,7 +579,7 @@ export const chapterArtifactDeltaPrompt: PromptAsset<
   ChapterArtifactDeltaOutput
 > = {
   id: "novel.chapter.artifact_delta.extract",
-  version: "v9",
+  version: "v10",
   cacheBoundary: {messageIndex:1,contentBlockIndex:0},
   taskType: "fact_extraction",
   mode: "structured",
@@ -583,6 +605,7 @@ export const chapterArtifactDeltaPrompt: PromptAsset<
       "只记录正文中有明确证据或与任务目标强相关的变化。",
       "示例是最小字段演示，可选字段仅在有实际信息时填写，不要照着示例扩写每个维度。",
       "syncPlan 与 requiresFullReconcile 由你基于剧情风险判断，代码只负责校验与落库。",
+      "伏笔状态必须填写具体且非空的 title；角色心理 confidence 必须是 0 到 1 的 JSON 数字，不是字符串、百分比或评价文字。",
     ].join(" "),
   },
   outputSchema: chapterArtifactDeltaOutputSchema,

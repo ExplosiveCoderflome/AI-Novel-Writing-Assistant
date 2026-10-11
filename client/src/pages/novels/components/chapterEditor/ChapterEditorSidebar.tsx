@@ -105,8 +105,10 @@ export default function ChapterEditorSidebar(props: ChapterEditorSidebarProps) {
                 onClick={onSave}
                 disabled={!isDirty || isSaving}
                 className="w-full"
+                title="保存正文（Ctrl/Cmd+S）"
+                aria-keyshortcuts="Control+S Meta+S"
               >
-                {isSaving ? "保存中..." : "保存"}
+                {isSaving ? "保存中..." : "保存 · Ctrl/Cmd+S"}
               </Button>
               {onOpenChapterVersions ? (
                 <Button size="sm" variant="outline" onClick={onOpenChapterVersions} className="w-full">

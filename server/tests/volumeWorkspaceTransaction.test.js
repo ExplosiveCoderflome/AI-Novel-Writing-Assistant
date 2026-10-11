@@ -420,3 +420,36 @@ test("persistActiveVolumeWorkspace writes explicit user conflict anchors", async
   assert.equal(updateCall[1].data.conflictLevel, 88);
   assert.equal(updateCall[1].data.conflictLevelSource, "user");
 });
+
+test("duplicate volume orders are rejected before reading or writing the database", async () => {
+  const {persistActiveVolumeWorkspace} = require("../dist/services/novel/volume/volumeWorkspacePersistence.js");
+  const document = createVolumeWorkspaceDocument();
+  document.volumes.push({...document.volumes[0], id: "volume-2", chapters: []});
+  let accesses = 0;
+  const tx = new Proxy({}, {get() { accesses++; throw new Error("database access forbidden"); }});
+  await assert.rejects(persistActiveVolumeWorkspace(tx, "novel-1", document, "version-1"), /重复的卷序号 1/);
+  assert.equal(accesses, 0);
+});
+
+test("duplicate chapter orders within a volume are rejected before database access", async () => {
+  const {persistActiveVolumeWorkspace} = require("../dist/services/novel/volume/volumeWorkspacePersistence.js");
+  const document = createVolumeWorkspaceDocument();
+  document.volumes[0].chapters.push({...document.volumes[0].chapters[0], id: "chapter-2"});
+  let accesses = 0;
+  const tx = new Proxy({}, {get() { accesses++; throw new Error("database access forbidden"); }});
+  await assert.rejects(persistActiveVolumeWorkspace(tx, "novel-1", document, "version-1"), /《第一卷》中存在重复的章节序号 1/);
+  assert.equal(accesses, 0);
+});
+
+test("chapter order one can be saved in different volumes", async () => {
+  const {persistActiveVolumeWorkspace} = require("../dist/services/novel/volume/volumeWorkspacePersistence.js");
+  const calls = [];
+  const tx = createVolumeWorkspaceTx(createExistingVolumeChapter(), calls);
+  tx.volumePlan.create = async (args) => calls.push(["volumePlan.create", args]);
+  const document = createVolumeWorkspaceDocument();
+  document.volumes.push({...document.volumes[0], id: "volume-2", sortOrder: 2, title: "第二卷",
+    chapters: [{...document.volumes[0].chapters[0], id: "chapter-2", volumeId: "volume-2"}]});
+  await persistActiveVolumeWorkspace(tx, "novel-1", document, "version-1");
+  assert.ok(calls.some(([name, args]) => name === "volumeChapterPlan.create" && args.data.volumeId === "volume-2" && args.data.chapterOrder === 1));
+  assert.ok(calls.some(([name]) => name === "novel.update"));
+});
